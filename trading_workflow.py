@@ -701,7 +701,87 @@ class TradingDayWorkflow:
             mfg_drawdown_20d = sector_health.get("high_end_manufacturing_20d", 0)
             result["checks"]["high_end_manufacturing_20d"] = mfg_drawdown_20d
 
-            # ---- 第3层：紧急响应协议 ----
+            # ---- 第2.5层：v7.1 多维度增强检测 ----")
+
+            # 2e. ETF资金流向检测
+            etf_signal = "neutral"
+            etf_net_flow = 0
+            try:
+                from utils.etf_flow_monitor import ETFFlowMonitor
+                etf_monitor = ETFFlowMonitor()
+                # 尝试从市场状态获取ETF资金流数据，若无则使用模拟输入
+                etf_data = market_state.get("etf_flows", {})
+                if etf_data:
+                    flow_signals = etf_monitor.detect_signals(etf_data)
+                    plan = etf_monitor.generate_trading_plan(flow_signals)
+                    etf_signal = plan.get("overall_signal", "neutral")
+                    etf_net_flow = plan.get("net_flow_billion", 0)
+                    result["checks"]["etf_flow_signal"] = etf_signal
+                    result["checks"]["etf_net_flow_billion"] = etf_net_flow
+                    logger.info(f"[ETF FLOW] 整体信号: {etf_signal}, 净流量: {etf_net_flow:.0f}亿")
+                else:
+                    logger.info("[ETF FLOW] 无ETF资金流数据，跳过此检查")
+                    result["checks"]["etf_flow"] = "skipped (no data)"
+            except ImportError:
+                logger.info("[ETF FLOW] ETF监控模块不可用，跳过")
+                result["checks"]["etf_flow"] = "skipped (module unavailable)"
+            except Exception as e:
+                logger.warning(f"[ETF FLOW] 检测异常: {e}")
+                result["checks"]["etf_flow_error"] = str(e)
+
+            # 2f. 实体经济热度检测
+            macro_heat = 50
+            macro_regime = "中性"
+            try:
+                from utils.real_economy_indicator import RealEconomyIndicator
+                macro_indicator = RealEconomyIndicator()
+                macro_data = market_state.get("macro_indicators", {})
+                if macro_data:
+                    score = macro_indicator.calculate_score(macro_data)
+                    regime, multiplier = macro_indicator.to_risk_signal(score)
+                    macro_heat = score
+                    macro_regime = regime
+                    result["checks"]["macro_heat_score"] = macro_heat
+                    result["checks"]["macro_regime"] = macro_regime
+                    logger.info(f"[MACRO] 实体经济热度: {macro_heat:.0f}, 状态: {macro_regime}")
+                else:
+                    logger.info("[MACRO] 无宏观指标数据，跳过此检查")
+                    result["checks"]["macro"] = "skipped (no data)"
+            except ImportError:
+                logger.info("[MACRO] 实体经济指标模块不可用，跳过")
+                result["checks"]["macro"] = "skipped (module unavailable)"
+            except Exception as e:
+                logger.warning(f"[MACRO] 检测异常: {e}")
+                result["checks"]["macro_error"] = str(e)
+
+            # 2g. 止损监控快速扫描
+            stop_loss_alerts = []
+            try:
+                from utils.stop_loss import StopLossMonitor
+                sl_monitor = StopLossMonitor()
+                positions_data = market_state.get("current_positions", {})
+                if positions_data:
+                    alert_results = sl_monitor.check_all(positions_data)
+                    triggered = [r for r in alert_results if r.get("alert_level") == "TRIGGERED"]
+                    critical = [r for r in alert_results if r.get("alert_level") == "CRITICAL"]
+                    if triggered:
+                        stop_loss_alerts.extend(triggered)
+                        for t in triggered:
+                            logger.warning(f"[STOP LOSS] 触发止损: {t.get('code')} {t.get('reason')}")
+                    if critical:
+                        for c in critical:
+                            logger.warning(f"[STOP LOSS] 接近止损: {c.get('code')} {c.get('reason')}")
+                    result["checks"]["stop_loss_triggered"] = len(triggered)
+                    result["checks"]["stop_loss_critical"] = len(critical)
+                    logger.info(f"[STOP LOSS] 触发: {len(triggered)}, 临界: {len(critical)}")
+                else:
+                    result["checks"]["stop_loss"] = "skipped (no position data)"
+            except ImportError:
+                result["checks"]["stop_loss"] = "skipped (module unavailable)"
+            except Exception as e:
+                logger.warning(f"[STOP LOSS] 检测异常: {e}")
+
+            # ---- 第3层：紧急响应协议 (v7.1 多维度增强) ----
             emergency_level = 0
             day_multiplier = 1.0
             actions = []
@@ -710,39 +790,63 @@ class TradingDayWorkflow:
             # ---- 极端预警：最高优先级，先于其他所有检查 ----
             # 触发条件：VIX>=50 或 5日累计跌幅>12% (相当于单日暴跌+恐慌扩散)
             #           或 20日累计跌幅>25% (系统性危机信号) 或 两融5日降幅>15%
+            #           v7.1: 宏观过热(>85)叠加ETF大幅流出(>100亿)亦触发极端
+            #           v7.1: 多个止损触发(>=3)说明组合已失控
             if (vix_proxy >= 50 or abs(ret_5d) > 0.12
-                    or abs(ret_20d) > 0.25 or margin_balance < -0.15):
+                    or abs(ret_20d) > 0.25 or margin_balance < -0.15
+                    or (macro_heat > 85 and etf_signal == "bearish" and abs(etf_net_flow) > 100)
+                    or len(stop_loss_alerts) >= 3):
                 emergency_level = 4
                 day_multiplier = 0.0
                 actions.append("EXTREME: 全部停止建仓，转入纯防御模式")
                 actions.append("EXTREME: 联系券商执行专项处置通道")
                 actions.append("EXTREME: 对所有已建仓位启用保护性止损")
+                if len(stop_loss_alerts) >= 3:
+                    actions.append(f"EXTREME: {len(stop_loss_alerts)}个标的触发止损，立即执行止损操作")
                 alerts.append(f"极端预警触发: VIX代理={vix_proxy:.0f}, 5日跌幅={ret_5d:.1%}, 20日跌幅={ret_20d:.1%}")
 
             # 红色预警：VIX>40 或 双周跌幅>15% 或 两融5日降幅>10%
-            elif vix_proxy > 40 or abs(ret_20d) > 0.15 or margin_balance < -0.10:
+            #           v7.1: ETF流出>50亿 或 宏观过热>80 亦触发
+            elif (vix_proxy > 40 or abs(ret_20d) > 0.15 or margin_balance < -0.10
+                  or (etf_signal == "bearish" and abs(etf_net_flow) > 50)
+                  or macro_heat > 80):
                 emergency_level = 3
                 day_multiplier = 0.0
                 actions.append("RED: 今日暂停建仓，所有新订单取消")
                 actions.append("RED: 现有仓位不动，密切监控止损条件")
                 actions.append("RED: 建议执行保护性期权对冲（科创50 Put）")
+                if etf_signal == "bearish":
+                    actions.append(f"RED: ETF净流出{abs(etf_net_flow):.0f}亿，主力机构撤退信号")
+                if macro_heat > 80:
+                    actions.append(f"RED: 宏观热度{macro_heat:.0f}({macro_regime})，经济过热风险")
                 alerts.append(f"红色预警触发: VIX={vix_proxy:.0f}, 20日跌幅={ret_20d:.1%}, 两融变动={margin_balance:.1%}")
 
             # 橙色预警：VIX>35 或 单周跌幅>8%
-            elif vix_proxy > 35 or abs(ret_5d) > 0.08:
+            #           v7.1: ETF流出>20亿 亦触发
+            elif (vix_proxy > 35 or abs(ret_5d) > 0.08
+                  or (etf_signal == "bearish" and abs(etf_net_flow) > 20)):
                 emergency_level = 2
                 day_multiplier = 0.0
                 actions.append("ORANGE: 今日暂停建仓，等待市场稳定")
                 actions.append("ORANGE: 密切监控已建仓位，准备减仓")
+                if etf_signal == "bearish":
+                    actions.append(f"ORANGE: ETF净流出{abs(etf_net_flow):.0f}亿，资金面偏空")
                 alerts.append(f"橙色预警触发: VIX={vix_proxy:.0f}, 5日跌幅={ret_5d:.1%}")
 
             # 黄色预警：VIX>30 或 单日跌幅>3% 或 两融5日降幅>5%
-            elif vix_proxy > 30 or abs(ret_5d / 5) > 0.03 or margin_balance < -0.05:
+            #           v7.1: ETF小幅流出 或 宏观偏冷(<30) 亦触发
+            elif (vix_proxy > 30 or abs(ret_5d / 5) > 0.03 or margin_balance < -0.05
+                  or (etf_signal == "bearish" and abs(etf_net_flow) > 5)
+                  or macro_heat < 30):
                 emergency_level = 1
                 day_multiplier = 0.50
                 actions.append("YELLOW: 建仓金额减半至50%")
                 actions.append("YELLOW: 增加现金储备比例")
                 actions.append("YELLOW: 仅执行高优先级（核心仓位）订单")
+                if etf_signal == "bearish":
+                    actions.append(f"YELLOW: ETF小幅净流出{abs(etf_net_flow):.0f}亿，保持警惕")
+                if macro_heat < 30:
+                    actions.append(f"YELLOW: 宏观偏冷({macro_heat:.0f}/{macro_regime})，经济下行拖累市场")
                 alerts.append(f"黄色预警触发: VIX={vix_proxy:.0f}, 近5日跌幅~{abs(ret_5d/5):.1%}, 两融变动={margin_balance:.1%}")
 
             # 行业集中度特殊检测：高端制造板块20日跌幅>15%
@@ -753,6 +857,31 @@ class TradingDayWorkflow:
                     actions.append("SECTOR: 高端制造板块跌幅超15%，建议减少该板块建仓比例")
                     actions.append("SECTOR: 考虑风格层面临时对冲（做空IC或买入Put）")
                 alerts.append(f"行业预警: 高端制造板块20日跌幅={mfg_drawdown_20d:.1%}")
+
+            # ---- v7.1: ETF流向与宏观背离信号检测（即使VIX较低） ----
+            if etf_signal == "bearish" and macro_heat > 70 and emergency_level < 1:
+                emergency_level = 1
+                day_multiplier = min(day_multiplier, 0.70)
+                actions.append(
+                    f"v7.1 DIVERGENCE: 宏观偏热({macro_heat:.0f})但ETF资金流出{abs(etf_net_flow):.0f}亿，"
+                    f"主力可能在获利了结，建仓金额缩减至70%")
+                alerts.append(f"背离信号: 宏观{macro_heat:.0f} vs ETF流出{abs(etf_net_flow):.0f}亿")
+
+            # ---- v7.1: 流动性风险快速评估 ----
+            try:
+                from utils.liquidity_risk import LiquidityRiskController
+                liq_ctrl = LiquidityRiskController()
+                positions_data = market_state.get("current_positions", {})
+                if positions_data:
+                    liq_score = liq_ctrl.assess_portfolio_liquidity(positions_data)
+                    result["checks"]["liquidity_score"] = liq_score.get("score", 1.0)
+                    if liq_score.get("score", 1.0) < 0.5:
+                        logger.warning(f"[LIQUIDITY] 组合流动性偏低: {liq_score.get('score', 1.0):.2f}")
+                        actions.append(f"LIQUIDITY: 组合流动性评分{liq_score.get('score', 1.0):.2f}，注意大单冲击成本")
+            except ImportError:
+                result["checks"]["liquidity"] = "skipped (module unavailable)"
+            except Exception as e:
+                logger.warning(f"[LIQUIDITY] 检测异常: {e}")
 
             # ---- 第4层：前瞻性压力测试集成 ----
             stress_passed = True

@@ -28,33 +28,72 @@ env/
 logs/
 *.log
 
-# Reports (generated trading reports)
+# ============================================================
+# SENSITIVE: Do NOT commit any of the following
+# ============================================================
+
+# Trading plans & strategies (personal/confidential)
+*建仓计划*
+*交易计划*
+*execution_plan*
+trade_orders_*
+execution_history*
+_portfolio_return*
+return_projection*
+institutional_trading_plan*
+
+# Configs (contain fund sizes, strategy parameters)
+configs/
+
+# Investment agent API config
+investment_agent/config/config.py
+
+# Second-brain (personal knowledge base)
+second-brain/
+
+# Deployment (contains credentials)
+deployment_and_execution.py
+monitor_dashboard.py
+
+# Generated reports
 reports/
 
-# Trade orders & execution artifacts
-trade_orders_*.json
-trade_orders_*.md
-*建仓计划*.json
-*建仓计划*.md
+# GLM predictions
+glm_*
 
-# Execution history
-execution_history*
+# Integration/internal summaries
+final_integration_summary.py
+integration_summary.txt
+integration_adapter.py
+simple_integration_summary.py
+system_integration_guide.py
+quant_system_integration_report.py
+quantitative_strategy_optimization_system.py
+performance_attribution_system.py
+final_integration_summary.py
+smart_hedge_trigger.py
+hedge_portfolio_manager.py
+quantitative_strategy_system.py
+run_quantitative_system.py
 
-# System temp files
-_system_check_temp.py
+# Internal verification
 _system_verify.py
+_system_check_temp.py
+quick_check.py
+test_system.py
 
-# Agent skills (installed locally, not part of source)
+# Agent skills & plugins
 .agents/
-
-# Second-brain memory data
-second-brain/config/memory.json
 
 # Environment & Secrets
 .env
 .env.local
 .env.*.local
 *.secret
+*.pem
+*.key
+*.p12
+*.pfx
 
 # OS
 Thumbs.db

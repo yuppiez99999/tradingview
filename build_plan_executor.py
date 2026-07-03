@@ -512,12 +512,13 @@ class BuildPlanExecutor:
 
     def get_emergency_protocol(self, market_state: Dict) -> Dict:
         """
-        获取紧急响应协议建议
+        获取紧急响应协议建议 (v7.1 增强版)
 
-        基于市场状态返回具体的防御性操作清单
+        基于市场状态 + ETF资金流向 + 宏观热度综合判断返回防御性操作清单
 
         Args:
-            market_state: 市场状态字典，包含 vix_proxy, index_return_20d 等
+            market_state: 市场状态字典，包含 vix_proxy, index_return_20d,
+                          etf_flows, macro_heat_score 等
 
         Returns:
             紧急协议字典，包含建议操作和优先级
@@ -529,18 +530,34 @@ class BuildPlanExecutor:
         mfg_dd = market_state.get("sector_health", {}).get(
             "high_end_manufacturing_20d", 0)
 
+        # ---- v7.1 新增维度 ----
+        # ETF资金流向信号
+        etf_flows = market_state.get("etf_flows", {})
+        etf_signal = etf_flows.get("overall_signal", "neutral")  # bullish/bearish/neutral
+        etf_net_flow = etf_flows.get("net_flow_billion", 0)       # 净流入/出（亿）
+
+        # 宏观实体经济热度 (0~100, >80=过热, <30=过冷)
+        macro_heat = market_state.get("macro_heat_score", 50)
+        macro_regime = market_state.get("macro_regime", "中性")
+
         protocol = {
             "level": 0,
             "level_name": "NORMAL",
             "day_capital_multiplier": 1.0,
             "actions": [],
             "hedge_suggestions": [],
+            # v7.1 新增字段
+            "etf_signal": etf_signal,
+            "macro_heat_score": macro_heat,
+            "macro_regime": macro_regime,
         }
 
         # ---- 极端：最高优先级 ----
         # VIX>=50 或 5日跌幅>12% 或 20日跌幅>25% 或 两融降>15%
+        # v7.1: 宏观过热(>85)叠加ETF大幅流出亦触发极端
         if (vix >= 50 or abs(ret_5d) > 0.12
-                or abs(ret_20d) > 0.25 or margin_chg < -0.15):
+                or abs(ret_20d) > 0.25 or margin_chg < -0.15
+                or (macro_heat > 85 and etf_signal == "bearish" and etf_net_flow < -100)):
             protocol["level"] = 4
             protocol["level_name"] = "EXTREME"
             protocol["day_capital_multiplier"] = 0.0
@@ -552,10 +569,19 @@ class BuildPlanExecutor:
                 "5. 增加现金比例至30%以上",
                 "6. 转入纯防御模式：仅持有国债ETF+黄金+现金",
             ]
+            if macro_heat > 85:
+                protocol["actions"].append(
+                    f"7. 宏观预警: 实体经济热度{macro_heat:.0f}，处于过热区间({macro_regime})")
+            if etf_signal == "bearish":
+                protocol["actions"].append(
+                    f"8. 资金预警: 国家队ETF净流出{abs(etf_net_flow):.0f}亿，主力撤离信号")
             protocol["hedge_suggestions"] = self._get_hedge_suggestions("extreme")
 
         # 红色：VIX>40 或 双周>15% 或 两融降>10%
-        elif vix > 40 or abs(ret_20d) > 0.15 or margin_chg < -0.10:
+        # v7.1: ETF持续流出（净流出>50亿）或宏观过热亦触发红色
+        elif (vix > 40 or abs(ret_20d) > 0.15 or margin_chg < -0.10
+              or (etf_signal == "bearish" and etf_net_flow < -50)
+              or macro_heat > 80):
             protocol["level"] = 3
             protocol["level_name"] = "CRITICAL"
             protocol["day_capital_multiplier"] = 0.0
@@ -566,10 +592,18 @@ class BuildPlanExecutor:
                 "4. 提高债券ETF和现金权重至组合25%",
                 "5. 监控两融余额变化，若继续恶化则启动极端协议",
             ]
+            if etf_signal == "bearish":
+                protocol["actions"].append(
+                    f"6. 资金面预警: ETF净流出{abs(etf_net_flow):.0f}亿，主力机构在撤退")
+            if macro_heat > 80:
+                protocol["actions"].append(
+                    f"7. 宏观预警: 实体经济热度{macro_heat:.0f}({macro_regime})，注意过热回调风险")
             protocol["hedge_suggestions"] = self._get_hedge_suggestions("critical")
 
         # 橙色：VIX>35 或 单周>8%
-        elif vix > 35 or abs(ret_5d) > 0.08:
+        # v7.1: ETF小幅流出（净流出>20亿）亦触发橙色
+        elif (vix > 35 or abs(ret_5d) > 0.08
+              or (etf_signal == "bearish" and etf_net_flow < -20)):
             protocol["level"] = 2
             protocol["level_name"] = "HIGH"
             protocol["day_capital_multiplier"] = 0.0
@@ -579,10 +613,16 @@ class BuildPlanExecutor:
                 "3. 如高端制造板块单周跌幅>5%，启动行业轮出",
                 "4. 准备科创50虚值Put（行权价=当前价×0.90）",
             ]
+            if etf_signal == "bearish":
+                protocol["actions"].append(
+                    f"5. 资金面: ETF净流出{abs(etf_net_flow):.0f}亿，关注持续性")
             protocol["hedge_suggestions"] = self._get_hedge_suggestions("high")
 
         # 黄色：VIX>30 或 单日>3% 或 两融降>5%
-        elif vix > 30 or abs(ret_5d / 5) > 0.03 or margin_chg < -0.05:
+        # v7.1: ETF小幅流出或宏观偏冷也触发黄色
+        elif (vix > 30 or abs(ret_5d / 5) > 0.03 or margin_chg < -0.05
+              or (etf_signal == "bearish" and etf_net_flow < -5)
+              or macro_heat < 30):
             protocol["level"] = 1
             protocol["level_name"] = "MEDIUM"
             protocol["day_capital_multiplier"] = 0.50
@@ -592,6 +632,12 @@ class BuildPlanExecutor:
                 "3. 增加现金储备至10-15%",
                 "4. 关注高端制造板块止盈/止损触发条件",
             ]
+            if etf_signal == "bearish":
+                protocol["actions"].append(
+                    f"5. 资金面: ETF小幅净流出{abs(etf_net_flow):.0f}亿，保持警惕")
+            if macro_heat < 30:
+                protocol["actions"].append(
+                    f"6. 宏观预警: 实体经济偏冷({macro_heat:.0f})，注意经济下行对市场的拖累")
             protocol["hedge_suggestions"] = self._get_hedge_suggestions("medium")
 
         # 行业集中度特殊检测
@@ -600,6 +646,14 @@ class BuildPlanExecutor:
             protocol["level_name"] = "HIGH"
             protocol["actions"].append(
                 f"行业预警: 高端制造板块20日回撤{mfg_dd:.1%}，建议启动风格对冲")
+
+        # v7.1: ETF流向与宏观背离信号检测（即使VIX较低也可能有隐忧）
+        if etf_signal == "bearish" and macro_heat > 70 and protocol["level"] < 1:
+            protocol["level"] = max(protocol["level"], 1)
+            protocol["day_capital_multiplier"] = min(protocol["day_capital_multiplier"], 0.70)
+            protocol["actions"].append(
+                f"背离信号: 宏观偏热({macro_heat:.0f})但ETF资金流出{abs(etf_net_flow):.0f}亿，"
+                f"主力可能在获利了结")
 
         return protocol
 

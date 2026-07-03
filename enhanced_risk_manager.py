@@ -1373,9 +1373,20 @@ class StressTestEngine:
 class EnhancedRiskManager:
     """
     增强风险管理系统 - 主控制器
+
+    v7.1 新增：
+    - 实体经济指标集成（RealEconomyIndicator）
+    - 流动性风险控制（LiquidityRiskController）
+    - 止损止盈监控联动（StopLossMonitor）
+    - 多因子信号增强（FactorModel）
     """
     
-    def __init__(self, total_capital: float = 1000000):
+    def __init__(self, total_capital: float = 1000000,
+                 enable_macro_indicator: bool = True,
+                 enable_liquidity_control: bool = True,
+                 enable_stop_loss: bool = True,
+                 enable_factor_model: bool = True,
+                 enable_etf_flow: bool = True):
         self.total_capital = total_capital
         
         # 初始化组件
@@ -1383,6 +1394,61 @@ class EnhancedRiskManager:
         self.risk_budget_optimizer = RiskBudgetOptimizer()
         self.stress_test_engine = StressTestEngine()
         
+        # v7.1 新增：宏观实体经济指标
+        self.enable_macro_indicator = enable_macro_indicator
+        self.real_economy_indicator = None
+        if enable_macro_indicator:
+            try:
+                from utils.real_economy_indicator import RealEconomyIndicator
+                self.real_economy_indicator = RealEconomyIndicator()
+                logger.info("实体经济指标模块已加载")
+            except ImportError:
+                logger.warning("实体经济指标模块加载失败，将跳过宏观维度评估")
+
+        # v7.1 新增：流动性风险控制
+        self.enable_liquidity_control = enable_liquidity_control
+        self.liquidity_controller = None
+        if enable_liquidity_control:
+            try:
+                from utils.liquidity_risk import LiquidityRiskController
+                self.liquidity_controller = LiquidityRiskController()
+                logger.info("流动性风险控制模块已加载")
+            except ImportError:
+                logger.warning("流动性风险控制模块加载失败")
+
+        # v7.1 新增：止损止盈监控
+        self.enable_stop_loss = enable_stop_loss
+        self.stop_loss_monitor = None
+        if enable_stop_loss:
+            try:
+                from utils.stop_loss import StopLossMonitor
+                self.stop_loss_monitor = StopLossMonitor()
+                logger.info("止损止盈监控模块已加载")
+            except ImportError:
+                logger.warning("止损止盈监控模块加载失败")
+
+        # v7.1 新增：多因子模型
+        self.enable_factor_model = enable_factor_model
+        self.factor_model = None
+        if enable_factor_model:
+            try:
+                from utils.factor_model import FactorModel
+                self.factor_model = FactorModel()
+                logger.info("五维因子模型模块已加载")
+            except ImportError:
+                logger.warning("因子模型模块加载失败")
+
+        # v7.1 新增：ETF资金流向监控
+        self.enable_etf_flow = enable_etf_flow
+        self.etf_flow_monitor = None
+        if enable_etf_flow:
+            try:
+                from utils.etf_flow_monitor import ETFFlowMonitor
+                self.etf_flow_monitor = ETFFlowMonitor()
+                logger.info("ETF资金流向监控模块已加载")
+            except ImportError:
+                logger.warning("ETF资金流向监控模块加载失败")
+
         # 风险管理状态
         self.risk_management_enabled = True
         self.risk_levels = {
@@ -1395,7 +1461,99 @@ class EnhancedRiskManager:
         # 管理历史
         self.risk_management_history = deque(maxlen=100)
         
-        logger.info(f"增强风险管理系统初始化完成，总资本: {total_capital:,.0f}元")
+        logger.info(f"增强风险管理系统 v7.1 初始化完成，总资本: {total_capital:,.0f}元")
+
+    def assess_macro_economy(self, price_data: Dict = None) -> Dict:
+        """
+        使用实体经济指标评估宏观环境。
+
+        如果提供了7种工业品价格数据，返回经济热度评估；
+        否则返回中性评估。
+
+        Returns:
+            {'score': float, 'level': str, 'regime': str, 'multiplier': float}
+        """
+        if not self.enable_macro_indicator or self.real_economy_indicator is None:
+            return {'score': 50.0, 'level': '正常', 'regime': 'normal', 'multiplier': 1.0}
+
+        if price_data is None:
+            return {'score': 50.0, 'level': '正常', 'regime': 'normal', 'multiplier': 1.0,
+                    'note': '无实际数据，使用默认中性评估'}
+
+        try:
+            result = self.real_economy_indicator.calculate_indicator(price_data)
+            regime, multiplier = self.real_economy_indicator.to_risk_signal(
+                result['overall_score']
+            )
+            return {
+                'score': result['overall_score'],
+                'level': result['level'],
+                'description': result['description'],
+                'regime': regime,
+                'multiplier': multiplier,
+                'sub_scores': result.get('sub_scores', {}),
+            }
+        except Exception as e:
+            logger.warning(f"宏观评估失败: {e}")
+            return {'score': 50.0, 'level': '正常', 'regime': 'normal', 'multiplier': 1.0,
+                    'error': str(e)}
+
+    def assess_stop_loss(self, rules: List[Dict] = None, quotes: Dict = None) -> Dict:
+        """
+        运行止损止盈监控，返回高风险标的汇总。
+        Returns: {'triggered': [], 'critical': [], 'warning': [], 'normal': int}
+        """
+        if not self.enable_stop_loss or self.stop_loss_monitor is None:
+            return {'triggered': [], 'critical': [], 'warning': [], 'normal': 0, 'note': '模块未启用'}
+        if not rules or not quotes:
+            return {'triggered': [], 'critical': [], 'warning': [], 'normal': 0, 'note': '无数据'}
+        try:
+            alerts = self.stop_loss_monitor.check_all(rules, quotes)
+            result = {'triggered': [], 'critical': [], 'warning': [], 'normal': 0}
+            for a in alerts:
+                lv = a.get('alert_level', 'normal')
+                if lv == 'triggered':
+                    result['triggered'].append({'code': a['code'], 'name': a.get('name', ''),
+                                                 'action': a.get('action_suggestion', '')})
+                elif lv == 'critical':
+                    result['critical'].append({'code': a['code'], 'name': a.get('name', ''),
+                                                'action': a.get('action_suggestion', '')})
+                elif lv == 'warning':
+                    result['warning'].append({'code': a['code'], 'name': a.get('name', '')})
+                else:
+                    result['normal'] += 1
+            return result
+        except Exception as e:
+            logger.warning(f"止损监控检查失败: {e}")
+            return {'triggered': [], 'critical': [], 'warning': [], 'normal': 0, 'error': str(e)}
+
+    def assess_etf_flow(self, flow_data: Dict = None) -> Dict:
+        """运行ETF资金流向监控。"""
+        if not self.enable_etf_flow or self.etf_flow_monitor is None:
+            return {'signal': 'neutral', 'note': '模块未启用'}
+        if not flow_data:
+            return {'signal': 'neutral', 'note': '无数据'}
+        try:
+            signals = self.etf_flow_monitor.detect_signals(flow_data)
+            plan = self.etf_flow_monitor.generate_trading_plan(signals)
+            return plan
+        except Exception as e:
+            logger.warning(f"ETF资金流向评估失败: {e}")
+            return {'signal': 'neutral', 'error': str(e)}
+
+    def assess_factor_signals(self, klines: Dict = None, fundamentals: Dict = None) -> Dict:
+        """运行五维因子模型。"""
+        if not self.enable_factor_model or self.factor_model is None:
+            return {'signal': 'hold', 'note': '模块未启用'}
+        if not klines:
+            return {'signal': 'hold', 'note': '无K线数据'}
+        try:
+            import pandas as pd
+            results = self.factor_model.evaluate(klines, fundamentals=fundamentals)
+            return self.factor_model.generate_signal(results)
+        except Exception as e:
+            logger.warning(f"因子模型评估失败: {e}")
+            return {'signal': 'hold', 'error': str(e)}
     
     def enable_risk_management(self):
         """启用风险管理"""
@@ -1432,6 +1590,27 @@ class EnhancedRiskManager:
             # 1. 实时风险监控
             risk_summary = self.risk_monitor.get_risk_summary()
             logger.info(f"当前风险状态: {risk_summary['current_risk_level']}")
+
+            # 1.5 v7.1 新增：宏观实体经济评估
+            macro_assessment = self.assess_macro_economy(
+                market_data.get('industrial_prices') if market_data else None
+            )
+            logger.info(f"宏观评估: {macro_assessment.get('level', 'N/A')} "
+                       f"(评分: {macro_assessment.get('score', 'N/A')})")
+
+            # 1.6 v7.1 新增：ETF资金流向监控
+            etf_flow_assessment = self.assess_etf_flow(
+                market_data.get('etf_flows') if market_data else None
+            )
+            logger.info(f"ETF资金流向: {etf_flow_assessment.get('overall_signal', 'N/A')}")
+
+            # 1.7 v7.1 新增：多因子信号
+            factor_signals = self.assess_factor_signals(
+                klines=market_data.get('klines') if market_data else None,
+                fundamentals=market_data.get('fundamentals') if market_data else None
+            )
+            logger.info(f"因子信号: {factor_signals.get('signal', 'N/A')} "
+                       f"(avg={factor_signals.get('avg_composite', 'N/A')})")
             
             # 2. 风险预算优化
             budget_optimization = self.risk_budget_optimizer.optimize_risk_budget(
@@ -1444,10 +1623,19 @@ class EnhancedRiskManager:
                 portfolio_data, market_data
             )
             logger.info(f"压力测试完成: {stress_test['success']}")
+
+            # 3.5 v7.1 新增：止损止盈监控
+            stop_loss_alerts = self.assess_stop_loss(
+                rules=market_data.get('stop_loss_rules') if market_data else None,
+                quotes=market_data.get('quotes') if market_data else None
+            )
+            if stop_loss_alerts.get('triggered'):
+                logger.warning(f"止损触发: {len(stop_loss_alerts['triggered'])} 只标的")
             
-            # 4. 风险决策
+            # 4. 风险决策（v7.1：引入宏观+ETF+因子+止损维度）
             risk_decision = self._make_risk_decision(
-                risk_summary, budget_optimization, stress_test
+                risk_summary, budget_optimization, stress_test,
+                macro_assessment, etf_flow_assessment, factor_signals, stop_loss_alerts
             )
             logger.info(f"风险决策: {risk_decision['action']}")
             
@@ -1474,6 +1662,10 @@ class EnhancedRiskManager:
             return {
                 'success': True,
                 'risk_summary': risk_summary,
+                'macro_assessment': macro_assessment,
+                'etf_flow_assessment': etf_flow_assessment,
+                'factor_signals': factor_signals,
+                'stop_loss_alerts': stop_loss_alerts,
                 'budget_optimization': budget_optimization,
                 'stress_test': stress_test,
                 'risk_decision': risk_decision,
@@ -1489,8 +1681,12 @@ class EnhancedRiskManager:
             }
     
     def _make_risk_decision(self, risk_summary: Dict, 
-                          budget_optimization: Dict, stress_test: Dict) -> Dict:
-        """做出风险决策"""
+                          budget_optimization: Dict, stress_test: Dict,
+                          macro_assessment: Dict = None,
+                          etf_flow_assessment: Dict = None,
+                          factor_signals: Dict = None,
+                          stop_loss_alerts: Dict = None) -> Dict:
+        """做出风险决策（v7.1：整合宏观+ETF+因子+止损多维度）"""
         decision = {
             'risk_level': risk_summary['current_risk_level'],
             'action': 'continue',
@@ -1521,6 +1717,61 @@ class EnhancedRiskManager:
                 'priority': 'medium',
                 'measures': ['monitor_closely', 'review_allocation', 'adjust_hedges']
             })
+
+        # v7.1：基于宏观实体经济评估调整决策
+        if macro_assessment:
+            macro_regime = macro_assessment.get('regime', 'normal')
+            macro_multiplier = macro_assessment.get('multiplier', 1.0)
+
+            if macro_regime == 'recession' and decision['priority'] != 'critical':
+                decision['priority'] = 'high'
+                decision['measures'].append('macro_recession_hedge')
+                logger.warning(f"宏观信号：衰退 (评分{macro_assessment.get('score')})，提升风险等级")
+            elif macro_regime == 'overheat':
+                decision['measures'].append('macro_overheat_defense')
+                logger.warning(f"宏观信号：过热 (评分{macro_assessment.get('score')})，建议防御配置")
+            elif macro_regime == 'warm':
+                decision['measures'].append('macro_warm_offensive')
+                logger.info(f"宏观信号：偏热 (评分{macro_assessment.get('score')})，可适度进攻")
+
+            decision['macro_regime'] = macro_regime
+            decision['macro_multiplier'] = macro_multiplier
+
+        # v7.1：基于ETF资金流向调整决策
+        if etf_flow_assessment:
+            flow_signal = etf_flow_assessment.get('overall_signal', 'neutral')
+            if flow_signal == 'strong_bullish' and decision['priority'] == 'low':
+                decision['measures'].append('etf_flow_bullish_bias')
+            elif flow_signal == 'bearish' and decision['priority'] not in ('critical', 'high'):
+                decision['priority'] = 'medium'
+                decision['measures'].append('etf_flow_bearish_caution')
+            if etf_flow_assessment.get('risk_warnings'):
+                decision['measures'].append('etf_outflow_alert')
+            decision['etf_flow_signal'] = flow_signal
+
+        # v7.1：基于因子模型信号调整决策
+        if factor_signals:
+            factor_signal = factor_signals.get('signal', 'hold')
+            if factor_signal in ('strong_sell', 'sell') and decision['priority'] not in ('critical', 'high'):
+                decision['priority'] = 'medium'
+                decision['measures'].append('factor_bearish_reduce')
+            elif factor_signal == 'strong_buy':
+                decision['measures'].append('factor_bullish_confirm')
+            decision['factor_signal'] = factor_signal
+
+        # v7.1：基于止损监控结果调整决策
+        if stop_loss_alerts:
+            triggered = stop_loss_alerts.get('triggered', [])
+            critical = stop_loss_alerts.get('critical', [])
+            if triggered:
+                decision['priority'] = 'high'
+                decision['measures'].append('execute_stop_loss_immediately')
+                decision['triggered_stocks'] = [t['code'] for t in triggered]
+                logger.warning(f"止损触发，需立即操作: {decision['triggered_stocks']}")
+            elif critical:
+                decision['priority'] = 'medium'
+                decision['measures'].append('prepare_stop_loss')
+                decision['critical_stocks'] = [c['code'] for c in critical]
         
         # 基于压力测试结果调整决策
         if stress_test['success'] and stress_test['assessment']:
@@ -1547,13 +1798,13 @@ class EnhancedRiskManager:
                 decision['measures'].append('reduce_leverage')
         
         # 基于预算优化结果调整决策
-        if budget_optimization['success']:
-            optimization = budget_optimization['optimization_result']
+        if budget_optimization.get('success'):
+            optimization = budget_optimization.get('optimization_result', {})
             
-            if not optimization.get('risk_control_achieved', False):
+            if not optimization.get('risk_control_achieved', True):
                 decision['measures'].append('adjust_risk_budgets')
             
-            if not optimization.get('diversification_achieved', False):
+            if not optimization.get('diversification_achieved', True):
                 decision['measures'].append('improve_diversification')
         
         return decision

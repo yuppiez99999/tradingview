@@ -1,24 +1,33 @@
 # -*- coding: utf-8 -*-
 """
-v7.0.1 July 6 Complete Execution Script
+v7.1 July 6 Complete Execution Script
 ========================================
-建仓首日完整流程: 增强风控 -> 订单生成 -> 交易指令 -> 报告输出
+建仓首日完整流程: 多维度评估 -> 增强风控 -> 订单生成 -> 交易指令 -> 报告输出
+v7.1 新增：实体经济指标、ETF资金流向、多因子模型、止损监控、流动性风控
 """
 import sys, os, json
 sys.path.insert(0, '.')
 
 from datetime import date
 from build_plan_executor import BuildPlanExecutor
-from enhanced_risk_manager import StressTestEngine
+from enhanced_risk_manager import StressTestEngine, EnhancedRiskManager
 
 print("=" * 60)
-print("v7.0.1 COMPLETE EXECUTION - July 6, 2026")
-print("500万建仓首日 + 增强风控 + 紧急响应协议")
+print("v7.1 COMPLETE EXECUTION - July 6, 2026")
+print("500万建仓首日 + 多维度风控 + 紧急响应协议")
 print("=" * 60)
 
 # ---- Step 1: Initialize ----
-print("\n[1/5] Initializing Build Plan Executor...")
+print("\n[1/5] Initializing Build Plan Executor + EnhancedRiskManager v7.1...")
 executor = BuildPlanExecutor()
+risk_manager = EnhancedRiskManager(
+    total_capital=5_000_000,
+    enable_macro_indicator=True,
+    enable_liquidity_control=True,
+    enable_stop_loss=True,
+    enable_factor_model=True,
+    enable_etf_flow=True,
+)
 plan_data = executor.plan_data
 total_capital = plan_data["metadata"]["total_capital"]
 print(f"  Total Capital: {total_capital:,.0f} RMB")
@@ -27,10 +36,10 @@ phase_info, phase_idx, phase_status = executor.get_active_phase(date(2026, 7, 6)
 print(f"  Phase: {phase_info['name']} ({phase_status})")
 print(f"  Phase Capital: {phase_info['capital_amount']:,.0f} RMB")
 
-# ---- Step 2: Enhanced Risk Assessment ----
-print("\n[2/5] Enhanced Risk Assessment (v2.0 Emergency Protocol)...")
+# ---- Step 2: Multi-Dimensional Risk Assessment (v7.1 enhanced) ----
+print("\n[2/5] Multi-Dimensional Risk Assessment (v7.1)...")
 
-# Fetch market state (currently using defaults, ready for real data)
+# Build market_state with all new data channels
 market_state = {
     'vix_proxy': 22.0,
     'volatility': 0.18,
@@ -42,12 +51,32 @@ market_state = {
         'high_end_manufacturing_20d': -0.05,
         'semiconductor_20d': -0.02,
     },
+    # v7.1: 新增数据通道
+    'etf_flows': {
+        '510050': 5.2, '510300': 3.0, '588000': 8.5, '512760': 2.1,
+        '512880': -1.5, '512800': 0.8, '518880': -2.0,
+    },
+    'stop_loss_rules': None,    # 建仓首日无持仓，无需止损规则
+    'quotes': None,             # 可从 Wind 实时获取
+    'klines': None,             # 可从 parquet 缓存加载
+    'fundamentals': None,       # PE/PB/ROE 等基本面数据
 }
 print(f"  VIX Proxy: {market_state['vix_proxy']:.0f}")
 print(f"  5d Return: {market_state['index_return_5d']:.1%}")
 print(f"  20d Return: {market_state['index_return_20d']:.1%}")
-print(f"  Margin Change (5d): {market_state['margin_balance_change']:.1%}")
+print(f"  ETF Flow Channels: {len(market_state['etf_flows'])}")
 
+# Run v7.1 risk management cycle (covers macro + ETF + factor + stop-loss)
+print("\n  Running EnhancedRiskManager v7.1 cycle...")
+risk_result = risk_manager.run_risk_management_cycle(
+    market_data=market_state,
+    portfolio_data={'positions': {}, 'total_value': total_capital},
+    performance_data={'day_return': 0.0}
+)
+print(f"  Risk Decision: {risk_result.get('risk_decision', {}).get('action', 'N/A')}")
+print(f"  Priority: {risk_result.get('risk_decision', {}).get('priority', 'N/A')}")
+
+# Also run emergency protocol for build plan
 protocol = executor.get_emergency_protocol(market_state)
 print(f"  Emergency Level: {protocol['level_name']} (L{protocol['level']})")
 print(f"  Capital Multiplier: {protocol['day_capital_multiplier']:.0%}")

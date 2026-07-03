@@ -1103,10 +1103,21 @@ class ComprehensiveQuantSystemV7:
         # 核心引擎
         self.hedge_manager = ComprehensiveHedgeManager(total_capital)
 
+        # ---- v7.1 新增模块（懒加载） ----
+        self.macro_indicator = None        # 实体经济指标
+        self.liquidity_controller = None   # 流动性风险控制
+        self.stop_loss_monitor = None      # 止损监控
+        self.factor_model = None           # 五因子模型
+        self.backtest_engine = None        # 增强回测引擎
+        self.etf_flow_monitor = None       # ETF资金流向监控
+
+        # 尝试加载v7.1扩展模块
+        self._init_v71_modules()
+
         # 配置参数
         self.config = {
-            'version': '7.0',
-            'name': '综合量化策略系统优化版',
+            'version': '7.1',
+            'name': '综合量化策略系统优化版 v7.1',
             'total_capital': total_capital,
             'equity_allocation': self.equity_allocation,
             'hedge_allocation': self.hedge_allocation,
@@ -1120,6 +1131,12 @@ class ComprehensiveQuantSystemV7:
             'enable_vol_arbitrage': True,
             'enable_covered_write': True,
             'enable_absolute_return': True,
+            # v7.1 新增
+            'enable_macro_indicator': True,
+            'enable_liquidity_risk': True,
+            'enable_stop_loss_monitor': True,
+            'enable_factor_model': True,
+            'enable_etf_flow_monitor': True,
         }
 
         # 系统状态
@@ -1130,6 +1147,11 @@ class ComprehensiveQuantSystemV7:
             'ytd_return': 0.0,
             'current_beta': 0.0,
             'current_hedge_ratio': 0.0,
+            # v7.1 新增
+            'macro_heat_score': 50.0,
+            'macro_regime': '中性',
+            'liquidity_score': 1.0,
+            'etf_flow_signal': 'neutral',
         }
 
         # 预期收益分解
@@ -1146,10 +1168,54 @@ class ComprehensiveQuantSystemV7:
             'net_expected': 0.115           # 净预期: 11.5%
         }
 
+    def _init_v71_modules(self):
+        """懒加载v7.1扩展模块"""
+        # 实体经济指标
+        try:
+            from utils.real_economy_indicator import RealEconomyIndicator
+            self.macro_indicator = RealEconomyIndicator()
+        except ImportError:
+            pass
+
+        # 流动性风险控制
+        try:
+            from utils.liquidity_risk import LiquidityRiskController
+            self.liquidity_controller = LiquidityRiskController()
+        except ImportError:
+            pass
+
+        # 止损监控
+        try:
+            from utils.stop_loss import StopLossMonitor
+            self.stop_loss_monitor = StopLossMonitor()
+        except ImportError:
+            pass
+
+        # 因子模型
+        try:
+            from utils.factor_model import FactorModel
+            self.factor_model = FactorModel()
+        except ImportError:
+            pass
+
+        # ETF资金流向监控
+        try:
+            from utils.etf_flow_monitor import ETFFlowMonitor
+            self.etf_flow_monitor = ETFFlowMonitor()
+        except ImportError:
+            pass
+
+        # 增强回测引擎（需要portfolio_config，延迟实例化，仅导入类）
+        try:
+            from utils.enhanced_backtest import EnhancedBacktestEngine
+            self._backtest_engine_class = EnhancedBacktestEngine
+        except ImportError:
+            self._backtest_engine_class = None
+
     def print_system_info(self):
-        """打印系统信息"""
+        """打印系统信息 (v7.1)"""
         print("\n" + "=" * 70)
-        print("  综合量化策略系统 v7.0 — 期货+期权双层对冲优化版")
+        print("  综合量化策略系统 v7.1 — 期货+期权双层对冲 + 多维度增强版")
         print("=" * 70)
         print(f"  总资金:     {self.total_capital:,.0f} 元")
         print(f"  权益配置:   {self.total_capital * self.equity_allocation:,.0f} 元 ({self.equity_allocation:.0%})")
@@ -1161,6 +1227,14 @@ class ComprehensiveQuantSystemV7:
         print(f"    Layer 3 — 波动率对冲/套利:   {self.total_capital * 0.08:,.0f} (8%)")
         print(f"    Layer 4 — 绝对收益/市场中性: {self.total_capital * 0.07:,.0f} (7%)")
         print(f"    Layer 5 — 备兑开仓增强:      {self.total_capital * 0.05:,.0f} (5%)")
+        print("-" * 70)
+        print("  v7.1 增强模块状态:")
+        macros = ["实体经济指标", "流动性风控", "止损监控", "因子模型", "ETF资金流向", "增强回测"]
+        attrs = ["macro_indicator", "liquidity_controller", "stop_loss_monitor",
+                 "factor_model", "etf_flow_monitor", "backtest_engine"]
+        for name, attr in zip(macros, attrs):
+            status = "ON" if getattr(self, attr, None) else "OFF"
+            print(f"    {name:16s}: {status}")
         print("-" * 70)
         print("  预期收益归因:")
         for component, expected in self.expected_return_breakdown.items():
