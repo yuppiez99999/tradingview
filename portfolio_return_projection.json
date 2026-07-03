@@ -1,0 +1,255 @@
+{
+  "generated_at": "2026-07-03T19:05:56.627804",
+  "investment_horizon": "2026-07-06 → 2027-12-31",
+  "horizon_years": 1.5,
+  "initial_capital": 5000000,
+  "scenarios": {
+    "bull": {
+      "label": "乐观 (牛市)",
+      "weighted_annualized": 41.23,
+      "cumulative_return": 67.84,
+      "final_amount": 8391925.0,
+      "total_profit": 3391925.0,
+      "style_breakdown": {
+        "高端制造": {
+          "weight": 0.6419,
+          "weighted_return": 31.9195,
+          "effective_return": 49.72659292724723
+        },
+        "防御": {
+          "weight": 0.17080000000000004,
+          "weighted_return": 3.8582500000000004,
+          "effective_return": 22.58928571428571
+        },
+        "资源": {
+          "weight": 0.1236,
+          "weighted_return": 4.1765,
+          "effective_return": 33.79045307443366
+        },
+        "顺周期": {
+          "weight": 0.0638,
+          "weighted_return": 1.2759999999999998,
+          "effective_return": 20.0
+        }
+      }
+    },
+    "base": {
+      "label": "基准 (中性)",
+      "weighted_annualized": 22.1,
+      "cumulative_return": 34.92,
+      "final_amount": 6746024.0,
+      "total_profit": 1746024.0,
+      "style_breakdown": {
+        "高端制造": {
+          "weight": 0.6419,
+          "weighted_return": 16.65705,
+          "effective_return": 25.949602741860105
+        },
+        "防御": {
+          "weight": 0.17080000000000004,
+          "weighted_return": 2.8935750000000002,
+          "effective_return": 16.941305620608897
+        },
+        "资源": {
+          "weight": 0.1236,
+          "weighted_return": 2.0717,
+          "effective_return": 16.76132686084142
+        },
+        "顺周期": {
+          "weight": 0.0638,
+          "weighted_return": 0.4785,
+          "effective_return": 7.5
+        }
+      }
+    },
+    "bear": {
+      "label": "悲观 (熊市)",
+      "weighted_annualized": -33.64,
+      "cumulative_return": -45.94,
+      "final_amount": 2703044.0,
+      "total_profit": -2296956.0,
+      "style_breakdown": {
+        "高端制造": {
+          "weight": 0.6419,
+          "weighted_return": -26.051700000000004,
+          "effective_return": -40.58529365944852
+        },
+        "防御": {
+          "weight": 0.17080000000000004,
+          "weighted_return": -3.493,
+          "effective_return": -20.450819672131143
+        },
+        "资源": {
+          "weight": 0.1236,
+          "weighted_return": -2.9445,
+          "effective_return": -23.822815533980584
+        },
+        "顺周期": {
+          "weight": 0.0638,
+          "weighted_return": -1.1483999999999999,
+          "effective_return": -18.0
+        }
+      }
+    },
+    "black_swan": {
+      "label": "黑天鹅 (极端)",
+      "weighted_annualized": -50.24,
+      "cumulative_return": -64.9,
+      "final_amount": 1755031.0,
+      "total_profit": -3244969.0,
+      "style_breakdown": {
+        "高端制造": {
+          "weight": 0.6419,
+          "weighted_return": -38.516600000000004,
+          "effective_return": -60.0040504751519
+        },
+        "防御": {
+          "weight": 0.17080000000000004,
+          "weighted_return": -5.56555,
+          "effective_return": -32.58518735362997
+        },
+        "资源": {
+          "weight": 0.1236,
+          "weighted_return": -4.2443,
+          "effective_return": -34.33899676375405
+        },
+        "顺周期": {
+          "weight": 0.0638,
+          "weighted_return": -1.914,
+          "effective_return": -30.0
+        }
+      }
+    }
+  },
+  "probability_weights": {
+    "bull": 0.2,
+    "base": 0.4,
+    "bear": 0.3,
+    "black_swan": 0.1
+  },
+  "expected": {
+    "expected_annualized": 1.97,
+    "expected_cumulative": 7.26,
+    "expected_final_amount": 5363211.0,
+    "expected_profit": 363211.0
+  },
+  "asset_detail": [
+    {
+      "code": "588000",
+      "name": "科创50ETF华夏",
+      "weight": 0.1375,
+      "style": "高端制造",
+      "annualized_return": 30.0,
+      "cumulative_return": 48.22,
+      "profit": 331532.0
+    },
+    {
+      "code": "512480",
+      "name": "半导体ETF国泰",
+      "weight": 0.1317,
+      "style": "高端制造",
+      "annualized_return": 35.0,
+      "cumulative_return": 56.86,
+      "profit": 374396.0
+    },
+    {
+      "code": "516160",
+      "name": "高端装备ETF南方",
+      "weight": 0.1317,
+      "style": "高端制造",
+      "annualized_return": 21.5,
+      "cumulative_return": 33.93,
+      "profit": 223402.0
+    },
+    {
+      "code": "515030",
+      "name": "新能源车ETF华夏",
+      "weight": 0.126,
+      "style": "高端制造",
+      "annualized_return": 18.5,
+      "cumulative_return": 29.0,
+      "profit": 182677.0
+    },
+    {
+      "code": "159915",
+      "name": "创业板ETF易方达",
+      "weight": 0.115,
+      "style": "高端制造",
+      "annualized_return": 24.0,
+      "cumulative_return": 38.08,
+      "profit": 218963.0
+    },
+    {
+      "code": "159992",
+      "name": "创新药ETF银华",
+      "weight": 0.0947,
+      "style": "防御",
+      "annualized_return": 21.5,
+      "cumulative_return": 33.93,
+      "profit": 160639.0
+    },
+    {
+      "code": "512400",
+      "name": "有色金属ETF南方",
+      "weight": 0.0929,
+      "style": "资源",
+      "annualized_return": 18.5,
+      "cumulative_return": 29.0,
+      "profit": 134688.0
+    },
+    {
+      "code": "512010",
+      "name": "医药ETF易方达",
+      "weight": 0.0664,
+      "style": "防御",
+      "annualized_return": 12.5,
+      "cumulative_return": 19.32,
+      "profit": 64157.0
+    },
+    {
+      "code": "601088",
+      "name": "中国神华",
+      "weight": 0.0638,
+      "style": "顺周期",
+      "annualized_return": 7.5,
+      "cumulative_return": 11.46,
+      "profit": 36552.0
+    },
+    {
+      "code": "518880",
+      "name": "黄金ETF华安",
+      "weight": 0.0307,
+      "style": "资源",
+      "annualized_return": 11.5,
+      "cumulative_return": 17.74,
+      "profit": 27226.0
+    },
+    {
+      "code": "511260",
+      "name": "十年国债ETF国泰",
+      "weight": 0.005,
+      "style": "防御",
+      "annualized_return": 2.75,
+      "cumulative_return": 4.15,
+      "profit": 1038.0
+    },
+    {
+      "code": "511520",
+      "name": "政金债ETF富国",
+      "weight": 0.0037,
+      "style": "防御",
+      "annualized_return": 3.25,
+      "cumulative_return": 4.91,
+      "profit": 909.0
+    },
+    {
+      "code": "511360",
+      "name": "短融ETF海富通",
+      "weight": 0.001,
+      "style": "防御",
+      "annualized_return": 1.75,
+      "cumulative_return": 2.64,
+      "profit": 132.0
+    }
+  ]
+}

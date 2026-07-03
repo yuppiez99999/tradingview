@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "memory": {
+      "name": "memory",
+      "type": "stdio",
+      "description": "第二大脑记忆服务器 — 跨会话持久记忆（知识图谱）",
+      "isActive": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {
+        "MEMORY_FILE_PATH": "<YOUR_PROJECT_PATH>/second-brain/config/memory.json"
+      },
+      "registry": "npm",
+      "id": "second-brain-memory"
+    },
+    "filesystem": {
+      "name": "filesystem",
+      "type": "stdio",
+      "description": "文件系统服务器 — 让 AI 读写第二大脑知识库",
+      "isActive": true,
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "<YOUR_PROJECT_PATH>/second-brain"
+      ],
+      "env": {},
+      "registry": "npm",
+      "id": "second-brain-filesystem"
+    }
+  }
+}

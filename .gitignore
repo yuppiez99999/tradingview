@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+env/
+.env
+
+# IDE & Editor
+.codebuddy/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Reports (generated trading reports)
+reports/
+
+# Trade orders & execution artifacts
+trade_orders_*.json
+trade_orders_*.md
+*建仓计划*.json
+*建仓计划*.md
+
+# Execution history
+execution_history*
+
+# System temp files
+_system_check_temp.py
+_system_verify.py
+
+# Agent skills (installed locally, not part of source)
+.agents/
+
+# Second-brain memory data
+second-brain/config/memory.json
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.secret
+
+# OS
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,93 @@
+# 综合量化策略系统配置文件
+# Comprehensive Quantitative Strategy System Configuration
+# Version: v6.0
+
+system_mode: full
+total_capital: 5000000
+risk_tolerance: medium
+investment_horizon: long_term
+enable_ai: true
+enable_institutional: true
+enable_hedge: true
+enable_deployment: true
+
+components:
+  investment_agent:
+    enabled: true
+    initial_capital: 3000000
+    portfolio_size: 20
+    target_return: 0.08
+    max_drawdown: 0.15
+  quant_optimizer:
+    enabled: true
+    optimization_method: integrated_factor_risk_ml
+    enable_ml: true
+    enable_liquidity: true
+  institutional_trading:
+    enabled: true
+    total_capital: 5000000
+    equity_allocation: 0.60
+    hedge_allocation: 0.40
+    max_drawdown: 0.08
+    var_limit: 0.02
+  deployment_manager:
+    enabled: true
+    deployment_target: linux_docker
+    monitoring_enabled: true
+  enhanced_trading:
+    enabled: true
+    portfolio_value: 4300000
+    auto_rebalance: true
+    enable_performance: true
+
+risk_management:
+  three_tier_architecture: true
+  real_time_monitoring: true
+  dynamic_adjustment: true
+  liquidity_risk: true
+
+hedge_strategies:
+  enabled: true
+  delta_hedge:
+    allocation: 0.25
+    target_delta: 0.0
+  volatility_hedge:
+    allocation: 0.30
+    target_vega: 0.0
+  absolute_return:
+    allocation: 0.25
+    target_correlation: 0.0
+  volatility_arbitrage:
+    allocation: 0.15
+    max_position: 100000
+  covered_write:
+    allocation: 0.05
+    target_return: 0.08
+
+key_improvements:
+  - 五维因子选股模型
+  - 风险平价优化
+  - ML增强预测
+  - 动态风险管理
+  - 流动性风险控制
+  - 对冲策略整合
+  - 机构级交易计划
+  - 绩效归因分析
+
+performance_targets:
+  - 年化收益 >= 8%
+  - 最大回撤 <= 8%
+  - 夏普比率 >= 1.5
+  - Alpha生成 >= 3%
+
+risk_controls:
+  - 三级风控架构
+  - 动态风险预算
+  - 流动性风险管理
+  - 压力测试与情景分析
+
+deployment_status:
+  - Docker容器化部署
+  - 多平台支持
+  - 健康监控
+  - 自动化任务调度

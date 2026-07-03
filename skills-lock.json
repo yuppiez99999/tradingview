@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "position_sizing_decision_skill": {
+      "source": "Wind-Information-Co-Ltd/wind-skills",
+      "sourceType": "github",
+      "skillPath": "skills/position_sizing_decision_skill/SKILL.md",
+      "computedHash": "38dbfd22e06c5517c7d2330dfc91c3b36e14834b2dc3646d470f85885401e123"
+    },
+    "wind-mcp-skill": {
+      "source": "Wind-Information-Co-Ltd/wind-skills",
+      "sourceType": "github",
+      "skillPath": "skills/wind-mcp-skill/SKILL.md",
+      "computedHash": "46a495e5842ae22017306d407201937198ca46b420040f3bc2f4c190d6fdf73c"
+    }
+  }
+}

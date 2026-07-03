@@ -1,0 +1,100 @@
+# 投资组合配置
+# Portfolio Configuration
+
+assets:
+  - code: "510300"
+    name: "沪深300ETF"
+    weight: 0.10
+    category: "etf"
+  - code: "510500"
+    name: "中证500ETF"
+    weight: 0.10
+    category: "etf"
+  - code: "512100"
+    name: "中证1000ETF"
+    weight: 0.08
+    category: "etf"
+  - code: "588000"
+    name: "科创50ETF"
+    weight: 0.08
+    category: "etf"
+  - code: "159915"
+    name: "创业板ETF"
+    weight: 0.06
+    category: "etf"
+  - code: "600036"
+    name: "招商银行"
+    weight: 0.05
+    category: "bank"
+  - code: "600900"
+    name: "长江电力"
+    weight: 0.04
+    category: "utility"
+  - code: "601088"
+    name: "中国神华"
+    weight: 0.03
+    category: "energy"
+  - code: "688041"
+    name: "海光信息"
+    weight: 0.04
+    category: "tech"
+  - code: "300308"
+    name: "中际旭创"
+    weight: 0.04
+    category: "tech"
+  - code: "300274"
+    name: "阳光电源"
+    weight: 0.05
+    category: "new_energy"
+  - code: "002371"
+    name: "北方华创"
+    weight: 0.04
+    category: "tech"
+  - code: "600276"
+    name: "恒瑞医药"
+    weight: 0.05
+    category: "pharma"
+  - code: "600089"
+    name: "特变电工"
+    weight: 0.05
+    category: "high_end"
+  - code: "600875"
+    name: "东方电气"
+    weight: 0.04
+    category: "high_end"
+  - code: "600406"
+    name: "国电南瑞"
+    weight: 0.04
+    category: "high_end"
+  - code: "000425"
+    name: "徐工机械"
+    weight: 0.04
+    category: "high_end"
+  - code: "600989"
+    name: "宝丰能源"
+    weight: 0.03
+    category: "energy"
+  - code: "518880"
+    name: "黄金ETF"
+    weight: 0.03
+    category: "commodity"
+  - code: "CASH"
+    name: "现金储备"
+    weight: 0.01
+    category: "cash"
+
+risk_parameters:
+  max_single_position: 0.10
+  max_sector_exposure: 0.35
+  target_volatility: 0.12
+  max_portfolio_drawdown: 0.08
+  var_confidence: 0.95
+  rebalance_threshold: 0.05
+
+optimization:
+  method: "risk_parity"
+  constraints:
+    min_weight: 0.01
+    max_weight: 0.15
+    sum_to_one: true
+  objective: "max_sharpe"

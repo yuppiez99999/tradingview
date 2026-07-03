@@ -1,0 +1,26 @@
+# 系统设置配置
+# System Settings Configuration
+
+system:
+  version: "v6.0"
+  name: "综合量化策略系统"
+  mode: "full"
+
+optimization:
+  enable_ml: true
+  enable_factor_model: true
+  enable_risk_parity: true
+  enable_liquidity_control: true
+  enable_hedge: true
+
+performance:
+  target_annual_return: 0.08
+  target_max_drawdown: 0.08
+  target_sharpe_ratio: 1.5
+  target_alpha: 0.03
+
+monitoring:
+  log_level: "INFO"
+  console_output: true
+  file_output: true
+  metrics_interval: 60
