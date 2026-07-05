@@ -3,98 +3,98 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-*.egg-info/
-dist/
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
 .eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
 *.egg
+MANIFEST.txt
 
 # Virtual Environment
 venv/
-.venv/
+ENV/
 env/
-.env
+.venv
 
-# IDE & Editor
-.codebuddy/
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
+Thumbs.db
 
 # Logs
 logs/
 *.log
+*.log.*
 
-# ============================================================
-# SENSITIVE: Do NOT commit any of the following
-# ============================================================
+# Data & Cache
+data/
+cache/
+*.cache
+*.parquet
+*.pkl
+*.pkl.*
+*.jsonl
+*.db
+*.sqlite
 
-# Trading plans & strategies (personal/confidential)
-*建仓计划*
-*交易计划*
-*execution_plan*
-trade_orders_*
-execution_history*
-_portfolio_return*
-return_projection*
-institutional_trading_plan*
+# Models
+models/
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
 
-# Configs (contain fund sizes, strategy parameters)
-configs/
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.pytest_cache/
 
-# Investment agent API config
-investment_agent/config/config.py
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
 
-# Second-brain (personal knowledge base)
-second-brain/
-
-# Deployment (contains credentials)
-deployment_and_execution.py
-monitor_dashboard.py
-
-# Generated reports
-reports/
-
-# GLM predictions
-glm_*
-
-# Integration/internal summaries
-final_integration_summary.py
-integration_summary.txt
-integration_adapter.py
-simple_integration_summary.py
-system_integration_guide.py
-quant_system_integration_report.py
-quantitative_strategy_optimization_system.py
-performance_attribution_system.py
-final_integration_summary.py
-smart_hedge_trigger.py
-hedge_portfolio_manager.py
-quantitative_strategy_system.py
-run_quantitative_system.py
-
-# Internal verification
-_system_verify.py
-_system_check_temp.py
-quick_check.py
-test_system.py
-
-# Agent skills & plugins
-.agents/
-
-# Environment & Secrets
+# Environment variables
 .env
 .env.local
 .env.*.local
-*.secret
-*.pem
-*.key
-*.p12
-*.pfx
 
-# OS
-Thumbs.db
-Desktop.ini
+# Large files
+*.whl
+*.tar.gz
+*.zip
+*.7z
+
+# Reports (keep structure, ignore content)
+reports/*
+!reports/.gitkeep
+!reports/README.md
+
+# Daily reports archive
+每日报告归档/*
+!每日报告归档/README.md
+
+# Trade plans (keep structure, ignore content)
+trade_plans/*
+!trade_plans/.gitkeep
+!trade_plans/README.md

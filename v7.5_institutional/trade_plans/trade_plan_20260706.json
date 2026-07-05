@@ -1,0 +1,376 @@
+{
+  "version": "v7.5",
+  "plan_id": "trade_plan_20260706",
+  "plan_name": "2026年7月建仓计划",
+  "generated_at": "2026-07-05",
+  "start_date": "2026-07-06",
+  "total_capital": 5000000,
+  "stock_capital": 3840000,
+  "hedge_capital": 1000000,
+  "cash_buffer": 320000,
+  "target_stock_position": 2250000,
+  "target_position_ratio": 0.45,
+  "phases": [
+    {
+      "phase": 1,
+      "name": "底仓建立",
+      "start_date": "2026-07-06",
+      "end_date": "2026-07-10",
+      "target_amount": 1125000,
+      "days": 5,
+      "daily_budget": 225000,
+      "max_single_day": 500000,
+      "description": "5个交易日完成225万建仓，7月13日确认"
+    },
+    {
+      "phase": 2,
+      "name": "配置完善",
+      "start_date": "2026-07-13",
+      "end_date": "2026-07-17",
+      "target_amount": 1000000,
+      "days": 5,
+      "daily_budget": 200000,
+      "description": "剩余仓位配置，提升至56%仓位"
+    },
+    {
+      "phase": 3,
+      "name": "防御补充",
+      "start_date": "2026-07-20",
+      "end_date": "2026-08-07",
+      "target_amount": 750000,
+      "days": 15,
+      "daily_budget": 50000,
+      "description": "根据市场情况逐步加仓"
+    },
+    {
+      "phase": 4,
+      "name": "最终调整",
+      "start_date": "2026-08-10",
+      "end_date": "2026-09-26",
+      "target_amount": 500000,
+      "days": 30,
+      "daily_budget": 16667,
+      "description": "微调仓位，对齐目标权重"
+    }
+  ],
+  "trading_rules": {
+    "first_day_ratio": 0.5,
+    "single_day_max_ratio": 0.1,
+    "price_deviation_skip": 0.10,
+    "price_buffer": 0.008,
+    "min_lots": 100,
+    "max_daily_lots": 1000,
+    "morning_window": ["09:35", "10:15"],
+    "afternoon_window": ["14:00", "14:30"],
+    "crash_pause_threshold": -0.02,
+    "crash_force_reduce_threshold": -0.05,
+    "cash_reserve_min": 320000,
+    "stop_loss_rules": {
+      "etf": -0.08,
+      "tech": -0.12,
+      "defense": -0.08,
+      "gold": {"half": -0.08, "clear": -0.12}
+    }
+  },
+  "portfolios": {
+    "stock": {
+      "total": 3840000,
+      "categories": {
+        "核心宽基ETF": {
+          "weight": 0.28,
+          "amount": 1120000,
+          "stocks": [
+            {"code": "510300", "name": "沪深300ETF华泰柏瑞", "weight": 0.08, "amount": 320000, "strategy": "首日建仓50%，第2日补满", "stop_loss": -0.08},
+            {"code": "510500", "name": "中证500ETF南方", "weight": 0.06, "amount": 240000, "strategy": "首日一次性建仓", "stop_loss": -0.08},
+            {"code": "512100", "name": "中证1000ETF南方", "weight": 0.05, "amount": 200000, "strategy": "分2日建仓", "stop_loss": -0.10},
+            {"code": "588000", "name": "科创50ETF华夏", "weight": 0.05, "amount": 200000, "strategy": "第1周建仓", "stop_loss": -0.12},
+            {"code": "159915", "name": "创业板ETF易方达", "weight": 0.04, "amount": 160000, "strategy": "第1周建仓", "stop_loss": -0.12}
+          ]
+        },
+        "科技成长个股": {
+          "weight": 0.20,
+          "amount": 800000,
+          "stocks": [
+            {"code": "688041", "name": "海光信息", "weight": 0.04, "amount": 160000, "logic": "AI算力国产替代", "stop_loss": -0.10},
+            {"code": "300308", "name": "中际旭创", "weight": 0.04, "amount": 160000, "logic": "光模块全球龙头", "stop_loss": -0.12},
+            {"code": "300274", "name": "阳光电源", "weight": 0.04, "amount": 160000, "logic": "光伏逆变器龙头", "stop_loss": -0.12},
+            {"code": "002371", "name": "北方华创", "weight": 0.04, "amount": 160000, "logic": "半导体设备龙头", "stop_loss": -0.12},
+            {"code": "688017", "name": "绿的谐波", "weight": 0.02, "amount": 80000, "logic": "机器人核心部件", "stop_loss": -0.15},
+            {"code": "600276", "name": "恒瑞医药", "weight": 0.02, "amount": 80000, "logic": "创新药龙头", "stop_loss": -0.10}
+          ]
+        },
+        "高端制造/基建": {
+          "weight": 0.20,
+          "amount": 800000,
+          "stocks": [
+            {"code": "600089", "name": "特变电工", "weight": 0.05, "amount": 200000, "logic": "电网+多晶硅双龙头", "stop_loss": -0.10},
+            {"code": "600875", "name": "东方电气", "weight": 0.04, "amount": 160000, "logic": "核电+风电设备", "stop_loss": -0.10},
+            {"code": "000425", "name": "徐工机械", "weight": 0.04, "amount": 160000, "logic": "工程机械龙头", "stop_loss": -0.10},
+            {"code": "600406", "name": "国电南瑞", "weight": 0.04, "amount": 160000, "logic": "电网自动化龙头", "stop_loss": -0.10},
+            {"code": "600989", "name": "宝丰能源", "weight": 0.03, "amount": 120000, "logic": "煤化工+光伏一体化", "stop_loss": -0.12}
+          ]
+        },
+        "防御/红利": {
+          "weight": 0.15,
+          "amount": 600000,
+          "stocks": [
+            {"code": "515180", "name": "易方达中证红利ETF", "weight": 0.06, "amount": 240000, "logic": "高股息、低估值、行业分散", "stop_loss": -0.08},
+            {"code": "600036", "name": "招商银行", "weight": 0.04, "amount": 160000, "logic": "零售银行龙头，估值历史底部", "stop_loss": -0.08},
+            {"code": "600900", "name": "长江电力", "weight": 0.03, "amount": 120000, "logic": "现金流稳定，防御属性强", "stop_loss": -0.08, "build_strategy": "分红再投资5年，年化6.7%"},
+            {"code": "601088", "name": "中国神华", "weight": 0.02, "amount": 80000, "logic": "煤电一体化优势", "stop_loss": -0.08, "build_strategy": "三档建仓：40-42元30%/36-39元30%/32-35元40%"}
+          ]
+        },
+        "商品/避险": {
+          "weight": 0.05,
+          "amount": 200000,
+          "stocks": [
+            {"code": "518880", "name": "黄金ETF华安", "weight": 0.05, "amount": 200000, "role": "抗通胀+危机对冲", "stop_loss": {"half": -0.08, "clear": -0.12}}
+          ]
+        },
+        "现金缓冲": {
+          "weight": 0.08,
+          "amount": 320000,
+          "stocks": [],
+          "description": "再平衡机动/暴跌抄底/突发事件"
+        }
+      }
+    },
+    "hedge": {
+      "total": 1000000,
+      "categories": {
+        "国债逆回购": {
+          "weight": 0.20,
+          "amount": 200000,
+          "products": [
+            {"code": "204001", "name": "1天期（沪）", "ratio": 0.60, "amount": 120000},
+            {"code": "204007", "name": "7天期（沪）", "ratio": 0.40, "amount": 80000}
+          ]
+        },
+        "短债基金": {
+          "weight": 0.20,
+          "amount": 200000,
+          "products": [
+            {"code": "000105", "name": "易方达短债A", "ratio": 0.50, "amount": 100000},
+            {"code": "000084", "name": "博时安盈短债A", "ratio": 0.50, "amount": 100000}
+          ]
+        },
+        "信用债基金": {
+          "weight": 0.20,
+          "amount": 200000,
+          "products": [
+            {"code": "000236", "name": "易方达信用债A", "ratio": 0.50, "amount": 100000},
+            {"code": "000267", "name": "广发信用债A", "ratio": 0.50, "amount": 100000}
+          ]
+        },
+        "可转债基金": {
+          "weight": 0.20,
+          "amount": 200000,
+          "products": [
+            {"code": "340001", "name": "兴全可转债", "ratio": 0.40, "amount": 80000},
+            {"code": "001816", "name": "中欧可转债A", "ratio": 0.30, "amount": 60000},
+            {"code": "040022", "name": "华安可转债A", "ratio": 0.30, "amount": 60000}
+          ]
+        },
+        "红利/价值ETF": {
+          "weight": 0.10,
+          "amount": 100000,
+          "products": [
+            {"code": "515080", "name": "中证红利ETF", "ratio": 0.40, "amount": 40000},
+            {"code": "512890", "name": "红利低波ETF", "ratio": 0.30, "amount": 30000},
+            {"code": "510030", "name": "沪深300价值ETF", "ratio": 0.30, "amount": 30000}
+          ]
+        },
+        "增强型指数基金": {
+          "weight": 0.10,
+          "amount": 100000,
+          "products": [
+            {"code": "000311", "name": "易方达沪深300增强", "ratio": 0.50, "amount": 50000},
+            {"code": "163407", "name": "兴全沪深300增强", "ratio": 0.50, "amount": 50000}
+          ]
+        }
+      }
+    },
+    "cotton_hedge": {
+      "enabled": true,
+      "futures_code": "CF2609",
+      "current_price": 16290,
+      "contract_unit": 5,
+      "margin_per_lot": 5700,
+      "max_lots": 175,
+      "max_leverage": 0.50,
+      "stop_loss_price": 15500,
+      "pause_add_price": 15800,
+      "target_range": [17000, 18000],
+      "phases": [
+        {"phase": 1, "name": "底仓建立", "target_price": [16100, 16290], "ratio": 0.30, "time": "7月第1-2周"},
+        {"phase": 2, "name": "回调加仓", "target_price": [15900, 16100], "ratio": 0.30, "time": "7月中旬"},
+        {"phase": 3, "name": "突破确认加仓", "target_price": [16300, 16400], "ratio": 0.20, "time": "7月下旬"},
+        {"phase": 4, "name": "趋势末端加仓", "target_price": [16800, 17000], "ratio": 0.20, "time": "8月上旬"}
+      ],
+      "option_protection": {
+        "primary": {"code": "CF609P15600", "type": "put", "strike": 15600, "ratio": 1.0, "cost_per_lot": 1000},
+        "alternative": {"code": "CF609P15800", "type": "put", "strike": 15800, "ratio": 1.0, "cost_per_lot": 1600},
+        "collar": {"put_code": "CF609P15600", "call_code": "CF609C17200", "call_strike": 17200, "net_premium": 250}
+      }
+    }
+  },
+  "daily_schedule": {
+    "premarket": {
+      "time": "07:00",
+      "tasks": [
+        {"task": "check_holiday", "description": "检查是否为交易日"},
+        {"task": "check_market", "description": "查看隔夜外盘行情"},
+        {"task": "check_positions", "description": "更新昨日持仓市值"},
+        {"task": "check_signals", "description": "检查是否触发止损/买入信号"}
+      ]
+    },
+    "morning_trade": {
+      "window": "09:35-10:15",
+      "tasks": [
+        {"task": "execute_orders", "description": "执行当日建仓订单"},
+        {"task": "monitor_stops", "description": "监控止损线触发"}
+      ]
+    },
+    "afternoon_trade": {
+      "window": "14:00-14:30",
+      "tasks": [
+        {"task": "execute_remaining", "description": "执行剩余建仓订单"},
+        {"task": "check_crash", "description": "检查日内断路器状态"}
+      ]
+    },
+    "postmarket": {
+      "time": "15:30",
+      "tasks": [
+        {"task": "daily_report", "description": "生成持仓日报"},
+        {"task": "calc_nav", "description": "计算组合净值与回撤"},
+        {"task": "update_trades", "description": "更新交易记录"},
+        {"task": "plan_next_day", "description": "规划次日操作"}
+      ]
+    }
+  },
+  "build_schedule": [
+    {
+      "day": 1,
+      "date": "2026-07-06",
+      "name": "Day 1",
+      "weekday": "周一",
+      "target_amount": 600000,
+      "cumulative": 600000,
+      "orders": [
+        {"code": "510300", "name": "沪深300ETF", "amount": 160000, "ratio": 0.50, "type": "buy"},
+        {"code": "510500", "name": "中证500ETF", "amount": 240000, "ratio": 1.00, "type": "buy"},
+        {"code": "512100", "name": "中证1000ETF", "amount": 100000, "ratio": 0.50, "type": "buy"},
+        {"code": "515180", "name": "红利ETF", "amount": 240000, "ratio": 1.00, "type": "buy"},
+        {"code": "600036", "name": "招商银行", "amount": 160000, "ratio": 1.00, "type": "buy"},
+        {"code": "600900", "name": "长江电力", "amount": 120000, "ratio": 1.00, "type": "buy"},
+        {"code": "601088", "name": "中国神华", "amount": 80000, "ratio": 1.00, "type": "buy"}
+      ]
+    },
+    {
+      "day": 2,
+      "date": "2026-07-07",
+      "name": "Day 2",
+      "weekday": "周二",
+      "target_amount": 450000,
+      "cumulative": 1050000,
+      "orders": [
+        {"code": "510300", "name": "沪深300ETF", "amount": 160000, "ratio": 0.50, "type": "buy", "note": "补满"},
+        {"code": "512100", "name": "中证1000ETF", "amount": 100000, "ratio": 0.50, "type": "buy", "note": "补满"},
+        {"code": "688041", "name": "海光信息", "amount": 160000, "ratio": 1.00, "type": "buy"},
+        {"code": "300308", "name": "中际旭创", "amount": 160000, "ratio": 1.00, "type": "buy"},
+        {"code": "300274", "name": "阳光电源", "amount": 160000, "ratio": 1.00, "type": "buy"},
+        {"code": "002371", "name": "北方华创", "amount": 160000, "ratio": 1.00, "type": "buy"}
+      ]
+    },
+    {
+      "day": 3,
+      "date": "2026-07-08",
+      "name": "Day 3",
+      "weekday": "周三",
+      "target_amount": 350000,
+      "cumulative": 1400000,
+      "orders": [
+        {"code": "688017", "name": "绿的谐波", "amount": 80000, "ratio": 1.00, "type": "buy"},
+        {"code": "600276", "name": "恒瑞医药", "amount": 80000, "ratio": 1.00, "type": "buy"},
+        {"code": "600089", "name": "特变电工", "amount": 200000, "ratio": 1.00, "type": "buy"},
+        {"code": "600875", "name": "东方电气", "amount": 160000, "ratio": 1.00, "type": "buy"}
+      ]
+    },
+    {
+      "day": 4,
+      "date": "2026-07-09",
+      "name": "Day 4",
+      "weekday": "周四",
+      "target_amount": 450000,
+      "cumulative": 1850000,
+      "orders": [
+        {"code": "000425", "name": "徐工机械", "amount": 160000, "ratio": 1.00, "type": "buy"},
+        {"code": "600406", "name": "国电南瑞", "amount": 160000, "ratio": 1.00, "type": "buy"},
+        {"code": "600989", "name": "宝丰能源", "amount": 120000, "ratio": 1.00, "type": "buy"},
+        {"code": "588000", "name": "科创50ETF", "amount": 200000, "ratio": 1.00, "type": "buy"},
+        {"code": "159915", "name": "创业板ETF", "amount": 160000, "ratio": 1.00, "type": "buy"}
+      ]
+    },
+    {
+      "day": 5,
+      "date": "2026-07-10",
+      "name": "Day 5",
+      "weekday": "周五",
+      "target_amount": 400000,
+      "cumulative": 2250000,
+      "orders": [
+        {"code": "518880", "name": "黄金ETF", "amount": 200000, "ratio": 1.00, "type": "buy"},
+        {"code": "CF2609", "name": "棉花期货", "amount": 200000, "type": "buy", "note": "保证金约5-10%"},
+        {"code": "CASH", "name": "现金缓冲", "amount": 320000, "type": "hold", "note": "保留不低于32万"}
+      ]
+    },
+    {
+      "day": 6,
+      "date": "2026-07-13",
+      "name": "确认日",
+      "weekday": "周一",
+      "target_amount": 0,
+      "cumulative": 2250000,
+      "orders": [],
+      "note": "确认所有仓位对齐目标权重，现金175万，建仓完成"
+    }
+  ],
+  "cotton_schedule": [
+    {"day": 1, "date": "2026-07-06", "action": "建立底仓30%", "price_range": [16100, 16290], "lots": 3, "option": "买入CF609P15600 3手"},
+    {"day": 2, "date": "2026-07-07", "action": "观察等待", "price_range": null, "lots": 0, "option": null},
+    {"day": 3, "date": "2026-07-08", "action": "观察等待", "price_range": null, "lots": 0, "option": null},
+    {"day": 4, "date": "2026-07-09", "action": "回调加仓30%", "price_range": [15900, 16100], "lots": 3, "option": "买入CF609P15600 3手"},
+    {"day": 5, "date": "2026-07-10", "action": "建立底仓完成", "price_range": null, "lots": 0, "option": null}
+  ],
+  "rebalance_rules": {
+    "periodic": "每月末恢复目标权重",
+    "threshold": 0.05,
+    "quarterly_review": ["2026-09-30", "2026-12-31"],
+    "semi_annual_review": "2026-09-15"
+  },
+  "risk_controls": {
+    "levels": [
+      {"level": "yellow", "drawdown": -0.08, "action": "预警：检查持仓，准备加仓机会"},
+      {"level": "orange", "drawdown": -0.10, "action": "减仓：权益仓位降至70%，现金提至30%"},
+      {"level": "red", "drawdown": -0.12, "action": "警戒：权益仓位降至50%，现金提至50%"},
+      {"level": "full_stop", "drawdown": -0.15, "action": "清仓：全部止损，保留现金"}
+    ],
+    "intraday_circuit_breaker": {
+      "pause_buy": -0.03,
+      "force_reduce": -0.05
+    },
+    "stop_loss_rules": {
+      "etf": -0.08,
+      "tech": {"high": -0.10, "normal": -0.12, "low": -0.15},
+      "defense": -0.08,
+      "gold": {"half": -0.08, "clear": -0.12}
+    }
+  },
+  "execution": {
+    "broker": "mock",
+    "price_source": "wind_mcp",
+    "fallback_price_source": "akshare",
+    "order_type": "limit",
+    "price_buffer": 0.008
+  }
+}
