@@ -325,6 +325,6 @@ pip install pypdf pdfplumber
 
 ---
 
-**作者**: ZCode Quantitative Team  
+
 **日期**: 2026-07-05  
 **版本**: v7.5.0-institutional
