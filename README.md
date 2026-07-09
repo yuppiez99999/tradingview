@@ -349,5 +349,5 @@ pip install pypdf pdfplumber
 ---
 
 **作者**: yuppiez99999
-**日期**: 2026-07-08  
+**日期**: 2026-07-09  
 **版本**: v7.5.3-institutional-opt
