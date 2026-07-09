@@ -134,7 +134,7 @@ function Register-V75Task {
         Write-Host "     State:       $($task.State)"
         Write-Host "     NextRunTime: $($task.Triggers[0].StartBoundary)"
     } else {
-        Write-Host "[ERROR] $TaskName 注册失败" -ForegroundColor Red
+        Write-Host "[ERROR] $TaskName registration failed" -ForegroundColor Red
         return $false
     }
     return $true

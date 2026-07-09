@@ -1,0 +1,75 @@
+# config/risk_budget.yaml —— v7.5 风险预算参数
+
+total_risk_budget: 0.10          # 总风险预算 10%
+
+# 风险类别预算分配
+risk_budgets:
+  market_risk: 0.04              # 市场风险
+  volatility_risk: 0.03          # 波动率风险
+  tail_risk: 0.02                # 尾部风险
+  liquidity_risk: 0.01           # 流动性风险
+
+# 风险预算约束
+constraints:
+  max_single_budget: 0.06        # 单一类别上限 60%
+  min_single_budget: 0.005       # 单一类别下限
+  diversification_min: 0.80      # 最小分散度
+
+# Kelly 公式参数
+kelly:
+  half_kelly: true
+  shrinkage_method: "james_stein"
+  prior_model: "CAPM"            # CAPM 隐含收益
+  tau2: 0.01                     # 先验方差
+  rf: 0.02                       # 无风险利率
+  mu_market: 0.08                # 市场期望收益
+  single_trade_cap: 0.20         # 单标的 Kelly 权重上限
+
+# Risk Parity 参数
+risk_parity:
+  method: "erc"                  # 等风险贡献
+  cov_estimator: "ledoit_wolf"
+  max_iter: 500
+  tol: 1e-6
+  learning_rate: 0.01
+  weight_lower_bound: 0.0001
+
+# 三级回撤防御
+drawdown_defense:
+  normal:
+    max_dd: 0.10
+    position_multiplier: 1.0
+    allow_new_positions: true
+  defense:
+    max_dd: 0.14
+    position_multiplier: 0.5
+    allow_new_positions: false   # 只减不加
+  circuit_breaker:
+    max_dd: 0.15
+    position_multiplier: 0.0
+    cooldown_hours: 24
+    emergency_only: true
+
+# 压力测试
+stress:
+  scenarios:
+    - name: "market_crash_30"
+      market_drop: -0.30
+      vol_multiplier: 3.0
+      liquidity_haircut: 0.5
+    - name: "black_swan_50"
+      market_drop: -0.50
+      vol_multiplier: 5.0
+      liquidity_haircut: 0.8
+    - name: "correlation_one"
+      market_drop: -0.20
+      vol_multiplier: 2.0
+      correlation_converge: 1.0
+  monte_carlo:
+    sims: 10000
+    horizon_days: 252
+    t_dist_df: 5.0
+    jump_prob: 0.01
+    jump_mean: -0.03
+    jump_std: 0.05
+    vol_persistence: 0.94

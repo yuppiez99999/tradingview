@@ -1,0 +1,244 @@
+{
+  "meta": {
+    "trade_date": "2026-07-07",
+    "generated_at": "2026-07-07T00:00:00",
+    "source_positions": "config/positions.json",
+    "source_plan": "500万建仓计划_20260706.json",
+    "portfolio_beta": 1.0047,
+    "target_beta": 0.62,
+    "strategy": "理论建议对冲持仓表（目标组合 300 万版）",
+    "underlying_510300": {
+      "price": 4.826,
+      "source": "sina_etf_sh",
+      "updated_at": "2026-07-07T19:54:56.506718",
+      "reference_strike_95": 4.5847,
+      "reference_strike_85": 4.1021,
+      "reference_strike_110": 5.3086
+    },
+    "options_iv_status": {
+      "status": "UNAVAILABLE",
+      "reason": "510300 期权 IV/权利金无公开稳定 HTTP 源，当前仅更新标的价格",
+      "updated_at": "2026-07-07T19:54:56.506718"
+    },
+    "live_sync": {
+      "synced_at": "2026-07-07T20:14:20.577643",
+      "if_futures_price": 4703.4,
+      "if_futures_source": "sina_http",
+      "note": "与 daily_workflow phase_hedge 运行时实时价同步"
+    }
+  },
+  "portfolio": {
+    "total_capital": 5000000,
+    "target_stock_etf_capital": 3000000,
+    "current_deployed": 2995176.0,
+    "hedge_capital_limit": 2000000,
+    "hedge_budget_used": 181350.0,
+    "hedge_budget_pct": 0.0605
+  },
+  "hedge_plan": [
+    {
+      "layer": "L1",
+      "type": "FUTURES",
+      "name": "Beta 对冲",
+      "action": "SELL_SHORT",
+      "instrument": "IF",
+      "instrument_name": "沪深300股指期货",
+      "multiplier": 300,
+      "contracts": 1,
+      "futures_price": 4703.4,
+      "notional": 1411020.0,
+      "margin_rate": 0.12,
+      "margin": 169322.4,
+      "estimated_cost": 173.56,
+      "cost_ratio": 5.8e-05,
+      "beta_reduced": 0.38,
+      "target_beta_after": 0.62,
+      "trigger": [
+        "组合 Beta > 0.7",
+        "日内回撤 > 5%",
+        "市场波动率上升"
+      ],
+      "close_condition": [
+        "组合 Beta 降至 0.6 以下",
+        "回撤收窄至 3% 以内",
+        "对冲成本超过 0.3%"
+      ],
+      "note": "1 手 IF 空头即可将组合 Beta 从 1.00 降至 0.62，名义价值 114 万，保证金 13.68 万",
+      "futures_price_source": "sina_http",
+      "futures_price_updated_at": "2026-07-07T19:54:56.435731"
+    },
+    {
+      "layer": "L2",
+      "type": "OPTIONS",
+      "name": "Put Spread Collar",
+      "action": "BUY_PROTECTION",
+      "strategy": "PUT_SPREAD_COLLAR",
+      "underlying": "510300",
+      "underlying_name": "沪深300ETF",
+      "legs": [
+        {
+          "leg": "LONG_PUT",
+          "action": "BUY",
+          "option_type": "PUT",
+          "strike_pct": 0.95,
+          "strike_price": 4.5847,
+          "contracts": 10,
+          "estimated_premium": 0.08,
+          "budget": 80000.0,
+          "delta": -0.25,
+          "coverage_pct": 0.133,
+          "trigger": "VIX > 25 或回撤 > 5%",
+          "note": "买入 10 张 95% 行权价 Put，权利金约 0.08 元/份"
+        },
+        {
+          "leg": "SHORT_PUT",
+          "action": "SELL",
+          "option_type": "PUT",
+          "strike_pct": 0.85,
+          "strike_price": 4.1021,
+          "contracts": 10,
+          "estimated_premium": 0.03,
+          "budget": -30000.0,
+          "delta": -0.15,
+          "coverage_pct": 0.133,
+          "trigger": "VIX > 25",
+          "note": "卖出 10 张 85% 行权价 Put，收权利金约 0.03 元/份"
+        },
+        {
+          "leg": "SHORT_CALL",
+          "action": "SELL",
+          "option_type": "CALL",
+          "strike_pct": 1.1,
+          "strike_price": 5.3086,
+          "contracts": 10,
+          "estimated_premium": 0.05,
+          "budget": -50000.0,
+          "delta": 0.2,
+          "coverage_pct": 0.133,
+          "trigger": "组合大涨 > 10%",
+          "note": "卖出 10 张 110% 行权价 Call，收权利金约 0.05 元/份，大涨时对冲"
+        }
+      ],
+      "net_premium": 0.0,
+      "net_budget": 0.0,
+      "trigger": [
+        "VIX > 25",
+        "组合回撤 > 5%",
+        "市场波动率上升"
+      ],
+      "close_condition": [
+        "组合大涨超过 Call 行权价",
+        "到期前 5 个交易日",
+        "波动率回落至 20 以下"
+      ],
+      "note": "Collar 结构净成本为零，保护区间 85%-110%，适合建仓初期使用"
+    },
+    {
+      "layer": "L3",
+      "type": "SAFE_HAVEN",
+      "name": "避险资产配置",
+      "action": "BUY",
+      "instruments": [
+        {
+          "symbol": "518880",
+          "name": "黄金ETF华安",
+          "action": "BUY",
+          "amount": 100000.0,
+          "est_price": 5.85,
+          "shares": 17000,
+          "budget_pct": 0.033,
+          "trigger": "避险情绪升温、通胀预期上升",
+          "note": "当前已有约 20 万，追加 10 万至 30 万"
+        },
+        {
+          "symbol": "GC001",
+          "name": "国债逆回购",
+          "action": "BUY",
+          "amount": 200000.0,
+          "budget_pct": 0.067,
+          "trigger": "流动性紧张、季末/年末资金面收紧",
+          "note": "短期避险 + 获取无风险收益"
+        }
+      ],
+      "total_amount": 300000.0,
+      "target_defense_pct": 0.1,
+      "current_defense_pct": 0.067,
+      "trigger": [
+        "防御资产占比 < 10%",
+        "市场波动率上升",
+        "流动性紧张"
+      ],
+      "close_condition": [
+        "防御资产占比达到 15%",
+        "市场风险偏好回升"
+      ],
+      "note": "当前防御资产约 20 万（6.7%），建议追加至 50 万（16.7%）"
+    },
+    {
+      "layer": "L4",
+      "type": "OPTIONS",
+      "name": "尾部风险保护",
+      "action": "BUY_PROTECTION",
+      "strategy": "OTM_PUT_LADDER",
+      "underlying": "510300",
+      "legs": [
+        {
+          "leg": "OTM_PUT_90",
+          "action": "BUY",
+          "option_type": "PUT",
+          "strike_pct": 0.9,
+          "strike_price": 4.3434,
+          "contracts": 2,
+          "estimated_premium": 0.04,
+          "budget": 8000.0,
+          "delta": -0.15,
+          "trigger": "组合回撤 > 8%",
+          "note": "买入 2 张 90% OTM Put，预算 0.8 万"
+        },
+        {
+          "leg": "OTM_PUT_85",
+          "action": "BUY",
+          "option_type": "PUT",
+          "strike_pct": 0.85,
+          "strike_price": 4.1021,
+          "contracts": 1,
+          "estimated_premium": 0.03,
+          "budget": 3000.0,
+          "delta": -0.1,
+          "trigger": "组合回撤 > 10%",
+          "note": "买入 1 张 85% OTM Put，预算 0.3 万"
+        }
+      ],
+      "total_budget": 11000.0,
+      "trigger": [
+        "组合回撤 > 8%",
+        "黑天鹅事件",
+        "市场恐慌情绪"
+      ],
+      "close_condition": [
+        "回撤收窄至 5% 以内",
+        "到期前 10 个交易日"
+      ],
+      "note": "阶梯式 OTM Put，深度虚值，低成本尾部保护"
+    }
+  ],
+  "execution_summary": {
+    "total_layers": 4,
+    "active_layers": 4,
+    "total_budget": 181350.0,
+    "budget_breakdown": {
+      "L1_futures_margin": 136800.0,
+      "L2_options_net_premium": 0.0,
+      "L3_safe_haven": 300000.0,
+      "L4_tail_protection": 11000.0
+    },
+    "portfolio_beta_before": 1.0047,
+    "portfolio_beta_after": 0.62,
+    "hedge_effectiveness": 0.38,
+    "risk_level": "中等",
+    "execution_mode": "MOCK_BROKER",
+    "session": "09:30-10:30 / 14:00-14:30",
+    "price_buffer": 0.008,
+    "note": "本文件为理论建议单，实际执行前需确认实时价格、波动率和保证金要求"
+  }
+}

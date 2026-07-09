@@ -1,0 +1,61 @@
+# config/backtest.yaml —— v7.5 回测协议
+
+frequency: "1min"
+
+commission:
+  stock: 0.00025                # A 股佣金 万 2.5
+  futures: 0.000023             # 期货手续费 万 0.23
+  options: 5.0                  # 期权 5 元/张
+  stamp_duty: 0.001             # 印花税(卖出)
+  min_commission: 5.0           # 最低佣金
+
+slippage_model:
+  type: "almgren_chriss"        # square_root = Almgren-Chriss
+  coefficient: 0.142
+  volatility_scaling: true
+  fixed_bps: 1.0                # 固定滑点 1bp
+
+financing:
+  margin_long_rate: 0.06        # 融资利率 6%
+  margin_short_rate: 0.06
+  repo_rate: 0.018              # 国债逆回购 1.8%
+
+walk_forward:
+  train_months: 24
+  test_months: 3
+  step_months: 3
+  cv_folds: 5
+  min_train_samples: 252
+  parameter_space:
+    kelly_shrinkage: [0, 0.01, 0.05, 0.1]
+    beta_target: [0.2, 0.3, 0.4]
+    rp_lr: [0.001, 0.01, 0.05]
+    l2_lambda: [0.05, 0.1, 0.2]
+
+stress_periods:
+  - name: "COVID_CRASH"
+    start: "2020-02-19"
+    end: "2020-03-23"
+    description: "新冠闪崩，S&P -33.5%, A 股 -13%, 流动性枯竭"
+  - name: "LUNA_CRASH"
+    start: "2022-05-01"
+    end: "2022-05-12"
+    description: "LUNA 崩盘，加密市场传染"
+  - name: "YEN_CARRY_UNWIND"
+    start: "2024-08-01"
+    end: "2024-08-05"
+    description: "日元套息平仓，日经 -12.4%, VIX 飙至 65"
+
+pass_criteria:
+  max_dd_global: 0.15           # 全样本最大回撤
+  max_dd_any_stress: 0.15       # 任一段压力测试最大回撤
+  min_sortino_ratio: 1.0
+  min_calmar_ratio: 0.5
+  min_deflated_sharpe: 0.95     # DSR >= 0.95
+
+overfitting_checks:
+  enable_white_reality_check: true
+  enable_deflated_sharpe: true
+  enable_lasso_feature_selection: true
+  lasso_alpha_range: [0.0001, 0.001, 0.01, 0.1]
+  ridge_alpha_range: [0.01, 0.1, 1.0, 10.0]

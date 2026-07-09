@@ -1,0 +1,287 @@
+{
+  "data_source": "iFinD (ifind-finance-data MCP)",
+  "query_date": "2026-07-05",
+  "instrument_metrics": {
+    "510300.SH": {
+      "windcode": "510300.SH",
+      "name": "沪深300ETF",
+      "asset_class": "核心宽基ETF",
+      "recent_1y_return_pct": 20.8184,
+      "recent_3y_return_pct": 33.0517,
+      "sharpe_1y": 0.0891,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": null
+    },
+    "510500.SH": {
+      "windcode": "510500.SH",
+      "name": "中证500ETF",
+      "asset_class": "核心宽基ETF",
+      "recent_1y_return_pct": 32.6293,
+      "recent_3y_return_pct": 33.1564,
+      "sharpe_1y": 0.1218,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": null
+    },
+    "512100.SH": {
+      "windcode": "512100.SH",
+      "name": "中证1000ETF",
+      "asset_class": "核心宽基ETF",
+      "recent_1y_return_pct": 29.2341,
+      "recent_3y_return_pct": 24.6366,
+      "sharpe_1y": 0.1023,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": null
+    },
+    "588000.SH": {
+      "windcode": "588000.SH",
+      "name": "科创50ETF",
+      "asset_class": "核心宽基ETF",
+      "recent_1y_return_pct": 100.9554,
+      "recent_3y_return_pct": 41.4269,
+      "sharpe_1y": 0.1346,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": null
+    },
+    "688041.SH": {
+      "windcode": "688041.SH",
+      "name": "海光信息",
+      "asset_class": "科技成长个股",
+      "recent_1y_return_pct": 73.35,
+      "recent_3y_return_pct": 64.6063,
+      "sharpe_1y": 0.1052,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 28.2357
+    },
+    "300308.SZ": {
+      "windcode": "300308.SZ",
+      "name": "中际旭创",
+      "asset_class": "科技成长个股",
+      "recent_1y_return_pct": 39.7042,
+      "recent_3y_return_pct": 135.0848,
+      "sharpe_1y": 0.2097,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 2.3622
+    },
+    "002371.SZ": {
+      "windcode": "002371.SZ",
+      "name": "北方华创",
+      "asset_class": "高端制造/基建",
+      "recent_1y_return_pct": 50.04,
+      "recent_3y_return_pct": 59.2057,
+      "sharpe_1y": 0.1418,
+      "volatility_1y_pct": 32.84,
+      "max_drawdown_pct": 19.0502
+    },
+    "688981.SH": {
+      "windcode": "688981.SH",
+      "name": "中芯国际",
+      "asset_class": "高端制造/基建",
+      "recent_1y_return_pct": null,
+      "recent_3y_return_pct": 48.3956,
+      "sharpe_1y": null,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 2.6301
+    },
+    "300750.SZ": {
+      "windcode": "300750.SZ",
+      "name": "宁德时代",
+      "asset_class": "高端制造/基建",
+      "recent_1y_return_pct": null,
+      "recent_3y_return_pct": null,
+      "sharpe_1y": 0.0842,
+      "volatility_1y_pct": 39.3821,
+      "max_drawdown_pct": 18.4552
+    },
+    "600900.SH": {
+      "windcode": "600900.SH",
+      "name": "长江电力",
+      "asset_class": "防御/红利",
+      "recent_1y_return_pct": -6.7701,
+      "recent_3y_return_pct": 14.1621,
+      "sharpe_1y": null,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 0.0
+    },
+    "600276.SH": {
+      "windcode": "600276.SH",
+      "name": "恒瑞医药",
+      "asset_class": "防御/红利",
+      "recent_1y_return_pct": null,
+      "recent_3y_return_pct": null,
+      "sharpe_1y": 0.3776,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 36.6083
+    },
+    "603259.SH": {
+      "windcode": "603259.SH",
+      "name": "药明康德",
+      "asset_class": "防御/红利",
+      "recent_1y_return_pct": null,
+      "recent_3y_return_pct": 23.1718,
+      "sharpe_1y": 0.1,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 22.3571
+    },
+    "518880.SH": {
+      "windcode": "518880.SH",
+      "name": "华安黄金ETF",
+      "asset_class": "商品/避险",
+      "recent_1y_return_pct": 57.5473,
+      "recent_3y_return_pct": 133.6067,
+      "sharpe_1y": 0.0427,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 30.2915
+    },
+    "601088.SH": {
+      "windcode": "601088.SH",
+      "name": "中国神华",
+      "asset_class": "商品/避险",
+      "recent_1y_return_pct": 19.27,
+      "recent_3y_return_pct": null,
+      "sharpe_1y": null,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 23.089
+    },
+    "600019.SH": {
+      "windcode": "600019.SH",
+      "name": "宝钢股份",
+      "asset_class": "商品/避险",
+      "recent_1y_return_pct": -15.7963,
+      "recent_3y_return_pct": 16.8032,
+      "sharpe_1y": -0.0434,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 30.5412
+    },
+    "600219.SH": {
+      "windcode": "600219.SH",
+      "name": "南山铝业",
+      "asset_class": "商品/避险",
+      "recent_1y_return_pct": null,
+      "recent_3y_return_pct": null,
+      "sharpe_1y": 0.0343,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 51.1029
+    },
+    "000792.SZ": {
+      "windcode": "000792.SZ",
+      "name": "盐湖股份",
+      "asset_class": "商品/避险",
+      "recent_1y_return_pct": null,
+      "recent_3y_return_pct": 37.1395,
+      "sharpe_1y": 0.0888,
+      "volatility_1y_pct": 36.3673,
+      "max_drawdown_pct": 30.396
+    },
+    "512480.SH": {
+      "windcode": "512480.SH",
+      "name": "半导体ETF",
+      "asset_class": "半导体ETF",
+      "recent_1y_return_pct": 45.1255,
+      "recent_3y_return_pct": 77.9521,
+      "sharpe_1y": null,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 19.9955
+    },
+    "516160.SH": {
+      "windcode": "516160.SH",
+      "name": "新能源ETF",
+      "asset_class": "新能源ETF",
+      "recent_1y_return_pct": 44.4467,
+      "recent_3y_return_pct": -0.0491,
+      "sharpe_1y": null,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 0.3213
+    }
+  },
+  "asset_class_summary": {
+    "核心宽基ETF": {
+      "n_instruments": 4,
+      "instruments": [
+        "510300.SH",
+        "510500.SH",
+        "512100.SH",
+        "588000.SH"
+      ],
+      "recent_1y_return_pct": 45.9093,
+      "recent_3y_return_pct": 33.0679,
+      "sharpe_1y": 0.11195000000000001,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": null
+    },
+    "科技成长个股": {
+      "n_instruments": 2,
+      "instruments": [
+        "688041.SH",
+        "300308.SZ"
+      ],
+      "recent_1y_return_pct": 56.5271,
+      "recent_3y_return_pct": 99.84555,
+      "sharpe_1y": 0.15745,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 15.298950000000001
+    },
+    "高端制造/基建": {
+      "n_instruments": 3,
+      "instruments": [
+        "002371.SZ",
+        "688981.SH",
+        "300750.SZ"
+      ],
+      "recent_1y_return_pct": 50.04,
+      "recent_3y_return_pct": 53.800650000000005,
+      "sharpe_1y": 0.113,
+      "volatility_1y_pct": 36.111050000000006,
+      "max_drawdown_pct": 13.3785
+    },
+    "防御/红利": {
+      "n_instruments": 3,
+      "instruments": [
+        "600900.SH",
+        "600276.SH",
+        "603259.SH"
+      ],
+      "recent_1y_return_pct": -6.7701,
+      "recent_3y_return_pct": 18.66695,
+      "sharpe_1y": 0.2388,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 19.655133333333335
+    },
+    "商品/避险": {
+      "n_instruments": 5,
+      "instruments": [
+        "518880.SH",
+        "601088.SH",
+        "600019.SH",
+        "600219.SH",
+        "000792.SZ"
+      ],
+      "recent_1y_return_pct": 20.340333333333334,
+      "recent_3y_return_pct": 62.516466666666666,
+      "sharpe_1y": 0.030600000000000002,
+      "volatility_1y_pct": 36.3673,
+      "max_drawdown_pct": 33.08412
+    },
+    "半导体ETF": {
+      "n_instruments": 1,
+      "instruments": [
+        "512480.SH"
+      ],
+      "recent_1y_return_pct": 45.1255,
+      "recent_3y_return_pct": 77.9521,
+      "sharpe_1y": null,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 19.9955
+    },
+    "新能源ETF": {
+      "n_instruments": 1,
+      "instruments": [
+        "516160.SH"
+      ],
+      "recent_1y_return_pct": 44.4467,
+      "recent_3y_return_pct": -0.0491,
+      "sharpe_1y": null,
+      "volatility_1y_pct": null,
+      "max_drawdown_pct": 0.3213
+    }
+  }
+}

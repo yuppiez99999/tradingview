@@ -1,0 +1,199 @@
+{
+  "timestamp": "2026-07-05T11:05:05.821055",
+  "total": 10,
+  "trained": 10,
+  "skipped": 0,
+  "failed": 0,
+  "results": [
+    {
+      "code": "601088",
+      "name": "中国神华",
+      "status": "TRAINED",
+      "metrics": {
+        "train_r2": 0.2671,
+        "test_r2": -0.0556,
+        "data_points": 119,
+        "feature_cols": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ]
+      },
+      "signal": 0.0006,
+      "model_path": "E:\\各种PY程序\\28-终极量化交易系统7.1\\v7.5_institutional\\models\\qlib_local\\601088_lgb_model.pkl"
+    },
+    {
+      "code": "600519",
+      "name": "贵州茅台",
+      "status": "TRAINED",
+      "metrics": {
+        "train_r2": 0.2593,
+        "test_r2": 0.0366,
+        "data_points": 119,
+        "feature_cols": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ]
+      },
+      "signal": -0.1596,
+      "model_path": "E:\\各种PY程序\\28-终极量化交易系统7.1\\v7.5_institutional\\models\\qlib_local\\600519_lgb_model.pkl"
+    },
+    {
+      "code": "000858",
+      "name": "五粮液",
+      "status": "TRAINED",
+      "metrics": {
+        "train_r2": 0.261,
+        "test_r2": -0.6538,
+        "data_points": 119,
+        "feature_cols": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ]
+      },
+      "signal": 0.5945,
+      "model_path": "E:\\各种PY程序\\28-终极量化交易系统7.1\\v7.5_institutional\\models\\qlib_local\\000858_lgb_model.pkl"
+    },
+    {
+      "code": "002594",
+      "name": "比亚迪",
+      "status": "TRAINED",
+      "metrics": {
+        "train_r2": 0.2508,
+        "test_r2": -0.2885,
+        "data_points": 119,
+        "feature_cols": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ]
+      },
+      "signal": -1.0,
+      "model_path": "E:\\各种PY程序\\28-终极量化交易系统7.1\\v7.5_institutional\\models\\qlib_local\\002594_lgb_model.pkl"
+    },
+    {
+      "code": "300750",
+      "name": "宁德时代",
+      "status": "TRAINED",
+      "metrics": {
+        "train_r2": 0.3133,
+        "test_r2": 0.0373,
+        "data_points": 119,
+        "feature_cols": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ]
+      },
+      "signal": -1.0,
+      "model_path": "E:\\各种PY程序\\28-终极量化交易系统7.1\\v7.5_institutional\\models\\qlib_local\\300750_lgb_model.pkl"
+    },
+    {
+      "code": "002475",
+      "name": "立讯精密",
+      "status": "TRAINED",
+      "metrics": {
+        "train_r2": 0.2469,
+        "test_r2": -0.0465,
+        "data_points": 119,
+        "feature_cols": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ]
+      },
+      "signal": 0.0019,
+      "model_path": "E:\\各种PY程序\\28-终极量化交易系统7.1\\v7.5_institutional\\models\\qlib_local\\002475_lgb_model.pkl"
+    },
+    {
+      "code": "600900",
+      "name": "长江电力",
+      "status": "TRAINED",
+      "metrics": {
+        "train_r2": 0.2653,
+        "test_r2": -0.1418,
+        "data_points": 119,
+        "feature_cols": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ]
+      },
+      "signal": -1.0,
+      "model_path": "E:\\各种PY程序\\28-终极量化交易系统7.1\\v7.5_institutional\\models\\qlib_local\\600900_lgb_model.pkl"
+    },
+    {
+      "code": "000001",
+      "name": "平安银行",
+      "status": "TRAINED",
+      "metrics": {
+        "train_r2": 0.392,
+        "test_r2": -0.4716,
+        "data_points": 119,
+        "feature_cols": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ]
+      },
+      "signal": -1.0,
+      "model_path": "E:\\各种PY程序\\28-终极量化交易系统7.1\\v7.5_institutional\\models\\qlib_local\\000001_lgb_model.pkl"
+    },
+    {
+      "code": "601318",
+      "name": "中国平安",
+      "status": "TRAINED",
+      "metrics": {
+        "train_r2": 0.2934,
+        "test_r2": -0.0276,
+        "data_points": 119,
+        "feature_cols": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ]
+      },
+      "signal": 0.0014,
+      "model_path": "E:\\各种PY程序\\28-终极量化交易系统7.1\\v7.5_institutional\\models\\qlib_local\\601318_lgb_model.pkl"
+    },
+    {
+      "code": "000333",
+      "name": "美的集团",
+      "status": "TRAINED",
+      "metrics": {
+        "train_r2": 0.2048,
+        "test_r2": -0.0774,
+        "data_points": 119,
+        "feature_cols": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ]
+      },
+      "signal": -0.9889,
+      "model_path": "E:\\各种PY程序\\28-终极量化交易系统7.1\\v7.5_institutional\\models\\qlib_local\\000333_lgb_model.pkl"
+    }
+  ]
+}

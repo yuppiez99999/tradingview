@@ -37,7 +37,7 @@ from typing import Dict, List, Optional
 # 路径与全局配置
 # ============================================================
 BASE_DIR = Path(__file__).resolve().parent
-PYTHON = r"C:\Program Files\Python38\python.exe"
+PYTHON = r"C:\Users\Administrator\AppData\Local\Programs\Python\Python314\python.exe"
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
@@ -45,8 +45,8 @@ LOG_DIR.mkdir(exist_ok=True)
 WIND_API_KEY = "ak_Tk4Y_UE-MfUof8DLLbKpHZZY-kh1q5KD"
 os.environ["WIND_API_KEY"] = WIND_API_KEY
 
-# 报告归档目录
-ARCHIVE_ROOT = BASE_DIR.parent / "每日报告归档" / "2026"
+# 报告归档目录 (统一到根目录 e:\各种PY程序\每日报告归档)
+ARCHIVE_ROOT = BASE_DIR.parent.parent / "每日报告归档"
 
 # 2026 节假日 (简化版, 与 scheduler_daemon.py 一致)
 HOLIDAYS_2026 = {
@@ -90,7 +90,8 @@ class ModuleRunner:
                  script: str,
                  description: str,
                  schedule: str = "daily",
-                 timeout: int = 3600):
+                 timeout: int = 3600,
+                 extra_args: Optional[List[str]] = None):
         """
         Args:
             name: 模块简称
@@ -98,12 +99,14 @@ class ModuleRunner:
             description: 中文描述
             schedule: "daily" / "weekly" (每周一运行)
             timeout: 超时秒数
+            extra_args: 额外命令行参数列表
         """
         self.name = name
         self.script = BASE_DIR / script
         self.description = description
         self.schedule = schedule
         self.timeout = timeout
+        self.extra_args = extra_args or []
         self.result: Optional[Dict] = None
 
     def should_run_today(self, d: date = None) -> bool:
@@ -137,8 +140,9 @@ class ModuleRunner:
             logger.info(f"[{self.name}] 开始执行: {self.description}")
             start = datetime.now()
             try:
+                cmd = [PYTHON, str(self.script)] + list(self.extra_args)
                 result = subprocess.run(
-                    [PYTHON, str(self.script)],
+                    cmd,
                     cwd=str(BASE_DIR),
                     capture_output=True,
                     text=True,
@@ -214,6 +218,7 @@ PREMARKET_MODULES = [
         description="每日交易工作流 (7阶段: check→market→risk→hedge→signal→execute→report)",
         schedule="daily",
         timeout=3600,
+        extra_args=[],
     ),
 ]
 
@@ -225,6 +230,13 @@ POSTMARKET_MODULES = [
         schedule="daily",
         timeout=300,
     ),
+    ModuleRunner(
+        name="daily_pnl_report",
+        script="../generate_daily_report.py",
+        description="收盘盈亏明细报告 (持仓盈亏+对冲明细+AI决策建议)",
+        schedule="daily",
+        timeout=600,
+    ),
 ]
 
 
@@ -234,14 +246,15 @@ POSTMARKET_MODULES = [
 class AllModulesScheduler:
     """全核心模块调度器"""
 
-    def __init__(self, dry_run: bool = False):
+    def __init__(self, dry_run: bool = False, sim_mode: bool = False):
         self.dry_run = dry_run
+        self.sim_mode = sim_mode
         self.trade_date = datetime.now().strftime("%Y-%m-%d")
         self.start_time = datetime.now()
         self.results: List[Dict] = []
 
-        # 创建当日归档目录
-        self.archive_dir = ARCHIVE_ROOT / datetime.now().strftime("%m/%d")
+        # 创建当日归档目录 (YYYY-MM-DD)
+        self.archive_dir = ARCHIVE_ROOT / datetime.now().strftime("%Y-%m-%d")
         self.archive_dir.mkdir(parents=True, exist_ok=True)
 
     def is_trading_day(self, d: date = None) -> bool:
@@ -275,6 +288,11 @@ class AllModulesScheduler:
         logger.info("=" * 70)
 
         for module in modules:
+            # 为 daily_workflow 注入模拟盘参数
+            if self.sim_mode and module.name == "daily_workflow":
+                module.extra_args = ["--sim"]
+            elif not self.sim_mode and module.name == "daily_workflow":
+                module.extra_args = []
             result = module.run(dry_run=self.dry_run)
             self.results.append(result)
 
@@ -340,10 +358,11 @@ def main():
     parser.add_argument("--phase", choices=["pre", "post", "all"],
                         default="all", help="执行批次")
     parser.add_argument("--dry-run", action="store_true", help="干跑模式")
+    parser.add_argument("--sim", action="store_true", help="模拟盘模式 (股票+期货，按交易日+夜盘执行)")
     args = parser.parse_args()
 
-    scheduler = AllModulesScheduler(dry_run=args.dry_run)
-    logger.info(f"v7.5 全核心模块调度器启动 | phase={args.phase} | dry_run={args.dry_run}")
+    scheduler = AllModulesScheduler(dry_run=args.dry_run, sim_mode=args.sim)
+    logger.info(f"v7.5 全核心模块调度器启动 | phase={args.phase} | dry_run={args.dry_run} | sim={args.sim}")
 
     success = scheduler.run_phase(args.phase)
     report = scheduler.generate_summary_report()

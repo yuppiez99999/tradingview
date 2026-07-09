@@ -9,9 +9,15 @@
     高端制造/基建:  002371.SZ (北方华创), 688981.SH (中芯国际), 300750.SZ (宁德时代)
     防御/红利:      600900.SH (长江电力), 600276.SH (恒瑞医药), 603259.SH (药明康德)
     商品/避险:      518880.SH (华安黄金ETF), 601088.SH (中国神华),
-                    600019.SH (宝钢股份), 600219.SH (南山铝业), 000792.SZ (盐湖股份)
+                    600019.SH (宝钢股份), 600219.SH (南山铝业)
     半导体ETF(新):  512480.SH (半导体ETF)
-    新能源ETF(新):  516160.SH (新能源ETF) 或 515030.SH (新能源车ETF)
+    新能源ETF(新):  516160.SH (新能源ETF)
+
+    2026-07-09 新增 6 标的 (十五五+康波+周金涛理论补缺):
+        新能源/储能:  300274.SZ (阳光电源)
+        AI算力:      603019.SH (中科曙光)
+        高端装备:    600089.SH (特变电工), 688017.SH (绿的谐波)
+        战略资源:    600219.SH (南山铝业), 600019.SH (宝钢股份)
 
 输出: 真实历史年化收益 / 年化波动率 / 相关矩阵
 """
@@ -74,13 +80,27 @@ ASSET_MAP = {
         ("601088.SH", "中国神华", "stock_data"),
         ("600019.SH", "宝钢股份", "stock_data"),
         ("600219.SH", "南山铝业", "stock_data"),
-        ("000792.SZ", "盐湖股份", "stock_data"),
     ],
     "半导体ETF": [
         ("512480.SH", "半导体ETF", "fund_data"),
     ],
     "新能源ETF": [
         ("516160.SH", "新能源ETF", "fund_data"),
+    ],
+    # 2026-07-09 新增 6 标的 (十五五+康波+周金涛理论补缺)
+    "新能源/储能": [
+        ("300274.SZ", "阳光电源", "stock_data"),
+    ],
+    "AI算力": [
+        ("603019.SH", "中科曙光", "stock_data"),
+    ],
+    "高端装备-新": [
+        ("600089.SH", "特变电工", "stock_data"),
+        ("688017.SH", "绿的谐波", "stock_data"),
+    ],
+    "战略资源-新": [
+        ("600219.SH", "南山铝业", "stock_data"),
+        ("600019.SH", "宝钢股份", "stock_data"),
     ],
 }
 
@@ -252,21 +272,48 @@ def compute_metrics(prices: pd.Series) -> dict:
     """计算年化收益 / 波动率 / Sharpe / 最大回撤"""
     if len(prices) < 30:
         return {}
+
+    # 基础价格校验
+    if prices.iloc[0] <= 0 or prices.iloc[-1] <= 0:
+        logger.warning("  [SKIP] 价格序列含非正值，无法计算年化收益")
+        return {}
+
     returns = prices.pct_change().dropna()
     n_days = len(returns)
+    if n_days < 10:
+        logger.warning("  [SKIP] 有效收益样本不足 (%d < 10)", n_days)
+        return {}
+
     ann_factor = 252
 
-    ann_return = (prices.iloc[-1] / prices.iloc[0]) ** (ann_factor / n_days) - 1
+    try:
+        ann_return = (prices.iloc[-1] / prices.iloc[0]) ** (ann_factor / n_days) - 1
+    except Exception as exc:
+        logger.warning("  [SKIP] 年化收益计算失败: %s", exc)
+        return {}
+
+    # 异常值保护：年化收益超出合理范围直接跳过
+    if not (-0.99 <= ann_return <= 50.0):
+        logger.warning("  [SKIP] 年化收益异常: %.2f%% (超出 [-99%, +5000%])", ann_return * 100)
+        return {}
+
     ann_vol = returns.std() * np.sqrt(ann_factor)
-    sharpe = (ann_return - 0.02) / ann_vol if ann_vol > 0 else 0
+    sharpe = (ann_return - 0.02) / ann_vol if ann_vol > 1e-6 else 0.0
 
     # 最大回撤
-    cum = (1 + returns).cumprod()
-    rolling_max = cum.expanding().max()
-    dd = (cum - rolling_max) / rolling_max
-    max_dd = dd.min()
+    try:
+        cum = (1 + returns).cumprod()
+        if not np.isfinite(cum).all():
+            logger.warning("  [SKIP] 累计收益序列含非法值")
+            return {}
+        rolling_max = cum.expanding().max()
+        dd = (cum - rolling_max) / rolling_max
+        max_dd = dd.min()
+    except Exception as exc:
+        logger.warning("  [SKIP] 最大回撤计算失败: %s", exc)
+        return {}
 
-    return {
+    result = {
         "ann_return": float(ann_return),
         "ann_vol": float(ann_vol),
         "sharpe": float(sharpe),
@@ -275,6 +322,12 @@ def compute_metrics(prices: pd.Series) -> dict:
         "start_date": str(prices.index[0].date()) if hasattr(prices.index[0], "date") else str(prices.index[0]),
         "end_date": str(prices.index[-1].date()) if hasattr(prices.index[-1], "date") else str(prices.index[-1]),
     }
+    logger.info("    年化=%.2f%%, 波动=%.2f%%, Sharpe=%.3f, 回撤=%.2f%%",
+                result["ann_return"] * 100,
+                result["ann_vol"] * 100,
+                result["sharpe"],
+                result["max_drawdown"] * 100)
+    return result
 
 
 def main():
@@ -426,8 +479,8 @@ def main():
             logger.info(f"  [保持估算] {name}: 年化={v3_estimated_returns[name]:+.2%}, "
                         f"波动={v3_estimated_vols[name]:.2%}")
 
-    # 8. 保存结果
-    archive_dir = Path(r"e:\各种PY程序\28-终极量化交易系统7.1\每日报告归档\2026\07\06")
+    # 8. 保存结果 (统一到根目录 每日报告归档)
+    archive_dir = Path(r"e:\各种PY程序\每日报告归档") / datetime.now().strftime("%Y-%m-%d")
     archive_dir.mkdir(parents=True, exist_ok=True)
 
     output = {
