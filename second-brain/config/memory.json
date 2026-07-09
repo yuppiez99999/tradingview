@@ -1,0 +1,8 @@
+{
+  "entities": [],
+  "relations": [],
+  "_metadata": {
+    "description": "MCP memory server 持久化记忆文件 — 首次使用后由 memory 服务器自动读写",
+    "created": "2026-06-29"
+  }
+}

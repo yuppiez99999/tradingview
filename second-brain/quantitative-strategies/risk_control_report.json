@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-06-29T17:29:27.882608",
+  "overall_risk_score": 0.2716,
+  "overall_risk_level": "LOW",
+  "individual_risk_scores": {
+    "market": 0.4,
+    "single_stock": 0.26999999999999996,
+    "portfolio": 0.1875,
+    "operational": 0.15,
+    "emotional": 0.288
+  },
+  "alert_count": 0,
+  "recommendations": [],
+  "system_status": {
+    "active_controls": 5,
+    "confidence_threshold": 0.7
+  }
+}

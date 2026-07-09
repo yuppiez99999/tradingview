@@ -29,6 +29,13 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import logging
 
+try:
+    from utils.gtja191_factors import GTJA191Factors
+    _HAS_GTJA191 = True
+except ImportError:
+    GTJA191Factors = None
+    _HAS_GTJA191 = False
+
 logger = logging.getLogger('factor_model')
 
 
@@ -47,13 +54,14 @@ class FactorModel:
 
     # 因子权重
     DEFAULT_WEIGHTS = {
-        'value': 0.20,
-        'quality': 0.20,
-        'momentum': 0.20,
-        'growth': 0.15,
-        'safety': 0.15,
-        'sentiment': 0.05,      # 可选：事件驱动
-        'event_impact': 0.05,   # 可选：事件驱动
+        'value': 0.18,
+        'quality': 0.18,
+        'momentum': 0.17,
+        'growth': 0.14,
+        'safety': 0.13,
+        'sentiment': 0.04,      # 可选：事件驱动
+        'event_impact': 0.04,   # 可选：事件驱动
+        'technical_alpha': 0.12,  # GTJA191 Alpha144 等短周期量价因子
     }
 
     # 信号阈值
@@ -211,6 +219,43 @@ class FactorModel:
         return round(score, 4)
 
     # ============================================================
+    # 因子6: 技术Alpha因子（GTJA191 Alpha144）
+    # ============================================================
+    def technical_alpha_factor(self, df: pd.DataFrame) -> float:
+        """
+        技术Alpha因子：基于 GTJA191 Alpha144。
+
+        统计过去 20 个交易日内，下跌日“收益率绝对值/成交额”的平均值。
+        低效率通常意味着下跌缩量或承接较好，映射为正向 Alpha；
+        高效率则映射为负向 Alpha。
+
+        Args:
+            df: 需包含 close、amount 列，按时间升序。
+
+        Returns:
+            float，范围 [-1, 1]
+        """
+        if not _HAS_GTJA191 or df is None or df.empty:
+            return 0.0
+
+        if 'close' not in df.columns or 'amount' not in df.columns:
+            return 0.0
+
+        try:
+            factors = GTJA191Factors(lookback=20)
+            value = factors.alpha144(df)
+            if value is None:
+                return 0.0
+
+            # 原始值越小越好；这里将其翻转映射到 [-1, 1]
+            # 经验阈值做截断，避免极端值主导
+            score = max(-1.0, min(1.0, 1.0 - float(value) * 1e8))
+            return round(float(score), 4)
+        except Exception as exc:
+            logger.warning(f"technical_alpha_factor 计算失败: {exc}")
+            return 0.0
+
+    # ============================================================
     # 综合评估
     # ============================================================
     def evaluate(self, klines: Dict[str, pd.DataFrame],
@@ -252,6 +297,7 @@ class FactorModel:
                     earnings_growth=fund.get('earnings_growth')
                 ),
                 'safety': self.safety_factor(df),
+                'technical_alpha': self.technical_alpha_factor(df),
             }
 
             # 合并事件驱动因子（如果提供）

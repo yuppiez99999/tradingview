@@ -1,0 +1,53 @@
+# 系统设置配置
+# System Settings Configuration v7.6
+
+system:
+  version: "v7.6"
+  name: "综合量化策略系统"
+  mode: "full"
+  account_type: "dual_account"
+  total_capital: 5000000
+  stock_etf_capital: 3000000
+  hedge_capital: 2000000
+  start_date: "2026-07-10"
+  clearance_date: "2030-12-31"
+
+optimization:
+  enable_ml: true
+  enable_factor_model: true
+  enable_risk_parity: true
+  enable_liquidity_control: true
+  enable_hedge: true
+  enable_etf_flow_tracking: true
+
+performance:
+  target_annual_return: 0.08
+  target_max_drawdown: 0.15
+  target_sharpe_ratio: 1.2
+  target_alpha: 0.03
+
+monitoring:
+  log_level: "INFO"
+  console_output: true
+  file_output: true
+  metrics_interval: 60
+
+data_source:
+  priority:
+    - wind_terminal
+    - wind_mcp
+    - ifind_mcp
+    - akshare
+    - sina_http
+    - local_cache
+    - fallback_price
+  default: wind_mcp
+
+execution:
+  rebalance_frequency: "monthly"
+  auto_execute: true
+  pre_market_time: "07:00"
+  post_market_time: "15:30"
+  etf_flow_tracking:
+    enabled: true
+    update_frequency: "daily"

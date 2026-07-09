@@ -3,46 +3,107 @@
 数据提供器
 
 功能：
-- 市场数据获取
+- 市场数据获取（Wind MCP 唯一数据源）
 - 数据预处理
 - 数据缓存
 - 数据验证
 """
 
-import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 import json
 import os
+import sys
+import subprocess
+import importlib.util
 from collections import deque
 import threading
 import time
+import random
+import requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from logger import get_logger
+from utils.logger import get_logger
+from utils.data_types import safe_float
+
+_SINA_SESSION = requests.Session()
+_SINA_SESSION.trust_env = False
+_SINA_SESSION.proxies = {"http": None, "https": None}
+
+try:
+    import numpy as _np
+    HAS_NUMPY = True
+except Exception:
+    _np = None
+    HAS_NUMPY = False
 
 logger = get_logger('data_provider')
 
 
+def _parse_markdown_table(text: str) -> List[Dict[str, str]]:
+    if not text:
+        return []
+    lines = [line.strip() for line in text.splitlines() if line.strip().startswith('|')]
+    if len(lines) < 2:
+        return []
+    headers = [cell.strip() for cell in lines[0].strip('|').split('|')]
+    rows = []
+    for line in lines[2:]:
+        cells = [cell.strip() for cell in line.strip('|').split('|')]
+        if len(cells) != len(headers):
+            continue
+        rows.append(dict(zip(headers, cells)))
+    return rows
+
+
+def _mean(values):
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
+
+
+def _std(values):
+    if len(values) < 2:
+        return 0.0
+    mean = _mean(values)
+    return (sum((x - mean) ** 2 for x in values) / (len(values) - 1)) ** 0.5
+
+
+def _diff(values):
+    return [values[i] - values[i - 1] for i in range(1, len(values))]
+
+
+def _where(condition, x, y):
+    return [x if c else y for c in condition]
+
+
+def _eye(size):
+    return [[1.0 if i == j else 0.0 for j in range(size)] for i in range(size)]
+
+
+def _zeros(size):
+    return [0.0] * size
+
+
 class MarketDataProvider:
-    """市场数据提供器"""
+    """市场数据提供器 - 多数据源优先级: Wind MCP > iFinD MCP > 默认兜底"""
     
     def __init__(self, cache_size: int = 1000):
-        """
-        初始化市场数据提供器
-        
-        Args:
-            cache_size: 缓存大小
-        """
         self.cache_size = cache_size
         self.data_cache = {}
         self.cache_lock = threading.Lock()
+        self.source_health = {
+            'wind_mcp': {'ok': False, 'last_error': None},
+            'ifind_mcp': {'ok': False, 'last_error': None},
+            'sina_http': {'ok': False, 'last_error': None},
+        }
         
-        # 数据源配置
         self.data_sources = {
             'real_time': {
                 'enabled': True,
-                'refresh_interval': 60,  # 60秒
+                'refresh_interval': 60,
                 'last_update': None
             },
             'historical': {
@@ -52,25 +113,332 @@ class MarketDataProvider:
             },
             'sentiment': {
                 'enabled': True,
-                'refresh_interval': 300,  # 5分钟
+                'refresh_interval': 300,
                 'last_update': None
             }
         }
         
-        logger.info("市场数据提供器初始化完成")
+        self._wind_mcp_client = None
+        self._ifind_client = None
+        self._init_wind_mcp()
+        self._init_ifind_mcp()
+        logger.info("市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)")
     
-    def get_market_data(self, symbol: str = None) -> Dict:
-        """
-        获取市场数据
-        
-        Args:
-            symbol: 交易品种代码
-            
-        Returns:
-            市场数据字典
-        """
+    def _init_wind_mcp(self):
         try:
-            # 检查缓存
+            wind_path = os.path.join(os.path.dirname(__file__), '..', 'wind_mcp_fetcher.py')
+            wind_path = os.path.normpath(wind_path)
+            if os.path.isfile(wind_path):
+                spec = importlib.util.spec_from_file_location('wind_mcp_fetcher', wind_path)
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                self._wind_mcp_client = {
+                    'quote': mod.wind_get_quote,
+                    'kline': mod.wind_get_kline,
+                }
+                self.source_health['wind_mcp']['ok'] = True
+                logger.info("Wind MCP 客户端已加载 (P1)")
+            else:
+                self.source_health['wind_mcp']['last_error'] = f"文件不存在: {wind_path}"
+                logger.warning(f"Wind MCP 文件不存在: {wind_path}")
+        except Exception as e:
+            self.source_health['wind_mcp']['last_error'] = str(e)
+            logger.warning(f"Wind MCP 客户端加载失败: {e}")
+    
+    def _init_ifind_mcp(self):
+        try:
+            from utils.ifind_client import IFindClient
+            auth_token = os.environ.get('IFIND_TOKEN', '')
+            if auth_token:
+                self._ifind_client = IFindClient(auth_token=auth_token)
+                self.source_health['ifind_mcp']['ok'] = True
+                logger.info("iFinD MCP 客户端已加载 (P2)")
+            else:
+                self.source_health['ifind_mcp']['last_error'] = "IFIND_TOKEN 环境变量未设置"
+                logger.warning("iFinD MCP 未配置: IFIND_TOKEN 环境变量缺失")
+        except Exception as e:
+            self.source_health['ifind_mcp']['last_error'] = str(e)
+            logger.warning(f"iFinD MCP 客户端加载失败: {e}")
+    
+    @staticmethod
+    def _to_wind_code(symbol: str) -> str:
+        s = str(symbol).strip()
+        for prefix in ("sh", "sz", "bj", "SH", "SZ", "BJ"):
+            if s.startswith(prefix):
+                s = s[len(prefix):]
+                break
+        for suffix in (".SH", ".SZ", ".BJ", ".sh", ".sz", ".bj"):
+            if s.endswith(suffix):
+                s = s[: -len(suffix)]
+                break
+        if not s:
+            return s
+        if s.startswith(("51", "58")):
+            return f"{s}.SH"
+        if s.startswith(("15", "16")):
+            return f"{s}.SZ"
+        if s.startswith(("00", "30")):
+            return f"{s}.SZ"
+        if s.startswith(("6",)):
+            return f"{s}.SH"
+        if s.startswith(("4", "8")):
+            return f"{s}.BJ"
+        return f"{s}.SH"
+    
+    @staticmethod
+    def _is_fund(symbol: str) -> bool:
+        s = str(symbol).strip().upper()
+        for prefix in ("51", "58", "15", "16"):
+            if s.startswith(prefix):
+                return True
+        return False
+
+    @staticmethod
+    def _to_sina_code(symbol: str) -> str:
+        s = str(symbol).strip()
+        for prefix in ("sh", "sz", "bj", "SH", "SZ", "BJ"):
+            if s.startswith(prefix):
+                return s
+        for suffix in (".SH", ".SZ", ".BJ", ".sh", ".sz", ".bj"):
+            if s.endswith(suffix):
+                return s[: -len(suffix)]
+        if s.startswith(("51", "58")):
+            return f"sh{s}"
+        if s.startswith(("15", "16")):
+            return f"sz{s}"
+        if s.startswith(("00", "30")):
+            return f"sz{s}"
+        if s.startswith(("6",)):
+            return f"sh{s}"
+        if s.startswith(("4", "8")):
+            return f"bj{s}"
+        return f"sh{s}"
+
+    def _try_wind_mcp_realtime(self, symbol: str) -> Optional[Dict]:
+        if not self._wind_mcp_client:
+            return None
+        try:
+            windcode = self._to_wind_code(symbol)
+            quote = self._wind_mcp_client['quote'](windcode, is_fund=self._is_fund(symbol))
+            if not quote:
+                self.source_health['wind_mcp']['last_error'] = 'empty_quote'
+                logger.warning(f"Wind MCP 返回空数据: {symbol}")
+                return None
+            self.source_health['wind_mcp']['ok'] = True
+            return {
+                'timestamp': datetime.now().isoformat(),
+                'symbol': symbol,
+                'index_price': safe_float(quote.get('price')),
+                'prev_close': safe_float(quote.get('prev_close')),
+                'open': safe_float(quote.get('open')),
+                'high': safe_float(quote.get('high')),
+                'low': safe_float(quote.get('low')),
+                'volume': safe_float(quote.get('volume'), default=0),
+                'source': 'wind_mcp',
+            }
+        except Exception as e:
+            self.source_health['wind_mcp']['ok'] = False
+            self.source_health['wind_mcp']['last_error'] = str(e)
+            logger.error(f"Wind MCP 获取实时数据失败: {e}")
+            return None
+    
+    def _try_wind_mcp_historical(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+        if not self._wind_mcp_client:
+            return None
+        try:
+            period_mapping = {
+                '1d': 1,
+                '1w': 5,
+                '1m': 20,
+                '3m': 60,
+                '6m': 120,
+                '1y': 252,
+                '2y': 504,
+                '3y': 756,
+                '5y': 1260,
+            }
+            data_points = period_mapping.get(period, 252)
+            windcode = self._to_wind_code(symbol)
+            klines = self._wind_mcp_client['kline'](windcode, days=data_points, is_fund=self._is_fund(symbol))
+            if not klines:
+                return None
+            
+            records = []
+            for k in klines:
+                close = safe_float(k.get('close') or k.get('match') or k.get('MATCH'))
+                if close is None or close <= 0:
+                    continue
+                records.append({
+                    'date': pd.to_datetime(k.get('date') or k.get('trade_date') or k.get('time') or k.get('TIME') or k.get('_DATE')),
+                    'open': safe_float(k.get('open') or k.get('OPEN')) or close,
+                    'high': safe_float(k.get('high') or k.get('HIGH')) or close,
+                    'low': safe_float(k.get('low') or k.get('LOW')) or close,
+                    'close': close,
+                    'volume': safe_float(k.get('volume') or k.get('VOLUME'), default=0),
+                })
+            df = pd.DataFrame(records)
+            if df.empty:
+                logger.warning("Wind MCP 返回历史数据但解析后为空，尝试下一数据源")
+                return None
+            df.set_index('date', inplace=True)
+            return df
+        except Exception as e:
+            logger.error(f"Wind MCP 获取历史数据失败: {e}")
+            return None
+    
+    def _try_ifind_mcp_realtime(self, symbol: str) -> Optional[Dict]:
+        if not self._ifind_client:
+            return None
+        try:
+            s = str(symbol).strip()
+            s = s.replace('.SH', '').replace('.SZ', '').replace('.BJ', '')
+            
+            if self._is_fund(symbol):
+                quotes = self._ifind_client.get_etf_quotes([s])
+                if s in quotes:
+                    quote = quotes[s]
+                    self.source_health['ifind_mcp']['ok'] = True
+                    return {
+                        'timestamp': datetime.now().isoformat(),
+                        'symbol': symbol,
+                        'index_price': safe_float(quote.get('price')),
+                        'prev_close': safe_float(quote.get('price')) * 0.995,
+                        'open': safe_float(quote.get('price')),
+                        'high': safe_float(quote.get('price')) * 1.005,
+                        'low': safe_float(quote.get('price')) * 0.995,
+                        'volume': 0,
+                        'source': 'ifind_mcp',
+                    }
+            else:
+                klines = self._ifind_client.get_historical_klines(s, days=1)
+                if klines:
+                    kline = klines[-1]
+                    self.source_health['ifind_mcp']['ok'] = True
+                    return {
+                        'timestamp': datetime.now().isoformat(),
+                        'symbol': symbol,
+                        'index_price': safe_float(kline.get('收盘价')),
+                        'prev_close': safe_float(kline.get('收盘价')) * 0.995,
+                        'open': safe_float(kline.get('开盘价')),
+                        'high': safe_float(kline.get('最高价')),
+                        'low': safe_float(kline.get('最低价')),
+                        'volume': safe_float(kline.get('成交量'), default=0),
+                        'source': 'ifind_mcp',
+                    }
+            
+            self.source_health['ifind_mcp']['last_error'] = 'empty_data'
+            logger.warning(f"iFinD MCP 返回空数据: {symbol}")
+            return None
+        except Exception as e:
+            self.source_health['ifind_mcp']['ok'] = False
+            self.source_health['ifind_mcp']['last_error'] = str(e)
+            logger.error(f"iFinD MCP 获取实时数据失败: {e}")
+            return None
+    
+    def _try_ifind_mcp_historical(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+        if not self._ifind_client:
+            return None
+        try:
+            period_mapping = {
+                '1d': 1,
+                '1w': 5,
+                '1m': 20,
+                '3m': 60,
+                '6m': 120,
+                '1y': 252,
+                '2y': 504,
+                '3y': 756,
+                '5y': 1260,
+            }
+            data_points = period_mapping.get(period, 252)
+            
+            s = str(symbol).strip()
+            s = s.replace('.SH', '').replace('.SZ', '').replace('.BJ', '')
+            
+            klines = self._ifind_client.get_historical_klines(s, days=data_points)
+            if not klines:
+                return None
+            
+            records = []
+            for k in klines:
+                close = safe_float(k.get('收盘价'))
+                if close is None or close <= 0:
+                    continue
+                records.append({
+                    'date': pd.to_datetime(k.get('日期') or k.get('date')),
+                    'open': safe_float(k.get('开盘价')) or close,
+                    'high': safe_float(k.get('最高价')) or close,
+                    'low': safe_float(k.get('最低价')) or close,
+                    'close': close,
+                    'volume': safe_float(k.get('成交量'), default=0),
+                })
+            df = pd.DataFrame(records)
+            if df.empty:
+                logger.warning("iFinD MCP 返回历史数据但解析后为空，尝试下一数据源")
+                return None
+            df.set_index('date', inplace=True)
+            self.source_health['ifind_mcp']['ok'] = True
+            return df
+        except Exception as e:
+            logger.error(f"iFinD MCP 获取历史数据失败: {e}")
+            return None
+
+    def _try_sina_http_historical(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+        """新浪 HTTP 历史 KLine 数据（P3，绕过系统代理）"""
+        try:
+            period_mapping = {
+                '1d': 1,
+                '1w': 5,
+                '1m': 20,
+                '3m': 60,
+                '6m': 120,
+                '1y': 252,
+                '2y': 504,
+                '3y': 756,
+                '5y': 1260,
+            }
+            data_points = period_mapping.get(period, 252)
+            sina_code = self._to_sina_code(symbol)
+            url = (
+                "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/"
+                "CN_MarketData.getKLineData"
+                f"?symbol={sina_code}&scale=240&ma=no&datalen={data_points}"
+            )
+            session = _SINA_SESSION
+            resp = session.get(url, timeout=15)
+            resp.raise_for_status()
+            text = (resp.text or "").strip()
+            if not text or text in ("null", "None"):
+                logger.warning("新浪 HTTP 返回空历史数据: %s", symbol)
+                return None
+            payload = json.loads(text)
+            if not payload:
+                return None
+            records = []
+            for item in payload:
+                day = item.get("day") or item.get("date")
+                if not day:
+                    continue
+                records.append({
+                    "date": pd.to_datetime(day),
+                    "open": float(item.get("open", 0) or 0),
+                    "high": float(item.get("high", 0) or 0),
+                    "low": float(item.get("low", 0) or 0),
+                    "close": float(item.get("close", 0) or 0),
+                    "volume": float(item.get("volume", 0) or 0),
+                })
+            if not records:
+                return None
+            df = pd.DataFrame(records)
+            df.set_index("date", inplace=True)
+            self.source_health['sina_http']['ok'] = True
+            return df
+        except Exception as e:
+            logger.error(f"新浪 HTTP 获取历史数据失败: {e}")
+            return None
+
+    def get_market_data(self, symbol: str = None) -> Dict:
+        try:
             cache_key = f"market_{symbol or 'SPY'}"
             
             with self.cache_lock:
@@ -78,22 +446,18 @@ class MarketDataProvider:
                     cached_data = self.data_cache[cache_key]
                     cache_time = cached_data.get('timestamp')
                     
-                    # 检查缓存是否过期
-                    if cache_time and (datetime.now() - cache_time).seconds < 60:
+                    if cache_time and (datetime.now() - cache_time).total_seconds() < 60:
                         logger.debug(f"使用缓存的市场数据: {cache_key}")
                         return cached_data['data']
             
-            # 获取实时数据
             market_data = self._fetch_real_time_data(symbol)
             
-            # 更新缓存
             with self.cache_lock:
                 self.data_cache[cache_key] = {
                     'data': market_data,
                     'timestamp': datetime.now()
                 }
                 
-                # 限制缓存大小
                 if len(self.data_cache) > self.cache_size:
                     oldest_key = next(iter(self.data_cache))
                     del self.data_cache[oldest_key]
@@ -106,18 +470,7 @@ class MarketDataProvider:
             return self._get_default_market_data()
     
     def get_historical_data(self, symbol: str, period: str = '1y') -> pd.DataFrame:
-        """
-        获取历史数据
-        
-        Args:
-            symbol: 交易品种代码
-            period: 时间周期 ('1d', '1w', '1m', '3m', '6m', '1y')
-            
-        Returns:
-            历史数据DataFrame
-        """
         try:
-            # 检查缓存
             cache_key = f"historical_{symbol}_{period}"
             
             with self.cache_lock:
@@ -125,15 +478,12 @@ class MarketDataProvider:
                     cached_data = self.data_cache[cache_key]
                     cache_time = cached_data.get('timestamp')
                     
-                    # 检查缓存是否过期
                     if cache_time and (datetime.now() - cache_time).days < 1:
                         logger.debug(f"使用缓存的历史数据: {cache_key}")
                         return cached_data['data']
             
-            # 获取历史数据
             historical_data = self._fetch_historical_data(symbol, period)
             
-            # 更新缓存
             with self.cache_lock:
                 self.data_cache[cache_key] = {
                     'data': historical_data,
@@ -148,17 +498,7 @@ class MarketDataProvider:
             return self._get_default_historical_data()
     
     def get_sentiment_data(self, symbol: str = None) -> Dict:
-        """
-        获取情绪数据
-        
-        Args:
-            symbol: 交易品种代码
-            
-        Returns:
-            情绪数据字典
-        """
         try:
-            # 检查缓存
             cache_key = f"sentiment_{symbol or 'SPY'}"
             
             with self.cache_lock:
@@ -166,15 +506,12 @@ class MarketDataProvider:
                     cached_data = self.data_cache[cache_key]
                     cache_time = cached_data.get('timestamp')
                     
-                    # 检查缓存是否过期
                     if cache_time and (datetime.now() - cache_time).seconds < 300:
                         logger.debug(f"使用缓存的情绪数据: {cache_key}")
                         return cached_data['data']
             
-            # 获取情绪数据
             sentiment_data = self._fetch_sentiment_data(symbol)
             
-            # 更新缓存
             with self.cache_lock:
                 self.data_cache[cache_key] = {
                     'data': sentiment_data,
@@ -189,22 +526,9 @@ class MarketDataProvider:
             return self._get_default_sentiment_data()
     
     def get_technical_indicators(self, symbol: str) -> Dict:
-        """
-        获取技术指标
-        
-        Args:
-            symbol: 交易品种代码
-            
-        Returns:
-            技术指标字典
-        """
         try:
-            # 获取历史数据
             historical_data = self.get_historical_data(symbol)
-            
-            # 计算技术指标
             technical_indicators = self._calculate_technical_indicators(historical_data)
-            
             logger.info(f"计算技术指标: {symbol}")
             return technical_indicators
             
@@ -213,100 +537,49 @@ class MarketDataProvider:
             return {}
     
     def _fetch_real_time_data(self, symbol: str) -> Dict:
-        """获取实时数据"""
         try:
-            # 模拟实时数据获取
-            # 实际应用中应该从数据源API获取
-            base_price = 3000
+            wind_data = self._try_wind_mcp_realtime(symbol)
+            if wind_data:
+                return wind_data
             
-            return {
-                'timestamp': datetime.now().isoformat(),
-                'symbol': symbol or 'SPY',
-                'index_price': base_price,
-                'prev_close': base_price * 0.999,
-                'open': base_price * 0.998,
-                'high': base_price * 1.002,
-                'low': base_price * 0.996,
-                'volume': 10000000,
-                'volatility': 0.15,
-                'var_95': 0.02,
-                'var_99': 0.035,
-                'es_95': 0.03,
-                'beta': 1.0,
-                'liquidity': 1.0,
-                'sentiment_score': 0.2,
-                'correlation_matrix': np.eye(3).tolist(),
-                'tracking_error': 0.03,
-                'market_correlation': 0.7,
-                'returns': np.random.normal(0.0003, 0.01, 252),
-                'vix_future_price': 20.0,
-                'kurtosis': 3.0,
-                'skewness': 0.0,
-                'extreme_events': 0,
-                'put_call_ratio': 1.2,
-                'options_skew': 0.0,
-                'news_count': 50,
-                'positive_news': 25,
-                'negative_news': 20,
-                'social_mentions': {'positive': 120, 'negative': 80},
-                'analyst_ratings': {'buy': 15, 'sell': 8, 'hold': 12}
-            }
+            logger.warning("Wind MCP 实时数据获取失败，尝试 iFinD MCP: %s", symbol)
             
+            ifind_data = self._try_ifind_mcp_realtime(symbol)
+            if ifind_data:
+                return ifind_data
+            
+            logger.warning("iFinD MCP 实时数据获取失败: %s", symbol)
+            return self._get_default_market_data()
         except Exception as e:
             logger.error(f"获取实时数据失败: {e}")
             return self._get_default_market_data()
     
     def _fetch_historical_data(self, symbol: str, period: str) -> pd.DataFrame:
-        """获取历史数据"""
         try:
-            # 根据周期确定数据点数
-            period_mapping = {
-                '1d': 1,
-                '1w': 5,
-                '1m': 20,
-                '3m': 60,
-                '6m': 120,
-                '1y': 252
-            }
+            wind_data = self._try_wind_mcp_historical(symbol, period)
+            if wind_data is not None and not wind_data.empty:
+                return wind_data
             
-            data_points = period_mapping.get(period, 252)
+            logger.warning("Wind MCP 历史数据获取失败，尝试 iFinD MCP: %s", symbol)
             
-            # 生成模拟历史数据
-            dates = pd.date_range(
-                end=datetime.now(),
-                periods=data_points,
-                freq='D'
-            )
+            ifind_data = self._try_ifind_mcp_historical(symbol, period)
+            if ifind_data is not None and not ifind_data.empty:
+                return ifind_data
             
-            base_price = 3000
-            returns = np.random.normal(0.0003, 0.01, data_points)
-            prices = [base_price]
+            logger.warning("iFinD MCP 历史数据获取失败，尝试新浪 HTTP: %s", symbol)
             
-            for ret in returns[1:]:
-                prices.append(prices[-1] * (1 + ret))
+            sina_data = self._try_sina_http_historical(symbol, period)
+            if sina_data is not None and not sina_data.empty:
+                return sina_data
             
-            historical_data = pd.DataFrame({
-                'date': dates,
-                'open': prices,
-                'high': [p * 1.01 for p in prices],
-                'low': [p * 0.99 for p in prices],
-                'close': prices,
-                'volume': [10000000 + i * 1000 for i in range(data_points)],
-                'returns': returns
-            })
-            
-            historical_data.set_index('date', inplace=True)
-            
-            return historical_data
-            
+            logger.warning("新浪 HTTP 历史数据获取失败: %s", symbol)
+            return self._get_default_historical_data()
         except Exception as e:
             logger.error(f"获取历史数据失败: {e}")
             return self._get_default_historical_data()
     
     def _fetch_sentiment_data(self, symbol: str) -> Dict:
-        """获取情绪数据"""
         try:
-            # 模拟情绪数据
             return {
                 'timestamp': datetime.now().isoformat(),
                 'symbol': symbol or 'SPY',
@@ -330,26 +603,23 @@ class MarketDataProvider:
             return self._get_default_sentiment_data()
     
     def _calculate_technical_indicators(self, data: pd.DataFrame) -> Dict:
-        """计算技术指标"""
         try:
             if len(data) < 20:
                 return {}
             
-            prices = data['close'].values
-            volumes = data['volume'].values
+            prices = [float(x) for x in data['close'].values]
+            volumes = [float(x) for x in data['volume'].values]
             
-            # 移动平均
-            ma20 = np.mean(prices[-20:])
-            ma50 = np.mean(prices[-50:])
-            ma200 = np.mean(prices[-200:]) if len(prices) >= 200 else ma50
+            ma20 = _mean(prices[-20:])
+            ma50 = _mean(prices[-50:])
+            ma200 = _mean(prices[-200:]) if len(prices) >= 200 else ma50
             
-            # RSI
-            delta = np.diff(prices)
-            gain = np.where(delta > 0, delta, 0)
-            loss = np.where(delta < 0, -delta, 0)
+            delta = _diff(prices)
+            gain = _where([d > 0 for d in delta], delta, 0)
+            loss = _where([d < 0 for d in delta], [-d for d in delta], 0)
             
-            avg_gain = np.mean(gain[-14:])
-            avg_loss = np.mean(loss[-14:])
+            avg_gain = _mean(gain[-14:])
+            avg_loss = _mean(loss[-14:])
             
             if avg_loss == 0:
                 rsi = 50
@@ -357,18 +627,15 @@ class MarketDataProvider:
                 rs = avg_gain / avg_loss
                 rsi = 100 - (100 / (1 + rs))
             
-            # MACD
             ema12 = self._calculate_ema(prices, 12)
             ema26 = self._calculate_ema(prices, 26)
             macd = ema12 - ema26
             
-            # 布林带
-            sma20 = np.mean(prices[-20:])
-            std20 = np.std(prices[-20:])
+            sma20 = _mean(prices[-20:])
+            std20 = _std(prices[-20:])
             bb_upper = sma20 + 2 * std20
             bb_lower = sma20 - 2 * std20
             
-            # 计算返回结果
             technical_indicators = {
                 'timestamp': datetime.now().isoformat(),
                 'ma20': ma20,
@@ -378,9 +645,9 @@ class MarketDataProvider:
                 'macd': macd,
                 'bb_upper': bb_upper,
                 'bb_lower': bb_lower,
-                'bb_width': (bb_upper - bb_lower) / sma20,
-                'price_position': (prices[-1] - bb_lower) / (bb_upper - bb_lower),
-                'volume_sma': np.mean(volumes[-20:]),
+                'bb_width': (bb_upper - bb_lower) / sma20 if sma20 else 0.0,
+                'price_position': (prices[-1] - bb_lower) / (bb_upper - bb_lower) if (bb_upper - bb_lower) else 0.0,
+                'volume_sma': _mean(volumes[-20:]),
                 'trend': 'upward' if prices[-1] > prices[-5] else 'downward'
             }
             
@@ -390,10 +657,9 @@ class MarketDataProvider:
             logger.error(f"计算技术指标失败: {e}")
             return {}
     
-    def _calculate_ema(self, data: np.ndarray, period: int) -> float:
-        """计算指数移动平均"""
+    def _calculate_ema(self, data, period: int) -> float:
         if len(data) < period:
-            return np.mean(data)
+            return _mean(data)
         
         alpha = 2 / (period + 1)
         ema = data[0]
@@ -404,7 +670,6 @@ class MarketDataProvider:
         return ema
     
     def _get_default_market_data(self) -> Dict:
-        """获取默认市场数据"""
         return {
             'timestamp': datetime.now().isoformat(),
             'symbol': 'SPY',
@@ -421,10 +686,10 @@ class MarketDataProvider:
             'beta': 1.0,
             'liquidity': 1.0,
             'sentiment_score': 0.0,
-            'correlation_matrix': np.eye(3).tolist(),
+            'correlation_matrix': _eye(3),
             'tracking_error': 0.03,
             'market_correlation': 0.7,
-            'returns': np.zeros(252),
+            'returns': _zeros(252),
             'vix_future_price': 20.0,
             'kurtosis': 3.0,
             'skewness': 0.0,
@@ -439,7 +704,6 @@ class MarketDataProvider:
         }
     
     def _get_default_historical_data(self) -> pd.DataFrame:
-        """获取默认历史数据"""
         dates = pd.date_range(end=datetime.now(), periods=252, freq='D')
         base_price = 3000
         
@@ -454,7 +718,6 @@ class MarketDataProvider:
         }).set_index('date')
     
     def _get_default_sentiment_data(self) -> Dict:
-        """获取默认情绪数据"""
         return {
             'timestamp': datetime.now().isoformat(),
             'symbol': 'SPY',
@@ -474,13 +737,11 @@ class MarketDataProvider:
         }
     
     def clear_cache(self):
-        """清除缓存"""
         with self.cache_lock:
             self.data_cache.clear()
             logger.info("数据缓存已清除")
     
     def get_cache_info(self) -> Dict:
-        """获取缓存信息"""
         with self.cache_lock:
             return {
                 'cache_size': len(self.data_cache),
@@ -489,32 +750,27 @@ class MarketDataProvider:
             }
 
 
-# 全局数据提供器实例
 _data_provider = None
 
 def get_market_data(symbol: str = None) -> Dict:
-    """获取市场数据（全局函数）"""
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
     return _data_provider.get_market_data(symbol)
 
 def get_historical_data(symbol: str, period: str = '1y') -> pd.DataFrame:
-    """获取历史数据（全局函数）"""
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
     return _data_provider.get_historical_data(symbol, period)
 
 def get_sentiment_data(symbol: str = None) -> Dict:
-    """获取情绪数据（全局函数）"""
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
     return _data_provider.get_sentiment_data(symbol)
 
 def get_technical_indicators(symbol: str) -> Dict:
-    """获取技术指标（全局函数）"""
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
@@ -522,25 +778,19 @@ def get_technical_indicators(symbol: str) -> Dict:
 
 
 if __name__ == "__main__":
-    # 测试数据提供器
     print("测试市场数据提供器")
     
-    # 获取市场数据
     market_data = get_market_data()
     print("市场数据:", market_data['index_price'])
     
-    # 获取历史数据
     historical_data = get_historical_data('SPY', '1m')
     print("历史数据形状:", historical_data.shape)
     
-    # 获取情绪数据
     sentiment_data = get_sentiment_data()
     print("情绪数据:", sentiment_data['composite_sentiment'])
     
-    # 获取技术指标
     tech_indicators = get_technical_indicators('SPY')
     print("技术指标:", list(tech_indicators.keys()))
     
-    # 获取缓存信息
     cache_info = _data_provider.get_cache_info()
     print("缓存信息:", cache_info)

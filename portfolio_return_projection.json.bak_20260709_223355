@@ -1,0 +1,606 @@
+{
+  "generated_at": "2026-07-09T21:07:20.304952",
+  "version": "v3_2026-07-09_十五五降权",
+  "investment_horizon": "2026-07-10 → 2027-12-31",
+  "horizon_years": 1.5,
+  "initial_capital": 5000000,
+  "data_source": {
+    "positions": "config/positions.json (2026-07-09, 降权后)",
+    "weights": "config/positions.json target_weight",
+    "history": "config/returns_history.json (2025-06-23 → 2026-07-05)"
+  },
+  "scenarios": {
+    "bull": {
+      "label": "乐观 (牛市)",
+      "weighted_annualized": 33.74,
+      "cumulative_return": 54.67,
+      "final_amount": 7733397.0,
+      "total_profit": 2733397.0,
+      "style_breakdown": {
+        "科技": {
+          "weight": 0.31460799999999994,
+          "weighted_return": 15.179836,
+          "effective_return": 48.25000000000001
+        },
+        "医药": {
+          "weight": 0.179776,
+          "weighted_return": 5.16856,
+          "effective_return": 28.750000000000004
+        },
+        "金融": {
+          "weight": 0.12359600000000001,
+          "weighted_return": 2.9101239999999997,
+          "effective_return": 23.54545454545454
+        },
+        "新能源": {
+          "weight": 0.10112399999999999,
+          "weighted_return": 4.2135,
+          "effective_return": 41.66666666666667
+        },
+        "防御": {
+          "weight": 0.044944,
+          "weighted_return": 0.539328,
+          "effective_return": 12.000000000000002
+        },
+        "制造": {
+          "weight": 0.033708,
+          "weighted_return": 1.51686,
+          "effective_return": 45.0
+        },
+        "宽基": {
+          "weight": 0.067416,
+          "weighted_return": 1.0112400000000001,
+          "effective_return": 15.000000000000002
+        },
+        "资源": {
+          "weight": 0.10112399999999999,
+          "weighted_return": 2.69664,
+          "effective_return": 26.666666666666668
+        },
+        "顺周期": {
+          "weight": 0.033708,
+          "weighted_return": 0.5056200000000001,
+          "effective_return": 15.000000000000002
+        }
+      }
+    },
+    "base": {
+      "label": "基准 (中性)",
+      "weighted_annualized": 19.22,
+      "cumulative_return": 30.18,
+      "final_amount": 6509084.0,
+      "total_profit": 1509084.0,
+      "style_breakdown": {
+        "科技": {
+          "weight": 0.31460799999999994,
+          "weighted_return": 8.471944,
+          "effective_return": 26.928571428571434
+        },
+        "医药": {
+          "weight": 0.179776,
+          "weighted_return": 3.011248,
+          "effective_return": 16.75
+        },
+        "金融": {
+          "weight": 0.12359600000000001,
+          "weighted_return": 1.550568,
+          "effective_return": 12.545454545454543
+        },
+        "新能源": {
+          "weight": 0.10112399999999999,
+          "weighted_return": 2.3820319999999997,
+          "effective_return": 23.555555555555554
+        },
+        "防御": {
+          "weight": 0.044944,
+          "weighted_return": 0.359552,
+          "effective_return": 8.0
+        },
+        "制造": {
+          "weight": 0.033708,
+          "weighted_return": 0.8427,
+          "effective_return": 25.0
+        },
+        "宽基": {
+          "weight": 0.067416,
+          "weighted_return": 0.6067440000000001,
+          "effective_return": 9.0
+        },
+        "资源": {
+          "weight": 0.10112399999999999,
+          "weighted_return": 1.662928,
+          "effective_return": 16.444444444444446
+        },
+        "顺周期": {
+          "weight": 0.033708,
+          "weighted_return": 0.33708000000000005,
+          "effective_return": 10.0
+        }
+      }
+    },
+    "bear": {
+      "label": "悲观 (熊市)",
+      "weighted_annualized": -22.26,
+      "cumulative_return": -31.45,
+      "final_amount": 3427277.0,
+      "total_profit": -1572723.0,
+      "style_breakdown": {
+        "科技": {
+          "weight": 0.31460799999999994,
+          "weighted_return": -10.089928,
+          "effective_return": -32.07142857142858
+        },
+        "医药": {
+          "weight": 0.179776,
+          "weighted_return": -3.3708,
+          "effective_return": -18.75
+        },
+        "金融": {
+          "weight": 0.12359600000000001,
+          "weighted_return": -1.9438280000000001,
+          "effective_return": -15.727272727272727
+        },
+        "新能源": {
+          "weight": 0.10112399999999999,
+          "weighted_return": -2.75282,
+          "effective_return": -27.22222222222222
+        },
+        "防御": {
+          "weight": 0.044944,
+          "weighted_return": -0.22471999999999998,
+          "effective_return": -5.0
+        },
+        "制造": {
+          "weight": 0.033708,
+          "weighted_return": -1.0112400000000001,
+          "effective_return": -30.000000000000004
+        },
+        "宽基": {
+          "weight": 0.067416,
+          "weighted_return": -0.6741600000000001,
+          "effective_return": -10.0
+        },
+        "资源": {
+          "weight": 0.10112399999999999,
+          "weighted_return": -1.6854,
+          "effective_return": -16.666666666666668
+        },
+        "顺周期": {
+          "weight": 0.033708,
+          "weighted_return": -0.5056200000000001,
+          "effective_return": -15.000000000000002
+        }
+      }
+    },
+    "black_swan": {
+      "label": "黑天鹅 (极端)",
+      "weighted_annualized": -37.96,
+      "cumulative_return": -51.13,
+      "final_amount": 2443588.0,
+      "total_profit": -2556412.0,
+      "style_breakdown": {
+        "科技": {
+          "weight": 0.31460799999999994,
+          "weighted_return": -16.40456,
+          "effective_return": -52.14285714285715
+        },
+        "医药": {
+          "weight": 0.179776,
+          "weighted_return": -5.955080000000001,
+          "effective_return": -33.12500000000001
+        },
+        "金融": {
+          "weight": 0.12359600000000001,
+          "weighted_return": -3.460688,
+          "effective_return": -28.0
+        },
+        "新能源": {
+          "weight": 0.10112399999999999,
+          "weighted_return": -4.6067599999999995,
+          "effective_return": -45.55555555555556
+        },
+        "防御": {
+          "weight": 0.044944,
+          "weighted_return": -0.44943999999999995,
+          "effective_return": -10.0
+        },
+        "制造": {
+          "weight": 0.033708,
+          "weighted_return": -1.6854,
+          "effective_return": -50.0
+        },
+        "宽基": {
+          "weight": 0.067416,
+          "weighted_return": -1.3483200000000002,
+          "effective_return": -20.0
+        },
+        "资源": {
+          "weight": 0.10112399999999999,
+          "weighted_return": -3.20226,
+          "effective_return": -31.666666666666668
+        },
+        "顺周期": {
+          "weight": 0.033708,
+          "weighted_return": -0.8427,
+          "effective_return": -25.0
+        }
+      }
+    }
+  },
+  "probability_weights": {
+    "bull": 0.25,
+    "base": 0.45,
+    "bear": 0.25,
+    "black_swan": 0.05
+  },
+  "probability_weights_note": "基于 2025-06-23 → 2026-07-05 历史数据校准 (realized 76% > base*1.2)",
+  "expected": {
+    "expected_annualized": 9.62,
+    "expected_cumulative": 14.77,
+    "expected_final_amount": 5738662.0,
+    "expected_profit": 738662.0
+  },
+  "asset_detail": [
+    {
+      "code": "588080",
+      "name": "科创50ETF易方达",
+      "weight": 0.05618,
+      "style": "科技",
+      "risk": "高",
+      "reason": "ETF资金流强信号+国家队57亿净流入; 科创板AI/半导体龙头集合; 十五五降权新质生产力",
+      "scenario_returns": {
+        "bull": 45.0,
+        "base": 25.0,
+        "bear": -30.0,
+        "black_swan": -50.0
+      },
+      "base_annualized": 25.0,
+      "base_cumulative": 39.75,
+      "base_profit": 111670.0
+    },
+    {
+      "code": "512760",
+      "name": "半导体ETF国泰",
+      "weight": 0.033708,
+      "style": "科技",
+      "risk": "高",
+      "reason": "ETF资金流关注9亿; 半导体国产替代整体beta; 十五五降权新质生产力",
+      "scenario_returns": {
+        "bull": 42.0,
+        "base": 23.0,
+        "bear": -28.0,
+        "black_swan": -48.0
+      },
+      "base_annualized": 23.0,
+      "base_cumulative": 36.41,
+      "base_profit": 61371.0
+    },
+    {
+      "code": "688041",
+      "name": "海光信息",
+      "weight": 0.044944,
+      "style": "科技",
+      "risk": "高",
+      "reason": "AI算力CPU+DCU龙头; 科创50ETF重仓; 十五五降权新质生产力",
+      "scenario_returns": {
+        "bull": 55.0,
+        "base": 30.0,
+        "bear": -35.0,
+        "black_swan": -55.0
+      },
+      "base_annualized": 30.0,
+      "base_cumulative": 48.22,
+      "base_profit": 108366.0
+    },
+    {
+      "code": "300308",
+      "name": "中际旭创",
+      "weight": 0.044944,
+      "style": "科技",
+      "risk": "高",
+      "reason": "光模块龙头; AI算力核心; 三重共振; 十五五降权新质生产力",
+      "scenario_returns": {
+        "bull": 60.0,
+        "base": 35.0,
+        "bear": -40.0,
+        "black_swan": -60.0
+      },
+      "base_annualized": 35.0,
+      "base_cumulative": 56.86,
+      "base_profit": 127766.0
+    },
+    {
+      "code": "603019",
+      "name": "中科曙光",
+      "weight": 0.022472,
+      "style": "科技",
+      "risk": "高",
+      "reason": "算力基础设施; 康波新技术革命; 十五五降权新质生产力",
+      "scenario_returns": {
+        "bull": 50.0,
+        "base": 28.0,
+        "bear": -32.0,
+        "black_swan": -55.0
+      },
+      "base_annualized": 28.0,
+      "base_cumulative": 44.82,
+      "base_profit": 50355.0
+    },
+    {
+      "code": "300782",
+      "name": "卓胜微",
+      "weight": 0.022472,
+      "style": "科技",
+      "risk": "高",
+      "reason": "射频芯片龙头; 半导体国产替代; 十五五降权新质生产力",
+      "scenario_returns": {
+        "bull": 40.0,
+        "base": 22.0,
+        "bear": -28.0,
+        "black_swan": -48.0
+      },
+      "base_annualized": 22.0,
+      "base_cumulative": 34.75,
+      "base_profit": 39049.0
+    },
+    {
+      "code": "512170",
+      "name": "医疗ETF华宝",
+      "weight": 0.11236,
+      "style": "医药",
+      "risk": "中",
+      "reason": "ETF资金流关注3亿; 十五五健康中国旗舰仓位; 医药全产业链beta; 十五五降权新质生产力转移",
+      "scenario_returns": {
+        "bull": 28.0,
+        "base": 16.0,
+        "bear": -18.0,
+        "black_swan": -32.0
+      },
+      "base_annualized": 16.0,
+      "base_cumulative": 24.94,
+      "base_profit": 140089.0
+    },
+    {
+      "code": "600276",
+      "name": "恒瑞医药",
+      "weight": 0.067416,
+      "style": "医药",
+      "risk": "中高",
+      "reason": "创新药龙头; 十五五健康中国核心仓; 十五五降权新质生产力转移",
+      "scenario_returns": {
+        "bull": 30.0,
+        "base": 18.0,
+        "bear": -20.0,
+        "black_swan": -35.0
+      },
+      "base_annualized": 18.0,
+      "base_cumulative": 28.18,
+      "base_profit": 94992.0
+    },
+    {
+      "code": "512880",
+      "name": "证券ETF国泰",
+      "weight": 0.05618,
+      "style": "金融",
+      "risk": "中",
+      "reason": "ETF资金流最强67亿净流入; 牛市旗手; 康波复苏期券商先行",
+      "scenario_returns": {
+        "bull": 35.0,
+        "base": 18.0,
+        "bear": -25.0,
+        "black_swan": -40.0
+      },
+      "base_annualized": 18.0,
+      "base_cumulative": 28.18,
+      "base_profit": 79160.0
+    },
+    {
+      "code": "300033",
+      "name": "同花顺",
+      "weight": 0.044944,
+      "style": "科技",
+      "risk": "中高",
+      "reason": "金融科技AI; 证券ETF强信号受益; 十五五数字中国",
+      "scenario_returns": {
+        "bull": 40.0,
+        "base": 22.0,
+        "bear": -28.0,
+        "black_swan": -45.0
+      },
+      "base_annualized": 22.0,
+      "base_cumulative": 34.75,
+      "base_profit": 78098.0
+    },
+    {
+      "code": "515030",
+      "name": "新能源车ETF华夏",
+      "weight": 0.05618,
+      "style": "新能源",
+      "risk": "中高",
+      "reason": "ETF资金流加仓11亿; 十五五双碳+新能源车战略",
+      "scenario_returns": {
+        "bull": 35.0,
+        "base": 20.0,
+        "bear": -25.0,
+        "black_swan": -42.0
+      },
+      "base_annualized": 20.0,
+      "base_cumulative": 31.45,
+      "base_profit": 88353.0
+    },
+    {
+      "code": "300274",
+      "name": "阳光电源",
+      "weight": 0.044944,
+      "style": "新能源",
+      "risk": "中高",
+      "reason": "光伏储能龙头; 十五五双碳",
+      "scenario_returns": {
+        "bull": 50.0,
+        "base": 28.0,
+        "bear": -30.0,
+        "black_swan": -50.0
+      },
+      "base_annualized": 28.0,
+      "base_cumulative": 44.82,
+      "base_profit": 100709.0
+    },
+    {
+      "code": "600900",
+      "name": "长江电力",
+      "weight": 0.044944,
+      "style": "防御",
+      "risk": "低",
+      "reason": "水电龙头+高股息4%; 防御底仓; 降低回撤",
+      "scenario_returns": {
+        "bull": 12.0,
+        "base": 8.0,
+        "bear": -5.0,
+        "black_swan": -10.0
+      },
+      "base_annualized": 8.0,
+      "base_cumulative": 12.24,
+      "base_profit": 27499.0
+    },
+    {
+      "code": "688017",
+      "name": "绿的谐波",
+      "weight": 0.033708,
+      "style": "制造",
+      "risk": "中高",
+      "reason": "机器人精密减速器; 新技术革命核心",
+      "scenario_returns": {
+        "bull": 45.0,
+        "base": 25.0,
+        "bear": -30.0,
+        "black_swan": -50.0
+      },
+      "base_annualized": 25.0,
+      "base_cumulative": 39.75,
+      "base_profit": 67002.0
+    },
+    {
+      "code": "510050",
+      "name": "上证50ETF华夏",
+      "weight": 0.067416,
+      "style": "宽基",
+      "risk": "低",
+      "reason": "ETF资金流加仓40亿; 大盘蓝筹底仓; 降低波动率",
+      "scenario_returns": {
+        "bull": 15.0,
+        "base": 9.0,
+        "bear": -10.0,
+        "black_swan": -20.0
+      },
+      "base_annualized": 9.0,
+      "base_cumulative": 13.8,
+      "base_profit": 46515.0
+    },
+    {
+      "code": "512800",
+      "name": "银行ETF华宝",
+      "weight": 0.067416,
+      "style": "金融",
+      "risk": "中",
+      "reason": "ETF资金流加仓23亿; 高股息5%+低波动; 组合稳定器",
+      "scenario_returns": {
+        "bull": 14.0,
+        "base": 8.0,
+        "bear": -8.0,
+        "black_swan": -18.0
+      },
+      "base_annualized": 8.0,
+      "base_cumulative": 12.24,
+      "base_profit": 41248.0
+    },
+    {
+      "code": "000408",
+      "name": "藏格矿业",
+      "weight": 0.044944,
+      "style": "资源",
+      "risk": "中高",
+      "reason": "锂+钾双资源; 新能源上游",
+      "scenario_returns": {
+        "bull": 35.0,
+        "base": 22.0,
+        "bear": -25.0,
+        "black_swan": -40.0
+      },
+      "base_annualized": 22.0,
+      "base_cumulative": 34.75,
+      "base_profit": 78098.0
+    },
+    {
+      "code": "601088",
+      "name": "中国神华",
+      "weight": 0.033708,
+      "style": "顺周期",
+      "risk": "中",
+      "reason": "煤炭高股息6%+低波动; 组合稳定器",
+      "scenario_returns": {
+        "bull": 15.0,
+        "base": 10.0,
+        "bear": -15.0,
+        "black_swan": -25.0
+      },
+      "base_annualized": 10.0,
+      "base_cumulative": 15.37,
+      "base_profit": 25903.0
+    },
+    {
+      "code": "518880",
+      "name": "黄金ETF华安",
+      "weight": 0.05618,
+      "style": "资源",
+      "risk": "中",
+      "reason": "周金涛萧条末期黄金最优; 避险+降低回撤",
+      "scenario_returns": {
+        "bull": 20.0,
+        "base": 12.0,
+        "bear": -10.0,
+        "black_swan": -25.0
+      },
+      "base_annualized": 12.0,
+      "base_cumulative": 18.53,
+      "base_profit": 52050.0
+    },
+    {
+      "code": "002371",
+      "name": "北方华创",
+      "weight": 0.044944,
+      "style": "科技",
+      "risk": "高",
+      "reason": "半导体设备龙头; 国产替代核心",
+      "scenario_returns": {
+        "bull": 50.0,
+        "base": 28.0,
+        "bear": -33.0,
+        "black_swan": -55.0
+      },
+      "base_annualized": 28.0,
+      "base_cumulative": 44.82,
+      "base_profit": 100709.0
+    }
+  ],
+  "calibration": {
+    "calibrated_at": "2026-07-09T22:23:25.149513",
+    "realized_annualized": 25.82,
+    "realized_period": "2024-06-07 → 2026-07-08",
+    "calibration_reason": "realized > base*1.2, bull 概率上调",
+    "market_annualized": 12.01,
+    "market_sharpe": 0.76
+  },
+  "risk_disclosure": {
+    "concentration_risk": "新质生产力 20% (降权后), 健康中国 16% (加仓后), 双主线配置",
+    "volatility_risk": "高波动标的 (688041/300308/002371) 占比 12%, 单日波动可达 ±5%",
+    "hedge_coverage": "已建仓 IF 股指期货空头 2 手 + IM 1 手 + 510050 Put 10 张, 尾部保护",
+    "policy_risk": "十五五规划落地节奏、半导体出口管制、AI 监管、医保集采",
+    "liquidity_risk": "500 万规模对个股冲击成本约 0.1-0.3%"
+  },
+  "probability_weights_original": {
+    "bull": 0.25,
+    "base": 0.45,
+    "bear": 0.25,
+    "black_swan": 0.05
+  }
+}

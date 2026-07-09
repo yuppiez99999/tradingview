@@ -27,6 +27,8 @@ from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 import logging
 
+from utils.data_types import safe_float, safe_int
+
 logger = logging.getLogger('liquidity_risk')
 
 
@@ -166,8 +168,8 @@ class LiquidityRiskController:
         per_order = []
 
         for order in orders:
-            amount = order.amount
-            if amount <= 0:
+            amount = safe_float(order.amount, default=0.0)
+            if amount is None or amount <= 0:
                 continue
 
             total_amount += amount
@@ -202,7 +204,8 @@ class LiquidityRiskController:
             breakdown.commission, breakdown.stamp_duty,
             breakdown.slippage, breakdown.impact
         ])
-        breakdown.ratio = breakdown.total / max(total_amount, 1)
+        safe_total_amount = total_amount if total_amount else 1.0
+        breakdown.ratio = breakdown.total / safe_total_amount
 
         # 效率评级
         if breakdown.ratio < 0.001:

@@ -1,0 +1,129 @@
+# 综合量化策略系统 v7.0 配置
+# Comprehensive Quantitative Strategy System v7.0 Configuration
+# 优化版: 期货+期权双层对冲框架
+
+system_mode: full
+version: "v7.0"
+total_capital: 5000000
+risk_tolerance: medium
+investment_horizon: long_term
+
+# 核心引擎开关
+enable_ai: true
+enable_institutional: true
+enable_hedge: true
+enable_options: true
+enable_futures: true
+enable_deployment: true
+
+# 资金配置
+capital_allocation:
+  equity_long: 0.60          # 权益多头 300万
+  hedge_total: 0.40          # 对冲总计 200万
+  hedge_breakdown:
+    futures_delta: 0.10      # 期货Delta对冲 50万
+    options_protective: 0.10 # 期权保护性看跌 50万
+    volatility_hedge: 0.08   # 波动率对冲 40万
+    absolute_return: 0.07    # 绝对收益 35万
+    covered_write: 0.05      # 备兑开仓 25万
+
+# 业绩目标
+performance_targets:
+  annual_return: 0.085       # 年化收益 >= 8.5%
+  max_drawdown: 0.15         # 最大回撤 < 15%
+  sharpe_ratio: 1.5          # 夏普比率 >= 1.5
+  alpha: 0.04                # Alpha >= 4%
+  information_ratio: 1.2     # 信息比率 >= 1.2
+  win_rate: 0.55             # 胜率 >= 55%
+
+# 对冲层参数
+hedge_layers:
+  layer1_futures:
+    name: "股指期货Delta对冲"
+    allocation: 0.25           # 占对冲资金25%
+    target_beta_map:
+      bull: 0.30
+      slow_bull: 0.20
+      sideways: 0.10
+      high_vol: 0.00
+      bear: -0.10
+      crash: -0.15
+    max_hedge_ratio: 0.70
+    min_hedge_ratio: 0.05
+    rebalance_threshold: 0.03
+    ema_smooth: 0.3
+    annual_roll_cost: 0.01
+
+  layer2_options:
+    name: "期权保护性对冲"
+    allocation: 0.25           # 占对冲资金25%
+    strategies:
+      - put_ladder             # 保护性看跌阶梯
+      - put_spread_collar      # 看跌价差领口
+      - tail_hedge             # 尾部风险对冲
+    put_ladder_strikes: [0.90, 0.85, 0.80]
+    put_ladder_weights: [0.40, 0.35, 0.25]
+    collar_put_spread: [0.95, 0.85]  # 买入95%/卖出85% Put
+    collar_call_strike: 1.10         # 卖出110% Call
+    tail_strike: 0.75                # 尾部75% OTM
+    max_premium_pct: 0.03            # 最大权利金支出 3%/年
+
+  layer3_volatility:
+    name: "波动率对冲/套利"
+    allocation: 0.20           # 占对冲资金20%
+    iv_rv_threshold_long: -0.03
+    iv_rv_threshold_short: 0.05
+    iv_percentile_low: 30
+    iv_percentile_high: 70
+    max_position_pct: 0.15
+
+  layer4_absolute:
+    name: "绝对收益/市场中性"
+    allocation: 0.175          # 占对冲资金17.5%
+    max_pairs: 8
+    sector_neutral: true
+    max_gross_exposure: 2.0
+    target_net_exposure: 0.0
+
+  layer5_covered_write:
+    name: "备兑开仓增强"
+    allocation: 0.125          # 占对冲资金12.5%
+    covered_pct: 0.40          # 40%持仓做备兑
+    otm_by_iv:
+      high_iv: 0.08            # IV>30%: 卖出8% OTM
+      mid_iv: 0.05             # IV 20-30%: 卖出5% OTM
+      low_iv: 0.03             # IV<20%: 卖出3% OTM
+    roll_days_before: 5        # 到期前5天展期
+
+# 市场状态检测
+market_regime:
+  crash_vix_threshold: 40
+  high_vol_vix_threshold: 25
+  bull_return_threshold: 0.05
+  bear_return_threshold: -0.05
+  bear_drawdown_threshold: 0.10
+  slow_bull_vol_threshold: 0.18
+
+# 风控参数
+risk_management:
+  three_tier_architecture: true
+  tier1_position_stop: -0.08     # 个股止损 8%
+  tier2_portfolio_drawdown: 0.12 # 组合回撤预警 12%
+  tier3_circuit_breaker: 0.15    # 熔断 15%
+  var_95_limit: 0.05             # VaR 95% 限制
+  var_99_limit: 0.08             # VaR 99% 限制
+  max_leverage: 1.5
+  min_liquidity_ratio: 1.5
+
+# 关键改进
+key_improvements_v7:
+  - "期货+期权双层对冲框架"
+  - "保护性看跌阶梯策略 (Put Ladder)"
+  - "零成本看跌价差领口 (Put Spread Collar)"
+  - "尾部风险凸性对冲 (Tail Hedge)"
+  - "市场状态自适应对冲比率"
+  - "VIX联动动态目标Beta"
+  - "波动率套利系统化 (IV/RV偏离)"
+  - "备兑开仓IV自适应行权价"
+  - "因子中性多空绝对收益策略"
+  - "历史压力场景回测验证"

@@ -1,0 +1,160 @@
+# -*- coding: utf-8 -*-
+"""
+iFinD 自动研判 - 读取 portfolio.yaml 全持仓并批量生成标的研判报告
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+import yaml
+
+from utils.ifind_news_analyzer import IFinDNewsAnalyzer, StockInsight
+
+
+def _load_portfolio_symbols(portfolio_path: str) -> List[Dict[str, Any]]:
+    if not os.path.exists(portfolio_path):
+        raise FileNotFoundError(f"portfolio.yaml 不存在: {portfolio_path}")
+    with open(portfolio_path, 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f) or {}
+    positions = ((data.get('positions') or {}))
+    items: List[Dict[str, Any]] = []
+    for code, pos in positions.items():
+        items.append({
+            'code': str(code),
+            'name': str(pos.get('name', code)),
+            'sector': str(pos.get('sector', pos.get('category', ''))),
+            'target_weight': pos.get('target_weight'),
+            'asset_type': str(pos.get('asset_type', '')),
+        })
+    return items
+
+
+def _calc_technical_alpha(code: str) -> Optional[float]:
+    """
+    计算 GTJA191 Alpha144 映射后的 technical_alpha 得分。
+    若因子库或历史数据不可用，则返回 None。
+    """
+    try:
+        from utils.gtja191_factors import GTJA191Factors
+        from utils.data_provider import get_historical_data
+
+        df = get_historical_data(code, period="6m")
+        if df is None or df.empty or "close" not in df.columns or "amount" not in df.columns:
+            return None
+
+        factors = GTJA191Factors(lookback=20)
+        value = factors.alpha144(df)
+        if value is None:
+            return None
+
+        score = max(-1.0, min(1.0, 1.0 - float(value) * 1e8))
+        return round(float(score), 4)
+    except Exception:
+        return None
+
+
+def _build_markdown_report(insights: List[StockInsight], items: List[Dict[str, Any]], meta: Dict[str, Any]) -> str:
+    lines = [
+        f"# iFinD 自动标的研判报告",
+        f"",
+        f"- 生成时间：{meta.get('generated_at', datetime.now().isoformat())}",
+        f"- 标的数量：{len(insights)}",
+        f"- 数据源：iFinD 新闻/公告语义检索 + GTJA191 Alpha144 技术因子",
+        f"- 研判逻辑：关键词多空信号 + 置信度 + technical_alpha",
+        f"",
+        f"## 标的概览",
+        f"",
+        f"| 标的 | 名称 | 方向 | 置信度 | 资讯数 | technical_alpha | 研判结论 |",
+        f"| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    direction_emoji = {'positive': '📈', 'negative': '📉', 'neutral': '➡️'}
+    for item, insight in zip(items, insights):
+        emoji = direction_emoji.get(insight.direction, '➡️')
+        technical_alpha = _calc_technical_alpha(item['code'])
+        alpha_str = f"{technical_alpha:.4f}" if technical_alpha is not None else "N/A"
+        lines.append(
+            f"| {item['code']} | {item['name']} | {emoji} {insight.direction} | {insight.confidence:.2f} | {insight.news_count} | {alpha_str} | {'；'.join(insight.reasons[:2])} |"
+        )
+    lines.extend([
+        f"",
+        f"## 逐标的详情",
+        f"",
+    ])
+    for item, insight in zip(items, insights):
+        technical_alpha = _calc_technical_alpha(item['code'])
+        alpha_str = f"{technical_alpha:.4f}" if technical_alpha is not None else "N/A"
+        lines.extend([
+            f"### {item['name']} ({item['code']})",
+            f"",
+            f"- 板块：{item['sector'] or '未知'}",
+            f"- 方向：{insight.direction}",
+            f"- 置信度：{insight.confidence:.2f}",
+            f"- 资讯数：{insight.news_count}",
+            f"- technical_alpha：{alpha_str}",
+            f"- 更新时间：{insight.updated_at}",
+            f"",
+            f"**研判理由：**",
+        ])
+        for reason in insight.reasons[:8]:
+            lines.append(f"- {reason}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description="iFinD 自动研判：基于 portfolio.yaml 批量研判全持仓")
+    parser.add_argument('--portfolio', default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '11_量化策略', 'config', 'portfolio.yaml'), help='portfolio.yaml 路径')
+    parser.add_argument('--size', type=int, default=4, help='单标的查询条数')
+    parser.add_argument('--days', type=int, default=3, help='回溯天数')
+    parser.add_argument('--output', default='', help='报告输出路径，默认自动生成')
+    args = parser.parse_args(argv)
+
+    items = _load_portfolio_symbols(args.portfolio)
+    if not items:
+        print("未读取到持仓标的，请检查 portfolio.yaml")
+        return 2
+
+    analyzer = IFinDNewsAnalyzer()
+    if not analyzer.available():
+        print("iFinD 模块不可用，请检查 skills/ifind-finance-data/call.py 与 mcp_config.json")
+        return 2
+
+    insights: List[StockInsight] = []
+    for item in items:
+        try:
+            insights.append(analyzer.analyze_symbol(item['code'], name=item['name'], size=args.size, days=args.days))
+        except Exception:
+            pass
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    default_archive_dir = os.path.join(base_dir, '每日报告归档', today_str)
+    os.makedirs(default_archive_dir, exist_ok=True)
+    default_output = os.path.join(default_archive_dir, f"iFinD自动标的研判报告_{datetime.now().strftime('%Y%m%d')}.md")
+    output_path = args.output or default_output
+    meta = {
+        'generated_at': datetime.now().isoformat(),
+        'portfolio': args.portfolio,
+        'size': args.size,
+        'days': args.days,
+    }
+    report = _build_markdown_report(insights, items, meta)
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(report)
+
+    print(json.dumps({
+        'ok': True,
+        'symbols': len(items),
+        'analyzed': len(insights),
+        'report': output_path,
+    }, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

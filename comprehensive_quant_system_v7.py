@@ -16,11 +16,11 @@
    7. 资金效率优化 — 保证金优化与资本配置动态调整
 
  对冲层级架构 (总对冲资金占比 40% = 200万):
-   Layer 1: 股指期货Delta对冲 (10%) — 低成本市场Beta对冲
-   Layer 2: 期权保护性看跌 (10%)    — 尾部风险保护 (凸性收益)
-   Layer 3: 波动率对冲 (8%)          — Vega中性管理
-   Layer 4: 绝对收益/市场中性 (7%)   — Alpha独立来源
-   Layer 5: 备兑开仓增强 (5%)        — 权利金增收
+   Layer 1: 股指期货Delta对冲 (15%) — 低成本市场Beta对冲
+    Layer 2: 期权保护性看跌 (15%)    — 尾部风险保护 (凸性收益)
+    Layer 3: 波动率对冲 (6%)          — Vega中性管理
+    Layer 4: 绝对收益/市场中性 (5%)   — Alpha独立来源
+    Layer 5: 备兑开仓增强 (4%)        — 权利金增收
 
  预期收益归因:
    权益多头组合:           年化 +12% (选股Alpha + 市场Beta)
@@ -42,7 +42,7 @@
    压力测试最大回撤:         < 15%
 
  Author: ZCode Quantitative Team
- Version: 7.0
+ Version: 7.3
  Date: 2026-07-03
 ================================================================================
 """
@@ -53,6 +53,7 @@ import math
 import json
 import logging
 import warnings
+import importlib.util
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass, field
@@ -84,7 +85,7 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     handlers=[
         logging.FileHandler('comprehensive_quant_system_v7.log', encoding='utf-8'),
-        logging.StreamHandler()
+        logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger('QuantSystemV7')
@@ -901,19 +902,19 @@ class ComprehensiveHedgeManager:
 
         # 初始化五层对冲策略
         self.futures_hedge = EnhancedFuturesHedge(
-            capital=self.hedge_capital * 0.25)  # 50万 (10% of total)
+            capital=self.hedge_capital * 0.375)  # 75万 (15% of total)
 
         self.options_hedge = ProtectiveOptionsHedge(
-            capital=self.hedge_capital * 0.25)  # 50万 (10% of total)
+            capital=self.hedge_capital * 0.375)  # 75万 (15% of total)
 
         self.vol_arbitrage = VolatilityArbitrage(
-            capital=self.hedge_capital * 0.20)  # 40万 (8% of total)
+            capital=self.hedge_capital * 0.15)  # 30万 (6% of total)
 
         self.abs_return = AbsoluteReturnStrategy(
-            capital=self.hedge_capital * 0.175)  # 35万 (7% of total)
+            capital=self.hedge_capital * 0.125)  # 25万 (5% of total)
 
         self.covered_write = EnhancedCoveredWrite(
-            capital=self.hedge_capital * 0.125)  # 25万 (5% of total)
+            capital=self.hedge_capital * 0.10)  # 20万 (4% of total)
 
         # 市场状态检测
         self.regime_detector = MarketRegimeDetector()
@@ -930,6 +931,38 @@ class ComprehensiveHedgeManager:
         logger.info(f"  波动率套利: {self.vol_arbitrage.allocated_capital:,.0f}")
         logger.info(f"  绝对收益: {self.abs_return.allocated_capital:,.0f}")
         logger.info(f"  备兑开仓: {self.covered_write.allocated_capital:,.0f}")
+
+    @staticmethod
+    def _qlib_momentum_adjustment(qlib_signals: Dict[str, Dict[str, Any]]) -> Optional[float]:
+        """
+        将 qlib 预测信号转换为动量调整值
+
+        逻辑:
+          - direction=buy -> 正向动量调整 (减少对冲)
+          - direction=sell -> 负向动量调整 (增加对冲)
+          - confidence 越高，调整幅度越大
+          - 多标的平均后钳制在 [-0.3, +0.3]
+        """
+        if not qlib_signals:
+            return None
+
+        adjustments = []
+        for code, sig in qlib_signals.items():
+            direction = (sig.get('direction') or '').lower()
+            confidence = float(sig.get('confidence', 0.0) or 0.0)
+            if not confidence:
+                continue
+            if direction == 'buy':
+                adjustments.append(confidence * 0.30)
+            elif direction == 'sell':
+                adjustments.append(-confidence * 0.30)
+            # neutral 不贡献调整
+
+        if not adjustments:
+            return None
+
+        avg_adj = sum(adjustments) / len(adjustments)
+        return max(-0.3, min(0.3, avg_adj))
 
     def execute_all_hedges(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -962,12 +995,21 @@ class ComprehensiveHedgeManager:
         # 2. Layer 1: 期货Delta对冲
         logger.info("=" * 60)
         logger.info("Layer 1: 股指期货Delta对冲")
+
+        momentum_signal = market_data.get('momentum_signal', 0.0)
+        qlib_signals = market_data.get('qlib_signals', {})
+        if qlib_signals:
+            qlib_momentum_adj = self._qlib_momentum_adjustment(qlib_signals)
+            if qlib_momentum_adj is not None:
+                momentum_signal = max(-1.0, min(1.0, momentum_signal + qlib_momentum_adj))
+                logger.info(f"qlib 动量调整: {qlib_momentum_adj:+.3f} -> momentum_signal={momentum_signal:.3f}")
+
         hedge_decision = self.futures_hedge.calculate_optimal_hedge(
             portfolio_beta=market_data.get('portfolio_beta', 1.0),
             portfolio_value=portfolio_value,
             market_regime=regime,
             market_vol=volatility,
-            momentum_signal=market_data.get('momentum_signal', 0.0)
+            momentum_signal=momentum_signal
         )
         futures_trade = self.futures_hedge.execute_hedge(
             current_hedge_ratio=market_data.get('current_hedge_ratio', 0.0),
@@ -1096,8 +1138,8 @@ class ComprehensiveQuantSystemV7:
 
     def __init__(self, total_capital: float = 5_000_000.0):
         self.total_capital = total_capital
-        self.equity_allocation = 0.60   # 300万权益多头
-        self.hedge_allocation = 0.40    # 200万对冲策略
+        self.equity_allocation = 0.80   # 400万权益多头
+        self.hedge_allocation = 0.20    # 100万对冲策略
         self.cash_reserve = 0.0         # 现金储备(动态)
 
         # 核心引擎
@@ -1200,9 +1242,13 @@ class ComprehensiveQuantSystemV7:
 
         # ETF资金流向监控
         try:
-            from utils.etf_flow_monitor import ETFFlowMonitor
-            self.etf_flow_monitor = ETFFlowMonitor()
-        except ImportError:
+            import importlib.util
+            eft_path = os.path.join(os.path.dirname(__file__), 'utils', 'etf_flow_monitor.py')
+            spec = importlib.util.spec_from_file_location('etf_flow_monitor', eft_path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            self.etf_flow_monitor = mod.ETFFlowMonitor()
+        except Exception:
             pass
 
         # 增强回测引擎（需要portfolio_config，延迟实例化，仅导入类）
@@ -1211,6 +1257,13 @@ class ComprehensiveQuantSystemV7:
             self._backtest_engine_class = EnhancedBacktestEngine
         except ImportError:
             self._backtest_engine_class = None
+
+        # qlib 可选增强层
+        try:
+            from utils.qlib_adapter import init_qlib
+            self.qlib = init_qlib()
+        except Exception:
+            self.qlib = None
 
     def print_system_info(self):
         """打印系统信息 (v7.1)"""
@@ -1222,18 +1275,22 @@ class ComprehensiveQuantSystemV7:
         print(f"  对冲配置:   {self.total_capital * self.hedge_allocation:,.0f} 元 ({self.hedge_allocation:.0%})")
         print("-" * 70)
         print("  对冲策略层级:")
-        print(f"    Layer 1 — 股指期货Delta对冲:  {self.total_capital * 0.10:,.0f} (10%)")
-        print(f"    Layer 2 — 期权保护性看跌:    {self.total_capital * 0.10:,.0f} (10%)")
-        print(f"    Layer 3 — 波动率对冲/套利:   {self.total_capital * 0.08:,.0f} (8%)")
-        print(f"    Layer 4 — 绝对收益/市场中性: {self.total_capital * 0.07:,.0f} (7%)")
-        print(f"    Layer 5 — 备兑开仓增强:      {self.total_capital * 0.05:,.0f} (5%)")
+        print(f"    Layer 1 — 股指期货Delta对冲:  {self.total_capital * 0.15:,.0f} (15%)")
+        print(f"    Layer 2 — 期权保护性看跌:    {self.total_capital * 0.15:,.0f} (15%)")
+        print(f"    Layer 3 — 波动率对冲/套利:   {self.total_capital * 0.06:,.0f} (6%)")
+        print(f"    Layer 4 — 绝对收益/市场中性: {self.total_capital * 0.05:,.0f} (5%)")
+        print(f"    Layer 5 — 备兑开仓增强:      {self.total_capital * 0.04:,.0f} (4%)")
         print("-" * 70)
         print("  v7.1 增强模块状态:")
-        macros = ["实体经济指标", "流动性风控", "止损监控", "因子模型", "ETF资金流向", "增强回测"]
+        macros = ["实体经济指标", "流动性风控", "止损监控", "因子模型", "ETF资金流向", "增强回测", "qlib增强层"]
         attrs = ["macro_indicator", "liquidity_controller", "stop_loss_monitor",
-                 "factor_model", "etf_flow_monitor", "backtest_engine"]
+                 "factor_model", "etf_flow_monitor", "backtest_engine", "qlib"]
         for name, attr in zip(macros, attrs):
-            status = "ON" if getattr(self, attr, None) else "OFF"
+            value = getattr(self, attr, None)
+            if name == "qlib增强层":
+                status = "ON" if value else "OFF"
+            else:
+                status = "ON" if value else "OFF"
             print(f"    {name:16s}: {status}")
         print("-" * 70)
         print("  预期收益归因:")
@@ -1369,6 +1426,7 @@ class ComprehensiveQuantSystemV7:
                 'momentum_signal': scenario['momentum_signal'],
                 'market_regime_data': scenario['regime_data'],
                 'current_hedge_ratio': 0.0,
+                'qlib_signals': self.status.get('qlib_signals', {}),
             }
 
             result = self.hedge_manager.execute_all_hedges(market_data)
@@ -1395,11 +1453,196 @@ class ComprehensiveQuantSystemV7:
 
         return all_results
 
+    def run_etf_flow_analysis(self):
+        """运行ETF资金流向分析，并作为决策依据之一"""
+        if not getattr(self, 'etf_flow_monitor', None):
+            print("\n[ETF资金流向] 模块未启用，跳过")
+            return None
+
+        print("\n" + "=" * 70)
+        print("  ETF资金流向分析")
+        print("=" * 70)
+
+        flow_data = None
+        try:
+            external_path = os.path.join(os.path.dirname(__file__), '..', '11_量化策略', '实时ETF资金流向.py')
+            external_path = os.path.normpath(external_path)
+            if not os.path.isfile(external_path):
+                raise FileNotFoundError(external_path)
+
+            spec = importlib.util.spec_from_file_location('etf_realtime_tracker', external_path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            tracker = mod.ETFRealTimeTracker()
+            flow_data = self._collect_etf_flow_from_tracker(tracker, mod)
+        except Exception as e:
+            print(f"  外部ETF脚本不可用，跳过ETF模块: {e}")
+            return None
+
+        if not flow_data:
+            print("  未获取到ETF资金流向数据，跳过")
+            return None
+
+        try:
+            signals = self.etf_flow_monitor.detect_signals(flow_data)
+            plan = self.etf_flow_monitor.generate_trading_plan(signals)
+
+            print(f"\n  监控ETF数量: {len(flow_data)}")
+            print(f"  今日净流入: {plan.get('net_flow_billion', 0):+.2f} 亿元")
+            print(f"  整体信号:   {plan.get('overall_signal', 'neutral')}")
+            print(f"  强信号数量: {sum(1 for s in signals if s.level == 'high')}")
+
+            if signals:
+                print("\n  重点信号:")
+                for s in signals[:5]:
+                    print(f"    {s.etf_name}({s.etf_code}): {s.net_flow:+.2f}亿 | {s.level} | {s.sector}")
+
+            self.status['etf_flow_signal'] = plan.get('overall_signal', 'neutral')
+            return {
+                'flow_data': flow_data,
+                'signals': [s.__dict__ for s in signals],
+                'plan': plan,
+            }
+        except Exception as e:
+            print(f"  ETF资金流向分析失败: {e}")
+            return None
+
+    def _collect_etf_flow_from_tracker(self, tracker, mod) -> Dict[str, float]:
+        """从外部ETF实时追踪器采集资金流向数据"""
+        etf_list = getattr(mod, 'NATIONAL_TEAM_ETFS', [])
+        flow_data = {}
+        for etf in etf_list:
+            data = tracker.get_etf_fund_flow(etf["code"])
+            if not data:
+                continue
+            flow_data[etf["code"]] = data.get("net_flow_yi", 0.0)
+        return flow_data
+
+    def _run_emergency_protocol(self):
+        """基于ETF资金流向运行紧急协议评估，作为决策依据之一"""
+        etf_result = getattr(self, 'etf_flow_result', None)
+        if not etf_result:
+            return
+
+        try:
+            from build_plan_executor import BuildPlanExecutor
+            from utils.data_provider import get_market_data, get_historical_data
+
+            executor = BuildPlanExecutor()
+
+            market_data = get_market_data()
+            hist_df = get_historical_data("000001", period="1m")
+
+            vix_proxy = 20
+            ret_20d = 0
+            ret_5d = 0
+            if market_data:
+                vol = market_data.get('volatility')
+                if vol is not None:
+                    vix_proxy = float(vol) * 100
+                returns = market_data.get('returns')
+                if isinstance(returns, (list, tuple)) and len(returns) >= 20:
+                    ret_20d = float(sum(returns[-20:]))
+                    ret_5d = float(sum(returns[-5:]))
+            if hist_df is not None and not hist_df.empty and 'close' in hist_df.columns:
+                closes = hist_df['close'].dropna().astype(float)
+                if len(closes) >= 5:
+                    ret_5d = float((closes.iloc[-1] / closes.iloc[-5]) - 1)
+                if len(closes) >= 20:
+                    ret_20d = float((closes.iloc[-1] / closes.iloc[-20]) - 1)
+
+            plan = etf_result.get('plan') or {}
+            market_state = {
+                'vix_proxy': vix_proxy,
+                'index_return_20d': ret_20d,
+                'index_return_5d': ret_5d,
+                'margin_balance_change': 0,
+                'etf_flows': {
+                    'overall_signal': plan.get('overall_signal', 'neutral'),
+                    'net_flow_billion': plan.get('net_flow_billion', 0),
+                },
+                'macro_heat_score': self.status.get('macro_heat_score', 50),
+                'macro_regime': self.status.get('macro_regime', '中性'),
+                'sector_health': {},
+            }
+
+            protocol = executor.get_emergency_protocol(market_state)
+            self.emergency_protocol = protocol
+            self.status['emergency_protocol_level'] = protocol.get('level_name', 'NORMAL')
+        except Exception as e:
+            print(f"  紧急协议评估失败: {e}")
+            self.emergency_protocol = None
+
     def run_full_simulation(self):
         """运行完整系统模拟"""
         self.print_system_info()
+        self.run_factor_model_evaluation()
         self.run_hedge_simulation()
+        self.etf_flow_result = self.run_etf_flow_analysis()
+        self._run_emergency_protocol()
         self.print_summary_report()
+
+    def run_factor_model_evaluation(self):
+        """运行多因子模型评估（含 GTJA191 Alpha144）"""
+        if not getattr(self, 'factor_model', None):
+            return
+
+        print("\n" + "=" * 70)
+        print("  多因子模型评估（含 GTJA191 Alpha144）")
+        print("=" * 70)
+
+        try:
+            import pandas as pd
+            from datetime import datetime, timedelta
+            from utils.data_provider import get_historical_data
+
+            candidates = ["000001", "000002", "600519", "510300", "588000", "512880"]
+            klines = {}
+            for code in candidates:
+                try:
+                    df = get_historical_data(code, period="6m")
+                    if df is not None and not df.empty:
+                        klines[code] = df
+                except Exception as e:
+                    print(f"  [WARN] {code} 历史数据获取失败: {e}")
+
+            if not klines:
+                print("  未获取到有效历史数据，因子模型评估跳过")
+                return
+
+            results = self.factor_model.evaluate(klines)
+            summary = self.factor_model.generate_signal(results)
+
+            print(f"\n  标的数量: {len(results)}")
+            print(f"  平均综合得分: {summary.get('avg_composite', 0):.4f}")
+            print(f"  组合信号: {summary.get('signal', 'N/A')}")
+            print(f"  Top 3: {', '.join(summary.get('top_3', []))}")
+            print(f"  Bottom 3: {', '.join(summary.get('bottom_3', []))}")
+
+            for code, result in list(results.items())[:5]:
+                ta = result.factors.get('technical_alpha', 0.0)
+                print(f"  {code}: technical_alpha={ta:.4f}, composite={result.composite:.4f}, signal={result.signal}")
+
+            # qlib 可选增强信号
+            try:
+                from utils.qlib_adapter import train_signal_model, predict_signal, prepare_qlib_dataset
+                qlib_dataset = prepare_qlib_dataset(list(klines.keys()), klines)
+                if qlib_dataset is not None:
+                    print(f"  qlib 本地数据集准备完成，标的数: {len(qlib_dataset)}")
+                qlib_signals = {}
+                for code, result in list(results.items())[:5]:
+                    kline = klines.get(code)
+                    trained = train_signal_model(code, kline)
+                    pred = predict_signal(code, trained)
+                    if pred:
+                        qlib_signals[code] = pred
+                        print(f"  [qlib] {code}: score={pred.get('score', 0):.4f}, direction={pred.get('direction')}, confidence={pred.get('confidence', 0):.4f}, source={pred.get('source')}")
+                self.status['qlib_signals'] = qlib_signals
+            except Exception as e:
+                print(f"  [qlib] 增强信号生成失败: {e}")
+                self.status['qlib_signals'] = {}
+        except Exception as e:
+            print(f"  因子模型评估失败: {e}")
 
     def print_summary_report(self):
         """打印总结报告"""
@@ -1436,13 +1679,52 @@ class ComprehensiveQuantSystemV7:
      - 每种状态对应特定对冲组合
      - 动态资金配置
 
+  6. ETF资金流向并入主系统报告 (新增)
+     - 实时ETF资金流作为决策依据之一
+     - 信号分级: strong_bullish / bullish / neutral / bearish / strong_bearish
+     - 板块轮动与个股映射
+
   预期效果:
     年化收益:  8.5% - 11.5% (baseline 8.5%)
     最大回撤:  8% - 15%   (极端市场 < 15%)
     夏普比率:  1.2 - 1.8  (取决于市场环境)
     对冲效率:  较v6.0提升 30-50%
 """)
-        print("=" * 70)
+
+        etf_result = getattr(self, 'etf_flow_result', None)
+        if etf_result:
+            plan = etf_result.get('plan') or {}
+            signals = etf_result.get('signals') or []
+            print("=" * 70)
+            print("  ETF资金流向决策摘要")
+            print("=" * 70)
+            print(f"  今日净流入: {plan.get('net_flow_billion', 0):+.2f} 亿元")
+            print(f"  整体信号:   {plan.get('overall_signal', 'neutral')}")
+            print(f"  强信号数量: {sum(1 for s in signals if s.get('level') == 'high')}")
+            if signals:
+                print("\n  重点信号:")
+                for s in signals[:5]:
+                    print(f"    {s.get('etf_name')}({s.get('etf_code')}): "
+                          f"{s.get('net_flow', 0):+.2f}亿 | {s.get('level')} | {s.get('sector')}")
+            print("=" * 70)
+
+        protocol = getattr(self, 'emergency_protocol', None)
+        if protocol:
+            print("\n" + "=" * 70)
+            print("  基于ETF资金流向的紧急协议评估")
+            print("=" * 70)
+            print(f"  协议等级:   {protocol.get('level_name', 'NORMAL')}")
+            print(f"  日资金倍数: {protocol.get('day_capital_multiplier', 1.0):.2f}")
+            print(f"  ETF信号:    {protocol.get('etf_signal', 'neutral')}")
+            if protocol.get('actions'):
+                print("\n  建议操作:")
+                for action in protocol['actions'][:6]:
+                    print(f"    {action}")
+            if protocol.get('hedge_suggestions'):
+                print("\n  对冲建议:")
+                for suggestion in protocol['hedge_suggestions'][:3]:
+                    print(f"    {suggestion.get('type')}: {suggestion.get('target')}")
+            print("=" * 70)
 
 
 # ============================================================================

@@ -1,0 +1,14 @@
+artifact_uri: file:E:\各种PY程序\28-终极量化交易系统7.1\mlruns/225191670528405289/d5f88f2e03a74d0ba8149cd638b2570e/artifacts
+end_time: 1783534470946
+entry_point_name: ''
+experiment_id: '225191670528405289'
+lifecycle_stage: active
+run_id: d5f88f2e03a74d0ba8149cd638b2570e
+run_name: mlflow_recorder
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1783534470082
+status: 3
+tags: []
+user_id: Administrator

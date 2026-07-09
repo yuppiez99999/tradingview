@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 import logging
 
-from logger import get_logger
+from utils.logger import get_logger
 
 logger = get_logger('risk_metrics')
 

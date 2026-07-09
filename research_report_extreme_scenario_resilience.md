@@ -147,10 +147,10 @@ v7.0的五层对冲架构是为主动量化策略设计的，完全独立于建�
 
 ## 参考文献
 
-1. [系统配置与风控参数 - config.py](c:/Users/Administrator/ZCodeProject/config.py)
-2. [增强风控系统 - enhanced_risk_manager.py](c:/Users/Administrator/ZCodeProject/enhanced_risk_manager.py)
-3. [动态资金管理器 - dynamic_capital_manager.py](c:/Users/Administrator/ZCodeProject/dynamic_capital_manager.py)
-4. [量化系统v7.0 - comprehensive_quant_system_v7.py](c:/Users/Administrator/ZCodeProject/comprehensive_quant_system_v7.py)
-5. [交易工作流 - trading_workflow.py](c:/Users/Administrator/ZCodeProject/trading_workflow.py)
-6. [组合收益预测报告 - portfolio_return_projection.md](c:/Users/Administrator/ZCodeProject/portfolio_return_projection.md)
-7. [建仓计划 - 500万建仓计划_20260706.md](c:/Users/Administrator/ZCodeProject/500万建仓计划_20260706.md)
+1. [系统配置与风控参数 - config.py](./config.py)
+2. [增强风控系统 - enhanced_risk_manager.py](./enhanced_risk_manager.py)
+3. [动态资金管理器 - dynamic_capital_manager.py](./dynamic_capital_manager.py)
+4. [量化系统v7.0 - comprehensive_quant_system_v7.py](./comprehensive_quant_system_v7.py)
+5. [交易工作流 - trading_workflow.py](./trading_workflow.py)
+6. [组合收益预测报告 - portfolio_return_projection.md](./portfolio_return_projection.md)
+7. [建仓计划 - 500万建仓计划_20260706.md](./500万建仓计划_20260706.md)

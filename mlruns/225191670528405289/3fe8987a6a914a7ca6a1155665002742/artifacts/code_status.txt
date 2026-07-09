@@ -1,0 +1,265 @@
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add/rm <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   README.md
+	modified:   automated_execution_system.py
+	deleted:    automated_rebalance_system.py
+	modified:   build_plan_executor.py
+	deleted:    comprehensive_quant_system.py
+	modified:   comprehensive_quant_system_v7.py
+	deleted:    config.py
+	deleted:    deploy_system.py
+	deleted:    derivatives_trading_module.py
+	deleted:    dynamic_capital_manager.py
+	deleted:    enhanced_delta_hedge.py
+	deleted:    enhanced_quant_strategy_optimizer.py
+	deleted:    enhanced_risk_manager.py
+	deleted:    enhanced_trading_plan.py
+	deleted:    execute_july6_v701.py
+	deleted:    generate_500w_build_plan.py
+	deleted:    investment_agent/README.md
+	deleted:    investment_agent/__init__.py
+	deleted:    investment_agent/ai_integration/__init__.py
+	deleted:    investment_agent/ai_integration/silicon_flow_client.py
+	deleted:    investment_agent/automation/__init__.py
+	deleted:    investment_agent/config/__init__.py
+	deleted:    investment_agent/core/__init__.py
+	deleted:    investment_agent/core/investment_agent.py
+	deleted:    investment_agent/core/portfolio_manager.py
+	deleted:    investment_agent/core/risk_monitor.py
+	deleted:    investment_agent/data/__init__.py
+	deleted:    investment_agent/data/wind_data_provider.py
+	deleted:    investment_agent/execution/__init__.py
+	deleted:    investment_agent/monitoring/__init__.py
+	deleted:    investment_agent/strategies/__init__.py
+	deleted:    main.py
+	deleted:    multi_layer_hedge_manager.py
+	deleted:    portfolio_return_projection.py
+	deleted:    quick_check.py
+	modified:   research_report_extreme_scenario_resilience.md
+	modified:   research_report_quant_system_comparison.md
+	deleted:    risk_monitor_system.py
+	deleted:    setup.py
+	deleted:    simple_trading_plan.py
+	modified:   simulate_trading_plan.bat
+	deleted:    start_system.py
+	deleted:    strategy_optimizer.py
+	deleted:    stress_testing_system.py
+	deleted:    tail_risk_hedge.py
+	deleted:    test_system.py
+	deleted:    test_v71_integration.py
+	deleted:    trading_execution_v7_20260706.py
+	deleted:    trading_plan_text_simulator.py
+	deleted:    trading_workflow.py
+	modified:   utils/__init__.py
+	modified:   utils/data_provider.py
+	modified:   utils/enhanced_backtest.py
+	deleted:    utils/etf_flow_monitor.py
+	modified:   utils/factor_model.py
+	modified:   utils/liquidity_risk.py
+	modified:   utils/logger.py
+	modified:   utils/risk_metrics.py
+	modified:   utils/stop_loss.py
+	modified:   v7.5_institutional/calibrate_asset_params_wind.py
+	modified:   v7.5_institutional/optimize_portfolio_v5.py
+	modified:   v7.5_institutional/register_all_tasks.ps1
+	modified:   v7.5_institutional/run_all_modules.bat
+	modified:   v7.5_institutional/run_all_modules.py
+	modified:   v7.5_institutional/test_black_swan_2000_2008.py
+	modified:   v7.5_institutional/trade_plans/trade_plan_20260706.json
+	modified:   v7.5_institutional/trade_plans/trade_plan_20260706.md
+	deleted:    volatility_hedge.py
+	deleted:    "\346\234\200\347\273\210\347\263\273\347\273\237\351\233\206\346\210\220\346\200\273\347\273\223.md"
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	"# \346\257\217\346\254\241\344\272\244\346\230\223\346\227\245\350\207\252\345\212\250\346\211\247\350\241\214\345\273\272\344\273\223.txt"
+	.agents/
+	"2026\345\271\264\344\272\244\346\230\223\350\256\241\345\210\222.md"
+	"500\344\270\207\345\273\272\344\273\223\350\256\241\345\210\222_20260706.json"
+	"500\344\270\207\345\273\272\344\273\223\350\256\241\345\210\222_20260706.json.bak_before_add6"
+	"500\344\270\207\345\273\272\344\273\223\350\256\241\345\210\222_20260706.json.bak_before_purge_yanhu"
+	"500\344\270\207\345\273\272\344\273\223\350\256\241\345\210\222_20260706.json.bak_before_reweight_20260708_233209"
+	"500\344\270\207\345\273\272\344\273\223\350\256\241\345\210\222_20260706.md"
+	"500\344\270\207\345\273\272\344\273\223\350\256\241\345\210\222_20260706.md.bak_20260704151948"
+	QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL.md
+	README_and_workflow_update_summary.md
+	_archive_dead_code/
+	add_yangtze_power.py
+	auto_run_july6.py
+	black_swan_risk_control_manual.md
+	calc_realized_returns.py
+	check_deps.py
+	check_positions.py
+	cloud_train/
+	config/
+	configs/
+	daily_hedge_update.py
+	debug_beta.py
+	debug_wind_intraday.py
+	deploy_trading_schedule.bat
+	docs/
+	download_and_train.py
+	download_qlib_data.py
+	five_year_projection.py
+	fix_positions_price.py
+	generate_daily_report.py
+	glm_direct_prediction.txt
+	hedge_execution_orders.py
+	hedge_quantity_calculator.py
+	hn_daily_report.py
+	ifind-finance-data-1.3.0/
+	ifind_auto_analysis.py
+	ifind_auto_analysis_report.md
+	ifind_news_analysis.py
+	inspect_data.py
+	inspect_qlib_chain.py
+	inspect_qlib_chain2.py
+	inspect_qlib_chain3.py
+	install_daily_hedge_task.bat
+	institutional_trading_plan_text.txt
+	integration_summary.txt
+	july6_trading_workflow.py
+	mlruns/
+	pack_cloud.bat
+	pip_clean.ini
+	portfolio_return_projection.json
+	portfolio_return_projection.json.bak_20260708_201442
+	portfolio_return_projection.json.bak_20260708_201734
+	portfolio_return_projection.json.bak_20260708_202301
+	portfolio_return_projection.json.bak_20260708_231035
+	portfolio_return_projection.json.bak_20260708_231447
+	portfolio_return_projection.json.bak_20260708_231453
+	portfolio_return_projection.json.bak_20260708_231919
+	portfolio_return_projection.json.bak_20260708_232050
+	portfolio_return_projection.json.bak_before_reweight_20260708_233209
+	portfolio_return_projection.md
+	qlib/
+	qlib_data/
+	qlib_env/
+	qlib_improved_train.py
+	qlib_train_test.py
+	rebalance_execution_orders.py
+	regenerate_projection_v2.py
+	register_all_scheduled_tasks.ps1
+	register_daily_pnl_task.ps1
+	register_hn_task.ps1
+	research_report_black_swan_resilience.md
+	run_daily_report.bat
+	run_hn_daily.bat
+	run_pre_market.bat
+	run_start_live.bat
+	run_stop_live.bat
+	second-brain/
+	service.pid
+	service_manager.ps1
+	setup_scheduled_task.ps1
+	setup_trading_schedule.ps1
+	skills/
+	start_live_monitor.ps1
+	stop_live_monitor.ps1
+	supplement_returns.py
+	system_config.json
+	test_auto_trade.py
+	test_core_modules.py
+	test_data_provider.py
+	test_exec_fix.py
+	test_full_system.py
+	test_ifind_import.py
+	test_main_system.py
+	test_report_unify.py
+	test_system_check.py
+	today_hedge_decision.py
+	trade_orders_20260703.json
+	trade_orders_20260703.md
+	trading_scheduler.bat
+	update_position_prices.py
+	update_position_prices_wind.py
+	utils/akshare_futures.py
+	utils/data_types.py
+	utils/gtja191_factors.py
+	utils/ifind_client.py
+	utils/ifind_futures_quotes.py
+	utils/ifind_news_analyzer.py
+	utils/qlib_adapter.py
+	utils/qlib_data_bridge.py
+	v7.5_institutional/README.md
+	v7.5_institutional/README_v7.5.md
+	v7.5_institutional/autolearn_trainer.py
+	v7.5_institutional/calibrate_returns_projection.py
+	v7.5_institutional/calibrate_via_ifind.js
+	v7.5_institutional/calibrated_asset_params.json
+	v7.5_institutional/check_all_modules.bat
+	v7.5_institutional/config/
+	v7.5_institutional/daily_workflow.py
+	v7.5_institutional/debug_market_http.py
+	v7.5_institutional/fix_allocation_alignment.py
+	v7.5_institutional/fix_hedge_execution.py
+	v7.5_institutional/fix_trade_plan_20260706.py
+	v7.5_institutional/fix_trade_plan_assets.py
+	v7.5_institutional/fix_trade_plan_phase.py
+	v7.5_institutional/fix_workflow_text_clean.py
+	v7.5_institutional/futures_options_scanner.py
+	v7.5_institutional/generate_comparison_report.py
+	v7.5_institutional/ifind_smoke_test3.js
+	v7.5_institutional/ifind_watchlist_20260706.csv
+	v7.5_institutional/main.py
+	v7.5_institutional/monitor.py
+	v7.5_institutional/optimize_portfolio.py
+	v7.5_institutional/optimize_portfolio_v2.py
+	v7.5_institutional/optimize_portfolio_v3.py
+	v7.5_institutional/optimize_portfolio_v4.py
+	v7.5_institutional/parse_ifind_results.py
+	v7.5_institutional/performance_projection.py
+	v7.5_institutional/regenerate_trade_plan.py
+	v7.5_institutional/regenerate_trade_plan_v2.py
+	v7.5_institutional/register_task.ps1
+	v7.5_institutional/register_task_ascii.ps1
+	v7.5_institutional/register_tasks_com.ps1
+	v7.5_institutional/remove_symbols.bat
+	v7.5_institutional/remove_symbols_full.py
+	v7.5_institutional/report_parsers.py
+	v7.5_institutional/reports/
+	v7.5_institutional/run_daily.bat
+	v7.5_institutional/scheduler_daemon.py
+	v7.5_institutional/show_trade_detail.py
+	v7.5_institutional/sim_broker_integration.py
+	v7.5_institutional/src/
+	v7.5_institutional/system_check.py
+	v7.5_institutional/test_hedge_auto_enable.py
+	v7.5_institutional/test_portfolio_metrics.py
+	v7.5_institutional/tests/
+	v7.5_institutional/tmp_baseline_compare.py
+	v7.5_institutional/tmp_check_ifind_futures.py
+	v7.5_institutional/tmp_check_ifind_tools.py
+	v7.5_institutional/tmp_debug_ths.py
+	v7.5_institutional/tmp_debug_ths2.py
+	v7.5_institutional/tmp_debug_ths3.py
+	v7.5_institutional/tmp_test_ifind_futures.py
+	v7.5_institutional/trade_plans/trade_plan_20260705.json
+	v7.5_institutional/trade_plans/trade_plan_20260707.json
+	v7.5_institutional/trade_plans/trade_plan_20260708.json
+	v7.5_institutional/train_qlib_models.py
+	v7.5_institutional/update_build_plan.py
+	v7.5_institutional/update_hedge_orders_with_live.py
+	v7.5_institutional/update_remove_symbols.py
+	v7.5_institutional/update_trade_orders.py
+	v7.5_institutional/verify_alignment.py
+	v7.5_institutional/verify_macro_module.py
+	v7.5_institutional/wind_smoke_test.py
+	verify_gtja191_e2e.py
+	verify_gtja191_integration.py
+	verify_gtja191_risk_report.py
+	verify_gtja191_single_report.py
+	verify_qlib_data.py
+	wind_intraday_monitor.py
+	wind_mcp_fetcher.py
+	"\344\270\255\345\233\275\347\245\236\345\215\216\345\273\272\344\273\223\350\256\241\345\210\222_20260704.json"
+	"\344\270\255\345\233\275\347\245\236\345\215\216\345\273\272\344\273\223\350\256\241\345\210\222_20260704.md"
+	"\346\243\211\350\212\261\347\232\204\345\212\240\344\273\223\346\226\271\346\241\210\344\270\216\346\234\237\346\235\203\344\277\235\346\212\244\347\255\226\347\225\245_20260704.md"
+	"\351\207\217\345\214\226\347\263\273\347\273\237\345\215\207\347\272\247\344\270\272\345\256\236\347\233\230\347\263\273\347\273\237\342\200\2241783205278319/"
+
+no changes added to commit (use "git add" and/or "git commit -a")

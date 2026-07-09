@@ -23,6 +23,8 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from enum import Enum
 
+from utils.data_types import safe_float, safe_int
+
 logger = logging.getLogger('stop_loss')
 
 
@@ -95,26 +97,41 @@ class StopLossMonitor:
             完整的状态检查结果
         """
         # 计算触发价格
-        sl_price = stop_loss_price or (base_price * (1 + stop_loss_pct / 100))
-        tp_price = take_profit_price or (base_price * (1 + take_profit_pct / 100))
+        safe_base = safe_float(base_price, default=0.0)
+        safe_current = safe_float(current_price, default=None)
+        safe_sl = safe_float(stop_loss_price, default=None)
+        safe_tp = safe_float(take_profit_price, default=None)
+        safe_high = safe_float(high_price, default=None)
+
+        if safe_base is None or safe_base <= 0 or safe_current is None:
+            return {
+                'code': code,
+                'status': 'unknown',
+                'alert_level': AlertLevel.NORMAL,
+                'message': '价格数据异常，无法判断',
+                'should_alert': False
+            }
+
+        sl_price = safe_sl if safe_sl is not None else (safe_base * (1 + safe_float(stop_loss_pct, default=0.0) / 100))
+        tp_price = safe_tp if safe_tp is not None else (safe_base * (1 + safe_float(take_profit_pct, default=0.0) / 100))
 
         # 当前收益率
-        pnl_pct = (current_price - base_price) / base_price * 100
+        pnl_pct = (safe_current - safe_base) / safe_base * 100
 
         # 移动止盈调整
         effective_tp_price = tp_price
-        if trailing_stop and high_price and high_price > base_price:
-            peak_pct = (high_price - base_price) / base_price * 100
+        if trailing_stop and safe_high is not None and safe_high > safe_base:
+            peak_pct = (safe_high - safe_base) / safe_base * 100
             if peak_pct >= self.trailing_drawdown_pct:
-                dd_from_peak = (high_price - current_price) / high_price * 100
+                dd_from_peak = (safe_high - safe_current) / safe_high * 100
                 if dd_from_peak >= self.trailing_drawdown_pct * 0.3:
-                    effective_tp_price = high_price * (1 - self.trailing_drawdown_pct / 100)
+                    effective_tp_price = safe_high * (1 - self.trailing_drawdown_pct / 100)
 
         # 距止损/止盈位距离
-        dist_to_sl = (current_price - sl_price) / sl_price * 100
-        dist_to_tp = ((tp_price - current_price) / tp_price * 100
-                      if current_price < tp_price
-                      else -(current_price - tp_price) / tp_price * 100)
+        dist_to_sl = (safe_current - sl_price) / sl_price * 100
+        dist_to_tp = ((tp_price - safe_current) / tp_price * 100
+                      if safe_current < tp_price
+                      else -(safe_current - tp_price) / tp_price * 100)
 
         # 确定预警级别
         alert_level = self._determine_level(dist_to_sl)

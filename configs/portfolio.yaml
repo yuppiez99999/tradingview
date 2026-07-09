@@ -1,0 +1,187 @@
+# 投资组合配置
+# Portfolio Configuration v7.6
+
+account_structure:
+  total_capital: 5000000
+  stock_etf_capital: 3000000
+  hedge_capital: 2000000
+  start_date: "2026-07-10"
+  clearance_date: "2030-12-31"
+  target_annual_return: 0.08
+  target_max_drawdown: 0.15
+
+assets:
+  - code: "588080"
+    name: "科创50ETF易方达"
+    weight: 0.05
+    category: "etf"
+    style: "科技"
+    amount: 150000
+  - code: "512880"
+    name: "证券ETF国泰"
+    weight: 0.05
+    category: "etf"
+    style: "金融"
+    amount: 150000
+  - code: "510050"
+    name: "上证50ETF华夏"
+    weight: 0.06
+    category: "etf"
+    style: "宽基"
+    amount: 180000
+  - code: "512800"
+    name: "银行ETF华宝"
+    weight: 0.06
+    category: "etf"
+    style: "金融"
+    amount: 180000
+  - code: "515030"
+    name: "新能源车ETF华夏"
+    weight: 0.05
+    category: "etf"
+    style: "新能源"
+    amount: 150000
+  - code: "512760"
+    name: "半导体ETF国泰"
+    weight: 0.03
+    category: "etf"
+    style: "科技"
+    amount: 90000
+  - code: "512170"
+    name: "医疗ETF华宝"
+    weight: 0.09
+    category: "etf"
+    style: "医药"
+    amount: 270000
+  - code: "518880"
+    name: "黄金ETF华安"
+    weight: 0.05
+    category: "etf"
+    style: "资源"
+    amount: 150000
+  - code: "688041"
+    name: "海光信息"
+    weight: 0.05
+    category: "tech"
+    style: "科技"
+    amount: 150000
+  - code: "300308"
+    name: "中际旭创"
+    weight: 0.05
+    category: "tech"
+    style: "科技"
+    amount: 150000
+  - code: "002371"
+    name: "北方华创"
+    weight: 0.05
+    category: "tech"
+    style: "科技"
+    amount: 150000
+  - code: "603019"
+    name: "中科曙光"
+    weight: 0.02
+    category: "tech"
+    style: "科技"
+    amount: 60000
+  - code: "300033"
+    name: "同花顺"
+    weight: 0.04
+    category: "tech"
+    style: "科技"
+    amount: 120000
+  - code: "300782"
+    name: "卓胜微"
+    weight: 0.03
+    category: "tech"
+    style: "科技"
+    amount: 90000
+  - code: "688017"
+    name: "绿的谐波"
+    weight: 0.03
+    category: "high_end"
+    style: "制造"
+    amount: 90000
+  - code: "300274"
+    name: "阳光电源"
+    weight: 0.05
+    category: "new_energy"
+    style: "新能源"
+    amount: 150000
+  - code: "000408"
+    name: "藏格矿业"
+    weight: 0.04
+    category: "resource"
+    style: "资源"
+    amount: 120000
+  - code: "601088"
+    name: "中国神华"
+    weight: 0.04
+    category: "energy"
+    style: "顺周期"
+    amount: 120000
+  - code: "600276"
+    name: "恒瑞医药"
+    weight: 0.06
+    category: "pharma"
+    style: "医药"
+    amount: 180000
+  - code: "600900"
+    name: "长江电力"
+    weight: 0.05
+    category: "utility"
+    style: "防御"
+    amount: 150000
+  - code: "CASH"
+    name: "现金储备"
+    weight: 0.05
+    category: "cash"
+    amount: 150000
+
+hedge:
+  instruments:
+    - instrument: "IF_futures"
+      direction: "SELL"
+      target_contracts: 2
+      multiplier: 300
+      margin_rate: 0.12
+    - instrument: "IM_futures"
+      direction: "SELL"
+      target_contracts: 1
+      multiplier: 200
+      margin_rate: 0.14
+    - instrument: "ETF_put_options"
+      direction: "BUY"
+      target_contracts: 10
+      strike: "OTM_5%"
+      premium_budget: 50000
+
+risk_parameters:
+  max_single_position: 0.10
+  max_sector_exposure: 0.35
+  target_volatility: 0.12
+  max_portfolio_drawdown: 0.15
+  var_confidence: 0.95
+  rebalance_threshold: 0.05
+  stop_loss:
+    etf: -0.08
+    tech_growth: -0.10
+    defense_dividend: -0.08
+    gold_etf_half: -0.08
+    gold_etf_clear: -0.12
+  intraday_circuit_breaker:
+    stop_buy: -0.03
+    force_reduce: -0.05
+
+optimization:
+  method: "risk_parity"
+  constraints:
+    min_weight: 0.01
+    max_weight: 0.15
+    sum_to_one: true
+  objective: "max_sharpe"
+
+execution:
+  rebalance_frequency: "monthly"
+  auto_execute: true
+  pre_market_time: "07:00"
+  post_market_time: "15:30"

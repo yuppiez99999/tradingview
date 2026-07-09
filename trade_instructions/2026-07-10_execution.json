@@ -1,0 +1,117 @@
+{
+  "meta": {
+    "execution_date": "2026-07-10",
+    "executed_at": "2026-07-09T21:21:52.907750",
+    "instruction_file": "trade_instructions\\2026-07-10_instructions.json"
+  },
+  "summary": {
+    "total_instructions": 9,
+    "confirmed_count": 9,
+    "executed_count": 9,
+    "total_executed_amount": 19997.0,
+    "total_built": 19997.0,
+    "remaining": 2980003.0,
+    "completion_rate": 0.67
+  },
+  "execution_results": [
+    {
+      "code": "512170",
+      "name": "医疗ETF华宝",
+      "action": "BUY",
+      "qty": 12500,
+      "fill_price": 0.31,
+      "fill_amount": 3875.0,
+      "status": "FILLED",
+      "built_before": 0,
+      "built_after": 3875.0
+    },
+    {
+      "code": "510050",
+      "name": "上证50ETF华夏",
+      "action": "BUY",
+      "qty": 900,
+      "fill_price": 3.09,
+      "fill_amount": 2781.0,
+      "status": "FILLED",
+      "built_before": 0,
+      "built_after": 2781.0
+    },
+    {
+      "code": "512800",
+      "name": "银行ETF华宝",
+      "action": "BUY",
+      "qty": 3000,
+      "fill_price": 0.76,
+      "fill_amount": 2280.0,
+      "status": "FILLED",
+      "built_before": 0,
+      "built_after": 2280.0
+    },
+    {
+      "code": "600276",
+      "name": "恒瑞医药",
+      "action": "BUY",
+      "qty": 100,
+      "fill_price": 55.61,
+      "fill_amount": 5561.0,
+      "status": "FILLED",
+      "built_before": 0,
+      "built_after": 5561.0
+    },
+    {
+      "code": "588080",
+      "name": "科创50ETF易方达",
+      "action": "BUY",
+      "qty": 300,
+      "fill_price": 2.26,
+      "fill_amount": 678.0,
+      "status": "FILLED",
+      "built_before": 0,
+      "built_after": 678.0
+    },
+    {
+      "code": "512880",
+      "name": "证券ETF国泰",
+      "action": "BUY",
+      "qty": 600,
+      "fill_price": 1.13,
+      "fill_amount": 678.0,
+      "status": "FILLED",
+      "built_before": 0,
+      "built_after": 678.0
+    },
+    {
+      "code": "515030",
+      "name": "新能源车ETF华夏",
+      "action": "BUY",
+      "qty": 300,
+      "fill_price": 1.71,
+      "fill_amount": 513.0,
+      "status": "FILLED",
+      "built_before": 0,
+      "built_after": 513.0
+    },
+    {
+      "code": "518880",
+      "name": "黄金ETF华安",
+      "action": "BUY",
+      "qty": 100,
+      "fill_price": 8.54,
+      "fill_amount": 854.0,
+      "status": "FILLED",
+      "built_before": 0,
+      "built_after": 854.0
+    },
+    {
+      "code": "600900",
+      "name": "长江电力",
+      "action": "BUY",
+      "qty": 100,
+      "fill_price": 27.77,
+      "fill_amount": 2777.0,
+      "status": "FILLED",
+      "built_before": 0,
+      "built_after": 2777.0
+    }
+  ]
+}

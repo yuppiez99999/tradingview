@@ -23,6 +23,8 @@ from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 
+from utils.data_types import safe_float, safe_int, normalize_stock_code
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PLAN_FILE = os.path.join(BASE_DIR, "500万建仓计划_20260706.json")
 OUTPUT_DIR = os.path.join(BASE_DIR, "reports")
@@ -44,6 +46,7 @@ class TradeOrder:
     style: str = ""
     risk: str = ""
     note: str = ""
+    technical_alpha: Optional[float] = None  # GTJA191 Alpha144 技术因子得分
 
 
 @dataclass
@@ -200,18 +203,22 @@ class BuildPlanExecutor:
         warnings = []
 
         for idx, asset in enumerate(sorted_assets, 1):
-            code = asset["code"]
+            raw_code = asset["code"]
+            code = normalize_stock_code(raw_code)
             info = plan.get(code, {})
-            est_price = float(info.get("est_price", 0))
-            total_shares = int(asset["shares"])
+            est_price = safe_float(info.get("est_price", 0), default=0.0)
+            total_shares = safe_int(asset.get("shares"), default=0)
+
+            if est_price is None or total_shares is None or total_shares <= 0:
+                warnings.append(f"{raw_code} 数据无效，跳过")
+                continue
 
             # ---- 资金倍率调整：紧急响应时按比例缩减 ----
             if capital_multiplier < 1.0:
                 orig_shares = total_shares
-                total_shares = int(total_shares * capital_multiplier)
-                # 确保至少保留高优先级标的的部分仓位
+                total_shares = max(0, int(total_shares * capital_multiplier))
                 if total_shares == 0 and orig_shares > 0 and idx <= 5:
-                    total_shares = max(100, int(orig_shares * 0.10))  # 最少10%保留
+                    total_shares = max(100, int(orig_shares * 0.10))
                 if total_shares != orig_shares:
                     warnings.append(
                         f"资本倍率调整: {code} {info.get('name','')} "
@@ -220,13 +227,13 @@ class BuildPlanExecutor:
 
             # 检查是否有实时价格
             current_price = None
-            if price_quotes and code in price_quotes:
-                current_price = price_quotes[code]
+            if price_quotes:
+                current_price = safe_float(price_quotes.get(code))
 
             # 价格偏离检查
             should_pause = False
             pause_reason = ""
-            if current_price and est_price > 0:
+            if current_price is not None and est_price > 0:
                 deviation = (current_price - est_price) / est_price
                 if abs(deviation) > self.PRICE_DEVIATION_SKIP:
                     should_pause = True
@@ -251,7 +258,8 @@ class BuildPlanExecutor:
 
             # 获取最小交易单位 (优先从 target_portfolio 读取)
             target_info = self.plan_data.get("target_portfolio", {}).get(code, {})
-            lot_size = int(target_info.get("lots") or info.get("lots") or 100)
+            lot_size = safe_int(target_info.get("lots") or info.get("lots"), default=100)
+            lot_size = lot_size if lot_size and lot_size > 0 else 100
 
             # 计算上下半场股数，并确保满足最小交易单位
             morning_shares = max(0, int(total_shares * self.SESSION_SPLIT))
@@ -282,6 +290,7 @@ class BuildPlanExecutor:
                     style=style,
                     risk=risk,
                     note=f"上午批次 09:30-10:30",
+                    technical_alpha=self._calc_technical_alpha(code),
                 ))
 
             if afternoon_shares > 0:
@@ -297,6 +306,7 @@ class BuildPlanExecutor:
                     style=style,
                     risk=risk,
                     note=f"下午批次 14:00-14:30",
+                    technical_alpha=self._calc_technical_alpha(code),
                 ))
 
         # 计算金额汇总
@@ -315,6 +325,35 @@ class BuildPlanExecutor:
             paused_orders=paused_orders,
             warnings=warnings,
         )
+
+    # ---------------------------------------------------------------
+    # GTJA191 技术因子
+    # ---------------------------------------------------------------
+
+    @staticmethod
+    def _calc_technical_alpha(code: str) -> Optional[float]:
+        """
+        计算 GTJA191 Alpha144 映射后的 technical_alpha 得分。
+
+        若因子库或历史数据不可用，则返回 None，不影响正常下单流程。
+        """
+        try:
+            from utils.gtja191_factors import GTJA191Factors
+            from utils.data_provider import get_historical_data
+
+            df = get_historical_data(code, period="6m")
+            if df is None or df.empty or "close" not in df.columns or "amount" not in df.columns:
+                return None
+
+            factors = GTJA191Factors(lookback=20)
+            value = factors.alpha144(df)
+            if value is None:
+                return None
+
+            score = max(-1.0, min(1.0, 1.0 - float(value) * 1e8))
+            return round(float(score), 4)
+        except Exception:
+            return None
 
     # ---------------------------------------------------------------
     # 报告输出
@@ -345,13 +384,14 @@ class BuildPlanExecutor:
         if sheet.morning_orders:
             lines.append("## 上午批次 (09:30 — 10:30)")
             lines.append("")
-            lines.append("| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 |")
-            lines.append("|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|")
+            lines.append("| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 | technical_alpha |")
+            lines.append("|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|--------:|")
 
             for o in sheet.morning_orders:
+                alpha_str = f"{o.technical_alpha:.4f}" if o.technical_alpha is not None else "N/A"
                 lines.append(f"| {o.priority} | {o.code} | {o.name} | "
                              f"{o.shares:,} | {o.est_price:.3f} | {o.limit_price:.3f} | "
-                             f"{o.est_amount:,.0f} | {o.style} |")
+                             f"{o.est_amount:,.0f} | {o.style} | {alpha_str} |")
 
             morning_total = sum(o.est_amount for o in sheet.morning_orders)
             lines.append(f"| | | **上午合计** | | | | **{morning_total:,.0f}** | |")
@@ -361,13 +401,14 @@ class BuildPlanExecutor:
         if sheet.afternoon_orders:
             lines.append("## 下午批次 (14:00 — 14:30)")
             lines.append("")
-            lines.append("| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 |")
-            lines.append("|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|")
+            lines.append("| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 | technical_alpha |")
+            lines.append("|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|--------:|")
 
             for o in sheet.afternoon_orders:
+                alpha_str = f"{o.technical_alpha:.4f}" if o.technical_alpha is not None else "N/A"
                 lines.append(f"| {o.priority} | {o.code} | {o.name} | "
                              f"{o.shares:,} | {o.est_price:.3f} | {o.limit_price:.3f} | "
-                             f"{o.est_amount:,.0f} | {o.style} |")
+                             f"{o.est_amount:,.0f} | {o.style} | {alpha_str} |")
 
             afternoon_total = sum(o.est_amount for o in sheet.afternoon_orders)
             lines.append(f"| | | **下午合计** | | | | **{afternoon_total:,.0f}** | |")

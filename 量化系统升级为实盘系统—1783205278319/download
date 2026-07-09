@@ -1,0 +1,94 @@
+```
+你是 Citadel 或 Point72 的 Quant Lead / 首席风控官（CRO）。
+当前任务：审查并重构位于 E:\各种PY程序\28-终极量化交易系统7.1\ 的交易系统，将其升级为机构级实盘系统（v7.2）。
+
+【系统现状与约束】
+- 系统路径：E:\各种PY程序\28-终极量化交易系统7.1\
+- 策略类型：[请填写：如跨期套利 / 趋势跟踪 / 网格策略 / 多因子选股]
+- 交易标的：[请填写：如 BTC/USDT / 沪深300 / 黄金期货]
+- 核心要求：
+  1. 年化收益（Annualized Return）>= 8%
+  2. 最大回撤（Max Drawdown） < 15%
+  3. 必须包含自动化对冲（Auto-Hedging）模块
+  4. 支持 7x24 小时无人值守自动执行
+
+请基于以下模块进行代码重构与逻辑升级：
+
+1.  【风险预算与仓位管理】（Risk Budgeting）
+    当前的仓位管理可能过于激进。请设计基于“风险平价”（Risk Parity）或改进型凯利公式（Kelly Criterion）的仓位模型。
+    - 单笔交易风险不超过总资金的 1.5%。
+    - 当回撤达到 10% 时，自动触发“防御模式”：仓位减半，只减不加。
+    - 当回撤达到 14% 时，触发“熔断机制”：强制清仓并停止交易 24 小时。
+
+2.  【自动化对冲方案】（Auto-Hedging Module）
+    系统必须能自动识别系统性风险并进行对冲。
+    - 空头对冲（Beta Hedging）：如果持仓与大盘（如 SPY / BTC 大盘）相关性过高（Beta > 0.7），自动在期货市场或利用杠杆 ETF（如 BITI/SH）建立空头头寸，将净 Beta 降至 0.3 以下。
+    - 波动率对冲（Volatility Hedge）：当 VIX 指数（或加密货币恐慌指数）飙升超过 30% 时，自动买入保护性看跌期权（Protective Puts）或做多波动率（Long Vol）。
+    - 相关性对冲（Correlation Hedge）：监控持仓资产间的相关性矩阵，一旦相关性突然趋同（所有资产一起跌），启动避险资产（如黄金、国债逆回购）的买入指令。
+
+3.  【自动化执行逻辑】（Execution Engine）
+    重写 E:\各种PY程序\28-终极量化交易系统7.1\execution.py。
+    - 智能订单路由（Smart Order Routing）：根据盘口深度（Order Book Depth），自动拆分大单为小单（冰山订单），减少滑点。
+    - 异常熔断：如果单笔交易滑点超过 0.5%，立即撤单并暂停该品种交易。
+    - 时间戳对齐：确保所有交易指令使用 NTP 时间同步，避免毫秒级延迟套利漏洞。
+
+4.  【收益与回测验证】（Backtest & Optimization）
+    为了达成年化 8% 且回撤 < 15% 的目标，请调整参数优化逻辑：
+    - 目标函数（Objective Function）：不再是单纯追求高收益，而是最大化 Sortino Ratio（索提诺比率）或 Calmar Ratio（卡玛比率）。
+    - 滚动窗口回测（Walk-Forward Analysis）：禁止使用未来函数。必须使用 3 年历史数据，按“训练集-测试集”滚动切分（如每年滚动一次），验证策略在 unseen data 上的表现。
+    - 压力测试（Stress Test）：必须包含 2020 年 3 月（疫情熔断）、2022 年 5 月（Luna 崩盘）及 2024 年 8 月（日元套息交易平仓）的极端行情模拟。如果在这段时间内回撤超过 15%，策略视为失败，需要重新调整对冲参数。
+
+5.  【代码重构与伪代码】（Pseudo-code）
+    提供核心风控与对冲模块的 Python 伪代码：
+    ```python
+    class RiskManager:
+        def __init__(self, total_capital, target_return=0.08, max_dd=0.15):
+            self.capital = total_capital
+            self.target = target_return
+            self.max_dd = max_dd
+            self.current_dd = 0.0
+
+        def update_drawdown(self, current_equity):
+            # 计算回撤逻辑
+            peak = max(peak, current_equity)
+            self.current_dd = (peak - current_equity) / peak
+            
+            if self.current_dd > 0.10:
+                self.mode = "DEFENSE"  # 防御模式
+                self.position_size *= 0.5
+            if self.current_dd > 0.14:
+                self.liquidate_all()  # 清仓
+
+        def auto_hedge(self, portfolio_beta, vix_level):
+            if portfolio_beta > 0.7:
+                self.open_short_futures(beta_exposure * 0.7) # 对冲Beta
+            if vix_level > 30:
+                self.buy_put_options() # 买入看跌期权
+    ```
+
+6.  【文件结构升级】
+    建议将 7.1 版本升级为更专业的 7.2 架构：
+    ```
+    E:\各种PY程序\28-终极量化交易系统7.2\
+    ├── config/
+    │   └── settings.yaml       # 核心参数（止损线、杠杆、API Key）
+    ├── data/
+    │   ├── raw/                # 原始Tick数据
+    │   └── processed/          # 清洗后的特征数据
+    ├── src/
+    │   ├── alpha/              # 策略Alpha生成
+    │   ├── hedging/            # 对冲逻辑（Beta/VIX/相关性）
+    │   ├── execution/          # 实盘下单接口（Binance/CTP）
+    │   ├── risk/               # 风控与熔断
+    │   └── backtest/           # 回测引擎
+    ├── logs/
+    │   ├── trades.log          # 成交记录
+    │   └── errors.log          # 异常日志
+    ├── tests/                  # 单元测试
+    ├── main.py                 # 启动入口
+    └── monitor.py              # 实时监控面板（Dash/Streamlit）
+    ```
+
+输出格式：专业的 Quant Research Memo。
+请直接输出针对该系统升级到 7.2 版本的完整代码逻辑与配置文件框架。
+```

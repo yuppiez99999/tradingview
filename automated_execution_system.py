@@ -21,24 +21,74 @@
 
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time as datetime_time
 from typing import Dict, List, Optional, Tuple, Union
 from collections import deque
 import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, Future
-import schedule
+# schedule 模块为可选依赖 (本文件实际未使用其 API, 仅保留 import 以兼容旧代码)
+try:
+    import schedule  # noqa: F401
+except ImportError:
+    schedule = None
+import sys
+import os
+
+# 确保 v7.5_institutional 对冲模块可导入
+_V7_5_SRC = os.path.join(os.path.dirname(__file__), "v7.5_institutional", "src")
+if _V7_5_SRC not in sys.path:
+    sys.path.insert(0, _V7_5_SRC)
+
+try:
+    from hedging.hedge_coordinator import HedgeCoordinator
+    _HEDGE_AVAILABLE = True
+except Exception:
+    HedgeCoordinator = None  # type: ignore
+    _HEDGE_AVAILABLE = False
 
 try:
     from utils.logger import get_logger
-    from utils.data_provider import get_market_data, get_trading_calendar
+    from utils.data_provider import get_market_data, MarketDataProvider
     from utils.order_execution import execute_order, cancel_order
     from utils.risk_metrics import calculate_var, calculate_es
+    from utils.data_types import safe_float
     logger = get_logger('automated_execution_system')
 except ImportError:
     import logging
     logger = logging.getLogger('automated_execution_system')
+    safe_float = lambda x, default=None: x if x is not None else default
+
+try:
+    from wind_mcp_fetcher import wind_get_quote
+    _WIND_MCP_AVAILABLE = True
+except Exception:
+    wind_get_quote = None  # type: ignore
+    _WIND_MCP_AVAILABLE = False
+
+
+def _to_wind_code(symbol: str):
+    s = str(symbol).strip()
+    for prefix in ("sh", "sz", "bj", "SH", "SZ", "BJ"):
+        if s.startswith(prefix):
+            s = s[len(prefix):]
+            break
+    for suffix in (".SH", ".SZ", ".BJ", ".sh", ".sz", ".bj"):
+        if s.endswith(suffix):
+            s = s[: -len(suffix)]
+            break
+    if s.startswith(("51", "58")):
+        return f"{s}.SH", True
+    if s.startswith(("15", "16")):
+        return f"{s}.SZ", True
+    if s.startswith(("00", "30")):
+        return f"{s}.SZ", False
+    if s.startswith("6"):
+        return f"{s}.SH", False
+    if s.startswith(("4", "8")):
+        return f"{s}.BJ", False
+    return f"{s}.SH", False
 
 class TradingCalendar:
     """
@@ -47,41 +97,90 @@ class TradingCalendar:
     
     def __init__(self):
         self.trading_schedule = {
-            'morning_open': time(7, 0),      # 7:00 AM
-            'morning_close': time(11, 30),   # 11:30 AM
-            'afternoon_open': time(13, 0),   # 1:00 PM
-            'afternoon_close': time(15, 0),  # 3:00 PM
+            'morning_open': datetime_time(7, 0),      # 7:00 AM
+            'morning_close': datetime_time(11, 30),   # 11:30 AM
+            'afternoon_open': datetime_time(13, 0),   # 1:00 PM
+            'afternoon_close': datetime_time(15, 0),  # 3:00 PM
             'executions': [
-                {'time': time(7, 0), 'name': 'daily_execution'},  # 7:00 AM
-                {'time': time(10, 0), 'name': 'morning_review'},  # 10:00 AM
-                {'time': time(14, 0), 'name': 'afternoon_adjustment'}  # 2:00 PM
+                {'time': datetime_time(7, 0), 'name': 'daily_execution'},  # 7:00 AM
+                {'time': datetime_time(10, 0), 'name': 'morning_review'},  # 10:00 AM
+                {'time': datetime_time(14, 0), 'name': 'afternoon_adjustment'}  # 2:00 PM
             ]
         }
         
-        # 特殊交易日处理
+        # 特殊交易日处理 (2025-2027 中国A股休市日)
         self.special_days = {
-            # 节假日、特殊交易日等
+            # === 2025 ===
+            "2025-01-01": {"is_trading": False, "name": "元旦"},
+            "2025-01-28": {"is_trading": False, "name": "春节除夕"},
+            "2025-01-29": {"is_trading": False, "name": "春节"},
+            "2025-01-30": {"is_trading": False, "name": "春节"},
+            "2025-01-31": {"is_trading": False, "name": "春节"},
+            "2025-02-03": {"is_trading": False, "name": "春节调休"},
+            "2025-04-04": {"is_trading": False, "name": "清明节"},
+            "2025-04-05": {"is_trading": False, "name": "清明节"},
+            "2025-04-06": {"is_trading": False, "name": "清明节"},
+            "2025-05-01": {"is_trading": False, "name": "劳动节"},
+            "2025-05-02": {"is_trading": False, "name": "劳动节"},
+            "2025-05-05": {"is_trading": False, "name": "劳动节"},
+            "2025-05-31": {"is_trading": False, "name": "端午节"},
+            "2025-06-02": {"is_trading": False, "name": "端午节调休"},
+            "2025-10-01": {"is_trading": False, "name": "国庆节"},
+            "2025-10-02": {"is_trading": False, "name": "国庆节"},
+            "2025-10-03": {"is_trading": False, "name": "国庆节"},
+            "2025-10-06": {"is_trading": False, "name": "国庆节调休"},
+            "2025-10-07": {"is_trading": False, "name": "国庆节调休"},
+            "2025-10-08": {"is_trading": False, "name": "中秋节"},
+            # === 2026 ===
+            "2026-01-01": {"is_trading": False, "name": "元旦"},
+            "2026-02-16": {"is_trading": False, "name": "春节除夕"},
+            "2026-02-17": {"is_trading": False, "name": "春节"},
+            "2026-02-18": {"is_trading": False, "name": "春节"},
+            "2026-02-19": {"is_trading": False, "name": "春节"},
+            "2026-02-20": {"is_trading": False, "name": "春节"},
+            "2026-02-23": {"is_trading": False, "name": "春节调休"},
+            "2026-02-24": {"is_trading": False, "name": "春节调休"},
+            "2026-04-06": {"is_trading": False, "name": "清明节"},
+            "2026-05-01": {"is_trading": False, "name": "劳动节"},
+            "2026-05-04": {"is_trading": False, "name": "劳动节"},
+            "2026-05-05": {"is_trading": False, "name": "劳动节"},
+            "2026-06-19": {"is_trading": False, "name": "端午节"},
+            "2026-09-25": {"is_trading": False, "name": "中秋节"},
+            "2026-10-01": {"is_trading": False, "name": "国庆节"},
+            "2026-10-02": {"is_trading": False, "name": "国庆节"},
+            "2026-10-05": {"is_trading": False, "name": "国庆节"},
+            "2026-10-06": {"is_trading": False, "name": "国庆节"},
+            "2026-10-07": {"is_trading": False, "name": "国庆节"},
+            "2026-10-08": {"is_trading": False, "name": "国庆节调休"},
+            # === 2027 ===
+            "2027-01-01": {"is_trading": False, "name": "元旦"},
         }
         
         # 执行窗口（允许的执行时间范围）
         self.execution_windows = {
             'daily_execution': {
-                'start': time(7, 0),
-                'end': time(7, 15),   # 7:15 AM
-                'allow_early': False,
-                'allow_late': True
+                'start': datetime_time(6, 30),
+                'end': datetime_time(8, 0),     # 放宽为 6:30-8:00
+                'allow_early': True,
+                'allow_late': True,
+                'early_minutes': 30,
+                'late_minutes': 60
             },
             'morning_review': {
-                'start': time(9, 45),
-                'end': time(10, 15),
-                'allow_early': False,
-                'allow_late': True
+                'start': datetime_time(9, 30),
+                'end': datetime_time(10, 30),   # 放宽为 9:30-10:30
+                'allow_early': True,
+                'allow_late': True,
+                'early_minutes': 30,
+                'late_minutes': 30
             },
             'afternoon_adjustment': {
-                'start': time(13, 45),
-                'end': time(14, 15),
-                'allow_early': False,
-                'allow_late': True
+                'start': datetime_time(13, 30),
+                'end': datetime_time(14, 30),   # 放宽为 13:30-14:30
+                'allow_early': True,
+                'allow_late': True,
+                'early_minutes': 30,
+                'late_minutes': 30
             }
         }
         
@@ -125,17 +224,19 @@ class TradingCalendar:
             return True, "在执行窗口内"
         
         # 检查是否允许提前执行
-        if window['allow_early'] and now < window['start']:
+        if window.get('allow_early') and now < window['start']:
+            early_minutes = window.get('early_minutes', 15)
             time_diff = (datetime.combine(datetime.min, window['start']) - 
                         datetime.combine(datetime.min, now)).total_seconds()
-            if time_diff <= 300:  # 允许提前5分钟
+            if time_diff <= early_minutes * 60:
                 return True, "允许提前执行"
         
         # 检查是否允许延后执行
-        if window['allow_late'] and now > window['end']:
+        if window.get('allow_late') and now > window['end']:
+            late_minutes = window.get('late_minutes', 15)
             time_diff = (datetime.combine(datetime.min, now) - 
                         datetime.combine(datetime.min, window['end'])).total_seconds()
-            if time_diff <= 300:  # 允许延后5分钟
+            if time_diff <= late_minutes * 60:
                 return True, "允许延后执行"
         
         return False, "不在执行窗口内"
@@ -146,7 +247,6 @@ class TradingCalendar:
         
         # 如果不是交易日，返回下一个交易日
         if not self.is_trading_day(now):
-            # 找到下一个交易日
             next_day = now + timedelta(days=1)
             while not self.is_trading_day(next_day):
                 next_day += timedelta(days=1)
@@ -155,25 +255,21 @@ class TradingCalendar:
                 minute=self.trading_schedule['morning_open'].minute
             )
         
-        # 检查今天的执行时间
         today = now.date()
+        
+        # 优先检查今天剩余执行
         for execution in self.trading_schedule['executions']:
             execution_time = datetime.combine(today, execution['time'])
-            
-            # 如果执行时间已过，跳过
-            if execution_time < now:
-                continue
-            
-            # 检查是否在允许的执行窗口内
-            is_allowed, _ = self.is_within_execution_window(execution['name'])
-            if is_allowed:
+            if execution_time > now:
                 return execution_time
         
-        # 如果今天没有更多执行，返回明天
+        # 否则返回明天最早的执行
         tomorrow = now + timedelta(days=1)
+        while not self.is_trading_day(tomorrow):
+            tomorrow += timedelta(days=1)
         return datetime.combine(
             tomorrow,
-            self.trading_schedule['morning_open']
+            self.trading_schedule['executions'][0]['time']
         )
     
     def get_execution_schedule(self, days_ahead: int = 7) -> List[Dict]:
@@ -342,7 +438,9 @@ class MarketStateEvaluator:
             sentiment = market_data.get('sentiment_score', 0.0)
             
             # 计算相关性和波动性指标
-            correlation_matrix = market_data.get('correlation_matrix', np.eye(3))
+            # 兼容 list / ndarray 两种输入 (line 1800 返回 list, 但 tolist() 需要 ndarray)
+            _corr_raw = market_data.get('correlation_matrix', np.eye(3))
+            correlation_matrix = np.array(_corr_raw) if not isinstance(_corr_raw, np.ndarray) else _corr_raw
             correlation_breakdown = self._calculate_correlation_breakdown(correlation_matrix)
             
             # 评估各个维度
@@ -563,6 +661,7 @@ class ExecutionStrategy:
         # 执行策略定义
         self.execution_strategies = {
             'aggressive': {
+                'strategy_name': 'aggressive',
                 'description': '激进执行',
                 'order_type': 'market',
                 'execution_style': 'immediate',
@@ -572,6 +671,7 @@ class ExecutionStrategy:
                 'slippage_tolerance': 0.01
             },
             'conservative': {
+                'strategy_name': 'conservative',
                 'description': '保守执行',
                 'order_type': 'limit',
                 'execution_style': 'sliced',
@@ -581,6 +681,7 @@ class ExecutionStrategy:
                 'slippage_tolerance': 0.005
             },
             'patient': {
+                'strategy_name': 'patient',
                 'description': '耐心执行',
                 'order_type': 'limit',
                 'execution_style': 'gradual',
@@ -590,6 +691,7 @@ class ExecutionStrategy:
                 'slippage_tolerance': 0.003
             },
             'defensive': {
+                'strategy_name': 'defensive',
                 'description': '防御性执行',
                 'order_type': 'limit',
                 'execution_style': 'weighted',
@@ -599,6 +701,7 @@ class ExecutionStrategy:
                 'slippage_tolerance': 0.002
             },
             'emergency': {
+                'strategy_name': 'emergency',
                 'description': '紧急执行',
                 'order_type': 'market',
                 'execution_style': 'immediate',
@@ -1136,6 +1239,17 @@ class AutomatedExecutionSystem:
         self.is_running = False
         self.execution_thread = None
         
+        # 对冲模块
+        self.hedge_enabled = False
+        self.hedge_coordinator = None
+        self.last_hedge_plan = None
+        if _HEDGE_AVAILABLE:
+            try:
+                self.hedge_coordinator = HedgeCoordinator()
+                self.hedge_enabled = True
+            except Exception as exc:
+                logger.warning("对冲模块初始化失败: %s", exc)
+        
         # 执行状态
         self.current_market_state = 'normal'
         self.current_execution_plan = None
@@ -1173,6 +1287,19 @@ class AutomatedExecutionSystem:
             
             logger.info("自动化执行系统启动")
     
+    def enable_hedge(self, enabled: bool = True):
+        """开启或关闭对冲模块"""
+        if not _HEDGE_AVAILABLE or self.hedge_coordinator is None:
+            logger.warning("对冲模块不可用，无法开启")
+            return False
+        self.hedge_enabled = bool(enabled)
+        logger.info("对冲模块已%s", "开启" if self.hedge_enabled else "关闭")
+        return self.hedge_enabled
+    
+    def disable_hedge(self):
+        """关闭对冲模块"""
+        return self.enable_hedge(False)
+    
     def stop_system(self):
         """停止系统"""
         self.is_running = False
@@ -1187,7 +1314,6 @@ class AutomatedExecutionSystem:
         """执行循环"""
         while self.is_running:
             try:
-                # 检查是否应该执行
                 next_execution = self.trading_calendar.get_next_execution_time()
                 if not next_execution:
                     time.sleep(60)
@@ -1195,35 +1321,61 @@ class AutomatedExecutionSystem:
                 
                 current_time = datetime.now()
                 if current_time < next_execution:
-                    # 等待下次执行时间
                     sleep_time = (next_execution - current_time).total_seconds()
                     time.sleep(min(sleep_time, 60))
                     continue
                 
-                # 检查是否在执行窗口内
-                is_in_window, message = self.trading_calendar.is_within_execution_window('daily_execution')
-                if not is_in_window:
-                    logger.info(f"不在执行窗口内: {message}")
+                matched_execution = self._match_current_execution(current_time)
+                if not matched_execution:
                     time.sleep(60)
                     continue
                 
-                # 执行交易
-                self._execute_daily_trading()
-                
-                # 等待下一个执行周期
+                logger.info(f"进入执行窗口: {matched_execution}")
+                self._execute_daily_trading(matched_execution)
                 time.sleep(60)
                 
             except Exception as e:
                 logger.error(f"执行循环错误: {e}")
                 time.sleep(60)
     
-    def _execute_daily_trading(self):
+    def _match_current_execution(self, current_time: datetime) -> Optional[str]:
+        """根据当前时间匹配应触发的执行项"""
+        execution_map = {
+            'daily_execution': (datetime_time(6, 30), datetime_time(8, 0)),
+            'morning_review': (datetime_time(9, 30), datetime_time(10, 30)),
+            'afternoon_adjustment': (datetime_time(13, 30), datetime_time(14, 30)),
+        }
+        
+        now_time = current_time.time()
+        for name, (start, end) in execution_map.items():
+            is_allowed, message = self.trading_calendar.is_within_execution_window(name)
+            if is_allowed:
+                return name
+            if start <= now_time <= end:
+                return name
+        return None
+    
+    def _execute_daily_trading(self, execution_name: str = 'daily_execution'):
         """执行每日交易"""
         try:
-            logger.info("开始每日交易执行")
+            logger.info(f"开始每日交易执行: {execution_name}")
+            logger.debug(f"执行参数: total_capital={self.total_capital}, market_state={self.current_market_state}")
+            
+            # 0. 每日自动更新历史收益率数据（供对冲引擎使用真实Beta/相关性）
+            try:
+                self._update_historical_returns()
+            except Exception as update_exc:
+                logger.warning("历史收益率自动更新失败: %s", update_exc)
+            
+            # 0.5 更新持仓实时价格
+            try:
+                self._update_position_prices()
+            except Exception as update_exc:
+                logger.warning("持仓价格更新失败: %s", update_exc)
             
             # 1. 市场状态评估
             market_data = self._get_market_data()
+            logger.debug(f"市场数据: { {k: v for k, v in market_data.items() if k != 'correlation_matrix'} }")
             market_state = self.market_evaluator.evaluate_market_state(market_data)
             
             if isinstance(market_state, dict):
@@ -1233,13 +1385,22 @@ class AutomatedExecutionSystem:
                 self.current_market_state = market_state
                 market_state_data = {'market_state': market_state}
             
+            logger.info(f"市场状态评估完成: {self.current_market_state}")
+            
             # 2. 检查风险
             if self.config['risk_pre_check']:
                 if not self._risk_pre_check(market_state_data):
                     logger.warning("风险预检查失败，取消今日交易")
                     return
             
-            # 3. 生成交易计划（这里简化处理）
+            # 3. 对冲决策（可选）
+            hedge_plan = None
+            if self.hedge_enabled and self.hedge_coordinator is not None:
+                hedge_plan = self._run_hedge_decision(market_data, market_state_data)
+                hedge_plan = self._apply_hedge_triggers(market_data, hedge_plan)
+                self.last_hedge_plan = hedge_plan
+            
+            # 4. 生成交易计划（这里简化处理）
             trade_info = {
                 'trade_id': f"TRADE_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                 'instrument': 'SPY',
@@ -1249,13 +1410,14 @@ class AutomatedExecutionSystem:
                 'asset_type': 'equity'
             }
             
-            # 4. 选择执行策略
+            # 5. 选择执行策略
             strategy_result = self.execution_strategy.select_execution_strategy(
                 self.current_market_state, trade_info
             )
             strategy_config = strategy_result['strategy_config']
+            logger.debug(f"执行策略: {strategy_result.get('strategy_name')}, 切片大小: {strategy_config.get('slice_size')}")
             
-            # 5. 生成执行计划
+            # 6. 生成执行计划
             execution_plan = self.execution_strategy.generate_execution_plan(
                 trade_info, strategy_config
             )
@@ -1265,8 +1427,9 @@ class AutomatedExecutionSystem:
                 return
             
             self.current_execution_plan = execution_plan
+            logger.info(f"执行计划生成完成: {execution_plan.get('num_slices')}个切片")
             
-            # 6. 订单路由
+            # 7. 订单路由
             routing_result = self.order_router.route_order(
                 execution_plan, self.current_market_state
             )
@@ -1276,87 +1439,476 @@ class AutomatedExecutionSystem:
                 return
             
             self.current_routed_orders = routing_result['routed_orders']
+            logger.info(f"订单路由完成: {len(routing_result.get('routed_orders', []))}个订单")
             
-            # 7. 处理执行队列
+            # 8. 处理执行队列
             self.order_router.process_execution_queue()
             
-            # 8. 记录执行结果
+            # 9. 记录执行结果
             execution_result = {
                 'market_state': self.current_market_state,
                 'execution_plan': execution_plan,
                 'routed_orders': self.current_routed_orders,
                 'routing_result': routing_result,
-                'execution_time': datetime.now().isoformat()
+                'execution_time': datetime.now().isoformat(),
+                'execution_name': execution_name,
+                'hedge_plan': hedge_plan,
+                'rebalance_plan': None,
             }
             
-            # 记录历史
             system_record = {
                 'timestamp': datetime.now().isoformat(),
-                'event': 'daily_execution',
+                'event': execution_name,
                 'execution_result': execution_result,
                 'market_state_data': market_state_data
             }
             
             self.system_history.append(system_record)
+            logger.info(f"每日交易执行完成: {execution_name}")
             
-            logger.info("每日交易执行完成")
+            # 10. 生成对冲执行单
+            try:
+                self._generate_hedge_execution_orders(hedge_plan)
+            except Exception as exc:
+                logger.warning("对冲执行单生成失败: %s", exc)
+            
+            # 11. 生成再平衡执行单
+            try:
+                rebalance_report = self._generate_rebalance_orders()
+                execution_result['rebalance_plan'] = rebalance_report
+            except Exception as exc:
+                logger.warning("再平衡订单生成失败: %s", exc)
             
         except Exception as e:
-            logger.error(f"每日交易执行失败: {e}")
-            
-            # 记录失败
+            logger.error(f"每日交易执行失败: {e}", exc_info=True)
             failure_record = {
                 'timestamp': datetime.now().isoformat(),
                 'event': 'execution_failure',
                 'error': str(e),
-                'market_state': self.current_market_state
+                'market_state': self.current_market_state,
+                'execution_name': execution_name
             }
-            
             self.system_history.append(failure_record)
     
+    def _run_hedge_decision(self, market_data: Dict, market_state_data: Dict) -> Optional[Dict]:
+        """运行对冲决策"""
+        try:
+            # 1. 读取真实持仓与价格
+            positions_path = os.path.join(os.path.dirname(__file__), "config", "positions.json")
+            positions = {}
+            prices = {}
+            style_map = {}
+            if os.path.exists(positions_path):
+                with open(positions_path, "r", encoding="utf-8") as f:
+                    pos_data = json.load(f).get("positions", {})
+                for key, item in pos_data.items():
+                    code = item.get("code")
+                    qty = item.get("phase1_shares") or item.get("total_shares") or item.get("shares", 0)
+                    price = item.get("est_price", 0.0)
+                    if code and qty:
+                        positions[code] = float(qty)
+                        prices[code] = float(price)
+                        style_map[code] = item.get("style", "其他")
+
+            # 2. 尝试加载真实历史收益率；缺失时使用风格 Beta 估算
+            returns = pd.DataFrame()
+            market_returns = pd.Series(dtype=float)
+            returns_path = os.path.join(os.path.dirname(__file__), "config", "returns_history.json")
+            market_path = os.path.join(os.path.dirname(__file__), "config", "market_returns.json")
+            if os.path.exists(returns_path) and os.path.exists(market_path):
+                try:
+                    returns = pd.read_json(returns_path, orient='split')
+                    market_returns = pd.read_json(market_path, orient='split', typ='series')
+                    returns.columns = returns.columns.astype(str)
+                    logger.info("已加载历史收益率数据: %s 条, %s 个标的", len(market_returns), returns.shape[1])
+                except Exception as e:
+                    logger.warning("加载历史收益率失败: %s", e)
+
+            if returns.empty or market_returns is None or len(market_returns) == 0:
+                style_beta_proxy = {
+                    "宽基": 0.95,
+                    "高端制造": 1.15,
+                    "科技": 1.20,
+                    "制造": 1.05,
+                    "新能源": 1.10,
+                    "医药": 0.85,
+                    "化工": 1.00,
+                    "银行": 0.75,
+                    "防御": 0.60,
+                    "顺周期": 1.10,
+                    "避险": -0.10,
+                    "红利": 0.70,
+                    "成长": 1.25,
+                }
+                day_capital = float(sum(positions.get(s, 0) * prices.get(s, 0) for s in positions) or self.total_capital)
+                portfolio_beta_est = 0.0
+                for code, qty in positions.items():
+                    amt = qty * prices.get(code, 0.0)
+                    style = style_map.get(code, "其他")
+                    beta = style_beta_proxy.get(style, 1.0)
+                    portfolio_beta_est += (amt / day_capital) * beta if day_capital > 0 else 0.0
+            else:
+                portfolio_beta_est = 0.0
+
+            # 3. 构造市场输入
+            vix = float(market_data.get('vix_future_price', 20.0) or 20.0)
+            portfolio_value = float(self.total_capital)
+            hwm_drawdown = 0.03
+            bs_loss = 0.0
+
+            # 4. 调用真实对冲引擎
+            plan = self.hedge_coordinator.coordinate(
+                positions=positions,
+                prices=prices,
+                returns=returns,
+                market_returns=market_returns,
+                vix=vix,
+                portfolio_value=portfolio_value,
+                hwm_drawdown=hwm_drawdown,
+                bs_loss=bs_loss,
+            )
+
+            # 5. 若仍缺少真实数据且 Beta 过高，给出结构化 fallback
+            if plan.get("action") == "NO_HEDGE" and portfolio_beta_est > 0.7:
+                plan = dict(plan)
+                plan["action"] = "PREPARE_HEDGE"
+                plan["portfolio_beta"] = float(portfolio_beta_est)
+                plan["prepared_reason"] = (
+                    f"估算组合Beta {portfolio_beta_est:.2f} > 0.7，"
+                    "建议准备 Beta 对冲/避险配置"
+                )
+
+            logger.info(
+                "对冲决策完成: action=%s, total_hedge_pct=%.2f%%, cost_pct=%.2f%%",
+                plan.get("action"),
+                float(plan.get("total_hedge_pct", 0.0) or 0.0) * 100,
+                float(plan.get("total_cost_pct", 0.0) or 0.0) * 100,
+            )
+            return plan
+        except Exception as e:
+            logger.error(f"对冲决策失败: {e}")
+            return None
+    
+    def _update_position_prices(self):
+        """更新持仓实时价格 - 优先 Wind MCP"""
+        try:
+            positions_path = os.path.join(os.path.dirname(__file__), "config", "positions.json")
+            if not os.path.exists(positions_path):
+                return
+            
+            with open(positions_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            positions = data.get('positions', {})
+            
+            update_count = 0
+            fail_count = 0
+            
+            for item in positions.values():
+                code = item.get('code')
+                old_price = item.get('est_price', 0.0)
+                shares = item.get('phase1_shares') or item.get('total_shares') or item.get('shares', 0)
+                
+                if not code or not shares:
+                    continue
+                
+                real_time_price = None
+                price_source = None
+                
+                if _WIND_MCP_AVAILABLE and wind_get_quote is not None:
+                    try:
+                        wind_code, is_fund = _to_wind_code(code)
+                        quote = wind_get_quote(wind_code, is_fund=is_fund)
+                        if quote and quote.get('price') is not None:
+                            real_time_price = float(quote['price'])
+                            if real_time_price > 0:
+                                price_source = 'wind_mcp'
+                    except Exception as e:
+                        logger.debug("Wind MCP 获取价格失败 %s: %s", code, e)
+                
+                if real_time_price is None or real_time_price <= 0:
+                    fail_count += 1
+                    continue
+                
+                item['est_price'] = real_time_price
+                item['last_update'] = datetime.now().isoformat()
+                item['price_source'] = price_source or 'unknown'
+                update_count += 1
+            
+            if update_count > 0:
+                with open(positions_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+            
+            logger.info("持仓价格更新完成: 成功 %s, 失败 %s", update_count, fail_count)
+        except Exception as e:
+            logger.warning("持仓价格更新失败: %s", e)
+    
+    def _update_historical_returns(self):
+        """更新历史收益率数据并写入 config/"""
+        try:
+            positions_path = os.path.join(os.path.dirname(__file__), "config", "positions.json")
+            if not os.path.exists(positions_path):
+                return
+            
+            with open(positions_path, "r", encoding="utf-8") as f:
+                positions_data = json.load(f).get("positions", {})
+            
+            symbols = [item.get("code") for item in positions_data.values() if item.get("code")]
+            if not symbols:
+                return
+            
+            provider = MarketDataProvider()
+            period = "1y"
+            returns_data = {}
+            for symbol in symbols:
+                try:
+                    df = provider.get_historical_data(symbol, period)
+                    if df is not None and not df.empty and "close" in df.columns:
+                        df["return"] = df["close"].pct_change()
+                        returns_data[symbol] = df["return"].dropna()
+                except Exception:
+                    continue
+            
+            if not returns_data:
+                return
+            
+            returns_df = pd.DataFrame(returns_data)
+            returns_path = os.path.join(os.path.dirname(__file__), "config", "returns_history.json")
+            returns_df.to_json(returns_path, orient="split", date_format="iso")
+            
+            market_symbol = "510300"
+            market_df = provider.get_historical_data(market_symbol, period)
+            if market_df is not None and not market_df.empty and "close" in market_df.columns:
+                market_returns = market_df["close"].pct_change().dropna()
+                market_path = os.path.join(os.path.dirname(__file__), "config", "market_returns.json")
+                market_returns.to_json(market_path, orient="split", date_format="iso")
+            
+            logger.info("历史收益率自动更新完成: %s 个标的", len(returns_df.columns))
+        except Exception as e:
+            logger.warning("历史收益率自动更新异常: %s", e)
+    
+    def _apply_hedge_triggers(self, market_data: Dict, hedge_plan: Optional[Dict]) -> Optional[Dict]:
+        """基于 VIX / 回撤 / 市场状态做强制触发覆盖"""
+        if not hedge_plan:
+            return hedge_plan
+        
+        plan = dict(hedge_plan)
+        vix = float(market_data.get('vix_future_price', 20.0) or 20.0)
+        market_state = str(self.current_market_state)
+        drawdown = float(getattr(self, 'current_drawdown', 0.0) or 0.0)
+        
+        forced_reason = None
+        if vix >= 30.0:
+            forced_reason = f'VIX={vix:.1f} >= 30.0'
+        elif market_state in {'elevated', 'crisis', 'stress'}:
+            forced_reason = f'market_state={market_state}'
+        elif drawdown >= 0.03:
+            forced_reason = f'drawdown={drawdown*100:.1f}% >= 3%'
+        
+        if forced_reason and plan.get('action') == 'NO_HEDGE':
+            plan['action'] = 'FORCED_HEDGE'
+            plan['forced_reason'] = forced_reason
+            logger.warning('对冲被自动触发: %s', forced_reason)
+        
+        return plan
+    
+    def _generate_hedge_execution_orders(self, hedge_plan: Optional[Dict]):
+        """根据对冲决策生成可执行订单文件"""
+        try:
+            positions_path = os.path.join(os.path.dirname(__file__), "config", "positions.json")
+            positions = {}
+            prices = {}
+            if os.path.exists(positions_path):
+                with open(positions_path, "r", encoding="utf-8") as f:
+                    pos_data = json.load(f).get("positions", {})
+                for item in pos_data.values():
+                    code = item.get("code")
+                    qty = item.get("phase1_shares") or item.get("total_shares") or item.get("shares", 0)
+                    price = item.get("est_price", 0.0)
+                    if code and qty:
+                        positions[code] = float(qty)
+                        prices[code] = float(price)
+            
+            plan = hedge_plan or {}
+            plan.setdefault('portfolio_beta', 0.0)
+            plan.setdefault('total_hedge_pct', 0.0)
+            plan.setdefault('action', 'NO_HEDGE')
+            
+            sys.path.insert(0, os.path.dirname(__file__))
+            try:
+                from hedge_execution_orders import build_orders
+                orders = build_orders(plan, positions, prices)
+            except Exception:
+                orders = {
+                    'date': datetime.now().strftime('%Y-%m-%d'),
+                    'action': plan.get('action', 'NO_HEDGE'),
+                    'orders': []
+                }
+            
+            report_dir = os.path.join(os.path.dirname(__file__), 'reports')
+            os.makedirs(report_dir, exist_ok=True)
+            out_path = os.path.join(report_dir, f'hedge_execution_orders_{datetime.now().strftime("%Y%m%d")}.json')
+            with open(out_path, 'w', encoding='utf-8') as f:
+                json.dump(orders, f, ensure_ascii=False, indent=2)
+            
+            logger.info("对冲执行单已生成: %s", out_path)
+        except Exception as e:
+            logger.warning("生成对冲执行单失败: %s", e)
+    
     def _get_market_data(self) -> Dict:
-        """获取市场数据"""
-        # 模拟市场数据获取
-        return {
-            'index_price': 3000,
-            'volatility': 0.15,
-            'var_95': 0.02,
-            'var_99': 0.035,
-            'liquidity': 1.0,
-            'sentiment_score': 0.2,
-            'correlation_matrix': np.eye(3),
-            'beta': 1.0,
-            'tracking_error': 0.03,
-            'market_correlation': 0.7,
-            'volatility_skew': 0.0,
-            'volatility_term': 0.0,
-            'vix_future_price': 20.0,
-            'kurtosis': 3.0,
-            'skewness': 0.0,
-            'extreme_events': 0
-        }
+        """获取市场数据 - 优先 Wind MCP"""
+        try:
+            # 优先从 Wind MCP 获取沪深300实时价格
+            index_price = None
+            if _WIND_MCP_AVAILABLE and wind_get_quote is not None:
+                try:
+                    quote = wind_get_quote('510300.SH', is_fund=True)
+                    if quote and quote.get('price') is not None:
+                        index_price = float(quote['price'])
+                except Exception as e:
+                    logger.debug("Wind MCP 获取市场指数失败: %s", e)
+            
+            # 回退到历史数据
+            if index_price is None or index_price <= 0:
+                try:
+                    base_dir = os.path.dirname(__file__)
+                    market_path = os.path.join(base_dir, "config", "market_returns.json")
+                    if os.path.exists(market_path):
+                        market_returns = pd.read_json(market_path, orient='split', typ='series')
+                        if not market_returns.empty:
+                            index_price = safe_float(float(market_returns.iloc[-1]) * 1000 + 3000)
+                except Exception:
+                    pass
+            
+            # 最终兜底
+            if index_price is None or index_price <= 0:
+                index_price = safe_float(3000)
+            
+            # 尝试从历史收益率计算真实指标
+            try:
+                base_dir = os.path.dirname(__file__)
+                returns_path = os.path.join(base_dir, "config", "returns_history.json")
+                market_path = os.path.join(base_dir, "config", "market_returns.json")
+                
+                if os.path.exists(returns_path) and os.path.exists(market_path):
+                    returns = pd.read_json(returns_path, orient='split')
+                    market_returns = pd.read_json(market_path, orient='split', typ='series')
+                    returns.columns = returns.columns.astype(str)
+                    
+                    if not market_returns.empty and not returns.empty:
+                        # 计算市场波动率
+                        vol = safe_float(market_returns.std() * (252 ** 0.5))
+                        
+                        # 计算 VaR
+                        var_95 = safe_float(market_returns.quantile(0.05))
+                        var_99 = safe_float(market_returns.quantile(0.01))
+                        
+                        # 计算相关性矩阵
+                        corr_matrix = returns.corr().fillna(0.0).values.tolist()
+                        if len(corr_matrix) == 0:
+                            corr_matrix = _eye(3)
+                        
+                        # 计算 beta（组合相对市场）
+                        betas = []
+                        for col in returns.columns:
+                            try:
+                                series = returns[col].dropna()
+                                if len(series) < 5:
+                                    continue
+                                cov = series.cov(market_returns)
+                                var_m = market_returns.var()
+                                if var_m > 0 and not np.isnan(cov):
+                                    betas.append(float(cov / var_m))
+                            except Exception:
+                                continue
+                        
+                        # 组合 beta 取有效值的平均
+                        if betas:
+                            beta = safe_float(sum(betas) / len(betas))
+                        else:
+                            beta = safe_float(1.0)
+                        
+                        # 跟踪误差
+                        tracking_error = safe_float(market_returns.std() * (252 ** 0.5) * 0.5)
+                        
+                        return {
+                            'index_price': safe_float(index_price),
+                            'volatility': safe_float(vol),
+                            'var_95': safe_float(var_95),
+                            'var_99': safe_float(var_99),
+                            'liquidity': safe_float(1.0),
+                            'sentiment_score': safe_float(0.0),
+                            'correlation_matrix': corr_matrix,
+                            'beta': safe_float(beta),
+                            'tracking_error': safe_float(tracking_error),
+                            'market_correlation': safe_float(0.7),
+                            'volatility_skew': safe_float(0.0),
+                            'volatility_term': safe_float(0.0),
+                            'vix_future_price': safe_float(20.0),
+                            'kurtosis': safe_float(3.0),
+                            'skewness': safe_float(0.0),
+                            'extreme_events': safe_float(0, default=0)
+                        }
+            except Exception as e:
+                logger.debug("历史收益率市场数据计算失败: %s", e)
+            
+            return {
+                'index_price': safe_float(index_price),
+                'volatility': safe_float(0.15),
+                'var_95': safe_float(0.02),
+                'var_99': safe_float(0.035),
+                'liquidity': safe_float(1.0),
+                'sentiment_score': safe_float(0.2),
+                'correlation_matrix': _eye(3),
+                'beta': safe_float(1.0),
+                'tracking_error': safe_float(0.03),
+                'market_correlation': safe_float(0.7),
+                'volatility_skew': safe_float(0.0),
+                'volatility_term': safe_float(0.0),
+                'vix_future_price': safe_float(20.0),
+                'kurtosis': safe_float(3.0),
+                'skewness': safe_float(0.0),
+                'extreme_events': safe_float(0, default=0)
+            }
+        except Exception as e:
+            logger.warning("获取市场数据失败: %s", e)
+            return {
+                'index_price': safe_float(3000),
+                'volatility': safe_float(0.15),
+                'var_95': safe_float(0.02),
+                'var_99': safe_float(0.035),
+                'liquidity': safe_float(1.0),
+                'sentiment_score': safe_float(0.2),
+                'correlation_matrix': _eye(3),
+                'beta': safe_float(1.0),
+                'tracking_error': safe_float(0.03),
+                'market_correlation': safe_float(0.7),
+                'volatility_skew': safe_float(0.0),
+                'volatility_term': safe_float(0.0),
+                'vix_future_price': safe_float(20.0),
+                'kurtosis': safe_float(3.0),
+                'skewness': safe_float(0.0),
+                'extreme_events': safe_float(0, default=0)
+            }
     
     def _risk_pre_check(self, market_state_data: Dict) -> bool:
         """执行风险预检查"""
         try:
-            # 检查市场状态
             market_state = market_state_data['market_state']
             if market_state in ['crisis', 'stress']:
                 logger.warning(f"市场状态异常: {market_state}")
                 return False
             
-            # 检查风险指标
             var_95 = market_state_data.get('individual_scores', {}).get('var', 0)
             if var_95 > 0.8:
                 logger.warning(f"VaR风险过高: {var_95}")
                 return False
             
-            # 检查流动性
             liquidity = market_state_data.get('individual_scores', {}).get('liquidity', 0)
             if liquidity > 0.8:
                 logger.warning(f"流动性风险过高: {liquidity}")
                 return False
             
+            logger.debug("风险预检查通过")
             return True
             
         except Exception as e:
@@ -1373,36 +1925,50 @@ class AutomatedExecutionSystem:
         """性能监控循环"""
         while self.is_running:
             try:
-                # 获取系统状态
                 summary = self.get_system_summary()
+                perf = summary['performance_metrics']
+                total_orders = self.order_router.execution_stats['total_orders']
                 
-                # 检查性能指标
-                if summary['performance_metrics']['execution_success_rate'] < 0.8:
-                    logger.warning("执行成功率过低，系统性能下降")
+                if total_orders > 0:
+                    if perf['execution_success_rate'] < 0.8:
+                        logger.warning("执行成功率过低，系统性能下降")
+                    
+                    if perf['average_execution_time'] > 30:
+                        logger.warning("执行时间过长，系统性能下降")
+                    
+                    if perf['average_slippage'] > 0.01:
+                        logger.warning("滑点过大，系统性能下降")
+                else:
+                    logger.debug("性能监控：暂无订单执行记录，跳过阈值告警")
                 
-                if summary['performance_metrics']['average_execution_time'] > 30:
-                    logger.warning("执行时间过长，系统性能下降")
-                
-                if summary['performance_metrics']['average_slippage'] > 0.01:
-                    logger.warning("滑点过大，系统性能下降")
-                
-                time.sleep(300)  # 每5分钟检查一次
-                
+                time.sleep(300)
             except Exception as e:
                 logger.error(f"性能监控错误: {e}")
                 time.sleep(300)
     
     def get_system_summary(self) -> Dict:
         """获取系统总结"""
+        market_evaluator_summary = self.market_evaluator.get_market_state_summary()
+        
+        hedge_summary = {
+            'available': _HEDGE_AVAILABLE,
+            'enabled': self.hedge_enabled,
+            'coordinator_loaded': self.hedge_coordinator is not None,
+            'last_action': self.last_hedge_plan.get('action') if isinstance(self.last_hedge_plan, dict) else None,
+            'last_total_hedge_pct': self.last_hedge_plan.get('total_hedge_pct') if isinstance(self.last_hedge_plan, dict) else None,
+            'last_total_cost_pct': self.last_hedge_plan.get('total_cost_pct') if isinstance(self.last_hedge_plan, dict) else None,
+        }
+        
         return {
             'system_status': 'running' if self.is_running else 'stopped',
-            'market_state': self.current_market_state,
+            'current_market_state': self.current_market_state,
             'current_plan': self.current_execution_plan,
             'routed_orders_count': len(self.current_routed_orders),
+            'hedge': hedge_summary,
             
             # 各组件状态
             'trading_calendar': self.trading_calendar.get_execution_summary(),
-            'market_state': self.market_evaluator.get_market_state_summary(),
+            'market_state_evaluator': market_evaluator_summary,
             'execution_strategy': self.execution_strategy.get_execution_summary(),
             'order_router': self.order_router.get_router_summary(),
             
@@ -1425,6 +1991,35 @@ class AutomatedExecutionSystem:
     def get_execution_schedule(self, days_ahead: int = 7) -> List[Dict]:
         """获取执行计划"""
         return self.trading_calendar.get_execution_schedule(days_ahead)
+    
+    def _generate_rebalance_orders(self):
+        """生成再平衡执行订单"""
+        try:
+            sys.path.insert(0, os.path.dirname(__file__))
+            from rebalance_execution_orders import (
+                load_positions, calc_current_allocation,
+                generate_rebalance_orders, build_report, TARGET_ALLOCATION
+            )
+            
+            positions, prices, styles = load_positions()
+            style_allocation = calc_current_allocation(positions, prices, styles)
+            orders = generate_rebalance_orders(style_allocation, TARGET_ALLOCATION, positions, prices)
+            report = build_report(style_allocation, TARGET_ALLOCATION, orders)
+            
+            report_dir = os.path.join(os.path.dirname(__file__), 'reports')
+            os.makedirs(report_dir, exist_ok=True)
+            out_path = os.path.join(report_dir, f'rebalance_execution_orders_{datetime.now().strftime("%Y%m%d")}.json')
+            with open(out_path, 'w', encoding='utf-8') as f:
+                json.dump(report, f, ensure_ascii=False, indent=2)
+            
+            valid_count = report['summary']['valid_orders']
+            total_count = report['summary']['total_orders']
+            logger.info(f"再平衡订单生成完成: {valid_count}/{total_count} 有效订单")
+            
+            return report
+        except Exception as e:
+            logger.error(f"生成再平衡订单失败: {e}")
+            return None
 
 
 # 主程序
@@ -1434,6 +2029,12 @@ if __name__ == "__main__":
     
     # 创建自动化执行系统
     execution_system = AutomatedExecutionSystem(total_capital=1000000)
+    
+    # 尝试开启对冲模块
+    if execution_system.enable_hedge(True):
+        print("对冲模块: 已开启")
+    else:
+        print("对冲模块: 不可用或开启失败")
     
     # 启动系统
     execution_system.start_system()
@@ -1447,14 +2048,14 @@ if __name__ == "__main__":
     print("\n系统状态")
     print("=" * 50)
     print(f"系统状态: {summary['system_status']}")
-    print(f"当前市场状态: {summary['market_state']}")
+    print(f"当前市场状态: {summary['current_market_state']}")
     print(f"当前执行计划: {'有' if summary['current_plan'] else '无'}")
     print(f"路由订单数: {summary['routed_orders_count']}")
     
     print("\n组件状态")
     print("=" * 50)
     print(f"交易日历: 总执行数={summary['trading_calendar'].get('total_executions', 0)}")
-    print(f"市场评估: 当前状态={summary['market_state'].get('current_state', 'unknown')}")
+    print(f"市场评估: 当前状态={summary['market_state_evaluator'].get('current_state', 'unknown')}")
     print(f"执行策略: 成功率={summary['execution_strategy'].get('success_rate', 0):.2%}")
     print(f"订单路由: 活跃订单={summary['order_router'].get('total_active_orders', 0)}")
     
@@ -1482,7 +2083,7 @@ if __name__ == "__main__":
             current_summary = execution_system.get_system_summary()
             print(f"\r当前时间: {datetime.now().strftime('%H:%M:%S')} | "
                   f"系统状态: {current_summary['system_status']} | "
-                  f"市场状态: {current_summary['market_state']}", end='')
+                  f"市场状态: {current_summary['current_market_state']}", end='')
     except KeyboardInterrupt:
         print("\n正在停止系统...")
         execution_system.stop_system()
