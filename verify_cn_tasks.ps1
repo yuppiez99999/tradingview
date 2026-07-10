@@ -1,8 +1,8 @@
-﻿[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $service = New-Object -ComObject Schedule.Service
 $service.Connect()
 $rootFolder = $service.GetFolder("\")
-$pyExe = "C:\Users\Administrator\AppData\Local\Programs\Python\Python314\python.exe"
+$pyExe = "C:\Program Files\Python38\python.exe"
 $qdir = "e:\各种PY程序\11_量化策略"
 
 $taskNames = @(

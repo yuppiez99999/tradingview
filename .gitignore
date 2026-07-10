@@ -26,6 +26,8 @@ venv/
 ENV/
 env/
 .venv
+qlib_env/
+qlib/
 
 # IDE
 .vscode/
@@ -85,10 +87,18 @@ coverage.xml
 *.zip
 *.7z
 
+# Backup files
+*.bak_*
+
+# MLflow
+mlruns/
+
 # Reports (keep structure, ignore content)
 reports/*
 !reports/.gitkeep
 !reports/README.md
+v7.5_institutional/reports/*
+!v7.5_institutional/reports/.gitkeep
 
 # Daily reports archive
 每日报告归档/*
@@ -98,3 +108,7 @@ reports/*
 trade_plans/*
 !trade_plans/.gitkeep
 !trade_plans/README.md
+
+# Trade instructions
+trade_instructions/*
+!trade_instructions/.gitkeep

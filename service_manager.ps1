@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ServiceName = "AutoHedgeExecutor"
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Python = "C:\Users\Administrator\AppData\Local\Programs\Python\Python314\python.exe"
+$Python = "C:\Program Files\Python38\python.exe"
 $Wrapper = Join-Path $ProjectDir "_archive_dead_code\service_wrapper.py"  # 已归档，路径更新于 2026-07-09
 
 function Write-Info($msg) { Write-Host "[INFO] $msg" -ForegroundColor Green }

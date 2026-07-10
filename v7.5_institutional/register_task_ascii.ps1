@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $TaskName = "v75_DailyWorkflow"
 $TriggerTime = "07:00"
-$Python = "C:\Users\Administrator\AppData\Local\Programs\Python\Python314\python.exe"
+$Python = "C:\Program Files\Python38\python.exe"
 $Script = Join-Path $ScriptDir "daily_workflow.py"
 
 Write-Host "Register v75_DailyWorkflow..."

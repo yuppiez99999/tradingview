@@ -1,0 +1,1340 @@
+{
+  "metadata": {
+    "total_capital": 5000000,
+    "start_date": "2026-07-06",
+    "end_date": "2026-09-30",
+    "target_count": 13,
+    "build_phases": 4,
+    "generated_at": "2026-07-10 18:41:21",
+    "strategy": "康波周期(第六轮复苏→繁荣) × 十五五规划(2026-2030)"
+  },
+  "target_portfolio": {
+    "588000": {
+      "name": "科创50ETF华夏",
+      "type": "ETF",
+      "risk": "高",
+      "style": "高端制造",
+      "weight": 0.11,
+      "est_price": 1.05,
+      "lots": 100,
+      "reason": "AI/科技核心指数，十五五规划重点方向"
+    },
+    "512480": {
+      "name": "半导体ETF国泰",
+      "type": "ETF",
+      "risk": "高",
+      "style": "高端制造",
+      "weight": 0.1,
+      "est_price": 1.38,
+      "lots": 100,
+      "reason": "AI算力硬件核心，康波第六轮技术底座"
+    },
+    "516160": {
+      "name": "高端装备ETF南方",
+      "type": "ETF",
+      "risk": "高",
+      "style": "高端制造",
+      "weight": 0.1,
+      "est_price": 1.12,
+      "lots": 100,
+      "reason": "十五五重点产业，制造业升级主线"
+    },
+    "515030": {
+      "name": "新能源车ETF华夏",
+      "type": "ETF",
+      "risk": "高",
+      "style": "高端制造",
+      "weight": 0.1,
+      "est_price": 1.55,
+      "lots": 100,
+      "reason": "新能源产业链，十五五绿色转型战略"
+    },
+    "159915": {
+      "name": "创业板ETF易方达",
+      "type": "ETF",
+      "risk": "高",
+      "style": "高端制造",
+      "weight": 0.09,
+      "est_price": 2.15,
+      "lots": 100,
+      "reason": "成长风格核心敞口，创新企业集中地"
+    },
+    "159992": {
+      "name": "创新药ETF银华",
+      "type": "ETF",
+      "risk": "高",
+      "style": "防御",
+      "weight": 0.1,
+      "est_price": 0.92,
+      "lots": 100,
+      "reason": "生物医药创新，十五五民生健康重点"
+    },
+    "512010": {
+      "name": "医药ETF易方达",
+      "type": "ETF",
+      "risk": "中",
+      "style": "防御",
+      "weight": 0.07,
+      "est_price": 0.58,
+      "lots": 100,
+      "reason": "医药行业宽基配置，防御+成长双属性"
+    },
+    "511260": {
+      "name": "十年国债ETF国泰",
+      "type": "债券",
+      "risk": "低",
+      "style": "防御",
+      "weight": 0.03,
+      "est_price": 102.5,
+      "lots": 10,
+      "reason": "利率债配置，极端行情安全垫"
+    },
+    "511520": {
+      "name": "政金债ETF富国",
+      "type": "债券",
+      "risk": "低",
+      "style": "防御",
+      "weight": 0.03,
+      "est_price": 101.2,
+      "lots": 10,
+      "reason": "政策性金融债，信用风险极低"
+    },
+    "511360": {
+      "name": "短融ETF海富通",
+      "type": "货币",
+      "risk": "低",
+      "style": "防御",
+      "weight": 0.02,
+      "est_price": 100.05,
+      "lots": 10,
+      "reason": "现金管理工具，闲置资金获取货币收益"
+    },
+    "512400": {
+      "name": "有色金属ETF南方",
+      "type": "ETF",
+      "risk": "高",
+      "style": "资源",
+      "weight": 0.12,
+      "est_price": 1.18,
+      "lots": 100,
+      "reason": "康波繁荣期预期，商品超级周期受益"
+    },
+    "518880": {
+      "name": "黄金ETF华安",
+      "type": "商品",
+      "risk": "中",
+      "style": "资源",
+      "weight": 0.08,
+      "est_price": 5.85,
+      "lots": 100,
+      "reason": "通胀对冲+地缘风险避险，组合稳定器"
+    },
+    "601088": {
+      "name": "中国神华",
+      "type": "个股",
+      "risk": "中",
+      "style": "顺周期",
+      "weight": 0.05,
+      "est_price": 38.5,
+      "lots": 100,
+      "reason": "能源安全龙头，高股息+顺周期双重属性"
+    }
+  },
+  "position_plan": {
+    "588000": {
+      "code": "588000",
+      "name": "科创50ETF华夏",
+      "type": "ETF",
+      "risk": "高",
+      "style": "高端制造",
+      "target_weight": 0.11,
+      "target_amount": 550000.0,
+      "est_price": 1.05,
+      "total_shares": 523800,
+      "actual_amount": 549990.0,
+      "reason": "AI/科技核心指数，十五五规划重点方向",
+      "stop_loss": -0.15,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 192500.0,
+          "shares": 183300,
+          "actual_amount": 192465.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 165000.0,
+          "shares": 157100,
+          "actual_amount": 164955.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 110000.0,
+          "shares": 104700,
+          "actual_amount": 109935.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 82500.0,
+          "shares": 78500,
+          "actual_amount": 82425.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "512480": {
+      "code": "512480",
+      "name": "半导体ETF国泰",
+      "type": "ETF",
+      "risk": "高",
+      "style": "高端制造",
+      "target_weight": 0.1,
+      "target_amount": 500000.0,
+      "est_price": 1.38,
+      "total_shares": 362300,
+      "actual_amount": 499974.0,
+      "reason": "AI算力硬件核心，康波第六轮技术底座",
+      "stop_loss": -0.15,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 175000.0,
+          "shares": 126800,
+          "actual_amount": 174984.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 150000.0,
+          "shares": 108600,
+          "actual_amount": 149868.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 100000.0,
+          "shares": 72400,
+          "actual_amount": 99912.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 75000.0,
+          "shares": 54300,
+          "actual_amount": 74934.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "516160": {
+      "code": "516160",
+      "name": "高端装备ETF南方",
+      "type": "ETF",
+      "risk": "高",
+      "style": "高端制造",
+      "target_weight": 0.1,
+      "target_amount": 500000.0,
+      "est_price": 1.12,
+      "total_shares": 446400,
+      "actual_amount": 499968.0,
+      "reason": "十五五重点产业，制造业升级主线",
+      "stop_loss": -0.15,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 175000.0,
+          "shares": 156200,
+          "actual_amount": 174944.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 150000.0,
+          "shares": 133900,
+          "actual_amount": 149968.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 100000.0,
+          "shares": 89200,
+          "actual_amount": 99904.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 75000.0,
+          "shares": 66900,
+          "actual_amount": 74928.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "515030": {
+      "code": "515030",
+      "name": "新能源车ETF华夏",
+      "type": "ETF",
+      "risk": "高",
+      "style": "高端制造",
+      "target_weight": 0.1,
+      "target_amount": 500000.0,
+      "est_price": 1.55,
+      "total_shares": 322500,
+      "actual_amount": 499875.0,
+      "reason": "新能源产业链，十五五绿色转型战略",
+      "stop_loss": -0.15,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 175000.0,
+          "shares": 112900,
+          "actual_amount": 174995.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 150000.0,
+          "shares": 96700,
+          "actual_amount": 149885.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 100000.0,
+          "shares": 64500,
+          "actual_amount": 99975.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 75000.0,
+          "shares": 48300,
+          "actual_amount": 74865.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "159915": {
+      "code": "159915",
+      "name": "创业板ETF易方达",
+      "type": "ETF",
+      "risk": "高",
+      "style": "高端制造",
+      "target_weight": 0.09,
+      "target_amount": 450000.0,
+      "est_price": 2.15,
+      "total_shares": 209300,
+      "actual_amount": 449995.0,
+      "reason": "成长风格核心敞口，创新企业集中地",
+      "stop_loss": -0.15,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 157500.0,
+          "shares": 73200,
+          "actual_amount": 157380.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 135000.0,
+          "shares": 62700,
+          "actual_amount": 134805.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 90000.0,
+          "shares": 41800,
+          "actual_amount": 89870.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 67500.0,
+          "shares": 31300,
+          "actual_amount": 67295.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "159992": {
+      "code": "159992",
+      "name": "创新药ETF银华",
+      "type": "ETF",
+      "risk": "高",
+      "style": "防御",
+      "target_weight": 0.1,
+      "target_amount": 500000.0,
+      "est_price": 0.92,
+      "total_shares": 543400,
+      "actual_amount": 499928.0,
+      "reason": "生物医药创新，十五五民生健康重点",
+      "stop_loss": -0.15,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 175000.0,
+          "shares": 190200,
+          "actual_amount": 174984.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 150000.0,
+          "shares": 163000,
+          "actual_amount": 149960.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 100000.0,
+          "shares": 108600,
+          "actual_amount": 99912.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 75000.0,
+          "shares": 81500,
+          "actual_amount": 74980.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "512010": {
+      "code": "512010",
+      "name": "医药ETF易方达",
+      "type": "ETF",
+      "risk": "中",
+      "style": "防御",
+      "target_weight": 0.07,
+      "target_amount": 350000.0,
+      "est_price": 0.58,
+      "total_shares": 603400,
+      "actual_amount": 349972.0,
+      "reason": "医药行业宽基配置，防御+成长双属性",
+      "stop_loss": -0.12,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 122500.0,
+          "shares": 211200,
+          "actual_amount": 122496.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 105000.0,
+          "shares": 181000,
+          "actual_amount": 104980.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 70000.0,
+          "shares": 120600,
+          "actual_amount": 69948.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 52500.0,
+          "shares": 90500,
+          "actual_amount": 52490.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "511260": {
+      "code": "511260",
+      "name": "十年国债ETF国泰",
+      "type": "债券",
+      "risk": "低",
+      "style": "防御",
+      "target_weight": 0.03,
+      "target_amount": 150000.0,
+      "est_price": 102.5,
+      "total_shares": 1460,
+      "actual_amount": 149650.0,
+      "reason": "利率债配置，极端行情安全垫",
+      "stop_loss": -0.05,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 52500.0,
+          "shares": 510,
+          "actual_amount": 52275.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 45000.0,
+          "shares": 430,
+          "actual_amount": 44075.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 30000.0,
+          "shares": 290,
+          "actual_amount": 29725.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 22500.0,
+          "shares": 210,
+          "actual_amount": 21525.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "511520": {
+      "code": "511520",
+      "name": "政金债ETF富国",
+      "type": "债券",
+      "risk": "低",
+      "style": "防御",
+      "target_weight": 0.03,
+      "target_amount": 150000.0,
+      "est_price": 101.2,
+      "total_shares": 1480,
+      "actual_amount": 149776.0,
+      "reason": "政策性金融债，信用风险极低",
+      "stop_loss": -0.05,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 52500.0,
+          "shares": 510,
+          "actual_amount": 51612.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 45000.0,
+          "shares": 440,
+          "actual_amount": 44528.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 30000.0,
+          "shares": 290,
+          "actual_amount": 29348.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 22500.0,
+          "shares": 220,
+          "actual_amount": 22264.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "511360": {
+      "code": "511360",
+      "name": "短融ETF海富通",
+      "type": "货币",
+      "risk": "低",
+      "style": "防御",
+      "target_weight": 0.02,
+      "target_amount": 100000.0,
+      "est_price": 100.05,
+      "total_shares": 990,
+      "actual_amount": 99050.0,
+      "reason": "现金管理工具，闲置资金获取货币收益",
+      "stop_loss": -0.05,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 35000.0,
+          "shares": 340,
+          "actual_amount": 34017.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 30000.0,
+          "shares": 290,
+          "actual_amount": 29014.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 20000.0,
+          "shares": 190,
+          "actual_amount": 19010.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 15000.0,
+          "shares": 140,
+          "actual_amount": 14007.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "512400": {
+      "code": "512400",
+      "name": "有色金属ETF南方",
+      "type": "ETF",
+      "risk": "高",
+      "style": "资源",
+      "target_weight": 0.12,
+      "target_amount": 600000.0,
+      "est_price": 1.18,
+      "total_shares": 508400,
+      "actual_amount": 599912.0,
+      "reason": "康波繁荣期预期，商品超级周期受益",
+      "stop_loss": -0.15,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 210000.0,
+          "shares": 177900,
+          "actual_amount": 209922.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 180000.0,
+          "shares": 152500,
+          "actual_amount": 179950.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 120000.0,
+          "shares": 101600,
+          "actual_amount": 119888.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 90000.0,
+          "shares": 76200,
+          "actual_amount": 89916.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "518880": {
+      "code": "518880",
+      "name": "黄金ETF华安",
+      "type": "商品",
+      "risk": "中",
+      "style": "资源",
+      "target_weight": 0.08,
+      "target_amount": 400000.0,
+      "est_price": 5.85,
+      "total_shares": 68300,
+      "actual_amount": 399555.0,
+      "reason": "通胀对冲+地缘风险避险，组合稳定器",
+      "stop_loss": -0.12,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 140000.0,
+          "shares": 23900,
+          "actual_amount": 139815.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 120000.0,
+          "shares": 20500,
+          "actual_amount": 119925.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 80000.0,
+          "shares": 13600,
+          "actual_amount": 79560.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 60000.0,
+          "shares": 10200,
+          "actual_amount": 59670.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    },
+    "601088": {
+      "code": "601088",
+      "name": "中国神华",
+      "type": "个股",
+      "risk": "中",
+      "style": "顺周期",
+      "target_weight": 0.05,
+      "target_amount": 250000.0,
+      "est_price": 38.5,
+      "total_shares": 6400,
+      "actual_amount": 246400.0,
+      "reason": "能源安全龙头，高股息+顺周期双重属性",
+      "stop_loss": -0.12,
+      "phases": [
+        {
+          "phase": 1,
+          "name": "第一阶段-底仓建立",
+          "start": "2026-07-06",
+          "capital_ratio": 0.35,
+          "target_amount": 87500.0,
+          "shares": 2200,
+          "actual_amount": 84700.0,
+          "cumulative_ratio": 0.35
+        },
+        {
+          "phase": 2,
+          "name": "第二阶段-配置完善",
+          "start": "2026-07-20",
+          "capital_ratio": 0.3,
+          "target_amount": 75000.0,
+          "shares": 1900,
+          "actual_amount": 73150.0,
+          "cumulative_ratio": 0.65
+        },
+        {
+          "phase": 3,
+          "name": "第三阶段-防御补充",
+          "start": "2026-08-10",
+          "capital_ratio": 0.2,
+          "target_amount": 50000.0,
+          "shares": 1200,
+          "actual_amount": 46200.0,
+          "cumulative_ratio": 0.85
+        },
+        {
+          "phase": 4,
+          "name": "第四阶段-最终调整",
+          "start": "2026-09-01",
+          "capital_ratio": 0.15,
+          "target_amount": 37500.0,
+          "shares": 900,
+          "actual_amount": 34650.0,
+          "cumulative_ratio": 1.0
+        }
+      ]
+    }
+  },
+  "phase_summary": [
+    {
+      "phase": 1,
+      "name": "第一阶段-底仓建立",
+      "start": "2026-07-06",
+      "duration_days": 10,
+      "capital_ratio": 0.35,
+      "capital_amount": 1750000.0,
+      "asset_count": 13,
+      "total_actual": 1744589.0,
+      "strategy": "优先建立高端制造核心仓位（科创50、半导体、高端装备），同步配置黄金ETF和中国神华作为稳定器",
+      "assets": [
+        {
+          "code": "588000",
+          "name": "科创50ETF华夏",
+          "shares": 183300,
+          "amount": 192465.0
+        },
+        {
+          "code": "512480",
+          "name": "半导体ETF国泰",
+          "shares": 126800,
+          "amount": 174984.0
+        },
+        {
+          "code": "516160",
+          "name": "高端装备ETF南方",
+          "shares": 156200,
+          "amount": 174944.0
+        },
+        {
+          "code": "515030",
+          "name": "新能源车ETF华夏",
+          "shares": 112900,
+          "amount": 174995.0
+        },
+        {
+          "code": "159915",
+          "name": "创业板ETF易方达",
+          "shares": 73200,
+          "amount": 157380.0
+        },
+        {
+          "code": "159992",
+          "name": "创新药ETF银华",
+          "shares": 190200,
+          "amount": 174984.0
+        },
+        {
+          "code": "512010",
+          "name": "医药ETF易方达",
+          "shares": 211200,
+          "amount": 122496.0
+        },
+        {
+          "code": "511260",
+          "name": "十年国债ETF国泰",
+          "shares": 510,
+          "amount": 52275.0
+        },
+        {
+          "code": "511520",
+          "name": "政金债ETF富国",
+          "shares": 510,
+          "amount": 51612.0
+        },
+        {
+          "code": "511360",
+          "name": "短融ETF海富通",
+          "shares": 340,
+          "amount": 34017.0
+        },
+        {
+          "code": "512400",
+          "name": "有色金属ETF南方",
+          "shares": 177900,
+          "amount": 209922.0
+        },
+        {
+          "code": "518880",
+          "name": "黄金ETF华安",
+          "shares": 23900,
+          "amount": 139815.0
+        },
+        {
+          "code": "601088",
+          "name": "中国神华",
+          "shares": 2200,
+          "amount": 84700.0
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "第二阶段-配置完善",
+      "start": "2026-07-20",
+      "duration_days": 15,
+      "capital_ratio": 0.3,
+      "capital_amount": 1500000.0,
+      "asset_count": 13,
+      "total_actual": 1495063.0,
+      "strategy": "利用月中波动窗口分批加仓，关注大宗商品价格趋势，择机增加资源板块",
+      "assets": [
+        {
+          "code": "588000",
+          "name": "科创50ETF华夏",
+          "shares": 157100,
+          "amount": 164955.0
+        },
+        {
+          "code": "512480",
+          "name": "半导体ETF国泰",
+          "shares": 108600,
+          "amount": 149868.0
+        },
+        {
+          "code": "516160",
+          "name": "高端装备ETF南方",
+          "shares": 133900,
+          "amount": 149968.0
+        },
+        {
+          "code": "515030",
+          "name": "新能源车ETF华夏",
+          "shares": 96700,
+          "amount": 149885.0
+        },
+        {
+          "code": "159915",
+          "name": "创业板ETF易方达",
+          "shares": 62700,
+          "amount": 134805.0
+        },
+        {
+          "code": "159992",
+          "name": "创新药ETF银华",
+          "shares": 163000,
+          "amount": 149960.0
+        },
+        {
+          "code": "512010",
+          "name": "医药ETF易方达",
+          "shares": 181000,
+          "amount": 104980.0
+        },
+        {
+          "code": "511260",
+          "name": "十年国债ETF国泰",
+          "shares": 430,
+          "amount": 44075.0
+        },
+        {
+          "code": "511520",
+          "name": "政金债ETF富国",
+          "shares": 440,
+          "amount": 44528.0
+        },
+        {
+          "code": "511360",
+          "name": "短融ETF海富通",
+          "shares": 290,
+          "amount": 29014.0
+        },
+        {
+          "code": "512400",
+          "name": "有色金属ETF南方",
+          "shares": 152500,
+          "amount": 179950.0
+        },
+        {
+          "code": "518880",
+          "name": "黄金ETF华安",
+          "shares": 20500,
+          "amount": 119925.0
+        },
+        {
+          "code": "601088",
+          "name": "中国神华",
+          "shares": 1900,
+          "amount": 73150.0
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "第三阶段-防御补充",
+      "start": "2026-08-10",
+      "duration_days": 15,
+      "capital_ratio": 0.2,
+      "capital_amount": 1000000.0,
+      "asset_count": 13,
+      "total_actual": 993187.0,
+      "strategy": "结合中报披露窗口，优选医药板块回调时点建仓，配置债券类资产",
+      "assets": [
+        {
+          "code": "588000",
+          "name": "科创50ETF华夏",
+          "shares": 104700,
+          "amount": 109935.0
+        },
+        {
+          "code": "512480",
+          "name": "半导体ETF国泰",
+          "shares": 72400,
+          "amount": 99912.0
+        },
+        {
+          "code": "516160",
+          "name": "高端装备ETF南方",
+          "shares": 89200,
+          "amount": 99904.0
+        },
+        {
+          "code": "515030",
+          "name": "新能源车ETF华夏",
+          "shares": 64500,
+          "amount": 99975.0
+        },
+        {
+          "code": "159915",
+          "name": "创业板ETF易方达",
+          "shares": 41800,
+          "amount": 89870.0
+        },
+        {
+          "code": "159992",
+          "name": "创新药ETF银华",
+          "shares": 108600,
+          "amount": 99912.0
+        },
+        {
+          "code": "512010",
+          "name": "医药ETF易方达",
+          "shares": 120600,
+          "amount": 69948.0
+        },
+        {
+          "code": "511260",
+          "name": "十年国债ETF国泰",
+          "shares": 290,
+          "amount": 29725.0
+        },
+        {
+          "code": "511520",
+          "name": "政金债ETF富国",
+          "shares": 290,
+          "amount": 29348.0
+        },
+        {
+          "code": "511360",
+          "name": "短融ETF海富通",
+          "shares": 190,
+          "amount": 19010.0
+        },
+        {
+          "code": "512400",
+          "name": "有色金属ETF南方",
+          "shares": 101600,
+          "amount": 119888.0
+        },
+        {
+          "code": "518880",
+          "name": "黄金ETF华安",
+          "shares": 13600,
+          "amount": 79560.0
+        },
+        {
+          "code": "601088",
+          "name": "中国神华",
+          "shares": 1200,
+          "amount": 46200.0
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "第四阶段-最终调整",
+      "start": "2026-09-01",
+      "duration_days": 20,
+      "capital_ratio": 0.15,
+      "capital_amount": 750000.0,
+      "asset_count": 13,
+      "total_actual": 743949.0,
+      "strategy": "审视前三阶段执行偏差，补齐偏离标的，配置短融ETF管理剩余现金",
+      "assets": [
+        {
+          "code": "588000",
+          "name": "科创50ETF华夏",
+          "shares": 78500,
+          "amount": 82425.0
+        },
+        {
+          "code": "512480",
+          "name": "半导体ETF国泰",
+          "shares": 54300,
+          "amount": 74934.0
+        },
+        {
+          "code": "516160",
+          "name": "高端装备ETF南方",
+          "shares": 66900,
+          "amount": 74928.0
+        },
+        {
+          "code": "515030",
+          "name": "新能源车ETF华夏",
+          "shares": 48300,
+          "amount": 74865.0
+        },
+        {
+          "code": "159915",
+          "name": "创业板ETF易方达",
+          "shares": 31300,
+          "amount": 67295.0
+        },
+        {
+          "code": "159992",
+          "name": "创新药ETF银华",
+          "shares": 81500,
+          "amount": 74980.0
+        },
+        {
+          "code": "512010",
+          "name": "医药ETF易方达",
+          "shares": 90500,
+          "amount": 52490.0
+        },
+        {
+          "code": "511260",
+          "name": "十年国债ETF国泰",
+          "shares": 210,
+          "amount": 21525.0
+        },
+        {
+          "code": "511520",
+          "name": "政金债ETF富国",
+          "shares": 220,
+          "amount": 22264.0
+        },
+        {
+          "code": "511360",
+          "name": "短融ETF海富通",
+          "shares": 140,
+          "amount": 14007.0
+        },
+        {
+          "code": "512400",
+          "name": "有色金属ETF南方",
+          "shares": 76200,
+          "amount": 89916.0
+        },
+        {
+          "code": "518880",
+          "name": "黄金ETF华安",
+          "shares": 10200,
+          "amount": 59670.0
+        },
+        {
+          "code": "601088",
+          "name": "中国神华",
+          "shares": 900,
+          "amount": 34650.0
+        }
+      ]
+    }
+  ],
+  "style_summary": {
+    "高端制造": {
+      "amount": 2499802.0,
+      "weight": 0.5,
+      "codes": [
+        "588000",
+        "512480",
+        "516160",
+        "515030",
+        "159915"
+      ],
+      "risk_distribution": {
+        "高": 2499802.0
+      }
+    },
+    "防御": {
+      "amount": 1248376.0,
+      "weight": 0.25,
+      "codes": [
+        "159992",
+        "512010",
+        "511260",
+        "511520",
+        "511360"
+      ],
+      "risk_distribution": {
+        "高": 499928.0,
+        "中": 349972.0,
+        "低": 398476.0
+      }
+    },
+    "资源": {
+      "amount": 999467.0,
+      "weight": 0.2,
+      "codes": [
+        "512400",
+        "518880"
+      ],
+      "risk_distribution": {
+        "高": 599912.0,
+        "中": 399555.0
+      }
+    },
+    "顺周期": {
+      "amount": 246400.0,
+      "weight": 0.05,
+      "codes": [
+        "601088"
+      ],
+      "risk_distribution": {
+        "中": 246400.0
+      }
+    }
+  },
+  "risk_params": {
+    "stop_loss": {
+      "high_risk": -0.15,
+      "medium_risk": -0.12,
+      "low_risk": -0.05
+    },
+    "position_limits": {
+      "max_single_weight": 0.15,
+      "max_style_concentration": 0.65
+    },
+    "portfolio_limits": {
+      "max_drawdown_warning": 0.06,
+      "max_drawdown_action": 0.08,
+      "max_drawdown_stop": 0.12
+    },
+    "rebalance": {
+      "threshold": 0.05,
+      "frequency": "quarterly",
+      "review_date": "2026-09-30"
+    }
+  },
+  "execution_rules": {
+    "daily_timing": {
+      "morning_window": [
+        "09:30",
+        "10:30"
+      ],
+      "afternoon_window": [
+        "14:00",
+        "14:30"
+      ],
+      "split_ratio": 0.5
+    },
+    "price_rules": {
+      "discount_buy": 0.1,
+      "normal_buy": 0.05,
+      "premium_skip": 0.1
+    },
+    "volume_limits": {
+      "max_daily_ratio": 0.1,
+      "min_lot_size": true
+    },
+    "cash_management": {
+      "idle_instrument": "511360",
+      "min_cash_reserve": 50000
+    }
+  }
+}

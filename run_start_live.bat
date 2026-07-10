@@ -5,7 +5,7 @@ echo   启动盘中监控 - AutoHedge Live
 echo ========================================
 echo.
 
-set PYTHON=C:\Users\Administrator\AppData\Local\Programs\Python\Python314\python.exe
+set PYTHON=C:\Program Files\Python38\python.exe
 set WORKDIR=%~dp0
 set LOG=%WORKDIR%logs\live_monitor.log
 set PIDFILE=%WORKDIR%live_monitor.pid

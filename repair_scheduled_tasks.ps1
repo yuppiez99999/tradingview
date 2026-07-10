@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # 修复计划任务路径 (5 GBK-garbled + 3 path-broken)
 # Uses COM Schedule.Service API to preserve triggers
 # ============================================================
@@ -10,7 +10,7 @@ $service.Connect()
 $rootFolder = $service.GetFolder("\")
 
 $py38 = "C:\Program Files\Python38\python.exe"
-$py314 = "C:\Users\Administrator\AppData\Local\Programs\Python\Python314\python.exe"
+$py314 = "C:\Program Files\Python38\python.exe"
 $v75Dir = "E:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional"
 $baseDir = "E:\各种PY程序\28-终极量化交易系统7.1"
 $flowDir = "E:\各种PY程序\15_每日工作流"

@@ -11,14 +11,15 @@
 执行流程:
   1. 盘前 09:00 — generate_instructions()
      - 检查交易日/建仓期
-     - 智能分批: ETF信号日5万、无信号日1万、弱信号日2万
-     - 四重风控: 单日上限10万、价格保护带±3%、熔断停止(-3%/-5%)
+     - 2026-07-13起: 每个交易日固定20万
+     - 2026-07-10~07-12: 智能分批 (ETF信号日5万、无信号日1万、弱信号日2万)
+     - 四重风控: 单日上限20万、价格保护带±3%、熔断停止(-3%/-5%)
      - 生成 trade_instructions/YYYY-MM-DD_instructions.json + .md
   2. 人工确认 — 修改 JSON 中的 confirm: true (默认 false)
   3. 盘后 15:30 — execute_instructions()
      - 读取已确认指令
      - 模拟执行 (SimulatedBroker)
-     - 更新 positions.json 的 built_amount 字段
+     - 更新 positions.json 的 shares/avg_cost/est_price 和 build_progress.json
      - 生成执行报告
 
 使用方式:
@@ -50,7 +51,7 @@ INSTRUCTIONS_DIR = PROJECT_ROOT / "trade_instructions"
 PROGRESS_FILE = PROJECT_ROOT / "trade_instructions" / "build_progress.json"
 
 # 风控参数
-DAILY_AMOUNT_LIMIT = 100000        # 单日金额上限 10万
+DAILY_AMOUNT_LIMIT = 200000        # 单日金额上限 20万 (2026-07-13起)
 PRICE_PROTECTION_PCT = 0.03        # 价格保护带 ±3%
 DAILY_LOSS_STOP_PCT = 0.03         # 单日累计亏损 -3% 熔断
 PORTFOLIO_DRAWDOWN_STOP_PCT = 0.05 # 组合回撤 -5% 熔断
@@ -60,7 +61,11 @@ ACCUMULATION_START = date(2026, 7, 10)
 ACCUMULATION_END = date(2026, 12, 31)
 STOCK_ETF_TARGET = 3_000_000       # 300万
 
-# 智能分批金额 (ETF信号强度 → 当日建仓金额)
+# 固定日预算 (2026-07-13起每个交易日20万)
+FIXED_BUDGET_START = date(2026, 7, 13)
+DAILY_FIXED_BUDGET = 200_000       # 每个交易日固定20万
+
+# 智能分批金额 (仅用于2026-07-10~07-12, ETF信号强度 → 当日建仓金额)
 SIGNAL_AMOUNTS = {
     "strong": 50_000,   # 强信号日 5万
     "medium": 20_000,   # 弱信号日 2万
@@ -139,12 +144,12 @@ def assess_etf_signal(code: str, positions_data: Dict) -> str:
 
 
 def calculate_daily_budget(target_date: date, progress: Dict, positions_data: Dict) -> Dict:
-    """智能分批计算当日建仓预算
+    """计算当日建仓预算
 
     策略:
-      1. 剩余金额 / 剩余交易日 = 基础日预算
-      2. ETF信号调整: 强信号日×1.5, 无信号日×0.5
-      3. 上限: 10万/日
+      - 2026-07-13起: 固定每日20万 (用户指令)
+      - 2026-07-10~07-12: 智能分批 (ETF信号强度)
+      - 上限: 20万/日
     """
     remaining_total = STOCK_ETF_TARGET - progress.get("total_built", 0)
     if remaining_total <= 0:
@@ -157,9 +162,8 @@ def calculate_daily_budget(target_date: date, progress: Dict, positions_data: Di
         }
 
     remaining_days = get_remaining_days(target_date)
-    base_daily = remaining_total / remaining_days
 
-    # 评估整体ETF信号强度 (持仓中强信号标的数量)
+    # 统计ETF信号强度 (供参考)
     strong_count = 0
     medium_count = 0
     for code, pos in positions_data.get("positions", {}).items():
@@ -170,6 +174,22 @@ def calculate_daily_budget(target_date: date, progress: Dict, positions_data: Di
             strong_count += 1
         elif "加仓" in signal or "中" in signal:
             medium_count += 1
+
+    # 2026-07-13起: 固定每日20万
+    if target_date >= FIXED_BUDGET_START:
+        daily_budget = min(DAILY_FIXED_BUDGET, remaining_total)
+        return {
+            "daily_budget": round(daily_budget, 2),
+            "signal_strength": "fixed_200k",
+            "strong_signal_count": strong_count,
+            "medium_signal_count": medium_count,
+            "remaining_total": remaining_total,
+            "remaining_days": remaining_days,
+            "base_daily": DAILY_FIXED_BUDGET,
+        }
+
+    # 2026-07-10~07-12: 智能分批 (原逻辑)
+    base_daily = remaining_total / remaining_days
 
     if strong_count >= 3:
         signal_strength = "strong"
@@ -240,6 +260,146 @@ DEFAULT_PRICES = {
 }
 
 
+# ===========================================================
+# 价格预测信号 (v7.5+ 集成 tf_price_predictor)
+# ===========================================================
+
+def fetch_prediction_signals(symbols: List[str], horizon: int = 5) -> Dict[str, Dict]:
+    """批量获取价格预测信号
+
+    Args:
+        symbols: 股票代码列表 (6位数字)
+        horizon: 预测周期 (1/5/10)
+
+    Returns:
+        {symbol: {direction, confidence, target_price, method, signal_strength}, ...}
+        signal_strength: [-1, 1] 供分配权重调整使用
+        失败时返回空字典 (不影响主流程)
+    """
+    try:
+        from utils.tf_price_predictor import PricePredictor
+        predictor = PricePredictor()
+        results: Dict[str, Dict] = {}
+        for symbol in symbols:
+            try:
+                # 从历史价格数据加载
+                prices = _load_prediction_prices(symbol)
+                if prices is None or len(prices) < 30:
+                    results[symbol] = {
+                        "direction": "NEUTRAL",
+                        "confidence": 0.0,
+                        "signal_strength": 0.0,
+                        "method": "no_data",
+                        "target_price": 0.0,
+                    }
+                    continue
+                pred = predictor.predict(symbol, prices, horizon=horizon)
+                # signal_strength: 正数看多, 负数看空
+                strength = pred.signal_strength if hasattr(pred, 'signal_strength') else 0.0
+                results[symbol] = {
+                    "direction": pred.direction,
+                    "confidence": pred.confidence,
+                    "target_price": pred.target_price,
+                    "method": pred.method,
+                    "signal_strength": strength,
+                    "expected_return": pred.expected_return,
+                }
+            except Exception as e:
+                # 单标的失败不影响其他标的
+                results[symbol] = {
+                    "direction": "NEUTRAL",
+                    "confidence": 0.0,
+                    "signal_strength": 0.0,
+                    "method": "error",
+                    "error": str(e)[:100],
+                }
+        return results
+    except ImportError:
+        # tf_price_predictor 未安装, 静默降级
+        return {}
+    except Exception as e:
+        print(f"[WARN] 预测信号获取失败: {e}")
+        return {}
+
+
+def _load_prediction_prices(symbol: str, days: int = 120):
+    """加载历史价格序列供预测用
+
+    优先级:
+      1. v7.5_institutional/reports/daily_pnl_report_*.json 中的 close_price
+      2. data_provider.get_historical_data (若可用)
+    """
+    import json as _json
+    import glob as _glob
+    # 从历史收盘报告聚合价格序列
+    reports_dir = PROJECT_ROOT / "v7.5_institutional" / "reports"
+    if not reports_dir.exists():
+        return None
+    try:
+        import numpy as np
+    except ImportError:
+        return None
+    # 收集所有历史报告 (按日期升序)
+    json_files = sorted(reports_dir.glob("daily_pnl_report_*.json"))
+    prices = []
+    code_clean = symbol.split(".")[0] if "." in symbol else symbol
+    for jf in json_files:
+        try:
+            with open(jf, 'r', encoding='utf-8') as f:
+                report = _json.load(f)
+            for detail in report.get("portfolio_pnl", {}).get("details", []):
+                if detail.get("code", "").split(".")[0] == code_clean:
+                    p = detail.get("close_price", 0)
+                    if p and p > 0:
+                        prices.append(float(p))
+                    break
+        except Exception:
+            continue
+    # 取最近 days 天
+    if len(prices) < 30:
+        return None
+    return np.array(prices[-days:], dtype=float)
+
+
+def adjust_allocation_by_signal(base_allocated: float, signal: Dict,
+                                daily_budget: float) -> tuple:
+    """根据预测信号调整分配金额
+
+    Args:
+        base_allocated: 基础分配金额
+        signal: 预测信号 (fetch_prediction_signals 返回的单项)
+        daily_budget: 当日总预算
+
+    Returns:
+        (adjusted_allocated, signal_tag)
+        signal_tag: "strong_buy"/"buy"/"neutral"/"caution"/"skip"
+    """
+    if not signal:
+        return base_allocated, "neutral"
+
+    direction = signal.get("direction", "NEUTRAL")
+    confidence = signal.get("confidence", 0)
+    strength = signal.get("signal_strength", 0)
+
+    # 强看空 + 高置信度 → 跳过
+    if direction == "DOWN" and confidence >= 0.7 and strength <= -0.5:
+        return 0, "skip"
+
+    # 弱看空 + 中置信度 → 缩减 50%
+    if direction == "DOWN" and confidence >= 0.5:
+        return base_allocated * 0.5, "caution"
+
+    # 强看多 + 高置信度 → 加码 30% (不超过单标的上限)
+    if direction == "UP" and confidence >= 0.7 and strength >= 0.5:
+        return min(base_allocated * 1.3, daily_budget * 0.30), "strong_buy"
+
+    # 弱看多 → 加码 10%
+    if direction == "UP" and confidence >= 0.5:
+        return base_allocated * 1.1, "buy"
+
+    return base_allocated, "neutral"
+
+
 def generate_instructions(target_date_str: str) -> Dict:
     """盘前生成交易指令
 
@@ -263,6 +423,17 @@ def generate_instructions(target_date_str: str) -> Dict:
     trade_plan = load_trade_plan()
     progress = load_build_progress()
     latest_prices = load_latest_prices()
+
+    # 获取预测信号 (v7.5+ 集成 tf_price_predictor, 失败时静默降级)
+    pending_codes = [
+        p.get("code", "").split(".")[0]
+        for p in trade_plan.get("stock_etf_account", {}).get("positions", [])
+    ]
+    prediction_signals = fetch_prediction_signals(pending_codes, horizon=5)
+    if prediction_signals:
+        up_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "UP")
+        down_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "DOWN")
+        print(f"[INFO] 预测信号: {len(prediction_signals)} 个标的, 看多 {up_count}, 看空 {down_count}")
 
     # 计算当日预算
     budget_info = calculate_daily_budget(target_date, progress, positions_data)
@@ -338,14 +509,25 @@ def generate_instructions(target_date_str: str) -> Dict:
 
         # 按权重分配预算
         allocated = min(remaining_budget * pos["weight"] / 0.05 * 0.15, remaining_budget, pos["remaining"])
-        # 简化: 每个标的最多分到 daily_budget * 20%
-        allocated = min(allocated, daily_budget * 0.20)
+        # 单标的上限: 当日预算的30% (20万预算下单标最多6万)
+        allocated = min(allocated, daily_budget * 0.30)
 
-        # 如果 100 股成本 > 分配预算, 尝试用 100 股 (会超支, 但满足最小交易单位)
+        # v7.5+: 根据预测信号调整分配
+        signal = prediction_signals.get(code_clean, {})
+        allocated, signal_tag = adjust_allocation_by_signal(allocated, signal, daily_budget)
+        # 强看空 → 跳过该标的
+        if signal_tag == "skip" and allocated == 0:
+            print(f"[WARN] 预测信号触发跳过: {code_clean} ({pos['name']}) - 强看空 (置信度 {signal.get('confidence', 0):.0%})")
+            continue
+
+        # 高价股处理: 如果 100 股成本 > 分配预算
         if min_lot_cost > allocated:
-            # 对于高价股, 检查是否还能买 100 股
+            # 如果 100 股成本超过当日预算的 50%, 跳过 (避免单标的占用过多预算)
+            if min_lot_cost > daily_budget * 0.50:
+                continue
+            # 否则检查剩余预算是否足够买 100 股
             if remaining_budget < min_lot_cost:
-                continue  # 预算不足, 跳过该标的
+                continue
             allocated = min_lot_cost  # 只买 100 股
 
         allocated = min(allocated, remaining_budget, pos["remaining"])
@@ -362,7 +544,10 @@ def generate_instructions(target_date_str: str) -> Dict:
             continue
 
         # 评估ETF信号
-        signal = assess_etf_signal(pos["code"], positions_data)
+        etf_signal = assess_etf_signal(pos["code"], positions_data)
+
+        # 预测信号摘要 (供人工审核参考)
+        pred_signal = prediction_signals.get(code_clean, {})
 
         instructions.append({
             "instruction_id": f"{target_date_str.replace('-','')}-{code_clean}",
@@ -379,7 +564,14 @@ def generate_instructions(target_date_str: str) -> Dict:
             "target_amount": pos["target_amount"],
             "built_before": pos["built"],
             "remaining_after": round(pos["remaining"] - actual_amount, 2),
-            "etf_signal": signal,
+            "etf_signal": etf_signal,
+            "prediction_signal": {
+                "direction": pred_signal.get("direction", "NEUTRAL"),
+                "confidence": round(pred_signal.get("confidence", 0), 3),
+                "target_price": round(pred_signal.get("target_price", 0), 2),
+                "method": pred_signal.get("method", "no_data"),
+                "tag": signal_tag,
+            },
             "gap": round(pos["gap"], 2),
             "confirm": False,  # ⚠️ 默认未确认, 需人工改为 true
         })
@@ -534,7 +726,9 @@ def execute_instructions(target_date_str: str) -> Dict:
     """盘后执行已确认的交易指令
 
     读取指令文件, 执行 confirm=true 的指令,
-    更新 positions.json 和 build_progress.json
+    更新 positions.json (shares/avg_cost/est_price) 和 build_progress.json
+
+    幂等保护: 若当日已执行过, 则跳过重复累加, 仅补同步 positions.json
     """
     instruction_file = INSTRUCTIONS_DIR / f"{target_date_str}_instructions.json"
 
@@ -562,15 +756,60 @@ def execute_instructions(target_date_str: str) -> Dict:
             "total_instructions": len(instructions_data.get("instructions", [])),
         }
 
-    # 模拟执行
+    # 幂等检查: 当日是否已执行过
     progress = load_build_progress()
+    daily_records = progress.get("daily_records", [])
+    already_executed = any(r.get("date") == target_date_str for r in daily_records)
+
+    # 加载持仓文件用于同步
+    positions_data = load_positions()
+    positions = positions_data.get("positions", {})
+
+    if already_executed:
+        # 幂等模式: 不重复累加 build_progress, 只补同步 positions.json
+        execution_file = INSTRUCTIONS_DIR / f"{target_date_str}_execution.json"
+        if execution_file.exists():
+            with open(execution_file, 'r', encoding='utf-8') as f:
+                prev_report = json.load(f)
+            prev_results = prev_report.get("execution_results", [])
+        else:
+            prev_results = []
+
+        # 从已执行的成交结果重建 positions 同步数据
+        synced_count = 0
+        for r in prev_results:
+            code = r.get("code", "")
+            full_code = next((i["full_code"] for i in confirmed if i.get("code") == code), f"{code}.SH")
+            qty = r.get("qty", 0)
+            fill_price = r.get("fill_price", 0.0)
+
+            if full_code in positions:
+                pos = positions[full_code]
+                # 仅在 shares=0 (未同步) 时补同步
+                if pos.get("shares", 0) == 0:
+                    pos["shares"] = qty
+                    pos["est_price"] = fill_price
+                    pos["avg_cost"] = fill_price
+                    synced_count += 1
+
+        # 保存 positions.json
+        positions_data["positions"] = positions
+        with open(POSITIONS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(positions_data, f, ensure_ascii=False, indent=2)
+
+        return {
+            "status": "already_executed",
+            "message": f"当日已执行过, 跳过重复累加, 补同步 {synced_count} 个标的到 positions.json",
+            "synced_count": synced_count,
+        }
+
+    # 首次执行: 累加 build_progress + 同步 positions.json
     execution_results = []
 
     for inst in confirmed:
         code = inst["full_code"]
         qty = inst["qty"]
         ref_price = inst["ref_price"]
-        max_price = inst["max_buy_price"]
 
         # 模拟成交价 (在 ref_price 和 max_price 之间)
         # 实际场景下应从市场数据获取
@@ -581,6 +820,20 @@ def execute_instructions(target_date_str: str) -> Dict:
         built_before = progress["built_amounts"].get(code, 0)
         progress["built_amounts"][code] = built_before + fill_amount
         progress["total_built"] = progress.get("total_built", 0) + fill_amount
+
+        # 同步 positions.json (累加 shares, 加权平均成本)
+        if code in positions:
+            pos = positions[code]
+            old_shares = pos.get("shares", 0)
+            old_cost = pos.get("avg_cost", 0.0)
+            new_shares = old_shares + qty
+            if new_shares > 0:
+                new_avg_cost = round((old_shares * old_cost + qty * fill_price) / new_shares, 4)
+            else:
+                new_avg_cost = fill_price
+            pos["shares"] = new_shares
+            pos["est_price"] = fill_price  # 第一次交易开盘价
+            pos["avg_cost"] = new_avg_cost
 
         execution_results.append({
             "code": inst["code"],
@@ -604,6 +857,11 @@ def execute_instructions(target_date_str: str) -> Dict:
     })
 
     save_build_progress(progress)
+
+    # 保存 positions.json
+    positions_data["positions"] = positions
+    with open(POSITIONS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(positions_data, f, ensure_ascii=False, indent=2)
 
     # 生成执行报告
     execution_report = {

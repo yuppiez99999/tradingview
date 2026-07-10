@@ -2531,8 +2531,9 @@ class DailyWorkflow:
         Returns:
             成交记录列表, 每条含 symbol/side/qty/price/amount/session/status。
         """
+        mode = "模拟盘" if self.sim_mode else "MockBroker"
         logger.info("=" * 60)
-        logger.info(f"Phase 6: 智能执行 ({'模拟盘' if self.sim_mode else 'MockBroker'})")
+        logger.info(f"Phase 6: 智能执行 ({mode})")
         logger.info("=" * 60)
 
         # === 信号校验 ===

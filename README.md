@@ -1,6 +1,6 @@
-# 综合量化策略系统 v7.6
+# 综合量化策略系统 v7.7
 
-**顶级对冲基金视角 | 300万股票ETF + 200万对冲账户 | 自动执行 | 2030年清仓 | 年化≥8% 回撤<15% | ETF资金流追踪 | Wind MCP 优先数据源**
+**顶级对冲基金视角 | 300万股票ETF + 200万对冲账户 | 自动执行 | 2030年清仓 | 年化≥8% 回撤<15% | ETF资金流追踪 | AI增强预测 | Wind MCP 优先数据源**
 
 **作者**：yuppiez99999
 
@@ -8,15 +8,23 @@
 
 ## 系统概述
 
-综合量化策略系统 v7.6 是一个专业量化交易平台，在 v7.5 机构级实盘基础上完成仓位重建：清除旧仓位，重新设计 20 标的自动执行计划。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万** 与 **对冲保护账户 200万**，目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
+综合量化策略系统 v7.7 是一个专业量化交易平台，在 v7.5 机构级实盘基础上完成仓位重建与 AI 增强：清除旧仓位，重新设计 20 标的自动执行计划，并集成基于 TensorFlow/TimesFM 的价格预测、外部宏观经济数据源、网页舆情抓取、AI 自动化报告四大新模块。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万** 与 **对冲保护账户 200万**，目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
 
-**v7.6 核心升级（仓位重建 + 资金流整合）**：
+**v7.7 核心升级（AI 增强 + 多源数据 + 预测信号）**：
+- **价格预测模块**：`utils/tf_price_predictor.py` — TimesFM 零样本预测 + TensorFlow LSTM + ARIMA 三级降级，支持 T+1/T+5/T+10 预测
+- **外部数据源模块**：`utils/external_data_source.py` — 整合 FRED/Econdb/美国财政部/AlphaVantage/Finnhub/CoinGecko 六大免费 API
+- **网页抓取模块**：`utils/web_scraper.py` — 基于 Scrapling/BeautifulSoup 抓取东方财富公告/研报、巨潮资讯、新浪财经新闻
+- **AI 报告代理**：`utils/ai_report_agent.py` — 复用 `15_每日工作流/llm_client.py` 三级降级链（豆包→DeepSeek→Ollama），自动情感分析、每日报告、信号解读
+- **建仓流程 AI 集成**：`daily_trade_executor.py` 在分配金额时根据预测信号动态调整（强看多 +30%、强看空跳过）
+- **统一数据接口**：`data_provider.py` 新增 6 个集成方法，统一暴露预测/宏观/情感/AI 报告能力
+
+**v7.6 核心能力保留（仓位重建 + 资金流整合）**：
 - **仓位重建**：清除原 23 个旧仓位，重建为 20 标的新计划
 - **资金流整合**：将 2026-07-09 ETF 资金流向报告信号直接写入持仓计划（证券ETF 67亿、科创50ETF 57亿、上证50ETF 40亿、银行ETF 23亿、新能源车ETF 11亿、半导体ETF 9亿、医疗ETF 3亿）
 - **双账户结构**：股票ETF账户 300万（进攻）+ 对冲账户 200万（保护）
 - **十五年五规划适配**：健康中国权重上调（恒瑞 3%→6%、医疗ETF 4%→10%），新质生产力降权（29%→20%）
-- **自动执行**：盘前 Wind 校准 + 每日工作流 + Windows 任务计划自动运行
-- **数据源升级**：Wind MCP (P0) > iFinD MCP (P1) > AKShare (P2) > 新浪 HTTP (P3)
+- **固定日预算**：2026-07-13 起每个交易日固定 20 万元建仓，预计 14 个交易日完成全部建仓
+- **高价股保护**：100 股成本超过当日预算 50% 时自动跳过，避免单标的占用过多预算
 
 **v7.5 核心能力保留**：
 - **风险预算**：Risk Parity + Improved Kelly Criterion + 三级回撤防御
@@ -92,6 +100,7 @@
 28-终极量化交易系统7.1/
 ├── README.md                        # 本文件
 ├── PROJECT_DOCUMENTATION.md         # 项目文档
+├── daily_trade_executor.py          # ★ 每日建仓执行器 (v7.7 集成预测信号)
 ├── config/
 │   ├── positions.json               # ★ 实时持仓状态（已清空重建）
 │   ├── stop_loss_vol_adjusted.yaml  # 止损规则
@@ -103,14 +112,34 @@
 ├── v7.5_institutional/
 │   ├── README.md                    # v7.5 模块说明
 │   ├── main.py                      # 主入口
+│   ├── reports/                     # 收盘盈亏报告 (JSON + MD)
 │   └── run_daily.bat                # 日常运行脚本
-├── utils/
-│   ├── data_provider.py             # 统一数据接口
+├── utils/                           # ★ 核心分析模块 (v7.7 新增 4 个 AI 模块)
+│   ├── data_provider.py             # ★ 统一数据接口 (v7.7 新增 6 个集成方法)
+│   ├── tf_price_predictor.py        # ★ v7.7 价格预测 (TimesFM+TF LSTM+ARIMA)
+│   ├── external_data_source.py      # ★ v7.7 外部数据源 (FRED+Finnhub+CoinGecko)
+│   ├── web_scraper.py               # ★ v7.7 网页抓取 (东方财富+巨潮+新浪)
+│   ├── ai_report_agent.py           # ★ v7.7 AI 报告代理 (豆包→DeepSeek→Ollama)
 │   ├── akshare_futures.py           # 期货数据
 │   ├── ifind_client.py              # iFinD 接口
-│   └── wind_mcp_fetcher.py          # Wind MCP 接口
-├── trade_plans/                     # 建仓计划目录
-│   └── auto_trade_plan_500w_2026-2030.json  # 自动交易计划（待生成）
+│   ├── ifind_news_analyzer.py       # iFinD 新闻分析
+│   ├── factor_model.py              # 因子模型
+│   ├── gtja191_factors.py           # 国泰君安 191 因子
+│   ├── enhanced_backtest.py         # 增强回测引擎
+│   ├── risk_metrics.py              # 风险指标
+│   ├── stop_loss.py                 # 止损逻辑
+│   ├── liquidity_risk.py            # 流动性风险
+│   ├── qlib_adapter.py              # Qlib 适配器
+│   ├── qlib_data_bridge.py          # Qlib 数据桥
+│   ├── real_economy_indicator.py     # 实体经济指标
+│   ├── trade_calendar.py            # 交易日历
+│   ├── data_types.py                # 数据类型
+│   └── logger.py                    # 统一日志
+├── trade_instructions/              # ★ 每日交易指令目录
+│   ├── YYYY-MM-DD_instructions.json # 盘前生成的指令
+│   ├── YYYY-MM-DD_instructions.md   # 指令 Markdown 表格
+│   ├── YYYY-MM-DD_execution.json    # 盘后执行报告
+│   └── build_progress.json          # 建仓进度追踪
 ├── 每日报告归档/YYYY-MM-DD/         # 每日报告输出
 └── reports/                         # 汇总报告
 ```
@@ -163,6 +192,66 @@ python generate_daily_report.py
 python inspect_data.py
 ```
 
+### 6. AI 增强模块（v7.7 新增）
+
+```bash
+# 各模块自检
+python -m utils.tf_price_predictor        # 价格预测自检
+python -m utils.external_data_source      # 外部数据源自检
+python -m utils.web_scraper               # 网页抓取自检
+python -m utils.ai_report_agent           # AI 报告代理自检
+
+# 盘前生成指令（含预测信号调整）
+python daily_trade_executor.py pre-market --date 2026-07-13
+
+# 盘后执行已确认指令
+python daily_trade_executor.py post-market --date 2026-07-13
+
+# 查看建仓进度
+python daily_trade_executor.py progress
+```
+
+### 7. Python 调用示例
+
+```python
+# 价格预测
+from utils.tf_price_predictor import PricePredictor
+predictor = PricePredictor()
+result = predictor.predict("002371", prices, horizon=5)
+print(f"方向: {result.direction}, 目标价: {result.target_price}")
+
+# 外部宏观数据
+from utils.external_data_source import ExternalDataManager
+mgr = ExternalDataManager()
+macro = mgr.get_macro_snapshot()  # FRED CPI/PPI/GDP
+sentiment = mgr.get_risk_sentiment()  # 加密货币/国债/VIX代理
+
+# 网页抓取
+from utils.web_scraper import WebScraper
+scraper = WebScraper()
+announcements = scraper.fetch_announcements("002371")  # 公告
+reports = scraper.fetch_research_reports("688041")     # 研报
+news = scraper.fetch_news("半导体")                    # 新闻
+
+# AI 报告代理
+from utils.ai_report_agent import AIReportAgent
+agent = AIReportAgent()
+sentiments = agent.analyze_news_sentiment(news_items)  # 情感分析
+report = agent.generate_daily_report(symbols=["002371", "688041"])  # 每日报告
+explanation = agent.explain_trade_signals(predictions)  # 信号解读
+
+# 统一接口 (推荐)
+from utils.data_provider import (
+    get_price_prediction,
+    get_external_macro,
+    get_risk_sentiment,
+    get_news_sentiment,
+    get_ai_daily_report,
+)
+pred = get_price_prediction("002371", horizon=5)
+macro = get_external_macro()
+```
+
 ---
 
 ## 风控规则
@@ -202,8 +291,26 @@ python inspect_data.py
 ### 核心依赖
 
 ```bash
-pip install numpy pandas scipy scikit-learn pyyaml
+# 基础 (必需)
+pip install numpy pandas scipy scikit-learn pyyaml requests beautifulsoup4
+
+# AI 增强 (可选, 缺失时自动降级)
+pip install tensorflow          # LSTM 价格预测
+pip install timesfm[torch]     # TimesFM 零样本预测 (200M 参数)
+pip install scrapling[all]     # 反爬增强 (Cloudflare 绕过)
+pip install statsmodels        # ARIMA 统计预测
 ```
+
+### AI 模型降级链
+
+所有 v7.7 新增模块均支持**优雅降级**, 依赖缺失时自动回退, 不影响主流程:
+
+| 模块 | P0 (最优) | P1 (回退) | P2 (兜底) |
+|------|-----------|-----------|-----------|
+| 价格预测 | TimesFM (200M 参数) | TensorFlow LSTM | ARIMA / 移动平均 |
+| 网页抓取 | Scrapling (反爬) | requests + BeautifulSoup | 静默降级 |
+| AI 报告 | 豆包 Speed (Ark) | DeepSeek | Ollama 本地 / 规则引擎 |
+| 外部数据 | FRED API | Econdb / Treasury | 静默降级 |
 
 ---
 
@@ -218,6 +325,8 @@ pip install numpy pandas scipy scikit-learn pyyaml
 | P4 | 新浪财经 API | 免费兜底 |
 | P5 | 本地缓存 | Parquet/JSON |
 | P6 | 兜底预定义价格 | 保证永不崩溃 |
+| **P7** | **外部 API (v7.7)** | **FRED/Econdb/Finnhub/CoinGecko (海外宏观+全球股票+加密货币)** |
+| **P8** | **网页抓取 (v7.7)** | **东方财富/巨潮资讯/新浪财经 (公告+研报+新闻)** |
 
 ---
 
@@ -225,6 +334,7 @@ pip install numpy pandas scipy scikit-learn pyyaml
 
 | 版本 | 日期 | 主要变更 |
 |------|------|----------|
+| v7.7 | 2026-07-10 | **AI 增强**：新增 4 个模块（价格预测/外部数据源/网页抓取/AI 报告代理）；建仓流程集成预测信号调整分配（强看多 +30%、强看空跳过）；固定日预算 20万/交易日；data_provider 新增 6 个集成方法 |
 | v7.6 | 2026-07-09 | 仓位重建：清除旧仓位，重建 20 标的新计划；双账户结构（300万股票ETF + 200万对冲）；整合 2026-07-09 ETF 资金流向报告；2030-12-31 强制清仓目标 |
 | v7.5.3 | 2026-07-08 | 7/8 建仓执行完成；修复 daily_workflow.py 中 ntp 属性缺失问题；新增宏观模块目录 |
 | v7.5.2 | 2026-07-07 | 顶级对冲基金视角优化：组合权重重构、对冲资本提升至 30%、净 Beta 降至 0.1 |
@@ -247,5 +357,5 @@ pip install numpy pandas scipy scikit-learn pyyaml
 ---
 
 **作者**: yuppiez99999
-**日期**: 2026-07-09
-**版本**: v7.6-rebuild-500w-2030-exit
+**日期**: 2026-07-10
+**版本**: v7.7-ai-enhanced-prediction

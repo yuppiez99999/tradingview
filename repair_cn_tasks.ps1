@@ -1,4 +1,4 @@
-﻿﻿# ============================================================
+﻿# ============================================================
 # 修复 5 个中文命名任务 (UTF-8 BOM, 正确任务名)
 # ============================================================
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -8,7 +8,7 @@ $service.Connect()
 $rootFolder = $service.GetFolder("\")
 
 $pyExe = @'
-C:\Users\Administrator\AppData\Local\Programs\Python\Python314\python.exe
+C:\Program Files\Python38\python.exe
 '@.TrimEnd()
 $qdir = @'
 e:\各种PY程序\11_量化策略

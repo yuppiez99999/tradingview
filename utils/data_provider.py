@@ -736,6 +736,108 @@ class MarketDataProvider:
             'sentiment_trend': 'neutral'
         }
     
+    # ===========================================================
+    # 新增模块集成 (v7.5+): 价格预测 + 外部数据源 + 网页抓取 + AI 报告
+    # ===========================================================
+
+    def get_price_prediction(self, symbol: str, horizon: int = 5) -> Dict:
+        """获取价格预测 (来自 tf_price_predictor)
+
+        降级链: TimesFM → TensorFlow LSTM → ARIMA → 移动平均兜底
+        """
+        try:
+            from utils.tf_price_predictor import PricePredictor
+            predictor = PricePredictor()
+            prices = self._get_recent_prices_for_prediction(symbol)
+            if prices is None or len(prices) < 30:
+                logger.warning(f"预测数据不足 ({symbol}): 需至少30个价格点")
+                return {}
+            result = predictor.predict(symbol, prices, horizon=horizon)
+            return result.to_dict() if hasattr(result, 'to_dict') else result.__dict__
+        except Exception as e:
+            logger.warning(f"价格预测失败 ({symbol}): {e}")
+            return {}
+
+    def _get_recent_prices_for_prediction(self, symbol: str, days: int = 120):
+        """获取近期收盘价序列 (供预测用)"""
+        try:
+            import numpy as np
+            hist = self.get_historical_data(symbol, period='1y')
+            if hist is None or len(hist) < 30:
+                return None
+            col = 'close' if 'close' in hist.columns else 'Close'
+            prices = hist[col].tail(days).values
+            return np.array(prices, dtype=float)
+        except Exception as e:
+            logger.debug(f"获取预测价格序列失败 ({symbol}): {e}")
+            return None
+
+    def get_external_macro(self) -> Dict:
+        """获取外部宏观数据 (FRED/Econdb/Treasury)"""
+        try:
+            from utils.external_data_source import ExternalDataManager
+            mgr = ExternalDataManager()
+            return mgr.get_macro_snapshot()
+        except Exception as e:
+            logger.warning(f"外部宏观数据获取失败: {e}")
+            return {}
+
+    def get_risk_sentiment(self) -> Dict:
+        """获取风险情绪指标 (加密货币/国债收益率/VIX代理)"""
+        try:
+            from utils.external_data_source import ExternalDataManager
+            mgr = ExternalDataManager()
+            return mgr.get_risk_sentiment()
+        except Exception as e:
+            logger.warning(f"风险情绪指标获取失败: {e}")
+            return {}
+
+    def get_news_sentiment(self, symbol: str, limit: int = 20) -> List[Dict]:
+        """获取新闻+情感分析 (web_scraper + ai_report_agent)"""
+        try:
+            from utils.web_scraper import WebScraper
+            from utils.ai_report_agent import AIReportAgent
+            scraper = WebScraper()
+            agent = AIReportAgent()
+            code_clean = symbol.split(".")[0] if "." in symbol else symbol
+            news = scraper.fetch_announcements(code_clean, limit=limit)
+            news_dicts = [item.to_dict() for item in news]
+            sentiments = agent.analyze_news_sentiment(news_dicts, use_llm=True)
+            return [s.__dict__ for s in sentiments]
+        except Exception as e:
+            logger.warning(f"新闻情感分析失败 ({symbol}): {e}")
+            return []
+
+    def get_ai_daily_report(self, symbols: List[str]) -> Dict:
+        """生成 AI 每日投资报告"""
+        try:
+            from utils.ai_report_agent import AIReportAgent
+            agent = AIReportAgent()
+            report = agent.generate_daily_report(symbols=symbols)
+            return report.__dict__
+        except Exception as e:
+            logger.warning(f"AI 每日报告生成失败: {e}")
+            return {"error": str(e)}
+
+    def get_extended_status(self) -> Dict:
+        """获取扩展状态 (含新模块健康检查)"""
+        status = {
+            "data_sources": {
+                "wind_mcp": self.source_health.get('wind_mcp', {}).get('ok', False),
+                "ifind_mcp": self.source_health.get('ifind_mcp', {}).get('ok', False),
+                "sina_http": self.source_health.get('sina_http', {}).get('ok', False),
+            },
+            "cache": self.get_cache_info(),
+        }
+        # 新模块可用性
+        for module_name in ['tf_price_predictor', 'external_data_source', 'web_scraper', 'ai_report_agent']:
+            try:
+                __import__(f'utils.{module_name}')
+                status[f'{module_name}_available'] = True
+            except ImportError:
+                status[f'{module_name}_available'] = False
+        return status
+
     def clear_cache(self):
         with self.cache_lock:
             self.data_cache.clear()
@@ -775,6 +877,41 @@ def get_technical_indicators(symbol: str) -> Dict:
     if _data_provider is None:
         _data_provider = MarketDataProvider()
     return _data_provider.get_technical_indicators(symbol)
+
+def get_price_prediction(symbol: str, horizon: int = 5) -> Dict:
+    """价格预测便捷函数"""
+    global _data_provider
+    if _data_provider is None:
+        _data_provider = MarketDataProvider()
+    return _data_provider.get_price_prediction(symbol, horizon)
+
+def get_external_macro() -> Dict:
+    """外部宏观数据便捷函数"""
+    global _data_provider
+    if _data_provider is None:
+        _data_provider = MarketDataProvider()
+    return _data_provider.get_external_macro()
+
+def get_risk_sentiment() -> Dict:
+    """风险情绪指标便捷函数"""
+    global _data_provider
+    if _data_provider is None:
+        _data_provider = MarketDataProvider()
+    return _data_provider.get_risk_sentiment()
+
+def get_news_sentiment(symbol: str, limit: int = 20) -> List[Dict]:
+    """新闻情感分析便捷函数"""
+    global _data_provider
+    if _data_provider is None:
+        _data_provider = MarketDataProvider()
+    return _data_provider.get_news_sentiment(symbol, limit)
+
+def get_ai_daily_report(symbols: List[str]) -> Dict:
+    """AI 每日报告便捷函数"""
+    global _data_provider
+    if _data_provider is None:
+        _data_provider = MarketDataProvider()
+    return _data_provider.get_ai_daily_report(symbols)
 
 
 if __name__ == "__main__":

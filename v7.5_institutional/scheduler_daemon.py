@@ -38,7 +38,7 @@ from typing import List, Optional
 # 配置
 # ============================================================
 BASE_DIR = Path(__file__).resolve().parent
-PYTHON = r"C:\Users\Administrator\AppData\Local\Programs\Python\Python314\python.exe"
+PYTHON = r"C:\Program Files\Python38\python.exe"
 WORKFLOW_SCRIPT = BASE_DIR / "daily_workflow.py"
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)

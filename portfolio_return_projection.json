@@ -583,12 +583,12 @@
     }
   ],
   "calibration": {
-    "calibrated_at": "2026-07-09T22:40:26.994273",
-    "realized_annualized": 25.82,
-    "realized_period": "2024-06-07 → 2026-07-08",
+    "calibrated_at": "2026-07-10T14:34:45.557420",
+    "realized_annualized": 63.7,
+    "realized_period": "2025-06-06 → 2026-07-10",
     "calibration_reason": "realized > base*1.2, bull 概率上调",
-    "market_annualized": 12.01,
-    "market_sharpe": 0.76
+    "market_annualized": 27.14,
+    "market_sharpe": 1.7
   },
   "risk_disclosure": {
     "concentration_risk": "新质生产力 20% (降权后), 健康中国 16% (加仓后), 双主线配置",

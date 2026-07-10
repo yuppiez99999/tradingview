@@ -395,8 +395,10 @@ class PortfolioAnalyzer:
                 cost_price = pos.get('est_price', pos.get('actual_avg_cost', 0))
                 calc_mode = 'snapshot'
             else:
-                shares = pos.get('phase1_shares', 0)
-                cost_price = pos.get('est_price', 0)
+                # 回退: phase1_shares (计划) -> shares (实际持仓, 由 execute_instructions 同步)
+                shares = pos.get('phase1_shares', 0) or pos.get('shares', 0)
+                # 回退: est_price (第一次交易开盘价) -> avg_cost (加权平均成本)
+                cost_price = pos.get('est_price', 0) or pos.get('avg_cost', 0)
                 calc_mode = 'plan'
             
             # 获取收盘价 (兼容带后缀和不带后缀的 code)
@@ -589,13 +591,92 @@ class PortfolioAnalyzer:
         original_beta = self.hedge_data.get('portfolio_beta', 1.3)
         effectiveness = beta_reduced / original_beta if original_beta > 0 else 0
         return round(effectiveness * 100, 2)
-    
+
+    def analyze_hedge_positions_plan(self) -> Dict[str, Any]:
+        """分析期货期权计划头寸 (来自 positions.json 的 hedge_positions)
+
+        覆盖三类对冲工具:
+          - IF 期货  (CFFEX, 沪深300股指期货, Beta加权)
+          - IM 期货  (CFFEX, 中证1000股指期货, 中小盘对冲)
+          - 510050 Put 期权 (SSE, 上证50ETF认沽, 尾部风险保护)
+
+        Returns:
+            {
+                'details': List[Dict],   # 每个对冲工具的明细
+                'summary': Dict,          # 汇总: 总名义价值, 总权利金预算, 总Beta降低
+            }
+        """
+        hedge_positions = self.positions_data.get('hedge_positions', {})
+
+        details = []
+        total_notional = 0.0
+        total_premium = 0.0
+        total_beta_reduction = 0.0
+
+        for key, pos in hedge_positions.items():
+            instrument = pos.get('instrument', key)
+            exchange = pos.get('exchange', '')
+            direction = pos.get('direction', '')
+            target_contracts = pos.get('target_contracts', 0)
+            multiplier = pos.get('multiplier', 0)
+            margin_rate = pos.get('margin_rate', 0.0)
+            beta_reduction = pos.get('target_beta_reduction', 0.0)
+            strike = pos.get('strike', '')
+            premium_budget = pos.get('premium_budget', 0)
+            reason = pos.get('reason', '')
+
+            # 估算名义价值
+            # 期货: 名义 = 手数 × 乘数 × 标的指数点位 (用 IF 4726 / IM 7500 估算)
+            # 期权: 名义 = 权利金预算 (实际是成本, 不是名义价值)
+            is_option = instrument.lower().endswith('put') or 'put' in key.lower()
+            if is_option:
+                # 期权: 名义价值不适用, 用权利金预算作为成本
+                notional = 0
+                cost = premium_budget
+                total_premium += premium_budget
+            else:
+                # 期货: 用 IF=4726 / IM=7500 估算名义
+                index_point = 4726.0 if instrument.upper().startswith('IF') else 7500.0
+                notional = target_contracts * multiplier * index_point
+                cost = notional * margin_rate  # 保证金 = 名义 × 保证金率
+                total_notional += notional
+
+            total_beta_reduction += beta_reduction
+
+            details.append({
+                'key': key,
+                'instrument': instrument,
+                'exchange': exchange,
+                'direction': direction,
+                'target_contracts': target_contracts,
+                'multiplier': multiplier,
+                'margin_rate': margin_rate,
+                'target_beta_reduction': beta_reduction,
+                'strike': strike,
+                'premium_budget': premium_budget,
+                'estimated_notional': round(notional, 2),
+                'estimated_cost': round(cost, 2),
+                'is_option': is_option,
+                'reason': reason,
+            })
+
+        return {
+            'details': details,
+            'summary': {
+                'total_estimated_notional': round(total_notional, 2),
+                'total_premium_budget': round(total_premium, 2),
+                'total_beta_reduction': round(total_beta_reduction, 3),
+                'tool_count': len(details),
+            },
+        }
+
     def generate_report(self) -> Dict[str, Any]:
         """生成完整收盘报告"""
         self.fetch_market_prices()
-        
+
         pnl_data = self.calculate_pnl()
         hedge_data = self.analyze_hedge_position()
+        hedge_plan = self.analyze_hedge_positions_plan()
         
         # 组合整体表现
         portfolio_pnl = pnl_data['summary']['total_pnl']
@@ -628,6 +709,7 @@ class PortfolioAnalyzer:
             },
             'portfolio_pnl': pnl_data,
             'hedge_position': hedge_data,
+            'hedge_position_plan': hedge_plan,
             'net_performance': {
                 'portfolio_pnl': round(portfolio_pnl, 2),
                 'hedge_pnl': round(hedge_pnl, 2),
@@ -1211,7 +1293,34 @@ def generate_markdown_report(report: Dict) -> str:
 | 当前Beta | {report['risk_metrics']['beta_exposure']:.3f} |
 | 对冲有效性 | {report['hedge_position']['summary']['hedge_effectiveness']:.2f}% |
 
----
+### 3.3 期货期权计划头寸 (来自 positions.json)
+
+"""
+    plan = report.get('hedge_position_plan') or {}
+    plan_details = plan.get('details', [])
+    if plan_details:
+        md += "| # | 工具 | 交易所 | 方向 | 目标手数 | 合约乘数 | 保证金率 | 目标Beta降低 | 行权价 | 权利金预算 | 估算名义价值 | 估算成本 | 说明 |\n"
+        md += "|---|------|--------|------|---------|---------|---------|------------|--------|-----------|------------|---------|------|\n"
+        for i, p in enumerate(plan_details, 1):
+            strike_str = p.get('strike') or '-'
+            premium_str = f"¥{p.get('premium_budget', 0):,}" if p.get('is_option') else '¥0'
+            md += (f"| {i} | {p['instrument']} | {p['exchange']} | {p['direction']} | "
+                   f"{p['target_contracts']} | {p['multiplier']} | {p['margin_rate']:.2%} | "
+                   f"{p['target_beta_reduction']:.3f} | {strike_str} | {premium_str} | "
+                   f"¥{p['estimated_notional']:,.0f} | ¥{p['estimated_cost']:,.0f} | {p['reason']} |\n")
+        # 汇总行
+        summary = plan.get('summary', {})
+        md += (f"| **合计** | - | - | - | - | - | - | **{summary.get('total_beta_reduction', 0):.3f}** | - | "
+               f"**¥{summary.get('total_premium_budget', 0):,}** | "
+               f"**¥{summary.get('total_estimated_notional', 0):,.0f}** | - | - |\n\n")
+        md += f"> 📌 **期货期权对冲工具**: 共 {summary.get('tool_count', 0)} 类工具 | "
+        md += f"期货名义价值 ¥{summary.get('total_estimated_notional', 0):,.0f} | "
+        md += f"期权权利金预算 ¥{summary.get('total_premium_budget', 0):,} | "
+        md += f"目标Beta降低 {summary.get('total_beta_reduction', 0):.3f}\n\n"
+    else:
+        md += "> ⚠️ positions.json 中未配置 hedge_positions\n\n"
+
+    md += f"""---
 
 ## 四、净盈亏分析
 

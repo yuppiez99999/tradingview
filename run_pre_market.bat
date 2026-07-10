@@ -5,7 +5,7 @@ echo   盘前检查 - AutoHedge PreMarket
 echo ========================================
 echo.
 
-set PYTHON=C:\Users\Administrator\AppData\Local\Programs\Python\Python314\python.exe
+set PYTHON=C:\Program Files\Python38\python.exe
 set WORKDIR=%~dp0
 set LOG=%WORKDIR%logs\pre_market.log
 

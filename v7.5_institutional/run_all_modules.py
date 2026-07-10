@@ -37,13 +37,16 @@ from typing import Dict, List, Optional
 # 路径与全局配置
 # ============================================================
 BASE_DIR = Path(__file__).resolve().parent
-PYTHON = r"C:\Users\Administrator\AppData\Local\Programs\Python\Python314\python.exe"
+PYTHON = r"C:\Program Files\Python38\python.exe"
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
-# Wind MCP API Key (用于 calibrate_asset_params_wind.py)
-WIND_API_KEY = "ak_Tk4Y_UE-MfUof8DLLbKpHZZY-kh1q5KD"
-os.environ["WIND_API_KEY"] = WIND_API_KEY
+# Wind MCP API Key (从环境变量读取, 不硬编码)
+WIND_API_KEY = os.environ.get("WIND_API_KEY", "")
+if WIND_API_KEY:
+    os.environ["WIND_API_KEY"] = WIND_API_KEY
+else:
+    logger.warning("WIND_API_KEY 环境变量未设置, Wind MCP 相关模块可能无法正常工作")
 
 # 报告归档目录 (统一到根目录 e:\各种PY程序\每日报告归档)
 ARCHIVE_ROOT = BASE_DIR.parent.parent / "每日报告归档"
@@ -206,11 +209,19 @@ PREMARKET_MODULES = [
         timeout=600,
     ),
     ModuleRunner(
-        name="v5_optimize",
-        script="optimize_portfolio_v5.py",
-        description="v5 组合优化 (Wind真实数据 + 相关矩阵, SLSQP 多起点优化)",
-        schedule="weekly",
+        name="update_prices",
+        script="../update_position_prices.py",
+        description="更新持仓价格 (从最新收盘报告同步价格到 positions.json)",
+        schedule="daily",
+        timeout=120,
+    ),
+    ModuleRunner(
+        name="daily_trade_executor_pre",
+        script="../daily_trade_executor.py",
+        description="盘前生成交易指令 (含预测信号调整分配, 输出 instructions.json+md)",
+        schedule="daily",
         timeout=300,
+        extra_args=["pre-market"],
     ),
     ModuleRunner(
         name="daily_workflow",
@@ -224,11 +235,12 @@ PREMARKET_MODULES = [
 
 POSTMARKET_MODULES = [
     ModuleRunner(
-        name="black_swan_test",
-        script="test_black_swan_2000_2008.py",
-        description="黑天鹅压力测试 (2000互联网泡沫 + 2008次贷危机, v7.4/v7.5对比)",
+        name="daily_trade_executor_post",
+        script="../daily_trade_executor.py",
+        description="盘后执行已确认交易指令 (更新 positions.json + build_progress.json)",
         schedule="daily",
         timeout=300,
+        extra_args=["post-market"],
     ),
     ModuleRunner(
         name="daily_pnl_report",
@@ -236,6 +248,13 @@ POSTMARKET_MODULES = [
         description="收盘盈亏明细报告 (持仓盈亏+对冲明细+AI决策建议)",
         schedule="daily",
         timeout=600,
+    ),
+    ModuleRunner(
+        name="stop_loss_monitor",
+        script="../stop_loss_monitor.py",
+        description="止损监控 (波动率调整止损规则检查, 触发减仓/清仓预警)",
+        schedule="daily",
+        timeout=120,
     ),
 ]
 

@@ -9,7 +9,7 @@ echo 正在创建 3 个交易日自动任务...
 echo.
 
 REM 盘前检查 - 每天 7:00
-schtasks /create /tn "AutoHedge_PreMarket_0700" /tr "\"C:\Users\Administrator\AppData\Local\Programs\Python\Python314\python.exe\" --mode pre-market --broker mock" /sc weekly /d MON,TUE,WED,THU,FRI /st 07:00 /ru "%USERNAME%" /rl HIGHEST /f
+schtasks /create /tn "AutoHedge_PreMarket_0700" /tr "\"C:\Program Files\Python38\python.exe\" --mode pre-market --broker mock" /sc weekly /d MON,TUE,WED,THU,FRI /st 07:00 /ru "%USERNAME%" /rl HIGHEST /f
 echo.
 
 REM 启动盘中监控 - 每天 9:25
