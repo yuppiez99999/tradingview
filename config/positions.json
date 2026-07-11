@@ -9,7 +9,8 @@
     "generated_from": "user_directive_2026-07-09",
     "start_date": "2026-07-10",
     "clearance_date": "2030-12-31",
-    "note": "清除原23个仓位, 重建为20标的新计划: 股票ETF账户300万(20标的) + 对冲账户200万(IF/IM/期权); 整合ETF资金流向信号; 2030-12-31全部清仓; 年化目标>8% 回撤<15%"
+    "note": "清除原23个仓位, 重建为25标的新计划: 股票ETF账户300万(25标的, 含13只ETF+12只股票) + 对冲账户200万(IF/IM/期权); 整合ETF资金流向信号; 2030-12-31全部清仓; 年化目标>8% 回撤<15%",
+    "last_etf_update": "2026-07-11 09:22:50"
   },
   "positions": {
     "588080.SH": {
@@ -25,8 +26,8 @@
       "style": "科技",
       "sector": "科技",
       "type": "ETF",
-      "etf_flow_signal": "强加仓",
-      "etf_inflow": 57.09,
+      "etf_flow_signal": "加仓",
+      "etf_inflow": 29.76,
       "reason": "ETF资金流强信号+国家队57亿净流入; 科创板AI/半导体龙头集合"
     },
     "512880.SH": {
@@ -42,8 +43,8 @@
       "style": "金融",
       "sector": "金融",
       "type": "ETF",
-      "etf_flow_signal": "强加仓",
-      "etf_inflow": 67.43,
+      "etf_flow_signal": "加仓",
+      "etf_inflow": 30.61,
       "reason": "ETF资金流最强67亿净流入; 牛市旗手; 康波复苏期券商先行"
     },
     "510050.SH": {
@@ -60,7 +61,7 @@
       "sector": "宽基",
       "type": "ETF",
       "etf_flow_signal": "加仓",
-      "etf_inflow": 39.66,
+      "etf_inflow": 17.73,
       "reason": "ETF资金流加仓40亿; 大盘蓝筹底仓; 降低波动率"
     },
     "512800.SH": {
@@ -76,8 +77,8 @@
       "style": "金融",
       "sector": "金融",
       "type": "ETF",
-      "etf_flow_signal": "加仓",
-      "etf_inflow": 22.57,
+      "etf_flow_signal": "关注",
+      "etf_inflow": 7.35,
       "reason": "ETF资金流加仓23亿; 高股息5%+低波动; 组合稳定器"
     },
     "515030.SH": {
@@ -93,8 +94,8 @@
       "style": "新能源",
       "sector": "新能源",
       "type": "ETF",
-      "etf_flow_signal": "加仓",
-      "etf_inflow": 11.45,
+      "etf_flow_signal": "中性",
+      "etf_inflow": 1.61,
       "reason": "ETF资金流加仓11亿; 十五五双碳+新能源车战略"
     },
     "512760.SH": {
@@ -110,8 +111,8 @@
       "style": "科技",
       "sector": "科技",
       "type": "ETF",
-      "etf_flow_signal": "关注",
-      "etf_inflow": 9.47,
+      "etf_flow_signal": "加仓",
+      "etf_inflow": 12.25,
       "reason": "ETF资金流关注9亿; 半导体国产替代整体beta"
     },
     "512170.SH": {
@@ -127,8 +128,8 @@
       "style": "医药",
       "sector": "医药",
       "type": "ETF",
-      "etf_flow_signal": "关注",
-      "etf_inflow": 3.35,
+      "etf_flow_signal": "加仓",
+      "etf_inflow": 11.12,
       "reason": "ETF资金流关注3亿; 十五五健康中国旗舰仓位; 医药全产业链beta"
     },
     "518880.SH": {
@@ -144,8 +145,8 @@
       "style": "资源",
       "sector": "资源",
       "type": "ETF",
-      "etf_flow_signal": "流入",
-      "etf_inflow": 0.17,
+      "etf_flow_signal": "加仓",
+      "etf_inflow": 19.53,
       "reason": "周金涛萧条末期黄金最优; 避险+降低回撤"
     },
     "688041.SH": {
@@ -335,6 +336,91 @@
       "sector": "防御",
       "type": "STOCK",
       "reason": "水电龙头+高股息4%; 防御底仓; 降低回撤"
+    },
+    "588000.SH": {
+      "code": "588000.SH",
+      "name": "科创50ETF华夏",
+      "shares": 0,
+      "phase1_shares": 0,
+      "total_shares": 0,
+      "est_price": 1.05,
+      "avg_cost": 0.0,
+      "target_weight": 0.02,
+      "amount": 60000,
+      "style": "科技",
+      "sector": "科技",
+      "type": "ETF",
+      "etf_flow_signal": "强加仓",
+      "etf_inflow": 108.99,
+      "reason": "科创板核心ETF; AI/半导体龙头集合; 十五五新质生产力; 实时ETF资金流向监控标的"
+    },
+    "510300.SH": {
+      "code": "510300.SH",
+      "name": "沪深300ETF华泰柏瑞",
+      "shares": 0,
+      "phase1_shares": 0,
+      "total_shares": 0,
+      "est_price": 3.9,
+      "avg_cost": 0.0,
+      "target_weight": 0.03,
+      "amount": 90000,
+      "style": "宽基",
+      "sector": "宽基",
+      "type": "ETF",
+      "etf_flow_signal": "加仓",
+      "etf_inflow": 40.4,
+      "reason": "沪深300核心宽基; A股Beta基准; 降低组合波动率; 实时ETF资金流向监控标的"
+    },
+    "510500.SH": {
+      "code": "510500.SH",
+      "name": "中证500ETF南方",
+      "shares": 0,
+      "phase1_shares": 0,
+      "total_shares": 0,
+      "est_price": 5.5,
+      "avg_cost": 0.0,
+      "target_weight": 0.02,
+      "amount": 60000,
+      "style": "宽基",
+      "sector": "宽基",
+      "type": "ETF",
+      "etf_flow_signal": "加仓",
+      "etf_inflow": 38.51,
+      "reason": "中证500中盘宽基; 成长与价值平衡; 实时ETF资金流向监控标的"
+    },
+    "512100.SH": {
+      "code": "512100.SH",
+      "name": "中证1000ETF",
+      "shares": 0,
+      "phase1_shares": 0,
+      "total_shares": 0,
+      "est_price": 2.3,
+      "avg_cost": 0.0,
+      "target_weight": 0.02,
+      "amount": 60000,
+      "style": "宽基",
+      "sector": "宽基",
+      "type": "ETF",
+      "etf_flow_signal": "加仓",
+      "etf_inflow": 41.28,
+      "reason": "中证1000小盘宽基; 科技成长波动对冲; IM期货标的指数; 实时ETF资金流向监控标的"
+    },
+    "159915.SZ": {
+      "code": "159915.SZ",
+      "name": "创业板ETF易方达",
+      "shares": 0,
+      "phase1_shares": 0,
+      "total_shares": 0,
+      "est_price": 2.15,
+      "avg_cost": 0.0,
+      "target_weight": 0.02,
+      "amount": 60000,
+      "style": "成长",
+      "sector": "成长",
+      "type": "ETF",
+      "etf_flow_signal": "强加仓",
+      "etf_inflow": 76.1,
+      "reason": "创业板成长风格核心; 创新企业集中地; 实时ETF资金流向监控标的"
     }
   },
   "hedge_positions": {

@@ -25,32 +25,38 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger('forecast')
 
-# 持仓标的 (从 500万建仓计划)
+# 持仓标的 (从 config/positions.json 同步 - 22标的, 500万计划)
+# 说明: 已剔除数据过期严重的同花顺、卓胜微、藏格矿业，权重已重新分配
 PORTFOLIO = {
-    # ETF
-    "510300": {"name": "沪深300ETF", "weight": 0.08, "sector": "核心宽基"},
-    "510500": {"name": "中证500ETF", "weight": 0.05, "sector": "核心宽基"},
-    "588000": {"name": "科创50ETF", "weight": 0.05, "sector": "核心宽基"},
-    "518880": {"name": "黄金ETF", "weight": 0.11, "sector": "黄金"},
-    # 科技/AI
-    "688041": {"name": "海光信息", "weight": 0.04, "sector": "科技"},
+    # ETF - 科技
+    "588080": {"name": "科创50ETF易方达", "weight": 0.05, "sector": "科技"},
+    "512760": {"name": "半导体ETF国泰", "weight": 0.03, "sector": "科技"},
+    "588000": {"name": "科创50ETF华夏", "weight": 0.03, "sector": "科技"},
+    # ETF - 金融
+    "512880": {"name": "证券ETF国泰", "weight": 0.05, "sector": "金融"},
+    "512800": {"name": "银行ETF华宝", "weight": 0.06, "sector": "金融"},
+    # ETF - 宽基
+    "510050": {"name": "上证50ETF华夏", "weight": 0.06, "sector": "核心宽基"},
+    "510300": {"name": "沪深300ETF华泰", "weight": 0.03, "sector": "核心宽基"},
+    "510500": {"name": "中证500ETF南方", "weight": 0.03, "sector": "核心宽基"},
+    "512100": {"name": "中证1000ETF", "weight": 0.02, "sector": "核心宽基"},
+    # ETF - 新能源/医药/资源/成长
+    "515030": {"name": "新能源车ETF华夏", "weight": 0.05, "sector": "新能源"},
+    "512170": {"name": "医疗ETF华宝", "weight": 0.07, "sector": "医药"},
+    "518880": {"name": "黄金ETF华安", "weight": 0.05, "sector": "黄金"},
+    "159915": {"name": "创业板ETF易方达", "weight": 0.02, "sector": "成长"},
+    # 股票 - 科技
+    "688041": {"name": "海光信息", "weight": 0.05, "sector": "科技"},
     "300308": {"name": "中际旭创", "weight": 0.05, "sector": "科技"},
-    "002371": {"name": "北方华创", "weight": 0.04, "sector": "科技"},
-    "688981": {"name": "中芯国际", "weight": 0.04, "sector": "科技"},
-    "300274": {"name": "阳光电源", "weight": 0.04, "sector": "科技"},
+    "002371": {"name": "北方华创", "weight": 0.05, "sector": "科技"},
     "603019": {"name": "中科曙光", "weight": 0.04, "sector": "科技"},
-    "600276": {"name": "恒瑞医药", "weight": 0.04, "sector": "科技"},
-    # 高端制造
-    "000425": {"name": "徐工机械", "weight": 0.04, "sector": "制造"},
-    "600089": {"name": "特变电工", "weight": 0.04, "sector": "制造"},
-    "688017": {"name": "绿的谐波", "weight": 0.03, "sector": "制造"},
-    # 防御/红利
-    "600900": {"name": "长江电力", "weight": 0.06, "sector": "防御"},
-    "601088": {"name": "中国神华", "weight": 0.05, "sector": "防御"},
-    "600019": {"name": "宝钢股份", "weight": 0.05, "sector": "资源"},
-    "600219": {"name": "南山铝业", "weight": 0.05, "sector": "资源"},
-    "600036": {"name": "招商银行", "weight": 0.04, "sector": "金融"},
-    "515180": {"name": "红利ETF", "weight": 0.06, "sector": "防御"},
+    # 股票 - 制造/新能源
+    "688017": {"name": "绿的谐波", "weight": 0.05, "sector": "制造"},
+    "300274": {"name": "阳光电源", "weight": 0.05, "sector": "新能源"},
+    # 股票 - 顺周期/医药/防御
+    "601088": {"name": "中国神华", "weight": 0.05, "sector": "顺周期"},
+    "600276": {"name": "恒瑞医药", "weight": 0.06, "sector": "医药"},
+    "600900": {"name": "长江电力", "weight": 0.05, "sector": "防御"},
 }
 
 # 无风险利率 (中国 10 年期国债)
@@ -104,6 +110,140 @@ def load_qlib_bin(code: str, field: str = "close") -> pd.Series:
     # 去除尾部 NaN
     s = s.dropna()
     return s
+
+
+def load_wind_mcp_data(code: str, days: int = 1200) -> pd.Series:
+    """从 Wind MCP 加载价格数据作为第一优先数据源"""
+    try:
+        import wind_mcp_fetcher as wm
+
+        is_fund = code.startswith("5") or code.startswith("1599")
+        windcode = f"{code}.SH" if code.startswith("6") or code.startswith("5") or code.startswith("11") or code.startswith("13") else f"{code}.SZ"
+        if code.startswith("4") or code.startswith("8"):
+            windcode = f"{code}.SH"
+        elif code.startswith("0") or code.startswith("3") or code.startswith("1599"):
+            windcode = f"{code}.SZ"
+        recs = wm.wind_get_kline(windcode, days=days, is_fund=is_fund)
+        if not recs:
+            return pd.Series()
+        rows = []
+        for r in recs:
+            dt = r.get("_DATE") or r.get("TIME")
+            close = r.get("MATCH") or r.get("CLOSE")
+            if not dt or close is None:
+                continue
+            rows.append({"日期": str(dt)[:10], "收盘": float(close)})
+        if not rows:
+            return pd.Series()
+        df = pd.DataFrame(rows)
+        df["日期"] = pd.to_datetime(df["日期"])
+        df = df.sort_values("日期").drop_duplicates("日期")
+        s = df.set_index("日期")["收盘"].sort_index()
+        return s[s > 0].dropna()
+    except Exception as exc:
+        logger.debug(f"  Wind MCP 加载失败 {code}: {exc}")
+        return pd.Series()
+
+
+def load_akshare_data(code: str, start_date: str = "2018-01-01", end_date: str = None) -> pd.Series:
+    """从 akshare 加载价格数据作为 QLib 缺失时的备选"""
+    if end_date is None:
+        end_date = datetime.now().strftime("%Y-%m-%d")
+
+    try:
+        import akshare as ak
+
+        if code.startswith("5") or code.startswith("1599"):
+            etf_hist_df = pd.DataFrame()
+            try:
+                etf_hist_df = ak.fund_etf_hist_sina(symbol=code)
+            except Exception as exc_sina:
+                logger.debug(f"  akshare 新浪 ETF 失败 {code}: {exc_sina}")
+            if etf_hist_df.empty:
+                try:
+                    etf_hist_df = ak.fund_etf_hist_em(
+                        symbol=code, period="daily", start_date=start_date, end_date=end_date, adjust="hfq"
+                    )
+                except Exception as exc_em:
+                    logger.debug(f"  akshare 东方财富 ETF 失败 {code}: {exc_em}")
+            if etf_hist_df.empty:
+                return pd.Series()
+
+            etf_hist_df = etf_hist_df.copy()
+            etf_hist_df["日期"] = pd.to_datetime(etf_hist_df["日期"])
+            etf_hist_df = etf_hist_df.set_index("日期")
+            s = etf_hist_df["收盘"].sort_index()
+        else:
+            stock_zh_a_hist_df = ak.stock_zh_a_hist(
+                symbol=code, period="daily", start_date=start_date, end_date=end_date, adjust="hfq"
+            )
+            if stock_zh_a_hist_df.empty:
+                return pd.Series()
+            stock_zh_a_hist_df["日期"] = pd.to_datetime(stock_zh_a_hist_df["日期"])
+            stock_zh_a_hist_df = stock_zh_a_hist_df.set_index("日期")
+            s = stock_zh_a_hist_df["收盘"].sort_index()
+
+        s = s[s > 0].dropna()
+        return s
+    except Exception as exc:
+        logger.debug(f"  akshare 加载失败 {code}: {exc}")
+        return pd.Series()
+
+
+def load_ifind_data(code: str, days: int = 800) -> pd.Series:
+    """从 iFinD MCP 加载价格数据作为 QLib/akshare 失败时的回退"""
+    try:
+        from utils.ifind_client import IFindClient
+        client = IFindClient()
+        if code.startswith("5") or code.startswith("1599"):
+            raw = client.get_etf_historical(code, days=days)
+            if not raw:
+                return pd.Series()
+            df = pd.DataFrame(raw)
+            df["日期"] = pd.to_datetime(df["日期"])
+            s = df.set_index("日期")["收盘"].sort_index()
+        else:
+            raw = client.get_historical_klines(code, days=days)
+            if not raw:
+                return pd.Series()
+            df = pd.DataFrame(raw)
+            df["日期"] = pd.to_datetime(df["日期"])
+            s = df.set_index("日期")["收盘"].sort_index()
+        return s[s > 0].dropna()
+    except Exception as exc:
+        logger.debug(f"  iFinD 加载失败 {code}: {exc}")
+        return pd.Series()
+
+
+def load_local_etf_fallback(code: str) -> pd.Series:
+    """从本地 ETF 兜底目录加载价格数据"""
+    base_dir = os.path.join(os.path.dirname(__file__), "data", "etf_fallback")
+    candidates = [
+        os.path.join(base_dir, f"{code}.json"),
+        os.path.join(base_dir, f"{code}.csv"),
+    ]
+    for path in candidates:
+        if not os.path.exists(path):
+            continue
+        try:
+            if path.endswith(".json"):
+                with open(path, "r", encoding="utf-8") as fh:
+                    payload = json.load(fh)
+                records = payload.get("prices") or payload.get("data") or []
+                if not records:
+                    return pd.Series()
+                df = pd.DataFrame(records)
+                df["日期"] = pd.to_datetime(df["日期"])
+                s = df.set_index("日期")["收盘"].sort_index()
+                return s[s > 0].dropna()
+            else:
+                df = pd.read_csv(path)
+                df["日期"] = pd.to_datetime(df["日期"])
+                s = df.set_index("日期")["收盘"].sort_index()
+                return s[s > 0].dropna()
+        except Exception as exc:
+            logger.debug(f"  本地ETF兜底失败 {code}: {exc}")
+    return pd.Series()
 
 
 def compute_historical_stats(prices: pd.Series, window: int = 252) -> dict:
@@ -180,7 +320,6 @@ def compute_historical_stats(prices: pd.Series, window: int = 252) -> dict:
 
 def load_ml_signals() -> Dict[str, float]:
     """加载最新 ML 模型预测信号"""
-    # 尝试加载改进版训练结果
     report_dir = os.path.join(os.path.dirname(__file__), "reports")
     if os.path.exists(report_dir):
         for f in sorted(os.listdir(report_dir), reverse=True):
@@ -188,10 +327,16 @@ def load_ml_signals() -> Dict[str, float]:
                 path = os.path.join(report_dir, f)
                 with open(path, "r", encoding="utf-8") as fh:
                     report = json.load(fh)
-                signals = report.get("signals", {})
+                signals = report.get("stock_signals", [])
                 if signals:
-                    logger.info(f"加载 ML 信号: {f} ({len(signals)} 标的)")
-                    return {s["symbol"]: s["raw_signal"] for s in signals if "raw_signal" in s}
+                    result = {}
+                    for s in signals:
+                        code = s.get("code", "")
+                        if code:
+                            clean_code = code.lstrip("SH").lstrip("SZ")
+                            result[clean_code] = s.get("latest_signal", 0.0)
+                    logger.info(f"加载 ML 信号: {f} ({len(result)} 标的)")
+                    return result
     return {}
 
 
@@ -225,10 +370,35 @@ def forecast_annualized_return() -> dict:
         weight = info["weight"]
         sector = info["sector"]
 
-        # 加载价格
-        prices = load_qlib_bin(code, "close")
+        # 加载价格：优先 Wind MCP，回退 QLib，再回退 akshare，再回退 iFinD MCP，最后回退本地 ETF 兜底
+        prices = load_wind_mcp_data(code)
+        data_source = "wind_mcp"
+
+        if len(prices) < 60:
+            prices = load_qlib_bin(code, "close")
+            data_source = "QLib"
+
+        if len(prices) < 60:
+            prices = load_akshare_data(code)
+            data_source = "akshare"
+
+        if len(prices) < 60:
+            prices = load_ifind_data(code)
+            data_source = "ifind_mcp"
+
+        if len(prices) < 60 and (code.startswith("5") or code.startswith("1599")):
+            prices = load_local_etf_fallback(code)
+            data_source = "local_etf_fallback"
+
         if len(prices) < 60:
             logger.warning(f"  {name} ({code}) 数据不足: {len(prices)} 天, 跳过")
+            continue
+        
+        # 检查数据是否过期（超过1年）
+        last_date = prices.index[-1]
+        days_since_last = (datetime.now() - last_date).days
+        if days_since_last > 365:
+            logger.warning(f"  {name} ({code}) 数据过期: {last_date.date()}, 已 {days_since_last} 天, 跳过")
             continue
 
         # 历史统计
@@ -253,7 +423,8 @@ def forecast_annualized_return() -> dict:
         # 板块因子: 科技 1.05x, 制造 1.0x, 防御 0.8x, 资源 1.1x, 黄金 0.7x
         sector_factor = {
             "科技": 1.05, "制造": 1.0, "防御": 0.85,
-            "资源": 1.1, "黄金": 0.7, "金融": 0.9, "核心宽基": 1.0
+            "资源": 1.1, "黄金": 0.7, "金融": 0.9, "核心宽基": 1.0,
+            "新能源": 1.08, "医药": 0.95, "顺周期": 0.9, "成长": 1.02
         }.get(sector, 1.0)
 
         # 动量因子: 近 60 日收益率年化

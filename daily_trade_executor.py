@@ -83,6 +83,69 @@ def is_accumulation_period(d: date) -> bool:
     return ACCUMULATION_START <= d <= ACCUMULATION_END
 
 
+def init_wt_modules():
+    """初始化 WonderTrader 风格模块
+    
+    返回: dict 包含所有WT模块实例, 失败时返回空dict
+    """
+    wt_modules = {}
+    try:
+        from utils.wt_risk_control import RiskControl, StopLossManager, PortfolioRiskAnalyzer
+        from utils.wt_execution_algo import MinImpactExecutor, TWAPExecutor, VWAPExecutor
+        from utils.wt_hedge_strategy import HedgeContext, BetaHedgeStrategy, TailRiskHedgeStrategy
+        from utils.wt_contracts_manager import get_contracts_manager
+        
+        wt_modules["risk_control"] = RiskControl({
+            "max_daily_loss_pct": 0.05,
+            "max_portfolio_drawdown_pct": 0.15,
+            "max_position_concentration_pct": 0.30,
+            "max_single_trade_pct": 0.05,
+            "max_daily_trades": 50,
+        })
+        wt_modules["stop_loss_manager"] = StopLossManager(
+            stop_loss_pct=0.08,
+            take_profit_pct=0.15,
+        )
+        wt_modules["portfolio_risk_analyzer"] = PortfolioRiskAnalyzer()
+        wt_modules["min_impact_executor"] = MinImpactExecutor(
+            max_participation_pct=0.15,
+            min_order_size=100,
+        )
+        wt_modules["twap_executor"] = TWAPExecutor(
+            execution_window_minutes=30,
+            interval_minutes=5,
+        )
+        wt_modules["vwap_executor"] = VWAPExecutor()
+        wt_modules["contracts_manager"] = get_contracts_manager()
+        
+        beta_hedge = BetaHedgeStrategy(config={
+            "target_hedge_ratio": 0.2,
+            "max_hedge_ratio": 0.5,
+            "min_hedge_ratio": 0.05,
+        })
+        tail_hedge = TailRiskHedgeStrategy(config={
+            "target_hedge_ratio": 0.3,
+            "max_hedge_ratio": 0.6,
+            "min_hedge_ratio": 0.1,
+            "vol_threshold": 0.2,
+        })
+        wt_modules["hedge_context"] = HedgeContext(beta_hedge)
+        wt_modules["beta_hedge"] = beta_hedge
+        wt_modules["tail_hedge"] = tail_hedge
+        
+        print("[INFO] ✅ WonderTrader 模块初始化完成")
+        print(f"[INFO]   - 风控模块: RiskControl, StopLossManager, PortfolioRiskAnalyzer")
+        print(f"[INFO]   - 执行算法: MinImpactExecutor, TWAPExecutor, VWAPExecutor")
+        print(f"[INFO]   - 对冲策略: BetaHedgeStrategy, TailRiskHedgeStrategy")
+        print(f"[INFO]   - 合约管理: ContractsManager")
+        
+    except Exception as e:
+        print(f"[WARN] ⚠️ WonderTrader 模块初始化失败: {e}")
+        print(f"[WARN]   - 系统将使用内置风控规则继续运行")
+    
+    return wt_modules
+
+
 def load_positions() -> Dict:
     """加载持仓配置"""
     with open(POSITIONS_FILE, 'r', encoding='utf-8') as f:
@@ -420,9 +483,40 @@ def generate_instructions(target_date_str: str) -> Dict:
 
     # 加载数据
     positions_data = load_positions()
+
+    # v7.5+: 盘前自动刷新ETF资金流信号
+    try:
+        from utils.etf_flow_monitor import refresh_etf_flow_signals
+        etf_result = refresh_etf_flow_signals(str(POSITIONS_FILE))
+        if etf_result.get('status') == 'success':
+            print(f"[INFO] ETF资金流信号刷新成功: 更新 {etf_result['updated_count']} 个标的, 检测到 {etf_result.get('signal_count', 0)} 条信号")
+            # 重新加载 positions_data 以获取更新后的信号
+            positions_data = load_positions()
+        else:
+            print(f"[WARN] ETF资金流信号刷新失败: {etf_result.get('message', 'unknown')}")
+    except Exception as e:
+        print(f"[WARN] ETF资金流信号刷新模块加载失败: {e}")
+
+    # v7.8+: 初始化 WonderTrader 风格模块
+    wt_modules = init_wt_modules()
+    
     trade_plan = load_trade_plan()
     progress = load_build_progress()
     latest_prices = load_latest_prices()
+
+    # v7.8+: WT风控预检查 (使用 WT PortfolioRiskAnalyzer)
+    if wt_modules.get("portfolio_risk_analyzer"):
+        try:
+            risk_summary = wt_modules["portfolio_risk_analyzer"].analyze_portfolio(
+                positions_data,
+                progress.get("total_built", 0),
+                STOCK_ETF_TARGET,
+            )
+            print(f"[INFO] WT风控分析: 组合风险评分 {risk_summary.get('risk_score', 'N/A')}")
+            print(f"[INFO]   - 集中度风险: {risk_summary.get('concentration_risk', 'N/A')}")
+            print(f"[INFO]   - 行业分布: {risk_summary.get('sector_distribution', 'N/A')}")
+        except Exception as e:
+            print(f"[WARN] WT风控分析执行失败: {e}")
 
     # 获取预测信号 (v7.5+ 集成 tf_price_predictor, 失败时静默降级)
     pending_codes = [
@@ -756,6 +850,20 @@ def execute_instructions(target_date_str: str) -> Dict:
             "total_instructions": len(instructions_data.get("instructions", [])),
         }
 
+    # v7.8+: 初始化 WT 模块用于执行
+    wt_modules = init_wt_modules()
+    
+    # v7.8+: WT风控前置检查
+    if wt_modules.get("risk_control"):
+        try:
+            total_amount = sum(i.get("amount", 0) for i in confirmed)
+            risk_ok, risk_msg = wt_modules["risk_control"].check_position_limit(total_amount, STOCK_ETF_TARGET)
+            if not risk_ok:
+                print(f"[WARN] WT风控检查未通过: {risk_msg}")
+                # 不阻断执行, 仅记录警告
+        except Exception as e:
+            print(f"[WARN] WT风控检查执行失败: {e}")
+
     # 幂等检查: 当日是否已执行过
     progress = load_build_progress()
     daily_records = progress.get("daily_records", [])
@@ -811,10 +919,26 @@ def execute_instructions(target_date_str: str) -> Dict:
         qty = inst["qty"]
         ref_price = inst["ref_price"]
 
-        # 模拟成交价 (在 ref_price 和 max_price 之间)
-        # 实际场景下应从市场数据获取
-        fill_price = ref_price  # 简化: 按参考价成交
-        fill_amount = round(qty * fill_price, 2)
+        # v7.8+: 使用 WT 执行算法拆分订单 (大金额订单)
+        splits = []
+        fill_amount = 0.0
+        fill_price = ref_price
+        
+        if wt_modules.get("min_impact_executor") and inst.get("amount", 0) > 50000:
+            try:
+                splits = wt_modules["min_impact_executor"].calculate_optimal_splits(
+                    target_amount=inst["amount"],
+                    ref_price=ref_price,
+                    avg_daily_volume=1000000,
+                )
+                fill_amount = sum(s["amount"] for s in splits)
+                fill_price = ref_price
+                print(f"[INFO] WT执行算法: {inst['code']} 拆分为 {len(splits)} 笔, 总金额 ¥{fill_amount:,.0f}")
+            except Exception as e:
+                print(f"[WARN] WT执行算法执行失败: {e}, 使用默认执行")
+                fill_amount = round(qty * ref_price, 2)
+        else:
+            fill_amount = round(qty * ref_price, 2)
 
         # 更新建仓进度
         built_before = progress["built_amounts"].get(code, 0)

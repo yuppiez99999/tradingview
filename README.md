@@ -1,6 +1,6 @@
-# 综合量化策略系统 v7.7
+# 综合量化策略系统 v7.8
 
-**顶级对冲基金视角 | 300万股票ETF + 200万对冲账户 | 自动执行 | 2030年清仓 | 年化≥8% 回撤<15% | ETF资金流追踪 | AI增强预测 | Wind MCP 优先数据源**
+**顶级对冲基金视角 | 300万股票ETF + 200万对冲账户 | 自动执行 | 2030年清仓 | 年化≥8% 回撤<15% | ETF资金流追踪 | AI增强预测 | WonderTrader高价值模块集成 | Wind MCP 优先数据源**
 
 **作者**：yuppiez99999
 
@@ -8,9 +8,19 @@
 
 ## 系统概述
 
-综合量化策略系统 v7.7 是一个专业量化交易平台，在 v7.5 机构级实盘基础上完成仓位重建与 AI 增强：清除旧仓位，重新设计 20 标的自动执行计划，并集成基于 TensorFlow/TimesFM 的价格预测、外部宏观经济数据源、网页舆情抓取、AI 自动化报告四大新模块。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万** 与 **对冲保护账户 200万**，目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
+综合量化策略系统 v7.8 是一个专业量化交易平台，在 v7.7 AI 增强基础上集成 **WonderTrader 高价值模块**，包括：合约规格管理器、价差策略框架、组合对冲策略模板、Tick级事件驱动回测引擎、执行算法、风控模块、回测引擎等，构建完整的策略开发与执行能力。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万** 与 **对冲保护账户 200万**，目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
 
-**v7.7 核心升级（AI 增强 + 多源数据 + 预测信号）**：
+**v7.8 核心升级（WonderTrader 高价值模块集成）**：
+- **统一数据结构**：`utils/wt_structs.py` — Tick/Bar/Order/Trade/Position/Contract 标准化数据模型
+- **合约规格管理器**：`utils/wt_contracts_manager.py` — 全市场合约规格(股票/ETF/期货/期权)统一管理，替代硬编码
+- **价差策略框架**：`utils/wt_spread_strategy.py` — ETF配对交易/跨期套利/价差回归策略
+- **组合对冲策略模板**：`utils/wt_hedge_strategy.py` — Beta对冲/尾部风险保护/动态对冲三大策略框架
+- **Tick级事件驱动回测引擎**：`utils/wt_tick_engine.py` — Tick/Bar双模式事件驱动回测，支持精确撮合
+- **执行算法**：`utils/wt_execution_algo.py` — MinImpact/TWAP/VWAP大单拆分算法
+- **风控模块**：`utils/wt_risk_control.py` — 多层次风控（组合资金/通道流量/止损止盈）
+- **回测引擎**：`utils/wt_backtest_engine.py` — 轻量级回测引擎，支持ETF信号策略
+
+**v7.7 核心能力保留（AI 增强 + 多源数据 + 预测信号）**：
 - **价格预测模块**：`utils/tf_price_predictor.py` — TimesFM 零样本预测 + TensorFlow LSTM + ARIMA 三级降级，支持 T+1/T+5/T+10 预测
 - **外部数据源模块**：`utils/external_data_source.py` — 整合 FRED/Econdb/美国财政部/AlphaVantage/Finnhub/CoinGecko 六大免费 API
 - **网页抓取模块**：`utils/web_scraper.py` — 基于 Scrapling/BeautifulSoup 抓取东方财富公告/研报、巨潮资讯、新浪财经新闻
@@ -101,6 +111,9 @@
 ├── README.md                        # 本文件
 ├── PROJECT_DOCUMENTATION.md         # 项目文档
 ├── daily_trade_executor.py          # ★ 每日建仓执行器 (v7.7 集成预测信号)
+├── daily_hedge_update.py            # 每日对冲更新
+├── hedge_execution_orders.py        # 对冲执行订单
+├── hedge_quantity_calculator.py     # 对冲数量计算器
 ├── config/
 │   ├── positions.json               # ★ 实时持仓状态（已清空重建）
 │   ├── stop_loss_vol_adjusted.yaml  # 止损规则
@@ -114,12 +127,21 @@
 │   ├── main.py                      # 主入口
 │   ├── reports/                     # 收盘盈亏报告 (JSON + MD)
 │   └── run_daily.bat                # 日常运行脚本
-├── utils/                           # ★ 核心分析模块 (v7.7 新增 4 个 AI 模块)
+├── utils/                           # ★ 核心分析模块
 │   ├── data_provider.py             # ★ 统一数据接口 (v7.7 新增 6 个集成方法)
 │   ├── tf_price_predictor.py        # ★ v7.7 价格预测 (TimesFM+TF LSTM+ARIMA)
 │   ├── external_data_source.py      # ★ v7.7 外部数据源 (FRED+Finnhub+CoinGecko)
 │   ├── web_scraper.py               # ★ v7.7 网页抓取 (东方财富+巨潮+新浪)
 │   ├── ai_report_agent.py           # ★ v7.7 AI 报告代理 (豆包→DeepSeek→Ollama)
+│   ├── etf_flow_monitor.py          # ★ ETF资金流实时监控 (v7.8 集成WT)
+│   ├── wt_structs.py                # ★ 统一数据结构 (Tick/Bar/Order/Trade/Position/Contract)
+│   ├── wt_contracts_manager.py      # ★ 合约规格管理器 (A股+股指期货+ETF)
+│   ├── wt_spread_strategy.py        # ★ 价差策略框架 (ETF配对/跨期套利/价差回归)
+│   ├── wt_hedge_strategy.py         # ★ 组合对冲策略模板 (Beta/尾部风险/动态)
+│   ├── wt_tick_engine.py            # ★ Tick级事件驱动回测引擎 (精确撮合)
+│   ├── wt_execution_algo.py         # ★ 执行算法 (MinImpact/TWAP/VWAP)
+│   ├── wt_risk_control.py           # ★ 多层次风控 (组合资金/通道流量/止损止盈)
+│   ├── wt_backtest_engine.py        # ★ 轻量级回测引擎 (ETF信号策略)
 │   ├── akshare_futures.py           # 期货数据
 │   ├── ifind_client.py              # iFinD 接口
 │   ├── ifind_news_analyzer.py       # iFinD 新闻分析
@@ -211,9 +233,30 @@ python daily_trade_executor.py post-market --date 2026-07-13
 python daily_trade_executor.py progress
 ```
 
-### 7. Python 调用示例
+### 7. WonderTrader 高价值模块（v7.8 新增）
+
+```bash
+# 合约管理器自检
+python -m utils.wt_contracts_manager
+
+# 价差策略回测
+python -m utils.wt_spread_strategy
+
+# 对冲策略模拟
+python -m utils.wt_hedge_strategy
+
+# Tick级回测
+python -m utils.wt_tick_engine
+
+# ETF资金流监控
+python -m utils.etf_flow_monitor
+```
+
+### 8. Python 调用示例
 
 ```python
+# ========== AI 增强模块 ==========
+
 # 价格预测
 from utils.tf_price_predictor import PricePredictor
 predictor = PricePredictor()
@@ -250,7 +293,121 @@ from utils.data_provider import (
 )
 pred = get_price_prediction("002371", horizon=5)
 macro = get_external_macro()
+
+# ========== WonderTrader 高价值模块 ==========
+
+# 合约管理器
+from utils.wt_contracts_manager import get_contracts_manager
+contracts = get_contracts_manager()
+if_contract = contracts.get_contract("IF.CFFEX")
+print(f"IF合约乘数: {if_contract.contract_multiplier}")
+print(f"IF保证金率: {if_contract.margin_rate}")
+
+# 价差策略
+from utils.wt_spread_strategy import SpreadDefinition, SpreadCalculator, SpreadBacktester
+spread = SpreadDefinition(
+    name="SPD.300-50",
+    legs=[
+        {"code": "510300.SH", "ratio": 1.0, "direction": "BUY"},
+        {"code": "510050.SH", "ratio": 1.0, "direction": "SELL"},
+    ],
+    spread_type="diff",
+    description="沪深300ETF - 上证50ETF 价差",
+)
+prices = {"510300.SH": 4.20, "510050.SH": 2.65}
+spread_price = SpreadCalculator.calc_spread_price(spread, prices)
+print(f"价差价格: {spread_price}")
+
+# 对冲策略
+from utils.wt_hedge_strategy import HedgeContext, BetaHedgeStrategy, TailRiskHedgeStrategy
+beta_hedge = BetaHedgeStrategy(config={"target_hedge_ratio": 0.2, "max_hedge_ratio": 0.5})
+ctx = HedgeContext(beta_hedge)
+metrics = ctx.get_portfolio_metrics(prices={"IF.CFFEX": 3200.0})
+result = ctx.adjust_hedge(target_ratio=0.3)
+
+# Tick级回测引擎
+from utils.wt_tick_engine import TickBacktestEngine, run_tick_backtest
+engine = TickBacktestEngine(initial_capital=1000000.0)
+engine.add_strategy("MyStrategy", my_strategy_instance)
+engine.run_backtest(ticks)
+
+# 执行算法
+from utils.wt_execution_algo import MinImpactExecutor, TWAPExecutor, VWAPExecutor
+executor = MinImpactExecutor(max_participation_pct=0.15, min_order_size=100)
+splits = executor.calculate_optimal_splits(target_amount=200000.0, ref_price=4.20, avg_daily_volume=1000000)
+print(f"拆分为 {len(splits)} 笔")
+
+# 风控模块
+from utils.wt_risk_control import RiskControl, StopLossManager, PortfolioRiskAnalyzer
+risk_ctrl = RiskControl({"max_daily_loss_pct": 0.05, "max_portfolio_drawdown_pct": 0.15})
+stop_loss = StopLossManager(stop_loss_pct=0.08, take_profit_pct=0.15)
+risk_analyzer = PortfolioRiskAnalyzer()
+
+# ETF资金流监控
+from utils.etf_flow_monitor import ETFRealTimeTracker, refresh_etf_flow_signals
+tracker = ETFRealTimeTracker()
+summary = tracker.fetch_all_etf_fund_flow()
+refresh_etf_flow_signals()  # 更新 positions.json 中的信号
 ```
+
+---
+
+## WonderTrader 高价值模块详解
+
+### 模块架构
+
+| 模块 | 文件 | 用途 | 参考 WT 组件 |
+|------|------|------|-------------|
+| 统一数据结构 | `wt_structs.py` | Tick/Bar/Order/Trade/Position/Contract | WTSTructs |
+| 合约管理器 | `wt_contracts_manager.py` | 全市场合约规格统一管理 | ContractsManager |
+| 价差策略框架 | `wt_spread_strategy.py` | ETF配对/跨期套利/价差回归 | SpreadStrategy + SpreadContext |
+| 组合对冲策略 | `wt_hedge_strategy.py` | Beta/尾部风险/动态对冲 | HedgeStrategy + HedgeContext |
+| Tick级回测引擎 | `wt_tick_engine.py` | 事件驱动回测 + 精确撮合 | WtBtEngine |
+| 执行算法 | `wt_execution_algo.py` | MinImpact/TWAP/VWAP大单拆分 | OrderExecutor |
+| 风控模块 | `wt_risk_control.py` | 多层次风控 | RiskControl |
+| 回测引擎 | `wt_backtest_engine.py` | ETF信号策略回测 | 轻量回测框架 |
+
+### 核心数据结构
+
+```python
+# TickData: 逐笔成交数据
+TickData(code, time, price, volume, bid1~bid5, ask1~ask5)
+
+# BarData: K线数据
+BarData(code, time, open, high, low, close, volume, turnover)
+
+# OrderData: 订单数据
+OrderData(order_id, code, direction, order_type, price, volume, filled_volume)
+
+# TradeData: 成交数据
+TradeData(trade_id, order_id, code, price, volume, time)
+
+# PositionData: 持仓数据
+PositionData(code, direction, volume, avg_price, last_price)
+
+# ContractData: 合约数据
+ContractData(code, exchange, name, contract_multiplier, price_tick, margin_rate)
+```
+
+### 价差策略示例
+
+支持三种价差类型：
+- **ratio**：比率价差（如 1×IF - 0.7×IC）
+- **diff**：差值价差（如 510300 - 510050）
+- **weighted**：加权价差（按市值权重）
+
+内置 ETF 配对模板：
+- `SPD.300-50`：沪深300ETF vs 上证50ETF
+- `SPD.300-500`：沪深300ETF vs 中证500ETF
+- `SPD.SCI-TECH`：科创50ETF vs 半导体ETF
+
+### 对冲策略框架
+
+| 策略类型 | 适用场景 | 参数 |
+|----------|----------|------|
+| BetaHedgeStrategy | 系统性风险对冲 | config={"target_hedge_ratio": 0.2, "max_hedge_ratio": 0.5} |
+| TailRiskHedgeStrategy | 尾部风险保护 | config={"target_hedge_ratio": 0.3, "vol_threshold": 0.2} |
+| DynamicHedgeStrategy | 动态调整对冲 | config={"target_hedge_ratio": 0.3} |
 
 ---
 
@@ -273,6 +430,16 @@ macro = get_external_macro()
 | -8% | 减仓：权益仓位降至 70%，现金提至 30% |
 | -10% | 警戒：权益仓位降至 50%，现金提至 50% |
 | -15% | 清仓：全部止损，保留现金 |
+
+### WT 风控模块规则
+
+| 规则类型 | 阈值 | 操作 |
+|----------|------|------|
+| 单笔交易上限 | 总资产 5% | 熔断，拒绝下单 |
+| 单标的持仓上限 | 总资产 10% | 禁止加仓 |
+| 行业集中度上限 | 总资产 30% | 禁止该行业新单 |
+| 日成交额度 | 日预算 | 当日停止交易 |
+| 滑点熔断 | 0.5% | 订单重新拆分 |
 
 ---
 
@@ -299,6 +466,10 @@ pip install tensorflow          # LSTM 价格预测
 pip install timesfm[torch]     # TimesFM 零样本预测 (200M 参数)
 pip install scrapling[all]     # 反爬增强 (Cloudflare 绕过)
 pip install statsmodels        # ARIMA 统计预测
+
+# 回测增强 (可选)
+pip install numba              # Tick级回测加速
+pip install plotly             # 可视化
 ```
 
 ### AI 模型降级链
@@ -334,6 +505,7 @@ pip install statsmodels        # ARIMA 统计预测
 
 | 版本 | 日期 | 主要变更 |
 |------|------|----------|
+| v7.8 | 2026-07-11 | **WonderTrader 高价值模块集成**：新增 8 个 WT 风格模块（统一数据结构/合约管理器/价差策略/组合对冲/Tick级回测/执行算法/风控/回测引擎）；ETF资金流监控集成WT数据结构；更新 `utils/__init__.py` 导出全部WT模块 |
 | v7.7 | 2026-07-10 | **AI 增强**：新增 4 个模块（价格预测/外部数据源/网页抓取/AI 报告代理）；建仓流程集成预测信号调整分配（强看多 +30%、强看空跳过）；固定日预算 20万/交易日；data_provider 新增 6 个集成方法 |
 | v7.6 | 2026-07-09 | 仓位重建：清除旧仓位，重建 20 标的新计划；双账户结构（300万股票ETF + 200万对冲）；整合 2026-07-09 ETF 资金流向报告；2030-12-31 强制清仓目标 |
 | v7.5.3 | 2026-07-08 | 7/8 建仓执行完成；修复 daily_workflow.py 中 ntp 属性缺失问题；新增宏观模块目录 |
@@ -354,8 +526,10 @@ pip install statsmodels        # ARIMA 统计预测
 
 本系统所有数学模型与参数均为研究建议，非实盘配置。实盘部署前必须通过 Risk Committee 三审。Walk-Forward 与压力测试结果不可作为未来收益保证。Kelly 公式与 Risk Parity 在极端尾部行情下可能失效，必须配合三联对冲与熔断机制使用。2030 年清仓为计划目标，实际执行可能因市场条件调整。
 
+WonderTrader 模块为纯 Python 实现，未使用 wtpy C++ 核心库。实际性能可能与原版 C++ 实现存在差异，高频交易场景需谨慎评估。
+
 ---
 
 **作者**: yuppiez99999
-**日期**: 2026-07-10
-**版本**: v7.7-ai-enhanced-prediction
+**日期**: 2026-07-11
+**版本**: v7.8-wondertrader-integration

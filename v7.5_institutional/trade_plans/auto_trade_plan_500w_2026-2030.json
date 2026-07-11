@@ -38,7 +38,7 @@
   },
   "stock_etf_account": {
     "capital": 3000000,
-    "target_positions": 20,
+    "target_positions": 25,
     "positions": [
       {
         "code": "588080.SH",
@@ -239,20 +239,70 @@
         "etf_flow_signal": null,
         "etf_inflow": null,
         "reason": "水电龙头+高股息4%; 防御底仓; 降低组合回撤"
+      },
+      {
+        "code": "588000.SH",
+        "name": "科创50ETF华夏",
+        "type": "ETF",
+        "weight": 0.02,
+        "amount": 60000,
+        "etf_flow_signal": "关注",
+        "etf_inflow": 0.0,
+        "reason": "科创板核心ETF; AI/半导体龙头集合; 十五五新质生产力; 实时ETF资金流向监控标的"
+      },
+      {
+        "code": "510300.SH",
+        "name": "沪深300ETF华泰柏瑞",
+        "type": "ETF",
+        "weight": 0.03,
+        "amount": 90000,
+        "etf_flow_signal": "关注",
+        "etf_inflow": 0.0,
+        "reason": "沪深300核心宽基; A股Beta基准; 降低组合波动率; 实时ETF资金流向监控标的"
+      },
+      {
+        "code": "510500.SH",
+        "name": "中证500ETF南方",
+        "type": "ETF",
+        "weight": 0.02,
+        "amount": 60000,
+        "etf_flow_signal": "关注",
+        "etf_inflow": 0.0,
+        "reason": "中证500中盘宽基; 成长与价值平衡; 实时ETF资金流向监控标的"
+      },
+      {
+        "code": "512100.SH",
+        "name": "中证1000ETF",
+        "type": "ETF",
+        "weight": 0.02,
+        "amount": 60000,
+        "etf_flow_signal": "关注",
+        "etf_inflow": 0.0,
+        "reason": "中证1000小盘宽基; 科技成长波动对冲; IM期货标的指数; 实时ETF资金流向监控标的"
+      },
+      {
+        "code": "159915.SZ",
+        "name": "创业板ETF易方达",
+        "type": "ETF",
+        "weight": 0.02,
+        "amount": 60000,
+        "etf_flow_signal": "关注",
+        "etf_inflow": 0.0,
+        "reason": "创业板成长风格核心; 创新企业集中地; 实时ETF资金流向监控标的"
       }
     ],
     "weight_summary": {
-      "total_weight": 0.89,
-      "cash_buffer": 0.1,
-      "etf_count": 8,
+      "total_weight": 1.00,
+      "cash_buffer": 0.0,
+      "etf_count": 13,
       "stock_count": 12,
-      "etf_weight": 0.44,
-      "stock_weight": 0.46,
-      "total_amount": 2670000
+      "etf_weight": 0.55,
+      "stock_weight": 0.45,
+      "total_amount": 3000000
     },
     "sector_distribution": {
       "科技_AI半导体": 0.29,
-      "ETF宽基指数": 0.14,
+      "ETF宽基指数": 0.25,
       "金融券商银行": 0.15,
       "新能源": 0.09,
       "医药医疗": 0.07,
