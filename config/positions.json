@@ -644,15 +644,7 @@
       "margin_rate": 0.12,
       "target_beta_reduction": 0.3,
       "reason": "沪深300对冲系统性风险; Beta加权",
-      "framework": [
-        "十五五: 宽基稳定器",
-        "康波: 复苏期降低组合Beta"
-      ],
-      "executed_date": "2026-07-13",
-      "executed_status": "simulated",
-      "executed_qty": 2,
-      "executed_notional": 2280000.0,
-      "executed_cost": 273600.0
+      "framework": ["十五五: 宽基稳定器", "康波: 复苏期降低组合Beta"]
     },
     "IM_futures": {
       "instrument": "IM期货",
@@ -663,15 +655,7 @@
       "margin_rate": 0.14,
       "target_beta_reduction": 0.1,
       "reason": "中证1000对冲中小盘; 科技成长波动对冲",
-      "framework": [
-        "十五五: 中小盘创新板保护",
-        "康波: 成长波动对冲"
-      ],
-      "executed_date": "2026-07-13",
-      "executed_status": "simulated",
-      "executed_qty": 1,
-      "executed_notional": 1160000.0,
-      "executed_cost": 162400.0
+      "framework": ["十五五: 中小盘创新板保护", "康波: 成长波动对冲"]
     },
     "CU_futures": {
       "instrument": "铜期货",
@@ -679,17 +663,9 @@
       "direction": "LONG",
       "target_contracts": 1,
       "multiplier": 5,
-      "margin_rate": 0.1,
+      "margin_rate": 0.10,
       "reason": "十五五高端制造/AI算力电力基建核心资源; 康波繁荣期大宗商品主升浪",
-      "framework": [
-        "十五五: 高端装备+AI算力基建",
-        "康波: 繁荣期资源品"
-      ],
-      "executed_date": "2026-07-13",
-      "executed_status": "simulated",
-      "executed_qty": 1,
-      "executed_notional": 25000.0,
-      "executed_cost": 2500.0
+      "framework": ["十五五: 高端装备+AI算力基建", "康波: 繁荣期资源品"]
     },
     "AL_futures": {
       "instrument": "铝期货",
@@ -697,17 +673,9 @@
       "direction": "LONG",
       "target_contracts": 1,
       "multiplier": 5,
-      "margin_rate": 0.1,
+      "margin_rate": 0.10,
       "reason": "十五五高端制造/轻量化+电力传输; 康波受益",
-      "framework": [
-        "十五五: 高端装备制造",
-        "康波: 新兴制造需求扩张"
-      ],
-      "executed_date": "2026-07-13",
-      "executed_status": "simulated",
-      "executed_qty": 1,
-      "executed_notional": 25000.0,
-      "executed_cost": 2500.0
+      "framework": ["十五五: 高端装备制造", "康波: 新兴制造需求扩张"]
     },
     "LC_futures": {
       "instrument": "碳酸锂期货",
@@ -717,15 +685,7 @@
       "multiplier": 1,
       "margin_rate": 0.12,
       "reason": "十五五新能源与储能战略资源; 康波成长+产能出清反弹",
-      "framework": [
-        "十五五: 新能源与储能",
-        "康波: 新能源产业链上游"
-      ],
-      "executed_date": "2026-07-13",
-      "executed_status": "simulated",
-      "executed_qty": 1,
-      "executed_notional": 80000.0,
-      "executed_cost": 9600.0
+      "framework": ["十五五: 新能源与储能", "康波: 新能源产业链上游"]
     },
     "AU_futures": {
       "instrument": "黄金期货",
@@ -735,15 +695,7 @@
       "multiplier": 1000,
       "margin_rate": 0.08,
       "reason": "十五五战略资源安全; 康波萧条末期避险最优; 已有黄金ETF底仓",
-      "framework": [
-        "十五五: 战略资源与安全",
-        "康波: 避险+货币信用"
-      ],
-      "executed_date": "2026-07-13",
-      "executed_status": "simulated",
-      "executed_qty": 1,
-      "executed_notional": 550000.0,
-      "executed_cost": 44000.0
+      "framework": ["十五五: 战略资源与安全", "康波: 避险+货币信用"]
     },
     "ETF_put_options": {
       "instrument": "510050 Put",
@@ -753,14 +705,7 @@
       "strike": "OTM_5%",
       "premium_budget": 50000,
       "reason": "上证50认沽; 尾部风险保护",
-      "framework": [
-        "十五五: 宽基防御",
-        "康波: 尾部保护"
-      ],
-      "executed_date": "2026-07-13",
-      "executed_status": "simulated",
-      "executed_qty": 10,
-      "executed_premium_budget": 50000.0
+      "framework": ["十五五: 宽基防御", "康波: 尾部保护"]
     },
     "588080_put_options": {
       "instrument": "科创50ETF Put",
@@ -770,14 +715,7 @@
       "strike": "OTM_5%",
       "premium_budget": 30000,
       "reason": "科创50科技股尾部保护; 十五五新质生产力旗舰",
-      "framework": [
-        "十五五: AI算力+半导体",
-        "康波: 科技成长保护"
-      ],
-      "executed_date": "2026-07-13",
-      "executed_status": "simulated",
-      "executed_qty": 5,
-      "executed_premium_budget": 30000.0
+      "framework": ["十五五: AI算力+半导体", "康波: 科技成长保护"]
     },
     "159915_put_options": {
       "instrument": "创业板ETF Put",
@@ -787,14 +725,7 @@
       "strike": "OTM_5%",
       "premium_budget": 30000,
       "reason": "创业板成长风格尾部保护; 创新企业集中地",
-      "framework": [
-        "十五五: 创新生态",
-        "康波: 成长波动保护"
-      ],
-      "executed_date": "2026-07-13",
-      "executed_status": "simulated",
-      "executed_qty": 5,
-      "executed_premium_budget": 30000.0
+      "framework": ["十五五: 创新生态", "康波: 成长波动保护"]
     }
   }
 }

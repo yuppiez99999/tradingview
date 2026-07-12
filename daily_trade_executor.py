@@ -653,8 +653,43 @@ def generate_instructions(target_date_str: str) -> Dict:
     # 按缺口降序排序 (缺口大的优先买入)
     pending_positions.sort(key=lambda x: x["gap"], reverse=True)
 
-    # 轮换分配: 优先满足缺口大的标的
-    # 每个标的按权重比例分配当日预算, 但确保总金额不超过预算
+    # v8.0: 风险预算驱动分配 (替代固定权重比例)
+    risk_allocated: Dict[str, Dict] = {}
+    try:
+        from utils.risk_budget_allocator import RiskBudgetAllocator
+        from v7.5_institutional.src.risk.risk_budgeter import RiskBudgeter
+        allocator = RiskBudgetAllocator(
+            total_capital=STOCK_ETF_TARGET,
+            target_return=0.08,
+            max_dd=0.15,
+            single_trade_risk=0.015,
+            daily_budget_limit=DAILY_AMOUNT_LIMIT,
+        )
+        # 构造收益率矩阵用于 Risk Parity
+        returns_matrix = None
+        try:
+            symbols = [p.get("code_clean", "") for p in pending_positions]
+            rows = []
+            for sym in symbols:
+                prices_arr = _load_prediction_prices(sym)
+                if prices_arr is not None and len(prices_arr) > 1:
+                    rows.append(pd.Series(prices_arr, name=sym))
+            if rows:
+                returns_matrix = pd.concat(rows, axis=1).pct_change().dropna()
+        except Exception:
+            returns_matrix = None
+
+        risk_allocated = allocator.allocate_daily_budget(
+            pending_positions,
+            returns_matrix=returns_matrix,
+            signals=prediction_signals,
+            macro_scores=macro_policy_scores,
+            etf_signals={p.get("code", ""): assess_etf_signal(p.get("code", ""), positions_data) for p in pending_positions},
+        )
+    except Exception as e:
+        print(f"[WARN] 风险预算分配失败，回退到原权重分配: {e}")
+        risk_allocated = {}
+
     daily_budget = budget_info["daily_budget"]
     instructions = []
     total_allocated = 0
@@ -681,6 +716,14 @@ def generate_instructions(target_date_str: str) -> Dict:
         allocated = min(remaining_budget * pos["weight"] / 0.05 * 0.15, remaining_budget, pos["remaining"])
         # 单标的上限: 当日预算的30% (20万预算下单标最多6万)
         allocated = min(allocated, daily_budget * 0.30)
+
+        # v8.0: 若风险预算分配生效，则覆盖原权重分配
+        risk_info = risk_allocated.get(pos.get("code", ""))
+        if risk_info:
+            allocated = float(risk_info.get("allocated", allocated))
+            if allocated <= 0:
+                print(f"[WARN] 风险预算跳过: {code_clean} ({pos['name']}) - 风险预算为 0")
+                continue
 
         # v7.5+: 根据预测信号调整分配
         signal = prediction_signals.get(code_clean, {})

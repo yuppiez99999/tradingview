@@ -1,0 +1,152 @@
+# -*- coding: utf-8 -*-
+"""
+Greeks 动态对冲管理器
+
+顶级对冲基金标准组件：
+- 组合 Delta/Gamma/Theta/Vega 暴露计算
+- 基于 Greeks 的动态对冲目标计算
+- 期货/期权对冲量自动调整
+
+用于替代/增强现有静态对冲配置。
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
+
+@dataclass
+class GreekExposure:
+    """Greeks 暴露"""
+    delta: float = 0.0
+    gamma: float = 0.0
+    theta: float = 0.0
+    vega: float = 0.0
+    rho: float = 0.0
+
+
+@dataclass
+class HedgeInstrument:
+    """对冲工具"""
+    code: str
+    instrument_type: str   # FUTURES / OPTION
+    direction: str         # LONG / SHORT
+    multiplier: float = 1.0
+    delta: float = 1.0
+    gamma: float = 0.0
+    theta: float = 0.0
+    vega: float = 0.0
+    beta: float = 1.0
+
+
+class GreekHedgeManager:
+    """Greeks 动态对冲管理器"""
+
+    def __init__(self,
+                 target_delta: float = 0.0,
+                 target_gamma: float = 0.0,
+                 max_vega: float = 50000.0,
+                 max_theta_burn: float = -5000.0):
+        self.target_delta = target_delta
+        self.target_gamma = target_gamma
+        self.max_vega = max_vega
+        self.max_theta_burn = max_theta_burn
+
+    def calc_portfolio_greeks(self,
+                              positions: Dict[str, Dict],
+                              prices: Dict[str, float]) -> GreekExposure:
+        """计算持仓组合的 Greeks 暴露"""
+        exposure = GreekExposure()
+        for code, pos in positions.items():
+            qty = float(pos.get("shares", 0) or pos.get("target_contracts", 0) or 0)
+            price = float(prices.get(code, pos.get("est_price", 0.0)))
+            if qty == 0 or price <= 0:
+                continue
+            multiplier = float(pos.get("multiplier", 1.0))
+            notional = qty * price * multiplier
+            beta = float(pos.get("beta", 1.0))
+            delta = float(pos.get("delta", 1.0))
+            gamma = float(pos.get("gamma", 0.0))
+            theta = float(pos.get("theta", 0.0))
+            vega = float(pos.get("vega", 0.0))
+            exposure.delta += notional * beta * delta
+            exposure.gamma += notional * beta * gamma
+            exposure.theta += notional * beta * theta
+            exposure.vega += notional * beta * vega
+        return exposure
+
+    def target_futures_delta_hedge(self,
+                                   portfolio_exposure: GreekExposure,
+                                   hedge_instruments: List[HedgeInstrument],
+                                   prices: Dict[str, float]) -> Dict[str, float]:
+        """基于 Delta 计算期货对冲目标量"""
+        if not hedge_instruments:
+            return {}
+        current_delta = portfolio_exposure.delta
+        residual_delta = current_delta - self.target_delta
+        if abs(residual_delta) < 1e-6:
+            return {}
+
+        targets: Dict[str, float] = {}
+        remaining = residual_delta
+        for inst in hedge_instruments:
+            if inst.instrument_type.upper() != "FUTURES":
+                continue
+            price = float(prices.get(inst.code, 0.0))
+            if price <= 0 or inst.delta == 0:
+                continue
+            hedge_delta_per_unit = inst.delta * inst.multiplier * price
+            if remaining * hedge_delta_per_unit < 0:
+                unit = -remaining / hedge_delta_per_unit
+                targets[inst.code] = float(unit)
+                remaining = 0.0
+                break
+        return targets
+
+    def target_option_greeks_hedge(self,
+                                   portfolio_exposure: GreekExposure,
+                                   options: List[HedgeInstrument],
+                                   prices: Dict[str, float]) -> Dict[str, Dict]:
+        """基于 Greeks 计算期权对冲目标量"""
+        if not options:
+            return {}
+        targets: Dict[str, Dict] = {}
+        for opt in options:
+            if opt.instrument_type.upper() != "OPTION":
+                continue
+            price = float(prices.get(opt.code, 0.0))
+            if price <= 0:
+                continue
+            target = {
+                "delta_target": -portfolio_exposure.delta * 0.1 if opt.delta else 0.0,
+                "gamma_target": -portfolio_exposure.gamma * 0.1 if opt.gamma else 0.0,
+                "vega_target": min(abs(portfolio_exposure.vega), self.max_vega) * 0.1,
+                "theta_cap": self.max_theta_burn,
+            }
+            targets[opt.code] = target
+        return targets
+
+    def hedge_ratio(self,
+                    portfolio_value: float,
+                    hedge_value: float) -> float:
+        """对冲比例"""
+        if portfolio_value <= 0:
+            return 0.0
+        return hedge_value / portfolio_value
+
+    def rebalance_signal(self,
+                         current_exposure: GreekExposure,
+                         tolerance: float = 0.05) -> Dict[str, bool]:
+        """判断是否需要再平衡"""
+        delta_ok = abs(current_exposure.delta - self.target_delta) <= tolerance * max(abs(current_exposure.delta), 1.0)
+        gamma_ok = abs(current_exposure.gamma - self.target_gamma) <= tolerance * max(abs(current_exposure.gamma), 1.0)
+        vega_ok = abs(current_exposure.vega) <= self.max_vega
+        theta_ok = current_exposure.theta >= self.max_theta_burn
+        return {
+            "delta_rebalance": not delta_ok,
+            "gamma_rebalance": not gamma_ok,
+            "vega_rebalance": not vega_ok,
+            "theta_rebalance": not theta_ok,
+            "need_rebalance": not (delta_ok and gamma_ok and vega_ok and theta_ok),
+        }
