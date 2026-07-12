@@ -657,7 +657,6 @@ def generate_instructions(target_date_str: str) -> Dict:
     risk_allocated: Dict[str, Dict] = {}
     try:
         from utils.risk_budget_allocator import RiskBudgetAllocator
-        from v7.5_institutional.src.risk.risk_budgeter import RiskBudgeter
         allocator = RiskBudgetAllocator(
             total_capital=STOCK_ETF_TARGET,
             target_return=0.08,
