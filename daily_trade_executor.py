@@ -907,11 +907,17 @@ def execute_instructions(target_date_str: str) -> Dict:
     # v7.8+: WT风控前置检查
     if wt_modules.get("risk_control"):
         try:
-            total_amount = sum(i.get("amount", 0) for i in confirmed)
-            risk_ok, risk_msg = wt_modules["risk_control"].check_position_limit(total_amount, STOCK_ETF_TARGET)
-            if not risk_ok:
-                print(f"[WARN] WT风控检查未通过: {risk_msg}")
-                # 不阻断执行, 仅记录警告
+            rc = wt_modules["risk_control"]
+            # 单笔交易额度检查
+            for inst in confirmed:
+                amount = inst.get("amount", 0)
+                ok, msg = rc.check_single_trade(amount, STOCK_ETF_TARGET)
+                if not ok:
+                    print(f"[WARN] WT风控单笔检查未通过: {msg}")
+            # 日内交易笔数检查
+            ok, msg = rc.check_daily_trade_count()
+            if not ok:
+                print(f"[WARN] WT风控日内笔数检查未通过: {msg}")
         except Exception as e:
             print(f"[WARN] WT风控检查执行失败: {e}")
 

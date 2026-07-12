@@ -252,6 +252,17 @@ class PortfolioRiskAnalyzer:
         pass
 
     @staticmethod
+    def _normalize_positions(positions: Dict) -> Dict:
+        """标准化持仓字段，兼容 qty / shares"""
+        normalized = {}
+        for code, pos in positions.items():
+            normalized[code] = {
+                "qty": pos.get("qty", pos.get("shares", 0)),
+                "avg_cost": pos.get("avg_cost", 0.0),
+            }
+        return normalized
+
+    @staticmethod
     def calculate_var(positions: Dict, volatility: float = 0.02, confidence_level: float = 0.95) -> float:
         """计算在险价值(VaR)
 
@@ -263,14 +274,16 @@ class PortfolioRiskAnalyzer:
         Returns:
             VaR值
         """
-        total_value = sum(pos["qty"] * pos["avg_cost"] for pos in positions.values())
+        normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
+        total_value = sum(pos["qty"] * pos["avg_cost"] for pos in normalized.values())
         z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
         return total_value * volatility * z_score
 
     @staticmethod
     def calculate_cvar(positions: Dict, volatility: float = 0.02, confidence_level: float = 0.95) -> float:
         """计算条件在险价值(CVaR)"""
-        total_value = sum(pos["qty"] * pos["avg_cost"] for pos in positions.values())
+        normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
+        total_value = sum(pos["qty"] * pos["avg_cost"] for pos in normalized.values())
         z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
         cvar_factor = volatility * (z_score * math.exp(-z_score ** 2 / 2) / (math.sqrt(2 * math.pi) * (1 - confidence_level)))
         return total_value * cvar_factor
@@ -278,12 +291,13 @@ class PortfolioRiskAnalyzer:
     @staticmethod
     def calculate_position_concentration(positions: Dict) -> Dict:
         """计算持仓集中度"""
-        total_value = sum(pos["qty"] * pos["avg_cost"] for pos in positions.values())
+        normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
+        total_value = sum(pos["qty"] * pos["avg_cost"] for pos in normalized.values())
         if total_value == 0:
             return {}
 
         concentration = {}
-        for code, pos in positions.items():
+        for code, pos in normalized.items():
             pos_value = pos["qty"] * pos["avg_cost"]
             concentration[code] = {
                 "value": pos_value,
@@ -297,10 +311,11 @@ class PortfolioRiskAnalyzer:
     @staticmethod
     def analyze_sector_distribution(positions: Dict, sector_map: Dict) -> Dict:
         """分析行业分布"""
+        normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
         sectors = {}
         total_value = 0
 
-        for code, pos in positions.items():
+        for code, pos in normalized.items():
             code_num = code.split(".")[0] if "." in code else code
             sector = sector_map.get(code_num, "未知")
 
@@ -317,6 +332,53 @@ class PortfolioRiskAnalyzer:
                 sectors[sector]["percentage"] = sectors[sector]["value"] / total_value
 
         return dict(sorted(sectors.items(), key=lambda x: -x[1]["value"]))
+
+    def analyze_portfolio(self, positions: Dict, total_built: float, target: float) -> Dict:
+        """组合级风险分析
+        
+        参数:
+            positions: 持仓字典
+            total_built: 已建仓金额
+            target: 目标建仓金额
+        
+        返回:
+            风险分析结果字典
+        """
+        # 持仓集中度
+        concentration = self.calculate_position_concentration(positions)
+        
+        # VaR/CVaR
+        var_95 = self.calculate_var(positions, confidence_level=0.95)
+        var_99 = self.calculate_var(positions, confidence_level=0.99)
+        cvar_95 = self.calculate_cvar(positions, confidence_level=0.95)
+        
+        # 建仓进度
+        build_progress = total_built / target if target > 0 else 0
+        
+        # 集中度风险评分 (0-100)
+        concentration_risk = 0.0
+        if concentration:
+            top_pct = list(concentration.values())[0].get("percentage", 0)
+            concentration_risk = min(top_pct * 200, 100)
+        
+        # 综合风险评分 (0-100)
+        risk_score = min(
+            concentration_risk * 0.4 +
+            (var_95 / max(target, 1)) * 10000 * 0.3 +
+            (1 - build_progress) * 30 * 0.3,
+            100,
+        )
+        
+        return {
+            "risk_score": round(risk_score, 2),
+            "concentration_risk": round(concentration_risk, 2),
+            "var_95": round(var_95, 2),
+            "var_99": round(var_99, 2),
+            "cvar_95": round(cvar_95, 2),
+            "build_progress": round(build_progress, 4),
+            "total_positions": len(positions),
+            "sector_distribution": {},
+        }
 
 
 class RiskReportGenerator:
