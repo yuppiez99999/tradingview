@@ -1,0 +1,155 @@
+{
+  "date": "2026-07-13",
+  "action": "HEDGE",
+  "portfolio_beta": 1.295791650793813,
+  "hedge_pct": 0.4,
+  "orders": [
+    {
+      "type": "FUTURES",
+      "action": "SELL",
+      "instrument": "IF期货",
+      "exchange": "CFFEX",
+      "contracts": 2,
+      "multiplier": 300,
+      "est_price": 3800.0,
+      "notional": 2280000.0,
+      "estimated_cost": 273600.0,
+      "budget_pct": 0.456,
+      "reason": "沪深300对冲系统性风险; Beta加权",
+      "framework": [
+        "十五五: 宽基稳定器",
+        "康波: 复苏期降低组合Beta"
+      ]
+    },
+    {
+      "type": "FUTURES",
+      "action": "SELL",
+      "instrument": "IM期货",
+      "exchange": "CFFEX",
+      "contracts": 1,
+      "multiplier": 200,
+      "est_price": 5800.0,
+      "notional": 1160000.0,
+      "estimated_cost": 162400.0,
+      "budget_pct": 0.232,
+      "reason": "中证1000对冲中小盘; 科技成长波动对冲",
+      "framework": [
+        "十五五: 中小盘创新板保护",
+        "康波: 成长波动对冲"
+      ]
+    },
+    {
+      "type": "FUTURES",
+      "action": "LONG",
+      "instrument": "铜期货",
+      "exchange": "SHFE",
+      "contracts": 1,
+      "multiplier": 5,
+      "est_price": 5000.0,
+      "notional": 25000.0,
+      "estimated_cost": 2500.0,
+      "budget_pct": 0.005,
+      "reason": "十五五高端制造/AI算力电力基建核心资源; 康波繁荣期大宗商品主升浪",
+      "framework": [
+        "十五五: 高端装备+AI算力基建",
+        "康波: 繁荣期资源品"
+      ]
+    },
+    {
+      "type": "FUTURES",
+      "action": "LONG",
+      "instrument": "铝期货",
+      "exchange": "SHFE",
+      "contracts": 1,
+      "multiplier": 5,
+      "est_price": 5000.0,
+      "notional": 25000.0,
+      "estimated_cost": 2500.0,
+      "budget_pct": 0.005,
+      "reason": "十五五高端制造/轻量化+电力传输; 康波受益",
+      "framework": [
+        "十五五: 高端装备制造",
+        "康波: 新兴制造需求扩张"
+      ]
+    },
+    {
+      "type": "FUTURES",
+      "action": "LONG",
+      "instrument": "碳酸锂期货",
+      "exchange": "SHFE",
+      "contracts": 1,
+      "multiplier": 1,
+      "est_price": 80000.0,
+      "notional": 80000.0,
+      "estimated_cost": 9600.0,
+      "budget_pct": 0.016,
+      "reason": "十五五新能源与储能战略资源; 康波成长+产能出清反弹",
+      "framework": [
+        "十五五: 新能源与储能",
+        "康波: 新能源产业链上游"
+      ]
+    },
+    {
+      "type": "FUTURES",
+      "action": "LONG",
+      "instrument": "黄金期货",
+      "exchange": "SHFE",
+      "contracts": 1,
+      "multiplier": 1000,
+      "est_price": 550.0,
+      "notional": 550000.0,
+      "estimated_cost": 44000.0,
+      "budget_pct": 0.11,
+      "reason": "十五五战略资源安全; 康波萧条末期避险最优; 已有黄金ETF底仓",
+      "framework": [
+        "十五五: 战略资源与安全",
+        "康波: 避险+货币信用"
+      ]
+    },
+    {
+      "type": "OPTIONS",
+      "action": "BUY",
+      "instrument": "510050 Put",
+      "exchange": "SSE",
+      "contracts": 10,
+      "strike": "OTM_5%",
+      "premium_budget": 50000,
+      "budget_pct": 0.025,
+      "reason": "上证50认沽; 尾部风险保护",
+      "framework": [
+        "十五五: 宽基防御",
+        "康波: 尾部保护"
+      ]
+    },
+    {
+      "type": "OPTIONS",
+      "action": "BUY",
+      "instrument": "科创50ETF Put",
+      "exchange": "SSE",
+      "contracts": 5,
+      "strike": "OTM_5%",
+      "premium_budget": 30000,
+      "budget_pct": 0.015,
+      "reason": "科创50科技股尾部保护; 十五五新质生产力旗舰",
+      "framework": [
+        "十五五: AI算力+半导体",
+        "康波: 科技成长保护"
+      ]
+    },
+    {
+      "type": "OPTIONS",
+      "action": "BUY",
+      "instrument": "创业板ETF Put",
+      "exchange": "SZSE",
+      "contracts": 5,
+      "strike": "OTM_5%",
+      "premium_budget": 30000,
+      "budget_pct": 0.015,
+      "reason": "创业板成长风格尾部保护; 创新企业集中地",
+      "framework": [
+        "十五五: 创新生态",
+        "康波: 成长波动保护"
+      ]
+    }
+  ]
+}
