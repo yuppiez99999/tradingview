@@ -759,6 +759,18 @@ def generate_instructions(target_date_str: str) -> Dict:
 
         actual_amount = round(est_qty * ref_price, 2)
 
+        # v8.0: 预估交易成本并从剩余预算中扣除
+        try:
+            from utils.transaction_cost_model import TransactionCostModel
+            cost_model = TransactionCostModel()
+            cost_info = cost_model.estimate_total_cost(actual_amount)
+            transaction_cost = float(cost_info.get("total", 0.0))
+        except Exception:
+            transaction_cost = 0.0
+
+        if actual_amount + transaction_cost > remaining_budget:
+            continue
+
         # 如果实际金额超过剩余预算, 跳过
         if actual_amount > remaining_budget:
             continue
@@ -780,6 +792,7 @@ def generate_instructions(target_date_str: str) -> Dict:
             "max_buy_price": max_buy_price,
             "min_buy_price": min_buy_price,
             "estimated_amount": actual_amount,
+            "transaction_cost": round(transaction_cost, 2),
             "weight": pos["weight"],
             "target_amount": pos["target_amount"],
             "built_before": pos["built"],
@@ -805,7 +818,7 @@ def generate_instructions(target_date_str: str) -> Dict:
             "confirm": False,  # ⚠️ 默认未确认, 需人工改为 true
         })
         total_allocated += actual_amount
-        remaining_budget -= actual_amount
+        remaining_budget -= (actual_amount + transaction_cost)
 
     # 风控检查
     risk_checks = {
@@ -1134,12 +1147,31 @@ def execute_instructions(target_date_str: str) -> Dict:
         qty = inst["qty"]
         ref_price = inst["ref_price"]
 
-        # v7.8+: 使用 WT 执行算法拆分订单 (大金额订单)
+        # v8.0: 智能执行算法选择
         splits = []
         fill_amount = 0.0
         fill_price = ref_price
-        
-        if wt_modules.get("min_impact_executor") and inst.get("amount", 0) > 50000:
+        selected_algo = "immediate"
+
+        try:
+            from utils.execution_selector import choose_execution_algorithm
+            selection = choose_execution_algorithm(
+                target_amount=inst.get("amount", 0),
+                ref_price=ref_price,
+                avg_daily_volume=1000000,
+                max_execution_minutes=60.0,
+            )
+            selected_algo = selection.get("algorithm", "immediate")
+            splits = selection.get("orders", [])
+            fill_amount = round(sum(s.get("amount", 0.0) for s in splits), 2) if splits else round(qty * ref_price, 2)
+            fill_price = ref_price
+            print(f"[INFO] 智能执行算法: {inst['code']} 选择 {selected_algo}, 拆分为 {len(splits)} 笔, 总金额 ¥{fill_amount:,.0f}, 预估成本 ¥{selection.get('estimated_cost', 0.0):,.2f}")
+        except Exception as e:
+            print(f"[WARN] 智能执行算法选择失败: {e}, 使用默认执行")
+            fill_amount = round(qty * ref_price, 2)
+
+        # 回退: 若智能选择未生成拆单，但金额较大，仍使用 MinImpact
+        if not splits and inst.get("amount", 0) > 50000 and wt_modules.get("min_impact_executor"):
             try:
                 splits = wt_modules["min_impact_executor"].calculate_optimal_splits(
                     target_amount=inst["amount"],
@@ -1148,12 +1180,11 @@ def execute_instructions(target_date_str: str) -> Dict:
                 )
                 fill_amount = sum(s["amount"] for s in splits)
                 fill_price = ref_price
-                print(f"[INFO] WT执行算法: {inst['code']} 拆分为 {len(splits)} 笔, 总金额 ¥{fill_amount:,.0f}")
+                selected_algo = "min_impact"
+                print(f"[INFO] 回退 MinImpact: {inst['code']} 拆分为 {len(splits)} 笔, 总金额 ¥{fill_amount:,.0f}")
             except Exception as e:
-                print(f"[WARN] WT执行算法执行失败: {e}, 使用默认执行")
+                print(f"[WARN] MinImpact 执行失败: {e}, 使用默认执行")
                 fill_amount = round(qty * ref_price, 2)
-        else:
-            fill_amount = round(qty * ref_price, 2)
 
         # 更新建仓进度
         built_before = progress["built_amounts"].get(code, 0)
