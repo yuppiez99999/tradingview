@@ -13,19 +13,22 @@ sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统7.1')
 def load_positions():
     path = r'e:\各种PY程序\28-终极量化交易系统7.1\config\positions.json'
     with open(path, 'r', encoding='utf-8') as f:
-        data = json.load(f)['positions']
+        data = json.load(f)
     positions = {}
     prices = {}
-    for item in data.values():
+    hedge_positions = data.get('hedge_positions', {})
+    for item in data.get('positions', {}).values():
         code = item.get('code')
         qty = item.get('phase1_shares') or item.get('total_shares') or item.get('shares', 0)
         price = item.get('est_price', 0.0)
         if code and qty:
             positions[code] = float(qty)
             prices[code] = float(price)
-    return positions, prices
+    return positions, prices, hedge_positions
 
-def build_orders(plan: dict, positions: dict, prices: dict) -> dict:
+def build_orders(plan: dict, positions: dict, prices: dict, hedge_positions: dict = None) -> dict:
+    if hedge_positions is None:
+        hedge_positions = {}
     action = plan.get('action', 'NO_HEDGE')
     orders = []
     
@@ -66,6 +69,55 @@ def build_orders(plan: dict, positions: dict, prices: dict) -> dict:
             'estimated_cost': n * notional * 0.00013,
             'budget_pct': n * notional / target,
         })
+    
+    # 基于配置的期货/期权执行单生成
+    for key, cfg in hedge_positions.items():
+        instrument = cfg.get('instrument', key)
+        exchange = cfg.get('exchange', '')
+        direction = cfg.get('direction', '')
+        target_contracts = cfg.get('target_contracts', 0)
+        multiplier = cfg.get('multiplier', 0)
+        margin_rate = cfg.get('margin_rate', 0.0)
+        premium_budget = cfg.get('premium_budget', 0.0)
+        strike = cfg.get('strike', '')
+        reason = cfg.get('reason', '')
+        framework = cfg.get('framework', [])
+        
+        if target_contracts <= 0 or multiplier <= 0:
+            continue
+        
+        if '期货' in instrument or 'futures' in instrument.lower() or key.lower().endswith('_futures'):
+            est_price = prices.get(instrument, 0.0)
+            if est_price <= 0:
+                est_price = 3800.0 if 'IF' in instrument else 5800.0 if 'IM' in instrument else 5000.0
+            notional = target_contracts * multiplier * est_price
+            orders.append({
+                'type': 'FUTURES',
+                'action': direction,
+                'instrument': instrument,
+                'exchange': exchange,
+                'contracts': target_contracts,
+                'multiplier': multiplier,
+                'est_price': est_price,
+                'notional': notional,
+                'estimated_cost': notional * margin_rate,
+                'budget_pct': notional / target,
+                'reason': reason,
+                'framework': framework,
+            })
+        elif 'Put' in instrument or 'Call' in instrument or '期权' in instrument or 'options' in instrument.lower():
+            orders.append({
+                'type': 'OPTIONS',
+                'action': direction,
+                'instrument': instrument,
+                'exchange': exchange,
+                'contracts': target_contracts,
+                'strike': strike,
+                'premium_budget': premium_budget,
+                'budget_pct': premium_budget / target if target > 0 else 0.0,
+                'reason': reason,
+                'framework': framework,
+            })
     
     # 避险追加
     defense_assets = {
@@ -125,14 +177,14 @@ def build_orders(plan: dict, positions: dict, prices: dict) -> dict:
     }
 
 def main():
-    positions, prices = load_positions()
+    positions, prices, hedge_positions = load_positions()
     plan_path = r'e:\各种PY程序\28-终极量化交易系统7.1\reports\hedge_decision_20260706.json'
     plan = {'action': 'NO_HEDGE', 'portfolio_beta': 0.0759, 'total_hedge_pct': 0.0}
     if os.path.exists(plan_path):
         with open(plan_path, 'r', encoding='utf-8') as f:
             plan = json.load(f)
     
-    orders = build_orders(plan, positions, prices)
+    orders = build_orders(plan, positions, prices, hedge_positions)
     out_path = r'e:\各种PY程序\28-终极量化交易系统7.1\reports\hedge_execution_orders_20260706.json'
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(orders, f, ensure_ascii=False, indent=2)
@@ -158,6 +210,10 @@ def main():
                 print(f"    预估成本: {o['estimated_cost']:,.0f}")
             if 'budget_pct' in o:
                 print(f"    预算占比: {o['budget_pct']*100:.2f}%")
+            if 'reason' in o:
+                print(f"    理由: {o['reason']}")
+            if 'framework' in o:
+                print(f"    框架: {', '.join(o['framework'])}")
             print()
     else:
         print('今日无执行单')

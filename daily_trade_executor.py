@@ -474,6 +474,64 @@ def adjust_allocation_by_signal(base_allocated: float, signal: Dict,
     return base_allocated, "neutral"
 
 
+def fetch_macro_policy_scores(symbols: List[str]) -> Dict[str, Dict]:
+    """获取十五五规划 + 康波周期宏观评分
+
+    Args:
+        symbols: 股票代码列表 (6位数字, 无后缀)
+
+    Returns:
+        {symbol: {combined_score, fifteen_five_score, kondratiev_score, factor, note}, ...}
+    """
+    try:
+        from ms_strategy.src.macro.macro_policy_scoring import score_macro_policy, macro_score_to_factor
+        scores = score_macro_policy(symbols)
+        results = {}
+        for symbol, score_obj in scores.items():
+            factor = macro_score_to_factor(score_obj.combined_score)
+            results[symbol] = {
+                "combined_score": score_obj.combined_score,
+                "fifteen_five_score": score_obj.fifteen_five_score,
+                "kondratiev_score": score_obj.kondratiev_score,
+                "factor": factor,
+                "fifteen_five_note": score_obj.fifteen_five_note,
+                "kondratiev_note": score_obj.kondratiev_note,
+            }
+        return results
+    except Exception as e:
+        print(f"[WARN] 宏观政策评分获取失败: {e}")
+        return {}
+
+
+def adjust_allocation_by_macro_policy(base_allocated: float, macro_score: Dict,
+                                      daily_budget: float) -> tuple:
+    """根据十五五+康波宏观评分调整分配金额
+
+    Args:
+        base_allocated: 基础分配金额
+        macro_score: 宏观评分 (fetch_macro_policy_scores 返回的单项)
+        daily_budget: 当日总预算
+
+    Returns:
+        (adjusted_allocated, macro_tag)
+        macro_tag: "strong_align"/"align"/"neutral"/"weak"/"skip"
+    """
+    if not macro_score:
+        return base_allocated, "neutral"
+
+    combined = macro_score.get("combined_score", 1.0)
+    factor = macro_score.get("factor", 1.0)
+
+    if combined >= 1.15:
+        return min(base_allocated * 1.2, daily_budget * 0.25), "strong_align"
+    elif combined >= 1.0:
+        return min(base_allocated * 1.0, daily_budget * 0.20), "align"
+    elif combined >= 0.85:
+        return base_allocated * 0.8, "weak"
+    else:
+        return 0, "skip"
+
+
 def generate_instructions(target_date_str: str) -> Dict:
     """盘前生成交易指令
 
@@ -539,6 +597,13 @@ def generate_instructions(target_date_str: str) -> Dict:
         up_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "UP")
         down_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "DOWN")
         print(f"[INFO] 预测信号: {len(prediction_signals)} 个标的, 看多 {up_count}, 看空 {down_count}")
+
+    # v7.9+: 获取十五五规划 + 康波周期宏观评分
+    macro_policy_scores = fetch_macro_policy_scores(pending_codes)
+    if macro_policy_scores:
+        strong_align = sum(1 for s in macro_policy_scores.values() if s.get("combined_score", 1.0) >= 1.15)
+        weak = sum(1 for s in macro_policy_scores.values() if s.get("combined_score", 1.0) < 0.85)
+        print(f"[INFO] 宏观政策评分: {len(macro_policy_scores)} 个标的, 强对齐 {strong_align}, 偏弱 {weak}")
 
     # 计算当日预算
     budget_info = calculate_daily_budget(target_date, progress, positions_data)
@@ -625,6 +690,13 @@ def generate_instructions(target_date_str: str) -> Dict:
             print(f"[WARN] 预测信号触发跳过: {code_clean} ({pos['name']}) - 强看空 (置信度 {signal.get('confidence', 0):.0%})")
             continue
 
+        # v7.9+: 根据十五五+康波宏观评分调整分配
+        macro_score = macro_policy_scores.get(code_clean, {})
+        allocated, macro_tag = adjust_allocation_by_macro_policy(allocated, macro_score, daily_budget)
+        if macro_tag == "skip" and allocated == 0:
+            print(f"[WARN] 宏观评分触发跳过: {code_clean} ({pos['name']}) - 不符合十五五/康波方向")
+            continue
+
         # 高价股处理: 如果 100 股成本 > 分配预算
         if min_lot_cost > allocated:
             # 如果 100 股成本超过当日预算的 50%, 跳过 (避免单标的占用过多预算)
@@ -676,6 +748,15 @@ def generate_instructions(target_date_str: str) -> Dict:
                 "target_price": round(pred_signal.get("target_price", 0), 2),
                 "method": pred_signal.get("method", "no_data"),
                 "tag": signal_tag,
+            },
+            "macro_policy": {
+                "combined_score": round(macro_score.get("combined_score", 1.0), 4),
+                "fifteen_five_score": round(macro_score.get("fifteen_five_score", 1.0), 4),
+                "kondratiev_score": round(macro_score.get("kondratiev_score", 1.0), 4),
+                "factor": macro_score.get("factor", 1.0),
+                "tag": macro_tag,
+                "fifteen_five_note": macro_score.get("fifteen_five_note", ""),
+                "kondratiev_note": macro_score.get("kondratiev_note", ""),
             },
             "gap": round(pos["gap"], 2),
             "confirm": False,  # ⚠️ 默认未确认, 需人工改为 true
@@ -811,18 +892,23 @@ def render_instructions_md(data: Dict) -> str:
         f"**总指令数**: {len(instructions)}",
         f"**总分配金额**: ¥{data['total_allocated']:,.0f}",
         "",
-        "| # | 代码 | 名称 | 动作 | 数量 | 参考价 | 最高买入价 | 最低买入价 | 估算金额 | ETF信号 | 已建仓 | 剩余 | 确认 |",
-        "|---|------|------|------|------|--------|-----------|-----------|---------|---------|--------|------|------|",
+        "| # | 代码 | 名称 | 动作 | 数量 | 参考价 | 最高买入价 | 最低买入价 | 估算金额 | ETF信号 | 预测信号 | 十五五/康波 | 已建仓 | 剩余 | 确认 |",
+        "|---|------|------|------|------|--------|-----------|-----------|---------|---------|----------|-----------|--------|------|------|",
     ]
 
     for idx, inst in enumerate(instructions, 1):
         confirm = "✅" if inst["confirm"] else "⏳"
+        pred = inst.get("prediction_signal", {})
+        macro = inst.get("macro_policy", {})
+        pred_tag = pred.get("tag", "neutral")
+        macro_tag = macro.get("combined_score", 1.0)
+        macro_note = macro.get("fifteen_five_note", "") or macro.get("kondratiev_note", "")
         lines.append(
             f"| {idx} | {inst['code']} | {inst['name']} | {inst['action']} | "
             f"{inst['qty']} | {inst['ref_price']:.4f} | {inst['max_buy_price']:.4f} | "
             f"{inst['min_buy_price']:.4f} | ¥{inst['estimated_amount']:,.0f} | "
-            f"{inst['etf_signal']} | ¥{inst['built_before']:,.0f} | "
-            f"¥{inst['remaining_after']:,.0f} | {confirm} |"
+            f"{inst['etf_signal']} | {pred_tag} | {macro_note} | "
+            f"¥{inst['built_before']:,.0f} | ¥{inst['remaining_after']:,.0f} | {confirm} |"
         )
 
     lines.extend([
