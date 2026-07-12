@@ -11,7 +11,7 @@
 执行流程:
   1. 盘前 09:00 — generate_instructions()
      - 检查交易日/建仓期
-     - 2026-07-13起: 动态信号加权预算 (基础15万 + ETF信号增强)
+     - 2026-07-13起: 每个交易日固定20万
      - 2026-07-10~07-12: 智能分批 (ETF信号日5万、无信号日1万、弱信号日2万)
      - 四重风控: 单日上限20万、价格保护带±3%、熔断停止(-3%/-5%)
      - 生成 trade_instructions/YYYY-MM-DD_instructions.json + .md
@@ -218,7 +218,7 @@ def calculate_daily_budget(target_date: date, progress: Dict, positions_data: Di
     """计算当日建仓预算
 
     策略:
-      - 2026-07-13起: 动态信号加权 (基础15万 + ETF信号增强)
+      - 2026-07-13起: 固定每日20万
       - 2026-07-10~07-12: 智能分批 (ETF信号强度)
       - 上限: 20万/日
     """
@@ -249,35 +249,17 @@ def calculate_daily_budget(target_date: date, progress: Dict, positions_data: Di
         else:
             none_count += 1
 
-    # 2026-07-13起: 动态信号加权预算
+    # 2026-07-13起: 固定每日20万
     if target_date >= FIXED_BUDGET_START:
-        base_daily = 150_000
-        total_positions = strong_count + medium_count + none_count
-        if total_positions > 0:
-            weighted_sum = strong_count * 1.5 + medium_count * 1.2 + none_count * 0.8
-            multiplier = 1.0 + (weighted_sum / total_positions) * 0.3
-        else:
-            multiplier = 1.0
-        multiplier = max(0.8, min(1.5, multiplier))
-        daily_budget = min(base_daily * multiplier, DAILY_AMOUNT_LIMIT, remaining_total)
-
-        if multiplier >= 1.3:
-            signal_strength = "strong"
-        elif multiplier >= 1.1:
-            signal_strength = "medium"
-        else:
-            signal_strength = "weak"
-
+        daily_budget = min(DAILY_FIXED_BUDGET, remaining_total)
         return {
             "daily_budget": round(daily_budget, 2),
-            "signal_strength": signal_strength,
-            "budget_mode": "dynamic_signal_weighted",
-            "multiplier": round(multiplier, 2),
+            "signal_strength": "fixed_200k",
             "strong_signal_count": strong_count,
             "medium_signal_count": medium_count,
             "remaining_total": remaining_total,
             "remaining_days": remaining_days,
-            "base_daily": base_daily,
+            "base_daily": DAILY_FIXED_BUDGET,
         }
 
     # 2026-07-10~07-12: 智能分批 (原逻辑)
