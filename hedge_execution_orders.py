@@ -36,6 +36,11 @@ def build_orders(plan: dict, positions: dict, prices: dict, hedge_positions: dic
     deployed = sum(qty * prices.get(code, 0.0) for code, qty in positions.items())
     target = 5_000_000.0
     
+    # v8.0: Greeks 动态对冲
+    greek_orders = _build_greek_hedge_orders(positions, prices, hedge_positions, target)
+    if greek_orders:
+        orders.extend(greek_orders)
+    
     # Beta 对冲
     beta = float(plan.get('portfolio_beta', 0.0) or 0.0)
     hedge_pct = float(plan.get('total_hedge_pct', 0.0) or 0.0)
@@ -219,6 +224,85 @@ def main():
         print('今日无执行单')
     print('=' * 70)
     print(f'已保存: {out_path}')
+
+
+def _build_greek_hedge_orders(positions: dict, prices: dict, hedge_positions: dict, target: float) -> list:
+    """v8.0: 基于 Greeks 动态生成对冲执行单"""
+    try:
+        from utils.greek_hedge_manager import GreekHedgeManager, HedgeInstrument, GreekExposure
+        from utils.transaction_cost_model import TransactionCostModel
+    except Exception as e:
+        print(f"[WARN] Greeks 动态对冲模块加载失败: {e}")
+        return []
+
+    try:
+        manager = GreekHedgeManager(target_delta=0.0, max_vega=50000.0, max_theta_burn=-5000.0)
+        exposure = manager.calc_portfolio_greeks(positions, prices)
+        if not any([exposure.delta, exposure.gamma, exposure.theta, exposure.vega]):
+            return []
+
+        # 构造对冲工具
+        instruments = []
+        for key, cfg in hedge_positions.items():
+            instrument_type = 'OPTION' if 'Put' in cfg.get('instrument', '') or 'Call' in cfg.get('instrument', '') else 'FUTURES'
+            instruments.append(HedgeInstrument(
+                code=cfg.get('instrument', key),
+                instrument_type=instrument_type,
+                direction=cfg.get('direction', 'SHORT' if instrument_type == 'FUTURES' else 'BUY'),
+                multiplier=float(cfg.get('multiplier', 1.0)),
+                delta=1.0 if instrument_type == 'FUTURES' else 0.5,
+                gamma=0.0,
+                theta=0.0,
+                vega=0.2 if instrument_type == 'OPTION' else 0.0,
+                beta=1.0,
+            ))
+
+        futures_targets = manager.target_futures_delta_hedge(exposure, [i for i in instruments if i.instrument_type == 'FUTURES'], prices)
+        options_targets = manager.target_option_greeks_hedge(exposure, [i for i in instruments if i.instrument_type == 'OPTION'], prices)
+
+        cost_model = TransactionCostModel()
+        orders = []
+        for code, hands in futures_targets.items():
+            cfg = hedge_positions.get(code, hedge_positions.get(f"{code}_futures", {}))
+            est_price = prices.get(code, cfg.get('est_price', 5000.0))
+            multiplier = float(cfg.get('multiplier', 1.0))
+            notional = abs(hands) * multiplier * est_price
+            cost = cost_model.estimate_total_cost(notional)
+            orders.append({
+                'type': 'FUTURES',
+                'action': 'SELL_SHORT' if hands > 0 else 'BUY_TO_COVER',
+                'instrument': cfg.get('instrument', code),
+                'contracts': int(abs(hands)),
+                'multiplier': multiplier,
+                'est_price': est_price,
+                'notional': round(notional, 2),
+                'estimated_cost': round(cost['total'], 2),
+                'cost_bps': round(cost['cost_bps'], 2),
+                'budget_pct': round(notional / target, 4) if target > 0 else 0.0,
+                'reason': 'Greeks动态Delta对冲',
+                'framework': cfg.get('framework', []),
+            })
+
+        for code, tgt in options_targets.items():
+            cfg = next((cfg for key, cfg in hedge_positions.items() if cfg.get('instrument', key) == code), {})
+            orders.append({
+                'type': 'OPTIONS',
+                'action': cfg.get('direction', 'BUY'),
+                'instrument': cfg.get('instrument', code),
+                'contracts': cfg.get('target_contracts', 0),
+                'strike': cfg.get('strike', 'OTM_5%'),
+                'premium_budget': cfg.get('premium_budget', 0.0),
+                'budget_pct': cfg.get('premium_budget', 0.0) / target if target > 0 else 0.0,
+                'reason': 'Greeks动态期权保护',
+                'framework': cfg.get('framework', []),
+                'vega_target': round(tgt.get('vega_target', 0.0), 2),
+                'theta_cap': tgt.get('theta_cap', 0.0),
+            })
+        return orders
+    except Exception as e:
+        print(f"[WARN] Greeks 动态对冲计算失败: {e}")
+        return []
+
 
 if __name__ == '__main__':
     main()

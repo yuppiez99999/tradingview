@@ -298,6 +298,11 @@ class OrderExecutor:
     def __init__(self, algorithm: str = "min_impact", **kwargs):
         self.algorithm = algorithm
         self._executor = self._create_executor(algorithm, kwargs)
+        try:
+            from utils.transaction_cost_model import TransactionCostModel
+            self.cost_model = TransactionCostModel()
+        except Exception:
+            self.cost_model = None
 
     def _create_executor(self, algorithm: str, kwargs: Dict):
         if algorithm == "min_impact":
@@ -390,6 +395,13 @@ class OrderExecutor:
             orders = executor.split_order(target_amount, ref_price, avg_daily_volume)
             simulation = executor.simulate(orders)
 
+            cost_info = {}
+            if executor.cost_model is not None:
+                try:
+                    cost_info = executor.cost_model.estimate_total_cost(simulation["total_amount"], avg_daily_volume)
+                except Exception:
+                    cost_info = {}
+
             results[algo] = {
                 "algorithm": algo,
                 "num_orders": len(orders),
@@ -398,6 +410,8 @@ class OrderExecutor:
                 "avg_execution_price": simulation["avg_execution_price"],
                 "slippage_pct": simulation["slippage_pct"],
                 "execution_time_minutes": simulation["execution_time_minutes"],
+                "cost_bps": cost_info.get("cost_bps", 0.0),
+                "estimated_cost": cost_info.get("total", 0.0),
                 "orders": orders,
             }
 
