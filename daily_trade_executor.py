@@ -21,6 +21,10 @@
      - 模拟执行 (SimulatedBroker)
      - 更新 positions.json 的 shares/avg_cost/est_price 和 build_progress.json
      - 生成执行报告
+  4. 收盘后自动生成下一交易日计划 — generate_next_trading_day_plan()
+     - 自动计算下一个交易日
+     - 生成下一交易日的交易指令
+     - 实现无缝衔接的自动化交易流程
 
 使用方式:
   # 盘前生成指令
@@ -29,11 +33,15 @@
   # 盘后执行已确认指令
   python daily_trade_executor.py post-market
 
+  # 收盘后自动执行 + 生成下一交易日计划 (推荐)
+  python daily_trade_executor.py post-market-auto
+
   # 查看建仓进度
   python daily_trade_executor.py progress
 
   # 指定日期
   python daily_trade_executor.py pre-market --date 2026-07-10
+  python daily_trade_executor.py post-market-auto --date 2026-07-13
 """
 import os
 import sys
@@ -816,6 +824,49 @@ def render_instructions_md(data: Dict) -> str:
     return "\n".join(lines)
 
 
+def generate_next_trading_day_plan(today_str: str) -> Dict:
+    """收盘后自动生成下一个交易日的执行计划
+    
+    参数:
+        today_str: 今日日期字符串 (YYYY-MM-DD)
+    
+    返回:
+        下一个交易日的交易计划结果
+    """
+    from datetime import timedelta
+    
+    # 计算下一个交易日
+    today = datetime.strptime(today_str, "%Y-%m-%d").date()
+    next_day = today + timedelta(days=1)
+    
+    # 跳过周末和节假日
+    max_attempts = 10
+    attempts = 0
+    while not is_trading_day(next_day) and attempts < max_attempts:
+        next_day += timedelta(days=1)
+        attempts += 1
+    
+    if attempts >= max_attempts:
+        return {
+            "status": "error",
+            "reason": f"无法在{today_str}后的10天内找到下一个交易日",
+        }
+    
+    next_day_str = next_day.isoformat()
+    print(f"[INFO] 今日: {today_str}, 下一交易日: {next_day_str}")
+    
+    # 生成下一个交易日的计划
+    result = generate_instructions(next_day_str)
+    
+    # 添加元信息
+    if isinstance(result, dict):
+        result["meta"]["generated_after"] = today_str
+        result["meta"]["auto_generated"] = True
+        result["meta"]["next_trading_day"] = next_day_str
+    
+    return result
+
+
 def execute_instructions(target_date_str: str) -> Dict:
     """盘后执行已确认的交易指令
 
@@ -1011,11 +1062,23 @@ def execute_instructions(target_date_str: str) -> Dict:
     with open(report_file, 'w', encoding='utf-8') as f:
         json.dump(execution_report, f, ensure_ascii=False, indent=2)
 
-    return {
+    result = {
         "status": "executed",
         "report_file": str(report_file),
         "summary": execution_report["summary"],
     }
+
+    # 收盘后自动生成下一交易日计划
+    try:
+        next_plan = generate_next_trading_day_plan(target_date_str)
+        result["next_trading_day_plan"] = next_plan
+    except Exception as e:
+        result["next_trading_day_plan"] = {
+            "status": "error",
+            "reason": f"生成下一交易日计划失败: {e}",
+        }
+
+    return result
 
 
 def show_progress() -> Dict:
@@ -1103,7 +1166,7 @@ def generate_accumulation_schedule() -> Dict:
 
 def main():
     parser = argparse.ArgumentParser(description="每日自动执行交易计划")
-    parser.add_argument("mode", choices=["pre-market", "post-market", "progress", "schedule"],
+    parser.add_argument("mode", choices=["pre-market", "post-market", "post-market-auto", "progress", "schedule"],
                         help="执行模式")
     parser.add_argument("--date", type=str, default=None,
                         help="指定日期 (YYYY-MM-DD), 默认今天")
@@ -1126,6 +1189,18 @@ def main():
     elif args.mode == "post-market":
         result = execute_instructions(target_date)
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+
+    elif args.mode == "post-market-auto":
+        execute_result = execute_instructions(target_date)
+        print(json.dumps(execute_result, ensure_ascii=False, indent=2, default=str))
+        
+        # 自动生成下一交易日计划
+        if execute_result.get("status") == "executed":
+            print("\n" + "=" * 70)
+            print("收盘后自动生成下一交易日计划")
+            print("=" * 70)
+            next_plan = generate_next_trading_day_plan(target_date)
+            print(json.dumps(next_plan, ensure_ascii=False, indent=2, default=str))
 
     elif args.mode == "progress":
         result = show_progress()

@@ -229,6 +229,9 @@ python daily_trade_executor.py pre-market --date 2026-07-13
 # 盘后执行已确认指令
 python daily_trade_executor.py post-market --date 2026-07-13
 
+# 收盘后自动执行 + 生成下一交易日计划（推荐）
+python daily_trade_executor.py post-market-auto --date 2026-07-13
+
 # 查看建仓进度
 python daily_trade_executor.py progress
 ```
