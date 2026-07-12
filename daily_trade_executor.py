@@ -11,7 +11,7 @@
 执行流程:
   1. 盘前 09:00 — generate_instructions()
      - 检查交易日/建仓期
-     - 2026-07-13起: 每个交易日固定20万
+     - 2026-07-13起: 动态信号加权预算 (基础15万 + ETF信号增强)
      - 2026-07-10~07-12: 智能分批 (ETF信号日5万、无信号日1万、弱信号日2万)
      - 四重风控: 单日上限20万、价格保护带±3%、熔断停止(-3%/-5%)
      - 生成 trade_instructions/YYYY-MM-DD_instructions.json + .md
@@ -69,9 +69,9 @@ ACCUMULATION_START = date(2026, 7, 10)
 ACCUMULATION_END = date(2026, 12, 31)
 STOCK_ETF_TARGET = 3_000_000       # 300万
 
-# 固定日预算 (2026-07-13起每个交易日20万)
+# 固定日预算起始日 (2026-07-13起改为动态信号加权预算)
 FIXED_BUDGET_START = date(2026, 7, 13)
-DAILY_FIXED_BUDGET = 200_000       # 每个交易日固定20万
+DAILY_FIXED_BUDGET = 200_000       # 单日金额上限/参考值
 
 # 智能分批金额 (仅用于2026-07-10~07-12, ETF信号强度 → 当日建仓金额)
 SIGNAL_AMOUNTS = {
@@ -218,7 +218,7 @@ def calculate_daily_budget(target_date: date, progress: Dict, positions_data: Di
     """计算当日建仓预算
 
     策略:
-      - 2026-07-13起: 固定每日20万 (用户指令)
+      - 2026-07-13起: 动态信号加权 (基础15万 + ETF信号增强)
       - 2026-07-10~07-12: 智能分批 (ETF信号强度)
       - 上限: 20万/日
     """
@@ -234,9 +234,10 @@ def calculate_daily_budget(target_date: date, progress: Dict, positions_data: Di
 
     remaining_days = get_remaining_days(target_date)
 
-    # 统计ETF信号强度 (供参考)
+    # 统计ETF信号强度
     strong_count = 0
     medium_count = 0
+    none_count = 0
     for code, pos in positions_data.get("positions", {}).items():
         if not isinstance(pos, dict):
             continue
@@ -245,18 +246,38 @@ def calculate_daily_budget(target_date: date, progress: Dict, positions_data: Di
             strong_count += 1
         elif "加仓" in signal or "中" in signal:
             medium_count += 1
+        else:
+            none_count += 1
 
-    # 2026-07-13起: 固定每日20万
+    # 2026-07-13起: 动态信号加权预算
     if target_date >= FIXED_BUDGET_START:
-        daily_budget = min(DAILY_FIXED_BUDGET, remaining_total)
+        base_daily = 150_000
+        total_positions = strong_count + medium_count + none_count
+        if total_positions > 0:
+            weighted_sum = strong_count * 1.5 + medium_count * 1.2 + none_count * 0.8
+            multiplier = 1.0 + (weighted_sum / total_positions) * 0.3
+        else:
+            multiplier = 1.0
+        multiplier = max(0.8, min(1.5, multiplier))
+        daily_budget = min(base_daily * multiplier, DAILY_AMOUNT_LIMIT, remaining_total)
+
+        if multiplier >= 1.3:
+            signal_strength = "strong"
+        elif multiplier >= 1.1:
+            signal_strength = "medium"
+        else:
+            signal_strength = "weak"
+
         return {
             "daily_budget": round(daily_budget, 2),
-            "signal_strength": "fixed_200k",
+            "signal_strength": signal_strength,
+            "budget_mode": "dynamic_signal_weighted",
+            "multiplier": round(multiplier, 2),
             "strong_signal_count": strong_count,
             "medium_signal_count": medium_count,
             "remaining_total": remaining_total,
             "remaining_days": remaining_days,
-            "base_daily": DAILY_FIXED_BUDGET,
+            "base_daily": base_daily,
         }
 
     # 2026-07-10~07-12: 智能分批 (原逻辑)
@@ -860,9 +881,13 @@ def generate_next_trading_day_plan(today_str: str) -> Dict:
     
     # 添加元信息
     if isinstance(result, dict):
-        result["meta"]["generated_after"] = today_str
-        result["meta"]["auto_generated"] = True
-        result["meta"]["next_trading_day"] = next_day_str
+        meta = result.get("meta")
+        if meta is None:
+            meta = {}
+            result["meta"] = meta
+        meta["generated_after"] = today_str
+        meta["auto_generated"] = True
+        meta["next_trading_day"] = next_day_str
     
     return result
 
