@@ -208,9 +208,13 @@ class TensorflowLSTMPredictor:
             self._available = True
             logger.info(f"TensorFlow {tf.__version__} 初始化成功 (GPU: {len(gpus)})")
         except ImportError:
-            logger.warning("tensorflow 未安装, 跳过 LSTM 预测. 安装: pip install tensorflow")
+            if not getattr(self.__class__, "_tf_warned", False):
+                logger.warning("tensorflow 未安装, 跳过 LSTM 预测. 安装: pip install tensorflow")
+                self.__class__._tf_warned = True
         except Exception as e:
-            logger.warning(f"TensorFlow 初始化失败: {e}")
+            if not getattr(self.__class__, "_tf_warned", False):
+                logger.warning(f"TensorFlow 初始化失败: {e}")
+                self.__class__._tf_warned = True
 
     @property
     def available(self) -> bool:
