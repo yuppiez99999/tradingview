@@ -748,6 +748,28 @@ def generate_instructions(target_date_str: str) -> Dict:
     }
 
 
+def confirm_all_instructions(target_date_str: str) -> int:
+    """自动确认指定日期的所有未确认指令"""
+    instruction_file = INSTRUCTIONS_DIR / f"{target_date_str}_instructions.json"
+    if not instruction_file.exists():
+        return 0
+
+    with open(instruction_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    confirmed_count = 0
+    for inst in data.get("instructions", []):
+        if not inst.get("confirm", False):
+            inst["confirm"] = True
+            confirmed_count += 1
+
+    if confirmed_count > 0:
+        with open(instruction_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    return confirmed_count
+
+
 def render_instructions_md(data: Dict) -> str:
     """渲染交易指令 markdown 版本"""
     meta = data["meta"]
@@ -1183,6 +1205,8 @@ def main():
                         help="执行模式")
     parser.add_argument("--date", type=str, default=None,
                         help="指定日期 (YYYY-MM-DD), 默认今天")
+    parser.add_argument("--auto-confirm", action="store_true",
+                        help="自动确认所有指令 (跳过人工确认环节)")
 
     args = parser.parse_args()
 
@@ -1193,10 +1217,20 @@ def main():
 
     print("=" * 70)
     print(f"每日自动执行交易计划 - {args.mode} - {target_date}")
+    if args.auto_confirm:
+        print("⚠️  自动确认模式: 将自动确认所有指令")
     print("=" * 70)
 
     if args.mode == "pre-market":
         result = generate_instructions(target_date)
+        
+        # 自动确认所有指令
+        if args.auto_confirm and result.get("status") == "generated":
+            confirm_count = confirm_all_instructions(target_date)
+            result["auto_confirmed"] = True
+            result["auto_confirm_count"] = confirm_count
+            print(f"[INFO] 自动确认 {confirm_count} 条指令")
+        
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
 
     elif args.mode == "post-market":
@@ -1213,6 +1247,16 @@ def main():
             print("收盘后自动生成下一交易日计划")
             print("=" * 70)
             next_plan = generate_next_trading_day_plan(target_date)
+            
+            # 自动确认下一交易日计划
+            if args.auto_confirm and next_plan.get("status") == "generated":
+                next_date = next_plan.get("next_trading_day", "")
+                if next_date:
+                    confirm_count = confirm_all_instructions(next_date)
+                    next_plan["auto_confirmed"] = True
+                    next_plan["auto_confirm_count"] = confirm_count
+                    print(f"[INFO] 自动确认下一交易日 {next_date} 的 {confirm_count} 条指令")
+            
             print(json.dumps(next_plan, ensure_ascii=False, indent=2, default=str))
 
     elif args.mode == "progress":
