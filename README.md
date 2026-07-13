@@ -1,6 +1,6 @@
-# 综合量化策略系统 v7.9
+# 综合量化策略系统 v8.0
 
-**顶级对冲基金视角 | 300万股票ETF + 200万对冲账户 | 自动执行 | 2030年清仓 | 年化≥8% 回撤<15% | ETF资金流追踪 | AI增强预测 | WonderTrader高价值模块集成 | Wind MCP 优先数据源 | 完全自动化交易流程**
+**顶级对冲基金视角 | 300万股票ETF + 200万对冲账户 | 自动执行 | 2030年清仓 | 年化≥8% 回撤<15% | ETF资金流追踪 | AI增强预测 | WonderTrader高价值模块集成 | Wind MCP 优先数据源 | 完全自动化交易流程 | 风险预算驱动建仓 | Greeks动态对冲 | 交易成本建模**
 
 **作者**：yuppiez99999
 
@@ -8,9 +8,17 @@
 
 ## 系统概述
 
-综合量化策略系统 v7.9 是一个专业量化交易平台，在 v7.8 WonderTrader 高价值模块集成基础上新增 **完全自动化交易流程**，实现从盘前计划生成、自动确认到盘后执行的无人化闭环。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万** 与 **对冲保护账户 200万**，目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
+综合量化策略系统 v8.0 是一个专业量化交易平台，在 v7.9 完全自动化交易流程基础上新增 **顶级对冲基金优化模块**，实现风险预算驱动建仓、Greeks 动态对冲、交易成本建模等机构级能力。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万** 与 **对冲保护账户 200万**，目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
 
-**v7.9 核心升级（完全自动化交易流程）**：
+**v8.0 核心升级（顶级对冲基金优化）**：
+- **风险预算驱动建仓**：`utils/risk_budget_allocator.py` — Risk Parity + Kelly 公式动态分配日度建仓预算，替代固定 20 万/天
+- **Greeks 动态对冲**：`utils/greek_hedge_manager.py` — 基于 Delta/Gamma/Theta/Vega 自动调整期货/期权对冲量
+- **交易成本模型**：`utils/transaction_cost_model.py` — 统一滑点/佣金/冲击成本建模，预算分配前先扣减预估成本
+- **智能执行选择**：`utils/execution_selector.py` — 自动选择 MinImpact/TWAP/VWAP/immediate 中综合成本+时间最优算法
+- **风险归因面板**：`utils/risk_attribution.py` — 输出组合行业/风格/资产类型风险分解
+- **Greeks 监控面板**：`utils/greek_exposure_dashboard.py` — 实时 Greeks 暴露监控与再平衡信号
+
+**v7.9 核心能力保留（完全自动化交易流程）**：
 - **自动确认引擎**：`daily_trade_executor.py --auto-confirm` — 一键跳过人工确认，自动将当日交易计划标记为已确认，支持 `pre-market` 和 `post-market-auto` 模式
 - **一个月建仓方案**：每日固定 20 万预算，22 个交易日完成 300 万建仓，消除人工确认瓶颈
 - **完全闭环执行**：盘前 07:00 自动生成计划 → 自动确认 → 盘后 15:30 自动执行 → 自动生成下一交易日计划
@@ -456,6 +464,17 @@ ContractData(code, exchange, name, contract_multiplier, price_tick, margin_rate)
 | 科创50ETF认沽期权 | 588080 Put | 买入 | 科技成长尾部保护 | 十五五AI算力+半导体 |
 | 创业板ETF认沽期权 | 159915 Put | 买入 | 成长风格尾部保护 | 十五五创新生态 |
 
+### 顶级对冲基金优化（v8.0）
+
+| 优化项 | 实现模块 | 说明 |
+|--------|----------|------|
+| 风险预算驱动建仓 | `utils/risk_budget_allocator.py` | Risk Parity + Kelly 公式动态分配日度建仓预算，替代固定 20 万/天 |
+| Greeks 动态对冲 | `utils/greek_hedge_manager.py` | 基于 Delta/Gamma/Theta/Vega 自动调整期货/期权对冲量 |
+| 交易成本模型 | `utils/transaction_cost_model.py` | 统一滑点/佣金/冲击成本建模，预算分配前先扣减预估成本 |
+| 智能执行选择 | `utils/execution_selector.py` | 自动选择 MinImpact/TWAP/VWAP/immediate 中综合成本+时间最优算法 |
+| 风险归因面板 | `utils/risk_attribution.py` | 输出组合行业/风格/资产类型风险分解 |
+| Greeks 监控面板 | `utils/greek_exposure_dashboard.py` | 实时 Greeks 暴露监控与再平衡信号 |
+
 ---
 
 ## 风控规则
@@ -552,6 +571,7 @@ pip install plotly             # 可视化
 
 | 版本 | 日期 | 主要变更 |
 |------|------|----------|
+| **v8.0** | 2026-07-13 | **顶级对冲基金优化**：风险预算驱动建仓（Risk Parity + Kelly）；Greeks 动态对冲（Delta/Gamma/Theta/Vega）；交易成本模型（滑点/佣金/冲击成本）；智能执行算法选择器（MinImpact/TWAP/VWAP/immediate）；风险归因面板（行业/风格/资产类型）；Greeks 监控面板；交易成本扣减预算避免超支；当前持仓已达 20 万（9 标的，含科创50/半导体/新能源车/医药/黄金/中国神华等） |
 | v7.10 | 2026-07-12 | **十五五+康波宏观对齐**：新增宏观战略框架章节；股票/ETF/期货/期权全面标注十五五与康波对齐说明；`daily_trade_executor.py` 接入 `macro_policy_scoring` 动态调整分配（强对齐+20%、偏弱-20%或跳过）；`hedge_execution_orders.py` 支持读取 `hedge_positions` 生成期货/期权执行单；`config/positions.json` 新增 CU/AL/LC/AU 期货及 588080/159915 ETF 认沽期权 |
 | v7.9 | 2026-07-12 | **完全自动化交易流程**：新增 `--auto-confirm` 自动确认引擎；一个月建仓方案（每日固定 20 万预算，22 个交易日完成）；盘前自动生成 → 自动确认 → 盘后自动执行 → 自动生成下一日计划的无人化闭环 |
 | v7.8 | 2026-07-11 | **WonderTrader 高价值模块集成**：新增 8 个 WT 风格模块（统一数据结构/合约管理器/价差策略/组合对冲/Tick级回测/执行算法/风控/回测引擎）；ETF资金流监控集成WT数据结构；更新 `utils/__init__.py` 导出全部WT模块 |
@@ -580,5 +600,5 @@ WonderTrader 模块为纯 Python 实现，未使用 wtpy C++ 核心库。实际�
 ---
 
 **作者**: yuppiez99999
-**日期**: 2026-07-12
-**版本**: v7.9-auto-confirm
+**日期**: 2026-07-13
+**版本**: v8.0-hedge-fund-optimization
