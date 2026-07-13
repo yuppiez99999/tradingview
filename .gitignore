@@ -112,3 +112,23 @@ trade_plans/*
 # Trade instructions
 trade_instructions/*
 !trade_instructions/.gitkeep
+
+# Qlib data (large binary files)
+qlib_data/
+
+# Simulation snapshots
+sim_snapshots/
+
+# Config files (contains live positions and sensitive data)
+config/
+configs/
+
+# Trade executor generated files
+daily_trade_executor.log
+daily_trade_executor_pid.txt
+
+# Portfolio projection files
+portfolio_return_projection.json
+
+# Skill state files
+.agents/skills/wind-mcp-skill/scripts/update-state.json
