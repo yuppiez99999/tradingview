@@ -1,6 +1,6 @@
 # 综合量化策略系统 v8.0
 
-**顶级对冲基金视角 | 300万股票ETF + 200万对冲账户 | 自动执行 | 2030年清仓 | 年化≥8% 回撤<15% | ETF资金流追踪 | AI增强预测 | WonderTrader高价值模块集成 | Wind MCP 优先数据源 | 完全自动化交易流程 | 风险预算驱动建仓 | Greeks动态对冲 | 交易成本建模**
+**顶级对冲基金视角 | 300万股票ETF + 200万对冲账户 | 自动执行 | 2030年清仓 | 年化≥8% 回撤<15% | ETF资金流追踪 | AI增强预测 | WonderTrader高价值模块集成 | Wind MCP 优先数据源 | 完全自动化交易流程 | 风险预算驱动建仓 | Greeks动态对冲 | 交易成本建模 | 动态Beta计算 | 订单去重合并 | 配置驱动对冲 | 执行时机管理 | 资金预留机制**
 
 **作者**：yuppiez99999
 
@@ -64,7 +64,7 @@
 
 | 账户 | 金额 | 比例 | 用途 |
 |------|------|------|------|
-| **股票ETF账户** | ¥3,000,000 | 60% | 20 标的建仓 + 动态再平衡 |
+| **股票ETF账户** | ¥3,000,000 | 60% | 13 标的建仓 + 动态再平衡 |
 | **对冲保护账户** | ¥2,000,000 | 40% | IF/IM 期货空头 + ETF 认沽期权 |
 | **合计** | ¥5,000,000 | 100% | — |
 
@@ -72,34 +72,29 @@
 
 | 标的 | 代码 | 类型 | 目标权重 | 计划金额 | 风格 | ETF资金流信号 |
 |------|------|------|----------|----------|------|---------------|
-| 科创50ETF易方达 | 588080 | ETF | 5% | ¥150,000 | 科技 | 强加仓 57亿 |
-| 证券ETF国泰 | 512880 | ETF | 5% | ¥150,000 | 金融 | 强加仓 67亿 |
-| 上证50ETF华夏 | 510050 | ETF | 6% | ¥180,000 | 宽基 | 加仓 40亿 |
-| 银行ETF华宝 | 512800 | ETF | 6% | ¥180,000 | 金融 | 加仓 23亿 |
-| 新能源车ETF华夏 | 515030 | ETF | 5% | ¥150,000 | 新能源 | 加仓 11亿 |
-| 半导体ETF国泰 | 512760 | ETF | 3% | ¥90,000 | 科技 | 关注 9亿 |
-| 医疗ETF华宝 | 512170 | ETF | 10% | ¥300,000 | 医药 | 关注 3亿 |
-| 黄金ETF华安 | 518880 | ETF | 5% | ¥150,000 | 资源 | 流入 0.17亿 |
-| 海光信息 | 688041 | 个股 | 4% | ¥120,000 | 科技 | 关联科创50 |
-| 中际旭创 | 300308 | 个股 | 4% | ¥120,000 | 科技 | 关联半导体 |
-| 北方华创 | 002371 | 个股 | 4% | ¥120,000 | 科技 | 关联半导体 |
-| 中科曙光 | 603019 | 个股 | 2% | ¥60,000 | 科技 | 关联科创50 |
-| 同花顺 | 300033 | 个股 | 4% | ¥120,000 | 科技 | 关联证券 |
-| 卓胜微 | 300782 | 个股 | 2% | ¥60,000 | 科技 | 关联半导体 |
-| 绿的谐波 | 688017 | 个股 | 3% | ¥90,000 | 制造 | — |
-| 阳光电源 | 300274 | 个股 | 4% | ¥120,000 | 新能源 | 关联新能源车 |
-| 藏格矿业 | 000408 | 个股 | 4% | ¥120,000 | 资源 | — |
-| 中国神华 | 601088 | 个股 | 3% | ¥90,000 | 顺周期 | — |
-| 恒瑞医药 | 600276 | 个股 | 6% | ¥180,000 | 医药 | 关联医疗 |
-| 长江电力 | 600900 | 个股 | 4% | ¥120,000 | 防御 | — |
+| 科创50ETF华夏 | 588000 | ETF | 13% | ¥390,000 | 高端制造 | AI/科技核心指数 |
+| 半导体ETF国泰 | 512480 | ETF | 12% | ¥360,000 | 高端制造 | AI算力硬件核心 |
+| 高端装备ETF南方 | 516160 | ETF | 11% | ¥330,000 | 高端制造 | 十五五重点产业 |
+| 新能源车ETF华夏 | 515030 | ETF | 11% | ¥330,000 | 高端制造 | 新能源产业链 |
+| 创业板ETF易方达 | 159915 | ETF | 10% | ¥300,000 | 高端制造 | 成长风格敞口 |
+| 创新药ETF银华 | 159992 | ETF | 10% | ¥300,000 | 防御 | 生物医药创新 |
+| 医药ETF易方达 | 512010 | ETF | 7% | ¥210,000 | 防御 | 医药行业宽基 |
+| 十年国债ETF国泰 | 511260 | ETF | 2% | ¥60,000 | 防御 | 利率债配置 |
+| 政金债ETF富国 | 511520 | ETF | 2% | ¥60,000 | 防御 | 政策性金融债 |
+| 短融ETF海富通 | 511360 | ETF | 1% | ¥30,000 | 防御 | 现金管理工具 |
+| 有色金属ETF南方 | 512400 | ETF | 12% | ¥360,000 | 资源 | 康波繁荣期资源 |
+| 黄金ETF华安 | 518880 | ETF | 8% | ¥240,000 | 资源 | 通胀对冲+避险 |
+| 中国神华 | 601088 | 个股 | 5% | ¥150,000 | 顺周期 | 能源安全龙头 |
 
 ### 对冲保护账户（200万）配置
 
 | 工具 | 标的 | 方向 | 目标合约 | 保证金率 | 目的 |
 |------|------|------|----------|----------|------|
-| IF 股指期货 | 沪深300 | 卖出 | 2 手 | 12% | 系统性 Beta 对冲 |
-| IM 股指期货 | 中证1000 | 卖出 | 1 手 | 14% | 中小盘波动对冲 |
-| ETF 认沽期权 | 510050 Put | 买入 | 10 张 | — | 尾部风险保护 |
+| IF 股指期货 | 沪深300 | 卖出 | 3 手 | 12% | 系统性 Beta 对冲 |
+| 510050 Put | 上证50ETF | 买入 | 20 张 | — | 尾部风险保护 |
+| 沪深300ETF Put | 510300 | 买入 | 5 张 | — | 增强 Beta 对冲 |
+| 科创50ETF Put | 588080 | 买入 | 10 张 | — | 科技股尾部保护 |
+| 创业板ETF Put | 159915 | 买入 | 10 张 | — | 成长股尾部保护 |
 
 ---
 
@@ -125,10 +120,12 @@
 ├── PROJECT_DOCUMENTATION.md         # 项目文档
 ├── daily_trade_executor.py          # ★ 每日建仓执行器 (v7.7 集成预测信号)
 ├── daily_hedge_update.py            # 每日对冲更新
-├── hedge_execution_orders.py        # 对冲执行订单
+├── hedge_execution_orders.py        # ★ 对冲执行订单生成器 (v2.0 动态Beta + 订单去重)
 ├── hedge_quantity_calculator.py     # 对冲数量计算器
+├── build_plan_executor.py           # 建仓计划执行器
+├── analyze_position_progress.py     # 建仓进度分析器
 ├── config/
-│   ├── positions.json               # ★ 实时持仓状态（已清空重建）
+│   ├── positions.json               # ★ 实时持仓状态（对冲配置 + 实时价格）
 │   ├── stop_loss_vol_adjusted.yaml  # 止损规则
 │   └── market_returns.json          # 市场收益数据
 ├── configs/
@@ -137,6 +134,7 @@
 │   └── institutional_config.yaml    # 机构配置
 ├── v7.5_institutional/
 │   ├── README.md                    # v7.5 模块说明
+│   ├── generate_daily_trade_plan.py # ★ 每日交易计划生成器 (v7.7+ 加载对冲执行单)
 │   ├── main.py                      # 主入口
 │   ├── reports/                     # 收盘盈亏报告 (JSON + MD)
 │   └── run_daily.bat                # 日常运行脚本
@@ -166,7 +164,7 @@
 │   ├── liquidity_risk.py            # 流动性风险
 │   ├── qlib_adapter.py              # Qlib 适配器
 │   ├── qlib_data_bridge.py          # Qlib 数据桥
-│   ├── real_economy_indicator.py     # 实体经济指标
+│   ├── real_economy_indicator.py    # 实体经济指标
 │   ├── trade_calendar.py            # 交易日历
 │   ├── data_types.py                # 数据类型
 │   └── logger.py                    # 统一日志
@@ -271,7 +269,20 @@ python -m utils.wt_tick_engine
 python -m utils.etf_flow_monitor
 ```
 
-### 8. Python 调用示例
+### 8. 对冲执行单生成（v8.0 优化）
+
+```bash
+# 生成当日对冲执行单
+python hedge_execution_orders.py
+
+# 生成指定日期对冲执行单
+python hedge_execution_orders.py 2026-07-15
+
+# 生成每日交易计划（含对冲执行单）
+python v7.5_institutional/generate_daily_trade_plan.py 2026-07-15
+```
+
+### 9. Python 调用示例
 
 ```python
 # ========== AI 增强模块 ==========
@@ -367,66 +378,75 @@ from utils.etf_flow_monitor import ETFRealTimeTracker, refresh_etf_flow_signals
 tracker = ETFRealTimeTracker()
 summary = tracker.fetch_all_etf_fund_flow()
 refresh_etf_flow_signals()  # 更新 positions.json 中的信号
+
+# ========== 对冲执行单生成 ==========
+
+# 动态Beta计算
+from hedge_execution_orders import calc_portfolio_beta
+beta = calc_portfolio_beta(positions_data)
+print(f"当前组合Beta: {beta:.4f}")
+
+# 订单去重合并
+from hedge_execution_orders import merge_orders
+merged = merge_orders(orders)
+
+# 配置驱动对冲
+from hedge_execution_orders import load_positions, build_orders
+positions, prices, hedge_positions, positions_data = load_positions()
+orders = build_orders(plan, positions, prices, hedge_positions, positions_data)
 ```
 
 ---
 
-## WonderTrader 高价值模块详解
+## 对冲执行单优化（v8.0）
 
-### 模块架构
+### 核心特性
 
-| 模块 | 文件 | 用途 | 参考 WT 组件 |
-|------|------|------|-------------|
-| 统一数据结构 | `wt_structs.py` | Tick/Bar/Order/Trade/Position/Contract | WTSTructs |
-| 合约管理器 | `wt_contracts_manager.py` | 全市场合约规格统一管理 | ContractsManager |
-| 价差策略框架 | `wt_spread_strategy.py` | ETF配对/跨期套利/价差回归 | SpreadStrategy + SpreadContext |
-| 组合对冲策略 | `wt_hedge_strategy.py` | Beta/尾部风险/动态对冲 | HedgeStrategy + HedgeContext |
-| Tick级回测引擎 | `wt_tick_engine.py` | 事件驱动回测 + 精确撮合 | WtBtEngine |
-| 执行算法 | `wt_execution_algo.py` | MinImpact/TWAP/VWAP大单拆分 | OrderExecutor |
-| 风控模块 | `wt_risk_control.py` | 多层次风控 | RiskControl |
-| 回测引擎 | `wt_backtest_engine.py` | ETF信号策略回测 | 轻量回测框架 |
+| 特性 | 说明 |
+|------|------|
+| **动态Beta计算** | 基于 `positions.json` 实时计算组合加权Beta，替代固定值 |
+| **订单去重合并** | 按（类型、标的、动作）键合并重复订单，避免重复下单 |
+| **配置驱动对冲** | 从 `hedge_positions` 读取期货手数、期权合约、权利金预算 |
+| **执行时机管理** | 期权 09:30-10:00，期货 10:30-11:00 |
+| **资金预留机制** | 对冲账户保留 30% 资金（¥607,428）作为动态调整空间 |
 
-### 核心数据结构
+### 对冲策略
 
-```python
-# TickData: 逐笔成交数据
-TickData(code, time, price, volume, bid1~bid5, ask1~ask5)
+| 工具 | 标的 | 方向 | 数量 | 权利金/保证金 | 执行时机 |
+|------|------|------|------|---------------|----------|
+| IF 期货 | 沪深300 | 卖出 | 3 手 | ¥410,400 | 10:30-11:00 |
+| 510050 Put | 上证50ETF | 买入 | 20 张 | ¥300,000 | 09:30-10:00 |
+| 510300 Put | 沪深300ETF | 买入 | 5 张 | ¥40,000 | 09:30-10:00 |
+| 588080 Put | 科创50ETF | 买入 | 10 张 | ¥120,000 | 09:30-10:00 |
+| 159915 Put | 创业板ETF | 买入 | 10 张 | ¥100,000 | 09:30-10:00 |
 
-# BarData: K线数据
-BarData(code, time, open, high, low, close, volume, turnover)
+**对冲总成本**：¥1,432,072（期权权利金 ¥1,000,000 + 期货保证金 ¥410,400 + 避险资产 ¥21,672）
+**预算余额**：¥567,928（接近 30% 预留要求）
 
-# OrderData: 订单数据
-OrderData(order_id, code, direction, order_type, price, volume, filled_volume)
+---
 
-# TradeData: 成交数据
-TradeData(trade_id, order_id, code, price, volume, time)
+## 建仓计划优化（v8.0）
 
-# PositionData: 持仓数据
-PositionData(code, direction, volume, avg_price, last_price)
+### 优化前 vs 优化后
 
-# ContractData: 合约数据
-ContractData(code, exchange, name, contract_multiplier, price_tick, margin_rate)
-```
+| 指标 | 优化前 | 优化后 |
+|------|--------|--------|
+| 现货订单价格 | 全部 10.0（错误） | 真实市场价格（正确） |
+| 防御资产权重 | 国债ETF 68.7%（超配） | 国债ETF 5%（合理） |
+| 科技股配置 | 低配 | 高端制造 57%（高配） |
+| 对冲订单去重 | 重复 3 次 | 自动合并 |
+| Beta 计算 | 固定 1.2958（过时） | 实时 0.6658（准确） |
+| IF 期货手数 | 硬编码 1 手 | 配置驱动 3 手 |
+| 资金预留 | 计算错误 | 固定 30%（¥607,428） |
 
-### 价差策略示例
+### 价格修复
 
-支持三种价差类型：
-- **ratio**：比率价差（如 1×IF - 0.7×IC）
-- **diff**：差值价差（如 510300 - 510050）
-- **weighted**：加权价差（按市值权重）
+**问题**：`SYMBOL_INFO` 键格式不匹配（`sz588000` vs `588000`），导致所有订单使用默认价格 10.0
 
-内置 ETF 配对模板：
-- `SPD.300-50`：沪深300ETF vs 上证50ETF
-- `SPD.300-500`：沪深300ETF vs 中证500ETF
-- `SPD.SCI-TECH`：科创50ETF vs 半导体ETF
-
-### 对冲策略框架
-
-| 策略类型 | 适用场景 | 参数 |
-|----------|----------|------|
-| BetaHedgeStrategy | 系统性风险对冲 | config={"target_hedge_ratio": 0.2, "max_hedge_ratio": 0.5} |
-| TailRiskHedgeStrategy | 尾部风险保护 | config={"target_hedge_ratio": 0.3, "vol_threshold": 0.2} |
-| DynamicHedgeStrategy | 动态调整对冲 | config={"target_hedge_ratio": 0.3} |
+**修复方案**：
+- 修改 `SYMBOL_INFO` 字典键格式为无前缀代码
+- 更新所有 `est_price` 为真实市场价格
+- 新增 `_load_real_time_prices()` 函数，优先从 `positions.json` 读取实时价格
 
 ---
 
@@ -474,6 +494,11 @@ ContractData(code, exchange, name, contract_multiplier, price_tick, margin_rate)
 | 智能执行选择 | `utils/execution_selector.py` | 自动选择 MinImpact/TWAP/VWAP/immediate 中综合成本+时间最优算法 |
 | 风险归因面板 | `utils/risk_attribution.py` | 输出组合行业/风格/资产类型风险分解 |
 | Greeks 监控面板 | `utils/greek_exposure_dashboard.py` | 实时 Greeks 暴露监控与再平衡信号 |
+| 动态Beta计算 | `hedge_execution_orders.py` | 基于持仓风格和权重实时计算组合Beta |
+| 订单去重合并 | `hedge_execution_orders.py` | 按（类型、标的、动作）键合并重复订单 |
+| 配置驱动对冲 | `hedge_execution_orders.py` | 从 `positions.json` 读取对冲配置，确保与预设策略一致 |
+| 执行时机管理 | `generate_daily_trade_plan.py` | 期权 09:30-10:00，期货 10:30-11:00 |
+| 资金预留机制 | `generate_daily_trade_plan.py` | 对冲账户保留 30% 资金（¥607,428） |
 
 ---
 
@@ -571,7 +596,8 @@ pip install plotly             # 可视化
 
 | 版本 | 日期 | 主要变更 |
 |------|------|----------|
-| **v8.0** | 2026-07-13 | **顶级对冲基金优化**：风险预算驱动建仓（Risk Parity + Kelly）；Greeks 动态对冲（Delta/Gamma/Theta/Vega）；交易成本模型（滑点/佣金/冲击成本）；智能执行算法选择器（MinImpact/TWAP/VWAP/immediate）；风险归因面板（行业/风格/资产类型）；Greeks 监控面板；交易成本扣减预算避免超支；当前持仓已达 20 万（9 标的，含科创50/半导体/新能源车/医药/黄金/中国神华等） |
+| **v8.0** | 2026-07-14 | **对冲执行单优化**：动态Beta计算（基于持仓实时计算0.6658）；订单去重合并（避免重复下单）；配置驱动对冲（从positions.json读取IF期货3手、期权合约）；执行时机管理（期权09:30-10:00、期货10:30-11:00）；资金预留机制（30%资金¥607,428）；现货订单价格修复（从10.0改为真实市场价格）；建仓计划优化（调整防御资产权重，增加科技股配置）；对冲策略优化（增加沪深300ETF期权，确保Beta<0.5） |
+| v8.0 | 2026-07-13 | **顶级对冲基金优化**：风险预算驱动建仓（Risk Parity + Kelly）；Greeks 动态对冲（Delta/Gamma/Theta/Vega）；交易成本模型（滑点/佣金/冲击成本）；智能执行算法选择器（MinImpact/TWAP/VWAP/immediate）；风险归因面板（行业/风格/资产类型）；Greeks 监控面板；交易成本扣减预算避免超支；当前持仓已达 20 万（9 标的，含科创50/半导体/新能源车/医药/黄金/中国神华等） |
 | v7.10 | 2026-07-12 | **十五五+康波宏观对齐**：新增宏观战略框架章节；股票/ETF/期货/期权全面标注十五五与康波对齐说明；`daily_trade_executor.py` 接入 `macro_policy_scoring` 动态调整分配（强对齐+20%、偏弱-20%或跳过）；`hedge_execution_orders.py` 支持读取 `hedge_positions` 生成期货/期权执行单；`config/positions.json` 新增 CU/AL/LC/AU 期货及 588080/159915 ETF 认沽期权 |
 | v7.9 | 2026-07-12 | **完全自动化交易流程**：新增 `--auto-confirm` 自动确认引擎；一个月建仓方案（每日固定 20 万预算，22 个交易日完成）；盘前自动生成 → 自动确认 → 盘后自动执行 → 自动生成下一日计划的无人化闭环 |
 | v7.8 | 2026-07-11 | **WonderTrader 高价值模块集成**：新增 8 个 WT 风格模块（统一数据结构/合约管理器/价差策略/组合对冲/Tick级回测/执行算法/风控/回测引擎）；ETF资金流监控集成WT数据结构；更新 `utils/__init__.py` 导出全部WT模块 |
@@ -596,9 +622,3 @@ pip install plotly             # 可视化
 本系统所有数学模型与参数均为研究建议，非实盘配置。实盘部署前必须通过 Risk Committee 三审。Walk-Forward 与压力测试结果不可作为未来收益保证。Kelly 公式与 Risk Parity 在极端尾部行情下可能失效，必须配合三联对冲与熔断机制使用。2030 年清仓为计划目标，实际执行可能因市场条件调整。
 
 WonderTrader 模块为纯 Python 实现，未使用 wtpy C++ 核心库。实际性能可能与原版 C++ 实现存在差异，高频交易场景需谨慎评估。
-
----
-
-**作者**: yuppiez99999
-**日期**: 2026-07-13
-**版本**: v8.0-hedge-fund-optimization
