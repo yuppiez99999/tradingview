@@ -6,6 +6,41 @@
 
 ---
 
+## ⭐ 项目亮点
+
+### 🏆 机构级量化系统
+- **双账户结构**：300万股票ETF进攻账户 + 200万对冲保护账户
+- **风险预算驱动**：Risk Parity + Kelly 公式动态分配建仓预算
+- **三联对冲引擎**：Beta/Vol/Correlation 三类对冲实时联动 + 尾部风险保护
+- **完整风控体系**：个股止损 + 组合回撤三级防御 + Walk-Forward 回测验证
+
+### 🤖 AI 增强模块
+- **价格预测**：TimesFM 零样本 + TensorFlow LSTM + ARIMA 三级降级
+- **AI 报告代理**：豆包 Speed → DeepSeek → Ollama 本地三级降级链
+- **新闻情感分析**：实时抓取东方财富/巨潮资讯/新浪财经公告与研报
+- **外部数据源**：FRED/Econdb/Finnhub/CoinGecko 全球宏观与另类数据
+
+### ⚡ 完全自动化
+- **无人化交易闭环**：盘前自动生成 → 自动确认 → 盘后自动执行 → 自动生成下一日计划
+- **Windows 任务调度**：07:00 盘前 / 15:30 盘后自动触发
+- **十五五规划对齐**：2026-2030 五年阶段管理，2030-12-31 强制清仓
+
+### 📈 WonderTrader 高价值模块
+- **统一数据结构**：Tick/Bar/Order/Trade/Position/Contract 标准化模型
+- **合约规格管理**：全市场股票/ETF/期货/期权统一管理
+- **价差策略框架**：ETF配对交易/跨期套利/价差回归
+- **Tick级回测引擎**：精确撮合，支持事件驱动策略回测
+- **执行算法**：MinImpact/TWAP/VWAP 大单拆分算法
+
+### 🛡️ 顶级对冲基金优化 (v8.0)
+- **Greeks 动态对冲**：Delta/Gamma/Theta/Vega 自动调整期货/期权对冲量
+- **交易成本模型**：统一滑点/佣金/冲击成本建模
+- **智能执行选择**：自动选择综合成本+时间最优算法
+- **风险归因面板**：行业/风格/资产类型风险分解
+- **Greeks 监控面板**：实时暴露监控与再平衡信号
+
+---
+
 ## 系统概述
 
 综合量化策略系统 v8.0 是一个专业量化交易平台，在 v7.9 完全自动化交易流程基础上新增 **顶级对冲基金优化模块**，实现风险预算驱动建仓、Greeks 动态对冲、交易成本建模等机构级能力。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万** 与 **对冲保护账户 200万**，目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
@@ -117,28 +152,101 @@
 ```
 28-终极量化交易系统7.1/
 ├── README.md                        # 本文件
-├── PROJECT_DOCUMENTATION.md         # 项目文档
+├── README_head.md                   # README 头部模板
+├── README_and_workflow_update_summary.md # 工作流更新摘要
+├── PROJECT_DOCUMENTATION.md         # 项目详细文档
+├── DIRECTORY_STRUCTURE.md           # 目录结构说明
+├── CHANGELOG.md                     # 更新日志
+├── requirements.txt                 # Python 依赖列表
 ├── daily_trade_executor.py          # ★ 每日建仓执行器 (v7.7 集成预测信号)
 ├── daily_hedge_update.py            # 每日对冲更新
 ├── hedge_execution_orders.py        # ★ 对冲执行订单生成器 (v2.0 动态Beta + 订单去重)
 ├── hedge_quantity_calculator.py     # 对冲数量计算器
 ├── build_plan_executor.py           # 建仓计划执行器
 ├── analyze_position_progress.py     # 建仓进度分析器
-├── config/
+├── check_system_health.py           # 系统健康检查
+├── signal_monitor.py                # 信号监控
+├── stop_loss_monitor.py             # 止损监控
+├── live_scheduler.py                # 实时调度器
+├── call_option_order.py             # 期权订单生成
+├── auto_final_order.py              # 自动最终订单
+├── accurate_order.py                # 精确订单
+├── calibrated_order.py              # 校准订单
+├── confirm_exact.py                 # 确认精确订单
+├── confirm_order.py                 # 确认订单
+├── click_order.py                   # 点击订单
+├── check_entrust.py                 # 检查委托
+├── check_options_position.py        # 检查期权持仓
+├── check_order_status.py            # 检查订单状态
+├── confirm_instructions.py          # 确认指令
+├── deploy_system.py                 # 部署系统
+├── start_system.py                  # 启动系统
+├── quick_check.py                   # 快速检查
+├── test_system.py                   # 系统测试
+├── research_report_black_swan_resilience.md # 黑天鹅韧性报告
+├── research_report_extreme_scenario_resilience.md # 极端情景韧性报告
+├── research_report_quant_system_comparison.md # 量化系统比较报告
+├── 15_每日工作流/                    # 每日工作流模块
+│   ├── llm_client.py                # ★ LLM 客户端 (六级降级链)
+│   ├── daily_closing_review.py      # 每日收盘回顾
+│   ├── auto_hedge_executor.py       # 自动对冲执行器
+│   ├── automated_rebalance_system.py # 自动化再平衡系统
+│   ├── black_swan_auto_responder.py # 黑天鹅自动响应器
+│   ├── black_swan_optimizer.py      # 黑天鹅优化器
+│   ├── comprehensive_quant_system.py # 综合量化系统
+│   ├── dry_run_validation.py        # 干运行验证
+│   ├── dynamic_capital_manager.py   # 动态资金管理器
+│   ├── enhanced_delta_hedge.py      # 增强Delta对冲
+│   ├── enhanced_risk_manager.py     # 增强风险管理
+│   ├── hedge_portfolio_manager.py   # 对冲组合管理器
+│   ├── hedged_return_projection.py  # 对冲收益投影
+│   ├── institutional_trading_plan.py # 机构交易计划
+│   ├── live_trading_workflow.py     # 实盘交易工作流
+│   ├── model_self_optimizer.py      # 模型自优化器
+│   ├── monitor_dashboard.py         # 监控面板
+│   ├── multi_layer_hedge_manager.py # 多层对冲管理器
+│   ├── portfolio_return_projection.py # 组合收益投影
+│   ├── protective_put_manager.py    # 保护性看跌期权管理器
+│   ├── risk_monitor_system.py       # 风险监控系统
+│   ├── strategy_optimizer.py        # 策略优化器
+│   ├── stress_testing_system.py     # 压力测试系统
+│   ├── trading_plan_text_simulator.py # 交易计划文本模拟器
+│   └── trading_workflow.py          # 交易工作流
+├── config/                          # 运行时配置 (gitignored)
 │   ├── positions.json               # ★ 实时持仓状态（对冲配置 + 实时价格）
 │   ├── stop_loss_vol_adjusted.yaml  # 止损规则
 │   └── market_returns.json          # 市场收益数据
-├── configs/
+├── configs/                         # 系统配置 (gitignored)
 │   ├── portfolio.yaml               # 组合配置
 │   ├── settings.yaml                # 系统全局配置
 │   └── institutional_config.yaml    # 机构配置
-├── v7.5_institutional/
-│   ├── README.md                    # v7.5 模块说明
-│   ├── generate_daily_trade_plan.py # ★ 每日交易计划生成器 (v7.7+ 加载对冲执行单)
-│   ├── main.py                      # 主入口
-│   ├── reports/                     # 收盘盈亏报告 (JSON + MD)
-│   └── run_daily.bat                # 日常运行脚本
+├── ms_strategy/                     # 策略模块
+│   ├── config/                      # 策略配置
+│   ├── dataset/                     # Qlib 数据集
+│   ├── factors/                     # 因子模型
+│   ├── scripts/                     # 策略脚本
+│   ├── src/
+│   │   ├── alpha/
+│   │   │   ├── signal_fusion.py     # ★ IC-based 动态权重信号融合
+│   │   │   ├── factor_library.py    # 因子库
+│   │   │   ├── qlib_signal_adapter.py # Qlib信号适配器
+│   │   │   └── signal_generator.py  # 信号生成器
+│   │   ├── backtest/                # 回测模块
+│   │   ├── data/                    # 数据模块
+│   │   ├── execution/               # 执行引擎
+│   │   ├── hedging/
+│   │   │   ├── hedge_coordinator.py # ★ 三联对冲协调器
+│   │   │   ├── beta_hedger.py       # Beta对冲器
+│   │   │   ├── vol_hedger.py        # 波动率对冲器
+│   │   │   ├── correlation_hedger.py # 相关性对冲器
+│   │   │   └── tail_risk_hedge.py   # 尾部风险对冲器
+│   │   ├── macro/                   # 宏观模块
+│   │   ├── ml/                      # ML模块
+│   │   └── risk/                    # 风险模块
+│   ├── training/                    # 模型训练
+│   └── wondertrader/                # WonderTrader模块
 ├── utils/                           # ★ 核心分析模块
+│   ├── __init__.py
 │   ├── data_provider.py             # ★ 统一数据接口 (v7.7 新增 6 个集成方法)
 │   ├── tf_price_predictor.py        # ★ v7.7 价格预测 (TimesFM+TF LSTM+ARIMA)
 │   ├── external_data_source.py      # ★ v7.7 外部数据源 (FRED+Finnhub+CoinGecko)
@@ -153,6 +261,12 @@
 │   ├── wt_execution_algo.py         # ★ 执行算法 (MinImpact/TWAP/VWAP)
 │   ├── wt_risk_control.py           # ★ 多层次风控 (组合资金/通道流量/止损止盈)
 │   ├── wt_backtest_engine.py        # ★ 轻量级回测引擎 (ETF信号策略)
+│   ├── risk_budget_allocator.py     # ★ v8.0 风险预算分配器 (Risk Parity+Kelly)
+│   ├── greek_hedge_manager.py       # ★ v8.0 Greeks动态对冲管理器
+│   ├── transaction_cost_model.py    # ★ v8.0 交易成本模型
+│   ├── execution_selector.py        # ★ v8.0 智能执行选择器
+│   ├── risk_attribution.py          # ★ v8.0 风险归因面板
+│   ├── greek_exposure_dashboard.py  # ★ v8.0 Greeks监控面板
 │   ├── akshare_futures.py           # 期货数据
 │   ├── ifind_client.py              # iFinD 接口
 │   ├── ifind_news_analyzer.py       # iFinD 新闻分析
@@ -168,13 +282,30 @@
 │   ├── trade_calendar.py            # 交易日历
 │   ├── data_types.py                # 数据类型
 │   └── logger.py                    # 统一日志
+├── tests/                           # 测试模块
+│   ├── test_alpha_modules.py        # Alpha模块测试
+│   ├── test_alt_data_modules.py     # 替代数据模块测试
+│   ├── test_directional_futures_trader.py # 方向性期货测试
+│   ├── test_execution_modules.py    # 执行模块测试
+│   ├── test_hedge_fund_modules.py   # 对冲基金模块测试
+│   ├── test_institutional_modules.py # 机构模块测试
+│   ├── test_phase_integration.py    # 阶段集成测试
+│   ├── test_phase_manager.py        # 阶段管理器测试
+│   ├── test_qmt_audit_fixes.py      # QMT审计修复测试
+│   ├── test_risk_mgmt_modules.py    # 风险管理模块测试
+│   └── test_v10_strategy_modules.py # v10策略模块测试
 ├── trade_instructions/              # ★ 每日交易指令目录
 │   ├── YYYY-MM-DD_instructions.json # 盘前生成的指令
 │   ├── YYYY-MM-DD_instructions.md   # 指令 Markdown 表格
 │   ├── YYYY-MM-DD_execution.json    # 盘后执行报告
 │   └── build_progress.json          # 建仓进度追踪
 ├── 每日报告归档/YYYY-MM-DD/         # 每日报告输出
-└── reports/                         # 汇总报告
+├── reports/                         # 汇总报告
+├── skills/                          # Agent Skills
+│   └── ifind-finance-data/          # iFinD金融数据Skill
+├── .agents/                         # Agent配置
+│   └── skills/wind-mcp-skill/       # Wind MCP Skill
+└── .gitignore                       # Git忽略规则
 ```
 
 ---
@@ -186,9 +317,6 @@
 ```bash
 # 检查系统健康
 python check_system_health.py
-
-# 检查核心模块
-python test_core_modules.py
 ```
 
 ### 2. 持仓更新
@@ -622,3 +750,16 @@ pip install plotly             # 可视化
 本系统所有数学模型与参数均为研究建议，非实盘配置。实盘部署前必须通过 Risk Committee 三审。Walk-Forward 与压力测试结果不可作为未来收益保证。Kelly 公式与 Risk Parity 在极端尾部行情下可能失效，必须配合三联对冲与熔断机制使用。2030 年清仓为计划目标，实际执行可能因市场条件调整。
 
 WonderTrader 模块为纯 Python 实现，未使用 wtpy C++ 核心库。实际性能可能与原版 C++ 实现存在差异，高频交易场景需谨慎评估。
+
+---
+
+## License
+
+MIT License
+
+---
+
+## 联系方式
+
+- **GitHub**: [https://github.com/yuppiez99999/zhunbeibanjia](https://github.com/yuppiez99999/zhunbeibanjia)
+- **作者**: yuppiez99999
