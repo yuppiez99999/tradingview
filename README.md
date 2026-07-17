@@ -1,28 +1,32 @@
-# 综合量化策略系统 v8.0
+# 综合量化策略系统 v8.1
 
-**顶级对冲基金视角 | 300万股票ETF + 200万对冲账户 | 自动执行 | 2030年清仓 | 年化≥8% 回撤<15% | ETF资金流追踪 | AI增强预测 | WonderTrader高价值模块集成 | Wind MCP 优先数据源 | 完全自动化交易流程 | 风险预算驱动建仓 | Greeks动态对冲 | 交易成本建模 | 动态Beta计算 | 订单去重合并 | 配置驱动对冲 | 执行时机管理 | 资金预留机制**
+**顶级对冲基金视角 | 500万实盘部署 | 全自动交易闭环 | 年化≥8% 回撤<15% | ETF资金流追踪 | AI增强预测 | WonderTrader高价值模块集成 | Wind MCP 优先数据源 | 本地Ollama LLM决策 | 风险预算驱动建仓 | Greeks动态对冲 | 交易成本建模 | 动态Beta计算 | 订单去重合并 | 配置驱动对冲 | 执行时机管理 | 资金预留机制**
 
 **作者**：yuppiez99999
+
+**实盘状态**：✅ 已部署（2026-07-17）  
+**自动交易**：✅ 盘前自动生成计划 + 盘中每15分钟自动决策 + 盘后自动总结  
+**LLM模型**：本地 Ollama Qwen2.5 7B（六级降级链：Ollama → 腾讯混元 → 百度千帆 → 智谱GLM → 豆包 → DeepSeek）
 
 ---
 
 ## ⭐ 项目亮点
 
 ### 🏆 机构级量化系统
-- **双账户结构**：300万股票ETF进攻账户 + 200万对冲保护账户
+- **双账户结构**：500万总资金（现货300万 + 对冲200万），已实盘部署
 - **风险预算驱动**：Risk Parity + Kelly 公式动态分配建仓预算
 - **三联对冲引擎**：Beta/Vol/Correlation 三类对冲实时联动 + 尾部风险保护
 - **完整风控体系**：个股止损 + 组合回撤三级防御 + Walk-Forward 回测验证
 
 ### 🤖 AI 增强模块
 - **价格预测**：TimesFM 零样本 + TensorFlow LSTM + ARIMA 三级降级
-- **AI 报告代理**：豆包 Speed → DeepSeek → Ollama 本地三级降级链
+- **AI 报告代理**：本地 Ollama Qwen2.5 7B 优先，六级降级链（Ollama → 腾讯混元 → 百度千帆 → 智谱GLM → 豆包 → DeepSeek）
 - **新闻情感分析**：实时抓取东方财富/巨潮资讯/新浪财经公告与研报
 - **外部数据源**：FRED/Econdb/Finnhub/CoinGecko 全球宏观与另类数据
 
 ### ⚡ 完全自动化
 - **无人化交易闭环**：盘前自动生成 → 自动确认 → 盘后自动执行 → 自动生成下一日计划
-- **Windows 任务调度**：07:00 盘前 / 15:30 盘后自动触发
+- **Windows 任务调度**：07:00 盘前 / 15:30 盘后自动触发 + 盘中每15分钟自动决策
 - **十五五规划对齐**：2026-2030 五年阶段管理，2030-12-31 强制清仓
 
 ### 📈 WonderTrader 高价值模块
@@ -32,20 +36,30 @@
 - **Tick级回测引擎**：精确撮合，支持事件驱动策略回测
 - **执行算法**：MinImpact/TWAP/VWAP 大单拆分算法
 
-### 🛡️ 顶级对冲基金优化 (v8.0)
+### 🛡️ 顶级对冲基金优化 (v8.1)
 - **Greeks 动态对冲**：Delta/Gamma/Theta/Vega 自动调整期货/期权对冲量
 - **交易成本模型**：统一滑点/佣金/冲击成本建模
 - **智能执行选择**：自动选择综合成本+时间最优算法
 - **风险归因面板**：行业/风格/资产类型风险分解
 - **Greeks 监控面板**：实时暴露监控与再平衡信号
+- **LLM 盘中自动决策**：每15分钟自动分析持仓/行情/对冲状态，生成买卖建议
+- **年化收益测算**：多情景分析（保守/中性/悲观），内置 annual_return_forecast
 
 ---
 
 ## 系统概述
 
-综合量化策略系统 v8.0 是一个专业量化交易平台，在 v7.9 完全自动化交易流程基础上新增 **顶级对冲基金优化模块**，实现风险预算驱动建仓、Greeks 动态对冲、交易成本建模等机构级能力。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万** 与 **对冲保护账户 200万**，目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
+综合量化策略系统 v8.1 是一个专业量化交易平台，在 v8.0 顶级对冲基金优化基础上新增 **全自动交易闭环** 与 **LLM 盘中自动决策**，实现风险预算驱动建仓、Greeks 动态对冲、交易成本建模、年化收益测算等机构级能力。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万** 与 **对冲保护账户 200万**，目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
 
-**v8.0 核心升级（顶级对冲基金优化）**：
+**v8.1 核心升级（全自动交易闭环 + LLM 盘中决策）**：
+- **全自动闭环**：`run_daily_eod.py` — 每日收盘后自动生成报告 + 写入次日计划 + 预生成盘中决策
+- **LLM 盘中决策引擎**：`v7.5_institutional/llm_intraday_decision_engine.py` — 每 15 分钟自动分析持仓/行情/对冲状态，生成买卖建议
+- **自动决策注入**：`apply_llm_decisions_to_plan.py` — 将收盘报告中的 AI 建议自动灌入次日交易计划
+- **Windows 定时任务**：`register_intraday_task.ps1` — 注册 `Quant_LLM_IntradayDecision` 任务，交易日 9:25-15:05 每 15 分钟执行
+- **年化收益测算**：`annual_return_forecast` — 保守/中性/悲观三情景分析，内置夏普比率与最大回撤预测
+- **监控名单自动维护**：根据 `daily_pnl_report` 自动生成 watchlist，止损线统一 -12%
+
+**v8.0 核心能力保留（顶级对冲基金优化）**：
 - **风险预算驱动建仓**：`utils/risk_budget_allocator.py` — Risk Parity + Kelly 公式动态分配日度建仓预算，替代固定 20 万/天
 - **Greeks 动态对冲**：`utils/greek_hedge_manager.py` — 基于 Delta/Gamma/Theta/Vega 自动调整期货/期权对冲量
 - **交易成本模型**：`utils/transaction_cost_model.py` — 统一滑点/佣金/冲击成本建模，预算分配前先扣减预估成本
@@ -72,7 +86,7 @@
 - **价格预测模块**：`utils/tf_price_predictor.py` — TimesFM 零样本预测 + TensorFlow LSTM + ARIMA 三级降级，支持 T+1/T+5/T+10 预测
 - **外部数据源模块**：`utils/external_data_source.py` — 整合 FRED/Econdb/美国财政部/AlphaVantage/Finnhub/CoinGecko 六大免费 API
 - **网页抓取模块**：`utils/web_scraper.py` — 基于 Scrapling/BeautifulSoup 抓取东方财富公告/研报、巨潮资讯、新浪财经新闻
-- **AI 报告代理**：`utils/ai_report_agent.py` — 复用 `15_每日工作流/llm_client.py` 三级降级链（豆包→DeepSeek→Ollama），自动情感分析、每日报告、信号解读
+- **AI 报告代理**：`utils/ai_report_agent.py` — 复用 `15_每日工作流/llm_client.py` 六级降级链（Ollama→腾讯混元→百度千帆→智谱GLM→豆包→DeepSeek），自动情感分析、每日报告、信号解读
 - **建仓流程 AI 集成**：`daily_trade_executor.py` 在分配金额时根据预测信号动态调整（强看多 +30%、强看空跳过）
 - **统一数据接口**：`data_provider.py` 新增 6 个集成方法，统一暴露预测/宏观/情感/AI 报告能力
 
@@ -125,11 +139,29 @@
 
 | 工具 | 标的 | 方向 | 目标合约 | 保证金率 | 目的 |
 |------|------|------|----------|----------|------|
-| IF 股指期货 | 沪深300 | 卖出 | 3 手 | 12% | 系统性 Beta 对冲 |
-| 510050 Put | 上证50ETF | 买入 | 20 张 | — | 尾部风险保护 |
-| 沪深300ETF Put | 510300 | 买入 | 5 张 | — | 增强 Beta 对冲 |
+| IF 股指期货 | 沪深300 | 卖出 | 5 手 | 12% | 系统性 Beta 对冲 |
+| 510050 Put | 上证50ETF | 买入 | 10 张 | — | 尾部风险保护 |
+| 510300 Put | 沪深300ETF | 买入 | 5 张 | — | 增强 Beta 对冲 |
 | 科创50ETF Put | 588080 | 买入 | 10 张 | — | 科技股尾部保护 |
 | 创业板ETF Put | 159915 | 买入 | 10 张 | — | 成长股尾部保护 |
+
+### 实盘状态（2026-07-17 更新）
+
+| 项目 | 数值 | 说明 |
+|------|------|------|
+| 总资金 | ¥5,000,000 | 已到位 |
+| 现货持仓市值 | ¥2,238,363 | 23 个有效标的 |
+| 现金未建仓 | ¥2,761,637 | 建仓进度 44.8% |
+| 现货浮盈 | -¥20,609.30 | -0.92% |
+| 对冲账户 | ¥2,000,000 | IF 3 手 + Put 保护 |
+| 对冲盈亏 | ¥0.00 | 当日未生效 |
+| 净浮盈 | -¥20,609.30 | -0.41% |
+| 最大回撤 | -13.87% | 接近 -15% 红线 |
+| Covered Call 年化 | +9.6% | 6 个标的权利金收入 |
+| 组合年化测算（中性） | +15.2% | 夏普 1.90 |
+| 组合年化测算（保守） | +8.3% | 夏普 0.83 |
+| LLM 模型 | Qwen2.5 7B | 本地 Ollama |
+| 自动任务 | 已注册 | 盘后 16:00 + 盘中每 15 分钟 |
 
 ---
 
@@ -157,6 +189,15 @@
 ├── PROJECT_DOCUMENTATION.md         # 项目详细文档
 ├── DIRECTORY_STRUCTURE.md           # 目录结构说明
 ├── CHANGELOG.md                     # 更新日志
+├── requirements.txt                 # Python 依赖列表
+├── run_daily_eod.py                  # ★ 盘后自动闭环（报告→计划→盘中决策）
+├── apply_llm_decisions_to_plan.py    # ★ 自动将 LLM 决策灌入次日交易计划
+├── generate_pre_market_summary.py    # ★ 生成盘前 Markdown 摘要
+├── register_intraday_task.ps1        # ★ 注册 LLM 盘中决策 Windows 定时任务
+├── v7.5_institutional/               # 机构级模块目录
+│   ├── llm_intraday_decision_engine.py # ★ LLM 盘中自动决策引擎（每15分钟）
+│   ├── generate_daily_trade_plan.py   # 每日交易计划生成器
+│   └── ...
 ├── requirements.txt                 # Python 依赖列表
 ├── daily_trade_executor.py          # ★ 每日建仓执行器 (v7.7 集成预测信号)
 ├── daily_hedge_update.py            # 每日对冲更新
@@ -331,19 +372,29 @@ python update_position_prices.py
 ```bash
 # 生成每日盈亏报告
 python generate_daily_report.py
+
+# 生成收盘报告 + 自动写入次日计划 + 预生成盘中决策（推荐）
+python run_daily_eod.py
 ```
 
 ### 4. 自动执行任务
 
 ```powershell
-# 注册 Windows 任务计划
+# 注册 Windows 任务计划（盘后 + 盘中）
 .\register_all_scheduled_tasks.ps1
+.\register_intraday_task.ps1
 
 # 测试盘前任务
 .\register_all_scheduled_tasks.ps1 -Test pre
 
 # 测试盘后任务
 .\register_all_scheduled_tasks.ps1 -Test post
+
+# 手动触发 LLM 盘中决策（mock 模式）
+python v7.5_institutional/llm_intraday_decision_engine.py --mode mock
+
+# 手动触发 LLM 盘中决策（实盘模式）
+python v7.5_institutional/llm_intraday_decision_engine.py --mode live
 ```
 
 ### 5. 查看持仓
@@ -397,7 +448,23 @@ python -m utils.wt_tick_engine
 python -m utils.etf_flow_monitor
 ```
 
-### 8. 对冲执行单生成（v8.0 优化）
+### 8. LLM 盘中决策引擎（v8.1 新增）
+
+```bash
+# 将收盘报告中的 AI 建议自动灌入次日交易计划
+python apply_llm_decisions_to_plan.py 2026-07-17 2026-07-20
+
+# 生成盘前 Markdown 摘要
+python generate_pre_market_summary.py 2026-07-20
+
+# 查看已注册的盘中定时任务
+schtasks /Query /TN "Quant_LLM_IntradayDecision" /FO LIST
+
+# 手动运行盘中决策（用于测试）
+python v7.5_institutional/llm_intraday_decision_engine.py --mode mock --date 2026-07-20
+```
+
+### 9. 对冲执行单生成（v8.0 优化）
 
 ```bash
 # 生成当日对冲执行单
@@ -410,7 +477,7 @@ python hedge_execution_orders.py 2026-07-15
 python v7.5_institutional/generate_daily_trade_plan.py 2026-07-15
 ```
 
-### 9. Python 调用示例
+### 10. Python 调用示例
 
 ```python
 # ========== AI 增强模块 ==========
@@ -522,6 +589,15 @@ merged = merge_orders(orders)
 from hedge_execution_orders import load_positions, build_orders
 positions, prices, hedge_positions, positions_data = load_positions()
 orders = build_orders(plan, positions, prices, hedge_positions, positions_data)
+
+# ========== LLM 盘中决策引擎 ==========
+
+from v7.5_institutional.llm_intraday_decision_engine import IntradayDecisionEngine
+
+engine = IntradayDecisionEngine(date="2026-07-20", mode="mock")
+decisions = engine.run()
+for d in decisions:
+    print(f"{d['type']} | {d['code']} | {d['action']} | {d['reason']}")
 ```
 
 ---
@@ -724,6 +800,7 @@ pip install plotly             # 可视化
 
 | 版本 | 日期 | 主要变更 |
 |------|------|----------|
+| **v8.1** | 2026-07-17 | **全自动交易闭环 + LLM 盘中决策**：新增 `run_daily_eod.py` 收盘自动闭环（报告→计划→盘中决策预生成）；新增 `llm_intraday_decision_engine.py` 每15分钟自动决策；新增 `apply_llm_decisions_to_plan.py` 自动注入 AI 建议；新增 `register_intraday_task.ps1` Windows 定时任务；新增 `annual_return_forecast` 多情景收益测算（保守/中性/悲观）；新增 watchlist 自动维护与 -12% 统一止损线；LLM 模型切换为本地 Ollama Qwen2.5 7B 六级降级链；实盘部署完成（500万，23标的，建仓进度 44.8%） |
 | **v8.0** | 2026-07-14 | **对冲执行单优化**：动态Beta计算（基于持仓实时计算0.6658）；订单去重合并（避免重复下单）；配置驱动对冲（从positions.json读取IF期货3手、期权合约）；执行时机管理（期权09:30-10:00、期货10:30-11:00）；资金预留机制（30%资金¥607,428）；现货订单价格修复（从10.0改为真实市场价格）；建仓计划优化（调整防御资产权重，增加科技股配置）；对冲策略优化（增加沪深300ETF期权，确保Beta<0.5） |
 | v8.0 | 2026-07-13 | **顶级对冲基金优化**：风险预算驱动建仓（Risk Parity + Kelly）；Greeks 动态对冲（Delta/Gamma/Theta/Vega）；交易成本模型（滑点/佣金/冲击成本）；智能执行算法选择器（MinImpact/TWAP/VWAP/immediate）；风险归因面板（行业/风格/资产类型）；Greeks 监控面板；交易成本扣减预算避免超支；当前持仓已达 20 万（9 标的，含科创50/半导体/新能源车/医药/黄金/中国神华等） |
 | v7.10 | 2026-07-12 | **十五五+康波宏观对齐**：新增宏观战略框架章节；股票/ETF/期货/期权全面标注十五五与康波对齐说明；`daily_trade_executor.py` 接入 `macro_policy_scoring` 动态调整分配（强对齐+20%、偏弱-20%或跳过）；`hedge_execution_orders.py` 支持读取 `hedge_positions` 生成期货/期权执行单；`config/positions.json` 新增 CU/AL/LC/AU 期货及 588080/159915 ETF 认沽期权 |

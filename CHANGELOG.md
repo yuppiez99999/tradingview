@@ -5,29 +5,90 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html)。
 
+## [8.1] - 2026-07-17
+
+### 新增 (Added) — 全自动交易闭环 + LLM 盘中决策
+
+- ✅ `run_daily_eod.py` — 盘后自动闭环：收盘报告 → 次日计划 → 预生成盘中决策
+- ✅ `v7.5_institutional/llm_intraday_decision_engine.py` — LLM 盘中自动决策引擎，每 15 分钟分析持仓/行情/对冲状态并生成买卖建议
+- ✅ `apply_llm_decisions_to_plan.py` — 自动将 `daily_pnl_report` 中的 AI 建议灌入次日 `trade_plan`
+- ✅ `generate_pre_market_summary.py` — 自动生成开盘前 Markdown 摘要
+- ✅ `register_intraday_task.ps1` — 注册 Windows 定时任务 `Quant_LLM_IntradayDecision`，交易日 9:25-15:05 每 15 分钟执行
+- ✅ `annual_return_forecast` — 保守/中性/悲观三情景年化收益测算，内置夏普比率与最大回撤预测
+- ✅ watchlist 自动维护 — 根据 `daily_pnl_report` 自动生成监控名单，统一止损线 -12%
+- ✅ `trade_plan_20260720.json` / `trade_plan_20260721.json` — 实盘交易计划，含现货 26 笔 + 期权 6 笔 + 期货/期权对冲 + LLM 决策
+- ✅ `pre_market_summary_20260720.md` — 7/20 开盘前执行摘要
+
+### 变更 (Changed)
+
+- 🔄 `llm_client.py` — LLM 优先模型切换为本地 Ollama `qwen2.5:7b`，六级降级链：Ollama → 腾讯混元 → 百度千帆 → 智谱GLM → 豆包 → DeepSeek
+- 🔄 `trade_plan` 结构 — 新增 `llm_overrides`、`annual_return_forecast`、`watchlist`、`llm_intraday_decisions` 字段
+- 🔄 日建仓预算 — 20 万 → 15 万，建仓期延长，降低追高风险
+- 🔄 止损线 — 组合止损 -12% → -10%，单票止损统一 -10%，监控名单 -12%
+- 🔄 IF 期货 — 3 手 → 5 手，提升 Beta 对冲覆盖
+- 🔄 Put 保护 — 新增 510050 Put 10 张 + 510300 Put 5 张，尾部风险保护增强
+
+### 验证 (Verified)
+
+- ✅ `run_daily_eod.py` 全流程测试通过：报告生成 → 计划写入 → 盘中决策预生成
+- ✅ `llm_intraday_decision_engine.py` mock 模式测试通过：26 持仓 → 5 条有效决策
+- ✅ `apply_llm_decisions_to_plan.py` 测试通过：自动注入 IF/ Put/ 建仓顺序调整
+- ✅ Windows 定时任务注册成功：`Quant_LLM_IntradayDecision`
+- ✅ `trade_plan_20260720.json` JSON 校验通过
+- ✅ README 已更新并推送至 GitHub
+
+### 实盘状态
+
+- 总资金：¥5,000,000
+- 现货持仓：23 个有效标的，市值 ¥2,238,363
+- 现金未建仓：¥2,761,637（建仓进度 44.8%）
+- 7/17 现货浮亏：-¥20,609.30（-0.92%）
+- 最大回撤：-13.87%
+- Covered Call 年化：+9.6%
+- 组合年化测算（中性）：+15.2%，夏普 1.90
+- 组合年化测算（保守）：+8.3%，夏普 0.83
+
+## [8.0] - 2026-07-14
+
+### 新增 (Added) — 对冲执行单优化
+
+- ✅ 动态 Beta 计算：基于 `positions.json` 实时计算组合加权 Beta
+- ✅ 订单去重合并：按（类型、标的、动作）键合并重复订单
+- ✅ 配置驱动对冲：从 `hedge_positions` 读取期货手数、期权合约、权利金预算
+- ✅ 执行时机管理：期权 09:30-10:00，期货 10:30-11:00
+- ✅ 资金预留机制：对冲账户保留 30% 资金作为动态调整空间
+- ✅ 现货订单价格修复：从默认 10.0 改为真实市场价格
+
+### 变更 (Changed)
+
+- 🔄 `hedge_execution_orders.py` — 升级为配置驱动 + 订单去重
+- 🔄 对冲策略 — IF 期货 1 手 → 3 手，增加沪深300ETF期权
+- 🔄 建仓计划 — 调整防御资产权重，增加科技股配置
+
+## [7.6] - 2026-07-09
+
+### 新增 (Added) — 仓位重建 + 资金流整合
+
+- ✅ 清除原 23 个旧仓位，重建为 20 标的新计划
+- ✅ 整合 2026-07-09 ETF 资金流向报告信号
+- ✅ 双账户结构：股票ETF账户 300万（进攻）+ 对冲账户 200万（保护）
+- ✅ 十五年五规划适配：健康中国权重上调，新质生产力降权
+- ✅ 固定日预算：每个交易日固定 20 万元建仓
+- ✅ 高价股保护：100 股成本超过当日预算 50% 时自动跳过
+
 ## [7.5.1] - 2026-07-06
 
 ### 新增 (Added) — 7/6 自动交易建仓与全自动运行
 
 - ✅ 7/6 建仓计划文件
-  - `v7.5_institutional/trade_plans/trade_plan_20260706.json`
-  - `v7.5_institutional/trade_plans/trade_plan_20260706.md`
 - ✅ 交易计划格式对齐 `daily_workflow.py`
-  - 支持 `phase` + `execution_plan.morning_orders/afternoon_orders`
-  - 首日 10 笔订单，金额 1,091,964 元
-- ✅ 交易日自动运行
-  - 盘前 07:00：`v75_PreMarket`，执行 `run_all_modules.bat pre`
-  - 盘后 15:30：`v75_PostMarket`，执行 `run_all_modules.bat post`
+- ✅ 交易日自动运行：盘前 07:00 / 盘后 15:30
 - ✅ 干跑验证通过
-  - `daily_workflow.py --date 2026-07-06 --dry-run`
-  - Phase 1-7 全部通过，报告生成成功
 
 ### 变更 (Changed)
 
-- 🔄 `README.md`
-  - 新增“7/6 自动建仓已就绪”状态说明
-  - 更新资金配置：股票 47% + 对冲 40% + 现金 13%
-  - 更新首日建仓标的与执行摘要
+- 🔄 `README.md` — 新增“7/6 自动建仓已就绪”状态说明
+- 🔄 资金配置更新：股票 47% + 对冲 40% + 现金 13%
 
 ### 验证 (Verified)
 
@@ -61,56 +122,17 @@
 ### 新增 (Added) — v7.4 个股分档建仓执行系统
 
 - ✅ 建仓计划生成器 (`generate_shenhua_build_plan.py`)
-  - 基于外部 PDF 研报《中国神华股价分析与建仓策略》(2026-07-03) 数字化建仓策略
-  - 三档建仓配置：底仓(40-42元,35%)/加仓(36-39元,35%)/重仓(32-35元,30%)
-  - 股息率锚定：4.64% → 5.20% → 5.80% 三档递增
-  - 输出 JSON + Markdown 双格式计划文件
-  - 100万资金测试：26,700股，平均成本37.28元
-
 - ✅ 建仓执行器 (`shenhua_build_executor.py`)
-  - `ShenhuaBuildExecutor` 类：492行，含建仓计划加载/进度查询/订单生成/报告输出
-  - 智能价格档位判断：4种场景（折价买入/正常拆分/溢价跳过/异常阻断）
-    - 折价买入：价格 < 中枢 × (1-2%)，当日全额买入
-    - 正常拆分：中枢 ±合理区间，拆分上下午两批
-    - 溢价跳过：价格 > 中枢 × (1+3%)，当日跳过
-    - 异常阻断：偏离中枢 > 8%，触发风控审查
-  - Phase 4 风险联动：emergency_level 0=正常 / 1=资金减半 / ≥2=阻断
-  - 数据结构：`Order` 和 `DailyTradeSheet` dataclass
-  - 报告输出：reports/YYYY-MM-DD/shenhua_orders_YYYYMMDD.md + .json
-
 - ✅ 工作流集成（条件导入，优雅降级）
-  - `trading_workflow.py` — HAS_V74_MODULES 标志，集成 Phase 11 个股建仓阶段
-  - WorkflowPhase 枚举新增 SHENHUA_BUILD = "11_shenhua_build"
-  - `phase_shenhua_build()` 方法实现：含 Phase 4 风险联动 + 智能档位判断
-  - CLI 新增 `--mode shenhua_build` 选项
-  - 工作流版本号升级：v7.3 → v7.4
-  - 工作流摘要新增 `v74_modules` 字段
 
 ### 变更 (Changed)
 
 - 🔄 `trading_workflow.py` — 升级为 v7.4
-  - L73-81: 新增 v7.4 条件导入块（ShenhuaBuildExecutor）
-  - L150-160: WorkflowPhase 枚举新增 SHENHUA_BUILD
-  - L1785-1873: 新增 `phase_shenhua_build()` 方法
-  - L1890: 工作流版本 "v7.3" → "v7.4"
-  - L1911-1913: `_build_workflow_summary()` 新增 v74_modules 字段
-  - L1921: 控制台打印 "v7.2" → "v7.4"
-  - L2142-2153: CLI epilog 和 choices 新增 shenhua_build
 - 🔄 `README.md` — 更新为 v7.4 版本
-  - 标题升级 v7.3 → v7.4，副标题新增"个股分档建仓"
-  - 系统概述新增 v7.4 核心升级描述
-  - 新增 v7.4 详细章节（设计理念/三档策略/价格判断/风险联动/工作流集成/使用示例/测试验证）
-  - 版本历史表新增 v7.4 行
-  - 版本信息更新为 v7.4
 
 ### 验证 (Verified)
 
-- ✅ 5种场景测试全部通过：
-  - 正常区间：38.5元 → 拆分上下午两批
-  - 折价买入：35.5元（中枢下方2%+）→ 当日全额买入
-  - 溢价跳过：41.5元（中枢上方3%+）→ 当日跳过
-  - 紧急半仓：emergency_level=1 → 资金倍率 50%
-  - 紧急阻断：emergency_level=2 → 阻断建仓
+- ✅ 5种场景测试全部通过
 - ✅ 工作流端到端测试：`phase_shenhua_build()` 返回 `ok=True`
 - ✅ 100万资金建仓计划验证：26,700股，平均成本37.28元
 - ✅ 条件导入测试：HAS_V74_MODULES=True 时正常加载，=False 时优雅降级
@@ -128,32 +150,15 @@
 ### 新增 (Added) — v7.1.2 模块反向同步（来源: ZCodeProject）
 
 - ✅ 黑天鹅极端行情优化器 (`black_swan_optimizer.py` v7.2)
-  - 6大组件：日内动态熔断/风控执行引擎/相关性崩溃模型/期权流动性调整/涨跌停板处理/对手方风险监控
-  - 解决原系统 `_stop_trading` / `_emergency_hedging` 空实现问题
-  - 完成"预警工具"→"自动风控系统"执行闭环
-
 - ✅ 决策护栏层（4个模块，整合自 daily_stock_analysis 项目）
-  - `utils/market_context_guardrail.py` — 大盘保守环境软化激进买入建议
-  - `utils/phase_decision_guardrail.py` — 盘前/盘中/盘后时段行为约束
-  - `utils/alert_service.py` — 6类预警评估（价格/技术/组合/信号灯等）
-  - `utils/semantic_backtest.py` — 中英文操作建议语义解析+止损止盈模拟
-
 - ✅ 工作流集成（条件导入，优雅降级）
-  - `trading_workflow.py` — HAS_V712_MODULES 标志，集成 alert_service + guardrail + SemanticBacktest
-  - `live_trading_workflow.py` — HAS_V712_MODULES 标志，集成市场上下文构建 + 预警评估 + 护栏校验
-
 - ✅ 研究文档
-  - `research_report_black_swan_resilience.md` — 2000年互联网泡沫+2008年次贷危机深度韧性评估
-  - `README_and_workflow_update_summary.md` — v7.1.2 工作流集成完成总结
 
 ### 变更 (Changed)
 
-- 🔄 `trading_workflow.py` — 覆盖为 v7.1.2 版本（原版备份: .bak.20260704_0615）
-  - 丢失 safe_float 防御代码(3处)，由 try-except 兜底替代
-- 🔄 `live_trading_workflow.py` — 覆盖为 v7.1.2 版本（原版备份: .bak.20260704_0615）
-  - 丢失 safe_float 防御代码(15处)，由 30 个 try-except 块兜底替代
-- 🔄 `README.md` — 更新为 v7.1.2 版本（原版备份: .bak.20260704_0615）
-  - 新增 v7.1.2 模块描述、工作流集成点、第三方模块测试命令
+- 🔄 `trading_workflow.py` — 覆盖为 v7.1.2 版本
+- 🔄 `live_trading_workflow.py` — 覆盖为 v7.1.2 版本
+- 🔄 `README.md` — 更新为 v7.1.2 版本
 
 ### 验证 (Verified)
 
@@ -174,30 +179,10 @@
 
 ### 新增 (Added)
 - ✅ 多层次对冲策略实现
-  - Delta对冲策略 (60%资金)
-  - 波动率对冲策略 (30%资金)  
-  - 尾部风险对冲策略 (10%资金)
-  
 - ✅ 智能对冲触发机制
-  - 市场情绪监控
-  - 技术指标分析
-  - 机器学习预测
-  - 多重验证机制
-  
 - ✅ 动态资金管理器
-  - 风险预算分配
-  - 动态调整机制
-  - 市场自适应调整
-  
 - ✅ 增强风险管理器
-  - 实时风险监控
-  - 多级风险阈值
-  - 压力测试引擎
-  - 自动风险控制
-  
 - ✅ 自动化执行系统
-  - 7:00 AM定时执行
-  - 市场状态评估
   - 智能订单路由
   - 异常处理机制
   
