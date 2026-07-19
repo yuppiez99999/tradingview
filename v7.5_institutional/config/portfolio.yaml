@@ -3,6 +3,8 @@
 
 account_structure:
   total_capital: 5000000
+  equity_allocation: 3_000_000
+  hedge_allocation: 2_000_000
   stock_etf_capital: 3000000
   hedge_capital: 2000000
   start_date: "2026-07-10"

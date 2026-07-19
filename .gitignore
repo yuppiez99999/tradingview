@@ -123,6 +123,9 @@ sim_snapshots/
 config/
 configs/
 
+# Allow portfolio template to be tracked
+!v7.5_institutional/config/portfolio.yaml
+
 # Trade executor generated files
 daily_trade_executor.log
 daily_trade_executor_pid.txt
@@ -132,3 +135,8 @@ portfolio_return_projection.json
 
 # Skill state files
 .agents/skills/wind-mcp-skill/scripts/update-state.json
+
+# Screenshots and UI captures
+v7.5_institutional/*.png
+v7.5_institutional/*/*.png
+v7.5_institutional/*/*/*.png

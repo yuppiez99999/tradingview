@@ -1,6 +1,8 @@
 {
   "metadata": {
     "total_capital": 5000000,
+    "stock_etf_capital": 3000000,
+    "hedge_capital": 2000000,
     "start_date": "2026-07-06",
     "end_date": "2026-09-30",
     "target_count": 13,
@@ -14,8 +16,8 @@
       "type": "ETF",
       "risk": "高",
       "style": "高端制造",
-      "weight": 0.11,
-      "est_price": 1.05,
+      "weight": 0.13,
+      "est_price": 2.21,
       "lots": 100,
       "reason": "AI/科技核心指数，十五五规划重点方向"
     },
@@ -24,8 +26,8 @@
       "type": "ETF",
       "risk": "高",
       "style": "高端制造",
-      "weight": 0.1,
-      "est_price": 1.38,
+      "weight": 0.12,
+      "est_price": 1.45,
       "lots": 100,
       "reason": "AI算力硬件核心，康波第六轮技术底座"
     },
@@ -34,7 +36,7 @@
       "type": "ETF",
       "risk": "高",
       "style": "高端制造",
-      "weight": 0.1,
+      "weight": 0.11,
       "est_price": 1.12,
       "lots": 100,
       "reason": "十五五重点产业，制造业升级主线"
@@ -44,8 +46,8 @@
       "type": "ETF",
       "risk": "高",
       "style": "高端制造",
-      "weight": 0.1,
-      "est_price": 1.55,
+      "weight": 0.11,
+      "est_price": 1.67,
       "lots": 100,
       "reason": "新能源产业链，十五五绿色转型战略"
     },
@@ -54,8 +56,8 @@
       "type": "ETF",
       "risk": "高",
       "style": "高端制造",
-      "weight": 0.09,
-      "est_price": 2.15,
+      "weight": 0.10,
+      "est_price": 3.86,
       "lots": 100,
       "reason": "成长风格核心敞口，创新企业集中地"
     },
@@ -84,7 +86,7 @@
       "type": "债券",
       "risk": "低",
       "style": "防御",
-      "weight": 0.03,
+      "weight": 0.02,
       "est_price": 102.5,
       "lots": 10,
       "reason": "利率债配置，极端行情安全垫"
@@ -94,7 +96,7 @@
       "type": "债券",
       "risk": "低",
       "style": "防御",
-      "weight": 0.03,
+      "weight": 0.02,
       "est_price": 101.2,
       "lots": 10,
       "reason": "政策性金融债，信用风险极低"
@@ -104,7 +106,7 @@
       "type": "货币",
       "risk": "低",
       "style": "防御",
-      "weight": 0.02,
+      "weight": 0.01,
       "est_price": 100.05,
       "lots": 10,
       "reason": "现金管理工具，闲置资金获取货币收益"
