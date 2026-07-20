@@ -1,0 +1,61 @@
+{
+  "week_start": "2026-07-20",
+  "week_end": "2026-07-24",
+  "week_number": 3,
+  "phase": "Phase 1 快速建仓期(加速)",
+  "phase_period": "2026-07-10 to 2026-08-07",
+  "days_elapsed": 15,
+  "days_remaining": 13,
+  "total_days": 28,
+  "progress_pct": 53.6,
+  "daily_capital": 200000,
+  "weekly_capital_target": 800000,
+  "generated_at": "2026-07-20T18:30:00.000000",
+  "daily_plans": [
+    {
+      "date": "2026-07-20",
+      "weekday": "周一",
+      "day_index": 11,
+      "file": "trade_plan_20260720.json"
+    },
+    {
+      "date": "2026-07-21",
+      "weekday": "周二",
+      "day_index": 12,
+      "file": "trade_plan_20260721.json"
+    },
+    {
+      "date": "2026-07-22",
+      "weekday": "周三",
+      "day_index": 13,
+      "file": "trade_plan_20260722.json"
+    },
+    {
+      "date": "2026-07-23",
+      "weekday": "周四",
+      "day_index": 14,
+      "file": "trade_plan_20260723.json"
+    },
+    {
+      "date": "2026-07-24",
+      "weekday": "周五",
+      "day_index": 15,
+      "file": "trade_plan_20260724.json"
+    }
+  ],
+  "key_notes": [
+    "本周为建仓加速周, 每日20万现货建仓 + 150万对冲资金",
+    "累计建仓中: 已执行约220万/300万 (约73%完成)",
+    "周四-周五为建仓后半段, 优先补齐缺口标的",
+    "Theta Covered Call月度计划有效至8/17",
+    "IF期货5手对冲 (LLM建议增持), KillSwitch=L0正常",
+    "周五下午14:00-14:30为本周最后一笔建仓窗口",
+    "ETF资金流强信号维持: 证券/科创50/上证50/银行/新能源车"
+  ],
+  "targets_this_week": {
+    "daily_spot_build": "20万/日",
+    "cumulative_by_friday": "预计累计建仓约300万 (100%完成)",
+    "hedge_maintenance": "5手IF + 6标的Covered Call",
+    "risk_checks": "每日熔断检查 + ETF资金流监测"
+  }
+}
