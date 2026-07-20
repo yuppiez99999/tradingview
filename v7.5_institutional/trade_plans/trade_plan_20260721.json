@@ -5,13 +5,13 @@
   "stock_etf_capital": 3000000,
   "hedge_capital": 2000000,
   "execution_mode": "MOCK_BROKER",
-  "strategy": "康波第六轮周期 × 十五五规划 × v7.7对冲基金视角融合 (Theta+Gamma+KillSwitch+Liquidation)",
+  "strategy": "康波第六轮周期 x 十五五规划 x v7.6对冲基金视角 (Theta+Gamma+KillSwitch+Liquidation) — 8/7前全速完成建仓",
   "metadata": {
     "generated_at": "2026-07-17T20:56:27.143327",
     "source_plan": "500万建仓计划_20260706.json",
     "source_build_plan": "E:\\各种PY程序\\28-终极量化交易系统7.1\\500万建仓计划_20260706.json",
     "version": "v7.7_institutional_hedge_fund",
-    "note": "动态生成 — 阶段1 第12天, 23 标的新权重, 对冲基金模块=ON",
+    "note": "动态生成 — 阶段1 第12/28天, 23 标的新权重, 8/7前全速完成建仓, 对冲基金模块=ON",
     "llm_adjustments": {
       "applied_at": "2026-07-20 16:00:49",
       "source": "daily_pnl_report_2026-07-20",
@@ -25,17 +25,17 @@
   },
   "phase": {
     "phase_number": 1,
-    "name": "集中建仓期",
+    "name": "集中建仓期(加速)",
     "start_date": "2026-07-06",
-    "end_date": "2026-08-15",
-    "duration_days": 30,
+    "end_date": "2026-08-07",
+    "duration_days": 28,
     "day_index": 12,
     "capital_ratio": 0.9,
     "phase_capital": 4500000,
-    "daily_capital": 150000,
-    "day_capital": 150000.0,
+    "daily_capital": 200000,
+    "day_capital": 200000.0,
     "asset_count": 13,
-    "strategy": "每日 15 万现货建仓 + 150 万对冲资金, 8/15 完成建仓"
+    "strategy": "每日 20 万现货建仓 + 150 万对冲资金, 8/7 完成全部建仓"
   },
   "market_state": {
     "vix": 18.5,
@@ -222,7 +222,7 @@
         "order_type": "LIMIT",
         "style": "高端制造",
         "risk": "高",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -238,7 +238,7 @@
         "order_type": "LIMIT",
         "style": "高端制造",
         "risk": "高",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -254,7 +254,7 @@
         "order_type": "LIMIT",
         "style": "高端制造",
         "risk": "高",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -270,7 +270,7 @@
         "order_type": "LIMIT",
         "style": "高端制造",
         "risk": "高",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -286,7 +286,7 @@
         "order_type": "LIMIT",
         "style": "高端制造",
         "risk": "高",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -302,7 +302,7 @@
         "order_type": "LIMIT",
         "style": "防御",
         "risk": "高",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -318,7 +318,7 @@
         "order_type": "LIMIT",
         "style": "防御",
         "risk": "中",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -334,7 +334,7 @@
         "order_type": "LIMIT",
         "style": "防御",
         "risk": "低",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -350,7 +350,7 @@
         "order_type": "LIMIT",
         "style": "防御",
         "risk": "低",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -366,7 +366,7 @@
         "order_type": "LIMIT",
         "style": "防御",
         "risk": "低",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -382,7 +382,7 @@
         "order_type": "LIMIT",
         "style": "资源",
         "risk": "高",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -398,7 +398,7 @@
         "order_type": "LIMIT",
         "style": "资源",
         "risk": "中",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -414,7 +414,7 @@
         "order_type": "LIMIT",
         "style": "顺周期",
         "risk": "中",
-        "note": "上午批次 09:30-10:30 (阶段1 第12天)",
+        "note": "上午批次 09:30-10:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       }
     ],
@@ -432,7 +432,7 @@
         "order_type": "LIMIT",
         "style": "高端制造",
         "risk": "高",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -448,7 +448,7 @@
         "order_type": "LIMIT",
         "style": "高端制造",
         "risk": "高",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -464,7 +464,7 @@
         "order_type": "LIMIT",
         "style": "高端制造",
         "risk": "高",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -480,7 +480,7 @@
         "order_type": "LIMIT",
         "style": "高端制造",
         "risk": "高",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -496,7 +496,7 @@
         "order_type": "LIMIT",
         "style": "高端制造",
         "risk": "高",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -512,7 +512,7 @@
         "order_type": "LIMIT",
         "style": "防御",
         "risk": "高",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -528,7 +528,7 @@
         "order_type": "LIMIT",
         "style": "防御",
         "risk": "中",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -544,7 +544,7 @@
         "order_type": "LIMIT",
         "style": "防御",
         "risk": "低",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -560,7 +560,7 @@
         "order_type": "LIMIT",
         "style": "防御",
         "risk": "低",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -576,7 +576,7 @@
         "order_type": "LIMIT",
         "style": "防御",
         "risk": "低",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -592,7 +592,7 @@
         "order_type": "LIMIT",
         "style": "资源",
         "risk": "高",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -608,7 +608,7 @@
         "order_type": "LIMIT",
         "style": "资源",
         "risk": "中",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       },
       {
@@ -624,13 +624,14 @@
         "order_type": "LIMIT",
         "style": "顺周期",
         "risk": "中",
-        "note": "下午批次 14:00-14:30 (阶段1 第12天)",
+        "note": "下午批次 14:00-14:30 (全速建仓, 8/7前完成)",
         "technical_alpha": 1.0
       }
     ],
     "total_orders": 26,
     "total_amount": 168962.2,
-    "day_capital": 150000.0,
+    "day_capital_target": 200000.0,
+    "unfilled_capital": 31037.8,
     "options_orders": [
       {
         "code": "588080",

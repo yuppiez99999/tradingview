@@ -24,17 +24,17 @@
   },
   "phase": {
     "phase_number": 1,
-    "name": "集中建仓期",
+    "name": "集中建仓期(加速)",
     "start_date": "2026-07-06",
-    "end_date": "2026-08-15",
-    "duration_days": 30,
+    "end_date": "2026-08-07",
+    "duration_days": 28,
     "day_index": 11,
     "capital_ratio": 0.9,
     "phase_capital": 4500000,
-    "daily_capital": 150000,
-    "day_capital": 150000.0,
+    "daily_capital": 200000,
+    "day_capital": 200000.0,
     "asset_count": 13,
-    "strategy": "每日 15 万现货建仓 + 150 万对冲资金, 8/15 完成建仓"
+    "strategy": "每日 20 万现货建仓 + 150 万对冲资金, 8/7 完成全部建仓"
   },
   "market_state": {
     "vix": 18.5,
