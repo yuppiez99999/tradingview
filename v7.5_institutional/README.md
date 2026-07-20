@@ -393,6 +393,6 @@ v7.5 是 v7.4 的**机构级升级**, 不替代 v7.4:
 
 ---
 
-**作者**: ZCode Quantitative Team
+**作者**: yuppiez99999
 **日期**: 2026-07-20
 **版本**: v7.6.0-institutional
