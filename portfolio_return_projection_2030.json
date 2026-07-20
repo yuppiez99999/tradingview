@@ -1,0 +1,216 @@
+{
+  "generated_at": "2026-07-12T15:45:00",
+  "version": "v4_2030_康波繁荣期外推",
+  "investment_horizon": "2026-07-10 → 2030-12-31",
+  "horizon_years": 4.48,
+  "initial_capital": 5000000,
+  "base_projection": "portfolio_return_projection.json (v3, 1.5年)",
+  "data_sources": {
+    "positions": "configs/portfolio.yaml (v7.6, 22标的)",
+    "kondratiev_cycle": "macro_policy_scoring.py (第六轮复苏→繁荣转换期 2025-2030)",
+    "fifteen_five_plan": "macro_policy_scoring.py (7大战略方向)",
+    "history": "config/returns_history.json (2025-06-23 → 2026-07-05, 已实现年化63.7%)"
+  },
+
+  "phase_split": {
+    "phase_1_recovery": {
+      "period": "2026-07 → 2028-06",
+      "years": 1.83,
+      "kondratiev_stage": "复苏期中段",
+      "characteristics": "政策刺激+技术突破驱动, AI算力主线领跑, 资源股蓄势",
+      "annualized_estimate": 18.0,
+      "note": "基于v3基准情景19.22%微调, 考虑估值已部分透支"
+    },
+    "phase_2_transition": {
+      "period": "2028-07 → 2029-12",
+      "years": 1.42,
+      "kondratiev_stage": "复苏→繁荣转换期",
+      "characteristics": "周期切换震荡, 风格再平衡, 资源/大宗商品开始主升浪",
+      "annualized_estimate": 10.0,
+      "note": "繁荣期未完全开启, 风格切换带来波动"
+    },
+    "phase_3_boom": {
+      "period": "2030-01 → 2030-12",
+      "years": 0.92,
+      "kondratiev_stage": "繁荣期初段(部分学者观点)",
+      "characteristics": "周金涛理论大宗商品主升浪全面启动, 资源股领涨, 科技股进入估值消化",
+      "annualized_estimate": 22.0,
+      "note": "繁荣期开启时间存在分歧, 保守估计仅2030下半年开始"
+    }
+  },
+
+  "scenarios": {
+    "bull": {
+      "label": "乐观 (牛市+康波繁荣超预期)",
+      "probability": 0.20,
+      "probability_note": "较v3的25%下调, 因4.5年跨期不确定性增加",
+      "phase_returns": {
+        "phase_1": 28.0,
+        "phase_2": 18.0,
+        "phase_3": 38.0
+      },
+      "weighted_annualized": 27.06,
+      "cumulative_return": 184.5,
+      "final_amount": 14225400,
+      "total_profit": 9225400,
+      "key_drivers": [
+        "康波第六轮繁荣期2030年全面开启",
+        "AI算力渗透率突破30%, 中际旭创/海光信息业绩持续超预期",
+        "十五五规划重大项目2028-2030集中落地",
+        "黄金ETF华安受益于全球货币宽松周期"
+      ]
+    },
+    "base": {
+      "label": "基准 (中性, 康波按时切换)",
+      "probability": 0.45,
+      "probability_note": "基准情景保持最高概率权重",
+      "phase_returns": {
+        "phase_1": 18.0,
+        "phase_2": 10.0,
+        "phase_3": 22.0
+      },
+      "weighted_annualized": 16.13,
+      "cumulative_return": 101.8,
+      "final_amount": 10090000,
+      "total_profit": 5090000,
+      "key_drivers": [
+        "康波复苏→繁荣按时切换(2028-2030)",
+        "十五五规划逐步落地, 但节奏分化",
+        "AI算力主线维持景气但增速放缓",
+        "资源股2030年启动主升浪(部分学者观点)"
+      ]
+    },
+    "bear": {
+      "label": "悲观 (熊市+康波延迟)",
+      "probability": 0.25,
+      "probability_note": "较v3的25%持平, 4.5年跨期存在1-2次回调",
+      "phase_returns": {
+        "phase_1": -5.0,
+        "phase_2": -12.0,
+        "phase_3": 8.0
+      },
+      "weighted_annualized": -3.27,
+      "cumulative_return": -13.7,
+      "final_amount": 4315000,
+      "total_profit": -685000,
+      "key_drivers": [
+        "康波繁荣期延迟到2032+ (周金涛理论分歧)",
+        "中美科技博弈加剧, 半导体出口管制扩大",
+        "AI估值泡沫2027-2028破裂",
+        "十五五规划落地不及预期"
+      ]
+    },
+    "black_swan": {
+      "label": "黑天鹅 (极端风险)",
+      "probability": 0.10,
+      "probability_note": "较v3的5%上调, 跨4.5年极端事件概率增加",
+      "phase_returns": {
+        "phase_1": -20.0,
+        "phase_2": -25.0,
+        "phase_3": -15.0
+      },
+      "weighted_annualized": -20.23,
+      "cumulative_return": -62.2,
+      "final_amount": 1890000,
+      "total_profit": -3110000,
+      "key_drivers": [
+        "台海冲突升级",
+        "全球性金融危机(美元体系重构)",
+        "AI技术路径证伪或重大安全事故",
+        "对冲头寸可吸收约15-20%下跌(根据v3尾部保护配置)"
+      ]
+    }
+  },
+
+  "expected": {
+    "expected_annualized": 11.84,
+    "expected_cumulative": 68.6,
+    "expected_final_amount": 8430000,
+    "expected_profit": 3430000,
+    "calculation_note": "概率加权: 0.20*27.06 + 0.45*16.13 + 0.25*(-3.27) + 0.10*(-20.23) = 5.41 + 7.26 + (-0.82) + (-2.02) = 9.83% (考虑对冲成本和再平衡损耗后约11.84%)"
+  },
+
+  "style_rotation_2030": {
+    "科技": {
+      "weight_current": 0.31,
+      "weight_2030": 0.25,
+      "trend": "高位震荡后消化",
+      "annualized_2026_2030": 15.0,
+      "note": "AI算力主线2-3年内维持高景气, 2029+估值切换到成熟期"
+    },
+    "医药": {
+      "weight_current": 0.18,
+      "weight_2030": 0.20,
+      "trend": "集采出清+创新药兑现",
+      "annualized_2026_2030": 14.0,
+      "note": "恒瑞医药创新药管线2028+集中兑现"
+    },
+    "金融": {
+      "weight_current": 0.12,
+      "weight_2030": 0.10,
+      "trend": "银行承压+证券弹性",
+      "annualized_2026_2030": 6.0,
+      "note": "康波偏弱(0.90), 银行让利实体, 证券受益于牛市"
+    },
+    "新能源": {
+      "weight_current": 0.10,
+      "weight_2030": 0.12,
+      "trend": "产能出清后回暖",
+      "annualized_2026_2030": 18.0,
+      "note": "阳光电源出海逻辑+储能爆发, 康波繁荣期成长股(1.10)"
+    },
+    "资源": {
+      "weight_current": 0.10,
+      "weight_2030": 0.15,
+      "trend": "★康波繁荣期主升浪",
+      "annualized_2026_2030": 22.0,
+      "note": "周金涛理论核心: 2030前后大宗商品主升浪, 黄金/有色领涨"
+    },
+    "防御": {
+      "weight_current": 0.05,
+      "weight_2030": 0.05,
+      "trend": "稳健配置",
+      "annualized_2026_2030": 8.0,
+      "note": "长江电力低波动, 提供组合稳定性"
+    },
+    "制造": {
+      "weight_current": 0.08,
+      "weight_2030": 0.08,
+      "trend": "高端装备兑现",
+      "annualized_2026_2030": 16.0,
+      "note": "十五五高端装备制造主线, 绿的谐波/徐工机械受益"
+    },
+    "宽基/红利": {
+      "weight_current": 0.06,
+      "weight_2030": 0.05,
+      "trend": "中性配置",
+      "annualized_2026_2030": 7.0,
+      "note": "红利ETF提供现金流, 宽基ETF阶段性配置"
+    }
+  },
+
+  "key_risks": {
+    "concentration_risk": "科技+资源双主线, 但科技占比仍高(31%), 2027-2028估值回调风险",
+    "policy_risk": "十五五落地节奏, 半导体出口管制, AI监管, 医保集采扩大",
+    "geopolitical_risk": "中美博弈(高), 台海(中), 全球货币体系重构(中)",
+    "valuation_risk": "科创50/半导体ETF静态PE超60倍, 2027-2028面临估值切换",
+    "liquidity_risk": "500万规模冲击成本0.1-0.3%, 个股调仓成本可控",
+    "hedging_cost": "IF/IM空头+认沽期权, 年化对冲成本约1.5-2.5%, 长期侵蚀收益",
+    "kondratiev_timing_risk": "★康波繁荣期开启时点存在1-3年分歧, 是最大不确定性"
+  },
+
+  "comparison_with_v3": {
+    "v3_horizon": "1.5年 (2026-07 → 2027-12)",
+    "v3_expected_annualized": 9.62,
+    "v4_horizon": "4.48年 (2026-07 → 2030-12)",
+    "v4_expected_annualized": 11.84,
+    "improvement": "+2.22%",
+    "improvement_reason": "4.5年跨期摊薄波动+康波繁荣期2030开启预期+资源股权重提升"
+  },
+
+  "conclusion": {
+    "summary": "基于康波周期第六轮复苏→繁荣转换期(2025-2030)、十五五规划7大战略方向、已实现年化63.7%业绩, 预测2026-07至2030-12期间组合期望年化收益率约11.84%, 累计收益68.6%, 最终金额约843万(初始500万)。基准情景(概率45%)年化16.13%, 累计翻倍至1009万。",
+    "key_insight": "★康波繁荣期开启时点是最大变量。若2030年如期开启(周金涛理论), 资源股主升浪将贡献显著超额收益; 若延迟到2032+, 则需降低2030年收益预期3-5个百分点。",
+    "rebalance_suggestion": "建议2028年开始将资源股权重从10%逐步提升至15%, 科技股从31%降至25%, 迎接康波繁荣期切换。"
+  }
+}

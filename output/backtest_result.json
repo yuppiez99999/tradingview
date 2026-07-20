@@ -1,0 +1,1028 @@
+2026-07-18 11:59:58,345 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 11:59:58,346 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 11:59:58,347 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 11:59:58,349 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 11:59:58,349 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 11:59:58,349 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 11:59:58,349 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 11:59:58,350 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 11:59:58,916 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 11:59:59,361 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:00:00,009 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:00:00,009 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:00:00,011 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:00:00,011 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:00:01,180 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:00:02,317 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:00:03,435 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:00:03,438 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:00:07,581 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A29D5670>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:00:07,582 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:00:10,589 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A29D5940>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:00:10,590 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:00:10,591 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:00:10,591 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:00:10,591 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:00:10,592 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:00:10,592 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:00:10,594 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:00:10,594 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:00:12,338 - data_provider - INFO - 获取历史数据: historical_600519_2y
+2026-07-18 12:00:14,054 - data_provider - INFO - 获取历史数据: historical_000858_2y
+2026-07-18 12:00:15,726 - data_provider - INFO - 获取历史数据: historical_601318_2y
+2026-07-18 12:00:15,727 [INFO] backtest: 回测 2024-01-01: return=0.42% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:00:15,730 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:00:15,730 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:00:15,730 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:00:15,732 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:00:15,732 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:00:16,239 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:00:16,754 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:00:17,241 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:00:17,242 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:00:17,243 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:00:17,243 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:00:18,522 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:00:19,655 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:00:21,015 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:00:21,015 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:00:23,869 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A5D5B0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:00:23,869 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:00:26,712 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A6A0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:00:26,712 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:00:26,713 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:00:26,713 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:00:26,713 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:00:26,713 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:00:26,713 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:00:26,716 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:00:26,716 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:00:26,718 [INFO] backtest: 回测 2024-02-01: return=0.42% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:00:26,721 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:00:26,721 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:00:26,722 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:00:26,722 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:00:26,722 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:00:27,256 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:00:27,725 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:00:28,228 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:00:28,229 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:00:28,231 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:00:28,231 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:00:29,322 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:00:30,615 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:00:31,614 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:00:31,614 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:00:34,435 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A970>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:00:34,435 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:00:37,322 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A29D90D0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:00:37,322 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:00:37,323 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:00:37,323 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:00:37,323 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:00:37,323 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:00:37,323 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:00:37,325 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:00:37,325 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:00:37,326 [INFO] backtest: 回测 2024-03-01: return=0.42% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:00:37,328 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:00:37,328 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:00:37,329 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:00:37,329 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:00:37,329 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:00:38,886 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:00:39,378 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:00:39,877 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:00:39,878 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:00:39,879 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:00:39,880 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:00:40,858 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:00:41,932 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:00:43,867 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:00:43,868 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:00:46,731 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A340>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:00:46,732 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:00:49,550 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A790>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:00:49,550 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:00:49,550 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:00:49,550 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:00:49,550 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:00:49,551 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:00:49,551 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:00:49,553 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:00:49,553 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:00:49,555 [INFO] backtest: 回测 2024-04-01: return=0.42% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:00:49,556 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:00:49,556 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:00:49,556 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:00:49,556 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:00:49,556 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:00:50,199 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:00:50,726 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:00:51,216 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:00:51,216 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:00:51,217 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:00:51,218 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:00:52,505 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:00:53,514 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:00:54,944 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:00:54,945 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:00:57,803 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A3D0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:00:57,803 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:01:00,631 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A640>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:01:00,632 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:01:00,632 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:01:00,632 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:01:00,632 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:01:00,632 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:01:00,632 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:01:00,634 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:01:00,634 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:01:00,636 [INFO] backtest: 回测 2024-05-01: return=0.42% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:01:00,638 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:01:00,638 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:01:00,638 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:01:00,638 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:01:00,638 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:01:01,083 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:01:01,596 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:01:02,116 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:01:02,117 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:01:02,118 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:01:02,119 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:01:04,112 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:01:05,194 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:01:06,243 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:01:06,244 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:01:09,182 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A29D5C10>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:01:09,182 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:01:12,070 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9ACD0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:01:12,071 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:01:12,072 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:01:12,072 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:01:12,072 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:01:12,072 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:01:12,072 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:01:12,074 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:01:12,074 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:01:12,077 [INFO] backtest: 回测 2024-06-03: return=0.42% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:01:12,080 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:01:12,080 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:01:12,080 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:01:12,080 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:01:12,080 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:01:12,557 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:01:13,068 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:01:13,530 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:01:13,530 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:01:13,531 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:01:13,531 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:01:14,784 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:01:16,008 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:01:17,133 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:01:17,134 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:01:19,984 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A29D9130>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:01:19,984 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:01:22,828 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A970>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:01:22,828 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:01:22,829 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:01:22,829 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:01:22,829 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:01:22,829 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:01:22,829 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:01:22,830 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:01:22,830 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:01:22,833 [INFO] backtest: 回测 2024-07-01: return=-0.02% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:01:22,835 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:01:22,835 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:01:22,836 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:01:22,836 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:01:22,836 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:01:23,322 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:01:23,993 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:01:24,444 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:01:24,444 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:01:24,445 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:01:24,446 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:01:25,590 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:01:26,659 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:01:27,842 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:01:27,842 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:01:42,891 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A460>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:01:42,891 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:01:57,923 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A7C0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:01:57,923 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:01:57,924 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:01:57,924 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:01:57,924 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:01:57,924 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:01:57,924 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:01:57,926 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:01:57,926 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:01:57,928 [INFO] backtest: 回测 2024-08-01: return=0.26% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:01:57,929 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:01:57,929 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:01:57,929 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:01:57,931 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:01:57,931 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:01:58,413 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:01:58,986 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:01:59,710 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:01:59,710 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:01:59,712 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:01:59,712 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:02:01,506 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:02:02,583 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:02:03,812 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:02:03,813 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:02:19,266 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2AD5280>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:02:19,266 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:02:34,687 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A850>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:02:34,687 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:02:34,688 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:02:34,689 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:02:34,689 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:02:34,689 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:02:34,689 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:02:34,690 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:02:34,690 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:02:34,692 [INFO] backtest: 回测 2024-09-02: return=23.79% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:02:34,693 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:02:34,694 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:02:34,694 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:02:34,694 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:02:34,694 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:02:35,279 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:02:35,807 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:02:36,282 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:02:36,282 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:02:36,284 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:02:36,284 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:02:37,379 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:02:38,425 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:02:39,424 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:02:39,424 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:02:54,877 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A296C5B0>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:02:54,878 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:03:10,363 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2AA8910>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:03:10,363 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:03:10,364 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:03:10,364 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:03:10,364 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:03:10,364 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:03:10,364 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:03:10,366 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:03:10,366 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:03:10,367 [INFO] backtest: 回测 2024-10-01: return=-7.32% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:03:10,370 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:03:10,370 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:03:10,370 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:03:10,371 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:03:10,371 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:03:10,915 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:03:11,321 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:03:11,884 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:03:11,884 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:03:11,885 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:03:11,885 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:03:12,953 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:03:14,015 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:03:15,172 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:03:15,172 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:03:30,615 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2AB7D30>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:03:30,615 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:03:46,028 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A0A0>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:03:46,029 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:03:46,029 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:03:46,029 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:03:46,029 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:03:46,029 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:03:46,029 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:03:46,030 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:03:46,031 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:03:46,032 [INFO] backtest: 回测 2024-11-01: return=-2.31% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:03:46,035 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:03:46,035 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:03:46,035 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:03:46,035 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:03:46,035 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:03:46,549 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:03:47,068 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:03:47,578 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:03:47,578 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:03:47,580 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:03:47,580 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:03:48,664 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:03:49,706 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:03:50,728 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:03:50,729 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:04:05,799 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9AE80>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:04:05,799 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:04:20,952 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A970>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:04:20,952 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:04:20,952 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:04:20,954 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:04:20,954 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:04:20,954 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:04:20,954 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:04:20,956 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:04:20,956 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:04:20,959 [INFO] backtest: 回测 2024-12-02: return=-4.88% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:04:20,961 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:04:20,961 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:04:20,962 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:04:20,962 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:04:20,962 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:04:21,701 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:04:22,214 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:04:22,719 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:04:22,719 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:04:22,721 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:04:22,721 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:04:23,983 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:04:25,068 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:04:26,098 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:04:26,099 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:04:41,550 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2AE33D0>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:04:41,550 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:04:56,972 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A29D5070>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:04:56,972 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:04:56,973 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:04:56,973 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:04:56,974 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:04:56,974 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:04:56,974 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:04:56,977 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:04:56,977 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:04:56,980 [INFO] backtest: 回测 2025-01-01: return=-2.82% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:04:56,983 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:04:56,983 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:04:56,983 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:04:56,983 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:04:56,983 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:04:57,669 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:04:58,175 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:04:58,683 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:04:58,684 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:04:58,685 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:04:58,685 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:04:59,892 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:05:01,106 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:05:02,185 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:05:02,185 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:05:17,205 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2AB7520>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:05:17,205 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:05:32,228 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A2AB7F70>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:05:32,229 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:05:32,229 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:05:32,229 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:05:32,229 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:05:32,229 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:05:32,229 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:05:32,231 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:05:32,231 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:05:32,232 [INFO] backtest: 回测 2025-02-03: return=5.49% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:05:32,234 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:05:32,234 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:05:32,234 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:05:32,234 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:05:32,234 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:05:33,345 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:05:33,837 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:05:34,266 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:05:34,266 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:05:34,268 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:05:34,268 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:05:35,413 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:05:36,491 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:05:37,806 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:05:37,807 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:05:52,825 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000001E5A296C100>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。'))
+2026-07-18 12:05:52,825 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:06:08,312 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A29D9D00>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:06:08,312 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:06:08,312 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:06:08,312 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:06:08,313 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:06:08,313 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:06:08,313 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:06:08,314 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:06:08,314 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:06:08,316 [INFO] backtest: 回测 2025-03-03: return=3.34% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:06:08,319 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:06:08,319 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:06:08,319 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:06:08,320 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:06:08,320 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:06:08,841 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:06:09,311 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:06:10,761 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:06:10,762 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:06:10,763 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:06:10,763 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:06:12,068 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:06:13,137 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:06:14,119 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:06:14,120 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:06:29,549 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9ADF0>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:06:29,549 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:06:44,975 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2A5D5B0>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:06:44,976 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:06:44,977 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:06:44,977 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:06:44,977 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:06:44,977 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:06:44,977 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:06:44,980 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:06:44,980 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:06:44,981 [INFO] backtest: 回测 2025-04-01: return=-0.60% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:06:44,984 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:06:44,984 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:06:44,984 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:06:44,984 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:06:44,984 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:06:45,547 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:06:45,999 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:06:46,534 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:06:46,534 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:06:46,535 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:06:46,535 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:06:47,839 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:06:49,153 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:06:50,420 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:06:50,420 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:07:05,841 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2AE3D30>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:07:05,841 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:07:21,281 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2AE30A0>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:07:21,281 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:07:21,282 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:07:21,282 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:07:21,282 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:07:21,282 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:07:21,282 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:07:21,284 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:07:21,284 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:07:21,287 [INFO] backtest: 回测 2025-05-01: return=0.16% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:07:21,289 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:07:21,289 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:07:21,290 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:07:21,290 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:07:21,290 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:07:21,827 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:07:22,382 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:07:22,920 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:07:22,921 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:07:22,921 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:07:22,923 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:07:23,923 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:07:24,962 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:07:26,157 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:07:26,157 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:07:41,585 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2AB7C40>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:07:41,585 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:07:57,011 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A29889D0>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:07:57,012 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:07:57,012 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:07:57,012 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:07:57,013 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:07:57,013 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:07:57,013 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:07:57,014 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:07:57,014 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:07:57,017 [INFO] backtest: 回测 2025-06-02: return=-0.84% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:07:57,019 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:07:57,019 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:07:57,019 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:07:57,019 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:07:57,019 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:07:57,558 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:07:58,030 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:07:58,688 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:07:58,688 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:07:58,690 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:07:58,690 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:07:59,786 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:08:00,875 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:08:02,058 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:08:02,059 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:08:17,480 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2AE3A00>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:08:17,480 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:08:32,919 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2AD5AF0>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:08:32,919 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:08:32,920 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:08:32,920 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:08:32,920 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:08:32,920 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:08:32,920 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:08:32,922 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:08:32,922 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:08:32,925 [INFO] backtest: 回测 2025-07-01: return=3.43% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:08:32,927 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:08:32,927 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:08:32,927 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:08:32,927 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:08:32,927 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:08:33,664 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:08:34,546 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:08:35,129 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:08:35,130 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:08:35,131 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:08:35,132 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:08:36,292 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:08:37,509 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:08:38,665 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:08:38,665 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:08:54,094 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9A6A0>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:08:54,094 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:09:09,616 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A29D5D90>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:09:09,617 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:09:09,617 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:09:09,618 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:09:09,618 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:09:09,618 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:09:09,618 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:09:09,619 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:09:09,619 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:09:09,620 [INFO] backtest: 回测 2025-08-01: return=4.06% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:09:09,623 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:09:09,623 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:09:09,624 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:09:09,624 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:09:09,624 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:09:10,119 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:09:10,635 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:09:11,207 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:09:11,207 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:09:11,210 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:09:11,210 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:09:12,212 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:09:13,390 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:09:14,539 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:09:14,540 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:09:29,980 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2AD5E80>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:09:29,980 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:09:45,520 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2988A90>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:09:45,520 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:09:45,521 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:09:45,521 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:09:45,521 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:09:45,522 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:09:45,522 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:09:45,523 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:09:45,523 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:09:45,525 [INFO] backtest: 回测 2025-09-01: return=-5.19% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:09:45,528 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:09:45,528 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:09:45,528 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:09:45,528 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:09:45,528 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:09:46,275 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:09:46,738 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:09:47,226 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:09:47,226 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:09:47,228 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:09:47,228 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:09:48,175 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:09:49,336 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:09:50,571 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:09:50,572 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:10:06,014 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2A7FA60>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:10:06,014 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:10:21,472 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2A7F970>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:10:21,472 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:10:21,473 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:10:21,474 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:10:21,475 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:10:21,475 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:10:21,475 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:10:21,476 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:10:21,476 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:10:21,478 [INFO] backtest: 回测 2025-10-01: return=1.63% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:10:21,480 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:10:21,481 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:10:21,481 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:10:21,481 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:10:21,481 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:10:22,022 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:10:22,813 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:10:23,303 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:10:23,303 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:10:23,305 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:10:23,305 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:10:24,278 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:10:25,340 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:10:26,318 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:10:26,320 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:10:41,762 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A29D9C10>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:10:41,762 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:10:57,218 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2AB7D30>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:10:57,219 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:10:57,219 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:10:57,219 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:10:57,219 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:10:57,220 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:10:57,220 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:10:57,221 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:10:57,221 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:10:57,223 [INFO] backtest: 回测 2025-11-03: return=-0.78% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+2026-07-18 12:10:57,225 - data_provider - INFO - Wind MCP 客户端已加载 (P1)
+2026-07-18 12:10:57,225 - data_provider - INFO - iFinD MCP 客户端已加载 (P2)
+2026-07-18 12:10:57,225 - data_provider - INFO - 市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)
+2026-07-18 12:10:57,225 [INFO] institutional_pipeline: [Pipeline] 启动模式=backtest symbols=['600519', '000858', '601318']
+2026-07-18 12:10:57,225 [INFO] institutional_pipeline: [Pipeline] Step 1: 数据门控
+2026-07-18 12:10:57,718 - data_provider - INFO - 获取市场数据: market_600519
+2026-07-18 12:10:58,276 - data_provider - INFO - 获取市场数据: market_000858
+2026-07-18 12:10:58,725 - data_provider - INFO - 获取市场数据: market_601318
+2026-07-18 12:10:58,725 [INFO] institutional_pipeline: [Pipeline] Step 2: Alpha 评估
+2026-07-18 12:10:58,727 [INFO] alpha_evaluator: [AlphaEvaluator] 2026-07-18 | total=5 active=0 degraded=5 dead=0
+2026-07-18 12:10:58,727 [INFO] institutional_pipeline: [Pipeline] Step 3: 信号融合
+2026-07-18 12:10:59,825 - data_provider - INFO - 获取历史数据: historical_600519_3m
+2026-07-18 12:11:00,812 - data_provider - INFO - 获取历史数据: historical_000858_3m
+2026-07-18 12:11:01,891 - data_provider - INFO - 获取历史数据: historical_601318_3m
+2026-07-18 12:11:01,891 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:11:17,304 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2A9AA90>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:11:17,304 [INFO] utils.external_data_source: ExternalDataManager 初始化: FRED=\u2717 Econdb=\u2713 Treasury=\u2713 AlphaVantage=\u2717 Finnhub=\u2717 CoinGecko=\u2713
+2026-07-18 12:11:32,721 [ERROR] utils.external_data_source: CoinGecko 全球市场数据获取失败: HTTPSConnectionPool(host='api.coingecko.com', port=443): Max retries exceeded with url: /api/v3/global (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E5A2988670>, 'Connection to api.coingecko.com timed out. (connect timeout=15)'))
+2026-07-18 12:11:32,722 [INFO] institutional_pipeline: [Pipeline] Step 4: 组合优化
+2026-07-18 12:11:32,722 [INFO] institutional_optimizer: [InstitutionalOptimizer] 使用 risk_parity_fallback
+2026-07-18 12:11:32,723 [INFO] institutional_optimizer: [InstitutionalOptimizer] 优化完成: return=2.86%, risk=0.91%, cost=0.00%, turnover=100.00%
+2026-07-18 12:11:32,723 [INFO] institutional_pipeline: [Pipeline] Step 5: 风险预算
+2026-07-18 12:11:32,723 [WARNING] risk_budget_engine: [RiskBudgetEngine] 交易被拦截: ['组合VaR 95%=2.60% 超过上限 1.50%', '单标的 000858 VaR 95%=0.87% 超过上限 0.30%', '单标的 600519 VaR 95%=0.87% 超过上限 0.30%', '单标的 601318 VaR 95%=0.87% 超过上限 0.30%', '单标的 000858 权重 33.33% 超过 15%', '单标的 600519 权重 33.33% 超过 15%', '单标的 601318 权重 33.33% 超过 15%']
+2026-07-18 12:11:32,723 [INFO] institutional_pipeline: [Pipeline] Step 6: 执行路由
+2026-07-18 12:11:32,724 [INFO] institutional_pipeline: [Pipeline] 报告已保存: E:\各种PY程序\28-终极量化交易系统7.1\output\institutional_pipeline\2026-07-18\pipeline_backtest.json
+2026-07-18 12:11:32,724 [INFO] institutional_pipeline: [Pipeline] 运行完成: ok
+2026-07-18 12:11:32,726 [INFO] backtest: 回测 2025-12-01: return=2.29% weights={'000858': 0.33333333333333337, '600519': 0.33333333333333337, '601318': 0.33333333333333337}
+{
+  "symbols": [
+    "600519",
+    "000858",
+    "601318"
+  ],
+  "period": "2024-01-01~2025-12-31",
+  "months": 24,
+  "annual_return": 0.11692675847379475,
+  "max_drawdown": -0.16309124816484624,
+  "win_rate": 0.625,
+  "records": [
+    {
+      "date": "2024-01-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.014595608904854784,
+        "000858": 0.0035968067374332335,
+        "601318": 0.023692810457516478
+      },
+      "portfolio_return": 0.0042313360966983096
+    },
+    {
+      "date": "2024-02-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.014595608904854784,
+        "000858": 0.0035968067374332335,
+        "601318": 0.023692810457516478
+      },
+      "portfolio_return": 0.0042313360966983096
+    },
+    {
+      "date": "2024-03-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.014595608904854784,
+        "000858": 0.0035968067374332335,
+        "601318": 0.023692810457516478
+      },
+      "portfolio_return": 0.0042313360966983096
+    },
+    {
+      "date": "2024-04-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.014595608904854784,
+        "000858": 0.0035968067374332335,
+        "601318": 0.023692810457516478
+      },
+      "portfolio_return": 0.0042313360966983096
+    },
+    {
+      "date": "2024-05-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.014595608904854784,
+        "000858": 0.0035968067374332335,
+        "601318": 0.023692810457516478
+      },
+      "portfolio_return": 0.0042313360966983096
+    },
+    {
+      "date": "2024-06-03",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.014595608904854784,
+        "000858": 0.0035968067374332335,
+        "601318": 0.023692810457516478
+      },
+      "portfolio_return": 0.0042313360966983096
+    },
+    {
+      "date": "2024-07-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.04656797159201864,
+        "000858": 8.737439930084356e-05,
+        "601318": 0.04589632829373658
+      },
+      "portfolio_return": -0.0001947562996604084
+    },
+    {
+      "date": "2024-08-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": 0.0068866771977060814,
+        "000858": -0.0379894274706567,
+        "601318": 0.038875755187811833
+      },
+      "portfolio_return": 0.0025910016382870733
+    },
+    {
+      "date": "2024-09-02",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": 0.1382869726117475,
+        "000858": 0.24373618275607956,
+        "601318": 0.3315535214848715
+      },
+      "portfolio_return": 0.23785889228423285
+    },
+    {
+      "date": "2024-10-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.0882128421078977,
+        "000858": -0.07803526788730475,
+        "601318": -0.05339028296849968
+      },
+      "portfolio_return": -0.07321279765456738
+    },
+    {
+      "date": "2024-11-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.013864419762542934,
+        "000858": -0.010815245767136439,
+        "601318": -0.044583570479984846
+      },
+      "portfolio_return": -0.023087745336554742
+    },
+    {
+      "date": "2024-12-02",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.010133178922987929,
+        "000858": -0.06801387422711513,
+        "601318": -0.06830818109610792
+      },
+      "portfolio_return": -0.04881841141540366
+    },
+    {
+      "date": "2025-01-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.03796574379899986,
+        "000858": -0.050242718446601886,
+        "601318": 0.0036231884057971175
+      },
+      "portfolio_return": -0.02819509127993488
+    },
+    {
+      "date": "2025-02-03",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": 0.0727880405604664,
+        "000858": 0.053358825063005044,
+        "601318": 0.03869565217391302
+      },
+      "portfolio_return": 0.05494750593246149
+    },
+    {
+      "date": "2025-03-03",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": 0.0536774156281139,
+        "000858": 0.010801306204471173,
+        "601318": 0.03561407295488883
+      },
+      "portfolio_return": 0.03336426492915797
+    },
+    {
+      "date": "2025-04-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": 0.0038580669919412447,
+        "000858": -0.008863485752153677,
+        "601318": -0.013130471029595525
+      },
+      "portfolio_return": -0.006045296596602653
+    },
+    {
+      "date": "2025-05-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.02335677456022034,
+        "000858": -0.03448275862068961,
+        "601318": 0.06276595744680846
+      },
+      "portfolio_return": 0.0016421414219661666
+    },
+    {
+      "date": "2025-06-02",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.047560092010945576,
+        "000858": -0.04409201812478214,
+        "601318": 0.06643918105178637
+      },
+      "portfolio_return": -0.008404309694647116
+    },
+    {
+      "date": "2025-07-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": 0.008560075630003716,
+        "000858": 0.042844120328167756,
+        "601318": 0.0515716167890079
+      },
+      "portfolio_return": 0.03432527091572646
+    },
+    {
+      "date": "2025-08-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": 0.050946815457193484,
+        "000858": 0.0631459099667191,
+        "601318": 0.00776033207002369
+      },
+      "portfolio_return": 0.04061768583131209
+    },
+    {
+      "date": "2025-09-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.03655326961875982,
+        "000858": -0.05750061784331495,
+        "601318": -0.06178366762177656
+      },
+      "portfolio_return": -0.051945851694617115
+    },
+    {
+      "date": "2025-10-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.0024056750744526623,
+        "000858": -0.0364478629490429,
+        "601318": 0.08761213972132076
+      },
+      "portfolio_return": 0.016252867232608402
+    },
+    {
+      "date": "2025-11-03",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": 7.285496761610943e-05,
+        "000858": -0.013377926421404562,
+        "601318": -0.009994739610731163
+      },
+      "portfolio_return": -0.007766603688173206
+    },
+    {
+      "date": "2025-12-01",
+      "status": "ok",
+      "weights": {
+        "000858": 0.33333333333333337,
+        "600519": 0.33333333333333337,
+        "601318": 0.33333333333333337
+      },
+      "returns": {
+        "600519": -0.024649470036394172,
+        "000858": -0.07004633415099482,
+        "601318": 0.16329759184390946
+      },
+      "portfolio_return": 0.022867262552173494
+    }
+  ]
+}

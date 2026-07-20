@@ -1,0 +1,160 @@
+{
+  "timestamp": "2026-07-11T18:53:12.570637",
+  "model_version": "LightGBM Ensemble (3 models, Alpha158, lr=0.01)",
+  "report_path": "e:\\各种PY程序\\28-终极量化交易系统7.1\\reports\\qlib_v4_train_20260711_184843.json",
+  "quality_rating": "一般",
+  "metrics": {
+    "ic_ir": 0.1954,
+    "mean_daily_ic": 0.037,
+    "overall_ic": 0.0305,
+    "ic_positive_ratio": 0.5856
+  },
+  "signal_distribution": {
+    "long": 9,
+    "short": 6,
+    "neutral": 0
+  },
+  "signal_stats": {
+    "mean": 0.022964666666666664,
+    "std": 0.12358207449662305,
+    "max": 0.252887,
+    "min": -0.192542
+  },
+  "latest_signals": [
+    {
+      "code": "SZ002371",
+      "name": "北方华创",
+      "latest_signal": -0.114671,
+      "qlib_avg_signal": -0.004817,
+      "rank": 55,
+      "total": 61,
+      "direction": "看空"
+    },
+    {
+      "code": "SZ300308",
+      "name": "中际旭创",
+      "latest_signal": 0.024289,
+      "qlib_avg_signal": 0.025005,
+      "rank": 24,
+      "total": 61,
+      "direction": "看多"
+    },
+    {
+      "code": "SZ000425",
+      "name": "徐工机械",
+      "latest_signal": 0.030786,
+      "qlib_avg_signal": 0.03282,
+      "rank": 20,
+      "total": 61,
+      "direction": "看多"
+    },
+    {
+      "code": "SH600276",
+      "name": "恒瑞医药",
+      "latest_signal": -0.004983,
+      "qlib_avg_signal": 0.005578,
+      "rank": 33,
+      "total": 61,
+      "direction": "看空"
+    },
+    {
+      "code": "SH600900",
+      "name": "长江电力",
+      "latest_signal": 0.078506,
+      "qlib_avg_signal": 0.075293,
+      "rank": 9,
+      "total": 61,
+      "direction": "看多"
+    },
+    {
+      "code": "SH600036",
+      "name": "招商银行",
+      "latest_signal": 0.022481,
+      "qlib_avg_signal": 0.051129,
+      "rank": 26,
+      "total": 61,
+      "direction": "看多"
+    },
+    {
+      "code": "SH601088",
+      "name": "中国神华",
+      "latest_signal": 0.0287,
+      "qlib_avg_signal": 0.040287,
+      "rank": 23,
+      "total": 61,
+      "direction": "看多"
+    },
+    {
+      "code": "SZ300274",
+      "name": "阳光电源",
+      "latest_signal": 0.184066,
+      "qlib_avg_signal": 0.00683,
+      "rank": 6,
+      "total": 61,
+      "direction": "看多"
+    },
+    {
+      "code": "SH603019",
+      "name": "中科曙光",
+      "latest_signal": -0.07021,
+      "qlib_avg_signal": 0.017656,
+      "rank": 50,
+      "total": 61,
+      "direction": "看空"
+    },
+    {
+      "code": "SH600089",
+      "name": "特变电工",
+      "latest_signal": 0.236752,
+      "qlib_avg_signal": -0.009198,
+      "rank": 5,
+      "total": 61,
+      "direction": "看多"
+    },
+    {
+      "code": "SH600019",
+      "name": "宝钢股份",
+      "latest_signal": -0.029581,
+      "qlib_avg_signal": 0.021956,
+      "rank": 39,
+      "total": 61,
+      "direction": "看空"
+    },
+    {
+      "code": "SH600219",
+      "name": "南山铝业",
+      "latest_signal": 0.252887,
+      "qlib_avg_signal": 0.012303,
+      "rank": 4,
+      "total": 61,
+      "direction": "看多"
+    },
+    {
+      "code": "SH688041",
+      "name": "海光信息",
+      "latest_signal": -0.131101,
+      "qlib_avg_signal": -0.006139,
+      "rank": 58,
+      "total": 61,
+      "direction": "看空"
+    },
+    {
+      "code": "SH688981",
+      "name": "中芯国际",
+      "latest_signal": -0.192542,
+      "qlib_avg_signal": 0.001,
+      "rank": 60,
+      "total": 61,
+      "direction": "看空"
+    },
+    {
+      "code": "SH688017",
+      "name": "绿的谐波",
+      "latest_signal": 0.029091,
+      "qlib_avg_signal": 0.010735,
+      "rank": 21,
+      "total": 61,
+      "direction": "看多"
+    }
+  ]
+}

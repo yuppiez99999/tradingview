@@ -1,0 +1,337 @@
+{
+  "timestamp": "2026-07-11T19:20:13.320726",
+  "model_version": "XGBoost_Top50 (vv6)",
+  "report_path": "e:\\各种PY程序\\28-终极量化交易系统7.1\\reports\\qlib_v6_train_20260711_191820.json",
+  "quality_rating": "较差",
+  "metrics": {
+    "ic_ir": 0,
+    "mean_daily_ic": 0,
+    "overall_ic": 0,
+    "ic_positive_ratio": 0
+  },
+  "signal_distribution": {
+    "long": 14,
+    "short": 25,
+    "neutral": 0
+  },
+  "signal_stats": {
+    "mean": -0.0007577650103485212,
+    "std": 0.006625019859800345,
+    "max": 0.021850114688277245,
+    "min": -0.015860723331570625
+  },
+  "latest_signals": [
+    {
+      "code": "SH600009",
+      "name": "",
+      "latest_signal": -0.015860723331570625,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600019",
+      "name": "",
+      "latest_signal": -0.0024955738335847855,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600028",
+      "name": "",
+      "latest_signal": -0.015042843297123909,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600030",
+      "name": "",
+      "latest_signal": -0.0017987026367336512,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600031",
+      "name": "",
+      "latest_signal": -0.0031734895892441273,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600036",
+      "name": "",
+      "latest_signal": -0.005040950141847134,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600048",
+      "name": "",
+      "latest_signal": 0.0033260961063206196,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600089",
+      "name": "",
+      "latest_signal": 0.012656237930059433,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600219",
+      "name": "",
+      "latest_signal": 0.0021115581039339304,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600276",
+      "name": "",
+      "latest_signal": 0.0005114692612551153,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600519",
+      "name": "",
+      "latest_signal": -0.0032275361008942127,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600585",
+      "name": "",
+      "latest_signal": -0.0017578097758814692,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600690",
+      "name": "",
+      "latest_signal": -0.002224462805315852,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600887",
+      "name": "",
+      "latest_signal": -0.0016710723284631968,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH600900",
+      "name": "",
+      "latest_signal": 0.002335458295419812,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH601088",
+      "name": "",
+      "latest_signal": -0.001629857812076807,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH601166",
+      "name": "",
+      "latest_signal": -0.0023370098788291216,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH601318",
+      "name": "",
+      "latest_signal": -0.002590036019682884,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH601398",
+      "name": "",
+      "latest_signal": -0.0027683970984071493,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH601668",
+      "name": "",
+      "latest_signal": -0.004411749541759491,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH601888",
+      "name": "",
+      "latest_signal": -0.0031873511616140604,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH601899",
+      "name": "",
+      "latest_signal": -0.0008953568176366389,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH601939",
+      "name": "",
+      "latest_signal": -0.004556624218821526,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH603019",
+      "name": "",
+      "latest_signal": 0.003071640385314822,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH688017",
+      "name": "",
+      "latest_signal": 0.021850114688277245,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH688041",
+      "name": "",
+      "latest_signal": -0.006173651199787855,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SH688981",
+      "name": "",
+      "latest_signal": -0.007534095551818609,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ000002",
+      "name": "",
+      "latest_signal": -0.007097874768078327,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ000333",
+      "name": "",
+      "latest_signal": 0.0011896624928340316,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ000425",
+      "name": "",
+      "latest_signal": -0.005692376289516687,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ000725",
+      "name": "",
+      "latest_signal": 0.007642690092325211,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ000858",
+      "name": "",
+      "latest_signal": 0.0002095923846354708,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ002371",
+      "name": "",
+      "latest_signal": 0.0016846422804519534,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ002415",
+      "name": "",
+      "latest_signal": -0.001910171122290194,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ002475",
+      "name": "",
+      "latest_signal": 0.00022225233260542154,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ002555",
+      "name": "",
+      "latest_signal": -0.0014762843493372202,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ300274",
+      "name": "",
+      "latest_signal": 0.009971602819859982,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ300308",
+      "name": "",
+      "latest_signal": -0.001751435687765479,
+      "direction": "看空",
+      "rank": null,
+      "total": 39
+    },
+    {
+      "code": "SZ300750",
+      "name": "",
+      "latest_signal": 0.00996958278119564,
+      "direction": "看多",
+      "rank": null,
+      "total": 39
+    }
+  ]
+}

@@ -1,0 +1,350 @@
+{
+  "generated_at": "2026-07-14T16:13:07",
+  "version": "v7.7_对冲基金视角_Theta_Gamma_KillSwitch_Liquidation",
+  "base_version": "v4_2030_康波繁荣期外推",
+  "investment_horizon": "2026-08-01 → 2030-12-31",
+  "horizon_years": 4.42,
+  "initial_capital": 5000000,
+  "build_complete_date": "2026-07-31",
+  "v4_reference": {
+    "v4_horizon_years": 4.48,
+    "v4_expected_annualized_pct": 11.84,
+    "v4_expected_final_amount": 8430000,
+    "v4_json": "portfolio_return_projection_2030.json"
+  },
+  "v77_modules": {
+    "theta_engine": {
+      "name": "Theta引擎 (Covered Call 月度)",
+      "monthly_premium": 32104,
+      "annual_premium": 385248,
+      "collateral": 4000000,
+      "collateral_overlap": true,
+      "etf_positions": 6,
+      "gross_yield_on_principal": 0.0771,
+      "opportunity_cost": 0.02,
+      "net_contribution_annual": 0.057,
+      "market_correlation": "弱相关",
+      "note": "权利金收入与市场涨跌弱相关, 提供稳定增益"
+    },
+    "gamma_engine": {
+      "name": "Gamma引擎 (尾部危机监控)",
+      "triggers": [
+        "MA60跌破",
+        "IV分位高位"
+      ],
+      "budget": 1000000,
+      "protection_target": "黑天鹅情景",
+      "protection_pct_cumulative": 0.172,
+      "note": "MA60+IV分位双重触发, 提前买入认沽对冲尾部风险"
+    },
+    "kill_switch": {
+      "name": "KillSwitch 三级熔断",
+      "levels": {
+        "L1": {
+          "margin_usage": 0.5,
+          "action": "停止开仓"
+        },
+        "L2": {
+          "margin_usage": 0.75,
+          "action": "强平深虚值+变现红利ETF"
+        },
+        "L3": {
+          "margin_usage": 0.9,
+          "action": "全面防御"
+        }
+      },
+      "bear_protection_cumulative": 0.057,
+      "bear_target_cumulative": -0.08,
+      "note": "L1触发减少悲观回撤, L2/L3限制黑天鹅下行"
+    },
+    "liquidation": {
+      "name": "LiquidationScheduler 2030清仓协议",
+      "phases": {
+        "phase_1": {
+          "period": "2030-Q3",
+          "action": "TWAP变现开始"
+        },
+        "phase_2": {
+          "period": "2030-11",
+          "action": "加速清仓"
+        },
+        "phase_3": {
+          "period": "2030-12",
+          "action": "完成清仓"
+        }
+      },
+      "impact_months": 5,
+      "impact_cumulative_range": [
+        -0.05,
+        -0.03
+      ],
+      "impact_cumulative_neutral": -0.04,
+      "note": "TWAP分批变现, 降低冲击成本, 但仍有净损失约4%累计"
+    }
+  },
+  "v77_adjustments_summary": {
+    "theta_net_annual_pct": 5.7,
+    "hedge_cost_annual_pct": -2.0,
+    "bull_participation_cut_pct": -5.0,
+    "bear_killswitch_cumulative_improvement_pct": 5.7,
+    "blackswan_gamma_killswitch_cumulative_improvement_pct": 17.2,
+    "liquidation_cumulative_impact_pct": -4.0,
+    "liquidation_cumulative_blackswan_pct": -1.0
+  },
+  "scenarios": {
+    "bull": {
+      "label": "乐观 (牛市+康波繁荣超预期)",
+      "probability": 0.2,
+      "v4_annualized_pct": 27.06,
+      "v4_cumulative_pct": 184.5,
+      "v4_final_amount": 14225400,
+      "adjustments": [
+        {
+          "item": "Theta净贡献",
+          "annual": 0.057,
+          "note": "权利金收入扣除担保物机会成本"
+        },
+        {
+          "item": "对冲成本(IF/IM空头+认沽)",
+          "annual": -0.02,
+          "note": "侵蚀所有情景"
+        },
+        {
+          "item": "Theta担保物牛市参与度降低",
+          "annual": -0.01353,
+          "note": "v4年化 27.06% × -5% = -1.353%"
+        },
+        {
+          "item": "Liquidation TWAP清仓冲击",
+          "cumulative": -0.04,
+          "note": "2030-Q3~12 分批变现, 累计净冲击成本"
+        }
+      ],
+      "adjusted_annualized_pct": 29.41,
+      "cumulative_from_annual_pct": 212.5,
+      "liquidation_cumulative_pct": -4.0,
+      "adjusted_cumulative_pct": 208.5,
+      "equivalent_annualized_pct": 29.03,
+      "final_amount": 15425119.0,
+      "total_profit": 10425119.0,
+      "key_drivers": [
+        "康波第六轮繁荣期2030年全面开启",
+        "AI算力渗透率突破30%, 中际旭创/海光信息业绩持续超预期",
+        "Theta引擎月度权利金稳定提供9.63%年化收入(毛)",
+        "对冲头寸限制部分上行(牛市参与度降低5%)",
+        "Liquidation TWAP清仓分摊冲击成本"
+      ]
+    },
+    "base": {
+      "label": "基准 (中性, 康波按时切换)",
+      "probability": 0.45,
+      "v4_annualized_pct": 16.13,
+      "v4_cumulative_pct": 101.8,
+      "v4_final_amount": 10090000,
+      "adjustments": [
+        {
+          "item": "Theta净贡献",
+          "annual": 0.057,
+          "note": "权利金收入扣除担保物机会成本"
+        },
+        {
+          "item": "对冲成本(IF/IM空头+认沽)",
+          "annual": -0.02,
+          "note": "侵蚀所有情景"
+        },
+        {
+          "item": "Theta担保物牛市参与度降低",
+          "annual": -0.008065000000000001,
+          "note": "v4年化 16.13% × -5% = -0.807%"
+        },
+        {
+          "item": "Liquidation TWAP清仓冲击",
+          "cumulative": -0.04,
+          "note": "2030-Q3~12 分批变现, 累计净冲击成本"
+        }
+      ],
+      "adjusted_annualized_pct": 19.02,
+      "cumulative_from_annual_pct": 115.92,
+      "liquidation_cumulative_pct": -4.0,
+      "adjusted_cumulative_pct": 111.92,
+      "equivalent_annualized_pct": 18.52,
+      "final_amount": 10596093.0,
+      "total_profit": 5596093.0,
+      "key_drivers": [
+        "康波复苏→繁荣按时切换(2028-2030)",
+        "Theta引擎权利金稳定贡献+5.7%/年(净)",
+        "对冲成本-2.0%/年侵蚀收益",
+        "KillSwitch L1未触发, 正常持有",
+        "Liquidation清仓2030-Q3启动"
+      ]
+    },
+    "bear": {
+      "label": "悲观 (熊市+康波延迟)",
+      "probability": 0.25,
+      "v4_annualized_pct": -3.27,
+      "v4_cumulative_pct": -13.7,
+      "v4_final_amount": 4315000,
+      "adjustments": [
+        {
+          "item": "Theta净贡献",
+          "annual": 0.057,
+          "note": "权利金收入扣除担保物机会成本"
+        },
+        {
+          "item": "对冲成本(IF/IM空头+认沽)",
+          "annual": -0.02,
+          "note": "侵蚀所有情景"
+        },
+        {
+          "item": "KillSwitch L1触发减少回撤",
+          "annual": 0.0126207669530074,
+          "cumulative_improvement": 0.057,
+          "note": "累计改善 5.7% (从-13.7%到-8%)"
+        },
+        {
+          "item": "Liquidation TWAP清仓冲击",
+          "cumulative": -0.04,
+          "note": "2030-Q3~12 分批变现, 累计净冲击成本"
+        }
+      ],
+      "adjusted_annualized_pct": 1.69,
+      "cumulative_from_annual_pct": 7.7,
+      "liquidation_cumulative_pct": -4.0,
+      "adjusted_cumulative_pct": 3.7,
+      "equivalent_annualized_pct": 0.83,
+      "final_amount": 5184918.0,
+      "total_profit": 184918.0,
+      "key_drivers": [
+        "康波繁荣期延迟到2032+ (周金涛理论分歧)",
+        "KillSwitch L1触发(保证金占用50%), 停止开仓减少回撤",
+        "Theta权利金仍可收取(弱相关), 缓冲下跌",
+        "对冲头寸部分对冲下跌",
+        "Liquidation清仓可能提前触发"
+      ]
+    },
+    "black_swan": {
+      "label": "黑天鹅 (极端风险)",
+      "probability": 0.1,
+      "v4_annualized_pct": -20.23,
+      "v4_cumulative_pct": -62.2,
+      "v4_final_amount": 1890000,
+      "adjustments": [
+        {
+          "item": "Theta净贡献",
+          "annual": 0.057,
+          "note": "权利金收入扣除担保物机会成本"
+        },
+        {
+          "item": "对冲成本(IF/IM空头+认沽)",
+          "annual": -0.02,
+          "note": "侵蚀所有情景"
+        },
+        {
+          "item": "Gamma+KillSwitch尾部保护",
+          "annual": 0.036560087169308586,
+          "cumulative_improvement": 0.172,
+          "note": "累计改善 17.2% (从-62.2%到-45%)"
+        },
+        {
+          "item": "Liquidation TWAP清仓冲击",
+          "cumulative": -0.01,
+          "note": "2030-Q3~12 分批变现, 累计净冲击成本"
+        }
+      ],
+      "adjusted_annualized_pct": -12.87,
+      "cumulative_from_annual_pct": -45.62,
+      "liquidation_cumulative_pct": -1.0,
+      "adjusted_cumulative_pct": -46.62,
+      "equivalent_annualized_pct": -13.24,
+      "final_amount": 2669089.0,
+      "total_profit": -2330911.0,
+      "key_drivers": [
+        "台海冲突升级或全球性金融危机",
+        "Gamma引擎MA60+IV分位双重触发, 提前买入认沽",
+        "KillSwitch L2/L3触发, 强平深虚值+变现红利ETF",
+        "尾部保护将累计回撤从-62.2%改善到约-45%",
+        "Liquidation提前启动, 冲击成本边际影响小"
+      ]
+    }
+  },
+  "expected": {
+    "expected_annualized_pct": 13.58,
+    "expected_equivalent_annualized_pct": 13.02,
+    "expected_cumulative_pct": 88.33,
+    "expected_final_amount": 9416404.0,
+    "expected_profit": 4416404.0,
+    "calculation_note": "概率加权(等效年化, 含清仓冲击): 0.20×29.03% + 0.45×18.52% + 0.25×0.83% + 0.10×-13.24% = 13.02%"
+  },
+  "style_rotation_2030": {
+    "高端制造_含算力": {
+      "weight_current": 0.4,
+      "weight_2030": 0.4,
+      "holdings": "中际旭创/海光信息/北方华创/中芯国际/宁德时代/徐工机械",
+      "trend": "AI算力主线维持高景气, 2028+估值切换",
+      "annualized_2026_2030": 18.0,
+      "theta_applicable": "ETF部分可做Covered Call",
+      "note": "v7.7 Theta引擎覆盖6个ETF头寸"
+    },
+    "顺周期": {
+      "weight_current": 0.2,
+      "weight_2030": 0.2,
+      "holdings": "中国神华/南山铝业/宝钢股份",
+      "trend": "康波繁荣期主升浪受益",
+      "annualized_2026_2030": 12.0,
+      "note": "2030+资源股主升浪启动"
+    },
+    "资源": {
+      "weight_current": 0.2,
+      "weight_2030": 0.2,
+      "holdings": "华安黄金ETF/盐湖股份",
+      "trend": "★康波繁荣期核心受益",
+      "annualized_2026_2030": 22.0,
+      "note": "黄金ETF+盐湖股份, 2030年主升浪"
+    },
+    "防御": {
+      "weight_current": 0.2,
+      "weight_2030": 0.2,
+      "holdings": "长江电力/恒瑞医药/药明康德/科伦药业",
+      "trend": "稳健配置, KillSwitch变现池",
+      "annualized_2026_2030": 8.0,
+      "note": "L2触发时红利ETF作为变现池"
+    }
+  },
+  "key_risks": {
+    "concentration_risk": "高端制造(含算力)占比40%, 2027-2028估值回调风险",
+    "theta_risk": "Covered Call在牛市损失上行, 月度权利金不稳定",
+    "gamma_risk": "Gamma引擎预算100万, 黑天鹅时对冲容量可能不足",
+    "killswitch_risk": "L2/L3强平可能踩踏, 变现红利ETF可能损失股息",
+    "liquidation_risk": "TWAP清仓遇到2030年市场下行会放大损失",
+    "hedging_cost": "对冲成本年化-2.0%, 4.42年累计侵蚀约-8.5%",
+    "kondratiev_timing_risk": "★康波繁荣期开启时点存在1-3年分歧, 是最大不确定性"
+  },
+  "comparison_v4_vs_v77": {
+    "v4": {
+      "expected_annualized_pct": 11.84,
+      "expected_final_amount": 8430000,
+      "horizon_years": 4.48,
+      "bull_annualized_pct": 27.06,
+      "base_annualized_pct": 16.13,
+      "bear_annualized_pct": -3.27,
+      "blackswan_cumulative_pct": -62.2
+    },
+    "v77": {
+      "expected_annualized_pct": 13.02,
+      "expected_final_amount": 9416404.0,
+      "horizon_years": 4.42,
+      "bull_annualized_pct": 29.03,
+      "base_annualized_pct": 18.52,
+      "bear_annualized_pct": 0.83,
+      "blackswan_cumulative_pct": -46.62
+    },
+    "delta_expected_annualized_pct": 1.18,
+    "delta_expected_final_amount": 986404.0,
+    "improvement_reason": "Theta引擎净贡献+5.7%/年, 部分被对冲成本-2.0%/年和清仓冲击成本抵消, 黑天鹅/悲观情景尾部保护显著改善"
+  },
+  "conclusion": {
+    "summary": "v7.7对冲基金视角系统(Theta+Gamma+KillSwitch+Liquidation)叠加v4康波繁荣期外推, 预测2026-08至2030-12期间(4.42年)组合期望等效年化收益率约13.02%, 累计收益约88.33%, 最终金额约942万(初始500万)。",
+    "key_insight": "★Theta引擎为所有情景提供稳定的+5.7%/年净增益, 是v7.7最大的alpha来源; Gamma+KillSwitch将黑天鹅情景从-62.2%改善到约-45%, 显著降低尾部风险; 对冲成本-2.0%/年和清仓冲击成本-4%累计是主要侵蚀项。",
+    "rebalance_suggestion": "建议2028年开始将资源股权重从20%观察提升, 高端制造保持40%; Theta引擎月度 Covered Call 严格执行, 权利金再投资; KillSwitch L1触发立即停止开仓, L2/L3按协议执行强平。"
+  }
+}
