@@ -467,14 +467,16 @@ class SimFuturesBroker(SimBrokerBase):
 
 
 class SimBrokerRouter:
-    """模拟盘路由：自动识别股票/期货，路由到对应模拟盘"""
+    """模拟盘路由：自动识别股票/期货/期权，路由到对应模拟盘"""
 
     def __init__(self,
                  stock_broker: SimStockBroker,
                  futures_broker: SimFuturesBroker,
-                 calendar: TradingSessionCalendar = None):
+                 calendar: TradingSessionCalendar = None,
+                 options_broker=None):
         self.stock_broker = stock_broker
         self.futures_broker = futures_broker
+        self.options_broker = options_broker  # 可选，SimOptionsBroker 实例
         self.calendar = calendar or TradingSessionCalendar()
 
     def route(self, order: Dict, session: str = None) -> Dict:
@@ -504,6 +506,18 @@ class SimBrokerRouter:
                 order_type=order.get("order_type", "LIMIT"),
                 session=session,
             )
+        elif market == "options" and self.options_broker is not None:
+            return self.options_broker.place_order(
+                symbol=symbol,
+                qty=int(order.get("qty", 0)),
+                side=order.get("side", "BUY_OPEN"),
+                price=float(order.get("price", 0)),
+                order_type=order.get("order_type", "LIMIT"),
+                session=session,
+                underlying_price=float(order.get("underlying_price", 0)),
+                option_type=order.get("option_type"),
+                strike=order.get("strike"),
+            )
         else:
             return self.futures_broker.place_order(
                 symbol=symbol,
@@ -515,35 +529,44 @@ class SimBrokerRouter:
             )
 
     def _detect_market(self, symbol: str) -> str:
-        """识别标的所属市场：stock / futures"""
+        """识别标的所属市场：stock / futures / options"""
         s = str(symbol).strip()
 
-        # 先去掉常见 A 股前缀，避免 sh/sz 被当成期货字母
+        # 先去掉常见 A 股前缀
         clean = s
         for prefix in ("sh", "sz", "SH", "SZ", "bj", "BJ"):
             if clean.startswith(prefix) and len(clean) > len(prefix):
                 clean = clean[len(prefix):]
                 break
 
+        # 期权合约识别（优先于期货）
+        # ETF期权: 510050C2506M03200, 510300P2506M04000
+        for prefix in ("510050", "510300", "510500", "159919", "588080"):
+            if s.startswith(prefix) and ("C" in s or "P" in s):
+                return "options"
+        # 股指期权: IO2506-C-3900, MO2506-P-6000
+        upper = s.upper()
+        for prefix in ("IO", "MO", "HO"):
+            if upper.startswith(prefix) and "-" in s:
+                return "options"
+
         # 股票/ETF/基金：6 位数字
         if len(clean) == 6 and clean.isdigit():
             return "stock"
 
-        # 期货：字母+数字（如 CU2406, IF2506, CF609）
+        # 期货：字母+数字（如 CU2406, IF2506）
         if any(c.isalpha() for c in clean) and any(c.isdigit() for c in clean):
             return "futures"
 
-        # 期权：如 510300C2506
-        if "C" in s or "P" in s:
-            return "options"
-
         return "stock"
 
-    def get_broker(self, symbol: str) -> Union[SimStockBroker, SimFuturesBroker]:
+    def get_broker(self, symbol: str):
         """根据标的获取对应 broker"""
         market = self._detect_market(symbol)
         if market == "stock":
             return self.stock_broker
+        elif market == "options" and self.options_broker is not None:
+            return self.options_broker
         return self.futures_broker
 
 
@@ -677,6 +700,7 @@ class SimExecutionEngine:
     支持:
         - 股票日盘执行
         - 期货日盘 + 夜盘执行
+        - 期权模拟盘执行（ETF期权/股指期权）
         - 按交易日自动调度
         - 持仓同步
     """
@@ -685,11 +709,14 @@ class SimExecutionEngine:
                  stock_broker: SimStockBroker,
                  futures_broker: SimFuturesBroker,
                  calendar: TradingSessionCalendar = None,
-                 price_provider=None):
-        self.router = SimBrokerRouter(stock_broker, futures_broker, calendar)
+                 price_provider=None,
+                 options_broker=None):
+        self.router = SimBrokerRouter(stock_broker, futures_broker, calendar,
+                                      options_broker=options_broker)
         self.calendar = calendar or TradingSessionCalendar()
         self.price_provider = price_provider
         self.position_sync = PositionSync(self.router)
+        self.options_broker = options_broker
         self._executed_sessions: set = set()  # 防止同一 session 重复执行
 
     def is_trading_day(self, d: date = None) -> bool:
@@ -741,6 +768,40 @@ class SimExecutionEngine:
             else:
                 fills.append(result)
         return fills
+
+    def execute_options_orders(self, orders: List[Dict], session: str = "day") -> List[Dict]:
+        """执行期权订单
+
+        Args:
+            orders: 期权订单列表
+            session: 'day' / 'night'
+
+        Returns:
+            成交记录列表
+        """
+        if not self.options_broker:
+            return [{"status": "SKIP", "reason": "期权模拟盘未初始化"}]
+
+        if not self.calendar.is_trading_day():
+            return [{"status": "SKIP", "reason": "非交易日"}]
+
+        fills = []
+        for order in orders:
+            result = self.router.route(order, session=session)
+            if result.get("status") in ("FILLED",):
+                fills.append(result)
+            elif result.get("status") == "PENDING":
+                fill = self._simulate_fill(order, market="options", session=session)
+                fills.append(fill)
+            else:
+                fills.append(result)
+        return fills
+
+    def get_greek_exposure(self) -> Dict[str, float]:
+        """获取期权组合希腊字母暴露"""
+        if self.options_broker and hasattr(self.options_broker, "get_greek_exposure"):
+            return self.options_broker.get_greek_exposure()
+        return {"delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0}
 
     def _simulate_fill(self, order: Dict, market: str, session: str) -> Dict:
         """模拟成交（简化版）"""

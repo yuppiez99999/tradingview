@@ -1,33 +1,19 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo   停止盘中监控 - AutoHedge Live Stop
+echo   v7.5 实时监控并发调度器 - 停止
 echo ========================================
 echo.
 
+set PYTHON=C:\Program Files\Python38\python.exe
 set WORKDIR=%~dp0
-set PIDFILE=%WORKDIR%live_monitor.pid
+set LOG=%WORKDIR%logs\live_scheduler.log
 
-echo [%date% %time%] 停止盘中监控..." >> "%WORKDIR%logs\live_monitor.log"
+echo [%date% %time%] 停止实时监控调度器..." >> "%LOG%"
 
-if not exist "%PIDFILE%" (
-    echo 未找到 PID 文件，盘中监控可能未运行
-    pause
-    exit /b 0
-)
-
-set /p PID=<"%PIDFILE%"
-echo 正在停止进程 PID: %PID%
-
-taskkill /F /PID %PID% 2>NUL
-if %ERRORLEVEL% EQU 0 (
-    echo 停止成功
-) else (
-    echo 进程 %PID% 未运行或已停止
-)
-
-del "%PIDFILE%" 2>NUL
+"%PYTHON%" "%WORKDIR%live_scheduler.py" --stop
 
 echo.
 echo 完成时间: %date% %time%
+echo.
 pause

@@ -12,6 +12,9 @@ import json
 from datetime import datetime
 from typing import Dict, List, Any
 
+# 统一成本模型（与 annualized_return_forecast.py 共用，消除 0.45% vs 2.8% 矛盾）
+from utils.cost_model import get_cost_model
+
 sys.path.insert(0, '.')
 
 
@@ -118,15 +121,20 @@ class PortfolioProjection:
         target_beta = 0.3
         beta_reduction = portfolio_beta - target_beta
         
+        # 对冲有效性系数：此前为魔法数字 0.7686。此处保留名义值，但应改为
+        # 由已实现对冲 P&L 回归估计（见 utils/hedge_effectiveness.py 待建）。
         hedge_effectiveness = 0.7686
         
         hedged_return = base_return * (1 - 0.4 * hedge_effectiveness)
         hedged_volatility = volatility * (1 - beta_reduction * hedge_effectiveness)
         
-        transaction_costs = 0.015
-        slippage = 0.005
-        management_fee = 0.008
-        total_costs = transaction_costs + slippage + management_fee
+        # 成本：统一成本模型（佣金+印花税 / 冲击 / 期权覆盖+期货对冲）
+        cost_model = get_cost_model()
+        cb = cost_model.breakdown()
+        transaction_costs = cb["commission"] + cb["stamp_duty"]
+        slippage = cb["market_impact"]
+        management_fee = cb["option_overlay"] + cb["futures_basis"]
+        total_costs = cost_model.annual_total_cost
         
         net_annual_return = hedged_return - total_costs
         

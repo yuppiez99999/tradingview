@@ -9,7 +9,7 @@ import os
 import re
 import subprocess
 import sys
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import requests as _requests
 
@@ -17,6 +17,7 @@ SKILL_DIR = os.path.join(os.path.dirname(__file__), ".agents", "skills", "wind-m
 CLI_PATH = os.path.join(SKILL_DIR, "scripts", "cli.mjs")
 WIND_STOCK_ENDPOINT = "https://mcp.wind.com.cn/vserver_stock_data/mcp/"
 WIND_FUND_ENDPOINT = "https://mcp.wind.com.cn/vserver_fund_data/mcp/"
+WIND_FINANCIAL_DOCS_ENDPOINT = "https://mcp.wind.com.cn/vserver_financial_docs/mcp/"
 
 
 def _ensure_wind_cli() -> Optional[str]:
@@ -170,7 +171,12 @@ def _wind_http(server_endpoint: str, tool_name: str, params: Dict, api_key: str,
         if resp.status_code != 200:
             last_err = f"wind_http_status:{resp.status_code}"
             continue
-        text = resp.text
+        # 强制 UTF-8 解码 (requests 默认用 ISO-8859-1, 导致中文乱码)
+        # 优先用 resp.content (字节流) + 显式 UTF-8 解码, 避免 charset 推断错误
+        try:
+            text = resp.content.decode("utf-8", errors="replace")
+        except Exception:
+            text = resp.text
         if not text or not text.strip():
             last_err = "wind_http_empty"
             continue
@@ -550,11 +556,184 @@ def fetch_realtime_price(windcode: str) -> Optional[float]:
         return None
 
 
+# ============================================================
+# 财经新闻搜索 (financial_docs 域)
+# ============================================================
+def wind_search_news(query: str, top_k: int = 20) -> List[Dict]:
+    """通过 Wind MCP financial_docs.get_financial_news 搜索财经新闻
+
+    Args:
+        query: 查询关键词 (如 "海光信息 688041" / "中国神华")
+        top_k: 返回的新闻数量
+
+    Returns:
+        新闻列表 [{title, snippet, publish_time, source, ...}, ...]
+        失败返回空列表
+    """
+    if not query:
+        return []
+
+    # 参数: query 必须不含空格 (Wind 要求), top_k 控制返回数量
+    # 注意: Wind MCP 要求 query 去除所有空格
+    normalized_query = "".join(query.split())
+    params = {"query": normalized_query, "top_k": int(top_k)}
+    api_key = _get_wind_api_key()
+
+    # 优先 HTTP 直连 (快)
+    if api_key:
+        http_res = _wind_http(
+            WIND_FINANCIAL_DOCS_ENDPOINT,
+            "get_financial_news",
+            params,
+            api_key,
+        )
+        if http_res.get("ok"):
+            parsed = _extract_news_items(http_res.get("data"))
+            if parsed:
+                return parsed
+        # HTTP 失败, 回退到 CLI
+        if http_res.get("error"):
+            print(f"Wind HTTP (get_financial_news) 失败: {http_res.get('error')}")
+
+    # CLI 兜底
+    res = _call_wind("financial_docs", "get_financial_news", params)
+    if not res.get("ok"):
+        return []
+
+    data = res.get("data") or {}
+    return _extract_news_items(data)
+
+
+def _extract_news_items(data: Any) -> List[Dict]:
+    """从 Wind MCP 响应中提取新闻条目
+
+    Wind MCP 返回格式 (CLI / HTTP 两种):
+        CLI: {"content": [{"type": "text", "text": "{\"data\": {\"items\": [...]}"}], "isError": false}
+        HTTP/SSE: {"result": {"content": [{"type": "text", "text": "..."}]}}
+        或嵌套: {"data": {"items": [...]}}
+    """
+    if not data:
+        return []
+
+    items = []
+
+    def _parse_text_to_items(text: str) -> List[Dict]:
+        """解析 text 字段 (可能是 JSON 字符串) 为新闻列表"""
+        if not text:
+            return []
+        try:
+            inner = json.loads(text)
+        except Exception:
+            # 纯文本, 返回单条
+            return [{"text": text, "title": text[:80]}]
+
+        if isinstance(inner, dict):
+            # 结构: {"data": {"items": [...]}} 或 {"data": {"columns":[],"rows":[]}}
+            inner_data = inner.get("data") or inner.get("result") or {}
+            if isinstance(inner_data, dict):
+                # items 列表
+                news_items = inner_data.get("items") or inner_data.get("news") or []
+                if isinstance(news_items, list):
+                    return [i for i in news_items if isinstance(i, dict)]
+                # columns/rows 格式
+                cols = [c.get("name") for c in (inner_data.get("columns") or [])]
+                rows = inner_data.get("rows") or []
+                if cols and rows:
+                    return [dict(zip(cols, row)) for row in rows if len(cols) == len(row)]
+            elif isinstance(inner_data, list):
+                return [i for i in inner_data if isinstance(i, dict)]
+        elif isinstance(inner, list):
+            return [i for i in inner if isinstance(i, dict)]
+        return []
+
+    # 结构1: CLI 格式 {"content": [{"type":"text","text":"..."}]}
+    if isinstance(data, dict):
+        content = data.get("content") or []
+        if isinstance(content, list):
+            for c in content:
+                if not isinstance(c, dict):
+                    continue
+                text = c.get("text") or ""
+                items.extend(_parse_text_to_items(text))
+
+    # 结构2: SSE 格式 {"result": {"content": [{"type":"text","text":"..."}]}}
+    if not items and isinstance(data, dict):
+        result = data.get("result")
+        if isinstance(result, dict):
+            content = result.get("content") or []
+            if isinstance(content, list):
+                for c in content:
+                    if not isinstance(c, dict):
+                        continue
+                    text = c.get("text") or ""
+                    items.extend(_parse_text_to_items(text))
+
+    # 结构3: 直接 {"data": {"items": [...]}}
+    if not items and isinstance(data, dict):
+        inner_data = data.get("data") or {}
+        if isinstance(inner_data, dict):
+            news_items = inner_data.get("items") or []
+            if isinstance(news_items, list):
+                items = [i for i in news_items if isinstance(i, dict)]
+
+    # 标准化字段 (适配不同返回格式)
+    normalized = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        # 统一字段名: title / snippet / publish_time / source
+        title = (
+            item.get("title")
+            or item.get("Title")
+            or item.get("TITLE")
+            or item.get("新闻标题")
+            or ""
+        )
+        snippet = (
+            item.get("snippet")
+            or item.get("content")
+            or item.get("Content")
+            or item.get("text")
+            or item.get("摘要")
+            or item.get("新闻内容")
+            or ""
+        )
+        publish_time = (
+            item.get("publish_time")
+            or item.get("publishTime")
+            or item.get("PublishTime")
+            or item.get("pub_time")
+            or item.get("发布时间")
+            or item.get("PublishDate")
+            or item.get("date")
+            or ""
+        )
+        source = (
+            item.get("source")
+            or item.get("Source")
+            or item.get("来源")
+            or ""
+        )
+
+        if not title and not snippet:
+            continue
+
+        normalized.append({
+            "title": str(title),
+            "snippet": str(snippet),
+            "publish_time": str(publish_time) if publish_time else "",
+            "source": str(source),
+        })
+
+    return normalized
+
+
 # 显式声明对外接口 (方便 from wind_mcp_fetcher import *)
 __all__ = [
     "wind_get_quote",
     "wind_get_batch_quotes",
     "wind_get_kline",
     "fetch_realtime_price",  # 兼容旧接口
+    "wind_search_news",  # 财经新闻搜索
 ]
 

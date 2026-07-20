@@ -16,10 +16,20 @@ import json
 import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+import urllib.request
 
 from utils.logger import get_logger
 
 logger = get_logger('etf_flow_monitor')
+
+# 独立无代理 opener, 绕过 Wind MCP 可能安装的全局 opener / 环境变量代理污染
+_em_opener = urllib.request.build_opener(
+    urllib.request.HTTPHandler(),
+    urllib.request.HTTPSHandler(),
+)
+
+# 封禁状态追踪: 避免东财封禁后重复尝试
+_eastmoney_blocked = False
 
 SIGNAL_THRESHOLDS = {
     "high": 50,
@@ -176,6 +186,87 @@ class ETFRealTimeTracker:
             logger.error(f"iFinD MCP 获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
+    def _fetch_eastmoney_fund_flow(self, etf_code: str) -> Optional[Dict]:
+        """东财 push2 真实主力净流入 (元 -> 亿), 零 key 不封 IP。
+
+        来自 A股全栈数据 skill 验证过的 fflow/kline 接口, 比新浪成交额近似更准,
+        作为 Wind MCP / iFinD 不可用时的免费真实资金流源 (优先级高于新浪)。
+        """
+        try:
+            wc = self._to_wind_code(etf_code)  # '510300.SH' / '510300.SZ'
+            num, mkt = wc.split(".")
+            secid = f"1.{num}" if mkt == "SH" else f"0.{num}"
+            url = (
+                "https://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=1&klt=101"
+                f"&secid={secid}&fields1=f1,f2,f3,f7"
+                "&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62"
+            )
+            req = urllib.request.Request(url)
+            req.add_header("User-Agent", "Mozilla/5.0")
+            req.add_header("Referer", "https://quote.eastmoney.com/")
+            d = json.loads(_em_opener.open(req, timeout=10).read().decode("utf-8"))
+            kl = (d.get("data") or {}).get("klines") or []
+            if not kl:
+                return None
+            f = kl[-1].split(",")
+            net_flow = float(f[-1] or 0) / 1e8  # f62 主力净流入(元) -> 亿
+            name = ""
+            category = ""
+            for etf in NATIONAL_TEAM_ETFS:
+                if etf["code"] == etf_code:
+                    name = etf["name"]
+                    category = etf["category"]
+                    break
+            return {
+                "code": etf_code,
+                "name": name,
+                "category": category,
+                "net_flow_yi": round(net_flow, 2),
+                "change_pct": 0.0,
+                "volume": 0,
+                "amount_yi": 0.0,
+                "trend": "流入" if net_flow > 0 else "流出" if net_flow < 0 else "中性",
+                "source": "eastmoney_push2",
+            }
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"东财 push2 获取ETF资金流失败 ({etf_code}): {e}")
+            return None
+
+    def _fetch_price_based_flow(self, etf_code: str) -> Optional[Dict]:
+        """价格动量代理资金流: 用腾讯实时涨跌% 映射为净流信号 (东财 push2 被封时的可用真实源)。
+
+        东财 push2 资金流接口当前出口 IP 被反爬限流, 改用实时涨跌% 作为加减仓信号代理:
+        涨 -> 净流为正 -> 跟随加仓; 跌 -> 净流为负 -> 减仓。source 标记为 price_momentum。
+        """
+        try:
+            from utils.astock_realtime import get_realtime_quotes
+
+            q = get_realtime_quotes([etf_code]).get(etf_code)
+            if not q:
+                return None
+            chg = float(q.get("change_pct") or 0)
+            name = ""
+            category = ""
+            for etf in NATIONAL_TEAM_ETFS:
+                if etf["code"] == etf_code:
+                    name = etf["name"]
+                    category = etf["category"]
+                    break
+            return {
+                "code": etf_code,
+                "name": name,
+                "category": category,
+                "net_flow_yi": round(chg * 10, 2),  # 涨跌% 放大到亿量级以适配阈值
+                "change_pct": chg,
+                "volume": 0,
+                "amount_yi": 0.0,
+                "trend": "流入" if chg > 0 else "流出" if chg < 0 else "中性",
+                "source": "price_momentum",
+            }
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"价格动量代理资金流失败 ({etf_code}): {e}")
+            return None
+
     def _fetch_sina_fund_flow(self, etf_code: str) -> Optional[Dict]:
         try:
             import requests as _requests
@@ -259,7 +350,22 @@ class ETFRealTimeTracker:
         if flow_data:
             return flow_data
 
+        # 东财封禁状态追踪: 避免重复尝试导致90秒延迟
+        global _eastmoney_blocked
+        if not _eastmoney_blocked:
+            flow_data = self._fetch_eastmoney_fund_flow(etf_code)
+            if flow_data:
+                return flow_data
+            else:
+                # 首次失败后标记封禁，后续 ETF 直接跳过
+                _eastmoney_blocked = True
+                logger.warning("东财 push2 资金流被封禁/不可用，本次运行内跳过后续尝试")
+
         flow_data = self._fetch_sina_fund_flow(etf_code)
+        if flow_data:
+            return flow_data
+
+        flow_data = self._fetch_price_based_flow(etf_code)
         if flow_data:
             return flow_data
 

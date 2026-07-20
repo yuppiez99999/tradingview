@@ -72,6 +72,7 @@ class BuildPlanExecutor:
     - 根据日期匹配当前阶段
     - 生成上下半场拆分交易指令
     - 应用价格缓冲和风控规则
+    - v8.0 新增：对冲联动接口，自动触发期货/期权对冲评估
     """
 
     # 价格缓冲：限价单在预估价格基础上上浮此比例确保成交
@@ -82,6 +83,20 @@ class BuildPlanExecutor:
 
     # 上下半场拆分比例
     SESSION_SPLIT = 0.50
+
+    # 风格 Beta 映射（用于对冲计算）
+    STYLE_BETA_MAP = {
+        "科技": 1.20,
+        "金融": 0.90,
+        "宽基": 0.95,
+        "新能源": 1.15,
+        "医药": 0.85,
+        "资源": 1.10,
+        "制造": 1.05,
+        "顺周期": 1.10,
+        "防御": 0.60,
+        "default": 1.00,
+    }
 
     def __init__(self, plan_path: Optional[str] = None):
         self.plan_path = plan_path or PLAN_FILE
@@ -206,6 +221,8 @@ class BuildPlanExecutor:
             raw_code = asset["code"]
             code = normalize_stock_code(raw_code)
             info = plan.get(code, {})
+            if not info:
+                info = plan.get(raw_code, {})
             est_price = safe_float(info.get("est_price", 0), default=0.0)
             total_shares = safe_int(asset.get("shares"), default=0)
 
@@ -774,6 +791,147 @@ class BuildPlanExecutor:
         }
 
         return suggestions.get(scenario, [])
+
+    # ---------------------------------------------------------------
+    # 对冲联动接口 (v8.0 新增)
+    # ---------------------------------------------------------------
+
+    def generate_hedge_input(self, sheet: DailyTradeSheet) -> Dict:
+        """
+        生成对冲计算所需的输入数据
+
+        将建仓指令转换为对冲引擎可用的格式，包含：
+        - 组合持仓结构（代码、数量、价格）
+        - 风格分布与组合 Beta
+        - 行业集中度
+        - 潜在风险暴露
+
+        Args:
+            sheet: 单日交易指令单
+
+        Returns:
+            对冲输入数据字典
+        """
+        positions = {}
+        prices = {}
+        style_counts = {}
+        style_amounts = {}
+
+        all_orders = sheet.morning_orders + sheet.afternoon_orders
+        for order in all_orders:
+            code = order.code
+            positions[code] = positions.get(code, 0) + order.shares
+            prices[code] = order.est_price
+            style = order.style or "default"
+            style_counts[style] = style_counts.get(style, 0) + 1
+            style_amounts[style] = style_amounts.get(style, 0) + order.est_amount
+
+        portfolio_value = sum(
+            positions.get(c, 0) * prices.get(c, 0) for c in positions
+        )
+
+        portfolio_beta = 0.0
+        for code, shares in positions.items():
+            amt = shares * prices.get(code, 0)
+            order = next((o for o in all_orders if o.code == code), None)
+            style = order.style if order else "default"
+            beta = self.STYLE_BETA_MAP.get(style, 1.0)
+            portfolio_beta += (amt / portfolio_value) * beta if portfolio_value > 0 else 0
+
+        style_weights = {
+            style: round(amt / portfolio_value * 100, 1)
+            for style, amt in style_amounts.items()
+            if portfolio_value > 0
+        }
+
+        top_style = max(style_weights, key=style_weights.get, default="")
+        max_style_weight = style_weights.get(top_style, 0)
+
+        hedge_input = {
+            "trade_date": sheet.trade_date,
+            "phase": sheet.phase_name,
+            "total_value": round(portfolio_value, 2),
+            "position_count": len(positions),
+            "portfolio_beta": round(portfolio_beta, 4),
+            "style_weights": style_weights,
+            "top_style": top_style,
+            "max_style_weight": max_style_weight,
+            "is_concentrated": max_style_weight > 30,
+            "positions": {
+                code: {
+                    "shares": positions[code],
+                    "price": prices[code],
+                    "amount": round(positions[code] * prices[code], 2),
+                    "style": next((o.style for o in all_orders if o.code == code), "default"),
+                    "beta": self.STYLE_BETA_MAP.get(
+                        next((o.style for o in all_orders if o.code == code), "default"),
+                        1.0
+                    ),
+                }
+                for code in positions
+            },
+            "order_count": len(all_orders),
+            "morning_order_count": len(sheet.morning_orders),
+            "afternoon_order_count": len(sheet.afternoon_orders),
+        }
+
+        return hedge_input
+
+    def generate_complete_plan(self,
+                                target_date: Optional[date] = None,
+                                price_quotes: Optional[Dict[str, float]] = None,
+                                market_state: Optional[Dict] = None,
+                                capital_multiplier: float = 1.0) -> Dict:
+        """
+        生成完整的建仓+对冲联合计划
+
+        v8.0 核心接口：一次性生成建仓指令 + 对冲建议 + 风险评估
+
+        Args:
+            target_date: 目标日期
+            price_quotes: 实时价格字典
+            market_state: 市场状态字典（用于紧急协议和对冲策略）
+            capital_multiplier: 资金倍率
+
+        Returns:
+            完整计划字典，包含建仓指令和对冲计划
+        """
+        if target_date is None:
+            target_date = date.today()
+
+        if market_state is None:
+            market_state = {}
+
+        sheet = self.generate_daily_orders(
+            target_date=target_date,
+            price_quotes=price_quotes,
+            capital_multiplier=capital_multiplier,
+        )
+
+        protocol = self.get_emergency_protocol(market_state)
+
+        hedge_input = self.generate_hedge_input(sheet)
+
+        complete_plan = {
+            "trade_date": sheet.trade_date,
+            "phase": {
+                "name": sheet.phase_name,
+                "number": sheet.phase_number,
+            },
+            "emergency_protocol": protocol,
+            "build_plan": {
+                "total_capital": sheet.total_capital,
+                "day_capital": sheet.day_capital,
+                "morning_orders": [asdict(o) for o in sheet.morning_orders],
+                "afternoon_orders": [asdict(o) for o in sheet.afternoon_orders],
+                "paused_orders": sheet.paused_orders,
+                "warnings": sheet.warnings,
+            },
+            "hedge_input": hedge_input,
+            "generated_at": datetime.now().isoformat(),
+        }
+
+        return complete_plan
 
 
 # ================================================================

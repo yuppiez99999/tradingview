@@ -274,9 +274,13 @@ class ETFSignalStrategy:
     - 强加仓信号：买入
     - 强减仓信号：卖出
     - 中信号：半仓操作
+
+    警告: 回测时需确保 etf_signals 仅使用当日及之前的数据计算，
+    不得包含未来信息。建议在回测循环中实时计算信号而非预计算。
     """
 
-    def __init__(self, signal_thresholds: Dict = None, max_position_pct: float = 0.3):
+    def __init__(self, signal_thresholds: Dict = None, max_position_pct: float = 0.3,
+                 validate_no_lookahead: bool = True):
         self.signal_thresholds = signal_thresholds or {
             "strong_buy": "强加仓",
             "medium_buy": "加仓",
@@ -284,6 +288,8 @@ class ETFSignalStrategy:
             "medium_sell": "减仓",
         }
         self.max_position_pct = max_position_pct
+        self.validate_no_lookahead = validate_no_lookahead
+        self._validated_dates: set = set()
 
     def generate_signals(self, day_data: Dict, positions: Dict) -> List[Dict]:
         """生成交易信号"""
@@ -333,7 +339,12 @@ class ETFSignalStrategy:
 
 
 class BacktestDataLoader:
-    """回测数据加载器"""
+    """回测数据加载器
+
+    警告: load_from_positions_history 使用 positions.json 中的 est_price/avg_cost，
+    这些价格可能包含事后信息（若文件在盘后写入）。
+    回测结果可能因此虚高，建议使用独立的 OHLC 历史数据源。
+    """
 
     @staticmethod
     def load_from_positions_history(positions_history_dir: str, tickers: List[str] = None) -> List[Dict]:
@@ -364,7 +375,18 @@ class BacktestDataLoader:
                         "signal": pos.get("etf_flow_signal", ""),
                         "inflow": pos.get("etf_inflow", 0),
                     }
-                    prices[code] = pos.get("est_price", 0) or pos.get("avg_cost", 0)
+                    # 使用 est_price 或 avg_cost 作为价格 — 若这些值来自盘后文件，存在数据泄露风险
+                    price = pos.get("est_price", 0) or pos.get("avg_cost", 0)
+                    if pos.get("est_price", 0) and not hasattr(
+                        BacktestDataLoader, '_warned_est_price'
+                    ):
+                        import logging
+                        logging.getLogger('backtest').warning(
+                            "⚠️ 回测使用 est_price（估算价格），可能包含事后信息。"
+                            "建议使用独立的历史 OHLC 数据源以获得无偏回测结果。"
+                        )
+                        BacktestDataLoader._warned_est_price = True
+                    prices[code] = price
 
                 if prices:
                     data.append({

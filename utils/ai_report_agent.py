@@ -219,7 +219,7 @@ class AIReportAgent:
         # 批量调用 LLM (合并多条新闻为单次 prompt, 节省成本)
         if use_llm and self.llm_available and len(news_items) <= 10:
             batch_results = self._llm_batch_sentiment(news_items)
-            if batch_results is not None:
+            if batch_results:
                 return batch_results
 
         # 规则引擎兜底 (关键词匹配)

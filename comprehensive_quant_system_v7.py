@@ -1163,7 +1163,7 @@ class ComprehensiveQuantSystemV7:
             'total_capital': total_capital,
             'equity_allocation': self.equity_allocation,
             'hedge_allocation': self.hedge_allocation,
-            'target_return': 0.085,        # 年化8.5%
+            'target_return': 0.08,         # 年化收益目标 >= 8%
             'max_drawdown': 0.15,          # 最大回撤15%
             'target_sharpe': 1.5,
             'target_alpha': 0.04,
@@ -1301,7 +1301,7 @@ class ComprehensiveQuantSystemV7:
         print(f"    {'净组合预期收益':30s}: {self.expected_return_breakdown['net_expected']:.1%}")
         print("-" * 70)
         print("  风险目标:")
-        print(f"    年化收益目标: >= 8.5%")
+        print(f"    年化收益目标: >= 8%")
         print(f"    最大回撤目标: < 15%")
         print(f"    夏普比率目标: >= 1.5")
         print(f"    Alpha目标:    >= 4%")
@@ -1847,6 +1847,21 @@ def simulate_historical_scenario():
 # ============================================================================
 def main():
     """v7.0 系统主入口"""
+    import sys
+    if "--institutional-pipeline" in sys.argv:
+        from institutional_pipeline_runner import parse_args as pipeline_parse_args, InstitutionalPipelineRunner, PipelineContext
+        args = pipeline_parse_args()
+        ctx = PipelineContext(
+            mode=args.mode,
+            symbols=args.symbols,
+            total_capital=args.capital,
+        )
+        runner = InstitutionalPipelineRunner(ctx)
+        result = runner.run()
+        import json
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+
     print("\n" + "█" * 70)
     print("█  综合量化策略系统 v7.0 — 期货+期权双层对冲优化版")
     print("█  Comprehensive Quantitative Strategy System v7.0")

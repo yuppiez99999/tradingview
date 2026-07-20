@@ -14,8 +14,11 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 from utils.risk_metrics import calculate_var, calculate_max_drawdown
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class RiskBudgetAllocator:
@@ -96,8 +99,13 @@ class RiskBudgetAllocator:
                     rp_weights = budgeter.risk_parity_weights(returns_matrix[symbols].dropna())
                     if len(rp_weights) == n:
                         weights = rp_weights
-            except Exception:
-                pass
+                        print(f"[RiskBudgetAllocator] Risk Parity 权重计算成功, 目标{len(rp_weights)}个标的")
+                    else:
+                        print(f"[RiskBudgetAllocator] Risk Parity 权重维度不匹配, 回退到等权")
+                else:
+                    print(f"[RiskBudgetAllocator] 无法加载 risk_budgeter 模块, 回退到等权")
+            except Exception as e:
+                print(f"[RiskBudgetAllocator] Risk Parity 计算失败: {e}, 回退到等权")
 
         results: Dict[str, Dict] = {}
         for i, pos in enumerate(pending_positions):

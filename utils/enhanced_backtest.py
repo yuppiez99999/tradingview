@@ -119,7 +119,9 @@ class EnhancedBacktestEngine:
                  rebalance_interval: int = 15,
                  rebalance_threshold: float = 0.05,
                  use_risk_parity: bool = True,
-                 use_dynamic_weights: bool = True):
+                 use_dynamic_weights: bool = True,
+                 min_annual_return: float = 0.08,
+                 max_drawdown_limit: float = 0.15):
         """
         Args:
             portfolio_config: 组合配置 {'assets': [{'code': str, 'target_weight': float, ...}]}
@@ -128,6 +130,8 @@ class EnhancedBacktestEngine:
             rebalance_threshold: 权重偏差阈值（触发再平衡）
             use_risk_parity: 是否使用风险平价
             use_dynamic_weights: 是否使用波动率自适应权重
+            min_annual_return: 验收下限——年化收益率 >= 该值方为达标（默认 8%）
+            max_drawdown_limit: 验收上限——最大回撤 <= 该值方为达标（默认 15%）
         """
         self.config = portfolio_config
         self.assets = [a['code'] for a in portfolio_config.get('assets', [])]
@@ -136,6 +140,9 @@ class EnhancedBacktestEngine:
         self.rebalance_threshold = rebalance_threshold
         self.use_risk_parity = use_risk_parity
         self.use_dynamic_weights = use_dynamic_weights
+        # 回测模型验收约束：年化收益 >= 8% 且 最大回撤 <= 15%
+        self.min_annual_return = min_annual_return
+        self.max_drawdown_limit = max_drawdown_limit
 
         self.portfolio = PortfolioState(self.assets, initial_capital)
         self.peak_value = initial_capital
@@ -193,12 +200,25 @@ class EnhancedBacktestEngine:
         return 1.0
 
     def _calculate_volatility(self, klines: Dict[str, pd.DataFrame],
-                               code: str, lookback: int = 20) -> float:
-        """计算最近N日年化波动率"""
+                               code: str, lookback: int = 20,
+                               as_of_date: Optional[pd.Timestamp] = None) -> float:
+        """
+        计算最近N日年化波动率。
+
+        Args:
+            as_of_date: 截止日期，仅使用该日期及之前的数据（防未来函数）。
+                        为 None 时使用全部数据（仅适用于非回测场景）。
+        """
         if code not in klines or klines[code].empty:
             return 1.0
 
         df = klines[code]
+        # ★ 防未来函数: 截断到 as_of_date
+        if as_of_date is not None:
+            df = df.loc[:as_of_date]
+            if df.empty:
+                return 1.0
+
         n = min(lookback, len(df))
         prices = df['close'].tail(n).values
         if len(prices) < 2:
@@ -211,16 +231,20 @@ class EnhancedBacktestEngine:
         """获取基础目标权重"""
         return {a['code']: a.get('target_weight', 0) for a in self.config.get('assets', [])}
 
-    def _get_risk_parity_weights(self, klines: Dict[str, pd.DataFrame]) -> Dict[str, float]:
+    def _get_risk_parity_weights(self, klines: Dict[str, pd.DataFrame],
+                                 as_of_date: Optional[pd.Timestamp] = None) -> Dict[str, float]:
         """
         风险平价权重：每个资产贡献等量风险。
 
         简化版：权重 = 1/波动率 / sum(1/波动率)
+
+        Args:
+            as_of_date: 截止日期，防未来函数
         """
         vols = {}
         for code in self.assets:
             if code in klines and not klines[code].empty:
-                vols[code] = self._calculate_volatility(klines, code, lookback=60)
+                vols[code] = self._calculate_volatility(klines, code, lookback=60, as_of_date=as_of_date)
 
         if not vols:
             return self._get_base_weights()
@@ -237,17 +261,21 @@ class EnhancedBacktestEngine:
 
         return weights
 
-    def _get_dynamic_weights(self, klines: Dict[str, pd.DataFrame]) -> Dict[str, float]:
+    def _get_dynamic_weights(self, klines: Dict[str, pd.DataFrame],
+                            as_of_date: Optional[pd.Timestamp] = None) -> Dict[str, float]:
         """
         动态权重：60%基础权重 + 40%波动率倒数加权。
 
         低波动资产获得更高权重，实现波动率目标管理。
+
+        Args:
+            as_of_date: 截止日期，防未来函数
         """
         base = self._get_base_weights()
         vols = {}
         for code in base:
             if base[code] > 0 and code in klines and not klines[code].empty:
-                vols[code] = self._calculate_volatility(klines, code, lookback=20)
+                vols[code] = self._calculate_volatility(klines, code, lookback=20, as_of_date=as_of_date)
 
         if not vols:
             return base
@@ -318,6 +346,12 @@ class EnhancedBacktestEngine:
                 'num_trades': int,
                 'equity_curve': [{date, value}, ...],
                 'trades': [...],
+                'acceptance': {  # 回测模型验收结果
+                    'passed': bool,
+                    'min_annual_return': float,
+                    'max_drawdown_limit': float,
+                    'checks': [{'metric': str, 'value': float, 'required': str, 'ok': bool}, ...],
+                },
             }
         """
         dates = self._get_common_dates(klines)
@@ -344,7 +378,7 @@ class EnhancedBacktestEngine:
                 should_rebalance = True
             elif self.use_dynamic_weights:
                 current = self.portfolio.current_weights(prices)
-                dynamic = self._get_dynamic_weights(klines)
+                dynamic = self._get_dynamic_weights(klines, as_of_date=date)
                 max_drift = max(
                     abs(current.get(c, 0) - dynamic.get(c, 0))
                     for c in dynamic
@@ -354,9 +388,9 @@ class EnhancedBacktestEngine:
 
             if should_rebalance:
                 if self.use_risk_parity:
-                    target = self._get_risk_parity_weights(klines)
+                    target = self._get_risk_parity_weights(klines, as_of_date=date)
                 elif self.use_dynamic_weights:
-                    target = self._get_dynamic_weights(klines)
+                    target = self._get_dynamic_weights(klines, as_of_date=date)
                 else:
                     target = self._get_base_weights()
 
@@ -368,7 +402,46 @@ class EnhancedBacktestEngine:
                 'value': tv,
             })
 
-        return self._compute_results(dates)
+        result = self._compute_results(dates)
+        if 'error' not in result:
+            result['acceptance'] = self._evaluate_acceptance(result)
+        return result
+
+    def _evaluate_acceptance(self, result: Dict) -> Dict:
+        """
+        回测模型验收：年化收益率 >= min_annual_return 且 最大回撤 <= max_drawdown_limit。
+        两项均满足才算达标（passed=True）。
+        """
+        annual_return = float(result.get('annual_return', 0.0))
+        max_dd = float(result.get('max_drawdown', 0.0))
+
+        checks = [
+            {
+                'metric': 'annual_return',
+                'value': round(annual_return, 4),
+                'required': f'>= {self.min_annual_return:.0%}',
+                'ok': annual_return >= self.min_annual_return,
+            },
+            {
+                'metric': 'max_drawdown',
+                'value': round(max_dd, 4),
+                'required': f'<= {self.max_drawdown_limit:.0%}',
+                'ok': max_dd <= self.max_drawdown_limit,
+            },
+        ]
+        passed = all(c['ok'] for c in checks)
+        if passed:
+            logger.info(f"回测验收达标：年化 {annual_return:.2%} >= {self.min_annual_return:.0%}，"
+                        f"回撤 {max_dd:.2%} <= {self.max_drawdown_limit:.0%}")
+        else:
+            logger.warning(f"回测验收未达标：年化 {annual_return:.2%}（需>={self.min_annual_return:.0%}），"
+                           f"回撤 {max_dd:.2%}（需<={self.max_drawdown_limit:.0%}）")
+        return {
+            'passed': passed,
+            'min_annual_return': self.min_annual_return,
+            'max_drawdown_limit': self.max_drawdown_limit,
+            'checks': checks,
+        }
 
     def _compute_results(self, dates) -> Dict:
         """计算回测结果指标"""

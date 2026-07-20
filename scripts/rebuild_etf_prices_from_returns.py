@@ -76,16 +76,17 @@ def main():
             skipped.append((code, f"收益数据不足: {len(rets)}"))
             continue
 
-        prices = pd.Series(index=rets.index, dtype=float)
-        prices.iloc[-1] = ref_price
-        for i in range(len(rets) - 2, -1, -1):
-            r = rets.iloc[i + 1]
-            if pd.isna(r):
-                prices.iloc[i] = prices.iloc[i + 1]
-            else:
-                prices.iloc[i] = prices.iloc[i + 1] / (1.0 + float(r))
-
-        prices = prices[prices > 0].dropna()
+        # 向量化重构：反向递推 → 反向累积乘积
+        # 原始逻辑: price[i] = price[i+1] / (1 + r[i+1])，从末尾向前递推
+        # 展开: price[i] = ref_price / ∏(1+r[j]) for j=i+1..n-1
+        # 注意: rets 已 dropna()，原始代码的 pd.isna(r) 分支为死代码
+        g = 1.0 + rets.values
+        cumprod_right = np.cumprod(g[::-1])[::-1]
+        prices_arr = np.empty(len(rets))
+        prices_arr[-1] = ref_price
+        prices_arr[:-1] = ref_price / cumprod_right[1:]
+        prices = pd.Series(prices_arr, index=rets.index)
+        prices = prices[prices > 0]
         if len(prices) < 60:
             skipped.append((code, f"重建价格不足: {len(prices)}"))
             continue

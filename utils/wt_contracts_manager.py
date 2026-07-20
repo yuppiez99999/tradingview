@@ -15,7 +15,7 @@ from dataclasses import asdict
 from .wt_structs import ContractData
 
 
-# 默认合约规格库 (A股+股指期货)
+# 默认合约规格库 (A股+股指期货+期权)
 DEFAULT_CONTRACTS = {
     # 股指期货
     "IF.CFFEX": ContractData(
@@ -41,6 +41,20 @@ DEFAULT_CONTRACTS = {
         product_class="FUTURE", contract_multiplier=300.0,
         price_tick=0.2, margin_rate=0.12,
         commission_rate=0.000023, stamp_duty=0.0, min_commission=0.0,
+    ),
+    # 期货默认模板 (商品期货回退)
+    "FUTURE.DEFAULT": ContractData(
+        code="FUTURE", exchange="CFFEX", name="期货默认",
+        product_class="FUTURE", contract_multiplier=10.0,
+        price_tick=1.0, margin_rate=0.10,
+        commission_rate=0.0001, stamp_duty=0.0, min_commission=0.0,
+    ),
+    # 期权默认模板
+    "OPTION.DEFAULT": ContractData(
+        code="OPTION", exchange="SSE", name="期权默认",
+        product_class="OPTION", contract_multiplier=10000.0,
+        price_tick=0.0001, margin_rate=0.15,
+        commission_rate=0.0001, stamp_duty=0.0, min_commission=5.0,
     ),
     # 主力ETF
     "510300.SH": ContractData(
@@ -113,14 +127,51 @@ class ContractsManager:
         return True
 
     def get_contract(self, code: str) -> ContractData:
-        """获取合约规格, 未找到则返回默认股票模板"""
+        """获取合约规格, 按品种类型智能回退
+
+        优先级: 精确匹配 → 期货品种匹配 → 期权品种匹配 → 股票/ETF 默认模板
+        """
         if code in self._contracts:
             return self._contracts[code]
-        # 尝试去掉后缀
-        base_code = code.split(".")[0]
-        if f"{base_code}.CFFEX" in self._contracts:
-            return self._contracts[f"{base_code}.CFFEX"]
-        return self._contracts.get("STOCK.DEFAULT", DEFAULT_CONTRACTS["STOCK.DEFAULT"])
+
+        # 提取 base_code 和 exchange
+        parts = code.split(".")
+        base_code = parts[0] if len(parts) >= 1 else code
+        exchange = parts[-1] if len(parts) >= 2 else ""
+
+        # 期货: 去掉月份数字匹配品种 (如 IF2507.CFFEX → IF.CFFEX)
+        import re
+        if exchange in ("CFFEX", "SHF", "DCE", "ZCE", "GFEX", "CZCE"):
+            # 提取品种代码 (IF2507 → IF, rb2507 → rb, sc2507 → sc)
+            product_match = re.match(r'([A-Za-z]+)', base_code)
+            if product_match:
+                product = product_match.group(1)
+                full_key = f"{product}.{exchange}"
+                if full_key in self._contracts:
+                    return self._contracts[full_key]
+            # 回退到期货默认模板
+            return self._contracts.get("FUTURE.DEFAULT",
+                DEFAULT_CONTRACTS.get("FUTURE.DEFAULT",
+                    DEFAULT_CONTRACTS["STOCK.DEFAULT"]))
+
+        # 期权: 按交易所 + 标的前缀匹配 (QMT使用 .SH/.SZ)
+        # 仅当 base_code 包含期权特征 (C/P + 月份) 时才进入期权回退
+        if exchange in ("SH", "SZ", "SSE", "SZSE"):
+            import re
+            opt_match = re.match(r'^(\d{6})([CP])(\d{4})(M\d{5})$', base_code)
+            if opt_match:
+                underlying = base_code[:6]
+                for key, ct in self._contracts.items():
+                    if ct.product_class == "OPTION" and ct.code.startswith(underlying[:3]):
+                        return ct
+                return self._contracts.get("OPTION.DEFAULT",
+                    DEFAULT_CONTRACTS.get("OPTION.DEFAULT",
+                        DEFAULT_CONTRACTS["STOCK.DEFAULT"]))
+
+        # 股票/ETF: 默认模板
+        return self._contracts.get("STOCK.DEFAULT",
+            DEFAULT_CONTRACTS.get("STOCK.DEFAULT",
+                DEFAULT_CONTRACTS["STOCK.DEFAULT"]))
 
     def register_contract(self, contract: ContractData) -> None:
         """注册新合约"""

@@ -22,6 +22,10 @@ class SignalGenerator:
     2. LASSO (L1) 特征选择
     3. Ridge (L2) 权重估计
     4. 生成标准化信号 [-1, 1]
+
+    防未来函数:
+    - forward_returns 必须为 t+1 (已 shift(-1)) 的前向收益
+    - 训练窗口仅使用 as_of_date 及之前的数据
     """
 
     def __init__(self, factor_library,
@@ -44,15 +48,18 @@ class SignalGenerator:
         self.selected_factors: List[str] = []
         self.factor_weights: Optional[np.ndarray] = None
         self.latest_signals: Dict[str, float] = {}
+        self._forward_returns_warned = False
 
     # ---------- 特征选择 ----------
-    def select_features(self, X: pd.DataFrame, y: pd.Series) -> List[str]:
+    def select_features(self, X: pd.DataFrame, y: pd.Series,
+                        as_of_date: Optional[pd.Timestamp] = None) -> List[str]:
         """
         LASSO L1 特征选择
 
         Args:
             X: 因子矩阵 [T x K]
-            y: 前向收益（目标）
+            y: 前向收益（目标，必须已 shift(-1)）
+            as_of_date: 截止日期，仅使用该日期及之前的数据（防未来函数）
 
         Returns:
             被选中的因子名称列表
@@ -60,6 +67,11 @@ class SignalGenerator:
         if X.empty or y.empty:
             logger.warning("因子矩阵或目标为空，无法进行特征选择")
             return list(X.columns)
+
+        # 防未来函数: 截断到 as_of_date
+        if as_of_date is not None:
+            X = X.loc[:as_of_date]
+            y = y.loc[:as_of_date]
 
         # 对齐
         common_idx = X.dropna().index.intersection(y.dropna().index)
@@ -83,19 +95,26 @@ class SignalGenerator:
         return selected
 
     # ---------- 权重估计 ----------
-    def estimate_weights(self, X: pd.DataFrame, y: pd.Series) -> np.ndarray:
+    def estimate_weights(self, X: pd.DataFrame, y: pd.Series,
+                         as_of_date: Optional[pd.Timestamp] = None) -> np.ndarray:
         """
         Ridge L2 权重估计
 
         Args:
             X: 因子矩阵（仅选中因子）
-            y: 前向收益
+            y: 前向收益（目标，必须已 shift(-1)）
+            as_of_date: 截止日期，防未来函数
 
         Returns:
             权重向量
         """
         if X.empty or y.empty:
             return np.ones(X.shape[1]) / max(X.shape[1], 1)
+
+        # 防未来函数: 截断到 as_of_date
+        if as_of_date is not None:
+            X = X.loc[:as_of_date]
+            y = y.loc[:as_of_date]
 
         common_idx = X.dropna().index.intersection(y.dropna().index)
         if len(common_idx) < 20:
@@ -112,16 +131,57 @@ class SignalGenerator:
         return ridge.coef_
 
     # ---------- 信号生成 ----------
+    def _validate_forward_returns(self, y: pd.Series) -> bool:
+        """
+        验证 forward_returns 是否已正确偏移为 t+1。
+
+        检查方法: 计算 y 与 shift(-1) 后的 y 的相关系数。
+        如果 forward_returns 未做 shift(-1)，则 y 与 shift(-1)(y) 的
+        自相关会非常高（因为包含同期信息），此时应发出警告。
+
+        Returns:
+            True 如果通过验证
+        """
+        if self._forward_returns_warned:
+            return True
+
+        if len(y) < 30:
+            return True
+
+        # 如果 forward_returns 是 shift(-1) 的，当前值应该与下一期值不相关
+        y_clean = y.dropna()
+        if len(y_clean) < 30:
+            return True
+
+        from scipy.stats import pearsonr
+        idx = y_clean.index[:min(200, len(y_clean))]
+        corr, pval = pearsonr(y_clean.loc[idx], y_clean.loc[idx].shift(-1).dropna())
+
+        if corr > 0.8 and pval < 0.01:
+            logger.warning(
+                "⚠️ 数据泄露风险: forward_returns 自相关过高 (r=%.4f, p=%.6f)。"
+                "forward_returns 可能未做 shift(-1) 偏移，训练可能使用了同期数据。"
+                "请确保传入的是 t+1 前向收益。",
+                corr, pval
+            )
+            self._forward_returns_warned = True
+            return False
+
+        self._forward_returns_warned = True
+        return True
+
     def generate(self, factor_matrix: Optional[pd.DataFrame] = None,
                  forward_returns: Optional[pd.Series] = None,
-                 retrain: bool = True) -> pd.Series:
+                 retrain: bool = True,
+                 as_of_date: Optional[pd.Timestamp] = None) -> pd.Series:
         """
         生成 Alpha 信号
 
         Args:
             factor_matrix: 因子矩阵，若为 None 则从 FactorLibrary 获取
-            forward_returns: 前向收益用于训练
+            forward_returns: 前向收益用于训练（必须已 shift(-1) 为 t+1 收益）
             retrain: 是否重新训练 LASSO + Ridge
+            as_of_date: 截止日期，仅使用该日期及之前的数据（防未来函数）
 
         Returns:
             signal Series: [T] 标准化信号 [-1, 1]
@@ -135,10 +195,15 @@ class SignalGenerator:
 
         # 特征选择 + 权重
         if retrain and forward_returns is not None:
-            self.selected_factors = self.select_features(factor_matrix, forward_returns)
+            self._validate_forward_returns(forward_returns)
+            self.selected_factors = self.select_features(
+                factor_matrix, forward_returns, as_of_date=as_of_date
+            )
             if self.selected_factors:
                 X_selected = factor_matrix[self.selected_factors]
-                self.factor_weights = self.estimate_weights(X_selected, forward_returns)
+                self.factor_weights = self.estimate_weights(
+                    X_selected, forward_returns, as_of_date=as_of_date
+                )
             else:
                 self.selected_factors = list(factor_matrix.columns)
                 self.factor_weights = np.ones(len(self.selected_factors)) / len(self.selected_factors)

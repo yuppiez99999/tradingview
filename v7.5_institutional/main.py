@@ -15,6 +15,24 @@ from typing import Optional
 # 添加 src 路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
+# 优先加载项目根目录 .env，确保 WIND / VOLCENGINE 等密钥在导入业务模块前生效
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ENV_PATH = os.path.join(_PROJECT_ROOT, '.env')
+if os.path.exists(_ENV_PATH):
+    try:
+        with open(_ENV_PATH, 'r', encoding='utf-8') as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if not _line or _line.startswith('#') or '=' not in _line:
+                    continue
+                _key, _, _value = _line.partition('=')
+                _key = _key.strip()
+                _value = _value.strip().strip("\"'")
+                if _key and _key not in os.environ:
+                    os.environ[_key] = _value
+    except Exception:
+        pass
+
 from risk.risk_manager import RiskManager
 from risk.risk_budgeter import RiskBudgeter
 from risk.circuit_breaker import CircuitBreaker, SlippageCircuitBreaker
@@ -328,6 +346,8 @@ def main():
                         choices=['run', 'stress', 'backtest', 'check'],
                         help='运行模式')
     parser.add_argument('--capital', type=float, default=5_000_000, help='资金规模')
+    parser.add_argument('--real-broker', action='store_true',
+                        help='启用同花顺客户端真实下单（期货/期权）')
     args = parser.parse_args()
 
     system = V75InstitutionalSystem(config_dir=args.config)

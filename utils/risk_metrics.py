@@ -618,6 +618,47 @@ def calculate_performance_metrics(returns: np.ndarray, prices: np.ndarray = None
         return {}
 
 
+def calculate_portfolio_weights(positions: Dict[str, Dict]) -> Dict[str, float]:
+    """
+    计算组合权重
+    
+    Args:
+        positions: positions.json 格式的持仓字典
+    
+    Returns:
+        {code: weight} 权重字典
+    """
+    try:
+        if not positions:
+            return {}
+        
+        total_value = 0.0
+        values = {}
+        
+        for code, pos in positions.items():
+            phase1 = pos.get("phase1_amount", 0)
+            phase2 = pos.get("phase2_amount", 0)
+            phase3 = pos.get("phase3_amount", 0)
+            value = phase1 + phase2 + phase3
+            if value > 0:
+                values[code] = value
+                total_value += value
+        
+        if total_value <= 0:
+            return {}
+        
+        weights = {}
+        for code, value in values.items():
+            weights[code] = value / total_value
+        
+        logger.debug(f"组合权重计算完成: {len(weights)} 个标的")
+        return weights
+    
+    except Exception as e:
+        logger.error(f"组合权重计算失败: {e}")
+        return {}
+
+
 if __name__ == "__main__":
     # 测试风险指标计算
     print("测试风险指标计算")

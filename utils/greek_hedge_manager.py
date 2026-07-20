@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
+import math
+import numpy as np
 
 
 @dataclass
@@ -40,6 +42,16 @@ class HedgeInstrument:
     beta: float = 1.0
 
 
+def _norm_cdf(x: float) -> float:
+    """标准正态分布累积分布函数"""
+    return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
+
+
+def _norm_pdf(x: float) -> float:
+    """标准正态分布概率密度函数"""
+    return math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi)
+
+
 class GreekHedgeManager:
     """Greeks 动态对冲管理器"""
 
@@ -53,23 +65,127 @@ class GreekHedgeManager:
         self.max_vega = max_vega
         self.max_theta_burn = max_theta_burn
 
+    def _bs_d1_d2(self, S: float, K: float, T: float, r: float, sigma: float) -> Tuple[float, float]:
+        """计算 Black-Scholes d1 和 d2"""
+        if T <= 0 or sigma <= 0 or S <= 0:
+            return 0.0, 0.0
+        sqrt_T = math.sqrt(T)
+        d1 = (math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrt_T)
+        d2 = d1 - sigma * sqrt_T
+        return d1, d2
+
+    def _bs_delta(self, S: float, K: float, T: float, r: float, sigma: float, call: bool = True) -> float:
+        """计算期权 Delta"""
+        d1, _ = self._bs_d1_d2(S, K, T, r, sigma)
+        if call:
+            return _norm_cdf(d1)
+        else:
+            return _norm_cdf(d1) - 1.0
+
+    def _bs_gamma(self, S: float, K: float, T: float, r: float, sigma: float) -> float:
+        """计算期权 Gamma"""
+        d1, _ = self._bs_d1_d2(S, K, T, r, sigma)
+        sqrt_T = math.sqrt(T)
+        if S <= 0 or sigma <= 0 or T <= 0:
+            return 0.0
+        return _norm_pdf(d1) / (S * sigma * sqrt_T)
+
+    def _bs_theta(self, S: float, K: float, T: float, r: float, sigma: float, call: bool = True) -> float:
+        """计算期权 Theta (年化)"""
+        d1, d2 = self._bs_d1_d2(S, K, T, r, sigma)
+        sqrt_T = math.sqrt(T)
+        if S <= 0 or sigma <= 0 or T <= 0:
+            return 0.0
+        term1 = -S * _norm_pdf(d1) * sigma / (2.0 * sqrt_T)
+        if call:
+            term2 = r * K * math.exp(-r * T) * _norm_cdf(d2)
+        else:
+            term2 = r * K * math.exp(-r * T) * _norm_cdf(-d2)
+        return term1 - term2
+
+    def _bs_vega(self, S: float, K: float, T: float, r: float, sigma: float) -> float:
+        """计算期权 Vega (每1%波动率变化)"""
+        d1, _ = self._bs_d1_d2(S, K, T, r, sigma)
+        sqrt_T = math.sqrt(T)
+        if S <= 0 or T <= 0:
+            return 0.0
+        return S * _norm_pdf(d1) * sqrt_T / 100.0
+
+    def _bs_rho(self, S: float, K: float, T: float, r: float, sigma: float, call: bool = True) -> float:
+        """计算期权 Rho (每1%利率变化)"""
+        d1, d2 = self._bs_d1_d2(S, K, T, r, sigma)
+        if S <= 0 or T <= 0:
+            return 0.0
+        if call:
+            return K * T * math.exp(-r * T) * _norm_cdf(d2) / 100.0
+        else:
+            return -K * T * math.exp(-r * T) * _norm_cdf(-d2) / 100.0
+
+    def calc_option_greeks(self,
+                           S: float,
+                           K: float,
+                           T: float,
+                           r: float = 0.02,
+                           sigma: float = 0.2,
+                           call: bool = True) -> GreekExposure:
+        """计算期权完整 Greeks"""
+        return GreekExposure(
+            delta=self._bs_delta(S, K, T, r, sigma, call),
+            gamma=self._bs_gamma(S, K, T, r, sigma),
+            theta=self._bs_theta(S, K, T, r, sigma, call),
+            vega=self._bs_vega(S, K, T, r, sigma),
+            rho=self._bs_rho(S, K, T, r, sigma, call),
+        )
+
     def calc_portfolio_greeks(self,
                               positions: Dict[str, Dict],
                               prices: Dict[str, float]) -> GreekExposure:
-        """计算持仓组合的 Greeks 暴露"""
+        """计算持仓组合的 Greeks 暴露 (兼容 Dict[str, float] 和 Dict[str, dict])
+        
+        期权持仓自动使用 Black-Scholes 模型计算 Greeks
+        """
         exposure = GreekExposure()
         for code, pos in positions.items():
-            qty = float(pos.get("shares", 0) or pos.get("target_contracts", 0) or 0)
-            price = float(prices.get(code, pos.get("est_price", 0.0)))
-            if qty == 0 or price <= 0:
-                continue
-            multiplier = float(pos.get("multiplier", 1.0))
+            # 兼容简单数值型持仓
+            if isinstance(pos, (int, float)):
+                qty = float(pos or 0)
+                price = float(prices.get(code, 0.0))
+                if qty == 0 or price <= 0:
+                    continue
+                multiplier = 1.0
+                beta = 1.0
+                delta = 1.0
+                gamma = 0.0
+                theta = 0.0
+                vega = 0.0
+            else:
+                qty = float(pos.get("shares", 0) or pos.get("target_contracts", 0) or 0)
+                price = float(prices.get(code, pos.get("est_price", 0.0)))
+                if qty == 0 or price <= 0:
+                    continue
+                multiplier = float(pos.get("multiplier", 1.0))
+                beta = float(pos.get("beta", 1.0))
+                pos_type = pos.get("type", "").upper()
+                
+                # 期权持仓使用 Black-Scholes 计算 Greeks
+                if pos_type == "OPTION":
+                    S = float(pos.get("underlying_price", price))
+                    K = float(pos.get("strike", price))
+                    T = float(pos.get("days_to_expiry", 30)) / 365.0
+                    r = float(pos.get("risk_free_rate", 0.02))
+                    sigma = float(pos.get("implied_vol", 0.2))
+                    call = pos.get("option_type", "CALL").upper() == "CALL"
+                    opt_greeks = self.calc_option_greeks(S, K, T, r, sigma, call)
+                    delta = opt_greeks.delta
+                    gamma = opt_greeks.gamma
+                    theta = opt_greeks.theta
+                    vega = opt_greeks.vega
+                else:
+                    delta = float(pos.get("delta", 1.0))
+                    gamma = float(pos.get("gamma", 0.0))
+                    theta = float(pos.get("theta", 0.0))
+                    vega = float(pos.get("vega", 0.0))
             notional = qty * price * multiplier
-            beta = float(pos.get("beta", 1.0))
-            delta = float(pos.get("delta", 1.0))
-            gamma = float(pos.get("gamma", 0.0))
-            theta = float(pos.get("theta", 0.0))
-            vega = float(pos.get("vega", 0.0))
             exposure.delta += notional * beta * delta
             exposure.gamma += notional * beta * gamma
             exposure.theta += notional * beta * theta

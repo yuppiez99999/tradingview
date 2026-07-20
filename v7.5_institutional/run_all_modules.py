@@ -46,7 +46,7 @@ WIND_API_KEY = os.environ.get("WIND_API_KEY", "")
 if WIND_API_KEY:
     os.environ["WIND_API_KEY"] = WIND_API_KEY
 else:
-    logger.warning("WIND_API_KEY 环境变量未设置, Wind MCP 相关模块可能无法正常工作")
+    print("[WARN] WIND_API_KEY 环境变量未设置, Wind MCP 相关模块可能无法正常工作")
 
 # 报告归档目录 (统一到根目录 e:\各种PY程序\每日报告归档)
 ARCHIVE_ROOT = BASE_DIR.parent.parent / "每日报告归档"
@@ -150,6 +150,7 @@ class ModuleRunner:
                     capture_output=True,
                     text=True,
                     encoding="utf-8",
+                    errors="replace",
                     timeout=self.timeout,
                     env=os.environ,
                 )
@@ -226,10 +227,10 @@ PREMARKET_MODULES = [
     ModuleRunner(
         name="daily_workflow",
         script="daily_workflow.py",
-        description="每日交易工作流 (7阶段: check→market→risk→hedge→signal→execute→report)",
+        description="每日交易工作流 (盘前: check→calibrate→market→risk→hedge→signal→report)",
         schedule="daily",
         timeout=3600,
-        extra_args=[],
+        extra_args=["--phase-end", "report"],
     ),
 ]
 

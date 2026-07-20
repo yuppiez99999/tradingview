@@ -122,5 +122,22 @@
       "account": "",
       "dry_run": true
     }
+  },
+  "llm_config": {
+    "provider": "doubao",
+    "doubao": {
+      "api_key": "",
+      "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "model": "doubao-speed"
+    },
+    "deepseek": {
+      "api_key": "",
+      "base_url": "https://api.deepseek.com",
+      "model": "deepseek-chat"
+    },
+    "ollama": {
+      "base_url": "http://localhost:11434",
+      "model": "llama3"
+    }
   }
 }

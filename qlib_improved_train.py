@@ -489,7 +489,7 @@ def main():
                     latest = stock_pred.iloc[-1]
                     avg = stock_pred.mean()
                     rank = int(ranked.get(cv, ranked.get(cv.lower(), 0)))
-                    direction = "看多" if latest > 0.5 else ("看空" if latest < 0.5 else "中性")
+                    direction = "看多" if latest > 0 else ("看空" if latest < 0 else "中性")
                     print(f"{symbol:<12} {name:<10} {latest:>10.6f} {direction:>6} {avg:>10.6f} {rank:>6}/{len(latest_preds)}")
                     results.append({
                         "code": symbol, "name": name,

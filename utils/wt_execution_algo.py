@@ -16,6 +16,68 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 
 
+def _get_adaptive_execution_params(target_amount: float, ref_price: float,
+                                   avg_daily_volume: float, volatility: float) -> Dict:
+    """根据实时市场数据计算自适应执行参数
+
+    Args:
+        target_amount: 目标金额
+        ref_price: 参考价格
+        avg_daily_volume: 日均成交量（股）
+        volatility: 波动率
+
+    Returns:
+        自适应参数字典
+    """
+    depth_ratio = 0.0
+    if avg_daily_volume > 0 and ref_price > 0:
+        daily_turnover = avg_daily_volume * ref_price
+        if daily_turnover > 0:
+            depth_ratio = target_amount / daily_turnover
+
+    # 高波动率阈值
+    high_volatility = volatility > 0.05
+    # 深度不足：订单占日均成交额比例过高
+    shallow_market = depth_ratio > 0.1 or avg_daily_volume <= 0
+
+    # 自适应拆单参与度
+    if shallow_market or high_volatility:
+        max_participation_pct = 0.08
+    elif depth_ratio > 0.05:
+        max_participation_pct = 0.10
+    else:
+        max_participation_pct = 0.15
+
+    # 自适应执行窗口 (分钟)
+    if shallow_market and high_volatility:
+        execution_window_minutes = 60
+        interval_minutes = 10
+    elif shallow_market or high_volatility:
+        execution_window_minutes = 45
+        interval_minutes = 7
+    else:
+        execution_window_minutes = 30
+        interval_minutes = 5
+
+    # 自适应延迟系数
+    if shallow_market and high_volatility:
+        delay_factor = 1.8
+    elif shallow_market or high_volatility:
+        delay_factor = 1.4
+    else:
+        delay_factor = 1.0
+
+    return {
+        "max_participation_pct": max_participation_pct,
+        "execution_window_minutes": execution_window_minutes,
+        "interval_minutes": interval_minutes,
+        "delay_factor": delay_factor,
+        "depth_ratio": depth_ratio,
+        "shallow_market": shallow_market,
+        "high_volatility": high_volatility,
+    }
+
+
 class MinImpactExecutor:
     """最小冲击拆单执行器
     
@@ -53,8 +115,12 @@ class MinImpactExecutor:
                 "type": "single",
             }]
 
+        adaptive = _get_adaptive_execution_params(target_amount, ref_price, avg_daily_volume, volatility)
+        max_participation_pct = adaptive.get("max_participation_pct", self.max_participation_pct)
+        delay_factor = adaptive.get("delay_factor", 1.0)
+
         if avg_daily_volume > 0:
-            max_qty_per_order = int(avg_daily_volume * self.max_participation_pct / 240)
+            max_qty_per_order = int(avg_daily_volume * max_participation_pct / 240)
         else:
             max_qty_per_order = int(target_qty * 0.2)
 
@@ -74,9 +140,9 @@ class MinImpactExecutor:
             if i == 0:
                 delay = 0
             elif i == num_orders - 1:
-                delay = 15 + i * 2
+                delay = int((15 + i * 2) * delay_factor)
             else:
-                delay = 5 + i * 3
+                delay = int((5 + i * 3) * delay_factor)
 
             orders.append({
                 "order_idx": i + 1,
@@ -86,6 +152,7 @@ class MinImpactExecutor:
                 "type": "min_impact",
                 "cumulative_qty": total_qty,
                 "cumulative_amount": round(total_qty * ref_price, 2),
+                "adaptive_params": adaptive,
             })
 
             if total_qty >= target_qty:
@@ -158,6 +225,8 @@ class TWAPExecutor:
         Args:
             target_amount: 目标金额
             ref_price: 参考价格
+            avg_daily_volume: 日均成交量（股）
+            volatility: 波动率
             
         Returns:
             拆单列表
@@ -165,8 +234,12 @@ class TWAPExecutor:
         if target_amount <= 0 or ref_price <= 0:
             return []
 
+        adaptive = _get_adaptive_execution_params(target_amount, ref_price, avg_daily_volume, volatility)
+        execution_window_minutes = adaptive.get("execution_window_minutes", self.execution_window_minutes)
+        interval_minutes = adaptive.get("interval_minutes", self.interval_minutes)
+
         target_qty = int(target_amount / ref_price)
-        num_intervals = max(1, self.execution_window_minutes // self.interval_minutes)
+        num_intervals = max(1, execution_window_minutes // interval_minutes)
         num_orders = min(num_intervals, max(2, int(target_qty / 100)))
 
         base_qty = target_qty // num_orders
@@ -183,10 +256,11 @@ class TWAPExecutor:
                 "order_idx": i + 1,
                 "qty": qty,
                 "amount": round(qty * ref_price, 2),
-                "delay_minutes": i * self.interval_minutes,
+                "delay_minutes": i * interval_minutes,
                 "type": "twap",
                 "cumulative_qty": total_qty,
                 "cumulative_amount": round(total_qty * ref_price, 2),
+                "adaptive_params": adaptive,
             })
 
             if total_qty >= target_qty:
@@ -241,6 +315,8 @@ class VWAPExecutor:
         Args:
             target_amount: 目标金额
             ref_price: 参考价格
+            avg_daily_volume: 日均成交量（股）
+            volatility: 波动率
             session_type: 交易时段类型
             
         Returns:
@@ -249,14 +325,38 @@ class VWAPExecutor:
         if target_amount <= 0 or ref_price <= 0:
             return []
 
-        target_qty = int(target_amount / ref_price)
+        adaptive = _get_adaptive_execution_params(target_amount, ref_price, avg_daily_volume, volatility)
         volume_profile = self.get_volume_profile(session_type)
 
-        total_weight = sum(w for _, w in volume_profile)
+        # 根据深度和波动率动态调整权重分布
+        depth_ratio = adaptive.get("depth_ratio", 0.0)
+        high_volatility = adaptive.get("high_volatility", False)
+        shallow_market = adaptive.get("shallow_market", False)
+
+        adjusted_profile = []
+        if shallow_market or high_volatility:
+            # 深度不足或高波动时，将更多权重分配到后半段
+            for idx, (delay, weight) in enumerate(volume_profile):
+                if delay >= 60:
+                    adjusted_weight = weight * 1.3
+                elif delay <= 15:
+                    adjusted_weight = weight * 0.8
+                else:
+                    adjusted_weight = weight
+                adjusted_profile.append((delay, adjusted_weight))
+        else:
+            adjusted_profile = list(volume_profile)
+
+        total_weight = sum(w for _, w in adjusted_profile)
+        if total_weight <= 0:
+            adjusted_profile = list(volume_profile)
+            total_weight = sum(w for _, w in adjusted_profile)
+
+        target_qty = int(target_amount / ref_price)
         orders = []
         total_qty = 0
 
-        for idx, (delay, weight) in enumerate(volume_profile):
+        for idx, (delay, weight) in enumerate(adjusted_profile):
             qty = int(target_qty * weight / total_weight)
             if qty < 100:
                 continue
@@ -269,9 +369,10 @@ class VWAPExecutor:
                 "amount": round(qty * ref_price, 2),
                 "delay_minutes": delay,
                 "type": "vwap",
-                "volume_weight": weight,
+                "volume_weight": round(weight / total_weight, 4),
                 "cumulative_qty": total_qty,
                 "cumulative_amount": round(total_qty * ref_price, 2),
+                "adaptive_params": adaptive,
             })
 
             if total_qty >= target_qty:
@@ -279,10 +380,11 @@ class VWAPExecutor:
 
         if total_qty < target_qty:
             remaining = target_qty - total_qty
-            orders[-1]["qty"] += remaining
-            orders[-1]["amount"] = round(orders[-1]["qty"] * ref_price, 2)
-            orders[-1]["cumulative_qty"] = target_qty
-            orders[-1]["cumulative_amount"] = round(target_qty * ref_price, 2)
+            if orders:
+                orders[-1]["qty"] += remaining
+                orders[-1]["amount"] = round(orders[-1]["qty"] * ref_price, 2)
+                orders[-1]["cumulative_qty"] = target_qty
+                orders[-1]["cumulative_amount"] = round(target_qty * ref_price, 2)
 
         return orders
 

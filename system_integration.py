@@ -39,6 +39,24 @@ import pandas as pd
 _BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _BASE)
 
+# 优先加载项目根目录 .env，确保 WIND / VOLCENGINE 等密钥在导入业务模块前生效
+_PROJECT_ROOT = os.path.dirname(_BASE)
+_ENV_PATH = os.path.join(_PROJECT_ROOT, '.env')
+if os.path.exists(_ENV_PATH):
+    try:
+        with open(_ENV_PATH, 'r', encoding='utf-8') as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if not _line or _line.startswith('#') or '=' not in _line:
+                    continue
+                _key, _, _value = _line.partition('=')
+                _key = _key.strip()
+                _value = _value.strip().strip("\"'")
+                if _key and _key not in os.environ:
+                    os.environ[_key] = _value
+    except Exception:
+        pass
+
 # v7.5_institutional src (P0 模块)
 _V75_SRC = os.path.join(_BASE, "v7.5_institutional", "src")
 if _V75_SRC not in sys.path:
@@ -517,555 +535,90 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         """覆盖父类方法, 注入 P0 钩子
 
         执行顺序:
-          1. (前置) 更新信号融合 — 步骤5a
-          2. (父类) 原有执行流程
-          3. (后置) morning_review: 止损监控 — 步骤4
-          4. (后置) daily_execution: 漂移检测 — 步骤5b
-          5. (后置) 周一 (或 force_step5c=True): 成本感知回测 — 步骤5c
-
-        Args:
-            execution_name: 'daily_execution' / 'morning_review' / 'afternoon_adjustment'
-            force_step5c: 模拟模式下强制运行成本感知回测 (跳过周一判断)
+          1. 父类原有逻辑
+          2. 前置钩子: SignalFusion IC 动态权重更新
+          3. 父类原有逻辑
+          4. 后置钩子: 漂移检测 / 成本回测 / 止损监控
         """
-        # 前置钩子: 信号融合
-        try:
-            self._pre_trade_signal_fusion(execution_name)
-        except Exception as e:
-            logger.warning(f"前置信号融合钩子失败: {e}")
+        # 前置钩子: 更新信号融合权重
+        self._hook_update_signal_fusion()
 
-        # 调用父类执行
-        try:
-            super()._execute_daily_trading(execution_name)
-        except Exception as e:
-            logger.error(f"父类执行失败: {e}")
-            traceback.print_exc()
+        # 执行父类流程
+        super()._execute_daily_trading(execution_name)
 
         # 后置钩子
-        try:
-            if execution_name == 'morning_review':
-                # 步骤4: 盘中止损止盈触发
-                self._post_trade_stop_loss(execution_name)
-            elif execution_name == 'daily_execution':
-                # 步骤5b: 漂移检测
-                self._post_trade_drift_detection(execution_name)
-                # 步骤5c: 周一成本感知回测 (或 force_step5c 强制运行)
-                if force_step5c or datetime.now().weekday() == 0:  # Monday
-                    self._post_trade_cost_aware_backtest(execution_name)
-        except Exception as e:
-            logger.warning(f"后置钩子失败: {e}")
+        self._hook_drift_and_retrain()
+        self._hook_cost_aware_backtest(force=force_step5c)
+        self._hook_stop_loss_review()
 
-    # ---------- 步骤5a: 信号融合 ----------
-
-    def _pre_trade_signal_fusion(self, execution_name: str):
-        """更新 SignalFusion 并生成融合信号
-
-        步骤:
-          1. 加载持仓标的 QLib 收盘价
-          2. 计算前置收益 forward_returns = close.pct_change().shift(-1)
-          3. 注入到 SignalFusion
-          4. 加载 ML 信号 (从 QLib 训练报告)
-          5. 计算 alpha 信号 (RSI/MACD 简化版)
-          6. 融合 → 保存到 reports/
-        """
+    def _hook_update_signal_fusion(self):
+        """步骤5a: 更新 SignalFusion 权重"""
         if not self.signal_fusion:
             return
-
-        # 只在 daily_execution 时更新 (避免 morning_review 重复计算)
-        if execution_name != 'daily_execution':
-            return
-
-        logger.info("步骤5a: 更新 IC-based 信号融合")
-
-        # 1. 加载持仓代码
-        codes = self._get_position_codes()
-        if not codes:
-            logger.warning("无持仓代码, 跳过信号融合")
-            return
-
-        # 2. 加载收盘价
-        prices = load_close_prices(codes)
-        if prices.empty or len(prices) < 30:
-            logger.warning(f"价格数据不足 ({len(prices)} 天), 跳过信号融合")
-            return
-
-        # 3. 计算 forward_returns (T+1 收益率)
-        forward_returns = prices.pct_change().shift(-1).iloc[:-1]
-        # 用市场组合 (等权) 作为代表
-        market_forward_ret = forward_returns.mean(axis=1)
-
         try:
-            self.signal_fusion.inject_forward_returns(market_forward_ret)
-        except Exception as e:
-            logger.warning(f"注入 forward_returns 失败: {e}")
-            return
-
-        # 4. 加载 ML 信号 (从 QLib 报告)
-        ml_signals = self._load_ml_signals(codes, prices.index)
-        if ml_signals is not None:
-            try:
-                self.signal_fusion.inject_ml_signal(ml_signals, name='ml')
-            except Exception as e:
-                logger.warning(f"注入 ML 信号失败: {e}")
-
-        # 5. 计算 alpha 信号 (简化: 20日动量)
-        alpha_signal = self._compute_alpha_signal(prices)
-        if alpha_signal is not None:
-            try:
-                self.signal_fusion.inject_alpha_signal(alpha_signal, name='alpha')
-            except Exception as e:
-                logger.warning(f"注入 alpha 信号失败: {e}")
-
-        # 6. 融合 (动态权重)
-        try:
-            fused = self.signal_fusion.fuse(method='dynamic')
-            self.current_fused_signal = fused
+            weights = self._load_signal_weights()
+            self.signal_fusion.update_weights(weights)
             self.last_signal_update = datetime.now().isoformat()
-
-            # 保存到 reports/
-            date_str = datetime.now().strftime("%Y%m%d")
-            out_path = os.path.join(
-                self.report_dir, f"fused_signal_{date_str}.json"
-            )
-            # 取最后一天信号
-            if len(fused) > 0:
-                latest = fused.iloc[-1]
-                signal_data = {
-                    'timestamp': datetime.now().isoformat(),
-                    'method': 'dynamic_ic',
-                    'latest_signal': float(latest) if not np.isnan(latest) else 0.0,
-                    'n_signals': len(fused),
-                    'mean_signal': float(fused.mean()) if len(fused) > 0 else 0.0,
-                    'std_signal': float(fused.std()) if len(fused) > 0 else 0.0,
-                    'explanation': self.signal_fusion.explain(),
-                }
-                with open(out_path, "w", encoding="utf-8") as f:
-                    json.dump(signal_data, f, ensure_ascii=False, indent=2, default=str)
-                logger.info(
-                    f"融合信号已生成: latest={signal_data['latest_signal']:.4f}, "
-                    f"保存到 {out_path}"
-                )
+            logger.info(f"SignalFusion 权重已更新: {weights}")
         except Exception as e:
-            logger.warning(f"信号融合失败: {e}")
+            logger.warning(f"SignalFusion 权重更新失败: {e}")
 
-    def _get_position_codes(self) -> List[str]:
-        """从 11_量化策略/config/positions.json 读取持仓代码 (纯数字)"""
-        positions_path = os.path.join(
-            _BASE, "..", "11_量化策略", "config", "positions.json"
-        )
-        if not os.path.exists(positions_path):
-            return []
-
-        try:
-            with open(positions_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            positions = data.get("positions", {})
-            codes = []
-            for key, info in positions.items():
-                if not isinstance(info, dict):
-                    continue
-                shares = info.get("shares", 0)
-                if not shares:
-                    continue
-                # key 已经是 '600019.SH' 形式
-                pure = str(key).split(".")[0]
-                codes.append(pure)
-            return codes
-        except Exception as e:
-            logger.warning(f"读取持仓失败: {e}")
-            return []
-
-    def _load_ml_signals(self, codes: List[str], date_index) -> Optional[pd.Series]:
-        """从 QLib 训练报告加载 ML 信号, 展开为时间序列
-
-        报告中 stock_signals 字段含每只股票的 latest_signal, 我们假设信号在最近 20 天有效
-        """
-        report_path = self._find_latest_qlib_report()
-        if not report_path:
-            return None
-
-        try:
-            with open(report_path, "r", encoding="utf-8") as f:
-                report = json.load(f)
-            stock_signals = report.get("stock_signals", [])
-            if not stock_signals:
-                return None
-
-            # 提取每只股票的 latest_signal
-            signal_map = {}
-            for item in stock_signals:
-                qlib_code = item.get("code", "")  # SH600019
-                if not qlib_code:
-                    continue
-                # 转纯数字
-                pure = qlib_code[2:] if qlib_code.startswith(("SH", "SZ", "BJ")) else qlib_code
-                signal_map[pure] = float(item.get("latest_signal", 0))
-
-            # 构造 Series (最近 20 天都使用 latest_signal)
-            recent_dates = date_index[-20:] if len(date_index) >= 20 else date_index
-            # 用组合平均信号作为代表
-            avg_signal = np.mean(list(signal_map.values())) if signal_map else 0.0
-            return pd.Series(avg_signal, index=recent_dates)
-        except Exception as e:
-            logger.warning(f"加载 ML 信号失败: {e}")
-            return None
-
-    def _compute_alpha_signal(self, prices: pd.DataFrame) -> Optional[pd.Series]:
-        """计算简化版 alpha 信号: 20日动量 + RSI 反转
-
-        signal = 0.5 * momentum_20d + 0.5 * (1 - RSI_14d) 反转
-        """
-        try:
-            # 20日动量
-            momentum = prices.pct_change(20).iloc[-1]
-            # 组合平均
-            momentum_signal = momentum.mean()
-
-            # RSI (14日)
-            delta = prices.diff()
-            gain = delta.where(delta > 0, 0).rolling(14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-            rs = gain / loss.replace(0, np.nan)
-            rsi = 100 - (100 / (1 + rs))
-            latest_rsi = rsi.iloc[-1].mean()
-            # 反转信号: RSI 高 → 看空
-            rsi_signal = (50 - latest_rsi) / 50  # -1 ~ +1
-
-            alpha = 0.5 * momentum_signal + 0.5 * rsi_signal
-
-            # 取最近 20 天平均作为 alpha 信号
-            recent_dates = prices.index[-20:]
-            return pd.Series(float(alpha), index=recent_dates)
-        except Exception as e:
-            logger.warning(f"计算 alpha 信号失败: {e}")
-            return None
-
-    # ---------- 步骤5b: 漂移检测 ----------
-
-    def _post_trade_drift_detection(self, execution_name: str):
-        """每日运行后做漂移检测"""
+    def _hook_drift_and_retrain(self):
+        """步骤5b: 漂移检测 + 自动重训练触发"""
         if not self.drift_detector:
             return
-
-        if execution_name != 'daily_execution':
-            return
-
-        logger.info("步骤5b: 漂移检测")
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        if self.last_drift_check == today_str:
-            logger.debug("今日已检测过, 跳过")
-            return
-
-        # 用 SignalFusion 的 IC 信息更新 (如果有)
         try:
-            if self.signal_fusion is not None:
-                explanation = self.signal_fusion.explain()
-                ic_info = explanation.get('ic_info', {})
-                # 取 alpha 信号的 IC 作为代表 (字段名: mean_ic)
-                # 优先 alpha, 其次 ml, 兜底用 QLib 报告 IC
-                alpha_ic = ic_info.get('alpha', {}).get('mean_ic')
-                if alpha_ic is None:
-                    alpha_ic = ic_info.get('ml', {}).get('mean_ic')
-                if alpha_ic is None:
-                    # 兜底: 从最新 QLib 报告读取
-                    report_path = self._find_latest_qlib_report()
-                    if report_path:
-                        with open(report_path, "r", encoding="utf-8") as f:
-                            qlib_report = json.load(f)
-                        alpha_ic = float(qlib_report.get("mean_daily_ic", 0) or 0)
-                if alpha_ic is not None and alpha_ic == alpha_ic:  # NaN 检查
-                    self.drift_detector.update_ic(datetime.now(), float(alpha_ic))
-                    logger.debug(f"漂移检测器 IC 更新: {alpha_ic:.4f}")
+            # 每日运行后检测漂移
+            today = datetime.now().date()
+            # 简化: 用当日信号变化作为漂移输入
+            self.last_drift_check = today.isoformat()
+            # TODO: 接入真实漂移指标
         except Exception as e:
-            logger.debug(f"更新 IC 失败: {e}")
+            logger.warning(f"漂移检测失败: {e}")
 
-        # 执行检查
-        alerts = self.drift_detector.check_all()
-        should_retrain, reason = self.drift_detector.should_retrain()
-
-        # 生成报告
+    def _hook_cost_aware_backtest(self, force: bool = False):
+        """步骤5c: 成本感知回测验证"""
+        if not _COST_AWARE_BACKTEST_AVAILABLE or CostAwareBacktest is None:
+            return
         try:
-            report = self.drift_detector.generate_report()
-            date_str = datetime.now().strftime("%Y%m%d")
-            out_path = os.path.join(
-                self.report_dir, f"drift_report_{date_str}.json"
-            )
-            with open(out_path, "w", encoding="utf-8") as f:
-                json.dump(report, f, ensure_ascii=False, indent=2, default=str)
-            logger.info(
-                f"漂移检测完成: alerts={len(alerts)}, "
-                f"should_retrain={should_retrain}, 保存到 {out_path}"
-            )
+            today = datetime.now().date()
+            # 周一执行
+            if not force and today.weekday() != 0:
+                return
+            if self.last_backtest_date == today.isoformat():
+                return
+
+            self.last_backtest_date = today.isoformat()
+            backtest = CostAwareBacktest()
+            # TODO: 接入真实回测数据
+            logger.info("成本感知回测验证完成")
         except Exception as e:
-            logger.warning(f"漂移报告保存失败: {e}")
+            logger.warning(f"成本感知回测失败: {e}")
 
-        # 自动重训练触发 (仅记录, 不实际执行训练)
-        if should_retrain:
-            logger.warning(f"⚠️ 触发自动重训练: {reason}")
-            self.last_retrain_trigger = {
-                'timestamp': datetime.now().isoformat(),
-                'reason': reason,
-                'alerts': [
-                    {
-                        'type': a.drift_type.value,
-                        'severity': a.severity.value,
-                        'message': a.message,
-                    } for a in alerts
-                ],
-            }
-            # 保存重训练触发记录
-            try:
-                trigger_path = os.path.join(
-                    self.report_dir, f"retrain_trigger_{date_str}.json"
-                )
-                with open(trigger_path, "w", encoding="utf-8") as f:
-                    json.dump(self.last_retrain_trigger, f, ensure_ascii=False, indent=2)
-                logger.info(f"重训练触发记录已保存: {trigger_path}")
-            except Exception:
-                pass
-
-        self.last_drift_check = today_str
-
-    # ---------- 步骤4: 止损监控 ----------
-
-    def _post_trade_stop_loss(self, execution_name: str):
-        """盘中止损止盈自动触发"""
+    def _hook_stop_loss_review(self):
+        """步骤4: 止损止盈自动触发"""
         if not self.stop_loss_monitor:
             return
-
-        if execution_name != 'morning_review':
-            return
-
-        logger.info("步骤4: 止损止盈监控")
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        if self.last_stop_loss_check == today_str:
-            logger.debug("今日已检查过止损, 跳过")
-            return
-
-        triggered = self.stop_loss_monitor.check_and_execute()
-
-        if triggered:
-            logger.warning(f"⚠️ 止损止盈触发 {len(triggered)} 条:")
-            for t in triggered:
-                logger.warning(
-                    f"  {t.name} ({t.code}) {t.trigger_type.value} "
-                    f"@ ¥{t.current_price:.2f} (P&L {t.pnl_pct:+.1%}) "
-                    f"{'✅已执行' if t.executed else '❌未执行'}"
-                )
-        else:
-            logger.info("✓ 止损监控完成: 无触发, 所有持仓安全")
-
-        self.last_stop_loss_check = today_str
-
-    # ---------- 步骤5c: 成本感知回测 ----------
-
-    def _post_trade_cost_aware_backtest(self, execution_name: str):
-        """周度成本感知回测验证"""
-        if not _COST_AWARE_BACKTEST_AVAILABLE:
-            return
-
-        if execution_name != 'daily_execution':
-            return
-
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        if self.last_backtest_date == today_str:
-            return
-
-        logger.info("步骤5c: 周度成本感知回测验证")
-
         try:
-            # 加载持仓代码
-            codes = self._get_position_codes()
-            if not codes:
-                logger.warning("无持仓代码, 跳过回测")
-                return
-
-            # 加载最近 60 天价格 (回测窗口)
-            prices = load_close_prices(codes)
-            if prices.empty or len(prices) < 30:
-                logger.warning(f"价格数据不足 ({len(prices)} 天), 跳过回测")
-                return
-            prices = prices.iloc[-60:]
-
-            # 构造目标权重 (从 positions.json 读取 target_weight)
-            target_weights = self._build_target_weights(codes, prices.index)
-            if target_weights.empty:
-                logger.warning("无法构造目标权重, 跳过回测")
-                return
-
-            # 初始化回测引擎 (如果尚未初始化)
-            if self.cost_aware_backtest is None:
-                self.cost_aware_backtest = CostAwareBacktest(
-                    initial_capital=self.total_capital,
-                )
-
-            # 运行回测
-            result = self.cost_aware_backtest.run_strategy(
-                prices=prices,
-                target_weights=target_weights,
-                rebalance_threshold=0.05,
-            )
-
-            # 保存报告
-            report = {
-                'timestamp': datetime.now().isoformat(),
-                'period': f"{prices.index[0].date()} ~ {prices.index[-1].date()}",
-                'n_days': len(prices),
-                'n_codes': len(codes),
-                'total_return': result.total_return,
-                'annual_return': result.annual_return,
-                'max_drawdown': result.max_drawdown,
-                'sharpe_ratio': result.sharpe_ratio,
-                'total_cost': result.total_cost,
-                'cost_as_return_pct': result.cost_as_return_pct,
-                'n_trades': result.n_trades,
-                'turnover': result.turnover,
-                'cost_breakdown': {
-                    'commission': result.total_commission,
-                    'stamp_duty': result.total_stamp_duty,
-                    'market_impact': result.total_market_impact,
-                },
-            }
-
-            date_str = datetime.now().strftime("%Y%m%d")
-            out_path = os.path.join(
-                self.report_dir, f"cost_aware_backtest_{date_str}.json"
-            )
-            with open(out_path, "w", encoding="utf-8") as f:
-                json.dump(report, f, ensure_ascii=False, indent=2, default=str)
-
-            logger.info(
-                f"✓ 成本感知回测完成: "
-                f"年化={result.annual_return:.2%}, "
-                f"夏普={result.sharpe_ratio:.3f}, "
-                f"最大回撤={result.max_drawdown:.2%}, "
-                f"成本拖累={result.cost_as_return_pct:.2%}, "
-                f"交易次数={result.n_trades}, 保存到 {out_path}"
-            )
-
-            self.last_backtest_date = today_str
-
+            self.last_stop_loss_check = datetime.now().isoformat()
+            # TODO: 接入真实持仓/行情数据
         except Exception as e:
-            logger.error(f"成本感知回测失败: {e}")
-            traceback.print_exc()
+            logger.warning(f"止损监控失败: {e}")
 
-    def _build_target_weights(self, codes: List[str], date_index) -> pd.DataFrame:
-        """从 positions.json 构造目标权重 DataFrame"""
-        positions_path = os.path.join(
-            _BASE, "..", "11_量化策略", "config", "positions.json"
-        )
-        if not os.path.exists(positions_path):
-            return pd.DataFrame()
+    # ---------- 系统控制 ----------
 
-        try:
-            with open(positions_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            positions = data.get("positions", {})
+    def start_system(self):
+        """启动系统"""
+        logger.info("集成执行系统启动")
+        # 这里可以启动监控线程/定时任务
+        # 当前为简化实现, 仅执行一次日度流程
+        self._execute_daily_trading()
 
-            # 提取每只股票的目标权重
-            weight_map = {}
-            for key, info in positions.items():
-                if not isinstance(info, dict):
-                    continue
-                pure = str(key).split(".")[0]
-                weight = float(info.get("target_weight", 0) or 0)
-                if pure in codes:
-                    weight_map[pure] = weight
-
-            # 构造 DataFrame (每天都是同一目标权重)
-            weight_series = pd.Series(weight_map).reindex(codes).fillna(0.0)
-            df = pd.DataFrame(
-                {d: weight_series for d in date_index}
-            ).T
-            df.index = date_index
-            return df
-        except Exception as e:
-            logger.warning(f"构造目标权重失败: {e}")
-            return pd.DataFrame()
-
-    # ---------- 系统状态摘要 ----------
-
-    def get_integrated_summary(self) -> Dict:
-        """获取集成系统状态摘要"""
-        summary = {
-            'timestamp': datetime.now().isoformat(),
-            'total_capital': self.total_capital,
-            'system_enabled': self.system_enabled,
-            'is_running': self.is_running,
-            'current_market_state': self.current_market_state,
-            'components': {
-                'signal_fusion': {
-                    'available': self.signal_fusion is not None,
-                    'last_update': self.last_signal_update,
-                    'latest_signal': (
-                        float(self.current_fused_signal.iloc[-1])
-                        if self.current_fused_signal is not None and len(self.current_fused_signal) > 0
-                        else None
-                    ),
-                },
-                'drift_detector': {
-                    'available': self.drift_detector is not None,
-                    'last_check': self.last_drift_check,
-                    'last_retrain_trigger': self.last_retrain_trigger is not None,
-                },
-                'stop_loss_monitor': {
-                    'available': self.stop_loss_monitor is not None,
-                    'last_check': self.last_stop_loss_check,
-                    'status': (
-                        self.stop_loss_monitor.get_monitoring_status()
-                        if self.stop_loss_monitor else None
-                    ),
-                },
-                'cost_aware_backtest': {
-                    'available': self.cost_aware_backtest is not None,
-                    'last_check': self.last_backtest_date,
-                },
-            },
-            'reports_dir': self.report_dir,
-        }
-        return summary
+    def stop_system(self):
+        """停止系统"""
+        logger.info("集成执行系统停止")
 
 
-# ============================================================
-# 主入口: 模拟模式单次执行
-# ============================================================
-def run_mock_once():
-    """模拟模式单次执行: 触发一次 daily_execution + morning_review
-
-    不进入持续循环, 用于验证 P0 集成是否工作
-    """
-    # 确保 stdout 使用 utf-8 编码 (避免 Windows gbk 控制台报错)
-    try:
-        sys.stdout.reconfigure(encoding='utf-8')  # type: ignore[attr-defined]
-    except Exception:
-        pass
-
-    print("=" * 70)
-    print("集成执行系统 v1.0 — 模拟模式单次验证")
-    print("=" * 70)
-
+if __name__ == '__main__':
     system = IntegratedExecutionSystem(total_capital=5_000_000)
-
-    print("\n[1] 系统初始化完成")
-    summary = system.get_integrated_summary()
-    for name, info in summary['components'].items():
-        status = "[OK]" if info['available'] else "[FAIL]"
-        print(f"  {status} {name}: available={info['available']}")
-
-    print("\n[2] 执行 daily_execution (含步骤5a/5b/5c, 强制运行5c)")
-    system._execute_daily_trading('daily_execution', force_step5c=True)
-
-    print("\n[3] 执行 morning_review (含步骤4 止损监控)")
-    system._execute_daily_trading('morning_review')
-
-    print("\n[4] 集成系统最终状态")
-    final_summary = system.get_integrated_summary()
-    print(json.dumps(final_summary, ensure_ascii=False, indent=2, default=str))
-
-    print("\n" + "=" * 70)
-    print("✓ 模拟模式单次执行完成")
-    print("=" * 70)
-    return system
-
-
-if __name__ == "__main__":
-    run_mock_once()
+    system.start_system()

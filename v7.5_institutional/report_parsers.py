@@ -558,3 +558,39 @@ class ExternalReportLoader:
         if match:
             return match.group(1)
         return None
+
+    @staticmethod
+    def parse_report_meta(content: str) -> Dict[str, Any]:
+        """解析报告统一元数据头部
+
+        支持格式:
+          <!--
+          REPORT_META:
+            report_type: 晨间行情摘要
+            trade_date: 2026-07-12
+            generated_at: 2026-07-12 07:05:23
+            generator: morning_market_fetcher
+          -->
+        """
+        if not content:
+            return {}
+        match = re.search(r"<!--\s*REPORT_META:\s*([\s\S]*?)-->", content)
+        if not match:
+            return {}
+        meta_text = match.group(1)
+        result: Dict[str, Any] = {}
+        for line in meta_text.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if ":" in line:
+                key, value = line.split(":", 1)
+                result[key.strip()] = value.strip()
+        return result
+
+    @staticmethod
+    def _strip_report_meta(content: str) -> str:
+        """从报告内容中剥离元数据头部"""
+        if not content:
+            return content
+        return re.sub(r"<!--\s*REPORT_META:[\s\S]*?-->\n*", "", content)

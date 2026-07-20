@@ -161,14 +161,14 @@
         "reason": "金融科技AI龙头; 证券ETF资金流强信号受益; 十五五数字中国"
       },
       {
-        "code": "300782.SZ",
-        "name": "卓胜微",
+        "code": "688981.SH",
+        "name": "中芯国际",
         "type": "STOCK",
         "weight": 0.02,
         "amount": 60000,
         "etf_flow_signal": "关联半导体",
         "etf_inflow": null,
-        "reason": "射频芯片龙头; 半导体国产替代; 十五五新质生产力"
+        "reason": "晶圆代工龙头; 半导体制造核心; 十五五新质生产力+国产替代"
       },
       {
         "code": "688017.SH",
@@ -289,13 +289,43 @@
         "etf_flow_signal": "关注",
         "etf_inflow": 0.0,
         "reason": "创业板成长风格核心; 创新企业集中地; 实时ETF资金流向监控标的"
+      },
+      {
+        "code": "601899.SH",
+        "name": "紫金矿业",
+        "type": "STOCK",
+        "weight": 0.02,
+        "amount": 60000,
+        "etf_flow_signal": null,
+        "etf_inflow": null,
+        "reason": "黄金+铜龙头; 战略资源安全; 周金涛萧条末期黄金最优+康波资源主升浪"
+      },
+      {
+        "code": "002281.SZ",
+        "name": "光迅科技",
+        "type": "STOCK",
+        "weight": 0.02,
+        "amount": 60000,
+        "etf_flow_signal": "关联科创50",
+        "etf_inflow": null,
+        "reason": "光模块龙头; AI算力网络层核心; 十五五算力基建+康波新技术革命"
+      },
+      {
+        "code": "000901.SZ",
+        "name": "国盾量子",
+        "type": "STOCK",
+        "weight": 0.01,
+        "amount": 30000,
+        "etf_flow_signal": null,
+        "etf_inflow": null,
+        "reason": "量子通信龙头; 十五五新质生产力前沿方向; 高风险主题观察仓"
       }
     ],
     "weight_summary": {
       "total_weight": 1.00,
       "cash_buffer": 0.0,
       "etf_count": 13,
-      "stock_count": 12,
+      "stock_count": 15,
       "etf_weight": 0.55,
       "stock_weight": 0.45,
       "total_amount": 3000000

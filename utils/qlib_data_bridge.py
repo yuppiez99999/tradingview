@@ -72,17 +72,36 @@ def dataframe_to_qlib_record(df: Any) -> List[Dict[str, Any]]:
         if not hasattr(df.index, 'strftime'):
             df = df.copy()
             df.index = pd.to_datetime(df.index, errors='coerce')
-        records = []
-        for ts, row in df.iterrows():
-            records.append({
-                'date': ts.strftime('%Y-%m-%d') if hasattr(ts, 'strftime') else str(ts),
-                'open': float(row.get('open', 0) or 0),
-                'high': float(row.get('high', 0) or 0),
-                'low': float(row.get('low', 0) or 0),
-                'close': float(row.get('close', 0) or 0),
-                'volume': float(row.get('volume', 0) or 0),
-                'amount': float(row.get('amount', row.get('volume', 0) or 0)),
-            })
+        # 向量化重构：消除 iterrows() 逐行遍历，使用 numpy 数组操作
+        idx = df.index
+        dates = [ts.strftime('%Y-%m-%d') if hasattr(ts, 'strftime') else str(ts) for ts in idx]
+        
+        # 批量提取列数据为 numpy 数组，避免逐行 Series 创建
+        opens = pd.to_numeric(df.get('open', pd.Series(0, index=idx)), errors='coerce').fillna(0).to_numpy(dtype=float)
+        highs = pd.to_numeric(df.get('high', pd.Series(0, index=idx)), errors='coerce').fillna(0).to_numpy(dtype=float)
+        lows = pd.to_numeric(df.get('low', pd.Series(0, index=idx)), errors='coerce').fillna(0).to_numpy(dtype=float)
+        closes = pd.to_numeric(df.get('close', pd.Series(0, index=idx)), errors='coerce').fillna(0).to_numpy(dtype=float)
+        volumes = pd.to_numeric(df.get('volume', pd.Series(0, index=idx)), errors='coerce').fillna(0).to_numpy(dtype=float)
+        
+        # amount 列不存在时回退到 volume
+        if 'amount' in df.columns:
+            amounts = pd.to_numeric(df['amount'], errors='coerce').fillna(0).to_numpy(dtype=float)
+        else:
+            amounts = volumes.copy()
+        
+        # 使用列表推导式批量构建记录（比 iterrows + append 快 10-50 倍）
+        records = [
+            {
+                'date': dates[i],
+                'open': float(opens[i]),
+                'high': float(highs[i]),
+                'low': float(lows[i]),
+                'close': float(closes[i]),
+                'volume': float(volumes[i]),
+                'amount': float(amounts[i]),
+            }
+            for i in range(len(df))
+        ]
         return records
     return []
 

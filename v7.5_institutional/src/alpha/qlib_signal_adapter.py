@@ -43,15 +43,43 @@ try:
     from qlib.config import REG_CN
     from qlib.data.dataset import DatasetH
     from qlib.data.dataset.handler import DataHandlerLP
-    from qlib.contrib.model.pytorch_lstm import LSTM
-    from qlib.contrib.model.lightgbm import LGBModel
-    from qlib.contrib.model.pytorch_transformer import Transformer
 
     _QLIB_AVAILABLE = True
-    logger.info("Qlib 导入成功")
+    logger.info("Qlib 基础模块导入成功")
 except ImportError as e:
     _qlib_init_error = str(e)
     logger.warning(f"Qlib 不可用，将回退到本地模型: {e}")
+
+
+_LSTM_AVAILABLE = False
+_LGB_MODEL_AVAILABLE = False
+_TRANSFORMER_AVAILABLE = False
+
+LSTM = None
+LGBModel = None
+Transformer = None
+
+if _QLIB_AVAILABLE:
+    try:
+        from qlib.contrib.model.lightgbm import LGBModel
+        _LGB_MODEL_AVAILABLE = True
+        logger.info("Qlib LightGBM 模型导入成功")
+    except Exception as e:
+        logger.warning(f"Qlib LightGBM 模型导入失败: {e}")
+
+    try:
+        from qlib.contrib.model.pytorch_lstm import LSTM
+        _LSTM_AVAILABLE = True
+        logger.info("Qlib LSTM 模型导入成功")
+    except Exception as e:
+        logger.warning(f"Qlib LSTM 模型导入失败 (PyTorch可能不可用): {e}")
+
+    try:
+        from qlib.contrib.model.pytorch_transformer import Transformer
+        _TRANSFORMER_AVAILABLE = True
+        logger.info("Qlib Transformer 模型导入成功")
+    except Exception as e:
+        logger.warning(f"Qlib Transformer 模型导入失败: {e}")
 
 
 # ============================================================
@@ -62,9 +90,9 @@ DEFAULT_QLIB_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "qlib_dat
 
 # 可用模型映射
 MODEL_MAP = {
-    "lstm": LSTM if _QLIB_AVAILABLE else None,
-    "lightgbm": LGBModel if _QLIB_AVAILABLE else None,
-    "transformer": Transformer if _QLIB_AVAILABLE else None,
+    "lstm": LSTM if _LSTM_AVAILABLE else None,
+    "lightgbm": LGBModel if _LGB_MODEL_AVAILABLE else None,
+    "transformer": Transformer if _TRANSFORMER_AVAILABLE else None,
 }
 
 # 默认模型
@@ -777,8 +805,8 @@ def generate_signal(df: pd.DataFrame,
     Returns:
         标准化信号 pd.Series[-1, 1]，或 None
     """
-    # 优先 Qlib
-    if _QLIB_AVAILABLE:
+    # 优先 Qlib（仅当模型可用时）
+    if _QLIB_AVAILABLE and MODEL_MAP.get(model_type) is not None:
         signal = generate_qlib_signal(df, symbol, model_type, **kwargs)
         if signal is not None and len(signal) > 0:
             return signal

@@ -1,45 +1,41 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo   启动盘中监控 - AutoHedge Live
+echo   v7.5 实时监控并发调度器 - 启动
 echo ========================================
 echo.
 
 set PYTHON=C:\Program Files\Python38\python.exe
 set WORKDIR=%~dp0
-set LOG=%WORKDIR%logs\live_monitor.log
-set PIDFILE=%WORKDIR%live_monitor.pid
+set LOG=%WORKDIR%logs\live_scheduler.log
+set PIDFILE=%WORKDIR%.live_scheduler.lock
 
-echo [%date% %time%] 启动盘中监控..." >> "%LOG%"
+echo [%date% %time%] 启动实时监控调度器..." >> "%LOG%"
 echo 时间: %date% %time%
-echo 执行: %PYTHON% --mode live --broker mock
+echo 执行: %PYTHON% live_scheduler.py
 echo.
 
 REM 检查是否已在运行
-if exist "%PIDFILE%" (
-    set /p OLDPID=<"%PIDFILE%"
-    tasklist /FI "PID eq %OLDPID%" 2>NUL | find "%OLDPID%" >NUL
-    if %ERRORLEVEL% == 0 (
-        echo 盘中监控已在运行，PID: %OLDPID%
-        pause
-        exit /b 0
-    )
+"%PYTHON%" "%WORKDIR%live_scheduler.py" --status
+if %ERRORLEVEL% == 0 (
+    echo 实时监控调度器已在运行
+    pause
+    exit /b 0
 )
 
-REM 启动 live 模式
-start "AutoHedge Live Monitor" /B "%PYTHON%" --mode live --broker mock >> "%LOG%" 2>&1
+REM 启动并发调度器
+start "v7.5 Live Scheduler" /B "%PYTHON%" "%WORKDIR%live_scheduler.py" >> "%LOG%" 2>&1
 
-REM 获取新进程PID
-timeout /t 3 /nobreak >nul
-for /f "tokens=2" %%a in ('tasklist /FI "WINDOWTITLE eq AutoHedge Live Monitor" /FO CSV ^| find "python"') do (
-    echo %%a > "%PIDFILE%"
-)
+timeout /t 5 /nobreak >nul
+
+"%PYTHON%" "%WORKDIR%live_scheduler.py" --status
 
 echo.
-echo 盘中监控已启动
+echo 实时监控调度器已启动 (6模块并发)
 echo PID 文件: %PIDFILE%
 echo 日志文件: %LOG%
 echo.
 echo 停止监控: run_stop_live.bat
+echo 查看状态: python live_scheduler.py --status
 echo.
 pause

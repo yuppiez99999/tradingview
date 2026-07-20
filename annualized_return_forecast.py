@@ -22,6 +22,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 import logging
 
+# 统一成本模型（全系统唯一成本来源，禁止本地硬编码）
+from utils.cost_model import get_cost_model
+
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger('forecast')
 
@@ -477,15 +480,15 @@ def forecast_annualized_return() -> dict:
                         0.30 * portfolio_ml_return +
                         0.20 * portfolio_factor_return)
 
-    # 成本拖累 (估算)
-    # 年换手率 3x, 平均成本 15bps
-    cost_drag = 3.0 * 0.0015  # ~0.45%
+    # 成本拖累：统一成本模型（此前错误地取 0.45%，严重低估；现已并入
+    # 佣金/印花税/冲击/期权覆盖/期货对冲，年化约 2.4%，全系统唯一来源）
+    cost_model = get_cost_model()
+    cost_breakdown = cost_model.breakdown()
+    cost_drag = cost_breakdown["total"]   # 年化总成本
+    hedge_cost = 0.0                        # 对冲成本已并入 cost_model.annual_total_cost
 
-    # 对冲成本
-    hedge_cost = 0.003  # ~0.3% (期货保证金成本)
-
-    # 最终预期
-    net_return = blended_portfolio - cost_drag - hedge_cost
+    # 最终预期（净收益必须扣除统一年化成本后再报）
+    net_return = cost_model.net_return(blended_portfolio)
     net_sharpe = (net_return - RF_RATE) / portfolio_vol if portfolio_vol > 0 else 0
 
     report = {
@@ -511,6 +514,7 @@ def forecast_annualized_return() -> dict:
             "gross_return": round(blended_portfolio, 4),
             "cost_drag": round(cost_drag, 4),
             "hedge_cost": round(hedge_cost, 4),
+            "cost_breakdown": {k: round(v, 4) for k, v in cost_breakdown.items()},
             "net_return": round(net_return, 4),
             "net_sharpe": round(net_sharpe, 3),
             "rf_rate": RF_RATE,

@@ -134,7 +134,7 @@ for bat in bat_files:
         print(f"  [OK] {bat} ({size} bytes)")
         # 读取前几行查看内容
         try:
-            content = p.read_text(encoding='gbk', errors='ignore')
+            content = p.read_text(encoding='utf-8', errors='ignore')
             for line in content.split('\n')[:3]:
                 if line.strip() and not line.startswith('@'):
                     print(f"       | {line.strip()[:80]}")

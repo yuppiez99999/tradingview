@@ -55,9 +55,9 @@ ASSET_DETAILS = [
         "returns": {"bull": 50.0, "base": 28.0, "bear": -32.0, "black_swan": -55.0},
     },
     {
-        "code": "300782", "name": "卓胜微", "style": "科技", "weight": 0.02, "risk": "高",
-        "reason": "射频芯片龙头; 半导体国产替代; 十五五降权新质生产力",
-        "returns": {"bull": 40.0, "base": 22.0, "bear": -28.0, "black_swan": -48.0},
+        "code": "688981", "name": "中芯国际", "style": "科技", "weight": 0.02, "risk": "高",
+        "reason": "晶圆代工龙头; 半导体制造核心; 十五五新质生产力+国产替代",
+        "returns": {"bull": 45.0, "base": 25.0, "bear": -30.0, "black_swan": -50.0},
     },
     # === 健康中国方向 (16%, 2 标的) - 已加仓 ===
     {
@@ -136,6 +136,21 @@ ASSET_DETAILS = [
         "code": "002371", "name": "北方华创", "style": "科技", "weight": 0.04, "risk": "高",
         "reason": "半导体设备龙头; 国产替代核心",
         "returns": {"bull": 50.0, "base": 28.0, "bear": -33.0, "black_swan": -55.0},
+    },
+    {
+        "code": "601899", "name": "紫金矿业", "style": "资源", "weight": 0.02, "risk": "中",
+        "reason": "黄金+铜龙头; 战略资源安全; 周金涛萧条末期黄金最优+康波资源主升浪",
+        "returns": {"bull": 35.0, "base": 20.0, "bear": -22.0, "black_swan": -38.0},
+    },
+    {
+        "code": "002281", "name": "光迅科技", "style": "科技", "weight": 0.02, "risk": "高",
+        "reason": "光模块龙头; AI算力网络层核心; 十五五算力基建+康波新技术革命",
+        "returns": {"bull": 55.0, "base": 30.0, "bear": -35.0, "black_swan": -55.0},
+    },
+    {
+        "code": "000901", "name": "国盾量子", "style": "科技", "weight": 0.01, "risk": "高",
+        "reason": "量子通信龙头; 十五五新质生产力前沿方向; 高风险主题观察仓",
+        "returns": {"bull": 60.0, "base": 25.0, "bear": -40.0, "black_swan": -60.0},
     },
 ]
 

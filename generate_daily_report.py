@@ -291,6 +291,15 @@ class PortfolioAnalyzer:
                     print(f"价格异常 {code}: close={close} (超出范围 {min_price}-{max_price}), 跳过")
                     continue
 
+                # 无成本价的特殊处理：如果价格 > 500 且不是 ETF，可能是后复权价/指数点位，使用 fallback
+                if cost_price == 0 and not is_etf and close > 500:
+                    fb = fallback_prices.get(code_num)
+                    if fb:
+                        close = fb.get('close', close)
+                        prev_close = fb.get('prev_close', prev_close)
+                        change_pct = fb.get('change_pct', change_pct)
+                        print(f"价格异常修正 {code}: 使用 fallback 价格 close={close}")
+
                 # 相对成本价比例验证 (防止指数点位冒充股价)
                 # 收盘价一般不会超过成本价的 3 倍或低于 0.3 倍
                 if cost_price > 0:
@@ -364,14 +373,36 @@ class PortfolioAnalyzer:
             '512760': {'close': 1.30, 'prev_close': 1.30, 'change_pct': 0.0, 'source': 'fallback'},  # 半导体ETF国泰
             '512170': {'close': 0.50, 'prev_close': 0.50, 'change_pct': 0.0, 'source': 'fallback'},  # 医疗ETF华宝
             '300033': {'close': 150.00, 'prev_close': 150.00, 'change_pct': 0.0, 'source': 'fallback'},  # 同花顺
-            '300782': {'close': 100.00, 'prev_close': 100.00, 'change_pct': 0.0, 'source': 'fallback'},  # 卓胜微
+            '688981': {'close': 50.00, 'prev_close': 50.00, 'change_pct': 0.0, 'source': 'fallback'},  # 中芯国际
+            '601899': {'close': 18.00, 'prev_close': 18.00, 'change_pct': 0.0, 'source': 'fallback'},  # 紫金矿业
+            '002281': {'close': 35.00, 'prev_close': 35.00, 'change_pct': 0.0, 'source': 'fallback'},  # 光迅科技
+            '000901': {'close': 45.00, 'prev_close': 45.00, 'change_pct': 0.0, 'source': 'fallback'},  # 国盾量子
         }
         
         # 合并价格数据，避免覆盖实时数据
         for code, fb_price in fallback_prices.items():
             if code not in prices:
                 prices[code] = fb_price
-        
+
+        # 价格异常修正：对无成本价的个股，如果价格 > 500 且不是 ETF，可能是后复权价/指数点位，使用 fallback
+        for code, pd in list(prices.items()):
+            if pd.get('close') is None:
+                continue
+            close = pd.get('close')
+            code_num = code.split('.')[0]
+            is_etf = code_num.startswith(('5', '1')) and len(code_num) == 6
+            cost_price = code_to_cost.get(code, 0) or 0
+            if cost_price == 0 and not is_etf and close > 500:
+                fb = fallback_prices.get(code_num)
+                if fb:
+                    prices[code] = {
+                        'close': fb.get('close', close),
+                        'prev_close': fb.get('prev_close', pd.get('prev_close')),
+                        'change_pct': fb.get('change_pct', pd.get('change_pct')),
+                        'source': 'fallback_corrected'
+                    }
+                    print(f"价格异常修正 {code}: 使用 fallback 价格 close={fb.get('close')}")
+
         self.market_prices = prices
         return prices
     
@@ -422,7 +453,7 @@ class PortfolioAnalyzer:
             
             # 日内盈亏（基于昨收）
             daily_pnl = shares * (close_price - prev_close) if close_price and prev_close else 0
-            daily_pnl_pct = change_pct
+            daily_pnl_pct = change_pct if shares > 0 else 0
             
             total_cost += cost_amount
             total_market_value += market_value

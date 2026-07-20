@@ -71,3 +71,14 @@ cryptography>=41.0.0
 click>=8.1.0
 tqdm>=4.65.0
 python-dotenv>=1.0.0
+
+# ========== GitHub 高价值项目接入 ==========
+
+# A股数据：akshare（免费数据回退链增强）
+akshare>=1.12.0
+
+# 组合优化：PyPortfolioOpt（风险平价、Black-Litterman、有效前沿）
+PyPortfolioOpt>=1.5.0
+
+# 业绩分析：quantstats（收益归因、风险指标、报告生成）
+quantstats>=0.0.59

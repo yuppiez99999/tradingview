@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 import json
 import os
+import pathlib
 import sys
 import subprocess
 import importlib.util
@@ -90,16 +91,20 @@ def _zeros(size):
 class MarketDataProvider:
     """市场数据提供器 - 多数据源优先级: Wind MCP > iFinD MCP > 默认兜底"""
     
-    def __init__(self, cache_size: int = 1000):
+    def __init__(self, cache_size: int = 1000, backtest_mode: bool = False):
         self.cache_size = cache_size
+        self.backtest_mode = backtest_mode
+        self._backtest_date = None
         self.data_cache = {}
         self.cache_lock = threading.Lock()
+        self.persistent_cache_dir = pathlib.Path(__file__).resolve().parents[1] / "data_cache"
+        self.persistent_cache_dir.mkdir(exist_ok=True)
         self.source_health = {
             'wind_mcp': {'ok': False, 'last_error': None},
             'ifind_mcp': {'ok': False, 'last_error': None},
             'sina_http': {'ok': False, 'last_error': None},
         }
-        
+
         self.data_sources = {
             'real_time': {
                 'enabled': True,
@@ -117,12 +122,20 @@ class MarketDataProvider:
                 'last_update': None
             }
         }
-        
+
         self._wind_mcp_client = None
         self._ifind_client = None
         self._init_wind_mcp()
         self._init_ifind_mcp()
-        logger.info("市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP)")
+        logger.info("市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP, backtest_mode=%s)", backtest_mode)
+
+    def set_backtest_date(self, report_date: str) -> None:
+        self._backtest_date = report_date
+
+    def _cache_suffix(self) -> str:
+        if self.backtest_mode and self._backtest_date:
+            return f"_{self._backtest_date}"
+        return ""
     
     def _init_wind_mcp(self):
         try:
@@ -439,7 +452,7 @@ class MarketDataProvider:
 
     def get_market_data(self, symbol: str = None) -> Dict:
         try:
-            cache_key = f"market_{symbol or 'SPY'}"
+            cache_key = f"market_{symbol or 'SPY'}{self._cache_suffix()}"
             
             with self.cache_lock:
                 if cache_key in self.data_cache:
@@ -469,19 +482,48 @@ class MarketDataProvider:
             logger.error(f"获取市场数据失败: {e}")
             return self._get_default_market_data()
     
+    def _load_persistent_cache(self, cache_key: str) -> Optional[pd.DataFrame]:
+        try:
+            cache_file = self.persistent_cache_dir / f"{cache_key}.parquet"
+            if cache_file.exists():
+                df = pd.read_parquet(cache_file)
+                logger.debug(f"加载持久化缓存: {cache_file.name}")
+                return df
+        except Exception as e:
+            logger.debug(f"加载持久化缓存失败: {e}")
+        return None
+
+    def _save_persistent_cache(self, cache_key: str, data: pd.DataFrame) -> None:
+        try:
+            if data is None or data.empty:
+                return
+            cache_file = self.persistent_cache_dir / f"{cache_key}.parquet"
+            data.to_parquet(cache_file, index=True)
+        except Exception as e:
+            logger.debug(f"保存持久化缓存失败: {e}")
+
     def get_historical_data(self, symbol: str, period: str = '1y') -> pd.DataFrame:
         try:
-            cache_key = f"historical_{symbol}_{period}"
-            
+            cache_key = f"historical_{symbol}_{period}{self._cache_suffix()}"
+
             with self.cache_lock:
                 if cache_key in self.data_cache:
                     cached_data = self.data_cache[cache_key]
                     cache_time = cached_data.get('timestamp')
-                    
                     if cache_time and (datetime.now() - cache_time).days < 1:
-                        logger.debug(f"使用缓存的历史数据: {cache_key}")
+                        logger.debug(f"使用内存缓存的历史数据: {cache_key}")
                         return cached_data['data']
-            
+
+            # 优先读本地持久化缓存
+            persistent = self._load_persistent_cache(cache_key)
+            if persistent is not None and not persistent.empty:
+                with self.cache_lock:
+                    self.data_cache[cache_key] = {
+                        'data': persistent,
+                        'timestamp': datetime.now()
+                    }
+                return persistent
+
             historical_data = self._fetch_historical_data(symbol, period)
             
             with self.cache_lock:
@@ -491,6 +533,10 @@ class MarketDataProvider:
                 }
             
             logger.info(f"获取历史数据: {cache_key}")
+            try:
+                self._save_persistent_cache(cache_key, historical_data)
+            except Exception as e:
+                logger.debug(f"写入持久化缓存失败: {e}")
             return historical_data
             
         except Exception as e:
@@ -499,7 +545,7 @@ class MarketDataProvider:
     
     def get_sentiment_data(self, symbol: str = None) -> Dict:
         try:
-            cache_key = f"sentiment_{symbol or 'SPY'}"
+            cache_key = f"sentiment_{symbol or 'SPY'}{self._cache_suffix()}"
             
             with self.cache_lock:
                 if cache_key in self.data_cache:
@@ -800,9 +846,15 @@ class MarketDataProvider:
             scraper = WebScraper()
             agent = AIReportAgent()
             code_clean = symbol.split(".")[0] if "." in symbol else symbol
-            news = scraper.fetch_announcements(code_clean, limit=limit)
-            news_dicts = [item.to_dict() for item in news]
+            news = scraper.fetch_announcements(code_clean, limit=limit) or []
+            if not isinstance(news, list):
+                return []
+            news_dicts = [item.to_dict() for item in news if hasattr(item, "to_dict")]
+            if not news_dicts:
+                return []
             sentiments = agent.analyze_news_sentiment(news_dicts, use_llm=True)
+            if not sentiments:
+                return []
             return [s.__dict__ for s in sentiments]
         except Exception as e:
             logger.warning(f"新闻情感分析失败 ({symbol}): {e}")
