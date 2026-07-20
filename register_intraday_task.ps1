@@ -1,5 +1,5 @@
 # Register LLM Intraday Decision Scheduled Task
-# Trading hours: 9:25-15:05 every 15 minutes
+# Trading hours: 9:25-15:05 every 15 minutes, every trading day
 # Usage: Run as Administrator in PowerShell: .\register_intraday_task.ps1
 
 $ErrorActionPreference = 'Stop'
@@ -13,13 +13,18 @@ $logDir = 'E:\各种PY程序\28-终极量化交易系统7.1\logs'
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 
 $action = New-ScheduledTaskAction -Execute $python -Argument "`"$script`" --mode live"
-$trigger = New-ScheduledTaskTrigger -Once -At '09:25' -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Hours 5.5)
+
+# 每日触发器 + 15 分钟重复（持续 5.5 小时）
+$trigger = New-ScheduledTaskTrigger -Daily -At '09:25' -DaysInterval 1
+$trigger.Repetition.Interval = "PT15M"
+$trigger.Repetition.Duration = "PT5H30M"
+
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable:$false
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Highest
 
-Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description 'LLM Intraday Decision Engine, runs every 15 minutes' | Out-Null
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description 'LLM Intraday Decision Engine, runs every 15 minutes during trading hours' | Out-Null
 
 Write-Host "[OK] Task registered: $taskName"
 Write-Host "    Script: $script"
-Write-Host "    Trigger: Every 15 min (9:25-15:05)"
+Write-Host "    Trigger: Daily at 09:25, every 15 min for 5.5 hours"
 Write-Host "    Log: $logDir\intraday_decision.log"

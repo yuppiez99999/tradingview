@@ -64,9 +64,25 @@ DOUBAO_SPEED_MODEL: str = os.environ.get("DOUBAO_SPEED_MODEL", "doubao-speed")
 # 本地 Ollama（默认使用本机已有的 Qwen2.5:7b）
 OLLAMA_BASE_URL: str = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
+OLLAMA_DEEP_MODEL: str = os.environ.get("OLLAMA_DEEP_MODEL", "deepseek-r1:14b")
 
-# ★ 强制使用 CPU 模式（RTX 3060 Laptop GPU显存不足）
-os.environ["OLLAMA_NUM_GPUS"] = os.environ.get("OLLAMA_NUM_GPUS", "0")
+# GPU 配置：优先 GPU，显存不足自动回退 CPU
+# 可通过环境变量 OLLAMA_NUM_GPUS 手动指定显卡数量，0=纯CPU
+if "OLLAMA_NUM_GPUS" not in os.environ:
+    try:
+        import subprocess as _sp
+        _r = _sp.run(["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+                     capture_output=True, text=True, timeout=5)
+        if _r.returncode == 0 and _r.stdout.strip():
+            _vram_mb = float(_r.stdout.strip().split("\n")[0].strip())
+            if _vram_mb >= 8000:
+                os.environ["OLLAMA_NUM_GPUS"] = "1"
+            else:
+                os.environ["OLLAMA_NUM_GPUS"] = "0"
+        else:
+            os.environ["OLLAMA_NUM_GPUS"] = "0"
+    except Exception:
+        os.environ["OLLAMA_NUM_GPUS"] = "0"
 
 # Ollama 服务进程
 _ollama_process = None
@@ -88,7 +104,7 @@ def _is_ollama_running() -> bool:
 
 
 def _start_ollama_server() -> bool:
-    """启动 Ollama 服务（CPU模式）"""
+    """启动 Ollama 服务（自动 GPU/CPU 切换）"""
     global _ollama_process
     with _ollama_lock:
         if _is_ollama_running():
@@ -97,7 +113,9 @@ def _start_ollama_server() -> bool:
             return True
 
         env = os.environ.copy()
-        env["OLLAMA_NUM_GPUS"] = "0"
+        num_gpus = os.environ.get("OLLAMA_NUM_GPUS", "")
+        if num_gpus:
+            env["OLLAMA_NUM_GPUS"] = num_gpus
 
         ollama_exe = Path(os.environ.get("OLLAMA_PATH", "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Ollama\\ollama.exe"))
         if not ollama_exe.exists():
@@ -276,19 +294,23 @@ def _chat_deepseek(prompt: str, system: str = "",
 
 
 def _chat_ollama(prompt: str, system: str = "",
-                 temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
+                 temperature: float = 0.3, max_tokens: int = 2000,
+                 model: Optional[str] = None) -> Optional[str]:
     try:
         _start_ollama_server()
         env = os.environ.copy()
-        env["OLLAMA_NUM_GPUS"] = "0"
+        num_gpus = os.environ.get("OLLAMA_NUM_GPUS", "")
+        if num_gpus:
+            env["OLLAMA_NUM_GPUS"] = num_gpus
         full_prompt = f"{system}\n\n{prompt}" if system else prompt
+        use_model = model or OLLAMA_MODEL
         proc = subprocess.run(
-            ["ollama", "run", OLLAMA_MODEL, full_prompt],
+            ["ollama", "run", use_model, full_prompt],
             env=env,
             capture_output=True,
             text=True,
             encoding="utf-8",
-            timeout=180,
+            timeout=300,
         )
         if proc.returncode == 0 and proc.stdout:
             return proc.stdout.strip()
@@ -301,13 +323,15 @@ def _chat_ollama(prompt: str, system: str = "",
 
 
 def _chat_ollama_api(prompt: str, system: str = "",
-                     temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
+                     temperature: float = 0.3, max_tokens: int = 2000,
+                     model: Optional[str] = None) -> Optional[str]:
     try:
         _start_ollama_server()
+        use_model = model or OLLAMA_MODEL
         return _request_chat_completion(
             base_url=OLLAMA_BASE_URL,
             api_key="ollama",
-            model=OLLAMA_MODEL,
+            model=use_model,
             prompt=prompt,
             system=system,
             temperature=temperature,
@@ -352,6 +376,74 @@ def generate_analysis(prompt: str, temperature: float = 0.3,
     """生成分析文本（兼容旧接口）"""
     return chat(prompt=prompt, system="你是一个专业的金融分析助手。",
                 temperature=temperature, max_tokens=max_tokens)
+
+
+def chat_deep(prompt: str, system: str = "",
+              temperature: float = 0.3, max_tokens: int = 4000) -> Optional[str]:
+    """深度思考模式：使用 deepseek-r1:14b 推理模型进行复杂决策分析
+
+    适用于：
+    - 复杂交易决策（对冲、仓位调整、多标的联动）
+    - 多维度风险评估
+    - 长周期趋势研判
+    - 复杂逻辑推导
+
+    速度较慢（CPU 模式约 1-3 分钟），但推理质量更高。
+    """
+    deep_system = system or (
+        "你是一位资深的量化交易专家，擅长深度推理和复杂决策。"
+        "请先进行严谨的分析推理，再给出最终结论。"
+        "结论部分请用清晰的结构呈现。"
+    )
+    # 优先 Ollama API 方式（支持 reasoning_content）
+    result = _chat_ollama_deep_api(prompt, deep_system, temperature, max_tokens)
+    if result:
+        return result
+    # 备用 CLI 方式
+    result = _chat_ollama(prompt, deep_system, temperature, max_tokens, model=OLLAMA_DEEP_MODEL)
+    if result:
+        return result
+    # 兜底降级到云 API 的 chat（质量稍差但能返回）
+    return chat(prompt, system, temperature, max_tokens)
+
+
+def _chat_ollama_deep_api(prompt: str, system: str = "",
+                          temperature: float = 0.3,
+                          max_tokens: int = 4000) -> Optional[str]:
+    """深度推理模型的 API 调用，支持提取 reasoning_content"""
+    try:
+        _start_ollama_server()
+        url = OLLAMA_BASE_URL.rstrip("/") + "/api/chat"
+        headers = {"Content-Type": "application/json"}
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        payload = json.dumps({
+            "model": OLLAMA_DEEP_MODEL,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": temperature,
+                "num_predict": max_tokens,
+            },
+        }).encode("utf-8")
+
+        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+
+        message = body.get("message", {})
+        content = message.get("content", "")
+        reasoning = message.get("reasoning_content", "")
+        if content:
+            if reasoning and len(reasoning) > 50:
+                return f"{content.strip()}\n\n---\n_思考过程：{reasoning.strip()[:500]}_"
+            return content.strip()
+        return None
+    except Exception:
+        return None
 
 
 def test_connection() -> Dict[str, Any]:

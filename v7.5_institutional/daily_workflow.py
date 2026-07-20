@@ -324,7 +324,7 @@ class WorkflowConfig:
     # === 资金配置 (500万 = 300万股票 + 200万对冲) ===
     TOTAL_CAPITAL = 5_000_000          # 总资金 500 万
     STOCK_CAPITAL = 3_000_000          # 股票组合 300 万 (60%)
-    HEDGE_CAPITAL = 2_000_000          # 对冲资金 200 万 (40%)
+    HEDGE_CAPITAL = 1_060_000          # 对冲资金 106 万 (21.2%)
 
     # === 股票组合分类 (300万) ===
     STOCK_CATEGORIES = {
@@ -5835,11 +5835,19 @@ class DailyWorkflow:
 
         # 同时保存 JSON 状态
         json_path = report_path.with_suffix(".json")
-        json_path.write_text(
-            json.dumps(self.state, ensure_ascii=False, indent=2, default=str),
-            encoding="utf-8",
-        )
-        logger.info(f"状态 JSON: {json_path}")
+        try:
+            # 使用 json.dump 流式写入文件，避免 json.dumps 在内存中构建巨大字符串导致 MemoryError
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(self.state, f, ensure_ascii=False, indent=2, default=str)
+            logger.info(f"状态 JSON: {json_path}")
+        except (MemoryError, OSError) as e:
+            logger.warning(f"状态 JSON 保存失败（内存不足），尝试无缩进模式: {e}")
+            try:
+                with open(json_path, "w", encoding="utf-8") as f:
+                    json.dump(self.state, f, ensure_ascii=False, default=str)
+                logger.info(f"状态 JSON (无缩进): {json_path}")
+            except Exception as e2:
+                logger.error(f"状态 JSON 保存彻底失败: {e2}")
 
         return report_path
 
