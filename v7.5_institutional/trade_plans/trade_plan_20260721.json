@@ -13,11 +13,12 @@
     "version": "v7.7_institutional_hedge_fund",
     "note": "动态生成 — 阶段1 第12天, 23 标的新权重, 对冲基金模块=ON",
     "llm_adjustments": {
-      "applied_at": "2026-07-17 20:56:42",
-      "source": "daily_pnl_report_2026-07-17",
+      "applied_at": "2026-07-20 16:00:49",
+      "source": "daily_pnl_report_2026-07-20",
       "adjustments": [
-        "组合出现亏损，建议审视高风险标的，评估是否需要调整仓位",
+        "组合整体盈利，建议维持当前Beta敞口，继续执行建仓计划",
         "建议增加期货对冲合约数量，提升Beta对冲效率",
+        "科技/成长风格表现优异，建议维持该板块权重配置",
         "建议次日盘中监控VIX和指数波动，动态调整期货对冲仓位"
       ]
     }
@@ -866,27 +867,24 @@
   },
   "llm_overrides": {
     "futures_if_contracts": 5,
-    "applied_by": "LLM daily_pnl_report_2026-07-17",
+    "applied_by": "LLM daily_pnl_report_2026-07-20",
     "build_sequence": "优先防御底仓，科技成长设限"
   },
   "llm_intraday_decisions": {
-    "updated_at": "2026-07-17T20:57:02.658002",
+    "updated_at": "2026-07-20T16:01:19.868723",
     "decisions": [
       {
-        "type": "SINGLE_STOP_LOSS",
-        "code": "603019.SH",
-        "name": "中科曙光",
-        "pnl_pct": -0.1,
-        "action": "减仓或止损",
-        "trigger": "pnl_pct=-10.00% <= -10.00%"
+        "type": "ETF_STRONG_INFLOW",
+        "signal_count": 5,
+        "total_flow_yi": 784.49,
+        "action": "积极进攻/增配强势板块",
+        "trigger": "国家队强加仓信号 5 条，累计净流入 784.49 亿"
       },
       {
-        "type": "SINGLE_STOP_LOSS",
-        "code": "688017.SH",
-        "name": "绿的谐波",
-        "pnl_pct": -0.1387,
-        "action": "减仓或止损",
-        "trigger": "pnl_pct=-13.87% <= -10.00%"
+        "type": "ETF_MEDIUM_INFLOW",
+        "signal_count": 6,
+        "action": "适度增配/逢低建仓",
+        "trigger": "国家队加仓信号 6 条"
       }
     ],
     "count": 2,

@@ -1073,5 +1073,71 @@
     ],
     "count": 4,
     "mode": "LLM+规则引擎"
+  },
+  "etf_flow_signals": {
+    "updated_at": "2026-07-20T16:01:26.086204",
+    "report_date": "2026-07-20",
+    "market_stance": "强烈看多",
+    "total_flow_yi": 938.25,
+    "signal_count": 12,
+    "strong_buy_signals": [
+      {
+        "code": "588000",
+        "name": "科创50ETF华夏",
+        "net_flow_yi": 234.53,
+        "confidence": "高",
+        "signal_type": "国家队强加仓信号"
+      },
+      {
+        "code": "159915",
+        "name": "创业板",
+        "net_flow_yi": 194.57,
+        "confidence": "高",
+        "signal_type": "国家队强加仓信号"
+      },
+      {
+        "code": "510300",
+        "name": "沪深300ETF华泰柏瑞",
+        "net_flow_yi": 185.62,
+        "confidence": "高",
+        "signal_type": "国家队强加仓信号"
+      },
+      {
+        "code": "512100",
+        "name": "中证1000ETF南方",
+        "net_flow_yi": 87.38,
+        "confidence": "高",
+        "signal_type": "国家队强加仓信号"
+      },
+      {
+        "code": "510500",
+        "name": "中证500ETF南方",
+        "net_flow_yi": 87.2,
+        "confidence": "高",
+        "signal_type": "国家队强加仓信号"
+      },
+      {
+        "code": "510050",
+        "name": "上证50ETF华夏",
+        "net_flow_yi": 45.57,
+        "confidence": "中",
+        "signal_type": "国家队加仓信号"
+      },
+      {
+        "code": "588080",
+        "name": "科创50ETF易方达",
+        "net_flow_yi": 30.39,
+        "confidence": "中",
+        "signal_type": "国家队加仓信号"
+      },
+      {
+        "code": "512880",
+        "name": "证券ETF国泰",
+        "net_flow_yi": 30.06,
+        "confidence": "中",
+        "signal_type": "国家队加仓信号"
+      }
+    ],
+    "strong_sell_signals": []
   }
 }

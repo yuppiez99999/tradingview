@@ -1,6 +1,6 @@
-# v7.5 Institutional — 机构级实盘交易系统
+# v7.6 Institutional — 机构级实盘交易系统
 
-> 在 v7.5 机构级实盘基础上完成仓位重建：清除旧仓位，重新设计 20 标的新计划；股票ETF账户 300万 + 对冲保护账户 200万；2030-12-31 强制清仓
+> v7.6 在 v7.5 机构级实盘基础上，新增六模块日度增强决策桥接（Vol Targeting / Cash Yield / Hedge Commander / Crowding Detection / Black-Litterman / PnL Attribution）+ 自动化执行引擎 `auto_v76_runner.py`，一键产出完整日度操作清单。
 
 | 字段 | 内容 |
 |------|------|
@@ -32,21 +32,34 @@ v7.5_institutional/
 ├── src/
 │   ├── risk/
 │   │   ├── risk_manager.py          # RiskManager + RiskBudgeter
-│   │   └── circuit_breaker.py       # 四级熔断引擎
+│   │   ├── circuit_breaker.py       # 四级熔断引擎
+│   │   └── vol_targeting.py         # ★v7.6 波动率目标定仓 (EWMA+GARCH双模型)
 │   ├── hedging/
 │   │   ├── beta_hedger.py           # EWMA Beta + 期货空头
 │   │   ├── vol_hedger.py            # VIX 分级 + 期权保护
 │   │   ├── correlation_hedger.py    # 相关性 + 避险资产
-│   │   └── hedge_coordinator.py     # 三联对冲协调器
+│   │   ├── hedge_coordinator.py     # 三联对冲协调器
+│   │   └── hedge_commander.py       # ★v7.6 对冲执行指挥官 (Beta偏离自动纠偏)
 │   ├── execution/
 │   │   ├── smart_order_router.py    # SOR + Iceberg + 滑点熔断
 │   │   ├── algo_engine.py           # TWAP/VWAP/POV/Iceberg
 │   │   └── ntp_sync.py              # NTP 时间同步
-│   └── backtest/
-│       ├── metrics.py               # Sortino/Calmar/DSR
-│       ├── cost_model.py            # 佣金+滑点+融资成本
-│       ├── walk_forward.py          # 滚动样本外回测
-│       └── scenario_lib.py          # 三段压力测试
+│   ├── backtest/
+│   │   ├── metrics.py               # Sortino/Calmar/DSR
+│   │   ├── cost_model.py            # 佣金+滑点+融资成本
+│   │   ├── walk_forward.py          # 滚动样本外回测
+│   │   └── scenario_lib.py          # 三段压力测试
+│   ├── pnl/                         # ★v7.6 PnL归因模块
+│   │   └── pnl_attribution.py       # 日度收益分解 (Beta/Alpha/风格/行业/成本)
+│   ├── portfolio/                   # ★v7.6 投资组合优化
+│   │   └── black_litterman.py       # Black-Litterman 主观观点融合+均值方差优化
+│   ├── signals/                     # ★v7.6 信号分析
+│   │   └── crowding_detector.py     # 信号拥挤度检测 (ETF资金流集中度→Alpha衰减)
+│   ├── treasury/                    # ★v7.6 现金管理
+│   │   └── cash_yield.py            # 闲置现金逆回购自动部署 (GC001滚动)
+│   └── v76_integration.py           # ★v7.6 六模块集成桥接 (核心编排器)
+├── auto_v76_runner.py               # ★v7.6 自动执行引擎 (CLI入口+增强报告生成)
+├── daily_workflow.py                # 日度工作流
 ├── logs/                            # 日志
 ├── tests/
 │   └── test_v75.py                  # 单元测试
@@ -127,9 +140,99 @@ python tests/test_v75.py
 python -m pytest tests/test_v75.py -v
 ```
 
+### 2.6 v7.6 日度增强决策引擎 — `auto_v76_runner.py`
+
+v7.6 的核心新增：一键自动化执行引擎，读取当日 PnL 报告和交易计划后，串联六模块桥接产出完整日度操作清单。
+
+```bash
+# 日度一键执行（需先有当日 PnL 报告 JSON）
+python auto_v76_runner.py --date 2026-07-20
+
+# 可集成到现有每日工作流
+python auto_v76_runner.py --date $(date +%Y-%m-%d)
+```
+
+产出两份文件：`reports/v76_enhanced_report_{date}.md`（十段增强报告）和 `reports/v76_enhanced_report_{date}.json`（结构化数据），含以下决策输出：
+
+Vol 缩放因子、现金逆回购收入、紧急对冲指令、板块拥挤度信号乘数、PnL 归因分解、风控状态摘要和操作清单。
+
 ---
 
-## 3. 数据源优先级
+## 3. v7.6 六模块架构
+
+v7.6 在原有 v7.5 风控/对冲/执行/回测四层之上，新增六个日度增强模块，通过 `src/v76_integration.py` 统一桥接编排，五阶段流水线执行：
+
+```
+Stage A (Vol Targeting) → Stage B (Cash Yield) → Stage C (Hedge Commander)
+→ Stage D (Crowding Detection) → Stage E (PnL Attribution)
+```
+
+### 3.1 Vol Targeting — 波动率目标定仓
+
+Bridgewater All-Weather / AQR 标准的波动率目标定仓引擎。双模型融合（EWMA 60% + GARCH(1,1) 40%），将仓位缩放至目标年化波动率 12%。含回撤保护覆盖：回撤 > 10% 时自动减半缩放因子。
+
+- 文件：`src/risk/vol_targeting.py`
+- 核心类：`VolTargetingEngine`
+- 关键方法：`update(daily_return, drawdown_from_hwm) -> float` 返回缩放因子 (0.25-2.00)
+
+### 3.2 Cash Yield — 闲置现金逆回购
+
+Bridgewater 风格的闲置现金自动管理。将超额现金（高于缓冲垫部分）的 85% 自动部署至 GC001 逆回购，产生约 1.55% 年化收益。支持节假日前效应增强（周五 ×2.5 倍）。
+
+- 文件：`src/treasury/cash_yield.py`
+- 核心类：`CashYieldManager`
+- 关键方法：`optimize(total_cash, daily_margin_need) -> dict` 返回逆回购金额和预期日收益
+
+### 3.3 Hedge Commander — 对冲执行指挥官
+
+Bridgewater 风格的每日 Beta 对齐强制执行模块。根据实际组合 Beta vs 目标 Beta (0.30) 的偏差，分四级紧急度（ROUTINE / ELEVATED / URGENT / CRITICAL）自动生成期货合约调整指令，含超时升级机制：连续 2 天未执行对冲 → 强制标记。
+
+- 文件：`src/hedging/hedge_commander.py`
+- 核心类：`HedgeExecutionCommander`
+- 关键方法：`assess(actual_beta, hedge_offset, contracts, notional) -> dict` 返回紧急度等级和目标合约数
+
+### 3.4 Crowding Detection — 信号拥挤度检测
+
+RenTech / AQR 标准的信号拥挤度检测器。监控 ETF 资金流集中度，当某板块 ETF 流入超过 30 亿时标记为拥挤（MILD: 0.80x → MODERATE: 0.60x → EXTREME: 0.30x 信号乘数），防止追逐已定价信号。含 8 天半衰期衰减。
+
+- 文件：`src/signals/crowding_detector.py`
+- 核心类：`SignalCrowdingDetector`
+- 关键方法：`update(etf_flows: Dict[str, float]) -> dict` 返回每板块信号乘数
+
+### 3.5 Black-Litterman — 主观观点融合优化
+
+Goldman Sachs 标准 Black-Litterman 模型。用动态均衡先验（市场隐含收益）替代静态 8% 预期收益，融合主观观点（P/Q/Omega 矩阵）生成后验收益，再做均值方差权重优化。当前为可用模块，供外部调用。
+
+- 文件：`src/portfolio/black_litterman.py`
+- 核心类：`BlackLittermanEngine`
+- 关键方法：`blend_views(prior_returns, cov, views) -> np.ndarray` 融合主观观点；`optimize_weights(returns, cov) -> np.ndarray` 均值方差优化
+
+### 3.6 PnL Attribution — 收益归因分解
+
+Citadel 标准的日度/周度/月度 PnL 分解引擎。将每日收益分解为 Beta 贡献 + Alpha + 风格因子 + 行业因子 + 特质收益 + 对冲贡献 + 交易成本共七个成分，同时记录每笔交易的 TCA（滑点分析）。
+
+- 文件：`src/pnl/pnl_attribution.py`
+- 核心类：`PnLAttributionEngine`
+- 关键方法：`attribute_daily(positions, total_pnl, total_nav) -> dict` 返回七项分解 + Top 3 贡献者/拖累者
+
+### 3.7 桥接集成 — `v76_integration.py`
+
+六模块统一编排器，对外暴露单一接口：
+
+```python
+from v76_integration import v76IntegrationBridge
+
+bridge = v76IntegrationBridge(total_capital=5_000_000)
+bridge.initialize()
+result = bridge.run_daily_enhanced(context)  # context 包含持仓/收益/ETF资金流等
+# result 包含 vol_scale, cash_income, hedge_action, crowding, alpha_bps, actions[]
+```
+
+可直接被现有 `daily_workflow.py` 导入调用，一行集成。
+
+---
+
+## 4. 数据源优先级
 
 系统采用多层级数据源降级策略，确保在任何网络/服务异常时仍可获取行情与基本面数据：
 
@@ -151,7 +254,7 @@ python -m pytest tests/test_v75.py -v
 
 ---
 
-## 4. ETF 追踪与风格轮动
+## 5. ETF 追踪与风格轮动
 
 系统内置 ETF 资金流监控与社保基金风格映射模块，用于：
 
@@ -171,9 +274,9 @@ python daily_workflow.py --etf-flow
 
 ---
 
-## 5. 核心模块说明
+## 6. 核心模块说明（v7.5 基础层）
 
-### 5.1 风险预算 (Risk Budgeting)
+### 6.1 风险预算 (Risk Budgeting)
 
 **改进型 Kelly (James-Stein 收缩)**:
 $$
@@ -195,7 +298,7 @@ $$
 
 协方差采用 Ledoit-Wolf 收缩估计。
 
-### 5.2 三联对冲 (Auto-Hedging)
+### 6.2 三联对冲 (Auto-Hedging)
 
 | 对冲类型 | 触发条件 | 工具 |
 |---------|---------|------|
@@ -205,7 +308,7 @@ $$
 
 期权对冲成本自适应: VIX > 40 时实际覆盖率反比衰减。
 
-### 5.3 智能执行 (SOR)
+### 6.3 智能执行 (SOR)
 
 - **Iceberg**: 单笔委托 ≤ 盘口深度 10%
 - **滑点三级熔断**:
@@ -214,7 +317,7 @@ $$
   - 全局滑点中位数 > 0.3% → 全局降速 50%
 - **NTP 时间戳对齐**: 漂移 > 50ms 自动校准
 
-### 5.4 回测协议
+### 6.4 回测协议
 
 **目标函数**:
 $$
@@ -232,7 +335,7 @@ $$
 
 ---
 
-## 6. 配置文件
+## 7. 配置文件
 
 主配置在 [config/settings.yaml](file:///e:/各种PY程序/28-终极量化交易系统7.1/v7.5_institutional/config/settings.yaml)。
 
@@ -259,7 +362,7 @@ backtest:
 
 ---
 
-## 7. CRO Gate (上线前必过)
+## 8. CRO Gate (上线前必过)
 
 - [ ] Walk-Forward 5 窗口拼接 Sortino ≥ 1.0
 - [ ] 三段压力测试 Max DD < 15%
@@ -271,7 +374,7 @@ backtest:
 
 ---
 
-## 8. 与 v7.4 的关系
+## 9. 与 v7.4 的关系
 
 v7.5 是 v7.4 的**机构级升级**, 不替代 v7.4:
 
@@ -282,7 +385,7 @@ v7.5 是 v7.4 的**机构级升级**, 不替代 v7.4:
 
 ---
 
-## 9. 文档
+## 10. 文档
 
 - 设计 Memo: [../QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL.md](file:///e:/各种PY程序/28-终极量化交易系统7.1/QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL.md)
 - 主入口: [main.py](file:///e:/各种PY程序/28-终极量化交易系统7.1/v7.5_institutional/main.py)
@@ -291,5 +394,5 @@ v7.5 是 v7.4 的**机构级升级**, 不替代 v7.4:
 ---
 
 **作者**: ZCode Quantitative Team
-**日期**: 2026-07-05
-**版本**: v7.5.0-institutional
+**日期**: 2026-07-20
+**版本**: v7.6.0-institutional

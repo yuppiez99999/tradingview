@@ -12,6 +12,47 @@ system:
   timezone: "Asia/Shanghai"
   trading_hours_24x7: false        # A 股日内 + 夜盘期货对冲
 
+# ============================================================
+# v7.6 顶部对冲基金优化集成 — 6 个新增模块
+# ============================================================
+v76:
+  enabled: true
+
+  # 1. 波动率目标控制
+  vol_targeting:
+    target_ann_vol: 0.12           # 目标年化波动 12%
+    max_leverage: 2.0              # 最大杠杆
+    min_leverage: 0.25             # 最低持仓
+    ewma_window: 20                # EWMA 窗口
+    ewma_lambda: 0.94              # RiskMetrics
+    smoothing_alpha: 0.30          # 缩放平滑
+    dd_max_scale_reduction: 0.50   # 回撤>10%时额外减半
+
+  # 2. 现金收益增强
+  cash_yield:
+    min_buffer: 50000              # 最低保留 5 万
+    reverse_repo_ratio: 0.85       # 闲置 85% 做逆回购
+    expected_yield_annual: 0.0155  # 年化 1.55%
+
+  # 3. 对冲执行指挥官
+  hedge_commander:
+    target_beta: 0.10              # 目标净 Beta
+    max_tolerance: 0.15            # 容忍偏差
+    max_unhedged_days: 2           # 2 天未对齐→告警
+    auto_close_gap: true           # 自动填补
+
+  # 4. 信号拥挤度检测
+  crowding:
+    etf_flow_warning: 30e8         # ETF 单日>30亿警告
+    etf_flow_extreme: 80e8         # ETF 单日>80亿极端
+    decay_rate: 0.92               # 半衰期 ≈ 8 天
+
+  # 5. Black-Litterman 预期收益
+  black_litterman:
+    risk_aversion: 2.50            # 风险厌恶系数
+    tau: 0.05                      # 先验不确定度
+    prior_confidence: 0.60         # 观点置信度
+
 risk:
   # 风险预算核心参数（顶级对冲基金视角收紧）
   single_trade_risk: 0.012         # 单笔风险 1.2%（原1.5%）
