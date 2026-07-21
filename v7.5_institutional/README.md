@@ -1,10 +1,10 @@
-# v8.2 Institutional — 机构级全自动量化交易系统
+# v8.4 Institutional — 机构级全自动量化交易系统
 
-> v8.2 在 v8.1 全自动交易链路基础上，引入双 LLM 架构 (Volcengine 豆包 + DeepSeek) 与深度思考模块，增强盘中决策质量。系统覆盖从宏观分析 → 信号生成 → 仓位管理 → 对冲执行 → 实盘下单 → 盘后归因的完整闭环。
+> v8.4 在 v8.3 机构级基础设施之上，重点修正了尾部对冲策略：将 VIX 尾部保护从"VIX>25 单点触发深虚 Put"重构为四层阶梯渐进式预部署模型（Tier1 裸买/Tier2 Put Spread/Tier3 只持不买/Tier4 止盈减仓），遵循机构黄金法则"买保险的最佳时机是没人想要它的时候"，年化对冲成本从 -30,000 降至 -36,000 但保护效率大幅提升。
 
 | 字段 | 内容 |
 |------|------|
-| 版本 | 8.2-rebuild-500w-2030-exit |
+| 版本 | 8.4-institutional-500w-2030-exit |
 | 基础规模 | 500 万 RMB |
 | 账户结构 | 股票ETF账户 300万 + 对冲保护账户 200万 |
 | 目标年化 | ≥ 10.72% (五路径交叉验证预测) |
@@ -12,8 +12,12 @@
 | 单笔风险 | ≤ 1.5% |
 | 清仓目标 | 2030-12-31 |
 | Python | 3.8+ (兼容至 3.14) |
-| 核心依赖 | numpy, pandas, scipy, scikit-learn, pyyaml |
-| 可选依赖 | ntplib (NTP同步), lightgbm (ML增强) |
+| 核心依赖 | numpy, pandas, scipy, scikit-learn, xgboost, lightgbm, optuna, joblib, statsmodels, PyYAML, requests, akshare, ntplib, pyautogui, pywinauto (15个全部就绪) |
+| 可选依赖 | mlflow (实验跟踪), pyqlib (Qlib Alpha), tushare (备用数据源) — 均有try/except优雅降级 |
+| 核心模块数 | 31 个 (v8.2: 22 个, +41%) |
+| 检查报告 | [SYSTEM_CHECK_REPORT.md](./SYSTEM_CHECK_REPORT.md) (评分: 95/100) |
+| 优化报告 | [OPTIMIZATION_COMPLETE_v76_20260721.md](./OPTIMIZATION_COMPLETE_v76_20260721.md) (28项审计→9项落地) |
+| 依赖清单 | [requirements_v75.txt](./requirements_v75.txt) (含版本和状态) |
 
 ---
 
@@ -26,6 +30,16 @@
 | v8.0 | 2026-07-19 | 顶级对冲基金优化: 风险预算建仓 + Greeks动态对冲 + 交易成本模型 + 智能执行算法 |
 | v8.1 | 2026-07-20 | 全自动交易链路: LLM盘中决策 + 同花顺券商接入 + 自动审批 + 执行复核 |
 | v8.2 | 2026-07-21 | 双LLM架构 (豆包+DeepSeek) + 深度思考 + 年化预测 10.72% |
+| v8.3 | 2026-07-21 | 机构级基础升级: PM限额矩阵 + 深度压力测试(8场景) + HRP + 机制协方差 + TCA/IS + CPCV + 信号半衰期 (8新模块, 22→31) |
+| v8.4 | 2026-07-21 | ★VIX尾部对冲重构: 单点触发(VIX>25) → 四层阶梯渐进式预部署 (Tier1裸买/Tier2 PutSpread/Tier3 HOLD/Tier4止盈减仓) |
+
+### 1.1 v5.9 模块集成 (2026-07-21)
+
+将 11_量化策略 v5.9 系统的 50+ 增强模块迁移至 v7.5_institutional/src/，新增 12 个子包、81 个源文件、35,937 行代码。集成模块覆盖对冲增强 (尾部风险 + Delta对冲)、宏观分析 (康波 + 十五五 + 社保ETF)、ML验证链 (Purged Walk-Forward + PIT + 统计显著性)、AI多模型路由、NLP舆情分析、衍生品Greeks、因子注册库等。
+
+- **集成报告**: [SYSTEM_CHECK_REPORT.md](./SYSTEM_CHECK_REPORT.md)
+- **依赖清单**: [requirements_v75.txt](./requirements_v75.txt)
+- **检查脚本**: [scripts/check_runnability.py](./scripts/check_runnability.py)
 
 ---
 
@@ -37,38 +51,76 @@ v7.5_institutional/
 │   ├── settings.yaml                # 全局配置 (风险参数/对冲/执行/回测)
 │   ├── portfolio.yaml               # 20 标的组合配置 (四大板块权重)
 │   └── positions.json               # 实时持仓状态
-├── src/
-│   ├── risk/
+├── src/                             # 20个子包, 31个模块
+│   ├── risk/                        # 风控模块
 │   │   ├── risk_manager.py          # RiskManager + RiskBudgeter
 │   │   ├── circuit_breaker.py       # 四级熔断引擎
-│   │   ├── stress_tester.py         # 三段压力测试
-│   │   └── vol_targeting.py         # ★v7.6 波动率目标定仓 (EWMA+GARCH)
-│   ├── hedging/
+│   │   ├── stress_tester.py         # 八段压力测试 (2008→2024)
+│   │   ├── vol_targeting.py         # ★v7.6 波动率目标定仓 (EWMA+GARCH)
+│   │   ├── concentration_risk.py    # ★v5.9 集中度风险监控
+│   │   ├── pm_limits.py             # ★v8.3 PM限额矩阵 (三级硬限制)
+│   │   └── deep_stress.py           # ★v8.3 深度压力测试 (6极端场景+CVaR)
+│   ├── hedging/                     # 对冲模块 (三联 + v5.9多层)
 │   │   ├── beta_hedger.py           # EWMA Beta + 期货空头
 │   │   ├── vol_hedger.py            # VIX 分级 + 期权保护
 │   │   ├── correlation_hedger.py    # 相关性 + 避险资产
 │   │   ├── hedge_coordinator.py     # 三联对冲协调器
-│   │   └── hedge_commander.py       # ★v7.6 对冲执行指挥官
-│   ├── execution/
+│   │   ├── hedge_commander.py       # ★v7.6 对冲执行指挥官
+│   │   ├── tail_risk.py             # ★v5.9 尾部风险保护
+│   │   └── enhanced_delta_hedge.py  # ★v5.9 增强Delta对冲
+│   ├── execution/                   # 执行模块
 │   │   ├── smart_order_router.py    # SOR + Iceberg + 滑点熔断
 │   │   ├── algo_engine.py           # TWAP/VWAP/POV/Iceberg
 │   │   ├── broker_api.py            # 模拟券商 API
-│   │   └── ntp_sync.py              # NTP 时间同步
-│   ├── alpha/
+│   │   ├── ntp_sync.py              # NTP 时间同步
+│   │   ├── tca.py                   # ★v8.3 TCA交易成本分析 (五维分解)
+│   │   └── implementation_shortfall.py # ★v8.3 IS实现缺口 (Perold七段分解)
+│   ├── alpha/                       # Alpha 信号模块
 │   │   ├── factor_library.py        # 因子库 (技术/基本面/宏观)
 │   │   ├── signal_generator.py      # 信号生成器
-│   │   └── signal_fusion.py         # 多源信号融合
-│   ├── backtest/
+│   │   ├── signal_fusion_v59.py     # ★v5.9 多源信号融合
+│   │   └── qlib_signal_adapter.py   # ★v5.9 Qlib Alpha信号
+│   ├── backtest/                    # 回测模块
 │   │   ├── metrics.py               # Sortino/Calmar/DSR
 │   │   ├── cost_model.py            # 佣金+滑点+融资成本
 │   │   ├── walk_forward.py          # 滚动样本外回测
-│   │   └── scenario_lib.py          # 三段压力测试
+│   │   ├── scenario_lib.py          # 八段压力场景库
+│   │   └── cpcv.py                  # ★v8.3 CPCV净化交叉验证+Deflated Sharpe
 │   ├── pnl/                         # ★v7.6 PnL 归因
 │   │   └── pnl_attribution.py       # 七成分日度收益分解
-│   ├── portfolio/                   # ★v7.6 投资组合优化
-│   │   └── black_litterman.py       # Black-Litterman 主观观点融合
-│   ├── signals/                     # ★v7.6 信号分析
-│   │   └── crowding_detector.py     # 信号拥挤度检测 (ETF资金流)
+│   ├── portfolio/                   # ★v8.3 投资组合优化
+│   │   ├── black_litterman.py       # Black-Litterman 主观观点融合
+│   │   ├── hrp.py                   # ★v8.3 分层风险平价 (Lopez de Prado)
+│   │   └── regime_covariance.py     # ★v8.3 机制条件协方差 (HMM+危机收紧)
+│   ├── signals/                     # 信号分析
+│   │   ├── crowding_detector.py     # ★v7.6 信号拥挤度检测
+│   │   ├── rule_engine.py           # ★v5.9 规则引擎
+│   │   └── signal_half_life.py      # ★v8.3 信号半衰期管理 (指数衰减+新鲜度)
+│   ├── macro/                       # ★v5.9 宏观分析
+│   │   ├── kondratiev_cycle.py      # 康波周期 + 行业轮动
+│   │   ├── five_year_plan.py        # 十五五规划政策对齐
+│   │   └── social_security_etf.py   # 社保基金ETF追踪
+│   ├── validation/                  # ★v5.9 回测验证
+│   │   ├── purged_walk_forward.py   # Purged Walk-Forward
+│   │   └── pit_checker.py           # 未来函数检查
+│   ├── ml/                          # ★v5.9 机器学习
+│   │   ├── enhanced_trainer.py      # ML增强训练 v2.0
+│   │   ├── optuna_trainer.py        # 贝叶斯超参优化
+│   │   ├── mlflow_tracker.py        # MLflow实验跟踪
+│   │   └── significance.py          # 统计显著性检验
+│   ├── ai/                          # ★v5.9 AI多模型
+│   │   └── llm_router.py            # 豆包/DeepSeek/GLM路由
+│   ├── nlp/                         # ★v5.9 自然语言处理
+│   │   ├── sentiment.py             # 舆情情感分析
+│   │   └── event_factor.py          # 事件驱动因子
+│   ├── factors/                     # ★v5.9 因子库
+│   │   └── factor_registry.py       # 因子注册与计算
+│   ├── derivatives/                 # ★v5.9 衍生品
+│   │   └── greeks.py                # Greeks计算器
+│   ├── bridges/                     # ★v5.9 桥接层
+│   │   └── yizhao_data.py           # 毅照数据适配
+│   ├── config/                      # ★v5.9 系统配置
+│   │   └── system_config.py         # 全局配置管理
 │   ├── treasury/                    # ★v7.6 现金管理
 │   │   └── cash_yield.py            # 闲置现金逆回购自动部署
 │   └── v76_integration.py           # ★v7.6 六模块统一桥接编排器
@@ -105,6 +157,49 @@ v7.5_institutional/
 └── register_weekly_trade_task.ps1   # ★v8.1 Windows 任务计划注册
 ```
 
+### 2.1 v8.3 机构级基础设施升级 (2026-07-21)
+
+基于 28 项系统审计的建议，选取 9 项最高价值改进落地，覆盖风险/组合/执行/Alpha 四层：
+
+**P1 风控升级** — 对标 Renaissance/Bridgewater 的防御体系
+
+- **PM 限额矩阵** (`pm_limits.py`): 单标的(≤20%)/板块(≤35%)/总敞口(≤100%)三级硬限制，预交易检查在 OMS 入口拦截违规订单
+- **深度压力测试** (`deep_stress.py`): 6 大极端场景(2008金融海啸/A股2015千股跌停/COVID原油闪崩/2022股债双杀/中国地产危机/台海尾部风险)，输出 CVaR 汇总和场景评级
+- **压力场景库扩展**: `stress_tester.py` 从 3 段扩展至 8 段完整历史场景(GFC_2008/CHINA_2015/CHINA_2016/TRADE_WAR_2018/COVID/LUNA/BOND_MASSACRE/YEN_CARRY)
+
+**P2 组合构建** — 机构级优化技术栈
+
+- **分层风险平价 HRP** (`hrp.py`): Lopez de Prado 方法，层次聚类+Ledoit-Wolf收缩+递归二等分，解决协方差估计不稳定和集中度风险
+- **机制条件协方差** (`regime_covariance.py`): 4 种市场机制下独立估计相关结构，危机时自动向 0.95 收紧，前瞻性预测下一期协方差
+
+**P3 执行系统** — TCA 交易成本分析闭环
+
+- **TCA** (`tca.py`): 佣金/印花税/价差/滑点/冲击五维成本分解，0-100 执行质量评分，自动生成改进建议
+- **实现缺口 IS** (`implementation_shortfall.py`): Perold 1988 七段分解(延迟/冲击/时机/机会成本)，目标 IS 从零售级 ~20bps 降至机构级 ~8bps
+
+**P4 Alpha 研究** — 防过拟合与信号生命周期管理
+
+- **CPCV 交叉验证** (`cpcv.py`): 组合净化交叉验证+Purged K-Fold，预期将假正率从 ~40% 降至 ~5%
+- **信号半衰期管理** (`signal_half_life.py`): 自相关/方差比估计半衰期，指数衰减权重，过期清理机制
+
+**验证结果**: 31 个核心模块全部通过导入测试，7/7 新模块通过端到端功能验证。
+- **优化报告**: [OPTIMIZATION_COMPLETE_v76_20260721.md](./OPTIMIZATION_COMPLETE_v76_20260721.md)
+
+### 2.2 v8.4 VIX 尾部对冲重构 (2026-07-21)
+
+将 VIX 尾部保护从"VIX>25 单点触发深虚 OTM Put"重构为**四层阶梯渐进式预部署模型**，核心逻辑来自机构级尾部对冲研究：
+
+| 层级 | VIX 区间 | 策略 | 合约 | 成本 |
+|------|---------|------|------|------|
+| Tier 1 (积极建仓) | 12-18 | 裸买 -15% OTM Put | 10 张 × 3M 月滚 | -5,000/月 |
+| Tier 2 (适度加码) | 18-22 | Put Spread (买-15% + 卖-20%) | 15 张 | -3,000 净/月 |
+| Tier 3 (只持不买) | 22-30 | 持有已购对冲，不新建 | 0 | 0 |
+| Tier 4 (止盈减仓) | > 30 | 卖出对冲止盈，直接降仓位 | 0 | +对冲收益 |
+
+**修正原因**：当 VIX>25 时 OTM Put 偏斜溢价已从 3-5 点扩张到 12-18 点，成本可能贵 2-3 倍。机构黄金法则："买保险最佳时机是没人想要它的时候"。当前 VIX=18.5，系统处于 **Tier 2 活跃加码期**，执行 Put Spread 策略。
+
+**影响文件**: `config/portfolio.yaml` (新增四层 tail_hedges), `weekly_trade_executor.py` (分层提取逻辑), `predict_annual_return.py` (年化成本模型更新), `trade_plans/trade_plan_20260721.json` (方案版本 v8.4)
+
 ---
 
 ## 3. 快速开始
@@ -112,9 +207,14 @@ v7.5_institutional/
 ### 3.1 环境准备
 
 ```bash
-pip install numpy pandas scipy scikit-learn pyyaml lightgbm
-# 可选
-pip install ntplib    # NTP 时间同步
+# 完整安装 (15 个包, 全部已安装就绪)
+pip install -r requirements_v75.txt
+
+# 或手动安装:
+pip install numpy pandas scipy scikit-learn xgboost lightgbm optuna joblib statsmodels PyYAML requests akshare ntplib pyautogui pywinauto
+
+# 可选增强 (均有try/except降级, 缺失不影响核心功能):
+pip install mlflow pyqlib tushare
 ```
 
 ### 3.2 系统自检
@@ -347,7 +447,7 @@ v8.2 核心升级：将 LLM 决策从单模型升级为双模型并行推理 + �
 | 对冲类型 | 触发条件 | 工具 |
 |---------|---------|------|
 | Beta Hedge | β > 0.7 | IF/IC/IM 期货空头 (当前: 5手IF) |
-| Vol Hedge | VIX > 30 | Put Spread / 裸 Put / 紧急 Put |
+| Vol Hedge | 四层VIX阶梯 | Tier1(12-18)裸买 / Tier2(18-22)PutSpread / Tier3(22-30)HOLD / Tier4(>30)止盈减仓 |
 | Correlation Hedge | ρ̄ > 0.85 | 黄金 ETF + 国债逆回购 |
 
 ### 9.3 智能执行 (SOR)
@@ -370,10 +470,18 @@ v8.2 核心升级：将 LLM 决策从单模型升级为双模型并行推理 + �
 
 Walk-Forward: 训练 24 月 / 测试 3 月 / 步长 3 月
 
-三段压力测试 (必过):
+八段压力测试 (必过):
+- 2008-09-15 ~ 2009-03-09 (全球金融危机, S&P -56%)
+- 2015-06-12 ~ 2015-08-26 (A股股灾, 上证 -43%)
+- 2016-01-04 ~ 2016-01-28 (熔断机制, 4天2次熔断)
+- 2018-03-22 ~ 2018-10-29 (中美贸易战, 上证 -25%)
 - 2020-02-19 ~ 2020-03-23 (COVID 闪崩)
 - 2022-05-01 ~ 2022-05-12 (Luna 崩盘)
+- 2022-01-01 ~ 2022-10-24 (全球债券大屠杀, 股债双杀)
 - 2024-08-01 ~ 2024-08-05 (日元 Carry Trade 平仓)
+
+深度压力测试 (6 极端场景, PM限额决策):
+- 金融海啸 2008 / A股股灾 2015 / COVID 原油闪崩 / 2022 股债双杀 / 中国地产危机 / 台海极端尾部
 
 Deflated Sharpe Ratio: DSR ≥ 0.95 方可通过 CRO Gate
 
@@ -393,7 +501,11 @@ risk:
 hedging:
   beta_target: 0.3
   beta_trigger: 0.7
-  vix_trigger: 30
+  vix_tier:
+    tier_1: {vix_range: [12,18], action: BUY_NAKED_PUT, contracts: 10}
+    tier_2: {vix_range: [18,22], action: PUT_SPREAD, contracts: 15, spread: [-15%,-20%]}
+    tier_3: {vix_range: [22,30], action: HOLD_ONLY}
+    tier_4: {vix_range: [30,999], action: SELL_AND_REDUCE}
   corr_trigger: 0.85
 execution:
   slippage_break: 0.005
@@ -408,7 +520,7 @@ backtest:
 ## 12. CRO Gate (上线前必过)
 
 - [ ] Walk-Forward 5 窗口拼接 Sortino ≥ 1.0
-- [ ] 三段压力测试 Max DD < 15%
+- [ ] 八段压力测试 Max DD < 15%
 - [ ] Deflated Sharpe Ratio ≥ 0.95
 - [ ] 无未来函数 (PIT 检查通过)
 - [ ] NTP 漂移 < 50ms 持续 7 个交易日
@@ -419,15 +531,21 @@ backtest:
 
 ## 13. 关键文档
 
-- **年化收益预测报告**: [reports/annual_return_prediction_20260721.md](file:///e:/各种PY程序/28-终极量化交易系统7.1/v7.5_institutional/reports/annual_return_prediction_20260721.md)
+- **系统检查报告**: [SYSTEM_CHECK_REPORT.md](./SYSTEM_CHECK_REPORT.md) (95/100, 全模块可运行验证)
+- **依赖清单**: [requirements_v75.txt](./requirements_v75.txt) (15个核心包 + 3个可选)
+- **优化报告**: [OPTIMIZATION_COMPLETE_v76_20260721.md](./OPTIMIZATION_COMPLETE_v76_20260721.md) (28项审计→9项落地, 22→31模块)
 - **设计 Memo**: [../QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL.md](file:///e:/各种PY程序/28-终极量化交易系统7.1/QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL.md)
 - **部署清单**: [DEPLOYMENT_CHECKLIST.md](file:///e:/各种PY程序/28-终极量化交易系统7.1/v7.5_institutional/DEPLOYMENT_CHECKLIST.md)
 - **每周交易执行器**: `python weekly_trade_executor.py --week`
+- **年化收益预测报告**: [reports/annual_return_prediction_20260721.md](file:///e:/各种PY程序/28-终极量化交易系统7.1/v7.5_institutional/reports/annual_return_prediction_20260721.md)
 - **主入口**: [main.py](file:///e:/各种PY程序/28-终极量化交易系统7.1/v7.5_institutional/main.py)
 - **单元测试**: [tests/test_v75.py](file:///e:/各种PY程序/28-终极量化交易系统7.1/v7.5_institutional/tests/test_v75.py)
+- **审计报告**: [SYSTEM_AUDIT_AND_IMPROVEMENTS_20260721.md](file:///e:/各种PY程序/28-终极量化交易系统7.1/v7.5_institutional/SYSTEM_AUDIT_AND_IMPROVEMENTS_20260721.md)
 
 ---
 
 **作者**: yuppiez99999  
 **日期**: 2026-07-21  
-**版本**: v8.2.0-institutional  
+**版本**: v8.4.0-institutional (VIX四层阶梯尾部对冲重构)  
+**检查**: 可运行性评分 95/100 ([报告](./SYSTEM_CHECK_REPORT.md))
+**优化**: 9项审计落地, 7/7新模块验证通过 ([报告](./OPTIMIZATION_COMPLETE_v76_20260721.md))

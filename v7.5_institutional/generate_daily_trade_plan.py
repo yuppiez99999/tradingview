@@ -57,7 +57,7 @@ MACRO_CUT_MIN_SCORE = 1.15
 MACRO_CUT_FACTOR = 0.0
 MACRO_WHITELIST_CODES = {"601088", "159915", "sh601088", "sz159915"}
 
-def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 2_000_000) -> Dict:
+def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 1_060_000) -> Dict:
     """加载当日对冲执行单 (来自 hedge_execution_orders.py 生成的文件)
 
     Args:
@@ -392,6 +392,11 @@ SYMBOL_INFO = {
     "512400": {"name": "有色金属ETF南方", "est_price": 1.18, "style": "资源", "risk": "高", "lots": 100},
     "518880": {"name": "黄金ETF华安", "est_price": 8.54, "style": "资源", "risk": "中", "lots": 100},
     "601088": {"name": "中国神华", "est_price": 42.04, "style": "顺周期", "risk": "中", "lots": 100},
+    "512100": {"name": "中证1000ETF南方", "est_price": 2.65, "style": "宽基", "risk": "中", "lots": 100},
+    "510500": {"name": "中证500ETF南方", "est_price": 6.2, "style": "宽基", "risk": "中", "lots": 100},
+    "588200": {"name": "科创板芯片ETF嘉实", "est_price": 1.05, "style": "高端制造", "risk": "高", "lots": 100},
+    "159516": {"name": "半导体材料设备ETF国泰", "est_price": 0.85, "style": "高端制造", "risk": "高", "lots": 100},
+
 }
 
 
@@ -430,7 +435,7 @@ def generate_orders(trade_date: str, phase: Dict, build_plan: Dict,
         stock_day_capital = float(phase["daily_capital"])
     else:
         day_capital = phase["phase_capital"] / phase["duration_days"]
-        stock_day_capital = day_capital * (stock_capital / (stock_capital + 2_000_000))
+        stock_day_capital = day_capital * (stock_capital / (stock_capital + 1_060_000))
 
     target_portfolio = build_plan.get("target_portfolio", {})
 

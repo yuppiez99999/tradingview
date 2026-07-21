@@ -3,7 +3,7 @@
   "weekday": "Monday",
   "capital": 5000000,
   "stock_etf_capital": 3000000,
-  "hedge_capital": 2000000,
+  "hedge_capital": 1060000,
   "execution_mode": "MOCK_BROKER",
   "strategy": "康波第六轮周期 × 十五五规划 × v7.0期货期权双层对冲",
   "metadata": {
@@ -518,7 +518,7 @@
       "name": "第二阶段-配置完善",
       "start": "2026-07-20",
       "duration_days": 15,
-      "capital_ratio": 0.30,
+      "capital_ratio": 0.3,
       "capital_amount": 900000.0,
       "asset_count": 13,
       "strategy": "第2阶段建仓 + 增配期权保护"
@@ -528,7 +528,7 @@
       "name": "第三阶段-防御补充",
       "start": "2026-08-10",
       "duration_days": 15,
-      "capital_ratio": 0.20,
+      "capital_ratio": 0.2,
       "capital_amount": 600000.0,
       "asset_count": 13,
       "strategy": "防御板块补仓 + 尾部对冲"

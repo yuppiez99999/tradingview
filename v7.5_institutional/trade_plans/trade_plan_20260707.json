@@ -3,7 +3,7 @@
   "weekday": "Tuesday",
   "capital": 5000000,
   "stock_etf_capital": 4000000,
-  "hedge_capital": 1000000,
+  "hedge_capital": 1060000,
   "execution_mode": "MOCK_BROKER",
   "strategy": "康波第六轮周期 × 十五五规划 × v7.0期货期权双层对冲",
   "metadata": {

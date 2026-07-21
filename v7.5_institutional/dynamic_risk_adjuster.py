@@ -119,7 +119,7 @@ class DynamicRiskAdjuster:
             pnl_ratio = daily_pnl / portfolio_value
         elif daily_pnl != 0:
             # 无组合总值时按绝对额给低权重
-            pnl_ratio = daily_pnl / 2_000_000
+            pnl_ratio = daily_pnl / 1_060_000
 
         # 评分维度：越高越危险
         scores = {

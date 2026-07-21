@@ -1,361 +1,360 @@
 # -*- coding: utf-8 -*-
 """
-v7.5 熔断引擎 —— 继承 v7.2 四级熔断 + 执行层滑点熔断
+熔断器 (Circuit Breaker) — 对冲基金级容错
 
-两类熔断:
-    1. 市场熔断 (CircuitBreaker.check): 基于组合跌幅 + VIX 的 4 级响应
-    2. 数据/服务熔断 (is_available/record_failure): 基于失败次数的连接熔断
-    3. 滑点熔断 (SlippageCircuitBreaker): 执行层专用
+世界顶级对冲基金的数据源管理核心：当数据源连续失败时自动熔断，
+避免雪崩效应。支持半开探测、自动恢复、指数退避重试。
+
+三种状态:
+  CLOSED  → 正常请求，计数失败
+  OPEN    → 拒绝请求，直接返回 fallback
+  HALF_OPEN → 允许少量探测请求，成功则恢复，失败则继续熔断
+
+用法:
+    cb = CircuitBreaker("wind_mcp", failure_threshold=3, recovery_timeout=30)
+    
+    @cb.protect
+    def fetch_quote(code):
+        ...
+    
+    # 或手动控制
+    if cb.allow_request():
+        try:
+            result = do_request()
+            cb.on_success()
+        except Exception as e:
+            cb.on_failure(e)
 """
+
+from __future__ import annotations
 
 import time
 import logging
-from datetime import datetime, timedelta
-from collections import defaultdict
-from threading import RLock
-from typing import Dict, Optional
-from enum import IntEnum
+import threading
+import functools
+import random
+from enum import Enum
+from typing import Callable, Any, Optional, Dict
+from dataclasses import dataclass, field
 
-logger = logging.getLogger('v7.5.circuit_breaker')
+# [V75] from ..utils.alert_notifier import  # 需在v7.5创建alert_notifier AlertNotifier, AlertLevel
 
-
-class CircuitLevel(IntEnum):
-    """市场熔断 4 级响应"""
-    NORMAL = 0       # 正常
-    LEVEL_1 = 1      # 跌 3-5%: 仅限减仓, 禁开新仓
-    LEVEL_2 = 2      # 跌 5-7%: 强制减仓 30%
-    LEVEL_3 = 3      # 跌 7%+ 或 VIX>=60+跌5%+: 强制减仓 50%, 加对冲
-    LEVEL_4 = 4      # VIX>80: 全市场熔断, 仅允许平仓
+logger = logging.getLogger('circuit_breaker')
 
 
-class CircuitBreakerState:
-    CLOSED = "closed"
-    OPEN = "open"
-    HALF_OPEN = "half_open"
+class CircuitState(Enum):
+    CLOSED = "closed"          # 正常
+    OPEN = "open"              # 熔断
+    HALF_OPEN = "half_open"    # 半开探测
+
+
+@dataclass
+class CircuitStats:
+    """熔断器统计"""
+    total_requests: int = 0
+    total_failures: int = 0
+    total_successes: int = 0
+    total_timeouts: int = 0
+    last_failure_time: float = 0.0
+    last_failure_reason: str = ""
+    state_changes: int = 0
+    current_state: CircuitState = CircuitState.CLOSED
 
 
 class CircuitBreaker:
-    """熔断器 (兼容数据服务熔断 + 市场跌幅熔断)"""
-
-    # 市场熔断阈值
-    DROP_L1 = 0.03       # 3%
-    DROP_L2 = 0.05       # 5%
-    DROP_L3 = 0.07       # 7%
-    VIX_L4 = 80.0        # VIX > 80 → LEVEL_4
-    VIX_ESCALATE = 60.0  # VIX >= 60 且 跌 > 5% → LEVEL_3
+    """熔断器 — 线程安全"""
 
     def __init__(self,
-                 failure_threshold: int = 3,
-                 cooldown_seconds: float = 300.0,
-                 half_open_max_calls: int = 1):
-        self.failure_threshold = failure_threshold
-        self.cooldown_seconds = cooldown_seconds
-        self.half_open_max_calls = half_open_max_calls
-        self._states: Dict[str, Dict] = {}
-        self._lock = RLock()
-
-        # 市场熔断状态
-        self.current_level: CircuitLevel = CircuitLevel.NORMAL
-        self.last_check_ts: Optional[datetime] = None
-
-    # ---------- 市场熔断 API ----------
-    def check(self,
-              portfolio_drop: float = 0.0,
-              vix: float = 0.0) -> CircuitLevel:
+                 name: str,
+                 failure_threshold: int = 5,
+                 recovery_timeout: float = 30.0,
+                 half_open_max_requests: int = 2,
+                 consecutive_successes_to_close: int = 3):
         """
-        基于组合跌幅和 VIX 判定熔断级别 (简化版, 向后兼容)
-
         Args:
-            portfolio_drop: 组合当日跌幅 (正数, 如 0.04 表示跌 4%)
-            vix: VIX 指数 (0 表示未提供)
-
-        Returns:
-            CircuitLevel 枚举
+            name: 熔断器名称 (如 "wind_mcp", "ifind_mcp")
+            failure_threshold: 连续失败多少次后熔断
+            recovery_timeout: 熔断后多少秒进入半开状态
+            half_open_max_requests: 半开状态下允许的最大探测请求数
+            consecutive_successes_to_close: 半开状态下连续成功多少次后恢复
         """
-        drop = float(abs(portfolio_drop))
-        vix = float(vix) if vix else 0.0
+        self.name = name
+        self._failure_threshold = failure_threshold
+        self._recovery_timeout = recovery_timeout
+        self._half_open_max = half_open_max_requests
+        self._close_successes = consecutive_successes_to_close
+        self._alert_notifier = AlertNotifier()
 
-        # LEVEL_4: VIX > 80 全市场熔断
-        if vix > self.VIX_L4:
-            level = CircuitLevel.LEVEL_4
-        # LEVEL_3: 跌 >= 7% 或 (VIX >= 60 且 跌 > 5%)
-        elif drop >= self.DROP_L3:
-            level = CircuitLevel.LEVEL_3
-        elif vix >= self.VIX_ESCALATE and drop > self.DROP_L2:
-            level = CircuitLevel.LEVEL_3
-        # LEVEL_2: 跌 >= 5%
-        elif drop >= self.DROP_L2:
-            level = CircuitLevel.LEVEL_2
-        # LEVEL_1: 跌 >= 3%
-        elif drop >= self.DROP_L1:
-            level = CircuitLevel.LEVEL_1
-        else:
-            level = CircuitLevel.NORMAL
+        self._state = CircuitState.CLOSED
+        self._failure_count = 0
+        self._last_failure_time = 0.0
+        self._last_failure_reason = ""
+        self._opened_at = 0.0
+        self._half_open_requests = 0
+        self._half_open_successes = 0
+        self._lock = threading.RLock()
+        self._stats = CircuitStats()
 
-        self.current_level = level
-        self.last_check_ts = datetime.now()
+    # ── 状态查询 ──
 
-        if level > CircuitLevel.NORMAL:
-            logger.warning(f"[市场熔断] drop={drop:.2%} vix={vix:.1f} → {level.name}")
+    @property
+    def state(self) -> CircuitState:
+        with self._lock:
+            self._maybe_transition()
+            return self._state
 
-        return level
+    @property
+    def is_open(self) -> bool:
+        return self.state == CircuitState.OPEN
 
-    # ---------- 7.4 移植: 四维熔断 (HWM 回撤 + weekly_drop + VIX + daily_drop) ----------
-    # 来源: auto_hedge_executor.py:556-590 (7.4 _fallback_evaluate)
-    DD_L2 = 0.10           # HWM 回撤 10% → LEVEL_2 (7.4 black_swan_optimizer.py:109)
-    DD_L3 = 0.15           # HWM 回撤 15% → LEVEL_3 (7.4 black_swan_optimizer.py:110)
-    DD_L4 = 0.20           # HWM 回撤 20% → LEVEL_4 (7.4 black_swan_optimizer.py:111)
-    WEEKLY_DROP_L2 = 0.10  # 周累计跌幅 10% → LEVEL_2 (7.4 auto_hedge_executor.py:574)
-    DAILY_DROP_L4 = 0.09   # 单日跌幅 9% → LEVEL_4 (7.4 auto_hedge_executor.py:556)
-    DAILY_DROP_L3 = 0.07   # 单日跌幅 7% → LEVEL_3 (7.4 auto_hedge_executor.py:565)
-    DAILY_DROP_L2 = 0.05   # 单日跌幅 5% → LEVEL_2 (7.4 auto_hedge_executor.py:574)
+    def get_stats(self) -> CircuitStats:
+        with self._lock:
+            stats = CircuitStats(
+                total_requests=self._stats.total_requests,
+                total_failures=self._stats.total_failures,
+                total_successes=self._stats.total_successes,
+                total_timeouts=self._stats.total_timeouts,
+                last_failure_time=self._last_failure_time,
+                last_failure_reason=self._last_failure_reason,
+                state_changes=self._stats.state_changes,
+                current_state=self._state,
+            )
+            return stats
 
-    def check_advanced(self,
-                       daily_drop: float = 0.0,
-                       hwm_drawdown: float = 0.0,
-                       weekly_drop: float = 0.0,
-                       vix: float = 0.0) -> CircuitLevel:
-        """
-        7.4 移植: 四维熔断判定 (HWM 累计回撤 + 周累计跌幅 + VIX + 当日跌幅)
+    # ── 状态转换 ──
 
-        相比 check() 的改进:
-            - HWM 累计回撤触发 (10%/15%/20%) 抓住"温水煮青蛙"式累积下跌
-            - weekly_drop 触发 周内连续跌幅
-            - 多维度 OR 触发, 任一维度达到阈值即升级
+    def _maybe_transition(self):
+        """检查是否需要状态转换"""
+        now = time.time()
 
-        Args:
-            daily_drop: 当日跌幅 (正数)
-            hwm_drawdown: 距历史高点的累计回撤 (正数)
-            weekly_drop: 近 5 日累计跌幅 (正数)
-            vix: VIX 指数
+        if self._state == CircuitState.OPEN:
+            if now - self._opened_at >= self._recovery_timeout:
+                self._state = CircuitState.HALF_OPEN
+                self._half_open_requests = 0
+                self._half_open_successes = 0
+                self._stats.state_changes += 1
+                logger.info(
+                    f"[{self.name}] 熔断器进入半开状态 "
+                    f"(熔断{now - self._opened_at:.0f}s后尝试恢复)"
+                )
 
-        Returns:
-            CircuitLevel 枚举
-        """
-        dd = float(abs(daily_drop))
-        hwm_dd = float(abs(hwm_drawdown))
-        w_drop = float(abs(weekly_drop))
-        vix = float(vix) if vix else 0.0
-
-        # LEVEL_4: HWM>=20% 或 VIX>=80 或 单日>=9%
-        if hwm_dd >= self.DD_L4 or vix >= self.VIX_L4 or dd >= self.DAILY_DROP_L4:
-            level = CircuitLevel.LEVEL_4
-        # LEVEL_3: HWM>=15% 或 VIX>=60 或 单日>=7%
-        elif hwm_dd >= self.DD_L3 or vix >= self.VIX_ESCALATE or dd >= self.DAILY_DROP_L3:
-            level = CircuitLevel.LEVEL_3
-        # LEVEL_2: HWM>=10% 或 单日>=5% 或 周累计>=10%
-        elif hwm_dd >= self.DD_L2 or dd >= self.DAILY_DROP_L2 or w_drop >= self.WEEKLY_DROP_L2:
-            level = CircuitLevel.LEVEL_2
-        # LEVEL_1: 单日 >= 3%
-        elif dd >= self.DROP_L1:
-            level = CircuitLevel.LEVEL_1
-        else:
-            level = CircuitLevel.NORMAL
-
-        self.current_level = level
-        self.last_check_ts = datetime.now()
-
-        if level > CircuitLevel.NORMAL:
+    def _trip(self, reason: str = ""):
+        """触发熔断"""
+        with self._lock:
+            if self._state == CircuitState.OPEN:
+                return  # 已熔断
+            self._state = CircuitState.OPEN
+            self._opened_at = time.time()
+            self._last_failure_reason = reason
+            self._stats.state_changes += 1
             logger.warning(
-                f"[市场熔断-7.4] daily={dd:.2%} hwm={hwm_dd:.2%} "
-                f"weekly={w_drop:.2%} vix={vix:.1f} → {level.name}"
+                f"[{self.name}] 熔断器触发! "
+                f"失败{self._failure_count}次, 原因: {reason}, "
+                f"将在{self._recovery_timeout}s后尝试恢复"
+            )
+            self._alert_notifier.quick_alert(
+                title=f"数据源熔断 [{self.name}]",
+                content=f"连续失败{self._failure_count}次，原因: {reason}，{self._recovery_timeout:.0f}s后尝试恢复",
+                level=AlertLevel.CRITICAL,
+                source="circuit_breaker",
             )
 
-        return level
-
-    # ---------- 7.4 移植: 分级对冲/减仓目标比例 ----------
-    # 来源: auto_hedge_executor.py:604-611 (target_equity_ratio) + 752-759 (target_hedge_ratio)
-    HEDGE_RATIO_BY_LEVEL = {
-        CircuitLevel.NORMAL: 0.30,    # 基础对冲 30%
-        CircuitLevel.LEVEL_1: 0.30,   # 维持 30%
-        CircuitLevel.LEVEL_2: 0.50,   # 提升至 50%
-        CircuitLevel.LEVEL_3: 0.70,   # 提升至 70%
-        CircuitLevel.LEVEL_4: 0.90,   # 极端 90%
-    }
-    EQUITY_RATIO_BY_LEVEL = {
-        CircuitLevel.NORMAL: 1.00,    # 满仓
-        CircuitLevel.LEVEL_1: 0.50,   # 7.4 black_swan_optimizer.py:109 降到 50%
-        CircuitLevel.LEVEL_2: 0.45,   # 7.4 auto_hedge_executor.py:607
-        CircuitLevel.LEVEL_3: 0.30,   # 7.4 auto_hedge_executor.py:606
-        CircuitLevel.LEVEL_4: 0.20,   # 7.4 auto_hedge_executor.py:605
-    }
-
-    def target_hedge_ratio(self) -> float:
-        """7.4 移植: 当前熔断级别对应的目标对冲比例"""
-        return self.HEDGE_RATIO_BY_LEVEL.get(self.current_level, 0.30)
-
-    def target_equity_ratio(self) -> float:
-        """7.4 移植: 当前熔断级别对应的目标权益占比"""
-        return self.EQUITY_RATIO_BY_LEVEL.get(self.current_level, 1.00)
-
-    def allowed_actions(self) -> Dict[str, object]:
-        """根据当前熔断级别返回允许的操作"""
-        lvl = self.current_level
-
-        if lvl == CircuitLevel.NORMAL:
-            return {
-                "open_new": True,
-                "reduce": True,
-                "hedge": True,
-                "force_reduce_pct": 0.0,
-                "level": lvl.name,
-            }
-        if lvl == CircuitLevel.LEVEL_1:
-            return {
-                "open_new": False,     # 禁开新仓
-                "reduce": True,
-                "hedge": True,
-                "force_reduce_pct": 0.0,
-                "level": lvl.name,
-            }
-        if lvl == CircuitLevel.LEVEL_2:
-            return {
-                "open_new": False,
-                "reduce": True,
-                "hedge": True,
-                "force_reduce_pct": 0.30,   # 强制减仓 30%
-                "level": lvl.name,
-            }
-        if lvl == CircuitLevel.LEVEL_3:
-            return {
-                "open_new": False,
-                "reduce": True,
-                "hedge": True,
-                "force_reduce_pct": 0.50,   # 强制减仓 50%
-                "level": lvl.name,
-            }
-        # LEVEL_4
-        return {
-            "open_new": False,
-            "reduce": True,                # 仅允许平仓
-            "hedge": True,
-            "force_reduce_pct": 1.0,       # 全部平仓
-            "level": lvl.name,
-        }
-
-    # ---------- 数据服务熔断 API ----------
-    def _get_state(self, source: str) -> Dict:
-        if source not in self._states:
-            self._states[source] = {
-                "state": CircuitBreakerState.CLOSED,
-                "failures": 0,
-                "last_failure_time": 0.0,
-                "half_open_calls": 0,
-            }
-        return self._states[source]
-
-    def is_available(self, source: str) -> bool:
+    def _reset(self):
+        """重置熔断器到关闭状态"""
         with self._lock:
-            s = self._get_state(source)
-            now = time.time()
+            self._state = CircuitState.CLOSED
+            self._failure_count = 0
+            self._half_open_requests = 0
+            self._half_open_successes = 0
+            self._stats.state_changes += 1
+            logger.info(f"[{self.name}] 熔断器已恢复")
+            self._alert_notifier.quick_alert(
+                title=f"数据源恢复 [{self.name}]",
+                content="熔断器已恢复，数据源重新可用",
+                level=AlertLevel.INFO,
+                source="circuit_breaker",
+            )
 
-            if s["state"] == CircuitBreakerState.CLOSED:
+    # ── 请求控制 ──
+
+    def allow_request(self) -> bool:
+        """是否允许此次请求"""
+        with self._lock:
+            self._maybe_transition()
+
+            if self._state == CircuitState.CLOSED:
+                self._stats.total_requests += 1
                 return True
 
-            if s["state"] == CircuitBreakerState.OPEN:
-                if now - s["last_failure_time"] >= self.cooldown_seconds:
-                    s["state"] = CircuitBreakerState.HALF_OPEN
-                    s["half_open_calls"] = 0
-                    s["last_failure_time"] = now
-                    logger.info(f"[熔断] {source} 冷却完成, 进入半开")
-                else:
-                    return False
-
-            if s["state"] == CircuitBreakerState.HALF_OPEN:
-                if s["half_open_calls"] < self.half_open_max_calls:
-                    s["half_open_calls"] += 1
+            if self._state == CircuitState.HALF_OPEN:
+                if self._half_open_requests < self._half_open_max:
+                    self._half_open_requests += 1
+                    self._stats.total_requests += 1
                     return True
                 return False
-            return True
 
-    def record_success(self, source: str):
-        with self._lock:
-            s = self._get_state(source)
-            s["state"] = CircuitBreakerState.CLOSED
-            s["failures"] = 0
-            s["half_open_calls"] = 0
-
-    def record_failure(self, source: str, error: Optional[str] = None):
-        with self._lock:
-            s = self._get_state(source)
-            s["failures"] += 1
-            s["last_failure_time"] = time.time()
-            if s["state"] == CircuitBreakerState.HALF_OPEN:
-                s["state"] = CircuitBreakerState.OPEN
-                s["half_open_calls"] = 0
-            elif s["failures"] >= self.failure_threshold:
-                s["state"] = CircuitBreakerState.OPEN
-                logger.warning(f"[熔断] {source} 连续失败 {s['failures']} 次, 进入熔断")
-
-    def reset(self, source: Optional[str] = None):
-        with self._lock:
-            if source:
-                self._states.pop(source, None)
-            else:
-                self._states.clear()
-        self.current_level = CircuitLevel.NORMAL
-        self.last_check_ts = None
-
-
-class SlippageCircuitBreaker:
-    """滑点熔断 —— 执行层专用"""
-
-    def __init__(self,
-                 per_trade_break: float = 0.005,
-                 daily_cumulative_break: float = 0.010,
-                 global_slow_threshold: float = 0.003,
-                 pause_minutes: int = 30):
-        self.per_trade_break = per_trade_break
-        self.daily_cumulative_break = daily_cumulative_break
-        self.global_slow_threshold = global_slow_threshold
-        self.pause_minutes = pause_minutes
-
-        self.slip_per_symbol = defaultdict(float)
-        self.slip_pause_until: Dict[str, datetime] = {}
-        self.global_slips = []
-        self.global_slow = False
-        self.consecutive_pauses = defaultdict(int)
-
-    def check_single(self, symbol: str, actual_price: float,
-                     decision_price: float) -> Dict:
-        """检查单笔滑点"""
-        slip = abs(actual_price - decision_price) / decision_price
-        result = {'symbol': symbol, 'slip': slip, 'action': 'PASS'}
-
-        if slip > self.per_trade_break:
-            self.slip_pause_until[symbol] = datetime.now() + timedelta(minutes=self.pause_minutes)
-            self.consecutive_pauses[symbol] += 1
-            result['action'] = 'BREAK'
-            result['reason'] = f'滑点 {slip:.4%} > {self.per_trade_break:.4%}'
-            logger.warning(f"[滑点熔断] {symbol} 单笔滑点 {slip:.4%}")
-
-        self.slip_per_symbol[symbol] += slip
-        if self.slip_per_symbol[symbol] > self.daily_cumulative_break:
-            self.slip_pause_until[symbol] = datetime.now() + timedelta(minutes=self.pause_minutes)
-            result['action'] = 'DAILY_BREAK'
-            result['reason'] = f'当日累计滑点 {self.slip_per_symbol[symbol]:.4%} > {self.daily_cumulative_break:.4%}'
-
-        self.global_slips.append(slip)
-        return result
-
-    def check_global(self) -> bool:
-        """全市场滑点检查"""
-        if len(self.global_slips) < 5:
+            # OPEN
             return False
-        median_slip = sorted(self.global_slips[-20:])[len(self.global_slips[-20:]) // 2]
-        if median_slip > self.global_slow_threshold:
-            self.global_slow = True
-            logger.warning(f"[全局降速] 全市场滑点中位数 {median_slip:.4%} > {self.global_slow_threshold:.4%}")
-            return True
-        self.global_slow = False
+
+    def on_success(self):
+        """请求成功回调"""
+        with self._lock:
+            self._stats.total_successes += 1
+
+            if self._state == CircuitState.HALF_OPEN:
+                self._half_open_successes += 1
+                if self._half_open_successes >= self._close_successes:
+                    self._reset()
+            elif self._state == CircuitState.CLOSED:
+                self._failure_count = 0  # 成功后重置失败计数
+
+    def on_failure(self, error: Exception = None):
+        """请求失败回调"""
+        with self._lock:
+            self._stats.total_failures += 1
+            self._last_failure_time = time.time()
+            reason = str(error)[:200] if error else "unknown"
+            self._last_failure_reason = reason
+
+            if self._state == CircuitState.HALF_OPEN:
+                self._trip(reason)
+            elif self._state == CircuitState.CLOSED:
+                self._failure_count += 1
+                if self._failure_count >= self._failure_threshold:
+                    self._trip(reason)
+
+    def on_timeout(self):
+        """超时回调"""
+        with self._lock:
+            self._stats.total_timeouts += 1
+        self.on_failure(TimeoutError("request timeout"))
+
+    # ── 装饰器 ──
+
+    def protect(self, func: Callable = None, *, fallback: Any = None):
+        """装饰器: 自动熔断保护"""
+        def decorator(f):
+            @functools.wraps(f)
+            def wrapper(*args, **kwargs):
+                if not self.allow_request():
+                    logger.debug(f"[{self.name}] 熔断中，返回 fallback")
+                    return fallback
+                try:
+                    result = f(*args, **kwargs)
+                    self.on_success()
+                    return result
+                except Exception as e:
+                    self.on_failure(e)
+                    if fallback is not None:
+                        return fallback
+                    raise
+            return wrapper
+        if func is not None:
+            return decorator(func)
+        return decorator
+
+    def __enter__(self):
+        if not self.allow_request():
+            raise CircuitOpenError(f"熔断器 [{self.name}] 已打开: {self._last_failure_reason}")
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            self.on_failure(exc_val)
+            return False  # 不吞掉异常
+        self.on_success()
         return False
 
-    def is_paused(self, symbol: str) -> bool:
-        until = self.slip_pause_until.get(symbol)
-        return until is not None and datetime.now() < until
 
-    def reset_daily(self):
-        self.slip_per_symbol.clear()
-        self.slip_pause_until.clear()
-        self.global_slips.clear()
-        self.global_slow = False
+class CircuitOpenError(Exception):
+    """熔断器打开异常"""
+    pass
+
+
+class CircuitBreakerRegistry:
+    """熔断器注册表 — 集中管理所有数据源的熔断状态"""
+
+    def __init__(self):
+        self._breakers: Dict[str, CircuitBreaker] = {}
+        self._lock = threading.Lock()
+
+    def get_or_create(self,
+                      name: str,
+                      failure_threshold: int = 5,
+                      recovery_timeout: float = 30.0) -> CircuitBreaker:
+        """获取或创建熔断器"""
+        with self._lock:
+            if name not in self._breakers:
+                self._breakers[name] = CircuitBreaker(
+                    name=name,
+                    failure_threshold=failure_threshold,
+                    recovery_timeout=recovery_timeout
+                )
+            return self._breakers[name]
+
+    def get_all_stats(self) -> Dict[str, CircuitStats]:
+        """获取所有熔断器统计"""
+        return {name: cb.get_stats() for name, cb in self._breakers.items()}
+
+    def get_open_breakers(self) -> list:
+        """获取当前打开的熔断器列表"""
+        return [
+            name for name, cb in self._breakers.items()
+            if cb.is_open
+        ]
+
+    def reset_all(self):
+        """重置所有熔断器"""
+        for cb in self._breakers.values():
+            cb._reset()
+
+
+# ── 重试工具 ──
+
+def retry_with_backoff(
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+    max_delay: float = 30.0,
+    backoff_factor: float = 2.0,
+    jitter: bool = True,
+    retryable_exceptions: tuple = (ConnectionError, TimeoutError, OSError),
+):
+    """
+    指数退避重试装饰器 (带随机抖动)
+    
+    Args:
+        max_retries: 最大重试次数
+        base_delay: 基础延迟 (秒)
+        max_delay: 最大延迟 (秒)
+        backoff_factor: 退避因子
+        jitter: 是否添加随机抖动 (避免惊群效应)
+        retryable_exceptions: 可重试的异常类型
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except retryable_exceptions as e:
+                    last_exception = e
+                    if attempt < max_retries:
+                        delay = min(base_delay * (backoff_factor ** attempt), max_delay)
+                        if jitter:
+                            delay = delay * (0.5 + random.random())
+                        logger.debug(
+                            f"[Retry] {func.__name__} 第{attempt + 1}次重试, "
+                            f"等待{delay:.2f}s: {e}"
+                        )
+                        time.sleep(delay)
+                    else:
+                        logger.warning(
+                            f"[Retry] {func.__name__} 重试{max_retries}次后仍失败: {e}"
+                        )
+                except Exception as e:
+                    # 不可重试的异常直接抛出
+                    raise
+            raise last_exception
+        return wrapper
+    return decorator

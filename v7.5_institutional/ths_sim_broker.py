@@ -519,22 +519,99 @@ class THSSimFuturesBroker:
     """同花顺期货通模拟盘适配器
 
     功能:
-        - 使用 iFinD 获取期货行情作为价格发现
+        - 使用 iFinD/AKShare 获取期货行情作为价格发现
         - 与 SimFuturesBroker 接口完全兼容
         - 交易日志持久化到 logs/ths_sim_trades.jsonl
         - 预留 CTP/SuperMind 真实下单接口
+        - 完整支持 50+ 期货品种
     """
+
+    FUTURES_CONTRACT_MULTIPLIERS = {
+        # 股指期货
+        "IF": 300,    # 沪深300股指
+        "IC": 200,    # 中证500股指
+        "IM": 200,    # 中证1000股指
+        "IH": 300,    # 上证50股指
+        # 国债期货
+        "T": 100000,  # 10年期国债
+        "TF": 100000, # 5年期国债
+        "TS": 200000, # 2年期国债
+        # 有色金属
+        "CU": 5,      # 沪铜
+        "AL": 5,      # 沪铝
+        "ZN": 5,      # 沪锌
+        "NI": 1,      # 沪镍
+        "PB": 5,      # 沪铅
+        "SN": 1,      # 沪锡
+        # 贵金属
+        "AU": 1000,   # 沪金(克)
+        "AG": 15,     # 沪银(千克)
+        # 能源化工
+        "SC": 1000,   # 原油(桶)
+        "LU": 1000,   # 低硫燃油
+        "FU": 10,     # 燃油(吨)
+        "RB": 10,     # 螺纹钢(吨)
+        "HC": 10,     # 热轧卷板(吨)
+        "I": 100,     # 铁矿石(吨)
+        "J": 100,     # 焦炭(吨)
+        "JM": 60,     # 焦煤(吨)
+        "ZC": 100,    # 动力煤(吨)
+        # 农产品
+        "A": 10,      # 豆一(吨)
+        "B": 10,      # 豆二(吨)
+        "M": 10,      # 豆粕(吨)
+        "Y": 10,      # 豆油(吨)
+        "P": 10,      # 棕榈油(吨)
+        "C": 20,      # 玉米(吨)
+        "CS": 20,     # 淀粉(吨)
+        "JD": 5,      # 鸡蛋(吨)
+        # 软商品
+        "CF": 5,      # 棉花(吨)
+        "TA": 5,      # PTA(吨)
+        "MA": 10,     # 甲醇(吨)
+        "FG": 20,     # 玻璃(吨)
+        "SA": 20,     # 纯碱(吨)
+        "SP": 10,     # 纸浆(吨)
+        "UR": 20,     # 尿素(吨)
+        # 塑料化工
+        "V": 5,       # PVC(吨)
+        "PP": 5,      # 聚丙烯(吨)
+        "L": 5,       # 塑料(吨)
+        "EB": 5,      # 苯乙烯(吨)
+        "PG": 20,     # LPG(吨)
+        # 其他
+        "SS": 5,      # 不锈钢(吨)
+        "NR": 10,     # 20号胶(吨)
+        "RR": 20,     # 粳米(吨)
+        "RS": 10,     # 油菜籽(吨)
+        "OI": 10,     # 菜油(吨)
+        "RM": 10,     # 菜粕(吨)
+        "AP": 10,     # 苹果(吨)
+        "CJ": 10,     # 红枣(吨)
+        "SF": 5,      # 硅铁(吨)
+        "SM": 5,      # 锰硅(吨)
+    }
+
+    DEFAULT_MARGIN_RATES = {
+        "IF": 0.12, "IC": 0.14, "IM": 0.15, "IH": 0.12,
+        "T": 0.02, "TF": 0.02, "TS": 0.02,
+        "CU": 0.10, "AL": 0.10, "ZN": 0.12, "NI": 0.12, "PB": 0.10, "SN": 0.12,
+        "AU": 0.10, "AG": 0.12,
+        "SC": 0.15, "LU": 0.12, "FU": 0.12,
+        "RB": 0.13, "HC": 0.12, "I": 0.14, "J": 0.15, "JM": 0.15, "ZC": 0.14,
+        "A": 0.10, "B": 0.10, "M": 0.10, "Y": 0.10, "P": 0.10, "C": 0.08, "CS": 0.08, "JD": 0.12,
+        "CF": 0.12, "TA": 0.10, "MA": 0.12, "FG": 0.12, "SA": 0.12, "SP": 0.12, "UR": 0.12,
+        "V": 0.10, "PP": 0.10, "L": 0.10, "EB": 0.12, "PG": 0.12,
+        "SS": 0.12, "NR": 0.12, "RR": 0.08, "RS": 0.10, "OI": 0.10, "RM": 0.10,
+        "AP": 0.15, "CJ": 0.15, "SF": 0.12, "SM": 0.12,
+    }
 
     def __init__(self, account, quote_provider: Optional[THSQuoteProvider] = None,
                  margin_rates: Optional[Dict[str, float]] = None,
                  trade_log_path: Optional[str] = None):
         self.account = account
         self.quote_provider = quote_provider or THSQuoteProvider()
-        self.margin_rates = margin_rates or {
-            "IF": 0.12, "IC": 0.14, "IM": 0.15, "IH": 0.12,
-            "CU": 0.10, "AL": 0.10, "ZN": 0.12, "AU": 0.10, "AG": 0.12,
-            "RB": 0.13, "I": 0.14, "J": 0.15,
-        }
+        self.margin_rates = margin_rates or self.DEFAULT_MARGIN_RATES
         self._pending_orders: Dict[str, Dict] = {}
         self._fills: List[Dict] = []
         self._lock = threading.RLock()
@@ -559,6 +636,16 @@ class THSSimFuturesBroker:
         self._ctp_enabled = False
         self._ctp_api = None
 
+        # AKShare 行情回退
+        self._akshare_available = False
+        try:
+            import akshare as ak
+            self._akshare = ak
+            self._akshare_available = True
+            logger.info("AKShare 行情回退已启用")
+        except Exception:
+            logger.warning("AKShare 不可用，行情回退将受限")
+
     def enable_ctp(self, broker_id: str, app_id: str, auth_code: str,
                    front_address: str = "") -> bool:
         """启用 CTP 真实下单接口（预留）
@@ -574,11 +661,47 @@ class THSSimFuturesBroker:
         return False  # 当前阶段返回 False，实际未连接
 
     def _get_futures_price(self, symbol: str, fallback_price: float = 0.0) -> float:
-        """获取期货最新价"""
+        """获取期货最新价（优先级：iFinD → AKShare → 兜底价格）"""
         quote = self.quote_provider.get_futures_quote(symbol)
         if quote and quote.get("latest", 0) > 0:
             return float(quote["latest"])
+
+        if self._akshare_available:
+            try:
+                price = self._try_akshare_futures(symbol)
+                if price > 0:
+                    return price
+            except Exception as exc:
+                logger.debug("AKShare 行情获取失败 %s: %s", symbol, exc)
+
         return fallback_price if fallback_price > 0 else 3000.0
+
+    def _try_akshare_futures(self, symbol: str) -> float:
+        """通过 AKShare 获取期货价格"""
+        try:
+            df = self._akshare.futures_zh_spot_em(symbol=symbol)
+            if not df.empty:
+                latest = df.iloc[0].get("最新价")
+                if latest and latest > 0:
+                    return float(latest)
+        except Exception:
+            pass
+
+        try:
+            df = self._akshare.futures_daily(symbol=symbol)
+            if not df.empty:
+                close = df.iloc[0].get("close")
+                if close and close > 0:
+                    return float(close)
+        except Exception:
+            pass
+
+        return 0.0
+
+    def _get_contract_multiplier(self, symbol: str) -> int:
+        """获取合约乘数"""
+        code = symbol[:2] if len(symbol) >= 2 else symbol
+        return self.FUTURES_CONTRACT_MULTIPLIERS.get(code, 300)
 
     def place_order(self, symbol: str, qty: int, side: str,
                     price: float = 0.0, order_type: str = "LIMIT",
@@ -598,10 +721,10 @@ class THSSimFuturesBroker:
         if price <= 0:
             price = self._get_futures_price(symbol, 3000.0)
 
-        # 保证金检查
         code = symbol[:2] if len(symbol) >= 2 else symbol
         margin_rate = self.margin_rates.get(code, 0.12)
-        margin = price * qty * margin_rate * 300  # 合约乘数简化为300
+        multiplier = self._get_contract_multiplier(symbol)
+        margin = price * qty * margin_rate * multiplier
 
         if side in ("BUY_OPEN", "SELL_OPEN") and margin > self.account.available_cash:
             return {"order_id": "", "status": "REJECTED",
@@ -620,7 +743,8 @@ class THSSimFuturesBroker:
             "session": session,
             "market": "futures",
             "margin": margin,
-            "data_source": "iFinD" if self.quote_provider._ifind else "fallback",
+            "multiplier": multiplier,
+            "data_source": "iFinD" if self.quote_provider._ifind else ("akshare" if self._akshare_available else "fallback"),
         }
         self._pending_orders[order_id] = order
 
@@ -643,13 +767,15 @@ class THSSimFuturesBroker:
         else:
             fill_price = price * (1 - slippage)
 
+        multiplier = int(order.get("multiplier", 300))
         fill = {
             "order_id": order["order_id"],
             "symbol": symbol,
             "qty": qty,
             "side": side,
             "price": round(fill_price, 2),
-            "amount": round(qty * fill_price * 300, 2),  # 合约乘数300
+            "amount": round(qty * fill_price * multiplier, 2),
+            "multiplier": multiplier,
             "slippage_pct": slippage,
             "status": "FILLED",
             "session": order.get("session", "day"),
@@ -672,14 +798,16 @@ class THSSimFuturesBroker:
         qty = int(fill["qty"])
         side = fill["side"]
         price = float(fill["price"])
+        multiplier = int(fill.get("multiplier", 300))
 
         with self._lock:
             positions = self.account.positions
             if symbol not in positions:
                 positions[symbol] = {"qty": 0, "avg_price": 0.0, "market_value": 0.0,
-                                     "direction": ""}
+                                     "direction": "", "multiplier": multiplier}
 
             pos = positions[symbol]
+            pos["multiplier"] = multiplier
             if side in ("BUY_OPEN", "SELL_CLOSE"):
                 if side == "BUY_OPEN":
                     total_cost = pos["qty"] * pos["avg_price"] + qty * price
@@ -703,7 +831,7 @@ class THSSimFuturesBroker:
                         pos["qty"] = 0
                         pos["avg_price"] = 0.0
 
-            pos["market_value"] = abs(pos["qty"]) * price * 300
+            pos["market_value"] = abs(pos["qty"]) * price * multiplier
             pos["last_update"] = datetime.now().isoformat()
 
     def _log_trade(self, fill: Dict) -> None:

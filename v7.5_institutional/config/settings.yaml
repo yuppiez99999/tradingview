@@ -34,12 +34,15 @@ v76:
     reverse_repo_ratio: 0.85       # 闲置 85% 做逆回购
     expected_yield_annual: 0.0155  # 年化 1.55%
 
-  # 3. 对冲执行指挥官
+  # 3. 对冲执行指挥官 (★期权优先模式)
   hedge_commander:
-    target_beta: 0.10              # 目标净 Beta
-    max_tolerance: 0.15            # 容忍偏差
-    max_unhedged_days: 2           # 2 天未对齐→告警
-    auto_close_gap: true           # 自动填补
+    hedge_mode: "options_primary"   # ★期权优先 (替代期货主导)
+    target_beta: 0.10               # 目标净 Beta
+    max_tolerance: 0.12             # 容忍偏差
+    max_unhedged_days: 2            # 2 天未对齐→告警
+    auto_close_gap: true            # 自动填补
+    options_first: true             # ★优先使用期权对冲
+    futures_only_fallback: true     # 期货仅作备用
 
   # 4. 信号拥挤度检测
   crowding:
@@ -78,31 +81,82 @@ risk:
   single_name_limit: 0.08          # 单标的 ≤ 8%
 
 hedging:
-  # ---- Beta 对冲（顶级对冲基金视角增强）----
-  beta_target: 0.1                 # 目标净Beta（原0.3，显著降低净敞口）
-  beta_trigger: 0.5                # 触发阈值（原0.7）
+  # ★ 期权优先模式 — 期权为主导，期货为备用
+  mode: "options_primary"
+  # ---- Beta 对冲 ----
+  beta_target: 0.1                 # 目标净Beta
+  beta_trigger: 0.5                # 触发阈值
   beta_ewma_lambda: 0.94           # EWMA 衰减因子
   beta_window: 60                  # 滚动窗口
-  hedge_cost_max: 0.005            # 最大对冲成本比例（原0.3%）
-  hedge_capital_ratio: 0.30        # 对冲资本占总资金比例（新增）
-  total_hedge_capital: 1_500_000   # 对冲资本150万（新增）
+  hedge_cost_max: 0.005            # 最大对冲成本比例
+  hedge_capital_ratio: 0.40        # 对冲资本占总资金比例
+  total_hedge_capital: 2_000_000   # 对冲资本 200 万
+  # 期权预算分配
+  options_budget: 1_200_000        # ★期权预算 120 万 (60%)
+  futures_budget: 300_000          # 期货预算 30 万 (15%)
+  cash_buffer: 500_000             # 现金缓冲 50 万 (25%)
+  # 期货备用 (仅作为期权未覆盖时的补充)
   futures_instruments:
-    - {code: "IF", multiplier: 300, beta: 1.0}
-    - {code: "IC", multiplier: 200, beta: 1.2}
-    - {code: "IM", multiplier: 200, beta: 1.1}
-  # ---- 波动率对冲（启用）----
-  vix_trigger: 25                  # VIX 触发阈值（原30）
-  vix_emergency: 50                # VIX 紧急阈值（原60）
-  put_spread_budget: 0.005         # Put Spread 预算 0.5%（原0.3%）
-  bare_put_budget: 0.008           # 裸 Put 预算 0.8%（原0.5%）
-  emergency_put_budget: 0.012      # 紧急 Put 预算 1.2%（原0.8%）
+    - {code: "IF", multiplier: 300, beta: 1.0, role: "backup"}
+    - {code: "IM", multiplier: 200, beta: 1.1, role: "backup"}
+  # ---- 期权对冲策略参数 ----
+  options_strategies:
+    # A. 领口策略 (Collar) — 高Beta科技股
+    collar:
+      enabled: true
+      budget_pct: 0.35
+      put_strike_offset: -0.05     # Put行权价 OTM 5%
+      call_strike_offset: +0.15    # Call行权价 OTM 15%
+      auto_roll_days: 7            # 到期前7天自动滚动
+      max_age_days: 30             # 期权年龄上限
+      target_beta_reduction: 0.40  # 目标Beta降低程度
+    # B. 保护性看跌价差 (Put Spread) — 宽基ETF
+    put_spread:
+      enabled: true
+      budget_pct: 0.20
+      long_strike_offset: -0.03    # 买腿行权价 OTM 3%
+      short_strike_offset: -0.12   # 卖腿行权价 OTM 12%
+      max_spread_width: 0.10       # 最大价差宽度
+      min_credit_ratio: 0.30       # 至少回收 30% 买腿成本
+    # C. 看跌阶梯 (Put Ladder) — 尾部保护
+    put_ladder:
+      enabled: true
+      budget_pct: 0.25
+      strikes: [-0.03, -0.08, -0.15]
+      weights: [0.50, 0.30, 0.20]  # 阶梯权重
+      expire_monthly: true         # 月度滚动
+    # D. 备兑看涨 (Covered Call) — Theta收入
+    covered_call:
+      enabled: true
+      budget_pct: 0.10
+      strike_offset: +0.08         # 卖Call OTM 8%
+      max_assignment_risk: 0.30    # 最大被行权风险
+      min_premium_yield: 0.015     # 最低年化权利金收益率
+      monthly_roll: true           # 月频滚动
+    # E. 风险逆转 (Risk Reversal)
+    risk_reversal:
+      enabled: true
+      budget_pct: 0.05
+      put_short_offset: -0.03
+      call_long_offset: +0.05
+      zero_cost_target: true       # 力求零成本
+    # F. VIX尾部对冲
+    tail_hedge:
+      enabled: true
+      trigger_vix: 25              # VIX > 25 触发
+      put_strike_offset: -0.15     # 深虚Put OTM 15%
+      budget_pct: 0.05
+      status: "STANDING_ORDER"     # 条件触发待命
+  # ---- 波动率对冲 (VIX尾部) ----
+  vix_trigger: 25                  # VIX 触发阈值
+  vix_emergency: 50                # VIX 紧急阈值
   # ---- 相关性对冲 ----
   corr_trigger: 0.85               # 相关性趋同触发
   corr_window: 30                  # 滚动窗口
   corr_jump_threshold: 0.15        # 较 60 日均值跳跃阈值
   gold_etf_code: "518880"
-  gold_max_weight: 0.15            # 黄金上限提升至 15%（原10%）
-  repo_min_weight: 0.20            # 现金储备下限 20%（原30%，调整）
+  gold_max_weight: 0.15            # 黄金上限
+  repo_min_weight: 0.20            # 现金储备下限
 
 execution:
   # Smart Order Routing（顶级对冲基金视角优化）
@@ -220,18 +274,53 @@ signal_fusion:
     retrain_days: 30
 
 # ============================================================
-# 尾部风险保护（顶级对冲基金视角新增）
+# 尾部风险保护（期权优先视角）
 # ============================================================
 tail_risk_protection:
-  stress_test_frequency: "weekly"    # 压力测试频率（原月度）
+  stress_test_frequency: "weekly"
   tail_hedge:
     enabled: true
     trigger: -0.05                   # 组合回撤 -5% 触发
     instruments:
-      - type: "index_put"
-        allocation: 0.03             # 3% 资金买指数认沽
-        strike: 0.90                 # 虚值 10%
+      - type: "index_put_ladder"     # ★期权Put阶梯替代期货空头
+        allocation: 0.05             # 5% 资金买三阶Put
+        strikes: [0.97, 0.92, 0.85]  # OTM 3%/8%/15%
+        weights: [0.50, 0.30, 0.20]
       - type: "vix_call"
         allocation: 0.02             # 2% 资金买 VIX 看涨
         trigger: 35
+      - type: "collar_protection"    # ★新增：领口保护
+        allocation: 0.03             # 3% 资金建领口
+        put_strike: 0.95
+        call_strike: 1.15
   liquidity_reserve: 0.10           # 10% 现金/货币基金储备
+
+# ============================================================
+# 同花顺期货通交易配置（模拟交易 / 真实交易）
+# ============================================================
+ths_futures:
+  mode: "sim"                        # sim=模拟盘, real=真实盘
+  sim_capital: 2_000_000             # 模拟盘初始资金
+  data_source_priority:
+    - "ifind_mcp"
+    - "akshare"
+    - "fallback"
+  # 模拟交易配置
+  simulation:
+    enabled: true
+    slippage_bps: 5                  # 模拟滑点 bps
+    commission_rate: 0.000023        # 模拟手续费
+    log_enabled: true
+    log_path: "logs/ths_sim_trades.jsonl"
+  # 真实交易配置（预留）
+  real_trading:
+    enabled: false                   # 是否启用真实交易
+    client_path: ""                  # 同花顺期货通客户端路径
+    use_pywinauto: true              # 是否使用 pywinauto 自动化
+    screenshot_enabled: true         # 下单前截图记录
+    confirm_before_trade: true       # 下单前确认
+  # 夜盘配置
+  night_session:
+    enabled: true
+    start_time: "21:00"
+    end_time: "23:00"

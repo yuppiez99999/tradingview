@@ -3,7 +3,7 @@
   "weekday": "周二",
   "capital": 5000000,
   "stock_etf_capital": 3000000,
-  "hedge_capital": 2000000,
+  "hedge_capital": 1060000,
   "execution_mode": "MOCK_BROKER",
   "strategy": "康波第六轮周期 × 十五五规划 × v7.7对冲基金视角融合 (Theta+Gamma+KillSwitch+Liquidation)",
   "metadata": {

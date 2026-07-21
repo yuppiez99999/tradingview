@@ -5,6 +5,9 @@ account_structure:
   total_capital: 5000000
   equity_allocation: 3_000_000
   hedge_allocation: 2_000_000
+  options_hedge_allocation: 1_200_000
+  futures_hedge_allocation: 300_000
+  cash_reserve: 500_000
   stock_etf_capital: 3000000
   hedge_capital: 2000000
   start_date: "2026-07-10"
@@ -135,22 +138,172 @@ assets:
     amount: 150000
 
 hedge:
-  instruments:
+  mode: "options_primary"                  # ★期权优先模式
+  options_budget_pct: 0.60                 # 对冲资金60%用于期权
+  futures_budget_pct: 0.15                 # 15%用于期货备用
+  cash_reserve_pct: 0.25                   # 25%现金缓冲
+  options:
+    # A. 领口策略 — 高Beta科技股 (保护下行 + 收取权利金上限)
+    collars:
+      - instrument: "中际旭创_Collar"
+        direction: "COLLAR"
+        underlying: "300308"
+        contracts: 8
+        strike_put: "OTM_-5%"
+        strike_call: "OTM_+15%"
+        expiry: "2026-08-28"
+        notional: 360000
+        premium_est: -12000
+        auto_roll: 7d_before_expiry
+        description: "领口保护中际旭创高位回落"
+      - instrument: "海光信息_Collar"
+        direction: "COLLAR"
+        underlying: "688041"
+        contracts: 6
+        strike_put: "OTM_-5%"
+        strike_call: "OTM_+15%"
+        expiry: "2026-08-28"
+        notional: 300000
+        premium_est: -9000
+        auto_roll: 7d_before_expiry
+        description: "领口保护海光信息波动率风险"
+    # B. 保护性看跌价差 — 宽基ETF (限成本左侧保护)
+    put_spreads:
+      - instrument: "510050_Put_Spread"
+        direction: "PUT_SPREAD"
+        underlying: "510050"
+        contracts: 20
+        strike_long: "ATM_-3%"
+        strike_short: "ATM_-12%"
+        expiry: "2026-08-28"
+        notional: 58000
+        premium_est: -8000
+        description: "上证50ETF Put垂直价差"
+      - instrument: "588080_Put_Spread"
+        direction: "PUT_SPREAD"
+        underlying: "588080"
+        contracts: 15
+        strike_long: "ATM_-5%"
+        strike_short: "ATM_-15%"
+        expiry: "2026-08-28"
+        notional: 42000
+        premium_est: -6000
+        description: "科创50ETF Put垂直价差"
+    # C. 保护性看跌阶梯 — 组合尾部保护
+    put_ladders:
+      - instrument: "510300_Put_Ladder"
+        direction: "PUT_LADDER"
+        underlying: "510300"
+        strikes: ["OTM_-3%", "OTM_-8%", "OTM_-15%"]
+        weights: [0.50, 0.30, 0.20]
+        contracts: [20, 12, 8]
+        expiry: "2026-09-25"
+        notional: 82000
+        premium_est: -20000
+        description: "沪深300三阶Put阶梯覆盖小中大幅下跌"
+    # D. 备兑看涨 — Theta月化收入
+    covered_calls:
+      - instrument: "510300_Covered_Call"
+        direction: "COVERED_CALL"
+        underlying: "510300"
+        contracts: 40
+        strike: "OTM_+8%"
+        expiry: "2026-08-28"
+        notional: 96000
+        premium_income: +28000
+        description: "沪深300备兑看涨月化Theta"
+      - instrument: "510050_Covered_Call"
+        direction: "COVERED_CALL"
+        underlying: "510050"
+        contracts: 30
+        strike: "OTM_+8%"
+        expiry: "2026-08-28"
+        notional: 72000
+        premium_income: +21000
+        description: "上证50备兑看涨月化Theta"
+    # E. 风险逆转 — 金融板块增强
+    risk_reversals:
+      - instrument: "510880_Risk_Reversal"
+        direction: "RISK_REVERSAL"
+        underlying: "510880"
+        contracts: 10
+        strike_put_short: "OTM_-3%"
+        strike_call_long: "OTM_+5%"
+        expiry: "2026-08-28"
+        notional: 25000
+        premium_est: -2000
+        description: "红利ETF卖Put融资买Call博上行"
+    # F. VIX尾部对冲 — 四层阶梯渐进式预部署 (v8.4修订)
+    # 核心原则: 买保险的最佳时机是没人想要它的时候
+    # VIX 12-18: 积极建仓 | VIX 18-22: 适度加码(Put Spread降成本) | VIX 22-30: 只持不买 | VIX > 30: 止盈减仓
+    tail_hedges:
+      - instrument: "510050_VIX_Tier1"
+        direction: "TAIL_HEDGE"
+        underlying: "510050"
+        tier: 1
+        tier_name: "积极建仓期"
+        vix_min: 12
+        vix_max: 18
+        strike_put: "OTM_-15%"
+        contracts: 10
+        expiry: "3M_rolling"
+        monthly_roll: true
+        notional: 25000
+        premium_est: -5000
+        annual_cost_pct: 0.008
+        status: EXPIRED
+        description: "VIX 12-18: 低IV环境裸买OTM Put, 月成本0.3-0.8%组合保费, 当前VIX=18.5已过期"
+      - instrument: "510050_VIX_Tier2"
+        direction: "TAIL_HEDGE"
+        underlying: "510050"
+        tier: 2
+        tier_name: "适度加码期"
+        vix_min: 18
+        vix_max: 22
+        strike_put: "OTM_-15%"
+        strike_put_short: "OTM_-20%"
+        contracts: 15
+        use_spread: true
+        expiry: "2026-09-25"
+        notional: 45000
+        premium_est: -6000
+        net_premium_after_spread: -3000
+        status: ACTIVE
+        description: "VIX 18-22: Put Spread降成本40-60%(买-15%+卖-20%), 净权利金3,000-6,000, ★当前VIX=18.5应在此层执行"
+      - instrument: "510050_VIX_Tier3"
+        direction: "TAIL_HEDGE"
+        underlying: "510050"
+        tier: 3
+        tier_name: "只持不买期"
+        vix_min: 22
+        vix_max: 30
+        action: HOLD_ONLY
+        contracts: 0
+        status: STANDING
+        description: "VIX 22-30: 停止新建保护(偏斜已张开8-15点), 只持有Tier1/2已购对冲, 享受Gamma加速"
+      - instrument: "510050_VIX_Tier4"
+        direction: "TAIL_HEDGE"
+        underlying: "510050"
+        tier: 4
+        tier_name: "止盈减仓期"
+        vix_min: 30
+        action: SELL_HEDGE_AND_REDUCE
+        contracts: 0
+        status: STANDING
+        description: "VIX > 30: 卖出已有对冲止盈, 恐慌成本>预期收益, 直接降股票仓位更有效"
+  futures:
     - instrument: "IF_futures"
       direction: "SELL"
-      target_contracts: 2
+      target_contracts: 1
       multiplier: 300
       margin_rate: 0.12
+      description: "IF备用空头 (期权未覆盖Beta残留)"
     - instrument: "IM_futures"
       direction: "SELL"
       target_contracts: 1
       multiplier: 200
       margin_rate: 0.14
-    - instrument: "ETF_put_options"
-      direction: "BUY"
-      target_contracts: 10
-      strike: "OTM_5%"
-      premium_budget: 50000
+      description: "IM备用空头 (中小盘尾部残留)"
 
 risk_parameters:
   max_single_position: 0.10

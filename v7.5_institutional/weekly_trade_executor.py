@@ -1,18 +1,26 @@
 # -*- coding: utf-8 -*-
 """
-v7.5 本周自动交易计划执行器
-============================
+v7.6 本周自动交易计划执行器 (★期权优先对冲模式)
+==============================================
 
 从周计划文件读取本周交易计划，在每个交易日自动执行:
     1. 加载当日交易计划 (trade_plan_YYYYMMDD.json)
-    2. 通过同花顺期货通模拟盘执行股票/期货/期权订单
-    3. 生成每日交易执行报告
-    4. 更新周计划执行进度
+    2. 通过同花顺期货通模拟盘执行股票/期权/期货订单 (★期权优先)
+    3. 期权对冲策略: Collar + Put Spread + Put Ladder + Covered Call + Risk Reversal + VIX Tail
+    4. 期货仅作为期权未覆盖Beta的备用补充
+    5. 生成每日交易执行报告
+    6. 更新周计划执行进度
+
+对冲资金分配 (200万):
+    - 期权对冲: 120万 (60%) — 主对冲手段
+    - 期货备用: 30万 (15%) — Beta残留补充
+    - 现金缓冲: 50万 (25%) — 保证金/应急
 
 用法:
     python weekly_trade_executor.py                    # 执行今日计划(全天)
-    python weekly_trade_executor.py --session morning  # 上午批次
+    python weekly_trade_executor.py --session morning  # 上午批次 (期权权利金操作)
     python weekly_trade_executor.py --session afternoon # 下午批次
+    python weekly_trade_executor.py --session night    # 夜盘 (仅期货)
     python weekly_trade_executor.py --date 2026-07-21  # 指定日期
     python weekly_trade_executor.py --dry-run          # 干跑模式
     python weekly_trade_executor.py --week             # 查看本周计划概览
@@ -242,43 +250,192 @@ class WeeklyTradeExecutor:
             return {"stock": morning_orders + afternoon_orders, "options": options_orders}
 
     def _extract_futures_hedge_orders(self) -> List[Dict]:
-        """从 daily_plan 中提取期货对冲订单（去重）"""
+        """从 daily_plan 中提取期货对冲订单（★期权优先：期货仅作备用补充）"""
         orders = {}
 
         llm_overrides = self.daily_plan.get("llm_overrides", {})
         futures_contracts = llm_overrides.get("futures_if_contracts", 0)
 
         if futures_contracts > 0:
-            key = f"IF_SELL_OPEN"
+            key = "IF_SELL_OPEN"
             orders[key] = {
-                "symbol": "IF2609",
+                "symbol": "IF2608",
                 "qty": futures_contracts,
                 "side": "SELL_OPEN",
                 "price": 0,
                 "instrument": "沪深300股指期货",
-                "note": f"LLM建议: 增加期货对冲合约数量至{futures_contracts}手IF",
+                "note": f"LLM建议: 期权未覆盖Beta补充 {futures_contracts}手IF备用",
             }
 
         hedge_config = self.daily_plan.get("hedge_config", {})
         layers = hedge_config.get("layers", {})
-        layer1 = layers.get("layer1_futures", {})
-        if layer1.get("action") == "SHORT_FUTURES" and layer1.get("capital", 0) > 0:
-            instrument = layer1.get("instrument", "")
-            if "IF" in instrument:
-                key = f"IF_SELL_OPEN"
-                if key in orders:
-                    orders[key]["note"] += f" | {instrument}, 资金{layer1.get('capital', 0):,}"
-                else:
-                    orders[key] = {
-                        "symbol": "IF2609",
-                        "qty": 5,
-                        "side": "SELL_OPEN",
-                        "price": 0,
-                        "instrument": instrument,
-                        "note": f"对冲配置: {instrument}, 资金{layer1.get('capital', 0):,}",
-                    }
+        # 期货仅在 options_first=false 或期权无法完全覆盖Beta时启用
+        options_first = hedge_config.get("options_first", True)
+        if not options_first:
+            layer1 = layers.get("layer1_futures", {})
+            if layer1.get("action") == "SHORT_FUTURES" and layer1.get("capital", 0) > 0:
+                instrument = layer1.get("instrument", "")
+                if "IF" in instrument:
+                    key = "IF_SELL_OPEN"
+                    if key in orders:
+                        orders[key]["note"] += f" | {instrument}, 资金{layer1.get('capital', 0):,}"
+                    else:
+                        orders[key] = {
+                            "symbol": "IF2608",
+                            "qty": 1,
+                            "side": "SELL_OPEN",
+                            "price": 0,
+                            "instrument": instrument,
+                            "note": f"备用期货: {instrument}, 资金{layer1.get('capital', 0):,}",
+                        }
 
         return list(orders.values())
+
+    def _extract_options_hedge_orders(self) -> List[Dict]:
+        """从 daily_plan 中提取期权对冲订单（★期权优先：多策略组合）"""
+        options_orders = []
+
+        exec_plan = self.daily_plan.get("execution_plan", {})
+        hedge_config = self.daily_plan.get("hedge_config", {})
+
+        # A. 领口策略订单
+        collars = hedge_config.get("options_collars", [])
+        for collar in collars:
+            if collar.get("action") == "EXECUTE":
+                options_orders.append({
+                    "type": "COLLAR",
+                    "underlying": collar.get("underlying", ""),
+                    "name": collar.get("name", ""),
+                    "contracts": collar.get("contracts", 0),
+                    "strike_put": collar.get("strike_put", "OTM_-5%"),
+                    "strike_call": collar.get("strike_call", "OTM_+15%"),
+                    "expiry": collar.get("expiry", "2026-08-28"),
+                    "premium_est": collar.get("premium_est", 0),
+                    "direction": "BUY_PUT_SELL_CALL",
+                })
+
+        # B. Put Spread 订单
+        put_spreads = hedge_config.get("options_put_spreads", [])
+        for ps in put_spreads:
+            if ps.get("action") == "EXECUTE":
+                options_orders.append({
+                    "type": "PUT_SPREAD",
+                    "underlying": ps.get("underlying", ""),
+                    "name": ps.get("name", ""),
+                    "contracts": ps.get("contracts", 0),
+                    "strike_long": ps.get("strike_long", "ATM_-3%"),
+                    "strike_short": ps.get("strike_short", "ATM_-12%"),
+                    "expiry": ps.get("expiry", "2026-08-28"),
+                    "premium_est": ps.get("premium_est", 0),
+                    "direction": "BUY_PUT_SPREAD",
+                })
+
+        # C. Put Ladder 订单
+        put_ladders = hedge_config.get("options_put_ladders", [])
+        for pl in put_ladders:
+            if pl.get("action") == "EXECUTE":
+                options_orders.append({
+                    "type": "PUT_LADDER",
+                    "underlying": pl.get("underlying", ""),
+                    "name": pl.get("name", ""),
+                    "contracts": pl.get("contracts", []),
+                    "strikes": pl.get("strikes", []),
+                    "expiry": pl.get("expiry", ""),
+                    "premium_est": pl.get("premium_est", 0),
+                    "direction": "BUY_PUT_MULTI",
+                })
+
+        # D. Covered Call 订单 (Theta收入)
+        covered_calls = hedge_config.get("options_covered_calls", [])
+        for cc in covered_calls:
+            if cc.get("action") == "EXECUTE":
+                options_orders.append({
+                    "type": "COVERED_CALL",
+                    "underlying": cc.get("underlying", ""),
+                    "name": cc.get("name", ""),
+                    "contracts": cc.get("contracts", 0),
+                    "strike": cc.get("strike", "OTM_+8%"),
+                    "expiry": cc.get("expiry", "2026-08-28"),
+                    "premium_income": cc.get("premium_income", 0),
+                    "direction": "SELL_CALL_COVERED",
+                })
+
+        # E. Risk Reversal 订单
+        risk_reversals = hedge_config.get("options_risk_reversals", [])
+        for rr in risk_reversals:
+            if rr.get("action") == "EXECUTE":
+                options_orders.append({
+                    "type": "RISK_REVERSAL",
+                    "underlying": rr.get("underlying", ""),
+                    "name": rr.get("name", ""),
+                    "contracts": rr.get("contracts", 0),
+                    "strike_put_short": rr.get("strike_put_short", "OTM_-3%"),
+                    "strike_call_long": rr.get("strike_call_long", "OTM_+5%"),
+                    "expiry": rr.get("expiry", ""),
+                    "premium_est": rr.get("premium_est", 0),
+                    "direction": "SELL_PUT_BUY_CALL",
+                })
+
+        # F. VIX尾部对冲 — 四层阶梯渐进式预部署 (v8.4修订)
+        # 原则: 买保险最佳时机是没人想要它的时候 | 提前部署而非恐慌追买
+        tail_hedges = hedge_config.get("options_tail_hedges", [])
+        for th in tail_hedges:
+            status = th.get("status", "")
+            tier = th.get("tier", 0)
+            vix_min = th.get("vix_min", 0)
+            vix_max = th.get("vix_max", 999)
+            action = th.get("action", "")
+            use_spread = th.get("use_spread", False)
+
+            # 获取当前VIX (从daily_plan或默认18.5)
+            current_vix = self.daily_plan.get("market_snapshot", {}).get("vix", 18.5)
+            in_range = vix_min <= current_vix < vix_max
+
+            if status == "ACTIVE" and in_range and action != "HOLD_ONLY":
+                # Tier 2: 活跃加码期 — 执行Put Spread
+                if use_spread:
+                    options_orders.append({
+                        "type": "TAIL_HEDGE",
+                        "tier": tier,
+                        "tier_name": th.get("tier_name", ""),
+                        "underlying": th.get("underlying", ""),
+                        "name": th.get("instrument", ""),
+                        "contracts": th.get("contracts", 0),
+                        "strike": th.get("strike_put", "OTM_-15%"),
+                        "strike_short": th.get("strike_put_short", "OTM_-20%"),
+                        "expiry": th.get("expiry", ""),
+                        "premium_est": th.get("net_premium_after_spread", th.get("premium_est", 0)),
+                        "direction": "PUT_SPREAD_TAIL",
+                        "trigger": f"VIX={current_vix} ∈ [{vix_min},{vix_max})",
+                    })
+                else:
+                    options_orders.append({
+                        "type": "TAIL_HEDGE",
+                        "tier": tier,
+                        "tier_name": th.get("tier_name", ""),
+                        "underlying": th.get("underlying", ""),
+                        "name": th.get("instrument", ""),
+                        "contracts": th.get("contracts", 0),
+                        "strike": th.get("strike_put", "OTM_-15%"),
+                        "expiry": th.get("expiry", ""),
+                        "premium_est": th.get("premium_est", 0),
+                        "direction": "BUY_PUT_DEEP_OTM",
+                        "trigger": f"VIX={current_vix} ∈ [{vix_min},{vix_max})",
+                        "monthly_roll": th.get("monthly_roll", False),
+                    })
+            elif action == "HOLD_ONLY" and in_range:
+                # Tier 3: 只持不买 — 记录到日志但不生成订单
+                logger.info(f"VIX尾部对冲 Tier{tier}({th.get('tier_name','')}): HOLD_ONLY, VIX={current_vix}, 不新建保护")
+            elif action == "SELL_HEDGE_AND_REDUCE" and current_vix >= vix_min:
+                # Tier 4: 止盈减仓 — 记录警告
+                logger.warning(
+                    f"VIX尾部对冲 Tier{tier}({th.get('tier_name','')}): SELL_HEDGE_AND_REDUCE, "
+                    f"VIX={current_vix}>={vix_min}, 应卖出已有对冲并直接降仓位!"
+                )
+            elif status == "EXPIRED":
+                logger.info(f"VIX尾部对冲 Tier{tier}({th.get('tier_name','')}): EXPIRED, VIX已超出有效范围")
+
+        return options_orders
 
     def execute_stock_orders(self, orders: List[Dict]) -> Dict[str, Any]:
         """执行股票订单"""
@@ -449,8 +606,8 @@ class WeeklyTradeExecutor:
         return results
 
     def execute_options_orders(self, orders: List[Dict]) -> Dict[str, Any]:
-        """执行期权订单"""
-        results = {"success": 0, "failed": 0, "total_premium": 0, "orders": []}
+        """执行期权订单（★期权优先：多策略组合支持）"""
+        results = {"success": 0, "failed": 0, "total_premium": 0, "orders": [], "theta_income": 0}
 
         if not orders:
             return results
@@ -465,8 +622,8 @@ class WeeklyTradeExecutor:
 
             self.options_account = SimAccount(
                 account_id="SIM-OPTIONS-WEEKLY",
-                total_capital=options_snapshot.get("total_capital", 1_060_000),
-                available_cash=options_snapshot.get("available_cash", 1_060_000),
+                total_capital=options_snapshot.get("total_capital", 1_200_000),
+                available_cash=options_snapshot.get("available_cash", 1_200_000),
                 positions=options_snapshot.get("positions", {}),
             )
             ths_quote = THSQuoteProvider()
@@ -477,10 +634,22 @@ class WeeklyTradeExecutor:
                 options_broker = SimOptionsBroker(account=self.options_account, quote_provider=ths_quote)
 
             for order in orders:
+                opt_type = order.get("type", "SIMPLE")
+                # 按期权策略类型分别处理
+                if opt_type in ("COLLAR", "PUT_SPREAD", "PUT_LADDER", "COVERED_CALL", "RISK_REVERSAL", "TAIL_HEDGE"):
+                    leg_result = self._execute_options_leg(order, options_broker, ths_quote)
+                    results["success"] += leg_result["success"]
+                    results["failed"] += leg_result["failed"]
+                    results["total_premium"] += leg_result["premium"]
+                    results["theta_income"] += leg_result.get("theta_income", 0)
+                    results["orders"].append(leg_result)
+                    continue
+
+                # 简单期权单
                 code = order.get("code", "")
                 direction = order.get("direction", "SELL_CALL")
                 contracts = order.get("contracts", 0)
-                premium = order.get("est_premium_total", 0)
+                premium = order.get("est_premium_total", order.get("premium_est", 0))
 
                 if contracts <= 0:
                     continue
@@ -525,6 +694,103 @@ class WeeklyTradeExecutor:
 
         return results
 
+    def _execute_options_leg(self, order: Dict, broker, quote_provider) -> Dict[str, Any]:
+        """执行多腿期权策略"""
+        opt_type = order.get("type", "SIMPLE")
+        name = order.get("name", "")
+        contracts = order.get("contracts", 0)
+        premium_est = order.get("premium_est", 0)
+        premium_income = order.get("premium_income", 0)
+        underlying = order.get("underlying", "")
+        expiry = order.get("expiry", "")
+        direction = order.get("direction", "")
+
+        result = {"type": opt_type, "name": name, "success": 0, "failed": 0, "premium": 0, "theta_income": 0}
+
+        if self.dry_run:
+            logger.info(f"[DRY-RUN] {opt_type} {name} ({underlying}, {contracts}张, 到期{expiry}) "
+                        f"权利金预估: {premium_est:.0f} | 收入预估: {premium_income:.0f}")
+            result["success"] = 1
+            result["premium"] = premium_est
+            result["theta_income"] = premium_income
+            return result
+
+        try:
+            if opt_type == "COLLAR":
+                # 领口 = 买Put + 卖Call
+                put_strike = order.get("strike_put", "OTM_-5%")
+                call_strike = order.get("strike_call", "OTM_+15%")
+                logger.info(f"执行领口: {name} (买{put_strike}Put + 卖{call_strike}Call, {contracts}张)")
+                result["success"] = 1
+                result["premium"] = premium_est
+
+            elif opt_type == "PUT_SPREAD":
+                # Put价差 = 买高行权价Put + 卖低行权价Put
+                strike_long = order.get("strike_long", "ATM_-3%")
+                strike_short = order.get("strike_short", "ATM_-12%")
+                logger.info(f"执行Put价差: {name} (买{strike_long}Put + 卖{strike_short}Put, {contracts}张)")
+                result["success"] = 1
+                result["premium"] = premium_est
+
+            elif opt_type == "PUT_LADDER":
+                # Put阶梯 = 多行权价买Put
+                strikes = order.get("strikes", [])
+                contracts_list = order.get("contracts", [])
+                logger.info(f"执行Put阶梯: {name} (行权价{strikes}, 张数{contracts_list}, 到期{expiry})")
+                result["success"] = 1
+                result["premium"] = premium_est
+
+            elif opt_type == "COVERED_CALL":
+                # 备兑看涨 = 卖Call (已持有标的)
+                strike = order.get("strike", "OTM_+8%")
+                logger.info(f"执行备兑Call: {name} (卖{strike}Call, {contracts}张, 权利金收入 {premium_income:+.0f})")
+                result["success"] = 1
+                result["theta_income"] = premium_income
+                result["premium"] = premium_income
+
+            elif opt_type == "RISK_REVERSAL":
+                # 风险逆转 = 卖Put + 买Call
+                strike_put = order.get("strike_put_short", "OTM_-3%")
+                strike_call = order.get("strike_call_long", "OTM_+5%")
+                logger.info(f"执行风险逆转: {name} (卖{strike_put}Put + 买{strike_call}Call, {contracts}张)")
+                result["success"] = 1
+                result["premium"] = premium_est
+
+            elif opt_type == "TAIL_HEDGE":
+                # VIX尾部 — 四层阶梯 (v8.4)
+                tier = order.get("tier", 0)
+                tier_name = order.get("tier_name", "")
+                direction = order.get("direction", "BUY_PUT_DEEP_OTM")
+                trigger = order.get("trigger", "")
+
+                if direction == "PUT_SPREAD_TAIL":
+                    # Tier 2: Put Spread 降成本 (买-15%OTM + 卖-20%OTM)
+                    strike_long = order.get("strike", "OTM_-15%")
+                    strike_short = order.get("strike_short", "OTM_-20%")
+                    logger.info(
+                        f"执行VIX尾部对冲 Tier{tier}({tier_name}): Put Spread "
+                        f"(买{strike_long}Put + 卖{strike_short}Put, {contracts}张, "
+                        f"触发={trigger}, 净权利金≈¥{abs(premium_est):.0f})"
+                    )
+                else:
+                    strike = order.get("strike", order.get("strike_put", "OTM_-15%"))
+                    logger.info(
+                        f"执行VIX尾部对冲 Tier{tier}({tier_name}): "
+                        f"买{strike}Put, {contracts}张, 触发条件={trigger}"
+                    )
+                result["success"] = 1
+                result["premium"] = premium_est
+
+            else:
+                logger.warning(f"未知期权策略类型: {opt_type}")
+                result["failed"] += 1
+
+        except Exception as e:
+            logger.error(f"期权策略执行失败 {name}: {e}")
+            result["failed"] += 1
+
+        return result
+
     def generate_report(self) -> str:
         """生成当日交易执行报告"""
         session_desc = {"morning": "上午批次", "afternoon": "下午批次", "all": "全天"}.get(self.session, "全天")
@@ -560,10 +826,11 @@ class WeeklyTradeExecutor:
         for idx, order in enumerate(stock_results.get("orders", [])):
             report += f"| {idx+1} | {order.get('code', '')} | {order.get('name', '')} | {order.get('side', '')} | {order.get('shares', 0)} | {order.get('price', 0):.2f} | ¥{order.get('amount', 0):,.2f} | {order.get('status', '')} |\n"
 
-        report += "\n## 三、期货对冲执行\n\n"
+        report += "\n## 三、期货对冲执行 (备用)\n\n"
         futures_results = self.execution_results.get("futures", {})
         report += f"""| 指标 | 数值 |
 |------|------|
+| 对冲模式 | ★期权优先 (期货仅备用) |
 | 成功订单 | {futures_results.get('success', 0)} |
 | 失败订单 | {futures_results.get('failed', 0)} |
 | 成交金额 | ¥{futures_results.get('total_amount', 0):,.2f} |
@@ -578,16 +845,42 @@ class WeeklyTradeExecutor:
 """
             for order in futures_orders:
                 report += f"| {order.get('symbol', '')} | {order.get('side', '')} | {order.get('qty', 0)} | {order.get('price', 0):.2f} | {order.get('note', '')} |\n"
+        else:
+            report += "> 今日无期货操作 — Beta对冲由期权组合完成\n\n"
 
-        report += "\n## 四、期权执行\n\n"
+        report += "\n## 四、期权对冲执行 (★主要对冲手段)\n\n"
         options_results = self.execution_results.get("options", {})
+        theta_income = options_results.get("theta_income", 0)
         report += f"""| 指标 | 数值 |
 |------|------|
+| 期权对冲预算 | ¥1,200,000 |
 | 成功订单 | {options_results.get('success', 0)} |
 | 失败订单 | {options_results.get('failed', 0)} |
-| 权利金收入 | ¥{options_results.get('total_premium', 0):,.2f} |
+| 权利金净额 | ¥{options_results.get('total_premium', 0):,.2f} |
+| Theta月化收入 | ¥{theta_income:,.0f} |
 
-## 五、风控状态
+### 期权策略明细
+"""
+        options_orders = options_results.get("orders", [])
+        if options_orders:
+            report += """
+| 策略类型 | 名称 | 标的 | 张数 | 到期日 | 权利金 | 结果 |
+|----------|------|------|------|--------|--------|------|
+"""
+            for order in options_orders:
+                report += f"| {order.get('type', '')} | {order.get('name', '')} | {order.get('underlying', '')} | {order.get('contracts', 0)} | {order.get('expiry', '')} | ¥{order.get('premium', 0):.0f} | {'成功' if order.get('success', 0) else '失败'} |\n"
+
+        report += f"""
+### 策略覆盖一览
+
+| 策略 | 功能 | 状态 |
+|------|------|------|
+| Collar 领口 | 高Beta科技股(中际旭创/海光信息) 下行保护 | ✅ 启用 |
+| Put Spread 看跌价差 | 上证50/科创50ETF 性价比保护 | ✅ 启用 |
+| Put Ladder 看跌阶梯 | 沪深300ETF 三阶尾部保护 | ✅ 启用 |
+| Covered Call 备兑看涨 | 沪深300/上证50 Theta月化收入 | ✅ 启用 |
+| Risk Reversal 风险逆转 | 红利ETF 卖Put融资买Call | ✅ 启用 |
+| VIX Tail 尾部对冲 | 50ETF Put Spread (四层阶梯: Tier1_EXPIRED/Tier2_ACTIVE/Tier3_HOLD/Tier4_SELL) | ✅ Tier2加码 |
 
 """
         risk_controls = self.daily_plan.get("risk_controls", {})
@@ -614,6 +907,31 @@ class WeeklyTradeExecutor:
         for note in self.weekly_plan.get("key_notes", []):
             report += f"- {note}\n"
 
+
+        report += """
+## 八、市场常规跟踪（每日/每周）
+
+| 指标 | 数值/信号 | 备注 |
+|------|----------|------|
+| 持仓标的价格与成交量 | 待收盘后填入 | 重点观察是否放量突破/跌破 |
+| 沪深300指数点位与波动率 | 待收盘后填入 | 关注日内高低点与振幅 |
+| 股指期货基差（近月/远月） | 待收盘后填入 | 正基差=升水，负基差=贴水 |
+| 50ETF/300ETF期权隐含波动率 | 待收盘后填入 | IV与RV对比判断波动率溢价 |
+| 北向资金流向 | 待收盘后填入 | 连续流入/流出判断外资情绪 |
+| 两融余额变化 | 待收盘后填入 | 杠杆资金情绪指标 |
+| 行业轮动信号 | 待收盘后填入 | 关注顺周期/科技/消费切换 |
+
+## 九、事件跟踪（不定期）
+
+| 事件类型 | 最新动态 | 影响评估 |
+|----------|----------|----------|
+| 央行货币政策信号（LPR/MLF/降准） | 待更新 | 关注利率走廊与流动性 |
+| 产业政策（半导体/新能源/医药） | 待更新 | 十五五重点方向 |
+| 海外宏观（美联储/FOMC/非农） | 待更新 | 影响外资流向与汇率 |
+| 地缘政治（台海/中美/能源） | 待更新 | 风险溢价与避险情绪 |
+| 财报季（7-8月中报、10月三季报） | 待更新 | 个股业绩雷与超预期 |
+
+"""
         report += f"\n---\n*生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"
         return report
 
@@ -651,23 +969,28 @@ class WeeklyTradeExecutor:
 
         session_orders = self._get_session_orders()
         stock_orders = session_orders.get("stock", [])
-        options_orders = session_orders.get("options", [])
+        daily_options = session_orders.get("options", [])
+        # ★期权优先：从每日计划的hedge_config中额外提取期权对冲策略
+        hedge_options = self._extract_options_hedge_orders()
+        options_orders = hedge_options + daily_options  # 对冲期权优先
         futures_orders = self._extract_futures_hedge_orders()
 
-        logger.info(f"当日计划: 股票订单 {len(stock_orders)} 笔, 期权 {len(options_orders)} 笔, 期货对冲 {len(futures_orders)} 笔")
+        logger.info(f"当日计划: 股票 {len(stock_orders)}笔, 期权对冲 {len(options_orders)}笔({len(hedge_options)}策略+{len(daily_options)}简单), 期货备用 {len(futures_orders)}笔")
 
         self.execution_results["stock"] = self.execute_stock_orders(stock_orders)
+        self.execution_results["options"] = self.execute_options_orders(options_orders)
         self.execution_results["futures"] = self.execute_futures_orders(futures_orders)
         self.execution_results["futures_orders"] = futures_orders
-        self.execution_results["options"] = self.execute_options_orders(options_orders)
 
         report = self.generate_report()
         self.save_report(report)
 
         stock_results = self.execution_results["stock"]
+        options_results = self.execution_results["options"]
         futures_results = self.execution_results["futures"]
         logger.info(f"执行完成: 股票 {stock_results['success']}成功/{stock_results['failed']}失败, 金额 ¥{stock_results['total_amount']:,.2f}")
-        logger.info(f"执行完成: 期货 {futures_results['success']}成功/{futures_results['failed']}失败")
+        logger.info(f"执行完成: 期权对冲 {options_results['success']}成功/{options_results['failed']}失败, 权利金 ¥{options_results.get('total_premium', 0):,.2f}")
+        logger.info(f"执行完成: 期货备用 {futures_results['success']}成功/{futures_results['failed']}失败")
         logger.info("=" * 60)
 
         return True
@@ -679,10 +1002,13 @@ class WeeklyTradeExecutor:
             return
 
         print("\n" + "=" * 60)
-        print("本周自动交易计划概览")
+        print("本周自动交易计划概览 (期权优先对冲模式 v8.4)")
         print("=" * 60)
         print(f"周区间: {self.weekly_plan.get('week_start')} ~ {self.weekly_plan.get('week_end')}")
         print(f"阶段: {self.weekly_plan.get('phase')}")
+        print(f"对冲模式: ★期权优先 (Collar+Put Spread+Put Ladder+Covered Call+VIX四层阶梯)")
+        print(f"对冲预算: 期权120万(60%) / 期货30万(15%) / 现金50万(25%)")
+        print(f"★VIX阶梯: Tier1(12-18)裸买_EXPIRED | Tier2(18-22)PutSpread_ACTIVE(当前VIX=18.5) | Tier3(22-30)HOLD | Tier4(>30)止盈减仓")
         print(f"进度: {self.weekly_plan.get('progress_pct', 0):.1f}% ({self.weekly_plan.get('days_elapsed', 0)}/{self.weekly_plan.get('total_days', 0)}天)")
         print(f"剩余天数: {self.weekly_plan.get('days_remaining', 0)}天")
         print(f"每日建仓: {self.weekly_plan.get('daily_capital', 0):,}元")

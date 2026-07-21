@@ -153,6 +153,15 @@ class THSRealBroker:
     def is_connected(self) -> bool:
         return self._connected
 
+    def _get_futures_price(self, symbol: str, fallback_price: float = 3000.0) -> float:
+        if self.quote_provider:
+            quote = self.quote_provider.get_futures_quote(symbol)
+            if quote and 'close' in quote:
+                return quote['close']
+            if quote and 'last_price' in quote:
+                return quote['last_price']
+        return fallback_price
+
     def _get_screen_pos(self, rel_x: float, rel_y: float):
         try:
             import pyautogui
@@ -175,14 +184,26 @@ class THSRealBroker:
             logger.error(f"点击失败: {e}")
             return False
 
+    def _switch_to_futures_tab(self) -> bool:
+        if not self._connected:
+            return False
+
+        self._save_screenshot("before_switch_futures")
+        if self._click_screen(0.145, 0.683, "期货下单标签"):
+            time.sleep(1)
+            self._save_screenshot("after_switch_futures")
+            logger.info("已尝试切换到期货下单面板")
+            return True
+        return False
+
     def _switch_to_options_tab(self) -> bool:
         if not self._connected:
             return False
 
-        self._save_screenshot("before_switch")
+        self._save_screenshot("before_switch_options")
         if self._click_screen(0.288, 0.683, "期权下单标签"):
             time.sleep(1)
-            self._save_screenshot("after_switch")
+            self._save_screenshot("after_switch_options")
             logger.info("已尝试切换到期权下单面板")
             return True
         return False
@@ -193,8 +214,12 @@ class THSRealBroker:
 
         logger.info(f"真实下单: {symbol}, {qty}手, {price}元, {side}")
 
-        if not self._switch_to_options_tab():
-            return {"order_id": "", "status": "REJECTED", "reason": "无法切换到期权面板"}
+        if len(symbol) >= 2 and symbol[:2] in ["IF", "IC", "IM", "IH", "T", "TF", "TS", "CU", "AL", "ZN", "NI", "PB", "SN", "AU", "AG", "SC", "RB", "I", "J", "JM", "ZC", "A", "B", "M", "Y", "P", "C", "CS", "JD", "CF", "TA", "MA", "FG", "SA", "SP", "UR", "V", "PP", "L", "EB", "PG", "SS", "NR", "RR", "RS", "OI", "RM", "AP", "CJ", "SF", "SM"]:
+            if not self._switch_to_futures_tab():
+                return {"order_id": "", "status": "REJECTED", "reason": "无法切换到期货面板"}
+        else:
+            if not self._switch_to_options_tab():
+                return {"order_id": "", "status": "REJECTED", "reason": "无法切换到期权面板"}
 
         self._save_screenshot("before_fill")
 

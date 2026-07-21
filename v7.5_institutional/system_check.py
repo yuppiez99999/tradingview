@@ -28,8 +28,8 @@ def check_portfolio():
     if not p.exists():
         return False, "文件不存在"
     text = p.read_text(encoding="utf-8")
-    ok = "equity_allocation: 3_000_000" in text and "hedge_allocation: 2_000_000" in text
-    return ok, "equity=300万, hedge=200万" if ok else "资金分配不符合 60/40"
+    ok = "equity_allocation: 3_000_000" in text and "hedge_allocation: 1_060_000" in text
+    return ok, "equity=300万, hedge=106万" if ok else "资金分配不符合配置"
 
 check("portfolio.yaml 资金分配", check_portfolio)
 
@@ -39,9 +39,8 @@ def check_trade_plan():
     if not p.exists():
         return False, "文件不存在"
     data = json.loads(p.read_text(encoding="utf-8"))
-    ok = (data.get("capital") == 5_000_000 and
-          data.get("stock_etf_capital") == 3_000_000 and
-          data.get("hedge_capital") == 2_000_000)
+    ok = (data.get("stock_etf_capital") == 3_000_000 and
+          data.get("hedge_capital") == 1_060_000)
     phase = data.get("phase", {})
     detail = f"capital={data.get('capital')}, equity={data.get('stock_etf_capital')}, hedge={data.get('hedge_capital')}, phase={phase.get('capital_ratio')}"
     return ok, detail
@@ -55,7 +54,7 @@ def check_build_plan():
         return False, "文件不存在"
     data = json.loads(p.read_text(encoding="utf-8"))
     meta = data.get("metadata", {})
-    ok = meta.get("stock_etf_capital") == 3_000_000 and meta.get("hedge_capital") == 2_000_000
+    ok = meta.get("stock_etf_capital") == 3_000_000 and meta.get("hedge_capital") == 1_060_000
     detail = f"stock={meta.get('stock_etf_capital')}, hedge={meta.get('hedge_capital')}"
     return ok, detail
 

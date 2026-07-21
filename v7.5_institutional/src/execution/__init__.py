@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
-"""v7.5 执行子包"""
+"""v7.6 执行子包 — TCA/IS/SOR/AE"""
 from .smart_order_router import SmartOrderRouter
 from .algo_engine import AlgoEngine
 from .broker_api import BrokerAPI, SimulatedBroker
 from .ntp_sync import NTPSync
+from .tca import TransactionCostAnalyzer, TCAReportLine, TradeRecord
+from .implementation_shortfall import ImplementationShortfall, ISDecomposition, ISOptimizationSuggestion
 
-__all__ = ["SmartOrderRouter", "AlgoEngine", "BrokerAPI", "SimulatedBroker", "NTPSync"]
+__all__ = [
+    "SmartOrderRouter", "AlgoEngine", "BrokerAPI", "SimulatedBroker", "NTPSync",
+    "TransactionCostAnalyzer", "TCAReportLine", "TradeRecord",
+    "ImplementationShortfall", "ISDecomposition", "ISOptimizationSuggestion",
+]

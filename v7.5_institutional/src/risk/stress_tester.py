@@ -28,8 +28,36 @@ class StressScenario:
 class StressTester:
     """v7.5 压力测试引擎"""
 
-    # 预定义三段强制场景
+    # 预定义八段强制场景 — 覆盖全球+中国历史极端行情
     BUILTIN_SCENARIOS = [
+        StressScenario(
+            name="GFC_2008",
+            start="2008-09-15", end="2009-03-09",
+            market_shock=-0.55, vol_multiplier=5.0,
+            liquidity_haircut=0.7, correlation_converge=0.98,
+            description="全球金融危机, S&P -56%, 上证 -72%, 雷曼破产+信贷冻结"
+        ),
+        StressScenario(
+            name="CHINA_2015_CRASH",
+            start="2015-06-12", end="2015-08-26",
+            market_shock=-0.45, vol_multiplier=4.5,
+            liquidity_haircut=0.8, correlation_converge=0.95,
+            description="A股股灾, 上证 -43%, 千股跌停+熔断机制失灵"
+        ),
+        StressScenario(
+            name="CHINA_2016_CIRCUIT",
+            start="2016-01-04", end="2016-01-28",
+            market_shock=-0.25, vol_multiplier=3.5,
+            liquidity_haircut=0.9, correlation_converge=0.92,
+            description="熔断机制, 4天2次熔断, 流动性枯竭"
+        ),
+        StressScenario(
+            name="TRADE_WAR_2018",
+            start="2018-03-22", end="2018-10-29",
+            market_shock=-0.25, vol_multiplier=2.5,
+            liquidity_haircut=0.3, correlation_converge=0.7,
+            description="中美贸易战, 上证 -25%, 科技股重创, 关税冲击"
+        ),
         StressScenario(
             name="COVID_CRASH",
             start="2020-02-19", end="2020-03-23",
@@ -43,6 +71,13 @@ class StressTester:
             market_shock=-0.25, vol_multiplier=4.0,
             liquidity_haircut=0.3, correlation_converge=0.85,
             description="LUNA崩盘, 加密传染"
+        ),
+        StressScenario(
+            name="BOND_MASSACRE_2022",
+            start="2022-01-01", end="2022-10-24",
+            market_shock=-0.20, vol_multiplier=2.8,
+            liquidity_haircut=0.2, correlation_converge=0.8,
+            description="全球债券大屠杀, 美债-17%, 英债闪崩, 股债双杀"
         ),
         StressScenario(
             name="YEN_CARRY_UNWIND",

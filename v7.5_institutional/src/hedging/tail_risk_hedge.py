@@ -113,7 +113,7 @@ class TailRiskHedger:
         """
         # 综合评分 (简化版, 加权 dd + vix)
         dd_score = min(1.0, hwm_drawdown * 3)              # dd 33% 满分
-        vix_score = min(1.0, max(0.0, (vix - 20) / 60))   # vix 80 满分
+        vix_score = min(1.0, max(0.0, (vix - 18) / 62))   # vix 18起评 → 80满分
         vol_score = min(1.0, portfolio_volatility * 5)     # vol 20% 满分
         var_score = min(1.0, var_95 * 10)                  # var 10% 满分
 
@@ -178,11 +178,14 @@ class TailRiskHedger:
         elif vix >= 40 or hwm_drawdown >= 0.10:
             market_state = "orange"
             base = max(base, REGIME_HEDGE_RATIOS["orange"])
-        elif vix >= 25 or hwm_drawdown >= 0.05:
+        elif vix >= 18 or hwm_drawdown >= 0.05:
             market_state = "yellow"
             base = max(base, REGIME_HEDGE_RATIOS["yellow"])
         else:
             market_state = "normal"
+
+        # 保存当前5级市场状态 (供compute_hedge动作判定使用)
+        self._market_state = market_state
 
         # 5. 限制在 [min, max]
         ratio = max(self.config.min_hedge_ratio if regime != MarketRegime.NORMAL else 0.0,
@@ -259,13 +262,13 @@ class TailRiskHedger:
 
         来源: protective_put_manager.py:583-603
             到期前 5 天评估
-            VIX<25 且 emergency_level=0 → 降低对冲比例
+            VIX<18 且 emergency_level=0 → 降低对冲比例
             恶化信号 → 加深 OTM 深度
         """
         if days_to_expiry > 5:
             return {"action": "HOLD", "reason": f"距到期 {days_to_expiry} 天"}
 
-        if current_vix < 25 and emergency_level == 0:
+        if current_vix < 18 and emergency_level == 0:
             return {
                 "action": "REDUCE_HEDGE",
                 "reason": f"VIX={current_vix} 风险缓解, 降低对冲比例",
@@ -330,6 +333,8 @@ class TailRiskHedger:
             action = "BARE_PUT"          # 警告期裸 Put
         elif regime == MarketRegime.RECOVERY:
             action = "PUT_SPREAD"        # 恢复期 Put Spread (省成本)
+        elif getattr(self, '_market_state', 'normal') in ('yellow', 'orange'):
+            action = "PUT_SPREAD"        # ★v7.6: VIX≥18黄区触发 — 轻量建仓期权保护
         else:
             action = "NO_HEDGE"
 
