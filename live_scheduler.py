@@ -28,7 +28,7 @@ v7.5 实时监控并发调度器 (--live 模式)
     - utils.etf_flow_monitor (ETF资金流)
     - utils.wt_hedge_strategy (对冲策略)
     - utils.wt_tick_engine (Tick回测引擎)
-    - v7.5_institutional.src.hedging (对冲协调器)
+    - v8.3_institutional.src.hedging (对冲协调器)
 """
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ from typing import Dict, List, Optional, Callable, Any
 # 路径初始化
 # ============================================================
 BASE_DIR = Path(__file__).resolve().parent
-V75_DIR = BASE_DIR / "v7.5_institutional"
+V75_DIR = BASE_DIR / "v8.3_institutional"
 V75_SRC = V75_DIR / "src"
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
@@ -521,7 +521,7 @@ def _read_lock() -> Optional[Dict]:
         try:
             with open(LOCK_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return None
     return None
 

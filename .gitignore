@@ -140,3 +140,27 @@ portfolio_return_projection.json
 v7.5_institutional/*.png
 v7.5_institutional/*/*.png
 v7.5_institutional/*/*/*.png
+
+# Qlib binary feature/price data lives under qlib_data/ (dir-ignored) and the
+# ms_strategy/ submodule (its own .gitignore); no extra rule needed here.
+
+# Pip download cache
+pip-cache/
+
+# Data caches (regenerable parquet/cache)
+data_cache/
+data_cache/**/*.parquet
+
+# Runtime output directory
+output/
+
+# Monitoring / health reports (runtime generated)
+monitor_reports/
+
+# Root-level debug / stderr-stdout dumps from automation
+_etf_*.log
+_etf_*.txt
+
+# Python compiled / caches (safety net)
+*.pyc
+__pycache__/

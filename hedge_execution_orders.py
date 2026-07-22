@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 from collections import OrderedDict
 
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统7.1')
+sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4')
 
 STYLE_BETA_MAP = {
     "科技": 1.20,
@@ -27,7 +27,7 @@ STYLE_BETA_MAP = {
 }
 
 def load_positions():
-    path = r'e:\各种PY程序\28-终极量化交易系统7.1\config\positions.json'
+    path = r'e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json'
     with open(path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     positions = {}
@@ -112,7 +112,7 @@ def build_orders(plan: dict, positions: dict, prices: dict, hedge_positions: dic
                 continue
             alloc_notional = remaining_notional * weight
             cfg = next((cfg for key, cfg in hedge_positions.items() 
-                       if instrument.split()[0] in cfg.get('instrument', '')), None)
+                       if isinstance(cfg, dict) and instrument.split()[0] in cfg.get('instrument', '')), None)
             premium_budget = cfg.get('premium_budget', alloc_notional * 0.15) if cfg else alloc_notional * 0.15
             contracts = max(1, int(alloc_notional / (est_price * option_multiplier)))
             
@@ -162,6 +162,8 @@ def build_orders(plan: dict, positions: dict, prices: dict, hedge_positions: dic
     commodity_futures = {'CU', 'AL', 'LC', 'AU', 'RB', 'I', 'J', 'JM', '焦煤', '焦炭', '铁矿石', '螺纹', '铜', '铝', '碳酸锂', '黄金'}
     
     for key, cfg in hedge_positions.items():
+        if not isinstance(cfg, dict):
+            continue
         instrument = cfg.get('instrument', key)
         is_option = 'Put' in instrument or 'Call' in instrument or '期权' in instrument
         is_commodity = any(c in instrument.upper() for c in commodity_futures)
@@ -285,7 +287,7 @@ def main():
         today_str = datetime.now().strftime('%Y%m%d')
         today_dash = datetime.now().strftime('%Y-%m-%d')
     
-    reports_dir = r'e:\各种PY程序\28-终极量化交易系统7.1\reports'
+    reports_dir = r'e:\各种PY程序\28-终极量化交易系统8.4\reports'
     plan_path = os.path.join(reports_dir, f'hedge_decision_{today_str}.json')
     plan = {'action': 'HEDGE', 'portfolio_beta': 0.0, 'total_hedge_pct': 0.0}
     
@@ -293,7 +295,7 @@ def main():
         try:
             with open(plan_path, 'r', encoding='utf-8') as f:
                 plan = json.load(f)
-        except:
+        except Exception:
             pass
     else:
         prev_dates = []
@@ -308,7 +310,7 @@ def main():
             try:
                 with open(os.path.join(reports_dir, prev_dates[0]), 'r', encoding='utf-8') as f:
                     plan = json.load(f)
-            except:
+            except Exception:
                 pass
     
     beta_from_positions = calc_portfolio_beta(positions_data)
@@ -361,8 +363,8 @@ def main():
             if 'priority' in o:
                 print(f"    优先级: {o['priority']}")
             print()
-        print(f"合计权利金: ¥{total_premium:,.0f}")
-        print(f"合计名义价值: ¥{total_notional:,.0f}")
+        print(f"合计权利金: RMB {total_premium:,.0f}")
+        print(f"合计名义价值: RMB {total_notional:,.0f}")
     else:
         print('今日无执行单')
     print('=' * 70)

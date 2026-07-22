@@ -457,7 +457,7 @@ def bars_from_csv(csv_path: str, code: str, exchange: str = "SSE",
             date_str = row.get("date", "")
             try:
                 d = int(date_str.replace("-", ""))
-            except:
+            except (ValueError, TypeError):
                 d = 0
             bars.append(BarData(
                 code=code, exchange=exchange, period=period,
