@@ -1,84 +1,77 @@
-# 量化策略系统 v5.10 依赖包列表
+# ============================================================
+# 终极量化交易系统 v8.4 — 统一依赖清单
+# 合并: requirements.txt (v5.10) + requirements_v75.txt (v7.5)
+# 修复: 2026-07-22 (P1-1: 统一版本约束，消除两份方案冲突)
+# ============================================================
 
-# 核心数据处理
-pandas>=1.5.0
+# === 核心数据处理 ===
 numpy>=1.24.0
+pandas>=1.5.0
 scipy>=1.10.0
 
-# 数据获取
+# === 机器学习 ===
+scikit-learn>=1.2.0
+xgboost>=1.5.0
+lightgbm>=3.3.0
+optuna>=3.0.0
+joblib>=1.2.0
+statsmodels>=0.13.0
+
+# === 数据获取 ===
 yfinance>=0.2.0
+akshare>=1.12.0
 requests>=2.28.0
+
+# === 可视化 ===
 matplotlib>=3.6.0
 seaborn>=0.12.0
+plotly>=5.15.0
+dash>=2.11.0
 
-# 机器学习
-scikit-learn>=1.2.0
-joblib>=1.2.0
-
-# 时间处理
+# === 时间处理 ===
 python-dateutil>=2.8.0
 pytz>=2023.3
 
-# 任务调度
-schedule>=1.2.0
-
-# 网络和Web
-flask>=2.3.0  # 可选，用于Web监控界面
-werkzeug>=2.3.0
-
-# 数据处理优化
-numba>=0.57.0
-
-# 可视化（可选）
-plotly>=5.15.0
-dash>=2.11.0  # 可选，用于高级Web界面
-
-# 数据库（可选）
-sqlite3  # Python内置
-sqlalchemy>=2.0.0
-
-# 配置管理
-configparser>=5.3.0
-pyyaml>=6.0
-
-# 日志和监控
-loguru>=0.7.0
-
-# 测试框架
-pytest>=7.3.0
-pytest-cov>=4.1.0
-
-# 开发工具
-black>=23.0.0
-flake8>=6.0.0
-mypy>=1.0.0
-
-# 文档生成
-sphinx>=5.3.0
-sphinx-rtd-theme>=1.2.0
-
-# 性能优化
-memory-profiler>=0.61.0
-
-# 异步支持
-asyncio
-aiohttp>=3.8.0  # 可选，用于异步数据获取
-
-# 加密和安全
-cryptography>=41.0.0
-
-# 其他工具
-click>=8.1.0
-tqdm>=4.65.0
+# === 配置与网络 ===
+PyYAML>=6.0
 python-dotenv>=1.0.0
 
-# ========== GitHub 高价值项目接入 ==========
+# === 任务调度 ===
+schedule>=1.2.0
 
-# A股数据：akshare（免费数据回退链增强）
-akshare>=1.12.0
+# === 网络时间 ===
+ntplib>=0.4.0
 
-# 组合优化：PyPortfolioOpt（风险平价、Black-Litterman、有效前沿）
+# === GUI 自动化（同花顺订单操作）===
+pyautogui>=0.9.53
+pywinauto>=0.6.8
+
+# === 组合优化 ===
 PyPortfolioOpt>=1.5.0
 
-# 业绩分析：quantstats（收益归因、风险指标、报告生成）
+# === 业绩分析 ===
 quantstats>=0.0.59
+
+# === 数据库 ===
+sqlalchemy>=2.0.0
+
+# === 异步 ===
+aiohttp>=3.8.0
+
+# === 加密 ===
+cryptography>=41.0.0
+
+# === 工具 ===
+click>=8.1.0
+tqdm>=4.65.0
+
+# === 性能优化 ===
+numba>=0.57.0
+
+# === 日志 ===
+loguru>=0.7.0
+
+# ============================================================
+# 安装命令:
+#   pip install -r requirements.txt
+# ============================================================

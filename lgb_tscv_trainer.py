@@ -47,7 +47,9 @@ for d in [MODELS_DIR, REPORTS_DIR, LOG_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 # 复用旧训练器的标的清单和特征工程
-sys.path.insert(0, str(BASE_DIR / "v7.5_institutional"))
+_v7_path = BASE_DIR / "v8.3_institutional"
+if _v7_path.exists():
+    sys.path.insert(0, str(_v7_path))
 from autolearn_trainer import (
     POSITION_SYMBOLS,
     load_returns_history,
@@ -100,20 +102,23 @@ def time_series_cv_evaluate(
     y: np.ndarray,
     config: Dict,
     n_splits: int = 5,
+    use_purged: bool = True,
+    embargo_pct: float = 0.01,
 ) -> Dict[str, Any]:
-    """时间序列交叉验证评估
+    """时间序列交叉验证评估 (v8.3.2: Purged KFold 防泄漏)
 
-    使用 TimeSeriesSplit 进行滚动窗口验证:
-    - Fold 1: train [0:n1] -> test [n1:n2]
-    - Fold 2: train [0:n2] -> test [n2:n3]
-    - ...
-    训练集逐步扩大, 测试集始终为后续窗口
+    使用 Purged TimeSeriesSplit 进行滚动窗口验证:
+    - 标准 TSCV 在 train/test 交接处存在标签重叠泄漏
+    - Purged KFold 在分割点前后剔除 embargo 样本, 切断泄漏路径
+    - 参考: De Prado (2018) "Advances in Financial ML" Ch.7
 
     Args:
         X: 特征矩阵
-        y: 目标变量
+        y: 目标变量 (N 日 forward return)
         config: 训练配置
         n_splits: CV 折数
+        use_purged: 是否使用 Purged KFold (默认 True)
+        embargo_pct: embargo 比例 (默认1%, 即剔除约1%的边界样本)
 
     Returns:
         {
@@ -122,21 +127,50 @@ def time_series_cv_evaluate(
             "mean_ic": ..., "std_ic": ...,
             "mean_sharpe": ..., "std_sharpe": ...,
             "feature_importances": np.ndarray,
+            "purged_kfold_used": bool,
+            "overfitting_diagnosis": Dict,
         }
     """
     from lightgbm import LGBMRegressor
-    from sklearn.model_selection import TimeSeriesSplit
 
-    tscv = TimeSeriesSplit(n_splits=n_splits)
+    n_samples = X.shape[0]
     fold_metrics = []
     all_importances = []
     n_features = X.shape[1]
 
-    for fold_idx, (train_idx, test_idx) in enumerate(tscv.split(X)):
+    # --- 分割器选择 ---
+    if use_purged and n_samples >= 100:
+        from utils.purged_kfold import purged_timeseries_split, overfitting_diagnosis
+        folds = list(purged_timeseries_split(
+            n_samples, n_splits=n_splits, embargo_pct=embargo_pct
+        ))
+        logger.info("使用 Purged KFold (n_splits=%d, embargo_pct=%.2f%%), 共 %d 折",
+                     n_splits, embargo_pct * 100, len(folds))
+    else:
+        from sklearn.model_selection import TimeSeriesSplit
+        tscv = TimeSeriesSplit(n_splits=n_splits)
+        folds = list(tscv.split(X))
+        logger.info("使用标准 TimeSeriesSplit (n_splits=%d), 共 %d 折",
+                     n_splits, len(folds))
+
+    # --- 各折独立验证: 检查 train/test 间隔 ---
+    from utils.purged_kfold import validate_embargo
+
+    embargo_checks = []
+    for fold_idx, (train_idx, test_idx) in enumerate(folds):
+        ok, msg = validate_embargo(train_idx, test_idx, min_gap=1)
+        embargo_checks.append({"fold": fold_idx + 1, "pass": ok, "message": msg})
+        if not ok:
+            logger.warning("Fold %d 间隔不足: %s", fold_idx + 1, msg)
+
+    # --- 训练 ---
+    for fold_idx, (train_idx, test_idx) in enumerate(folds):
         X_train_fold, X_test_fold = X[train_idx], X[test_idx]
         y_train_fold, y_test_fold = y[train_idx], y[test_idx]
 
         if len(X_train_fold) < 50 or len(X_test_fold) < 10:
+            logger.warning("Fold %d 样本量不足 (train=%d, test=%d), 跳过",
+                           fold_idx + 1, len(X_train_fold), len(X_test_fold))
             continue
 
         model = LGBMRegressor(**config["lgb_params"])
@@ -162,6 +196,7 @@ def time_series_cv_evaluate(
             "fold": fold_idx + 1,
             "train_size": len(train_idx),
             "test_size": len(test_idx),
+            "gap_samples": int(test_idx[0] - train_idx[-1]) if len(train_idx) and len(test_idx) else 0,
             "r2": round(r2, 4),
             "ic": round(ic, 4),
             "sharpe": round(sharpe, 4),
@@ -177,6 +212,9 @@ def time_series_cv_evaluate(
             "mean_ic": 0, "std_ic": 0,
             "mean_sharpe": 0, "std_sharpe": 0,
             "feature_importances": np.zeros(n_features),
+            "purged_kfold_used": use_purged,
+            "embargo_checks": embargo_checks,
+            "overfitting_diagnosis": {"overall_pass": None, "summary": "无数据"},
         }
 
     r2s = [f["r2"] for f in fold_metrics]
@@ -185,6 +223,17 @@ def time_series_cv_evaluate(
 
     # 平均特征重要性
     mean_importances = np.mean(all_importances, axis=0)
+
+    # --- 过拟合诊断 (NEW) ---
+    of_diag = {"overall_pass": None, "summary": "无诊断"}
+    if use_purged and len(fold_metrics) >= 2:
+        from utils.purged_kfold import overfitting_diagnosis
+        of_diag = overfitting_diagnosis(fold_metrics)
+        if not of_diag.get("overall_pass", True):
+            logger.warning("[OverfitDiagnosis] %s — %d 项指标异常",
+                           of_diag.get("summary", ""), of_diag.get("total_issues", 0))
+        else:
+            logger.info("[OverfitDiagnosis] PASS — 无过拟合迹象")
 
     return {
         "fold_metrics": fold_metrics,
@@ -195,6 +244,9 @@ def time_series_cv_evaluate(
         "mean_sharpe": round(float(np.mean(sharps)), 4),
         "std_sharpe": round(float(np.std(sharps)), 4),
         "feature_importances": mean_importances,
+        "purged_kfold_used": use_purged,
+        "embargo_checks": embargo_checks,
+        "overfitting_diagnosis": of_diag,
     }
 
 

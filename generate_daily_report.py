@@ -8,7 +8,7 @@
 import sys
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
 import requests as _requests
@@ -169,6 +169,9 @@ class PortfolioAnalyzer:
                 return f'sh{num}'
             if suffix == 'SZ':
                 return f'sz{num}'
+        # 期货/商品前缀: HF_IF2407 -> IF2407 (新浪不支持期货, 返回原样兼容)
+        if code.startswith('HF_'):
+            return code  # 保留原样, sina 无法查询期货行情
         # 无后缀: 6/5/9 开头为上交所, 0/3 开头为深交所
         if code.startswith(('6', '5', '9')):
             return f'sh{code}'
@@ -291,15 +294,6 @@ class PortfolioAnalyzer:
                     print(f"价格异常 {code}: close={close} (超出范围 {min_price}-{max_price}), 跳过")
                     continue
 
-                # 无成本价的特殊处理：如果价格 > 500 且不是 ETF，可能是后复权价/指数点位，使用 fallback
-                if cost_price == 0 and not is_etf and close > 500:
-                    fb = fallback_prices.get(code_num)
-                    if fb:
-                        close = fb.get('close', close)
-                        prev_close = fb.get('prev_close', prev_close)
-                        change_pct = fb.get('change_pct', change_pct)
-                        print(f"价格异常修正 {code}: 使用 fallback 价格 close={close}")
-
                 # 相对成本价比例验证 (防止指数点位冒充股价)
                 # 收盘价一般不会超过成本价的 3 倍或低于 0.3 倍
                 if cost_price > 0:
@@ -311,11 +305,13 @@ class PortfolioAnalyzer:
                 change_pct = market_data.get('change_pct')
                 if change_pct is None and close and prev_close and prev_close > 0:
                     change_pct = (close - prev_close) / prev_close * 100
+                
+                p_source = market_data.get('source', 'unknown')
                 prices[code] = {
                     'close': close,
                     'prev_close': prev_close,
                     'change_pct': change_pct,
-                    'source': market_data.get('source', 'unknown')
+                    'source': p_source
                 }
             except Exception as e:
                 print(f"获取 {code} 价格失败: {e}")
@@ -330,8 +326,11 @@ class PortfolioAnalyzer:
             if sina_prices:
                 print(f"新浪实时行情获取成功: {len(sina_prices)} / {len(missing_codes)} 个标的")
 
-        # 使用预定义的模拟价格作为补充（当Wind MCP不可用时）
-        # 价格基于 2026-07-09 持仓快照实际成交均价; 5个新标的(000680等)使用计划价
+        # 使用预定义的兜底价格（当Wind MCP不可用时的最后防线）
+        # ⚠ 注意: change_pct 为历史快照时的日内涨跌，已过时。
+        #    报告生成时会自动检测 source='fallback' 并将 daily_pnl 标记为 None，
+        #    data_integrity 标记为 'FALLBACK_PRICE'（而非 'REAL'）。
+        #    价格基于 2026-07-09 持仓快照实际成交均价; 5个新标的(000680等)使用计划价
         fallback_prices = {
             '510300': {'close': 4.89, 'prev_close': 4.887, 'change_pct': 0.06, 'source': 'fallback'},
             '510500': {'close': 8.92, 'prev_close': 8.897, 'change_pct': 0.26, 'source': 'fallback'},
@@ -373,7 +372,6 @@ class PortfolioAnalyzer:
             '512760': {'close': 1.30, 'prev_close': 1.30, 'change_pct': 0.0, 'source': 'fallback'},  # 半导体ETF国泰
             '512170': {'close': 0.50, 'prev_close': 0.50, 'change_pct': 0.0, 'source': 'fallback'},  # 医疗ETF华宝
             '300033': {'close': 150.00, 'prev_close': 150.00, 'change_pct': 0.0, 'source': 'fallback'},  # 同花顺
-            '688981': {'close': 50.00, 'prev_close': 50.00, 'change_pct': 0.0, 'source': 'fallback'},  # 中芯国际
             '601899': {'close': 18.00, 'prev_close': 18.00, 'change_pct': 0.0, 'source': 'fallback'},  # 紫金矿业
             '002281': {'close': 35.00, 'prev_close': 35.00, 'change_pct': 0.0, 'source': 'fallback'},  # 光迅科技
             '000901': {'close': 45.00, 'prev_close': 45.00, 'change_pct': 0.0, 'source': 'fallback'},  # 国盾量子
@@ -438,26 +436,64 @@ class PortfolioAnalyzer:
                 # 回退: 用不带后缀的 code 查找 (fallback_prices 的 key 格式)
                 code_num = code.split('.')[0]
                 price_data = self.market_prices.get(code_num, {})
-            close_price = price_data.get('close', cost_price) or cost_price
-            prev_close = price_data.get('prev_close', cost_price) or cost_price
-            change_pct = price_data.get('change_pct', 0)
-            if change_pct is None or change_pct == 0:
-                if close_price and prev_close and prev_close > 0:
+            close_price = price_data.get('close', None)
+            prev_close = price_data.get('prev_close', None)
+            change_pct = price_data.get('change_pct', None)
+            
+            # 判断数据真实性 (source字段为'fallback'或'fallback_corrected'说明非实时数据)
+            data_source_real = (close_price is not None and close_price > 0
+                                and price_data.get('source', 'live') not in ('fallback', 'fallback_corrected'))
+            
+            if data_source_real:
+                # 真实数据：正常计算
+                if change_pct is None and close_price and prev_close and prev_close > 0:
                     change_pct = (close_price - prev_close) / prev_close * 100
+            else:
+                # 非实时行情：区分"有fallback价格"与"完全无数据"
+                fallback_has_price = (close_price is not None and close_price > 0)
+                change_pct = None  # fallback数据不提供日内涨跌
+                if calc_mode == 'plan' or not fallback_has_price:
+                    calc_mode = 'FALLBACK_NO_DATA'
             
             # 计算市值和盈亏
             cost_amount = shares * cost_price
-            market_value = shares * close_price
-            pnl = market_value - cost_amount
-            pnl_pct = (close_price - cost_price) / cost_price if cost_price > 0 else 0
-            
-            # 日内盈亏（基于昨收）
-            daily_pnl = shares * (close_price - prev_close) if close_price and prev_close else 0
-            daily_pnl_pct = change_pct if shares > 0 else 0
+            if data_source_real:
+                market_value = shares * close_price
+                pnl = market_value - cost_amount
+                pnl_pct = (close_price - cost_price) / cost_price if cost_price > 0 else 0
+                daily_pnl = shares * (close_price - prev_close) if close_price and prev_close else 0
+                daily_pnl_pct = change_pct if (shares > 0 and change_pct is not None) else 0
+            elif fallback_has_price:
+                # fallback价格可用：可计算持仓盈亏(基于成本)，但日内涨跌不可用
+                market_value = shares * close_price
+                pnl = market_value - cost_amount
+                pnl_pct = (close_price - cost_price) / cost_price if cost_price > 0 else 0
+                daily_pnl = None
+                daily_pnl_pct = None
+            else:
+                # 完全无行情数据：不计算任何盈亏
+                market_value = 0
+                pnl = 0
+                pnl_pct = 0
+                daily_pnl = None
+                daily_pnl_pct = None
             
             total_cost += cost_amount
             total_market_value += market_value
             total_pnl += pnl
+            
+            # stop_loss: 优先使用持仓显式设置的，否则用标准默认值(-0.15 = -15%)
+            effective_stop_loss = pos.get('stop_loss', None)
+            if effective_stop_loss is None or effective_stop_loss >= 0:
+                effective_stop_loss = -0.15
+            
+            # data_integrity: REAL(真实行情) / FALLBACK_PRICE(有兜底价) / NO_MARKET_DATA(完全无数据)
+            if data_source_real:
+                di = 'REAL'
+            elif fallback_has_price:
+                di = 'FALLBACK_PRICE'
+            else:
+                di = 'NO_MARKET_DATA'
             
             pnl_details.append({
                 'code': code,
@@ -466,21 +502,22 @@ class PortfolioAnalyzer:
                 'risk': pos.get('risk', ''),
                 'shares': shares,
                 'cost_price': round(cost_price, 2),
-                'close_price': round(close_price, 2),
-                'prev_close': round(prev_close, 2),
+                'close_price': round(close_price, 2) if close_price else 0,
+                'prev_close': round(prev_close, 2) if prev_close else 0,
                 'cost_amount': round(cost_amount, 2),
                 'market_value': round(market_value, 2),
                 'pnl': round(pnl, 2),
                 'pnl_pct': round(pnl_pct * 100, 2),
-                'daily_pnl': round(daily_pnl, 2),
-                'daily_pnl_pct': round(daily_pnl_pct, 2),
-                'stop_loss': pos.get('stop_loss', 0),
+                'daily_pnl': round(daily_pnl, 2) if daily_pnl is not None else None,
+                'daily_pnl_pct': round(daily_pnl_pct, 2) if daily_pnl_pct is not None else None,
+                'stop_loss': effective_stop_loss,
                 'calc_mode': calc_mode,
-                'status': self._get_position_status(pnl_pct, pos.get('stop_loss', 0))
+                'status': self._get_position_status(pnl_pct, effective_stop_loss),
+                'data_integrity': di,
             })
         
-        # 按盈亏排序
-        pnl_details.sort(key=lambda x: x['daily_pnl_pct'], reverse=True)
+        # 按盈亏排序（无数据的排在最后）
+        pnl_details.sort(key=lambda x: x['daily_pnl_pct'] if x['daily_pnl_pct'] is not None else -9999, reverse=True)
         
         return {
             'details': pnl_details,
@@ -494,11 +531,13 @@ class PortfolioAnalyzer:
         }
     
     def _get_position_status(self, pnl_pct: float, stop_loss: float) -> str:
-        """判断持仓状态"""
-        # stop_loss=0 表示未设置止损, 不触发止损逻辑
-        if stop_loss < 0 and pnl_pct <= stop_loss:
+        """判断持仓状态 — 止损线由调用方保证为负值（如 -0.15）"""
+        # 防御：止损为正或零表示配置异常，回退到默认 -0.15
+        if stop_loss >= 0:
+            stop_loss = -0.15
+        if pnl_pct <= stop_loss:
             return 'STOP_LOSS_TRIGGERED'
-        elif stop_loss < 0 and pnl_pct <= stop_loss * 0.7:
+        elif pnl_pct <= stop_loss * 0.7:
             return 'WARNING'
         elif pnl_pct >= 0.05:
             return 'PROFIT'
@@ -645,6 +684,8 @@ class PortfolioAnalyzer:
         total_beta_reduction = 0.0
 
         for key, pos in hedge_positions.items():
+            if not isinstance(pos, dict):
+                continue
             instrument = pos.get('instrument', key)
             exchange = pos.get('exchange', '')
             direction = pos.get('direction', '')
@@ -712,10 +753,11 @@ class PortfolioAnalyzer:
         # 组合整体表现
         portfolio_pnl = pnl_data['summary']['total_pnl']
         hedge_pnl = sum(h['hedge_pnl'] for h in hedge_data['details'])
-        net_pnl = portfolio_pnl + hedge_pnl
+        hedge_cost = self.hedge_data.get('total_cost', 0)
+        net_pnl = portfolio_pnl + hedge_pnl - hedge_cost
         
-        # 风险指标计算
-        daily_returns = [d['daily_pnl_pct'] for d in pnl_data['details']]
+        # 风险指标计算（过滤掉无数据的标的）
+        daily_returns = [d['daily_pnl_pct'] for d in pnl_data['details'] if d['daily_pnl_pct'] is not None]
         avg_return = sum(daily_returns) / len(daily_returns) if daily_returns else 0
         volatility = self._calculate_volatility(daily_returns)
         
@@ -744,6 +786,7 @@ class PortfolioAnalyzer:
             'net_performance': {
                 'portfolio_pnl': round(portfolio_pnl, 2),
                 'hedge_pnl': round(hedge_pnl, 2),
+                'hedge_cost': round(hedge_cost, 2),
                 'net_pnl': round(net_pnl, 2),
                 'net_pnl_pct': round((net_pnl / pnl_data['summary']['total_cost']) * 100 if pnl_data['summary']['total_cost'] > 0 else 0, 2)
             },
@@ -809,18 +852,28 @@ class PortfolioAnalyzer:
         """评估当前报告使用的数据源健康状态"""
         details = pnl_data.get('details', [])
         snapshot_count = sum(1 for d in details if d.get('calc_mode') == 'snapshot')
-        fallback_count = sum(1 for d in details if self.market_prices.get(d.get('code', ''), {}).get('source') == 'fallback')
+        fallback_count = sum(1 for d in details if d.get('data_integrity') == 'FALLBACK_PRICE')
+        no_data_count = sum(1 for d in details if d.get('data_integrity') == 'NO_MARKET_DATA')
+        real_count = sum(1 for d in details if d.get('data_integrity') == 'REAL')
         
         total = len(details) if details else 1
         snapshot_ratio = snapshot_count / total if total else 0
         fallback_ratio = fallback_count / total if total else 0
+        no_data_ratio = no_data_count / total if total else 0
+        real_ratio = real_count / total if total else 0
         
-        if fallback_ratio > 0.3:
-            status = 'FALLBACK_HEAVY'
+        if no_data_ratio > 0.5:
+            status = 'NOSIGNAL_MAJORITY'  # 多数标的数据不可用 — 报告不可信
+        elif no_data_ratio > 0:
+            status = 'NOSIGNAL_PARTIAL'  # 部分标的数据缺失
+        elif fallback_ratio > 0.5:
+            status = 'FALLBACK_HEAVY'    # 多数使用fallback价格 — 日内涨跌不可信
+        elif real_ratio == 1.0:
+            status = 'HEALTHY'           # 全部真实数据（含plan模式但数据源为实时行情）
+        elif real_ratio >= 0.8:
+            status = 'HEALTHY'
         elif snapshot_ratio < 0.5:
             status = 'PARTIAL_SNAPSHOT'
-        elif snapshot_ratio >= 0.5 and fallback_ratio == 0:
-            status = 'HEALTHY'
         else:
             status = 'HEALTHY'
         
@@ -828,8 +881,12 @@ class PortfolioAnalyzer:
             'status': status,
             'snapshot_ratio': round(snapshot_ratio, 2),
             'fallback_ratio': round(fallback_ratio, 2),
+            'no_data_ratio': round(no_data_ratio, 2),
+            'real_ratio': round(real_ratio, 2),
             'snapshot_count': snapshot_count,
             'fallback_count': fallback_count,
+            'no_data_count': no_data_count,
+            'real_count': real_count,
             'total_positions': total,
         }
     
@@ -842,9 +899,92 @@ class PortfolioAnalyzer:
         return (variance ** 0.5)
     
     def _calculate_max_drawdown(self, details: List) -> float:
-        """计算最大跌幅"""
-        losses = [d['pnl_pct'] for d in details if d['pnl_pct'] < 0]
-        return round(min(losses) if losses else 0, 2)
+        """计算组合层面真实最大回撤（从历史每日PnL报告构建累计净值曲线）
+        
+        注意：这不是单标的跌幅，而是组合累计净值从峰值到谷底的最大跌幅。
+        加载 v8.3_institutional/reports/ 和历史归档中的 daily_pnl_report_*.json，
+        构建累计净值曲线后计算真实 peak-to-trough 最大回撤。
+        如果历史数据不足（<5天），返回 None 并标注"N/A"。
+        """
+        from pathlib import Path as _Path
+        
+        pnl_history = []
+        
+        # 1) 从 v8.3_institutional/reports/ 收集历史PnL
+        for candidate_dir in ["v8.3_institutional", "v7.5_institutional"]:
+            reports_dir = _Path(__file__).resolve().parent / candidate_dir / "reports"
+            if reports_dir.exists():
+                for f in sorted(reports_dir.glob("daily_pnl_report_*.json")):
+                    try:
+                        with open(f, "r", encoding="utf-8") as fp:
+                            r = json.load(fp)
+                        net = r.get("net_performance", {})
+                        pnl = net.get("net_pnl", None)
+                        cost = r.get("portfolio_pnl", {}).get("summary", {}).get("total_cost", 0)
+                        if pnl is not None and cost > 0:
+                            date_str = f.stem.replace("daily_pnl_report_", "")
+                            if not any(h["date"] == date_str for h in pnl_history):
+                                pnl_history.append({
+                                    "date": date_str,
+                                    "net_pnl": pnl,
+                                    "total_cost": cost,
+                                    "net_return": pnl / cost,
+                                })
+                    except Exception:
+                        continue
+        
+        # 2) 从每日报告归档/ 补充
+        archive_dir = _Path(__file__).resolve().parent / "每日报告归档"
+        if archive_dir.exists():
+            for date_dir in sorted(archive_dir.iterdir()):
+                if not date_dir.is_dir():
+                    continue
+                for f in sorted(date_dir.glob("daily_pnl_report_*.json")):
+                    # 避免重复
+                    date_str = f.stem.replace("daily_pnl_report_", "")
+                    if any(h["date"] == date_str for h in pnl_history):
+                        continue
+                    try:
+                        with open(f, "r", encoding="utf-8") as fp:
+                            r = json.load(fp)
+                        net = r.get("net_performance", {})
+                        pnl = net.get("net_pnl", None)
+                        cost = r.get("portfolio_pnl", {}).get("summary", {}).get("total_cost", 0)
+                        if pnl is not None and cost > 0:
+                            pnl_history.append({
+                                "date": date_str,
+                                "net_pnl": pnl,
+                                "total_cost": cost,
+                                "net_return": pnl / cost,
+                            })
+                    except Exception:
+                        continue
+        
+        # 3) 去重排序
+        seen = set()
+        unique = []
+        for h in sorted(pnl_history, key=lambda x: x["date"]):
+            if h["date"] not in seen:
+                seen.add(h["date"])
+                unique.append(h)
+        
+        if len(unique) < 5:
+            # 历史数据不足，返回 None（报告中将显示 "N/A - 数据不足 (n天)"）
+            return None
+        
+        # 4) 构建累计净值曲线: NAV[t] = NAV[t-1] * (1 + net_return[t])
+        nav = 1.0
+        peak = 1.0
+        max_dd = 0.0
+        for h in unique:
+            nav *= (1.0 + h["net_return"])
+            if nav > peak:
+                peak = nav
+            dd = (nav - peak) / peak
+            if dd < max_dd:
+                max_dd = dd
+        
+        return round(max_dd * 100, 2)  # 转为百分比
     
     def _count_stop_loss_status(self, details: List) -> Dict:
         """统计止损状态"""
@@ -877,7 +1017,7 @@ class PortfolioAnalyzer:
             recommendations.append("存在触发止损标的，建议次日开盘前评估是否执行止损")
         
         # 基于风格轮动
-        tech_performance = [d for d in pnl_data['details'] if d['style'] in ['科技', '高端制造', '成长']]
+        tech_performance = [d for d in pnl_data['details'] if d['style'] in ['科技', '高端制造', '成长'] and d['daily_pnl_pct'] is not None]
         if tech_performance and sum(t['daily_pnl_pct'] for t in tech_performance) > 0:
             recommendations.append("科技/成长风格表现优异，建议维持该板块权重配置")
         
@@ -916,7 +1056,7 @@ class PortfolioAnalyzer:
             weekday_cn = ''
 
         # 2. 加载 auto_trade_plan_500w_2026-2030.json
-        plan_file = _Path(__file__).parent / "v7.5_institutional" / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
+        plan_file = _Path(__file__).parent / "v8.3_institutional" / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
         if not plan_file.exists():
             return {
                 'next_trading_day': next_day,
@@ -1213,7 +1353,7 @@ def print_report_summary(report: Dict):
     risk = report['risk_metrics']
     print(f"  日均收益: {risk['avg_daily_return_pct']:.2f}%")
     print(f"  波动率: {risk['portfolio_volatility_pct']:.2f}%")
-    print(f"  最大跌幅: {risk['max_drawdown_pct']:.2f}%")
+    print(f"  最大回撤: {risk['max_drawdown_pct']:.2f}% (组合层面)" if risk['max_drawdown_pct'] is not None else "  最大回撤: N/A (历史数据<5天)")
     print(f"  止损状态: {risk['stop_loss_status']}")
     print()
     
@@ -1227,12 +1367,57 @@ def print_report_summary(report: Dict):
 
 def generate_markdown_report(report: Dict) -> str:
     """生成Markdown格式报告"""
-    md = f"""# 📊 收盘盈亏明细报告
+    pnl_summary = report['portfolio_pnl']['summary']
+    net_perf = report['net_performance']
+    total_cost = pnl_summary['total_cost']
+    total_market_value = pnl_summary['total_market_value']
+    portfolio_pnl = net_perf['portfolio_pnl']
+    hedge_pnl = net_perf['hedge_pnl']
+    hedge_cost = net_perf.get('hedge_cost', 0)
+    net_pnl = net_perf['net_pnl']
+    net_pnl_pct = net_perf['net_pnl_pct']
+    
+    current_value = total_cost + net_pnl
+    
+    hedge_pnl_pct = (hedge_pnl / total_cost * 100) if total_cost > 0 else 0
+    
+    # 数据完整性警告
+    data_health = report.get('meta', {}).get('data_source_health', {})
+    data_status = data_health.get('status', 'UNKNOWN')
+    no_data_ratio = data_health.get('no_data_ratio', 0)
+    no_data_count = data_health.get('no_data_count', 0)
+    
+    data_integrity_warning = ''
+    if data_status == 'NOSIGNAL_MAJORITY':
+        data_integrity_warning = f"""
+> **⚠️⚠️⚠️ 数据完整性严重警告 ⚠️⚠️⚠️**  
+> {no_data_count}/{data_health.get('total_positions', 0)} 个持仓标的无实际行情数据（{no_data_ratio*100:.0f}%）。  
+> 以下盈亏数据基于计划价格计算，**并非真实交易结果**。  
+> 请检查 Wind MCP / iFinD MCP 数据源连接状态后再信任本报告。
+>
+"""
+    elif data_status == 'NOSIGNAL_PARTIAL':
+        data_integrity_warning = f"""
+> **⚠️ 数据完整性警告**  
+> {no_data_count}/{data_health.get('total_positions', 0)} 个持仓标的无实际行情数据（{no_data_ratio*100:.0f}%）。  
+> 无数据标的盈亏不可用，报告中对应的 daily_pnl 和 daily_pnl_pct 显示为 N/A。
+>
+"""
+    elif data_status == 'FALLBACK_HEAVY':
+        data_integrity_warning = f"""
+> **⚠️ 数据源回退警告**  
+> {data_health.get('fallback_count', 0)} 个标的使用了回退价格源（fallback），数据质量下降。  
+> 建议检查主数据源（Wind MCP）是否正常运行。
+>
+"""
+    
+    md = f"""# 📊 综合盈亏统计报告（含期货期权对冲）
 
 **日期**: {report['meta']['report_date']}  
 **阶段**: {report['meta']['phase']}  
 **视角**: {report['meta']['fund_style']}  
-
+**数据状态**: {data_status}
+{data_integrity_warning}
 ---
 
 ## 一、市场概况
@@ -1245,33 +1430,45 @@ def generate_markdown_report(report: Dict) -> str:
 
 ---
 
-## 一之一、数据源健康检查
+## 二、综合盈亏概览
 
-| 指标 | 数值 |
-|------|------|
-| 数据源状态 | {report['market_overview']['data_source_status']} |
-| 快照占比 | {report['meta']['data_source_health']['snapshot_ratio']:.0%} |
-| 兜底价格占比 | {report['meta']['data_source_health']['fallback_ratio']:.0%} |
-| 快照标的数 | {report['meta']['data_source_health']['snapshot_count']} |
-| 兜底标的数 | {report['meta']['data_source_health']['fallback_count']} |
-| 持仓总数 | {report['meta']['data_source_health']['total_positions']} |
+### 2.1 账户汇总
 
-> ⚠️ **提示**: 快照占比低于 50% 或兜底价格占比高于 30% 时，建议检查 Wind MCP / iFinD / 新浪等数据源可用性。
+| 账户类型 | 投入资金 | 当前价值 | 浮盈 | 浮盈率 |
+|---------|---------|---------|------|--------|
+| 现货账户 | ¥{total_cost:,.2f} | ¥{total_market_value:,.2f} | {'-' if portfolio_pnl < 0 else '+'}¥{abs(portfolio_pnl):,.2f} | {pnl_summary['total_pnl_pct']:+.2f}% |
+| 期货对冲 | - | - | {'-' if hedge_pnl < 0 else '+'}¥{abs(hedge_pnl):,.2f} | {hedge_pnl_pct:+.2f}% |
+| 期权保护（计划中） | - | - | ¥0.00 | - |
+| 对冲成本 | - | - | -¥{hedge_cost:,.2f} | - |
+| **综合净盈亏** | **¥{total_cost:,.2f}** | **¥{current_value:,.2f}** | **{'-' if net_pnl < 0 else '+'}¥{abs(net_pnl):,.2f}** | **{net_pnl_pct:+.2f}%** |
+
+### 2.2 盈亏计算公式
+
+```
+综合净盈亏 = 现货盈亏 + 期货盈亏 - 对冲成本
+          = {portfolio_pnl:,.2f} + {hedge_pnl:,.2f} - {hedge_cost:,.2f}
+          = {'-' if net_pnl < 0 else '+'}{abs(net_pnl):,.2f} 元
+          = {net_pnl_pct:+.2f}%
+
+当前价值 = 投入资金 + 净盈亏
+        = {total_cost:,.2f} + {net_pnl:,.2f}
+        = {current_value:,.2f} 元
+```
 
 ---
 
-## 二、持仓盈亏明细
+## 三、现货持仓盈亏明细
 
-### 2.1 概览
+### 3.1 概览
 
 | 项目 | 金额 |
 |------|------|
-| 总成本 | {report['portfolio_pnl']['summary']['total_cost']:,.2f} |
-| 总市值 | {report['portfolio_pnl']['summary']['total_market_value']:,.2f} |
-| 总盈亏 | **{report['portfolio_pnl']['summary']['total_pnl']:,.2f}** ({report['portfolio_pnl']['summary']['total_pnl_pct']:.2f}%) |
-| 持仓数 | {report['portfolio_pnl']['summary']['position_count']} |
+| 总成本 | ¥{total_cost:,.2f} |
+| 总市值 | ¥{total_market_value:,.2f} |
+| 总盈亏 | **{'-' if portfolio_pnl < 0 else '+'}¥{abs(portfolio_pnl):,.2f}** ({pnl_summary['total_pnl_pct']:+.2f}%) |
+| 持仓数 | {pnl_summary['position_count']} |
 
-### 2.2 持仓明细
+### 3.2 持仓明细
 
 | 代码 | 名称 | 股数 | 成本价 | 收盘价 | 日涨跌% | 盈亏 | 模式 | 状态 |
 |------|------|------|------|------|------|------|------|------|
@@ -1279,15 +1476,21 @@ def generate_markdown_report(report: Dict) -> str:
     
     for d in report['portfolio_pnl']['details']:
         status_icon = '✅' if d['status'] == 'NORMAL' else ('⚠️' if d['status'] == 'WARNING' else ('🔴' if d['status'] == 'STOP_LOSS_TRIGGERED' else '🟢'))
-        mode_label = '快照' if d.get('calc_mode') == 'snapshot' else '计划'
-        md += f"| {d['code']} | {d['name']} | {d['shares']} | {d['cost_price']} | {d['close_price']} | {d['daily_pnl_pct']:.2f}% | {d['pnl']:,.0f} | {mode_label} | {status_icon} |\n"
+        # 数据来源标签
+        if d.get('calc_mode') == 'FALLBACK_NO_DATA':
+            mode_label = '⚠️无数据'
+        elif d.get('calc_mode') == 'snapshot':
+            mode_label = '快照'
+        else:
+            mode_label = '计划'
+        # daily_pnl_pct 可能为 None（无行情数据时）
+        pnl_display = f"{d['daily_pnl_pct']:.2f}%" if d['daily_pnl_pct'] is not None else "N/A"
+        md += f"| {d['code']} | {d['name']} | {d['shares']} | {d['cost_price']} | {d['close_price']} | {pnl_display} | {d['pnl']:,.0f} | {mode_label} | {status_icon} |\n"
     
     md += """
 ---
 
-## 三、对冲头寸明细
-
-### 3.1 期货对冲
+## 四、期货期权对冲盈亏
 
 """
     
@@ -1314,17 +1517,19 @@ def generate_markdown_report(report: Dict) -> str:
 
 """
     
-    md += f"""### 3.2 对冲效果
+    md += f"""### 4.2 对冲效果评估
 
 | 指标 | 数值 |
 |------|------|
-| 对冲规模 | {report['hedge_position']['summary']['total_hedge_notional']:,.2f} |
-| 原Beta | {report['hedge_position']['summary']['current_portfolio_beta']:.3f} |
-| 目标Beta | {report['hedge_position']['summary']['target_beta']:.3f} |
-| 当前Beta | {report['risk_metrics']['beta_exposure']:.3f} |
-| 对冲有效性 | {report['hedge_position']['summary']['hedge_effectiveness']:.2f}% |
+| 现货组合 Beta | {report['hedge_position']['summary']['current_portfolio_beta']:.3f} |
+| 目标 Beta | {report['hedge_position']['summary']['target_beta']:.3f} |
+| 已实现 Beta 降低 | ~{abs(report['hedge_position']['summary']['current_portfolio_beta'] - report['risk_metrics']['beta_exposure']):.2f} |
+| 现货亏损 | {'-' if portfolio_pnl < 0 else '+'}¥{abs(portfolio_pnl):,.2f} |
+| 期货盈亏 | {'-' if hedge_pnl < 0 else '+'}¥{abs(hedge_pnl):,.2f} |
+| **净对冲收益** | **{'-' if (hedge_pnl - portfolio_pnl) < 0 else '+'}¥{abs(hedge_pnl - abs(portfolio_pnl)):,.2f}** |
+| 对冲成本 | ¥{hedge_cost:,.2f}/日 |
 
-### 3.3 期货期权计划头寸 (来自 positions.json)
+### 4.3 期货期权计划头寸 (来自 positions.json)
 
 """
     plan = report.get('hedge_position_plan') or {}
@@ -1353,31 +1558,97 @@ def generate_markdown_report(report: Dict) -> str:
 
     md += f"""---
 
-## 四、净盈亏分析
-
-| 项目 | 金额 |
-|------|------|
-| 组合盈亏 | {report['net_performance']['portfolio_pnl']:,.2f} |
-| 对冲盈亏 | {report['net_performance']['hedge_pnl']:,.2f} |
-| **净盈亏** | **{report['net_performance']['net_pnl']:,.2f}** ({report['net_performance']['net_pnl_pct']:.2f}%) |
-
----
-
 ## 五、风险指标
 
 | 指标 | 数值 | 评级 |
 |------|------|------|
 | 日均收益 | {report['risk_metrics']['avg_daily_return_pct']:.2f}% | {('良好' if report['risk_metrics']['avg_daily_return_pct'] > 0.3 else '中性')} |
 | 波动率 | {report['risk_metrics']['portfolio_volatility_pct']:.2f}% | {('可控' if report['risk_metrics']['portfolio_volatility_pct'] < 1.0 else '偏高')} |
-| 最大跌幅 | {report['risk_metrics']['max_drawdown_pct']:.2f}% | {('安全' if report['risk_metrics']['max_drawdown_pct'] > -5 else '关注')} |
+| 最大回撤 | {f"{report['risk_metrics']['max_drawdown_pct']:.2f}% (组合层面)" if report['risk_metrics']['max_drawdown_pct'] is not None else "N/A (历史数据不足)"} | {('安全' if report['risk_metrics']['max_drawdown_pct'] is not None and report['risk_metrics']['max_drawdown_pct'] > -5 else 'N/A' if report['risk_metrics']['max_drawdown_pct'] is None else '关注')} |
 | Beta敞口 | {report['risk_metrics']['beta_exposure']:.3f} | {('达标' if report['risk_metrics']['beta_exposure'] < 0.5 else '偏高')} |
 
 ---
 
-## 六、AI决策建议
+## 六、关键分析与建议
+
+### 6.1 对冲效果总结
+
+"""
+    if net_pnl > 0:
+        md += f"""✅ **对冲策略运行良好**：期货空头在市场下跌时有效保护了组合
+- 现货{'亏损' if portfolio_pnl < 0 else '盈利'} {'-' if portfolio_pnl < 0 else '+'}¥{abs(portfolio_pnl):,.0f} {'被期货' if portfolio_pnl < 0 and hedge_pnl > 0 else ''} {'盈利' if hedge_pnl > 0 else '亏损'} {'+' if hedge_pnl > 0 else ''}¥{abs(hedge_pnl):,.0f} {'完全覆盖' if portfolio_pnl < 0 and hedge_pnl > abs(portfolio_pnl) else ''}
+- 净{'收益' if net_pnl > 0 else '亏损'}达 {'+' if net_pnl > 0 else ''}¥{abs(net_pnl):,.0f}，综合净收益率 {net_pnl_pct:+.2f}%
+"""
+    else:
+        md += f"""⚠️ **今日市场波动**：
+- 现货{'亏损' if portfolio_pnl < 0 else '盈利'} {'-' if portfolio_pnl < 0 else '+'}¥{abs(portfolio_pnl):,.0f}，期货{'盈利' if hedge_pnl > 0 else '亏损'} {'+' if hedge_pnl > 0 else ''}¥{abs(hedge_pnl):,.0f}
+- 净{'亏损' if net_pnl < 0 else '收益'} {'-' if net_pnl < 0 else '+'}¥{abs(net_pnl):,.0f}，综合净收益率 {net_pnl_pct:+.2f}%
+"""
+    
+    md += f"""
+- Beta 从 {report['hedge_position']['summary']['current_portfolio_beta']:.3f} 降至目标区间 ~{report['risk_metrics']['beta_exposure']:.3f}
+
+### 6.2 风险提示
 
 """
     
+    max_dd = report['risk_metrics']['max_drawdown_pct']
+    if max_dd is not None and max_dd < -10:
+        md += f"""⚠️ **高风险标的需关注**：
+- 组合最大回撤 {max_dd:.2f}%（需关注）
+- 建议密切监控，必要时调整仓位或增加对冲
+
+"""
+    elif max_dd is None:
+        md += """⚠️ **风险指标不完整**：
+- 组合最大回撤: N/A（历史报告数据不足5天，无法计算）
+- 建议积累至少5个交易日的数据后再评估
+
+"""
+    else:
+        md += """✅ **风险状态正常**：
+- 所有标的止损状态正常，无触发止损标的
+
+"""
+    
+    md += """### 6.3 期权建仓建议
+
+"""
+    
+    plan = report.get('hedge_position_plan') or {}
+    plan_details = plan.get('details', [])
+    premium_total = plan.get('summary', {}).get('total_premium_budget', 0)
+    
+    if premium_total > 0:
+        md += f"""⏳ **期权保护待启动**：
+- 当前 VIX {report['market_overview']['vix_estimate']}，处于{'偏低' if report['market_overview']['vix_estimate'] < 13 else '偏高' if report['market_overview']['vix_estimate'] >= 22 else '正常'}区间
+- 预留 ¥{premium_total:,} 预算，VIX >= 18 触发轻量建仓 (PUT_SPREAD)
+- 可优先建仓上证50ETF Put，覆盖宽基尾部风险
+
+"""
+    else:
+        md += "> ⚠️ 期权保护未配置，建议根据市场风险评估配置 Put 期权\n\n"
+    
+    md += """### 6.4 资金分配
+
+"""
+    
+    total_capital = 5000000
+    futures_margin = report['hedge_position']['summary'].get('total_hedge_notional', 0) * 0.12 if report['hedge_position']['summary'].get('total_hedge_notional', 0) > 0 else 0
+    
+    md += f"""| 类别 | 金额 | 占比 |
+|------|------|------|
+| 现货持仓 | ¥{total_market_value:,.0f} | {total_market_value/total_capital*100:.1f}% |
+| 期货保证金 | ¥{futures_margin:,.0f} | {futures_margin/total_capital*100:.1f}% |
+| 期权预算 | ¥{premium_total:,.0f} | {premium_total/total_capital*100:.1f}% |
+| 剩余现金 | ¥{(total_capital - total_market_value - futures_margin - premium_total):,.0f} | {(total_capital - total_market_value - futures_margin - premium_total)/total_capital*100:.1f}% |
+| **合计** | **¥{total_capital:,.0f}** | **100%** |
+
+---
+
+## 七、AI决策建议
+
+"""
     for i, rec in enumerate(report['ai_recommendations'], 1):
         md += f"{i}. {rec}\n"
 
@@ -1396,7 +1667,7 @@ def generate_markdown_report(report: Dict) -> str:
         md += f"""
 ---
 
-## 七、第二天交易计划
+## 八、次日交易计划
 
 **下一交易日**: {nd} ({wd})  
 **所属阶段**: {phase.get('name_cn', '')} (第 {phase.get('day_index', 0)} 天 / {phase.get('period', '')})  
@@ -1611,7 +1882,7 @@ def main():
     positions_file = "config/positions.json"
 
     # 自动查找最新的对冲执行文件
-    hedge_dir = project_root / "v7.5_institutional" / "reports"
+    hedge_dir = project_root / "v8.3_institutional" / "reports"
     hedge_file = None
     if hedge_dir.exists():
         # 优先查找当日的对冲执行文件
@@ -1624,10 +1895,10 @@ def main():
             print(f"使用对冲文件: {hedge_file}")
 
     if hedge_file is None:
-        hedge_file = "v7.5_institutional/reports/hedge_execution_fill_2026-07-09.json"
+        hedge_file = "v8.3_institutional/reports/hedge_execution_fill_2026-07-09.json"
 
     # 自动查找当日持仓快照
-    sim_dir = project_root / "v7.5_institutional" / "sim_snapshots"
+    sim_dir = project_root / "v8.3_institutional" / "sim_snapshots"
     positions_snapshot = None
     if sim_dir.exists():
         snap_candidates = sorted(sim_dir.glob(f"positions_{date_compact}*.json"), reverse=True)
@@ -1636,7 +1907,7 @@ def main():
             print(f"使用持仓快照: {positions_snapshot}")
 
     # 自动查找当日 trade_plan (用于获取第一次交易开盘价作为成本价)
-    plan_dir = project_root / "v7.5_institutional" / "trade_plans"
+    plan_dir = project_root / "v8.3_institutional" / "trade_plans"
     trade_plan_file = None
     if plan_dir.exists():
         plan_candidates = sorted(plan_dir.glob(f"trade_plan_{date_compact}*.json"), reverse=True)
@@ -1654,8 +1925,8 @@ def main():
     print_report_summary(report)
     
     # 保存JSON报告 (使用 report_date_arg 而非全局 REPORT_DATE)
-    # 输出到 v7.5_institutional/reports/ 目录
-    reports_dir = project_root / "v7.5_institutional" / "reports"
+    # 输出到 v8.3_institutional/reports/ 目录
+    reports_dir = project_root / "v8.3_institutional" / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
     json_output = str(reports_dir / f"daily_pnl_report_{report_date_arg}.json")
     save_report(report, json_output)

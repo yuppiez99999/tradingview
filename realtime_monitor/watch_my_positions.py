@@ -281,7 +281,8 @@ def main():
     if not token:
         print("IFIND_TOKEN is empty")
         sys.exit(1)
-    client = IFindClient(auth_token=token, max_concurrency=2)
+    # 安全修复: IFindClient 构造函数从环境变量自动读取 Token
+    client = IFindClient(max_concurrency=2)
 
     stock_rows = fetch_stock_snapshot(client, stock_symbols)
     fund_rows = fetch_fund_snapshot(client, fund_symbols)

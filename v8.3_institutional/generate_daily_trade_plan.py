@@ -1,0 +1,939 @@
+# -*- coding: utf-8 -*-
+"""
+动态生成 trade_plan_{YYYYMMDD}.json — 基于 500万建仓计划 + 23 标的新权重 (v8.4 OPTIONS_ONLY)
+v8.4 增强: 纯期权对冲模式 (OTC Put全覆盖 + Covered Call增收 + Put Spread阶梯)
+
+用法:
+    py -3 generate_daily_trade_plan.py [YYYY-MM-DD] [--capital 5000000]
+
+默认:
+    - 日期 = 下一个交易日 (跳过周末)
+    - 资金 = 5,000,000 (300万现货 + 200万期权对冲)
+
+输出:
+    trade_plans/trade_plan_{YYYYMMDD}.json
+
+阶段逻辑 (集中建仓):
+    7/13 ~ 8/21: 每个交易日 15 万现货, 共 30 个交易日, 总 300 万
+    对冲资金: 200 万 (纯期权对冲: 165万权利金 + 35万滚仓缓冲)
+    不持有IF期货空头, Beta对冲全部通过ETF认沽期权组合实现
+
+v8.4 对冲模式:
+    - Theta引擎: 月度Covered Call备兑增收
+    - Put尾部保护: 4大ETF OTM 5% Put全覆盖 (总138张)
+    - Put Spread: 阶梯降低成本
+    - KillSwitch: 熔断级别检查 (L1+触发则停止新开仓)
+    - Liquidation: 2030清仓阶段检查
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List
+
+BASE = Path(__file__).resolve().parent
+PLAN_DIR = BASE / "trade_plans"
+PLAN_DIR.mkdir(exist_ok=True)
+
+BUILD_PLAN_FILE = BASE.parent / "500万建仓计划_20260706.json"
+REPORTS_DIR = BASE.parent / "reports"
+
+# ============================================================
+# 宏观政策/康波评分 (可选导入, 失败降级)
+# ============================================================
+MACRO_SCORE_READY = False
+try:
+    MACRO_SCORE_DIR = BASE.parent / "ms_strategy" / "src" / "macro"
+    if str(MACRO_SCORE_DIR) not in sys.path:
+        sys.path.insert(0, str(MACRO_SCORE_DIR))
+    from macro_policy_scoring import score_macro_policy, macro_score_to_factor
+    MACRO_SCORE_READY = True
+except Exception as _e:
+    print(f"[WARN] 宏观评分模块导入失败 (降级模式): {_e}", file=sys.stderr)
+
+MACRO_CUT_MIN_SCORE = 1.15
+MACRO_CUT_FACTOR = 0.0
+MACRO_WHITELIST_CODES = {"601088", "159915", "sh601088", "sz159915"}
+
+def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 2_000_000) -> Dict:
+    """加载当日对冲执行单 (来自 hedge_execution_orders.py 生成的文件)
+
+    Args:
+        trade_date: 交易日期 YYYY-MM-DD
+        hedge_capital: 对冲资金总额 (默认 ¥2,000,000)
+
+    Returns:
+        {
+            "loaded": bool,
+            "portfolio_beta": float,
+            "hedge_pct": float,
+            "hedge_orders": [...],
+            "execution_timing": {
+                "options_window": "09:30-10:00",
+                "futures_window": "10:30-11:00",
+                "reserve_ratio": 0.3,
+                "reserve_amount": float,
+            },
+            "budget_check": {
+                "total_cost": float,
+                "total_premium": float,
+                "futures_margin": float,
+                "safe_haven": float,
+                "reserve_amount": float,
+                "remaining": float,
+                "within_budget": bool,
+            },
+        }
+    """
+    result = {
+        "loaded": False,
+        "portfolio_beta": 0.0,
+        "hedge_pct": 0.0,
+        "hedge_orders": [],
+        "execution_timing": {
+            "options_window": "09:30-10:00",
+            "futures_window": "10:30-11:00",
+            "reserve_ratio": 0.3,
+            "reserve_amount": 0.0,
+        },
+        "budget_check": {
+            "total_cost": 0.0,
+            "total_premium": 0.0,
+            "futures_margin": 0.0,
+            "safe_haven": 0.0,
+            "reserve_amount": 0.0,
+            "remaining": 0.0,
+            "within_budget": True,
+        },
+    }
+
+    date_compact = trade_date.replace("-", "")
+    hedge_file = REPORTS_DIR / f"hedge_execution_orders_{date_compact}.json"
+
+    if not hedge_file.exists():
+        print(f"[WARN] 未找到对冲执行单: {hedge_file}", file=sys.stderr)
+        return result
+
+    try:
+        with open(hedge_file, "r", encoding="utf-8") as f:
+            hedge_data = json.load(f)
+
+        result["loaded"] = True
+        result["portfolio_beta"] = hedge_data.get("portfolio_beta", 0.0)
+        result["hedge_pct"] = hedge_data.get("hedge_pct", 0.0)
+
+        total_premium = 0.0
+        total_notional = 0.0
+        total_safe_haven = 0.0
+
+        orders_with_window = []
+        for o in hedge_data.get("orders", []):
+            o_copy = o.copy()
+            o_type = o.get("type", "")
+            
+            if o_type == "OPTIONS":
+                o_copy["execution_window"] = "09:30-10:00"
+                total_premium += o.get("premium_budget", 0)
+            elif o_type == "FUTURES":
+                o_copy["execution_window"] = "10:30-11:00"
+                total_notional += o.get("notional", 0)
+            elif o_type == "SAFE_HAVEN":
+                o_copy["execution_window"] = "09:30-15:00"
+                total_safe_haven += o.get("amount", 0)
+            
+            orders_with_window.append(o_copy)
+
+        result["hedge_orders"] = orders_with_window
+
+        futures_margin = total_notional * 0.12
+        reserve_amount = hedge_capital * 0.3
+        total_cost = total_premium + futures_margin + total_safe_haven
+        remaining = hedge_capital - total_cost
+        within_budget = total_cost <= hedge_capital
+
+        result["execution_timing"]["reserve_amount"] = reserve_amount
+
+        result["budget_check"] = {
+            "total_cost": total_cost,
+            "total_premium": total_premium,
+            "futures_margin": futures_margin,
+            "safe_haven": total_safe_haven,
+            "reserve_amount": reserve_amount,
+            "remaining": remaining,
+            "within_budget": within_budget,
+        }
+
+        if not within_budget:
+            print(f"[WARN] 对冲成本超出预算! 总成本 ¥{total_cost:,.0f} > 预算 ¥{hedge_capital:,.0f}", file=sys.stderr)
+
+        return result
+    except Exception as e:
+        print(f"[WARN] 加载对冲执行单失败: {e}", file=sys.stderr)
+        return result
+
+
+# ============================================================
+# 对冲基金视角模块 (v7.7) — 可选导入, 失败降级
+# ============================================================
+HEDGE_FUND_READY = False
+try:
+    sys.path.insert(0, str(BASE.parent / "utils"))
+    from theta_engine import ThetaEngine
+    from gamma_engine import GammaEngine
+    from kill_switch import KillSwitch
+    from liquidation_scheduler import LiquidationScheduler
+    HEDGE_FUND_READY = True
+except ImportError as _e:
+    print(f"[WARN] 对冲基金模块导入失败 (降级模式): {_e}", file=sys.stderr)
+
+
+def _load_hedge_fund_overlays(trade_date: str) -> Dict:
+    """加载对冲基金视角的4个模块状态 (v7.7)
+
+    Returns:
+        {
+            "kill_switch": {...},
+            "theta": {...},
+            "gamma": {...},
+            "liquidation": {...},
+            "options_orders": [...],  # Theta引擎生成的Covered Call订单
+        }
+    """
+    overlays: Dict = {
+        "kill_switch": {"available": False, "level": 0, "level_name": "正常"},
+        "theta": {"available": False, "plan_loaded": False, "positions": []},
+        "gamma": {"available": False, "triggered": False},
+        "liquidation": {"available": False, "phase": 0, "phase_name": "正常运行期"},
+        "options_orders": [],
+    }
+
+    if not HEDGE_FUND_READY:
+        return overlays
+
+    # === 1. KillSwitch 检查 ===
+    try:
+        ks = KillSwitch()
+        ks_status = ks.check_margin_status()
+        ks_level = int(ks_status.get("level", 0)) if isinstance(ks_status, dict) else 0
+        overlays["kill_switch"] = {
+            "available": True,
+            "level": ks_level,
+            "level_name": ks_status.get("level_name", "正常") if isinstance(ks_status, dict) else "正常",
+            "margin_usage_ratio": ks_status.get("margin_usage_ratio", 0) if isinstance(ks_status, dict) else 0,
+            "actions": ks_status.get("actions", []) if isinstance(ks_status, dict) else [],
+            "build_allowed": ks_level == 0,  # L1+ 触发则禁止新开仓
+        }
+    except Exception as e:
+        overlays["kill_switch"] = {"available": False, "error": str(e), "build_allowed": True}
+
+    # === 2. Theta引擎 — 加载月度Covered Call计划 ===
+    try:
+        theta = ThetaEngine()
+        theta_cfg = getattr(theta, "config", {}) or {}
+        if not theta_cfg.get("enabled", False):
+            overlays["theta"] = {"available": True, "enabled": False, "plan_loaded": False}
+        else:
+            # 优先尝试加载已有计划
+            date_compact = trade_date.replace("-", "")
+            theta_plan_path = BASE.parent / "reports" / "theta_plans" / f"theta_plan_{date_compact}.json"
+            theta_plan = None
+            if theta_plan_path.exists():
+                try:
+                    with open(theta_plan_path, "r", encoding="utf-8") as f:
+                        theta_plan = json.load(f)
+                except Exception:
+                    theta_plan = None
+
+            # 不存在则生成
+            if theta_plan is None:
+                theta_plan = theta.generate_monthly_plan()
+
+            positions = theta_plan.get("positions", [])
+            # 将 Theta positions 转换为 options_orders
+            options_orders = []
+            for pos in positions:
+                options_orders.append({
+                    "code": pos.get("code"),
+                    "name": f"{pos.get('code')}_CoveredCall",
+                    "direction": "SELL_CALL",
+                    "underlying": pos.get("code"),
+                    "spot_price": pos.get("spot_price"),
+                    "strike": pos.get("strike"),
+                    "strike_otm_pct": pos.get("strike_otm_pct"),
+                    "contracts": pos.get("contracts"),
+                    "est_premium_per_unit": pos.get("est_premium_per_unit"),
+                    "est_premium_total": pos.get("est_premium_total"),
+                    "collateral": pos.get("collateral"),
+                    "annualized_return": pos.get("annualized_return"),
+                    "iv_estimate": pos.get("iv_estimate"),
+                    "order_type": "LIMIT",
+                    "session": "morning",
+                    "note": f"Theta引擎月度Covered Call (DTE={theta_plan.get('dte')}天, 到期={theta_plan.get('expiry_date')})",
+                })
+
+            overlays["theta"] = {
+                "available": True,
+                "enabled": True,
+                "plan_loaded": True,
+                "plan_date": theta_plan.get("generate_date"),
+                "expiry_date": theta_plan.get("expiry_date"),
+                "dte": theta_plan.get("dte"),
+                "positions_count": len(positions),
+                "total_premium": theta_plan.get("total_est_premium", 0),
+                "portfolio_yield_monthly": theta_plan.get("portfolio_yield_monthly", 0),
+                "portfolio_yield_annualized": theta_plan.get("portfolio_yield_annualized", 0),
+                "positions": positions,
+            }
+            overlays["options_orders"] = options_orders
+    except Exception as e:
+        overlays["theta"] = {"available": False, "error": str(e), "plan_loaded": False}
+
+    # === 3. Gamma引擎 — 尾部危机监控状态 ===
+    try:
+        gamma = GammaEngine()
+        monitor_result = gamma.monitor()
+        overlays["gamma"] = {
+            "available": True,
+            "triggered": bool(monitor_result.get("triggered", False)),
+            "trigger_type": monitor_result.get("trigger_type"),
+            "ma60_status": monitor_result.get("ma60_status"),
+            "iv_percentile": monitor_result.get("iv_percentile"),
+            "budget": monitor_result.get("budget", 0),
+        }
+    except Exception as e:
+        overlays["gamma"] = {"available": False, "error": str(e), "triggered": False}
+
+    # === 4. LiquidationScheduler — 2030清仓阶段 ===
+    try:
+        ls = LiquidationScheduler()
+        current_phase = ls.get_current_phase()
+        phase_num = current_phase.get("phase", 0) if current_phase else 0
+        phase_name = current_phase.get("name", "未知") if current_phase else "未知"
+        days_to_next = current_phase.get("days_to_next_phase") if current_phase else None
+        overlays["liquidation"] = {
+            "available": True,
+            "phase": phase_num,
+            "phase_name": phase_name,
+            "days_to_next": days_to_next,
+            "build_allowed": phase_num == 0,  # 进入清仓阶段后不允许新建仓
+        }
+    except Exception as e:
+        overlays["liquidation"] = {"available": False, "error": str(e), "phase": 0, "build_allowed": True}
+
+    return overlays
+
+
+# ============================================================
+# 建仓计划 (v8.4 OPTIONS_ONLY 纯期权对冲)
+# ============================================================
+# 交易日数: 30 (7/13 周一 ~ 8/21 周五, 跳过周末)
+# 每日建仓: 200,000 元 (现货)
+# 总建仓金额: 3,000,000 元 (60%)
+# 对冲资金: 2,000,000 元 (40%, 纯期权对冲，无期货)
+# 目标: 年化>=8%, 回撤<=15%
+PHASES = [
+    {"phase": 1, "name": "集中建仓期",
+     "start": "2026-07-13", "end": "2026-08-21",
+     "capital_ratio": 0.60, "phase_capital": 3_000_000,
+     "duration_days": 30, "daily_capital": 200_000,
+     "strategy": "每日 20 万现货建仓 + 200 万纯期权对冲, 8/21 完成建仓"},
+]
+
+
+def next_trading_day(date: datetime) -> datetime:
+    """获取下一个交易日 (跳过周末)"""
+    d = date + timedelta(days=1)
+    while d.weekday() >= 5:  # 5=周六, 6=周日
+        d += timedelta(days=1)
+    return d
+
+
+def get_phase(date: datetime) -> Dict:
+    """根据日期判断当前阶段"""
+    date_str = date.strftime("%Y-%m-%d")
+    for p in PHASES:
+        if p["start"] <= date_str <= p["end"]:
+            # 计算 day_index
+            start = datetime.strptime(p["start"], "%Y-%m-%d")
+            # 仅计算工作日
+            day_index = 0
+            cur = start
+            while cur <= date:
+                if cur.weekday() < 5:
+                    day_index += 1
+                cur += timedelta(days=1)
+            return {**p, "day_index": day_index}
+    # 默认返回第一阶段
+    return {**PHASES[0], "day_index": 1}
+
+
+def load_build_plan() -> Dict:
+    """加载 500万建仓计划 (含 23 标的新权重)"""
+    with open(BUILD_PLAN_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+# ============================================================
+# 标的基础信息 (est_price / 风格 / 风险)
+# ============================================================
+SYMBOL_INFO = {
+    "588000": {"name": "科创50ETF华夏", "est_price": 2.21, "style": "高端制造", "risk": "高", "lots": 100},
+    "512480": {"name": "半导体ETF国泰", "est_price": 1.45, "style": "高端制造", "risk": "高", "lots": 100},
+    "516160": {"name": "高端装备ETF南方", "est_price": 1.12, "style": "高端制造", "risk": "高", "lots": 100},
+    "515030": {"name": "新能源车ETF华夏", "est_price": 1.67, "style": "高端制造", "risk": "高", "lots": 100},
+    "159915": {"name": "创业板ETF易方达", "est_price": 3.86, "style": "高端制造", "risk": "高", "lots": 100},
+    "159992": {"name": "创新药ETF银华", "est_price": 0.92, "style": "防御", "risk": "高", "lots": 100},
+    "512010": {"name": "医药ETF易方达", "est_price": 0.58, "style": "防御", "risk": "中", "lots": 100},
+    "511260": {"name": "十年国债ETF国泰", "est_price": 102.5, "style": "防御", "risk": "低", "lots": 100},
+    "511520": {"name": "政金债ETF富国", "est_price": 101.2, "style": "防御", "risk": "低", "lots": 100},
+    "511360": {"name": "短融ETF海富通", "est_price": 100.05, "style": "防御", "risk": "低", "lots": 100},
+    "512400": {"name": "有色金属ETF南方", "est_price": 1.18, "style": "资源", "risk": "高", "lots": 100},
+    "518880": {"name": "黄金ETF华安", "est_price": 8.54, "style": "资源", "risk": "中", "lots": 100},
+    "601088": {"name": "中国神华", "est_price": 42.04, "style": "顺周期", "risk": "中", "lots": 100},
+    "512100": {"name": "中证1000ETF南方", "est_price": 2.65, "style": "宽基", "risk": "中", "lots": 100},
+    "510500": {"name": "中证500ETF南方", "est_price": 6.2, "style": "宽基", "risk": "中", "lots": 100},
+    "588200": {"name": "科创板芯片ETF嘉实", "est_price": 1.05, "style": "高端制造", "risk": "高", "lots": 100},
+    "159516": {"name": "半导体材料设备ETF国泰", "est_price": 0.85, "style": "高端制造", "risk": "高", "lots": 100},
+
+}
+
+
+def _load_real_time_prices() -> Dict[str, float]:
+    """从 positions.json 加载实时价格"""
+    positions_file = BASE.parent / "config" / "positions.json"
+    if not positions_file.exists():
+        return {}
+    try:
+        with open(positions_file, "r", encoding="utf-8") as f:
+            positions = json.load(f)
+        prices = {}
+        for code, pos in positions.get("positions", {}).items():
+            est_price = pos.get("est_price", pos.get("avg_cost", 0))
+            if est_price > 0:
+                prices[code] = est_price
+                prices[code.replace(".SH", "").replace(".SZ", "")] = est_price
+        return prices
+    except Exception:
+        return {}
+
+
+def generate_orders(trade_date: str, phase: Dict, build_plan: Dict,
+                    stock_capital: float = 3_000_000) -> Dict:
+    """生成当日买卖订单 (上午 + 下午批次)
+
+    策略:
+        - 每日建仓资金 = daily_capital (固定 15 万现货)
+        - 按 23 标的权重分配
+        - 每个标的按 100 股整数倍取整
+        - 上午 50% / 下午 50%
+    """
+    real_time_prices = _load_real_time_prices()
+
+    if "daily_capital" in phase:
+        stock_day_capital = float(phase["daily_capital"])
+    else:
+        day_capital = phase["phase_capital"] / phase["duration_days"]
+        stock_day_capital = day_capital * (stock_capital / (stock_capital + 2_000_000))
+
+    target_portfolio = build_plan.get("target_portfolio", {})
+
+    # === 剔除不符合国家十五五规划 / 康波周期的标的 ===
+    if MACRO_SCORE_READY and target_portfolio:
+        try:
+            macro_scores = score_macro_policy(list(target_portfolio.keys()))
+            filtered_portfolio = {}
+            removed = []
+            for symbol, info in target_portfolio.items():
+                # 白名单直接保留
+                if symbol in MACRO_WHITELIST_CODES or info.get("name", "") in {"中国神华", "创业板ETF易方达"}:
+                    filtered_portfolio[symbol] = info
+                    continue
+
+                score_obj = macro_scores.get(symbol)
+                combined = getattr(score_obj, "combined_score", 1.0)
+                factor = macro_score_to_factor(combined, cut_max=MACRO_CUT_MIN_SCORE)
+                if factor > 0.0:
+                    filtered_portfolio[symbol] = info
+                else:
+                    removed.append({
+                        "code": symbol,
+                        "name": info.get("name", symbol),
+                        "combined_score": combined,
+                        "reason": "不符合十五五/康波周期要求",
+                    })
+            if removed:
+                print(f"[INFO] 宏观筛选剔除 {len(removed)} 个标的: {[r['name'] for r in removed]}")
+            target_portfolio = filtered_portfolio or target_portfolio
+
+            if not target_portfolio:
+                print("[WARN] 宏观筛选后无剩余标的，回退使用原组合", file=sys.stderr)
+                target_portfolio = build_plan.get("target_portfolio", {})
+        except Exception as e:
+            print(f"[WARN] 宏观评分筛选失败，回退使用原组合: {e}", file=sys.stderr)
+
+    # 归一化剩余权重
+    if target_portfolio:
+        total_weight = sum(float(v.get("weight", 0)) for v in target_portfolio.values())
+        if total_weight > 0:
+            for info in target_portfolio.values():
+                info["weight"] = round(float(info.get("weight", 0)) / total_weight, 6)
+
+    morning_orders: List[Dict] = []
+    afternoon_orders: List[Dict] = []
+    priority = 1
+    total_amount = 0.0
+
+    for symbol, info in target_portfolio.items():
+        weight = info["weight"]
+        target_amount = stock_day_capital * weight
+
+        base_info = SYMBOL_INFO.get(symbol, {})
+        est_price = real_time_prices.get(symbol, base_info.get("est_price", 10.0))
+        lots_size = base_info.get("lots", 100)
+        name = base_info.get("name", info.get("name", symbol))
+        style = base_info.get("style", "其他")
+        risk = base_info.get("risk", "中")
+
+        # 计算股数 (按手数取整)
+        raw_shares = int(target_amount / est_price)
+        shares = (raw_shares // lots_size) * lots_size
+        if shares <= 0:
+            shares = lots_size  # 最少 1 手
+
+        est_amount = shares * est_price
+        limit_price = round(est_price * 1.008, 3)  # +0.8% 限价缓冲
+
+        # 上午/下午拆分 (50% / 50%)
+        morning_shares = shares // 2
+        afternoon_shares = shares - morning_shares
+
+        if morning_shares > 0:
+            morning_orders.append({
+                "priority": priority,
+                "code": symbol,
+                "name": name,
+                "session": "morning",
+                "shares": morning_shares,
+                "est_price": est_price,
+                "limit_price": round(est_price * 1.008, 3),
+                "est_amount": round(morning_shares * est_price, 2),
+                "side": "BUY",
+                "order_type": "LIMIT",
+                "style": style,
+                "risk": risk,
+                "note": f"上午批次 09:30-10:30 (阶段{phase['phase']} 第{phase['day_index']}天)",
+                "technical_alpha": 1.0,
+            })
+            priority += 1
+            total_amount += morning_shares * est_price
+
+        if afternoon_shares > 0:
+            afternoon_orders.append({
+                "priority": priority,
+                "code": symbol,
+                "name": name,
+                "session": "afternoon",
+                "shares": afternoon_shares,
+                "est_price": est_price,
+                "limit_price": round(est_price * 1.008, 3),
+                "est_amount": round(afternoon_shares * est_price, 2),
+                "side": "BUY",
+                "order_type": "LIMIT",
+                "style": style,
+                "risk": risk,
+                "note": f"下午批次 14:00-14:30 (阶段{phase['phase']} 第{phase['day_index']}天)",
+                "technical_alpha": 1.0,
+            })
+            priority += 1
+            total_amount += afternoon_shares * est_price
+
+    return {
+        "morning_orders": morning_orders,
+        "afternoon_orders": afternoon_orders,
+        "total_orders": len(morning_orders) + len(afternoon_orders),
+        "total_amount": round(total_amount, 2),
+        "day_capital": round(stock_day_capital, 2),
+        "asset_count": len(target_portfolio),
+    }
+
+
+def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
+    """生成完整 trade_plan 字典"""
+    dt = datetime.strptime(trade_date, "%Y-%m-%d")
+    weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][dt.weekday()]
+    phase = get_phase(dt)
+    build_plan = load_build_plan()
+
+    stock_capital = int(capital * 0.6)
+    hedge_capital = int(capital * 0.4)
+
+    orders = generate_orders(trade_date, phase, build_plan, stock_capital)
+
+    # === v7.7: 加载对冲基金视角 overlays ===
+    overlays = _load_hedge_fund_overlays(trade_date)
+
+    # === v7.7+: 加载对冲执行单 (期货期权对冲) ===
+    hedge_exec_plan = _load_hedge_execution_plan(trade_date, hedge_capital)
+
+    # === v7.7: 综合判断是否允许新开仓 ===
+    ks = overlays["kill_switch"]
+    liq = overlays["liquidation"]
+    gamma_triggered = overlays["gamma"].get("triggered", False)
+    # 市场允许建仓 = KillSwitch未触发 AND 未进入清仓阶段 AND Gamma未触发尾部对冲
+    build_allowed = ks.get("build_allowed", True) and liq.get("build_allowed", True)
+    # 若 Gamma 触发尾部对冲, 仅允许对冲端建仓, 现货端暂停
+    spot_build_allowed = build_allowed and not gamma_triggered
+
+    # 若 KillSwitch 触发, 清空现货订单 (仅保留平仓指令)
+    morning_orders = orders["morning_orders"] if spot_build_allowed else []
+    afternoon_orders = orders["afternoon_orders"] if spot_build_allowed else []
+    # 若 KillSwitch 触发, 将订单 side 改为 HOLD (不执行新开仓)
+    if not spot_build_allowed and (morning_orders or afternoon_orders):
+        # 仅保留订单列表作为参考, 标记为 HOLD
+        for o in morning_orders + afternoon_orders:
+            o["side"] = "HOLD"
+            o["note"] = f"[KillSwitch L{ks.get('level', 0)}] 暂停新开仓, 仅供记录"
+
+    total_orders = len(morning_orders) + len(afternoon_orders)
+    total_amount = sum(o.get("est_amount", 0) for o in morning_orders + afternoon_orders)
+
+    # === v7.7: 合成 hedge_fund_overlays 字段 ===
+    hedge_fund_overlays = {
+        "kill_switch": ks,
+        "theta_engine": overlays["theta"],
+        "gamma_vega_engine": overlays["gamma"],
+        "liquidation_protocol": liq,
+        "v77_notes": {
+            "build_allowed": build_allowed,
+            "spot_build_allowed": spot_build_allowed,
+            "options_orders_allowed": True,  # Theta引擎订单一般可继续 (备兑无额外保证金)
+            "gamma_triggered": gamma_triggered,
+            "reason_if_blocked": (
+                f"KillSwitch L{ks.get('level', 0)}" if not ks.get("build_allowed", True)
+                else f"清仓阶段 Phase {liq.get('phase', 0)}" if not liq.get("build_allowed", True)
+                else "Gamma尾部对冲触发" if gamma_triggered
+                else None
+            ),
+        },
+    }
+
+    return {
+        "trade_date": trade_date,
+        "weekday": weekday_cn,
+        "capital": capital,
+        "stock_etf_capital": stock_capital,
+        "hedge_capital": hedge_capital,
+        "execution_mode": "MOCK_BROKER",
+        "strategy": "康波第六轮周期 × 十五五规划 × v7.7对冲基金视角融合 (Theta+Gamma+KillSwitch+Liquidation)",
+        "metadata": {
+            "generated_at": datetime.now().isoformat(),
+            "source_plan": "500万建仓计划_20260706.json",
+            "source_build_plan": str(BUILD_PLAN_FILE),
+            "version": "v8.6.1_institutional_hedge_fund",
+            "note": f"动态生成 — 阶段{phase['phase']} 第{phase['day_index']}天, 23 标的新权重, "
+                    f"对冲基金模块={'ON' if HEDGE_FUND_READY else 'OFF'}",
+        },
+        "phase": {
+            "phase_number": phase["phase"],
+            "name": phase["name"],
+            "start_date": phase["start"],
+            "end_date": phase["end"],
+            "duration_days": phase["duration_days"],
+            "day_index": phase["day_index"],
+            "capital_ratio": phase["capital_ratio"],
+            "phase_capital": phase["phase_capital"],
+            "daily_capital": phase.get("daily_capital", round(phase["phase_capital"] / phase["duration_days"], 2)),
+            "day_capital": round(phase["phase_capital"] / phase["duration_days"], 2),
+            "asset_count": orders.get("asset_count", len(build_plan.get("target_portfolio", {}))),
+            "strategy": phase["strategy"],
+        },
+        "market_state": {
+            "vix": 18.5,
+            "circuit_level": "NORMAL",
+            "build_allowed": build_allowed,
+            "spot_build_allowed": spot_build_allowed,
+            "notes": (
+                f"v7.7 对冲基金视角: KillSwitch=L{ks.get('level', 0)}, "
+                f"清仓阶段=Phase {liq.get('phase', 0)}, "
+                f"Gamma触发={gamma_triggered}"
+            ),
+        },
+        "risk_controls": {
+            "yellow_warning": -0.06,
+            "orange_warning": -0.08,
+            "red_stop": -0.10,
+            "single_day_loss_pause": -0.02,
+            "var_95_limit": 0.04,
+            "var_99_limit": 0.06,
+            "max_futures_margin_pct": 0.12,
+            "max_option_premium_yearly_pct": 0.025,
+            "stop_loss_rules": {
+                "high_risk": -0.10,
+                "medium_risk": -0.10,
+                "low_risk": -0.05,
+            },
+            "target_annual_return": 0.08,
+            "max_drawdown_limit": 0.15,
+        },
+        "hedge_config": {
+            "total_hedge_capital": hedge_capital,
+            "layers": {
+                "layer1_futures": {
+                    "action": "SHORT_FUTURES",
+                    "ratio": 0.15,
+                    "target_beta": 0.25,
+                    "instrument": "IF (沪深300股指期货)",
+                    "capital": int(hedge_capital * 0.5),
+                },
+                "layer2_options": {
+                    "action": "PUT_SPREAD_COLLAR",
+                    "long_put_strike": 0.95,
+                    "short_put_strike": 0.85,
+                    "short_call_strike": 1.10,
+                    "capital": int(hedge_capital * 0.5),
+                },
+                "layer3_volatility": "监控模式 (IV/RV 偏离 > 5% 时小仓位试单)",
+                "layer4_absolute_return": "准备配对池, 暂不交易",
+                "layer5_covered_call": "v7.7 已由 Theta引擎自动生成月度计划" if overlays["theta"].get("plan_loaded") else "不启动 (建仓初期)",
+            },
+        },
+        # === v7.7 新增: 对冲基金视角融合字段 ===
+        "hedge_fund_overlays": hedge_fund_overlays,
+        "execution_plan": {
+            "broker": "MockBroker",
+            "morning_window": "09:30-10:30",
+            "afternoon_window": "14:00-14:30",
+            "price_buffer": 0.008,
+            "price_deviation_skip": 0.1,
+            "session_split": 0.5,
+            "morning_orders": morning_orders,
+            "afternoon_orders": afternoon_orders,
+            "total_orders": total_orders,
+            "total_amount": round(total_amount, 2),
+            "day_capital": orders["day_capital"],
+            # === v7.7 新增: 期权订单 (Theta引擎 Covered Call) ===
+            "options_orders": overlays["options_orders"],
+            "options_orders_count": len(overlays["options_orders"]),
+            "options_total_premium": overlays["theta"].get("total_premium", 0),
+        },
+        "options_execution": {
+            "enabled": True,
+            "hedge_capital": hedge_capital,
+            "margin_usage_max": int(hedge_capital * 0.6),
+            "liquidity_buffer_min": int(hedge_capital * 0.4),
+            "roll_day": "每月第一个交易日",
+            "collar_review_day": "每日收盘后",
+            "vega_event_review": "事件前3个交易日",
+            "event_calendar": [
+                "年底中央经济工作会议",
+                "十五五中期评估",
+                "美联储议息会议",
+                "国内重要政策发布会",
+            ],
+            "modules": [
+                {
+                    "name": "covered_call_overlay",
+                    "alias": "备兑增强策略",
+                    "capital_required": 0,
+                    "underlyings": [
+                        {
+                            "code": "588080.SH",
+                            "direction": "SELL_CALL",
+                            "strike_rule": "OTM_5pct_to_8pct",
+                            "expiry_rule": "每月初选择次月到期",
+                        }
+                    ],
+                },
+                {
+                    "name": "risk_reversal_collar",
+                    "alias": "双反向不对称组合",
+                    "trigger_conditions": [
+                        "科技股PE分位数>85%",
+                        "宏观流动性收紧信号",
+                        "市场跌破120日均线",
+                        "VIX/隐含波动率骤升",
+                    ],
+                },
+                {
+                    "name": "vega_event_driven",
+                    "alias": "波动率套利与事件驱动",
+                    "event_calendar": [
+                        "年底中央经济工作会议",
+                        "十五五中期评估",
+                        "美联储议息会议",
+                        "国内重要政策发布会",
+                    ],
+                },
+            ],
+        },
+        "hedge_account": {
+            "capital": hedge_capital,
+            "strategy": "multi_strategy_options_overlay",
+            "margin_usage_max": int(hedge_capital * 0.6),
+            "liquidity_buffer_min": int(hedge_capital * 0.4),
+            "modules": [
+                {
+                    "name": "covered_call_overlay",
+                    "alias": "备兑增强策略",
+                    "capital_required": 0,
+                    "underlyings": [
+                        {
+                            "code": "588080.SH",
+                            "direction": "SELL_CALL",
+                            "strike_rule": "OTM_5pct_to_8pct",
+                            "expiry_rule": "每月初选择次月到期",
+                        }
+                    ],
+                },
+                {
+                    "name": "risk_reversal_collar",
+                    "alias": "双反向不对称组合",
+                    "trigger_conditions": [
+                        "科技股PE分位数>85%",
+                        "宏观流动性收紧信号",
+                        "市场跌破120日均线",
+                        "VIX/隐含波动率骤升",
+                    ],
+                },
+                {
+                    "name": "vega_event_driven",
+                    "alias": "波动率套利与事件驱动",
+                    "event_calendar": [
+                        "年底中央经济工作会议",
+                        "十五五中期评估",
+                        "美联储议息会议",
+                        "国内重要政策发布会",
+                    ],
+                },
+            ],
+        },
+        # === v8.4: 纯期权对冲执行单 (无期货) ===
+        "futures_options_hedge": {
+            "hedge_mode": "OPTIONS_ONLY",
+            "loaded": hedge_exec_plan.get("loaded", False),
+            "portfolio_beta": hedge_exec_plan.get("portfolio_beta", 0.0),
+            "hedge_pct": hedge_exec_plan.get("hedge_pct", 0.0),
+            "execution_timing": hedge_exec_plan.get("execution_timing", {
+                "options_window": "09:30-10:00",
+                "reserve_ratio": 0.175,
+                "reserve_amount": 350000,
+            }),
+            "orders": hedge_exec_plan.get("hedge_orders", []),
+            "orders_count": len(hedge_exec_plan.get("hedge_orders", [])),
+            "total_premium": hedge_exec_plan.get("budget_check", {}).get("total_premium", 0),
+            "total_notional": 0,
+            "total_safe_haven": hedge_exec_plan.get("budget_check", {}).get("safe_haven", 0),
+            "budget_check": hedge_exec_plan.get("budget_check", {}),
+            "notes": [
+                "对冲模式: OPTIONS_ONLY — 不持有IF期货空头，系统性Beta风险全部通过ETF认沽期权组合管理",
+                "期权执行时机: 开盘后30分钟内(09:30-10:00)完成期权建仓, 避免权利金成本波动",
+                "总预算: 200万 (165万权利金 + 35万滚仓/保证金缓冲)",
+                "510050 Put (60张) + 510300 Put (25张) = 沪深300 + 上证50 Beta对冲主力层",
+                "588080 Put (25张) + 159915 Put (25张) = 科技/成长尾部保护层",
+                "Covered Call Theta引擎 + Put Spread阶梯 = 保险成本回收与精确风控",
+            ],
+        },
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description="动态生成 trade_plan_{YYYYMMDD}.json")
+    parser.add_argument("date", nargs="?", default=None,
+                        help="交易日期 YYYY-MM-DD (默认: 下一交易日)")
+    parser.add_argument("--capital", type=float, default=5_000_000,
+                        help="总资金 (默认: 5000000)")
+    args = parser.parse_args()
+
+    if args.date:
+        trade_date = args.date
+    else:
+        trade_date = next_trading_day(datetime.now()).strftime("%Y-%m-%d")
+
+    print(f"生成交易计划: {trade_date}")
+    print(f"总资金: Y{args.capital:,.0f}")
+
+    plan = generate_trade_plan(trade_date, args.capital)
+
+    # 保存 JSON
+    date_compact = trade_date.replace("-", "")
+    json_path = PLAN_DIR / f"trade_plan_{date_compact}.json"
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(plan, f, ensure_ascii=False, indent=2)
+
+    print(f"\n✓ 已生成: {json_path}")
+    print(f"\n--- 计划摘要 (v8.4 纯期权对冲模式) ---")
+    print(f"交易日: {plan['trade_date']} ({plan['weekday']})")
+    print(f"阶段: {plan['phase']['name']} (第 {plan['phase']['day_index']}/{plan['phase']['duration_days']} 天)")
+    print(f"当日资金: ¥{plan['execution_plan']['day_capital']:,.0f}")
+    print(f"现货订单: {plan['execution_plan']['total_orders']} (上午 {len(plan['execution_plan']['morning_orders'])} + 下午 {len(plan['execution_plan']['afternoon_orders'])})")
+    print(f"现货总额: ¥{plan['execution_plan']['total_amount']:,.0f}")
+    print(f"期权订单: {plan['execution_plan']['options_orders_count']} 个 (Theta引擎 Covered Call)")
+    print(f"期权权利金: ¥{plan['execution_plan']['options_total_premium']:,.0f}")
+
+    # === v7.7: 打印对冲基金模块状态 ===
+    hf = plan.get("hedge_fund_overlays", {})
+    ks = hf.get("kill_switch", {})
+    theta = hf.get("theta_engine", {})
+    gamma = hf.get("gamma_vega_engine", {})
+    liq = hf.get("liquidation_protocol", {})
+    print(f"\n--- 对冲基金模块状态 ---")
+    print(f"KillSwitch: L{ks.get('level', 0)} ({ks.get('level_name', '正常')}) | 保证金占用率: {ks.get('margin_usage_ratio', 0)*100:.1f}%")
+    print(f"Theta引擎: {'ON' if theta.get('plan_loaded') else 'OFF'} | 头寸数: {theta.get('positions_count', 0)} | 月度收益: {theta.get('portfolio_yield_monthly', 0)*100:.2f}% | 年化: {theta.get('portfolio_yield_annualized', 0)*100:.2f}%")
+    print(f"Gamma引擎: 触发={'是' if gamma.get('triggered') else '否'} | MA60={gamma.get('ma60_status')} | IV分位={gamma.get('iv_percentile')}")
+    print(f"清仓阶段: Phase {liq.get('phase', 0)} ({liq.get('phase_name', '未知')}) | 距下一阶段: {liq.get('days_to_next', 'N/A')} 天")
+
+    notes = hf.get("v77_notes", {})
+    print(f"\n建仓许可: 现货={notes.get('spot_build_allowed')}, 期权={notes.get('options_orders_allowed')}")
+    if notes.get("reason_if_blocked"):
+        print(f"  阻断原因: {notes['reason_if_blocked']}")
+
+    print(f"\n--- 前 5 订单 (上午) ---")
+    for o in plan["execution_plan"]["morning_orders"][:5]:
+        print(f"  {o['priority']}. {o['code']} {o['name']:<12} {o['shares']:>5} 股 @ {o['est_price']:<7.2f} = ¥{o['est_amount']:>10,.0f}")
+
+    print(f"\n--- 期权订单 (Theta引擎 Covered Call) ---")
+    for o in plan["execution_plan"]["options_orders"][:5]:
+        print(f"  {o['code']} | 行权价 {o['strike']:.3f} (OTM {o['strike_otm_pct']*100:.1f}%) | {o['contracts']} 张 | 权利金 ¥{o['est_premium_total']:,.0f} | 年化 {o['annualized_return']*100:.2f}%")
+
+    # === v7.7+: 打印期货期权对冲执行单 ===
+    foh = plan.get("futures_options_hedge", {})
+    if foh.get("loaded", False):
+        timing = foh.get("execution_timing", {})
+        budget = foh.get("budget_check", {})
+        print(f"\n--- 期货期权对冲执行单 (v7.7+) ---")
+        print(f"  组合Beta: {foh.get('portfolio_beta', 0.0):.4f}")
+        print(f"  对冲比例: {foh.get('hedge_pct', 0.0)*100:.2f}%")
+        print(f"  执行时机: 期权={timing.get('options_window')}, 期货={timing.get('futures_window')}")
+        print(f"  资金预留: {timing.get('reserve_ratio', 0)*100:.0f}% (¥{timing.get('reserve_amount', 0):,.0f})")
+        print(f"  订单数: {foh.get('orders_count', 0)}")
+        print(f"  期权权利金合计: ¥{foh.get('total_premium', 0):,.0f}")
+        print(f"  期货名义价值合计: ¥{foh.get('total_notional', 0):,.0f}")
+        print(f"\n  预算检查:")
+        print(f"    总成本: ¥{budget.get('total_cost', 0):,.0f}")
+        print(f"    期权权利金: ¥{budget.get('total_premium', 0):,.0f}")
+        print(f"    期货保证金: ¥{budget.get('futures_margin', 0):,.0f}")
+        print(f"    避险资产: ¥{budget.get('safe_haven', 0):,.0f}")
+        print(f"    剩余资金: ¥{budget.get('remaining', 0):,.0f}")
+        print(f"    预算充足: {'是' if budget.get('within_budget', True) else '否'}")
+        print(f"\n  对冲订单明细:")
+        for i, o in enumerate(foh.get("orders", []), 1):
+            o_type = o.get("type", "")
+            action = o.get("action", "")
+            instrument = o.get("instrument", "")
+            window = o.get("execution_window", "")
+            if o_type == "OPTIONS":
+                print(f"    [{i}] {o_type} | {action} | {instrument} | 窗口: {window}")
+                print(f"         张数: {o.get('contracts', 0)} | 权利金预算: ¥{o.get('premium_budget', 0):,.0f}")
+            elif o_type == "FUTURES":
+                print(f"    [{i}] {o_type} | {action} | {instrument} | 窗口: {window}")
+                print(f"         手数: {o.get('contracts', 0)} | 名义价值: ¥{o.get('notional', 0):,.0f}")
+            elif o_type == "SAFE_HAVEN":
+                print(f"    [{i}] {o_type} | {action} | {instrument} | 窗口: {window}")
+                print(f"         金额: ¥{o.get('amount', 0):,.0f}")
+
+
+if __name__ == "__main__":
+    main()

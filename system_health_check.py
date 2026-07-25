@@ -106,7 +106,7 @@ try:
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "llm_intraday_decision_engine",
-        "v7.5_institutional/llm_intraday_decision_engine.py"
+        "v8.3_institutional/llm_intraday_decision_engine.py"
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -123,7 +123,7 @@ except Exception as e:
 # ------------------------------------------------------------
 print("\n[7/7] 年化收益测算 (annual_return_forecast)")
 try:
-    from annual_return_forecast import forecast_annual_return, TARGET_ANNUAL_RETURN, MAX_DRAWDOWN_LIMIT
+    from research.annual_return_forecast import forecast_annual_return, TARGET_ANNUAL_RETURN, MAX_DRAWDOWN_LIMIT
     f = forecast_annual_return()
     hc = f.get("summary", {}).get("hard_constraints", {})
     scenarios = f.get("scenarios", [])
@@ -140,8 +140,8 @@ except Exception as e:
 print("\n[数据文件完整性]")
 data_files = [
     "config/positions.json",
-    "v7.5_institutional/trade_plans",
-    "v7.5_institutional/reports",
+    "v8.3_institutional/trade_plans",
+    "v8.3_institutional/reports",
 ]
 for f in data_files:
     p = Path(f)
@@ -162,7 +162,7 @@ print(f"总结: {pass_count}/{len(results)} PASS, {fail_count} FAIL")
 print("=" * 70)
 
 # 输出 JSON 报告
-report_path = Path("v7.5_institutional/reports/system_health_check.json")
+report_path = Path("v8.3_institutional/reports/system_health_check.json")
 report_path.parent.mkdir(parents=True, exist_ok=True)
 with open(report_path, "w", encoding="utf-8") as f:
     json.dump({

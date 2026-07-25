@@ -1,0 +1,29 @@
+[
+  {
+    "id": "msg-1784788512705-wnfyvg",
+    "from": "team-lead",
+    "to": "breakout-screener",
+    "type": "message",
+    "content": "请开始执行突破选股扫描,完成后将报告路径发送给我。",
+    "timestamp": "2026-07-23T06:35:12.706Z",
+    "read": true
+  },
+  {
+    "id": "msg-1784788921569-a24pqd",
+    "from": "team-lead",
+    "to": "breakout-screener",
+    "type": "message",
+    "content": "DCF估值已完成,请同步你的突破选股扫描结果。需要重点关注:1)TOP 10突破候选股 2)触发条件与止损位 3)优先级排序 4)与现有持仓的重叠检查。请将报告保存到 `e:\\各种PY程序\\28-终极量化交易系统8.4\\v8.3_institutional\\reports\\breakout_candidates_20260723.md`",
+    "timestamp": "2026-07-23T06:42:01.569Z",
+    "read": true
+  },
+  {
+    "id": "shutdown-1784788957153",
+    "from": "team-lead",
+    "to": "breakout-screener",
+    "type": "shutdown_request",
+    "content": "{\"type\":\"shutdown_request\",\"request_id\":\"shutdown-1784788957153\",\"reason\":\"突破选股扫描已完成,感谢你的专业工作。报告已保存到 reports/breakout_candidates_20260723.md。请确认 shutdown_response。\",\"from\":\"team-lead\",\"timestamp\":\"2026-07-23T06:42:37.153Z\"}",
+    "timestamp": "2026-07-23T06:42:37.153Z",
+    "read": true
+  }
+]

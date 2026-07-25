@@ -23,9 +23,21 @@ except Exception:
     DrawdownCircuitBreaker = None
     DrawdownDecision = None
 
+# 全局风控熔断（保证金三级协议）
+try:
+    from utils.kill_switch import KillSwitch
+except Exception as e:
+    KillSwitch = None
+    import logging as _logging
+    _logging.getLogger("alpha_hedge_engine").error(
+        "KillSwitch 模块加载失败, 风控熔断协议不可用: %s", e
+    )
+
 
 class RiskControl:
-    def __init__(self, margin_limit=0.60, max_drawdown_limit=0.15, 
+    """统一风控检查器，集成 DrawdownCircuitBreaker + KillSwitch 两套熔断协议"""
+
+    def __init__(self, margin_limit=0.50, max_drawdown_limit=0.15,
                  fat_finger_limit=500000):
         self.margin_limit = margin_limit
         self.max_drawdown_limit = max_drawdown_limit
@@ -34,6 +46,8 @@ class RiskControl:
             DrawdownCircuitBreaker(max_drawdown=max_drawdown_limit)
             if DrawdownCircuitBreaker else None
         )
+        # 集成 utils/kill_switch 的三级保证金熔断协议 (L1=50%, L2=65%, L3=75%)
+        self.kill_switch = KillSwitch(margin_limit=margin_limit) if KillSwitch else None
 
     def check_drawdown(self, current_drawdown: float):
         """组合层面回撤分级熔断检查（current_drawdown 为负值，如 -0.10）。
@@ -57,12 +71,44 @@ class RiskControl:
         return decision
 
     def check_kill_switch(self, margin_usage: float) -> bool:
-        if margin_usage >= 0.75:
-            logger.error("【严重警报】保证金使用率超 75%！触发系统强平并熔断所有开仓权限！")
+        """统一保证金熔断检查，使用 utils/kill_switch 三级协议。
+
+        KillSwitch.check_margin_status 返回结构（已修复）:
+        {level: int, can_open: bool, can_trade: bool, action: str, ...}
+        """
+        if self.kill_switch is None:
+            # 降级：KillSwitch 不可用时, 用简单硬阈值防护
+            if margin_usage >= 0.75:
+                logger.error("【严重警报】保证金使用率超 75%%！触发系统强平并熔断所有开仓权限！(KillSwitch不可用, 降级防护)")
+                return False
+            elif margin_usage >= 0.60:
+                logger.warning("【警告】保证金使用率达 %.0f%%，系统已锁死开仓权限，仅允许平仓。(KillSwitch不可用, 降级防护)", margin_usage * 100)
+                return False
+            return True
+
+        status = self.kill_switch.check_margin_status(margin_usage)
+
+        if not status["can_trade"]:
+            logger.error(
+                "【KillSwitch-L%d】保证金%.1f%% 触发熔断: %s — 不可交易",
+                status["level"], margin_usage * 100, status["action"]
+            )
+            # 执行熔断协议（fail-fast: 无 broker_callback 时抛 RuntimeError）
+            if status["level"] >= 1:
+                try:
+                    self.kill_switch.execute_kill_switch(status["level"])
+                    logger.error("【KillSwitch-L%d】熔断协议已执行", status["level"])
+                except RuntimeError as e:
+                    logger.critical("【KillSwitch-L%d】熔断协议执行失败: %s", status["level"], e)
             return False
-        elif margin_usage >= self.margin_limit:
-            logger.warning("【警告】保证金使用率达 60%，系统已锁死开仓权限，仅允许平仓。")
+
+        if not status.get("can_open", True):
+            logger.warning(
+                "【KillSwitch-L%d】保证金%.1f%%: %s — 仅允许平仓",
+                status["level"], margin_usage * 100, status["action"]
+            )
             return False
+
         return True
 
     def check_liquidity_spread(self, ask_price: float, bid_price: float) -> bool:
@@ -200,7 +246,23 @@ class AlphaHedgeEngine:
 
     def execute_options_order(self, symbol: str, qty: int, side: str, 
                              price: float) -> Dict:
+        """执行期权订单，包含流动性/风控检查"""
         logger.info(f"\n>>> 执行期权订单: {side} {qty}手 {symbol} @ {price}")
+        
+        ask_price, bid_price = self._get_option_quotes(symbol)
+        if not self.risk_control.check_liquidity_spread(ask_price, bid_price):
+            return {"status": "REJECTED", "reason": "流动性不足"}
+        
+        multiplier = self._get_option_multiplier(symbol)
+        order_amount = qty * price * multiplier
+        if not self.risk_control.check_fat_finger(order_amount):
+            return {"status": "REJECTED", "reason": "超过防胖手指限额"}
+        
+        margin_usage = self._get_margin_usage()
+        if not self.risk_control.check_kill_switch(margin_usage):
+            return {"status": "REJECTED", "reason": "风控熔断"}
+        
+        return self._execute_order(symbol, qty, side, price)
 
     def monitor_drawdown(self, current_drawdown: float):
         """回撤分级熔断监控：超过强制对冲阈值时自动买入尾部保险。
@@ -220,21 +282,6 @@ class AlphaHedgeEngine:
             except Exception as e:
                 logger.error(f"【回撤熔断】尾部防御执行失败: {e}")
         return decision.to_dict()
-        
-        ask_price, bid_price = self._get_option_quotes(symbol)
-        if not self.risk_control.check_liquidity_spread(ask_price, bid_price):
-            return {"status": "REJECTED", "reason": "流动性不足"}
-        
-        multiplier = self._get_option_multiplier(symbol)
-        order_amount = qty * price * multiplier
-        if not self.risk_control.check_fat_finger(order_amount):
-            return {"status": "REJECTED", "reason": "超过防胖手指限额"}
-        
-        margin_usage = self._get_margin_usage()
-        if not self.risk_control.check_kill_switch(margin_usage):
-            return {"status": "REJECTED", "reason": "风控熔断"}
-        
-        return self._execute_order(symbol, qty, side, price)
 
     def _get_position_volume(self, symbol: str) -> int:
         if self.broker:
@@ -258,10 +305,30 @@ class AlphaHedgeEngine:
         return 0.45
 
     def _check_tech_breakdown(self, symbol: str) -> bool:
-        return False
+        """检查标的是否跌破60日均线（技术面破位信号）
+
+        当 broker 提供 MA60 数据时使用真实数据,
+        否则 raise NotImplementedError 拒绝返回假信号。
+        """
+        if self.broker and hasattr(self.broker, 'check_breakdown'):
+            return self.broker.check_breakdown(symbol)
+        raise NotImplementedError(
+            f"_check_tech_breakdown({symbol}): broker 不提供技术面数据, "
+            f"拒绝返回硬编码 False 假信号。请接入提供 MA60 数据的 broker。"
+        )
 
     def _get_iv_percentile(self, symbol: str) -> float:
-        return 0.08
+        """获取隐含波动率历史分位
+
+        当 broker 提供 IV 数据时使用真实数据,
+        否则 raise NotImplementedError 拒绝返回假数据。
+        """
+        if self.broker and hasattr(self.broker, 'get_iv_percentile'):
+            return self.broker.get_iv_percentile(symbol)
+        raise NotImplementedError(
+            f"_get_iv_percentile({symbol}): broker 不提供 IV 数据, "
+            f"拒绝返回硬编码 0.08 假数据。请接入提供 IV 分位数据的 broker。"
+        )
 
     def _get_option_multiplier(self, symbol: str) -> int:
         if symbol.startswith('y'):
@@ -294,7 +361,7 @@ def main():
         import importlib.util
         spec = importlib.util.spec_from_file_location(
             "ths_real_broker", 
-            "v7.5_institutional/ths_real_broker.py"
+            "v8.3_institutional/ths_real_broker.py"
         )
         ths_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(ths_module)

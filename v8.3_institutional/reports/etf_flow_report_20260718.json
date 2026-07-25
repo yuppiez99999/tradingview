@@ -1,0 +1,290 @@
+{
+  "report_date": "2026-07-18",
+  "generated_at": "2026-07-18 08:20:17",
+  "market_stance": "强烈看多",
+  "total_flow_yi": 784.49,
+  "signal_count": 12,
+  "signals": [
+    {
+      "code": "159915",
+      "name": "创业板",
+      "category": "成长科技",
+      "net_flow_yi": 154.27,
+      "change_pct": -6.98,
+      "trend": "流入",
+      "signal_type": "国家队强加仓信号",
+      "confidence": "高",
+      "source": "sina"
+    },
+    {
+      "code": "510300",
+      "name": "沪深300ETF华泰柏瑞",
+      "category": "宽基",
+      "net_flow_yi": 146.49,
+      "change_pct": -3.45,
+      "trend": "流入",
+      "signal_type": "国家队强加仓信号",
+      "confidence": "高",
+      "source": "sina"
+    },
+    {
+      "code": "588000",
+      "name": "科创50ETF华夏",
+      "category": "成长科技",
+      "net_flow_yi": 142.87,
+      "change_pct": -7.1,
+      "trend": "流入",
+      "signal_type": "国家队强加仓信号",
+      "confidence": "高",
+      "source": "sina"
+    },
+    {
+      "code": "512100",
+      "name": "中证1000ETF南方",
+      "category": "小盘风格",
+      "net_flow_yi": 97.53,
+      "change_pct": -5.95,
+      "trend": "流入",
+      "signal_type": "国家队强加仓信号",
+      "confidence": "高",
+      "source": "sina"
+    },
+    {
+      "code": "510500",
+      "name": "中证500ETF南方",
+      "category": "宽基",
+      "net_flow_yi": 57.54,
+      "change_pct": -5.67,
+      "trend": "流入",
+      "signal_type": "国家队强加仓信号",
+      "confidence": "高",
+      "source": "sina"
+    },
+    {
+      "code": "510050",
+      "name": "上证50ETF华夏",
+      "category": "宽基",
+      "net_flow_yi": 42.9,
+      "change_pct": -2.43,
+      "trend": "流入",
+      "signal_type": "国家队加仓信号",
+      "confidence": "中",
+      "source": "sina"
+    },
+    {
+      "code": "512880",
+      "name": "证券ETF国泰",
+      "category": "金融主题",
+      "net_flow_yi": 39.39,
+      "change_pct": -1.44,
+      "trend": "流入",
+      "signal_type": "国家队加仓信号",
+      "confidence": "中",
+      "source": "sina"
+    },
+    {
+      "code": "588080",
+      "name": "科创50ETF易方达",
+      "category": "成长科技",
+      "net_flow_yi": 39.03,
+      "change_pct": -7.15,
+      "trend": "流入",
+      "signal_type": "国家队加仓信号",
+      "confidence": "中",
+      "source": "sina"
+    },
+    {
+      "code": "518880",
+      "name": "黄金ETF华安",
+      "category": "避险资产",
+      "net_flow_yi": 23.58,
+      "change_pct": -0.62,
+      "trend": "流入",
+      "signal_type": "国家队加仓信号",
+      "confidence": "中",
+      "source": "sina"
+    },
+    {
+      "code": "512800",
+      "name": "银行ETF华宝",
+      "category": "金融主题",
+      "net_flow_yi": 19.44,
+      "change_pct": 0.9,
+      "trend": "流入",
+      "signal_type": "国家队加仓信号",
+      "confidence": "中",
+      "source": "sina"
+    },
+    {
+      "code": "512170",
+      "name": "医疗ETF华宝",
+      "category": "医药主题",
+      "net_flow_yi": 10.21,
+      "change_pct": -4.5,
+      "trend": "流入",
+      "signal_type": "国家队加仓信号",
+      "confidence": "中",
+      "source": "sina"
+    },
+    {
+      "code": "512760",
+      "name": "芯片ETF国泰",
+      "category": "科技主题",
+      "net_flow_yi": 9.64,
+      "change_pct": -7.0,
+      "trend": "流入",
+      "signal_type": "国家队关注信号",
+      "confidence": "低",
+      "source": "sina"
+    }
+  ],
+  "flow_data": {
+    "510050": {
+      "code": "510050",
+      "name": "上证50ETF华夏",
+      "net_flow_yi": 42.9,
+      "change_pct": -2.43,
+      "volume": 1452574991,
+      "amount_yi": 42.9,
+      "trend": "流入",
+      "source": "sina",
+      "category": "宽基"
+    },
+    "510300": {
+      "code": "510300",
+      "name": "沪深300ETF华泰柏瑞",
+      "net_flow_yi": 146.49,
+      "change_pct": -3.45,
+      "volume": 3164775715,
+      "amount_yi": 146.49,
+      "trend": "流入",
+      "source": "sina",
+      "category": "宽基"
+    },
+    "510500": {
+      "code": "510500",
+      "name": "中证500ETF南方",
+      "net_flow_yi": 57.54,
+      "change_pct": -5.67,
+      "volume": 749802929,
+      "amount_yi": 57.54,
+      "trend": "流入",
+      "source": "sina",
+      "category": "宽基"
+    },
+    "588000": {
+      "code": "588000",
+      "name": "科创50ETF华夏",
+      "net_flow_yi": 142.87,
+      "change_pct": -7.1,
+      "volume": 7659884107,
+      "amount_yi": 142.87,
+      "trend": "流入",
+      "source": "sina",
+      "category": "成长科技"
+    },
+    "588080": {
+      "code": "588080",
+      "name": "科创50ETF易方达",
+      "net_flow_yi": 39.03,
+      "change_pct": -7.15,
+      "volume": 2160955026,
+      "amount_yi": 39.03,
+      "trend": "流入",
+      "source": "sina",
+      "category": "成长科技"
+    },
+    "512760": {
+      "code": "512760",
+      "name": "芯片ETF国泰",
+      "net_flow_yi": 9.64,
+      "change_pct": -7.0,
+      "volume": 809142942,
+      "amount_yi": 9.64,
+      "trend": "流入",
+      "source": "sina",
+      "category": "科技主题"
+    },
+    "512880": {
+      "code": "512880",
+      "name": "证券ETF国泰",
+      "net_flow_yi": 39.39,
+      "change_pct": -1.44,
+      "volume": 3548924667,
+      "amount_yi": 39.39,
+      "trend": "流入",
+      "source": "sina",
+      "category": "金融主题"
+    },
+    "512800": {
+      "code": "512800",
+      "name": "银行ETF华宝",
+      "net_flow_yi": 19.44,
+      "change_pct": 0.9,
+      "volume": 2458832000,
+      "amount_yi": 19.44,
+      "trend": "流入",
+      "source": "sina",
+      "category": "金融主题"
+    },
+    "518880": {
+      "code": "518880",
+      "name": "黄金ETF华安",
+      "net_flow_yi": 23.58,
+      "change_pct": -0.62,
+      "volume": 284476860,
+      "amount_yi": 23.58,
+      "trend": "流入",
+      "source": "sina",
+      "category": "避险资产"
+    },
+    "512170": {
+      "code": "512170",
+      "name": "医疗ETF华宝",
+      "net_flow_yi": 10.21,
+      "change_pct": -4.5,
+      "volume": 3162093054,
+      "amount_yi": 10.21,
+      "trend": "流入",
+      "source": "sina",
+      "category": "医药主题"
+    },
+    "515030": {
+      "code": "515030",
+      "name": "新能源车ETF华夏",
+      "net_flow_yi": 1.6,
+      "change_pct": -3.0,
+      "volume": 101503600,
+      "amount_yi": 1.6,
+      "trend": "流入",
+      "source": "sina",
+      "category": "新能源主题"
+    },
+    "159915": {
+      "code": "159915",
+      "name": "创业板",
+      "net_flow_yi": 154.27,
+      "change_pct": -6.98,
+      "volume": 4362298555,
+      "amount_yi": 154.27,
+      "trend": "流入",
+      "source": "sina",
+      "category": "成长科技"
+    },
+    "512100": {
+      "code": "512100",
+      "name": "中证1000ETF南方",
+      "net_flow_yi": 97.53,
+      "change_pct": -5.95,
+      "volume": 3277676279,
+      "amount_yi": 97.53,
+      "trend": "流入",
+      "source": "sina",
+      "category": "小盘风格"
+    }
+  },
+  "source_stats": {
+    "sina": 13
+  },
+  "primary_source": "sina"
+}

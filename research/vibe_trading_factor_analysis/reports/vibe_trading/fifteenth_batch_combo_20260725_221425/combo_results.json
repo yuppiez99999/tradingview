@@ -1,0 +1,96 @@
+{
+  "batch_id": "fifteenth_batch_combo_20260725_221425",
+  "generated_at": "2026-07-25T22:14:25.300647",
+  "factor_a": "VT_MICRO_VOL_SKEW_INV",
+  "factor_b": "VT_QUALTREND_MARGIN_EXP",
+  "combination_method": "equal_weight_rank_normalized",
+  "combination_weight_a": 0.5,
+  "ic_metrics": {
+    "VT_MICRO_VOL_SKEW_INV": {
+      "ic_ir": -0.30497585365118224,
+      "ic_mean": -0.0381844308453472,
+      "ic_std": 0.12520476748634943,
+      "ic_decay": 0.36766160770532563
+    },
+    "VT_QUALTREND_MARGIN_EXP": {
+      "ic_ir": 0.39812230313748115,
+      "ic_mean": 0.038815999051036255,
+      "ic_std": 0.09749767532524337,
+      "ic_decay": 0.9186140649549381
+    },
+    "COMBINED": {
+      "ic_ir": 0.13637026703326682,
+      "ic_mean": 0.013547187127226367,
+      "ic_std": 0.09934120847561001,
+      "ic_decay": 0.0
+    }
+  },
+  "shadow_config": {
+    "risk_managed": true,
+    "target_vol": 0.15,
+    "vol_lookback": 20,
+    "dd_derisk_threshold": 0.05,
+    "dd_derisk_factor": 0.5,
+    "scaler_cap": 2.0
+  },
+  "shadow_results": {
+    "VT_MICRO_VOL_SKEW_INV": {
+      "pass_shadow": false,
+      "live_dsr": -3.3977792207087885,
+      "max_drawdown": 0.1991967709507887,
+      "total_return": -0.09069718496712542,
+      "sr_observed": -1.6204259891193569,
+      "realized_vol": 0.15676046164493962,
+      "mc_p95_dd": 0.2520342364407035,
+      "avg_scaler": 0.4295792243582286,
+      "derisk_triggered_days": 76,
+      "fail_reasons": [
+        "live_DSR=-3.398 <= 0.5",
+        "max_dd=0.199 >= 0.12",
+        "mc_p95_dd=0.252 >= 0.18"
+      ]
+    },
+    "VT_QUALTREND_MARGIN_EXP": {
+      "pass_shadow": false,
+      "live_dsr": 0.12763473474587483,
+      "max_drawdown": 0.20424064486115245,
+      "total_return": 0.3866963129616463,
+      "sr_observed": 5.389469649530494,
+      "realized_vol": 0.17290911860025765,
+      "mc_p95_dd": 0.11568514661734657,
+      "avg_scaler": 0.6211498313862976,
+      "derisk_triggered_days": 38,
+      "fail_reasons": [
+        "live_DSR=0.128 <= 0.5",
+        "max_dd=0.204 >= 0.12"
+      ]
+    },
+    "COMBINED": {
+      "pass_shadow": false,
+      "live_dsr": -1.6009880511718306,
+      "max_drawdown": 0.14271475873507167,
+      "total_return": 0.08869256133581915,
+      "sr_observed": 1.5317560848089582,
+      "realized_vol": 0.1641154002292507,
+      "mc_p95_dd": 0.14731240451331987,
+      "avg_scaler": 0.5639889985146056,
+      "derisk_triggered_days": 49,
+      "fail_reasons": [
+        "live_DSR=-1.601 <= 0.5",
+        "max_dd=0.143 >= 0.12"
+      ]
+    }
+  },
+  "combination_assessment": {
+    "best_single_ic_ir": 0.39812230313748115,
+    "combined_ic_ir": 0.13637026703326682,
+    "ic_ir_improved": false,
+    "best_single_max_dd": 0.1991967709507887,
+    "combined_max_dd": 0.14271475873507167,
+    "max_dd_improved": true,
+    "best_single_live_dsr": 0.12763473474587483,
+    "combined_live_dsr": -1.6009880511718306,
+    "live_dsr_improved": false,
+    "overall_success": false
+  }
+}

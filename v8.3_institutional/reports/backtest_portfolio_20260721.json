@@ -1,0 +1,42 @@
+{
+  "backtest_period": "2021-01-01 ~ 2026-07-21",
+  "trading_days": 501,
+  "portfolio_count": 23,
+  "settings": {
+    "use_hedge": true,
+    "use_risk_parity": true,
+    "hedge_ratio": 0.5,
+    "rebalance_freq": 20
+  },
+  "performance": {
+    "annual_return": 0.2474,
+    "total_return": 0.552,
+    "max_drawdown": -0.052,
+    "annual_volatility": 0.1076,
+    "sharpe_ratio": 1.923,
+    "calmar_ratio": 4.758,
+    "sortino_ratio": 3.237,
+    "win_rate": 0.5469,
+    "n_years": 1.99
+  },
+  "targets_check": {
+    "annual_return": true,
+    "max_drawdown": true,
+    "sharpe_ratio": true,
+    "calmar_ratio": true,
+    "overall": true,
+    "details": {
+      "annual_return": "24.74% ✅ (目标≥8%)",
+      "max_drawdown": "-5.20% ✅ (目标<15%)",
+      "sharpe_ratio": "1.923 ✅ (目标≥0.8)",
+      "calmar_ratio": "4.758 ✅ (目标≥0.6)"
+    }
+  },
+  "suggestions": [],
+  "nav_summary": {
+    "start_nav": 1.0,
+    "end_nav": 1.552,
+    "peak_nav": 1.6098,
+    "trough_nav": 0.9852
+  }
+}

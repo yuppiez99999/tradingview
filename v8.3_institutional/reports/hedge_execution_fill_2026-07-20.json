@@ -1,0 +1,24 @@
+{
+  "trade_date": "2026-07-20",
+  "generated_at": "2026-07-20T07:02:37.799487",
+  "portfolio_beta": 1.0518518518518518,
+  "total_hedge_pct": 0.805284,
+  "total_cost": 495.24966,
+  "hedge_enabled": true,
+  "orders": [
+    {
+      "type": "BETA",
+      "action": "SHORT_FUTURES",
+      "instrument": "IF",
+      "side": "SELL_SHORT",
+      "contracts": 3,
+      "price": 4471.5631,
+      "notional": 4026420.0,
+      "cost": 495.24966,
+      "status": "LIMIT",
+      "reason": "Beta 对冲自动执行",
+      "order_id": "ORD-IF-1784502157797-3",
+      "cost_breakdown": null
+    }
+  ]
+}

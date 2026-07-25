@@ -50,6 +50,20 @@ from typing import Dict, List, Optional, Any, Tuple
 
 logger = logging.getLogger("data_quality")
 
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    np = None
+    HAS_NUMPY = False
+
+try:
+    import pandas as pd
+    HAS_PANDAS = True
+except ImportError:
+    pd = None
+    HAS_PANDAS = False
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPORT_DIR = BASE_DIR / "reports" / "data_quality"
 
@@ -105,6 +119,9 @@ class DataQualityMonitor:
 
     # IQR 倍数
     IQR_MULTIPLIER = 1.5
+
+    # MAD (修正 Z-score) 阈值 — Iglewicz & Hoaglin (1993) 推荐 3.5
+    MAD_THRESHOLD = 3.5
 
     # 字段逻辑规则
     PRICE_FIELDS = ["open", "high", "low", "close", "last", "price"]
@@ -254,10 +271,15 @@ class DataQualityMonitor:
     ) -> None:
         """检查异常值
 
-        对于价格类字段:
-            - Z-score > 3σ
+        单标的逻辑检查:
             - 逻辑异常 (high < low, close < 0)
-            - 价格波动 > 20% (相对前一日)
+            - 价格波动 > 20% (日内)
+            - 成交量为负
+
+        跨标的统计异常检测 (通过 _check_statistical_outliers_cross_section):
+            - Z-score > 3σ (Z_SCORE_THRESHOLD)
+            - IQR 四分位距检测 (IQR_MULTIPLIER=1.5)
+            - MAD 中位数绝对偏差检测 (MAD_THRESHOLD=3.5)
         """
         for symbol, fields in data.items():
             # 价格逻辑检查
@@ -348,6 +370,254 @@ class DataQualityMonitor:
                         ))
                 except (TypeError, ValueError):
                     pass
+
+        # 跨标的统计异常检测 (Z-score / IQR / MAD)
+        self._check_statistical_outliers_cross_section(data, report)
+
+    # ------------------------------------------------------------
+    # 统计异常检测算法 (Z-score / IQR / MAD)
+    # ------------------------------------------------------------
+    @staticmethod
+    def _percentile_pure(sorted_values: list, p: float) -> float:
+        """线性插值法计算百分位数 (纯 Python 回退)
+
+        Args:
+            sorted_values: 已排序的数值列表
+            p: 百分位数 (0-100)
+
+        Returns:
+            百分位数值
+        """
+        n = len(sorted_values)
+        if n == 0:
+            return 0.0
+        if n == 1:
+            return float(sorted_values[0])
+        k = (n - 1) * p / 100.0
+        f = int(k)
+        c = k - f
+        if f + 1 < n:
+            return float(sorted_values[f]) + c * (
+                float(sorted_values[f + 1]) - float(sorted_values[f])
+            )
+        return float(sorted_values[f])
+
+    @staticmethod
+    def detect_zscore_outliers(data, threshold: float = 3.0):
+        """Z-score 异常检测
+
+        计算 (value - mean) / std，绝对值超过阈值标记为异常。
+        适用于近似正态分布的数据。
+
+        Args:
+            data: pandas Series / numpy array / list
+            threshold: Z-score 阈值，默认 3.0 (对应 ~99.7% 置信区间)
+
+        Returns:
+            布尔 mask，True 表示该值为异常。输入为 pandas Series 时
+            返回 pandas Series，否则返回 numpy array 或 list。
+        """
+        # 纯 Python 回退 (无 numpy)
+        if not HAS_NUMPY:
+            values = list(data)
+            n = len(values)
+            if n < 2:
+                return [False] * n
+            mean = sum(values) / n
+            variance = sum((x - mean) ** 2 for x in values) / (n - 1)
+            std = variance ** 0.5
+            if std == 0:
+                return [False] * n
+            return [abs((v - mean) / std) > threshold for v in values]
+
+        arr = np.asarray(data, dtype=float)
+        if arr.size < 2:
+            return np.zeros(arr.size, dtype=bool)
+        mean = np.mean(arr)
+        std = np.std(arr, ddof=1)
+        if std == 0:
+            return np.zeros(arr.size, dtype=bool)
+        z_scores = np.abs((arr - mean) / std)
+        mask = z_scores > threshold
+        if HAS_PANDAS and isinstance(data, pd.Series):
+            return pd.Series(mask, index=data.index, name=data.name)
+        return mask
+
+    @staticmethod
+    def detect_iqr_outliers(data, multiplier: float = 1.5):
+        """IQR (四分位距) 异常检测
+
+        Q1 - multiplier*IQR 以下或 Q3 + multiplier*IQR 以上标记为异常。
+        不依赖分布假设，对非正态分布数据更稳健。
+
+        Args:
+            data: pandas Series / numpy array / list
+            multiplier: IQR 倍数，默认 1.5 (标准箱线图规则)
+
+        Returns:
+            布尔 mask，True 表示该值为异常。输入为 pandas Series 时
+            返回 pandas Series，否则返回 numpy array 或 list。
+        """
+        # 纯 Python 回退 (无 numpy)
+        if not HAS_NUMPY:
+            values = list(data)
+            n = len(values)
+            if n < 4:
+                return [False] * n
+            sorted_vals = sorted(values)
+            q1 = DataQualityMonitor._percentile_pure(sorted_vals, 25)
+            q3 = DataQualityMonitor._percentile_pure(sorted_vals, 75)
+            iqr = q3 - q1
+            lower = q1 - multiplier * iqr
+            upper = q3 + multiplier * iqr
+            return [v < lower or v > upper for v in values]
+
+        arr = np.asarray(data, dtype=float)
+        if arr.size < 4:
+            return np.zeros(arr.size, dtype=bool)
+        q1 = np.percentile(arr, 25)
+        q3 = np.percentile(arr, 75)
+        iqr = q3 - q1
+        lower = q1 - multiplier * iqr
+        upper = q3 + multiplier * iqr
+        mask = (arr < lower) | (arr > upper)
+        if HAS_PANDAS and isinstance(data, pd.Series):
+            return pd.Series(mask, index=data.index, name=data.name)
+        return mask
+
+    @staticmethod
+    def detect_mad_outliers(data, threshold: float = 3.5):
+        """MAD (中位数绝对偏差) 异常检测
+
+        计算 |value - median| / (1.4826 * MAD)，超过阈值标记为异常。
+        1.4826 是正态分布下 MAD 与 std 的一致性常数。
+        对异常值本身具有极强的鲁棒性 (breakdown point 50%)。
+
+        Args:
+            data: pandas Series / numpy array / list
+            threshold: 修正 Z-score 阈值，默认 3.5
+                       (Iglewicz & Hoaglin 1993 推荐)
+
+        Returns:
+            布尔 mask，True 表示该值为异常。输入为 pandas Series 时
+            返回 pandas Series，否则返回 numpy array 或 list。
+        """
+        # 纯 Python 回退 (无 numpy)
+        if not HAS_NUMPY:
+            values = list(data)
+            n = len(values)
+            if n < 2:
+                return [False] * n
+            sorted_vals = sorted(values)
+            mid = n // 2
+            median = (
+                float(sorted_vals[mid])
+                if n % 2 == 1
+                else (float(sorted_vals[mid - 1]) + float(sorted_vals[mid])) / 2
+            )
+            abs_devs = sorted(abs(v - median) for v in values)
+            mad = (
+                float(abs_devs[mid])
+                if n % 2 == 1
+                else (float(abs_devs[mid - 1]) + float(abs_devs[mid])) / 2
+            )
+            if mad == 0:
+                return [False] * n
+            modified_z = [abs(v - median) / (1.4826 * mad) for v in values]
+            return [z > threshold for z in modified_z]
+
+        arr = np.asarray(data, dtype=float)
+        if arr.size < 2:
+            return np.zeros(arr.size, dtype=bool)
+        median = np.median(arr)
+        mad = np.median(np.abs(arr - median))
+        if mad == 0:
+            return np.zeros(arr.size, dtype=bool)
+        modified_z = np.abs(arr - median) / (1.4826 * mad)
+        mask = modified_z > threshold
+        if HAS_PANDAS and isinstance(data, pd.Series):
+            return pd.Series(mask, index=data.index, name=data.name)
+        return mask
+
+    # ------------------------------------------------------------
+    # 跨标的统计异常检测 (集成入口)
+    # ------------------------------------------------------------
+    def _check_statistical_outliers_cross_section(
+        self,
+        data: Dict[str, Dict],
+        report: QualityReport,
+    ) -> None:
+        """跨标的统计异常检测 (Z-score / IQR / MAD)
+
+        对价格类字段跨标的计算统计指标，检测异常值。
+        至少需要 4 个标的才有统计意义。
+        """
+        if len(data) < 4:
+            return
+
+        for field_name in self.PRICE_FIELDS:
+            values = {}
+            for symbol, fields in data.items():
+                val = fields.get(field_name)
+                if val is not None:
+                    try:
+                        values[symbol] = float(val)
+                    except (TypeError, ValueError):
+                        pass
+
+            if len(values) < 4:
+                continue
+
+            symbols = list(values.keys())
+            vals = list(values.values())
+
+            # Z-score 检测
+            z_mask = self.detect_zscore_outliers(vals, threshold=self.Z_SCORE_THRESHOLD)
+            for i, is_outlier in enumerate(z_mask):
+                if is_outlier:
+                    report.issues.append(QualityIssue(
+                        severity="warning",
+                        category="outlier",
+                        field=field_name,
+                        symbol=symbols[i],
+                        description=(
+                            f"Z-score 异常: {field_name}={vals[i]} "
+                            f"(Z>{self.Z_SCORE_THRESHOLD})"
+                        ),
+                        value=vals[i],
+                    ))
+
+            # IQR 检测
+            iqr_mask = self.detect_iqr_outliers(vals, multiplier=self.IQR_MULTIPLIER)
+            for i, is_outlier in enumerate(iqr_mask):
+                if is_outlier:
+                    report.issues.append(QualityIssue(
+                        severity="warning",
+                        category="outlier",
+                        field=field_name,
+                        symbol=symbols[i],
+                        description=(
+                            f"IQR 异常: {field_name}={vals[i]} "
+                            f"(IQR×{self.IQR_MULTIPLIER})"
+                        ),
+                        value=vals[i],
+                    ))
+
+            # MAD 检测
+            mad_mask = self.detect_mad_outliers(vals, threshold=self.MAD_THRESHOLD)
+            for i, is_outlier in enumerate(mad_mask):
+                if is_outlier:
+                    report.issues.append(QualityIssue(
+                        severity="warning",
+                        category="outlier",
+                        field=field_name,
+                        symbol=symbols[i],
+                        description=(
+                            f"MAD 异常: {field_name}={vals[i]} "
+                            f"(modZ>{self.MAD_THRESHOLD})"
+                        ),
+                        value=vals[i],
+                    ))
 
     # ------------------------------------------------------------
     # 一致性检查
@@ -608,3 +878,28 @@ if __name__ == "__main__":
         report = monitor.check_market_data(data, expected_symbols=expected)
         print(report.summary)
         monitor.save_report(report)
+
+    # 统计异常检测算法演示
+    print("\n" + "=" * 50)
+    print("统计异常检测算法演示 (Z-score / IQR / MAD)")
+    print("=" * 50)
+
+    test_data = [10.0, 10.5, 11.0, 9.8, 10.2, 10.8, 9.5, 10.3, 55.0, 10.1]
+    print(f"\n测试数据: {test_data}")
+
+    z_mask = DataQualityMonitor.detect_zscore_outliers(test_data, threshold=3.0)
+    print(f"Z-score mask:  {list(z_mask)}")
+
+    iqr_mask = DataQualityMonitor.detect_iqr_outliers(test_data, multiplier=1.5)
+    print(f"IQR mask:      {list(iqr_mask)}")
+
+    mad_mask = DataQualityMonitor.detect_mad_outliers(test_data, threshold=3.5)
+    print(f"MAD mask:      {list(mad_mask)}")
+
+    # pandas Series 测试
+    if HAS_PANDAS:
+        import pandas as pd
+        s = pd.Series(test_data, name="price")
+        z_s = DataQualityMonitor.detect_zscore_outliers(s, threshold=3.0)
+        print(f"\npandas Series 输入 -> 输出类型: {type(z_s).__name__}")
+        print(f"Z-score Series:\n{z_s}")

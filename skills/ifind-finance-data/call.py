@@ -1,10 +1,18 @@
 import json
 import math
+import os
 from pathlib import Path
 import requests
 
-CONFIG = json.loads((Path(__file__).resolve().parent / "mcp_config.json").read_text(encoding="utf-8"))
-AUTH_TOKEN = CONFIG["auth_token"]
+# 安全修复: 禁止从配置文件读取 Token,仅允许环境变量
+AUTH_TOKEN = os.environ.get("IFIND_TOKEN", "")
+
+if not AUTH_TOKEN:
+    raise RuntimeError(
+        "iFinD JWT Token 未配置: 请设置环境变量 IFIND_TOKEN\n"
+        "Windows PowerShell: $env:IFIND_TOKEN='your_token_here'\n"
+        "Linux/Mac: export IFIND_TOKEN='your_token_here'"
+    )
 
 BASE = "https://api-mcp.51ifind.com:8643/ds-mcp-servers"
 SERVERS = {

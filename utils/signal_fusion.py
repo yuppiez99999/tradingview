@@ -69,6 +69,13 @@ class SignalFusionEngine:
         self.etf_weight = etf_weight
         self.macro_weight = macro_weight
         self.min_confidence = min_confidence
+        # 动态 IC 权重支持：注入 forward_returns 后按各源 IC 动态加权
+        self._forward_returns: Optional[Dict[str, float]] = None
+        self._ic_weights: Optional[Dict[str, float]] = None
+        # 缓存最近一次 fuse 的各源信号值，用于 IC 计算
+        self._last_signals_by_source: Optional[Dict[str, Dict[str, float]]] = None
+        # Qlib 信号缓存（由 inject_qlib_signal 注入，可作为 alpha 源）
+        self._qlib_signals: Dict[str, float] = {}
 
     # ------------------------------------------------------------
     # 主入口
@@ -101,6 +108,17 @@ class SignalFusionEngine:
         if not all_symbols:
             return []
 
+        # 缓存各源信号强度，供 inject_forward_returns 计算 IC 使用
+        self._last_signals_by_source = {
+            "alpha": {s: self._safe(alpha_signals.get(s), "strength") for s in all_symbols},
+            "llm": {s: self._safe(llm_signals.get(s), "strength") for s in all_symbols},
+            "etf": {s: self._safe(etf_signals.get(s), "strength") for s in all_symbols},
+        }
+
+        # 若已注入 forward_returns，自动计算 IC 权重
+        if self._forward_returns is not None and self._ic_weights is None:
+            self._compute_ic_weights()
+
         macro_bias = self._summarize_macro(macro_signals)
 
         results: List[FusionSignal] = []
@@ -116,6 +134,104 @@ class SignalFusionEngine:
 
         results.sort(key=lambda s: abs(s.strength) * s.confidence, reverse=True)
         return results
+
+    # ------------------------------------------------------------
+    # 动态 IC 权重注入
+    # ------------------------------------------------------------
+
+    def inject_qlib_signal(self, signal_series: Any) -> None:
+        """注入 Qlib 深度学习信号（兼容 daily_workflow 旧调用）
+
+        将 Qlib 信号序列存储为 alpha 信号源，供后续 fuse() 调用使用。
+        若已存在 alpha 信号，按 50/50 融合。
+
+        Args:
+            signal_series: pd.Series(index=symbol, values=signal) 或 dict
+        """
+        try:
+            if hasattr(signal_series, "to_dict"):
+                qlib_dict = signal_series.to_dict()
+            elif isinstance(signal_series, dict):
+                qlib_dict = signal_series
+            else:
+                logger.warning("inject_qlib_signal: 不支持的类型 %s", type(signal_series))
+                return
+            self._qlib_signals = {str(k): float(v) for k, v in qlib_dict.items()
+                                  if isinstance(v, (int, float)) and math.isfinite(float(v))}
+            logger.info("已注入 Qlib 信号: %d 个标的", len(self._qlib_signals))
+        except Exception as e:
+            logger.warning("inject_qlib_signal 异常: %s", e)
+
+    def inject_forward_returns(self, forward_returns: Dict[str, float]) -> None:
+        """注入前向收益，激活动态 IC 加权
+
+        注入后，下次 fuse() 调用会自动计算各信号源(alpha/llm/etf)与
+        forward_returns 的 Spearman IC，并按 |IC| 归一化作为动态权重。
+        IC 数据不足或为零时回退到默认置信度权重（fail-safe）。
+
+        Args:
+            forward_returns: {symbol: forward_return} 各标的的前向收益
+        """
+        if not isinstance(forward_returns, dict) or not forward_returns:
+            logger.warning("inject_forward_returns: 输入为空，跳过")
+            return
+        self._forward_returns = {str(k): float(v) for k, v in forward_returns.items()
+                                 if isinstance(v, (int, float)) and math.isfinite(float(v))}
+        # 重置 IC 权重，等待下次 fuse() 或显式 _compute_ic_weights 计算
+        self._ic_weights = None
+        logger.info("已注入 forward_returns: %d 个标的，将激活动态 IC 权重", len(self._forward_returns))
+
+    def _compute_ic_weights(self) -> None:
+        """根据各源信号与 forward_returns 计算 IC 权重
+
+        对每个信号源，计算其信号强度与 forward_returns 的 Spearman 秩相关(IC)。
+        权重 = |IC| 归一化；IC 不足时回退默认权重。
+        """
+        if self._forward_returns is None or self._last_signals_by_source is None:
+            return
+
+        ic_by_source: Dict[str, float] = {}
+        for source, sig_map in self._last_signals_by_source.items():
+            # 配对 (signal, forward_return)
+            pairs = []
+            for sym, sig_val in sig_map.items():
+                fr = self._forward_returns.get(sym)
+                if fr is not None and sig_val != 0.0:
+                    pairs.append((sig_val, fr))
+            if len(pairs) < 5:
+                # 样本不足，IC 视为 0（回退默认权重）
+                ic_by_source[source] = 0.0
+                continue
+            try:
+                import pandas as _pd
+                sig_series = _pd.Series([p[0] for p in pairs])
+                fr_series = _pd.Series([p[1] for p in pairs])
+                ic = float(sig_series.corr(fr_series, method="spearman"))
+                if not math.isfinite(ic):
+                    ic = 0.0
+            except Exception:
+                ic = 0.0
+            ic_by_source[source] = ic
+
+        # 按 |IC| 归一化为权重；全部为 0 时回退默认权重
+        abs_ic = {s: abs(v) for s, v in ic_by_source.items()}
+        total_abs = sum(abs_ic.values())
+        defaults = {"alpha": self.alpha_weight, "llm": self.llm_weight, "etf": self.etf_weight}
+        default_total = sum(defaults.values())
+
+        if total_abs < 1e-6:
+            # IC 全为零：回退默认权重（归一化）
+            self._ic_weights = {s: defaults[s] / default_total for s in defaults}
+            logger.info("IC 权重: 各源 IC≈0，回退默认权重 %s", self._ic_weights)
+        else:
+            # 混合: 70% IC 权重 + 30% 默认权重（避免极端单一源主导）
+            ic_norm = {s: abs_ic[s] / total_abs for s in abs_ic}
+            default_norm = {s: defaults[s] / default_total for s in defaults}
+            self._ic_weights = {s: 0.7 * ic_norm.get(s, 0.0) + 0.3 * default_norm.get(s, 0.0)
+                                for s in defaults}
+            logger.info("IC 权重已计算: IC=%s -> 权重=%s",
+                        {s: round(v, 4) for s, v in ic_by_source.items()},
+                        {s: round(v, 4) for s, v in self._ic_weights.items()})
 
     # ------------------------------------------------------------
     # 单标的融合
@@ -185,7 +301,25 @@ class SignalFusionEngine:
     # ------------------------------------------------------------
 
     def _dynamic_weights(self, alpha_c: float, llm_c: float, etf_c: float) -> Dict[str, float]:
-        """根据置信度动态调整权重"""
+        """根据置信度（或 IC 权重）动态调整权重
+
+        优先级：
+        1. 若已注入 forward_returns 并计算出 IC 权重，使用 IC 权重（动态 IC 加权）
+        2. 否则回退到置信度阈值权重
+        """
+        # 优先使用 IC 动态权重（已注入 forward_returns 时激活）
+        if self._ic_weights is not None:
+            ic = self._ic_weights
+            macro_w = self.macro_weight
+            total = ic["alpha"] + ic["llm"] + ic["etf"] + macro_w
+            return {
+                "alpha": ic["alpha"] / total,
+                "llm": ic["llm"] / total,
+                "etf": ic["etf"] / total,
+                "macro": macro_w / total,
+            }
+
+        # 回退：置信度阈值权重
         if alpha_c < 0.25:
             alpha_w = 0.45
             llm_w = 0.25

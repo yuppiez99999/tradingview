@@ -88,7 +88,7 @@
     "secondary_data_source": "ifind_mcp",
     "tertiary_data_source": "akshare",
     "api_key": null,
-    "ifind_token": null,
+    "_security_note": "iFinD JWT Token 必须通过环境变量 IFIND_TOKEN 配置,禁止在此文件中存储",
     "data_update_frequency": 300,
     "cache_enabled": true,
     "cache_expiry_hours": 24,

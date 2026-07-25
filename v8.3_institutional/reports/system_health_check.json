@@ -1,0 +1,58 @@
+{
+  "check_time": "2026-07-24T13:09:49.499054",
+  "total": 10,
+  "pass": 9,
+  "fail": 1,
+  "results": [
+    {
+      "module": "GreekHedgeManager",
+      "status": "PASS",
+      "detail": "Delta=1,500,000, signals=5"
+    },
+    {
+      "module": "TransactionCostModel",
+      "status": "PASS",
+      "detail": "total=¥6,111.46, bps=40.74"
+    },
+    {
+      "module": "ExecutionSelector",
+      "status": "PASS",
+      "detail": "selected=vwap, keys=['algorithm', 'reason', 'estimated_cost', 'cost_bps', 'execution_time_minutes']"
+    },
+    {
+      "module": "RiskAttribution",
+      "status": "PASS",
+      "detail": "total=¥4,017,797, sectors=11, warnings=3"
+    },
+    {
+      "module": "GreekExposureDashboard",
+      "status": "PASS",
+      "detail": "Delta=2,238,848, levels={'delta': 'CRITICAL', 'gamma': 'OK', 'vega': 'OK', 'theta': 'OK'}"
+    },
+    {
+      "module": "IntradayDecisionEngine",
+      "status": "PASS",
+      "detail": "classes=[], has_main=True"
+    },
+    {
+      "module": "AnnualReturnForecast",
+      "status": "FAIL",
+      "detail": "保守年化=+8.10%, 硬约束=False"
+    },
+    {
+      "module": "数据:config/positions.json",
+      "status": "PASS",
+      "detail": "存在"
+    },
+    {
+      "module": "数据:v8.3_institutional/trade_plans",
+      "status": "PASS",
+      "detail": "20 JSON 文件"
+    },
+    {
+      "module": "数据:v8.3_institutional/reports",
+      "status": "PASS",
+      "detail": "56 JSON 文件"
+    }
+  ]
+}

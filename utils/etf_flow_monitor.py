@@ -100,9 +100,9 @@ class ETFRealTimeTracker:
 
         try:
             from utils.ifind_client import IFindClient
-            auth_token = os.environ.get('IFIND_TOKEN', '')
-            if auth_token:
-                self._ifind_client = IFindClient(auth_token=auth_token)
+            # 安全修复: IFindClient 构造函数从环境变量自动读取 Token
+            if os.environ.get('IFIND_TOKEN', ''):
+                self._ifind_client = IFindClient()
                 self.ifind_mcp_available = True
                 logger.info("iFinD MCP 客户端已加载 (ETF资金流数据源 P1)")
         except Exception as e:

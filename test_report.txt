@@ -1,0 +1,624 @@
+======================================================================
+��������ϵͳ - ����ִ�к͸����ʼ��
+ִ��ʱ��: 2026-07-24 09:39:09
+======================================================================
+���� 12 �������ļ�
+���ز����ļ�ʧ�� v8.3_institutional\tests\test_boundary_conditions.py: No module named 'pytest'
+���ز����ļ�ʧ�� v8.3_institutional\tests\test_exception_paths.py: No module named 'pytest'
+
+��ʼ���� 54 ������...
+======================================================================
+
+[1/54] test_1_optuna_train_f1_removal
+
+================================================================================
+Test 1: Optuna train_f1 Removal
+================================================================================
+
+  [Optuna] Optimizing XGBoost ...
+[I 2026-07-24 09:39:11,365] A new study created in memory with name: no-name-664338dd-8ef3-41a2-838a-bdc78a1ebde4
+[I 2026-07-24 09:39:12,635] Trial 0 finished with value: 0.8986295571232358 and parameters: {'n_estimators': 362, 'max_depth': 12, 'learning_rate': 0.1001303991139125, 'subsample': 0.7993292420985183, 'colsample_bytree': 0.5780093202212182, 'colsample_bylevel': 0.5779972601681014, 'min_child_weight': 2, 'gamma': 4.330880728874676, 'reg_alpha': 3.005575058716044, 'reg_lambda': 2.607024758370768, 'scale_pos_weight': 0.5514612357395061}. Best is trial 0 with value: 0.8986295571232358.
+[I 2026-07-24 09:39:14,214] Trial 1 finished with value: 0.910279035211531 and parameters: {'n_estimators': 779, 'max_depth': 11, 'learning_rate': 0.011927270244911253, 'subsample': 0.5909124836035503, 'colsample_bytree': 0.5917022549267169, 'colsample_bylevel': 0.6521211214797689, 'min_child_weight': 11, 'gamma': 2.1597250932105787, 'reg_alpha': 1.4561457009902097, 'reg_lambda': 1.6738085788752133, 'scale_pos_weight': 0.8487346516301046}. Best is trial 1 with value: 0.910279035211531.
+[I 2026-07-24 09:39:14,945] Trial 2 finished with value: 0.8893253103476919 and parameters: {'n_estimators': 304, 'max_depth': 6, 'learning_rate': 0.03235425596639437, 'subsample': 0.8925879806965068, 'colsample_bytree': 0.5998368910791798, 'colsample_bylevel': 0.7571172192068059, 'min_child_weight': 12, 'gamma': 0.23225206359998862, 'reg_alpha': 3.0377242595071916, 'reg_lambda': 0.2193048555664369, 'scale_pos_weight': 0.6626289824631988}. Best is trial 1 with value: 0.910279035211531.
+[I 2026-07-24 09:39:16,363] Trial 3 finished with value: 0.9315006330815218 and parameters: {'n_estimators': 765, 'max_depth': 12, 'learning_rate': 0.1369060876012629, 'subsample': 0.6523068845866853, 'colsample_bytree': 0.5488360570031919, 'colsample_bylevel': 0.8421165132560784, 'min_child_weight': 9, 'gamma': 0.6101911742238941, 'reg_alpha': 2.475884550556351, 'reg_lambda': 0.1171593739230706, 'scale_pos_weight': 2.7733010051969553}. Best is trial 3 with value: 0.9315006330815218.
+[I 2026-07-24 09:39:17,068] Trial 4 finished with value: 0.8891582647741796 and parameters: {'n_estimators': 281, 'max_depth': 9, 'learning_rate': 0.017915933593754683, 'subsample': 0.7600340105889054, 'colsample_bytree': 0.7733551396716398, 'colsample_bylevel': 0.5924272277627636, 'min_child_weight': 20, 'gamma': 3.8756641168055728, 'reg_alpha': 4.697494707820946, 'reg_lambda': 6.161049539380966, 'scale_pos_weight': 1.9947499470277128}. Best is trial 3 with value: 0.9315006330815218.
+[I 2026-07-24 09:39:18,659] Trial 5 finished with value: 0.934754928404818 and parameters: {'n_estimators': 746, 'max_depth': 2, 'learning_rate': 0.011154681546966926, 'subsample': 0.522613644455269, 'colsample_bytree': 0.6626651653816322, 'colsample_bylevel': 0.6943386448447411, 'min_child_weight': 6, 'gamma': 4.143687545759647, 'reg_alpha': 1.7837666334679465, 'reg_lambda': 0.3646439558980721, 'scale_pos_weight': 1.8567402078956212}. Best is trial 5 with value: 0.934754928404818.
+[I 2026-07-24 09:39:19,542] Trial 6 finished with value: 0.9257717157214644 and parameters: {'n_estimators': 198, 'max_depth': 10, 'learning_rate': 0.006784726174512315, 'subsample': 0.9934434683002586, 'colsample_bytree': 0.8861223846483287, 'colsample_bylevel': 0.5993578407670862, 'min_child_weight': 1, 'gamma': 4.0773071422741705, 'reg_alpha': 3.534286719238086, 'reg_lambda': 2.8708753481954687, 'scale_pos_weight': 2.4281758667148643}. Best is trial 5 with value: 0.934754928404818.
+[I 2026-07-24 09:39:20,064] Trial 7 finished with value: 0.9327635980643102 and parameters: {'n_estimators': 151, 'max_depth': 5, 'learning_rate': 0.008035311499213382, 'subsample': 0.9315517129377968, 'colsample_bytree': 0.811649063413779, 'colsample_bylevel': 0.6654490124263246, 'min_child_weight': 2, 'gamma': 1.554911608578311, 'reg_alpha': 1.6259166101337352, 'reg_lambda': 2.878805718308924, 'scale_pos_weight': 2.093893678388033}. Best is trial 5 with value: 0.934754928404818.
+[I 2026-07-24 09:39:21,428] Trial 8 finished with value: 0.6864259177394652 and parameters: {'n_estimators': 721, 'max_depth': 7, 'learning_rate': 0.008158807046157799, 'subsample': 0.8566223936114975, 'colsample_bytree': 0.8803925243084487, 'colsample_bylevel': 0.7806385987847482, 'min_child_weight': 16, 'gamma': 2.4689779818219537, 'reg_alpha': 2.6136641469099704, 'reg_lambda': 0.7162786999897341, 'scale_pos_weight': 0.5635478168602379}. Best is trial 5 with value: 0.934754928404818.
+[I 2026-07-24 09:39:21,827] Trial 9 finished with value: 0.9183690928815038 and parameters: {'n_estimators': 175, 'max_depth': 2, 'learning_rate': 0.0677023857369087, 'subsample': 0.6571779905381634, 'colsample_bytree': 0.7542853455823514, 'colsample_bylevel': 0.9537832369630466, 'min_child_weight': 5, 'gamma': 2.0519146151781484, 'reg_alpha': 3.7777556927152434, 'reg_lambda': 0.28681134821030074, 'scale_pos_weight': 0.6924497745719824}. Best is trial 5 with value: 0.934754928404818.
+PASS: train_f1 successfully removed
+   Result keys: ['best_params', 'best_f1_cv', 'train_accuracy', 'train_auc', 'n_trials_completed', 'n_pruned', 'model_path']
+  ״̬: [PASS] (11.432s)
+
+[2/54] test_2_dynamic_target_return
+
+================================================================================
+Test 2: Dynamic Target Return Calculator
+================================================================================
+Dynamic target return calculated successfully:
+   Risk-free rate: 2.50%
+   Market risk premium: 6.00%
+   Sharpe ratio: 0.69
+   Volatility adjustment: 0.750
+   Target return: 8.71%
+PASS: Target return within reasonable range
+  ״̬: [PASS] (0.236s)
+
+[3/54] test_3_dsr_dynamic_n_trials
+
+================================================================================
+Test 3: DSR Dynamic n_trials
+================================================================================
+   n_trials= 50: DSR=0.0000
+   n_trials=100: DSR=0.0000
+   n_trials=200: DSR=0.0000
+   n_trials=500: DSR=0.0000
+
+PASS: n_trials increase, DSR decreased from 0.0000 to 0.0000
+  ״̬: [PASS] (0.011s)
+
+[4/54] test_4_parameter_sensitivity
+
+================================================================================
+Test 4: Parameter Sensitivity Analysis
+================================================================================
+
+================================================================================
+���������Է���ժҪ
+================================================================================
+
+��׼����: {'learning_rate': 0.01, 'max_depth': 5, 'min_samples_split': 10}
+��׼����: {'f1_score': 0.65}
+
+�����ȶ�������: 0.00/100
+����: REVIEW_REQUIRED
+
+����:
+  WARNING: Strategy parameters have high sensitivity, recommend recalibration
+  CRITICAL: Fragile parameters: ['learning_rate', 'max_depth']
+
+================================================================================
+��������                        ��׼ֵ         ����         CV        �ȶ������� �ȼ�          
+--------------------------------------------------------------------------------
+learning_rate            0.0100     2.0560     0.7954         0.00 Fragile     
+max_depth                5.0000     1.9931     0.7385         0.00 Fragile     
+================================================================================
+
+PASS:
+   Overall stability score: 0.00/100
+   Recommendation: REVIEW_REQUIRED
+  ״̬: [PASS] (0.000s)
+
+[5/54] test_5_cagr_decay_detection
+
+================================================================================
+Test 5: CAGR Decay Detection
+================================================================================
+
+================================================================================
+CAGR˥����ⱨ��
+================================================================================
+
+�ܽ�������: 504
+
+ǰ���CAGR: 25.95%
+����CAGR: 7.92%
+
+˥����: 69.5%
+���س̶�: Severe
+
+ǰ�������: 1.38
+��������: 0.37
+
+================================================================================
+CRITICAL: Significant CAGR decay detected! Decay rate: 69.5%
+   First half CAGR: 25.95%, Second half CAGR: 7.92%
+   Severity: Severe
+
+   RECOMMENDATION:
+   1. Immediately pause strategy live trading
+   2. Check for look-ahead bias or survivorship bias
+   3. Retrain model with earlier data
+   4. Consider strategy retirement
+================================================================================
+
+PASS:
+   First half CAGR: 25.95%
+   Second half CAGR: 7.92%
+   Decay rate: 69.5%
+   Severity: Severe
+  ״̬: [PASS] (0.013s)
+
+[6/54] <unittest.suite.TestSuite tests=[<test_hedger.TestBetaHedger testMethod=test_ewma_beta_compute>, <test_hedger.TestBetaHedger testMethod=test_hedge_lot_calculation>, <test_hedger.TestBetaHedger testMethod=test_hedge_when_beta_high>, <test_hedger.TestBetaHedger testMethod=test_no_hedge_when_beta_low>]>
+2026-07-24 09:39:22,521 [INFO] Beta �Գ�: Beta 0.850 �� 0.300, IF 2 �� @ 3800.00, �ɱ� 280 (0.0001)
+2026-07-24 09:39:22,521 [INFO] Beta �Գ�: Beta 0.850 �� 0.300, IF 2 �� @ 3800.00, �ɱ� 280 (0.0001)
+  ״̬: [PASS] (0.000s)
+
+[7/54] <unittest.suite.TestSuite tests=[<test_hedger.TestCorrelationHedger testMethod=test_avg_correlation>, <test_hedger.TestCorrelationHedger testMethod=test_hedge_high_corr>, <test_hedger.TestCorrelationHedger testMethod=test_no_hedge_low_corr>]>
+2026-07-24 09:39:22,523 [WARNING] ����ԶԳ崥��: ��\u0304=0.988 (���� 0.988, ��Ծ +0.000), �ƽ� ETF 9.18%, ��ع� 20.82%
+  ״̬: [PASS] (0.000s)
+
+[8/54] <unittest.suite.TestSuite tests=[<test_hedger.TestHedgeCoordinator testMethod=test_all_triggers>, <test_hedger.TestHedgeCoordinator testMethod=test_deduplication>, <test_hedger.TestHedgeCoordinator testMethod=test_no_hedge_normal>]>
+2026-07-24 09:39:22,524 [INFO] β�����նԳ���Գ�ʼ�����
+2026-07-24 09:39:22,524 [INFO] �����ʱ�: 1,000,000Ԫ
+2026-07-24 09:39:22,524 [INFO] ������ֵ: {'var_95': 0.025, 'var_99': 0.05, 'es_95': 0.04, 'es_99': 0.08, 'max_drawdown': 0.15, 'volatility_spike': 0.3, 'liquidity_dry': 0.5, 'tail_event': 0.03}
+2026-07-24 09:39:22,525 [INFO] β�����նԳ���Գ�ʼ�����
+2026-07-24 09:39:22,525 [INFO] �����ʱ�: 1,000,000Ԫ
+2026-07-24 09:39:22,526 [INFO] ������ֵ: {'var_95': 0.025, 'var_99': 0.05, 'es_95': 0.04, 'es_99': 0.08, 'max_drawdown': 0.15, 'volatility_spike': 0.3, 'liquidity_dry': 0.5, 'tail_event': 0.03}
+2026-07-24 09:39:22,527 [INFO] β�����նԳ���Գ�ʼ�����
+2026-07-24 09:39:22,527 [INFO] �����ʱ�: 1,000,000Ԫ
+2026-07-24 09:39:22,527 [INFO] ������ֵ: {'var_95': 0.025, 'var_99': 0.05, 'es_95': 0.04, 'es_99': 0.08, 'max_drawdown': 0.15, 'volatility_spike': 0.3, 'liquidity_dry': 0.5, 'tail_event': 0.03}
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_hedger.py", line 151, in test_all_triggers
+    orders = self.coordinator.coordinate(
+  File "v8.3_institutional\tests\..\
+
+[9/54] <unittest.suite.TestSuite tests=[<test_hedger.TestVolHedger testMethod=test_bare_put_vix_50>, <test_hedger.TestVolHedger testMethod=test_emergency_put_vix_70>, <test_hedger.TestVolHedger testMethod=test_no_hedge_vix_low>, <test_hedger.TestVolHedger testMethod=test_put_spread_vix_35>]>
+2026-07-24 09:39:22,528 [INFO] Vol �Գ�: VIX=50.0 �� BUY_BARE_PUT, Ԥ��=25000, ������=1.00
+2026-07-24 09:39:22,528 [INFO] Vol �Գ�: VIX=70.0 �� BUY_EMERGENCY_PUT, Ԥ��=40000, ������=0.40
+2026-07-24 09:39:22,529 [INFO] Vol �Գ�: VIX=35.0 �� BUY_PUT_SPREAD, Ԥ��=15000, ������=1.00
+  ״̬: [PASS] (0.000s)
+
+[10/54] <unittest.suite.TestSuite tests=[<test_risk_manager.TestRiskBudgeter testMethod=test_circuit_breaker>, <test_risk_manager.TestRiskBudgeter testMethod=test_defense_hold>, <test_risk_manager.TestRiskBudgeter testMethod=test_defense_trigger>, <test_risk_manager.TestRiskBudgeter testMethod=test_hwm_window_length>, <test_risk_manager.TestRiskBudgeter testMethod=test_initial_state>, <test_risk_manager.TestRiskBudgeter testMethod=test_kelly_single_trade_cap>, <test_risk_manager.TestRiskBudgeter testMethod=test_kelly_weight>, <test_risk_manager.TestRiskBudgeter testMethod=test_normal_drawdown>, <test_risk_manager.TestRiskBudgeter testMethod=test_risk_parity_weights>]>
+2026-07-24 09:39:22,529 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,529 [CRITICAL] [�۶�] DD=10.00%, ǿ�����, ��ȴ�� 2026-07-06 00:00:00
+2026-07-24 09:39:22,529 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,529 [CRITICAL] [�۶�] DD=8.00%, ǿ�����, ��ȴ�� 2026-07-06 00:00:00
+2026-07-24 09:39:22,529 [CRITICAL] [�۶�] DD=10.00%, ǿ�����, ��ȴ�� 2026-07-07 00:00:00
+2026-07-24 09:39:22,530 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,530 [CRITICAL] [�۶�] DD=8.00%, ǿ�����, ��ȴ�� 2026-07-06 00:00:00
+2026-07-24 09:39:22,530 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,530 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,531 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,531 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,531 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,531 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+  ״̬: [FAIL] (0.000s)
+  ��Ϣ: ����ʧ��: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_risk_manager.py", line 44, in test_defense_hold
+    self.assertEqual(result, "DEFENSE_HOLD")
+AssertionError: 'CIRCUIT_BRE
+
+[11/54] <unittest.suite.TestSuite tests=[<test_risk_manager.TestRiskManager testMethod=test_correlation_hedge_trigger>, <test_risk_manager.TestRiskManager testMethod=test_emergency_put_trigger>, <test_risk_manager.TestRiskManager testMethod=test_hedge_when_high_beta>, <test_risk_manager.TestRiskManager testMethod=test_normal_cycle>, <test_risk_manager.TestRiskManager testMethod=test_vol_hedge_trigger>]>
+2026-07-24 09:39:22,537 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,537 [INFO] RiskManager v7.5 ��ʼ�����, �ʱ�: 5,000,000
+2026-07-24 09:39:22,537 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,537 [INFO] RiskManager v7.5 ��ʼ�����, �ʱ�: 5,000,000
+2026-07-24 09:39:22,538 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,538 [INFO] RiskManager v7.5 ��ʼ�����, �ʱ�: 5,000,000
+2026-07-24 09:39:22,538 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,538 [INFO] RiskManager v7.5 ��ʼ�����, �ʱ�: 5,000,000
+2026-07-24 09:39:22,539 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,539 [INFO] RiskManager v7.5 ��ʼ�����, �ʱ�: 5,000,000
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_risk_manager.py", line 93, in test_normal_cycle
+    result = self.rm.run_risk_cycle(
+TypeError: run_risk_cycle() got an u
+
+[12/54] <unittest.suite.TestSuite tests=[<test_sor.TestAlgoEngine testMethod=test_batch_execution>, <test_sor.TestAlgoEngine testMethod=test_end_of_day>, <test_sor.TestAlgoEngine testMethod=test_is_trading_hours>, <test_sor.TestAlgoEngine testMethod=test_pov_execution>, <test_sor.TestAlgoEngine testMethod=test_twap_execution>, <test_sor.TestAlgoEngine testMethod=test_vwap_execution>]>
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_sor.py", line 59, in setUp
+    self.sor = SmartOrderRouter(
+TypeError: __init__() got an unexpected keyword argument 'pri
+
+[13/54] <unittest.suite.TestSuite tests=[<test_sor.TestSmartOrderRouter testMethod=test_basic_execute>, <test_sor.TestSmartOrderRouter testMethod=test_iceberg_slicing>, <test_sor.TestSmartOrderRouter testMethod=test_pause_after_accumulated_slip>, <test_sor.TestSmartOrderRouter testMethod=test_server_ts>]>
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_sor.py", line 21, in setUp
+    self.sor = SmartOrderRouter(broker=None, price_dict=broker_dict)
+TypeError: __init__() got
+
+[14/54] <unittest.suite.TestSuite tests=[<test_stress_periods.TestStressScenarioConfig testMethod=test_covid_scenario>, <test_stress_periods.TestStressScenarioConfig testMethod=test_luna_scenario>, <test_stress_periods.TestStressScenarioConfig testMethod=test_yen_scenario>]>
+  ״̬: [PASS] (0.000s)
+
+[15/54] <unittest.suite.TestSuite tests=[<test_stress_periods.TestStressScenarios testMethod=test_all_scenarios_exist>, <test_stress_periods.TestStressScenarios testMethod=test_compliance_tests>, <test_stress_periods.TestStressScenarios testMethod=test_covid_crash>, <test_stress_periods.TestStressScenarios testMethod=test_custom_scenario>, <test_stress_periods.TestStressScenarios testMethod=test_luna_crash>, <test_stress_periods.TestStressScenarios testMethod=test_monte_carlo_tail>, <test_stress_periods.TestStressScenarios testMethod=test_pass_criteria>, <test_stress_periods.TestStressScenarios testMethod=test_scenario_not_found>, <test_stress_periods.TestStressScenarios testMethod=test_yen_carry>]>
+  ״̬: [PASS] (0.000s)
+
+[16/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_allocate_main_sub>, <test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_should_roll_deepen>, <test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_should_roll_hold>, <test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_should_roll_reduce>, <test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_should_roll_standard>, <test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_total_allocation_equals_budget>]>
+2026-07-24 09:39:22,557 [INFO] [hedge] iFinD MCP ���������سɹ�
+2026-07-24 09:39:22,560 [INFO] [HedgeRebalance] iFinD MCP ���������سɹ�
+  ״̬: [PASS] (0.000s)
+
+[17/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_budget_calculation>, <test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_emergency_put>, <test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_history_tracking>, <test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_no_hedge>, <test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_symbol_allocation>, <test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_with_roll_decision>]>
+2026-07-24 09:39:22,572 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=4167
+2026-07-24 09:39:22,572 [INFO] β�����նԳ�: regime=warning, action=BARE_PUT, ��������=85.00%, OTM����=3, Ԥ��=2083
+2026-07-24 09:39:22,572 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=NO_HEDGE, ��������=0.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+  ״̬: [PASS] (0.000s)
+
+[18/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestEdgeCases testMethod=test_extreme_vix>, <test_tail_risk_hedge.TestEdgeCases testMethod=test_max_protection_ratio>, <test_tail_risk_hedge.TestEdgeCases testMethod=test_multiple_compute_hedge_calls>, <test_tail_risk_hedge.TestEdgeCases testMethod=test_negative_drawdown>, <test_tail_risk_hedge.TestEdgeCases testMethod=test_zero_portfolio_value>]>
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=70.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=70.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,573 [INFO] β�����նԳ�: regime=normal, action=NO_HEDGE, ��������=85.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,574 [INFO] β�����նԳ�: regime=recovery, action=PUT_SPREAD, ��������=85.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,574 [INFO] β�����նԳ�: regime=recovery, action=PUT_SPREAD, ��������=85.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,574 [INFO] β�����նԳ�: regime=recovery, action=PUT_SPREAD, ��������=100.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,574 [INFO] β�����նԳ�: regime=recovery, action=PUT_SPREAD, ��������=100.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,574 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=0
+  ״̬: [PASS] (0.000s)
+
+[19/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestFactorDecayIntegration testMethod=test_factor_decay_otm_adjustment>]>
+  ״̬: [PASS] (0.000s)
+
+[20/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestLiquidityIntegration testMethod=test_liquidity_pause_trading>]>
+2026-07-24 09:39:22,574 [INFO] β�����նԳ�: regime=recovery, action=PUT_SPREAD, ��������=100.00%, OTM����=3, Ԥ��=2083
+  ״̬: [PASS] (0.000s)
+
+[21/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestMarketRegime testMethod=test_state_constants>, <test_tail_risk_hedge.TestMarketRegime testMethod=test_state_transitions>]>
+  ״̬: [PASS] (0.000s)
+
+[22/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestOTMLadder testMethod=test_build_otm_ladder_large_loss>, <test_tail_risk_hedge.TestOTMLadder testMethod=test_build_otm_ladder_medium_loss>, <test_tail_risk_hedge.TestOTMLadder testMethod=test_build_otm_ladder_small_loss>, <test_tail_risk_hedge.TestOTMLadder testMethod=test_ladder_strike_prices>, <test_tail_risk_hedge.TestOTMLadder testMethod=test_vix_amplifies_weights>]>
+  ״̬: [PASS] (0.000s)
+
+[23/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestPerformance testMethod=test_build_otm_ladder_performance>, <test_tail_risk_hedge.TestPerformance testMethod=test_compute_hedge_latency>]>
+2026-07-24 09:39:22,578 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,578 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,578 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,578 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,578 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,578 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,578 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,578 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,579 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,580 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,580 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,580 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,580 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,580 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,580 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,580 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,580 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,580 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,580 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,580 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,588 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,589 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,590 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,591 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+2026-07-24 09:39:22,592 [INFO] β�����նԳ�: regime=normal, action=PUT_SPREAD, ��������=50.00%, OTM����=1, Ԥ��=2083
+  ״̬: [PASS] (0.000s)
+
+[24/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestRegimeHedgeRatios testMethod=test_ratios_definition>, <test_tail_risk_hedge.TestRegimeHedgeRatios testMethod=test_ratios_monotonicity>]>
+  ״̬: [PASS] (0.000s)
+
+[25/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestTailRiskConfig testMethod=test_custom_config>, <test_tail_risk_hedge.TestTailRiskConfig testMethod=test_default_values>]>
+  ״̬: [PASS] (0.000s)
+
+[26/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_analyze_market_regime_crisis>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_analyze_market_regime_normal>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_analyze_market_regime_recovery>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_analyze_market_regime_warning>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_bs_loss_impact>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_calculate_protection_ratio_crisis>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_calculate_protection_ratio_normal>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_initialization>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_vix_amplification>]>
+  ״̬: [PASS] (0.000s)
+
+[27/54] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestVegaIntegration testMethod=test_vega_crisis_trigger>, <test_tail_risk_hedge.TestVegaIntegration testMethod=test_vega_protection_increase>]>
+  ״̬: [PASS] (0.000s)
+
+[28/54] <unittest.suite.TestSuite tests=[<test_v75.TestBacktest testMethod=test_cost_model>, <test_v75.TestBacktest testMethod=test_cost_model_sell>, <test_v75.TestBacktest testMethod=test_dsr>, <test_v75.TestBacktest testMethod=test_max_drawdown>, <test_v75.TestBacktest testMethod=test_metrics>, <test_v75.TestBacktest testMethod=test_stress_scenarios>, <test_v75.TestBacktest testMethod=test_walk_forward>]>
+2026-07-24 09:39:22,605 [INFO] ���� 0 �� Walk-Forward ����
+2026-07-24 09:39:22,605 [INFO] �¶ȴ��ڲ���, ������������: 4 ��
+2026-07-24 09:39:22,610 [INFO] Window 0: 2023-11-17 00:00:00~2024-01-18 00:00:00 | Sortino=5.392 Calmar=14.954
+2026-07-24 09:39:22,613 [INFO] Window 1: 2024-01-19 00:00:00~2024-03-21 00:00:00 | Sortino=8.470 Calmar=10.484
+2026-07-24 09:39:22,622 [INFO] Window 2: 2024-03-22 00:00:00~2024-05-23 00:00:00 | Sortino=8.349 Calmar=14.409
+2026-07-24 09:39:22,628 [INFO] Window 3: 2024-05-24 00:00:00~2024-07-25 00:00:00 | Sortino=1.280 Calmar=1.564
+  ״̬: [PASS] (0.000s)
+
+[29/54] <unittest.suite.TestSuite tests=[<test_v75.TestCircuitBreaker testMethod=test_allowed_actions>, <test_v75.TestCircuitBreaker testMethod=test_level_1>, <test_v75.TestCircuitBreaker testMethod=test_level_2>, <test_v75.TestCircuitBreaker testMethod=test_level_3>, <test_v75.TestCircuitBreaker testMethod=test_level_4_vix>, <test_v75.TestCircuitBreaker testMethod=test_vix_escalate>]>
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v75.py", line 78, in setUp
+    self.cb = CircuitBreaker("test_breaker")
+  File "v8.3_institutional\tests\..\src\risk\circ
+
+[30/54] <unittest.suite.TestSuite tests=[<test_v75.TestExecution testMethod=test_algo_iceberg>, <test_v75.TestExecution testMethod=test_ntp_sync>, <test_v75.TestExecution testMethod=test_sor_execute>]>
+2026-07-24 09:39:22,717 [WARNING] NTP Ư�� 178.8 ms > ��ֵ 50.0 ms, ��У׼ (server=ntp.tencent.com)
+2026-07-24 09:39:22,778 [WARNING] NTP Ư�� 173.0 ms > ��ֵ 50.0 ms, ��У׼ (server=ntp.tencent.com)
+  ״̬: [PASS] (0.000s)
+
+[31/54] <unittest.suite.TestSuite tests=[<test_v75.TestHedging testMethod=test_beta_hedge>, <test_v75.TestHedging testMethod=test_beta_no_hedge>, <test_v75.TestHedging testMethod=test_corr_hedge>, <test_v75.TestHedging testMethod=test_corr_no_hedge>, <test_v75.TestHedging testMethod=test_vol_bare_put>, <test_v75.TestHedging testMethod=test_vol_emergency>, <test_v75.TestHedging testMethod=test_vol_no_hedge>, <test_v75.TestHedging testMethod=test_vol_put_spread>]>
+2026-07-24 09:39:22,778 [INFO] Beta �Գ�: Beta 1.200 �� 0.300, IF 4 �� @ 3800.00, �ɱ� 561 (0.0001)
+2026-07-24 09:39:22,783 [WARNING] ����ԶԳ崥��: ��\u0304=0.999 (���� 0.999, ��Ծ +0.000), �ƽ� ETF 10.00%, ��ع� 20.00%
+2026-07-24 09:39:22,783 [INFO] Vol �Գ�: VIX=50.0 �� BUY_BARE_PUT, Ԥ��=25000, ������=1.00
+2026-07-24 09:39:22,783 [INFO] Vol �Գ�: VIX=70.0 �� BUY_EMERGENCY_PUT, Ԥ��=40000, ������=0.40
+2026-07-24 09:39:22,783 [INFO] Vol �Գ�: VIX=35.0 �� BUY_PUT_SPREAD, Ԥ��=15000, ������=1.00
+  ״̬: [PASS] (0.000s)
+
+[32/54] <unittest.suite.TestSuite tests=[<test_v75.TestRiskManager testMethod=test_circuit_breaker>, <test_v75.TestRiskManager testMethod=test_defense_mode>, <test_v75.TestRiskManager testMethod=test_kelly_weight>, <test_v75.TestRiskManager testMethod=test_kelly_zero_sigma>, <test_v75.TestRiskManager testMethod=test_normal_mode>, <test_v75.TestRiskManager testMethod=test_risk_parity>]>
+2026-07-24 09:39:22,783 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,783 [INFO] RiskManager v7.5 ��ʼ�����, �ʱ�: 5,000,000
+2026-07-24 09:39:22,785 [CRITICAL] [�۶�] DD=16.00%, ǿ�����, ��ȴ�� 2026-07-25 09:39:22.785550
+2026-07-24 09:39:22,785 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,785 [INFO] RiskManager v7.5 ��ʼ�����, �ʱ�: 5,000,000
+2026-07-24 09:39:22,785 [CRITICAL] [�۶�] DD=12.00%, ǿ�����, ��ȴ�� 2026-07-25 09:39:22.785550
+2026-07-24 09:39:22,785 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,785 [INFO] RiskManager v7.5 ��ʼ�����, �ʱ�: 5,000,000
+2026-07-24 09:39:22,785 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,785 [INFO] RiskManager v7.5 ��ʼ�����, �ʱ�: 5,000,000
+2026-07-24 09:39:22,785 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,785 [INFO] RiskManager v7.5 ��ʼ�����, �ʱ�: 5,000,000
+2026-07-24 09:39:22,786 [WARNING] [����ģʽ] DD=5.00%, ��λ����, ֻ������
+2026-07-24 09:39:22,787 [INFO] RiskBudgeter ��ʼ�����, �ʱ�: 5,000,000, ���ʷ���: 1.50%
+2026-07-24 09:39:22,787 [INFO] RiskManager v7.5 ��ʼ�����, �ʱ�: 5,000,000
+  ״̬: [FAIL] (0.000s)
+  ��Ϣ: ����ʧ��: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v75.py", line 40, in test_defense_mode
+    self.assertEqual(result, "HALVE_POSITION")
+AssertionError: 'CIRCUIT_BREAKER' !
+
+[33/54] test_data_pipeline_health
+Traceback (most recent call last):
+  File "v8.3_institutional/tests/run_tests_with_coverage.py", line 63, in run
+    self.func()
+TypeError: test_data_pipeline_health() missing 1 required positional argument: 'result'
+  ״̬: [ERROR] (0.003s)
+  ��Ϣ: ִ�д���: test_data_pipeline_health() missing 1 required positional argument: 'result'
+
+[34/54] test_environment_isolation
+Traceback (most recent call last):
+  File "v8.3_institutional/tests/run_tests_with_coverage.py", line 63, in run
+    self.func()
+TypeError: test_environment_isolation() missing 1 required positional argument: 'result'
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: test_environment_isolation() missing 1 required positional argument: 'result'
+
+[35/54] test_evt_modeling
+Traceback (most recent call last):
+  File "v8.3_institutional/tests/run_tests_with_coverage.py", line 63, in run
+    self.func()
+TypeError: test_evt_modeling() missing 1 required positional argument: 'result'
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: test_evt_modeling() missing 1 required positional argument: 'result'
+
+[36/54] test_factor_decay_monitor
+Traceback (most recent call last):
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: test_factor_decay_monitor() missing 1 required positional argument: 'result'
+
+[37/54] test_liquidity_monitor
+  File "v8.3_institutional/tests/run_tests_with_coverage.py", line 63, in run
+    self.func()
+TypeError: test_factor_decay_monitor() missing 1 required positional argument: 'result'
+Traceback (most recent call last):
+  File "v8.3_institutional/tests/run_tests_with_coverage.py", line 63, in run
+    self.func()
+TypeError: test_liquidity_monitor() missing 1 required positional argument: 'result'
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: test_liquidity_monitor() missing 1 required positional argument: 'result'
+
+[38/54] test_purged_kfold_cv
+Traceback (most recent call last):
+  File "v8.3_institutional/tests/run_tests_with_coverage.py", line 63, in run
+    self.func()
+TypeError: test_purged_kfold_cv() missing 1 required positional argument: 'result'
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: test_purged_kfold_cv() missing 1 required positional argument: 'result'
+
+[39/54] test_shadow_account_system
+Traceback (most recent call last):
+  File "v8.3_institutional/tests/run_tests_with_coverage.py", line 63, in run
+    self.func()
+TypeError: test_shadow_account_system() missing 1 required positional argument: 'result'
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: test_shadow_account_system() missing 1 required positional argument: 'result'
+
+[40/54] test_time_sync
+Traceback (most recent call last):
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: test_time_sync() missing 1 required positional argument: 'result'
+
+[41/54] test_vega_monitor
+  File "v8.3_institutional/tests/run_tests_with_coverage.py", line 63, in run
+    self.func()
+TypeError: test_time_sync() missing 1 required positional argument: 'result'
+Traceback (most recent call last):
+  File "v8.3_institutional/tests/run_tests_with_coverage.py", line 63, in run
+    self.func()
+TypeError: test_vega_monitor() missing 1 required positional argument: 'result'
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: test_vega_monitor() missing 1 required positional argument: 'result'
+
+[42/54] <unittest.suite.TestSuite tests=[<test_v85_modules.TestDataPipeline testMethod=test_add_data_source>, <test_v85_modules.TestDataPipeline testMethod=test_validate_data_integrity>]>
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 318, in setUp
+    from src.pipeline.data_pipeline import DataPipeline
+ModuleNotFoundError: No modul
+
+[43/54] <unittest.suite.TestSuite tests=[<test_v85_modules.TestEVTTailRisk testMethod=test_backtest>, <test_v85_modules.TestEVTTailRisk testMethod=test_estimate_cvar>, <test_v85_modules.TestEVTTailRisk testMethod=test_estimate_tail_index>, <test_v85_modules.TestEVTTailRisk testMethod=test_generate_stress_scenarios>]>
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 179, in setUp
+    from src.risk.evt_tail_risk import EVTTailRisk
+ImportError: cannot import name 'E
+
+[44/54] <unittest.suite.TestSuite tests=[<test_v85_modules.TestEnvironmentIsolation testMethod=test_check_environment_separation>]>
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 368, in setUp
+    from src.validation.env_isolation import EnvironmentIsolation
+ModuleNotFoundError
+
+[45/54] <unittest.suite.TestSuite tests=[<test_v85_modules.TestFactorDecayMonitor testMethod=test_calculate_decay_rate>, <test_v85_modules.TestFactorDecayMonitor testMethod=test_detect_anomalies>, <test_v85_modules.TestFactorDecayMonitor testMethod=test_generate_report>]>
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 226, in setUp
+    self.monitor = FactorDecayMonitor(
+TypeError: __init__() got an unexpected keywor
+
+[46/54] <unittest.suite.TestSuite tests=[<test_v85_modules.TestLiquidityMonitor testMethod=test_blocked_trades>, <test_v85_modules.TestLiquidityMonitor testMethod=test_scan_market>]>
+2026-07-24 09:39:22,850 [INFO] [LimitUpDownDetector] ��ʼ�����
+2026-07-24 09:39:22,850 [INFO] [LiquidityChecker] ��ʼ����� | Min Turnover=10,000,000 | Min Volume=1,000,000
+2026-07-24 09:39:22,850 [INFO] [LiquidityMonitor] ��ʼ����� | Min Turnover=10,000,000 | Min Score=30.0
+2026-07-24 09:39:22,850 [INFO] [LimitUpDownDetector] ��ʼ�����
+2026-07-24 09:39:22,850 [INFO] [LiquidityChecker] ��ʼ����� | Min Turnover=10,000,000 | Min Volume=1,000,000
+2026-07-24 09:39:22,850 [INFO] [LiquidityMonitor] ��ʼ����� | Min Turnover=10,000,000 | Min Score=30.0
+  ״̬: [FAIL] (0.000s)
+  ��Ϣ: ����ʧ��: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 172, in test_blocked_trades
+    self.assertIn('000001.SZ', report.blocked_trades)
+AssertionError: '
+
+[47/54] <unittest.suite.TestSuite tests=[<test_v85_modules.TestPurgedKFoldCV testMethod=test_generate_folds>, <test_v85_modules.TestPurgedKFoldCV testMethod=test_no_data_leakage>]>
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 291, in setUp
+    from src.validation.purged_kfold import PurgedKFoldCV
+ModuleNotFoundError: No mod
+
+[48/54] <unittest.suite.TestSuite tests=[<test_v85_modules.TestShadowAccount testMethod=test_check_compliance>, <test_v85_modules.TestShadowAccount testMethod=test_record_deviation>]>
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 263, in setUp
+    from src.validation.shadow_account import ShadowAccountSystem
+ModuleNotFoundError
+
+[49/54] <unittest.suite.TestSuite tests=[<test_v85_modules.TestTimeSync testMethod=test_calibrate_clock_drift>, <test_v85_modules.TestTimeSync testMethod=test_get_ntp_time>]>
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 346, in setUp
+    from src.infrastructure.time_sync import TimeSync
+ModuleNotFoundError: No module 
+
+[50/54] <unittest.suite.TestSuite tests=[<test_v85_modules.TestVegaMonitor testMethod=test_calculate_exposure>, <test_v85_modules.TestVegaMonitor testMethod=test_cumulative_pnl>, <test_v85_modules.TestVegaMonitor testMethod=test_empty_positions>, <test_v85_modules.TestVegaMonitor testMethod=test_generate_report_warning>]>
+2026-07-24 09:39:22,853 [INFO] [VegaMonitor] ��ʼ����� | NAV=5,000,000 | Max Vega=2.0% | Warning Vega=1.5%
+2026-07-24 09:39:22,853 [INFO] [VegaMonitor] ��ʼ����� | NAV=5,000,000 | Max Vega=2.0% | Warning Vega=1.5%
+2026-07-24 09:39:22,853 [INFO] [VegaMonitor] ��ʼ����� | NAV=5,000,000 | Max Vega=2.0% | Warning Vega=1.5%
+2026-07-24 09:39:22,853 [INFO] [VegaMonitor] ��ʼ����� | NAV=5,000,000 | Max Vega=2.0% | Warning Vega=1.5%
+  ״̬: [ERROR] (0.000s)
+  ��Ϣ: ִ�д���: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 89, in test_generate_report_warning
+    OptionPosition(
+NameError: name 'OptionPosition' is not def
+
+[51/54] <unittest.suite.TestSuite tests=[<test_walk_forward.TestCostModel testMethod=test_almgren_chriss>, <test_walk_forward.TestCostModel testMethod=test_commission_sell>, <test_walk_forward.TestCostModel testMethod=test_commission_stock>, <test_walk_forward.TestCostModel testMethod=test_market_impact>, <test_walk_forward.TestCostModel testMethod=test_total_cost>]>
+  ״̬: [PASS] (0.000s)
+
+[52/54] <unittest.suite.TestSuite tests=[<test_walk_forward.TestDeflatedSharpeRatio testMethod=test_dsr_edge_case>, <test_walk_forward.TestDeflatedSharpeRatio testMethod=test_dsr_high_sr>, <test_walk_forward.TestDeflatedSharpeRatio testMethod=test_dsr_low_sr>]>
+  ״̬: [PASS] (0.000s)
+
+[53/54] <unittest.suite.TestSuite tests=[<test_walk_forward.TestPerformanceMetrics testMethod=test_annual_return>, <test_walk_forward.TestPerformanceMetrics testMethod=test_calmar>, <test_walk_forward.TestPerformanceMetrics testMethod=test_max_drawdown>, <test_walk_forward.TestPerformanceMetrics testMethod=test_objective>, <test_walk_forward.TestPerformanceMetrics testMethod=test_sortino>, <test_walk_forward.TestPerformanceMetrics testMethod=test_summary>, <test_walk_forward.TestPerformanceMetrics testMethod=test_var_cvar>]>
+  ״̬: [PASS] (0.000s)
+
+[54/54] <unittest.suite.TestSuite tests=[<test_walk_forward.TestWalkForward testMethod=test_aggregate_metrics>, <test_walk_forward.TestWalkForward testMethod=test_generate_windows>, <test_walk_forward.TestWalkForward testMethod=test_run_basic>, <test_walk_forward.TestWalkForward testMethod=test_window_count>]>
+2026-07-24 09:39:22,875 [INFO] ���� 7 �� Walk-Forward ����
+2026-07-24 09:39:22,886 [INFO] ���� 7 �� Walk-Forward ����
+2026-07-24 09:39:22,891 [ERROR] Window 0 ִ��ʧ��: simple_train() takes 1 positional argument but 2 were given
+2026-07-24 09:39:22,895 [ERROR] Window 1 ִ��ʧ��: simple_train() takes 1 positional argument but 2 were given
+2026-07-24 09:39:22,895 [ERROR] Window 2 ִ��ʧ��: simple_train() takes 1 positional argument but 2 were given
+2026-07-24 09:39:22,895 [ERROR] Window 3 ִ��ʧ��: simple_train() takes 1 positional argument but 2 were given
+2026-07-24 09:39:22,900 [ERROR] Window 4 ִ��ʧ��: simple_train() takes 1 positional argument but 2 were given
+2026-07-24 09:39:22,900 [ERROR] Window 5 ִ��ʧ��: simple_train() takes 1 positional argument but 2 were given
+2026-07-24 09:39:22,903 [ERROR] Window 6 ִ��ʧ��: simple_train() takes 1 positional argument but 2 were given
+2026-07-24 09:39:22,903 [INFO] ���� 5 �� Walk-Forward ����
+  ״̬: [FAIL] (0.000s)
+  ��Ϣ: ����ʧ��: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_walk_forward.py", line 34, in test_window_count
+    self.assertGreater(len(windows), 5)
+AssertionError: 5 not greater tha
+
+======================================================================
+���Խ������:
+  �ܼ�: 54
+  ͨ��: 28 (51.9%)
+  ʧ��: 4
+  ����: 22
+
+���Ա����ѱ��浽: v8.3_institutional\tests\test_report.txt
+
+������븲����...
+----------------------------------------------------------------------
+�ܺ�����: 3766
+���Ǻ�����: 45
+���㸲����: 1.2%
+
+======================================================================
+ִ���ܽ�:
+  ����ͨ����: 51.9%
+  ���㸲����: 1.2%
+  Ŀ�긲����: 80.0%
+  [FAIL] ������δ���,��Ҫ����������
+======================================================================

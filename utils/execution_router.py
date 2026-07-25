@@ -143,7 +143,8 @@ class ExecutionRouter:
         planned_price = float(planned.get("price", 0))
         executed_price = float(executed.get("price", 0))
         planned_slippage = float(planned.get("slippage_bps", 0))
-        actual_slippage = float(planned.get("slippage_bps", 0))
+        # 修复 BUG-E1: 从 executed 字典读取实际滑点 (原代码误用 planned.get)
+        actual_slippage = float(executed.get("slippage_bps", 0))
 
         if planned_price > 1e-9:
             shortfall_bps = (executed_price - planned_price) / planned_price * 10000.0

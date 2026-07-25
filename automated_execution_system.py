@@ -36,8 +36,8 @@ except ImportError:
 import sys
 import os
 
-# 确保 v7.5_institutional 对冲模块可导入
-_V7_5_SRC = os.path.join(os.path.dirname(__file__), "v7.5_institutional", "src")
+# 确保 v8.3_institutional 对冲模块可导入
+_V7_5_SRC = os.path.join(os.path.dirname(__file__), "v8.3_institutional", "src")
 if _V7_5_SRC not in sys.path:
     sys.path.insert(0, _V7_5_SRC)
 
@@ -922,10 +922,15 @@ class ExecutionStrategy:
 
 class OrderRouter:
     """
-    订单路由器
+    订单路由器 — 生产级: 对接 SmartOrderRouter 进行实盘执行
     """
-    
-    def __init__(self):
+
+    def __init__(self, smart_router=None, broker=None):
+        # ---------- 实盘执行组件 (传入则为实盘; None 则 fallback 模拟) ----------
+        self.smart_router = smart_router
+        self.broker = broker
+        self._use_live = smart_router is not None and broker is not None
+
         # 执行池配置
         self.execution_pools = {
             'normal': {
@@ -947,13 +952,13 @@ class OrderRouter:
                 'min_balance': 1000000
             }
         }
-        
+
         # 当前活跃订单
         self.active_orders = {}
-        
+
         # 执行队列
         self.execution_queue = deque(maxlen=50)
-        
+
         # 执行统计
         self.execution_stats = {
             'total_orders': 0,
@@ -962,8 +967,15 @@ class OrderRouter:
             'average_time': 0.0,
             'average_slippage': 0.0
         }
-        
-        logger.info("订单路由器初始化完成")
+
+        # 修复 BUG-E3: 线程安全锁, 保护多线程共享数据结构
+        import threading
+        self._orders_lock = threading.Lock()    # 保护 active_orders
+        self._queue_lock = threading.Lock()     # 保护 execution_queue
+        self._stats_lock = threading.Lock()     # 保护 execution_stats
+
+        mode = "实盘" if self._use_live else "回测/模拟"
+        logger.info(f"订单路由器初始化完成 (模式={mode})")
     
     def route_order(self, execution_plan: Dict, market_state: str) -> Dict:
         """
@@ -1047,13 +1059,24 @@ class OrderRouter:
     
     def _check_pool_availability(self, pool: Dict) -> bool:
         """检查执行池可用性"""
-        # 检查并发限制
-        active_count = sum(1 for order in self.active_orders.values() 
-                          if order.get('target_pool') == list(self.execution_pools.values()).index(pool))
-        
+        # 修复 BUG-E2: 通过对象身份查找 pool_name, 而非用 index (字符串==整数永远False)
+        pool_name = None
+        for name, p in self.execution_pools.items():
+            if p is pool:
+                pool_name = name
+                break
+
+        if pool_name is None:
+            logger.warning("[OrderRouter] 未找到 pool 对应的名称, 判定为不可用")
+            return False
+
+        # 检查并发限制: 用 pool_name 字符串匹配
+        active_count = sum(1 for order in self.active_orders.values()
+                          if order.get('target_pool') == pool_name)
+
         if active_count >= pool['max_concurrent']:
             return False
-        
+
         # 检查余额限制（简化处理）
         # 实际应该查询真实的账户余额
         return True
@@ -1145,33 +1168,135 @@ class OrderRouter:
         return True
     
     def _execute_order(self, order: Dict) -> Dict:
-        """执行单个订单"""
+        """执行单个订单 — 生产级: SmartOrderRouter 路由 + Iceberg + 滑点熔断"""
         try:
-            # 模拟订单执行
             slice_info = order['slice_info']
-            
-            # 模拟执行延迟
-            time.sleep(np.random.uniform(0.1, 0.5))
-            
-            # 模拟执行结果
-            execution_time = np.random.uniform(5, 20)
-            slippage = np.random.uniform(0, 0.01)
-            
-            return {
-                'success': True,
-                'execution_time': execution_time,
-                'slippage': slippage,
-                'filled_size': slice_info['size'],
-                'average_price': slice_info.get('price', 0) * (1 + slippage),
-                'broker': self.execution_pools[order['target_pool']]['broker']
-            }
-            
+            symbol = order.get('symbol', '')
+            side = order.get('side', 'BUY')
+            qty = slice_info.get('size', 0)
+            limit_price = slice_info.get('price')
+
+            if self._use_live:
+                # ---- 实盘路径: SmartOrderRouter ----
+                from datetime import datetime as dt_mod
+                order_book = self.broker.get_order_book(symbol, levels=5)
+                if order_book is None:
+                    raise ValueError(f"无法获取 {symbol} 盘口深度, 取消执行")
+
+                routing = self.smart_router.route(
+                    symbol=symbol,
+                    side=side,
+                    total_shares=qty,
+                    order_books={symbol: order_book},
+                    max_venues=2,
+                    strategy="LIQUIDITY_FIRST",
+                )
+
+                fills = self.smart_router.execute_route(
+                    routing=routing,
+                    symbol=symbol,
+                    side=side,
+                    target_qty=qty,
+                    broker=self.broker,
+                )
+
+                if not fills:
+                    return {'success': False, 'error': '所有场所均执行失败'}
+
+                avg_price = sum(f.avg_price * f.filled_qty for f in fills) / sum(f.filled_qty for f in fills)
+                total_filled = sum(f.filled_qty for f in fills)
+
+                # 滑点 = avg_price vs arrival_price
+                arrival_price = order_book.get('mid') or \
+                    (order_book.get('ask1', 0) + order_book.get('bid1', 0)) / 2
+                slippage = (avg_price / max(arrival_price, 1e-8) - 1)
+                if side == 'SELL':
+                    slippage = -slippage
+
+                return {
+                    'success': True,
+                    'execution_time': routing.latency_ms or 0,
+                    'slippage': round(slippage, 6),
+                    'filled_size': total_filled,
+                    'average_price': round(avg_price, 4),
+                    'broker': 'smart_router',
+                    'venue_count': len(fills),
+                    'is_live': True,
+                }
+
+            else:
+                # ---- 回测/模拟路径 (保留兼容) ----
+                # 修复 BUG-E4: 严格校验限价, 防止 0 价格成交
+                if limit_price is None or not isinstance(limit_price, (int, float)) or limit_price <= 0:
+                    # 市价单: 尝试从持仓文件获取参考价
+                    ref_price = self._get_reference_price(symbol)
+                    if ref_price is None or ref_price <= 0:
+                        return {
+                            'success': False,
+                            'error': f'无法获取 {symbol} 参考价格, 拒绝生成 0 价格成交'
+                        }
+                    limit_price = ref_price
+
+                if qty <= 0:
+                    return {
+                        'success': False,
+                        'error': f'无效的数量 {qty}, 拒绝执行'
+                    }
+
+                execution_time = 0.01  # 回测中执行延迟可忽略
+                # 按 A-share 最低滑点 (2bp 大盘 / 5bp 中小盘)
+                slippage_bps = 2 if symbol and (symbol.startswith(('60', '00', '30'))) else 5
+                slippage = slippage_bps / 10000.0
+                # 修复: 明确运算优先级, 避免三元表达式歧义
+                if side.upper() == 'BUY':
+                    fill_price = limit_price * (1 + slippage)
+                elif side.upper() == 'SELL':
+                    fill_price = limit_price * (1 - slippage)
+                else:
+                    return {
+                        'success': False,
+                        'error': f'未知的交易方向: {side}'
+                    }
+
+                return {
+                    'success': True,
+                    'execution_time': execution_time,
+                    'slippage': slippage,
+                    'filled_size': qty,
+                    'average_price': round(fill_price, 4),
+                    'broker': self.execution_pools[order['target_pool']]['broker'],
+                    'is_live': False,
+                }
+
         except Exception as e:
             return {
                 'success': False,
                 'error': str(e)
             }
-    
+
+    def _get_reference_price(self, symbol: str) -> Optional[float]:
+        """获取参考价格 (用于市价单回测时 fallback)
+
+        从持仓文件或行情接口获取标的参考价格,
+        避免 limit_price 为 None 时生成 0 价格成交。
+        """
+        if not symbol:
+            return None
+        try:
+            import os
+            positions_path = os.path.join(os.path.dirname(__file__), "config", "positions.json")
+            if os.path.exists(positions_path):
+                with open(positions_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                for key, pos in data.get("positions", {}).items():
+                    if symbol in key:
+                        price = pos.get("est_price", pos.get("last_price", 0))
+                        if price and float(price) > 0:
+                            return float(price)
+            return None
+        except Exception:
+            return None
+
     def _update_execution_stats(self, execution_result: Dict):
         """更新执行统计"""
         self.execution_stats['total_orders'] += 1
@@ -1779,9 +1904,12 @@ class AutomatedExecutionSystem:
                 except Exception:
                     pass
             
-            # 最终兜底
+            # 最终兜底 — 生产环境拒绝静默使用3000假指数，抛出异常强制上游处理
             if index_price is None or index_price <= 0:
-                index_price = safe_float(3000)
+                raise ValueError(
+                    "市场指数价格无法获取 (Wind MCP / 历史数据均不可用)，"
+                    "拒绝使用硬编码 3000 假数据。请检查数据源连接或 config/market_returns.json。"
+                )
             
             # 尝试从历史收益率计算真实指标
             try:
@@ -1851,33 +1979,18 @@ class AutomatedExecutionSystem:
             except Exception as e:
                 logger.debug("历史收益率市场数据计算失败: %s", e)
             
-            return {
-                'index_price': safe_float(index_price),
-                'volatility': safe_float(0.15),
-                'var_95': safe_float(0.02),
-                'var_99': safe_float(0.035),
-                'liquidity': safe_float(1.0),
-                'sentiment_score': safe_float(0.2),
-                'correlation_matrix': _eye(3),
-                'beta': safe_float(1.0),
-                'tracking_error': safe_float(0.03),
-                'market_correlation': safe_float(0.7),
-                'volatility_skew': safe_float(0.0),
-                'volatility_term': safe_float(0.0),
-                'vix_future_price': safe_float(20.0),
-                'kurtosis': safe_float(3.0),
-                'skewness': safe_float(0.0),
-                'extreme_events': safe_float(0, default=0)
-            }
+            # 历史收益率计算失败 — 上游数据不可用，不允许静默返回假数据
+            raise RuntimeError(
+                "市场数据计算失败: 历史收益率文件存在但计算异常。"
+                "拒绝返回硬编码假数据 (volatility=0.15, VaR=0.02 等)。"
+                "请检查 config/returns_history.json 和 config/market_returns.json 文件完整性。"
+            )
         except Exception as e:
             logger.warning("获取市场数据失败: %s", e)
-            return {
-                'index_price': safe_float(3000),
-                'volatility': safe_float(0.15),
-                'var_95': safe_float(0.02),
-                'var_99': safe_float(0.035),
-                'liquidity': safe_float(1.0),
-                'sentiment_score': safe_float(0.2),
+            raise RuntimeError(
+                f"市场数据完全不可用 (index_price={index_price})，"
+                f"拒绝返回全量硬编码假数据。原始错误: {e}"
+            ) from e
                 'correlation_matrix': _eye(3),
                 'beta': safe_float(1.0),
                 'tracking_error': safe_float(0.03),

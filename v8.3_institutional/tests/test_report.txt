@@ -1,0 +1,252 @@
+测试报告
+======================================================================
+生成时间: 2026-07-24 09:39:22
+测试目录: v8.3_institutional\tests
+
+测试汇总:
+  总计: 54
+  通过: 28
+  失败: 4
+  错误: 22
+
+详细结果:
+----------------------------------------------------------------------
+[PASS] test_1_optuna_train_f1_removal: passed
+  耗时: 11.432s
+
+[PASS] test_2_dynamic_target_return: passed
+  耗时: 0.236s
+
+[PASS] test_3_dsr_dynamic_n_trials: passed
+  耗时: 0.011s
+
+[PASS] test_4_parameter_sensitivity: passed
+  耗时: 0.000s
+
+[PASS] test_5_cagr_decay_detection: passed
+  耗时: 0.013s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_hedger.TestBetaHedger testMethod=test_ewma_beta_compute>, <test_hedger.TestBetaHedger testMethod=test_hedge_lot_calculation>, <test_hedger.TestBetaHedger testMethod=test_hedge_when_beta_high>, <test_hedger.TestBetaHedger testMethod=test_no_hedge_when_beta_low>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_hedger.TestCorrelationHedger testMethod=test_avg_correlation>, <test_hedger.TestCorrelationHedger testMethod=test_hedge_high_corr>, <test_hedger.TestCorrelationHedger testMethod=test_no_hedge_low_corr>]>: passed
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_hedger.TestHedgeCoordinator testMethod=test_all_triggers>, <test_hedger.TestHedgeCoordinator testMethod=test_deduplication>, <test_hedger.TestHedgeCoordinator testMethod=test_no_hedge_normal>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_hedger.py", line 151, in test_all_triggers
+    orders = self.coordinator.coordinate(
+  File "v8.3_institutional\tests\..\
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_hedger.TestVolHedger testMethod=test_bare_put_vix_50>, <test_hedger.TestVolHedger testMethod=test_emergency_put_vix_70>, <test_hedger.TestVolHedger testMethod=test_no_hedge_vix_low>, <test_hedger.TestVolHedger testMethod=test_put_spread_vix_35>]>: passed
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_risk_manager.TestRiskBudgeter testMethod=test_circuit_breaker>, <test_risk_manager.TestRiskBudgeter testMethod=test_defense_hold>, <test_risk_manager.TestRiskBudgeter testMethod=test_defense_trigger>, <test_risk_manager.TestRiskBudgeter testMethod=test_hwm_window_length>, <test_risk_manager.TestRiskBudgeter testMethod=test_initial_state>, <test_risk_manager.TestRiskBudgeter testMethod=test_kelly_single_trade_cap>, <test_risk_manager.TestRiskBudgeter testMethod=test_kelly_weight>, <test_risk_manager.TestRiskBudgeter testMethod=test_normal_drawdown>, <test_risk_manager.TestRiskBudgeter testMethod=test_risk_parity_weights>]>: failed
+  信息: 断言失败: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_risk_manager.py", line 44, in test_defense_hold
+    self.assertEqual(result, "DEFENSE_HOLD")
+AssertionError: 'CIRCUIT_BRE
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_risk_manager.TestRiskManager testMethod=test_correlation_hedge_trigger>, <test_risk_manager.TestRiskManager testMethod=test_emergency_put_trigger>, <test_risk_manager.TestRiskManager testMethod=test_hedge_when_high_beta>, <test_risk_manager.TestRiskManager testMethod=test_normal_cycle>, <test_risk_manager.TestRiskManager testMethod=test_vol_hedge_trigger>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_risk_manager.py", line 93, in test_normal_cycle
+    result = self.rm.run_risk_cycle(
+TypeError: run_risk_cycle() got an u
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_sor.TestAlgoEngine testMethod=test_batch_execution>, <test_sor.TestAlgoEngine testMethod=test_end_of_day>, <test_sor.TestAlgoEngine testMethod=test_is_trading_hours>, <test_sor.TestAlgoEngine testMethod=test_pov_execution>, <test_sor.TestAlgoEngine testMethod=test_twap_execution>, <test_sor.TestAlgoEngine testMethod=test_vwap_execution>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_sor.py", line 59, in setUp
+    self.sor = SmartOrderRouter(
+TypeError: __init__() got an unexpected keyword argument 'pri
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_sor.TestSmartOrderRouter testMethod=test_basic_execute>, <test_sor.TestSmartOrderRouter testMethod=test_iceberg_slicing>, <test_sor.TestSmartOrderRouter testMethod=test_pause_after_accumulated_slip>, <test_sor.TestSmartOrderRouter testMethod=test_server_ts>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_sor.py", line 21, in setUp
+    self.sor = SmartOrderRouter(broker=None, price_dict=broker_dict)
+TypeError: __init__() got
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_stress_periods.TestStressScenarioConfig testMethod=test_covid_scenario>, <test_stress_periods.TestStressScenarioConfig testMethod=test_luna_scenario>, <test_stress_periods.TestStressScenarioConfig testMethod=test_yen_scenario>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_stress_periods.TestStressScenarios testMethod=test_all_scenarios_exist>, <test_stress_periods.TestStressScenarios testMethod=test_compliance_tests>, <test_stress_periods.TestStressScenarios testMethod=test_covid_crash>, <test_stress_periods.TestStressScenarios testMethod=test_custom_scenario>, <test_stress_periods.TestStressScenarios testMethod=test_luna_crash>, <test_stress_periods.TestStressScenarios testMethod=test_monte_carlo_tail>, <test_stress_periods.TestStressScenarios testMethod=test_pass_criteria>, <test_stress_periods.TestStressScenarios testMethod=test_scenario_not_found>, <test_stress_periods.TestStressScenarios testMethod=test_yen_carry>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_allocate_main_sub>, <test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_should_roll_deepen>, <test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_should_roll_hold>, <test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_should_roll_reduce>, <test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_should_roll_standard>, <test_tail_risk_hedge.TestAllocationAndRolling testMethod=test_total_allocation_equals_budget>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_budget_calculation>, <test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_emergency_put>, <test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_history_tracking>, <test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_no_hedge>, <test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_symbol_allocation>, <test_tail_risk_hedge.TestComputeHedge testMethod=test_compute_hedge_with_roll_decision>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestEdgeCases testMethod=test_extreme_vix>, <test_tail_risk_hedge.TestEdgeCases testMethod=test_max_protection_ratio>, <test_tail_risk_hedge.TestEdgeCases testMethod=test_multiple_compute_hedge_calls>, <test_tail_risk_hedge.TestEdgeCases testMethod=test_negative_drawdown>, <test_tail_risk_hedge.TestEdgeCases testMethod=test_zero_portfolio_value>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestFactorDecayIntegration testMethod=test_factor_decay_otm_adjustment>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestLiquidityIntegration testMethod=test_liquidity_pause_trading>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestMarketRegime testMethod=test_state_constants>, <test_tail_risk_hedge.TestMarketRegime testMethod=test_state_transitions>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestOTMLadder testMethod=test_build_otm_ladder_large_loss>, <test_tail_risk_hedge.TestOTMLadder testMethod=test_build_otm_ladder_medium_loss>, <test_tail_risk_hedge.TestOTMLadder testMethod=test_build_otm_ladder_small_loss>, <test_tail_risk_hedge.TestOTMLadder testMethod=test_ladder_strike_prices>, <test_tail_risk_hedge.TestOTMLadder testMethod=test_vix_amplifies_weights>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestPerformance testMethod=test_build_otm_ladder_performance>, <test_tail_risk_hedge.TestPerformance testMethod=test_compute_hedge_latency>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestRegimeHedgeRatios testMethod=test_ratios_definition>, <test_tail_risk_hedge.TestRegimeHedgeRatios testMethod=test_ratios_monotonicity>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestTailRiskConfig testMethod=test_custom_config>, <test_tail_risk_hedge.TestTailRiskConfig testMethod=test_default_values>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_analyze_market_regime_crisis>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_analyze_market_regime_normal>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_analyze_market_regime_recovery>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_analyze_market_regime_warning>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_bs_loss_impact>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_calculate_protection_ratio_crisis>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_calculate_protection_ratio_normal>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_initialization>, <test_tail_risk_hedge.TestTailRiskHedgerCore testMethod=test_vix_amplification>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_tail_risk_hedge.TestVegaIntegration testMethod=test_vega_crisis_trigger>, <test_tail_risk_hedge.TestVegaIntegration testMethod=test_vega_protection_increase>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_v75.TestBacktest testMethod=test_cost_model>, <test_v75.TestBacktest testMethod=test_cost_model_sell>, <test_v75.TestBacktest testMethod=test_dsr>, <test_v75.TestBacktest testMethod=test_max_drawdown>, <test_v75.TestBacktest testMethod=test_metrics>, <test_v75.TestBacktest testMethod=test_stress_scenarios>, <test_v75.TestBacktest testMethod=test_walk_forward>]>: passed
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_v75.TestCircuitBreaker testMethod=test_allowed_actions>, <test_v75.TestCircuitBreaker testMethod=test_level_1>, <test_v75.TestCircuitBreaker testMethod=test_level_2>, <test_v75.TestCircuitBreaker testMethod=test_level_3>, <test_v75.TestCircuitBreaker testMethod=test_level_4_vix>, <test_v75.TestCircuitBreaker testMethod=test_vix_escalate>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v75.py", line 78, in setUp
+    self.cb = CircuitBreaker("test_breaker")
+  File "v8.3_institutional\tests\..\src\risk\circ
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_v75.TestExecution testMethod=test_algo_iceberg>, <test_v75.TestExecution testMethod=test_ntp_sync>, <test_v75.TestExecution testMethod=test_sor_execute>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_v75.TestHedging testMethod=test_beta_hedge>, <test_v75.TestHedging testMethod=test_beta_no_hedge>, <test_v75.TestHedging testMethod=test_corr_hedge>, <test_v75.TestHedging testMethod=test_corr_no_hedge>, <test_v75.TestHedging testMethod=test_vol_bare_put>, <test_v75.TestHedging testMethod=test_vol_emergency>, <test_v75.TestHedging testMethod=test_vol_no_hedge>, <test_v75.TestHedging testMethod=test_vol_put_spread>]>: passed
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_v75.TestRiskManager testMethod=test_circuit_breaker>, <test_v75.TestRiskManager testMethod=test_defense_mode>, <test_v75.TestRiskManager testMethod=test_kelly_weight>, <test_v75.TestRiskManager testMethod=test_kelly_zero_sigma>, <test_v75.TestRiskManager testMethod=test_normal_mode>, <test_v75.TestRiskManager testMethod=test_risk_parity>]>: failed
+  信息: 断言失败: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v75.py", line 40, in test_defense_mode
+    self.assertEqual(result, "HALVE_POSITION")
+AssertionError: 'CIRCUIT_BREAKER' !
+  耗时: 0.000s
+
+[FAIL] test_data_pipeline_health: error
+  信息: 执行错误: test_data_pipeline_health() missing 1 required positional argument: 'result'
+  耗时: 0.003s
+
+[FAIL] test_environment_isolation: error
+  信息: 执行错误: test_environment_isolation() missing 1 required positional argument: 'result'
+  耗时: 0.000s
+
+[FAIL] test_evt_modeling: error
+  信息: 执行错误: test_evt_modeling() missing 1 required positional argument: 'result'
+  耗时: 0.000s
+
+[FAIL] test_factor_decay_monitor: error
+  信息: 执行错误: test_factor_decay_monitor() missing 1 required positional argument: 'result'
+  耗时: 0.000s
+
+[FAIL] test_liquidity_monitor: error
+  信息: 执行错误: test_liquidity_monitor() missing 1 required positional argument: 'result'
+  耗时: 0.000s
+
+[FAIL] test_purged_kfold_cv: error
+  信息: 执行错误: test_purged_kfold_cv() missing 1 required positional argument: 'result'
+  耗时: 0.000s
+
+[FAIL] test_shadow_account_system: error
+  信息: 执行错误: test_shadow_account_system() missing 1 required positional argument: 'result'
+  耗时: 0.000s
+
+[FAIL] test_time_sync: error
+  信息: 执行错误: test_time_sync() missing 1 required positional argument: 'result'
+  耗时: 0.000s
+
+[FAIL] test_vega_monitor: error
+  信息: 执行错误: test_vega_monitor() missing 1 required positional argument: 'result'
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_v85_modules.TestDataPipeline testMethod=test_add_data_source>, <test_v85_modules.TestDataPipeline testMethod=test_validate_data_integrity>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 318, in setUp
+    from src.pipeline.data_pipeline import DataPipeline
+ModuleNotFoundError: No modul
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_v85_modules.TestEVTTailRisk testMethod=test_backtest>, <test_v85_modules.TestEVTTailRisk testMethod=test_estimate_cvar>, <test_v85_modules.TestEVTTailRisk testMethod=test_estimate_tail_index>, <test_v85_modules.TestEVTTailRisk testMethod=test_generate_stress_scenarios>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 179, in setUp
+    from src.risk.evt_tail_risk import EVTTailRisk
+ImportError: cannot import name 'E
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_v85_modules.TestEnvironmentIsolation testMethod=test_check_environment_separation>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 368, in setUp
+    from src.validation.env_isolation import EnvironmentIsolation
+ModuleNotFoundError
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_v85_modules.TestFactorDecayMonitor testMethod=test_calculate_decay_rate>, <test_v85_modules.TestFactorDecayMonitor testMethod=test_detect_anomalies>, <test_v85_modules.TestFactorDecayMonitor testMethod=test_generate_report>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 226, in setUp
+    self.monitor = FactorDecayMonitor(
+TypeError: __init__() got an unexpected keywor
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_v85_modules.TestLiquidityMonitor testMethod=test_blocked_trades>, <test_v85_modules.TestLiquidityMonitor testMethod=test_scan_market>]>: failed
+  信息: 断言失败: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 172, in test_blocked_trades
+    self.assertIn('000001.SZ', report.blocked_trades)
+AssertionError: '
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_v85_modules.TestPurgedKFoldCV testMethod=test_generate_folds>, <test_v85_modules.TestPurgedKFoldCV testMethod=test_no_data_leakage>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 291, in setUp
+    from src.validation.purged_kfold import PurgedKFoldCV
+ModuleNotFoundError: No mod
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_v85_modules.TestShadowAccount testMethod=test_check_compliance>, <test_v85_modules.TestShadowAccount testMethod=test_record_deviation>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 263, in setUp
+    from src.validation.shadow_account import ShadowAccountSystem
+ModuleNotFoundError
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_v85_modules.TestTimeSync testMethod=test_calibrate_clock_drift>, <test_v85_modules.TestTimeSync testMethod=test_get_ntp_time>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 346, in setUp
+    from src.infrastructure.time_sync import TimeSync
+ModuleNotFoundError: No module 
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_v85_modules.TestVegaMonitor testMethod=test_calculate_exposure>, <test_v85_modules.TestVegaMonitor testMethod=test_cumulative_pnl>, <test_v85_modules.TestVegaMonitor testMethod=test_empty_positions>, <test_v85_modules.TestVegaMonitor testMethod=test_generate_report_warning>]>: error
+  信息: 执行错误: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_v85_modules.py", line 89, in test_generate_report_warning
+    OptionPosition(
+NameError: name 'OptionPosition' is not def
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_walk_forward.TestCostModel testMethod=test_almgren_chriss>, <test_walk_forward.TestCostModel testMethod=test_commission_sell>, <test_walk_forward.TestCostModel testMethod=test_commission_stock>, <test_walk_forward.TestCostModel testMethod=test_market_impact>, <test_walk_forward.TestCostModel testMethod=test_total_cost>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_walk_forward.TestDeflatedSharpeRatio testMethod=test_dsr_edge_case>, <test_walk_forward.TestDeflatedSharpeRatio testMethod=test_dsr_high_sr>, <test_walk_forward.TestDeflatedSharpeRatio testMethod=test_dsr_low_sr>]>: passed
+  耗时: 0.000s
+
+[PASS] <unittest.suite.TestSuite tests=[<test_walk_forward.TestPerformanceMetrics testMethod=test_annual_return>, <test_walk_forward.TestPerformanceMetrics testMethod=test_calmar>, <test_walk_forward.TestPerformanceMetrics testMethod=test_max_drawdown>, <test_walk_forward.TestPerformanceMetrics testMethod=test_objective>, <test_walk_forward.TestPerformanceMetrics testMethod=test_sortino>, <test_walk_forward.TestPerformanceMetrics testMethod=test_summary>, <test_walk_forward.TestPerformanceMetrics testMethod=test_var_cvar>]>: passed
+  耗时: 0.000s
+
+[FAIL] <unittest.suite.TestSuite tests=[<test_walk_forward.TestWalkForward testMethod=test_aggregate_metrics>, <test_walk_forward.TestWalkForward testMethod=test_generate_windows>, <test_walk_forward.TestWalkForward testMethod=test_run_basic>, <test_walk_forward.TestWalkForward testMethod=test_window_count>]>: failed
+  信息: 断言失败: Traceback (most recent call last):
+  File "v8.3_institutional\tests\test_walk_forward.py", line 34, in test_window_count
+    self.assertGreater(len(windows), 5)
+AssertionError: 5 not greater tha
+  耗时: 0.000s
+

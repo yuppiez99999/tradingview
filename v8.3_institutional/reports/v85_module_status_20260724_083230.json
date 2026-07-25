@@ -1,0 +1,44 @@
+{
+  "total": 5,
+  "available": 5,
+  "unavailable": 0,
+  "integration_rate": "100.0%",
+  "modules": [
+    {
+      "index": 1,
+      "name": "环境隔离管理器",
+      "module_path": "src.utils.environment_isolation",
+      "class_name": "EnvironmentIsolation",
+      "status": "可用"
+    },
+    {
+      "index": 2,
+      "name": "时间同步(PTP)",
+      "module_path": "src.execution.ntp_sync",
+      "class_name": "NTPSync",
+      "status": "可用"
+    },
+    {
+      "index": 3,
+      "name": "Vega监控",
+      "module_path": "src.risk.vega_monitor",
+      "class_name": "VegaMonitor",
+      "status": "可用"
+    },
+    {
+      "index": 4,
+      "name": "流动性监控",
+      "module_path": "src.risk.liquidity_monitor",
+      "class_name": "LiquidityMonitor",
+      "status": "可用"
+    },
+    {
+      "index": 5,
+      "name": "EVT肥尾建模",
+      "module_path": "src.risk.evt_tail_risk",
+      "class_name": "ExtremeValueAnalyzer",
+      "status": "可用"
+    }
+  ],
+  "timestamp": "2026-07-24T08:32:30.676239"
+}

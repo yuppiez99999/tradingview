@@ -88,11 +88,12 @@ author: iFinD
 
 ## 注意事项
 
-1. 配置文件 `mcp_config.json` 需要包含有效的 `auth_token`（两个方案共用）
-2. 请求地址已经内置在请求脚本 call.py 和 call-node.js 内部，配置文件中的密钥也已经在脚本内引用，直接调用即可，无需你重新阅读、生成URL和密钥
-3. 优先使用Node.js方案（`call-node.js`），无需安装任何依赖，python方案备选
-4. 单次请求完成后，请帮助用户清除你临时生成的取数脚本
-5. Windows PowerShell 管道执行含中文脚本时，先确保控制台输入输出编码为 UTF-8，避免中文 query 乱码
+1. **安全要求**: iFinD JWT Token 必须通过环境变量 `IFIND_TOKEN` 配置,禁止在配置文件或代码中明文存储
+2. 配置文件 `mcp_config.json` 仅包含占位符 `${IFIND_TOKEN}`,实际 Token 从环境变量读取
+3. 请求地址已经内置在请求脚本 call.py 和 call-node.js 内部，配置文件中的密钥也已经在脚本内引用，直接调用即可，无需你重新阅读、生成URL和密钥
+4. 优先使用Node.js方案（`call-node.js`），无需安装任何依赖，python方案备选
+5. 单次请求完成后，请帮助用户清除你临时生成的取数脚本
+6. Windows PowerShell 管道执行含中文脚本时，先确保控制台输入输出编码为 UTF-8，避免中文 query 乱码
 
 ---
 

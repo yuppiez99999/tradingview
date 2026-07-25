@@ -1,257 +1,309 @@
-# -*- coding: utf-8 -*-
-"""
-盘后报告自动运行入口
-====================
+#!/usr/bin/env python3
+"""每日 EOD 风控守卫执行脚本 (v8.6.1)
 
-每个交易日 16:00 由 Windows Task Scheduler 自动触发,
-非交易日自动跳过, 收盘后生成持仓盈亏报告 (含对冲明细 + 持仓明细 + 收益 + 第二天交易计划)。
-
-工作流程:
-    1. 检查今日是否为 A 股交易日 (akshare 交易日历)
-    2. 如非交易日, 写入跳过日志并退出
-    3. 切换到项目根目录, 调用 generate_daily_report.main()
-    4. 输出报告路径 (Markdown + JSON)
+以世界顶级对冲基金视角, 每日收盘后强制执行四 Guard 风控链:
+    Guard 1: 保证金熔断 (KillSwitch)
+    Guard 2: 回撤检查 (DrawdownController)
+    Guard 3: 波动率控制 (VolTargetController)
+    Guard 4: 对冲执行 + 认沽保护 (HedgeExecutionEngine + ProtectivePutEngine)
 
 用法:
-    python run_daily_eod.py                 # 今日
-    python run_daily_eod.py 2026-07-09       # 指定日期 (用于手动补生成)
+    python run_daily_eod.py [--date YYYY-MM-DD] [--dry-run]
 
-注册定时任务 (管理员 PowerShell):
-    .\\register_eod_task.ps1
+输出:
+    1. 更新次日 trade_plan (含 risk_guard 结果)
+    2. EOD 摘要报告 → 每日报告归档/{date}/eod_guard_report_{date}.md
 """
-from __future__ import annotations
 
-import os
+import argparse
+import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
-# ============================================================
-# 路径初始化
-# ============================================================
-SCRIPT_DIR = Path(__file__).resolve().parent
-os.chdir(SCRIPT_DIR)
-sys.path.insert(0, str(SCRIPT_DIR))
+# 项目根目录
+PROJECT_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / "v8.3_institutional"))
 
-# ============================================================
-# 日志
-# ============================================================
-LOG_DIR = SCRIPT_DIR / "logs"
-LOG_DIR.mkdir(exist_ok=True)
-LOG_FILE = LOG_DIR / f"run_daily_eod_{datetime.now():%Y%m%d}.log"
+TRADE_PLANS_DIR = PROJECT_ROOT / "v8.3_institutional" / "trade_plans"
+REPORTS_DIR = PROJECT_ROOT / "每日报告归档"
 
 
-def log(msg: str) -> None:
-    """输出带时间戳的日志"""
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    line = f"[{ts}] {msg}"
-    print(line, flush=True)
-    try:
-        with open(LOG_FILE, 'a', encoding='utf-8') as f:
-            f.write(line + "\n")
-    except Exception:
-        pass
+def get_next_trading_day(current_date: str) -> str:
+    """计算下一交易日 (跳过周末)
 
-
-def main() -> int:
-    """主入口: 判断交易日 → 调用 generate_daily_report
+    Args:
+        current_date: 当前日期 YYYY-MM-DD
 
     Returns:
-        0 = 成功 / 跳过, 非 0 = 错误
+        下一交易日 YYYY-MM-DD
     """
-    # 支持命令行参数: 指定报告日期
-    if len(sys.argv) > 1:
-        report_date = sys.argv[1]
-    else:
-        report_date = datetime.now().strftime('%Y-%m-%d')
+    dt = datetime.strptime(current_date, "%Y-%m-%d")
+    next_dt = dt + timedelta(days=1)
+    # 跳过周六(5)和周日(6)
+    while next_dt.weekday() >= 5:
+        next_dt += timedelta(days=1)
+    return next_dt.strftime("%Y-%m-%d")
 
-    log("=" * 70)
-    log(f"盘后报告自动运行入口启动 (报告日期: {report_date})")
-    log("=" * 70)
 
-    # 1. 检查交易日
+def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
+    """执行 EOD 四 Guard 风控链
+
+    Args:
+        report_date: 报告日期 YYYY-MM-DD (当日)
+        dry_run: 若为 True, 仅输出日志不保存文件
+
+    Returns:
+        执行结果字典 {success, guards, next_trade_date, errors}
+    """
+    next_trade_date = get_next_trading_day(report_date)
+    print(f"[EOD] 报告日: {report_date} → 次交易日: {next_trade_date}")
+
+    # 加载次日 trade_plan
+    plan_file = TRADE_PLANS_DIR / f"trade_plan_{next_trade_date.replace('-', '')}.json"
+    if not plan_file.exists():
+        # 尝试带横杠的文件名格式
+        plan_file = TRADE_PLANS_DIR / f"trade_plan_{next_trade_date}.json"
+    if not plan_file.exists():
+        print(f"[EOD][ERROR] 次日交易计划不存在: {plan_file}")
+        return {
+            "success": False,
+            "error": f"trade_plan not found: {plan_file}",
+            "next_trade_date": next_trade_date,
+        }
+
+    print(f"[EOD] 加载交易计划: {plan_file.name}")
+    with open(plan_file, "r", encoding="utf-8") as f:
+        plan = json.load(f)
+
+    # 执行四 Guard 链
+    guards_result = {}
+    errors = []
+
     try:
-        from utils.trade_calendar import is_trading_day
-        if not is_trading_day(report_date):
-            log(f"⏭️  {report_date} 非交易日, 跳过报告生成")
-            return 0
-        log(f"✅ {report_date} 是交易日, 继续生成报告")
+        from utils.risk_guard_integrator import RiskGuardIntegrator
+
+        print("[EOD] 初始化 RiskGuardIntegrator...")
+        integrator = RiskGuardIntegrator(report_date=report_date)
+
+        print("[EOD] 执行四 Guard 风控链...")
+        updated_plan = integrator.run_all_guards(next_trade_date)
+
+        # 提取 Guard 结果
+        risk_guard = updated_plan.get("risk_guard", {})
+        guards_result = {
+            "kill_switch": risk_guard.get("kill_switch", {}),
+            "drawdown": risk_guard.get("drawdown", {}),
+            "vol_target": risk_guard.get("vol_target", {}),
+            "hedge_execution": risk_guard.get("hedge_execution", {}),
+            "protective_put": risk_guard.get("protective_put", {}),
+        }
+
+        # 检查 Guard 是否通过
+        for guard_name, guard_data in guards_result.items():
+            if isinstance(guard_data, dict):
+                passed = guard_data.get("passed", guard_data.get("build_allowed", True))
+                if not passed:
+                    msg = f"[{guard_name}] Guard 未通过: {guard_data}"
+                    errors.append(msg)
+                    print(f"[EOD][WARN] {msg}")
+
+        # 保存更新后的 trade_plan
+        if not dry_run:
+            with open(plan_file, "w", encoding="utf-8") as f:
+                json.dump(updated_plan, f, ensure_ascii=False, indent=2)
+            print(f"[EOD] 已更新交易计划: {plan_file.name}")
+        else:
+            print("[EOD] dry-run 模式, 不保存交易计划")
+
+        # 生成 EOD 摘要报告
+        report_path = generate_eod_report(
+            report_date, next_trade_date, guards_result, errors, dry_run
+        )
+
+        return {
+            "success": len(errors) == 0,
+            "guards": guards_result,
+            "next_trade_date": next_trade_date,
+            "errors": errors,
+            "report_path": str(report_path) if report_path else None,
+        }
+
+    except ImportError as e:
+        error_msg = f"RiskGuardIntegrator 导入失败: {e}"
+        print(f"[EOD][CRITICAL] {error_msg}")
+        errors.append(error_msg)
+        return {"success": False, "error": error_msg, "errors": errors}
     except Exception as e:
-        log(f"⚠️ 交易日历检查失败 ({e}), 继续生成报告 (降级模式)")
-        # 不阻止报告生成, 仅警告
-
-    # 2. 调用 generate_daily_report.main()
-    try:
-        from generate_daily_report import main as gen_report_main
-        # 通过 sys.argv 传递报告日期给 generate_daily_report
-        sys.argv = ['generate_daily_report.py', report_date]
-        report = gen_report_main()
-        if report is None:
-            log("❌ 报告生成失败 (返回 None)")
-            return 1
-
-        # 输出报告路径
-        md_path = SCRIPT_DIR / "v7.5_institutional" / "reports" / f"daily_pnl_report_{report_date}.md"
-        json_path = SCRIPT_DIR / "v7.5_institutional" / "reports" / f"daily_pnl_report_{report_date}.json"
-
-        log(f"✅ 报告生成成功:")
-        log(f"   Markdown: {md_path}")
-        log(f"   JSON:     {json_path}")
-
-        # 第二天交易计划摘要
-        next_day_plan = report.get('next_day_plan', {})
-        if next_day_plan and not next_day_plan.get('error'):
-            nd = next_day_plan.get('next_trading_day', '')
-            wd = next_day_plan.get('weekday', '')
-            phase = next_day_plan.get('phase', {}).get('name_cn', '')
-            day_idx = next_day_plan.get('phase', {}).get('day_index', 0)
-            daily_capital = next_day_plan.get('stock_etf_account', {}).get('daily_capital', 0)
-            log(f"   下一交易日: {nd} ({wd})")
-            log(f"   阶段: {phase} (第 {day_idx} 天)")
-            log(f"   当日预算: {daily_capital:,.2f} 元")
-
-        # 3. 自动把 LLM 决策灌入次日计划
-        try:
-            next_trading_day = ''
-            if isinstance(next_day_plan, dict):
-                next_trading_day = next_day_plan.get('next_trading_day', '')
-            if not next_trading_day:
-                from datetime import datetime as _dt, timedelta as _td
-                _today = _dt.strptime(report_date, '%Y-%m-%d')
-                _next = _today + _td(days=1)
-                while _next.weekday() >= 5:
-                    _next += _td(days=1)
-                next_trading_day = _next.strftime('%Y-%m-%d')
-
-            import subprocess
-            _script = SCRIPT_DIR / 'apply_llm_decisions_to_plan.py'
-            _result = subprocess.run(
-                [sys.executable, str(_script), report_date, next_trading_day],
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-                timeout=60,
-            )
-            if _result.returncode == 0:
-                _out = (_result.stdout or '').strip().splitlines()
-                if _out:
-                    log(f"[OK] LLM决策已自动写入次日计划: {_out[-1]}")
-                else:
-                    log(f"[OK] LLM决策已自动写入次日计划: {next_trading_day}")
-            else:
-                _err = (_result.stderr or '').strip().splitlines()
-                _msg = _err[-1] if _err else 'unknown error'
-                log(f"[WARN] LLM决策写入失败: {_msg}")
-        except Exception as _e:
-            log(f"[WARN] LLM决策写入异常: {_e}")
-
-        # 4. 为下一交易日预生成 LLM 盘中决策初始状态
-        try:
-            _intraday_script = SCRIPT_DIR / 'v7.5_institutional' / 'llm_intraday_decision_engine.py'
-            _intraday_result = subprocess.run(
-                [sys.executable, str(_intraday_script), next_trading_day, '--mode', 'eod'],
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-                timeout=60,
-            )
-            if _intraday_result.returncode == 0:
-                _out = (_intraday_result.stdout or '').strip().splitlines()
-                if _out:
-                    log(f"[OK] 下一交易日盘中决策引擎已就绪: {_out[-1]}")
-                else:
-                    log(f"[OK] 下一交易日盘中决策引擎已就绪: {next_trading_day}")
-            else:
-                _err = (_intraday_result.stderr or '').strip().splitlines()
-                _msg = _err[-1] if _err else 'unknown error'
-                log(f"[WARN] 盘中决策引擎初始化失败: {_msg}")
-        except Exception as _e:
-            log(f"[WARN] 盘中决策引擎初始化异常: {_e}")
-
-        # 5. ETF 资金流向盘后报告
-        try:
-            _etf_script = SCRIPT_DIR / 'v7.5_institutional' / 'etf_flow_monitor.py'
-            _etf_result = subprocess.run(
-                [sys.executable, str(_etf_script), '--mode', 'eod'],
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-                timeout=120,
-            )
-            if _etf_result.returncode == 0:
-                _out = (_etf_result.stdout or '').strip().splitlines()
-                if _out:
-                    log(f"[OK] ETF资金流向报告已生成: {_out[-1]}")
-                else:
-                    log(f"[OK] ETF资金流向报告已生成: {next_trading_day}")
-            else:
-                _err = (_etf_result.stderr or '').strip().splitlines()
-                _msg = _err[-1] if _err else 'unknown error'
-                log(f"[WARN] ETF资金流向报告生成失败: {_msg}")
-        except Exception as _e:
-            log(f"[WARN] ETF资金流向报告生成异常: {_e}")
-
-        # 6. 将当日 ETF 信号摘要写入当日 trade_plan
-        try:
-            import json
-            from pathlib import Path as _P
-            _reports_dir = SCRIPT_DIR / 'v7.5_institutional' / 'reports'
-            _plan_dir = SCRIPT_DIR / 'v7.5_institutional' / 'trade_plans'
-            _etf_candidates = sorted(_reports_dir.glob('etf_flow_report_*.json'), reverse=True)
-            _plan_path = _plan_dir / f"trade_plan_{report_date.replace('-', '')}.json"
-            if _etf_candidates and _plan_path.exists():
-                _etf_json = _etf_candidates[0]
-                with open(_etf_json, 'r', encoding='utf-8') as _f:
-                    _etf_data = json.load(_f)
-                with open(_plan_path, 'r', encoding='utf-8') as _f:
-                    _plan = json.load(_f)
-                _plan['etf_flow_signals'] = {
-                    'updated_at': datetime.now().isoformat(),
-                    'report_date': _etf_data.get('report_date'),
-                    'market_stance': _etf_data.get('market_stance'),
-                    'total_flow_yi': _etf_data.get('total_flow_yi', 0),
-                    'signal_count': _etf_data.get('signal_count', 0),
-                    'strong_buy_signals': [
-                        {
-                            'code': s.get('code'),
-                            'name': s.get('name'),
-                            'net_flow_yi': s.get('net_flow_yi'),
-                            'confidence': s.get('confidence'),
-                            'signal_type': s.get('signal_type'),
-                        }
-                        for s in _etf_data.get('signals', [])[:8]
-                        if '加仓' in s.get('signal_type', '')
-                    ],
-                    'strong_sell_signals': [
-                        {
-                            'code': s.get('code'),
-                            'name': s.get('name'),
-                            'net_flow_yi': s.get('net_flow_yi'),
-                            'confidence': s.get('confidence'),
-                            'signal_type': s.get('signal_type'),
-                        }
-                        for s in _etf_data.get('signals', [])[:8]
-                        if '减仓' in s.get('signal_type', '')
-                    ],
-                }
-                with open(_plan_path, 'w', encoding='utf-8') as _f:
-                    json.dump(_plan, _f, ensure_ascii=False, indent=2)
-                log(f"[OK] 当日ETF信号已写入 trade_plan_{report_date.replace('-', '')}.json")
-        except Exception as _e:
-            log(f"[WARN] 写入当日ETF信号失败: {_e}")
-
-        return 0
-
-    except Exception as e:
+        error_msg = f"四 Guard 链执行异常: {e}"
+        print(f"[EOD][CRITICAL] {error_msg}")
         import traceback
-        log(f"❌ 报告生成异常: {e}")
-        log(traceback.format_exc())
-        return 2
+
+        traceback.print_exc()
+        errors.append(error_msg)
+        return {"success": False, "error": error_msg, "errors": errors}
 
 
-if __name__ == '__main__':
-    exit_code = main()
-    sys.exit(exit_code)
+def generate_eod_report(
+    report_date: str,
+    next_trade_date: str,
+    guards: dict,
+    errors: list,
+    dry_run: bool,
+) -> Path:
+    """生成 EOD 摘要报告
+
+    Args:
+        report_date: 报告日期
+        next_trade_date: 次交易日
+        guards: Guard 执行结果
+        errors: 错误列表
+        dry_run: 是否 dry-run 模式
+
+    Returns:
+        报告文件路径 (dry-run 时返回 None)
+    """
+    lines = [
+        f"# EOD 风控守卫报告 — {report_date}",
+        "",
+        f"**报告日期**: {report_date}",
+        f"**次交易日**: {next_trade_date}",
+        f"**执行时间**: {datetime.now().isoformat()}",
+        f"**模式**: {'dry-run' if dry_run else 'production'}",
+        "",
+        "## 四 Guard 执行结果",
+        "",
+    ]
+
+    # Guard 摘要表
+    lines.append("| Guard | 状态 | 关键指标 |")
+    lines.append("|-------|------|----------|")
+
+    guard_names = {
+        "kill_switch": "保证金熔断",
+        "drawdown": "回撤检查",
+        "vol_target": "波动率控制",
+        "hedge_execution": "对冲执行",
+        "protective_put": "认沽保护",
+    }
+
+    all_passed = True
+    for key, name in guard_names.items():
+        data = guards.get(key, {})
+        if isinstance(data, dict):
+            passed = data.get("passed", data.get("build_allowed", True))
+            status = "✅ 通过" if passed else "❌ 未通过"
+            if not passed:
+                all_passed = False
+            # 提取关键指标
+            metric = ""
+            if key == "kill_switch":
+                metric = f"L{data.get('level', 0)}"
+            elif key == "drawdown":
+                metric = f"Level {data.get('level', 0)}"
+            elif key == "vol_target":
+                metric = f"vol_scale={data.get('vol_scale', 1.0):.2f}"
+            elif key == "hedge_execution":
+                metric = f"hedge_pct={data.get('hedge_pct', 0):.1%}"
+            elif key == "protective_put":
+                metric = f"orders={data.get('put_orders', [])}"
+        else:
+            status = "⚠️ 无数据"
+            metric = "-"
+        lines.append(f"| {name} | {status} | {metric} |")
+
+    lines.append("")
+    if all_passed and not errors:
+        lines.append("## 总结: ✅ 全部 Guard 通过, 次日可正常交易")
+    else:
+        lines.append("## 总结: ❌ 存在 Guard 未通过或异常, 请检查")
+        if errors:
+            lines.append("")
+            lines.append("### 错误详情")
+            for err in errors:
+                lines.append(f"- {err}")
+
+    lines.append("")
+    lines.append("---")
+    lines.append("*本报告由 run_daily_eod.py v8.6.1 自动生成*")
+
+    if dry_run:
+        print("\n" + "\n".join(lines))
+        return None
+
+    # 写入报告文件
+    report_dir = REPORTS_DIR / report_date
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / f"eod_guard_report_{report_date}.md"
+
+    # 写入重试机制 (与 daily_workflow 一致)
+    success = False
+    for attempt in range(3):
+        try:
+            report_path.write_text("\n".join(lines), encoding="utf-8")
+            print(f"[EOD] 报告已生成: {report_path}")
+            success = True
+            break
+        except PermissionError:
+            if attempt < 2:
+                import time
+
+                print(f"[EOD][WARN] 报告写入权限拒绝, 重试 {attempt + 1}/3...")
+                time.sleep(1)
+            else:
+                print(f"[EOD][ERROR] 报告写入失败 ({attempt + 1}/3): 权限拒绝")
+
+    if not success:
+        # Fallback: 写入 logs 目录
+        fallback_dir = PROJECT_ROOT / "logs"
+        fallback_dir.mkdir(parents=True, exist_ok=True)
+        fallback_path = fallback_dir / f"eod_guard_report_{report_date}.md"
+        try:
+            fallback_path.write_text("\n".join(lines), encoding="utf-8")
+            print(f"[EOD][WARN] 报告写入 fallback: {fallback_path}")
+            report_path = fallback_path
+        except Exception as e:
+            print(f"[EOD][ERROR] Fallback 写入也失败: {e}")
+            return None
+
+    return report_path
+
+
+def main():
+    """主入口"""
+    parser = argparse.ArgumentParser(description="EOD 风控守卫执行脚本 (v8.6.1)")
+    parser.add_argument(
+        "--date",
+        default=datetime.now().strftime("%Y-%m-%d"),
+        help="报告日期 YYYY-MM-DD (默认今天)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="dry-run 模式, 仅输出日志不保存文件",
+    )
+    args = parser.parse_args()
+
+    print("=" * 60)
+    print(f"EOD 风控守卫执行 — {args.date}")
+    print("=" * 60)
+
+    result = run_eod_guards(args.date, dry_run=args.dry_run)
+
+    print("\n" + "=" * 60)
+    if result.get("success"):
+        print("[EOD] ✅ 四 Guard 链执行完成, 全部通过")
+    else:
+        print("[EOD] ❌ 四 Guard 链存在未通过项或异常")
+        if result.get("errors"):
+            for err in result["errors"]:
+                print(f"  - {err}")
+    print("=" * 60)
+
+    # 退出码: 成功=0, 失败=1
+    sys.exit(0 if result.get("success") else 1)
+
+
+if __name__ == "__main__":
+    main()

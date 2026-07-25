@@ -1,0 +1,504 @@
+# -*- coding: utf-8 -*-
+"""
+对冲执行引擎 (Hedge Execution Engine)
+=====================================
+修改原因: P0 对冲引擎实质化 - 对冲信号→实际订单的桥梁
+修改日期: 2026-07-21
+
+核心问题:
+    greek_hedge_manager.py 计算出对冲需求但从未真正执行。
+    本模块负责:
+    1. 读取当前持仓和市场数据
+    2. 调用 GreekHedgeManager 计算对冲需求
+    3. 生成具体的对冲执行订单 (期货空头 + 认沽期权)
+    4. 将订单写入 trade_plans/ 和 reports/ 作为执行计划
+
+与以下模块协作:
+    - utils/greek_hedge_manager.py: Greeks暴露计算
+    - utils/drawdown_controller.py: 回撤触发加码对冲
+    - utils/vol_target_controller.py: 波动率目标→缩仓
+    - v7.5_institutional/generate_daily_trade_plan.py: 合成次日计划
+
+用法:
+    from utils.hedge_execution_engine import HedgeExecutionEngine
+    engine = HedgeExecutionEngine()
+    orders = engine.generate_hedge_orders()
+    engine.write_to_trade_plan(orders, "2026-07-22")
+"""
+from __future__ import annotations
+
+import json
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Any, Optional
+
+logger = logging.getLogger("hedge_execution_engine")
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+CONFIG_DIR = BASE_DIR / "config"
+REPORTS_DIR = BASE_DIR / "v7.5_institutional" / "reports"
+TRADE_PLANS_DIR = BASE_DIR / "v7.5_institutional" / "trade_plans"
+
+
+class HedgeExecutionEngine:
+    """对冲执行引擎 - 将对冲信号转化为可执行订单
+    
+    设计原则:
+        1. Beta对冲: IF期货空头覆盖组合50% Beta暴露
+        2. 尾部保护: OTM 5% 认沽期权保护下行风险
+        3. 动态调整: 根据回撤级别和波动率自动加码
+        4. 成本控制: 年化对冲成本 < 2.5% 总资本
+    """
+
+    # 对冲参数
+    IF_MULTIPLIER = 300           # IF期货合约乘数
+    IF_MARGIN_RATE = 0.12         # IF保证金比例
+    TARGET_BETA = 0.30            # 目标组合Beta (从1.05降到0.30)
+    HEDGE_REBALANCE_THRESHOLD = 0.10  # Beta偏离10%触发再平衡
+    
+    # 期权参数
+    PUT_OTM_PCT = 0.05            # 认沽虚值程度 5%
+    MAX_ANNUAL_OPTION_COST_PCT = 0.025  # 最大年化期权成本 2.5%
+    PUT_ROLL_DTE = 5              # 到期前5天滚仓
+
+    def __init__(self, positions_file: Optional[str] = None):
+        self.positions_file = Path(positions_file) if positions_file else CONFIG_DIR / "positions.json"
+        self.positions_data = self._load_positions()
+        self._hedge_manager = None
+
+    def _load_positions(self) -> Dict:
+        """加载持仓配置"""
+        try:
+            with open(self.positions_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"加载持仓失败: {e}")
+            return {}
+
+    def _get_hedge_manager(self):
+        """懒加载 GreekHedgeManager"""
+        if self._hedge_manager is None:
+            from utils.greek_hedge_manager import GreekHedgeManager
+            self._hedge_manager = GreekHedgeManager(
+                target_delta=0.0,   # 目标Delta中性
+                target_gamma=0.0,
+                max_vega=100000.0,
+                max_theta_burn=-10000.0,
+            )
+        return self._hedge_manager
+
+    def calc_portfolio_beta(self) -> float:
+        """计算当前组合Beta暴露 (基于持仓市值加权)
+        
+        Beta假设:
+            - 宽基ETF: beta=1.0
+            - 科技股: beta=1.3
+            - 防御/红利: beta=0.6
+            - 黄金: beta=0.1
+            - 国债: beta=0.05
+            - 医药: beta=0.9
+            - 新能源: beta=1.2
+            - 资源: beta=1.1
+        """
+        SECTOR_BETA = {
+            "宽基": 1.0,
+            "科技": 1.3,
+            "金融": 1.1,
+            "防御": 0.6,
+            "资源": 1.1,
+            "新能源": 1.2,
+            "医药": 0.9,
+            "顺周期": 0.8,
+            "制造": 1.1,
+            "成长": 1.2,
+            "国债": 0.05,
+        }
+
+        positions = self.positions_data.get("positions", {})
+        total_value = 0.0
+        weighted_beta = 0.0
+
+        for code, pos in positions.items():
+            shares = pos.get("actual_shares", pos.get("shares", 0))
+            price = pos.get("est_price", 0)
+            if shares <= 0 or price <= 0:
+                continue
+            market_value = shares * price
+            sector = pos.get("sector", "宽基")
+            beta = SECTOR_BETA.get(sector, 1.0)
+            weighted_beta += market_value * beta
+            total_value += market_value
+
+        if total_value <= 0:
+            return 1.0
+        return weighted_beta / total_value
+
+    def calc_portfolio_market_value(self) -> float:
+        """计算组合当前市值 (不含对冲头寸)"""
+        positions = self.positions_data.get("positions", {})
+        total_value = 0.0
+        for code, pos in positions.items():
+            shares = pos.get("actual_shares", pos.get("shares", 0))
+            price = pos.get("est_price", 0)
+            if shares > 0 and price > 0:
+                total_value += shares * price
+        return total_value
+
+    def generate_futures_hedge_orders(self, 
+                                       portfolio_value: float = None,
+                                       portfolio_beta: float = None,
+                                       target_beta: float = None,
+                                       drawdown_level: int = 0) -> List[Dict]:
+        """生成期货对冲订单
+        
+        逻辑:
+            需要对冲的Beta = (current_beta - target_beta) * portfolio_value
+            IF合约数 = hedge_notional / (IF价格 * IF乘数 * IF_beta)
+            
+        回撤加码:
+            Level 1: 对冲比例 40% → 50%
+            Level 2: 对冲比例 → 60%
+            Level 3: 对冲比例 → 80%
+            Level 4: 对冲比例 → 80% (后续逐步平仓)
+        """
+        if portfolio_value is None:
+            portfolio_value = self.calc_portfolio_market_value()
+        if portfolio_beta is None:
+            portfolio_beta = self.calc_portfolio_beta()
+        if target_beta is None:
+            target_beta = self.TARGET_BETA
+
+        # 回撤加码: 根据级别调整target_beta
+        DD_BETA_TARGETS = {0: 0.30, 1: 0.25, 2: 0.20, 3: 0.10, 4: 0.05}
+        if drawdown_level > 0:
+            target_beta = DD_BETA_TARGETS.get(drawdown_level, target_beta)
+
+        # 需要对冲掉的Beta
+        beta_to_hedge = max(portfolio_beta - target_beta, 0)
+        if beta_to_hedge < 0.05:
+            logger.info(f"Beta已在目标范围内 ({portfolio_beta:.3f} ≈ {target_beta}), 无需对冲")
+            return []
+
+        # 对冲所需名义价值
+        hedge_notional = portfolio_value * beta_to_hedge
+
+        # IF期货当前估算价格 (沪深300指数 ÷ 1)
+        # 实际应从行情获取, 这里用合理估值
+        if_price = self._get_if_price()
+        if if_price <= 0:
+            if_price = 4200  # 默认沪深300指数水平
+
+        # 每张IF合约对冲的名义价值
+        if_notional_per_contract = if_price * self.IF_MULTIPLIER  # 约 126万/张
+
+        # 需要空头合约数
+        contracts_needed = int(round(hedge_notional / if_notional_per_contract))
+        contracts_needed = max(contracts_needed, 1)  # 至少1张
+
+        # 保证金需求
+        margin_required = contracts_needed * if_notional_per_contract * self.IF_MARGIN_RATE
+
+        orders = [{
+            "order_id": f"HEDGE_IF_{datetime.now():%Y%m%d_%H%M%S}",
+            "type": "FUTURES",
+            "instrument": "IF",
+            "exchange": "CFFEX",
+            "direction": "SELL",
+            "contracts": contracts_needed,
+            "multiplier": self.IF_MULTIPLIER,
+            "est_price": if_price,
+            "notional": contracts_needed * if_notional_per_contract,
+            "margin_required": margin_required,
+            "execution_window": "09:45-10:30",
+            "order_type": "LIMIT",
+            "price_buffer": 0.002,  # 限价下偏0.2%
+            "rationale": {
+                "portfolio_value": portfolio_value,
+                "portfolio_beta": round(portfolio_beta, 4),
+                "target_beta": target_beta,
+                "beta_to_hedge": round(beta_to_hedge, 4),
+                "hedge_notional": round(hedge_notional, 0),
+                "drawdown_level": drawdown_level,
+            },
+            "risk_limits": {
+                "max_contracts": 10,  # 500万组合最多10张IF
+                "max_margin_pct": 0.30,  # 最大保证金占对冲资金30%
+            },
+            "status": "PENDING",
+        }]
+
+        logger.info(
+            f"期货对冲订单: IF空头 {contracts_needed} 张, "
+            f"保证金 ¥{margin_required:,.0f}, "
+            f"Beta {portfolio_beta:.3f} → {target_beta:.3f}"
+        )
+        return orders
+
+    def generate_put_protection_orders(self, 
+                                        portfolio_value: float = None,
+                                        drawdown_level: int = 0) -> List[Dict]:
+        """生成认沽期权保护订单
+        
+        详见 utils/protective_put_engine.py (P3模块)
+        这里生成基础Put保护需求, 具体执行由 protective_put_engine 完成
+        """
+        if portfolio_value is None:
+            portfolio_value = self.calc_portfolio_market_value()
+
+        # 年度期权预算 = 总资本 * 2.5%
+        total_capital = self.positions_data.get("meta", {}).get("total_capital", 5_000_000)
+        annual_budget = total_capital * self.MAX_ANNUAL_OPTION_COST_PCT
+        quarterly_budget = annual_budget / 4  # 每季度预算
+
+        # 回撤加码
+        if drawdown_level >= 2:
+            quarterly_budget *= 2.0  # Level 2+ 期权预算翻倍
+        elif drawdown_level >= 1:
+            quarterly_budget *= 1.5  # Level 1 预算增加50%
+
+        # 目标ETF的认沽保护
+        hedge_positions = self.positions_data.get("hedge_positions", {})
+        put_orders = []
+        
+        for key, hedge_pos in hedge_positions.items():
+            if "put" not in key.lower() and "Put" not in hedge_pos.get("instrument", ""):
+                continue
+            
+            contracts = hedge_pos.get("target_contracts", 0)
+            premium_budget = hedge_pos.get("premium_budget", 0)
+            instrument = hedge_pos.get("instrument", "")
+            
+            if contracts <= 0:
+                continue
+
+            put_orders.append({
+                "order_id": f"HEDGE_PUT_{key}_{datetime.now():%Y%m%d}",
+                "type": "OPTIONS",
+                "instrument": instrument,
+                "exchange": hedge_pos.get("exchange", "SSE"),
+                "direction": "BUY_PUT",
+                "contracts": contracts,
+                "strike_rule": hedge_pos.get("strike", "OTM_5%"),
+                "premium_budget": premium_budget,
+                "execution_window": "09:30-10:00",
+                "order_type": "LIMIT",
+                "rationale": {
+                    "hedge_key": key,
+                    "reason": hedge_pos.get("reason", ""),
+                    "framework": hedge_pos.get("framework", []),
+                    "drawdown_level": drawdown_level,
+                },
+                "status": "PENDING",
+            })
+
+        logger.info(f"认沽保护订单: {len(put_orders)} 组, 总预算 ¥{sum(o['premium_budget'] for o in put_orders):,.0f}")
+        return put_orders
+
+    def generate_hedge_orders(self, drawdown_level: int = 0) -> Dict[str, Any]:
+        """生成完整对冲执行计划 (期货 + 期权)
+        
+        Returns:
+            {
+                "generated_at": "...",
+                "portfolio_status": {...},
+                "futures_orders": [...],
+                "options_orders": [...],
+                "total_margin_required": float,
+                "total_premium_budget": float,
+                "hedge_effectiveness": {...},
+            }
+        """
+        portfolio_value = self.calc_portfolio_market_value()
+        portfolio_beta = self.calc_portfolio_beta()
+        total_capital = self.positions_data.get("meta", {}).get("total_capital", 5_000_000)
+        hedge_capital = self.positions_data.get("meta", {}).get("hedge_capital", 1_000_000)
+
+        # 生成期货对冲
+        futures_orders = self.generate_futures_hedge_orders(
+            portfolio_value=portfolio_value,
+            portfolio_beta=portfolio_beta,
+            drawdown_level=drawdown_level,
+        )
+
+        # 生成期权保护
+        options_orders = self.generate_put_protection_orders(
+            portfolio_value=portfolio_value,
+            drawdown_level=drawdown_level,
+        )
+
+        # 汇总
+        total_margin = sum(o.get("margin_required", 0) for o in futures_orders)
+        total_premium = sum(o.get("premium_budget", 0) for o in options_orders)
+        total_cost = total_margin + total_premium
+
+        # 预算检查
+        budget_ok = total_cost <= hedge_capital * 0.7  # 保留30%缓冲
+
+        # 对冲效果预估
+        if futures_orders:
+            target_beta_after = futures_orders[0]["rationale"]["target_beta"]
+        else:
+            target_beta_after = portfolio_beta
+
+        result = {
+            "generated_at": datetime.now().isoformat(),
+            "drawdown_level": drawdown_level,
+            "portfolio_status": {
+                "market_value": round(portfolio_value, 0),
+                "portfolio_beta_before": round(portfolio_beta, 4),
+                "target_beta_after": round(target_beta_after, 4),
+                "total_capital": total_capital,
+                "hedge_capital": hedge_capital,
+            },
+            "futures_orders": futures_orders,
+            "options_orders": options_orders,
+            "cost_summary": {
+                "total_margin_required": round(total_margin, 0),
+                "total_premium_budget": round(total_premium, 0),
+                "total_cost": round(total_cost, 0),
+                "hedge_capital_usage_pct": round(total_cost / hedge_capital, 4) if hedge_capital > 0 else 0,
+                "within_budget": budget_ok,
+            },
+            "hedge_effectiveness": {
+                "beta_reduction": round(portfolio_beta - target_beta_after, 4),
+                "downside_protection": f"OTM {self.PUT_OTM_PCT*100:.0f}% Put",
+                "estimated_annual_cost_pct": round((total_premium * 4) / total_capital, 4),
+            },
+        }
+
+        return result
+
+    def write_to_trade_plan(self, hedge_result: Dict, trade_date: str) -> str:
+        """将对冲订单写入交易计划文件
+        
+        Args:
+            hedge_result: generate_hedge_orders() 返回的完整结果
+            trade_date: 目标交易日 YYYY-MM-DD
+            
+        Returns:
+            写入的文件路径
+        """
+        TRADE_PLANS_DIR.mkdir(parents=True, exist_ok=True)
+        date_compact = trade_date.replace("-", "")
+        plan_path = TRADE_PLANS_DIR / f"trade_plan_{date_compact}.json"
+
+        # 如果已有计划文件, 合并对冲字段
+        if plan_path.exists():
+            try:
+                with open(plan_path, 'r', encoding='utf-8') as f:
+                    plan = json.load(f)
+            except Exception:
+                plan = {}
+        else:
+            plan = {"trade_date": trade_date}
+
+        # 写入对冲执行字段
+        plan["hedge_execution"] = {
+            "generated_at": hedge_result["generated_at"],
+            "drawdown_level": hedge_result.get("drawdown_level", 0),
+            "portfolio_beta_before": hedge_result["portfolio_status"]["portfolio_beta_before"],
+            "target_beta_after": hedge_result["portfolio_status"]["target_beta_after"],
+            "futures_orders": hedge_result["futures_orders"],
+            "options_orders": hedge_result["options_orders"],
+            "cost_summary": hedge_result["cost_summary"],
+            "hedge_effectiveness": hedge_result["hedge_effectiveness"],
+            "execution_status": "PENDING",
+            "execution_notes": [
+                "期货: 09:45-10:30 完成IF空头开仓",
+                "期权: 09:30-10:00 完成认沽期权买入",
+                "确认: 盘后核实对冲比例是否达标",
+            ],
+        }
+
+        with open(plan_path, 'w', encoding='utf-8') as f:
+            json.dump(plan, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"对冲执行计划已写入: {plan_path}")
+        return str(plan_path)
+
+    def write_hedge_report(self, hedge_result: Dict, trade_date: str) -> str:
+        """将对冲报告写入 reports/ 目录"""
+        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+        date_compact = trade_date.replace("-", "")
+        report_path = REPORTS_DIR / f"hedge_execution_fill_{trade_date}.json"
+
+        with open(report_path, 'w', encoding='utf-8') as f:
+            json.dump(hedge_result, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"对冲执行报告已保存: {report_path}")
+        return str(report_path)
+
+    def _get_if_price(self) -> float:
+        """获取IF期货当前价格 (沪深300指数)
+        
+        尝试顺序: Wind MCP > 新浪 > 默认值
+        """
+        # 尝试从持仓文件获取沪深300ETF价格反推指数
+        positions = self.positions_data.get("positions", {})
+        hs300_pos = positions.get("510300.SH", {})
+        if hs300_pos:
+            etf_price = hs300_pos.get("est_price", 0)
+            if etf_price > 0:
+                # 510300 ETF ≈ 沪深300指数 / 1000
+                return etf_price * 1000  # e.g. 4.65 → 4650
+
+        # 尝试新浪接口
+        try:
+            import requests
+            session = requests.Session()
+            session.trust_env = False
+            resp = session.get(
+                "https://hq.sinajs.cn/list=sh000300",
+                headers={"Referer": "https://finance.sina.com.cn"},
+                timeout=5,
+            )
+            if resp.status_code == 200:
+                content = resp.text
+                start = content.find('"') + 1
+                end = content.find('"', start)
+                fields = content[start:end].split(',')
+                if len(fields) > 3:
+                    return float(fields[3])
+        except Exception:
+            pass
+
+        return 4200  # 默认值
+
+
+# ============================================================
+# CLI 入口
+# ============================================================
+if __name__ == "__main__":
+    import argparse
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+    parser = argparse.ArgumentParser(description="对冲执行引擎")
+    parser.add_argument("--date", default=None, help="目标交易日 YYYY-MM-DD")
+    parser.add_argument("--drawdown-level", type=int, default=0, choices=[0,1,2,3,4],
+                        help="当前回撤级别")
+    parser.add_argument("--dry-run", action="store_true", help="仅计算不写入")
+    args = parser.parse_args()
+
+    if args.date is None:
+        from datetime import timedelta
+        today = datetime.now()
+        # 下一个交易日
+        d = today + timedelta(days=1)
+        while d.weekday() >= 5:
+            d += timedelta(days=1)
+        trade_date = d.strftime("%Y-%m-%d")
+    else:
+        trade_date = args.date
+
+    engine = HedgeExecutionEngine()
+    result = engine.generate_hedge_orders(drawdown_level=args.drawdown_level)
+
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+    if not args.dry_run:
+        engine.write_to_trade_plan(result, trade_date)
+        engine.write_hedge_report(result, trade_date)
+        print(f"\n✅ 对冲执行计划已写入 trade_plan 和 reports (日期: {trade_date})")
+    else:
+        print(f"\n[DRY-RUN] 未写入文件")

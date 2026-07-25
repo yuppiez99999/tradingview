@@ -28,6 +28,25 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger('vol_stop_loss')
 
+
+def to_native(obj):
+    """递归把 numpy 类型转换为原生 Python 类型, 使 yaml.safe_dump 可用。
+
+    原实现用 yaml.dump 直接序列化含 numpy 标量(如 np.float64)的规则,
+    会写出 !!python/object/apply:numpy.core.multiarray.scalar 标签,
+    导致 yaml.safe_load 的消费者崩溃, 且强依赖特定 numpy 内部路径。
+    """
+    if isinstance(obj, np.generic):
+        return obj.item()
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, dict):
+        return {k: to_native(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [to_native(v) for v in obj]
+    return obj
+
+
 # ============================================================
 # 持仓标的
 # ============================================================
@@ -359,15 +378,16 @@ def main():
     logger.info("─" * 70)
     logger.info(f"共 {len(rules['assets'])} 只标的\n")
 
-    # 保存
-    output_path = r"E:\各种PY程序\11_量化策略\config\stop_loss_vol_adjusted.yaml"
+    # 保存 (写入本项目 config/, 不再写到其他项目目录)
+    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "stop_loss_vol_adjusted.yaml")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
-        yaml.dump(rules, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        yaml.safe_dump(to_native(rules), f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
     logger.info(f"配置已保存: {output_path}")
 
-    # 同时保存 JSON
-    json_path = r"E:\各种PY程序\28-终极量化交易系统7.1\reports\stop_loss_vol_adjusted.json"
+    # 同时保存 JSON (写入本项目 reports/)
+    json_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports", "stop_loss_vol_adjusted.json")
     os.makedirs(os.path.dirname(json_path), exist_ok=True)
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(rules, f, ensure_ascii=False, indent=2, default=str)

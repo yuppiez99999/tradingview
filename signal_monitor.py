@@ -10,9 +10,9 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-PROJECT_ROOT = Path(r"e:\各种PY程序\28-终极量化交易系统7.1")
+PROJECT_ROOT = Path(__file__).resolve().parent
 REPORTS_DIR = PROJECT_ROOT / "reports"
-QLIB_DATA_DIR = r"E:\各种PY程序\28-终极量化交易系统7.1\qlib_data\cn_data"
+QLIB_DATA_DIR = str(PROJECT_ROOT / "qlib_data" / "cn_data")
 
 
 def get_latest_qlib_report():

@@ -51,7 +51,7 @@ for d in [MODELS_DIR, REPORTS_DIR, LOG_DIR, CACHE_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 sys.path.insert(0, str(BASE_DIR))
-sys.path.insert(0, str(BASE_DIR / "v7.5_institutional"))
+sys.path.insert(0, str(BASE_DIR / "v8.3_institutional"))
 sys.path.insert(0, str(BASE_DIR / "utils"))
 
 # 复用旧训练器的标的清单和特征工程
@@ -71,6 +71,7 @@ LGB_ENHANCED_CONFIG = {
     "n_splits": 5,
     "top_n_features": 30,             # 保留 Top 30 (放宽让情绪因子有机会入选)
     "feature_selection_threshold": 1,   # 阈值降低到 1 (从3降到1, 让弱信号特征也能入选)
+    "label_horizon": 5,                # V6: 标签horizon=5日 (替代次日收益率, 提升震荡市IC)
     "retrain_interval_days": 7,
     "model_quality_threshold": {
         "min_cv_r2": -0.3,
@@ -111,14 +112,22 @@ def load_real_ohlcv(symbol: str, period: str = "2y") -> Optional[pd.DataFrame]:
     优先级: Wind MCP > iFinD MCP > 新浪 HTTP > 默认兜底
 
     Args:
-        symbol: 标的代码 (如 "688041.SH")
+        symbol: 标的代码 (如 "688041.SH" 或 "688041")
         period: 周期 (1y/2y/3y/5y)
 
     Returns:
         DataFrame[open, high, low, close, volume] 或 None
     """
-    # 缓存检查
-    cache_file = CACHE_DIR / f"{symbol.replace('.', '_')}_{period}.parquet"
+    # data_provider.get_historical_data 仅接受纯 6 位代码, 不接受 .SH/.SZ 后缀
+    # 剥离后缀, 统一为纯代码
+    raw_symbol = symbol
+    for sfx in (".SH", ".SZ", ".BJ", ".sh", ".sz", ".bj"):
+        if symbol.endswith(sfx):
+            symbol = symbol[: -len(sfx)]
+            break
+
+    # 缓存检查 (用原始带后缀名命名, 避免冲突)
+    cache_file = CACHE_DIR / f"{raw_symbol.replace('.', '_')}_{period}.parquet"
     if cache_file.exists():
         mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
         if (datetime.now() - mtime).total_seconds() < 12 * 3600:  # 12 小时缓存
@@ -133,7 +142,7 @@ def load_real_ohlcv(symbol: str, period: str = "2y") -> Optional[pd.DataFrame]:
         from utils.data_provider import get_historical_data
         df = get_historical_data(symbol, period)
         if df is None or df.empty:
-            logger.warning(f"  {symbol}: 真实 OHLCV 拉取失败")
+            logger.warning(f"  {raw_symbol}: 真实 OHLCV 拉取失败 (纯代码 {symbol})")
             return None
 
         # 标准化列名和索引
@@ -437,6 +446,238 @@ def compute_news_sentiment_factors(
         pass
 
     return sentiment_dict
+
+
+def add_mean_reversion_features(
+    ohlcv_dict: Dict[str, pd.DataFrame],
+) -> Dict[str, pd.DataFrame]:
+    """添加均值回归特征 (V6: 提升震荡市Alpha信号质量)
+
+    动机:
+        Window 1 (2023-07~2024-09) 年化仅2.47%, Sharpe 0.28, 是WF Sharpe CV=0.67的主因。
+        诊断: LGB模型在bear regime下IC失效, 原因是特征全部为趋势跟踪特征,
+              在震荡市中动量信号反向, 导致亏损。
+        方案: 添加均值回归特征, 捕捉超买超卖后的价格回归机会。
+
+    新增特征 (9个):
+        - rsi_oversold: RSI12<30 超卖信号 (1/0)
+        - rsi_overbought: RSI12>70 超买信号 (1/0)
+        - price_zscore_20: 价格偏离20日均值的Z-score (正值=高估, 负值=低估)
+        - reversal_5d: 5日反转因子 (-return_5), 用于捕捉短期超涨反转
+        - reversal_10d: 10日反转因子 (-return_10)
+        - boll_oversold: 布林带下轨超卖 (boll_pct<0.2)
+        - boll_overbought: 布林带上轨超买 (boll_pct>0.8)
+        - volume_surge: 成交量异常放大 (>1.5x 20日均量)
+        - vol_compression: 波动率压缩 (20日波动率低于60日20分位)
+
+    Args:
+        ohlcv_dict: {code: DataFrame[含技术因子]}
+
+    Returns:
+        合并后的字典, 每个 DataFrame 新增 9 个均值回归特征
+    """
+    out = {}
+    for code, df in ohlcv_dict.items():
+        new_df = df.copy()
+        close = new_df["close"]
+        volume = new_df["volume"]
+
+        # === RSI12 极端值信号 (前提: add_technical_features 已生成 rsi12) ===
+        if "rsi12" in new_df.columns:
+            new_df["rsi_oversold"] = (new_df["rsi12"] < 30).astype(int)
+            new_df["rsi_overbought"] = (new_df["rsi12"] > 70).astype(int)
+        else:
+            # 兜底: 自行计算 RSI12
+            delta = close.diff()
+            gain = delta.clip(lower=0).rolling(12).mean()
+            loss = -delta.clip(upper=0).rolling(12).mean()
+            rs = gain / (loss + 1e-9)
+            rsi12 = 100 - 100 / (1 + rs)
+            new_df["rsi_oversold"] = (rsi12 < 30).astype(int)
+            new_df["rsi_overbought"] = (rsi12 > 70).astype(int)
+
+        # === 价格 Z-score (偏离20日均值的标准化距离) ===
+        ma20 = close.rolling(20).mean()
+        std20 = close.rolling(20).std()
+        new_df["price_zscore_20"] = (close - ma20) / (std20 + 1e-9)
+
+        # === 短期反转因子 (取反收益率, 捕捉均值回归) ===
+        if "return_5" in new_df.columns:
+            new_df["reversal_5d"] = -new_df["return_5"]
+        else:
+            new_df["reversal_5d"] = -close.pct_change(5)
+        if "return_10" in new_df.columns:
+            new_df["reversal_10d"] = -new_df["return_10"]
+        else:
+            new_df["reversal_10d"] = -close.pct_change(10)
+
+        # === 布林带极端位置信号 ===
+        if "boll_pct" in new_df.columns:
+            new_df["boll_oversold"] = (new_df["boll_pct"] < 0.2).astype(int)
+            new_df["boll_overbought"] = (new_df["boll_pct"] > 0.8).astype(int)
+        else:
+            # 兜底: 自行计算布林带位置
+            boll_lower = ma20 - 2 * std20
+            boll_upper = ma20 + 2 * std20
+            boll_pct = (close - boll_lower) / (boll_upper - boll_lower + 1e-9)
+            new_df["boll_oversold"] = (boll_pct < 0.2).astype(int)
+            new_df["boll_overbought"] = (boll_pct > 0.8).astype(int)
+
+        # === 成交量异常放大 (量价背离信号) ===
+        vol_ma20 = volume.rolling(20).mean()
+        new_df["volume_surge"] = (volume > vol_ma20 * 1.5).astype(int)
+
+        # === 波动率压缩 (低波动后往往有突破, 震荡市关键信号) ===
+        if "volatility_20" in new_df.columns:
+            vol20 = new_df["volatility_20"]
+        else:
+            vol20 = close.pct_change().rolling(20).std()
+        vol20_q20 = vol20.rolling(60).quantile(0.2)
+        new_df["vol_compression"] = (vol20 < vol20_q20).astype(int)
+
+        # 填充 NaN
+        for col in ["rsi_oversold", "rsi_overbought", "price_zscore_20",
+                    "reversal_5d", "reversal_10d", "boll_oversold",
+                    "boll_overbought", "volume_surge", "vol_compression"]:
+            new_df[col] = new_df[col].fillna(0)
+
+        out[code] = new_df
+    return out
+
+
+# 大盘代理符号 (与 institutional_pipeline_runner._MARKET_PROXY_SYMBOL 一致)
+_REGIME_PROXY_SYMBOL = "510300"
+
+
+def add_regime_aware_features(
+    ohlcv_dict: Dict[str, pd.DataFrame],
+) -> Dict[str, pd.DataFrame]:
+    """添加 Regime-Aware 特征 (V7: 解决 bull regime 下 Alpha 信号失效)
+
+    动机:
+        V6.2 基线 WF Sharpe CV=0.55 (未达<0.5), 根因是 Window 1 bull regime 平均 -1.92%。
+        2024-06-03 (bull regime): 688017 权重10%但跌34.82%, 300308 权重8%但跌17.34%。
+        LGB 给高波动股高权重但信号在 bull regime 失效, 满仓无个股级保护。
+        被动风控 (止损/波动率调整) 已证明无法根本解决, 需从模型层让 LGB 学习
+        "bull regime 下高波动股风险收益不对称" 的模式。
+
+    方案: 添加 8 个 regime-aware 特征, 让 LGB 在训练阶段就学到 regime 风险
+      市场状态识别 (基于 510300 大盘代理):
+        - market_regime_bull: 1/0, close>MA60 且 MA60 上行
+        - market_regime_bear: 1/0, close<MA60 且 MA60 下行
+        - market_regime_choppy: 1/0, close>MA60 且 MA60 下行 (震荡)
+        - market_regime_rebound: 1/0, close<MA60 且 MA60 上行 (反弹)
+        - market_vol_20: 大盘 20 日实现波动率
+        - market_mom_20: 大盘 20 日动量
+      Regime × 个股风险交互 (让模型学习 regime 下的个股行为差异):
+        - vol20_x_bull: 个股 20 日波动率 × bull regime
+            (bull 下高波动股更危险, 2024-06 案例的核心信号)
+        - mom20_x_bull: 个股 20 日动量 × bull regime
+            (bull 下个股动量反转风险, 超涨后回调概率更高)
+
+    设计原则:
+        1. 全部 regime 信号基于大盘 proxy (510300) 计算, 无前视偏差
+        2. regime label 在训练样本期间是已知的 (基于历史 MA60), 可用于训练
+        3. 交互特征让 LGB 自动学习 "bull 下高波动→低收益" 的模式, 而非硬编码
+
+    Args:
+        ohlcv_dict: {code: DataFrame[含技术因子]}
+
+    Returns:
+        合并后的字典, 每个 DataFrame 新增 8 个 regime-aware 特征
+    """
+    proxy_code = _REGIME_PROXY_SYMBOL
+    ma_period = 60
+    slope_window = 5
+    vol_lookback = 20
+    mom_lookback = 20
+
+    # === Step 1: 从大盘 proxy 计算 regime 序列 ===
+    regime_series = None  # pd.Series of "bull"/"bear"/"choppy"/"rebound"
+    market_vol_series = None
+    market_mom_series = None
+
+    if proxy_code in ohlcv_dict:
+        proxy_df = ohlcv_dict[proxy_code].copy()
+        if hasattr(proxy_df.index, "tz") and proxy_df.index.tz is not None:
+            proxy_df.index = proxy_df.index.tz_localize(None)
+        proxy_df = proxy_df.sort_index()
+
+        if len(proxy_df) >= ma_period + slope_window:
+            close = proxy_df["close"]
+            ma = close.rolling(ma_period).mean()
+            ma_slope = ma.diff(slope_window)
+            above_ma = close > ma
+            ma_rising = ma_slope > 0
+
+            # 四态 regime (与 _apply_market_regime_scaling 一致)
+            regime = pd.Series("unknown", index=proxy_df.index)
+            regime[above_ma & ma_rising] = "bull"
+            regime[above_ma & (~ma_rising)] = "choppy"
+            regime[(~above_ma) & ma_rising] = "rebound"
+            regime[(~above_ma) & (~ma_rising)] = "bear"
+            regime_series = regime
+
+            # 大盘波动率
+            daily_rets = close.pct_change()
+            market_vol_series = daily_rets.rolling(vol_lookback).std()
+
+            # 大盘动量
+            market_mom_series = close.pct_change(mom_lookback)
+
+    # === Step 2: 为每个标的添加 regime-aware 特征 ===
+    out = {}
+    for code, df in ohlcv_dict.items():
+        new_df = df.copy()
+
+        # 对齐大盘 regime 序列到个股索引
+        if regime_series is not None:
+            regime_aligned = regime_series.reindex(new_df.index).ffill().fillna("unknown")
+            market_vol_aligned = market_vol_series.reindex(new_df.index).ffill().fillna(0.0)
+            market_mom_aligned = market_mom_series.reindex(new_df.index).ffill().fillna(0.0)
+
+            new_df["market_regime_bull"] = (regime_aligned == "bull").astype(int)
+            new_df["market_regime_bear"] = (regime_aligned == "bear").astype(int)
+            new_df["market_regime_choppy"] = (regime_aligned == "choppy").astype(int)
+            new_df["market_regime_rebound"] = (regime_aligned == "rebound").astype(int)
+            new_df["market_vol_20"] = market_vol_aligned.astype(float)
+            new_df["market_mom_20"] = market_mom_aligned.astype(float)
+        else:
+            # 无大盘数据时填默认值 (避免训练失败)
+            new_df["market_regime_bull"] = 0
+            new_df["market_regime_bear"] = 0
+            new_df["market_regime_choppy"] = 0
+            new_df["market_regime_rebound"] = 0
+            new_df["market_vol_20"] = 0.0
+            new_df["market_mom_20"] = 0.0
+
+        # === Step 3: Regime × 个股风险交互特征 ===
+        # 个股 20 日波动率 (优先复用已有列, 否则现算)
+        if "volatility_20" in new_df.columns:
+            stock_vol20 = new_df["volatility_20"]
+        else:
+            stock_vol20 = new_df["close"].pct_change().rolling(vol_lookback).std()
+        # 个股 20 日动量 (优先复用已有列)
+        if "return_20" in new_df.columns:
+            stock_mom20 = new_df["return_20"]
+        else:
+            stock_mom20 = new_df["close"].pct_change(mom_lookback)
+
+        # 交互特征: bull regime 下个股风险被放大
+        # 设计意图: 2024-06 案例中, 688017/300308 在 bull regime 下高波动→大跌,
+        #           LGB 通过此特征可学到 "bull × 高波动 → 低未来收益"
+        new_df["vol20_x_bull"] = (stock_vol20 * new_df["market_regime_bull"]).fillna(0)
+        new_df["mom20_x_bull"] = (stock_mom20 * new_df["market_regime_bull"]).fillna(0)
+
+        # 填充 NaN
+        for col in ["market_regime_bull", "market_regime_bear",
+                    "market_regime_choppy", "market_regime_rebound",
+                    "market_vol_20", "market_mom_20",
+                    "vol20_x_bull", "mom20_x_bull"]:
+            new_df[col] = new_df[col].fillna(0)
+
+        out[code] = new_df
+    return out
 
 
 def _sentiment_cache_to_df(cache: Dict) -> Dict[str, pd.DataFrame]:
@@ -970,8 +1211,13 @@ def train_symbol_enhanced(
     import lightgbm as lgb
 
     df = df.copy()
-    # 目标: 次日收益率
-    df["target"] = df["close"].pct_change().shift(-1)
+    # === V6: 标签从次日收益率改为5日前向收益 ===
+    # 动机: Window 1 (2023-07~2024-09) 年化仅2.47%, 根因是次日收益率标签在震荡市
+    #       噪声过大, IC极低。5日前向收益与月度调仓周期更匹配, 且在震荡市中
+    #       均值回归效应在5日horizon上更显著, 提升信号可预测性。
+    # 权衡: 损失最后5天训练样本 (500天数据仅损失1%), 可接受。
+    label_horizon = config.get("label_horizon", 5)
+    df["target"] = df["close"].pct_change(label_horizon).shift(-label_horizon)
     df = df.dropna()
 
     if len(df) < config["min_samples"]:
@@ -1146,6 +1392,273 @@ def train_symbol_enhanced(
         "top_features": feat_imp.to_dict(),
         "model": final_model,
     }
+
+
+# ============================================================
+# V9: Regime-Specific 训练 (bull / non-bull 双模型)
+# ============================================================
+# 动机: V7-Model (regime-aware 特征) + V7.1/V7.2 (权重后处理) 均无法将
+#       Window 1 Sharpe CV 降至 <0.5。根因是单一 LGB 模型被 bear 主导
+#       (bear 占 47% 样本), 在 bull regime 下信号失效。
+# 方案: 每个标的训练两个独立模型:
+#   1. bull_model: 仅用 bull regime 样本训练 (close>MA60 且 MA60 上行)
+#   2. non_bull_model: 用 bear/choppy/rebound 样本训练
+# 预测时按当前 regime 选择对应模型, 解决模型层 regime 适应性问题。
+# 数据可行性: bull 占 34% (~150-350 样本), non-bull 占 66% (~300-700 样本)
+#             均满足 min_samples=100 要求。
+
+
+def compute_regime_series(proxy_df: pd.DataFrame,
+                          ma_period: int = 60,
+                          slope_window: int = 5) -> pd.Series:
+    """计算大盘 regime 序列 (bull/bear/choppy/rebound)
+
+    Args:
+        proxy_df: 大盘代理 (510300) OHLCV 数据
+        ma_period: MA 周期
+        slope_window: MA 斜率窗口
+
+    Returns:
+        pd.Series[index=proxy_df.index, values="bull"/"bear"/"choppy"/"rebound"/"unknown"]
+    """
+    if proxy_df is None or len(proxy_df) < ma_period + slope_window:
+        return pd.Series("unknown", index=proxy_df.index if proxy_df is not None else [])
+
+    df = proxy_df.copy()
+    if hasattr(df.index, "tz") and df.index.tz is not None:
+        df.index = df.index.tz_localize(None)
+    df = df.sort_index()
+
+    close = df["close"]
+    ma = close.rolling(ma_period).mean()
+    ma_slope = ma.diff(slope_window)
+    above_ma = close > ma
+    ma_rising = ma_slope > 0
+
+    regime = pd.Series("unknown", index=df.index)
+    regime[above_ma & ma_rising] = "bull"
+    regime[above_ma & (~ma_rising)] = "choppy"
+    regime[(~above_ma) & ma_rising] = "rebound"
+    regime[(~above_ma) & (~ma_rising)] = "bear"
+    return regime
+
+
+def train_symbol_regime_specific(
+    symbol: str,
+    df: pd.DataFrame,
+    config: Dict,
+    regime_series: pd.Series,
+    min_samples_per_regime: int = 100,
+) -> Dict[str, Any]:
+    """V9: 训练 regime-specific 双模型 (bull / non-bull)
+
+    Args:
+        symbol: 标的代码
+        df: 含特征 + close 的 DataFrame (与 train_symbol_enhanced 相同)
+        config: 训练配置
+        regime_series: 大盘 regime 序列 (index=date, values="bull"/"bear"/...)
+        min_samples_per_regime: 每个模型最少样本数, 不足则降级为全样本模型
+
+    Returns:
+        {
+            "status": "OK" | "SKIP" | "FALLBACK_FULL",
+            "bull_model": {...} | None,      # bull regime 专用模型
+            "non_bull_model": {...} | None,  # non-bull regime 专用模型
+            "full_model": {...} | None,      # 全样本模型 (fallback)
+            "selected_regime": "bull" | "non_bull" | "full",  # 当前 regime 使用的模型
+            "signal": float,                 # 当前 regime 模型的信号
+            "raw_prediction": float,
+            ...
+        }
+    """
+    from lightgbm import LGBMRegressor
+    import lightgbm as lgb
+
+    df = df.copy()
+
+    # V6: 5 日前向收益标签
+    label_horizon = config.get("label_horizon", 5)
+    df["target"] = df["close"].pct_change(label_horizon).shift(-label_horizon)
+    df = df.dropna(subset=["target"])
+
+    if len(df) < config["min_samples"]:
+        return {"status": "SKIP", "symbol": symbol,
+                "reason": f"样本不足 ({len(df)} < {config['min_samples']})"}
+
+    # 对齐 regime 到 df 索引
+    regime_aligned = regime_series.reindex(df.index).ffill().fillna("unknown")
+    df["_regime"] = regime_aligned
+
+    # 分割样本
+    bull_mask = df["_regime"] == "bull"
+    non_bull_mask = df["_regime"].isin(["bear", "choppy", "rebound"])
+
+    n_bull = int(bull_mask.sum())
+    n_non_bull = int(non_bull_mask.sum())
+
+    all_feature_cols = [c for c in df.columns if c not in
+                        ["open", "high", "low", "close", "volume", "target", "_regime"]]
+
+    logger.info(f"[V9-Regime] {symbol}: bull={n_bull}, non_bull={n_non_bull}, total={len(df)}")
+
+    # 训练 bull 模型 (样本不足则跳过)
+    bull_result = None
+    if n_bull >= min_samples_per_regime:
+        bull_df = df[bull_mask].copy()
+        try:
+            bull_result = _train_regime_subset(
+                symbol, bull_df, all_feature_cols, config, regime_label="bull",
+                min_samples_per_regime=min_samples_per_regime,
+            )
+            # V9 修复: 正确处理 SKIP 状态, 避免 KeyError
+            if bull_result.get("status") != "OK":
+                logger.info(f"[V9-Regime] {symbol} bull 模型跳过: {bull_result.get('reason', 'unknown')}")
+                bull_result = None
+            else:
+                logger.info(f"[V9-Regime] {symbol} bull 模型: best_iter={bull_result.get('best_iteration')}, "
+                            f"IC={bull_result['final_metrics']['ic']:.4f}, signal={bull_result['signal']:.4f}")
+        except Exception as e:
+            logger.warning(f"[V9-Regime] {symbol} bull 模型训练失败: {e}")
+            bull_result = None
+    else:
+        logger.info(f"[V9-Regime] {symbol} bull 样本不足 ({n_bull} < {min_samples_per_regime}), 跳过 bull 模型")
+
+    # 训练 non-bull 模型
+    non_bull_result = None
+    if n_non_bull >= min_samples_per_regime:
+        non_bull_df = df[non_bull_mask].copy()
+        try:
+            non_bull_result = _train_regime_subset(
+                symbol, non_bull_df, all_feature_cols, config, regime_label="non_bull",
+                min_samples_per_regime=min_samples_per_regime,
+            )
+            # V9 修复: 正确处理 SKIP 状态
+            if non_bull_result.get("status") != "OK":
+                logger.info(f"[V9-Regime] {symbol} non_bull 模型跳过: {non_bull_result.get('reason', 'unknown')}")
+                non_bull_result = None
+            else:
+                logger.info(f"[V9-Regime] {symbol} non_bull 模型: best_iter={non_bull_result.get('best_iteration')}, "
+                            f"IC={non_bull_result['final_metrics']['ic']:.4f}, signal={non_bull_result['signal']:.4f}")
+        except Exception as e:
+            logger.warning(f"[V9-Regime] {symbol} non_bull 模型训练失败: {e}")
+            non_bull_result = None
+    else:
+        logger.info(f"[V9-Regime] {symbol} non_bull 样本不足 ({n_non_bull} < {min_samples_per_regime}), 跳过 non_bull 模型")
+
+    # Fallback: 训练全样本模型 (用于 regime 模型均失败时)
+    full_result = None
+    if bull_result is None or non_bull_result is None:
+        try:
+            full_result = train_symbol_enhanced(symbol, df.drop(columns=["_regime"]), config)
+            if full_result.get("status") != "OK":
+                full_result = None
+            else:
+                logger.info(f"[V9-Regime] {symbol} full 模型 (fallback): "
+                            f"IC={full_result['final_metrics']['ic']:.4f}, signal={full_result['signal']:.4f}")
+        except Exception as e:
+            logger.warning(f"[V9-Regime] {symbol} full 模型训练失败: {e}")
+            full_result = None
+
+    # 如果所有模型都失败, 返回 SKIP
+    if bull_result is None and non_bull_result is None and full_result is None:
+        return {"status": "SKIP", "symbol": symbol, "reason": "所有 regime 模型训练失败"}
+
+    # 选择当前 regime 对应的模型 (用最新样本的 regime)
+    current_regime = regime_aligned.iloc[-1] if len(regime_aligned) > 0 else "unknown"
+    if current_regime == "bull" and bull_result is not None:
+        selected = "bull"
+        active = bull_result
+    elif current_regime != "bull" and non_bull_result is not None:
+        selected = "non_bull"
+        active = non_bull_result
+    elif full_result is not None:
+        selected = "full"
+        active = full_result
+    elif bull_result is not None:
+        selected = "bull"  # 仅有 bull 模型时强制使用
+        active = bull_result
+    else:
+        selected = "non_bull"
+        active = non_bull_result
+
+    return {
+        "status": "OK",
+        "symbol": symbol,
+        "current_regime": current_regime,
+        "selected_regime": selected,
+        "n_bull_samples": n_bull,
+        "n_non_bull_samples": n_non_bull,
+        "bull_model": bull_result,
+        "non_bull_model": non_bull_result,
+        "full_model": full_result,
+        "selected_features": active.get("selected_features", []),
+        "cv_after_selection": active.get("cv_after_selection", {}),
+        "final_metrics": active.get("final_metrics", {}),
+        "signal": active.get("signal", 0.0),
+        "raw_prediction": active.get("raw_prediction", 0.0),
+        "n_features_after": active.get("n_features_after", 0),
+        # 保留 model 引用供预测使用 (注意: 仅 selected 的 model)
+        "model": active.get("model"),
+        # 同时保留两个模型的引用, 供 backtest_runner 切换使用
+        "models_by_regime": {
+            "bull": bull_result.get("model") if bull_result else None,
+            "non_bull": non_bull_result.get("model") if non_bull_result else None,
+            "full": full_result.get("model") if full_result else None,
+        },
+        "features_by_regime": {
+            "bull": bull_result.get("selected_features") if bull_result else None,
+            "non_bull": non_bull_result.get("selected_features") if non_bull_result else None,
+            "full": full_result.get("selected_features") if full_result else None,
+        },
+    }
+
+
+def _train_regime_subset(
+    symbol: str,
+    df_sub: pd.DataFrame,
+    all_feature_cols: List[str],
+    config: Dict,
+    regime_label: str,
+    min_samples_per_regime: int = 100,
+) -> Dict[str, Any]:
+    """训练单个 regime 子集的 LGB 模型 (复用 train_symbol_enhanced 流程)
+
+    Args:
+        symbol: 标的代码
+        df_sub: 该 regime 的子集 DataFrame (含 _regime 列)
+        all_feature_cols: 特征列名
+        config: 训练配置
+        regime_label: "bull" 或 "non_bull"
+        min_samples_per_regime: regime 子集最少样本数 (低于此值返回 SKIP)
+            注意: 此值通常 < config["min_samples"], 因为 regime 子集本身是小样本
+
+    Returns:
+        与 train_symbol_enhanced 相同格式的结果
+    """
+    # 移除 _regime 列, 复用 train_symbol_enhanced
+    df_clean = df_sub.drop(columns=["_regime"], errors="ignore").copy()
+
+    # V9 修复: 使用 min_samples_per_regime 而非 config["min_samples"] 作为阈值
+    # 原因: config["min_samples"]=150 (全样本阈值), 但 bull regime 子集通常只有 100-180 样本
+    #       使用 150 会导致 bull 模型在大多数月份失败, 失去 regime-specific 价值
+    if len(df_clean) < min_samples_per_regime:
+        return {"status": "SKIP",
+                "reason": f"{regime_label} 样本不足 ({len(df_clean)} < {min_samples_per_regime})"}
+
+    # 临时降低 config["min_samples"] 以适配 regime 子集
+    # 原因: train_symbol_enhanced 内部也会检查 config["min_samples"], 若不降低会再次拒绝
+    config_adapted = dict(config)
+    config_adapted["min_samples"] = min(len(df_clean), min_samples_per_regime)
+
+    # 直接复用 train_symbol_enhanced (它内部会做 CV/特征选择/最终训练)
+    result = train_symbol_enhanced(symbol, df_clean, config_adapted)
+    if result.get("status") != "OK":
+        return result
+
+    # 添加 regime 标签到结果
+    result["regime_label"] = regime_label
+    result["n_regime_samples"] = len(df_clean)
+    return result
 
 
 # ============================================================

@@ -1,0 +1,67 @@
+{
+  "batch_id": "sixteenth_batch_growth_accel_20260725_221947",
+  "generated_at": "2026-07-25T22:19:47.346320",
+  "background": "GROWTH_ACCEL v5 真实 IC_IR=0.0159（v6 修复后），远低于 0.3 阈值",
+  "schemes": {
+    "v5_baseline": {
+      "ic_ir": 0.015894805200006343,
+      "ic_mean": 0.0016282122052560827,
+      "ic_std": 0.10243675117549933,
+      "n_symbols": 99,
+      "apply_winsorize": false
+    },
+    "v3_baseline": {
+      "ic_ir": 0.11122849908583925,
+      "ic_mean": 0.008402526573475982,
+      "ic_std": 0.07554292867866026,
+      "n_symbols": 100,
+      "apply_winsorize": false
+    },
+    "v6_1_yoy_pni_level": {
+      "ic_ir": 0.13613453819832608,
+      "ic_mean": 0.010364701029909155,
+      "ic_std": 0.07613571961297182,
+      "n_symbols": 100,
+      "apply_winsorize": false
+    },
+    "v6_1_yoy_pni_level_winsorize": {
+      "ic_ir": 0.16150676372979242,
+      "ic_mean": 0.019296487526030127,
+      "ic_std": 0.11947789108271625,
+      "n_symbols": 100,
+      "apply_winsorize": true
+    },
+    "v6_2_yoy_pni_yoy_delta": {
+      "ic_ir": 0.11016916613502986,
+      "ic_mean": 0.008304846419029949,
+      "ic_std": 0.07538267475720963,
+      "n_symbols": 100,
+      "apply_winsorize": false
+    },
+    "v6_2_yoy_pni_yoy_delta_winsorize": {
+      "ic_ir": 0.026124448335351325,
+      "ic_mean": 0.003210071659498211,
+      "ic_std": 0.12287615104026431,
+      "n_symbols": 100,
+      "apply_winsorize": true
+    },
+    "v6_3_yoy_ni_yoy_delta": {
+      "ic_ir": 0.08765389925461119,
+      "ic_mean": 0.010394861428938288,
+      "ic_std": 0.11858983476301481,
+      "n_symbols": 100,
+      "apply_winsorize": false
+    },
+    "v6_3_yoy_ni_yoy_delta_winsorize": {
+      "ic_ir": -0.03211006264505098,
+      "ic_mean": -0.003945902537732446,
+      "ic_std": 0.12288679039187782,
+      "n_symbols": 100,
+      "apply_winsorize": true
+    }
+  },
+  "best_scheme": "v6_1_yoy_pni_level_winsorize",
+  "best_ic_ir": 0.16150676372979242,
+  "threshold": 0.3,
+  "recommendation": "所有方案未达标，GROWTH_ACCEL Alpha 信号不足"
+}

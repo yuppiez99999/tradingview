@@ -32,15 +32,50 @@ FALLBACK_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "etf_fallba
 os.makedirs(FALLBACK_DIR, exist_ok=True)
 
 
+# P1-4: 新浪HTTP数据源速率限制器(防止IP被封)
+class SinaRateLimiter:
+    """令牌桶速率限制器,确保对新浪API的请求不超过频率限制"""
+    
+    def __init__(self, min_interval: float = 0.5):
+        self.min_interval = min_interval
+        self.last_request_time = 0.0
+        self.lock = Lock()
+        self.request_count = 0
+    
+    def acquire(self):
+        """获取许可,自动等待直到满足速率限制"""
+        with self.lock:
+            now = time.time()
+            elapsed = now - self.last_request_time
+            if elapsed < self.min_interval:
+                wait_time = self.min_interval - elapsed
+                time.sleep(wait_time)
+            
+            self.last_request_time = time.time()
+            self.request_count += 1
+            
+            # 每100次请求后暂停5秒,避免触发反爬机制
+            if self.request_count % 100 == 0:
+                time.sleep(5)
+                print(f"[SinaRateLimiter] 已发送{self.request_count}个请求,暂停5秒")
+
+
+# 全局速率限制器实例
+_sina_rate_limiter = SinaRateLimiter(min_interval=0.5)
+
+
 def fetch_sina_etf(symbol: str, name: str) -> pd.DataFrame:
-    """请求新浪财经 ETF 日线接口"""
+    """请求新浪财经 ETF 日线接口(带速率限制)"""
     urls = [
         f"https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={symbol}&scale=240&ma=no&datalen=1023",
         f"https://stock.finance.sina.com.cn/fundinfo/api/jsonp.php/IO.XSRV2.CallbackList['{symbol}']/NetValueInfo.getKLineData?symbol={symbol}&scale=240&ma=no&datalen=1023",
     ]
     for url in urls:
         try:
-            resp = requests.get(url, headers=HEADERS, timeout=20)
+            # P1-4: 请求前获取速率限制许可
+            _sina_rate_limiter.acquire()
+            
+            resp = requests.get(url, headers=HEADERS, timeout=20, verify=True)
             text = resp.text.strip()
             if not text or text.startswith("{") or "null" in text.lower():
                 continue

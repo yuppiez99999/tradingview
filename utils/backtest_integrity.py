@@ -50,7 +50,9 @@ def check_no_future_leakage(prices, as_of_date) -> Tuple[bool, str]:
             return False, f"检测到 {len(future)} 条 as_of_date 之后的未来数据（前视偏差）"
         return True, "无未来数据泄漏"
     except Exception as e:  # pragma: no cover
-        return True, f"泄漏检测异常（跳过）: {e}"
+        # 修复 BUG-R6: fail-open → fail-closed, 检测器崩溃时视为不通过
+        # 原代码: return True (通过) — 有泄漏但检测器崩溃时系统会说"安全"
+        return False, f"泄漏检测异常（fail-closed, 需人工介入）: {e}"
 
 
 def evaluate_alpha_provenance(alpha_report: Any) -> str:

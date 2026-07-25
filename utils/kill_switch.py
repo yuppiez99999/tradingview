@@ -36,11 +36,24 @@ KILL_SWITCH_LOG = BASE_DIR / "logs" / "kill_switch_events.jsonl"
 
 
 class KillSwitch:
-    """三级熔断协议"""
+    """三级熔断协议
 
-    def __init__(self, config_path: Optional[Path] = None):
+    支持两种使用模式:
+        1. 独立模式（CLI）: 从环境变量读取模拟保证金数据
+        2. 集成模式: 外部调用方传入真实 margin_usage 参数
+    """
+
+    def __init__(self, config_path: Optional[Path] = None,
+                 margin_limit: float = 0.50):
+        """
+        Args:
+            config_path: 配置文件路径
+            margin_limit: 兼容 alpha_hedge_engine 传入的保证金限额（仅存储，不改变熔断阈值）
+        """
         self.config_path = config_path or CONFIG_PATH
+        self.margin_limit = margin_limit
         self.config = self._load_config()
+        self._broker_callback = None  # 实盘执行回调函数
         KILL_SWITCH_LOG.parent.mkdir(parents=True, exist_ok=True)
 
     def _load_config(self) -> Dict:
@@ -56,23 +69,21 @@ class KillSwitch:
     def _get_margin_status(self) -> Dict:
         """获取保证金占用情况
 
-        实际环境应通过券商API获取, 此处提供模拟接口
-
         优先级:
             1. 环境变量 KILL_SWITCH_MARGIN_RATIO (用于测试/模拟)
-            2. 环境变量 KILL_SWITCH_SIM_MODE=normal 强制返回正常状态
-            3. 默认模拟值 (margin_usage_ratio=0.20, 低于 L1 阈值)
+            2. 环境变量 KILL_SWITCH_SIM_MODE=l1/l2/l3 (模拟熔断场景)
+            3. 读取 config/positions.json 估算真实保证金占用 (v8.6.1 修复)
+            4. 保守默认值 0.50 (L1 阈值, 持仓文件不存在时使用)
 
         Returns:
             {
                 "total_margin": ...,
                 "available_margin": ...,
-                "margin_usage_ratio": 0.20,
-                "margin_call": false,
-                "extreme_margin_call": false
+                "margin_usage_ratio": float,
+                "margin_call": bool,
+                "extreme_margin_call": bool
             }
         """
-        # TODO: 对接 QMT/券商 API 获取真实保证金数据
         # 优先从环境变量读取 (用于模拟不同场景)
         sim_mode = os.environ.get("KILL_SWITCH_SIM_MODE", "").lower()
         env_ratio = os.environ.get("KILL_SWITCH_MARGIN_RATIO")
@@ -93,8 +104,8 @@ class KillSwitch:
             # 模拟 L3 极端场景
             ratio = 0.95
         else:
-            # 默认: 正常运行期模拟值 (20% 占用, 远低于 L1 阈值 50%)
-            ratio = 0.20
+            # v8.6.1 修复: 读取 config/positions.json 估算真实保证金占用
+            ratio = self._estimate_margin_from_positions()
 
         total_margin = 5_000_000  # 500万账户总保证金
         used_margin = total_margin * ratio
@@ -108,8 +119,79 @@ class KillSwitch:
             "extreme_margin_call": ratio >= 0.95,
         }
 
-    def check_margin_status(self) -> Dict:
+    def _estimate_margin_from_positions(self) -> float:
+        """从 config/positions.json 读取持仓估算保证金占用率 (v8.6.1 修复)
+
+        替代原硬编码 0.20, 基于真实持仓市值计算保证金占用:
+            margin_usage_ratio = total_position_value / total_capital
+
+        Returns:
+            保证金占用率 (0.0-1.0), 文件不存在时返回保守值 0.50
+        """
+        import json
+        from pathlib import Path
+
+        # 持仓文件路径 (项目根目录 / config / positions.json)
+        project_root = Path(__file__).resolve().parent.parent
+        positions_file = project_root / "config" / "positions.json"
+
+        if not positions_file.exists():
+            logger.warning(
+                f"持仓文件不存在: {positions_file}, 使用保守保证金占用率 0.50"
+            )
+            return 0.50
+
+        try:
+            with open(positions_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            # 从 meta 获取总资本
+            total_capital = float(data.get("meta", {}).get("total_capital", 5_000_000))
+
+            # 累加所有持仓的 amount (市值)
+            positions = data.get("positions", {})
+            total_position_value = 0.0
+            for code, pos in positions.items():
+                amount = pos.get("amount", 0)
+                if amount and isinstance(amount, (int, float)):
+                    total_position_value += float(amount)
+
+            if total_capital <= 0:
+                logger.warning("total_capital <= 0, 使用保守保证金占用率 0.50")
+                return 0.50
+
+            ratio = total_position_value / total_capital
+            ratio = max(0.0, min(1.0, ratio))
+
+            logger.info(
+                f"[KillSwitch] 持仓估算保证金: "
+                f"持仓市值=¥{total_position_value:,.0f}, "
+                f"总资本=¥{total_capital:,.0f}, "
+                f"占用率={ratio:.1%}"
+            )
+            return ratio
+
+        except Exception as e:
+            logger.error(f"读取持仓文件估算保证金失败: {e}, 使用保守值 0.50")
+            return 0.50
+
+    def set_broker_callback(self, callback) -> None:
+        """注册实盘执行回调函数
+
+        当回调存在时, execute_kill_switch 将通过回调执行真实交易操作,
+        而非抛出 RuntimeError.
+
+        Args:
+            callback: 可调用对象, 签名为 callback(level: int, actions: list) -> Dict
+        """
+        self._broker_callback = callback
+
+    def check_margin_status(self, margin_usage: Optional[float] = None) -> Dict:
         """检查保证金状态, 判断熔断级别
+
+        Args:
+            margin_usage: 外部传入的真实保证金占用率(0-1).
+                          若为 None, 则从 _get_margin_status() 获取(环境变量/模拟).
 
         Returns:
             {
@@ -119,11 +201,46 @@ class KillSwitch:
                 "level": 1,  # 0=正常, 1=一级, 2=二级, 3=三级
                 "level_name": "一级警戒线",
                 "actions": [...],
-                "auto_execute": true
+                "auto_execute": true,
+                "can_trade": true,   # level < 2 时为 True
+                "can_open": true,    # level == 0 时为 True
+                "action": "..."      # 首条 action 文本, 兼容 alpha_hedge_engine
             }
         """
-        margin = self._get_margin_status()
-        ratio = margin.get("margin_usage_ratio", 0)
+        if margin_usage is not None:
+            ratio = max(0.0, min(1.0, float(margin_usage)))
+            margin = {
+                "total_margin": 5_000_000,
+                "available_margin": 5_000_000 * (1 - ratio),
+                "margin_usage_ratio": ratio,
+                "margin_call": ratio >= 0.90,
+                "extreme_margin_call": ratio >= 0.95,
+            }
+        else:
+            # 修复 BUG-K1: 生产环境 fail-closed, 数据不可用时视为满仓熔断
+            trading_env = os.environ.get("TRADING_ENV", "dev").lower()
+            if trading_env == "production":
+                logger.critical(
+                    "保证金数据不可用 (未传入 margin_usage 且券商API未对接)! "
+                    "Kill Switch 进入 FAIL-CLOSED 模式, 阻止一切交易"
+                )
+                return {
+                    "timestamp": datetime.now().isoformat(),
+                    "margin_usage_ratio": 1.0,
+                    "margin_call": True,
+                    "extreme_margin_call": True,
+                    "level": 3,
+                    "level_name": "数据不可用-强制熔断",
+                    "actions": ["数据不可用, 强制停止一切交易"],
+                    "auto_execute": True,
+                    "can_trade": False,
+                    "can_open": False,
+                    "action": "FAIL_CLOSED_DATA_UNAVAILABLE",
+                }
+            # 开发/测试环境: 使用模拟值
+            margin = self._get_margin_status()
+            ratio = margin.get("margin_usage_ratio", 0)
+
         extreme_call = margin.get("extreme_margin_call", False)
 
         level = 0
@@ -150,6 +267,11 @@ class KillSwitch:
             actions = self.config.get("level_1", {}).get("action", [])
             auto_execute = self.config.get("level_1", {}).get("auto_execute", True)
 
+        # 兼容字段: can_trade / can_open / action
+        can_trade = level < 2   # L0/L1 可交易(但不可开仓), L2+ 不可交易
+        can_open = level == 0  # 仅正常状态可开仓
+        action_str = actions[0] if actions else ("正常" if level == 0 else f"L{level}熔断")
+
         result = {
             "timestamp": datetime.now().isoformat(),
             "margin_usage_ratio": ratio,
@@ -159,6 +281,9 @@ class KillSwitch:
             "level_name": level_name,
             "actions": actions,
             "auto_execute": auto_execute,
+            "can_trade": can_trade,
+            "can_open": can_open,
+            "action": action_str,
         }
 
         if level > 0:
@@ -185,8 +310,11 @@ class KillSwitch:
                 "executed": true,
                 "level": 2,
                 "actions_taken": [...],
-                "note": "..."
             }
+
+        Raises:
+            RuntimeError: 当未注册 broker_callback 时触发熔断级别 >= 1,
+                          防止在无真实执行通道下静默通过。
         """
         if level not in (1, 2, 3):
             return {"executed": False, "reason": "invalid_level"}
@@ -201,7 +329,7 @@ class KillSwitch:
             actions_taken.append({
                 "action": "disable_new_positions",
                 "status": "executed",
-                "note": "API 中控切断所有新开仓权限",
+                "note": "中控切断所有新开仓权限",
             })
             actions_taken.append({
                 "action": "enter_defensive_mode",
@@ -214,7 +342,7 @@ class KillSwitch:
             actions_taken.append({
                 "action": "force_close_deep_otm_short",
                 "status": "executed",
-                "note": "API 中控强平最深虚值期权空头",
+                "note": "中控强平最深虚值期权空头",
                 "positions_closed": "deepest_otm_short_calls",
             })
             actions_taken.append({
@@ -238,21 +366,122 @@ class KillSwitch:
                 "note": "跨品种清算注入期权账户",
             })
 
+        # 修复 BUG-K3: callback 失败时返回 executed=False, 而非静默通过
+        # 先检查执行通道是否可用
+        if self._broker_callback is None:
+            # fail-fast: 无实盘执行通道时, 不允许静默通过
+            raise RuntimeError(
+                f"Kill Switch L{level} 已触发但未注册 broker_callback. "
+                f"请先调用 ks.set_broker_callback(callback) 注册实盘执行函数. "
+                f"拒绝在无执行通道下静默通过熔断协议."
+            )
+
+        # 执行真实交易操作
+        try:
+            broker_result = self._broker_callback(level, actions)
+            actions_taken.append({
+                "action": "broker_callback_executed",
+                "status": "executed",
+                "detail": broker_result,
+            })
+            executed = True
+        except Exception as e:
+            logger.critical(
+                f"Kill Switch L{level} broker callback 执行失败! "
+                f"熔断协议未真正执行: {e}"
+            )
+            actions_taken.append({
+                "action": "broker_callback_failed",
+                "status": "failed",
+                "error": str(e),
+            })
+            # 关键修复: callback 失败时返回 executed=False
+            return {
+                "executed": False,
+                "timestamp": datetime.now().isoformat(),
+                "level": level,
+                "level_name": level_cfg.get("name", f"Level {level}"),
+                "actions_taken": actions_taken,
+                "error": f"broker_callback_failed: {e}",
+                "critical_note": "熔断协议未真正执行, 需人工介入!",
+            }
+
         result = {
-            "executed": True,
+            "executed": executed,
             "timestamp": datetime.now().isoformat(),
             "level": level,
             "level_name": level_cfg.get("name", f"Level {level}"),
             "actions_taken": actions_taken,
-            "note": "实际执行需对接 QMT/券商 API, 此处为逻辑框架",
         }
 
         logger.warning(
             f"⚠️ 执行熔断协议 L{level}: {level_cfg.get('name', '')}, "
-            f"动作数={len(actions_taken)}"
+            f"executed={executed}, 动作数={len(actions_taken)}"
         )
 
         return result
+
+    def check_concentration(self, positions: Dict) -> Dict:
+        """检查持仓集中度
+
+        单票集中度风控阈值:
+            L1 预警:  单票 >= 25% → 禁止加仓
+            L2 熔断:  单票 >= 35% → 禁止开仓
+            L3 强平:  单票 >= 50% → 强制减仓
+
+        Args:
+            positions: {code: {'market_value': float, ...}} 或 {code: float}
+
+        Returns:
+            {
+                "level": "OK" / "L1" / "L2" / "L3",
+                "max_concentration": float,
+                "max_concentration_code": str,
+                "action": str,
+            }
+        """
+        CONCENTRATION_L1 = 0.25
+        CONCENTRATION_L2 = 0.35
+        CONCENTRATION_L3 = 0.50
+
+        # 计算总市值
+        total_value = 0.0
+        pos_values = {}
+        for code, pos in positions.items():
+            if isinstance(pos, dict):
+                mv = pos.get('market_value', pos.get('est_market_value', 0))
+            else:
+                mv = float(pos)
+            pos_values[code] = mv
+            total_value += mv
+
+        if total_value <= 0:
+            return {"level": "OK", "max_concentration": 0,
+                    "max_concentration_code": "", "action": "无持仓"}
+
+        # 找最大集中度
+        max_code = max(pos_values, key=pos_values.get)
+        max_conc = pos_values[max_code] / total_value
+
+        if max_conc >= CONCENTRATION_L3:
+            level = "L3"
+            action = f"单票 {max_code} 集中度 {max_conc:.1%} >= 50%, 强制减仓"
+        elif max_conc >= CONCENTRATION_L2:
+            level = "L2"
+            action = f"单票 {max_code} 集中度 {max_conc:.1%} >= 35%, 禁止开仓"
+        elif max_conc >= CONCENTRATION_L1:
+            level = "L1"
+            action = f"单票 {max_code} 集中度 {max_conc:.1%} >= 25%, 禁止加仓"
+        else:
+            level = "OK"
+            action = "正常"
+
+        return {
+            "level": level,
+            "max_concentration": round(max_conc, 4),
+            "max_concentration_code": max_code,
+            "action": action,
+        }
 
     def get_event_history(self, days: int = 30) -> List[Dict]:
         """获取最近 N 天的熔断事件历史

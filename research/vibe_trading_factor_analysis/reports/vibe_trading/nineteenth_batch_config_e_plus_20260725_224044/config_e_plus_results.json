@@ -1,0 +1,143 @@
+{
+  "batch_id": "nineteenth_batch_config_e_plus_20260725_224044",
+  "generated_at": "2026-07-25T22:40:44.508166",
+  "factor_a": "VT_MICRO_VOL_SKEW_INV",
+  "factor_b": "VT_QUALTREND_MARGIN_EXP",
+  "combination_method": "ic_weighted_rolling",
+  "rolling_lookback": 20,
+  "ic_metrics": {
+    "factor_a_ic_ir_full": -0.30497585365118224,
+    "factor_b_ic_ir_full": 0.39812230313748115,
+    "combo_ic_ir": 0.4434421135850999,
+    "combo_ic_mean": 0.04223916658581381,
+    "combo_ic_std": 0.09525294348866077,
+    "combo_ic_decay": 0.5313372943350289
+  },
+  "shadow_configs": {
+    "Config_E_baseline": {
+      "target_vol": 0.08,
+      "dd_derisk_threshold": 0.02,
+      "dd_derisk_factor": 0.2
+    },
+    "Config_E_plus1": {
+      "target_vol": 0.07,
+      "dd_derisk_threshold": 0.018,
+      "dd_derisk_factor": 0.18
+    },
+    "Config_E_plus2": {
+      "target_vol": 0.06,
+      "dd_derisk_threshold": 0.015,
+      "dd_derisk_factor": 0.15
+    },
+    "Config_E_plus3": {
+      "target_vol": 0.05,
+      "dd_derisk_threshold": 0.012,
+      "dd_derisk_factor": 0.12
+    },
+    "Config_E_plus4": {
+      "target_vol": 0.04,
+      "dd_derisk_threshold": 0.01,
+      "dd_derisk_factor": 0.1
+    }
+  },
+  "shadow_results": {
+    "Config_E_baseline": {
+      "pass_shadow": false,
+      "live_dsr": 0.3951442247873916,
+      "max_drawdown": 0.05210881675447743,
+      "total_return": 0.1998182582832999,
+      "sr_observed": 5.186338769165954,
+      "realized_vol": 0.09938888726942134,
+      "mc_p95_dd": 0.05324194680462518,
+      "avg_scaler": 0.37477403327956776,
+      "derisk_triggered_days": 50,
+      "fail_reasons": [
+        "live_DSR=0.395 <= 0.5"
+      ],
+      "config": {
+        "target_vol": 0.08,
+        "dd_derisk_threshold": 0.02,
+        "dd_derisk_factor": 0.2
+      },
+      "desc": "Config_E 基线（第十八批次已测，对照）"
+    },
+    "Config_E_plus1": {
+      "pass_shadow": true,
+      "live_dsr": 0.6151383072012294,
+      "max_drawdown": 0.04382091942850419,
+      "total_return": 0.19087719598504593,
+      "sr_observed": 5.2774302255774534,
+      "realized_vol": 0.09359132515299469,
+      "mc_p95_dd": 0.04605702620108971,
+      "avg_scaler": 0.3521960341898961,
+      "derisk_triggered_days": 50,
+      "fail_reasons": [],
+      "config": {
+        "target_vol": 0.07,
+        "dd_derisk_threshold": 0.018,
+        "dd_derisk_factor": 0.18
+      },
+      "desc": "Config_E+1（轻度激进）"
+    },
+    "Config_E_plus2": {
+      "pass_shadow": true,
+      "live_dsr": 0.8867536993023258,
+      "max_drawdown": 0.03547304377462446,
+      "total_return": 0.18192602571383065,
+      "sr_observed": 5.34634710688657,
+      "realized_vol": 0.08833695524468749,
+      "mc_p95_dd": 0.03917632333821747,
+      "avg_scaler": 0.3291167461420097,
+      "derisk_triggered_days": 50,
+      "fail_reasons": [],
+      "config": {
+        "target_vol": 0.06,
+        "dd_derisk_threshold": 0.015,
+        "dd_derisk_factor": 0.15
+      },
+      "desc": "Config_E+2（中度激进）"
+    },
+    "Config_E_plus3": {
+      "pass_shadow": true,
+      "live_dsr": 1.2123479214507256,
+      "max_drawdown": 0.027838377168732942,
+      "total_return": 0.17312948478756662,
+      "sr_observed": 5.382024440807361,
+      "realized_vol": 0.08378540512370214,
+      "mc_p95_dd": 0.03376634330249705,
+      "avg_scaler": 0.3075413249687677,
+      "derisk_triggered_days": 50,
+      "fail_reasons": [],
+      "config": {
+        "target_vol": 0.05,
+        "dd_derisk_threshold": 0.012,
+        "dd_derisk_factor": 0.12
+      },
+      "desc": "Config_E+3（高度激进）"
+    },
+    "Config_E_plus4": {
+      "pass_shadow": true,
+      "live_dsr": 1.5792467838307909,
+      "max_drawdown": 0.02129107615799475,
+      "total_return": 0.16456876580624935,
+      "sr_observed": 5.375194134030864,
+      "realized_vol": 0.08001287409643279,
+      "mc_p95_dd": 0.028473469311087383,
+      "avg_scaler": 0.2884723485865995,
+      "derisk_triggered_days": 50,
+      "fail_reasons": [],
+      "config": {
+        "target_vol": 0.04,
+        "dd_derisk_threshold": 0.01,
+        "dd_derisk_factor": 0.1
+      },
+      "desc": "Config_E+4（极端激进）"
+    }
+  },
+  "passed_configs": [
+    "Config_E_plus1",
+    "Config_E_plus2",
+    "Config_E_plus3",
+    "Config_E_plus4"
+  ]
+}

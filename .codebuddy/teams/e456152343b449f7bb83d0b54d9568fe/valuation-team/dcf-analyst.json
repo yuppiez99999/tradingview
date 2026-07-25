@@ -1,0 +1,20 @@
+[
+  {
+    "id": "msg-1784788511764-bmlzov",
+    "from": "team-lead",
+    "to": "dcf-analyst",
+    "type": "message",
+    "content": "请开始执行DCF估值建模分析,完成后将报告路径发送给我。",
+    "timestamp": "2026-07-23T06:35:11.765Z",
+    "read": true
+  },
+  {
+    "id": "shutdown-1784788955946",
+    "from": "team-lead",
+    "to": "dcf-analyst",
+    "type": "shutdown_request",
+    "content": "{\"type\":\"shutdown_request\",\"request_id\":\"shutdown-1784788955946\",\"reason\":\"DCF估值分析已完成,感谢你的专业工作。报告已保存到 reports/dcf_valuation_20260723.md。请确认 shutdown_response。\",\"from\":\"team-lead\",\"timestamp\":\"2026-07-23T06:42:35.946Z\"}",
+    "timestamp": "2026-07-23T06:42:35.946Z",
+    "read": true
+  }
+]

@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, r'E:\各种PY程序\28-终极量化交易系统7.1')
+sys.path.insert(0, r'E:\各种PY程序\28-终极量化交易系统8.4')
 from utils.data_provider import get_historical_data
 for code in ["000001", "000002", "600519", "510300", "588000", "512880"]:
     try:

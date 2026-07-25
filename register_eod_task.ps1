@@ -1,10 +1,10 @@
-﻿# ============================================================
+# ============================================================
 # 注册盘后报告自动运行任务 (16:00 触发)
 # ============================================================
-# 任务: v75_EOD_Report
+# 任务: v86_EOD_Report
 # 触发: 每周一至五 16:00 (A股收盘后)
-# 动作: 调用 run_daily_eod.py 生成持仓盈亏报告
-#       (含对冲明细 + 股票ETF持仓明细 + 收益情况 + 第二天交易计划)
+# 动作: 调用 run_daily_eod.py 执行 EOD 四 Guard 风控链 + 生成报告
+#       (保证金熔断→回撤检查→波动率控制→对冲执行→认沽保护)
 #
 # 使用 COM 对象 Schedule.Service (绕过 PowerShell cmdlet bug)
 # 直接调用 python.exe + .py 文件 (避免 .bat 中间层)
@@ -13,9 +13,9 @@
 $ErrorActionPreference = "Stop"
 
 # ============================================================
-# 路径配置
+# 路径配置 (v8.6.1: 从 v7.1 更新到 v8.4)
 # ============================================================
-$projectDir = "E:\各种PY程序\28-终极量化交易系统7.1"
+$projectDir = "E:\各种PY程序\28-终极量化交易系统8.4"
 $pythonExe  = "C:\Program Files\Python38\python.exe"
 $scriptPath = Join-Path $projectDir "run_daily_eod.py"
 
@@ -36,7 +36,7 @@ if (-not (Test-Path $scriptPath)) {
 # 连接 Task Scheduler (COM)
 # ============================================================
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  Registering v75_EOD_Report Task (via COM)" -ForegroundColor Cyan
+Write-Host "  Registering v86_EOD_Report Task (via COM)" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "  Project Dir : $projectDir"
 Write-Host "  Python      : $pythonExe"
@@ -63,8 +63,8 @@ function Remove-ExistingTask($name) {
 # ============================================================
 # 任务名称和描述
 # ============================================================
-$taskName = "v75_EOD_Report"
-$description = "v7.5 盘后报告自动生成 (16:00) — 含对冲明细 + 股票ETF持仓明细 + 收益情况 + 第二天交易计划 (基于auto_trade_plan_500w_2026-2030)"
+$taskName = "v86_EOD_Report"
+$description = "v8.6.1 EOD 四 Guard 风控链 + 盘后报告自动生成 (16:00) — 保证金熔断/回撤检查/波动率控制/对冲执行/认沽保护 (基于 config/positions.json)"
 
 # ============================================================
 # 删除已存在的任务
@@ -126,13 +126,13 @@ Write-Host "  Action    : $pythonExe `"$scriptPath`"" -ForegroundColor Cyan
 Write-Host "  WorkDir   : $projectDir" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Report Output:" -ForegroundColor Cyan
-Write-Host "    Markdown: v7.5_institutional\reports\daily_pnl_report_{YYYY-MM-DD}.md"
-Write-Host "    JSON    : v7.5_institutional\reports\daily_pnl_report_{YYYY-MM-DD}.json"
-Write-Host "    Log     : logs\run_daily_eod_{YYYYMMDD}.log"
+Write-Host "    EOD Guard Report: 每日报告归档\{YYYY-MM-DD}\eod_guard_report_{YYYY-MM-DD}.md"
+Write-Host "    Trade Plan      : v8.3_institutional\trade_plans\trade_plan_{YYYYMMDD}.json (含 risk_guard 结果)"
+Write-Host "    Log             : logs\run_daily_eod_{YYYYMMDD}.log"
 Write-Host ""
 Write-Host "  Management Commands:" -ForegroundColor Yellow
-Write-Host "    Query   : schtasks.exe /Query /TN v75_EOD_Report"
-Write-Host "    Run now : schtasks.exe /Run   /TN v75_EOD_Report"
-Write-Host "    Disable : schtasks.exe /Change /TN v75_EOD_Report /DISABLE"
-Write-Host "    Delete  : schtasks.exe /Delete /TN v75_EOD_Report /F"
+Write-Host "    Query   : schtasks.exe /Query /TN v86_EOD_Report"
+Write-Host "    Run now : schtasks.exe /Run   /TN v86_EOD_Report"
+Write-Host "    Disable : schtasks.exe /Change /TN v86_EOD_Report /DISABLE"
+Write-Host "    Delete  : schtasks.exe /Delete /TN v86_EOD_Report /F"
 Write-Host ""

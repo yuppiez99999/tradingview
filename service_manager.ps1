@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 $ServiceName = "AutoHedgeExecutor"
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Python = "C:\Program Files\Python38\python.exe"
-$Wrapper = Join-Path $ProjectDir "_archive_dead_code\service_wrapper.py"  # 已归档，路径更新于 2026-07-09
+$Wrapper = Join-Path $ProjectDir "_archive_dead_code\service_wrapper.py"  # 已归档，路径更新于 2026-07-09。如已迁移至 v8.3_institutional，请改用该目录下的对应脚本。
 
 function Write-Info($msg) { Write-Host "[INFO] $msg" -ForegroundColor Green }
 function Write-Warn($msg) { Write-Host "[WARN] $msg" -ForegroundColor Yellow }

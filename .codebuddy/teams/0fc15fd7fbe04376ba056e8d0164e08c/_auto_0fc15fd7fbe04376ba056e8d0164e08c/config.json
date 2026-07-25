@@ -1,0 +1,43 @@
+{
+  "name": "_auto_0fc15fd7fbe04376ba056e8d0164e08c",
+  "mainConversationId": "0fc15fd7fbe04376ba056e8d0164e08c",
+  "workspacePath": "e:\\各种PY程序\\28-终极量化交易系统8.4",
+  "createdAt": "2026-07-22T12:20:21.683Z",
+  "options": {
+    "workspacePath": "e:\\各种PY程序\\28-终极量化交易系统8.4",
+    "isAutoTeam": true
+  },
+  "isAutoTeam": true,
+  "members": [
+    {
+      "memberId": "arch_auditor@_auto_0fc15fd7fbe04376ba056e8d0164e08c",
+      "name": "arch_auditor",
+      "role": "系统架构与代码质量审计",
+      "sessionId": "02f6633acbb44c0692fdb2b650886c71"
+    },
+    {
+      "memberId": "data_auditor@_auto_0fc15fd7fbe04376ba056e8d0164e08c",
+      "name": "data_auditor",
+      "role": "数据管道与行情系统审计",
+      "sessionId": "82f81f35980741a38d925c718c02dd56"
+    },
+    {
+      "memberId": "alpha_auditor@_auto_0fc15fd7fbe04376ba056e8d0164e08c",
+      "name": "alpha_auditor",
+      "role": "Alpha研究与因子工程审计",
+      "sessionId": "b5cb88381204457cbd8f33175621d3b6"
+    },
+    {
+      "memberId": "execution_auditor@_auto_0fc15fd7fbe04376ba056e8d0164e08c",
+      "name": "execution_auditor",
+      "role": "执行系统与交易基础设施审计",
+      "sessionId": "9c5dc10031994678a0c9ebe5579492f9"
+    },
+    {
+      "memberId": "risk_auditor@_auto_0fc15fd7fbe04376ba056e8d0164e08c",
+      "name": "risk_auditor",
+      "role": "风险管理与合规控制审计",
+      "sessionId": "c0f87b4efe3945b6a984e6b7cbfeca6e"
+    }
+  ]
+}

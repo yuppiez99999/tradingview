@@ -6,8 +6,8 @@ $ErrorActionPreference = 'Stop'
 
 $taskName = 'Quant_LLM_IntradayDecision'
 $python = 'C:\Program Files\Python38\python.exe'
-$script = 'E:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional\llm_intraday_decision_engine.py'
-$logDir = 'E:\各种PY程序\28-终极量化交易系统7.1\logs'
+$script = 'E:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional\llm_intraday_decision_engine.py'
+$logDir = 'E:\各种PY程序\28-终极量化交易系统8.4\logs'
 
 # Remove old task if exists
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue

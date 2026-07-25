@@ -1,0 +1,531 @@
+{
+  "batch_id": "sixth_batch_20260725_120832",
+  "started_at": "2026-07-25T12:08:32.564855",
+  "finished_at": "2026-07-25T12:08:43.904082",
+  "total_candidates": 16,
+  "g1_passed": 11,
+  "g2_passed": 1,
+  "g3_passed": 0,
+  "g4_passed": 0,
+  "enhanced": 0,
+  "shadow_passed": 0,
+  "approved": 0,
+  "rejected": 16,
+  "failed": 0,
+  "deferred_fundamentals": 0,
+  "factors": [
+    {
+      "factor_name": "VT_MOM_ACCEL_5_20",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:42.871869",
+      "g1_orthogonality": {
+        "passed": false,
+        "max_abs_corr": 0.7623476366436766,
+        "max_corr_factor": "MOM_20D",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": null,
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate1: max|corr|=0.762 >= 0.7 (与 MOM_20D)"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_MOM_OVERNIGHT_GAP",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:42.908789",
+      "g1_orthogonality": {
+        "passed": true,
+        "max_abs_corr": 0.4190769406401438,
+        "max_corr_factor": "LIQ_RSVP",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": {
+        "passed": false,
+        "ic": -0.025087009527222873,
+        "ic_ir_estimated": -0.1392833223792842,
+        "ic_mean": -0.025087009527222873,
+        "ic_std": 0.1801149563255543,
+        "ic_decay_estimated": 0.1155151471292657,
+        "n_days": 120,
+        "method": "real_120d_rolling"
+      },
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate2: IC_IR=-0.1393 |abs| < 0.3"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_MOM_AUTOCORR_5D",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:42.989707",
+      "g1_orthogonality": {
+        "passed": true,
+        "max_abs_corr": 0.3116191749937647,
+        "max_corr_factor": "MOM_UP_DOWN",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": {
+        "passed": false,
+        "ic": 0.0280153982859994,
+        "ic_ir_estimated": 0.17173363414784892,
+        "ic_mean": 0.0280153982859994,
+        "ic_std": 0.1631328564437202,
+        "ic_decay_estimated": -1.0,
+        "n_days": 120,
+        "method": "real_120d_rolling"
+      },
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate2: IC_IR=+0.1717 |abs| < 0.3"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_MOM_HIGH_VOL_ALPHA",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.069011",
+      "g1_orthogonality": {
+        "passed": true,
+        "max_abs_corr": 0.3031227360271451,
+        "max_corr_factor": "MOM_20D",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": {
+        "passed": false,
+        "ic": -0.022540102958490366,
+        "ic_ir_estimated": -0.13291005004133993,
+        "ic_mean": -0.022540102958490366,
+        "ic_std": 0.16958915410444553,
+        "ic_decay_estimated": -0.13784430407112525,
+        "n_days": 120,
+        "method": "real_120d_rolling"
+      },
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate2: IC_IR=-0.1329 |abs| < 0.3"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_REV_BREADTH_5D",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.148667",
+      "g1_orthogonality": {
+        "passed": true,
+        "max_abs_corr": 0.5286147559686866,
+        "max_corr_factor": "MOM_REVERSAL_5D",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": {
+        "passed": false,
+        "ic": -0.00872737425918347,
+        "ic_ir_estimated": -0.05620921444795917,
+        "ic_mean": -0.00872737425918347,
+        "ic_std": 0.15526589981547662,
+        "ic_decay_estimated": 0.0,
+        "n_days": 120,
+        "method": "real_120d_rolling"
+      },
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate2: IC_IR=-0.0562 |abs| < 0.3"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_REV_VOL_DRAIN",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.231522",
+      "g1_orthogonality": {
+        "passed": true,
+        "max_abs_corr": 0.4438425946123166,
+        "max_corr_factor": "MOM_REVERSAL_5D",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": {
+        "passed": true,
+        "ic": -0.050228414656956856,
+        "ic_ir_estimated": -0.3266237051101932,
+        "ic_mean": -0.050228414656956856,
+        "ic_std": 0.1537806774925025,
+        "ic_decay_estimated": -0.3450664812144131,
+        "n_days": 120,
+        "method": "real_120d_rolling"
+      },
+      "g3_dsr": {
+        "factor_name": "VT_REV_VOL_DRAIN",
+        "sr_observed": -2.7041286802299918,
+        "expected_max_sr": 3.651181159162029,
+        "dsr_value": -4.347493937123791,
+        "n_trials": 105,
+        "sample_length": 120,
+        "is_overfit": true,
+        "gate_3_pass": false,
+        "reason": "DSR=-4.347 <= 0 (overfit)",
+        "method": "real_history"
+      },
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate3: DSR=-4.347 <= 0.0 (overfit)"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_REV_OVERREACTION",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.333574",
+      "g1_orthogonality": {
+        "passed": true,
+        "max_abs_corr": 0.5164978927273712,
+        "max_corr_factor": "MOM_UP_DOWN",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": {
+        "passed": false,
+        "ic": -0.024723381042149446,
+        "ic_ir_estimated": -0.19476051663241872,
+        "ic_mean": -0.024723381042149446,
+        "ic_std": 0.1269424700120873,
+        "ic_decay_estimated": -1.0,
+        "n_days": 120,
+        "method": "real_120d_rolling"
+      },
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate2: IC_IR=-0.1948 |abs| < 0.3"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_LIQ_AMIHUD_SCALED",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.425262",
+      "g1_orthogonality": {
+        "passed": true,
+        "max_abs_corr": 0.6079658239832714,
+        "max_corr_factor": "VAL_PE",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": {
+        "passed": false,
+        "ic": -0.003775015349169706,
+        "ic_ir_estimated": -0.02629115148233283,
+        "ic_mean": -0.003775015349169706,
+        "ic_std": 0.14358501382894723,
+        "ic_decay_estimated": -0.5465554176365466,
+        "n_days": 120,
+        "method": "real_120d_rolling"
+      },
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate2: IC_IR=-0.0263 |abs| < 0.3"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_LIQ_TURNOVER_REGIME",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.505895",
+      "g1_orthogonality": {
+        "passed": true,
+        "max_abs_corr": 0.6461386081698022,
+        "max_corr_factor": "LIQ_VOLUME_ZSCORE",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": {
+        "passed": false,
+        "ic": 0.005507929784624458,
+        "ic_ir_estimated": 0.034188556186930896,
+        "ic_mean": 0.005507929784624458,
+        "ic_std": 0.16110448638161412,
+        "ic_decay_estimated": -1.0,
+        "n_days": 120,
+        "method": "real_120d_rolling"
+      },
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate2: IC_IR=+0.0342 |abs| < 0.3"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_VOL_OVERNIGHT_RATIO",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.586948",
+      "g1_orthogonality": {
+        "passed": true,
+        "max_abs_corr": 0.38115334761002484,
+        "max_corr_factor": "MOM_REVERSAL_5D",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": {
+        "passed": false,
+        "ic": -0.0075634896270325176,
+        "ic_ir_estimated": -0.038513122678631065,
+        "ic_mean": -0.0075634896270325176,
+        "ic_std": 0.19638733763931082,
+        "ic_decay_estimated": 0.17495784619365007,
+        "n_days": 120,
+        "method": "real_120d_rolling"
+      },
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate2: IC_IR=-0.0385 |abs| < 0.3"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_VOL_CLUSTERING",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.665271",
+      "g1_orthogonality": {
+        "passed": true,
+        "max_abs_corr": 0.47586426939770393,
+        "max_corr_factor": "LIQ_ZERO_RET_DAYS",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": {
+        "passed": false,
+        "ic": -0.01913546007936848,
+        "ic_ir_estimated": -0.12674617883456243,
+        "ic_mean": -0.01913546007936848,
+        "ic_std": 0.1509746507178363,
+        "ic_decay_estimated": -0.627363483305952,
+        "n_days": 120,
+        "method": "real_120d_rolling"
+      },
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate2: IC_IR=-0.1267 |abs| < 0.3"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_VAL_COMPOSITE",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.745851",
+      "g1_orthogonality": {
+        "passed": false,
+        "max_abs_corr": 0.9982663385274843,
+        "max_corr_factor": "VAL_PE",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": null,
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate1: max|corr|=0.998 >= 0.7 (与 VAL_PE)"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_VAL_EARNINGS_YIELD_SCALED",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.781239",
+      "g1_orthogonality": {
+        "passed": false,
+        "max_abs_corr": 1.0,
+        "max_corr_factor": "VAL_PE",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": null,
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate1: max|corr|=1.000 >= 0.7 (与 VAL_PE)"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_QUA_COMPOSITE",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.817959",
+      "g1_orthogonality": {
+        "passed": false,
+        "max_abs_corr": 0.9903226650707931,
+        "max_corr_factor": "QUA_DEBT_TO_EQUITY",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": null,
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate1: max|corr|=0.990 >= 0.7 (与 QUA_DEBT_TO_EQUITY)"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_SIZE_LOG_NORMALIZED",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.856704",
+      "g1_orthogonality": {
+        "passed": false,
+        "max_abs_corr": 0.9999999999999997,
+        "max_corr_factor": "SIZE_LOG_MCAP",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": null,
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate1: max|corr|=1.000 >= 0.7 (与 SIZE_LOG_MCAP)"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    },
+    {
+      "factor_name": "VT_GROWTH_COMPOSITE",
+      "state": "rejected",
+      "entered_at": "2026-07-25T12:08:43.893008",
+      "g1_orthogonality": {
+        "passed": true,
+        "max_abs_corr": 0.0,
+        "max_corr_factor": "MOM_20D",
+        "threshold": 0.7
+      },
+      "g2_ic_stability": {
+        "passed": false,
+        "ic": 0.0,
+        "ic_ir_estimated": 0.0,
+        "ic_mean": 0.0,
+        "ic_std": 0.0,
+        "ic_decay_estimated": 0.0,
+        "n_days": 120,
+        "method": "real_120d_rolling"
+      },
+      "g3_dsr": null,
+      "g4_economic": null,
+      "enhancement_capacity": null,
+      "enhancement_regime": null,
+      "shadow_result": null,
+      "committee_verdict": null,
+      "fail_reasons": [
+        "Gate2: IC_IR=+0.0000 |abs| < 0.3"
+      ],
+      "approved": false,
+      "final_score": 0.0
+    }
+  ],
+  "audit_trail": [
+    {
+      "stage": "Stage0_DataGate",
+      "status": "started"
+    },
+    {
+      "stage": "Stage1_Compute",
+      "status": "completed",
+      "total_candidates": 16
+    },
+    {
+      "stage": "Stage1.5_FactorHistory",
+      "status": "started",
+      "history_days": 120,
+      "forward_window": 5
+    },
+    {
+      "stage": "Stage1.5_FactorHistory",
+      "status": "completed",
+      "factors_with_history": 16,
+      "valid_days": 120
+    },
+    {
+      "stage": "Stage1.6_FundamentalsQuality",
+      "status": "completed",
+      "total_symbols": 105,
+      "real_count": 100,
+      "proxy_count": 5,
+      "missing_count": 0,
+      "proxy_ratio": 0.047619047619047616,
+      "data_quality": "real",
+      "deferred_factors_count": 0,
+      "deferred_categories": []
+    }
+  ]
+}

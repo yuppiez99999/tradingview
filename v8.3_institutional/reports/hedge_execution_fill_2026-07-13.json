@@ -1,0 +1,27 @@
+{
+  "trade_date": "2026-07-13",
+  "generated_at": "2026-07-13T15:22:38.517221",
+  "portfolio_beta": 1.0518518518518518,
+  "total_hedge_pct": 0.834228,
+  "total_cost": 513.0502200000001,
+  "hedge_enabled": true,
+  "orders": [
+    {
+      "action": "SHORT_FUTURES",
+      "instrument": "IF",
+      "contracts": 3,
+      "direction": "SELL",
+      "multiplier": 300,
+      "futures_price": 4634.6,
+      "futures_beta": 1.0,
+      "notional": 4171140.0,
+      "estimated_cost": 513.0502200000001,
+      "cost_ratio": 0.00010261004400000002,
+      "current_beta": 1.0518518518518518,
+      "target_beta": 0.25,
+      "beta_reduced": 0.8018518518518518,
+      "hedge_type": "BETA",
+      "status": "DRY_RUN"
+    }
+  ]
+}

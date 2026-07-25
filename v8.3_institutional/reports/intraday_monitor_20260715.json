@@ -1,0 +1,31 @@
+{
+  "trade_date": "2026-07-15",
+  "generated_at": "2026-07-15T18:56:29.652780",
+  "monitor_ts": "2026-07-15T18:56:34.967525",
+  "round_index": 2,
+  "module": "intraday_monitor",
+  "status": "PASS",
+  "summary": {
+    "position_count": 26,
+    "pending_order_count": 0,
+    "pending_amount": 0.0,
+    "realtime_price_count": 0,
+    "risk_event_count": 0,
+    "dynamic_limits": {
+      "max_single_order_amount": 200000,
+      "max_total_amount": 200000,
+      "min_approval_rate": 0.9,
+      "max_position_concentration": 0.3,
+      "price_band": 0.03
+    }
+  },
+  "risk_events": [],
+  "adjustments": [],
+  "realtime_prices": {},
+  "realtime_price_series": {},
+  "notes": [
+    "实时行情优先级: Wind MCP -> iFinD MCP -> 新浪实时价",
+    "若实时价获取失败，仍可基于持仓快照生成监控建议",
+    "watch 模式会持续轮询，并将价格序列写入 intraday_monitor_series_*.json"
+  ]
+}

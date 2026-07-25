@@ -22,7 +22,11 @@ from typing import Dict, List, Optional, Tuple
 
 
 # 顶级对冲基金审慎默认值
-DEFAULT_MAX_WEIGHT = 0.15        # 单标的硬上限 15%
+# V3优化 (2026-07-24): 单标的硬上限 15%→10%
+# 动机: 2025-08 300308 占 15% 权重产生 +84% 月收益, 导致极端月份依赖
+#       (去极端月份后年化 10.67%, 低于目标 12%+); Walk-Forward Sharpe CV=0.80 不稳定
+# 10% 上限限制单股集中度, 降低路径依赖风险, 提升稳定性
+DEFAULT_MAX_WEIGHT = 0.10        # 单标的硬上限 10% (V3: 15%→10%)
 DEFAULT_MAX_SECTOR = 0.25        # 单一板块硬上限 25%
 DEFAULT_MAX_DAILY_VAR = 0.015    # 组合日度 VaR95 硬上限 1.5%
 DEFAULT_MAX_SINGLE_VAR = 0.008   # 单票日度 VaR95 硬上限 0.8%

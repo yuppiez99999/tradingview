@@ -61,10 +61,11 @@ class DrawdownCircuitBreaker:
         force_hedge_threshold: float = -0.12,
         watch_threshold: float = -0.05,
     ):
-        self.max_drawdown = float(max_drawdown)
-        self.reduce_threshold = float(reduce_threshold)
-        self.force_hedge_threshold = float(force_hedge_threshold)
-        self.watch_threshold = float(watch_threshold)
+        # 统一归一化为负值，避免调用方正负号混淆
+        self.max_drawdown = -abs(float(max_drawdown))
+        self.reduce_threshold = -abs(float(reduce_threshold))
+        self.force_hedge_threshold = -abs(float(force_hedge_threshold))
+        self.watch_threshold = -abs(float(watch_threshold))
 
     def evaluate(self, current_drawdown: float) -> DrawdownDecision:
         """评估当前回撤（负数，如 -0.10 表示回撤 10%）
@@ -75,7 +76,7 @@ class DrawdownCircuitBreaker:
             DrawdownDecision
         """
         dd = float(current_drawdown)
-        breach = dd <= -self.max_drawdown
+        breach = dd <= self.max_drawdown
 
         if dd <= self.force_hedge_threshold:
             level = DrawdownLevel.HALT if breach else DrawdownLevel.FORCE_HEDGE
@@ -112,8 +113,15 @@ class DrawdownCircuitBreaker:
         """返回当前允许的目标仓位缩放系数（1.0 = 满仓）。
 
         回撤越深，允许仓位越低，实现波动率目标化与回撤控制。
+        自动修正: 若传入正值 (如 +0.10), 转为负值以避免静默误判。
         """
         dd = float(current_drawdown)
+        if dd > 0:
+            import logging
+            logging.getLogger("drawdown_breaker").warning(
+                f"target_scale 收到正数回撤 {dd:.4f}, 自动转为负值 (调用方符号可能错误)"
+            )
+            dd = -dd
         if dd <= self.reduce_threshold:
             return 0.5
         if dd <= self.watch_threshold:

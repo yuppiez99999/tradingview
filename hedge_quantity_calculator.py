@@ -7,15 +7,15 @@ import sys
 import json
 from collections import defaultdict
 
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统7.1')
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional\src')
+sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4')
+sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional\src')
 
 from hedging.hedge_coordinator import HedgeCoordinator
 from hedging.beta_hedger import BetaHedger
 from hedging.vol_hedger import VolHedger
 
 # 读取持仓
-positions_path = r'e:\各种PY程序\28-终极量化交易系统7.1\config\positions.json'
+positions_path = r'e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json'
 with open(positions_path, 'r', encoding='utf-8') as f:
     positions_data = json.load(f)['positions']
 

@@ -1,26 +1,48 @@
 """
 iFinD MCP API 客户端 — 同花顺金融数据服务
-协议: JSON-RPC 2.0 over HTTPS + MCP Session
+协议: JSON-RPC 2.0 over HTTPS + MCP
 
-服务类型:
-  - stock: A股股票（不支持ETF）
-  - fund: 基金/ETF（净值、涨跌幅、历史）
-  - edb: 宏观/行业经济指标
-  - index: 指数板块行情
-  - bond: 债券
-  - news: 新闻公告
-  - global_stock: 港美股
-  - futures: 期货实时行情（支持 THS_RQ 接口字段）
-
-注意: ETF 必须使用 fund 服务，stock 服务不支持 ETF 代码
+安全要求:
+  - JWT Token 必须通过环境变量 IFIND_TOKEN 配置
+  - 禁止在代码、配置文件或日志中明文存储 Token
+  - 所有 Token 引用必须使用占位符 ${IFIND_TOKEN}
 """
 
 import json
+import logging
+import math
+import os
 import re
 import time
 import threading
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
+
+import requests
+
+logger = logging.getLogger("ifind_client")
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# 从环境变量读取 JWT Token,禁止明文存储
+_AUTH_TOKEN = os.environ.get("IFIND_TOKEN", "")
+if not _AUTH_TOKEN:
+    raise RuntimeError(
+        "iFinD JWT Token 未配置: 请设置环境变量 IFIND_TOKEN\n"
+        "Windows PowerShell: $env:IFIND_TOKEN='your_token_here'\n"
+        "Linux/Mac: export IFIND_TOKEN='your_token_here'"
+    )
+
+# 服务类型说明:
+#   - stock: A股股票（不支持ETF）
+#   - fund: 基金/ETF（净值、涨跌幅、历史）
+#   - edb: 宏观/行业经济指标
+#   - index: 指数板块行情
+#   - bond: 债券
+#   - news: 新闻公告
+#   - global_stock: 港美股
+#   - futures: 期货实时行情（支持 THS_RQ 接口字段）
+# 注意: ETF 必须使用 fund 服务，stock 服务不支持 ETF 代码
 
 import requests
 import urllib3
@@ -167,9 +189,45 @@ def _normalize_row(row: Dict[str, Any]) -> Dict[str, str]:
     return {str(k): str(v) if v is not None else "" for k, v in row.items()}
 
 
+def _extract_indicators_from_row(row: Dict[str, Any]) -> Dict[str, float]:
+    """从一行 dict 提取数值型指标, 容错处理 "12.34亿" / "--" / "N/A" 等
+
+    Args:
+        row: {指标名: 数值/字符串}
+
+    Returns:
+        {指标名: float}, 跳过无法解析的项
+    """
+    out: Dict[str, float] = {}
+    for k, v in row.items():
+        if v is None:
+            continue
+        if isinstance(v, (int, float)):
+            if math.isfinite(float(v)):
+                out[str(k)] = float(v)
+            continue
+        # 字符串处理
+        s = str(v).strip()
+        if not s or s in ("--", "-", "N/A", "NA", "null", "None"):
+            continue
+        # 去除千分位 / 百分号 / 单位
+        cleaned = s.replace(",", "").replace("%", "").replace("亿", "").replace("万", "").strip()
+        try:
+            val = float(cleaned)
+            if "亿" in s:
+                val *= 1e8
+            elif "万" in s:
+                val *= 1e4
+            if math.isfinite(val):
+                out[str(k)] = val
+        except (ValueError, TypeError):
+            continue
+    return out
+
+
 class IFindClient:
-    def __init__(self, auth_token: str = "", max_concurrency: int = 2):
-        self.auth_token = auth_token
+    def __init__(self, max_concurrency: int = 2):
+        # Token 从环境变量读取,不通过构造函数传递
         self.max_concurrency = max_concurrency
         self._sessions: Dict[str, str] = {}
         self._req_ids: Dict[str, int] = {}
@@ -182,12 +240,6 @@ class IFindClient:
         self._quota_exceeded: Dict[str, float] = {}
         self._quota_retry_delay = 3600
 
-    def configure(self, auth_token: str, max_concurrency: int = 2):
-        self.auth_token = auth_token
-        self.max_concurrency = max_concurrency
-        self._semaphore = threading.Semaphore(max_concurrency)
-        self._sessions.clear()
-
     def _next_id(self, t: str) -> int:
         self._req_ids[t] = self._req_ids.get(t, 0) + 1
         return self._req_ids[t]
@@ -196,7 +248,7 @@ class IFindClient:
         h = {
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
-            "Authorization": self.auth_token,
+            "Authorization": _AUTH_TOKEN,  # 使用环境变量中的 Token
         }
         if t and t in self._sessions:
             h["Mcp-Session-Id"] = self._sessions[t]
@@ -581,3 +633,165 @@ class IFindClient:
         if time_end:
             params["time_end"] = time_end
         return self.call("news", "search_news", params)
+
+    # ------------------------------------------------------------
+    # 基本面数据批量拉取 (v8.5 新增, 供 vibe_trading_factor_analysis 使用)
+    #   - 通过 get_stock_financials 自然语言查询接口拉取 PE/PB/ROE/市值
+    #   - 并发拉取, 失败降级 (不抛异常, 调用方负责降级处理)
+    #   - 配额超限时整体降级 (返回空 dict + quota_exceeded=True)
+    # ------------------------------------------------------------
+    def get_fundamentals_batch(
+        self,
+        symbols: List[str],
+        indicators: Optional[List[str]] = None,
+        report_date: Optional[str] = None,
+        max_workers: int = 4,
+    ) -> Dict[str, Dict[str, float]]:
+        """批量拉取多只股票的财务指标 (PE/PB/ROE/总市值/流通市值)
+
+        Args:
+            symbols: 股票代码列表 (如 ["600519.SH", "000333.SZ"])
+            indicators: 指标列表 (默认 ["PE", "PB", "ROE", "总市值", "流通市值"])
+            report_date: 报告期 (如 "2025-12-31"); None 表示最新
+            max_workers: 并发数 (默认 4, 受 max_concurrency 限制)
+
+        Returns:
+            {symbol: {indicator: value}}
+            失败的 symbol 不包含在结果中; 整体配额超限时返回空 dict
+        """
+        if not symbols:
+            return {}
+
+        if indicators is None:
+            indicators = ["市盈率PE", "市净率PB", "净资产收益率ROE", "总市值", "流通市值"]
+
+        indicator_str = "、".join(indicators)
+        date_suffix = f"在{report_date}的" if report_date else "最新"
+        results: Dict[str, Dict[str, float]] = {}
+
+        # 并发拉取 (受 self._semaphore 限制)
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        def _fetch_one(sym: str) -> Tuple[str, Dict[str, float]]:
+            # 简称映射: 600519.SH -> 贵州茅台(用代码即可, iFinD 支持代码查询)
+            query = f"{sym}{date_suffix}{indicator_str}"
+            try:
+                resp = self.call("stock", "get_stock_financials", {"query": query})
+            except Exception as e:
+                logger.warning("[IFind.fundamentals] %s 调用异常: %s", sym, e)
+                return sym, {}
+
+            if not resp.get("ok"):
+                if resp.get("quota_exceeded"):
+                    raise RuntimeError("quota_exceeded")
+                logger.warning("[IFind.fundamentals] %s 失败: %s", sym, resp.get("error", "")[:80])
+                return sym, {}
+
+            data = resp.get("data", {})
+            content = data.get("result", {}).get("content", [])
+            parsed = self._parse_financials_content(content, sym)
+            return sym, parsed
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(_fetch_one, sym): sym for sym in symbols}
+            for fut in as_completed(futures):
+                try:
+                    sym, parsed = fut.result()
+                    if parsed:
+                        results[sym] = parsed
+                except RuntimeError as e:
+                    if "quota_exceeded" in str(e):
+                        logger.warning(
+                            "[IFind.fundamentals] 配额超限, 终止批量拉取 (已成功 %d/%d)",
+                            len(results), len(symbols),
+                        )
+                        # 取消剩余任务
+                        for f in futures:
+                            f.cancel()
+                        break
+                except Exception as e:
+                    logger.warning("[IFind.fundamentals] future 异常: %s", e)
+
+        logger.info(
+            "[IFind.fundamentals] 批量拉取完成 | 成功 %d/%d | indicators=%s",
+            len(results), len(symbols), indicator_str,
+        )
+        return results
+
+    def _parse_financials_content(
+        self,
+        content: List[Dict],
+        symbol: str,
+    ) -> Dict[str, float]:
+        """解析 get_stock_financials 返回的 markdown 表格为指标字典
+
+        iFinD 返回格式: [{"type": "text", "text": "| 指标 | 数值 |\\n|...|...|"}]
+        """
+        if not content:
+            return {}
+
+        parsed: Dict[str, float] = {}
+        for item in content:
+            text = item.get("text", "")
+            if not text:
+                continue
+            # 优先解析 JSON
+            try:
+                j = json.loads(text)
+                if isinstance(j, dict) and j.get("code") == 1:
+                    answer = j.get("data", {}).get("answer", "")
+                    # answer 可能含 markdown 表格
+                    rows = _parse_markdown_table(answer)
+                    for row in rows:
+                        parsed.update(_extract_indicators_from_row(row))
+                    # 也尝试直接从 data 字段提取
+                    data_payload = j.get("data", {})
+                    if isinstance(data_payload, dict):
+                        parsed.update(_extract_indicators_from_row(data_payload))
+                else:
+                    rows = _parse_markdown_table(text)
+                    for row in rows:
+                        parsed.update(_extract_indicators_from_row(row))
+            except (json.JSONDecodeError, ValueError):
+                rows = _parse_markdown_table(text)
+                for row in rows:
+                    parsed.update(_extract_indicators_from_row(row))
+
+        # 归一化键名 (PE/市盈率 -> pe, PB/市净率 -> pb, ROE/净资产收益率 -> roe)
+        normalized: Dict[str, float] = {}
+        for k, v in parsed.items():
+            key = k.lower().strip()
+            val: Optional[float] = None
+            if isinstance(v, (int, float)):
+                val = float(v)
+            elif isinstance(v, str):
+                try:
+                    # 处理 "12.34亿" / "12.34%" / "--" 等
+                    s = v.replace(",", "").replace("%", "").replace("亿", "").replace("万", "").strip()
+                    if s in ("--", "-", "N/A", "NA", ""):
+                        continue
+                    val = float(s)
+                    if "亿" in v:
+                        val *= 1e8
+                    elif "万" in v:
+                        val *= 1e4
+                except (ValueError, TypeError):
+                    continue
+            if val is None or not math.isfinite(val):
+                continue
+            if "pe" in key or "市盈率" in k:
+                normalized["pe"] = val
+            elif "pb" in key or "市净率" in k:
+                normalized["pb"] = val
+            elif "roe" in key or "净资产收益率" in k:
+                normalized["roe"] = val
+            elif "市值" in k or "market_cap" in key:
+                if "流通" in k:
+                    normalized["float_market_cap"] = val
+                else:
+                    normalized["market_cap"] = val
+            elif "营收" in k or "revenue" in key:
+                normalized["revenue"] = val
+            elif "净利润" in k or "net_profit" in key:
+                normalized["net_profit"] = val
+        return normalized

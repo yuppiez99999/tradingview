@@ -78,18 +78,26 @@ class StopLossMonitor:
             positions_file: 持仓 JSON 文件路径
             broker: BrokerAdapter 实例 (MockBrokerAdapter 或 QMT)
         """
-        # 规则文件: 优先使用波动率调整版
+        # 规则文件: 优先本项目 config/, 其次回退 11_量化策略 (历史兼容)
         if rules_file is None:
-            vol_path = os.path.join(_BASE, "..", "11_量化策略", "config", "stop_loss_vol_adjusted.yaml")
-            auto_path = os.path.join(_BASE, "..", "11_量化策略", "config", "stop_loss_rules_auto.yaml")
-            rules_file = vol_path if os.path.exists(vol_path) else auto_path
+            candidates = [
+                os.path.join(_BASE, "config", "stop_loss_vol_adjusted.yaml"),
+                os.path.join(_BASE, "..", "11_量化策略", "config", "stop_loss_vol_adjusted.yaml"),
+                os.path.join(_BASE, "config", "stop_loss_rules_auto.yaml"),
+                os.path.join(_BASE, "..", "11_量化策略", "config", "stop_loss_rules_auto.yaml"),
+            ]
+            rules_file = next((p for p in candidates if os.path.exists(p)), None)
 
         self.rules_file = rules_file
         self.rules = self._load_rules(rules_file)
 
-        # 持仓文件
-        self.positions_file = positions_file or os.path.join(
-            _BASE, "..", "11_量化策略", "config", "positions.json")
+        # 持仓文件: 优先本项目 config/, 回退 11_量化策略
+        _pos_candidates = [
+            os.path.join(_BASE, "config", "positions.json"),
+            os.path.join(_BASE, "..", "11_量化策略", "config", "positions.json"),
+        ]
+        self.positions_file = positions_file or next(
+            (p for p in _pos_candidates if os.path.exists(p)), _pos_candidates[0])
 
         # Broker
         self.broker = broker

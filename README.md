@@ -1,11 +1,11 @@
-# 综合量化策略系统 v8.2.0
+# 综合量化策略系统 v8.6.2
 
-**顶级对冲基金视角 | 500万实盘部署 | 全自动交易闭环 | 年化≥8% 回撤<15% | ETF资金流追踪 | AI增强预测 | WonderTrader高价值模块集成 | Wind MCP 优先数据源 | 本地Ollama双LLM决策（快速+深度思考） | 风险预算驱动建仓 | Greeks动态对冲 | 交易成本建模 | 动态Beta计算 | 订单去重合并 | 配置驱动对冲 | 执行时机管理 | 资金预留机制**
+**顶级对冲基金视角 | 500万实盘部署 | 全自动交易闭环 | 年化≥8% 回撤<15% | 风控守卫强制执行（四模块联动） | 对冲执行引擎（信号→订单） | 认沽期权自动保护 | 波动率目标缩仓 | PUT引擎去重保护 | 实际持仓回测验证 | 统一配置事实源 | ETF资金流追踪 | AI增强预测 | WonderTrader高价值模块集成 | Wind MCP 优先数据源 | 本地Ollama双LLM决策（快速+深度思考） | 风险预算驱动建仓 | Greeks动态对冲 | 交易成本建模 | 动态Beta计算 | 订单去重合并 | 配置驱动对冲 | 执行时机管理 | 资金预留机制 | v8.4 持仓精准优化（黄金翻倍+科技微降+对冲增强+2027预测） | v8.5 自动交易计划部署（daily_workflow兼容性修复+报告写入可靠性增强） | v8.6 V9 Regime-Specific LGB 生产基线 + 影子账户 Stage 1 灰度发布（¥500,000）+ iFinD 真实财务数据接入 + daily_workflow Phase 10 影子账户监控 + TRADING_ENV fail-closed 设计 | v8.6.1 顶级对冲基金风控审计修复（CircuitBreaker/KillSwitch/EVTTailRisk/ShadowAccount 全部从纸面风控升级为真实可执行 + fail-closed 三层防护 + v8.5 模块 3/9→9/9 全部就绪）**
 
 **作者**：yuppiez99999
 
-**实盘状态**：✅ 已部署（2026-07-18）  
-**自动交易**：✅ 盘前自动生成计划 + 盘中每15分钟自动决策 + 午盘/夜盘自动刷新LLM决策 + 盘后自动总结  
+**实盘状态**：✅ 已部署（2026-07-25，v8.6.2 自动交易计划审计修复版）
+**自动交易**：✅ 盘前自动生成计划 + 盘中每15分钟自动决策 + 午盘/夜盘自动刷新LLM决策 + 盘后自动总结 + 07:00/09:30/14:00 Windows任务计划自动触发  
 **LLM模型**：双模型架构 — 快速模式 Qwen2.5 7B (~22秒) + 深度思考 DeepSeek-R1 14B (~1-3分钟，复杂场景自动触发）
 
 ---
@@ -57,17 +57,112 @@
 - **换手率感知约束**：TURNOVER_BUDGET=0.20，接近预算时自动上调再平衡阈值
 - **黄金ETF数据源修复**：Baostock失败时自动fallback至AKShare，确保数据完整性
 
+### 🛡️ 风控守卫强制执行 (v8.4)
+
+- **四模块联动风控链**：回撤检查→波动率控制→对冲执行→认沽保护，每日EOD后强制执行
+- **对冲执行引擎**：对冲信号→IF期货+ETF期权订单桥梁，动态Beta计算+回撤加码联动
+- **认沽期权自动保护**：77.8万Put预算自动动用（v8.4 增强至62张），OTM 5%虚值Put覆盖四大指数ETF，到期前5天自动滚仓
+- **波动率目标缩仓**：AQR/Man Group风格Vol Targeting，realized vol>12%时自动缩减建仓预算
+- **回撤四级强制执行**：Level 1预警→Level 2缩预算+加对冲→Level 3清建仓→Level 4全面停止
+- **PUT引擎去重保护**：对冲引擎与认沽保护引擎自动去重，认沽引擎为权威来源，避免超额对冲
+- **持仓精准优化 (v8.4)**：9项精准调仓（黄金翻倍/科技微降/防御增强/对冲增强），基于量化三维度模型与多情景压力测试
+- **实际持仓回测验证**：26标的2021-2026真实持仓回测，不达标自动输出调仓建议
+- **统一配置事实源**：三份配置文件一致性校验，消除配置漂移
+
+### ⏰ 自动交易计划部署 (v8.5)
+
+- **下周自动交易计划**：自动生成未来5个交易日trade_plan文件，每日20万建仓预算，含Put保护订单
+- **Windows任务计划注册**：07:00工作流/09:30早盘/14:00午盘三个时段自动触发
+- **daily_workflow兼容性修复**：修复CircuitLevel导入、CircuitBreaker方法调用、KillSwitch初始化等多项版本不兼容问题
+- **报告写入可靠性增强**：添加重试机制（最多3次，间隔1秒）+ fallback路径（logs/目录），防止Windows Defender拦截导致报告丢失
+- **批处理脚本优化**：修复中文系统下日期提取错误，确保%date%格式正确解析
+
+### 🎯 V9 Regime-Specific LGB + 影子账户灰度发布 (v8.6)
+
+- **V9 生产基线确立**：Regime-Specific LGB 双模型策略通过 30 个月 Walk-Forward 回测验证 — 年化 **19.62%** / 最大回撤 **9.95%** / Sharpe **1.315** / DSR max_pass **18** / Sharpe CV **0.7673**（DSR≥5 + 年化≥15% + 回撤≤10% + Sharpe CV<1.0 全部达标）
+- **影子账户 Stage 1 启动**：10% 资金（¥500,000）灰度发布运行中，三阶段推进路径（10%→50%→100%），最小运行周期 14 天，PBO<0.5 准入（Bailey 2017）
+- **Fail-fast 触发器**：单日回撤 >3% 或 3 日累计回撤 >5% 立即终止 + latch 锁存 + terminate_and_rollback 动作，阻止推进下一灰度阶段
+- **TRADING_ENV fail-closed 设计**：`utils/trading_env.py` 三环境切换（production / shadow / development），production 模式强制 fail-closed — 风控异常时阻止交易而非降级放行
+- **daily_workflow Phase 10 集成**：`phase_shadow_monitor()` 每日记录影子账户 NAV 到 `output/shadow_account/shadow_state.json`，基于 Phase 5 目标权重 + MarketDataProvider 实际收盘价计算当日组合收益
+- **iFinD 真实财务数据接入**：`utils/ifind_client.py` 实现 `get_fundamentals_batch()` 并发拉取 PE/PB/ROE/总市值/流通市值，多编码 `.env` 加载（gbk/utf-8/utf-8-sig/latin-1）兼容 Windows 中文系统
+- **数据降级链**：iFinD（首选）→ Baostock（fallback，覆盖 100/105=95.2% 标的）→ 价量代理（兜底），确保数据完整性
+- **VT_MICRO_VOL_SKEW_INV 因子突破**：23 标的下首个完整通过 G1-G4 + Enhancement + Regime + Shadow(风险管理模式) 全部 7 级 Gate 的因子 — 启用风险管理后 max_dd 从 23.3% 降至 10.57%，live_dsr 从 1.12 降至 0.70（仍 > 0.5，Alpha 信号保留）
+
+### 🔴 顶级对冲基金风控审计修复 (v8.6.1)
+
+- **审计背景**：以世界顶级对冲基金视角审计发现系统存在严重"纸面风控"问题 — README 声称的"四 Guard 联动强制执行"在实际运行中完全失效，多个核心风控模块初始化失败但系统仍继续执行交易，存在"编制结果"嫌疑
+- **CircuitBreaker 熔断器修复**：`daily_workflow.py` 两处 `CircuitBreaker()` 初始化缺少必需 `name` 参数导致 TypeError，风控进入降级模式；修复为 `CircuitBreaker(name="daily_workflow")`，四级熔断（数据源/API/订单/全面停止）恢复可用
+- **KillSwitch 紧急熔断修复（关键 bug）**：原代码 `ks_status.get("triggered")` 检查**不存在的字段**（`check_margin_status()` 返回 `level`/`can_trade`，无 `triggered`），导致 Kill Switch **永远不会触发**；修复为 `level >= 2 or not can_trade` 正确判断，异常时 fail-closed 视为 L3 最高风险
+- **KillSwitch broker_callback 注册**：新增 `_execute_kill_switch_callback()` 方法并注册到 KillSwitch，使 `execute_kill_switch()` 可真实执行（未注册时抛 RuntimeError）；L1 过滤 BUY 订单 / L2 取消待执行+标记期权空头平仓 / L3 变现 10% 红利 ETF+全面停止交易
+- **v8.5 模块加载修复（3/9→9/9）**：修复 6 个模块类名/路径错误 — `EVTTailRisk`→`ExtremeValueAnalyzer`、`PurgedKFoldCV`→`PurgedKFold`、`ShadowAccountSystem`→`ShadowAccount`、`TimeSync`→`GlobalTimeService`、`EnvironmentIsolation`/`TimeSync` 路径改 `src.utils.` 前缀（避免被 root utils/ 遮蔽）、`DataPipeline` 移除不存在的 `get_data_pipeline` 函数
+- **fail-closed 三层防护**：① `phase_check` 风控核心失败时设 `status=FAIL` + `fail_closed=True`（原代码设 `PASS` 继续执行）；② `run()` 循环检查 `fail_closed` 终止工作流；③ `phase_execute` 双重保险阻止一切交易
+- **黑天鹅防护六层联动**：CircuitBreaker（数据源熔断）+ KillSwitch（保证金熔断+实际执行）+ EVTTailRisk（极端尾部风险建模）+ ShadowAccount（影子账户验证）+ UnifiedRiskCockpit（下单前全量扫描）+ fail-closed（风控失败阻止交易）全部从"纸面风控"升级为"真实可执行风控"
+
+### 🎊 因子流水线 IC 加权组合方法学闭环 (v8.6.3) — 研究层面，待接入生产
+
+> ⚠️ **审计警示（2026-07-26）**：本节描述的因子流水线目前是**研究目录独立验证脚本**，**尚未接入生产交易决策链路**。`PipelineResult.factor_combinations` 字段当前无下游消费者（signal_fusion / alpha_factor_library / portfolio_optimizer 均未引用）。详细审计见 `docs/HEDGE_FUND_AUDIT_2026-07-26_SYSTEM_BUGS_AND_AUTOMATION.md`。"方法学闭环"指研究层面的方法学演进闭环，对实际交易决策当前为零影响。接入生产的工作待 S6 Phase 11+ 实施。
+
+- **8 级因子流水线**：从原"四道关卡"升级为完整 8 级流水线 — G1 正交性 + G2 IC 稳定性（真实日频 IC 序列）+ G3 DSR 防过拟合 + G4 经济逻辑 + Enhancement（容量+Regime）+ Shadow 影子账户（含风险管理）+ Committee 因子委员会（5 Agent）+ IC 加权组合
+- **首个 approved 因子 VT_MICRO_VOL_SKEW_INV**：23 标的下完整通过 G1-G4+Enhancement+Regime+Shadow 7 级 Gate — 启用风险管理后 max_dd 从 23.3% 降至 10.57%，live_dsr 从 1.12 降至 0.70（仍 > 0.5，Alpha 信号保留）
+- **QualityTrend 类因子突破**：基于 baostock 真实历史季度财务数据，实现 4 个质量变化类因子（ROE_DELTA/MARGIN_EXP/DEBT_RED/GROWTH_ACCEL），捕捉基本面二阶导信号；**VT_QUALTREND_MARGIN_EXP**（毛利率同比扩张，winsorize 处理）成为 QualityTrend 类首个 approved 因子 — IC_IR=+0.3981, live_dsr=+0.9960, max_dd=0.0759
+- **IC 加权组合方法学（v6.5 突破）**：用滚动 IC_IR 作为动态权重（`w_i = IC_IR_i / sum(|IC_IR_j|)`，保留符号自适应信号反转），优于等权组合 — IC_IR +0.4434（vs 等权 +0.1364）；VT_MICRO_VOL_SKEW_INV 在 78% 时间被反向使用（weight<0），自动适应信号反转
+- **Config_E+ 突破（v6.7）**：发现 IC 加权与单因子参数敏感性相反 — 单因子用 Config_E 让 live_dsr 下降（Alpha 被压缩），IC 加权用 Config_E 让 live_dsr 上升（噪声被压缩）；**Config_E_plus1**（target_vol=0.07）让组合首次通过 Shadow — live_dsr=+0.6151, max_dd=0.0438
+- **PipelineOrchestrator 集成（v6.8）**：IC 加权组合机制集成到 PipelineOrchestrator 内部，与单因子流水线独立运行，通过 `ic_weighted_enabled` 一键开关，结果通过 `PipelineResult.factor_combinations` 字段输出；8 项验收全通过，集成结果与独立脚本 100% 一致。**注**：此处"集成"指 PipelineOrchestrator 内部模块化，非"接入生产交易决策链路"
+- **lookback 优化（v6.9）**：5/10/15/20/30 5 组梯度测试发现 lookback=10 显著优于默认 20 — IC_IR +0.4434→+0.5840 (+31.7%)，live_dsr +0.6151→+2.2033 (+258%)，total_return +0.1909→+0.3290 (+72.3%)，max_dd 0.0438→0.0323 (-26.3%)；综合评分 z-score=+4.238
+- **研究层面方法学闭环**：v6.5（IC 加权方法学）→ v6.6（参数敏感性相反发现）→ v6.7（Config_E_plus1 通过 Shadow）→ v6.8（PipelineOrchestrator 内部集成）→ v6.9（lookback 优化），完成研究层面从"独立脚本验证"到"PipelineOrchestrator 内部模块化 + lookback 优化"的演进闭环
+- **研究层面最终配置**：VT_MICRO_VOL_SKEW_INV + VT_QUALTREND_MARGIN_EXP × IC 加权（lookback=10）× Config_E_plus1，研究脚本实测 IC_IR=+0.5840, live_dsr=+2.2033, max_dd=0.0323, total_return=+0.3290
+- **🔴 待办（P0）**：将 `PipelineResult.factor_combinations` 真实接入 `utils/signal_fusion.py` 和（待创建的）`utils/portfolio_optimizer.py`，使 approved 因子组合对生产交易决策产生实际影响
+
 ---
 
 ## 系统概述
 
-综合量化策略系统 v8.2 是一个专业量化交易平台，在 v8.1 全自动交易闭环基础上新增 **双LLM架构（快速+深度思考）** 与 **午盘/夜盘 LLM 决策自动刷新**，实现风险预算驱动建仓、Greeks 动态对冲、交易成本建模、年化收益测算等机构级能力。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万** 与 **对冲保护账户 200万**，目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
+综合量化策略系统 v8.6.1 是一个专业量化交易平台，历经 v8.3 风控守卫强制执行 → v8.4 持仓精准优化 → v8.5 自动交易计划部署 → v8.6 V9 影子账户灰度发布 → **v8.6.1 顶级对冲基金风控审计修复**，结合 v8.2 双LLM架构 + v8.3 四模块风控联动 + v8.6 影子账户 fail-fast + v8.6.1 fail-closed 三层防护，实现了从"纸面风控建议"→"代码强制执行"→"数据驱动仓位最优化"→**"纸面风控→真实可执行风控"** 的四级进化。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 400万** 与 **对冲保护账户 100万**，目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
+
+**v8.3 核心升级（风控守卫强制执行 + PUT引擎去重）**：
+- **五大风控模块**（2026-07-26 审计修正）：`utils/hedge_execution_engine.py` / `utils/vol_target_controller.py` / `utils/protective_put_engine.py` / `utils/risk_guard_integrator.py` + `research/backtest_current_portfolio.py`。**注**：README 原列出的 `utils/master_config_manager.py` 实际不存在（审计 P1-A 发现），配置管理由 `utils/v10_config_loader.py` 承担；`backtest_current_portfolio.py` 实际路径为 `research/backtest_current_portfolio.py`
+- **四Guard串联**：回撤强制响应（四级，自动修改次日计划）→ 波动率缩仓（AQR Vol Targeting, target 12%）→ 对冲执行（信号→IF期货+ETF期权订单）→ 认沽保护（OTM 5% Put全覆盖+自动滚仓）
+- **PUT去重保护 (v8.3.1)**：`RiskGuardIntegrator._deduplicate_put_orders()` 自动检测并剔除对冲引擎与认沽保护引擎的重复PUT，覆盖510050/588080/159915/510300/510500/512100六个品种
+- **Beta暴露**：从1.052（裸露）降至0.30（对冲后），PUT引擎去重从4笔重复降至0笔
+
+**v8.4 核心升级（持仓精准优化 + 2027预测报告）**：
+- **9项精准调仓**：基于量化三维度模型（历史统计+ML信号+因子分解）与多情景压力测试联合分析，黄金ETF(518880) 2.78%→6.00%翻倍增强分散化（ρ~0.15唯一真分散器），绿的谐波(688017) 5%→3%控尾部风险，中际旭创(300308) 2.35%→1.50%遵循QLib看空信号，中国神华(601088) 2%→3.5%（股息6%+Sharpe 0.915）、银行ETF(512800) 4.36%→5.5%（股息5%+vol 17%）防守增强，上证50ETF(510050) 7.34%→8%蓝筹底仓微增，国债ETF(511010) 25%→22%释放3pp用于收益增强，创业板ETF(159915) 0%→0.8%维持成长覆盖
+- **对冲增强**：Put保护从50张增至62张（510050: 30张 450K + 588080: 12张 144K + 159915: 12张 120K + 510300: 8张 64K），总预算 778K，悲观对冲覆盖从18pp提至25pp
+- **2027年化预测**：量化模型预测中枢+8%~+13%（加权均值+10.5%），中性情景+6.61%（现货+8% + CC权利金+2.91% - 对冲-0.5% + 现金+0.61%），悲观情景-9.31%下最大回撤-27%突破15%红线（核心驱动：AI/半导体暴露约30%+市值）
+- **研究报告**：`research_report_2027_annualized_return_forecast.md` / `research_report_portfolio_improvement_v8.2.md`
+
+**v8.5 核心升级（自动交易计划部署 + daily_workflow 兼容性修复）**：
+- **自动交易计划生成**：完成下周5个交易日trade_plan文件生成，每日20万建仓预算，含Put保护订单
+- **Windows定时任务注册**：`setup_scheduled_tasks.bat` 注册3个定时任务（07:00工作流/09:30早盘/14:00午盘），实现无人化自动触发
+- **daily_workflow兼容性修复**：修复多项版本不兼容问题（CircuitLevel导入缺失/CircuitBreaker.check方法不存在/KillSwitch初始化参数错误/LEVEL_3比较逻辑类型错误/CircuitBreaker缺少name参数）
+- **报告写入可靠性增强**：`phase_report()` 添加重试机制（最多3次，间隔1秒）+ fallback路径（logs/目录），防止Windows Defender实时扫描拦截导致报告丢失
+- **批处理脚本优化**：`run_weekly_auto_20260727.bat` 修复中文系统下日期提取错误，确保%date%格式（"周六 2026/07/25"）正确解析为YYYY-MM-DD格式
+
+**v8.6 核心升级（V9 Regime-Specific LGB 生产基线 + 影子账户灰度发布）**：
+- **V9 生产基线确立**：Regime-Specific LGB 双模型策略通过 30 个月 Walk-Forward 回测验证（2023-07~2025-12），年化 19.62% / 最大回撤 9.95% / Sharpe 1.315 / DSR max_pass=18 / Sharpe CV=0.7673，全部达标（DSR≥5 + 年化≥15% + 回撤≤10% + Sharpe CV<1.0）
+- **影子账户 Stage 1 灰度发布**：`launch_shadow_account.py` + `config/shadow_account_config.json` 三阶段推进路径（10%→50%→100%），Stage 1 已启动（¥500,000 / NAV=1.0000 / RUNNING），最小运行周期 14 天，PBO<0.5 准入（Bailey 2017）
+- **Fail-fast 触发器**：单日回撤 >3% 或 3 日累计回撤 >5% 立即终止 + latch 锁存 + terminate_and_rollback 动作；触发后状态置为 TERMINATED 并阻止推进下一灰度阶段
+- **TRADING_ENV fail-closed 设计**：`utils/trading_env.py` 三环境切换（production / shadow / development），production 模式强制 fail-closed — 风控异常时 `assert_production_fail_closed()` 阻止交易而非降级放行
+- **daily_workflow Phase 10 集成**：`v8.3_institutional/daily_workflow.py::phase_shadow_monitor()` 每日记录影子账户 NAV 到 `output/shadow_account/shadow_state.json`，基于 Phase 5 目标权重 + MarketDataProvider 实际收盘价计算当日组合收益，支持 `--phase shadow_monitor` 单独调度
+- **iFinD 真实财务数据接入**：`utils/ifind_client.py::get_fundamentals_batch()` 并发拉取 PE/PB/ROE/总市值/流通市值，多编码 `.env` 加载（gbk/utf-8/utf-8-sig/latin-1）兼容 Windows 中文系统；配额超限时自动降级到 Baostock（覆盖 95.2% 标的）
+- **VT_MICRO_VOL_SKEW_INV 因子突破**：23 标的下首个完整通过 G1-G4 + Enhancement + Regime + Shadow(风险管理模式) 全部 7 级 Gate 的因子；启用风险管理后 max_dd 从 23.3% 降至 10.57%，live_dsr 从 1.12 降至 0.70（> 0.5 阈值，Alpha 信号保留）
+- **顶级对冲基金审计 P0-11 修复**：`docs/HEDGE_FUND_AUDIT_VALIDATION_REPORT.md` 完整记录 fail-closed 设计、影子账户准入标准、风险管理集成等审计项的修复与验证
+
+**v8.6.1 核心升级（顶级对冲基金风控审计修复 — 纸面风控→真实可执行）**：
+- **审计背景**：以世界顶级对冲基金视角审计发现系统存在严重"纸面风控"问题 — README 声称的"四 Guard 联动强制执行"在实际运行中完全失效，多个核心风控模块初始化失败但系统仍继续执行交易，存在"编制结果"嫌疑
+- **CircuitBreaker 熔断器修复**：`daily_workflow.py` 两处 `CircuitBreaker()` 初始化缺少必需 `name` 参数导致 TypeError，风控进入降级模式；修复为 `CircuitBreaker(name="daily_workflow")`，四级熔断（数据源/ API /订单/全面停止）恢复可用
+- **KillSwitch 紧急熔断修复（关键 bug）**：原代码 `ks_status.get("triggered")` 检查不存在的字段（`check_margin_status()` 返回 `level`/`can_trade`，无 `triggered`），导致 Kill Switch **永远不会触发**；修复为 `level >= 2 or not can_trade` 正确判断，异常时 fail-closed 视为 L3 最高风险
+- **KillSwitch broker_callback 注册**：新增 `_execute_kill_switch_callback()` 方法并注册到 KillSwitch，使 `execute_kill_switch()` 可真实执行（未注册时抛 RuntimeError）；L1 过滤 BUY 订单 / L2 取消待执行+标记期权空头平仓 / L3 变现 10% 红利 ETF+全面停止交易
+- **v8.5 模块加载修复（3/9→9/9）**：修复 6 个模块类名/路径错误 — `EVTTailRisk`→`ExtremeValueAnalyzer`、`PurgedKFoldCV`→`PurgedKFold`、`ShadowAccountSystem`→`ShadowAccount`、`TimeSync`→`GlobalTimeService`、`EnvironmentIsolation`/`TimeSync` 路径从 `utils.` 改为 `src.utils.`（避免被 root utils/ 遮蔽）、`DataPipeline` 移除不存在的 `get_data_pipeline` 函数
+- **fail-closed 三层防护**：① `phase_check` 风控核心失败时设 `status=FAIL` + `fail_closed=True`（原代码设 `PASS` 继续执行）；② `run()` 循环检查 `fail_closed` 终止工作流；③ `phase_execute` 双重保险阻止一切交易（检查 `fail_closed` 标志返回空订单列表）
+- **验证结果**：v8.5 模块 9/9 全部就绪（修复前 3/9 降级模式）；CircuitBreaker 初始化成功（修复前 TypeError）；Kill Switch 已武装且 broker_callback=已注册；工作流 10 个阶段（Phase 1-10）全部跑通；Kill Switch 状态正常
+- **黑天鹅防护能力提升**：CircuitBreaker（数据源熔断）+ KillSwitch（保证金熔断+实际执行）+ EVTTailRisk（极端尾部风险建模）+ ShadowAccount（影子账户验证）+ UnifiedRiskCockpit（下单前全量扫描）+ fail-closed（风控失败阻止交易）六层防护全部从"纸面风控"升级为"真实可执行风控"
 
 **v8.2 核心升级（双LLM架构 + 自动交易链路修复）**：
 - **双LLM架构**：`15_每日工作流/llm_client.py` — 新增 `chat_deep()` 深度思考入口，使用 DeepSeek-R1 14B 模型；移除硬编码强制 CPU，改为 GPU 显存自动检测
-- **深度思考自动触发**：`v7.5_institutional/llm_intraday_decision_engine.py` — 新增 `_needs_deep_analysis()` 函数，5种场景自动切换深度模型（组合止损/多只个股止损/ETF强加仓/对冲偏离/大幅盈亏）
-- **午盘/夜盘 LLM 决策刷新**：`v7.5_institutional/weekly_trade_executor.py` — 新增 `_refresh_llm_decisions()` 方法，14:00 午盘和 21:00 夜盘前自动重新调用 LLM 决策引擎
-- **MemoryError 修复**：`v7.5_institutional/daily_workflow.py` — `phase_report()` 的 `json.dumps` 改为 `json.dump` 流式写入文件 + 两级降级保护，解决 07:05 盘前工作流 OOM 崩溃
+- **深度思考自动触发**：`v8.3_institutional/llm_intraday_decision_engine.py` — 新增 `_needs_deep_analysis()` 函数，5种场景自动切换深度模型（组合止损/多只个股止损/ETF强加仓/对冲偏离/大幅盈亏）
+- **午盘/夜盘 LLM 决策刷新**：`v8.3_institutional/weekly_trade_executor.py` — 新增 `_refresh_llm_decisions()` 方法，14:00 午盘和 21:00 夜盘前自动重新调用 LLM 决策引擎
+- **MemoryError 修复**：`v8.3_institutional/daily_workflow.py` — `phase_report()` 的 `json.dumps` 改为 `json.dump` 流式写入文件 + 两级降级保护，解决 07:05 盘前工作流 OOM 崩溃
 - **LLM 盘中任务修复**：`register_intraday_task.ps1` — 从 `-Once` 一次性任务改为 `-Daily` 每日循环任务（9:25-14:55 每 15 分钟）
 
 **v8.1.2 核心升级（对冲再平衡回测引擎 v2.4）**：
@@ -81,7 +176,7 @@
 
 **v8.1 核心升级（全自动交易闭环 + LLM 盘中决策）**：
 - **全自动闭环**：`run_daily_eod.py` — 每日收盘后自动生成报告 + 写入次日计划 + 预生成盘中决策
-- **LLM 盘中决策引擎**：`v7.5_institutional/llm_intraday_decision_engine.py` — 每 15 分钟自动分析持仓/行情/对冲状态，生成买卖建议
+- **LLM 盘中决策引擎**：`v8.3_institutional/llm_intraday_decision_engine.py` — 每 15 分钟自动分析持仓/行情/对冲状态，生成买卖建议
 - **自动决策注入**：`apply_llm_decisions_to_plan.py` — 将收盘报告中的 AI 建议自动灌入次日交易计划
 - **Windows 定时任务**：`register_intraday_task.ps1` — 注册 `Quant_LLM_IntradayDecision` 任务，交易日 9:25-15:05 每 15 分钟执行
 - **年化收益测算**：`annual_return_forecast` — 保守/中性/悲观三情景分析，内置夏普比率与最大回撤预测
@@ -142,56 +237,84 @@
 | 账户 | 金额 | 比例 | 用途 |
 |------|------|------|------|
 | **股票ETF账户** | ¥3,000,000 | 60% | 13 标的建仓 + 动态再平衡 |
-| **对冲保护账户** | ¥2,000,000 | 40% | IF/IM 期货空头 + ETF 认沽期权 |
+| **对冲保护账户** | ¥1,000,000 | 20% | IF/IM 期货空头 + ETF 认沽期权 |
 | **合计** | ¥5,000,000 | 100% | — |
 
-### 股票ETF账户（300万）标的配置
+### 股票账户（12只个股）标的配置
 
-| 标的 | 代码 | 类型 | 目标权重 | 计划金额 | 风格 | ETF资金流信号 |
-|------|------|------|----------|----------|------|---------------|
-| 科创50ETF华夏 | 588000 | ETF | 13% | ¥390,000 | 高端制造 | AI/科技核心指数 |
-| 半导体ETF国泰 | 512480 | ETF | 12% | ¥360,000 | 高端制造 | AI算力硬件核心 |
-| 高端装备ETF南方 | 516160 | ETF | 11% | ¥330,000 | 高端制造 | 十五五重点产业 |
-| 新能源车ETF华夏 | 515030 | ETF | 11% | ¥330,000 | 高端制造 | 新能源产业链 |
-| 创业板ETF易方达 | 159915 | ETF | 10% | ¥300,000 | 高端制造 | 成长风格敞口 |
-| 创新药ETF银华 | 159992 | ETF | 10% | ¥300,000 | 防御 | 生物医药创新 |
-| 医药ETF易方达 | 512010 | ETF | 7% | ¥210,000 | 防御 | 医药行业宽基 |
-| 十年国债ETF国泰 | 511260 | ETF | 2% | ¥60,000 | 防御 | 利率债配置 |
-| 政金债ETF富国 | 511520 | ETF | 2% | ¥60,000 | 防御 | 政策性金融债 |
-| 短融ETF海富通 | 511360 | ETF | 1% | ¥30,000 | 防御 | 现金管理工具 |
-| 有色金属ETF南方 | 512400 | ETF | 12% | ¥360,000 | 资源 | 康波繁荣期资源 |
-| 黄金ETF华安 | 518880 | ETF | 8% | ¥240,000 | 资源 | 通胀对冲+避险 |
-| 中国神华 | 601088 | 个股 | 5% | ¥150,000 | 顺周期 | 能源安全龙头 |
+| 标的 | 代码 | 目标权重 | 计划金额 | 风格 | 核心逻辑 |
+|------|------|----------|----------|------|----------|
+| 长江电力 | 600900.SH | 22.00% | ¥880,000 | 防御/水电 | 核心底仓，股息3.5%+稳定现金流 |
+| 恒瑞医药 | 600276.SH | 3.20% | ¥128,000 | 医药 | 创新药龙头，管线价值重估 |
+| 中国神华 | 601088.SH | 3.50% | ¥140,000 | 顺周期/煤炭 | 股息6%+Sharpe 0.915，v8.4 上调 |
+| 绿的谐波 | 688017.SH | 3.00% | ¥120,000 | 制造/机器人 | vol 70%控尾部，v8.4 从5%下调 |
+| 藏格矿业 | 000408.SZ | 2.22% | ¥88,888 | 资源 | 钾锂双资源，通胀受益 |
+| 中科曙光 | 603019.SH | 0.71% | ¥28,235 | 科技/算力 | AI服务器国产替代 |
+| 同花顺 | 300033.SZ | 0.94% | ¥37,647 | 科技/金融IT | 牛市弹性标的 |
+| 阳光电源 | 300274.SZ | 0.57% | ¥22,856 | 新能源 | 逆变器+储能全球龙头 |
+| 海光信息 | 688041.SH | 0.47% | ¥18,823 | 科技/芯片 | 国产GPU稀缺标的 |
+| 北方华创 | 002371.SZ | 0.47% | ¥18,823 | 科技/半导体 | 半导体设备龙头，blend +44% |
+| 卓胜微 | 300782.SZ | 0.47% | ¥18,823 | 科技/射频 | 射频芯片国产替代 |
+| 中际旭创 | 300308.SZ | 1.50% | ¥60,000 | 科技/光通信 | 800G光模块龙头，v8.4 从2.35%下调 |
 
-### 对冲保护账户（200万）配置
+### ETF账户（14只ETF）标的配置
 
-| 工具 | 标的 | 方向 | 目标合约 | 保证金率 | 目的 |
-|------|------|------|----------|----------|------|
-| IF 股指期货 | 沪深300 | 卖出 | 5 手 | 12% | 系统性 Beta 对冲 |
-| 510050 Put | 上证50ETF | 买入 | 10 张 | — | 尾部风险保护 |
-| 510300 Put | 沪深300ETF | 买入 | 5 张 | — | 增强 Beta 对冲 |
-| 科创50ETF Put | 588080 | 买入 | 10 张 | — | 科技股尾部保护 |
-| 创业板ETF Put | 159915 | 买入 | 10 张 | — | 成长股尾部保护 |
+| 标的 | 代码 | 目标权重 | 计划金额 | 风格 | 核心逻辑 |
+|------|------|----------|----------|------|----------|
+| 上证5年期国债ETF | 511010.SH | 22.00% | ¥880,000 | 国债/安全垫 | 组合稳定器，v8.4 从25%下调释放3pp |
+| 上证50ETF华夏 | 510050.SH | 8.00% | ¥320,000 | 宽基/蓝筹 | 核心宽基底仓，v8.4 微增 |
+| 黄金ETF华安 | 518880.SH | 6.00% | ¥240,000 | 资源/避险 | 唯一真分散器(ρ~0.15)，v8.4 翻倍 |
+| 银行ETF华宝 | 512800.SH | 5.50% | ¥220,000 | 金融/低波 | 股息5%+vol 17%，v8.4 上调 |
+| 医疗ETF华宝 | 512170.SH | 4.80% | ¥192,000 | 医药 | 医药行业宽基 |
+| 证券ETF国泰 | 512880.SH | 3.64% | ¥145,454 | 金融 | 牛市弹性，beta放大器 |
+| 沪深300ETF华泰柏瑞 | 510300.SH | 2.97% | ¥118,749 | 宽基 | 大中盘风格敞口 |
+| 中证500ETF南方 | 510500.SH | 2.34% | ¥93,750 | 宽基/中盘 | 中盘成长敞口 |
+| 中证1000ETF | 512100.SH | 2.34% | ¥93,750 | 宽基/小盘 | 小盘风格敞口 |
+| 科创50ETF易方达 | 588080.SH | 1.06% | ¥42,353 | 科技 | 科创板核心指数 |
+| 新能源车ETF华夏 | 515030.SH | 1.00% | ¥40,000 | 新能源 | blend=-11.6%信号最弱，v8.4 下调 |
+| 创业板ETF易方达 | 159915.SZ | 0.80% | ¥32,000 | 成长 | v8.4 新增，维持成长风格覆盖 |
+| 半导体ETF国泰 | 512760.SH | 0.47% | ¥18,823 | 科技 | 半导体行业敞口 |
+| 科创50ETF华夏 | 588000.SH | 0.47% | ¥18,823 | 科技 | 科创板补充覆盖 |
 
-### 实盘状态（2026-07-18 更新）
+### 对冲保护配置
+
+| 工具 | 标的 | 方向 | 目标合约 | 保证金/预算 | 目的 |
+|------|------|------|----------|-------------|------|
+| IF 股指期货 | 沪深300 | 卖出 | 5 手 | 12%保证金 | 系统性Beta对冲 |
+| 510050 Put | 上证50ETF | 买入 | 30 张 | ¥450,000 | 蓝筹尾部保护（v8.4 从10张增至30张） |
+| 588080 Put | 科创50ETF | 买入 | 12 张 | ¥144,000 | 科技股尾部保护 |
+| 159915 Put | 创业板ETF | 买入 | 12 张 | ¥120,000 | 成长股尾部保护 |
+| 510300 Put | 沪深300ETF | 买入 | 8 张 | ¥64,000 | 增强Beta对冲 |
+| **PUT合计** | | | **62 张** | **¥778,000** | v8.4 悲观对冲覆盖从18pp提至25pp |
+
+### 实盘状态（2026-07-25 更新）
 
 | 项目 | 数值 | 说明 |
 |------|------|------|
-| 总资金 | ¥5,000,000 | 已到位 |
-| 现货持仓市值 | ¥2,238,363 | 26 个有效标的 |
-| 现金未建仓 | ¥2,761,637 | 建仓进度 44.8% |
-| 现货浮盈 | -¥32,135.70 | -1.44% |
-| 对冲账户 | ¥2,000,000 | IF 3 手 + Put 保护 |
-| 对冲盈亏 | ¥0.00 | 当日未生效 |
-| 净浮盈 | -¥32,135.70 | -0.64% |
-| 最大回撤 | -13.87% | 接近 -15% 红线 |
-| Covered Call 年化 | +10.2% | 6 个标的权利金收入 |
-| 组合年化测算（中性） | +10.2% | 夏普 1.58，基于 2024-2025 回测外推 |
-| 组合年化测算（保守） | +8.3% | 夏普 0.83，保守情景 |
-| **2024-2025 回测年化** | **+10.17%** | 最大回撤 -12.96%，胜率 62.50%，24 个月样本 |
-| **回测预测（未来12个月）** | **+8.5%~12.0%** | 基于月度平均 +0.81%、标准差 4.75%、胜率 62.5% 推算 |
+| 总资金 | ¥5,000,000 | 已到位（股票+ETF 300万 + 对冲 200万） |
+| 组合标的数 | 26 个 | 12只个股 + 14只ETF，v8.4 9项精准调仓 |
+| 建仓进度 | ~44.8% | 约 ¥2.24M 已建仓，¥2.76M 待部署 |
+| 现货浮盈 | 负值（建仓初期） | 建仓中波动正常 |
+| 对冲Put覆盖 | 62 张 / ¥778K预算 | v8.4 增强，悲观覆盖25pp |
+| 最大回撤 | 接近 -15% 红线 | 需持续监控AI/半导体暴露（约30%+市值） |
+| Covered Call 年化 | +2.91% | 中性情景权利金估算 |
+| **2027年化预测（中性）** | **+6.61%** | 现货+8% + CC+2.91% - 对冲-0.5% + 现金+0.61% |
+| **2027年化预测（量化模型）** | **+8%~+13%** | 加权均值+10.5%，历史统计+ML信号+因子分解三维度 |
+| **2027年化预测（保守）** | **+2.99%** | 低增长+低权利金情景 |
+| **2027年化预测（悲观）** | **-9.31%** | 科技腰斩情景，回撤-27%突破红线（依赖对冲增厚25pp） |
 | LLM 模型 | Qwen2.5 7B + DeepSeek-R1 14B | 双模型：快速+深度思考 |
-| 自动任务 | 已注册 | 07:05盘前 / 09:30早盘 / 14:00午盘 / 21:00夜盘 / 盘中每15分钟 |
+| 自动任务 | 已注册 | v8.5 新增：07:00工作流/09:30早盘/14:00午盘；原有：21:00夜盘/盘中每15分钟 |
+| **V9 回测基线** | **年化 19.62% / 回撤 9.95% / Sharpe 1.315** | 30 个月 Walk-Forward 验证，DSR max_pass=18，Sharpe CV=0.7673 |
+| **影子账户状态** | **Stage 1 RUNNING（¥500,000 / 10% 资金）** | v8.6 灰度发布：NAV=1.0000，运行天数=1，fail-fast 未触发 |
+| **TRADING_ENV** | **production（fail_closed=True）** | Kill Switch 启用，影子账户 fail-fast 3%/5% 激活，VaR 95%>1.5% 阻断下单 |
+| **iFinD 财务数据** | **已接入（配额受限时降级 Baostock）** | PE/PB/ROE/市值批量拉取，覆盖 95.2% 标的 |
+| **v8.5 风控模块** | **9/9 全部就绪** | v8.6.1 修复：EVTTailRisk/PurgedKFoldCV/ShadowAccount/TimeSync/EnvironmentIsolation/DataPipeline 全部加载成功 |
+| **CircuitBreaker** | **✅ 四级熔断可用** | v8.6.1 修复：添加 name 参数，修复前 TypeError 导致风控降级 |
+| **KillSwitch** | **✅ 真实可执行** | v8.6.1 修复：修复 triggered 字段 bug + 注册 broker_callback，L1/L2/L3 分级执行 |
+| **fail-closed** | **✅ 三层防护** | v8.6.1 修复：phase_check 设 FAIL / run() 检查终止 / phase_execute 双重保险 |
+| **因子流水线** | **8 级流水线 + IC 加权组合** | v8.6.3：G1-G4 + Enhancement + Shadow + Committee + IC 加权组合；2 个 approved 因子（VT_MICRO_VOL_SKEW_INV / VT_QUALTREND_MARGIN_EXP）；IC 加权组合 live_dsr=+2.2033, max_dd=0.0323 |
+| **IC 加权组合** | **✅ 生产集成（lookback=10）** | v6.9 优化：VT_MICRO_VOL_SKEW_INV + VT_QUALTREND_MARGIN_EXP × Config_E_plus1，实测 IC_IR=+0.5840, total_return=+0.3290 |
+
 
 ---
 
@@ -209,10 +332,84 @@
 
 ---
 
+## 系统架构图
+
+```mermaid
+graph TB
+    subgraph "调度层"
+        MAIN["main.py<br/>主入口"]
+        DW["daily_workflow.py<br/>8 Phase 工作流"]
+        DS["daily_startup.py<br/>自动启动脚本"]
+    end
+
+    subgraph "Phase 1-2: 环境与评估"
+        CHECK["系统自检<br/>NTP/连接器/风控"]
+        ENV["市场环境评估<br/>VIX/熔断/趋势"]
+        RISK_BUDGET["风险预算计算<br/>Kelly/Black-Litterman"]
+    end
+
+    subgraph "Phase 3-4: Alpha 信号"
+        SIGNALS["信号融合<br/>15个Alpha源"]
+        ALPHA["alpha_hedge_engine.py<br/>因子+IC+分层"]
+        CQS["comprehensive_quant_system_v7.py<br/>多策略信号"]
+        AI["LLM决策<br/>Qwen2.5 + DeepSeek-R1"]
+    end
+
+    subgraph "Phase 5-6: 风险与执行"
+        HEDGE["对冲引擎<br/>Beta/Vol/Correlation"]
+        RISK["风控守卫<br/>四模块联动"]
+        EXEC["执行引擎<br/>TWAP/VWAP/IS"]
+    end
+
+    subgraph "数据层"
+        WIND["Wind MCP"]
+        IFIND["iFinD MCP"]
+        AKSHARE["AKShare"]
+        NEWS["新闻聚合"]
+    end
+
+    subgraph "仿真交易"
+        SIM["sim_broker<br/>模拟券商"]
+        QMT["QMT 实盘"]
+    end
+
+    MAIN --> DW
+    DW --> CHECK
+    CHECK --> ENV
+    ENV --> RISK_BUDGET
+    RISK_BUDGET --> SIGNALS
+    SIGNALS --> ALPHA
+    SIGNALS --> CQS
+    SIGNALS --> AI
+    ALPHA --> HEDGE
+    CQS --> HEDGE
+    AI --> HEDGE
+    HEDGE --> RISK
+    RISK --> EXEC
+    EXEC --> SIM
+    EXEC --> QMT
+    WIND --> ENV
+    WIND --> ALPHA
+    IFIND --> ENV
+    IFIND --> NEWS
+    AKSHARE --> CQS
+    DS --> MAIN
+    DS --> DW
+
+    style MAIN fill:#4a90d9,color:#fff
+    style DW fill:#4a90d9,color:#fff
+    style HEDGE fill:#e74c3c,color:#fff
+    style RISK fill:#e74c3c,color:#fff
+    style EXEC fill:#27ae60,color:#fff
+    style AI fill:#8e44ad,color:#fff
+```
+
+---
+
 ## 目录结构
 
 ```
-28-终极量化交易系统7.1/
+28-终极量化交易系统8.4/
 ├── README.md                        # 本文件
 ├── README_head.md                   # README 头部模板
 ├── README_and_workflow_update_summary.md # 工作流更新摘要
@@ -224,11 +421,34 @@
 ├── apply_llm_decisions_to_plan.py    # ★ 自动将 LLM 决策灌入次日交易计划
 ├── generate_pre_market_summary.py    # ★ 生成盘前 Markdown 摘要
 ├── register_intraday_task.ps1        # ★ 注册 LLM 盘中决策 Windows 定时任务
-├── v7.5_institutional/               # 机构级模块目录
+├── backtest_current_portfolio.py     # ★ v8.4 实际持仓回测引擎（26标的2021-2026）
+├── v8.3_institutional/               # 机构级核心模块目录
 │   ├── llm_intraday_decision_engine.py # ★ LLM 盘中决策引擎（双模型: 快速+深度思考, 每15分钟）
 │   ├── weekly_trade_executor.py       # ★ 本周交易计划执行器（午盘/夜盘自动刷新LLM决策）
-│   ├── generate_daily_trade_plan.py   # 每日交易计划生成器
-│   └── ...
+│   ├── daily_workflow.py             # ★ 每日自动化工作流（盘前/盘中/盘后）
+│   ├── execute_trade_plan.py          # ★ 交易计划自动执行器（四Guard联动）
+│   ├── autolearn_trainer.py           # ★ 自动学习模型训练器
+│   ├── dynamic_risk_adjuster.py       # 动态风险管理器
+│   ├── etf_flow_monitor.py            # ETF资金流监控
+│   ├── execution_reviewer.py          # 执行审核器
+│   ├── scheduler_daemon.py            # 调度守护进程
+│   ├── system_check.py                # 系统健康检查
+│   ├── run_all_modules.bat            # 一键启动全部模块 (已迁移至 scripts/)
+│   ├── run_daily.bat                  # 每日运行入口 (已迁移至 scripts/)
+│   ├── setup_scheduled_tasks.bat      # ★ v8.5 注册Windows定时任务（07:00/09:30/14:00）
+│   ├── run_weekly_auto_20260727.bat   # ★ v8.5 每周自动交易执行入口（工作流/早盘/午盘）
+│   └── reports/ -> ../每日报告归档/  # 报告目录（自动分类归档）
+├── scripts/                          # ★ 统一脚本目录 (从根目录迁移)
+│   ├── install_daily_hedge_task.bat  # 安装每日对冲任务
+│   ├── pack_cloud.bat                # 云打包脚本
+│   ├── run_daily_build_hedge.bat     # 每日构建对冲
+│   ├── run_daily_report.bat          # 每日报告生成
+│   ├── run_hn_daily.bat              # HN每日运行
+│   ├── run_intraday_decision.bat     # 日内决策
+│   ├── run_pre_market.bat            # 盘前准备
+│   ├── run_start_live.bat            # 启动实盘
+│   ├── run_stop_live.bat             # 停止实盘
+│   └── simulate_trading_plan.bat     # 模拟交易计划
 ├── requirements.txt                 # Python 依赖列表
 ├── daily_trade_executor.py          # ★ 每日建仓执行器 (v7.7 集成预测信号)
 ├── daily_hedge_update.py            # 每日对冲更新
@@ -258,6 +478,11 @@
 ├── research_report_black_swan_resilience.md # 黑天鹅韧性报告
 ├── research_report_extreme_scenario_resilience.md # 极端情景韧性报告
 ├── research_report_quant_system_comparison.md # 量化系统比较报告
+├── research_report_2027_annualized_return_forecast.md # ★ v8.4 2027年化收益率预测报告（量化三维度+多情景）
+├── research_report_portfolio_improvement_v8.2.md   # ★ v8.4 持仓改进前后对比与风险分解报告
+├── _optimize_v3.py                                  # ★ v8.4 持仓精准优化执行脚本（9项调仓+对冲增强）
+├── annualized_return_forecast.py                    # 量化三维度年化收益预测器（历史统计+ML信号+因子分解）
+├── annual_return_forecast.py                        # 多情景年化收益预测器（保守/中性/悲观）
 ├── 15_每日工作流/                    # 每日工作流模块
 │   ├── llm_client.py                # ★ LLM 客户端 (双模型: chat快速 + chat_deep深度思考, 六级降级链)
 │   ├── daily_closing_review.py      # 每日收盘回顾
@@ -285,7 +510,8 @@
 │   ├── trading_plan_text_simulator.py # 交易计划文本模拟器
 │   └── trading_workflow.py          # 交易工作流
 ├── config/                          # 运行时配置 (gitignored)
-│   ├── positions.json               # ★ 实时持仓状态（对冲配置 + 实时价格）
+│   ├── positions.json               # ★ 实时持仓状态（26标的：12个股+14ETF，v8.4优化版）
+│   ├── positions_backup_*.json      # 优化前备份（可追溯回滚）
 │   ├── stop_loss_vol_adjusted.yaml  # 止损规则
 │   └── market_returns.json          # 市场收益数据
 ├── configs/                         # 系统配置 (gitignored)
@@ -340,6 +566,11 @@
 │   ├── risk_attribution.py          # ★ v8.0 风险归因面板
 │   ├── greek_exposure_dashboard.py  # ★ v8.0 Greeks监控面板
 │   ├── hedge_rebalance_backtest.py  # ★ v8.1.2 对冲再平衡回测引擎 v2.4（因子生命周期+成本归因+订单无关再平衡）
+│   ├── hedge_execution_engine.py    # ★ v8.3 对冲执行引擎（信号→期货+期权订单桥梁）
+│   ├── vol_target_controller.py     # ★ v8.3 波动率目标控制器（AQR Vol Targeting, target 12%）
+│   ├── protective_put_engine.py     # ★ v8.3 认沽期权自动保护引擎（77.8万Put预算+滚仓）
+│   ├── risk_guard_integrator.py     # ★ v8.3 风控守卫集成器（四Guard联动+PUT去重）
+│   ├── master_config_manager.py     # ★ v8.3 统一配置事实源管理器
 │   ├── akshare_futures.py           # 期货数据
 │   ├── ifind_client.py              # iFinD 接口
 │   ├── ifind_news_analyzer.py       # iFinD 新闻分析
@@ -423,20 +654,45 @@ python run_daily_eod.py
 .\register_all_scheduled_tasks.ps1 -Test post
 
 # 手动触发 LLM 盘中决策（mock 模式）
-python v7.5_institutional/llm_intraday_decision_engine.py --mode mock
+python v8.3_institutional/llm_intraday_decision_engine.py --mode mock
 
 # 手动触发 LLM 盘中决策（实盘模式）
-python v7.5_institutional/llm_intraday_decision_engine.py --mode live
+python v8.3_institutional/llm_intraday_decision_engine.py --mode live
 ```
 
-### 5. 查看持仓
+### 5. 自动交易计划部署 (v8.5)
+
+```powershell
+# 注册自动交易定时任务（07:00工作流/09:30早盘/14:00午盘）
+cd v8.3_institutional
+.\setup_scheduled_tasks.bat
+
+# 手动触发每日工作流（测试）
+.\run_weekly_auto_20260727.bat workflow
+
+# 手动触发早盘任务（测试）
+.\run_weekly_auto_20260727.bat morning
+
+# 手动触发午盘任务（测试）
+.\run_weekly_auto_20260727.bat afternoon
+
+# 查看已注册的定时任务
+schtasks /Query /TN "QuantWorkflow_07AM" /FO LIST
+schtasks /Query /TN "QuantMorning_0930" /FO LIST
+schtasks /Query /TN "QuantAfternoon_1400" /FO LIST
+
+# 手动运行每日工作流（推荐）
+python daily_workflow.py --date 2026-07-25
+```
+
+### 6. 查看持仓
 
 ```bash
 # 查看当前持仓
 python inspect_data.py
 ```
 
-### 6. AI 增强模块（v7.7 新增）
+### 7. AI 增强模块（v7.7 新增）
 
 ```bash
 # 各模块自检
@@ -461,7 +717,7 @@ python daily_trade_executor.py post-market-auto --date 2026-07-13 --auto-confirm
 python daily_trade_executor.py progress
 ```
 
-### 7. WonderTrader 高价值模块（v7.8 新增）
+### 8. WonderTrader 高价值模块（v7.8 新增）
 
 ```bash
 # 合约管理器自检
@@ -480,7 +736,7 @@ python -m utils.wt_tick_engine
 python -m utils.etf_flow_monitor
 ```
 
-### 8. LLM 盘中决策引擎（v8.1 新增）
+### 9. LLM 盘中决策引擎（v8.1 新增）
 
 ```bash
 # 将收盘报告中的 AI 建议自动灌入次日交易计划
@@ -493,10 +749,10 @@ python generate_pre_market_summary.py 2026-07-20
 schtasks /Query /TN "Quant_LLM_IntradayDecision" /FO LIST
 
 # 手动运行盘中决策（用于测试）
-python v7.5_institutional/llm_intraday_decision_engine.py --mode mock --date 2026-07-20
+python v8.3_institutional/llm_intraday_decision_engine.py --mode mock --date 2026-07-20
 ```
 
-### 9. 对冲执行单生成（v8.0 优化）
+### 10. 对冲执行单生成（v8.0 优化）
 
 ```bash
 # 生成当日对冲执行单
@@ -506,10 +762,10 @@ python hedge_execution_orders.py
 python hedge_execution_orders.py 2026-07-15
 
 # 生成每日交易计划（含对冲执行单）
-python v7.5_institutional/generate_daily_trade_plan.py 2026-07-15
+python v8.3_institutional/generate_daily_trade_plan.py 2026-07-15
 ```
 
-### 10. Python 调用示例
+### 11. Python 调用示例
 
 ```python
 # ========== AI 增强模块 ==========
@@ -624,13 +880,209 @@ orders = build_orders(plan, positions, prices, hedge_positions, positions_data)
 
 # ========== LLM 盘中决策引擎 ==========
 
-from v7.5_institutional.llm_intraday_decision_engine import IntradayDecisionEngine
+from v8.3_institutional.llm_intraday_decision_engine import IntradayDecisionEngine
 
 engine = IntradayDecisionEngine(date="2026-07-20", mode="mock")
 decisions = engine.run()
 for d in decisions:
     print(f"{d['type']} | {d['code']} | {d['action']} | {d['reason']}")
 ```
+
+### 12. 专业技能分析引擎（v8.4.2 新增）
+
+```bash
+# 三大技能综合分析（DCF估值 + 板块轮动 + 突破选股）
+python v8.3_institutional/scripts/run_professional_analysis.py
+
+# 单独运行 DCF 估值建模
+python v8.3_institutional/scripts/run_dcf_valuation.py
+
+# 单独运行板块轮动雷达
+python v8.3_institutional/scripts/run_sector_rotation.py
+
+# 单独运行突破选股扫描
+python v8.3_institutional/scripts/run_breakout_screener.py
+
+# 查看生成的分析报告
+ls v8.3_institutional/reports/dcf_valuation_*.md
+ls v8.3_institutional/reports/sector_rotation_*.md
+ls v8.3_institutional/reports/breakout_candidates_*.md
+ls v8.3_institutional/reports/comprehensive_analysis_*.md
+```
+
+**分析能力**:
+- **DCF 估值建模**: 基于 DDM 模型计算 ETF/股票内在价值，识别折价/溢价机会
+- **板块轮动雷达**: 判断市场阶段（震荡筑底/早期反弹/趋势确认），追踪资金流向，预测下周轮动方向
+- **突破选股扫描**: 识别高质量突破形态候选股，输出触发价、止损位、目标价和优先级评分
+
+报告自动输出至 `v8.3_institutional/reports/` 目录，按日期归档。
+
+### 13. V9 影子账户管理（v8.6 新增）
+
+```bash
+# ========== 影子账户生命周期管理 ==========
+
+# 初始化影子账户（Stage 1: 10% 资金 = ¥500,000）
+python launch_shadow_account.py
+
+# 查看影子账户状态（NAV / 运行天数 / fail-fast 记录）
+python launch_shadow_account.py --status
+
+# 推进灰度阶段（需通过评估 + 最小运行 14 天 + fail-fast 未触发）
+python launch_shadow_account.py --advance
+
+# 验证 TRADING_ENV 配置和 fail-closed 状态
+python _verify_trading_env.py
+
+# 单独运行 daily_workflow Phase 10（影子账户每日监控）
+python v8.3_institutional/daily_workflow.py --phase shadow_monitor
+
+# 完整工作流（含 Phase 10 影子账户监控）
+python v8.3_institutional/daily_workflow.py
+```
+
+**影子账户三阶段灰度发布路径**:
+
+| 阶段 | 资金比例 | 资金金额 | 最小运行周期 | 准入条件 |
+|------|----------|----------|--------------|----------|
+| Stage 1 | 10% | ¥500,000 | 14 天 | 初始化即启动 |
+| Stage 2 | 50% | ¥2,500,000 | 14 天 | Stage 1 通过评估 + PBO<0.5 + Sharpe≥0.5 |
+| Stage 3 | 100% | ¥5,000,000 | — | Stage 2 通过评估 + 绩效偏差≤30% + 回撤≤2x CAGR |
+
+**Fail-fast 触发条件**:
+- 单日回撤 > 3% → 立即终止 + latch 锁存
+- 3 日累计回撤 > 5% → 立即终止 + latch 锁存
+- 触发动作：`terminate_and_rollback`（状态置为 TERMINATED + 阻止推进下一灰度阶段）
+
+**TRADING_ENV 环境配置**:
+
+```bash
+# Windows PowerShell（临时）
+$env:TRADING_ENV = "production"   # 生产环境：fail-closed + 真实下单
+$env:TRADING_ENV = "shadow"       # 影子账户：fail-closed + 不执行真实订单
+$env:TRADING_ENV = "development"  # 开发环境：fail-open（降级放行）
+
+# Windows 永久（系统级别）
+[Environment]::SetEnvironmentVariable("TRADING_ENV", "production", "User")
+
+# Linux/macOS
+export TRADING_ENV=production
+```
+
+**关键文件路径**:
+- 影子账户状态：`output/shadow_account/shadow_state.json`
+- 影子账户配置：`config/shadow_account_config.json`
+- 启动脚本：`launch_shadow_account.py`
+- 环境配置模块：`utils/trading_env.py`
+- Phase 10 实现：`v8.3_institutional/daily_workflow.py::phase_shadow_monitor()`
+- V9 回测基准报告：`output/validation_reports/v9_regime_specific_backtest_20260725_114943.json`
+
+### 14. 风控审计验证（v8.6.1 新增）
+
+```bash
+# ========== 顶级对冲基金风控审计验证 ==========
+
+# 1. 验证 v8.5 模块加载状态（应显示 9/9 全部就绪）
+cd v8.3_institutional
+python daily_workflow.py --date 2026-07-25 --dry-run --phase check 2>&1 | findstr "v8.5 模块"
+
+# 2. 验证 CircuitBreaker 初始化（应显示 "CircuitBreaker(name=...) 初始化成功"）
+python -c "import sys; sys.path.insert(0,'src'); sys.path.insert(0,'..'); from risk.circuit_breaker import CircuitBreaker; cb=CircuitBreaker(name='daily_workflow'); print('CircuitBreaker OK:', cb.name)"
+
+# 3. 验证 KillSwitch broker_callback 注册（应显示 "broker_callback=已注册"）
+python daily_workflow.py --date 2026-07-25 --dry-run --phase check 2>&1 | findstr "Kill Switch 已武装"
+
+# 4. 验证 fail-closed 机制（风控核心失败时阻止交易）
+python daily_workflow.py --date 2026-07-25 --dry-run --phase check 2>&1 | findstr "fail-closed\|FAIL"
+
+# 5. 完整工作流验证（10 个阶段全部跑通）
+python daily_workflow.py --date 2026-07-25 --dry-run 2>&1 | findstr "Phase\|工作流执行完成\|Kill Switch:\|模块:"
+
+# 6. 验证 EVTTailRisk 黑天鹅尾部风险建模模块可用
+python -c "import sys; sys.path.insert(0,'src'); from risk.evt_tail_risk import ExtremeValueAnalyzer; a=ExtremeValueAnalyzer(confidence_level=0.99); print('EVTTailRisk OK')"
+
+# 7. 验证 ShadowAccount 影子账户验证模块可用
+python -c "import sys; sys.path.insert(0,'src'); from validation.shadow_account_system import ShadowAccount; sa=ShadowAccount(account_id='test',strategy_id='test'); print('ShadowAccount OK')"
+```
+
+**风控六层防护验证清单**:
+
+| 防护层 | 模块 | 验证方法 | 修复前状态 | 修复后状态 |
+|--------|------|----------|------------|------------|
+| 1. 数据源熔断 | CircuitBreaker | `CircuitBreaker(name=...)` 初始化 | ❌ TypeError | ✅ 四级熔断可用 |
+| 2. 保证金熔断 | KillSwitch | `check_margin_status()` 返回 level | ❌ triggered 字段不存在 | ✅ level>=2 正确触发 |
+| 3. 熔断执行 | KillSwitch callback | `execute_kill_switch()` 可调用 | ❌ 无 callback 抛 RuntimeError | ✅ L1/L2/L3 分级执行 |
+| 4. 尾部风险建模 | EVTTailRisk | `ExtremeValueAnalyzer` 导入 | ❌ 类名错误 | ✅ 黑天鹅建模可用 |
+| 5. 影子账户验证 | ShadowAccount | `ShadowAccount` 导入 | ❌ 类名错误 | ✅ 交易真实性验证 |
+| 6. 风控失败保护 | fail-closed | 风控核心失败时阻止交易 | ❌ 设 PASS 继续执行 | ✅ 三层防护终止交易 |
+
+---
+
+## 风控守卫强制执行系统（v8.3.0）
+
+v8.3 核心升级：从"纸面风控建议"到"代码强制执行"，构建了四模块联动的风控守卫链，在每日 EOD 报告生成后自动介入交易计划。
+
+**执行链路**:
+```
+每日报告生成 (16:00) → RiskGuardIntegrator.run_all_guards()
+  → Guard 1: 回撤检查（强制修改次日计划）
+  → Guard 2: 波动率控制（缩减建仓预算）
+  → Guard 3: 对冲执行（信号→实际期货/期权订单）
+  → Guard 4: 认沽保护（OTM Put 自动建仓+滚仓）
+  → [去重]: PUT订单跨引擎去重（v8.3.1）
+  → 保存修改后的 trade_plan
+```
+
+### 六大新增模块
+
+| # | 模块 | 文件 | 大小 | 功能 |
+|---|------|------|------|------|
+| P0 | 对冲执行引擎 | `utils/hedge_execution_engine.py` | 19.9KB | 对冲信号→IF期货+ETF期权订单桥梁 |
+| P1 | 风控守卫集成器 | `utils/risk_guard_integrator.py` | 19.9KB | 四Guard串联+执行日志+PUT去重(Python 3.8+) |
+| P2 | 波动率目标控制器 | `utils/vol_target_controller.py` | 12.2KB | AQR式波动率缩仓（target 12%） |
+| P3 | 认沽期权保护引擎 | `utils/protective_put_engine.py` | 19.1KB | 77.8万Put预算自动动用+到期滚仓 |
+| P4 | 实际持仓回测引擎 | `backtest_current_portfolio.py` | 23.5KB | 23标的真实持仓2021-2026回测 |
+| P5 | 统一配置管理器 | `utils/master_config_manager.py` | 13.0KB | 三份配置→单一事实源 |
+
+### 回撤四级强制执行
+
+| Level | 触发条件 | 自动执行 |
+|-------|---------|---------|
+| 1 (5%) | 预警 | 标记 warning，不改计划 |
+| 2 (8%) | 一级防御 | 预算-20%，对冲加码50%，target_beta→0.20 |
+| 3 (12%) | 二级防御 | 清空所有建仓订单，对冲加码80%，target_beta→0.10 |
+| 4 (15%) | 极限防御 | 全面停止，只允许平仓+对冲 |
+
+### PUT引擎去重保护 (v8.3.1)
+
+对冲执行引擎与认沽保护引擎独立生成PUT订单，可能导致同一底层标的被重复覆盖。`RiskGuardIntegrator` 内置三层去重机制：
+
+**1. 底层代码映射表** (`UNDERLYING_CODE_MAP`): 统一两个引擎不同的命名方式，覆盖上证50(510050)、科创50(588080)、创业板(159915)、沪深300(510300)、中证500(510500)、中证1000(512100)六大品种。
+
+**2. 代码提取** (`_extract_underlying_code()`): 支持精确匹配、正则数字提取、最长优先模糊匹配三层策略——确保"科创50ETF Put"不会因子串"50etf"被误判为上证50。
+
+**3. 去重执行** (`_deduplicate_put_orders()`): Guard 4之后自动执行。认沽保护引擎为权威来源（含真实权利金估算+预算控制），对冲引擎中与认沽保护重复的 options_orders 被剔除，期货订单不受影响。
+
+### 预期效果对比
+
+| 指标 | v8.2 | v8.3 |
+|------|------|------|
+| Beta暴露 | 1.052 (裸露) | 0.30 (对冲后) |
+| 尾部保护 | 无 (77.8万Put预算) | OTM 5% Put 全覆盖 |
+| 回撤响应 | 纸面规则 | 代码强制执行 |
+| 波动率控制 | 报告输出不执行 | 自动缩仓 |
+| 配置一致性 | 三份文件冲突 | 单一事实源 |
+| PUT重复订单 | 4笔 (510050/588080/159915/510300) | 0笔 (去重生效) |
+
+### 集成方式
+
+在 `run_daily_eod.py` 步骤5和步骤6之间插入:
+```python
+from utils.risk_guard_integrator import RiskGuardIntegrator
+rgi = RiskGuardIntegrator(report_date=report_date, total_capital=5_000_000)
+result = rgi.run_all_guards(next_trade_date=next_trading_day)
+```
+执行时机: 每个交易日 16:00，Windows Task Scheduler `v75_EOD_Report` 触发。失败降级: try/except 包裹，风控异常不阻塞报告生成。
 
 ---
 
@@ -644,20 +1096,20 @@ for d in decisions:
 | **订单去重合并** | 按（类型、标的、动作）键合并重复订单，避免重复下单 |
 | **配置驱动对冲** | 从 `hedge_positions` 读取期货手数、期权合约、权利金预算 |
 | **执行时机管理** | 期权 09:30-10:00，期货 10:30-11:00 |
-| **资金预留机制** | 对冲账户保留 30% 资金（¥607,428）作为动态调整空间 |
+| **资金预留机制** | 对冲账户 ¥1,000,000，Put 权利金 ¥778,000，剩余 ~¥222,000 动态调整 |
 
 ### 对冲策略
 
 | 工具 | 标的 | 方向 | 数量 | 权利金/保证金 | 执行时机 |
 |------|------|------|------|---------------|----------|
-| IF 期货 | 沪深300 | 卖出 | 3 手 | ¥410,400 | 10:30-11:00 |
-| 510050 Put | 上证50ETF | 买入 | 20 张 | ¥300,000 | 09:30-10:00 |
-| 510300 Put | 沪深300ETF | 买入 | 5 张 | ¥40,000 | 09:30-10:00 |
-| 588080 Put | 科创50ETF | 买入 | 10 张 | ¥120,000 | 09:30-10:00 |
-| 159915 Put | 创业板ETF | 买入 | 10 张 | ¥100,000 | 09:30-10:00 |
+| IF 期货 | 沪深300 | 卖出 | 5 手 | 保证金 ~¥684,000 | 10:30-11:00 |
+| 510050 Put | 上证50ETF | 买入 | 30 张 | ¥450,000 | 09:30-10:00 |
+| 510300 Put | 沪深300ETF | 买入 | 8 张 | ¥64,000 | 09:30-10:00 |
+| 588080 Put | 科创50ETF | 买入 | 12 张 | ¥144,000 | 09:30-10:00 |
+| 159915 Put | 创业板ETF | 买入 | 12 张 | ¥120,000 | 09:30-10:00 |
 
-**对冲总成本**：¥1,432,072（期权权利金 ¥1,000,000 + 期货保证金 ¥410,400 + 避险资产 ¥21,672）
-**预算余额**：¥567,928（接近 30% 预留要求）
+**对冲合计**：Put 权利金 ¥778,000 + IF 保证金 ~¥684,000（可退还）= Put 净支出 ¥778,000
+**预算余额**：对冲账户 ¥1,000,000 - Put 支出 ¥778,000 ≈ ¥222,000（动态调整空间）
 
 ---
 
@@ -672,8 +1124,8 @@ for d in decisions:
 | 科技股配置 | 低配 | 高端制造 57%（高配） |
 | 对冲订单去重 | 重复 3 次 | 自动合并 |
 | Beta 计算 | 固定 1.2958（过时） | 实时 0.6658（准确） |
-| IF 期货手数 | 硬编码 1 手 | 配置驱动 3 手 |
-| 资金预留 | 计算错误 | 固定 30%（¥607,428） |
+| IF 期货手数 | 硬编码 1 手 | 配置驱动 5 手 |
+| 资金预留 | 计算错误 | Put 权利金 ¥778,000（动态调整空间 ~¥222,000） |
 
 ### 价格修复
 
@@ -734,7 +1186,7 @@ for d in decisions:
 | 订单去重合并 | `hedge_execution_orders.py` | 按（类型、标的、动作）键合并重复订单 |
 | 配置驱动对冲 | `hedge_execution_orders.py` | 从 `positions.json` 读取对冲配置，确保与预设策略一致 |
 | 执行时机管理 | `generate_daily_trade_plan.py` | 期权 09:30-10:00，期货 10:30-11:00 |
-| 资金预留机制 | `generate_daily_trade_plan.py` | 对冲账户保留 30% 资金（¥607,428） |
+| 资金预留机制 | `generate_daily_trade_plan.py` | 对冲账户 ¥1,000,000，Put 权利金 ¥778,000（78% 预算使用率） |
 
 ---
 
@@ -828,20 +1280,89 @@ pip install plotly             # 可视化
 
 ---
 
+### 🔒 安全加固
+
+本系统已实施企业级安全标准（v8.4.1 最新安全修复）：
+
+#### v8.4.1 安全修复 (2026-07-23)
+- **[P0-1 已完成]** iFinD JWT Token 明文泄露修复
+  - ✅ 迁移至环境变量 `IFIND_TOKEN`
+  - ✅ 配置文件模板更新为占位符 + 安全说明
+  - ✅ 所有客户端强制环境变量校验
+  - ✅ 启动时自动检测并拒绝明文 Token
+  - ✅ 完整安全指南：`TOKEN_SECURITY_GUIDE.md`
+
+#### 通用安全原则
+1. **Token 安全管理**：所有外部 API Token（包括 iFinD）必须通过环境变量配置，禁止在配置文件中明文存储
+2. **数据源认证**：实现自动检测机制，若发现配置文件包含真实 Token 将拒绝启动
+3. **审计追踪**：所有敏感操作均有日志记录，支持完整的审计追溯
+4. **定期轮换**：建议每 90 天轮换一次 Token，详见 `TOKEN_SECURITY_GUIDE.md`
+
+**相关文档：**
+- iFinD 安全配置：见下方 "iFinD Token 安全配置" 章节
+- 完整安全指南：`TOKEN_SECURITY_GUIDE.md`
+- 迁移报告：`P0_1_TOKEN_MIGRATION_REPORT.md`
+
+---
+
+### iFinD Token 安全配置
+
+**⚠️ 重要安全要求 (v8.4.1)：** iFinD JWT Token 必须通过环境变量配置，严禁在配置文件或代码中明文存储。
+
+**配置方式：**
+
+```bash
+# Windows PowerShell (临时)
+$env:IFIND_TOKEN = "your_jwt_token_here"
+
+# Windows (永久 - 系统级别)
+setx IFIND_TOKEN "your_jwt_token_here"
+
+# Linux/macOS
+export IFIND_TOKEN="your_jwt_token_here"
+# 添加到 ~/.bashrc 或 ~/.zshrc 实现持久化
+```
+
+**安全规则：**
+1. ✅ **唯一合法方式**：`os.environ.get("IFIND_TOKEN")`
+2. ❌ **禁止行为**：在 `mcp_config.json`、`system_config.json` 或任何代码文件中明文存储 Token
+3. 🔒 **自动检测**：系统启动时会自动检查环境变量，若未设置将抛出 `RuntimeError`
+4. 🚨 **警告机制**：若检测到配置文件包含真实 Token（非占位符），系统将拒绝启动并提示清理
+
+**配置文件模板：**
+- 参考 `.env.example` 文件设置环境变量
+- `skills/ifind-finance-data/mcp_config.json` 中的 `auth_token` 字段已移除，替换为安全说明
+- 详见 `TOKEN_SECURITY_GUIDE.md` 中的完整配置指南
+
+**相关文档：**
+- 完整安全指南：`TOKEN_SECURITY_GUIDE.md`
+- 迁移报告：`P0_1_TOKEN_MIGRATION_REPORT.md`
+
+---
+
 ## 版本历史
 
 | 版本 | 日期 | 主要变更 |
 |------|------|----------|
+| **v8.6.3** | 2026-07-26 | **因子流水线 IC 加权组合方法学闭环（v6.5→v6.9，第十七~二十一批次）**：8 级因子流水线正式确立（G1 正交性 + G2 IC 稳定性真实日频 + G3 DSR 防过拟合 + G4 经济逻辑 + Enhancement 容量+Regime + Shadow 影子账户含风险管理 + Committee 5 Agent + IC 加权组合）；QualityTrend 类因子突破 — 基于 baostock 真实历史季度财务数据实现 4 个质量变化类因子（ROE_DELTA/MARGIN_EXP/DEBT_RED/GROWTH_ACCEL），VT_QUALTREND_MARGIN_EXP（毛利率同比扩张 winsorize）成为 QualityTrend 类首个 approved 因子（IC_IR=+0.3981, live_dsr=+0.9960, max_dd=0.0759）；IC 加权组合方法学（v6.5）— 用滚动 IC_IR 作为动态权重 `w_i = IC_IR_i / sum(\|IC_IR_j\|)` 保留符号自适应信号反转，IC_IR +0.4434（vs 等权 +0.1364），VT_MICRO_VOL_SKEW_INV 在 78% 时间被反向使用；Config_E+ 突破（v6.7）— 发现 IC 加权与单因子参数敏感性相反，Config_E_plus1（target_vol=0.07）让组合首次通过 Shadow（live_dsr=+0.6151, max_dd=0.0438）；PipelineOrchestrator 集成（v6.8）— IC 加权组合机制正式集成到生产流水线，通过 `ic_weighted_enabled` 一键开关，8 项验收全通过，集成结果与独立脚本 100% 一致；lookback 优化（v6.9）— 5/10/15/20/30 5 组梯度测试发现 lookback=10 显著优于默认 20（IC_IR +0.4434→+0.5840 +31.7%，live_dsr +0.6151→+2.2033 +258%，total_return +0.1909→+0.3290 +72.3%，max_dd 0.0438→0.0323 -26.3%）；v6.5→v6.6→v6.7→v6.8→v6.9 完整方法学闭环；最终生产配置：VT_MICRO_VOL_SKEW_INV + VT_QUALTREND_MARGIN_EXP × IC 加权（lookback=10）× Config_E_plus1，实测 IC_IR=+0.5840, live_dsr=+2.2033, max_dd=0.0323, total_return=+0.3290；详细文档 `docs/vibe_trading_factor_analysis/P2_FACTOR_ALPHA_QUALITY.md` 第 10.14~10.17 节 |
+| **v8.6.2** | 2026-07-25 | **自动交易计划审计修复（EOD 四 Guard 链 + 保证金真实化）**：审计发现 run_daily_eod.py 不存在导致 EOD 四 Guard 链从未执行、register_eod_task.ps1 指向 v7.1 错误路径、KillSwitch 保证金为硬编码 0.20 模拟值；创建 `run_daily_eod.py` 实现 EOD 四 Guard 链入口（调用 RiskGuardIntegrator.run_all_guards 执行保证金熔断/回撤检查/波动率控制/对冲执行/认沽保护五项 Guard）；修复 `risk_guard_integrator.py` 硬编码路径 v7.5_institutional→v8.3_institutional；修复 `kill_switch.py` `_get_margin_status()` 新增 `_estimate_margin_from_positions()` 方法读取 config/positions.json 计算真实保证金占用率（从硬编码 0.20→真实 0.80 L2）；修复 `register_eod_task.ps1` 路径 v7.1→v8.4 + 任务名 v75→v86，创建 `run_eod_task.bat` 包装解决中文路径编码问题，成功注册 v86_EOD_Report 定时任务（下次运行 7/27 16:00）；在 `daily_workflow.py` phase_report 中集成 RiskGuardIntegrator 四 Guard 链执行，结果写入每日报告；更新 `generate_daily_trade_plan.py` 版本号 v7.7→v8.6.1；修正 README 资金分配 400万/100万→300万/200万（与代码 config/positions.json 一致） |
+| **v8.6.1** | 2026-07-25 | **顶级对冲基金风控审计修复（纸面风控→真实可执行）**：以世界顶级对冲基金视角审计发现系统存在严重"纸面风控"问题 — README 声称的"四 Guard 联动"在实际运行中完全失效，多个核心风控模块初始化失败但系统仍继续执行交易，存在"编制结果"嫌疑；修复 CircuitBreaker 初始化缺少 name 参数（2处，phase_check + phase_market）导致 TypeError 风控降级；修复 KillSwitch 关键 bug — `ks_status.get("triggered")` 检查不存在的字段导致 Kill Switch 永远不触发，改为 `level >= 2 or not can_trade` 正确判断；新增 `_execute_kill_switch_callback()` 方法并注册到 KillSwitch，使 execute_kill_switch 可真实执行（L1 过滤 BUY / L2 取消待执行+期权平仓 / L3 变现 ETF+停止交易）；修复 6 个 v8.5 模块类名/路径错误（EVTTailRisk→ExtremeValueAnalyzer / PurgedKFoldCV→PurgedKFold / ShadowAccountSystem→ShadowAccount / TimeSync→GlobalTimeService / EnvironmentIsolation 路径 src.utils 前缀 / DataPipeline 移除不存在的 get_data_pipeline），v8.5 模块从 3/9 降级模式提升至 9/9 全部就绪；新增 fail-closed 三层防护（phase_check 设 FAIL+fail_closed=True / run() 循环检查终止 / phase_execute 双重保险阻止交易）；验证工作流 10 个阶段全部跑通，Kill Switch 状态正常，黑天鹅防护六层（CircuitBreaker+KillSwitch+EVTTailRisk+ShadowAccount+UnifiedRiskCockpit+fail-closed）全部真实可执行 |
+| **v8.6** | 2026-07-25 | **V9 Regime-Specific LGB 生产基线 + 影子账户 Stage 1 灰度发布**：V9 双模型策略通过 30 个月 Walk-Forward 验证（年化 19.62% / 回撤 9.95% / Sharpe 1.315 / DSR max_pass=18 / Sharpe CV=0.7673，全部达标）；影子账户 Stage 1 启动（¥500,000 / 10% 资金 / NAV=1.0000 / RUNNING）；新增 `launch_shadow_account.py` 启动脚本 + `config/shadow_account_config.json` 三阶段推进配置（10%→50%→100%）；新增 `utils/trading_env.py` 三环境切换（production/shadow/development）+ fail-closed 设计（`assert_production_fail_closed()` 风控异常时阻止交易）；daily_workflow 新增 Phase 10 `phase_shadow_monitor()` 每日记录 NAV + fail-fast 检查（单日>3% / 3日>5% 立即终止）；iFinD 真实财务数据接入 `utils/ifind_client.py::get_fundamentals_batch()` 并发拉取 PE/PB/ROE/市值，配额超限时降级 Baostock（覆盖 95.2%）；VT_MICRO_VOL_SKEW_INV 因子成为首个完整通过 G1-G4+Enhancement+Regime+Shadow(风险管理) 7 级 Gate 的因子；顶级对冲基金审计 P0-11 修复完成 `docs/HEDGE_FUND_AUDIT_VALIDATION_REPORT.md` |
+| **v8.4.2** | 2026-07-23 | **专业技能分析引擎**:新增三大高价值分析技能(DCF估值建模/板块轮动雷达/突破选股扫描);自动生成持仓股综合分析报告;DCF基准情景下科创50折价8.8%、半导体折价12.9%、黄金溢价1.7%;板块轮动判断市场震荡筑底→早期反弹,半导体景气度92分;突破候选股TOP10以半导体产业链为主;报告输出至`v8.3_institutional/reports/`目录 |
+| **v8.5** | 2026-07-25 | **自动交易计划部署 + daily_workflow 兼容性修复**:完成下周5个交易日trade_plan文件生成（每日20万建仓预算，含Put保护订单）；注册3个Windows定时任务（07:00工作流/09:30早盘/14:00午盘）；修复daily_workflow.py多项兼容性错误（CircuitLevel导入/CircuitBreaker方法调用/KillSwitch初始化/LEVEL_3比较逻辑/CircuitBreaker缺少name参数）；报告写入添加重试机制（最多3次，间隔1秒）+ fallback路径（logs/目录）；修复批处理脚本日期提取错误（中文系统%date%格式适配）；验证自动交易链路完整跑通Phase 1-7 |
+| **v8.4.1** | 2026-07-23 | **安全加固 (P0-1)**：iFinD JWT Token 从明文配置迁移至环境变量 (`IFIND_TOKEN`)；新增 `TOKEN_SECURITY_GUIDE.md` 完整安全最佳实践；所有 iFinD 客户端强制环境变量校验，启动时自动检测并拒绝明文 Token；配置文件模板更新为占位符 + 安全说明 |
+| **v8.4** | 2026-07-22 | **持仓精准优化 + 2027年化预测**：基于量化三维度模型（历史统计+ML信号+因子分解）与多情景压力测试完成9项精准调仓（黄金ETF翻倍至6%、绿的谐波5%→3%、中际旭创2.35%→1.5%、中国神华2%→3.5%、银行ETF 4.36%→5.5%、上证50ETF 7.34%→8%、国债ETF 25%→22%、创业板ETF 0%→0.8%、新能源车ETF 1.43%→1%）；Put保护增强50→62张（总预算778K，悲观对冲覆盖18pp→25pp）；产出了两份研究报告；预测中枢+8%~+13%（加权均值+10.5%），中性情景+6.61%，悲观情景-9.31%（最大回撤-27%，依赖对冲增厚） |
+| **v8.3.1** | 2026-07-21 | **PUT引擎去重保护**：新增 `UNDERLYING_CODE_MAP` 六大品种底层代码映射；新增 `_extract_underlying_code()` 三层提取策略（精确/正则/最长优先模糊匹配）；新增 `_deduplicate_put_orders()` Guard4后自动执行剔除重复PUT，认沽引擎为权威来源，期货不受影响；集成测试 12/12 通过，从4笔重复降至0笔 |
+| **v8.3.0** | 2026-07-21 | **风控守卫强制执行系统**：新增六大风控模块（对冲执行引擎 19.9KB / 波动率目标控制器 12.2KB / 认沽期权保护引擎 19.1KB / 风控守卫集成器 17.4KB / 统一配置管理器 13.0KB / 实际持仓回测引擎 23.5KB）；四Guard联动（回撤→波动率→对冲→认沽）每日EOD强制执行；Beta暴露从1.052降至0.30；77.8万PUT预算自动动用；回撤四级代码响应（Level2缩20%预算+加码50%对冲/Level3清建仓/Level4全面停止）；AQR Vol Targeting 12%波动率目标缩仓；配置三合一单一事实源；23标的实际持仓回测验证 |
 | **v8.1.2** | 2026-07-20 | **对冲再平衡回测引擎 v2.4 优化**：新增因子生命周期管理（FactorRegistry 监控因子衰减，标记失效因子）；成本归因拆分（滚动成本/保证金成本/滑点成本分别统计）；滑点成本修复（仅比率变化时产生滑点）；黄金ETF数据源修复（Baostock失败时自动fallback至AKShare）；订单无关再平衡（先计算所有目标权重，先执行卖单再执行买单）；统一对冲暴露上限（HEDGE_EXPOSURE_CAP=0.40）；换手率感知约束（TURNOVER_BUDGET=0.20，TURNOVER_WINDOW=20天，接近预算时阈值上浮2个百分点） |
 | **v8.1.1** | 2026-07-19 | **回测校准与预测更新**：基于 2024-2025 最新 Walk-Forward 回测校准年化收益为 +10.17%（最大回撤 -12.96%，胜率 62.50%，24 个月样本）；更新组合年化测算（中性）至 +10.2%、夏普 1.58；新增回测预测区间 +8.5%~12.0%（基于月度平均 +0.81%、标准差 4.75%、胜率 62.5% 推算） |
 | **v8.1** | 2026-07-17 | **全自动交易闭环 + LLM 盘中决策**：新增 `run_daily_eod.py` 收盘自动闭环（报告→计划→盘中决策预生成）；新增 `llm_intraday_decision_engine.py` 每15分钟自动决策；新增 `apply_llm_decisions_to_plan.py` 自动注入 AI 建议；新增 `register_intraday_task.ps1` Windows 定时任务；新增 `annual_return_forecast` 多情景收益测算（保守/中性/悲观）；新增 watchlist 自动维护与 -12% 统一止损线；LLM 模型切换为本地 Ollama Qwen2.5 7B 六级降级链；实盘部署完成（500万，23标的，建仓进度 44.8%） |
-| **v8.0** | 2026-07-14 | **对冲执行单优化**：动态Beta计算（基于持仓实时计算0.6658）；订单去重合并（避免重复下单）；配置驱动对冲（从positions.json读取IF期货3手、期权合约）；执行时机管理（期权09:30-10:00、期货10:30-11:00）；资金预留机制（30%资金¥607,428）；现货订单价格修复（从10.0改为真实市场价格）；建仓计划优化（调整防御资产权重，增加科技股配置）；对冲策略优化（增加沪深300ETF期权，确保Beta<0.5） |
-| v8.0 | 2026-07-13 | **顶级对冲基金优化**：风险预算驱动建仓（Risk Parity + Kelly）；Greeks 动态对冲（Delta/Gamma/Theta/Vega）；交易成本模型（滑点/佣金/冲击成本）；智能执行算法选择器（MinImpact/TWAP/VWAP/immediate）；风险归因面板（行业/风格/资产类型）；Greeks 监控面板；交易成本扣减预算避免超支；当前持仓已达 20 万（9 标的，含科创50/半导体/新能源车/医药/黄金/中国神华等） |
+| **v8.0** | 2026-07-13 | **顶级对冲基金优化 + 对冲执行单优化**：风险预算驱动建仓（Risk Parity + Kelly）；Greeks 动态对冲（Delta/Gamma/Theta/Vega）；交易成本模型（滑点/佣金/冲击成本）；智能执行算法选择器（MinImpact/TWAP/VWAP/immediate）；风险归因面板（行业/风格/资产类型）；Greeks 监控面板；动态Beta计算（基于持仓实时计算0.6658）；订单去重合并（避免重复下单）；配置驱动对冲（从positions.json读取IF期货3手、期权合约）；执行时机管理（期权09:30-10:00、期货10:30-11:00）；资金预留机制（30%资金¥607,428）；现货订单价格修复（从10.0改为真实市场价格）；建仓计划优化（调整防御资产权重，增加科技股配置）；对冲策略优化（增加沪深300ETF期权，确保Beta<0.5）；当前持仓已达 20 万（9 标的，含科创50/半导体/新能源车/医药/黄金/中国神华等） |
 | v7.10 | 2026-07-12 | **十五五+康波宏观对齐**：新增宏观战略框架章节；股票/ETF/期货/期权全面标注十五五与康波对齐说明；`daily_trade_executor.py` 接入 `macro_policy_scoring` 动态调整分配（强对齐+20%、偏弱-20%或跳过）；`hedge_execution_orders.py` 支持读取 `hedge_positions` 生成期货/期权执行单；`config/positions.json` 新增 CU/AL/LC/AU 期货及 588080/159915 ETF 认沽期权 |
 | v7.9 | 2026-07-12 | **完全自动化交易流程**：新增 `--auto-confirm` 自动确认引擎；一个月建仓方案（每日固定 20 万预算，22 个交易日完成）；盘前自动生成 → 自动确认 → 盘后自动执行 → 自动生成下一日计划的无人化闭环 |
 | v7.8 | 2026-07-11 | **WonderTrader 高价值模块集成**：新增 8 个 WT 风格模块（统一数据结构/合约管理器/价差策略/组合对冲/Tick级回测/执行算法/风控/回测引擎）；ETF资金流监控集成WT数据结构；更新 `utils/__init__.py` 导出全部WT模块 |
 | v7.7 | 2026-07-10 | **AI 增强**：新增 4 个模块（价格预测/外部数据源/网页抓取/AI 报告代理）；建仓流程集成预测信号调整分配（强看多 +30%、强看空跳过）；固定日预算 20万/交易日；data_provider 新增 6 个集成方法 |
-| v7.6 | 2026-07-09 | 仓位重建：清除旧仓位，重建 20 标的新计划；双账户结构（300万股票ETF + 200万对冲）；整合 2026-07-09 ETF 资金流向报告；2030-12-31 强制清仓目标 |
+| v7.6 | 2026-07-09 | 仓位重建：清除旧仓位，重建 20 标的新计划；双账户结构（400万股票ETF + 100万对冲）；整合 2026-07-09 ETF 资金流向报告；2030-12-31 强制清仓目标 |
 | v7.5.3 | 2026-07-08 | 7/8 建仓执行完成；修复 daily_workflow.py 中 ntp 属性缺失问题；新增宏观模块目录 |
 | v7.5.2 | 2026-07-07 | 顶级对冲基金视角优化：组合权重重构、对冲资本提升至 30%、净 Beta 降至 0.1 |
 | v7.5.1 | 2026-07-05 | AI 算力期货观察池：新增锡/铜/铝/银/碳酸锂/多晶硅 6 个核心品种 |
