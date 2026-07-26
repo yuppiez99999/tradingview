@@ -59,7 +59,7 @@ class PortfolioOptimizer:
     # 默认保守混合权重（base 权重 95% + factor 信号 5%）
     DEFAULT_ALPHA = 0.05
 
-    def __init__(self, signals_dir: str = None):
+    def __init__(self, signals_dir: Optional[str] = None):
         """初始化组合优化器
 
         Args:
@@ -152,7 +152,7 @@ class PortfolioOptimizer:
         self,
         base_weights: Dict[str, float],
         factor_signals: Dict[str, float],
-        alpha: float = None,
+        alpha: Optional[float] = None,
     ) -> Dict[str, float]:
         """用因子信号调整目标权重（保守权重混合）
 
@@ -181,10 +181,10 @@ class PortfolioOptimizer:
 
         # 安全混合
         adjusted: Dict[str, float] = {}
-        for symbol, base_w in base_weights.items():
+        for symbol, weight in base_weights.items():
             signal = factor_signals.get(symbol, 0.0)
             # signal ∈ [-1, 1]，乘以 alpha 后作为权重调整
-            adjusted[symbol] = base_w * (1.0 - alpha) + signal * alpha
+            adjusted[symbol] = weight * (1.0 - alpha) + signal * alpha
 
         # 归一化: 保持总暴露不变（避免 alpha 混合导致整体仓位漂移）
         total_base = sum(abs(w) for w in base_weights.values()) or 1.0
@@ -420,10 +420,10 @@ class PortfolioOptimizer:
     # 离线计算：运行 PipelineOrchestrator + 保存因子信号 JSON
     # ------------------------------------------------------------
 
-    def run_offline_pipeline(
+    def run_offline_pipeline(  # pylint: disable=too-many-return-statements
         self,
-        trade_date: str = None,
-        symbols: list = None,
+        trade_date: Optional[str] = None,
+        symbols: Optional[List[str]] = None,
     ) -> bool:
         """离线运行因子流水线，生成当日因子信号 JSON
 
@@ -641,12 +641,8 @@ class PortfolioOptimizer:
         if str(research_scripts) not in sys.path:
             sys.path.insert(0, str(research_scripts))
 
-        from real_data_loader import (
+        from real_data_loader import (  # pylint: disable=import-error
             load_all_for_pipeline,
-            list_available_symbols,
-            load_price_data,
-            load_fundamentals,
-            compute_benchmark_returns,
         )
 
         # 加载 price_data + fundamentals + benchmark_returns
@@ -720,9 +716,10 @@ if __name__ == "__main__":
     # 测试 adjust_target_weights
     base = {"588000": 0.10, "300308": 0.05, "601088": 0.08}
     factor = {"588000": 0.5, "300308": -0.3, "601088": 0.2}
-    adjusted = opt.adjust_target_weights(base, factor, alpha=0.05)
-    print(f"\nadjust_target_weights (alpha=0.05):")
-    for sym in base:
-        print(f"  {sym}: base={base[sym]:+.4f} -> adjusted={adjusted[sym]:+.4f} (delta={adjusted[sym]-base[sym]:+.4f})")
+    adj_weights = opt.adjust_target_weights(base, factor, alpha=0.05)
+    print("\nadjust_target_weights (alpha=0.05):")
+    for sym, base_w in base.items():
+        adj_w = adj_weights[sym]
+        print(f"  {sym}: base={base_w:+.4f} -> adjusted={adj_w:+.4f} (delta={adj_w - base_w:+.4f})")
 
     print("\n[OK] PortfolioOptimizer 自检通过")

@@ -24,9 +24,9 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger("kill_switch")
 
@@ -87,7 +87,7 @@ class KillSwitch:
             from utils.config_manager import get_kill_switch_config
             cfg = get_kill_switch_config()
             if cfg:
-                return cfg
+                return cfg  # type: ignore[no-any-return]
             # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, "r", encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
@@ -190,9 +190,6 @@ class KillSwitch:
         Returns:
             配置字典, 文件不存在或解析失败时返回 None
         """
-        import json
-        from pathlib import Path
-
         project_root = Path(__file__).resolve().parent.parent
         positions_file = project_root / "config" / "positions.json"
 
@@ -204,7 +201,7 @@ class KillSwitch:
 
         try:
             with open(positions_file, "r", encoding="utf-8") as f:
-                return json.load(f)
+                return json.load(f)  # type: ignore[no-any-return]
         except Exception as e:
             logger.error(f"读取持仓文件失败: {e}, 使用保守值 0.50")
             return None
@@ -264,7 +261,7 @@ class KillSwitch:
                 ratio = max(0.0, min(1.0, float(total_put_premium) / float(total_hedge_capital)))
                 logger.info(
                     "[KillSwitch] 对冲预算估算保证金占用: "
-                    "total_put_premium=¥%,.0f, total_hedge_capital=¥%,.0f, ratio=%.1f%%",
+                    "total_put_premium=¥%.0f, total_hedge_capital=¥%.0f, ratio=%.1f%%",
                     float(total_put_premium), float(total_hedge_capital), ratio * 100,
                 )
                 return ratio
@@ -322,7 +319,7 @@ class KillSwitch:
         total_position_value = 0.0
         estimated_margin_usage = 0.0
 
-        for code, pos in positions.items():
+        for _code, pos in positions.items():
             if not isinstance(pos, dict):
                 continue
             amount = pos.get("amount", 0)
@@ -717,7 +714,8 @@ class KillSwitch:
                     "max_concentration_code": "", "action": "无持仓"}
 
         # 找最大集中度
-        max_code = max(pos_values, key=pos_values.get)
+        # P3-B FIX (2026-07-26): 使用 lambda 避免 mypy 类型推断错误
+        max_code = max(pos_values, key=lambda k: pos_values.get(k, 0.0))
         max_conc = pos_values[max_code] / total_value
 
         if max_conc >= CONCENTRATION_L3:
@@ -798,8 +796,8 @@ if __name__ == "__main__":
                 print(f"  - {a}")
 
     if args.execute:
-        result = ks.execute_kill_switch(args.execute)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        exec_result = ks.execute_kill_switch(args.execute)
+        print(json.dumps(exec_result, ensure_ascii=False, indent=2))
 
     if args.history:
         history = ks.get_event_history(args.history)

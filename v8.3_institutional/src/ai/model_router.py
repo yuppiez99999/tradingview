@@ -123,18 +123,43 @@ class ModelRouter:
     def __init__(self, config_path: Optional[str] = None):
         """
         初始化路由器
-        
+
         Args:
             config_path: 配置文件路径，默认 config/model_routing.yaml
         """
         self.base_dir = Path(__file__).parent.parent
-        
-        # 加载配置
+
+        # 加载配置 (P1-Q8: 优先使用 ConfigManager 统一加载, 失败回退显式路径)
         if config_path is None:
-            config_path = self.base_dir / "config" / "model_routing.yaml"
-        
-        with open(config_path, 'r', encoding='utf-8') as f:
-            self.config = yaml.safe_load(f)
+            # 路径 1: 尝试 ConfigManager 统一入口
+            self.config = None
+            try:
+                _project_root = self.base_dir.parent
+                import sys as _sys
+                if str(_project_root) not in _sys.path:
+                    _sys.path.insert(0, str(_project_root))
+                from utils.config_manager import get_config
+                self.config = get_config("model_routing")
+            except Exception as e:
+                logger.debug(f"ConfigManager 加载 model_routing 失败, 回退显式路径: {e}")
+
+            # 路径 2: 显式路径直接读取
+            if not self.config:
+                config_path = self.base_dir / "config" / "model_routing.yaml"
+                try:
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        self.config = yaml.safe_load(f) or {}
+                except Exception as e:
+                    logger.error(f"加载 model_routing.yaml 失败: {e}")
+                    self.config = {}
+        else:
+            # 显式 config_path 走原逻辑 (测试场景, 向后兼容)
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    self.config = yaml.safe_load(f) or {}
+            except Exception as e:
+                logger.error(f"加载配置失败 (显式路径 {config_path}): {e}")
+                self.config = {}
         
         # 初始化熔断器
         self.circuit_breakers: Dict[str, CircuitBreaker] = {}

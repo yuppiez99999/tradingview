@@ -322,7 +322,7 @@ class HedgeExecutionEngine:
         portfolio_value = self.calc_portfolio_market_value()
         portfolio_beta = self.calc_portfolio_beta()
         total_capital = self.positions_data.get("meta", {}).get("total_capital", 5_000_000)
-        hedge_capital = self.positions_data.get("meta", {}).get("hedge_capital", 1_000_000)
+        hedge_capital = self.positions_data.get("meta", {}).get("hedge_capital", 2_000_000)
 
         # v8.6.8 P0-01 FIX (2026-07-26): 检查 hedge_mode, OPTIONS_ONLY 模式跳过期货订单
         # 原代码无视 portfolio.yaml/positions.json 的 hedge_mode=OPTIONS_ONLY 配置,

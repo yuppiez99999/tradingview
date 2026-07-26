@@ -31,28 +31,26 @@
 from __future__ import annotations
 
 import logging
-import json
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
 import numpy as np
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger("risk_cockpit")
 
 # ── 动态导入, 单文件部署无依赖 ──
 try:
-    from utils.kill_switch import KillSwitch
+    from utils.kill_switch import KillSwitch  # pylint: disable=unused-import
     _HAS_KILL_SWITCH = True
 except ImportError:
     _HAS_KILL_SWITCH = False
 
 try:
-    from src.risk.circuit_breaker import CircuitBreaker, CircuitState
+    from src.risk.circuit_breaker import CircuitBreaker, CircuitState  # pylint: disable=unused-import
     _HAS_CIRCUIT_BREAKER = True
 except ImportError:
     _HAS_CIRCUIT_BREAKER = False
@@ -120,8 +118,7 @@ class DrawdownController:
     def update(self, current_value: float) -> Dict:
         """更新回撤状态并返回控制指令"""
         self._history.append(current_value)
-        if current_value > self.peak_value:
-            self.peak_value = current_value
+        self.peak_value = max(self.peak_value, current_value)
 
         drawdown = (self.peak_value - current_value) / max(self.peak_value, 1.0)
         result = {
@@ -135,8 +132,9 @@ class DrawdownController:
             # 按步进减仓
             exceed_pct = (drawdown - self.max_drawdown) / self.max_drawdown
             step = min(self.reduce_steps, int(exceed_pct * self.reduce_steps) + 1)
-            result["reduce_pct"] = round(step / self.reduce_steps, 2)
-            result["action"] = f"reduce_{int(result['reduce_pct'] * 100)}pct"
+            reduce_pct = round(step / self.reduce_steps, 2)
+            result["reduce_pct"] = reduce_pct
+            result["action"] = f"reduce_{int(reduce_pct * 100)}pct"
 
         return result
 
@@ -263,7 +261,7 @@ class VaRBacktester:
         import math
         from scipy.stats import chi2
 
-        if x == 0 or x == n:
+        if x in (0, n):
             p_hat = x / n if x > 0 else 0.0001
         else:
             p_hat = x / n
@@ -297,7 +295,6 @@ class VaRBacktester:
     @staticmethod
     def _christoffersen_test(violations: np.ndarray) -> Dict:
         """Christoffersen 条件覆盖检验 — 突破是否聚集"""
-        n = len(violations)
         violations_int = violations.astype(int)
 
         # 转移计数
@@ -418,10 +415,10 @@ class UnifiedRiskCockpit:
     # ── 核心扫描 ──
 
     def full_scan(self,
-                  margin_usage: float = None,
-                  positions: Dict[str, Dict] = None,
+                  margin_usage: Optional[float] = None,
+                  positions: Optional[Dict[str, Dict]] = None,
                   pnl: float = 0.0,
-                  current_value: float = None) -> RiskSnapshot:
+                  current_value: Optional[float] = None) -> RiskSnapshot:
         """全量风控扫描 — 所有子系统一次性检查
 
         Args:
@@ -464,7 +461,7 @@ class UnifiedRiskCockpit:
 
         return snapshot
 
-    def _scan_kill_switch(self, snapshot: RiskSnapshot, margin_usage: float):
+    def _scan_kill_switch(self, snapshot: RiskSnapshot, margin_usage: Optional[float]):
         """Kill Switch 保证金检查"""
         if margin_usage is None:
             snapshot.summary += "[KillSwitch] 无保证金数据; "
@@ -502,7 +499,7 @@ class UnifiedRiskCockpit:
                     logger.warning(f"KillSwitch执行异常: {e}")
             snapshot.summary += f"[KillSwitch] L{snapshot.kill_switch_level}熔断! "
 
-    def _scan_drawdown(self, snapshot: RiskSnapshot, current_value: float, pnl: float):
+    def _scan_drawdown(self, snapshot: RiskSnapshot, current_value: float, pnl: float):  # pylint: disable=unused-argument
         """回撤检查"""
         dd_result = self.drawdown_ctrl.update(current_value)
         snapshot.current_drawdown = dd_result["drawdown"]
@@ -527,10 +524,26 @@ class UnifiedRiskCockpit:
         if not positions:
             return
 
-        # 加载配置中的仓位限制
+        # 加载配置中的仓位限制 (P1-Q8: 优先 ConfigManager, 失败回退直接读取)
+        cfg = None
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                cfg = yaml.safe_load(f)
+            _project_root = Path(__file__).resolve().parent.parent.parent.parent
+            import sys as _sys
+            if str(_project_root) not in _sys.path:
+                _sys.path.insert(0, str(_project_root))
+            from utils.config_manager import get_portfolio_config
+            cfg = get_portfolio_config()
+        except Exception:
+            pass
+
+        if not cfg:
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f) or {}
+            except Exception:
+                cfg = {}
+
+        try:
             risk_params = cfg.get("risk_parameters", {})
             max_single = risk_params.get("max_single_position", 0.08)
             max_sector = risk_params.get("max_sector_exposure", 0.30)
@@ -624,7 +637,9 @@ class UnifiedRiskCockpit:
                 var_series.append(0.0)
                 continue
             window_returns = returns_arr[i - window:i]
-            var = np.percentile(window_returns, (1 - self.var_backtester.confidence) * 100)
+            # P3-B FIX (2026-07-26): var_backtester 可能为 None, 加守卫
+            confidence = self.var_backtester.confidence if self.var_backtester else 0.95
+            var = np.percentile(window_returns, (1 - confidence) * 100)
             var_series.append(var)
 
         return var_series

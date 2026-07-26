@@ -49,19 +49,48 @@ PORTFOLIO_YAML = BASE / "config" / "portfolio.yaml"
 
 
 def _load_capital_config(total_capital: float = 5_000_000) -> Tuple[int, int]:
-    """从 portfolio.yaml 读取资金配置 (单一事实源, v8.6.8 P0-01)
+    """从 portfolio.yaml 读取资金配置 (单一事实源, v8.6.8 P0-01 + P1-Q8 ConfigManager 集成)
 
     优先级:
-        1. portfolio.yaml.account_structure.{stock_etf_capital, hedge_capital} (权威源)
-        2. 降级: 60/40 拆分 (兼容旧部署, 仅在 yaml 不可用时使用)
+        1. ConfigManager 统一入口 (支持 QUANT_CONFIG_DIR 环境变量覆盖)
+        2. 直接读取 PORTFOLIO_YAML (v8.3 唯一事实源)
+        3. 降级: 60/40 拆分 (兼容旧部署, 仅在 yaml 不可用时使用)
 
     Returns:
         (stock_etf_capital, hedge_capital) — 与 portfolio.yaml 严格对齐
     """
+    # 路径 1: ConfigManager 统一加载
+    cfg = None
     try:
-        import yaml
-        with open(PORTFOLIO_YAML, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
+        # 确保 utils 模块可访问
+        _project_root = BASE.parent
+        if str(_project_root) not in sys.path:
+            sys.path.insert(0, str(_project_root))
+        from utils.config_manager import get_portfolio_config
+        cfg = get_portfolio_config()
+    except Exception as e:
+        print(f"[DEBUG] ConfigManager 不可用, 回退直接读取: {e}", file=sys.stderr)
+
+    # 路径 2: 直接读取 PORTFOLIO_YAML
+    if not cfg:
+        try:
+            import yaml
+            with open(PORTFOLIO_YAML, "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+        except FileNotFoundError:
+            print(
+                f"[WARN] portfolio.yaml 不存在: {PORTFOLIO_YAML}, 降级 60/40 拆分",
+                file=sys.stderr,
+            )
+            cfg = None
+        except Exception as e:
+            print(
+                f"[WARN] 读取 portfolio.yaml 失败, 降级 60/40 拆分: {e}",
+                file=sys.stderr,
+            )
+            cfg = None
+
+    if cfg:
         accts = cfg.get("account_structure", {}) or {}
         stock = float(accts.get("stock_etf_capital", 4_000_000))
         hedge = float(accts.get("hedge_capital", 1_000_000))
@@ -74,16 +103,9 @@ def _load_capital_config(total_capital: float = 5_000_000) -> Tuple[int, int]:
                 file=sys.stderr,
             )
         return int(stock), int(hedge)
-    except FileNotFoundError:
-        print(
-            f"[WARN] portfolio.yaml 不存在: {PORTFOLIO_YAML}, 降级 60/40 拆分",
-            file=sys.stderr,
-        )
-    except Exception as e:
-        print(
-            f"[WARN] 读取 portfolio.yaml 失败, 降级 60/40 拆分: {e}",
-            file=sys.stderr,
-        )
+
+    # 路径 3: 降级 60/40 拆分
+    print("[WARN] 使用 60/40 降级拆分", file=sys.stderr)
     return int(total_capital * 0.6), int(total_capital * 0.4)
 
 # ============================================================

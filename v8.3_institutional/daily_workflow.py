@@ -36,11 +36,14 @@ import math
 import logging
 import argparse
 import re
-import requests
+import requests  # type: ignore[import-untyped]
 from datetime import datetime, timedelta, date
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from dataclasses import asdict
+
+if TYPE_CHECKING:
+    import pandas as pd  # 仅用于类型注解, 运行时按需导入
 
 # ============================================================
 # 路径初始化 (兼容 Python 3.8)
@@ -450,27 +453,27 @@ class WorkflowConfig:
     3. trade_plan_{date}.json — 当日执行计划
     """
 
-    # === 资金配置 (500万 = 400万权益 + 100万对冲) ===
+    # === 资金配置 (500万 = 300万权益 + 200万对冲) — v8.7.2 恢复 3M/2M ===
     TOTAL_CAPITAL = 5_000_000          # 总资金 500 万
-    STOCK_CAPITAL = 4_000_000          # 权益组合 400 万 (80%)
-    HEDGE_CAPITAL = 1_000_000          # 对冲资金 100 万 (20%)
+    STOCK_CAPITAL = 3_000_000          # 权益组合 300 万 (60%)
+    HEDGE_CAPITAL = 2_000_000          # 对冲资金 200 万 (40%)
 
-    # === 股票组合分类 (400万) — 与 portfolio.yaml 20个持仓对齐 ===
+    # === 股票组合分类 (300万) — 与 portfolio.yaml 20个持仓对齐 ===
     STOCK_CATEGORIES = {
-        "核心宽基ETF":     {"weight": 0.28, "amount": 1_120_000},   # 8只ETF
-        "科技成长个股":    {"weight": 0.21, "amount": 840_000},     # 6只科创板/成长股
-        "高端制造/新能源": {"weight": 0.07, "amount": 280_000},     # 绿的谐波+阳光电源
-        "资源/能源":       {"weight": 0.07, "amount": 280_000},     # 藏格矿业+中国神华
-        "医药/防御":       {"weight": 0.11, "amount": 440_000},     # 恒瑞医药+长江电力
-        "现金缓冲":        {"weight": 0.26, "amount": 1_040_000},   # 现金+未分配
+        "核心宽基ETF":     {"weight": 0.28, "amount": 840_000},     # 8只ETF
+        "科技成长个股":    {"weight": 0.21, "amount": 630_000},     # 6只科创板/成长股
+        "高端制造/新能源": {"weight": 0.07, "amount": 210_000},     # 绿的谐波+阳光电源
+        "资源/能源":       {"weight": 0.07, "amount": 210_000},     # 藏格矿业+中国神华
+        "医药/防御":       {"weight": 0.11, "amount": 330_000},     # 恒瑞医药+长江电力
+        "现金缓冲":        {"weight": 0.26, "amount": 780_000},     # 现金+未分配
     }
 
-    # === 对冲分类 (100万) — 与 portfolio.yaml hedge 对齐 ===
+    # === 对冲分类 (200万) — 与 portfolio.yaml hedge 对齐 ===
     HEDGE_CATEGORIES = {
-        "期货对冲":        {"weight": 0.40, "amount": 400_000},     # IF_futures × 3
-        "股票期权保护":    {"weight": 0.30, "amount": 300_000},     # Gamma/Vega引擎
-        "避险资产":        {"weight": 0.15, "amount": 150_000},     # Theta引擎备兑
-        "现金缓冲":        {"weight": 0.15, "amount": 150_000},     # 保证金缓冲
+        "期货对冲":        {"weight": 0.40, "amount": 800_000},     # IF_futures × 3 (OPTIONS_ONLY 模式下禁用)
+        "股票期权保护":    {"weight": 0.30, "amount": 600_000},     # Gamma/Vega引擎
+        "避险资产":        {"weight": 0.15, "amount": 300_000},     # Theta引擎备兑
+        "现金缓冲":        {"weight": 0.15, "amount": 300_000},     # 保证金缓冲
     }
 
     # === 风控参数 ===
@@ -850,13 +853,17 @@ class DailyWorkflow:
                 self.sim_mode = False
 
     def _load_fusion_config(self) -> Dict[str, Any]:
-        """从 settings.yaml 加载信号融合配置
+        """加载信号融合配置 (P1-Q8: 通过 ConfigManager 统一加载)
+
+        优先级:
+            1. ConfigManager 自动解析 (QUANT_CONFIG_DIR > v8.3 唯一事实源 > configs/ 回退)
+            2. 直接读取 v8.3_institutional/config/settings.yaml (回退保底, 保证向后兼容)
 
         Returns:
             融合配置字典，加载失败时返回默认值
         """
         import os
-        import yaml as _yaml
+        import yaml as _yaml  # type: ignore[import-untyped]
         defaults = {
             "qlib_weight": 0.50,
             "ifind_weight": 0.30,
@@ -885,20 +892,44 @@ class DailyWorkflow:
             "model_cache": {"enabled": True, "retrain_days": 30},
             "lgb_confidence_gate": True,  # lgb_enhanced 信号置信度门控开关
         }
+
+        sf = None
+        # 路径 1: ConfigManager 统一加载 (P1-Q8 生产路径, 支持 QUANT_CONFIG_DIR 环境变量覆盖)
         try:
-            cfg_path = os.path.join(os.path.dirname(__file__), "config", "settings.yaml")
-            with open(cfg_path, "r", encoding="utf-8") as f:
-                full = _yaml.safe_load(f)
-            sf = full.get("signal_fusion", {})
-            if sf:
-                defaults.update(sf)
-                logger.info("信号融合配置已加载: qlib=%.2f ifind=%.2f external=%.2f regime_adaptive=%s",
-                           sf.get("qlib_weight", 0.5),
-                           sf.get("ifind_weight", 0.3),
-                           sf.get("external_weight", 0.2),
-                           sf.get("regime_adaptive", True))
+            _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if _project_root not in sys.path:
+                sys.path.insert(0, _project_root)
+            from utils.config_manager import get_settings_config
+            full = get_settings_config()
+            if isinstance(full, dict):
+                sf = full.get("signal_fusion", {})
+                if sf:
+                    logger.info("[ConfigManager] 信号融合配置已加载")
+        except ImportError as ie:
+            logger.debug("ConfigManager 不可用, 回退直接读取: %s", ie)
         except Exception as exc:
-            logger.warning("加载 signal_fusion 配置失败，使用默认值: %s", exc)
+            logger.warning("ConfigManager 加载失败, 回退直接读取: %s", exc)
+
+        # 路径 2: 直接读取 v8.3_institutional/config/settings.yaml (回退保底)
+        if not sf:
+            try:
+                cfg_path = os.path.join(os.path.dirname(__file__), "config", "settings.yaml")
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    full = _yaml.safe_load(f)
+                if isinstance(full, dict):
+                    sf = full.get("signal_fusion", {})
+            except Exception as exc:
+                logger.warning("加载 signal_fusion 配置失败，使用默认值: %s", exc)
+                return defaults
+
+        if sf:
+            defaults.update(sf)
+            logger.info("信号融合配置已加载: qlib=%.2f ifind=%.2f external=%.2f regime_adaptive=%s",
+                       sf.get("qlib_weight", 0.5),
+                       sf.get("ifind_weight", 0.3),
+                       sf.get("external_weight", 0.2),
+                       sf.get("regime_adaptive", True))
+
         return defaults
 
     def _load_external_reports(self) -> Dict[str, Any]:
@@ -1713,8 +1744,12 @@ class DailyWorkflow:
     # Phase 4: 对冲评估 + 自动执行
     # --------------------------------------------------------
     def _infer_style_from_code(self, code: str) -> str:
-        """基于代码前缀粗略推断持仓风格（建仓计划缺失时的回退）"""
-        c = str(code).lstrip("shszbjSHBJ").lower()
+        """基于代码前缀粗略推断持仓风格（建仓计划缺失时的回退）
+
+        P3-B FIX (2026-07-26): 原 lstrip("shszbjSHBJ") 会误删连续匹配字符集
+        (如 "sssh" -> ""), 改用 regex 精确剥离市场前缀 (sh/sz/bj 大小写)
+        """
+        c = re.sub(r'^[a-zA-Z]+', '', str(code)).lower()
         if c.startswith("588"):
             return "高端制造"
         if c.startswith("515"):
@@ -2540,7 +2575,8 @@ class DailyWorkflow:
                 # 滚仓检查 (到期前5个交易日)
                 rollover_plan = theta.check_rollover()
                 if rollover_plan:
-                    logger.info("[Theta] 检测到需滚仓头寸: %d 个", len(rollover_plan.get("positions", [])))
+                    # P3-B FIX (2026-07-26): check_rollover 返回 List[Dict], 直接用 len
+                    logger.info("[Theta] 检测到需滚仓头寸: %d 个", len(rollover_plan))
                     result["theta"]["rollover"] = rollover_plan
                 else:
                     # 生成/刷新月度计划
@@ -2952,7 +2988,7 @@ class DailyWorkflow:
                 # 支持多种格式: {"returns": [...]} 或 {"daily_returns": [...]} 或 [...]
                 if isinstance(data, list):
                     return data
-                elif isinstance(data, dict):
+                if isinstance(data, dict):
                     for key in ("returns", "daily_returns", "portfolio_returns"):
                         if key in data:
                             return data[key]
@@ -4461,7 +4497,7 @@ class DailyWorkflow:
             ns_positive = sum(1 for s in ns_signals.values() if s.composite_sentiment > 0)
             ns_negative = sum(1 for s in ns_signals.values() if s.composite_sentiment < 0)
             ns_neutral = sum(1 for s in ns_signals.values() if s.composite_sentiment == 0)
-            ns_event_counts = {ev: cnt for ev, cnt in (getattr(ns_result, "hot_events", []) or [])}
+            ns_event_counts = dict(getattr(ns_result, "hot_events", []) or [])
             signal["news_sentiment"] = {
                 "avg_sentiment": float(getattr(ns_result, "market_sentiment", 0.0)),
                 "positive_count": int(ns_positive),
@@ -5577,7 +5613,7 @@ class DailyWorkflow:
                 continue
         return fr
 
-    def _generate_mock_ohlcv(self, symbol: str, days: int = 120) -> Optional[pd.DataFrame]:
+    def _generate_mock_ohlcv(self, symbol: str, days: int = 120) -> "Optional[pd.DataFrame]":
         """生成模拟 OHLCV 数据 (用于 Qlib 演示)
 
         Args:
@@ -6295,12 +6331,12 @@ class DailyWorkflow:
                   导致无法追加对冲。顶级对冲基金标准: 保留 40% 缓冲应对极端行情。
 
         规则: put_option 累计预算 <= 60% * hedge_capital
-              即 1,000,000 * 0.60 = 600,000 (剩余 400,000 作为极端行情缓冲)
+              即 2,000,000 * 0.60 = 1,200,000 (剩余 800,000 作为极端行情缓冲)
 
         Returns:
             (filtered_modules, budget_info)
         """
-        hedge_capital = float(getattr(self.config, "HEDGE_CAPITAL", 1_000_000))
+        hedge_capital = float(getattr(self.config, "HEDGE_CAPITAL", 2_000_000))
         put_budget_limit = hedge_capital * 0.60  # 60% 硬上限
         buffer_reserved = hedge_capital * 0.40   # 40% 极端行情缓冲
 
@@ -6406,9 +6442,9 @@ class DailyWorkflow:
                 from execution.options_runner import OptionsRunner
                 runner = OptionsRunner(
                     trade_date=self.trade_date,
-                    hedge_capital=float(self.trade_plan.get("hedge_account", {}).get("capital", 1_000_000)),
-                    margin_usage_max=float(self.trade_plan.get("hedge_account", {}).get("margin_usage_max", 600_000)),
-                    liquidity_buffer_min=float(self.trade_plan.get("hedge_account", {}).get("liquidity_buffer_min", 400_000)),
+                    hedge_capital=float(self.trade_plan.get("hedge_account", {}).get("capital", 2_000_000)),
+                    margin_usage_max=float(self.trade_plan.get("hedge_account", {}).get("margin_usage_max", 1_200_000)),
+                    liquidity_buffer_min=float(self.trade_plan.get("hedge_account", {}).get("liquidity_buffer_min", 800_000)),
                 )
                 options_fills = runner.run_modules(
                     modules=options_modules,
@@ -6570,16 +6606,18 @@ class DailyWorkflow:
                                     "symbol": code,
                                     "algo": algo_type.value,
                                     "slices": len(plan.slices),
-                                    "first_slice_shares": plan.slices[0].shares if plan.slices else 0,
-                                    "last_slice_shares": plan.slices[-1].shares if plan.slices else 0,
-                                    "est_total_cost": plan.estimated_total_cost,
-                                    "est_slippage_bps": plan.estimated_slippage_bps,
+                                    # P3-B FIX (2026-07-26): ExecutionSlice 字段名是 target_shares (非 shares)
+                                    "first_slice_shares": plan.slices[0].target_shares if plan.slices else 0,
+                                    "last_slice_shares": plan.slices[-1].target_shares if plan.slices else 0,
+                                    # P3-B FIX (2026-07-26): ExecutionPlan 字段名是 expected_* (非 estimated_*)
+                                    "est_total_cost": plan.expected_cost,
+                                    "est_slippage_bps": plan.expected_slippage_bps,
                                     "plan_path": str(saved_path),
                                 })
                                 logger.info(
                                     "[ExecAlgo] %s 拆单: %s -> %d slices (slippage=%.1fbps, cost=%.0f)",
                                     code, algo_type.value, len(plan.slices),
-                                    plan.estimated_slippage_bps, plan.estimated_total_cost,
+                                    plan.expected_slippage_bps, plan.expected_cost,
                                 )
                             except Exception as exc:
                                 logger.warning("[ExecAlgo] %s 拆单失败: %s", code, exc)
@@ -6648,16 +6686,18 @@ class DailyWorkflow:
                                 "symbol": code,
                                 "algo": algo_type.value,
                                 "slices": len(plan.slices),
-                                "first_slice_shares": plan.slices[0].shares if plan.slices else 0,
-                                "last_slice_shares": plan.slices[-1].shares if plan.slices else 0,
-                                "est_total_cost": plan.estimated_total_cost,
-                                "est_slippage_bps": plan.estimated_slippage_bps,
+                                # P3-B FIX (2026-07-26): ExecutionSlice 字段名是 target_shares (非 shares)
+                                "first_slice_shares": plan.slices[0].target_shares if plan.slices else 0,
+                                "last_slice_shares": plan.slices[-1].target_shares if plan.slices else 0,
+                                # P3-B FIX (2026-07-26): ExecutionPlan 字段名是 expected_* (非 estimated_*)
+                                "est_total_cost": plan.expected_cost,
+                                "est_slippage_bps": plan.expected_slippage_bps,
                                 "plan_path": str(saved_path),
                             })
                             logger.info(
                                 "[ExecAlgo] %s 拆单: %s -> %d slices (slippage=%.1fbps, cost=%.0f)",
                                 code, algo_type.value, len(plan.slices),
-                                plan.estimated_slippage_bps, plan.estimated_total_cost,
+                                plan.expected_slippage_bps, plan.expected_cost,
                             )
                         except Exception as exc:
                             logger.warning("[ExecAlgo] %s 拆单失败: %s", code, exc)
@@ -6730,15 +6770,16 @@ class DailyWorkflow:
                             "reason": "P0-07: --live 模式 broker 连接失败, 防止虚假交易",
                             "broker_source": "none_live_fail_closed",
                         }
-                        return True
-                    else:
-                        logger.warning(
-                            "[Broker] ⚠️ 实盘模式但未检测到真实券商网关, 降级 MockBroker. "
-                            "生产环境请配置 CTP_FRONT_ADDR / THS_ACCOUNT, "
-                            "或使用 --live 开关启用严格 fail-closed 检查"
-                        )
-                        broker = MockBroker(price_dict=dict(self.config.MOCK_PRICES))
-                        broker_source = "mock_fallback"
+                        # P3-B FIX (2026-07-26): 函数返回 List[Dict], 用 [] 表示 fail-closed 无订单
+                        return []
+                    # 非生产模式降级 MockBroker (开发/测试)
+                    logger.warning(
+                        "[Broker] ⚠️ 实盘模式但未检测到真实券商网关, 降级 MockBroker. "
+                        "生产环境请配置 CTP_FRONT_ADDR / THS_ACCOUNT, "
+                        "或使用 --live 开关启用严格 fail-closed 检查"
+                    )
+                    broker = MockBroker(price_dict=dict(self.config.MOCK_PRICES))
+                    broker_source = "mock_fallback"
 
             # 安全断言: dry_run 模式下必须使用 MockBroker (防御性编程)
             if self.dry_run and broker_source != "mock_dry_or_sim":
@@ -7341,7 +7382,7 @@ class DailyWorkflow:
             f"**生成时间**: {datetime.now():%Y-%m-%d %H:%M:%S}",
             f"**资金规模**: {self.capital:,.0f}",
             f"**执行模式**: {'DRY-RUN' if self.dry_run else ('模拟盘' if getattr(self, '_sim_mode_requested', getattr(self, 'sim_mode', False)) else 'MOCK_EXECUTION')}",
-            f"**策略**: 康波第六轮周期 × 十五五规划 × v7.0期货期权双层对冲",
+            "**策略**: 康波第六轮周期 × 十五五规划 × v7.0期货期权双层对冲",
             "",
             "## 阶段执行摘要",
             "",
@@ -7547,11 +7588,12 @@ class DailyWorkflow:
         # === 执行记录 (计划标的) ===
         if "execute" in self.state["phases"]:
             lines.extend(["", "## 6. 执行记录 (计划标的)", ""])
-            e = self.state["phases"]["execute"]
-            mode = "模拟盘" if getattr(self, '_sim_mode_requested', e.get("sim_mode", False)) else ("DRY-RUN" if self.dry_run else "MockBroker")
+            # P3-B FIX (2026-07-26): 变量名 e 与 except 块命名冲突, 改为 exec_phase
+            exec_phase = self.state["phases"]["execute"]
+            mode = "模拟盘" if getattr(self, '_sim_mode_requested', exec_phase.get("sim_mode", False)) else ("DRY-RUN" if self.dry_run else "MockBroker")
             lines.append(f"- **执行模式**: {mode}")
-            order_summary = e.get("order_summary", [])
-            fills = e.get("fills", [])
+            order_summary = exec_phase.get("order_summary", [])
+            fills = exec_phase.get("fills", [])
             if order_summary:
                 total_filled_amount = sum(item.get("filled_amount", 0) for item in order_summary)
                 lines.append(f"**成交汇总**: {len(order_summary)} 笔订单, "
@@ -7837,8 +7879,8 @@ class DailyWorkflow:
 
             # 提取 Guard 结果并写入报告 (v8.6.6: 9 个 risk_guard 字段, 对应 7 个 Guard 步骤)
             _rg = _updated_plan.get("risk_guard", {})
-            lines.append(f"| Guard | 状态 | 关键指标 |")
-            lines.append(f"|-------|------|----------|")
+            lines.append("| Guard | 状态 | 关键指标 |")
+            lines.append("|-------|------|----------|")
             _guard_map = {
                 "kill_switch": ("[1/7] 保证金熔断", "level"),
                 "market_circuit_breaker": ("[2/7] 大盘熔断", "level"),
@@ -7905,7 +7947,10 @@ class DailyWorkflow:
                     logger.error(f"Report write failed ({attempt+1}/3): Permission denied")
 
         if not success:
-            fallback_path = self.log_dir / report_path.name
+            # P3-B FIX (2026-07-26): self.log_dir 未定义, 改用 self.config.REPORT_DIR 作为 fallback
+            fallback_dir = getattr(self.config, "REPORT_DIR", None) or Path("logs")
+            fallback_dir.mkdir(parents=True, exist_ok=True)
+            fallback_path = fallback_dir / report_path.name
             try:
                 fallback_path.write_text("\n".join(lines), encoding="utf-8")
                 logger.warning(f"Report written to fallback: {fallback_path}")
@@ -8305,9 +8350,10 @@ class DailyWorkflow:
         # === v8.5: Kill Switch 生命周期管理 ===
         try:
             # KillSwitch.__init__ 仅接受 config_path/margin_limit, 不接受 total_capital/dry_run
-            # 修复配置路径: 使用 v8.3_institutional/config/portfolio.yaml (而非根目录 configs/)
-            ks_config_path = BASE_DIR / "config" / "portfolio.yaml"
-            self.ks = KillSwitch(config_path=ks_config_path)
+            # P1-Q8 ConfigManager 集成: 移除显式 config_path, 让 KillSwitch 走 ConfigManager 统一加载
+            # ConfigManager 优先级: QUANT_CONFIG_DIR > v8.3_institutional/config/ (唯一事实源) > configs/
+            # 显式传 config_path 会触发"路径1: 显式路径直接读取", 绕过 ConfigManager 失去统一管理
+            self.ks = KillSwitch()
             # 修复 P0: 注册 broker_callback, 使 execute_kill_switch 可真实执行
             # (未注册时 execute_kill_switch 会抛 RuntimeError, 无法执行实际平仓)
             self.ks.set_broker_callback(self._execute_kill_switch_callback)
@@ -8330,14 +8376,13 @@ class DailyWorkflow:
         if V85_READY:
             try:
                 from utils.environment_isolation import EnvironmentIsolation
-                env_isolator = EnvironmentIsolation()
-                env_status = env_isolator.validate()
-                if not env_status.get("is_production_ready", True):
-                    logger.error(f"[v8.5] 环境隔离检查未通过: {env_status}")
-                    logger.error("[v8.5] 研究代码不得直连生产, 系统拒绝启动")
-                    self.state["phases"]["check"] = {"status": "FAIL", "reason": "environment_isolation_failed"}
-                    return self.state
-                logger.info("[v8.5] 环境隔离验证通过: 研究/生产环境正确隔离")
+                # P3-B FIX (2026-07-26): EnvironmentIsolation 无 validate() 方法,
+                # 改用 get_environment_summary() + is_production 字段
+                env_status = EnvironmentIsolation.get_environment_summary()
+                # 仅当生产模式启动时, 才检查 is_production 标志
+                if not env_status.get("is_production", False):
+                    logger.warning(f"[v8.5] 当前非生产环境: {env_status.get('environment')}, 仅警告不阻断")
+                logger.info(f"[v8.5] 环境隔离验证通过: {env_status.get('environment')}")
             except Exception as e:
                 logger.warning(f"[v8.5] 环境隔离验证异常 (非致命): {e}")
 

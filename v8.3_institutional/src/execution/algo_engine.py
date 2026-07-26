@@ -3,11 +3,13 @@ v7.5 AlgoEngine — 执行算法引擎：TWAP / VWAP / POV 策略调度
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §3.2-3.4
 """
 import logging
-import yaml
+from pathlib import Path
 from datetime import datetime, time, timedelta
 from enum import Enum
 from typing import Optional, List, Dict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+
+import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -62,14 +64,14 @@ class AlgoEngine:
         """
         Args:
             sor: SmartOrderRouter 实例 (可选，可后续通过 set_sor 注入)
-            config_path: execution.yaml 路径
+            config_path: execution.yaml 路径 (P1-Q8: 不传则尝试 ConfigManager)
         """
         self.sor = sor
         self.config_path = config_path
 
         # 默认时段
         self.sessions: List[TradingSession] = [
-            TradingSession('OPEN',  time(9, 30), time(9, 45),  'TWAP'),
+            TradingSession('OPEN',  time(9, 30), time(9, 45), 'TWAP'),
             TradingSession('MORN',  time(9, 45), time(11, 30), 'VWAP'),
             TradingSession('NOON',  time(13, 0), time(14, 30), 'VWAP'),
             TradingSession('CLOSE', time(14, 30), time(15, 0), 'TWAP'),
@@ -78,6 +80,23 @@ class AlgoEngine:
 
         if config_path:
             self._load_config(config_path)
+        else:
+            # P1-Q8: 未传 config_path, 尝试从 ConfigManager 加载 execution.yaml
+            self._load_from_config_manager()
+
+    def _load_from_config_manager(self) -> None:
+        """通过 ConfigManager 加载 execution.yaml (P1-Q8, 失败静默)"""
+        try:
+            _project_root = Path(__file__).resolve().parent.parent.parent.parent
+            import sys as _sys
+            if str(_project_root) not in _sys.path:
+                _sys.path.insert(0, str(_project_root))
+            from utils.config_manager import get_execution_config
+            cfg = get_execution_config()
+            if cfg:
+                self._apply_config_dict(cfg)
+        except Exception as e:
+            logger.debug(f"ConfigManager 加载 execution 配置失败, 使用默认: {e}")
 
     def _load_config(self, path: str) -> None:
         try:
@@ -85,6 +104,13 @@ class AlgoEngine:
                 cfg = yaml.safe_load(f)
         except Exception as e:
             logger.warning(f"加载执行配置失败: {e}，使用默认配置")
+            return
+
+        self._apply_config_dict(cfg)
+
+    def _apply_config_dict(self, cfg: dict) -> None:
+        """从配置字典应用参数 (P1-Q8 拆分: 复用 ConfigManager 路径与显式路径)"""
+        if not isinstance(cfg, dict):
             return
 
         # 解析时段
@@ -265,11 +291,13 @@ class AlgoEngine:
             side: 'BUY' / 'SELL'
             decision_price: 决策价格（用于滑点计算）
             algo: 显式指定算法（可选），否则按当前时段自动选择
-            price_limit: 限价（可选）
+            price_limit: 限价（可选, 当前版本未启用, 预留接口)
 
         Returns:
             fills 列表
         """
+        _ = price_limit  # 预留接口, 当前由 SOR 内部处理限价
+
         # 确定算法
         if algo is None:
             session = self.get_current_session()
@@ -281,24 +309,25 @@ class AlgoEngine:
 
         logger.info(f"[AlgoEngine] {symbol} {side} {target_qty} 使用 {algo}")
 
-        if algo.upper() == 'TWAP':
+        algo_upper = algo.upper()
+        if algo_upper == 'TWAP':
             return self.sor.execute_twap(
                 symbol, target_qty, side, decision_price,
                 window_minutes=self.algo_cfg.twap_slice_minutes * 5
             )
-        elif algo.upper() == 'VWAP':
+        if algo_upper == 'VWAP':
             return self.sor.execute_vwap(
                 symbol, target_qty, side, decision_price,
                 window_minutes=self.algo_cfg.vwap_window_minutes
             )
-        elif algo.upper() == 'POV':
+        if algo_upper == 'POV':
             return self.sor.execute_pov(
                 symbol, target_qty, side, decision_price,
                 participation_rate=self.algo_cfg.pov_participation_rate
             )
-        else:
-            logger.warning(f"未知算法 {algo}，回退到标准执行")
-            return self.sor.execute(symbol, target_qty, side, decision_price)
+        # 未知算法回退
+        logger.warning(f"未知算法 {algo}，回退到标准执行")
+        return self.sor.execute(symbol, target_qty, side, decision_price)
 
     # ---------- 批量执行 ----------
     def execute_batch(self, orders: List[Dict]) -> List[Dict]:

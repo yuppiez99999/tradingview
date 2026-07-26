@@ -443,26 +443,50 @@ class SafetyFactor:
 
 
 def main():
-    """主函数"""
+    """主函数 (P1-Q8: 通过 ConfigManager 统一加载配置)"""
     try:
-        # 加载配置
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        settings_path = os.path.join(base_dir, 'config', 'settings.yaml')
-        portfolio_path = os.path.join(base_dir, 'config', 'portfolio.yaml')
-        
-        with open(settings_path, 'r', encoding='utf-8') as f:
-            settings = yaml.safe_load(f)
-        with open(portfolio_path, 'r', encoding='utf-8') as f:
-            portfolio = yaml.safe_load(f)
-        
+        # 加载配置 (P1-Q8: 优先 ConfigManager, 失败回退直接读取)
+        settings = None
+        portfolio = None
+        try:
+            _project_root = Path(__file__).resolve().parent.parent.parent.parent
+            if str(_project_root) not in sys.path:
+                sys.path.insert(0, str(_project_root))
+            from utils.config_manager import get_settings_config, get_portfolio_config
+            settings = get_settings_config()
+            portfolio = get_portfolio_config()
+        except Exception as e:
+            logger.debug(f"ConfigManager 加载失败, 回退直接读取: {e}")
+
+        # 回退: 直接读取 (修复路径: base_dir 应为 v8.3_institutional, 不是 factors/)
+        if not settings or not portfolio:
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            settings_path = os.path.join(base_dir, 'config', 'settings.yaml')
+            portfolio_path = os.path.join(base_dir, 'config', 'portfolio.yaml')
+
+            if not settings:
+                try:
+                    with open(settings_path, 'r', encoding='utf-8') as f:
+                        settings = yaml.safe_load(f) or {}
+                except Exception as e:
+                    logger.warning(f"settings.yaml 加载失败: {e}")
+                    settings = {}
+            if not portfolio:
+                try:
+                    with open(portfolio_path, 'r', encoding='utf-8') as f:
+                        portfolio = yaml.safe_load(f) or {}
+                except Exception as e:
+                    logger.warning(f"portfolio.yaml 加载失败: {e}")
+                    portfolio = {}
+
         # 创建五因子模型
         model = FiveFactorModel(portfolio, settings)
-        
+
         logger.info("五维因子模型初始化完成")
         logger.info("由于Python环境限制，实际数据计算需要在正常环境中运行")
-        
+
         return 0
-        
+
     except Exception as e:
         logger.error(f"错误: {e}")
         return 1

@@ -46,17 +46,53 @@ class ThetaEngine:
         PLAN_DIR.mkdir(parents=True, exist_ok=True)
 
     def _load_config(self) -> Dict:
-        """加载 portfolio.yaml 配置"""
+        """加载 portfolio.yaml 配置 (P1-Q8: 通过 ConfigManager 统一加载)
+
+        优先级:
+            1. 显式传入的 config_path (向后兼容测试场景)
+            2. ConfigManager 自动解析 (v8.3 唯一事实源 > configs/ 历史回退)
+
+        Returns:
+            hedge.theta_engine 配置字典, 加载失败返回空 dict (fail-safe)
+        """
+        # 路径 1: 调用方显式指定了 config_path (测试场景, 向后兼容)
+        if self.config_path != CONFIG_PATH:
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f)
+                theta_cfg = cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
+                if not theta_cfg.get("enabled", False):
+                    logger.warning("Theta 引擎未启用 (显式路径)")
+                return theta_cfg
+            except Exception as e:
+                logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
+                return {}
+
+        # 路径 2: 通过 ConfigManager 统一加载 (P1-Q8, 生产路径)
         try:
+            from utils.config_manager import get_config
+            portfolio_cfg = get_config("portfolio")
+            theta_cfg = portfolio_cfg.get("hedge", {}).get("theta_engine", {})
+            if theta_cfg:
+                if not theta_cfg.get("enabled", False):
+                    logger.warning("Theta 引擎未启用")
+                return theta_cfg
+            # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
-            theta_cfg = cfg.get("hedge", {}).get("theta_engine", {})
+            theta_cfg = cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
             if not theta_cfg.get("enabled", False):
-                logger.warning("Theta 引擎未启用")
+                logger.warning("Theta 引擎未启用 (回退路径)")
             return theta_cfg
         except Exception as e:
-            logger.error(f"加载配置失败: {e}")
-            return {}
+            logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}")
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f)
+                return cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
+            except Exception as e2:
+                logger.error(f"加载配置彻底失败: {e2}")
+                return {}
 
     def _get_etf_spots(self) -> Dict[str, float]:
         """获取目标 ETF 现价 (Wind MCP > 新浪 HTTP > 兜底)"""
@@ -120,7 +156,7 @@ class ThetaEngine:
                     ...
                 ],
                 "total_est_premium": 95000,
-                "total_collateral": 4000000,
+                "total_collateral": 3000000,
                 "portfolio_yield": 0.024  # 月度组合收益率 2.4%
             }
         """
@@ -151,7 +187,7 @@ class ThetaEngine:
         for etf in self.config.get("target_etfs", []):
             code = etf["code"]
             weight = etf["weight_in_pool"]
-            collateral = self.config.get("underlying_collateral", 4000000) * weight
+            collateral = self.config.get("underlying_collateral", 3000000) * weight
             total_collateral += collateral
 
             if code not in spots:

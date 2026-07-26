@@ -85,7 +85,41 @@ class V75InstitutionalSystem:
         logger.info("v7.5 Institutional System 初始化完成")
 
     def _load_configs(self) -> dict:
-        """加载全部 YAML 配置"""
+        """加载全部 YAML 配置 (P1-Q8: 优先使用 ConfigManager, 失败回退到本地加载)
+
+        优先级:
+            1. ConfigManager 统一入口 (支持 QUANT_CONFIG_DIR 环境变量覆盖)
+            2. 显式 config_dir (默认 v8.3_institutional/config/, 唯一事实源)
+        """
+        # 路径 1: 尝试通过 ConfigManager 统一加载 (享受缓存 + 环境变量覆盖)
+        try:
+            # 确保 utils 模块可访问
+            if _PROJECT_ROOT not in sys.path:
+                sys.path.insert(0, _PROJECT_ROOT)
+            from utils.config_manager import get_config
+
+            configs = {}
+            for name in ['settings', 'portfolio', 'execution', 'backtest', 'risk_budget']:
+                cfg = get_config(name)
+                if cfg:
+                    configs[name] = cfg
+                else:
+                    # ConfigManager 未找到, 回退到本地 config_dir
+                    path = os.path.join(self.config_dir, f'{name}.yaml')
+                    try:
+                        with open(path, 'r', encoding='utf-8') as f:
+                            configs[name] = yaml.safe_load(f)
+                    except (FileNotFoundError, yaml.YAMLError, OSError) as e:
+                        logger.error(f"加载配置 {name}.yaml 失败: {e}")
+                        configs[name] = {}
+            return configs
+        except ImportError:
+            # utils.config_manager 不可访问, 使用原有逻辑
+            pass
+        except Exception as e:
+            logger.warning(f"ConfigManager 加载失败, 回退到本地加载: {e}")
+
+        # 路径 2: 原有逻辑 (config_dir 直接读取, 向后兼容)
         configs = {}
         for name in ['settings', 'portfolio', 'execution', 'backtest', 'risk_budget']:
             path = os.path.join(self.config_dir, f'{name}.yaml')

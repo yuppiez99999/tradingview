@@ -38,7 +38,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Dict, List, Optional, Tuple
 
-import yaml
+import yaml  # type: ignore[import-untyped]  # PyYAML 无官方类型存根, 静态检查忽略
 
 logger = logging.getLogger("config_manager")
 
@@ -65,6 +65,7 @@ _NAMED_CONFIGS: Dict[str, str] = {
     "risk_budget": "risk_budget.yaml",
     "stop_loss": "stop_loss_vol_adjusted.yaml",
     "model_router": "model_router.yaml",
+    "model_routing": "model_routing.yaml",
     "liquidation_scheduler": "liquidation_scheduler.yaml",
 }
 
@@ -300,9 +301,9 @@ class ConfigManager:
         """
         # 优先从 portfolio.yaml 的 kill_switch 节读取
         portfolio_cfg = self.get("portfolio")
-        ks_cfg = portfolio_cfg.get("kill_switch", {})
+        ks_cfg = portfolio_cfg.get("kill_switch", {}) if isinstance(portfolio_cfg, dict) else {}
         if ks_cfg:
-            return ks_cfg
+            return ks_cfg  # type: ignore[no-any-return]
 
         # 回退: 独立 kill_switch.yaml (若存在)
         return self.get("kill_switch", default={})

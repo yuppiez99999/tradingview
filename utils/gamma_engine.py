@@ -46,14 +46,45 @@ class GammaEngine:
         TRIGGER_LOG.parent.mkdir(parents=True, exist_ok=True)
 
     def _load_config(self) -> Dict:
-        """加载 Gamma/Vega 引擎配置"""
+        """加载 Gamma/Vega 引擎配置 (P1-Q8: 通过 ConfigManager 统一加载)
+
+        优先级:
+            1. 显式传入的 config_path (向后兼容测试场景)
+            2. ConfigManager 自动解析 (v8.3 唯一事实源 > configs/ 历史回退)
+
+        Returns:
+            hedge.gamma_vega_engine 配置字典, 加载失败返回空 dict (fail-safe)
+        """
+        # 路径 1: 调用方显式指定了 config_path (测试场景, 向后兼容)
+        if self.config_path != CONFIG_PATH:
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f)
+                return cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(cfg, dict) else {}
+            except Exception as e:
+                logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
+                return {}
+
+        # 路径 2: 通过 ConfigManager 统一加载 (P1-Q8, 生产路径)
         try:
+            from utils.config_manager import get_config
+            portfolio_cfg = get_config("portfolio")
+            cfg = portfolio_cfg.get("hedge", {}).get("gamma_vega_engine", {})
+            if cfg:
+                return cfg
+            # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, "r", encoding="utf-8") as f:
-                cfg = yaml.safe_load(f)
-            return cfg.get("hedge", {}).get("gamma_vega_engine", {})
+                fallback_cfg = yaml.safe_load(f)
+            return fallback_cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(fallback_cfg, dict) else {}
         except Exception as e:
-            logger.error(f"加载配置失败: {e}")
-            return {}
+            logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f)
+                return cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(cfg, dict) else {}
+            except Exception as e2:
+                logger.error(f"全部加载路径失败: {e2}")
+                return {}
 
     def _get_market_ma60(self) -> Optional[float]:
         """获取大盘60日均线 (沪深300)
