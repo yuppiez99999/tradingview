@@ -5,7 +5,7 @@
 import sys
 import os
 import random
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 # 将项目根目录加入 sys.path
@@ -126,10 +126,11 @@ def test_risk_control():
     assert status == "paused", f"周连亏 25% 应为 paused, 实际 {status}"
     assert pause is not None
 
-    # 场景 D: 暂停期内
+    # 场景 D: 暂停期内 (使用相对日期, 避免硬编码日期过期)
     status, pause = trader.check_risk(
-        {}, daily_pnl_pct=0, weekly_consecutive_loss_pct=0,
-        last_loss_pause_date=date(2026, 7, 10),
+        {},
+        daily_pnl_pct=0, weekly_consecutive_loss_pct=0,
+        last_loss_pause_date=date.today() - timedelta(days=3),
     )
     print(f"  D 暂停期内: {status}, 暂停至 {pause}")
     assert status == "paused", "暂停期内应为 paused"
