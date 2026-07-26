@@ -6,6 +6,10 @@
 #   - lightgbm 4.6.0+  (Dependabot HIGH: RCE)
 #   - scikit-learn 1.5.0+  (Dependabot medium: 敏感数据泄露)
 #   - requests 2.33.0+  (Dependabot medium: 3 项告警)
+# v8.7.3 SECURITY FIX (2026-07-27): 修复剩余 13 项 Dependabot 告警
+#   - cryptography 48.0.1+  (Dependabot HIGH: OpenSSL 漏洞)
+#   - aiohttp 3.14.1+       (Dependabot 11 项: TLS/CRLF/Pipelining 等)
+#   - python-dotenv 1.2.2+  (Dependabot medium: symlink 任意文件覆写)
 # 生产基线: Python 3.14.4 (junction C:\QuantSys)
 # 兼容性: Python 3.9+ (scikit-learn 1.5+ 要求), Python 3.8 已不再支持
 # ============================================================
@@ -48,7 +52,8 @@ pytz>=2023.3
 
 # === 配置与网络 ===
 PyYAML>=6.0
-python-dotenv>=1.0.0
+# v8.7.3 SECURITY FIX (2026-07-27): python-dotenv >=1.2.2 修复 symlink 任意文件覆写 (Dependabot medium)
+python-dotenv>=1.2.2
 
 # === 任务调度 ===
 schedule>=1.2.0
@@ -70,10 +75,23 @@ quantstats>=0.0.59
 sqlalchemy>=2.0.0
 
 # === 异步 ===
-aiohttp>=3.8.0
+# v8.7.3 SECURITY FIX (2026-07-27): aiohttp >=3.14.1 修复 11 项 Dependabot 告警
+#   - TLS Server Hostname Override 忽略 (low)
+#   - CRLF injection in multipart headers (low)
+#   - HTTP/1 Pipelined Requests Queue Without Limit (medium)
+#   - DigestAuth 跨域重定向凭据应用 (medium)
+#   - Incomplete websocket frame payloads 绕过 memory limits (medium)
+#   - Unread Compressed Request Bodies 绕过 client_max_size (medium)
+#   - C HTTP Parser 绕过 max_line_size (medium)
+#   - Payload Response Resources 未关闭 (low)
+#   - Host-Only Cookies 持久化后变 Domain Cookies (low)
+#   - 跨域重定向 per-request cookies (medium)
+#   - 反序列化不可信数据 (medium)
+aiohttp>=3.14.1
 
 # === 加密 ===
-cryptography>=41.0.0
+# v8.7.3 SECURITY FIX (2026-07-27): cryptography >=48.0.1 修复 OpenSSL 漏洞 (Dependabot HIGH)
+cryptography>=48.0.1
 
 # === 工具 ===
 click>=8.1.0
