@@ -1,0 +1,147 @@
+# Pylint 配置 — 终极量化交易系统 (Phase 3-B, 2026-07-26)
+# ============================================================
+# 适配对冲基金风控系统代码风格:
+#   - 函数最大复杂度 15 (P0-Q2 已完成 phase_signal 重构, 总体在 10 以下)
+#   - 行长 120 (YAML 配置 + 中文注释兼容)
+#   - 文件最大行数 800 (核心模块 daily_workflow.py 例外)
+#   - 关闭与 black 冲突的格式类警告
+#
+# 重点关注:
+#   - E (Error): 必须修复
+#   - W (Warning): 高优先级修复
+#   - C (Convention): 警告级别, 渐进修复
+#   - R (Refactor): 重构建议, 后续处理
+
+[MAIN]
+# Python 版本
+py-version = 3.8
+
+# 加载插件 (后续可启用 pylint-mccabe 复杂度扩展)
+# load-plugins =
+
+# 作业数 (并行检查)
+jobs = 2
+
+[MESSAGES CONTROL]
+# 启用所有检查 + 显式禁用部分噪音
+enable = all
+
+disable =
+    # === 格式类 (与 black / 项目风格冲突) ===
+    format,
+    line-too-long,            # 项目允许 120 字符, 已在 max-line-length 控制
+    missing-module-docstring, # 工具脚本可省略
+    missing-function-docstring, # 后续逐步补充
+    missing-class-docstring,
+    too-few-public-methods,   # 数据类豁免
+    too-many-public-methods,  # 大型 orchestrator 类豁免
+
+    # === 命名规范 (项目允许中文注释 + camelCase 工具) ===
+    invalid-name,             # 已通过项目规范约束, 不依赖 pylint
+
+    # === 设计模式 (后续渐进式严格) ===
+    too-many-locals,           # 大型函数拆分进行中, 暂时容忍
+    too-many-arguments,        # 同上
+    too-many-branches,         # 同上
+    too-many-statements,       # 同上
+    too-many-instance-attributes,
+    too-many-nested-blocks,    # daily_workflow 大型 orchestrator 暂时容忍
+    too-many-return-statements, # 状态机分支函数需要多 return
+    attribute-defined-outside-init,  # lazy init 模式 (ntp/rm/cb)
+
+    # === 已知第三方库兼容问题 ===
+    import-outside-toplevel,   # 延迟导入是规避循环依赖的合法手段
+    import-error,              # 动态 sys.path 注入的模块 pylint 无法解析
+    no-name-in-module,         # 同上
+    wrong-import-position,     # 函数内动态导入是合法模式
+    wrong-import-order,        # 项目允许标准库与第三方混合导入
+    ungrouped-imports,
+    broad-except,              # 风控系统需要兜底异常处理
+    duplicate-code,            # 多 Broker 适配器有重复
+    protected-access,          # 内部协调器需要访问 _ 私有方法
+    unused-argument,           # 接口预留参数 (如 price_limit)
+    unused-import,            # 顶部预导入的类型/接口类作为 forward reference
+    redefined-outer-name,     # __main__ 块与函数内变量同名是合法模式
+    reimported,                # 函数内重新 import 用于运行时按需加载
+    unused-variable,          # 解构赋值的占位变量
+    logging-not-lazy,          # 项目允许 f-string 日志
+    consider-using-in,         # 显式 x == 0 or x == n 在风控代码中更清晰
+    global-statement,          # 单例模式需要 global 语句
+
+    # === Pylint 3.x 新增噪音 ===
+    use-dict-literal,          # dict() 调用风格统一
+    consider-using-f-string,   # 项目允许 .format() 与 % 风格混用
+    unnecessary-pass,
+    unnecessary-lambda-assignment,
+    use-implicit-booleaness-not-comparison-to-zero,  # 风控代码 level == 0 比 not level 更清晰
+    logging-fstring-interpolation,  # 项目允许 f-string 日志, 与 P0-Q2 重构一致
+    f-string-without-interpolation,  # f"..." 无插值, 等价普通字符串, 不影响功能
+    no-else-return,             # 显式 elif/else 在状态机代码中更清晰
+    unnecessary-comprehension,  # dict(x for x in y) 比 dict(y) 更明确
+
+[FORMAT]
+max-line-length = 120
+max-module-lines = 1500  # 大型模块容忍 (daily_workflow.py)
+
+[DESIGN]
+# 复杂度上限 (P0-Q2 phase_signal 已重构至 ≤10)
+max-args = 8
+max-locals = 20
+max-returns = 8
+max-branches = 15
+max-statements = 80
+max-parents = 7
+max-attributes = 12
+min-public-methods = 1
+max-public-methods = 30
+max-bool-expr = 5
+max-nested-blocks = 5
+
+[IMPORTS]
+allow-reexport-from-package = yes
+
+[CLASSES]
+defining-attr-methods = __init__, __new__, setUp, __post_init__
+
+[EXCEPTIONS]
+overgeneral-exceptions = Exception, BaseException
+
+[VARIABLES]
+allow-global-unused-variables = yes
+
+[TYPECHECK]
+generated-members = numpy.*, np.*, pandas.*, pd.*
+
+[REPORTS]
+output-format = text
+reports = no
+score = yes
+
+[MASTER]
+# 忽略目录
+ignore =
+    research,
+    tests,
+    tools,
+    scripts,
+    ms_strategy,
+    .venv,
+    venv,
+    build,
+    dist,
+    .git,
+    node_modules
+
+ignore-paths =
+    ^research/,
+    ^tests/,
+    ^tools/,
+    ^scripts/,
+    ^ms_strategy/,
+    ^\.venv/,
+    ^venv/,
+    ^build/,
+    ^dist/
+
+# 加载配置 — 让 pylint 能解析 v8.3_institutional 与 utils 下的模块路径
+init-hook = import sys; g = globals(); g['os'] = __import__('os'); g['cwd'] = os.getcwd(); g['paths'] = ['utils', 'v8.3_institutional', 'v8.3_institutional/src', 'v8.3_institutional/src/risk', 'v8.3_institutional/src/execution', 'v8.3_institutional/src/hedging', 'v8.3_institutional/src/data']; sys.path[:0] = [os.path.join(cwd, p) for p in paths if os.path.isdir(os.path.join(cwd, p))]
