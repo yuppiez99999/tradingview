@@ -1,0 +1,28 @@
+V9 Regime-Specific LGB 生产基线锁定
+======================================
+
+锁定日期: 2026-07-26
+锁定来源: main 分支当前 HEAD
+基线 commit hash: ad8bc933dc375f41ffd94fcec479646b97419636
+基线 commit 主题: refactor(v8.6.12): 顶级对冲基金代码质量优化 (P0/P1/P2 共 9 项, 评分 5.5→7.5)
+基线 commit 时间: 2026-07-26 20:13:52 +0800
+
+基线评估指标 (project_memory 2026-07-25 确认):
+  - DSR (Deflated Sharpe Ratio) max_pass: 8  (阈值 >= 5)
+  - 年化收益率: 19.62%  (阈值 >= 15%)
+  - 最大回撤: 9.95%  (阈值 <= 10%)
+  - Sharpe CV (跨 regime 稳定性): 0.88  (阈值 < 1.0)
+  - 全部达标, 确认为生产基线
+
+整合过程硬约束 (HC-1, 来自 ALIGNMENT 文档):
+  - 不可破坏 V9 训练/推理路径
+  - 任何 PR 必须通过 V9 基线回归测试 (T1.8)
+  - 验收标准: DSR>=5 + 年化>=15% + 回撤<=10% + Sharpe CV<1.0
+
+整合分支基点:
+  - integration/phase1-infra 基于 ad8bc933 创建
+  - 后续 integration/phase{N}-{name} 分支均基于 main 的最新 V9 基线
+
+变更基线:
+  - 如需更新 V9 基线, 必须更新本文件 + ALIGNMENT 文档 + 重新审批
+  - 基线变更需要书面豁免 (ALIGNMENT §4.1 HC-1)
