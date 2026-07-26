@@ -260,8 +260,14 @@ class HedgeExecutionEngine:
         # 目标ETF的认沽保护
         hedge_positions = self.positions_data.get("hedge_positions", {})
         put_orders = []
-        
+
         for key, hedge_pos in hedge_positions.items():
+            # P0-E 修复 (2026-07-26 v8.6.5): 跳过 description/hedge_mode/budget_summary 等非字典字段
+            # 原始 bug: hedge_positions 包含 "description": "200万纯期权对冲..." 等字符串字段
+            # 遍历时 hedge_pos 是字符串, hedge_pos.get("instrument", "") 抛
+            # 'str' object has no attribute 'get', 导致每次 EOD 对冲订单生成都失败
+            if not isinstance(hedge_pos, dict):
+                continue
             if "put" not in key.lower() and "Put" not in hedge_pos.get("instrument", ""):
                 continue
             

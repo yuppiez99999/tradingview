@@ -1,0 +1,42 @@
+[run]
+# 覆盖率采集配置
+source =
+    utils
+    v8.3_institutional/src
+    v8.3_institutional/daily_workflow.py
+
+# 排除测试代码本身和明显不该覆盖的代码
+omit =
+    tests/*
+    v8.3_institutional/tests/*
+    */__pycache__/*
+    */_test_*.py
+    */_analyze_*.py
+    research/*
+    cloud_train/*
+    qlib_env/*
+    15_每日工作流/*
+
+# 分支覆盖
+branch = True
+
+[report]
+# 报告配置
+show_missing = True
+skip_covered = False
+skip_empty = True
+precision = 2
+
+# 排除规则
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+
+# 最低覆盖率阈值 (阶段性地从 40% 提升到 60%)
+fail_under = 40
+
+[html]
+directory = htmlcov

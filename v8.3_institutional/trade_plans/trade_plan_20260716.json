@@ -1,0 +1,223 @@
+{
+  "phase": {
+    "daily_capital": 1215.0,
+    "day_capital": 1215.0
+  },
+  "execution_plan": {
+    "morning_orders": [],
+    "afternoon_orders": []
+  },
+  "risk_guard": {
+    "kill_switch": {
+      "level": 2,
+      "margin_usage": 0.8036,
+      "can_trade": false,
+      "can_open": false
+    },
+    "market_circuit_breaker": {
+      "level": 0,
+      "hs300_change_pct": -0.018000000000000002,
+      "action": "NORMAL",
+      "data_source": "astock_realtime"
+    },
+    "liquidity_crisis_error": "name 'FAIL_CLOSED_COUNT' is not defined",
+    "overnight_gap": {
+      "level": 3,
+      "sp500_change_pct": -0.04,
+      "adr_deviation_pct": 0.0,
+      "action": "HALT_ALL_TRADING",
+      "trigger": "sp500_drop_-4.00%",
+      "data_source": "fail_closed"
+    },
+    "drawdown_level": 0,
+    "drawdown_action": "NORMAL",
+    "vol_scale": 0.3,
+    "vol_action": "SCALE_DOWN_0.30",
+    "vol_note": "波动率目标控制: vol_scale=0.300, 预算 4,050 → 1,215",
+    "hedge_action": "GENERATED_1_ORDERS(dedup_removed_4)",
+    "put_action": "GENERATED_4_PUTS",
+    "correlation_hedge": {
+      "action": "NO_HEDGE",
+      "avg_corr": 0.4444190474499417,
+      "baseline_corr": 0.4444190474499417,
+      "jump": 0.0
+    },
+    "put_hedge_dedup": {
+      "removed_count": 4,
+      "removed": [
+        "510050",
+        "588080",
+        "159915",
+        "510300"
+      ],
+      "reason": "ProtectivePutEngine 已覆盖, 避免超额对冲"
+    },
+    "last_run": "2026-07-26T08:46:40.016607",
+    "report_date": "2026-07-15",
+    "liquidity_crisis": {
+      "limit_up": 0,
+      "limit_down": 0,
+      "total_limit": 0,
+      "threshold": 2000,
+      "data_source": "astock_sample",
+      "action": "NORMAL",
+      "triggered": false
+    }
+  },
+  "market_state": {
+    "circuit_level": "CRITICAL",
+    "build_allowed": false,
+    "spot_build_allowed": false,
+    "halt_all_trading": true,
+    "liquidity_crisis": true
+  },
+  "hedge_execution": {
+    "generated_at": "2026-07-26T08:46:39.110586",
+    "drawdown_level": 0,
+    "portfolio_status": {
+      "market_value": 2238848.0,
+      "portfolio_beta_before": 0.4189,
+      "target_beta_after": 0.3,
+      "total_capital": 5000000,
+      "hedge_capital": 2000000
+    },
+    "futures_orders": [
+      {
+        "order_id": "HEDGE_IF_20260726_084639",
+        "type": "FUTURES",
+        "instrument": "IF",
+        "exchange": "CFFEX",
+        "direction": "SELL",
+        "contracts": 1,
+        "multiplier": 300,
+        "est_price": 4787.0,
+        "notional": 1436100.0,
+        "margin_required": 172332.0,
+        "execution_window": "09:45-10:30",
+        "order_type": "LIMIT",
+        "price_buffer": 0.002,
+        "rationale": {
+          "portfolio_value": 2238848.3000000003,
+          "portfolio_beta": 0.4189,
+          "target_beta": 0.3,
+          "beta_to_hedge": 0.1189,
+          "hedge_notional": 266296.0,
+          "drawdown_level": 0
+        },
+        "risk_limits": {
+          "max_contracts": 10,
+          "max_margin_pct": 0.3
+        },
+        "status": "PENDING"
+      }
+    ],
+    "options_orders": [],
+    "cost_summary": {
+      "total_margin_required": 172332.0,
+      "total_premium_budget": 1650000,
+      "total_cost": 1822332.0,
+      "hedge_capital_usage_pct": 0.9112,
+      "within_budget": false
+    },
+    "hedge_effectiveness": {
+      "beta_reduction": 0.1189,
+      "downside_protection": "OTM 5% Put",
+      "estimated_annual_cost_pct": 1.32
+    },
+    "total_orders": 1
+  },
+  "put_protection_orders": [
+    {
+      "order_id": "PUT_510050_20260726",
+      "type": "BUY_PUT",
+      "underlying": "510050",
+      "underlying_name": "上证50ETF",
+      "exchange": "SSE",
+      "spot_price": 3.079,
+      "strike": 2.9251,
+      "otm_pct": 0.05,
+      "contracts": 60,
+      "dte": 30,
+      "expiry_date": "2026-08-26",
+      "iv_estimate": 0.22,
+      "premium_per_unit": 0.0212,
+      "premium_total": 12723.14,
+      "multiplier": 10000,
+      "execution_window": "09:30-10:00",
+      "order_type": "LIMIT",
+      "price_buffer": 0.05,
+      "priority": 1,
+      "reason": "核心蓝筹保护+主力Beta对冲(替代原IF期货), 60张覆盖约50%组合Beta暴露",
+      "status": "PENDING"
+    },
+    {
+      "order_id": "PUT_588080_20260726",
+      "type": "BUY_PUT",
+      "underlying": "588080",
+      "underlying_name": "科创50ETF",
+      "exchange": "SSE",
+      "spot_price": 1.952,
+      "strike": 1.8544,
+      "otm_pct": 0.05,
+      "contracts": 25,
+      "dte": 30,
+      "expiry_date": "2026-08-26",
+      "iv_estimate": 0.3,
+      "premium_per_unit": 0.0269,
+      "premium_total": 6719.08,
+      "multiplier": 10000,
+      "execution_window": "09:30-10:00",
+      "order_type": "LIMIT",
+      "price_buffer": 0.05,
+      "priority": 2,
+      "reason": "科技成长保护, 高Beta高波动需加大覆盖",
+      "status": "PENDING"
+    },
+    {
+      "order_id": "PUT_159915_20260726",
+      "type": "BUY_PUT",
+      "underlying": "159915",
+      "underlying_name": "创业板ETF",
+      "exchange": "SZSE",
+      "spot_price": 3.709,
+      "strike": 3.5235,
+      "otm_pct": 0.05,
+      "contracts": 25,
+      "dte": 30,
+      "expiry_date": "2026-08-26",
+      "iv_estimate": 0.3,
+      "premium_per_unit": 0.0511,
+      "premium_total": 12763.41,
+      "multiplier": 10000,
+      "execution_window": "09:30-10:00",
+      "order_type": "LIMIT",
+      "price_buffer": 0.05,
+      "priority": 3,
+      "reason": "创新成长保护, 成长风格波动大",
+      "status": "PENDING"
+    },
+    {
+      "order_id": "PUT_510300_20260726",
+      "type": "BUY_PUT",
+      "underlying": "510300",
+      "underlying_name": "沪深300ETF",
+      "exchange": "SSE",
+      "spot_price": 4.787,
+      "strike": 4.5476,
+      "otm_pct": 0.05,
+      "contracts": 25,
+      "dte": 30,
+      "expiry_date": "2026-08-26",
+      "iv_estimate": 0.22,
+      "premium_per_unit": 0.0329,
+      "premium_total": 8235.39,
+      "multiplier": 10000,
+      "execution_window": "09:30-10:00",
+      "order_type": "LIMIT",
+      "price_buffer": 0.05,
+      "priority": 4,
+      "reason": "系统性风险保护+Beta对冲补充(部分替代IF期货功能), 显著增量覆盖",
+      "status": "PENDING"
+    }
+  ]
+}

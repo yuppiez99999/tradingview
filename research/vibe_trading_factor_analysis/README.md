@@ -193,10 +193,21 @@ orchestrator = PipelineOrchestrator(config={
 
 ### 6.3 安全边界
 
-- 候选因子池 **不接入** 交易决策链路（signal_fusion / portfolio_optimizer）
+> ⚠️ **审计警示（2026-07-26 P0-A）**：当前因子流水线是**研究目录独立验证脚本**，**完全未接入生产交易决策链路**。
+> 经顶级对冲基金风控审计发现：
+> - `utils/signal_fusion.py` 无 `PipelineOrchestrator` / `factor_combinations` 引用
+> - `utils/alpha_factor_library.py` 无 `VT_MICRO` / `VT_QUALTREND` / `MARGIN_EXP` 因子
+> - `utils/portfolio_optimizer.py` 文件根本不存在
+> - 全项目（除 `research/vibe_trading_factor_analysis/` 外）无任何 `import PipelineOrchestrator`
+>
+> 因此所有"approved"因子仅是研究目录内部状态，对实际交易决策当前为**零影响**。
+> 接入生产的工作见主 README v8.6.3 章节「🔴 待办（P0）」。
+> 详细审计报告：`docs/HEDGE_FUND_AUDIT_2026-07-26_SYSTEM_BUGS_AND_AUTOMATION.md`
+
+- 候选因子池 **不接入** 交易决策链路（signal_fusion / portfolio_optimizer）— **2026-07-26 审计确认此为真实状态，非设计意图，待 P0 修复**
 - 候选因子计算失败时降级返回空池，不影响主流程
 - 所有候选因子带 `origin="vibe_trading"` 标签，可审计追溯
-- IC 加权组合结果通过 `PipelineResult.factor_combinations` 字段独立输出
+- IC 加权组合结果通过 `PipelineResult.factor_combinations` 字段独立输出 — **当前无下游消费者**
 
 ## 7. 运行测试
 

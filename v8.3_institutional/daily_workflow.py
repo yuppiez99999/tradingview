@@ -2544,7 +2544,13 @@ class DailyWorkflow:
 
         # === 3. 三级熔断协议 — 保证金占用率检查 ===
         try:
-            ks = KillSwitch()
+            # P1-G 修复 (2026-07-26 v8.6.6): 复用 self.ks (已注册 broker_callback)
+            # 原始 bug: 局部 ks = KillSwitch() 未注册 callback, 导致 L2567
+            # ks.execute_kill_switch(3) 抛 RuntimeError 被外层 try/except 吞掉,
+            # L3 紧急协议完全失效 (审计: HEDGE_FUND_AUDIT_V2_2026-07-26.md P1-G)
+            ks = getattr(self, 'ks', None) or KillSwitch()
+            if not hasattr(self, 'ks'):
+                logger.warning("[KillSwitch] [P1-G] self.ks 未初始化, 使用未注册 callback 的降级实例")
             ks_status = ks.check_margin_status()
             ks_level = int(ks_status.get("level", 0)) if isinstance(ks_status, dict) else 0
             logger.info("[KillSwitch] 当前熔断级别: L%d (%s), 保证金占用率: %.1f%%",
@@ -4199,6 +4205,67 @@ class DailyWorkflow:
             except Exception as exc:
                 logger.error("[MultiStrategy] 协调失败: %s", exc, exc_info=True)
 
+        # === v8.6.4 P0 修复: 计算 target_weights（供 Phase 10 影子账户使用）===
+        # 修复 2026-07-26 P0 隐藏 bug: Phase 10 shadow_monitor 读取 signal_phase.target_weights,
+        # 但 phase_signal() 之前从未设置该字段, 导致影子账户 NAV 恒为 1.0、fail-fast 永不触发.
+        # 此处基于最终调整后的订单计算目标权重, 确保影子账户能真实跟踪组合收益.
+        target_weights = {}
+        grand_total_safe = float(grand_amount) if grand_amount and grand_amount > 0 else 1.0
+        final_morning = signal.get("morning_orders", adjusted_morning)
+        final_afternoon = signal.get("afternoon_orders", adjusted_afternoon)
+        for order in final_morning + final_afternoon:
+            code = str(order.get("code", "")).strip()
+            if not code:
+                continue
+            amount = float(order.get("est_amount", 0) or 0)
+            if amount <= 0:
+                continue
+            side = str(order.get("side", "buy")).lower()
+            # 买入类: 正权重; 卖出类: 负权重
+            sign = -1.0 if side in ("sell", "close_long", "reduce", "exit", "close") else +1.0
+            weight = sign * (amount / grand_total_safe)
+            target_weights[code] = target_weights.get(code, 0.0) + weight
+        signal["target_weights"] = target_weights
+
+        # === v8.6.4 P0-A 深度修复: 加载 Pipeline 因子组合信号并调整目标权重 ===
+        # 设计: 离线脚本 (06:00) 调用 PipelineOrchestrator 生成 signals JSON,
+        # 在线 (07:00) 加载 JSON 并以保守权重 alpha=0.05 调整目标权重.
+        # 安全: 失败不阻断主流程, 与 LGB 信号加载一致的安全降级模式.
+        # 仅影响影子账户 (Phase 10), 不影响 500万 实盘 (Phase 6 执行订单不变).
+        pipeline_signals = {}
+        try:
+            from utils.portfolio_optimizer import PortfolioOptimizer
+            opt = PortfolioOptimizer()
+            pipeline_signals = opt.load_factor_signals(self.trade_date)
+            if pipeline_signals:
+                target_weights = opt.adjust_target_weights(
+                    target_weights, pipeline_signals, alpha=0.05,
+                )
+                signal["target_weights"] = target_weights
+                signal["pipeline_factor_count"] = len(pipeline_signals)
+                signal["pipeline_factor_applied"] = True
+                logger.info(
+                    f"Pipeline 因子组合信号加载: {len(pipeline_signals)} 个标的, "
+                    f"已以 alpha=0.05 调整目标权重 (v8.6.4 P0-A)"
+                )
+                # 同时注入到 SignalFusionEngine, 作为第 5 个信号源参与融合
+                if self.signal_fusion is not None:
+                    self.signal_fusion.inject_pipeline_factor_signals(pipeline_signals)
+                    logger.info("Pipeline 因子信号已注入 SignalFusionEngine (weight=0.05)")
+            else:
+                signal["pipeline_factor_applied"] = False
+                logger.info(
+                    "Pipeline 因子信号未加载 (可能未生成或非当日, 安全降级为原始权重)"
+                )
+        except Exception as e:
+            logger.warning(
+                f"Pipeline 因子信号加载失败 (不影响主流程, 降级为原始权重): {e}"
+            )
+            signal["pipeline_factor_applied"] = False
+
+        total_exposure = sum(abs(w) for w in target_weights.values())
+        logger.info(f"目标权重计算: {len(target_weights)} 标的, 总暴露={total_exposure:.4f} (供 Phase 10 影子账户)")
+
         self.state["phases"]["signal"] = {"status": "PASS", **signal}
         if macro_scores:
             signal["macro_policy"] = {k: {
@@ -5231,7 +5298,12 @@ class DailyWorkflow:
         # L2: 强平深虚值期权空头
         if ks_level >= 2:
             try:
-                ks = KillSwitch()
+                # P1-G 修复 (2026-07-26 v8.6.7): 复用 self.ks (已注册 broker_callback)
+                # 原始 bug: 局部 ks = KillSwitch() 未注册 callback, 导致 L5306/L5315
+                # execute_kill_switch(2/3) 抛 RuntimeError, L2/L3 强平协议完全失效
+                ks = getattr(self, 'ks', None) or KillSwitch()
+                if not hasattr(self, 'ks'):
+                    logger.warning("[KillSwitch] [P1-G] self.ks 未初始化, 使用未注册 callback 的降级实例")
                 if ks_level >= 3:
                     # L3: 变现红利ETF + 跨品种注入
                     logger.critical("[KillSwitch L3] 触发紧急变现协议: 红利ETF跨品种注入!")
@@ -6701,8 +6773,8 @@ class DailyWorkflow:
             if isinstance(p, dict)
         )
 
-        # === v8.6.1: EOD 四 Guard 风控链强制执行 ===
-        lines.extend(["", "## EOD 四 Guard 风控链 (v8.6.1)", ""])
+        # === v8.6.6: EOD 七 Guard 风控链强制执行 (P1-H/J/I/K 扩展) ===
+        lines.extend(["", "## EOD 七 Guard 风控链 (v8.6.6)", ""])
         try:
             from utils.risk_guard_integrator import RiskGuardIntegrator
             # 计算下一交易日 (跳过周末)
@@ -6712,20 +6784,24 @@ class DailyWorkflow:
                 _next_dt += _td(days=1)
             _next_trade_date = _next_dt.strftime("%Y-%m-%d")
 
-            logger.info(f"[v8.6.1] 启动 EOD 四 Guard 链 → 次日: {_next_trade_date}")
+            logger.info(f"[v8.6.6] 启动 EOD 七 Guard 链 → 次日: {_next_trade_date}")
             _integrator = RiskGuardIntegrator(report_date=self.trade_date)
             _updated_plan = _integrator.run_all_guards(_next_trade_date)
 
-            # 提取 Guard 结果并写入报告
+            # 提取 Guard 结果并写入报告 (v8.6.6: 9 个 risk_guard 字段, 对应 7 个 Guard 步骤)
             _rg = _updated_plan.get("risk_guard", {})
             lines.append(f"| Guard | 状态 | 关键指标 |")
             lines.append(f"|-------|------|----------|")
             _guard_map = {
-                "kill_switch": ("保证金熔断", "level"),
-                "drawdown": ("回撤检查", "level"),
-                "vol_target": ("波动率控制", "vol_scale"),
-                "hedge_execution": ("对冲执行", "hedge_pct"),
-                "protective_put": ("认沽保护", "put_orders"),
+                "kill_switch": ("[1/7] 保证金熔断", "level"),
+                "market_circuit_breaker": ("[2/7] 大盘熔断", "level"),
+                "liquidity_crisis": ("[3/7] 流动性危机", "triggered"),
+                "overnight_gap": ("[4/7] 隔夜跳空", "level"),
+                "drawdown": ("[5/7] 回撤检查", "level"),
+                "vol_target": ("[6/7] 波动率控制", "vol_scale"),
+                "correlation_hedge": ("[7/7] 相关性对冲", "action"),
+                "hedge_execution": ("[7/7] 对冲执行", "hedge_pct"),
+                "protective_put": ("[7/7] 认沽保护", "put_orders"),
             }
             _all_guards_pass = True
             for _key, (_name, _metric_key) in _guard_map.items():
@@ -6742,16 +6818,16 @@ class DailyWorkflow:
                 lines.append(f"| {_name} | {_status} | {_metric} |")
             lines.append("")
             if _all_guards_pass:
-                lines.append(f"**四 Guard 链**: ✅ 全部通过, 次日 ({_next_trade_date}) 可正常交易")
+                lines.append(f"**七 Guard 链**: ✅ 全部通过, 次日 ({_next_trade_date}) 可正常交易")
             else:
-                lines.append(f"**四 Guard 链**: ❌ 存在未通过项, 请检查 {_next_trade_date} 交易计划")
-            logger.info(f"[v8.6.1] EOD 四 Guard 链完成: {'全部通过' if _all_guards_pass else '存在未通过项'}")
+                lines.append(f"**七 Guard 链**: ❌ 存在未通过项, 请检查 {_next_trade_date} 交易计划")
+            logger.info(f"[v8.6.6] EOD 七 Guard 链完成: {'全部通过' if _all_guards_pass else '存在未通过项'}")
         except ImportError:
-            lines.append("⚠️ RiskGuardIntegrator 不可用, 四 Guard 链未执行")
-            logger.warning("[v8.6.1] RiskGuardIntegrator 导入失败, 四 Guard 链未执行")
+            lines.append("⚠️ RiskGuardIntegrator 不可用, 七 Guard 链未执行")
+            logger.warning("[v8.6.6] RiskGuardIntegrator 导入失败, 七 Guard 链未执行")
         except Exception as _e_guard:
-            lines.append(f"⚠️ 四 Guard 链执行异常: {_e_guard}")
-            logger.error(f"[v8.6.1] EOD 四 Guard 链异常: {_e_guard}", exc_info=True)
+            lines.append(f"⚠️ 七 Guard 链执行异常: {_e_guard}")
+            logger.error(f"[v8.6.6] EOD 七 Guard 链异常: {_e_guard}", exc_info=True)
         lines.append("")
 
         lines.extend([

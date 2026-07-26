@@ -144,3 +144,88 @@
 **安装完成!**  
 *数据来源: 技能安装验证脚本*  
 *生成时间: 2026-07-23*
+
+---
+
+# GitHub 周榜项目集成报告（2026-07-26）
+
+**集成来源**: [OpenGithubs/github-weekly-rank](https://github.com/OpenGithubs/github-weekly-rank) 2026.07.19 期周榜
+**集成状态**: ✅ 3/4 成功（1 个因 License 风险排除）
+
+## 集成清单
+
+| 项目 | 排名 | 集成形态 | License | 集成位置 | 状态 |
+|---|---|---|---|---|---|
+| **graphify** | 周榜#3 (95k+⭐) | AI 助手 skill（按需运行） | Apache 2.0 + MIT | uv 全局工具 + `.claude/skills/graphify/` + `.trae-cn/skills/graphify/` | ✅ 已安装 v0.9.26 |
+| **codebase-memory-mcp** | 周榜#15 (35k+⭐) | 常驻 MCP server（静态二进制） | MIT | `tools/codebase-memory-mcp/` | ✅ 已下载 v0.9.0 二进制 |
+| **Vibe-Trading** | 周榜#6 (27k+⭐) | 仅方法学参考（不集成代码） | MIT | `research/references/Vibe-Trading/` | ✅ 已浅克隆（53.84 MB, 1925 文件） |
+| ~~destructive_command_guard~~ | 周榜#19 (5k+⭐) | ~~CLI 工具~~ | ❌ MIT + Anti-OpenAI/Anthropic Rider | — | ❌ 排除（License 风险） |
+
+## 排除原因：destructive_command_guard
+
+License 为 "MIT License (with OpenAI/Anthropic Rider)"，明确禁止 OpenAI、Anthropic 及其代理人使用。当前用户使用 Claude（Anthropic 模型），集成 dcg 让 Claude Code 调用属于"acting on behalf of Anthropic"，**违反 License**。
+
+**替代方案**: 项目已有 Kill Switch + EOD 四 Guard 链覆盖交易安全；开发时命令安全通过 Claude Code 内置权限模式（`/careful`、`/freeze`、`/guard` skill）实现。
+
+## 核心价值
+
+| 集成项 | 解决的问题 | 对应项目记忆约束 |
+|---|---|---|
+| graphify | 验证"全项目除 research/vibe_trading_factor_analysis/ 外无任何 import PipelineOrchestrator"的 P0 级 bug | 提供代码理解工具，审计代码真实引用关系 |
+| codebase-memory-mcp | 落地 `second-brain/docs/03-MCP记忆服务器.md` 中描述的 MCP 记忆服务器需求 | 亚毫秒级代码查询，节省 99% token |
+| Vibe-Trading | 作为 `research/vibe_trading_factor_analysis/adapters/` 适配器层的源码参考 | 对比 HKUDS 交易 Agent 方法学，验证因子映射正确性 |
+
+## 集成详情
+
+### 1. graphify（代码理解 skill）
+
+- **安装方式**: `uv tool install graphifyy`（uv 0.11.14 隔离环境，Python 3.14+，不污染系统 Python 3.8.9）
+- **版本**: graphifyy 0.9.26（含 28 种 tree-sitter 语言解析器）
+- **skill 注册**: 
+  - claude 平台: `C:\Users\Administrator\.claude\skills\graphify\SKILL.md`
+  - trae-cn 平台: `C:\Users\Administrator\.trae-cn\skills\graphify\SKILL.md`
+- **使用方式**: 在 AI 助手中输入 `/graphify .`（项目根目录）
+- **运行模式**: `graphify . --code-only`（仅索引代码，不需要 LLM API key）
+- **输出**: `graphify-out/` 目录（graph.html + GRAPH_REPORT.md + graph.json）
+
+### 2. codebase-memory-mcp（常驻 MCP server）
+
+- **下载来源**: https://github.com/DeusData/codebase-memory-mcp/releases/download/v0.9.0/codebase-memory-mcp-windows-amd64.zip
+- **版本**: v0.9.0（35.66 MB zip → 273 MB 解压后）
+- **集成位置**: `tools/codebase-memory-mcp/codebase-memory-mcp.exe`
+- **配置文件**: `C:\Users\Administrator\.claude\.mcp.json`（需用户手动更新，新配置在 `tools/codebase-memory-mcp/mcp_config_new.json`）
+- **备份**: `tools/codebase-memory-mcp/.mcp.json.backup`（原失效的 npm 路径配置）
+- **生效方式**: 更新 .mcp.json 后重启 Claude Code
+
+### 3. Vibe-Trading（仅方法学参考）
+
+- **克隆方式**: `git clone --depth 1`（浅克隆，仅最新 commit）
+- **大小**: 53.84 MB（1925 个文件）
+- **集成位置**: `research/references/Vibe-Trading/`
+- **参考说明**: `research/references/Vibe-Trading/REFERENCE_ONLY.md`（标注"仅参考，不集成"）
+- **反向验证**: ✅ 无任何生产代码引用 `research/references/Vibe-Trading`
+
+## 安全保证
+
+- **零生产代码修改**: 三个集成项均不修改任何生产代码（ms_strategy/、v8.3_institutional/、v7.5_institutional/ 等）
+- **零依赖冲突**: graphify 用 uv 隔离，codebase-memory-mcp 是静态二进制，Vibe-Trading 不安装依赖
+- **零配置污染**: 不修改 system_config.json、.env、requirements.txt
+- **零 Kill Switch 影响**: 不触碰任何安全机制文件
+- **完全可回滚**: 三个集成项均有明确回滚步骤
+
+## 待用户手动执行
+
+由于 sandbox 路径白名单限制，以下操作需要用户手动执行：
+
+```powershell
+# 更新 .mcp.json 配置（替换失效的 npm 路径）
+Copy-Item "e:\各种PY程序\28-终极量化交易系统8.4\tools\codebase-memory-mcp\mcp_config_new.json" "C:\Users\Administrator\.claude\.mcp.json" -Force
+
+# 重启 Claude Code 使 MCP 配置生效
+```
+
+---
+
+*集成时间: 2026-07-26*  
+*集成来源: GitHub 周榜 2026.07.19 期*  
+*计划文件: `.trae/documents/github_weekly_rank_integration.md`*

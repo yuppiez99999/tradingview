@@ -62,6 +62,8 @@ class SignalFusionEngine:
         etf_weight: float = 0.12,
         macro_weight: float = 0.08,
         min_confidence: float = 0.35,
+        # v8.6.4 P0-A 深度修复：Pipeline 因子组合信号（保守 5%）
+        pipeline_factor_weight: float = 0.05,
     ):
         # 默认权重：Alpha 为主，LLM/ETF/宏观为辅助
         self.alpha_weight = alpha_weight
@@ -69,6 +71,10 @@ class SignalFusionEngine:
         self.etf_weight = etf_weight
         self.macro_weight = macro_weight
         self.min_confidence = min_confidence
+        # v8.6.4: Pipeline 因子组合信号权重（保守起步，影子账户 OOS 验证后可上调）
+        # 设计依据: PipelineOrchestrator 实测 IC_IR=+0.5840, live_dsr=+2.2033（v6.9）
+        # 安全设计: 5% 权重 + 影子账户 fail-fast 3%/5% 触发器隔离风险
+        self.pipeline_factor_weight = pipeline_factor_weight
         # 动态 IC 权重支持：注入 forward_returns 后按各源 IC 动态加权
         self._forward_returns: Optional[Dict[str, float]] = None
         self._ic_weights: Optional[Dict[str, float]] = None
@@ -76,6 +82,9 @@ class SignalFusionEngine:
         self._last_signals_by_source: Optional[Dict[str, Dict[str, float]]] = None
         # Qlib 信号缓存（由 inject_qlib_signal 注入，可作为 alpha 源）
         self._qlib_signals: Dict[str, float] = {}
+        # v8.6.4: Pipeline 因子组合信号缓存（由 inject_pipeline_factor_signals 注入）
+        # 信号范围 [-1, 1]，正值看涨负值看跌
+        self._pipeline_factor_signals: Dict[str, float] = {}
 
     # ------------------------------------------------------------
     # 主入口
@@ -161,6 +170,41 @@ class SignalFusionEngine:
             logger.info("已注入 Qlib 信号: %d 个标的", len(self._qlib_signals))
         except Exception as e:
             logger.warning("inject_qlib_signal 异常: %s", e)
+
+    def inject_pipeline_factor_signals(self, signals: Dict[str, float]) -> None:
+        """注入 Pipeline 因子组合信号（v8.6.4 P0-A 深度修复）
+
+        将 PipelineOrchestrator 离线生成的 IC 加权组合信号注入融合引擎，
+        作为第 5 个信号源参与融合，权重默认 0.05（保守起步）。
+
+        信号范围 [-1, 1]：
+        - 正值 = 看涨（IC 加权后预期正收益）
+        - 负值 = 看跌（IC 加权后预期负收益）
+        - 0 = 中性
+
+        设计依据:
+        - PipelineOrchestrator v6.9 实测 IC_IR=+0.5840, live_dsr=+2.2033
+        - 影子账户 OOS 验证通过后可上调 pipeline_factor_weight
+        - 当前仅影响影子账户，不影响 500万 实盘
+
+        Args:
+            signals: {symbol: signal ∈ [-1, 1]} 来自 PortfolioOptimizer.load_factor_signals()
+        """
+        try:
+            if not isinstance(signals, dict) or not signals:
+                logger.warning("inject_pipeline_factor_signals: 输入为空或非 dict, 跳过")
+                return
+            self._pipeline_factor_signals = {
+                str(k): float(v) for k, v in signals.items()
+                if isinstance(v, (int, float)) and math.isfinite(float(v))
+            }
+            logger.info(
+                "已注入 Pipeline 因子组合信号: %d 个标的 (weight=%.2f)",
+                len(self._pipeline_factor_signals),
+                self.pipeline_factor_weight,
+            )
+        except Exception as e:
+            logger.warning("inject_pipeline_factor_signals 异常: %s", e)
 
     def inject_forward_returns(self, forward_returns: Dict[str, float]) -> None:
         """注入前向收益，激活动态 IC 加权
@@ -262,6 +306,16 @@ class SignalFusionEngine:
         )
         strength = max(-1.0, min(1.0, strength))
 
+        # v8.6.4 P0-A 深度修复: Pipeline 因子组合信号调整（保守 5%）
+        # 设计依据: PipelineOrchestrator 实测 IC_IR=+0.5840, 仅在影子账户层影响
+        pipeline_s = self._pipeline_factor_signals.get(symbol, 0.0)
+        if pipeline_s != 0.0 and self.pipeline_factor_weight > 0:
+            strength = (
+                strength * (1.0 - self.pipeline_factor_weight)
+                + pipeline_s * self.pipeline_factor_weight
+            )
+            strength = max(-1.0, min(1.0, strength))
+
         raw_confidence = (
             weights["alpha"] * alpha_c
             + weights["llm"] * llm_c
@@ -287,12 +341,15 @@ class SignalFusionEngine:
                 "llm_strength": llm_s,
                 "etf_strength": etf_s,
                 "macro_bias": macro_bias,
+                "pipeline_factor_strength": pipeline_s,
             },
             meta={
                 "weights": weights,
                 "alpha_confidence": alpha_c,
                 "llm_confidence": llm_c,
                 "etf_confidence": etf_c,
+                "pipeline_factor_weight": self.pipeline_factor_weight,
+                "pipeline_factor_applied": pipeline_s != 0.0,
             },
         )
 

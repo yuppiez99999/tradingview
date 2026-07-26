@@ -133,6 +133,54 @@ class RiskGuardIntegrator:
         """从盈亏报告中提取汇总数据 (v7.7修正: 适配 portfolio_pnl.summary 嵌套结构)"""
         return pnl_report.get('portfolio_pnl', {}).get('summary', {})
 
+    def _extract_positions(self, pnl_report: Dict) -> list:
+        """从 pnl_report 提取 positions 列表 (v8.6.6: 兼容三种数据位置)
+
+        完整格式 (带横杠文件名 daily_pnl_report_YYYY-MM-DD.json):
+            1. pnl_report['portfolio_pnl']['positions'] — 某些版本
+            2. pnl_report['portfolio_pnl']['details']   — 当前生产格式 (26 标的)
+
+        简化格式 (无横杠文件名 daily_pnl_report_YYYYMMDD.json):
+            3. pnl_report['positions'] — 顶层 (list of dicts)
+
+        Returns:
+            positions 列表 (始终为 list, 即使原始是 dict 也会转成 list)
+        """
+        pp = pnl_report.get('portfolio_pnl', {})
+        if isinstance(pp, dict):
+            # 1. 完整格式: portfolio_pnl.positions
+            positions = pp.get('positions', [])
+            if positions:
+                if isinstance(positions, dict):
+                    return list(positions.values())
+                if isinstance(positions, list):
+                    return positions
+            # 2. 完整格式: portfolio_pnl.details (当前生产格式)
+            details = pp.get('details', [])
+            if details:
+                if isinstance(details, dict):
+                    return list(details.values())
+                if isinstance(details, list):
+                    return details
+        # 3. 简化格式: 顶层 positions
+        positions = pnl_report.get('positions', [])
+        if isinstance(positions, dict):
+            return list(positions.values())
+        return positions if isinstance(positions, list) else []
+
+    def _extract_summary(self, pnl_report: Dict) -> Dict:
+        """从 pnl_report 提取 summary (v8.6.6: 兼容两种报告格式)
+
+        完整格式: pnl_report['portfolio_pnl']['summary']
+        简化格式: pnl_report['summary'] (顶层)
+        """
+        # 1. 完整格式
+        summary = pnl_report.get('portfolio_pnl', {}).get('summary', {})
+        if summary:
+            return summary
+        # 2. 简化格式
+        return pnl_report.get('summary', {})
+
     def _load_next_trade_plan(self, next_date: str) -> Optional[Dict]:
         """加载次日交易计划"""
         plan_path = TRADE_PLANS_DIR / f"trade_plan_{next_date.replace('-', '')}.json"
@@ -461,9 +509,31 @@ class RiskGuardIntegrator:
         pnl_summary = self._get_pnl_summary(pnl_report)
 
         # 1. 保证金使用率检查
-        margin_used = pnl_summary.get('margin_used', 0)
-        total_equity = pnl_summary.get('total_equity', self.total_capital)
-        margin_usage = margin_used / total_equity if total_equity > 0 else 0
+        # P0-D 修复 (2026-07-26 v8.6.5): 当 pnl_report 中 margin_used/total_equity 为 None 时
+        # 回退到 KillSwitch._estimate_margin_from_positions() 真实估算 (基于 positions.json)
+        # 原始 bug: pnl_summary.get('margin_used', 0) 在字段存在但值为 None 时返回 None (非默认值 0)
+        # 导致 None/None 抛 TypeError 被外层 try/except 吞掉, trade_plan 显示 level=0
+        # 但同期 kill_switch_events.jsonl 显示 L2 已触发 (margin_usage=80.36%) — EOD Guard 失效
+        margin_used = pnl_summary.get('margin_used')
+        total_equity = pnl_summary.get('total_equity')
+
+        if margin_used is None or total_equity is None or total_equity <= 0:
+            if ks:
+                try:
+                    margin_usage = ks._estimate_margin_from_positions()
+                    self._log(
+                        f"[KillSwitch] [P0-D FIX] pnl_report 字段缺失 "
+                        f"(margin_used={margin_used}, total_equity={total_equity}), "
+                        f"回退到 _estimate_margin_from_positions() = {margin_usage:.1%}"
+                    )
+                except Exception as e:
+                    self._log(f"[KillSwitch] [P0-D FIX] 回退失败: {e}, 使用保守值 0.50")
+                    margin_usage = 0.50
+            else:
+                margin_usage = 0.50
+                self._log("[KillSwitch] [P0-D FIX] KillSwitch 模块不可用, 使用保守值 0.50")
+        else:
+            margin_usage = margin_used / total_equity if total_equity > 0 else 0
 
         if ks:
             margin_status = ks.check_margin_status(margin_usage)
@@ -497,8 +567,24 @@ class RiskGuardIntegrator:
             'can_open': margin_status.get('can_open', True),
         }
 
-        # L3: 强制停止一切
-        if not margin_status.get('can_trade', True):
+        # v8.6.7 修复 (P1): 用 level 判断 L2/L3, 而非 can_trade
+        # 原始 bug: can_trade = (level < 2), 所以 L2 时 can_trade=False,
+        # 被误判为 L3 执行清空所有订单 (应只过滤 BUY)
+        # 正确逻辑: L3 清空所有, L2 过滤 BUY 保留 SELL, L1 仅预警
+        ks_level = margin_status.get('level', 0)
+        # 归一化 level 为整数 (兼容整数 0/1/2/3 和字符串 "L0"/"L1"/"L2"/"L3"/"OK")
+        if isinstance(ks_level, str):
+            level_str = ks_level.upper().replace('L', '')
+            ks_level_int = 3 if level_str == 'OK' and margin_usage >= 0.75 else (
+                3 if level_str == '3' else
+                2 if level_str == '2' else
+                1 if level_str == '1' else 0
+            )
+        else:
+            ks_level_int = int(ks_level)
+
+        # L3: 强制停止一切 (清空所有订单)
+        if ks_level_int >= 3:
             plan['market_state'] = plan.get('market_state', {})
             plan['market_state']['circuit_level'] = 'CRITICAL'
             plan['market_state']['build_allowed'] = False
@@ -509,18 +595,455 @@ class RiskGuardIntegrator:
             self._log("[KillSwitch] [EMERGENCY] L3 触发: 全面停止交易, 仅允许平仓")
             return plan
 
-        # L2: 禁止开仓
-        if not margin_status.get('can_open', True):
+        # L2: 禁止开仓 (过滤 BUY, 保留 SELL)
+        if ks_level_int == 2:
             plan['market_state'] = plan.get('market_state', {})
+            # 只在 circuit_level 未被更高优先级 Guard 设为 CRITICAL 时才设为 WARNING
+            if plan['market_state'].get('circuit_level') != 'CRITICAL':
+                plan['market_state']['circuit_level'] = 'WARNING'
             plan['market_state']['spot_build_allowed'] = False
             plan['execution_plan'] = plan.get('execution_plan', {})
             # 过滤掉建仓订单, 保留平仓订单
             for session in ['morning_orders', 'afternoon_orders']:
                 orders = plan['execution_plan'].get(session, [])
                 plan['execution_plan'][session] = [o for o in orders if o.get('direction') == 'SELL']
-            self._log("[KillSwitch] [WARN] L2 触发: 禁止开仓, 仅允许平仓")
+            self._log("[KillSwitch] [WARN] L2 触发: 禁止开仓, 仅允许平仓 (保留 SELL 订单)")
+            return plan
+
+        # L1: 仅预警, 不修改订单
+        if ks_level_int == 1:
+            plan['market_state'] = plan.get('market_state', {})
+            if plan['market_state'].get('circuit_level') not in ('CRITICAL', 'WARNING'):
+                plan['market_state']['circuit_level'] = 'WATCH'
+            self._log("[KillSwitch] [WATCH] L1 触发: 保证金预警, 不修改订单")
 
         return plan
+
+    # ============================================================
+    # Guard 6: 大盘熔断 (P1-H 新增, v8.6.6)
+    # ============================================================
+    def guard_market_circuit_breaker(self, pnl_report: Dict, plan: Dict) -> Dict:
+        """大盘熔断 Guard - 沪深300 跌幅触发 L2/L3
+
+        L2 (跌 5%): 禁止开仓, 保留平仓
+        L3 (跌 7%): 全局平仓 + halt_all_trading
+
+        委托 utils/market_circuit_breaker.py MarketCircuitBreaker 实现
+        """
+        try:
+            from utils.market_circuit_breaker import MarketCircuitBreaker
+        except ImportError:
+            self._log("[大盘熔断] MarketCircuitBreaker 导入失败, 跳过")
+            plan.setdefault('risk_guard', {})['market_circuit_breaker'] = {
+                'status': 'SKIP', 'reason': 'import_failed'
+            }
+            return plan
+
+        try:
+            mcb = MarketCircuitBreaker()
+            status = mcb.check_market_status()
+            plan = mcb.apply_to_plan(plan, status)
+
+            if status['level'] >= 2:
+                self._log(
+                    f"[大盘熔断] L{status['level']} 触发: 沪深300 跌幅 {status['hs300_change_pct']:.2%}, "
+                    f"数据源={status['data_source']}, 动作={status['actions']}"
+                )
+            else:
+                self._log(
+                    f"[大盘熔断] 正常: 沪深300 跌幅 {status['hs300_change_pct']:.2%} "
+                    f"(数据源={status['data_source']})"
+                )
+        except Exception as e:
+            self._log(f"[大盘熔断] 检查崩溃: {e}")
+            plan.setdefault('risk_guard', {})['market_circuit_breaker_error'] = str(e)
+            # fail-closed: 大盘熔断崩溃时禁止建仓
+            plan.setdefault('market_state', {})['spot_build_allowed'] = False
+
+        return plan
+
+    # ============================================================
+    # Guard 7: 流动性危机全局撤单 (P1-J 新增, v8.6.6)
+    # ============================================================
+    def guard_liquidity_crisis(self, pnl_report: Dict, plan: Dict) -> Dict:
+        """流动性危机 Guard - 全市场涨跌停家数触发全局撤单
+
+        触发条件: limit_up_count + limit_down_count > 2000
+        响应动作:
+            1. 清空 plan['execution_plan']['morning_orders']
+            2. 清空 plan['execution_plan']['afternoon_orders']
+            3. 标记 plan['market_state']['liquidity_crisis'] = True
+        """
+        LIMIT_COUNT_THRESHOLD = 2000  # 涨跌停家数阈值
+        FAIL_CLOSED_COUNT = 2500      # fail-closed 返回值
+
+        try:
+            limit_up, limit_down, data_source = self._fetch_limit_counts(pnl_report)
+            total_limit = limit_up + limit_down
+
+            plan.setdefault('risk_guard', {})['liquidity_crisis'] = {
+                'limit_up': limit_up,
+                'limit_down': limit_down,
+                'total_limit': total_limit,
+                'threshold': LIMIT_COUNT_THRESHOLD,
+                'data_source': data_source,
+            }
+
+            if total_limit > LIMIT_COUNT_THRESHOLD:
+                # 触发全局撤单
+                plan.setdefault('execution_plan', {})
+                plan['execution_plan']['morning_orders'] = []
+                plan['execution_plan']['afternoon_orders'] = []
+                plan.setdefault('market_state', {})
+                plan['market_state']['liquidity_crisis'] = True
+                plan['market_state']['spot_build_allowed'] = False
+                plan['market_state']['circuit_level'] = 'CRITICAL'
+                plan['risk_guard']['liquidity_crisis']['action'] = 'CANCEL_ALL_ORDERS'
+                plan['risk_guard']['liquidity_crisis']['triggered'] = True
+
+                self._log(
+                    f"[流动性危机] 触发全局撤单: 涨停 {limit_up} + 跌停 {limit_down} = "
+                    f"{total_limit} > {LIMIT_COUNT_THRESHOLD}, 数据源={data_source}"
+                )
+            else:
+                plan['risk_guard']['liquidity_crisis']['action'] = 'NORMAL'
+                plan['risk_guard']['liquidity_crisis']['triggered'] = False
+                self._log(
+                    f"[流动性危机] 正常: 涨跌停 {total_limit} < {LIMIT_COUNT_THRESHOLD} "
+                    f"(涨停 {limit_up} + 跌停 {limit_down}, 数据源={data_source})"
+                )
+        except Exception as e:
+            self._log(f"[流动性危机] 检查崩溃: {e}")
+            plan.setdefault('risk_guard', {})['liquidity_crisis_error'] = str(e)
+            # fail-closed: 崩溃时禁止建仓
+            plan.setdefault('market_state', {})['spot_build_allowed'] = False
+
+        return plan
+
+    def _fetch_limit_counts(self, pnl_report: Dict = None) -> tuple:
+        """获取全市场涨跌停家数 (三层 fallback)
+
+        Args:
+            pnl_report: 当日盈亏报告 (用于 Layer 2 提取持仓代码)
+
+        Returns:
+            (limit_up_count, limit_down_count, data_source)
+        """
+        # v8.6.6 修复: FAIL_CLOSED_COUNT 必须在方法内定义 (原先在 guard_liquidity_crisis
+        # 局部作用域, 导致 _fetch_limit_counts 引用时 NameError)
+        FAIL_CLOSED_COUNT = 2500  # fail-closed 返回值 (与 guard_liquidity_crisis 对齐)
+        # Layer 1: akshare 全市场实时行情
+        try:
+            import akshare as ak
+            df = ak.stock_zh_a_spot_em()
+            if df is not None and not df.empty and '涨跌幅' in df.columns:
+                # 涨停: 涨幅 >= 9.5% (考虑浮点误差)
+                # 跌停: 跌幅 <= -9.5%
+                pct = df['涨跌幅']
+                limit_up = int((pct >= 9.5).sum())
+                limit_down = int((pct <= -9.5).sum())
+                return limit_up, limit_down, "akshare"
+        except ImportError:
+            self._log("[流动性危机] akshare 未安装, 尝试 Layer 2")
+        except Exception as e:
+            self._log(f"[流动性危机] akshare 获取失败: {e}, 尝试 Layer 2")
+
+        # Layer 2: astock_realtime 持仓样本 (降级, 不准确)
+        try:
+            from utils.astock_realtime import get_realtime_quotes
+            # v8.6.6 修复: 使用兼容层提取持仓代码 (支持完整格式和简化格式)
+            codes = []
+            if pnl_report:
+                positions = self._extract_positions(pnl_report)
+                codes = [p.get('code', p.get('symbol', '')) for p in positions if isinstance(p, dict)]
+
+            # 清理代码格式 (astock_realtime 需要纯数字代码)
+            clean_codes = []
+            for c in codes[:50]:
+                if not c:
+                    continue
+                # 提取纯数字部分 (如 "600519.SH" → "600519")
+                num = ''.join(ch for ch in str(c) if ch.isdigit())
+                if num:
+                    clean_codes.append(num)
+
+            if clean_codes:
+                quotes = get_realtime_quotes(clean_codes)
+                limit_up = sum(1 for q in quotes.values() if q.get('change_pct', 0) >= 9.5)
+                limit_down = sum(1 for q in quotes.values() if q.get('change_pct', 0) <= -9.5)
+                # 样本外推 (持仓 N 只 → 全市场 ~5000 只, 按比例放大)
+                scale = max(1, 5000 // max(len(clean_codes), 1))
+                self._log(
+                    f"[流动性危机] Layer 2 样本外推: {len(clean_codes)} 只持仓 → "
+                    f"涨停 {limit_up}×{scale} + 跌停 {limit_down}×{scale}"
+                )
+                return limit_up * scale, limit_down * scale, "astock_sample"
+        except Exception as e:
+            self._log(f"[流动性危机] astock_realtime 获取失败: {e}")
+
+        # Layer 3: fail-closed (保守保护)
+        self._log(
+            f"[流动性危机] 所有数据源不可用, fail-closed 返回 {FAIL_CLOSED_COUNT} 触发撤单"
+        )
+        return FAIL_CLOSED_COUNT, 0, "fail_closed"
+
+    # ============================================================
+    # Guard 8: 隔夜跳空缺口 (P1-I 新增, v8.6.6)
+    # ============================================================
+    def guard_overnight_gap(self, pnl_report: Dict, plan: Dict) -> Dict:
+        """隔夜跳空 Guard - 外盘隔夜风险触发 L1/L2/L3
+
+        L1 (S&P500 跌 1% 或 ADR 偏离 2%): 预警
+        L2 (S&P500 跌 2% 或 ADR 偏离 4%): 禁止开仓
+        L3 (S&P500 跌 3% 或 ADR 偏离 6%): 全局平仓
+
+        委托 utils/overnight_gap_monitor.py OvernightGapMonitor 实现
+        """
+        try:
+            from utils.overnight_gap_monitor import OvernightGapMonitor
+        except ImportError:
+            self._log("[隔夜跳空] OvernightGapMonitor 导入失败, 跳过")
+            plan.setdefault('risk_guard', {})['overnight_gap'] = {
+                'status': 'SKIP', 'reason': 'import_failed'
+            }
+            return plan
+
+        try:
+            ogm = OvernightGapMonitor()
+            risk = ogm.evaluate_overnight_risk()
+            plan = ogm.apply_to_plan(plan, risk)
+
+            if risk['level'] >= 2:
+                self._log(
+                    f"[隔夜跳空] L{risk['level']} 触发: S&P500 {risk['sp500_change_pct']:.2%}, "
+                    f"ADR偏离 {risk['adr_deviation_pct']:.2%}, 数据源={risk['data_source']}, "
+                    f"触发={risk.get('trigger', 'unknown')}"
+                )
+            elif risk['level'] == 1:
+                self._log(
+                    f"[隔夜跳空] L1 预警: S&P500 {risk['sp500_change_pct']:.2%}, "
+                    f"ADR偏离 {risk['adr_deviation_pct']:.2%}"
+                )
+            else:
+                self._log(
+                    f"[隔夜跳空] 正常: S&P500 {risk['sp500_change_pct']:.2%} "
+                    f"(数据源={risk['data_source']})"
+                )
+        except Exception as e:
+            self._log(f"[隔夜跳空] 检查崩溃: {e}")
+            plan.setdefault('risk_guard', {})['overnight_gap_error'] = str(e)
+            # fail-closed: 隔夜跳空崩溃时禁止建仓
+            plan.setdefault('market_state', {})['spot_build_allowed'] = False
+
+        return plan
+
+    # ============================================================
+    # Guard 9: 相关性对冲 (P1-K 新增, v8.6.6)
+    # ============================================================
+    def guard_correlation_hedge(self, pnl_report: Dict, plan: Dict) -> Dict:
+        """相关性对冲 Guard - 集成 CorrelationHedger 到 EOD 链
+
+        触发条件 (CorrelationHedger.compute_hedge):
+            1. avg_corr > 0.85 且 jump > 0.15
+            2. avg_corr > 0.95 (极端趋同)
+
+        响应动作:
+            - 生成黄金 ETF (518880) 买入订单
+            - 生成国债逆回购 (GC001) 订单
+            - 写入 plan['correlation_hedge_orders']
+        """
+        try:
+            # 复用 v8.3_institutional 的 CorrelationHedger
+            import sys as _sys
+            _v83_src = BASE_DIR / "v8.3_institutional" / "src"
+            if str(_v83_src) not in _sys.path:
+                _sys.path.insert(0, str(_v83_src))
+            from hedging.correlation_hedger import CorrelationHedger
+        except ImportError as e:
+            self._log(f"[相关性对冲] CorrelationHedger 导入失败, 跳过: {e}")
+            plan.setdefault('risk_guard', {})['correlation_hedge'] = {
+                'status': 'SKIP', 'reason': 'import_failed'
+            }
+            return plan
+
+        try:
+            # 构建持仓标的收益率 DataFrame
+            returns_df = self._build_position_returns(pnl_report, lookback_days=60)
+            if returns_df is None or returns_df.empty:
+                self._log("[相关性对冲] 无可用收益率数据, 跳过")
+                plan.setdefault('risk_guard', {})['correlation_hedge'] = {
+                    'action': 'NO_DATA', 'reason': 'insufficient_returns_history'
+                }
+                return plan
+
+            # 获取组合市值 (v8.6.6 修复: 使用兼容层支持两种报告格式)
+            pnl_summary = self._extract_summary(pnl_report)
+            portfolio_value = float(pnl_summary.get('total_market_value', 0)) or self.total_capital
+
+            # 计算相关性对冲
+            hedger = CorrelationHedger()
+            hedge_result = hedger.compute_hedge(returns_df, portfolio_value)
+
+            plan['risk_guard']['correlation_hedge'] = {
+                'action': hedge_result.get('action', 'UNKNOWN'),
+                'avg_corr': float(hedge_result.get('avg_corr', 0)),
+                'baseline_corr': float(hedge_result.get('baseline_corr', 0)),
+                'jump': float(hedge_result.get('jump', 0)),
+            }
+
+            if hedge_result.get('action') == 'SAFE_HAVEN_ALLOC':
+                # 生成避险资产配置订单
+                hedge_orders = self._build_safe_haven_orders(hedge_result)
+                plan['correlation_hedge_orders'] = hedge_orders
+                plan['risk_guard']['correlation_hedge']['gold_weight'] = float(
+                    hedge_result.get('gold_weight', 0)
+                )
+                plan['risk_guard']['correlation_hedge']['repo_weight'] = float(
+                    hedge_result.get('repo_weight', 0)
+                )
+                self._log(
+                    f"[相关性对冲] 触发避险配置: ρ̄={hedge_result.get('avg_corr', 0):.3f}, "
+                    f"黄金ETF {hedge_result.get('gold_weight', 0):.2%}, "
+                    f"逆回购 {hedge_result.get('repo_weight', 0):.2%}"
+                )
+            else:
+                self._log(
+                    f"[相关性对冲] 无需对冲: {hedge_result.get('reason', '条件未满足')}"
+                )
+        except Exception as e:
+            self._log(f"[相关性对冲] 执行崩溃: {e}")
+            plan.setdefault('risk_guard', {})['correlation_hedge_error'] = str(e)
+            # 相关性对冲崩溃不阻断主流程 (仅记录错误)
+
+        return plan
+
+    def _build_position_returns(self, pnl_report: Dict, lookback_days: int = 60):
+        """从历史 daily_pnl_report 构建持仓标的收益率 DataFrame
+
+        适配实际报告结构 (v8.6.6 修复):
+            {
+                "date": "2026-07-24",
+                "summary": {"total_pnl": ..., "total_market_value": ..., "total_cost": ...},
+                "positions": [{"code": "600519.SH", "name": "...", "pnl": 500.3, "market_value": 150000}, ...]
+            }
+
+        Args:
+            pnl_report: 当日盈亏报告 (用于提取持仓代码)
+            lookback_days: 回看天数
+
+        Returns:
+            pandas DataFrame (T×N 收益率) 或 None
+        """
+        try:
+            import pandas as pd
+
+            # v8.6.6 修复: 使用兼容层提取持仓 (支持完整格式和简化格式)
+            positions = self._extract_positions(pnl_report)
+            symbols = [p.get('code', p.get('symbol', '')) for p in positions if isinstance(p, dict)]
+
+            if not symbols:
+                self._log("[相关性对冲] 当日持仓为空, 无法构建收益率序列")
+                return None
+
+            # 加载历史报告
+            report_files = sorted(REPORTS_DIR.glob("daily_pnl_report_*.json"))[-lookback_days:]
+            if len(report_files) < 10:
+                self._log(f"[相关性对冲] 历史报告不足 10 份 (实际 {len(report_files)}), 跳过")
+                return None
+
+            # 构建收益率序列
+            returns_data = {sym: [] for sym in symbols}
+            valid_days = 0
+            for rf in report_files:
+                try:
+                    with open(rf, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    # v8.6.6 修复: 使用兼容层提取历史持仓
+                    pos_list = self._extract_positions(data)
+                    if not isinstance(pos_list, list):
+                        continue
+
+                    # 构建 {code: daily_return} 映射
+                    day_returns = {}
+                    for pos in pos_list:
+                        if not isinstance(pos, dict):
+                            continue
+                        sym = pos.get('code', pos.get('symbol', ''))
+                        if not sym or sym not in symbols:
+                            continue
+                        # v8.6.6 修复: 优先使用 daily_pnl_pct (完整格式, 百分比)
+                        daily_pnl_pct = pos.get('daily_pnl_pct')
+                        if daily_pnl_pct is not None:
+                            daily_ret = float(daily_pnl_pct) / 100.0
+                        else:
+                            # fallback: pnl / market_value (简化格式)
+                            pnl = float(pos.get('pnl', 0))
+                            market_value = float(pos.get('market_value', 0))
+                            daily_ret = pnl / market_value if market_value > 0 else 0.0
+                        day_returns[sym] = daily_ret
+
+                    # 所有标的都填充 (缺失的填 0)
+                    for sym in symbols:
+                        returns_data[sym].append(day_returns.get(sym, 0.0))
+                    valid_days += 1
+                except Exception:
+                    continue
+
+            if valid_days < 10:
+                self._log(f"[相关性对冲] 有效历史数据不足 ({valid_days} 天), 跳过")
+                return None
+
+            df = pd.DataFrame(returns_data)
+            self._log(
+                f"[相关性对冲] 构建收益率矩阵: {df.shape[0]} 天 × {df.shape[1]} 标的"
+            )
+            return df
+
+        except ImportError:
+            self._log("[相关性对冲] pandas 未安装, 无法构建收益率矩阵")
+            return None
+        except Exception as e:
+            self._log(f"[相关性对冲] 构建收益率失败: {e}")
+            return None
+
+    def _build_safe_haven_orders(self, hedge_result: Dict) -> list:
+        """生成避险资产配置订单
+
+        Args:
+            hedge_result: CorrelationHedger.compute_hedge() 返回值
+
+        Returns:
+            订单列表 [{symbol, direction, weight, value, ...}]
+        """
+        orders = []
+        gold_weight = float(hedge_result.get('gold_weight', 0))
+        repo_weight = float(hedge_result.get('repo_weight', 0))
+        gold_value = float(hedge_result.get('gold_value', 0))
+        repo_value = float(hedge_result.get('repo_value', 0))
+
+        if gold_weight > 0:
+            orders.append({
+                'symbol': hedge_result.get('gold_etf', '518880'),
+                'direction': 'BUY',
+                'order_type': 'SAFE_HAVEN',
+                'weight': gold_weight,
+                'est_amount': gold_value,
+                'reason': 'correlation_hedge_gold',
+                'note': f"相关性对冲: 黄金ETF {gold_weight:.2%}",
+            })
+
+        if repo_weight > 0:
+            orders.append({
+                'symbol': hedge_result.get('repo_symbol', 'GC001'),
+                'direction': 'BUY',
+                'order_type': 'SAFE_HAVEN',
+                'weight': repo_weight,
+                'est_amount': repo_value,
+                'reason': 'correlation_hedge_repo',
+                'note': f"相关性对冲: 国债逆回购 {repo_weight:.2%}",
+            })
+
+        return orders
 
     # ============================================================
     # v7.7: 对冲引擎 & 认沽保护引擎去重
@@ -618,7 +1141,11 @@ class RiskGuardIntegrator:
 
         # 按优先级执行 (KillSwitch 最高优先级, 其次回撤)
         # 每个 guard 独立 try-except, 防止单个 guard 崩溃中断整个风控链路
-        self._log("--- [1/5] 保证金熔断 ---")
+        # v8.6.6 (P1-H/J/I/K): EOD Guard 链从 5 个扩展为 7 个, 覆盖大盘级/组合级/对冲级三层风控
+        # 审计: docs/HEDGE_FUND_AUDIT_V2_2026-07-26.md
+
+        # [1/7] 保证金熔断 (KillSwitch) — 最高优先级 (原有)
+        self._log("--- [1/7] 保证金熔断 (KillSwitch) ---")
         try:
             plan = self.guard_kill_switch(pnl_report, plan)
         except Exception as e:
@@ -627,33 +1154,70 @@ class RiskGuardIntegrator:
             # 风控崩溃时保守处理: 禁止开仓
             plan.setdefault('market_state', {})['spot_build_allowed'] = False
 
-        self._log("--- [2/5] 回撤检查 ---")
+        # [2/7] 大盘熔断 (P1-H 新增) — 大盘级
+        self._log("--- [2/7] 大盘熔断 (P1-H) ---")
+        try:
+            plan = self.guard_market_circuit_breaker(pnl_report, plan)
+        except Exception as e:
+            self._log(f"[CRITICAL] 大盘熔断检查崩溃: {e}")
+            plan.setdefault('risk_guard', {})['market_circuit_breaker_error'] = str(e)
+            plan.setdefault('market_state', {})['spot_build_allowed'] = False
+
+        # [3/7] 流动性危机 (P1-J 新增) — 全市场涨跌停
+        self._log("--- [3/7] 流动性危机 (P1-J) ---")
+        try:
+            plan = self.guard_liquidity_crisis(pnl_report, plan)
+        except Exception as e:
+            self._log(f"[CRITICAL] 流动性危机检查崩溃: {e}")
+            plan.setdefault('risk_guard', {})['liquidity_crisis_error'] = str(e)
+            plan.setdefault('market_state', {})['spot_build_allowed'] = False
+
+        # [4/7] 隔夜跳空 (P1-I 新增) — 隔夜外盘风险
+        self._log("--- [4/7] 隔夜跳空 (P1-I) ---")
+        try:
+            plan = self.guard_overnight_gap(pnl_report, plan)
+        except Exception as e:
+            self._log(f"[CRITICAL] 隔夜跳空检查崩溃: {e}")
+            plan.setdefault('risk_guard', {})['overnight_gap_error'] = str(e)
+            plan.setdefault('market_state', {})['spot_build_allowed'] = False
+
+        # [5/7] 回撤检查 — 组合级 (原有)
+        self._log("--- [5/7] 回撤检查 ---")
         try:
             plan = self.guard_drawdown(pnl_report, plan)
         except Exception as e:
             self._log(f"[CRITICAL] 回撤检查崩溃: {e}")
             plan.setdefault('risk_guard', {})['drawdown_error'] = str(e)
 
-        self._log("--- [3/5] 波动率控制 ---")
+        # [6/7] 波动率控制 — 组合级 (原有)
+        self._log("--- [6/7] 波动率控制 ---")
         try:
             plan = self.guard_vol_target(pnl_report, plan)
         except Exception as e:
             self._log(f"[CRITICAL] 波动率控制崩溃: {e}")
             plan.setdefault('risk_guard', {})['vol_target_error'] = str(e)
 
-        self._log("--- [4/5] 对冲执行 ---")
+        # [7/7] 对冲执行 + 认沽保护 + 相关性对冲 — 对冲动作 (原有 + P1-K 新增)
+        self._log("--- [7/7] 对冲执行 ---")
         try:
             plan = self.guard_hedge_execution(pnl_report, plan, next_trade_date)
         except Exception as e:
             self._log(f"[CRITICAL] 对冲执行崩溃: {e}")
             plan.setdefault('risk_guard', {})['hedge_error'] = str(e)
 
-        self._log("--- [5/5] 认沽保护 ---")
+        self._log("--- [7/7] 认沽保护 ---")
         try:
             plan = self.guard_protective_put(pnl_report, plan, next_trade_date)
         except Exception as e:
             self._log(f"[CRITICAL] 认沽保护崩溃: {e}")
             plan.setdefault('risk_guard', {})['put_error'] = str(e)
+
+        self._log("--- [7/7] 相关性对冲 (P1-K) ---")
+        try:
+            plan = self.guard_correlation_hedge(pnl_report, plan)
+        except Exception as e:
+            self._log(f"[CRITICAL] 相关性对冲崩溃: {e}")
+            plan.setdefault('risk_guard', {})['correlation_hedge_error'] = str(e)
 
         # v7.7: 去重 — 避免对冲引擎与认沽保护引擎对同一底层重复生成PUT
         self._log("--- [去重] 检查 PUT 订单重叠 ---")
