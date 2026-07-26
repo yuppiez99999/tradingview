@@ -4462,6 +4462,103 @@ class DailyWorkflow:
             signal["lgb_enhanced_applied"] = False
             signal["lgb_enhanced_skipped_reason"] = f"exception: {e}"
 
+        # === v8.6.9 新增: 金融多 Agent Shadow Mode (任务 1.2 Phase 7) ===
+        # 设计: 借鉴 awesome-llm-apps/ai_hedge_fund 多 Agent 投票架构,
+        #   5 个专家 Agent (Value/Momentum/Sentiment/Risk/Macro) 独立分析,
+        #   RiskAgent 拥有 veto 权, 加权投票聚合决策.
+        # 安全: 仅 Shadow Mode 运行, 不参与实盘决策, 仅记录审计日志.
+        #   - production 实盘模式强制跳过 (用户要求: 暂不接入实盘, 用模拟盘跑数据)
+        #   - 失败不阻断主流程, 严格沿用研究蒸馏信号的降级模式
+        #   - 限制最多 5 个标的 (避免 LLM 调用过多, Shadow Mode 仅做抽样验证)
+        # 输出: data/agent_orchestrator_audit/shadow_diffs_{trade_date}.jsonl
+        # 评估: 30 天 OOS 验证后, 评估是否升级为正式信号源
+        try:
+            from utils.trading_env import get_trading_env as _get_env_v869
+            _shadow_env = _get_env_v869()
+            if _shadow_env == "production":
+                # 实盘模式: 强制禁用金融多 Agent Shadow Mode
+                signal["finance_agent_shadow_applied"] = False
+                signal["finance_agent_shadow_skipped_reason"] = "production_env_disabled"
+                logger.info(
+                    "金融多 Agent Shadow Mode 在 production 实盘模式下已禁用 "
+                    "(v8.6.9 环境隔离: 仅 shadow/development 模式激活)"
+                )
+            else:
+                from utils.finance_agent_orchestrator import FinanceAgentOrchestrator
+                _orchestrator = FinanceAgentOrchestrator()
+
+                # 遍历 target_weights (按 |weight| 降序, 取前 5 个标的做 Shadow 验证)
+                _shadow_symbols = sorted(
+                    target_weights.keys(),
+                    key=lambda s: abs(target_weights.get(s, 0.0)),
+                    reverse=True,
+                )[:5]
+
+                _shadow_consensus_count = 0
+                _shadow_veto_count = 0
+                _shadow_direction_match_count = 0
+                for _shadow_symbol in _shadow_symbols:
+                    try:
+                        # 构建最小 context (Agent 内部会优雅降级处理缺失数据)
+                        _shadow_context = {
+                            "trade_date": self.trade_date,
+                            "target_weight": target_weights.get(_shadow_symbol, 0.0),
+                            "position_weight": target_weights.get(_shadow_symbol, 0.0),
+                            "env": _shadow_env,
+                        }
+
+                        # 多 Agent 协调 -> 共识决策
+                        _consensus = _orchestrator.orchestrate(_shadow_symbol, _shadow_context)
+
+                        # Shadow 对比 (从 signal_fusion 缓存提取 strength)
+                        _fusion_strength = 0.0
+                        if self.signal_fusion is not None:
+                            _cached = getattr(
+                                self.signal_fusion,
+                                "_research_distilled_signals",
+                                {},
+                            )
+                            _fusion_strength = float(_cached.get(_shadow_symbol, 0.0))
+                            if not math.isfinite(_fusion_strength):
+                                _fusion_strength = 0.0
+
+                        _diff = _orchestrator.shadow_compare(
+                            {"strength": _fusion_strength},
+                            _consensus,
+                        )
+
+                        # 持久化审计日志 (jsonl 格式, 每行一个决策)
+                        _orchestrator.save_audit_log(_consensus, _diff, self.trade_date)
+
+                        _shadow_consensus_count += 1
+                        if _consensus.veto:
+                            _shadow_veto_count += 1
+                        if _diff.direction_match:
+                            _shadow_direction_match_count += 1
+                    except Exception as _shadow_e:
+                        logger.warning(
+                            "金融多 Agent Shadow Mode 标的 %s 分析失败 (跳过, 不影响主流程): %s",
+                            _shadow_symbol, _shadow_e,
+                        )
+
+                signal["finance_agent_shadow_applied"] = _shadow_consensus_count > 0
+                signal["finance_agent_shadow_count"] = _shadow_consensus_count
+                signal["finance_agent_shadow_veto_count"] = _shadow_veto_count
+                signal["finance_agent_shadow_direction_match_count"] = _shadow_direction_match_count
+                signal["finance_agent_shadow_env"] = _shadow_env
+                logger.info(
+                    "金融多 Agent Shadow Mode 完成: %d 个标的 (veto=%d, 方向一致=%d), "
+                    "审计日志已写入 data/agent_orchestrator_audit/ (env=%s)",
+                    _shadow_consensus_count, _shadow_veto_count,
+                    _shadow_direction_match_count, _shadow_env,
+                )
+        except Exception as e:
+            logger.warning(
+                f"金融多 Agent Shadow Mode 加载失败 (不影响主流程, 降级为原始权重): {e}"
+            )
+            signal["finance_agent_shadow_applied"] = False
+            signal["finance_agent_shadow_skipped_reason"] = f"exception: {e}"
+
         total_exposure = sum(abs(w) for w in target_weights.values())
         logger.info(f"目标权重计算: {len(target_weights)} 标的, 总暴露={total_exposure:.4f} (供 Phase 10 影子账户)")
 

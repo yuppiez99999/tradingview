@@ -35,8 +35,8 @@ exclude_lines =
     if TYPE_CHECKING:
     @abstractmethod
 
-# 最低覆盖率阈值 (阶段性地从 40% 提升到 60%)
-fail_under = 40
+# 最低覆盖率阈值 (v8.6.9: 从 40% 提升到 60%, 实际覆盖率 65.20%, 留 5% 安全边际)
+fail_under = 60
 
 [html]
 directory = htmlcov
