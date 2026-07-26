@@ -1,0 +1,45 @@
+# ============================================================
+# 终极量化交易系统 v8.4 — Dependabot 配置
+# 创建: 2026-07-27 (v8.7.3)
+# 目的: 规范化依赖漏洞扫描与告警管理
+# ============================================================
+
+version: 2
+
+updates:
+  # === Python 生态 (生产依赖) ===
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 10
+    target-branch: "main"
+    labels:
+      - "security"
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "security"
+      prefix-development: "chore"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    reviewers:
+      - "yuppiez99999"
+
+  # === GitHub Actions 版本更新 ===
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 5
+    target-branch: "main"
+    labels:
+      - "security"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
