@@ -2,6 +2,12 @@
 # 终极量化交易系统 v8.4 — 统一依赖清单
 # 合并: requirements.txt (v5.10) + requirements_v75.txt (v7.5)
 # 修复: 2026-07-22 (P1-1: 统一版本约束，消除两份方案冲突)
+# v8.6.11 SECURITY FIX (2026-07-26): 升级漏洞依赖
+#   - lightgbm 4.6.0+  (Dependabot HIGH: RCE)
+#   - scikit-learn 1.5.0+  (Dependabot medium: 敏感数据泄露)
+#   - requests 2.33.0+  (Dependabot medium: 3 项告警)
+# 生产基线: Python 3.14.4 (junction C:\QuantSys)
+# 兼容性: Python 3.9+ (scikit-learn 1.5+ 要求), Python 3.8 已不再支持
 # ============================================================
 
 # === 核心数据处理 ===
@@ -10,9 +16,13 @@ pandas>=1.5.0
 scipy>=1.10.0
 
 # === 机器学习 ===
-scikit-learn>=1.2.0
+# v8.6.11 SECURITY FIX (2026-07-26):
+#   scikit-learn >=1.5.0  修复敏感数据泄露漏洞 (Dependabot medium)
+#   lightgbm >=4.6.0      修复 RCE 远程代码执行漏洞 (Dependabot HIGH)
+# 注: scikit-learn 1.5+ 要求 Python 3.9+, Python 3.8 已不再支持
+scikit-learn>=1.5.0
 xgboost>=1.5.0
-lightgbm>=3.3.0
+lightgbm>=4.6.0
 optuna>=3.0.0
 joblib>=1.2.0
 statsmodels>=0.13.0
@@ -20,7 +30,11 @@ statsmodels>=0.13.0
 # === 数据获取 ===
 yfinance>=0.2.0
 akshare>=1.12.0
-requests>=2.28.0
+# v8.6.11 SECURITY FIX: requests >=2.33.0 修复 3 项 Dependabot 告警
+#   - Session 不验证 (verify=False 后续请求)
+#   - .netrc 凭据泄露 via 恶意 URL
+#   - 不安全临时文件复用 (extract_zipped_paths)
+requests>=2.33.0
 
 # === 可视化 ===
 matplotlib>=3.6.0
