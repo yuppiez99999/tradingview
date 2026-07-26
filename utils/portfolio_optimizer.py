@@ -211,49 +211,63 @@ class PortfolioOptimizer:
     # L353-L446 _apply_risk_management, 与生产 MAX_DRAWDOWN_LIMIT=15% 对齐
     # 审计: docs/HEDGE_FUND_AUDIT_V2_2026-07-26.md P1-L
     # ------------------------------------------------------------
+    # P0-Q3 修复 (2026-07-26): 总敞口硬上限, 防止 vol_scaler 在低波动期被动加杠杆至 200%+
+    # 顶级对冲基金标准: 所有 scaler 必须有 hard cap, 与券商保证金对齐
+    MAX_TOTAL_EXPOSURE = 1.5  # 1.5x 杠杆上限 (与 production MAX_DRAWDOWN_LIMIT=15% 风险预算对齐)
+
     def apply_risk_management(
         self,
         target_weights: Dict[str, float],
         daily_pnl_history: List[float],
         config: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Dict[str, float], Dict[str, Any]]:
-        """风险管理层: 波动率缩放 + 回撤去杠杆
+        """风险管理层: 波动率缩放 + 回撤去杠杆 + 总敞口上限
 
-        两层保护 (移植自 shadow_account risk_managed 算法):
+        三层保护 (P0-Q1/Q3 修复后):
             1. 波动率缩放 (Vol Targeting):
                - 使用过去 vol_lookback 日 PnL 计算实现波动率
                - 缩放因子 = min(target_vol / realized_vol, scaler_cap)
                - 降低高波动期敞口, 提升低波动期敞口 (上限 scaler_cap)
 
             2. 回撤去杠杆 (Drawdown De-risking):
-               - 基于昨日净值计算当前回撤 (避免前视偏差)
+               - **基于昨日净值**计算当前回撤 (P0-Q1 修复: 严格排除当日 PnL)
                - 当回撤 > dd_derisk_threshold 时, 敞口降至 dd_derisk_factor
                - 触发后强制去杠杆, 防止回撤扩大
+
+            3. 总敞口上限 (P0-Q3 新增):
+               - combined_scaler 可达 2.0x (低波动期被动加杠杆)
+               - MAX_TOTAL_EXPOSURE=1.5x 硬上限, 与券商保证金对齐
+               - 超限时按比例缩减所有权重, 保留相对结构
 
         与 shadow_account 的一致性:
             - 默认参数完全对齐 (target_vol=0.15, vol_lookback=20, dd_threshold=0.05)
             - 算法逻辑 1:1 移植, 确保 Shadow 验证过的参数在生产可用
             - daily_pnl_history 顺序: [oldest, ..., newest], 与 Shadow 一致
+            - P0-Q1 修复: current_dd 计算严格使用 daily_pnl_history[:-1] (昨日净值)
 
         Args:
             target_weights: 目标权重 {symbol: weight}
             daily_pnl_history: 每日 PnL 历史 (小数, 如 0.01 表示 +1%)
+                              顺序: [oldest, ..., yesterday, today]
+                              回撤计算仅使用 [:-1] 部分 (避免前视偏差)
             config: 风险管理参数覆盖, 支持 keys:
                 - target_vol: 目标年化波动率, 默认 0.15
                 - vol_lookback: 波动率回看窗口, 默认 20
                 - dd_derisk_threshold: 回撤去杠杆阈值, 默认 0.05
                 - dd_derisk_factor: 去杠杆因子, 默认 0.5
                 - scaler_cap: 缩放因子上限, 默认 2.0
+                - max_total_exposure: 总敞口硬上限, 默认 1.5
 
         Returns:
             (scaled_weights, stats)
             scaled_weights: 缩放后权重 {symbol: weight}
             stats: {
                 'realized_vol': 实现年化波动率,
-                'current_dd': 当前回撤,
+                'current_dd': 当前回撤 (基于昨日净值),
                 'vol_scaler': 波动率缩放因子,
                 'dd_scaler': 回撤缩放因子 (1.0 或 dd_derisk_factor),
                 'combined_scaler': 合并缩放因子,
+                'exposure_cap_applied': 是否触发总敞口上限,
                 'derisk_triggered': 是否触发去杠杆,
                 'raw_total_exposure': 原始总敞口,
                 'scaled_total_exposure': 缩放后总敞口,
@@ -266,6 +280,8 @@ class PortfolioOptimizer:
         DD_DERISK_FACTOR = 0.5     # 去杠杆至 50% 敞口
         SCALER_CAP = 2.0           # 缩放因子上限
         TRADING_DAYS_PER_YEAR = 252
+        # P0-Q3 新增: 总敞口硬上限 (默认 1.5x, 可被 config 覆盖)
+        MAX_EXPOSURE = self.MAX_TOTAL_EXPOSURE
 
         # 应用配置覆盖
         if config:
@@ -274,6 +290,7 @@ class PortfolioOptimizer:
             DD_DERISK_THRESHOLD = float(config.get('dd_derisk_threshold', DD_DERISK_THRESHOLD))
             DD_DERISK_FACTOR = float(config.get('dd_derisk_factor', DD_DERISK_FACTOR))
             SCALER_CAP = float(config.get('scaler_cap', SCALER_CAP))
+            MAX_EXPOSURE = float(config.get('max_total_exposure', MAX_EXPOSURE))
 
         # 边界检查
         if not target_weights:
@@ -290,6 +307,7 @@ class PortfolioOptimizer:
                 'vol_scaler': 1.0,
                 'dd_scaler': 1.0,
                 'combined_scaler': 1.0,
+                'exposure_cap_applied': False,
                 'derisk_triggered': False,
                 'raw_total_exposure': sum(abs(w) for w in target_weights.values()),
                 'scaled_total_exposure': sum(abs(w) for w in target_weights.values()),
@@ -298,6 +316,7 @@ class PortfolioOptimizer:
 
         # === 1. 波动率缩放 ===
         # 使用最近 vol_lookback 日 PnL 计算实现波动率
+        # 注意: 波动率计算可使用完整历史 (含当日), 因为波动率是统计量, 非决策量
         vol_lookback = min(VOL_LOOKBACK, len(daily_pnl_history))
         recent_pnl = daily_pnl_history[-vol_lookback:]
         realized_vol_annual = float(np.std(recent_pnl, ddof=1) * math.sqrt(TRADING_DAYS_PER_YEAR))
@@ -307,14 +326,18 @@ class PortfolioOptimizer:
         else:
             vol_scaler = 1.0  # 波动率为 0 时不缩放
 
-        # === 2. 回撤去杠杆 (基于昨日净值避免前视偏差) ===
-        # 构建累计净值曲线: cumulative[i] = prod(1 + pnl[0..i-1])
-        # current_value = cumulative[-1] 是昨日净值 (不含当日)
+        # === 2. 回撤去杠杆 (P0-Q1 修复: 严格基于昨日净值, 排除当日 PnL) ===
+        # 前视偏差修复说明:
+        #   原代码: for p in daily_pnl_history → 含当日 pnl, current_value 是含当日结果的净值
+        #   修复后: for p in daily_pnl_history[:-1] → 排除当日, current_value 是昨日净值
+        #   语义: 决策时点 (今日开盘前) 只能看到昨日收盘净值, 不应已知当日盈亏
+        #   影响: 修复前回测过度乐观 (已知当日跌再去杠杆), 修复后实盘触发时点与回测一致
+        pnl_for_dd = daily_pnl_history[:-1] if len(daily_pnl_history) >= 2 else daily_pnl_history
         cumulative = [1.0]
-        for p in daily_pnl_history:
+        for p in pnl_for_dd:
             cumulative.append(cumulative[-1] * (1.0 + float(p)))
-        peak = max(cumulative)
-        current_value = cumulative[-1]
+        peak = max(cumulative) if cumulative else 1.0
+        current_value = cumulative[-1] if cumulative else 1.0
         current_dd = (peak - current_value) / peak if peak > 0 else 0.0
 
         dd_scaler = DD_DERISK_FACTOR if current_dd > DD_DERISK_THRESHOLD else 1.0
@@ -323,16 +346,37 @@ class PortfolioOptimizer:
         combined_scaler = vol_scaler * dd_scaler
         scaled_weights = {sym: w * combined_scaler for sym, w in target_weights.items()}
 
-        # === 4. 统计信息 ===
+        # === 4. P0-Q3 新增: 总敞口上限保护 ===
+        # 问题: combined_scaler 可达 2.0x (低波动期 vol_scaler=2.0)
+        #   导致总敞口从 100% 跃升至 200%, 与券商保证金冲突, 可能直接触发 KillSwitch L2
+        # 修复: 超过 MAX_EXPOSURE 时按比例缩减, 保留相对权重结构
         raw_total_exposure = sum(abs(w) for w in target_weights.values())
         scaled_total_exposure = sum(abs(w) for w in scaled_weights.values())
+        exposure_cap_applied = False
 
+        if scaled_total_exposure > MAX_EXPOSURE and scaled_total_exposure > 1e-9:
+            cap_scaler = MAX_EXPOSURE / scaled_total_exposure
+            scaled_weights = {k: v * cap_scaler for k, v in scaled_weights.items()}
+            exposure_cap_applied = True
+            logger.warning(
+                "[PortfolioOptimizer] [P0-Q3] 总敞口 %.4fx 超 %.2fx 上限, "
+                "已按比例 cap 至 %.2fx (cap_scaler=%.4f)",
+                scaled_total_exposure,
+                MAX_EXPOSURE,
+                MAX_EXPOSURE,
+                cap_scaler,
+            )
+            scaled_total_exposure = MAX_EXPOSURE
+
+        # === 5. 统计信息 ===
         stats = {
             'realized_vol': realized_vol_annual,
             'current_dd': float(current_dd),
             'vol_scaler': float(vol_scaler),
             'dd_scaler': float(dd_scaler),
             'combined_scaler': float(combined_scaler),
+            'exposure_cap_applied': exposure_cap_applied,
+            'max_total_exposure': MAX_EXPOSURE,
             'derisk_triggered': current_dd > DD_DERISK_THRESHOLD,
             'raw_total_exposure': float(raw_total_exposure),
             'scaled_total_exposure': float(scaled_total_exposure),
@@ -340,12 +384,15 @@ class PortfolioOptimizer:
             'vol_lookback': vol_lookback,
             'dd_derisk_threshold': DD_DERISK_THRESHOLD,
             'dd_derisk_factor': DD_DERISK_FACTOR,
+            # P0-Q1 审计字段: 标记前视偏差修复已生效
+            'lookahead_bias_fixed': True,
+            'dd_pnl_used': 'yesterday_only',
         }
 
         logger.info(
             "[PortfolioOptimizer] [P1-L] 风险管理 | realized_vol=%.2f%% target_vol=%.2f%% "
             "vol_scaler=%.3f | dd=%.2f%% dd_scaler=%.2f | combined=%.3f | "
-            "exposure %.4f→%.4f derisk=%s",
+            "exposure %.4f→%.4f derisk=%s cap=%s",
             realized_vol_annual * 100,
             TARGET_VOL * 100,
             vol_scaler,
@@ -355,6 +402,7 @@ class PortfolioOptimizer:
             raw_total_exposure,
             scaled_total_exposure,
             'YES' if stats['derisk_triggered'] else 'no',
+            'YES' if exposure_cap_applied else 'no',
         )
 
         if stats['derisk_triggered']:

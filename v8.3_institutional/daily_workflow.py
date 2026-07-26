@@ -3658,6 +3658,935 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 5: 信号生成 (2026 交易计划订单)
     # --------------------------------------------------------
+    # ============================================================
+    # P0-Q2 重构 (2026-07-26): 抽取 phase_signal 948 行 God Function 为
+    # ≤80 行单一职责子方法, 顶级对冲基金标准: 编排器 + 可独立测试子方法
+    # ============================================================
+
+    def _phase_signal_inject_pipeline_signals(
+        self, signal: Dict[str, Any], target_weights: Dict[str, float]
+    ) -> Dict[str, float]:
+        """注入 Pipeline 因子组合信号 (v8.6.4 P0-A 第 5 信号源)
+
+        设计:
+            离线脚本 (06:00) 调用 PipelineOrchestrator 生成 signals JSON,
+            在线 (07:00) 加载 JSON 并以 alpha=0.05 调整目标权重.
+        安全: 失败不阻断主流程, 与 LGB 信号加载一致的安全降级模式.
+        仅影响影子账户 (Phase 10), 不影响 500万 实盘 (Phase 6 执行订单不变).
+
+        Args:
+            signal: phase_signal 主信号字典 (会被原位修改)
+            target_weights: 当前目标权重 (会返回调整后的版本)
+
+        Returns:
+            调整后的 target_weights 字典
+        """
+        try:
+            from utils.portfolio_optimizer import PortfolioOptimizer
+            opt = PortfolioOptimizer()
+            pipeline_signals = opt.load_factor_signals(self.trade_date)
+            if pipeline_signals:
+                target_weights = opt.adjust_target_weights(
+                    target_weights, pipeline_signals, alpha=0.05,
+                )
+                signal["target_weights"] = target_weights
+                signal["pipeline_factor_count"] = len(pipeline_signals)
+                signal["pipeline_factor_applied"] = True
+                logger.info(
+                    f"Pipeline 因子组合信号加载: {len(pipeline_signals)} 个标的, "
+                    f"已以 alpha=0.05 调整目标权重 (v8.6.4 P0-A)"
+                )
+                # 同时注入到 SignalFusionEngine, 作为第 5 个信号源参与融合
+                if self.signal_fusion is not None:
+                    self.signal_fusion.inject_pipeline_factor_signals(pipeline_signals)
+                    logger.info("Pipeline 因子信号已注入 SignalFusionEngine (weight=0.05)")
+            else:
+                signal["pipeline_factor_applied"] = False
+                logger.info(
+                    "Pipeline 因子信号未加载 (可能未生成或非当日, 安全降级为原始权重)"
+                )
+        except Exception as e:
+            logger.warning(
+                f"Pipeline 因子信号加载失败 (不影响主流程, 降级为原始权重): {e}"
+            )
+            signal["pipeline_factor_applied"] = False
+        return target_weights
+
+    def _phase_signal_inject_research_signals(
+        self, signal: Dict[str, Any]
+    ) -> None:
+        """注入研究蒸馏信号 (v8.6.9 第 6 信号源, post-mix 模式)
+
+        设计:
+            离线脚本 (06:00) 调用 ResearchDistiller 蒸馏研报/业绩会/书籍,
+            在线 (07:00) 加载 daily snapshot 并注入 SignalFusionEngine.
+        安全: 失败不阻断主流程, 严格沿用 Pipeline 因子信号的降级模式.
+        post-mix 模式: 不修改主融合公式, 仅以 weight=0.03 叠加.
+        仅影响影子账户 (Phase 10), 不影响 500万 实盘 (Phase 6 执行订单不变).
+        v8.6.9 环境隔离: 仅在 shadow/development 模式下激活,
+            production 实盘模式下强制跳过 (用户要求: 暂不接入实盘).
+
+        Args:
+            signal: phase_signal 主信号字典 (会被原位修改)
+        """
+        try:
+            from utils.trading_env import get_trading_env, TradingEnv
+            _current_env = get_trading_env()
+            if _current_env == TradingEnv.PRODUCTION:
+                signal["research_distilled_applied"] = False
+                signal["research_distilled_skipped_reason"] = "production_env_disabled"
+                logger.info(
+                    "研究蒸馏信号在 production 实盘模式下已禁用 "
+                    "(v8.6.9 环境隔离: 仅 shadow/development 模式激活)"
+                )
+                return
+            from utils.research_distiller import ResearchDistiller
+            distiller = ResearchDistiller()
+            research_signals = distiller.load_daily_snapshot(self.trade_date)
+            if research_signals and self.signal_fusion is not None:
+                self.signal_fusion.inject_research_distilled_signals(research_signals)
+                signal["research_distilled_count"] = len(research_signals)
+                signal["research_distilled_applied"] = True
+                signal["research_distilled_env"] = _current_env
+                logger.info(
+                    f"研究蒸馏信号加载: {len(research_signals)} 个标的, "
+                    f"已注入 SignalFusionEngine (weight=0.03, v8.6.9 第 6 信号源, "
+                    f"env={_current_env} 模拟盘模式)"
+                )
+            else:
+                signal["research_distilled_applied"] = False
+                logger.info(
+                    "研究蒸馏信号未加载 (可能未生成或非当日, 安全降级为原始权重)"
+                )
+        except Exception as e:
+            logger.warning(
+                f"研究蒸馏信号加载失败 (不影响主流程, 降级为原始权重): {e}"
+            )
+            signal["research_distilled_applied"] = False
+
+    def _phase_signal_inject_lgb_signals(self, signal: Dict[str, Any]) -> None:
+        """注入 LGB 增强信号 (v8.7 第 7 信号源, post-mix 模式)
+
+        设计:
+            离线脚本 lgb_enhanced_trainer.py (GPU 训练, 真实 OHLCV + 新闻情绪因子)
+            在线 (07:00) 加载 lgb_enhanced_signals.json 并注入 SignalFusionEngine.
+        安全: 失败不阻断主流程, 严格沿用研究蒸馏信号的降级模式.
+        post-mix 模式: 不修改主融合公式, 仅以 weight=0.04 叠加.
+        LOW_QUALITY 降权: 688981/600036/600219 等标的权重降至 50%
+            (在 SignalFusionEngine 内处理).
+        数据来源: models/lgb_enhanced/lgb_enhanced_signals.json (23 标的, 平均 IC=0.1631).
+
+        Args:
+            signal: phase_signal 主信号字典 (会被原位修改)
+        """
+        try:
+            from pathlib import Path as _Path
+            _lgb_signals_file = _Path(__file__).resolve().parents[1] / "models" / "lgb_enhanced" / "lgb_enhanced_signals.json"
+            if not _lgb_signals_file.exists():
+                signal["lgb_enhanced_applied"] = False
+                signal["lgb_enhanced_skipped_reason"] = "signals_file_not_found"
+                logger.info(
+                    f"LGB 增强信号文件不存在: {_lgb_signals_file}, "
+                    "安全降级为原始权重 (可能未运行 lgb_enhanced_trainer.py)"
+                )
+                return
+            import json as _json
+            with open(_lgb_signals_file, "r", encoding="utf-8") as _f:
+                _lgb_data = _json.load(_f)
+            # signals 字段为结构化格式: {symbol: {"signal": float, "quality_flag": str, ...}}
+            lgb_signals = _lgb_data.get("signals", {})
+            _lgb_trade_date = _lgb_data.get("trade_date", "")
+            if not (lgb_signals and self.signal_fusion is not None):
+                signal["lgb_enhanced_applied"] = False
+                signal["lgb_enhanced_skipped_reason"] = "no_signal_fusion_or_empty_signals"
+                logger.info(
+                    "LGB 增强信号未加载 (信号为空或 SignalFusionEngine 未初始化, "
+                    "安全降级为原始权重)"
+                )
+                return
+            self.signal_fusion.inject_lgb_enhanced_signals(lgb_signals)
+            _ok_count = sum(
+                1 for v in lgb_signals.values()
+                if isinstance(v, dict) and v.get("quality_flag") == "OK"
+            )
+            _low_quality_count = sum(
+                1 for v in lgb_signals.values()
+                if isinstance(v, dict) and v.get("quality_flag") == "LOW_QUALITY"
+            )
+            signal["lgb_enhanced_count"] = len(lgb_signals)
+            signal["lgb_enhanced_ok_count"] = _ok_count
+            signal["lgb_enhanced_low_quality_count"] = _low_quality_count
+            signal["lgb_enhanced_applied"] = True
+            signal["lgb_enhanced_trade_date"] = _lgb_trade_date
+            signal["lgb_enhanced_weight"] = 0.04
+            signal["lgb_enhanced_data_source"] = "real_ohlcv_sentiment"
+            logger.info(
+                f"LGB 增强信号加载: {len(lgb_signals)} 个标的 "
+                f"(OK={_ok_count}, LOW_QUALITY={_low_quality_count}), "
+                f"已注入 SignalFusionEngine (weight=0.04, v8.7 第 7 信号源, "
+                f"trade_date={_lgb_trade_date})"
+            )
+        except Exception as e:
+            logger.warning(
+                f"LGB 增强信号加载失败 (不影响主流程, 降级为原始权重): {e}"
+            )
+            signal["lgb_enhanced_applied"] = False
+            signal["lgb_enhanced_skipped_reason"] = f"exception: {e}"
+
+    def _phase_signal_apply_agent_shadow(
+        self, signal: Dict[str, Any], target_weights: Dict[str, float]
+    ) -> None:
+        """应用金融多 Agent Shadow Mode (v8.6.9 Phase 7)
+
+        设计: 借鉴 awesome-llm-apps/ai_hedge_fund 多 Agent 投票架构,
+            5 个专家 Agent (Value/Momentum/Sentiment/Risk/Macro) 独立分析,
+            RiskAgent 拥有 veto 权, 加权投票聚合决策.
+        安全: 仅 Shadow Mode 运行, 不参与实盘决策, 仅记录审计日志.
+            - production 实盘模式强制跳过 (用户要求: 暂不接入实盘, 用模拟盘跑数据)
+            - 失败不阻断主流程, 严格沿用研究蒸馏信号的降级模式
+            - 限制最多 5 个标的 (避免 LLM 调用过多, Shadow Mode 仅做抽样验证)
+        输出: data/agent_orchestrator_audit/shadow_diffs_{trade_date}.jsonl
+        评估: 30 天 OOS 验证后, 评估是否升级为正式信号源
+
+        Args:
+            signal: phase_signal 主信号字典 (会被原位修改)
+            target_weights: 当前目标权重 (用于选择 top 5 标的做 Shadow 验证)
+        """
+        try:
+            from utils.trading_env import get_trading_env as _get_env_v869
+            _shadow_env = _get_env_v869()
+            if _shadow_env == "production":
+                signal["finance_agent_shadow_applied"] = False
+                signal["finance_agent_shadow_skipped_reason"] = "production_env_disabled"
+                logger.info(
+                    "金融多 Agent Shadow Mode 在 production 实盘模式下已禁用 "
+                    "(v8.6.9 环境隔离: 仅 shadow/development 模式激活)"
+                )
+                return
+            from utils.finance_agent_orchestrator import FinanceAgentOrchestrator
+            _orchestrator = FinanceAgentOrchestrator()
+            # 遍历 target_weights (按 |weight| 降序, 取前 5 个标的做 Shadow 验证)
+            _shadow_symbols = sorted(
+                target_weights.keys(),
+                key=lambda s: abs(target_weights.get(s, 0.0)),
+                reverse=True,
+            )[:5]
+            _shadow_consensus_count = 0
+            _shadow_veto_count = 0
+            _shadow_direction_match_count = 0
+            for _shadow_symbol in _shadow_symbols:
+                consensus_result = self._run_single_agent_shadow(
+                    _orchestrator, _shadow_symbol, target_weights, _shadow_env
+                )
+                if consensus_result is None:
+                    continue
+                _shadow_consensus_count += 1
+                if consensus_result.get("veto"):
+                    _shadow_veto_count += 1
+                if consensus_result.get("direction_match"):
+                    _shadow_direction_match_count += 1
+            signal["finance_agent_shadow_applied"] = _shadow_consensus_count > 0
+            signal["finance_agent_shadow_count"] = _shadow_consensus_count
+            signal["finance_agent_shadow_veto_count"] = _shadow_veto_count
+            signal["finance_agent_shadow_direction_match_count"] = _shadow_direction_match_count
+            signal["finance_agent_shadow_env"] = _shadow_env
+            logger.info(
+                "金融多 Agent Shadow Mode 完成: %d 个标的 (veto=%d, 方向一致=%d), "
+                "审计日志已写入 data/agent_orchestrator_audit/ (env=%s)",
+                _shadow_consensus_count, _shadow_veto_count,
+                _shadow_direction_match_count, _shadow_env,
+            )
+        except Exception as e:
+            logger.warning(
+                f"金融多 Agent Shadow Mode 加载失败 (不影响主流程, 降级为原始权重): {e}"
+            )
+            signal["finance_agent_shadow_applied"] = False
+            signal["finance_agent_shadow_skipped_reason"] = f"exception: {e}"
+
+    def _run_single_agent_shadow(
+        self,
+        orchestrator,
+        symbol: str,
+        target_weights: Dict[str, float],
+        env: str,
+    ) -> Optional[Dict[str, Any]]:
+        """运行单个标的的 Agent Shadow 分析 (P0-Q2 拆分)
+
+        Args:
+            orchestrator: FinanceAgentOrchestrator 实例
+            symbol: 标的代码
+            target_weights: 目标权重字典
+            env: 当前交易环境
+
+        Returns:
+            {"veto": bool, "direction_match": bool} 或 None (失败时)
+        """
+        try:
+            _shadow_context = {
+                "trade_date": self.trade_date,
+                "target_weight": target_weights.get(symbol, 0.0),
+                "position_weight": target_weights.get(symbol, 0.0),
+                "env": env,
+            }
+            _consensus = orchestrator.orchestrate(symbol, _shadow_context)
+            # Shadow 对比 (从 signal_fusion 缓存提取 strength)
+            _fusion_strength = 0.0
+            if self.signal_fusion is not None:
+                _cached = getattr(
+                    self.signal_fusion, "_research_distilled_signals", {},
+                )
+                _fusion_strength = float(_cached.get(symbol, 0.0))
+                if not math.isfinite(_fusion_strength):
+                    _fusion_strength = 0.0
+            _diff = orchestrator.shadow_compare(
+                {"strength": _fusion_strength}, _consensus,
+            )
+            orchestrator.save_audit_log(_consensus, _diff, self.trade_date)
+            return {
+                "veto": bool(_consensus.veto),
+                "direction_match": bool(_diff.direction_match),
+            }
+        except Exception as _shadow_e:
+            logger.warning(
+                "金融多 Agent Shadow Mode 标的 %s 分析失败 (跳过, 不影响主流程): %s",
+                symbol, _shadow_e,
+            )
+            return None
+
+    def _phase_signal_apply_factor_decay(self, signal: Dict[str, Any]) -> None:
+        """应用 v8.5 因子衰减监控 (P0-Q2 拆分)
+
+        Args:
+            signal: phase_signal 主信号字典 (会被原位修改)
+        """
+        try:
+            if not V85_READY:
+                signal["factor_decay"] = {"status": "SKIP", "reason": "v85_not_ready"}
+                return
+            from model_monitoring.factor_decay_monitor import FactorDecayMonitor
+            fdm = FactorDecayMonitor()
+            fdm_result = fdm.generate_health_report()
+            signal["factor_decay"] = {
+                "timestamp": fdm_result.timestamp.isoformat() if fdm_result.timestamp else "",
+                "total_factors": fdm_result.total_factors,
+                "healthy_factors": fdm_result.healthy_factors,
+                "warning_factors": fdm_result.warning_factors,
+                "degrading_factors": fdm_result.degrading_factors,
+                "deprecated_factors": fdm_result.deprecated_factors,
+                "new_deprecations": fdm_result.new_deprecations,
+                "warnings": fdm_result.warnings,
+                "recommendations": fdm_result.recommendations,
+                "status": fdm_result.status,
+            }
+            decaying = fdm_result.new_deprecations or []
+            if decaying:
+                logger.warning(
+                    "[v8.5 FactorDecay] 检测到 %d 个衰减因子: %s",
+                    len(decaying),
+                    ", ".join(str(d) for d in decaying[:5]),
+                )
+            else:
+                logger.info("[v8.5 FactorDecay] 所有因子健康, 无显著衰减")
+        except Exception as e:
+            logger.error(f"[v8.5 FactorDecay] 监控失败: {e}", exc_info=True)
+            signal["factor_decay"] = {"status": "ERROR", "error": str(e)}
+
+    def _phase_signal_apply_bl_optimization(self, signal: Dict[str, Any]) -> None:
+        """应用 Black-Litterman 组合优化 (P0-Q2 拆分)
+
+        机构级组合优化: 从持仓 + 订单信号构建 BL 观点, 输出最优权重.
+        简化协方差: 单位对角矩阵 × 0.04 (4% 日波动), 真实场景应从 data_layer 加载.
+
+        Args:
+            signal: phase_signal 主信号字典 (会被原位修改, 写入 signal["bl_optimization"])
+        """
+        if self.bl_optimizer is None:
+            return
+        try:
+            positions = (self._get_portfolio_positions_for_stress_test()
+                         if hasattr(self, "_get_portfolio_positions_for_stress_test") else [])
+            if not positions:
+                return
+            bl_assets = [p.get("code", "") for p in positions if p.get("code")]
+            bl_market_weights = [
+                float(p.get("amount", 0)) for p in positions if p.get("code")
+            ]
+            total_mv = sum(bl_market_weights)
+            if total_mv <= 0:
+                return
+            bl_market_weights = [w / total_mv for w in bl_market_weights]
+            # 简化协方差: 单位对角矩阵 × 0.04 (4% 日波动)
+            import numpy as _np
+            n_assets = len(bl_assets)
+            bl_cov = _np.eye(n_assets) * 0.04 ** 2
+            # 观点: 从 morning_orders/afternoon_orders 中提取信号
+            bl_views = self._build_bl_views(signal, bl_assets)
+            bl_result = self.bl_optimizer.optimize(
+                assets=bl_assets,
+                market_weights=bl_market_weights,
+                cov_matrix=bl_cov,
+                views=bl_views or None,
+                risk_free_rate=0.03,
+            )
+            signal["bl_optimization"] = {
+                "optimal_weights": bl_result.optimal_weights.tolist(),
+                "weight_change_vs_market": bl_result.weight_change_vs_market.tolist(),
+                "sharpe_ratio": bl_result.sharpe_ratio,
+                "diversification_ratio": bl_result.diversification_ratio,
+                "effective_n": bl_result.effective_n,
+                "expected_portfolio_return": bl_result.expected_portfolio_return,
+                "expected_portfolio_vol": bl_result.expected_portfolio_vol,
+            }
+            logger.info(
+                "[BlackLitterman] 优化完成: Sharpe=%.3f, DivRatio=%.2f, EffN=%.1f",
+                bl_result.sharpe_ratio,
+                bl_result.diversification_ratio,
+                bl_result.effective_n,
+            )
+        except Exception as exc:
+            logger.error("[BlackLitterman] 优化失败: %s", exc, exc_info=True)
+
+    def _build_bl_views(
+        self, signal: Dict[str, Any], bl_assets: List[str]
+    ) -> List[Any]:
+        """从订单信号构建 Black-Litterman 观点 (P0-Q2 拆分)
+
+        仅纳入已在持仓中的标的 (避免 BL 维度不匹配):
+            - BUY/OPEN_LONG → 绝对观点 expected_return=+0.02, confidence=0.6
+            - SELL/CLOSE_LONG → 绝对观点 expected_return=-0.02, confidence=0.5
+
+        Args:
+            signal: phase_signal 主信号字典 (含 morning_orders/afternoon_orders)
+            bl_assets: 持仓中的标的列表
+
+        Returns:
+            BLView 列表 (可能为空)
+        """
+        bl_views: List[Any] = []
+        asset_set = set(bl_assets)
+        for order in signal.get("morning_orders", []) + signal.get("afternoon_orders", []):
+            code = str(order.get("code", ""))
+            if code not in asset_set:
+                continue
+            side = str(order.get("side", "BUY")).upper()
+            if side in ("BUY", "OPEN_LONG"):
+                bl_views.append(BLView(
+                    type="absolute", assets=[code], weights=[1.0],
+                    expected_return=0.02, confidence=0.6,
+                ))
+            elif side in ("SELL", "CLOSE_LONG"):
+                bl_views.append(BLView(
+                    type="absolute", assets=[code], weights=[1.0],
+                    expected_return=-0.02, confidence=0.5,
+                ))
+        return bl_views
+
+    def _phase_signal_apply_strategy_coordination(
+        self, signal: Dict[str, Any]
+    ) -> None:
+        """应用多策略协调器 (冲突检测 + 风险预算审计, P0-Q2 拆分)
+
+        对冲基金视角: 多策略账户 (stock_long/etf_allocation/macro_hedge/options_tail)
+        统一协调, 检测冲突并审计风险预算使用情况.
+
+        Args:
+            signal: phase_signal 主信号字典 (会被原位修改, 写入 signal["strategy_coordination"])
+        """
+        if self.strategy_coordinator is None:
+            return
+        try:
+            target_signals = self._build_coordination_target_signals(signal)
+            current_positions = self._build_coordination_current_positions()
+            coord_decision = self.strategy_coordinator.coordinate(
+                target_signals=target_signals,
+                current_positions=current_positions,
+                strategy_pnl={},  # 实盘接入后填充
+                strategy_correlations=None,
+            )
+            signal["strategy_coordination"] = {
+                "is_approved": coord_decision.is_approved,
+                "total_allocated": coord_decision.total_allocated,
+                "cash_buffer": coord_decision.cash_buffer,
+                "risk_budget_used": coord_decision.risk_budget_used,
+                "risk_budget_limit": coord_decision.risk_budget_limit,
+                "conflicts": [
+                    {
+                        "strategies": c.strategies,
+                        "symbol": c.symbol,
+                        "conflict_type": c.conflict_type,
+                        "severity": c.severity,
+                        "message": c.description,
+                        "suggested_action": c.suggested_action,
+                    } for c in coord_decision.conflicts
+                ],
+                "adjusted_weights": coord_decision.strategy_weights,
+            }
+            self._log_coordination_result(coord_decision)
+        except Exception as exc:
+            logger.error("[MultiStrategy] 协调失败: %s", exc, exc_info=True)
+
+    def _build_coordination_target_signals(
+        self, signal: Dict[str, Any]
+    ) -> Dict[str, Dict[str, str]]:
+        """构建多策略协调器的目标信号 (P0-Q2 拆分)
+
+        把订单按策略账户归类:
+            - stock_long: 股票多头
+            - etf_allocation: ETF 配置
+            - macro_hedge: 期货空头对冲 (从 hedge_plan)
+            - options_tail: 期权尾部对冲 (从 hedge_account.modules)
+
+        Args:
+            signal: phase_signal 主信号字典
+
+        Returns:
+            {strategy_name: {code: direction}} 字典
+        """
+        target_signals: Dict[str, Dict[str, str]] = {
+            "stock_long": {},
+            "etf_allocation": {},
+        }
+        for order in signal.get("morning_orders", []) + signal.get("afternoon_orders", []):
+            code = str(order.get("code", ""))
+            side = str(order.get("side", "BUY")).upper()
+            asset_type = str(order.get("type", "STOCK")).upper()
+            direction = "BUY" if side in ("BUY", "OPEN_LONG") else "SELL"
+            if asset_type == "ETF":
+                target_signals["etf_allocation"][code] = direction
+            else:
+                target_signals["stock_long"][code] = direction
+        # 期权/期货信号 (从 hedge_plan 与 options_plan)
+        hedge_plan = self.state.get("phases", {}).get("hedge", {}).get("hedge_plan", {})
+        if hedge_plan:
+            target_signals["macro_hedge"] = {
+                str(item.get("symbol", "")): "SELL"
+                for item in hedge_plan.get("futures", [])
+                if str(item.get("direction", "")).upper() in ("SHORT", "SELL")
+            }
+        options_modules = self.trade_plan.get("hedge_account", {}).get("modules", []) if self.trade_plan else []
+        if options_modules:
+            target_signals["options_tail"] = {"OPTIONS": "BUY"}
+        return target_signals
+
+    def _build_coordination_current_positions(self) -> Dict[str, Dict[str, Any]]:
+        """构建当前持仓字典 (用于冲突检测, P0-Q2 拆分)
+
+        Returns:
+            {code: {"weight": float, "strategy": str, "amount": float}}
+        """
+        current_positions: Dict[str, Dict[str, Any]] = {}
+        portfolio_value = float(getattr(self, "capital", 5_000_000))
+        for pos in (self._get_portfolio_positions_for_stress_test()
+                    if hasattr(self, "_get_portfolio_positions_for_stress_test") else []):
+            code = pos.get("code", "")
+            amount = float(pos.get("amount", 0))
+            if code and portfolio_value > 0:
+                current_positions[code] = {
+                    "weight": amount / portfolio_value,
+                    "strategy": "stock_long" if str(pos.get("type", "STOCK")).upper() == "STOCK" else "etf_allocation",
+                    "amount": amount,
+                }
+        return current_positions
+
+    def _log_coordination_result(self, coord_decision) -> None:
+        """记录多策略协调结果日志 (P0-Q2 拆分)
+
+        Args:
+            coord_decision: StrategyCoordinator.coordinate() 返回的决策对象
+        """
+        if not coord_decision.is_approved:
+            err_conflicts = [c for c in coord_decision.conflicts if c.severity == "error"]
+            logger.warning(
+                "[MultiStrategy] 协调未通过: %d 个 error 级冲突, %d 个 warning",
+                len(err_conflicts),
+                len([c for c in coord_decision.conflicts if c.severity == "warning"]),
+            )
+            for c in err_conflicts:
+                logger.warning("  - [%s/%s] %s: %s",
+                               ",".join(c.strategies), c.symbol, c.conflict_type, c.description)
+        else:
+            logger.info(
+                "[MultiStrategy] 协调通过: cash_buffer=%.0f, risk_used=%.0f/%.0f, conflicts=%d",
+                coord_decision.cash_buffer,
+                coord_decision.risk_budget_used,
+                coord_decision.risk_budget_limit,
+                len(coord_decision.conflicts),
+            )
+
+    def _phase_signal_apply_alpha_modules(self, signal: Dict[str, Any]) -> None:
+        """应用 Alpha 因子库 + 动量反转 + Smart Beta (P0-Q2 拆分编排器)
+
+        三步走:
+            1) alpha_factor_lib.compute_all() - 因子库计算
+            2) momentum_engine.generate_signals() - 动量反转信号
+            3) smart_beta_engine.optimize() - Smart Beta 多因子加权优化
+
+        Args:
+            signal: phase_signal 主信号字典 (会被原位修改)
+        """
+        if not (ALPHA_MODULES_READY and self.alpha_factor_lib is not None):
+            return
+        try:
+            positions = (self._get_portfolio_positions_for_stress_test()
+                         if hasattr(self, "_get_portfolio_positions_for_stress_test") else [])
+            if not positions:
+                return
+            # 准备合成价格数据 + 市值代理
+            alpha_data = self._prepare_alpha_data(positions)
+            if alpha_data is None:
+                return
+            # 1) Alpha 因子库计算
+            alpha_result = self._apply_alpha_factor_lib(signal, alpha_data)
+            if alpha_result is None:
+                return
+            # 2) 动量反转信号生成
+            self._apply_momentum_engine(signal, alpha_data)
+            # 3) Smart Beta 多因子加权优化
+            self._apply_smart_beta_engine(signal, alpha_data, alpha_result)
+        except Exception as exc:
+            logger.error("[AlphaModules] 信号生成失败: %s", exc, exc_info=True)
+
+    def _prepare_alpha_data(self, positions: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """构造 Alpha 因子计算所需的合成价格数据 (P0-Q2 拆分)
+
+        简化方案: 用随机合成 100 日价格数据 (实盘应从 data_layer 加载).
+        用持仓 amount 作为 market_cap 代理.
+
+        Args:
+            positions: 持仓列表
+
+        Returns:
+            {"symbols": [...], "mcap": {...}, "price_df": DataFrame, "industries": {...}}
+            或 None (无有效标的)
+        """
+        import numpy as _np_alpha
+        import pandas as _pd_alpha
+        alpha_symbols = [str(p.get("code", "")) for p in positions if p.get("code")]
+        n_alpha = len(alpha_symbols)
+        if n_alpha <= 0:
+            return None
+        alpha_mcap_dict = {
+            str(p.get("code", "")): max(float(p.get("amount", 1.0)), 1.0)
+            for p in positions if p.get("code")
+        }
+        # 构造合成价格数据 (100日, 用于因子计算)
+        _np_alpha.random.seed(42)
+        alpha_prices = _np_alpha.cumprod(
+            1.0 + _np_alpha.random.randn(100, n_alpha) * 0.02, axis=0
+        ) * 100.0
+        alpha_price_df = _pd_alpha.DataFrame(alpha_prices, columns=alpha_symbols)
+        alpha_industries = {s: "Unknown" for s in alpha_symbols}
+        return {
+            "symbols": alpha_symbols,
+            "mcap": alpha_mcap_dict,
+            "prices": alpha_prices,
+            "price_df": alpha_price_df,
+            "industries": alpha_industries,
+        }
+
+    def _apply_alpha_factor_lib(
+        self, signal: Dict[str, Any], alpha_data: Dict[str, Any]
+    ) -> Optional[Any]:
+        """Alpha 因子库计算 (P0-Q2 拆分)
+
+        Args:
+            signal: 主信号字典 (写入 signal["alpha_factors"])
+            alpha_data: _prepare_alpha_data 返回的数据包
+
+        Returns:
+            alpha_result (FactorResult) 或 None
+        """
+        alpha_result = self.alpha_factor_lib.compute_all(
+            price_data=alpha_data["price_df"],
+            fundamentals=None,
+            industries=alpha_data["industries"],
+            benchmark_returns=None,
+        )
+        # 实际字段: factors (Dict), effective_factors (List), strong_factors (List)
+        signal["alpha_factors"] = {
+            "total_factors": len(alpha_result.factors),
+            "effective_factors": list(alpha_result.effective_factors),
+            "strong_factors": list(alpha_result.strong_factors),
+            "factor_names": list(alpha_result.factors.keys())[:20],
+        }
+        logger.info(
+            "[AlphaFactorLib] 因子计算完成: 总数=%d, 有效=%d, 强=%d",
+            len(alpha_result.factors),
+            len(alpha_result.effective_factors),
+            len(alpha_result.strong_factors),
+        )
+        return alpha_result
+
+    def _apply_momentum_engine(
+        self, signal: Dict[str, Any], alpha_data: Dict[str, Any]
+    ) -> None:
+        """动量反转信号生成 (P0-Q2 拆分)
+
+        Args:
+            signal: 主信号字典 (写入 signal["momentum_signals"])
+            alpha_data: _prepare_alpha_data 返回的数据包
+        """
+        if self.momentum_engine is None:
+            return
+        mom_result = self.momentum_engine.generate_signals(alpha_data["price_df"])
+        # 实际字段: signals (Dict), avg_signal_strength, bullish_count, bearish_count
+        signal["momentum_signals"] = {
+            "total_signals": len(mom_result.signals),
+            "bullish_count": mom_result.bullish_count,
+            "bearish_count": mom_result.bearish_count,
+            "avg_signal_strength": mom_result.avg_signal_strength,
+            "strategy_state": mom_result.strategy_state,
+            "top_long_candidates": mom_result.top_long_candidates[:5],
+            "top_short_candidates": mom_result.top_short_candidates[:5],
+        }
+        logger.info(
+            "[MomentumReversal] 信号生成: 总数=%d, 看多=%d, 看空=%d, 状态=%s",
+            len(mom_result.signals),
+            mom_result.bullish_count,
+            mom_result.bearish_count,
+            mom_result.strategy_state,
+        )
+
+    def _apply_smart_beta_engine(
+        self,
+        signal: Dict[str, Any],
+        alpha_data: Dict[str, Any],
+        alpha_result: Any,
+    ) -> None:
+        """Smart Beta 多因子加权优化 (P0-Q2 拆分)
+
+        Args:
+            signal: 主信号字典 (写入 signal["smart_beta"])
+            alpha_data: _prepare_alpha_data 返回的数据包
+            alpha_result: _apply_alpha_factor_lib 返回的 FactorResult
+        """
+        if self.smart_beta_engine is None:
+            return
+        import numpy as _np_alpha
+        # 构造 factor_scores: {symbol: {factor: value}}
+        sb_factor_scores: Dict[str, Dict[str, float]] = {}
+        for fname, fvalue_obj in alpha_result.factors.items():
+            values_dict = getattr(fvalue_obj, "values", {}) or {}
+            for sym, val in values_dict.items():
+                sb_factor_scores.setdefault(sym, {})[fname] = float(val)
+        alpha_symbols = alpha_data["symbols"]
+        alpha_mcap_dict = alpha_data["mcap"]
+        alpha_prices = alpha_data["prices"]
+        sb_symbols = [s for s in alpha_symbols if s in sb_factor_scores]
+        if not sb_symbols:
+            return
+        # 因子等权
+        first_sym = sb_symbols[0]
+        sb_factor_weights = {k: 1.0 / len(sb_factor_scores[first_sym])
+                             for k in sb_factor_scores[first_sym]}
+        sb_market_caps = {s: alpha_mcap_dict.get(s, 1.0) for s in sb_symbols}
+        sb_cov = _np_alpha.cov(alpha_prices[:, :len(sb_symbols)].T)
+        sb_result = self.smart_beta_engine.optimize(
+            symbols=sb_symbols,
+            factor_scores=sb_factor_scores,
+            market_caps=sb_market_caps,
+            factor_weights=sb_factor_weights,
+            cov_matrix=sb_cov,
+        )
+        signal["smart_beta"] = {
+            "weights": sb_result.smart_beta_weights.tolist(),
+            "weight_concentration": float(sb_result.weight_concentration),
+            "effective_n": float(sb_result.effective_n),
+            "sharpe_ratio": float(sb_result.sharpe_ratio),
+            "tracking_error": float(sb_result.tracking_error),
+            "information_ratio": float(sb_result.information_ratio),
+        }
+        logger.info(
+            "[SmartBeta] 优化完成: HHI=%.3f, 有效持仓=%.1f, Sharpe=%.3f, TE=%.4f",
+            sb_result.weight_concentration,
+            sb_result.effective_n,
+            sb_result.sharpe_ratio,
+            sb_result.tracking_error,
+        )
+
+    def _phase_signal_apply_alt_data_modules(self, signal: Dict[str, Any]) -> None:
+        """应用另类数据视角模块 (新闻情感 + 供应链 + 卫星/搜索/招聘/专利, P0-Q2 拆分)
+
+        Renaissance/Two Sigma 标准的多源另类数据综合指标:
+            1) news_sentiment_engine.analyze() - 新闻情感 + 事件
+            2) supply_chain_graph.analyze() - 供应链关系图谱
+            3) alt_data_indicators.analyze() - 卫星/搜索/招聘/专利综合指标
+
+        Args:
+            signal: phase_signal 主信号字典 (会被原位修改)
+        """
+        if not ALT_DATA_MODULES_READY:
+            return
+        try:
+            # 收集当前持仓标的列表
+            alt_symbols: List[str] = []
+            for pos in (self._get_portfolio_positions_for_stress_test()
+                        if hasattr(self, "_get_portfolio_positions_for_stress_test") else []):
+                code = str(pos.get("code", ""))
+                if code and code not in alt_symbols:
+                    alt_symbols.append(code)
+            # 1) 新闻情感分析
+            self._apply_news_sentiment(signal, alt_symbols)
+            # 2) 供应链关系图谱分析
+            self._apply_supply_chain_graph(signal)
+            # 3) 另类数据综合指标
+            self._apply_alt_data_indicators(signal, alt_symbols)
+        except Exception as exc_outer:
+            logger.error("[AltDataModules] 信号生成失败: %s", exc_outer, exc_info=True)
+
+    def _apply_news_sentiment(
+        self, signal: Dict[str, Any], alt_symbols: List[str]
+    ) -> None:
+        """新闻情感分析 (P0-Q2 拆分)
+
+        Args:
+            signal: 主信号字典 (写入 signal["news_sentiment"])
+            alt_symbols: 持仓标的列表
+        """
+        if self.news_sentiment_engine is None:
+            return
+        try:
+            # 构建 supply_chain_map (从供应链图引擎)
+            supply_map: Dict[str, List[str]] = {}
+            if self.supply_chain_graph is not None:
+                for src, edges in getattr(self.supply_chain_graph, "adjacency", {}).items():
+                    for e in edges:
+                        supply_map.setdefault(src, []).append(e.target)
+            ns_result = self.news_sentiment_engine.analyze(
+                symbols=alt_symbols or [],
+                supply_chain_map=supply_map,
+            )
+            # 实际字段: signals (Dict), market_sentiment, anomalies, hot_events, total_news_processed
+            ns_signals = getattr(ns_result, "signals", {}) or {}
+            ns_positive = sum(1 for s in ns_signals.values() if s.composite_sentiment > 0)
+            ns_negative = sum(1 for s in ns_signals.values() if s.composite_sentiment < 0)
+            ns_neutral = sum(1 for s in ns_signals.values() if s.composite_sentiment == 0)
+            ns_event_counts = {ev: cnt for ev, cnt in (getattr(ns_result, "hot_events", []) or [])}
+            signal["news_sentiment"] = {
+                "avg_sentiment": float(getattr(ns_result, "market_sentiment", 0.0)),
+                "positive_count": int(ns_positive),
+                "negative_count": int(ns_negative),
+                "neutral_count": int(ns_neutral),
+                "event_counts": dict(ns_event_counts),
+                "total_news": int(getattr(ns_result, "total_news_processed", 0)),
+                "top_positive": [
+                    {"symbol": s.symbol, "score": float(s.composite_sentiment), "confidence": float(s.confidence)}
+                    for s in sorted(ns_signals.values(),
+                                    key=lambda x: float(x.composite_sentiment),
+                                    reverse=True)
+                    if s.composite_sentiment > 0
+                ][:3],
+                "top_negative": [
+                    {"symbol": s.symbol, "score": float(s.composite_sentiment), "confidence": float(s.confidence)}
+                    for s in sorted(ns_signals.values(),
+                                    key=lambda x: float(x.composite_sentiment))
+                    if s.composite_sentiment < 0
+                ][:3],
+            }
+            logger.info(
+                "[NewsSentiment] 分析完成: 总新闻=%d, 平均情感=%.3f, 正面=%d, 负面=%d",
+                int(getattr(ns_result, "total_news_processed", 0)),
+                float(getattr(ns_result, "market_sentiment", 0.0)),
+                int(ns_positive),
+                int(ns_negative),
+            )
+        except Exception as exc_ns:
+            logger.error("[NewsSentiment] 信号生成失败: %s", exc_ns, exc_info=True)
+
+    def _apply_supply_chain_graph(self, signal: Dict[str, Any]) -> None:
+        """供应链关系图谱分析 (P0-Q2 拆分)
+
+        Args:
+            signal: 主信号字典 (写入 signal["supply_chain"])
+        """
+        if self.supply_chain_graph is None:
+            return
+        try:
+            sc_result = self.supply_chain_graph.analyze()
+            # 实际字段: nodes (List[str]), edges (List), metrics (Dict[str, NodeMetrics]),
+            # hubs, bottlenecks, risk_contagion, network_density, avg_path_length, num_components
+            sc_metrics = getattr(sc_result, "metrics", {}) or {}
+            sc_risk = getattr(sc_result, "risk_contagion", {}) or {}
+            sc_nodes = getattr(sc_result, "nodes", []) or []
+            sc_edges = getattr(sc_result, "edges", []) or []
+            signal["supply_chain"] = {
+                "total_nodes": int(len(sc_nodes)),
+                "total_edges": int(len(sc_edges)),
+                "top_central": [
+                    {"symbol": s, "betweenness": float(getattr(m, "betweenness_centrality", 0.0)),
+                     "pagerank": float(getattr(m, "pagerank", 0.0))}
+                    for s, m in sorted(sc_metrics.items(),
+                                       key=lambda x: float(getattr(x[1], "pagerank", 0.0)),
+                                       reverse=True)[:5]
+                ],
+                "hubs": list(getattr(sc_result, "hubs", []))[:5],
+                "bottlenecks": list(getattr(sc_result, "bottlenecks", []))[:5],
+                "risk_contagion": {
+                    s: float(v) for s, v in list(sc_risk.items())[:5]
+                },
+                "network_density": float(getattr(sc_result, "network_density", 0.0)),
+                "avg_path_length": float(getattr(sc_result, "avg_path_length", 0.0)),
+            }
+            logger.info(
+                "[SupplyChain] 分析完成: 节点=%d, 边=%d, 中心节点=%d, 网络密度=%.3f",
+                len(sc_nodes),
+                len(sc_edges),
+                len(sc_metrics),
+                float(getattr(sc_result, "network_density", 0.0)),
+            )
+        except Exception as exc_sc:
+            logger.error("[SupplyChain] 信号生成失败: %s", exc_sc, exc_info=True)
+
+    def _apply_alt_data_indicators(
+        self, signal: Dict[str, Any], alt_symbols: List[str]
+    ) -> None:
+        """另类数据综合指标 (卫星/搜索/招聘/专利, P0-Q2 拆分)
+
+        Args:
+            signal: 主信号字典 (写入 signal["alt_data"])
+            alt_symbols: 持仓标的列表
+        """
+        if self.alt_data_indicators is None or not alt_symbols:
+            return
+        try:
+            import numpy as _np_alt  # 局部导入, 避免依赖外部 np
+            # 加载演示数据 (实盘接入前)
+            self.alt_data_indicators.load_demo_data(alt_symbols[:10])
+            ad_result = self.alt_data_indicators.analyze(alt_symbols[:10])
+            # 实际字段: signals (Dict), market_alt_score, anomalies, total_indicators, coverage_summary
+            ad_signals = getattr(ad_result, "signals", {}) or {}
+            ad_coverage = getattr(ad_result, "coverage_summary", {}) or {}
+            # 平均覆盖率
+            ad_avg_cov = float(_np_alt.mean(list(ad_coverage.values()))) if ad_coverage else 0.0
+            signal["alt_data"] = {
+                "total_symbols": int(len(ad_signals)),
+                "avg_composite_score": float(getattr(ad_result, "market_alt_score", 0.0)),
+                "coverage_rate": float(ad_avg_cov),
+                "top_scores": [
+                    {
+                        "symbol": s.symbol,
+                        "composite_score": float(s.composite_score),
+                        "satellite_score": float(getattr(s, "satellite_score", 0.0)),
+                        "search_score": float(getattr(s, "search_score", 0.0)),
+                        "recruitment_score": float(getattr(s, "recruitment_score", 0.0)),
+                        "patent_score": float(getattr(s, "patent_score", 0.0)),
+                        "confidence": float(getattr(s, "confidence", 0.0)),
+                    }
+                    for s in sorted(ad_signals.values(),
+                                    key=lambda x: float(x.composite_score),
+                                    reverse=True)[:5]
+                ],
+                "anomalies": list(getattr(ad_result, "anomalies", []))[:3],
+            }
+            logger.info(
+                "[AltData] 分析完成: 标的=%d, 平均综合评分=%.3f, 平均覆盖率=%.1f%%",
+                int(len(ad_signals)),
+                float(getattr(ad_result, "market_alt_score", 0.0)),
+                float(ad_avg_cov) * 100,
+            )
+        except Exception as exc_ad:
+            logger.error("[AltData] 信号生成失败: %s", exc_ad, exc_info=True)
+
     def phase_signal(self) -> Dict[str, Any]:
         """信号生成 — 从 trade_plan 加载订单
 
@@ -3886,413 +4815,21 @@ class DailyWorkflow:
                     signal["macro_skip_count"],
                 )
 
-        # === 机构级配置: Black-Litterman 组合优化 ===
-        if self.bl_optimizer is not None:
-            try:
-                positions = (self._get_portfolio_positions_for_stress_test()
-                             if hasattr(self, "_get_portfolio_positions_for_stress_test") else [])
-                if positions:
-                    bl_assets = [p.get("code", "") for p in positions if p.get("code")]
-                    bl_market_weights = [
-                        float(p.get("amount", 0)) for p in positions if p.get("code")
-                    ]
-                    total_mv = sum(bl_market_weights)
-                    if total_mv > 0:
-                        bl_market_weights = [w / total_mv for w in bl_market_weights]
-                        # 简化协方差: 单位对角矩阵 × 0.04 (4% 日波动)
-                        import numpy as _np
-                        n_assets = len(bl_assets)
-                        bl_cov = _np.eye(n_assets) * 0.04 ** 2
-                        # 观点: 从 morning_orders/afternoon_orders 中提取信号
-                        # 仅纳入已在持仓中的标的 (避免 BL 维度不匹配)
-                        bl_views = []
-                        asset_set = set(bl_assets)
-                        for order in signal.get("morning_orders", []) + signal.get("afternoon_orders", []):
-                            code = str(order.get("code", ""))
-                            if code not in asset_set:
-                                continue
-                            side = str(order.get("side", "BUY")).upper()
-                            if side in ("BUY", "OPEN_LONG"):
-                                bl_views.append(BLView(
-                                    type="absolute", assets=[code], weights=[1.0],
-                                    expected_return=0.02, confidence=0.6,
-                                ))
-                            elif side in ("SELL", "CLOSE_LONG"):
-                                bl_views.append(BLView(
-                                    type="absolute", assets=[code], weights=[1.0],
-                                    expected_return=-0.02, confidence=0.5,
-                                ))
-                        bl_result = self.bl_optimizer.optimize(
-                            assets=bl_assets,
-                            market_weights=bl_market_weights,
-                            cov_matrix=bl_cov,
-                            views=bl_views or None,
-                            risk_free_rate=0.03,
-                        )
-                        signal["bl_optimization"] = {
-                            "optimal_weights": bl_result.optimal_weights.tolist(),
-                            "weight_change_vs_market": bl_result.weight_change_vs_market.tolist(),
-                            "sharpe_ratio": bl_result.sharpe_ratio,
-                            "diversification_ratio": bl_result.diversification_ratio,
-                            "effective_n": bl_result.effective_n,
-                            "expected_portfolio_return": bl_result.expected_portfolio_return,
-                            "expected_portfolio_vol": bl_result.expected_portfolio_vol,
-                        }
-                        logger.info(
-                            "[BlackLitterman] 优化完成: Sharpe=%.3f, DivRatio=%.2f, EffN=%.1f",
-                            bl_result.sharpe_ratio,
-                            bl_result.diversification_ratio,
-                            bl_result.effective_n,
-                        )
-            except Exception as exc:
-                logger.error("[BlackLitterman] 优化失败: %s", exc, exc_info=True)
+        # === Black-Litterman 组合优化 (P0-Q2 抽取为子方法) ===
+        # 设计详见 _phase_signal_apply_bl_optimization
+        self._phase_signal_apply_bl_optimization(signal)
 
-        # === Alpha 生成: Alpha 因子库 + 动量反转引擎 + Smart Beta 优化 ===
-        if ALPHA_MODULES_READY and self.alpha_factor_lib is not None:
-            try:
-                import numpy as _np_alpha
-                positions = (self._get_portfolio_positions_for_stress_test()
-                             if hasattr(self, "_get_portfolio_positions_for_stress_test") else [])
-                if positions:
-                    # 构造简化价格数据 (用持仓成本/市值代理) — 真实场景应从 data_layer 加载
-                    alpha_symbols = [str(p.get("code", "")) for p in positions if p.get("code")]
-                    n_alpha = len(alpha_symbols)
-                    if n_alpha > 0:
-                        # 用持仓 amount 作为 market_cap 代理
-                        alpha_mcap_dict = {
-                            str(p.get("code", "")): max(float(p.get("amount", 1.0)), 1.0)
-                            for p in positions if p.get("code")
-                        }
-                        # 构造合成价格数据 (100日, 用于因子计算)
-                        _np_alpha.random.seed(42)
-                        alpha_prices = _np_alpha.cumprod(
-                            1.0 + _np_alpha.random.randn(100, n_alpha) * 0.02, axis=0
-                        ) * 100.0
-                        import pandas as _pd_alpha
-                        alpha_price_df = _pd_alpha.DataFrame(alpha_prices, columns=alpha_symbols)
-                        # 行业映射简化
-                        alpha_industries = {s: "Unknown" for s in alpha_symbols}
+        # === Alpha 因子库 + 动量反转 + Smart Beta (P0-Q2 抽取为子方法) ===
+        # 设计详见 _phase_signal_apply_alpha_modules
+        self._phase_signal_apply_alpha_modules(signal)
 
-                        # 1) Alpha 因子库计算
-                        alpha_result = self.alpha_factor_lib.compute_all(
-                            price_data=alpha_price_df,
-                            fundamentals=None,
-                            industries=alpha_industries,
-                            benchmark_returns=None,
-                        )
-                        # 实际字段: factors (Dict), effective_factors (List), strong_factors (List)
-                        signal["alpha_factors"] = {
-                            "total_factors": len(alpha_result.factors),
-                            "effective_factors": list(alpha_result.effective_factors),
-                            "strong_factors": list(alpha_result.strong_factors),
-                            "factor_names": list(alpha_result.factors.keys())[:20],
-                        }
-                        logger.info(
-                            "[AlphaFactorLib] 因子计算完成: 总数=%d, 有效=%d, 强=%d",
-                            len(alpha_result.factors),
-                            len(alpha_result.effective_factors),
-                            len(alpha_result.strong_factors),
-                        )
+        # === 另类数据视角 (新闻情感 + 供应链 + 卫星/搜索/招聘/专利, P0-Q2 抽取为子方法) ===
+        # 设计详见 _phase_signal_apply_alt_data_modules
+        self._phase_signal_apply_alt_data_modules(signal)
 
-                        # 2) 动量反转信号生成
-                        if self.momentum_engine is not None:
-                            mom_result = self.momentum_engine.generate_signals(alpha_price_df)
-                            # 实际字段: signals (Dict), avg_signal_strength, bullish_count, bearish_count
-                            signal["momentum_signals"] = {
-                                "total_signals": len(mom_result.signals),
-                                "bullish_count": mom_result.bullish_count,
-                                "bearish_count": mom_result.bearish_count,
-                                "avg_signal_strength": mom_result.avg_signal_strength,
-                                "strategy_state": mom_result.strategy_state,
-                                "top_long_candidates": mom_result.top_long_candidates[:5],
-                                "top_short_candidates": mom_result.top_short_candidates[:5],
-                            }
-                            logger.info(
-                                "[MomentumReversal] 信号生成: 总数=%d, 看多=%d, 看空=%d, 状态=%s",
-                                len(mom_result.signals),
-                                mom_result.bullish_count,
-                                mom_result.bearish_count,
-                                mom_result.strategy_state,
-                            )
-
-                        # 3) Smart Beta 多因子加权优化
-                        if self.smart_beta_engine is not None:
-                            # 构造 factor_scores: {symbol: {factor: value}}
-                            # 从 alpha_result.factors (Dict[str, FactorValue]) 中提取
-                            sb_factor_scores = {}
-                            for fname, fvalue_obj in alpha_result.factors.items():
-                                # FactorValue.values 是 Dict[str, float] = {symbol: value}
-                                values_dict = getattr(fvalue_obj, "values", {}) or {}
-                                for sym, val in values_dict.items():
-                                    sb_factor_scores.setdefault(sym, {})[fname] = float(val)
-                            # 仅纳入有因子值的标的
-                            sb_symbols = [s for s in alpha_symbols if s in sb_factor_scores]
-                            if sb_symbols:
-                                # 因子等权
-                                first_sym = sb_symbols[0]
-                                sb_factor_weights = {k: 1.0 / len(sb_factor_scores[first_sym])
-                                                     for k in sb_factor_scores[first_sym]}
-                                sb_market_caps = {s: alpha_mcap_dict.get(s, 1.0) for s in sb_symbols}
-                                sb_cov = _np_alpha.cov(alpha_prices[:, :len(sb_symbols)].T)
-                                sb_result = self.smart_beta_engine.optimize(
-                                    symbols=sb_symbols,
-                                    factor_scores=sb_factor_scores,
-                                    market_caps=sb_market_caps,
-                                    factor_weights=sb_factor_weights,
-                                    cov_matrix=sb_cov,
-                                )
-                                # 实际字段: smart_beta_weights, weight_concentration, effective_n, sharpe_ratio
-                                signal["smart_beta"] = {
-                                    "weights": sb_result.smart_beta_weights.tolist(),
-                                    "weight_concentration": float(sb_result.weight_concentration),
-                                    "effective_n": float(sb_result.effective_n),
-                                    "sharpe_ratio": float(sb_result.sharpe_ratio),
-                                    "tracking_error": float(sb_result.tracking_error),
-                                    "information_ratio": float(sb_result.information_ratio),
-                                }
-                                logger.info(
-                                    "[SmartBeta] 优化完成: HHI=%.3f, 有效持仓=%.1f, Sharpe=%.3f, TE=%.4f",
-                                    sb_result.weight_concentration,
-                                    sb_result.effective_n,
-                                    sb_result.sharpe_ratio,
-                                    sb_result.tracking_error,
-                                )
-            except Exception as exc:
-                logger.error("[AlphaModules] 信号生成失败: %s", exc, exc_info=True)
-
-        # === 另类数据视角: 新闻情感 + 供应链 + 卫星/搜索/招聘/专利 ===
-        if ALT_DATA_MODULES_READY:
-            try:
-                # 收集当前持仓标的列表
-                alt_symbols: List[str] = []
-                for pos in (self._get_portfolio_positions_for_stress_test()
-                            if hasattr(self, "_get_portfolio_positions_for_stress_test") else []):
-                    code = str(pos.get("code", ""))
-                    if code and code not in alt_symbols:
-                        alt_symbols.append(code)
-
-                # 1) 新闻情感分析 (若有引擎且添加过新闻)
-                if self.news_sentiment_engine is not None:
-                    try:
-                        # 构建 supply_chain_map (从供应链图引擎)
-                        supply_map: Dict[str, List[str]] = {}
-                        if self.supply_chain_graph is not None:
-                            for src, edges in getattr(self.supply_chain_graph, "adjacency", {}).items():
-                                for e in edges:
-                                    supply_map.setdefault(src, []).append(e.target)
-
-                        ns_result = self.news_sentiment_engine.analyze(
-                            symbols=alt_symbols or [],
-                            supply_chain_map=supply_map,
-                        )
-                        # 实际字段: signals (Dict), market_sentiment, anomalies, hot_events, total_news_processed
-                        ns_signals = getattr(ns_result, "signals", {}) or {}
-                        ns_positive = sum(1 for s in ns_signals.values() if s.composite_sentiment > 0)
-                        ns_negative = sum(1 for s in ns_signals.values() if s.composite_sentiment < 0)
-                        ns_neutral = sum(1 for s in ns_signals.values() if s.composite_sentiment == 0)
-                        ns_event_counts = {ev: cnt for ev, cnt in (getattr(ns_result, "hot_events", []) or [])}
-                        signal["news_sentiment"] = {
-                            "avg_sentiment": float(getattr(ns_result, "market_sentiment", 0.0)),
-                            "positive_count": int(ns_positive),
-                            "negative_count": int(ns_negative),
-                            "neutral_count": int(ns_neutral),
-                            "event_counts": dict(ns_event_counts),
-                            "total_news": int(getattr(ns_result, "total_news_processed", 0)),
-                            "top_positive": [
-                                {"symbol": s.symbol, "score": float(s.composite_sentiment), "confidence": float(s.confidence)}
-                                for s in sorted(ns_signals.values(),
-                                                key=lambda x: float(x.composite_sentiment),
-                                                reverse=True)
-                                if s.composite_sentiment > 0
-                            ][:3],
-                            "top_negative": [
-                                {"symbol": s.symbol, "score": float(s.composite_sentiment), "confidence": float(s.confidence)}
-                                for s in sorted(ns_signals.values(),
-                                                key=lambda x: float(x.composite_sentiment))
-                                if s.composite_sentiment < 0
-                            ][:3],
-                        }
-                        logger.info(
-                            "[NewsSentiment] 分析完成: 总新闻=%d, 平均情感=%.3f, 正面=%d, 负面=%d",
-                            int(getattr(ns_result, "total_news_processed", 0)),
-                            float(getattr(ns_result, "market_sentiment", 0.0)),
-                            int(ns_positive),
-                            int(ns_negative),
-                        )
-                    except Exception as exc_ns:
-                        logger.error("[NewsSentiment] 信号生成失败: %s", exc_ns, exc_info=True)
-
-                # 2) 供应链关系图谱分析
-                if self.supply_chain_graph is not None:
-                    try:
-                        sc_result = self.supply_chain_graph.analyze()
-                        # 实际字段: nodes (List[str]), edges (List), metrics (Dict[str, NodeMetrics]),
-                        # hubs, bottlenecks, risk_contagion, network_density, avg_path_length, num_components
-                        sc_metrics = getattr(sc_result, "metrics", {}) or {}
-                        sc_risk = getattr(sc_result, "risk_contagion", {}) or {}
-                        sc_nodes = getattr(sc_result, "nodes", []) or []
-                        sc_edges = getattr(sc_result, "edges", []) or []
-                        signal["supply_chain"] = {
-                            "total_nodes": int(len(sc_nodes)),
-                            "total_edges": int(len(sc_edges)),
-                            "top_central": [
-                                {"symbol": s, "betweenness": float(getattr(m, "betweenness_centrality", 0.0)),
-                                 "pagerank": float(getattr(m, "pagerank", 0.0))}
-                                for s, m in sorted(sc_metrics.items(),
-                                                    key=lambda x: float(getattr(x[1], "pagerank", 0.0)),
-                                                    reverse=True)[:5]
-                            ],
-                            "hubs": list(getattr(sc_result, "hubs", []))[:5],
-                            "bottlenecks": list(getattr(sc_result, "bottlenecks", []))[:5],
-                            "risk_contagion": {
-                                s: float(v) for s, v in list(sc_risk.items())[:5]
-                            },
-                            "network_density": float(getattr(sc_result, "network_density", 0.0)),
-                            "avg_path_length": float(getattr(sc_result, "avg_path_length", 0.0)),
-                        }
-                        logger.info(
-                            "[SupplyChain] 分析完成: 节点=%d, 边=%d, 中心节点=%d, 网络密度=%.3f",
-                            len(sc_nodes),
-                            len(sc_edges),
-                            len(sc_metrics),
-                            float(getattr(sc_result, "network_density", 0.0)),
-                        )
-                    except Exception as exc_sc:
-                        logger.error("[SupplyChain] 信号生成失败: %s", exc_sc, exc_info=True)
-
-                # 3) 另类数据综合指标
-                if self.alt_data_indicators is not None and alt_symbols:
-                    try:
-                        import numpy as _np_alt  # 局部导入, 避免依赖外部 np
-                        # 加载演示数据 (实盘接入前)
-                        self.alt_data_indicators.load_demo_data(alt_symbols[:10])
-                        ad_result = self.alt_data_indicators.analyze(alt_symbols[:10])
-                        # 实际字段: signals (Dict), market_alt_score, anomalies, total_indicators, coverage_summary
-                        ad_signals = getattr(ad_result, "signals", {}) or {}
-                        ad_coverage = getattr(ad_result, "coverage_summary", {}) or {}
-                        # 平均覆盖率
-                        ad_avg_cov = float(_np_alt.mean(list(ad_coverage.values()))) if ad_coverage else 0.0
-                        signal["alt_data"] = {
-                            "total_symbols": int(len(ad_signals)),
-                            "avg_composite_score": float(getattr(ad_result, "market_alt_score", 0.0)),
-                            "coverage_rate": float(ad_avg_cov),
-                            "top_scores": [
-                                {
-                                    "symbol": s.symbol,
-                                    "composite_score": float(s.composite_score),
-                                    "satellite_score": float(getattr(s, "satellite_score", 0.0)),
-                                    "search_score": float(getattr(s, "search_score", 0.0)),
-                                    "recruitment_score": float(getattr(s, "recruitment_score", 0.0)),
-                                    "patent_score": float(getattr(s, "patent_score", 0.0)),
-                                    "confidence": float(getattr(s, "confidence", 0.0)),
-                                }
-                                for s in sorted(ad_signals.values(),
-                                                key=lambda x: float(x.composite_score),
-                                                reverse=True)[:5]
-                            ],
-                            "anomalies": list(getattr(ad_result, "anomalies", []))[:3],
-                        }
-                        logger.info(
-                            "[AltData] 分析完成: 标的=%d, 平均综合评分=%.3f, 平均覆盖率=%.1f%%",
-                            int(len(ad_signals)),
-                            float(getattr(ad_result, "market_alt_score", 0.0)),
-                            float(ad_avg_cov) * 100,
-                        )
-                    except Exception as exc_ad:
-                        logger.error("[AltData] 信号生成失败: %s", exc_ad, exc_info=True)
-            except Exception as exc_outer:
-                logger.error("[AltDataModules] 信号生成失败: %s", exc_outer, exc_info=True)
-
-        # === 对冲基金视角: 多策略协调器 (冲突检测 + 风险预算审计) ===
-        if self.strategy_coordinator is not None:
-            try:
-                # 构造目标信号: 把订单按策略账户归类
-                target_signals: Dict[str, Dict[str, str]] = {
-                    "stock_long": {},
-                    "etf_allocation": {},
-                }
-                for order in signal.get("morning_orders", []) + signal.get("afternoon_orders", []):
-                    code = str(order.get("code", ""))
-                    side = str(order.get("side", "BUY")).upper()
-                    asset_type = str(order.get("type", "STOCK")).upper()
-                    direction = "BUY" if side in ("BUY", "OPEN_LONG") else "SELL"
-                    if asset_type == "ETF":
-                        target_signals["etf_allocation"][code] = direction
-                    else:
-                        target_signals["stock_long"][code] = direction
-
-                # 期权/期货信号 (从 hedge_plan 与 options_plan)
-                hedge_plan = self.state.get("phases", {}).get("hedge", {}).get("hedge_plan", {})
-                if hedge_plan:
-                    target_signals["macro_hedge"] = {
-                        str(item.get("symbol", "")): "SELL"
-                        for item in hedge_plan.get("futures", [])
-                        if str(item.get("direction", "")).upper() in ("SHORT", "SELL")
-                    }
-                options_modules = self.trade_plan.get("hedge_account", {}).get("modules", []) if self.trade_plan else []
-                if options_modules:
-                    target_signals["options_tail"] = {"OPTIONS": "BUY"}
-
-                # 当前持仓 (用于冲突检测) — 转换为 {code: {weight, strategy}} 格式
-                current_positions: Dict[str, Dict[str, Any]] = {}
-                portfolio_value = float(getattr(self, "capital", 5_000_000))
-                for pos in (self._get_portfolio_positions_for_stress_test()
-                            if hasattr(self, "_get_portfolio_positions_for_stress_test") else []):
-                    code = pos.get("code", "")
-                    amount = float(pos.get("amount", 0))
-                    if code and portfolio_value > 0:
-                        current_positions[code] = {
-                            "weight": amount / portfolio_value,
-                            "strategy": "stock_long" if str(pos.get("type", "STOCK")).upper() == "STOCK" else "etf_allocation",
-                            "amount": amount,
-                        }
-
-                coord_decision = self.strategy_coordinator.coordinate(
-                    target_signals=target_signals,
-                    current_positions=current_positions,
-                    strategy_pnl={},  # 实盘接入后填充
-                    strategy_correlations=None,
-                )
-
-                signal["strategy_coordination"] = {
-                    "is_approved": coord_decision.is_approved,
-                    "total_allocated": coord_decision.total_allocated,
-                    "cash_buffer": coord_decision.cash_buffer,
-                    "risk_budget_used": coord_decision.risk_budget_used,
-                    "risk_budget_limit": coord_decision.risk_budget_limit,
-                    "conflicts": [
-                        {
-                            "strategies": c.strategies,
-                            "symbol": c.symbol,
-                            "conflict_type": c.conflict_type,
-                            "severity": c.severity,
-                            "message": c.description,
-                            "suggested_action": c.suggested_action,
-                        } for c in coord_decision.conflicts
-                    ],
-                    "adjusted_weights": coord_decision.strategy_weights,
-                }
-
-                if not coord_decision.is_approved:
-                    err_conflicts = [c for c in coord_decision.conflicts if c.severity == "error"]
-                    logger.warning(
-                        "[MultiStrategy] 协调未通过: %d 个 error 级冲突, %d 个 warning",
-                        len(err_conflicts),
-                        len([c for c in coord_decision.conflicts if c.severity == "warning"]),
-                    )
-                    for c in err_conflicts:
-                        logger.warning("  - [%s/%s] %s: %s",
-                                       ",".join(c.strategies), c.symbol, c.conflict_type, c.description)
-                else:
-                    logger.info(
-                        "[MultiStrategy] 协调通过: cash_buffer=%.0f, risk_used=%.0f/%.0f, conflicts=%d",
-                        coord_decision.cash_buffer,
-                        coord_decision.risk_budget_used,
-                        coord_decision.risk_budget_limit,
-                        len(coord_decision.conflicts),
-                    )
-            except Exception as exc:
-                logger.error("[MultiStrategy] 协调失败: %s", exc, exc_info=True)
+        # === 多策略协调器 (冲突检测 + 风险预算审计, P0-Q2 抽取为子方法) ===
+        # 设计详见 _phase_signal_apply_strategy_coordination
+        self._phase_signal_apply_strategy_coordination(signal)
 
         # === v8.6.4 P0 修复: 计算 target_weights（供 Phase 10 影子账户使用）===
         # 修复 2026-07-26 P0 隐藏 bug: Phase 10 shadow_monitor 读取 signal_phase.target_weights,
@@ -4316,248 +4853,21 @@ class DailyWorkflow:
             target_weights[code] = target_weights.get(code, 0.0) + weight
         signal["target_weights"] = target_weights
 
-        # === v8.6.4 P0-A 深度修复: 加载 Pipeline 因子组合信号并调整目标权重 ===
-        # 设计: 离线脚本 (06:00) 调用 PipelineOrchestrator 生成 signals JSON,
-        # 在线 (07:00) 加载 JSON 并以保守权重 alpha=0.05 调整目标权重.
-        # 安全: 失败不阻断主流程, 与 LGB 信号加载一致的安全降级模式.
-        # 仅影响影子账户 (Phase 10), 不影响 500万 实盘 (Phase 6 执行订单不变).
-        pipeline_signals = {}
-        try:
-            from utils.portfolio_optimizer import PortfolioOptimizer
-            opt = PortfolioOptimizer()
-            pipeline_signals = opt.load_factor_signals(self.trade_date)
-            if pipeline_signals:
-                target_weights = opt.adjust_target_weights(
-                    target_weights, pipeline_signals, alpha=0.05,
-                )
-                signal["target_weights"] = target_weights
-                signal["pipeline_factor_count"] = len(pipeline_signals)
-                signal["pipeline_factor_applied"] = True
-                logger.info(
-                    f"Pipeline 因子组合信号加载: {len(pipeline_signals)} 个标的, "
-                    f"已以 alpha=0.05 调整目标权重 (v8.6.4 P0-A)"
-                )
-                # 同时注入到 SignalFusionEngine, 作为第 5 个信号源参与融合
-                if self.signal_fusion is not None:
-                    self.signal_fusion.inject_pipeline_factor_signals(pipeline_signals)
-                    logger.info("Pipeline 因子信号已注入 SignalFusionEngine (weight=0.05)")
-            else:
-                signal["pipeline_factor_applied"] = False
-                logger.info(
-                    "Pipeline 因子信号未加载 (可能未生成或非当日, 安全降级为原始权重)"
-                )
-        except Exception as e:
-            logger.warning(
-                f"Pipeline 因子信号加载失败 (不影响主流程, 降级为原始权重): {e}"
-            )
-            signal["pipeline_factor_applied"] = False
+        # === v8.6.4 P0-A: 加载 Pipeline 因子组合信号 (P0-Q2 抽取为子方法) ===
+        # 设计详见 _phase_signal_inject_pipeline_signals
+        target_weights = self._phase_signal_inject_pipeline_signals(signal, target_weights)
 
-        # === v8.6.9 新增: 研究蒸馏信号注入 (第 6 信号源) ===
-        # 设计: 离线脚本 (06:00) 调用 ResearchDistiller 蒸馏研报/业绩会/书籍,
-        # 在线 (07:00) 加载 daily snapshot 并注入 SignalFusionEngine.
-        # 安全: 失败不阻断主流程, 严格沿用 Pipeline 因子信号的降级模式.
-        # post-mix 模式: 不修改主融合公式, 仅以 weight=0.03 叠加.
-        # 仅影响影子账户 (Phase 10), 不影响 500万 实盘 (Phase 6 执行订单不变).
-        # v8.6.9 环境隔离: 仅在 shadow/development 模式下激活,
-        # production 实盘模式下强制跳过 (用户要求: 暂不接入实盘, 用模拟盘跑数据).
-        research_signals = {}
-        try:
-            from utils.trading_env import get_trading_env, TradingEnv
-            _current_env = get_trading_env()
-            if _current_env == TradingEnv.PRODUCTION:
-                # 实盘模式: 强制禁用研究蒸馏信号, 避免影响真实交易
-                signal["research_distilled_applied"] = False
-                signal["research_distilled_skipped_reason"] = "production_env_disabled"
-                logger.info(
-                    "研究蒸馏信号在 production 实盘模式下已禁用 "
-                    "(v8.6.9 环境隔离: 仅 shadow/development 模式激活)"
-                )
-            else:
-                from utils.research_distiller import ResearchDistiller
-                distiller = ResearchDistiller()
-                research_signals = distiller.load_daily_snapshot(self.trade_date)
-                if research_signals and self.signal_fusion is not None:
-                    self.signal_fusion.inject_research_distilled_signals(research_signals)
-                    signal["research_distilled_count"] = len(research_signals)
-                    signal["research_distilled_applied"] = True
-                    signal["research_distilled_env"] = _current_env
-                    logger.info(
-                        f"研究蒸馏信号加载: {len(research_signals)} 个标的, "
-                        f"已注入 SignalFusionEngine (weight=0.03, v8.6.9 第 6 信号源, "
-                        f"env={_current_env} 模拟盘模式)"
-                    )
-                else:
-                    signal["research_distilled_applied"] = False
-                    logger.info(
-                        "研究蒸馏信号未加载 (可能未生成或非当日, 安全降级为原始权重)"
-                    )
-        except Exception as e:
-            logger.warning(
-                f"研究蒸馏信号加载失败 (不影响主流程, 降级为原始权重): {e}"
-            )
-            signal["research_distilled_applied"] = False
+        # === v8.6.9: 研究蒸馏信号注入 (第 6 信号源, P0-Q2 抽取为子方法) ===
+        # 设计详见 _phase_signal_inject_research_signals
+        self._phase_signal_inject_research_signals(signal)
 
-        # === v8.7 新增: LGB 增强信号注入 (第 7 信号源) ===
-        # 设计: 离线脚本 lgb_enhanced_trainer.py (GPU 训练, 真实 OHLCV + 新闻情绪因子)
-        # 在线 (07:00) 加载 lgb_enhanced_signals.json 并注入 SignalFusionEngine.
-        # 安全: 失败不阻断主流程, 严格沿用研究蒸馏信号的降级模式.
-        # post-mix 模式: 不修改主融合公式, 仅以 weight=0.04 叠加.
-        # LOW_QUALITY 降权: 688981/600036/600219 等标的权重降至 50% (在 SignalFusionEngine 内处理).
-        # 数据来源: models/lgb_enhanced/lgb_enhanced_signals.json (23 标的, 平均 IC=0.1631).
-        lgb_signals = {}
-        try:
-            from pathlib import Path as _Path
-            _lgb_signals_file = _Path(__file__).resolve().parents[1] / "models" / "lgb_enhanced" / "lgb_enhanced_signals.json"
-            if _lgb_signals_file.exists():
-                import json as _json
-                with open(_lgb_signals_file, "r", encoding="utf-8") as _f:
-                    _lgb_data = _json.load(_f)
-                # signals 字段为结构化格式: {symbol: {"signal": float, "quality_flag": str, ...}}
-                lgb_signals = _lgb_data.get("signals", {})
-                # 信号新鲜度检查: trade_date 与 self.trade_date 匹配, 否则降级警告
-                _lgb_trade_date = _lgb_data.get("trade_date", "")
-                _lgb_generated_at = _lgb_data.get("generated_at", "")
-                if lgb_signals and self.signal_fusion is not None:
-                    self.signal_fusion.inject_lgb_enhanced_signals(lgb_signals)
-                    # 统计质量分布
-                    _ok_count = sum(
-                        1 for v in lgb_signals.values()
-                        if isinstance(v, dict) and v.get("quality_flag") == "OK"
-                    )
-                    _low_quality_count = sum(
-                        1 for v in lgb_signals.values()
-                        if isinstance(v, dict) and v.get("quality_flag") == "LOW_QUALITY"
-                    )
-                    signal["lgb_enhanced_count"] = len(lgb_signals)
-                    signal["lgb_enhanced_ok_count"] = _ok_count
-                    signal["lgb_enhanced_low_quality_count"] = _low_quality_count
-                    signal["lgb_enhanced_applied"] = True
-                    signal["lgb_enhanced_trade_date"] = _lgb_trade_date
-                    signal["lgb_enhanced_weight"] = 0.04
-                    signal["lgb_enhanced_data_source"] = "real_ohlcv_sentiment"
-                    logger.info(
-                        f"LGB 增强信号加载: {len(lgb_signals)} 个标的 "
-                        f"(OK={_ok_count}, LOW_QUALITY={_low_quality_count}), "
-                        f"已注入 SignalFusionEngine (weight=0.04, v8.7 第 7 信号源, "
-                        f"trade_date={_lgb_trade_date})"
-                    )
-                else:
-                    signal["lgb_enhanced_applied"] = False
-                    signal["lgb_enhanced_skipped_reason"] = "no_signal_fusion_or_empty_signals"
-                    logger.info(
-                        "LGB 增强信号未加载 (信号为空或 SignalFusionEngine 未初始化, "
-                        "安全降级为原始权重)"
-                    )
-            else:
-                signal["lgb_enhanced_applied"] = False
-                signal["lgb_enhanced_skipped_reason"] = "signals_file_not_found"
-                logger.info(
-                    f"LGB 增强信号文件不存在: {_lgb_signals_file}, "
-                    "安全降级为原始权重 (可能未运行 lgb_enhanced_trainer.py)"
-                )
-        except Exception as e:
-            logger.warning(
-                f"LGB 增强信号加载失败 (不影响主流程, 降级为原始权重): {e}"
-            )
-            signal["lgb_enhanced_applied"] = False
-            signal["lgb_enhanced_skipped_reason"] = f"exception: {e}"
+        # === v8.7: LGB 增强信号注入 (第 7 信号源, P0-Q2 抽取为子方法) ===
+        # 设计详见 _phase_signal_inject_lgb_signals
+        self._phase_signal_inject_lgb_signals(signal)
 
-        # === v8.6.9 新增: 金融多 Agent Shadow Mode (任务 1.2 Phase 7) ===
-        # 设计: 借鉴 awesome-llm-apps/ai_hedge_fund 多 Agent 投票架构,
-        #   5 个专家 Agent (Value/Momentum/Sentiment/Risk/Macro) 独立分析,
-        #   RiskAgent 拥有 veto 权, 加权投票聚合决策.
-        # 安全: 仅 Shadow Mode 运行, 不参与实盘决策, 仅记录审计日志.
-        #   - production 实盘模式强制跳过 (用户要求: 暂不接入实盘, 用模拟盘跑数据)
-        #   - 失败不阻断主流程, 严格沿用研究蒸馏信号的降级模式
-        #   - 限制最多 5 个标的 (避免 LLM 调用过多, Shadow Mode 仅做抽样验证)
-        # 输出: data/agent_orchestrator_audit/shadow_diffs_{trade_date}.jsonl
-        # 评估: 30 天 OOS 验证后, 评估是否升级为正式信号源
-        try:
-            from utils.trading_env import get_trading_env as _get_env_v869
-            _shadow_env = _get_env_v869()
-            if _shadow_env == "production":
-                # 实盘模式: 强制禁用金融多 Agent Shadow Mode
-                signal["finance_agent_shadow_applied"] = False
-                signal["finance_agent_shadow_skipped_reason"] = "production_env_disabled"
-                logger.info(
-                    "金融多 Agent Shadow Mode 在 production 实盘模式下已禁用 "
-                    "(v8.6.9 环境隔离: 仅 shadow/development 模式激活)"
-                )
-            else:
-                from utils.finance_agent_orchestrator import FinanceAgentOrchestrator
-                _orchestrator = FinanceAgentOrchestrator()
-
-                # 遍历 target_weights (按 |weight| 降序, 取前 5 个标的做 Shadow 验证)
-                _shadow_symbols = sorted(
-                    target_weights.keys(),
-                    key=lambda s: abs(target_weights.get(s, 0.0)),
-                    reverse=True,
-                )[:5]
-
-                _shadow_consensus_count = 0
-                _shadow_veto_count = 0
-                _shadow_direction_match_count = 0
-                for _shadow_symbol in _shadow_symbols:
-                    try:
-                        # 构建最小 context (Agent 内部会优雅降级处理缺失数据)
-                        _shadow_context = {
-                            "trade_date": self.trade_date,
-                            "target_weight": target_weights.get(_shadow_symbol, 0.0),
-                            "position_weight": target_weights.get(_shadow_symbol, 0.0),
-                            "env": _shadow_env,
-                        }
-
-                        # 多 Agent 协调 -> 共识决策
-                        _consensus = _orchestrator.orchestrate(_shadow_symbol, _shadow_context)
-
-                        # Shadow 对比 (从 signal_fusion 缓存提取 strength)
-                        _fusion_strength = 0.0
-                        if self.signal_fusion is not None:
-                            _cached = getattr(
-                                self.signal_fusion,
-                                "_research_distilled_signals",
-                                {},
-                            )
-                            _fusion_strength = float(_cached.get(_shadow_symbol, 0.0))
-                            if not math.isfinite(_fusion_strength):
-                                _fusion_strength = 0.0
-
-                        _diff = _orchestrator.shadow_compare(
-                            {"strength": _fusion_strength},
-                            _consensus,
-                        )
-
-                        # 持久化审计日志 (jsonl 格式, 每行一个决策)
-                        _orchestrator.save_audit_log(_consensus, _diff, self.trade_date)
-
-                        _shadow_consensus_count += 1
-                        if _consensus.veto:
-                            _shadow_veto_count += 1
-                        if _diff.direction_match:
-                            _shadow_direction_match_count += 1
-                    except Exception as _shadow_e:
-                        logger.warning(
-                            "金融多 Agent Shadow Mode 标的 %s 分析失败 (跳过, 不影响主流程): %s",
-                            _shadow_symbol, _shadow_e,
-                        )
-
-                signal["finance_agent_shadow_applied"] = _shadow_consensus_count > 0
-                signal["finance_agent_shadow_count"] = _shadow_consensus_count
-                signal["finance_agent_shadow_veto_count"] = _shadow_veto_count
-                signal["finance_agent_shadow_direction_match_count"] = _shadow_direction_match_count
-                signal["finance_agent_shadow_env"] = _shadow_env
-                logger.info(
-                    "金融多 Agent Shadow Mode 完成: %d 个标的 (veto=%d, 方向一致=%d), "
-                    "审计日志已写入 data/agent_orchestrator_audit/ (env=%s)",
-                    _shadow_consensus_count, _shadow_veto_count,
-                    _shadow_direction_match_count, _shadow_env,
-                )
-        except Exception as e:
-            logger.warning(
-                f"金融多 Agent Shadow Mode 加载失败 (不影响主流程, 降级为原始权重): {e}"
-            )
-            signal["finance_agent_shadow_applied"] = False
-            signal["finance_agent_shadow_skipped_reason"] = f"exception: {e}"
+        # === v8.6.9: 金融多 Agent Shadow Mode (P0-Q2 抽取为子方法) ===
+        # 设计详见 _phase_signal_apply_agent_shadow
+        self._phase_signal_apply_agent_shadow(signal, target_weights)
 
         total_exposure = sum(abs(w) for w in target_weights.values())
         logger.info(f"目标权重计算: {len(target_weights)} 标的, 总暴露={total_exposure:.4f} (供 Phase 10 影子账户)")
@@ -4573,38 +4883,9 @@ class DailyWorkflow:
             } for k, v in macro_scores.items()}
             self.state["phases"]["signal"]["macro_policy"] = signal["macro_policy"]
 
-        # === v8.5: 因子衰减监控 ===
-        try:
-            if V85_READY:
-                from model_monitoring.factor_decay_monitor import FactorDecayMonitor
-                fdm = FactorDecayMonitor()
-                fdm_result = fdm.generate_health_report()
-                signal["factor_decay"] = {
-                    "timestamp": fdm_result.timestamp.isoformat() if fdm_result.timestamp else "",
-                    "total_factors": fdm_result.total_factors,
-                    "healthy_factors": fdm_result.healthy_factors,
-                    "warning_factors": fdm_result.warning_factors,
-                    "degrading_factors": fdm_result.degrading_factors,
-                    "deprecated_factors": fdm_result.deprecated_factors,
-                    "new_deprecations": fdm_result.new_deprecations,
-                    "warnings": fdm_result.warnings,
-                    "recommendations": fdm_result.recommendations,
-                    "status": fdm_result.status,
-                }
-                decaying = fdm_result.new_deprecations or []
-                if decaying:
-                    logger.warning(
-                        "[v8.5 FactorDecay] 检测到 %d 个衰减因子: %s",
-                        len(decaying),
-                        ", ".join(str(d) for d in decaying[:5]),
-                    )
-                else:
-                    logger.info("[v8.5 FactorDecay] 所有因子健康, 无显著衰减")
-            else:
-                signal["factor_decay"] = {"status": "SKIP", "reason": "v85_not_ready"}
-        except Exception as e:
-            logger.error(f"[v8.5 FactorDecay] 监控失败: {e}", exc_info=True)
-            signal["factor_decay"] = {"status": "ERROR", "error": str(e)}
+        # === v8.5: 因子衰减监控 (P0-Q2 抽取为子方法) ===
+        # 设计详见 _phase_signal_apply_factor_decay
+        self._phase_signal_apply_factor_decay(signal)
 
         return signal
 

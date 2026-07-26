@@ -57,14 +57,50 @@ class KillSwitch:
         KILL_SWITCH_LOG.parent.mkdir(parents=True, exist_ok=True)
 
     def _load_config(self) -> Dict:
-        """加载 kill_switch 配置"""
+        """加载 kill_switch 配置 (P1-Q8: 通过 ConfigManager 统一加载)
+
+        优先级:
+            1. 显式传入的 config_path (向后兼容测试场景)
+            2. ConfigManager 自动解析 (v8.3 唯一事实源 > configs/ 历史回退)
+
+        历史背景:
+            v8.6.7 之前 kill_switch.py 硬编码读取 configs/portfolio.yaml (v7.7 旧版),
+            与 v8.3_institutional/config/portfolio.yaml (v8.4 唯一事实源) 存在配置漂移.
+            P1-Q8: 通过 ConfigManager 统一加载, 优先使用 v8.3 唯一事实源.
+
+        Returns:
+            kill_switch 配置字典, 加载失败返回空 dict (fail-safe)
+        """
+        # 路径 1: 调用方显式指定了 config_path (测试场景, 向后兼容)
+        if self.config_path != CONFIG_PATH:
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f)
+                return cfg.get("kill_switch", {}) if isinstance(cfg, dict) else {}
+            except Exception as e:
+                logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
+                return {}
+
+        # 路径 2: 通过 ConfigManager 统一加载 (P1-Q8, 生产路径)
         try:
+            # 延迟导入避免循环依赖
+            from utils.config_manager import get_kill_switch_config
+            cfg = get_kill_switch_config()
+            if cfg:
+                return cfg
+            # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, "r", encoding="utf-8") as f:
-                cfg = yaml.safe_load(f)
-            return cfg.get("kill_switch", {})
+                fallback_cfg = yaml.safe_load(f)
+            return fallback_cfg.get("kill_switch", {}) if isinstance(fallback_cfg, dict) else {}
         except Exception as e:
-            logger.error(f"加载配置失败: {e}")
-            return {}
+            logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f)
+                return cfg.get("kill_switch", {}) if isinstance(cfg, dict) else {}
+            except Exception as e2:
+                logger.error(f"全部加载路径失败: {e2}")
+                return {}
 
     def _get_margin_status(self) -> Dict:
         """获取保证金占用情况
@@ -107,7 +143,8 @@ class KillSwitch:
             # v8.6.1 修复: 读取 config/positions.json 估算真实保证金占用
             ratio = self._estimate_margin_from_positions()
 
-        total_margin = 5_000_000  # 500万账户总保证金
+        # P2-Q11 修复: 总保证金配置化, 不再硬编码 5_000_000
+        total_margin = self._get_total_margin()
         used_margin = total_margin * ratio
         available_margin = total_margin - used_margin
 
@@ -120,10 +157,11 @@ class KillSwitch:
         }
 
     def _estimate_margin_from_positions(self) -> float:
-        """从 config/positions.json 读取持仓估算保证金占用率 (v8.6.1 修复)
+        """从 config/positions.json 读取持仓估算保证金占用率 (v8.6.1 修复 / P1-Q7 重构)
 
-        v8.6.4 修复: 股票/ETF 是全额交易, 不应计入保证金占用.
-        只有期货/期权才需要保证金.
+        P1-Q7 重构 (2026-07-26): 拆分为编排器 + 4 个职责单一子方法
+            原函数: 117 行, 圈复杂度 > 20, 5 层嵌套, 难以单元测试
+            重构后: 编排器 ~30 行 + 4 个子方法, 每个可独立测试
 
         计算逻辑:
             - type=STOCK/ETF: 不计入保证金占用 (全额交易)
@@ -132,6 +170,25 @@ class KillSwitch:
 
         Returns:
             保证金占用率 (0.0-1.0), 文件不存在时返回保守值 0.50
+        """
+        # === 编排器: 加载 → 预算估算 → 持仓估算 ===
+        data = self._load_positions_data()
+        if data is None:
+            return 0.50  # 文件不存在, 保守值
+
+        # 优先尝试预算汇总估算 (含期货模式)
+        budget_ratio = self._estimate_from_budget_summary(data)
+        if budget_ratio is not None:
+            return budget_ratio
+
+        # 回退到真实持仓估算 (OPTIONS_ONLY 或无 budget_summary)
+        return self._estimate_from_real_positions(data)
+
+    def _load_positions_data(self) -> Optional[Dict]:
+        """加载持仓配置文件 (P1-Q7 拆分)
+
+        Returns:
+            配置字典, 文件不存在或解析失败时返回 None
         """
         import json
         from pathlib import Path
@@ -143,100 +200,149 @@ class KillSwitch:
             logger.warning(
                 f"持仓文件不存在: {positions_file}, 使用保守保证金占用率 0.50"
             )
-            return 0.50
+            return None
 
         try:
             with open(positions_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            total_capital = float(data.get("meta", {}).get("total_capital", 5_000_000))
-            hedge_capital = float(data.get("meta", {}).get("hedge_capital", 2_000_000))
-
-            positions = data.get("positions", {})
-            hedge_positions = data.get("hedge_positions", {})
-            budget_summary = hedge_positions.get("budget_summary", {})
-
-            total_position_value = 0.0
-            estimated_margin_usage = 0.0
-
-            # v8.6.7 CRITICAL FIX (2026-07-26): 期权买方模式下, 权利金已现金扣减,
-            # 不构成保证金占用. 此前将 budget_summary.usage_pct (预算消耗进度)
-            # 误当作 margin_usage_ratio, 导致每次启动都触发 L2 熔断.
-            #
-            # 概念区分:
-            #   - budget_summary.usage_pct = 已花权利金 / 对冲预算 (预算消耗进度, 正常 50-90%)
-            #   - margin_usage_ratio       = 实际保证金占用 / 总资金 (风险指标, ≥75% 才熔断)
-            #
-            # 纯期权对冲模式 (OPTIONS_ONLY) 下, 买方不付保证金, 仅卖方才需保证金.
-            # 因此遇到 budget_summary.usage_pct 时, 应跳过此分支, 落到下方真实持仓估算.
-            hedge_mode = data.get("meta", {}).get("hedge_mode", "")
-            if hedge_mode == "OPTIONS_ONLY" and budget_summary:
-                logger.info(
-                    "[KillSwitch] OPTIONS_ONLY 模式: 预算消耗 %.1f%% (非保证金占用), 跳过预算估算, 落入实际持仓估算",
-                    float(budget_summary.get("usage_pct", 0.0)),
-                )
-                # 不返回, 落到下方真实持仓循环 (OPTIONS_ONLY 通常无 FUTURE 持仓)
-            elif budget_summary:
-                # 非纯期权模式 (含期货): 尝试用预算汇总估算
-                usage_pct = budget_summary.get("usage_pct")
-                if usage_pct is not None:
-                    try:
-                        ratio = float(usage_pct) / 100.0
-                        ratio = max(0.0, min(1.0, ratio))
-                        logger.info(
-                            "[KillSwitch] 对冲预算估算保证金占用: usage_pct=%.1f%%, ratio=%.1f%%",
-                            float(usage_pct), ratio * 100,
-                        )
-                        return ratio
-                    except (TypeError, ValueError):
-                        pass
-
-                total_put_premium = budget_summary.get("total_put_premium")
-                total_hedge_capital = budget_summary.get("total_hedge_capital", hedge_capital)
-                if total_put_premium is not None and total_hedge_capital:
-                    try:
-                        ratio = float(total_put_premium) / float(total_hedge_capital)
-                        ratio = max(0.0, min(1.0, ratio))
-                        logger.info(
-                            "[KillSwitch] 对冲预算估算保证金占用: total_put_premium=¥%,.0f, total_hedge_capital=¥%,.0f, ratio=%.1f%%",
-                            float(total_put_premium), float(total_hedge_capital), ratio * 100,
-                        )
-                        return ratio
-                    except (TypeError, ValueError):
-                        pass
-
-            for code, pos in positions.items():
-                amount = pos.get("amount", 0)
-                pos_type = pos.get("type", "").upper()
-
-                if amount and isinstance(amount, (int, float)):
-                    amount_val = float(amount)
-                    total_position_value += amount_val
-
-                    if pos_type == "FUTURE":
-                        estimated_margin_usage += amount_val * 0.12
-                    elif pos_type == "OPTION":
-                        estimated_margin_usage += amount_val
-
-            if total_capital <= 0:
-                logger.warning("total_capital <= 0, 使用保守保证金占用率 0.50")
-                return 0.50
-
-            ratio = estimated_margin_usage / hedge_capital if hedge_capital > 0 else 0.0
-            ratio = max(0.0, min(1.0, ratio))
-
-            logger.info(
-                f"[KillSwitch] 持仓估算保证金: "
-                f"总持仓市值=¥{total_position_value:,.0f}, "
-                f"估算保证金占用=¥{estimated_margin_usage:,.0f}, "
-                f"对冲资本=¥{hedge_capital:,.0f}, "
-                f"占用率={ratio:.1%}"
-            )
-            return ratio
-
+                return json.load(f)
         except Exception as e:
-            logger.error(f"读取持仓文件估算保证金失败: {e}, 使用保守值 0.50")
+            logger.error(f"读取持仓文件失败: {e}, 使用保守值 0.50")
+            return None
+
+    def _estimate_from_budget_summary(self, data: Dict) -> Optional[float]:
+        """从 budget_summary 估算保证金占用率 (P1-Q7 拆分)
+
+        v8.6.7 CRITICAL FIX (2026-07-26): 期权买方模式下, 权利金已现金扣减,
+        不构成保证金占用. 此前将 budget_summary.usage_pct (预算消耗进度)
+        误当作 margin_usage_ratio, 导致每次启动都触发 L2 熔断.
+
+        概念区分:
+            - budget_summary.usage_pct = 已花权利金 / 对冲预算 (预算消耗进度, 正常 50-90%)
+            - margin_usage_ratio       = 实际保证金占用 / 总资金 (风险指标, ≥75% 才熔断)
+
+        纯期权对冲模式 (OPTIONS_ONLY) 下, 买方不付保证金, 仅卖方才需保证金.
+        因此遇到 budget_summary.usage_pct 时, 应跳过此分支, 落到下方真实持仓估算.
+
+        Returns:
+            估算的保证金占用率 (0.0-1.0), 不适用时返回 None (回退到真实持仓估算)
+        """
+        hedge_mode = data.get("meta", {}).get("hedge_mode", "")
+        hedge_positions = data.get("hedge_positions", {})
+        budget_summary = hedge_positions.get("budget_summary", {})
+        hedge_capital = float(data.get("meta", {}).get("hedge_capital", 2_000_000))
+
+        if not budget_summary:
+            return None
+
+        # OPTIONS_ONLY 模式: budget_summary 是预算消耗进度, 非保证金占用
+        if hedge_mode == "OPTIONS_ONLY":
+            logger.info(
+                "[KillSwitch] OPTIONS_ONLY 模式: 预算消耗 %.1f%% (非保证金占用), "
+                "跳过预算估算, 落入实际持仓估算",
+                float(budget_summary.get("usage_pct", 0.0)),
+            )
+            return None  # 落到 _estimate_from_real_positions
+
+        # 非纯期权模式 (含期货): 尝试用 usage_pct 估算
+        usage_pct = budget_summary.get("usage_pct")
+        if usage_pct is not None:
+            try:
+                ratio = max(0.0, min(1.0, float(usage_pct) / 100.0))
+                logger.info(
+                    "[KillSwitch] 对冲预算估算保证金占用: usage_pct=%.1f%%, ratio=%.1f%%",
+                    float(usage_pct), ratio * 100,
+                )
+                return ratio
+            except (TypeError, ValueError):
+                pass  # 落到下一个估算方式
+
+        # 回退: 用 total_put_premium / total_hedge_capital 估算
+        total_put_premium = budget_summary.get("total_put_premium")
+        total_hedge_capital = budget_summary.get("total_hedge_capital", hedge_capital)
+        if total_put_premium is not None and total_hedge_capital:
+            try:
+                ratio = max(0.0, min(1.0, float(total_put_premium) / float(total_hedge_capital)))
+                logger.info(
+                    "[KillSwitch] 对冲预算估算保证金占用: "
+                    "total_put_premium=¥%,.0f, total_hedge_capital=¥%,.0f, ratio=%.1f%%",
+                    float(total_put_premium), float(total_hedge_capital), ratio * 100,
+                )
+                return ratio
+            except (TypeError, ValueError):
+                pass
+
+        return None  # 全部失败, 回退到真实持仓估算
+
+    def _estimate_from_real_positions(self, data: Dict) -> float:
+        """从真实持仓数据估算保证金占用率 (P1-Q7 拆分)
+
+        计算逻辑:
+            - type=STOCK/ETF: 不计入保证金占用 (全额交易)
+            - type=FUTURE: 按合约价值的 12% 估算保证金
+            - type=OPTION: 按权利金价值的 100% 估算保证金
+
+        Returns:
+            保证金占用率 (0.0-1.0), 数据异常时返回保守值 0.50
+        """
+        total_capital = float(data.get("meta", {}).get("total_capital", 5_000_000))
+        hedge_capital = float(data.get("meta", {}).get("hedge_capital", 2_000_000))
+        positions = data.get("positions", {})
+
+        total_position_value, estimated_margin_usage = self._compute_position_margin(positions)
+
+        if total_capital <= 0:
+            logger.warning("total_capital <= 0, 使用保守保证金占用率 0.50")
             return 0.50
+
+        ratio = estimated_margin_usage / hedge_capital if hedge_capital > 0 else 0.0
+        ratio = max(0.0, min(1.0, ratio))
+
+        logger.info(
+            f"[KillSwitch] 持仓估算保证金: "
+            f"总持仓市值=¥{total_position_value:,.0f}, "
+            f"估算保证金占用=¥{estimated_margin_usage:,.0f}, "
+            f"对冲资本=¥{hedge_capital:,.0f}, "
+            f"占用率={ratio:.1%}"
+        )
+        return ratio
+
+    @staticmethod
+    def _compute_position_margin(positions: Dict) -> tuple:
+        """计算持仓总市值和保证金占用 (P1-Q7 拆分, 纯函数)
+
+        Args:
+            positions: {code: {"amount": float, "type": str}} 持仓字典
+
+        Returns:
+            (total_position_value, estimated_margin_usage)
+            - total_position_value: 所有持仓的总市值
+            - estimated_margin_usage: 估算的保证金占用金额
+              (STOCK/ETF=0, FUTURE=12% × amount, OPTION=100% × amount)
+        """
+        total_position_value = 0.0
+        estimated_margin_usage = 0.0
+
+        for code, pos in positions.items():
+            if not isinstance(pos, dict):
+                continue
+            amount = pos.get("amount", 0)
+            pos_type = pos.get("type", "").upper()
+
+            if not (amount and isinstance(amount, (int, float))):
+                continue
+
+            amount_val = float(amount)
+            total_position_value += amount_val
+
+            if pos_type == "FUTURE":
+                # 期货: 按合约价值的 12% 估算保证金
+                estimated_margin_usage += amount_val * 0.12
+            elif pos_type == "OPTION":
+                # 期权: 按权利金价值的 100% 估算保证金
+                estimated_margin_usage += amount_val
+            # STOCK/ETF: 全额交易, 不计入保证金占用
+
+        return total_position_value, estimated_margin_usage
 
     def set_broker_callback(self, callback) -> None:
         """注册实盘执行回调函数
@@ -248,6 +354,84 @@ class KillSwitch:
             callback: 可调用对象, 签名为 callback(level: int, actions: list) -> Dict
         """
         self._broker_callback = callback
+
+    # ============================================================
+    # P1-Q4 修复 (2026-07-26): fail-closed 响应工厂 + 配置化总保证金
+    # ============================================================
+    def _fail_closed_response(self, reason: str = "UNSPECIFIED") -> Dict:
+        """生成 fail-closed 响应 (L3 强制熔断, 阻止一切交易)
+
+        P1-Q4 修复: 统一 fail-closed 响应生成, 避免多路径重复代码
+        所有 fail-closed 场景 (数据不可用/异常低值/类型错误) 共用此方法
+
+        Args:
+            reason: 触发原因, 用于审计与日志
+
+        Returns:
+            标准 L3 熔断响应字典
+        """
+        logger.critical(
+            f"[KillSwitch] FAIL-CLOSED 触发 | reason={reason} | "
+            f"TRADING_ENV={os.environ.get('TRADING_ENV', 'dev')} | "
+            f"全部交易已被阻止"
+        )
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "margin_usage_ratio": 1.0,
+            "margin_call": True,
+            "extreme_margin_call": True,
+            "level": 3,
+            "level_name": f"数据不可用-强制熔断 ({reason})",
+            "actions": ["数据不可用, 强制停止一切交易"],
+            "auto_execute": True,
+            "can_trade": False,
+            "can_open": False,
+            "action": f"FAIL_CLOSED_{reason}",
+            "fail_closed_reason": reason,
+        }
+
+    def _get_total_margin(self) -> float:
+        """获取账户总保证金 (P2-Q11 修复: 配置化, 不再硬编码 5_000_000)
+
+        优先级:
+            1. 环境变量 KILL_SWITCH_TOTAL_MARGIN (用于运维快速覆盖, 测试场景)
+            2. config/portfolio.yaml → kill_switch.total_margin (self.config)
+            3. config/positions.json → meta.total_capital
+            4. 默认值 5_000_000 (与历史行为兼容)
+
+        Returns:
+            总保证金金额 (float)
+        """
+        # 1. 环境变量优先 (运维快速覆盖 + 测试场景注入)
+        env_margin = os.environ.get("KILL_SWITCH_TOTAL_MARGIN")
+        if env_margin:
+            try:
+                val = float(env_margin)
+                if val > 0:
+                    return val
+            except ValueError:
+                logger.warning(f"KILL_SWITCH_TOTAL_MARGIN 非法值: {env_margin}, 忽略")
+
+        # 2. 从 kill_switch 配置读取 (self.config 来自 portfolio.yaml)
+        cfg_margin = self.config.get("total_margin") if isinstance(self.config, dict) else None
+        if isinstance(cfg_margin, (int, float)) and cfg_margin > 0:
+            return float(cfg_margin)
+
+        # 3. 回退到 positions.json 的 total_capital
+        try:
+            project_root = Path(__file__).resolve().parent.parent
+            positions_file = project_root / "config" / "positions.json"
+            if positions_file.exists():
+                with open(positions_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                total_capital = float(data.get("meta", {}).get("total_capital", 0))
+                if total_capital > 0:
+                    return total_capital
+        except Exception as e:
+            logger.debug(f"读取 positions.json total_capital 失败: {e}")
+
+        # 4. 兼容默认值
+        return 5_000_000
 
     def check_margin_status(self, margin_usage: Optional[float] = None) -> Dict:
         """检查保证金状态, 判断熔断级别
@@ -270,36 +454,46 @@ class KillSwitch:
                 "action": "..."      # 首条 action 文本, 兼容 alpha_hedge_engine
             }
         """
+        trading_env = os.environ.get("TRADING_ENV", "dev").lower()
+
+        # P1-Q4 修复 (2026-07-26): fail-closed 完整覆盖所有路径
+        # 原始 bug: 仅在 margin_usage=None 时检查 fail-closed, 显式传参路径绕过校验
+        # 风险: caller 传入 margin_usage=0.0 (数据源故障默认值) 会被判为"正常"
+        # 修复: production 模式下, 显式传入的 margin_usage 也需校验合理性
         if margin_usage is not None:
-            ratio = max(0.0, min(1.0, float(margin_usage)))
+            try:
+                ratio = max(0.0, min(1.0, float(margin_usage)))
+            except (TypeError, ValueError):
+                logger.critical(
+                    f"margin_usage 类型异常 ({type(margin_usage).__name__}): {margin_usage}, "
+                    f"进入 FAIL-CLOSED"
+                )
+                return self._fail_closed_response("INVALID_MARGIN_USAGE_TYPE")
+
+            # P1-Q4: 生产模式下校验传入值的合理性
+            # 异常低值 (< 0.01) 几乎不可能发生, 疑数据源故障或测试数据泄漏到生产
+            if trading_env == "production" and ratio < 0.01:
+                logger.critical(
+                    f"生产环境传入异常低 margin_usage={ratio:.4f} (< 0.01), "
+                    f"疑数据源故障或测试数据泄漏, 进入 FAIL-CLOSED"
+                )
+                return self._fail_closed_response("SUSPICIOUS_LOW_MARGIN_USAGE")
+
             margin = {
-                "total_margin": 5_000_000,
-                "available_margin": 5_000_000 * (1 - ratio),
+                "total_margin": self._get_total_margin(),
+                "available_margin": self._get_total_margin() * (1 - ratio),
                 "margin_usage_ratio": ratio,
                 "margin_call": ratio >= 0.90,
                 "extreme_margin_call": ratio >= 0.95,
             }
         else:
             # 修复 BUG-K1: 生产环境 fail-closed, 数据不可用时视为满仓熔断
-            trading_env = os.environ.get("TRADING_ENV", "dev").lower()
             if trading_env == "production":
                 logger.critical(
                     "保证金数据不可用 (未传入 margin_usage 且券商API未对接)! "
                     "Kill Switch 进入 FAIL-CLOSED 模式, 阻止一切交易"
                 )
-                return {
-                    "timestamp": datetime.now().isoformat(),
-                    "margin_usage_ratio": 1.0,
-                    "margin_call": True,
-                    "extreme_margin_call": True,
-                    "level": 3,
-                    "level_name": "数据不可用-强制熔断",
-                    "actions": ["数据不可用, 强制停止一切交易"],
-                    "auto_execute": True,
-                    "can_trade": False,
-                    "can_open": False,
-                    "action": "FAIL_CLOSED_DATA_UNAVAILABLE",
-                }
+                return self._fail_closed_response("DATA_UNAVAILABLE")
             # 开发/测试环境: 使用模拟值
             margin = self._get_margin_status()
             ratio = margin.get("margin_usage_ratio", 0)

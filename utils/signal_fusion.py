@@ -26,11 +26,152 @@ import logging
 import math
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
 logger = logging.getLogger("signal_fusion")
+
+
+# ============================================================
+# P1-Q5 修复 (2026-07-26): PostMixLayer 抽象 — 统一信号叠加层
+# 原始问题: _fuse_symbol 189 行, 4 层 post-mix 叠加 (pipeline/research/lgb)
+#   每层重复 "4 层 NaN 防御" 是 defensive programming 反模式
+# 修复方案: 提取为 PostMixLayer 类, 单一职责 + 单元可测
+# 顶级对冲基金标准: 信号叠加层必须可独立测试 + 可热插拔
+# ============================================================
+@dataclass
+class PostMixLayer:
+    """信号 post-mix 叠加层 (P1-Q5 抽象)
+
+    职责:
+        在主融合 (alpha+llm+etf+macro) 完成后, 叠加一个外部信号源
+        公式: new_strength = strength * (1 - weight) + signal * weight
+
+    特性:
+        - NaN/Inf 防御集中在 _sanitize_signals, 不再每层重复
+        - weight ≤ 0 时自动跳过 (允许通过 config 一键关闭某层)
+        - 支持质量降权 (LOW_QUALITY 标的权重降至 50% 等)
+
+    Attributes:
+        name: 层名 (用于审计/日志)
+        weight: 默认叠加权重 (0-1)
+        signals: 该层信号缓存 {symbol: signal ∈ [-1, 1]}
+        quality_flags: 标的质量标记 {symbol: "OK"|"LOW_QUALITY"}
+        quality_decay: LOW_QUALITY 标的权重衰减系数 (默认 0.5)
+        enabled: 是否启用 (production 隔离时设为 False)
+    """
+    name: str
+    weight: float
+    signals: Dict[str, float] = field(default_factory=dict)
+    quality_flags: Dict[str, str] = field(default_factory=dict)
+    quality_decay: float = 0.5
+    enabled: bool = True
+
+    def update_signals(
+        self,
+        signals: Dict[str, Any],
+        quality_flags: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """更新信号缓存 (统一 NaN/Inf 过滤)
+
+        Args:
+            signals: {symbol: signal} 或 {symbol: {"signal": float, ...}}
+            quality_flags: 可选, 标的质量标记 (覆盖结构化解析)
+        """
+        if not isinstance(signals, dict) or not signals:
+            self.signals = {}
+            logger.warning(f"[PostMixLayer:{self.name}] 输入为空, 信号缓存已清空")
+            return
+
+        parsed_signals: Dict[str, float] = {}
+        parsed_flags: Dict[str, str] = {}
+
+        for sym, val in signals.items():
+            # 结构化格式: {"signal": float, "quality_flag": str, ...}
+            if isinstance(val, dict):
+                sig = val.get("signal")
+                flag = val.get("quality_flag", "OK")
+                if isinstance(sig, (int, float)) and math.isfinite(float(sig)):
+                    parsed_signals[str(sym)] = float(sig)
+                    parsed_flags[str(sym)] = str(flag) if flag in ("OK", "LOW_QUALITY") else "OK"
+            # 扁平格式: {symbol: signal}
+            elif isinstance(val, (int, float)):
+                if math.isfinite(float(val)):
+                    parsed_signals[str(sym)] = float(val)
+                    parsed_flags[str(sym)] = "OK"
+            # 其他类型跳过
+
+        # 显式 quality_flags 覆盖
+        if quality_flags and isinstance(quality_flags, dict):
+            for sym, flag in quality_flags.items():
+                if str(sym) in parsed_signals and flag in ("OK", "LOW_QUALITY"):
+                    parsed_flags[str(sym)] = str(flag)
+
+        self.signals = parsed_signals
+        self.quality_flags = parsed_flags
+
+        ok_count = sum(1 for f in parsed_flags.values() if f == "OK")
+        low_q_count = sum(1 for f in parsed_flags.values() if f == "LOW_QUALITY")
+        logger.info(
+            f"[PostMixLayer:{self.name}] 已注入 {len(parsed_signals)} 标的 "
+            f"(weight={self.weight:.2f}, enabled={self.enabled}, OK={ok_count}, LOW_QUALITY={low_q_count})"
+        )
+
+    def get_signal(self, symbol: str) -> float:
+        """获取单标的信号值 (含 NaN 防御)"""
+        sig = self.signals.get(symbol, 0.0)
+        if not math.isfinite(sig):
+            logger.warning(
+                f"[PostMixLayer:{self.name}] {symbol} 信号为 NaN/Inf, 归零"
+            )
+            return 0.0
+        return sig
+
+    def get_effective_weight(self, symbol: str) -> float:
+        """获取单标的的有效权重 (含质量降权 + enabled 开关)"""
+        if not self.enabled or self.weight <= 0:
+            return 0.0
+        flag = self.quality_flags.get(symbol, "OK")
+        if flag == "LOW_QUALITY":
+            return self.weight * self.quality_decay
+        return self.weight
+
+    def apply(self, strength: float, symbol: str) -> tuple:
+        """叠加该层信号到当前 strength
+
+        Args:
+            strength: 当前 strength (上游已归一化到 [-1, 1])
+            symbol: 标的代码
+
+        Returns:
+            (new_strength, applied: bool) — applied=True 表示实际执行了叠加
+        """
+        if not self.enabled or self.weight <= 0:
+            return strength, False
+
+        sig = self.get_signal(symbol)
+        if sig == 0.0:
+            return strength, False
+
+        effective_weight = self.get_effective_weight(symbol)
+        if effective_weight <= 0:
+            return strength, False
+
+        # post-mix 公式: new = strength * (1 - w) + signal * w
+        new_strength = strength * (1.0 - effective_weight) + sig * effective_weight
+
+        # NaN 防御 (理论上不会触发, 但保留兜底)
+        if not math.isfinite(new_strength):
+            logger.warning(
+                f"[PostMixLayer:{self.name}] {symbol} 叠加后 NaN (strength={strength}, "
+                f"sig={sig}, w={effective_weight}), 归零"
+            )
+            new_strength = 0.0
+
+        # 边界裁剪
+        new_strength = max(-1.0, min(1.0, new_strength))
+        return new_strength, True
 
 
 @dataclass
@@ -90,10 +231,12 @@ class SignalFusionEngine:
         # v8.6.9 环境隔离: production 实盘模式下强制 weight=0 (纵深防御)
         # 用户要求: 暂不接入实盘, 用模拟盘跑数据
         _research_weight = research_distilled_weight
+        _research_enabled = True
         try:
             from utils.trading_env import get_trading_env, TradingEnv
             if get_trading_env() == TradingEnv.PRODUCTION:
                 _research_weight = 0.0
+                _research_enabled = False
                 logger.info(
                     "[SignalFusion] production 实盘模式: research_distilled_weight 强制为 0 "
                     "(v8.6.9 环境隔离: 仅 shadow/development 模式激活)"
@@ -113,15 +256,31 @@ class SignalFusionEngine:
         self._last_signals_by_source: Optional[Dict[str, Dict[str, float]]] = None
         # Qlib 信号缓存（由 inject_qlib_signal 注入，可作为 alpha 源）
         self._qlib_signals: Dict[str, float] = {}
-        # v8.6.4: Pipeline 因子组合信号缓存（由 inject_pipeline_factor_signals 注入）
-        # 信号范围 [-1, 1]，正值看涨负值看跌
+
+        # P1-Q5 修复 (2026-07-26): 用 PostMixLayer 替代散落的信号缓存 + post-mix 逻辑
+        # 优势:
+        #   1. NaN 防御集中在 PostMixLayer, 不再每层重复
+        #   2. 每层可独立单元测试
+        #   3. 可通过 layer.enabled = False 一键关闭某层
+        #   4. 新增信号源只需新增 PostMixLayer 实例, 不再修改 _fuse_symbol
+        self._pipeline_layer = PostMixLayer(
+            name="pipeline_factor",
+            weight=self.pipeline_factor_weight,
+        )
+        self._research_layer = PostMixLayer(
+            name="research_distilled",
+            weight=self.research_distilled_weight,
+            enabled=_research_enabled,
+        )
+        self._lgb_layer = PostMixLayer(
+            name="lgb_enhanced",
+            weight=self.lgb_enhanced_weight,
+            quality_decay=0.5,  # LOW_QUALITY 标的权重降至 50%
+        )
+
+        # 向后兼容: 保留旧字段供外部读取 (不直接用于 _fuse_symbol, 仅用于审计)
         self._pipeline_factor_signals: Dict[str, float] = {}
-        # v8.6.9: 研究蒸馏信号缓存（由 inject_research_distilled_signals 注入）
-        # 信号范围 [-1, 1]，来自 ResearchDistiller.load_daily_snapshot()
         self._research_distilled_signals: Dict[str, float] = {}
-        # v8.7: LGB 增强信号缓存（由 inject_lgb_enhanced_signals 注入）
-        # 信号范围 [-1, 1], 来自 models/lgb_enhanced/lgb_enhanced_signals.json
-        # 包含 quality_flag 信息: OK / LOW_QUALITY (降权 50%)
         self._lgb_enhanced_signals: Dict[str, float] = {}
         self._lgb_quality_flags: Dict[str, str] = {}
 
@@ -211,78 +370,29 @@ class SignalFusionEngine:
             logger.warning("inject_qlib_signal 异常: %s", e)
 
     def inject_pipeline_factor_signals(self, signals: Dict[str, float]) -> None:
-        """注入 Pipeline 因子组合信号（v8.6.4 P0-A 深度修复）
+        """注入 Pipeline 因子组合信号（v8.6.4 P0-A 深度修复 / P1-Q5 重构）
 
-        将 PipelineOrchestrator 离线生成的 IC 加权组合信号注入融合引擎，
-        作为第 5 个信号源参与融合，权重默认 0.05（保守起步）。
-
-        信号范围 [-1, 1]：
-        - 正值 = 看涨（IC 加权后预期正收益）
-        - 负值 = 看跌（IC 加权后预期负收益）
-        - 0 = 中性
-
-        设计依据:
-        - PipelineOrchestrator v6.9 实测 IC_IR=+0.5840, live_dsr=+2.2033
-        - 影子账户 OOS 验证通过后可上调 pipeline_factor_weight
-        - 当前仅影响影子账户，不影响 500万 实盘
-
-        Args:
-            signals: {symbol: signal ∈ [-1, 1]} 来自 PortfolioOptimizer.load_factor_signals()
+        P1-Q5 修复 (2026-07-26): 委托给 PostMixLayer.update_signals, 不再重复 NaN 过滤逻辑
+        原始问题: 此方法与 inject_research_distilled_signals 和 inject_lgb_enhanced_signals
+                  有大量重复的 NaN/Inf 过滤代码, 是 defensive programming 反模式
+        修复后: 统一委托 PostMixLayer.update_signals, 单一职责
         """
         try:
-            if not isinstance(signals, dict) or not signals:
-                logger.warning("inject_pipeline_factor_signals: 输入为空或非 dict, 跳过")
-                return
-            self._pipeline_factor_signals = {
-                str(k): float(v) for k, v in signals.items()
-                if isinstance(v, (int, float)) and math.isfinite(float(v))
-            }
-            logger.info(
-                "已注入 Pipeline 因子组合信号: %d 个标的 (weight=%.2f)",
-                len(self._pipeline_factor_signals),
-                self.pipeline_factor_weight,
-            )
+            self._pipeline_layer.update_signals(signals)
+            # 向后兼容: 同步更新旧字段供外部读取
+            self._pipeline_factor_signals = self._pipeline_layer.signals
         except Exception as e:
             logger.warning("inject_pipeline_factor_signals 异常: %s", e)
 
     def inject_research_distilled_signals(self, signals: Dict[str, float]) -> None:
-        """注入研究蒸馏信号（v8.6.9 第 6 信号源）
+        """注入研究蒸馏信号（v8.6.9 第 6 信号源 / P1-Q5 重构）
 
-        将 ResearchDistiller 离线蒸馏的研报/业绩会/书籍信号注入融合引擎，
-        作为第 6 个信号源参与融合，权重默认 0.03（保守 post-mix）。
-
-        信号范围 [-1, 1]：
-        - 正值 = 看涨（研报/业绩会利好）
-        - 负值 = 看跌（研报/业绩会利空）
-        - 0 = 中性
-
-        设计依据:
-        - cangjie-skill RIA--TV++ 方法论量化版
-        - 离线蒸馏(06:00) + 在线注入(07:00), 不增加关键路径耗时
-        - post-mix 模式: 不修改主融合公式 alpha(0.70)+llm(0.10)+etf(0.12)+macro(0.08)
-        - 仅影响影子账户, 不影响 500万 实盘
-
-        降级链:
-        - 输入空/非 dict → 跳过注入, 不影响融合
-        - 信号值 NaN/Inf → 过滤掉, 仅保留有效值
-        - 全部无效 → 空缓存, post-mix 块不触发
-
-        Args:
-            signals: {symbol: signal ∈ [-1, 1]} 来自 ResearchDistiller.load_daily_snapshot()
+        P1-Q5 修复: 委托给 PostMixLayer.update_signals
         """
         try:
-            if not isinstance(signals, dict) or not signals:
-                logger.warning("inject_research_distilled_signals: 输入为空或非 dict, 跳过")
-                return
-            self._research_distilled_signals = {
-                str(k): float(v) for k, v in signals.items()
-                if isinstance(v, (int, float)) and math.isfinite(float(v))
-            }
-            logger.info(
-                "已注入研究蒸馏信号: %d 个标的 (weight=%.2f)",
-                len(self._research_distilled_signals),
-                self.research_distilled_weight,
-            )
+            self._research_layer.update_signals(signals)
+            # 向后兼容
+            self._research_distilled_signals = self._research_layer.signals
         except Exception as e:
             logger.warning("inject_research_distilled_signals 异常: %s", e)
 
@@ -291,84 +401,17 @@ class SignalFusionEngine:
         signals: Dict[str, Any],
         quality_flags: Optional[Dict[str, str]] = None,
     ) -> None:
-        """注入 LGB 增强信号（v8.7 第 7 信号源）
+        """注入 LGB 增强信号（v8.7 第 7 信号源 / P1-Q5 重构）
 
-        将 lgb_enhanced_trainer 离线训练的 LightGBM 信号注入融合引擎，
-        作为第 7 个信号源参与融合，权重默认 0.04（保守 post-mix）。
-
-        信号范围 [-1, 1]：
-        - 正值 = 看涨（模型预测未来 horizon 日正收益）
-        - 负值 = 看跌（模型预测未来 horizon 日负收益）
-        - 0 = 中性
-
-        设计依据:
-        - lgb_enhanced_trainer v8.7 GPU 训练, 平均 IC=0.1631
-        - 23 标的全覆盖, 其中 IC>0.3 的 6 个, IC>0.2 的 9 个
-        - 真实 OHLCV + 新闻情绪因子 (Wind MCP 优先, iFinD 回退)
-        - post-mix 模式: 不修改主融合公式, 在 pipeline/research 之后叠加
-
-        降权机制:
-        - quality_flag=LOW_QUALITY 的标的 (如 688981/600036/600219) 权重降至 50%
-        - 设计依据: 这些标的 CV IC 不稳定或样本数不足, 信号可信度较低
-        - 安全设计: 降权而非清零, 保留信号方向但减少影响
-
-        降级链:
-        - 输入空/非 dict → 跳过注入, 不影响融合
-        - 信号值 NaN/Inf → 过滤掉, 仅保留有效值
-        - 全部无效 → 空缓存, post-mix 块不触发
-
-        Args:
-            signals: 支持两种格式:
-                1. {symbol: signal ∈ [-1, 1]} 扁平格式
-                2. {symbol: {"signal": float, "quality_flag": str, ...}} 结构化格式
-                   (匹配 models/lgb_enhanced/lgb_enhanced_signals.json)
-            quality_flags: 可选, {symbol: "OK" | "LOW_QUALITY"}
-                若 signals 为结构化格式, 优先从 signals 中提取 quality_flag
+        P1-Q5 修复: 委托给 PostMixLayer.update_signals
+        PostMixLayer 原生支持结构化格式 {"signal": float, "quality_flag": str}
+        和扁平格式 {symbol: signal}, 不再需要此方法手动解析
         """
         try:
-            if not isinstance(signals, dict) or not signals:
-                logger.warning("inject_lgb_enhanced_signals: 输入为空或非 dict, 跳过")
-                return
-
-            # 解析两种格式: 扁平 / 结构化
-            parsed_signals: Dict[str, float] = {}
-            parsed_flags: Dict[str, str] = {}
-
-            for sym, val in signals.items():
-                if isinstance(val, dict):
-                    # 结构化格式: {"signal": float, "quality_flag": str, ...}
-                    sig = val.get("signal")
-                    flag = val.get("quality_flag", "OK")
-                    if isinstance(sig, (int, float)) and math.isfinite(float(sig)):
-                        parsed_signals[str(sym)] = float(sig)
-                        parsed_flags[str(sym)] = str(flag) if flag in ("OK", "LOW_QUALITY") else "OK"
-                elif isinstance(val, (int, float)):
-                    # 扁平格式: {symbol: signal}
-                    if math.isfinite(float(val)):
-                        parsed_signals[str(sym)] = float(val)
-                        parsed_flags[str(sym)] = "OK"
-                # 其他类型跳过
-
-            # 若显式传入 quality_flags, 覆盖结构化解析结果
-            if quality_flags and isinstance(quality_flags, dict):
-                for sym, flag in quality_flags.items():
-                    if str(sym) in parsed_signals and flag in ("OK", "LOW_QUALITY"):
-                        parsed_flags[str(sym)] = str(flag)
-
-            self._lgb_enhanced_signals = parsed_signals
-            self._lgb_quality_flags = parsed_flags
-
-            # 统计质量分布
-            ok_count = sum(1 for f in parsed_flags.values() if f == "OK")
-            low_quality_count = sum(1 for f in parsed_flags.values() if f == "LOW_QUALITY")
-
-            logger.info(
-                "已注入 LGB 增强信号: %d 个标的 (weight=%.2f, OK=%d, LOW_QUALITY=%d)",
-                len(parsed_signals),
-                self.lgb_enhanced_weight,
-                ok_count,
-                low_quality_count,
-            )
+            self._lgb_layer.update_signals(signals, quality_flags)
+            # 向后兼容
+            self._lgb_enhanced_signals = self._lgb_layer.signals
+            self._lgb_quality_flags = self._lgb_layer.quality_flags
         except Exception as e:
             logger.warning("inject_lgb_enhanced_signals 异常: %s", e)
 
@@ -455,6 +498,21 @@ class SignalFusionEngine:
         etf: Optional[Dict[str, Any]],
         macro_bias: float,
     ) -> FusionSignal:
+        """单标的信号融合 (P1-Q5 重构后)
+
+        重构说明 (2026-07-26):
+            原函数 189 行, 含 4 层 post-mix 叠加 (主融合 + pipeline + research + lgb)
+            每层重复 "4 层 NaN 防御", 是 defensive programming 反模式
+            重构后: 主融合 + 3 个 PostMixLayer.apply() 调用, 共 ~40 行
+            NaN 防御集中在 PostMixLayer, 可独立单元测试
+
+        融合流程:
+            1. 主融合: alpha + llm + etf + macro (动态权重)
+            2. post-mix 1: pipeline_factor (5%, 影子账户)
+            3. post-mix 2: research_distilled (3%, 影子账户, production 禁用)
+            4. post-mix 3: lgb_enhanced (4%, LOW_QUALITY 降权至 2%)
+            5. confidence 计算 + 阈值过滤
+        """
         alpha_s = self._safe(alpha, "strength")
         alpha_c = self._safe(alpha, "confidence")
         llm_s = self._safe(llm, "strength")
@@ -462,141 +520,67 @@ class SignalFusionEngine:
         etf_s = self._safe(etf, "strength")
         etf_c = self._safe(etf, "confidence")
 
-        # v8.6.8 P1-LIVE-06: 防御性 NaN 检查
-        # _safe() 已经过滤 NaN/Inf, 但若上游传入 dict[float('nan')] 仍可能漏网
-        # 这里对最终 strength 再做一次 NaN 防御, 避免污染融合结果
+        # macro_bias NaN 防御 (主融合层)
         if not math.isfinite(macro_bias):
             macro_bias = 0.0
 
         weights = self._dynamic_weights(alpha_c, llm_c, etf_c)
 
+        # === 主融合: alpha + llm + etf + macro ===
         strength = (
             weights["alpha"] * alpha_s
             + weights["llm"] * llm_s
             + weights["etf"] * etf_s
             + weights["macro"] * macro_bias
         )
-        # v8.6.8 P1-LIVE-06: NaN 防御性检查
-        # 若 weights/signal 任一为 NaN (理论上 _safe 已过滤), 强制归零
         if not math.isfinite(strength):
             logger.warning(
-                "[SignalFusion] 检测到 NaN strength (symbol=%s): "
-                "alpha_s=%s, llm_s=%s, etf_s=%s, macro_bias=%s, weights=%s",
+                "[SignalFusion] 主融合 NaN (symbol=%s): alpha_s=%s, llm_s=%s, etf_s=%s, "
+                "macro_bias=%s, weights=%s",
                 symbol, alpha_s, llm_s, etf_s, macro_bias, weights,
             )
             strength = 0.0
         strength = max(-1.0, min(1.0, strength))
 
-        # v8.6.4 P0-A 深度修复: Pipeline 因子组合信号调整（保守 5%）
-        # 设计依据: PipelineOrchestrator 实测 IC_IR=+0.5840, 仅在影子账户层影响
-        pipeline_s = self._pipeline_factor_signals.get(symbol, 0.0)
-        # v8.6.8 P1-LIVE-06: pipeline_s 防御性 NaN 检查
-        # inject_pipeline_factor_signals 已经过滤 NaN, 但此处再防御一次
-        if not math.isfinite(pipeline_s):
-            logger.warning(
-                "[SignalFusion] pipeline_factor_signals[%s] = NaN, 强制归零",
-                symbol,
-            )
-            pipeline_s = 0.0
-        if pipeline_s != 0.0 and self.pipeline_factor_weight > 0:
-            strength = (
-                strength * (1.0 - self.pipeline_factor_weight)
-                + pipeline_s * self.pipeline_factor_weight
-            )
-            if not math.isfinite(strength):
-                logger.warning(
-                    "[SignalFusion] pipeline 融合后 strength 为 NaN (symbol=%s), 归零",
-                    symbol,
-                )
-                strength = 0.0
-            strength = max(-1.0, min(1.0, strength))
+        # === P1-Q5 修复: post-mix 叠加委托给 PostMixLayer ===
+        # 原代码: 每层重复 ~20 行 (NaN 检查 + 公式 + 边界裁剪)
+        # 修复后: 单行调用, NaN 防御集中在 PostMixLayer.apply()
+        pipeline_s = self._pipeline_layer.get_signal(symbol)
+        strength, pipeline_applied = self._pipeline_layer.apply(strength, symbol)
 
-        # v8.6.9 新增: 研究蒸馏信号 post-mix 调整（保守 3%）
-        # 设计依据: RIA--TV++ 量化版, post-mix 模式不修改主融合公式
-        # 4 层 NaN 防御: 注入过滤 + 取值防御 + 融合后检查 + 最终裁剪
-        research_s = self._research_distilled_signals.get(symbol, 0.0)
-        # 层 2: 取值防御 (inject 已过滤, 但 dict.get 后再防御一次)
-        if not math.isfinite(research_s):
-            logger.warning(
-                "[SignalFusion] research_distilled_signals[%s] = NaN, 强制归零",
-                symbol,
-            )
-            research_s = 0.0
-        if research_s != 0.0 and self.research_distilled_weight > 0:
-            # post-mix: 在 pipeline 调整后的 strength 上叠加 research 信号
-            strength = (
-                strength * (1.0 - self.research_distilled_weight)
-                + research_s * self.research_distilled_weight
-            )
-            # 层 3: 融合后 NaN 检查
-            if not math.isfinite(strength):
-                logger.warning(
-                    "[SignalFusion] research_distilled 融合后 strength 为 NaN (symbol=%s), 归零",
-                    symbol,
-                )
-                strength = 0.0
-            # 层 4: 最终边界裁剪
-            strength = max(-1.0, min(1.0, strength))
+        research_s = self._research_layer.get_signal(symbol)
+        strength, research_applied = self._research_layer.apply(strength, symbol)
 
-        # v8.7 新增: LGB 增强信号 post-mix 调整（保守 4%, 含 LOW_QUALITY 降权）
-        # 设计依据: lgb_enhanced_trainer v8.7 平均 IC=0.1631, 23 标的全覆盖
-        # post-mix 模式: 在 alpha+llm+etf+macro+pipeline+research 之后叠加
-        # 4 层 NaN 防御: 注入过滤 + 取值防御 + 融合后检查 + 最终裁剪
-        # LOW_QUALITY 降权: 688981/600036/600219 等标的权重降至 50%
-        lgb_s = self._lgb_enhanced_signals.get(symbol, 0.0)
-        # 层 2: 取值防御 (inject 已过滤, 但 dict.get 后再防御一次)
-        if not math.isfinite(lgb_s):
-            logger.warning(
-                "[SignalFusion] lgb_enhanced_signals[%s] = NaN, 强制归零",
-                symbol,
-            )
-            lgb_s = 0.0
-        # LOW_QUALITY 降权: 权重降至 50% (保留信号方向但减少影响)
-        lgb_quality_flag = self._lgb_quality_flags.get(symbol, "OK")
-        effective_lgb_weight = self.lgb_enhanced_weight
-        if lgb_quality_flag == "LOW_QUALITY":
-            effective_lgb_weight = self.lgb_enhanced_weight * 0.5
-        if lgb_s != 0.0 and effective_lgb_weight > 0:
-            # post-mix: 在 research 调整后的 strength 上叠加 lgb 信号
-            strength = (
-                strength * (1.0 - effective_lgb_weight)
-                + lgb_s * effective_lgb_weight
-            )
-            # 层 3: 融合后 NaN 检查
-            if not math.isfinite(strength):
-                logger.warning(
-                    "[SignalFusion] lgb_enhanced 融合后 strength 为 NaN (symbol=%s), 归零",
-                    symbol,
-                )
-                strength = 0.0
-            # 层 4: 最终边界裁剪
-            strength = max(-1.0, min(1.0, strength))
+        lgb_s = self._lgb_layer.get_signal(symbol)
+        strength, lgb_applied = self._lgb_layer.apply(strength, symbol)
 
+        # === confidence 计算 ===
         raw_confidence = (
             weights["alpha"] * alpha_c
             + weights["llm"] * llm_c
             + weights["etf"] * etf_c
             + 0.05
         )
-        # v8.6.8 P1-LIVE-06: confidence NaN 防御
         if not math.isfinite(raw_confidence):
             logger.warning(
-                "[SignalFusion] confidence 为 NaN (symbol=%s), 归零",
-                symbol,
+                "[SignalFusion] confidence NaN (symbol=%s), 归零", symbol
             )
             raw_confidence = 0.0
         confidence = max(0.0, min(1.0, raw_confidence))
 
+        # === 阈值过滤 + 指数响应 ===
         if abs(strength) < 0.10 or confidence < self.min_confidence:
             strength = 0.0
             confidence = 0.0
         else:
-            # 对非零信号做指数响应，放大强弱差异，让月度权重更容易随信号变化
             strength = float(np.sign(strength) * (abs(strength) ** 0.85))
-            # v8.6.8 P1-LIVE-06: 最终 NaN 防御
             if not math.isfinite(strength):
                 strength = 0.0
             strength = max(-1.0, min(1.0, strength))
+
+        # 获取 LGB 质量标记用于审计 (PostMixLayer 内部已处理降权)
+        lgb_quality_flag = self._lgb_layer.quality_flags.get(symbol, "OK")
+        effective_lgb_weight = self._lgb_layer.get_effective_weight(symbol)
 
         return FusionSignal(
             symbol=symbol,
@@ -609,7 +593,6 @@ class SignalFusionEngine:
                 "macro_bias": macro_bias,
                 "pipeline_factor_strength": pipeline_s,
                 "research_distilled_strength": research_s,
-                # v8.7: LGB 增强信号 (LightGBM 离线训练输出)
                 "lgb_enhanced_strength": lgb_s,
             },
             meta={
@@ -617,18 +600,17 @@ class SignalFusionEngine:
                 "alpha_confidence": alpha_c,
                 "llm_confidence": llm_c,
                 "etf_confidence": etf_c,
-                "pipeline_factor_weight": self.pipeline_factor_weight,
-                "pipeline_factor_applied": pipeline_s != 0.0,
-                "research_distilled_weight": self.research_distilled_weight,
-                # applied=True 仅当信号非零且权重>0 (即 post-mix 实际执行)
-                "research_distilled_applied": research_s != 0.0 and self.research_distilled_weight > 0,
-                # v8.7: LGB 增强信号元数据 (用于审计与调试)
-                "lgb_enhanced_weight": self.lgb_enhanced_weight,
+                "pipeline_factor_weight": self._pipeline_layer.weight,
+                "pipeline_factor_applied": pipeline_applied,
+                "research_distilled_weight": self._research_layer.weight,
+                "research_distilled_applied": research_applied,
+                "lgb_enhanced_weight": self._lgb_layer.weight,
                 "effective_lgb_weight": effective_lgb_weight,
                 "lgb_quality_flag": lgb_quality_flag,
-                # applied=True 仅当信号非零且 effective_weight>0 (即 post-mix 实际执行)
-                "lgb_enhanced_applied": lgb_s != 0.0 and effective_lgb_weight > 0,
-                "nan_defense_applied": True,  # v8.6.8 P1-LIVE-06 标记
+                "lgb_enhanced_applied": lgb_applied,
+                "nan_defense_applied": True,
+                # P1-Q5 审计字段: 标记重构后使用 PostMixLayer 抽象
+                "postmix_layer_refactored": True,
             },
         )
 
