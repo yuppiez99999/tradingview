@@ -187,7 +187,7 @@ def run_daily_kill_switch(
         state_dist = Counter(s.status for s in all_states.values())
         origin_dist = defaultdict(lambda: Counter())
         for name, s in all_states.items():
-            origin = all_monitored[name]["origin"]
+            origin = all_monitored.get(name, {}).get("origin", "historical")
             origin_dist[origin][s.status] += 1
 
         batch_dir.mkdir(parents=True, exist_ok=True)

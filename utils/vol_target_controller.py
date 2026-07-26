@@ -41,7 +41,14 @@ logger = logging.getLogger("vol_target_controller")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
+# v8.6.9 P0 FIX (2026-07-26): 报告路径修正
+# 原始 bug: REPORTS_DIR 指向 v7.5_institutional/reports/, 但该目录在 v8.4 中已不存在,
+#          实际报告在 每日报告归档/{date}/daily_pnl_report_{date}.json
+# 影响: _extract_daily_returns() 永远找不到报告 → 返回空列表 → realized_vol=None
+#       → vol_scale=None (视为正常) → 波动率缩仓实际未生效
+# 修复: 优先查找 每日报告归档/{date}/ 路径, 旧路径作为回退
 REPORTS_DIR = BASE_DIR / "v7.5_institutional" / "reports"
+DAILY_REPORT_DIR = BASE_DIR / "每日报告归档"
 CACHE_DIR = BASE_DIR / "cache"
 
 
@@ -208,8 +215,19 @@ class VolTargetController:
         for i in range(60):
             date = today - timedelta(days=i)
             date_str = date.strftime("%Y-%m-%d")
-            report_path = REPORTS_DIR / f"daily_pnl_report_{date_str}.json"
-            if report_path.exists():
+            date_no_dash = date_str.replace('-', '')
+
+            # v8.6.9 P0 FIX: 多路径查找报告
+            candidates = [
+                DAILY_REPORT_DIR / date_str / f"daily_pnl_report_{date_str}.json",
+                DAILY_REPORT_DIR / date_str / f"daily_pnl_report_{date_no_dash}.json",
+                REPORTS_DIR / f"daily_pnl_report_{date_str}.json",
+                REPORTS_DIR / f"daily_pnl_report_{date_no_dash}.json",
+            ]
+
+            for report_path in candidates:
+                if not report_path.exists():
+                    continue
                 try:
                     with open(report_path, 'r', encoding='utf-8') as f:
                         report = json.load(f)
@@ -218,6 +236,7 @@ class VolTargetController:
                     daily_return = pnl.get("daily_return_pct", pnl.get("total_return_pct", 0))
                     if isinstance(daily_return, (int, float)):
                         returns.append(daily_return / 100.0 if abs(daily_return) > 1 else daily_return)
+                    break  # 找到一份即可, 跳出候选路径循环
                 except Exception:
                     continue
 

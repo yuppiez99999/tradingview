@@ -209,8 +209,35 @@ class THSRealBroker:
         return False
 
     def place_order(self, symbol: str, qty: int, side: str, price: float) -> Dict:
+        """真实下单 (v8.6.8 P0-LIVE-03 修复: 增加 mode 守卫)
+
+        ⚠️ 安全提示:
+            - mode="sim" 时仅记录日志, 不执行任何屏幕点击
+            - mode="live" 时才真正通过 pyautogui 操控同花顺客户端下单
+            - 防御性断言: 未明确指定 mode="live" 时一律拒绝真实下单
+        """
         if not self._connected:
             return {"order_id": "", "status": "REJECTED", "reason": "未连接"}
+
+        # P0-LIVE-03 关键守卫: 只有显式 mode="live" 才允许真实点击屏幕
+        if self.mode != "live":
+            logger.warning(
+                "[THSRealBroker] 拒绝真实下单! mode=%s (要求 mode='live' 才能真实下单). "
+                "订单已记录但未执行屏幕点击: %s %d 手 @ %s",
+                self.mode, symbol, qty, price,
+            )
+            order_id = f"THS-REJECTED-{symbol}-{int(time.time()*1000)}-{qty}"
+            return {
+                "order_id": order_id,
+                "symbol": symbol,
+                "qty": qty,
+                "side": side,
+                "price": price,
+                "status": "REJECTED",
+                "reason": f"mode={self.mode} requires mode='live' for real order",
+                "timestamp": datetime.now().isoformat(),
+                "mode": self.mode,
+            }
 
         logger.info(f"真实下单: {symbol}, {qty}手, {price}元, {side}")
 

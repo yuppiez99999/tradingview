@@ -103,6 +103,7 @@ class MarketDataProvider:
             'wind_mcp': {'ok': False, 'last_error': None},
             'ifind_mcp': {'ok': False, 'last_error': None},
             'tdx': {'ok': False, 'last_error': None},
+            'akshare': {'ok': False, 'last_error': None},
             'sina_http': {'ok': False, 'last_error': None},
         }
 
@@ -127,10 +128,12 @@ class MarketDataProvider:
         self._wind_mcp_client = None
         self._ifind_client = None
         self._tdx_source = None
+        self._akshare_source = None
         self._init_wind_mcp()
         self._init_ifind_mcp()
         self._init_tdx()
-        logger.info("市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP > 通达信 > 新浪财经, backtest_mode=%s)", backtest_mode)
+        self._init_akshare()
+        logger.info("市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP > 通达信 > AKShare > 新浪财经, backtest_mode=%s)", backtest_mode)
 
     def set_backtest_date(self, report_date: str) -> None:
         self._backtest_date = report_date
@@ -214,6 +217,24 @@ class MarketDataProvider:
         except Exception as e:
             self.source_health['tdx']['last_error'] = str(e)
             logger.warning(f"通达信数据源初始化失败: {e}")
+    
+    def _init_akshare(self):
+        """初始化 AKShare 数据源"""
+        try:
+            from utils.akshare_data_source import get_akshare_source
+            self._akshare_source = get_akshare_source()
+            if self._akshare_source and self._akshare_source.source_health.get('akshare', {}).get('ok'):
+                self.source_health['akshare']['ok'] = True
+                logger.info("AKShare 数据源已加载 (P4)")
+            else:
+                self.source_health['akshare']['last_error'] = "AKShare 初始化失败"
+                logger.warning("AKShare 数据源初始化失败")
+        except ImportError as e:
+            self.source_health['akshare']['last_error'] = f"模块导入失败: {e}"
+            logger.warning(f"AKShare 数据源模块导入失败: {e}")
+        except Exception as e:
+            self.source_health['akshare']['last_error'] = str(e)
+            logger.warning(f"AKShare 数据源初始化失败: {e}")
     
     @staticmethod
     def _to_wind_code(symbol: str) -> str:
@@ -521,6 +542,75 @@ class MarketDataProvider:
             logger.error(f"通达信获取历史数据失败: {e}")
             return None
 
+    def _try_akshare_realtime(self, symbol: str) -> Optional[Dict]:
+        """AKShare 实时数据 (P4)"""
+        if not self._akshare_source:
+            return None
+        try:
+            quote = self._akshare_source.get_realtime_quote(symbol)
+            if not quote:
+                self.source_health['akshare']['last_error'] = 'empty_quote'
+                logger.warning(f"AKShare 返回空数据: {symbol}")
+                return None
+            self.source_health['akshare']['ok'] = True
+            return {
+                'timestamp': quote.get('timestamp', datetime.now().isoformat()),
+                'symbol': symbol,
+                'index_price': safe_float(quote.get('index_price')),
+                'prev_close': safe_float(quote.get('prev_close')),
+                'open': safe_float(quote.get('open')),
+                'high': safe_float(quote.get('high')),
+                'low': safe_float(quote.get('low')),
+                'volume': safe_float(quote.get('volume'), default=0),
+                'source': 'akshare',
+            }
+        except Exception as e:
+            self.source_health['akshare']['ok'] = False
+            self.source_health['akshare']['last_error'] = str(e)
+            logger.error(f"AKShare 获取实时数据失败: {e}")
+            return None
+
+    def _try_akshare_historical(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+        """AKShare 历史K线数据 (P4)"""
+        if not self._akshare_source:
+            return None
+        try:
+            period_mapping = {
+                '1d': '1d',
+                '1w': '1w',
+                '1m': '1m',
+                '3m': '1m',
+                '6m': '1m',
+                '1y': '1d',
+                '2y': '1d',
+                '3y': '1d',
+                '5y': '1d',
+            }
+            ak_period = period_mapping.get(period, '1d')
+            count_map = {
+                '1d': 252,
+                '1w': 120,
+                '1m': 60,
+                '3m': 90,
+                '6m': 180,
+                '1y': 252,
+                '2y': 504,
+                '3y': 756,
+                '5y': 1260,
+            }
+            count = count_map.get(period, 252)
+            
+            df = self._akshare_source.get_historical_klines(symbol, period=ak_period, count=count)
+            if df is None or df.empty:
+                logger.warning("AKShare 返回历史数据为空，尝试下一数据源")
+                return None
+            
+            self.source_health['akshare']['ok'] = True
+            return df
+        except Exception as e:
+            logger.error(f"AKShare 获取历史数据失败: {e}")
+            return None
+
     def _try_sina_http_historical(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
         """新浪 HTTP 历史 KLine 数据（P3，绕过系统代理）"""
         try:
@@ -809,9 +899,16 @@ class MarketDataProvider:
             if tdx_data:
                 return tdx_data
 
-            logger.warning("通达信实时数据获取失败，尝试新浪财经: %s", symbol)
+            logger.warning("通达信实时数据获取失败，尝试 AKShare: %s", symbol)
 
-            # P4: 新浪财经实时行情（免费 HTTP 兜底）
+            # P4: AKShare
+            akshare_data = self._try_akshare_realtime(symbol)
+            if akshare_data:
+                return akshare_data
+
+            logger.warning("AKShare 实时数据获取失败，尝试新浪财经: %s", symbol)
+
+            # P5: 新浪财经实时行情（免费 HTTP 兜底）
             sina_data = self._try_sina_http_realtime(symbol)
             if sina_data:
                 return sina_data
@@ -822,6 +919,7 @@ class MarketDataProvider:
                 f"(Wind MCP: {self.source_health['wind_mcp'].get('last_error')}, "
                 f"iFinD MCP: {self.source_health['ifind_mcp'].get('last_error')}, "
                 f"通达信: {self.source_health['tdx'].get('last_error')}, "
+                f"AKShare: {self.source_health['akshare'].get('last_error')}, "
                 f"新浪HTTP: {self.source_health['sina_http'].get('last_error')})"
             )
         except RuntimeError:
@@ -851,9 +949,16 @@ class MarketDataProvider:
             if tdx_data is not None and not tdx_data.empty:
                 return tdx_data
             
-            logger.warning("通达信历史数据获取失败，尝试新浪 HTTP: %s", symbol)
+            logger.warning("通达信历史数据获取失败，尝试 AKShare: %s", symbol)
             
-            # P4: 新浪 HTTP
+            # P4: AKShare
+            akshare_data = self._try_akshare_historical(symbol, period)
+            if akshare_data is not None and not akshare_data.empty:
+                return akshare_data
+            
+            logger.warning("AKShare 历史数据获取失败，尝试新浪 HTTP: %s", symbol)
+            
+            # P5: 新浪 HTTP
             sina_data = self._try_sina_http_historical(symbol, period)
             if sina_data is not None and not sina_data.empty:
                 return sina_data
@@ -864,6 +969,7 @@ class MarketDataProvider:
                 f"(Wind MCP: {self.source_health['wind_mcp'].get('last_error')}, "
                 f"iFinD MCP: {self.source_health['ifind_mcp'].get('last_error')}, "
                 f"通达信: {self.source_health['tdx'].get('last_error')}, "
+                f"AKShare: {self.source_health['akshare'].get('last_error')}, "
                 f"新浪HTTP: {self.source_health['sina_http'].get('last_error')})"
             )
         except RuntimeError:
@@ -1143,6 +1249,8 @@ class MarketDataProvider:
             "data_sources": {
                 "wind_mcp": self.source_health.get('wind_mcp', {}).get('ok', False),
                 "ifind_mcp": self.source_health.get('ifind_mcp', {}).get('ok', False),
+                "tdx": self.source_health.get('tdx', {}).get('ok', False),
+                "akshare": self.source_health.get('akshare', {}).get('ok', False),
                 "sina_http": self.source_health.get('sina_http', {}).get('ok', False),
             },
             "cache": self.get_cache_info(),

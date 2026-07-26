@@ -1,0 +1,14 @@
+{
+  "_comment": "将以下 mcpServers 字段合并到项目根目录 .mcp.json。若已有其他 MCP server，请保留原条目并追加 code-review-graph 条目。code-review-graph install 命令会自动写入此文件，此 snippet 仅作备份。",
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "uvx",
+      "args": [
+        "code-review-graph",
+        "serve"
+      ],
+      "cwd": "E:\\各种PY程序\\28-终极量化交易系统8.4",
+      "type": "stdio"
+    }
+  }
+}

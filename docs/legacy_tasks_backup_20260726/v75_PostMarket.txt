@@ -1,0 +1,31 @@
+
+Folder: \
+HostName:                             PC-20250211UIJX
+TaskName:                             \v75_PostMarket
+Next Run Time:                        2026/7/27 15:30:00
+Status:                               Ready
+Logon Mode:                           Interactive only
+Last Run Time:                        2026/7/24 15:30:00
+Last Result:                          -2147024629
+Author:                               Administrator
+Task To Run:                          E:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional\run_all_modules.bat post
+Start In:                             E:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional
+Comment:                              v7.5 鐩樺悗鎵规: 榛戝ぉ楣呭帇鍔涙祴璇?+ 鐩堜簭鎶ュ憡 (15:30)
+Scheduled Task State:                 Enabled
+Idle Time:                            Disabled
+Power Management:                     Stop On Battery Mode, No Start On Batteries
+Run As User:                          Administrator
+Delete Task If Not Rescheduled:       Disabled
+Stop Task If Runs X Hours and X Mins: 02:00:00
+Schedule:                             Scheduling data is not available in this format.
+Schedule Type:                        Weekly
+Start Time:                           15:30:00
+Start Date:                           2026/1/1
+End Date:                             N/A
+Days:                                 MON, TUE, WED, THU, FRI
+Months:                               Every 1 week(s)
+Repeat: Every:                        Disabled
+Repeat: Until: Time:                  Disabled
+Repeat: Until: Duration:              Disabled
+Repeat: Stop If Still Running:        Disabled
+

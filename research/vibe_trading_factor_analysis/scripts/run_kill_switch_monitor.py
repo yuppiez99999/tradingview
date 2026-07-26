@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import sys
@@ -48,6 +49,14 @@ def main() -> int:
     Returns:
         0=成功, 1=失败
     """
+    parser = argparse.ArgumentParser(description="Run the FactorKillSwitch monitor")
+    parser.add_argument(
+        "--synthetic",
+        action="store_true",
+        help="Use synthetic demo data when real market data is unavailable",
+    )
+    args = parser.parse_args()
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
@@ -56,32 +65,37 @@ def main() -> int:
     print("S6 FactorKillSwitch 实时监控启动")
     print("=" * 80)
 
-    # ============ Step 1: 加载真实数据 ============
-    print("\n[1/5] 加载真实 A 股历史数据")
-    symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
-    price_data, fundamentals, benchmark_returns = load_all_for_pipeline(symbols=symbols)
+    if args.synthetic:
+        print("\n[1/5] 使用合成 Demo 数据（跳过依赖市场数据）")
+        price_data, fundamentals, benchmark_returns, existing_factors, candidate_factors = _load_synthetic_demo_inputs()
+        print("  ✓ 合成因子/价格数据已就绪")
+    else:
+        # ============ Step 1: 加载真实数据 ============
+        print("\n[1/5] 加载真实 A 股历史数据")
+        symbols = list_available_symbols()
+        print(f"  可用标的数: {len(symbols)}")
+        price_data, fundamentals, benchmark_returns = load_all_for_pipeline(symbols=symbols)
 
-    # ============ Step 2: 加载现有 51 个生产因子 ============
-    print("\n[2/5] 加载现有生产因子库（51 个）")
-    try:
-        from utils.alpha_factor_library import AlphaFactorLibrary
-        lib = AlphaFactorLibrary()
-        result = lib.compute_all(
-            price_data=price_data,
-            fundamentals=fundamentals,
-            benchmark_returns=benchmark_returns,
-        )
-        existing_factors = dict(result.factors)
-        print(f"  ✓ 现有生产因子加载: {len(existing_factors)} 个")
-    except Exception as e:
-        print(f"  ✗ 现有因子库加载失败: {e}")
-        existing_factors = {}
+        # ============ Step 2: 加载现有 51 个生产因子 ============
+        print("\n[2/5] 加载现有生产因子库（51 个）")
+        try:
+            from utils.alpha_factor_library import AlphaFactorLibrary
+            lib = AlphaFactorLibrary()
+            result = lib.compute_all(
+                price_data=price_data,
+                fundamentals=fundamentals,
+                benchmark_returns=benchmark_returns,
+            )
+            existing_factors = dict(result.factors)
+            print(f"  ✓ 现有生产因子加载: {len(existing_factors)} 个")
+        except Exception as e:
+            print(f"  ✗ 现有因子库加载失败: {e}")
+            existing_factors = {}
 
-    # ============ Step 3: 加载首批次候选因子 ============
-    print("\n[3/5] 加载首批次候选因子（16 个）")
-    candidate_factors = _load_first_batch_candidates()
-    print(f"  ✓ 候选因子加载: {len(candidate_factors)} 个")
+        # ============ Step 3: 加载首批次候选因子 ============
+        print("\n[3/5] 加载首批次候选因子（16 个）")
+        candidate_factors = _load_first_batch_candidates()
+        print(f"  ✓ 候选因子加载: {len(candidate_factors)} 个")
 
     # ============ Step 4: 初始化 KillSwitch 并模拟历史监控 ============
     print(f"\n[4/5] 初始化 KillSwitch + 模拟 {HISTORY_DAYS} 日历史监控")
@@ -113,7 +127,7 @@ def main() -> int:
     state_dist = Counter(s.status for s in all_states.values())
     origin_dist = defaultdict(lambda: Counter())
     for name, s in all_states.items():
-        origin = all_monitored[name]["origin"]
+        origin = all_monitored.get(name, {}).get("origin", "historical")
         origin_dist[origin][s.status] += 1
 
     print(f"\n========== 监控仪表盘（{HISTORY_DAYS} 日后）==========")
@@ -158,6 +172,35 @@ def main() -> int:
     print("    new_status = run_daily_update(ks, factor_name, ic=0.05, daily_pnl=0.001)")
     print()
     return 0
+
+
+def _load_synthetic_demo_inputs() -> Tuple[Dict[str, Dict[str, List[float]]], Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Dict[str, float]]]:
+    """构造可独立运行的合成 demo 数据，便于验证状态机行为。"""
+
+    class _SyntheticFactor:
+        def __init__(self, values: Dict[str, float]):
+            self.values = values
+
+    symbols = [f"000{idx:03d}_SZ" for idx in range(1, 9)]
+    price_data: Dict[str, Dict[str, List[float]]] = {}
+    for idx, sym in enumerate(symbols):
+        closes: List[float] = []
+        prev = 10.0 + idx * 0.25
+        for day in range(HISTORY_DAYS + 8):
+            drift = 0.002 * ((day % 6) - 3)
+            prev *= 1 + drift + 0.0003 * (idx % 4)
+            closes.append(prev)
+        price_data[sym] = {"closes": closes}
+
+    existing_factors = {
+        "MOM_5D": _SyntheticFactor({sym: 0.02 * (idx % 4 - 1.5) for idx, sym in enumerate(symbols)}),
+        "VOL_20D": _SyntheticFactor({sym: 0.01 * (idx % 3) for idx, sym in enumerate(symbols)}),
+    }
+    candidate_factors = {
+        "SENTIMENT": {sym: 0.015 * ((idx + 1) % 2 - 0.5) for idx, sym in enumerate(symbols)},
+        "LIQUIDITY": {sym: 0.012 * ((idx % 3) - 1) for idx, sym in enumerate(symbols)},
+    }
+    return price_data, {}, {}, existing_factors, candidate_factors
 
 
 def _load_first_batch_candidates() -> Dict[str, Dict[str, float]]:
@@ -332,7 +375,7 @@ def _persist_dashboard(
     triggered_sorted = sorted(triggered, key=lambda kv: (kv[1].status, -kv[1].cumulative_drawdown))
     triggered_md = ""
     for i, (name, s) in enumerate(triggered_sorted, 1):
-        origin = all_monitored[name]["origin"]
+        origin = all_monitored.get(name, {}).get("origin", "historical")
         last_trigger = s.triggers[-1] if s.triggers else "-"
         triggered_md += (
             f"| {i} | `{name}` | {origin} | {s.status} | "

@@ -229,3 +229,71 @@ Copy-Item "e:\各种PY程序\28-终极量化交易系统8.4\tools\codebase-memor
 *集成时间: 2026-07-26*  
 *集成来源: GitHub 周榜 2026.07.19 期*  
 *计划文件: `.trae/documents/github_weekly_rank_integration.md`*
+
+
+---
+
+## GitHub 热门项目深度集成（2026-07-26 第二批）
+
+**集成来源**：`E:\各种PY程序\10_第三方项目\GitHub热门项目报告\GitHub热门项目报告_2026年7月第4周.md`
+**方案文档**：`.trae/documents/GitHub热门项目深度集成方案_2026-07-26.md`
+**落地文档**：`docs/GITHUB_HOT_PROJECTS_DEEP_INTEGRATION_20260726.md`
+**版本**：v8.6.9
+
+### 集成项目（3 个，深度集成到生产代码）
+
+| 项目 | 星数 | 集成形态 | 影响范围 | 风险 |
+|------|------|---------|---------|------|
+| **code-review-graph** | +4,791 | uv tool + MCP server + AI skill | 仅开发时 | 极低 |
+| **cangjie-skill → research_distiller** | +1,364 | 原生重写 `utils/research_distiller.py` (42KB) | 影子账户 Phase 10 | 中 |
+| **awesome-llm-apps → finance_agent_orchestrator** | +5,385 | 架构借鉴 + 原生实现 (16KB + 5 Agent) | 仅日志 Shadow Mode | 低 |
+
+### 新增文件清单
+
+**生产模块**：
+- `utils/research_distiller.py` (42KB) — 研究蒸馏信号第 6 信号源 (RIA--TV++ 量化版)
+- `utils/finance_agent_orchestrator.py` (16KB) — 金融多Agent Shadow Mode 协调器
+- `utils/finance_agents/` (7 文件) — ValueAgent/MomentumAgent/SentimentAgent/RiskAgent/MacroAgent + BaseAgent
+- `scripts/distill_research_batch.py` (9.9KB) — 06:00 离线蒸馏脚本
+- `tools/code-review-graph/` — 安装脚本 + MCP 配置 + README + AI skill
+
+**测试文件**（新增 93 个测试）：
+- `tests/unit/test_research_distiller_unit.py` (15 测试)
+- `tests/unit/test_signal_fusion_research_distilled_unit.py` (25 测试)
+- `tests/unit/test_finance_agent_orchestrator_unit.py` (27 测试)
+- `tests/integration/test_research_distiller_signal_fusion_integration.py` (10 测试)
+- `tests/integration/test_finance_agents_shadow_mode_integration.py` (7 测试)
+- `tests/e2e/test_research_distiller_e2e.py` (5 测试)
+- `tests/e2e/test_finance_agent_orchestrator_e2e.py` (4 测试)
+
+**研究文档**：
+- `research/references/awesome-llm-apps-patterns/PATTERN_EXTRACTION.md` (29KB)
+- `docs/GITHUB_HOT_PROJECTS_DEEP_INTEGRATION_20260726.md`
+
+### 修改文件清单
+
+- `utils/signal_fusion.py` — 新增 `inject_research_distilled_signals()` + post-mix 4层NaN防御
+- `utils/ai_report_agent.py` — 追加 `to_agent_decision()` 适配方法 (向后兼容)
+- `v8.3_institutional/daily_workflow.py` — Phase 5 追加研究蒸馏信号注入块 (第4355行)
+- `README.md` — 版本 v8.6.7 → v8.6.9 + 新章节 + 版本历史
+- `.gitignore` — 追加 `data/distilled_signals/` / `data/agent_orchestrator_audit/` / `.code-review-graph/`
+
+### 关键设计决策
+
+1. **post-mix 模式**：research_distilled 不修改主融合公式 `alpha(0.70)+llm(0.10)+etf(0.12)+macro(0.08)=1.00`，仅以 weight=0.03 叠加
+2. **Shadow Mode 隔离**：finance_agent_orchestrator 不入信号路径，仅写审计日志
+3. **离线+在线分离**：06:00 离线蒸馏 + 07:00 在线注入，不增加关键路径耗时
+4. **4 层 NaN 防御**：注入过滤 → 取值防御 → 融合后检查 → 边界裁剪
+5. **仅影响影子账户**：research_distilled 仅影响 Phase 10，不影响 500万实盘
+
+### 验证结果
+
+```
+python -m pytest tests/unit tests/integration tests/e2e --ignore=tests/verify_qlib_data.py -q
+# 结果: 233 passed in 57.56s (无回归)
+```
+
+*集成时间: 2026-07-26*
+*集成来源: GitHub 周榜 2026.07.26 期 (第 4 周)*
+*计划文件: `.trae/documents/GitHub热门项目深度集成方案_2026-07-26.md`*
+

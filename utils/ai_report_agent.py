@@ -701,6 +701,120 @@ class AIReportAgent:
                 status["llm_status"] = {"error": str(e)}
         return status
 
+    # ----------------------------------------------------------
+    # v8.6.9 新增: Agent 适配方法 (供 SentimentAgent 复用)
+    # ----------------------------------------------------------
+    # 设计原则: 仅追加, 不修改既有方法, 保证向后兼容
+    # 集成日期: 2026-07-26 (GitHub 周榜项目深度集成第二批)
+
+    def to_agent_decision(
+        self,
+        symbol: str,
+        news_items: Optional[List[Dict]] = None,
+    ) -> Dict[str, Any]:
+        """将新闻情感分析结果适配为 AgentDecision 兼容格式
+
+        供 utils.finance_agents.SentimentAgent 复用, 避免重复实现情感分析.
+        返回 dict (而非 AgentDecision dataclass), 避免循环导入.
+
+        Args:
+            symbol: 标的代码
+            news_items: 新闻列表 (None 则返回中性决策)
+
+        Returns:
+            dict, 含字段: agent_name / symbol / action / strength /
+            confidence / reasoning / key_metrics / veto_reason
+        """
+        if not news_items:
+            return {
+                "agent_name": "ai_report_adapter",
+                "symbol": symbol,
+                "action": "hold",
+                "strength": 0.0,
+                "confidence": 0.0,
+                "reasoning": "无新闻数据",
+                "key_metrics": {},
+                "veto_reason": "",
+            }
+
+        try:
+            sentiments = self.analyze_news_sentiment(news_items, use_llm=True)
+        except Exception as e:
+            logger.warning("to_agent_decision: analyze_news_sentiment 异常: %s", e)
+            return {
+                "agent_name": "ai_report_adapter",
+                "symbol": symbol,
+                "action": "hold",
+                "strength": 0.0,
+                "confidence": 0.0,
+                "reasoning": f"情感分析异常: {e}",
+                "key_metrics": {"error": True},
+                "veto_reason": "",
+            }
+
+        if not sentiments:
+            return {
+                "agent_name": "ai_report_adapter",
+                "symbol": symbol,
+                "action": "hold",
+                "strength": 0.0,
+                "confidence": 0.0,
+                "reasoning": "情感分析返回空",
+                "key_metrics": {},
+                "veto_reason": "",
+            }
+
+        # 聚合
+        scores = [s.score for s in sentiments if isinstance(s.score, (int, float))]
+        avg_score = sum(scores) / len(scores) if scores else 0.0
+
+        # 重大负面 veto 检查
+        critical_hits = []
+        for item in news_items:
+            text = (item.get("title", "") + " " + item.get("content", "")) if isinstance(item, dict) else ""
+            for word in self.CRITICAL_NEGATIVE_WORDS:
+                if word in text:
+                    critical_hits.append(word)
+                    break
+
+        if critical_hits:
+            return {
+                "agent_name": "ai_report_adapter",
+                "symbol": symbol,
+                "action": "veto",
+                "strength": -1.0,
+                "confidence": 0.95,
+                "reasoning": f"重大负面: {critical_hits}",
+                "key_metrics": {
+                    "news_count": len(news_items),
+                    "avg_score": round(avg_score, 4),
+                    "critical_hits": critical_hits,
+                },
+                "veto_reason": f"重大负面关键词: {critical_hits}",
+            }
+
+        # 普通情绪
+        if avg_score > 0.6:
+            action = "buy"
+        elif avg_score < -0.6:
+            action = "sell"
+        else:
+            action = "hold"
+
+        return {
+            "agent_name": "ai_report_adapter",
+            "symbol": symbol,
+            "action": action,
+            "strength": max(-1.0, min(1.0, avg_score)),
+            "confidence": min(0.9, 0.3 + 0.15 * len(news_items)),
+            "reasoning": f"舆情均分 {avg_score:.2f} (基于 {len(news_items)} 条)",
+            "key_metrics": {
+                "news_count": len(news_items),
+                "avg_score": round(avg_score, 4),
+            },
+            "veto_reason": "",
+        }
+
 
 # ============================================================
 # 便捷函数

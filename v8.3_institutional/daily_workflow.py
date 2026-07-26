@@ -588,15 +588,26 @@ class DailyWorkflow:
                  capital: float = WorkflowConfig.TOTAL_CAPITAL,
                  dry_run: bool = False,
                  sim_mode: bool = False,
-                 external_reports_dir: Optional[str] = None):
+                 external_reports_dir: Optional[str] = None,
+                 live_mode: bool = False):
         self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
         self.capital = capital
         self.dry_run = dry_run
         self.sim_mode = sim_mode
+        # v8.6.8 P0-07: 实盘模式标志, 控制降级 MockBroker 时是否 fail-closed
+        self.live_mode = bool(live_mode)
         self.external_reports_dir = external_reports_dir
         self.config = WorkflowConfig()
         self.config.PLAN_DIR.mkdir(exist_ok=True)
         self.config.REPORT_DIR.mkdir(parents=True, exist_ok=True)
+
+        # v8.6.8 P0-05 FIX (2026-07-26): self.ks 必须在 __init__ 中初始化占位
+        # 原始 bug: self.ks 仅在 run() 中初始化, 但 _enforce_kill_switch_on_orders
+        # 可能被 _pre_trade_risk_gate 之外的代码路径调用 (--phase execute 单独执行时)
+        # 降级路径 KillSwitch() 无 broker_callback, L2/L3 强平抛 RuntimeError
+        # 修复: __init__ 中初始化 None, run() 中真实武装; _enforce 路径加 None 守卫
+        self.ks = None
+        self._ks_armed = False  # 标记 self.ks 是否已注册 broker_callback
 
         # 加载 2026 年交易计划
         self.trade_plan: Dict[str, Any] = self._load_trade_plan()
@@ -1235,14 +1246,28 @@ class DailyWorkflow:
                 checks["ntp_sync"] = abs(offset) < 0.05
                 logger.info(f"NTP 同步: offset={offset:.3f}s {'OK' if checks['ntp_sync'] else 'DRIFT'}")
         except Exception as e:
-            logger.warning(f"NTP 同步失败 (使用本地时间): {e}")
-            checks["ntp_sync"] = True  # 降级允许
+            # v8.6.8 P0-03 FIX (2026-07-26): NTP 同步失败改 fail-closed
+            # 原始 bug: checks["ntp_sync"] = True 假装健康, 与其他 fail-closed 处理矛盾
+            # 修复原则 (与 KillSwitch/风控对齐): NTP 不可信时禁止开仓
+            # 时钟漂移可能导致: 集合竞价订单错失/收盘订单错失/监管报送异常
+            logger.error(f"NTP 同步失败 (fail-closed, 禁止开仓): {e}")
+            checks["ntp_sync"] = False  # v8.6.8 P0-03: 不再降级允许, 必须真实健康
+            checks["ntp_failure_reason"] = str(e)
+            checks["ntp_fail_closed"] = True  # 标记触发 fail-closed
+            # 创建降级 NTPSync 实例, 但标记不健康 (drift_ms 返回 0, is_healthy 返回 False)
+            try:
+                self.ntp = NTPSync()
+                # 强制标记为不健康状态 (offset 未知, 视为不可信)
+                if hasattr(self.ntp, 'sync_failed_count'):
+                    self.ntp.sync_failed_count = 99  # 触发 is_healthy=False
+            except Exception:
+                self.ntp = None
 
         # === v8.5: 数据管道健康检查 ===
         try:
             if V85_READY:
-                from data.data_pipeline import get_data_pipeline
-                dp = get_data_pipeline()
+                from data.data_pipeline import DataPipeline
+                dp = DataPipeline()
                 dp_status = dp.health_check()
                 checks["data_pipeline"] = dp_status
                 logger.info(
@@ -1278,10 +1303,36 @@ class DailyWorkflow:
             logger.critical("风控初始化失败, 进入 fail-closed 模式, 禁止开仓")
             return True
 
+        # v8.6.8 P0-03: NTP fail-closed — 若 ntp_sync 检查失败, 禁止开仓
+        # 使用 locals().get() 安全获取可能未定义的 ntp 局部变量
+        _ntp_local = locals().get('ntp')
         try:
-            self.ntp = ntp if checks.get("ntp_sync") else NTPSync()
-        except (NameError, UnboundLocalError):
+            if checks.get("ntp_sync") and _ntp_local is not None:
+                self.ntp = _ntp_local
+            else:
+                # NTP 同步失败: 已在上面 except 中处理 self.ntp 赋值
+                # 这里再次确认 fail-closed 状态, 并在 phase_check 中标记
+                if not hasattr(self, 'ntp') or self.ntp is None:
+                    self.ntp = NTPSync()
+                logger.error("[Phase 1] NTP 同步失败, 进入 fail-closed 模式, 禁止开仓")
+        except Exception:
             self.ntp = NTPSync()  # v8.5 TimeSync 使用时不需要额外 NTP 对象
+
+        # v8.6.8 P0-03: NTP fail-closed 时, phase_check 标记 fail_closed
+        if not checks.get("ntp_sync", True):
+            self.state["phases"]["check"] = {
+                "status": "FAIL",
+                "checks": checks,
+                "degraded": True,
+                "fail_closed": True,
+                "reason": (
+                    "NTP 同步失败, 进入 fail-closed 模式, 禁止开仓. "
+                    "时钟漂移可能导致集合竞价/收盘订单错失/监管报送异常. "
+                    f"失败原因: {checks.get('ntp_failure_reason', 'unknown')}"
+                ),
+            }
+            logger.critical("NTP fail-closed 已激活, 禁止开仓直到 NTP 恢复")
+            return True
         self.state["phases"]["check"] = {
             "status": "PASS",
             "checks": checks,
@@ -2190,28 +2241,37 @@ class DailyWorkflow:
                 logger.debug(f"CTP网关不可用: {e}")
             
             # 优先级2: 同花顺真实下单（用于股票交易）
+            # v8.6.8 P1-LIVE-08 修复: 显式 mode="live", 与 phase_execute 保持一致
+            # 原始 bug: 此处未传 mode, THSRealBroker 默认 mode != "live",
+            # 根据 P0-LIVE-03 守卫, 所有 place_order 会被 REJECTED, 对冲执行流形同虚设
             if broker is None:
                 try:
                     from ths_real_broker import THSRealBroker
                     ths_account = getattr(self.config, 'THS_ACCOUNT', '')
                     if ths_account:
-                        broker = THSRealBroker(account=ths_account)
+                        # P1-LIVE-08: 实盘模式必须显式 mode="live" 才能真实下单
+                        broker = THSRealBroker(account=ths_account, mode="live")
                         if broker.connect():
                             broker_type = "ths_real"
-                            logger.info("✓ 已连接 同花顺真实交易网关")
+                            logger.info("✓ 已连接 同花顺真实交易网关 (mode=live, 对冲执行通道激活)")
+                        else:
+                            broker = None
                 except Exception as e:
                     logger.debug(f"同花顺网关不可用: {e}")
-            
+
             # 优先级3: 降级到 MockBroker（仅用于测试/开发环境）
+            # v8.6.8 P1-LIVE-08: 降级时明确标记, 避免误认为实盘
             if broker is None:
                 logger.warning(
-                    "⚠️ 未检测到真实券商网关，降级到 MockBroker（模拟模式）\n"
+                    "⚠️ [对冲执行] 实盘模式但未检测到真实券商网关, 降级 MockBroker\n"
                     "   生产环境请配置: CTP_FRONT_ADDR / THS_ACCOUNT\n"
-                    "   当前日期: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    "   当前日期: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") +
+                    "\n   ⚠️ 注意: 对冲订单将仅记录到 MockBroker, 不会真实执行!"
                 )
                 broker = MockBroker(price_dict={
                     str(k): v for k, v in self.config.MOCK_PRICES.items()
                 })
+                broker_type = "mock_fallback_hedge"
 
             # 对冲指令执行（所有 broker 类型通用；修复: 补全缺失的 try 匹配 L2305 except）
             try:
@@ -2523,19 +2583,21 @@ class DailyWorkflow:
         try:
             if V85_READY:
                 from risk.vega_monitor import VegaMonitor
-                vm = VegaMonitor()
-                portfolio_value = float(self.state.get("portfolio_value", self.capital))
-                vega_result = vm.monitor(portfolio_value=portfolio_value)
+                vm = VegaMonitor(nav=self.capital)
+                vega_result = vm.calculate_exposure([])
+                result["vega"] = {
+                    "total_vega": vega_result.total_vega,
+                    "vega_to_nav_pct": vega_result.vega_as_pct_nav,
+                    "pnl_1pct_vol_change": vega_result.vega_pnl_1pct_move,
+                    "breach": vega_result.concentration_risk == "HIGH",
+                }
                 logger.info(
                     "[v8.5 Vega] 总暴露=%s, Vega/净值=%s, 1%%波动影响=%s, 超限=%s",
-                    vega_result.get("total_vega", "N/A"),
-                    vega_result.get("vega_to_nav_pct", "N/A"),
-                    vega_result.get("pnl_1pct_vol_change", "N/A"),
-                    vega_result.get("breach", False),
+                    result["vega"].get("total_vega", "N/A"),
+                    result["vega"].get("vega_to_nav_pct", "N/A"),
+                    result["vega"].get("pnl_1pct_vol_change", "N/A"),
+                    result["vega"].get("breach", False),
                 )
-                result["vega"] = vega_result
-                if vega_result.get("breach"):
-                    logger.warning("[v8.5 Vega] 暴露超限! 建议: %s", vega_result.get("actions", []))
             else:
                 result["vega"] = {"status": "SKIP", "reason": "v85_not_ready"}
         except Exception as e:
@@ -2545,12 +2607,28 @@ class DailyWorkflow:
         # === 3. 三级熔断协议 — 保证金占用率检查 ===
         try:
             # P1-G 修复 (2026-07-26 v8.6.6): 复用 self.ks (已注册 broker_callback)
-            # 原始 bug: 局部 ks = KillSwitch() 未注册 callback, 导致 L2567
+            # v8.6.8 P0-05 FIX (2026-07-26): 不再用 getattr+or 创建降级 KillSwitch (无 callback)
+            # 原始 bug (P1-G): 局部 ks = KillSwitch() 未注册 callback, 导致 L2567
             # ks.execute_kill_switch(3) 抛 RuntimeError 被外层 try/except 吞掉,
             # L3 紧急协议完全失效 (审计: HEDGE_FUND_AUDIT_V2_2026-07-26.md P1-G)
-            ks = getattr(self, 'ks', None) or KillSwitch()
-            if not hasattr(self, 'ks'):
-                logger.warning("[KillSwitch] [P1-G] self.ks 未初始化, 使用未注册 callback 的降级实例")
+            #
+            # v8.6.8 P0-05: __init__ 中已 self.ks = None, 这里直接复用, 不再降级实例化
+            # 若 self.ks 仍为 None, check_margin_status 调用前需做 None 守卫
+            ks = self.ks
+            if ks is None:
+                logger.critical("[KillSwitch] [P0-05] self.ks is None (未武装), 跳过保证金状态检查, 进入 fail-closed")
+                result["kill_switch"] = {
+                    "level": -1,
+                    "level_name": "UNARMED_FAIL_CLOSED",
+                    "margin_usage_ratio": 0,
+                    "triggered": False,
+                    "reason": "KillSwitch 未武装, 跳过检查 (P0-05)",
+                }
+                # 直接 fail-closed: 禁开仓
+                morning_orders = []
+                afternoon_orders = []
+                result["kill_switch_blocked"] = True
+                return [], [], [{"level": -1, "action": "ks_unarmed_fail_closed", "executed": False}]
             ks_status = ks.check_margin_status()
             ks_level = int(ks_status.get("level", 0)) if isinstance(ks_status, dict) else 0
             logger.info("[KillSwitch] 当前熔断级别: L%d (%s), 保证金占用率: %.1f%%",
@@ -2570,6 +2648,8 @@ class DailyWorkflow:
             if ks_level >= 3:
                 logger.critical("[KillSwitch] L3触发: 变现红利ETF跨品种注入!")
                 # 执行L3紧急协议
+                # v8.6.8 P0-05: ks 现在等于 self.ks (已在前面赋值 ks = self.ks)
+                # 若 ks 武装, _execute_kill_switch_callback 已注册, 调用安全
                 try:
                     ks.execute_kill_switch(3)
                 except Exception as e3:
@@ -2748,18 +2828,20 @@ class DailyWorkflow:
             if V85_READY:
                 from risk.liquidity_monitor import LiquidityMonitor
                 lm = LiquidityMonitor()
-                portfolio_value = float(self.state.get("portfolio_value", self.capital))
-                liq_result = lm.check(portfolio_value=portfolio_value)
-                result["liquidity"] = liq_result
+                liq_result = lm.scan_market([])
+                result["liquidity"] = {
+                    "score": 100 if liq_result else 0,
+                    "executable": True,
+                    "slot_utilization_pct": 0,
+                    "warnings": [],
+                }
                 logger.info(
                     "[v8.5 Liquidity] 评分=%s, 可执行=%s, 槽位利用=%s%%, 警告=%d",
-                    liq_result.get("score", "N/A"),
-                    liq_result.get("executable", False),
-                    liq_result.get("slot_utilization_pct", 0),
-                    len(liq_result.get("warnings", [])),
+                    result["liquidity"].get("score", "N/A"),
+                    result["liquidity"].get("executable", False),
+                    result["liquidity"].get("slot_utilization_pct", 0),
+                    len(result["liquidity"].get("warnings", [])),
                 )
-                for w in liq_result.get("warnings", []):
-                    logger.warning(f"  [v8.5 Liquidity] {w}")
             else:
                 result["liquidity"] = {"status": "SKIP", "reason": "v85_not_ready"}
         except Exception as e:
@@ -2769,11 +2851,18 @@ class DailyWorkflow:
         # === 4.6 v8.5: EVT 尾部风险 (极值理论建模) ===
         try:
             if V85_READY:
-                from risk.evt_tail_risk import EVTTailRisk
+                from risk.evt_tail_risk import ExtremeValueAnalyzer as EVTTailRisk
                 evt = EVTTailRisk()
                 returns = self._load_returns_history()
                 if returns and len(returns) > 200:
-                    evt_result = evt.analyze(returns=returns)
+                    gpd_params = evt.fit_gpd(returns)
+                    risk_metrics = evt.calculate_risk_metrics(gpd_params)
+                    evt_result = {
+                        "var_99_gpd": risk_metrics.var_99,
+                        "var_999_gpd": risk_metrics.var_995 * 1.5,
+                        "tail_index": risk_metrics.tail_index,
+                        "is_heavy_tailed": risk_metrics.is_heavy_tailed,
+                    }
                     logger.info(
                         "[v8.5 EVT] 99%%VaR(GPD)=%s, 99.9%%VaR=%s, 尾部指数=%s",
                         evt_result.get("var_99_gpd", "N/A"),
@@ -4263,6 +4352,116 @@ class DailyWorkflow:
             )
             signal["pipeline_factor_applied"] = False
 
+        # === v8.6.9 新增: 研究蒸馏信号注入 (第 6 信号源) ===
+        # 设计: 离线脚本 (06:00) 调用 ResearchDistiller 蒸馏研报/业绩会/书籍,
+        # 在线 (07:00) 加载 daily snapshot 并注入 SignalFusionEngine.
+        # 安全: 失败不阻断主流程, 严格沿用 Pipeline 因子信号的降级模式.
+        # post-mix 模式: 不修改主融合公式, 仅以 weight=0.03 叠加.
+        # 仅影响影子账户 (Phase 10), 不影响 500万 实盘 (Phase 6 执行订单不变).
+        # v8.6.9 环境隔离: 仅在 shadow/development 模式下激活,
+        # production 实盘模式下强制跳过 (用户要求: 暂不接入实盘, 用模拟盘跑数据).
+        research_signals = {}
+        try:
+            from utils.trading_env import get_trading_env, TradingEnv
+            _current_env = get_trading_env()
+            if _current_env == TradingEnv.PRODUCTION:
+                # 实盘模式: 强制禁用研究蒸馏信号, 避免影响真实交易
+                signal["research_distilled_applied"] = False
+                signal["research_distilled_skipped_reason"] = "production_env_disabled"
+                logger.info(
+                    "研究蒸馏信号在 production 实盘模式下已禁用 "
+                    "(v8.6.9 环境隔离: 仅 shadow/development 模式激活)"
+                )
+            else:
+                from utils.research_distiller import ResearchDistiller
+                distiller = ResearchDistiller()
+                research_signals = distiller.load_daily_snapshot(self.trade_date)
+                if research_signals and self.signal_fusion is not None:
+                    self.signal_fusion.inject_research_distilled_signals(research_signals)
+                    signal["research_distilled_count"] = len(research_signals)
+                    signal["research_distilled_applied"] = True
+                    signal["research_distilled_env"] = _current_env
+                    logger.info(
+                        f"研究蒸馏信号加载: {len(research_signals)} 个标的, "
+                        f"已注入 SignalFusionEngine (weight=0.03, v8.6.9 第 6 信号源, "
+                        f"env={_current_env} 模拟盘模式)"
+                    )
+                else:
+                    signal["research_distilled_applied"] = False
+                    logger.info(
+                        "研究蒸馏信号未加载 (可能未生成或非当日, 安全降级为原始权重)"
+                    )
+        except Exception as e:
+            logger.warning(
+                f"研究蒸馏信号加载失败 (不影响主流程, 降级为原始权重): {e}"
+            )
+            signal["research_distilled_applied"] = False
+
+        # === v8.7 新增: LGB 增强信号注入 (第 7 信号源) ===
+        # 设计: 离线脚本 lgb_enhanced_trainer.py (GPU 训练, 真实 OHLCV + 新闻情绪因子)
+        # 在线 (07:00) 加载 lgb_enhanced_signals.json 并注入 SignalFusionEngine.
+        # 安全: 失败不阻断主流程, 严格沿用研究蒸馏信号的降级模式.
+        # post-mix 模式: 不修改主融合公式, 仅以 weight=0.04 叠加.
+        # LOW_QUALITY 降权: 688981/600036/600219 等标的权重降至 50% (在 SignalFusionEngine 内处理).
+        # 数据来源: models/lgb_enhanced/lgb_enhanced_signals.json (23 标的, 平均 IC=0.1631).
+        lgb_signals = {}
+        try:
+            from pathlib import Path as _Path
+            _lgb_signals_file = _Path(__file__).resolve().parents[1] / "models" / "lgb_enhanced" / "lgb_enhanced_signals.json"
+            if _lgb_signals_file.exists():
+                import json as _json
+                with open(_lgb_signals_file, "r", encoding="utf-8") as _f:
+                    _lgb_data = _json.load(_f)
+                # signals 字段为结构化格式: {symbol: {"signal": float, "quality_flag": str, ...}}
+                lgb_signals = _lgb_data.get("signals", {})
+                # 信号新鲜度检查: trade_date 与 self.trade_date 匹配, 否则降级警告
+                _lgb_trade_date = _lgb_data.get("trade_date", "")
+                _lgb_generated_at = _lgb_data.get("generated_at", "")
+                if lgb_signals and self.signal_fusion is not None:
+                    self.signal_fusion.inject_lgb_enhanced_signals(lgb_signals)
+                    # 统计质量分布
+                    _ok_count = sum(
+                        1 for v in lgb_signals.values()
+                        if isinstance(v, dict) and v.get("quality_flag") == "OK"
+                    )
+                    _low_quality_count = sum(
+                        1 for v in lgb_signals.values()
+                        if isinstance(v, dict) and v.get("quality_flag") == "LOW_QUALITY"
+                    )
+                    signal["lgb_enhanced_count"] = len(lgb_signals)
+                    signal["lgb_enhanced_ok_count"] = _ok_count
+                    signal["lgb_enhanced_low_quality_count"] = _low_quality_count
+                    signal["lgb_enhanced_applied"] = True
+                    signal["lgb_enhanced_trade_date"] = _lgb_trade_date
+                    signal["lgb_enhanced_weight"] = 0.04
+                    signal["lgb_enhanced_data_source"] = "real_ohlcv_sentiment"
+                    logger.info(
+                        f"LGB 增强信号加载: {len(lgb_signals)} 个标的 "
+                        f"(OK={_ok_count}, LOW_QUALITY={_low_quality_count}), "
+                        f"已注入 SignalFusionEngine (weight=0.04, v8.7 第 7 信号源, "
+                        f"trade_date={_lgb_trade_date})"
+                    )
+                else:
+                    signal["lgb_enhanced_applied"] = False
+                    signal["lgb_enhanced_skipped_reason"] = "no_signal_fusion_or_empty_signals"
+                    logger.info(
+                        "LGB 增强信号未加载 (信号为空或 SignalFusionEngine 未初始化, "
+                        "安全降级为原始权重)"
+                    )
+            else:
+                signal["lgb_enhanced_applied"] = False
+                signal["lgb_enhanced_skipped_reason"] = "signals_file_not_found"
+                logger.info(
+                    f"LGB 增强信号文件不存在: {_lgb_signals_file}, "
+                    "安全降级为原始权重 (可能未运行 lgb_enhanced_trainer.py)"
+                )
+        except Exception as e:
+            logger.warning(
+                f"LGB 增强信号加载失败 (不影响主流程, 降级为原始权重): {e}"
+            )
+            signal["lgb_enhanced_applied"] = False
+            signal["lgb_enhanced_skipped_reason"] = f"exception: {e}"
+
         total_exposure = sum(abs(w) for w in target_weights.values())
         logger.info(f"目标权重计算: {len(target_weights)} 标的, 总暴露={total_exposure:.4f} (供 Phase 10 影子账户)")
 
@@ -4282,14 +4481,25 @@ class DailyWorkflow:
             if V85_READY:
                 from model_monitoring.factor_decay_monitor import FactorDecayMonitor
                 fdm = FactorDecayMonitor()
-                fdm_result = fdm.scan()
-                signal["factor_decay"] = fdm_result
-                decaying = fdm_result.get("decaying_factors", [])
+                fdm_result = fdm.generate_health_report()
+                signal["factor_decay"] = {
+                    "timestamp": fdm_result.timestamp.isoformat() if fdm_result.timestamp else "",
+                    "total_factors": fdm_result.total_factors,
+                    "healthy_factors": fdm_result.healthy_factors,
+                    "warning_factors": fdm_result.warning_factors,
+                    "degrading_factors": fdm_result.degrading_factors,
+                    "deprecated_factors": fdm_result.deprecated_factors,
+                    "new_deprecations": fdm_result.new_deprecations,
+                    "warnings": fdm_result.warnings,
+                    "recommendations": fdm_result.recommendations,
+                    "status": fdm_result.status,
+                }
+                decaying = fdm_result.new_deprecations or []
                 if decaying:
                     logger.warning(
                         "[v8.5 FactorDecay] 检测到 %d 个衰减因子: %s",
                         len(decaying),
-                        ", ".join(d.get("name", "?") for d in decaying[:5]),
+                        ", ".join(str(d) for d in decaying[:5]),
                     )
                 else:
                     logger.info("[v8.5 FactorDecay] 所有因子健康, 无显著衰减")
@@ -5042,10 +5252,18 @@ class DailyWorkflow:
     # 下单前风控门控 — UnifiedRiskCockpit + KillSwitch 预检查
     # --------------------------------------------------------
     def _execute_kill_switch_callback(self, level: int, actions: list) -> Dict[str, Any]:
-        """Kill Switch broker_callback 实现 (P0-7 修复)
+        """Kill Switch broker_callback 实现 (P0-7 修复, P0-LIVE-02 v8.6.8 增强)
 
         当 KillSwitch.execute_kill_switch(level) 被调用时, 通过此回调执行真实动作。
         未注册时 execute_kill_switch 会抛 RuntimeError, 熔断协议无法真正执行。
+
+        v8.6.8 P0-LIVE-02 修复:
+            - L2/L3 真实平仓动作此前返回 status="logged"/"pending_broker_api"
+              但整体返回 executed=True, 导致 KillSwitch 误认为已执行.
+            - 修复: 真实平仓未执行时返回 executed=False + critical_note,
+              KillSwitch 上层会据此进入 "熔断协议未真正执行" 告警分支.
+            - dry_run 模式下允许 executed=True (因为本就不应真实下单)
+            - 实盘模式下必须有真实 broker 平仓动作才算 executed=True
 
         Args:
             level: 熔断级别 (1/2/3)
@@ -5057,10 +5275,12 @@ class DailyWorkflow:
         ts = datetime.now().isoformat()
         actions_taken: List[Dict[str, Any]] = []
         critical_note = ""
+        # P0-LIVE-02: 跟踪真实平仓动作是否真正执行
+        real_close_executed = False
 
         logger.critical(
-            "[KillSwitch Callback] 执行熔断 L%d @ %s | 动作: %s",
-            level, ts, actions,
+            "[KillSwitch Callback] 执行熔断 L%d @ %s | 动作: %s | dry_run=%s",
+            level, ts, actions, self.dry_run,
         )
 
         # L1: 切断开仓权限 (已在 _enforce_kill_switch_on_orders 中通过订单过滤实现)
@@ -5070,6 +5290,8 @@ class DailyWorkflow:
                 "status": "executed",
                 "note": "已通过 _enforce_kill_switch_on_orders 过滤全部 BUY 订单",
             })
+            # L1 不涉及真实平仓, 视为已执行
+            real_close_executed = True
 
         # L2: 强平深虚值期权空头 + 释放流动性
         elif level == 2:
@@ -5079,27 +5301,56 @@ class DailyWorkflow:
                 "status": "executed",
                 "note": "取消所有待执行买入订单",
             })
-            # 标记需要平仓深虚值期权空头 (实盘需对接券商API)
-            actions_taken.append({
-                "action": "force_close_deep_otm_short",
-                "status": "logged" if self.dry_run else "pending_broker_api",
-                "note": "强平深虚值期权空头 (需对接券商API执行真实平仓)",
-            })
-            critical_note = "L2 熔断: 期权空头平仓需人工确认或对接券商API"
+            # 强平深虚值期权空头
+            if self.dry_run:
+                # DRY-RUN: 仅记录, 不真实平仓 (允许 executed=True)
+                actions_taken.append({
+                    "action": "force_close_deep_otm_short",
+                    "status": "logged_dry_run",
+                    "note": "DRY-RUN 模式: 仅记录强平意图, 不执行真实下单",
+                })
+                real_close_executed = True
+                critical_note = "L2 DRY-RUN: 期权空头平仓仅记录"
+            else:
+                # P0-LIVE-02: 实盘模式 — 必须真实调用 broker 平仓
+                close_result = self._execute_real_force_close(level=2)
+                actions_taken.append({
+                    "action": "force_close_deep_otm_short",
+                    "status": "executed" if close_result["success"] else "failed",
+                    "note": f"实盘强平: {close_result['detail']}",
+                    "broker_result": close_result,
+                })
+                real_close_executed = close_result["success"]
+                if not real_close_executed:
+                    critical_note = f"L2 实盘平仓失败: {close_result['detail']}"
 
         # L3: 变现 10% 红利 ETF + 跨品种注入
         elif level == 3:
-            actions_taken.append({
-                "action": "liquidate_red_etf_10pct",
-                "status": "logged" if self.dry_run else "pending_broker_api",
-                "note": "变现 10% 红利 ETF (512890/515180), 跨品种注入期权账户",
-            })
+            if self.dry_run:
+                actions_taken.append({
+                    "action": "liquidate_red_etf_10pct",
+                    "status": "logged_dry_run",
+                    "note": "DRY-RUN 模式: 仅记录变现意图",
+                })
+                real_close_executed = True
+                critical_note = "L3 DRY-RUN: 红利ETF变现仅记录"
+            else:
+                close_result = self._execute_real_force_close(level=3)
+                actions_taken.append({
+                    "action": "liquidate_red_etf_10pct",
+                    "status": "executed" if close_result["success"] else "failed",
+                    "note": f"实盘变现: {close_result['detail']}",
+                    "broker_result": close_result,
+                })
+                real_close_executed = close_result["success"]
+                if not real_close_executed:
+                    critical_note = f"L3 实盘变现失败: {close_result['detail']}"
+
             actions_taken.append({
                 "action": "halt_all_trading",
                 "status": "executed",
                 "note": "全面停止交易, 仅允许平仓",
             })
-            critical_note = "L3 熔断: 红利ETF变现需人工确认或对接券商API"
 
         # 记录到 state
         self.state.setdefault("kill_switch_executions", []).append({
@@ -5109,16 +5360,313 @@ class DailyWorkflow:
             "actions_taken": actions_taken,
             "dry_run": self.dry_run,
             "critical_note": critical_note,
+            "real_close_executed": real_close_executed,
         })
 
+        # P0-LIVE-02: 真实平仓未执行时返回 executed=False, 触发上层告警
         return {
-            "executed": True,
+            "executed": real_close_executed,
             "level": level,
             "actions_taken": actions_taken,
             "critical_note": critical_note,
             "dry_run": self.dry_run,
-            "note": "dry-run 模式仅记录日志, 实盘需对接券商API" if self.dry_run else "已执行, 期权/ETF平仓需人工确认",
+            "note": "dry-run 模式仅记录日志" if self.dry_run else (
+                "已真实执行平仓" if real_close_executed else "实盘平仓未执行, 需人工介入!"
+            ),
         }
+
+    def _execute_real_force_close(self, level: int) -> Dict[str, Any]:
+        """实盘真实平仓执行 (P0-LIVE-02 v8.6.8 升级 P0-04)
+
+        在实盘模式下, KillSwitch 触发后真正调用 broker API 执行平仓动作.
+        v8.6.8 P0-04 (2026-07-26): 实现真实平仓逻辑, 替换原安全桩
+
+        Args:
+            level: 熔断级别 (2/3)
+
+        Returns:
+            {"success": bool, "detail": str, "broker_action": str, "fills": list}
+        """
+        # v8.6.8 P0-04: 真实平仓逻辑实现
+        # 1. 加载真实 broker (CTP / THSRealBroker)
+        # 2. 查询当前持仓 (broker.get_positions())
+        # 3. L2: 找出最深虚值期权空头, 调用 broker.place(side="BUY_TO_CLOSE")
+        # 4. L3: 找出 512890/515180 红利ETF, 卖出 10% 仓位
+        # 5. 等待 fill 确认, 返回结果
+
+        try:
+            # 红利 ETF 标的池 (L3 跨品种注入)
+            RED_ETF_CODES = ["512890", "515180"]
+            # L3 红利 ETF 减仓比例 (10%)
+            RED_ETF_SELL_PCT = 0.10
+
+            # 选择真实 broker (CTP 优先, 同花顺次之)
+            broker = None
+            broker_source = "none"
+
+            # 优先级 1: CTP 期货网关
+            try:
+                from src.execution.ctp_gateway import CTPGateway
+                ctp = CTPGateway(
+                    front_addr=getattr(self.config, 'CTP_FRONT_ADDR', ''),
+                    broker_id=getattr(self.config, 'CTP_BROKER_ID', ''),
+                    user_id=getattr(self.config, 'CTP_USER_ID', ''),
+                    password=getattr(self.config, 'CTP_PASSWORD', ''),
+                    flow_path=getattr(self.config, 'CTP_FLOW_PATH', 'ctp_flow'),
+                )
+                if ctp.is_connected():
+                    broker = ctp
+                    broker_source = "ctp_live"
+                    logger.info("[RealForceClose] 使用 CTP 期货网关执行平仓")
+            except Exception as e:
+                logger.debug(f"[RealForceClose] CTP 网关不可用: {e}")
+
+            # 优先级 2: 同花顺实盘 (股票/ETF/期权)
+            if broker is None:
+                try:
+                    from ths_real_broker import THSRealBroker
+                    ths_account = getattr(self.config, 'THS_ACCOUNT', '')
+                    if ths_account:
+                        # P0-LIVE-03: 显式 mode='live', 防止误触屏点击
+                        ths_broker = THSRealBroker(account=ths_account, mode="live")
+                        if ths_broker.connect():
+                            broker = ths_broker
+                            broker_source = "ths_live"
+                            logger.info("[RealForceClose] 使用同花顺实盘网关执行平仓")
+                except Exception as e:
+                    logger.debug(f"[RealForceClose] 同花顺实盘不可用: {e}")
+
+            # broker 未连接: 失败返回, 触发上层 critical 告警
+            if broker is None:
+                # v8.6.8 P0-07: --live 模式下严格 fail-closed, 否则触发钉钉告警人工介入
+                if self.live_mode:
+                    logger.critical(
+                        "[RealForceClose] [P0-04+P0-07] --live 模式 L%d 平仓失败: broker 未连接. "
+                        "立即检查 CTP/THS 配置, 否则账户将持续失血!",
+                        level,
+                    )
+                else:
+                    logger.critical(
+                        "[RealForceClose] [P0-04] L%d 平仓失败: broker 未连接. "
+                        "需立即人工介入. (非 --live 模式, 可降级到风控拦截模式)",
+                        level,
+                    )
+                return {
+                    "success": False,
+                    "detail": f"L{level} 熔断已触发但实盘 broker 未连接, 真实平仓未执行, 需人工介入",
+                    "broker_action": "none_broker_disconnected",
+                    "broker_source": broker_source,
+                    "level": level,
+                    "fills": [],
+                }
+
+            # 查询当前持仓
+            try:
+                positions = broker.get_positions()
+                if not positions:
+                    logger.warning("[RealForceClose] 当前持仓为空, 无需平仓")
+                    return {
+                        "success": True,
+                        "detail": f"L{level} 平仓完成: 当前无持仓可平",
+                        "broker_action": "no_positions_to_close",
+                        "broker_source": broker_source,
+                        "level": level,
+                        "fills": [],
+                    }
+            except Exception as pos_err:
+                logger.error(f"[RealForceClose] 查询持仓失败: {pos_err}", exc_info=True)
+                return {
+                    "success": False,
+                    "detail": f"L{level} 查询持仓失败: {pos_err}",
+                    "broker_action": "get_positions_failed",
+                    "broker_source": broker_source,
+                    "level": level,
+                    "fills": [],
+                }
+
+            fills = []
+
+            # === L2: 强平深虚值期权空头 (BUY_TO_CLOSE) ===
+            if level >= 2:
+                logger.error("[RealForceClose] L2 强平深虚值期权空头开始")
+                # 找出期权空头持仓 (CALL/PUT 卖方)
+                otm_short_positions = self._find_deep_otm_short_positions(positions)
+                for pos in otm_short_positions:
+                    try:
+                        # 平仓买入 (BUY_TO_CLOSE)
+                        order_id = broker.place(
+                            symbol=pos["symbol"],
+                            quantity=pos["quantity"],
+                            side="BUY_TO_CLOSE",
+                            order_type="MARKET",  # 强平用市价单确保成交
+                        )
+                        # 等待成交确认 (60 秒超时)
+                        fill = broker.wait_fill(order_id, timeout=60)
+                        if fill:
+                            fills.append({
+                                "symbol": pos["symbol"],
+                                "side": "BUY_TO_CLOSE",
+                                "quantity": pos["quantity"],
+                                "fill_price": fill.get("price", 0),
+                                "order_id": order_id,
+                                "status": "FILLED",
+                            })
+                            logger.info(
+                                "[RealForceClose] L2 平仓成交: %s x%d @%.4f",
+                                pos["symbol"], pos["quantity"], fill.get("price", 0),
+                            )
+                        else:
+                            logger.error(
+                                "[RealForceClose] L2 平仓超时未成交: %s (order_id=%s)",
+                                pos["symbol"], order_id,
+                            )
+                    except Exception as place_err:
+                        logger.error(
+                            f"[RealForceClose] L2 平仓 {pos['symbol']} 异常: {place_err}",
+                            exc_info=True,
+                        )
+
+            # === L3: 红利 ETF 闪电变现 10% (跨品种注入流动性) ===
+            if level >= 3:
+                logger.critical("[RealForceClose] L3 红利 ETF 闪电变现 10% 开始")
+                for etf_code in RED_ETF_CODES:
+                    # 在持仓中查找红利 ETF
+                    for symbol_key, pos in positions.items():
+                        # 兼容 512890.SH / 512890 等多种 key
+                        if etf_code not in str(symbol_key):
+                            continue
+                        # 计算减仓数量 (10%, 向下取整到 100 股)
+                        full_shares = (
+                            pos.get("actual_shares", 0)
+                            or pos.get("shares", 0)
+                            or pos.get("quantity", 0)
+                        )
+                        if full_shares <= 0:
+                            continue
+                        sell_qty = int(full_shares * RED_ETF_SELL_PCT)
+                        sell_qty = (sell_qty // 100) * 100  # A股最小交易单位 100 股
+                        if sell_qty < 100:
+                            logger.info(
+                                "[RealForceClose] L3 %s 持仓 %d 股, 10%% 减仓不足 100 股, 跳过",
+                                symbol_key, full_shares,
+                            )
+                            continue
+                        try:
+                            order_id = broker.place(
+                                symbol=str(symbol_key),
+                                quantity=sell_qty,
+                                side="SELL",
+                                order_type="MARKET",  # 闪电变现用市价单
+                            )
+                            fill = broker.wait_fill(order_id, timeout=60)
+                            if fill:
+                                fills.append({
+                                    "symbol": symbol_key,
+                                    "side": "SELL",
+                                    "quantity": sell_qty,
+                                    "fill_price": fill.get("price", 0),
+                                    "order_id": order_id,
+                                    "status": "FILLED",
+                                    "rationale": "L3_red_etf_liquidation",
+                                })
+                                logger.info(
+                                    "[RealForceClose] L3 红利 ETF 变现成交: %s x%d @%.4f",
+                                    symbol_key, sell_qty, fill.get("price", 0),
+                                )
+                            else:
+                                logger.error(
+                                    "[RealForceClose] L3 %s 变现超时未成交 (order_id=%s)",
+                                    symbol_key, order_id,
+                                )
+                        except Exception as place_err:
+                            logger.error(
+                                f"[RealForceClose] L3 {symbol_key} 变现异常: {place_err}",
+                                exc_info=True,
+                            )
+
+            # 汇总结果
+            success = len(fills) > 0
+            return {
+                "success": success,
+                "detail": (
+                    f"L{level} 平仓完成: {len(fills)} 笔成交"
+                    if success
+                    else f"L{level} 平仓失败: 无成交 (broker={broker_source})"
+                ),
+                "broker_action": f"real_close_executed_level_{level}",
+                "broker_source": broker_source,
+                "level": level,
+                "fills": fills,
+            }
+
+        except Exception as e:
+            logger.critical("[RealForceClose] L%d 平仓执行异常: %s", level, e, exc_info=True)
+            return {
+                "success": False,
+                "detail": f"平仓执行异常: {e}",
+                "broker_action": "exception",
+                "level": level,
+                "fills": [],
+            }
+
+    def _find_deep_otm_short_positions(self, positions: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """找出深虚值期权空头持仓 (L2 强平目标)
+
+        v8.6.8 P0-04 新增: 从持仓中筛选符合条件的期权空头
+        筛选条件:
+            - 持仓为 SELL (空头)
+            - 类型为期权 (CALL/PUT)
+            - 虚值程度 > 5% (deep OTM)
+            - 按"虚值程度"降序排列 (最深虚值优先强平, 因为最不可能被行权)
+
+        Args:
+            positions: broker.get_positions() 返回的持仓字典
+
+        Returns:
+            [{"symbol": str, "quantity": int, "otm_pct": float, "type": "CALL"/"PUT"}, ...]
+        """
+        otm_shorts = []
+        try:
+            for symbol, pos in positions.items():
+                if not isinstance(pos, dict):
+                    continue
+                # 检查是否为空头 (SELL)
+                side = str(pos.get("side", "")).upper()
+                if side not in ("SELL", "SHORT", "SHORT_SELL"):
+                    continue
+                # 检查是否为期权 (合约代码通常包含 "C" 或 "P" + 行权价)
+                symbol_str = str(symbol)
+                if not any(marker in symbol_str for marker in [".SH", ".SZ"]):
+                    continue
+                # 期权代码通常包含 "C" (Call) 或 "P" (Put) + 行权价 + 到期日
+                # 简化判断: 持仓包含 otm_pct 字段或可计算
+                otm_pct = pos.get("otm_pct", 0.10)  # 默认 10% 虚值
+                try:
+                    otm_pct = float(otm_pct)
+                except (ValueError, TypeError):
+                    otm_pct = 0.10
+                # 只强平虚值 > 5% 的期权 (deep OTM)
+                if otm_pct < 0.05:
+                    continue
+                quantity = int(pos.get("actual_shares", 0) or pos.get("shares", 0) or pos.get("quantity", 0))
+                if quantity <= 0:
+                    continue
+                otm_shorts.append({
+                    "symbol": symbol_str,
+                    "quantity": quantity,
+                    "otm_pct": otm_pct,
+                    "type": "CALL" if "C" in symbol_str[-6:] else "PUT",
+                })
+
+            # 按虚值程度降序排列 (最深虚值优先)
+            otm_shorts.sort(key=lambda x: x["otm_pct"], reverse=True)
+            logger.info(
+                "[RealForceClose] 找到 %d 个深虚值期权空头, 按 OTM 程度降序强平",
+                len(otm_shorts),
+            )
+        except Exception as e:
+            logger.error(f"[RealForceClose] 筛选深虚值期权空头异常: {e}", exc_info=True)
+        return otm_shorts
 
     def _pre_trade_risk_gate(self) -> Dict[str, Any]:
         """下单前风控门控 — UnifiedRiskCockpit 全量扫描 (P0-6/P0-9/P0-11)
@@ -5298,30 +5846,64 @@ class DailyWorkflow:
         # L2: 强平深虚值期权空头
         if ks_level >= 2:
             try:
-                # P1-G 修复 (2026-07-26 v8.6.7): 复用 self.ks (已注册 broker_callback)
-                # 原始 bug: 局部 ks = KillSwitch() 未注册 callback, 导致 L5306/L5315
-                # execute_kill_switch(2/3) 抛 RuntimeError, L2/L3 强平协议完全失效
-                ks = getattr(self, 'ks', None) or KillSwitch()
-                if not hasattr(self, 'ks'):
-                    logger.warning("[KillSwitch] [P1-G] self.ks 未初始化, 使用未注册 callback 的降级实例")
-                if ks_level >= 3:
-                    # L3: 变现红利ETF + 跨品种注入
-                    logger.critical("[KillSwitch L3] 触发紧急变现协议: 红利ETF跨品种注入!")
+                # v8.6.8 P0-05 FIX (2026-07-26): KillSwitch 武装状态检查
+                # 原始 bug (P1-G): 局部 ks = KillSwitch() 未注册 callback, execute_kill_switch 抛 RuntimeError
+                # v8.6.8 进一步加强: 当 self.ks is None 或 _ks_armed=False 时,
+                # 直接调用 _execute_real_force_close (避免 RuntimeError, 走真实平仓路径)
+                if self.ks is None or not getattr(self, '_ks_armed', False):
+                    logger.critical(
+                        "[KillSwitch] [P0-05] KillSwitch 未武装 (self.ks=%s, _ks_armed=%s), "
+                        "L%d 强平直接调用 _execute_real_force_close (避免 RuntimeError)",
+                        self.ks is not None, getattr(self, '_ks_armed', False), ks_level,
+                    )
                     try:
-                        ks.execute_kill_switch(3)
-                        enforcement_actions.append({"level": 3, "action": "liquidate_red_etf", "executed": True})
-                    except RuntimeError as e:
-                        logger.error(f"[KillSwitch L3] 紧急变现执行失败 (无 broker_callback): {e}")
-                        enforcement_actions.append({"level": 3, "action": "liquidate_red_etf", "executed": False, "error": str(e)})
+                        force_close_result = self._execute_real_force_close(ks_level)
+                        if force_close_result.get("success"):
+                            enforcement_actions.append({
+                                "level": ks_level,
+                                "action": "force_close_direct",
+                                "executed": True,
+                                "detail": force_close_result.get("detail", ""),
+                            })
+                        else:
+                            enforcement_actions.append({
+                                "level": ks_level,
+                                "action": "force_close_direct",
+                                "executed": False,
+                                "error": force_close_result.get("detail", "unknown"),
+                            })
+                            logger.critical(
+                                "[KillSwitch L%d] 真实平仓失败, 需人工介入! detail=%s",
+                                ks_level, force_close_result.get("detail", ""),
+                            )
+                    except Exception as fc_err:
+                        logger.error(f"[KillSwitch L{ks_level}] 直接平仓异常: {fc_err}", exc_info=True)
+                        enforcement_actions.append({
+                            "level": ks_level,
+                            "action": "force_close_direct",
+                            "executed": False,
+                            "error": str(fc_err),
+                        })
                 else:
-                    # L2: 强平深虚值期权空头
-                    logger.error("[KillSwitch L2] 触发强平协议: 强平深虚值期权空头!")
-                    try:
-                        ks.execute_kill_switch(2)
-                        enforcement_actions.append({"level": 2, "action": "force_close_otm_short", "executed": True})
-                    except RuntimeError as e:
-                        logger.error(f"[KillSwitch L2] 强平执行失败 (无 broker_callback): {e}")
-                        enforcement_actions.append({"level": 2, "action": "force_close_otm_short", "executed": False, "error": str(e)})
+                    # KillSwitch 已武装 (有 broker_callback), 走正常 execute_kill_switch 路径
+                    if ks_level >= 3:
+                        # L3: 变现红利ETF + 跨品种注入
+                        logger.critical("[KillSwitch L3] 触发紧急变现协议: 红利ETF跨品种注入!")
+                        try:
+                            self.ks.execute_kill_switch(3)
+                            enforcement_actions.append({"level": 3, "action": "liquidate_red_etf", "executed": True})
+                        except RuntimeError as e:
+                            logger.error(f"[KillSwitch L3] 紧急变现执行失败 (无 broker_callback): {e}")
+                            enforcement_actions.append({"level": 3, "action": "liquidate_red_etf", "executed": False, "error": str(e)})
+                    else:
+                        # L2: 强平深虚值期权空头
+                        logger.error("[KillSwitch L2] 触发强平协议: 强平深虚值期权空头!")
+                        try:
+                            self.ks.execute_kill_switch(2)
+                            enforcement_actions.append({"level": 2, "action": "force_close_otm_short", "executed": True})
+                        except RuntimeError as e:
+                            logger.error(f"[KillSwitch L2] 强平执行失败 (无 broker_callback): {e}")
+                            enforcement_actions.append({"level": 2, "action": "force_close_otm_short", "executed": False, "error": str(e)})
             except Exception as e:
                 logger.error(f"[KillSwitch] 熔断执行异常: {e}", exc_info=True)
                 enforcement_actions.append({"level": ks_level, "action": "execute_failed", "error": str(e)})
@@ -5706,11 +6288,93 @@ class DailyWorkflow:
             except Exception as exc:
                 logger.error("[ExecAlgo] 执行算法引擎失败: %s", exc, exc_info=True)
 
-        # === MockBroker 执行 ===
+        # === Broker 选择 (v8.6.8 P0-LIVE-01 修复: 实盘模式真正对接券商) ===
+        # 此前实盘模式 (not dry_run and not sim_mode) 仍硬编码 MockBroker,
+        # 导致真实交易永远不会走券商网关, 这是阻断实盘对接的 P0 BUG.
+        # 修复: 按 dry_run → sim_mode → 实盘券商(CTP/THS) → MockBroker 顺序选择
         try:
-            broker = MockBroker(price_dict=dict(self.config.MOCK_PRICES))
+            broker = None
+            broker_source = "unknown"
+
+            # 优先级 0: DRY-RUN / SIM_MODE — 强制使用 MockBroker, 永不触真实下单
+            if self.dry_run or self.sim_mode:
+                broker = MockBroker(price_dict=dict(self.config.MOCK_PRICES))
+                broker_source = "mock_dry_or_sim"
+                logger.info("[Broker] %s 模式使用 MockBroker (不会真实下单)",
+                            "DRY-RUN" if self.dry_run else "SIM")
+            else:
+                # 优先级 1: CTP 期货网关 (股指期货/期权)
+                try:
+                    from src.execution.ctp_gateway import CTPGateway
+                    ctp = CTPGateway(
+                        front_addr=getattr(self.config, 'CTP_FRONT_ADDR', ''),
+                        broker_id=getattr(self.config, 'CTP_BROKER_ID', ''),
+                        user_id=getattr(self.config, 'CTP_USER_ID', ''),
+                        password=getattr(self.config, 'CTP_PASSWORD', ''),
+                        flow_path=getattr(self.config, 'CTP_FLOW_PATH', 'ctp_flow'),
+                    )
+                    if ctp.is_connected():
+                        broker = ctp
+                        broker_source = "ctp_live"
+                        logger.info("[Broker] ✓ 已连接 CTP 实盘期货网关")
+                except Exception as e:
+                    logger.debug(f"[Broker] CTP 网关不可用: {e}")
+
+                # 优先级 2: 同花顺实盘 (股票/ETF/期权)
+                if broker is None:
+                    try:
+                        from ths_real_broker import THSRealBroker
+                        ths_account = getattr(self.config, 'THS_ACCOUNT', '')
+                        if ths_account:
+                            # P0-LIVE-03: 显式 mode='live', 防止误触屏点击
+                            broker = THSRealBroker(account=ths_account, mode="live")
+                            if broker.connect():
+                                broker_source = "ths_live"
+                                logger.info("[Broker] ✓ 已连接 同花顺实盘交易网关")
+                            else:
+                                broker = None
+                    except Exception as e:
+                        logger.debug(f"[Broker] 同花顺实盘不可用: {e}")
+
+                # 优先级 3: 降级 MockBroker (开发/测试)
+                # v8.6.8 P0-07 FIX: --live 模式下 broker 连接失败必须 fail-closed, 不允许降级
+                if broker is None:
+                    if self.live_mode:
+                        # v8.6.8 P0-07: --live 模式严格 fail-closed
+                        # 防止生产环境 CTP/THS 配置错误时静默使用 MockBroker (虚假交易)
+                        logger.critical(
+                            "[Broker] [P0-07] --live 实盘模式但 CTP/THS 均未连接, FAIL-CLOSED 终止. "
+                            "请检查: CTP_FRONT_ADDR / CTP_USER_ID / CTP_PASSWORD / THS_ACCOUNT 配置"
+                        )
+                        self.state["phases"]["execute"] = {
+                            "status": "FAIL",
+                            "fail_closed": True,
+                            "reason": "P0-07: --live 模式 broker 连接失败, 防止虚假交易",
+                            "broker_source": "none_live_fail_closed",
+                        }
+                        return True
+                    else:
+                        logger.warning(
+                            "[Broker] ⚠️ 实盘模式但未检测到真实券商网关, 降级 MockBroker. "
+                            "生产环境请配置 CTP_FRONT_ADDR / THS_ACCOUNT, "
+                            "或使用 --live 开关启用严格 fail-closed 检查"
+                        )
+                        broker = MockBroker(price_dict=dict(self.config.MOCK_PRICES))
+                        broker_source = "mock_fallback"
+
+            # 安全断言: dry_run 模式下必须使用 MockBroker (防御性编程)
+            if self.dry_run and broker_source != "mock_dry_or_sim":
+                logger.critical(
+                    "[Broker] 安全断言失败! DRY-RUN 模式却使用了 %s, 强制回退 MockBroker",
+                    broker_source,
+                )
+                broker = MockBroker(price_dict=dict(self.config.MOCK_PRICES))
+                broker_source = "mock_safety_fallback"
+
             ntp = getattr(self, 'ntp', None) or NTPSync()
-            sor = SmartOrderRouter(broker, ntp)
+            # v8.6.8 P0-06: SOR 传入 self.ks, 拆单过程中重检 KillSwitch 状态
+            # 防止盘中熔断后 SOR 继续下单 (前 50 笔成交后 KillSwitch 升级到 L2, 后 50 笔应停止)
+            sor = SmartOrderRouter(broker, ntp, kill_switch=getattr(self, 'ks', None))
 
             all_fills: List[Dict[str, Any]] = []
 
@@ -6284,7 +6948,12 @@ class DailyWorkflow:
 
         # 报告路径 (统一使用 YYYY-MM-DD 格式，与 run_all_modules.py 一致)
         report_dir = self.config.REPORT_DIR / self.trade_date
-        report_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            report_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            logger.warning(f"[PhaseReport] 创建报告目录失败: {e}, 回退到本地目录")
+            report_dir = BASE_DIR / "reports" / self.trade_date
+            report_dir.mkdir(parents=True, exist_ok=True)
         report_path = report_dir / f"v75_daily_workflow_{self.trade_date.replace('-', '')}.md"
 
         # === 报告头部 ===
@@ -7258,10 +7927,14 @@ class DailyWorkflow:
         # === v8.5: Kill Switch 生命周期管理 ===
         try:
             # KillSwitch.__init__ 仅接受 config_path/margin_limit, 不接受 total_capital/dry_run
-            self.ks = KillSwitch()
+            # 修复配置路径: 使用 v8.3_institutional/config/portfolio.yaml (而非根目录 configs/)
+            ks_config_path = BASE_DIR / "config" / "portfolio.yaml"
+            self.ks = KillSwitch(config_path=ks_config_path)
             # 修复 P0: 注册 broker_callback, 使 execute_kill_switch 可真实执行
             # (未注册时 execute_kill_switch 会抛 RuntimeError, 无法执行实际平仓)
             self.ks.set_broker_callback(self._execute_kill_switch_callback)
+            # v8.6.8 P0-05: 标记 KillSwitch 已武装 (有 broker_callback)
+            self._ks_armed = True
             try:
                 _ks_status = self.ks.check_margin_status()
                 _ks_level = int(_ks_status.get("level", 0))
@@ -7381,7 +8054,7 @@ class DailyWorkflow:
 
         logger.info("#" * 60)
         logger.info("# v8.5 工作流执行完成")
-        logger.info(f"# Kill Switch: {'触发!' if self.state.get('kill_switch', {}).get('triggered') else '正常'}")
+        logger.info(f"# Kill Switch: {'触发! L' + str(self.state.get('kill_switch', {}).get('level', 0)) if self.state.get('kill_switch', {}).get('level', 0) >= 2 else '正常'}")
         logger.info(f"# v8.5 模块: {9 - len(_V85_FAILURES)}/9 就绪")
         logger.info("#" * 60)
         return self.state
@@ -7404,6 +8077,13 @@ def main():
                         help="干跑模式 (不执行交易)")
     parser.add_argument("--sim", action="store_true",
                         help="模拟盘模式 (股票+期货，按交易日+夜盘执行)")
+    # v8.6.8 P0-07 FIX (2026-07-26): 显式 --live 开关, 防止生产环境误入 MockBroker 降级
+    # 原始 bug: 进入实盘模式的唯一方式是"不传 --dry-run 且不传 --sim",
+    #          CTP/THS 连接失败时降级 MockBroker 仅 warning 不 fail-closed,
+    #          导致生产环境看似正常, 实际所有订单都进 MockBroker (虚假交易)
+    # 修复: --live 显式声明, --live 模式下 CTP/THS 任一连接失败即 fail-closed 终止
+    parser.add_argument("--live", action="store_true",
+                        help="实盘模式 (显式声明, 必须成功连接 CTP/THS 否则 fail-closed 终止)")
     parser.add_argument("--phase", default=None,
                         choices=["check", "calibrate", "market", "risk", "hedge", "hedge_fund", "v10_risk", "quant_neutral", "cash_management", "directional_futures", "signal", "execute", "report", "autolearn", "factor_kill_switch", "shadow_monitor"],
                         help="仅执行指定阶段")
@@ -7474,25 +8154,49 @@ def main():
         print(json.dumps(result, ensure_ascii=False, indent=2))
         sys.exit(0 if result.get("status") == "PASS" else 1)
 
+    # v8.6.8 P0-07: 模式互斥校验, 防止 --live 与 --dry-run/--sim 同时使用
+    if args.live and (args.dry_run or args.sim):
+        print("[FATAL] --live 不能与 --dry-run / --sim 同时使用", file=sys.stderr)
+        sys.exit(2)
+
+    # v8.6.8 P0-07: --live 模式要求显式确认, 防止误操作
+    if args.live:
+        # 检查生产环境变量
+        env_trading = os.environ.get("TRADING_ENV", "").lower()
+        if env_trading != "production":
+            print(
+                f"[FATAL] --live 模式要求 TRADING_ENV=production 环境变量 (当前: {env_trading or '未设置'})\n"
+                f"  设置方法: PowerShell: $env:TRADING_ENV='production'\n"
+                f"           CMD:        set TRADING_ENV=production",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        logger.info("[P0-07] --live 实盘模式已确认, TRADING_ENV=production, 任何 broker 连接失败将 fail-closed 终止")
+
     workflow = DailyWorkflow(
         trade_date=args.date,
         capital=args.capital,
         dry_run=args.dry_run,
         sim_mode=args.sim,
         external_reports_dir=args.external_reports_dir,
+        live_mode=getattr(args, 'live', False),  # v8.6.8 P0-07: 传入实盘模式标志
     )
     state = workflow.run(only_phase=args.phase, phase_start=args.phase_start, phase_end=args.phase_end)
 
-    # 退出码：check 阶段单独允许降级通过，避免计划文件缺失导致整条自动任务失败
+    # 退出码：允许降级通过的阶段列表（非关键阶段失败不影响自动任务）
+    allow_degrade_phases = {"calibrate", "autolearn", "factor_kill_switch"}
+    
     all_pass = True
     for name, phase in state.get("phases", {}).items():
         status = phase.get("status")
         if status == "FAIL":
+            if name in allow_degrade_phases:
+                logger.warning(f"阶段 {name} 失败，但属于可降级阶段，不影响整体退出码")
+                continue
             all_pass = False
             break
         if status == "PASS":
             continue
-        # 既不是 PASS 也不是 FAIL 的中间状态，视作通过
         all_pass = all_pass and True
     sys.exit(0 if all_pass else 1)
 

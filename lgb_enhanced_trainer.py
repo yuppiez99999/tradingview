@@ -91,6 +91,9 @@ LGB_ENHANCED_CONFIG = {
         "random_state": 42,
         "verbose": -1,
         "n_jobs": -1,
+        "device_type": "gpu",        # v8.7 启用 GPU 加速 (LightGBM 4.3.0 OpenCL)
+        "gpu_platform_id": 0,        # GPU 平台 ID
+        "gpu_device_id": 0,          # GPU 设备 ID
     },
     "early_stopping_rounds": 200,     # 放宽 50→200
     "news_lookback_days": 30,        # 新闻情绪回看天数
@@ -101,6 +104,61 @@ LGB_ENHANCED_CONFIG = {
 }
 
 logger = logging.getLogger("lgb_enhanced")
+
+
+# ============================================================
+# v8.7: GPU→CPU 自动回退训练器
+# ============================================================
+# 全局标志: 一旦 GPU 训练失败, 后续所有训练直接用 CPU, 避免重复失败
+_GLOBAL_GPU_DISABLED = False
+
+
+def _train_lgb_with_fallback(
+    X_train, y_train, X_eval, y_eval, config, log_tag: str = ""
+):
+    """训练 LightGBM 模型 (GPU 失败自动回退 CPU)
+
+    Args:
+        X_train, y_train: 训练集
+        X_eval, y_eval: 验证集 (用于早停)
+        config: 训练配置 (含 lgb_params)
+        log_tag: 日志标签 (如标的代码)
+
+    Returns:
+        (model, device_used)
+    """
+    from lightgbm import LGBMRegressor, early_stopping
+
+    global _GLOBAL_GPU_DISABLED
+    params = dict(config["lgb_params"])
+
+    # 若全局已禁用 GPU, 直接 CPU
+    if _GLOBAL_GPU_DISABLED and params.get("device_type") == "gpu":
+        params["device_type"] = "cpu"
+        params.pop("gpu_platform_id", None)
+        params.pop("gpu_device_id", None)
+
+    callbacks = [early_stopping(stopping_rounds=config["early_stopping_rounds"], verbose=False)]
+
+    # GPU 训练尝试
+    if params.get("device_type") == "gpu":
+        try:
+            model = LGBMRegressor(**params)
+            model.fit(X_train, y_train, eval_set=[(X_eval, y_eval)], callbacks=callbacks)
+            return model, "gpu"
+        except Exception as e:
+            err_msg = str(e)[:150]
+            logger.warning(f"  [{log_tag}] GPU 训练失败, 回退 CPU: {err_msg}")
+            # 全局禁用 GPU, 后续直接 CPU
+            _GLOBAL_GPU_DISABLED = True
+            params["device_type"] = "cpu"
+            params.pop("gpu_platform_id", None)
+            params.pop("gpu_device_id", None)
+
+    # CPU 训练 (回退或默认)
+    model = LGBMRegressor(**params)
+    model.fit(X_train, y_train, eval_set=[(X_eval, y_eval)], callbacks=callbacks)
+    return model, params.get("device_type", "cpu")
 
 
 # ============================================================
@@ -260,7 +318,13 @@ def compute_news_sentiment_factors(
     # 初始化数据源 (Wind MCP 优先, iFinD 回退)
     wind_search_news_fn = None
     try:
+        # v8.7 修复: wind_mcp_fetcher.py 在 tools/ 目录下, 需要添加到 sys.path
+        import sys as _sys
+        _tools_dir = str(BASE_DIR / "tools")
+        if _tools_dir not in _sys.path:
+            _sys.path.insert(0, _tools_dir)
         from wind_mcp_fetcher import wind_search_news as wind_search_news_fn
+        logger.info("Wind MCP 新闻接口已加载 (tools/wind_mcp_fetcher.py)")
     except Exception as e:
         logger.warning(f"Wind MCP 新闻接口不可用: {e}")
 
@@ -1067,6 +1131,7 @@ def time_series_cv_evaluate(
     y: np.ndarray,
     config: Dict,
     n_splits: int = 5,
+    code: str = "",
 ) -> Dict[str, Any]:
     """时间序列交叉验证评估"""
     from lightgbm import LGBMRegressor
@@ -1085,16 +1150,9 @@ def time_series_cv_evaluate(
         if len(X_train_fold) < 50 or len(X_test_fold) < 10:
             continue
 
-        model = LGBMRegressor(**config["lgb_params"])
-        model.fit(
-            X_train_fold, y_train_fold,
-            eval_set=[(X_test_fold, y_test_fold)],
-            callbacks=[
-                lgb.early_stopping(
-                    stopping_rounds=config["early_stopping_rounds"],
-                    verbose=False,
-                ),
-            ],
+        model, device_used = _train_lgb_with_fallback(
+            X_train_fold, y_train_fold, X_test_fold, y_test_fold,
+            config, log_tag=f"{code}-fold{fold_idx+1}",
         )
 
         y_pred = model.predict(X_test_fold)
@@ -1237,7 +1295,7 @@ def train_symbol_enhanced(
 
     # === Step 1: 全特征 CV ===
     cv_result = time_series_cv_evaluate(
-        X_all, y_all, config, n_splits=config["n_splits"]
+        X_all, y_all, config, n_splits=config["n_splits"], code=symbol
     )
 
     # === Step 2: 特征选择 (含情绪因子保护机制) ===
@@ -1254,7 +1312,7 @@ def train_symbol_enhanced(
     X_selected = np.asarray(df[selected_features].values, dtype=np.float64)
     X_selected = np.nan_to_num(X_selected, nan=0.0, posinf=0.0, neginf=0.0)
     cv_after_selection = time_series_cv_evaluate(
-        X_selected, y_all, config, n_splits=config["n_splits"]
+        X_selected, y_all, config, n_splits=config["n_splits"], code=symbol
     )
 
     # === Step 4: 最终模型 ===
@@ -1271,16 +1329,8 @@ def train_symbol_enhanced(
     X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
     X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
 
-    final_model = LGBMRegressor(**config["lgb_params"])
-    final_model.fit(
-        X_train, y_train,
-        eval_set=[(X_test, y_test)],
-        callbacks=[
-            lgb.early_stopping(
-                stopping_rounds=config["early_stopping_rounds"],
-                verbose=False,
-            ),
-        ],
+    final_model, _ = _train_lgb_with_fallback(
+        X_train, y_train, X_test, y_test, config, log_tag=f"{symbol}-final"
     )
 
     y_pred = final_model.predict(X_test)
@@ -1314,16 +1364,12 @@ def train_symbol_enhanced(
         adaptive_params["learning_rate"] = adaptive_lr
         adaptive_params["n_estimators"] = adaptive_n_est
 
-        adaptive_model = LGBMRegressor(**adaptive_params)
-        adaptive_model.fit(
-            X_train, y_train,
-            eval_set=[(X_test, y_test)],
-            callbacks=[
-                lgb.early_stopping(
-                    stopping_rounds=config["early_stopping_rounds"],
-                    verbose=False,
-                ),
-            ],
+        # v8.7: 自适应重训也使用 GPU→CPU 回退机制
+        adaptive_config = dict(config)
+        adaptive_config["lgb_params"] = adaptive_params
+        adaptive_model, _ = _train_lgb_with_fallback(
+            X_train, y_train, X_test, y_test, adaptive_config,
+            log_tag=f"{symbol}-adaptive"
         )
 
         y_pred_adaptive = adaptive_model.predict(X_test)
@@ -1758,7 +1804,24 @@ def run_enhanced_training(
     logger.info(f"# 早停轮次: {config['early_stopping_rounds']} (放宽)")
     logger.info(f"# n_estimators: {config['lgb_params']['n_estimators']}")
     logger.info(f"# learning_rate: {config['lgb_params']['learning_rate']}")
+    logger.info(f"# 设备类型: {config['lgb_params'].get('device_type', 'cpu')} (v8.7 GPU 加速)")
     logger.info(f"# 新闻情绪因子: {'启用' if use_news else '禁用'}")
+    # v8.7: GPU 可用性验证
+    try:
+        import lightgbm as _lgb
+        logger.info(f"# LightGBM 版本: {_lgb.__version__}")
+        if config['lgb_params'].get('device_type') == 'gpu':
+            import numpy as _np
+            _X = _np.array([[1, 2], [3, 4]], dtype=_np.float32)
+            _y = _np.array([1.0, 2.0], dtype=_np.float32)
+            _d = _lgb.Dataset(_X, label=_y)
+            _m = _lgb.train({"objective": "regression", "device_type": "gpu", "verbose": -1},
+                           _d, num_boost_round=1)
+            logger.info("# GPU 训练验证: 通过 ✓")
+        else:
+            logger.info("# GPU 未启用 (device_type != gpu)")
+    except Exception as _e:
+        logger.warning(f"# GPU 验证失败, 回退 CPU: {_e}")
     logger.info("#" * 70)
 
     # Step 1: 拉取真实 OHLCV

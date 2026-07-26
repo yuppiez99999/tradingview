@@ -64,6 +64,15 @@ class SignalFusionEngine:
         min_confidence: float = 0.35,
         # v8.6.4 P0-A 深度修复：Pipeline 因子组合信号（保守 5%）
         pipeline_factor_weight: float = 0.05,
+        # v8.6.9 新增: 研究蒸馏信号（第 6 信号源, 保守 3%）
+        # 设计依据: RIA--TV++ 量化版, 离线蒸馏(06:00) + 在线注入(07:00)
+        # 安全设计: post-mix 模式 + 仅影响影子账户 + 4 层 NaN 防御
+        research_distilled_weight: float = 0.03,
+        # v8.7 新增: LGB 增强信号（第 7 信号源, 保守 4%）
+        # 设计依据: lgb_enhanced_trainer v8.7 GPU 训练, 平均 IC=0.1631, 23 标的全覆盖
+        # 数据来源: models/lgb_enhanced/lgb_enhanced_signals.json (真实OHLCV+情绪因子)
+        # 安全设计: post-mix 模式 + NaN 防御 + 低质量标的 quality_flag=LOW_QUALITY 降权
+        lgb_enhanced_weight: float = 0.04,
     ):
         # 默认权重：Alpha 为主，LLM/ETF/宏观为辅助
         self.alpha_weight = alpha_weight
@@ -75,6 +84,28 @@ class SignalFusionEngine:
         # 设计依据: PipelineOrchestrator 实测 IC_IR=+0.5840, live_dsr=+2.2033（v6.9）
         # 安全设计: 5% 权重 + 影子账户 fail-fast 3%/5% 触发器隔离风险
         self.pipeline_factor_weight = pipeline_factor_weight
+        # v8.6.9: 研究蒸馏信号权重（保守 3%, post-mix 模式）
+        # 设计依据: cangjie-skill RIA--TV++ 方法论, 研报/业绩会/书籍蒸馏为交易信号
+        # 安全设计: 不修改主融合公式, post-mix 叠加, 仅影响影子账户
+        # v8.6.9 环境隔离: production 实盘模式下强制 weight=0 (纵深防御)
+        # 用户要求: 暂不接入实盘, 用模拟盘跑数据
+        _research_weight = research_distilled_weight
+        try:
+            from utils.trading_env import get_trading_env, TradingEnv
+            if get_trading_env() == TradingEnv.PRODUCTION:
+                _research_weight = 0.0
+                logger.info(
+                    "[SignalFusion] production 实盘模式: research_distilled_weight 强制为 0 "
+                    "(v8.6.9 环境隔离: 仅 shadow/development 模式激活)"
+                )
+        except Exception:
+            # trading_env 不可用时保持配置值 (fail-open for 新功能, 不影响主流程)
+            pass
+        self.research_distilled_weight = _research_weight
+        # v8.7: LGB 增强信号权重（保守 4%, post-mix）
+        # 设计依据: 23 标的平均 IC=0.1631, IC>0.3 的 6 个, IC>0.2 的 9 个
+        # 安全设计: post-mix 模式 + 低质量标的 (LOW_QUALITY) 降权至 50%
+        self.lgb_enhanced_weight = lgb_enhanced_weight
         # 动态 IC 权重支持：注入 forward_returns 后按各源 IC 动态加权
         self._forward_returns: Optional[Dict[str, float]] = None
         self._ic_weights: Optional[Dict[str, float]] = None
@@ -85,6 +116,14 @@ class SignalFusionEngine:
         # v8.6.4: Pipeline 因子组合信号缓存（由 inject_pipeline_factor_signals 注入）
         # 信号范围 [-1, 1]，正值看涨负值看跌
         self._pipeline_factor_signals: Dict[str, float] = {}
+        # v8.6.9: 研究蒸馏信号缓存（由 inject_research_distilled_signals 注入）
+        # 信号范围 [-1, 1]，来自 ResearchDistiller.load_daily_snapshot()
+        self._research_distilled_signals: Dict[str, float] = {}
+        # v8.7: LGB 增强信号缓存（由 inject_lgb_enhanced_signals 注入）
+        # 信号范围 [-1, 1], 来自 models/lgb_enhanced/lgb_enhanced_signals.json
+        # 包含 quality_flag 信息: OK / LOW_QUALITY (降权 50%)
+        self._lgb_enhanced_signals: Dict[str, float] = {}
+        self._lgb_quality_flags: Dict[str, str] = {}
 
     # ------------------------------------------------------------
     # 主入口
@@ -206,6 +245,133 @@ class SignalFusionEngine:
         except Exception as e:
             logger.warning("inject_pipeline_factor_signals 异常: %s", e)
 
+    def inject_research_distilled_signals(self, signals: Dict[str, float]) -> None:
+        """注入研究蒸馏信号（v8.6.9 第 6 信号源）
+
+        将 ResearchDistiller 离线蒸馏的研报/业绩会/书籍信号注入融合引擎，
+        作为第 6 个信号源参与融合，权重默认 0.03（保守 post-mix）。
+
+        信号范围 [-1, 1]：
+        - 正值 = 看涨（研报/业绩会利好）
+        - 负值 = 看跌（研报/业绩会利空）
+        - 0 = 中性
+
+        设计依据:
+        - cangjie-skill RIA--TV++ 方法论量化版
+        - 离线蒸馏(06:00) + 在线注入(07:00), 不增加关键路径耗时
+        - post-mix 模式: 不修改主融合公式 alpha(0.70)+llm(0.10)+etf(0.12)+macro(0.08)
+        - 仅影响影子账户, 不影响 500万 实盘
+
+        降级链:
+        - 输入空/非 dict → 跳过注入, 不影响融合
+        - 信号值 NaN/Inf → 过滤掉, 仅保留有效值
+        - 全部无效 → 空缓存, post-mix 块不触发
+
+        Args:
+            signals: {symbol: signal ∈ [-1, 1]} 来自 ResearchDistiller.load_daily_snapshot()
+        """
+        try:
+            if not isinstance(signals, dict) or not signals:
+                logger.warning("inject_research_distilled_signals: 输入为空或非 dict, 跳过")
+                return
+            self._research_distilled_signals = {
+                str(k): float(v) for k, v in signals.items()
+                if isinstance(v, (int, float)) and math.isfinite(float(v))
+            }
+            logger.info(
+                "已注入研究蒸馏信号: %d 个标的 (weight=%.2f)",
+                len(self._research_distilled_signals),
+                self.research_distilled_weight,
+            )
+        except Exception as e:
+            logger.warning("inject_research_distilled_signals 异常: %s", e)
+
+    def inject_lgb_enhanced_signals(
+        self,
+        signals: Dict[str, Any],
+        quality_flags: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """注入 LGB 增强信号（v8.7 第 7 信号源）
+
+        将 lgb_enhanced_trainer 离线训练的 LightGBM 信号注入融合引擎，
+        作为第 7 个信号源参与融合，权重默认 0.04（保守 post-mix）。
+
+        信号范围 [-1, 1]：
+        - 正值 = 看涨（模型预测未来 horizon 日正收益）
+        - 负值 = 看跌（模型预测未来 horizon 日负收益）
+        - 0 = 中性
+
+        设计依据:
+        - lgb_enhanced_trainer v8.7 GPU 训练, 平均 IC=0.1631
+        - 23 标的全覆盖, 其中 IC>0.3 的 6 个, IC>0.2 的 9 个
+        - 真实 OHLCV + 新闻情绪因子 (Wind MCP 优先, iFinD 回退)
+        - post-mix 模式: 不修改主融合公式, 在 pipeline/research 之后叠加
+
+        降权机制:
+        - quality_flag=LOW_QUALITY 的标的 (如 688981/600036/600219) 权重降至 50%
+        - 设计依据: 这些标的 CV IC 不稳定或样本数不足, 信号可信度较低
+        - 安全设计: 降权而非清零, 保留信号方向但减少影响
+
+        降级链:
+        - 输入空/非 dict → 跳过注入, 不影响融合
+        - 信号值 NaN/Inf → 过滤掉, 仅保留有效值
+        - 全部无效 → 空缓存, post-mix 块不触发
+
+        Args:
+            signals: 支持两种格式:
+                1. {symbol: signal ∈ [-1, 1]} 扁平格式
+                2. {symbol: {"signal": float, "quality_flag": str, ...}} 结构化格式
+                   (匹配 models/lgb_enhanced/lgb_enhanced_signals.json)
+            quality_flags: 可选, {symbol: "OK" | "LOW_QUALITY"}
+                若 signals 为结构化格式, 优先从 signals 中提取 quality_flag
+        """
+        try:
+            if not isinstance(signals, dict) or not signals:
+                logger.warning("inject_lgb_enhanced_signals: 输入为空或非 dict, 跳过")
+                return
+
+            # 解析两种格式: 扁平 / 结构化
+            parsed_signals: Dict[str, float] = {}
+            parsed_flags: Dict[str, str] = {}
+
+            for sym, val in signals.items():
+                if isinstance(val, dict):
+                    # 结构化格式: {"signal": float, "quality_flag": str, ...}
+                    sig = val.get("signal")
+                    flag = val.get("quality_flag", "OK")
+                    if isinstance(sig, (int, float)) and math.isfinite(float(sig)):
+                        parsed_signals[str(sym)] = float(sig)
+                        parsed_flags[str(sym)] = str(flag) if flag in ("OK", "LOW_QUALITY") else "OK"
+                elif isinstance(val, (int, float)):
+                    # 扁平格式: {symbol: signal}
+                    if math.isfinite(float(val)):
+                        parsed_signals[str(sym)] = float(val)
+                        parsed_flags[str(sym)] = "OK"
+                # 其他类型跳过
+
+            # 若显式传入 quality_flags, 覆盖结构化解析结果
+            if quality_flags and isinstance(quality_flags, dict):
+                for sym, flag in quality_flags.items():
+                    if str(sym) in parsed_signals and flag in ("OK", "LOW_QUALITY"):
+                        parsed_flags[str(sym)] = str(flag)
+
+            self._lgb_enhanced_signals = parsed_signals
+            self._lgb_quality_flags = parsed_flags
+
+            # 统计质量分布
+            ok_count = sum(1 for f in parsed_flags.values() if f == "OK")
+            low_quality_count = sum(1 for f in parsed_flags.values() if f == "LOW_QUALITY")
+
+            logger.info(
+                "已注入 LGB 增强信号: %d 个标的 (weight=%.2f, OK=%d, LOW_QUALITY=%d)",
+                len(parsed_signals),
+                self.lgb_enhanced_weight,
+                ok_count,
+                low_quality_count,
+            )
+        except Exception as e:
+            logger.warning("inject_lgb_enhanced_signals 异常: %s", e)
+
     def inject_forward_returns(self, forward_returns: Dict[str, float]) -> None:
         """注入前向收益，激活动态 IC 加权
 
@@ -296,6 +462,12 @@ class SignalFusionEngine:
         etf_s = self._safe(etf, "strength")
         etf_c = self._safe(etf, "confidence")
 
+        # v8.6.8 P1-LIVE-06: 防御性 NaN 检查
+        # _safe() 已经过滤 NaN/Inf, 但若上游传入 dict[float('nan')] 仍可能漏网
+        # 这里对最终 strength 再做一次 NaN 防御, 避免污染融合结果
+        if not math.isfinite(macro_bias):
+            macro_bias = 0.0
+
         weights = self._dynamic_weights(alpha_c, llm_c, etf_c)
 
         strength = (
@@ -304,16 +476,100 @@ class SignalFusionEngine:
             + weights["etf"] * etf_s
             + weights["macro"] * macro_bias
         )
+        # v8.6.8 P1-LIVE-06: NaN 防御性检查
+        # 若 weights/signal 任一为 NaN (理论上 _safe 已过滤), 强制归零
+        if not math.isfinite(strength):
+            logger.warning(
+                "[SignalFusion] 检测到 NaN strength (symbol=%s): "
+                "alpha_s=%s, llm_s=%s, etf_s=%s, macro_bias=%s, weights=%s",
+                symbol, alpha_s, llm_s, etf_s, macro_bias, weights,
+            )
+            strength = 0.0
         strength = max(-1.0, min(1.0, strength))
 
         # v8.6.4 P0-A 深度修复: Pipeline 因子组合信号调整（保守 5%）
         # 设计依据: PipelineOrchestrator 实测 IC_IR=+0.5840, 仅在影子账户层影响
         pipeline_s = self._pipeline_factor_signals.get(symbol, 0.0)
+        # v8.6.8 P1-LIVE-06: pipeline_s 防御性 NaN 检查
+        # inject_pipeline_factor_signals 已经过滤 NaN, 但此处再防御一次
+        if not math.isfinite(pipeline_s):
+            logger.warning(
+                "[SignalFusion] pipeline_factor_signals[%s] = NaN, 强制归零",
+                symbol,
+            )
+            pipeline_s = 0.0
         if pipeline_s != 0.0 and self.pipeline_factor_weight > 0:
             strength = (
                 strength * (1.0 - self.pipeline_factor_weight)
                 + pipeline_s * self.pipeline_factor_weight
             )
+            if not math.isfinite(strength):
+                logger.warning(
+                    "[SignalFusion] pipeline 融合后 strength 为 NaN (symbol=%s), 归零",
+                    symbol,
+                )
+                strength = 0.0
+            strength = max(-1.0, min(1.0, strength))
+
+        # v8.6.9 新增: 研究蒸馏信号 post-mix 调整（保守 3%）
+        # 设计依据: RIA--TV++ 量化版, post-mix 模式不修改主融合公式
+        # 4 层 NaN 防御: 注入过滤 + 取值防御 + 融合后检查 + 最终裁剪
+        research_s = self._research_distilled_signals.get(symbol, 0.0)
+        # 层 2: 取值防御 (inject 已过滤, 但 dict.get 后再防御一次)
+        if not math.isfinite(research_s):
+            logger.warning(
+                "[SignalFusion] research_distilled_signals[%s] = NaN, 强制归零",
+                symbol,
+            )
+            research_s = 0.0
+        if research_s != 0.0 and self.research_distilled_weight > 0:
+            # post-mix: 在 pipeline 调整后的 strength 上叠加 research 信号
+            strength = (
+                strength * (1.0 - self.research_distilled_weight)
+                + research_s * self.research_distilled_weight
+            )
+            # 层 3: 融合后 NaN 检查
+            if not math.isfinite(strength):
+                logger.warning(
+                    "[SignalFusion] research_distilled 融合后 strength 为 NaN (symbol=%s), 归零",
+                    symbol,
+                )
+                strength = 0.0
+            # 层 4: 最终边界裁剪
+            strength = max(-1.0, min(1.0, strength))
+
+        # v8.7 新增: LGB 增强信号 post-mix 调整（保守 4%, 含 LOW_QUALITY 降权）
+        # 设计依据: lgb_enhanced_trainer v8.7 平均 IC=0.1631, 23 标的全覆盖
+        # post-mix 模式: 在 alpha+llm+etf+macro+pipeline+research 之后叠加
+        # 4 层 NaN 防御: 注入过滤 + 取值防御 + 融合后检查 + 最终裁剪
+        # LOW_QUALITY 降权: 688981/600036/600219 等标的权重降至 50%
+        lgb_s = self._lgb_enhanced_signals.get(symbol, 0.0)
+        # 层 2: 取值防御 (inject 已过滤, 但 dict.get 后再防御一次)
+        if not math.isfinite(lgb_s):
+            logger.warning(
+                "[SignalFusion] lgb_enhanced_signals[%s] = NaN, 强制归零",
+                symbol,
+            )
+            lgb_s = 0.0
+        # LOW_QUALITY 降权: 权重降至 50% (保留信号方向但减少影响)
+        lgb_quality_flag = self._lgb_quality_flags.get(symbol, "OK")
+        effective_lgb_weight = self.lgb_enhanced_weight
+        if lgb_quality_flag == "LOW_QUALITY":
+            effective_lgb_weight = self.lgb_enhanced_weight * 0.5
+        if lgb_s != 0.0 and effective_lgb_weight > 0:
+            # post-mix: 在 research 调整后的 strength 上叠加 lgb 信号
+            strength = (
+                strength * (1.0 - effective_lgb_weight)
+                + lgb_s * effective_lgb_weight
+            )
+            # 层 3: 融合后 NaN 检查
+            if not math.isfinite(strength):
+                logger.warning(
+                    "[SignalFusion] lgb_enhanced 融合后 strength 为 NaN (symbol=%s), 归零",
+                    symbol,
+                )
+                strength = 0.0
+            # 层 4: 最终边界裁剪
             strength = max(-1.0, min(1.0, strength))
 
         raw_confidence = (
@@ -322,6 +578,13 @@ class SignalFusionEngine:
             + weights["etf"] * etf_c
             + 0.05
         )
+        # v8.6.8 P1-LIVE-06: confidence NaN 防御
+        if not math.isfinite(raw_confidence):
+            logger.warning(
+                "[SignalFusion] confidence 为 NaN (symbol=%s), 归零",
+                symbol,
+            )
+            raw_confidence = 0.0
         confidence = max(0.0, min(1.0, raw_confidence))
 
         if abs(strength) < 0.10 or confidence < self.min_confidence:
@@ -330,6 +593,9 @@ class SignalFusionEngine:
         else:
             # 对非零信号做指数响应，放大强弱差异，让月度权重更容易随信号变化
             strength = float(np.sign(strength) * (abs(strength) ** 0.85))
+            # v8.6.8 P1-LIVE-06: 最终 NaN 防御
+            if not math.isfinite(strength):
+                strength = 0.0
             strength = max(-1.0, min(1.0, strength))
 
         return FusionSignal(
@@ -342,6 +608,9 @@ class SignalFusionEngine:
                 "etf_strength": etf_s,
                 "macro_bias": macro_bias,
                 "pipeline_factor_strength": pipeline_s,
+                "research_distilled_strength": research_s,
+                # v8.7: LGB 增强信号 (LightGBM 离线训练输出)
+                "lgb_enhanced_strength": lgb_s,
             },
             meta={
                 "weights": weights,
@@ -350,6 +619,16 @@ class SignalFusionEngine:
                 "etf_confidence": etf_c,
                 "pipeline_factor_weight": self.pipeline_factor_weight,
                 "pipeline_factor_applied": pipeline_s != 0.0,
+                "research_distilled_weight": self.research_distilled_weight,
+                # applied=True 仅当信号非零且权重>0 (即 post-mix 实际执行)
+                "research_distilled_applied": research_s != 0.0 and self.research_distilled_weight > 0,
+                # v8.7: LGB 增强信号元数据 (用于审计与调试)
+                "lgb_enhanced_weight": self.lgb_enhanced_weight,
+                "effective_lgb_weight": effective_lgb_weight,
+                "lgb_quality_flag": lgb_quality_flag,
+                # applied=True 仅当信号非零且 effective_weight>0 (即 post-mix 实际执行)
+                "lgb_enhanced_applied": lgb_s != 0.0 and effective_lgb_weight > 0,
+                "nan_defense_applied": True,  # v8.6.8 P1-LIVE-06 标记
             },
         )
 

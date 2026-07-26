@@ -1,0 +1,31 @@
+
+Folder: \
+HostName:                             PC-20250211UIJX
+TaskName:                             \v75_TradePostMarket
+Next Run Time:                        2026/7/27 15:30:00
+Status:                               Ready
+Logon Mode:                           Interactive/Background
+Last Run Time:                        2026/7/24 15:30:00
+Last Result:                          -2147024629
+Author:                               trade_executor
+Task To Run:                          C:\Program Files\Python38\python.exe "e:\å„ç§PYç¨‹åº\28-ç»ˆæžé‡åŒ–äº¤æ˜“ç³»ç»Ÿ7.1\daily_trade_executor.py" post-market
+Start In:                             e:\å„ç§PYç¨‹åº\28-ç»ˆæžé‡åŒ–äº¤æ˜“ç³»ç»Ÿ7.1
+Comment:                              ç›˜åŽæ‰§è¡Œå·²ç¡®è®¤äº¤æ˜“æŒ‡ä»¤ (æ¯æ—¥15:30)
+Scheduled Task State:                 Enabled
+Idle Time:                            Disabled
+Power Management:                     
+Run As User:                          SYSTEM
+Delete Task If Not Rescheduled:       Disabled
+Stop Task If Runs X Hours and X Mins: 00:15:00
+Schedule:                             Scheduling data is not available in this format.
+Schedule Type:                        Weekly
+Start Time:                           15:30:00
+Start Date:                           2026/7/10
+End Date:                             N/A
+Days:                                 MON, TUE, WED, THU, FRI
+Months:                               Every 1 week(s)
+Repeat: Every:                        Disabled
+Repeat: Until: Time:                  Disabled
+Repeat: Until: Duration:              Disabled
+Repeat: Stop If Still Running:        Disabled
+

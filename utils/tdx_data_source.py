@@ -17,9 +17,11 @@ class TDXDataSource:
     
     def __init__(self):
         self._api = None
+        self._api_cls = None
+        self._ex_api_cls = None
         self._connected = False
         self._last_connect_time = None
-        self._reconnect_interval = 300  # 5分钟重连间隔
+        self._reconnect_interval = 300
         self.source_health = {
             'tdx': {'ok': False, 'last_error': None, 'last_success': None}
         }
@@ -55,6 +57,10 @@ class TDXDataSource:
     def _connect(self):
         """连接到通达信服务器"""
         try:
+            if self._api_cls is None:
+                logger.error("通达信API类未初始化，无法连接")
+                return
+            
             if self._api is not None:
                 try:
                     self._api.disconnect()
@@ -96,20 +102,20 @@ class TDXDataSource:
     
     def _ensure_connected(self):
         """确保连接有效，必要时重连"""
+        if self._api_cls is None:
+            return False
         if not self._connected or self._api is None:
             self._connect()
             return self._connected
         
-        # 检查连接是否超时
         if self._last_connect_time and (time.time() - self._last_connect_time) > self._reconnect_interval:
             self._connect()
         
         return self._connected
     
-    def _to_tdx_code(self, symbol: str) -> int:
-        """将股票代码转换为通达信内部代码"""
+    def _to_tdx_code(self, symbol: str) -> str:
+        """将股票代码转换为通达信代码字符串"""
         s = str(symbol).strip()
-        # 去除前缀后缀
         for prefix in ("sh", "sz", "bj", "SH", "SZ", "BJ"):
             if s.startswith(prefix):
                 s = s[len(prefix):]
@@ -118,12 +124,7 @@ class TDXDataSource:
             if s.endswith(suffix):
                 s = s[: -len(suffix)]
                 break
-        
-        # 转换为整数代码
-        try:
-            return int(s)
-        except ValueError:
-            return 0
+        return s
     
     def _get_market(self, symbol: str) -> int:
         """获取市场代码: 0=深圳, 1=上海, 2=北京"""
@@ -165,7 +166,7 @@ class TDXDataSource:
             code = self._to_tdx_code(symbol)
             market = self._get_market(symbol)
             
-            if code == 0 or market not in (0, 1, 2):
+            if not code or market not in (0, 1, 2):
                 return None
             
             # 获取实时行情
@@ -220,7 +221,7 @@ class TDXDataSource:
             code = self._to_tdx_code(symbol)
             market = self._get_market(symbol)
             
-            if code == 0 or market not in (0, 1, 2):
+            if not code or market not in (0, 1, 2):
                 return None
             
             # 周期映射
@@ -278,7 +279,7 @@ class TDXDataSource:
             code = self._to_tdx_code(symbol)
             market = self._get_market(symbol)
             
-            if code == 0 or market not in (0, 1, 2):
+            if not code or market not in (0, 1, 2):
                 return None
             
             # 获取财务数据

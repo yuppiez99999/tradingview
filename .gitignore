@@ -109,6 +109,15 @@ trade_plans/*
 !trade_plans/.gitkeep
 !trade_plans/README.md
 
+# v8.3/v7.5 trade plans (运行时生成, 不入版本库)
+v8.3_institutional/trade_plans/*.json
+v7.5_institutional/trade_plans/*.json
+!v8.3_institutional/trade_plans/.gitkeep
+!v7.5_institutional/trade_plans/.gitkeep
+
+# Hedge execution fill 报告 (运行时生成)
+v8.3_institutional/reports/hedge_execution_fill_*.json
+
 # Trade instructions
 trade_instructions/*
 !trade_instructions/.gitkeep
@@ -178,3 +187,31 @@ tools/codebase-memory-mcp/mcp_config_new.json
 
 # Vibe-Trading 参考副本（浅克隆，不入版本库）
 research/references/Vibe-Trading/
+# Added by code-review-graph
+.code-review-graph/
+
+# === v8.6.9 金融多 Agent 协调器 (Shadow Mode) ===
+# Agent 决策审计日志 (运行时生成, 不入版本库)
+data/agent_orchestrator_audit/
+
+# === v8.6.9 研究蒸馏信号 (RIA--TV++ 量化版) ===
+# 蒸馏信号快照 (运行时生成, 不入版本库)
+data/distilled_signals/
+
+# === v8.6.9 awesome-llm-apps 模式提取文档 ===
+# 仅文档, 不 clone 源码
+research/references/awesome-llm-apps-patterns/
+
+# === v8.7 IDE 内部目录不入版本库 ===
+.trae-cn/
+.trae/
+.claude/skills/.trae-cn/
+
+# === 运行时 kill_switch 报告不入版本库 ===
+research/vibe_trading_factor_analysis/reports/kill_switch/
+
+# === AI agent 内部记忆/缓存不入版本库 ===
+.agents/
+.memory/
+graphify-out/
+

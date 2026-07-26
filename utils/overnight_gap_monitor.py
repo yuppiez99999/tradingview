@@ -209,16 +209,29 @@ class OvernightGapMonitor:
             )
 
         elif level == 2:
-            # L2: 禁止开仓
+            # L2: 禁止开仓 (过滤 BUY 订单, 保留 SELL)
+            # v8.6.8 P0-02 FIX (2026-07-26): 修复字段名 bug
+            # 原代码用 o.get('direction') != 'BUY', 但 trade_plan 现货订单字段是 'side' (非 'direction')
+            # 所有现货订单 direction=None, None != 'BUY' 为 True, 导致所有 BUY 订单被保留
+            # 与 spot_build_allowed=false 严重矛盾, 实盘会执行被禁止的建仓订单
+            # 修复: 同时检查 side 和 direction 两个字段, 任一为 BUY 即过滤
             morning_orders = plan['execution_plan'].get('morning_orders', [])
             plan['execution_plan']['morning_orders'] = [
-                o for o in morning_orders if o.get('direction') != 'BUY'
+                o for o in morning_orders
+                if o.get('side', '').upper() != 'BUY'
+                and o.get('direction', '').upper() not in ('BUY', 'BUY_OPEN', 'BUY_PUT')
             ]
             afternoon_orders = plan['execution_plan'].get('afternoon_orders', [])
             plan['execution_plan']['afternoon_orders'] = [
-                o for o in afternoon_orders if o.get('direction') != 'BUY'
+                o for o in afternoon_orders
+                if o.get('side', '').upper() != 'BUY'
+                and o.get('direction', '').upper() not in ('BUY', 'BUY_OPEN', 'BUY_PUT')
             ]
             plan['market_state']['spot_build_allowed'] = False
+            # v8.6.8 P0-02 FIX: L2 必须同步 build_allowed=False (与一致性校验对齐)
+            # 原代码只设 spot_build_allowed=False, 但 build_allowed 仍为 True
+            # 下游执行器可能读 build_allowed 字段而非 spot_build_allowed, 导致绕过风控
+            plan['market_state']['build_allowed'] = False
             # v8.6.7 修复: 不能覆盖更高优先级 Guard 设置的 CRITICAL
             # 原代码无条件设为 WARNING, 会把大盘熔断 L3 的 CRITICAL 降级
             if plan['market_state'].get('circuit_level') != 'CRITICAL':

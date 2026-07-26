@@ -167,7 +167,8 @@ class SmartOrderRouter:
                  daily_slippage_break: float = 0.010,
                  global_slow_threshold: float = 0.003,
                  pause_minutes: int = 30,
-                 algo_engine: Optional[AlgoEngine] = None):
+                 algo_engine: Optional[AlgoEngine] = None,
+                 kill_switch=None):
         """
         Args:
             broker: 券商接口
@@ -177,6 +178,8 @@ class SmartOrderRouter:
             global_slow_threshold: 全局降速阈值
             pause_minutes: 触发熔断后暂停分钟数
             algo_engine: 拆单算法引擎
+            kill_switch: v8.6.8 P0-06 — KillSwitch 实例, 用于拆单过程中重检熔断状态
+                         若 KillSwitch 升级到 L2+, 立即停止后续拆单 + 撤未成交订单
         """
         self.broker = broker
         self.ntp = ntp or NTPSync()
@@ -185,12 +188,51 @@ class SmartOrderRouter:
         self.global_slow = float(global_slow_threshold)
         self.pause_minutes = int(pause_minutes)
         self.algo = algo_engine or AlgoEngine()
+        # v8.6.8 P0-06: KillSwitch 实例, 拆单过程中重检熔断状态
+        # 防止盘中大盘急跌 / 保证金骤升触发熔断后, SOR 仍继续拆单
+        self.kill_switch = kill_switch
 
         # 状态
         self.slip_per_symbol = defaultdict(float)
         self.slip_pause_until: Dict[str, datetime] = {}
         self.global_slowdown = False
         self.fill_history: List[OrderFill] = []
+
+    def _check_kill_switch_before_slice(self, symbol: str, side: str) -> bool:
+        """v8.6.8 P0-06: 拆单前重检 KillSwitch 状态
+
+        顶级对冲基金标准: 任何订单进入执行队列前必须经过统一风控驾驶舱扫描
+        SOR 假设订单列表已被 pre-filtered, 但盘中可能因大盘急跌/保证金骤升触发熔断,
+        拆单 100 笔时, 前 50 笔执行后 KillSwitch 升级到 L2, 后 50 笔仍会继续下单
+
+        Returns:
+            True = 允许继续下单, False = 阻止下单 (熔断已触发)
+        """
+        if self.kill_switch is None:
+            # 未配置 KillSwitch, 不拦截 (兼容旧调用方式)
+            return True
+        try:
+            ks_status = self.kill_switch.check_margin_status()
+            ks_level = int(ks_status.get("level", 0)) if isinstance(ks_status, dict) else 0
+            if ks_level >= 2:
+                # L2+: 阻止开新仓
+                logger.critical(
+                    "[SOR P0-06] KillSwitch L%d 触发, 中止 %s %s 拆单 (保证金占用率 %.1f%%)",
+                    ks_level, symbol, side,
+                    (ks_status.get("margin_usage_ratio", 0) if isinstance(ks_status, dict) else 0) * 100,
+                )
+                return False
+            if ks_level == 1 and side == "BUY":
+                # L1 + BUY: 警戒级, 禁开新仓
+                logger.warning(
+                    "[SOR P0-06] KillSwitch L1 警戒, 禁止 %s BUY 新开仓", symbol,
+                )
+                return False
+            return True
+        except Exception as e:
+            # 异常时 fail-closed: 阻止下单 (与 daily_workflow 风控对齐)
+            logger.error("[SOR P0-06] KillSwitch 检查异常, fail-closed 阻止下单: %s", e)
+            return False
 
     def execute(self,
                 symbol: str,
@@ -244,6 +286,16 @@ class SmartOrderRouter:
 
         for sl in slices:
             if remaining <= 0:
+                break
+
+            # v8.6.8 P0-06: 拆单前重检 KillSwitch 状态
+            # 防止盘中熔断后 SOR 继续下单 (前 50 笔执行后 KillSwitch 升级到 L2, 后 50 笔应停止)
+            if not self._check_kill_switch_before_slice(symbol, side):
+                logger.critical(
+                    "[SOR P0-06] KillSwitch 熔断, 中止 %s %s 拆单: 已成交 %d/%d 笔, 剩余 %d 撤销",
+                    symbol, side, len(fills), len(slices), remaining,
+                )
+                # 触发实际平仓 (L2+) — 由上层 daily_workflow 监控并处理
                 break
 
             # 限价

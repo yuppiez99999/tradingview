@@ -1,10 +1,10 @@
-# 综合量化策略系统 v8.6.7
+# 综合量化策略系统 v8.7
 
-**顶级对冲基金视角 | 500万实盘部署 | 全自动交易闭环 | 年化≥8% 回撤<15% | 风控守卫强制执行（四模块联动） | 对冲执行引擎（信号→订单） | 认沽期权自动保护 | 波动率目标缩仓 | PUT引擎去重保护 | 实际持仓回测验证 | 统一配置事实源 | ETF资金流追踪 | AI增强预测 | WonderTrader高价值模块集成 | Wind MCP 优先数据源 | 本地Ollama双LLM决策（快速+深度思考） | 风险预算驱动建仓 | Greeks动态对冲 | 交易成本建模 | 动态Beta计算 | 订单去重合并 | 配置驱动对冲 | 执行时机管理 | 资金预留机制 | v8.4 持仓精准优化（黄金翻倍+科技微降+对冲增强+2027预测） | v8.5 自动交易计划部署（daily_workflow兼容性修复+报告写入可靠性增强） | v8.6 V9 Regime-Specific LGB 生产基线 + 影子账户 Stage 1 灰度发布（¥500,000）+ iFinD 真实财务数据接入 + daily_workflow Phase 10 影子账户监控 + TRADING_ENV fail-closed 设计 | v8.6.1 顶级对冲基金风控审计修复（CircuitBreaker/KillSwitch/EVTTailRisk/ShadowAccount 全部从纸面风控升级为真实可执行 + fail-closed 三层防护 + v8.5 模块 3/9→9/9 全部就绪） | v8.6.5 第二轮 CRO 黑天鹅防御审计修复（EOD Guard KillSwitch 失效+对冲引擎崩溃+Windows 任务从未运行 3 个 P0 修复，CRO 评分 3.5→7.5） | v8.6.7 测试金字塔体系建立（120 个测试用例 + 65.20% 覆盖率，从被动审计转向主动防御）**
+**顶级对冲基金视角 | 500万实盘部署 | 全自动交易闭环 | 年化≥8% 回撤<15% | 风控守卫强制执行（四模块联动） | 对冲执行引擎（信号→订单） | 认沽期权自动保护 | 波动率目标缩仓 | PUT引擎去重保护 | 实际持仓回测验证 | 统一配置事实源 | ETF资金流追踪 | AI增强预测 | WonderTrader高价值模块集成 | Wind MCP 优先数据源 | 本地Ollama双LLM决策（快速+深度思考） | 风险预算驱动建仓 | Greeks动态对冲 | 交易成本建模 | 动态Beta计算 | 订单去重合并 | 配置驱动对冲 | 执行时机管理 | 资金预留机制 | v8.4 持仓精准优化（黄金翻倍+科技微降+对冲增强+2027预测） | v8.5 自动交易计划部署（daily_workflow兼容性修复+报告写入可靠性增强） | v8.6 V9 Regime-Specific LGB 生产基线 + 影子账户 Stage 1 灰度发布（¥500,000）+ iFinD 真实财务数据接入 + daily_workflow Phase 10 影子账户监控 + TRADING_ENV fail-closed 设计 | v8.6.1 顶级对冲基金风控审计修复（CircuitBreaker/KillSwitch/EVTTailRisk/ShadowAccount 全部从纸面风控升级为真实可执行 + fail-closed 三层防护 + v8.5 模块 3/9→9/9 全部就绪） | v8.6.5 第二轮 CRO 黑天鹅防御审计修复（EOD Guard KillSwitch 失效+对冲引擎崩溃+Windows 任务从未运行 3 个 P0 修复，CRO 评分 3.5→7.5） | v8.6.7 测试金字塔体系建立（120 个测试用例 + 65.20% 覆盖率，从被动审计转向主动防御） | v8.6.9 GitHub 热门项目深度集成（code-review-graph 代码图谱 + research_distiller 第 6 信号源 RIA--TV++ 量化版 + finance_agent_orchestrator 金融多Agent Shadow Mode，233 个测试全过） | v8.7 LightGBM 增强信号接入交易流水线（第 7 信号源, 真实 OHLCV + 新闻情绪因子 + GPU 训练, 23 标的平均 IC=0.1631, LOW_QUALITY 标的自动降权 50%）**
 
 **作者**：yuppiez99999
 
-**实盘状态**：✅ 已部署（2026-07-26，v8.6.7 测试金字塔体系建立版 — 120 个回归测试守护已修复 bug）
+**实盘状态**：✅ 已部署（2026-07-26，v8.7 LightGBM 增强信号接入交易流水线版 — 7 个信号源完整融合 + 23 个标的 LGB GPU 训练 + LOW_QUALITY 自动降权机制）
 **自动交易**：✅ 盘前自动生成计划 + 盘中每15分钟自动决策 + 午盘/夜盘自动刷新LLM决策 + 盘后自动总结 + 06:00/07:00/09:30/14:00 Windows 任务计划自动触发（SYSTEM 账户 + 最高权限，v8.6.5 P0-F 修复）
 **LLM模型**：双模型架构 — 快速模式 Qwen2.5 7B (~22秒) + 深度思考 DeepSeek-R1 14B (~1-3分钟，复杂场景自动触发）
 
@@ -289,9 +289,224 @@ python -m pytest tests/ --cov=utils --cov-report=html
 
 ---
 
+### 🧰 GitHub 热门项目深度集成 (v8.6.9) — 开发工具 + 第 6 信号源 + 金融多Agent Shadow Mode
+
+> **集成来源**：2026 年 7 月第 4 周 GitHub Trending Top 10 中与量化交易相关的 3 个项目，**深度集成到生产代码**（非 shallow clone 参考）。方案文档：`.trae/documents/GitHub热门项目深度集成方案_2026-07-26.md`，模式提取：`research/references/awesome-llm-apps-patterns/PATTERN_EXTRACTION.md`。
+
+#### 集成项目与影响范围
+
+| 项目 | GitHub 星数 | 集成形态 | 影响范围 | 风险 | 可逆性 |
+|------|------------|---------|---------|------|--------|
+| **code-review-graph** | +4,791 | uv tool + MCP server + AI skill | 仅开发时 | 极低 | `uv tool uninstall` + 删目录 |
+| **cangjie-skill → research_distiller** | +1,364 | 原生重写为 `utils/research_distiller.py` | 影子账户 (Phase 10) | 中 | weight=0 + 删模块 |
+| **awesome-llm-apps → finance_agent_orchestrator** | +5,385 | 架构借鉴 + 原生实现 | 仅日志 (Shadow Mode) | 低 | 删 shadow 块 + 删模块 |
+
+#### ① code-review-graph — 本地代码智能图谱（开发工具）
+
+- **安装方式**：`uv tool install code-review-graph`（uv 隔离，不污染 Python 3.8.9 生产环境）
+- **能力**：本地代码知识图谱（5710 节点 / 80792 边），MCP 兼容，支持增量代码审查
+- **安装脚本**：`tools/code-review-graph/install.ps1`（参考 `tools/codebase-memory-mcp/install.ps1` 模板）
+- **AI Skill**：`.claude/skills/code-review-graph/SKILL.md` + `.trae-cn/skills/code-review-graph/SKILL.md`
+- **影响范围**：仅开发时使用，**不影响生产交易**
+
+#### ② research_distiller — 研究蒸馏信号（第 6 信号源, RIA--TV++ 量化版）
+
+> **设计依据**：cangjie-skill 的 RIA--TV++ 内容蒸馏方法论，将研报/业绩会/财经书籍蒸馏为交易信号。离线蒸馏（06:00）+ 在线注入（07:00），不增加关键路径耗时。
+
+- **主模块**：`utils/research_distiller.py`（42KB），核心类 `ResearchDistiller`
+- **离线脚本**：`scripts/distill_research_batch.py`（06:00 Windows 任务触发）
+- **核心方法**：`distill_report()` / `distill_earnings_call()` / `distill_book_chapter()` / `distill_news_batch()` / `to_signal_map()` / `load_daily_snapshot()` / `save_daily_snapshot()`
+- **数据结构**：`DistilledSignal` dataclass（symbol/strength/confidence/source_type/source_id/reasoning/valid_until/key_factors）
+- **持久化**：`data/distilled_signals/distilled_signals_YYYYMMDD.json`（gitignored）
+- **降级链**：LLM 蒸馏 → 规则引擎蒸馏（关键词 + 标的 NER）→ 空信号（安全降级）
+- **signal_fusion 集成**：`utils/signal_fusion.py` 新增 `inject_research_distilled_signals()` 方法，post-mix 模式（不修改主融合公式 `alpha(0.70)+llm(0.10)+etf(0.12)+macro(0.08)=1.00`），保守权重 0.03
+- **daily_workflow 集成**：`v8.3_institutional/daily_workflow.py` Phase 5 追加研究蒸馏信号注入块（独立 try/except 降级，第 4355 行）
+- **4 层 NaN 防御**：注入过滤 → 取值防御 → 融合后检查 → 最终边界裁剪
+- **安全设计**：仅影响影子账户 (Phase 10)，不影响 500万 实盘 (Phase 6 执行订单不变)
+
+#### ③ finance_agent_orchestrator — 金融多Agent Shadow Mode
+
+> **设计依据**：awesome-llm-apps 的 ai-hedge-fund 多 Agent 投票架构，5 个专家 Agent 加权投票，RiskAgent 拥有 veto 权。
+
+- **协调器**：`utils/finance_agent_orchestrator.py`（16KB），核心类 `FinanceAgentOrchestrator`
+- **5 个专家 Agent**（`utils/finance_agents/`）：
+  - `ValueAgent` — 估值分析（DCF/PE/PB 分位/ROE）
+  - `MomentumAgent` — 动量分析（均线突破/RSI/量价配合）
+  - `SentimentAgent` — 舆情分析（复用 `AIReportAgent`，规则引擎兜底）
+  - `RiskAgent` — 风险分析（回撤/波动率/流动性，含 veto 权）
+  - `MacroAgent` — 宏观分析（利率/北向资金/行业景气）
+- **加权投票**：`value(0.25) + momentum(0.25) + sentiment(0.15) + risk(0.25) + macro(0.10) = 1.00`
+- **Shadow Mode**：不进入 signal_fusion，仅在 Phase 7 跑对比，输出 `ShadowDiff` 记录到 `data/agent_orchestrator_audit/shadow_diffs_YYYYMMDD.jsonl`
+- **AIReportAgent 适配**：`utils/ai_report_agent.py` 追加 `to_agent_decision()` 方法（向后兼容，不修改既有方法）
+
+#### 测试覆盖（新增 93 个测试）
+
+| 测试文件 | 层级 | 测试数 | 覆盖内容 |
+|---------|------|-------|---------|
+| `tests/unit/test_research_distiller_unit.py` | 单元 | 15 | 蒸馏逻辑/降级链/持久化/NER |
+| `tests/unit/test_signal_fusion_research_distilled_unit.py` | 单元 | 25 | post-mix/NaN防御/降级链/与pipeline共存 |
+| `tests/unit/test_finance_agent_orchestrator_unit.py` | 单元 | 27 | 协调器/加权投票/Shadow对比/审计日志 |
+| `tests/integration/test_research_distiller_signal_fusion_integration.py` | 集成 | 10 | 完整链路/持久化往返/多源共存 |
+| `tests/integration/test_finance_agents_shadow_mode_integration.py` | 集成 | 7 | Shadow Mode 全流程/多Agent协作 |
+| `tests/e2e/test_research_distiller_e2e.py` | E2E | 5 | 真实端到端/daily_workflow注入模式/三源融合 |
+| `tests/e2e/test_finance_agent_orchestrator_e2e.py` | E2E | 4 | 真实SignalFusion对比/多标的/降级 |
+| **合计** | — | **93** | **全过 (运行时间 ~2 秒)** |
+
+#### 关键约束（不可违反）
+
+1. **不修改主融合公式**：`alpha(0.70) + llm(0.10) + etf(0.12) + macro(0.08) = 1.00` 不变，research_distilled 用 post-mix 叠加
+2. **不绕过 Kill Switch**：新信号源在 Kill Switch 之下
+3. **仅影响影子账户**：research_distilled 仅影响 Phase 10，不影响 Phase 6 实盘执行
+4. **Shadow Mode 不入信号路径**：finance_agent_orchestrator 仅写审计日志
+5. **Python 3.8.9 兼容**：所有新模块用 `from __future__ import annotations`
+6. **不修改 requirements.txt**：可选依赖用 lazy import + 降级
+
+#### 回滚步骤（一键回滚）
+
+```powershell
+git checkout HEAD -- v8.3_institutional/daily_workflow.py utils/signal_fusion.py utils/ai_report_agent.py
+Remove-Item -Recurse -Force utils/research_distiller.py utils/finance_agent_orchestrator.py utils/finance_agents
+# 删除相关测试文件...
+uv tool uninstall code-review-graph
+pytest tests/ -v  # 期望: 回到 120 个测试全过
+```
+
+---
+
+### 🤖 LightGBM 增强信号接入交易流水线 (v8.7) — 第 7 信号源
+
+> **核心突破**：将离线训练的 LightGBM 增强模型接入生产交易流水线，作为第 7 信号源（post-mix 模式）。23 个标的全覆盖，平均 IC=0.1631，启用 GPU 训练加速 + 真实 OHLCV 数据 + 新闻情绪因子。低质量标的（688981/600036/600219）自动降权 50%，安全设计完整。
+
+#### 设计依据
+
+| 维度 | 数据 |
+|------|------|
+| **训练数据** | 真实 OHLCV 502 日（Wind MCP 优先 → iFinD → 通达信 → AKShare → 新浪） |
+| **特征构成** | technical_37 + extended_16 + sentiment_6 = 59 个特征 |
+| **标签 horizon** | 5 日（替代次日收益率，提升震荡市 IC） |
+| **训练参数** | n_estimators=2000, learning_rate=0.005, max_depth=6, early_stopping_rounds=200 |
+| **GPU 加速** | LightGBM 4.3.0 OpenCL（device_type='gpu'），失败自动回退 CPU |
+| **新闻情绪源** | Wind MCP 优先 → iFinD 回退（按 publish_time 分配到日期） |
+| **标的覆盖** | 23 个持仓标的（20 OK + 3 LOW_QUALITY） |
+| **平均 IC** | 0.1631（IC>0.3 的 6 个，IC>0.2 的 9 个） |
+| **信号文件** | `models/lgb_enhanced/lgb_enhanced_signals.json`（每日 18:00 生成） |
+
+#### 信号融合架构（7 个信号源 post-mix 模式）
+
+```
+主融合公式 (不变): strength = alpha(0.70) + llm(0.10) + etf(0.12) + macro(0.08) = 1.00
+
+post-mix 叠加 (按顺序):
+  ├─ 5. pipeline_factor (weight=0.05)   v8.6.4 IC_IR=+0.5840
+  ├─ 6. research_distilled (weight=0.03) v8.6.9 RIA--TV++
+  └─ 7. lgb_enhanced (weight=0.04)       v8.7 真实 OHLCV+情绪 ← 本次新增
+                                              ↓
+                                   LOW_QUALITY 降权 50%
+                                   (688981/600036/600219)
+```
+
+#### LOW_QUALITY 降权机制
+
+低质量标的（CV IC 不稳定或样本数不足）权重自动降至 50%：
+
+| 标的 | 代码 | 名称 | quality_flag | 有效权重 |
+|------|------|------|--------------|----------|
+| 688981 | 中芯国际 | LOW_QUALITY | 0.04 × 50% = **0.02** |
+| 600036 | 招商银行 | LOW_QUALITY | 0.04 × 50% = **0.02** |
+| 600219 | 南山铝业 | LOW_QUALITY | 0.04 × 50% = **0.02** |
+| 其他 20 标的 | — | OK | 0.04 |
+
+**设计依据**：保留信号方向（避免清零丢失 Alpha），但减少影响（低质量信号可信度低）。待后续积累更多样本或调优超参后可上调。
+
+#### 4 层 NaN 防御链
+
+| 层 | 位置 | 逻辑 |
+|----|------|------|
+| 1 | `inject_lgb_enhanced_signals` | 注入时过滤 NaN/Inf，仅保留有效值 |
+| 2 | `_fuse_symbol` 取值防御 | `dict.get` 后再防御一次，NaN 强制归零 |
+| 3 | `_fuse_symbol` 融合后检查 | `isfinite(strength)` 失败归零 + 警告日志 |
+| 4 | `_fuse_symbol` 最终裁剪 | `max(-1.0, min(1.0, strength))` 边界保护 |
+
+#### 关键代码变更
+
+**1. `utils/signal_fusion.py`（SignalFusionEngine 第 7 信号源）**
+- `__init__` 新增 `lgb_enhanced_weight=0.04` 参数 + `_lgb_enhanced_signals` / `_lgb_quality_flags` 缓存
+- 新增 `inject_lgb_enhanced_signals(signals, quality_flags=None)` 方法（289-373 行）
+  - 支持两种格式：扁平 `{sym: signal}` 和结构化 `{sym: {"signal": float, "quality_flag": str}}`
+- `_fuse_symbol` 新增 LGB post-mix 块（541-573 行）
+  - 含 LOW_QUALITY 降权逻辑（effective_lgb_weight = 0.04 × 0.5 = 0.02）
+- `sources` 字段加入 `lgb_enhanced_strength`
+- `meta` 字段加入 `lgb_enhanced_weight` / `effective_lgb_weight` / `lgb_quality_flag` / `lgb_enhanced_applied`
+
+**2. `v8.3_institutional/daily_workflow.py`（在线信号加载）**
+- Phase 5 追加 LGB 信号加载块（4400-4463 行），在 research_distilled 之后
+- 从 `models/lgb_enhanced/lgb_enhanced_signals.json` 加载结构化信号
+- 自动统计 OK / LOW_QUALITY 分布并写入 signal 元数据
+- 完整降级链：文件不存在 / 信号为空 / 异常均不影响主流程
+
+**3. `lgb_enhanced_trainer.py`（离线训练，v8.7 GPU 加速版）**
+- 启用 LightGBM GPU 加速（`device_type='gpu'` + `gpu_platform_id` + `gpu_device_id`）
+- 新增 `_train_lgb_with_fallback()` 函数：GPU 失败自动回退 CPU（全局禁用 GPU 后续直接 CPU）
+- 修复 `wind_mcp_fetcher.py` 导入路径（添加 `tools/` 目录到 `sys.path`）
+- 修复 `load_real_ohlcv` 标的代码后缀剥离（`.SH`/`.SZ` → 纯 6 位代码）
+
+#### 验证脚本与测试覆盖
+
+| 脚本 | 用途 | 测试数 |
+|------|------|--------|
+| `scripts/_verify_lgb_signal_integration_v87.py` | LGB 信号接入流水线端到端验证 | 7 项 |
+| `scripts/_smoke_lgb_integration.py` | 快速烟雾测试模拟 daily_workflow 调用路径 | 1 项 |
+
+**7 项验证测试全部通过**：
+1. 信号文件加载与结构化格式解析（23 标的, 20 OK + 3 LOW_QUALITY）
+2. inject_lgb_enhanced_signals 结构化格式注入
+3. inject_lgb_enhanced_signals 扁平格式注入
+4. _fuse_symbol post-mix 逻辑（含 LOW_QUALITY 降权：0.04 → 0.02）
+5. NaN 防御（4 层防御链）
+6. 边界条件（空输入 / 权重=0）
+7. 端到端集成测试（23 标的全应用 LGB 信号，sources/meta 字段完整）
+
+#### 信号样本（2026-07-26 训练结果 Top 5）
+
+| 标的 | 名称 | LGB 信号 | quality_flag | effective_weight |
+|------|------|----------|--------------|-------------------|
+| 688041 | 海光信息 | +0.9946 | OK | 0.04 |
+| 688017 | 绿的谐波 | +0.9939 | OK | 0.04 |
+| 300308 | 中际旭创 | +0.9895 | OK | 0.04 |
+| 000408 | 藏格矿业 | +0.9537 | OK | 0.04 |
+| 600089 | 特变电工 | +0.9344 | OK | 0.04 |
+| 688981 | 中芯国际 | +0.9328 | LOW_QUALITY | 0.02 |
+
+#### 安全设计（不可违反）
+
+1. **不修改主融合公式**：`alpha(0.70)+llm(0.10)+etf(0.12)+macro(0.08)=1.00` 不变，LGB 用 post-mix 叠加
+2. **仅影响影子账户**：LGB 信号仅影响 Phase 10 影子账户（NAV 计算），不影响 500 万实盘 Phase 6 执行订单
+3. **LOW_QUALITY 降权而非清零**：保留信号方向，权重降至 50%
+4. **失败降级**：信号文件不存在 / 信号为空 / 异常均不影响主流程（沿用 research_distilled 降级模式）
+5. **不绕过 Kill Switch**：LGB 信号在 Kill Switch 之下，触发熔断时一并清零
+6. **Python 3.8.9 兼容**：所有新模块用 `from __future__ import annotations`
+
+#### 回滚步骤（一键回滚）
+
+```powershell
+git checkout HEAD -- utils/signal_fusion.py v8.3_institutional/daily_workflow.py lgb_enhanced_trainer.py
+# 删除 LGB 信号文件 (可选, 不影响其他模块)
+# Remove-Item -Recurse -Force models/lgb_enhanced/lgb_enhanced_signals.json
+pytest tests/ -v  # 回到 233 个测试全过
+```
+
+#### 下一步规划
+
+1. **2026-07-27 实盘交易日验证**：观察 daily_workflow 日志 `LGB 增强信号加载` 信息，确认 23 个标的全注入
+2. **影子账户 Stage 1 累积数据**：待 14 天最小周期后评估上调 `lgb_enhanced_weight`（当前 0.04 → 目标 0.08-0.10）
+3. **低质量标的专项优化**：若 688981/600036/600219 持续表现不佳，可单独调参（如 `learning_rate=0.001` + 增加 `min_child_samples`）
+4. **新闻情绪因子扩展**：当前 6 个情绪特征，后续可加入社交媒体情绪（雪球/股吧）扩展情绪因子集
+
+---
+
 ## 系统概述
 
-综合量化策略系统 v8.6.5 是一个专业量化交易平台，历经 v8.3 风控守卫强制执行 → v8.4 持仓精准优化 → v8.5 自动交易计划部署 → v8.6 V9 影子账户灰度发布 → v8.6.1 顶级对冲基金风控审计修复 → v8.6.3 因子流水线 IC 加权组合方法学闭环 → v8.6.4 因子流水线深度接入生产 → **v8.6.5 第二轮 CRO 黑天鹅防御审计修复**，结合 v8.2 双LLM架构 + v8.3 四模块风控联动 + v8.6 影子账户 fail-fast + v8.6.1 fail-closed 三层防护 + v8.6.5 EOD Guard 真实生效 + Windows 任务 SYSTEM 自动运行，实现了从"纸面风控建议"→"代码强制执行"→"数据驱动仓位最优化"→"纸面风控→真实可执行风控"→**"EOD Guard 失效→真实生效"** 的五级进化。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万 + 对冲保护账户 200万**（注：README 历史版本存在账户结构描述不一致，以 `config/positions.json::meta.stock_etf_capital=3000000` 和 `hedge_capital=2000000` 为准），目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
+综合量化策略系统 v8.7 是一个专业量化交易平台，历经 v8.3 风控守卫强制执行 → v8.4 持仓精准优化 → v8.5 自动交易计划部署 → v8.6 V9 影子账户灰度发布 → v8.6.1 顶级对冲基金风控审计修复 → v8.6.3 因子流水线 IC 加权组合方法学闭环 → v8.6.4 因子流水线深度接入生产 → v8.6.5 第二轮 CRO 黑天鹅防御审计修复 → v8.6.7 测试金字塔体系建立 → v8.6.9 GitHub 热门项目深度集成（第 6 信号源）→ **v8.7 LightGBM 增强信号接入交易流水线（第 7 信号源）**，结合 v8.2 双LLM架构 + v8.3 四模块风控联动 + v8.6 影子账户 fail-fast + v8.6.1 fail-closed 三层防护 + v8.6.5 EOD Guard 真实生效 + v8.6.7 测试金字塔 + v8.6.9 RIA--TV++ 研究蒸馏 + v8.7 真实 OHLCV + 新闻情绪因子 GPU 训练，实现了从"纸面风控建议"→"代码强制执行"→"数据驱动仓位最优化"→"纸面风控→真实可执行风控"→"EOD Guard 失效→真实生效"→"被动审计→主动防御"→**"7 信号源完整融合 + 低质量标的自动降权"** 的七级进化。系统以 **500 万元人民币** 为基础管理规模，分为 **股票ETF账户 300万 + 对冲保护账户 200万**（注：README 历史版本存在账户结构描述不一致，以 `config/positions.json::meta.stock_etf_capital=3000000` 和 `hedge_capital=2000000` 为准），目标年化收益 ≥ 8%，最大回撤控制在 15% 以内，**2030-12-31 全部清仓**。
 
 **v8.3 核心升级（风控守卫强制执行 + PUT引擎去重）**：
 - **五大风控模块**（2026-07-26 审计修正）：`utils/hedge_execution_engine.py` / `utils/vol_target_controller.py` / `utils/protective_put_engine.py` / `utils/risk_guard_integrator.py` + `research/backtest_current_portfolio.py`；配置加载由 `utils/v10_config_loader.py` 承担（审计 P1-A 修正：原 README 误列的 `utils/master_config_manager.py` 实际不存在）；`backtest_current_portfolio.py` 实际路径为 `research/backtest_current_portfolio.py`
@@ -488,6 +703,8 @@ python -m pytest tests/ --cov=utils --cov-report=html
 | **fail-closed** | **✅ 三层防护** | v8.6.1 修复：phase_check 设 FAIL / run() 检查终止 / phase_execute 双重保险 |
 | **因子流水线** | **8 级流水线 + IC 加权组合** | v8.6.3：G1-G4 + Enhancement + Shadow + Committee + IC 加权组合；2 个 approved 因子（VT_MICRO_VOL_SKEW_INV / VT_QUALTREND_MARGIN_EXP）；IC 加权组合 live_dsr=+2.2033, max_dd=0.0323 |
 | **IC 加权组合** | **✅ 生产集成（lookback=10）** | v6.9 优化：VT_MICRO_VOL_SKEW_INV + VT_QUALTREND_MARGIN_EXP × Config_E_plus1，实测 IC_IR=+0.5840, total_return=+0.3290 |
+| **信号融合引擎** | **✅ 7 信号源完整融合（v8.7）** | v8.7：alpha(0.70) + llm(0.10) + etf(0.12) + macro(0.08) + pipeline(0.05) + research(0.03) + lgb(0.04)；post-mix 模式不修改主融合公式 |
+| **LGB 增强信号** | **✅ 第 7 信号源已接入（v8.7）** | 23 标的平均 IC=0.1631, 20 OK + 3 LOW_QUALITY（688981/600036/600219 降权 50%）；GPU 训练 + 真实 OHLCV + 新闻情绪因子；4 层 NaN 防御；仅影响影子账户 |
 
 
 ---
@@ -1519,6 +1736,8 @@ export IFIND_TOKEN="your_jwt_token_here"
 
 | 版本 | 日期 | 主要变更 |
 |------|------|----------|
+| **v8.7** | 2026-07-26 | **LightGBM 增强信号接入交易流水线（第 7 信号源 + GPU 训练 + LOW_QUALITY 降权机制）**：将离线训练的 LightGBM 增强模型接入生产交易流水线，作为第 7 信号源（post-mix 模式，权重 0.04）。**核心成果**：23 个标的全覆盖，平均 IC=0.1631（IC>0.3 的 6 个，IC>0.2 的 9 个），20 个 OK + 3 个 LOW_QUALITY（688981/600036/600219）。**训练数据**：真实 OHLCV 502 日（Wind MCP 优先 → iFinD → 通达信 → AKShare → 新浪多级回退）+ 新闻情绪因子（Wind MCP 优先 → iFinD 回退，按 publish_time 分配到日期），特征构成 `technical_37 + extended_16 + sentiment_6 = 59`，标签 horizon=5 日（提升震荡市 IC）。**GPU 加速**：启用 LightGBM 4.3.0 OpenCL（`device_type='gpu'`），新增 `_train_lgb_with_fallback()` 函数实现 GPU→CPU 自动回退（失败后全局禁用 GPU 后续直接 CPU）。**signal_fusion 集成**：`utils/signal_fusion.py` 新增 `inject_lgb_enhanced_signals()` 方法（289-373 行）支持结构化和扁平两种格式，`_fuse_symbol` 新增 LGB post-mix 块（541-573 行）含 LOW_QUALITY 降权逻辑（effective_lgb_weight = 0.04 × 0.5 = 0.02），`sources` 加入 `lgb_enhanced_strength`，`meta` 加入 `lgb_enhanced_weight` / `effective_lgb_weight` / `lgb_quality_flag` / `lgb_enhanced_applied` 审计字段。**daily_workflow 集成**：`v8.3_institutional/daily_workflow.py` Phase 5 追加 LGB 信号加载块（4400-4463 行），从 `models/lgb_enhanced/lgb_enhanced_signals.json` 加载结构化信号，自动统计 OK/LOW_QUALITY 分布并写入 signal 元数据，完整降级链（文件不存在 / 信号为空 / 异常均不影响主流程，沿用 research_distilled 降级模式）。**4 层 NaN 防御链**：注入过滤 → 取值防御 → 融合后检查 → 最终边界裁剪。**LOW_QUALITY 降权设计**：保留信号方向（避免清零丢失 Alpha），但权重降至 50%（低质量信号可信度低），待后续积累更多样本或调优超参后可上调。**安全设计**：仅影响影子账户 Phase 10（NAV 计算），不影响 500万 实盘 Phase 6 执行订单；不修改主融合公式 `alpha(0.70)+llm(0.10)+etf(0.12)+macro(0.08)=1.00`，LGB 用 post-mix 叠加；不绕过 Kill Switch，触发熔断时一并清零。**lgb_enhanced_trainer.py 修复**：修复 Wind MCP 新闻接口导入路径（添加 `tools/` 到 `sys.path`），修复 `load_real_ohlcv` 标的代码后缀剥离（`.SH`/`.SZ` → 纯 6 位代码），修复 `train_symbol_enhanced` 函数变量作用域错误（`code` → `symbol`）。**验证脚本**：`scripts/_verify_lgb_signal_integration_v87.py`（7 项测试全过：信号文件加载 / 结构化注入 / 扁平注入 / post-mix 逻辑 / NaN 防御 / 边界条件 / 端到端集成）+ `scripts/_smoke_lgb_integration.py`（快速烟雾测试模拟 daily_workflow 调用路径）。**信号样本（2026-07-26 训练结果）**：海光信息 +0.9946 / 绿的谐波 +0.9939 / 中际旭创 +0.9895 / 藏格矿业 +0.9537 / 特变电工 +0.9344 / 中芯国际 +0.9328 (LOW_QUALITY)。**下一步规划**：① 2026-07-27 实盘交易日验证 daily_workflow 日志 `LGB 增强信号加载` 信息 ② 影子账户 Stage 1 累积 14 天数据后评估上调 `lgb_enhanced_weight`（0.04 → 0.08-0.10） ③ 低质量标的（688981/600036/600219）专项超参调优 ④ 新闻情绪因子扩展（加入雪球/股吧社交媒体情绪） |
+| **v8.6.9** | 2026-07-26 | **GitHub 热门项目深度集成（开发工具 + 第 6 信号源 + 金融多Agent Shadow Mode）**：将 2026 年 7 月第 4 周 GitHub Trending Top 10 中 3 个相关项目深度集成到生产代码（非 shallow clone 参考）。**① code-review-graph**（+4,791 星）— 本地代码智能图谱工具，uv tool 隔离安装 + MCP server + AI skill，5710 节点/80792 边，仅开发时使用不影响生产。**② research_distiller**（基于 cangjie-skill +1,364 星 RIA--TV++ 方法论）— 原生重写为 `utils/research_distiller.py`（42KB），将研报/业绩会/财经书籍蒸馏为交易信号，作为系统**第 6 信号源**（保守权重 0.03，post-mix 模式不修改主融合公式 `alpha(0.70)+llm(0.10)+etf(0.12)+macro(0.08)=1.00`）；离线蒸馏（06:00 `scripts/distill_research_batch.py`）+ 在线注入（07:00 daily_workflow Phase 5）；4 层 NaN 防御（注入过滤→取值防御→融合后检查→边界裁剪）；降级链 LLM→规则引擎→空信号；仅影响影子账户 Phase 10，不影响 500万 实盘。**③ finance_agent_orchestrator**（基于 awesome-llm-apps +5,385 星 ai-hedge-fund 架构）— 原生实现 `utils/finance_agent_orchestrator.py`（16KB）+ 5 个专家 Agent（`utils/finance_agents/`：ValueAgent/MomentumAgent/SentimentAgent/RiskAgent/MacroAgent），加权投票 `value(0.25)+momentum(0.25)+sentiment(0.15)+risk(0.25)+macro(0.10)`，RiskAgent 拥有 veto 权；Shadow Mode 不入信号路径，仅写审计日志 `data/agent_orchestrator_audit/shadow_diffs_YYYYMMDD.jsonl`。**signal_fusion 集成**：`utils/signal_fusion.py` 新增 `inject_research_distilled_signals()` 方法 + `research_distilled_weight=0.03` 参数 + post-mix 4 层 NaN 防御 + sources/meta 字段。**daily_workflow 集成**：`v8.3_institutional/daily_workflow.py` Phase 5 追加研究蒸馏信号注入块（独立 try/except 降级，第 4355 行）。**AIReportAgent 适配**：`utils/ai_report_agent.py` 追加 `to_agent_decision()` 方法（向后兼容）。**测试覆盖**：新增 93 个测试（单元 67 + 集成 17 + E2E 9），全过运行时间 ~2 秒，总计 233 个测试全过无回归。方案文档 `.trae/documents/GitHub热门项目深度集成方案_2026-07-26.md`，模式提取 `research/references/awesome-llm-apps-patterns/PATTERN_EXTRACTION.md`（29KB，研究 5 个金融 Agent 项目） |
 | **v8.6.7** | 2026-07-26 | **测试金字塔体系建立（从"被动审计"转向"主动防御"）**：前两轮 CRO 审计（v8.6.1/v8.6.5）虽然每次都发现并修复了 P0/P1 级 bug，但每次审计后又会出现新 bug —— 根本原因是"修复—审计—再修复"循环没有回归测试保护已修复的 bug。v8.6.7 建立**测试金字塔**：3 层结构（单元 86 个 71.7% + 集成 26 个 21.7% + E2E 8 个 6.7% = 120 个测试用例，全部通过，运行时间 51~59 秒，覆盖率 65.20%），覆盖 5 条关键链路：①EOD 七 Guard 链 ②KillSwitch 三级熔断 ③报告数据结构兼容 ④fail-closed 保守保护 ⑤对冲执行+认沽+去重；每个已修复 bug 都有对应回归测试（`@pytest.mark.bug('P0-D')` / `@pytest.mark.bug('P0-E')` 等），永不回归。新增 12 个测试文件：6 个单元测试（`tests/unit/test_kill_switch_unit.py` 15 个 / `test_hedge_execution_engine_unit.py` 13 个 / `test_market_circuit_breaker_unit.py` 14 个 / `test_overnight_gap_monitor_unit.py` 20 个 / `test_pnl_report_compat_unit.py` 11 个 / `test_risk_guard_integrator_unit.py` 13 个）+ 5 个集成测试（`tests/integration/test_eod_guard_chain_integration.py` 3 个 / `test_kill_switch_protocol_integration.py` 5 个 / `test_fail_closed_integration.py` 6 个 / `test_report_compat_integration.py` 7 个 / `test_hedge_dedup_integration.py` 5 个）+ 1 个 E2E 测试（`tests/e2e/test_eod_full_chain_e2e.py` 8 个，使用真实 `daily_pnl_report_2026-07-21.json` 26 标的作为黄金样本）。关键模块覆盖率：`hedge_execution_engine.py` 78.26% / `market_circuit_breaker.py` 73.83% / `overnight_gap_monitor.py` 70.14% / `risk_guard_integrator.py` 62.19% / `kill_switch.py` 54.51%。新增 pytest 配置 `pytest.ini` + `.coveragerc` + 顶层 `tests/conftest.py`（共享 fixture：`tmp_kill_switch_log`/`production_env`/`sample_pnl_report_full`/`broken_hedge_positions_p0e` 等）+ 三层目录各有独立 conftest.py。修复 v8.6.5 遗留的 L2 级 `circuit_level` 覆盖问题（`OvernightGapMonitor`/`MarketCircuitBreaker` 在 L2 时无条件设置 `WARNING` 覆盖 L3 的 `CRITICAL`，改为仅当非 `CRITICAL` 时才覆盖）。结论：测试金字塔不替代审计，而是固化审计成果 — 每次审计发现新 bug → 修复 → 写回归测试 → 下次审计只关注新领域，这才是断根"每次都有 bug"的方法 |
 | **v8.6.5** | 2026-07-26 | **第二轮 CRO 黑天鹅防御审计修复（3 个 P0 级致命 bug）**：以世界顶级对冲基金 CRO 视角审计黑天鹅极端市场对冲能力，CRO 综合评分 **3.5/10 → 7.5/10**（+114%）。**P0-D 修复**：`utils/risk_guard_integrator.py:463-465` EOD Guard KillSwitch 检查完全失效 — `pnl_summary.get('margin_used', 0)` 在字段值为 None 时返回 None 而非默认值 0，导致 `trade_plan.kill_switch.level=0` 但同期 `kill_switch_events.jsonl` 显示 L2 已触发（margin_usage=80.36%）；修复为 None 时回退到 `KillSwitch._estimate_margin_from_positions()` 真实估算。**P0-E 修复**：`utils/hedge_execution_engine.py:264` 对冲执行引擎崩溃 — `hedge_positions` 包含 `description`/`hedge_mode`/`budget_summary` 等字符串字段，遍历时 `hedge_pos.get(...)` 抛 `'str' object has no attribute 'get'`，每次 EOD 对冲订单生成都失败；修复为添加 `isinstance(hedge_pos, dict)` 类型检查。**P0-F 修复**：`v8.3_institutional/setup_scheduled_tasks.bat` Windows 任务从未运行 — schtasks 缺少 `/rl HIGHEST /ru SYSTEM`，4 个任务以 Interactive only 模式注册（Last Run=1999/11/30 占位符），用户登出/锁屏时不触发；修复为添加 `/rl HIGHEST /ru SYSTEM` + 复制 `run_weekly_auto_20260727.bat` 到通用名 `run_weekly_auto.bat`。验证脚本 `scripts/verify_p0_fixes.py` 全部通过：P0-D `margin_usage=0.8036, level=2, can_trade=False`；P0-E 生成 1 个 IF 空头 + 4 个 Put 期权（总权利金 ¥1,650,000）；P0-F 4 个任务全部 `Run As User: SYSTEM + Interactive/Background` |
 | **v8.6.4** | 2026-07-26 | **因子流水线深度接入生产（影子账户层）**：将 v8.6.3 的"研究层面方法学闭环"升级为"代码闭环"——`PipelineResult.factor_combinations` 现被 `utils/portfolio_optimizer.py::PortfolioOptimizer` 真实消费，影响 Phase 10 影子账户 NAV 计算（不影响 500 万实盘）；新建 `utils/portfolio_optimizer.py`（20560 bytes）实现 `adjust_target_weights()`（保守权重 alpha=0.05）+ `load_factor_signals()` + `run_offline_pipeline()`；新建 `scripts/run_pipeline_factor_offline.py` 离线入口脚本；`utils/signal_fusion.py` 新增 `inject_pipeline_factor_signals()` 第 5 信号源（保守权重 0.05，前 4 源归一化为 0.95）；`v8.3_institutional/daily_workflow.py` Phase 5 集成 PortfolioOptimizer 调用 + Phase 10 修复 target_weights 真实计算（隐藏 P0-C bug：原 `phase_signal()` 从未设置 target_weights → NAV 恒为 1.0 → fail-fast 永不触发）；新建 `utils/qmt_broker.py` re-export shim 修复 P1-C 路径不一致；README 修复 P1-A `master_config_manager.py` 引用（实际不存在，由 `v10_config_loader.py` 替代）+ P1-D `daily_workflow.py` 目录前缀标注；注册 `QuantPipelineFactor_06AM` Windows 任务（每日 06:00 触发离线因子生成）；修复后 P0-A/B/C + P1-A/B/C/D 全部完成，待 2026-07-27 06:00/07:00 真实触发验证；详细修复记录 `docs/AUDIT_FIX_CHANGELOG_2026-07-26.md` |

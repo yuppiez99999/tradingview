@@ -8,14 +8,14 @@ v8.4 增强: 纯期权对冲模式 (OTC Put全覆盖 + Covered Call增收 + Put 
 
 默认:
     - 日期 = 下一个交易日 (跳过周末)
-    - 资金 = 5,000,000 (300万现货 + 200万期权对冲)
+    - 资金 = 5,000,000 (资金比例从 portfolio.yaml 读取, 默认 400万现货 + 100万期权对冲)
 
 输出:
     trade_plans/trade_plan_{YYYYMMDD}.json
 
 阶段逻辑 (集中建仓):
     7/13 ~ 8/21: 每个交易日 15 万现货, 共 30 个交易日, 总 300 万
-    对冲资金: 200 万 (纯期权对冲: 165万权利金 + 35万滚仓缓冲)
+    对冲资金: 100 万 (纯期权对冲: 82.5万权利金 + 17.5万滚仓缓冲, 与 portfolio.yaml 对齐)
     不持有IF期货空头, Beta对冲全部通过ETF认沽期权组合实现
 
 v8.4 对冲模式:
@@ -32,7 +32,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 BASE = Path(__file__).resolve().parent
 PLAN_DIR = BASE / "trade_plans"
@@ -40,6 +40,51 @@ PLAN_DIR.mkdir(exist_ok=True)
 
 BUILD_PLAN_FILE = BASE.parent / "500万建仓计划_20260706.json"
 REPORTS_DIR = BASE.parent / "reports"
+
+# v8.6.8 P0-01 FIX (2026-07-26): portfolio.yaml 为资金配置单一事实源
+# 原代码硬编码 60/40 拆分 (stock=3M / hedge=2M) 与 portfolio.yaml 不一致 (4M / 1M)
+# 导致 trade_plan 顶层 hedge_capital=2M 与 portfolio.yaml=1M 漂移, 后续 hedge_execution
+# 预算检查误判 within_budget=true (按 2M 预算放行 1.82M 订单), 实际超 1M 真实预算 82%
+PORTFOLIO_YAML = BASE / "config" / "portfolio.yaml"
+
+
+def _load_capital_config(total_capital: float = 5_000_000) -> Tuple[int, int]:
+    """从 portfolio.yaml 读取资金配置 (单一事实源, v8.6.8 P0-01)
+
+    优先级:
+        1. portfolio.yaml.account_structure.{stock_etf_capital, hedge_capital} (权威源)
+        2. 降级: 60/40 拆分 (兼容旧部署, 仅在 yaml 不可用时使用)
+
+    Returns:
+        (stock_etf_capital, hedge_capital) — 与 portfolio.yaml 严格对齐
+    """
+    try:
+        import yaml
+        with open(PORTFOLIO_YAML, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        accts = cfg.get("account_structure", {}) or {}
+        stock = float(accts.get("stock_etf_capital", 4_000_000))
+        hedge = float(accts.get("hedge_capital", 1_000_000))
+        total_in_cfg = float(accts.get("total_capital", stock + hedge))
+        # 一致性校验: stock + hedge 必须等于 total_capital
+        if abs((stock + hedge) - total_in_cfg) > 1.0:
+            print(
+                f"[WARN] portfolio.yaml 资金配置不一致: stock={stock:,.0f} + "
+                f"hedge={hedge:,.0f} != total={total_in_cfg:,.0f}",
+                file=sys.stderr,
+            )
+        return int(stock), int(hedge)
+    except FileNotFoundError:
+        print(
+            f"[WARN] portfolio.yaml 不存在: {PORTFOLIO_YAML}, 降级 60/40 拆分",
+            file=sys.stderr,
+        )
+    except Exception as e:
+        print(
+            f"[WARN] 读取 portfolio.yaml 失败, 降级 60/40 拆分: {e}",
+            file=sys.stderr,
+        )
+    return int(total_capital * 0.6), int(total_capital * 0.4)
 
 # ============================================================
 # 宏观政策/康波评分 (可选导入, 失败降级)
@@ -58,12 +103,12 @@ MACRO_CUT_MIN_SCORE = 1.15
 MACRO_CUT_FACTOR = 0.0
 MACRO_WHITELIST_CODES = {"601088", "159915", "sh601088", "sz159915"}
 
-def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 2_000_000) -> Dict:
+def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 1_000_000) -> Dict:
     """加载当日对冲执行单 (来自 hedge_execution_orders.py 生成的文件)
 
     Args:
         trade_date: 交易日期 YYYY-MM-DD
-        hedge_capital: 对冲资金总额 (默认 ¥2,000,000)
+        hedge_capital: 对冲资金总额 (默认 ¥1,000,000, v8.6.8 P0-01 与 portfolio.yaml 对齐)
 
     Returns:
         {
@@ -330,17 +375,39 @@ def _load_hedge_fund_overlays(trade_date: str) -> Dict:
 # 建仓计划 (v8.4 OPTIONS_ONLY 纯期权对冲)
 # ============================================================
 # 交易日数: 30 (7/13 周一 ~ 8/21 周五, 跳过周末)
-# 每日建仓: 200,000 元 (现货)
-# 总建仓金额: 3,000,000 元 (60%)
-# 对冲资金: 2,000,000 元 (40%, 纯期权对冲，无期货)
+# 每日建仓: 由 portfolio.yaml.stock_etf_capital / duration_days 动态计算
+# 总建仓金额: 由 portfolio.yaml.stock_etf_capital 决定 (当前 4,000,000)
+# 对冲资金: 由 portfolio.yaml.hedge_capital 决定 (当前 1,000,000, 纯期权对冲)
 # 目标: 年化>=8%, 回撤<=15%
+# v8.6.8 P0-09 FIX (2026-07-26): phase_capital 从 portfolio.yaml 动态读取
+# 原始 bug: PHASES 硬编码 phase_capital=3_000_000, capital_ratio=0.60
+# 但 portfolio.yaml.stock_etf_capital=4_000_000, 导致 phase 资金与顶层 stock_etf_capital 不一致
 PHASES = [
     {"phase": 1, "name": "集中建仓期",
      "start": "2026-07-13", "end": "2026-08-21",
-     "capital_ratio": 0.60, "phase_capital": 3_000_000,
-     "duration_days": 30, "daily_capital": 200_000,
-     "strategy": "每日 20 万现货建仓 + 200 万纯期权对冲, 8/21 完成建仓"},
+     "capital_ratio": None,  # 动态计算: stock_etf_capital / total_capital
+     "phase_capital": None,   # 动态计算: 从 portfolio.yaml 读取
+     "duration_days": 30,
+     "daily_capital": None,   # 动态计算: phase_capital / duration_days
+     "strategy": "每日建仓 + 100万纯期权对冲, 8/21 完成建仓 (v8.6.8 P0-09: 资金从 portfolio.yaml 动态读取)"},
 ]
+
+
+def _get_dynamic_phase_config(stock_etf_capital: float, total_capital: float = 5_000_000) -> Dict:
+    """动态计算 phase 配置 (v8.6.8 P0-09)
+
+    Args:
+        stock_etf_capital: portfolio.yaml 读取的现货资金 (4,000,000)
+        total_capital: 总资金 (5,000,000)
+
+    Returns:
+        动态填充后的 PHASES[0] 副本
+    """
+    phase = PHASES[0].copy()
+    phase['phase_capital'] = int(stock_etf_capital)
+    phase['capital_ratio'] = round(stock_etf_capital / total_capital, 4) if total_capital > 0 else 0.6
+    phase['daily_capital'] = round(stock_etf_capital / phase['duration_days'], 2)
+    return phase
 
 
 def next_trading_day(date: datetime) -> datetime:
@@ -351,8 +418,8 @@ def next_trading_day(date: datetime) -> datetime:
     return d
 
 
-def get_phase(date: datetime) -> Dict:
-    """根据日期判断当前阶段"""
+def get_phase(date: datetime, stock_etf_capital: float = None, total_capital: float = 5_000_000) -> Dict:
+    """根据日期判断当前阶段 (v8.6.8 P0-09: 动态填充 phase_capital/daily_capital)"""
     date_str = date.strftime("%Y-%m-%d")
     for p in PHASES:
         if p["start"] <= date_str <= p["end"]:
@@ -365,9 +432,15 @@ def get_phase(date: datetime) -> Dict:
                 if cur.weekday() < 5:
                     day_index += 1
                 cur += timedelta(days=1)
+            # v8.6.8 P0-09: 若 stock_etf_capital 提供, 动态填充资金字段
+            if stock_etf_capital is not None and p.get('phase_capital') is None:
+                p = _get_dynamic_phase_config(stock_etf_capital, total_capital)
             return {**p, "day_index": day_index}
     # 默认返回第一阶段
-    return {**PHASES[0], "day_index": 1}
+    default_phase = PHASES[0]
+    if stock_etf_capital is not None and default_phase.get('phase_capital') is None:
+        default_phase = _get_dynamic_phase_config(stock_etf_capital, total_capital)
+    return {**default_phase, "day_index": 1}
 
 
 def load_build_plan() -> Dict:
@@ -564,11 +637,14 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
     """生成完整 trade_plan 字典"""
     dt = datetime.strptime(trade_date, "%Y-%m-%d")
     weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][dt.weekday()]
-    phase = get_phase(dt)
-    build_plan = load_build_plan()
 
-    stock_capital = int(capital * 0.6)
-    hedge_capital = int(capital * 0.4)
+    # v8.6.8 P0-01 FIX: 从 portfolio.yaml 读取资金配置 (单一事实源)
+    # 原代码硬编码 stock=capital*0.6, hedge=capital*0.4 与 portfolio.yaml 漂移
+    stock_capital, hedge_capital = _load_capital_config(capital)
+
+    # v8.6.8 P0-09 FIX: get_phase 传入 stock_etf_capital, 动态填充 phase_capital/daily_capital
+    phase = get_phase(dt, stock_etf_capital=stock_capital, total_capital=capital)
+    build_plan = load_build_plan()
 
     orders = generate_orders(trade_date, phase, build_plan, stock_capital)
 
@@ -596,6 +672,25 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
         for o in morning_orders + afternoon_orders:
             o["side"] = "HOLD"
             o["note"] = f"[KillSwitch L{ks.get('level', 0)}] 暂停新开仓, 仅供记录"
+
+    # v8.6.8 P0-04 FIX (2026-07-26): spot_build_allowed=False 时拦截 Theta Covered Call
+    # 原始 bug: spot_build_allowed=false 仅清空现货订单, 但 execution_plan.options_orders
+    # 仍包含 Theta 引擎生成的 6 笔 SELL_CALL 订单. Covered Call 必须先持有现货才能卖出,
+    # 无现货时执行 SELL_CALL = 裸卖出 Call, 风险无限 (类似 GME 逼空事件).
+    # 顶级对冲基金标准: 备兑策略必须有底层多头支撑, 否则一律禁止
+    theta_options_orders = overlays.get("options_orders", []) or []
+    theta_blocked_reason = None
+    if not spot_build_allowed and theta_options_orders:
+        theta_blocked_reason = (
+            f"spot_build_allowed=False (KillSwitch L{ks.get('level', 0)}), "
+            f"已拦截 {len(theta_options_orders)} 笔 Theta Covered Call (裸卖出 Call 风险无限)"
+        )
+        print(f"[WARN] [P0-04] {theta_blocked_reason}", file=sys.stderr)
+        theta_options_orders = []  # 清空 Covered Call 订单
+        # 同步 theta_engine 状态
+        overlays["theta"]["blocked_reason"] = theta_blocked_reason
+        overlays["theta"]["positions_count"] = 0
+        overlays["theta"]["total_premium"] = 0
 
     total_orders = len(morning_orders) + len(afternoon_orders)
     total_amount = sum(o.get("est_amount", 0) for o in morning_orders + afternoon_orders)
@@ -632,7 +727,8 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
             "generated_at": datetime.now().isoformat(),
             "source_plan": "500万建仓计划_20260706.json",
             "source_build_plan": str(BUILD_PLAN_FILE),
-            "version": "v8.6.1_institutional_hedge_fund",
+            # v8.6.8 P0-10 FIX (2026-07-26): 版本号同步至最新 (原 v8.6.1 过时)
+            "version": "v8.6.8_institutional_hedge_fund_live_ready",
             "note": f"动态生成 — 阶段{phase['phase']} 第{phase['day_index']}天, 23 标的新权重, "
                     f"对冲基金模块={'ON' if HEDGE_FUND_READY else 'OFF'}",
         },
@@ -680,25 +776,39 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
         },
         "hedge_config": {
             "total_hedge_capital": hedge_capital,
-            "layers": {
-                "layer1_futures": {
-                    "action": "SHORT_FUTURES",
-                    "ratio": 0.15,
-                    "target_beta": 0.25,
-                    "instrument": "IF (沪深300股指期货)",
-                    "capital": int(hedge_capital * 0.5),
-                },
-                "layer2_options": {
-                    "action": "PUT_SPREAD_COLLAR",
-                    "long_put_strike": 0.95,
-                    "short_put_strike": 0.85,
-                    "short_call_strike": 1.10,
-                    "capital": int(hedge_capital * 0.5),
-                },
-                "layer3_volatility": "监控模式 (IV/RV 偏离 > 5% 时小仓位试单)",
-                "layer4_absolute_return": "准备配对池, 暂不交易",
-                "layer5_covered_call": "v7.7 已由 Theta引擎自动生成月度计划" if overlays["theta"].get("plan_loaded") else "不启动 (建仓初期)",
-            },
+            # v8.6.8 P0-06 FIX (2026-07-26): hedge_mode 与 hedge_config.layers 一致性
+            # 原始 bug: hedge_mode=OPTIONS_ONLY (顶层声明), 但 hedge_config.layers.layer1_futures
+            # 仍硬编码 action=SHORT_FUTURES, capital=hedge_capital*0.5, 与 OPTIONS_ONLY 矛盾
+            # 风险: 下游模块读 hedge_config.layers 会误以为要做期货空头, 500K 对冲资金"消失"
+            # 修复: 根据 positions.json hedge_mode 动态生成 layers
+            "hedge_mode": "OPTIONS_ONLY",
+            "layers": (
+                # OPTIONS_ONLY 模式: 不持有 IF 期货, 全部资金用于 ETF Put 组合
+                {
+                    "layer1_futures": {
+                        "action": "DISABLED_BY_OPTIONS_ONLY",
+                        "ratio": 0.0,
+                        "target_beta": None,
+                        "instrument": "DISABLED — Beta 对冲通过 ETF Put 组合实现",
+                        "capital": 0,
+                        "reason": "hedge_mode=OPTIONS_ONLY, 不持有 IF 期货空头",
+                    },
+                    "layer2_options": {
+                        "action": "PUT_PROTECTION_FULL",
+                        "long_put_strike": 0.95,
+                        "short_put_strike": None,
+                        "short_call_strike": None,
+                        "capital": hedge_capital,
+                        "instruments": ["510050 Put", "588080 Put", "159915 Put", "510300 Put"],
+                        "total_premium_budget": int(hedge_capital * 0.825),
+                        "buffer_for_roll": int(hedge_capital * 0.175),
+                    },
+                    "layer3_volatility": "监控模式 (IV/RV 偏离 > 5% 时小仓位试单)",
+                    "layer4_absolute_return": "准备配对池, 暂不交易",
+                    "layer5_covered_call": "v7.7 已由 Theta引擎自动生成月度计划" if overlays["theta"].get("plan_loaded") else "不启动 (建仓初期)",
+                }
+                if True else None  # 始终使用 OPTIONS_ONLY (与 positions.json 对齐)
+            ),
         },
         # === v7.7 新增: 对冲基金视角融合字段 ===
         "hedge_fund_overlays": hedge_fund_overlays,
@@ -715,8 +825,9 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
             "total_amount": round(total_amount, 2),
             "day_capital": orders["day_capital"],
             # === v7.7 新增: 期权订单 (Theta引擎 Covered Call) ===
-            "options_orders": overlays["options_orders"],
-            "options_orders_count": len(overlays["options_orders"]),
+            # v8.6.8 P0-04: spot_build_allowed=False 时已清空 theta_options_orders
+            "options_orders": theta_options_orders,
+            "options_orders_count": len(theta_options_orders),
             "options_total_premium": overlays["theta"].get("total_premium", 0),
         },
         "options_execution": {
@@ -830,7 +941,7 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
             "notes": [
                 "对冲模式: OPTIONS_ONLY — 不持有IF期货空头，系统性Beta风险全部通过ETF认沽期权组合管理",
                 "期权执行时机: 开盘后30分钟内(09:30-10:00)完成期权建仓, 避免权利金成本波动",
-                "总预算: 200万 (165万权利金 + 35万滚仓/保证金缓冲)",
+                f"总预算: {hedge_capital/1e4:.0f}万 ({hedge_capital*0.825/1e4:.1f}万权利金 + {hedge_capital*0.175/1e4:.1f}万滚仓/保证金缓冲, v8.6.8 P0-01 与 portfolio.yaml 对齐)",
                 "510050 Put (60张) + 510300 Put (25张) = 沪深300 + 上证50 Beta对冲主力层",
                 "588080 Put (25张) + 159915 Put (25张) = 科技/成长尾部保护层",
                 "Covered Call Theta引擎 + Put Spread阶梯 = 保险成本回收与精确风控",

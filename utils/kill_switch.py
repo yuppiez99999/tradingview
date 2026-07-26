@@ -122,8 +122,13 @@ class KillSwitch:
     def _estimate_margin_from_positions(self) -> float:
         """从 config/positions.json 读取持仓估算保证金占用率 (v8.6.1 修复)
 
-        替代原硬编码 0.20, 基于真实持仓市值计算保证金占用:
-            margin_usage_ratio = total_position_value / total_capital
+        v8.6.4 修复: 股票/ETF 是全额交易, 不应计入保证金占用.
+        只有期货/期权才需要保证金.
+
+        计算逻辑:
+            - type=STOCK/ETF: 不计入保证金占用 (全额交易)
+            - type=FUTURE: 按合约价值的 12% 估算保证金
+            - type=OPTION: 按权利金价值的 100% 估算保证金
 
         Returns:
             保证金占用率 (0.0-1.0), 文件不存在时返回保守值 0.50
@@ -131,7 +136,6 @@ class KillSwitch:
         import json
         from pathlib import Path
 
-        # 持仓文件路径 (项目根目录 / config / positions.json)
         project_root = Path(__file__).resolve().parent.parent
         positions_file = project_root / "config" / "positions.json"
 
@@ -145,28 +149,87 @@ class KillSwitch:
             with open(positions_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            # 从 meta 获取总资本
             total_capital = float(data.get("meta", {}).get("total_capital", 5_000_000))
+            hedge_capital = float(data.get("meta", {}).get("hedge_capital", 2_000_000))
 
-            # 累加所有持仓的 amount (市值)
             positions = data.get("positions", {})
+            hedge_positions = data.get("hedge_positions", {})
+            budget_summary = hedge_positions.get("budget_summary", {})
+
             total_position_value = 0.0
+            estimated_margin_usage = 0.0
+
+            # v8.6.7 CRITICAL FIX (2026-07-26): 期权买方模式下, 权利金已现金扣减,
+            # 不构成保证金占用. 此前将 budget_summary.usage_pct (预算消耗进度)
+            # 误当作 margin_usage_ratio, 导致每次启动都触发 L2 熔断.
+            #
+            # 概念区分:
+            #   - budget_summary.usage_pct = 已花权利金 / 对冲预算 (预算消耗进度, 正常 50-90%)
+            #   - margin_usage_ratio       = 实际保证金占用 / 总资金 (风险指标, ≥75% 才熔断)
+            #
+            # 纯期权对冲模式 (OPTIONS_ONLY) 下, 买方不付保证金, 仅卖方才需保证金.
+            # 因此遇到 budget_summary.usage_pct 时, 应跳过此分支, 落到下方真实持仓估算.
+            hedge_mode = data.get("meta", {}).get("hedge_mode", "")
+            if hedge_mode == "OPTIONS_ONLY" and budget_summary:
+                logger.info(
+                    "[KillSwitch] OPTIONS_ONLY 模式: 预算消耗 %.1f%% (非保证金占用), 跳过预算估算, 落入实际持仓估算",
+                    float(budget_summary.get("usage_pct", 0.0)),
+                )
+                # 不返回, 落到下方真实持仓循环 (OPTIONS_ONLY 通常无 FUTURE 持仓)
+            elif budget_summary:
+                # 非纯期权模式 (含期货): 尝试用预算汇总估算
+                usage_pct = budget_summary.get("usage_pct")
+                if usage_pct is not None:
+                    try:
+                        ratio = float(usage_pct) / 100.0
+                        ratio = max(0.0, min(1.0, ratio))
+                        logger.info(
+                            "[KillSwitch] 对冲预算估算保证金占用: usage_pct=%.1f%%, ratio=%.1f%%",
+                            float(usage_pct), ratio * 100,
+                        )
+                        return ratio
+                    except (TypeError, ValueError):
+                        pass
+
+                total_put_premium = budget_summary.get("total_put_premium")
+                total_hedge_capital = budget_summary.get("total_hedge_capital", hedge_capital)
+                if total_put_premium is not None and total_hedge_capital:
+                    try:
+                        ratio = float(total_put_premium) / float(total_hedge_capital)
+                        ratio = max(0.0, min(1.0, ratio))
+                        logger.info(
+                            "[KillSwitch] 对冲预算估算保证金占用: total_put_premium=¥%,.0f, total_hedge_capital=¥%,.0f, ratio=%.1f%%",
+                            float(total_put_premium), float(total_hedge_capital), ratio * 100,
+                        )
+                        return ratio
+                    except (TypeError, ValueError):
+                        pass
+
             for code, pos in positions.items():
                 amount = pos.get("amount", 0)
+                pos_type = pos.get("type", "").upper()
+
                 if amount and isinstance(amount, (int, float)):
-                    total_position_value += float(amount)
+                    amount_val = float(amount)
+                    total_position_value += amount_val
+
+                    if pos_type == "FUTURE":
+                        estimated_margin_usage += amount_val * 0.12
+                    elif pos_type == "OPTION":
+                        estimated_margin_usage += amount_val
 
             if total_capital <= 0:
                 logger.warning("total_capital <= 0, 使用保守保证金占用率 0.50")
                 return 0.50
 
-            ratio = total_position_value / total_capital
+            ratio = estimated_margin_usage / hedge_capital if hedge_capital > 0 else 0.0
             ratio = max(0.0, min(1.0, ratio))
 
             logger.info(
                 f"[KillSwitch] 持仓估算保证金: "
-                f"持仓市值=¥{total_position_value:,.0f}, "
-                f"总资本=¥{total_capital:,.0f}, "
+                f"总持仓市值=¥{total_position_value:,.0f}, "
+                f"估算保证金占用=¥{estimated_margin_usage:,.0f}, "
+                f"对冲资本=¥{hedge_capital:,.0f}, "
                 f"占用率={ratio:.1%}"
             )
             return ratio

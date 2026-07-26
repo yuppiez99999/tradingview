@@ -37,8 +37,12 @@ logger = logging.getLogger("hedge_execution_engine")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
-REPORTS_DIR = BASE_DIR / "v7.5_institutional" / "reports"
-TRADE_PLANS_DIR = BASE_DIR / "v7.5_institutional" / "trade_plans"
+# v8.6.8 P0-01 FIX (2026-07-26): 路径与生产环境对齐
+# 原路径 v7.5_institutional/ 为旧版本, 生产 daily_workflow + risk_guard_integrator
+# 均使用 v8.3_institutional/, 导致 write_to_trade_plan() 写入孤立文件, 生产 trade_plan
+# 缺失 execution_status / execution_notes 字段, 无法被下游执行器识别
+REPORTS_DIR = BASE_DIR / "v8.3_institutional" / "reports"
+TRADE_PLANS_DIR = BASE_DIR / "v8.3_institutional" / "trade_plans"
 
 
 class HedgeExecutionEngine:
@@ -320,12 +324,31 @@ class HedgeExecutionEngine:
         total_capital = self.positions_data.get("meta", {}).get("total_capital", 5_000_000)
         hedge_capital = self.positions_data.get("meta", {}).get("hedge_capital", 1_000_000)
 
-        # 生成期货对冲
-        futures_orders = self.generate_futures_hedge_orders(
-            portfolio_value=portfolio_value,
-            portfolio_beta=portfolio_beta,
-            drawdown_level=drawdown_level,
-        )
+        # v8.6.8 P0-01 FIX (2026-07-26): 检查 hedge_mode, OPTIONS_ONLY 模式跳过期货订单
+        # 原代码无视 portfolio.yaml/positions.json 的 hedge_mode=OPTIONS_ONLY 配置,
+        # 始终生成 IF 期货空头订单, 导致:
+        #   1. 与 portfolio.yaml "OPTIONS_ONLY" 模式声明冲突
+        #   2. 期货保证金 172K + 期权权利金 1.65M = 1.82M > 1M 预算, 误判超支
+        #   3. trade_plan.futures_options_hedge.hedge_mode=OPTIONS_ONLY 与 hedge_execution.futures_orders=[IF...] 矛盾
+        hedge_positions_cfg = self.positions_data.get("hedge_positions", {}) or {}
+        hedge_mode = str(hedge_positions_cfg.get("hedge_mode", "MIXED")).upper()
+        options_only_mode = (hedge_mode == "OPTIONS_ONLY")
+
+        if options_only_mode:
+            # 纯期权对冲模式: 不生成期货空头订单, Beta 风险通过 ETF Put 组合管理
+            futures_orders = []
+            target_beta_after = portfolio_beta  # 维持原 Beta, 由 Put 提供尾部保护
+            logger.info(
+                f"[P0-01] hedge_mode=OPTIONS_ONLY, 跳过 IF 期货订单生成, "
+                f"组合 Beta {portfolio_beta:.3f} 由 ETF Put 组合保护"
+            )
+        else:
+            # 混合对冲模式 (原行为): 生成期货 + 期权
+            futures_orders = self.generate_futures_hedge_orders(
+                portfolio_value=portfolio_value,
+                portfolio_beta=portfolio_beta,
+                drawdown_level=drawdown_level,
+            )
 
         # 生成期权保护
         options_orders = self.generate_put_protection_orders(
@@ -338,14 +361,25 @@ class HedgeExecutionEngine:
         total_premium = sum(o.get("premium_budget", 0) for o in options_orders)
         total_cost = total_margin + total_premium
 
-        # 预算检查
-        budget_ok = total_cost <= hedge_capital * 0.7  # 保留30%缓冲
+        # v8.6.8 P0-01 FIX: 预算阈值与 positions.json budget_summary 设计对齐
+        # 原公式 hedge_capital * 0.7 (30% 缓冲) 过于保守, 导致设计内预算 (825K) 也被误判超支
+        # 正确做法: 读取 budget_summary.buffer_for_roll_margin 作为缓冲, 预算阈值 = hedge_capital - buffer
+        # 若 budget_summary 不存在, 降级使用 0.85 (15% 缓冲, 与 budget_summary 17.5% 接近)
+        budget_summary = hedge_positions_cfg.get("budget_summary", {}) or {}
+        buffer_for_roll = float(budget_summary.get("buffer_for_roll_margin", hedge_capital * 0.15))
+        budget_threshold = max(hedge_capital - buffer_for_roll, 0)
+        budget_ok = total_cost <= budget_threshold
 
-        # 对冲效果预估
+        if not budget_ok:
+            logger.warning(
+                f"[P0-01] 对冲预算超支: total_cost=¥{total_cost:,.0f} > "
+                f"threshold=¥{budget_threshold:,.0f} (hedge_capital=¥{hedge_capital:,.0f} "
+                f"- buffer=¥{buffer_for_roll:,.0f}), 订单将标记为 CANCELLED_OVER_BUDGET"
+            )
+
+        # 对冲效果预估 (若期货订单被生成则取其 target_beta, 否则维持原 Beta)
         if futures_orders:
             target_beta_after = futures_orders[0]["rationale"]["target_beta"]
-        else:
-            target_beta_after = portfolio_beta
 
         result = {
             "generated_at": datetime.now().isoformat(),
@@ -365,6 +399,9 @@ class HedgeExecutionEngine:
                 "total_cost": round(total_cost, 0),
                 "hedge_capital_usage_pct": round(total_cost / hedge_capital, 4) if hedge_capital > 0 else 0,
                 "within_budget": budget_ok,
+                "budget_threshold": round(budget_threshold, 0),
+                "buffer_for_roll": round(buffer_for_roll, 0),
+                "hedge_mode": hedge_mode,
             },
             "hedge_effectiveness": {
                 "beta_reduction": round(portfolio_beta - target_beta_after, 4),
@@ -377,11 +414,11 @@ class HedgeExecutionEngine:
 
     def write_to_trade_plan(self, hedge_result: Dict, trade_date: str) -> str:
         """将对冲订单写入交易计划文件
-        
+
         Args:
             hedge_result: generate_hedge_orders() 返回的完整结果
             trade_date: 目标交易日 YYYY-MM-DD
-            
+
         Returns:
             写入的文件路径
         """
@@ -399,28 +436,66 @@ class HedgeExecutionEngine:
         else:
             plan = {"trade_date": trade_date}
 
+        # v8.6.8 P0-01 FIX (2026-07-26): 超预算订单必须标为 CANCELLED_OVER_BUDGET
+        # 原代码无视 within_budget 一律写 status=PENDING, 导致:
+        #   1. trade_plan.hedge_execution.cost_summary.within_budget=false 与 orders[].status=PENDING 矛盾
+        #   2. 顶级对冲基金标准: 超预算订单不应进入执行队列, 必须在生成阶段拦截
+        # 修复: within_budget=false 时, 所有订单 status 改为 CANCELLED_OVER_BUDGET,
+        #       execution_status 改为 CANCELLED, 防止下游执行器误读
+        cost_summary = hedge_result.get("cost_summary", {})
+        within_budget = bool(cost_summary.get("within_budget", True))
+
+        if within_budget:
+            execution_status = "PENDING"
+            order_status = "PENDING"
+            execution_notes = [
+                "期货: 09:45-10:30 完成IF空头开仓 (若存在)",
+                "期权: 09:30-10:00 完成认沽期权买入",
+                "确认: 盘后核实对冲比例是否达标",
+            ]
+        else:
+            execution_status = "CANCELLED"
+            order_status = "CANCELLED_OVER_BUDGET"
+            execution_notes = [
+                f"[P0-01] 预算超支, 全部对冲订单已拦截: "
+                f"total_cost=¥{cost_summary.get('total_cost', 0):,.0f} > "
+                f"threshold=¥{cost_summary.get('budget_threshold', 0):,.0f}",
+                "下游执行器 (daily_workflow/SOR) 必须跳过 CANCELLED_OVER_BUDGET 订单",
+                "需调整 hedge_positions 配置 (减少 contracts 或 premium_budget) 后重新生成",
+            ]
+
+        # 深拷贝订单并改写 status
+        futures_orders_copy = [dict(o, status=order_status) for o in hedge_result.get("futures_orders", [])]
+        options_orders_copy = [dict(o, status=order_status) for o in hedge_result.get("options_orders", [])]
+
         # 写入对冲执行字段
         plan["hedge_execution"] = {
             "generated_at": hedge_result["generated_at"],
             "drawdown_level": hedge_result.get("drawdown_level", 0),
             "portfolio_beta_before": hedge_result["portfolio_status"]["portfolio_beta_before"],
             "target_beta_after": hedge_result["portfolio_status"]["target_beta_after"],
-            "futures_orders": hedge_result["futures_orders"],
-            "options_orders": hedge_result["options_orders"],
+            "portfolio_status": hedge_result["portfolio_status"],
+            "futures_orders": futures_orders_copy,
+            "options_orders": options_orders_copy,
             "cost_summary": hedge_result["cost_summary"],
             "hedge_effectiveness": hedge_result["hedge_effectiveness"],
-            "execution_status": "PENDING",
-            "execution_notes": [
-                "期货: 09:45-10:30 完成IF空头开仓",
-                "期权: 09:30-10:00 完成认沽期权买入",
-                "确认: 盘后核实对冲比例是否达标",
-            ],
+            "execution_status": execution_status,
+            "execution_notes": execution_notes,
         }
+
+        # v8.6.8 P0-01: 同步 futures_options_hedge 字段一致性
+        # 原 trade_plan 已有 futures_options_hedge.hedge_mode=OPTIONS_ONLY 字段, 但 hedge_execution
+        # 仍生成 IF 期货订单, 两处字段自相矛盾; 现在 hedge_execution 也已对齐 hedge_mode
+        foh = plan.setdefault("futures_options_hedge", {})
+        foh["hedge_mode"] = cost_summary.get("hedge_mode", foh.get("hedge_mode", "MIXED"))
+        foh["orders"] = futures_orders_copy + options_orders_copy
+        foh["orders_count"] = len(foh["orders"])
+        foh["loaded"] = True
 
         with open(plan_path, 'w', encoding='utf-8') as f:
             json.dump(plan, f, ensure_ascii=False, indent=2)
 
-        logger.info(f"对冲执行计划已写入: {plan_path}")
+        logger.info(f"对冲执行计划已写入: {plan_path} (status={execution_status})")
         return str(plan_path)
 
     def write_hedge_report(self, hedge_result: Dict, trade_date: str) -> str:
