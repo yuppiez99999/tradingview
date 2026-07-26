@@ -215,3 +215,24 @@ research/vibe_trading_factor_analysis/reports/kill_switch/
 .memory/
 graphify-out/
 
+# === v8.7.2 临时调试/清理脚本不入版本库 (2026-07-27) ===
+# 一次性临时输出文件
+_tmp.txt
+_tmp_*.txt
+_mypy_out_tmp.txt
+_pylint_out_tmp.txt
+# 一次性 C 盘清理/扫描脚本（本地维护用，与项目无关）
+check_procs.ps1
+cleanup_c.ps1
+cleanup_fast.ps1
+list_jobs.ps1
+scan_fast.ps1
+scan_junk.ps1
+scan_large.ps1
+scan_roaming.ps1
+# 通用临时调试输出
+debug_*.txt
+debug_*.log
+tmp_*.txt
+out_*.txt
+
