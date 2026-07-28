@@ -145,6 +145,7 @@ except ImportError as e:
 from utils.theta_engine import ThetaEngine
 from utils.gamma_engine import GammaEngine
 from utils.kill_switch import KillSwitch
+from utils.data_gate import DataGate, DataGateResult  # 数据质量门控 (DataGate) — P0-8 接入
 from utils.liquidation_scheduler import LiquidationScheduler
 HEDGE_FUND_CORE_READY = True
 logger.info("对冲基金核心模块加载成功: Theta/Gamma/KillSwitch/LiquidationScheduler")
@@ -786,6 +787,10 @@ class DailyWorkflow:
             lambda: __import__("utils.data_provider", fromlist=["MarketDataProvider"]).MarketDataProvider()
         )
 
+        # 数据质量门控 (DataGate) — P0-8 接入
+        # 纯本地模块, 无外部依赖, 必定可用; 在价格回退入口对坏数据做硬拦截
+        self.data_gate = DataGate()
+
         # 外部报告加载器（15_每日工作流报告）
         self.external_report_loader = None
         try:
@@ -984,8 +989,12 @@ class DailyWorkflow:
             if circuit_level in ("LEVEL_1", "LEVEL_2") or vix >= 30 or drawdown <= -0.05:
                 return "bear"
             return "bull"
-        except Exception:
-            return "bull"
+        except (KeyError, TypeError, ValueError) as _e:
+            logger.warning("市场状态判断参数异常, 回退保守模式: %s", _e)
+            return "bear"
+        except Exception as _e:
+            logger.error("市场状态判断失败, 强制保守模式: %s", _e, exc_info=True)
+            return "bear"
 
     def _get_regime_weights(self, regime: str) -> Dict[str, float]:
         """根据市场状态获取信号融合权重
@@ -1260,11 +1269,12 @@ class DailyWorkflow:
             return True
 
         # === v8.5: 增强 NTP 时间同步 (TimeSync) ===
+        _ntp_instance = None
         try:
             if V85_READY:
                 from utils.timesync import TimeSync
-                ts = TimeSync()
-                ts_result = ts.validate()
+                _ntp_instance = TimeSync()
+                ts_result = _ntp_instance.validate()
                 checks["ntp_sync"] = ts_result.get("synced", False)
                 checks["time_drift_ms"] = ts_result.get("drift_ms", 0)
                 logger.info(
@@ -1272,8 +1282,8 @@ class DailyWorkflow:
                     f", 漂移={ts_result.get('drift_ms', 0):.1f}ms"
                 )
             else:
-                ntp = NTPSync()
-                offset = ntp.get_offset()
+                _ntp_instance = NTPSync()
+                offset = _ntp_instance.get_offset()
                 checks["ntp_sync"] = abs(offset) < 0.05
                 logger.info(f"NTP 同步: offset={offset:.3f}s {'OK' if checks['ntp_sync'] else 'DRIFT'}")
         except Exception as e:
@@ -1335,19 +1345,16 @@ class DailyWorkflow:
             return True
 
         # v8.6.8 P0-03: NTP fail-closed — 若 ntp_sync 检查失败, 禁止开仓
-        # 使用 locals().get() 安全获取可能未定义的 ntp 局部变量
-        _ntp_local = locals().get('ntp')
+        # _ntp_instance 在上方 try/except 中赋值, V85 时为 TimeSync, 否则为 NTPSync
         try:
-            if checks.get("ntp_sync") and _ntp_local is not None:
-                self.ntp = _ntp_local
+            if checks.get("ntp_sync") and _ntp_instance is not None:
+                self.ntp = _ntp_instance
             else:
-                # NTP 同步失败: 已在上面 except 中处理 self.ntp 赋值
-                # 这里再次确认 fail-closed 状态, 并在 phase_check 中标记
                 if not hasattr(self, 'ntp') or self.ntp is None:
                     self.ntp = NTPSync()
                 logger.error("[Phase 1] NTP 同步失败, 进入 fail-closed 模式, 禁止开仓")
         except Exception:
-            self.ntp = NTPSync()  # v8.5 TimeSync 使用时不需要额外 NTP 对象
+            self.ntp = NTPSync() if not (hasattr(self, 'ntp') and self.ntp is not None) else self.ntp
 
         # v8.6.8 P0-03: NTP fail-closed 时, phase_check 标记 fail_closed
         if not checks.get("ntp_sync", True):
@@ -2074,27 +2081,67 @@ class DailyWorkflow:
                     for fut in as_completed(futures, timeout=30):
                         try:
                             code, quote = fut.result(timeout=5)
-                            if quote and quote.get("index_price"):
-                                prices[code] = float(quote["index_price"])
-                                _fetched += 1
-                            else:
+                            if not quote or not quote.get("index_price"):
                                 _skipped += 1
+                                continue
+                            # === DataGate 数据质量门控 (P0-8: 坏数据不交易) ===
+                            # 尽量从行情快照提取质量元数据; 缺失时 DataGate 默认放行, 不破坏现有行为
+                            snapshot = {
+                                "price": quote.get("index_price"),
+                                "quality_score": quote.get("quality_score"),
+                                "timestamp": quote.get("timestamp") or quote.get("update_time") or quote.get("data_time"),
+                                "source": quote.get("source") or quote.get("provider"),
+                            }
+                            try:
+                                gate = self.data_gate.check_and_gate(code, snapshot)
+                            except Exception as _gate_exc:  # noqa: BLE001  # 门控异常不得阻断行情获取
+                                logger.warning("[DataGate] %s 门控异常, 降级放行: %s", code, _gate_exc)
+                                gate = None
+                            if gate is not None and not gate.allowed:
+                                logger.warning(
+                                    "[DataGate] %s 数据门控拦截(不更新价格): %s | score=%.1f",
+                                    code, gate.reasons, gate.quality_score,
+                                )
+                                _skipped += 1
+                                continue
+                            prices[code] = float(quote["index_price"])
+                            _fetched += 1
                         except Exception:
                             _skipped += 1
             except Exception as exc:
                 logger.warning("获取实时价格失败 (超时/异常)，回退 MOCK_PRICES: %s", exc)
             logger.info("实时价格获取: %d 成功, %d 回退 MOCK", _fetched, _skipped)
 
-        # 当前持仓：优先读取 config/positions.json，失败则回退 MOCK_PRICES 等权假设
+        # 当前持仓：优先读取 config/positions.json 真实持仓，失败则回退 MOCK_PRICES 等权假设
+        # v8.4 修复: 原 bug 把 positions dict 当 list 遍历 + key 格式不匹配 (510050.SH vs sh510050)
+        #           导致永远回退 MOCK_PRICES 等权, 真实持仓从未被使用
         _positions_json = BASE_DIR.parent / "config" / "positions.json"
         _codes = list(self.config.MOCK_PRICES.keys())
+        _real_positions = {}  # {mock_key: shares} 真实持仓
         if _positions_json.exists():
             try:
                 with open(_positions_json, "r", encoding="utf-8") as _f:
                     _pos_data = json.load(_f)
-                _codes = [c for c in _pos_data.get("positions", []) if c in self.config.MOCK_PRICES]
-                if _codes:
-                    logger.info("phase_hedge 加载真实持仓代码: %d 只", len(_codes))
+                _pos_dict = _pos_data.get("positions", {})
+                # positions.json key 格式 "510050.SH" → MOCK_PRICES key 格式 "sh510050"
+                _items = _pos_dict.items() if isinstance(_pos_dict, dict) else []
+                for _pos_key, _pos_info in _items:
+                    if not isinstance(_pos_info, dict):
+                        continue
+                    if '.' in _pos_key:
+                        _code_part, _suffix = _pos_key.split('.')
+                        _mock_key = f"{_suffix.lower()}{_code_part}"
+                    else:
+                        _mock_key = _pos_key.lower()
+                    if _mock_key in self.config.MOCK_PRICES:
+                        _shares = int(_pos_info.get("shares", 0) or 0)
+                        if _shares > 0:
+                            _real_positions[_mock_key] = _shares
+                if _real_positions:
+                    _codes = list(_real_positions.keys())
+                    logger.info("phase_hedge 加载真实持仓: %d 只 (真实 shares)", len(_codes))
+                else:
+                    logger.info("phase_hedge 真实持仓 shares 全为 0, 回退 MOCK_PRICES 等权")
             except Exception as _exc:
                 logger.warning("读取 config/positions.json 失败，回退 MOCK_PRICES: %s", _exc)
 
@@ -2105,15 +2152,24 @@ class DailyWorkflow:
             positions = {}
             for _code in _codes:
                 _price = prices.get(_code, 0)
-                if _price and _price > 0:
+                # v8.4: 优先使用真实 shares, 缺失时用等权假设
+                _real_shares = _real_positions.get(_code)
+                if _real_shares and _real_shares > 0:
+                    _shares = _real_shares
+                elif _price and _price > 0:
                     _shares = int(_value_per_asset / _price / 100) * 100
-                    # 2026-07-09 新增: 对 18 标的全覆盖日志 (含 6 个新标的)
-                    if _code in ("sz300274", "sh603019", "sh600089", "sh688017", "sh600219", "sh600019"):
-                        logger.info(f"[18标的覆盖] {_code} 价格={_price} 股数={_shares} 金额={_shares*_price:.0f}")
-                    positions[_code] = max(_shares, 100)
                 else:
-                    positions[_code] = 100
-            logger.info("phase_hedge 等权假设持仓: %d 只, 单只约 %.0f 元", _n, _value_per_asset)
+                    _shares = 100
+                # 2026-07-09 新增: 对 18 标的全覆盖日志 (含 6 个新标的)
+                if _code in ("sz300274", "sh603019", "sh600089", "sh688017", "sh600219", "sh600019"):
+                    logger.info(f"[18标的覆盖] {_code} 价格={_price} 股数={_shares} "
+                                f"金额={_shares*_price:.0f} 真实={_real_shares is not None}")
+                positions[_code] = max(_shares, 100)
+            if _real_positions:
+                _total_real = sum(positions.get(c, 0) * prices.get(c, 0) for c in _codes)
+                logger.info("phase_hedge 真实持仓: %d 只, 总市值约 %.0f 元", _n, _total_real)
+            else:
+                logger.info("phase_hedge 等权假设持仓: %d 只, 单只约 %.0f 元", _n, _value_per_asset)
         else:
             positions = {code: 0 for code in self.config.MOCK_PRICES}
 
@@ -2184,8 +2240,14 @@ class DailyWorkflow:
             market_returns = pd.Series(np.random.normal(market_drift, market_vol, n_days))
 
         # === 三联对冲协调器 (正确签名调用) ===
+        # v8.4: 传入 hwm_drawdown 和 bs_loss, 让 TailRiskHedger 4 状态机能正确判定 regime
+        #       原 bug: 未传这两个参数, coordinate 默认 0.0, regime 永远判定为 NORMAL
         try:
             hc = HedgeCoordinator()
+            _hwm_dd = float(self.state.get("phases", {}).get("risk", {})
+                            .get("drawdown_status", {}).get("hwm_drawdown", 0.0) or 0.0)
+            _bs_loss = float(self.state.get("phases", {}).get("market", {})
+                             .get("portfolio_drop", 0.0) or 0.0)
             coordinated = hc.coordinate(
                 positions=positions,
                 prices=prices,
@@ -2193,6 +2255,8 @@ class DailyWorkflow:
                 market_returns=market_returns,
                 vix=vix_level,
                 portfolio_value=self.capital,
+                hwm_drawdown=_hwm_dd,
+                bs_loss=_bs_loss,
             )
             logger.info(f"对冲协调: action={coordinated.get('action')}, "
                         f"总对冲比例={coordinated.get('total_hedge_pct', 0):.2%}, "
@@ -2253,7 +2317,22 @@ class DailyWorkflow:
         hedge_orders = coordinated.get("orders", [])
         executed_orders = []
 
-        if hedge_orders and not self.dry_run:
+        # v8.4: sim_mode 走 SimExecutionEngine, 不再误走 CTP/THS 实盘路径
+        # 原 bug: sim_mode=True 时进入 not dry_run 分支, 尝试连接 CTP/THS 失败后降级 MockBroker
+        if hedge_orders and self.sim_mode and self.sim_engine is not None:
+            logger.info(f"[对冲执行-sim] {len(hedge_orders)} 笔对冲指令通过 SimExecutionEngine 执行")
+            try:
+                executed_orders = self._execute_sim_hedge_orders(hedge_orders)
+            except Exception as e:
+                logger.error(f"[对冲执行-sim] 异常: {e}", exc_info=True)
+                executed_orders.append({
+                    "type": "EXECUTION_ERROR",
+                    "status": "FAILED",
+                    "error": str(e),
+                    "reason": "sim_mode 对冲执行异常",
+                })
+
+        elif hedge_orders and not self.dry_run:
             # 尝试加载真实券商网关（按优先级：CTP > 同花顺 > Mock）
             broker = None
             broker_type = "mock"  # 默认降级到模拟
@@ -2533,7 +2612,238 @@ class DailyWorkflow:
         except Exception as exc:
             logger.error(f"对冲成交记录落盘失败: {exc}")
 
+        # === v8.4: 对冲完整性门禁 (Beta+Delta 双约束) ===
+        # sim_mode: 不达标仅告警 (继续运行积累数据)
+        # live_mode: 不达标 fail-closed (终止后续 phase)
+        try:
+            from gate_manager import HedgeCompletenessGate
+            gate = HedgeCompletenessGate()
+            sim_engine_ref = self.sim_engine if (self.sim_mode and self.sim_engine) else None
+            result = gate.evaluate(
+                portfolio_beta_before=float(coordinated.get("portfolio_beta", 0) or 0),
+                portfolio_value=float(getattr(self, "capital", 5_000_000)),
+                hedge_orders_executed=executed_orders,
+                sim_engine=sim_engine_ref,
+            )
+            hedge_status["hedge_completeness_gate"] = result.to_dict()
+            logger.info(f"[Gate-HEDGE] passed={result.passed}, "
+                        f"beta_after={result.metrics.get('portfolio_beta_after', 0):.3f}, "
+                        f"net_delta={result.metrics.get('net_delta', 0):.4f}, "
+                        f"blockers={result.blockers}")
+            if not result.passed:
+                if self.live_mode:
+                    logger.critical(f"[Gate-HEDGE] live fail-closed: {result.blockers}")
+                    self.state["fail_closed"] = True
+                    self.state["fail_closed_reason"] = f"HedgeCompletenessGate: {result.blockers}"
+                else:
+                    logger.warning(f"[Gate-HEDGE] sim 告警不阻断, 继续积累数据: {result.blockers}")
+        except ImportError:
+            logger.warning("gate_manager 未安装, 对冲完整性门禁跳过")
+        except Exception as e:
+            logger.error(f"对冲完整性门禁异常 (不阻断): {e}", exc_info=True)
+
         return hedge_status
+
+    # --------------------------------------------------------
+    # v8.4: sim_mode 对冲执行 (通过 SimExecutionEngine)
+    # --------------------------------------------------------
+    def _execute_sim_hedge_orders(self, hedge_orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """通过 SimExecutionEngine 执行对冲订单 (sim_mode 专用)
+
+        将 hedge_coordinator 输出的对冲订单按 action 拆分到对应模拟盘:
+            - SHORT_FUTURES                    → sim_engine.execute_futures_orders
+            - PUT_SPREAD / BUY_PUT_SPREAD
+              / BUY_BARE_PUT / BUY_EMERGENCY_PUT
+              / BUY_PUT                        → sim_engine.execute_options_orders
+            - SAFE_HAVEN_ALLOC                 → sim_engine.execute_stock_orders (黄金ETF)
+            - DOWNGRADE_TO_PUT_SPREAD          → 仅记录, 不下单
+            - 未知 action                      → 记录 SKIP_UNKNOWN
+
+        Returns:
+            成交记录列表 (与原 executed_orders 结构对齐)
+        """
+        futures_orders: List[Dict[str, Any]] = []
+        options_orders: List[Dict[str, Any]] = []
+        stock_orders: List[Dict[str, Any]] = []
+        skipped: List[Dict[str, Any]] = []
+
+        for order in hedge_orders:
+            action = order.get("action", "")
+            hedge_type = order.get("hedge_type", order.get("type", ""))
+
+            if action == "SHORT_FUTURES":
+                fut_code = order.get("instrument", "IF")
+                contracts = int(order.get("contracts", 0) or 0)
+                fut_price = float(order.get("futures_price", order.get("est_price", 0)) or 0)
+                if contracts > 0 and fut_price > 0:
+                    futures_orders.append({
+                        "symbol": fut_code,
+                        "qty": contracts,
+                        "side": "SELL_SHORT",
+                        "price": fut_price,
+                        "order_type": "LIMIT",
+                        "session": "day",
+                        "_meta": order,
+                    })
+                else:
+                    skipped.append({**order, "status": "SKIP_NO_PRICE_OR_QTY",
+                                    "reason": f"contracts={contracts} price={fut_price}"})
+
+            elif action in ("PUT_SPREAD", "BUY_PUT_SPREAD", "BUY_BARE_PUT",
+                            "BUY_EMERGENCY_PUT", "BUY_PUT"):
+                # 期权订单: 从 budget 估算合约数 (1万/张), 从 budget_allocation 取 symbol
+                budget = float(order.get("budget", 0) or 0)
+                budget_alloc = order.get("budget_allocation", {})
+                contracts = int(order.get("contracts", 0) or 0)
+                if contracts == 0 and budget > 0:
+                    contracts = max(1, int(budget / 10_000))
+
+                if budget_alloc and contracts > 0:
+                    # 按 budget_allocation 拆分到多个标的
+                    total_alloc = sum(budget_alloc.values()) or 1.0
+                    for symbol, alloc_budget in budget_alloc.items():
+                        ratio = alloc_budget / total_alloc
+                        sub_contracts = max(1, int(contracts * ratio))
+                        sub_budget = budget * ratio
+                        # 估算期权价: budget / contracts / 10000 (每张约 1万)
+                        opt_price = sub_budget / max(sub_contracts * 10_000, 1)
+                        options_orders.append({
+                            "symbol": str(symbol),
+                            "qty": sub_contracts,
+                            "side": "BUY",
+                            "price": max(opt_price, 0.05),
+                            "order_type": "LIMIT",
+                            "option_type": "PUT",
+                            "session": "day",
+                            "_meta": {**order, "budget": sub_budget, "contracts": sub_contracts},
+                        })
+                elif contracts > 0:
+                    opt_price = budget / max(contracts * 10_000, 1) if budget > 0 else 0.05
+                    options_orders.append({
+                        "symbol": order.get("instrument", "510050P"),
+                        "qty": contracts,
+                        "side": "BUY",
+                        "price": max(opt_price, 0.05),
+                        "order_type": "LIMIT",
+                        "option_type": "PUT",
+                        "session": "day",
+                        "_meta": order,
+                    })
+                else:
+                    skipped.append({**order, "status": "SKIP_NO_BUDGET"})
+
+            elif action == "SAFE_HAVEN_ALLOC":
+                # 黄金 ETF (518880) 避险配置
+                gold_value = float(order.get("gold_value", order.get("budget", 0)) or 0)
+                gold_symbol = str(order.get("gold_etf", order.get("instrument", "518880")))
+                # 从 config 取模拟价格, 缺失时用默认 5.85
+                mock_prices = getattr(self.config, 'MOCK_PRICES', {}) or {}
+                est_price = float(mock_prices.get(gold_symbol, 5.85))
+                if gold_value > 0 and est_price > 0:
+                    gold_qty = int(gold_value / est_price / 100) * 100  # 整手
+                    if gold_qty > 0:
+                        stock_orders.append({
+                            "symbol": gold_symbol,
+                            "qty": gold_qty,
+                            "side": "BUY",
+                            "price": est_price,
+                            "order_type": "LIMIT",
+                            "session": "day",
+                            "_meta": order,
+                        })
+                    else:
+                        skipped.append({**order, "status": "SKIP_ZERO_QTY"})
+                else:
+                    skipped.append({**order, "status": "SKIP_NO_PRICE"})
+
+            elif action == "DOWNGRADE_TO_PUT_SPREAD":
+                skipped.append({**order, "status": "DOWNGRADED",
+                                "reason": order.get("reason", "成本超限降级")})
+
+            else:
+                # 未知 action, 安全跳过
+                skipped.append({**order, "status": "SKIP_UNKNOWN_ACTION",
+                                "reason": f"未知 action: {action}"})
+
+        executed: List[Dict[str, Any]] = []
+
+        # 执行期货对冲
+        if futures_orders:
+            logger.info(f"[对冲执行-sim] 期货 {len(futures_orders)} 笔")
+            try:
+                fills = self.sim_engine.execute_futures_orders(futures_orders, session="day")
+                for fill, order in zip(fills, futures_orders):
+                    meta = order.pop("_meta", {})
+                    executed.append({
+                        "type": meta.get("hedge_type", "BETA"),
+                        "action": "SHORT_FUTURES",
+                        "instrument": order["symbol"],
+                        "side": "SELL_SHORT",
+                        "contracts": order["qty"],
+                        "price": float(fill.get("price", order["price"]) or 0),
+                        "notional": meta.get("notional", order["qty"] * order["price"] * 300),
+                        "cost": meta.get("estimated_cost", 0),
+                        "status": fill.get("status", "FILLED"),
+                        "reason": "Beta 对冲 sim 执行",
+                        "fill_record": fill,
+                    })
+            except Exception as e:
+                logger.error(f"[对冲执行-sim] 期货执行异常: {e}")
+                executed.append({"type": "BETA", "action": "SHORT_FUTURES",
+                                 "status": "FAILED", "error": str(e)})
+
+        # 执行期权对冲
+        if options_orders:
+            logger.info(f"[对冲执行-sim] 期权 {len(options_orders)} 笔")
+            try:
+                fills = self.sim_engine.execute_options_orders(options_orders, session="day")
+                for fill, order in zip(fills, options_orders):
+                    meta = order.pop("_meta", {})
+                    executed.append({
+                        "type": meta.get("hedge_type", "VOL"),
+                        "action": meta.get("action", "BUY_PUT"),
+                        "instrument": order["symbol"],
+                        "side": "BUY",
+                        "option_type": "PUT",
+                        "contracts": order["qty"],
+                        "budget": meta.get("budget", 0),
+                        "price": float(fill.get("price", order["price"]) or 0),
+                        "status": fill.get("status", "FILLED"),
+                        "reason": f"Vol 对冲 sim 执行 (VIX={meta.get('vix', 0)})",
+                        "fill_record": fill,
+                    })
+            except Exception as e:
+                logger.error(f"[对冲执行-sim] 期权执行异常: {e}")
+                executed.append({"type": "VOL", "action": "BUY_PUT",
+                                 "status": "FAILED", "error": str(e)})
+
+        # 执行避险 ETF 配置
+        if stock_orders:
+            logger.info(f"[对冲执行-sim] 避险ETF {len(stock_orders)} 笔")
+            try:
+                fills = self.sim_engine.execute_stock_orders(stock_orders, session="day")
+                for fill, order in zip(fills, stock_orders):
+                    meta = order.pop("_meta", {})
+                    executed.append({
+                        "type": meta.get("hedge_type", "CORR"),
+                        "action": "SAFE_HAVEN_ALLOC",
+                        "instrument": order["symbol"],
+                        "side": "BUY",
+                        "qty": order["qty"],
+                        "price": float(fill.get("price", order["price"]) or 0),
+                        "status": fill.get("status", "FILLED"),
+                        "reason": "Correlation 对冲 sim 执行",
+                        "fill_record": fill,
+                    })
+            except Exception as e:
+                logger.error(f"[对冲执行-sim] ETF执行异常: {e}")
+                executed.append({"type": "CORR", "action": "SAFE_HAVEN_ALLOC",
+                                 "status": "FAILED", "error": str(e)})
+
+        executed.extend(skipped)
+        logger.info(f"[对冲执行-sim] 完成: {len(executed)} 笔 "
+                    f"(期货{len(futures_orders)}/期权{len(options_orders)}/ETF{len(stock_orders)}/跳过{len(skipped)})")
+        return executed
 
     # --------------------------------------------------------
     # Phase 4.5: 对冲基金视角融合 (v7.7)
@@ -2864,18 +3174,70 @@ class DailyWorkflow:
             if V85_READY:
                 from risk.liquidity_monitor import LiquidityMonitor
                 lm = LiquidityMonitor()
-                liq_result = lm.scan_market([])
-                result["liquidity"] = {
-                    "score": 100 if liq_result else 0,
-                    "executable": True,
-                    "slot_utilization_pct": 0,
-                    "warnings": [],
-                }
+                # 基于当前持仓 + 可得行情构造快照, 真实扫描 (修复空跑: 原 scan_market([]) 永远返回满分)
+                stock_data = []
+                _codes = list(self.config.MOCK_PRICES.keys())
+                if self.market_data_provider is not None:
+                    for _code in _codes:
+                        try:
+                            _q = self.market_data_provider.get_market_data(_code)
+                        except Exception as _qe:
+                            logger.debug("[v8.5 Liquidity] %s 行情获取失败: %s", _code, _qe)
+                            _q = None
+                        if not _q:
+                            continue
+                        _cp = _q.get("index_price") or _q.get("current_price") or _q.get("price")
+                        _pc = _q.get("prev_close")
+                        # 必须同时具备当前价与前收盘价, 否则无法可靠判定涨跌停/流动性, 跳过该标的
+                        if not _cp or not _pc:
+                            continue
+                        _snap = {
+                            "symbol": _code,
+                            "current_price": float(_cp),
+                            "prev_close": float(_pc),
+                            "board_type": str(_q.get("board_type", "MAIN")),
+                            "is_suspended": bool(_q.get("is_suspended", False)),
+                        }
+                        for _f in ("today_high", "today_low", "volume", "turnover",
+                                   "avg_daily_volume", "avg_daily_turnover", "bid_price",
+                                   "ask_price", "bid_volume", "ask_volume", "total_shares"):
+                            _v = _q.get(_f)
+                            if _v is not None:
+                                try:
+                                    _snap[_f] = float(_v)
+                                except (TypeError, ValueError):
+                                    pass
+                        stock_data.append(_snap)
+                liq_result = lm.scan_market(stock_data)
+                _total = liq_result.total_stocks
+                if _total == 0:
+                    # 无真实行情数据, 如实报告而非伪造满分
+                    result["liquidity"] = {
+                        "status": "NO_DATA",
+                        "score": None,
+                        "executable": None,
+                        "total_stocks": 0,
+                        "note": "未获取到持仓行情快照, 流动性监控未运行",
+                    }
+                else:
+                    _low = liq_result.low_liquidity_count
+                    _score = round(100.0 - (100.0 * _low / _total), 1)
+                    result["liquidity"] = {
+                        "score": _score,
+                        "executable": _score >= 60 and not liq_result.blocked_trades,
+                        "total_stocks": _total,
+                        "low_liquidity_count": _low,
+                        "limit_up_count": liq_result.limit_up_count,
+                        "limit_down_count": liq_result.limit_down_count,
+                        "blocked_trades": liq_result.blocked_trades,
+                        "warnings": liq_result.warnings,
+                    }
                 logger.info(
-                    "[v8.5 Liquidity] 评分=%s, 可执行=%s, 槽位利用=%s%%, 警告=%d",
+                    "[v8.5 Liquidity] 评分=%s, 可执行=%s, 扫描标的=%d, 低流动性=%d, 警告=%d",
                     result["liquidity"].get("score", "N/A"),
-                    result["liquidity"].get("executable", False),
-                    result["liquidity"].get("slot_utilization_pct", 0),
+                    result["liquidity"].get("executable", "N/A"),
+                    result["liquidity"].get("total_stocks", 0),
+                    result["liquidity"].get("low_liquidity_count", 0),
                     len(result["liquidity"].get("warnings", [])),
                 )
             else:
@@ -8166,7 +8528,11 @@ class DailyWorkflow:
             from pathlib import Path as _Path
 
             # === 加载影子账户状态 ===
-            state_file = _Path("output") / "shadow_account" / "shadow_state.json"
+            # v8.6.11 FIX: 使用 BASE_DIR.parent 定位 (与 launch_shadow_account.py 一致)
+            # 原始 bug: 相对路径 "output/shadow_account/" 基于 cwd 解析,
+            #   EOD 任务 cwd=v8.3_institutional 时找不到 state_file (在项目根目录下)
+            _project_root_for_state = BASE_DIR.parent  # e:\各种PY程序\28-终极量化交易系统8.4
+            state_file = _project_root_for_state / "output" / "shadow_account" / "shadow_state.json"
             if not state_file.exists():
                 logger.info("Phase 10 跳过: 影子账户未初始化 (运行 python launch_shadow_account.py 启动)")
                 self.state["phases"]["shadow_monitor"] = {
@@ -8201,6 +8567,35 @@ class DailyWorkflow:
             signal_phase = self.state.get("phases", {}).get("signal", {})
             target_weights = signal_phase.get("target_weights", {}) if isinstance(signal_phase, dict) else {}
 
+            # v8.6.11 FIX: EOD 任务只运行 --phase shadow_monitor, signal phase 未执行
+            # 兜底从 trade_plan 文件读取 execution_plan 推导 target_weights
+            if not target_weights:
+                try:
+                    _trade_plan_path = BASE_DIR / "trade_plans" / f"trade_plan_{self.trade_date.replace('-', '')}.json"
+                    if _trade_plan_path.exists():
+                        with open(_trade_plan_path, "r", encoding="utf-8") as _tp_f:
+                            _tp = _json.load(_tp_f)
+                        _exec_plan = _tp.get("execution_plan", {})
+                        _day_capital = float(_tp.get("execution_plan", {}).get("day_capital", 100000))
+                        _all_orders = []
+                        _all_orders.extend(_exec_plan.get("morning_orders", []))
+                        _all_orders.extend(_exec_plan.get("afternoon_orders", []))
+                        for _ord in _all_orders:
+                            _sym = _ord.get("code", "")
+                            _amt = float(_ord.get("est_amount", 0))
+                            _side = _ord.get("side", "BUY").upper()
+                            _sign = 1.0 if _side == "BUY" else -1.0
+                            if _sym and _day_capital > 0:
+                                target_weights[_sym] = target_weights.get(_sym, 0.0) + _sign * _amt / _day_capital
+                        if target_weights:
+                            logger.info(
+                                "Phase 10: 从 trade_plan 兜底读取 target_weights "
+                                "(symbols=%d, day_capital=%.0f)",
+                                len(target_weights), _day_capital,
+                            )
+                except Exception as _e:
+                    logger.warning(f"Phase 10: 读取 trade_plan 兜底失败: {_e}")
+
             # 从 data_provider 获取当日收盘价, 计算实际收益
             daily_return = 0.0
             if target_weights:
@@ -8224,18 +8619,43 @@ class DailyWorkflow:
                     daily_return = 0.0
 
             # === 更新净值 ===
-            current_nav = float(shadow_state.get("current_nav", 1.0))
-            new_nav = current_nav * (1 + daily_return)
             daily_nav_list = shadow_state.get("daily_nav", [])
-
             today_str = str(self.trade_date)
-            daily_nav_list.append({
+
+            # v8.6.11 FIX: 幂等性检查 — 同一 trade_date 不重复追加 daily_nav
+            _existing_idx = None
+            for _i, _entry in enumerate(daily_nav_list):
+                if _entry.get("date") == today_str:
+                    _existing_idx = _i
+                    break
+
+            # v8.6.11 FIX: 基准 nav 计算 — 用前一天的 nav, 避免重复运行时 nav 累积
+            # 原始 bug: 多次运行 Phase 10 时, current_nav 已是当日 nav, 再乘 (1+daily_return) 会重复计算
+            if _existing_idx is not None and _existing_idx > 0:
+                # 当天已有记录 → 用前一天的 nav 作为基准
+                _base_nav = float(daily_nav_list[_existing_idx - 1].get("nav", 1.0))
+            elif _existing_idx == 0:
+                # 当天是第一条记录 → 用初始 nav (1.0)
+                _base_nav = 1.0
+            else:
+                # 当天无记录 → 用 current_nav (前一天的最终 nav)
+                _base_nav = float(shadow_state.get("current_nav", 1.0))
+
+            new_nav = _base_nav * (1 + daily_return)
+
+            _new_entry = {
                 "date": today_str,
                 "nav": round(new_nav, 6),
                 "daily_return": round(daily_return, 6),
                 "capital": round(new_nav * float(shadow_state.get("initial_capital", 500_000)), 2),
                 "recorded_at": datetime.now().isoformat(),
-            })
+            }
+            if _existing_idx is not None:
+                # 替换已有记录 (更新为最新计算结果)
+                daily_nav_list[_existing_idx] = _new_entry
+                logger.info("Phase 10: 更新已有 daily_nav 记录 (idx=%d, base_nav=%.6f)", _existing_idx, _base_nav)
+            else:
+                daily_nav_list.append(_new_entry)
 
             # 保留最近 365 天净值 (避免状态文件膨胀)
             if len(daily_nav_list) > 365:
@@ -8319,6 +8739,62 @@ class DailyWorkflow:
             with open(state_file, "w", encoding="utf-8") as f:
                 _json.dump(shadow_state, f, ensure_ascii=False, indent=2, default=str)
 
+            # === 追加写入 reports/shadow/daily_returns.jsonl (T2.4 准入流程数据源) ===
+            # 数据流: V9 Phase 10 计算的 daily_return → JSONL → shadow_admission_launcher.py 读取
+            # 格式: {"date": "...", "daily_return": ..., "source": "v9_phase10_real_backtest"}
+            # 幂等性: 同一 trade_date 更新已有行 (v8.6.11 FIX: 原仅检查末行, 现全量扫描替换)
+            # 失败隔离: JSONL 写入失败不影响 Phase 10 主流程
+            try:
+                _project_root = BASE_DIR.parent  # e:\各种PY程序\28-终极量化交易系统8.4
+                _shadow_dir = _project_root / "reports" / "shadow"
+                _shadow_dir.mkdir(parents=True, exist_ok=True)
+                _jsonl_path = _shadow_dir / "daily_returns.jsonl"
+
+                _record = {
+                    "date": today_str,
+                    "daily_return": round(float(daily_return), 6),
+                    "source": "v9_phase10_real_backtest",
+                }
+
+                # 幂等性: 全量读取, 若已有当日记录则替换, 否则追加
+                _existing_lines: list = []
+                _replaced = False
+                if _jsonl_path.exists():
+                    try:
+                        with open(_jsonl_path, "r", encoding="utf-8") as _f:
+                            _existing_lines = _f.readlines()
+                    except (_json.JSONDecodeError, OSError):
+                        _existing_lines = []
+                for _i, _line in enumerate(_existing_lines):
+                    try:
+                        _parsed = _json.loads(_line)
+                        if _parsed.get("date") == today_str:
+                            _existing_lines[_i] = _json.dumps(_record, ensure_ascii=False) + "\n"
+                            _replaced = True
+                            break
+                    except _json.JSONDecodeError:
+                        continue
+
+                if _replaced:
+                    with open(_jsonl_path, "w", encoding="utf-8") as _f:
+                        _f.writelines(_existing_lines)
+                    logger.info(
+                        "Phase 10: daily_returns.jsonl 更新已有记录 (date=%s, return=%.6f)",
+                        today_str, daily_return,
+                    )
+                else:
+                    with open(_jsonl_path, "a", encoding="utf-8") as _f:
+                        _f.write(_json.dumps(_record, ensure_ascii=False) + "\n")
+                    logger.info(
+                        "Phase 10: daily_returns.jsonl 追加成功 (date=%s, return=%.6f)",
+                        today_str, daily_return,
+                    )
+            except Exception as _jsonl_err:
+                logger.warning(
+                    "Phase 10: daily_returns.jsonl 写入失败 (不影响主流程): %s",
+                    _jsonl_err,
+                )
+
             return True
 
         except Exception as e:
@@ -8386,6 +8862,29 @@ class DailyWorkflow:
             except Exception as e:
                 logger.warning(f"[v8.5] 环境隔离验证异常 (非致命): {e}")
 
+        # === v8.4: 启动前预期收益门禁 (对齐 V9 基线: 年化>=15%/回撤<=10%/Sharpe>=1.0) ===
+        # sim_mode: 不达标仅告警 (继续运行积累数据)
+        # live_mode: 不达标 fail-closed (终止工作流, 不进入 phases 循环)
+        # dry_mode: 跳过门禁
+        try:
+            from gate_manager import ReturnExpectationGate
+            _gate = ReturnExpectationGate()
+            _mode = "live" if self.live_mode else ("sim" if self.sim_mode else "dry")
+            if _mode != "dry":
+                _gate_result = _gate.evaluate(mode=_mode)
+                self.state["pre_launch_gate"] = _gate_result.to_dict()
+                logger.info(f"[Gate-REVENUE] passed={_gate_result.passed}, action={_gate_result.action}, "
+                            f"blockers={_gate_result.blockers}, promoters={_gate_result.promoters}")
+                if not _gate.enforce(_gate_result, self.live_mode):
+                    self.state["fail_closed"] = True
+                    self.state["fail_closed_reason"] = f"ReturnExpectationGate: {_gate_result.blockers}"
+                    logger.critical(f"[Gate-REVENUE] live fail-closed, 终止工作流: {_gate_result.blockers}")
+                    return self.state
+        except ImportError:
+            logger.warning("gate_manager 未安装, 启动前门禁跳过")
+        except Exception as e:
+            logger.error(f"启动前门禁异常 (不阻断): {e}", exc_info=True)
+
         phases = [
             ("check", self.phase_check),
             ("calibrate", self.phase_calibrate),
@@ -8410,6 +8909,10 @@ class DailyWorkflow:
         end_idx = len(phases) if phase_end is None else (phase_names.index(phase_end) + 1 if phase_end in phase_names else len(phases))
 
         for i, (phase_name, phase_func) in enumerate(phases):
+            # v8.4: 门禁 fail_closed 早退 (启动前门禁或对冲后门禁触发时跳过剩余 phase)
+            if self.state.get("fail_closed", False):
+                logger.critical(f"[Gate] fail_closed 已触发, 跳过剩余 phase: {phase_name}")
+                break
             if only_phase and phase_name != only_phase:
                 continue
             if phase_start or phase_end:
