@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_finance_agent_orchestrator_unit.py — FinanceAgentOrchestrator 单元测试
 
 测试范围:

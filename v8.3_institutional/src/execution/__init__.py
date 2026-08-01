@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """v7.6 执行子包 — TCA/IS/SOR/AE"""
 
 from .algo_engine import AlgoEngine

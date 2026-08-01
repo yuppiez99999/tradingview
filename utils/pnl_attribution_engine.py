@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P&L 多维度归因分析引擎 (P&L Attribution Engine) v1.0
 ======================================================
@@ -59,7 +58,7 @@ import math
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("pnl_attribution")
 
@@ -100,8 +99,8 @@ class AttributionResult:
     funding_cost: float = 0.0  # 资金成本 (负值)
 
     # 因子明细
-    style_factors: List[FactorContribution] = field(default_factory=list)
-    sector_factors: List[FactorContribution] = field(default_factory=list)
+    style_factors: list[FactorContribution] = field(default_factory=list)
+    sector_factors: list[FactorContribution] = field(default_factory=list)
 
     # 风险指标
     information_ratio: float = 0.0  # IR = Alpha / Tracking Error
@@ -109,10 +108,10 @@ class AttributionResult:
     sharpe_ratio: float = 0.0
 
     # 异常预警
-    anomalies: List[str] = field(default_factory=list)
+    anomalies: list[str] = field(default_factory=list)
     summary: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -155,16 +154,16 @@ class PnLAttributionEngine:
     # ------------------------------------------------------------
     def attribute(
         self,
-        positions: List[Dict[str, Any]],
-        portfolio_returns: List[float],
-        benchmark_returns: Optional[List[float]] = None,
-        market_returns: Optional[List[float]] = None,
-        factor_returns: Optional[Dict[str, List[float]]] = None,
-        sector_returns: Optional[Dict[str, List[float]]] = None,
+        positions: list[dict[str, Any]],
+        portfolio_returns: list[float],
+        benchmark_returns: list[float] | None = None,
+        market_returns: list[float] | None = None,
+        factor_returns: dict[str, list[float]] | None = None,
+        sector_returns: dict[str, list[float]] | None = None,
         trading_costs: float = 0.0,
         funding_cost: float = 0.0,
         hedge_pnl: float = 0.0,
-        attribution_date: Optional[str] = None,
+        attribution_date: str | None = None,
     ) -> AttributionResult:
         """执行 P&L 归因
 
@@ -263,9 +262,9 @@ class PnLAttributionEngine:
     # ------------------------------------------------------------
     def _calc_beta_pnl(
         self,
-        positions: List[Dict],
-        portfolio_returns: List[float],
-        market_returns: Optional[List[float]],
+        positions: list[dict],
+        portfolio_returns: list[float],
+        market_returns: list[float] | None,
         portfolio_value: float,
     ) -> float:
         """Beta P&L = β_portfolio × (R_market - R_f) × Portfolio_Value"""
@@ -276,7 +275,7 @@ class PnLAttributionEngine:
         market_excess_return = sum(market_returns) - self.risk_free_rate / 252 * len(market_returns)
         return beta * market_excess_return * portfolio_value
 
-    def _calc_beta(self, asset_returns: List[float], market_returns: List[float]) -> float:
+    def _calc_beta(self, asset_returns: list[float], market_returns: list[float]) -> float:
         """计算 Beta"""
         n = min(len(asset_returns), len(market_returns))
         if n < 2:
@@ -295,9 +294,9 @@ class PnLAttributionEngine:
     # ------------------------------------------------------------
     def _calc_alpha_pnl(
         self,
-        positions: List[Dict],
-        portfolio_returns: List[float],
-        benchmark_returns: Optional[List[float]],
+        positions: list[dict],
+        portfolio_returns: list[float],
+        benchmark_returns: list[float] | None,
         portfolio_value: float,
     ) -> float:
         """Alpha P&L = (R_portfolio - R_benchmark) × Portfolio_Value"""
@@ -318,10 +317,10 @@ class PnLAttributionEngine:
     # ------------------------------------------------------------
     def _calc_style_attribution(
         self,
-        positions: List[Dict],
-        factor_returns: Optional[Dict[str, List[float]]],
+        positions: list[dict],
+        factor_returns: dict[str, list[float]] | None,
         portfolio_value: float,
-    ) -> Tuple[float, List[FactorContribution]]:
+    ) -> tuple[float, list[FactorContribution]]:
         """风格因子归因
 
         每个因子的贡献 = portfolio_exposure × factor_return × portfolio_value
@@ -331,7 +330,7 @@ class PnLAttributionEngine:
 
         # 计算组合在每只股票上的因子暴露加权平均
         total_weight = 0.0
-        exposures: Dict[str, float] = {f: 0.0 for f in self.STYLE_FACTORS}
+        exposures: dict[str, float] = {f: 0.0 for f in self.STYLE_FACTORS}
 
         for pos in positions:
             weight = float(pos.get("weight", 0))
@@ -346,7 +345,7 @@ class PnLAttributionEngine:
                 exposures[k] /= total_weight
 
         total_style_pnl = 0.0
-        contributions: List[FactorContribution] = []
+        contributions: list[FactorContribution] = []
 
         for factor in self.STYLE_FACTORS:
             exp = exposures.get(factor, 0)
@@ -381,10 +380,10 @@ class PnLAttributionEngine:
     # ------------------------------------------------------------
     def _calc_sector_attribution(
         self,
-        positions: List[Dict],
-        sector_returns: Optional[Dict[str, List[float]]],
+        positions: list[dict],
+        sector_returns: dict[str, list[float]] | None,
         portfolio_value: float,
-    ) -> Tuple[float, List[FactorContribution]]:
+    ) -> tuple[float, list[FactorContribution]]:
         """行业归因
 
         每个行业的贡献 = portfolio_weight × sector_return × portfolio_value
@@ -393,7 +392,7 @@ class PnLAttributionEngine:
             return 0.0, []
 
         # 计算每个行业的组合权重
-        sector_weights: Dict[str, float] = {s: 0.0 for s in self.SECTORS}
+        sector_weights: dict[str, float] = {s: 0.0 for s in self.SECTORS}
         total_weight = 0.0
         for pos in positions:
             sector = pos.get("sector", "other")
@@ -408,7 +407,7 @@ class PnLAttributionEngine:
                 sector_weights[k] /= total_weight
 
         total_sector_pnl = 0.0
-        contributions: List[FactorContribution] = []
+        contributions: list[FactorContribution] = []
 
         for sector in list(sector_weights.keys()):
             weight = sector_weights[sector]
@@ -444,8 +443,8 @@ class PnLAttributionEngine:
     # ------------------------------------------------------------
     def _calc_tracking_error(
         self,
-        portfolio_returns: List[float],
-        benchmark_returns: Optional[List[float]],
+        portfolio_returns: list[float],
+        benchmark_returns: list[float] | None,
     ) -> float:
         """跟踪误差 (年化)"""
         if not benchmark_returns or not portfolio_returns:
@@ -462,8 +461,8 @@ class PnLAttributionEngine:
 
     def _calc_information_ratio(
         self,
-        portfolio_returns: List[float],
-        benchmark_returns: Optional[List[float]],
+        portfolio_returns: list[float],
+        benchmark_returns: list[float] | None,
     ) -> float:
         """信息比率 = Alpha / Tracking Error"""
         te = self._calc_tracking_error(portfolio_returns, benchmark_returns)
@@ -483,7 +482,7 @@ class PnLAttributionEngine:
 
         return alpha_return / te
 
-    def _calc_sharpe_ratio(self, portfolio_returns: List[float]) -> float:
+    def _calc_sharpe_ratio(self, portfolio_returns: list[float]) -> float:
         """夏普比率 (年化)"""
         if len(portfolio_returns) < 2:
             return 0.0
@@ -498,9 +497,9 @@ class PnLAttributionEngine:
     # ------------------------------------------------------------
     # 异常检测
     # ------------------------------------------------------------
-    def _detect_anomalies(self, result: AttributionResult) -> List[str]:
+    def _detect_anomalies(self, result: AttributionResult) -> list[str]:
         """检测归因异常"""
-        anomalies: List[str] = []
+        anomalies: list[str] = []
 
         # 1. Alpha 异常 (负 alpha > 2%)
         total = result.total_pnl

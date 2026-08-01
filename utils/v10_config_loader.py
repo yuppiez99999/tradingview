@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v10.0 投资计划配置加载器
 ==========================
@@ -24,7 +23,7 @@ import json
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("v10_config")
 
@@ -35,11 +34,11 @@ DEFAULT_CONFIG_PATH = BASE_DIR / "trade_plans" / "auto_trade_plan_v10_十五五.
 class V10ConfigLoader:
     """v10.0 投资计划配置加载器"""
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         self.config_path = config_path or DEFAULT_CONFIG_PATH
-        self._config: Optional[Dict] = None
+        self._config: dict | None = None
 
-    def load(self) -> Dict[str, Any]:
+    def load(self) -> dict[str, Any]:
         """加载 v10.0 配置"""
         if self._config is not None:
             return self._config
@@ -49,7 +48,7 @@ class V10ConfigLoader:
             return {}
 
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 self._config = json.load(f)
             logger.info(f"v10.0 配置加载成功: {self.config_path.name}")
             return self._config
@@ -57,48 +56,48 @@ class V10ConfigLoader:
             logger.error(f"v10.0 配置加载失败: {e}")
             return {}
 
-    def get_allocation(self) -> Dict[str, float]:
+    def get_allocation(self) -> dict[str, float]:
         """获取 6 账户资金分配"""
         cfg = self.load()
         meta = cfg.get("meta", {})
         return meta.get("allocation", {})  # type: ignore
 
-    def get_hedge_fund_standard(self) -> Dict[str, Any]:
+    def get_hedge_fund_standard(self) -> dict[str, Any]:
         """获取对冲基金标准风控参数"""
         cfg = self.load()
         return cfg.get("meta", {}).get("hedge_fund_standard", {})  # type: ignore
 
-    def get_stock_positions(self) -> List[Dict]:
+    def get_stock_positions(self) -> list[dict]:
         """获取股票多头持仓列表"""
         cfg = self.load()
         return cfg.get("stock_long_account", {}).get("positions", [])  # type: ignore
 
-    def get_etf_positions(self) -> List[Dict]:
+    def get_etf_positions(self) -> list[dict]:
         """获取 ETF 持仓列表"""
         cfg = self.load()
         return cfg.get("etf_account", {}).get("positions", [])  # type: ignore
 
-    def get_futures_config(self) -> Dict:
+    def get_futures_config(self) -> dict:
         """获取期货账户配置"""
         cfg = self.load()
         return cfg.get("macro_hedge_account", {})  # type: ignore
 
-    def get_quant_neutral_config(self) -> Dict:
+    def get_quant_neutral_config(self) -> dict:
         """获取量化中性策略配置"""
         cfg = self.load()
         return cfg.get("quant_neutral_account", {})  # type: ignore
 
-    def get_options_config(self) -> Dict:
+    def get_options_config(self) -> dict:
         """获取期权策略配置"""
         cfg = self.load()
         return cfg.get("options_account", {})  # type: ignore
 
-    def get_cash_config(self) -> Dict:
+    def get_cash_config(self) -> dict:
         """获取现金管理配置"""
         cfg = self.load()
         return cfg.get("cash_management", {})  # type: ignore
 
-    def get_current_phase(self, today: Optional[date] = None) -> Dict[str, Any]:
+    def get_current_phase(self, today: date | None = None) -> dict[str, Any]:
         """根据日期获取当前年度阶段
 
         Args:
@@ -137,42 +136,42 @@ class V10ConfigLoader:
         # 默认返回建仓期
         return {"phase_key": "phase_2026", **execution_plan.get("phase_2026", {})}
 
-    def get_daily_schedule(self) -> Dict[str, Dict]:
+    def get_daily_schedule(self) -> dict[str, dict]:
         """获取每日时间表"""
         cfg = self.load()
         return cfg.get("daily_schedule", {})  # type: ignore
 
-    def get_risk_automation(self) -> Dict[str, Any]:
+    def get_risk_automation(self) -> dict[str, Any]:
         """获取风控自动化配置"""
         cfg = self.load()
         return cfg.get("risk_automation", {})  # type: ignore
 
-    def get_rebalance_config(self) -> Dict[str, Any]:
+    def get_rebalance_config(self) -> dict[str, Any]:
         """获取再平衡配置"""
         cfg = self.load()
         return cfg.get("dynamic_rebalance", {})  # type: ignore
 
-    def get_drawdown_config(self) -> Dict[str, Any]:
+    def get_drawdown_config(self) -> dict[str, Any]:
         """获取回撤控制配置"""
         risk = self.get_risk_automation()
         return risk.get("drawdown_control", {})  # type: ignore
 
-    def get_var_config(self) -> Dict[str, Any]:
+    def get_var_config(self) -> dict[str, Any]:
         """获取 VaR 监控配置"""
         risk = self.get_risk_automation()
         return risk.get("var_monitoring", {})  # type: ignore
 
-    def get_concentration_limits(self) -> Dict[str, Any]:
+    def get_concentration_limits(self) -> dict[str, Any]:
         """获取集中度限制"""
         risk = self.get_risk_automation()
         return risk.get("concentration_limits", {})  # type: ignore
 
-    def get_stress_test_scenarios(self) -> Dict[str, Any]:
+    def get_stress_test_scenarios(self) -> dict[str, Any]:
         """获取压力测试场景"""
         risk = self.get_risk_automation()
         return risk.get("stress_test_scenarios", {})  # type: ignore
 
-    def get_early_warning_signals(self) -> Dict[str, Any]:
+    def get_early_warning_signals(self) -> dict[str, Any]:
         """获取早期预警信号"""
         risk = self.get_risk_automation()
         return risk.get("early_warning_signals", {})  # type: ignore

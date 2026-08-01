@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AI 决策沙箱（只读模式） — v1.0
 ================================
@@ -18,7 +17,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 路径兼容
 _BASE = Path(__file__).resolve().parent
@@ -52,7 +51,7 @@ except Exception:
 class AIDecisionSandbox:
     """只读 AI 决策沙箱"""
 
-    def __init__(self, trade_date: Optional[str] = None):
+    def __init__(self, trade_date: str | None = None):
         self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
         self.date_compact = self.trade_date.replace("-", "")
         self.timestamp = datetime.now().isoformat()
@@ -72,15 +71,15 @@ class AIDecisionSandbox:
         }
 
         # 数据容器
-        self.trade_plan: Dict[str, Any] = {}
-        self.positions: Dict[str, Any] = {}
-        self.hedge_plan: Dict[str, Any] = {}
-        self.market_state: Dict[str, Any] = {}
+        self.trade_plan: dict[str, Any] = {}
+        self.positions: dict[str, Any] = {}
+        self.hedge_plan: dict[str, Any] = {}
+        self.market_state: dict[str, Any] = {}
 
     # ------------------------------------------------------------------
     # 数据读取（只读）
     # ------------------------------------------------------------------
-    def _load_json(self, path: Path) -> Dict[str, Any]:
+    def _load_json(self, path: Path) -> dict[str, Any]:
         if not path.exists():
             return {}
         try:
@@ -104,7 +103,7 @@ class AIDecisionSandbox:
         self.hedge_plan = self._load_json(path)
         return bool(self.hedge_plan)
 
-    def load_market_state(self) -> Dict[str, Any]:
+    def load_market_state(self) -> dict[str, Any]:
         # 简化：从 trade_plan 或空结构推导
         self.market_state = self.trade_plan.get("market_state", {})
         return self.market_state
@@ -120,8 +119,8 @@ class AIDecisionSandbox:
     # ------------------------------------------------------------------
     # 基础校验
     # ------------------------------------------------------------------
-    def validate_suggestion(self, suggestion: Dict[str, Any]) -> List[str]:
-        errors: List[str] = []
+    def validate_suggestion(self, suggestion: dict[str, Any]) -> list[str]:
+        errors: list[str] = []
 
         # 1) 黑名单
         for order in suggestion.get("spot_orders", []):
@@ -226,7 +225,7 @@ class AIDecisionSandbox:
     # ------------------------------------------------------------------
     # 调用 LLM
     # ------------------------------------------------------------------
-    def generate(self) -> Dict[str, Any]:
+    def generate(self) -> dict[str, Any]:
         if not _LLM_READY:
             return {
                 "date": self.trade_date,
@@ -275,7 +274,7 @@ class AIDecisionSandbox:
 
         return suggestion
 
-    def _parse_json_response(self, raw: str) -> Dict[str, Any]:
+    def _parse_json_response(self, raw: str) -> dict[str, Any]:
         # 提取首个 JSON 对象
         start = raw.find("{")
         end = raw.rfind("}")
@@ -289,7 +288,7 @@ class AIDecisionSandbox:
     # ------------------------------------------------------------------
     # 落盘
     # ------------------------------------------------------------------
-    def save(self, suggestion: Dict[str, Any]) -> Path:
+    def save(self, suggestion: dict[str, Any]) -> Path:
         filename = f"ai_sandbox_{self.trade_date}.json"
         out_path = self.instructions_dir / filename
         payload = {
@@ -309,7 +308,7 @@ class AIDecisionSandbox:
     # ------------------------------------------------------------------
     # 主流程
     # ------------------------------------------------------------------
-    def run(self) -> Dict[str, Any]:
+    def run(self) -> dict[str, Any]:
         logger.info(f"AI 决策沙箱启动: {self.trade_date}")
 
         if not self.load_all():
@@ -330,7 +329,7 @@ class AIDecisionSandbox:
         }
 
 
-def run_ai_sandbox(trade_date: Optional[str] = None) -> Dict[str, Any]:
+def run_ai_sandbox(trade_date: str | None = None) -> dict[str, Any]:
     return AIDecisionSandbox(trade_date=trade_date).run()
 
 

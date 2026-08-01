@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """持仓盈亏明细 — 今日收盘价版 (2026-07-29).
 
 数据源: AKShare (P3, 免费回退)
@@ -23,7 +22,7 @@ BASE = r'e:\各种PY程序\28-终极量化交易系统8.4'
 sys.path.insert(0, BASE)
 
 # 加载持仓
-with open(os.path.join(BASE, 'config', 'positions.json'), 'r', encoding='utf-8') as f:
+with open(os.path.join(BASE, 'config', 'positions.json'), encoding='utf-8') as f:
     data = json.load(f)
 
 positions = data['positions']
@@ -79,7 +78,9 @@ try:
 
 except Exception as e:
     print(f"[数据源] akshare 加载失败: {e}")
-    import traceback; traceback.print_exc()
+    import traceback
+
+    traceback.print_exc()
 
 # ---------- 匹配持仓并计算盈亏 ----------
 rows = []
@@ -132,8 +133,10 @@ total_pnl_pct = (total_pnl / total_cost * 100) if total_cost > 0 else 0.0
 style_groups = defaultdict(lambda: {"mv": 0.0, "cost": 0.0, "pnl": 0.0, "count": 0})
 for r in rows:
     g = style_groups[r['style']]
-    g['mv'] += r['market_value']; g['cost'] += r['cost_value']
-    g['pnl'] += r['pnl']; g['count'] += 1
+    g['mv'] += r['market_value']
+    g['cost'] += r['cost_value']
+    g['pnl'] += r['pnl']
+    g['count'] += 1
 
 # ---------- 输出 ----------
 print()

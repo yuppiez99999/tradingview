@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """分析历史数据的 regime 分布, 验证 regime-specific 训练可行性
 
 每个 regime 需要至少 100 样本 (5 日前向收益标签 + 60 日 MA + 20 日波动率)

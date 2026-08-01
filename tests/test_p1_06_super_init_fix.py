@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P1-6 回归测试: IntegratedExecutionSystem 父类回退到 object 时 super().__init__ 必崩
 

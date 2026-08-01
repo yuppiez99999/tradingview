@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 scripts/run_ai_decision.py — 便捷 CLI 包装
 =========================================

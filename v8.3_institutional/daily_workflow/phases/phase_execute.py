@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Phase implementation: phase_execute
 
@@ -12,7 +11,7 @@ The function receives a DailyWorkflow instance as its first parameter ("workflow
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def phase_execute(workflow, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
+def phase_execute(workflow, signal: dict[str, Any]) -> List[dict[str, Any]]:
     """智能执行 — 2026 年交易计划订单
 
     支持两种执行模式:
@@ -46,7 +45,7 @@ def phase_execute(workflow, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
     # === P0-12: Put Option 累计预算 60% 硬限制 (2026-07-25 顶级对冲基金审计) ===
     # 审计问题: put option 无累计预算上限, 极端行情下可能耗尽对冲账户全部资金
     # 修复: put 累计预算 <= 60% * hedge_capital, 保留 40% 缓冲应对极端行情
-    put_budget_info: Dict[str, Any] = {}
+    put_budget_info: dict[str, Any] = {}
     if options_modules:
         try:
             options_modules, put_budget_info = workflow._enforce_put_option_budget_limit(options_modules)
@@ -55,7 +54,7 @@ def phase_execute(workflow, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
             options_modules = []
             put_budget_info = {"error": str(exc), "fail_closed": True}
 
-    options_fills: List[Dict[str, Any]] = []
+    options_fills: List[dict[str, Any]] = []
     if options_plan and options_modules:
         try:
             from execution.options_runner import OptionsRunner
@@ -82,8 +81,8 @@ def phase_execute(workflow, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
     # 审计问题: 原 phase_execute 直接调用 MockBroker 下单, KillSwitch 检查
     #           仅在 Phase 4.5 记录日志但不拦截, L1/L2/L3 形同虚设
     # 修复: 下单前必须经过 UnifiedRiskCockpit 扫描, 按级别过滤/拦截订单
-    risk_gate: Dict[str, Any] = {}
-    kill_switch_enforcement: List[Dict[str, Any]] = []
+    risk_gate: dict[str, Any] = {}
+    kill_switch_enforcement: List[dict[str, Any]] = []
     try:
         risk_gate = workflow._pre_trade_risk_gate()
     except Exception as exc:
@@ -195,7 +194,7 @@ def phase_execute(workflow, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
         logger.info("DRY-RUN 模式, 仅生成指令不执行")
 
         # === 对冲基金视角: 执行算法引擎 (大单拆单计划) ===
-        execution_plans: List[Dict[str, Any]] = []
+        execution_plans: List[dict[str, Any]] = []
         if workflow.exec_algo_engine is not None:
             try:
                 for order in morning_orders + afternoon_orders:
@@ -274,7 +273,7 @@ def phase_execute(workflow, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
         return dry_orders
 
     # === 对冲基金视角: 执行算法引擎 (大单拆单计划) ===
-    execution_plans: List[Dict[str, Any]] = []
+    execution_plans: List[dict[str, Any]] = []
     if workflow.exec_algo_engine is not None:
         try:
             for order in morning_orders + afternoon_orders:
@@ -385,7 +384,7 @@ def phase_execute(workflow, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
         # 防止盘中熔断后 SOR 继续下单 (前 50 笔成交后 KillSwitch 升级到 L2, 后 50 笔应停止)
         sor = SmartOrderRouter(broker, ntp, kill_switch=getattr(self, 'ks', None))
 
-        all_fills: List[Dict[str, Any]] = []
+        all_fills: List[dict[str, Any]] = []
 
         # === 上午批次执行 ===
         logger.info(f"--- 上午批次 {workflow.config.MORNING_WINDOW} ---")
@@ -440,8 +439,8 @@ def phase_execute(workflow, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
         # === 机构级: TCA 交易后成本分析 ===
         if workflow.tca_manager is not None and all_fills:
             try:
-                fills_by_symbol: Dict[str, List[FillRecord]] = {}
-                benchmarks: Dict[str, BenchmarkPrices] = {}
+                fills_by_symbol: dict[str, List[FillRecord]] = {}
+                benchmarks: dict[str, BenchmarkPrices] = {}
                 for fill in all_fills:
                     sym = str(fill.get("symbol", fill.get("code", "")))
                     if not sym:
@@ -493,9 +492,9 @@ def phase_execute(workflow, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
                 import numpy as _np_exec
                 import pandas as _pd_exec
                 # 为每笔成交生成执行计划与冲击估计
-                exec_plans_summary: List[Dict[str, Any]] = []
-                impact_estimates: List[Dict[str, Any]] = []
-                routing_decisions: List[Dict[str, Any]] = []
+                exec_plans_summary: List[dict[str, Any]] = []
+                impact_estimates: List[dict[str, Any]] = []
+                routing_decisions: List[dict[str, Any]] = []
 
                 for fill in all_fills:
                     sym = str(fill.get("symbol", fill.get("code", "")))

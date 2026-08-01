@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T4.2 ML 增强选择器 — MLEnhancedSelector.
 
 轻量级 ML 选择器, 基于 numpy 实现逻辑回归 (Logistic Regression) + L2 正则化,
@@ -25,7 +24,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Sequence, cast
 
 import numpy as np
 import pandas as pd
@@ -100,8 +99,8 @@ class TrainingResult:
     n_features: int = 0
     final_loss: float = 0.0
     n_iterations: int = 0
-    feature_importance: Dict[str, float] = field(default_factory=dict)
-    training_history: List[float] = field(default_factory=list)
+    feature_importance: dict[str, float] = field(default_factory=dict)
+    training_history: list[float] = field(default_factory=list)
 
 
 # ============================================================
@@ -128,7 +127,7 @@ class _LogisticRegressionNumpy:
         self.n_iterations = int(n_iterations)
         self.l2_reg = float(l2_reg)
         self.random_state = int(random_state)
-        self.weights: Optional[np.ndarray] = None
+        self.weights: np.ndarray | None = None
         self.bias: float = 0.0
         self._rng = np.random.default_rng(random_state)
 
@@ -145,7 +144,7 @@ class _LogisticRegressionNumpy:
         y_pred = np.clip(y_pred, eps, 1.0 - eps)
         return float(-np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred)))
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> Tuple[float, List[float]]:
+    def fit(self, X: np.ndarray, y: np.ndarray) -> tuple[float, list[float]]:
         """训练模型.
 
         Args:
@@ -160,7 +159,7 @@ class _LogisticRegressionNumpy:
         self.weights = self._rng.normal(0, 0.01, n_features)
         self.bias = 0.0
 
-        history: List[float] = []
+        history: list[float] = []
         for i in range(self.n_iterations):
             # 前向传播
             linear = X @ self.weights + self.bias
@@ -208,7 +207,7 @@ class _LogisticRegressionNumpy:
         """
         return cast(np.ndarray, (self.predict_proba(X) >= threshold).astype(int))
 
-    def get_feature_importance(self, feature_names: Optional[List[str]] = None) -> Dict[str, float]:
+    def get_feature_importance(self, feature_names: list[str] | None = None) -> dict[str, float]:
         """获取特征重要性 (权重绝对值).
 
         Args:
@@ -248,27 +247,27 @@ class MLEnhancedSelector:
 
     def __init__(
         self,
-        config: Optional[TrainingConfig] = None,
-        model_dir: Optional[Union[str, Path]] = None,
+        config: TrainingConfig | None = None,
+        model_dir: str | Path | None = None,
     ) -> None:
         self.config = config or TrainingConfig()
         self.model_dir = Path(model_dir) if model_dir else DEFAULT_MODEL_DIR
         self.model_dir.mkdir(parents=True, exist_ok=True)
 
         # 内部模型 (延迟初始化)
-        self._model: Optional[_LogisticRegressionNumpy] = None
+        self._model: _LogisticRegressionNumpy | None = None
         self._is_trained: bool = False
-        self._feature_names: Optional[List[str]] = None
-        self._training_result: Optional[TrainingResult] = None
+        self._feature_names: list[str] | None = None
+        self._training_result: TrainingResult | None = None
 
     # ============================================================
     # 训练
     # ============================================================
     def train(
         self,
-        X: Union[np.ndarray, pd.DataFrame, Sequence[Sequence[float]]],
-        y: Union[np.ndarray, pd.Series, Sequence[float]],
-        feature_names: Optional[List[str]] = None,
+        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],
+        y: np.ndarray | pd.Series | Sequence[float],
+        feature_names: list[str] | None = None,
     ) -> TrainingResult:
         """训练 ML 模型.
 
@@ -329,7 +328,7 @@ class MLEnhancedSelector:
     # ============================================================
     def predict_proba(
         self,
-        X: Union[np.ndarray, pd.DataFrame, Sequence[Sequence[float]]],
+        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],
     ) -> np.ndarray:
         """预测概率.
 
@@ -345,7 +344,7 @@ class MLEnhancedSelector:
 
     def predict(
         self,
-        X: Union[np.ndarray, pd.DataFrame, Sequence[Sequence[float]]],
+        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],
         threshold: float = 0.5,
     ) -> np.ndarray:
         """预测类别.
@@ -427,7 +426,7 @@ class MLEnhancedSelector:
     # ============================================================
     # 特征重要性
     # ============================================================
-    def get_feature_importance(self) -> Dict[str, float]:
+    def get_feature_importance(self) -> dict[str, float]:
         """获取特征重要性.
 
         Returns:
@@ -445,7 +444,7 @@ class MLEnhancedSelector:
         return self._is_trained
 
     @property
-    def training_result(self) -> Optional[TrainingResult]:
+    def training_result(self) -> TrainingResult | None:
         """训练结果."""
         return self._training_result
 
@@ -459,10 +458,10 @@ class MLEnhancedSelector:
 
     @staticmethod
     def _normalize_input(
-        X: Union[np.ndarray, pd.DataFrame, Sequence[Sequence[float]]],
-        y: Union[np.ndarray, pd.Series, Sequence[float]],
-        feature_names: Optional[List[str]] = None,
-    ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],
+        y: np.ndarray | pd.Series | Sequence[float],
+        feature_names: list[str] | None = None,
+    ) -> tuple[np.ndarray, np.ndarray, list[str]]:
         """标准化输入."""
         # X
         if isinstance(X, pd.DataFrame):
@@ -497,7 +496,7 @@ class MLEnhancedSelector:
 
     @staticmethod
     def _normalize_X(
-        X: Union[np.ndarray, pd.DataFrame, Sequence[Sequence[float]]],
+        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],
     ) -> np.ndarray:
         """标准化预测输入 X."""
         if isinstance(X, pd.DataFrame):
@@ -525,7 +524,7 @@ def is_ml_selector_enabled() -> bool:
 
 
 def create_default_selector(
-    model_dir: Optional[Union[str, Path]] = None,
+    model_dir: str | Path | None = None,
 ) -> MLEnhancedSelector:
     """创建默认配置的 ML 选择器.
 

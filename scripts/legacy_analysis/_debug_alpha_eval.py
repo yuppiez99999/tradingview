@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """诊断: 为什么 _real_alpha_evaluation 返回 mock"""
 import sys
 

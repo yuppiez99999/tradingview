@@ -199,7 +199,7 @@ def estimate_coverage(source_dirs=None):
                 continue
 
             try:
-                with open(py_file, 'r', encoding='utf-8') as f:
+                with open(py_file, encoding='utf-8') as f:
                     content = f.read()
 
                 # 统计函数定义
@@ -210,7 +210,7 @@ def estimate_coverage(source_dirs=None):
                 # 简单估算:如果函数名出现在测试文件中,认为被覆盖
                 test_content = ''
                 for test_file in Path('.').glob('test_*.py'):
-                    with open(test_file, 'r', encoding='utf-8') as f:
+                    with open(test_file, encoding='utf-8') as f:
                         test_content += f.read()
 
                 for func in functions:

@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """修复 checks 列表中被错误替换的行"""
 fp = r'e:\各种PY程序\28-终极量化交易系统8.4\_run_dsr_walkforward_v7_model.py'
-with open(fp, 'r', encoding='utf-8') as f:
+with open(fp, encoding='utf-8') as f:
     lines = f.readlines()
 
 # 找到 checks = [ 行

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证 TRADING_ENV 配置和 fail-closed 状态"""
 import sys
 from pathlib import Path
@@ -60,7 +59,7 @@ import json
 
 state_file = PROJECT_ROOT / "output" / "shadow_account" / "shadow_state.json"
 if state_file.exists():
-    with open(state_file, "r", encoding="utf-8") as f:
+    with open(state_file, encoding="utf-8") as f:
         state = json.load(f)
     print(f"  账户 ID:        {state.get('account_id', '')}")
     print(f"  策略 ID:        {state.get('strategy_id', '')}")

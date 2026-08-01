@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 交易后成本分析引擎 (Post-Trade TCA Engine)
 
@@ -23,7 +22,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Union
 
 # ============================================================
 # 数据结构
@@ -90,7 +88,7 @@ class TCAReport:
 
     # 评级
     quality_grade: str  # A+ / A / B / C / D
-    issues: List[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
 
 
 # ============================================================
@@ -144,10 +142,10 @@ class TCAManager:
 
     def analyze(
         self,
-        fills: List[FillRecord],
+        fills: list[FillRecord],
         benchmark: BenchmarkPrices,
-        order_shares: Optional[int] = None,
-        interval_volume: Optional[int] = None,
+        order_shares: int | None = None,
+        interval_volume: int | None = None,
     ) -> TCAReport:
         """分析单标的的执行质量
 
@@ -284,13 +282,13 @@ class TCAManager:
 
     def analyze_batch(
         self,
-        fills_by_symbol: Dict[str, List[FillRecord]],
-        benchmarks: Dict[str, BenchmarkPrices],
-        orders: Optional[Dict[str, int]] = None,
-        volumes: Optional[Dict[str, int]] = None,
-    ) -> Dict[str, TCAReport]:
+        fills_by_symbol: dict[str, list[FillRecord]],
+        benchmarks: dict[str, BenchmarkPrices],
+        orders: dict[str, int] | None = None,
+        volumes: dict[str, int] | None = None,
+    ) -> dict[str, TCAReport]:
         """批量分析多个标的"""
-        reports: Dict[str, TCAReport] = {}
+        reports: dict[str, TCAReport] = {}
         for symbol, fills in fills_by_symbol.items():
             if not fills:
                 continue
@@ -310,7 +308,7 @@ class TCAManager:
     # 组合汇总
     # ------------------------------------------------------------
 
-    def summarize(self, reports: Dict[str, TCAReport]) -> Dict:
+    def summarize(self, reports: dict[str, TCAReport]) -> dict:
         """组合级 TCA 汇总"""
         if not reports:
             return {"total_notional": 0, "total_cost": 0, "avg_cost_bps": 0}
@@ -339,7 +337,7 @@ class TCAManager:
         )
         avg_fill_rate = sum(r.fill_rate for r in reports.values()) / len(reports)
 
-        grade_dist: Dict[str, int] = {}
+        grade_dist: dict[str, int] = {}
         for r in reports.values():
             grade_dist[r.quality_grade] = grade_dist.get(r.quality_grade, 0) + 1
 
@@ -394,9 +392,9 @@ class TCAManager:
         timing_cost_bps: float,
         fill_rate: float,
         participation_rate: float,
-    ) -> List[str]:
+    ) -> list[str]:
         """诊断执行问题"""
-        issues: List[str] = []
+        issues: list[str] = []
         if abs(is_cost_bps) > 20:
             issues.append(f"IS 成本过高: {is_cost_bps:.1f}bps (>20)")
         if abs(vwap_deviation_bps) > 10:
@@ -417,7 +415,7 @@ class TCAManager:
     # 保存
     # ------------------------------------------------------------
 
-    def save_report(self, report: TCAReport, path: Union[str, Path]) -> Path:
+    def save_report(self, report: TCAReport, path: str | Path) -> Path:
         """保存 TCA 报告到 JSON"""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -453,8 +451,8 @@ class TCAManager:
     # ============================================================
     def estimate(
         self,
-        order: Dict,
-        market_data: Optional[Dict] = None,
+        order: dict,
+        market_data: dict | None = None,
         cost_threshold_bps: float = 30.0,
     ):
         """执行前成本预估 (T3.4)

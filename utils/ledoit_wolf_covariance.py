@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Ledoit-Wolf 收缩协方差估计器 (Ledoit-Wolf Shrinkage Covariance Estimator)
 
@@ -23,7 +22,6 @@ Ledoit-Wolf 收缩协方差估计器 (Ledoit-Wolf Shrinkage Covariance Estimator
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -79,7 +77,7 @@ class LedoitWolfCovariance:
     # 主入口
     # ------------------------------------------------------------
 
-    def fit(self, returns: Union[np.ndarray, "pd.DataFrame"]) -> ShrinkageResult:  # type: ignore
+    def fit(self, returns: np.ndarray | pd.DataFrame) -> ShrinkageResult:  # type: ignore
         """估计收缩协方差矩阵
 
         Args:
@@ -255,16 +253,16 @@ class LedoitWolfCovariance:
     # 便利方法
     # ------------------------------------------------------------
 
-    def fit_predict(self, returns: Union[np.ndarray, "pd.DataFrame"]) -> np.ndarray:  # type: ignore
+    def fit_predict(self, returns: np.ndarray | pd.DataFrame) -> np.ndarray:  # type: ignore
         """便利方法: 直接返回收缩后协方差矩阵"""
         result = self.fit(returns)
         return result.cov_shrunk
 
     def fit_with_uncertainty(
         self,
-        returns: Union[np.ndarray, "pd.DataFrame"],  # type: ignore
+        returns: np.ndarray | pd.DataFrame,  # type: ignore
         n_bootstrap: int = 100,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """带自助法的协方差估计
 
         Returns:

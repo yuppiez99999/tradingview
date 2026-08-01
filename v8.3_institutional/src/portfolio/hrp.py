@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.6 HRP (Hierarchical Risk Parity) — 分层风险平价
 
@@ -19,7 +18,6 @@ v7.6 HRP (Hierarchical Risk Parity) — 分层风险平价
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -60,10 +58,10 @@ class HierarchicalRiskParity:
         self.max_weight = max_weight
 
         # 拟合后存储
-        self.weights_: Dict[str, float] = {}
-        self.clusters_: Optional[np.ndarray] = None
-        self.sorted_idx_: Optional[np.ndarray] = None
-        self.cov_: Optional[np.ndarray] = None
+        self.weights_: dict[str, float] = {}
+        self.clusters_: np.ndarray | None = None
+        self.sorted_idx_: np.ndarray | None = None
+        self.cov_: np.ndarray | None = None
 
     def _distance_matrix(self, corr: np.ndarray) -> np.ndarray:
         """相关系数 → 距离矩阵"""
@@ -107,7 +105,7 @@ class HierarchicalRiskParity:
 
         return np.array(sorted_idx)
 
-    def _recursive_bisection(self, cov: np.ndarray, sorted_idx: np.ndarray) -> List[float]:
+    def _recursive_bisection(self, cov: np.ndarray, sorted_idx: np.ndarray) -> list[float]:
         """递归平分: 自顶向下分配权重
 
         每一层: 将当前组分为两半, 按逆方差比分配权重
@@ -178,7 +176,7 @@ class HierarchicalRiskParity:
         weights = weights / weights.sum()
         return weights.tolist()
 
-    def fit(self, returns: pd.DataFrame) -> Dict[str, float]:
+    def fit(self, returns: pd.DataFrame) -> dict[str, float]:
         """拟合 HRP 权重
 
         Args:
@@ -275,13 +273,13 @@ class HierarchicalRiskParity:
 
         return shrunk
 
-    def _apply_constraints(self, weights: Dict[str, float]) -> Dict[str, float]:
+    def _apply_constraints(self, weights: dict[str, float]) -> dict[str, float]:
         """应用 min/max 约束"""
         # 先 clip
         clipped = {k: np.clip(v, self.min_weight, self.max_weight) for k, v in weights.items()}
         return clipped
 
-    def _fallback_rp(self, returns: pd.DataFrame) -> Dict[str, float]:
+    def _fallback_rp(self, returns: pd.DataFrame) -> dict[str, float]:
         """朴素 Risk Parity 回退"""
         symbols = list(returns.columns)
         n = len(symbols)
@@ -294,7 +292,7 @@ class HierarchicalRiskParity:
         return {s: float(w) for s, w in zip(symbols, weights_arr)}
 
     # ---------- 诊断 ----------
-    def portfolio_risk(self, returns: pd.DataFrame) -> Dict:
+    def portfolio_risk(self, returns: pd.DataFrame) -> dict:
         """计算 HRP 组合的风险指标"""
         if not self.weights_:
             return {}

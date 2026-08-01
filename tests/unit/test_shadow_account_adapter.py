@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Shadow 账户适配器单元测试 — 模块整合 8.4 (T2.4).
 
 测试覆盖:
@@ -17,7 +16,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import List
 
 import pytest
 
@@ -59,7 +57,7 @@ from utils.alpha.shadow_account_adapter import (
 # ============================================================
 
 @pytest.fixture
-def good_returns() -> List[float]:
+def good_returns() -> list[float]:
     """正夏普的模拟收益率序列 (30 天, SR > 1)."""
     import random
     random.seed(42)
@@ -67,7 +65,7 @@ def good_returns() -> List[float]:
 
 
 @pytest.fixture
-def noise_returns() -> List[float]:
+def noise_returns() -> list[float]:
     """零夏普噪音收益率序列 (30 天, SR ≈ 0)."""
     import random
     random.seed(123)
@@ -75,14 +73,14 @@ def noise_returns() -> List[float]:
 
 
 @pytest.fixture
-def high_volatility_returns() -> List[float]:
+def high_volatility_returns() -> list[float]:
     """高波动收益率序列 (单日 > 3% 回撤触发 fail-fast)."""
     # 第 1 天基准 0.0, 第 2 天大跌 5% (前一日 1.0, 当日 0.95, 回撤 5%)
     return [0.0, -0.05, 0.01, 0.02]
 
 
 @pytest.fixture
-def cumulative_drawdown_returns() -> List[float]:
+def cumulative_drawdown_returns() -> list[float]:
     """3 日累计回撤 > 5% 的序列 (每日 < 3% 单日回撤)."""
     # 第 1 天基准 0.0
     # 第 2 天 -2.5% (1.0 -> 0.975, 单日 2.5% < 3% 不触发)
@@ -92,7 +90,7 @@ def cumulative_drawdown_returns() -> List[float]:
 
 
 @pytest.fixture
-def long_returns_252() -> List[float]:
+def long_returns_252() -> list[float]:
     """252 天的收益率序列 (用于测试 Sharpe CV 滚动窗口, 低波动率避免 fail-fast)."""
     import random
     random.seed(456)

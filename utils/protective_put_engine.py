@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 认沽期权保护引擎 (Protective Put Engine)
 ==========================================
@@ -42,7 +41,7 @@ import logging
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("protective_put_engine")
 
@@ -114,7 +113,7 @@ class ProtectivePutEngine:
         },
     ]
 
-    def __init__(self, total_capital: Optional[float] = None):  # type: ignore
+    def __init__(self, total_capital: float | None = None):  # type: ignore
         if total_capital is not None:
             self.TOTAL_CAPITAL = total_capital  # type: ignore
         self._load_state()
@@ -125,7 +124,7 @@ class ProtectivePutEngine:
         PUT_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         if PUT_STATE_FILE.exists():
             try:
-                with open(PUT_STATE_FILE, "r", encoding="utf-8") as f:
+                with open(PUT_STATE_FILE, encoding="utf-8") as f:
                     self.state = json.load(f)
             except Exception:  # P2 模块 fail-safe, 待后续精确化
                 self.state = {}
@@ -141,7 +140,7 @@ class ProtectivePutEngine:
     def _get_portfolio_value(self) -> float:
         """获取当前组合市值"""
         try:
-            with open(CONFIG_DIR / "positions.json", "r", encoding="utf-8") as f:
+            with open(CONFIG_DIR / "positions.json", encoding="utf-8") as f:
                 positions = json.load(f)
         except Exception:  # P2 模块 fail-safe, 待后续精确化
             return 0
@@ -157,7 +156,7 @@ class ProtectivePutEngine:
     def _get_etf_spot_price(self, code: str) -> float:
         """获取ETF现价"""
         try:
-            with open(CONFIG_DIR / "positions.json", "r", encoding="utf-8") as f:
+            with open(CONFIG_DIR / "positions.json", encoding="utf-8") as f:
                 positions = json.load(f)
         except Exception:  # P2 模块 fail-safe, 待后续精确化
             return 0
@@ -193,7 +192,7 @@ class ProtectivePutEngine:
 
         return max(put_price, 0.0001)  # type: ignore[no-any-return]  # 最低价
 
-    def should_buy_protection(self) -> Tuple[bool, str]:
+    def should_buy_protection(self) -> tuple[bool, str]:
         """判断是否需要买入认沽保护
 
         触发条件:
@@ -231,7 +230,7 @@ class ProtectivePutEngine:
 
         return True, f"组合市值 CNY{portfolio_value:,.0f}, 无有效Put保护, 应立即建仓"
 
-    def generate_put_orders(self, drawdown_level: int = 0) -> Dict[str, Any]:
+    def generate_put_orders(self, drawdown_level: int = 0) -> dict[str, Any]:
         """生成认沽期权买入订单
 
         Args:
@@ -347,7 +346,7 @@ class ProtectivePutEngine:
 
         return result
 
-    def check_and_roll(self) -> Dict[str, Any]:
+    def check_and_roll(self) -> dict[str, Any]:
         """检查现有Put是否需要滚仓
 
         Returns:
@@ -397,7 +396,7 @@ class ProtectivePutEngine:
             "new_orders": new_orders.get("orders", []),
         }
 
-    def record_execution(self, orders: List[Dict], actual_premium: Optional[float] = None):  # type: ignore
+    def record_execution(self, orders: list[dict], actual_premium: float | None = None):  # type: ignore
         """记录执行结果, 更新状态"""
         if actual_premium is None:
             actual_premium = sum(o.get("premium_total", 0) for o in orders)
@@ -454,7 +453,7 @@ class ProtectivePutEngine:
                 # 安全回退
                 return datetime(target_year, target_month, 28)
 
-    def get_protection_status(self) -> Dict[str, Any]:
+    def get_protection_status(self) -> dict[str, Any]:
         """获取当前保护状态摘要"""
         portfolio_value = self._get_portfolio_value()
         active_puts = self.state.get("active_puts", [])

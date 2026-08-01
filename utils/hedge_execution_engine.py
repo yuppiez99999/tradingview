@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 对冲执行引擎 (Hedge Execution Engine)
 =====================================
@@ -32,7 +31,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("hedge_execution_engine")
 
@@ -67,7 +66,7 @@ class HedgeExecutionEngine:
     MAX_ANNUAL_OPTION_COST_PCT = 0.025  # 最大年化期权成本 2.5%
     PUT_ROLL_DTE = 5  # 到期前5天滚仓
 
-    def __init__(self, positions_file: Optional[str] = None):
+    def __init__(self, positions_file: str | None = None):
         self.positions_file = Path(positions_file) if positions_file else CONFIG_DIR / "positions.json"
         self.positions_data = self._load_positions()
         self._hedge_manager = None
@@ -142,10 +141,10 @@ class HedgeExecutionEngine:
         """获取 PostTradeAttribution 实例 (用于归因查询)"""
         return self._post_trade_attribution
 
-    def _load_positions(self) -> Dict:
+    def _load_positions(self) -> dict:
         """加载持仓配置"""
         try:
-            with open(self.positions_file, "r", encoding="utf-8") as f:
+            with open(self.positions_file, encoding="utf-8") as f:
                 return json.load(f)  # type: ignore
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"加载持仓失败: {e}")
@@ -223,11 +222,11 @@ class HedgeExecutionEngine:
 
     def generate_futures_hedge_orders(
         self,
-        portfolio_value: Optional[float] = None,  # type: ignore
-        portfolio_beta: Optional[float] = None,  # type: ignore
-        target_beta: Optional[float] = None,  # type: ignore
+        portfolio_value: float | None = None,  # type: ignore
+        portfolio_beta: float | None = None,  # type: ignore
+        target_beta: float | None = None,  # type: ignore
         drawdown_level: int = 0,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """生成期货对冲订单
 
         逻辑:
@@ -317,9 +316,9 @@ class HedgeExecutionEngine:
 
     def generate_put_protection_orders(
         self,
-        portfolio_value: Optional[float] = None,  # type: ignore
+        portfolio_value: float | None = None,  # type: ignore
         drawdown_level: int = 0,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """生成认沽期权保护订单
 
         详见 utils/protective_put_engine.py (P3模块)
@@ -385,7 +384,7 @@ class HedgeExecutionEngine:
         logger.info(f"认沽保护订单: {len(put_orders)} 组, 总预算 ¥{sum(o['premium_budget'] for o in put_orders):,.0f}")
         return put_orders
 
-    def generate_hedge_orders(self, drawdown_level: int = 0) -> Dict[str, Any]:
+    def generate_hedge_orders(self, drawdown_level: int = 0) -> dict[str, Any]:
         """生成完整对冲执行计划 (期货 + 期权)
 
         Returns:
@@ -499,7 +498,7 @@ class HedgeExecutionEngine:
 
         return result
 
-    def write_to_trade_plan(self, hedge_result: Dict, trade_date: str) -> str:
+    def write_to_trade_plan(self, hedge_result: dict, trade_date: str) -> str:
         """将对冲订单写入交易计划文件
 
         Args:
@@ -516,7 +515,7 @@ class HedgeExecutionEngine:
         # 如果已有计划文件, 合并对冲字段
         if plan_path.exists():
             try:
-                with open(plan_path, "r", encoding="utf-8") as f:
+                with open(plan_path, encoding="utf-8") as f:
                     plan = json.load(f)
             except Exception:  # P2 模块 fail-safe, 待后续精确化
                 plan = {}
@@ -585,7 +584,7 @@ class HedgeExecutionEngine:
         logger.info(f"对冲执行计划已写入: {plan_path} (status={execution_status})")
         return str(plan_path)
 
-    def write_hedge_report(self, hedge_result: Dict, trade_date: str) -> str:
+    def write_hedge_report(self, hedge_result: dict, trade_date: str) -> str:
         """将对冲报告写入 reports/ 目录"""
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
         trade_date.replace("-", "")

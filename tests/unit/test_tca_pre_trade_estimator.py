@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T3.4 TCA 执行前预估器单元测试.
 
 验证:
@@ -22,7 +21,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -51,7 +50,7 @@ def make_order(
     price: float = 50.0,
     notional: float = None,
     market_cap: float = 800e8,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """构造订单字典"""
     return {
         "symbol": symbol,
@@ -63,7 +62,7 @@ def make_order(
     }
 
 
-def make_market_data(adv: float = 1e8, volatility: float = 0.025) -> Dict[str, Any]:
+def make_market_data(adv: float = 1e8, volatility: float = 0.025) -> dict[str, Any]:
     """构造市场数据字典"""
     return {"adv": adv, "volatility": volatility}
 
@@ -388,7 +387,7 @@ class TestJsonlPersistence:
         assert file_path.exists()
 
         # 读取并解析
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             lines = f.readlines()
         assert len(lines) >= 1
         record = json.loads(lines[-1])
@@ -404,8 +403,8 @@ class TestJsonlPersistence:
         from datetime import datetime
         date_str = datetime.now().strftime("%Y-%m-%d")
         file_path = tmp_path / f"estimate_{date_str}.jsonl"
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = [l for l in f.readlines() if l.strip()]
+        with open(file_path, encoding="utf-8") as f:
+            lines = [line for line in f.readlines() if line.strip()]
         assert len(lines) >= 3
 
     def test_get_history_returns_records(self, estimator_tmp_dir):

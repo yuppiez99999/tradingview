@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """快速检查7月所有trade_plan订单数"""
 import json
 from pathlib import Path
@@ -13,7 +12,7 @@ print("-" * 60)
 
 for p in files:
     try:
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             j = json.load(f)
         ep = j.get("execution_plan", {})
         mo = ep.get("morning_orders", [])

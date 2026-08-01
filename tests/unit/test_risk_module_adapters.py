@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T3.3 风控模块适配器集合单元测试.
 
 验证:
@@ -15,7 +14,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -63,9 +62,9 @@ class MockVaRMonitor:
     """模拟 VaRMonitor."""
 
     def __init__(self) -> None:
-        self.last_result: Dict[str, Any] = {}
+        self.last_result: dict[str, Any] = {}
 
-    def calculate_var(self, returns_history: List[float], portfolio_value: float) -> Dict[str, Any]:
+    def calculate_var(self, returns_history: list[float], portfolio_value: float) -> dict[str, Any]:
         return self.last_result
 
 
@@ -75,7 +74,7 @@ class MockGapMonitor:
     def __init__(self, level: int = 0) -> None:
         self._level = level
 
-    def evaluate_overnight_risk(self) -> Dict[str, Any]:
+    def evaluate_overnight_risk(self) -> dict[str, Any]:
         return {"level": self._level}
 
 
@@ -83,16 +82,16 @@ class MockRiskGuard:
     """模拟 RiskGuardIntegrator."""
 
     def __init__(self) -> None:
-        self.calls: List[str] = []
+        self.calls: list[str] = []
 
-    def run_all_guards(self, next_trade_date: str) -> Dict[str, Any]:
+    def run_all_guards(self, next_trade_date: str) -> dict[str, Any]:
         self.calls.append(next_trade_date)
         return {"status": "ok"}
 
 
 def make_event(
     event_type: RiskEventType,
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     source: str = "test",
 ) -> RiskEvent:
     """创建测试事件."""

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 全核心模块统一调度器
 ==========================
@@ -29,7 +28,6 @@ import subprocess
 import sys
 from datetime import date, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # ============================================================
 # 路径与全局配置
@@ -105,7 +103,7 @@ class ModuleRunner:
                  description: str,
                  schedule: str = "daily",
                  timeout: int = 3600,
-                 extra_args: Optional[List[str]] = None):
+                 extra_args: list[str] | None = None):
         """
         Args:
             name: 模块简称
@@ -121,9 +119,9 @@ class ModuleRunner:
         self.schedule = schedule
         self.timeout = timeout
         self.extra_args = extra_args or []
-        self.result: Optional[Dict] = None
+        self.result: dict | None = None
 
-    def should_run_today(self, d: Optional[date] = None) -> bool:
+    def should_run_today(self, d: date | None = None) -> bool:
         """判断今天是否应该运行"""
         if d is None:
             d = date.today()
@@ -134,7 +132,7 @@ class ModuleRunner:
             return d.weekday() == 0
         return True
 
-    def run(self, dry_run: bool = False) -> Dict:
+    def run(self, dry_run: bool = False) -> dict:
         """执行模块"""
         status = "SKIP"
         exit_code = 0
@@ -282,13 +280,13 @@ class AllModulesScheduler:
         self.sim_mode = sim_mode
         self.trade_date = datetime.now().strftime("%Y-%m-%d")
         self.start_time = datetime.now()
-        self.results: List[Dict] = []
+        self.results: list[dict] = []
 
         # 创建当日归档目录 (YYYY-MM-DD)
         self.archive_dir = ARCHIVE_ROOT / datetime.now().strftime("%Y-%m-%d")
         self.archive_dir.mkdir(parents=True, exist_ok=True)
 
-    def is_trading_day(self, d: Optional[date] = None) -> bool:
+    def is_trading_day(self, d: date | None = None) -> bool:
         """判断是否为交易日
 
         ER4 修复: 优先委托给 utils.trade_calendar (akshare 动态获取),

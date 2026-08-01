@@ -7,7 +7,6 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Dict, List
 
 import numpy as np
 
@@ -38,12 +37,12 @@ class PnLAttributionEngine:
     """交易成本分析 + PnL 归因 + Alpha 衰减追踪"""
 
     def __init__(self):
-        self._daily_log: List[dict] = []
-        self._weekly_log: List[dict] = []
-        self._factor_returns: Dict[str, List[float]] = defaultdict(list)
-        self._tca_data: List[dict] = []  # Transaction Cost Analysis
+        self._daily_log: list[dict] = []
+        self._weekly_log: list[dict] = []
+        self._factor_returns: dict[str, list[float]] = defaultdict(list)
+        self._tca_data: list[dict] = []  # Transaction Cost Analysis
 
-    def attribute_daily(self, positions: List[PositionSnapshot], total_pnl: float, total_nav: float) -> dict:
+    def attribute_daily(self, positions: list[PositionSnapshot], total_pnl: float, total_nav: float) -> dict:
         """分解单日收益"""
 
         if not positions:
@@ -58,8 +57,8 @@ class PnLAttributionEngine:
         beta_contrib = weighted_beta * mkt_return
 
         # 行业 / 风格贡献
-        style_pnl: Dict[str, float] = defaultdict(float)
-        sector_pnl: Dict[str, float] = defaultdict(float)
+        style_pnl: dict[str, float] = defaultdict(float)
+        sector_pnl: dict[str, float] = defaultdict(float)
 
         for p in positions:
             contribution = p.weight * p.daily_return

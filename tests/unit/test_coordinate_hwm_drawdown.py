@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证 HedgeCoordinator.coordinate() 正确传递 hwm_drawdown + bs_loss 参数.
 
 背景:

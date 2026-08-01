@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Feature Flag 框架单元测试.
 
 任务: T1.3

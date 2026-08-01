@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """统一根因分析框架 — 三层面自我进化 Stage 2 核心.
 
 模块整合 8.4 — ARCHITECTURE_三层面进化 §第2阶段
@@ -48,7 +47,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -114,9 +113,9 @@ class FixSuggestion:
     description: str = ""
     estimated_risk: float = 0.5
     requires_human_approval: bool = True  # HC-3 安全护栏
-    remediation_commands: List[str] = field(default_factory=list)
+    remediation_commands: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "action_type": self.action_type,
             "target_file": self.target_file,
@@ -156,14 +155,14 @@ class RootCause:
     layer: str
     category: str
     severity: str
-    evidence: Dict[str, Any] = field(default_factory=dict)
+    evidence: dict[str, Any] = field(default_factory=dict)
     suggested_fix: FixSuggestion = field(
         default_factory=lambda: FixSuggestion(action_type=ACTION_MANUAL)
     )
     confidence: float = 0.5
     detected_at: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "cause_id": self.cause_id,
             "layer": self.layer,
@@ -176,9 +175,9 @@ class RootCause:
         }
 
     @staticmethod
-    def _serialize_evidence(ev: Dict[str, Any]) -> Dict[str, Any]:
+    def _serialize_evidence(ev: dict[str, Any]) -> dict[str, Any]:
         """序列化证据 (转储非 JSON 原生类型为字符串)."""
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         for k, v in ev.items():
             try:
                 json.dumps(v, ensure_ascii=False)
@@ -213,11 +212,11 @@ class CausalChain:
         description: 人类可读的因果链描述
     """
     chain_id: str
-    nodes: List[RootCause] = field(default_factory=list)
+    nodes: list[RootCause] = field(default_factory=list)
     confidence: float = 0.5
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "chain_id": self.chain_id,
             "nodes": [n.to_dict() for n in self.nodes],
@@ -245,15 +244,15 @@ class RootCauseReport:
         source_health_report_at: 输入 HealthReport 的生成时间
         summary: 一句话摘要
     """
-    causes: List[RootCause] = field(default_factory=list)
-    causal_chains: List[CausalChain] = field(default_factory=list)
+    causes: list[RootCause] = field(default_factory=list)
+    causal_chains: list[CausalChain] = field(default_factory=list)
     is_degraded: bool = False
     degraded_reason: str = ""
     analyzed_at: str = ""
     source_health_report_at: str = ""
     summary: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "causes": [c.to_dict() for c in self.causes],
             "causal_chains": [c.to_dict() for c in self.causal_chains],
@@ -265,9 +264,9 @@ class RootCauseReport:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "RootCauseReport":
+    def from_dict(cls, d: dict[str, Any]) -> RootCauseReport:
         """从字典重建 (用于读取历史)."""
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         for c in d.get("causes", []):
             fix_d = c.get("suggested_fix", {})
             causes.append(RootCause(
@@ -287,7 +286,7 @@ class RootCauseReport:
                 confidence=float(c.get("confidence", 0.5)),
                 detected_at=c.get("detected_at", ""),
             ))
-        chains: List[CausalChain] = []
+        chains: list[CausalChain] = []
         for ch in d.get("causal_chains", []):
             chain_nodes = [
                 RootCause(
@@ -336,7 +335,7 @@ class UnifiedRootCauseAnalyzer:
 
     def __init__(
         self,
-        persistence_path: Optional[Path] = None,
+        persistence_path: Path | None = None,
         feature_flag_name: str = "USE_ROOT_CAUSE_ANALYZER",
         use_llm_assist_flag: str = "USE_LLM_ROOT_CAUSE",
     ) -> None:
@@ -356,10 +355,10 @@ class UnifiedRootCauseAnalyzer:
         self.persistence_path = Path(persistence_path) if persistence_path else DEFAULT_ROOT_CAUSES_PATH
 
         # 懒加载诊断器 (避免循环依赖)
-        self._code_diagnoser: Optional[Any] = None
-        self._strategy_diagnoser: Optional[Any] = None
-        self._ops_diagnoser: Optional[Any] = None
-        self._chain_builder: Optional[Any] = None
+        self._code_diagnoser: Any | None = None
+        self._strategy_diagnoser: Any | None = None
+        self._ops_diagnoser: Any | None = None
+        self._chain_builder: Any | None = None
         self._diagnosers_loaded = False
 
         logger.info(
@@ -449,7 +448,7 @@ class UnifiedRootCauseAnalyzer:
         self._load_diagnosers()
 
         # 三层诊断 (各自容错)
-        all_causes: List[RootCause] = []
+        all_causes: list[RootCause] = []
         all_causes.extend(self._safe_diagnose(self._code_diagnoser, "code", health_report, now))
         all_causes.extend(self._safe_diagnose(self._strategy_diagnoser, "strategy", health_report, now))
         all_causes.extend(self._safe_diagnose(self._ops_diagnoser, "ops", health_report, now))
@@ -480,7 +479,7 @@ class UnifiedRootCauseAnalyzer:
 
     def _safe_diagnose(
         self, diagnoser: Any, layer: str, health_report: Any, now: str
-    ) -> List[RootCause]:
+    ) -> list[RootCause]:
         """安全调用诊断器, 失败时返回空列表 (不阻塞)."""
         if diagnoser is None:
             return []
@@ -490,7 +489,7 @@ class UnifiedRootCauseAnalyzer:
                 logger.warning("%s 诊断器返回非 list (跳过): %s", layer, type(result).__name__)
                 return []
             # 校验每个元素是 RootCause
-            valid: List[RootCause] = []
+            valid: list[RootCause] = []
             for item in result:
                 if isinstance(item, RootCause):
                     valid.append(item)
@@ -501,7 +500,7 @@ class UnifiedRootCauseAnalyzer:
             logger.warning("%s 层诊断失败 (降级为空): %s", layer, e)
             return []
 
-    def _build_chains(self, causes: List[RootCause], now: str) -> List[CausalChain]:
+    def _build_chains(self, causes: list[RootCause], now: str) -> list[CausalChain]:
         """构建跨层因果链 (委托给 CausalChainBuilder)."""
         if self._chain_builder is None or not causes:
             return []
@@ -513,7 +512,7 @@ class UnifiedRootCauseAnalyzer:
             logger.warning("因果链构建失败 (降级为空): %s", e)
         return []
 
-    def _llm_enhance(self, causes: List[RootCause]) -> List[RootCause]:
+    def _llm_enhance(self, causes: list[RootCause]) -> list[RootCause]:
         """LLM 辅助增强根因描述 (可选, 容错降级).
 
         仅增强 description, 不改变结构化字段. 失败时原样返回.
@@ -532,7 +531,7 @@ class UnifiedRootCauseAnalyzer:
         return causes
 
     @staticmethod
-    def _build_llm_prompt(causes: List[RootCause]) -> str:
+    def _build_llm_prompt(causes: list[RootCause]) -> str:
         """构建 LLM 辅助推理 prompt."""
         lines = ["请分析以下根因的关联性和优先级,输出修复建议:"]
         for c in causes[:10]:  # 限制前 10 条避免 token 超限
@@ -540,11 +539,11 @@ class UnifiedRootCauseAnalyzer:
         return "\n".join(lines)
 
     @staticmethod
-    def _build_summary(causes: List[RootCause], chains: List[CausalChain]) -> str:
+    def _build_summary(causes: list[RootCause], chains: list[CausalChain]) -> str:
         """构建一句话摘要."""
         if not causes:
             return "未识别根因 (三层面健康)"
-        by_severity: Dict[str, int] = {}
+        by_severity: dict[str, int] = {}
         for c in causes:
             by_severity[c.severity] = by_severity.get(c.severity, 0) + 1
         sev_str = ", ".join(f"{k}:{v}" for k, v in sorted(by_severity.items()))
@@ -585,14 +584,14 @@ class UnifiedRootCauseAnalyzer:
         except Exception as e:
             logger.warning("根因报告持久化失败 (不影响内存报告): %s", e)
 
-    def _read_history(self, days: int) -> List[RootCauseReport]:
+    def _read_history(self, days: int) -> list[RootCauseReport]:
         """读取最近 N 天历史 (只读). 失败时返回空列表."""
         try:
             if not self.persistence_path.exists():
                 return []
             lines = self.persistence_path.read_text(encoding="utf-8").strip().splitlines()
             recent = lines[-(days * 2):] if len(lines) > days * 2 else lines
-            reports: List[RootCauseReport] = []
+            reports: list[RootCauseReport] = []
             for line in reversed(recent):
                 line = line.strip()
                 if not line:
@@ -609,19 +608,19 @@ class UnifiedRootCauseAnalyzer:
     # ============================================================
     # 公共 API
     # ============================================================
-    def get_recent_causes(self, days: int = 7) -> List[RootCause]:
+    def get_recent_causes(self, days: int = 7) -> list[RootCause]:
         """读取最近 N 天的所有根因 (扁平化)."""
         reports = self._read_history(days)
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         for r in reports:
             causes.extend(r.causes)
         return causes
 
-    def get_recent_reports(self, days: int = 7) -> List[RootCauseReport]:
+    def get_recent_reports(self, days: int = 7) -> list[RootCauseReport]:
         """读取最近 N 天的根因报告."""
         return self._read_history(days)
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取分析器状态 (用于审计)."""
         return {
             "enabled": self._enabled,

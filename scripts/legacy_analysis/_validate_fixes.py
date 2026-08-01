@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证修复: factor_library 18因子 + SignalFusion 动态IC权重 + daily_workflow 导入"""
 import sys
 from pathlib import Path
@@ -36,7 +35,9 @@ try:
     print("  [PASS] SignalFusion 验证通过")
 except Exception as e:
     print(f"  [FAIL] SignalFusion 验证失败: {e}")
-    import traceback; traceback.print_exc()
+    import traceback
+
+    traceback.print_exc()
 
 print()
 print("=" * 70)
@@ -87,7 +88,9 @@ try:
     print("  [PASS] factor_library 基本面因子验证通过")
 except Exception as e:
     print(f"  [FAIL] factor_library 验证失败: {e}")
-    import traceback; traceback.print_exc()
+    import traceback
+
+    traceback.print_exc()
 
 print()
 print("=" * 70)
@@ -99,7 +102,7 @@ try:
     py_compile.compile(str(dw_path), doraise=True)
     print("  ✓ daily_workflow.py 语法检查通过")
     # 验证关键修复点
-    with open(dw_path, "r", encoding="utf-8") as f:
+    with open(dw_path, encoding="utf-8") as f:
         src = f.read()
     assert "from utils.signal_fusion import SignalFusionEngine" in src, "导入路径未修复"
     assert "inject_forward_returns" in src, "forward_returns 注入未添加"
@@ -109,7 +112,9 @@ try:
     print("  [PASS] daily_workflow 验证通过")
 except Exception as e:
     print(f"  [FAIL] daily_workflow 验证失败: {e}")
-    import traceback; traceback.print_exc()
+    import traceback
+
+    traceback.print_exc()
 
 print()
 print("=" * 70)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 VibeTrading 因子库适配器（Factor Bridge）
 ==========================================
@@ -38,7 +37,7 @@ import traceback
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -75,7 +74,7 @@ class CandidateFactor:
     name: str                          # 因子名（如 VT_MOM_ILLIQUID_60D）
     category: str                      # 因子类别（Momentum/Value/Quality/...）
     description: str = ""              # 因子经济含义描述
-    values: Dict[str, float] = field(default_factory=dict)  # {symbol: factor_value}
+    values: dict[str, float] = field(default_factory=dict)  # {symbol: factor_value}
     origin: str = FACTOR_ORIGIN        # 来源标识
     vt_formula: str = ""               # Vibe-Trading 中的公式说明
     created_at: str = ""               # 计算时间戳
@@ -91,12 +90,12 @@ class CandidateFactorPool:
     batch_id: str                                       # 批次 ID
     compute_date: str                                   # 计算日期
     total_candidates: int = 0                            # 候选因子总数
-    factors: Dict[str, CandidateFactor] = field(default_factory=dict)
-    failed_computations: List[Dict[str, Any]] = field(default_factory=list)
+    factors: dict[str, CandidateFactor] = field(default_factory=dict)
+    failed_computations: list[dict[str, Any]] = field(default_factory=list)
     source_version: str = ""                            # Vibe-Trading 版本标识
     notes: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -107,7 +106,7 @@ class OrthogonalityResult:
     is_orthogonal: bool                  # 是否通过正交性检查（|r| < 0.7）
     max_abs_corr: float                  # 与现有因子的最大相关性绝对值
     max_corr_factor: str                 # 相关性最高的现有因子名
-    corr_with_existing: Dict[str, float] = field(default_factory=dict)  # 与各现有因子的相关系数
+    corr_with_existing: dict[str, float] = field(default_factory=dict)  # 与各现有因子的相关系数
     threshold: float = 0.7
 
 
@@ -159,7 +158,7 @@ class VibeTradingFactorAdapter:
         "Microstructure",     # 微观结构类（P2.1 新增）
     ]
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """初始化适配器
 
         Args:
@@ -190,11 +189,11 @@ class VibeTradingFactorAdapter:
 
     def compute_candidate_factors(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-        fundamentals: Optional[Dict[str, Dict[str, float]]] = None,
-        industries: Optional[Dict[str, str]] = None,
-        benchmark_returns: Optional[List[float]] = None,
-        fundamentals_history: Optional[Dict[str, Dict[str, Any]]] = None,
+        price_data: dict[str, dict[str, list[float]]],
+        fundamentals: dict[str, dict[str, float]] | None = None,
+        industries: dict[str, str] | None = None,
+        benchmark_returns: list[float] | None = None,
+        fundamentals_history: dict[str, dict[str, Any]] | None = None,
     ) -> CandidateFactorPool:
         """计算 Vibe-Trading 风格的候选因子（只读，不直接影响交易）
 
@@ -312,11 +311,11 @@ class VibeTradingFactorAdapter:
 
     def load_existing_factors(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-        fundamentals: Optional[Dict[str, Dict[str, float]]] = None,
-        industries: Optional[Dict[str, str]] = None,
-        benchmark_returns: Optional[List[float]] = None,
-    ) -> Dict[str, FactorValue]:
+        price_data: dict[str, dict[str, list[float]]],
+        fundamentals: dict[str, dict[str, float]] | None = None,
+        industries: dict[str, str] | None = None,
+        benchmark_returns: list[float] | None = None,
+    ) -> dict[str, FactorValue]:
         """加载现有系统的 50+ 因子（只读，不修改原对象）
 
         Args:
@@ -355,8 +354,8 @@ class VibeTradingFactorAdapter:
     def check_orthogonality(
         self,
         candidate_pool: CandidateFactorPool,
-        existing_factors: Dict[str, FactorValue],
-    ) -> Dict[str, OrthogonalityResult]:
+        existing_factors: dict[str, FactorValue],
+    ) -> dict[str, OrthogonalityResult]:
         """检查候选因子与现有因子的正交性
 
         Args:
@@ -366,7 +365,7 @@ class VibeTradingFactorAdapter:
         Returns:
             {candidate_name: OrthogonalityResult}
         """
-        results: Dict[str, OrthogonalityResult] = {}
+        results: dict[str, OrthogonalityResult] = {}
 
         # 准备现有因子的 DataFrame（symbol 为行，factor_name 为列）
         self._factor_dict_to_df(existing_factors)
@@ -374,7 +373,7 @@ class VibeTradingFactorAdapter:
         for cand_name, cand_factor in candidate_pool.factors.items():
             try:
                 cand_series = pd.Series(cand_factor.values, dtype=float)
-                corr_with_existing: Dict[str, float] = {}
+                corr_with_existing: dict[str, float] = {}
 
                 for existing_name, existing_fv in existing_factors.items():
                     existing_series = pd.Series(existing_fv.values, dtype=float)
@@ -431,8 +430,8 @@ class VibeTradingFactorAdapter:
     def filter_orthogonal_factors(
         self,
         candidate_pool: CandidateFactorPool,
-        ortho_results: Dict[str, OrthogonalityResult],
-    ) -> List[CandidateFactor]:
+        ortho_results: dict[str, OrthogonalityResult],
+    ) -> list[CandidateFactor]:
         """筛选通过正交性检查的候选因子
 
         Args:
@@ -442,7 +441,7 @@ class VibeTradingFactorAdapter:
         Returns:
             通过正交性的候选因子列表
         """
-        qualified: List[CandidateFactor] = []
+        qualified: list[CandidateFactor] = []
         for name, result in ortho_results.items():
             if result.is_orthogonal and name in candidate_pool.factors:
                 qualified.append(candidate_pool.factors[name])
@@ -459,8 +458,8 @@ class VibeTradingFactorAdapter:
 
     def _compute_vt_momentum_factors(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-    ) -> Dict[str, CandidateFactor]:
+        price_data: dict[str, dict[str, list[float]]],
+    ) -> dict[str, CandidateFactor]:
         """Vibe-Trading 风格动量因子（P1.5 重设计：与现有 MOM_* 因子正交）
 
         P1.5 设计原则（避免与现有 MOM_20D/60D/120D/252D/REVERSAL_5D/REVERSAL_20D/VOLUME_ADJ/UP_DOWN 共线）：
@@ -473,12 +472,12 @@ class VibeTradingFactorAdapter:
             - 距高点 z-score → 相对自身历史位置的偏离（cross-sectional 截面与时间序列结合）
             - 大单 alpha → 大单日 vs 小单日的收益差
         """
-        factors: Dict[str, CandidateFactor] = {}
+        factors: dict[str, CandidateFactor] = {}
 
         # VT_MOM_ACCEL_5_20：动量加速度 = (mom_5d - mom_20d) / std(ret, 20d)
         # P1.5 改进: 原因子 VT_MOM_ILLIQUID_60D 与 MOM_60D corr=0.852 高度共线
         # 新设计: 动量加速度衡量动量的变化率, 与动量本身相关性低
-        values: Dict[str, float] = {}
+        values: dict[str, float] = {}
         for sym, data in price_data.items():
             closes = data.get("closes", [])
             if len(closes) > 20:
@@ -580,8 +579,8 @@ class VibeTradingFactorAdapter:
 
     def _compute_vt_reversal_factors(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-    ) -> Dict[str, CandidateFactor]:
+        price_data: dict[str, dict[str, list[float]]],
+    ) -> dict[str, CandidateFactor]:
         """Vibe-Trading 风格反转因子（P1.5 重设计：与现有 MOM_REVERSAL_5D/20D 正交）
 
         P1.5 设计原则：
@@ -592,12 +591,12 @@ class VibeTradingFactorAdapter:
             - 缩量反转 → 缩量下跌后反弹（与放量反转相反，捕捉流动性枯竭）
             - 过度反应反转 → 与 5d/20d 反转相关性低（标准化版本）
         """
-        factors: Dict[str, CandidateFactor] = {}
+        factors: dict[str, CandidateFactor] = {}
 
         # VT_REV_BREADTH_5D：5 日反转广度（下跌日成交量/上涨日成交量）
         # P1.5 改进: 原因子 VT_REV_3D 与 MOM_REVERSAL_5D corr=0.906（短期反转本质共线）
         # 新设计: 反转广度, 用 5 日下跌日成交量/上涨日成交量比, 与简单 -mom_5d 不共线
-        values: Dict[str, float] = {}
+        values: dict[str, float] = {}
         for sym, data in price_data.items():
             closes = data.get("closes", [])
             vols = data.get("volumes", [])
@@ -674,13 +673,13 @@ class VibeTradingFactorAdapter:
 
     def _compute_vt_liquidity_factors(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-    ) -> Dict[str, CandidateFactor]:
+        price_data: dict[str, dict[str, list[float]]],
+    ) -> dict[str, CandidateFactor]:
         """Vibe-Trading 风格流动性因子"""
-        factors: Dict[str, CandidateFactor] = {}
+        factors: dict[str, CandidateFactor] = {}
 
         # VT_LIQ_AMIHUD_SCALED：归一化 Amihud 非流动性
-        values: Dict[str, float] = {}
+        values: dict[str, float] = {}
         for sym, data in price_data.items():
             closes = data.get("closes", [])
             vols = data.get("volumes", [])
@@ -728,9 +727,9 @@ class VibeTradingFactorAdapter:
 
     def _compute_vt_volatility_factors(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-        benchmark_returns: Optional[List[float]] = None,
-    ) -> Dict[str, CandidateFactor]:
+        price_data: dict[str, dict[str, list[float]]],
+        benchmark_returns: list[float] | None = None,
+    ) -> dict[str, CandidateFactor]:
         """Vibe-Trading 风格波动率因子（P1.5 重设计：与现有 VOL_* 因子正交）
 
         P1.5 设计原则（避免与 VOL_20D/60D/120D/252D/BETA/DOWNSIDE/IDIO/SKEW 共线）：
@@ -741,12 +740,12 @@ class VibeTradingFactorAdapter:
             - 隔夜波动率占比 → 与日内波动率正交（不同时间维度）
             - 波动率聚集度 → GARCH 思路（短期 vs 长期波动率变化率）
         """
-        factors: Dict[str, CandidateFactor] = {}
+        factors: dict[str, CandidateFactor] = {}
 
         # VT_VOL_OVERNIGHT_RATIO：隔夜波动率占比
         # P1.5 改进: 原因子 VT_VOL_REGIME 与 MOM_60D corr=0.781（异常共线）
         # 新设计: 隔夜波动率占比（日内 vs 隔夜信息冲击不同维度）
-        values: Dict[str, float] = {}
+        values: dict[str, float] = {}
         for sym, data in price_data.items():
             opens = data.get("opens", [])
             closes = data.get("closes", [])
@@ -803,13 +802,13 @@ class VibeTradingFactorAdapter:
 
     def _compute_vt_value_factors(
         self,
-        fundamentals: Dict[str, Dict[str, float]],
-    ) -> Dict[str, CandidateFactor]:
+        fundamentals: dict[str, dict[str, float]],
+    ) -> dict[str, CandidateFactor]:
         """Vibe-Trading 风格价值因子"""
-        factors: Dict[str, CandidateFactor] = {}
+        factors: dict[str, CandidateFactor] = {}
 
         # VT_VAL_COMPOSITE：价值复合因子（PE+PB+PS 等权倒数）
-        values: Dict[str, float] = {}
+        values: dict[str, float] = {}
         for sym, fund in fundamentals.items():
             pe = float(fund.get("pe", 0))
             pb = float(fund.get("pb", 0))
@@ -853,13 +852,13 @@ class VibeTradingFactorAdapter:
 
     def _compute_vt_quality_factors(
         self,
-        fundamentals: Dict[str, Dict[str, float]],
-    ) -> Dict[str, CandidateFactor]:
+        fundamentals: dict[str, dict[str, float]],
+    ) -> dict[str, CandidateFactor]:
         """Vibe-Trading 风格质量因子"""
-        factors: Dict[str, CandidateFactor] = {}
+        factors: dict[str, CandidateFactor] = {}
 
         # VT_QUA_COMPOSITE：质量复合（ROE + 毛利率 - 负债率）
-        values: Dict[str, float] = {}
+        values: dict[str, float] = {}
         for sym, fund in fundamentals.items():
             roe = float(fund.get("roe", 0))
             gross_margin = float(fund.get("gross_margin", 0))
@@ -879,13 +878,13 @@ class VibeTradingFactorAdapter:
 
     def _compute_vt_size_factors(
         self,
-        fundamentals: Dict[str, Dict[str, float]],
-    ) -> Dict[str, CandidateFactor]:
+        fundamentals: dict[str, dict[str, float]],
+    ) -> dict[str, CandidateFactor]:
         """Vibe-Trading 风格规模因子"""
-        factors: Dict[str, CandidateFactor] = {}
+        factors: dict[str, CandidateFactor] = {}
 
         # VT_SIZE_LOG_NORMALIZED：对数市值标准化
-        values: Dict[str, float] = {}
+        values: dict[str, float] = {}
         mcaps = [float(f.get("market_cap", 0)) for f in fundamentals.values()]
         mcaps = [m for m in mcaps if m > 0]
         if mcaps:
@@ -907,13 +906,13 @@ class VibeTradingFactorAdapter:
 
     def _compute_vt_growth_factors(
         self,
-        fundamentals: Dict[str, Dict[str, float]],
-    ) -> Dict[str, CandidateFactor]:
+        fundamentals: dict[str, dict[str, float]],
+    ) -> dict[str, CandidateFactor]:
         """Vibe-Trading 风格成长因子"""
-        factors: Dict[str, CandidateFactor] = {}
+        factors: dict[str, CandidateFactor] = {}
 
         # VT_GROWTH_COMPOSITE：成长复合（营收增长 + 利润增长）
-        values: Dict[str, float] = {}
+        values: dict[str, float] = {}
         for sym, fund in fundamentals.items():
             rev_growth = float(fund.get("revenue_growth", 0))
             profit_growth = float(fund.get("profit_growth", 0))
@@ -935,8 +934,8 @@ class VibeTradingFactorAdapter:
 
     def _compute_vt_microstructure_factors(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-    ) -> Dict[str, CandidateFactor]:
+        price_data: dict[str, dict[str, list[float]]],
+    ) -> dict[str, CandidateFactor]:
         """Vibe-Trading 风格微观结构因子（P2.1 新增维度）
 
         设计目标：
@@ -946,7 +945,7 @@ class VibeTradingFactorAdapter:
             4. 第六批次 v3 实测显示反转维度有 Alpha（VT_REV_VOL_DRAIN IC_IR=-0.33），
                本批次加入反转增强因子 VT_REV_VOL_DRAIN_INV 验证反向使用效果
         """
-        factors: Dict[str, CandidateFactor] = {}
+        factors: dict[str, CandidateFactor] = {}
 
         # ============================================================
         # VT_MICRO_CLOSE_STRENGTH：收盘强度
@@ -954,7 +953,7 @@ class VibeTradingFactorAdapter:
         # 含义: 收盘价高于开盘价 = 买盘主导；连续强势收盘预示后续上涨
         # 与现有 MOM_UP_DOWN 弱相关（~0.3），不共线
         # ============================================================
-        values: Dict[str, float] = {}
+        values: dict[str, float] = {}
         for sym, data in price_data.items():
             opens = data.get("opens", [])
             closes = data.get("closes", [])
@@ -1287,9 +1286,9 @@ class VibeTradingFactorAdapter:
     # ------------------------------------------------------------
     def _compute_vt_quality_trend_factors(
         self,
-        fundamentals: Dict[str, Dict[str, float]],
-        fundamentals_history: Optional[Dict[str, Dict[str, Any]]] = None,
-    ) -> Dict[str, CandidateFactor]:
+        fundamentals: dict[str, dict[str, float]],
+        fundamentals_history: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, CandidateFactor]:
         """P2.2 质量变化类因子
 
         设计目标：
@@ -1308,7 +1307,7 @@ class VibeTradingFactorAdapter:
             - QUA_ROE 是水平值，本因子是变化率，corr < 0.5
             - VT_GROWTH_COMPOSITE 是单期增长率，本因子是增长率变化率（二阶导）
         """
-        factors: Dict[str, CandidateFactor] = {}
+        factors: dict[str, CandidateFactor] = {}
 
         if not fundamentals_history:
             logger.warning(
@@ -1326,8 +1325,8 @@ class VibeTradingFactorAdapter:
         # 决策：保留 v1 绝对值（IC_IR 更重要），仅用 winsorize 处理极端值
         # 经济含义：ROE 改善 → 盈利能力增强 → 看涨
         # ============================================================
-        roe_deltas: List[float] = []
-        roe_sym_list: List[str] = []
+        roe_deltas: list[float] = []
+        roe_sym_list: list[str] = []
         for sym, hist in fundamentals_history.items():
             if not isinstance(hist, dict):
                 continue
@@ -1341,7 +1340,7 @@ class VibeTradingFactorAdapter:
                 roe_sym_list.append(sym)
 
         # Winsorize 处理极端值（裁剪到 [P5, P95]），保留 Pearson IC 强度信息
-        values: Dict[str, float] = {}
+        values: dict[str, float] = {}
         if len(roe_deltas) >= 5:
             arr = np.array(roe_deltas, dtype=float)
             p_lo, p_hi = float(np.percentile(arr, 5)), float(np.percentile(arr, 95))
@@ -1364,8 +1363,8 @@ class VibeTradingFactorAdapter:
         # 决策：保留 v1 绝对值 + winsorize
         # 经济含义：毛利率扩张 → 议价能力增强 / 成本控制改善 → 看涨
         # ============================================================
-        gm_deltas: List[float] = []
-        gm_sym_list: List[str] = []
+        gm_deltas: list[float] = []
+        gm_sym_list: list[str] = []
         for sym, hist in fundamentals_history.items():
             if not isinstance(hist, dict):
                 continue
@@ -1456,7 +1455,7 @@ class VibeTradingFactorAdapter:
         # 经济含义：净利润增长率加速 → 二阶导为正 → 看涨
         # 改进依据：v1 IC_IR=0.2676 是 4 版改进中最高值，回退 v1 为最终方案
         # ============================================================
-        values: Dict[str, float] = {}  # type: ignore
+        values: dict[str, float] = {}  # type: ignore
 
         for sym, hist in fundamentals_history.items():
             if not isinstance(hist, dict):
@@ -1500,10 +1499,10 @@ class VibeTradingFactorAdapter:
     def _merge_into_pool(
         self,
         pool: CandidateFactorPool,
-        new_factors: Dict[str, CandidateFactor],
+        new_factors: dict[str, CandidateFactor],
     ) -> None:
         """将新因子合并到候选池（受每类最大数限制）"""
-        category_count: Dict[str, int] = {}
+        category_count: dict[str, int] = {}
         for fv in pool.factors.values():
             category_count[fv.category] = category_count.get(fv.category, 0) + 1
 
@@ -1519,12 +1518,12 @@ class VibeTradingFactorAdapter:
 
     def _factor_dict_to_df(
         self,
-        factors: Dict[str, FactorValue],
+        factors: dict[str, FactorValue],
     ) -> pd.DataFrame:
         """将因子字典转为 DataFrame（symbol × factor_name）"""
         if not factors:
             return pd.DataFrame()
-        rows: Dict[str, Dict[str, float]] = {}
+        rows: dict[str, dict[str, float]] = {}
         for fname, fval in factors.items():
             for sym, val in fval.values.items():
                 rows.setdefault(sym, {})[fname] = val
@@ -1534,7 +1533,7 @@ class VibeTradingFactorAdapter:
     # 健康检查（供系统健康监测调用）
     # ------------------------------------------------------------
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         """适配器健康自检
 
         Returns:

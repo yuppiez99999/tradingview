@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 相关性对冲引擎 —— 平均相关系数监控 + 避险资产配置
 
@@ -17,7 +16,6 @@ v7.5 相关性对冲引擎 —— 平均相关系数监控 + 避险资产配置
 from __future__ import annotations
 
 import logging
-from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -102,7 +100,7 @@ class CorrelationHedger:
             return self.average_correlation(returns)
         return self.average_correlation(baseline)
 
-    def compute_hedge(self, returns: pd.DataFrame, portfolio_value: float) -> Dict[str, object]:
+    def compute_hedge(self, returns: pd.DataFrame, portfolio_value: float) -> dict[str, object]:
         """计算相关性对冲指令
 
         Args:

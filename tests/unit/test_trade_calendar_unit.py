@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_trade_calendar_unit.py — A股交易日历单元测试
 
 B1.2 验收测试: 验证 utils/trade_calendar.is_trading_day

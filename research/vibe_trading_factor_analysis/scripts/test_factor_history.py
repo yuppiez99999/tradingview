@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """factor_history_builder 自检脚本"""
 from __future__ import annotations
 

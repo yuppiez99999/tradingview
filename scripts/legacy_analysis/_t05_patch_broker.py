@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T05: 给 SimulatedBroker 接入 Almgren-Chriss 滑点模型."""
 from __future__ import annotations
 

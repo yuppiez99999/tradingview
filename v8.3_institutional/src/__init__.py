@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 Institutional — 机构级实盘交易系统
 

@@ -269,7 +269,7 @@ def analyze_signal_independence(
     lines.append("")
 
     # 冗余检测
-    lines.append("### 冗余信号对检测 (r > {:.1%})".format(corr_threshold))
+    lines.append(f"### 冗余信号对检测 (r > {corr_threshold:.1%})")
     lines.append("")
     if redundant:
         for r in redundant:

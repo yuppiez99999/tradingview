@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 持仓实时价格更新器
 功能：
@@ -64,7 +63,7 @@ def extract_price(market_data: dict, symbol: str = '', provider = None, old_pric
 def load_positions():
     """加载持仓数据"""
     path = r'e:\各种PY程序\28-终极量化交易系统7.1\config\positions.json'
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, encoding='utf-8') as f:
         data = json.load(f)
     return data
 

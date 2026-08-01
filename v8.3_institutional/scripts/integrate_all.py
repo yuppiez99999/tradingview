@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 v7.5 全量集成脚本 — 将v5.9/v5.10的50+增强模块迁移到v7.5_institutional/src/
 策略: 先批量复制源文件 → 再批量修复import → 创建__init__和桥接模块
@@ -389,7 +388,7 @@ def fix_imports():
                 if target_rgx.search(rel) is None:
                     continue
                 try:
-                    with open(full, 'r', encoding='utf-8') as fh:
+                    with open(full, encoding='utf-8') as fh:
                         content = fh.read()
                     new_content, n = rgx.subn(replacement, content)
                     if n > 0:
@@ -465,7 +464,7 @@ def stats():
                 continue
             try:
                 path = os.path.join(root, f)
-                with open(path, 'r', encoding='utf-8') as fh:
+                with open(path, encoding='utf-8') as fh:
                     lines = len(fh.readlines())
                 total_files += 1
                 total_lines += lines

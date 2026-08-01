@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """multi_factor_signal ↔ factor_orthogonalizer 集成测试 — Phase 3 (HC-8).
 
 测试目标:

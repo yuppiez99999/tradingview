@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """检查 P2.2 历史季度数据缓存"""
 import json
 from pathlib import Path
@@ -13,7 +12,7 @@ if history_files:
         print(f"  {f.name}")
 
     # 抽样
-    with open(history_files[0], "r", encoding="utf-8") as fp:
+    with open(history_files[0], encoding="utf-8") as fp:
         sample = json.load(fp)
     print()
     print(f"样本 {history_files[0].name}:")
@@ -27,7 +26,7 @@ if history_files:
     total_count = len(history_files)
     for hf in history_files:
         try:
-            with open(hf, "r", encoding="utf-8") as fp:
+            with open(hf, encoding="utf-8") as fp:
                 d = json.load(fp)
             if d.get("n_valid", 0) >= 4:
                 valid_count += 1

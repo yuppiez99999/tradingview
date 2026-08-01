@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 审计报告修复验证脚本
 ====================
@@ -43,7 +42,7 @@ def check(name: str, condition: bool, detail: str = ""):
 
 
 def read_file(rel_path: str) -> str:
-    with open(os.path.join(BASE_DIR, rel_path), 'r', encoding='utf-8') as f:
+    with open(os.path.join(BASE_DIR, rel_path), encoding='utf-8') as f:
         return f.read()
 
 
@@ -263,9 +262,9 @@ def test_er3():
 
     # 检查实际代码行 (非注释/文档) 不含 minute+60 溢出
     # 注: docstring 中引用了原代码字符串作说明, 需排除注释行
-    code_lines = [l for l in src.split('\n')
-                  if not l.strip().startswith('#') and 'ER3 修复' not in l
-                  and '原代码' not in l]
+    code_lines = [line for line in src.split('\n')
+                  if not line.strip().startswith('#') and 'ER3 修复' not in line
+                  and '原代码' not in line]
     code_src = '\n'.join(code_lines)
     check("移除 minute+60 溢出代码 (实际代码行)",
           "trigger_time.replace(minute=trigger_time.minute + 60)" not in code_src,

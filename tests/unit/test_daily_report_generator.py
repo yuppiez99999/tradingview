@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T5.4 单元测试 — utils/reporting/daily_report_generator.py + report_sections.py.
 
 测试覆盖:

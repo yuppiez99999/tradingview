@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """FactorKillSwitch - E5 实盘防线（CIO 视角 v1.0）
 
 实时监控已准入因子，自动降权/禁用/退役。
@@ -16,7 +15,7 @@ import logging
 import math
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("factor_kill_switch")
 
@@ -55,9 +54,9 @@ class KillSwitchStatus:
     current_pnl: float = 0.0
     cumulative_drawdown: float = 0.0
     last_ic: float = 0.0
-    ic_history: List[float] = field(default_factory=list)
-    pnl_history: List[float] = field(default_factory=list)
-    triggers: List[str] = field(default_factory=list)  # 触发记录
+    ic_history: list[float] = field(default_factory=list)
+    pnl_history: list[float] = field(default_factory=list)
+    triggers: list[str] = field(default_factory=list)  # 触发记录
     last_update: str = ""
 
     @property
@@ -74,7 +73,7 @@ class KillSwitchStatus:
         """是否终态（retired 不可恢复）"""
         return self.status == FactorStatus.RETIRED.value
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -91,7 +90,7 @@ class FactorKillSwitch:
         ...     pass
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         c = config or {}
         self.ic_degraded_threshold = float(c.get("ic_degraded_threshold", IC_DEGRADED_THRESHOLD))
         self.ic_disabled_threshold = float(c.get("ic_disabled_threshold", IC_DISABLED_THRESHOLD))
@@ -101,7 +100,7 @@ class FactorKillSwitch:
         self.daily_dd_half = float(c.get("daily_dd_half", DAILY_DRAWDOWN_HALF))
         self.cum_dd_quarter = float(c.get("cum_dd_quarter", CUMULATIVE_DRAWDOWN_QUARTER))
         self.cum_dd_exit = float(c.get("cum_dd_exit", CUMULATIVE_DRAWDOWN_EXIT))
-        self._states: Dict[str, KillSwitchStatus] = {}
+        self._states: dict[str, KillSwitchStatus] = {}
         logger.info(
             "[FactorKillSwitch] 初始化 | degraded=%dd@IC<%.3f disabled=%dd@IC<%.2f retired=%dd@IC<%.2f",
             self.degraded_days, self.ic_degraded_threshold,
@@ -233,11 +232,11 @@ class FactorKillSwitch:
 
         return s
 
-    def get_status(self, factor_name: str) -> Optional[KillSwitchStatus]:
+    def get_status(self, factor_name: str) -> KillSwitchStatus | None:
         """获取因子当前状态"""
         return self._states.get(factor_name)
 
-    def list_all(self) -> Dict[str, KillSwitchStatus]:
+    def list_all(self) -> dict[str, KillSwitchStatus]:
         """列出所有监控中的因子状态"""
         return dict(self._states)
 
@@ -253,7 +252,7 @@ class FactorKillSwitch:
         return True
 
 
-def quick_check(factor_name: str, ic_series: List[float], pnl_series: List[float]) -> KillSwitchStatus:
+def quick_check(factor_name: str, ic_series: list[float], pnl_series: list[float]) -> KillSwitchStatus:
     """便捷函数：批量输入 IC 和 PnL 序列，返回最终状态"""
     ks = FactorKillSwitch()
     ks.init(factor_name)

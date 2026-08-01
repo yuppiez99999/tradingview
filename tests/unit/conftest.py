@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """conftest.py — 单元测试层专用 fixture (tests/unit/)
 
 pytest 自动加载规则: 仅识别名为 conftest.py 的文件

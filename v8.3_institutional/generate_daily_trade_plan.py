@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 动态生成 trade_plan_{YYYYMMDD}.json — 基于 500万建仓计划 + 23 标的新权重 (v8.4 OPTIONS_ONLY)
 v8.4 增强: 纯期权对冲模式 (OTC Put全覆盖 + Covered Call增收 + Put Spread阶梯)
@@ -32,7 +31,6 @@ import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 BASE = Path(__file__).resolve().parent
 PLAN_DIR = BASE / "trade_plans"
@@ -48,7 +46,7 @@ REPORTS_DIR = BASE.parent / "reports"
 PORTFOLIO_YAML = BASE / "config" / "portfolio.yaml"
 
 
-def _load_capital_config(total_capital: float = 5_000_000) -> Tuple[int, int]:
+def _load_capital_config(total_capital: float = 5_000_000) -> tuple[int, int]:
     """从 portfolio.yaml 读取资金配置 (单一事实源, v8.6.8 P0-01 + P1-Q8 ConfigManager 集成)
 
     优先级:
@@ -75,7 +73,7 @@ def _load_capital_config(total_capital: float = 5_000_000) -> Tuple[int, int]:
     if not cfg:
         try:
             import yaml
-            with open(PORTFOLIO_YAML, "r", encoding="utf-8") as f:
+            with open(PORTFOLIO_YAML, encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
         except FileNotFoundError:
             print(
@@ -125,7 +123,7 @@ MACRO_CUT_MIN_SCORE = 1.15
 MACRO_CUT_FACTOR = 0.0
 MACRO_WHITELIST_CODES = {"601088", "159915", "sh601088", "sz159915"}
 
-def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 1_000_000) -> Dict:
+def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 1_000_000) -> dict:
     """加载当日对冲执行单 (来自 hedge_execution_orders.py 生成的文件)
 
     Args:
@@ -185,7 +183,7 @@ def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 1_000_000
         return result
 
     try:
-        with open(hedge_file, "r", encoding="utf-8") as f:
+        with open(hedge_file, encoding="utf-8") as f:
             hedge_data = json.load(f)
 
         result["loaded"] = True
@@ -264,7 +262,7 @@ except ImportError as _e:
     print(f"[WARN] 对冲基金模块导入失败 (降级模式): {_e}", file=sys.stderr)
 
 
-def _load_hedge_fund_overlays(trade_date: str) -> Dict:
+def _load_hedge_fund_overlays(trade_date: str) -> dict:
     """加载对冲基金视角的4个模块状态 (v7.7)
 
     Returns:
@@ -276,7 +274,7 @@ def _load_hedge_fund_overlays(trade_date: str) -> Dict:
             "options_orders": [...],  # Theta引擎生成的Covered Call订单
         }
     """
-    overlays: Dict = {
+    overlays: dict = {
         "kill_switch": {"available": False, "level": 0, "level_name": "正常"},
         "theta": {"available": False, "plan_loaded": False, "positions": []},
         "gamma": {"available": False, "triggered": False},
@@ -320,7 +318,7 @@ def _load_hedge_fund_overlays(trade_date: str) -> Dict:
             theta_plan = None
             if theta_plan_path.exists():
                 try:
-                    with open(theta_plan_path, "r", encoding="utf-8") as f:
+                    with open(theta_plan_path, encoding="utf-8") as f:
                         theta_plan = json.load(f)
                 except Exception:
                     theta_plan = None
@@ -429,7 +427,7 @@ PHASES = [
 ]
 
 
-def _get_dynamic_phase_config(stock_etf_capital: float, total_capital: float = 5_000_000) -> Dict:
+def _get_dynamic_phase_config(stock_etf_capital: float, total_capital: float = 5_000_000) -> dict:
     """动态计算 phase 配置 (v8.6.8 P0-09)
 
     Args:
@@ -454,7 +452,7 @@ def next_trading_day(date: datetime) -> datetime:
     return d
 
 
-def get_phase(date: datetime, stock_etf_capital: Optional[float] = None, total_capital: float = 5_000_000) -> Dict:
+def get_phase(date: datetime, stock_etf_capital: float | None = None, total_capital: float = 5_000_000) -> dict:
     """根据日期判断当前阶段 (v8.6.8 P0-09: 动态填充 phase_capital/daily_capital)"""
     date_str = date.strftime("%Y-%m-%d")
     for p in PHASES:
@@ -479,9 +477,9 @@ def get_phase(date: datetime, stock_etf_capital: Optional[float] = None, total_c
     return {**default_phase, "day_index": 1}
 
 
-def load_build_plan() -> Dict:
+def load_build_plan() -> dict:
     """加载 500万建仓计划 (含 23 标的新权重)"""
-    with open(BUILD_PLAN_FILE, "r", encoding="utf-8") as f:
+    with open(BUILD_PLAN_FILE, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -510,13 +508,13 @@ SYMBOL_INFO = {
 }
 
 
-def _load_real_time_prices() -> Dict[str, float]:
+def _load_real_time_prices() -> dict[str, float]:
     """从 positions.json 加载实时价格"""
     positions_file = BASE.parent / "config" / "positions.json"
     if not positions_file.exists():
         return {}
     try:
-        with open(positions_file, "r", encoding="utf-8") as f:
+        with open(positions_file, encoding="utf-8") as f:
             positions = json.load(f)
         prices = {}
         for code, pos in positions.get("positions", {}).items():
@@ -539,7 +537,7 @@ def _load_hedge_mode() -> str:
     if not positions_file.exists():
         return "OPTIONS_ONLY"
     try:
-        with open(positions_file, "r", encoding="utf-8") as f:
+        with open(positions_file, encoding="utf-8") as f:
             positions = json.load(f)
         mode = str(positions.get("meta", {}).get("hedge_mode", "OPTIONS_ONLY")).upper()
         if mode in ("FUTURES_AND_OPTIONS", "MIXED", "OPTIONS_ONLY", "FUTURES_ONLY"):
@@ -549,8 +547,8 @@ def _load_hedge_mode() -> str:
         return "OPTIONS_ONLY"
 
 
-def generate_orders(trade_date: str, phase: Dict, build_plan: Dict,
-                    stock_capital: float = 3_000_000) -> Dict:
+def generate_orders(trade_date: str, phase: dict, build_plan: dict,
+                    stock_capital: float = 3_000_000) -> dict:
     """生成当日买卖订单 (上午 + 下午批次)
 
     策略:
@@ -610,8 +608,8 @@ def generate_orders(trade_date: str, phase: Dict, build_plan: Dict,
             for info in target_portfolio.values():
                 info["weight"] = round(float(info.get("weight", 0)) / total_weight, 6)
 
-    morning_orders: List[Dict] = []
-    afternoon_orders: List[Dict] = []
+    morning_orders: list[dict] = []
+    afternoon_orders: list[dict] = []
     priority = 1
     total_amount = 0.0
 
@@ -700,7 +698,7 @@ def generate_orders(trade_date: str, phase: Dict, build_plan: Dict,
     }
 
 
-def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
+def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> dict:
     """生成完整 trade_plan 字典"""
     dt = datetime.strptime(trade_date, "%Y-%m-%d")
     weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][dt.weekday()]

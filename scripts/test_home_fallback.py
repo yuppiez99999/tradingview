@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """模拟计划任务环境下 _home 解析为 systemprofile 时的修复验证"""
 import os
 

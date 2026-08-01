@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """_load_prediction_prices B2.5 单次扫描索引 单元测试
 
 覆盖场景:

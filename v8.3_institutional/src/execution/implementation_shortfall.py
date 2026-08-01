@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.6 Implementation Shortfall — 实现缺口分解引擎
 
@@ -19,7 +18,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, List
 
 import numpy as np
 
@@ -101,8 +99,8 @@ class ImplementationShortfall:
         self.stamp_tax_rate = stamp_tax_rate
         self.exchange_fee_rate = exchange_fee_rate
 
-        self.decompositions: List[ISDecomposition] = []
-        self.optimization_history: List[ISOptimizationSuggestion] = []
+        self.decompositions: list[ISDecomposition] = []
+        self.optimization_history: list[ISOptimizationSuggestion] = []
 
     def decompose(
         self,
@@ -206,7 +204,7 @@ class ImplementationShortfall:
         return decomp
 
     # ---------- 优化建议生成 ----------
-    def generate_suggestions(self, decomp: ISDecomposition) -> List[ISOptimizationSuggestion]:
+    def generate_suggestions(self, decomp: ISDecomposition) -> list[ISOptimizationSuggestion]:
         """基于分解结果生成针对性优化建议"""
         suggestions = []
 
@@ -258,7 +256,7 @@ class ImplementationShortfall:
         return suggestions
 
     # ---------- 汇总分析 ----------
-    def summary(self, window_days: int = 30) -> Dict:
+    def summary(self, window_days: int = 30) -> dict:
         """执行质量汇总"""
         if not self.decompositions:
             return {"n_trades": 0, "message": "无交易数据"}
@@ -300,7 +298,7 @@ class ImplementationShortfall:
             "annual_savings_if_target": round((_avg(recent, "total_is_bps") - 8.0) / 10000 * self.nav * 2.0, 2),
         }
 
-    def report(self) -> Dict:
+    def report(self) -> dict:
         """完整 IS 报告"""
         s = self.summary()
 

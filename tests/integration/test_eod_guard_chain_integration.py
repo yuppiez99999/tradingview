@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_eod_guard_chain_integration.py — EOD 七 Guard 链完整协作集成测试
 
 5 条关键链路 #1: pnl_report → 7 Guard 顺序执行 → trade_plan 修改

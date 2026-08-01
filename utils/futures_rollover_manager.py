@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 期货主力合约识别 + 换月管理 (Futures Rollover Manager)
 
@@ -18,7 +17,6 @@ from __future__ import annotations
 import logging
 import re
 from datetime import date, timedelta
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +37,7 @@ def _get_third_friday(year: int, month: int) -> date:
     return third_friday
 
 
-def _get_futures_expiry(product: str, month_str: str, year: int) -> Optional[date]:
+def _get_futures_expiry(product: str, month_str: str, year: int) -> date | None:
     """获取期货合约到期日
 
     Args:
@@ -133,7 +131,7 @@ class FuturesRolloverManager:
     # 换月检测
     # ------------------------------------------------------------
 
-    def detect_rollover_need(self, contract_code: str) -> Tuple[bool, str]:
+    def detect_rollover_need(self, contract_code: str) -> tuple[bool, str]:
         """检测是否需要换月
 
         Args:
@@ -173,7 +171,7 @@ class FuturesRolloverManager:
         old_contract: str,
         quantity: int,
         direction: str = "SHORT",
-    ) -> Tuple[str, str, List[Dict]]:
+    ) -> tuple[str, str, list[dict]]:
         """生成换月订单
 
         Args:
@@ -232,7 +230,7 @@ class FuturesRolloverManager:
     # 合约代码解析
     # ------------------------------------------------------------
 
-    def _parse_contract(self, code: str) -> Optional[Tuple[str, str, str, str]]:
+    def _parse_contract(self, code: str) -> tuple[str, str, str, str] | None:
         """解析合约代码
 
         Args:
@@ -259,7 +257,7 @@ class FuturesRolloverManager:
             return False
         return self._parse_contract(code) is not None
 
-    def get_days_to_expiry(self, contract_code: str) -> Optional[int]:
+    def get_days_to_expiry(self, contract_code: str) -> int | None:
         """获取合约距到期天数"""
         parsed = self._parse_contract(contract_code)
         if parsed is None:
@@ -276,7 +274,7 @@ class FuturesRolloverManager:
     # ------------------------------------------------------------
 
     # 通用对冲合约名 → 产品代码映射
-    _HEDGE_NAME_MAP: Dict[str, str] = {
+    _HEDGE_NAME_MAP: dict[str, str] = {
         # 股指期货
         "IF_futures": "IF",
         "IF.CFFEX": "IF",
@@ -299,7 +297,7 @@ class FuturesRolloverManager:
         "SC.INE": "SC",
     }
 
-    def resolve_hedge_contract(self, hedge_name: str) -> Optional[str]:
+    def resolve_hedge_contract(self, hedge_name: str) -> str | None:
         """将通用对冲合约名解析为具体月份的可交易合约
 
         例: "IF_futures" / "IF.CFFEX" / "IF" → "IF2507.CFFEX"

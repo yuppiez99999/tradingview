@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 智能订单路由 (SOR) —— Iceberg + 滑点熔断 + NTP 时间戳
 
@@ -17,7 +16,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Protocol
+from typing import Protocol
 
 from .algo_engine import AlgoEngine, AlgoType
 from .ntp_sync import NTPSync
@@ -35,11 +34,11 @@ class BrokerAPI(Protocol):
         """获取盘口深度"""
         ...
 
-    def place(self, symbol: str, qty: int, side: str, order_type: str = "LIMIT", price: Optional[float] = None) -> str:
+    def place(self, symbol: str, qty: int, side: str, order_type: str = "LIMIT", price: float | None = None) -> str:
         """下单, 返回订单 ID"""
         ...
 
-    def wait_fill(self, order_id: str, timeout: int = 30) -> Optional[dict]:
+    def wait_fill(self, order_id: str, timeout: int = 30) -> dict | None:
         """等待成交, 返回 {price, qty, ts}"""
         ...
 
@@ -64,11 +63,11 @@ class MockBroker:
     # 限价相对盘口的保护幅度，避免 limit_price 贴盘口导致滑点熔断
     LIMIT_PRICE_BUFFER = 0.0005
 
-    def __init__(self, price_dict: Optional[Dict[str, float]] = None):
+    def __init__(self, price_dict: dict[str, float] | None = None):
         self.prices = price_dict or {}
-        self.filled_orders: List[dict] = []
+        self.filled_orders: list[dict] = []
         # 订单详情存储: {order_id: {symbol, qty, side, price, order_type, ts}}
-        self._orders: Dict[str, dict] = {}
+        self._orders: dict[str, dict] = {}
 
     def get_order_book(self, symbol: str, levels: int = 5) -> dict:
         p = float(self.prices.get(symbol, 10.0))
@@ -90,9 +89,9 @@ class MockBroker:
         qty: int,
         side: str,
         order_type: str = "LIMIT",
-        price: Optional[float] = None,
-        option_type: Optional[str] = None,
-        strike: Optional[float] = None,
+        price: float | None = None,
+        option_type: str | None = None,
+        strike: float | None = None,
     ) -> str:
         oid = f"ORD-{symbol}-{int(time.time() * 1000)}-{qty}"
         # 限价未指定则用盘口价
@@ -112,7 +111,7 @@ class MockBroker:
         }
         return oid
 
-    def wait_fill(self, order_id: str, timeout: int = 30) -> Optional[dict]:
+    def wait_fill(self, order_id: str, timeout: int = 30) -> dict | None:
         # 从存储读取订单详情; 若未找到则返回 None (模拟未成交)
         order = self._orders.get(order_id)
         if order is None:
@@ -175,12 +174,12 @@ class SmartOrderRouter:
     def __init__(
         self,
         broker: BrokerAPI,
-        ntp: Optional[NTPSync] = None,
+        ntp: NTPSync | None = None,
         slippage_break: float = 0.005,
         daily_slippage_break: float = 0.010,
         global_slow_threshold: float = 0.003,
         pause_minutes: int = 30,
-        algo_engine: Optional[AlgoEngine] = None,
+        algo_engine: AlgoEngine | None = None,
         kill_switch=None,
     ):
         """
@@ -208,9 +207,9 @@ class SmartOrderRouter:
 
         # 状态
         self.slip_per_symbol = defaultdict(float)
-        self.slip_pause_until: Dict[str, datetime] = {}
+        self.slip_pause_until: dict[str, datetime] = {}
         self.global_slowdown = False
-        self.fill_history: List[OrderFill] = []
+        self.fill_history: list[OrderFill] = []
 
     def _check_kill_switch_before_slice(self, symbol: str, side: str) -> bool:
         """v8.6.8 P0-06: 拆单前重检 KillSwitch 状态
@@ -260,7 +259,7 @@ class SmartOrderRouter:
         algo: AlgoType = AlgoType.ICEBERG,
         window_minutes: int = 5,
         volume_profile=None,
-    ) -> List[OrderFill]:
+    ) -> list[OrderFill]:
         """执行订单
 
         Args:
@@ -305,7 +304,7 @@ class SmartOrderRouter:
         if not slices:
             return []
 
-        fills: List[OrderFill] = []
+        fills: list[OrderFill] = []
         remaining = target_qty
 
         for sl in slices:

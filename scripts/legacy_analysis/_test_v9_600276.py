@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """测试 V9 regime-specific 训练函数
 
 验证:

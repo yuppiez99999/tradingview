@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 统计显著性验证：Deflated Sharpe + Purged CV + Walk-Forward 稳定性
 =================================================================
@@ -46,7 +45,7 @@ from walk_forward import walk_forward_stability_test
 
 def load_monthly_weights() -> List[Dict]:
     """加载回测月度权重"""
-    with open(BASE_DIR / "output" / "backtest_result_latest.json", "r", encoding="utf-8") as f:
+    with open(BASE_DIR / "output" / "backtest_result_latest.json", encoding="utf-8") as f:
         data = json.load(f)
     logger.info("加载回测结果: %d 个月, 年化 %.2f%%, 回撤 %.2f%%",
                 data["months"], data["annual_return"] * 100, data["max_drawdown"] * 100)

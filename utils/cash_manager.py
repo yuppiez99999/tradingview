@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 现金管理器 v1.0
 ====================
@@ -44,7 +43,7 @@ import logging
 from dataclasses import asdict, dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger("cash_manager")
 
@@ -99,7 +98,7 @@ class CashAllocation:
     reverse_repo: float = 0.0
     idle_cash: float = 0.0  # 闲置资金 (可投逆回购/货基)
     # 逆回购指令
-    repo_order: Dict[str, Any] = field(default_factory=dict)
+    repo_order: dict[str, Any] = field(default_factory=dict)
     # 收益预测
     estimated_annual_yield: float = 0.0
     estimated_daily_income: float = 0.0
@@ -136,9 +135,9 @@ class CashManager:
     def __init__(
         self,
         total_cash: float = 1_300_000,
-        allocation: Optional[Dict[str, float]] = None,
+        allocation: dict[str, float] | None = None,
         yield_target: float = DEFAULT_YIELD_TARGET,
-        instruments: Optional[Dict[str, str]] = None,
+        instruments: dict[str, str] | None = None,
     ):
         self.total_cash = total_cash
         self.allocation = allocation or DEFAULT_ALLOCATION.copy()
@@ -167,12 +166,12 @@ class CashManager:
     # ------------------------------------------------------------
     def allocate_idle_cash(
         self,
-        total_cash: Optional[float] = None,
+        total_cash: float | None = None,
         futures_margin_used: float = 0.0,
         options_collateral_used: float = 0.0,
         emergency_used: float = 0.0,
         current_repo_rate: float = 0.025,
-        trade_date: Optional[date] = None,
+        trade_date: date | None = None,
     ) -> CashAllocation:
         """分配闲置资金到逆回购 / 货基
 
@@ -300,7 +299,7 @@ class CashManager:
         trade_date: date,
         is_month_end: bool,
         is_quarter_end: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """生成逆回购下单指令"""
         # 逆回购合约: RCO001 (1日期逆回购)
         # 交易所: 上交所 / 深交所
@@ -338,8 +337,8 @@ class CashManager:
     def check_emergency_replenish(
         self,
         emergency_used: float,
-        last_used_date: Optional[date] = None,
-    ) -> Dict[str, Any]:
+        last_used_date: date | None = None,
+    ) -> dict[str, Any]:
         """检查应急金是否需要补足
 
         Args:
@@ -379,7 +378,7 @@ class CashManager:
         self,
         futures_account_value: float,
         futures_margin_used: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """检查期货保证金是否需要追加
 
         Args:
@@ -424,7 +423,7 @@ class CashManager:
     # ------------------------------------------------------------
     # 资金分配摘要
     # ------------------------------------------------------------
-    def get_allocation_summary(self) -> Dict[str, Any]:
+    def get_allocation_summary(self) -> dict[str, Any]:
         """获取当前资金分配摘要"""
         total = sum(self.allocation.values())
         return {

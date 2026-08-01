@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 utils/http_session.py 单元测试 (B-4.1)
 

@@ -4,10 +4,10 @@ import os
 # 使用当前项目路径，而非硬编码其他项目目录
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-with open(os.path.join(BASE_DIR, 'config', 'positions.json'), 'r', encoding='utf-8') as f:
+with open(os.path.join(BASE_DIR, 'config', 'positions.json'), encoding='utf-8') as f:
     positions = json.load(f)
 
-with open(os.path.join(BASE_DIR, '500万建仓计划_20260706.json'), 'r', encoding='utf-8') as f:
+with open(os.path.join(BASE_DIR, '500万建仓计划_20260706.json'), encoding='utf-8') as f:
     build_plan = json.load(f)
 
 total_capital = positions['meta']['total_capital']

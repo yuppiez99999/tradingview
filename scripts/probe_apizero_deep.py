@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """深度探测 apizero API - 完整数据结构分析"""
 
 import json

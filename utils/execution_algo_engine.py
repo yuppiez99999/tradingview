@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 执行算法引擎 (Execution Algorithm Engine) v1.0
 ================================================
@@ -54,7 +53,6 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, time, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
 
 logger = logging.getLogger("execution_algo")
 
@@ -81,7 +79,7 @@ AFTERNOON_END = time(15, 0)
 
 # 典型日内成交量分布 (上下午各 120 分钟, 共 240 分钟)
 # 经验分布 (总计 1.0): 开盘 15min 集中 ~12%, 收盘 15min 集中 ~15%
-DEFAULT_INTRADAY_VOLUME_CURVE: List[float] = [
+DEFAULT_INTRADAY_VOLUME_CURVE: list[float] = [
     # 上午 120 分钟 (9:30-11:30), 每分钟占比
     0.020,
     0.018,
@@ -308,7 +306,7 @@ class ExecutionSlice:
     accumulated_shares: int  # 累计已下单
     remaining_shares: int  # 剩余未下单
     participation_rate: float = 0.0  # 预估参与率 (POV 用)
-    limit_price: Optional[float] = None  # 限价 (可选)
+    limit_price: float | None = None  # 限价 (可选)
 
 
 @dataclass
@@ -328,8 +326,8 @@ class ExecutionPlan:
     duration_minutes: int = 0
     slice_count: int = 0
     slice_minutes: int = 5
-    slices: List[ExecutionSlice] = field(default_factory=list)
-    expected_vwap: Optional[float] = None
+    slices: list[ExecutionSlice] = field(default_factory=list)
+    expected_vwap: float | None = None
     expected_slippage_bps: float = 0.0
     expected_cost: float = 0.0
     risk_aversion: float = 0.0  # IS/AC 用
@@ -365,12 +363,12 @@ class ExecutionAlgoEngine:
         side: str,
         total_shares: int,
         duration_minutes: int = 120,
-        slice_minutes: Optional[int] = None,
-        start_time: Optional[time] = None,
-        volume_curve: Optional[List[float]] = None,
-        avg_daily_volume: Optional[int] = None,
-        current_price: Optional[float] = None,
-        volatility: Optional[float] = None,
+        slice_minutes: int | None = None,
+        start_time: time | None = None,
+        volume_curve: list[float] | None = None,
+        avg_daily_volume: int | None = None,
+        current_price: float | None = None,
+        volatility: float | None = None,
         risk_aversion: float = 1.0,
     ) -> ExecutionPlan:
         """规划订单执行
@@ -482,13 +480,13 @@ class ExecutionAlgoEngine:
         duration_minutes: int,
         slice_minutes: int,
         start_time: time,
-    ) -> List[ExecutionSlice]:
+    ) -> list[ExecutionSlice]:
         """TWAP: 按时间均匀分配"""
         slices_count = max(1, duration_minutes // slice_minutes)
         base_shares = total_shares // slices_count
         remainder = total_shares - base_shares * slices_count
 
-        slices: List[ExecutionSlice] = []
+        slices: list[ExecutionSlice] = []
         accumulated = 0
         current_start = datetime.combine(date.today(), start_time)
 
@@ -538,8 +536,8 @@ class ExecutionAlgoEngine:
         duration_minutes: int,
         slice_minutes: int,
         start_time: time,
-        volume_curve: List[float],
-    ) -> List[ExecutionSlice]:
+        volume_curve: list[float],
+    ) -> list[ExecutionSlice]:
         """VWAP: 按 volume_curve 权重分配
 
         volume_curve 长度 = 240 (上午 120 + 下午 120 分钟)
@@ -551,7 +549,7 @@ class ExecutionAlgoEngine:
         duration_slices = min(slices_count, (240 - start_minute_idx) // slice_minutes)
 
         # 收集覆盖时间段的权重
-        weights: List[float] = []
+        weights: list[float] = []
         for i in range(duration_slices):
             slice_start = start_minute_idx + i * slice_minutes
             slice_end = min(slice_start + slice_minutes, 240)
@@ -563,7 +561,7 @@ class ExecutionAlgoEngine:
             # 回退到 TWAP
             return self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time)
 
-        slices: List[ExecutionSlice] = []
+        slices: list[ExecutionSlice] = []
         accumulated = 0
         current_start = datetime.combine(date.today(), start_time)
 
@@ -616,7 +614,7 @@ class ExecutionAlgoEngine:
         slice_minutes: int,
         start_time: time,
         avg_daily_volume: int,
-    ) -> List[ExecutionSlice]:
+    ) -> list[ExecutionSlice]:
         """POV: 按预估参与率分配
 
         每片目标 = 预估该片成交量 × 参与率
@@ -628,7 +626,7 @@ class ExecutionAlgoEngine:
         target_participation = min(self.max_participation_rate, total_shares / max(1, expected_volume_in_duration))
 
         slices_count = max(1, duration_minutes // slice_minutes)
-        slices: List[ExecutionSlice] = []
+        slices: list[ExecutionSlice] = []
         accumulated = 0
         current_start = datetime.combine(date.today(), start_time)
         # 预估每片成交量
@@ -675,7 +673,7 @@ class ExecutionAlgoEngine:
         current_price: float,
         volatility: float,
         risk_aversion: float,
-    ) -> List[ExecutionSlice]:
+    ) -> list[ExecutionSlice]:
         """IS: 平衡市场冲击与机会成本
 
         高 risk_aversion → 更快完成 (front-loaded)
@@ -696,7 +694,7 @@ class ExecutionAlgoEngine:
         if total_w <= 0:
             return self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time)
 
-        slices: List[ExecutionSlice] = []
+        slices: list[ExecutionSlice] = []
         accumulated = 0
         current_start = datetime.combine(date.today(), start_time)
 
@@ -740,7 +738,7 @@ class ExecutionAlgoEngine:
         current_price: float,
         volatility: float,
         risk_aversion: float,
-    ) -> List[ExecutionSlice]:
+    ) -> list[ExecutionSlice]:
         """Almgren-Chriss: 闭式最优执行轨迹
 
         最优执行轨迹: x(t) = X * sinh(κ(T-t)) / sinh(κT)
@@ -786,7 +784,7 @@ class ExecutionAlgoEngine:
 
         # x(t) = X * sinh(κ(T-t)) / sinh(κT)
         # 每片: x(t_i) - x(t_{i+1})
-        slices: List[ExecutionSlice] = []
+        slices: list[ExecutionSlice] = []
         accumulated = 0
         current_start = datetime.combine(date.today(), start_time)
 
@@ -836,13 +834,13 @@ class ExecutionAlgoEngine:
         duration_minutes: int,
         slice_minutes: int,
         start_time: time,
-    ) -> List[ExecutionSlice]:
+    ) -> list[ExecutionSlice]:
         """暗池冰山: 每片固定小单, 避免暴露真实意图"""
         # 固定每片 100 股 (最小单位)
         per_slice = max(self.min_slice_shares, 100)
         slices_count = min(50, max(1, total_shares // per_slice))
 
-        slices: List[ExecutionSlice] = []
+        slices: list[ExecutionSlice] = []
         accumulated = 0
         current_start = datetime.combine(date.today(), start_time)
         actual_slice_minutes = max(slice_minutes, duration_minutes // slices_count)
@@ -946,7 +944,7 @@ class ExecutionAlgoEngine:
         self,
         algo: AlgoType,
         total_shares: int,
-        avg_daily_volume: Optional[int],
+        avg_daily_volume: int | None,
     ) -> str:
         """生成算法说明"""
         notes = {

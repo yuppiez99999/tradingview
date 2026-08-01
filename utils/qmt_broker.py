@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 qmt_broker re-export shim
 =========================

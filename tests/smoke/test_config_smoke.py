@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """GAP-1 配置烟雾测试 — 验证核心配置文件可加载.
 
 设计原则:
@@ -21,7 +20,7 @@ def _load_json(path: str):
     full_path = _PROJECT_ROOT / path
     if not full_path.exists():
         pytest.skip(f"配置文件不存在: {full_path}")
-    with open(full_path, "r", encoding="utf-8") as f:
+    with open(full_path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -34,7 +33,7 @@ def _load_yaml(path: str):
     full_path = _PROJECT_ROOT / path
     if not full_path.exists():
         pytest.skip(f"配置文件不存在: {full_path}")
-    with open(full_path, "r", encoding="utf-8") as f:
+    with open(full_path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

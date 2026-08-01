@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 实时ETF资金流向监控模块
 
@@ -467,7 +466,7 @@ class ETFRealTimeTracker:
 
     def update_positions_json(self, positions_file: str) -> Dict:
         try:
-            with open(positions_file, "r", encoding="utf-8") as f:
+            with open(positions_file, encoding="utf-8") as f:
                 positions_data = json.load(f)
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"加载 positions.json 失败: {e}")

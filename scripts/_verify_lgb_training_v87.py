@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """v8.7 LightGBM 训练完成验证 - 模型质量与信号文件汇总"""
 import json
 from datetime import datetime
@@ -18,7 +17,7 @@ if not SIGNALS_FILE.exists():
     print(f"  ✗ 信号文件不存在: {SIGNALS_FILE}")
     raise SystemExit(1)
 
-with open(SIGNALS_FILE, "r", encoding="utf-8") as f:
+with open(SIGNALS_FILE, encoding="utf-8") as f:
     signals_data = json.load(f)
 
 signals = signals_data.get("signals", {})
@@ -62,7 +61,7 @@ best_iters = []
 for code in signals.keys():
     meta_file = MODELS_DIR / code / f"{code}_meta.json"
     if meta_file.exists():
-        with open(meta_file, "r", encoding="utf-8") as f:
+        with open(meta_file, encoding="utf-8") as f:
             meta = json.load(f)
         final_metrics = meta.get("final_metrics", {})
         ic = final_metrics.get("ic", 0)
@@ -98,7 +97,7 @@ print(f"  平均每标的: {duration/n:.1f} 秒")
 print("\n=== 5. GPU 加速 ===")
 sample_meta = MODELS_DIR / "588000" / "588000_meta.json"
 if sample_meta.exists():
-    with open(sample_meta, "r", encoding="utf-8") as f:
+    with open(sample_meta, encoding="utf-8") as f:
         meta = json.load(f)
     lgb_params = meta.get("config", {}).get("lgb_params", {})
     device = lgb_params.get("device_type", "cpu")

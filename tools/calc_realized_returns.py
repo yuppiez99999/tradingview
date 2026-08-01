@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 基于历史真实数据计算已实现年化收益率，用于验证预测准确性
 数据源: config/returns_history.json (25标的) + config/market_returns.json (基准)
@@ -20,7 +19,7 @@ POSITION_WEIGHTS = {
 }
 
 def load_json(path):
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 def main():

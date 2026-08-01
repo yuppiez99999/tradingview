@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 参数调整治理器 (Parameter Adjustment Governor)
 =============================================
@@ -36,7 +35,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("param_governor")
 
@@ -72,8 +71,8 @@ class AdjustmentRequest:
     new_value: Any  # 新值
     reason: str  # 调整理由 (AdjustmentReason 值)
     operator: str  # 操作人
-    evidence: Dict[str, Any] = field(default_factory=dict)  # 证据 (IC值/gap值等)
-    requested_at: Optional[datetime] = None  # 请求时间 (None=now)
+    evidence: dict[str, Any] = field(default_factory=dict)  # 证据 (IC值/gap值等)
+    requested_at: datetime | None = None  # 请求时间 (None=now)
     notes: str = ""  # 备注
 
     def __post_init__(self):
@@ -92,10 +91,10 @@ class AdjustmentResult:
 
     approved: bool
     request: AdjustmentRequest
-    rejection_code: Optional[RejectionCode] = None
+    rejection_code: RejectionCode | None = None
     rejection_reason: str = ""
     decided_at: datetime = field(default_factory=datetime.now)
-    effective_after: Optional[datetime] = None  # 生效时间 (冷却期结束时)
+    effective_after: datetime | None = None  # 生效时间 (冷却期结束时)
 
 
 @dataclass
@@ -107,7 +106,7 @@ class AdjustmentRecord:
     new_value: Any
     reason: str
     operator: str
-    evidence: Dict[str, Any]
+    evidence: dict[str, Any]
     committed_at: datetime
     record_id: str
 
@@ -128,14 +127,14 @@ class ParameterAdjustmentGovernor:
         min_interval_days: int = 30,
         max_per_month: int = 1,
         require_evidence: bool = True,
-        history_file: Optional[Path] = None,
+        history_file: Path | None = None,
     ) -> None:
         self.min_interval_days = min_interval_days
         self.max_per_month = max_per_month
         self.require_evidence = require_evidence
         self.history_file = history_file
 
-        self._history: List[AdjustmentRecord] = []
+        self._history: list[AdjustmentRecord] = []
         self._load_history()
 
     # ============================================================
@@ -255,7 +254,7 @@ class ParameterAdjustmentGovernor:
     # 回滚
     # ============================================================
 
-    def rollback(self, param: str, operator: str, reason: str = "rollback") -> Optional[AdjustmentRecord]:
+    def rollback(self, param: str, operator: str, reason: str = "rollback") -> AdjustmentRecord | None:
         """回滚到上一个参数值.
 
         Args:
@@ -299,13 +298,13 @@ class ParameterAdjustmentGovernor:
     # 查询
     # ============================================================
 
-    def get_history(self, param: Optional[str] = None) -> List[AdjustmentRecord]:
+    def get_history(self, param: str | None = None) -> list[AdjustmentRecord]:
         """获取调整历史 (可按参数过滤)"""
         if param is None:
             return list(self._history)
         return [r for r in self._history if r.param == param]
 
-    def get_cooldown_status(self, param: str, now: Optional[datetime] = None) -> Dict[str, Any]:
+    def get_cooldown_status(self, param: str, now: datetime | None = None) -> dict[str, Any]:
         """查询参数的冷却状态"""
         now = now or datetime.now()
         last = self._last_adjustment(param)
@@ -327,7 +326,7 @@ class ParameterAdjustmentGovernor:
             "current_value": last.new_value,
         }
 
-    def _last_adjustment(self, param: str) -> Optional[AdjustmentRecord]:
+    def _last_adjustment(self, param: str) -> AdjustmentRecord | None:
         """获取某参数最近一次调整记录"""
         for i in range(len(self._history) - 1, -1, -1):
             if self._history[i].param == param:
@@ -352,7 +351,7 @@ class ParameterAdjustmentGovernor:
         if self.history_file is None or not self.history_file.exists():
             return
         try:
-            with open(self.history_file, "r", encoding="utf-8") as f:
+            with open(self.history_file, encoding="utf-8") as f:
                 data = json.load(f)
             for item in data:
                 item["committed_at"] = datetime.fromisoformat(item["committed_at"])

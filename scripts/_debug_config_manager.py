@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """调试 ConfigManager 资金配置问题"""
 from __future__ import annotations
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v8.6.8 实盘就绪度最终验证脚本 (P0-01 ~ P0-12 综合校验)
 =========================================================
@@ -60,7 +59,7 @@ def main() -> int:
         print(f"[FATAL] trade_plan 不存在: {TRADE_PLAN}")
         return 1
 
-    with open(TRADE_PLAN, "r", encoding="utf-8") as f:
+    with open(TRADE_PLAN, encoding="utf-8") as f:
         plan = json.load(f)
 
     # ============================================================
@@ -68,13 +67,13 @@ def main() -> int:
     # ============================================================
     try:
         import yaml
-        with open(PORTFOLIO_YAML, "r", encoding="utf-8") as f:
+        with open(PORTFOLIO_YAML, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
     except Exception as e:
         print(f"[FATAL] 无法加载 portfolio.yaml: {e}")
         return 1
 
-    with open(POSITIONS_JSON, "r", encoding="utf-8") as f:
+    with open(POSITIONS_JSON, encoding="utf-8") as f:
         positions = json.load(f)
 
     # ============================================================

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 增强版因子挖掘工具 - QLib大数据样本 + 基本面因子 + 分层回测
 终极量化交易系统 8.4
@@ -18,7 +17,6 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -254,7 +252,7 @@ def compute_technical_factors(df_group: pd.DataFrame) -> pd.Series:
 def compute_factors_panel_qlib(
     df: pd.DataFrame,
     step: int = 20,
-) -> Tuple[Dict[str, pd.DataFrame], pd.DataFrame]:
+) -> tuple[dict[str, pd.DataFrame], pd.DataFrame]:
     """从 QLib 数据计算因子面板
 
     Args:
@@ -340,7 +338,7 @@ class FactorValidationResult:
     ic_ir: float = 0.0
     ic_positive_ratio: float = 0.0
     long_short_return: float = 0.0
-    group_returns: List[float] = field(default_factory=list)
+    group_returns: list[float] = field(default_factory=list)
     monotonicity: float = 0.0
     decay_5d: float = 0.0
     decay_10d: float = 0.0
@@ -350,10 +348,10 @@ class FactorValidationResult:
 
 
 def validate_factors(
-    factor_panels: Dict[str, pd.DataFrame],
-    forward_returns: Dict[int, pd.DataFrame],
+    factor_panels: dict[str, pd.DataFrame],
+    forward_returns: dict[int, pd.DataFrame],
     n_groups: int = 5,
-) -> List[FactorValidationResult]:
+) -> list[FactorValidationResult]:
     """验证因子有效性 (IC + 分层回测)
 
     Args:
@@ -475,7 +473,7 @@ def validate_factors(
 # ============================================================
 
 def generate_report(
-    results: List[FactorValidationResult],
+    results: list[FactorValidationResult],
     n_stocks: int,
     n_dates: int,
     start_date: str,
@@ -611,10 +609,10 @@ def generate_report(
 def run_enhanced_discovery(
     instruments: str = "csi500",
     start_date: str = "2021-01-01",
-    end_date: Optional[str] = None,
+    end_date: str | None = None,
     step: int = 20,
     n_groups: int = 5,
-    output_dir: Optional[str] = None,
+    output_dir: str | None = None,
 ):
     """运行增强版因子挖掘"""
 

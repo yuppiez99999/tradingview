@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 NTP 漂移告警回调处理器 (NTP Alert Callback Handler)
 ====================================================
@@ -45,7 +44,6 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("ntp_alert_callback")
 
@@ -59,9 +57,9 @@ class NTPAlertCallback:
 
     def __init__(
         self,
-        alert_dir: Optional[Path] = None,
-        enable_dingtalk: Optional[bool] = None,
-        enable_email: Optional[bool] = None,
+        alert_dir: Path | None = None,
+        enable_dingtalk: bool | None = None,
+        enable_email: bool | None = None,
         enable_stderr: bool = True,
     ):
         """

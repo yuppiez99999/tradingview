@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """全局撤单 Guard (Global Cancel Guard)
 ====================================
 T12 (2026-07-28): 一键撤销所有待执行订单.
@@ -30,7 +29,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any
 
 logger = logging.getLogger("global_cancel_guard")
 
@@ -44,10 +43,10 @@ class CancelResult:
     cancelled_count: int
     failed_count: int
     skipped_count: int
-    cancelled_order_ids: List[str] = field(default_factory=list)
-    failed_order_ids: List[str] = field(default_factory=list)
-    skipped_order_ids: List[str] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
+    cancelled_order_ids: list[str] = field(default_factory=list)
+    failed_order_ids: list[str] = field(default_factory=list)
+    skipped_order_ids: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
     timestamp: str = ""
     trigger_reason: str = ""
 
@@ -82,7 +81,7 @@ class GlobalCancelGuard:
         self,
         broker: Any,
         trigger_reason: str = "manual",
-        symbols: Optional[List[str]] = None,
+        symbols: list[str] | None = None,
     ) -> CancelResult:
         """撤销所有待执行订单.
 
@@ -95,7 +94,7 @@ class GlobalCancelGuard:
             CancelResult 汇总
         """
         timestamp = datetime.now().isoformat()
-        errors: List[str] = []
+        errors: list[str] = []
 
         # 1. 检查 broker 连接状态
         if not hasattr(broker, "is_connected") or not broker.is_connected:
@@ -134,8 +133,8 @@ class GlobalCancelGuard:
             )
 
         # 3. 分类订单
-        cancelable: List[Any] = []
-        skipped: List[str] = []
+        cancelable: list[Any] = []
+        skipped: list[str] = []
         for order in order_list:
             order_id = self._get_order_id(order)
             status = self._get_order_status(order)
@@ -153,8 +152,8 @@ class GlobalCancelGuard:
                 skipped.append(order_id)
 
         # 4. 逐笔撤销
-        cancelled: List[str] = []
-        failed: List[str] = []
+        cancelled: list[str] = []
+        failed: list[str] = []
 
         for order in cancelable:
             order_id = self._get_order_id(order)

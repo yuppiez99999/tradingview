@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LightGBM 训练管道可复现性模块 — GAP-7 交付物.
 
@@ -46,7 +45,7 @@ import sys
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Sequence
 
 import pandas as pd
 
@@ -82,7 +81,7 @@ class TrainingConfig:
     seed: int = 42
 
     # === LGB 超参 ===
-    lgb_params: Dict[str, Any] = field(default_factory=dict)
+    lgb_params: dict[str, Any] = field(default_factory=dict)
     num_boost_round: int = 200
     early_stopping_rounds: int = 20
 
@@ -90,23 +89,23 @@ class TrainingConfig:
     n_splits: int = 5
 
     # === 特征列表 (顺序敏感) ===
-    feature_list: Tuple[str, ...] = field(default_factory=tuple)
+    feature_list: tuple[str, ...] = field(default_factory=tuple)
 
     # === 标签定义 ===
     label_def: str = "forward_return_5d"
     label_horizon: int = 5
 
     # === 时间分割 ===
-    train_split: Tuple[str, str] = ("2023-01-01", "2024-12-31")
-    val_split: Tuple[str, str] = ("2025-01-01", "2025-12-31")
-    test_split: Tuple[str, str] = ("2026-01-01", "2026-06-30")
+    train_split: tuple[str, str] = ("2023-01-01", "2024-12-31")
+    val_split: tuple[str, str] = ("2025-01-01", "2025-12-31")
+    test_split: tuple[str, str] = ("2026-01-01", "2026-06-30")
 
     # === 数据 hash (通过 with_dataset 填充) ===
     dataset_uri: str = ""
     dataset_sha256: str = ""
-    dataset_shape: Tuple[int, int] = (0, 0)
+    dataset_shape: tuple[int, int] = (0, 0)
     dataset_row_count: int = 0
-    dataset_date_range: Tuple[str, str] = ("", "")
+    dataset_date_range: tuple[str, str] = ("", "")
 
     # === 代码 hash (通过 with_code_sha 填充) ===
     code_sha: str = ""
@@ -117,13 +116,13 @@ class TrainingConfig:
     # === 环境信息 (通过 with_environment 填充) ===
     training_env: str = ""
     python_version: str = ""
-    lib_versions: Dict[str, str] = field(default_factory=dict)
+    lib_versions: dict[str, str] = field(default_factory=dict)
     created_at: str = ""
 
     # ============================================================
     # 链式构造方法 (返回新实例, 不可变)
     # ============================================================
-    def with_dataset(self, panel: pd.DataFrame) -> "TrainingConfig":
+    def with_dataset(self, panel: pd.DataFrame) -> TrainingConfig:
         """计算并填充 dataset_uri + dataset_sha256 + 形状信息.
 
         Args:
@@ -136,7 +135,7 @@ class TrainingConfig:
         date_col = panel.get("date")
         if date_col is not None and len(date_col) > 0:
             dates_sorted = sorted(date_col.astype(str))
-            date_range: Tuple[str, str] = (dates_sorted[0], dates_sorted[-1])
+            date_range: tuple[str, str] = (dates_sorted[0], dates_sorted[-1])
         else:
             date_range = ("", "")
 
@@ -149,7 +148,7 @@ class TrainingConfig:
             dataset_date_range=date_range,
         )
 
-    def with_code_sha(self, file_paths: Sequence[Path]) -> "TrainingConfig":
+    def with_code_sha(self, file_paths: Sequence[Path]) -> TrainingConfig:
         """计算并填充 code_sha (源代码文件的 sha256).
 
         Args:
@@ -161,7 +160,7 @@ class TrainingConfig:
         code_sha = compute_code_sha(list(file_paths))
         return replace(self, code_sha=code_sha)
 
-    def with_environment(self, env: str = "") -> "TrainingConfig":
+    def with_environment(self, env: str = "") -> TrainingConfig:
         """填充环境信息 (python_version / lib_versions / training_env / created_at).
 
         Args:
@@ -170,7 +169,7 @@ class TrainingConfig:
         Returns:
             新的 TrainingConfig 实例
         """
-        lib_versions: Dict[str, str] = {}
+        lib_versions: dict[str, str] = {}
         for lib_name in ("lightgbm", "pandas", "numpy", "sklearn", "scipy"):
             try:
                 mod = __import__(lib_name)
@@ -186,7 +185,7 @@ class TrainingConfig:
             created_at=datetime.now().isoformat(timespec="seconds"),
         )
 
-    def with_config_hash(self) -> "TrainingConfig":
+    def with_config_hash(self) -> TrainingConfig:
         """计算并填充 config_hash (基于其他所有字段, 不含 config_hash 自身).
 
         Returns:
@@ -237,7 +236,7 @@ def compute_dataset_uri(panel: pd.DataFrame) -> str:
     return hashlib.sha256(csv_bytes).hexdigest()
 
 
-def compute_code_sha(file_paths: List[Path]) -> str:
+def compute_code_sha(file_paths: list[Path]) -> str:
     """计算源代码文件的 sha256 hash.
 
     实现:
@@ -295,7 +294,7 @@ def artifact_name(config: TrainingConfig) -> str:
 # ============================================================
 # manifest.json 落盘
 # ============================================================
-MANIFEST_REQUIRED_FIELDS: Tuple[str, ...] = (
+MANIFEST_REQUIRED_FIELDS: tuple[str, ...] = (
     "manifest_version",
     "artifact_name",
     "model_name",
@@ -328,8 +327,8 @@ MANIFEST_REQUIRED_FIELDS: Tuple[str, ...] = (
 def write_manifest(
     artifact_dir: Path,
     config: TrainingConfig,
-    metrics: Optional[Dict[str, Any]] = None,
-    contract_validation: Optional[Dict[str, Any]] = None,
+    metrics: dict[str, Any] | None = None,
+    contract_validation: dict[str, Any] | None = None,
 ) -> Path:
     """落盘 manifest.json (含 17+ 字段 Iteration Compact 子集).
 
@@ -349,7 +348,7 @@ def write_manifest(
         artifact_dir = Path(artifact_dir)
         artifact_dir.mkdir(parents=True, exist_ok=True)
 
-        manifest: Dict[str, Any] = {
+        manifest: dict[str, Any] = {
             "manifest_version": "1.0",
             "artifact_name": artifact_name(config),
             "model_name": config.model_name,
@@ -398,10 +397,10 @@ def write_manifest(
 def verify_reproducibility(
     config_a: TrainingConfig,
     config_b: TrainingConfig,
-    importance_a: Dict[str, float],
-    importance_b: Dict[str, float],
+    importance_a: dict[str, float],
+    importance_b: dict[str, float],
     top_k: int = 10,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """验证两次训练的可复现性.
 
     用于 tests/unit/test_lgbm_reproducibility.py 自动化验证.

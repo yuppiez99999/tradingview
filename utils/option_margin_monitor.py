@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 期权卖方保证金动态监控 (Option Margin Monitor)
 
@@ -24,7 +23,6 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +71,7 @@ class MarginCheckResult:
 OPTION_CODE_PATTERN = re.compile(r"^(\d{6})([CP])(\d{2})(\d{2})(M\d{5})\.(SH|SZ)$")
 
 
-def parse_option_code(code: str) -> Optional[Dict]:
+def parse_option_code(code: str) -> dict | None:
     """解析期权代码
 
     Args:
@@ -247,7 +245,7 @@ class OptionMarginMonitor:
         self.warning_ratio = float(warning_ratio)
         self.danger_ratio = float(danger_ratio)
         self.expiry_warning_days = int(expiry_warning_days)
-        self._positions: Dict[str, OptionPosition] = {}
+        self._positions: dict[str, OptionPosition] = {}
 
     # ------------------------------------------------------------
     # 持仓管理
@@ -261,7 +259,7 @@ class OptionMarginMonitor:
         """移除期权持仓"""
         self._positions.pop(symbol, None)
 
-    def get_positions(self) -> List[OptionPosition]:
+    def get_positions(self) -> list[OptionPosition]:
         """获取所有卖方持仓"""
         return list(self._positions.values())
 
@@ -271,9 +269,9 @@ class OptionMarginMonitor:
 
     def check_all(
         self,
-        underlying_prices: Dict[str, float],
+        underlying_prices: dict[str, float],
         available_funds: float,
-    ) -> List[MarginCheckResult]:
+    ) -> list[MarginCheckResult]:
         """批量检查所有期权卖方持仓的保证金
 
         Args:
@@ -358,8 +356,8 @@ class OptionMarginMonitor:
 
     def get_liquidation_advice(
         self,
-        results: List[MarginCheckResult],
-    ) -> List[Dict]:
+        results: list[MarginCheckResult],
+    ) -> list[dict]:
         """获取强制平仓建议
 
         Returns:
@@ -403,7 +401,7 @@ class OptionMarginMonitor:
     # 诊断
     # ------------------------------------------------------------
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """获取监控状态"""
         return {
             "positions_count": len(self._positions),

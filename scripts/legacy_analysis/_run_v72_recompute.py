@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """V7.2 重算: 基于 V7.1 记录, 对 bull regime 月份应用 5% 权重上限
 
 V7.2 方案: bull regime 下 max_weight 10%->5%
@@ -31,7 +30,7 @@ v71_files.sort(key=lambda x: os.path.getmtime(x))
 v71_file = Path(v71_files[-1])
 print(f"加载 V7.1 结果: {v71_file}")
 
-with open(v71_file, "r", encoding="utf-8") as f:
+with open(v71_file, encoding="utf-8") as f:
     v71_data = json.load(f)
 
 records = v71_data.get("records", [])

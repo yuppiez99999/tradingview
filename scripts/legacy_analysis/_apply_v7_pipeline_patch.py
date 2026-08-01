@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """辅助脚本: 在 institutional_pipeline_runner.py 中接入 add_regime_aware_features
 
 V7-Model: 修改两处

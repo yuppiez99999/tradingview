@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MediaCrawler 适配器 — 整合自媒体平台舆情数据源
 ====================================================
@@ -32,7 +31,7 @@ import os
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import requests
 import urllib3
@@ -58,7 +57,7 @@ class MediaCrawlerNewsItem:
     published_at: str = ""  # ISO 格式时间
     symbol: str = ""  # 关联股票代码 (如有)
     sentiment_score: float = 0.0  # [-1, 1] 情感分 (需 NLP 模型填充)
-    keywords: List[str] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)
     # MediaCrawler 特有字段
     platform: str = ""  # 原始平台标识
     item_id: str = ""  # 帖子/视频 ID
@@ -67,10 +66,10 @@ class MediaCrawlerNewsItem:
     comment_count: int = 0  # 评论数
     share_count: int = 0  # 分享数
     view_count: int = 0  # 观看/阅读数
-    comments: List[Dict[str, Any]] = field(default_factory=list)  # 评论列表
-    raw: Dict[str, Any] = field(default_factory=dict)
+    comments: list[dict[str, Any]] = field(default_factory=list)  # 评论列表
+    raw: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -79,14 +78,14 @@ class MediaCrawlerResult:
     """抓取结果"""
 
     success: bool
-    items: List[MediaCrawlerNewsItem] = field(default_factory=list)
+    items: list[MediaCrawlerNewsItem] = field(default_factory=list)
     source: str = ""
     platform: str = ""
     error: str = ""
     elapsed_ms: float = 0.0
     total_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "source": self.source,
@@ -103,7 +102,7 @@ class MediaCrawlerResult:
 # 平台映射
 # ============================================================
 
-PLATFORM_MAP: Dict[str, str] = {
+PLATFORM_MAP: dict[str, str] = {
     "xhs": "小红书",
     "xiaohongshu": "小红书",
     "dy": "抖音",
@@ -154,9 +153,9 @@ class _TTLCache:
 
     def __init__(self, ttl_seconds: int = 1800):
         self.ttl = ttl_seconds
-        self._store: Dict[str, Tuple[Any, float]] = {}
+        self._store: dict[str, tuple[Any, float]] = {}
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         entry = self._store.get(key)
         if entry is None:
             return None
@@ -166,14 +165,14 @@ class _TTLCache:
             return None
         return value
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None):
+    def set(self, key: str, value: Any, ttl: int | None = None):
         actual_ttl = ttl if ttl is not None else self.ttl
         self._store[key] = (value, time.time() + actual_ttl)
 
     def clear(self):
         self._store.clear()
 
-    def info(self) -> Dict[str, Any]:
+    def info(self) -> dict[str, Any]:
         now = time.time()
         valid = sum(1 for _, exp in self._store.values() if now <= exp)
         return {"total_entries": len(self._store), "valid_entries": valid}
@@ -196,8 +195,8 @@ class MediaCrawlerAdapter:
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        api_key: Optional[str] = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
         timeout: int = DEFAULT_TIMEOUT,
         cache_ttl: int = 1800,
         enabled: bool = True,
@@ -229,7 +228,7 @@ class MediaCrawlerAdapter:
     # 健康检查
     # ------------------------------------------------------------
 
-    def check_health(self) -> Dict[str, Any]:
+    def check_health(self) -> dict[str, Any]:
         """检查 MediaCrawler 服务是否可用"""
         if not self.enabled:
             return {"available": False, "reason": "feature_flag_disabled"}
@@ -340,7 +339,7 @@ class MediaCrawlerAdapter:
                 logger.debug("MediaCrawler 已有任务运行, 等待结果...")
 
             # 2. 轮询状态直到完成或超时
-            items: List[MediaCrawlerNewsItem] = []
+            items: list[MediaCrawlerNewsItem] = []
             deadline = time.time() + self.MAX_WAIT_TIME
 
             while time.time() < deadline:
@@ -406,10 +405,10 @@ class MediaCrawlerAdapter:
     def search_multi_platform(
         self,
         keyword: str,
-        platforms: Optional[List[str]] = None,
+        platforms: list[str] | None = None,
         max_items_per_platform: int = 15,
         enable_comments: bool = False,
-    ) -> Dict[str, MediaCrawlerResult]:
+    ) -> dict[str, MediaCrawlerResult]:
         """
         多平台批量搜索
 
@@ -425,7 +424,7 @@ class MediaCrawlerAdapter:
         if platforms is None:
             platforms = ["xhs", "bili", "wb", "zhihu"]
 
-        results: Dict[str, MediaCrawlerResult] = {}
+        results: dict[str, MediaCrawlerResult] = {}
         for platform in platforms:
             display = get_platform_display(normalize_platform(platform))
             results[display] = self.search(
@@ -440,9 +439,9 @@ class MediaCrawlerAdapter:
     # 读取最新数据文件
     # ------------------------------------------------------------
 
-    def _fetch_latest_data(self, platform: str, max_items: int) -> List[MediaCrawlerNewsItem]:
+    def _fetch_latest_data(self, platform: str, max_items: int) -> list[MediaCrawlerNewsItem]:
         """从 MediaCrawler 数据目录读取最新抓取的数据"""
-        items: List[MediaCrawlerNewsItem] = []
+        items: list[MediaCrawlerNewsItem] = []
 
         try:
             # 获取数据文件列表
@@ -490,7 +489,7 @@ class MediaCrawlerAdapter:
     # 原始数据解析
     # ------------------------------------------------------------
 
-    def _parse_raw_item(self, raw: Dict[str, Any], platform: str) -> Optional[MediaCrawlerNewsItem]:
+    def _parse_raw_item(self, raw: dict[str, Any], platform: str) -> MediaCrawlerNewsItem | None:
         """解析 MediaCrawler 原始数据为统一格式"""
         try:
             title = (
@@ -583,7 +582,7 @@ class MediaCrawlerAdapter:
         self._cache.clear()
         logger.info("MediaCrawler 缓存已清空")
 
-    def cache_info(self) -> Dict[str, Any]:
+    def cache_info(self) -> dict[str, Any]:
         """获取缓存状态"""
         return self._cache.info()
 
@@ -594,9 +593,9 @@ class MediaCrawlerAdapter:
     def fetch_social_news(
         self,
         keyword: str,
-        platforms: Optional[List[str]] = None,
+        platforms: list[str] | None = None,
         max_items: int = 50,
-    ) -> List[MediaCrawlerNewsItem]:
+    ) -> list[MediaCrawlerNewsItem]:
         """
         获取自媒体舆情新闻 (对齐 web_scraper 风格接口)
 
@@ -615,7 +614,7 @@ class MediaCrawlerAdapter:
             enable_comments=False,
         )
 
-        all_items: List[MediaCrawlerNewsItem] = []
+        all_items: list[MediaCrawlerNewsItem] = []
         for result in results.values():
             if result.success:
                 all_items.extend(result.items)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_pnl_report_compat_unit.py — 盈亏报告数据结构兼容性单元测试
 
 覆盖场景:

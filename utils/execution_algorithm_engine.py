@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Sequence
 
 import numpy as np
 import pandas as pd
@@ -61,7 +61,7 @@ class ChildOrder:
     side: str
     shares: float
     scheduled_time: pd.Timestamp
-    limit_price: Optional[float] = None  # None 表示市价单
+    limit_price: float | None = None  # None 表示市价单
     slice_type: str = "NORMAL"  # NORMAL / OPEN / CLOSE / BURST
 
 
@@ -71,7 +71,7 @@ class ExecutionPlan:
 
     parent_order: Order
     algorithm: str  # VWAP / TWAP / POV / IS / AC
-    child_orders: List[ChildOrder] = field(default_factory=list)
+    child_orders: list[ChildOrder] = field(default_factory=list)
     expected_cost_bps: float = 0.0  # 预期成本 (bps)
     expected_market_impact_bps: float = 0.0
     expected_timing_risk_bps: float = 0.0
@@ -79,7 +79,7 @@ class ExecutionPlan:
     avg_slice_size: float = 0.0
     max_slice_size: float = 0.0
     num_slices: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 # ============================================================
@@ -106,7 +106,7 @@ class ExecutionAlgorithmEngine:
     def __init__(
         self,
         # VWAP 默认成交量曲线 (24 个 10 分钟槽, U 型)
-        default_volume_curve: Optional[Sequence[float]] = None,
+        default_volume_curve: Sequence[float] | None = None,
         # 冲击成本系数
         impact_coeff: float = 0.1,  # 临时冲击系数
         impact_decay: float = 0.5,  # 永久冲击衰减
@@ -128,7 +128,7 @@ class ExecutionAlgorithmEngine:
         self.rng = np.random.default_rng(seed)
 
     @staticmethod
-    def _default_u_shape_curve() -> List[float]:
+    def _default_u_shape_curve() -> list[float]:
         """默认 U 型成交量曲线 (24 个 10 分钟槽)
 
         开盘/收盘成交密集, 中午稀疏
@@ -147,9 +147,9 @@ class ExecutionAlgorithmEngine:
         start_time: pd.Timestamp,
         end_time: pd.Timestamp,
         slot_minutes: int = 10,
-    ) -> List[pd.Timestamp]:
+    ) -> list[pd.Timestamp]:
         """生成交易时段内的 10 分钟槽 (跳过午休)"""
-        slots: List[pd.Timestamp] = []
+        slots: list[pd.Timestamp] = []
         current = start_time
         morning_end = current.replace(hour=11, minute=30, second=0)
         afternoon_start = current.replace(hour=13, minute=0, second=0)
@@ -174,9 +174,9 @@ class ExecutionAlgorithmEngine:
     def vwap(
         self,
         order: Order,
-        volume_profile: Optional[Sequence[float]] = None,
+        volume_profile: Sequence[float] | None = None,
         slot_minutes: int = 10,
-        adv: Optional[float] = None,
+        adv: float | None = None,
     ) -> ExecutionPlan:
         """VWAP — 按历史成交量分布拆单
 
@@ -218,7 +218,7 @@ class ExecutionAlgorithmEngine:
             randomized = [(s * scale, t) for s, t in randomized]
 
         # 构造子订单
-        child_orders: List[ChildOrder] = []
+        child_orders: list[ChildOrder] = []
         for shares, time in randomized:
             if shares < order.min_slice_size:
                 continue
@@ -277,7 +277,7 @@ class ExecutionAlgorithmEngine:
         self,
         order: Order,
         slot_minutes: int = 10,
-        adv: Optional[float] = None,
+        adv: float | None = None,
     ) -> ExecutionPlan:
         """TWAP — 按时间均匀拆单
 
@@ -301,7 +301,7 @@ class ExecutionAlgorithmEngine:
             scale = order.total_shares / total_allocated
             randomized = [(s * scale, t) for s, t in randomized]
 
-        child_orders: List[ChildOrder] = []
+        child_orders: list[ChildOrder] = []
         for shares, time in randomized:
             if shares < order.min_slice_size:
                 continue
@@ -373,7 +373,7 @@ class ExecutionAlgorithmEngine:
         # 每槽 = min(max_participation * market_vol, 剩余订单)
         participation = order.max_participation
         remaining = order.total_shares
-        child_orders: List[ChildOrder] = []
+        child_orders: list[ChildOrder] = []
 
         for _i, (slot, mkt_vol) in enumerate(zip(slots, vol_per_slot)):
             if remaining <= 0:
@@ -438,7 +438,7 @@ class ExecutionAlgorithmEngine:
         order: Order,
         daily_volatility: float = 0.02,
         slot_minutes: int = 10,
-        adv: Optional[float] = None,
+        adv: float | None = None,
     ) -> ExecutionPlan:
         """IS — Implementation Shortfall 算法
 
@@ -492,7 +492,7 @@ class ExecutionAlgorithmEngine:
             scale = order.total_shares / total_allocated
             randomized = [(s * scale, t) for s, t in randomized]
 
-        child_orders: List[ChildOrder] = []
+        child_orders: list[ChildOrder] = []
         for shares, time in randomized:
             if shares < order.min_slice_size:
                 continue
@@ -540,15 +540,15 @@ class ExecutionAlgorithmEngine:
 
     def _apply_randomization(
         self,
-        shares_per_slot: List[float],
-        slots: List[pd.Timestamp],
-    ) -> List[Tuple[float, pd.Timestamp]]:
+        shares_per_slot: list[float],
+        slots: list[pd.Timestamp],
+    ) -> list[tuple[float, pd.Timestamp]]:
         """应用切片大小与时间随机化
 
         P2 修复: 时间随机化可能将切片漂移到午休时段 (11:30-13:00),
         导致无法成交. 检测到午休时段时, 将时间调整到最近的可用时段边界.
         """
-        randomized: List[Tuple[float, pd.Timestamp]] = []
+        randomized: list[tuple[float, pd.Timestamp]] = []
         for shares, slot in zip(shares_per_slot, slots):
             # 大小随机化
             size_noise = 1.0 + self.rng.uniform(-self.randomize_size, self.randomize_size)
@@ -617,7 +617,7 @@ class ExecutionAlgorithmEngine:
             # 小单: 紧迫 → TWAP, 否则 → VWAP
             return "TWAP" if order.urgency == "HIGH" else "VWAP"
 
-    def summarize_plan(self, plan: ExecutionPlan) -> Dict[str, Any]:
+    def summarize_plan(self, plan: ExecutionPlan) -> dict[str, Any]:
         """生成执行计划摘要"""
         return {
             "algorithm": plan.algorithm,

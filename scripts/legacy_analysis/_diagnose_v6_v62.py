@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """读取 2024-09-02 缓存权重, 对比 V6/V6.2 最终权重, 推断 V6 版本逻辑"""
 import json
 from pathlib import Path
 
 # 读取 2024-09-02 缓存权重
 cache_file = Path("output/institutional_pipeline/2024-09-02/pipeline_backtest.json")
-with open(cache_file, "r", encoding="utf-8") as f:
+with open(cache_file, encoding="utf-8") as f:
     cache = json.load(f)
 
 cache_weights = cache.get("steps", {}).get("portfolio_decision", {}).get("target_weights", {})
@@ -16,9 +15,9 @@ print()
 
 # 加载 V6 和 V6.2 结果
 v6_files = sorted(Path('output/validation_reports').glob('lgb_backtest_v6_alpha_quality*.json'), key=lambda p: p.stat().st_mtime)
-with open(v6_files[-1], 'r', encoding='utf-8') as f:
+with open(v6_files[-1], encoding='utf-8') as f:
     v6 = json.load(f)
-with open('output/validation_reports/lgb_backtest_v6_2_profit_taking_20260725_065118.json', 'r', encoding='utf-8') as f:
+with open('output/validation_reports/lgb_backtest_v6_2_profit_taking_20260725_065118.json', encoding='utf-8') as f:
     v62 = json.load(f)
 
 # 获取 2024-09-02 的最终权重

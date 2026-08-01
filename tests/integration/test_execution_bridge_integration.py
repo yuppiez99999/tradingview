@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """execution_bridge 集成测试 — 端到端流程验证 (Shadow → Paper → Auto)"""
 
 from __future__ import annotations

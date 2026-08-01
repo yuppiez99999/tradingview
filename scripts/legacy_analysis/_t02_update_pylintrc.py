@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T02: 更新 .pylintrc 启用 broad-except 检查"""
 from pathlib import Path
 

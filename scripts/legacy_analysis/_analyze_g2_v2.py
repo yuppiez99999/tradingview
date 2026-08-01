@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """分析第六批次v2 G2 详情"""
 import json
 from pathlib import Path
 
 state_path = Path(r"e:\各种PY程序\28-终极量化交易系统8.4\research\vibe_trading_factor_analysis\reports\vibe_trading\sixth_batch_20260725_120832\pipeline_state.json")
 
-with open(state_path, "r", encoding="utf-8") as f:
+with open(state_path, encoding="utf-8") as f:
     state = json.load(f)
 
 print(f"=== Batch: {state.get('batch_id')} ===")

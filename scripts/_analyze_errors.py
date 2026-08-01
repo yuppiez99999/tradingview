@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """分析 ruff 剩余错误分布"""
 import json
 import os

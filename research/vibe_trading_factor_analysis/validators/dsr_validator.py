@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """DSRValidator - Gate 3 防过拟合验证器
 
 实现 Bailey & Lopez de Prado (2014) Deflated Sharpe Ratio:
@@ -12,7 +11,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import asdict, dataclass
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 
@@ -32,7 +31,7 @@ class DSRResult:
     gate_3_pass: bool = False
     reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -68,41 +67,49 @@ class DSRValidator:
         return r
 
     def _sharpe_period(self, rets):
-        if len(rets) < 2 or np.std(rets) < 1e-12: return 0.0
+        if len(rets) < 2 or np.std(rets) < 1e-12:
+            return 0.0
         return float(np.mean(rets) / np.std(rets, ddof=1))
 
     def _sr_std(self, rets, sr_per):
         n = len(rets)
-        if n < 4: return 1.0 / math.sqrt(max(n, 1))
+        if n < 4:
+            return 1.0 / math.sqrt(max(n, 1))
         skew = float(self._skew(rets))
         kurt = float(self._kurt(rets))
         var = max(1e-12, (1 - skew * sr_per + (kurt - 1) / 4.0 * sr_per ** 2) / n)
         return math.sqrt(var)
 
     def _expected_max_sr(self, n_trials, sigma_sr):
-        if n_trials < 2 or sigma_sr < 1e-12: return 0.0
+        if n_trials < 2 or sigma_sr < 1e-12:
+            return 0.0
         z = math.sqrt(2.0 * math.log(n_trials))
         correction = (math.log(math.pi) + math.log(max(2.0 * math.log(n_trials), 1e-12))) / (2.0 * z)
         return sigma_sr * (z - correction)
 
     def _deflated_sr(self, sr_obs, e_max, sigma_sr, T):
         # 返回 z-score 形式（非概率）：>0 表示 SR_obs 超过多重检验期望，非过拟合
-        if sigma_sr < 1e-12: return 0.0
+        if sigma_sr < 1e-12:
+            return 0.0
         return (sr_obs - e_max) / sigma_sr
 
     def _norm_cdf(self, z):
         return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
 
     def _skew(self, rets):
-        if len(rets) < 3: return 0.0
+        if len(rets) < 3:
+            return 0.0
         m = np.mean(rets)
         s = np.std(rets, ddof=1)
-        if s < 1e-12: return 0.0
+        if s < 1e-12:
+            return 0.0
         return float(np.mean(((rets - m) / s) ** 3))
 
     def _kurt(self, rets):
-        if len(rets) < 4: return 3.0
+        if len(rets) < 4:
+            return 3.0
         m = np.mean(rets)
         s = np.std(rets, ddof=1)
-        if s < 1e-12: return 3.0
+        if s < 1e-12:
+            return 3.0
         return float(np.mean(((rets - m) / s) ** 4))

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 智能执行算法选择器
 
@@ -9,8 +8,6 @@
 """
 
 from __future__ import annotations
-
-from typing import Dict, Optional
 
 
 def _estimate_depth_ratio(target_amount: float, ref_price: float, avg_daily_volume: float) -> float:
@@ -27,11 +24,11 @@ def choose_execution_algorithm(
     target_amount: float,
     ref_price: float,
     avg_daily_volume: float = 0,
-    max_execution_minutes: Optional[float] = None,
+    max_execution_minutes: float | None = None,
     cost_weight: float = 0.7,
     time_weight: float = 0.3,
     volatility: float = 0.02,
-) -> Dict:
+) -> dict:
     """选择最优执行算法
 
     Args:

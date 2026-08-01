@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 实盘开盘前综合自动检测脚本 (Pre-Market Auto Check)
 =====================================================
@@ -277,7 +276,7 @@ def check_trade_plan(trade_date: str) -> None:
         return
 
     try:
-        with open(plan_path, "r", encoding="utf-8") as f:
+        with open(plan_path, encoding="utf-8") as f:
             plan = json.load(f)
 
         # 5.1 metadata.version
@@ -377,7 +376,7 @@ def check_7guard_and_validation(trade_date: str) -> None:
 
     try:
         # 读取原始内容
-        with open(verify_script, "r", encoding="utf-8") as f:
+        with open(verify_script, encoding="utf-8") as f:
             original_content = f.read()
 
         # 临时替换日期

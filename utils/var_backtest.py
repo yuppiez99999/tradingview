@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 VaR 回测模块 (VaR Backtester)
 ==============================
@@ -38,7 +37,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Optional, Tuple
 
 import numpy as np
 
@@ -90,7 +88,7 @@ class VarBacktestResult:
     is_model_valid: bool  # 模型是否有效
     confidence: float  # 置信水平
     window: int  # 回测窗口
-    transition_matrix: Optional[list] = None  # 2x2 转移矩阵
+    transition_matrix: list | None = None  # 2x2 转移矩阵
     summary_report: str = ""
 
     def to_dict(self) -> dict:
@@ -254,7 +252,7 @@ class VaRBacktester:
         n: int,
         x: int,
         p: float,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Kupiec POF (Proportion of Failures) 检验。
 
         检验 H0: 实际例外率 = 预期例外率 p
@@ -336,7 +334,7 @@ class VaRBacktester:
     def _christoffersen_test(
         self,
         exceptions: np.ndarray,
-    ) -> Tuple[float, float, Optional[list]]:
+    ) -> tuple[float, float, list | None]:
         """Christoffersen 独立性检验。
 
         检验 H0: 例外事件相互独立 (无聚类效应)
@@ -473,7 +471,7 @@ class VaRBacktester:
         christ_pval: float,
         traffic: str,
         is_valid: bool,
-        trans_matrix: Optional[list],
+        trans_matrix: list | None,
     ) -> str:
         """生成可视化友好的文本报告。"""
         lines: list = []

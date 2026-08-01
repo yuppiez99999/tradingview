@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 年化收益测算器 (Annual Return Forecast)
 ======================================
@@ -26,7 +25,7 @@ import math
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ============================================================
 # 路径常量
@@ -81,7 +80,7 @@ def _extract_date_str(stem: str, prefix: str) -> str:
     return raw.replace("-", "")
 
 
-def _find_latest_trade_plan(target_date: Optional[str] = None) -> Optional[Path]:
+def _find_latest_trade_plan(target_date: str | None = None) -> Path | None:
     """查找最新的 trade_plan 文件 (可指定日期)"""
     if not PLAN_DIR.exists():
         return None
@@ -102,7 +101,7 @@ def _find_latest_trade_plan(target_date: Optional[str] = None) -> Optional[Path]
     return files[0] if files else None
 
 
-def _find_latest_pnl_report(target_date: Optional[str] = None) -> Optional[Path]:
+def _find_latest_pnl_report(target_date: str | None = None) -> Path | None:
     """查找最新的 daily_pnl_report 文件"""
     if not REPORTS_DIR.exists():
         return None
@@ -118,12 +117,12 @@ def _find_latest_pnl_report(target_date: Optional[str] = None) -> Optional[Path]
     return files[0]
 
 
-def _load_json(path: Optional[Path]) -> Optional[Dict[str, Any]]:
+def _load_json(path: Path | None) -> dict[str, Any] | None:
     """读取 JSON 文件"""
     if not path or not path.exists():
         return None
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return None
@@ -132,7 +131,7 @@ def _load_json(path: Optional[Path]) -> Optional[Dict[str, Any]]:
 # ============================================================
 # 基线数据提取
 # ============================================================
-def _extract_baseline(trade_plan: Dict[str, Any], pnl_report: Dict[str, Any]) -> Dict[str, float]:
+def _extract_baseline(trade_plan: dict[str, Any], pnl_report: dict[str, Any]) -> dict[str, float]:
     """提取组合基线数据
 
     优先级: trade_plan.hedge_fund_overlays.theta_engine > daily_pnl_report.summary > positions
@@ -187,7 +186,7 @@ def _extract_baseline(trade_plan: Dict[str, Any], pnl_report: Dict[str, Any]) ->
 # - 中性: 均值 = 8%
 # - 悲观: 均值-2σ = 8%-50% = -42%（极端年份如2008/2018）
 # 注意：回撤是模拟输出而非预设输入，此处标注为合理估计范围
-SCENARIO_DEFINITIONS: List[Dict[str, Any]] = [
+SCENARIO_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "保守情景",
         "spot_annual_return": -0.17,       # 现货下跌17%（均值-1σ，弱市年份）
@@ -217,8 +216,8 @@ SCENARIO_DEFINITIONS: List[Dict[str, Any]] = [
 
 def _calc_scenario(spot_annual_return: float,
                    hedge_impact: float,
-                   baseline: Dict[str, float],
-                   max_drawdown: float = -0.15) -> Dict[str, Any]:
+                   baseline: dict[str, float],
+                   max_drawdown: float = -0.15) -> dict[str, Any]:
     """计算单情景下的综合年化收益
 
     综合收益 = spot_return × stock_ratio + hedge_impact + cc_yield × stock_ratio + cash_interest × cash_ratio
@@ -275,9 +274,9 @@ def _calc_scenario(spot_annual_return: float,
 # ============================================================
 # 风险识别
 # ============================================================
-def _extract_key_risks(trade_plan: Dict[str, Any], pnl_report: Dict[str, Any]) -> List[str]:
+def _extract_key_risks(trade_plan: dict[str, Any], pnl_report: dict[str, Any]) -> list[str]:
     """从当前状态识别关键风险"""
-    risks: List[str] = []
+    risks: list[str] = []
 
     theta_engine = (trade_plan.get("hedge_fund_overlays") or {}).get("theta_engine", {})
     if theta_engine.get("positions_count", 0) > 0:
@@ -304,7 +303,7 @@ def _extract_key_risks(trade_plan: Dict[str, Any], pnl_report: Dict[str, Any]) -
 # ============================================================
 # 主测算函数
 # ============================================================
-def forecast_annual_return(target_date: Optional[str] = None) -> Dict[str, Any]:
+def forecast_annual_return(target_date: str | None = None) -> dict[str, Any]:
     """生成多情景年化收益测算
 
     Args:
@@ -320,7 +319,7 @@ def forecast_annual_return(target_date: Optional[str] = None) -> Dict[str, Any]:
     pnl_report = _load_json(pnl_path) or {}
 
     baseline = _extract_baseline(trade_plan, pnl_report)
-    scenarios: List[Dict[str, Any]] = []
+    scenarios: list[dict[str, Any]] = []
     for definition in SCENARIO_DEFINITIONS:
         result = _calc_scenario(
             spot_annual_return=definition["spot_annual_return"],
@@ -344,7 +343,7 @@ def forecast_annual_return(target_date: Optional[str] = None) -> Dict[str, Any]:
     if target_breaches:
         key_risks.append(f"⚠️ 8% 目标未达成: {', '.join(target_breaches)} 情景年化收益 < 8%")
 
-    forecast: Dict[str, Any] = {
+    forecast: dict[str, Any] = {
         "generated_at": datetime.now().isoformat(),
         "source": f"{plan_path.name if plan_path else 'none'} + {pnl_path.name if pnl_path else 'none'}",
         "methodology": "Covered Call权利金 + 现金利息 + 现货涨跌 + 对冲影响 (基于建仓完成度 90%)",
@@ -367,7 +366,7 @@ def forecast_annual_return(target_date: Optional[str] = None) -> Dict[str, Any]:
     return forecast
 
 
-def _build_summary(scenarios: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _build_summary(scenarios: list[dict[str, Any]]) -> dict[str, Any]:
     """汇总三情景结论"""
     if not scenarios:
         return {}
@@ -401,7 +400,7 @@ def _build_summary(scenarios: List[Dict[str, Any]]) -> Dict[str, Any]:
 # ============================================================
 # 写入 trade_plan
 # ============================================================
-def write_to_trade_plan(forecast: Dict[str, Any], target_date: Optional[str] = None) -> Optional[Path]:
+def write_to_trade_plan(forecast: dict[str, Any], target_date: str | None = None) -> Path | None:
     """将测算结果写入 trade_plan.json 的 annual_return_forecast 字段
 
     Returns:
@@ -411,7 +410,7 @@ def write_to_trade_plan(forecast: Dict[str, Any], target_date: Optional[str] = N
     if not plan_path or not plan_path.exists():
         return None
     try:
-        with open(plan_path, "r", encoding="utf-8") as f:
+        with open(plan_path, encoding="utf-8") as f:
             plan = json.load(f)
         plan["annual_return_forecast"] = forecast
         with open(plan_path, "w", encoding="utf-8") as f:
@@ -424,7 +423,7 @@ def write_to_trade_plan(forecast: Dict[str, Any], target_date: Optional[str] = N
 # ============================================================
 # 终端输出 (Markdown 表格)
 # ============================================================
-def print_forecast(forecast: Dict[str, Any]) -> None:
+def print_forecast(forecast: dict[str, Any]) -> None:
     """以 Markdown 表格形式输出测算结果"""
     print("=" * 80)
     print("年化收益测算 (Annual Return Forecast) — 硬性目标: 年化 >= 8%, 回撤 < 15%")

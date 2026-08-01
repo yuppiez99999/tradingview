@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Wind 终端盘中标的抓取与研判
 ============================
@@ -22,7 +21,7 @@ os.makedirs(_REPORT_DIR, exist_ok=True)
 def _load_plan_codes() -> List[Dict]:
     if not os.path.isfile(_PLAN_FILE):
         return []
-    with open(_PLAN_FILE, "r", encoding="utf-8") as f:
+    with open(_PLAN_FILE, encoding="utf-8") as f:
         data = json.load(f)
     codes = []
     for code, info in data.get("position_plan", {}).items():

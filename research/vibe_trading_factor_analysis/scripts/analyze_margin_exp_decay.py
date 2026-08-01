@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P2.2 v6b 分析：MARGIN_EXP IC_decay=1.0 根因分析
 
 v6 实测：

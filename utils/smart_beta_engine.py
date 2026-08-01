@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Smart Beta 多因子加权引擎 (Smart Beta Multi-Factor Weighting Engine)
 
@@ -22,7 +21,6 @@ Smart Beta 多因子加权引擎 (Smart Beta Multi-Factor Weighting Engine)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -48,14 +46,14 @@ class SmartBetaResult:
     """Smart Beta 优化结果"""
 
     # 标的权重
-    symbols: List[str]
+    symbols: list[str]
     smart_beta_weights: np.ndarray  # Smart Beta 权重
     market_cap_weights: np.ndarray  # 市值权重 (对照)
     equal_weights: np.ndarray  # 等权 (对照)
 
     # 组合指标
     composite_score: np.ndarray  # 综合因子得分
-    factor_exposure: Dict[str, float]  # 组合因子暴露
+    factor_exposure: dict[str, float]  # 组合因子暴露
 
     # 风险指标
     expected_return: float  # 预期收益
@@ -71,7 +69,7 @@ class SmartBetaResult:
     alpha_vs_market: float  # 相对市值加权的预期 Alpha
 
     # 因子择时信息 (有默认值, 放在最后)
-    factor_timing: List[FactorTimingInfo] = field(default_factory=list)
+    factor_timing: list[FactorTimingInfo] = field(default_factory=list)
 
 
 # ============================================================
@@ -127,13 +125,13 @@ class SmartBetaEngine:
 
     def optimize(
         self,
-        symbols: List[str],
-        factor_scores: Dict[str, Dict[str, float]],
-        market_caps: Optional[Dict[str, float]] = None,
-        factor_weights: Optional[Dict[str, float]] = None,
-        cov_matrix: Optional[np.ndarray] = None,
-        benchmark_weights: Optional[np.ndarray] = None,
-        factor_returns_history: Optional[Dict[str, List[float]]] = None,
+        symbols: list[str],
+        factor_scores: dict[str, dict[str, float]],
+        market_caps: dict[str, float] | None = None,
+        factor_weights: dict[str, float] | None = None,
+        cov_matrix: np.ndarray | None = None,
+        benchmark_weights: np.ndarray | None = None,
+        factor_returns_history: dict[str, list[float]] | None = None,
         risk_free_rate: float = 0.03,
     ) -> SmartBetaResult:
         """Smart Beta 多因子加权优化
@@ -164,7 +162,7 @@ class SmartBetaEngine:
             factor_weights = {f: 1.0 / len(all_factors) for f in all_factors} if all_factors else {}
 
         # 2. 因子择时调整
-        factor_timing_info: List[FactorTimingInfo] = []
+        factor_timing_info: list[FactorTimingInfo] = []
         if self.enable_timing and factor_returns_history:
             adjusted_factor_weights = self._apply_factor_timing(
                 factor_weights, factor_returns_history, factor_timing_info
@@ -183,7 +181,7 @@ class SmartBetaEngine:
 
         # 3. 计算综合因子得分
         composite = np.zeros(n)
-        factor_exposure: Dict[str, float] = {}
+        factor_exposure: dict[str, float] = {}
         for i, sym in enumerate(symbols):
             scores = factor_scores.get(sym, {})
             for fname, w in adjusted_factor_weights.items():
@@ -269,10 +267,10 @@ class SmartBetaEngine:
 
     def _apply_factor_timing(
         self,
-        base_weights: Dict[str, float],
-        factor_returns_history: Dict[str, List[float]],
-        timing_info: List[FactorTimingInfo],
-    ) -> Dict[str, float]:
+        base_weights: dict[str, float],
+        factor_returns_history: dict[str, list[float]],
+        timing_info: list[FactorTimingInfo],
+    ) -> dict[str, float]:
         """应用因子择时调整
 
         逻辑:
@@ -323,13 +321,13 @@ class SmartBetaEngine:
 
     def build_long_short_portfolio(
         self,
-        symbols: List[str],
-        factor_scores: Dict[str, Dict[str, float]],
-        factor_weights: Dict[str, float],
+        symbols: list[str],
+        factor_scores: dict[str, dict[str, float]],
+        factor_weights: dict[str, float],
         n_long: int = 5,
         n_short: int = 5,
         market_neutral: bool = True,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """构建多空组合
 
         Args:
@@ -360,7 +358,7 @@ class SmartBetaEngine:
         shorts = sorted_syms[-n_short:] if n_short > 0 else []
 
         # 构建组合
-        portfolio: Dict[str, float] = {}
+        portfolio: dict[str, float] = {}
         if market_neutral:
             # 多空等市值
             long_weight = 1.0 / n_long if n_long > 0 else 0.0
@@ -384,7 +382,7 @@ class SmartBetaEngine:
     def diagnose_weights(
         self,
         result: SmartBetaResult,
-    ) -> Dict:
+    ) -> dict:
         """权重诊断"""
         # 权重分布
         w = result.smart_beta_weights

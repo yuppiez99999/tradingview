@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WonderTrader 风格价差策略框架
 
@@ -11,7 +10,6 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
 
 from .wt_contracts_manager import get_contracts_manager
 from .wt_structs import BarData, TickData, TradeData
@@ -30,7 +28,7 @@ class SpreadDefinition:
     """
 
     name: str  # 价差合约名,如 "SPD.300-50"
-    legs: List[Dict[str, float]]  # 各腿: [{"code":"510300.SH","ratio":1.0,"direction":"BUY"}, ...]
+    legs: list[dict[str, float]]  # 各腿: [{"code":"510300.SH","ratio":1.0,"direction":"BUY"}, ...]
     spread_type: str = "ratio"  # "ratio"/"diff"/"weighted"
     description: str = ""
 
@@ -39,7 +37,7 @@ class SpreadCalculator:
     """价差计算器"""
 
     @staticmethod
-    def calc_spread_price(spread: SpreadDefinition, prices: Dict[str, float]) -> float:
+    def calc_spread_price(spread: SpreadDefinition, prices: dict[str, float]) -> float:
         """计算价差价格"""
         result = 0.0
         for leg in spread.legs:
@@ -55,7 +53,7 @@ class SpreadCalculator:
         return result
 
     @staticmethod
-    def calc_spread_bars(spread: SpreadDefinition, bars: Dict[str, BarData]) -> Tuple[float, float, float, float]:
+    def calc_spread_bars(spread: SpreadDefinition, bars: dict[str, BarData]) -> tuple[float, float, float, float]:
         """计算价差的 OHLC
 
         Returns: (spread_open, spread_high, spread_low, spread_close)
@@ -94,22 +92,22 @@ class SpreadStrategy(ABC):
         self.logger = logging.getLogger(f"spread.{name}")
 
     @abstractmethod
-    def on_spread_tick(self, ctx: "SpreadContext", spread_price: float, leg_prices: Dict[str, float]) -> None:
+    def on_spread_tick(self, ctx: SpreadContext, spread_price: float, leg_prices: dict[str, float]) -> None:
         """价差 Tick 回调"""
         pass
 
     @abstractmethod
     def on_spread_bar(
-        self, ctx: "SpreadContext", spread_bar: Tuple[float, float, float, float], leg_bars: Dict[str, BarData]
+        self, ctx: SpreadContext, spread_bar: tuple[float, float, float, float], leg_bars: dict[str, BarData]
     ) -> None:
         """价差 Bar 回调"""
         pass
 
-    def on_trade(self, ctx: "SpreadContext", trade: TradeData) -> None:  # noqa: B027  接口占位, 子类按需覆写
+    def on_trade(self, ctx: SpreadContext, trade: TradeData) -> None:  # noqa: B027  接口占位, 子类按需覆写
         """成交回调"""
         pass
 
-    def on_position(self, ctx: "SpreadContext", position: float) -> None:  # noqa: B027  接口占位, 子类按需覆写
+    def on_position(self, ctx: SpreadContext, position: float) -> None:  # noqa: B027  接口占位, 子类按需覆写
         """持仓回调"""
         pass
 
@@ -129,13 +127,13 @@ class SpreadContext:
     def __init__(self, strategy: SpreadStrategy, spread: SpreadDefinition):
         self.strategy = strategy
         self.spread = spread
-        self.leg_positions: Dict[str, float] = {leg["code"]: 0.0 for leg in spread.legs}  # type: ignore
-        self.leg_avg_cost: Dict[str, float] = {leg["code"]: 0.0 for leg in spread.legs}  # type: ignore
-        self.trades: List[TradeData] = []
+        self.leg_positions: dict[str, float] = {leg["code"]: 0.0 for leg in spread.legs}  # type: ignore
+        self.leg_avg_cost: dict[str, float] = {leg["code"]: 0.0 for leg in spread.legs}  # type: ignore
+        self.trades: list[TradeData] = []
         self.cash = 1_000_000.0
         self.contracts = get_contracts_manager()
 
-    def enter_long_spread(self, qty: float, leg_prices: Dict[str, float]) -> bool:
+    def enter_long_spread(self, qty: float, leg_prices: dict[str, float]) -> bool:
         """开多价差: 买入正腿, 卖出反腿"""
         for leg in self.spread.legs:
             code = leg["code"]
@@ -182,11 +180,11 @@ class SpreadContext:
 
         return True
 
-    def exit_long_spread(self, qty: float, leg_prices: Dict[str, float]) -> bool:
+    def exit_long_spread(self, qty: float, leg_prices: dict[str, float]) -> bool:
         """平多价差: 卖出正腿, 买入反腿"""
         return self.enter_short_spread(qty, leg_prices)
 
-    def enter_short_spread(self, qty: float, leg_prices: Dict[str, float]) -> bool:
+    def enter_short_spread(self, qty: float, leg_prices: dict[str, float]) -> bool:
         """开空价差: 卖出正腿, 买入反腿"""
         for leg in self.spread.legs:
             code = leg["code"]
@@ -226,7 +224,7 @@ class SpreadContext:
 
         return True
 
-    def exit_short_spread(self, qty: float, leg_prices: Dict[str, float]) -> bool:
+    def exit_short_spread(self, qty: float, leg_prices: dict[str, float]) -> bool:
         """平空价差"""
         return self.enter_long_spread(qty, leg_prices)
 
@@ -240,7 +238,7 @@ class SpreadContext:
     def get_leg_position(self, code: str) -> float:
         return self.leg_positions.get(code, 0)
 
-    def get_total_equity(self, leg_prices: Dict[str, float]) -> float:
+    def get_total_equity(self, leg_prices: dict[str, float]) -> float:
         """计算总权益 = 现金 + 持仓市值"""
         equity = self.cash
         for code, pos in self.leg_positions.items():
@@ -256,10 +254,10 @@ class SpreadBacktester:
         self.strategy = strategy
         self.ctx = SpreadContext(strategy, strategy.spread)
         self.ctx.cash = initial_capital
-        self.equity_curve: List[Dict] = []
+        self.equity_curve: list[dict] = []
         self.calc = SpreadCalculator()
 
-    def run_on_ticks(self, tick_data_list: List[Dict[str, TickData]]) -> Dict:
+    def run_on_ticks(self, tick_data_list: list[dict[str, TickData]]) -> dict:
         """对 Tick 数据序列进行回测
 
         Args:
@@ -283,7 +281,7 @@ class SpreadBacktester:
 
         return self._generate_report()
 
-    def _generate_report(self) -> Dict:
+    def _generate_report(self) -> dict:
         """生成回测报告"""
         if not self.equity_curve:
             return {}

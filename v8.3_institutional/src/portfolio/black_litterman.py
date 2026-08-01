@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import List, Optional
 
 import numpy as np
 
@@ -29,17 +28,17 @@ class BlackLittermanEngine:
     Ω = 观点不确定性矩阵
     """
 
-    def __init__(self, config: Optional[BLConfig] = None):
+    def __init__(self, config: BLConfig | None = None):
         self.cfg = config or BLConfig()
-        self._last_posterior: Optional[np.ndarray] = None
-        self._last_weights: Optional[np.ndarray] = None
+        self._last_posterior: np.ndarray | None = None
+        self._last_weights: np.ndarray | None = None
 
     def compute_implied_returns(self, cov_matrix: np.ndarray, market_weights: np.ndarray) -> np.ndarray:
         """Π = δ Σ w_mkt — 从市场权重反推均衡收益"""
         pi = self.cfg.risk_aversion * cov_matrix @ market_weights
         return pi
 
-    def blend_views(self, prior_returns: np.ndarray, cov_matrix: np.ndarray, views: List[dict]) -> np.ndarray:
+    def blend_views(self, prior_returns: np.ndarray, cov_matrix: np.ndarray, views: list[dict]) -> np.ndarray:
         """融合主观观点 → 后验收益"""
         n = len(prior_returns)
 

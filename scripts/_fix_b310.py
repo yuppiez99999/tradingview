@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """修复 B310: urllib.request.urlopen 未限制 URL 协议
 在 llm_router.py 和 omni_route_client.py 中添加安全封装函数 _safe_urlopen,
 校验 URL 必须以 http:// 或 https:// 开头, 拒绝 file:/// 等本地协议。
@@ -9,7 +8,7 @@ import re
 def fix_llm_router():
     """修复 utils/alpha/llm_router.py 的 3 处 urlopen"""
     filepath = r"utils\alpha\llm_router.py"
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         content = f.read()
 
     # 1. 在文件顶部（import urllib 之后）添加 _safe_urlopen 封装函数
@@ -56,7 +55,7 @@ def _safe_urlopen(req, timeout=None):
 def fix_omni_route_client():
     """修复 utils/alpha/omni_route_client.py 的 3 处 urlopen"""
     filepath = r"utils\alpha\omni_route_client.py"
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         content = f.read()
 
     helper = '''

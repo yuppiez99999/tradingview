@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证导入和板块约束"""
 import sys
 

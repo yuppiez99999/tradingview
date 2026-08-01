@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Backtest Manipulation Fix Verification Tests v1.0
 

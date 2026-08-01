@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """分析 V9 回测最终结果 (修复月度收益解析)"""
 import json
 import re
@@ -6,7 +5,7 @@ import statistics
 from pathlib import Path
 
 log_file = Path(r'e:\各种PY程序\28-终极量化交易系统8.4\v9_backtest.log')
-with open(log_file, 'r', encoding='utf-8') as f:
+with open(log_file, encoding='utf-8') as f:
     content = f.read()
 
 print('=' * 70)
@@ -20,10 +19,14 @@ win_rate = re.search(r'胜率: ([\d.\-]+)', content)
 months = re.search(r'月数: (\d+)', content)
 
 print('\n=== 关键指标 ===')
-if annual: print(f'  年化收益: {annual.group(1)}')
-if max_dd: print(f'  最大回撤: {max_dd.group(1)}')
-if win_rate: print(f'  胜率: {win_rate.group(1)}')
-if months: print(f'  月数: {months.group(1)}')
+if annual:
+    print(f'  年化收益: {annual.group(1)}')
+if max_dd:
+    print(f'  最大回撤: {max_dd.group(1)}')
+if win_rate:
+    print(f'  胜率: {win_rate.group(1)}')
+if months:
+    print(f'  月数: {months.group(1)}')
 
 # 月度收益 - 只提取数值型 (过滤标的代码)
 all_matches = re.findall(r'(\d{4}-\d{2}-\d{2}): ([\d.\-]+)', content)
@@ -100,7 +103,7 @@ result_files = list(Path(r'e:\各种PY程序\28-终极量化交易系统8.4\outp
 if result_files:
     latest = max(result_files, key=lambda p: p.stat().st_mtime)
     print(f'最新结果文件: {latest}')
-    with open(latest, 'r', encoding='utf-8') as f:
+    with open(latest, encoding='utf-8') as f:
         result = json.load(f)
     print(f'  annual_return: {result.get("annual_return", "N/A")}')
     print(f'  max_drawdown: {result.get("max_drawdown", "N/A")}')

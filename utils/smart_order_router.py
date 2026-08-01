@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -60,10 +60,10 @@ class OrderBookSnapshot:
     venue_name: str
     timestamp: str
     # 5 档买卖盘
-    bid_prices: List[float] = field(default_factory=list)
-    bid_sizes: List[float] = field(default_factory=list)
-    ask_prices: List[float] = field(default_factory=list)
-    ask_sizes: List[float] = field(default_factory=list)
+    bid_prices: list[float] = field(default_factory=list)
+    bid_sizes: list[float] = field(default_factory=list)
+    ask_prices: list[float] = field(default_factory=list)
+    ask_sizes: list[float] = field(default_factory=list)
     # 最新成交
     last_price: float = 0.0
     # 累计成交量
@@ -98,17 +98,17 @@ class RoutingDecision:
     side: str  # BUY / SELL
     total_shares: float
     # 分配到各场所的子订单
-    allocations: List[VenueScore] = field(default_factory=list)
+    allocations: list[VenueScore] = field(default_factory=list)
     # 主场所
     primary_venue: str = ""
     # 备用场所 (主场所故障时切换)
-    fallback_venues: List[str] = field(default_factory=list)
+    fallback_venues: list[str] = field(default_factory=list)
     # 反贪吃标记
     gaming_detected: bool = False
     gaming_risk_score: float = 0.0  # [0, 1]
     # 元数据
     strategy: str = "SMART"  # SMART / TWAP_SPLIT / ICEBERG / DARK_FIRST
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 # ============================================================
@@ -176,7 +176,7 @@ class SmartOrderRouter:
 
     def __init__(
         self,
-        venues: Optional[List[Venue]] = None,
+        venues: list[Venue] | None = None,
         # 评分权重
         w_liquidity: float = 0.35,
         w_cost: float = 0.30,
@@ -190,7 +190,7 @@ class SmartOrderRouter:
         min_allocation_ratio: float = 0.05,
         seed: int = 42,
     ):
-        self.venues: Dict[str, Venue] = {v.name: v for v in (venues or self.DEFAULT_VENUES)}
+        self.venues: dict[str, Venue] = {v.name: v for v in (venues or self.DEFAULT_VENUES)}
         self.w_liq = float(w_liquidity)
         self.w_cost = float(w_cost)
         self.w_speed = float(w_speed)
@@ -232,7 +232,7 @@ class SmartOrderRouter:
         symbol: str,
         side: str,
         total_shares: float,
-        order_books: Optional[Dict[str, OrderBookSnapshot]] = None,
+        order_books: dict[str, OrderBookSnapshot] | None = None,
         strategy: str = "SMART",
         max_venues: int = 3,
         min_shares_per_venue: float = 100.0,
@@ -309,10 +309,10 @@ class SmartOrderRouter:
         self,
         side: str,
         total_shares: float,
-        order_books: Dict[str, OrderBookSnapshot],
-    ) -> List[VenueScore]:
+        order_books: dict[str, OrderBookSnapshot],
+    ) -> list[VenueScore]:
         """评分所有场所"""
-        scores: List[VenueScore] = []
+        scores: list[VenueScore] = []
         for name, venue in self.venues.items():
             if not venue.available:
                 continue
@@ -396,10 +396,10 @@ class SmartOrderRouter:
 
     def _allocate_proportional(
         self,
-        scores: List[VenueScore],
+        scores: list[VenueScore],
         total_shares: float,
         min_shares: float,
-    ) -> List[VenueScore]:
+    ) -> list[VenueScore]:
         """按评分比例分配"""
         if not scores:
             return []
@@ -430,10 +430,10 @@ class SmartOrderRouter:
 
     def _allocate_iceberg(
         self,
-        scores: List[VenueScore],
+        scores: list[VenueScore],
         total_shares: float,
         min_shares: float,
-    ) -> List[VenueScore]:
+    ) -> list[VenueScore]:
         """冰山订单分配: 主场所可见 10%, 其余分小单"""
         if not scores:
             return []
@@ -459,9 +459,9 @@ class SmartOrderRouter:
 
     def _detect_gaming(
         self,
-        order_books: Dict[str, OrderBookSnapshot],
+        order_books: dict[str, OrderBookSnapshot],
         side: str,
-    ) -> Tuple[bool, float]:
+    ) -> tuple[bool, float]:
         """检测做市商套利 (Quote Stuffing / Spoofing)
 
         简化启发式:
@@ -471,7 +471,7 @@ class SmartOrderRouter:
         if not order_books:
             return False, 0.0
 
-        risk_scores: List[float] = []
+        risk_scores: list[float] = []
         for _name, book in order_books.items():
             if not book.bid_sizes or not book.ask_sizes:
                 continue
@@ -502,7 +502,7 @@ class SmartOrderRouter:
     # 摘要
     # ------------------------------------------------------------
 
-    def summarize_decision(self, decision: RoutingDecision) -> Dict[str, Any]:
+    def summarize_decision(self, decision: RoutingDecision) -> dict[str, Any]:
         """生成路由决策摘要"""
         return {
             "symbol": decision.symbol,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_report_compat_integration.py — 真实报告 → RiskGuardIntegrator 数据流集成测试
 
 5 条关键链路 #4: daily_pnl_report_*.json → _load_pnl_report → _extract_positions/_summary → guard_kill_switch

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 快速回测聚合：基于已有 pipeline_backtest.json 计算收益
 """

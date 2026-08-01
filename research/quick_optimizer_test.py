@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """快速验证优化器信号倾斜"""
 import numpy as np
 import pandas as pd

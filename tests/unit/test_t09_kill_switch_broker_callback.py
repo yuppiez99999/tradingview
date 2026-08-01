@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T09: daily_workflow 注册 KillSwitch.broker_callback — L2/L3 触发真撤单测试
 
 验证目标:

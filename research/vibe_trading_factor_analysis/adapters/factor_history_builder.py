@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """FactorHistoryBuilder - 日频因子值历史构建器（P0 改进核心模块）
 
 为 Gate2 IC_IR / Gate3 DSR / Shadow / Regime 提供真实日频因子值序列，
@@ -28,7 +27,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -37,13 +36,13 @@ logger = logging.getLogger("factor_history_builder")
 
 def build_factor_history(
     adapter: Any,
-    price_data: Dict[str, Dict[str, List[float]]],
-    fundamentals: Optional[Dict[str, Dict[str, float]]] = None,
-    benchmark_returns: Optional[List[float]] = None,
+    price_data: dict[str, dict[str, list[float]]],
+    fundamentals: dict[str, dict[str, float]] | None = None,
+    benchmark_returns: list[float] | None = None,
     history_days: int = 120,
     forward_window: int = 5,
-    fundamentals_history: Optional[Dict[str, Dict[str, Any]]] = None,
-) -> Tuple[Dict[str, List[Dict[str, float]]], List[Dict[str, float]], List[int]]:
+    fundamentals_history: dict[str, dict[str, Any]] | None = None,
+) -> tuple[dict[str, list[dict[str, float]]], list[dict[str, float]], list[int]]:
     """构建日频因子值历史序列
 
     Args:
@@ -116,12 +115,12 @@ def build_factor_history(
     )
 
     # 构建每日 factor_values
-    factor_history: Dict[str, List[Dict[str, float]]] = {}
-    forward_returns_history: List[Dict[str, float]] = []
+    factor_history: dict[str, list[dict[str, float]]] = {}
+    forward_returns_history: list[dict[str, float]] = []
 
     for t in valid_dates:
         # 截断 price_data 到 [0:t+1]
-        truncated_price: Dict[str, Dict[str, List[float]]] = {}
+        truncated_price: dict[str, dict[str, list[float]]] = {}
         for sym, data in price_data.items():
             truncated_price[sym] = {
                 k: list(v[: t + 1]) for k, v in data.items() if isinstance(v, list)
@@ -149,7 +148,7 @@ def build_factor_history(
             factor_history[fname].append(dict(cf.values))
 
         # 计算 forward returns: 从 t 到 t+forward_window 的收益率
-        fwd_dict: Dict[str, float] = {}
+        fwd_dict: dict[str, float] = {}
         for sym, data in price_data.items():
             closes = data.get("closes", [])
             if t + forward_window < len(closes) and closes[t] > 0:
@@ -171,10 +170,10 @@ def build_factor_history(
 
 
 def compute_rolling_ic_series(
-    factor_history: List[Dict[str, float]],
-    forward_returns_history: List[Dict[str, float]],
+    factor_history: list[dict[str, float]],
+    forward_returns_history: list[dict[str, float]],
     min_samples: int = 5,
-) -> List[float]:
+) -> list[float]:
     """计算 IC 序列（每日一个 cross-sectional IC）
 
     Args:
@@ -185,7 +184,7 @@ def compute_rolling_ic_series(
     Returns:
         ic_series: List[float]，每日的 Pearson IC
     """
-    ic_series: List[float] = []
+    ic_series: list[float] = []
     n = min(len(factor_history), len(forward_returns_history))
     for i in range(n):
         fv = factor_history[i]
@@ -207,9 +206,9 @@ def compute_rolling_ic_series(
 
 
 def compute_ic_ir(
-    ic_series: List[float],
+    ic_series: list[float],
     min_periods: int = 20,
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """计算 IC_IR = mean(IC) / std(IC)
 
     Args:
@@ -236,8 +235,8 @@ def compute_ic_ir(
 
 
 def compute_ic_decay(
-    factor_history: List[Dict[str, float]],
-    forward_returns_history: List[Dict[str, float]],
+    factor_history: list[dict[str, float]],
+    forward_returns_history: list[dict[str, float]],
     short_window: int = 5,
     long_window: int = 20,
 ) -> float:

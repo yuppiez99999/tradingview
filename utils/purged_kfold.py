@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Purged K-Fold 时序交叉验证 — v8.3.2 过拟合防护升级
 
@@ -23,7 +22,7 @@ Claude Audit 2026-07-22 改进项 #4 — 过拟合防护 (评级 B- → A)
 from __future__ import annotations
 
 import logging
-from typing import Generator, List, Tuple
+from typing import Generator
 
 import numpy as np
 
@@ -35,7 +34,7 @@ def purged_timeseries_split(
     n_splits: int = 5,
     embargo_pct: float = 0.01,
     min_train_pct: float = 0.3,
-) -> Generator[Tuple[np.ndarray, np.ndarray], None, None]:
+) -> Generator[tuple[np.ndarray, np.ndarray], None, None]:
     """Purged 时间序列交叉验证分割器。
 
     在标准 TimeSeriesSplit 基础上增加 embargo (禁运期),
@@ -104,7 +103,7 @@ def purged_kfold_generator(
     embargo_pct: float = 0.01,
     purge_pct: float = 0.01,
     min_train_pct: float = 0.3,
-) -> List[Tuple[np.ndarray, np.ndarray]]:
+) -> list[tuple[np.ndarray, np.ndarray]]:
     """一次性生成所有 Purged KFold 分割 (便于检查)。
 
     Args:
@@ -144,7 +143,7 @@ def validate_embargo(
     train_idx: np.ndarray,
     test_idx: np.ndarray,
     min_gap: int = 1,
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """验证训练集和测试集之间是否存在足够的安全间隔。
 
     Args:
@@ -171,8 +170,8 @@ def validate_embargo(
 
 
 def overfitting_diagnosis(
-    fold_metrics: List[dict],
-    metric_keys: Tuple[str, ...] = ("r2", "ic", "sharpe"),
+    fold_metrics: list[dict],
+    metric_keys: tuple[str, ...] = ("r2", "ic", "sharpe"),
 ) -> dict:
     """过拟合诊断 — 基于 Purged KFold 各折指标分析。
 

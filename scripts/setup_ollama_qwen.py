@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 导入/拉取 Qwen2.5 到 Ollama，并设置为默认模型。
 优先尝试本地 GGUF，若不可用则直接 ollama pull 官方模型。

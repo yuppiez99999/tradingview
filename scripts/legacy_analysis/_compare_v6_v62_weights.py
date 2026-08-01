@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
 """对比 V6 vs V6.2 在 2024-09 的权重, 找出反转调整逻辑差异"""
 import json
 from pathlib import Path
 
 # 加载 V6.2 结果
-with open('output/validation_reports/lgb_backtest_v6_2_profit_taking_20260725_065118.json', 'r', encoding='utf-8') as f:
+with open('output/validation_reports/lgb_backtest_v6_2_profit_taking_20260725_065118.json', encoding='utf-8') as f:
     v62 = json.load(f)
 
 # 加载 V6 结果
 v6_files = sorted(Path('output/validation_reports').glob('lgb_backtest_v6_alpha_quality*.json'), key=lambda p: p.stat().st_mtime)
-with open(v6_files[-1], 'r', encoding='utf-8') as f:
+with open(v6_files[-1], encoding='utf-8') as f:
     v6 = json.load(f)
 
 # 对比 2024-09-02 的权重

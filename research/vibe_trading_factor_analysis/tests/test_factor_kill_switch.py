@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """FactorKillSwitch 单元测试 - CIO v1.0"""
 from __future__ import annotations
 
@@ -147,11 +146,14 @@ def main():
     passed = failed = 0
     for t in tests:
         try:
-            t(); passed += 1
+            t()
+            passed += 1
         except AssertionError as e:
-            failed += 1; print(f"  ✗ FAIL: {e}")
+            failed += 1
+            print(f"  ✗ FAIL: {e}")
         except Exception as e:
-            failed += 1; print(f"  ✗ ERROR: {type(e).__name__}: {e}")
+            failed += 1
+            print(f"  ✗ ERROR: {type(e).__name__}: {e}")
     print("\n" + "=" * 60)
     print(f"总计: {passed} 通过, {failed} 失败 (共 {len(tests)} 项)")
     print("=" * 60)

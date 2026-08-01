@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LGB 增强信号接入流水线验证脚本 (v8.7)
 ========================================
@@ -52,7 +51,7 @@ def test_signal_file_loading() -> dict:
         _print_result(False, f"信号文件不存在: {LGB_SIGNALS_FILE}")
         return {}
 
-    with open(LGB_SIGNALS_FILE, "r", encoding="utf-8") as f:
+    with open(LGB_SIGNALS_FILE, encoding="utf-8") as f:
         data = json.load(f)
 
     _print_result(True, f"信号文件已加载: {LGB_SIGNALS_FILE.name}")

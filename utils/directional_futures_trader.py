@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 方向性期货交易模块 v1.0
 ========================
@@ -34,7 +33,7 @@ import logging
 from dataclasses import asdict, dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("directional_futures")
 
@@ -132,13 +131,13 @@ class DirectionalFuturesResult:
 
     trade_date: str = ""
     action: str = "skip"  # trade / skip / pause (供 daily_workflow 消费)
-    signals: List[FuturesSignal] = field(default_factory=list)
-    orders: List[FuturesOrder] = field(default_factory=list)
+    signals: list[FuturesSignal] = field(default_factory=list)
+    orders: list[FuturesOrder] = field(default_factory=list)
     total_margin_used: float = 0.0
     total_notional: float = 0.0
     margin_usage_ratio: float = 0.0
     risk_status: str = "normal"  # normal / warning / paused
-    pause_until: Optional[str] = None
+    pause_until: str | None = None
     summary_text: str = ""
 
 
@@ -168,9 +167,9 @@ class DirectionalFuturesTrader:
     # ------------------------------------------------------------
     def generate_signals(
         self,
-        market_data: Dict[str, Dict[str, Any]],
-        fundamental_factors: Optional[Dict[str, Dict]] = None,
-    ) -> List[FuturesSignal]:
+        market_data: dict[str, dict[str, Any]],
+        fundamental_factors: dict[str, dict] | None = None,
+    ) -> list[FuturesSignal]:
         """生成方向性期货信号
 
         Args:
@@ -267,7 +266,7 @@ class DirectionalFuturesTrader:
     # ------------------------------------------------------------
     # 指标计算
     # ------------------------------------------------------------
-    def _calc_rsi(self, closes: List[float], period: int = 14) -> float:
+    def _calc_rsi(self, closes: list[float], period: int = 14) -> float:
         """计算 RSI"""
         if len(closes) < period + 1:
             return 50.0
@@ -285,7 +284,7 @@ class DirectionalFuturesTrader:
         rs = avg_gain / avg_loss
         return round(100 - (100 / (1 + rs)), 2)
 
-    def _calc_macd_hist(self, closes: List[float]) -> float:
+    def _calc_macd_hist(self, closes: list[float]) -> float:
         """计算 MACD 柱状图 (12,26,9)"""
         if len(closes) < 35:
             return 0.0
@@ -303,7 +302,7 @@ class DirectionalFuturesTrader:
         signal_line = sum(macd_series) / len(macd_series) if macd_series else macd_line
         return round(macd_line - signal_line, 6)
 
-    def _calc_ema(self, closes: List[float], period: int) -> float:
+    def _calc_ema(self, closes: list[float], period: int) -> float:
         """计算 EMA"""
         if len(closes) < period:
             return sum(closes) / len(closes) if closes else 0
@@ -321,7 +320,7 @@ class DirectionalFuturesTrader:
         symbol: str,
         signal: FuturesSignal,
         current_price: float,
-    ) -> Tuple[int, float, float]:
+    ) -> tuple[int, float, float]:
         """计算单品种合约数与所需保证金
 
         Returns:
@@ -354,11 +353,11 @@ class DirectionalFuturesTrader:
     # ------------------------------------------------------------
     def check_risk(
         self,
-        current_positions: Dict[str, Dict],
+        current_positions: dict[str, dict],
         daily_pnl_pct: float = 0.0,
         weekly_consecutive_loss_pct: float = 0.0,
-        last_loss_pause_date: Optional[date] = None,
-    ) -> Tuple[str, Optional[date]]:
+        last_loss_pause_date: date | None = None,
+    ) -> tuple[str, date | None]:
         """风控检查
 
         Returns:
@@ -389,12 +388,12 @@ class DirectionalFuturesTrader:
     # ------------------------------------------------------------
     def generate_orders(
         self,
-        signals: List[FuturesSignal],
-        current_positions: Dict[str, Dict],
-        prices: Dict[str, float],
+        signals: list[FuturesSignal],
+        current_positions: dict[str, dict],
+        prices: dict[str, float],
         trade_date: date,
         risk_status: str = "normal",
-    ) -> List[FuturesOrder]:
+    ) -> list[FuturesOrder]:
         """生成交易指令
 
         Args:
@@ -484,7 +483,7 @@ class DirectionalFuturesTrader:
     def _build_close_order(
         self,
         symbol: str,
-        position: Dict,
+        position: dict,
         price: float,
         trade_date: date,
         reason: str,
@@ -511,7 +510,7 @@ class DirectionalFuturesTrader:
         entry_price: float,
         direction: str,
         strength: float,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """计算止损止盈
 
         止损: 信号强度越强, 止损越宽 (允许更多波动)
@@ -537,14 +536,14 @@ class DirectionalFuturesTrader:
     # ------------------------------------------------------------
     def run(
         self,
-        market_data: Dict[str, Dict[str, Any]],
-        current_positions: Dict[str, Dict],
-        prices: Dict[str, float],
+        market_data: dict[str, dict[str, Any]],
+        current_positions: dict[str, dict],
+        prices: dict[str, float],
         trade_date: date,
-        fundamental_factors: Optional[Dict[str, Dict]] = None,
+        fundamental_factors: dict[str, dict] | None = None,
         daily_pnl_pct: float = 0.0,
         weekly_consecutive_loss_pct: float = 0.0,
-        last_loss_pause_date: Optional[date] = None,
+        last_loss_pause_date: date | None = None,
     ) -> DirectionalFuturesResult:
         """方向性期货主流程
 

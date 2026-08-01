@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 交易计划自动执行器（四Guard联动）
 ====================================
@@ -32,7 +31,6 @@ import logging
 import sys
 from datetime import date, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # ============================================================
 # 路径初始化
@@ -75,27 +73,27 @@ def _safe_float(val, default=0.0):
         return default
 
 
-def _load_trade_plan(trade_date: str) -> Optional[Dict]:
+def _load_trade_plan(trade_date: str) -> dict | None:
     yyyymmdd = trade_date.replace("-", "")
     plan_path = TRADE_PLANS_DIR / f"trade_plan_{yyyymmdd}.json"
     if not plan_path.exists():
         logger.warning(f"交易计划文件不存在: {plan_path}")
         return None
-    with open(plan_path, "r", encoding="utf-8") as f:
+    with open(plan_path, encoding="utf-8") as f:
         plan = json.load(f)
     logger.info(f"已加载交易计划: {plan_path} (phase={plan.get('phase',{}).get('name','?')})")
     return plan
 
 
-def _load_positions() -> Dict:
+def _load_positions() -> dict:
     if not POSITIONS_FILE.exists():
         logger.warning("positions.json 不存在")
         return {"meta": {}, "positions": {}}
-    with open(POSITIONS_FILE, "r", encoding="utf-8") as f:
+    with open(POSITIONS_FILE, encoding="utf-8") as f:
         return json.load(f)
 
 
-def _save_positions(data: Dict) -> None:
+def _save_positions(data: dict) -> None:
     data["meta"]["last_modified"] = datetime.now().isoformat()
     with open(POSITIONS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -106,7 +104,7 @@ def _save_positions(data: Dict) -> None:
 # 四Guard联动
 # ============================================================
 
-def _run_risk_guard_integrator(trade_date: str, plan: Dict) -> Dict:
+def _run_risk_guard_integrator(trade_date: str, plan: dict) -> dict:
     """通过 RiskGuardIntegrator 执行全部四Guard"""
     logger.info("=" * 50)
     logger.info("四Guard联动 — 启动")
@@ -125,7 +123,7 @@ def _run_risk_guard_integrator(trade_date: str, plan: Dict) -> Dict:
         return _run_guards_standalone(trade_date, plan)
 
 
-def _run_guards_standalone(trade_date: str, plan: Dict) -> Dict:
+def _run_guards_standalone(trade_date: str, plan: dict) -> dict:
     """独立运行四个Guard (不带集成器的降级模式)"""
     results = {
         "kill_switch": {"passed": True, "build_allowed": True},
@@ -195,10 +193,10 @@ class MockExecutionEngine:
 
     def __init__(self, trade_date: str):
         self.trade_date = trade_date
-        self.fills: List[Dict] = []
-        self.errors: List[Dict] = []
+        self.fills: list[dict] = []
+        self.errors: list[dict] = []
 
-    def execute_build_order(self, order: Dict, positions_data: Dict) -> Dict:
+    def execute_build_order(self, order: dict, positions_data: dict) -> dict:
         """执行一笔建仓订单 (模拟)"""
         code = order.get("code", order.get("symbol", ""))
         qty = order.get("shares", order.get("target_qty", order.get("phase1_target_qty", 0)))
@@ -248,7 +246,7 @@ class MockExecutionEngine:
         logger.info(f"[成交] {code} {btype} {int(qty):,}股 @{fill_price:.3f} = ¥{amount:,.2f}")
         return fill
 
-    def execute_hedge_order(self, order: Dict) -> Dict:
+    def execute_hedge_order(self, order: dict) -> dict:
         """执行一笔对冲订单 (模拟)"""
         inst = order.get("instrument", order.get("code", ""))
         ct = order.get("contracts", 0)
@@ -272,7 +270,7 @@ class MockExecutionEngine:
         logger.info(f"[对冲成交] {inst} {action} {ct}张, 权利金预估 ¥{premium:,.2f}")
         return fill
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         total_fills = len([f for f in self.fills if f.get("status", "").startswith("FILL")])
         total_amount = sum(_safe_float(f.get("amount", f.get("premium", 0))) for f in self.fills)
         return {
@@ -287,8 +285,8 @@ class MockExecutionEngine:
 # 报告生成
 # ============================================================
 
-def _generate_execution_report(trade_date: str, plan: Dict, engine: MockExecutionEngine,
-                               guard_results: Dict) -> str:
+def _generate_execution_report(trade_date: str, plan: dict, engine: MockExecutionEngine,
+                               guard_results: dict) -> str:
     lines = []
     lines.append(f"# 交易计划执行报告 — {trade_date}")
     lines.append("")
@@ -370,7 +368,7 @@ def _generate_execution_report(trade_date: str, plan: Dict, engine: MockExecutio
 # ============================================================
 
 def execute_trade_plan(trade_date: str, dry_run: bool = False,
-                       auto_confirm: bool = False) -> Dict:
+                       auto_confirm: bool = False) -> dict:
     """执行单日交易计划
 
     Args:

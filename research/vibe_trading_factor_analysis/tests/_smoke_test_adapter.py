@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """VibeTradingFactorAdapter 烟雾测试"""
 import os
 import sys

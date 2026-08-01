@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 压力测试情景库 (Stress Test Scenario Library)
 
@@ -19,7 +18,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Union
 
 # ============================================================
 # 数据结构
@@ -88,9 +86,9 @@ class StressTestResult:
     scenario_name: str
     portfolio_pnl: float  # 组合 P&L (金额)
     portfolio_return: float  # 组合收益率
-    by_asset: Dict[str, float]  # 单标的 P&L
-    by_sector: Dict[str, float]  # 行业 P&L
-    by_factor: Dict[str, float]  # 因子贡献
+    by_asset: dict[str, float]  # 单标的 P&L
+    by_sector: dict[str, float]  # 行业 P&L
+    by_factor: dict[str, float]  # 因子贡献
     # 风险指标
     var_before: float  # 压力前 VaR
     var_after: float  # 压力后 VaR
@@ -105,7 +103,7 @@ class StressTestResult:
 # ============================================================
 
 
-def _build_default_scenarios() -> List[StressScenario]:
+def _build_default_scenarios() -> list[StressScenario]:
     """构建默认 8 个历史危机场景"""
     return [
         StressScenario(
@@ -437,7 +435,7 @@ class StressTestEngine:
     def run_scenario(
         self,
         scenario: StressScenario,
-        positions: List[Dict],
+        positions: list[dict],
         total_portfolio_value: float,
     ) -> StressTestResult:
         """对单个场景运行压力测试
@@ -451,9 +449,9 @@ class StressTestEngine:
             StressTestResult
         """
         shocks = scenario.shocks
-        by_asset: Dict[str, float] = {}
-        by_sector: Dict[str, float] = {}
-        by_factor: Dict[str, float] = {
+        by_asset: dict[str, float] = {}
+        by_sector: dict[str, float] = {}
+        by_factor: dict[str, float] = {
             "equity_market": 0.0,
             "equity_style": 0.0,
             "rates": 0.0,
@@ -587,9 +585,9 @@ class StressTestEngine:
 
     def run_all_scenarios(
         self,
-        positions: List[Dict],
+        positions: list[dict],
         total_portfolio_value: float,
-    ) -> List[StressTestResult]:
+    ) -> list[StressTestResult]:
         """对所有预定义场景运行压力测试"""
         return [self.run_scenario(s, positions, total_portfolio_value) for s in self.scenarios]
 
@@ -626,8 +624,8 @@ class StressTestEngine:
 
     def get_worst_scenario(
         self,
-        results: List[StressTestResult],
-    ) -> Optional[StressTestResult]:
+        results: list[StressTestResult],
+    ) -> StressTestResult | None:
         """获取最严重场景"""
         if not results:
             return None
@@ -635,15 +633,15 @@ class StressTestEngine:
 
     def get_breached_scenarios(
         self,
-        results: List[StressTestResult],
-    ) -> List[StressTestResult]:
+        results: list[StressTestResult],
+    ) -> list[StressTestResult]:
         """获取突破风险阈值的场景"""
         return [r for r in results if r.is_breach]
 
     def summarize(
         self,
-        results: List[StressTestResult],
-    ) -> Dict:
+        results: list[StressTestResult],
+    ) -> dict:
         """汇总压力测试结果"""
         if not results:
             return {"n_scenarios": 0}
@@ -669,8 +667,8 @@ class StressTestEngine:
 
     def save_results(
         self,
-        results: List[StressTestResult],
-        path: Union[str, Path],
+        results: list[StressTestResult],
+        path: str | Path,
     ) -> Path:
         """保存压力测试结果到 JSON"""
         path = Path(path)

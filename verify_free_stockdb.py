@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 free-stockdb vs Wind 数据一致性验证 (阶段 1 验收)
 ====================================================
@@ -27,7 +26,6 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -66,7 +64,7 @@ def compare_symbol(
     code: str,
     name: str,
     period: str = "2y",
-) -> Dict:
+) -> dict:
     """对比单个标的的 free-stockdb 与 Wind 数据
 
     Args:
@@ -200,7 +198,7 @@ def compare_symbol(
     return result
 
 
-def run_verification(symbols: Optional[List[str]] = None, period: str = "2y") -> Dict:
+def run_verification(symbols: list[str] | None = None, period: str = "2y") -> dict:
     """运行完整验证
 
     Args:

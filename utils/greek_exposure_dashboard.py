@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Greeks 暴露监控面板 (Greek Exposure Dashboard)
 =============================================
@@ -19,7 +18,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any
 
 # ============================================================
 # 默认路径
@@ -47,23 +46,23 @@ class GreekDashboard:
     """Greeks 监控面板结果"""
 
     snapshot: GreekSnapshot = field(default_factory=GreekSnapshot)
-    targets: Dict[str, float] = field(default_factory=dict)
-    rebalance_signals: Dict[str, bool] = field(default_factory=dict)
-    signal_levels: Dict[str, str] = field(default_factory=dict)  # OK / WARN / CRITICAL
-    recommendations: List[str] = field(default_factory=list)
-    per_position: List[Dict[str, Any]] = field(default_factory=list)
+    targets: dict[str, float] = field(default_factory=dict)
+    rebalance_signals: dict[str, bool] = field(default_factory=dict)
+    signal_levels: dict[str, str] = field(default_factory=dict)  # OK / WARN / CRITICAL
+    recommendations: list[str] = field(default_factory=list)
+    per_position: list[dict[str, Any]] = field(default_factory=list)
 
 
 # ============================================================
 # 数据加载 (兼容旧版接口)
 # ============================================================
-def load_positions(path: Union[str, Path] = DEFAULT_POSITIONS_PATH):
+def load_positions(path: str | Path = DEFAULT_POSITIONS_PATH):
     """加载持仓和价格 (兼容旧版接口)"""
     path = Path(path)
     if not path.exists():
         return {}, {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except Exception:  # P2 模块 fail-safe, 待后续精确化
         return {}, {}
@@ -110,9 +109,9 @@ def _signal_level(value: float, target: float, tolerance: float = 0.05) -> str:
     return "CRITICAL"
 
 
-def _build_recommendations(exposure: Any, signals: Dict[str, bool], levels: Dict[str, str]) -> List[str]:
+def _build_recommendations(exposure: Any, signals: dict[str, bool], levels: dict[str, str]) -> list[str]:
     """基于 Greeks 暴露生成行动建议"""
-    recs: List[str] = []
+    recs: list[str] = []
 
     if levels.get("delta") in ("WARN", "CRITICAL") and signals.get("delta_rebalance"):
         # 期货对冲量建议: 残余 Delta / IF 期货 Delta (300 × 价格)
@@ -150,7 +149,7 @@ def _build_recommendations(exposure: Any, signals: Dict[str, bool], levels: Dict
 # 主面板函数
 # ============================================================
 def compute_dashboard(
-    positions_path: Union[str, Path] = DEFAULT_POSITIONS_PATH,
+    positions_path: str | Path = DEFAULT_POSITIONS_PATH,
     target_delta: float = 0.0,
     target_gamma: float = 0.0,
     max_vega: float = 50_000.0,
@@ -253,7 +252,7 @@ def compute_dashboard(
     return dashboard
 
 
-def dashboard_to_dict(dashboard: GreekDashboard) -> Dict[str, Any]:
+def dashboard_to_dict(dashboard: GreekDashboard) -> dict[str, Any]:
     """转字典"""
     return {
         "snapshot": {
@@ -274,7 +273,7 @@ def dashboard_to_dict(dashboard: GreekDashboard) -> Dict[str, Any]:
 # ============================================================
 # 终端输出
 # ============================================================
-def print_dashboard(positions_path: Union[str, Path] = DEFAULT_POSITIONS_PATH) -> None:
+def print_dashboard(positions_path: str | Path = DEFAULT_POSITIONS_PATH) -> None:
     """打印 Greeks 监控面板 (兼容旧版接口)"""
     dashboard = compute_dashboard(positions_path)
     if not dashboard.snapshot and not dashboard.recommendations:

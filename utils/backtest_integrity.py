@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 回测完整性守卫 (Backtest Integrity Guard)
 =========================================
@@ -22,12 +21,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("backtest_integrity")
 
 
-def check_no_future_leakage(prices, as_of_date) -> Tuple[bool, str]:
+def check_no_future_leakage(prices, as_of_date) -> tuple[bool, str]:
     """校验价格序列索引是否含 as_of_date 之后的数据（前视偏差检测）。
 
     Args:
@@ -112,9 +111,9 @@ def evaluate_alpha_provenance(alpha_report: Any) -> str:
 def validate_backtest(
     as_of_date: str,
     alpha_report: Any,
-    prices: Optional[Dict[str, Any]] = None,
+    prices: dict[str, Any] | None = None,
     require_real_alpha: bool = True,
-) -> Tuple[bool, List[str]]:
+) -> tuple[bool, list[str]]:
     """综合判定回测是否有效。
 
     Args:
@@ -126,7 +125,7 @@ def validate_backtest(
     Returns:
         (是否有效, 问题清单)
     """
-    issues: List[str] = []
+    issues: list[str] = []
 
     # 1) 前视偏差
     if prices:

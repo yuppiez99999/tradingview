@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """S6 FactorKillSwitch 实时监控启动器
 
 将 FactorKillSwitch 接入生产环境，监控现有 51 个生产因子 + 16 个候选因子。
@@ -23,7 +22,7 @@ import sys
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -177,17 +176,17 @@ def main() -> int:
     return 0
 
 
-def _load_synthetic_demo_inputs() -> Tuple[Dict[str, Dict[str, List[float]]], Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Dict[str, float]]]:
+def _load_synthetic_demo_inputs() -> tuple[dict[str, dict[str, list[float]]], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, dict[str, float]]]:
     """构造可独立运行的合成 demo 数据，便于验证状态机行为。"""
 
     class _SyntheticFactor:
-        def __init__(self, values: Dict[str, float]):
+        def __init__(self, values: dict[str, float]):
             self.values = values
 
     symbols = [f"000{idx:03d}_SZ" for idx in range(1, 9)]
-    price_data: Dict[str, Dict[str, List[float]]] = {}
+    price_data: dict[str, dict[str, list[float]]] = {}
     for idx, sym in enumerate(symbols):
-        closes: List[float] = []
+        closes: list[float] = []
         prev = 10.0 + idx * 0.25
         for day in range(HISTORY_DAYS + 8):
             drift = 0.002 * ((day % 6) - 3)
@@ -206,7 +205,7 @@ def _load_synthetic_demo_inputs() -> Tuple[Dict[str, Dict[str, List[float]]], Di
     return price_data, {}, {}, existing_factors, candidate_factors
 
 
-def _load_first_batch_candidates() -> Dict[str, Dict[str, float]]:
+def _load_first_batch_candidates() -> dict[str, dict[str, float]]:
     """加载首批次候选因子值"""
     candidates_path = (
         _PROJECT_ROOT
@@ -216,7 +215,7 @@ def _load_first_batch_candidates() -> Dict[str, Dict[str, float]]:
     if not candidates_path.exists():
         logger.warning("首批次 pipeline_state.json 不存在: %s", candidates_path)
         return {}
-    with open(candidates_path, "r", encoding="utf-8") as f:
+    with open(candidates_path, encoding="utf-8") as f:
         json.load(f)
     # pipeline_state.json 中的 factors 列表只保留了 g1/g2 结果，没有原始 values
     # 改为重新计算候选因子（调用 adapter）
@@ -241,17 +240,17 @@ def _load_first_batch_candidates() -> Dict[str, Dict[str, float]]:
 
 
 def _compute_historical_ic_pnl(
-    all_monitored: Dict[str, Dict[str, Any]],
-    price_data: Dict[str, Dict[str, List[float]]],
+    all_monitored: dict[str, dict[str, Any]],
+    price_data: dict[str, dict[str, list[float]]],
     history_days: int,
-) -> Dict[str, List[Tuple[float, float]]]:
+) -> dict[str, list[tuple[float, float]]]:
     """计算每个因子的历史 IC + PnL 序列
 
     简化实现：
     - 用最近 history_days 日每日 cross-sectional IC（因子值 vs 5d forward return）
     - 用因子多空组合的当日 PnL 作为 daily_pnl
     """
-    series: Dict[str, List[Tuple[float, float]]] = {}
+    series: dict[str, list[tuple[float, float]]] = {}
 
     # 准备每个标的的收盘价序列
     sym_closes = {sym: data["closes"] for sym, data in price_data.items() if "closes" in data}
@@ -270,7 +269,7 @@ def _compute_historical_ic_pnl(
             series[factor_name] = [(0.0, 0.0)] * history_days
             continue
 
-        ic_pnl_list: List[Tuple[float, float]] = []
+        ic_pnl_list: list[tuple[float, float]] = []
         for day_offset in range(history_days):
             day_idx = start_idx + day_offset
             # 计算当日 IC（因子值 vs 5d forward return）
@@ -309,8 +308,8 @@ def math_isfinite(x: float) -> bool:
 
 
 def _compute_daily_factor_pnl(
-    factor_values: Dict[str, float],
-    sym_closes: Dict[str, List[float]],
+    factor_values: dict[str, float],
+    sym_closes: dict[str, list[float]],
     day_idx: int,
 ) -> float:
     """计算当日多空组合 PnL（简化版）"""
@@ -341,11 +340,11 @@ def _compute_daily_factor_pnl(
 
 def _persist_dashboard(
     ks: FactorKillSwitch,
-    all_monitored: Dict[str, Dict[str, Any]],
+    all_monitored: dict[str, dict[str, Any]],
     history_days: int,
     state_dist: Counter,
-    origin_dist: Dict[str, Counter],
-) -> Tuple[Path, Path]:
+    origin_dist: dict[str, Counter],
+) -> tuple[Path, Path]:
     """持久化监控仪表盘到 Markdown + JSON"""
     batch_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     batch_dir = REPORTS_DIR / batch_id
@@ -511,7 +510,7 @@ def load_kill_switch_state(state_file: Path = None) -> FactorKillSwitch:
     if not state_file.exists():
         return FactorKillSwitch()
 
-    with open(state_file, "r", encoding="utf-8") as f:
+    with open(state_file, encoding="utf-8") as f:
         state = json.load(f)
 
     ks = FactorKillSwitch()

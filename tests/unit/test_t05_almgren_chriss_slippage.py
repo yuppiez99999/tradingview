@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T05: SimulatedBroker Almgren-Chriss 滑点模型单元测试.
 
 验证点:

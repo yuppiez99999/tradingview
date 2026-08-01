@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """CI 配置语法验证 — T1.9-E.
 
 验证以下文件语法正确性:
@@ -30,7 +29,7 @@ def verify_yaml(path: Path) -> bool:
         return False
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
     except yaml.YAMLError as e:
         print(f"FAIL: YAML 语法错误: {e}")

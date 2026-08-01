@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """统一健康度度量框架单元测试 — 三层面自我进化 Stage 1.
 
 任务: 1.9
@@ -30,7 +29,6 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
 from unittest.mock import MagicMock
 
 import pytest
@@ -359,7 +357,7 @@ class TestTrendCalculation:
     def test_insufficient_history_returns_zero(self, disabled_flags, tmp_path: Path) -> None:
         """历史不足返回 0.0."""
         m = UnifiedHealthMetrics(history_path=tmp_path / "h.jsonl")
-        history: List[HealthReport] = []
+        history: list[HealthReport] = []
         assert m._calc_trend(0.8, history, 1) == 0.0
 
     def test_trend_vs_yesterday(self, disabled_flags, tmp_path: Path) -> None:
@@ -409,7 +407,7 @@ class TestPersistence:
 
         lines = hist_path.read_text(encoding="utf-8").strip().splitlines()
         assert len(lines) == 3
-        scores = [json.loads(l)["overall_score"] for l in lines]
+        scores = [json.loads(line)["overall_score"] for line in lines]
         assert scores == [0.1, 0.2, 0.3]
 
     def test_read_history_returns_reports(self, disabled_flags, tmp_path: Path) -> None:

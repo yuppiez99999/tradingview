@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """实盘券商直连适配器 — T5.7 交付物.
 
 模块整合 8.4 — ARCHITECTURE §3.4
@@ -40,10 +39,10 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _BASE_AVAILABLE = False
-_BASE_LOAD_ERROR: Optional[str] = None  # 记录加载失败原因, 供诊断
+_BASE_LOAD_ERROR: str | None = None  # 记录加载失败原因, 供诊断
 BrokerAdapter = object  # 降级占位符 (HC-1 透传, 不阻塞导入)
 BrokerOrder = None
 OrderSide = None
@@ -126,7 +125,7 @@ class _BaseLiveAdapter(BrokerAdapter):
     _do_get_positions / _do_get_account_info / _do_get_market_data 六个钩子.
     """
 
-    def __init__(self, broker_name: str, config: Dict[str, Any]) -> None:
+    def __init__(self, broker_name: str, config: dict[str, Any]) -> None:
         # 延迟重试: 若模块级加载失败 (可能因测试间 sys.path/sys.modules 污染),
         # 在实例化时再尝试一次. 路径解析基于 __file__ 绝对路径, 不依赖 sys.path.
         if not _BASE_AVAILABLE:
@@ -142,7 +141,7 @@ class _BaseLiveAdapter(BrokerAdapter):
         self.daily_trade_limit = float(config.get("daily_trade_limit", 10_000_000))
         self.circuit_breaker_threshold = float(config.get("circuit_breaker_threshold", 0.03))
         self._daily_trade_amount: float = 0.0
-        self._daily_trade_date: Optional[str] = None
+        self._daily_trade_date: str | None = None
         # 审计日志 (JSONL)
         self._audit_log_dir = Path(config.get("audit_log_dir", "reports/broker_audit"))
         if not self._audit_log_dir.is_absolute():
@@ -252,7 +251,7 @@ class _BaseLiveAdapter(BrokerAdapter):
             logger.exception("[%s] 撤单异常: %s", self.broker_name, e)
             return False
 
-    def get_positions(self) -> List[Dict]:
+    def get_positions(self) -> list[dict]:
         if not self._connected:
             raise BrokerNotConnectedError(f"{self.broker_name} 未连接")
         if not self.is_live:
@@ -263,7 +262,7 @@ class _BaseLiveAdapter(BrokerAdapter):
             logger.exception("[%s] 查询持仓异常: %s", self.broker_name, e)
             return []
 
-    def get_account_info(self) -> Dict:
+    def get_account_info(self) -> dict:
         if not self._connected:
             raise BrokerNotConnectedError(f"{self.broker_name} 未连接")
         if not self.is_live:
@@ -281,7 +280,7 @@ class _BaseLiveAdapter(BrokerAdapter):
             logger.exception("[%s] 查询账户异常: %s", self.broker_name, e)
             return {"broker": self.broker_name, "error": str(e)}
 
-    def get_market_data(self, symbol: str, period: str = "1d", count: int = 100) -> Dict:
+    def get_market_data(self, symbol: str, period: str = "1d", count: int = 100) -> dict:
         if not self._connected:
             raise BrokerNotConnectedError(f"{self.broker_name} 未连接")
         try:
@@ -352,7 +351,7 @@ class _BaseLiveAdapter(BrokerAdapter):
             return False
         return True
 
-    def _get_reference_price(self, symbol: str) -> Optional[float]:
+    def _get_reference_price(self, symbol: str) -> float | None:
         """获取参考价格 (用于市价单金额估算). 子类可重写以接入实时行情."""
         return None
 
@@ -375,19 +374,19 @@ class _BaseLiveAdapter(BrokerAdapter):
     def _do_cancel_order(self, order_id: str) -> bool:
         raise NotImplementedError
 
-    def _do_get_positions(self) -> List[Dict]:
+    def _do_get_positions(self) -> list[dict]:
         raise NotImplementedError
 
-    def _do_get_account_info(self) -> Dict:
+    def _do_get_account_info(self) -> dict:
         raise NotImplementedError
 
-    def _do_get_market_data(self, symbol: str, period: str, count: int) -> Dict:
+    def _do_get_market_data(self, symbol: str, period: str, count: int) -> dict:
         raise NotImplementedError
 
     # ============================================================
     # 审计日志 (JSONL, 不可篡改)
     # ============================================================
-    def _audit(self, event: str, data: Dict[str, Any]) -> None:
+    def _audit(self, event: str, data: dict[str, Any]) -> None:
         """写审计日志 (JSONL 格式, 追加)."""
         record = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -421,7 +420,7 @@ class ThsBrokerAdapter(_BaseLiveAdapter):
             daily_trade_limit: 10000000
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__("ths", config)
         self.mode = config.get("mode", "ifind")
         self.account = config.get("account", "")
@@ -544,14 +543,14 @@ class ThsBrokerAdapter(_BaseLiveAdapter):
             return True
         return False
 
-    def _do_get_positions(self) -> List[Dict]:
+    def _do_get_positions(self) -> list[dict]:
         """查询持仓."""
         if not (self._api_client or self._gui_client):
             return []
         # TODO: 实际接入时调用持仓查询接口
         return []
 
-    def _do_get_account_info(self) -> Dict:
+    def _do_get_account_info(self) -> dict:
         """查询账户信息."""
         if not (self._api_client or self._gui_client):
             return {"broker": self.broker_name, "mode": self.mode, "ready": False}
@@ -563,7 +562,7 @@ class ThsBrokerAdapter(_BaseLiveAdapter):
             "ready": True,
         }
 
-    def _do_get_market_data(self, symbol: str, period: str, count: int) -> Dict:
+    def _do_get_market_data(self, symbol: str, period: str, count: int) -> dict:
         """获取行情 (复用 iFinD 数据接口)."""
         if not self._api_client:
             return {"symbol": symbol, "data": [], "error": "iFinD 未连接"}
@@ -588,7 +587,7 @@ class XueqiuBrokerAdapter(_BaseLiveAdapter):
             broker: "东方财富" (broker 模式)
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__("xueqiu", config)
         self.mode = config.get("mode", "portfolio")
         # cookies 优先从环境变量读取
@@ -681,13 +680,13 @@ class XueqiuBrokerAdapter(_BaseLiveAdapter):
         logger.info("[%s] 雪球撤单 (TODO): %s", self.broker_name, order_id)
         return True
 
-    def _do_get_positions(self) -> List[Dict]:
+    def _do_get_positions(self) -> list[dict]:
         if not self._session:
             return []
         # TODO: 调用 https://xueqiu.com/cubes/weight.json
         return []
 
-    def _do_get_account_info(self) -> Dict:
+    def _do_get_account_info(self) -> dict:
         if not self._session:
             return {"broker": self.broker_name, "ready": False}
         return {
@@ -697,7 +696,7 @@ class XueqiuBrokerAdapter(_BaseLiveAdapter):
             "ready": True,
         }
 
-    def _do_get_market_data(self, symbol: str, period: str, count: int) -> Dict:
+    def _do_get_market_data(self, symbol: str, period: str, count: int) -> dict:
         if not self._session:
             return {"symbol": symbol, "data": [], "error": "雪球未连接"}
         # TODO: 调用 https://xueqiu.com/stock/forchartk/stocklist.json
@@ -707,13 +706,13 @@ class XueqiuBrokerAdapter(_BaseLiveAdapter):
 # ============================================================
 # 工厂函数
 # ============================================================
-_ADAPTER_REGISTRY: Dict[str, type] = {
+_ADAPTER_REGISTRY: dict[str, type] = {
     "ths": ThsBrokerAdapter,
     "xueqiu": XueqiuBrokerAdapter,
 }
 
 
-def create_broker_adapter(broker_type: str, config: Optional[Dict[str, Any]] = None) -> Any:
+def create_broker_adapter(broker_type: str, config: dict[str, Any] | None = None) -> Any:
     """创建 broker adapter (工厂函数).
 
     Args:
@@ -735,7 +734,7 @@ def create_broker_adapter(broker_type: str, config: Optional[Dict[str, Any]] = N
     return adapter_class(config)
 
 
-def list_supported_brokers() -> List[str]:
+def list_supported_brokers() -> list[str]:
     """列出已注册的 broker 类型."""
     return list(_ADAPTER_REGISTRY.keys())
 

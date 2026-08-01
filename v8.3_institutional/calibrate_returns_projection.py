@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 收益预测动态校准模块
 ==========================
@@ -42,7 +41,7 @@ import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -125,7 +124,7 @@ logger = logging.getLogger("v75.calibrate_returns")
 # Step 1: 更新历史数据 (Wind MCP)
 # ============================================================
 def call_wind_kline(windcode: str, server_type: str,
-                    begin_date: str, end_date: str) -> Optional[dict]:
+                    begin_date: str, end_date: str) -> dict | None:
     """调用 Wind MCP CLI 拉取日 K 线
 
     Args:
@@ -176,7 +175,7 @@ def call_wind_kline(windcode: str, server_type: str,
         return None
 
 
-def parse_kline_to_returns(resp: dict) -> Tuple[List[str], List[float]]:
+def parse_kline_to_returns(resp: dict) -> tuple[list[str], list[float]]:
     """解析 Wind 返回的 K 线, 转为 (日期列表, 日收益率列表)
 
     返回:
@@ -253,7 +252,7 @@ def parse_kline_to_returns(resp: dict) -> Tuple[List[str], List[float]]:
 
 
 def update_returns_history(begin_date: str, end_date: str,
-                           benchmark_code: str = "510300") -> Dict[str, Any]:
+                           benchmark_code: str = "510300") -> dict[str, Any]:
     """更新 config/returns_history.json + market_returns.json
 
     Args:
@@ -268,7 +267,7 @@ def update_returns_history(begin_date: str, end_date: str,
     logger.info(f"Step 1: 更新历史数据 (Wind MCP, {begin_date} → {end_date})")
     logger.info("=" * 60)
 
-    all_returns: Dict[str, Tuple[List[str], List[float]]] = {}
+    all_returns: dict[str, tuple[list[str], list[float]]] = {}
     success_count = 0
     fail_count = 0
 
@@ -369,7 +368,7 @@ def update_returns_history(begin_date: str, end_date: str,
 # ============================================================
 # Step 2: 计算已实现年化收益率
 # ============================================================
-def calc_realized_returns() -> Dict[str, Any]:
+def calc_realized_returns() -> dict[str, Any]:
     """基于 returns_history.json + market_returns.json 计算真实年化"""
     logger.info("=" * 60)
     logger.info("Step 2: 计算已实现年化收益率")
@@ -381,9 +380,9 @@ def calc_realized_returns() -> Dict[str, Any]:
     if not rh_path.exists():
         return {"status": "FAIL", "error": "returns_history.json 不存在"}
 
-    with open(rh_path, "r", encoding="utf-8") as f:
+    with open(rh_path, encoding="utf-8") as f:
         rh = json.load(f)
-    with open(mr_path, "r", encoding="utf-8") as f:
+    with open(mr_path, encoding="utf-8") as f:
         mr = json.load(f)
 
     codes = rh["columns"]
@@ -504,7 +503,7 @@ def calc_realized_returns() -> Dict[str, Any]:
 # ============================================================
 # Step 2.5: 候选标的池评估 (AI 决策整合)
 # ============================================================
-def evaluate_candidate_pool() -> Dict[str, Any]:
+def evaluate_candidate_pool() -> dict[str, Any]:
     """Step 2.5: 评估候选标的池, 输出建议报告
 
     基于 macro_policy_scoring.CANDIDATE_POOL 对当前持仓进行补位评估
@@ -520,7 +519,7 @@ def evaluate_candidate_pool() -> Dict[str, Any]:
         logger.warning("config/positions.json 不存在, 跳过候选评估")
         return {"status": "SKIP", "reason": "positions.json not found"}
 
-    with open(positions_path, "r", encoding="utf-8") as f:
+    with open(positions_path, encoding="utf-8") as f:
         pos_data = json.load(f)
     current_positions = pos_data.get("positions", [])
 
@@ -594,7 +593,7 @@ def evaluate_candidate_pool() -> Dict[str, Any]:
 # ============================================================
 # Step 3: 校准预测投影
 # ============================================================
-def update_projection(realized: Dict[str, Any]) -> Dict[str, Any]:
+def update_projection(realized: dict[str, Any]) -> dict[str, Any]:
     """根据真实年化校准 portfolio_return_projection.json
 
     校准逻辑：
@@ -610,7 +609,7 @@ def update_projection(realized: Dict[str, Any]) -> Dict[str, Any]:
     if not proj_path.exists():
         return {"status": "FAIL", "error": "portfolio_return_projection.json 不存在"}
 
-    with open(proj_path, "r", encoding="utf-8") as f:
+    with open(proj_path, encoding="utf-8") as f:
         projection = json.load(f)
 
     # 原权重
@@ -705,7 +704,7 @@ def update_projection(realized: Dict[str, Any]) -> Dict[str, Any]:
 # ============================================================
 # 校准日志（追加 JSONL）
 # ============================================================
-def append_calibration_log(step1: Dict, step2: Dict, step3: Dict) -> None:
+def append_calibration_log(step1: dict, step2: dict, step3: dict) -> None:
     """追加校准历史日志"""
     record = {
         "timestamp": datetime.now().isoformat(),
@@ -739,10 +738,10 @@ def append_calibration_log(step1: Dict, step2: Dict, step3: Dict) -> None:
 # 主入口
 # ============================================================
 def run_calibration(
-    begin_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    begin_date: str | None = None,
+    end_date: str | None = None,
     skip_fetch: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """执行完整三步校准
 
     Args:

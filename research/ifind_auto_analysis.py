@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 iFinD 自动研判 - 读取 portfolio.yaml 全持仓并批量生成标的研判报告
 """
@@ -9,7 +8,7 @@ import json
 import os
 import sys
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 确保能导入 utils 模块
 project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
@@ -21,17 +20,17 @@ import yaml
 from utils.ifind_news_analyzer import IFinDNewsAnalyzer, StockInsight
 
 
-def _load_portfolio_symbols(portfolio_path: str) -> List[Dict[str, Any]]:
+def _load_portfolio_symbols(portfolio_path: str) -> list[dict[str, Any]]:
     if not os.path.exists(portfolio_path):
         raise FileNotFoundError(f"portfolio.yaml 不存在: {portfolio_path}")
-    with open(portfolio_path, 'r', encoding='utf-8') as f:
+    with open(portfolio_path, encoding='utf-8') as f:
         data = yaml.safe_load(f) or {}
 
     # 支持两种格式：positions (对象) 或 assets (数组)
     positions = data.get('positions') or {}
     assets = data.get('assets') or []
 
-    items: List[Dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
 
     # 优先使用 assets 数组（新格式）
     if isinstance(assets, list) and len(assets) > 0:
@@ -66,7 +65,7 @@ def _load_portfolio_symbols(portfolio_path: str) -> List[Dict[str, Any]]:
     return items
 
 
-def _calc_technical_alpha(code: str) -> Optional[float]:
+def _calc_technical_alpha(code: str) -> float | None:
     """
     计算 GTJA191 Alpha144 映射后的 technical_alpha 得分。
     若因子库或历史数据不可用，则返回 None。
@@ -90,7 +89,7 @@ def _calc_technical_alpha(code: str) -> Optional[float]:
         return None
 
 
-def _build_markdown_report(insights: List[StockInsight], items: List[Dict[str, Any]], meta: Dict[str, Any]) -> str:
+def _build_markdown_report(insights: list[StockInsight], items: list[dict[str, Any]], meta: dict[str, Any]) -> str:
     lines = [
         "# iFinD 自动标的研判报告",
         "",
@@ -138,7 +137,7 @@ def _build_markdown_report(insights: List[StockInsight], items: List[Dict[str, A
     return "\n".join(lines)
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="iFinD 自动研判：基于 portfolio.yaml 批量研判全持仓")
     parser.add_argument('--portfolio', default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '11_量化策略', 'config', 'portfolio.yaml'), help='portfolio.yaml 路径')
     parser.add_argument('--size', type=int, default=4, help='单标的查询条数')
@@ -156,7 +155,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("iFinD 模块不可用，请检查 skills/ifind-finance-data/call.py 与 mcp_config.json")
         return 2
 
-    insights: List[StockInsight] = []
+    insights: list[StockInsight] = []
     for item in items:
         try:
             insights.append(analyzer.analyze_symbol(item['code'], name=item['name'], size=args.size, days=args.days))

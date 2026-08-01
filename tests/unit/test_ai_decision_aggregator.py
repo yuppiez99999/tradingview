@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """consensus_aggregator 测试: Brier 权重 / 语义去重 / 多样性奖励数学"""
 
 from __future__ import annotations

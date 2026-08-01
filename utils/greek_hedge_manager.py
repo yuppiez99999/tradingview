@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Greeks 动态对冲管理器 — v8.3.2 Vega动态监控升级
 
@@ -26,7 +25,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -88,7 +86,7 @@ class GreekHedgeManager:
         target_gamma: float = 0.0,
         max_vega: float = 50000.0,
         max_theta_burn: float = -5000.0,
-        iv_env: Optional[IVEnvironment] = None,
+        iv_env: IVEnvironment | None = None,
     ):
         self.target_delta = target_delta
         self.target_gamma = target_gamma
@@ -165,7 +163,7 @@ class GreekHedgeManager:
         dynamic_limit = self._base_max_vega * composite
         return round(dynamic_limit, 2)
 
-    def get_vega_limit_breakdown(self) -> Dict[str, float]:
+    def get_vega_limit_breakdown(self) -> dict[str, float]:
         """获取 Vega 上限分解详情 (用于监控和审计)"""
         if self.iv_env is None:
             return {"max_vega": self._base_max_vega, "dynamic": False}
@@ -198,7 +196,7 @@ class GreekHedgeManager:
             "dynamic": True,
         }
 
-    def _bs_d1_d2(self, S: float, K: float, T: float, r: float, sigma: float) -> Tuple[float, float]:
+    def _bs_d1_d2(self, S: float, K: float, T: float, r: float, sigma: float) -> tuple[float, float]:
         """计算 Black-Scholes d1 和 d2"""
         if T <= 0 or sigma <= 0 or S <= 0:
             return 0.0, 0.0
@@ -266,7 +264,7 @@ class GreekHedgeManager:
             rho=self._bs_rho(S, K, T, r, sigma, call),
         )
 
-    def calc_portfolio_greeks(self, positions: Dict[str, Dict], prices: Dict[str, float]) -> GreekExposure:
+    def calc_portfolio_greeks(self, positions: dict[str, dict], prices: dict[str, float]) -> GreekExposure:
         """计算持仓组合的 Greeks 暴露 (兼容 Dict[str, float] 和 Dict[str, dict])
 
         期权持仓自动使用 Black-Scholes 模型计算 Greeks
@@ -320,8 +318,8 @@ class GreekHedgeManager:
         return exposure
 
     def target_futures_delta_hedge(
-        self, portfolio_exposure: GreekExposure, hedge_instruments: List[HedgeInstrument], prices: Dict[str, float]
-    ) -> Dict[str, float]:
+        self, portfolio_exposure: GreekExposure, hedge_instruments: list[HedgeInstrument], prices: dict[str, float]
+    ) -> dict[str, float]:
         """基于 Delta 计算期货对冲目标量"""
         if not hedge_instruments:
             return {}
@@ -330,7 +328,7 @@ class GreekHedgeManager:
         if abs(residual_delta) < 1e-6:
             return {}
 
-        targets: Dict[str, float] = {}
+        targets: dict[str, float] = {}
         remaining = residual_delta
         for inst in hedge_instruments:
             if inst.instrument_type.upper() != "FUTURES":
@@ -347,12 +345,12 @@ class GreekHedgeManager:
         return targets
 
     def target_option_greeks_hedge(
-        self, portfolio_exposure: GreekExposure, options: List[HedgeInstrument], prices: Dict[str, float]
-    ) -> Dict[str, Dict]:
+        self, portfolio_exposure: GreekExposure, options: list[HedgeInstrument], prices: dict[str, float]
+    ) -> dict[str, dict]:
         """基于 Greeks 计算期权对冲目标量"""
         if not options:
             return {}
-        targets: Dict[str, Dict] = {}
+        targets: dict[str, dict] = {}
         for opt in options:
             if opt.instrument_type.upper() != "OPTION":
                 continue
@@ -374,7 +372,7 @@ class GreekHedgeManager:
             return 0.0
         return hedge_value / portfolio_value
 
-    def rebalance_signal(self, current_exposure: GreekExposure, tolerance: float = 0.05) -> Dict[str, bool]:
+    def rebalance_signal(self, current_exposure: GreekExposure, tolerance: float = 0.05) -> dict[str, bool]:
         """判断是否需要再平衡"""
         delta_ok = abs(current_exposure.delta - self.target_delta) <= tolerance * max(abs(current_exposure.delta), 1.0)
         gamma_ok = abs(current_exposure.gamma - self.target_gamma) <= tolerance * max(abs(current_exposure.gamma), 1.0)

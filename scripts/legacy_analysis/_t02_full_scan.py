@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T02: 完整扫描 utils/ 全目录的 broad-except"""
 import subprocess
 import sys

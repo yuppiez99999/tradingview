@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """列出所有剩余 ruff 错误"""
 import json
 import os

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v1 / v2 / v3 三方对比报告生成器
 ================================
@@ -24,7 +23,7 @@ def load_json(path: Path) -> dict:
     if not path.exists():
         print(f"⚠ 文件不存在: {path}")
         return {}
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 十五五规划适配分析模块 v1.0
 借鉴：TradingAgents-AShare macro_analyst + QuantDinger policy 矩阵 + FinceptTerminal policy_analysis

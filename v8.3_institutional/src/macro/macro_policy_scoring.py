@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 十五五规划 + 康波周期/周金涛理论 评分模块（v7.5 轻量接入版）
 
@@ -11,7 +10,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List
 
 # =====================
 # 十五五规划
@@ -27,7 +25,7 @@ FIFTEEN_FIVE_DIRECTIONS = [
     {"id": "defensive_utility", "name": "防御型公用事业", "weight": 0.95},
 ]
 
-FIFTEEN_FIVE_SYMBOL_MAP: Dict[str, List[str]] = {
+FIFTEEN_FIVE_SYMBOL_MAP: dict[str, list[str]] = {
     "ai_infra": ["sz300308", "sz002371", "sh603019"],
     "advanced_equip": ["sh600089", "sz000425", "sh688017"],
     "semiconductor": ["sh688041", "sh688981"],
@@ -44,12 +42,12 @@ class FifteenFiveScore:
     direction_name: str
     score: float = 0.0
     weight: float = 1.0
-    symbols: List[str] = field(default_factory=list)
+    symbols: list[str] = field(default_factory=list)
     note: str = ""
 
 
-def score_fifteen_five(symbols: List[str]) -> Dict[str, FifteenFiveScore]:
-    results: Dict[str, FifteenFiveScore] = {}
+def score_fifteen_five(symbols: list[str]) -> dict[str, FifteenFiveScore]:
+    results: dict[str, FifteenFiveScore] = {}
     for item in FIFTEEN_FIVE_DIRECTIONS:
         mapped = [s for s in symbols if s in FIFTEEN_FIVE_SYMBOL_MAP.get(item["id"], [])]
         base = 1.0 if mapped else 0.7
@@ -88,7 +86,7 @@ KONDRATIEV_STYLE_WEIGHTS = {
     "银行": 0.90,
 }
 
-KONDRATIEV_SYMBOL_STYLE_MAP: Dict[str, str] = {
+KONDRATIEV_SYMBOL_STYLE_MAP: dict[str, str] = {
     "sz300308": "科技",
     "sz002371": "科技",
     "sh688041": "科技",
@@ -126,8 +124,8 @@ class KondratievScore:
     note: str = ""
 
 
-def score_kondratiev(symbols: List[str]) -> Dict[str, KondratievScore]:
-    results: Dict[str, KondratievScore] = {}
+def score_kondratiev(symbols: list[str]) -> dict[str, KondratievScore]:
+    results: dict[str, KondratievScore] = {}
     for symbol in symbols:
         style = KONDRATIEV_SYMBOL_STYLE_MAP.get(symbol, "宽基")
         weight = float(KONDRATIEV_STYLE_WEIGHTS.get(style, 1.0))
@@ -158,18 +156,18 @@ class MacroPolicyScore:
     kondratiev_note: str = ""
 
 
-def score_macro_policy(symbols: List[str]) -> Dict[str, MacroPolicyScore]:
+def score_macro_policy(symbols: list[str]) -> dict[str, MacroPolicyScore]:
     ff = score_fifteen_five(symbols)
     kp = score_kondratiev(symbols)
 
-    symbol_ff_score: Dict[str, float] = {}
-    symbol_ff_note: Dict[str, str] = {}
+    symbol_ff_score: dict[str, float] = {}
+    symbol_ff_note: dict[str, str] = {}
     for item in ff.values():
         for s in item.symbols:
             symbol_ff_score[s] = item.score
             symbol_ff_note[s] = item.note
 
-    results: Dict[str, MacroPolicyScore] = {}
+    results: dict[str, MacroPolicyScore] = {}
     for symbol in symbols:
         ff_score = symbol_ff_score.get(symbol, 1.0)
         kp_score = kp[symbol].cycle_score if symbol in kp else 1.0
@@ -223,7 +221,7 @@ def macro_score_to_factor(
 # 由 daily_workflow Phase 1.5 (calibrate) 每日调用, 生成评估报告
 # 不自动纳入 positions.json, 仅生成建议供人工/AI 审核
 
-CANDIDATE_POOL: List[Dict[str, str]] = [
+CANDIDATE_POOL: list[dict[str, str]] = [
     # 高优先级 - 补十五五关键缺口
     {
         "code": "sz300274",
@@ -299,7 +297,7 @@ class CandidateEvaluation:
     recommendation: str  # "ADD" / "WATCH" / "HOLD"
 
 
-def evaluate_candidate_pool(current_positions: List[str]) -> List[CandidateEvaluation]:
+def evaluate_candidate_pool(current_positions: list[str]) -> list[CandidateEvaluation]:
     """评估候选标的池, 返回带综合评分的建议清单
 
     Args:
@@ -309,7 +307,7 @@ def evaluate_candidate_pool(current_positions: List[str]) -> List[CandidateEvalu
         候选标的评估结果列表, 按综合评分降序排序
     """
     current_set = set(current_positions)
-    results: List[CandidateEvaluation] = []
+    results: list[CandidateEvaluation] = []
 
     for candidate in CANDIDATE_POOL:
         code = candidate["code"]

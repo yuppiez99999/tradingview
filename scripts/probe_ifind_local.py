@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import sys
 
@@ -8,7 +7,7 @@ if REPO_ROOT not in sys.path:
 
 env_path = os.path.join(REPO_ROOT, ".env")
 if os.path.exists(env_path):
-    with open(env_path, "r", encoding="utf-8") as f:
+    with open(env_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#") or "=" not in line:

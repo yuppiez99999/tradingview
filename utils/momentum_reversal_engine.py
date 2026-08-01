@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 动量反转引擎 (Momentum & Reversal Engine)
 
@@ -24,7 +23,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -64,7 +62,7 @@ class MomentumSignal:
 class MomentumResult:
     """动量引擎结果"""
 
-    signals: Dict[str, MomentumSignal] = field(default_factory=dict)
+    signals: dict[str, MomentumSignal] = field(default_factory=dict)
     # 平均信号强度
     avg_signal_strength: float = 0.0
     # 信号一致性 (多少标的方向一致)
@@ -72,8 +70,8 @@ class MomentumResult:
     bearish_count: int = 0
     neutral_count: int = 0
     # 策略建议
-    top_long_candidates: List[str] = field(default_factory=list)
-    top_short_candidates: List[str] = field(default_factory=list)
+    top_long_candidates: list[str] = field(default_factory=list)
+    top_short_candidates: list[str] = field(default_factory=list)
     # 诊断
     strategy_state: str = "NEUTRAL"  # TRENDING / REVERSING / NEUTRAL
 
@@ -100,9 +98,9 @@ class MomentumReversalEngine:
     def __init__(
         self,
         # 信号融合权重
-        tsmom_weights: Optional[Dict[int, float]] = None,
-        xsmom_weights: Optional[Dict[int, float]] = None,
-        reversal_weights: Optional[Dict[int, float]] = None,
+        tsmom_weights: dict[int, float] | None = None,
+        xsmom_weights: dict[int, float] | None = None,
+        reversal_weights: dict[int, float] | None = None,
         # 类别权重
         tsmom_category_weight: float = 0.4,
         xsmom_category_weight: float = 0.3,
@@ -131,7 +129,7 @@ class MomentumReversalEngine:
 
     def generate_signals(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
+        price_data: dict[str, dict[str, list[float]]],
     ) -> MomentumResult:
         """生成所有标的的动量反转信号
 
@@ -213,13 +211,13 @@ class MomentumReversalEngine:
 
     def _calc_tsmom(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-    ) -> Dict[str, float]:
+        price_data: dict[str, dict[str, list[float]]],
+    ) -> dict[str, float]:
         """计算时间序列动量
 
         TSMOM(k) = sign(R_t-k:t) × |R_t-k:t| / σ_k × scaling
         """
-        signals: Dict[str, float] = {}
+        signals: dict[str, float] = {}
 
         for sym, data in price_data.items():
             closes = data.get("closes", [])
@@ -251,17 +249,17 @@ class MomentumReversalEngine:
 
     def _calc_xsmom(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-    ) -> Dict[str, float]:
+        price_data: dict[str, dict[str, list[float]]],
+    ) -> dict[str, float]:
         """计算截面动量
 
         XSMOM(k) = (R_i,k - mean(R_j,k)) / std(R_j,k)
         """
-        signals: Dict[str, float] = {}
+        signals: dict[str, float] = {}
 
         for window in self.xsmom_weights.keys():
             # 收集所有标的的 k 日收益
-            returns: Dict[str, float] = {}
+            returns: dict[str, float] = {}
             for sym, data in price_data.items():
                 closes = data.get("closes", [])
                 if len(closes) > window:
@@ -298,13 +296,13 @@ class MomentumReversalEngine:
 
     def _calc_reversal(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-    ) -> Dict[str, float]:
+        price_data: dict[str, dict[str, list[float]]],
+    ) -> dict[str, float]:
         """计算短期反转信号
 
         Reversal(k) = -R_t-k:t × volume_weight
         """
-        signals: Dict[str, float] = {}
+        signals: dict[str, float] = {}
 
         for sym, data in price_data.items():
             closes = data.get("closes", [])
@@ -368,7 +366,7 @@ class MomentumReversalEngine:
     def _calc_target_weight(
         self,
         sig: MomentumSignal,
-        price_data: Dict[str, List[float]],
+        price_data: dict[str, list[float]],
     ) -> float:
         """根据信号计算目标仓位
 
@@ -450,8 +448,8 @@ class MomentumReversalEngine:
     def get_position_adjustment(
         self,
         result: MomentumResult,
-        current_positions: Dict[str, float],
-    ) -> Dict[str, float]:
+        current_positions: dict[str, float],
+    ) -> dict[str, float]:
         """获取仓位调整建议
 
         Args:
@@ -461,7 +459,7 @@ class MomentumReversalEngine:
         Returns:
             {symbol: delta_weight} 需要调整的权重
         """
-        adjustments: Dict[str, float] = {}
+        adjustments: dict[str, float] = {}
 
         for sym, sig in result.signals.items():
             current = current_positions.get(sym, 0.0)

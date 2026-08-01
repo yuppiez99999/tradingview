@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """评估器与 ShadowAccountAdapter 对齐验证.
 
 验证 StrategyEvaluator 与 ShadowAccountAdapter 的指标计算一致性:

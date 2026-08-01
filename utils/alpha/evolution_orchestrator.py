@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """自我进化编排器原型 — 自我进化框架第 1 阶段交付物 (只读模式).
 
 模块整合 8.4 — ARCHITECTURE_自我进化框架 §4.2
@@ -48,7 +47,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -97,15 +96,15 @@ STATUS_OBSERVATION = "observation"  # 观察期内 (只读)
 class MetricsSnapshot:
     """指标快照 (从生产数据只读收集)."""
 
-    daily_returns: List[float] = field(default_factory=list)
-    dates: List[str] = field(default_factory=list)
+    daily_returns: list[float] = field(default_factory=list)
+    dates: list[str] = field(default_factory=list)
     sample_count: int = 0
     source: str = ""  # 数据来源标识
     collected_at: str = ""  # ISO8601 时间戳
     is_degraded: bool = False  # 是否降级快照
     degraded_reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典 (用于日志, 不含原始收益序列避免冗长)."""
         return {
             "sample_count": self.sample_count,
@@ -132,7 +131,7 @@ class OrchestratorStatus:
     total_evaluations: int = 0  # 累计评估次数
     degraded_reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典."""
         return {
             "status": self.status,
@@ -160,10 +159,10 @@ class DecisionRecord:
     sample_count: int = 0
     observation_day: int = 0
     reason: str = ""
-    metrics_snapshot: Dict[str, Any] = field(default_factory=dict)
-    evaluator_report: Dict[str, Any] = field(default_factory=dict)
+    metrics_snapshot: dict[str, Any] = field(default_factory=dict)
+    evaluator_report: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典 (JSONL 一行)."""
         return {
             "timestamp": self.timestamp,
@@ -203,9 +202,9 @@ class EvolutionOrchestrator:
 
     def __init__(
         self,
-        daily_returns_path: Optional[Path] = None,
-        decisions_log_path: Optional[Path] = None,
-        observation_start_date: Optional[str] = None,
+        daily_returns_path: Path | None = None,
+        decisions_log_path: Path | None = None,
+        observation_start_date: str | None = None,
         feature_flag_name: str = "USE_EVOLUTION_ORCHESTRATOR",
         evaluator_flag_name: str = "USE_STRATEGY_EVALUATOR",
     ) -> None:
@@ -234,7 +233,7 @@ class EvolutionOrchestrator:
             enabled=self._enabled,
             status=STATUS_ENABLED if self._enabled else STATUS_DISABLED,
         )
-        self._evaluator: Optional[Any] = None  # 懒加载
+        self._evaluator: Any | None = None  # 懒加载
 
         # 确保日志目录存在
         if self._enabled:
@@ -271,7 +270,7 @@ class EvolutionOrchestrator:
     # 核心方法
     # ============================================================
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取编排器状态.
 
         Returns:
@@ -307,8 +306,8 @@ class EvolutionOrchestrator:
             )
 
         try:
-            daily_returns: List[float] = []
-            dates: List[str] = []
+            daily_returns: list[float] = []
+            dates: list[str] = []
 
             with self.daily_returns_path.open("r", encoding="utf-8") as f:
                 for line_num, line in enumerate(f, 1):
@@ -357,9 +356,9 @@ class EvolutionOrchestrator:
 
     def evaluate_current(
         self,
-        metrics: Optional[MetricsSnapshot] = None,
-        signal_history: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Any]:
+        metrics: MetricsSnapshot | None = None,
+        signal_history: dict[str, Any] | None = None,
+    ) -> Any | None:
         """评估当前策略状态 (调用 StrategyEvaluator).
 
         观察期内仅评估, 不触发任何进化动作 (HC-4).
@@ -446,10 +445,10 @@ class EvolutionOrchestrator:
 
     def log_decision(
         self,
-        report: Optional[Any] = None,
+        report: Any | None = None,
         action: str = ACTION_EVALUATE_ONLY,
         reason: str = "",
-        metrics: Optional[MetricsSnapshot] = None,
+        metrics: MetricsSnapshot | None = None,
     ) -> bool:
         """持久化决策记录到 decisions.jsonl.
 
@@ -519,8 +518,8 @@ class EvolutionOrchestrator:
 
     def run_observation_cycle(
         self,
-        signal_history: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        signal_history: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """运行一次观察期循环 (collect → evaluate → log).
 
         观察期内的标准入口, 封装完整流程:
@@ -612,7 +611,7 @@ class EvolutionOrchestrator:
             self._status.in_observation = True
             self._status.status = STATUS_OBSERVATION
 
-    def _read_first_date(self) -> Optional[str]:
+    def _read_first_date(self) -> str | None:
         """读取 daily_returns.jsonl 首条记录的日期."""
         try:
             with self.daily_returns_path.open("r", encoding="utf-8") as f:
@@ -635,7 +634,7 @@ class EvolutionOrchestrator:
         """当前 UTC 时间 ISO8601 字符串."""
         return datetime.now(timezone.utc).isoformat()
 
-    def get_recent_decisions(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_recent_decisions(self, limit: int = 10) -> list[dict[str, Any]]:
         """读取最近的决策记录 (只读).
 
         Args:
@@ -648,7 +647,7 @@ class EvolutionOrchestrator:
             return []
 
         try:
-            records: List[Dict[str, Any]] = []
+            records: list[dict[str, Any]] = []
             with self.decisions_log_path.open("r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()

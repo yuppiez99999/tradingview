@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """统一健康度度量框架 — 三层面自我进化 Stage 1 核心.
 
 模块整合 8.4 — ARCHITECTURE_三层面进化 §第1阶段
@@ -42,7 +41,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +56,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 # ============================================================
 
 # 默认权重 (可被 evolution.yaml 覆盖)
-DEFAULT_WEIGHTS: Dict[str, float] = {
+DEFAULT_WEIGHTS: dict[str, float] = {
     "code": 0.25,
     "strategy": 0.50,
     "ops": 0.25,
@@ -92,12 +91,12 @@ class LayerScore:
     """
     layer: str
     score: float
-    sub_metrics: Dict[str, float] = field(default_factory=dict)
+    sub_metrics: dict[str, float] = field(default_factory=dict)
     is_degraded: bool = False
     degraded_reason: str = ""
     collected_at: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "layer": self.layer,
             "score": round(self.score, 4),
@@ -123,15 +122,15 @@ class HealthReport:
         sample_count: 评估样本数
     """
     overall_score: float
-    layer_scores: Dict[str, LayerScore] = field(default_factory=dict)
+    layer_scores: dict[str, LayerScore] = field(default_factory=dict)
     trend_vs_yesterday: float = 0.0
     trend_vs_last_week: float = 0.0
     is_degraded: bool = False
-    degraded_layers: List[str] = field(default_factory=list)
+    degraded_layers: list[str] = field(default_factory=list)
     generated_at: str = ""
     sample_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "overall_score": round(self.overall_score, 4),
             "layer_scores": {k: v.to_dict() for k, v in self.layer_scores.items()},
@@ -144,9 +143,9 @@ class HealthReport:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "HealthReport":
+    def from_dict(cls, d: dict[str, Any]) -> HealthReport:
         """从字典重建 HealthReport (用于读取历史)."""
-        layer_scores: Dict[str, LayerScore] = {}
+        layer_scores: dict[str, LayerScore] = {}
         for k, v in d.get("layer_scores", {}).items():
             layer_scores[k] = LayerScore(
                 layer=v.get("layer", k),
@@ -182,8 +181,8 @@ class UnifiedHealthMetrics:
 
     def __init__(
         self,
-        weights: Optional[Dict[str, float]] = None,
-        history_path: Optional[Path] = None,
+        weights: dict[str, float] | None = None,
+        history_path: Path | None = None,
         feature_flag_name: str = "USE_UNIFIED_HEALTH_METRICS",
     ) -> None:
         """初始化.
@@ -205,9 +204,9 @@ class UnifiedHealthMetrics:
         self.history_path = Path(history_path) if history_path else DEFAULT_HISTORY_PATH
 
         # 懒加载采集器 (避免循环依赖)
-        self._code_layer: Optional[Any] = None
-        self._strategy_layer: Optional[Any] = None
-        self._ops_layer: Optional[Any] = None
+        self._code_layer: Any | None = None
+        self._strategy_layer: Any | None = None
+        self._ops_layer: Any | None = None
         self._layers_loaded = False
 
         logger.info(
@@ -231,7 +230,7 @@ class UnifiedHealthMetrics:
     # ============================================================
     # 配置加载 (HC-5: ConfigManager)
     # ============================================================
-    def _load_weights(self) -> Dict[str, float]:
+    def _load_weights(self) -> dict[str, float]:
         """从 evolution.yaml 加载权重 (HC-5). 失败时用默认权重."""
         try:
             from utils.config_manager import get_config
@@ -248,7 +247,7 @@ class UnifiedHealthMetrics:
         return dict(DEFAULT_WEIGHTS)
 
     @staticmethod
-    def _validate_weights(weights: Dict[str, float]) -> None:
+    def _validate_weights(weights: dict[str, float]) -> None:
         """校验权重总和 = 1.0 (容差 0.01)."""
         total = sum(weights.get(k, 0.0) for k in ("code", "strategy", "ops"))
         if abs(total - 1.0) > WEIGHT_SUM_TOLERANCE:
@@ -314,7 +313,7 @@ class UnifiedHealthMetrics:
         self._load_layers()
 
         # 采集三层面 (各自容错)
-        layer_scores: Dict[str, LayerScore] = {}
+        layer_scores: dict[str, LayerScore] = {}
         if self._code_layer is not None:
             layer_scores["code"] = self._safe_collect(self._code_layer, "code", now)
         else:
@@ -381,7 +380,7 @@ class UnifiedHealthMetrics:
             )
 
     def _compute_overall(
-        self, layer_scores: Dict[str, LayerScore]
+        self, layer_scores: dict[str, LayerScore]
     ) -> tuple:
         """计算综合分 (排除降级层后重新归一化).
 
@@ -438,7 +437,7 @@ class UnifiedHealthMetrics:
         except Exception as e:
             logger.warning("健康度持久化失败 (不影响内存报告): %s", e)
 
-    def _read_history(self, days: int) -> List[HealthReport]:
+    def _read_history(self, days: int) -> list[HealthReport]:
         """读取最近 N 天历史 (只读). 失败时返回空列表."""
         try:
             if not self.history_path.exists():
@@ -446,7 +445,7 @@ class UnifiedHealthMetrics:
             lines = self.history_path.read_text(encoding="utf-8").strip().splitlines()
             # 取最后 days*2 行 (每天可能有多次采集), 解析有效的
             recent = lines[-(days * 2):] if len(lines) > days * 2 else lines
-            reports: List[HealthReport] = []
+            reports: list[HealthReport] = []
             for line in reversed(recent):
                 line = line.strip()
                 if not line:
@@ -462,7 +461,7 @@ class UnifiedHealthMetrics:
 
     @staticmethod
     def _calc_trend(
-        current_score: float, history: List[HealthReport], target_offset: int
+        current_score: float, history: list[HealthReport], target_offset: int
     ) -> float:
         """计算趋势 = current - history[offset]. 不足时返回 0.0."""
         if len(history) <= target_offset:
@@ -476,13 +475,13 @@ class UnifiedHealthMetrics:
     # ============================================================
     # 公共 API
     # ============================================================
-    def get_history(self, days: int = 30) -> List[HealthReport]:
+    def get_history(self, days: int = 30) -> list[HealthReport]:
         """读取历史健康度 (只读)."""
         return self._read_history(days)
 
     def compare_baseline(
         self, current: HealthReport, baseline_date: str
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """与指定基线日期对比.
 
         Args:
@@ -493,7 +492,7 @@ class UnifiedHealthMetrics:
             {"overall_diff": float, "code_diff": float, ...}
         """
         history = self._read_history(90)
-        baseline: Optional[HealthReport] = None
+        baseline: HealthReport | None = None
         for h in history:
             if h.generated_at.startswith(baseline_date):
                 baseline = h
@@ -501,7 +500,7 @@ class UnifiedHealthMetrics:
         if baseline is None:
             return {"error": -1.0, "reason": f"基线 {baseline_date} 不存在"}
 
-        result: Dict[str, float] = {
+        result: dict[str, float] = {
             "overall_diff": round(current.overall_score - baseline.overall_score, 4),
         }
         for layer in ("code", "strategy", "ops"):
@@ -511,7 +510,7 @@ class UnifiedHealthMetrics:
                 result[f"{layer}_diff"] = round(cur_layer.score - base_layer.score, 4)
         return result
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取度量器状态 (用于审计)."""
         return {
             "enabled": self._enabled,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 三联对冲协调器 —— Beta + Vol + Correlation 联动决策
 
@@ -17,7 +16,6 @@ v7.5 三联对冲协调器 —— Beta + Vol + Correlation 联动决策
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -35,10 +33,10 @@ class HedgeCoordinator:
 
     def __init__(
         self,
-        beta_hedger: Optional[BetaHedger] = None,
-        vol_hedger: Optional[VolHedger] = None,
-        corr_hedger: Optional[CorrelationHedger] = None,
-        tail_hedger: Optional[TailRiskHedger] = None,
+        beta_hedger: BetaHedger | None = None,
+        vol_hedger: VolHedger | None = None,
+        corr_hedger: CorrelationHedger | None = None,
+        tail_hedger: TailRiskHedger | None = None,
         max_total_hedge_pct: float = 0.40,
         enable_tail_risk: bool = True,
     ):
@@ -76,15 +74,15 @@ class HedgeCoordinator:
 
     def coordinate(
         self,
-        positions: Dict[str, float],
-        prices: Dict[str, float],
+        positions: dict[str, float],
+        prices: dict[str, float],
         returns: pd.DataFrame,
         market_returns: pd.Series,
         vix: float,
-        portfolio_value: Optional[float] = None,
+        portfolio_value: float | None = None,
         hwm_drawdown: float = 0.0,
         bs_loss: float = 0.0,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         """协调三联对冲 (7.4 移植增强版)
 
         7.4 新增:
@@ -150,7 +148,7 @@ class HedgeCoordinator:
         # 6. 汇总对冲成本
         total_cost = 0.0
         total_hedge_value = 0.0
-        orders: List[Dict] = []
+        orders: list[dict] = []
 
         # 7.4 移植: recovery 状态衰减对冲比例 (tail_risk_hedge.py:264-265)
 
@@ -234,7 +232,7 @@ class HedgeCoordinator:
             },
         }
 
-    def snapshot(self) -> Dict[str, str]:
+    def snapshot(self) -> dict[str, str]:
         """对冲配置快照"""
         return {
             "beta_target": str(self.beta_hedger.beta_target),

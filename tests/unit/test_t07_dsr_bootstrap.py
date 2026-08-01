@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T07: DSR Bootstrap 估计器单元测试."""
 from __future__ import annotations
 

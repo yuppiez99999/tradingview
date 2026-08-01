@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """TradingAgents 桥接客户端 — 28 系统侧 HTTP 适配器
 
 核心功能:
@@ -39,7 +38,7 @@ import logging
 import os
 import socket
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -97,7 +96,7 @@ class TradingAgentsBridge:
         self.port = port
         self.timeout = timeout
         self._base_url = f"http://{host}:{port}"
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
         self._last_check: float = 0.0
 
     # ------------------------------------------------------------
@@ -181,7 +180,7 @@ class TradingAgentsBridge:
     # API 调用
     # ------------------------------------------------------------
 
-    def get_analysts(self) -> List[str]:
+    def get_analysts(self) -> list[str]:
         """获取可用分析师列表.
 
         Returns:
@@ -197,9 +196,9 @@ class TradingAgentsBridge:
     def analyze(
         self,
         ticker: str,
-        date: Optional[str] = None,
-        analysts: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        date: str | None = None,
+        analysts: list[str] | None = None,
+    ) -> dict[str, Any]:
         """调用 TradingAgents 多 Agent 分析.
 
         Args:
@@ -233,7 +232,7 @@ class TradingAgentsBridge:
             return self._fallback_to_local(ticker, date)
 
         # 调用微服务
-        payload: Dict[str, Any] = {"ticker": ticker, "date": date}
+        payload: dict[str, Any] = {"ticker": ticker, "date": date}
         if analysts:
             payload["analysts"] = analysts
 
@@ -270,7 +269,7 @@ class TradingAgentsBridge:
     # 降级链
     # ------------------------------------------------------------
 
-    def _fallback_to_local(self, ticker: str, date: str) -> Dict[str, Any]:
+    def _fallback_to_local(self, ticker: str, date: str) -> dict[str, Any]:
         """降级到本地 finance_agent_orchestrator.
 
         Args:
@@ -304,7 +303,7 @@ class TradingAgentsBridge:
 
     def _neutral_result(
         self, ticker: str, date: str, reason: str = ""
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """返回中性决策 (兜底).
 
         Args:
@@ -331,8 +330,8 @@ class TradingAgentsBridge:
     # ------------------------------------------------------------
 
     def _http_get(
-        self, path: str, timeout: Optional[int] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, path: str, timeout: int | None = None
+    ) -> dict[str, Any] | None:
         """HTTP GET 请求.
 
         Args:
@@ -353,8 +352,8 @@ class TradingAgentsBridge:
             return None
 
     def _http_post(
-        self, path: str, payload: Dict[str, Any], timeout: Optional[int] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, path: str, payload: dict[str, Any], timeout: int | None = None
+    ) -> dict[str, Any] | None:
         """HTTP POST 请求.
 
         Args:
@@ -389,7 +388,7 @@ class TradingAgentsBridge:
 # 单例便捷函数
 # ============================================================
 
-_default_bridge: Optional[TradingAgentsBridge] = None
+_default_bridge: TradingAgentsBridge | None = None
 
 
 def get_bridge(
@@ -412,9 +411,9 @@ def get_bridge(
 
 def analyze(
     ticker: str,
-    date: Optional[str] = None,
-    analysts: Optional[List[str]] = None,
-) -> Dict[str, Any]:
+    date: str | None = None,
+    analysts: list[str] | None = None,
+) -> dict[str, Any]:
     """便捷函数: 调用 TradingAgents 多 Agent 分析.
 
     Args:

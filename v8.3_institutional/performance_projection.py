@@ -8,10 +8,10 @@ print('=' * 70)
 positions_path = r'E:\各种PY程序\28-终极量化交易系统7.1\config\positions.json'
 trade_plan_path = r'E:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional\trade_plans\trade_plan_20260707.json'
 
-with open(positions_path, 'r', encoding='utf-8') as f:
+with open(positions_path, encoding='utf-8') as f:
     positions = json.load(f)['positions']
 
-with open(trade_plan_path, 'r', encoding='utf-8') as f:
+with open(trade_plan_path, encoding='utf-8') as f:
     plan = json.load(f)
 
 capital = plan['capital']

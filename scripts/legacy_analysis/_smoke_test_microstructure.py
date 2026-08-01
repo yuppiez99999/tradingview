@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P2.1 微观结构因子 smoke test - 验证实现无语法错误且能正确计算"""
 from __future__ import annotations
 

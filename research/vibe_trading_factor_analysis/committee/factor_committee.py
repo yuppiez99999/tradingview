@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """FactorCommittee - Stage 8 多 Agent 决策治理（CIO 视角 v1.0）
 
 5 专家 Agent + Chair 投票审批因子准入生产因子库。
@@ -18,7 +17,7 @@ import logging
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -41,9 +40,9 @@ class AgentVote:
     score: float = 0.0              # 0-10
     veto: bool = False              # 否决
     rationale: str = ""             # 评分理由
-    evidence: Dict[str, Any] = field(default_factory=dict)  # 评分依据（数值证据）
+    evidence: dict[str, Any] = field(default_factory=dict)  # 评分依据（数值证据）
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -51,16 +50,16 @@ class AgentVote:
 class CommitteeVerdict:
     """委员会决议"""
     factor_name: str
-    votes: List[AgentVote] = field(default_factory=list)
+    votes: list[AgentVote] = field(default_factory=list)
     avg_score: float = 0.0
     min_score: float = 0.0
     has_veto: bool = False
-    veto_by: List[str] = field(default_factory=list)
+    veto_by: list[str] = field(default_factory=list)
     chair_decision: str = ""       # approve / reject / chair_veto
     approved: bool = False
     rationale: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -77,7 +76,7 @@ class AlphaAgent:
     """
     name = "AlphaAgent"
 
-    def vote(self, factor_report: Dict[str, Any]) -> AgentVote:
+    def vote(self, factor_report: dict[str, Any]) -> AgentVote:
         v = AgentVote(agent_name=self.name)
         ic_ir = float(factor_report.get("ic_ir_120d", 0.0))
         dsr = float(factor_report.get("dsr_value", 0.0))
@@ -123,7 +122,7 @@ class RiskAgent:
     """
     name = "RiskAgent"
 
-    def vote(self, factor_report: Dict[str, Any]) -> AgentVote:
+    def vote(self, factor_report: dict[str, Any]) -> AgentVote:
         v = AgentVote(agent_name=self.name)
         max_corr = float(factor_report.get("max_abs_corr", 1.0))
         risk_contrib = float(factor_report.get("risk_contribution", 0.0))
@@ -170,7 +169,7 @@ class ExecutionAgent:
     """
     name = "ExecutionAgent"
 
-    def vote(self, factor_report: Dict[str, Any]) -> AgentVote:
+    def vote(self, factor_report: dict[str, Any]) -> AgentVote:
         v = AgentVote(agent_name=self.name)
         capacity_ratio = float(factor_report.get("capacity_ratio", 0.0))  # 容量 / 组合价值
         turnover = float(factor_report.get("turnover", 0.0))
@@ -215,7 +214,7 @@ class EconomicAgent:
     """
     name = "EconomicAgent"
 
-    def vote(self, factor_report: Dict[str, Any]) -> AgentVote:
+    def vote(self, factor_report: dict[str, Any]) -> AgentVote:
         v = AgentVote(agent_name=self.name)
         econ_score = float(factor_report.get("economic_logic_score", 0.0))  # 0-10
         a_share_fit = float(factor_report.get("a_share_fit", 0.0))  # 0-1
@@ -260,7 +259,7 @@ class CapacityAgent:
     """
     name = "CapacityAgent"
 
-    def vote(self, factor_report: Dict[str, Any]) -> AgentVote:
+    def vote(self, factor_report: dict[str, Any]) -> AgentVote:
         v = AgentVote(agent_name=self.name)
         min_regime_ic_ir = float(factor_report.get("min_regime_ic_ir", 0.0))
         weakest = str(factor_report.get("weakest_regime", "unknown"))
@@ -345,7 +344,7 @@ class ChairAgent:
     ADMIT_AVG = COMMITTEE_ADMIT_AVG
     CHAIR_VETO_AVG_LINE = CHAIR_VETO_AVG
 
-    def aggregate(self, factor_name: str, votes: List[AgentVote]) -> CommitteeVerdict:
+    def aggregate(self, factor_name: str, votes: list[AgentVote]) -> CommitteeVerdict:
         v = CommitteeVerdict(factor_name=factor_name, votes=votes)
         if not votes:
             v.chair_decision = "reject"
@@ -405,7 +404,7 @@ class FactorCommittee:
         ...     pass
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.alpha_agent = AlphaAgent()
         self.risk_agent = RiskAgent()
         self.execution_agent = ExecutionAgent()
@@ -421,7 +420,7 @@ class FactorCommittee:
             self.chair.ADMIT_AVG, self.chair.CHAIR_VETO_AVG_LINE,
         )
 
-    def review(self, factor_name: str, factor_report: Dict[str, Any]) -> CommitteeVerdict:
+    def review(self, factor_name: str, factor_report: dict[str, Any]) -> CommitteeVerdict:
         """委员会评审单个因子
 
         Args:
@@ -452,8 +451,8 @@ class FactorCommittee:
         return self.chair.aggregate(factor_name, votes)
 
     def review_batch(
-        self, factor_reports: Dict[str, Dict[str, Any]]
-    ) -> Dict[str, CommitteeVerdict]:
+        self, factor_reports: dict[str, dict[str, Any]]
+    ) -> dict[str, CommitteeVerdict]:
         """批量评审"""
         return {name: self.review(name, report) for name, report in factor_reports.items()}
 
@@ -462,7 +461,7 @@ class FactorCommittee:
 # 便捷函数
 # ============================================================
 
-def quick_review(factor_name: str, factor_report: Dict[str, Any]) -> CommitteeVerdict:
+def quick_review(factor_name: str, factor_report: dict[str, Any]) -> CommitteeVerdict:
     """快速委员会评审（使用默认配置）"""
     committee = FactorCommittee()
     return committee.review(factor_name, factor_report)

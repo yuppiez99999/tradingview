@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 数据契约测试 (Data Contract Tests) — ECC GAP-8
 ==================================================
@@ -28,7 +27,7 @@ from __future__ import annotations
 import glob
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 
@@ -36,13 +35,13 @@ import pytest
 # 工具函数
 # ============================================================================
 
-def _load_json(path: Path) -> Dict[str, Any]:
+def _load_json(path: Path) -> dict[str, Any]:
     """加载 JSON 文件"""
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def _assert_keys_present(data: Dict, required_keys: List[str], file_label: str) -> None:
+def _assert_keys_present(data: dict, required_keys: list[str], file_label: str) -> None:
     """断言字典包含所有必需键"""
     missing = [k for k in required_keys if k not in data]
     assert not missing, (
@@ -51,7 +50,7 @@ def _assert_keys_present(data: Dict, required_keys: List[str], file_label: str) 
     )
 
 
-def _assert_key_type(data: Dict, key: str, expected_type, file_label: str) -> None:
+def _assert_key_type(data: dict, key: str, expected_type, file_label: str) -> None:
     """断言指定键的值类型
 
     支持单类型 (int/str/bool/...) 或多类型 tuple (int, float)。
@@ -380,7 +379,7 @@ class TestDailyReturnsContract:
     @pytest.mark.contract
     def test_jsonl_format(self, daily_returns_path):
         """契约 4.1: 每行必须为合法 JSON"""
-        with open(daily_returns_path, "r", encoding="utf-8") as f:
+        with open(daily_returns_path, encoding="utf-8") as f:
             for line_no, line in enumerate(f, 1):
                 line = line.strip()
                 if not line:
@@ -395,7 +394,7 @@ class TestDailyReturnsContract:
     @pytest.mark.contract
     def test_record_fields(self, daily_returns_path):
         """契约 4.2: 每条记录必需字段 — date / daily_return / source"""
-        with open(daily_returns_path, "r", encoding="utf-8") as f:
+        with open(daily_returns_path, encoding="utf-8") as f:
             lines = [line.strip() for line in f if line.strip()]
 
         assert len(lines) > 0, "daily_returns.jsonl 不能为空"

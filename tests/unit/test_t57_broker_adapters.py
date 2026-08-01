@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T5.7 实盘券商直连适配器 + 故障切换管理器单元测试.
 
 覆盖:
@@ -140,7 +139,7 @@ class TestThsBrokerAdapterDryRun(unittest.TestCase):
         audit_files = list(Path(self.tmpdir).glob("ths_*.jsonl"))
         self.assertTrue(len(audit_files) > 0)
         # 检查内容 (读取最后一条记录)
-        with open(audit_files[0], "r", encoding="utf-8") as f:
+        with open(audit_files[0], encoding="utf-8") as f:
             lines = f.readlines()
         record = json.loads(lines[-1])
         self.assertEqual(record["broker"], "ths")
@@ -475,7 +474,7 @@ class TestBrokerFailoverManager(unittest.TestCase):
         audit_files = list(Path(self.tmpdir).glob("failover_*.jsonl"))
         self.assertTrue(len(audit_files) > 0)
         # 读取最后一条记录 (前面可能有 initial_broker_selected 等记录)
-        with open(audit_files[0], "r", encoding="utf-8") as f:
+        with open(audit_files[0], encoding="utf-8") as f:
             lines = f.readlines()
         # 找到 force_failover 事件
         force_failover_records = [

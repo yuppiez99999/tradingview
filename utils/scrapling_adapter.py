@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Scrapling 高性能爬虫适配器 — 28 系统集成层
 
 核心功能:
@@ -36,7 +35,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("scrapling_adapter")
 
@@ -44,7 +43,7 @@ logger = logging.getLogger("scrapling_adapter")
 # Scrapling 可选导入 (懒加载)
 # ============================================================
 
-_scrapling_available: Optional[bool] = None
+_scrapling_available: bool | None = None
 _StealthyFetcher = None
 _Fetcher = None
 _PlayWrightFetcher = None
@@ -111,7 +110,7 @@ class ScraplingAdapter:
         self.timeout = timeout
         self._fetcher: Any = None
         self._fallback: Any = None
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     # ------------------------------------------------------------
     # 可用性
@@ -166,9 +165,9 @@ class ScraplingAdapter:
     def fetch_url(
         self,
         url: str,
-        selector: Optional[str] = None,
+        selector: str | None = None,
         render_js: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """抓取指定 URL, 返回页面内容.
 
         Args:
@@ -204,7 +203,7 @@ class ScraplingAdapter:
         # 降级: 直接 requests
         return self._fallback_fetch_url(url, selector)
 
-    def fetch_news(self, keyword: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def fetch_news(self, keyword: str, limit: int = 20) -> list[dict[str, Any]]:
         """按关键词抓取新闻.
 
         优先使用 WebScraper.fetch_news (已适配东方财富/新浪等中文财经网站),
@@ -238,7 +237,7 @@ class ScraplingAdapter:
         logger.warning(f"新闻抓取全部失败: keyword={keyword}")
         return []
 
-    def fetch_announcements(self, stock_code: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def fetch_announcements(self, stock_code: str, limit: int = 20) -> list[dict[str, Any]]:
         """抓取个股公告.
 
         Args:
@@ -264,7 +263,7 @@ class ScraplingAdapter:
         logger.warning(f"公告抓取失败: stock={stock_code}")
         return []
 
-    def fetch_research_reports(self, stock_code: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def fetch_research_reports(self, stock_code: str, limit: int = 10) -> list[dict[str, Any]]:
         """抓取个股研报.
 
         Args:
@@ -294,7 +293,7 @@ class ScraplingAdapter:
     # 内部方法
     # ------------------------------------------------------------
 
-    def _extract_text(self, page: Any, selector: Optional[str]) -> str:
+    def _extract_text(self, page: Any, selector: str | None) -> str:
         """从 Scrapling 页面对象提取文本.
 
         Args:
@@ -318,7 +317,7 @@ class ScraplingAdapter:
             logger.debug(f"文本提取失败: {e}")
             return ""
 
-    def _fallback_fetch_url(self, url: str, selector: Optional[str]) -> Dict[str, Any]:
+    def _fallback_fetch_url(self, url: str, selector: str | None) -> dict[str, Any]:
         """降级: 使用 requests 直接抓取 URL.
 
         Args:
@@ -363,7 +362,7 @@ class ScraplingAdapter:
         except Exception as e:
             return self._empty_result(url, f"requests 降级失败: {e}")
 
-    def _scrapling_fetch_news(self, keyword: str, limit: int) -> List[Dict[str, Any]]:
+    def _scrapling_fetch_news(self, keyword: str, limit: int) -> list[dict[str, Any]]:
         """Scrapling 兜底: 抓取东方财富搜索页.
 
         Args:
@@ -381,7 +380,7 @@ class ScraplingAdapter:
             # 东方财富新闻搜索
             url = f"https://so.eastmoney.com/news/s?keyword={keyword}"
             page = fetcher.get(url, timeout=self.timeout)
-            items: List[Dict[str, Any]] = []
+            items: list[dict[str, Any]] = []
 
             # 尝试解析搜索结果
             if hasattr(page, "css"):
@@ -411,7 +410,7 @@ class ScraplingAdapter:
 
         return []
 
-    def _empty_result(self, url: str, error: str) -> Dict[str, Any]:
+    def _empty_result(self, url: str, error: str) -> dict[str, Any]:
         """构造空结果.
 
         Args:
@@ -435,7 +434,7 @@ class ScraplingAdapter:
 # 单例便捷函数
 # ============================================================
 
-_default_adapter: Optional[ScraplingAdapter] = None
+_default_adapter: ScraplingAdapter | None = None
 
 
 def get_adapter(use_stealth: bool = True) -> ScraplingAdapter:
@@ -453,7 +452,7 @@ def get_adapter(use_stealth: bool = True) -> ScraplingAdapter:
     return _default_adapter
 
 
-def fetch_news(keyword: str, limit: int = 20) -> List[Dict[str, Any]]:
+def fetch_news(keyword: str, limit: int = 20) -> list[dict[str, Any]]:
     """便捷函数: 按关键词抓取新闻.
 
     Args:
@@ -466,7 +465,7 @@ def fetch_news(keyword: str, limit: int = 20) -> List[Dict[str, Any]]:
     return get_adapter().fetch_news(keyword, limit)
 
 
-def fetch_url(url: str, selector: Optional[str] = None) -> Dict[str, Any]:
+def fetch_url(url: str, selector: str | None = None) -> dict[str, Any]:
     """便捷函数: 抓取指定 URL.
 
     Args:

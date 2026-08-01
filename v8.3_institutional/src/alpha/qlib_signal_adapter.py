@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -35,7 +35,7 @@ if QLIB_ROOT not in sys.path:
 
 # Qlib 可用性标记
 _QLIB_AVAILABLE = False
-_qlib_init_error: Optional[str] = None
+_qlib_init_error: str | None = None
 
 try:
     import qlib
@@ -106,7 +106,7 @@ DEFAULT_MODEL = "lightgbm"
 # ============================================================
 
 
-def init_qlib(provider_uri: Optional[str] = None, region: str = "cn") -> bool:
+def init_qlib(provider_uri: str | None = None, region: str = "cn") -> bool:
     """
     安全初始化 Qlib
 
@@ -141,7 +141,7 @@ def is_qlib_available() -> bool:
 # ============================================================
 
 
-def v75_to_qlib_features(df: pd.DataFrame, symbol: str, feature_cols: Optional[list] = None) -> pd.DataFrame:
+def v75_to_qlib_features(df: pd.DataFrame, symbol: str, feature_cols: list | None = None) -> pd.DataFrame:
     """
     将 v7.5 格式 DataFrame 转换为 Qlib 特征格式
 
@@ -205,8 +205,8 @@ def prepare_qlib_dataset(
     valid_end: str,
     test_start: str,
     test_end: str,
-    feature_cols: Optional[list] = None,
-) -> Optional[DatasetH]:
+    feature_cols: list | None = None,
+) -> DatasetH | None:
     """
     准备 Qlib DatasetH
 
@@ -256,7 +256,7 @@ def prepare_qlib_dataset(
 # ============================================================
 
 
-def train_qlib_model(dataset: DatasetH, model_type: str = DEFAULT_MODEL, **model_kwargs) -> Optional[Any]:
+def train_qlib_model(dataset: DatasetH, model_type: str = DEFAULT_MODEL, **model_kwargs) -> Any | None:
     """
     训练 Qlib 模型
 
@@ -288,7 +288,7 @@ def train_qlib_model(dataset: DatasetH, model_type: str = DEFAULT_MODEL, **model
         return None
 
 
-def predict_qlib_signal(model: Any, dataset: DatasetH, segment: str = "test") -> Optional[pd.Series]:
+def predict_qlib_signal(model: Any, dataset: DatasetH, segment: str = "test") -> pd.Series | None:
     """
     使用 Qlib 模型生成信号
 
@@ -332,7 +332,7 @@ def predict_qlib_signal(model: Any, dataset: DatasetH, segment: str = "test") ->
 # ============================================================
 
 
-def fetch_ifind_historical(symbol: str, days: int = 120) -> Optional[pd.DataFrame]:
+def fetch_ifind_historical(symbol: str, days: int = 120) -> pd.DataFrame | None:
     """
     从 iFinD MCP 获取历史 OHLCV 数据
 
@@ -450,7 +450,7 @@ def fetch_ifind_historical(symbol: str, days: int = 120) -> Optional[pd.DataFram
         return None
 
 
-def fetch_ifind_ohlcv(symbol: str, days: int = 120) -> Optional[pd.DataFrame]:
+def fetch_ifind_ohlcv(symbol: str, days: int = 120) -> pd.DataFrame | None:
     """
     便捷接口：获取 iFinD 历史数据 (与 v7.5 DataProvider 对齐)
 
@@ -466,7 +466,7 @@ def fetch_ifind_ohlcv(symbol: str, days: int = 120) -> Optional[pd.DataFrame]:
 
 def generate_qlib_signal(
     df: pd.DataFrame, symbol: str, model_type: str = DEFAULT_MODEL, retrain: bool = False, **kwargs
-) -> Optional[pd.Series]:
+) -> pd.Series | None:
     """
     一键生成 Qlib 信号（训练 + 预测）
 
@@ -625,10 +625,10 @@ def _add_technical_features(data: pd.DataFrame) -> pd.DataFrame:
 def _local_lightgbm_signal(
     df: pd.DataFrame,
     symbol: str,
-    feature_cols: Optional[list] = None,
+    feature_cols: list | None = None,
     save_model: bool = False,
-    model_path: Optional[str] = None,
-) -> Dict:
+    model_path: str | None = None,
+) -> dict:
     """
     本地 LightGBM 信号生成 (Qlib 不可用时的回退方案)
 
@@ -788,7 +788,7 @@ def _local_lightgbm_signal(
         return {"signal": None, "model": None, "metrics": {}}
 
 
-def load_local_model(symbol: str) -> Optional[Dict]:
+def load_local_model(symbol: str) -> dict | None:
     """
     加载已训练的本地 LightGBM 模型
 
@@ -812,7 +812,7 @@ def load_local_model(symbol: str) -> Optional[Dict]:
 
         meta = {}
         if meta_path.exists():
-            with open(meta_path, "r", encoding="utf-8") as f:
+            with open(meta_path, encoding="utf-8") as f:
                 meta = json.load(f)
 
         logger.info(f"模型加载成功: {symbol}")
@@ -830,7 +830,7 @@ def generate_signal(
     use_cache: bool = True,
     save_model: bool = True,
     **kwargs,
-) -> Optional[pd.Series]:
+) -> pd.Series | None:
     """
     统一信号生成接口
 

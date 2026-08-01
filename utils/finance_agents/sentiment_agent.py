@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SentimentAgent — 舆情分析 Agent (复用 AIReportAgent)
 =====================================================
@@ -21,7 +20,7 @@ SentimentAgent — 舆情分析 Agent (复用 AIReportAgent)
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from utils.finance_agents.base_agent import AgentDecision, BaseAgent
 from utils.logger import get_logger
@@ -35,7 +34,7 @@ class SentimentAgent(BaseAgent):
     def __init__(
         self,
         name: str = "sentiment",
-        report_agent: Optional[Any] = None,
+        report_agent: Any | None = None,
         use_llm: bool = False,
     ):
         """
@@ -70,14 +69,14 @@ class SentimentAgent(BaseAgent):
             logger.warning("SentimentAgent: AIReportAgent 初始化失败: %s", e)
             return None
 
-    def is_available(self, context: Dict[str, Any]) -> bool:
+    def is_available(self, context: dict[str, Any]) -> bool:
         """需要 news_items 数据"""
         news = self._safe_get(context, "news_items")
         return isinstance(news, list) and len(news) > 0
 
-    def analyze(self, symbol: str, context: Dict[str, Any]) -> AgentDecision:
+    def analyze(self, symbol: str, context: dict[str, Any]) -> AgentDecision:
         """舆情分析主入口"""
-        news_items: List[Dict] = self._safe_get(context, "news_items", default=[]) or []
+        news_items: list[dict] = self._safe_get(context, "news_items", default=[]) or []
         # 过滤出与该 symbol 相关的新闻
         related_news = [
             n
@@ -135,7 +134,7 @@ class SentimentAgent(BaseAgent):
                     critical_hits.append(word)
                     break
 
-        metrics: Dict[str, Any] = {
+        metrics: dict[str, Any] = {
             "news_count": len(analyzed_news),
             "avg_score": round(avg_score, 4),
             "critical_hits": critical_hits,
@@ -180,7 +179,7 @@ class SentimentAgent(BaseAgent):
     # 降级: 关键词匹配
     # ----------------------------------------------------------
 
-    def _fallback_keyword_sentiment(self, symbol: str, news_items: List[Dict]) -> AgentDecision:
+    def _fallback_keyword_sentiment(self, symbol: str, news_items: list[dict]) -> AgentDecision:
         """规则引擎兜底 (LLM 不可用时)"""
         # 复用 AIReportAgent 的关键词词典
         try:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """延迟标签追踪器 — GAP-6 交付物.
 
 ECC mle-workflow MLE-10 修复:
@@ -38,7 +37,7 @@ import logging
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -81,15 +80,15 @@ class PredictionRecord:
     model_version: str
     recorded_at: str
     label_date: str
-    actual_label: Optional[float] = None
-    label_observed_at: Optional[str] = None
+    actual_label: float | None = None
+    label_observed_at: str | None = None
 
     @property
     def is_observed(self) -> bool:
         """标签是否已观测."""
         return self.actual_label is not None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为 dict."""
         return asdict(self)
 
@@ -128,7 +127,7 @@ class DelayedMetrics:
     std_actual: float = 0.0
     timestamp: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为 dict."""
         return asdict(self)
 
@@ -152,7 +151,7 @@ class DelayedLabelTracker:
         self,
         model_name: str = "v9_lgb",
         label_delay_days: int = 5,
-        storage_dir: Optional[str] = None,
+        storage_dir: str | None = None,
     ) -> None:
         """初始化.
 
@@ -171,13 +170,13 @@ class DelayedLabelTracker:
             self.storage_dir = _PROJECT_ROOT / "reports" / "delayed_labels"
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         # 内存缓存 (从磁盘加载)
-        self._records: List[PredictionRecord] = []
+        self._records: list[PredictionRecord] = []
         self._loaded = False
 
     # ============================================================
     # 持久化
     # ============================================================
-    def _storage_file(self, date: Optional[str] = None) -> Path:
+    def _storage_file(self, date: str | None = None) -> Path:
         """获取存储文件路径.
 
         按 date 分文件存储 (便于按日加载):
@@ -187,19 +186,19 @@ class DelayedLabelTracker:
             date = datetime.utcnow().strftime("%Y-%m-%d")
         return self.storage_dir / f"{self.model_name}_predictions_{date}.jsonl"
 
-    def _metrics_file(self, model_version: Optional[str] = None) -> Path:
+    def _metrics_file(self, model_version: str | None = None) -> Path:
         """获取指标文件路径."""
         suffix = f"_{model_version}" if model_version else ""
         return self.storage_dir / f"{self.model_name}_metrics{suffix}.json"
 
-    def _load_records_for_date(self, date: str) -> List[PredictionRecord]:
+    def _load_records_for_date(self, date: str) -> list[PredictionRecord]:
         """加载某日的预测记录."""
         file = self._storage_file(date)
         if not file.exists():
             return []
-        records: List[PredictionRecord] = []
+        records: list[PredictionRecord] = []
         try:
-            with open(file, "r", encoding="utf-8") as f:
+            with open(file, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -214,14 +213,14 @@ class DelayedLabelTracker:
             logger.warning("加载预测记录失败 (file=%s): %s", file, e)
         return records
 
-    def _load_all_records(self) -> List[PredictionRecord]:
+    def _load_all_records(self) -> list[PredictionRecord]:
         """加载所有日期的预测记录."""
         if self._loaded:
             return self._records
-        records: List[PredictionRecord] = []
+        records: list[PredictionRecord] = []
         for file in self.storage_dir.glob(f"{self.model_name}_predictions_*.jsonl"):
             try:
-                with open(file, "r", encoding="utf-8") as f:
+                with open(file, encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
                         if not line:
@@ -252,14 +251,14 @@ class DelayedLabelTracker:
         if not file.exists():
             return
         # 读全部行
-        lines: List[str] = []
+        lines: list[str] = []
         try:
-            with open(file, "r", encoding="utf-8") as f:
+            with open(file, encoding="utf-8") as f:
                 lines = f.readlines()
         except OSError:
             return
         # 更新匹配的记录
-        updated_lines: List[str] = []
+        updated_lines: list[str] = []
         updated = False
         for line in lines:
             line = line.strip()
@@ -328,9 +327,9 @@ class DelayedLabelTracker:
     def record_predictions_batch(
         self,
         date: str,
-        predictions: Dict[str, float],
+        predictions: dict[str, float],
         model_version: str,
-    ) -> List[PredictionRecord]:
+    ) -> list[PredictionRecord]:
         """批量记录当日预测.
 
         Args:
@@ -341,7 +340,7 @@ class DelayedLabelTracker:
         Returns:
             List[PredictionRecord] 已记录的预测列表
         """
-        records: List[PredictionRecord] = []
+        records: list[PredictionRecord] = []
         for symbol, score in predictions.items():
             record = self.record_prediction(
                 date=date,
@@ -358,7 +357,7 @@ class DelayedLabelTracker:
         )
         return records
 
-    def check_label_observability(self, current_date: str) -> List[PredictionRecord]:
+    def check_label_observability(self, current_date: str) -> list[PredictionRecord]:
         """检查哪些预测的 label 已可观测 (label_date <= current_date).
 
         Args:
@@ -368,7 +367,7 @@ class DelayedLabelTracker:
             List[PredictionRecord] label 已可观测但尚未填入 actual_label 的记录
         """
         all_records = self._load_all_records()
-        pending: List[PredictionRecord] = []
+        pending: list[PredictionRecord] = []
         for record in all_records:
             if record.actual_label is None and record.label_date <= current_date:
                 pending.append(record)
@@ -419,7 +418,7 @@ class DelayedLabelTracker:
 
     def update_actual_labels_batch(
         self,
-        labels: Dict[str, Dict[str, float]],
+        labels: dict[str, dict[str, float]],
     ) -> int:
         """批量更新实际标签.
 
@@ -440,7 +439,7 @@ class DelayedLabelTracker:
     # ============================================================
     # 指标计算
     # ============================================================
-    def compute_delayed_metrics(self, model_version: Optional[str] = None) -> DelayedMetrics:
+    def compute_delayed_metrics(self, model_version: str | None = None) -> DelayedMetrics:
         """计算延迟指标 (IC / IC_IR / RankIC).
 
         基于 label 已观测的记录, 计算预测分数与实际标签的相关性.
@@ -511,7 +510,7 @@ class DelayedLabelTracker:
             timestamp=datetime.utcnow().isoformat() + "Z",
         )
 
-    def _compute_ic_ir(self, records: List[PredictionRecord]) -> float:
+    def _compute_ic_ir(self, records: list[PredictionRecord]) -> float:
         """计算 IC IR (按日聚合 IC 序列, IC 均值 / IC 标准差).
 
         IC_IR 是 quant ML 的核心指标:
@@ -527,8 +526,8 @@ class DelayedLabelTracker:
         if len(records) < 2:
             return 0.0
         # 按日期聚合
-        daily_ic: List[float] = []
-        df_records: List[Dict[str, Any]] = [r.to_dict() for r in records]
+        daily_ic: list[float] = []
+        df_records: list[dict[str, Any]] = [r.to_dict() for r in records]
         try:
             df = pd.DataFrame(df_records)
             if "date" not in df.columns:
@@ -561,10 +560,10 @@ class DelayedLabelTracker:
     # ============================================================
     def get_records(
         self,
-        date: Optional[str] = None,
-        model_version: Optional[str] = None,
+        date: str | None = None,
+        model_version: str | None = None,
         only_observed: bool = False,
-    ) -> List[PredictionRecord]:
+    ) -> list[PredictionRecord]:
         """查询预测记录.
 
         Args:
@@ -585,13 +584,13 @@ class DelayedLabelTracker:
             result = [r for r in result if r.is_observed]
         return result
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """获取追踪器汇总."""
         all_records = self._load_all_records()
         observed = [r for r in all_records if r.is_observed]
         pending = [r for r in all_records if not r.is_observed]
         # 按模型版本分组
-        by_version: Dict[str, int] = {}
+        by_version: dict[str, int] = {}
         for r in all_records:
             by_version[r.model_version] = by_version.get(r.model_version, 0) + 1
         return {

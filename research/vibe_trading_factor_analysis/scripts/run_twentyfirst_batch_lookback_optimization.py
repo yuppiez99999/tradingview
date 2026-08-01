@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """S3 第二十一批次：IC 加权组合 lookback 窗口优化验证（P2.2 v6.9）
 
 设计背景：
@@ -39,7 +38,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -107,7 +106,7 @@ LOOKBACK_CONFIGS = {
 }
 
 
-def cross_sectional_rank(values: Dict[str, float]) -> Dict[str, float]:
+def cross_sectional_rank(values: dict[str, float]) -> dict[str, float]:
     """cross-sectional rank 标准化到 [0, 1]"""
     valid = {s: v for s, v in values.items()
              if isinstance(v, (int, float)) and np.isfinite(v)}
@@ -120,7 +119,7 @@ def cross_sectional_rank(values: Dict[str, float]) -> Dict[str, float]:
 
 
 def compute_rolling_ic_ir_at_t(
-    ic_series: List[float],
+    ic_series: list[float],
     t: int,
     lookback: int,
 ) -> float:
@@ -143,20 +142,20 @@ def compute_rolling_ic_ir_at_t(
 
 
 def combine_factors_ic_weighted(
-    factor_history_a: List[Dict[str, float]],
-    factor_history_b: List[Dict[str, float]],
-    ic_series_a: List[float],
-    ic_series_b: List[float],
+    factor_history_a: list[dict[str, float]],
+    factor_history_b: list[dict[str, float]],
+    ic_series_a: list[float],
+    ic_series_b: list[float],
     lookback: int,
-) -> Tuple[List[Dict[str, float]], List[Dict[str, float]]]:
+) -> tuple[list[dict[str, float]], list[dict[str, float]]]:
     """IC 加权组合（动态权重，符号自适应）
 
     Args:
         lookback: 滚动 IC_IR 回看窗口（关键参数）
     """
     n = min(len(factor_history_a), len(factor_history_b))
-    combined: List[Dict[str, float]] = []
-    weights_history: List[Dict[str, float]] = []
+    combined: list[dict[str, float]] = []
+    weights_history: list[dict[str, float]] = []
 
     for t in range(n):
         ic_ir_a = compute_rolling_ic_ir_at_t(ic_series_a, t, lookback)
@@ -189,10 +188,10 @@ def combine_factors_ic_weighted(
 
 
 def compute_ic_metrics(
-    factor_history: List[Dict[str, float]],
-    forward_returns_history: List[Dict[str, float]],
+    factor_history: list[dict[str, float]],
+    forward_returns_history: list[dict[str, float]],
     name: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """计算完整 IC 指标"""
     ic_series = compute_rolling_ic_series(factor_history, forward_returns_history)
     ic_ir, ic_mean, ic_std = compute_ic_ir(ic_series)
@@ -207,11 +206,11 @@ def compute_ic_metrics(
 
 def run_shadow_test(
     shadow_account: ShadowAccount,
-    factor_history: List[Dict[str, float]],
-    forward_returns_history: List[Dict[str, float]],
+    factor_history: list[dict[str, float]],
+    forward_returns_history: list[dict[str, float]],
     n_trials: int,
     name: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """执行 Shadow 测试"""
     result = shadow_account.run_shadow(
         factor_values_history=factor_history,
@@ -234,10 +233,10 @@ def run_shadow_test(
 
 
 def analyze_weights(
-    weights_history: List[Dict[str, float]],
+    weights_history: list[dict[str, float]],
     lookback: int,
     n_days: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """分析权重变化（适应速度指标）
 
     关键指标：
@@ -303,16 +302,16 @@ def analyze_weights(
     }
 
 
-def load_fundamentals_history(symbols: List[str]) -> Dict[str, Any]:
+def load_fundamentals_history(symbols: list[str]) -> dict[str, Any]:
     """从 cache/fundamentals/ 加载历史季度财务数据"""
     cache_dir = _PROJECT_ROOT / "cache" / "fundamentals"
-    history: Dict[str, Any] = {}
+    history: dict[str, Any] = {}
     for sym in symbols:
         cache_path = cache_dir / f"{sym}_history.json"
         if not cache_path.exists():
             continue
         try:
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(cache_path, encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict) and data.get("n_valid", 0) >= 4:
                 history[sym] = data
@@ -402,7 +401,7 @@ def main() -> int:
     n_trials = max(len(symbols), 13)
     logger.info(f"  n_trials: {n_trials}")
 
-    all_results: Dict[str, Dict[str, Any]] = {}
+    all_results: dict[str, dict[str, Any]] = {}
 
     for config_name, config in LOOKBACK_CONFIGS.items():
         lookback = config["lookback"]

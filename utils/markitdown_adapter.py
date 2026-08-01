@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """MarkItDown 文档转换适配器 — 28 系统集成层
 
 核心功能:
@@ -28,7 +27,6 @@ import logging
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("markitdown_adapter")
 
@@ -66,14 +64,14 @@ class MarkItDownAdapter:
         >>> print(md[:200])
     """
 
-    _instance: Optional["MarkItDownAdapter"] = None
+    _instance: MarkItDownAdapter | None = None
 
     def __init__(self) -> None:
-        self._py_version: Optional[str] = None
-        self._installed: Optional[bool] = None  # None=未检查, True/False=已检查
+        self._py_version: str | None = None
+        self._installed: bool | None = None  # None=未检查, True/False=已检查
 
     @classmethod
-    def get_instance(cls) -> "MarkItDownAdapter":
+    def get_instance(cls) -> MarkItDownAdapter:
         """获取单例."""
         if cls._instance is None:
             cls._instance = cls()
@@ -83,7 +81,7 @@ class MarkItDownAdapter:
     # 环境检测
     # ============================================================
 
-    def _find_python310(self) -> Optional[str]:
+    def _find_python310(self) -> str | None:
         """查找可用的 Python 3.10+ 版本.
 
         Returns:
@@ -276,7 +274,7 @@ class MarkItDownAdapter:
 # 便捷函数
 # ============================================================
 
-_default_adapter: Optional[MarkItDownAdapter] = None
+_default_adapter: MarkItDownAdapter | None = None
 
 
 def get_adapter() -> MarkItDownAdapter:

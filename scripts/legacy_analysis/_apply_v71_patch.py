@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """V7.1 信号后处理补丁: 在 _lgb_walkforward_train 后对 bull regime 下高波动股施加信号惩罚
 
 逻辑:
@@ -14,7 +13,7 @@
 """
 
 fp = r'e:\各种PY程序\28-终极量化交易系统8.4\institutional_pipeline_runner.py'
-with open(fp, 'r', encoding='utf-8') as f:
+with open(fp, encoding='utf-8') as f:
     content = f.read()
 
 # 1. 检查是否已应用 V7.1 补丁

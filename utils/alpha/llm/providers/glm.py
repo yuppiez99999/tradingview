@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """智谱 GLM-5 Provider (OpenAI 兼容接口).
 
 从原 `utils/alpha/llm_router.py:LLMRouter._call_glm` 拆出 (B3.4.3)。
@@ -8,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 from utils.alpha.llm.openai_compat import openai_compatible_chat
 
@@ -21,10 +20,10 @@ def call_glm(
     temperature: float,
     max_tokens: int,
     timeout: int,
-    provider_cfg: Dict[str, Any],
+    provider_cfg: dict[str, Any],
     max_retries: int = 1,
     retry_delay: float = 1.0,
-) -> Optional[str]:
+) -> str | None:
     """智谱 GLM-5 — OpenAI 兼容接口.
 
     Args:

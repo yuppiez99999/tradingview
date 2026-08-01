@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """_preload_historical_data B2.3 合并去重 + 并发 单元测试
 
 覆盖场景:

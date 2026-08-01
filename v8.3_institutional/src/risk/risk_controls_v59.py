@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 风险控制模块 — 对冲基金级交易风控 (Pre-Trade / Post-Trade)
 
@@ -27,7 +26,7 @@ import threading
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -54,7 +53,7 @@ class AlertNotifier:
     """
 
     def quick_alert(
-        self, title: str = "", content: str = "", level: "AlertLevel" = AlertLevel.NORMAL, source: str = ""
+        self, title: str = "", content: str = "", level: AlertLevel = AlertLevel.NORMAL, source: str = ""
     ) -> None:
         logger.info(f"[{source}] [{level.value if hasattr(level, 'value') else level}] {title}: {content}")
 
@@ -112,7 +111,7 @@ class KillSwitch:
 
     def __init__(self):
         self._activated = False
-        self._activated_at: Optional[datetime] = None
+        self._activated_at: datetime | None = None
         self._reason = ""
         self._lock = threading.Lock()
 
@@ -134,7 +133,7 @@ class KillSwitch:
             self._reason = ""
             logger.warning("[KillSwitch] 紧急熔断已解除")
 
-    def check(self) -> Tuple[bool, str]:
+    def check(self) -> tuple[bool, str]:
         """检查熔断状态"""
         if self._activated:
             return True, f"熔断中 ({self._activated_at}): {self._reason}"
@@ -170,9 +169,9 @@ class RiskControlManager:
         code: str,
         action: OrderAction,
         amount: float,
-        current_positions: Dict[str, float],
-        current_prices: Dict[str, float],
-        sector_map: Optional[Dict[str, str]] = None,
+        current_positions: dict[str, float],
+        current_prices: dict[str, float],
+        sector_map: dict[str, str] | None = None,
     ) -> PreTradeResult:
         """
         交易前综合检查。
@@ -302,8 +301,8 @@ class RiskControlManager:
     # ── 组合风险报告 ──
 
     def portfolio_risk_report(
-        self, positions: Dict[str, float], prices: Dict[str, float], sector_map: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        self, positions: dict[str, float], prices: dict[str, float], sector_map: dict[str, str] | None = None
+    ) -> dict[str, Any]:
         """生成组合风险报告"""
         with self._lock:
             total_value = sum(positions.values())
@@ -323,7 +322,7 @@ class RiskControlManager:
 
             # 板块集中度
             if sector_map:
-                sector_breakdown: Dict[str, float] = {}
+                sector_breakdown: dict[str, float] = {}
                 for code, value in positions.items():
                     sector = sector_map.get(code, "unknown")
                     sector_breakdown[sector] = sector_breakdown.get(sector, 0) + value
@@ -409,7 +408,7 @@ class RiskControlManager:
 # ── 便捷函数 ──
 
 
-def calculate_position_weights(positions: Dict[str, float], total_capital: float) -> Dict[str, float]:
+def calculate_position_weights(positions: dict[str, float], total_capital: float) -> dict[str, float]:
     """计算持仓权重"""
     if total_capital <= 0:
         return {}
@@ -417,9 +416,9 @@ def calculate_position_weights(positions: Dict[str, float], total_capital: float
 
 
 def calculate_var_parametric(
-    positions: Dict[str, float],
-    volatilities: Dict[str, float],
-    correlation_matrix: Optional[Dict[Tuple[str, str], float]] = None,
+    positions: dict[str, float],
+    volatilities: dict[str, float],
+    correlation_matrix: dict[tuple[str, str], float] | None = None,
     confidence: float = 0.95,
     horizon_days: int = 1,
 ) -> float:
@@ -477,10 +476,10 @@ def calculate_var_parametric(
 
 
 def calculate_marginal_risk_contribution(
-    positions: Dict[str, float],
-    volatilities: Dict[str, float],
-    correlation_matrix: Optional[Dict[Tuple[str, str], float]] = None,
-) -> Dict[str, float]:
+    positions: dict[str, float],
+    volatilities: dict[str, float],
+    correlation_matrix: dict[tuple[str, str], float] | None = None,
+) -> dict[str, float]:
     """
     计算各标的的边际风险贡献 (MRC, Marginal Risk Contribution).
 
@@ -544,12 +543,12 @@ def calculate_marginal_risk_contribution(
 
 
 def check_correlation_risk(
-    positions: Dict[str, float],
+    positions: dict[str, float],
     returns_df: pd.DataFrame = None,
     lookback_days: int = 60,
     high_corr_threshold: float = 0.7,
     correlation_spike_threshold: float = 0.15,
-) -> List[str]:
+) -> list[str]:
     """
     P0-7 修复：检查组合内相关性风险。
 
@@ -615,11 +614,11 @@ def check_correlation_risk(
 
 
 def check_concentration_risk(
-    positions: Dict[str, float], sector_map: Dict[str, str], max_sector_pct: float = 0.40, total_capital: float = 1.0
-) -> List[str]:
+    positions: dict[str, float], sector_map: dict[str, str], max_sector_pct: float = 0.40, total_capital: float = 1.0
+) -> list[str]:
     """检查行业集中度风险"""
     alerts = []
-    sector_values: Dict[str, float] = {}
+    sector_values: dict[str, float] = {}
 
     for code, value in positions.items():
         sector = sector_map.get(code, "unknown")

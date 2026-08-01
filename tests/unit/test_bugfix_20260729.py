@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 2026-07-29 三维扫描修复回归测试
 
@@ -187,7 +186,7 @@ class TestConcurrencyAtomicWrite:
             for _ in range(100):
                 if target.exists():
                     try:
-                        with open(target, "r", encoding="utf-8") as f:
+                        with open(target, encoding="utf-8") as f:
                             json.load(f)
                     except json.JSONDecodeError as e:
                         errors.append(e)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.6 TCA (Transaction Cost Analysis) — 交易成本分析闭环
 
@@ -16,7 +15,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -36,19 +34,19 @@ class TradeRecord:
     vwap_benchmark: float  # 当日 VWAP
     close_price: float  # 当日收盘价
     decision_time: str  # ISO 时间
-    first_fill_time: Optional[str] = None
-    last_fill_time: Optional[str] = None
+    first_fill_time: str | None = None
+    last_fill_time: str | None = None
     market_volume: float = 0.0  # 当日市场成交量
     commission_rate: float = 0.00025  # 佣金率 2.5bps
     stamp_tax_rate: float = 0.001  # 印花税 10bps (仅卖出)
 
     # 订单属性
     order_type: str = "LIMIT"  # LIMIT / MARKET / TWAP / VWAP / POV
-    limit_price: Optional[float] = None
-    participation_rate: Optional[float] = None  # POV 订单参与率
+    limit_price: float | None = None
+    participation_rate: float | None = None  # POV 订单参与率
 
     # 成交明细
-    fill_detail: Optional[Dict] = None  # 可用于进一步分析
+    fill_detail: dict | None = None  # 可用于进一步分析
 
 
 @dataclass
@@ -109,17 +107,17 @@ class TransactionCostAnalyzer:
         self.nav = nav
         self.spread_estimate = spread_estimate
         self.impact_model = impact_model
-        self.trades: List[TradeRecord] = []
-        self.reports: List[TCAReportLine] = []
+        self.trades: list[TradeRecord] = []
+        self.reports: list[TCAReportLine] = []
 
     def add_trade(self, trade: TradeRecord) -> None:
         self.trades.append(trade)
 
-    def add_trades(self, trades: List[TradeRecord]) -> None:
+    def add_trades(self, trades: list[TradeRecord]) -> None:
         self.trades.extend(trades)
 
     # ---------- 成本分解 ----------
-    def _calc_arrival_cost(self, trade: TradeRecord) -> Tuple[float, float]:
+    def _calc_arrival_cost(self, trade: TradeRecord) -> tuple[float, float]:
         """计算到达成本 (Arrival Cost)
 
         买入: (avg_fill - arrival) / arrival  (正 = 买贵了)
@@ -290,12 +288,12 @@ class TransactionCostAnalyzer:
         return report
 
     # ---------- 批量分析 ----------
-    def analyze(self) -> List[TCAReportLine]:
+    def analyze(self) -> list[TCAReportLine]:
         """分析全部交易"""
         self.reports = [self.analyze_single(t) for t in self.trades]
         return self.reports
 
-    def rolling_summary(self, window_days: int = 20) -> Dict:
+    def rolling_summary(self, window_days: int = 20) -> dict:
         """滚动窗口执行质量统计"""
         if not self.reports:
             self.analyze()
@@ -339,7 +337,7 @@ class TransactionCostAnalyzer:
             "sell_slippage_bps": _avg(sells, "slippage_bps"),
         }
 
-    def cost_attribution_report(self) -> Dict:
+    def cost_attribution_report(self) -> dict:
         """五维成本归因 + 改进建议"""
         summary = self.rolling_summary()
 
@@ -383,7 +381,7 @@ class TransactionCostAnalyzer:
             },
         }
 
-    def report(self) -> Dict:
+    def report(self) -> dict:
         """生成完整 TCA 报告"""
         summary = self.rolling_summary()
         attribution = self.cost_attribution_report()

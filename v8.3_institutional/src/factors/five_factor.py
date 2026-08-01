@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 五维因子选股模型
 基于世界顶级对冲基金标准的综合因子评估系统
@@ -451,14 +450,14 @@ def main():
 
             if not settings:
                 try:
-                    with open(settings_path, "r", encoding="utf-8") as f:
+                    with open(settings_path, encoding="utf-8") as f:
                         settings = yaml.safe_load(f) or {}
                 except Exception as e:
                     logger.warning(f"settings.yaml 加载失败: {e}")
                     settings = {}
             if not portfolio:
                 try:
-                    with open(portfolio_path, "r", encoding="utf-8") as f:
+                    with open(portfolio_path, encoding="utf-8") as f:
                         portfolio = yaml.safe_load(f) or {}
                 except Exception as e:
                     logger.warning(f"portfolio.yaml 加载失败: {e}")

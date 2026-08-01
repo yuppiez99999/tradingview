@@ -23,7 +23,6 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # 添加项目路径
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -48,7 +47,7 @@ logger = logging.getLogger("v75.train_qlib")
 # 用户真实交易计划标的列表
 # ============================================================
 
-USER_SYMBOLS: List[Dict[str, str]] = [
+USER_SYMBOLS: list[dict[str, str]] = [
     # 宽基 ETF（第一梯队）
     {"code": "510300", "name": "沪深300ETF"},
     {"code": "510500", "name": "中证500ETF"},
@@ -85,9 +84,9 @@ USER_SYMBOLS: List[Dict[str, str]] = [
 ]
 
 
-def load_trade_plan(plan_path: str) -> List[Dict]:
+def load_trade_plan(plan_path: str) -> list[dict]:
     """加载交易计划，提取标的信息"""
-    with open(plan_path, 'r', encoding='utf-8') as f:
+    with open(plan_path, encoding='utf-8') as f:
         plan = json.load(f)
 
     orders = (
@@ -107,7 +106,7 @@ def load_trade_plan(plan_path: str) -> List[Dict]:
     return symbols
 
 
-def train_symbol(symbol_info: Dict, days: int = 120, force_retrain: bool = False) -> Optional[Dict]:
+def train_symbol(symbol_info: dict, days: int = 120, force_retrain: bool = False) -> dict | None:
     """训练单个标的的模型
 
     Args:
@@ -184,7 +183,7 @@ def train_symbol(symbol_info: Dict, days: int = 120, force_retrain: bool = False
     }
 
 
-def batch_train(symbols: List[Dict], days: int = 120, force_retrain: bool = False) -> List[Dict]:
+def batch_train(symbols: list[dict], days: int = 120, force_retrain: bool = False) -> list[dict]:
     """批量训练"""
     results = []
     total = len(symbols)
@@ -197,7 +196,7 @@ def batch_train(symbols: List[Dict], days: int = 120, force_retrain: bool = Fals
     return results
 
 
-def print_report(results: List[Dict]):
+def print_report(results: list[dict]):
     """打印训练报告"""
     print("\n" + "=" * 90)
     print(f"v7.5 模型训练报告 — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

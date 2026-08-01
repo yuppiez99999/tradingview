@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """debate_engine 测试: 辩论触发条件 / 2 轮 / 结构化解析"""
 
 from __future__ import annotations

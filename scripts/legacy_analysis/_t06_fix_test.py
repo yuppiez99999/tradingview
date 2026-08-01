@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T06: 修复测试断言."""
 from pathlib import Path
 

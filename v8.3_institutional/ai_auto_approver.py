@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AI 自动确认模块（第三步-1） — v1.0
 ====================================
@@ -19,7 +18,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 _BASE = Path(__file__).resolve().parent
 if str(_BASE) not in sys.path:
@@ -36,7 +35,7 @@ except Exception:
 class AIAutoApprover:
     """基于规则 + 轻量 LLM 校验的自动确认器"""
 
-    def __init__(self, trade_date: Optional[str] = None, auto_mode: bool = False):
+    def __init__(self, trade_date: str | None = None, auto_mode: bool = False):
         self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
         self.auto_mode = auto_mode
         self.timestamp = datetime.now().isoformat()
@@ -57,8 +56,8 @@ class AIAutoApprover:
         self.gate_path = self._resolve_gate_path()
         self.out_path = self.instructions_dir / f"ai_approved_{self.trade_date.replace('-', '')}.json"
 
-        self.gate: Dict[str, Any] = {}
-        self.checks: Dict[str, Any] = {}
+        self.gate: dict[str, Any] = {}
+        self.checks: dict[str, Any] = {}
 
     def _resolve_gate_path(self) -> Path:
         compact = self.trade_date.replace("-", "")
@@ -88,7 +87,7 @@ class AIAutoApprover:
     # ------------------------------------------------------------------
     # 自动确认条件检查
     # ------------------------------------------------------------------
-    def _run_checks(self) -> Dict[str, Any]:
+    def _run_checks(self) -> dict[str, Any]:
         fusion = self.gate.get("fusion_result", {}) or {}
         approved = fusion.get("approved_instructions", []) or []
         rejected = fusion.get("rejected_instructions", []) or []
@@ -127,7 +126,7 @@ class AIAutoApprover:
     # ------------------------------------------------------------------
     # 确认结果生成
     # ------------------------------------------------------------------
-    def build_approved_result(self, approved: bool) -> Dict[str, Any]:
+    def build_approved_result(self, approved: bool) -> dict[str, Any]:
         meta = {
             "trade_date": self.trade_date,
             "generated_at": self.timestamp,
@@ -168,7 +167,7 @@ class AIAutoApprover:
         }
         return result
 
-    def save(self, payload: Dict[str, Any]) -> Path:
+    def save(self, payload: dict[str, Any]) -> Path:
         self.out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         logger.info(f"已写入确认结果: {self.out_path}")
         return self.out_path
@@ -176,7 +175,7 @@ class AIAutoApprover:
     # ------------------------------------------------------------------
     # 主流程
     # ------------------------------------------------------------------
-    def run(self) -> Dict[str, Any]:
+    def run(self) -> dict[str, Any]:
         if not self.load_gate():
             return {"status": "FAIL", "error": "load_gate_failed"}
 
@@ -197,7 +196,7 @@ class AIAutoApprover:
         return {"status": status, "approved": approved, "path": str(self.out_path)}
 
 
-def run_ai_auto_approver(trade_date: Optional[str] = None, auto_mode: bool = False) -> Dict[str, Any]:
+def run_ai_auto_approver(trade_date: str | None = None, auto_mode: bool = False) -> dict[str, Any]:
     approver = AIAutoApprover(trade_date=trade_date, auto_mode=auto_mode)
     return approver.run()
 

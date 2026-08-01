@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """LLM 路由器子包 — 终极量化交易系统 8.4 (B3.4 拆分).
 
 将原 `utils/alpha/llm_router.py` (1110 行 God Class) 拆分为:

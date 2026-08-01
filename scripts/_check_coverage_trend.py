@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """覆盖率趋势检测脚本 — GAP-3 交付物.
 
 ECC mle-workflow + coding-standards 修复:
@@ -31,7 +30,7 @@ import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _COVERAGE_XML = _PROJECT_ROOT / "coverage.xml"
@@ -39,7 +38,7 @@ _BASELINE_FILE = _PROJECT_ROOT / "coverage_baseline.json"
 _DROP_THRESHOLD = 2.0  # 下降 > 2% 时阻断
 
 
-def parse_coverage_xml(xml_path: Path = _COVERAGE_XML) -> Optional[Dict[str, Any]]:
+def parse_coverage_xml(xml_path: Path = _COVERAGE_XML) -> dict[str, Any] | None:
     """解析 coverage.xml, 提取覆盖率数据.
 
     Args:
@@ -103,7 +102,7 @@ def parse_coverage_xml(xml_path: Path = _COVERAGE_XML) -> Optional[Dict[str, Any
     }
 
 
-def load_baseline(baseline_path: Path = _BASELINE_FILE) -> Optional[Dict[str, Any]]:
+def load_baseline(baseline_path: Path = _BASELINE_FILE) -> dict[str, Any] | None:
     """加载上次覆盖率 baseline.
 
     Args:
@@ -115,7 +114,7 @@ def load_baseline(baseline_path: Path = _BASELINE_FILE) -> Optional[Dict[str, An
     if not baseline_path.exists():
         return None
     try:
-        with open(baseline_path, "r", encoding="utf-8") as f:
+        with open(baseline_path, encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         print(f"[GAP-3] baseline 加载失败: {e}", file=sys.stderr)
@@ -123,7 +122,7 @@ def load_baseline(baseline_path: Path = _BASELINE_FILE) -> Optional[Dict[str, An
 
 
 def update_baseline(
-    current: Dict[str, Any],
+    current: dict[str, Any],
     baseline_path: Path = _BASELINE_FILE,
 ) -> None:
     """更新 baseline 文件 (本地产物, 不在 CI 调用).
@@ -141,10 +140,10 @@ def update_baseline(
 
 
 def compare_coverage(
-    current: Dict[str, Any],
-    baseline: Dict[str, Any],
+    current: dict[str, Any],
+    baseline: dict[str, Any],
     drop_threshold: float = _DROP_THRESHOLD,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """对比当前覆盖率与 baseline.
 
     Args:

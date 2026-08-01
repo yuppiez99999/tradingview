@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ShadowAccount 单元测试 - CIO v1.0
 
 验证：

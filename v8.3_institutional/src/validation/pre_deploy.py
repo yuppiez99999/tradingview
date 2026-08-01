@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 pre_deployment_validation.py — 生产部署前 7 项验证清单 v1.0
 
@@ -830,7 +829,7 @@ def check_ntp_drift(
 def _parse_ntp_log(filepath: str) -> List[Dict[str, Any]]:
     """解析 NTP 漂移日志文件"""
     records = []
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
@@ -1472,15 +1471,15 @@ def main():
     }
 
     if args.returns_file and os.path.exists(args.returns_file):
-        with open(args.returns_file, "r", encoding="utf-8") as f:
+        with open(args.returns_file, encoding="utf-8") as f:
             context["daily_returns"] = json.load(f)
 
     if args.weights_file and os.path.exists(args.weights_file):
-        with open(args.weights_file, "r", encoding="utf-8") as f:
+        with open(args.weights_file, encoding="utf-8") as f:
             context["portfolio_weights"] = json.load(f)
 
     if args.trade_log and os.path.exists(args.trade_log):
-        with open(args.trade_log, "r", encoding="utf-8") as f:
+        with open(args.trade_log, encoding="utf-8") as f:
             context["trade_records"] = json.load(f)
 
     if args.ntp_log:

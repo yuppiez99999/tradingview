@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """S3 第十五批次：MARGIN_EXP + VT_MICRO_VOL_SKEW_INV 组合验证（P2.2 v6.3）
 
 设计背景：
@@ -36,7 +35,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 
@@ -70,7 +69,7 @@ FACTOR_A = "VT_MICRO_VOL_SKEW_INV"          # 微观结构类（第八批次 app
 FACTOR_B = "VT_QUALTREND_MARGIN_EXP"        # 质量变化类（第十四批次 approved）
 
 
-def cross_sectional_rank(values: Dict[str, float]) -> Dict[str, float]:
+def cross_sectional_rank(values: dict[str, float]) -> dict[str, float]:
     """cross-sectional rank 标准化到 [0, 1]
 
     将原始因子值按大小排序，转换为 [0, 1] 区间的 rank。
@@ -93,10 +92,10 @@ def cross_sectional_rank(values: Dict[str, float]) -> Dict[str, float]:
 
 
 def combine_factors_equal_weight(
-    factor_history_a: List[Dict[str, float]],
-    factor_history_b: List[Dict[str, float]],
+    factor_history_a: list[dict[str, float]],
+    factor_history_b: list[dict[str, float]],
     weight_a: float = 0.5,
-) -> List[Dict[str, float]]:
+) -> list[dict[str, float]]:
     """等权组合两个因子（先 rank 标准化再加权相加）
 
     组合方法：
@@ -127,10 +126,10 @@ def combine_factors_equal_weight(
 
 
 def compute_all_ic_metrics(
-    factor_history: List[Dict[str, float]],
-    forward_returns_history: List[Dict[str, float]],
+    factor_history: list[dict[str, float]],
+    forward_returns_history: list[dict[str, float]],
     name: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """计算单因子的完整 IC 指标：IC_IR, IC_mean, IC_std, IC_decay
 
     Args:
@@ -156,11 +155,11 @@ def compute_all_ic_metrics(
 
 def run_shadow_test(
     shadow_account: ShadowAccount,
-    factor_history: List[Dict[str, float]],
-    forward_returns_history: List[Dict[str, float]],
+    factor_history: list[dict[str, float]],
+    forward_returns_history: list[dict[str, float]],
     n_trials: int,
     name: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """执行 Shadow 测试并返回关键字段
 
     Args:
@@ -200,7 +199,7 @@ def run_shadow_test(
     }
 
 
-def load_fundamentals_history(symbols: List[str]) -> Dict[str, Any]:
+def load_fundamentals_history(symbols: list[str]) -> dict[str, Any]:
     """从 cache/fundamentals/ 加载历史季度财务数据
 
     Args:
@@ -210,13 +209,13 @@ def load_fundamentals_history(symbols: List[str]) -> Dict[str, Any]:
         {symbol: {"quarters": [...], "n_valid": int, ...}}
     """
     cache_dir = _PROJECT_ROOT / "cache" / "fundamentals"
-    history: Dict[str, Any] = {}
+    history: dict[str, Any] = {}
     for sym in symbols:
         cache_path = cache_dir / f"{sym}_history.json"
         if not cache_path.exists():
             continue
         try:
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(cache_path, encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict) and data.get("n_valid", 0) >= 4:
                 history[sym] = data

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """检查真实 A 股历史数据结构"""
 import json
 from pathlib import Path
@@ -15,7 +14,7 @@ print("=" * 70)
 etf_file = PROJECT / "data" / "etf_fallback" / "510300.json"
 print(f"\n[1] 510300 ETF JSON: {etf_file}")
 print(f"    大小: {etf_file.stat().st_size} bytes")
-with open(etf_file, "r", encoding="utf-8") as f:
+with open(etf_file, encoding="utf-8") as f:
     etf_data = json.load(f)
 print(f"    类型: {type(etf_data).__name__}")
 if isinstance(etf_data, dict):

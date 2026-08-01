@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """烟雾测试运行器 — GAP-1 交付物.
 
 ECC coding-standards 修复:
@@ -24,7 +23,7 @@ import sys
 import time
 import traceback
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
@@ -43,9 +42,9 @@ class SmokeResult:
         self.category = category
         self.passed = False
         self.duration_ms = 0.0
-        self.error: Optional[str] = None
+        self.error: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "category": self.category,
@@ -176,7 +175,7 @@ def _config_load_json(path: str) -> Callable[[], None]:
         full_path = _PROJECT_ROOT / path
         if not full_path.exists():
             raise FileNotFoundError(f"配置文件不存在: {full_path}")
-        with open(full_path, "r", encoding="utf-8") as f:
+        with open(full_path, encoding="utf-8") as f:
             data = json.load(f)
         assert data is not None, f"配置文件为空: {path}"
     return _test
@@ -191,7 +190,7 @@ def _config_load_yaml(path: str) -> Callable[[], None]:
             import yaml
         except ImportError as e:
             raise ImportError(f"yaml 模块未安装: {e}") from e
-        with open(full_path, "r", encoding="utf-8") as f:
+        with open(full_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         assert data is not None, f"配置文件为空: {path}"
     return _test
@@ -233,7 +232,7 @@ def main() -> int:
     print("=" * 60)
 
     # 收集要跑的测试
-    tests: List[Tuple[str, str, Callable[[], None]]] = []
+    tests: list[tuple[str, str, Callable[[], None]]] = []
     if args.category in ("import", "all"):
         for module_path, cat in IMPORT_SMOKE_TESTS:
             tests.append((f"import {module_path}", cat, _smoke_import(module_path)))
@@ -243,7 +242,7 @@ def main() -> int:
         tests.extend(CONFIG_SMOKE_TESTS)
 
     # 执行
-    results: List[SmokeResult] = []
+    results: list[SmokeResult] = []
     total_start = time.perf_counter()
     for name, cat, func in tests:
         result = _run_smoke(name, cat, func)

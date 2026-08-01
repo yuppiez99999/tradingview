@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T13: ConfigManager 单元测试 — 补关键模块覆盖率.
 
 覆盖 utils/config_manager.py 的:

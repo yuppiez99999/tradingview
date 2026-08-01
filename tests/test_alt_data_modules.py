@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 另类数据层模块单元测试 (Alternative Data Layer Modules Tests)
 

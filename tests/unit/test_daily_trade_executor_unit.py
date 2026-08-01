@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 daily_trade_executor 单元测试 (C-1.2)
 =====================================
@@ -965,7 +964,7 @@ class TestConfirmAllInstructions:
         result = dte.confirm_all_instructions("2026-08-01")
         assert result == 2
         # 验证文件已更新
-        with open(instruction_file, "r", encoding="utf-8") as f:
+        with open(instruction_file, encoding="utf-8") as f:
             updated = json.load(f)
         assert all(i["confirm"] is True for i in updated["instructions"])
 
@@ -1453,7 +1452,7 @@ class TestSaveInstructionFile:
         assert output_file.name == "2026-08-01_instructions.json"
         assert md_file.name == "2026-08-01_instructions.md"
         # 验证 JSON 可读
-        with open(output_file, "r", encoding="utf-8") as f:
+        with open(output_file, encoding="utf-8") as f:
             loaded = json.load(f)
         assert loaded["meta"]["instruction_date"] == "2026-08-01"
 

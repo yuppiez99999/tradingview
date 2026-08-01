@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证: alpha 评估修复后是否产生 real alpha"""
 import sys
 

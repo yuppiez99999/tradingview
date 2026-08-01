@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Alpha 因子库 (Alpha Factor Library)
 
@@ -18,7 +17,6 @@ Alpha 因子库 (Alpha Factor Library)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -34,7 +32,7 @@ class FactorValue:
 
     name: str  # 因子名
     category: str  # 因子类别
-    values: Dict[str, float]  # {symbol: factor_value}
+    values: dict[str, float]  # {symbol: factor_value}
     ic_1d: float = 0.0  # 1 日 IC
     ic_5d: float = 0.0  # 5 日 IC
     ic_20d: float = 0.0  # 20 日 IC
@@ -47,13 +45,13 @@ class FactorValue:
 class FactorLibraryResult:
     """因子库计算结果"""
 
-    factors: Dict[str, FactorValue] = field(default_factory=dict)
+    factors: dict[str, FactorValue] = field(default_factory=dict)
     # 因子相关性矩阵
-    factor_corr_matrix: Optional[pd.DataFrame] = None
+    factor_corr_matrix: pd.DataFrame | None = None
     # 有效因子 (|IC| > 0.03)
-    effective_factors: List[str] = field(default_factory=list)
+    effective_factors: list[str] = field(default_factory=list)
     # 强因子 (|IC| > 0.05)
-    strong_factors: List[str] = field(default_factory=list)
+    strong_factors: list[str] = field(default_factory=list)
 
 
 # ============================================================
@@ -128,10 +126,10 @@ class AlphaFactorLibrary:
 
     def compute_all(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-        fundamentals: Optional[Dict[str, Dict[str, float]]] = None,
-        industries: Optional[Dict[str, str]] = None,
-        benchmark_returns: Optional[List[float]] = None,
+        price_data: dict[str, dict[str, list[float]]],
+        fundamentals: dict[str, dict[str, float]] | None = None,
+        industries: dict[str, str] | None = None,
+        benchmark_returns: list[float] | None = None,
     ) -> FactorLibraryResult:
         """计算所有因子
 
@@ -196,9 +194,9 @@ class AlphaFactorLibrary:
 
     def _compute_momentum_factors(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-    ) -> Dict[str, FactorValue]:
-        factors: Dict[str, FactorValue] = {}
+        price_data: dict[str, dict[str, list[float]]],
+    ) -> dict[str, FactorValue]:
+        factors: dict[str, FactorValue] = {}
 
         # MOM_20D / 60D / 120D / 252D
         for window, name in [(20, "MOM_20D"), (60, "MOM_60D"), (120, "MOM_120D"), (252, "MOM_252D")]:
@@ -266,9 +264,9 @@ class AlphaFactorLibrary:
 
     def _compute_value_factors(
         self,
-        fundamentals: Dict[str, Dict[str, float]],
-    ) -> Dict[str, FactorValue]:
-        factors: Dict[str, FactorValue] = {}
+        fundamentals: dict[str, dict[str, float]],
+    ) -> dict[str, FactorValue]:
+        factors: dict[str, FactorValue] = {}
 
         value_factors_spec = [
             ("VAL_PE", "pe", -1),  # 市盈率倒数
@@ -299,9 +297,9 @@ class AlphaFactorLibrary:
 
     def _compute_quality_factors(
         self,
-        fundamentals: Dict[str, Dict[str, float]],
-    ) -> Dict[str, FactorValue]:
-        factors: Dict[str, FactorValue] = {}
+        fundamentals: dict[str, dict[str, float]],
+    ) -> dict[str, FactorValue]:
+        factors: dict[str, FactorValue] = {}
 
         quality_fields = [
             ("QUA_ROE", "roe"),
@@ -331,10 +329,10 @@ class AlphaFactorLibrary:
 
     def _compute_volatility_factors(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-        benchmark_returns: Optional[List[float]] = None,
-    ) -> Dict[str, FactorValue]:
-        factors: Dict[str, FactorValue] = {}
+        price_data: dict[str, dict[str, list[float]]],
+        benchmark_returns: list[float] | None = None,
+    ) -> dict[str, FactorValue]:
+        factors: dict[str, FactorValue] = {}
 
         # VOL_20D / 60D / 120D / 252D
         for window, name in [(20, "VOL_20D"), (60, "VOL_60D"), (120, "VOL_120D"), (252, "VOL_252D")]:
@@ -411,9 +409,9 @@ class AlphaFactorLibrary:
 
     def _compute_size_factors(
         self,
-        fundamentals: Dict[str, Dict[str, float]],
-    ) -> Dict[str, FactorValue]:
-        factors: Dict[str, FactorValue] = {}
+        fundamentals: dict[str, dict[str, float]],
+    ) -> dict[str, FactorValue]:
+        factors: dict[str, FactorValue] = {}
 
         size_fields = [
             ("SIZE_LOG_MCAP", "market_cap"),
@@ -468,9 +466,9 @@ class AlphaFactorLibrary:
 
     def _compute_liquidity_factors(
         self,
-        price_data: Dict[str, Dict[str, List[float]]],
-    ) -> Dict[str, FactorValue]:
-        factors: Dict[str, FactorValue] = {}
+        price_data: dict[str, dict[str, list[float]]],
+    ) -> dict[str, FactorValue]:
+        factors: dict[str, FactorValue] = {}
 
         # LIQ_TURNOVER_20D / 60D
         for window, name in [(20, "LIQ_TURNOVER_20D"), (60, "LIQ_TURNOVER_60D")]:
@@ -556,7 +554,7 @@ class AlphaFactorLibrary:
     # 因子预处理
     # ------------------------------------------------------------
 
-    def _winsorize(self, values: Dict[str, float], n_sigma: float = 3.0) -> Dict[str, float]:
+    def _winsorize(self, values: dict[str, float], n_sigma: float = 3.0) -> dict[str, float]:
         """去极值 (MAD 法)"""
         if not values:
             return values
@@ -569,7 +567,7 @@ class AlphaFactorLibrary:
             return {k: float(np.clip(v, lower, upper)) for k, v in values.items()}
         return values
 
-    def _standardize(self, values: Dict[str, float]) -> Dict[str, float]:
+    def _standardize(self, values: dict[str, float]) -> dict[str, float]:
         """Z-score 标准化"""
         if not values:
             return values
@@ -581,12 +579,12 @@ class AlphaFactorLibrary:
 
     def _neutralize_by_industry(
         self,
-        values: Dict[str, float],
-        industries: Dict[str, str],
-    ) -> Dict[str, float]:
+        values: dict[str, float],
+        industries: dict[str, str],
+    ) -> dict[str, float]:
         """行业中性化"""
         # 按行业分组, 各组内做去均值
-        industry_groups: Dict[str, List[float]] = {}
+        industry_groups: dict[str, list[float]] = {}
         for sym, ind in industries.items():
             if sym in values:
                 industry_groups.setdefault(ind, []).append(values[sym])
@@ -597,9 +595,9 @@ class AlphaFactorLibrary:
 
     def _neutralize_by_size(
         self,
-        values: Dict[str, float],
-        sizes: Dict[str, float],
-    ) -> Dict[str, float]:
+        values: dict[str, float],
+        sizes: dict[str, float],
+    ) -> dict[str, float]:
         """规模中性化 (回归残差)"""
         common_syms = set(values.keys()) & set(sizes.keys())
         if len(common_syms) < 3:
@@ -624,7 +622,7 @@ class AlphaFactorLibrary:
     def _evaluate_factors(
         self,
         result: FactorLibraryResult,
-        price_data: Dict[str, Dict[str, List[float]]],
+        price_data: dict[str, dict[str, list[float]]],
     ) -> None:
         """评估因子有效性"""
         for name, fval in result.factors.items():
@@ -641,8 +639,8 @@ class AlphaFactorLibrary:
 
     def _calc_ic(
         self,
-        factor_values: Dict[str, float],
-        price_data: Dict[str, Dict[str, List[float]]],
+        factor_values: dict[str, float],
+        price_data: dict[str, dict[str, list[float]]],
         forward_days: int,
     ) -> float:
         """计算 IC (Spearman rank correlation)"""
@@ -671,8 +669,8 @@ class AlphaFactorLibrary:
 
     def _compute_factor_corr_matrix(
         self,
-        factors: Dict[str, FactorValue],
-    ) -> Optional[pd.DataFrame]:
+        factors: dict[str, FactorValue],
+    ) -> pd.DataFrame | None:
         """计算因子间相关性矩阵"""
         if not factors:
             return None

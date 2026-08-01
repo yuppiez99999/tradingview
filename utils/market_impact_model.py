@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Sequence
 
 import numpy as np
 
@@ -73,17 +73,17 @@ class ImpactEstimate:
     # 模型
     model_used: str  # AC / SQRT / LINEAR
     # 元数据
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class OptimalTrajectory:
     """最优执行轨迹 (Almgren-Chriss)"""
 
-    times: List[float]  # 时间点 [0, T]
-    holdings: List[float]  # 持仓轨迹 x(t)
-    trades: List[float]  # 交易轨迹 Δx(t)
-    speeds: List[float]  # 交易速度 v(t)
+    times: list[float]  # 时间点 [0, T]
+    holdings: list[float]  # 持仓轨迹 x(t)
+    trades: list[float]  # 交易轨迹 Δx(t)
+    speeds: list[float]  # 交易速度 v(t)
     # 成本与风险
     expected_cost: float  # 预期成本
     cost_variance: float  # 成本方差
@@ -109,7 +109,7 @@ class MarketImpactModel:
 
     def __init__(
         self,
-        params: Optional[ImpactParams] = None,
+        params: ImpactParams | None = None,
         # 默认参数 (A股调优)
         default_adv: float = 1_000_000,
         default_tick_size: float = 0.01,
@@ -126,9 +126,9 @@ class MarketImpactModel:
         self,
         symbol: str,
         order_shares: float,
-        adv: Optional[float] = None,
+        adv: float | None = None,
         decision_price: float = 0.0,
-        volatility: Optional[float] = None,
+        volatility: float | None = None,
         execution_time_days: float = 1.0,
     ) -> ImpactEstimate:
         """估计单笔订单的市场冲击
@@ -326,8 +326,8 @@ class MarketImpactModel:
 
     def estimate_basket(
         self,
-        orders: List[Dict[str, Any]],
-    ) -> List[ImpactEstimate]:
+        orders: list[dict[str, Any]],
+    ) -> list[ImpactEstimate]:
         """批量估计多个订单的冲击成本
 
         Args:
@@ -336,7 +336,7 @@ class MarketImpactModel:
         Returns:
             List[ImpactEstimate]
         """
-        results: List[ImpactEstimate] = []
+        results: list[ImpactEstimate] = []
         for o in orders:
             est = self.estimate(
                 symbol=str(o.get("symbol", "")),
@@ -358,8 +358,8 @@ class MarketImpactModel:
         total_shares: float,
         time_horizon: float = 1.0,
         volatility: float = 0.02,
-        lam_range: Optional[Sequence[float]] = None,
-    ) -> List[Tuple[float, float, float]]:
+        lam_range: Sequence[float] | None = None,
+    ) -> list[tuple[float, float, float]]:
         """生成执行有效前沿
 
         Returns:
@@ -368,7 +368,7 @@ class MarketImpactModel:
         if lam_range is None:
             lam_range = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
 
-        frontier: List[Tuple[float, float, float]] = []
+        frontier: list[tuple[float, float, float]] = []
         for lam in lam_range:
             traj = self.optimal_trajectory(
                 total_shares=total_shares,

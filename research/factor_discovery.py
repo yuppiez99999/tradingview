@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 因子挖掘工具 Factor Discovery
 终极量化交易系统 8.4
@@ -24,7 +23,6 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -107,14 +105,14 @@ class FactorValidationResult:
 @dataclass
 class DiscoveryReport:
     """因子挖掘报告"""
-    universe: List[str]
+    universe: list[str]
     start_date: str
     end_date: str
     n_symbols: int
     n_dates: int
     n_factors_tested: int
-    effective_factors: List[FactorValidationResult] = field(default_factory=list)
-    strong_factors: List[FactorValidationResult] = field(default_factory=list)
+    effective_factors: list[FactorValidationResult] = field(default_factory=list)
+    strong_factors: list[FactorValidationResult] = field(default_factory=list)
     generation_time: str = ""
 
 
@@ -130,7 +128,7 @@ class FactorDataFetcher:
     def __init__(self):
         self.source = AKShareDataSource()
 
-    def get_available_cached_symbols(self, min_days: int = 100) -> List[str]:
+    def get_available_cached_symbols(self, min_days: int = 100) -> list[str]:
         """获取本地缓存中可用的标的列表"""
         symbols = []
         if not self.CACHE_DIR.exists():
@@ -149,7 +147,7 @@ class FactorDataFetcher:
                 pass
         return symbols
 
-    def _load_from_cache(self, code: str) -> Optional[pd.DataFrame]:
+    def _load_from_cache(self, code: str) -> pd.DataFrame | None:
         """从本地 parquet 缓存加载数据"""
         code_num = code.split(".")[0]
         market = code.split(".")[-1] if "." in code else "SH"
@@ -168,10 +166,10 @@ class FactorDataFetcher:
 
     def fetch_daily_data(
         self,
-        codes: List[str],
+        codes: list[str],
         start_date: str,
-        end_date: Optional[str] = None,
-    ) -> Dict[str, pd.DataFrame]:
+        end_date: str | None = None,
+    ) -> dict[str, pd.DataFrame]:
         """获取多只标的日线数据
 
         Args:
@@ -222,7 +220,7 @@ class FactorDataFetcher:
 
     def _fetch_single(
         self, code: str, start_date: str, end_date: str
-    ) -> Optional[pd.DataFrame]:
+    ) -> pd.DataFrame | None:
         """获取单只标的数据"""
         try:
             import akshare as ak
@@ -291,10 +289,10 @@ class FactorCalculator:
 
     def compute_factors_panel(
         self,
-        daily_data: Dict[str, pd.DataFrame],
+        daily_data: dict[str, pd.DataFrame],
         lookback: int = 252,
         step: int = 5,
-    ) -> Dict[str, pd.DataFrame]:
+    ) -> dict[str, pd.DataFrame]:
         """计算因子面板 (每个时间点的因子值)
 
         Args:
@@ -311,7 +309,7 @@ class FactorCalculator:
         all_dates = [d for d in all_dates if d >= all_dates[0] + timedelta(days=lookback)]
 
         codes = list(daily_data.keys())
-        factor_panels: Dict[str, pd.DataFrame] = {}
+        factor_panels: dict[str, pd.DataFrame] = {}
 
         calc_dates = all_dates[::step]
         logger.info(f"  计算时点: {len(calc_dates)} 个 (从 {calc_dates[0].date()} 到 {calc_dates[-1].date()})")
@@ -365,14 +363,14 @@ class FactorValidator:
     IR_STRONG_THRESHOLD = 0.5
     IR_EFFECTIVE_THRESHOLD = 0.2
 
-    def __init__(self, forward_days: List[int] = None):
+    def __init__(self, forward_days: list[int] = None):
         self.forward_days = forward_days or [1, 5, 10, 20]
 
     def validate_all(
         self,
-        factor_panels: Dict[str, pd.DataFrame],
-        daily_data: Dict[str, pd.DataFrame],
-    ) -> List[FactorValidationResult]:
+        factor_panels: dict[str, pd.DataFrame],
+        daily_data: dict[str, pd.DataFrame],
+    ) -> list[FactorValidationResult]:
         """验证所有因子的有效性
 
         Args:
@@ -405,9 +403,9 @@ class FactorValidator:
 
     def _build_returns_panel(
         self,
-        daily_data: Dict[str, pd.DataFrame],
-        factor_panels: Dict[str, pd.DataFrame],
-    ) -> Dict[int, pd.DataFrame]:
+        daily_data: dict[str, pd.DataFrame],
+        factor_panels: dict[str, pd.DataFrame],
+    ) -> dict[int, pd.DataFrame]:
         """构建远期收益面板
 
         Returns:
@@ -434,8 +432,8 @@ class FactorValidator:
         self,
         factor_name: str,
         factor_panel: pd.DataFrame,
-        returns_panels: Dict[int, pd.DataFrame],
-    ) -> Optional[FactorValidationResult]:
+        returns_panels: dict[int, pd.DataFrame],
+    ) -> FactorValidationResult | None:
         """验证单个因子"""
         category = factor_name.split("_")[0] if "_" in factor_name else "Other"
         result = FactorValidationResult(factor_name=factor_name, category=category)
@@ -580,10 +578,10 @@ class ReportGenerator:
 
 def run_discovery(
     universe: str = "etf_core",
-    codes: Optional[str] = None,
+    codes: str | None = None,
     start_date: str = "2023-01-01",
-    end_date: Optional[str] = None,
-    output_dir: Optional[str] = None,
+    end_date: str | None = None,
+    output_dir: str | None = None,
 ) -> DiscoveryReport:
     """运行因子挖掘
 

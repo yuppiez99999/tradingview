@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 回归测试套件 (Regression Test Suite)
 =====================================
@@ -261,7 +260,7 @@ class TestRegHeartbeatFieldName:
             pytest.skip(f"heartbeat 文件不存在: {path}")
 
         # 读取最后一行,验证字段名
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             lines = [line.strip() for line in f if line.strip()]
         if not lines:
             pytest.skip("heartbeat 文件为空")

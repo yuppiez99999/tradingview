@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T1.5 bootstrap.py 单元测试.
 
 验收标准 (TASK_模块整合.md T1.5):

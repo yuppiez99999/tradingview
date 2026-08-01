@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """daily_hedge_update B2.4 两循环并发化 单元测试
 
 覆盖场景:

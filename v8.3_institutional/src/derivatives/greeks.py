@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Greeks 计算模块 v1.0
 
@@ -20,7 +19,6 @@ import math
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -88,11 +86,11 @@ class PortfolioGreeks:
     total_vega: float = 0.0
     total_rho: float = 0.0
     net_contracts: int = 0
-    exposure_by_expiry: Dict[str, Dict[str, float]] = field(default_factory=dict)
-    warnings: List[str] = field(default_factory=list)
+    exposure_by_expiry: dict[str, dict[str, float]] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
 
 
-def _years_to_expiry(expiry: datetime, now: Optional[datetime] = None) -> float:
+def _years_to_expiry(expiry: datetime, now: datetime | None = None) -> float:
     if now is None:
         now = datetime.now()
     delta = expiry - now
@@ -126,7 +124,7 @@ def black_scholes_price(
     return max(price, 0.0)
 
 
-def compute_greeks(contract: OptionContract, now: Optional[datetime] = None) -> OptionGreeks:
+def compute_greeks(contract: OptionContract, now: datetime | None = None) -> OptionGreeks:
     """
     计算单个期权合约的 Greeks
 
@@ -223,20 +221,20 @@ def compute_greeks(contract: OptionContract, now: Optional[datetime] = None) -> 
 
 
 def aggregate_portfolio_greeks(
-    contracts: List[OptionContract], now: Optional[datetime] = None
-) -> Dict[str, PortfolioGreeks]:
+    contracts: list[OptionContract], now: datetime | None = None
+) -> dict[str, PortfolioGreeks]:
     """
     按 underlying 聚合组合 Greeks
 
     Returns:
         {underlying: PortfolioGreeks}
     """
-    portfolio: Dict[str, List[OptionGreeks]] = {}
+    portfolio: dict[str, list[OptionGreeks]] = {}
     for c in contracts:
         g = compute_greeks(c, now)
         portfolio.setdefault(c.underlying, []).append(g)
 
-    result: Dict[str, PortfolioGreeks] = {}
+    result: dict[str, PortfolioGreeks] = {}
     for ul, greeks_list in portfolio.items():
         pg = PortfolioGreeks(underlying=ul)
         for g in greeks_list:
@@ -279,7 +277,7 @@ def aggregate_portfolio_greeks(
     return result
 
 
-def build_demo_contracts(underlying_price_map: Dict[str, float]) -> List[OptionContract]:
+def build_demo_contracts(underlying_price_map: dict[str, float]) -> list[OptionContract]:
     """
     生成演示用期权持仓（用于页面首次加载或空数据时展示）
     """
@@ -288,7 +286,7 @@ def build_demo_contracts(underlying_price_map: Dict[str, float]) -> List[OptionC
     expiry2 = datetime(now.year + 1, 6, 18)
     expiries = [expiry1, expiry2]
 
-    contracts: List[OptionContract] = []
+    contracts: list[OptionContract] = []
     for ul, price in underlying_price_map.items():
         strikes = [price * 0.95, price, price * 1.05]
         for expiry in expiries:
@@ -310,7 +308,7 @@ def build_demo_contracts(underlying_price_map: Dict[str, float]) -> List[OptionC
     return contracts
 
 
-def greeks_to_dataframe(portfolio: Dict[str, PortfolioGreeks]) -> "pd.DataFrame":
+def greeks_to_dataframe(portfolio: dict[str, PortfolioGreeks]) -> pd.DataFrame:
     """组合 Greeks 输出为 DataFrame，供 Streamlit 直接展示"""
     import pandas as pd
 
@@ -332,7 +330,7 @@ def greeks_to_dataframe(portfolio: Dict[str, PortfolioGreeks]) -> "pd.DataFrame"
     return pd.DataFrame(rows)
 
 
-def expiry_bucket_to_dataframe(pg: PortfolioGreeks) -> "pd.DataFrame":
+def expiry_bucket_to_dataframe(pg: PortfolioGreeks) -> pd.DataFrame:
     """单个标的到期日 Greeks 明细"""
     import pandas as pd
 
@@ -351,7 +349,7 @@ def expiry_bucket_to_dataframe(pg: PortfolioGreeks) -> "pd.DataFrame":
     return pd.DataFrame(rows)
 
 
-def load_positions_for_greeks(path: Optional[str] = None) -> List[OptionContract]:
+def load_positions_for_greeks(path: str | None = None) -> list[OptionContract]:
     """
     从本地持仓文件加载期权仓位
 
@@ -380,10 +378,10 @@ def load_positions_for_greeks(path: Optional[str] = None) -> List[OptionContract
     try:
         import json
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             raw = json.load(f)
 
-        contracts: List[OptionContract] = []
+        contracts: list[OptionContract] = []
         for item in raw:
             expiry_str = item.get("expiry")
             expiry = datetime.strptime(expiry_str, "%Y-%m-%d") if expiry_str else datetime.now()

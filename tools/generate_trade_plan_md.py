@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """生成交易计划的 Markdown 版本报告"""
 import json
 import sys

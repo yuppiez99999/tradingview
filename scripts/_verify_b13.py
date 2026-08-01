@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """B1.3 临时验证脚本 - 验证所有调用点的 MAX_DRAWDOWN 值正确读取
 
 修复 (2026-08-01): v8.3_institutional 模块名含数字开头,

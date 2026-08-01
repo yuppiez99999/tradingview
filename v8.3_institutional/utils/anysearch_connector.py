@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """AnySearch 实时搜索数据连接器 (v7.5 适配版)
 
 集成 AnySearch 搜索引擎，提供：
@@ -17,7 +16,6 @@ import logging
 import os
 import subprocess
 import sys
-from typing import Dict, List, Optional
 
 logger = logging.getLogger("v75.anysearch")
 
@@ -61,16 +59,16 @@ class AnySearchConnector:
     def search(
         self,
         query: str,
-        domain: Optional[str] = None,
-        sub_domain: Optional[str] = None,
-        sub_domain_params: Optional[str] = None,
+        domain: str | None = None,
+        sub_domain: str | None = None,
+        sub_domain_params: str | None = None,
         max_results: int = 10,
-    ) -> Optional[List[Dict]]:
+    ) -> list[dict] | None:
         return self._search_impl(query, domain, sub_domain, sub_domain_params, max_results)
 
     def get_finance_news(
-        self, cn_code: Optional[str] = None, period: str = "1d", max_results: int = 5
-    ) -> Optional[List[Dict]]:
+        self, cn_code: str | None = None, period: str = "1d", max_results: int = 5
+    ) -> list[dict] | None:
         if cn_code:
             params = f"type=announcement,cn_code={cn_code},period={period}"
             return self.search(f"{cn_code} 公告", "finance", "finance.news", params, max_results)
@@ -78,11 +76,11 @@ class AnySearchConnector:
             params = f"type=flash,period={period},news_src=sina"
             return self.search("今日财经头条", "finance", "finance.news", params, max_results)
 
-    def get_macro_data(self, indicator_type: str, period: str = "1y") -> Optional[List[Dict]]:
+    def get_macro_data(self, indicator_type: str, period: str = "1y") -> list[dict] | None:
         params = f"type={indicator_type},period={period}"
         return self.search(f"{indicator_type}", "finance", "finance.macro", params, 5)
 
-    def get_stock_quote(self, cn_code: str) -> Optional[Dict[str, float]]:
+    def get_stock_quote(self, cn_code: str) -> dict[str, float] | None:
         symbol = cn_code.replace(".SZ", "").replace(".SH", "")
         params = f"type=stock,symbol=,cn_code={cn_code},period=7d"
         results = self.search(symbol, "finance", "finance.quote", params, 1)
@@ -123,11 +121,11 @@ class AnySearchConnector:
     def _search_impl(
         self,
         query: str,
-        domain: Optional[str] = None,
-        sub_domain: Optional[str] = None,
-        sub_domain_params: Optional[str] = None,
+        domain: str | None = None,
+        sub_domain: str | None = None,
+        sub_domain_params: str | None = None,
         max_results: int = 10,
-    ) -> Optional[List[Dict]]:
+    ) -> list[dict] | None:
         cli_path = os.path.join(ANYSEARCH_SKILL_DIR, "scripts", "anysearch_cli.py")
 
         cmd = [sys.executable, cli_path, "search", query, "--max_results", str(max_results)]
@@ -154,7 +152,7 @@ class AnySearchConnector:
                     )
         return parsed
 
-    def _parse_search_result(self, output: str) -> List[Dict]:
+    def _parse_search_result(self, output: str) -> list[dict]:
         results = []
         lines = output.strip().split("\n")
         current_result = {}

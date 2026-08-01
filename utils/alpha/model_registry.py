@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """模型版本化注册表 — T5.8 交付物.
 
 模块整合 8.4 — ARCHITECTURE §4.2
@@ -36,7 +35,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("model_registry")
 
@@ -78,7 +77,7 @@ class ModelStage(str, Enum):
     ARCHIVED = "archived"  # 归档
 
     @classmethod
-    def from_string(cls, s: str) -> "ModelStage":
+    def from_string(cls, s: str) -> ModelStage:
         """从字符串解析 (容错)."""
         s_lower = s.lower()
         for member in cls:
@@ -98,22 +97,22 @@ class ModelVersion:
     version: int
     stage: str  # ModelStage.value
     source: str  # 模型文件路径或 mlflow URI
-    metrics: Dict[str, float] = field(default_factory=dict)
-    params: Dict[str, Any] = field(default_factory=dict)
-    tags: Dict[str, str] = field(default_factory=dict)
+    metrics: dict[str, float] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
+    tags: dict[str, str] = field(default_factory=dict)
     description: str = ""
     created_at: str = ""
     updated_at: str = ""
     created_by: str = ""
-    mlflow_run_id: Optional[str] = None
-    mlflow_model_uri: Optional[str] = None  # mlflow.models:/<name>/<version>
+    mlflow_run_id: str | None = None
+    mlflow_model_uri: str | None = None  # mlflow.models:/<name>/<version>
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典 (用于 JSON 持久化)."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ModelVersion":
+    def from_dict(cls, d: dict[str, Any]) -> ModelVersion:
         """从字典构造."""
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
@@ -141,9 +140,9 @@ class ModelRegistry:
 
     def __init__(
         self,
-        registry_dir: Optional[str] = None,
-        use_mlflow: Optional[bool] = None,
-        mlflow_tracking_uri: Optional[str] = None,
+        registry_dir: str | None = None,
+        use_mlflow: bool | None = None,
+        mlflow_tracking_uri: str | None = None,
     ) -> None:
         """初始化.
 
@@ -168,7 +167,7 @@ class ModelRegistry:
             self._init_mlflow(mlflow_tracking_uri)
 
         # 内存缓存 (name -> list[ModelVersion])
-        self._cache: Dict[str, List[ModelVersion]] = {}
+        self._cache: dict[str, list[ModelVersion]] = {}
         self._load_cache()
 
         logger.info(
@@ -189,7 +188,7 @@ class ModelRegistry:
         except ImportError:
             return False
 
-    def _init_mlflow(self, tracking_uri: Optional[str]) -> None:
+    def _init_mlflow(self, tracking_uri: str | None) -> None:
         """初始化 MLflow 客户端."""
         try:
             import mlflow
@@ -218,7 +217,7 @@ class ModelRegistry:
             if not metadata_file.exists():
                 continue
             try:
-                with open(metadata_file, "r", encoding="utf-8") as f:
+                with open(metadata_file, encoding="utf-8") as f:
                     data = json.load(f)
                 versions = [ModelVersion.from_dict(v) for v in data.get("versions", [])]
                 self._cache[model_dir.name] = versions
@@ -247,12 +246,12 @@ class ModelRegistry:
         self,
         name: str,
         model: Any,
-        metrics: Optional[Dict[str, float]] = None,
-        params: Optional[Dict[str, Any]] = None,
-        tags: Optional[Dict[str, str]] = None,
+        metrics: dict[str, float] | None = None,
+        params: dict[str, Any] | None = None,
+        tags: dict[str, str] | None = None,
         description: str = "",
         created_by: str = "system",
-        mlflow_run_id: Optional[str] = None,
+        mlflow_run_id: str | None = None,
     ) -> ModelVersion:
         """注册新模型版本.
 
@@ -455,7 +454,7 @@ class ModelRegistry:
     # ============================================================
     # 查询接口
     # ============================================================
-    def get_model_versions(self, name: str, stage: Optional[ModelStage] = None) -> List[ModelVersion]:
+    def get_model_versions(self, name: str, stage: ModelStage | None = None) -> list[ModelVersion]:
         """查询模型版本列表.
 
         Args:
@@ -472,12 +471,12 @@ class ModelRegistry:
             versions = [v for v in versions if v.stage == stage.value]
         return sorted(versions, key=lambda v: v.version, reverse=True)
 
-    def get_latest_version(self, name: str) -> Optional[ModelVersion]:
+    def get_latest_version(self, name: str) -> ModelVersion | None:
         """获取最新版本."""
         versions = self.get_model_versions(name)
         return versions[0] if versions else None
 
-    def get_production_version(self, name: str) -> Optional[ModelVersion]:
+    def get_production_version(self, name: str) -> ModelVersion | None:
         """获取当前 PRODUCTION 版本."""
         versions = self.get_model_versions(name, ModelStage.PRODUCTION)
         return versions[0] if versions else None
@@ -496,7 +495,7 @@ class ModelRegistry:
                 return v
         raise ModelVersionNotFoundError(f"模型 {name} 无版本 {version}")
 
-    def list_models(self) -> List[str]:
+    def list_models(self) -> list[str]:
         """列出所有已注册模型名称."""
         return list(self._cache.keys())
 
@@ -506,8 +505,8 @@ class ModelRegistry:
     def load_model(
         self,
         name: str,
-        version: Optional[int] = None,
-        stage: Optional[ModelStage] = None,
+        version: int | None = None,
+        stage: ModelStage | None = None,
     ) -> Any:
         """加载模型.
 
@@ -605,7 +604,7 @@ class ModelRegistry:
     # ============================================================
     # 审计/导出
     # ============================================================
-    def export_registry(self) -> Dict[str, Any]:
+    def export_registry(self) -> dict[str, Any]:
         """导出整个注册表 (审计用)."""
         result = {
             "exported_at": datetime.utcnow().isoformat() + "Z",
@@ -623,10 +622,10 @@ class ModelRegistry:
 
     def search_models(
         self,
-        metric_filter: Optional[Dict[str, Tuple[str, float]]] = None,
-        stage: Optional[ModelStage] = None,
-        tag_filter: Optional[Dict[str, str]] = None,
-    ) -> List[ModelVersion]:
+        metric_filter: dict[str, tuple[str, float]] | None = None,
+        stage: ModelStage | None = None,
+        tag_filter: dict[str, str] | None = None,
+    ) -> list[ModelVersion]:
         """搜索模型 (按指标/阶段/标签过滤).
 
         Args:
@@ -637,7 +636,7 @@ class ModelRegistry:
         Returns:
             匹配的版本列表
         """
-        results: List[ModelVersion] = []
+        results: list[ModelVersion] = []
         for _name, versions in self._cache.items():
             for v in versions:
                 if stage is not None and v.stage != stage.value:

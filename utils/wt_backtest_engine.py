@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WonderTrader风格回测引擎模块
 
@@ -375,7 +374,7 @@ class BacktestDataLoader:
             file_path = os.path.join(positions_history_dir, filename)
 
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     pos_data = json.load(f)
 
                 positions = pos_data.get("positions", {})

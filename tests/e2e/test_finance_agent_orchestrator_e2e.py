@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_finance_agent_orchestrator_e2e.py — E2E 测试
 
 测试范围:

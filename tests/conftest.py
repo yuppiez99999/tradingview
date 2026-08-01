@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 conftest.py — 量化交易系统 v8.4 统一测试配置
 
@@ -171,7 +170,7 @@ def real_pnl_report(reports_dir):
     path = reports_dir / "daily_pnl_report_2026-07-21.json"
     if not path.exists():
         pytest.skip(f"真实报告文件不存在: {path}")
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 

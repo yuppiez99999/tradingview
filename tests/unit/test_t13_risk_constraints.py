@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T13: risk_constraints 单元测试 — 补关键风控模块覆盖率.
 
 覆盖 utils/risk_constraints.py:

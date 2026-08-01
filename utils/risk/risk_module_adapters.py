@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """风控模块适配器集合 — 模块整合 8.4 (T3.3).
 
 任务: T3.3
@@ -33,7 +32,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Protocol
 
 from utils.infra.feature_flags import is_enabled
 from utils.risk.risk_bus import RiskBus, get_bus
@@ -56,9 +55,9 @@ class RiskModuleAdapter(Protocol):
     """风控模块适配器协议."""
 
     module_name: str
-    subscribed_events: List[RiskEventType]
+    subscribed_events: list[RiskEventType]
 
-    def register(self, bus: Optional[RiskBus] = None) -> None:
+    def register(self, bus: RiskBus | None = None) -> None:
         """注册到总线 (订阅事件 + 决策订阅)."""
         ...
 
@@ -90,7 +89,7 @@ class CircuitBreakerAdapter:
         """
         self._cb = circuit_breaker
 
-    def register(self, bus: Optional[RiskBus] = None) -> None:
+    def register(self, bus: RiskBus | None = None) -> None:
         """注册到总线."""
         bus = bus or get_bus()
         bus.subscribe_decision(RiskEventType.LIQUIDITY_BREACH, self.make_decision)
@@ -159,7 +158,7 @@ class VaRMonitorAdapter:
         """
         self._vm = var_monitor
 
-    def register(self, bus: Optional[RiskBus] = None) -> None:
+    def register(self, bus: RiskBus | None = None) -> None:
         """注册到总线."""
         bus = bus or get_bus()
         bus.subscribe_decision(RiskEventType.VAR_BREACH, self.make_decision)
@@ -229,7 +228,7 @@ class OvernightGapAdapter:
         """
         self._ogm = gap_monitor
 
-    def register(self, bus: Optional[RiskBus] = None) -> None:
+    def register(self, bus: RiskBus | None = None) -> None:
         """注册到总线."""
         bus = bus or get_bus()
         bus.subscribe_decision(RiskEventType.OVERNIGHT_GAP, self.make_decision)
@@ -305,7 +304,7 @@ class RiskGuardAdapter:
         """
         self._rg = risk_guard
 
-    def register(self, bus: Optional[RiskBus] = None) -> None:
+    def register(self, bus: RiskBus | None = None) -> None:
         """注册到总线."""
         bus = bus or get_bus()
         bus.subscribe_decision(RiskEventType.CONCENTRATION_BREACH, self.make_decision)
@@ -380,14 +379,14 @@ class RiskModuleRegistry:
         ... )
     """
 
-    def __init__(self, bus: Optional[RiskBus] = None) -> None:
+    def __init__(self, bus: RiskBus | None = None) -> None:
         """初始化.
 
         Args:
             bus: 可选的总线实例 (None 时使用默认单例)
         """
         self._bus = bus
-        self._adapters: Dict[str, RiskModuleAdapter] = {}
+        self._adapters: dict[str, RiskModuleAdapter] = {}
 
     @property
     def bus(self) -> RiskBus:
@@ -400,7 +399,7 @@ class RiskModuleRegistry:
         var_monitor: Any,
         gap_monitor: Any,
         risk_guard: Any,
-    ) -> Dict[str, bool]:
+    ) -> dict[str, bool]:
         """一键注册全部 4 个适配器.
 
         Args:
@@ -412,7 +411,7 @@ class RiskModuleRegistry:
         Returns:
             {module_name: success} 注册结果
         """
-        results: Dict[str, bool] = {}
+        results: dict[str, bool] = {}
         bus = self.bus
 
         # 显式声明 Protocol 类型, 避免后续赋值触发 "Incompatible types in assignment"
@@ -465,11 +464,11 @@ class RiskModuleRegistry:
         )
         return results
 
-    def get_adapter(self, name: str) -> Optional[RiskModuleAdapter]:
+    def get_adapter(self, name: str) -> RiskModuleAdapter | None:
         """获取已注册的适配器."""
         return self._adapters.get(name)
 
-    def list_adapters(self) -> List[str]:
+    def list_adapters(self) -> list[str]:
         """列出已注册的适配器名称."""
         return list(self._adapters.keys())
 

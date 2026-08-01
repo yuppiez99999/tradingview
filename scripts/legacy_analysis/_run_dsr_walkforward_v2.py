@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """DSR + Walk-Forward 验证 V2 - 读取优化后的回测结果"""
 import json
 import sys
@@ -17,7 +16,7 @@ if not result_files:
 result_file = result_files[-1]
 print(f"Reading: {result_file}")
 
-with open(result_file, "r", encoding="utf-8") as f:
+with open(result_file, encoding="utf-8") as f:
     data = json.load(f)
 
 records = data["records"]

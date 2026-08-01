@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 数据质量监控引擎 (Data Quality Monitor) v1.0
 ==============================================
@@ -47,7 +46,7 @@ import math
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("data_quality")
 
@@ -92,7 +91,7 @@ class QualityReport:
     report_date: str = ""
     total_symbols: int = 0
     checked_fields: int = 0
-    issues: List[QualityIssue] = field(default_factory=list)
+    issues: list[QualityIssue] = field(default_factory=list)
     freshness_score: float = 0.0  # 0-100
     completeness_score: float = 0.0
     consistency_score: float = 0.0
@@ -112,7 +111,7 @@ class QualityReport:
     def warning_count(self) -> int:
         return sum(1 for i in self.issues if i.severity == "warning")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -149,8 +148,8 @@ class DataQualityMonitor:
     # ------------------------------------------------------------
     def check_market_data(
         self,
-        data: Dict[str, Dict[str, Any]],
-        expected_symbols: Optional[List[str]] = None,
+        data: dict[str, dict[str, Any]],
+        expected_symbols: list[str] | None = None,
         timestamp_field: str = "timestamp",
         check_time_series: bool = False,
     ) -> QualityReport:
@@ -208,8 +207,8 @@ class DataQualityMonitor:
     # ------------------------------------------------------------
     def _check_completeness(
         self,
-        data: Dict[str, Dict],
-        expected_symbols: Optional[List[str]],
+        data: dict[str, dict],
+        expected_symbols: list[str] | None,
         report: QualityReport,
     ) -> None:
         """检查标的覆盖完整性"""
@@ -239,7 +238,7 @@ class DataQualityMonitor:
     # ------------------------------------------------------------
     def _check_missing_values(
         self,
-        data: Dict[str, Dict],
+        data: dict[str, dict],
         report: QualityReport,
     ) -> None:
         """检查缺失值"""
@@ -277,7 +276,7 @@ class DataQualityMonitor:
     # ------------------------------------------------------------
     def _check_outliers(
         self,
-        data: Dict[str, Dict],
+        data: dict[str, dict],
         report: QualityReport,
     ) -> None:
         """检查异常值
@@ -557,7 +556,7 @@ class DataQualityMonitor:
     # ------------------------------------------------------------
     def _check_statistical_outliers_cross_section(
         self,
-        data: Dict[str, Dict],
+        data: dict[str, dict],
         report: QualityReport,
     ) -> None:
         """跨标的统计异常检测 (Z-score / IQR / MAD)
@@ -634,7 +633,7 @@ class DataQualityMonitor:
     # ------------------------------------------------------------
     def _check_consistency(
         self,
-        data: Dict[str, Dict],
+        data: dict[str, dict],
         report: QualityReport,
     ) -> None:
         """检查字段一致性"""
@@ -696,7 +695,7 @@ class DataQualityMonitor:
     # ------------------------------------------------------------
     def _check_latency(
         self,
-        data: Dict[str, Dict],
+        data: dict[str, dict],
         timestamp_field: str,
         report: QualityReport,
     ) -> None:
@@ -729,7 +728,7 @@ class DataQualityMonitor:
                     )
                 )
 
-    def _parse_timestamp(self, ts: Any) -> Optional[datetime]:
+    def _parse_timestamp(self, ts: Any) -> datetime | None:
         """解析时间戳"""
         if isinstance(ts, datetime):
             return ts

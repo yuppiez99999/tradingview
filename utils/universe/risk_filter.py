@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 风险前置过滤器 — 对冲基金 Universe 标准做法
 
@@ -16,7 +15,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Optional
 
 import pandas as pd
 
@@ -77,7 +75,7 @@ def _is_limit_down(row: pd.Series) -> bool:
 def filter_universe(
     universe_df: pd.DataFrame,
     spot_df: pd.DataFrame,
-    config: Optional[RiskFilterConfig] = None,
+    config: RiskFilterConfig | None = None,
 ) -> pd.DataFrame:
     """对股票池执行风险前置过滤
 

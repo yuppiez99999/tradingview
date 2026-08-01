@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """EvolutionOrchestrator 验证脚本 — 自我进化框架第 1 阶段验证 (T3).
 
 验证项:

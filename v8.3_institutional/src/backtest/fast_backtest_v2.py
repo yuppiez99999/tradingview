@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 快速回测引擎 v2.0 - 增强版
 优化项:
@@ -75,7 +74,7 @@ def main():
     print("  策略: 波动率自适应再平衡 + 动态仓位 + 完整数据")
     print("=" * 70)
 
-    with open("config/portfolio_v3.yaml", "r", encoding="utf-8") as f:
+    with open("config/portfolio_v3.yaml", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     assets = config["assets"]

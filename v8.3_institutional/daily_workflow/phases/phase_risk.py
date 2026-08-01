@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Phase implementation: phase_risk
 
@@ -12,7 +11,7 @@ The function receives a DailyWorkflow instance as its first parameter ("workflow
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def phase_risk(workflow) -> Dict[str, Any]:
+def phase_risk(workflow) -> dict[str, Any]:
     """风险预算计算 — 2026 年交易计划组合级别
 
     基于 `2026年交易计划.md` 的资金配置:

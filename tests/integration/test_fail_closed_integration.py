@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_fail_closed_integration.py — fail-closed 保守保护机制集成测试
 
 5 条关键链路 #3: 数据源不可用 → fail-closed → L2 (禁止开仓, 不清仓)

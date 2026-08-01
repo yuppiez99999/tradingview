@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 把长江电力 (600900) 加入 500万建仓计划，并重新生成 7月6日计划文件。
 
@@ -17,7 +16,7 @@ _PLAN_MD = os.path.join(_BASE_DIR, "500万建仓计划_20260706.md")
 
 
 def _load_json() -> dict:
-    with open(_PLAN_JSON, "r", encoding="utf-8") as f:
+    with open(_PLAN_JSON, encoding="utf-8") as f:
         return json.load(f)
 
 

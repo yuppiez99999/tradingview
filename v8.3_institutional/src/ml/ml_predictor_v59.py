@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ML 模型预测模块 - 集成训练好的量化模型
 提供特征工程、模型加载、涨跌预测、信号生成功能
@@ -239,7 +238,7 @@ class MLModelPredictor:
 
         for mp in meta_files:
             try:
-                with open(mp, "r", encoding="utf-8") as f:
+                with open(mp, encoding="utf-8") as f:
                     meta = json.load(f)
                 results = meta.get("results", {})
                 # 检查所有模型
@@ -286,7 +285,7 @@ class MLModelPredictor:
         print(f"[ML] 加载优化版模型: {os.path.basename(meta_path)}")
 
         try:
-            with open(meta_path, "r", encoding="utf-8") as f:
+            with open(meta_path, encoding="utf-8") as f:
                 meta = json.load(f)
 
             self.metadata = meta
@@ -349,7 +348,7 @@ class MLModelPredictor:
         print(f"[ML] 加载增强版模型: {os.path.basename(meta_path)}")
 
         try:
-            with open(meta_path, "r", encoding="utf-8") as f:
+            with open(meta_path, encoding="utf-8") as f:
                 meta = json.load(f)
 
             self.metadata = meta
@@ -379,7 +378,7 @@ class MLModelPredictor:
         print(f"[ML] 加载基础版模型: {os.path.basename(meta_path)}")
 
         try:
-            with open(meta_path, "r", encoding="utf-8") as f:
+            with open(meta_path, encoding="utf-8") as f:
                 meta = json.load(f)
 
             self.metadata = meta
@@ -671,7 +670,7 @@ class StackingPredictor:
         # 加载最新的元数据
         meta_path = optuna_meta[-1]
         print(f"[Stacking] 加载元数据: {os.path.basename(meta_path)}")
-        with open(meta_path, "r", encoding="utf-8") as f:
+        with open(meta_path, encoding="utf-8") as f:
             self.metadata = json.load(f)
 
         results = self.metadata.get("results", {})
@@ -928,7 +927,7 @@ class EnhancedPredictor:
     def _load_from_meta(self, meta_path: str) -> bool:
         """从元数据加载所有模型"""
         print(f"[EnhancedPredictor] 加载: {os.path.basename(meta_path)}")
-        with open(meta_path, "r", encoding="utf-8") as f:
+        with open(meta_path, encoding="utf-8") as f:
             self.metadata = json.load(f)
 
         # 读取配置

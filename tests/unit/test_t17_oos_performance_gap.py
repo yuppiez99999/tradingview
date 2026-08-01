@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T17: OOS Performance Gap monitoring."""
 from datetime import datetime
 

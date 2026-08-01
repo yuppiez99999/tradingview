@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """ai_decision 历史回放 + 三基线对比 CLI
 
 任务: 步骤 6 CLI 入口 (阶段三 — 历史回放 + 基线对比)

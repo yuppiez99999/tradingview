@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Feature Flag 框架 — 三层保护 Layer 3.
 
 模块整合 8.4 — ARCHITECTURE §1.4 / ADR-003
@@ -32,7 +31,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from threading import RLock
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 复用 ConfigManager 4 级优先级 (HC-5)
 from utils.config_manager import get_config
@@ -94,18 +93,18 @@ class FeatureFlags:
     运行时覆盖通过 reports/flag_overrides/{flag_name}.json 实现 (优先级最高).
     """
 
-    _instance: Optional["FeatureFlags"] = None
+    _instance: FeatureFlags | None = None
     _lock: RLock = RLock()
 
     def __init__(self) -> None:
-        self._flags_cache: Dict[str, Dict[str, Any]] = {}
-        self._overrides: Dict[str, bool] = {}
-        self._audit_trails: Dict[str, List[Dict[str, Any]]] = {}
+        self._flags_cache: dict[str, dict[str, Any]] = {}
+        self._overrides: dict[str, bool] = {}
+        self._audit_trails: dict[str, list[dict[str, Any]]] = {}
         self._last_load_mtime: float = 0.0
         self._load_config()
 
     @classmethod
-    def get_instance(cls) -> "FeatureFlags":
+    def get_instance(cls) -> FeatureFlags:
         """获取单例 (线程安全)."""
         with cls._lock:
             if cls._instance is None:
@@ -158,7 +157,7 @@ class FeatureFlags:
 
         for flag_file in override_dir.glob("*.json"):
             try:
-                with open(flag_file, "r", encoding="utf-8") as f:
+                with open(flag_file, encoding="utf-8") as f:
                     data = json.load(f)
                 flag_name = data.get("flag_name") or flag_file.stem
                 enabled = bool(data.get("enabled", False))
@@ -210,14 +209,14 @@ class FeatureFlags:
 
         return bool(flag_def.get("default", False))
 
-    def get_flag_def(self, name: str) -> Dict[str, Any]:
+    def get_flag_def(self, name: str) -> dict[str, Any]:
         """获取 flag 完整定义 (描述/要求/回滚秒数等)."""
         flag_def = self._flags_cache.get(name)
         if flag_def is None:
             raise FlagNotFoundError(f"Flag not registered: {name}")
         return dict(flag_def)
 
-    def list_flags(self) -> List[Dict[str, Any]]:
+    def list_flags(self) -> list[dict[str, Any]]:
         """列出所有已注册 flag (审计用)."""
         result = []
         for name, flag_def in self._flags_cache.items():
@@ -321,7 +320,7 @@ class FeatureFlags:
     # ============================================================
     # 审计 API
     # ============================================================
-    def audit_trail(self, name: str) -> List[Dict[str, Any]]:
+    def audit_trail(self, name: str) -> list[dict[str, Any]]:
         """获取 flag 的审计轨迹.
 
         Args:
@@ -334,7 +333,7 @@ class FeatureFlags:
         if not audit_file.exists():
             return []
         records = []
-        with open(audit_file, "r", encoding="utf-8") as f:
+        with open(audit_file, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:
@@ -369,12 +368,12 @@ def disable(name: str, signer: str, reason: str = "") -> None:
     FeatureFlags.get_instance().disable(name, signer, reason)
 
 
-def list_flags() -> List[Dict[str, Any]]:
+def list_flags() -> list[dict[str, Any]]:
     """快捷函数: 列出所有 flag (审计用)."""
     return FeatureFlags.get_instance().list_flags()
 
 
-def audit_trail(name: str) -> List[Dict[str, Any]]:
+def audit_trail(name: str) -> list[dict[str, Any]]:
     """快捷函数: 获取 flag 审计轨迹."""
     return FeatureFlags.get_instance().audit_trail(name)
 

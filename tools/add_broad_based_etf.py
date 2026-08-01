@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 将宽基ETF (沪深300/中证500/上证50/中证1000) 加入 500万建仓计划,
 并标记其「根据社保国家队ETF资金净流入加减仓」的可调节属性。
@@ -38,7 +37,7 @@ def _shares(amount, est_price, lots):
 
 
 def main():
-    with open(PLAN_FILE, "r", encoding="utf-8") as f:
+    with open(PLAN_FILE, encoding="utf-8") as f:
         plan = json.load(f)
 
     total_capital = float(plan["metadata"].get("total_capital", 5_000_000))

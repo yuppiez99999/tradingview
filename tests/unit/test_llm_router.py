@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """LLMRouter 单元测试 — T2.1.
 
 验证以下方面:
@@ -18,7 +17,6 @@ import os
 import sys
 import threading
 from pathlib import Path
-from typing import List
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -138,8 +136,8 @@ class TestLLMRouterBasics:
 
     def test_singleton_thread_safety(self):
         """多线程并发获取单例."""
-        instances: List[LLMRouter] = []
-        errors: List[Exception] = []
+        instances: list[LLMRouter] = []
+        errors: list[Exception] = []
 
         def worker():
             try:
@@ -344,7 +342,7 @@ class TestFallbackChain:
         """已禁用的 provider 被跳过."""
         router = LLMRouter.get_instance()
 
-        called: List[str] = []
+        called: list[str] = []
 
         def make_mock(name):
             def fn(prompt, system, temp, tokens, timeout):
@@ -389,7 +387,7 @@ class TestAuditLog:
 
         # 解析日志
         records = []
-        with open(log_files[0], "r", encoding="utf-8") as f:
+        with open(log_files[0], encoding="utf-8") as f:
             for line in f:
                 records.append(json.loads(line))
 
@@ -413,7 +411,7 @@ class TestAuditLog:
         assert len(log_files) == 1
 
         records = []
-        with open(log_files[0], "r", encoding="utf-8") as f:
+        with open(log_files[0], encoding="utf-8") as f:
             for line in f:
                 records.append(json.loads(line))
 
@@ -434,7 +432,7 @@ class TestAuditLog:
 
         log_files = list(tmp_path.glob("calls_*.jsonl"))
         records = []
-        with open(log_files[0], "r", encoding="utf-8") as f:
+        with open(log_files[0], encoding="utf-8") as f:
             for line in f:
                 records.append(json.loads(line))
 

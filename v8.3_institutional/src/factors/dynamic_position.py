@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """动态仓位管理器 — 基于波动率与回撤自适应调仓 (v5.2 新增)
 
 核心逻辑：
@@ -13,7 +12,6 @@ from __future__ import annotations
 import math
 import time
 from copy import deepcopy
-from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -42,7 +40,7 @@ class DynamicPositionManager:
         self.vol_lookback = vol_lookback
         self.base_position = base_position
         self.min_position = min_position
-        self._position_history: List[Dict] = []
+        self._position_history: list[dict] = []
 
     def calculate_volatility(self, returns_series) -> float:
         """计算年化已实现波动率
@@ -102,8 +100,8 @@ class DynamicPositionManager:
         self,
         returns_series,
         equity_curve,
-        current_drawdown: Optional[float] = None,
-    ) -> Dict:
+        current_drawdown: float | None = None,
+    ) -> dict:
         """计算推荐仓位比例
 
         Args:
@@ -185,7 +183,7 @@ class DynamicPositionManager:
         else:
             return "低"
 
-    def get_position_history(self) -> List[Dict]:
+    def get_position_history(self) -> list[dict]:
         """获取仓位调整历史记录"""
         return deepcopy(self._position_history)
 

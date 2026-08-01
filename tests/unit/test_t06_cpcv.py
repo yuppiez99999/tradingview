@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T06: Combinatorial Purged CV 单元测试."""
 from __future__ import annotations
 

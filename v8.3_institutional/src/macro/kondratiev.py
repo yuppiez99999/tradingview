@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 康波周期分析增强模块 v2.0
 借鉴：TradingAgents-AShare macro_analyst + Vibe-Trading macro_strategy_forum + FinClaw akshare-macro

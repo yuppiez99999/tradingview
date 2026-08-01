@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 A股交易日历工具
 ================
@@ -22,7 +21,6 @@ import json
 from datetime import date as _date_cls
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, Set, Union
 
 # ============================================================
 # 路径与缓存
@@ -36,7 +34,7 @@ def _cache_path(year: int) -> Path:
     return CACHE_DIR / f"trade_dates_{year}.json"
 
 
-def _fetch_trade_dates_via_akshare(year: int) -> Optional[Set[str]]:
+def _fetch_trade_dates_via_akshare(year: int) -> set[str] | None:
     """通过 akshare 拉取交易日历
 
     使用 akshare.tool_trade_date_hist_sina() 获取所有 A 股交易日,
@@ -58,12 +56,12 @@ def _fetch_trade_dates_via_akshare(year: int) -> Optional[Set[str]]:
         return None
 
 
-def _load_year_dates(year: int, allow_fetch: bool = True) -> Set[str]:
+def _load_year_dates(year: int, allow_fetch: bool = True) -> set[str]:
     """加载指定年度的交易日集合 (优先缓存, 其次 akshare, 最后回退)"""
     cache_file = _cache_path(year)
     if cache_file.exists():
         try:
-            with open(cache_file, "r", encoding="utf-8") as f:
+            with open(cache_file, encoding="utf-8") as f:
                 return set(json.load(f))
         except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
@@ -87,7 +85,7 @@ def _load_year_dates(year: int, allow_fetch: bool = True) -> Set[str]:
     return set()
 
 
-def is_trading_day(date: Union[str, _date_cls, datetime, None] = None) -> bool:
+def is_trading_day(date: str | _date_cls | datetime | None = None) -> bool:
     """判断指定日期是否为 A 股交易日
 
     Args:
@@ -118,7 +116,7 @@ def is_trading_day(date: Union[str, _date_cls, datetime, None] = None) -> bool:
     return d.weekday() < 5  # 0=周一 ... 4=周五
 
 
-def next_trading_day(date: Optional[str] = None, max_lookahead: int = 30) -> str:
+def next_trading_day(date: str | None = None, max_lookahead: int = 30) -> str:
     """获取下一交易日 (跳过周末和节假日)
 
     Args:
@@ -156,7 +154,7 @@ def next_trading_day(date: Optional[str] = None, max_lookahead: int = 30) -> str
     return d.strftime("%Y-%m-%d")
 
 
-def current_trading_day(date: Optional[str] = None) -> str:
+def current_trading_day(date: str | None = None) -> str:
     """获取当前交易日 (如果今天是交易日就返回今天, 否则返回上一交易日)
 
     Args:

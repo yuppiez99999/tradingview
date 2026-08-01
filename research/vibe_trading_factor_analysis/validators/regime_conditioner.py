@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """RegimeConditioner - E3 Regime 条件化验证器
 
 测试因子在 bull/bear/choppy/rebound 全 regime 表现。
@@ -10,7 +9,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 
@@ -21,15 +20,15 @@ logger = logging.getLogger("regime_conditioner")
 class RegimeResult:
     """单因子 Regime 条件化结果"""
     factor_name: str
-    per_regime_ic_ir: Dict[str, float] = field(default_factory=dict)
-    per_regime_samples: Dict[str, int] = field(default_factory=dict)
+    per_regime_ic_ir: dict[str, float] = field(default_factory=dict)
+    per_regime_samples: dict[str, int] = field(default_factory=dict)
     min_regime_ic_ir: float = 0.0
     weakest_regime: str = ""
     pass_all_regimes: bool = False
     regime_tag: str = ""
     reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -84,9 +83,11 @@ class RegimeConditioner:
         cnt = {}
         for i in range(n):
             reg = regimes[i]
-            if reg in ("warmup", "unknown"): continue
+            if reg in ("warmup", "unknown"):
+                continue
             ic = self._single_ic(factor_history[i], forward_returns_history[i])
-            if ic is None: continue
+            if ic is None:
+                continue
             ics.setdefault(reg, []).append(ic)
             cnt[reg] = cnt.get(reg, 0) + 1
         for reg, lst in ics.items():
@@ -130,9 +131,11 @@ class RegimeConditioner:
 
     def _single_ic(self, fv, fr):
         common = [s for s in fv if s in fr and math.isfinite(fv[s])]
-        if len(common) < 5: return None
+        if len(common) < 5:
+            return None
         x = np.array([fv[s] for s in common], dtype=float)
         y = np.array([fr[s] for s in common], dtype=float)
-        if np.std(x) < 1e-12 or np.std(y) < 1e-12: return 0.0
+        if np.std(x) < 1e-12 or np.std(y) < 1e-12:
+            return 0.0
         c = float(np.corrcoef(x, y)[0, 1])
         return c if math.isfinite(c) else 0.0

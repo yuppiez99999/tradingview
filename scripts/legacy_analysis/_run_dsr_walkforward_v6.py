@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """V6 DSR + Walk-Forward 稳定性验证
 
 V6核心改进: 均值回归特征 + 5日前向收益标签 (提升震荡市Alpha信号质量)
@@ -35,7 +34,7 @@ v6_files.sort(key=lambda x: os.path.getmtime(x))
 v6_file = Path(v6_files[-1])
 print(f"加载V6结果: {v6_file}")
 
-with open(v6_file, "r", encoding="utf-8") as f:
+with open(v6_file, encoding="utf-8") as f:
     data = json.load(f)
 
 records = data.get("records", [])

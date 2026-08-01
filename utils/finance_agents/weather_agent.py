@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WeatherAgent — 气象因子分析 Agent (v8.6.13)
 ============================================
@@ -26,7 +25,7 @@ WeatherAgent — 气象因子分析 Agent (v8.6.13)
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from utils.finance_agents.base_agent import AgentDecision, BaseAgent
 
@@ -49,7 +48,7 @@ class WeatherAgent(BaseAgent):
                 self._engine = None
         return self._engine
 
-    def is_available(self, context: Dict[str, Any]) -> bool:
+    def is_available(self, context: dict[str, Any]) -> bool:
         """WeatherAgent 始终可用 (支持 Open-Meteo 降级链)."""
         weather_data = self._safe_get(context, "weather_data")
         if weather_data is not None:
@@ -61,7 +60,7 @@ class WeatherAgent(BaseAgent):
         except Exception:
             return True  # 容错: 假设可用, analyze 内部会降级
 
-    def analyze(self, symbol: str, context: Dict[str, Any]) -> AgentDecision:
+    def analyze(self, symbol: str, context: dict[str, Any]) -> AgentDecision:
         """气象因子分析主入口.
 
         Args:
@@ -164,7 +163,7 @@ class WeatherAgent(BaseAgent):
         action = action_map.get(signal, "hold")
 
         # 关键指标
-        key_metrics: Dict[str, Any] = {
+        key_metrics: dict[str, Any] = {
             "composite_score": round(composite, 3),
             "weather_signal": signal,
             "confidence": round(confidence, 3),

@@ -7,7 +7,6 @@ import logging
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Deque, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -32,13 +31,13 @@ class CrowdingConfig:
 class SignalCrowdingDetector:
     """多层次拥挤度检测: ETF流 + 相关性 + 资金集中度"""
 
-    def __init__(self, config: Optional[CrowdingConfig] = None):
+    def __init__(self, config: CrowdingConfig | None = None):
         self.cfg = config or CrowdingConfig()
-        self._crowding_scores: Dict[str, Deque[float]] = {}
-        self._flow_history: Dict[str, Deque[Tuple[str, float]]] = {}
-        self._alerts: List[dict] = []
+        self._crowding_scores: dict[str, deque[float]] = {}
+        self._flow_history: dict[str, deque[tuple[str, float]]] = {}
+        self._alerts: list[dict] = []
 
-    def update(self, etf_flows: Dict[str, float], sector_correlations: Optional[Dict[str, float]] = None) -> dict:
+    def update(self, etf_flows: dict[str, float], sector_correlations: dict[str, float] | None = None) -> dict:
         """更新拥挤度 → 返回信号调整系数"""
         adjustments = {}
 

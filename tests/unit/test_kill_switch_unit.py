@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_kill_switch_unit.py — KillSwitch 三级熔断协议单元测试
 
 覆盖 bug 回归:

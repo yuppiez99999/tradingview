@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 交易计划字段完整性校验器 (Trade Plan Validator)
 ================================================
@@ -28,7 +27,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 logger = logging.getLogger("trade_plan_validator")
 
@@ -88,7 +87,7 @@ class TradePlanValidator:
         """
         self.strict = strict
 
-    def validate(self, plan: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, plan: dict[str, Any]) -> dict[str, Any]:
         """校验交易计划完整性
 
         Args:
@@ -103,9 +102,9 @@ class TradePlanValidator:
                 'checked_at': ISO timestamp,
             }
         """
-        errors: List[str] = []
-        warnings: List[str] = []
-        fixes: List[str] = []
+        errors: list[str] = []
+        warnings: list[str] = []
+        fixes: list[str] = []
 
         if not isinstance(plan, dict):
             errors.append(f"plan 必须是 dict, 实际类型: {type(plan).__name__}")
@@ -147,7 +146,7 @@ class TradePlanValidator:
             "checked_at": datetime.now().isoformat(),
         }
 
-    def validate_file(self, plan_path: Path) -> Dict[str, Any]:
+    def validate_file(self, plan_path: Path) -> dict[str, Any]:
         """从文件加载并校验交易计划
 
         Args:
@@ -167,7 +166,7 @@ class TradePlanValidator:
             }
 
         try:
-            with open(plan_path, "r", encoding="utf-8") as f:
+            with open(plan_path, encoding="utf-8") as f:
                 plan = json.load(f)
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             return {
@@ -183,7 +182,7 @@ class TradePlanValidator:
         result["file_path"] = str(plan_path)
         return result
 
-    def auto_fix(self, plan: Dict[str, Any]) -> Dict[str, Any]:
+    def auto_fix(self, plan: dict[str, Any]) -> dict[str, Any]:
         """自动补全缺失的默认字段 (谨慎使用, 仅补全安全默认值)
 
         Args:
@@ -192,7 +191,7 @@ class TradePlanValidator:
         Returns:
             修复后的 plan + 修复日志
         """
-        fixes_applied: List[str] = []
+        fixes_applied: list[str] = []
 
         if not isinstance(plan, dict):
             return {**plan, "_fixes_applied": fixes_applied}
@@ -246,7 +245,7 @@ class TradePlanValidator:
     # 私有: 各字段校验
     # ============================================================
 
-    def _check_top_level(self, plan: Dict, errors: List[str], warnings: List[str], fixes: List[str]):
+    def _check_top_level(self, plan: dict, errors: list[str], warnings: list[str], fixes: list[str]):
         """校验顶层字段"""
         for field, expected_type in self.REQUIRED_TOP_LEVEL_FIELDS.items():
             if field not in plan:
@@ -261,7 +260,7 @@ class TradePlanValidator:
                 errors.append(f"字段 {field} 类型错误: 期望 {expected_type.__name__}, 实际 {actual}")
                 fixes.append(f"建议: plan['{field}'] 应为 {expected_type.__name__}")
 
-    def _check_phase(self, phase: Dict, errors: List[str], warnings: List[str], fixes: List[str]):
+    def _check_phase(self, phase: dict, errors: list[str], warnings: list[str], fixes: list[str]):
         """校验 phase 字段"""
         for field, expected_types in self.REQUIRED_PHASE_FIELDS.items():
             if field not in phase:
@@ -287,10 +286,10 @@ class TradePlanValidator:
 
     def _check_execution_plan(
         self,
-        exec_plan: Dict,
-        errors: List[str],
-        warnings: List[str],
-        fixes: List[str],
+        exec_plan: dict,
+        errors: list[str],
+        warnings: list[str],
+        fixes: list[str],
     ):
         """校验 execution_plan 字段"""
         for field, expected_type in self.REQUIRED_EXECUTION_PLAN_FIELDS.items():
@@ -320,10 +319,10 @@ class TradePlanValidator:
 
     def _check_market_state(
         self,
-        market_state: Dict,
-        errors: List[str],
-        warnings: List[str],
-        fixes: List[str],
+        market_state: dict,
+        errors: list[str],
+        warnings: list[str],
+        fixes: list[str],
     ):
         """校验 market_state 字段"""
         for field, expected_type in self.REQUIRED_MARKET_STATE_FIELDS.items():
@@ -346,10 +345,10 @@ class TradePlanValidator:
 
     def _check_risk_guard(
         self,
-        risk_guard: Dict,
-        errors: List[str],
-        warnings: List[str],
-        fixes: List[str],
+        risk_guard: dict,
+        errors: list[str],
+        warnings: list[str],
+        fixes: list[str],
     ):
         """校验 risk_guard 字段"""
         if "drawdown_level" in risk_guard:
@@ -362,7 +361,7 @@ class TradePlanValidator:
             if not isinstance(ks, dict):
                 errors.append(f"risk_guard.kill_switch 必须是 dict, 实际 {type(ks).__name__}")
 
-    def _check_consistency(self, plan: Dict, errors: List[str], warnings: List[str], fixes: List[str]):
+    def _check_consistency(self, plan: dict, errors: list[str], warnings: list[str], fixes: list[str]):
         """校验字段间一致性"""
         market_state = plan.get("market_state", {})
         risk_guard = plan.get("risk_guard", {})

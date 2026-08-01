@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """LLM 路由器基础设施 — 异常 / CallRecord / _safe_urlopen / 项目根定位.
 
 从原 `utils/alpha/llm_router.py` 拆出 (B3.4.3)。
@@ -14,7 +13,7 @@ from __future__ import annotations
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional
 
 # ============================================================
 # 项目根定位 (比硬编码 parent.parent.parent 更健壮)
@@ -82,7 +81,7 @@ class AllProvidersFailedError(LLMRouterError):
         self,
         message: str,
         tried_providers: list,
-        last_error: Optional[Exception] = None,
+        last_error: Exception | None = None,
     ) -> None:
         super().__init__(message)
         self.tried_providers = tried_providers
@@ -131,7 +130,7 @@ class CallRecord:
         self.error_message = error_message
         self.response_preview = response_preview
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典 (JSONL 序列化)."""
         return {
             "timestamp": self.timestamp,

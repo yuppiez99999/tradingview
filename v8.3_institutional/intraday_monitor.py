@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 盘中监控与动态调整模块 — v2.0
 =================================
@@ -27,7 +26,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _BASE = Path(__file__).resolve().parent
 if str(_BASE) not in sys.path:
@@ -47,24 +46,24 @@ class RealtimePriceCache:
     """
 
     def __init__(self) -> None:
-        self.series: Dict[str, List[Dict[str, Any]]] = {}
-        self.latest: Dict[str, Dict[str, Any]] = {}
+        self.series: dict[str, list[dict[str, Any]]] = {}
+        self.latest: dict[str, dict[str, Any]] = {}
 
-    def merge(self, prices: Dict[str, Dict[str, Any]]) -> None:
+    def merge(self, prices: dict[str, dict[str, Any]]) -> None:
         now = datetime.now().isoformat()
         for code, payload in prices.items():
             entry = {"ts": now, **payload}
             self.latest[code] = payload
             self.series.setdefault(code, []).append(entry)
 
-    def latest_prices(self) -> Dict[str, Dict[str, Any]]:
+    def latest_prices(self) -> dict[str, dict[str, Any]]:
         return dict(self.latest)
 
 
 class IntradayMonitor:
     """盘中监控器"""
 
-    def __init__(self, trade_date: Optional[str] = None):
+    def __init__(self, trade_date: str | None = None):
         self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
         self.date_compact = self.trade_date.replace("-", "")
         self.timestamp = datetime.now().isoformat()
@@ -76,17 +75,17 @@ class IntradayMonitor:
         self.out_path = _BASE / "reports" / f"intraday_monitor_{self.date_compact}.json"
         self.series_path = _BASE / "reports" / f"intraday_monitor_series_{self.date_compact}.json"
 
-        self.positions: Dict[str, Any] = {}
-        self.approved: Dict[str, Any] = {}
-        self.dynamic_risk: Dict[str, Any] = {}
-        self.realtime_prices: Dict[str, Dict[str, Any]] = {}
+        self.positions: dict[str, Any] = {}
+        self.approved: dict[str, Any] = {}
+        self.dynamic_risk: dict[str, Any] = {}
+        self.realtime_prices: dict[str, dict[str, Any]] = {}
         self.price_cache = RealtimePriceCache()
         self.source_priority = ["wind_mcp", "ifind_mcp", "sina_realtime"]
         self.watch_mode = False
         self.watch_interval_seconds = 60
         self.watch_max_rounds = 0
         self.watch_round = 0
-        self.watch_errors: List[Dict[str, Any]] = []
+        self.watch_errors: list[dict[str, Any]] = []
 
     def load_positions(self) -> bool:
         if not self.positions_path.exists():
@@ -142,7 +141,7 @@ class IntradayMonitor:
             return f'sz{num}'
         return f'sz{num}'
 
-    def _fetch_sina_realtime(self, codes: List[str]) -> Dict[str, Dict[str, Any]]:
+    def _fetch_sina_realtime(self, codes: list[str]) -> dict[str, dict[str, Any]]:
         if not codes:
             return {}
         sina_codes = [self._to_sina_code(c) for c in codes]
@@ -156,7 +155,7 @@ class IntradayMonitor:
         except Exception:
             return {}
 
-        result: Dict[str, Dict[str, Any]] = {}
+        result: dict[str, dict[str, Any]] = {}
         for orig_code, sina_code in zip(codes, sina_codes):
             prefix = f'hq_str_{sina_code}="'
             idx = text.find(prefix)
@@ -195,12 +194,12 @@ class IntradayMonitor:
             }
         return result
 
-    def _fetch_wind_realtime(self, codes: List[str]) -> Dict[str, Dict[str, Any]]:
+    def _fetch_wind_realtime(self, codes: list[str]) -> dict[str, dict[str, Any]]:
         try:
             from wind_mcp_fetcher import wind_get_quote
         except Exception:
             return {}
-        result: Dict[str, Dict[str, Any]] = {}
+        result: dict[str, dict[str, Any]] = {}
         for code in codes:
             try:
                 quote = wind_get_quote(code, is_fund=code.startswith(('51', '58', '15')))
@@ -219,7 +218,7 @@ class IntradayMonitor:
                 continue
         return result
 
-    def _fetch_ifind_realtime(self, codes: List[str]) -> Dict[str, Dict[str, Any]]:
+    def _fetch_ifind_realtime(self, codes: list[str]) -> dict[str, dict[str, Any]]:
         try:
             from utils.ifind_client import IFindClient
         except Exception:
@@ -229,7 +228,7 @@ class IntradayMonitor:
             return {}
         # 安全修复: IFindClient 构造函数从环境变量自动读取 Token
         client = IFindClient(max_concurrency=2)
-        result: Dict[str, Dict[str, Any]] = {}
+        result: dict[str, dict[str, Any]] = {}
         stock_codes = [c for c in codes if not c.startswith(('51', '58', '15'))]
         fund_codes = [c for c in codes if c.startswith(('51', '58', '15'))]
         try:
@@ -242,7 +241,7 @@ class IntradayMonitor:
                         try:
                             payload = json.loads(inner)
                             rows = ((payload.get("data") or payload).get("rows") or [])
-                            cols = [c.get("name") for c in (((payload.get("data") or payload).get("columns") or []))]
+                            cols = [c.get("name") for c in ((payload.get("data") or payload).get("columns") or [])]
                             for row in rows:
                                 if isinstance(row, list) and cols:
                                     rec = dict(zip(cols, row))
@@ -273,7 +272,7 @@ class IntradayMonitor:
                         try:
                             payload = json.loads(inner)
                             rows = ((payload.get("data") or payload).get("rows") or [])
-                            cols = [c.get("name") for c in (((payload.get("data") or payload).get("columns") or []))]
+                            cols = [c.get("name") for c in ((payload.get("data") or payload).get("columns") or [])]
                             for row in rows:
                                 if isinstance(row, list) and cols:
                                     rec = dict(zip(cols, row))
@@ -299,7 +298,7 @@ class IntradayMonitor:
             pass
         return result
 
-    def _collect_realtime_prices(self, codes: List[str]) -> Dict[str, Dict[str, Any]]:
+    def _collect_realtime_prices(self, codes: list[str]) -> dict[str, dict[str, Any]]:
         prices = self._fetch_wind_realtime(codes)
         source = "wind_mcp"
         if not prices:
@@ -313,7 +312,7 @@ class IntradayMonitor:
                 payload.setdefault("source", source)
         return prices
 
-    def fetch_realtime_prices(self) -> Dict[str, Dict[str, Any]]:
+    def fetch_realtime_prices(self) -> dict[str, dict[str, Any]]:
         codes = []
         for code in (self.positions.get("positions", {}) or {}).keys():
             if not code:
@@ -330,7 +329,7 @@ class IntradayMonitor:
         self.price_cache.merge(prices)
         return prices
 
-    def analyze(self, round_index: Optional[int] = None) -> Dict[str, Any]:
+    def analyze(self, round_index: int | None = None) -> dict[str, Any]:
         positions = self.positions.get("positions", {}) or {}
         approved_orders = self.approved.get("approved_instructions", []) or []
         adjusted_limits = self.dynamic_risk.get("adjusted_limits", {}) if isinstance(self.dynamic_risk, dict) else {}
@@ -345,7 +344,7 @@ class IntradayMonitor:
                 pending_codes.append(self._normalize_code(code))
             pending_amount += float(order.get("amount", 0) or 0)
 
-        risk_events: List[Dict[str, Any]] = []
+        risk_events: list[dict[str, Any]] = []
         for code, pos in positions.items():
             pos_amount = float(pos.get("amount", 0) or 0)
             if pos_amount <= 0:
@@ -375,7 +374,7 @@ class IntradayMonitor:
                         "detail": f"实时跌幅 {change_pct:.2f}%，触发盘中预警",
                     })
 
-        adjustments: List[Dict[str, Any]] = []
+        adjustments: list[dict[str, Any]] = []
         if pending_amount > float(adjusted_limits.get("max_total_amount", 200000) or 200000):
             adjustments.append({
                 "type": "reduce_total_amount",
@@ -414,12 +413,12 @@ class IntradayMonitor:
             ],
         }
 
-    def save(self, payload: Dict[str, Any]) -> Path:
+    def save(self, payload: dict[str, Any]) -> Path:
         self.out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         logger.info(f"已写入盘中监控: {self.out_path}")
         return self.out_path
 
-    def save_series(self) -> Optional[Path]:
+    def save_series(self) -> Path | None:
         if not self.price_cache.series:
             return None
         payload = {
@@ -434,7 +433,7 @@ class IntradayMonitor:
         logger.info(f"已写入连续价格序列: {self.series_path}")
         return self.series_path
 
-    def run(self) -> Dict[str, Any]:
+    def run(self) -> dict[str, Any]:
         self.load_positions()
         self.load_approved()
         self.load_dynamic_risk()
@@ -443,7 +442,7 @@ class IntradayMonitor:
         self.save_series()
         return {"status": result.get("status"), "path": str(self.out_path), "summary": result.get("summary")}
 
-    def run_watch(self) -> Dict[str, Any]:
+    def run_watch(self) -> dict[str, Any]:
         """连续监控：按 interval 轮询多轮，记录价格序列"""
 
         self.load_positions()
@@ -451,7 +450,7 @@ class IntradayMonitor:
         self.load_dynamic_risk()
         self.watch_mode = True
         self.watch_round = 0
-        last_result: Dict[str, Any] = {}
+        last_result: dict[str, Any] = {}
 
         while True:
             self.watch_round += 1
@@ -491,7 +490,7 @@ class IntradayMonitor:
         return last_result or {"status": "PASS"}
 
 
-def run_intraday_monitor(trade_date: Optional[str] = None, watch: bool = False, interval_seconds: int = 60, max_rounds: int = 0) -> Dict[str, Any]:
+def run_intraday_monitor(trade_date: str | None = None, watch: bool = False, interval_seconds: int = 60, max_rounds: int = 0) -> dict[str, Any]:
     monitor = IntradayMonitor(trade_date=trade_date)
     monitor.watch_interval_seconds = max(5, int(interval_seconds))
     monitor.watch_max_rounds = int(max_rounds) if int(max_rounds) > 0 else 0

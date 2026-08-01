@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v8.4 本周自动交易计划执行器 (纯期权对冲模式)
 ==============================================
@@ -32,7 +31,7 @@ import logging
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 BASE_DIR = Path(__file__).resolve().parent
 LOG_DIR = BASE_DIR / "logs"
@@ -100,7 +99,7 @@ except ImportError:
 class WeeklyTradeExecutor:
     """本周自动交易计划执行器"""
 
-    def __init__(self, trade_date: Optional[str] = None, dry_run: bool = False, session: str = "all"):
+    def __init__(self, trade_date: str | None = None, dry_run: bool = False, session: str = "all"):
         self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
         self.dry_run = dry_run
         self.session = session.lower()
@@ -108,9 +107,9 @@ class WeeklyTradeExecutor:
         self.report_dir = BASE_DIR.parent.parent / "每日报告归档"
         self.report_dir.mkdir(parents=True, exist_ok=True)
 
-        self.weekly_plan: Dict[str, Any] = {}
-        self.daily_plan: Dict[str, Any] = {}
-        self.execution_results: Dict[str, Any] = {}
+        self.weekly_plan: dict[str, Any] = {}
+        self.daily_plan: dict[str, Any] = {}
+        self.execution_results: dict[str, Any] = {}
 
         self.stock_account = None
         self.futures_account = None
@@ -148,17 +147,17 @@ class WeeklyTradeExecutor:
 
         return next_day.strftime("%Y-%m-%d")
 
-    def _load_account_snapshot(self) -> Dict[str, Any]:
+    def _load_account_snapshot(self) -> dict[str, Any]:
         """加载账户快照"""
         if ACCOUNT_SNAPSHOT_FILE.exists():
             try:
-                with open(ACCOUNT_SNAPSHOT_FILE, "r", encoding="utf-8") as f:
+                with open(ACCOUNT_SNAPSHOT_FILE, encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
                 logger.warning(f"加载账户快照失败: {e}")
         return {}
 
-    def _save_account_snapshot(self, snapshot: Dict[str, Any]):
+    def _save_account_snapshot(self, snapshot: dict[str, Any]):
         """保存账户快照"""
         try:
             with open(ACCOUNT_SNAPSHOT_FILE, "w", encoding="utf-8") as f:
@@ -179,7 +178,7 @@ class WeeklyTradeExecutor:
         plan_file = self.plan_dir / f"weekly_plan_{week_start_str}_{week_end_str}.json"
         if plan_file.exists():
             try:
-                with open(plan_file, "r", encoding="utf-8") as f:
+                with open(plan_file, encoding="utf-8") as f:
                     self.weekly_plan = json.load(f)
                 logger.info(f"已加载周计划: {plan_file.name}")
                 return True
@@ -200,7 +199,7 @@ class WeeklyTradeExecutor:
         for path in candidates:
             if path.exists():
                 try:
-                    with open(path, "r", encoding="utf-8") as f:
+                    with open(path, encoding="utf-8") as f:
                         self.daily_plan = json.load(f)
                     logger.info(f"已加载当日计划: {path.name}")
                     return True
@@ -274,7 +273,7 @@ class WeeklyTradeExecutor:
 
         return True
 
-    def _get_session_orders(self) -> Dict[str, List[Dict]]:
+    def _get_session_orders(self) -> dict[str, list[dict]]:
         """根据 session 参数获取对应批次的订单"""
         exec_plan = self.daily_plan.get("execution_plan", {})
         morning_orders = exec_plan.get("morning_orders", [])
@@ -290,7 +289,7 @@ class WeeklyTradeExecutor:
         else:
             return {"stock": morning_orders + afternoon_orders, "options": options_orders}
 
-    def _extract_futures_hedge_orders(self) -> List[Dict]:
+    def _extract_futures_hedge_orders(self) -> list[dict]:
         """v8.4 OPTIONS_ONLY: 不提取期货订单，Beta对冲全部通过期权组合完成"""
         orders = {}
 
@@ -332,7 +331,7 @@ class WeeklyTradeExecutor:
 
         return list(orders.values())
 
-    def _extract_options_hedge_orders(self) -> List[Dict]:
+    def _extract_options_hedge_orders(self) -> list[dict]:
         """从 daily_plan 中提取期权对冲订单（★期权优先：多策略组合）"""
         options_orders = []
 
@@ -478,7 +477,7 @@ class WeeklyTradeExecutor:
 
         return options_orders
 
-    def execute_stock_orders(self, orders: List[Dict]) -> Dict[str, Any]:
+    def execute_stock_orders(self, orders: list[dict]) -> dict[str, Any]:
         """执行股票订单"""
         results = {"success": 0, "failed": 0, "total_amount": 0, "orders": []}
 
@@ -571,7 +570,7 @@ class WeeklyTradeExecutor:
 
         return results
 
-    def execute_futures_orders(self, orders: List[Dict]) -> Dict[str, Any]:
+    def execute_futures_orders(self, orders: list[dict]) -> dict[str, Any]:
         """执行期货订单"""
         results = {"success": 0, "failed": 0, "total_amount": 0, "orders": []}
 
@@ -646,7 +645,7 @@ class WeeklyTradeExecutor:
 
         return results
 
-    def execute_options_orders(self, orders: List[Dict]) -> Dict[str, Any]:
+    def execute_options_orders(self, orders: list[dict]) -> dict[str, Any]:
         """执行期权订单（★期权优先：多策略组合支持）"""
         results = {"success": 0, "failed": 0, "total_premium": 0, "orders": [], "theta_income": 0}
 
@@ -735,7 +734,7 @@ class WeeklyTradeExecutor:
 
         return results
 
-    def _execute_options_leg(self, order: Dict, broker, quote_provider) -> Dict[str, Any]:
+    def _execute_options_leg(self, order: dict, broker, quote_provider) -> dict[str, Any]:
         """执行多腿期权策略"""
         opt_type = order.get("type", "SIMPLE")
         name = order.get("name", "")

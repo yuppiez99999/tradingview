@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """快速验证三层过滤对 2022-07 和 2024-12 崩盘月的捕捉效果"""
 from pathlib import Path
 

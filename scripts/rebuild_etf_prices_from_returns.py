@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """从 returns_history.json 重建 ETF/股票价格序列并写入本地兜底目录"""
 import json
 import os
@@ -14,7 +13,7 @@ POSITIONS_PATH = os.path.join(PROJECT_ROOT, "config", "positions.json")
 
 
 def load_returns():
-    with open(RETURNS_PATH, "r", encoding="utf-8") as f:
+    with open(RETURNS_PATH, encoding="utf-8") as f:
         data = json.load(f)
     cols = data["columns"]
     index = pd.to_datetime(data["index"])
@@ -23,7 +22,7 @@ def load_returns():
 
 
 def load_positions():
-    with open(POSITIONS_PATH, "r", encoding="utf-8") as f:
+    with open(POSITIONS_PATH, encoding="utf-8") as f:
         data = json.load(f)
     return data.get("positions", {})
 

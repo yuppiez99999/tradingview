@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T5.1 Brinson-Fachler 三效应归因 — 配置/选股/交互效应分解.
 
 对冲基金 L7 归因层核心模块, 实现 Brinson-Fachler (1985) 经典归因模型:
@@ -62,7 +61,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from utils.config_manager import get_config
 
@@ -101,7 +100,7 @@ ZERO_RETURN_EPSILON = 0.000001
 ABNORMAL_RETURN_THRESHOLD = 0.20
 
 # 行业分类 (对齐 utils/pnl_attribution_engine.py 的 SECTORS, 8 大行业)
-DEFAULT_SECTORS: List[str] = [
+DEFAULT_SECTORS: list[str] = [
     "tech",
     "manufacturing",
     "cyclical",
@@ -113,7 +112,7 @@ DEFAULT_SECTORS: List[str] = [
 ]
 
 # 行业中文名称映射
-SECTOR_NAMES: Dict[str, str] = {
+SECTOR_NAMES: dict[str, str] = {
     "tech": "科技",
     "manufacturing": "制造",
     "cyclical": "周期",
@@ -196,7 +195,7 @@ class SectorAttribution:
     total_effect: float = 0.0
     contribution_to_excess: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典 (用于 JSON 序列化)."""
         return {
             "sector": self.sector,
@@ -243,13 +242,13 @@ class BrinsonResult:
     total_selection_effect: float = 0.0
     total_interaction_effect: float = 0.0
     residual: float = 0.0
-    sector_attributions: List[SectorAttribution] = field(default_factory=list)
+    sector_attributions: list[SectorAttribution] = field(default_factory=list)
     n_sectors: int = 0
     benchmark_code: str = ""
     status: str = STATUS_OK
     reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典 (用于 JSON 序列化)."""
         return {
             "attribution_date": self.attribution_date,
@@ -269,7 +268,7 @@ class BrinsonResult:
 
     def to_markdown(self) -> str:
         """转为 Markdown 表格 (用于报告输出)."""
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append(f"# Brinson 归因报告 — {self.attribution_date or 'N/A'}")
         lines.append("")
         lines.append(f"- 基准标的: `{self.benchmark_code or 'N/A'}`")
@@ -379,7 +378,7 @@ def compute_interaction_effect(
     return weight_diff * return_diff
 
 
-def compute_total_return(weights: Dict[str, float], returns: Dict[str, float]) -> float:
+def compute_total_return(weights: dict[str, float], returns: dict[str, float]) -> float:
     """计算加权总收益率 R = Σ w_i × R_i.
 
     Args:
@@ -397,10 +396,10 @@ def compute_total_return(weights: Dict[str, float], returns: Dict[str, float]) -
 
 
 def validate_weights(
-    weights: Dict[str, float],
+    weights: dict[str, float],
     tolerance: float = DEFAULT_WEIGHT_SUM_TOLERANCE,
     epsilon: float = ZERO_WEIGHT_EPSILON,
-) -> Tuple[bool, float, str]:
+) -> tuple[bool, float, str]:
     """校验权重合法性 (非负 + 归一化).
 
     Args:
@@ -428,11 +427,11 @@ def validate_weights(
 
 
 def align_sectors(
-    portfolio_weights: Dict[str, float],
-    benchmark_weights: Dict[str, float],
-    portfolio_returns: Dict[str, float],
-    benchmark_returns: Dict[str, float],
-) -> List[str]:
+    portfolio_weights: dict[str, float],
+    benchmark_weights: dict[str, float],
+    portfolio_returns: dict[str, float],
+    benchmark_returns: dict[str, float],
+) -> list[str]:
     """对齐组合与基准的行业集合 (取并集, 缺失行业补 0).
 
     Args:
@@ -452,13 +451,13 @@ def align_sectors(
 
 
 def attribute_brinson(
-    portfolio_weights: Dict[str, float],
-    benchmark_weights: Dict[str, float],
-    portfolio_returns: Dict[str, float],
-    benchmark_returns: Dict[str, float],
+    portfolio_weights: dict[str, float],
+    benchmark_weights: dict[str, float],
+    portfolio_returns: dict[str, float],
+    benchmark_returns: dict[str, float],
     attribution_date: str = "",
     benchmark_code: str = "",
-    sector_names: Optional[Dict[str, str]] = None,
+    sector_names: dict[str, str] | None = None,
     validate: bool = True,
     weight_tolerance: float = DEFAULT_WEIGHT_SUM_TOLERANCE,
 ) -> BrinsonResult:
@@ -525,7 +524,7 @@ def attribute_brinson(
     excess_return = total_p - total_b
 
     # 逐行业计算三效应
-    sector_results: List[SectorAttribution] = []
+    sector_results: list[SectorAttribution] = []
     sum_ar = 0.0
     sum_sr = 0.0
     sum_ir = 0.0
@@ -623,7 +622,7 @@ class BrinsonAttributionManager:
         self,
         config_name: str = DEFAULT_CONFIG_NAME,
         feature_flag_name: str = FLAG_NAME,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         """初始化.
 
@@ -647,7 +646,7 @@ class BrinsonAttributionManager:
         self._abnormal_threshold = float(self._thresholds.get("abnormal_return_threshold", ABNORMAL_RETURN_THRESHOLD))
 
         # 行业名称映射 (从配置加载, 不存在则用默认)
-        self._sector_names: Dict[str, str] = dict(SECTOR_NAMES)
+        self._sector_names: dict[str, str] = dict(SECTOR_NAMES)
         for s in self._sectors_cfg:
             if isinstance(s, dict):
                 code = s.get("code", "")
@@ -656,11 +655,11 @@ class BrinsonAttributionManager:
                     self._sector_names[code] = name
 
         # 默认基准权重 (从配置加载)
-        self._default_benchmark_weights: Dict[str, float] = {
+        self._default_benchmark_weights: dict[str, float] = {
             k: float(v) for k, v in (self._config.get("benchmark_sector_weights", {}) or {}).items()
         }
 
-    def _load_config(self, config_name: str) -> Dict[str, Any]:
+    def _load_config(self, config_name: str) -> dict[str, Any]:
         """加载配置 (走 ConfigManager 4 级优先级, HC-5)."""
         try:
             cfg = get_config(config_name, default={}) or {}
@@ -693,12 +692,12 @@ class BrinsonAttributionManager:
 
     def attribute(
         self,
-        portfolio_weights: Dict[str, float],
-        benchmark_weights: Optional[Dict[str, float]] = None,
-        portfolio_returns: Optional[Dict[str, float]] = None,  # type: ignore
-        benchmark_returns: Optional[Dict[str, float]] = None,  # type: ignore
+        portfolio_weights: dict[str, float],
+        benchmark_weights: dict[str, float] | None = None,
+        portfolio_returns: dict[str, float] | None = None,  # type: ignore
+        benchmark_returns: dict[str, float] | None = None,  # type: ignore
         attribution_date: str = "",
-        benchmark_code: Optional[str] = None,
+        benchmark_code: str | None = None,
         validate: bool = True,
     ) -> BrinsonResult:
         """执行 Brinson 三效应归因.
@@ -771,10 +770,10 @@ class BrinsonAttributionManager:
 
     def attribute_from_positions(
         self,
-        portfolio_positions: List[Dict[str, Any]],
-        benchmark_positions: List[Dict[str, Any]],
+        portfolio_positions: list[dict[str, Any]],
+        benchmark_positions: list[dict[str, Any]],
         attribution_date: str = "",
-        benchmark_code: Optional[str] = None,
+        benchmark_code: str | None = None,
     ) -> BrinsonResult:
         """从持仓列表执行归因 (聚合到行业维度).
 
@@ -818,8 +817,8 @@ class BrinsonAttributionManager:
 
     def _aggregate_positions_to_sectors(
         self,
-        positions: List[Dict[str, Any]],
-    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        positions: list[dict[str, Any]],
+    ) -> tuple[dict[str, float], dict[str, float]]:
         """将资产级持仓聚合到行业级 (按 sector 字段分组加权).
 
         Args:
@@ -828,8 +827,8 @@ class BrinsonAttributionManager:
         Returns:
             (sector_weights, sector_returns)
         """
-        sector_weights: Dict[str, float] = {}
-        sector_weighted_returns: Dict[str, float] = {}
+        sector_weights: dict[str, float] = {}
+        sector_weighted_returns: dict[str, float] = {}
 
         for pos in positions:
             sector = str(pos.get("sector", "unknown"))
@@ -840,7 +839,7 @@ class BrinsonAttributionManager:
             sector_weighted_returns[sector] = sector_weighted_returns.get(sector, 0.0) + weight * ret
 
         # 行业收益率 = 行业内加权平均收益率 = Σ(w_i × r_i) / Σ(w_i)
-        sector_returns: Dict[str, float] = {}
+        sector_returns: dict[str, float] = {}
         for sector, w in sector_weights.items():
             if w > self._zero_weight_epsilon:
                 sector_returns[sector] = sector_weighted_returns[sector] / w
@@ -849,11 +848,11 @@ class BrinsonAttributionManager:
 
         return sector_weights, sector_returns
 
-    def get_default_benchmark_weights(self) -> Dict[str, float]:
+    def get_default_benchmark_weights(self) -> dict[str, float]:
         """获取默认基准行业权重 (从配置加载)."""
         return dict(self._default_benchmark_weights)
 
-    def get_sector_names(self) -> Dict[str, str]:
+    def get_sector_names(self) -> dict[str, str]:
         """获取行业代码 -> 中文名称映射."""
         return dict(self._sector_names)
 
@@ -887,10 +886,10 @@ def is_brinson_attribution_enabled() -> bool:
 
 
 def attribute_brinson_simple(
-    portfolio_weights: Dict[str, float],
-    benchmark_weights: Dict[str, float],
-    portfolio_returns: Dict[str, float],
-    benchmark_returns: Dict[str, float],
+    portfolio_weights: dict[str, float],
+    benchmark_weights: dict[str, float],
+    portfolio_returns: dict[str, float],
+    benchmark_returns: dict[str, float],
     attribution_date: str = "",
     benchmark_code: str = DEFAULT_PRIMARY_BENCHMARK,
 ) -> BrinsonResult:

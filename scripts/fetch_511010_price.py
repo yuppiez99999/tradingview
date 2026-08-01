@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """用新浪财经免费 API 拉取 511010 国债 ETF 收盘价.
 
 这是 P4 层级免费回退方案 (项目硬约束: Wind/MCP/iFinD 不可用时回退).

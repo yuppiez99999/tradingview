@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """快速烟雾测试: 模拟 daily_workflow.py 调用路径验证 LGB 信号接入"""
 import json
 import sys
@@ -15,7 +14,7 @@ signals_file = BASE / "models" / "lgb_enhanced" / "lgb_enhanced_signals.json"
 print(f"信号文件: {signals_file.name}")
 print(f"文件存在: {signals_file.exists()}")
 
-with open(signals_file, "r", encoding="utf-8") as f:
+with open(signals_file, encoding="utf-8") as f:
     data = json.load(f)
 
 signals = data.get("signals", {})

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """v7.5 对冲子包 — 基础 + v5.9增强"""
 
 from .beta_hedger import BetaHedger

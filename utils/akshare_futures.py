@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 期货数据统一接口
 
@@ -10,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import quote
 
 import requests
@@ -80,7 +79,7 @@ _IFIND_BASE_INDICATORS = [
 ]
 
 
-def _to_float(v: Any) -> Optional[float]:
+def _to_float(v: Any) -> float | None:
     try:
         if v is None:
             return None
@@ -89,7 +88,7 @@ def _to_float(v: Any) -> Optional[float]:
         return None
 
 
-def _to_str(v: Any) -> Optional[str]:
+def _to_str(v: Any) -> str | None:
     try:
         if v is None:
             return None
@@ -98,8 +97,8 @@ def _to_str(v: Any) -> Optional[str]:
         return None
 
 
-def _normalize_ak_quotes(df) -> Dict[str, Dict[str, Any]]:
-    result: Dict[str, Dict[str, Any]] = {}
+def _normalize_ak_quotes(df) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
     try:
         records = df.to_dict(orient="records") if hasattr(df, "to_dict") else []
     except Exception:  # P2 模块 fail-safe, 待后续精确化
@@ -124,8 +123,8 @@ def _normalize_ak_quotes(df) -> Dict[str, Dict[str, Any]]:
     return result
 
 
-def _normalize_ak_daily(df) -> Dict[str, Dict[str, Any]]:
-    result: Dict[str, Dict[str, Any]] = {}
+def _normalize_ak_daily(df) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
     try:
         records = df.to_dict(orient="records") if hasattr(df, "to_dict") else []
     except Exception:  # P2 模块 fail-safe, 待后续精确化
@@ -148,12 +147,12 @@ def _normalize_ak_daily(df) -> Dict[str, Dict[str, Any]]:
     return result
 
 
-def _try_http_futures_quotes(symbols: List[str]) -> Dict[str, Any]:
+def _try_http_futures_quotes(symbols: list[str]) -> dict[str, Any]:
     """直接 HTTP 回退：新浪/腾讯期货实时行情"""
     session = requests.Session()
     session.trust_env = False
     session.proxies = {"http": None, "https": None}
-    result: Dict[str, Dict[str, Any]] = {}
+    result: dict[str, dict[str, Any]] = {}
 
     sina_codes = []
     tencent_codes = []
@@ -240,7 +239,7 @@ def _try_http_futures_quotes(symbols: List[str]) -> Dict[str, Any]:
     return {}
 
 
-def _try_wind_futures_quotes(symbols: List[str]) -> Dict[str, Any]:
+def _try_wind_futures_quotes(symbols: list[str]) -> dict[str, Any]:
     """Wind MCP 期货实时行情（优先数据源）"""
     try:
         import os
@@ -249,7 +248,7 @@ def _try_wind_futures_quotes(symbols: List[str]) -> Dict[str, Any]:
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from wind_mcp_fetcher import wind_get_quote
 
-        result: Dict[str, Dict[str, Any]] = {}
+        result: dict[str, dict[str, Any]] = {}
         for sym in symbols:
             try:
                 wind_code = sym.split(".")[0]
@@ -280,7 +279,7 @@ def _try_wind_futures_quotes(symbols: List[str]) -> Dict[str, Any]:
     return {}
 
 
-def get_futures_realtime(symbols: List[str]) -> Dict[str, Any]:
+def get_futures_realtime(symbols: list[str]) -> dict[str, Any]:
     quotes = _try_wind_futures_quotes(symbols)
     if quotes:
         return quotes
@@ -294,7 +293,7 @@ def get_futures_realtime(symbols: List[str]) -> Dict[str, Any]:
         import akshare as ak
 
         seen = set()
-        candidates: List[tuple] = []
+        candidates: list[tuple] = []
         if hasattr(ak, "futures_zh_spot"):
             candidates.append(("futures_zh_spot", {"symbol": symbols[0].split(".")[0], "market": "CF"}))
             seen.add("futures_zh_spot")
@@ -322,7 +321,7 @@ def get_futures_realtime(symbols: List[str]) -> Dict[str, Any]:
     return _try_http_futures_quotes(symbols)
 
 
-def get_futures_daily(symbol: str, market: str = "CF") -> Dict[str, Any]:
+def get_futures_daily(symbol: str, market: str = "CF") -> dict[str, Any]:
     try:
         import akshare as ak
 
@@ -340,7 +339,7 @@ def get_futures_daily(symbol: str, market: str = "CF") -> Dict[str, Any]:
         return {}
 
 
-def get_futures_base_info(symbols: List[str]) -> Dict[str, Any]:
+def get_futures_base_info(symbols: list[str]) -> dict[str, Any]:
     info = fetch_futures_base_info(symbols)
     if info:
         return info  # type: ignore

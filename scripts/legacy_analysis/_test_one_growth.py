@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """强制重下 600519 测试 profit_growth"""
 import logging
 import sys

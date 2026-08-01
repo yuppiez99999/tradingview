@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证本地 Ollama + Qwen2.5 是否可用"""
 import sys
 from pathlib import Path

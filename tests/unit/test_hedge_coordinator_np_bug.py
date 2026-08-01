@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证 hedge_coordinator.py 的 numpy import 修复 (P0 级 Bug).
 
 原始 Bug:

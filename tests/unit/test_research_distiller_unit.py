@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_research_distiller_unit.py — ResearchDistiller 单元测试
 
 测试范围 (15 个测试, 覆盖任务要求 7 大类):
@@ -364,7 +363,7 @@ class TestSnapshotPersistence:
         assert "000001.SZ" in loaded
 
         # 验证 JSON 文件结构
-        with open(saved_path, "r", encoding="utf-8") as f:
+        with open(saved_path, encoding="utf-8") as f:
             payload = json.load(f)
         assert payload["trade_date"] == "20260726"
         assert payload["signal_count"] == 2

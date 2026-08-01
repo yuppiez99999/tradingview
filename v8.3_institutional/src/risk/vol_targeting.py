@@ -6,7 +6,6 @@ import logging
 import math
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Optional
 
 import numpy as np
 
@@ -31,9 +30,9 @@ class VolTargetConfig:
 
 
 class VolTargetingEngine:
-    def __init__(self, config: Optional[VolTargetConfig] = None):
+    def __init__(self, config: VolTargetConfig | None = None):
         self.cfg = config or VolTargetConfig()
-        self._returns: Deque[float] = deque(maxlen=self.cfg.ewma_window)
+        self._returns: deque[float] = deque(maxlen=self.cfg.ewma_window)
         self._garch_sigma2: float = (self.cfg.target_ann_vol**2) / 252
         self.smoothed_scale: float = 1.0
         self.current_ann_vol: float = self.cfg.target_ann_vol

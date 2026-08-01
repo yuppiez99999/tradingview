@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ValueAgent — 估值分析 Agent (DCF / PE / PB)
 =============================================
@@ -24,7 +23,7 @@ ValueAgent — 估值分析 Agent (DCF / PE / PB)
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from utils.finance_agents.base_agent import AgentDecision, BaseAgent
 
@@ -35,12 +34,12 @@ class ValueAgent(BaseAgent):
     def __init__(self, name: str = "value"):
         super().__init__(name=name)
 
-    def is_available(self, context: Dict[str, Any]) -> bool:
+    def is_available(self, context: dict[str, Any]) -> bool:
         """需要 fundamentals 数据才可用"""
         fund = self._safe_get(context, "fundamentals")
         return isinstance(fund, dict) and len(fund) > 0
 
-    def analyze(self, symbol: str, context: Dict[str, Any]) -> AgentDecision:
+    def analyze(self, symbol: str, context: dict[str, Any]) -> AgentDecision:
         """估值分析主入口"""
         fund = self._safe_get(context, "fundamentals", default={}) or {}
         if not isinstance(fund, dict) or not fund:
@@ -62,7 +61,7 @@ class ValueAgent(BaseAgent):
 
         strength = 0.0
         signals = []
-        metrics: Dict[str, Any] = {
+        metrics: dict[str, Any] = {
             "pe": pe,
             "pb": pb,
             "roe": roe,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """providers 测试: Mock 降级 / 真实 provider 探测 / 无 Key 跑通"""
 
 from __future__ import annotations

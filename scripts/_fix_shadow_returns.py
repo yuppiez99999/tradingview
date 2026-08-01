@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 三大数据源实际拉取能力验证 + 影子账户零收益数据修复
 
@@ -268,7 +267,7 @@ def get_target_weights_from_trade_plans():
             continue
 
         try:
-            with open(tp_path, "r", encoding="utf-8") as f:
+            with open(tp_path, encoding="utf-8") as f:
                 tp = json.load(f)
 
             exec_plan = tp.get("execution_plan", {})
@@ -433,7 +432,7 @@ def update_daily_returns_jsonl(calculated_returns):
 
     # 读取现有记录
     existing_lines = []
-    with open(jsonl_path, "r", encoding="utf-8") as f:
+    with open(jsonl_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -484,7 +483,7 @@ def update_daily_returns_jsonl(calculated_returns):
 
     # 验证
     print("\n  === 最终 daily_returns.jsonl 内容 ===")
-    with open(jsonl_path, "r", encoding="utf-8") as f:
+    with open(jsonl_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 步骤1+2：去除极端月份重新评估 + 不同 n_trials 的 DSR 对比
 """
@@ -20,7 +19,7 @@ from deflated_sharpe import deflated_sharpe_ratio
 
 def load_daily_returns() -> pd.Series:
     """从月度权重 + 日K线 计算日度组合收益"""
-    with open(BASE_DIR / "output" / "backtest_result_latest.json", "r", encoding="utf-8") as f:
+    with open(BASE_DIR / "output" / "backtest_result_latest.json", encoding="utf-8") as f:
         data = json.load(f)
     records = data["records"]
 

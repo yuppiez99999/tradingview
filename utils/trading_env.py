@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 交易环境配置 (Trading Environment Configuration)
 ================================================
@@ -36,7 +35,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +107,7 @@ def get_trading_env() -> str:
     return TradingEnv.DEVELOPMENT
 
 
-def _read_env_file() -> Optional[str]:
+def _read_env_file() -> str | None:
     """从 .env 文件读取 TRADING_ENV (支持 UTF-8 和 GBK 编码)"""
     from pathlib import Path
 
@@ -127,7 +125,7 @@ def _read_env_file() -> Optional[str]:
             continue
         for enc in encodings:
             try:
-                with open(env_file, "r", encoding=enc) as f:
+                with open(env_file, encoding=enc) as f:
                     content = f.read()
                 for line in content.splitlines():
                     line = line.strip()

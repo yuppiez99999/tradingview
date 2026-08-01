@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Phase implementation: phase_quant_neutral
 
@@ -12,7 +11,7 @@ The function receives a DailyWorkflow instance as its first parameter ("workflow
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def phase_quant_neutral(workflow) -> Dict[str, Any]:
+def phase_quant_neutral(workflow) -> dict[str, Any]:
     """量化市场中性策略 — 7 因子选股 + IC 期货对冲
 
     v10.0 投资计划 quant_neutral_account (70 万资金, 140 万名义敞口):
@@ -39,7 +38,7 @@ def phase_quant_neutral(workflow) -> Dict[str, Any]:
     logger.info("Phase 4.7: 量化市场中性策略 (月度调仓 + IC 对冲)")
     logger.info("=" * 60)
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "status": "PASS",
         "action": "skip",
         "reason": "",

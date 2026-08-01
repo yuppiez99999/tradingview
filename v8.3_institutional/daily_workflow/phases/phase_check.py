@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Phase implementation: phase_check
 
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def phase_check(workflow: "DailyWorkflow") -> bool:
+def phase_check(workflow: DailyWorkflow) -> bool:
         """系统自检"""
         logger.info("=" * 60)
         logger.info(f"Phase 1: 系统自检 @ {workflow.trade_date}")

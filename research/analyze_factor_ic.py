@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 因子对选股系统是否有效 - 实证 IC 分析
 
@@ -26,7 +25,6 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -55,7 +53,7 @@ MIN_LOOKBACK = 120
 FACTOR_CACHE_DIR = _REPO_ROOT / "data" / "cache" / "factor_series"
 
 
-def fetch_factor_series(symbol: str, kline_df: pd.DataFrame, factor_ids, adapter) -> Optional[pd.DataFrame]:
+def fetch_factor_series(symbol: str, kline_df: pd.DataFrame, factor_ids, adapter) -> pd.DataFrame | None:
     """为单只股票计算全部因子的完整时间序列（对齐到 kline 索引）"""
     if kline_df is None or len(kline_df) < 60:
         return None
@@ -118,7 +116,7 @@ def main():
     # 3. 计算并缓存每只股票因子时间序列
     logger.info("-" * 70)
     logger.info("计算因子时间序列（带缓存）")
-    stock_data: Dict[str, pd.DataFrame] = {}
+    stock_data: dict[str, pd.DataFrame] = {}
     for i, code in enumerate(codes):
         cache_file = FACTOR_CACHE_DIR / f"{code}.parquet"
         df = None
@@ -152,7 +150,7 @@ def main():
     logger.info(f"逐调仓日 IC 计算（前视窗口={args.horizon} 交易日）")
 
     ic_records = []  # 每个调仓日一条
-    theme_ic_records: Dict[str, list] = {t: [] for t in theme_factors}
+    theme_ic_records: dict[str, list] = {t: [] for t in theme_factors}
 
     # 统一日期轴：取所有股票日期的并集，按交易日步进
     # 每只股票用自己的日期索引查因子值与收盘价，天然兼容不同长度

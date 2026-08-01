@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 网页抓取模块 (Web Scraper)
 ==========================
@@ -708,7 +707,7 @@ class WebScraper:
         if not cache_file.exists():
             return None
         try:
-            with open(cache_file, "r", encoding="utf-8") as f:
+            with open(cache_file, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"读取缓存文件失败 ({cache_file}): {e}")

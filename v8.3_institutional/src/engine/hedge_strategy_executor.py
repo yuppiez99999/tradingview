@@ -66,7 +66,7 @@ class HedgeStrategyExecutor:
     """对冲策略执行器"""
 
     def __init__(self, config_path: str):
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             self.config = json.load(f)
 
         self.portfolio = self.config["portfolio"]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """FactorKillSwitch 每日运行器（daily_workflow Phase 9 集成适配器）
 
 本模块封装 FactorKillSwitch 的「每日增量更新」流程，专为 daily_workflow.py
@@ -44,7 +43,7 @@ import sys
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # 项目根路径
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -80,7 +79,7 @@ def run_daily_kill_switch(
     trade_date: str,
     history_days: int = DEFAULT_HISTORY_DAYS,
     force_refresh: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """每日运行 FactorKillSwitch 监控（daily_workflow Phase 9 入口）
 
     流程：
@@ -113,7 +112,7 @@ def run_daily_kill_switch(
     if batch_dir.exists() and state_json_path.exists() and not force_refresh:
         logger.info("[Phase9] %s 批次已存在，跳过（force_refresh=False）", trade_date)
         try:
-            with open(state_json_path, "r", encoding="utf-8") as f:
+            with open(state_json_path, encoding="utf-8") as f:
                 cached = json.load(f)
             return {
                 "status": "PASS",
@@ -161,7 +160,7 @@ def run_daily_kill_switch(
 
         # ============ Step 4: 逐日推进状态机 + 记录当日触发 ============
         logger.info("[Phase9] Step4: 逐日推进状态机")
-        triggered_today: List[Dict[str, Any]] = []
+        triggered_today: list[dict[str, Any]] = []
         for day_idx in range(history_days):
             day_label = f"{trade_date}-D-{history_days - day_idx}"
             for factor_name in all_monitored:
@@ -247,13 +246,13 @@ def run_daily_kill_switch(
 # 内部辅助函数
 # ============================================================
 
-def _load_all_monitored_factors() -> Dict[str, Dict[str, Any]]:
+def _load_all_monitored_factors() -> dict[str, dict[str, Any]]:
     """加载全部需要监控的因子（现有 51 + 候选 16）
 
     Returns:
         {factor_name: {"values": {symbol: float}, "origin": str}}
     """
-    all_monitored: Dict[str, Dict[str, Any]] = {}
+    all_monitored: dict[str, dict[str, Any]] = {}
 
     # 现有 51 个生产因子
     try:
@@ -297,10 +296,10 @@ def _load_all_monitored_factors() -> Dict[str, Dict[str, Any]]:
 
 
 def _compute_historical_ic_pnl(
-    all_monitored: Dict[str, Dict[str, Any]],
-    price_data: Dict[str, Dict[str, List[float]]],
+    all_monitored: dict[str, dict[str, Any]],
+    price_data: dict[str, dict[str, list[float]]],
     history_days: int,
-) -> Dict[str, List[Tuple[float, float]]]:
+) -> dict[str, list[tuple[float, float]]]:
     """计算每个因子的最近 history_days 日 IC + PnL 序列
 
     复用 run_kill_switch_monitor._compute_historical_ic_pnl 的算法，但封装为
@@ -318,9 +317,9 @@ def _persist_state_json(
     history_days: int,
     total_monitored: int,
     state_dist: Counter,
-    origin_dist: Dict[str, Counter],
-    all_states: Dict[str, KillSwitchStatus],
-    triggered_today: List[Dict[str, Any]],
+    origin_dist: dict[str, Counter],
+    all_states: dict[str, KillSwitchStatus],
+    triggered_today: list[dict[str, Any]],
 ) -> None:
     """持久化状态 JSON（供次日 load_kill_switch_state 加载）"""
     state = {
@@ -344,11 +343,11 @@ def _persist_dashboard_md(
     trade_date: str,
     history_days: int,
     total_monitored: int,
-    all_monitored: Dict[str, Dict[str, Any]],
+    all_monitored: dict[str, dict[str, Any]],
     state_dist: Counter,
-    origin_dist: Dict[str, Counter],
-    all_states: Dict[str, KillSwitchStatus],
-    triggered_today: List[Dict[str, Any]],
+    origin_dist: dict[str, Counter],
+    all_states: dict[str, KillSwitchStatus],
+    triggered_today: list[dict[str, Any]],
 ) -> None:
     """生成 Markdown Dashboard（人类可读）"""
     active_cnt = state_dist.get(FactorStatus.ACTIVE.value, 0)
@@ -475,7 +474,7 @@ reports/kill_switch/{trade_date}/kill_switch_state.json
 # 自检入口（独立运行，不依赖 daily_workflow）
 # ============================================================
 
-def _self_test(trade_date: Optional[str] = None) -> int:
+def _self_test(trade_date: str | None = None) -> int:
     """自检入口：单独跑一次每日监控（不依赖 daily_workflow）
 
     用法：

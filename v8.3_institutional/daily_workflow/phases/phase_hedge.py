@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Phase implementation: phase_hedge
 
@@ -12,7 +11,7 @@ The function receives a DailyWorkflow instance as its first parameter ("workflow
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def phase_hedge(workflow) -> Dict[str, Any]:
+def phase_hedge(workflow) -> dict[str, Any]:
     """三联对冲评估 + 自动执行（与 7.4 AutoHedgeExecutor 行为对齐）
 
     修复点:
@@ -126,7 +125,7 @@ def phase_hedge(workflow) -> Dict[str, Any]:
     _real_positions = {}  # {mock_key: shares} 真实持仓
     if _positions_json.exists():
         try:
-            with open(_positions_json, "r", encoding="utf-8") as _f:
+            with open(_positions_json, encoding="utf-8") as _f:
                 _pos_data = json.load(_f)
             _pos_dict = _pos_data.get("positions", {})
             # positions.json key 格式 "510050.SH" → MOCK_PRICES key 格式 "sh510050"

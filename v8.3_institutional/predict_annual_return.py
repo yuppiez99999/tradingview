@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.6 期货优先对冲组合年化收益率预测模型
 ==========================================
@@ -110,7 +109,7 @@ def _load_shadow_benchmark() -> Dict[str, Any]:
         if not _SHADOW_CONFIG_FILE.exists():
             logger.warning("Shadow 配置文件不存在: %s", _SHADOW_CONFIG_FILE)
             return {}
-        with open(_SHADOW_CONFIG_FILE, "r", encoding="utf-8") as f:
+        with open(_SHADOW_CONFIG_FILE, encoding="utf-8") as f:
             cfg = json.load(f)
         return cfg.get("backtest_benchmark", {}) or {}
     except (json.JSONDecodeError, OSError) as e:
@@ -132,7 +131,7 @@ def _compute_real_build_ratio() -> Tuple[float, Dict[str, Any]]:
         if not _POSITIONS_FILE.exists():
             logger.warning("持仓文件不存在: %s", _POSITIONS_FILE)
             return 0.0, {}
-        with open(_POSITIONS_FILE, "r", encoding="utf-8") as f:
+        with open(_POSITIONS_FILE, encoding="utf-8") as f:
             data = json.load(f)
         positions = data.get("positions", {})
         stock_capital = float(data.get("meta", {}).get("stock_etf_capital", 3_000_000))

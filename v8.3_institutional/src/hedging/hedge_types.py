@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """对冲公共类型 (B3.3 抽取)
 
 本模块集中对冲子系统共享的枚举与数据类, 避免 hedge_engine_v59 与 hedge_strategy_executor

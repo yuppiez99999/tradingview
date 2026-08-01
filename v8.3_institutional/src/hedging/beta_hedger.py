@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 Beta 对冲引擎 —— EWMA Beta + 期货空头对冲
 
@@ -18,7 +17,6 @@ v7.5 Beta 对冲引擎 —— EWMA Beta + 期货空头对冲
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
 
 import pandas as pd
 
@@ -43,7 +41,7 @@ class BetaHedger:
         ewma_lambda: float = 0.94,
         window: int = 60,
         cost_max: float = 0.003,
-        futures_config: Optional[Dict] = None,
+        futures_config: dict | None = None,
     ):
         """
         Args:
@@ -99,7 +97,7 @@ class BetaHedger:
         return float(cov_am / var_m) if var_m > 0 else 0.0
 
     def portfolio_beta(
-        self, positions: Dict[str, float], prices: Dict[str, float], returns: pd.DataFrame, market_returns: pd.Series
+        self, positions: dict[str, float], prices: dict[str, float], returns: pd.DataFrame, market_returns: pd.Series
     ) -> float:
         """计算组合加权 Beta
 
@@ -128,7 +126,7 @@ class BetaHedger:
 
     def compute_hedge(
         self, portfolio_beta: float, portfolio_value: float, preferred_futures: str = "IF"
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         """计算对冲指令
 
         Args:
@@ -204,7 +202,7 @@ class BetaHedger:
         )
         return result
 
-    def _resolve_futures_price(self, preferred_futures: str, fut: Dict) -> float:
+    def _resolve_futures_price(self, preferred_futures: str, fut: dict) -> float:
         """获取期货价格：优先 AKShare 实时，否则回退到配置价格"""
         symbol = preferred_futures
         if HAS_AKSHARE_FUTURES:
@@ -221,7 +219,7 @@ class BetaHedger:
         return float(price)
 
 
-def pick_futures_contract(portfolio_beta: float, portfolio_value: float, futures_config: Dict) -> str:
+def pick_futures_contract(portfolio_beta: float, portfolio_value: float, futures_config: dict) -> str:
     """根据组合特征选择最合适的期货合约
 
     Args:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import akshare as ak
 
 # 搜索 akshare 中与港口库存、动力煤、碳市场相关的函数

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 研究内容蒸馏器 (RIA--TV++ 量化版)
 =================================
@@ -40,7 +39,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from utils.logger import get_logger
 
@@ -115,7 +114,7 @@ class DistilledSignal:
     reasoning: str = ""
     valid_until: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    key_factors: List[str] = field(default_factory=list)
+    key_factors: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """构造后防御性 NaN/Inf 检查 + 边界裁剪 (与 signal_fusion.py 一致)"""
@@ -150,7 +149,7 @@ class DistilledSignal:
         if not isinstance(self.symbol, str):
             self.symbol = str(self.symbol) if self.symbol else ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为 dict (用于 JSON 持久化)"""
         return {
             "symbol": self.symbol,
@@ -165,7 +164,7 @@ class DistilledSignal:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "DistilledSignal":
+    def from_dict(cls, d: dict[str, Any]) -> DistilledSignal:
         """从 dict 反序列化 (容错: 字段缺失/类型错误时使用默认值)"""
         if not isinstance(d, dict):
             return cls(symbol="")
@@ -310,7 +309,7 @@ class ResearchDistiller:
     ]
 
     # 信号时效 (天数): 不同来源的信号失效时间 (任务要求 5.4)
-    VALIDITY_DAYS: Dict[str, int] = {
+    VALIDITY_DAYS: dict[str, int] = {
         "report": 7,  # 研报: 默认 7 天
         "earnings_call": 30,  # 业绩会: 30 天 (信息含量高, 时效长)
         "book": 90,  # 书籍: 90 天 (长期方法论)
@@ -326,7 +325,7 @@ class ResearchDistiller:
 
     def __init__(
         self,
-        cache_dir: Optional[Path] = None,
+        cache_dir: Path | None = None,
         llm_enabled: bool = True,
     ) -> None:
         """初始化蒸馏器
@@ -343,11 +342,11 @@ class ResearchDistiller:
             logger.warning("ResearchDistiller: 创建 cache_dir 失败 (%s): %s", self.cache_dir, e)
 
         # 加载持仓名称词典 (用于 NER: "恒瑞医药" → "600276.SH")
-        self._name_to_symbol: Dict[str, str] = {}
+        self._name_to_symbol: dict[str, str] = {}
         self._load_position_names()
 
         # 统计计数器 (用于 get_status)
-        self._stats: Dict[str, int] = {
+        self._stats: dict[str, int] = {
             "llm_calls": 0,
             "llm_failures": 0,
             "rule_engine_invocations": 0,
@@ -365,7 +364,7 @@ class ResearchDistiller:
             if not pos_path.exists():
                 logger.debug("positions.json 不存在: %s", pos_path)
                 return
-            with open(pos_path, "r", encoding="utf-8") as f:
+            with open(pos_path, encoding="utf-8") as f:
                 data = json.load(f)
             positions = data.get("positions", {}) if isinstance(data, dict) else {}
             for code, info in positions.items():
@@ -385,7 +384,7 @@ class ResearchDistiller:
     # 公开蒸馏 API
     # ----------------------------------------------------------
 
-    def distill_report(self, pdf_path: Path) -> List[DistilledSignal]:
+    def distill_report(self, pdf_path: Path) -> list[DistilledSignal]:
         """蒸馏研究报告 PDF
 
         Args:
@@ -416,7 +415,7 @@ class ResearchDistiller:
         self,
         transcript: str,
         symbol: str,
-    ) -> List[DistilledSignal]:
+    ) -> list[DistilledSignal]:
         """蒸馏业绩会纪要
 
         Args:
@@ -448,7 +447,7 @@ class ResearchDistiller:
         self,
         book_path: Path,
         chapter: str = "",
-    ) -> List[DistilledSignal]:
+    ) -> list[DistilledSignal]:
         """蒸馏财经书籍章节
 
         Args:
@@ -482,7 +481,7 @@ class ResearchDistiller:
             logger.warning("distill_book_chapter 异常 (%s): %s", book_path, e)
             return []
 
-    def distill_news_batch(self, news_items: List[Dict]) -> List[DistilledSignal]:
+    def distill_news_batch(self, news_items: list[dict]) -> list[DistilledSignal]:
         """批量蒸馏新闻
 
         Args:
@@ -494,7 +493,7 @@ class ResearchDistiller:
         """
         if not news_items:
             return []
-        signals: List[DistilledSignal] = []
+        signals: list[DistilledSignal] = []
         for item in news_items:
             try:
                 if not isinstance(item, dict):
@@ -523,8 +522,8 @@ class ResearchDistiller:
 
     def to_signal_map(
         self,
-        signals: List[DistilledSignal],
-    ) -> Dict[str, float]:
+        signals: list[DistilledSignal],
+    ) -> dict[str, float]:
         """将 DistilledSignal 列表聚合为 {symbol: strength} 字典
 
         聚合规则:
@@ -542,12 +541,12 @@ class ResearchDistiller:
         if not signals:
             return {}
         # 按 symbol 分组
-        by_symbol: Dict[str, List[DistilledSignal]] = {}
+        by_symbol: dict[str, list[DistilledSignal]] = {}
         for s in signals:
             if not s.symbol or not math.isfinite(s.strength):
                 continue
             by_symbol.setdefault(s.symbol, []).append(s)
-        result: Dict[str, float] = {}
+        result: dict[str, float] = {}
         for symbol, group in by_symbol.items():
             try:
                 total_weight = sum(s.confidence for s in group)
@@ -569,7 +568,7 @@ class ResearchDistiller:
 
     def save_daily_snapshot(
         self,
-        signals: List[DistilledSignal],
+        signals: list[DistilledSignal],
         trade_date: str,
     ) -> Path:
         """保存每日蒸馏信号快照
@@ -615,7 +614,7 @@ class ResearchDistiller:
             logger.warning("save_daily_snapshot 异常: %s", e)
             return Path()
 
-    def load_daily_snapshot(self, trade_date: str) -> Dict[str, float]:
+    def load_daily_snapshot(self, trade_date: str) -> dict[str, float]:
         """加载每日蒸馏信号快照
 
         Args:
@@ -630,13 +629,13 @@ class ResearchDistiller:
             if not input_path.exists():
                 logger.debug("load_daily_snapshot: 文件不存在: %s", input_path)
                 return {}
-            with open(input_path, "r", encoding="utf-8") as f:
+            with open(input_path, encoding="utf-8") as f:
                 payload = json.load(f)
             signal_map = payload.get("signal_map", {}) if isinstance(payload, dict) else {}
             if not isinstance(signal_map, dict):
                 return {}
             # 防御性 NaN/Inf 检查 + 边界裁剪 (与 signal_fusion 一致)
-            result: Dict[str, float] = {}
+            result: dict[str, float] = {}
             for k, v in signal_map.items():
                 try:
                     fv = float(v)
@@ -663,8 +662,8 @@ class ResearchDistiller:
         text: str,
         source_type: str,
         source_id: str = "",
-        forced_symbol: Optional[str] = None,
-    ) -> List[DistilledSignal]:
+        forced_symbol: str | None = None,
+    ) -> list[DistilledSignal]:
         """蒸馏文本 (LLM 优先 → 规则引擎兜底)
 
         Args:
@@ -705,8 +704,8 @@ class ResearchDistiller:
         text: str,
         source_type: str,
         source_id: str,
-        forced_symbol: Optional[str] = None,
-    ) -> List[DistilledSignal]:
+        forced_symbol: str | None = None,
+    ) -> list[DistilledSignal]:
         """LLM 蒸馏 (返回空列表 = 触发规则引擎降级)"""
         # 截断超长文本 (避免超过 LLM 上下文窗口)
         truncated = text[:8000] if len(text) > 8000 else text
@@ -734,7 +733,7 @@ class ResearchDistiller:
         self,
         text: str,
         source_type: str,
-        forced_symbol: Optional[str] = None,
+        forced_symbol: str | None = None,
     ) -> str:
         """构造 LLM 蒸馏 prompt (任务要求 5.3)"""
         source_label = {
@@ -763,8 +762,8 @@ class ResearchDistiller:
         response: str,
         source_type: str,
         source_id: str,
-        forced_symbol: Optional[str] = None,
-    ) -> List[DistilledSignal]:
+        forced_symbol: str | None = None,
+    ) -> list[DistilledSignal]:
         """解析 LLM 响应 (容错: 去除 markdown 代码块 + 前导文本)"""
         try:
             clean = response.strip()
@@ -785,7 +784,7 @@ class ResearchDistiller:
             else:
                 return []
             valid_until = self._compute_valid_until(source_type)
-            signals: List[DistilledSignal] = []
+            signals: list[DistilledSignal] = []
             for entry in signals_data:
                 if not isinstance(entry, dict):
                     continue
@@ -831,8 +830,8 @@ class ResearchDistiller:
         text: str,
         source_type: str,
         source_id: str,
-        forced_symbol: Optional[str] = None,
-    ) -> List[DistilledSignal]:
+        forced_symbol: str | None = None,
+    ) -> list[DistilledSignal]:
         """规则引擎蒸馏 (关键词情感词典 + 标的代码 NER)
 
         评分规则:
@@ -883,7 +882,7 @@ class ResearchDistiller:
             else:
                 confidence = min(0.85, 0.4 + 0.1 * total_signals)
                 # 提取关键因素 (优先 strong 词)
-                factors: List[str] = []
+                factors: list[str] = []
                 if strong_pos > 0:
                     factors.extend(w for w in self.STRONG_POSITIVE_WORDS if w in text)
                 if strong_neg > 0:
@@ -898,7 +897,7 @@ class ResearchDistiller:
         valid_until = self._compute_valid_until(source_type)
 
         # 4. 为每个识别到的标的生成信号
-        signals: List[DistilledSignal] = []
+        signals: list[DistilledSignal] = []
         for symbol in symbols:
             signals.append(
                 DistilledSignal(
@@ -918,7 +917,7 @@ class ResearchDistiller:
     # NER: 标的识别
     # ----------------------------------------------------------
 
-    def _extract_symbols(self, text: str) -> List[str]:
+    def _extract_symbols(self, text: str) -> list[str]:
         """从文本中识别 A 股/港股代码 + 名称映射 (NER)
 
         识别优先级:
@@ -926,7 +925,7 @@ class ResearchDistiller:
           2. A 股裸代码 (6 位数字, 首位 6/0/3/9)
           3. 持仓名称词典 (从 config/positions.json 加载)
         """
-        found: List[str] = []
+        found: list[str] = []
         seen = set()
 
         # 1. 完整代码 (优先级最高, 避免 600276.SH 被截断为 600276)
@@ -1062,7 +1061,7 @@ class ResearchDistiller:
     # 状态查询
     # ----------------------------------------------------------
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取蒸馏器状态 (用于调试和监控)"""
         return {
             "llm_available": self.llm_available,
@@ -1076,7 +1075,7 @@ class ResearchDistiller:
 # 便捷函数
 # ============================================================
 
-_distiller_instance: Optional[ResearchDistiller] = None
+_distiller_instance: ResearchDistiller | None = None
 
 
 def get_distiller() -> ResearchDistiller:

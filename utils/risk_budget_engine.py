@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 风险预算引擎 (Risk Budget Engine)
 ====================================
@@ -25,7 +24,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -42,12 +41,12 @@ class RiskCheckResult:
     allowed: bool = True
     portfolio_var_95: float = 0.0
     portfolio_var_99: float = 0.0
-    single_var: Dict[str, float] = field(default_factory=dict)
+    single_var: dict[str, float] = field(default_factory=dict)
     budget_usage: float = 0.0
-    violations: List[str] = field(default_factory=list)
-    meta: Dict[str, Any] = field(default_factory=dict)
+    violations: list[str] = field(default_factory=list)
+    meta: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "allowed": self.allowed,
             "portfolio_var_95": round(self.portfolio_var_95, 6),
@@ -86,9 +85,9 @@ class RiskBudgetEngine:
 
     def check_pre_trade(
         self,
-        target_portfolio: Dict[str, float],
-        current_positions: Optional[Dict[str, Dict[str, Any]]] = None,
-        price_data: Optional[Dict[str, pd.Series]] = None,
+        target_portfolio: dict[str, float],
+        current_positions: dict[str, dict[str, Any]] | None = None,
+        price_data: dict[str, pd.Series] | None = None,
     ) -> RiskCheckResult:
         """交易前风险检查
 
@@ -153,9 +152,9 @@ class RiskBudgetEngine:
 
     def _portfolio_var(
         self,
-        target_portfolio: Dict[str, float],
-        price_data: Dict[str, pd.Series],
-    ) -> Tuple[float, float]:
+        target_portfolio: dict[str, float],
+        price_data: dict[str, pd.Series],
+    ) -> tuple[float, float]:
         """组合 VaR：基于历史收益率 + 权重"""
         returns_list = []
         weights = []
@@ -194,9 +193,9 @@ class RiskBudgetEngine:
 
     def _single_var(
         self,
-        target_portfolio: Dict[str, float],
-        price_data: Dict[str, pd.Series],
-    ) -> Dict[str, float]:
+        target_portfolio: dict[str, float],
+        price_data: dict[str, pd.Series],
+    ) -> dict[str, float]:
         """单标的 VaR"""
         result = {}
         for symbol, weight in target_portfolio.items():
@@ -219,7 +218,7 @@ class RiskBudgetEngine:
     # 集中度与回撤预算
     # ------------------------------------------------------------
 
-    def _check_concentration(self, target_portfolio: Dict[str, float]) -> List[str]:
+    def _check_concentration(self, target_portfolio: dict[str, float]) -> list[str]:
         """集中度检查"""
         violations = []
         for symbol, weight in target_portfolio.items():
@@ -229,9 +228,9 @@ class RiskBudgetEngine:
 
     def _check_drawdown_budget(
         self,
-        current_positions: Dict[str, Dict[str, Any]],
-        price_data: Dict[str, pd.Series],
-    ) -> List[str]:
+        current_positions: dict[str, dict[str, Any]],
+        price_data: dict[str, pd.Series],
+    ) -> list[str]:
         """回撤预算检查（当前组合）"""
         if not current_positions:
             return []
@@ -273,8 +272,8 @@ class RiskBudgetEngine:
 
     def _compute_budget_usage(
         self,
-        target_portfolio: Dict[str, float],
-        current_positions: Dict[str, Dict[str, Any]],
+        target_portfolio: dict[str, float],
+        current_positions: dict[str, dict[str, Any]],
     ) -> float:
         """预算使用率：目标组合风险 / 总资本"""
         port_var, _ = self._portfolio_var(target_portfolio, {})

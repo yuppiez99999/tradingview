@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证 compute_ic_decay 异号判断 bug 修复（v6 噪声阈值检查）
 
 修复前 bug：

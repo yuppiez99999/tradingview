@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证 GTJA191 Alpha144 在 28-终极量化交易系统7.1 中的集成"""
 
 import os

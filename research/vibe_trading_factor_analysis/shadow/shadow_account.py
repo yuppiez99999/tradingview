@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ShadowAccount - Stage 7 影子账户（CIO 视角 v1.0 + P2.1c 风险管理层）
 
 90 日纸面交易 + 蒙特卡洛压力测试 + live DSR 复算。
@@ -27,7 +26,7 @@ import math
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -71,7 +70,7 @@ class ShadowResult:
     sr_observed: float = 0.0
     max_drawdown: float = 0.0
     total_return: float = 0.0
-    daily_pnl: List[float] = field(default_factory=list)
+    daily_pnl: list[float] = field(default_factory=list)
     n_obs_days: int = 0
     # 蒙特卡洛压力测试
     monte_carlo_p95_dd: float = 0.0
@@ -89,10 +88,10 @@ class ShadowResult:
     derisk_triggered_days: int = 0          # 触发去杠杆的日数
     # 准入结论
     pass_shadow: bool = False
-    fail_reasons: List[str] = field(default_factory=list)
+    fail_reasons: list[str] = field(default_factory=list)
     reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -115,7 +114,7 @@ class ShadowAccount:
         ...     pass
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         c = config or {}
         # P2.2 v6.2d：保存原始 config，支持因子特定覆盖时复用
         self.config = dict(c)
@@ -150,8 +149,8 @@ class ShadowAccount:
 
     def run_shadow(
         self,
-        factor_values_history: List[Dict[str, float]],
-        forward_returns_history: List[Dict[str, float]],
+        factor_values_history: list[dict[str, float]],
+        forward_returns_history: list[dict[str, float]],
         n_trials: int,
         factor_name: str = "candidate",
     ) -> ShadowResult:
@@ -185,7 +184,7 @@ class ShadowAccount:
         # ============ Step 2: 每日纸面交易 PnL 模拟 ============
         daily_pnl = []
         daily_factor_returns = []  # 因子多空组合日收益率，用于 DSR
-        prev_holdings: Optional[set] = None
+        prev_holdings: set | None = None
 
         for day_idx in range(use_days):
             fv = fv_hist[day_idx]
@@ -290,8 +289,8 @@ class ShadowAccount:
     # ============================================================
 
     def _build_long_short(
-        self, factor_values: Dict[str, float]
-    ) -> Tuple[List[str], List[str]]:
+        self, factor_values: dict[str, float]
+    ) -> tuple[list[str], list[str]]:
         """构建 TopN 多空组合
 
         剔除 NaN/inf，按因子值排序，取前 N 做多、后 N 做空。
@@ -311,7 +310,7 @@ class ShadowAccount:
         return long_syms, short_syms
 
     @staticmethod
-    def _compute_avg_return(symbols: List[str], forward_returns: Dict[str, float]) -> float:
+    def _compute_avg_return(symbols: list[str], forward_returns: dict[str, float]) -> float:
         """计算等权组合平均收益"""
         rets = [forward_returns[s] for s in symbols if s in forward_returns and math.isfinite(forward_returns[s])]
         if not rets:
@@ -319,7 +318,7 @@ class ShadowAccount:
         return float(np.mean(rets))
 
     @staticmethod
-    def _compute_turnover(prev: Optional[set], cur: set) -> float:
+    def _compute_turnover(prev: set | None, cur: set) -> float:
         """计算换手率 = 不重叠标的数 / 总持仓数"""
         if prev is None:
             return 1.0  # 首日全换手
@@ -332,7 +331,7 @@ class ShadowAccount:
         return float(diff / len(union))
 
     @staticmethod
-    def _compute_max_drawdown(daily_pnl: List[float]) -> float:
+    def _compute_max_drawdown(daily_pnl: list[float]) -> float:
         """计算最大回撤"""
         if not daily_pnl:
             return 0.0
@@ -351,9 +350,9 @@ class ShadowAccount:
 
     def _apply_risk_management(
         self,
-        daily_pnl: List[float],
-        daily_factor_returns: List[float],
-    ) -> Tuple[List[float], List[float], Dict[str, float]]:
+        daily_pnl: list[float],
+        daily_factor_returns: list[float],
+    ) -> tuple[list[float], list[float], dict[str, float]]:
         """P2.1c 风险管理层：波动率缩放 + 回撤去杠杆
 
         两层保护：
@@ -382,14 +381,14 @@ class ShadowAccount:
             stats: {realized_vol, avg_scaler, derisk_triggered_days, rm_max_dd}
         """
         n = len(daily_pnl)
-        scaled_pnl: List[float] = []
-        scaled_factor_returns: List[float] = []
+        scaled_pnl: list[float] = []
+        scaled_factor_returns: list[float] = []
 
         # 累积净值（用于计算回撤，基于缩放后 PnL）
         cumulative = [1.0]
         peak = 1.0
 
-        scalers: List[float] = []
+        scalers: list[float] = []
         derisk_days = 0
 
         for i in range(n):
@@ -444,7 +443,7 @@ class ShadowAccount:
         }
         return scaled_pnl, scaled_factor_returns, stats
 
-    def _monte_carlo_stress_test(self, daily_pnl: List[float]) -> Tuple[float, float]:
+    def _monte_carlo_stress_test(self, daily_pnl: list[float]) -> tuple[float, float]:
         """蒙特卡洛 bootstrap 压力测试
 
         对 daily_pnl 做有放回重采样 1000 次，计算每次最大回撤，
@@ -471,8 +470,8 @@ class ShadowAccount:
 # ============================================================
 
 def quick_shadow(
-    factor_values_history: List[Dict[str, float]],
-    forward_returns_history: List[Dict[str, float]],
+    factor_values_history: list[dict[str, float]],
+    forward_returns_history: list[dict[str, float]],
     n_trials: int,
     factor_name: str = "candidate",
 ) -> ShadowResult:
@@ -487,8 +486,8 @@ def quick_shadow(
 
 
 def quick_shadow_risk_managed(
-    factor_values_history: List[Dict[str, float]],
-    forward_returns_history: List[Dict[str, float]],
+    factor_values_history: list[dict[str, float]],
+    forward_returns_history: list[dict[str, float]],
     n_trials: int,
     factor_name: str = "candidate",
     target_vol: float = RISK_MANAGED_TARGET_VOL,

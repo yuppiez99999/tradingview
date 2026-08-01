@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Wind MCP 桥接 — 为 hedge_engine / futures_prices 提供数据接口
 
 BUG-07 修复 (2026-07-31):

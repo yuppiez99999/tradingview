@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """S3 第十六批次：GROWTH_ACCEL 重新设计验证（P2.2 v6.4 改用扣非净利润）
 
 设计背景：
@@ -45,7 +44,7 @@ import math
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 
@@ -73,10 +72,10 @@ REPORTS_DIR = _PROJECT_ROOT / "research" / "vibe_trading_factor_analysis" / "rep
 
 
 def compute_ic_series_for_static_factor(
-    factor_values: Dict[str, float],
-    forward_returns_history: List[Dict[str, float]],
+    factor_values: dict[str, float],
+    forward_returns_history: list[dict[str, float]],
     min_samples: int = 5,
-) -> List[float]:
+) -> list[float]:
     """计算静态因子值与每日 forward returns 的 IC 序列
 
     Args:
@@ -87,7 +86,7 @@ def compute_ic_series_for_static_factor(
     Returns:
         ic_series: List[float]，每日的 Pearson IC
     """
-    ic_series: List[float] = []
+    ic_series: list[float] = []
     for fr in forward_returns_history:
         common = [
             s for s in factor_values
@@ -106,7 +105,7 @@ def compute_ic_series_for_static_factor(
     return ic_series
 
 
-def winsorize_values(values: Dict[str, float], p_lo: float = 5, p_hi: float = 95) -> Dict[str, float]:
+def winsorize_values(values: dict[str, float], p_lo: float = 5, p_hi: float = 95) -> dict[str, float]:
     """Winsorize 处理极端值（裁剪到 [P5, P95]）"""
     valid = {s: v for s, v in values.items() if np.isfinite(v)}
     if len(valid) < 5:
@@ -116,7 +115,7 @@ def winsorize_values(values: Dict[str, float], p_lo: float = 5, p_hi: float = 95
     return {s: float(max(lo, min(hi, v))) for s, v in values.items()}
 
 
-def compute_growth_accel_v5(quarters: List[Dict]) -> float:
+def compute_growth_accel_v5(quarters: list[dict]) -> float:
     """v5 baseline: 净利润绝对值 YoY 增长率加速
 
     公式: (np[q]/np[q-4]-1) - (np[q-1]/np[q-5]-1)
@@ -134,7 +133,7 @@ def compute_growth_accel_v5(quarters: List[Dict]) -> float:
     return growth_cur - growth_prev
 
 
-def compute_growth_accel_v3(quarters: List[Dict]) -> float:
+def compute_growth_accel_v3(quarters: list[dict]) -> float:
     """v3 baseline: yoy_pni 的 QoQ 变化
 
     公式: yoy_pni[q] - yoy_pni[q-1]
@@ -148,7 +147,7 @@ def compute_growth_accel_v3(quarters: List[Dict]) -> float:
     return cur - prev
 
 
-def compute_growth_accel_v6a(quarters: List[Dict]) -> float:
+def compute_growth_accel_v6a(quarters: list[dict]) -> float:
     """v6.1: yoy_pni 水平值（直接用扣非净利同比 %）
 
     公式: yoy_pni[q]
@@ -159,7 +158,7 @@ def compute_growth_accel_v6a(quarters: List[Dict]) -> float:
     return float(quarters[0].get("yoy_pni", 0))
 
 
-def compute_growth_accel_v6b(quarters: List[Dict]) -> float:
+def compute_growth_accel_v6b(quarters: list[dict]) -> float:
     """v6.2: yoy_pni 的 YoY 变化（消除季节性）
 
     公式: yoy_pni[q] - yoy_pni[q-4]
@@ -174,7 +173,7 @@ def compute_growth_accel_v6b(quarters: List[Dict]) -> float:
     return cur - yoy_prev
 
 
-def compute_growth_accel_v6c(quarters: List[Dict]) -> float:
+def compute_growth_accel_v6c(quarters: list[dict]) -> float:
     """v6.3: yoy_ni 的 YoY 变化（对比扣非净利）
 
     公式: yoy_ni[q] - yoy_ni[q-4]
@@ -190,9 +189,9 @@ def compute_growth_accel_v6c(quarters: List[Dict]) -> float:
 
 
 def build_factor_values(
-    fundamentals_history: Dict[str, Any],
+    fundamentals_history: dict[str, Any],
     compute_fn,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """从 fundamentals_history 构建因子值
 
     Args:
@@ -202,7 +201,7 @@ def build_factor_values(
     Returns:
         {symbol: factor_value}
     """
-    values: Dict[str, float] = {}
+    values: dict[str, float] = {}
     for sym, hist in fundamentals_history.items():
         if not isinstance(hist, dict):
             continue
@@ -220,10 +219,10 @@ def build_factor_values(
 
 def evaluate_scheme(
     name: str,
-    factor_values: Dict[str, float],
-    forward_returns_history: List[Dict[str, float]],
+    factor_values: dict[str, float],
+    forward_returns_history: list[dict[str, float]],
     apply_winsorize: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """评估单个方案的 IC 指标
 
     Args:
@@ -282,13 +281,13 @@ def main() -> int:
     # ============ Step 2: 加载 fundamentals_history ============
     logger.info("\n[2/4] 加载历史季度财务数据")
     cache_dir = _PROJECT_ROOT / "cache" / "fundamentals"
-    fundamentals_history: Dict[str, Any] = {}
+    fundamentals_history: dict[str, Any] = {}
     for sym in symbols:
         cache_path = cache_dir / f"{sym}_history.json"
         if not cache_path.exists():
             continue
         try:
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(cache_path, encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict) and data.get("n_valid", 0) >= 4:
                 fundamentals_history[sym] = data
@@ -315,7 +314,7 @@ def main() -> int:
     logger.info("\n[4/4] 评估各方案 IC_IR")
     logger.info("-" * 70)
 
-    results: Dict[str, Any] = {}
+    results: dict[str, Any] = {}
 
     # v5 baseline: 净利润绝对值 YoY 增长率加速
     v5_values = build_factor_values(fundamentals_history, compute_growth_accel_v5)

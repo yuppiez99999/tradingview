@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """OmniRoute 网关 Provider — P0 最高优先级 (290+ provider, 500+ 模型).
 
 从原 `utils/alpha/llm_router.py:LLMRouter._call_omniroute` 拆出 (B3.4.3)。
@@ -13,7 +12,6 @@ OmniRoute 内部已处理:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 logger = logging.getLogger("llm_router")
 
@@ -24,7 +22,7 @@ def call_omniroute(
     temperature: float,
     max_tokens: int,
     timeout: int,
-) -> Optional[str]:
+) -> str | None:
     """OmniRoute 网关调用 (P0 最高优先级).
 
     Args:

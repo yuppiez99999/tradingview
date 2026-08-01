@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 2030 清仓协议日程模块 (Liquidation Scheduler)
 =============================================
@@ -24,7 +23,6 @@ import json
 import logging
 from datetime import date, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import yaml
 
@@ -44,12 +42,12 @@ class LiquidationScheduler:
     PHASE_3_START = date(2030, 12, 1)
     FINAL_DATE = date(2030, 12, 31)
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         self.config_path = config_path or CONFIG_PATH
         self.config = self._load_config()
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    def _load_config(self) -> Dict:
+    def _load_config(self) -> dict:
         """加载清仓协议配置 (P1-Q8: 通过 ConfigManager 统一加载)
 
         优先级:
@@ -62,7 +60,7 @@ class LiquidationScheduler:
         # 路径 1: 调用方显式指定了 config_path (测试场景, 向后兼容)
         if self.config_path != CONFIG_PATH:
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("liquidation_protocol", {}) if isinstance(cfg, dict) else {}
             except Exception as e:  # P2 模块 fail-safe, 待后续精确化
@@ -78,20 +76,20 @@ class LiquidationScheduler:
             if cfg:
                 return cfg  # type: ignore
             # ConfigManager 全部失败, 回退到旧路径 (保底)
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
             return fallback_cfg.get("liquidation_protocol", {}) if isinstance(fallback_cfg, dict) else {}
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("liquidation_protocol", {}) if isinstance(cfg, dict) else {}
             except Exception as e2:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"全部加载路径失败: {e2}")
                 return {}
 
-    def get_current_phase(self, today: Optional[date] = None) -> Optional[Dict]:
+    def get_current_phase(self, today: date | None = None) -> dict | None:
         """获取当前应执行的清仓阶段
 
         Args:
@@ -163,7 +161,7 @@ class LiquidationScheduler:
             "days_to_next_phase": days_to_phase_1,
         }
 
-    def get_schedule(self) -> List[Dict]:
+    def get_schedule(self) -> list[dict]:
         """获取完整清仓时间表
 
         Returns:
@@ -199,7 +197,7 @@ class LiquidationScheduler:
             },
         ]
 
-    def check_alert(self, days_threshold: int = 30) -> Optional[Dict]:
+    def check_alert(self, days_threshold: int = 30) -> dict | None:
         """检查是否需要清仓预警
 
         Args:
@@ -239,7 +237,7 @@ class LiquidationScheduler:
 
         return None
 
-    def _log_event(self, event: Dict) -> None:
+    def _log_event(self, event: dict) -> None:
         """记录清仓事件"""
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:

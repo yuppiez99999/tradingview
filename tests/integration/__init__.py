@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """tests/integration — 集成测试层 (测试金字塔中层, 占比 ~25%)
 
 设计原则:

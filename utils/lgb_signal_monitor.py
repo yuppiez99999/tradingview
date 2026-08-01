@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LGB 增强信号实盘监控 + 阈值优化分析
 =====================================
@@ -30,7 +29,7 @@ import logging
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 # ============================================================
 # 路径配置
@@ -52,8 +51,8 @@ logger = logging.getLogger("lgb_monitor")
 # ============================================================
 def record_lgb_application(
     trade_date: str,
-    orders: List[Dict[str, Any]],
-    lgb_signals: Dict[str, Dict[str, Any]],
+    orders: list[dict[str, Any]],
+    lgb_signals: dict[str, dict[str, Any]],
     boost_count: int = 0,
     cut_count: int = 0,
 ) -> int:
@@ -131,7 +130,7 @@ def record_lgb_application(
     return events_written
 
 
-def _append_jsonl(event: Dict[str, Any]) -> None:
+def _append_jsonl(event: dict[str, Any]) -> None:
     """追加事件到JSONL文件"""
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
@@ -143,7 +142,7 @@ def _append_jsonl(event: Dict[str, Any]) -> None:
 # ============================================================
 # 2. 分析历史日志
 # ============================================================
-def load_history(days: int = 30) -> List[Dict[str, Any]]:
+def load_history(days: int = 30) -> list[dict[str, Any]]:
     """加载历史日志
 
     Args:
@@ -161,7 +160,7 @@ def load_history(days: int = 30) -> List[Dict[str, Any]]:
         cutoff_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
     try:
-        with open(LOG_FILE, "r", encoding="utf-8") as f:
+        with open(LOG_FILE, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -180,7 +179,7 @@ def load_history(days: int = 30) -> List[Dict[str, Any]]:
     return events
 
 
-def analyze_lgb_history(days: int = 30) -> Dict[str, Any]:
+def analyze_lgb_history(days: int = 30) -> dict[str, Any]:
     """分析历史日志, 输出统计报告
 
     Args:
@@ -305,10 +304,10 @@ def _generate_threshold_suggestions(
     boost_ratio: float,
     cut_ratio: float,
     neutral_ratio: float,
-    signal_buckets: Dict[str, int],
-    multiplier_dist: Dict[float, int],
+    signal_buckets: dict[str, int],
+    multiplier_dist: dict[float, int],
     total_orders: int,
-) -> List[str]:
+) -> list[str]:
     """根据统计数据生成阈值优化建议
 
     当前阈值表 (lgb_enhanced_trainer.py 中的 _lgb_confidence_multiplier):
@@ -389,7 +388,7 @@ def _generate_threshold_suggestions(
 # ============================================================
 # 3. 生成 Markdown 报告
 # ============================================================
-def generate_analysis_report(analysis: Dict[str, Any]) -> str:
+def generate_analysis_report(analysis: dict[str, Any]) -> str:
     """生成 Markdown 分析报告"""
     if analysis.get("empty"):
         return f"# LGB信号实盘监控报告\n\n**分析时间**: {datetime.now():%Y-%m-%d %H:%M:%S}\n\n{analysis.get('message', '无数据')}\n\n**日志文件**: `{analysis.get('log_file', LOG_FILE)}`\n"

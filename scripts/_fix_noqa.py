@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """批量添加 noqa 注释 — 处理 ruff 无法自动修复的 F401/E402
 
 策略:
@@ -47,7 +46,7 @@ def add_noqa(filepath, errors_for_file):
     errors_for_file: [(row, code), ...]
     策略: 如果该行已有 noqa, 合并; 否则追加。
     """
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         lines = f.readlines()
 
     # 按行号分组, 同行合并规则

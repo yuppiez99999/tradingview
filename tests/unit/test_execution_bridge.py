@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """execution_bridge 测试套件 — 执行计划生成、L2风控、灰度状态管理、全链路桥接"""
 
 from __future__ import annotations
@@ -684,7 +683,7 @@ def test_execution_audit_contains_escalation_field():
         if f.startswith("exec_") and f.endswith(".jsonl")
     ] if os.path.exists(_EXEC_AUDIT_DIR) else []
     assert len(audit_files) > 0, "审计文件未生成"
-    with open(os.path.join(_EXEC_AUDIT_DIR, audit_files[0]), "r", encoding="utf-8") as fh:
+    with open(os.path.join(_EXEC_AUDIT_DIR, audit_files[0]), encoding="utf-8") as fh:
         record = json.loads(fh.readline())
     assert "escalation" in record
     assert record["escalation"] is True
@@ -913,7 +912,7 @@ def test_tca_pre_trade_persistence_to_jsonl():
         files = glob.glob(os.path.join("reports", "tca", "estimate_*.jsonl"))
         assert len(files) > 0, "estimate jsonl 未生成"
         # 验证内容
-        with open(files[0], "r", encoding="utf-8") as fh:
+        with open(files[0], encoding="utf-8") as fh:
             record = json.loads(fh.readline())
         assert "symbol" in record
         assert "approved" in record
@@ -955,7 +954,7 @@ def test_tca_audit_record_contains_tca_fields():
             if f.startswith("exec_") and f.endswith(".jsonl")
         ] if os.path.exists(_EXEC_AUDIT_DIR) else []
         assert len(audit_files) > 0
-        with open(os.path.join(_EXEC_AUDIT_DIR, audit_files[-1]), "r", encoding="utf-8") as fh:
+        with open(os.path.join(_EXEC_AUDIT_DIR, audit_files[-1]), encoding="utf-8") as fh:
             record = json.loads(fh.readline())
         assert "tca_pre_estimate" in record
         assert record["tca_pre_estimate"] is not None

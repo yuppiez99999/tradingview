@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T02: 给 utils/ 目录剩余 P2 模块的 broad-except 添加 noqa 注释.
 
 策略: P2 普通模块 (alpha/attribution/reporting/data_provider 等) 的 broad-except

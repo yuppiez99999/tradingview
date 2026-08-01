@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """验证 Wind MCP (P1) 是否真的成为 Provider 的首选数据源"""
 import os
 import sys

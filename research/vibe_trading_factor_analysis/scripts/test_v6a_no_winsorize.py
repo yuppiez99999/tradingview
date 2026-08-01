@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P2.2 v6a 实验：验证 MARGIN_EXP winsorize 是否真的有效
 
 v5 决策依据：
@@ -22,7 +21,7 @@ import logging
 import math
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 
@@ -54,9 +53,9 @@ logging.basicConfig(level=logging.WARNING)
 
 
 def _compute_margin_exp_values(
-    fundamentals_history: Dict[str, Dict[str, Any]],
+    fundamentals_history: dict[str, dict[str, Any]],
     use_winsorize: bool,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """计算 MARGIN_EXP 因子值
 
     Args:
@@ -66,8 +65,8 @@ def _compute_margin_exp_values(
     Returns:
         {symbol: factor_value}
     """
-    deltas: List[float] = []
-    sym_list: List[str] = []
+    deltas: list[float] = []
+    sym_list: list[str] = []
     for sym, hist in fundamentals_history.items():
         if not isinstance(hist, dict):
             continue
@@ -80,7 +79,7 @@ def _compute_margin_exp_values(
             deltas.append(cur_gm - prev_gm)
             sym_list.append(sym)
 
-    values: Dict[str, float] = {}
+    values: dict[str, float] = {}
     if len(deltas) < 5:
         return values
     if use_winsorize:
@@ -95,17 +94,17 @@ def _compute_margin_exp_values(
 
 
 def _build_factor_history_static(
-    factor_values: Dict[str, float],
-    valid_dates: List[int],
-    price_data: Dict[str, Dict[str, List[float]]],
+    factor_values: dict[str, float],
+    valid_dates: list[int],
+    price_data: dict[str, dict[str, list[float]]],
     forward_window: int = 5,
-) -> List[Dict[str, float]]:
+) -> list[dict[str, float]]:
     """基于静态 factor_values 构建日频因子历史
 
     QualityTrend 因子值在历史窗口内是固定的（fundamentals_history 不变），
     所以这里直接复制 factor_values 到每一天。
     """
-    factor_history: List[Dict[str, float]] = []
+    factor_history: list[dict[str, float]] = []
     for _t in valid_dates:
         # 每天的因子值都是相同的（基于静态 fundamentals_history）
         factor_history.append(dict(factor_values))
@@ -113,14 +112,14 @@ def _build_factor_history_static(
 
 
 def _build_forward_returns(
-    price_data: Dict[str, Dict[str, List[float]]],
-    valid_dates: List[int],
+    price_data: dict[str, dict[str, list[float]]],
+    valid_dates: list[int],
     forward_window: int = 5,
-) -> List[Dict[str, float]]:
+) -> list[dict[str, float]]:
     """构建日频 forward returns"""
-    fwd_returns: List[Dict[str, float]] = []
+    fwd_returns: list[dict[str, float]] = []
     for t in valid_dates:
-        fwd_dict: Dict[str, float] = {}
+        fwd_dict: dict[str, float] = {}
         for sym, data in price_data.items():
             closes = data.get("closes", [])
             if t + forward_window < len(closes) and closes[t] > 0:

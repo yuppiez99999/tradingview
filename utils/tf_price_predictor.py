@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 价格预测模块 v1.0 — TensorFlow LSTM + TimesFM 零样本预测
 ============================================================
@@ -579,7 +578,7 @@ def load_price_history(symbol: str, days: int = 120) -> Optional[np.ndarray]:
         prices = []
         for f in json_files[:days]:
             try:
-                report = json.load(open(f, "r", encoding="utf-8"))
+                report = json.load(open(f, encoding="utf-8"))
                 for detail in report.get("portfolio_pnl", {}).get("details", []):
                     if detail.get("code", "").split(".")[0] == symbol.split(".")[0]:
                         close = detail.get("close_price", 0)

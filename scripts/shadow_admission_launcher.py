@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Shadow 准入流程启动器 — 模块整合 8.4 (T2.4).
 
 任务: T2.4
@@ -36,7 +35,7 @@ import logging
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -53,10 +52,10 @@ DEFAULT_REPORT_DIR = _PROJECT_ROOT / "reports" / "shadow"
 DEFAULT_STATE_FILE = DEFAULT_REPORT_DIR / "admission_state.json"
 
 # 可选配置名 (通过 --config 参数指定, 用于 P3 任务 T5.7/T5.8 的独立观察期)
-_OVERRIDE_CONFIG_NAME: Optional[str] = None
+_OVERRIDE_CONFIG_NAME: str | None = None
 
 
-def set_config_name(name: Optional[str]) -> None:
+def set_config_name(name: str | None) -> None:
     """设置覆盖配置名 (用于 P3 等多观察期场景).
 
     Args:
@@ -79,7 +78,7 @@ def _today_str() -> str:
     return datetime.now().strftime(DATE_FMT)
 
 
-def _load_shadow_config() -> Dict[str, Any]:
+def _load_shadow_config() -> dict[str, Any]:
     """加载 shadow 配置 (走 ConfigManager, HC-5).
 
     优先使用 _OVERRIDE_CONFIG_NAME (通过 --config 参数设置),
@@ -105,26 +104,26 @@ def _ensure_report_dir(report_dir: Path) -> Path:
     return report_dir
 
 
-def _load_state(state_file: Path) -> Optional[Dict[str, Any]]:
+def _load_state(state_file: Path) -> dict[str, Any] | None:
     """加载状态文件 (已存在时)."""
     if not state_file.exists():
         return None
     try:
-        with open(state_file, "r", encoding="utf-8") as f:
+        with open(state_file, encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         logger.warning("状态文件读取失败: %s (%s)", state_file, e)
         return None
 
 
-def _save_state(state_file: Path, state: Dict[str, Any]) -> None:
+def _save_state(state_file: Path, state: dict[str, Any]) -> None:
     """保存状态文件."""
     state_file.parent.mkdir(parents=True, exist_ok=True)
     with open(state_file, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 
-def _compute_observation_progress(started_at: str, observation_days: int) -> Dict[str, Any]:
+def _compute_observation_progress(started_at: str, observation_days: int) -> dict[str, Any]:
     """计算观察期进度.
 
     Args:
@@ -152,7 +151,7 @@ def _compute_observation_progress(started_at: str, observation_days: int) -> Dic
     }
 
 
-def _check_stage_2_blockers(state: Dict[str, Any], criteria: Dict[str, Any]) -> Dict[str, Any]:
+def _check_stage_2_blockers(state: dict[str, Any], criteria: dict[str, Any]) -> dict[str, Any]:
     """检查 Stage 2 推进条件 (HC-4 阻塞).
 
     Args:
@@ -162,8 +161,8 @@ def _check_stage_2_blockers(state: Dict[str, Any], criteria: Dict[str, Any]) -> 
     Returns:
         {can_promote, blockers, promoters}
     """
-    blockers: List[str] = []
-    promoters: List[str] = []
+    blockers: list[str] = []
+    promoters: list[str] = []
 
     # 条件 1: 观察期 >= 14 天
     progress = _compute_observation_progress(
@@ -314,7 +313,7 @@ def cmd_start() -> int:
     return 0
 
 
-def _load_daily_returns(report_dir: Path) -> Tuple[List[float], List[str]]:
+def _load_daily_returns(report_dir: Path) -> tuple[list[float], list[str]]:
     """加载历史每日收益率序列 (从 daily_returns.jsonl).
 
     数据源格式 (JSONL, 每行一条):
@@ -331,10 +330,10 @@ def _load_daily_returns(report_dir: Path) -> Tuple[List[float], List[str]]:
     if not jsonl_path.exists():
         return [], []
 
-    returns: List[float] = []
-    dates: List[str] = []
+    returns: list[float] = []
+    dates: list[str] = []
     try:
-        with open(jsonl_path, "r", encoding="utf-8") as f:
+        with open(jsonl_path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -356,11 +355,11 @@ def _load_daily_returns(report_dir: Path) -> Tuple[List[float], List[str]]:
 
 
 def _compute_real_metrics(
-    cfg: Dict[str, Any],
-    daily_returns: List[float],
-    dates: List[str],
+    cfg: dict[str, Any],
+    daily_returns: list[float],
+    dates: list[str],
     is_real_data: bool = True,
-) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+) -> tuple[dict[str, Any] | None, str | None]:
     """调用 ShadowAccountAdapter 计算真实指标.
 
     Args:
@@ -801,7 +800,7 @@ def main() -> int:
         return 2
 
     cmd = args[0].lower()
-    config_name: Optional[str] = None
+    config_name: str | None = None
 
     # 解析 --config 参数
     if len(args) >= 3 and args[1] == "--config":

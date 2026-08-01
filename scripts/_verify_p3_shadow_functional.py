@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P3 功能验证脚本 (T5.7 实盘券商直连 + T5.8 MLops 流水线).
 
 Shadow 14 天观察期功能验证用例
@@ -33,7 +32,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -46,7 +45,7 @@ PASS_TAG = "  ✅ PASS"
 FAIL_TAG = "  ❌ FAIL"
 SKIP_TAG = "  ⏭️ SKIP"
 
-errors: List[str] = []
+errors: list[str] = []
 passed = 0
 total = 0
 skipped = 0
@@ -75,7 +74,7 @@ def skip(msg: str, reason: str = "") -> None:
 # ============================================================
 # T5.7 实盘券商直连功能验证
 # ============================================================
-def verify_t57_broker_adapters() -> Dict[str, Any]:
+def verify_t57_broker_adapters() -> dict[str, Any]:
     """T5.7 实盘券商直连功能验证.
 
     Returns:
@@ -85,7 +84,7 @@ def verify_t57_broker_adapters() -> Dict[str, Any]:
     print("T5.7 实盘券商直连功能验证")
     print("=" * 72)
 
-    metrics: Dict[str, Any] = {
+    metrics: dict[str, Any] = {
         "order_accuracy": 0.0,
         "failover_success_rate": 0.0,
         "audit_completeness": 0.0,
@@ -109,7 +108,7 @@ def verify_t57_broker_adapters() -> Dict[str, Any]:
             )
 
             # 构造 10 笔测试订单 (BrokerOrder 不接受 order_id, 自动生成)
-            test_orders: List[BrokerOrder] = []
+            test_orders: list[BrokerOrder] = []
             for i in range(10):
                 order = BrokerOrder(
                     symbol=f"60000{i}",
@@ -254,16 +253,16 @@ def verify_t57_broker_adapters() -> Dict[str, Any]:
             xq_audit_dir = Path(tmpdir) / "xq_audit"
 
             # 收集所有审计日志文件
-            audit_files: List[Path] = []
+            audit_files: list[Path] = []
             if ths_audit_dir.exists():
                 audit_files.extend(ths_audit_dir.glob("*.jsonl"))
             if xq_audit_dir.exists():
                 audit_files.extend(xq_audit_dir.glob("*.jsonl"))
 
             # 统计审计记录数
-            audit_records: List[Dict[str, Any]] = []
+            audit_records: list[dict[str, Any]] = []
             for f in audit_files:
-                with open(f, "r", encoding="utf-8") as fp:
+                with open(f, encoding="utf-8") as fp:
                     for line in fp:
                         line = line.strip()
                         if line:
@@ -384,7 +383,7 @@ def verify_t57_broker_adapters() -> Dict[str, Any]:
 # ============================================================
 # T5.8 MLops 流水线功能验证
 # ============================================================
-def verify_t58_mlops() -> Dict[str, Any]:
+def verify_t58_mlops() -> dict[str, Any]:
     """T5.8 MLops 流水线功能验证.
 
     Returns:
@@ -394,7 +393,7 @@ def verify_t58_mlops() -> Dict[str, Any]:
     print("T5.8 MLops 流水线功能验证")
     print("=" * 72)
 
-    metrics: Dict[str, Any] = {
+    metrics: dict[str, Any] = {
         "register_success_rate": 0.0,
         "split_reproducibility": 0.0,
         "drift_alert_accuracy": 0.0,

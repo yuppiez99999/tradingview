@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_hedge_engine_v59_unit.py — HedgeEngine v5.9 门面类单元测试
 
 C-1.4 测试任务 (2026-08-01): 为 hedge_engine_v59.py 补单元测试覆盖。
@@ -135,7 +134,7 @@ class TestHedgeEngineConstants:
     def test_class_default_betas_structure(self):
         """DEFAULT_BETAS: 每个标的映射 4 元组 (csi300, csi500, csi1000, sse50)"""
         assert len(HedgeEngine.DEFAULT_BETAS) >= 10
-        for code, betas in HedgeEngine.DEFAULT_BETAS.items():
+        for _code, betas in HedgeEngine.DEFAULT_BETAS.items():
             assert isinstance(betas, tuple)
             assert len(betas) == 4
             for b in betas:
@@ -162,7 +161,7 @@ class TestHedgeEngineConstants:
         """历史压力测试情景数量 (至少6个)"""
         assert len(HedgeEngine.HISTORICAL_STRESS_SCENARIOS) >= 6
         # 每个情景包含关键指数跌幅字段
-        for name, scenario in HedgeEngine.HISTORICAL_STRESS_SCENARIOS.items():
+        for _name, scenario in HedgeEngine.HISTORICAL_STRESS_SCENARIOS.items():
             assert "csi300" in scenario
             assert "sector" in scenario
 
@@ -699,7 +698,7 @@ class TestEndToEndFlow:
 
         assert isinstance(results, dict)
         assert len(results) >= 6  # 至少6个历史情景
-        for scenario_name, result in results.items():
+        for _scenario_name, result in results.items():
             assert "drawdown_pct" in result or "estimated_loss" in result
 
     def test_calculate_portfolio_beta_with_real_data(self, sample_positions, sample_prices):

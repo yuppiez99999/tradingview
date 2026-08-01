@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 金融多 Agent 模块 (Finance Agents Package)
 ==========================================

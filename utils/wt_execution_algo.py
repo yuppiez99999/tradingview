@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WonderTrader风格执行算法模块
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """utils/alpha/macro_indicator.py 单元测试 — 模块整合 8.4 (T4.4).
 
 覆盖范围:

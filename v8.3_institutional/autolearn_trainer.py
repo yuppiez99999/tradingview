@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 自主学习量化训练管线
 ========================
@@ -40,7 +39,7 @@ import pickle
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -146,7 +145,7 @@ def load_returns_history() -> pd.DataFrame:
     if not rh_path.exists():
         raise FileNotFoundError(f"returns_history.json 不存在: {rh_path}")
 
-    with open(rh_path, "r", encoding="utf-8") as f:
+    with open(rh_path, encoding="utf-8") as f:
         rh = json.load(f)
 
     dates = [d[:10] for d in rh["index"]]
@@ -155,7 +154,7 @@ def load_returns_history() -> pd.DataFrame:
     return df
 
 
-def synthesize_ohlcv_from_returns(returns_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+def synthesize_ohlcv_from_returns(returns_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """[已废除] 从日收益率合成 OHLCV 数据 — 已禁止调用
 
     顶级对冲基金标准: 训练必须基于真实历史 OHLCV。
@@ -176,9 +175,9 @@ def synthesize_ohlcv_from_returns(returns_df: pd.DataFrame) -> Dict[str, pd.Data
 
 
 def load_real_ohlcv(
-    symbols: List[Tuple],
+    symbols: list[tuple],
     lookback_days: int = 500,
-) -> Tuple[Dict[str, pd.DataFrame], Dict[str, str]]:
+) -> tuple[dict[str, pd.DataFrame], dict[str, str]]:
     """从 data_provider 加载真实历史 OHLCV 数据
 
     顶级对冲基金标准: 训练必须基于真实历史行情, 禁止使用合成数据。
@@ -191,8 +190,8 @@ def load_real_ohlcv(
     Returns:
         (ohlcv_dict, provenance): {symbol: DataFrame[OHLCV]}, {symbol: "real"|"missing"}
     """
-    ohlcv_dict: Dict[str, pd.DataFrame] = {}
-    provenance: Dict[str, str] = {}
+    ohlcv_dict: dict[str, pd.DataFrame] = {}
+    provenance: dict[str, str] = {}
 
     # 延迟导入, 避免循环依赖
     try:
@@ -335,8 +334,8 @@ def add_technical_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_cross_sectional_features(
-    ohlcv_dict: Dict[str, pd.DataFrame]
-) -> Dict[str, pd.DataFrame]:
+    ohlcv_dict: dict[str, pd.DataFrame]
+) -> dict[str, pd.DataFrame]:
     """添加截面因子 (跨标的排名)"""
     # 收集所有标的的 close
     closes = pd.DataFrame({
@@ -365,8 +364,8 @@ def add_cross_sectional_features(
 def train_symbol(
     symbol: str,
     df: pd.DataFrame,
-    config: Dict,
-) -> Dict[str, Any]:
+    config: dict,
+) -> dict[str, Any]:
     """训练单标的集成模型
 
     Args:
@@ -508,7 +507,7 @@ def train_symbol(
 # ============================================================
 # 模型持久化
 # ============================================================
-def save_model(symbol: str, result: Dict, config: Dict) -> Dict:
+def save_model(symbol: str, result: dict, config: dict) -> dict:
     """保存模型与元数据"""
     symbol_dir = MODELS_DIR / symbol
     symbol_dir.mkdir(exist_ok=True)
@@ -552,16 +551,16 @@ def save_model(symbol: str, result: Dict, config: Dict) -> Dict:
     }
 
 
-def load_model_meta(symbol: str) -> Optional[Dict]:
+def load_model_meta(symbol: str) -> dict | None:
     """加载已有模型的元数据"""
     meta_path = MODELS_DIR / symbol / f"{symbol}_meta.json"
     if not meta_path.exists():
         return None
-    with open(meta_path, "r", encoding="utf-8") as f:
+    with open(meta_path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def should_retrain(symbol: str, config: Dict) -> bool:
+def should_retrain(symbol: str, config: dict) -> bool:
     """判断是否需要重新训练"""
     meta = load_model_meta(symbol)
     if meta is None:
@@ -575,10 +574,10 @@ def should_retrain(symbol: str, config: Dict) -> bool:
 # 主训练流程
 # ============================================================
 def run_autolearn(
-    symbols: Optional[List[Tuple]] = None,
+    symbols: list[tuple] | None = None,
     force_retrain: bool = False,
-    config: Optional[Dict] = None,
-) -> Dict[str, Any]:
+    config: dict | None = None,
+) -> dict[str, Any]:
     """执行自主学习训练
 
     Args:
@@ -602,7 +601,7 @@ def run_autolearn(
 
     # Step 1: 加载真实历史 OHLCV (顶级对冲基金标准: 禁止合成数据训练)
     logger.info("Step 1: 加载真实历史 OHLCV")
-    data_provenance: Dict[str, str] = {}
+    data_provenance: dict[str, str] = {}
     ohlcv_dict, data_provenance = load_real_ohlcv(symbols, config.get("lookback_days", 500))
     real_count = sum(1 for v in data_provenance.values() if v == "real")
     logger.info(f"  真实 OHLCV: {real_count}/{len(symbols)} 标的")
@@ -803,7 +802,7 @@ def run_autolearn(
 # ============================================================
 # 日报生成
 # ============================================================
-def generate_report(result: Dict) -> Path:
+def generate_report(result: dict) -> Path:
     """生成 Markdown 训练日报"""
     today = datetime.now().strftime("%Y%m%d")
     report_path = REPORTS_DIR / f"autolearn_report_{today}.md"

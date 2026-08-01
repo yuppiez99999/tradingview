@@ -107,7 +107,7 @@ class AlgoEngine:
 
     def _load_config(self, path: str) -> None:
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
         except Exception as e:
             logger.warning(f"加载执行配置失败: {e}，使用默认配置")

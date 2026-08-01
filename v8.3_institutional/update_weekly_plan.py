@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 将 ETF 资金净流入 TOP10 中缺失的标的加入年度/本周交易计划，
 并生成本周 5 天交易计划文件。
@@ -105,7 +104,7 @@ MISSING_ETFS = {
 
 def update_build_plan():
     """更新 500万建仓计划：加入缺失的 ETF"""
-    with open(BUILD_PLAN_FILE, "r", encoding="utf-8") as f:
+    with open(BUILD_PLAN_FILE, encoding="utf-8") as f:
         plan = json.load(f)
 
     target_portfolio = plan.get("target_portfolio", {})

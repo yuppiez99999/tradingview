@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -50,8 +50,8 @@ class SatelliteIndicator:
     yoy_change: float = 0.0  # 同比变化 (%)
     mom_change: float = 0.0  # 环比变化 (%)
     # 关联标的
-    related_symbols: List[str] = field(default_factory=list)
-    related_industries: List[str] = field(default_factory=list)
+    related_symbols: list[str] = field(default_factory=list)
+    related_industries: list[str] = field(default_factory=list)
     # 置信度
     confidence: float = 0.8  # 数据置信度
 
@@ -70,7 +70,7 @@ class SearchIndexIndicator:
     # 突增标记
     is_breakout: bool = False
     # 关联标的
-    related_symbols: List[str] = field(default_factory=list)
+    related_symbols: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -96,7 +96,7 @@ class PatentIndicator:
     citation_count: int = 0
     timestamp: datetime = field(default_factory=datetime.now)
     # 技术领域分布
-    tech_distribution: Dict[str, int] = field(default_factory=dict)
+    tech_distribution: dict[str, int] = field(default_factory=dict)
     # 变化
     patent_count_yoy: float = 0.0
     citation_growth: float = 0.0
@@ -110,16 +110,16 @@ class AltDataSignal:
     symbol: str
     # 卫星指标汇总
     satellite_score: float = 0.0  # [-1, 1]
-    satellite_indicators: List[Dict[str, Any]] = field(default_factory=list)
+    satellite_indicators: list[dict[str, Any]] = field(default_factory=list)
     # 搜索指数汇总
     search_score: float = 0.0
-    search_indicators: List[Dict[str, Any]] = field(default_factory=list)
+    search_indicators: list[dict[str, Any]] = field(default_factory=list)
     # 招聘数据
     recruitment_score: float = 0.0
-    recruitment_indicators: List[Dict[str, Any]] = field(default_factory=list)
+    recruitment_indicators: list[dict[str, Any]] = field(default_factory=list)
     # 专利数据
     patent_score: float = 0.0
-    patent_indicators: List[Dict[str, Any]] = field(default_factory=list)
+    patent_indicators: list[dict[str, Any]] = field(default_factory=list)
     # 综合
     composite_score: float = 0.0  # [-1, 1]
     confidence: float = 0.0
@@ -131,13 +131,13 @@ class AltDataSignal:
 class AltDataResult:
     """另类数据分析结果"""
 
-    signals: Dict[str, AltDataSignal] = field(default_factory=dict)
+    signals: dict[str, AltDataSignal] = field(default_factory=dict)
     market_alt_score: float = 0.0
     # 全局异常
-    anomalies: List[Dict[str, Any]] = field(default_factory=list)
+    anomalies: list[dict[str, Any]] = field(default_factory=list)
     # 元数据
     total_indicators: int = 0
-    coverage_summary: Dict[str, float] = field(default_factory=dict)
+    coverage_summary: dict[str, float] = field(default_factory=dict)
 
 
 # ============================================================
@@ -189,10 +189,10 @@ class AltDataIndicators:
         self.expiry_days = int(data_expiry_days)
 
         # 指标存储
-        self.satellite_data: List[SatelliteIndicator] = []
-        self.search_data: List[SearchIndexIndicator] = []
-        self.recruitment_data: List[RecruitmentIndicator] = []
-        self.patent_data: List[PatentIndicator] = []
+        self.satellite_data: list[SatelliteIndicator] = []
+        self.search_data: list[SearchIndexIndicator] = []
+        self.recruitment_data: list[RecruitmentIndicator] = []
+        self.patent_data: list[PatentIndicator] = []
 
     # ------------------------------------------------------------
     # 数据添加
@@ -210,7 +210,7 @@ class AltDataIndicators:
     def add_patent(self, indicator: PatentIndicator) -> None:
         self.patent_data.append(indicator)
 
-    def add_satellite_batch(self, indicators: List[SatelliteIndicator]) -> int:
+    def add_satellite_batch(self, indicators: list[SatelliteIndicator]) -> int:
         self.satellite_data.extend(indicators)
         return len(indicators)
 
@@ -218,7 +218,7 @@ class AltDataIndicators:
     # 综合分析
     # ------------------------------------------------------------
 
-    def analyze(self, symbols: List[str]) -> AltDataResult:
+    def analyze(self, symbols: list[str]) -> AltDataResult:
         """分析多标的的另类数据信号"""
         result = AltDataResult()
         cutoff = datetime.now() - timedelta(days=self.expiry_days)
@@ -338,18 +338,18 @@ class AltDataIndicators:
     # 评分函数
     # ------------------------------------------------------------
 
-    def _calc_satellite_score(self, indicators: List[SatelliteIndicator]) -> float:
+    def _calc_satellite_score(self, indicators: list[SatelliteIndicator]) -> float:
         """卫星指标评分 [-1, 1]"""
-        scores: List[float] = []
+        scores: list[float] = []
         for ind in indicators:
             # 同比变化归一化到 [-1, 1]
             score = max(-1.0, min(1.0, ind.yoy_change / 50.0))
             scores.append(score * ind.confidence)
         return float(np.mean(scores)) if scores else 0.0
 
-    def _calc_search_score(self, indicators: List[SearchIndexIndicator]) -> float:
+    def _calc_search_score(self, indicators: list[SearchIndexIndicator]) -> float:
         """搜索指数评分 [-1, 1]"""
-        scores: List[float] = []
+        scores: list[float] = []
         for ind in indicators:
             # 7日趋势归一化
             score = max(-1.0, min(1.0, ind.trend_7d / 100.0))
@@ -359,9 +359,9 @@ class AltDataIndicators:
             scores.append(score)
         return float(np.mean(scores)) if scores else 0.0
 
-    def _calc_recruitment_score(self, indicators: List[RecruitmentIndicator]) -> float:
+    def _calc_recruitment_score(self, indicators: list[RecruitmentIndicator]) -> float:
         """招聘评分 [-1, 1]"""
-        scores: List[float] = []
+        scores: list[float] = []
         for ind in indicators:
             # 招聘数同比 + 薪资变化
             job_score = max(-1.0, min(1.0, ind.job_count_yoy / 50.0))
@@ -369,9 +369,9 @@ class AltDataIndicators:
             scores.append(0.6 * job_score + 0.4 * salary_score)
         return float(np.mean(scores)) if scores else 0.0
 
-    def _calc_patent_score(self, indicators: List[PatentIndicator]) -> float:
+    def _calc_patent_score(self, indicators: list[PatentIndicator]) -> float:
         """专利评分 [-1, 1]"""
-        scores: List[float] = []
+        scores: list[float] = []
         for ind in indicators:
             # 专利数同比 + 引用增长
             patent_score = max(-1.0, min(1.0, ind.patent_count_yoy / 30.0))
@@ -383,12 +383,12 @@ class AltDataIndicators:
     # 工具
     # ------------------------------------------------------------
 
-    def get_signal(self, symbol: str) -> Optional[AltDataSignal]:
+    def get_signal(self, symbol: str) -> AltDataSignal | None:
         """获取单标的信号"""
         result = self.analyze([symbol])
         return result.signals.get(symbol)
 
-    def load_demo_data(self, symbols: List[str]) -> int:
+    def load_demo_data(self, symbols: list[str]) -> int:
         """加载演示数据 (用于测试)"""
         np.random.seed(42)
         count = 0
@@ -443,7 +443,7 @@ class AltDataIndicators:
             count += 4
         return count
 
-    def summarize(self, result: AltDataResult) -> Dict[str, Any]:
+    def summarize(self, result: AltDataResult) -> dict[str, Any]:
         """生成摘要"""
         return {
             "total_signals": len(result.signals),

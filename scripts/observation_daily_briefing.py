@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """观察期每日播报生成器 (Observation Daily Briefing)
 
 每日 16:10 由 v84_ObservationBriefing 定时任务调用,

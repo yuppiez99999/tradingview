@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """N1-N6 进化框架验证脚本 (v2, 对齐现有实现)
 
 运行: python scripts/verify_evolution_v2.py
@@ -43,7 +42,7 @@ def test_n1_positions_and_capital():
     import json
     pos_path = os.path.join(BASE, "config", "positions.json")
     assert os.path.exists(pos_path), "config/positions.json 不存在"
-    with open(pos_path, "r", encoding="utf-8") as f:
+    with open(pos_path, encoding="utf-8") as f:
         data = json.load(f)
     assert "positions" in data and isinstance(data["positions"], dict), \
         "positions 字段应为 dict"
@@ -182,8 +181,8 @@ def test_n5_skill_manager():
         'verified': True,
     }, enabled=True)
     recent = sm.get_recent_lessons(symbol="588080.SH", days=1)
-    assert any(l.get('description') == 'verify_v2 测试经验记录' for l in recent), \
-        f"未找到测试记录, 实际: {[l.get('description') for l in recent]}"
+    assert any(lesson.get('description') == 'verify_v2 测试经验记录' for lesson in recent), \
+        f"未找到测试记录, 实际: {[lesson.get('description') for lesson in recent]}"
 
     # 验证便捷函数 record_lesson
     ok = record_lesson("PORTFOLIO", "strategy_degradation", "verify_v2 便捷函数测试",

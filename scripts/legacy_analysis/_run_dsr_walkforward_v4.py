@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """V4 DSR + Walk-Forward 稳定性验证
 
 对比 V3 结果:
@@ -28,7 +27,7 @@ v4_files.sort(key=lambda x: os.path.getmtime(x))
 v4_file = Path(v4_files[-1])
 print(f"加载V4结果: {v4_file}")
 
-with open(v4_file, "r", encoding="utf-8") as f:
+with open(v4_file, encoding="utf-8") as f:
     data = json.load(f)
 
 records = data.get("records", [])

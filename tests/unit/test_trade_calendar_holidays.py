@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """B1.2 单元测试: utils.trade_calendar.is_trading_day 节假日判定与多入参类型兼容
 
 覆盖目标:

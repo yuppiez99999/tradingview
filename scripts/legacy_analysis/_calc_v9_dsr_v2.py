@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 计算 V9 回测的 DSR max_pass (Bailey & Lopez de Prado 2014, 2017 标准公式)
 =========================================================================
@@ -25,7 +24,7 @@ from scipy import stats
 
 # 加载 V9 回测结果
 result_file = Path(r'e:\各种PY程序\28-终极量化交易系统8.4\output\validation_reports\v9_regime_specific_backtest_20260725_114943.json')
-with open(result_file, 'r', encoding='utf-8') as f:
+with open(result_file, encoding='utf-8') as f:
     result = json.load(f)
 
 records = result.get('records', [])

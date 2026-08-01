@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 每日交易工作流 - Python 调度守护进程
 ==================================================
@@ -31,7 +30,6 @@ import sys
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 # ============================================================
 # 配置
@@ -98,14 +96,14 @@ class DailyScheduler:
     """每日调度器"""
 
     def __init__(self):
-        self.last_run_date: Optional[date] = None
+        self.last_run_date: date | None = None
         self.last_run_success: bool = False
         self.retry_count: int = 0
 
     # --------------------------------------------------------
     # 交易日判断
     # --------------------------------------------------------
-    def is_trading_day(self, d: Optional[date] = None) -> bool:
+    def is_trading_day(self, d: date | None = None) -> bool:
         """判断是否为交易日 (周一至五且非节假日)
 
         ER4 修复: 优先委托给 utils.trade_calendar (akshare 动态获取),
@@ -136,7 +134,7 @@ class DailyScheduler:
     # --------------------------------------------------------
     # 执行工作流
     # --------------------------------------------------------
-    def run_workflow(self, trade_date: Optional[str] = None) -> bool:
+    def run_workflow(self, trade_date: str | None = None) -> bool:
         """执行每日工作流"""
         if trade_date is None:
             trade_date = datetime.now().strftime("%Y-%m-%d")
@@ -178,7 +176,7 @@ class DailyScheduler:
     # --------------------------------------------------------
     # 带重试的执行
     # --------------------------------------------------------
-    def run_with_retry(self, trade_date: Optional[str] = None) -> bool:
+    def run_with_retry(self, trade_date: str | None = None) -> bool:
         """带重试的执行"""
         for attempt in range(1, MAX_RETRY + 1):
             logger.info(f"执行尝试 {attempt}/{MAX_RETRY}...")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """全量测试运行器 - 一次性跑所有单元测试和端到端测试"""
 from __future__ import annotations
 

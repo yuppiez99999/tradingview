@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 三级熔断协议 (Kill Switch Protocol)
 ==================================
@@ -25,7 +24,6 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import yaml
 
@@ -44,7 +42,7 @@ class KillSwitch:
         2. 集成模式: 外部调用方传入真实 margin_usage 参数
     """
 
-    def __init__(self, config_path: Optional[Path] = None, margin_limit: float = 0.50):
+    def __init__(self, config_path: Path | None = None, margin_limit: float = 0.50):
         """
         Args:
             config_path: 配置文件路径
@@ -56,7 +54,7 @@ class KillSwitch:
         self._broker_callback = None  # 实盘执行回调函数
         KILL_SWITCH_LOG.parent.mkdir(parents=True, exist_ok=True)
 
-    def _load_config(self) -> Dict:
+    def _load_config(self) -> dict:
         """加载 kill_switch 配置 (P1-Q8: 通过 ConfigManager 统一加载)
 
         优先级:
@@ -74,7 +72,7 @@ class KillSwitch:
         # 路径 1: 调用方显式指定了 config_path (测试场景, 向后兼容)
         if self.config_path != CONFIG_PATH:
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("kill_switch", {}) if isinstance(cfg, dict) else {}
             except (FileNotFoundError, yaml.YAMLError, OSError) as e:
@@ -90,20 +88,20 @@ class KillSwitch:
             if cfg:
                 return cfg
             # ConfigManager 全部失败, 回退到旧路径 (保底)
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
             return fallback_cfg.get("kill_switch", {}) if isinstance(fallback_cfg, dict) else {}
         except (ImportError, AttributeError, OSError, yaml.YAMLError) as e:
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("kill_switch", {}) if isinstance(cfg, dict) else {}
             except (FileNotFoundError, yaml.YAMLError, OSError) as e2:
                 logger.error(f"全部加载路径失败: {e2}")
                 return {}
 
-    def _get_margin_status(self) -> Dict:
+    def _get_margin_status(self) -> dict:
         """获取保证金占用情况
 
         优先级:
@@ -185,7 +183,7 @@ class KillSwitch:
         # 回退到真实持仓估算 (OPTIONS_ONLY 或无 budget_summary)
         return self._estimate_from_real_positions(data)
 
-    def _load_positions_data(self) -> Optional[Dict]:
+    def _load_positions_data(self) -> dict | None:
         """加载持仓配置文件 (P1-Q7 拆分)
 
         Returns:
@@ -199,13 +197,13 @@ class KillSwitch:
             return None
 
         try:
-            with open(positions_file, "r", encoding="utf-8") as f:
+            with open(positions_file, encoding="utf-8") as f:
                 return json.load(f)  # type: ignore[no-any-return]
         except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
             logger.error(f"读取持仓文件失败: {e}, 使用保守值 0.50")
             return None
 
-    def _estimate_from_budget_summary(self, data: Dict) -> Optional[float]:
+    def _estimate_from_budget_summary(self, data: dict) -> float | None:
         """从 budget_summary 估算保证金占用率 (P1-Q7 拆分)
 
         v8.6.7 CRITICAL FIX (2026-07-26): 期权买方模式下, 权利金已现金扣减,
@@ -282,7 +280,7 @@ class KillSwitch:
 
         return None  # 全部失败, 回退到真实持仓估算
 
-    def _estimate_from_real_positions(self, data: Dict) -> float:
+    def _estimate_from_real_positions(self, data: dict) -> float:
         """从真实持仓数据估算保证金占用率 (P1-Q7 拆分)
 
         计算逻辑:
@@ -316,7 +314,7 @@ class KillSwitch:
         return ratio
 
     @staticmethod
-    def _compute_position_margin(positions: Dict) -> tuple:
+    def _compute_position_margin(positions: dict) -> tuple:
         """计算持仓总市值和保证金占用 (P1-Q7 拆分, 纯函数)
 
         Args:
@@ -367,7 +365,7 @@ class KillSwitch:
     # ============================================================
     # P1-Q4 修复 (2026-07-26): fail-closed 响应工厂 + 配置化总保证金
     # ============================================================
-    def _fail_closed_response(self, reason: str = "UNSPECIFIED") -> Dict:
+    def _fail_closed_response(self, reason: str = "UNSPECIFIED") -> dict:
         """生成 fail-closed 响应 (L3 强制熔断, 阻止一切交易)
 
         P1-Q4 修复: 统一 fail-closed 响应生成, 避免多路径重复代码
@@ -431,7 +429,7 @@ class KillSwitch:
             project_root = Path(__file__).resolve().parent.parent
             positions_file = project_root / "config" / "positions.json"
             if positions_file.exists():
-                with open(positions_file, "r", encoding="utf-8") as f:
+                with open(positions_file, encoding="utf-8") as f:
                     data = json.load(f)
                 total_capital = float(data.get("meta", {}).get("total_capital", 0))
                 if total_capital > 0:
@@ -442,7 +440,7 @@ class KillSwitch:
         # 4. 兼容默认值
         return 5_000_000
 
-    def check_margin_status(self, margin_usage: Optional[float] = None) -> Dict:
+    def check_margin_status(self, margin_usage: float | None = None) -> dict:
         """检查保证金状态, 判断熔断级别
 
         Args:
@@ -556,7 +554,7 @@ class KillSwitch:
 
         return result
 
-    def _log_event(self, event: Dict) -> None:
+    def _log_event(self, event: dict) -> None:
         """记录熔断事件"""
         try:
             with open(KILL_SWITCH_LOG, "a", encoding="utf-8") as f:
@@ -564,7 +562,7 @@ class KillSwitch:
         except (OSError, TypeError, ValueError) as e:
             logger.error(f"写入熔断日志失败: {e}")
 
-    def execute_kill_switch(self, level: int) -> Dict:
+    def execute_kill_switch(self, level: int) -> dict:
         """执行熔断协议
 
         Args:
@@ -709,7 +707,7 @@ class KillSwitch:
 
         return result
 
-    def check_concentration(self, positions: Dict) -> Dict:
+    def check_concentration(self, positions: dict) -> dict:
         """检查持仓集中度
 
         单票集中度风控阈值:
@@ -734,7 +732,7 @@ class KillSwitch:
 
         # 计算总市值 (T01 FIX: 强制 float, 防御 None 导致风控误判)
         total_value = 0.0
-        pos_values: Dict[str, float] = {}
+        pos_values: dict[str, float] = {}
         for code, pos in positions.items():
             if isinstance(pos, dict):
                 raw_mv = pos.get("market_value", pos.get("est_market_value", 0))
@@ -775,7 +773,7 @@ class KillSwitch:
             "action": action,
         }
 
-    def get_event_history(self, days: int = 30) -> List[Dict]:
+    def get_event_history(self, days: int = 30) -> list[dict]:
         """获取最近 N 天的熔断事件历史
 
         Args:
@@ -791,7 +789,7 @@ class KillSwitch:
         cutoff = datetime.now().timestamp() - days * 86400
 
         try:
-            with open(KILL_SWITCH_LOG, "r", encoding="utf-8") as f:
+            with open(KILL_SWITCH_LOG, encoding="utf-8") as f:
                 for line in f:
                     try:
                         record = json.loads(line.strip())

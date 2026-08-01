@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Ollama 本地 Provider (OpenAI 兼容端点 + 原生 /api/chat).
 
 从原 `utils/alpha/llm_router.py:LLMRouter._call_ollama/_call_ollama_deep` 拆出 (B3.4.3)。
@@ -14,7 +13,7 @@ import json
 import logging
 import os
 import urllib.request
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 from utils.alpha.llm.base import _safe_urlopen
 from utils.alpha.llm.openai_compat import openai_compatible_chat
@@ -28,10 +27,10 @@ def call_ollama(
     temperature: float,
     max_tokens: int,
     timeout: int,
-    provider_cfg: Dict[str, Any],
+    provider_cfg: dict[str, Any],
     max_retries: int = 1,
     retry_delay: float = 1.0,
-) -> Optional[str]:
+) -> str | None:
     """Ollama 本地 — OpenAI 兼容接口 (/v1/chat/completions).
 
     Ollama 不需要 api_key, 但 OpenAI 兼容接口需要一个占位值。
@@ -84,9 +83,9 @@ def call_ollama_deep(
     system: str,
     temperature: float,
     max_tokens: int,
-    provider_cfg: Dict[str, Any],
+    provider_cfg: dict[str, Any],
     ollama_timeout: int = 30,
-) -> Optional[str]:
+) -> str | None:
     """Ollama 深度推理模型 (deepseek-r1:14b) — 原生 /api/chat 端点.
 
     使用原生端点以支持 reasoning_content 字段 (思考过程).
@@ -117,7 +116,7 @@ def call_ollama_deep(
     try:
         url = base_url.rstrip("/") + "/api/chat"
         headers = {"Content-Type": "application/json"}
-        messages: List[Dict[str, str]] = []
+        messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})

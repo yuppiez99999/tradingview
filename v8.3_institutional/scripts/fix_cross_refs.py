@@ -45,9 +45,10 @@ for root, _dirs, files in os.walk(BASE):
             continue
         full = os.path.join(root, f)
         try:
-            with open(full, 'r', encoding='utf-8') as fh:
+            with open(full, encoding='utf-8') as fh:
                 content = fh.read()
-        except Exception: continue
+        except Exception:
+            continue
 
         modified = False
         new_content = content

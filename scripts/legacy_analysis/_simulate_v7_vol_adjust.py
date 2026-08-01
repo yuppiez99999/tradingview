@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """模拟 V7 方案: 个股波动率调整 + 更激进止盈
 
 V7 设计逻辑:
@@ -19,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 # 加载 V6.2 结果
-with open('output/validation_reports/lgb_backtest_v6_2_profit_taking_20260725_065118.json', 'r', encoding='utf-8') as f:
+with open('output/validation_reports/lgb_backtest_v6_2_profit_taking_20260725_065118.json', encoding='utf-8') as f:
     v62 = json.load(f)
 
 records = v62['records']

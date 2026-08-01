@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T5.8 MLops 流水线单元测试.
 
 覆盖:
@@ -630,7 +629,7 @@ class TestMLOpsPipelineEnabled(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
-    def _make_enabled_pipeline(self) -> "Any":
+    def _make_enabled_pipeline(self) -> Any:
         """创建启用模式的 pipeline (绕过 Feature Flag)."""
         from utils.alpha.mlops_pipeline import MLOpsPipeline
         pipeline = MLOpsPipeline(config={
@@ -828,7 +827,7 @@ class TestDriftMonitorExtended(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
-    def _make_monitor(self, with_detector: bool = True) -> "Any":
+    def _make_monitor(self, with_detector: bool = True) -> Any:
         """创建 DriftMonitor (可注入 mock detector)."""
         from utils.alpha.drift_monitor import DriftMonitor
         detector = MagicMock() if with_detector else None
@@ -1174,7 +1173,7 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
-    def _make_scheduler(self, enabled: bool = True) -> "Any":
+    def _make_scheduler(self, enabled: bool = True) -> Any:
         """创建 scheduler (注入 mock 依赖)."""
         from utils.alpha.auto_retrain_scheduler import AutoRetrainScheduler
         registry = MagicMock()
@@ -1416,7 +1415,7 @@ class TestABTestingExtended(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
-    def _make_framework(self) -> "Any":
+    def _make_framework(self) -> Any:
         """创建 ABTestFramework (mock registry)."""
         from utils.alpha.ab_testing import ABTestFramework
         registry = MagicMock()

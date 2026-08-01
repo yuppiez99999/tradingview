@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 通过 subprocess 调用 ollama run 验证本地 Qwen2.5:1.5b 是否可用。
 """

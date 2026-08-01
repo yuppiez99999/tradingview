@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 数据契约模块 — GAP-8 交付物.
 
@@ -33,7 +32,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import pandas as pd
 
@@ -50,7 +49,7 @@ class DataContractError(Exception):
 class DataContractViolationError(DataContractError):
     """数据契约违规 (enforce 模式下抛出)."""
 
-    def __init__(self, violations: List["Violation"]):
+    def __init__(self, violations: list[Violation]):
         self.violations = violations
         messages = "; ".join(f"[{v.severity.value}] {v.field}: {v.message}" for v in violations)
         super().__init__(f"数据契约违规 ({len(violations)} 项): {messages}")
@@ -107,7 +106,7 @@ class FeatureSchema:
     source: str = ""
     timing: str = "t 日收盘后"
     null_policy: NullPolicy = NullPolicy.WARN
-    value_range: Optional[Tuple[float, float]] = None
+    value_range: tuple[float, float] | None = None
     max_null_ratio: float = 0.05
 
 
@@ -126,8 +125,8 @@ class Violation:
     field: str
     severity: Severity
     message: str
-    value: Optional[Any] = None
-    expected: Optional[Any] = None
+    value: Any | None = None
+    expected: Any | None = None
 
 
 @dataclass(frozen=True)
@@ -143,7 +142,7 @@ class ValidationResult:
     """
 
     passed: bool
-    violations: Tuple[Violation, ...] = field(default_factory=tuple)
+    violations: tuple[Violation, ...] = field(default_factory=tuple)
     mode: ValidationMode = ValidationMode.WARN_ONLY
     contract_version: str = "1.0"
     timestamp: str = ""
@@ -163,7 +162,7 @@ class ValidationResult:
         """CRITICAL 级违规数."""
         return sum(1 for v in self.violations if v.severity == Severity.CRITICAL)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为 dict (用于 manifest.json 记录)."""
         return {
             "passed": self.passed,
@@ -209,11 +208,11 @@ class DataContract:
 
     contract_name: str
     version: str = "1.0"
-    entity_grain: Tuple[str, ...] = ("symbol", "date")
+    entity_grain: tuple[str, ...] = ("symbol", "date")
     label_def: str = "forward_return_5d"
     label_delay_days: int = 5
-    feature_schemas: Tuple[FeatureSchema, ...] = field(default_factory=tuple)
-    required_columns: Tuple[str, ...] = (
+    feature_schemas: tuple[FeatureSchema, ...] = field(default_factory=tuple)
+    required_columns: tuple[str, ...] = (
         "symbol",
         "date",
         "close",
@@ -222,7 +221,7 @@ class DataContract:
         "low",
         "volume",
     )
-    allowed_nulls: Dict[str, NullPolicy] = field(default_factory=dict)
+    allowed_nulls: dict[str, NullPolicy] = field(default_factory=dict)
     split_policy: str = "TimeSeriesSplit(n_splits=5), 禁随机 split"
     pii_policy: str = "无 PII, 公开市场数据, 永久保留"
     change_policy: str = "破坏性变更需 PR + Iteration Compact 评审, 新版本须向后兼容"
@@ -234,7 +233,7 @@ class DataContract:
         self,
         panel: pd.DataFrame,
         mode: str = "warn_only",
-        current_date: Optional[datetime] = None,
+        current_date: datetime | None = None,
     ) -> ValidationResult:
         """校验 panel 是否符合数据契约.
 
@@ -254,7 +253,7 @@ class DataContract:
         except ValueError as err:
             raise DataContractError(f"无效的校验模式: {mode}, 应为 warn_only / enforce") from err
 
-        violations: List[Violation] = []
+        violations: list[Violation] = []
 
         # 1. 必填列存在性检查
         violations.extend(self._check_required_columns(panel))
@@ -302,7 +301,7 @@ class DataContract:
     # ============================================================
     # 内部检查方法
     # ============================================================
-    def _check_required_columns(self, panel: pd.DataFrame) -> List[Violation]:
+    def _check_required_columns(self, panel: pd.DataFrame) -> list[Violation]:
         """检查必填列是否都存在."""
         violations = []
         for col in self.required_columns:
@@ -318,7 +317,7 @@ class DataContract:
                 )
         return violations
 
-    def _check_feature_schemas(self, panel: pd.DataFrame) -> List[Violation]:
+    def _check_feature_schemas(self, panel: pd.DataFrame) -> list[Violation]:
         """检查特征 schema (类型 / null / value_range)."""
         violations = []
         for schema in self.feature_schemas:
@@ -375,7 +374,7 @@ class DataContract:
 
         return violations
 
-    def _check_label(self, panel: pd.DataFrame) -> List[Violation]:
+    def _check_label(self, panel: pd.DataFrame) -> list[Violation]:
         """检查标签列."""
         violations = []
         # 假设标签列名为 'y' (lgbm_factor_mining.py 惯例)
@@ -402,7 +401,7 @@ class DataContract:
                 )
         return violations
 
-    def _check_entity_grain(self, panel: pd.DataFrame) -> List[Violation]:
+    def _check_entity_grain(self, panel: pd.DataFrame) -> list[Violation]:
         """检查实体粒度 (主键唯一性)."""
         violations = []
         grain_cols = [c for c in self.entity_grain if c in panel.columns]
@@ -423,7 +422,7 @@ class DataContract:
             )
         return violations
 
-    def _check_point_in_time(self, panel: pd.DataFrame, current_date: datetime) -> List[Violation]:
+    def _check_point_in_time(self, panel: pd.DataFrame, current_date: datetime) -> list[Violation]:
         """检查 point-in-time 切片正确性 (无未来信息泄漏)."""
         violations = []
         if "date" not in panel.columns:

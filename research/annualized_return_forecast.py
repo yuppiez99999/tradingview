@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 年化收益预测器 + 成本感知回测 v1.0
 
@@ -99,7 +98,7 @@ def load_qlib_bin(code: str, field: str = "close") -> pd.Series:
     # 加载日历
     cal_path = os.path.join(QLIB_DATA_DIR, "calendars", "day.txt")
     if os.path.exists(cal_path):
-        with open(cal_path, "r") as f:
+        with open(cal_path) as f:
             dates = [line.strip() for line in f if line.strip()]
     else:
         dates = pd.bdate_range("2015-01-01", periods=len(values)).strftime("%Y-%m-%d").tolist()
@@ -230,7 +229,7 @@ def load_local_etf_fallback(code: str) -> pd.Series:
             continue
         try:
             if path.endswith(".json"):
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     payload = json.load(fh)
                 records = payload.get("prices") or payload.get("data") or []
                 if not records:
@@ -328,7 +327,7 @@ def load_ml_signals() -> Dict[str, float]:
         for f in sorted(os.listdir(report_dir), reverse=True):
             if f.startswith("qlib_improved_train_") and f.endswith(".json"):
                 path = os.path.join(report_dir, f)
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     report = json.load(fh)
                 signals = report.get("stock_signals", [])
                 if signals:

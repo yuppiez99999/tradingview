@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 RiskAgent — 风险分析 Agent (含 veto 权)
 ========================================
@@ -29,7 +28,7 @@ veto 优先级最高: 若任一指标触发 veto, 直接返回 veto, 不计算�
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List
+from typing import Any
 
 from utils.finance_agents.base_agent import AgentDecision, BaseAgent
 
@@ -48,17 +47,17 @@ class RiskAgent(BaseAgent):
     def __init__(self, name: str = "risk"):
         super().__init__(name=name)
 
-    def is_available(self, context: Dict[str, Any]) -> bool:
+    def is_available(self, context: dict[str, Any]) -> bool:
         """风险 Agent 始终可用 (即使数据缺失也返回 hold)"""
         return True
 
-    def analyze(self, symbol: str, context: Dict[str, Any]) -> AgentDecision:
+    def analyze(self, symbol: str, context: dict[str, Any]) -> AgentDecision:
         """风险分析主入口"""
-        kline: List[Dict] = self._safe_get(context, "kline", default=[]) or []
+        kline: list[dict] = self._safe_get(context, "kline", default=[]) or []
         position_weight = self._safe_float(self._safe_get(context, "position_weight"))
         beta = self._safe_float(self._safe_get(context, "beta"))
 
-        metrics: Dict[str, Any] = {
+        metrics: dict[str, Any] = {
             "position_weight": position_weight,
             "beta": beta,
         }
@@ -151,7 +150,7 @@ class RiskAgent(BaseAgent):
     # ----------------------------------------------------------
 
     @staticmethod
-    def _calc_drawdown(kline: List[Dict], period: int):
+    def _calc_drawdown(kline: list[dict], period: int):
         """计算最近 period 日的最大回撤
 
         Returns:
@@ -180,7 +179,7 @@ class RiskAgent(BaseAgent):
         return max_dd
 
     @staticmethod
-    def _calc_volatility(kline: List[Dict], period: int):
+    def _calc_volatility(kline: list[dict], period: int):
         """计算 period 日对数收益的年化波动率
 
         Returns:
@@ -215,7 +214,7 @@ class RiskAgent(BaseAgent):
         return annual_vol
 
     @staticmethod
-    def _calc_avg_amount(kline: List[Dict], period: int):
+    def _calc_avg_amount(kline: list[dict], period: int):
         """计算 period 日平均成交额"""
         if not isinstance(kline, list) or len(kline) < period:
             return None

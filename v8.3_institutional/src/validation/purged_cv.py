@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Purged Walk-Forward / Purged K-Fold 交叉验证 — v1.0
 P0-3 修复: 消除回测前视偏差

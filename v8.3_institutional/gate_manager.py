@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v8.4 双门禁管理器
 =================
@@ -28,7 +27,7 @@ import logging
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("gate_manager")
 
@@ -45,23 +44,23 @@ class GateResult:
     passed: bool
     mode: str                 # "sim" / "live" / "dry"
     action: str               # "pass" / "warn" / "block"
-    metrics: Dict[str, Any] = field(default_factory=dict)
-    thresholds: Dict[str, Any] = field(default_factory=dict)
-    blockers: List[str] = field(default_factory=list)
-    promoters: List[str] = field(default_factory=list)
+    metrics: dict[str, Any] = field(default_factory=dict)
+    thresholds: dict[str, Any] = field(default_factory=dict)
+    blockers: list[str] = field(default_factory=list)
+    promoters: list[str] = field(default_factory=list)
     timestamp: str = ""
     recommendation: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典 (用于持久化到 state)"""
         return asdict(self)
 
 
-def _load_json(path: Path) -> Dict[str, Any]:
+def _load_json(path: Path) -> dict[str, Any]:
     """安全加载 JSON 配置"""
     try:
         if path.exists():
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
     except Exception as e:
         logger.warning("加载配置失败 %s: %s", path, e)
@@ -77,7 +76,7 @@ class ReturnExpectationGate:
         - Sharpe >= 1.0
     """
 
-    DEFAULT_THRESHOLDS: Dict[str, Any] = {
+    DEFAULT_THRESHOLDS: dict[str, Any] = {
         "min_annual_return": 0.15,
         "max_drawdown": 0.10,
         "min_sharpe": 1.0,
@@ -87,8 +86,8 @@ class ReturnExpectationGate:
 
     def __init__(
         self,
-        thresholds: Optional[Dict[str, Any]] = None,
-        config_path: Optional[str] = None,
+        thresholds: dict[str, Any] | None = None,
+        config_path: str | None = None,
         inherit_shadow: bool = True,
     ) -> None:
         """初始化门禁
@@ -105,15 +104,15 @@ class ReturnExpectationGate:
 
         # 阈值优先级: 显式 > config > DEFAULT
         cfg_thresholds = cfg.get("return_expectation_gate", {})
-        self.thresholds: Dict[str, Any] = thresholds or cfg_thresholds or self.DEFAULT_THRESHOLDS
+        self.thresholds: dict[str, Any] = thresholds or cfg_thresholds or self.DEFAULT_THRESHOLDS
 
         # 从 shadow_account_config 继承 benchmark (单向, 只读)
-        self._shadow_benchmark: Dict[str, Any] = {}
+        self._shadow_benchmark: dict[str, Any] = {}
         if self.inherit_shadow:
             shadow_cfg = _load_json(SHADOW_CONFIG_PATH)
             self._shadow_benchmark = shadow_cfg.get("backtest_benchmark", {})
 
-    def _load_prediction(self) -> Dict[str, Any]:
+    def _load_prediction(self) -> dict[str, Any]:
         """加载年化收益预测 (延迟导入避免循环依赖)"""
         try:
             from predict_annual_return import predict_annual_return_struct
@@ -173,7 +172,7 @@ class ReturnExpectationGate:
         # 若 benchmark 缺失, 用 expected_vol * sqrt(12) 估算年化波动率上限作为回撤代理
         drawdown = backtest_dd if backtest_dd > 0 else expected_vol * math_sqrt(12) * 0.8
 
-        metrics: Dict[str, Any] = {
+        metrics: dict[str, Any] = {
             "expected_return": round(ar, 4),
             "expected_vol": round(expected_vol, 4),
             "sharpe_estimate": round(sharpe, 4),
@@ -185,8 +184,8 @@ class ReturnExpectationGate:
             "raw_expected_return": round(prediction.get("expected_return", 0.0), 4),
         }
 
-        blockers: List[str] = []
-        promoters: List[str] = []
+        blockers: list[str] = []
+        promoters: list[str] = []
 
         # 校验 1: 年化收益
         min_ar = float(self.thresholds.get("min_annual_return", 0.15))
@@ -255,7 +254,7 @@ class HedgeCompletenessGate:
         - |net_delta| < 0.05 (接近 Delta 中性)
     """
 
-    DEFAULT_THRESHOLDS: Dict[str, Any] = {
+    DEFAULT_THRESHOLDS: dict[str, Any] = {
         "max_portfolio_beta": 0.30,
         "max_abs_net_delta": 0.05,
     }
@@ -266,21 +265,21 @@ class HedgeCompletenessGate:
 
     def __init__(
         self,
-        thresholds: Optional[Dict[str, Any]] = None,
-        config_path: Optional[str] = None,
+        thresholds: dict[str, Any] | None = None,
+        config_path: str | None = None,
     ) -> None:
         cfg_path = Path(config_path) if config_path else GATE_CONFIG_PATH
         cfg = _load_json(cfg_path)
         self.enabled: bool = cfg.get("enabled", True)
         cfg_thresholds = cfg.get("hedge_completeness_gate", {})
-        self.thresholds: Dict[str, Any] = thresholds or cfg_thresholds or self.DEFAULT_THRESHOLDS
+        self.thresholds: dict[str, Any] = thresholds or cfg_thresholds or self.DEFAULT_THRESHOLDS
 
     def evaluate(
         self,
         portfolio_beta_before: float,
         portfolio_value: float,
-        hedge_orders_executed: List[Dict[str, Any]],
-        sim_engine: Optional[Any] = None,
+        hedge_orders_executed: list[dict[str, Any]],
+        sim_engine: Any | None = None,
         if_multiplier: int = 300,
         if_beta: float = 1.0,
     ) -> GateResult:
@@ -361,7 +360,7 @@ class HedgeCompletenessGate:
         options_delta_normalized = options_delta / max(portfolio_value, 1.0)
         net_delta = portfolio_beta_after + options_delta_normalized
 
-        metrics: Dict[str, Any] = {
+        metrics: dict[str, Any] = {
             "portfolio_beta_before": round(portfolio_beta_before, 4),
             "portfolio_beta_after": round(portfolio_beta_after, 4),
             "if_hedge_notional": round(if_hedge_notional, 0),
@@ -376,8 +375,8 @@ class HedgeCompletenessGate:
         }
 
         # === 3. 双约束校验 ===
-        blockers: List[str] = []
-        promoters: List[str] = []
+        blockers: list[str] = []
+        promoters: list[str] = []
 
         max_beta = float(self.thresholds.get("max_portfolio_beta", 0.30))
         if portfolio_beta_after <= max_beta:
@@ -415,7 +414,7 @@ class HedgeCompletenessGate:
             recommendation=recommendation,
         )
 
-    def _estimate_options_delta_from_orders(self, hedge_orders: List[Dict[str, Any]]) -> float:
+    def _estimate_options_delta_from_orders(self, hedge_orders: list[dict[str, Any]]) -> float:
         """从 BUY_PUT 类订单估算期权 Delta (live 模式或 sim_engine 失败时降级使用)
 
         估算: budget / 1万 × Put delta (-0.4)
@@ -451,7 +450,7 @@ def math_sqrt(x: float) -> float:
     return math.sqrt(x)
 
 
-def get_gate_status_summary(state: Dict[str, Any]) -> Dict[str, Any]:
+def get_gate_status_summary(state: dict[str, Any]) -> dict[str, Any]:
     """从 DailyWorkflow.state 提取门禁状态摘要 (供报告使用)
 
     Args:

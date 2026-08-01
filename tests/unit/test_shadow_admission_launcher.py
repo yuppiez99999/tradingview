@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """shadow_admission_launcher 单元测试 — T2.4.
 
 验证以下方面:
@@ -17,7 +16,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -57,7 +56,7 @@ def temp_report_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def sample_state() -> Dict[str, Any]:
+def sample_state() -> dict[str, Any]:
     """样本状态: 已启动但未完成观察期."""
     started = (datetime.utcnow() - timedelta(days=3)).strftime(DATETIME_FMT) + "Z"
     return {
@@ -86,7 +85,7 @@ def sample_state() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def completed_state(sample_state: Dict[str, Any]) -> Dict[str, Any]:
+def completed_state(sample_state: dict[str, Any]) -> dict[str, Any]:
     """样本状态: 观察期已完成且指标达标."""
     started = (datetime.utcnow() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
     sample_state["started_at"] = started
@@ -100,7 +99,7 @@ def completed_state(sample_state: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @pytest.fixture
-def completed_state_failing_metrics(sample_state: Dict[str, Any]) -> Dict[str, Any]:
+def completed_state_failing_metrics(sample_state: dict[str, Any]) -> dict[str, Any]:
     """样本状态: 观察期已完成但指标不达标."""
     started = (datetime.utcnow() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
     sample_state["started_at"] = started
@@ -114,7 +113,7 @@ def completed_state_failing_metrics(sample_state: Dict[str, Any]) -> Dict[str, A
 
 
 @pytest.fixture
-def fail_fast_state(sample_state: Dict[str, Any]) -> Dict[str, Any]:
+def fail_fast_state(sample_state: dict[str, Any]) -> dict[str, Any]:
     """样本状态: fail-fast 已触发."""
     sample_state["fail_fast_triggered"] = True
     sample_state["fail_fast_reason"] = "daily_drawdown_exceeded"
@@ -123,7 +122,7 @@ def fail_fast_state(sample_state: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @pytest.fixture
-def sample_criteria() -> Dict[str, Any]:
+def sample_criteria() -> dict[str, Any]:
     """样本准入标准."""
     return {
         "min_dsr": 5,
@@ -157,7 +156,7 @@ class TestUtilities:
 class TestStateFileIO:
     """状态文件读写测试."""
 
-    def test_save_and_load_state(self, temp_state_file: Path, sample_state: Dict):
+    def test_save_and_load_state(self, temp_state_file: Path, sample_state: dict):
         """保存后能正确读取."""
         _save_state(temp_state_file, sample_state)
         loaded = _load_state(temp_state_file)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """V7-Model DSR + Walk-Forward 稳定性验证 (Regime-Aware 特征工程版)"""
 import glob
 import json
@@ -21,7 +20,7 @@ v7_files.sort(key=lambda x: os.path.getmtime(x))
 v7_file = Path(v7_files[-1])
 print(f"加载V7-Model结果: {v7_file}")
 
-with open(v7_file, "r", encoding="utf-8") as f:
+with open(v7_file, encoding="utf-8") as f:
     data = json.load(f)
 
 records = data.get("records", [])

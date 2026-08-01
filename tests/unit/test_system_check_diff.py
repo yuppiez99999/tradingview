@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """自检归档 diff 工具单元测试 — 三层面自我进化 Stage 2 (2.7).
 
 任务: 2.7
@@ -28,7 +27,7 @@ import json
 import sys
 from dataclasses import FrozenInstanceError
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 
@@ -54,8 +53,8 @@ from utils.alpha.root_cause import (  # noqa: E402
 
 def _make_report(
     check_time: str = "2026-08-01T12:00:00",
-    items: List[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    items: list[dict[str, Any]] = None,
+) -> dict[str, Any]:
     """构造自检报告 dict."""
     if items is None:
         items = []
@@ -71,7 +70,7 @@ def _make_report(
 def _make_item(
     code: str, status: str, level: str = "ERROR",
     name: str = "", detail: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """构造单条检查项 dict."""
     return {
         "code": code,

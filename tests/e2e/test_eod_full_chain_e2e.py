@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_eod_full_chain_e2e.py — EOD 全链路端到端测试 (Golden Path)
 
 5 条关键链路 #5: 真实历史 pnl_report → 真实 trade_plan → run_all_guards → 写回 trade_plan
@@ -192,7 +191,7 @@ class TestEODFullChainE2E:
         )
 
         # 写入的文件应该是有效 JSON, 且包含 risk_guard 字段
-        with open(expected_path, "r", encoding="utf-8") as f:
+        with open(expected_path, encoding="utf-8") as f:
             written_plan = json.load(f)
         assert "risk_guard" in written_plan, "写入的 plan 必须包含 risk_guard"
         assert "last_run" in written_plan["risk_guard"], (
@@ -368,7 +367,7 @@ class TestEODMultiDayRegression:
             # 从文件名提取日期 (daily_pnl_report_2026-07-21.json → 2026-07-21)
             date_str = pnl_path.stem.replace("daily_pnl_report_", "")
 
-            with open(pnl_path, "r", encoding="utf-8") as f:
+            with open(pnl_path, encoding="utf-8") as f:
                 pnl_report = json.load(f)
 
             integrator = RiskGuardIntegrator(report_date=date_str)

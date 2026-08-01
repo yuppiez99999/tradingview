@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Shadow Admission Watchdog — DSR 自愈与告警机制
 
 反馈机制 (2026-07-30 设计):
@@ -40,7 +39,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 # ============================================================
 # 常量与路径
@@ -97,7 +96,7 @@ def now_iso() -> str:
     return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def load_state(state_file: Path) -> Optional[Dict[str, Any]]:
+def load_state(state_file: Path) -> dict[str, Any] | None:
     """加载状态文件 (复用 shadow_admission_launcher.py:108-117 模式).
 
     Returns:
@@ -106,7 +105,7 @@ def load_state(state_file: Path) -> Optional[Dict[str, Any]]:
     if not state_file.exists():
         return None
     try:
-        with open(state_file, "r", encoding="utf-8") as f:
+        with open(state_file, encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         logger.warning("状态文件读取失败: %s (%s)", state_file, e)
@@ -130,7 +129,7 @@ def check_dsr_outcome(report_dir: Path, today: str) -> str:
     if not dsr_path.exists():
         return "MISSING"
     try:
-        with open(dsr_path, "r", encoding="utf-8") as f:
+        with open(dsr_path, encoding="utf-8") as f:
             data = json.load(f)
     except (json.JSONDecodeError, OSError):
         return "CORRUPT"
@@ -139,7 +138,7 @@ def check_dsr_outcome(report_dir: Path, today: str) -> str:
     return "OK"
 
 
-def query_task_status(task_name: str) -> Dict[str, str]:
+def query_task_status(task_name: str) -> dict[str, str]:
     """查询 Windows 任务计划程序状态 (复制自 observation_daily_briefing.py:56-77).
 
     Args:
@@ -208,7 +207,7 @@ def is_main_task_running(state_file: Path, threshold_seconds: int = MAIN_TASK_RU
         return False
 
 
-def run_retry(python_exe: str, launcher_script: Path, cwd: Path) -> Dict[str, Any]:
+def run_retry(python_exe: str, launcher_script: Path, cwd: Path) -> dict[str, Any]:
     """触发补跑: 调用 shadow_admission_launcher.py daily.
 
     显式设置 NO_PROXY 环境变量 (项目硬约束).
@@ -279,8 +278,8 @@ def write_alert(
     report_dir: Path,
     today: str,
     reason: str,
-    task_info: Optional[Dict[str, str]],
-    retry_result: Optional[Dict[str, Any]],
+    task_info: dict[str, str] | None,
+    retry_result: dict[str, Any] | None,
     level: str = "CRITICAL",
 ) -> Path:
     """写告警文件 + append 到告警归档.

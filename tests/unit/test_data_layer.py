@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """DataLayer 单元测试 — T1.7-D.
 
 模块整合 8.4 — TASK T1.7 验收标准 4-5
@@ -20,7 +19,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -66,7 +65,7 @@ def sample_df() -> pd.DataFrame:
 
 
 @pytest.fixture
-def sample_snapshot() -> Dict[str, Any]:
+def sample_snapshot() -> dict[str, Any]:
     """样本行情快照."""
     return {
         "symbol": "510300.SH",
@@ -79,7 +78,7 @@ def sample_snapshot() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def sample_macro() -> Dict[str, Any]:
+def sample_macro() -> dict[str, Any]:
     """样本宏观数据."""
     return {
         "cpi_yoy": 0.5,
@@ -241,7 +240,7 @@ class TestFeatureFlagPassthrough:
     def test_passthrough_get_snapshot(
         self,
         flag_disabled_layer: DataLayer,
-        sample_snapshot: Dict[str, Any],
+        sample_snapshot: dict[str, Any],
     ) -> None:
         """Flag 关闭时 get_snapshot 透传."""
         mock_provider = MagicMock()
@@ -255,7 +254,7 @@ class TestFeatureFlagPassthrough:
     def test_passthrough_get_macro(
         self,
         flag_disabled_layer: DataLayer,
-        sample_macro: Dict[str, Any],
+        sample_macro: dict[str, Any],
     ) -> None:
         """Flag 关闭时 get_macro_indicators 透传."""
         mock_provider = MagicMock()
@@ -315,7 +314,7 @@ class TestFallbackChain:
         sample_df: pd.DataFrame,
     ) -> None:
         """P0 成功, 不触发 fallback."""
-        call_log: List[str] = []
+        call_log: list[str] = []
 
         def p0_fn(symbol: str, **kwargs: Any) -> Any:
             call_log.append("P0")
@@ -335,7 +334,7 @@ class TestFallbackChain:
         tmp_fallback_dir: Path,
     ) -> None:
         """P0 失败, P1 接管."""
-        call_log: List[str] = []
+        call_log: list[str] = []
 
         def p0_fn(symbol: str, **kwargs: Any) -> Any:
             call_log.append("P0")
@@ -493,7 +492,7 @@ class TestP6CacheFallback:
     def test_p6_cache_serialize_dict(
         self,
         flag_enabled_layer: DataLayer,
-        sample_snapshot: Dict[str, Any],
+        sample_snapshot: dict[str, Any],
     ) -> None:
         """Dict 序列化/反序列化."""
         flag_enabled_layer._p6_cache_store("510300.SH", "get_snapshot", sample_snapshot)
@@ -807,13 +806,13 @@ class TestIntegrationScenarios:
 
         # 验证 fallback 日志至少 2 条 (P0→P1, P1→P6)
         log_file = flag_enabled_layer.get_fallback_log_path()
-        lines = [l for l in log_file.read_text(encoding="utf-8").strip().split("\n") if l]
+        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
         assert len(lines) >= 2
 
     def test_get_snapshot_with_fallback(
         self,
         flag_enabled_layer: DataLayer,
-        sample_snapshot: Dict[str, Any],
+        sample_snapshot: dict[str, Any],
     ) -> None:
         """get_snapshot 也支持降级."""
         flag_enabled_layer.register_provider(
@@ -827,7 +826,7 @@ class TestIntegrationScenarios:
     def test_get_macro_with_fallback(
         self,
         flag_enabled_layer: DataLayer,
-        sample_macro: Dict[str, Any],
+        sample_macro: dict[str, Any],
     ) -> None:
         """get_macro_indicators 也支持降级."""
         flag_enabled_layer.register_provider(

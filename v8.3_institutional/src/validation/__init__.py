@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """v7.5 统计验证子包 — Walk-Forward / PIT / Deflated Sharpe"""
 
 try:

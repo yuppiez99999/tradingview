@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """MLops 流水线编排入口 — T5.8 交付物.
 
 模块整合 8.4 — ARCHITECTURE §4.2
@@ -33,7 +32,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("mlops_pipeline")
 
@@ -56,7 +55,7 @@ class MLOpsPipeline:
 
     def __init__(
         self,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
         feature_flag_name: str = "USE_MLOPS_PIPELINE",
     ) -> None:
         """初始化.
@@ -75,14 +74,14 @@ class MLOpsPipeline:
         self.config = config
 
         # 子模块 (延迟初始化)
-        self._model_registry: Optional[Any] = None
-        self._ab_framework: Optional[Any] = None
-        self._drift_monitor: Optional[Any] = None
-        self._retrain_scheduler: Optional[Any] = None
+        self._model_registry: Any | None = None
+        self._ab_framework: Any | None = None
+        self._drift_monitor: Any | None = None
+        self._retrain_scheduler: Any | None = None
 
         # 状态
         self._started = False
-        self._pipeline_log: List[Dict[str, Any]] = []
+        self._pipeline_log: list[dict[str, Any]] = []
 
         # 日志目录
         self._log_dir = _PROJECT_ROOT / "reports" / "mlops"
@@ -107,7 +106,7 @@ class MLOpsPipeline:
             logger.warning("Feature Flag 检查失败, 默认禁用: %s", e)
             return False
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """从 ConfigManager 加载配置."""
         try:
             from utils.config_manager import get_config
@@ -221,11 +220,11 @@ class MLOpsPipeline:
     def register_and_test(
         self,
         model: Any,
-        metrics: Dict[str, float],
+        metrics: dict[str, float],
         model_name: str = "v9_lgb",
-        params: Optional[Dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
         description: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """注册新模型并自动启动 A/B 测试.
 
         Args:
@@ -241,7 +240,7 @@ class MLOpsPipeline:
         if not self._enabled:
             logger.warning("MLops pipeline 未启用, 跳过注册")
             return {"skipped": True, "reason": "pipeline_disabled"}
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         # 1. 注册到 ModelRegistry
         try:
             version = self.model_registry.register_model(
@@ -302,7 +301,7 @@ class MLOpsPipeline:
     # ============================================================
     # Drift 触发回调
     # ============================================================
-    def _on_drift_trigger(self, alerts: List[Any]) -> bool:
+    def _on_drift_trigger(self, alerts: list[Any]) -> bool:
         """drift 告警触发重训练."""
         if not self._enabled:
             return False
@@ -327,7 +326,7 @@ class MLOpsPipeline:
     # ============================================================
     # 状态 + 日志
     # ============================================================
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取 pipeline 状态快照."""
         status = {
             "enabled": self._enabled,
@@ -363,7 +362,7 @@ class MLOpsPipeline:
             pass
         return status
 
-    def _log_event(self, event: str, data: Dict[str, Any]) -> None:
+    def _log_event(self, event: str, data: dict[str, Any]) -> None:
         """记录 pipeline 事件."""
         record = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -379,7 +378,7 @@ class MLOpsPipeline:
         except OSError as e:
             logger.warning("pipeline 日志写入失败: %s", e)
 
-    def get_pipeline_log(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_pipeline_log(self, limit: int = 100) -> list[dict[str, Any]]:
         """获取 pipeline 事件日志."""
         return list(self._pipeline_log[-limit:])
 
@@ -387,7 +386,7 @@ class MLOpsPipeline:
 # ============================================================
 # 单例 + 便捷函数
 # ============================================================
-_default_pipeline: Optional[MLOpsPipeline] = None
+_default_pipeline: MLOpsPipeline | None = None
 
 
 def get_pipeline() -> MLOpsPipeline:
@@ -398,7 +397,7 @@ def get_pipeline() -> MLOpsPipeline:
     return _default_pipeline
 
 
-def initialize_pipeline(config: Optional[Dict[str, Any]] = None) -> MLOpsPipeline:
+def initialize_pipeline(config: dict[str, Any] | None = None) -> MLOpsPipeline:
     """初始化全局 MLops pipeline."""
     global _default_pipeline
     _default_pipeline = MLOpsPipeline(config=config)

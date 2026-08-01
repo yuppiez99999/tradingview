@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 45 个月回测结果的 DSR + Walk-Forward 稳定性验证
 
@@ -70,19 +69,25 @@ m4 = sum((r - mean_m) ** 4 for r in monthly_returns) / n
 kurtosis = m4 / (std_m ** 4) - 3.0 if std_m > 0 else 0.0
 
 def _norm_ppf(p):
-    if p <= 0: return -10.0
-    if p >= 1: return 10.0
+    if p <= 0:
+        return -10.0
+    if p >= 1:
+        return 10.0
     q = min(p, 1.0 - p)
-    if q < 1e-16: return 10.0 if p > 0.5 else -10.0
+    if q < 1e-16:
+        return 10.0 if p > 0.5 else -10.0
     t = math.sqrt(-2.0 * math.log(q))
     c0, c1, c2 = 2.515517, 0.802853, 0.010328
     d1, d2, d3 = 1.432788, 0.189269, 0.001308
     z = t - (c0 + c1*t + c2*t*t) / (1.0 + d1*t + d2*t*t + d3*t*t*t)
     return -z if p < 0.5 else z
 
+
 def _norm_cdf(z):
-    if z < -8: return 0.0
-    if z > 8: return 1.0
+    if z < -8:
+        return 0.0
+    if z > 8:
+        return 1.0
     return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
 
 gamma_euler = 0.5772156649015329

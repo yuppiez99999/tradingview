@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 机构级模块单元测试
 - Black-Litterman 组合优化器

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Shadow 账户适配器 — 模块整合 8.4 (T2.4 接入真实数据).
 
 任务: T2.4 (启动 Shadow 准入流程, P0 阻塞 Phase 3)
@@ -40,7 +39,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
+from typing import Any, Sequence, cast
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -115,7 +114,7 @@ class ShadowMetrics:
     total_trades: int  # 总交易次数
     final_nav: float  # 最终净值
     fail_fast_triggered: bool  # Fail-Fast 是否触发
-    fail_fast_reason: Optional[str]  # 触发原因
+    fail_fast_reason: str | None  # 触发原因
     samples_for_dsr: int  # DSR 计算使用的样本数
     samples_for_sharpe_cv: int  # Sharpe CV 计算使用的样本数
     is_real_data: bool  # 是否为真实数据 (非占位)
@@ -129,9 +128,9 @@ class RunShadowResult:
     days_processed: int  # 处理的天数
     final_nav: float  # 最终净值
     fail_fast_triggered: bool  # 是否触发 fail-fast
-    fail_fast_reason: Optional[str]  # 触发原因
-    termination_date: Optional[str]  # 终止日期 (若触发)
-    error: Optional[str]  # 错误信息 (若失败)
+    fail_fast_reason: str | None  # 触发原因
+    termination_date: str | None  # 终止日期 (若触发)
+    error: str | None  # 错误信息 (若失败)
 
 
 # ============================================================
@@ -204,8 +203,8 @@ class ShadowAccountAdapter:
         self._sharpe_cv_window = int(sharpe_cv_window)
 
         # 收益率序列缓存 (run_shadow 时填充)
-        self._daily_returns: List[float] = []
-        self._dates: List[str] = []
+        self._daily_returns: list[float] = []
+        self._dates: list[str] = []
         self._is_real_data: bool = False
 
     # ------------------------------------------------------------
@@ -215,7 +214,7 @@ class ShadowAccountAdapter:
     def run_shadow(
         self,
         daily_returns: Sequence[float],
-        dates: Optional[Sequence[str]] = None,
+        dates: Sequence[str] | None = None,
         is_real_data: bool = True,
     ) -> RunShadowResult:
         """注入每日收益率序列, 模拟运行 Shadow 账户.
@@ -281,8 +280,8 @@ class ShadowAccountAdapter:
 
         # 检查最终是否被 fail-fast 终止
         ff_triggered = self._shadow_account.status.value == "terminated"
-        ff_reason: Optional[str] = None
-        termination_date: Optional[str] = None
+        ff_reason: str | None = None
+        termination_date: str | None = None
         if ff_triggered:
             ff_status = self._shadow_account.fail_fast_monitor.get_status()
             ff_reason = ff_status.get("reason")
@@ -374,7 +373,7 @@ class ShadowAccountAdapter:
             ),
         )
 
-    def compute_sharpe_cv(self) -> Tuple[float, float]:
+    def compute_sharpe_cv(self) -> tuple[float, float]:
         """计算 Sharpe CV (12 月滚动变异系数).
 
         Sharpe CV = std(rolling_sharpe) / |mean(rolling_sharpe)|
@@ -399,7 +398,7 @@ class ShadowAccountAdapter:
             return sharpe, 0.0
 
         # 计算滚动 Sharpe
-        rolling_sharpes: List[float] = []
+        rolling_sharpes: list[float] = []
         for i in range(self._sharpe_cv_window, n + 1):
             window = self._daily_returns[i - self._sharpe_cv_window : i]
             sharpe = self._compute_sharpe_single(window)
@@ -497,7 +496,7 @@ class ShadowAccountAdapter:
 
         return max_dd
 
-    def _compute_sharpe_single(self, returns: List[float]) -> float:
+    def _compute_sharpe_single(self, returns: list[float]) -> float:
         """计算单一窗口的年化 Sharpe 比率.
 
         Args:
@@ -531,7 +530,7 @@ class ShadowAccountAdapter:
     # 便捷方法
     # ------------------------------------------------------------
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取适配器状态摘要."""
         ff_status = self._shadow_account.fail_fast_monitor.get_status()
         return {
@@ -554,7 +553,7 @@ class ShadowAccountAdapter:
         return self._shadow_account
 
     @property
-    def daily_returns(self) -> List[float]:
+    def daily_returns(self) -> list[float]:
         """已记录的日收益率序列 (只读视图)."""
         return list(self._daily_returns)
 
@@ -584,7 +583,7 @@ def run_shadow_with_returns(
     strategy_id: str = DEFAULT_STRATEGY_ID,
     initial_capital: float = DEFAULT_INITIAL_CAPITAL,
     is_real_data: bool = True,
-) -> Tuple[ShadowAccountAdapter, ShadowMetrics]:
+) -> tuple[ShadowAccountAdapter, ShadowMetrics]:
     """便捷函数: 创建适配器 + 运行 + 获取指标.
 
     Args:

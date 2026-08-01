@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 宽基ETF 政策合规与社保国家队流向加减仓模块
 
@@ -15,8 +14,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 from utils.logger import get_logger
 
 logger = get_logger("broad_based_etf_policy")
@@ -27,7 +24,7 @@ logger = get_logger("broad_based_etf_policy")
 # =====================
 # 宽基ETF 同时命中国家十五五「防御型公用事业/核心资产」映射与康波「宽基 1.00」中性权重,
 # 是承接社保国家队流入最纯粹的载体。
-BROAD_BASED_ETFS: List[Dict] = [
+BROAD_BASED_ETFS: list[dict] = [
     {
         "code": "510300",
         "name": "沪深300ETF华泰柏瑞",
@@ -114,7 +111,7 @@ def _import_macro():
 _MACRO = _import_macro()
 
 
-def normalize_code(code: str) -> List[str]:
+def normalize_code(code: str) -> list[str]:
     """生成用于查表的候选键: 裸代码 + sz/sh 前缀。"""
     s = str(code).strip().lstrip("0").zfill(6)
     return [s, f"sz{s}", f"sh{s}", str(code).strip()]
@@ -123,7 +120,7 @@ def normalize_code(code: str) -> List[str]:
 # =====================
 # 1. 标的合规校验 (十五五 + 康波)
 # =====================
-def validate_portfolio_compliance(target_portfolio: Dict) -> Dict:
+def validate_portfolio_compliance(target_portfolio: dict) -> dict:
     """
     校验组合内每个标的是否符合「十五五规划 + 康波周期」对齐要求。
 
@@ -224,7 +221,7 @@ def validate_portfolio_compliance(target_portfolio: Dict) -> Dict:
 # =====================
 # 2/3. 宽基ETF 加减仓 (社保国家队流入驱动)
 # =====================
-def flow_to_adjustment(net_flow_yi: float) -> Dict:
+def flow_to_adjustment(net_flow_yi: float) -> dict:
     """将单只ETF净流(亿元) 映射为加减仓信号/动作/系数。"""
     for direction, lo, hi, signal, action, factor in ADJUST_BANDS:
         if lo <= net_flow_yi < hi:
@@ -233,7 +230,7 @@ def flow_to_adjustment(net_flow_yi: float) -> Dict:
     return {"signal": "中性", "action": "持有", "factor": 0.0, "direction": "hold"}
 
 
-def get_broad_based_codes(plan: Dict) -> List[str]:
+def get_broad_based_codes(plan: dict) -> list[str]:
     """从计划中提取被标记为宽基/可调节的标的代码。"""
     codes = []
     tp = plan.get("target_portfolio", {})
@@ -243,7 +240,7 @@ def get_broad_based_codes(plan: Dict) -> List[str]:
     return codes
 
 
-def compute_broad_based_adjustments(flow_signals: Dict, broad_based: Optional[List[Dict]] = None) -> List[Dict]:
+def compute_broad_based_adjustments(flow_signals: dict, broad_based: list[dict] | None = None) -> list[dict]:
     """
     根据社保国家队ETF资金流信号, 计算宽基ETF加减仓方案。
 
@@ -282,8 +279,8 @@ def compute_broad_based_adjustments(flow_signals: Dict, broad_based: Optional[Li
 
 
 def apply_broad_based_adjustments_to_plan(
-    plan: Dict, flow_signals: Dict, broad_based: Optional[List[Dict]] = None
-) -> Dict:
+    plan: dict, flow_signals: dict, broad_based: list[dict] | None = None
+) -> dict:
     """
     将宽基ETF加减仓方案就地应用到计划 dict (target_portfolio / position_plan / phase_summary)。
     基于 base_weight / base_shares / base_amount 做幂等相对调整。
@@ -360,7 +357,7 @@ def apply_broad_based_adjustments_to_plan(
     }
 
 
-def fetch_national_team_flow_signals() -> Dict:
+def fetch_national_team_flow_signals() -> dict:
     """
     获取社保国家队ETF资金流信号 (优先 Wind MCP, 回退 iFinD, 再回退新浪)。
     失败返回空 dict, 调用方据此跳过加减仓。
@@ -375,7 +372,7 @@ def fetch_national_team_flow_signals() -> Dict:
         return {}
 
 
-def adjust_plan_with_national_team_flow(plan: Dict) -> Dict:
+def adjust_plan_with_national_team_flow(plan: dict) -> dict:
     """
     便捷入口: 拉取国家队资金流并对宽基ETF就地加减仓。
     用于每日建仓指令生成前调用 (幂等, 异常安全)。

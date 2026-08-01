@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """DeepSeek Provider — V3 (deepseek-chat) + R1 (deepseek-reasoner).
 
 从原 `utils/alpha/llm_router.py:LLMRouter._call_deepseek/_call_deepseek_reasoner` 拆出 (B3.4.3)。
@@ -14,7 +13,7 @@ import json
 import logging
 import os
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from utils.alpha.llm.base import _safe_urlopen
 from utils.alpha.llm.openai_compat import openai_compatible_chat
@@ -28,10 +27,10 @@ def call_deepseek(
     temperature: float,
     max_tokens: int,
     timeout: int,
-    provider_cfg: Dict[str, Any],
+    provider_cfg: dict[str, Any],
     max_retries: int = 1,
     retry_delay: float = 1.0,
-) -> Optional[str]:
+) -> str | None:
     """DeepSeek V3 (deepseek-chat) — OpenAI 兼容接口, 主 LLM.
 
     Args:
@@ -80,9 +79,9 @@ def call_deepseek_reasoner(
     system: str,
     temperature: float,
     max_tokens: int,
-    provider_cfg: Dict[str, Any],
+    provider_cfg: dict[str, Any],
     timeout_seconds: int = 120,
-) -> Optional[str]:
+) -> str | None:
     """DeepSeek R1 (deepseek-reasoner) 云端推理模型, 用于复杂决策.
 
     支持 reasoning_content 字段 (思考过程).
@@ -117,7 +116,7 @@ def call_deepseek_reasoner(
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
         }
-        messages: List[Dict[str, str]] = []
+        messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})

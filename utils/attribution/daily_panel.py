@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T5.3 日级归因面板 — Brinson + Barra + TCA 三合一.
 
 对冲基金 L7 归因层核心模块, 整合三套独立归因系统输出日级统一报告:
@@ -45,7 +44,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from utils.config_manager import get_config
 
@@ -137,11 +136,11 @@ class ModuleAggregationError(DailyPanelError):
 class BrinsonInput:
     """Brinson 归因输入参数 (对齐 BrinsonAttributionManager.attribute)."""
 
-    portfolio_weights: Dict[str, float] = field(default_factory=dict)
-    benchmark_weights: Optional[Dict[str, float]] = None
-    portfolio_returns: Dict[str, float] = field(default_factory=dict)
-    benchmark_returns: Dict[str, float] = field(default_factory=dict)
-    benchmark_code: Optional[str] = None
+    portfolio_weights: dict[str, float] = field(default_factory=dict)
+    benchmark_weights: dict[str, float] | None = None
+    portfolio_returns: dict[str, float] = field(default_factory=dict)
+    benchmark_returns: dict[str, float] = field(default_factory=dict)
+    benchmark_code: str | None = None
     validate: bool = True
 
     def is_empty(self) -> bool:
@@ -153,17 +152,17 @@ class BrinsonInput:
 class FactorInput:
     """Barra 因子归因输入参数 (对齐 FactorAttributionManager.attribute)."""
 
-    portfolio_exposures: Dict[str, float] = field(default_factory=dict)
-    benchmark_exposures: Optional[Dict[str, float]] = None
-    factor_returns: Dict[str, float] = field(default_factory=dict)
+    portfolio_exposures: dict[str, float] = field(default_factory=dict)
+    benchmark_exposures: dict[str, float] | None = None
+    factor_returns: dict[str, float] = field(default_factory=dict)
     portfolio_value: float = 1_000_000.0
     specific_pnl: float = 0.0
-    active_return: Optional[float] = None
-    benchmark_code: Optional[str] = None
-    factor_cov_matrix: Optional[Dict[str, Dict[str, float]]] = None
-    active_weights: Optional[Dict[str, float]] = None
-    stock_specific_risks: Optional[Dict[str, float]] = None
-    ic_metrics: Optional[Dict[str, Any]] = None
+    active_return: float | None = None
+    benchmark_code: str | None = None
+    factor_cov_matrix: dict[str, dict[str, float]] | None = None
+    active_weights: dict[str, float] | None = None
+    stock_specific_risks: dict[str, float] | None = None
+    ic_metrics: dict[str, Any] | None = None
 
     def is_empty(self) -> bool:
         """判断输入是否为空."""
@@ -179,9 +178,9 @@ class TCAInput:
       2. pnl_attributions: 原始 PnLAttribution 列表 (聚合层内部聚合)
     """
 
-    summary_dict: Optional[Dict[str, Any]] = None
-    pnl_attributions: Optional[List[Dict[str, Any]]] = None
-    fill_records: Optional[List[Dict[str, Any]]] = None
+    summary_dict: dict[str, Any] | None = None
+    pnl_attributions: list[dict[str, Any]] | None = None
+    fill_records: list[dict[str, Any]] | None = None
 
     def is_empty(self) -> bool:
         """判断输入是否为空."""
@@ -192,9 +191,9 @@ class TCAInput:
 class DailyReportInput:
     """日级归因面板统一输入容器."""
 
-    brinson: Optional[BrinsonInput] = None
-    factor: Optional[FactorInput] = None
-    tca: Optional[TCAInput] = None
+    brinson: BrinsonInput | None = None
+    factor: FactorInput | None = None
+    tca: TCAInput | None = None
 
     def is_all_empty(self) -> bool:
         """判断是否所有模块输入都为空."""
@@ -220,7 +219,7 @@ class ModuleStatus:
     generation_time_ms: float = 0.0
     has_data: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典."""
         return {
             "module_name": self.module_name,
@@ -265,10 +264,10 @@ class DailyAttributionReport:
 
     attribution_date: str = ""
     benchmark_code: str = ""
-    brinson_dict: Dict[str, Any] = field(default_factory=dict)
-    factor_dict: Dict[str, Any] = field(default_factory=dict)
-    tca_dict: Dict[str, Any] = field(default_factory=dict)
-    module_statuses: List[ModuleStatus] = field(default_factory=list)
+    brinson_dict: dict[str, Any] = field(default_factory=dict)
+    factor_dict: dict[str, Any] = field(default_factory=dict)
+    tca_dict: dict[str, Any] = field(default_factory=dict)
+    module_statuses: list[ModuleStatus] = field(default_factory=list)
     brinson_markdown: str = ""
     factor_markdown: str = ""
     tca_markdown: str = ""
@@ -283,7 +282,7 @@ class DailyAttributionReport:
     status: str = STATUS_OK
     reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典 (用于 JSON 序列化)."""
         return {
             "attribution_date": self.attribution_date,
@@ -310,7 +309,7 @@ class DailyAttributionReport:
 
     def to_markdown(self) -> str:
         """转为 Markdown 报告 (人类可读)."""
-        lines: List[str] = []
+        lines: list[str] = []
         # 头部
         lines.append("# 日级归因面板 (Daily Attribution Panel)")
         lines.append("")
@@ -403,8 +402,8 @@ class DailyAttributionPanel:
         self,
         config_name: str = DEFAULT_CONFIG_NAME,
         feature_flag_name: str = FLAG_NAME,
-        config: Optional[Dict[str, Any]] = None,
-        project_root: Optional[Path] = None,
+        config: dict[str, Any] | None = None,
+        project_root: Path | None = None,
     ) -> None:
         """初始化日级归因面板.
 
@@ -465,10 +464,10 @@ class DailyAttributionPanel:
     def generate(
         self,
         attribution_date: str = "",
-        brinson_input: Optional[BrinsonInput] = None,
-        factor_input: Optional[FactorInput] = None,
-        tca_input: Optional[TCAInput] = None,
-        inputs: Optional[DailyReportInput] = None,
+        brinson_input: BrinsonInput | None = None,
+        factor_input: FactorInput | None = None,
+        tca_input: TCAInput | None = None,
+        inputs: DailyReportInput | None = None,
     ) -> DailyAttributionReport:
         """生成日级归因报告.
 
@@ -516,7 +515,7 @@ class DailyAttributionPanel:
             generated_at=datetime.now().isoformat(timespec="seconds"),
         )
 
-        module_statuses: List[ModuleStatus] = []
+        module_statuses: list[ModuleStatus] = []
 
         # 1. Brinson 归因
         brinson_result_dict, brinson_md, brinson_status = self._run_brinson(attribution_date, brinson_input)
@@ -563,10 +562,10 @@ class DailyAttributionPanel:
     def save(
         self,
         report: DailyAttributionReport,
-        report_dir: Optional[Path] = None,
-        save_json: Optional[bool] = None,
-        save_markdown: Optional[bool] = None,
-    ) -> Dict[str, Path]:
+        report_dir: Path | None = None,
+        save_json: bool | None = None,
+        save_markdown: bool | None = None,
+    ) -> dict[str, Path]:
         """持久化日级归因报告 (JSON + Markdown 双输出).
 
         Args:
@@ -585,7 +584,7 @@ class DailyAttributionPanel:
         do_json = save_json if save_json is not None else self._persistence_cfg.get("save_json", True)
         do_md = save_markdown if save_markdown is not None else self._persistence_cfg.get("save_markdown", True)
 
-        saved_paths: Dict[str, Path] = {}
+        saved_paths: dict[str, Path] = {}
 
         try:
             target_dir.mkdir(parents=True, exist_ok=True)
@@ -621,12 +620,12 @@ class DailyAttributionPanel:
     def generate_and_save(
         self,
         attribution_date: str = "",
-        brinson_input: Optional[BrinsonInput] = None,
-        factor_input: Optional[FactorInput] = None,
-        tca_input: Optional[TCAInput] = None,
-        inputs: Optional[DailyReportInput] = None,
-        report_dir: Optional[Path] = None,
-    ) -> Tuple[DailyAttributionReport, Dict[str, Path]]:
+        brinson_input: BrinsonInput | None = None,
+        factor_input: FactorInput | None = None,
+        tca_input: TCAInput | None = None,
+        inputs: DailyReportInput | None = None,
+        report_dir: Path | None = None,
+    ) -> tuple[DailyAttributionReport, dict[str, Path]]:
         """生成并保存报告 (便捷方法)."""
         report = self.generate(
             attribution_date=attribution_date,
@@ -653,8 +652,8 @@ class DailyAttributionPanel:
     def _run_brinson(
         self,
         attribution_date: str,
-        brinson_input: Optional[BrinsonInput],
-    ) -> Tuple[Dict[str, Any], str, ModuleStatus]:
+        brinson_input: BrinsonInput | None,
+    ) -> tuple[dict[str, Any], str, ModuleStatus]:
         """执行 Brinson 归因."""
         start = time.time()
         status = ModuleStatus(module_name="brinson")
@@ -721,8 +720,8 @@ class DailyAttributionPanel:
     def _run_factor(
         self,
         attribution_date: str,
-        factor_input: Optional[FactorInput],
-    ) -> Tuple[Dict[str, Any], str, ModuleStatus]:
+        factor_input: FactorInput | None,
+    ) -> tuple[dict[str, Any], str, ModuleStatus]:
         """执行 Barra 因子归因."""
         start = time.time()
         status = ModuleStatus(module_name="factor")
@@ -788,8 +787,8 @@ class DailyAttributionPanel:
     def _run_tca(
         self,
         attribution_date: str,
-        tca_input: Optional[TCAInput],
-    ) -> Tuple[Dict[str, Any], str, ModuleStatus]:
+        tca_input: TCAInput | None,
+    ) -> tuple[dict[str, Any], str, ModuleStatus]:
         """执行 TCA 执行归因 (聚合层负责聚合)."""
         start = time.time()
         status = ModuleStatus(module_name="tca")
@@ -827,7 +826,7 @@ class DailyAttributionPanel:
     # 内部实现 — TCA 聚合
     # ------------------------------------------------------------
 
-    def _aggregate_tca(self, tca_input: TCAInput) -> Dict[str, Any]:
+    def _aggregate_tca(self, tca_input: TCAInput) -> dict[str, Any]:
         """聚合 TCA 输入到组合级汇总.
 
         策略:
@@ -849,7 +848,7 @@ class DailyAttributionPanel:
 
         return {}
 
-    def _normalize_tca_summary(self, summary: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize_tca_summary(self, summary: dict[str, Any]) -> dict[str, Any]:
         """标准化 PostTradeAttribution.summarize() 输出."""
         normalized = {
             "source": "post_trade_summarize",
@@ -875,7 +874,7 @@ class DailyAttributionPanel:
         normalized["residual"] = round(residual, self._decimal_precision)
         return normalized
 
-    def _aggregate_pnl_list(self, pnl_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _aggregate_pnl_list(self, pnl_list: list[dict[str, Any]]) -> dict[str, Any]:
         """聚合 PnLAttribution dict 列表到组合级."""
         total_pnl = 0.0
         alpha_pnl = 0.0
@@ -917,7 +916,7 @@ class DailyAttributionPanel:
             "residual": round(residual, self._decimal_precision),
         }
 
-    def _aggregate_fills_only(self, fills: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _aggregate_fills_only(self, fills: list[dict[str, Any]]) -> dict[str, Any]:
         """仅有 fill_records 时返回基础汇总 (无 PnL 拆分)."""
         symbols = set()
         total_notional = 0.0
@@ -945,12 +944,12 @@ class DailyAttributionPanel:
             "residual": 0.0,
         }
 
-    def _build_tca_markdown(self, tca_summary: Dict[str, Any], attribution_date: str) -> str:
+    def _build_tca_markdown(self, tca_summary: dict[str, Any], attribution_date: str) -> str:
         """生成 TCA 章节 Markdown."""
         if not tca_summary:
             return ""
 
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append(f"- **归因日期**: {attribution_date}")
         lines.append(f"- **数据来源**: {tca_summary.get('source', 'unknown')}")
         lines.append(f"- **成交笔数**: {tca_summary.get('n_fills', 0)}")
@@ -1068,7 +1067,7 @@ class DailyAttributionPanel:
         except (TypeError, ValueError) as exc:
             logger.warning(f"[DailyAttributionPanel] 提取汇总指标失败: {exc}")
 
-    def _evaluate_overall_status(self, module_statuses: List[ModuleStatus]) -> Tuple[str, str]:
+    def _evaluate_overall_status(self, module_statuses: list[ModuleStatus]) -> tuple[str, str]:
         """评估报告整体状态."""
         if not module_statuses:
             return STATUS_EMPTY_INPUT, "无子模块状态"
@@ -1128,7 +1127,7 @@ class DailyAttributionPanel:
             generation_time_ms=elapsed_ms,
         )
 
-    def _load_config(self, config_name: str) -> Dict[str, Any]:
+    def _load_config(self, config_name: str) -> dict[str, Any]:
         """加载配置 (HC-5: ConfigManager 4 级优先级)."""
         try:
             cfg = get_config(config_name)
@@ -1166,13 +1165,13 @@ def is_daily_panel_enabled() -> bool:
 
 def generate_daily_report(
     attribution_date: str = "",
-    brinson_input: Optional[BrinsonInput] = None,
-    factor_input: Optional[FactorInput] = None,
-    tca_input: Optional[TCAInput] = None,
-    inputs: Optional[DailyReportInput] = None,
+    brinson_input: BrinsonInput | None = None,
+    factor_input: FactorInput | None = None,
+    tca_input: TCAInput | None = None,
+    inputs: DailyReportInput | None = None,
     save: bool = True,
-    report_dir: Optional[Path] = None,
-) -> Tuple[DailyAttributionReport, Dict[str, Path]]:
+    report_dir: Path | None = None,
+) -> tuple[DailyAttributionReport, dict[str, Path]]:
     """便捷函数: 生成 (并可选保存) 日级归因报告."""
     panel = DailyAttributionPanel()
     report = panel.generate(
@@ -1182,7 +1181,7 @@ def generate_daily_report(
         tca_input=tca_input,
         inputs=inputs,
     )
-    paths: Dict[str, Path] = {}
+    paths: dict[str, Path] = {}
     if save:
         paths = panel.save(report, report_dir=report_dir)
     return report, paths

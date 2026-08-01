@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证 predict_annual_return 动态化双路径 (Phase 1).
 
 测试覆盖:

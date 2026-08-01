@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 波动率目标控制器 (Volatility Target Controller)
 ================================================
@@ -34,7 +33,6 @@ import logging
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -74,12 +72,12 @@ class VolTargetController:
     VOL_SCALE_THRESHOLD = 0.80  # 低于此值开始缩仓
     ANNUALIZATION_FACTOR = math.sqrt(252)  # 年化因子
 
-    def __init__(self, target_vol: Optional[float] = None):  # type: ignore
+    def __init__(self, target_vol: float | None = None):  # type: ignore
         if target_vol is not None:
             self.TARGET_ANNUAL_VOL = target_vol
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-    def calc_realized_vol(self, daily_returns: Optional[List[float]] = None) -> float:  # type: ignore
+    def calc_realized_vol(self, daily_returns: list[float] | None = None) -> float:  # type: ignore
         """计算已实现波动率 (EWMA)
 
         Args:
@@ -115,7 +113,7 @@ class VolTargetController:
         logger.info(f"已实现波动率: 日{daily_vol * 100:.2f}% → 年化{annual_vol * 100:.2f}%")
         return annual_vol
 
-    def calc_vol_scale(self, realized_vol: Optional[float] = None) -> float:  # type: ignore
+    def calc_vol_scale(self, realized_vol: float | None = None) -> float:  # type: ignore
         """计算波动率缩放因子
 
         vol_scale = target_vol / realized_vol
@@ -142,9 +140,9 @@ class VolTargetController:
     def adjust_daily_budget(
         self,
         original_budget: float,
-        realized_vol: Optional[float] = None,  # type: ignore
-        force_scale: Optional[float] = None,
-    ) -> Dict[str, float]:  # type: ignore
+        realized_vol: float | None = None,  # type: ignore
+        force_scale: float | None = None,
+    ) -> dict[str, float]:  # type: ignore
         """调整当日建仓预算
 
         Args:
@@ -206,7 +204,7 @@ class VolTargetController:
 
         return result  # type: ignore
 
-    def _load_portfolio_returns(self) -> List[float]:
+    def _load_portfolio_returns(self) -> list[float]:
         """从盘后报告中加载组合日收益率
 
         数据源: v7.5_institutional/reports/daily_pnl_report_*.json
@@ -232,7 +230,7 @@ class VolTargetController:
                 if not report_path.exists():
                     continue
                 try:
-                    with open(report_path, "r", encoding="utf-8") as f:
+                    with open(report_path, encoding="utf-8") as f:
                         report = json.load(f)
                     # 尝试提取日收益率
                     pnl = report.get("portfolio_summary", {})
@@ -250,10 +248,10 @@ class VolTargetController:
         returns.reverse()  # 从旧到新排列
         return returns
 
-    def _estimate_returns_from_positions(self) -> List[float]:
+    def _estimate_returns_from_positions(self) -> list[float]:
         """从持仓成本与当前价推断隐含波动率"""
         try:
-            with open(CONFIG_DIR / "positions.json", "r", encoding="utf-8") as f:
+            with open(CONFIG_DIR / "positions.json", encoding="utf-8") as f:
                 positions = json.load(f)
         except Exception:  # P2 模块 fail-safe, 待后续精确化
             return [0.01, -0.01, 0.005, -0.008, 0.012]  # 默认值
@@ -278,7 +276,7 @@ class VolTargetController:
         simulated_returns = np.random.normal(0, avg_vol, 20).tolist()
         return simulated_returns  # type: ignore
 
-    def _save_cache(self, result: Dict) -> None:
+    def _save_cache(self, result: dict) -> None:
         """缓存结果供其他模块读取"""
         cache_path = CACHE_DIR / "vol_target_latest.json"
         try:
@@ -288,13 +286,13 @@ class VolTargetController:
             logger.warning(f"保存vol缓存失败: {e}")
 
     @classmethod
-    def load_latest_scale(cls) -> Optional[float]:
+    def load_latest_scale(cls) -> float | None:
         """静态方法: 读取最新 vol_scale (供 generate_daily_trade_plan 调用)"""
         cache_path = CACHE_DIR / "vol_target_latest.json"
         if not cache_path.exists():
             return None
         try:
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(cache_path, encoding="utf-8") as f:
                 data = json.load(f)
             return data.get("vol_scale")  # type: ignore
         except Exception:  # P2 模块 fail-safe, 待后续精确化

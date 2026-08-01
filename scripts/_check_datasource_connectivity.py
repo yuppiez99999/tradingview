@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 数据源连通性检测脚本 (iFinD MCP / 通达信 / AKShare)
 """

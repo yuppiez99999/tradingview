@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """临时诊断脚本: 定位 shadow daily_return 连续 0% 的根因."""
 import json
 import os
@@ -12,7 +11,7 @@ print('=== 1. 检查 trade_plan target_weights (兜底来源) ===')
 for d in ['20260727', '20260728', '20260729', '20260730']:
     tp = f'v8.3_institutional/trade_plans/trade_plan_{d}.json'
     if os.path.exists(tp):
-        with open(tp, 'r', encoding='utf-8') as f:
+        with open(tp, encoding='utf-8') as f:
             j = json.load(f)
         ep = j.get('execution_plan', {})
         mo = ep.get('morning_orders', [])

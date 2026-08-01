@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 daily_hedge_update.py
 功能：
@@ -77,7 +76,7 @@ def update_returns():
     print('=' * 60)
 
     positions_path = r'e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json'
-    with open(positions_path, 'r', encoding='utf-8') as f:
+    with open(positions_path, encoding='utf-8') as f:
         positions_data = json.load(f)['positions']
 
     symbols = [item.get('code') for item in positions_data.values() if item.get('code')]
@@ -124,7 +123,7 @@ def run_hedge_decision():
     print('=' * 60)
 
     positions_path = r'e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json'
-    with open(positions_path, 'r', encoding='utf-8') as f:
+    with open(positions_path, encoding='utf-8') as f:
         positions_data = json.load(f)['positions']
 
     positions = {}

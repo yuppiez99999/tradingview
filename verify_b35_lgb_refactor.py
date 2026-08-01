@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """B3.5 lgb_enhanced_trainer 拆分验证脚本
 
 验证项:
@@ -470,7 +469,7 @@ def test_external_module_backward_compat():
             train_symbol_regime_specific,  # noqa: F401
         )
     except ImportError as e:
-        raise AssertionError(f"外部模块向后兼容导入失败: {e}")
+        raise AssertionError(f"外部模块向后兼容导入失败: {e}") from e
 
     # LGB_ENHANCED_CONFIG 应为非空字典
     assert isinstance(LGB_ENHANCED_CONFIG, dict)

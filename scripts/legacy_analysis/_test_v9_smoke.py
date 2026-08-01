@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """V9 单月冒烟测试: 验证 regime-specific 训练在 pipeline 中能正确触发"""
 from __future__ import annotations
 
@@ -73,9 +72,12 @@ def main() -> None:
             has_bull = models_by_regime.get("bull") is not None
             has_non_bull = models_by_regime.get("non_bull") is not None
             has_full = models_by_regime.get("full") is not None
-            if has_bull: bull_model_count += 1
-            if has_non_bull: non_bull_model_count += 1
-            if has_full: full_model_count += 1
+            if has_bull:
+                bull_model_count += 1
+            if has_non_bull:
+                non_bull_model_count += 1
+            if has_full:
+                full_model_count += 1
             signal = info.get("signal", 0)
             logger.info("  %s: V9=%s selected=%s bull_s=%d non_bull_s=%d signal=%.4f",
                         code, is_v9, selected, n_bull, n_non_bull, signal)

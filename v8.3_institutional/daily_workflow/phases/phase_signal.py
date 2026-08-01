@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Phase implementation: phase_signal
 
@@ -12,7 +11,7 @@ The function receives a DailyWorkflow instance as its first parameter ("workflow
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def phase_signal(workflow) -> Dict[str, Any]:
+def phase_signal(workflow) -> dict[str, Any]:
     """信号生成 — 从 trade_plan 加载订单
 
     读取 `trade_plans/trade_plan_{date}.json` 中的:

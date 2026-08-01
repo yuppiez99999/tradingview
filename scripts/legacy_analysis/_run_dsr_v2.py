@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """DSR (Deflated Sharpe Ratio) V2 验证"""
 import json
 import sys
@@ -18,7 +17,7 @@ if not result_files:
 result_file = result_files[-1]
 print(f"Reading: {result_file}")
 
-with open(result_file, "r", encoding="utf-8") as f:
+with open(result_file, encoding="utf-8") as f:
     data = json.load(f)
 
 records = data["records"]

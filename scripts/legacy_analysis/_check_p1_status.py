@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """检查 P1 改进当前状态"""
 import re
 from pathlib import Path
@@ -9,7 +8,7 @@ su_files = list(Path('.').rglob('symbol_universe.py'))
 print('symbol_universe.py:', [str(f) for f in su_files])
 
 if su_files:
-    with open(su_files[0], 'r', encoding='utf-8') as f:
+    with open(su_files[0], encoding='utf-8') as f:
         content = f.read()
     codes = re.findall(r'"(\d{6})"', content)
     unique_codes = list(dict.fromkeys(codes))

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 r"""v8.6.11 安全修复验证脚本
 
 验证目标:
@@ -12,7 +11,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 
 def _check_version(name: str, expected_min: str, actual: str) -> bool:
@@ -34,7 +32,7 @@ def test_dependabot_alerts_fixed() -> None:
     """验证 5 项 Dependabot 告警对应包已升级到安全版本"""
     print("\n[1/3] 验证 Dependabot 5 项告警修复...")
 
-    cases: List[Tuple[str, str, str, str, str]] = [
+    cases: list[tuple[str, str, str, str, str]] = [
         # (包名, import名, 最低安全版本, 当前版本来源, 告警等级)
         ("lightgbm", "lightgbm", "4.6.0", "4.6.0", "HIGH (RCE)"),
         ("scikit-learn", "sklearn", "1.5.0", "1.9.0", "medium (敏感数据泄露)"),
@@ -93,7 +91,7 @@ def test_project_core_modules_import() -> None:
         "utils.tdx_data_source",
     ]
 
-    failed: List[str] = []
+    failed: list[str] = []
     for mod in modules:
         try:
             __import__(mod)

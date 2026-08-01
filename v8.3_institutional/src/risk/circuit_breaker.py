@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 熔断器 (Circuit Breaker) — 对冲基金级容错
 
@@ -35,7 +34,7 @@ import threading
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable
 
 # [V75] from ..utils.alert_notifier import  # 需在v7.5创建alert_notifier AlertNotifier, AlertLevel
 # TODO(v8.5): 创建独立的 alert_notifier 模块, 替换下方 stub
@@ -53,7 +52,7 @@ except ImportError:
 class _AlertNotifierStub:
     """AlertNotifier的stub实现，用于测试环境"""
 
-    def quick_alert(self, title: str, content: str, level: "AlertLevel", source: str):
+    def quick_alert(self, title: str, content: str, level: AlertLevel, source: str):
         pass  # 空实现，仅避免测试报错
 
 
@@ -230,7 +229,7 @@ class CircuitBreaker:
             elif self._state == CircuitState.CLOSED:
                 self._failure_count = 0  # 成功后重置失败计数
 
-    def on_failure(self, error: Optional[Exception] = None):
+    def on_failure(self, error: Exception | None = None):
         """请求失败回调"""
         with self._lock:
             self._stats.total_failures += 1
@@ -253,7 +252,7 @@ class CircuitBreaker:
 
     # ── 装饰器 ──
 
-    def protect(self, func: Optional[Callable] = None, *, fallback: Any = None):
+    def protect(self, func: Callable | None = None, *, fallback: Any = None):
         """装饰器: 自动熔断保护"""
 
         def decorator(f):
@@ -301,7 +300,7 @@ class CircuitBreakerRegistry:
     """熔断器注册表 — 集中管理所有数据源的熔断状态"""
 
     def __init__(self):
-        self._breakers: Dict[str, CircuitBreaker] = {}
+        self._breakers: dict[str, CircuitBreaker] = {}
         self._lock = threading.Lock()
 
     def get_or_create(self, name: str, failure_threshold: int = 5, recovery_timeout: float = 30.0) -> CircuitBreaker:
@@ -313,7 +312,7 @@ class CircuitBreakerRegistry:
                 )
             return self._breakers[name]
 
-    def get_all_stats(self) -> Dict[str, CircuitStats]:
+    def get_all_stats(self) -> dict[str, CircuitStats]:
         """获取所有熔断器统计"""
         return {name: cb.get_stats() for name, cb in self._breakers.items()}
 

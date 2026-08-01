@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """测试 risk_guard_integrator pnl_report 加载修复"""
 import sys
 from pathlib import Path

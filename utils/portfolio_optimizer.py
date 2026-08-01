@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 组合优化器 (Portfolio Optimizer)
 ================================
@@ -34,7 +33,7 @@ import math
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -59,7 +58,7 @@ class PortfolioOptimizer:
     # 默认保守混合权重（base 权重 95% + factor 信号 5%）
     DEFAULT_ALPHA = 0.05
 
-    def __init__(self, signals_dir: Optional[str] = None):
+    def __init__(self, signals_dir: str | None = None):
         """初始化组合优化器
 
         Args:
@@ -78,7 +77,7 @@ class PortfolioOptimizer:
     # 在线应用：加载因子信号 + 调整目标权重
     # ------------------------------------------------------------
 
-    def load_factor_signals(self, trade_date: str) -> Dict[str, float]:
+    def load_factor_signals(self, trade_date: str) -> dict[str, float]:
         """加载当日 Pipeline 因子组合信号
 
         从 models/pipeline_factor_signals/pipeline_factor_signals_{trade_date}.json 读取
@@ -103,7 +102,7 @@ class PortfolioOptimizer:
                 )
                 return {}
 
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
 
             # 新鲜度检查: trade_date 必须匹配
@@ -121,7 +120,7 @@ class PortfolioOptimizer:
                 logger.info("[PortfolioOptimizer] 信号文件 signals 字段为空")
                 return {}
 
-            result: Dict[str, float] = {}
+            result: dict[str, float] = {}
             for code, info in signals_raw.items():
                 if not isinstance(info, dict):
                     continue
@@ -150,10 +149,10 @@ class PortfolioOptimizer:
 
     def adjust_target_weights(
         self,
-        base_weights: Dict[str, float],
-        factor_signals: Dict[str, float],
-        alpha: Optional[float] = None,
-    ) -> Dict[str, float]:
+        base_weights: dict[str, float],
+        factor_signals: dict[str, float],
+        alpha: float | None = None,
+    ) -> dict[str, float]:
         """用因子信号调整目标权重（保守权重混合）
 
         调整公式:
@@ -180,7 +179,7 @@ class PortfolioOptimizer:
             return dict(base_weights)
 
         # 安全混合
-        adjusted: Dict[str, float] = {}
+        adjusted: dict[str, float] = {}
         for symbol, weight in base_weights.items():
             signal = factor_signals.get(symbol, 0.0)
             # signal ∈ [-1, 1]，乘以 alpha 后作为权重调整
@@ -217,10 +216,10 @@ class PortfolioOptimizer:
 
     def apply_risk_management(
         self,
-        target_weights: Dict[str, float],
-        daily_pnl_history: List[float],
-        config: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[Dict[str, float], Dict[str, Any]]:
+        target_weights: dict[str, float],
+        daily_pnl_history: list[float],
+        config: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, float], dict[str, Any]]:
         """风险管理层: 波动率缩放 + 回撤去杠杆 + 总敞口上限
 
         三层保护 (P0-Q1/Q3 修复后):
@@ -420,8 +419,8 @@ class PortfolioOptimizer:
 
     def run_offline_pipeline(  # pylint: disable=too-many-return-statements
         self,
-        trade_date: Optional[str] = None,
-        symbols: Optional[List[str]] = None,
+        trade_date: str | None = None,
+        symbols: list[str] | None = None,
     ) -> bool:
         """离线运行因子流水线，生成当日因子信号 JSON
 
@@ -551,7 +550,7 @@ class PortfolioOptimizer:
             )
 
             # Step 5: 计算 IC 加权组合信号
-            signals_raw: Dict[str, float] = {}
+            signals_raw: dict[str, float] = {}
             for symbol in set(values_a) & set(values_b):
                 try:
                     va = float(values_a.get(symbol, 0))
@@ -625,8 +624,8 @@ class PortfolioOptimizer:
 
     def _load_real_data(
         self,
-        symbols: Optional[list] = None,
-    ) -> Tuple[Dict, Dict, list, Dict, list]:
+        symbols: list | None = None,
+    ) -> tuple[dict, dict, list, dict, list]:
         """加载真实 price_data + fundamentals + benchmark_returns + fundamentals_history
 
         复用 research/vibe_trading_factor_analysis/scripts/real_data_loader.py
@@ -653,14 +652,14 @@ class PortfolioOptimizer:
 
         return price_data, fundamentals, benchmark_returns, fundamentals_history, used_symbols
 
-    def _load_fundamentals_history(self, symbols: list) -> Dict[str, Dict[str, Any]]:
+    def _load_fundamentals_history(self, symbols: list) -> dict[str, dict[str, Any]]:
         """加载历史季度财务数据（QualityTrend 因子必需）
 
         从 cache/fundamentals/{symbol}_history.json 加载，若不存在则返回空字典
         """
         project_root = Path(__file__).resolve().parent.parent
         cache_dir = project_root / "cache" / "fundamentals"
-        result: Dict[str, Dict[str, Any]] = {}
+        result: dict[str, dict[str, Any]] = {}
 
         if not cache_dir.exists():
             logger.warning(
@@ -674,7 +673,7 @@ class PortfolioOptimizer:
             path = cache_dir / f"{symbol}_history.json"
             if path.exists():
                 try:
-                    with open(path, "r", encoding="utf-8") as f:
+                    with open(path, encoding="utf-8") as f:
                         result[symbol] = json.load(f)
                     n_loaded += 1
                 except Exception as e:  # P2 模块 fail-safe, 待后续精确化

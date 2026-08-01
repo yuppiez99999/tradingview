@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Gamma/Vega 引擎 - 尾部危机防御 (Tail Risk Insurance)
 ====================================================
@@ -26,7 +25,6 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import yaml
 
@@ -40,12 +38,12 @@ TRIGGER_LOG = BASE_DIR / "logs" / "gamma_triggers.jsonl"
 class GammaEngine:
     """Gamma/Vega 引擎 - 尾部危机防御"""
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         self.config_path = config_path or CONFIG_PATH
         self.config = self._load_config()
         TRIGGER_LOG.parent.mkdir(parents=True, exist_ok=True)
 
-    def _load_config(self) -> Dict:
+    def _load_config(self) -> dict:
         """加载 Gamma/Vega 引擎配置 (P1-Q8: 通过 ConfigManager 统一加载)
 
         优先级:
@@ -58,7 +56,7 @@ class GammaEngine:
         # 路径 1: 调用方显式指定了 config_path (测试场景, 向后兼容)
         if self.config_path != CONFIG_PATH:
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(cfg, dict) else {}
             except Exception as e:  # P2 模块 fail-safe, 待后续精确化
@@ -74,20 +72,20 @@ class GammaEngine:
             if cfg:
                 return cfg  # type: ignore
             # ConfigManager 全部失败, 回退到旧路径 (保底)
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
             return fallback_cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(fallback_cfg, dict) else {}
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(cfg, dict) else {}
             except Exception as e2:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"全部加载路径失败: {e2}")
                 return {}
 
-    def _get_market_ma60(self) -> Optional[float]:
+    def _get_market_ma60(self) -> float | None:
         """获取大盘60日均线 (沪深300)
 
         优先级: Wind MCP > 新浪 HTTP
@@ -118,7 +116,7 @@ class GammaEngine:
 
         return None
 
-    def _get_market_iv_percentile(self) -> Optional[float]:
+    def _get_market_iv_percentile(self) -> float | None:
         """获取市场IV历史分位 (近1年)
 
         优先级: Wind MCP option_data > 估算
@@ -136,7 +134,7 @@ class GammaEngine:
         logger.warning("无法获取真实 IV 分位, 返回 None")
         return None
 
-    def monitor(self) -> Dict:
+    def monitor(self) -> dict:
         """监控触发条件
 
         Returns:
@@ -215,7 +213,7 @@ class GammaEngine:
 
         return result
 
-    def _log_trigger(self, trigger_info: Dict) -> None:
+    def _log_trigger(self, trigger_info: dict) -> None:
         """记录触发日志"""
         try:
             with open(TRIGGER_LOG, "a", encoding="utf-8") as f:
@@ -223,7 +221,7 @@ class GammaEngine:
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"写入触发日志失败: {e}")
 
-    def execute_tail_hedge(self, trigger_type: str, budget: int) -> Dict:
+    def execute_tail_hedge(self, trigger_type: str, budget: int) -> dict:
         """执行尾部对冲 (买入 Deep OTM Put)
 
         Args:
@@ -282,7 +280,7 @@ class GammaEngine:
 
         return result
 
-    def get_trigger_history(self, days: int = 30) -> List[Dict]:
+    def get_trigger_history(self, days: int = 30) -> list[dict]:
         """获取最近 N 天的触发历史
 
         Args:
@@ -298,7 +296,7 @@ class GammaEngine:
         cutoff = datetime.now().timestamp() - days * 86400
 
         try:
-            with open(TRIGGER_LOG, "r", encoding="utf-8") as f:
+            with open(TRIGGER_LOG, encoding="utf-8") as f:
                 for line in f:
                     try:
                         record = json.loads(line.strip())

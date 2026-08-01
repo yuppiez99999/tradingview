@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """运维层根因诊断器 — 三层面自我进化 Stage 2.
 
 模块整合 8.4 — ARCHITECTURE_三层面进化 §第2阶段
@@ -50,7 +49,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +73,7 @@ from utils.alpha.root_cause import (  # noqa: E402
 # ============================================================
 
 # 运维报告目录 (与 OpsHealthLayer.report_dirs 一致)
-DEFAULT_REPORT_DIRS: Dict[str, Path] = {
+DEFAULT_REPORT_DIRS: dict[str, Path] = {
     "system_check": _PROJECT_ROOT / "reports" / "system_check",
     "data_quality": _PROJECT_ROOT / "reports" / "data_quality",
     "drift_alerts": _PROJECT_ROOT / "reports" / "drift_alerts",
@@ -99,7 +98,7 @@ DEFAULT_RISK_EVENT_RATE_HIGH = 0.5
 DATASOURCE_CHECK_PREFIX = "C3"
 
 # 数据源 → 目标文件映射 (复用 CodeDiagnoser._infer_target_file 思路)
-_DATASOURCE_TARGET_MAP: Dict[str, str] = {
+_DATASOURCE_TARGET_MAP: dict[str, str] = {
     "C3.1": "utils/data_provider.py",
     "C3.2": "utils/alpha/llm_router.py",
     "C3.3": "11_量化策略/ifind_client.py",
@@ -119,7 +118,7 @@ class OpsDiagnoser:
 
     def __init__(
         self,
-        report_dirs: Optional[Dict[str, Path]] = None,
+        report_dirs: dict[str, Path] | None = None,
     ) -> None:
         """初始化.
 
@@ -136,7 +135,7 @@ class OpsDiagnoser:
     # ============================================================
     # 配置加载 (HC-5)
     # ============================================================
-    def _load_thresholds(self) -> Dict[str, float]:
+    def _load_thresholds(self) -> dict[str, float]:
         """从 evolution.yaml 读取诊断阈值 (HC-5)."""
         defaults = {
             "datasource_redundancy_low": DEFAULT_DATASOURCE_REDUNDANCY_LOW,
@@ -160,7 +159,7 @@ class OpsDiagnoser:
     # ============================================================
     # 核心诊断
     # ============================================================
-    def diagnose(self, health_report: Any) -> List[RootCause]:
+    def diagnose(self, health_report: Any) -> list[RootCause]:
         """诊断运维层根因.
 
         Args:
@@ -170,7 +169,7 @@ class OpsDiagnoser:
             List[RootCause] 运维层根因列表
         """
         now = datetime.now(timezone.utc).isoformat()
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
 
         # 1. 数据源连通性诊断 (reports/system_check/ 最新归档 C3 项)
         causes.extend(self._diagnose_datasource_failures(now))
@@ -198,13 +197,13 @@ class OpsDiagnoser:
     # ============================================================
     # 子诊断 7: 自检归档回归 (reports/system_check/ 对比, 2.7)
     # ============================================================
-    def _diagnose_regressions(self, now: str) -> List[RootCause]:
+    def _diagnose_regressions(self, now: str) -> list[RootCause]:
         """对比最新 vs 1天前的自检归档, 识别 PASS→FAIL 回归点 (只读, HC-4).
 
         复用 SystemCheckDiff 工具 (2.7), 回归项比"当前失败"更具诊断价值:
         "昨天 PASS 今天 FAIL" 明确指向近期变更引入的问题.
         """
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             sc_dir = self.report_dirs.get("system_check")
             if not sc_dir or not sc_dir.exists():
@@ -223,9 +222,9 @@ class OpsDiagnoser:
     # ============================================================
     # 子诊断 1: 数据源连通性 (reports/system_check/ 最新归档)
     # ============================================================
-    def _diagnose_datasource_failures(self, now: str) -> List[RootCause]:
+    def _diagnose_datasource_failures(self, now: str) -> list[RootCause]:
         """从最新 system_check 归档提取 C3 数据源失败项 (只读)."""
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             sc_dir = self.report_dirs.get("system_check")
             if not sc_dir or not sc_dir.exists():
@@ -297,9 +296,9 @@ class OpsDiagnoser:
     # ============================================================
     # 子诊断 2: 数据质量报告 (reports/data_quality/)
     # ============================================================
-    def _diagnose_data_quality(self, now: str) -> List[RootCause]:
+    def _diagnose_data_quality(self, now: str) -> list[RootCause]:
         """诊断数据质量报告新鲜度 (只读)."""
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             dq_dir = self.report_dirs.get("data_quality")
             if not dq_dir or not dq_dir.exists():
@@ -392,13 +391,13 @@ class OpsDiagnoser:
     # ============================================================
     # 子诊断 3: 漂移告警新鲜度 (reports/drift_alerts/)
     # ============================================================
-    def _diagnose_drift_alert_recency(self, now: str) -> List[RootCause]:
+    def _diagnose_drift_alert_recency(self, now: str) -> list[RootCause]:
         """诊断漂移告警新鲜度 (24h 内有告警 → 运维状态根因).
 
         注意: 策略层诊断器已诊断漂移本身的根因 (category=drift_alert),
         运维层诊断"告警运维状态" (category=drift_alert_recent).
         """
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             da_dir = self.report_dirs.get("drift_alerts")
             if not da_dir or not da_dir.exists():
@@ -457,9 +456,9 @@ class OpsDiagnoser:
     # ============================================================
     # 子诊断 4: Flag 变更稳定性 (reports/flag_audit/)
     # ============================================================
-    def _diagnose_flag_instability(self, now: str) -> List[RootCause]:
+    def _diagnose_flag_instability(self, now: str) -> list[RootCause]:
         """诊断 Flag 变更稳定性 (7 天内变更频繁 → 根因)."""
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             fa_dir = self.report_dirs.get("flag_audit")
             if not fa_dir or not fa_dir.exists():
@@ -508,9 +507,9 @@ class OpsDiagnoser:
     # ============================================================
     # 子诊断 5: 风控事件爆发 (reports/risk_bus_audit/)
     # ============================================================
-    def _diagnose_risk_event_burst(self, now: str) -> List[RootCause]:
+    def _diagnose_risk_event_burst(self, now: str) -> list[RootCause]:
         """诊断风控事件爆发 (7 天内事件频繁 → 根因)."""
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             rb_dir = self.report_dirs.get("risk_bus")
             if not rb_dir or not rb_dir.exists():
@@ -558,9 +557,9 @@ class OpsDiagnoser:
     # ============================================================
     # 子诊断 6: 从 HealthReport 补充诊断
     # ============================================================
-    def _diagnose_from_health(self, health_report: Any, now: str) -> List[RootCause]:
+    def _diagnose_from_health(self, health_report: Any, now: str) -> list[RootCause]:
         """从 HealthReport 的 ops 层子指标补充诊断 (低分指标 → 根因)."""
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             layer_score = self._get_ops_layer_score(health_report)
             if layer_score is None:
@@ -717,7 +716,7 @@ class OpsDiagnoser:
     # 辅助
     # ============================================================
     @staticmethod
-    def _get_ops_layer_score(health_report: Any) -> Optional[Any]:
+    def _get_ops_layer_score(health_report: Any) -> Any | None:
         """从 HealthReport 提取 ops 层 LayerScore (兼容对象/字典)."""
         try:
             if hasattr(health_report, "layer_scores"):
@@ -726,7 +725,7 @@ class OpsDiagnoser:
                 ls = health_report.get("layer_scores", {}).get("ops")
                 if ls is not None:
                     class _Wrap:
-                        def __init__(self, d: Dict[str, Any]) -> None:
+                        def __init__(self, d: dict[str, Any]) -> None:
                             self.sub_metrics = d.get("sub_metrics", {})
                     return _Wrap(ls)
         except Exception:

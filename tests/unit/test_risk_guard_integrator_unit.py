@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_risk_guard_integrator_unit.py — 风控守卫集成器单元测试
 
 覆盖 bug 回归:

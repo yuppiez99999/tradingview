@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
 """验证 V6 版本的 bug: 确认 V6 没有应用 factor 和反转调整"""
 import json
 from pathlib import Path
 
 # 加载 V6 结果
 v6_files = sorted(Path('output/validation_reports').glob('lgb_backtest_v6_alpha_quality*.json'), key=lambda p: p.stat().st_mtime)
-with open(v6_files[-1], 'r', encoding='utf-8') as f:
+with open(v6_files[-1], encoding='utf-8') as f:
     v6 = json.load(f)
 
 # 加载 V6.2 结果
-with open('output/validation_reports/lgb_backtest_v6_2_profit_taking_20260725_065118.json', 'r', encoding='utf-8') as f:
+with open('output/validation_reports/lgb_backtest_v6_2_profit_taking_20260725_065118.json', encoding='utf-8') as f:
     v62 = json.load(f)
 
 # 检查 V6 和 V6.2 的 exposure_before / exposure_after

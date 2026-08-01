@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """S3 第二十批次：PipelineOrchestrator IC 加权组合集成验证（P2.2 v6.8）
 
 设计背景：

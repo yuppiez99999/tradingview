@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 批量下载缺失标的 OHLCV 数据 (5年日K线)
 ========================================
@@ -16,7 +15,6 @@ import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Tuple
 
 import pandas as pd
 
@@ -38,10 +36,10 @@ OHLCV_DIR.mkdir(parents=True, exist_ok=True)
 DOWNLOAD_DAYS = 1825
 
 
-def load_symbol_universe() -> List[Tuple[str, str]]:
+def load_symbol_universe() -> list[tuple[str, str]]:
     """从 symbol_universe.py 加载所有标的 (code, code_with_exchange)"""
     su_file = BASE_DIR / "cache" / "symbol_universe.py"
-    with open(su_file, "r", encoding="utf-8") as f:
+    with open(su_file, encoding="utf-8") as f:
         content = f.read()
 
     # 提取所有 "XXXXXX_SZ" 或 "XXXXXX_SH" 格式的代码
@@ -55,7 +53,7 @@ def load_symbol_universe() -> List[Tuple[str, str]]:
     return result
 
 
-def get_missing_symbols() -> List[Tuple[str, str]]:
+def get_missing_symbols() -> list[tuple[str, str]]:
     """获取缺失 OHLCV 数据的标的"""
     all_symbols = load_symbol_universe()
     missing = []

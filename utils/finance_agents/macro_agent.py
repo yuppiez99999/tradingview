@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MacroAgent — 宏观分析 Agent (利率 / 周期 / 资金流)
 ==================================================
@@ -27,7 +26,7 @@ MacroAgent — 宏观分析 Agent (利率 / 周期 / 资金流)
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from utils.finance_agents.base_agent import AgentDecision, BaseAgent
 
@@ -38,12 +37,12 @@ class MacroAgent(BaseAgent):
     def __init__(self, name: str = "macro"):
         super().__init__(name=name)
 
-    def is_available(self, context: Dict[str, Any]) -> bool:
+    def is_available(self, context: dict[str, Any]) -> bool:
         """需要 macro_data"""
         macro = self._safe_get(context, "macro_data")
         return isinstance(macro, dict) and len(macro) > 0
 
-    def analyze(self, symbol: str, context: Dict[str, Any]) -> AgentDecision:
+    def analyze(self, symbol: str, context: dict[str, Any]) -> AgentDecision:
         """宏观分析主入口"""
         macro = self._safe_get(context, "macro_data", default={}) or {}
         if not isinstance(macro, dict) or not macro:
@@ -57,7 +56,7 @@ class MacroAgent(BaseAgent):
 
         strength = 0.0
         signals = []
-        metrics: Dict[str, Any] = {}
+        metrics: dict[str, Any] = {}
 
         # 1. 10Y 国债收益率
         bond_10y = self._safe_float(macro.get("bond_10y_yield"))

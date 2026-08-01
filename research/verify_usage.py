@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证用户示例代码"""
 import sys
 

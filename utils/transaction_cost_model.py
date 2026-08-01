@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 交易成本模型 (Transaction Cost Model) — v8.3.2 滑点分层升级
 
@@ -25,7 +24,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional
 
 
 class MarketCapTier(Enum):
@@ -38,7 +36,7 @@ class MarketCapTier(Enum):
 
 
 # 分层滑点参数 (bps) — 基于 A 股实盘统计
-SLIPPAGE_BY_TIER: Dict[MarketCapTier, float] = {
+SLIPPAGE_BY_TIER: dict[MarketCapTier, float] = {
     MarketCapTier.LARGE: 3.0,
     MarketCapTier.MID: 7.0,
     MarketCapTier.SMALL: 15.0,
@@ -46,7 +44,7 @@ SLIPPAGE_BY_TIER: Dict[MarketCapTier, float] = {
 }
 
 # 分层冲击系数 — 平方根法则的系数随市值递减
-IMPACT_COEFF_BY_TIER: Dict[MarketCapTier, float] = {
+IMPACT_COEFF_BY_TIER: dict[MarketCapTier, float] = {
     MarketCapTier.LARGE: 0.0006,
     MarketCapTier.MID: 0.0010,
     MarketCapTier.SMALL: 0.0020,
@@ -54,7 +52,7 @@ IMPACT_COEFF_BY_TIER: Dict[MarketCapTier, float] = {
 }
 
 
-def classify_market_cap_tier(market_cap: Optional[float] = None, symbol: Optional[str] = None) -> MarketCapTier:
+def classify_market_cap_tier(market_cap: float | None = None, symbol: str | None = None) -> MarketCapTier:
     """根据市值或股票代码分组。
 
     简化规则:
@@ -84,8 +82,8 @@ class CostParameters:
 
     # --- 分层滑点 (按 MarketCapTier 覆盖默认值) ---
     default_slippage_bps: float = 10.0
-    slippage_by_tier: Dict[MarketCapTier, float] = field(default_factory=lambda: dict(SLIPPAGE_BY_TIER))
-    impact_coeff_by_tier: Dict[MarketCapTier, float] = field(default_factory=lambda: dict(IMPACT_COEFF_BY_TIER))
+    slippage_by_tier: dict[MarketCapTier, float] = field(default_factory=lambda: dict(SLIPPAGE_BY_TIER))
+    impact_coeff_by_tier: dict[MarketCapTier, float] = field(default_factory=lambda: dict(IMPACT_COEFF_BY_TIER))
 
     slippage_nonlinear_exp: float = 1.2  # 滑点非线性指数 (>1 表示大单滑点加速)
     commission_rate: float = 0.00025  # 佣金率，万2.5 (v8.3.2: 下调至机构实际水平)
@@ -107,7 +105,7 @@ class CostParameters:
 class TransactionCostModel:
     """交易成本模型 (v8.3.2: 分层滑点)"""
 
-    def __init__(self, params: Optional[CostParameters] = None):
+    def __init__(self, params: CostParameters | None = None):
         self.params = params or CostParameters()
 
     # -----------------------------------------------------------
@@ -125,8 +123,8 @@ class TransactionCostModel:
         self,
         notional: float,
         volatility: float = 0.02,
-        tier: Optional[MarketCapTier] = None,
-        market_cap: Optional[float] = None,
+        tier: MarketCapTier | None = None,
+        market_cap: float | None = None,
     ) -> float:
         """滑点成本 (v8.3.2: 分层滑点模型)
 
@@ -163,8 +161,8 @@ class TransactionCostModel:
         notional: float,
         avg_daily_volume: float,
         volatility: float = 0.02,
-        tier: Optional[MarketCapTier] = None,
-        market_cap: Optional[float] = None,
+        tier: MarketCapTier | None = None,
+        market_cap: float | None = None,
     ) -> float:
         """市场冲击成本 (v8.3.2: 分层版 Square-Root Law)
 
@@ -199,7 +197,7 @@ class TransactionCostModel:
     # -----------------------------------------------------------
     # 容量估算 (NEW - v8.3.2)
     # -----------------------------------------------------------
-    def estimate_capacity(self, adv: float, max_pct: Optional[float] = None) -> float:
+    def estimate_capacity(self, adv: float, max_pct: float | None = None) -> float:
         """估算单只股票的单日容量上限。
 
         规则: 不超过日均成交额的 max_pct (默认5%)
@@ -215,7 +213,7 @@ class TransactionCostModel:
         return adv * pct
 
     def estimate_strategy_capacity(
-        self, adv_list: Dict[str, float], position_weights: Dict[str, float], total_aum: float
+        self, adv_list: dict[str, float], position_weights: dict[str, float], total_aum: float
     ) -> float:
         """估算策略总容量 (v8.3.2 NEW)
 
@@ -266,10 +264,10 @@ class TransactionCostModel:
         volatility: float = 0.02,
         days_delayed: float = 1.0,
         hours_delayed: float = 0.0,
-        tier: Optional[MarketCapTier] = None,
-        market_cap: Optional[float] = None,
+        tier: MarketCapTier | None = None,
+        market_cap: float | None = None,
         side: str = "BUY",
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """综合交易成本 (v8.3.2: 分层滑点 + 完整费率 + 容量)
 
         Args:
@@ -311,8 +309,8 @@ class TransactionCostModel:
         self,
         notional: float,
         adv: float = 0.0,
-        tier: Optional[MarketCapTier] = None,
-        market_cap: Optional[float] = None,
+        tier: MarketCapTier | None = None,
+        market_cap: float | None = None,
     ) -> float:
         """成本惩罚项，用于优化目标函数 (v8.3.2: 分层)"""
         cost = self.estimate_total_cost(notional, adv, tier=tier, market_cap=market_cap)

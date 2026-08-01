@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 风险管理系统完整报告验证：GTJA191 Alpha144 -> FactorModel -> 风险决策/预警输出
 """

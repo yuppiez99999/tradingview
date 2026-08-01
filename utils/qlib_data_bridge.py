@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 qlib 数据桥接层
 
@@ -11,7 +10,7 @@ qlib 数据桥接层
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List
+from typing import Any
 
 try:
     import pandas as pd
@@ -63,7 +62,7 @@ def from_qlib_symbol(qlib_code: str) -> str:
     return s
 
 
-def dataframe_to_qlib_record(df: Any) -> List[Dict[str, Any]]:
+def dataframe_to_qlib_record(df: Any) -> list[dict[str, Any]]:
     """
     系统历史数据 DataFrame -> qlib 风格记录列表
     兼容无 pandas 时的兜底
@@ -112,7 +111,7 @@ def dataframe_to_qlib_record(df: Any) -> List[Dict[str, Any]]:
     return []
 
 
-def qlib_signal_to_system(qlib_signal: Any) -> Dict[str, Any]:
+def qlib_signal_to_system(qlib_signal: Any) -> dict[str, Any]:
     """
     qlib 信号/预测 -> 系统统一信号格式
     尽量兼容多种常见返回结构

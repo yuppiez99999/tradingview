@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 IC 期货对冲量计算器 v1.0
 ============================
@@ -38,7 +37,7 @@ import logging
 import math
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger("ic_hedge")
 
@@ -108,8 +107,8 @@ class ICHedgeCalculator:
         portfolio_beta: float,
         target_beta: float,
         ic_price: float,
-        available_margin: Optional[float] = None,
-        basis: Optional[float] = None,
+        available_margin: float | None = None,
+        basis: float | None = None,
     ) -> ICHedgeResult:
         """计算 IC 做空合约数
 
@@ -238,8 +237,8 @@ class ICHedgeCalculator:
     def build_hedge_order(
         self,
         result: ICHedgeResult,
-        trade_date: Optional[date] = None,
-    ) -> Dict[str, Any]:
+        trade_date: date | None = None,
+    ) -> dict[str, Any]:
         """根据计算结果生成 IC 对冲指令
 
         Args:
@@ -287,8 +286,8 @@ class ICHedgeCalculator:
         self,
         current_contracts: int,
         target_result: ICHedgeResult,
-        trade_date: Optional[date] = None,
-    ) -> Dict[str, Any]:
+        trade_date: date | None = None,
+    ) -> dict[str, Any]:
         """生成调仓指令
 
         Args:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 机构级组合优化器 (Institutional Portfolio Optimizer)
 ======================================================
@@ -24,7 +23,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -38,14 +37,14 @@ logger = logging.getLogger("institutional_optimizer")
 class PortfolioDecision:
     """组合优化决策"""
 
-    target_weights: Dict[str, float] = field(default_factory=dict)
+    target_weights: dict[str, float] = field(default_factory=dict)
     expected_return: float = 0.0
     expected_risk: float = 0.0
     estimated_cost: float = 0.0
-    trades: List[Dict[str, Any]] = field(default_factory=list)
-    meta: Dict[str, Any] = field(default_factory=dict)
+    trades: list[dict[str, Any]] = field(default_factory=list)
+    meta: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "target_weights": self.target_weights,
             "expected_return": round(self.expected_return, 6),
@@ -81,11 +80,11 @@ class InstitutionalPortfolioOptimizer:
 
     def optimize(
         self,
-        expected_returns: Optional[Dict[str, float]] = None,
-        covariance_matrix: Optional[pd.DataFrame] = None,
-        current_positions: Optional[Dict[str, Dict[str, Any]]] = None,
-        impact_model: Optional[MarketImpactModel] = None,
-        sector_map: Optional[Dict[str, str]] = None,
+        expected_returns: dict[str, float] | None = None,
+        covariance_matrix: pd.DataFrame | None = None,
+        current_positions: dict[str, dict[str, Any]] | None = None,
+        impact_model: MarketImpactModel | None = None,
+        sector_map: dict[str, str] | None = None,
     ) -> PortfolioDecision:
         """组合优化
 
@@ -143,8 +142,8 @@ class InstitutionalPortfolioOptimizer:
 
     def _build_covariance_matrix(
         self,
-        covariance_matrix: Optional[pd.DataFrame],
-        symbols: List[str],
+        covariance_matrix: pd.DataFrame | None,
+        symbols: list[str],
         n: int,
     ) -> np.ndarray:
         if covariance_matrix is not None and list(covariance_matrix.columns) == symbols:
@@ -157,8 +156,8 @@ class InstitutionalPortfolioOptimizer:
 
     def _current_weights(
         self,
-        symbols: List[str],
-        current_positions: Dict[str, Dict[str, Any]],
+        symbols: list[str],
+        current_positions: dict[str, dict[str, Any]],
     ) -> np.ndarray:
         weights = np.zeros(len(symbols), dtype=float)
         total_value = 0.0
@@ -179,8 +178,8 @@ class InstitutionalPortfolioOptimizer:
 
     def _estimate_impact_costs(
         self,
-        symbols: List[str],
-        current_positions: Dict[str, Dict[str, Any]],
+        symbols: list[str],
+        current_positions: dict[str, dict[str, Any]],
         impact_model: MarketImpactModel,
     ) -> np.ndarray:
         costs = np.zeros(len(symbols), dtype=float)
@@ -279,8 +278,8 @@ class InstitutionalPortfolioOptimizer:
     def _apply_constraints(
         self,
         weights: np.ndarray,
-        symbols: List[str],
-        sector_map: Dict[str, str],
+        symbols: list[str],
+        sector_map: dict[str, str],
     ) -> np.ndarray:
         if weights.size == 0:
             return weights
@@ -296,7 +295,7 @@ class InstitutionalPortfolioOptimizer:
 
         # 行业集中度（简化：按 sector_map 聚合）
         if sector_map:
-            sector_exposure: Dict[str, float] = {}
+            sector_exposure: dict[str, float] = {}
             for i, symbol in enumerate(symbols):
                 sector = sector_map.get(symbol, "unknown")
                 sector_exposure[sector] = sector_exposure.get(sector, 0.0) + float(weights[i])
@@ -317,13 +316,13 @@ class InstitutionalPortfolioOptimizer:
 
     def _build_decision(
         self,
-        symbols: List[str],
+        symbols: list[str],
         weights: np.ndarray,
         current_weights: np.ndarray,
         mu: np.ndarray,
         cov: np.ndarray,
         impact_costs: np.ndarray,
-        current_positions: Dict[str, Dict[str, Any]],
+        current_positions: dict[str, dict[str, Any]],
     ) -> PortfolioDecision:
         target_weights = {symbol: float(weights[i]) for i, symbol in enumerate(symbols)}
         expected_return = float(np.dot(weights, mu))

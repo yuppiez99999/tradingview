@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.6 CPCV (Combinatorial Purged Cross-Validation) — 组合净化交叉验证
 
@@ -20,7 +19,7 @@ v7.6 CPCV (Combinatorial Purged Cross-Validation) — 组合净化交叉验证
 from __future__ import annotations
 
 import logging
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -60,11 +59,11 @@ class CPCVCrossValidator:
         self.min_train_groups = min_train_groups
 
         # 验证结果存储
-        self.results_: List[Dict] = []
-        self.scores_: List[float] = []
+        self.results_: list[dict] = []
+        self.scores_: list[float] = []
         self.n_paths_: int = 0
 
-    def split(self, data: pd.DataFrame) -> List[Tuple[pd.DataFrame, pd.DataFrame]]:
+    def split(self, data: pd.DataFrame) -> list[tuple[pd.DataFrame, pd.DataFrame]]:
         """生成 CPCV 训练/验证集分割
 
         Returns:
@@ -111,7 +110,7 @@ class CPCVCrossValidator:
         logger.info(f"CPCV: {self.n_groups} 组 → {self.n_paths_} 条验证路径")
         return splits
 
-    def run(self, data: pd.DataFrame, train_fn: Callable, test_fn: Callable, **kwargs) -> Dict:
+    def run(self, data: pd.DataFrame, train_fn: Callable, test_fn: Callable, **kwargs) -> dict:
         """执行 CPCV 验证
 
         Args:
@@ -185,8 +184,8 @@ class CPCVCrossValidator:
         return result
 
     def deflated_sharpe_ratio(
-        self, observed_sr: float, n_trials: int = 100, variance_observed_sr: Optional[float] = None
-    ) -> Dict:
+        self, observed_sr: float, n_trials: int = 100, variance_observed_sr: float | None = None
+    ) -> dict:
         """Deflated Sharpe Ratio (Harvey-Liu-Zhu 2016)
 
         多重检验下的显著性校正:
@@ -229,7 +228,7 @@ class CPCVCrossValidator:
             "p_value": round(p_value, 6),
         }
 
-    def _deflated_sharpe_ratio(self, scores: np.ndarray) -> Dict:
+    def _deflated_sharpe_ratio(self, scores: np.ndarray) -> dict:
         """从 CPCV 分数计算 Deflated SR"""
         if len(scores) == 0:
             return {"deflated_sr": 0, "p_value": 1}
@@ -253,7 +252,7 @@ class PurgedKFold:
         self.purge_days = purge_days
         self.embargo_days = embargo_days
 
-    def split(self, data: pd.DataFrame) -> List[Tuple[np.ndarray, np.ndarray]]:
+    def split(self, data: pd.DataFrame) -> list[tuple[np.ndarray, np.ndarray]]:
         """按时间顺序的净化 split"""
         n = len(data)
         fold_size = n // self.n_splits
@@ -275,6 +274,6 @@ class PurgedKFold:
 
         return splits
 
-    def split_indices(self, data: pd.DataFrame) -> List[Tuple[np.ndarray, np.ndarray]]:
+    def split_indices(self, data: pd.DataFrame) -> list[tuple[np.ndarray, np.ndarray]]:
         """返回索引数组的净化 split"""
         return self.split(data)

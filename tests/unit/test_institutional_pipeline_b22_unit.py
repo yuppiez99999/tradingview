@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """institutional_pipeline_runner B2.2 并发化 + cache 回填 单元测试
 
 覆盖场景:

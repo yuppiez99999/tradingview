@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """在 backtest_runner.py 中添加 V7.1 权重级惩罚代码"""
 from pathlib import Path
 

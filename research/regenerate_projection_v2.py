@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 基于 config/positions.json 真实持仓重新生成 portfolio_return_projection.json
 ========================================================================
@@ -207,7 +206,7 @@ def main():
 
     # 校验持仓清单与 positions.json 一致
     pos_path = PROJECT_ROOT / "config" / "positions.json"
-    with open(pos_path, "r", encoding="utf-8") as f:
+    with open(pos_path, encoding="utf-8") as f:
         pos_data = json.load(f)
     # positions 字段是 dict, key 格式如 "588000.SZ"
     pos_keys = list(pos_data["positions"].keys())

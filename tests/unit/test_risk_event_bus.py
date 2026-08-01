@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T3.1 风控事件总线单元测试.
 
 覆盖:
@@ -19,7 +18,6 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import List
 
 import pytest
 
@@ -406,7 +404,7 @@ class TestRiskBusSubscribePublish:
 
     def test_subscribe_and_publish(self):
         """订阅后能收到事件."""
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
 
         def handler(event: RiskEvent) -> None:
             received.append(event)
@@ -423,8 +421,8 @@ class TestRiskBusSubscribePublish:
 
     def test_multiple_subscribers(self):
         """多个订阅者都收到事件."""
-        received_a: List[RiskEvent] = []
-        received_b: List[RiskEvent] = []
+        received_a: list[RiskEvent] = []
+        received_b: list[RiskEvent] = []
 
         self.bus.subscribe(RiskEventType.MARGIN_BREACH, lambda e: received_a.append(e))
         self.bus.subscribe(RiskEventType.MARGIN_BREACH, lambda e: received_b.append(e))
@@ -438,7 +436,7 @@ class TestRiskBusSubscribePublish:
 
     def test_subscriber_filter_by_type(self):
         """订阅者只接收订阅类型的事件."""
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
         self.bus.subscribe(RiskEventType.MARGIN_BREACH, lambda e: received.append(e))
 
         # 发布不同类型的事件, 订阅者不应收到
@@ -453,7 +451,7 @@ class TestRiskBusSubscribePublish:
 
     def test_subscriber_exception_isolated(self):
         """订阅者异常不影响其他订阅者."""
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
 
         def bad_handler(event: RiskEvent) -> None:
             raise RuntimeError("test exception")
@@ -470,7 +468,7 @@ class TestRiskBusSubscribePublish:
 
     def test_unsubscribe(self):
         """取消订阅."""
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
 
         def handler(event: RiskEvent) -> None:
             received.append(event)
@@ -807,7 +805,7 @@ class TestModuleLevelFunctions:
 
     def test_publish_shortcut(self):
         """publish 快捷函数."""
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
         subscribe(RiskEventType.MARGIN_BREACH, lambda e: received.append(e))
 
         event = make_margin_breach_event("test", 0.78, 2)
@@ -845,7 +843,7 @@ class TestAsyncPath:
 
     def test_publish_works_without_async(self):
         """Flag=False 时 publish 仍正常工作."""
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
         self.bus.subscribe(RiskEventType.MARGIN_BREACH, lambda e: received.append(e))
 
         event = make_margin_breach_event("test", 0.78, 2)

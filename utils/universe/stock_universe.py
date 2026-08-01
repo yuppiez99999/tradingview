@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 股票池构建模块 — 沪深300 + 中证500 成分股获取
 
@@ -13,7 +12,6 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import List
 
 import pandas as pd
 
@@ -157,7 +155,7 @@ def get_universe(pool: str = "hs300_zz500") -> pd.DataFrame:
             return df
 
     # AKShare 沪深300/中证500
-    frames: List[pd.DataFrame] = []
+    frames: list[pd.DataFrame] = []
     if pool in ("hs300", "hs300_zz500"):
         df = get_hs300_constituents()
         if not df.empty:
@@ -451,7 +449,7 @@ def _get_builtin_pool() -> pd.DataFrame:
     )
 
 
-def get_industry_map(symbols: List[str]) -> dict:
+def get_industry_map(symbols: list[str]) -> dict:
     """获取股票->行业的映射
 
     Args:

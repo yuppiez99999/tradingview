@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 执行路由引擎 (Execution Router)
 ====================================
@@ -20,7 +19,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from utils.execution_algo_engine import ExecutionAlgoEngine
 
@@ -53,9 +52,9 @@ class ExecutionPlan:
     estimated_slippage_bps: float = 0.0
     estimated_duration_minutes: int = 60
     slices: int = 1
-    meta: Dict[str, Any] = field(default_factory=dict)
+    meta: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "symbol": self.symbol,
             "algorithm": self.algorithm,
@@ -91,8 +90,8 @@ class ExecutionRouter:
     def __init__(
         self,
         shortfall_tolerance_bps: float = 8.0,
-        review_save_dir: Optional[str] = None,
-        tca_estimator: Optional[Any] = None,
+        review_save_dir: str | None = None,
+        tca_estimator: Any | None = None,
         tca_threshold_bps: float = 30.0,
     ):
         self.shortfall_tolerance_bps = float(shortfall_tolerance_bps)
@@ -107,7 +106,7 @@ class ExecutionRouter:
     # ------------------------------------------------------------
 
     def route(
-        self, order: Dict[str, Any], signal: Optional[Dict[str, Any]], market_state: Optional[Dict[str, Any]] = None
+        self, order: dict[str, Any], signal: dict[str, Any] | None, market_state: dict[str, Any] | None = None
     ) -> ExecutionPlan:
         """根据订单、信号、市场状态选择执行算法
 
@@ -153,10 +152,10 @@ class ExecutionRouter:
     # ============================================================
     def route_with_tca(
         self,
-        order: Dict[str, Any],
-        signal: Optional[Dict[str, Any]] = None,
-        market_state: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[ExecutionPlan, Optional[Any]]:
+        order: dict[str, Any],
+        signal: dict[str, Any] | None = None,
+        market_state: dict[str, Any] | None = None,
+    ) -> tuple[ExecutionPlan, Any | None]:
         """带 TCA 预估的执行路由
 
         HC-1 透传: 当 USE_TCA_PRE_TRADE_ESTIMATE=False (默认) 时,
@@ -226,7 +225,7 @@ class ExecutionRouter:
     # 复盘
     # ------------------------------------------------------------
 
-    def review(self, planned: Dict[str, Any], executed: Dict[str, Any]) -> ExecutionReview:
+    def review(self, planned: dict[str, Any], executed: dict[str, Any]) -> ExecutionReview:
         """实现短差复盘
 
         Args:

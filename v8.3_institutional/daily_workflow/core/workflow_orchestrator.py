@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from .config.workflow_config import CircuitLevel, WorkflowConfig
 from .phases.phase_autolearn import phase_autolearn as phase_autolearn_impl
@@ -23,12 +22,12 @@ logger = logging.getLogger("v75.workflow.orchestrator")
 
 
 class DailyWorkflow:
-    def __init__(self, config: Optional[WorkflowConfig] = None):
+    def __init__(self, config: WorkflowConfig | None = None):
         self.config = config or WorkflowConfig.default()
         self.trade_date = self.config.trade_date
         self.circuit_level = CircuitLevel.LEVEL_1
 
-    def run(self, phase_name: Optional[str] = None) -> bool:
+    def run(self, phase_name: str | None = None) -> bool:
         if phase_name:
             logger.info(f"模式：单相执行 — phase={phase_name}")
             return self._run_single_phase(phase_name)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QMT 审计修复项集成测试 — 验证所有 P0 修复"""
 
 import os

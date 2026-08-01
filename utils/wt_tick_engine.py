@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WonderTrader 风格 Tick 级事件驱动回测引擎
 
@@ -11,7 +10,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -43,7 +42,7 @@ class TickMatcher:
         self.stamp_duty = stamp_duty  # 印花税(仅卖出)
         self.contracts = get_contracts_manager()
 
-    def match_order(self, order: OrderData, tick: TickData) -> Optional[TradeData]:
+    def match_order(self, order: OrderData, tick: TickData) -> TradeData | None:
         """撮合订单
 
         Returns: TradeData 或 None(未成交)
@@ -132,19 +131,19 @@ class TickBacktestEngine:
         self.contracts = get_contracts_manager()
 
         # 状态
-        self.positions: Dict[str, PositionData] = {}
-        self.pending_orders: List[OrderData] = []
-        self.trades: List[TradeData] = []
-        self.equity_curve: List[Dict] = []
-        self.daily_pnl: List[Dict] = []
-        self.current_tick: Optional[TickData] = None
+        self.positions: dict[str, PositionData] = {}
+        self.pending_orders: list[OrderData] = []
+        self.trades: list[TradeData] = []
+        self.equity_curve: list[dict] = []
+        self.daily_pnl: list[dict] = []
+        self.current_tick: TickData | None = None
 
         # 策略回调
-        self.strategy: Optional[Any] = None  # 用户提供, 需实现 on_tick/on_bar
+        self.strategy: Any | None = None  # 用户提供, 需实现 on_tick/on_bar
 
         # Tick 数据
-        self.tick_data: Dict[str, List[TickData]] = {}  # code -> list of ticks
-        self.bar_data: Dict[str, List[BarData]] = {}  # code -> list of bars
+        self.tick_data: dict[str, list[TickData]] = {}  # code -> list of ticks
+        self.bar_data: dict[str, list[BarData]] = {}  # code -> list of bars
 
     def reset(self) -> None:
         """重置回测状态"""
@@ -167,7 +166,7 @@ class TickBacktestEngine:
         """
         self.strategy = strategy
 
-    def load_tick_data(self, ticks: Dict[str, List[TickData]]) -> None:
+    def load_tick_data(self, ticks: dict[str, list[TickData]]) -> None:
         """加载 Tick 数据
 
         Args:
@@ -175,7 +174,7 @@ class TickBacktestEngine:
         """
         self.tick_data = ticks
 
-    def load_bar_data(self, bars: Dict[str, List[BarData]]) -> None:
+    def load_bar_data(self, bars: dict[str, list[BarData]]) -> None:
         """加载 Bar 数据"""
         self.bar_data = bars
 
@@ -265,13 +264,13 @@ class TickBacktestEngine:
 
         pos.last_price = trade.price
 
-    def _update_position_prices(self, prices: Dict[str, float]) -> None:
+    def _update_position_prices(self, prices: dict[str, float]) -> None:
         """更新持仓最新价"""
         for code, price in prices.items():
             if code in self.positions:
                 self.positions[code].last_price = price
 
-    def get_position(self, code: str) -> Optional[PositionData]:
+    def get_position(self, code: str) -> PositionData | None:
         return self.positions.get(code)
 
     def get_position_profit(self) -> float:
@@ -283,7 +282,7 @@ class TickBacktestEngine:
         pos_value = sum(pos.volume * pos.last_price for pos in self.positions.values() if pos.volume > 0)
         return self.cash + pos_value
 
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """执行回测
 
         Returns: 回测报告
@@ -293,7 +292,7 @@ class TickBacktestEngine:
             return {}
 
         # 合并所有 code 的 Tick, 按时间排序
-        all_ticks: List[TickData] = []
+        all_ticks: list[TickData] = []
         for _code, ticks in self.tick_data.items():
             all_ticks.extend(ticks)
         all_ticks.sort(key=lambda t: t.timestamp)
@@ -301,7 +300,7 @@ class TickBacktestEngine:
         logger.info(f"开始 Tick 回测: {len(all_ticks)} 条 Tick, {len(self.tick_data)} 个标的")
 
         # 按日期分组用于日终结算
-        daily_ticks: Dict[int, List[TickData]] = defaultdict(list)
+        daily_ticks: dict[int, list[TickData]] = defaultdict(list)
         for tick in all_ticks:
             daily_ticks[tick.date].append(tick)
 
@@ -351,7 +350,7 @@ class TickBacktestEngine:
 
         return self._generate_report()
 
-    def _generate_report(self) -> Dict:
+    def _generate_report(self) -> dict:
         """生成回测报告"""
         if not self.equity_curve:
             return {}
@@ -420,7 +419,7 @@ class TickBacktestEngine:
 # === 工具函数 ===
 
 
-def ticks_from_csv(csv_path: str, code: str, exchange: str = "SSE") -> List[TickData]:
+def ticks_from_csv(csv_path: str, code: str, exchange: str = "SSE") -> list[TickData]:
     """从 CSV 加载 Tick 数据
 
     CSV 格式: timestamp,price,open,high,low,pre_close,volume,amount
@@ -428,7 +427,7 @@ def ticks_from_csv(csv_path: str, code: str, exchange: str = "SSE") -> List[Tick
     import csv
 
     ticks = []
-    with open(csv_path, "r", encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             ts = float(row.get("timestamp", 0))
@@ -453,12 +452,12 @@ def ticks_from_csv(csv_path: str, code: str, exchange: str = "SSE") -> List[Tick
     return ticks
 
 
-def bars_from_csv(csv_path: str, code: str, exchange: str = "SSE", period: str = "1d") -> List[BarData]:
+def bars_from_csv(csv_path: str, code: str, exchange: str = "SSE", period: str = "1d") -> list[BarData]:
     """从 CSV 加载 Bar 数据"""
     import csv
 
     bars = []
-    with open(csv_path, "r", encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             date_str = row.get("date", "")
@@ -484,8 +483,8 @@ def bars_from_csv(csv_path: str, code: str, exchange: str = "SSE", period: str =
 
 
 def run_tick_backtest(
-    strategy: Any, tick_data: Dict[str, List[TickData]], initial_capital: float = 1_000_000, slippage: float = 0.001
-) -> Dict:
+    strategy: Any, tick_data: dict[str, list[TickData]], initial_capital: float = 1_000_000, slippage: float = 0.001
+) -> dict:
     """便捷函数: 一行运行 Tick 回测"""
     engine = TickBacktestEngine(
         initial_capital=initial_capital,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WonderTrader 风格合约管理器
 
@@ -10,7 +9,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from .wt_structs import ContractData
 
@@ -154,8 +152,8 @@ class ContractsManager:
     4. 计算交易成本(手续费+印花税+保证金)
     """
 
-    def __init__(self, contracts_file: Optional[str] = None):
-        self._contracts: Dict[str, ContractData] = {}
+    def __init__(self, contracts_file: str | None = None):
+        self._contracts: dict[str, ContractData] = {}
         # 加载默认合约
         for code, contract in DEFAULT_CONTRACTS.items():
             self._contracts[code] = contract
@@ -168,7 +166,7 @@ class ContractsManager:
         p = Path(file_path)
         if not p.exists():
             return False
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             data = json.load(f)
         for code, spec in data.items():
             self._contracts[code] = ContractData(
@@ -239,7 +237,7 @@ class ContractsManager:
         key = f"{contract.code}.{contract.exchange}" if "." not in contract.code else contract.code
         self._contracts[key] = contract
 
-    def list_contracts(self, exchange: Optional[str] = None, product_class: Optional[str] = None) -> List[ContractData]:
+    def list_contracts(self, exchange: str | None = None, product_class: str | None = None) -> list[ContractData]:
         """列出合约, 可按交易所/品种过滤"""
         result = []
         for c in self._contracts.values():
@@ -270,7 +268,7 @@ class ContractsManager:
 
 
 # 单例
-_instance: Optional[ContractsManager] = None
+_instance: ContractsManager | None = None
 
 
 def get_contracts_manager() -> ContractsManager:

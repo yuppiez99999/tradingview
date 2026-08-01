@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Re-export 兼容层 — decision_theories 已迁移到 utils/alpha/.
 
 模块整合 8.4 — T2.2 (2026-07-27)

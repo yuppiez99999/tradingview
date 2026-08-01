@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 外部报告解析器 — 消费 15_每日工作流生成的早间报告
 ====================================================
@@ -19,7 +18,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class ExternalReportLoader:
@@ -59,13 +58,13 @@ class ExternalReportLoader:
         ],
     }
 
-    def __init__(self, base_dir: Optional[str] = None):
+    def __init__(self, base_dir: str | None = None):
         self.base_dir = Path(base_dir) if base_dir else self.BASE_DIR
 
     # ------------------------------------------------------------------
     # 公开 API
     # ------------------------------------------------------------------
-    def load_reports(self, trade_date: str) -> Dict[str, Any]:
+    def load_reports(self, trade_date: str) -> dict[str, Any]:
         """加载指定日期的所有外部报告
 
         Args:
@@ -91,7 +90,7 @@ class ExternalReportLoader:
         date_compact = trade_date.replace("-", "")
         date_dir = self.base_dir / trade_date
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "loaded": False,
             "reports": {},
             "sentiment_score": 0.0,
@@ -134,7 +133,7 @@ class ExternalReportLoader:
                 continue
 
             content = report_info.get("content", "")
-            parsed: Dict[str, Any] = {}
+            parsed: dict[str, Any] = {}
 
             try:
                 parser = parsers.get(report_type)
@@ -167,7 +166,7 @@ class ExternalReportLoader:
     # ------------------------------------------------------------------
     # 解析器：晨间行情摘要
     # ------------------------------------------------------------------
-    def parse_morning_market(self, content: str) -> Dict[str, Any]:
+    def parse_morning_market(self, content: str) -> dict[str, Any]:
         """解析晨间行情摘要
 
         提取重点:
@@ -179,7 +178,7 @@ class ExternalReportLoader:
         if not content:
             return {}
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "sentiment": 0.0,
             "events": [],
             "boost_symbols": [],
@@ -227,7 +226,7 @@ class ExternalReportLoader:
     # ------------------------------------------------------------------
     # 解析器：ETF 资金流向
     # ------------------------------------------------------------------
-    def parse_etf_flow(self, content: str) -> Dict[str, Any]:
+    def parse_etf_flow(self, content: str) -> dict[str, Any]:
         """解析 ETF 资金流向
 
         提取重点:
@@ -238,7 +237,7 @@ class ExternalReportLoader:
         if not content:
             return {}
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "sentiment": 0.0,
             "events": [],
             "boost_symbols": [],
@@ -285,7 +284,7 @@ class ExternalReportLoader:
     # ------------------------------------------------------------------
     # 解析器：综合日报
     # ------------------------------------------------------------------
-    def parse_daily_report(self, content: str) -> Dict[str, Any]:
+    def parse_daily_report(self, content: str) -> dict[str, Any]:
         """解析综合日报
 
         提取重点:
@@ -296,7 +295,7 @@ class ExternalReportLoader:
         if not content:
             return {}
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "sentiment": 0.0,
             "events": [],
             "boost_symbols": [],
@@ -320,7 +319,7 @@ class ExternalReportLoader:
     # ------------------------------------------------------------------
     # 解析器：舆情综合日报
     # ------------------------------------------------------------------
-    def parse_sentiment(self, content: str) -> Dict[str, Any]:
+    def parse_sentiment(self, content: str) -> dict[str, Any]:
         """解析舆情综合日报
 
         提取重点:
@@ -331,7 +330,7 @@ class ExternalReportLoader:
         if not content:
             return {}
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "sentiment": 0.0,
             "events": [],
             "boost_symbols": [],
@@ -365,7 +364,7 @@ class ExternalReportLoader:
     # ------------------------------------------------------------------
     # 解析器：康波周期分析
     # ------------------------------------------------------------------
-    def parse_kondratiev(self, content: str) -> Dict[str, Any]:
+    def parse_kondratiev(self, content: str) -> dict[str, Any]:
         """解析康波周期分析
 
         提取重点:
@@ -376,7 +375,7 @@ class ExternalReportLoader:
         if not content:
             return {}
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "sentiment": 0.0,
             "events": [],
             "boost_symbols": [],
@@ -407,7 +406,7 @@ class ExternalReportLoader:
     # ------------------------------------------------------------------
     # 解析器：iFinD 自动标的研判报告
     # ------------------------------------------------------------------
-    def parse_ifind_report(self, content: str) -> Dict[str, Any]:
+    def parse_ifind_report(self, content: str) -> dict[str, Any]:
         """解析 iFinD 自动标的研判报告
 
         提取重点:
@@ -418,7 +417,7 @@ class ExternalReportLoader:
         if not content:
             return {}
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "sentiment": 0.0,
             "events": [],
             "boost_symbols": [],
@@ -454,8 +453,8 @@ class ExternalReportLoader:
         self,
         date_dir: Path,
         date_compact: str,
-        patterns: List[str],
-    ) -> Optional[Dict[str, str]]:
+        patterns: list[str],
+    ) -> dict[str, str] | None:
         """加载单个报告文件"""
         for pattern in patterns:
             filename = pattern.format(date=date_compact)
@@ -472,8 +471,8 @@ class ExternalReportLoader:
         self,
         date_dir: Path,
         date_compact: str,
-        patterns: List[str],
-    ) -> Optional[Dict[str, str]]:
+        patterns: list[str],
+    ) -> dict[str, str] | None:
         """加载 glob 模式报告文件（ETF 资金流向等）"""
         for pattern in patterns:
             search_pattern = pattern.format(date=date_compact)
@@ -490,7 +489,7 @@ class ExternalReportLoader:
                 continue
         return None
 
-    def _aggregate_sentiment(self, reports: Dict[str, Dict[str, Any]]) -> float:
+    def _aggregate_sentiment(self, reports: dict[str, dict[str, Any]]) -> float:
         """汇总多报告的情绪评分"""
         scores = []
         for info in reports.values():
@@ -502,9 +501,9 @@ class ExternalReportLoader:
             return 0.0
         return max(-1.0, min(1.0, sum(scores) / len(scores)))
 
-    def _aggregate_risk_events(self, reports: Dict[str, Dict[str, Any]]) -> List[str]:
+    def _aggregate_risk_events(self, reports: dict[str, dict[str, Any]]) -> list[str]:
         """汇总风险事件"""
-        events: List[str] = []
+        events: list[str] = []
         for info in reports.values():
             parsed = info.get("parsed", {})
             for event in parsed.get("events", []):
@@ -512,9 +511,9 @@ class ExternalReportLoader:
                     events.append(event)
         return events[:20]
 
-    def _aggregate_boost_symbols(self, reports: Dict[str, Dict[str, Any]]) -> List[str]:
+    def _aggregate_boost_symbols(self, reports: dict[str, dict[str, Any]]) -> list[str]:
         """汇总建议加仓标的"""
-        symbols: List[str] = []
+        symbols: list[str] = []
         for info in reports.values():
             parsed = info.get("parsed", {})
             for sym in parsed.get("boost_symbols", []):
@@ -522,9 +521,9 @@ class ExternalReportLoader:
                     symbols.append(sym)
         return symbols[:20]
 
-    def _aggregate_cut_symbols(self, reports: Dict[str, Dict[str, Any]]) -> List[str]:
+    def _aggregate_cut_symbols(self, reports: dict[str, dict[str, Any]]) -> list[str]:
         """汇总建议减仓标的"""
-        symbols: List[str] = []
+        symbols: list[str] = []
         for info in reports.values():
             parsed = info.get("parsed", {})
             for sym in parsed.get("cut_symbols", []):
@@ -533,7 +532,7 @@ class ExternalReportLoader:
         return symbols[:20]
 
     @staticmethod
-    def _extract_first(text: str, patterns: List[str]) -> Optional[str]:
+    def _extract_first(text: str, patterns: list[str]) -> str | None:
         """按优先级尝试多个正则，返回第一个匹配值"""
         for pattern in patterns:
             match = re.search(pattern, text)
@@ -542,7 +541,7 @@ class ExternalReportLoader:
         return None
 
     @staticmethod
-    def _extract_etf_code(text: str) -> Optional[str]:
+    def _extract_etf_code(text: str) -> str | None:
         """从文本中提取 ETF 代码"""
         match = re.search(r"(510\d{3}|512\d{3}|515\d{3}|518\d{3}|159\d{3}|588\d{3})", text)
         if match:
@@ -550,7 +549,7 @@ class ExternalReportLoader:
         return None
 
     @staticmethod
-    def _extract_stock_code(text: str) -> Optional[str]:
+    def _extract_stock_code(text: str) -> str | None:
         """从文本中提取股票代码"""
         match = re.search(r"(60\d{4}|00\d{4}|30\d{4})", text)
         if match:
@@ -558,7 +557,7 @@ class ExternalReportLoader:
         return None
 
     @staticmethod
-    def parse_report_meta(content: str) -> Dict[str, Any]:
+    def parse_report_meta(content: str) -> dict[str, Any]:
         """解析报告统一元数据头部
 
         支持格式:
@@ -576,7 +575,7 @@ class ExternalReportLoader:
         if not match:
             return {}
         meta_text = match.group(1)
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         for line in meta_text.splitlines():
             line = line.strip()
             if not line or line.startswith("#"):

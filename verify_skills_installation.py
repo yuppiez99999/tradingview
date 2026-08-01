@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 量化交易系统 - 高价值技能集成验证脚本
 生成时间: 2026-07-23
@@ -55,14 +54,14 @@ def main():
 
     print()
     print("=" * 80)
-    print("安装统计: %d/%d 个技能已安装" % (installed_count, len(skills)))
+    print(f"安装统计: {installed_count}/{len(skills)} 个技能已安装")
     print("=" * 80)
 
     if installed_count == len(skills):
         print("\n恭喜!所有技能已成功安装!")
         return 0
     else:
-        print("\n注意: 有 %d 个技能未安装,请检查" % (len(skills) - installed_count))
+        print(f"\n注意: 有 {len(skills) - installed_count} 个技能未安装,请检查")
         return 1
 
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """超参数自适应搜索 (N4) — Self-Evolution 框架 Day 3.
 
 根据漂移信号强度动态调整 LGB 超参数配置.
@@ -21,7 +20,7 @@ import copy
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("adaptive_optimize")
 
@@ -75,7 +74,7 @@ def _check_feature_flag(flag_name: str) -> bool:
         return False
 
 
-def _compute_drift_severity(drift_signal: Optional[Dict[str, Any]]) -> float:
+def _compute_drift_severity(drift_signal: dict[str, Any] | None) -> float:
     """从漂移检测器输出中计算综合漂移强度 (0-1).
 
     与 Day 1 ModelDriftDetector.generate_report() 输出格式对齐:
@@ -158,11 +157,11 @@ def _apply_factor(base: float, factor: float, min_val: float, max_val: float) ->
 
 def adaptive_optimize(
     symbol: str,
-    config: Dict[str, Any],
-    drift_signal: Optional[Dict[str, Any]] = None,
-    cv_results: Optional[List[Dict[str, Any]]] = None,
-    override_enabled: Optional[bool] = None,
-) -> Dict[str, Any]:
+    config: dict[str, Any],
+    drift_signal: dict[str, Any] | None = None,
+    cv_results: list[dict[str, Any]] | None = None,
+    override_enabled: bool | None = None,
+) -> dict[str, Any]:
     """根据漂移信号自适应优化 LGB 配置.
 
     Args:
@@ -234,7 +233,7 @@ def adaptive_optimize(
 
         # Step 3: 应用参数调整
         lgb_params = result.get("lgb_params", {})
-        adjustments: Dict[str, Dict[str, float]] = {}
+        adjustments: dict[str, dict[str, float]] = {}
 
         # 3.1 学习率
         base_lr = float(lgb_params.get("learning_rate", 0.005))
@@ -307,9 +306,9 @@ def adaptive_optimize(
 # ========== 便捷函数 ==========
 def quick_optimize_for_drift(
     symbol: str,
-    config: Dict[str, Any],
+    config: dict[str, Any],
     severity_hint: str = "light",  # "light" | "medium" | "heavy"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """快速构造一个模拟漂移信号并调用 adaptive_optimize.
 
     用于调试或手动触发特定级别的参数调整.

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 研究内容蒸馏离线批处理脚本
 ==========================
@@ -37,7 +36,6 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
 
 # 将项目根目录加入 sys.path
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -55,7 +53,7 @@ def setup_logging(verbose: bool = False) -> None:
     )
 
 
-def scan_research_inputs(input_dir: Path) -> Dict[str, List[Path]]:
+def scan_research_inputs(input_dir: Path) -> dict[str, list[Path]]:
     """扫描研究输入目录, 返回 {category: [paths]}
 
     Args:
@@ -64,7 +62,7 @@ def scan_research_inputs(input_dir: Path) -> Dict[str, List[Path]]:
     Returns:
         {"reports": [pdf], "earnings": [txt], "books": [md], "news": [json]}
     """
-    categories: Dict[str, List[Path]] = {
+    categories: dict[str, list[Path]] = {
         "reports": [],
         "earnings": [],
         "books": [],
@@ -196,7 +194,7 @@ def main() -> int:
             logger.warning("保存空快照失败 (非致命): %s", e)
         return 0
 
-    all_signals: List[DistilledSignal] = []
+    all_signals: list[DistilledSignal] = []
 
     # 蒸馏研报
     for pdf_path in categories["reports"]:
@@ -236,7 +234,7 @@ def main() -> int:
     # 蒸馏新闻批量
     for json_path in categories["news"]:
         try:
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, encoding="utf-8") as f:
                 news_items = json.load(f)
             if not isinstance(news_items, list):
                 logger.warning("新闻文件格式错误 (应为数组): %s", json_path)

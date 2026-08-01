@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证 path_config 路径配置是否正确指向 D 盘"""
 import json
 import os

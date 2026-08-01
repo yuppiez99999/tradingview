@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 动态信号融合引擎 (Signal Fusion Engine)
 ========================================
@@ -25,7 +24,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -63,15 +62,15 @@ class PostMixLayer:
 
     name: str
     weight: float
-    signals: Dict[str, float] = field(default_factory=dict)
-    quality_flags: Dict[str, str] = field(default_factory=dict)
+    signals: dict[str, float] = field(default_factory=dict)
+    quality_flags: dict[str, str] = field(default_factory=dict)
     quality_decay: float = 0.5
     enabled: bool = True
 
     def update_signals(
         self,
-        signals: Dict[str, Any],
-        quality_flags: Optional[Dict[str, str]] = None,
+        signals: dict[str, Any],
+        quality_flags: dict[str, str] | None = None,
     ) -> None:
         """更新信号缓存 (统一 NaN/Inf 过滤)
 
@@ -84,8 +83,8 @@ class PostMixLayer:
             logger.warning(f"[PostMixLayer:{self.name}] 输入为空, 信号缓存已清空")
             return
 
-        parsed_signals: Dict[str, float] = {}
-        parsed_flags: Dict[str, str] = {}
+        parsed_signals: dict[str, float] = {}
+        parsed_flags: dict[str, str] = {}
 
         for sym, val in signals.items():
             # 结构化格式: {"signal": float, "quality_flag": str, ...}
@@ -179,10 +178,10 @@ class FusionSignal:
     symbol: str
     strength: float = 0.0
     confidence: float = 0.0
-    sources: Dict[str, float] = field(default_factory=dict)
-    meta: Dict[str, Any] = field(default_factory=dict)
+    sources: dict[str, float] = field(default_factory=dict)
+    meta: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "symbol": self.symbol,
             "strength": round(self.strength, 4),
@@ -266,12 +265,12 @@ class SignalFusionEngine:
         # 设计依据: 7因子体系 + 行业敏感度加权, 覆盖 14 标的 + 期货
         self.weather_signal_weight = weather_signal_weight
         # 动态 IC 权重支持：注入 forward_returns 后按各源 IC 动态加权
-        self._forward_returns: Optional[Dict[str, float]] = None
-        self._ic_weights: Optional[Dict[str, float]] = None
+        self._forward_returns: dict[str, float] | None = None
+        self._ic_weights: dict[str, float] | None = None
         # 缓存最近一次 fuse 的各源信号值，用于 IC 计算
-        self._last_signals_by_source: Optional[Dict[str, Dict[str, float]]] = None
+        self._last_signals_by_source: dict[str, dict[str, float]] | None = None
         # Qlib 信号缓存（由 inject_qlib_signal 注入，可作为 alpha 源）
-        self._qlib_signals: Dict[str, float] = {}
+        self._qlib_signals: dict[str, float] = {}
 
         # P1-Q5 修复 (2026-07-26): 用 PostMixLayer 替代散落的信号缓存 + post-mix 逻辑
         # 优势:
@@ -305,10 +304,10 @@ class SignalFusionEngine:
         )
 
         # 向后兼容: 保留旧字段供外部读取 (不直接用于 _fuse_symbol, 仅用于审计)
-        self._pipeline_factor_signals: Dict[str, float] = {}
-        self._research_distilled_signals: Dict[str, float] = {}
-        self._lgb_enhanced_signals: Dict[str, float] = {}
-        self._lgb_quality_flags: Dict[str, str] = {}
+        self._pipeline_factor_signals: dict[str, float] = {}
+        self._research_distilled_signals: dict[str, float] = {}
+        self._lgb_enhanced_signals: dict[str, float] = {}
+        self._lgb_quality_flags: dict[str, str] = {}
 
     # ------------------------------------------------------------
     # 主入口
@@ -316,11 +315,11 @@ class SignalFusionEngine:
 
     def fuse(
         self,
-        alpha_signals: Optional[Dict[str, Dict[str, Any]]] = None,
-        llm_signals: Optional[Dict[str, Dict[str, Any]]] = None,
-        etf_signals: Optional[Dict[str, Dict[str, Any]]] = None,
-        macro_signals: Optional[Dict[str, Dict[str, Any]]] = None,
-    ) -> List[FusionSignal]:
+        alpha_signals: dict[str, dict[str, Any]] | None = None,
+        llm_signals: dict[str, dict[str, Any]] | None = None,
+        etf_signals: dict[str, dict[str, Any]] | None = None,
+        macro_signals: dict[str, dict[str, Any]] | None = None,
+    ) -> list[FusionSignal]:
         """融合多源信号
 
         Args:
@@ -354,7 +353,7 @@ class SignalFusionEngine:
 
         macro_bias = self._summarize_macro(macro_signals)
 
-        results: List[FusionSignal] = []
+        results: list[FusionSignal] = []
         for symbol in all_symbols:
             signal = self._fuse_symbol(
                 symbol,
@@ -398,7 +397,7 @@ class SignalFusionEngine:
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("inject_qlib_signal 异常: %s", e)
 
-    def inject_pipeline_factor_signals(self, signals: Dict[str, float]) -> None:
+    def inject_pipeline_factor_signals(self, signals: dict[str, float]) -> None:
         """注入 Pipeline 因子组合信号（v8.6.4 P0-A 深度修复 / P1-Q5 重构）
 
         P1-Q5 修复 (2026-07-26): 委托给 PostMixLayer.update_signals, 不再重复 NaN 过滤逻辑
@@ -413,7 +412,7 @@ class SignalFusionEngine:
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("inject_pipeline_factor_signals 异常: %s", e)
 
-    def inject_research_distilled_signals(self, signals: Dict[str, float]) -> None:
+    def inject_research_distilled_signals(self, signals: dict[str, float]) -> None:
         """注入研究蒸馏信号（v8.6.9 第 6 信号源 / P1-Q5 重构）
 
         P1-Q5 修复: 委托给 PostMixLayer.update_signals
@@ -427,8 +426,8 @@ class SignalFusionEngine:
 
     def inject_lgb_enhanced_signals(
         self,
-        signals: Dict[str, Any],
-        quality_flags: Optional[Dict[str, str]] = None,
+        signals: dict[str, Any],
+        quality_flags: dict[str, str] | None = None,
     ) -> None:
         """注入 LGB 增强信号（v8.7 第 7 信号源 / P1-Q5 重构）
 
@@ -444,7 +443,7 @@ class SignalFusionEngine:
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("inject_lgb_enhanced_signals 异常: %s", e)
 
-    def inject_external_strategy_signals(self, signals: Dict[str, float]) -> None:
+    def inject_external_strategy_signals(self, signals: dict[str, float]) -> None:
         """注入外部策略信号（v8.4.1 第 8 信号源）
 
         daily_stock_analysis 15种A股策略(缠论/龙头/情绪周期等)的共识信号.
@@ -458,7 +457,7 @@ class SignalFusionEngine:
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("inject_external_strategy_signals 异常: %s", e)
 
-    def inject_weather_signals(self, signals: Dict[str, float]) -> None:
+    def inject_weather_signals(self, signals: dict[str, float]) -> None:
         """注入气象因子信号（v8.6.13 第 9 信号源）
 
         weather_factor_engine 7因子体系(温度/降水/风速/辐照/气压/AQI/能见度)
@@ -473,7 +472,7 @@ class SignalFusionEngine:
         except Exception as e:
             logger.warning("inject_weather_signals 异常: %s", e)
 
-    def inject_forward_returns(self, forward_returns: Dict[str, float]) -> None:
+    def inject_forward_returns(self, forward_returns: dict[str, float]) -> None:
         """注入前向收益，激活动态 IC 加权
 
         注入后，下次 fuse() 调用会自动计算各信号源(alpha/llm/etf)与
@@ -504,7 +503,7 @@ class SignalFusionEngine:
         if self._forward_returns is None or self._last_signals_by_source is None:
             return
 
-        ic_by_source: Dict[str, float] = {}
+        ic_by_source: dict[str, float] = {}
         for source, sig_map in self._last_signals_by_source.items():
             # 配对 (signal, forward_return)
             pairs = []
@@ -556,9 +555,9 @@ class SignalFusionEngine:
     def _fuse_symbol(
         self,
         symbol: str,
-        alpha: Optional[Dict[str, Any]],
-        llm: Optional[Dict[str, Any]],
-        etf: Optional[Dict[str, Any]],
+        alpha: dict[str, Any] | None,
+        llm: dict[str, Any] | None,
+        etf: dict[str, Any] | None,
         macro_bias: float,
     ) -> FusionSignal:
         """单标的信号融合 (P1-Q5 重构后)
@@ -686,7 +685,7 @@ class SignalFusionEngine:
     # 权重与宏观
     # ------------------------------------------------------------
 
-    def _dynamic_weights(self, alpha_c: float, llm_c: float, etf_c: float) -> Dict[str, float]:
+    def _dynamic_weights(self, alpha_c: float, llm_c: float, etf_c: float) -> dict[str, float]:
         """根据置信度（或 IC 权重）动态调整权重
 
         优先级：
@@ -724,7 +723,7 @@ class SignalFusionEngine:
             "macro": macro_w / total,
         }
 
-    def _summarize_macro(self, macro_signals: Optional[Dict[str, Dict[str, Any]]]) -> float:
+    def _summarize_macro(self, macro_signals: dict[str, dict[str, Any]] | None) -> float:
         if not macro_signals:
             return 0.0
         vals = [self._safe(v, "strength") for v in macro_signals.values()]
@@ -737,7 +736,7 @@ class SignalFusionEngine:
     # 工具函数
     # ------------------------------------------------------------
 
-    def _safe(self, src: Optional[Dict[str, Any]], key: str) -> float:
+    def _safe(self, src: dict[str, Any] | None, key: str) -> float:
         if not isinstance(src, dict):
             return 0.0
         value = src.get(key, 0.0)
@@ -751,9 +750,9 @@ class SignalFusionEngine:
     # 过滤
     # ------------------------------------------------------------
 
-    def filter_tradable(self, signals: List[FusionSignal]) -> List[FusionSignal]:
+    def filter_tradable(self, signals: list[FusionSignal]) -> list[FusionSignal]:
         return [s for s in signals if s.strength != 0.0 and s.confidence >= self.min_confidence]
 
-    def top(self, signals: List[FusionSignal], k: int = 10) -> List[FusionSignal]:
+    def top(self, signals: list[FusionSignal], k: int = 10) -> list[FusionSignal]:
         ranked = sorted(signals, key=lambda s: abs(s.strength) * s.confidence, reverse=True)
         return ranked[:k]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """批量修复剩余 ruff 错误 — B904/B027/E741/F402/F601/RUF034/RUF059"""
 import json
 import os
@@ -29,7 +28,7 @@ def get_errors(files):
 
 def fix_b904(filepath, errors_for_file):
     """B904: except 块中 raise 加 from err"""
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         lines = f.readlines()
     changed = False
     for e in errors_for_file:
@@ -59,7 +58,7 @@ def fix_b904(filepath, errors_for_file):
 
 def fix_b027(filepath, errors_for_file):
     """B027: 空方法加 noqa"""
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         lines = f.readlines()
     changed = False
     for e in errors_for_file:
@@ -80,7 +79,7 @@ def fix_b027(filepath, errors_for_file):
 
 def fix_e741(filepath, errors_for_file):
     """E741: 模糊变量名 l → el"""
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         lines = f.readlines()
     changed = False
     for e in errors_for_file:
@@ -106,7 +105,7 @@ def fix_e741(filepath, errors_for_file):
 
 def fix_f402(filepath, errors_for_file):
     """F402: 循环变量遮蔽 import → 加 _ 前缀"""
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         lines = f.readlines()
     changed = False
     for e in errors_for_file:
@@ -138,7 +137,7 @@ def fix_f402(filepath, errors_for_file):
 
 def fix_ruf034(filepath, errors_for_file):
     """RUF034: 不必要 else → 加 noqa (重构风险高)"""
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         lines = f.readlines()
     changed = False
     for e in errors_for_file:
@@ -158,7 +157,7 @@ def fix_ruf034(filepath, errors_for_file):
 
 def fix_ruf059(filepath, errors_for_file):
     """RUF059: 未使用解包变量 → 加 _ 前缀"""
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         lines = f.readlines()
     changed = False
     for e in errors_for_file:
@@ -189,7 +188,7 @@ def fix_ruf059(filepath, errors_for_file):
 
 def fix_f601(filepath, errors_for_file):
     """F601: 字典重复键 → 删除第二个重复键"""
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         lines = f.readlines()
     changed = False
     seen_keys = set()

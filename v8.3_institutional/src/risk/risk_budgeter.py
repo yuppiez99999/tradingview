@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 风险预算器 —— Risk Parity + 改进 Kelly + 三级回撤防御
 

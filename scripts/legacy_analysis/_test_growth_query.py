@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """测试 baostock 不同季度的数据可用性"""
 import baostock as bs
 

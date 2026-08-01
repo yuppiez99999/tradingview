@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WonderTrader 风格统一数据结构
 
@@ -9,7 +8,6 @@ WonderTrader 风格统一数据结构
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List
 
 
 @dataclass
@@ -25,10 +23,10 @@ class TickData:
     pre_close: float  # 昨收价
     volume: float  # 成交量(股/手)
     amount: float  # 成交额
-    bid_prices: List[float] = field(default_factory=list)  # 买价队列
-    ask_prices: List[float] = field(default_factory=list)  # 卖价队列
-    bid_volumes: List[float] = field(default_factory=list)  # 买量队列
-    ask_volumes: List[float] = field(default_factory=list)  # 卖量队列
+    bid_prices: list[float] = field(default_factory=list)  # 买价队列
+    ask_prices: list[float] = field(default_factory=list)  # 卖价队列
+    bid_volumes: list[float] = field(default_factory=list)  # 买量队列
+    ask_volumes: list[float] = field(default_factory=list)  # 卖量队列
     timestamp: float = 0.0  # Unix 时间戳
     datetime_str: str = ""  # "YYYY-MM-DD HH:MM:SS"
     date: int = 0  # YYYYMMDD
@@ -124,7 +122,7 @@ class ContractData:
     expiry_date: str = ""  # 到期日(期货/期权)
 
 
-def tick_to_dict(tick: TickData) -> Dict:
+def tick_to_dict(tick: TickData) -> dict:
     """Tick 转为字典"""
     return {
         "code": tick.code,
@@ -147,7 +145,7 @@ def tick_to_dict(tick: TickData) -> Dict:
     }
 
 
-def bar_to_dict(bar: BarData) -> Dict:
+def bar_to_dict(bar: BarData) -> dict:
     """Bar 转为字典"""
     return {
         "code": bar.code,

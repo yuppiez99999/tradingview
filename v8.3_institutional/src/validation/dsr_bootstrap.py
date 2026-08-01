@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """DSR Bootstrap 估计器 — 替代解析近似的 E[SR_max] 估计.
 
 v8.4 T07 (2026-07-28): 用 bootstrap 替代极值理论解析近似, 提高小样本精度.

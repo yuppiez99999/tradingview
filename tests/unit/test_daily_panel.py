@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T5.3 单元测试 — utils/attribution/daily_panel.py.
 
 测试覆盖:
@@ -910,7 +909,7 @@ class TestPersistence:
             status=STATUS_OK,
         )
         paths = panel.save(report, report_dir=tmp_path)
-        with open(paths["json"], "r", encoding="utf-8") as f:
+        with open(paths["json"], encoding="utf-8") as f:
             data = json.load(f)
         assert data["attribution_date"] == "2026-07-27"
         assert data["benchmark_code"] == "510300.SH"
@@ -926,7 +925,7 @@ class TestPersistence:
             status=STATUS_OK,
         )
         paths = panel.save(report, report_dir=tmp_path)
-        with open(paths["markdown"], "r", encoding="utf-8") as f:
+        with open(paths["markdown"], encoding="utf-8") as f:
             md = f.read()
         assert "日级归因面板" in md
         assert "2026-07-27" in md
@@ -1349,7 +1348,7 @@ class TestIntegrationScenarios:
         assert report.tca_dict["alpha_pnl"] == 3000.0
 
         # 验证 JSON 文件可重新加载
-        with open(paths["json"], "r", encoding="utf-8") as f:
+        with open(paths["json"], encoding="utf-8") as f:
             loaded = json.load(f)
         assert loaded["attribution_date"] == "2026-07-27"
         assert loaded["summary"]["total_pnl"] == 15000.0
@@ -1357,7 +1356,7 @@ class TestIntegrationScenarios:
         assert loaded["metadata"]["status"] == "ok"
 
         # 验证 Markdown 文件含三章节
-        with open(paths["markdown"], "r", encoding="utf-8") as f:
+        with open(paths["markdown"], encoding="utf-8") as f:
             md = f.read()
         assert "Brinson 归因" in md
         assert "Barra 因子归因" in md

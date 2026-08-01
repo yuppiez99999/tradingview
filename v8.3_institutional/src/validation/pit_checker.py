@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 PIT Checker v1.0 — Point-in-Time 未来函数检测器
 

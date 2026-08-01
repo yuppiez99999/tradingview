@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Theta 引擎 - 常态化备兑收租 (Covered Call Overlay)
 =================================================
@@ -26,7 +25,6 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import yaml
 
@@ -40,12 +38,12 @@ PLAN_DIR = BASE_DIR / "reports" / "theta_plans"
 class ThetaEngine:
     """Theta 引擎 - 备兑期权生成与滚仓管理"""
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         self.config_path = config_path or CONFIG_PATH
         self.config = self._load_config()
         PLAN_DIR.mkdir(parents=True, exist_ok=True)
 
-    def _load_config(self) -> Dict:
+    def _load_config(self) -> dict:
         """加载 portfolio.yaml 配置 (P1-Q8: 通过 ConfigManager 统一加载)
 
         优先级:
@@ -58,7 +56,7 @@ class ThetaEngine:
         # 路径 1: 调用方显式指定了 config_path (测试场景, 向后兼容)
         if self.config_path != CONFIG_PATH:
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 theta_cfg = cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
                 if not theta_cfg.get("enabled", False):
@@ -79,7 +77,7 @@ class ThetaEngine:
                     logger.warning("Theta 引擎未启用")
                 return theta_cfg  # type: ignore
             # ConfigManager 全部失败, 回退到旧路径 (保底)
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
             theta_cfg = cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
             if not theta_cfg.get("enabled", False):
@@ -88,14 +86,14 @@ class ThetaEngine:
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}")
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
             except Exception as e2:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"加载配置彻底失败: {e2}")
                 return {}
 
-    def _get_etf_spots(self) -> Dict[str, float]:
+    def _get_etf_spots(self) -> dict[str, float]:
         """获取目标 ETF 现价 (Wind MCP > 新浪 HTTP > 兜底)"""
         spots = {}
         target_codes = [t["code"] for t in self.config.get("target_etfs", [])]
@@ -137,7 +135,7 @@ class ThetaEngine:
 
         return spots
 
-    def generate_monthly_plan(self) -> Dict:
+    def generate_monthly_plan(self) -> dict:
         """生成月度 Covered Call 计划
 
         Returns:
@@ -261,7 +259,7 @@ class ThetaEngine:
 
         return plan
 
-    def check_rollover(self) -> List[Dict]:
+    def check_rollover(self) -> list[dict]:
         """检查到期前 5 个交易日的头寸, 生成滚仓计划
 
         Returns:
@@ -272,7 +270,7 @@ class ThetaEngine:
         if not plans:
             return []
 
-        with open(plans[0], "r", encoding="utf-8") as f:
+        with open(plans[0], encoding="utf-8") as f:
             latest_plan = json.load(f)
 
         expiry_date = datetime.strptime(latest_plan["expiry_date"], "%Y-%m-%d")
@@ -298,7 +296,7 @@ class ThetaEngine:
         logger.info(f"触发滚仓: {len(rollover_positions)} 个头寸需要滚仓")
         return rollover_positions
 
-    def get_theta_statistics(self) -> Dict:
+    def get_theta_statistics(self) -> dict:
         """获取 Theta 引擎统计 (累计权利金/月度收益率)
 
         Returns:
@@ -325,7 +323,7 @@ class ThetaEngine:
 
         for plan_file in plans:
             try:
-                with open(plan_file, "r", encoding="utf-8") as f:
+                with open(plan_file, encoding="utf-8") as f:
                     plan = json.load(f)
                 total_premium += plan.get("total_est_premium", 0)
                 monthly_yields.append(plan.get("portfolio_yield_monthly", 0))

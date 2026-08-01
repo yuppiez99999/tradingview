@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Re-export 兼容性验证脚本 (T1.4 闸门).
 
 任务: T1.4
@@ -21,7 +20,6 @@ import ast
 import importlib
 import sys
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -50,15 +48,15 @@ CRITICAL_V9_SCRIPTS = [
 ]
 
 
-def collect_utils_imports() -> Tuple[Dict[str, Set[str]], List[str]]:
+def collect_utils_imports() -> tuple[dict[str, set[str]], list[str]]:
     """扫描所有 from utils.xxx import yyy 语句.
 
     Returns:
         (module_to_symbols, errors)
         module_to_symbols: {"utils.kill_switch": {"KillSwitch"}, ...}
     """
-    module_to_symbols: Dict[str, Set[str]] = {}
-    errors: List[str] = []
+    module_to_symbols: dict[str, set[str]] = {}
+    errors: list[str] = []
 
     for py_file in PROJECT_ROOT.rglob("*.py"):
         # 跳过排除目录
@@ -88,7 +86,7 @@ def collect_utils_imports() -> Tuple[Dict[str, Set[str]], List[str]]:
     return module_to_symbols, errors
 
 
-def verify_module_importable(module_name: str) -> Tuple[bool, str, str]:
+def verify_module_importable(module_name: str) -> tuple[bool, str, str]:
     """验证模块可 import.
 
     Returns:
@@ -120,7 +118,7 @@ def verify_module_importable(module_name: str) -> Tuple[bool, str, str]:
         return True, f"(加载副作用, 可接受): {type(e).__name__}: {e}", "OK"
 
 
-def verify_symbol_in_module(module_name: str, symbol: str) -> Tuple[bool, str]:
+def verify_symbol_in_module(module_name: str, symbol: str) -> tuple[bool, str]:
     """验证模块中存在指定符号."""
     try:
         mod = importlib.import_module(module_name)
@@ -134,9 +132,9 @@ def verify_symbol_in_module(module_name: str, symbol: str) -> Tuple[bool, str]:
         return True, f"(加载副作用, 可接受): {type(e).__name__}"
 
 
-def verify_critical_scripts() -> List[str]:
+def verify_critical_scripts() -> list[str]:
     """验证关键 V9 脚本可 import (不执行)."""
-    errors: List[str] = []
+    errors: list[str] = []
     for script_name in CRITICAL_V9_SCRIPTS:
         script_path = PROJECT_ROOT / script_name
         if not script_path.exists():
@@ -190,9 +188,9 @@ def main() -> int:
 
     # 2. 验证每个模块可 import
     print(f"\n[2/4] 验证 {total_modules} 个 utils 子模块可 import...")
-    import_errors: List[str] = []
-    missing_errors: List[str] = []
-    deps_errors: List[str] = []
+    import_errors: list[str] = []
+    missing_errors: list[str] = []
+    deps_errors: list[str] = []
     for module_name in sorted(module_to_symbols.keys()):
         ok, msg, category = verify_module_importable(module_name)
         if not ok:
@@ -217,7 +215,7 @@ def main() -> int:
 
     # 3. 验证 utils/__init__.py 的 re-export (FeatureFlags)
     print("\n[3/4] 验证 utils/__init__.py 的 re-export...")
-    reexport_errors: List[str] = []
+    reexport_errors: list[str] = []
     try:
         import utils  # noqa: F401
         # FeatureFlags re-export 验证 (T1.4 新增)

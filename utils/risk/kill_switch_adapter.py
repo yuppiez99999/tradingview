@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """KillSwitch 总线适配器 — 模块整合 8.4 (T3.2).
 
 任务: T3.2
@@ -30,7 +29,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, cast
 
 from utils.infra.feature_flags import is_enabled
 from utils.risk.risk_bus import RiskBus, get_bus
@@ -71,7 +70,7 @@ class KillSwitchAdapter:
     def __init__(
         self,
         kill_switch: Any,
-        bus: Optional[RiskBus] = None,
+        bus: RiskBus | None = None,
         publish_events: bool = True,
     ) -> None:
         """初始化适配器.
@@ -95,8 +94,8 @@ class KillSwitchAdapter:
 
     def check_margin_status(
         self,
-        margin_usage: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        margin_usage: float | None = None,
+    ) -> dict[str, Any]:
         """检查保证金状态 (HC-2 同步路径, 不走总线).
 
         Args:
@@ -131,7 +130,7 @@ class KillSwitchAdapter:
 
         return status
 
-    def execute_kill_switch(self, level: int) -> Dict[str, Any]:
+    def execute_kill_switch(self, level: int) -> dict[str, Any]:
         """执行熔断协议 (HC-2 同步路径).
 
         Args:
@@ -174,8 +173,8 @@ class KillSwitchAdapter:
     # ============================================================
     def _safe_publish_margin_breach(
         self,
-        status: Dict[str, Any],
-        margin_usage: Optional[float],
+        status: dict[str, Any],
+        margin_usage: float | None,
     ) -> None:
         """best-effort 发布 MARGIN_BREACH 事件.
 
@@ -217,7 +216,7 @@ class KillSwitchAdapter:
     def _safe_publish_kill_switch_triggered(
         self,
         level: int,
-        result: Dict[str, Any],
+        result: dict[str, Any],
     ) -> None:
         """best-effort 发布 KILL_SWITCH_TRIGGERED 事件.
 
@@ -314,7 +313,7 @@ class KillSwitchAdapter:
         )
 
 
-def adapt_kill_switch(kill_switch: Any, bus: Optional[RiskBus] = None) -> KillSwitchAdapter:
+def adapt_kill_switch(kill_switch: Any, bus: RiskBus | None = None) -> KillSwitchAdapter:
     """便捷函数: 包装 KillSwitch 为适配器.
 
     Args:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v8.6.9 系统 Bug 全面检测脚本
 ============================
@@ -113,7 +112,7 @@ def main() -> int:
     # ============================================================
     print("\n=== 2. 最新 trade_plan 字段一致性 ===")
     latest_plan_path = plans[0]
-    with open(latest_plan_path, "r", encoding="utf-8") as f:
+    with open(latest_plan_path, encoding="utf-8") as f:
         plan = json.load(f)
 
     ms = plan.get("market_state", {})

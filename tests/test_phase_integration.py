@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """集成测试: phase_v10_risk + PhaseManager 季度评估"""
 import sys
 from datetime import date

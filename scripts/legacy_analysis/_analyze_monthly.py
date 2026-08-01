@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 """分析月度收益,识别极端月份和弱势窗口"""
 import json
 
-with open('output/validation_reports/lgb_backtest_45m_regime_mild_20260724_194324.json', 'r', encoding='utf-8') as f:
+with open('output/validation_reports/lgb_backtest_45m_regime_mild_20260724_194324.json', encoding='utf-8') as f:
     data = json.load(f)
 
 print(f"年化: {data['annual_return']:.4f}, 回撤: {data['max_drawdown']:.4f}, 胜率: {data['win_rate']:.2f}")

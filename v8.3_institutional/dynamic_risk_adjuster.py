@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 动态风控调整模块（第三步-3） — v2.1
 ====================================
@@ -21,7 +20,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 _BASE = Path(__file__).resolve().parent
 if str(_BASE) not in sys.path:
@@ -38,7 +37,7 @@ except Exception:
 class DynamicRiskAdjuster:
     """动态风控调整器"""
 
-    def __init__(self, trade_date: Optional[str] = None):
+    def __init__(self, trade_date: str | None = None):
         self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
         self.date_compact = self.trade_date.replace("-", "")
         self.timestamp = datetime.now().isoformat()
@@ -54,8 +53,8 @@ class DynamicRiskAdjuster:
         self.out_path = self.reports_dir / f"dynamic_risk_{self.date_compact}.json"
         self.gate_out_path = self.project_root / "trade_instructions" / f"dynamic_risk_limits_{self.date_compact}.json"
 
-        self.review: Dict[str, Any] = {}
-        self.pnl: Dict[str, Any] = {}
+        self.review: dict[str, Any] = {}
+        self.pnl: dict[str, Any] = {}
 
         # 默认基础阈值
         self.base_limits = {
@@ -93,7 +92,7 @@ class DynamicRiskAdjuster:
             self.pnl = {}
             return False
 
-    def _compute_risk_score(self) -> Dict[str, Any]:
+    def _compute_risk_score(self) -> dict[str, Any]:
         """计算综合风险评分，返回评分明细"""
         metrics = {}
         if isinstance(self.review, dict):
@@ -187,7 +186,7 @@ class DynamicRiskAdjuster:
         }
         return mapping.get(risk_level, 1.0)
 
-    def adjust(self) -> Dict[str, Any]:
+    def adjust(self) -> dict[str, Any]:
         risk = self._compute_risk_score()
         risk_level = self._classify_risk(risk["total_score"])
         factor = self._tighten_factor(risk_level)
@@ -224,7 +223,7 @@ class DynamicRiskAdjuster:
             ],
         }
 
-    def _write_dynamic_limits(self, adjusted: Dict[str, Any]) -> Optional[Path]:
+    def _write_dynamic_limits(self, adjusted: dict[str, Any]) -> Path | None:
         """将调整后的风控阈值写入 AI 决策门可读取的落盘文件"""
         try:
             payload = {
@@ -249,12 +248,12 @@ class DynamicRiskAdjuster:
             logger.warning(f"写入动态风控限值失败: {e}")
             return None
 
-    def save(self, payload: Dict[str, Any]) -> Path:
+    def save(self, payload: dict[str, Any]) -> Path:
         self.out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         logger.info(f"已写入动态风控: {self.out_path}")
         return self.out_path
 
-    def run(self, write_gate_limits: bool = False) -> Dict[str, Any]:
+    def run(self, write_gate_limits: bool = False) -> dict[str, Any]:
         self.load_review()
         self.load_pnl()
         adjusted = self.adjust()
@@ -278,7 +277,7 @@ class DynamicRiskAdjuster:
         return result
 
 
-def run_dynamic_risk_adjuster(trade_date: Optional[str] = None, write_gate_limits: bool = False) -> Dict[str, Any]:
+def run_dynamic_risk_adjuster(trade_date: str | None = None, write_gate_limits: bool = False) -> dict[str, Any]:
     adjuster = DynamicRiskAdjuster(trade_date=trade_date)
     return adjuster.run(write_gate_limits=write_gate_limits)
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 同花顺期货通模拟盘适配器
 ========================
@@ -24,7 +23,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("v75.ths_sim_broker")
 
@@ -43,8 +42,8 @@ class THSQuoteProvider:
     """
 
     def __init__(self) -> None:
-        self._cache: Dict[str, Dict[str, Any]] = {}
-        self._cache_ts: Dict[str, float] = {}
+        self._cache: dict[str, dict[str, Any]] = {}
+        self._cache_ts: dict[str, float] = {}
         self._cache_ttl = 30  # 秒
 
         # 尝试加载 iFinD 客户端
@@ -62,7 +61,7 @@ class THSQuoteProvider:
         except Exception:
             logger.warning("iFinD 不可用，期货行情将使用订单价格兜底")
 
-    def get_futures_quote(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def get_futures_quote(self, symbol: str) -> dict[str, Any] | None:
         """获取期货行情
 
         Args:
@@ -95,7 +94,7 @@ class THSQuoteProvider:
 
         return None
 
-    def get_option_quote(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def get_option_quote(self, symbol: str) -> dict[str, Any] | None:
         """获取期权行情
 
         Args:
@@ -126,7 +125,7 @@ class THSQuoteProvider:
 
         return None
 
-    def _parse_ifind_result(self, result: Any, symbol: str) -> Optional[Dict[str, Any]]:
+    def _parse_ifind_result(self, result: Any, symbol: str) -> dict[str, Any] | None:
         """解析 iFinD 返回结果"""
         try:
             if isinstance(result, str):
@@ -188,7 +187,7 @@ def bs_put_price(S: float, K: float, T: float, r: float, sigma: float) -> float:
 
 
 def bs_greeks(S: float, K: float, T: float, r: float, sigma: float,
-              option_type: str = "call") -> Dict[str, float]:
+              option_type: str = "call") -> dict[str, float]:
     """计算希腊字母
 
     Returns:
@@ -242,14 +241,14 @@ class SimOptionsBroker:
         "HO": 100,   # 上证50股指期权
     }
 
-    def __init__(self, account, quote_provider: Optional[THSQuoteProvider] = None):
+    def __init__(self, account, quote_provider: THSQuoteProvider | None = None):
         self.account = account
         self.quote_provider = quote_provider or THSQuoteProvider()
-        self._pending_orders: Dict[str, Dict] = {}
-        self._fills: List[Dict] = []
+        self._pending_orders: dict[str, dict] = {}
+        self._fills: list[dict] = []
         self._lock = threading.RLock()
 
-    def _parse_option_symbol(self, symbol: str) -> Dict[str, Any]:
+    def _parse_option_symbol(self, symbol: str) -> dict[str, Any]:
         """解析期权合约代码
 
         格式:
@@ -257,7 +256,7 @@ class SimOptionsBroker:
             股指:   IO2506-C-3900
         """
         s = str(symbol).upper().strip()
-        info: Dict[str, Any] = {"symbol": symbol}
+        info: dict[str, Any] = {"symbol": symbol}
 
         # 股指期权: IO2506-C-3900
         if "-" in s:
@@ -282,7 +281,7 @@ class SimOptionsBroker:
 
         return info
 
-    def _estimate_option_price(self, symbol: str, underlying_price: float) -> Tuple[float, Dict[str, float]]:
+    def _estimate_option_price(self, symbol: str, underlying_price: float) -> tuple[float, dict[str, float]]:
         """估算期权价格（BS模型）
 
         Returns:
@@ -320,8 +319,8 @@ class SimOptionsBroker:
                     price: float = 0.0, order_type: str = "LIMIT",
                     session: str = "day",
                     underlying_price: float = 0.0,
-                    option_type: Optional[str] = None,
-                    strike: Optional[float] = None) -> Dict:
+                    option_type: str | None = None,
+                    strike: float | None = None) -> dict:
         """期权下单
 
         Args:
@@ -384,7 +383,7 @@ class SimOptionsBroker:
         fill = self._simulate_fill(order)
         return fill
 
-    def _simulate_fill(self, order: Dict) -> Dict:
+    def _simulate_fill(self, order: dict) -> dict:
         """模拟成交"""
         symbol = order["symbol"]
         qty = int(order["qty"])
@@ -429,7 +428,7 @@ class SimOptionsBroker:
         self._update_position(fill)
         return fill
 
-    def _update_position(self, fill: Dict) -> None:
+    def _update_position(self, fill: dict) -> None:
         """更新期权持仓"""
         symbol = fill["symbol"]
         qty = int(fill["qty"])
@@ -470,20 +469,20 @@ class SimOptionsBroker:
             pos["market_value"] = abs(pos["qty"]) * price * multiplier
             pos["last_update"] = datetime.now().isoformat()
 
-    def get_positions(self) -> Dict[str, Dict]:
+    def get_positions(self) -> dict[str, dict]:
         with self._lock:
             return dict(self.account.positions)
 
     def get_account(self):
         return self.account
 
-    def get_fills(self, session: Optional[str] = None) -> List[Dict]:
+    def get_fills(self, session: str | None = None) -> list[dict]:
         with self._lock:
             if session:
                 return [f for f in self._fills if f.get("session") == session]
             return list(self._fills)
 
-    def get_greek_exposure(self) -> Dict[str, float]:
+    def get_greek_exposure(self) -> dict[str, float]:
         """获取组合希腊字母暴露"""
         total_delta = 0.0
         total_gamma = 0.0
@@ -606,14 +605,14 @@ class THSSimFuturesBroker:
         "AP": 0.15, "CJ": 0.15, "SF": 0.12, "SM": 0.12,
     }
 
-    def __init__(self, account, quote_provider: Optional[THSQuoteProvider] = None,
-                 margin_rates: Optional[Dict[str, float]] = None,
-                 trade_log_path: Optional[str] = None):
+    def __init__(self, account, quote_provider: THSQuoteProvider | None = None,
+                 margin_rates: dict[str, float] | None = None,
+                 trade_log_path: str | None = None):
         self.account = account
         self.quote_provider = quote_provider or THSQuoteProvider()
         self.margin_rates = margin_rates or self.DEFAULT_MARGIN_RATES
-        self._pending_orders: Dict[str, Dict] = {}
-        self._fills: List[Dict] = []
+        self._pending_orders: dict[str, dict] = {}
+        self._fills: list[dict] = []
         self._lock = threading.RLock()
 
         # 交易日志
@@ -705,7 +704,7 @@ class THSSimFuturesBroker:
 
     def place_order(self, symbol: str, qty: int, side: str,
                     price: float = 0.0, order_type: str = "LIMIT",
-                    session: str = "day") -> Dict:
+                    session: str = "day") -> dict:
         """期货下单
 
         Args:
@@ -753,7 +752,7 @@ class THSSimFuturesBroker:
         self._log_trade(fill)
         return fill
 
-    def _simulate_fill(self, order: Dict) -> Dict:
+    def _simulate_fill(self, order: dict) -> dict:
         """模拟成交"""
         symbol = order["symbol"]
         qty = int(order["qty"])
@@ -792,7 +791,7 @@ class THSSimFuturesBroker:
         self._update_position(fill)
         return fill
 
-    def _update_position(self, fill: Dict) -> None:
+    def _update_position(self, fill: dict) -> None:
         """更新期货持仓"""
         symbol = fill["symbol"]
         qty = int(fill["qty"])
@@ -834,7 +833,7 @@ class THSSimFuturesBroker:
             pos["market_value"] = abs(pos["qty"]) * price * multiplier
             pos["last_update"] = datetime.now().isoformat()
 
-    def _log_trade(self, fill: Dict) -> None:
+    def _log_trade(self, fill: dict) -> None:
         """记录交易日志"""
         try:
             with open(self._trade_log, "a", encoding="utf-8") as f:
@@ -848,14 +847,14 @@ class THSSimFuturesBroker:
             return True
         return False
 
-    def get_positions(self) -> Dict[str, Dict]:
+    def get_positions(self) -> dict[str, dict]:
         with self._lock:
             return dict(self.account.positions)
 
     def get_account(self):
         return self.account
 
-    def get_fills(self, session: Optional[str] = None) -> List[Dict]:
+    def get_fills(self, session: str | None = None) -> list[dict]:
         with self._lock:
             if session:
                 return [f for f in self._fills if f.get("session") == session]

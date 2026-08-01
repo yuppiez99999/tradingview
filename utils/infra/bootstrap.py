@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """全局初始化入口 — 三层保护 Layer 3.
 
 模块整合 8.4 — ARCHITECTURE §1.4 / ADR-002
@@ -39,7 +38,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable
 
 
 def _find_project_root() -> Path:
@@ -72,7 +71,7 @@ _PROJECT_ROOT = _find_project_root()
 
 # 幂等控制
 _initialized: bool = False
-_last_result: Optional["BootstrapResult"] = None
+_last_result: BootstrapResult | None = None
 _lock: RLock = RLock()
 
 
@@ -88,7 +87,7 @@ class BootstrapError(Exception):
         cause: 原始异常 (可选)
     """
 
-    def __init__(self, step: str, reason: str, cause: Optional[Exception] = None) -> None:
+    def __init__(self, step: str, reason: str, cause: Exception | None = None) -> None:
         self.step = step
         self.reason = reason
         self.cause = cause
@@ -113,7 +112,7 @@ class BootstrapResult:
 # ============================================================
 # 步骤 1: 加载 .env
 # ============================================================
-def _load_env_file() -> Dict[str, str]:
+def _load_env_file() -> dict[str, str]:
     """加载 .env 文件到 os.environ (不覆盖已存在的环境变量).
 
     Returns:
@@ -122,7 +121,7 @@ def _load_env_file() -> Dict[str, str]:
     Raises:
         BootstrapError: .env 文件存在但解析失败
     """
-    loaded: Dict[str, str] = {}
+    loaded: dict[str, str] = {}
 
     # 优先用 python-dotenv (如果安装)
     try:
@@ -152,7 +151,7 @@ def _load_env_file() -> Dict[str, str]:
 
     # 回退: 手动解析 .env (复制自 v8.3_institutional/main.py L18-39)
     try:
-        env_path_fallback: Optional[Path] = None
+        env_path_fallback: Path | None = None
         for candidate in [Path.cwd() / ".env", _PROJECT_ROOT / ".env"]:
             if candidate.is_file():
                 env_path_fallback = candidate
@@ -162,7 +161,7 @@ def _load_env_file() -> Dict[str, str]:
             return loaded  # 无 .env 文件, 静默返回
 
         # 多编码支持 (与 utils/trading_env.py 一致)
-        content: Optional[str] = None
+        content: str | None = None
         for encoding in ["utf-8", "gbk", "utf-8-sig", "latin-1"]:
             try:
                 content = env_path_fallback.read_text(encoding=encoding)
@@ -329,7 +328,7 @@ def _init_kill_switch() -> Any:
 # ============================================================
 # 步骤 6: 注册 broker_callback (可选)
 # ============================================================
-def _register_broker_callback(ks: Any, callback: Optional[Callable]) -> None:
+def _register_broker_callback(ks: Any, callback: Callable | None) -> None:
     """注册 KillSwitch 的实盘执行回调.
 
     Args:
@@ -394,7 +393,7 @@ def _check_feature_flags() -> Any:
 # 顶层入口: initialize()
 # ============================================================
 def initialize(
-    broker_callback: Optional[Callable] = None,
+    broker_callback: Callable | None = None,
     log_prefix: str = "quant_strategy_system",
     log_dir: str = "logs",
     console_level: int = logging.INFO,
@@ -527,7 +526,7 @@ def is_initialized() -> bool:
         return _initialized
 
 
-def get_result() -> Optional[BootstrapResult]:
+def get_result() -> BootstrapResult | None:
     """获取上一次初始化的结果 (未初始化返回 None)."""
     with _lock:
         return _last_result

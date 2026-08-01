@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 异常处理路径测试套件 v4.0 (v8.5增强版 - unittest兼容)
 
@@ -75,7 +74,7 @@ class TestFilesystemExceptions(unittest.TestCase):
         """测试4: 文件不存在异常"""
         nonexistent_file = os.path.join(self.temp_dir, "nonexistent.txt")
         with self.assertRaises(FileNotFoundError):
-            with open(nonexistent_file, 'r') as f:
+            with open(nonexistent_file) as f:
                 f.read()
 
     def test_permission_denied(self):
@@ -92,7 +91,7 @@ class TestFilesystemExceptions(unittest.TestCase):
         with open(invalid_json_file, 'w') as f:
             f.write("{invalid json content")
         with self.assertRaises(json.JSONDecodeError):
-            with open(invalid_json_file, 'r') as f:
+            with open(invalid_json_file) as f:
                 json.load(f)
 
 
@@ -113,7 +112,7 @@ class TestNetworkAndConcurrency(unittest.TestCase):
         """测试8: 连接被拒绝异常"""
         import socket
         with self.assertRaises(socket.error):
-            raise socket.error("Connection refused")
+            raise OSError("Connection refused")
 
     def test_concurrent_access_conflict(self):
         """测试9: 并发冲突异常(模拟)"""

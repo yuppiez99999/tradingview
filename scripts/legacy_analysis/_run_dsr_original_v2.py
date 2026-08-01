@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """使用原始DSR模块验证V2结果"""
 import json
 import sys
@@ -8,7 +7,7 @@ import pandas as pd
 sys.path.insert(0, 'v8.3_institutional/src/validation')
 from deflated_sharpe import deflated_sharpe_ratio
 
-with open('output/validation_reports/lgb_backtest_v2_optimized_20260724_205445.json', 'r', encoding='utf-8') as f:
+with open('output/validation_reports/lgb_backtest_v2_optimized_20260724_205445.json', encoding='utf-8') as f:
     data = json.load(f)
 returns = pd.Series([r['portfolio_return'] for r in data['records']])
 

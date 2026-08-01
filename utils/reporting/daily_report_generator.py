@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T5.4 日级报告生成器主类 — Facade 模式 + Feature Flag 透传.
 
 从 daily_workflow.phase_report (615 行) 抽取为独立模块, 提供:
@@ -26,7 +25,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Sequence
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -82,7 +81,7 @@ STATUS_PARTIAL = "partial"
 class DailyReportGeneratorError(Exception):
     """日级报告生成器基础异常."""
 
-    def __init__(self, message: str, reason: str = "", cause: Optional[Exception] = None):
+    def __init__(self, message: str, reason: str = "", cause: Exception | None = None):
         super().__init__(message)
         self.reason = reason
         self.cause = cause
@@ -126,11 +125,11 @@ class ReportInput:
     dry_run: bool = False
     sim_mode: bool = False
     live_mode: bool = False
-    phases_state: Dict[str, Any] = field(default_factory=dict)
-    pnl_attribution_result: Optional[Dict[str, Any]] = None
-    barra_result: Optional[Dict[str, Any]] = None
-    guard_results: Optional[Dict[str, Any]] = None
-    executed_phases: Optional[Sequence[str]] = None
+    phases_state: dict[str, Any] = field(default_factory=dict)
+    pnl_attribution_result: dict[str, Any] | None = None
+    barra_result: dict[str, Any] | None = None
+    guard_results: dict[str, Any] | None = None
+    executed_phases: Sequence[str] | None = None
 
     def is_empty(self) -> bool:
         """检查输入是否全为空."""
@@ -164,10 +163,10 @@ class ReportResult:
         feature_flag_name: Feature Flag 名称
     """
 
-    report_path: Optional[Path] = None
-    state_path: Optional[Path] = None
+    report_path: Path | None = None
+    state_path: Path | None = None
     markdown_content: str = ""
-    lines: List[str] = field(default_factory=list)
+    lines: list[str] = field(default_factory=list)
     status: str = STATUS_OK
     reason: str = ""
     generation_time_ms: float = 0.0
@@ -175,7 +174,7 @@ class ReportResult:
     config_source: str = ""
     feature_flag_name: str = FLAG_NAME
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为字典 (供 JSON 输出)."""
         return {
             "report_path": str(self.report_path) if self.report_path else None,
@@ -213,9 +212,9 @@ class DailyReportGenerator:
 
     def __init__(
         self,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
         config_name: str = DEFAULT_CONFIG_NAME,
-        report_dir: Optional[Path] = None,
+        report_dir: Path | None = None,
         feature_flag_name: str = FLAG_NAME,
     ) -> None:
         """初始化日级报告生成器.
@@ -255,16 +254,16 @@ class DailyReportGenerator:
 
     def generate(
         self,
-        input_data: Optional[ReportInput] = None,
+        input_data: ReportInput | None = None,
         trade_date: str = "",
         capital: float = 0.0,
         dry_run: bool = False,
         sim_mode: bool = False,
         live_mode: bool = False,
-        phases_state: Optional[Dict[str, Any]] = None,
-        pnl_attribution_result: Optional[Dict[str, Any]] = None,
-        barra_result: Optional[Dict[str, Any]] = None,
-        guard_results: Optional[Dict[str, Any]] = None,
+        phases_state: dict[str, Any] | None = None,
+        pnl_attribution_result: dict[str, Any] | None = None,
+        barra_result: dict[str, Any] | None = None,
+        guard_results: dict[str, Any] | None = None,
         save: bool = True,
     ) -> ReportResult:
         """生成日级报告.
@@ -354,16 +353,16 @@ class DailyReportGenerator:
         dry_run: bool,
         sim_mode: bool,
         live_mode: bool,
-        phases_state: Dict[str, Any],
-        pnl_attribution_result: Optional[Dict[str, Any]],
-        barra_result: Optional[Dict[str, Any]],
-        guard_results: Optional[Dict[str, Any]],
+        phases_state: dict[str, Any],
+        pnl_attribution_result: dict[str, Any] | None,
+        barra_result: dict[str, Any] | None,
+        guard_results: dict[str, Any] | None,
         save: bool,
         start_time: float,
     ) -> ReportResult:
         """内部生成逻辑 (已通过 Feature Flag 和空输入检查)."""
         # 组装报告行
-        lines: List[str] = []
+        lines: list[str] = []
 
         # 段 1+2: 头部 + 阶段摘要
         lines.extend(
@@ -470,7 +469,7 @@ class DailyReportGenerator:
             feature_flag_name=self._feature_flag_name,
         )
 
-    def _load_config(self, config_name: str) -> Dict[str, Any]:
+    def _load_config(self, config_name: str) -> dict[str, Any]:
         """加载配置 (HC-5: ConfigManager 4 级优先级)."""
         try:
             from utils.config_manager import get_config
@@ -514,7 +513,7 @@ def create_default_generator() -> DailyReportGenerator:
 
 
 def generate_daily_report(
-    input_data: Optional[ReportInput] = None,
+    input_data: ReportInput | None = None,
     save: bool = True,
     **kwargs: Any,
 ) -> ReportResult:

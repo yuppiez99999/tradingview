@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_finance_agents_shadow_mode_integration.py — Shadow Mode 集成测试
 
 测试范围:

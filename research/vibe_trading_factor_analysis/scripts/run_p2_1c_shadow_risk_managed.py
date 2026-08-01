@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P2.1c Shadow 风险管理层验证脚本
 
 目标：验证 VT_MICRO_VOL_SKEW_INV 在启用风险管理后能否通过 Shadow 90d 检验

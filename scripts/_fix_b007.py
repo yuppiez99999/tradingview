@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """批量修复 B007: 循环变量未使用 → 重命名为 _前缀
 
 用法: python scripts/_fix_b007.py
@@ -34,7 +33,7 @@ def fix_file(filepath, errors):
     策略: 读取行内容, 在指定列位置找到标识符, 改为 _前缀。
     同一行可能有多个 B007 (如 for a, b, c in ...), 按列倒序处理避免偏移。
     """
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         lines = f.readlines()
 
     # 按行分组, 同行按列倒序

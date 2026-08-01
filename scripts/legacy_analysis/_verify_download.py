@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证 baostock 下载结果的数据质量"""
 import json
 from pathlib import Path
@@ -50,7 +49,7 @@ def main():
 
     for f in fund_files:
         try:
-            with open(f, "r", encoding="utf-8") as fp:
+            with open(f, encoding="utf-8") as fp:
                 d = json.load(fp)
             if d.get("pe", 0) > 0 or d.get("roe", 0) != 0:
                 real_count += 1

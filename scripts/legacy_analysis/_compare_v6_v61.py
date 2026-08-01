@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 """对比V6和V6.1月度收益, 找出Window 1差异根因"""
 import json
 from pathlib import Path
 
 # 加载V6结果
 v6_file = Path("output/validation_reports/lgb_backtest_v6_alpha_quality_20260725_063847.json")
-with open(v6_file, "r", encoding="utf-8") as f:
+with open(v6_file, encoding="utf-8") as f:
     v6_data = json.load(f)
 
 # 加载V6.1结果
 v61_files = sorted(Path("output/validation_reports").glob("lgb_backtest_v6_1*.json"))
-with open(v61_files[-1], "r", encoding="utf-8") as f:
+with open(v61_files[-1], encoding="utf-8") as f:
     v61_data = json.load(f)
 
 v6_recs = {r["date"]: r for r in v6_data["records"]}

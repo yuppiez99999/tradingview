@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 统计显著性验证模块 v5.10 — P0-2修复
 
@@ -53,7 +52,7 @@ def load_latest_training_metadata(models_dir: str) -> Tuple[Optional[dict], Opti
         return None, None
 
     latest = max(files, key=os.path.getmtime)
-    with open(latest, "r", encoding="utf-8") as f:
+    with open(latest, encoding="utf-8") as f:
         data = json.load(f)
     return data, os.path.basename(latest)
 

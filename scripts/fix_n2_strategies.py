@@ -4,7 +4,7 @@ BASE = r"e:\各种PY程序\28-终极量化交易系统8.4"
 sys.path.insert(0, BASE)
 
 file_path = r"e:\各种PY程序\28-终极量化交易系统8.4\scripts\strategy_evaluator.py"
-with open(file_path, "r", encoding="utf-8") as f:
+with open(file_path, encoding="utf-8") as f:
     content = f.read()
 
 # 精确替换错误的字符串 (含中文引号)

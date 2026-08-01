@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """跨层因果链构建器 — 三层面自我进化 Stage 2.
 
 模块整合 8.4 — ARCHITECTURE_三层面进化 §第2阶段
@@ -48,7 +47,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +85,7 @@ class CausalChainBuilder:
     """
 
     def __init__(self) -> None:
-        self._rules: List[Callable[[List[RootCause], str], Optional[CausalChain]]] = [
+        self._rules: list[Callable[[list[RootCause], str], CausalChain | None]] = [
             self._rule_datasource_failure_chain,
             self._rule_pit_violation_chain,
             self._rule_flag_change_chain,
@@ -98,7 +97,7 @@ class CausalChainBuilder:
     # ============================================================
     # 核心: 构建因果链
     # ============================================================
-    def build(self, causes: List[RootCause]) -> List[CausalChain]:
+    def build(self, causes: list[RootCause]) -> list[CausalChain]:
         """从根因列表构建跨层因果链.
 
         Args:
@@ -111,7 +110,7 @@ class CausalChainBuilder:
             return []
 
         now = datetime.now(timezone.utc).isoformat()
-        chains: List[CausalChain] = []
+        chains: list[CausalChain] = []
 
         for rule_fn in self._rules:
             try:
@@ -132,8 +131,8 @@ class CausalChainBuilder:
     # 规则 1: 数据源失效链 (ops → code → strategy)
     # ============================================================
     def _rule_datasource_failure_chain(
-        self, causes: List[RootCause], now: str
-    ) -> Optional[CausalChain]:
+        self, causes: list[RootCause], now: str
+    ) -> CausalChain | None:
         """数据源失效链: ops.datasource_fail + code.C3.* + strategy.drift_alert.
 
         场景: Wind MCP 失败 → 代码层 C3 检查失败 → 策略层 IC 衰减/漂移
@@ -157,7 +156,7 @@ class CausalChainBuilder:
             return None
 
         # 组装节点 (按因果顺序: ops → code → strategy)
-        nodes: List[RootCause] = [ops_nodes[0], code_nodes[0]]
+        nodes: list[RootCause] = [ops_nodes[0], code_nodes[0]]
         if strategy_nodes:
             nodes.append(strategy_nodes[0])
 
@@ -177,8 +176,8 @@ class CausalChainBuilder:
     # 规则 2: PIT 违规链 (code → strategy)
     # ============================================================
     def _rule_pit_violation_chain(
-        self, causes: List[RootCause], now: str
-    ) -> Optional[CausalChain]:
+        self, causes: list[RootCause], now: str
+    ) -> CausalChain | None:
         """PIT 违规链: code.pit_violation + strategy.anti_cheat_low/rh_risk_high.
 
         场景: 代码层未来函数违规 → 策略层反作弊风险高
@@ -202,7 +201,7 @@ class CausalChainBuilder:
         if not code_nodes or not strategy_nodes:
             return None
 
-        nodes: List[RootCause] = [code_nodes[0], strategy_nodes[0]]
+        nodes: list[RootCause] = [code_nodes[0], strategy_nodes[0]]
         confidence = min(n.confidence for n in nodes) * CROSS_LAYER_CONFIDENCE_DECAY
         return CausalChain(
             chain_id=f"chain-pit_violation-{now}",
@@ -218,8 +217,8 @@ class CausalChainBuilder:
     # 规则 3: Flag 变更链 (ops → code)
     # ============================================================
     def _rule_flag_change_chain(
-        self, causes: List[RootCause], now: str
-    ) -> Optional[CausalChain]:
+        self, causes: list[RootCause], now: str
+    ) -> CausalChain | None:
         """Flag 变更链: ops.flag_instability + code.C2.*.
 
         场景: Flag 频繁变更 → 代码层 C2 配置检查失败
@@ -239,7 +238,7 @@ class CausalChainBuilder:
         if not ops_nodes or not code_nodes:
             return None
 
-        nodes: List[RootCause] = [ops_nodes[0], code_nodes[0]]
+        nodes: list[RootCause] = [ops_nodes[0], code_nodes[0]]
         confidence = min(n.confidence for n in nodes) * CROSS_LAYER_CONFIDENCE_DECAY
         return CausalChain(
             chain_id=f"chain-flag_change-{now}",
@@ -255,8 +254,8 @@ class CausalChainBuilder:
     # 规则 4: 数据质量链 (ops → strategy)
     # ============================================================
     def _rule_data_quality_chain(
-        self, causes: List[RootCause], now: str
-    ) -> Optional[CausalChain]:
+        self, causes: list[RootCause], now: str
+    ) -> CausalChain | None:
         """数据质量链: ops.data_quality_* + strategy.drift_health_low.
 
         场景: 数据质量低 → 策略层漂移健康度低
@@ -278,7 +277,7 @@ class CausalChainBuilder:
         if not ops_nodes or not strategy_nodes:
             return None
 
-        nodes: List[RootCause] = [ops_nodes[0], strategy_nodes[0]]
+        nodes: list[RootCause] = [ops_nodes[0], strategy_nodes[0]]
         confidence = min(n.confidence for n in nodes) * CROSS_LAYER_CONFIDENCE_DECAY
         return CausalChain(
             chain_id=f"chain-data_quality-{now}",
@@ -294,8 +293,8 @@ class CausalChainBuilder:
     # 规则 5: 风控事件链 (ops → strategy)
     # ============================================================
     def _rule_risk_event_chain(
-        self, causes: List[RootCause], now: str
-    ) -> Optional[CausalChain]:
+        self, causes: list[RootCause], now: str
+    ) -> CausalChain | None:
         """风控事件链: ops.risk_event_burst + strategy.private_score_low/rollback.
 
         场景: 风控事件爆发 → 策略层 Private Score 低/建议回滚
@@ -316,7 +315,7 @@ class CausalChainBuilder:
         if not ops_nodes or not strategy_nodes:
             return None
 
-        nodes: List[RootCause] = [ops_nodes[0], strategy_nodes[0]]
+        nodes: list[RootCause] = [ops_nodes[0], strategy_nodes[0]]
         confidence = min(n.confidence for n in nodes) * CROSS_LAYER_CONFIDENCE_DECAY
         return CausalChain(
             chain_id=f"chain-risk_event-{now}",
@@ -332,8 +331,8 @@ class CausalChainBuilder:
     # 规则 6: 数据源冗余链 (ops → strategy)
     # ============================================================
     def _rule_datasource_redundancy_chain(
-        self, causes: List[RootCause], now: str
-    ) -> Optional[CausalChain]:
+        self, causes: list[RootCause], now: str
+    ) -> CausalChain | None:
         """数据源冗余链: ops.datasource_redundancy_low + strategy.observation_insufficient.
 
         场景: 数据源冗余度低 → 策略层观察期数据不足
@@ -352,7 +351,7 @@ class CausalChainBuilder:
         if not ops_nodes or not strategy_nodes:
             return None
 
-        nodes: List[RootCause] = [ops_nodes[0], strategy_nodes[0]]
+        nodes: list[RootCause] = [ops_nodes[0], strategy_nodes[0]]
         confidence = min(n.confidence for n in nodes) * CROSS_LAYER_CONFIDENCE_DECAY
         return CausalChain(
             chain_id=f"chain-datasource_redundancy-{now}",

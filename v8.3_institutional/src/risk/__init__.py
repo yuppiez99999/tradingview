@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """src/risk __init__ — v7.6风控子包 (含v5.9+v7.6增强)"""
 
 from .circuit_breaker import CircuitBreaker

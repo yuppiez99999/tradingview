@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 统一配置管理器 (ConfigManager)
 ================================
@@ -37,7 +36,7 @@ import logging
 import os
 from pathlib import Path
 from threading import RLock
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import yaml  # PyYAML 无官方类型存根, 静态检查忽略
 
@@ -51,11 +50,11 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # 优先级 2: v8.3_institutional/config/ (生产唯一事实源, P0-1 修复后)
 # 优先级 3: configs/ (历史 v7.7 回退, 兼容旧代码)
 # 优先级 4: ms_strategy/config/ (策略模块独立配置)
-_CONFIG_SEARCH_PATHS: List[Path] = []
+_CONFIG_SEARCH_PATHS: list[Path] = []
 
 # 已注册的命名配置 (短名 -> 文件名映射)
 # 业务代码用 get_kill_switch_config() 等类型化访问器, 也可用 get_config("portfolio")
-_NAMED_CONFIGS: Dict[str, str] = {
+_NAMED_CONFIGS: dict[str, str] = {
     "portfolio": "portfolio.yaml",
     "settings": "settings.yaml",
     "institutional": "institutional_config.yaml",
@@ -86,9 +85,9 @@ _NAMED_CONFIGS: Dict[str, str] = {
 }
 
 
-def _build_search_paths() -> List[Path]:
+def _build_search_paths() -> list[Path]:
     """构建配置搜索路径列表 (按优先级)"""
-    paths: List[Path] = []
+    paths: list[Path] = []
 
     # 优先级 1: 环境变量覆盖
     env_dir = os.environ.get("QUANT_CONFIG_DIR", "").strip()
@@ -133,28 +132,28 @@ class ConfigManager:
         >>> portfolio_cfg = get_config("portfolio")
     """
 
-    _instance: Optional["ConfigManager"] = None
+    _instance: ConfigManager | None = None
     _instance_lock = RLock()
 
-    def __init__(self, project_root: Optional[Path] = None, extra_search_paths: Optional[List[Path]] = None) -> None:
+    def __init__(self, project_root: Path | None = None, extra_search_paths: list[Path] | None = None) -> None:
         """
         Args:
             project_root: 项目根目录, 默认为 utils/config_manager.py 上两级
             extra_search_paths: 额外的搜索路径 (优先级最高, 用于测试注入)
         """
         self._project_root = project_root or _PROJECT_ROOT
-        self._cache: Dict[str, Tuple[Dict, float, Path]] = {}  # name -> (config, mtime, source_path)
+        self._cache: dict[str, tuple[dict, float, Path]] = {}  # name -> (config, mtime, source_path)
         self._lock = RLock()
 
         # 构建搜索路径 (额外路径优先于默认路径)
-        self._search_paths: List[Path] = []
+        self._search_paths: list[Path] = []
         if extra_search_paths:
             self._search_paths.extend(extra_search_paths)
         self._search_paths.extend(self._build_default_search_paths())
 
-    def _build_default_search_paths(self) -> List[Path]:
+    def _build_default_search_paths(self) -> list[Path]:
         """构建默认搜索路径 (实例级, 允许 project_root 覆盖)"""
-        paths: List[Path] = []
+        paths: list[Path] = []
 
         # 优先级 1: 环境变量覆盖
         env_dir = os.environ.get("QUANT_CONFIG_DIR", "").strip()
@@ -181,7 +180,7 @@ class ConfigManager:
         return paths
 
     @classmethod
-    def get_instance(cls) -> "ConfigManager":
+    def get_instance(cls) -> ConfigManager:
         """获取全局单例 (双重检查锁定)"""
         if cls._instance is None:
             with cls._instance_lock:
@@ -198,7 +197,7 @@ class ConfigManager:
     # ============================================================
     # 核心方法: 通用配置加载
     # ============================================================
-    def _resolve_config_path(self, name: str) -> Optional[Path]:
+    def _resolve_config_path(self, name: str) -> Path | None:
         """按优先级解析配置文件路径
 
         Args:
@@ -220,10 +219,10 @@ class ConfigManager:
 
         return None
 
-    def _load_yaml(self, path: Path) -> Dict:
+    def _load_yaml(self, path: Path) -> dict:
         """加载 YAML 文件 (fail-safe)"""
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
             if data is None:
                 return {}
@@ -238,7 +237,7 @@ class ConfigManager:
             logger.error(f"[ConfigManager] 加载配置失败: {path}, error={e}", exc_info=True)
             return {}
 
-    def _get_cached(self, name: str) -> Optional[Dict]:
+    def _get_cached(self, name: str) -> dict | None:
         """获取缓存中的配置 (检查 mtime 失效)
 
         Returns:
@@ -262,7 +261,7 @@ class ConfigManager:
             del self._cache[name]
             return None
 
-    def get(self, name: str, default: Optional[Dict] = None) -> Dict:
+    def get(self, name: str, default: dict | None = None) -> dict:
         """通用配置加载 (带缓存)
 
         Args:
@@ -303,7 +302,7 @@ class ConfigManager:
     # ============================================================
     # 类型化访问器 (推荐使用, 自文档化)
     # ============================================================
-    def get_kill_switch_config(self) -> Dict:
+    def get_kill_switch_config(self) -> dict:
         """获取 kill_switch 配置 (从 portfolio.yaml 的 kill_switch 节读取)
 
         优先级: portfolio.yaml 的 kill_switch 节 > 独立 kill_switch.yaml
@@ -320,52 +319,52 @@ class ConfigManager:
         # 回退: 独立 kill_switch.yaml (若存在)
         return self.get("kill_switch", default={})
 
-    def get_portfolio_config(self) -> Dict:
+    def get_portfolio_config(self) -> dict:
         """获取投资组合配置 (account_structure, assets, hedge_capital 等)"""
         return self.get("portfolio")
 
-    def get_settings_config(self) -> Dict:
+    def get_settings_config(self) -> dict:
         """获取全局设置 (日志、数据源、运行时参数)"""
         return self.get("settings")
 
-    def get_institutional_config(self) -> Dict:
+    def get_institutional_config(self) -> dict:
         """获取机构交易策略配置"""
         return self.get("institutional")
 
-    def get_comprehensive_config(self) -> Dict:
+    def get_comprehensive_config(self) -> dict:
         """获取综合配置 (多模块聚合)"""
         return self.get("comprehensive")
 
-    def get_execution_config(self) -> Dict:
+    def get_execution_config(self) -> dict:
         """获取交易执行配置 (订单路由、滑点、佣金)"""
         return self.get("execution")
 
-    def get_backtest_config(self) -> Dict:
+    def get_backtest_config(self) -> dict:
         """获取回测配置 (起止日期、初始资金、基准)"""
         return self.get("backtest")
 
-    def get_risk_budget_config(self) -> Dict:
+    def get_risk_budget_config(self) -> dict:
         """获取风险预算配置 (vol target, drawdown threshold)"""
         return self.get("risk_budget")
 
-    def get_risk_params_config(self) -> Dict:
+    def get_risk_params_config(self) -> dict:
         """获取风控参数配置 (B1.3: max_drawdown_limit 等统一入口)"""
         return self.get("risk_params")
 
-    def get_stop_loss_config(self) -> Dict:
+    def get_stop_loss_config(self) -> dict:
         """获取动态止损配置 (波动率调整止损)"""
         return self.get("stop_loss")
 
     # ============================================================
     # 审计与运维方法
     # ============================================================
-    def list_available(self) -> List[Dict[str, Any]]:
+    def list_available(self) -> list[dict[str, Any]]:
         """列出所有可用配置 (含来源路径, 用于审计)
 
         Returns:
             [{"name": "portfolio", "path": "...", "size": 9931}, ...]
         """
-        result: List[Dict[str, Any]] = []
+        result: list[dict[str, Any]] = []
         seen: set = set()
 
         for short_name, filename in _NAMED_CONFIGS.items():
@@ -387,7 +386,7 @@ class ConfigManager:
 
         return result
 
-    def get_config_source(self, name: str) -> Optional[str]:
+    def get_config_source(self, name: str) -> str | None:
         """获取配置实际加载的源路径 (用于审计配置漂移)
 
         Args:
@@ -405,7 +404,7 @@ class ConfigManager:
             self._cache.clear()
             logger.debug("[ConfigManager] 缓存已清空")
 
-    def reload(self, name: str) -> Dict:
+    def reload(self, name: str) -> dict:
         """强制重新加载指定配置 (跳过缓存)
 
         Args:
@@ -423,7 +422,7 @@ class ConfigManager:
 # ============================================================
 # 模块级快捷函数 (推荐业务代码使用的入口)
 # ============================================================
-def get_config(name: str, default: Optional[Dict] = None) -> Dict:
+def get_config(name: str, default: dict | None = None) -> dict:
     """加载 YAML 配置 (统一入口)
 
     优先级: QUANT_CONFIG_DIR 环境变量 > v8.3_institutional/config/ > configs/ > ms_strategy/config/
@@ -443,7 +442,7 @@ def get_config(name: str, default: Optional[Dict] = None) -> Dict:
     return ConfigManager.get_instance().get(name, default)
 
 
-def get_kill_switch_config() -> Dict:
+def get_kill_switch_config() -> dict:
     """获取 kill_switch 配置 (类型化访问器, 推荐)
 
     替代 kill_switch.py 中 `yaml.safe_load(configs/portfolio.yaml)["kill_switch"]` 模式
@@ -452,42 +451,42 @@ def get_kill_switch_config() -> Dict:
     return ConfigManager.get_instance().get_kill_switch_config()
 
 
-def get_portfolio_config() -> Dict:
+def get_portfolio_config() -> dict:
     """获取投资组合配置 (类型化访问器, 推荐)"""
     return ConfigManager.get_instance().get_portfolio_config()
 
 
-def get_settings_config() -> Dict:
+def get_settings_config() -> dict:
     """获取全局设置 (类型化访问器, 推荐)"""
     return ConfigManager.get_instance().get_settings_config()
 
 
-def get_execution_config() -> Dict:
+def get_execution_config() -> dict:
     """获取交易执行配置 (类型化访问器, 推荐)"""
     return ConfigManager.get_instance().get_execution_config()
 
 
-def get_backtest_config() -> Dict:
+def get_backtest_config() -> dict:
     """获取回测配置 (类型化访问器, 推荐)"""
     return ConfigManager.get_instance().get_backtest_config()
 
 
-def get_risk_budget_config() -> Dict:
+def get_risk_budget_config() -> dict:
     """获取风险预算配置 (类型化访问器, 推荐)"""
     return ConfigManager.get_instance().get_risk_budget_config()
 
 
-def get_risk_params_config() -> Dict:
+def get_risk_params_config() -> dict:
     """获取风控参数配置 (类型化访问器, 推荐, B1.3)"""
     return ConfigManager.get_instance().get_risk_params_config()
 
 
-def get_stop_loss_config() -> Dict:
+def get_stop_loss_config() -> dict:
     """获取动态止损配置 (类型化访问器, 推荐)"""
     return ConfigManager.get_instance().get_stop_loss_config()
 
 
-def list_available_configs() -> List[Dict[str, Any]]:
+def list_available_configs() -> list[dict[str, Any]]:
     """列出所有可用配置 (审计用)"""
     return ConfigManager.get_instance().list_available()
 
@@ -497,6 +496,6 @@ def clear_config_cache() -> None:
     ConfigManager.get_instance().clear_cache()
 
 
-def get_config_source(name: str) -> Optional[str]:
+def get_config_source(name: str) -> str | None:
     """获取配置实际加载的源路径 (审计配置漂移)"""
     return ConfigManager.get_instance().get_config_source(name)

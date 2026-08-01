@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """智能测试选择 — GAP-5 交付物.
 
 ECC verification-loop / mle-workflow 修复:
@@ -45,7 +44,6 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -93,7 +91,7 @@ INFRA_DIRS = {
 class TestSelectionResult:
     """测试选择结果 (不可变)."""
 
-    selected_tests: Tuple[str, ...] = field(default_factory=tuple)
+    selected_tests: tuple[str, ...] = field(default_factory=tuple)
     is_full_suite: bool = False
     reason: str = ""
     changed_files_count: int = 0
@@ -102,7 +100,7 @@ class TestSelectionResult:
     infra_changes_count: int = 0
     scan_duration_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "selected_tests": list(self.selected_tests),
             "is_full_suite": self.is_full_suite,
@@ -118,7 +116,7 @@ class TestSelectionResult:
 # ============================================================
 # Git diff 获取
 # ============================================================
-def _run_git(args: List[str]) -> str:
+def _run_git(args: list[str]) -> str:
     """执行 git 命令, 返回 stdout (失败返回空串)."""
     try:
         result = subprocess.run(
@@ -134,7 +132,7 @@ def _run_git(args: List[str]) -> str:
         return ""
 
 
-def get_changed_files(base: str = "origin/main", head: str = "HEAD") -> List[str]:
+def get_changed_files(base: str = "origin/main", head: str = "HEAD") -> list[str]:
     """获取 base..head 之间变更的文件列表.
 
     Args:
@@ -149,7 +147,7 @@ def get_changed_files(base: str = "origin/main", head: str = "HEAD") -> List[str
         return [f.strip() for f in output.split("\n") if f.strip()]
     # fallback: 未提交的变更 (本地开发场景)
     output = _run_git(["status", "--porcelain"])
-    files: List[str] = []
+    files: list[str] = []
     for line in output.split("\n"):
         if line.strip():
             filepath = line[3:].strip().strip('"').replace("\\", "/")
@@ -161,7 +159,7 @@ def get_changed_files(base: str = "origin/main", head: str = "HEAD") -> List[str
 # ============================================================
 # AST 依赖分析
 # ============================================================
-def extract_imports(filepath: Path) -> Set[str]:
+def extract_imports(filepath: Path) -> set[str]:
     """从 Python 文件 AST 提取所有 import 的模块名.
 
     支持:
@@ -183,7 +181,7 @@ def extract_imports(filepath: Path) -> Set[str]:
     except (SyntaxError, UnicodeDecodeError, OSError):
         return set()
 
-    imports: Set[str] = set()
+    imports: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -198,7 +196,7 @@ def extract_imports(filepath: Path) -> Set[str]:
     return imports
 
 
-def filepath_to_module_variants(filepath: str) -> Set[str]:
+def filepath_to_module_variants(filepath: str) -> set[str]:
     """文件路径转所有可能的模块名变体 (dotted).
 
     由于 sys.path 注入了多个根 (项目根 / v8.3_institutional / v8.3_institutional/src),
@@ -217,7 +215,7 @@ def filepath_to_module_variants(filepath: str) -> Set[str]:
     if not parts:
         return set()
 
-    variants: Set[str] = set()
+    variants: set[str] = set()
     # 完整路径 (从项目根 import)
     variants.add(".".join(parts))
     # 对每个 source root, 生成去掉该 root 前缀的变体
@@ -233,13 +231,13 @@ def filepath_to_module_variants(filepath: str) -> Set[str]:
 # ============================================================
 # 反向依赖索引构建
 # ============================================================
-def build_reverse_dependency_index() -> Dict[str, List[Path]]:
+def build_reverse_dependency_index() -> dict[str, list[Path]]:
     """扫描所有测试文件, 构建 {被依赖模块: [测试文件...]} 反向索引.
 
     Returns:
         字典: 模块名 → 依赖它的测试文件列表
     """
-    reverse_index: Dict[str, List[Path]] = {}
+    reverse_index: dict[str, list[Path]] = {}
     for test_dir in TEST_DIRS:
         abs_test_dir = _PROJECT_ROOT / test_dir
         if not abs_test_dir.exists():
@@ -268,8 +266,8 @@ def build_reverse_dependency_index() -> Dict[str, List[Path]]:
 # 测试选择核心逻辑
 # ============================================================
 def classify_changes(
-    changed_files: List[str],
-) -> Tuple[List[str], List[str], List[str]]:
+    changed_files: list[str],
+) -> tuple[list[str], list[str], list[str]]:
     """将变更文件分为三类: 源码 / 测试 / 基础设施.
 
     Args:
@@ -278,9 +276,9 @@ def classify_changes(
     Returns:
         (source_changes, test_changes, infra_changes)
     """
-    source_changes: List[str] = []
-    test_changes: List[str] = []
-    infra_changes: List[str] = []
+    source_changes: list[str] = []
+    test_changes: list[str] = []
+    infra_changes: list[str] = []
 
     for filepath in changed_files:
         normalized = filepath.replace("\\", "/")
@@ -318,10 +316,10 @@ def classify_changes(
 
 
 def select_affected_tests(
-    source_changes: List[str],
-    test_changes: List[str],
-    reverse_index: Dict[str, List[Path]],
-) -> Set[Path]:
+    source_changes: list[str],
+    test_changes: list[str],
+    reverse_index: dict[str, list[Path]],
+) -> set[Path]:
     """根据源码变更 + 测试变更, 选择受影响的测试文件.
 
     Args:
@@ -332,7 +330,7 @@ def select_affected_tests(
     Returns:
         受影响的测试文件集合
     """
-    affected: Set[Path] = set()
+    affected: set[Path] = set()
 
     # 1. 变更的测试文件自身直接选中
     for test_path in test_changes:

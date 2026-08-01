@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 QMT 交易制度检查模块 (T+0/T+1/T+2 交收制度)
 
@@ -19,7 +18,6 @@ QMT passorder 不会自动拦截 T+1 违规, 需要策略层自行判断。
 from __future__ import annotations
 
 from datetime import date
-from typing import Dict, Tuple
 
 # ============================================================
 # T+0 标的数据库
@@ -100,7 +98,7 @@ def is_t0_eligible(code: str, product_class: str = "STOCK") -> bool:
     return False  # 默认 T+1
 
 
-def can_sell_today(code: str, buy_date: date, product_class: str = "STOCK") -> Tuple[bool, str]:
+def can_sell_today(code: str, buy_date: date, product_class: str = "STOCK") -> tuple[bool, str]:
     """判断今日是否可以卖出
 
     Args:
@@ -133,7 +131,7 @@ def _next_trade_day(d: date) -> date:
     return next_day
 
 
-def get_trading_rule(code: str, product_class: str = "STOCK") -> Dict:
+def get_trading_rule(code: str, product_class: str = "STOCK") -> dict:
     """获取标的完整交易规则
 
     Returns:

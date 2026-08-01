@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """decision_gate 测试: shadow/paper/auto 模式切换 + 硬风控拦截"""
 
 from __future__ import annotations

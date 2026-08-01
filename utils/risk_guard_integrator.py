@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 风控守卫集成器 (Risk Guard Integrator)
 =======================================
@@ -33,7 +32,7 @@ import logging
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger("risk_guard_integrator")
 
@@ -169,7 +168,7 @@ class RiskGuardIntegrator:
     }
 
     @classmethod
-    def _extract_underlying_code(cls, instrument_name: str) -> Optional[str]:
+    def _extract_underlying_code(cls, instrument_name: str) -> str | None:
         """从订单的 instrument/underlying 字段提取6位底层代码
 
         HedgeExecutionEngine 格式: "510050 Put", "科创50ETF Put"
@@ -193,7 +192,7 @@ class RiskGuardIntegrator:
                 return cls.UNDERLYING_CODE_MAP[key]
         return None
 
-    def __init__(self, report_date: Optional[str] = None, total_capital: float = 5_000_000):  # type: ignore
+    def __init__(self, report_date: str | None = None, total_capital: float = 5_000_000):  # type: ignore
         """初始化风控守卫集成器。
 
         Args:
@@ -220,7 +219,7 @@ class RiskGuardIntegrator:
             safe = entry.encode("gbk", errors="replace").decode("gbk", errors="ignore")
             logger.info(safe)
 
-    def _load_pnl_report(self) -> Optional[Dict]:
+    def _load_pnl_report(self) -> dict | None:
         """加载当日盈亏报告 (v8.6.9 P0 FIX: 多路径查找)
 
         查找顺序:
@@ -243,7 +242,7 @@ class RiskGuardIntegrator:
         for json_path in candidates:
             if json_path.exists():
                 try:
-                    with open(json_path, "r", encoding="utf-8") as f:
+                    with open(json_path, encoding="utf-8") as f:
                         self._log(f"[P0-FIX] 已加载盈亏报告: {json_path.name} (path={json_path.parent})")
                         return json.load(f)  # type: ignore
                 except Exception as e:  # P2 模块 fail-safe, 待后续精确化
@@ -252,11 +251,11 @@ class RiskGuardIntegrator:
         self._log(f"[WARN] 未找到当日盈亏报告, 查找路径: {[str(p) for p in candidates]}")
         return None
 
-    def _get_pnl_summary(self, pnl_report: Dict) -> Dict:
+    def _get_pnl_summary(self, pnl_report: dict) -> dict:
         """从盈亏报告中提取汇总数据 (v7.7修正: 适配 portfolio_pnl.summary 嵌套结构)"""
         return pnl_report.get("portfolio_pnl", {}).get("summary", {})  # type: ignore
 
-    def _extract_positions(self, pnl_report: Dict) -> list:
+    def _extract_positions(self, pnl_report: dict) -> list:
         """从 pnl_report 提取 positions 列表 (v8.6.6: 兼容三种数据位置)
 
         完整格式 (带横杠文件名 daily_pnl_report_YYYY-MM-DD.json):
@@ -291,7 +290,7 @@ class RiskGuardIntegrator:
             return list(positions.values())
         return positions if isinstance(positions, list) else []
 
-    def _extract_summary(self, pnl_report: Dict) -> Dict:
+    def _extract_summary(self, pnl_report: dict) -> dict:
         """从 pnl_report 提取 summary (v8.6.6: 兼容两种报告格式)
 
         完整格式: pnl_report['portfolio_pnl']['summary']
@@ -304,19 +303,19 @@ class RiskGuardIntegrator:
         # 2. 简化格式
         return pnl_report.get("summary", {})  # type: ignore
 
-    def _load_next_trade_plan(self, next_date: str) -> Optional[Dict]:
+    def _load_next_trade_plan(self, next_date: str) -> dict | None:
         """加载次日交易计划"""
         plan_path = TRADE_PLANS_DIR / f"trade_plan_{next_date.replace('-', '')}.json"
         if not plan_path.exists():
             return None
         try:
-            with open(plan_path, "r", encoding="utf-8") as f:
+            with open(plan_path, encoding="utf-8") as f:
                 return json.load(f)  # type: ignore
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             self._log(f"加载次日计划失败: {e}")
             return None
 
-    def _save_trade_plan(self, plan: Dict, next_date: str):
+    def _save_trade_plan(self, plan: dict, next_date: str):
         """保存修改后的交易计划"""
         plan_path = TRADE_PLANS_DIR / f"trade_plan_{next_date.replace('-', '')}.json"
         # 先备份
@@ -330,7 +329,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # Guard 1: 回撤强制响应
     # ============================================================
-    def guard_drawdown(self, pnl_report: Dict, plan: Dict) -> Dict:
+    def guard_drawdown(self, pnl_report: dict, plan: dict) -> dict:
         """回撤检查并强制修改交易计划。
 
         Level 1 (5%): 预警，不改计划
@@ -429,7 +428,7 @@ class RiskGuardIntegrator:
 
         return plan
 
-    def _apply_budget_cut(self, plan: Dict, cut_ratio: float) -> Dict:
+    def _apply_budget_cut(self, plan: dict, cut_ratio: float) -> dict:
         """缩减建仓预算"""
         # v8.6.13 P0 FIX (2026-08-01 AI 扫描):
         # 原代码 plan.get("phase", {}) 不存回 plan, 后续 plan["phase"] KeyError.
@@ -453,7 +452,7 @@ class RiskGuardIntegrator:
 
         return plan
 
-    def _apply_hedge_boost(self, plan: Dict, boost_pct: float) -> Dict:
+    def _apply_hedge_boost(self, plan: dict, boost_pct: float) -> dict:
         """加码对冲"""
         # v8.6.13 P0 FIX (2026-08-01 AI 扫描):
         # 原代码 plan.get("hedge_config", {}) 不存回 plan, 后续 plan["hedge_config"] KeyError.
@@ -472,7 +471,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # Guard 2: 波动率目标缩仓
     # ============================================================
-    def guard_vol_target(self, pnl_report: Dict, plan: Dict) -> Dict:
+    def guard_vol_target(self, pnl_report: dict, plan: dict) -> dict:
         """波动率目标控制 - 缩减建仓预算。
 
         当 vol_scale < 0.80 时按比例缩减次日建仓预算与订单金额。
@@ -588,14 +587,14 @@ class RiskGuardIntegrator:
         )
         return plan
 
-    def _extract_daily_returns(self, pnl_report: Dict) -> list:
+    def _extract_daily_returns(self, pnl_report: dict) -> list:
         """从报告提取日收益率序列"""
         # 尝试从 v76 增强报告获取历史日收益率
         try:
             report_files = sorted(REPORTS_DIR.glob("daily_pnl_report_*.json"))
             returns = []
             for rf in report_files[-22:]:  # 最近22个交易日
-                with open(rf, "r", encoding="utf-8") as f:
+                with open(rf, encoding="utf-8") as f:
                     data = json.load(f)
                 # v7.7修正: 适配 portfolio_pnl.summary 嵌套结构
                 pnl_sum = data.get("portfolio_pnl", {}).get("summary", {})
@@ -610,7 +609,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # Guard 3: 对冲执行
     # ============================================================
-    def guard_hedge_execution(self, pnl_report: Dict, plan: Dict, next_date: str) -> Dict:
+    def guard_hedge_execution(self, pnl_report: dict, plan: dict, next_date: str) -> dict:
         """对冲引擎 - 计算并写入对冲订单。
 
         调用 HedgeExecutionEngine 生成期货/期权对冲订单，并按预算校验
@@ -770,7 +769,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # Guard 4: 认沽保护
     # ============================================================
-    def guard_protective_put(self, pnl_report: Dict, plan: Dict, next_date: str) -> Dict:
+    def guard_protective_put(self, pnl_report: dict, plan: dict, next_date: str) -> dict:
         """认沽保护 - 检查并生成保护性认沽订单。
 
         组合市值低于 100 万时跳过；否则调用 ProtectivePutEngine 按回撤
@@ -824,7 +823,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # Guard 5: 保证金/持仓集中度熔断 (KillSwitch 三级协议)
     # ============================================================
-    def guard_kill_switch(self, pnl_report: Dict, plan: Dict) -> Dict:
+    def guard_kill_switch(self, pnl_report: dict, plan: dict) -> dict:
         """全局熔断检查 - 集成 utils/kill_switch 三级协议
 
         L1 (Watch): 保证金≥50% 或 单票集中度≥25% → 预警标记
@@ -914,7 +913,7 @@ class RiskGuardIntegrator:
         if ks and positions_list:
             # check_concentration 期望 {code: {'market_value': float}} 或 {code: float}
             # 从 list 构造 dict, 优先用 code, 其次 symbol
-            positions_dict: Dict[str, Any] = {}
+            positions_dict: dict[str, Any] = {}
             for p in positions_list:
                 if not isinstance(p, dict):
                     continue
@@ -1029,7 +1028,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # Guard 6: 大盘熔断 (P1-H 新增, v8.6.6)
     # ============================================================
-    def guard_market_circuit_breaker(self, pnl_report: Dict, plan: Dict) -> Dict:
+    def guard_market_circuit_breaker(self, pnl_report: dict, plan: dict) -> dict:
         """大盘熔断 Guard - 沪深300 跌幅触发 L2/L3
 
         L2 (跌 5%): 禁止开仓, 保留平仓
@@ -1077,7 +1076,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # Guard 7: 流动性危机全局撤单 (P1-J 新增, v8.6.6)
     # ============================================================
-    def guard_liquidity_crisis(self, pnl_report: Dict, plan: Dict) -> Dict:
+    def guard_liquidity_crisis(self, pnl_report: dict, plan: dict) -> dict:
         """流动性危机 Guard - 全市场涨跌停家数触发全局撤单
 
         触发条件: limit_up_count + limit_down_count > 2000 (真实数据)
@@ -1189,7 +1188,7 @@ class RiskGuardIntegrator:
 
         return plan
 
-    def _fetch_limit_counts(self, pnl_report: Optional[Dict] = None) -> tuple:  # type: ignore
+    def _fetch_limit_counts(self, pnl_report: dict | None = None) -> tuple:  # type: ignore
         """获取全市场涨跌停家数 (三层 fallback)
 
         Args:
@@ -1270,7 +1269,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # Guard 8: 隔夜跳空缺口 (P1-I 新增, v8.6.6)
     # ============================================================
-    def guard_overnight_gap(self, pnl_report: Dict, plan: Dict) -> Dict:
+    def guard_overnight_gap(self, pnl_report: dict, plan: dict) -> dict:
         """隔夜跳空 Guard - 外盘隔夜风险触发 L1/L2/L3
 
         L1 (S&P500 跌 1% 或 ADR 偏离 2%): 预警
@@ -1351,7 +1350,7 @@ class RiskGuardIntegrator:
     #     *理由: 负面新闻检查是 P2-增强项, 不应阻断核心 P0/P1 风控链路
     # Feature Flag: USE_SENTIMENT_GUARD (默认 True, 显式 set False 可禁用)
     # ============================================================
-    def guard_sentiment_breaking_news(self, pnl_report: Dict, plan: Dict) -> Dict:
+    def guard_sentiment_breaking_news(self, pnl_report: dict, plan: dict) -> dict:
         """重大负面新闻 Guard - 检测持仓标的的极端负面新闻
 
         触发条件:
@@ -1506,7 +1505,7 @@ class RiskGuardIntegrator:
 
         return plan
 
-    def _extract_holding_symbols(self, pnl_report: Dict, plan: Dict) -> list:
+    def _extract_holding_symbols(self, pnl_report: dict, plan: dict) -> list:
         """从 pnl_report 或 plan 中提取持仓标的代码列表
 
         优先级:
@@ -1571,7 +1570,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # Guard 9: 相关性对冲 (P1-K 新增, v8.6.6)
     # ============================================================
-    def guard_correlation_hedge(self, pnl_report: Dict, plan: Dict) -> Dict:
+    def guard_correlation_hedge(self, pnl_report: dict, plan: dict) -> dict:
         """相关性对冲 Guard - 集成 CorrelationHedger 到 EOD 链
 
         触发条件 (CorrelationHedger.compute_hedge):
@@ -1642,7 +1641,7 @@ class RiskGuardIntegrator:
 
         return plan
 
-    def _build_position_returns(self, pnl_report: Dict, lookback_days: int = 60):
+    def _build_position_returns(self, pnl_report: dict, lookback_days: int = 60):
         """从历史 daily_pnl_report 构建持仓标的收益率 DataFrame
 
         适配实际报告结构 (v8.6.6 修复):
@@ -1681,7 +1680,7 @@ class RiskGuardIntegrator:
             valid_days = 0
             for rf in report_files:
                 try:
-                    with open(rf, "r", encoding="utf-8") as f:
+                    with open(rf, encoding="utf-8") as f:
                         data = json.load(f)
                     # v8.6.6 修复: 使用兼容层提取历史持仓
                     pos_list = self._extract_positions(data)
@@ -1729,7 +1728,7 @@ class RiskGuardIntegrator:
             self._log(f"[相关性对冲] 构建收益率失败: {e}")
             return None
 
-    def _build_safe_haven_orders(self, hedge_result: Dict) -> list:
+    def _build_safe_haven_orders(self, hedge_result: dict) -> list:
         """生成避险资产配置订单
 
         Args:
@@ -1775,7 +1774,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # v7.7: 对冲引擎 & 认沽保护引擎去重
     # ============================================================
-    def _deduplicate_put_orders(self, plan: Dict):
+    def _deduplicate_put_orders(self, plan: dict):
         """去重: 避免 HedgeExecutionEngine 与 ProtectivePutEngine 对同一底层重复生成 PUT 订单
 
         策略:
@@ -1836,7 +1835,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # 主执行入口
     # ============================================================
-    def run_all_guards(self, next_trade_date: str) -> Dict:
+    def run_all_guards(self, next_trade_date: str) -> dict:
         """执行所有风控守卫
 
         Args:

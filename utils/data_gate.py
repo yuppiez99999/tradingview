@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 数据质量门控 (Data Gate)
 =========================
@@ -22,7 +21,7 @@ import logging
 import math
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("data_gate")
 
@@ -35,10 +34,10 @@ class DataGateResult:
     quality_score: float = 100.0
     freshness_minutes: float = 0.0
     deviation_pct: float = 0.0
-    reasons: List[str] = field(default_factory=list)
-    meta: Dict[str, Any] = field(default_factory=dict)
+    reasons: list[str] = field(default_factory=list)
+    meta: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "allowed": self.allowed,
             "quality_score": round(self.quality_score, 2),
@@ -75,8 +74,8 @@ class DataGate:
     def check_and_gate(
         self,
         symbol: str,
-        snapshot: Dict[str, Any],
-        peers: Optional[Dict[str, Dict[str, Any]]] = None,
+        snapshot: dict[str, Any],
+        peers: dict[str, dict[str, Any]] | None = None,
         is_macro: bool = False,
     ) -> DataGateResult:
         """检查单标的数据质量并决定是否允许交易
@@ -155,7 +154,7 @@ class DataGate:
         except Exception:  # P2 模块 fail-safe, 待后续精确化
             return 1e9
 
-    def _price_deviation(self, snapshot: Dict[str, Any], peers: Dict[str, Dict[str, Any]]) -> float:
+    def _price_deviation(self, snapshot: dict[str, Any], peers: dict[str, dict[str, Any]]) -> float:
         base_price = snapshot.get("price")
         if base_price is None or not peers:
             return 0.0

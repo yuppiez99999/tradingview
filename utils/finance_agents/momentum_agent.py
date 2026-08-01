@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MomentumAgent — 动量分析 Agent (突破 / 回调 / 趋势)
 ====================================================
@@ -27,7 +26,7 @@ MomentumAgent — 动量分析 Agent (突破 / 回调 / 趋势)
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from utils.finance_agents.base_agent import AgentDecision, BaseAgent
 
@@ -38,14 +37,14 @@ class MomentumAgent(BaseAgent):
     def __init__(self, name: str = "momentum"):
         super().__init__(name=name)
 
-    def is_available(self, context: Dict[str, Any]) -> bool:
+    def is_available(self, context: dict[str, Any]) -> bool:
         """需要 kline 数据"""
         kline = self._safe_get(context, "kline")
         return isinstance(kline, list) and len(kline) >= 20
 
-    def analyze(self, symbol: str, context: Dict[str, Any]) -> AgentDecision:
+    def analyze(self, symbol: str, context: dict[str, Any]) -> AgentDecision:
         """动量分析主入口"""
-        kline: List[Dict] = self._safe_get(context, "kline", default=[]) or []
+        kline: list[dict] = self._safe_get(context, "kline", default=[]) or []
         if not isinstance(kline, list) or len(kline) < 20:
             return AgentDecision(
                 agent_name=self.name,
@@ -73,7 +72,7 @@ class MomentumAgent(BaseAgent):
 
         strength = 0.0
         signals = []
-        metrics: Dict[str, Any] = {
+        metrics: dict[str, Any] = {
             "close": current_close,
             "ma20": round(ma20, 4) if ma20 else None,
             "ma60": round(ma60, 4) if ma60 else None,
@@ -155,14 +154,14 @@ class MomentumAgent(BaseAgent):
     # ----------------------------------------------------------
 
     @staticmethod
-    def _sma(closes: List[float], period: int) -> float:
+    def _sma(closes: list[float], period: int) -> float:
         """简单移动平均"""
         if len(closes) < period:
             return 0.0
         return sum(closes[-period:]) / period
 
     @staticmethod
-    def _rsi(closes: List[float], period: int = 14):
+    def _rsi(closes: list[float], period: int = 14):
         """RSI 相对强弱指标
 
         Returns:

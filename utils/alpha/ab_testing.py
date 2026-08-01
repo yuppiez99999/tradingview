@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """A/B 测试框架 — T5.8 交付物.
 
 模块整合 8.4 — ARCHITECTURE §4.2
@@ -41,7 +40,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("ab_testing")
 
@@ -108,7 +107,7 @@ class ABTestConfig:
     split_strategy: str = SplitStrategy.HASH_SYMBOL.value
     min_samples: int = 30  # 最小样本数 (每组)
     significance_level: float = 0.05  # 显著性水平 (alpha)
-    promotion_criteria: Dict[str, float] = field(
+    promotion_criteria: dict[str, float] = field(
         default_factory=lambda: {
             "dsr_min": 5.0,
             "annual_return_min": 0.15,
@@ -116,7 +115,7 @@ class ABTestConfig:
             "sharpe_cv_max": 1.0,
         }
     )
-    rollback_criteria: Dict[str, float] = field(
+    rollback_criteria: dict[str, float] = field(
         default_factory=lambda: {
             "dsr_challenger_lt_champion_by": 1.0,  # challenger DSR 比 champion 低 1.0 以上
         }
@@ -124,11 +123,11 @@ class ABTestConfig:
     max_duration_days: int = 14  # 最长测试周期
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ABTestConfig":
+    def from_dict(cls, d: dict[str, Any]) -> ABTestConfig:
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
@@ -141,8 +140,8 @@ class ABTestResult:
 
     test_name: str
     status: str
-    champion_metrics: Dict[str, float] = field(default_factory=dict)
-    challenger_metrics: Dict[str, float] = field(default_factory=dict)
+    champion_metrics: dict[str, float] = field(default_factory=dict)
+    challenger_metrics: dict[str, float] = field(default_factory=dict)
     champion_samples: int = 0
     challenger_samples: int = 0
     is_significant: bool = False
@@ -153,7 +152,7 @@ class ABTestResult:
     evaluated_at: str = ""
     notes: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -169,12 +168,12 @@ class ABTest:
     started_at: str = ""
     ended_at: str = ""
     # 每日指标记录: [{"date": "2026-07-27", "group": "champion", "metrics": {...}}, ...]
-    daily_records: List[Dict[str, Any]] = field(default_factory=list)
+    daily_records: list[dict[str, Any]] = field(default_factory=list)
     # 流量分配记录: [{"symbol": "000001", "group": "challenger", "ts": "..."}, ...]
-    assignment_log: List[Dict[str, Any]] = field(default_factory=list)
-    result: Optional[ABTestResult] = None
+    assignment_log: list[dict[str, Any]] = field(default_factory=list)
+    result: ABTestResult | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "config": self.config.to_dict(),
             "status": self.status,
@@ -186,7 +185,7 @@ class ABTest:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ABTest":
+    def from_dict(cls, d: dict[str, Any]) -> ABTest:
         return cls(
             config=ABTestConfig.from_dict(d.get("config", {})),
             status=d.get("status", ABTestStatus.CREATED.value),
@@ -210,8 +209,8 @@ class ABTestFramework:
 
     def __init__(
         self,
-        results_dir: Optional[str] = None,
-        model_registry: Optional[Any] = None,
+        results_dir: str | None = None,
+        model_registry: Any | None = None,
     ) -> None:
         """初始化.
 
@@ -228,7 +227,7 @@ class ABTestFramework:
         self.results_dir.mkdir(parents=True, exist_ok=True)
         self._model_registry = model_registry
         # 内存缓存 (name -> ABTest)
-        self._tests: Dict[str, ABTest] = {}
+        self._tests: dict[str, ABTest] = {}
         self._load_tests()
 
     @property
@@ -247,7 +246,7 @@ class ABTestFramework:
         """从本地加载所有测试."""
         for test_file in self.results_dir.glob("*.json"):
             try:
-                with open(test_file, "r", encoding="utf-8") as f:
+                with open(test_file, encoding="utf-8") as f:
                     data = json.load(f)
                 test = ABTest.from_dict(data)
                 self._tests[test.config.name] = test
@@ -392,8 +391,8 @@ class ABTestFramework:
         self,
         test_name: str,
         date: str,
-        champion_metrics: Dict[str, float],
-        challenger_metrics: Dict[str, float],
+        champion_metrics: dict[str, float],
+        challenger_metrics: dict[str, float],
     ) -> None:
         """记录每日评估指标.
 
@@ -499,7 +498,7 @@ class ABTestFramework:
                 return key
         return "ic"
 
-    def _summarize_metrics(self, records: List[Dict[str, float]]) -> Dict[str, float]:
+    def _summarize_metrics(self, records: list[dict[str, float]]) -> dict[str, float]:
         """汇总指标 (取平均值)."""
         if not records:
             return {}
@@ -512,7 +511,7 @@ class ABTestFramework:
             summary[key] = sum(values) / len(values)
         return summary
 
-    def _t_test(self, a: List[float], b: List[float]) -> float:
+    def _t_test(self, a: list[float], b: list[float]) -> float:
         """双样本 t 检验 (返回 p-value).
 
         使用 Welch's t-test (不假设等方差).
@@ -545,7 +544,7 @@ class ABTestFramework:
             p_value = 2 * (1 - 0.5 * (1 + math.erf(abs(t_stat) / math.sqrt(2))))
             return float(p_value)
 
-    def _cohens_d(self, a: List[float], b: List[float]) -> float:
+    def _cohens_d(self, a: list[float], b: list[float]) -> float:
         """计算 Cohen's d 效应量."""
         n1, n2 = len(a), len(b)
         if n1 < 2 or n2 < 2:
@@ -561,8 +560,8 @@ class ABTestFramework:
     def _make_recommendation(
         self,
         test: ABTest,
-        challenger_metrics: Dict[str, float],
-        champion_metrics: Dict[str, float],
+        challenger_metrics: dict[str, float],
+        champion_metrics: dict[str, float],
         is_significant: bool,
         challenger_better: bool,
     ) -> str:
@@ -678,14 +677,14 @@ class ABTestFramework:
             raise TestNotFoundError(f"测试未找到: {name}")
         return self._tests[name]
 
-    def list_tests(self, status: Optional[ABTestStatus] = None) -> List[ABTest]:
+    def list_tests(self, status: ABTestStatus | None = None) -> list[ABTest]:
         """列出所有测试 (可按状态过滤)."""
         tests = list(self._tests.values())
         if status is not None:
             tests = [t for t in tests if t.status == status.value]
         return tests
 
-    def get_active_test_for_model(self, model_name: str) -> Optional[ABTest]:
+    def get_active_test_for_model(self, model_name: str) -> ABTest | None:
         """获取指定模型正在参与的活跃测试."""
         for test in self._tests.values():
             if test.status != ABTestStatus.RUNNING.value:

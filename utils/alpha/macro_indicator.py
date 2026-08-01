@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """宏观经济指标模块 — 终极量化交易系统 8.4 (T4.4).
 
 模块整合 8.4 — ARCHITECTURE §2.4
@@ -39,7 +38,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Optional, Sequence, cast
+from typing import Any, Sequence, cast
 
 from utils.config_manager import get_config
 
@@ -59,7 +58,7 @@ REGIME_WARMUP = "warmup"
 REGIME_UNKNOWN = "unknown"
 REGIME_INSUFFICIENT = "insufficient_samples"
 
-ALL_REGIMES: List[str] = [
+ALL_REGIMES: list[str] = [
     REGIME_BULL,
     REGIME_BEAR,
     REGIME_CHOPPY,
@@ -76,7 +75,7 @@ DEFAULT_REBOUND_THRESHOLD = 0.05
 DEFAULT_MIN_SAMPLES = 20
 
 # 默认仓位调整因子 (HC-3 risk_managed)
-DEFAULT_POSITION_FACTORS: Dict[str, float] = {
+DEFAULT_POSITION_FACTORS: dict[str, float] = {
     REGIME_BULL: 1.0,
     REGIME_BEAR: 0.3,
     REGIME_CHOPPY: 0.5,
@@ -87,7 +86,7 @@ DEFAULT_POSITION_FACTORS: Dict[str, float] = {
 }
 
 # 默认风险预算
-DEFAULT_RISK_BUDGET: Dict[str, float] = {
+DEFAULT_RISK_BUDGET: dict[str, float] = {
     REGIME_BULL: 1.2,
     REGIME_BEAR: 0.5,
     REGIME_CHOPPY: 0.8,
@@ -139,7 +138,7 @@ class RegimeResult:
     samples_used: int = 0
     reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -147,10 +146,10 @@ class RegimeResult:
 class MacroSnapshot:
     """宏观指标快照 (CPI/PMI/M2/利率)."""
 
-    cpi: Optional[float] = None
-    pmi: Optional[float] = None
-    m2: Optional[float] = None
-    rate: Optional[float] = None
+    cpi: float | None = None
+    pmi: float | None = None
+    m2: float | None = None
+    rate: float | None = None
     timestamp: str = ""
     source: str = ""
 
@@ -165,7 +164,7 @@ class MacroSnapshot:
     # 状态说明 (feature_flag_disabled / no_data / ok 等)
     status: str = "ok"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -249,7 +248,7 @@ def classify_regimes_batch(
     benchmark_returns: Sequence[float],
     ma_window: int = DEFAULT_MA_WINDOW,
     choppy_band: float = DEFAULT_CHOPPY_BAND,
-) -> List[str]:
+) -> list[str]:
     """批量分类 regime (对齐 research RegimeConditioner._classify_regimes).
 
     Args:
@@ -262,7 +261,7 @@ def classify_regimes_batch(
     """
     rets = list(benchmark_returns)
     n = len(rets)
-    regimes: List[str] = [REGIME_UNKNOWN] * n
+    regimes: list[str] = [REGIME_UNKNOWN] * n
 
     prices = [1.0]
     for r in rets:
@@ -295,7 +294,7 @@ def classify_regimes_batch(
 # ============================================================
 
 
-def classify_cpi(cpi: float, thresholds: Optional[Dict[str, float]] = None) -> str:
+def classify_cpi(cpi: float, thresholds: dict[str, float] | None = None) -> str:
     """分类 CPI 指标."""
     th = thresholds or {"low": 1.0, "moderate": 3.0, "high": 5.0}
     if cpi < th["low"]:
@@ -307,7 +306,7 @@ def classify_cpi(cpi: float, thresholds: Optional[Dict[str, float]] = None) -> s
     return "hyper"  # 恶性通胀
 
 
-def classify_pmi(pmi: float, thresholds: Optional[Dict[str, float]] = None) -> str:
+def classify_pmi(pmi: float, thresholds: dict[str, float] | None = None) -> str:
     """分类 PMI 指标."""
     th = thresholds or {"contraction": 50.0, "neutral": 51.0, "expansion": 52.0}
     if pmi < th["contraction"]:
@@ -319,7 +318,7 @@ def classify_pmi(pmi: float, thresholds: Optional[Dict[str, float]] = None) -> s
     return "strong_expansion"  # 强扩张
 
 
-def classify_m2(m2: float, thresholds: Optional[Dict[str, float]] = None) -> str:
+def classify_m2(m2: float, thresholds: dict[str, float] | None = None) -> str:
     """分类 M2 指标."""
     th = thresholds or {"tight": 8.0, "moderate": 10.0, "loose": 12.0}
     if m2 < th["tight"]:
@@ -331,7 +330,7 @@ def classify_m2(m2: float, thresholds: Optional[Dict[str, float]] = None) -> str
     return "very_loose"  # 非常宽松
 
 
-def classify_rate(rate: float, thresholds: Optional[Dict[str, float]] = None) -> str:
+def classify_rate(rate: float, thresholds: dict[str, float] | None = None) -> str:
     """分类利率指标."""
     th = thresholds or {"low": 2.5, "moderate": 3.0, "high": 3.5}
     if rate < th["low"]:
@@ -344,11 +343,11 @@ def classify_rate(rate: float, thresholds: Optional[Dict[str, float]] = None) ->
 
 
 def compute_composite_score(
-    cpi: Optional[float] = None,
-    pmi: Optional[float] = None,
-    m2: Optional[float] = None,
-    rate: Optional[float] = None,
-    weights: Optional[Dict[str, float]] = None,
+    cpi: float | None = None,
+    pmi: float | None = None,
+    m2: float | None = None,
+    rate: float | None = None,
+    weights: dict[str, float] | None = None,
 ) -> float:
     """计算综合宏观评分 (0-100, 越高越利好权益).
 
@@ -424,7 +423,7 @@ class MacroIndicatorManager:
         self,
         config_name: str = DEFAULT_CONFIG_NAME,
         feature_flag_name: str = FLAG_NAME,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         """初始化宏观指标管理器.
 
@@ -452,11 +451,11 @@ class MacroIndicatorManager:
         self._risk_budget.update(self._regime_cfg.get("risk_budget", {}) or {})
 
         # 内部状态
-        self._benchmark_returns: List[float] = []
+        self._benchmark_returns: list[float] = []
         self._last_regime: RegimeResult = RegimeResult()
-        self._last_snapshot: Optional[MacroSnapshot] = None
+        self._last_snapshot: MacroSnapshot | None = None
 
-    def _load_config(self, config_name: str) -> Dict[str, Any]:
+    def _load_config(self, config_name: str) -> dict[str, Any]:
         """加载配置 (走 ConfigManager 4 级优先级, HC-5)."""
         try:
             cfg = get_config(config_name, default={}) or {}
@@ -511,7 +510,7 @@ class MacroIndicatorManager:
         """获取当前 regime (最近一次 update 的结果)."""
         return self._last_regime
 
-    def classify_batch(self, benchmark_returns: Sequence[float]) -> List[str]:
+    def classify_batch(self, benchmark_returns: Sequence[float]) -> list[str]:
         """批量分类 regime (兼容 research RegimeConditioner._classify_regimes).
 
         Args:
@@ -578,7 +577,7 @@ class MacroIndicatorManager:
         self._last_snapshot = snapshot
         return snapshot
 
-    def _fetch_macro_data(self) -> Dict[str, Any]:
+    def _fetch_macro_data(self) -> dict[str, Any]:
         """通过 DataLayer 获取宏观数据 (复用 P0-P6 降级链)."""
         try:
             from utils.data.data_layer import get_macro_indicators
@@ -588,7 +587,7 @@ class MacroIndicatorManager:
             logger.warning("DataLayer 宏观数据获取失败: %s", e)
             return {}
 
-    def _extract_indicator(self, data: Dict[str, Any], name: str) -> Optional[float]:
+    def _extract_indicator(self, data: dict[str, Any], name: str) -> float | None:
         """从数据字典中提取指标值."""
         cfg = self._indicators_cfg.get(name, {}) or {}
         source_key = cfg.get("source_key", name)

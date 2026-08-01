@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TCA 执行后归因引擎 (Post-Trade TCA Attribution)
 ================================================
@@ -61,7 +60,7 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("tca_post_trade_attribution")
 
@@ -122,7 +121,7 @@ class EstimateVsActual:
         if not self.timestamp:
             self.timestamp = datetime.now().isoformat(timespec="seconds")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -168,7 +167,7 @@ class PnLAttribution:
         if not self.timestamp:
             self.timestamp = datetime.now().isoformat(timespec="seconds")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -193,7 +192,7 @@ class PostTradeAttribution:
     def __init__(
         self,
         tolerance_bps: float = DEFAULT_ESTIMATE_VS_ACTUAL_TOLERANCE_BPS,
-        attribution_dir: Optional[Path] = None,
+        attribution_dir: Path | None = None,
         save_to_file: bool = True,
     ) -> None:
         """
@@ -207,11 +206,11 @@ class PostTradeAttribution:
         self.save_to_file = bool(save_to_file)
 
         # 内存缓存: {symbol: [(fill, estimate), ...]}
-        self._records: Dict[str, List[Tuple[FillRecord, Optional[Any]]]] = defaultdict(list)
+        self._records: dict[str, list[tuple[FillRecord, Any | None]]] = defaultdict(list)
         # PnL 归因历史: {symbol: [PnLAttribution, ...]}
-        self._pnl_history: Dict[str, List[PnLAttribution]] = defaultdict(list)
+        self._pnl_history: dict[str, list[PnLAttribution]] = defaultdict(list)
         # 对比历史: {symbol: [EstimateVsActual, ...]}
-        self._comparison_history: Dict[str, List[EstimateVsActual]] = defaultdict(list)
+        self._comparison_history: dict[str, list[EstimateVsActual]] = defaultdict(list)
 
         if self.save_to_file:
             self.attribution_dir.mkdir(parents=True, exist_ok=True)
@@ -222,7 +221,7 @@ class PostTradeAttribution:
     def record(
         self,
         fill: FillRecord,
-        estimate: Optional[Any] = None,
+        estimate: Any | None = None,
     ) -> None:
         """记录一笔成交及其对应的预估
 
@@ -256,8 +255,8 @@ class PostTradeAttribution:
     def compare_estimate_vs_actual(
         self,
         symbol: str,
-        decision_price: Optional[float] = None,
-    ) -> Optional[EstimateVsActual]:
+        decision_price: float | None = None,
+    ) -> EstimateVsActual | None:
         """对比某标的的预估成本与实际成本
 
         Args:
@@ -345,7 +344,7 @@ class PostTradeAttribution:
         hedge_pnl: float = 0.0,
         stop_loss_pnl: float = 0.0,
         position_adjust_pnl: float = 0.0,
-        estimated_entry_price: Optional[float] = None,
+        estimated_entry_price: float | None = None,
     ) -> PnLAttribution:
         """PnL 归因拆分 (Alpha / Execution / Risk)
 
@@ -452,11 +451,11 @@ class PostTradeAttribution:
     # ------------------------------------------------------------
     def calibrate(
         self,
-        pre_trade_estimator: Optional[Any] = None,
+        pre_trade_estimator: Any | None = None,
         percentile: float = 0.95,
         min_threshold: float = 10.0,
         max_threshold: float = 100.0,
-    ) -> Optional[float]:
+    ) -> float | None:
         """EOD 触发校准: 根据当日实际成本反馈调整 T3.4 预估阈值
 
         策略:
@@ -474,7 +473,7 @@ class PostTradeAttribution:
             新的否决阈值 (bps), 无数据则返回 None
         """
         # 收集当日实际成本
-        actual_costs: List[float] = []
+        actual_costs: list[float] = []
         for _symbol, comparisons in self._comparison_history.items():
             for c in comparisons:
                 if c.actual_cost_bps > 0:
@@ -532,7 +531,7 @@ class PostTradeAttribution:
     # ------------------------------------------------------------
     # 5. 汇总报告
     # ------------------------------------------------------------
-    def summarize(self) -> Dict[str, Any]:
+    def summarize(self) -> dict[str, Any]:
         """生成全组合归因汇总"""
         # PnL 归因汇总
         total_alpha = sum(a.alpha_pnl for attr_list in self._pnl_history.values() for a in attr_list)
@@ -547,7 +546,7 @@ class PostTradeAttribution:
         avg_deviation = sum(c.deviation_bps for c in all_comparisons) / n_total if n_total > 0 else 0.0
 
         # 按标的汇总
-        per_symbol: Dict[str, Dict[str, float]] = {}
+        per_symbol: dict[str, dict[str, float]] = {}
         for symbol, attr_list in self._pnl_history.items():
             sym_alpha = sum(a.alpha_pnl for a in attr_list)
             sym_exec = sum(a.execution_pnl for a in attr_list)
@@ -579,19 +578,19 @@ class PostTradeAttribution:
     # ------------------------------------------------------------
     # 6. 历史查询
     # ------------------------------------------------------------
-    def get_pnl_history(self, symbol: Optional[str] = None) -> List[PnLAttribution]:
+    def get_pnl_history(self, symbol: str | None = None) -> list[PnLAttribution]:
         """获取 PnL 归因历史"""
         if symbol:
             return list(self._pnl_history.get(symbol, []))
         return [a for attr_list in self._pnl_history.values() for a in attr_list]
 
-    def get_comparison_history(self, symbol: Optional[str] = None) -> List[EstimateVsActual]:
+    def get_comparison_history(self, symbol: str | None = None) -> list[EstimateVsActual]:
         """获取预估 vs 实际对比历史"""
         if symbol:
             return list(self._comparison_history.get(symbol, []))
         return [c for cmp_list in self._comparison_history.values() for c in cmp_list]
 
-    def get_fills(self, symbol: Optional[str] = None) -> List[Tuple[FillRecord, Optional[Any]]]:
+    def get_fills(self, symbol: str | None = None) -> list[tuple[FillRecord, Any | None]]:
         """获取成交记录历史"""
         if symbol:
             return list(self._records.get(symbol, []))
@@ -600,7 +599,7 @@ class PostTradeAttribution:
     # ============================================================
     # 持久化方法
     # ============================================================
-    def _save_fill_record(self, fill: FillRecord, estimate: Optional[Any]) -> Path:
+    def _save_fill_record(self, fill: FillRecord, estimate: Any | None) -> Path:
         """保存成交记录到 JSONL"""
         date_str = datetime.now().strftime("%Y-%m-%d")
         path = self.attribution_dir / f"fills_{date_str}.jsonl"
@@ -633,7 +632,7 @@ class PostTradeAttribution:
 
     def _save_calibration_log(
         self,
-        actual_costs: List[float],
+        actual_costs: list[float],
         old_threshold: float,
         new_threshold: float,
         percentile: float,

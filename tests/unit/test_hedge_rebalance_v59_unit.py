@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_hedge_rebalance_v59_unit.py — 对冲再平衡联动引擎 v5.9 单元测试
 
 C-1.5 测试任务 (2026-08-01): 为 hedge_rebalance_v59.py 补单元测试覆盖。
@@ -243,7 +242,7 @@ class TestModuleConstants:
     def test_rebalance_thresholds_tiers(self):
         """再平衡阈值 3 档: low/normal/high"""
         assert set(REBALANCE_THRESHOLDS.keys()) == {"low", "normal", "high"}
-        for tier, cfg in REBALANCE_THRESHOLDS.items():
+        for _tier, cfg in REBALANCE_THRESHOLDS.items():
             assert "threshold" in cfg
             assert "check_freq" in cfg
             assert "max_adjust" in cfg

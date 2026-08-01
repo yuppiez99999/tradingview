@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """每日 EOD 生成 ai_decision 审计日志复盘报告
 
 任务: 步骤 7 CLI 入口 (阶段五 — 审计日志自动复盘)

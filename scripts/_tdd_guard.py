@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """TDD 守卫 — GAP-4 交付物.
 
 ECC tdd-workflow 修复:
@@ -27,7 +26,6 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -60,7 +58,7 @@ EXCLUDE_DIRS = [
 ]
 
 
-def _run_git(args: List[str]) -> str:
+def _run_git(args: list[str]) -> str:
     """执行 git 命令, 返回输出."""
     try:
         result = subprocess.run(
@@ -76,7 +74,7 @@ def _run_git(args: List[str]) -> str:
         return ""
 
 
-def get_changed_files(base: str = "origin/main", head: str = "HEAD") -> List[str]:
+def get_changed_files(base: str = "origin/main", head: str = "HEAD") -> list[str]:
     """获取 base..head 之间变更的文件列表.
 
     Args:
@@ -160,7 +158,7 @@ def find_expected_test(filepath: str) -> Path:
     return _PROJECT_ROOT / "tests" / "unit" / f"test_{module_name}.py"
 
 
-def find_actual_tests(filepath: str) -> List[Path]:
+def find_actual_tests(filepath: str) -> list[Path]:
     """查找实际存在的相关测试文件 (含 test_{module}_*.py 模式).
 
     Args:
@@ -219,7 +217,7 @@ def main() -> int:
     print(f"[GAP-4] 生产代码文件: {len(production_files)} 个")
 
     # 3. 检查每个生产代码文件是否有对应测试
-    missing: List[Tuple[str, Path]] = []
+    missing: list[tuple[str, Path]] = []
     for filepath in production_files:
         actual_tests = find_actual_tests(filepath)
         if not actual_tests:

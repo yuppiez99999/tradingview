@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P2.2 v6 修复验证脚本（build_factor_history fundamentals_history 传递 bug）
 
 问题描述：

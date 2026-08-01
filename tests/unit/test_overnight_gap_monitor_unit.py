@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_overnight_gap_monitor_unit.py — 隔夜跳空监控器单元测试
 
 覆盖 bug 回归:

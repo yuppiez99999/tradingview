@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 硬性风险约束执行器 (Hard Risk Constraints)
 =========================================
@@ -18,8 +17,6 @@ clamp 回合规区间，并明确记录违例（不允许“拦截了却仍报�
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
-
 # 顶级对冲基金审慎默认值
 # V3优化 (2026-07-24): 单标的硬上限 15%→10%
 # 动机: 2025-08 300308 占 15% 权重产生 +84% 月收益, 导致极端月份依赖
@@ -32,11 +29,11 @@ DEFAULT_MAX_SINGLE_VAR = 0.008  # 单票日度 VaR95 硬上限 0.8%
 
 
 def enforce_hard_constraints(  # noqa: C901
-    weights: Dict[str, float],
+    weights: dict[str, float],
     max_weight: float = DEFAULT_MAX_WEIGHT,
-    sector_map: Optional[Dict[str, str]] = None,
+    sector_map: dict[str, str] | None = None,
     max_sector: float = DEFAULT_MAX_SECTOR,
-) -> Tuple[Dict[str, float], List[str]]:
+) -> tuple[dict[str, float], list[str]]:
     """将权重强制约束到硬上限，返回 (合规权重, 违例清单)。
 
     注意：本函数始终返回合规后的权重，但会如实记录被 clamp 的违例，
@@ -46,8 +43,8 @@ def enforce_hard_constraints(  # noqa: C901
         已经压缩好的板块权重比例。修复: 归一化后重新检查板块上限, 必要时
         再次压缩, 并循环直到收敛 (最多 3 次以防边界震荡)。
     """
-    violations: List[str] = []
-    clamped: Dict[str, float] = {}
+    violations: list[str] = []
+    clamped: dict[str, float] = {}
 
     # 1) 单标的硬上限 + 非负
     for sym, w in weights.items():
@@ -62,7 +59,7 @@ def enforce_hard_constraints(  # noqa: C901
     # 2) 板块集中度硬上限 (循环收敛: 归一化可能破坏板块压缩, 需要多次迭代)
     if sector_map:
         for iteration in range(3):  # 最多 3 次以防边界震荡
-            sector_exp: Dict[str, float] = {}
+            sector_exp: dict[str, float] = {}
             for sym, w in clamped.items():
                 sec = sector_map.get(sym, "unknown")
                 sector_exp[sec] = sector_exp.get(sec, 0.0) + w
@@ -93,7 +90,7 @@ def enforce_hard_constraints(  # noqa: C901
         # 等比例缩小, 虽然不会超限但会破坏配置意图; 反之如果板块压缩后总权重 = 1.0,
         # 归一化不会触发, 这里只需复查板块上限未被破坏)
         if sector_map:
-            sector_exp2: Dict[str, float] = {}
+            sector_exp2: dict[str, float] = {}
             for sym, w in clamped.items():
                 sec = sector_map.get(sym, "unknown")
                 sector_exp2[sec] = sector_exp2.get(sec, 0.0) + w
@@ -113,17 +110,17 @@ def enforce_hard_constraints(  # noqa: C901
 
 
 def validate_risk_budget(
-    target_weights: Dict[str, float],
-    price_data: Optional[Dict[str, object]] = None,
+    target_weights: dict[str, float],
+    price_data: dict[str, object] | None = None,
     total_capital: float = 5_000_000.0,
     max_weight: float = DEFAULT_MAX_WEIGHT,
     max_daily_var: float = DEFAULT_MAX_DAILY_VAR,
     max_single_var: float = DEFAULT_MAX_SINGLE_VAR,
-    sector_map: Optional[Dict[str, str]] = None,
+    sector_map: dict[str, str] | None = None,
     max_sector: float = DEFAULT_MAX_SECTOR,
-) -> Tuple[bool, List[str]]:
+) -> tuple[bool, list[str]]:
     """多维风险预算校验，返回 (是否允许, 违例清单)。"""
-    violations: List[str] = []
+    violations: list[str] = []
     price_data = price_data or {}
 
     # 集中度
@@ -133,7 +130,7 @@ def validate_risk_budget(
 
     # 板块
     if sector_map:
-        sector_exp: Dict[str, float] = {}
+        sector_exp: dict[str, float] = {}
         for sym, w in target_weights.items():
             sec = sector_map.get(sym, "unknown")
             sector_exp[sec] = sector_exp.get(sec, 0.0) + w
@@ -154,10 +151,10 @@ def validate_risk_budget(
 
 
 def _approx_var(
-    target_weights: Dict[str, float],
-    price_data: Dict[str, object],
+    target_weights: dict[str, float],
+    price_data: dict[str, object],
     total_capital: float,
-) -> Tuple[float, Dict[str, float]]:
+) -> tuple[float, dict[str, float]]:
     """基于历史收益率的近似 VaR（日度，95%）。"""
     import numpy as np  # 局部导入，避免无 numpy 环境报错
 

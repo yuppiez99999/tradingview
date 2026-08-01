@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 机构级每日交易工作流
 ================================
@@ -39,7 +38,7 @@ import sys
 from dataclasses import asdict
 from datetime import date, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 import requests  # type: ignore[import-untyped]
 
@@ -83,7 +82,10 @@ from risk.risk_manager import RiskManager  # noqa: E402
 
 
 class CircuitLevel:
-    LEVEL_1 = 1; LEVEL_2 = 2; LEVEL_3 = 3; LEVEL_4 = 4
+    LEVEL_1 = 1
+    LEVEL_2 = 2
+    LEVEL_3 = 3
+    LEVEL_4 = 4
 from execution.algo_engine import AlgoType  # noqa: E402
 from execution.ntp_sync import NTPSync  # noqa: E402
 from execution.smart_order_router import MockBroker, SmartOrderRouter  # noqa: E402
@@ -210,7 +212,6 @@ except ImportError as e:
 HEDGE_FUND_MODULES_READY = False
 try:
     from utils.data_quality_monitor import DataQualityMonitor
-    from utils.execution_algo_engine import AlgoType as ExecAlgoType
     from utils.execution_algo_engine import ExecutionAlgoEngine  # noqa: F401
     from utils.multi_strategy_coordinator import MultiStrategyCoordinator
     from utils.pnl_attribution_engine import PnLAttributionEngine
@@ -237,10 +238,7 @@ try:
     from utils.ledoit_wolf_covariance import LedoitWolfCovariance, ShrinkageResult  # noqa: F401
     from utils.risk_budget_optimizer import RiskBudgetOptimizer, RiskBudgetResult  # noqa: F401
     from utils.stress_test_scenario_library import (
-        ShockFactors,
-        StressScenario,
         StressTestEngine,  # noqa: F401
-        StressTestResult,
     )
     RISK_MGT_MODULES_READY = True
     logger.info("风险管理模块加载成功: LedoitWolf/RiskBudgetOpt/StressTest")
@@ -265,14 +263,10 @@ try:
         ExecutionAlgorithmEngine as InstitutionExecAlgoEngine,
     )
     from utils.execution_algorithm_engine import (
-        ExecutionPlan,
-    )
-    from utils.execution_algorithm_engine import (
         Order as ExecOrder,  # noqa: F401
     )
     from utils.market_impact_model import ImpactParams, MarketImpactModel  # noqa: F401
     from utils.smart_order_router import SmartOrderRouter as InstitutionSmartRouter  # noqa: F401
-    from utils.smart_order_router import Venue as RoutingVenue
     EXECUTION_MODULES_READY = True
     logger.info("执行层模块加载成功: ExecAlgo/MarketImpact/SmartRouter")
 except ImportError as e:
@@ -601,11 +595,11 @@ class DailyWorkflow:
             return fallback
 
     def __init__(self,
-                 trade_date: Optional[str] = None,
+                 trade_date: str | None = None,
                  capital: float = WorkflowConfig.TOTAL_CAPITAL,
                  dry_run: bool = False,
                  sim_mode: bool = False,
-                 external_reports_dir: Optional[str] = None,
+                 external_reports_dir: str | None = None,
                  live_mode: bool = False):
         self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
         self.capital = capital
@@ -627,10 +621,10 @@ class DailyWorkflow:
         self._ks_armed = False  # 标记 self.ks 是否已注册 broker_callback
 
         # 加载 2026 年交易计划
-        self.trade_plan: Dict[str, Any] = self._load_trade_plan()
+        self.trade_plan: dict[str, Any] = self._load_trade_plan()
 
         # 状态记录
-        self.state: Dict[str, Any] = {
+        self.state: dict[str, Any] = {
             "trade_date": self.trade_date,
             "capital": capital,
             "dry_run": dry_run,
@@ -671,17 +665,17 @@ class DailyWorkflow:
         self.fusion_config = self._load_fusion_config()
 
         # iFinD 新闻缓存 (同一天避免重复调用)
-        self._ifind_cache: Dict[str, Any] = {}
+        self._ifind_cache: dict[str, Any] = {}
         self._ifind_cache_date: str = ""
-        self._ifind_planned_symbols: List[str] = []
+        self._ifind_planned_symbols: list[str] = []
 
         # EDB 期货数据缓存 (同一天避免重复调用)
-        self._edb_cache: Dict[str, Dict[str, Any]] = {}
+        self._edb_cache: dict[str, dict[str, Any]] = {}
         self._edb_cache_date: str = ""
 
         # 十五五阶段管理器 (5 年度阶段 + 季度评估 + 2030 清仓)
         self.phase_manager = None
-        self.current_phase_info: Optional[PhaseInfo] = None
+        self.current_phase_info: PhaseInfo | None = None
         if PHASE_MANAGER_READY:
             try:
                 self.phase_manager = PhaseManager()
@@ -702,10 +696,10 @@ class DailyWorkflow:
                 self.phase_manager = None
 
         # 对冲基金视角模块
-        self.exec_algo_engine: Optional[ExecutionAlgoEngine] = None
-        self.pnl_attribution_engine: Optional[PnLAttributionEngine] = None
-        self.data_quality_monitor: Optional[DataQualityMonitor] = None
-        self.strategy_coordinator: Optional[MultiStrategyCoordinator] = None
+        self.exec_algo_engine: ExecutionAlgoEngine | None = None
+        self.pnl_attribution_engine: PnLAttributionEngine | None = None
+        self.data_quality_monitor: DataQualityMonitor | None = None
+        self.strategy_coordinator: MultiStrategyCoordinator | None = None
         if HEDGE_FUND_MODULES_READY:
             try:
                 self.exec_algo_engine = ExecutionAlgoEngine()
@@ -719,9 +713,9 @@ class DailyWorkflow:
                 logger.exception("对冲基金模块初始化失败 (ExecutionAlgo): %s", exc)
 
         # 机构级配置模块 (Black-Litterman / TCA / Barra)
-        self.bl_optimizer: Optional[BlackLittermanOptimizer] = None
-        self.tca_manager: Optional[TCAManager] = None
-        self.barra_decomposer: Optional[BarraRiskDecomposer] = None
+        self.bl_optimizer: BlackLittermanOptimizer | None = None
+        self.tca_manager: TCAManager | None = None
+        self.barra_decomposer: BarraRiskDecomposer | None = None
         if INSTITUTIONAL_MODULES_READY:
             try:
                 self.bl_optimizer = BlackLittermanOptimizer(
@@ -736,9 +730,9 @@ class DailyWorkflow:
                 logger.exception("机构级模块初始化失败 (BlackLitterman): %s", exc)
 
         # 顶级风险管理模块 (Ledoit-Wolf / 风险预算约束 / 压力测试)
-        self.lw_cov_estimator: Optional[LedoitWolfCovariance] = None
-        self.risk_budget_opt: Optional[RiskBudgetOptimizer] = None
-        self.stress_test_engine: Optional[StressTestEngine] = None
+        self.lw_cov_estimator: LedoitWolfCovariance | None = None
+        self.risk_budget_opt: RiskBudgetOptimizer | None = None
+        self.stress_test_engine: StressTestEngine | None = None
         if RISK_MGT_MODULES_READY:
             try:
                 self.lw_cov_estimator = LedoitWolfCovariance(annualize=True)
@@ -755,9 +749,9 @@ class DailyWorkflow:
                 logger.exception("风险管理模块初始化失败 (RiskMgt): %s", exc)
 
         # 顶级 Alpha 生成模块 (Alpha 因子库 / 动量反转 / Smart Beta)
-        self.alpha_factor_lib: Optional[AlphaFactorLibrary] = None
-        self.momentum_engine: Optional[MomentumReversalEngine] = None
-        self.smart_beta_engine: Optional[SmartBetaEngine] = None
+        self.alpha_factor_lib: AlphaFactorLibrary | None = None
+        self.momentum_engine: MomentumReversalEngine | None = None
+        self.smart_beta_engine: SmartBetaEngine | None = None
         if ALPHA_MODULES_READY:
             try:
                 self.alpha_factor_lib = AlphaFactorLibrary()
@@ -768,9 +762,9 @@ class DailyWorkflow:
                 logger.exception("Alpha 生成模块初始化失败: %s", exc)
 
         # 顶级执行层模块 (执行算法 / 市场冲击 / 智能路由)
-        self.execution_algo_engine: Optional[InstitutionExecAlgoEngine] = None
-        self.market_impact_model: Optional[MarketImpactModel] = None
-        self.smart_order_router_inst: Optional[InstitutionSmartRouter] = None
+        self.execution_algo_engine: InstitutionExecAlgoEngine | None = None
+        self.market_impact_model: MarketImpactModel | None = None
+        self.smart_order_router_inst: InstitutionSmartRouter | None = None
         if EXECUTION_MODULES_READY:
             try:
                 self.execution_algo_engine = InstitutionExecAlgoEngine()
@@ -781,9 +775,9 @@ class DailyWorkflow:
                 logger.exception("执行层模块初始化失败 (Execution): %s", exc)
 
         # 顶级另类数据模块 (新闻情感 / 供应链 / 另类数据)
-        self.news_sentiment_engine: Optional[NewsSentimentEngine] = None
-        self.supply_chain_graph: Optional[SupplyChainGraph] = None
-        self.alt_data_indicators: Optional[AltDataIndicators] = None
+        self.news_sentiment_engine: NewsSentimentEngine | None = None
+        self.supply_chain_graph: SupplyChainGraph | None = None
+        self.alt_data_indicators: AltDataIndicators | None = None
         if ALT_DATA_MODULES_READY:
             try:
                 self.news_sentiment_engine = NewsSentimentEngine()
@@ -869,7 +863,7 @@ class DailyWorkflow:
                 self.sim_engine = None
                 self.sim_mode = False
 
-    def _load_fusion_config(self) -> Dict[str, Any]:
+    def _load_fusion_config(self) -> dict[str, Any]:
         """加载信号融合配置 (P1-Q8: 通过 ConfigManager 统一加载)
 
         优先级:
@@ -932,7 +926,7 @@ class DailyWorkflow:
         if not sf:
             try:
                 cfg_path = os.path.join(os.path.dirname(__file__), "config", "settings.yaml")
-                with open(cfg_path, "r", encoding="utf-8") as f:
+                with open(cfg_path, encoding="utf-8") as f:
                     full = _yaml.safe_load(f)
                 if isinstance(full, dict):
                     sf = full.get("signal_fusion", {})
@@ -950,7 +944,7 @@ class DailyWorkflow:
 
         return defaults
 
-    def _load_external_reports(self) -> Dict[str, Any]:
+    def _load_external_reports(self) -> dict[str, Any]:
         """加载 15_每日工作流报告，作为信号生成的外部输入
 
         Returns:
@@ -1009,7 +1003,7 @@ class DailyWorkflow:
             logger.error("市场状态判断失败, 强制保守模式: %s", _e, exc_info=True)
             return "bear"
 
-    def _get_regime_weights(self, regime: str) -> Dict[str, float]:
+    def _get_regime_weights(self, regime: str) -> dict[str, float]:
         """根据市场状态获取信号融合权重
 
         Args:
@@ -1041,7 +1035,7 @@ class DailyWorkflow:
             "external": float(weights.get("external", 0.2)),
         }
 
-    def _calculate_external_factor(self, external_reports: Dict[str, Any]) -> float:
+    def _calculate_external_factor(self, external_reports: dict[str, Any]) -> float:
         """根据外部报告计算订单调整系数
 
         Args:
@@ -1077,7 +1071,7 @@ class DailyWorkflow:
 
         return max(0.5, min(1.3, round(factor, 2)))
 
-    def _get_ifind_insights(self, symbols: list, name_map: dict) -> Dict[str, Any]:
+    def _get_ifind_insights(self, symbols: list, name_map: dict) -> dict[str, Any]:
         """获取 iFinD 新闻研判 (带当日缓存)
 
         同一天内多次调用只请求一次 API，后续从缓存读取。
@@ -1109,7 +1103,7 @@ class DailyWorkflow:
             logger.error("iFinD 批量研判失败", exc_info=True)
             return {}
 
-    def _get_edb_futures_data(self, names: Optional[List[str]] = None) -> Dict[str, Dict[str, Any]]:
+    def _get_edb_futures_data(self, names: list[str] | None = None) -> dict[str, dict[str, Any]]:
         """获取 EDB 期货/商品数据 (带当日缓存)
 
         同一天内多次调用只请求一次 API，后续从缓存读取。
@@ -1140,7 +1134,7 @@ class DailyWorkflow:
             logger.error("EDB 期货数据获取失败", exc_info=True)
             return {}
 
-    def _get_futures_scanner_summary(self) -> Dict[str, Dict[str, Any]]:
+    def _get_futures_scanner_summary(self) -> dict[str, dict[str, Any]]:
         """运行期货期权扫描器，并转换为与 edb_summary 兼容的结构
 
         Returns:
@@ -1151,7 +1145,7 @@ class DailyWorkflow:
         try:
             scanner = FuturesOptionsScanner()
             result = scanner.run()
-            summary: Dict[str, Dict[str, Any]] = {}
+            summary: dict[str, dict[str, Any]] = {}
             for item in result.get("all", []):
                 name = item.get("name")
                 if not name:
@@ -1170,7 +1164,7 @@ class DailyWorkflow:
             logger.error("期货期权扫描器执行失败", exc_info=True)
             return {}
 
-    def _load_trade_plan(self) -> Dict[str, Any]:
+    def _load_trade_plan(self) -> dict[str, Any]:
         """加载交易计划文件
 
         优先加载 `trade_plans/trade_plan_{YYYYMMDD}.json`,
@@ -1189,7 +1183,7 @@ class DailyWorkflow:
         for path in candidates:
             if path.exists():
                 try:
-                    with open(path, "r", encoding="utf-8") as f:
+                    with open(path, encoding="utf-8") as f:
                         plan = json.load(f)
                     logger.info(f"已加载交易计划: {path.name} "
                                 f"(阶段: {plan.get('phase', {}).get('name', 'N/A')}, "
@@ -1213,7 +1207,7 @@ class DailyWorkflow:
         master_plan = self.config.PLAN_DIR / "auto_trade_plan_500w_2026-2030.json"
         if master_plan.exists():
             try:
-                with open(master_plan, "r", encoding="utf-8") as f:
+                with open(master_plan, encoding="utf-8") as f:
                     plan = json.load(f)
                 logger.info(f"已回退加载主计划: {master_plan.name}")
                 self._ifind_planned_symbols = []
@@ -1582,8 +1576,12 @@ class DailyWorkflow:
             actions = self.cb.allowed_actions()
         except (AttributeError, TypeError):
             from enum import Enum
+
             class _SafeLevel(Enum):
-                NORMAL = 0; LEVEL_1 = 1; LEVEL_2 = 2; LEVEL_3 = 3
+                NORMAL = 0
+                LEVEL_1 = 1
+                LEVEL_2 = 2
+                LEVEL_3 = 3
             level = _SafeLevel.NORMAL
             actions = {"open_new": True, "force_reduce_pct": 0.0}
 
@@ -1683,7 +1681,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 3: 风险预算计算 (组合级别 — 500万 4阶段)
     # --------------------------------------------------------
-    def phase_risk(self) -> Dict[str, Any]:
+    def phase_risk(self) -> dict[str, Any]:
         """风险预算计算 — 2026 年交易计划组合级别
 
         基于 `2026年交易计划.md` 的资金配置:
@@ -1872,8 +1870,8 @@ class DailyWorkflow:
 
     # --------------------------------------------------------
     def _style_beta_proxy(self,
-                          positions: Dict[str, float],
-                          prices: Dict[str, float]) -> float:
+                          positions: dict[str, float],
+                          prices: dict[str, float]) -> float:
         """风格 Beta 代理：当真实历史收益率失效时，基于持仓风格权重估算组合 Beta
 
         Args:
@@ -1903,10 +1901,10 @@ class DailyWorkflow:
 
         # 优先从 500万建仓计划读取 style 和 weight，回退到 v7.6 主计划
         build_plan_path = BASE_DIR.parent / "500万建仓计划_20260706.json"
-        style_weights: Dict[str, float] = {}
+        style_weights: dict[str, float] = {}
         if build_plan_path.exists():
             try:
-                with open(build_plan_path, "r", encoding="utf-8") as _f:
+                with open(build_plan_path, encoding="utf-8") as _f:
                     _plan = json.load(_f)
                 _target = _plan.get("target_portfolio", _plan.get("stock_etf_account", {}).get("positions", {}))
                 for _code, _info in _target.items():
@@ -1923,7 +1921,7 @@ class DailyWorkflow:
             master_plan_path = BASE_DIR / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
             if master_plan_path.exists():
                 try:
-                    with open(master_plan_path, "r", encoding="utf-8") as _f:
+                    with open(master_plan_path, encoding="utf-8") as _f:
                         _plan = json.load(_f)
                     _target = _plan.get("stock_etf_account", {}).get("positions", {})
                     for _info in _target.values():
@@ -2022,7 +2020,7 @@ class DailyWorkflow:
 
         return {}
 
-    def _compute_beta_hedge_order(self, portfolio_beta: float, portfolio_value: float, degraded: bool = False) -> Dict[str, object]:
+    def _compute_beta_hedge_order(self, portfolio_beta: float, portfolio_value: float, degraded: bool = False) -> dict[str, object]:
         """基于 BetaHedger 计算对冲指令（降级路径）
 
         Args:
@@ -2092,7 +2090,7 @@ class DailyWorkflow:
             logger.error("风格 Beta 代理计算对冲指令失败: %s", exc)
             return {"action": "ERROR", "reason": str(exc)}
 
-    def phase_hedge(self) -> Dict[str, Any]:
+    def phase_hedge(self) -> dict[str, Any]:
         """三联对冲评估 + 自动执行（与 7.4 AutoHedgeExecutor 行为对齐）
 
         修复点:
@@ -2198,7 +2196,7 @@ class DailyWorkflow:
         _real_positions = {}  # {mock_key: shares} 真实持仓
         if _positions_json.exists():
             try:
-                with open(_positions_json, "r", encoding="utf-8") as _f:
+                with open(_positions_json, encoding="utf-8") as _f:
                     _pos_data = json.load(_f)
                 _pos_dict = _pos_data.get("positions", {})
                 # positions.json key 格式 "510050.SH" → MOCK_PRICES key 格式 "sh510050"
@@ -2690,7 +2688,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # v8.4: sim_mode 对冲执行 (通过 SimExecutionEngine)
     # --------------------------------------------------------
-    def _execute_sim_hedge_orders(self, hedge_orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _execute_sim_hedge_orders(self, hedge_orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """通过 SimExecutionEngine 执行对冲订单 (sim_mode 专用)
 
         将 hedge_coordinator 输出的对冲订单按 action 拆分到对应模拟盘:
@@ -2705,10 +2703,10 @@ class DailyWorkflow:
         Returns:
             成交记录列表 (与原 executed_orders 结构对齐)
         """
-        futures_orders: List[Dict[str, Any]] = []
-        options_orders: List[Dict[str, Any]] = []
-        stock_orders: List[Dict[str, Any]] = []
-        skipped: List[Dict[str, Any]] = []
+        futures_orders: list[dict[str, Any]] = []
+        options_orders: list[dict[str, Any]] = []
+        stock_orders: list[dict[str, Any]] = []
+        skipped: list[dict[str, Any]] = []
 
         for order in hedge_orders:
             action = order.get("action", "")
@@ -2808,7 +2806,7 @@ class DailyWorkflow:
                 skipped.append({**order, "status": "SKIP_UNKNOWN_ACTION",
                                 "reason": f"未知 action: {action}"})
 
-        executed: List[Dict[str, Any]] = []
+        executed: list[dict[str, Any]] = []
 
         # 执行期货对冲
         if futures_orders:
@@ -2895,13 +2893,13 @@ class DailyWorkflow:
     #   - 三级熔断: 保证金占用率检查 + 自动执行
     #   - 2030清仓协议: 阶段切换 + 预警
     # --------------------------------------------------------
-    def phase_hedge_fund(self) -> Dict[str, Any]:
+    def phase_hedge_fund(self) -> dict[str, Any]:
         """对冲基金视角融合阶段 — Theta/Gamma/KillSwitch/LiquidationScheduler"""
         logger.info("=" * 60)
         logger.info("Phase 4.5: 对冲基金视角融合 (Theta/Gamma/KillSwitch/Liquidation)")
         logger.info("=" * 60)
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "status": "PASS",
             "modules_loaded": HEDGE_FUND_CORE_READY,
             "theta": {},
@@ -3082,13 +3080,13 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 4.6: v10.0 风控 (回撤控制 + VaR 监控 + 压力测试)
     # --------------------------------------------------------
-    def phase_v10_risk(self) -> Dict[str, Any]:
+    def phase_v10_risk(self) -> dict[str, Any]:
         """v10.0 风控阶段 — 回撤控制 + VaR 监控 + 压力测试 + 配置加载"""
         logger.info("=" * 60)
         logger.info("Phase 4.6: v10.0 风控 (回撤控制 + VaR 监控 + 压力测试)")
         logger.info("=" * 60)
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "status": "PASS",
             "modules_loaded": V10_RISK_READY,
             "drawdown": {},
@@ -3381,12 +3379,12 @@ class DailyWorkflow:
         logger.info("=" * 60)
         return result
 
-    def _load_returns_history(self) -> List[float]:
+    def _load_returns_history(self) -> list[float]:
         """加载历史收益率序列 (用于 VaR 计算)"""
         try:
             returns_path = BASE_DIR.parent / "config" / "returns_history.json"
             if returns_path.exists():
-                with open(returns_path, "r", encoding="utf-8") as f:
+                with open(returns_path, encoding="utf-8") as f:
                     data = json.load(f)
                 # 支持多种格式: {"returns": [...]} 或 {"daily_returns": [...]} 或 [...]
                 if isinstance(data, list):
@@ -3399,9 +3397,9 @@ class DailyWorkflow:
         except Exception:
             return []
 
-    def _get_portfolio_positions_for_stress_test(self) -> List[Dict]:
+    def _get_portfolio_positions_for_stress_test(self) -> list[dict]:
         """获取用于压力测试的持仓列表"""
-        positions: List[Dict] = []
+        positions: list[dict] = []
         try:
             v10_loader = V10ConfigLoader()
             for pos in v10_loader.get_stock_positions():
@@ -3452,7 +3450,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 4.7: 量化市场中性策略 (月度调仓 + IC 对冲)
     # --------------------------------------------------------
-    def phase_quant_neutral(self) -> Dict[str, Any]:
+    def phase_quant_neutral(self) -> dict[str, Any]:
         """量化市场中性策略 — 7 因子选股 + IC 期货对冲
 
         v10.0 投资计划 quant_neutral_account (70 万资金, 140 万名义敞口):
@@ -3471,7 +3469,7 @@ class DailyWorkflow:
         logger.info("Phase 4.7: 量化市场中性策略 (月度调仓 + IC 对冲)")
         logger.info("=" * 60)
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "status": "PASS",
             "action": "skip",
             "reason": "",
@@ -3593,12 +3591,12 @@ class DailyWorkflow:
         logger.info("=" * 60)
         return result
 
-    def _load_quant_neutral_holdings(self) -> List[Dict]:
+    def _load_quant_neutral_holdings(self) -> list[dict]:
         """加载量化中性策略的当前多头持仓"""
         try:
             positions_path = BASE_DIR.parent / "config" / "quant_neutral_positions.json"
             if positions_path.exists():
-                with open(positions_path, "r", encoding="utf-8") as f:
+                with open(positions_path, encoding="utf-8") as f:
                     return json.load(f).get("long_positions", [])
         except Exception:
             pass
@@ -3609,7 +3607,7 @@ class DailyWorkflow:
         try:
             positions_path = BASE_DIR.parent / "config" / "positions.json"
             if positions_path.exists():
-                with open(positions_path, "r", encoding="utf-8") as f:
+                with open(positions_path, encoding="utf-8") as f:
                     data = json.load(f)
                 # 从 positions.json 中查找 IC 期货价格
                 for pos in data.get("positions", []):
@@ -3619,7 +3617,7 @@ class DailyWorkflow:
             pass
         return 5500.0  # 默认 IC 价格
 
-    def _get_ic_basis(self) -> Optional[float]:
+    def _get_ic_basis(self) -> float | None:
         """获取 IC 基差 (正=贴水, 负=升水)"""
         try:
             # 从市场数据中获取 IC 基差
@@ -3633,14 +3631,14 @@ class DailyWorkflow:
         try:
             positions_path = BASE_DIR.parent / "config" / "quant_neutral_positions.json"
             if positions_path.exists():
-                with open(positions_path, "r", encoding="utf-8") as f:
+                with open(positions_path, encoding="utf-8") as f:
                     data = json.load(f)
                 return int(data.get("ic_short_contracts", 0))
         except Exception:
             pass
         return 0
 
-    def _load_strategy_drawdown_state(self, strategy_name: str) -> Tuple[float, float, int]:
+    def _load_strategy_drawdown_state(self, strategy_name: str) -> tuple[float, float, int]:
         """加载策略回撤状态
 
         Returns:
@@ -3649,7 +3647,7 @@ class DailyWorkflow:
         try:
             state_path = BASE_DIR.parent / "config" / f"{strategy_name}_state.json"
             if state_path.exists():
-                with open(state_path, "r", encoding="utf-8") as f:
+                with open(state_path, encoding="utf-8") as f:
                     data = json.load(f)
                 return (
                     float(data.get("current_drawdown_pct", 0.0)),
@@ -3663,7 +3661,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 4.8: 现金管理 (逆回购 + 货基 + 应急金监控)
     # --------------------------------------------------------
-    def phase_cash_management(self) -> Dict[str, Any]:
+    def phase_cash_management(self) -> dict[str, Any]:
         """现金管理 — 逆回购自动下单 + 应急金监控 + 保证金追加检查
 
         v10.0 投资计划 cash_management (130 万资金, 占总资本 26%):
@@ -3685,7 +3683,7 @@ class DailyWorkflow:
         logger.info("Phase 4.8: 现金管理 (逆回购 + 货基 + 应急金)")
         logger.info("=" * 60)
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "status": "PASS",
             "action": "skip",
             "total_cash": 0.0,
@@ -3770,7 +3768,7 @@ class DailyWorkflow:
         logger.info("=" * 60)
         return result
 
-    def _load_cash_state(self) -> Tuple[float, float, float, float]:
+    def _load_cash_state(self) -> tuple[float, float, float, float]:
         """加载当前现金状态
 
         Returns:
@@ -3779,7 +3777,7 @@ class DailyWorkflow:
         try:
             cash_path = BASE_DIR.parent / "config" / "cash_state.json"
             if cash_path.exists():
-                with open(cash_path, "r", encoding="utf-8") as f:
+                with open(cash_path, encoding="utf-8") as f:
                     data = json.load(f)
                 return (
                     float(data.get("total_cash", 1_300_000)),
@@ -3801,7 +3799,7 @@ class DailyWorkflow:
         except Exception:
             return 0.025
 
-    def _load_futures_account_state(self) -> Tuple[float, float]:
+    def _load_futures_account_state(self) -> tuple[float, float]:
         """加载期货账户状态
 
         Returns:
@@ -3810,7 +3808,7 @@ class DailyWorkflow:
         try:
             futures_path = BASE_DIR.parent / "config" / "futures_account.json"
             if futures_path.exists():
-                with open(futures_path, "r", encoding="utf-8") as f:
+                with open(futures_path, encoding="utf-8") as f:
                     data = json.load(f)
                 return (
                     float(data.get("account_value", 500_000)),
@@ -3823,7 +3821,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 4.9: 方向性期货交易 (CU/AU/T 三品种方向性交易)
     # --------------------------------------------------------
-    def phase_directional_futures(self) -> Dict[str, Any]:
+    def phase_directional_futures(self) -> dict[str, Any]:
         """方向性期货交易 — CU(沪铜)/AU(黄金)/T(10年国债) 三品种
 
         v10.0 macro_hedge_account 中的方向性子模块:
@@ -3847,7 +3845,7 @@ class DailyWorkflow:
         logger.info("Phase 4.9: 方向性期货交易 (CU/AU/T)")
         logger.info("=" * 60)
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "status": "PASS",
             "action": "skip",
             "signals": [],
@@ -3934,7 +3932,7 @@ class DailyWorkflow:
         logger.info("=" * 60)
         return result
 
-    def _load_directional_futures_market_data(self) -> Dict[str, Dict[str, Any]]:
+    def _load_directional_futures_market_data(self) -> dict[str, dict[str, Any]]:
         """加载方向性期货市场数据 (CU/AU/T 的 OHLCV)
 
         数据源优先级:
@@ -3945,13 +3943,13 @@ class DailyWorkflow:
         Returns:
             {symbol: {"closes": [...], "volumes": [...], "opens": [...], "highs": [...], "lows": [...]}}
         """
-        market_data: Dict[str, Dict[str, Any]] = {}
+        market_data: dict[str, dict[str, Any]] = {}
 
         # 1. 尝试从本地缓存加载
         try:
             cache_path = BASE_DIR.parent / "config" / "futures_market_data.json"
             if cache_path.exists():
-                with open(cache_path, "r", encoding="utf-8") as f:
+                with open(cache_path, encoding="utf-8") as f:
                     data = json.load(f)
                 for symbol in ("CU", "AU", "T"):
                     if symbol in data:
@@ -3989,17 +3987,17 @@ class DailyWorkflow:
 
         return market_data
 
-    def _load_directional_futures_positions(self) -> Dict[str, Dict]:
+    def _load_directional_futures_positions(self) -> dict[str, dict]:
         """加载当前方向性期货持仓
 
         Returns:
             {symbol: {"direction": "long"/"short"/"flat", "contracts": int, "entry_price": float}}
         """
-        positions: Dict[str, Dict] = {}
+        positions: dict[str, dict] = {}
         try:
             pos_path = BASE_DIR.parent / "config" / "directional_futures_positions.json"
             if pos_path.exists():
-                with open(pos_path, "r", encoding="utf-8") as f:
+                with open(pos_path, encoding="utf-8") as f:
                     data = json.load(f)
                 for symbol in ("CU", "AU", "T"):
                     if symbol in data:
@@ -4018,7 +4016,7 @@ class DailyWorkflow:
 
         return positions
 
-    def _get_futures_prices(self, market_data: Dict[str, Dict[str, Any]]) -> Dict[str, float]:
+    def _get_futures_prices(self, market_data: dict[str, dict[str, Any]]) -> dict[str, float]:
         """从市场数据中提取最新价格
 
         Args:
@@ -4038,7 +4036,7 @@ class DailyWorkflow:
                 prices[symbol] = defaults[symbol]
         return prices
 
-    def _load_directional_futures_risk_state(self) -> Tuple[float, float, Optional[date]]:
+    def _load_directional_futures_risk_state(self) -> tuple[float, float, date | None]:
         """加载方向性期货风控状态
 
         Returns:
@@ -4047,7 +4045,7 @@ class DailyWorkflow:
         try:
             risk_path = BASE_DIR.parent / "config" / "directional_futures_risk.json"
             if risk_path.exists():
-                with open(risk_path, "r", encoding="utf-8") as f:
+                with open(risk_path, encoding="utf-8") as f:
                     data = json.load(f)
                 daily_pnl = float(data.get("daily_pnl_pct", 0.0))
                 weekly_loss = float(data.get("weekly_consecutive_loss_pct", 0.0))
@@ -4058,7 +4056,7 @@ class DailyWorkflow:
             logger.debug(f"[DirectionalFutures] 风控状态加载失败: {e}")
         return (0.0, 0.0, None)
 
-    def _save_directional_futures_orders(self, orders: List[Any]) -> Optional[str]:
+    def _save_directional_futures_orders(self, orders: list[Any]) -> str | None:
         """保存方向性期货交易指令到文件
 
         Args:
@@ -4103,8 +4101,8 @@ class DailyWorkflow:
     # ============================================================
 
     def _phase_signal_inject_pipeline_signals(
-        self, signal: Dict[str, Any], target_weights: Dict[str, float]
-    ) -> Dict[str, float]:
+        self, signal: dict[str, Any], target_weights: dict[str, float]
+    ) -> dict[str, float]:
         """注入 Pipeline 因子组合信号 (v8.6.4 P0-A 第 5 信号源)
 
         设计:
@@ -4152,7 +4150,7 @@ class DailyWorkflow:
         return target_weights
 
     def _phase_signal_inject_research_signals(
-        self, signal: Dict[str, Any]
+        self, signal: dict[str, Any]
     ) -> None:
         """注入研究蒸馏信号 (v8.6.9 第 6 信号源, post-mix 模式)
 
@@ -4203,7 +4201,7 @@ class DailyWorkflow:
             )
             signal["research_distilled_applied"] = False
 
-    def _phase_signal_inject_lgb_signals(self, signal: Dict[str, Any]) -> None:
+    def _phase_signal_inject_lgb_signals(self, signal: dict[str, Any]) -> None:
         """注入 LGB 增强信号 (v8.7 第 7 信号源, post-mix 模式)
 
         设计:
@@ -4230,7 +4228,7 @@ class DailyWorkflow:
                 )
                 return
             import json as _json
-            with open(_lgb_signals_file, "r", encoding="utf-8") as _f:
+            with open(_lgb_signals_file, encoding="utf-8") as _f:
                 _lgb_data = _json.load(_f)
             # signals 字段为结构化格式: {symbol: {"signal": float, "quality_flag": str, ...}}
             lgb_signals = _lgb_data.get("signals", {})
@@ -4273,7 +4271,7 @@ class DailyWorkflow:
             signal["lgb_enhanced_skipped_reason"] = f"exception: {e}"
 
     def _phase_signal_apply_agent_shadow(
-        self, signal: Dict[str, Any], target_weights: Dict[str, float]
+        self, signal: dict[str, Any], target_weights: dict[str, float]
     ) -> None:
         """应用金融多 Agent Shadow Mode (v8.6.9 Phase 7)
 
@@ -4346,9 +4344,9 @@ class DailyWorkflow:
         self,
         orchestrator,
         symbol: str,
-        target_weights: Dict[str, float],
+        target_weights: dict[str, float],
         env: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """运行单个标的的 Agent Shadow 分析 (P0-Q2 拆分)
 
         Args:
@@ -4392,7 +4390,7 @@ class DailyWorkflow:
             )
             return None
 
-    def _phase_signal_apply_factor_decay(self, signal: Dict[str, Any]) -> None:
+    def _phase_signal_apply_factor_decay(self, signal: dict[str, Any]) -> None:
         """应用 v8.5 因子衰减监控 (P0-Q2 拆分)
 
         Args:
@@ -4430,7 +4428,7 @@ class DailyWorkflow:
             logger.error(f"[v8.5 FactorDecay] 监控失败: {e}", exc_info=True)
             signal["factor_decay"] = {"status": "ERROR", "error": str(e)}
 
-    def _phase_signal_apply_bl_optimization(self, signal: Dict[str, Any]) -> None:
+    def _phase_signal_apply_bl_optimization(self, signal: dict[str, Any]) -> None:
         """应用 Black-Litterman 组合优化 (P0-Q2 拆分)
 
         机构级组合优化: 从持仓 + 订单信号构建 BL 观点, 输出最优权重.
@@ -4486,8 +4484,8 @@ class DailyWorkflow:
             logger.error("[BlackLitterman] 优化失败: %s", exc, exc_info=True)
 
     def _build_bl_views(
-        self, signal: Dict[str, Any], bl_assets: List[str]
-    ) -> List[Any]:
+        self, signal: dict[str, Any], bl_assets: list[str]
+    ) -> list[Any]:
         """从订单信号构建 Black-Litterman 观点 (P0-Q2 拆分)
 
         仅纳入已在持仓中的标的 (避免 BL 维度不匹配):
@@ -4501,7 +4499,7 @@ class DailyWorkflow:
         Returns:
             BLView 列表 (可能为空)
         """
-        bl_views: List[Any] = []
+        bl_views: list[Any] = []
         asset_set = set(bl_assets)
         for order in signal.get("morning_orders", []) + signal.get("afternoon_orders", []):
             code = str(order.get("code", ""))
@@ -4521,7 +4519,7 @@ class DailyWorkflow:
         return bl_views
 
     def _phase_signal_apply_strategy_coordination(
-        self, signal: Dict[str, Any]
+        self, signal: dict[str, Any]
     ) -> None:
         """应用多策略协调器 (冲突检测 + 风险预算审计, P0-Q2 拆分)
 
@@ -4565,8 +4563,8 @@ class DailyWorkflow:
             logger.error("[MultiStrategy] 协调失败: %s", exc, exc_info=True)
 
     def _build_coordination_target_signals(
-        self, signal: Dict[str, Any]
-    ) -> Dict[str, Dict[str, str]]:
+        self, signal: dict[str, Any]
+    ) -> dict[str, dict[str, str]]:
         """构建多策略协调器的目标信号 (P0-Q2 拆分)
 
         把订单按策略账户归类:
@@ -4581,7 +4579,7 @@ class DailyWorkflow:
         Returns:
             {strategy_name: {code: direction}} 字典
         """
-        target_signals: Dict[str, Dict[str, str]] = {
+        target_signals: dict[str, dict[str, str]] = {
             "stock_long": {},
             "etf_allocation": {},
         }
@@ -4607,13 +4605,13 @@ class DailyWorkflow:
             target_signals["options_tail"] = {"OPTIONS": "BUY"}
         return target_signals
 
-    def _build_coordination_current_positions(self) -> Dict[str, Dict[str, Any]]:
+    def _build_coordination_current_positions(self) -> dict[str, dict[str, Any]]:
         """构建当前持仓字典 (用于冲突检测, P0-Q2 拆分)
 
         Returns:
             {code: {"weight": float, "strategy": str, "amount": float}}
         """
-        current_positions: Dict[str, Dict[str, Any]] = {}
+        current_positions: dict[str, dict[str, Any]] = {}
         portfolio_value = float(getattr(self, "capital", 5_000_000))
         for pos in (self._get_portfolio_positions_for_stress_test()
                     if hasattr(self, "_get_portfolio_positions_for_stress_test") else []):
@@ -4652,7 +4650,7 @@ class DailyWorkflow:
                 len(coord_decision.conflicts),
             )
 
-    def _phase_signal_apply_alpha_modules(self, signal: Dict[str, Any]) -> None:
+    def _phase_signal_apply_alpha_modules(self, signal: dict[str, Any]) -> None:
         """应用 Alpha 因子库 + 动量反转 + Smart Beta (P0-Q2 拆分编排器)
 
         三步走:
@@ -4685,7 +4683,7 @@ class DailyWorkflow:
         except Exception as exc:
             logger.error("[AlphaModules] 信号生成失败: %s", exc, exc_info=True)
 
-    def _prepare_alpha_data(self, positions: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def _prepare_alpha_data(self, positions: list[dict[str, Any]]) -> dict[str, Any] | None:
         """构造 Alpha 因子计算所需的合成价格数据 (P0-Q2 拆分)
 
         简化方案: 用随机合成 100 日价格数据 (实盘应从 data_layer 加载).
@@ -4724,8 +4722,8 @@ class DailyWorkflow:
         }
 
     def _apply_alpha_factor_lib(
-        self, signal: Dict[str, Any], alpha_data: Dict[str, Any]
-    ) -> Optional[Any]:
+        self, signal: dict[str, Any], alpha_data: dict[str, Any]
+    ) -> Any | None:
         """Alpha 因子库计算 (P0-Q2 拆分)
 
         Args:
@@ -4757,7 +4755,7 @@ class DailyWorkflow:
         return alpha_result
 
     def _apply_momentum_engine(
-        self, signal: Dict[str, Any], alpha_data: Dict[str, Any]
+        self, signal: dict[str, Any], alpha_data: dict[str, Any]
     ) -> None:
         """动量反转信号生成 (P0-Q2 拆分)
 
@@ -4788,8 +4786,8 @@ class DailyWorkflow:
 
     def _apply_smart_beta_engine(
         self,
-        signal: Dict[str, Any],
-        alpha_data: Dict[str, Any],
+        signal: dict[str, Any],
+        alpha_data: dict[str, Any],
         alpha_result: Any,
     ) -> None:
         """Smart Beta 多因子加权优化 (P0-Q2 拆分)
@@ -4803,7 +4801,7 @@ class DailyWorkflow:
             return
         import numpy as _np_alpha
         # 构造 factor_scores: {symbol: {factor: value}}
-        sb_factor_scores: Dict[str, Dict[str, float]] = {}
+        sb_factor_scores: dict[str, dict[str, float]] = {}
         for fname, fvalue_obj in alpha_result.factors.items():
             values_dict = getattr(fvalue_obj, "values", {}) or {}
             for sym, val in values_dict.items():
@@ -4843,7 +4841,7 @@ class DailyWorkflow:
             sb_result.tracking_error,
         )
 
-    def _phase_signal_apply_alt_data_modules(self, signal: Dict[str, Any]) -> None:
+    def _phase_signal_apply_alt_data_modules(self, signal: dict[str, Any]) -> None:
         """应用另类数据视角模块 (新闻情感 + 供应链 + 卫星/搜索/招聘/专利, P0-Q2 拆分)
 
         Renaissance/Two Sigma 标准的多源另类数据综合指标:
@@ -4858,7 +4856,7 @@ class DailyWorkflow:
             return
         try:
             # 收集当前持仓标的列表
-            alt_symbols: List[str] = []
+            alt_symbols: list[str] = []
             for pos in (self._get_portfolio_positions_for_stress_test()
                         if hasattr(self, "_get_portfolio_positions_for_stress_test") else []):
                 code = str(pos.get("code", ""))
@@ -4874,7 +4872,7 @@ class DailyWorkflow:
             logger.error("[AltDataModules] 信号生成失败: %s", exc_outer, exc_info=True)
 
     def _apply_news_sentiment(
-        self, signal: Dict[str, Any], alt_symbols: List[str]
+        self, signal: dict[str, Any], alt_symbols: list[str]
     ) -> None:
         """新闻情感分析 (P0-Q2 拆分)
 
@@ -4886,7 +4884,7 @@ class DailyWorkflow:
             return
         try:
             # 构建 supply_chain_map (从供应链图引擎)
-            supply_map: Dict[str, List[str]] = {}
+            supply_map: dict[str, list[str]] = {}
             if self.supply_chain_graph is not None:
                 for src, edges in getattr(self.supply_chain_graph, "adjacency", {}).items():
                     for e in edges:
@@ -4932,7 +4930,7 @@ class DailyWorkflow:
         except Exception as exc_ns:
             logger.error("[NewsSentiment] 信号生成失败: %s", exc_ns, exc_info=True)
 
-    def _apply_supply_chain_graph(self, signal: Dict[str, Any]) -> None:
+    def _apply_supply_chain_graph(self, signal: dict[str, Any]) -> None:
         """供应链关系图谱分析 (P0-Q2 拆分)
 
         Args:
@@ -4977,7 +4975,7 @@ class DailyWorkflow:
             logger.error("[SupplyChain] 信号生成失败: %s", exc_sc, exc_info=True)
 
     def _apply_alt_data_indicators(
-        self, signal: Dict[str, Any], alt_symbols: List[str]
+        self, signal: dict[str, Any], alt_symbols: list[str]
     ) -> None:
         """另类数据综合指标 (卫星/搜索/招聘/专利, P0-Q2 拆分)
 
@@ -5026,7 +5024,7 @@ class DailyWorkflow:
         except Exception as exc_ad:
             logger.error("[AltData] 信号生成失败: %s", exc_ad, exc_info=True)
 
-    def phase_signal(self) -> Dict[str, Any]:
+    def phase_signal(self) -> dict[str, Any]:
         """信号生成 — 从 trade_plan 加载订单
 
         读取 `trade_plans/trade_plan_{date}.json` 中的:
@@ -5349,10 +5347,10 @@ class DailyWorkflow:
         return 0.0
 
     def _qlib_signals_to_adjustments(self,
-                                     qlib_signals: Dict[str, float],
+                                     qlib_signals: dict[str, float],
                                      *,
-                                     morning_orders: List[Dict[str, Any]],
-                                     afternoon_orders: List[Dict[str, Any]]) -> Dict[str, Any]:
+                                     morning_orders: list[dict[str, Any]],
+                                     afternoon_orders: list[dict[str, Any]]) -> dict[str, Any]:
         """按 Qlib 信号调整订单：强看多加仓、中性维持、看空减仓或跳过
 
         Returns:
@@ -5367,8 +5365,8 @@ class DailyWorkflow:
         if not qlib_signals:
             return {}
 
-        def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-            adjusted: List[Dict[str, Any]] = []
+        def _apply(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            adjusted: list[dict[str, Any]] = []
             for order in orders:
                 code = str(order.get("code", ""))
                 signal_value = qlib_signals.get(code)
@@ -5464,7 +5462,7 @@ class DailyWorkflow:
         fused = qlib_factor * w_q + ifind_factor * w_i
         return max(clamp_min, min(clamp_max, fused))
 
-    def _load_lgb_enhanced_signals(self) -> Dict[str, Dict[str, Any]]:
+    def _load_lgb_enhanced_signals(self) -> dict[str, dict[str, Any]]:
         """加载 lgb_enhanced 增强模型信号文件
 
         从 models/lgb_enhanced/lgb_enhanced_signals.json 读取当日信号。
@@ -5482,7 +5480,7 @@ class DailyWorkflow:
                 logger.debug("LGB增强信号文件不存在: %s", signals_path)
                 return {}
 
-            with open(signals_path, "r", encoding="utf-8") as f:
+            with open(signals_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             # 新鲜度检查: trade_date 必须是今日 (防止使用过期信号)
@@ -5516,7 +5514,7 @@ class DailyWorkflow:
             return {}
 
     @staticmethod
-    def _lgb_confidence_multiplier(signal_value: Optional[float],
+    def _lgb_confidence_multiplier(signal_value: float | None,
                                     quality_flag: str = "OK") -> float:
         """将 lgb_enhanced 信号映射到置信度乘数
 
@@ -5565,13 +5563,13 @@ class DailyWorkflow:
 
     def _apply_fused_qlib_ifind_adjustments(self,
                                             *,
-                                            morning_orders: List[Dict[str, Any]],
-                                            afternoon_orders: List[Dict[str, Any]],
-                                            qlib_signals: Dict[str, float],
-                                            ifind_insights: Dict[str, Any],
+                                            morning_orders: list[dict[str, Any]],
+                                            afternoon_orders: list[dict[str, Any]],
+                                            qlib_signals: dict[str, float],
+                                            ifind_insights: dict[str, Any],
                                             external_factor: float = 1.0,
-                                            regime_weights: Optional[Dict[str, float]] = None,
-                                            lgb_signals: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+                                            regime_weights: dict[str, float] | None = None,
+                                            lgb_signals: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
         """融合 Qlib 信号、iFinD 新闻研判与外部报告，统一调整订单
 
         Args:
@@ -5605,8 +5603,8 @@ class DailyWorkflow:
             ifind_w = float(regime_weights.get("ifind", ifind_w))
             external_w = float(regime_weights.get("external", external_w))
 
-        def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-            adjusted: List[Dict[str, Any]] = []
+        def _apply(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            adjusted: list[dict[str, Any]] = []
             for order in orders:
                 code = str(order.get("code", ""))
                 qlib_signal = qlib_signals.get(code)
@@ -5711,8 +5709,8 @@ class DailyWorkflow:
 
     def _apply_ifind_news_adjustments(self,
                                       *,
-                                      morning_orders: List[Dict[str, Any]],
-                                      afternoon_orders: List[Dict[str, Any]]) -> Dict[str, Any]:
+                                      morning_orders: list[dict[str, Any]],
+                                      afternoon_orders: list[dict[str, Any]]) -> dict[str, Any]:
         """根据 iFinD 新闻/公告研判结果调整订单
 
         Returns:
@@ -5747,8 +5745,8 @@ class DailyWorkflow:
 
         insight_map = {item.symbol: item for item in insights}
 
-        def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-            adjusted: List[Dict[str, Any]] = []
+        def _apply(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            adjusted: list[dict[str, Any]] = []
             for order in orders:
                 code = str(order.get("code", ""))
                 insight = insight_map.get(code)
@@ -5796,9 +5794,9 @@ class DailyWorkflow:
 
     def _apply_macro_policy_adjustments(self,
                                          *,
-                                         morning_orders: List[Dict[str, Any]],
-                                         afternoon_orders: List[Dict[str, Any]],
-                                         macro_scores: Dict[str, Any]) -> Dict[str, Any]:
+                                         morning_orders: list[dict[str, Any]],
+                                         afternoon_orders: list[dict[str, Any]],
+                                         macro_scores: dict[str, Any]) -> dict[str, Any]:
         """根据十五五/康波宏观评分调整订单
 
         Args:
@@ -5823,8 +5821,8 @@ class DailyWorkflow:
         except Exception:
             return {}
 
-        def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-            adjusted: List[Dict[str, Any]] = []
+        def _apply(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            adjusted: list[dict[str, Any]] = []
             for order in orders:
                 code = str(order.get("code", ""))
                 score_info = macro_scores.get(code)
@@ -5872,8 +5870,8 @@ class DailyWorkflow:
         }
 
     def _apply_position_factor(self,
-                               orders: List[Dict[str, Any]],
-                               factor: float) -> List[Dict[str, Any]]:
+                               orders: list[dict[str, Any]],
+                               factor: float) -> list[dict[str, Any]]:
         """应用仓位系数到订单列表 (DEFENSE 模式减仓)
 
         Args:
@@ -5903,7 +5901,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Qlib 信号生成 (v7.5 + Qlib 集成)
     # --------------------------------------------------------
-    def _generate_qlib_signals(self) -> Dict[str, float]:
+    def _generate_qlib_signals(self) -> dict[str, float]:
         """为交易计划中的标的生成 Qlib 深度学习信号
 
         Returns:
@@ -5973,7 +5971,7 @@ class DailyWorkflow:
 
         return signals
 
-    def _compute_realized_forward_returns(self, symbols: List[str], horizon: int = 20) -> Dict[str, float]:
+    def _compute_realized_forward_returns(self, symbols: list[str], horizon: int = 20) -> dict[str, float]:
         """计算各标的最近已实现的前向收益（无前视偏差）
 
         取 t-horizon → t 的真实收益（t 为最新数据日），用于评估信号 IC。
@@ -5986,7 +5984,7 @@ class DailyWorkflow:
         Returns:
             {symbol: forward_return}
         """
-        fr: Dict[str, float] = {}
+        fr: dict[str, float] = {}
         try:
             from utils.data_provider import get_historical_data
         except Exception:
@@ -6015,7 +6013,7 @@ class DailyWorkflow:
                 continue
         return fr
 
-    def _generate_mock_ohlcv(self, symbol: str, days: int = 120) -> "Optional[pd.DataFrame]":
+    def _generate_mock_ohlcv(self, symbol: str, days: int = 120) -> pd.DataFrame | None:
         """生成模拟 OHLCV 数据 (用于 Qlib 演示)
 
         Args:
@@ -6050,7 +6048,7 @@ class DailyWorkflow:
             logger.warning(f"模拟数据生成失败 [{symbol}]: {e}")
             return None
 
-    def _options_market_snapshot(self) -> Dict[str, Any]:
+    def _options_market_snapshot(self) -> dict[str, Any]:
         """期权市场快照（最小可用版本）
 
         实盘应接入期权行情/IV/Greek；当前仅返回占位结构，
@@ -6069,7 +6067,7 @@ class DailyWorkflow:
     # 近乎一致的 CTP→同花顺连接逻辑, 且存在行为漂移风险。
     # 抽离为单一方法后, 升级/修复只需改一处。
     # --------------------------------------------------------
-    def _connect_live_broker(self) -> Tuple[Optional[Any], str]:
+    def _connect_live_broker(self) -> tuple[Any | None, str]:
         """按 CTP(期货/期权)→同花顺(股票/ETF/期权) 优先级连接真实券商网关。
 
         仅负责连接尝试, **不**负责降级策略 — 这是关键安全边界:
@@ -6124,7 +6122,7 @@ class DailyWorkflow:
     # P0-6/P0-7/P0-9/P0-11: 顶级对冲基金审计修复 (2026-07-25)
     # 下单前风控门控 — UnifiedRiskCockpit + KillSwitch 预检查
     # --------------------------------------------------------
-    def _execute_kill_switch_callback(self, level: int, actions: list) -> Dict[str, Any]:
+    def _execute_kill_switch_callback(self, level: int, actions: list) -> dict[str, Any]:
         """Kill Switch broker_callback 实现 (P0-7 修复, P0-LIVE-02 v8.6.8 增强)
 
         当 KillSwitch.execute_kill_switch(level) 被调用时, 通过此回调执行真实动作。
@@ -6146,7 +6144,7 @@ class DailyWorkflow:
             执行结果字典, 包含 executed/actions_taken/critical_note
         """
         ts = datetime.now().isoformat()
-        actions_taken: List[Dict[str, Any]] = []
+        actions_taken: list[dict[str, Any]] = []
         critical_note = ""
         # P0-LIVE-02: 跟踪真实平仓动作是否真正执行
         real_close_executed = False
@@ -6248,7 +6246,7 @@ class DailyWorkflow:
             ),
         }
 
-    def _execute_real_force_close(self, level: int) -> Dict[str, Any]:
+    def _execute_real_force_close(self, level: int) -> dict[str, Any]:
         """实盘真实平仓执行 (P0-LIVE-02 v8.6.8 升级 P0-04)
 
         在实盘模式下, KillSwitch 触发后真正调用 broker API 执行平仓动作.
@@ -6450,7 +6448,7 @@ class DailyWorkflow:
                 "fills": [],
             }
 
-    def _find_deep_otm_short_positions(self, positions: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _find_deep_otm_short_positions(self, positions: dict[str, Any]) -> list[dict[str, Any]]:
         """找出深虚值期权空头持仓 (L2 强平目标)
 
         v8.6.8 P0-04 新增: 从持仓中筛选符合条件的期权空头
@@ -6509,7 +6507,7 @@ class DailyWorkflow:
             logger.error(f"[RealForceClose] 筛选深虚值期权空头异常: {e}", exc_info=True)
         return otm_shorts
 
-    def _pre_trade_risk_gate(self) -> Dict[str, Any]:
+    def _pre_trade_risk_gate(self) -> dict[str, Any]:
         """下单前风控门控 — UnifiedRiskCockpit 全量扫描 (P0-6/P0-9/P0-11)
 
         顶级对冲基金标准: 任何订单进入执行队列前, 必须经过统一风控驾驶舱扫描。
@@ -6628,9 +6626,9 @@ class DailyWorkflow:
 
     def _enforce_kill_switch_on_orders(
         self,
-        morning_orders: List[Dict[str, Any]],
-        afternoon_orders: List[Dict[str, Any]],
-        risk_gate: Dict[str, Any],
+        morning_orders: list[dict[str, Any]],
+        afternoon_orders: list[dict[str, Any]],
+        risk_gate: dict[str, Any],
     ) -> tuple:
         """根据 KillSwitch 级别过滤订单 (P0-7: L1/L2 真实拦截)
 
@@ -6649,7 +6647,7 @@ class DailyWorkflow:
         if fail_closed:
             ks_level = 3  # 异常按 L3 处理
 
-        enforcement_actions: List[Dict[str, Any]] = []
+        enforcement_actions: list[dict[str, Any]] = []
 
         if ks_level == 0:
             # L0: 正常放行
@@ -6751,7 +6749,7 @@ class DailyWorkflow:
 
         return [], [], enforcement_actions
 
-    def _enforce_put_option_budget_limit(self, options_modules: List[Dict[str, Any]]) -> tuple:
+    def _enforce_put_option_budget_limit(self, options_modules: list[dict[str, Any]]) -> tuple:
         """Put Option 累计预算 60% 硬限制 (P0-12)
 
         审计问题: put option 累计预算无硬上限, 极端行情下可能耗尽对冲账户全部资金,
@@ -6769,7 +6767,7 @@ class DailyWorkflow:
 
         filtered_modules = []
         cumulative_put_budget = 0.0
-        blocked_modules: List[Dict[str, Any]] = []
+        blocked_modules: list[dict[str, Any]] = []
 
         for module in options_modules:
             module_type = str(module.get("type", module.get("strategy", ""))).upper()
@@ -6828,7 +6826,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 6: 智能执行 (MockBroker / SimExecutionEngine)
     # --------------------------------------------------------
-    def phase_execute(self, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def phase_execute(self, signal: dict[str, Any]) -> list[dict[str, Any]]:
         """智能执行 — 2026 年交易计划订单
 
         支持两种执行模式:
@@ -6854,7 +6852,7 @@ class DailyWorkflow:
         # === P0-12: Put Option 累计预算 60% 硬限制 (2026-07-25 顶级对冲基金审计) ===
         # 审计问题: put option 无累计预算上限, 极端行情下可能耗尽对冲账户全部资金
         # 修复: put 累计预算 <= 60% * hedge_capital, 保留 40% 缓冲应对极端行情
-        put_budget_info: Dict[str, Any] = {}
+        put_budget_info: dict[str, Any] = {}
         if options_modules:
             try:
                 options_modules, put_budget_info = self._enforce_put_option_budget_limit(options_modules)
@@ -6863,7 +6861,7 @@ class DailyWorkflow:
                 options_modules = []
                 put_budget_info = {"error": str(exc), "fail_closed": True}
 
-        options_fills: List[Dict[str, Any]] = []
+        options_fills: list[dict[str, Any]] = []
         if options_plan and options_modules:
             try:
                 from execution.options_runner import OptionsRunner
@@ -6890,8 +6888,8 @@ class DailyWorkflow:
         # 审计问题: 原 phase_execute 直接调用 MockBroker 下单, KillSwitch 检查
         #           仅在 Phase 4.5 记录日志但不拦截, L1/L2/L3 形同虚设
         # 修复: 下单前必须经过 UnifiedRiskCockpit 扫描, 按级别过滤/拦截订单
-        risk_gate: Dict[str, Any] = {}
-        kill_switch_enforcement: List[Dict[str, Any]] = []
+        risk_gate: dict[str, Any] = {}
+        kill_switch_enforcement: list[dict[str, Any]] = []
         try:
             risk_gate = self._pre_trade_risk_gate()
         except Exception as exc:
@@ -7003,7 +7001,7 @@ class DailyWorkflow:
             logger.info("DRY-RUN 模式, 仅生成指令不执行")
 
             # === 对冲基金视角: 执行算法引擎 (大单拆单计划) ===
-            execution_plans: List[Dict[str, Any]] = []
+            execution_plans: list[dict[str, Any]] = []
             if self.exec_algo_engine is not None:
                 try:
                     for order in morning_orders + afternoon_orders:
@@ -7082,7 +7080,7 @@ class DailyWorkflow:
             return dry_orders
 
         # === 对冲基金视角: 执行算法引擎 (大单拆单计划) ===
-        execution_plans: List[Dict[str, Any]] = []
+        execution_plans: list[dict[str, Any]] = []
         if self.exec_algo_engine is not None:
             try:
                 for order in morning_orders + afternoon_orders:
@@ -7193,7 +7191,7 @@ class DailyWorkflow:
             # 防止盘中熔断后 SOR 继续下单 (前 50 笔成交后 KillSwitch 升级到 L2, 后 50 笔应停止)
             sor = SmartOrderRouter(broker, ntp, kill_switch=getattr(self, 'ks', None))
 
-            all_fills: List[Dict[str, Any]] = []
+            all_fills: list[dict[str, Any]] = []
 
             # === 上午批次执行 ===
             logger.info(f"--- 上午批次 {self.config.MORNING_WINDOW} ---")
@@ -7248,8 +7246,8 @@ class DailyWorkflow:
             # === 机构级: TCA 交易后成本分析 ===
             if self.tca_manager is not None and all_fills:
                 try:
-                    fills_by_symbol: Dict[str, List[FillRecord]] = {}
-                    benchmarks: Dict[str, BenchmarkPrices] = {}
+                    fills_by_symbol: dict[str, list[FillRecord]] = {}
+                    benchmarks: dict[str, BenchmarkPrices] = {}
                     for fill in all_fills:
                         sym = str(fill.get("symbol", fill.get("code", "")))
                         if not sym:
@@ -7301,9 +7299,9 @@ class DailyWorkflow:
                     import numpy as _np_exec
                     import pandas as _pd_exec
                     # 为每笔成交生成执行计划与冲击估计
-                    exec_plans_summary: List[Dict[str, Any]] = []
-                    impact_estimates: List[Dict[str, Any]] = []
-                    routing_decisions: List[Dict[str, Any]] = []
+                    exec_plans_summary: list[dict[str, Any]] = []
+                    impact_estimates: list[dict[str, Any]] = []
+                    routing_decisions: list[dict[str, Any]] = []
 
                     for fill in all_fills:
                         sym = str(fill.get("symbol", fill.get("code", "")))
@@ -7463,9 +7461,9 @@ class DailyWorkflow:
             return []
 
     def _execute_sim_mode(self,
-                          signal: Dict[str, Any],
-                          morning_orders: List[Dict[str, Any]],
-                          afternoon_orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+                          signal: dict[str, Any],
+                          morning_orders: list[dict[str, Any]],
+                          afternoon_orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """模拟盘模式执行：股票日盘 + 期货（日盘+夜盘）"""
         calendar = self.sim_engine.calendar
         if not calendar.is_trading_day():
@@ -7473,7 +7471,7 @@ class DailyWorkflow:
             self.state["phases"]["execute"] = {"status": "PASS", "fills": [], "action": "SKIP_NON_TRADING_DAY"}
             return []
 
-        all_fills: List[Dict[str, Any]] = []
+        all_fills: list[dict[str, Any]] = []
 
         # === 上午批次（股票+期货日盘） ===
         logger.info("--- 模拟盘上午批次 (股票日盘 + 期货日盘) ---")
@@ -7542,8 +7540,8 @@ class DailyWorkflow:
         return all_fills
 
     def _execute_sim_batch(self,
-                           orders: List[Dict[str, Any]],
-                           session: str) -> List[Dict[str, Any]]:
+                           orders: list[dict[str, Any]],
+                           session: str) -> list[dict[str, Any]]:
         """执行一批模拟盘订单（按股票/期货/期权拆分）"""
         if not orders:
             return []
@@ -7561,7 +7559,7 @@ class DailyWorkflow:
             else:
                 futures_orders.append(self._normalize_sim_order(order, session=session))
 
-        fills: List[Dict[str, Any]] = []
+        fills: list[dict[str, Any]] = []
         if stock_orders:
             logger.info("[模拟盘] 股票订单 %d 笔 @ %s", len(stock_orders), session)
             fills.extend(self.sim_engine.execute_stock_orders(stock_orders, session=session))
@@ -7573,7 +7571,7 @@ class DailyWorkflow:
             fills.extend(self.sim_engine.execute_options_orders(options_orders, session=session))
         return fills
 
-    def _normalize_sim_order(self, order: Dict[str, Any], session: str) -> Dict[str, Any]:
+    def _normalize_sim_order(self, order: dict[str, Any], session: str) -> dict[str, Any]:
         """将交易计划订单规范化为模拟盘订单"""
         symbol = str(order.get("code", order.get("symbol", "")))
         side = str(order.get("side", "BUY"))
@@ -7588,7 +7586,7 @@ class DailyWorkflow:
             "session": session,
         }
 
-    def _extract_futures_night_orders(self, orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _extract_futures_night_orders(self, orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """从订单中提取支持夜盘的期货订单"""
         night_codes = set(self.sim_engine.router.futures_broker._night_session_info.keys())
         result = []
@@ -7602,8 +7600,8 @@ class DailyWorkflow:
     def _execute_order_batch(self,
                              sor: SmartOrderRouter,
                              broker: MockBroker,
-                             orders: List[Dict[str, Any]],
-                             session: str) -> List[Dict[str, Any]]:
+                             orders: list[dict[str, Any]],
+                             session: str) -> list[dict[str, Any]]:
         """执行一批订单 (上午或下午)
 
         Args:
@@ -7615,7 +7613,7 @@ class DailyWorkflow:
         Returns:
             成交记录列表
         """
-        fills: List[Dict[str, Any]] = []
+        fills: list[dict[str, Any]] = []
         for order in orders:
             symbol = order.get("code", "")
             name = order.get("name", "")
@@ -7687,17 +7685,17 @@ class DailyWorkflow:
         return fills
 
     def _aggregate_order_summary(self,
-                                 orders: List[Dict[str, Any]],
-                                 fills: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+                                 orders: list[dict[str, Any]],
+                                 fills: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """按订单汇总成交明细，统一报告与状态 JSON 的执行口径"""
         # 建立 symbol -> session 映射，订单本身可能不含 session
-        symbol_session_map: Dict[str, str] = {}
+        symbol_session_map: dict[str, str] = {}
         for f in fills:
             sym = f.get("symbol", "")
             if sym and sym not in symbol_session_map:
                 symbol_session_map[sym] = f.get("session", "")
 
-        order_map: Dict[str, Dict[str, Any]] = {}
+        order_map: dict[str, dict[str, Any]] = {}
         for order in orders:
             symbol = order.get("code", "")
             if not symbol:
@@ -8577,7 +8575,7 @@ class DailyWorkflow:
                 }
                 return True
 
-            with open(state_file, "r", encoding="utf-8") as f:
+            with open(state_file, encoding="utf-8") as f:
                 shadow_state = _json.load(f)
 
             # 已终止的影子账户仅记录状态, 不再更新
@@ -8609,7 +8607,7 @@ class DailyWorkflow:
                 try:
                     _trade_plan_path = BASE_DIR / "trade_plans" / f"trade_plan_{self.trade_date.replace('-', '')}.json"
                     if _trade_plan_path.exists():
-                        with open(_trade_plan_path, "r", encoding="utf-8") as _tp_f:
+                        with open(_trade_plan_path, encoding="utf-8") as _tp_f:
                             _tp = _json.load(_tp_f)
                         _exec_plan = _tp.get("execution_plan", {})
                         _day_capital = float(_tp.get("execution_plan", {}).get("day_capital", 100000))
@@ -8797,7 +8795,7 @@ class DailyWorkflow:
                 _replaced = False
                 if _jsonl_path.exists():
                     try:
-                        with open(_jsonl_path, "r", encoding="utf-8") as _f:
+                        with open(_jsonl_path, encoding="utf-8") as _f:
                             _existing_lines = _f.readlines()
                     except (_json.JSONDecodeError, OSError):
                         _existing_lines = []
@@ -8845,7 +8843,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # 主流程
     # --------------------------------------------------------
-    def run(self, only_phase: Optional[str] = None, phase_start: Optional[str] = None, phase_end: Optional[str] = None) -> Dict[str, Any]:
+    def run(self, only_phase: str | None = None, phase_start: str | None = None, phase_end: str | None = None) -> dict[str, Any]:
         """执行完整工作流
 
         Args:

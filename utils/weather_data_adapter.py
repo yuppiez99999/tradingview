@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """气象数据适配器 — 28 系统集成层 (v8.6.13)
 
 核心功能:
@@ -41,7 +40,7 @@ import os
 import time
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("weather_data")
 
@@ -176,12 +175,12 @@ class WeatherMinutelyPoint:
 @dataclass
 class WeatherForecast:
     """完整天气预报"""
-    realtime: Optional[WeatherRealtime] = None
-    hourly: List[WeatherHourlyPoint] = field(default_factory=list)
-    daily: List[WeatherDailyPoint] = field(default_factory=list)
-    minutely: List[WeatherMinutelyPoint] = field(default_factory=list)
+    realtime: WeatherRealtime | None = None
+    hourly: list[WeatherHourlyPoint] = field(default_factory=list)
+    daily: list[WeatherDailyPoint] = field(default_factory=list)
+    minutely: list[WeatherMinutelyPoint] = field(default_factory=list)
     summary_text: str = ""
-    alerts: List[Dict[str, Any]] = field(default_factory=list)
+    alerts: list[dict[str, Any]] = field(default_factory=list)
     location_name: str = ""
     source: str = "unknown"
     timestamp: float = 0.0
@@ -191,10 +190,10 @@ class WeatherForecast:
 # HTTP 客户端 (懒加载单例)
 # ============================================================
 
-_http_session: Optional[Any] = None
+_http_session: Any | None = None
 
 
-def _get_session() -> Optional[Any]:
+def _get_session() -> Any | None:
     """获取绕过代理的 HTTP Session (单例)."""
     global _http_session
     if _http_session is not None:
@@ -237,12 +236,12 @@ class WeatherDataAdapter:
     OPENMETEO_URL = "https://api.open-meteo.com/v1/forecast"
     CACHE_TTL = 600  # 缓存有效期 (秒) — 延长缓存减少重复请求
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         # 安全合规: API key 仅从环境变量或参数读取, 不硬编码
         self.api_key = api_key or os.environ.get("WEATHER_API_KEY", "")
         self._session = _get_session()
-        self._cache: Dict[str, Tuple[float, Any]] = {}
-        self._available: Optional[bool] = None
+        self._cache: dict[str, tuple[float, Any]] = {}
+        self._available: bool | None = None
         self._source: str = "unknown"
 
     # ----------------------------------------------------------
@@ -289,7 +288,7 @@ class WeatherDataAdapter:
     # 核心请求方法
     # ----------------------------------------------------------
 
-    def _request(self, params: Dict[str, Any], use_cache: bool = True) -> Optional[Dict]:
+    def _request(self, params: dict[str, Any], use_cache: bool = True) -> dict | None:
         """发送请求到 apizero API, 带缓存.
 
         遇到 429 限流时, 立即标记 apizero 不可用, 后续请求直接降级.
@@ -330,7 +329,7 @@ class WeatherDataAdapter:
             logger.error("apizero 请求异常: %s", e)
             return None
 
-    def _request_openmeteo(self, lat: float, lon: float) -> Optional[Dict]:
+    def _request_openmeteo(self, lat: float, lon: float) -> dict | None:
         """降级到 Open-Meteo 免费 API, 带 10 分钟缓存."""
         cache_key = f"openmeteo:{lat:.2f}:{lon:.2f}"
         cached = self._cache.get(cache_key)
@@ -443,8 +442,8 @@ class WeatherDataAdapter:
 
     def get_hourly(
         self, lon: float, lat: float, hours: int = 72,
-        raw_data: Optional[Dict] = None,
-    ) -> List[WeatherHourlyPoint]:
+        raw_data: dict | None = None,
+    ) -> list[WeatherHourlyPoint]:
         """获取指定坐标的小时级预报.
 
         Args:
@@ -461,7 +460,7 @@ class WeatherDataAdapter:
                 return self._fallback_hourly(lon, lat)
 
         hourly_block = data.get("hourly", {})
-        result: List[WeatherHourlyPoint] = []
+        result: list[WeatherHourlyPoint] = []
 
         precip_list = hourly_block.get("precipitation", [])
         temp_list = hourly_block.get("temperature", [])
@@ -512,7 +511,7 @@ class WeatherDataAdapter:
 
         return result
 
-    def _fallback_hourly(self, lon: float, lat: float) -> List[WeatherHourlyPoint]:
+    def _fallback_hourly(self, lon: float, lat: float) -> list[WeatherHourlyPoint]:
         """Open-Meteo 降级."""
         data = self._request_openmeteo(lat, lon)
         if not data or "hourly" not in data:
@@ -542,8 +541,8 @@ class WeatherDataAdapter:
 
     def get_daily(
         self, lon: float, lat: float, days: int = 15,
-        raw_data: Optional[Dict] = None,
-    ) -> List[WeatherDailyPoint]:
+        raw_data: dict | None = None,
+    ) -> list[WeatherDailyPoint]:
         """获取指定坐标的天级预报.
 
         Args:
@@ -560,7 +559,7 @@ class WeatherDataAdapter:
                 return self._fallback_daily(lon, lat)
 
         daily_block = data.get("daily", {})
-        result: List[WeatherDailyPoint] = []
+        result: list[WeatherDailyPoint] = []
 
         temp_list = daily_block.get("temperature", [])
         precip_list = daily_block.get("precipitation", [])
@@ -617,7 +616,7 @@ class WeatherDataAdapter:
 
         return result
 
-    def _fallback_daily(self, lon: float, lat: float) -> List[WeatherDailyPoint]:
+    def _fallback_daily(self, lon: float, lat: float) -> list[WeatherDailyPoint]:
         """Open-Meteo 降级."""
         data = self._request_openmeteo(lat, lon)
         if not data or "daily" not in data:
@@ -717,7 +716,7 @@ class WeatherDataAdapter:
     # 预警
     # ----------------------------------------------------------
 
-    def get_alerts(self, lon: float, lat: float) -> List[Dict[str, Any]]:
+    def get_alerts(self, lon: float, lat: float) -> list[dict[str, Any]]:
         """获取气象预警信息."""
         loc = f"{lon},{lat}"
         data = self._request({"type": "weather", "location": loc, "alert": "true"})
@@ -769,7 +768,7 @@ class WeatherDataAdapter:
 # 便捷函数
 # ============================================================
 
-_adapter_instance: Optional[WeatherDataAdapter] = None
+_adapter_instance: WeatherDataAdapter | None = None
 
 
 def get_adapter() -> WeatherDataAdapter:

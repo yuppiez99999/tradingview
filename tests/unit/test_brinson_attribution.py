@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T5.1 单元测试 — utils/attribution/brinson_attribution.py.
 
 测试覆盖:

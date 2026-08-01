@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 量化市场中性策略执行器 v1.0
 ================================
@@ -51,7 +50,7 @@ import logging
 from dataclasses import asdict, dataclass, field
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("quant_neutral")
 
@@ -113,7 +112,7 @@ class StockFactorScore:
 
     code: str
     name: str = ""
-    factors: Dict[str, float] = field(default_factory=dict)
+    factors: dict[str, float] = field(default_factory=dict)
     composite: float = 0.0  # 综合得分 [-1, 1]
     rank: int = 0  # 排名
     selected: bool = False  # 是否选入多头组合
@@ -133,16 +132,16 @@ class QuantNeutralResult:
     target_beta: float = DEFAULT_TARGET_BETA
     net_exposure: float = 0.0
     # 多头标的列表
-    long_positions: List[Dict] = field(default_factory=list)
+    long_positions: list[dict] = field(default_factory=list)
     # IC 对冲指令
-    ic_hedge: Dict[str, Any] = field(default_factory=dict)
+    ic_hedge: dict[str, Any] = field(default_factory=dict)
     # 风控状态
     drawdown_pct: float = 0.0
     drawdown_action: str = ""  # normal / reduce_half / pause
     basis_warning: bool = False
     turnover_achieved: float = 0.0  # 实际换手率
     # 元数据
-    factors_used: Dict[str, float] = field(default_factory=dict)
+    factors_used: dict[str, float] = field(default_factory=dict)
     candidate_count: int = 0
 
 
@@ -169,7 +168,7 @@ class QuantNeutralRunner:
         long_count: int = DEFAULT_LONG_COUNT,
         target_beta: float = DEFAULT_TARGET_BETA,
         max_net_exposure: float = DEFAULT_MAX_NET_EXPOSURE,
-        factor_weights: Optional[Dict[str, float]] = None,
+        factor_weights: dict[str, float] | None = None,
         max_drawdown: float = DEFAULT_MAX_DRAWDOWN,
         sharpe_target: float = DEFAULT_SHARPE_TARGET,
         turnover_target: float = DEFAULT_TURNOVER_TARGET,
@@ -222,9 +221,9 @@ class QuantNeutralRunner:
     # ------------------------------------------------------------
     def score_factors(
         self,
-        candidate_universe: List[Dict],
-        returns_history: Optional[Dict[str, List[float]]] = None,
-    ) -> List[StockFactorScore]:
+        candidate_universe: list[dict],
+        returns_history: dict[str, list[float]] | None = None,
+    ) -> list[StockFactorScore]:
         """对候选股票池进行 7 因子打分
 
         Args:
@@ -251,7 +250,7 @@ class QuantNeutralRunner:
         if not candidate_universe:
             return []
 
-        scores: List[StockFactorScore] = []
+        scores: list[StockFactorScore] = []
 
         # 1. 提取各因子值, 计算截面排名
         [s.get("code", "") for s in candidate_universe]
@@ -362,7 +361,7 @@ class QuantNeutralRunner:
         }
         return mapping.get(factor, factor)
 
-    def _extract_factor_value(self, stock: Dict, factor: str) -> float:
+    def _extract_factor_value(self, stock: dict, factor: str) -> float:
         """从股票字典中提取因子原始值"""
         col = self._map_factor_to_column(factor)
         val = stock.get(col, 0.0)
@@ -376,8 +375,8 @@ class QuantNeutralRunner:
     # ------------------------------------------------------------
     def calculate_portfolio_beta(
         self,
-        long_positions: List[Dict],
-        market_returns: Optional[List[float]] = None,
+        long_positions: list[dict],
+        market_returns: list[float] | None = None,
     ) -> float:
         """计算多头组合的加权 beta
 
@@ -405,16 +404,16 @@ class QuantNeutralRunner:
     # ------------------------------------------------------------
     def run_monthly_rebalance(
         self,
-        candidate_universe: List[Dict],
-        current_holdings: List[Dict],
+        candidate_universe: list[dict],
+        current_holdings: list[dict],
         current_ic_contracts: int = 0,
         ic_price: float = 5500.0,
-        basis: Optional[float] = None,
+        basis: float | None = None,
         strategy_drawdown_pct: float = 0.0,
         strategy_history_95pct_drawdown: float = 0.05,
         consecutive_overdrawdown_months: int = 0,
-        market_returns: Optional[List[float]] = None,
-        trade_date: Optional[date] = None,
+        market_returns: list[float] | None = None,
+        trade_date: date | None = None,
     ) -> QuantNeutralResult:
         """月度调仓主流程
 
@@ -553,9 +552,9 @@ class QuantNeutralRunner:
 
     def _build_long_positions(
         self,
-        selected: List[StockFactorScore],
+        selected: list[StockFactorScore],
         target_value: float,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """构建多头持仓列表 (按综合得分加权)"""
         if not selected:
             return []
@@ -586,12 +585,12 @@ class QuantNeutralRunner:
 
     def _build_rebalance_orders(
         self,
-        current_holdings: List[Dict],
-        target_positions: List[Dict],
+        current_holdings: list[dict],
+        target_positions: list[dict],
         current_ic_contracts: int,
-        ic_hedge: Dict,
+        ic_hedge: dict,
         trade_date: date,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """生成调仓指令 (买入新标的, 卖出剔除标的, 调整 IC 合约)"""
         current_codes = {h.get("code") for h in current_holdings}
         target_codes = {p.get("code") for p in target_positions}
@@ -648,7 +647,7 @@ class QuantNeutralRunner:
     def _generate_pause_order(
         self,
         result: QuantNeutralResult,
-        current_holdings: List[Dict],
+        current_holdings: list[dict],
         current_ic_contracts: int,
         ic_price: float,
         trade_date: date,

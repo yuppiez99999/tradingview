@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AI 协调器 — v5.7 Phase 1 优化
 

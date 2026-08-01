@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v9.0 期权策略执行模块 — 顶级对冲基金三大策略落地
 
@@ -14,7 +13,7 @@ v9.0 期权策略执行模块 — 顶级对冲基金三大策略落地
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class OptionsRunner:
@@ -32,17 +31,17 @@ class OptionsRunner:
 
     def run_modules(
         self,
-        modules: List[Dict[str, Any]],
-        market_data: Optional[Dict[str, Any]] = None,
-        trigger_date: Optional[str] = None,
-        event_calendar: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
+        modules: list[dict[str, Any]],
+        market_data: dict[str, Any] | None = None,
+        trigger_date: str | None = None,
+        event_calendar: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """按模块顺序执行期权策略"""
         market_data = market_data or {}
         trigger_date = trigger_date or self.trade_date
         event_calendar = event_calendar or []
 
-        fills: List[Dict[str, Any]] = []
+        fills: list[dict[str, Any]] = []
         for module in modules:
             name = module.get("name")
             runner = getattr(self, f"_run_{name}", None)
@@ -63,10 +62,10 @@ class OptionsRunner:
         return fills
 
     def _run_covered_call_overlay(
-        self, module: Dict[str, Any], market_data: Dict[str, Any], trigger_date: str, event_calendar: List[str]
-    ) -> List[Dict[str, Any]]:
+        self, module: dict[str, Any], market_data: dict[str, Any], trigger_date: str, event_calendar: list[str]
+    ) -> list[dict[str, Any]]:
         """备兑增强：按现货担保卖出虚值认购期权"""
-        fills: List[Dict[str, Any]] = []
+        fills: list[dict[str, Any]] = []
         for underlying in module.get("underlyings", []):
             fills.append(
                 {
@@ -88,10 +87,10 @@ class OptionsRunner:
         return fills
 
     def _run_risk_reversal_collar(
-        self, module: Dict[str, Any], market_data: Dict[str, Any], trigger_date: str, event_calendar: List[str]
-    ) -> List[Dict[str, Any]]:
+        self, module: dict[str, Any], market_data: dict[str, Any], trigger_date: str, event_calendar: list[str]
+    ) -> list[dict[str, Any]]:
         """双反向不对称组合：买入深虚值 Put + 熊市价差"""
-        fills: List[Dict[str, Any]] = []
+        fills: list[dict[str, Any]] = []
         for underlying in module.get("underlyings", []):
             fills.append(
                 {
@@ -130,10 +129,10 @@ class OptionsRunner:
         return fills
 
     def _run_vega_event_driven(
-        self, module: Dict[str, Any], market_data: Dict[str, Any], trigger_date: str, event_calendar: List[str]
-    ) -> List[Dict[str, Any]]:
+        self, module: dict[str, Any], market_data: dict[str, Any], trigger_date: str, event_calendar: list[str]
+    ) -> list[dict[str, Any]]:
         """波动率套利与事件驱动：IV极低做多Straddle，IV极高做空Strangle"""
-        fills: List[Dict[str, Any]] = []
+        fills: list[dict[str, Any]] = []
         for underlying in module.get("underlyings", []):
             fills.append(
                 {

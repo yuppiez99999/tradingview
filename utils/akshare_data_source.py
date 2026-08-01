@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AKShare 股票数据源适配器
 基于 akshare 实现，接入现有数据提供者架构

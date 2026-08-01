@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 风险预算约束优化器 (Risk Budget Constrained Optimizer)
 
@@ -27,7 +26,6 @@ import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -44,7 +42,7 @@ class RiskBudgetResult:
     optimal_weights: np.ndarray  # 最优权重
     benchmark_weights: np.ndarray  # 基准权重
     active_weights: np.ndarray  # 主动权重
-    symbols: List[str]  # 标的列表
+    symbols: list[str]  # 标的列表
 
     # 风险指标
     tracking_error: float  # 跟踪误差 (年化)
@@ -61,7 +59,7 @@ class RiskBudgetResult:
     te_constraint_slack: float  # TE 约束松弛度 (正=未达上限)
     te_constraint_binding: bool  # TE 约束是否绑定
     weight_bounds_violated: bool  # 权重上下限是否违反
-    factor_exposure_violations: List[str]  # 因子暴露违反列表
+    factor_exposure_violations: list[str]  # 因子暴露违反列表
 
     # 优化诊断
     solver_status: str  # 求解器状态
@@ -106,18 +104,18 @@ class RiskBudgetOptimizer:
 
     def optimize(
         self,
-        symbols: List[str],
-        expected_returns: Union[List[float], np.ndarray],
-        cov_matrix: Union[np.ndarray, "pd.DataFrame"],  # type: ignore
-        benchmark_weights: Union[List[float], np.ndarray],
+        symbols: list[str],
+        expected_returns: list[float] | np.ndarray,
+        cov_matrix: np.ndarray | pd.DataFrame,  # type: ignore
+        benchmark_weights: list[float] | np.ndarray,
         max_tracking_error: float = 0.05,
-        max_weight: Optional[float] = None,
-        min_weight: Optional[float] = 0.0,
-        industry_groups: Optional[Dict[str, List[int]]] = None,
-        max_industry_exposure: Optional[float] = None,
-        factor_exposures: Optional[np.ndarray] = None,
-        max_factor_exposure: Optional[float] = None,
-        target_return: Optional[float] = None,
+        max_weight: float | None = None,
+        min_weight: float | None = 0.0,
+        industry_groups: dict[str, list[int]] | None = None,
+        max_industry_exposure: float | None = None,
+        factor_exposures: np.ndarray | None = None,
+        max_factor_exposure: float | None = None,
+        target_return: float | None = None,
     ) -> RiskBudgetResult:
         """在风险预算约束下优化权重
 
@@ -196,7 +194,7 @@ class RiskBudgetOptimizer:
             weight_violated = weight_violated or bool(np.any(w_opt < min_weight - 1e-6))
 
         # 因子暴露违反检查（向量化）
-        factor_violations: List[str] = []
+        factor_violations: list[str] = []
         if factor_exposures is not None and max_factor_exposure is not None:
             active_factor = factor_exposures.T @ active_w
             violated_mask = np.abs(active_factor) > max_factor_exposure
@@ -237,14 +235,14 @@ class RiskBudgetOptimizer:
         Sigma: np.ndarray,
         w_bench: np.ndarray,
         max_te: float,
-        max_weight: Optional[float],
-        min_weight: Optional[float],
-        industry_groups: Optional[Dict[str, List[int]]],
-        max_industry_exposure: Optional[float],
-        factor_exposures: Optional[np.ndarray],
-        max_factor_exposure: Optional[float],
-        target_return: Optional[float],
-    ) -> Tuple[np.ndarray, str, int]:
+        max_weight: float | None,
+        min_weight: float | None,
+        industry_groups: dict[str, list[int]] | None,
+        max_industry_exposure: float | None,
+        factor_exposures: np.ndarray | None,
+        max_factor_exposure: float | None,
+        target_return: float | None,
+    ) -> tuple[np.ndarray, str, int]:
         """约束优化求解
 
         策略:
@@ -357,8 +355,8 @@ class RiskBudgetOptimizer:
         Sigma: np.ndarray,
         w_bench: np.ndarray,
         max_te: float,
-        max_weight: Optional[float],
-        min_weight: Optional[float],
+        max_weight: float | None,
+        min_weight: float | None,
         lr: float = 0.01,
         max_iter: int = 100,
     ) -> np.ndarray:
@@ -428,7 +426,7 @@ class RiskBudgetOptimizer:
         except Exception:  # P2 模块 fail-safe, 待后续精确化
             return np.array(m, dtype=float)
 
-    def save_result(self, result: RiskBudgetResult, path: Union[str, Path]) -> Path:
+    def save_result(self, result: RiskBudgetResult, path: str | Path) -> Path:
         """保存优化结果到 JSON"""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -459,12 +457,12 @@ class RiskBudgetOptimizer:
 
     def rebalance_to_te_target(
         self,
-        current_weights: Union[List[float], np.ndarray],
-        benchmark_weights: Union[List[float], np.ndarray],
+        current_weights: list[float] | np.ndarray,
+        benchmark_weights: list[float] | np.ndarray,
         cov_matrix: np.ndarray,
         target_te: float,
         max_adjustment: float = 0.05,  # 单标的最多调整 5%
-    ) -> Dict[str, np.ndarray]:
+    ) -> dict[str, np.ndarray]:
         """将当前权重调整为满足 TE 目标的权重
 
         Args:

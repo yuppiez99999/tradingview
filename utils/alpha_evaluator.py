@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Alpha 因子验证闭环 (Alpha Evaluator)
 =====================================
@@ -28,7 +27,7 @@ import math
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -63,10 +62,10 @@ class AlphaEvaluationReport:
     active_factors: int = 0
     degraded_factors: int = 0
     dead_factors: int = 0
-    evaluations: List[Dict[str, Any]] = field(default_factory=list)
+    evaluations: list[dict[str, Any]] = field(default_factory=list)
     summary: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -83,10 +82,10 @@ class AlphaEvaluator:
     # 历史存储
     HISTORY_FILE = BASE_DIR / "reports" / "alpha" / "factor_history.jsonl"
 
-    def __init__(self, report_dir: Optional[Path] = None):
+    def __init__(self, report_dir: Path | None = None):
         self.report_dir = Path(report_dir) if report_dir else REPORT_DIR
         self.report_dir.mkdir(parents=True, exist_ok=True)
-        self._history: Dict[str, List[Dict[str, float]]] = {}
+        self._history: dict[str, list[dict[str, float]]] = {}
         self._load_history()
 
     # ------------------------------------------------------------
@@ -96,7 +95,7 @@ class AlphaEvaluator:
     def evaluate_all(
         self,
         factor_library_result: Any,
-        forward_returns: Optional[Dict[str, float]] = None,
+        forward_returns: dict[str, float] | None = None,
     ) -> AlphaEvaluationReport:
         """评估全部因子
 
@@ -108,7 +107,7 @@ class AlphaEvaluator:
             AlphaEvaluationReport
         """
         report_date = datetime.now().strftime("%Y-%m-%d")
-        evaluations: List[Dict[str, Any]] = []
+        evaluations: list[dict[str, Any]] = []
 
         forward_returns = forward_returns or {}
         factors = getattr(factor_library_result, "factors", {})
@@ -177,9 +176,9 @@ class AlphaEvaluator:
 
     def _compute_ics(
         self,
-        factor_values: Dict[str, float],
-        forward_returns: Dict[str, float],
-    ) -> Tuple[float, float, float]:
+        factor_values: dict[str, float],
+        forward_returns: dict[str, float],
+    ) -> tuple[float, float, float]:
         """计算 IC（Information Coefficient）"""
         common = [s for s in factor_values if s in forward_returns and math.isfinite(factor_values[s])]
         if len(common) < 5:
@@ -208,7 +207,7 @@ class AlphaEvaluator:
             return 0.0
         return float(np.mean(ic_series) / np.std(ic_series))
 
-    def _compute_turnover(self, factor_name: str, values: Dict[str, float]) -> float:
+    def _compute_turnover(self, factor_name: str, values: dict[str, float]) -> float:
         """估算因子换手率（简化版：基于截面排序变化）"""
         history = self._history.get(factor_name, [])
         if len(history) < 2:
@@ -244,7 +243,7 @@ class AlphaEvaluator:
     # 历史与报告
     # ------------------------------------------------------------
 
-    def _append_history(self, factor_name: str, record: Dict[str, float]) -> None:
+    def _append_history(self, factor_name: str, record: dict[str, float]) -> None:
         if factor_name not in self._history:
             self._history[factor_name] = []
         self._history[factor_name].append(record)
@@ -255,7 +254,7 @@ class AlphaEvaluator:
         if not self.HISTORY_FILE.exists():
             return
         try:
-            with open(self.HISTORY_FILE, "r", encoding="utf-8") as f:
+            with open(self.HISTORY_FILE, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:

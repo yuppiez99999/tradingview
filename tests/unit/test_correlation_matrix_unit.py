@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_correlation_matrix_unit.py — 相关性矩阵与每日监控单元测试
 
 B-3.3 收尾前置 (2026-08-01): 为 compute_correlation_matrix + monitor_daily_correlation 补测试覆盖。

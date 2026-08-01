@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 重新生成 2026-07-21 今日交易计划，并恢复 Put 期权订单
 """
@@ -60,7 +59,7 @@ def main():
     print("已重新生成今日计划")
 
     # 恢复 Put 期权订单
-    with open(PLAN_FILE, "r", encoding="utf-8") as f:
+    with open(PLAN_FILE, encoding="utf-8") as f:
         plan = json.load(f)
 
     # 添加 Put 期权

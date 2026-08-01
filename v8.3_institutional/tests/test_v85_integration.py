@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v8.5 Institutional Modules Integration Tests
 

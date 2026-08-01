@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T02: 给 utils/execution/ 目录剩余 broad-except 添加 noqa 注释.
 
 策略: execution 模块的 broad-except 都是实盘交易路径的 fail-safe,

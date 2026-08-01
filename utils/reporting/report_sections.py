@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T5.4 报告渲染函数 — 6 个独立纯函数.
 
 从 daily_workflow.phase_report (615 行巨型方法) 抽取的子函数, 每个函数:
@@ -23,7 +22,7 @@ import logging
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Sequence
 
 logger = logging.getLogger("daily_report_generator")
 
@@ -41,7 +40,7 @@ REPORT_TITLE = "# v8.7 综合量化策略系统 — 每日工作报告"
 REPORT_SEPARATOR = "---"
 
 # 阶段名称映射 (phase_key -> 中文名)
-PHASE_NAMES: Dict[str, str] = {
+PHASE_NAMES: dict[str, str] = {
     "check": "系统自检",
     "calibrate": "收益校准",
     "market": "市场状态",
@@ -75,8 +74,8 @@ def build_report_header(
     dry_run: bool = False,
     sim_mode: bool = False,
     live_mode: bool = False,
-    generated_at: Optional[str] = None,
-) -> List[str]:
+    generated_at: str | None = None,
+) -> list[str]:
     """构建报告头部 (段 1+2).
 
     Args:
@@ -103,7 +102,7 @@ def build_report_header(
     else:
         mode_tag = "⚪ 默认模式"
 
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append(REPORT_TITLE)
     lines.append("")
     lines.append(f"- **交易日期**: {trade_date}")
@@ -116,9 +115,9 @@ def build_report_header(
 
 
 def build_phase_execution_summary(
-    phases_state: Dict[str, Any],
-    executed_phases: Optional[Sequence[str]] = None,
-) -> List[str]:
+    phases_state: dict[str, Any],
+    executed_phases: Sequence[str] | None = None,
+) -> list[str]:
     """构建阶段执行摘要表 (段 2).
 
     Args:
@@ -128,7 +127,7 @@ def build_phase_execution_summary(
     Returns:
         Markdown 行列表
     """
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("## 阶段执行摘要")
     lines.append("")
     lines.append("| 阶段 | 状态 | 耗时(ms) | 说明 |")
@@ -170,7 +169,7 @@ def build_phase_execution_summary(
 # ============================================================
 
 
-def render_phase_summary(phases_state: Dict[str, Any]) -> List[str]:
+def render_phase_summary(phases_state: dict[str, Any]) -> list[str]:
     """渲染各阶段状态详情 (段 4+5+6).
 
     Args:
@@ -179,7 +178,7 @@ def render_phase_summary(phases_state: Dict[str, Any]) -> List[str]:
     Returns:
         Markdown 行列表
     """
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("## 各阶段详情")
     lines.append("")
 
@@ -284,8 +283,8 @@ def _safe_iter(items: Any) -> Sequence:
 
 
 def render_pnl_attribution(
-    pnl_attribution_result: Optional[Dict[str, Any]],
-) -> List[str]:
+    pnl_attribution_result: dict[str, Any] | None,
+) -> list[str]:
     """渲染 P&L 八维归因分析 (段 8 上半).
 
     Args:
@@ -295,7 +294,7 @@ def render_pnl_attribution(
     Returns:
         Markdown 行列表
     """
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("### P&L 八维归因分析")
     lines.append("")
 
@@ -338,8 +337,8 @@ def render_pnl_attribution(
 
 
 def render_barra_decomposition(
-    barra_result: Optional[Dict[str, Any]],
-) -> List[str]:
+    barra_result: dict[str, Any] | None,
+) -> list[str]:
     """渲染 Barra 风险因子暴露分解 (段 8 下半).
 
     Args:
@@ -349,7 +348,7 @@ def render_barra_decomposition(
     Returns:
         Markdown 行列表
     """
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("### Barra 风险因子暴露分解")
     lines.append("")
 
@@ -394,8 +393,8 @@ def render_barra_decomposition(
 
 
 def render_eod_guard_chain(
-    guard_results: Optional[Dict[str, Any]],
-) -> List[str]:
+    guard_results: dict[str, Any] | None,
+) -> list[str]:
     """渲染 EOD 七 Guard 风控链结果 (段 9 上半).
 
     Args:
@@ -405,7 +404,7 @@ def render_eod_guard_chain(
     Returns:
         Markdown 行列表
     """
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("### EOD 七 Guard 风控链")
     lines.append("")
 
@@ -452,7 +451,7 @@ def render_eod_guard_chain(
 
 def write_report_with_retry(
     report_path: Path,
-    content_lines: List[str],
+    content_lines: list[str],
     max_retries: int = 3,
     retry_delay_seconds: float = 0.5,
 ) -> Path:
@@ -474,7 +473,7 @@ def write_report_with_retry(
     report_path.parent.mkdir(parents=True, exist_ok=True)
 
     content = "\n".join(content_lines)
-    last_error: Optional[Exception] = None
+    last_error: Exception | None = None
 
     for attempt in range(1, max_retries + 1):
         try:
@@ -500,8 +499,8 @@ def write_report_with_retry(
 
 def save_state_json(
     state_path: Path,
-    phases_state: Dict[str, Any],
-    extra_fields: Optional[Dict[str, Any]] = None,
+    phases_state: dict[str, Any],
+    extra_fields: dict[str, Any] | None = None,
 ) -> Path:
     """保存状态 JSON 文件 (段 9 末尾).
 
@@ -516,7 +515,7 @@ def save_state_json(
     state_path = Path(state_path)
     state_path.parent.mkdir(parents=True, exist_ok=True)
 
-    state_data: Dict[str, Any] = {
+    state_data: dict[str, Any] = {
         "phases": phases_state,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     }
@@ -537,9 +536,9 @@ def save_state_json(
 
 
 def build_report_summary(
-    phases_state: Dict[str, Any],
-    pnl_attribution_result: Optional[Dict[str, Any]] = None,
-) -> List[str]:
+    phases_state: dict[str, Any],
+    pnl_attribution_result: dict[str, Any] | None = None,
+) -> list[str]:
     """构建报告总结段落 (段 9 中部).
 
     Args:
@@ -549,7 +548,7 @@ def build_report_summary(
     Returns:
         Markdown 行列表
     """
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("## 总结")
     lines.append("")
 

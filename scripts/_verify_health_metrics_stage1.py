@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """三层面自我进化 Stage 1 验证脚本.
 
 按 ARCHITECTURE_三层面进化 §第1阶段验收标准执行 10 项验证:
@@ -172,7 +171,7 @@ try:
             # 采集后: 文件存在且有 1 行
             check("采集后文件存在", hist_path.exists())
             content = hist_path.read_text(encoding="utf-8").strip()
-            lines = [l for l in content.splitlines() if l.strip()]
+            lines = [line for line in content.splitlines() if line.strip()]
             check("文件有 1 行", len(lines) == 1, f"行数={len(lines)}")
             # 验证行是有效 JSON
             parsed = json.loads(lines[0])

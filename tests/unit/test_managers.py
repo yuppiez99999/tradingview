@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T4.3 单元测试 — utils/attribution/managers.py.
 
 测试覆盖:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """重新下载 fundamentals - 触发旧文件 ROE=0 的回退搜索"""
 import logging
 import sys

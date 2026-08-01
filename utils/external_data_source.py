@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 外部数据源模块 v1.0 — 整合 public-apis 的免费金融数据
 ============================================================
@@ -576,7 +575,7 @@ class ExternalDataManager:
 
         try:
             with _CACHE_LOCK:
-                with open(cache_file, "r", encoding="utf-8") as _f:
+                with open(cache_file, encoding="utf-8") as _f:
                     cache = json.load(_f)
             cache_time = cache.get("_cache_time", 0)
             ttl = CACHE_TTL.get(category, 300)

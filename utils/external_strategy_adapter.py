@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """外部策略适配器 — daily_stock_analysis 策略库集成
 
 核心功能:
@@ -37,7 +36,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
@@ -90,9 +89,9 @@ class ExternalStrategyAdapter:
         >>> print(signal["direction"], signal["confidence"])
     """
 
-    def __init__(self, strategy_dir: Optional[Path] = None) -> None:
+    def __init__(self, strategy_dir: Path | None = None) -> None:
         self._strategy_dir = strategy_dir or _STRATEGY_DIR
-        self._strategies: Dict[str, Dict] = {}
+        self._strategies: dict[str, dict] = {}
         self._load_strategies()
 
     def _load_strategies(self) -> None:
@@ -104,7 +103,7 @@ class ExternalStrategyAdapter:
         yaml_files = list(self._strategy_dir.glob("*.yaml"))
         for yaml_file in yaml_files:
             try:
-                with open(yaml_file, "r", encoding="utf-8") as f:
+                with open(yaml_file, encoding="utf-8") as f:
                     data = yaml.safe_load(f)
                 if data and "name" in data:
                     name = data["name"]
@@ -120,7 +119,7 @@ class ExternalStrategyAdapter:
     # ============================================================
 
     @property
-    def available_strategies(self) -> List[str]:
+    def available_strategies(self) -> list[str]:
         """可用策略名称列表."""
         return sorted(self._strategies.keys())
 
@@ -130,7 +129,7 @@ class ExternalStrategyAdapter:
         return _LLM_AVAILABLE
 
     def analyze(self, symbol: str, strategy: str = "chan_theory",
-                market_data: Optional[Dict] = None) -> Dict[str, Any]:
+                market_data: dict | None = None) -> dict[str, Any]:
         """执行单个策略分析.
 
         Args:
@@ -172,7 +171,7 @@ class ExternalStrategyAdapter:
             logger.error(f"LLM 调用失败 ({strategy}/{symbol}): {e}")
             return self._neutral_signal(symbol, strategy, f"LLM异常: {e}")
 
-    def analyze_all(self, symbol: str, market_data: Optional[Dict] = None) -> List[Dict[str, Any]]:
+    def analyze_all(self, symbol: str, market_data: dict | None = None) -> list[dict[str, Any]]:
         """执行所有策略分析.
 
         Args:
@@ -189,7 +188,7 @@ class ExternalStrategyAdapter:
         logger.info(f"全策略分析完成: {symbol} → {len(signals)} 个信号")
         return signals
 
-    def get_consensus(self, symbol: str, market_data: Optional[Dict] = None) -> Dict[str, Any]:
+    def get_consensus(self, symbol: str, market_data: dict | None = None) -> dict[str, Any]:
         """获取所有策略的共识信号.
 
         Args:
@@ -237,8 +236,8 @@ class ExternalStrategyAdapter:
     # 内部方法
     # ============================================================
 
-    def _build_prompt(self, symbol: str, strat_def: Dict,
-                      market_data: Optional[Dict]) -> str:
+    def _build_prompt(self, symbol: str, strat_def: dict,
+                      market_data: dict | None) -> str:
         """构造 LLM 提示词."""
         display_name = strat_def.get("display_name", strat_def.get("name", ""))
         instructions = strat_def.get("instructions", "")
@@ -272,7 +271,7 @@ class ExternalStrategyAdapter:
         return prompt
 
     def _parse_llm_response(self, symbol: str, strategy: str,
-                            response: str) -> Dict[str, Any]:
+                            response: str) -> dict[str, Any]:
         """解析 LLM 响应为标准化信号."""
         import json
         import re
@@ -299,7 +298,7 @@ class ExternalStrategyAdapter:
         return self._neutral_signal(symbol, strategy, "LLM响应解析失败")
 
     def _neutral_signal(self, symbol: str, strategy: str,
-                        reason: str = "") -> Dict[str, Any]:
+                        reason: str = "") -> dict[str, Any]:
         """生成中性信号."""
         return {
             "symbol": symbol,
@@ -312,7 +311,7 @@ class ExternalStrategyAdapter:
             "target": "",
         }
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取适配器状态."""
         return {
             "strategy_count": len(self._strategies),
@@ -326,7 +325,7 @@ class ExternalStrategyAdapter:
 # 便捷函数
 # ============================================================
 
-_default_adapter: Optional[ExternalStrategyAdapter] = None
+_default_adapter: ExternalStrategyAdapter | None = None
 
 
 def get_adapter() -> ExternalStrategyAdapter:
@@ -337,12 +336,12 @@ def get_adapter() -> ExternalStrategyAdapter:
     return _default_adapter
 
 
-def analyze(symbol: str, strategy: str = "chan_theory") -> Dict[str, Any]:
+def analyze(symbol: str, strategy: str = "chan_theory") -> dict[str, Any]:
     """便捷函数: 执行策略分析."""
     return get_adapter().analyze(symbol, strategy)
 
 
-def analyze_all(symbol: str) -> List[Dict[str, Any]]:
+def analyze_all(symbol: str) -> list[dict[str, Any]]:
     """便捷函数: 执行所有策略."""
     return get_adapter().analyze_all(symbol)
 

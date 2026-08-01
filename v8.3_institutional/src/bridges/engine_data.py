@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """数据引擎桥接 — ml_predictor 的数据依赖"""
 
 import logging

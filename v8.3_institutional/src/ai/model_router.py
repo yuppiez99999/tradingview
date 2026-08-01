@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 多模型场景路由器 — v5.8 核心架构升级
 实现调研推荐方案: 场景路由 + 并行对冲 + 交叉验证 + 熔断器 + 置信度追踪
@@ -153,7 +152,7 @@ class ModelRouter:
             if not self.config:
                 config_path = self.base_dir / "config" / "model_routing.yaml"
                 try:
-                    with open(config_path, "r", encoding="utf-8") as f:
+                    with open(config_path, encoding="utf-8") as f:
                         self.config = yaml.safe_load(f) or {}
                 except Exception as e:
                     logger.error(f"加载 model_routing.yaml 失败: {e}")
@@ -161,7 +160,7 @@ class ModelRouter:
         else:
             # 显式 config_path 走原逻辑 (测试场景, 向后兼容)
             try:
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     self.config = yaml.safe_load(f) or {}
             except Exception as e:
                 logger.error(f"加载配置失败 (显式路径 {config_path}): {e}")

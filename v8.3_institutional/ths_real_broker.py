@@ -16,7 +16,6 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
 
 logger = logging.getLogger("v75.ths_real_broker")
 
@@ -29,8 +28,8 @@ class THSRealBroker:
         self.margin_rates = margin_rates or {}
         self.mode = mode
         self._connected = False
-        self._pending_orders: Dict[str, Dict] = {}
-        self._fills: List[Dict] = []
+        self._pending_orders: dict[str, dict] = {}
+        self._fills: list[dict] = []
         self._lock = threading.RLock()
 
         log_dir = Path(trade_log_path) if trade_log_path else Path("logs")
@@ -206,7 +205,7 @@ class THSRealBroker:
             return True
         return False
 
-    def place_order(self, symbol: str, qty: int, side: str, price: float) -> Dict:
+    def place_order(self, symbol: str, qty: int, side: str, price: float) -> dict:
         """真实下单 (v8.6.8 P0-LIVE-03 修复: 增加 mode 守卫)
 
         ⚠️ 安全提示:
@@ -305,11 +304,11 @@ class THSRealBroker:
             "mode": self.mode
         }
 
-    def get_order_status(self, order_id: str) -> Dict:
+    def get_order_status(self, order_id: str) -> dict:
         with self._lock:
             return self._pending_orders.get(order_id, {"status": "UNKNOWN"})
 
-    def get_positions(self) -> Dict:
+    def get_positions(self) -> dict:
         return self.account.positions
 
     def get_available_cash(self) -> float:

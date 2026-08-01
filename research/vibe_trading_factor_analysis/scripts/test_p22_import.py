@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P2.2 质量变化类因子导入与基础功能测试"""
 import sys
 from pathlib import Path

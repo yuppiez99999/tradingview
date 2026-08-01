@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Phase 3-A 验证脚本: ConfigManager 全项目迁移
 =============================================

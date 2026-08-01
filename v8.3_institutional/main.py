@@ -26,7 +26,7 @@ except ImportError:
     # python-dotenv 不可用时的手动后备解析
     try:
         if os.path.exists(_ENV_PATH):
-            with open(_ENV_PATH, 'r', encoding='utf-8') as _f:
+            with open(_ENV_PATH, encoding='utf-8') as _f:
                 for _line in _f:
                     _line = _line.strip()
                     if not _line or _line.startswith('#') or '=' not in _line:
@@ -105,7 +105,7 @@ class V75InstitutionalSystem:
                     # ConfigManager 未找到, 回退到本地 config_dir
                     path = os.path.join(self.config_dir, f'{name}.yaml')
                     try:
-                        with open(path, 'r', encoding='utf-8') as f:
+                        with open(path, encoding='utf-8') as f:
                             configs[name] = yaml.safe_load(f)
                     except (FileNotFoundError, yaml.YAMLError, OSError) as e:
                         logger.error(f"加载配置 {name}.yaml 失败: {e}")
@@ -122,7 +122,7 @@ class V75InstitutionalSystem:
         for name in ['settings', 'portfolio', 'execution', 'backtest', 'risk_budget']:
             path = os.path.join(self.config_dir, f'{name}.yaml')
             try:
-                with open(path, 'r', encoding='utf-8') as f:
+                with open(path, encoding='utf-8') as f:
                     configs[name] = yaml.safe_load(f)
             except (FileNotFoundError, yaml.YAMLError, OSError) as e:
                 logger.error(f"加载配置 {name}.yaml 失败: {e}")

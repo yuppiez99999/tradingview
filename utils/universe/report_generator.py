@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 可视化报告生成器
 
@@ -16,7 +15,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -300,7 +298,7 @@ def generate_full_report(
     scores_df: pd.DataFrame,
     filter_stats: dict,
     output_dir,
-    theme_stats: Optional[dict] = None,
+    theme_stats: dict | None = None,
 ) -> ReportPaths:
     """生成完整可视化报告
 

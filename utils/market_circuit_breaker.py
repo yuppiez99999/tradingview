@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 大盘熔断监控器 (Market Circuit Breaker)
 ========================================
@@ -37,7 +36,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger("market_circuit_breaker")
 
@@ -67,9 +65,9 @@ class MarketCircuitBreaker:
 
     def __init__(
         self,
-        l2_threshold: Optional[float] = None,  # type: ignore
-        l3_threshold: Optional[float] = None,  # type: ignore
-        fail_closed_pct: Optional[float] = None,  # type: ignore
+        l2_threshold: float | None = None,  # type: ignore
+        l3_threshold: float | None = None,  # type: ignore
+        fail_closed_pct: float | None = None,  # type: ignore
     ):
         """初始化大盘熔断监控器
 
@@ -86,7 +84,7 @@ class MarketCircuitBreaker:
     # 公开 API
     # ------------------------------------------------------------
 
-    def check_market_status(self) -> Dict:
+    def check_market_status(self) -> dict:
         """检查大盘熔断状态
 
         Returns:
@@ -145,7 +143,7 @@ class MarketCircuitBreaker:
 
         return result
 
-    def apply_to_plan(self, plan: Dict, status: Dict) -> Dict:
+    def apply_to_plan(self, plan: dict, status: dict) -> dict:
         """将熔断状态应用到交易计划
 
         L3: 清空所有订单 + halt_all_trading + 禁止建仓
@@ -187,7 +185,7 @@ class MarketCircuitBreaker:
             # 因为 trade_plan 现货订单字段是 "side" 而非 "direction",
             # 导致 BUY 订单未被过滤, L2 大盘熔断风控完全失效.
             # 修复: 用 side + direction 双字段判断 (兼容现货和期货两种格式)
-            def _is_buy_order(o: Dict) -> bool:
+            def _is_buy_order(o: dict) -> bool:
                 """判断订单是否为建仓方向 (BUY 系列)"""
                 side_val = str(o.get("side", "")).upper()
                 direction_val = str(o.get("direction", "")).upper()
@@ -228,7 +226,7 @@ class MarketCircuitBreaker:
     # 私有: 三层 fallback 数据获取
     # ------------------------------------------------------------
 
-    def _fetch_hs300_change_pct(self) -> Tuple[float, str]:
+    def _fetch_hs300_change_pct(self) -> tuple[float, str]:
         """获取沪深300 当日跌幅 (三层 fallback)
 
         Returns:
@@ -253,7 +251,7 @@ class MarketCircuitBreaker:
         )
         return self.fail_closed_pct, "fail_closed"
 
-    def _fetch_via_astock(self) -> Tuple[Optional[float], bool]:
+    def _fetch_via_astock(self) -> tuple[float | None, bool]:
         """Layer 1: astock_realtime 获取沪深300ETF 实时涨跌幅"""
         try:
             from utils.astock_realtime import get_realtime_quotes
@@ -279,7 +277,7 @@ class MarketCircuitBreaker:
             logger.debug("[MarketCircuitBreaker] astock_realtime 获取失败: %s", e)
             return None, False
 
-    def _fetch_via_akshare(self) -> Tuple[Optional[float], bool]:
+    def _fetch_via_akshare(self) -> tuple[float | None, bool]:
         """Layer 2: akshare 获取沪深300 指数涨跌幅"""
         try:
             import akshare as ak

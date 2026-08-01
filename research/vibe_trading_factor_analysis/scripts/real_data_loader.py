@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """真实 A 股历史数据加载器 - 加载 data_cache/*.parquet 与 cache/ohlcv/*.parquet 为流水线输入
 
 数据源（P1.1+P1.2+P1.3 + 105 标的池扩展后）：
@@ -26,7 +25,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -44,7 +42,7 @@ FUNDAMENTALS_DIR = PROJECT_ROOT / "cache" / "fundamentals"
 BENCHMARK_PARQUET = OHLCV_DIR / "sh_000300_index.parquet"
 
 
-def _load_symbol_universe() -> List[str]:
+def _load_symbol_universe() -> list[str]:
     """加载 symbol_universe.py 中定义的 105 标的池
 
     Returns:
@@ -62,7 +60,7 @@ def _load_symbol_universe() -> List[str]:
         return []
 
 
-def list_available_symbols() -> List[str]:
+def list_available_symbols() -> list[str]:
     """列出所有可用标的
 
     优先级：
@@ -74,7 +72,7 @@ def list_available_symbols() -> List[str]:
         标的代码列表 (如 ["600519_SH", "000858_SZ", ...])
     """
     universe = _load_symbol_universe()
-    available: List[str] = []
+    available: list[str] = []
 
     # 1. 优先从标的池中筛选有数据文件的标的
     if universe:
@@ -121,7 +119,7 @@ def list_available_symbols() -> List[str]:
     return []
 
 
-def _load_ohlcv_dataframe(symbol: str) -> "pd.DataFrame | None":
+def _load_ohlcv_dataframe(symbol: str) -> pd.DataFrame | None:
     """加载单只标的的 OHLCV DataFrame
 
     优先级:
@@ -159,7 +157,7 @@ def _load_ohlcv_dataframe(symbol: str) -> "pd.DataFrame | None":
     return None
 
 
-def load_price_data(symbols: List[str] = None) -> Dict[str, Dict[str, List[float]]]:
+def load_price_data(symbols: list[str] = None) -> dict[str, dict[str, list[float]]]:
     """加载多个标的的 OHLCV 历史
 
     数据源优先级:
@@ -220,7 +218,7 @@ def load_price_data(symbols: List[str] = None) -> Dict[str, Dict[str, List[float
     return price_data
 
 
-def load_benchmark_returns() -> List[float]:
+def load_benchmark_returns() -> list[float]:
     """加载沪深 300 指数基准日收益率（P1.3 改进）
 
     替代原先的等权代理：
@@ -266,7 +264,7 @@ def load_benchmark_returns() -> List[float]:
     return []
 
 
-def compute_equal_weight_benchmark(price_data: Dict[str, Dict[str, List[float]]]) -> List[float]:
+def compute_equal_weight_benchmark(price_data: dict[str, dict[str, list[float]]]) -> list[float]:
     """计算等权日收益率基准代理（最终降级方案）
 
     当沪深 300 指数数据不可用时使用，作为兜底基准。
@@ -317,7 +315,7 @@ def compute_equal_weight_benchmark(price_data: Dict[str, Dict[str, List[float]]]
     return bench
 
 
-def compute_benchmark_returns(price_data: Dict[str, Dict[str, List[float]]]) -> List[float]:
+def compute_benchmark_returns(price_data: dict[str, dict[str, list[float]]]) -> list[float]:
     """计算基准日收益率（P1.3 改进后的统一入口）
 
     优先级：
@@ -339,7 +337,7 @@ def compute_benchmark_returns(price_data: Dict[str, Dict[str, List[float]]]) -> 
     return compute_equal_weight_benchmark(price_data)
 
 
-def load_fundamentals_from_baostock(symbols: List[str]) -> Dict[str, Dict[str, float]]:
+def load_fundamentals_from_baostock(symbols: list[str]) -> dict[str, dict[str, float]]:
     """从 baostock 下载的真实财务数据加载（P1.2 改进）
 
     数据源：cache/fundamentals/{symbol}_latest.json
@@ -356,13 +354,13 @@ def load_fundamentals_from_baostock(symbols: List[str]) -> Dict[str, Dict[str, f
     if not FUNDAMENTALS_DIR.exists():
         return {}
 
-    fundamentals: Dict[str, Dict[str, float]] = {}
+    fundamentals: dict[str, dict[str, float]] = {}
     for sym in symbols:
         json_path = FUNDAMENTALS_DIR / f"{sym}_latest.json"
         if not json_path.exists():
             continue
         try:
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, encoding="utf-8") as f:
                 data = json.load(f)
             # 必须包含至少一个真实财务字段（pe > 0 表示 baostock 返回了真实估值数据）
             if data.get("pe", 0) > 0 or data.get("roe", 0) != 0:
@@ -393,7 +391,7 @@ def load_fundamentals_from_baostock(symbols: List[str]) -> Dict[str, Dict[str, f
     return fundamentals
 
 
-def load_fundamentals(price_data: Dict[str, Dict[str, List[float]]]) -> Dict[str, Dict[str, float]]:
+def load_fundamentals(price_data: dict[str, dict[str, list[float]]]) -> dict[str, dict[str, float]]:
     """加载基本面数据（P1.2 改进后的多级降级链）
 
     优先级：
@@ -445,7 +443,7 @@ def load_fundamentals(price_data: Dict[str, Dict[str, List[float]]]) -> Dict[str
         real_data = client.get_fundamentals_batch(ifind_symbols)
         if real_data:
             # 转换 key 回 _SZ/_SH 格式
-            fundamentals: Dict[str, Dict[str, float]] = {}
+            fundamentals: dict[str, dict[str, float]] = {}
             for sym, fund in real_data.items():
                 # iFinD 返回 600519.SH, 转回 600519_SH
                 local_sym = sym.replace(".", "_")
@@ -473,9 +471,9 @@ def load_fundamentals(price_data: Dict[str, Dict[str, List[float]]]) -> Dict[str
 
 
 def _build_proxy_fundamentals(
-    price_data: Dict[str, Dict[str, List[float]]],
-    symbols: List[str],
-) -> Dict[str, Dict[str, float]]:
+    price_data: dict[str, dict[str, list[float]]],
+    symbols: list[str],
+) -> dict[str, dict[str, float]]:
     """价量代理 fundamentals（最终降级方案，避免与 close 完全共线）
 
     代理算法（P1.2b 改进）:
@@ -543,8 +541,8 @@ def _build_proxy_fundamentals(
 
 
 def load_all_for_pipeline(
-    symbols: List[str] = None,
-) -> Tuple[Dict[str, Dict[str, List[float]]], Dict[str, Dict[str, float]], List[float]]:
+    symbols: list[str] = None,
+) -> tuple[dict[str, dict[str, list[float]]], dict[str, dict[str, float]], list[float]]:
     """一次性加载流水线所需的全部输入
 
     Returns:

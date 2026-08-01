@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """调试 trade_plan 字段"""
 import json
 from pathlib import Path

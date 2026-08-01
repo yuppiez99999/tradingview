@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """策略注册表与性能追踪装饰器 — 模块整合 8.4 T1.6.
 
 模块整合 8.4 — ARCHITECTURE §1.4 / ADR-002
@@ -46,7 +45,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from threading import RLock
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -65,14 +64,14 @@ class StrategyMetadata:
     """策略元数据 (注册时由调用方提供)."""
 
     name: str
-    strategy_class: Type[Any]
+    strategy_class: type[Any]
     description: str = ""
     version: str = "1.0.0"
     author: str = ""
     capital: float = 0.0
     max_weight: float = 0.40
     min_weight: float = 0.05
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -122,7 +121,7 @@ class PerformanceRecord:
         """P99 延迟 (用 max 近似, 精确计算需保留全部样本)."""
         return self.max_latency_ms
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典 (持久化用).
 
         所有 float 字段统一舍入到 3 位小数, 保证输出一致性.
@@ -179,21 +178,21 @@ class StrategyRegistry:
         5. flag 守护: USE_INTEGRATED_CORE_REGISTRY 关闭时, 旧路径仍可用
     """
 
-    _instance: Optional["StrategyRegistry"] = None
+    _instance: StrategyRegistry | None = None
     _lock: RLock = RLock()
 
     def __init__(self) -> None:
-        self._metadata: Dict[str, StrategyMetadata] = {}  # name -> 元数据
-        self._instances: Dict[str, Any] = {}  # name -> 实例缓存
-        self._active: Dict[str, bool] = {}  # name -> 是否启用
-        self._perf_records: Dict[str, PerformanceRecord] = {}  # name -> 性能记录
-        self._perf_locks: Dict[str, RLock] = {}  # name -> 独立锁 (装饰器用)
+        self._metadata: dict[str, StrategyMetadata] = {}  # name -> 元数据
+        self._instances: dict[str, Any] = {}  # name -> 实例缓存
+        self._active: dict[str, bool] = {}  # name -> 是否启用
+        self._perf_records: dict[str, PerformanceRecord] = {}  # name -> 性能记录
+        self._perf_locks: dict[str, RLock] = {}  # name -> 独立锁 (装饰器用)
 
     # ============================================================
     # 单例接口
     # ============================================================
     @classmethod
-    def get_instance(cls) -> "StrategyRegistry":
+    def get_instance(cls) -> StrategyRegistry:
         """获取单例 (线程安全)."""
         with cls._lock:
             if cls._instance is None:
@@ -212,9 +211,9 @@ class StrategyRegistry:
     def register(
         self,
         name: str,
-        strategy_class: Type[Any],
+        strategy_class: type[Any],
         *,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
         overwrite: bool = False,
     ) -> None:
         """注册策略类 (延迟实例化).
@@ -301,7 +300,7 @@ class StrategyRegistry:
                     raise
             return self._instances[name]
 
-    def get_class(self, name: str) -> Type[Any]:
+    def get_class(self, name: str) -> type[Any]:
         """仅获取策略类, 不实例化."""
         with self._lock:
             if name not in self._metadata:
@@ -313,12 +312,12 @@ class StrategyRegistry:
         with self._lock:
             return name in self._metadata
 
-    def list_strategies(self) -> List[str]:
+    def list_strategies(self) -> list[str]:
         """返回所有已注册策略名."""
         with self._lock:
             return list(self._metadata.keys())
 
-    def list_active(self) -> List[str]:
+    def list_active(self) -> list[str]:
         """返回启用中的策略名."""
         with self._lock:
             return [name for name, active in self._active.items() if active]
@@ -346,7 +345,7 @@ class StrategyRegistry:
                 raise StrategyNotFoundError(f"策略未注册: {name}")
             return self._metadata[name]
 
-    def get_state(self, name: str) -> Dict[str, Any]:
+    def get_state(self, name: str) -> dict[str, Any]:
         """获取策略完整状态 (元数据 + 性能记录)."""
         with self._lock:
             if name not in self._metadata:
@@ -367,7 +366,7 @@ class StrategyRegistry:
                 "performance": perf.to_dict(),
             }
 
-    def snapshot(self) -> Dict[str, Any]:
+    def snapshot(self) -> dict[str, Any]:
         """全量快照 (供 bootstrap.dump 使用)."""
         with self._lock:
             return {name: self.get_state(name) for name in self._metadata}
@@ -405,7 +404,7 @@ class StrategyRegistry:
                 perf.errors_count += 1
                 perf.last_error = error_msg
 
-    def update_metrics(self, name: str, metrics: Dict[str, Any]) -> None:
+    def update_metrics(self, name: str, metrics: dict[str, Any]) -> None:
         """策略主动更新业务指标 (PnL/Sharpe/IC_IR 等).
 
         Args:
@@ -489,9 +488,9 @@ class StrategyRegistry:
         cls,
         name: str,
         *,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
         overwrite: bool = False,
-    ) -> Callable[[Type[Any]], Type[Any]]:
+    ) -> Callable[[type[Any]], type[Any]]:
         """类装饰器: @StrategyRegistry.register_decorator("name", metadata={...}).
 
         与实例方法 register() 区分:
@@ -499,7 +498,7 @@ class StrategyRegistry:
             - 类装饰器: @StrategyRegistry.register_decorator("name")
         """
 
-        def decorator(strategy_class: Type[Any]) -> Type[Any]:
+        def decorator(strategy_class: type[Any]) -> type[Any]:
             cls.get_instance().register(name, strategy_class, metadata=metadata, overwrite=overwrite)
             return strategy_class
 
@@ -508,7 +507,7 @@ class StrategyRegistry:
     # ============================================================
     # 审计日志
     # ============================================================
-    def _audit_log(self, action: str, name: str, details: Dict[str, Any]) -> None:
+    def _audit_log(self, action: str, name: str, details: dict[str, Any]) -> None:
         """写入审计日志 (失败不阻塞)."""
         try:
             _AUDIT_LOG_DIR.mkdir(parents=True, exist_ok=True)

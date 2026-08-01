@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 添加5个新标的到500万建仓计划 — 同时重平衡23标的权重
 新增: 山推股份/美的集团/藏格矿业/山金国际/科伦药业
@@ -56,7 +55,7 @@ SCALE_FACTOR = 0.82
 
 def main():
     """主函数 - 读取计划, 缩放现有权重, 添加新标的, 写回"""
-    with open(PLAN_FILE, "r", encoding="utf-8") as f:
+    with open(PLAN_FILE, encoding="utf-8") as f:
         plan = json.load(f)
 
     # 1. 更新 metadata

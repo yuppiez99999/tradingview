@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Vibe-Trading 候选因子验证器（Gate 2: IC 稳定性）
 自包含实现，仅依赖 numpy。与 utils/alpha_evaluator.py 逻辑对齐但独立运行。
 """
@@ -7,7 +6,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -33,9 +32,9 @@ class Gate2Report:
     total: int = 0
     passed: int = 0
     failed: int = 0
-    results: List[Dict[str, Any]] = field(default_factory=list)
+    results: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -45,7 +44,7 @@ class FactorValidator:
     DECAY_THRESHOLD = 0.6
     MIN_SAMPLES = 10
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         c = config or {}
         self.ic_ir_alive = float(c.get("ic_ir_alive", self.IC_IR_ALIVE))
         self.decay_threshold = float(c.get("decay_threshold", self.DECAY_THRESHOLD))

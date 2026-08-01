@@ -27,7 +27,7 @@ class PortfolioProjection:
 
     def _load_json(self, path: str) -> Dict:
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
             print(f"加载文件失败: {path}, {e}")

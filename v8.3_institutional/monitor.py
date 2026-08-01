@@ -191,6 +191,6 @@ elif mode == "配置":
 
     if config_file:
         path = os.path.join(config_dir, config_file)
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             content = f.read()
         st.code(content, language='yaml')

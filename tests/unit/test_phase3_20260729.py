@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 3 (2026-07-29) 回归测试: Purged K-Fold 集成 / VaR 回测接线 / broker 连接抽离。
 
 覆盖:
@@ -145,9 +144,11 @@ def _broker_fakes(ctp_instance, ths_instance=None):
     """
     stubs = {}
     if "src" not in sys.modules:
-        m = types.ModuleType("src"); stubs["src"] = m
+        m = types.ModuleType("src")
+        stubs["src"] = m
     if "src.execution" not in sys.modules:
-        m = types.ModuleType("src.execution"); stubs["src.execution"] = m
+        m = types.ModuleType("src.execution")
+        stubs["src.execution"] = m
     ctp_mod = types.ModuleType("src.execution.ctp_gateway")
     ctp_mod.CTPGateway = lambda *a, **k: ctp_instance
     stubs["src.execution.ctp_gateway"] = ctp_mod

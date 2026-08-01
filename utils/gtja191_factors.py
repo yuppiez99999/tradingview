@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 GTJA191 因子库 — Alpha191 / 国泰君安191因子（完整版）
 
@@ -22,7 +21,7 @@ GTJA191 因子库 — Alpha191 / 国泰君安191因子（完整版）
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -43,13 +42,13 @@ class GTJA191Factors:
         """
         self.lookback = lookback
         self._adapter = get_vibe_adapter()
-        self._factor_ids: Optional[List[str]] = None
-        self._factor_meta: Dict[str, Any] = {}
+        self._factor_ids: list[str] | None = None
+        self._factor_meta: dict[str, Any] = {}
 
     # ------------------------- 因子列表查询 -------------------------
 
     @property
-    def factor_ids(self) -> List[str]:
+    def factor_ids(self) -> list[str]:
         """所有 GTJA191 因子 ID 列表"""
         if self._factor_ids is None:
             self._factor_ids = self._adapter.list_factors(zoo="gtja191")
@@ -60,7 +59,7 @@ class GTJA191Factors:
         """GTJA191 因子总数"""
         return len(self.factor_ids)
 
-    def list_by_theme(self, theme: str) -> List[str]:
+    def list_by_theme(self, theme: str) -> list[str]:
         """按主题筛选因子
 
         Args:
@@ -77,7 +76,7 @@ class GTJA191Factors:
         except Exception:
             return ""
 
-    def get_info(self, alpha_id: str) -> Dict[str, Any]:
+    def get_info(self, alpha_id: str) -> dict[str, Any]:
         """获取因子详细信息"""
         try:
             meta = self._adapter.get_meta(alpha_id)
@@ -98,8 +97,8 @@ class GTJA191Factors:
     def compute(
         self,
         df: pd.DataFrame,
-        factor_ids: Optional[List[str]] = None,
-    ) -> Dict[str, Optional[float]]:
+        factor_ids: list[str] | None = None,
+    ) -> dict[str, float | None]:
         """批量计算 GTJA191 因子
 
         Args:
@@ -119,7 +118,7 @@ class GTJA191Factors:
         self,
         df: pd.DataFrame,
         alpha_id: str,
-    ) -> Optional[pd.Series]:
+    ) -> pd.Series | None:
         """计算单个因子的完整时间序列
 
         Args:
@@ -133,44 +132,44 @@ class GTJA191Factors:
 
     # ------------------------- 经典因子快捷方法 -------------------------
 
-    def alpha001(self, df: pd.DataFrame) -> Optional[float]:
+    def alpha001(self, df: pd.DataFrame) -> float | None:
         """GTJA #1: 量价秩相关
         (-1 * CORR(RANK(DELTA(LOG(VOLUME), 1)), RANK(((CLOSE - OPEN) / OPEN)), 6))
         放量不涨或缩量不跌预示短期反转
         """
         return self.compute(df, ["gtja191_001"]).get("gtja191_001")
 
-    def alpha005(self, df: pd.DataFrame) -> Optional[float]:
+    def alpha005(self, df: pd.DataFrame) -> float | None:
         """GTJA #5: 量价时序秩相关的最大值
         (-1 * TSMAX(CORR(TSRANK(VOLUME, 5), TSRANK(HIGH, 5), 5), 3))
         """
         return self.compute(df, ["gtja191_005"]).get("gtja191_005")
 
-    def alpha010(self, df: pd.DataFrame) -> Optional[float]:
+    def alpha010(self, df: pd.DataFrame) -> float | None:
         """GTJA #10: 下跌波动平方的滚动最大值
         RANK(MAX(((RET < 0) ? STD(RET, 20) : CLOSE)^2), 5)
         """
         return self.compute(df, ["gtja191_010"]).get("gtja191_010")
 
-    def alpha028(self, df: pd.DataFrame) -> Optional[float]:
+    def alpha028(self, df: pd.DataFrame) -> float | None:
         """GTJA #28: KDJ 类趋势因子
         3*SMA(...) - 2*SMA(SMA(...))
         """
         return self.compute(df, ["gtja191_028"]).get("gtja191_028")
 
-    def alpha040(self, df: pd.DataFrame) -> Optional[float]:
+    def alpha040(self, df: pd.DataFrame) -> float | None:
         """GTJA #40: 上涨下跌成交量比
         SUM(上涨日成交量,26) / SUM(下跌日成交量,26) * 100
         """
         return self.compute(df, ["gtja191_040"]).get("gtja191_040")
 
-    def alpha072(self, df: pd.DataFrame) -> Optional[float]:
+    def alpha072(self, df: pd.DataFrame) -> float | None:
         """GTJA #72: 成交量变动与收益的相关
         -1 * CORR(DELTA(VOLUME, 1), CLOSE/DELAY(CLOSE,1), 10)
         """
         return self.compute(df, ["gtja191_072"]).get("gtja191_072")
 
-    def alpha144(self, df: pd.DataFrame) -> Optional[float]:
+    def alpha144(self, df: pd.DataFrame) -> float | None:
         """GTJA #144: 下跌日量价效率
         过去 N 个交易日内，下跌日"收益率绝对值/成交额"的平均值
         高值：下跌放量、单位成交额推动的价格跌幅大
@@ -178,13 +177,13 @@ class GTJA191Factors:
         """
         return self.compute(df, ["gtja191_144"]).get("gtja191_144")
 
-    def alpha158(self, df: pd.DataFrame) -> Optional[float]:
+    def alpha158(self, df: pd.DataFrame) -> float | None:
         """GTJA #158: 长期趋势判断
         (CLOSE - TSMIN(LOW, 250)) / (TSMAX(HIGH, 250) - TSMIN(LOW, 250))
         """
         return self.compute(df, ["gtja191_158"]).get("gtja191_158")
 
-    def alpha189(self, df: pd.DataFrame) -> Optional[float]:
+    def alpha189(self, df: pd.DataFrame) -> float | None:
         """GTJA #189: 条件成交量衰减加权
         DECAYLINEAR(CONDITION, 12)，最后一个 GTJA191 因子
         """

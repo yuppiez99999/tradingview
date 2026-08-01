@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T03: 生成覆盖率基线报告 markdown."""
 from __future__ import annotations
 

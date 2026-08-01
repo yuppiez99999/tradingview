@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 压力测试自动化模块 (Stress Test Runner)
 ========================================
@@ -23,7 +22,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 logger = logging.getLogger("stress_test")
 
@@ -114,8 +113,8 @@ class StressTestRunner:
         REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
     def run_all_scenarios(
-        self, positions: List[Dict[str, Any]], portfolio_value: float = 5_000_000, with_intervention: bool = True
-    ) -> Dict[str, Any]:
+        self, positions: list[dict[str, Any]], portfolio_value: float = 5_000_000, with_intervention: bool = True
+    ) -> dict[str, Any]:
         """运行所有压力测试场景
 
         Args:
@@ -133,7 +132,7 @@ class StressTestRunner:
                 "report_path": "..."
             }
         """
-        results: Dict[str, Any] = {
+        results: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "portfolio_value": portfolio_value,
             "with_intervention": with_intervention,
@@ -174,16 +173,16 @@ class StressTestRunner:
     def _run_scenario(
         self,
         scenario_id: str,
-        scenario_def: Dict,
-        positions: List[Dict],
+        scenario_def: dict,
+        positions: list[dict],
         portfolio_value: float,
         with_intervention: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """运行单个压力测试场景"""
         impacts = scenario_def["asset_impacts"]
 
         # 计算各资产类别的影响
-        asset_class_pnl: Dict[str, float] = {}
+        asset_class_pnl: dict[str, float] = {}
         total_pnl = 0.0
 
         for pos in positions:
@@ -252,7 +251,7 @@ class StressTestRunner:
             "pre_action": scenario_def.get("pre_action"),
         }
 
-    def _save_report(self, results: Dict) -> Path:
+    def _save_report(self, results: dict) -> Path:
         """保存压力测试报告"""
         date_str = datetime.now().strftime("%Y%m%d")
         report_path = REPORT_DIR / f"stress_test_{date_str}.json"

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_daily_workflow_orchestrator_integration_e2e.py — E2E 测试
 
 测试范围:
@@ -21,7 +20,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -34,13 +33,13 @@ from utils.finance_agent_orchestrator import FinanceAgentOrchestrator
 
 
 def _run_finance_agent_shadow_mode(
-    target_weights: Dict[str, float],
+    target_weights: dict[str, float],
     signal_fusion: Any,
     trade_date: str,
     audit_log_dir: Path,
     env: str = "shadow",
     max_symbols: int = 5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """复刻 daily_workflow.py 中金融多 Agent Shadow Mode 调用块逻辑
 
     此函数与 daily_workflow.py 第 4465-4560 行的调用块逻辑保持一致,
@@ -57,7 +56,7 @@ def _run_finance_agent_shadow_mode(
     Returns:
         signal: 包含 Shadow Mode 执行结果的信号字典
     """
-    signal: Dict[str, Any] = {}
+    signal: dict[str, Any] = {}
 
     # === 环境隔离: production 模式强制跳过 ===
     if env == "production":

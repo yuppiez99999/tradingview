@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """LLM Provider 实现集合 — 终极量化交易系统 8.4 (B3.4.3).
 
 6 个 Provider:

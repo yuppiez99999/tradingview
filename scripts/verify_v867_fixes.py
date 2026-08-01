@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v8.6.7 修复验证脚本
 ===================
@@ -169,7 +168,7 @@ def verify_bug2() -> bool:
 
     try:
         e2e_path = PROJECT_ROOT / "scripts" / "_e2e_test.py"
-        with open(e2e_path, "r", encoding="utf-8") as f:
+        with open(e2e_path, encoding="utf-8") as f:
             content = f.read()
 
         # 验证不再使用 sorted(glob.glob(...))[-1]
@@ -229,7 +228,7 @@ def verify_bug4() -> bool:
 
         # 通过读取代码验证逻辑
         rgi_path = PROJECT_ROOT / "utils" / "risk_guard_integrator.py"
-        with open(rgi_path, "r", encoding="utf-8") as f:
+        with open(rgi_path, encoding="utf-8") as f:
             content = f.read()
 
         # 验证使用 level 判断 (而非 can_trade)
@@ -286,7 +285,7 @@ def verify_bug5() -> bool:
 
     try:
         workflow_path = PROJECT_ROOT / "v8.3_institutional" / "daily_workflow.py"
-        with open(workflow_path, "r", encoding="utf-8") as f:
+        with open(workflow_path, encoding="utf-8") as f:
             content = f.read()
 
         lines = content.split("\n")

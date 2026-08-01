@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """V9 基线回归测试 — conftest.
 
 模块整合 8.4 — T1.8
@@ -14,7 +13,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -60,7 +59,7 @@ def _find_latest_json(prefix: str) -> Path:
     return candidates[-1]
 
 
-def _parse_baseline_lock(text: str) -> Dict[str, str]:
+def _parse_baseline_lock(text: str) -> dict[str, str]:
     """解析 V9_BASELINE_LOCK.txt 文本为字典.
 
     Args:
@@ -69,7 +68,7 @@ def _parse_baseline_lock(text: str) -> Dict[str, str]:
     Returns:
         包含 commit_hash / commit_subject / commit_time / lock_date 等字段的字典
     """
-    result: Dict[str, str] = {}
+    result: dict[str, str] = {}
 
     # commit hash (40 位十六进制)
     m = re.search(r"基线 commit hash:\s*([0-9a-f]{40})", text)
@@ -110,7 +109,7 @@ def _parse_baseline_lock(text: str) -> Dict[str, str]:
 # ============================================================
 
 @pytest.fixture(scope="session")
-def v9_baseline_lock() -> Dict[str, Any]:
+def v9_baseline_lock() -> dict[str, Any]:
     """加载 V9_BASELINE_LOCK.txt.
 
     Returns:
@@ -134,7 +133,7 @@ def v9_baseline_lock() -> Dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
-def v9_backtest_json() -> Dict[str, Any]:
+def v9_backtest_json() -> dict[str, Any]:
     """加载 V9 回测原始结果 JSON (含 30 个月 records).
 
     Returns:
@@ -142,13 +141,13 @@ def v9_backtest_json() -> Dict[str, Any]:
         max_drawdown / win_rate / records 等字段)
     """
     path = _find_latest_json("v9_regime_specific_backtest_")
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     return {"path": path, "data": data}
 
 
 @pytest.fixture(scope="session")
-def v9_dsr_maxpass_json() -> Dict[str, Any]:
+def v9_dsr_maxpass_json() -> dict[str, Any]:
     """加载 V9 DSR max_pass 评估结果 JSON.
 
     Returns:
@@ -156,16 +155,16 @@ def v9_dsr_maxpass_json() -> Dict[str, Any]:
         annual_return / max_drawdown / win_rate / all_pass 等字段)
     """
     path = _find_latest_json("v9_dsr_maxpass_")
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     return {"path": path, "data": data}
 
 
 @pytest.fixture(scope="session")
 def v9_baseline_metrics(
-    v9_baseline_lock: Dict[str, Any],
-    v9_dsr_maxpass_json: Dict[str, Any],
-) -> Dict[str, Any]:
+    v9_baseline_lock: dict[str, Any],
+    v9_dsr_maxpass_json: dict[str, Any],
+) -> dict[str, Any]:
     """整合的基线指标字典.
 
     优先取 DSR maxpass JSON 中的精确值 (Bailey 标准公式结果),

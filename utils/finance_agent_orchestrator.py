@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 FinanceAgentOrchestrator — 金融多 Agent 协调器 (Shadow Mode)
 ==============================================================
@@ -31,7 +30,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from utils.logger import get_logger
 
@@ -65,8 +64,8 @@ class AgentConsensus:
     confidence: float = 0.0
     veto: bool = False
     veto_reason: str = ""
-    agent_decisions: List[Dict[str, Any]] = field(default_factory=list)
-    weighted_vote_detail: Dict[str, float] = field(default_factory=dict)
+    agent_decisions: list[dict[str, Any]] = field(default_factory=list)
+    weighted_vote_detail: dict[str, float] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def __post_init__(self) -> None:
@@ -78,7 +77,7 @@ class AgentConsensus:
         self.strength = max(-1.0, min(1.0, self.strength))
         self.confidence = max(0.0, min(1.0, self.confidence))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "symbol": self.symbol,
             "action": self.action,
@@ -114,7 +113,7 @@ class ShadowDiff:
     action_match: bool = True
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "symbol": self.symbol,
             "fusion_strength": round(self.fusion_strength, 4),
@@ -142,7 +141,7 @@ class FinanceAgentOrchestrator:
     """
 
     # Agent 默认权重 (基于历史置信度, 可调)
-    DEFAULT_WEIGHTS: Dict[str, float] = {
+    DEFAULT_WEIGHTS: dict[str, float] = {
         "value": 0.22,  # 估值: 长期逻辑
         "momentum": 0.22,  # 动量: 中期信号
         "sentiment": 0.13,  # 情绪: 短期事件
@@ -153,9 +152,9 @@ class FinanceAgentOrchestrator:
 
     def __init__(
         self,
-        agents: Optional[List[Any]] = None,
-        weights: Optional[Dict[str, float]] = None,
-        audit_log_dir: Optional[Path] = None,
+        agents: list[Any] | None = None,
+        weights: dict[str, float] | None = None,
+        audit_log_dir: Path | None = None,
     ):
         """
         Args:
@@ -167,7 +166,7 @@ class FinanceAgentOrchestrator:
         if agents is None:
             agents = self._init_default_agents()
         self.agents = agents
-        self.agent_map: Dict[str, Any] = {a.name: a for a in self.agents}
+        self.agent_map: dict[str, Any] = {a.name: a for a in self.agents}
 
         # 权重
         self.weights = dict(self.DEFAULT_WEIGHTS)
@@ -203,9 +202,9 @@ class FinanceAgentOrchestrator:
     def orchestrate_tradingagents(
         self,
         symbol: str,
-        date: Optional[str] = None,
-        analysts: Optional[List[str]] = None,
-        context: Optional[Dict[str, Any]] = None,
+        date: str | None = None,
+        analysts: list[str] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> AgentConsensus:
         """调用 TradingAgents 多 Agent 决策系统.
 
@@ -290,7 +289,7 @@ class FinanceAgentOrchestrator:
     # 主入口
     # ----------------------------------------------------------
 
-    def orchestrate(self, symbol: str, context: Dict[str, Any]) -> AgentConsensus:
+    def orchestrate(self, symbol: str, context: dict[str, Any]) -> AgentConsensus:
         """协调所有 Agent 分析单个标的
 
         Args:
@@ -300,7 +299,7 @@ class FinanceAgentOrchestrator:
         Returns:
             AgentConsensus 共识决策
         """
-        all_decisions: List[Dict[str, Any]] = []
+        all_decisions: list[dict[str, Any]] = []
         veto_triggered = False
         veto_reason = ""
 
@@ -443,9 +442,9 @@ class FinanceAgentOrchestrator:
     def save_audit_log(
         self,
         consensus: AgentConsensus,
-        diff: Optional[ShadowDiff] = None,
-        trade_date: Optional[str] = None,
-    ) -> Optional[Path]:
+        diff: ShadowDiff | None = None,
+        trade_date: str | None = None,
+    ) -> Path | None:
         """持久化审计日志 (jsonl 格式, 每行一个决策)
 
         Args:
@@ -471,7 +470,7 @@ class FinanceAgentOrchestrator:
             logger.warning("审计日志写入失败: %s", e)
             return None
 
-    def load_audit_log(self, trade_date: str) -> List[Dict[str, Any]]:
+    def load_audit_log(self, trade_date: str) -> list[dict[str, Any]]:
         """加载指定日期的审计日志
 
         Args:
@@ -485,7 +484,7 @@ class FinanceAgentOrchestrator:
             return []
         entries = []
         try:
-            with open(log_file, "r", encoding="utf-8") as f:
+            with open(log_file, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if line:
@@ -498,7 +497,7 @@ class FinanceAgentOrchestrator:
     # 内部方法
     # ----------------------------------------------------------
 
-    def _weighted_vote(self, decisions: List[Dict[str, Any]]) -> tuple:
+    def _weighted_vote(self, decisions: list[dict[str, Any]]) -> tuple:
         """加权投票
 
         Returns:
@@ -516,7 +515,7 @@ class FinanceAgentOrchestrator:
         weighted_strength = 0.0
         weighted_confidence = 0.0
         total_weight_used = 0.0
-        vote_detail: Dict[str, float] = {}
+        vote_detail: dict[str, float] = {}
 
         for d in valid:
             agent_name = d.get("agent_name", "")
@@ -555,7 +554,7 @@ class FinanceAgentOrchestrator:
         return "hold"
 
     @staticmethod
-    def _init_default_agents() -> List[Any]:
+    def _init_default_agents() -> list[Any]:
         """初始化默认 6 个 Agent (v8.6.13 新增 WeatherAgent)"""
         try:
             from utils.finance_agents import (
@@ -566,7 +565,7 @@ class FinanceAgentOrchestrator:
                 ValueAgent,
             )
 
-            agents: List[Any] = [
+            agents: list[Any] = [
                 ValueAgent(),
                 MomentumAgent(),
                 SentimentAgent(),
@@ -592,7 +591,7 @@ class FinanceAgentOrchestrator:
 # 便捷入口
 # ============================================================
 
-_default_orchestrator: Optional[FinanceAgentOrchestrator] = None
+_default_orchestrator: FinanceAgentOrchestrator | None = None
 
 
 def get_default_orchestrator() -> FinanceAgentOrchestrator:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 模拟盘接入层
 ==================
@@ -31,7 +30,6 @@ from datetime import date, datetime, timedelta
 from datetime import time as dtime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger("v75.sim_broker")
 
@@ -158,7 +156,7 @@ class TradingSessionCalendar:
         - 当前 session 类型
     """
 
-    def __init__(self, holidays: Optional[set] = None):
+    def __init__(self, holidays: set | None = None):
         self.holidays = holidays or HOLIDAYS_2026
 
         # A股交易时段
@@ -177,7 +175,7 @@ class TradingSessionCalendar:
             TradingSession("FUTURES_DAY_AFTER", dtime(15, 0),  dtime(15, 30), "futures"),
         ]
 
-    def is_trading_day(self, d: Optional[date] = None) -> bool:
+    def is_trading_day(self, d: date | None = None) -> bool:
         """是否为交易日（A股+期货通用）
 
         ER4 修复: 优先委托给 utils.trade_calendar (akshare 动态获取),
@@ -205,11 +203,11 @@ class TradingSessionCalendar:
 
         return True
 
-    def is_futures_trading_day(self, d: Optional[date] = None) -> bool:
+    def is_futures_trading_day(self, d: date | None = None) -> bool:
         """是否为期货交易日（与A股一致，节假日休市）"""
         return self.is_trading_day(d)
 
-    def get_current_session(self, now: Optional[datetime] = None) -> Tuple[SessionType, Optional[TradingSession]]:
+    def get_current_session(self, now: datetime | None = None) -> tuple[SessionType, TradingSession | None]:
         """获取当前交易时段
 
         Returns:
@@ -232,12 +230,12 @@ class TradingSessionCalendar:
 
         return SessionType.CLOSED, None
 
-    def is_market_open(self, now: Optional[datetime] = None) -> bool:
+    def is_market_open(self, now: datetime | None = None) -> bool:
         """当前是否开市中"""
         session_type, _ = self.get_current_session(now)
         return session_type != SessionType.CLOSED
 
-    def get_next_session_start(self, d: Optional[date] = None) -> Tuple[date, Optional[dtime]]:
+    def get_next_session_start(self, d: date | None = None) -> tuple[date, dtime | None]:
         """获取下一交易日/下一时段开始时间"""
         if d is None:
             d = date.today()
@@ -249,7 +247,7 @@ class TradingSessionCalendar:
             n += 1
         return d + timedelta(days=n), dtime(9, 30)
 
-    def get_trading_days(self, start: date, end: date) -> List[date]:
+    def get_trading_days(self, start: date, end: date) -> list[date]:
         """获取日期范围内的交易日列表"""
         days = []
         d = start
@@ -271,7 +269,7 @@ class SimAccount:
     total_capital: float
     available_cash: float
     frozen_cash: float = 0.0
-    positions: Dict[str, Dict] = field(default_factory=dict)
+    positions: dict[str, dict] = field(default_factory=dict)
     daily_pnl: float = 0.0
     created_at: datetime = field(default_factory=datetime.now)
     last_updated: datetime = field(default_factory=datetime.now)
@@ -296,7 +294,7 @@ class SimBrokerBase:
         self.account = account
         self._lock = threading.RLock()
         self._order_counter = 0
-        self._fills: List[Dict] = []
+        self._fills: list[dict] = []
 
     def _next_order_id(self) -> str:
         with self._lock:
@@ -305,7 +303,7 @@ class SimBrokerBase:
 
     def place_order(self, symbol: str, qty: int, side: str,
                     price: float = 0.0, order_type: str = "LIMIT",
-                    session: str = "day") -> Dict:
+                    session: str = "day") -> dict:
         """下单
 
         Args:
@@ -325,7 +323,7 @@ class SimBrokerBase:
         """撤单"""
         raise NotImplementedError
 
-    def get_positions(self) -> Dict[str, Dict]:
+    def get_positions(self) -> dict[str, dict]:
         """获取当前持仓"""
         with self._lock:
             return dict(self.account.positions)
@@ -334,11 +332,11 @@ class SimBrokerBase:
         """获取账户信息"""
         return self.account
 
-    def _record_fill(self, fill: Dict) -> None:
+    def _record_fill(self, fill: dict) -> None:
         with self._lock:
             self._fills.append(fill)
 
-    def get_fills(self, session: Optional[str] = None) -> List[Dict]:
+    def get_fills(self, session: str | None = None) -> list[dict]:
         """获取成交记录"""
         with self._lock:
             if session:
@@ -361,11 +359,11 @@ class SimStockBroker(SimBrokerBase):
     def __init__(self, account: SimAccount, price_provider=None):
         super().__init__(account)
         self.price_provider = price_provider
-        self._pending_orders: Dict[str, Dict] = {}
+        self._pending_orders: dict[str, dict] = {}
 
     def place_order(self, symbol: str, qty: int, side: str,
                     price: float = 0.0, order_type: str = "LIMIT",
-                    session: str = "day") -> Dict:
+                    session: str = "day") -> dict:
         if session == "night":
             return {"order_id": "", "status": "REJECTED",
                     "reason": "股票不支持夜盘交易"}
@@ -400,7 +398,7 @@ class SimStockBroker(SimBrokerBase):
             return True
         return False
 
-    def get_positions(self) -> Dict[str, Dict]:
+    def get_positions(self) -> dict[str, dict]:
         with self._lock:
             return dict(self.account.positions)
 
@@ -424,7 +422,7 @@ class SimFuturesBroker(SimBrokerBase):
     """
 
     def __init__(self, account: SimAccount, price_provider=None,
-                 margin_rates: Optional[Dict[str, float]] = None):
+                 margin_rates: dict[str, float] | None = None):
         super().__init__(account)
         self.price_provider = price_provider
         self.margin_rates = margin_rates or {
@@ -434,10 +432,10 @@ class SimFuturesBroker(SimBrokerBase):
             "RB": 0.13, "I": 0.14, "J": 0.15,
             "CF": 0.12, "TA": 0.10, "MA": 0.12,
         }
-        self._pending_orders: Dict[str, Dict] = {}
+        self._pending_orders: dict[str, dict] = {}
         self._night_session_info = FUTURES_NIGHT_SESSIONS
 
-    def _get_night_session(self, symbol: str) -> Optional[Tuple[dtime, dtime]]:
+    def _get_night_session(self, symbol: str) -> tuple[dtime, dtime] | None:
         """获取品种夜盘时段"""
         # 提取品种代码（去掉月份）
         code = symbol[:2] if len(symbol) >= 2 else symbol
@@ -450,7 +448,7 @@ class SimFuturesBroker(SimBrokerBase):
 
     def place_order(self, symbol: str, qty: int, side: str,
                     price: float = 0.0, order_type: str = "LIMIT",
-                    session: str = "day") -> Dict:
+                    session: str = "day") -> dict:
         # 检查夜盘权限
         if session == "night":
             night_info = self._get_night_session(symbol)
@@ -492,7 +490,7 @@ class SimFuturesBroker(SimBrokerBase):
             return True
         return False
 
-    def get_positions(self) -> Dict[str, Dict]:
+    def get_positions(self) -> dict[str, dict]:
         with self._lock:
             return dict(self.account.positions)
 
@@ -513,7 +511,7 @@ class SimBrokerRouter:
         self.options_broker = options_broker  # 可选，SimOptionsBroker 实例
         self.calendar = calendar or TradingSessionCalendar()
 
-    def route(self, order: Dict, session: Optional[str] = None) -> Dict:
+    def route(self, order: dict, session: str | None = None) -> dict:
         """路由订单到对应模拟盘
 
         Args:
@@ -618,13 +616,13 @@ class PositionSync:
         4. 支持导出到 positions.json / 每日报告
     """
 
-    def __init__(self, router: SimBrokerRouter, snapshot_dir: Optional[Path] = None):
+    def __init__(self, router: SimBrokerRouter, snapshot_dir: Path | None = None):
         self.router = router
         self.snapshot_dir = snapshot_dir or Path("sim_snapshots")
         self.snapshot_dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
 
-    def sync_from_brokers(self) -> Dict:
+    def sync_from_brokers(self) -> dict:
         """从模拟盘同步当前持仓与资金"""
         stock_positions = self.router.stock_broker.get_positions()
         futures_positions = self.router.futures_broker.get_positions()
@@ -649,7 +647,7 @@ class PositionSync:
                 },
             }
 
-    def save_daily_snapshot(self, trade_date: Optional[str] = None) -> Path:
+    def save_daily_snapshot(self, trade_date: str | None = None) -> Path:
         """保存当日持仓快照"""
         if trade_date is None:
             trade_date = datetime.now().strftime("%Y-%m-%d")
@@ -660,14 +658,14 @@ class PositionSync:
         logger.info("持仓快照已保存: %s", path)
         return path
 
-    def load_positions(self, trade_date: str) -> Dict:
+    def load_positions(self, trade_date: str) -> dict:
         """加载指定日期持仓快照"""
         path = self.snapshot_dir / f"positions_{trade_date.replace('-', '')}.json"
         if not path.exists():
             return {}
         return json.loads(path.read_text(encoding="utf-8"))
 
-    def update_positions_from_fills(self, fills: List[Dict]) -> None:
+    def update_positions_from_fills(self, fills: list[dict]) -> None:
         """根据成交记录更新持仓"""
         with self._lock:
             for fill in fills:
@@ -701,7 +699,7 @@ class PositionSync:
                 pos["market_value"] = pos["qty"] * price if price > 0 else 0.0
                 pos["last_update"] = datetime.now().isoformat()
 
-    def get_daily_pnl(self, prev_positions: Dict) -> Dict:
+    def get_daily_pnl(self, prev_positions: dict) -> dict:
         """计算当日盈亏"""
         current = self.sync_from_brokers()
         current_positions = current.get("combined", {}).get("positions", {})
@@ -753,10 +751,10 @@ class SimExecutionEngine:
         self.options_broker = options_broker
         self._executed_sessions: set = set()  # 防止同一 session 重复执行
 
-    def is_trading_day(self, d: Optional[date] = None) -> bool:
+    def is_trading_day(self, d: date | None = None) -> bool:
         return self.calendar.is_trading_day(d)
 
-    def execute_stock_orders(self, orders: List[Dict], session: str = "day") -> List[Dict]:
+    def execute_stock_orders(self, orders: list[dict], session: str = "day") -> list[dict]:
         """执行股票订单
 
         Args:
@@ -780,7 +778,7 @@ class SimExecutionEngine:
                 fills.append(result)
         return fills
 
-    def execute_futures_orders(self, orders: List[Dict], session: str = "day") -> List[Dict]:
+    def execute_futures_orders(self, orders: list[dict], session: str = "day") -> list[dict]:
         """执行期货订单（支持夜盘）
 
         Args:
@@ -803,7 +801,7 @@ class SimExecutionEngine:
                 fills.append(result)
         return fills
 
-    def execute_options_orders(self, orders: List[Dict], session: str = "day") -> List[Dict]:
+    def execute_options_orders(self, orders: list[dict], session: str = "day") -> list[dict]:
         """执行期权订单
 
         Args:
@@ -831,13 +829,13 @@ class SimExecutionEngine:
                 fills.append(result)
         return fills
 
-    def get_greek_exposure(self) -> Dict[str, float]:
+    def get_greek_exposure(self) -> dict[str, float]:
         """获取期权组合希腊字母暴露"""
         if self.options_broker and hasattr(self.options_broker, "get_greek_exposure"):
             return self.options_broker.get_greek_exposure()
         return {"delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0}
 
-    def _simulate_fill(self, order: Dict, market: str, session: str) -> Dict:
+    def _simulate_fill(self, order: dict, market: str, session: str) -> dict:
         """模拟成交（简化版）"""
         symbol = order.get("symbol", "")
         qty = int(order.get("qty", 0))
@@ -873,18 +871,18 @@ class SimExecutionEngine:
         self.position_sync.update_positions_from_fills([fill])
         return fill
 
-    def get_session_key(self, session: str, d: Optional[date] = None) -> str:
+    def get_session_key(self, session: str, d: date | None = None) -> str:
         """生成 session 唯一键（用于去重）"""
         if d is None:
             d = date.today()
         return f"{d.isoformat()}-{session}"
 
-    def mark_session_executed(self, session: str, d: Optional[date] = None) -> None:
+    def mark_session_executed(self, session: str, d: date | None = None) -> None:
         """标记 session 已执行"""
         key = self.get_session_key(session, d)
         self._executed_sessions.add(key)
 
-    def is_session_executed(self, session: str, d: Optional[date] = None) -> bool:
+    def is_session_executed(self, session: str, d: date | None = None) -> bool:
         """检查 session 是否已执行"""
         key = self.get_session_key(session, d)
         return key in self._executed_sessions

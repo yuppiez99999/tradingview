@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 风险归因面板 (Risk Attribution Panel)
 ====================================
@@ -20,7 +19,7 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any
 
 # ============================================================
 # 默认路径
@@ -37,24 +36,24 @@ class RiskAttribution:
     """风险归因结果"""
 
     total_value: float = 0.0
-    by_sector: Dict[str, float] = field(default_factory=dict)
-    by_style: Dict[str, float] = field(default_factory=dict)
-    by_type: Dict[str, float] = field(default_factory=dict)
-    concentration: Dict[str, float] = field(default_factory=dict)  # HHI / Top1 / Top5
-    hedge_residual: Dict[str, Any] = field(default_factory=dict)  # 对冲工具剩余风险
-    warnings: List[str] = field(default_factory=list)
+    by_sector: dict[str, float] = field(default_factory=dict)
+    by_style: dict[str, float] = field(default_factory=dict)
+    by_type: dict[str, float] = field(default_factory=dict)
+    concentration: dict[str, float] = field(default_factory=dict)  # HHI / Top1 / Top5
+    hedge_residual: dict[str, Any] = field(default_factory=dict)  # 对冲工具剩余风险
+    warnings: list[str] = field(default_factory=list)
 
 
 # ============================================================
 # 数据加载
 # ============================================================
-def load_positions(path: Union[str, Path] = DEFAULT_POSITIONS_PATH) -> List[Dict[str, Any]]:
+def load_positions(path: str | Path = DEFAULT_POSITIONS_PATH) -> list[dict[str, Any]]:
     """加载持仓列表 (兼容旧版接口)"""
     path = Path(path)
     if not path.exists():
         return []
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except Exception:  # P2 模块 fail-safe, 待后续精确化
         return []
@@ -78,13 +77,13 @@ def load_positions(path: Union[str, Path] = DEFAULT_POSITIONS_PATH) -> List[Dict
     return positions
 
 
-def load_hedge_positions(path: Union[str, Path] = DEFAULT_POSITIONS_PATH) -> Dict[str, Any]:
+def load_hedge_positions(path: str | Path = DEFAULT_POSITIONS_PATH) -> dict[str, Any]:
     """加载对冲工具配置"""
     path = Path(path)
     if not path.exists():
         return {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f).get("hedge_positions", {})  # type: ignore
     except Exception:  # P2 模块 fail-safe, 待后续精确化
         return {}
@@ -93,7 +92,7 @@ def load_hedge_positions(path: Union[str, Path] = DEFAULT_POSITIONS_PATH) -> Dic
 # ============================================================
 # 集中度指标
 # ============================================================
-def _calc_concentration(weights: List[float]) -> Dict[str, float]:
+def _calc_concentration(weights: list[float]) -> dict[str, float]:
     """计算集中度指标
 
     Returns:
@@ -128,15 +127,15 @@ def _calc_concentration(weights: List[float]) -> Dict[str, float]:
     }
 
 
-def _aggregate(values: List[Tuple[str, float]]) -> Dict[str, float]:
+def _aggregate(values: list[tuple[str, float]]) -> dict[str, float]:
     """按 key 聚合并返回 {key: sum_value}"""
-    agg: Dict[str, float] = defaultdict(float)
+    agg: dict[str, float] = defaultdict(float)
     for k, v in values:
         agg[k or "其他"] += float(v or 0.0)
     return dict(agg)
 
 
-def _to_pct_map(value_map: Dict[str, float], total: float) -> Dict[str, float]:
+def _to_pct_map(value_map: dict[str, float], total: float) -> dict[str, float]:
     """将金额 map 转为百分比 map"""
     if total <= 0:
         return {k: 0.0 for k in value_map}
@@ -146,7 +145,7 @@ def _to_pct_map(value_map: Dict[str, float], total: float) -> Dict[str, float]:
 # ============================================================
 # 对冲工具剩余风险
 # ============================================================
-def _calc_hedge_residual(positions: List[Dict[str, Any]], hedge_positions: Dict[str, Any]) -> Dict[str, Any]:
+def _calc_hedge_residual(positions: list[dict[str, Any]], hedge_positions: dict[str, Any]) -> dict[str, Any]:
     """计算对冲后的剩余风险
 
     Returns:
@@ -206,7 +205,7 @@ def _calc_hedge_residual(positions: List[Dict[str, Any]], hedge_positions: Dict[
 # ============================================================
 # 主归因函数
 # ============================================================
-def compute_attribution(positions_path: Union[str, Path] = DEFAULT_POSITIONS_PATH) -> RiskAttribution:
+def compute_attribution(positions_path: str | Path = DEFAULT_POSITIONS_PATH) -> RiskAttribution:
     """计算风险归因面板
 
     Args:
@@ -260,7 +259,7 @@ def compute_attribution(positions_path: Union[str, Path] = DEFAULT_POSITIONS_PAT
     return result
 
 
-def attribution_to_dict(attribution: RiskAttribution) -> Dict[str, Any]:
+def attribution_to_dict(attribution: RiskAttribution) -> dict[str, Any]:
     """将归因结果转为可序列化字典"""
     return {
         "total_value": attribution.total_value,
@@ -279,7 +278,7 @@ def attribution_to_dict(attribution: RiskAttribution) -> Dict[str, Any]:
 # ============================================================
 # 终端输出 (Markdown 风格)
 # ============================================================
-def print_attribution(positions_path: Union[str, Path] = DEFAULT_POSITIONS_PATH) -> None:
+def print_attribution(positions_path: str | Path = DEFAULT_POSITIONS_PATH) -> None:
     """打印风险归因面板 (兼容旧版接口)"""
     attribution = compute_attribution(positions_path)
     if not attribution.total_value:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """S4 首批次流水线结果深度分析
 
 读取 pipeline_state.json，输出 CIO 视角根因分析报告：
@@ -25,7 +24,7 @@ STATE_FILE = (
 
 def main() -> int:
     """主入口：S4 深度分析"""
-    with open(STATE_FILE, "r", encoding="utf-8") as f:
+    with open(STATE_FILE, encoding="utf-8") as f:
         state = json.load(f)
 
     factors = state["factors"]

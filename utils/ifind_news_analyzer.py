@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 iFinD 资讯读取 + 标的研判模块
 """
@@ -11,7 +10,7 @@ import sys
 import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from utils.logger import get_logger
 
@@ -26,10 +25,10 @@ class NewsItem:
     snippet: str
     source: str
     publish_time: str
-    url: Optional[str] = None
+    url: str | None = None
     sentiment: str = "neutral"
     relevance: float = 0.0
-    entities: List[str] = field(default_factory=list)
+    entities: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -40,7 +39,7 @@ class StockInsight:
     name: str
     direction: str
     confidence: float
-    reasons: List[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
     news_count: int = 0
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
@@ -48,7 +47,7 @@ class StockInsight:
 class IFinDNewsAnalyzer:
     """基于 iFinD 新闻公告的资讯读取与标的研判"""
 
-    def __init__(self, skill_dir: Optional[str] = None) -> None:
+    def __init__(self, skill_dir: str | None = None) -> None:
         self.skill_dir = skill_dir or os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "skills",
@@ -66,23 +65,23 @@ class IFinDNewsAnalyzer:
     def available(self) -> bool:
         return self._call is not None
 
-    def search_news(self, query: str, size: int = 5, days: int = 3) -> List[NewsItem]:
+    def search_news(self, query: str, size: int = 5, days: int = 3) -> list[NewsItem]:
         """检索新闻资讯"""
         return self._call_news("search_news", query, size=size, days=days)
 
-    def search_notice(self, query: str, size: int = 5, days: int = 3) -> List[NewsItem]:
+    def search_notice(self, query: str, size: int = 5, days: int = 3) -> list[NewsItem]:
         """检索公告"""
         return self._call_news("search_notice", query, size=size, days=days)
 
     def search_trending(
         self, keyword: str, industry_name: str = "", time_scope: str = "24小时", size: int = 5
-    ) -> List[NewsItem]:
+    ) -> list[NewsItem]:
         """热点事件"""
-        items: List[NewsItem] = []
+        items: list[NewsItem] = []
         if self._call is None:
             return items
         try:
-            params: Dict[str, Any] = {"keyword": keyword, "size": size}
+            params: dict[str, Any] = {"keyword": keyword, "size": size}
             if industry_name:
                 params["industry_name"] = industry_name
             if time_scope:
@@ -115,11 +114,11 @@ class IFinDNewsAnalyzer:
         )
 
     def batch_analyze(
-        self, symbols: List[str], name_map: Optional[Dict[str, str]] = None, size: int = 4, days: int = 3
-    ) -> List[StockInsight]:
+        self, symbols: list[str], name_map: dict[str, str] | None = None, size: int = 4, days: int = 3
+    ) -> list[StockInsight]:
         """批量研判"""
         name_map = name_map or {}
-        results: List[StockInsight] = []
+        results: list[StockInsight] = []
         for symbol in symbols:
             try:
                 results.append(self.analyze_symbol(symbol, name=name_map.get(symbol, ""), size=size, days=days))
@@ -127,8 +126,8 @@ class IFinDNewsAnalyzer:
                 logger.error("研判失败: %s", symbol, exc_info=True)
         return results
 
-    def _call_news(self, tool_name: str, query: str, size: int = 5, days: int = 3) -> List[NewsItem]:
-        items: List[NewsItem] = []
+    def _call_news(self, tool_name: str, query: str, size: int = 5, days: int = 3) -> list[NewsItem]:
+        items: list[NewsItem] = []
         if self._call is None:
             return items
         try:
@@ -149,8 +148,8 @@ class IFinDNewsAnalyzer:
             logger.error("%s 查询失败:\n%s", tool_name, traceback.format_exc())
         return items
 
-    def _parse_news_result(self, data: Any) -> List[NewsItem]:
-        items: List[NewsItem] = []
+    def _parse_news_result(self, data: Any) -> list[NewsItem]:
+        items: list[NewsItem] = []
         try:
             parsed = data if isinstance(data, dict) else json.loads(str(data))
             # MCP 文本包装：result.content[0].text 内层又是业务 JSON
@@ -213,7 +212,7 @@ class IFinDNewsAnalyzer:
             logger.error("资讯解析失败:\n%s", traceback.format_exc())
         return items
 
-    def _extract_results(self, parsed: Any) -> List[dict]:
+    def _extract_results(self, parsed: Any) -> list[dict]:
         if isinstance(parsed, list):
             return parsed
         if not isinstance(parsed, dict):
@@ -235,13 +234,13 @@ class IFinDNewsAnalyzer:
                 return results
         return []
 
-    def _derive_insight(self, items: List[NewsItem], symbol: str) -> tuple[str, float, List[str]]:
+    def _derive_insight(self, items: list[NewsItem], symbol: str) -> tuple[str, float, list[str]]:
         if not items:
             return "neutral", 0.0, ["未检索到相关资讯"]
 
         positive_hits = 0
         negative_hits = 0
-        reasons: List[str] = []
+        reasons: list[str] = []
         keywords_positive = [
             "预增",
             "增长",
@@ -279,8 +278,8 @@ class IFinDNewsAnalyzer:
             return "negative", min(1.0, 0.5 + 0.15 * negative_hits), reasons[:5]
         return "neutral", 0.5, reasons[:5]
 
-    def _extract_entities(self, text: str) -> List[str]:
-        entities: List[str] = []
+    def _extract_entities(self, text: str) -> list[str]:
+        entities: list[str] = []
         try:
             import re
 

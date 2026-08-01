@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """修复 B303: MD5 → SHA256"""
 import os
 
@@ -18,7 +17,7 @@ for filepath, old, new in fixes:
     if not os.path.exists(filepath):
         print(f"NOT FOUND: {filepath}")
         continue
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         content = f.read()
     if old in content:
         content = content.replace(old, new, 1)
@@ -31,7 +30,7 @@ for filepath, old, new in fixes:
 # 单独处理 media_crawler_adapter.py
 filepath = r"utils\media_crawler_adapter.py"
 if os.path.exists(filepath):
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         content = f.read()
     if "hashlib.md5(" in content:
         content = content.replace("hashlib.md5(", "hashlib.sha256(")

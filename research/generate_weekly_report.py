@@ -573,12 +573,16 @@ def main():
     for r in rows:
         s = r["sector"]
         sector_map.setdefault(s, {"mv": 0, "cost": 0, "pnl": 0, "n": 0})
-        sector_map[s]["mv"] += r["mv"]; sector_map[s]["cost"] += r["cost"]
-        sector_map[s]["pnl"] += r["pnl"]; sector_map[s]["n"] += 1
+        sector_map[s]["mv"] += r["mv"]
+        sector_map[s]["cost"] += r["cost"]
+        sector_map[s]["pnl"] += r["pnl"]
+        sector_map[s]["n"] += 1
         t = r["type"]
         type_map.setdefault(t, {"mv": 0, "cost": 0, "pnl": 0, "n": 0})
-        type_map[t]["mv"] += r["mv"]; type_map[t]["cost"] += r["cost"]
-        type_map[t]["pnl"] += r["pnl"]; type_map[t]["n"] += 1
+        type_map[t]["mv"] += r["mv"]
+        type_map[t]["cost"] += r["cost"]
+        type_map[t]["pnl"] += r["pnl"]
+        type_map[t]["n"] += 1
 
     winners = [r for r in rows if r["pnl"] > 0]
     losers = [r for r in rows if r["pnl"] < 0]

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Phase 3-B 验证脚本: 静态分析无回归
 ====================================
@@ -35,7 +34,6 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 os.chdir(PROJECT_ROOT)
@@ -378,7 +376,7 @@ def test_config_manager_apis() -> bool:
 # T7-T10: 运行静态分析工具
 # ============================================================
 
-def _run_command(cmd: List[str], timeout: int = 90) -> Tuple[int, str, str]:
+def _run_command(cmd: list[str], timeout: int = 90) -> tuple[int, str, str]:
     """运行命令并捕获输出
 
     Returns:

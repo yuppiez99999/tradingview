@@ -49,7 +49,7 @@ def _has_logging(node: ast.ExceptHandler) -> bool:
 
 
 def check_file(path: str) -> list[tuple[int, str]]:
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         src = fh.read()
     try:
         tree = ast.parse(src)

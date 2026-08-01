@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.6 PM Limits Matrix — 对标世界顶级对冲基金的持仓限额矩阵
 
@@ -18,7 +17,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 import yaml
 
@@ -48,10 +46,10 @@ class SingleLimit:
 
     symbol: str
     max_weight: float  # 最大仓位权重 (总资产 %)
-    hard_pct: Optional[float] = None  # 硬限制 (默认 max_weight * 1.1)
-    soft_pct: Optional[float] = None  # 软限制 (默认 max_weight * 1.0)
-    warn_pct: Optional[float] = None  # 预警 (默认 max_weight * 0.85)
-    max_notional: Optional[float] = None  # 最大名义金额 (可选)
+    hard_pct: float | None = None  # 硬限制 (默认 max_weight * 1.1)
+    soft_pct: float | None = None  # 软限制 (默认 max_weight * 1.0)
+    warn_pct: float | None = None  # 预警 (默认 max_weight * 0.85)
+    max_notional: float | None = None  # 最大名义金额 (可选)
     enabled: bool = True
 
 
@@ -61,10 +59,10 @@ class SectorLimit:
 
     sector: str
     max_weight: float  # 板块最大权重
-    members: List[str] = field(default_factory=list)
-    hard_pct: Optional[float] = None
-    soft_pct: Optional[float] = None
-    warn_pct: Optional[float] = None
+    members: list[str] = field(default_factory=list)
+    hard_pct: float | None = None
+    soft_pct: float | None = None
+    warn_pct: float | None = None
     enabled: bool = True
 
     # 板块内单标的下限 (防过度集中)
@@ -77,7 +75,7 @@ class FactorLimit:
 
     factor_name: str
     max_exposure: float  # 最大净暴露 (std 单位)
-    beta_sources: Dict[str, float] = field(default_factory=dict)
+    beta_sources: dict[str, float] = field(default_factory=dict)
     # {symbol: factor_loading}
     enabled: bool = True
 
@@ -107,7 +105,7 @@ class LimitCheckResult:
     soft_limit: float
     warn_limit: float
     message: str = ""
-    offending_positions: List[str] = field(default_factory=list)
+    offending_positions: list[str] = field(default_factory=list)
 
 
 class PMLimitsMatrix:
@@ -133,7 +131,7 @@ class PMLimitsMatrix:
         hard_buffer: float = 0.10,
         soft_buffer: float = 0.05,
         warn_buffer: float = 0.05,
-        config_path: Optional[str] = None,
+        config_path: str | None = None,
     ):
         """
         Args:
@@ -148,23 +146,23 @@ class PMLimitsMatrix:
         self.warn_buffer = warn_buffer
 
         # 限额存储
-        self.single_limits: Dict[str, SingleLimit] = {}
-        self.sector_limits: Dict[str, SectorLimit] = {}
-        self.factor_limits: Dict[str, FactorLimit] = {}
+        self.single_limits: dict[str, SingleLimit] = {}
+        self.sector_limits: dict[str, SectorLimit] = {}
+        self.factor_limits: dict[str, FactorLimit] = {}
         self.aggregate_limit = AggregateLimit()
 
         # 检查历史
-        self.check_history: List[Dict] = []
+        self.check_history: list[dict] = []
 
         # 被硬限制拦截的订单
-        self.hard_blocked: List[Dict] = []
+        self.hard_blocked: list[dict] = []
 
         if config_path:
             self._load_config(config_path)
 
     def _load_config(self, path: str) -> None:
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
         except Exception as e:
             logger.warning(f"加载 PM 限额配置失败: {e}")
@@ -222,10 +220,10 @@ class PMLimitsMatrix:
         self,
         symbol: str,
         max_weight: float,
-        hard_pct: Optional[float] = None,
-        soft_pct: Optional[float] = None,
-        warn_pct: Optional[float] = None,
-        max_notional: Optional[float] = None,
+        hard_pct: float | None = None,
+        soft_pct: float | None = None,
+        warn_pct: float | None = None,
+        max_notional: float | None = None,
     ) -> None:
         """添加单标的限额"""
         self.single_limits[symbol] = SingleLimit(
@@ -241,10 +239,10 @@ class PMLimitsMatrix:
         self,
         sector: str,
         max_weight: float,
-        members: List[str],
-        hard_pct: Optional[float] = None,
-        soft_pct: Optional[float] = None,
-        warn_pct: Optional[float] = None,
+        members: list[str],
+        hard_pct: float | None = None,
+        soft_pct: float | None = None,
+        warn_pct: float | None = None,
         max_single_in_sector: float = 0.40,
     ) -> None:
         """添加板块限额"""
@@ -259,7 +257,7 @@ class PMLimitsMatrix:
         )
 
     def add_factor_limit(
-        self, factor_name: str, max_exposure: float, beta_sources: Optional[Dict[str, float]] = None
+        self, factor_name: str, max_exposure: float, beta_sources: dict[str, float] | None = None
     ) -> None:
         """添加因子暴露限额"""
         self.factor_limits[factor_name] = FactorLimit(
@@ -270,8 +268,8 @@ class PMLimitsMatrix:
 
     # ---------- 限额检查 ----------
     def _resolve_thresholds(
-        self, base_pct: float, hard_pct: Optional[float], soft_pct: Optional[float], warn_pct: Optional[float]
-    ) -> Tuple[float, float, float]:
+        self, base_pct: float, hard_pct: float | None, soft_pct: float | None, warn_pct: float | None
+    ) -> tuple[float, float, float]:
         """解析三级阈值"""
         hard = hard_pct if hard_pct is not None else base_pct * (1 + self.hard_buffer)
         soft = soft_pct if soft_pct is not None else base_pct * (1 + self.soft_buffer)
@@ -288,7 +286,7 @@ class PMLimitsMatrix:
             return LimitStatus.WARNING
         return LimitStatus.OK
 
-    def check_single_limits(self, positions: Dict[str, float]) -> List[LimitCheckResult]:
+    def check_single_limits(self, positions: dict[str, float]) -> list[LimitCheckResult]:
         """检查所有单标的限额"""
         results = []
         total_nav = self.total_nav
@@ -330,7 +328,7 @@ class PMLimitsMatrix:
 
         return results
 
-    def check_sector_limits(self, positions: Dict[str, float]) -> List[LimitCheckResult]:
+    def check_sector_limits(self, positions: dict[str, float]) -> list[LimitCheckResult]:
         """检查所有板块限额"""
         results = []
         total_nav = self.total_nav
@@ -393,8 +391,8 @@ class PMLimitsMatrix:
         return results
 
     def check_factor_limits(
-        self, positions: Dict[str, float], factor_loadings: Optional[Dict[str, Dict[str, float]]] = None
-    ) -> List[LimitCheckResult]:
+        self, positions: dict[str, float], factor_loadings: dict[str, dict[str, float]] | None = None
+    ) -> list[LimitCheckResult]:
         """检查因子暴露限额"""
         results = []
         total_nav = self.total_nav
@@ -438,7 +436,7 @@ class PMLimitsMatrix:
 
     def check_aggregate_limits(
         self, long_exposure: float, short_exposure: float, daily_turnover: float = 0.0
-    ) -> List[LimitCheckResult]:
+    ) -> list[LimitCheckResult]:
         """检查组合总限额"""
         results = []
         al = self.aggregate_limit
@@ -515,13 +513,13 @@ class PMLimitsMatrix:
 
     def check_all(
         self,
-        positions: Dict[str, float],
-        prices: Optional[Dict[str, float]] = None,
-        long_exposure: Optional[float] = None,
-        short_exposure: Optional[float] = None,
+        positions: dict[str, float],
+        prices: dict[str, float] | None = None,
+        long_exposure: float | None = None,
+        short_exposure: float | None = None,
         daily_turnover: float = 0.0,
-        factor_loadings: Optional[Dict[str, Dict[str, float]]] = None,
-    ) -> Dict:
+        factor_loadings: dict[str, dict[str, float]] | None = None,
+    ) -> dict:
         """执行全量限额检查
 
         Args:
@@ -634,7 +632,7 @@ class PMLimitsMatrix:
 
     # ---------- 预交易检查 (OMS 入口) ----------
     def pre_trade_check(
-        self, symbol: str, order_qty: float, side: str = "BUY", current_positions: Optional[Dict[str, float]] = None
+        self, symbol: str, order_qty: float, side: str = "BUY", current_positions: dict[str, float] | None = None
     ) -> LimitCheckResult:
         """订单执行前的限额检查
 

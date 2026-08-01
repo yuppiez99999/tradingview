@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ⚠ v8.3_institutional/tests/ 目录已与根 tests/ 合并
 统一测试入口: pytest tests/

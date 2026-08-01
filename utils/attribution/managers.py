@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T4.3 整合 managers.py — 组合优化/大宗/ETF 统一管理外观.
 
 对冲基金 L3 Alpha + L7 归因层三合一日级面板的核心管理器:
@@ -29,7 +28,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import numpy as np
 
@@ -121,10 +120,10 @@ class ManagersReport:
         timestamp: 报告时间戳
     """
 
-    portfolio_optimization: Optional[Dict[str, Any]] = None
-    commodity_summary: Dict[str, Any] = field(default_factory=dict)
-    etf_flow_summary: Dict[str, Any] = field(default_factory=dict)
-    errors: List[str] = field(default_factory=list)
+    portfolio_optimization: dict[str, Any] | None = None
+    commodity_summary: dict[str, Any] = field(default_factory=dict)
+    etf_flow_summary: dict[str, Any] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
     timestamp: str = ""
 
 
@@ -159,7 +158,7 @@ class PortfolioManager:
         self.tau = float(tau)
         self.default_confidence = float(default_confidence)
         self.use_idzorek_omega = bool(use_idzorek_omega)
-        self._optimizer: Optional[Any] = None
+        self._optimizer: Any | None = None
 
     def _get_optimizer(self) -> Any:
         """懒加载 BlackLittermanOptimizer (避免 import 时硬依赖)."""
@@ -178,13 +177,13 @@ class PortfolioManager:
 
     def optimize(
         self,
-        assets: List[str],
-        market_weights: Union[List[float], np.ndarray],
-        cov_matrix: Union[np.ndarray, Any],
-        views: Optional[List[Any]] = None,
+        assets: list[str],
+        market_weights: list[float] | np.ndarray,
+        cov_matrix: np.ndarray | Any,
+        views: list[Any] | None = None,
         risk_free_rate: float = 0.03,
-        target_return: Optional[float] = None,
-        max_weight: Optional[float] = None,
+        target_return: float | None = None,
+        max_weight: float | None = None,
         min_weight: float = 0.0,
     ) -> Any:
         """执行 Black-Litterman 组合优化.
@@ -227,7 +226,7 @@ class PortfolioManager:
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             raise PortfolioOptimizationError(f"Black-Litterman 优化失败: {e}") from e
 
-    def save_result(self, result: Any, path: Union[str, Any]) -> Any:
+    def save_result(self, result: Any, path: str | Any) -> Any:
         """保存优化结果到文件.
 
         Args:
@@ -270,9 +269,9 @@ class CommodityManager:
         self.lookback_days = int(lookback_days)
         self.volatility_threshold = float(volatility_threshold)
         self.trend_threshold = float(trend_threshold)
-        self._supported_codes: Dict[str, Dict[str, str]] = {c["code"]: c for c in SUPPORTED_COMMODITIES}
+        self._supported_codes: dict[str, dict[str, str]] = {c["code"]: c for c in SUPPORTED_COMMODITIES}
 
-    def list_supported(self) -> List[Dict[str, str]]:
+    def list_supported(self) -> list[dict[str, str]]:
         """列出支持的大宗商品.
 
         Returns:
@@ -289,7 +288,7 @@ class CommodityManager:
         code: str,
         price: float = 0.0,
         change_pct: float = 0.0,
-        historical_prices: Optional[Union[List[float], np.ndarray]] = None,
+        historical_prices: list[float] | np.ndarray | None = None,
         timestamp: str = "",
     ) -> CommoditySnapshot:
         """生成大宗商品快照 (基于输入数据, 不主动拉取).
@@ -372,8 +371,8 @@ class CommodityManager:
 
     def get_summary(
         self,
-        snapshots: Optional[List[CommoditySnapshot]] = None,
-    ) -> Dict[str, Any]:
+        snapshots: list[CommoditySnapshot] | None = None,
+    ) -> dict[str, Any]:
         """生成大宗商品监控汇总.
 
         Args:
@@ -392,10 +391,10 @@ class CommodityManager:
         if snapshots is None:
             snapshots = []
 
-        signals_count: Dict[str, int] = {}
-        high_volatility: List[str] = []
-        trending_up: List[str] = []
-        trending_down: List[str] = []
+        signals_count: dict[str, int] = {}
+        high_volatility: list[str] = []
+        trending_up: list[str] = []
+        trending_down: list[str] = []
 
         for snap in snapshots:
             signals_count[snap.signal] = signals_count.get(snap.signal, 0) + 1
@@ -445,7 +444,7 @@ class ETFFlowManager:
     """
 
     def __init__(self) -> None:
-        self._tracker: Optional[Any] = None
+        self._tracker: Any | None = None
 
     def _get_tracker(self) -> Any:
         """懒加载 ETFRealTimeTracker (避免 import 时硬依赖)."""
@@ -457,7 +456,7 @@ class ETFFlowManager:
             self._tracker = ETFRealTimeTracker()
         return self._tracker
 
-    def get_all_flows(self) -> Dict[str, Dict]:
+    def get_all_flows(self) -> dict[str, dict]:
         """获取所有 ETF 资金流数据.
 
         Returns:
@@ -472,7 +471,7 @@ class ETFFlowManager:
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             raise ETFFlowError(f"ETF 资金流获取失败: {e}") from e
 
-    def get_flow(self, etf_code: str) -> Optional[Dict]:
+    def get_flow(self, etf_code: str) -> dict | None:
         """获取单只 ETF 资金流数据.
 
         Args:
@@ -488,7 +487,7 @@ class ETFFlowManager:
             logger.warning(f"[ETFFlowManager] 获取 {etf_code} 资金流失败: {e}")
             return None
 
-    def detect_signals(self, flow_data: Dict) -> List[Dict]:
+    def detect_signals(self, flow_data: dict) -> list[dict]:
         """检测 ETF 资金流信号.
 
         Args:
@@ -504,7 +503,7 @@ class ETFFlowManager:
             logger.warning(f"[ETFFlowManager] 信号检测失败: {e}")
             return []
 
-    def get_signal_summary(self, flow_data: Dict) -> Dict:
+    def get_signal_summary(self, flow_data: dict) -> dict:
         """获取 ETF 资金流信号汇总.
 
         Args:
@@ -520,7 +519,7 @@ class ETFFlowManager:
             logger.warning(f"[ETFFlowManager] 汇总失败: {e}")
             return {"error": str(e)}
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """获取全市场 ETF 资金流汇总 (便捷方法).
 
         Returns:
@@ -531,8 +530,8 @@ class ETFFlowManager:
             flows = self.get_all_flows()
             total_etfs = len(flows)
             total_inflow = 0.0
-            high_signals: List[str] = []
-            summary_by_etf: Dict[str, Any] = {}
+            high_signals: list[str] = []
+            summary_by_etf: dict[str, Any] = {}
 
             for code, flow_data in flows.items():
                 if flow_data is None:
@@ -588,9 +587,9 @@ class AttributionManagersFacade:
         enable_commodity: bool = True,
         enable_etf_flow: bool = True,
     ) -> None:
-        self._portfolio: Optional[PortfolioManager] = None
-        self._commodity: Optional[CommodityManager] = None
-        self._etf_flow: Optional[ETFFlowManager] = None
+        self._portfolio: PortfolioManager | None = None
+        self._commodity: CommodityManager | None = None
+        self._etf_flow: ETFFlowManager | None = None
 
         if enable_portfolio:
             self._portfolio = PortfolioManager(risk_aversion=risk_aversion)
@@ -622,10 +621,10 @@ class AttributionManagersFacade:
 
     def optimize_portfolio(
         self,
-        assets: List[str],
-        market_weights: Union[List[float], np.ndarray],
-        cov_matrix: Union[np.ndarray, Any],
-        views: Optional[List[Any]] = None,
+        assets: list[str],
+        market_weights: list[float] | np.ndarray,
+        cov_matrix: np.ndarray | Any,
+        views: list[Any] | None = None,
         **kwargs: Any,
     ) -> Any:
         """执行组合优化 (委托给 PortfolioManager)."""
@@ -642,7 +641,7 @@ class AttributionManagersFacade:
         code: str,
         price: float = 0.0,
         change_pct: float = 0.0,
-        historical_prices: Optional[Union[List[float], np.ndarray]] = None,
+        historical_prices: list[float] | np.ndarray | None = None,
         timestamp: str = "",
     ) -> CommoditySnapshot:
         """获取大宗商品快照 (委托给 CommodityManager)."""
@@ -656,19 +655,19 @@ class AttributionManagersFacade:
 
     def get_commodity_summary(
         self,
-        snapshots: Optional[List[CommoditySnapshot]] = None,
-    ) -> Dict[str, Any]:
+        snapshots: list[CommoditySnapshot] | None = None,
+    ) -> dict[str, Any]:
         """获取大宗商品汇总 (委托给 CommodityManager)."""
         return self.commodity.get_summary(snapshots)
 
-    def get_etf_signals(self) -> Dict[str, Any]:
+    def get_etf_signals(self) -> dict[str, Any]:
         """获取 ETF 资金流信号汇总 (委托给 ETFFlowManager)."""
         return self.etf_flow.get_summary()
 
     def generate_report(
         self,
-        portfolio_config: Optional[Dict[str, Any]] = None,
-        commodity_snapshots: Optional[List[CommoditySnapshot]] = None,
+        portfolio_config: dict[str, Any] | None = None,
+        commodity_snapshots: list[CommoditySnapshot] | None = None,
         timestamp: str = "",
     ) -> ManagersReport:
         """生成 managers 统一报告.
@@ -682,7 +681,7 @@ class AttributionManagersFacade:
             ManagersReport 对象
         """
         report = ManagersReport(timestamp=timestamp)
-        errors: List[str] = []
+        errors: list[str] = []
 
         # 1. 组合优化
         if self._portfolio is not None and portfolio_config is not None:

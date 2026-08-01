@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """对比ETF资金净流入TOP10与今日交易计划"""
 import json
 
@@ -18,7 +17,7 @@ etf_top10 = [
 
 # 读取今日交易计划
 plan_path = r'e:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional\trade_plans\trade_plan_20260721.json'
-with open(plan_path, 'r', encoding='utf-8') as f:
+with open(plan_path, encoding='utf-8') as f:
     plan = json.load(f)
 
 # 提取计划中所有标的代码

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 组合压力测试脚本
 验证2026-2030年期间年化收益>=8%，回撤<15%
@@ -16,7 +15,7 @@ def load_positions():
 
 
 def load_portfolio():
-    with open('configs/portfolio.yaml', 'r', encoding='utf-8') as f:
+    with open('configs/portfolio.yaml', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 

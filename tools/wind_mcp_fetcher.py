@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Wind MCP Fetcher
 
@@ -64,7 +63,7 @@ def _parse_sse_minute_quote(text: str) -> Optional[Dict]:
         payload = json.loads(m.group(1))
     except Exception:
         return None
-    result = (((payload.get("result") or {}).get("content") or []))
+    result = ((payload.get("result") or {}).get("content") or [])
     if not result:
         return None
     first = result[0]
@@ -298,7 +297,7 @@ def _get_wind_api_key() -> Optional[str]:
     cfg = os.path.join(os.path.expanduser("~"), ".wind-aifinmarket", "config")
     try:
         if os.path.isfile(cfg):
-            with open(cfg, "r", encoding="utf-8") as f:
+            with open(cfg, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):
@@ -428,7 +427,7 @@ def wind_get_quote(windcode: str, is_fund: bool = False) -> Optional[Dict]:
         return None
 
     data = res.get("data") or {}
-    _content = (((data.get("result") or data).get("content") or []))
+    _content = ((data.get("result") or data).get("content") or [])
     if not _content:
         return None
     _first = _content[0]
@@ -620,7 +619,7 @@ def _extract_kline_records(data: Dict) -> List[Dict]:
         return []
 
     # 路径 1: MCP content[0].text 嵌套 JSON
-    _content = (((data.get("result") or data).get("content") or []))
+    _content = ((data.get("result") or data).get("content") or [])
     if _content and isinstance(_content, list):
         _first = _content[0]
         if isinstance(_first, dict):

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 NTP 漂移分级告警单元测试 (v8.6.8 P2-LIVE-10)
 ================================================
@@ -371,7 +370,7 @@ class TestNTPAlertCallback:
         assert alert_file.exists()
 
         import json
-        with open(alert_file, "r", encoding="utf-8") as f:
+        with open(alert_file, encoding="utf-8") as f:
             line = f.read().strip()
             written_alert = json.loads(line)
             assert written_alert["level"] == "CRITICAL"

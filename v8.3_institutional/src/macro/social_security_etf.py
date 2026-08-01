@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 社保基金ETF追踪增强模块 v2.0
 借鉴：社保基金追踪 social_security_tracker + ETF追踪程序 etf_tracker

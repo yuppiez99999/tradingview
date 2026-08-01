@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 统一风险管理驾驶舱 (Unified Risk Cockpit) — v8.4 P0-7 修复
 ============================================================
@@ -35,7 +34,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import yaml  # type: ignore[import-untyped]
@@ -79,7 +78,7 @@ class RiskSnapshot:
     # 保证金状态
     margin_usage_ratio: float = 0.0
     kill_switch_level: int = 0
-    kill_switch_actions: List[str] = field(default_factory=list)
+    kill_switch_actions: list[str] = field(default_factory=list)
 
     # 回撤状态
     current_drawdown: float = 0.0
@@ -88,11 +87,11 @@ class RiskSnapshot:
     drawdown_reduce_pct: float = 0.0
 
     # 数据源状态
-    data_source_status: Dict[str, str] = field(default_factory=dict)
+    data_source_status: dict[str, str] = field(default_factory=dict)
 
     # 仓位状态
     position_limit_breach: bool = False
-    position_warnings: List[str] = field(default_factory=list)
+    position_warnings: list[str] = field(default_factory=list)
 
     # VaR 状态
     daily_var_95: float = 0.0
@@ -102,7 +101,7 @@ class RiskSnapshot:
     # 综合判定
     risk_level: RiskLevel = RiskLevel.NORMAL
     all_clear: bool = True
-    actions_required: List[str] = field(default_factory=list)
+    actions_required: list[str] = field(default_factory=list)
     summary: str = ""
 
 
@@ -118,9 +117,9 @@ class DrawdownController:
         self.max_drawdown = max_drawdown
         self.reduce_steps = reduce_steps
         self.peak_value: float = 0.0
-        self._history: List[float] = []
+        self._history: list[float] = []
 
-    def update(self, current_value: float) -> Dict:
+    def update(self, current_value: float) -> dict:
         """更新回撤状态并返回控制指令"""
         self._history.append(current_value)
         self.peak_value = max(self.peak_value, current_value)
@@ -152,15 +151,15 @@ class DrawdownController:
 class VaRModel:
     """在险价值计算 — 历史模拟 + 蒙特卡洛"""
 
-    def __init__(self, confidence_levels: Tuple[float, float] = (0.95, 0.99)):
+    def __init__(self, confidence_levels: tuple[float, float] = (0.95, 0.99)):
         self.confidence_levels = confidence_levels
-        self._return_history: List[float] = []
+        self._return_history: list[float] = []
 
-    def update_returns(self, returns: List[float]):
+    def update_returns(self, returns: list[float]):
         """更新日收益率序列"""
         self._return_history = returns[-252:]  # 保留最近252个交易日
 
-    def compute_var(self, portfolio_value: float, method: str = "historical") -> Dict[str, float]:
+    def compute_var(self, portfolio_value: float, method: str = "historical") -> dict[str, float]:
         """计算 VaR
 
         Returns:
@@ -208,7 +207,7 @@ class VaRBacktester:
     def __init__(self, confidence: float = 0.95):
         self.confidence = confidence
 
-    def run_tests(self, returns: List[float], var_values: List[float]) -> Dict[str, Any]:
+    def run_tests(self, returns: list[float], var_values: list[float]) -> dict[str, Any]:
         """执行全部 VaR 回测检验
 
         Args:
@@ -261,7 +260,7 @@ class VaRBacktester:
         }
 
     @staticmethod
-    def _kupiec_pof_test(n: int, x: int, p: float) -> Dict:
+    def _kupiec_pof_test(n: int, x: int, p: float) -> dict:
         """Kupiec POF 似然比检验
 
         LR_POF = -2 * ln( (1-p)^{n-x} * p^x / (1-x/n)^{n-x} * (x/n)^x )
@@ -298,7 +297,7 @@ class VaRBacktester:
         }
 
     @staticmethod
-    def _christoffersen_test(violations: np.ndarray) -> Dict:
+    def _christoffersen_test(violations: np.ndarray) -> dict:
         """Christoffersen 条件覆盖检验 — 突破是否聚集"""
         violations_int = violations.astype(int)
 
@@ -345,7 +344,7 @@ class VaRBacktester:
         }
 
     @staticmethod
-    def _basel_traffic_light(n_violations: int, n: int, confidence: float) -> Dict[str, Any]:
+    def _basel_traffic_light(n_violations: int, n: int, confidence: float) -> dict[str, Any]:
         """Basel 委员会 99% VaR 交通灯机制 (基于二项分布置信带).
 
         绿区: 例外数 <= 95% 上界 (模型有效)
@@ -402,7 +401,7 @@ class UnifiedRiskCockpit:
     """
 
     def __init__(
-        self, portfolio_value: float = 5_000_000, config_path: Optional[Path] = None, enable_var_backtest: bool = True
+        self, portfolio_value: float = 5_000_000, config_path: Path | None = None, enable_var_backtest: bool = True
     ):
         """
         Args:
@@ -421,12 +420,12 @@ class UnifiedRiskCockpit:
         self.var_backtester = VaRBacktester() if enable_var_backtest else None
 
         # 历史记录
-        self._snapshot_history: List[RiskSnapshot] = []
-        self._var_history: List[float] = []
-        self._return_history: List[float] = []
+        self._snapshot_history: list[RiskSnapshot] = []
+        self._var_history: list[float] = []
+        self._return_history: list[float] = []
 
         # 数据源熔断器注册表
-        self._circuit_breakers: Dict[str, Any] = {}
+        self._circuit_breakers: dict[str, Any] = {}
 
         logger.info("UnifiedRiskCockpit 初始化完成 (portfolio=%.0f万)", portfolio_value / 10000)
 
@@ -436,7 +435,7 @@ class UnifiedRiskCockpit:
         """注册数据源熔断器"""
         self._circuit_breakers[name] = breaker
 
-    def get_data_source_status(self) -> Dict[str, str]:
+    def get_data_source_status(self) -> dict[str, str]:
         """获取所有数据源状态"""
         if not _HAS_CIRCUIT_BREAKER:
             return {}
@@ -456,10 +455,10 @@ class UnifiedRiskCockpit:
 
     def full_scan(
         self,
-        margin_usage: Optional[float] = None,
-        positions: Optional[Dict[str, Dict]] = None,
+        margin_usage: float | None = None,
+        positions: dict[str, dict] | None = None,
         pnl: float = 0.0,
-        current_value: Optional[float] = None,
+        current_value: float | None = None,
     ) -> RiskSnapshot:
         """全量风控扫描 — 所有子系统一次性检查
 
@@ -503,7 +502,7 @@ class UnifiedRiskCockpit:
 
         return snapshot
 
-    def _scan_kill_switch(self, snapshot: RiskSnapshot, margin_usage: Optional[float]):
+    def _scan_kill_switch(self, snapshot: RiskSnapshot, margin_usage: float | None):
         """Kill Switch 保证金检查"""
         if margin_usage is None:
             snapshot.summary += "[KillSwitch] 无保证金数据; "
@@ -556,7 +555,7 @@ class UnifiedRiskCockpit:
                 f"建议减仓{dd_result['reduce_pct']:.0%}; "
             )
 
-    def _scan_positions(self, snapshot: RiskSnapshot, positions: Dict[str, Dict]):
+    def _scan_positions(self, snapshot: RiskSnapshot, positions: dict[str, dict]):
         """仓位限制检查"""
         if not positions:
             return
@@ -577,7 +576,7 @@ class UnifiedRiskCockpit:
 
         if not cfg:
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f) or {}
             except Exception as _exc:
                 logger.debug("[RiskCockpit] portfolio.yaml 读取失败, 使用默认风控参数: %s", _exc)
@@ -600,7 +599,7 @@ class UnifiedRiskCockpit:
                 snapshot.position_limit_breach = True
 
         # 行业集中度检查
-        sector_weights: Dict[str, float] = {}
+        sector_weights: dict[str, float] = {}
         for _code, pos in positions.items():
             sector = pos.get("category", "unknown")
             sector_weights[sector] = sector_weights.get(sector, 0) + pos.get("weight", 0)
@@ -649,14 +648,14 @@ class UnifiedRiskCockpit:
 
     # ── VaR 回测 ──
 
-    def _var_backtest_lines(self) -> List[str]:
+    def _var_backtest_lines(self) -> list[str]:
         """P3-2b: 将此前定义却从未调用的 run_var_backtest 接入报告。
 
         generate_report 通过 *(self._var_backtest_lines()) 内联调用,
         使 VaR 回测(Kupiec + Christoffersen + Basel 交通灯)在每次报告生成时真正执行。
         """
         vb = self.run_var_backtest()
-        out: List[str] = []
+        out: list[str] = []
         if vb.get("status") == "COMPLETE":
             out.append(f"  突破数/观测: {vb.get('n_violations')}/{vb.get('n_observations')}")
             out.append(f"  突破率/预期: {vb.get('violation_rate')} / {vb.get('expected_rate')}")
@@ -670,7 +669,7 @@ class UnifiedRiskCockpit:
             out.append(f"  (VaR 回测未执行: {vb.get('status')})")
         return out
 
-    def run_var_backtest(self) -> Dict[str, Any]:
+    def run_var_backtest(self) -> dict[str, Any]:
         """执行 VaR 回测检验"""
         if not self.var_backtester or len(self._return_history) < 50:
             return {"status": "SKIPPED", "message": "数据不足 (需>=50日收益序列)"}
@@ -682,7 +681,7 @@ class UnifiedRiskCockpit:
         logger.info("VaR Backtest: %s", result.get("verdict", "N/A"))
         return result
 
-    def _compute_var_series(self, returns: List[float]) -> List[float]:
+    def _compute_var_series(self, returns: list[float]) -> list[float]:
         """基于滚动窗口计算 VaR 序列 (用于回测)"""
         window = 60
         var_series = []
@@ -702,7 +701,7 @@ class UnifiedRiskCockpit:
 
     # ── 报告生成 ──
 
-    def generate_report(self, snapshot: Optional[RiskSnapshot] = None) -> str:
+    def generate_report(self, snapshot: RiskSnapshot | None = None) -> str:
         """生成风控报告"""
         if snapshot is None:
             if not self._snapshot_history:
@@ -753,7 +752,7 @@ class UnifiedRiskCockpit:
         lines.append("=" * 60)
         return "\n".join(lines)
 
-    def execute_actions(self, actions: List[str]) -> Dict[str, Any]:
+    def execute_actions(self, actions: list[str]) -> dict[str, Any]:
         """执行风控动作 (记录日志 + 触发回调)
 
         实际执行需要连接券商API, 此处提供统一接口。

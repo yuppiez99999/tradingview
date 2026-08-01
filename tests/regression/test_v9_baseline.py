@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """V9 基线回归测试套件.
 
 模块整合 8.4 — T1.8
@@ -46,7 +45,7 @@ import logging
 import math
 import statistics
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import pytest
 
@@ -60,7 +59,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # 独立实现 DSR / Sharpe CV 公式 (双盲验证)
 # ============================================================
 
-def _compute_sharpe_monthly(returns: List[float]) -> float:
+def _compute_sharpe_monthly(returns: list[float]) -> float:
     """计算月度 Sharpe 比率.
 
     Args:
@@ -144,10 +143,10 @@ def _compute_dsr_max_pass(
 
 
 def _compute_sharpe_cv_rolling(
-    returns: List[float],
+    returns: list[float],
     window: int = 12,
     min_periods: int = 6,
-) -> Tuple[float, List[float]]:
+) -> tuple[float, list[float]]:
     """计算 12 月滚动 Sharpe CV.
 
     与 _calc_v9_dsr_v2.py 中滚动 CV 计算独立实现, 用于双盲验证.
@@ -160,7 +159,7 @@ def _compute_sharpe_cv_rolling(
     Returns:
         (sharpe_cv, rolling_sharpes) 元组. 若滚动窗口不足返回 (inf, [])
     """
-    rolling_sharpes: List[float] = []
+    rolling_sharpes: list[float] = []
     n = len(returns)
     for i in range(window, n + 1):
         w = returns[i - window:i]
@@ -179,8 +178,8 @@ def _compute_sharpe_cv_rolling(
 
 
 def _recompute_metrics_from_records(
-    records: List[Dict[str, Any]],
-) -> Dict[str, Any]:
+    records: list[dict[str, Any]],
+) -> dict[str, Any]:
     """基于回测 records 独立重算所有指标.
 
     重算项:
@@ -291,14 +290,14 @@ def _recompute_metrics_from_records(
 class TestBaselineIntegrity:
     """Layer 1 — 基线文件完整性检查."""
 
-    def test_baseline_lock_file_exists(self, v9_baseline_lock: Dict[str, Any]) -> None:
+    def test_baseline_lock_file_exists(self, v9_baseline_lock: dict[str, Any]) -> None:
         """V9_BASELINE_LOCK.txt 必须存在."""
         assert v9_baseline_lock["path"].exists(), (
             f"V9_BASELINE_LOCK.txt 不存在: {v9_baseline_lock['path']}\n"
             f"HC-1 硬约束: 必须有基线锁定文件以记录生产 commit hash"
         )
 
-    def test_baseline_lock_has_commit_hash(self, v9_baseline_lock: Dict[str, Any]) -> None:
+    def test_baseline_lock_has_commit_hash(self, v9_baseline_lock: dict[str, Any]) -> None:
         """LOCK 文件必须包含 40 位 commit hash."""
         parsed = v9_baseline_lock["parsed"]
         assert "commit_hash" in parsed, (
@@ -311,24 +310,24 @@ class TestBaselineIntegrity:
             f"commit hash 含非十六进制字符: {commit_hash}"
         )
 
-    def test_baseline_lock_has_lock_date(self, v9_baseline_lock: Dict[str, Any]) -> None:
+    def test_baseline_lock_has_lock_date(self, v9_baseline_lock: dict[str, Any]) -> None:
         """LOCK 文件必须包含锁定日期."""
         parsed = v9_baseline_lock["parsed"]
         assert "lock_date" in parsed, "LOCK 文件缺少 '锁定日期' 字段"
 
-    def test_baseline_lock_has_metrics(self, v9_baseline_lock: Dict[str, Any]) -> None:
+    def test_baseline_lock_has_metrics(self, v9_baseline_lock: dict[str, Any]) -> None:
         """LOCK 文件必须包含基线评估指标."""
         parsed = v9_baseline_lock["parsed"]
         required_keys = ["dsr_max_pass", "annual_return", "max_drawdown", "sharpe_cv"]
         missing = [k for k in required_keys if k not in parsed]
         assert not missing, f"LOCK 文件缺少指标字段: {missing}"
 
-    def test_backtest_json_exists(self, v9_backtest_json: Dict[str, Any]) -> None:
+    def test_backtest_json_exists(self, v9_backtest_json: dict[str, Any]) -> None:
         """V9 回测原始结果 JSON 必须存在."""
         path = v9_backtest_json["path"]
         assert path.exists(), f"回测 JSON 不存在: {path}"
 
-    def test_backtest_json_has_records(self, v9_backtest_json: Dict[str, Any]) -> None:
+    def test_backtest_json_has_records(self, v9_backtest_json: dict[str, Any]) -> None:
         """回测 JSON 必须包含 records 字段且非空."""
         data = v9_backtest_json["data"]
         assert "records" in data, "回测 JSON 缺少 'records' 字段"
@@ -336,7 +335,7 @@ class TestBaselineIntegrity:
         assert isinstance(records, list), f"records 不是 list: {type(records)}"
         assert len(records) > 0, "records 为空"
 
-    def test_dsr_maxpass_json_exists(self, v9_dsr_maxpass_json: Dict[str, Any]) -> None:
+    def test_dsr_maxpass_json_exists(self, v9_dsr_maxpass_json: dict[str, Any]) -> None:
         """V9 DSR max_pass 评估 JSON 必须存在."""
         path = v9_dsr_maxpass_json["path"]
         assert path.exists(), f"DSR maxpass JSON 不存在: {path}"
@@ -354,8 +353,8 @@ class TestMetricRecomputation:
 
     def test_records_count_matches(
         self,
-        v9_backtest_json: Dict[str, Any],
-        v9_baseline_metrics: Dict[str, Any],
+        v9_backtest_json: dict[str, Any],
+        v9_baseline_metrics: dict[str, Any],
     ) -> None:
         """records 数量与基线 n_months 一致."""
         records = v9_backtest_json["data"]["records"]
@@ -366,8 +365,8 @@ class TestMetricRecomputation:
 
     def test_annual_return_consistency(
         self,
-        v9_backtest_json: Dict[str, Any],
-        v9_baseline_metrics: Dict[str, Any],
+        v9_backtest_json: dict[str, Any],
+        v9_baseline_metrics: dict[str, Any],
     ) -> None:
         """重算年化收益与基线一致 (容差 1e-6)."""
         records = v9_backtest_json["data"]["records"]
@@ -381,8 +380,8 @@ class TestMetricRecomputation:
 
     def test_max_drawdown_consistency(
         self,
-        v9_backtest_json: Dict[str, Any],
-        v9_baseline_metrics: Dict[str, Any],
+        v9_backtest_json: dict[str, Any],
+        v9_baseline_metrics: dict[str, Any],
     ) -> None:
         """重算最大回撤与基线一致 (容差 1e-6)."""
         records = v9_backtest_json["data"]["records"]
@@ -396,8 +395,8 @@ class TestMetricRecomputation:
 
     def test_win_rate_consistency(
         self,
-        v9_backtest_json: Dict[str, Any],
-        v9_baseline_metrics: Dict[str, Any],
+        v9_backtest_json: dict[str, Any],
+        v9_baseline_metrics: dict[str, Any],
     ) -> None:
         """重算胜率与基线一致 (容差 1e-6)."""
         records = v9_backtest_json["data"]["records"]
@@ -411,8 +410,8 @@ class TestMetricRecomputation:
 
     def test_sharpe_annual_consistency(
         self,
-        v9_backtest_json: Dict[str, Any],
-        v9_dsr_maxpass_json: Dict[str, Any],
+        v9_backtest_json: dict[str, Any],
+        v9_dsr_maxpass_json: dict[str, Any],
     ) -> None:
         """重算年化 Sharpe 与 DSR JSON 一致 (容差 1e-4, scipy.stats 数值噪声)."""
         records = v9_backtest_json["data"]["records"]
@@ -426,8 +425,8 @@ class TestMetricRecomputation:
 
     def test_dsr_max_pass_consistency(
         self,
-        v9_backtest_json: Dict[str, Any],
-        v9_dsr_maxpass_json: Dict[str, Any],
+        v9_backtest_json: dict[str, Any],
+        v9_dsr_maxpass_json: dict[str, Any],
     ) -> None:
         """重算 DSR max_pass 与 DSR JSON 一致.
 
@@ -446,8 +445,8 @@ class TestMetricRecomputation:
 
     def test_sharpe_cv_rolling_consistency(
         self,
-        v9_backtest_json: Dict[str, Any],
-        v9_dsr_maxpass_json: Dict[str, Any],
+        v9_backtest_json: dict[str, Any],
+        v9_dsr_maxpass_json: dict[str, Any],
     ) -> None:
         """重算 12 月滚动 Sharpe CV 与 DSR JSON 一致 (容差 1e-4)."""
         records = v9_backtest_json["data"]["records"]
@@ -467,7 +466,7 @@ class TestMetricRecomputation:
 class TestThresholdCompliance:
     """Layer 3 — V9 基线指标必须通过 HC-1 验收阈值."""
 
-    def test_dsr_max_pass_threshold(self, v9_baseline_metrics: Dict[str, Any]) -> None:
+    def test_dsr_max_pass_threshold(self, v9_baseline_metrics: dict[str, Any]) -> None:
         """DSR max_pass >= 5 (Bailey 标准公式)."""
         actual = v9_baseline_metrics["dsr_max_pass"]
         threshold = v9_baseline_metrics["thresholds"]["dsr_max_pass_min"]
@@ -477,7 +476,7 @@ class TestThresholdCompliance:
             f"  解释: max_pass 越高表示策略在多重比较校正下越显著"
         )
 
-    def test_annual_return_threshold(self, v9_baseline_metrics: Dict[str, Any]) -> None:
+    def test_annual_return_threshold(self, v9_baseline_metrics: dict[str, Any]) -> None:
         """年化收益 >= 15%."""
         actual = v9_baseline_metrics["annual_return"]
         threshold = v9_baseline_metrics["thresholds"]["annual_return_min"]
@@ -485,7 +484,7 @@ class TestThresholdCompliance:
             f"年化收益未达标: {actual*100:.2f}% < {threshold*100:.2f}%"
         )
 
-    def test_max_drawdown_threshold(self, v9_baseline_metrics: Dict[str, Any]) -> None:
+    def test_max_drawdown_threshold(self, v9_baseline_metrics: dict[str, Any]) -> None:
         """最大回撤 <= 10%."""
         actual = v9_baseline_metrics["max_drawdown"]
         threshold = v9_baseline_metrics["thresholds"]["max_drawdown_max"]
@@ -493,7 +492,7 @@ class TestThresholdCompliance:
             f"最大回撤未达标: {actual*100:.2f}% > {threshold*100:.2f}%"
         )
 
-    def test_sharpe_cv_threshold(self, v9_baseline_metrics: Dict[str, Any]) -> None:
+    def test_sharpe_cv_threshold(self, v9_baseline_metrics: dict[str, Any]) -> None:
         """Sharpe CV < 1.0 (12 月滚动)."""
         actual = v9_baseline_metrics["sharpe_cv"]
         threshold = v9_baseline_metrics["thresholds"]["sharpe_cv_max"]
@@ -502,7 +501,7 @@ class TestThresholdCompliance:
             f"  含义: 12 月滚动 Sharpe 的变异系数, 越低表示策略越稳定"
         )
 
-    def test_win_rate_threshold(self, v9_baseline_metrics: Dict[str, Any]) -> None:
+    def test_win_rate_threshold(self, v9_baseline_metrics: dict[str, Any]) -> None:
         """胜率 >= 60% (额外指标)."""
         actual = v9_baseline_metrics["win_rate"]
         threshold = v9_baseline_metrics["thresholds"]["win_rate_min"]
@@ -510,11 +509,11 @@ class TestThresholdCompliance:
             f"胜率未达标: {actual*100:.2f}% < {threshold*100:.2f}%"
         )
 
-    def test_all_thresholds_pass(self, v9_baseline_metrics: Dict[str, Any]) -> None:
+    def test_all_thresholds_pass(self, v9_baseline_metrics: dict[str, Any]) -> None:
         """所有阈值同时通过 (综合检查)."""
         m = v9_baseline_metrics
         t = v9_baseline_metrics["thresholds"]
-        failures: List[str] = []
+        failures: list[str] = []
         if m["dsr_max_pass"] < t["dsr_max_pass_min"]:
             failures.append(f"DSR max_pass={m['dsr_max_pass']} < {t['dsr_max_pass_min']}")
         if m["annual_return"] < t["annual_return_min"]:
@@ -645,7 +644,7 @@ class TestV9FullBacktestNightly:
             / "validation_reports"
             / "v9_dsr_maxpass_20260725.json"
         )
-        with open(baseline_path, "r", encoding="utf-8") as f:
+        with open(baseline_path, encoding="utf-8") as f:
             baseline = json.load(f)
 
         # 运行 V9 回测 (调用 _run_v9_backtest.main)
@@ -669,7 +668,7 @@ class TestV9FullBacktestNightly:
         recomputed = _recompute_metrics_from_records(result.get("records", []))
 
         # 阈值检查 (不允许退化)
-        failures: List[str] = []
+        failures: list[str] = []
         if recomputed["annual_return"] < 0.15:
             failures.append(
                 f"年化收益退化: {recomputed['annual_return']*100:.2f}% < 15%"

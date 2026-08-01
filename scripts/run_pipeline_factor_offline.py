@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Pipeline 因子信号离线生成脚本
 ================================
@@ -104,7 +103,7 @@ def main() -> int:
             return 1
 
         import json
-        with open(output_path, "r", encoding="utf-8") as f:
+        with open(output_path, encoding="utf-8") as f:
             data = json.load(f)
 
         stats = data.get("stats", {})

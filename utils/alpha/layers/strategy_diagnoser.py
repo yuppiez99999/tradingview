@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """策略层根因诊断器 — 三层面自我进化 Stage 2.
 
 模块整合 8.4 — ARCHITECTURE_三层面进化 §第2阶段
@@ -41,7 +40,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +82,7 @@ DEFAULT_OBSERVATION_INSUFFICIENT = 0.3  # observation_progress < 此值 → 根�
 DEFAULT_ANTI_CHEAT_LOW = 0.5  # anti_cheat < 此值 → 根因
 
 # 漂移告警 severity → RootCause severity 映射
-_DRIFT_SEVERITY_MAP: Dict[str, str] = {
+_DRIFT_SEVERITY_MAP: dict[str, str] = {
     "critical": SEVERITY_CRITICAL,
     "high": SEVERITY_HIGH,
     "medium": SEVERITY_MEDIUM,
@@ -106,8 +105,8 @@ class StrategyDiagnoser:
 
     def __init__(
         self,
-        drift_alerts_dir: Optional[Path] = None,
-        decisions_path: Optional[Path] = None,
+        drift_alerts_dir: Path | None = None,
+        decisions_path: Path | None = None,
         alert_recency_window: int = DEFAULT_ALERT_RECENCY_WINDOW,
     ) -> None:
         """初始化.
@@ -131,7 +130,7 @@ class StrategyDiagnoser:
     # ============================================================
     # 配置加载 (HC-5)
     # ============================================================
-    def _load_thresholds(self) -> Dict[str, float]:
+    def _load_thresholds(self) -> dict[str, float]:
         """从 evolution.yaml 读取诊断阈值 (HC-5)."""
         defaults = {
             "private_score_low": DEFAULT_PRIVATE_SCORE_LOW,
@@ -155,7 +154,7 @@ class StrategyDiagnoser:
     # ============================================================
     # 核心诊断
     # ============================================================
-    def diagnose(self, health_report: Any) -> List[RootCause]:
+    def diagnose(self, health_report: Any) -> list[RootCause]:
         """诊断策略层根因.
 
         Args:
@@ -165,7 +164,7 @@ class StrategyDiagnoser:
             List[RootCause] 策略层根因列表
         """
         now = datetime.now(timezone.utc).isoformat()
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
 
         # 1. 漂移告警诊断 (只读 reports/drift_alerts/)
         causes.extend(self._diagnose_from_drift_alerts(now))
@@ -181,13 +180,13 @@ class StrategyDiagnoser:
     # ============================================================
     # 子诊断 1: 漂移告警 (reports/drift_alerts/*.jsonl)
     # ============================================================
-    def _diagnose_from_drift_alerts(self, now: str) -> List[RootCause]:
+    def _diagnose_from_drift_alerts(self, now: str) -> list[RootCause]:
         """从漂移告警持久化文件生成 RootCause (只读).
 
         DriftMonitor 将告警持久化为 {model_name}_{date}.jsonl,
         每行一个 dict, 字段: severity, drift_type, recorded_at, model_name, 等.
         """
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             if not self.drift_alerts_dir.exists():
                 return causes
@@ -202,7 +201,7 @@ class StrategyDiagnoser:
                 return causes
 
             # 收集所有告警 (去重: 同 model_name + feature_name 仅保留最新)
-            seen_keys: Dict[str, Dict[str, Any]] = {}
+            seen_keys: dict[str, dict[str, Any]] = {}
             for f in sorted(alert_files, key=lambda x: x.stat().st_mtime, reverse=True):
                 try:
                     lines = f.read_text(encoding="utf-8").strip().splitlines()
@@ -229,7 +228,7 @@ class StrategyDiagnoser:
             logger.warning("漂移告警诊断失败 (降级为空): %s", e)
         return causes
 
-    def _build_drift_cause(self, alert: Dict[str, Any], now: str) -> Optional[RootCause]:
+    def _build_drift_cause(self, alert: dict[str, Any], now: str) -> RootCause | None:
         """从单条漂移告警构建 RootCause."""
         try:
             severity_str = str(alert.get("severity", "medium")).lower()
@@ -280,7 +279,7 @@ class StrategyDiagnoser:
             return None
 
     @staticmethod
-    def _alert_dedup_key(alert: Dict[str, Any]) -> str:
+    def _alert_dedup_key(alert: dict[str, Any]) -> str:
         """告警去重键 (同 model + feature 仅保留最新)."""
         return (
             f"{alert.get('model_name', 'unknown')}:"
@@ -291,9 +290,9 @@ class StrategyDiagnoser:
     # ============================================================
     # 子诊断 2: 策略评估低分 (decisions.jsonl)
     # ============================================================
-    def _diagnose_from_decisions(self, now: str) -> List[RootCause]:
+    def _diagnose_from_decisions(self, now: str) -> list[RootCause]:
         """从最新决策记录诊断策略层问题 (只读 decisions.jsonl)."""
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             decision = self._read_latest_decision()
             if decision is None:
@@ -444,7 +443,7 @@ class StrategyDiagnoser:
             logger.warning("决策记录诊断失败 (降级为空): %s", e)
         return causes
 
-    def _read_latest_decision(self) -> Optional[Dict[str, Any]]:
+    def _read_latest_decision(self) -> dict[str, Any] | None:
         """读取 decisions.jsonl 最新一条记录 (只读)."""
         try:
             if not self.decisions_path.exists():
@@ -468,9 +467,9 @@ class StrategyDiagnoser:
     # ============================================================
     # 子诊断 3: 从 HealthReport 补充诊断
     # ============================================================
-    def _diagnose_from_health(self, health_report: Any, now: str) -> List[RootCause]:
+    def _diagnose_from_health(self, health_report: Any, now: str) -> list[RootCause]:
         """从 HealthReport 的 strategy 层子指标补充诊断 (低分指标 → 根因)."""
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             layer_score = self._get_strategy_layer_score(health_report)
             if layer_score is None:
@@ -573,7 +572,7 @@ class StrategyDiagnoser:
     # 辅助
     # ============================================================
     @staticmethod
-    def _get_strategy_layer_score(health_report: Any) -> Optional[Any]:
+    def _get_strategy_layer_score(health_report: Any) -> Any | None:
         """从 HealthReport 提取 strategy 层 LayerScore (兼容对象/字典)."""
         try:
             if hasattr(health_report, "layer_scores"):
@@ -582,7 +581,7 @@ class StrategyDiagnoser:
                 ls = health_report.get("layer_scores", {}).get("strategy")
                 if ls is not None:
                     class _Wrap:
-                        def __init__(self, d: Dict[str, Any]) -> None:
+                        def __init__(self, d: dict[str, Any]) -> None:
                             self.sub_metrics = d.get("sub_metrics", {})
                     return _Wrap(ls)
         except Exception:

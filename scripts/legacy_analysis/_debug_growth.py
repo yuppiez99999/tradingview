@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """调试 600519 profit_growth=0 的原因"""
 import baostock as bs
 

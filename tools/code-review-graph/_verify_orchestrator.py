@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """临时验证 finance_agent_orchestrator 模块"""
 import sys
 

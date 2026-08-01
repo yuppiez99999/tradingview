@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 walk_forward.py — Purged Walk-Forward Cross-Validation 框架 v1.0
 

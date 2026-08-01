@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 """深入分析 2024-06-03 (bull regime, -5.11%) 大跌原因"""
 import json
 
 # 加载 V6.2 结果
-with open('output/validation_reports/lgb_backtest_v6_2_profit_taking_20260725_065118.json', 'r', encoding='utf-8') as f:
+with open('output/validation_reports/lgb_backtest_v6_2_profit_taking_20260725_065118.json', encoding='utf-8') as f:
     v62 = json.load(f)
 
 # 找到 2024-06-03 和邻近月份

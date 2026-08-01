@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 多策略协调器 (Multi-Strategy Coordinator) v1.0
 ================================================
@@ -53,7 +52,7 @@ import logging
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("strategy_coord")
 
@@ -90,7 +89,7 @@ class StrategyConflict:
     """策略冲突"""
 
     conflict_type: str  # opposite_signal / over_position / cash_conflict / risk_budget_exceeded
-    strategies: List[str]
+    strategies: list[str]
     symbol: str = ""
     description: str = ""
     severity: str = "warning"  # info / warning / error
@@ -105,9 +104,9 @@ class CoordinationDecision:
     total_capital: float = 0.0
     total_allocated: float = 0.0
     cash_buffer: float = 0.0
-    strategy_weights: Dict[str, float] = field(default_factory=dict)
-    strategy_capital: Dict[str, float] = field(default_factory=dict)
-    conflicts: List[StrategyConflict] = field(default_factory=list)
+    strategy_weights: dict[str, float] = field(default_factory=dict)
+    strategy_capital: dict[str, float] = field(default_factory=dict)
+    conflicts: list[StrategyConflict] = field(default_factory=list)
     risk_budget_used: float = 0.0
     risk_budget_limit: float = 0.0
     is_approved: bool = True
@@ -167,7 +166,7 @@ class MultiStrategyCoordinator:
             total_capital: 总资金规模，默认 500 万
         """
         self.total_capital = total_capital
-        self.strategies: Dict[str, StrategyState] = {}
+        self.strategies: dict[str, StrategyState] = {}
         self._initialize_default_strategies()
 
     def _initialize_default_strategies(self) -> None:
@@ -213,10 +212,10 @@ class MultiStrategyCoordinator:
     # ------------------------------------------------------------
     def coordinate(
         self,
-        target_signals: Optional[Dict[str, Dict[str, Any]]] = None,
-        current_positions: Optional[Dict[str, Dict[str, Any]]] = None,
-        strategy_pnl: Optional[Dict[str, float]] = None,
-        strategy_correlations: Optional[Dict[str, float]] = None,
+        target_signals: dict[str, dict[str, Any]] | None = None,
+        current_positions: dict[str, dict[str, Any]] | None = None,
+        strategy_pnl: dict[str, float] | None = None,
+        strategy_correlations: dict[str, float] | None = None,
     ) -> CoordinationDecision:
         """协调多策略。
 
@@ -285,7 +284,7 @@ class MultiStrategyCoordinator:
     # ------------------------------------------------------------
     # 更新策略 P&L
     # ------------------------------------------------------------
-    def _update_strategy_pnl(self, pnl: Dict[str, float]) -> None:
+    def _update_strategy_pnl(self, pnl: dict[str, float]) -> None:
         """更新策略 P&L"""
         for name, p in pnl.items():
             if name in self.strategies:
@@ -293,7 +292,7 @@ class MultiStrategyCoordinator:
                 s.current_pnl = p
                 s.cumulative_pnl += p
 
-    def _update_correlations(self, correlations: Dict[str, float]) -> None:
+    def _update_correlations(self, correlations: dict[str, float]) -> None:
         """更新策略相关性"""
         for name, corr in correlations.items():
             if name in self.strategies:
@@ -414,8 +413,8 @@ class MultiStrategyCoordinator:
     # ------------------------------------------------------------
     def _detect_conflicts(
         self,
-        target_signals: Dict[str, Dict[str, Any]],
-        current_positions: Dict[str, Dict[str, Any]],
+        target_signals: dict[str, dict[str, Any]],
+        current_positions: dict[str, dict[str, Any]],
         decision: CoordinationDecision,
     ) -> None:
         """检测策略冲突
@@ -425,7 +424,7 @@ class MultiStrategyCoordinator:
         3. 现金冲突
         """
         # 收集每个标的的信号方向
-        symbol_signals: Dict[str, List[Tuple[str, str]]] = {}
+        symbol_signals: dict[str, list[tuple[str, str]]] = {}
         for strategy, signals in target_signals.items():
             for symbol, signal in signals.items():
                 direction = ""

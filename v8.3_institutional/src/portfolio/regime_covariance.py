@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.6 Regime-Conditional Covariance — 机制条件协方差估计
 
@@ -18,7 +17,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -114,12 +112,12 @@ class RegimeConditionalCovariance:
         self.decay_halflife = decay_halflife
 
         # 拟合结果
-        self.regime_covs_: Dict[str, np.ndarray] = {}
-        self.regime_probs_: Dict[str, float] = {}
-        self.current_regime_: Optional[RegimeState] = None
-        self.symbols_: List[str] = []
+        self.regime_covs_: dict[str, np.ndarray] = {}
+        self.regime_probs_: dict[str, float] = {}
+        self.current_regime_: RegimeState | None = None
+        self.symbols_: list[str] = []
 
-    def _detect_regime_via_vol(self, returns: pd.DataFrame, vix_proxy: Optional[pd.Series] = None) -> pd.Series:
+    def _detect_regime_via_vol(self, returns: pd.DataFrame, vix_proxy: pd.Series | None = None) -> pd.Series:
         """基于波动率/VIX代理的机制分类
 
         Returns:
@@ -153,8 +151,8 @@ class RegimeConditionalCovariance:
         return regimes
 
     def fit(
-        self, returns: pd.DataFrame, vix_proxy: Optional[pd.Series] = None, use_ewma: bool = True
-    ) -> Dict[str, np.ndarray]:
+        self, returns: pd.DataFrame, vix_proxy: pd.Series | None = None, use_ewma: bool = True
+    ) -> dict[str, np.ndarray]:
         """拟合机制条件协方差
 
         Args:
@@ -240,7 +238,7 @@ class RegimeConditionalCovariance:
             n = mat.shape[0]
             return np.eye(n) * np.mean(np.diag(mat))
 
-    def predict_covariance(self, horizon: int = 20, current_vix_proxy: Optional[float] = None) -> np.ndarray:
+    def predict_covariance(self, horizon: int = 20, current_vix_proxy: float | None = None) -> np.ndarray:
         """预测前瞻性协方差矩阵
 
         根据当前 VIX 代理 + 历史机制概率 → 加权协方差
@@ -300,7 +298,7 @@ class RegimeConditionalCovariance:
 
         return pred_cov
 
-    def _vix_to_regime_probs(self, vix_proxy: float) -> Dict[str, float]:
+    def _vix_to_regime_probs(self, vix_proxy: float) -> dict[str, float]:
         """VIX代理 → 机制概率 (模糊映射)"""
         thresholds = self.vix_thresholds
 
@@ -330,11 +328,11 @@ class RegimeConditionalCovariance:
 
         return probs
 
-    def current_regime(self) -> Optional[RegimeState]:
+    def current_regime(self) -> RegimeState | None:
         """获取当前机制诊断"""
         return self.current_regime_
 
-    def regime_shift_warning(self, threshold: float = 0.6) -> Dict:
+    def regime_shift_warning(self, threshold: float = 0.6) -> dict:
         """机制切换预警
 
         当前危机概率 > threshold → 触发对冲建议
@@ -355,7 +353,7 @@ class RegimeConditionalCovariance:
             "action": "IMMEDIATE_HEDGE_REVIEW" if warning else "MONITOR",
         }
 
-    def report(self) -> Dict:
+    def report(self) -> dict:
         """机制分析报告"""
         if not self.regime_covs_:
             return {"status": "not_fitted"}

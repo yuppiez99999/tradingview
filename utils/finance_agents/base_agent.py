@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 BaseAgent — 金融多 Agent 基类 (Shadow Mode)
 ============================================
@@ -22,7 +21,7 @@ import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from utils.logger import get_logger
 
@@ -58,7 +57,7 @@ class AgentDecision:
     strength: float = 0.0  # [-1, 1]
     confidence: float = 0.0  # [0, 1]
     reasoning: str = ""
-    key_metrics: Dict[str, Any] = field(default_factory=dict)
+    key_metrics: dict[str, Any] = field(default_factory=dict)
     veto_reason: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
@@ -97,7 +96,7 @@ class AgentDecision:
         if self.action == "veto" and not self.veto_reason:
             self.veto_reason = f"{self.agent_name} 触发否决 (未提供具体理由)"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为 dict (用于审计日志)"""
         return {
             "agent_name": self.agent_name,
@@ -130,7 +129,7 @@ class BaseAgent(ABC):
       - 可审计: 所有决策可序列化为 dict, 写入审计日志
     """
 
-    def __init__(self, name: Optional[str] = None):
+    def __init__(self, name: str | None = None):
         self._name = name or self.__class__.__name__
 
     @property
@@ -138,7 +137,7 @@ class BaseAgent(ABC):
         """Agent 名称 (用于日志和审计)"""
         return self._name
 
-    def is_available(self, context: Dict[str, Any]) -> bool:
+    def is_available(self, context: dict[str, Any]) -> bool:
         """检查 Agent 是否可用 (基于上下文)
 
         子类可重写, 默认始终可用.
@@ -146,7 +145,7 @@ class BaseAgent(ABC):
         return True
 
     @abstractmethod
-    def analyze(self, symbol: str, context: Dict[str, Any]) -> AgentDecision:
+    def analyze(self, symbol: str, context: dict[str, Any]) -> AgentDecision:
         """分析单个标的, 返回决策
 
         Args:
@@ -163,7 +162,7 @@ class BaseAgent(ABC):
     # ----------------------------------------------------------
 
     @staticmethod
-    def _safe_get(context: Dict[str, Any], *keys: str, default: Any = None) -> Any:
+    def _safe_get(context: dict[str, Any], *keys: str, default: Any = None) -> Any:
         """安全嵌套取值 (按嵌套层级取值)
 
         Example:
@@ -184,7 +183,7 @@ class BaseAgent(ABC):
         return cur
 
     @staticmethod
-    def _safe_get_fallback(d: Dict[str, Any], *keys: str, default: Any = None) -> Any:
+    def _safe_get_fallback(d: dict[str, Any], *keys: str, default: Any = None) -> Any:
         """安全 fallback 取值 (按顺序尝试多个 key, 返回第一个非 None 的值)
 
         Example:

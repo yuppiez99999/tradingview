@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """V8 动态权重融合重算
 
 核心思路:
@@ -166,7 +165,7 @@ def run_v8(ic_window: int = 3, regime_factor: float = 0.80,
     v71_file = Path(v71_files[-1])
     print(f"加载 V7.1 结果: {v71_file}")
 
-    with open(v71_file, "r", encoding="utf-8") as f:
+    with open(v71_file, encoding="utf-8") as f:
         v71_data = json.load(f)
 
     records = v71_data.get("records", [])

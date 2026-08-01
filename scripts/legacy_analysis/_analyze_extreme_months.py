@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 """分析2025-08/09极端月份的收益来源 - 是集中度风险还是真实alpha"""
 import json
 
-with open('output/validation_reports/lgb_backtest_45m_regime_mild_20260724_194324.json', 'r', encoding='utf-8') as f:
+with open('output/validation_reports/lgb_backtest_45m_regime_mild_20260724_194324.json', encoding='utf-8') as f:
     data = json.load(f)
 
 # 找出2025-08和2025-09的详细数据

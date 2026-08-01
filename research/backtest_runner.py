@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 最小样本外回测 (Walk-Forward)
 ================================
@@ -14,7 +13,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -93,7 +91,7 @@ from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit 
 MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()  # 最大回撤上限：<= 15%
 
 
-def _evaluate_acceptance(annual_return: float, max_drawdown: float) -> Dict:
+def _evaluate_acceptance(annual_return: float, max_drawdown: float) -> dict:
     """
     回测模型验收：年化收益率 >= MIN_ANNUAL_RETURN 且 最大回撤 <= MAX_DRAWDOWN_LIMIT。
     两项同时成立才达标（passed=True）。
@@ -130,7 +128,7 @@ def _evaluate_acceptance(annual_return: float, max_drawdown: float) -> Dict:
 
 
 
-def _monthly_dates(start: str, end: str) -> List[pd.Timestamp]:
+def _monthly_dates(start: str, end: str) -> list[pd.Timestamp]:
     rng = pd.date_range(start=start, end=end, freq="BMS")  # 每月第一个交易日
     return [pd.Timestamp(d) for d in rng]
 
@@ -203,7 +201,7 @@ def _next_month_returns(symbol: str, date: pd.Timestamp, provider: MarketDataPro
         return 0.0
 
 
-def _apply_market_regime_scaling(weights: Dict, date: pd.Timestamp) -> tuple:
+def _apply_market_regime_scaling(weights: dict, date: pd.Timestamp) -> tuple:
     """对复用的旧缓存权重应用三层市场状态过滤 (与 pipeline Step 4.5 一致)
 
     三层过滤:
@@ -367,16 +365,19 @@ def _apply_v71_weight_penalty(weights, date, regime_info):
     penalized = []
     adjusted = dict(weights)
     for code, w in weights.items():
-        if w <= 0: continue
+        if w <= 0:
+            continue
         sym_file = Path('data_cache') / f'historical_{code}_5y_base.parquet'
-        if not sym_file.exists(): continue
+        if not sym_file.exists():
+            continue
         try:
             df_sym = pd.read_parquet(sym_file)
             if hasattr(df_sym.index, 'tz') and df_sym.index.tz is not None:
                 df_sym.index = df_sym.index.tz_localize(None)
             df_sym = df_sym.sort_index()
             df_sym = df_sym[df_sym.index <= cutoff]
-            if len(df_sym) < 21: continue
+            if len(df_sym) < 21:
+                continue
             vol20 = float(df_sym['close'].pct_change().tail(20).std())
             if vol20 > _V71_BULL_HIGH_VOL_THRESHOLD:
                 adjusted[code] = w * _V71_BULL_VOL_PENALTY
@@ -389,7 +390,7 @@ def _apply_v71_weight_penalty(weights, date, regime_info):
     return adjusted, {'regime': regime, 'penalized': len(penalized), 'details': penalized}
 
 
-def _load_existing_pipeline_result(date_str: str) -> Dict:
+def _load_existing_pipeline_result(date_str: str) -> dict:
     """从已落盘的 pipeline_backtest.json 加载结果（断点续跑用）
 
     查找 output/institutional_pipeline/<date>/pipeline_backtest.json
@@ -429,7 +430,7 @@ def _load_existing_pipeline_result(date_str: str) -> Dict:
     for p in candidates:
         if p.exists():
             try:
-                with open(p, "r", encoding="utf-8") as f:
+                with open(p, encoding="utf-8") as f:
                     data = json.load(f)
                 weights = data.get("steps", {}).get("portfolio_decision", {}).get("target_weights", {})
                 status = data.get("status", "ok")
@@ -467,8 +468,8 @@ def _load_existing_pipeline_result(date_str: str) -> Dict:
     return {}
 
 
-def run_backtest(symbols: List[str], start: str = "2023-07-01", end: str = "2025-12-31",
-                 resume: bool = True) -> Dict:
+def run_backtest(symbols: list[str], start: str = "2023-07-01", end: str = "2025-12-31",
+                 resume: bool = True) -> dict:
     """
     运行Walk-Forward回测
 
@@ -488,7 +489,7 @@ def run_backtest(symbols: List[str], start: str = "2023-07-01", end: str = "2025
     """
     provider = MarketDataProvider()
     dates = _monthly_dates(start, end)
-    records: List[Dict] = []
+    records: list[dict] = []
 
     # === 回撤熔断器状态 (路径依赖, V2: 单次触发模式) ===
     equity_curve = 1.0   # 运行中权益曲线
@@ -511,7 +512,7 @@ def run_backtest(symbols: List[str], start: str = "2023-07-01", end: str = "2025
     _monthly_overlay_cost = (
         _cost_model.option_overlay_bps + _cost_model.futures_basis_bps
     ) / 10000.0 / 12
-    prev_weights: Dict[str, float] = {}  # 上月最终权重 (用于换手率计算)
+    prev_weights: dict[str, float] = {}  # 上月最终权重 (用于换手率计算)
 
     # === 月度止盈状态 (V6.2: 平衡峰度与Sharpe CV稳定性) ===
     # 动机: 2025-08 300308 月收益+84%, 2025-09 继续大涨, 导致窗口2年化42.72%
@@ -528,7 +529,7 @@ def run_backtest(symbols: List[str], start: str = "2023-07-01", end: str = "2025
     # V6.2调整: 回退阈值至12%但保留0.80减仓力度 (V6.1的0.80+V4.1的12%)
     #   2. 组合月收益 > 12% → 下月整体仓位 ×0.80 (V6原0.85, 仅加大减仓力度)
     # 目标: 保持Sharpe CV<0.5的同时降低峰度, DSR n_trials从3提升至>=5
-    profit_taking_symbols: Dict[str, float] = {}  # {symbol: 减仓因子}
+    profit_taking_symbols: dict[str, float] = {}  # {symbol: 减仓因子}
     portfolio_pt_factor = 1.0  # 组合级止盈因子
 
     for date in dates:

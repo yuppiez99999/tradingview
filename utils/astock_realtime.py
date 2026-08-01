@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 A股实时行情接入层 (零 key, 不封 IP).
 
@@ -17,14 +16,13 @@ import json
 import threading
 import time
 import urllib.request
-from typing import Dict, List, Optional
 
 from utils.logger import get_logger
 
 logger = get_logger("astock_realtime")
 
 CACHE_TTL = 60  # 秒
-_cache: Dict[str, tuple] = {}
+_cache: dict[str, tuple] = {}
 _cache_lock = threading.Lock()
 _eastmoney_blocked = False
 
@@ -51,7 +49,7 @@ _opener = urllib.request.build_opener(
 )
 
 
-def _http_get(url: str, ref: Optional[str] = None, timeout: int = 10) -> bytes:
+def _http_get(url: str, ref: str | None = None, timeout: int = 10) -> bytes:
     req = urllib.request.Request(url)
     req.add_header("User-Agent", "Mozilla/5.0")
     if ref:
@@ -59,10 +57,10 @@ def _http_get(url: str, ref: Optional[str] = None, timeout: int = 10) -> bytes:
     return _opener.open(req, timeout=timeout).read()  # type: ignore
 
 
-def get_eastmoney_quotes(codes: List[str]) -> Dict[str, Dict]:
+def get_eastmoney_quotes(codes: list[str]) -> dict[str, dict]:
     """东财 push2 批量行情 (主源). 返回 {code: {price, pre_close, change_pct, pe, pb, mktcap_yi, ...}}."""
     global _eastmoney_blocked
-    out: Dict[str, Dict] = {}
+    out: dict[str, dict] = {}
     if not codes or _eastmoney_blocked:
         return out
     secids = ",".join(_secid(c) for c in codes)
@@ -108,9 +106,9 @@ def get_eastmoney_quotes(codes: List[str]) -> Dict[str, Dict]:
     return out
 
 
-def get_tencent_quotes(codes: List[str]) -> Dict[str, Dict]:
+def get_tencent_quotes(codes: list[str]) -> dict[str, dict]:
     """腾讯财经 qt.gtimg.cn 行情 (回退源). 单位: 市值为亿元."""
-    out: Dict[str, Dict] = {}
+    out: dict[str, dict] = {}
     if not codes:
         return out
     url = "https://qt.gtimg.cn/q=" + ",".join(_tx_prefix(c) for c in codes)
@@ -144,7 +142,7 @@ def get_tencent_quotes(codes: List[str]) -> Dict[str, Dict]:
     return out
 
 
-def get_realtime_quotes(codes: List[str], use_cache: bool = True) -> Dict[str, Dict]:
+def get_realtime_quotes(codes: list[str], use_cache: bool = True) -> dict[str, dict]:
     """优先东财 -> 腾讯回退 -> 缓存. 返回 {code: 行情dict}."""
     codes = [str(c).strip() for c in codes if c]
     if not codes:

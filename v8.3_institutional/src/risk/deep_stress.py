@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.6 Deep Stress Test — 多维关联冲击矩阵
 
@@ -18,7 +17,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List
 
 import numpy as np
 
@@ -35,10 +33,10 @@ class ShockScenario:
 
     # 冲击矩阵: {asset_class: shock_return}
     # 正值=涨，负值=跌
-    shocks: Dict[str, float] = field(default_factory=dict)
+    shocks: dict[str, float] = field(default_factory=dict)
 
     # 波动率乘数 {asset_class: vol_mult}
-    vol_multipliers: Dict[str, float] = field(default_factory=dict)
+    vol_multipliers: dict[str, float] = field(default_factory=dict)
 
     # 相关性崩溃程度 (1.0=完全趋同)
     correlation_converge: float = 0.95
@@ -206,19 +204,19 @@ class DeepStressTester:
     def __init__(self, total_nav: float = 5_000_000, cvar_confidence: float = 0.95):
         self.total_nav = total_nav
         self.cvar_confidence = cvar_confidence
-        self.scenarios: List[ShockScenario] = []
-        self.custom_scenarios: List[ShockScenario] = []
+        self.scenarios: list[ShockScenario] = []
+        self.custom_scenarios: list[ShockScenario] = []
 
         # 加载预设场景
         self.scenarios = list(DEEP_SHOCK_SCENARIOS)
 
         # 运行历史
-        self.run_history: List[Dict] = []
+        self.run_history: list[dict] = []
 
     def add_custom_scenario(self, sc: ShockScenario) -> None:
         self.custom_scenarios.append(sc)
 
-    def resolve_shock(self, scenario: ShockScenario, portfolio_exposures: Dict[str, float]) -> Dict[str, float]:
+    def resolve_shock(self, scenario: ShockScenario, portfolio_exposures: dict[str, float]) -> dict[str, float]:
         """将冲击情景映射到组合的实际 PnL 影响
 
         Args:
@@ -236,7 +234,7 @@ class DeepStressTester:
             impacts[asset] = float(impact)
         return impacts
 
-    def run_scenario(self, scenario: ShockScenario, portfolio_exposures: Dict[str, float]) -> Dict:
+    def run_scenario(self, scenario: ShockScenario, portfolio_exposures: dict[str, float]) -> dict:
         """运行单个深度压力场景
 
         Args:
@@ -288,7 +286,7 @@ class DeepStressTester:
         logger.info(f"[深度压力] {scenario.name}: impact={nav_impact_pct:.1%} -> {rating}")
         return result
 
-    def run_all(self, portfolio_exposures: Dict[str, float]) -> Dict:
+    def run_all(self, portfolio_exposures: dict[str, float]) -> dict:
         """运行全部深度压力场景 (预设 + 自定义)
 
         Args:
@@ -363,7 +361,7 @@ class DeepStressTester:
         return report
 
     # ---------- 机制条件测试 ----------
-    def regime_stress(self, portfolio_exposures: Dict[str, float], regime: str = "normal") -> Dict:
+    def regime_stress(self, portfolio_exposures: dict[str, float], regime: str = "normal") -> dict:
         """在不同市场机制下筛选适用的场景并测试
 
         regimes: 'normal' | 'volatility_spike' | 'bear_market' | 'liquidity_crisis'

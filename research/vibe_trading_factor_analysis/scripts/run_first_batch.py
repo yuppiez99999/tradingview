@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """S3 首批次真实数据流水线跑批脚本
 
 用真实 A 股 OHLCV 数据驱动 PipelineOrchestrator 的 8 级流水线。

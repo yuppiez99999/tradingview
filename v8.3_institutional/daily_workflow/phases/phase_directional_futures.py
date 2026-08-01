@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Phase implementation: phase_directional_futures
 
@@ -12,7 +11,7 @@ The function receives a DailyWorkflow instance as its first parameter ("workflow
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def phase_directional_futures(workflow) -> Dict[str, Any]:
+def phase_directional_futures(workflow) -> dict[str, Any]:
     """方向性期货交易 — CU(沪铜)/AU(黄金)/T(10年国债) 三品种
 
     v10.0 macro_hedge_account 中的方向性子模块:
@@ -44,7 +43,7 @@ def phase_directional_futures(workflow) -> Dict[str, Any]:
     logger.info("Phase 4.9: 方向性期货交易 (CU/AU/T)")
     logger.info("=" * 60)
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "status": "PASS",
         "action": "skip",
         "signals": [],

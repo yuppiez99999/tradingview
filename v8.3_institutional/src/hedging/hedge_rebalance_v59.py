@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 对冲-再平衡联动引擎 v5.9 — 组合自触发 + 多指数对冲 + 成本过滤
 
@@ -294,7 +293,7 @@ def _load_yaml(filepath: str) -> Optional[Dict]:
     try:
         import yaml
 
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             return yaml.safe_load(f)
     except Exception:
         return None
@@ -302,7 +301,7 @@ def _load_yaml(filepath: str) -> Optional[Dict]:
 
 def _load_json(filepath: str) -> Optional[Dict]:
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return None

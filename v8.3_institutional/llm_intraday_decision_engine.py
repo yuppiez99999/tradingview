@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LLM 盘中自动决策引擎 (v8.0 顶级对冲基金视角)
 ============================================
@@ -30,7 +29,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -83,18 +82,18 @@ except Exception as _e:
 # ============================================================
 # 数据加载
 # ============================================================
-def _load_positions() -> Dict[str, Any]:
+def _load_positions() -> dict[str, Any]:
     path = CONFIG_DIR / "positions.json"
     if not path.exists():
         return {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f).get("positions", {})
     except Exception:
         return {}
 
 
-def _load_latest_pnl_report() -> Optional[Dict[str, Any]]:
+def _load_latest_pnl_report() -> dict[str, Any] | None:
     if not REPORTS_DIR.exists():
         return None
 
@@ -114,24 +113,24 @@ def _load_latest_pnl_report() -> Optional[Dict[str, Any]]:
 
     files_sorted = sorted(valid_files, key=_extract_date, reverse=True)
     try:
-        with open(files_sorted[0], "r", encoding="utf-8") as f:
+        with open(files_sorted[0], encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return None
 
 
-def _load_trade_plan(trade_date: str) -> Optional[Dict[str, Any]]:
+def _load_trade_plan(trade_date: str) -> dict[str, Any] | None:
     path = PLAN_DIR / f"trade_plan_{trade_date.replace('-', '')}.json"
     if not path.exists():
         return None
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return None
 
 
-def _load_latest_etf_flow_report() -> Optional[Dict[str, Any]]:
+def _load_latest_etf_flow_report() -> dict[str, Any] | None:
     if not REPORTS_DIR.exists():
         return None
 
@@ -145,7 +144,7 @@ def _load_latest_etf_flow_report() -> Optional[Dict[str, Any]]:
 
     files_sorted = sorted(files, key=_extract_date, reverse=True)
     try:
-        with open(files_sorted[0], "r", encoding="utf-8") as f:
+        with open(files_sorted[0], encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return None
@@ -154,11 +153,11 @@ def _load_latest_etf_flow_report() -> Optional[Dict[str, Any]]:
 # ============================================================
 # 规则引擎 (LLM 不可用时降级)
 # ============================================================
-def _rule_based_decisions(positions: Dict[str, Any], pnl_report: Optional[Dict[str, Any]], etf_report: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    decisions: List[Dict[str, Any]] = []
+def _rule_based_decisions(positions: dict[str, Any], pnl_report: dict[str, Any] | None, etf_report: dict[str, Any] | None) -> list[dict[str, Any]]:
+    decisions: list[dict[str, Any]] = []
 
     # Build quick lookup from pnl_report details if available
-    pnl_details: Dict[str, Dict[str, Any]] = {}
+    pnl_details: dict[str, dict[str, Any]] = {}
     if pnl_report:
         for detail in pnl_report.get("portfolio_pnl", {}).get("details", []):
             pnl_details[detail.get("code", "")] = detail
@@ -234,9 +233,9 @@ def _rule_based_decisions(positions: Dict[str, Any], pnl_report: Optional[Dict[s
 # ============================================================
 # 深度思考触发判断
 # ============================================================
-def _needs_deep_analysis(rule_decisions: List[Dict[str, Any]],
-                         pnl_report: Optional[Dict[str, Any]],
-                         positions: Dict[str, Any]) -> tuple:
+def _needs_deep_analysis(rule_decisions: list[dict[str, Any]],
+                         pnl_report: dict[str, Any] | None,
+                         positions: dict[str, Any]) -> tuple:
     """判断当前是否需要触发深度思考模式
 
     返回: (need_deep: bool, reason: str)
@@ -281,7 +280,7 @@ def _needs_deep_analysis(rule_decisions: List[Dict[str, Any]],
 # ============================================================
 # LLM 决策
 # ============================================================
-def _llm_decisions(positions: Dict[str, Any], pnl_report: Optional[Dict[str, Any]], trade_plan: Optional[Dict[str, Any]], etf_report: Optional[Dict[str, Any]], rule_decisions: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+def _llm_decisions(positions: dict[str, Any], pnl_report: dict[str, Any] | None, trade_plan: dict[str, Any] | None, etf_report: dict[str, Any] | None, rule_decisions: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     if not LLM_READY or not pnl_report:
         return []
 
@@ -291,7 +290,7 @@ def _llm_decisions(positions: Dict[str, Any], pnl_report: Optional[Dict[str, Any
         print(f"[DEEP] 触发深度思考模式: {deep_reason}", file=sys.stderr)
 
     # 构建精简上下文
-    pnl_details: Dict[str, Dict[str, Any]] = {}
+    pnl_details: dict[str, dict[str, Any]] = {}
     if pnl_report:
         for detail in pnl_report.get("portfolio_pnl", {}).get("details", []):
             pnl_details[detail.get("code", "")] = detail
@@ -426,7 +425,7 @@ def _extract_json_from_deep(text: str) -> str:
 # ============================================================
 # 决策合并与输出
 # ============================================================
-def _merge_decisions(rule_decisions: List[Dict[str, Any]], llm_decisions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _merge_decisions(rule_decisions: list[dict[str, Any]], llm_decisions: list[dict[str, Any]]) -> list[dict[str, Any]]:
     merged = list(rule_decisions)
     seen = {(d.get("code") or "") + "|" + (d.get("type") or "") for d in merged}
     for d in llm_decisions:
@@ -437,7 +436,7 @@ def _merge_decisions(rule_decisions: List[Dict[str, Any]], llm_decisions: List[D
     return merged
 
 
-def _write_decisions_to_plan(trade_plan: Dict[str, Any], decisions: List[Dict[str, Any]], trade_date: str,
+def _write_decisions_to_plan(trade_plan: dict[str, Any], decisions: list[dict[str, Any]], trade_date: str,
                              deep_mode: bool = False, deep_reason: str = "") -> None:
     trade_plan["llm_intraday_decisions"] = {
         "updated_at": datetime.now().isoformat(),
@@ -455,7 +454,7 @@ def _write_decisions_to_plan(trade_plan: Dict[str, Any], decisions: List[Dict[st
 # ============================================================
 # 主流程
 # ============================================================
-def run_intraday_decision(trade_date: str, mode: str = "mock") -> Dict[str, Any]:
+def run_intraday_decision(trade_date: str, mode: str = "mock") -> dict[str, Any]:
     positions = _load_positions()
     pnl_report = _load_latest_pnl_report()
     trade_plan = _load_trade_plan(trade_date)

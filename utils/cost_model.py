@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 统一成本模型 (Single Source of Truth for Trading Costs)
 ========================================================
@@ -25,7 +24,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 
 @dataclass
@@ -68,7 +66,7 @@ class CostAssumption:
         """年化总成本（小数，如 0.024 = 2.4%）"""
         return self.annual_total_bps / 10000.0
 
-    def breakdown(self) -> Dict[str, float]:
+    def breakdown(self) -> dict[str, float]:
         """返回各组成部分（小数形式）便于报告与审计"""
         return {
             "commission": self.commission_annual_bps / 10000.0,

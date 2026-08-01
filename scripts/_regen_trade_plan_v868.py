@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v8.6.8 实盘就绪度 — 重新生成 trade_plan 并应用 7-Guard 链
 """

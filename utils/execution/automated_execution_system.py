@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 自动化执行系统 - 世界级对冲基金的自动化交易执行架构
 
@@ -1376,7 +1375,7 @@ class OrderRouter:
                 _PROJECT_ROOT, "config", "positions.json"
             )  # P1-11: 原路径 utils/execution/config/ 不存在
             if os.path.exists(positions_path):
-                with open(positions_path, "r", encoding="utf-8") as f:
+                with open(positions_path, encoding="utf-8") as f:
                     data = json.load(f)
                 for key, pos in data.get("positions", {}).items():
                     if symbol in key:
@@ -1719,7 +1718,7 @@ class AutomatedExecutionSystem:
             prices = {}
             style_map = {}
             if os.path.exists(positions_path):
-                with open(positions_path, "r", encoding="utf-8") as f:
+                with open(positions_path, encoding="utf-8") as f:
                     pos_data = json.load(f).get("positions", {})
                 for _key, item in pos_data.items():
                     code = item.get("code")
@@ -1820,7 +1819,7 @@ class AutomatedExecutionSystem:
             if not os.path.exists(positions_path):
                 return
 
-            with open(positions_path, "r", encoding="utf-8") as f:
+            with open(positions_path, encoding="utf-8") as f:
                 data = json.load(f)
             positions = data.get("positions", {})
 
@@ -1875,7 +1874,7 @@ class AutomatedExecutionSystem:
             if not os.path.exists(positions_path):
                 return
 
-            with open(positions_path, "r", encoding="utf-8") as f:
+            with open(positions_path, encoding="utf-8") as f:
                 positions_data = json.load(f).get("positions", {})
 
             symbols = [item.get("code") for item in positions_data.values() if item.get("code")]
@@ -1946,7 +1945,7 @@ class AutomatedExecutionSystem:
             positions = {}
             prices = {}
             if os.path.exists(positions_path):
-                with open(positions_path, "r", encoding="utf-8") as f:
+                with open(positions_path, encoding="utf-8") as f:
                     pos_data = json.load(f).get("positions", {})
                 for item in pos_data.values():
                     code = item.get("code")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T5.2 单元测试 — utils/attribution/factor_attribution.py.
 
 测试覆盖:

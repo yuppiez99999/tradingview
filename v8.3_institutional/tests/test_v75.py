@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 Institutional — 单元测试
 

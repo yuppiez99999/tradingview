@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 一键导入所有v5.9增强模块
 用法: from src.__v59_enhanced__ import (HedgeEngine, KondratievCycleAnalyzer, ...)

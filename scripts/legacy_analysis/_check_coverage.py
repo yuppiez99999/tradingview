@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 """检查标的池覆盖情况"""
 import re
 from pathlib import Path
 
-with open('cache/symbol_universe.py', 'r', encoding='utf-8') as f:
+with open('cache/symbol_universe.py', encoding='utf-8') as f:
     content = f.read()
 
 codes = re.findall(r'"(\d{6}_[SZSH]+)"', content)

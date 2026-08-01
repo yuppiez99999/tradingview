@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 多源信号融合引擎 — v5.7 Phase 1 优化
 
@@ -820,14 +819,14 @@ def _get_hedge_signal_source(code: str) -> SignalResult:
         prices = {}
 
         if os.path.exists(positions_path):
-            with open(positions_path, "r", encoding="utf-8") as f:
+            with open(positions_path, encoding="utf-8") as f:
                 pos_data = json.load(f)
                 for code, p in pos_data.get("positions", {}).items():
                     positions[code] = {"shares": p.get("shares", 0), "cost": p.get("cost", 0)}
 
         # 从价格历史获取最新价格
         if os.path.exists(pricing_path):
-            with open(pricing_path, "r", encoding="utf-8") as f:
+            with open(pricing_path, encoding="utf-8") as f:
                 for line in f:
                     try:
                         entry = json.loads(line.strip())

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """decision_theories 单元测试 — T2.2.
 
 验证以下方面:

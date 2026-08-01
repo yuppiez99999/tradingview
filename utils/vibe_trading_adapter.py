@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Vibe-Trading 数据适配器 — 28 系统集成层
 
 核心功能:
@@ -27,7 +26,6 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -54,7 +52,7 @@ _LOCAL_CACHE_DIR = _PROJECT_ROOT / "data_cache" / "vibe_trading"
 # Vibe-Trading 格式兼容: tushare loader 接受 510300.SH 格式
 # 特殊映射: ETF/指数代码别名
 
-_CODE_ALIAS_MAP: Dict[str, str] = {
+_CODE_ALIAS_MAP: dict[str, str] = {
     "510050.SH": "510050.SH",   # 上证50ETF
     "510300.SH": "510300.SH",   # 沪深300ETF
     "510500.SH": "510500.SH",   # 中证500ETF
@@ -124,14 +122,14 @@ class _VibeTradingCore:
     线程安全: 通过 _initialized 标志控制一次性初始化.
     """
 
-    _instance: Optional[_VibeTradingCore] = None
+    _instance: _VibeTradingCore | None = None
     _initialized: bool = False
 
     def __init__(self) -> None:
         self._loader_registry = None
         self._resolve_loader = None
-        self._available_sources: List[str] = []
-        self._init_error: Optional[str] = None
+        self._available_sources: list[str] = []
+        self._init_error: str | None = None
 
     @classmethod
     def get_instance(cls) -> _VibeTradingCore:
@@ -193,7 +191,7 @@ class _VibeTradingCore:
             logger.warning(self._init_error)
             return False
 
-    def _detect_available_sources(self) -> List[str]:
+    def _detect_available_sources(self) -> list[str]:
         """探测可用数据源.
 
         Returns:
@@ -210,7 +208,7 @@ class _VibeTradingCore:
         return available
 
     def fetch(self, symbol: str, start_date: str, end_date: str,
-              market: Optional[str] = None, interval: str = "1D") -> Optional[pd.DataFrame]:
+              market: str | None = None, interval: str = "1D") -> pd.DataFrame | None:
         """从 Vibe-Trading 拉取单只标的的 OHLCV 数据.
 
         Args:
@@ -264,8 +262,8 @@ class _VibeTradingCore:
 
         return None
 
-    def batch_fetch(self, symbols: List[str], start_date: str, end_date: str,
-                    interval: str = "1D") -> Dict[str, pd.DataFrame]:
+    def batch_fetch(self, symbols: list[str], start_date: str, end_date: str,
+                    interval: str = "1D") -> dict[str, pd.DataFrame]:
         """批量拉取多只标的 OHLCV 数据.
 
         Args:
@@ -277,7 +275,7 @@ class _VibeTradingCore:
         Returns:
             {symbol: DataFrame} 字典
         """
-        results: Dict[str, pd.DataFrame] = {}
+        results: dict[str, pd.DataFrame] = {}
         for symbol in symbols:
             df = self.fetch(symbol, start_date, end_date, interval=interval)
             if df is not None and not df.empty:
@@ -293,7 +291,7 @@ class _VibeTradingCore:
 # 代理映射回退 (当 Vibe-Trading 不可用时使用)
 # ============================================================
 
-_PROXY_MAP: Dict[str, str] = {
+_PROXY_MAP: dict[str, str] = {
     "588080.SH": "588000.SH",
     "510050.SH": "588000.SH",
     "510300.SH": "588000.SH",
@@ -312,8 +310,8 @@ _PROXY_MAP: Dict[str, str] = {
 }
 
 
-def _proxy_fallback_fetch(symbols: List[str], start_date: str,
-                          end_date: str) -> Dict[str, pd.DataFrame]:
+def _proxy_fallback_fetch(symbols: list[str], start_date: str,
+                          end_date: str) -> dict[str, pd.DataFrame]:
     """代理映射回退 (无网络环境).
 
     使用本地缓存 + 代理映射补全数据.
@@ -326,7 +324,7 @@ def _proxy_fallback_fetch(symbols: List[str], start_date: str,
     Returns:
         {symbol: DataFrame} 字典
     """
-    results: Dict[str, pd.DataFrame] = {}
+    results: dict[str, pd.DataFrame] = {}
 
     # 尝试从本地 parquet 缓存加载
     ohlcv_dir = _PROJECT_ROOT / "cache" / "ohlcv"
@@ -408,7 +406,7 @@ class VibeTradingAdapter:
         return self._core.is_ready
 
     @property
-    def available_sources(self) -> List[str]:
+    def available_sources(self) -> list[str]:
         """可用数据源列表."""
         if not self._core.is_ready:
             self._core.initialize()
@@ -453,9 +451,9 @@ class VibeTradingAdapter:
         logger.warning(f"无法获取 {symbol} 的 OHLCV 数据 (所有源均失败)")
         return pd.DataFrame()
 
-    def get_batch_ohlcv(self, symbols: List[str], start_date: str,
+    def get_batch_ohlcv(self, symbols: list[str], start_date: str,
                         end_date: str, interval: str = "1D",
-                        use_vibe: bool = True) -> Dict[str, pd.DataFrame]:
+                        use_vibe: bool = True) -> dict[str, pd.DataFrame]:
         """批量获取多只标的 OHLCV 数据.
 
         Args:
@@ -468,8 +466,8 @@ class VibeTradingAdapter:
         Returns:
             {symbol: DataFrame} 字典
         """
-        results: Dict[str, pd.DataFrame] = {}
-        failed: List[str] = []
+        results: dict[str, pd.DataFrame] = {}
+        failed: list[str] = []
 
         for symbol in symbols:
             try:
@@ -491,7 +489,7 @@ class VibeTradingAdapter:
         )
         return results
 
-    def get_price_dataframe(self, symbols: List[str], start_date: str,
+    def get_price_dataframe(self, symbols: list[str], start_date: str,
                              end_date: str, interval: str = "1D",
                              price_col: str = "close") -> pd.DataFrame:
         """获取多只标的的收盘价矩阵 (供回测使用).
@@ -511,7 +509,7 @@ class VibeTradingAdapter:
         if not batch:
             return pd.DataFrame()
 
-        price_dict: Dict[str, pd.Series] = {}
+        price_dict: dict[str, pd.Series] = {}
         for symbol, df in batch.items():
             if price_col in df.columns:
                 series = df[price_col]
@@ -591,7 +589,7 @@ class VibeTradingAdapter:
         return df
 
     def _try_local_cache(self, symbol: str, start_date: str,
-                         end_date: str) -> Optional[pd.DataFrame]:
+                         end_date: str) -> pd.DataFrame | None:
         """尝试从本地缓存加载.
 
         Args:
@@ -639,7 +637,7 @@ class VibeTradingAdapter:
 # 便捷函数
 # ============================================================
 
-_default_adapter: Optional[VibeTradingAdapter] = None
+_default_adapter: VibeTradingAdapter | None = None
 
 
 def get_adapter(force_init: bool = False) -> VibeTradingAdapter:
@@ -673,7 +671,7 @@ def get_ohlcv(symbol: str, start_date: str, end_date: str,
     return get_adapter().get_ohlcv(symbol, start_date, end_date, interval)
 
 
-def get_price_matrix(symbols: List[str], start_date: str,
+def get_price_matrix(symbols: list[str], start_date: str,
                      end_date: str) -> pd.DataFrame:
     """便捷函数: 获取收盘价矩阵.
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """conftest.py — E2E 测试层专用 fixture (tests/e2e/)
 
 pytest 自动加载规则: 仅识别名为 conftest.py 的文件
@@ -47,7 +46,7 @@ def e2e_pnl_reports(e2e_reports_dir):
     reports = {}
     for f in pnl_files:
         try:
-            with open(f, "r", encoding="utf-8") as fp:
+            with open(f, encoding="utf-8") as fp:
                 reports[f.stem] = json.load(fp)
         except Exception:
             continue
@@ -71,7 +70,7 @@ def e2e_trade_plans(e2e_trade_plans_dir):
     plans = {}
     for f in plan_files:
         try:
-            with open(f, "r", encoding="utf-8") as fp:
+            with open(f, encoding="utf-8") as fp:
                 plans[f.stem] = json.load(fp)
         except Exception:
             continue

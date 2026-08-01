@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Triple Barrier Labeling — 三维标签引擎 v1.0
 

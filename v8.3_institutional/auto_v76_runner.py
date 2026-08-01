@@ -10,7 +10,7 @@ import logging
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
@@ -22,25 +22,25 @@ REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 TOTAL_CAPITAL = 5_000_000
 
 
-def load_daily_pnl_report(report_date: str) -> Dict[str, Any]:
+def load_daily_pnl_report(report_date: str) -> dict[str, Any]:
     path = os.path.join(REPORTS_DIR, f"daily_pnl_report_{report_date}.json")
     if not os.path.exists(path):
         logger.warning(f"报告不存在: {path}")
         return {}
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def load_trade_plan(date_str: str) -> Dict[str, Any]:
+def load_trade_plan(date_str: str) -> dict[str, Any]:
     date_compact = date_str.replace("-", "")
     path = os.path.join(BASE_DIR, "trade_plans", f"trade_plan_{date_compact}.json")
     if not os.path.exists(path):
         return {}
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def build_return_series(report_dates: List[str]) -> List[float]:
+def build_return_series(report_dates: list[str]) -> list[float]:
     returns = []
     for rd in report_dates:
         rpt = load_daily_pnl_report(rd)
@@ -52,7 +52,7 @@ def build_return_series(report_dates: List[str]) -> List[float]:
     return returns
 
 
-def extract_positions(rpt: Dict) -> tuple:
+def extract_positions(rpt: dict) -> tuple:
     from pnl.pnl_attribution import FactorExposure, PositionSnapshot
 
     details = rpt.get("portfolio_pnl", {}).get("details", [])
@@ -84,8 +84,8 @@ def extract_positions(rpt: Dict) -> tuple:
     return positions, summary
 
 
-def generate_v76_report(bridge_result: Dict, report_date: str, pnl_summary: Dict,
-                         trade_plan: Dict, etf_flows: Dict) -> str:
+def generate_v76_report(bridge_result: dict, report_date: str, pnl_summary: dict,
+                         trade_plan: dict, etf_flows: dict) -> str:
     """从 bridge 返回 + 交易计划 生成完整 v7.6 增强日度报告"""
     mods = bridge_result.get("modules", {})
     bp_vol = mods.get("vol_target", {})

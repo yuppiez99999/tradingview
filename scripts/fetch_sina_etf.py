@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """从新浪财经获取 ETF 历史日线并写入本地兜底目录"""
 import json
 import os

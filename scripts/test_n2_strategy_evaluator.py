@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """策略多维评分器 N2 验证脚本 — Day 2.
 
 测试目标:

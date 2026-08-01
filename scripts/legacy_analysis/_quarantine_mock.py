@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """归档 64 份 mock pipeline_backtest.json 到隔离目录"""
 import shutil
 from pathlib import Path

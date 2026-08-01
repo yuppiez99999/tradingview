@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ECC 完整 ML 流水线 E2E 测试 — GAP-2 交付物.
 
 验证 ECC 新增模块 (GAP-6/7/8) 在真实 ML 流水线中的端到端协作:
@@ -56,7 +55,7 @@ def real_positions():
     positions_path = _PROJECT_ROOT / "config" / "positions.json"
     if not positions_path.exists():
         pytest.skip(f"持仓配置不存在: {positions_path}")
-    with open(positions_path, "r", encoding="utf-8") as f:
+    with open(positions_path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -66,7 +65,7 @@ def real_shadow_config():
     config_path = _PROJECT_ROOT / "config" / "shadow_account_config.json"
     if not config_path.exists():
         pytest.skip(f"影子账户配置不存在: {config_path}")
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(config_path, encoding="utf-8") as f:
         return json.load(f)
 
 

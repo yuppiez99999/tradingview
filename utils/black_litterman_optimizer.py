@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Black-Litterman 组合优化器 (Black-Litterman Portfolio Optimizer)
 
@@ -23,7 +22,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -46,8 +44,8 @@ class View:
     """
 
     type: str  # "absolute" or "relative"
-    assets: List[str]
-    weights: List[float]  # P 矩阵的行向量
+    assets: list[str]
+    weights: list[float]  # P 矩阵的行向量
     expected_return: float  # Q 向量元素
     confidence: float = 0.5  # 观点置信度 (0-1), 越高 Ω 越小
 
@@ -60,8 +58,8 @@ class BLResult:
     posterior_cov: np.ndarray  # 后验协方差矩阵
     optimal_weights: np.ndarray  # 最优权重
     implied_equilibrium_returns: np.ndarray  # 市场隐含收益 (Π)
-    assets: List[str]  # 标的列表
-    views: List[View]  # 观点列表
+    assets: list[str]  # 标的列表
+    views: list[View]  # 观点列表
     risk_aversion: float  # 风险厌恶系数 δ
 
     # 诊断信息
@@ -125,14 +123,14 @@ class BlackLittermanOptimizer:
 
     def optimize(
         self,
-        assets: List[str],
-        market_weights: Union[List[float], np.ndarray],
-        cov_matrix: Union[np.ndarray, "pd.DataFrame"],  # type: ignore
-        views: Optional[List[View]] = None,
+        assets: list[str],
+        market_weights: list[float] | np.ndarray,
+        cov_matrix: np.ndarray | pd.DataFrame,  # type: ignore
+        views: list[View] | None = None,
         risk_free_rate: float = 0.03,
-        target_return: Optional[float] = None,  # None=无约束, 数值=目标收益
-        max_weight: Optional[float] = None,  # 单一标的权重上限
-        min_weight: Optional[float] = 0.0,  # 单一标的权重下限
+        target_return: float | None = None,  # None=无约束, 数值=目标收益
+        max_weight: float | None = None,  # 单一标的权重上限
+        min_weight: float | None = 0.0,  # 单一标的权重下限
     ) -> BLResult:
         """运行 Black-Litterman 优化
 
@@ -227,10 +225,10 @@ class BlackLittermanOptimizer:
 
     def _build_view_matrices(
         self,
-        views: List[View],
-        assets: List[str],
+        views: list[View],
+        assets: list[str],
         cov: np.ndarray,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """构建观点矩阵 P, Q, Ω"""
         n = len(assets)
         k = len(views)
@@ -280,7 +278,7 @@ class BlackLittermanOptimizer:
         P: np.ndarray,
         Q: np.ndarray,
         omega: np.ndarray,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """贝叶斯融合后验收益
 
         E[R] = [(τΣ)^-1 + P' Ω^-1 P]^-1 × [(τΣ)^-1 Π + P' Ω^-1 Q]
@@ -322,9 +320,9 @@ class BlackLittermanOptimizer:
         expected_returns: np.ndarray,
         cov: np.ndarray,
         risk_free_rate: float,
-        target_return: Optional[float],
-        max_weight: Optional[float],
-        min_weight: Optional[float],
+        target_return: float | None,
+        max_weight: float | None,
+        min_weight: float | None,
     ) -> np.ndarray:
         """均值-方差优化
 
@@ -416,7 +414,7 @@ class BlackLittermanOptimizer:
     # 工具方法
     # ------------------------------------------------------------
 
-    def save_result(self, result: BLResult, path: Union[str, Path]) -> Path:
+    def save_result(self, result: BLResult, path: str | Path) -> Path:
         """保存优化结果到 JSON"""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)

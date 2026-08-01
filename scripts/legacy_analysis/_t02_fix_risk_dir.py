@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T02: 给 utils/risk/ 目录的 broad-except 添加 noqa 注释.
 
 策略: risk 模块的 broad-except 都是 pub/sub 隔离或决策回调的 fail-safe,

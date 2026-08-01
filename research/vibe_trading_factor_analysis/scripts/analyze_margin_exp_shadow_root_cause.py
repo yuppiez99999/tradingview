@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """MARGIN_EXP Shadow 失败根因分析（P2.2 v6.2 诊断）
 
 目标：

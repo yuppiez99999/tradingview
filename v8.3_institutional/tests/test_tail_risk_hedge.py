@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 tail_risk_hedge.py 完整单元测试 — v8.5 机构级增强版
 

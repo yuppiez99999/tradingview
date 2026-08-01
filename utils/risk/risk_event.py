@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """风控事件类型定义 — 模块整合 8.4 (T3.1).
 
 任务: T3.1
@@ -21,7 +20,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger("risk_event")
 
@@ -91,9 +90,9 @@ class RiskEvent:
     event_type: RiskEventType
     source: str
     severity: RiskSeverity
-    payload: Dict[str, Any] = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
     timestamp: str = ""
-    symbol: Optional[str] = None
+    symbol: str | None = None
 
     def __post_init__(self) -> None:
         """校验 + 自动填充时间戳."""
@@ -112,7 +111,7 @@ class RiskEvent:
         """当前 UTC 时间 ISO 格式."""
         return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S") + "Z"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为字典 (用于日志/审计)."""
         return {
             "event_type": self.event_type.value,
@@ -124,7 +123,7 @@ class RiskEvent:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "RiskEvent":
+    def from_dict(cls, data: dict[str, Any]) -> RiskEvent:
         """从字典反序列化."""
         return cls(
             event_type=RiskEventType(data.get("event_type", "")),
@@ -172,7 +171,7 @@ class RiskDecision:
         if abs(clamped_pct - self.reduce_pct) > 1e-9:
             object.__setattr__(self, "reduce_pct", clamped_pct)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为字典."""
         return {
             "action": self.action.value,
@@ -190,7 +189,7 @@ def make_margin_breach_event(
     source: str,
     margin_usage: float,
     level: int,
-    severity: Optional[RiskSeverity] = None,
+    severity: RiskSeverity | None = None,
     **extra: Any,
 ) -> RiskEvent:
     """创建保证金突破事件.
@@ -217,7 +216,7 @@ def make_drawdown_breach_event(
     source: str,
     drawdown_pct: float,
     window: str = "daily",
-    severity: Optional[RiskSeverity] = None,
+    severity: RiskSeverity | None = None,
     **extra: Any,
 ) -> RiskEvent:
     """创建回撤突破事件 (Shadow fail-fast).
@@ -249,7 +248,7 @@ def make_drawdown_breach_event(
 def make_kill_switch_triggered_event(
     source: str,
     level: int,
-    actions_taken: Optional[list] = None,
+    actions_taken: list | None = None,
     **extra: Any,
 ) -> RiskEvent:
     """创建 KillSwitch 触发归档事件 (HC-2: 仅归档, 不影响同步路径).

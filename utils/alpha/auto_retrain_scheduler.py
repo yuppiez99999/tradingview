@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """自动重训练调度器 — T5.8 交付物.
 
 模块整合 8.4 — ARCHITECTURE §4.2
@@ -43,7 +42,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("auto_retrain")
 
@@ -95,12 +94,12 @@ class RetrainTask:
     ended_at: str = ""
     duration_sec: float = 0.0
     model_name: str = ""
-    new_version: Optional[int] = None
-    metrics: Dict[str, float] = field(default_factory=dict)
+    new_version: int | None = None
+    metrics: dict[str, float] = field(default_factory=dict)
     error: str = ""
-    ab_test_started: Optional[str] = None  # 关联的 A/B 测试名称
+    ab_test_started: str | None = None  # 关联的 A/B 测试名称
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -132,10 +131,10 @@ class AutoRetrainScheduler:
 
     def __init__(
         self,
-        config: Optional[Dict[str, Any]] = None,
-        model_registry: Optional[Any] = None,
-        ab_framework: Optional[Any] = None,
-        drift_monitor: Optional[Any] = None,
+        config: dict[str, Any] | None = None,
+        model_registry: Any | None = None,
+        ab_framework: Any | None = None,
+        drift_monitor: Any | None = None,
     ) -> None:
         """初始化.
 
@@ -165,12 +164,12 @@ class AutoRetrainScheduler:
         self._drift_monitor = drift_monitor
 
         # 状态
-        self._tasks: List[RetrainTask] = []
-        self._current_task: Optional[RetrainTask] = None
+        self._tasks: list[RetrainTask] = []
+        self._current_task: RetrainTask | None = None
         self._lock = threading.RLock()
-        self._scheduler_thread: Optional[threading.Thread] = None
+        self._scheduler_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
-        self._last_retrain_time: Optional[datetime] = None
+        self._last_retrain_time: datetime | None = None
 
         # 任务持久化目录
         self._tasks_dir = _PROJECT_ROOT / "reports" / "auto_retrain"
@@ -180,7 +179,7 @@ class AutoRetrainScheduler:
     # ============================================================
     # 配置加载 (走 ConfigManager, HC-5)
     # ============================================================
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """从 ConfigManager 加载配置."""
         try:
             from utils.config_manager import get_config
@@ -233,7 +232,7 @@ class AutoRetrainScheduler:
         if not tasks_file.exists():
             return
         try:
-            with open(tasks_file, "r", encoding="utf-8") as f:
+            with open(tasks_file, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if line:
@@ -254,7 +253,7 @@ class AutoRetrainScheduler:
     # ============================================================
     # 触发重训练
     # ============================================================
-    def _on_drift_alerts(self, alerts: List[Any]) -> bool:
+    def _on_drift_alerts(self, alerts: list[Any]) -> bool:
         """drift 告警回调 (由 DriftMonitor 调用)."""
         if not self.enabled:
             logger.info("自动重训练未启用, 跳过 drift 触发")
@@ -371,7 +370,7 @@ class AutoRetrainScheduler:
                 if self._current_task is task:
                     self._current_task = None
 
-    def _execute_training_script(self, task: RetrainTask) -> Dict[str, Any]:
+    def _execute_training_script(self, task: RetrainTask) -> dict[str, Any]:
         """执行训练脚本 (subprocess).
 
         Returns:
@@ -411,7 +410,7 @@ class AutoRetrainScheduler:
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return {"success": False, "error": str(e)}
 
-    def _load_trained_model(self, training_result: Dict[str, Any]) -> tuple:
+    def _load_trained_model(self, training_result: dict[str, Any]) -> tuple:
         """加载训练好的模型 (默认实现返回占位符).
 
         实际使用时需子类化或注入 callback 加载真实模型.
@@ -430,9 +429,9 @@ class AutoRetrainScheduler:
         self,
         task: RetrainTask,
         model: Any,
-        metrics: Dict[str, float],
-        training_result: Dict[str, Any],
-    ) -> Optional[Any]:
+        metrics: dict[str, float],
+        training_result: dict[str, Any],
+    ) -> Any | None:
         """注册新模型到 ModelRegistry."""
         try:
             version = self.model_registry.register_model(
@@ -466,7 +465,7 @@ class AutoRetrainScheduler:
             logger.exception("模型注册失败: %s", e)
             return None
 
-    def _start_ab_test(self, task: RetrainTask, new_version: Any) -> Optional[str]:
+    def _start_ab_test(self, task: RetrainTask, new_version: Any) -> str | None:
         """启动 A/B 测试 (champion vs 新版本)."""
         try:
             from utils.alpha.ab_testing import (
@@ -571,7 +570,7 @@ class AutoRetrainScheduler:
     # ============================================================
     # 查询
     # ============================================================
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取调度器状态."""
         with self._lock:
             return {
@@ -591,12 +590,12 @@ class AutoRetrainScheduler:
                 "timestamp": datetime.utcnow().isoformat() + "Z",
             }
 
-    def list_tasks(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def list_tasks(self, limit: int = 50) -> list[dict[str, Any]]:
         """列出历史任务."""
         with self._lock:
             return [t.to_dict() for t in self._tasks[-limit:]]
 
-    def get_task(self, task_id: str) -> Optional[RetrainTask]:
+    def get_task(self, task_id: str) -> RetrainTask | None:
         """获取指定任务详情."""
         with self._lock:
             for t in self._tasks:

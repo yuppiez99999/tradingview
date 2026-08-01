@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """检查 trade_plan 字段完整性"""
 import json
 from pathlib import Path

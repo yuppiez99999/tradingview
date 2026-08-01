@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """自我进化框架第 1 阶段验证脚本.
 
 按 ARCHITECTURE_自我进化框架.md §8.1 执行 6 项验证:
@@ -258,7 +257,7 @@ try:
         # 读取并解析
         daily_returns: list[float] = []
         original_size = jsonl_path.stat().st_size
-        with open(jsonl_path, "r", encoding="utf-8") as f:
+        with open(jsonl_path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:

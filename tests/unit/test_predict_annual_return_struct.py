@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """v8.4 predict_annual_return_struct 结构化输出测试.
 
 验证:

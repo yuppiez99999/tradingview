@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """检查关键月份缓存文件的修改时间"""
 import datetime
 from pathlib import Path

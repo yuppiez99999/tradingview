@@ -7,7 +7,6 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
-from typing import Dict, List, Optional
 
 logger = logging.getLogger("v76.hedge.commander")
 
@@ -23,7 +22,7 @@ class HedgeUrgency(IntEnum):
 class HedgeCommanderConfig:
     target_beta: float = 0.30
     max_beta_tolerance: float = 0.15  # ±0.15 容忍
-    urgency_thresholds: Dict[str, float] = field(
+    urgency_thresholds: dict[str, float] = field(
         default_factory=lambda: {"routine": 0.10, "elevated": 0.25, "urgent": 0.50}
     )
     max_unhedged_days: int = 2  # 2 天未对齐 → CRITICAL
@@ -34,11 +33,11 @@ class HedgeCommanderConfig:
 class HedgeExecutionCommander:
     """桥水式: 每日校验 Beta 对齐 → 差距 > 阈值 → 强制发单 → 确认"""
 
-    def __init__(self, config: Optional[HedgeCommanderConfig] = None):
+    def __init__(self, config: HedgeCommanderConfig | None = None):
         self.cfg = config or HedgeCommanderConfig()
-        self._last_hedge_time: Optional[datetime] = None
+        self._last_hedge_time: datetime | None = None
         self._consecutive_misalign_days: int = 0
-        self._execution_log: List[dict] = []
+        self._execution_log: list[dict] = []
 
     def assess(
         self,

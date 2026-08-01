@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 """创建 V7.1 验证脚本 (基于 V7-Model 验证脚本)"""
 src = r'e:\各种PY程序\28-终极量化交易系统8.4\_run_dsr_walkforward_v7_model.py'
 dst = r'e:\各种PY程序\28-终极量化交易系统8.4\_run_dsr_walkforward_v71.py'
 
-with open(src, 'r', encoding='utf-8') as f:
+with open(src, encoding='utf-8') as f:
     content = f.read()
 
 # 替换文件名模式: v7_model_regime_aware -> v71_signal_penalty

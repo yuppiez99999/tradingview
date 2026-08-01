@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T02: 修复 Fix 3 (kill_switch.py line 101)"""
 from pathlib import Path
 

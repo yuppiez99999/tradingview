@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ai_decision.eod_review 测试套件 — EOD 审计日志自动复盘
 
 覆盖路线图步骤 7 的 4 个验收场景:
@@ -489,7 +488,7 @@ def test_save_creates_md_and_json():
     assert os.path.getsize(json_path) > 0
 
     # JSON 内容可反序列化
-    with open(json_path, "r", encoding="utf-8") as fh:
+    with open(json_path, encoding="utf-8") as fh:
         loaded = json.load(fh)
     assert loaded["date"] == "2026-07-28"
     assert "decision_distribution" in loaded

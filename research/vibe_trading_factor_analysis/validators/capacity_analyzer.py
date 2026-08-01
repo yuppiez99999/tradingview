@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """CapacityAnalyzer - E1 容量分析（CIO 视角 v1.0）
 
 估算因子可承载的美元容量。锁定参数（DECISION v1.0）：
@@ -11,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 import numpy as np
 
@@ -37,7 +36,7 @@ class CapacityResult:
     pass_capacity: bool = False
     reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -58,7 +57,7 @@ class CapacityAnalyzer:
         ...     pass
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         c = config or {}
         self.participation_cap = float(c.get("participation_cap", PARTICIPATION_CAP))
         self.capacity_ratio_threshold = float(
@@ -72,8 +71,8 @@ class CapacityAnalyzer:
 
     def analyze(
         self,
-        factor_values: Dict[str, float],
-        adv_data: Dict[str, float],
+        factor_values: dict[str, float],
+        adv_data: dict[str, float],
         turnover: float,
         portfolio_value: float,
         factor_name: str = "candidate",
@@ -145,8 +144,8 @@ class CapacityAnalyzer:
 
 
 def quick_analyze(
-    factor_values: Dict[str, float],
-    adv_data: Dict[str, float],
+    factor_values: dict[str, float],
+    adv_data: dict[str, float],
     turnover: float,
     portfolio_value: float,
     factor_name: str = "candidate",

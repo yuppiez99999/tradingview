@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 十五五规划年度阶段管理器 v1.0
 ================================
@@ -39,7 +38,7 @@ import logging
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("phase_manager")
 
@@ -50,7 +49,7 @@ REPORT_DIR = BASE_DIR / "reports"
 # ============================================================
 # 5 年度阶段定义 (来自十五五规划投资计划 8.1 节)
 # ============================================================
-ANNUAL_PHASES: Dict[str, Dict[str, Any]] = {
+ANNUAL_PHASES: dict[str, dict[str, Any]] = {
     "2026": {
         "name": "建仓期",
         "period": "2026-07-14 to 2026-12-31",
@@ -146,7 +145,7 @@ ANNUAL_PHASES: Dict[str, Dict[str, Any]] = {
 # ============================================================
 # 2030 清仓 Q1-Q4 详细动作
 # ============================================================
-LIQUIDATION_QUARTERLY_ACTIONS: Dict[str, Dict[str, Any]] = {
+LIQUIDATION_QUARTERLY_ACTIONS: dict[str, dict[str, Any]] = {
     "Q1": {
         "name": "保留核心+方向性清零",
         "period": "2030-01-01 to 2030-03-31",
@@ -248,11 +247,11 @@ class PhaseInfo:
     target_return: float
     max_drawdown: float
     leverage_target: float
-    actions: Dict[str, str] = field(default_factory=dict)
+    actions: dict[str, str] = field(default_factory=dict)
     risk_focus: str = ""
     is_liquidation_year: bool = False
     current_quarter: str = ""  # Q1/Q2/Q3/Q4
-    liquidation_actions: Optional[Dict] = None
+    liquidation_actions: dict | None = None
 
 
 @dataclass
@@ -263,10 +262,10 @@ class QuarterlyReviewResult:
     quarter: str = ""  # Q1/Q2/Q3/Q4
     is_quarter_end: bool = False
     stress_test_triggered: bool = False
-    stress_test_result: Optional[Dict] = None
-    strategy_effectiveness: Dict[str, float] = field(default_factory=dict)
+    stress_test_result: dict | None = None
+    strategy_effectiveness: dict[str, float] = field(default_factory=dict)
     rebalance_needed: bool = False
-    actions: List[str] = field(default_factory=list)
+    actions: list[str] = field(default_factory=list)
 
 
 class PhaseManager:
@@ -298,7 +297,7 @@ class PhaseManager:
     # --------------------------------------------------------
     # 当前阶段判断
     # --------------------------------------------------------
-    def get_current_phase(self, today: Optional[date] = None) -> PhaseInfo:
+    def get_current_phase(self, today: date | None = None) -> PhaseInfo:
         """获取当前年度阶段信息
 
         Args:
@@ -374,7 +373,7 @@ class PhaseManager:
     # --------------------------------------------------------
     # 季度末判断
     # --------------------------------------------------------
-    def is_quarter_end(self, today: Optional[date] = None) -> bool:
+    def is_quarter_end(self, today: date | None = None) -> bool:
         """判断是否为季度末
 
         季度末定义: 3/6/9/12 月的最后一个交易日
@@ -395,7 +394,7 @@ class PhaseManager:
         # 当前日期是当月最后3天内 (考虑交易日提前)
         return today.day >= last_day.day - 2
 
-    def get_current_quarter(self, today: Optional[date] = None) -> str:
+    def get_current_quarter(self, today: date | None = None) -> str:
         """获取当前季度
 
         Returns:
@@ -409,9 +408,9 @@ class PhaseManager:
     # --------------------------------------------------------
     def trigger_quarterly_review(
         self,
-        positions: Optional[List[Dict]] = None,
+        positions: list[dict] | None = None,
         portfolio_value: float = 5_000_000,
-        today: Optional[date] = None,
+        today: date | None = None,
     ) -> QuarterlyReviewResult:
         """触发季度评估
 
@@ -438,7 +437,7 @@ class PhaseManager:
             is_quarter_end=self.is_quarter_end(today),
         )
 
-        actions: List[str] = []
+        actions: list[str] = []
 
         # 1. 触发压力测试
         if result.is_quarter_end:
@@ -476,7 +475,7 @@ class PhaseManager:
         # 3. 偏离检查 (需要实际持仓数据)
         if positions:
             # 简化: 检查单一行业集中度
-            sector_weights: Dict[str, float] = {}
+            sector_weights: dict[str, float] = {}
             for p in positions:
                 sector = p.get("sector", "unknown")
                 weight = float(p.get("weight", 0))
@@ -511,12 +510,12 @@ class PhaseManager:
     # --------------------------------------------------------
     # 2030 清仓流程
     # --------------------------------------------------------
-    def is_liquidation_phase(self, today: Optional[date] = None) -> bool:
+    def is_liquidation_phase(self, today: date | None = None) -> bool:
         """判断是否处于清仓阶段 (2030 年)"""
         today = today or date.today()
         return today.year == 2030 and today <= self.PLAN_END_DATE
 
-    def get_liquidation_actions(self, today: Optional[date] = None) -> Optional[Dict]:
+    def get_liquidation_actions(self, today: date | None = None) -> dict | None:
         """获取当前清仓动作 (Q1-Q4 分步)
 
         Returns:
@@ -529,7 +528,7 @@ class PhaseManager:
         quarter = self.get_current_quarter(today)
         return LIQUIDATION_QUARTERLY_ACTIONS.get(quarter)
 
-    def get_liquidation_order(self) -> List[str]:
+    def get_liquidation_order(self) -> list[str]:
         """获取清仓顺序 (来自计划 10.1 节)
 
         清仓优先级:
@@ -555,8 +554,8 @@ class PhaseManager:
     def check_early_exit_trigger(
         self,
         current_drawdown: float,
-        today: Optional[date] = None,
-    ) -> Optional[Dict]:
+        today: date | None = None,
+    ) -> dict | None:
         """检查提前退出触发条件 (来自计划 10.2 节)
 
         触发条件:
@@ -632,7 +631,7 @@ class PhaseManager:
     # --------------------------------------------------------
     # 摘要
     # --------------------------------------------------------
-    def summary(self, today: Optional[date] = None) -> str:
+    def summary(self, today: date | None = None) -> str:
         """生成当前阶段摘要"""
         today = today or date.today()
         phase = self.get_current_phase(today)

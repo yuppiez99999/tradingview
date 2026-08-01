@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """策略多维评估器 — 自我进化框架第 1 阶段交付物.
 
 模块整合 8.4 — ARCHITECTURE_自我进化框架 §4.1
@@ -47,7 +46,7 @@ import math
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -108,12 +107,12 @@ class ScoreReport:
 
     # Public Score (内层 agent 可见)
     public_score: float = 0.0  # 样本内综合得分 (0.0-1.0)
-    public_metrics: Dict[str, float] = field(default_factory=dict)
+    public_metrics: dict[str, float] = field(default_factory=dict)
     # 样本内指标: annual_return, sharpe, ic_mean, ic_ir
 
     # Private Score (外层决策用)
     private_score: float = 0.0  # 样本外综合得分 (0.0-1.0)
-    private_metrics: Dict[str, float] = field(default_factory=dict)
+    private_metrics: dict[str, float] = field(default_factory=dict)
     # 样本外指标: dsr, max_drawdown, sharpe_cv, wf_sharpe_decay
 
     # 反作弊指标
@@ -130,7 +129,7 @@ class ScoreReport:
     is_degraded: bool = False  # 是否降级报告
     degraded_reason: str = ""  # 降级原因
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典 (用于持久化)."""
         return {
             "public_score": round(self.public_score, 4),
@@ -222,9 +221,9 @@ class StrategyEvaluator:
     def evaluate(
         self,
         daily_returns: Sequence[float],
-        dates: Optional[Sequence[str]] = None,
-        signal_history: Optional[Dict[str, Any]] = None,
-        n_trials: Optional[int] = None,
+        dates: Sequence[str] | None = None,
+        signal_history: dict[str, Any] | None = None,
+        n_trials: int | None = None,
     ) -> ScoreReport:
         """评估策略表现, 返回 Public/Private 分离的评分报告.
 
@@ -297,15 +296,15 @@ class StrategyEvaluator:
     def _compute_public_score(
         self,
         daily_returns: Sequence[float],
-        signal_history: Dict[str, Any],
-    ) -> Tuple[float, Dict[str, float]]:
+        signal_history: dict[str, Any],
+    ) -> tuple[float, dict[str, float]]:
         """计算样本内 Public Score.
 
         维度:
             - 绝对收益 (0.15): 年化收益率 vs 基准
             - 风险调整 (0.15): 样本内 Sharpe
         """
-        metrics: Dict[str, float] = {}
+        metrics: dict[str, float] = {}
 
         # 年化收益率
         annual_return = self._compute_annual_return(daily_returns)
@@ -349,10 +348,10 @@ class StrategyEvaluator:
     def _compute_private_score(
         self,
         daily_returns: Sequence[float],
-        signal_history: Dict[str, Any],
-        dates: Optional[Sequence[str]],
+        signal_history: dict[str, Any],
+        dates: Sequence[str] | None,
         n_trials: int,
-    ) -> Tuple[float, Dict[str, float]]:
+    ) -> tuple[float, dict[str, float]]:
         """计算样本外 Private Score.
 
         维度:
@@ -361,7 +360,7 @@ class StrategyEvaluator:
             - 反作弊 (0.20): DSR + PIT 通过率
             - 复杂度惩罚 (0.10): 特征数 / 参数数
         """
-        metrics: Dict[str, float] = {}
+        metrics: dict[str, float] = {}
         n = len(daily_returns)
 
         # 1. 稳定性: 最大回撤
@@ -429,7 +428,7 @@ class StrategyEvaluator:
         # 衰减 < 0.2 得满分, > 0.8 得 0 分
         return min(1.0, max(0.0, 1.0 - wf_decay / 0.8))
 
-    def _score_anti_cheat_dsr(self, dsr_result: Dict[str, Any]) -> float:
+    def _score_anti_cheat_dsr(self, dsr_result: dict[str, Any]) -> float:
         """反作弊打分: DSR 结果."""
         is_pass = dsr_result.get("is_pass", False)
         dsr_value = dsr_result.get("deflated_sharpe_ratio", 0.0)
@@ -458,10 +457,10 @@ class StrategyEvaluator:
     def _compute_reward_hacking_risk(
         self,
         daily_returns: Sequence[float],
-        signal_history: Dict[str, Any],
-        public_metrics: Dict[str, float],
-        private_metrics: Dict[str, float],
-    ) -> Tuple[float, int, float]:
+        signal_history: dict[str, Any],
+        public_metrics: dict[str, float],
+        private_metrics: dict[str, float],
+    ) -> tuple[float, int, float]:
         """计算 Reward Hacking Risk.
 
         Returns:
@@ -498,7 +497,7 @@ class StrategyEvaluator:
 
         return risk, pit_violations, overfit_score
 
-    def _check_pit_violations(self, signal_history: Dict[str, Any]) -> int:
+    def _check_pit_violations(self, signal_history: dict[str, Any]) -> int:
         """检查 PIT (Point-in-Time) 违规数.
 
         复用 v8.3_institutional/src/validation/pit_checker.py (6 维度完整检测).
@@ -578,7 +577,7 @@ class StrategyEvaluator:
         private_score: float,
         rh_risk: float,
         public_score: float,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """根据评分生成决策建议.
 
         Returns:
@@ -658,7 +657,7 @@ class StrategyEvaluator:
         window = min(60, n // 3)
         if window < 10:
             return 0.0
-        rolling_sharpes: List[float] = []
+        rolling_sharpes: list[float] = []
         for i in range(window, n):
             chunk = daily_returns[i - window : i]
             rolling_sharpes.append(self._compute_sharpe(chunk))
@@ -708,7 +707,7 @@ class StrategyEvaluator:
                 # 折叠生成失败, 降级
                 return self._compute_wf_sharpe_decay_simple(daily_returns)
 
-            decays: List[float] = []
+            decays: list[float] = []
             for fold in folds:
                 train_data = daily_returns[fold.train_start : fold.train_end]
                 test_data = daily_returns[fold.test_start : fold.test_end]
@@ -753,7 +752,7 @@ class StrategyEvaluator:
         decay = (sharpe_first - sharpe_second) / abs(sharpe_first)
         return max(-1.0, min(1.0, decay))
 
-    def _compute_dsr(self, daily_returns: Sequence[float], n_trials: int) -> Optional[Dict[str, Any]]:
+    def _compute_dsr(self, daily_returns: Sequence[float], n_trials: int) -> dict[str, Any] | None:
         """计算 DSR (复用 deflated_sharpe.py).
 
         Returns:
@@ -823,7 +822,7 @@ class StrategyEvaluator:
 
     def evaluate_from_jsonl(
         self,
-        jsonl_path: Optional[str] = None,
+        jsonl_path: str | None = None,
     ) -> ScoreReport:
         """从 daily_returns.jsonl 读取数据并评估 (只读).
 
@@ -840,9 +839,9 @@ class StrategyEvaluator:
         if not path.exists():
             return self._build_degraded_report([], reason=f"file_not_found: {jsonl_path}")
 
-        daily_returns: List[float] = []
+        daily_returns: list[float] = []
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:

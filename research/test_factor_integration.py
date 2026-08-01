@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 全量因子库集成测试
 测试 Vibe-Trading 462 个因子 + GTJA191 189 个因子 + Alpha101 + QLib158

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """V9 基线回归测试 — 可执行入口.
 
 模块整合 8.4 — T1.8
@@ -30,7 +29,6 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import List
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -77,7 +75,7 @@ def print_baseline_summary() -> int:
     except FileNotFoundError as e:
         logger.error("DSR maxpass JSON 不存在: %s", e)
         return 2
-    with open(dsr_path, "r", encoding="utf-8") as f:
+    with open(dsr_path, encoding="utf-8") as f:
         dsr = json.load(f)
 
     # 回测 JSON
@@ -86,7 +84,7 @@ def print_baseline_summary() -> int:
     except FileNotFoundError as e:
         logger.error("回测 JSON 不存在: %s", e)
         return 2
-    with open(bt_path, "r", encoding="utf-8") as f:
+    with open(bt_path, encoding="utf-8") as f:
         bt = json.load(f)
 
     logger.info("=" * 72)
@@ -129,7 +127,7 @@ def print_baseline_summary() -> int:
 # pytest 调用
 # ============================================================
 
-def run_pytest(extra_args: List[str], include_nightly: bool = False) -> int:
+def run_pytest(extra_args: list[str], include_nightly: bool = False) -> int:
     """通过 pytest API 运行回归测试.
 
     Args:

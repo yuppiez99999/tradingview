@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """策略层健康度采集器 — 三层面自我进化 Stage 1.
 
 模块整合 8.4 — ARCHITECTURE_三层面进化 §第1阶段
@@ -30,7 +29,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ from utils.alpha.health_metrics import LayerScore
 # 常量
 # ============================================================
 
-DEFAULT_WEIGHTS: Dict[str, float] = {
+DEFAULT_WEIGHTS: dict[str, float] = {
     "private_score": 0.40,
     "public_score": 0.20,
     "anti_cheat": 0.20,
@@ -70,8 +69,8 @@ class StrategyHealthLayer:
 
     def __init__(
         self,
-        weights: Optional[Dict[str, float]] = None,
-        decisions_path: Optional[Path] = None,
+        weights: dict[str, float] | None = None,
+        decisions_path: Path | None = None,
         feature_flag_name: str = FLAG_NAME,
     ) -> None:
         self.feature_flag_name = feature_flag_name
@@ -99,7 +98,7 @@ class StrategyHealthLayer:
     # ============================================================
     # 配置加载 (HC-5)
     # ============================================================
-    def _load_weights(self) -> Dict[str, float]:
+    def _load_weights(self) -> dict[str, float]:
         try:
             from utils.config_manager import get_config
             cfg = get_config("evolution") or {}
@@ -169,7 +168,7 @@ class StrategyHealthLayer:
     # ============================================================
     # 子指标采集
     # ============================================================
-    def _read_latest_decision(self) -> Optional[Dict[str, Any]]:
+    def _read_latest_decision(self) -> dict[str, Any] | None:
         """读取 decisions.jsonl 最新一条记录 (只读)."""
         try:
             if not self.decisions_path.exists():

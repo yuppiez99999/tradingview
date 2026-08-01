@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 实时ETF资金流向监控 + 盘后报告
 数据源: iFinD MCP > Wind MCP > tushare > yfinance
@@ -135,7 +134,7 @@ def _load_local_price(etf_code: str) -> Optional[Dict]:
     for path in candidates:
         if path.endswith('.csv') and os.path.exists(path):
             try:
-                with open(path, 'r', encoding='utf-8-sig') as f:
+                with open(path, encoding='utf-8-sig') as f:
                     reader = csv.DictReader(f)
                     for row in reader:
                         rows.append({
@@ -148,7 +147,7 @@ def _load_local_price(etf_code: str) -> Optional[Dict]:
                 rows = []
         elif path.endswith('.json') and not rows and os.path.exists(path):
             try:
-                with open(path, 'r', encoding='utf-8') as f:
+                with open(path, encoding='utf-8') as f:
                     raw = json.load(f)
                 if isinstance(raw, list):
                     rows = [{

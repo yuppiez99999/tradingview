@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """批量更新500万建仓计划，补全28标的"""
 import json
 from pathlib import Path
@@ -6,7 +5,7 @@ from pathlib import Path
 BASE = Path(r"e:\各种PY程序\28-终极量化交易系统7.1")
 PLAN_FILE = BASE / "500万建仓计划_20260706.json"
 
-with open(PLAN_FILE, "r", encoding="utf-8") as f:
+with open(PLAN_FILE, encoding="utf-8") as f:
     plan = json.load(f)
 
 new_symbols = [

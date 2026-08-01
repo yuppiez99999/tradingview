@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 单标的完整报告验证：GTJA191 Alpha144 -> FactorModel -> 交易建议输出
 """

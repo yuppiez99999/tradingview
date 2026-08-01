@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """yizhao数据加载器桥接"""
 
 import logging

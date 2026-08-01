@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 金融文本情感分析引擎
 基于 YiZhao-FinDataSet 构建, 提供多维度情感与语义分析

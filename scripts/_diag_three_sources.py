@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 三大数据源数据质量诊断与更新脚本
 
@@ -310,7 +309,7 @@ def check_shadow_state_and_returns() -> dict:
     nonzero_count = 0
     parse_errors = 0
 
-    with open(jsonl_path, "r", encoding="utf-8") as f:
+    with open(jsonl_path, encoding="utf-8") as f:
         for i, line in enumerate(f, 1):
             line = line.strip()
             if not line:

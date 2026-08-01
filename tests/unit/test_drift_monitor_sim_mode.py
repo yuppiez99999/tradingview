@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """GAP-6 漂移监控 sim_mode 激活测试.
 
 ECC mle-workflow MLE-10 修复验证:
@@ -470,7 +469,7 @@ class TestRunDailyCheck:
         # 找持久化文件
         report_files = list(clean_storage_dir.glob("drift_report_*.json"))
         assert len(report_files) >= 1, "应生成 drift_report_{date}.json"
-        with open(report_files[0], "r", encoding="utf-8") as f:
+        with open(report_files[0], encoding="utf-8") as f:
             persisted = json.load(f)
         assert isinstance(persisted, list)
         assert len(persisted) == len(reports)

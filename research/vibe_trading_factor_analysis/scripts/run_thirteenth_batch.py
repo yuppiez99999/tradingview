@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """S3 第十三批次流水线跑批脚本（P2.2 v6.2c Config_E 超激进参数完整验证）
 
 重大背景：
@@ -424,11 +423,16 @@ v6.2c 将 Config_E 参数应用到 PipelineOrchestrator 默认配置，验证 MA
         g4 = f.get("g4_economic_logic") or {}
         shadow = f.get("shadow_result") or {}
         failed_gates = []
-        if not g1.get("passed"): failed_gates.append("G1")
-        if not g2.get("passed"): failed_gates.append("G2")
-        if not g3.get("passed"): failed_gates.append("G3")
-        if not g4.get("passed"): failed_gates.append("G4")
-        if not shadow.get("pass_shadow"): failed_gates.append("Shadow")
+        if not g1.get("passed"):
+            failed_gates.append("G1")
+        if not g2.get("passed"):
+            failed_gates.append("G2")
+        if not g3.get("passed"):
+            failed_gates.append("G3")
+        if not g4.get("passed"):
+            failed_gates.append("G4")
+        if not shadow.get("pass_shadow"):
+            failed_gates.append("Shadow")
         content += f"""⚠️ MARGIN_EXP 未能走完 8 级流水线。
 
 失败的 Gate: {", ".join(failed_gates) if failed_gates else "无"}

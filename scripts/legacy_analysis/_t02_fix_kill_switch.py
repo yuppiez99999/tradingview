@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T02: 修复 kill_switch.py 的 9 处 broad-except (硬约束: 风控路径禁止)
 
 修复策略 (按硬约束 HC: 风控路径禁止 broad exception):

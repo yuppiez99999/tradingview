@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """风控事件总线 — 模块整合 8.4 (T3.1).
 
 任务: T3.1
@@ -38,7 +37,7 @@ from collections import defaultdict, deque
 from datetime import datetime
 from pathlib import Path
 from threading import RLock
-from typing import Callable, Deque, Dict, List, Optional, Sequence
+from typing import Callable, Sequence
 
 from utils.infra.feature_flags import is_enabled
 from utils.risk.risk_event import (
@@ -98,23 +97,23 @@ class RiskBus:
         >>> decision = bus.sync_decide(event)
     """
 
-    _instance: Optional["RiskBus"] = None
+    _instance: RiskBus | None = None
     _lock: RLock = RLock()
 
-    def __init__(self, audit_log_dir: Optional[Path] = None) -> None:
+    def __init__(self, audit_log_dir: Path | None = None) -> None:
         """初始化总线.
 
         Args:
             audit_log_dir: 审计日志目录 (None 时使用默认路径)
         """
-        self._subscribers: Dict[RiskEventType, List[Subscriber]] = defaultdict(list)
-        self._decision_subscribers: Dict[RiskEventType, List[DecisionSubscriber]] = defaultdict(list)
-        self._event_history: Deque[RiskEvent] = deque(maxlen=EVENT_HISTORY_SIZE)
+        self._subscribers: dict[RiskEventType, list[Subscriber]] = defaultdict(list)
+        self._decision_subscribers: dict[RiskEventType, list[DecisionSubscriber]] = defaultdict(list)
+        self._event_history: deque[RiskEvent] = deque(maxlen=EVENT_HISTORY_SIZE)
         self._audit_log_dir = audit_log_dir or _AUDIT_LOG_DIR
         self._audit_log_dir.mkdir(parents=True, exist_ok=True)
         # 异步队列 (仅 USE_RISK_BUS_EVENT_DRIVEN=True 时启用)
-        self._async_queue: Optional[asyncio.Queue] = None
-        self._async_consumer_task: Optional[asyncio.Task] = None
+        self._async_queue: asyncio.Queue | None = None
+        self._async_consumer_task: asyncio.Task | None = None
         logger.info(
             "RiskBus 初始化 | audit_log_dir=%s | flag=%s",
             self._audit_log_dir,
@@ -122,7 +121,7 @@ class RiskBus:
         )
 
     @classmethod
-    def get_instance(cls) -> "RiskBus":
+    def get_instance(cls) -> RiskBus:
         """获取单例 (线程安全)."""
         with cls._lock:
             if cls._instance is None:
@@ -309,7 +308,7 @@ class RiskBus:
                 source="risk_bus",
             )
 
-        decisions: List[RiskDecision] = []
+        decisions: list[RiskDecision] = []
         for decider in deciders:
             try:
                 # 简单超时保护 (无法真正中断, 但至少捕获异常)
@@ -341,9 +340,9 @@ class RiskBus:
     # ============================================================
     def get_recent_events(
         self,
-        event_type: Optional[RiskEventType] = None,
+        event_type: RiskEventType | None = None,
         limit: int = 100,
-    ) -> List[RiskEvent]:
+    ) -> list[RiskEvent]:
         """获取最近的事件.
 
         Args:
@@ -363,7 +362,7 @@ class RiskBus:
 
     def get_subscriber_count(
         self,
-        event_type: Optional[RiskEventType] = None,
+        event_type: RiskEventType | None = None,
     ) -> int:
         """获取订阅者数量."""
         with self._lock:
@@ -373,7 +372,7 @@ class RiskBus:
 
     def get_decision_subscriber_count(
         self,
-        event_type: Optional[RiskEventType] = None,
+        event_type: RiskEventType | None = None,
     ) -> int:
         """获取决策订阅者数量."""
         with self._lock:
@@ -532,7 +531,7 @@ class RiskDecisionAggregator:
 # ============================================================
 # 模块级快捷函数
 # ============================================================
-_default_bus: Optional[RiskBus] = None
+_default_bus: RiskBus | None = None
 
 
 def get_bus() -> RiskBus:

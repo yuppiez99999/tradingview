@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """LLM 多模型路由器 — 终极量化交易系统 8.4 (T2.1).
 
 模块整合 8.4 — ARCHITECTURE §2.3 / ADR-004
@@ -40,7 +39,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, cast
+from typing import Any, Callable, Optional, cast
 
 # 复用 ConfigManager 4 级优先级 (HC-5)
 from utils.config_manager import get_config
@@ -108,7 +107,7 @@ class LLMRouterError(Exception):
 class AllProvidersFailedError(LLMRouterError):
     """所有 provider 均失败."""
 
-    def __init__(self, message: str, tried_providers: List[str], last_error: Optional[Exception] = None) -> None:
+    def __init__(self, message: str, tried_providers: list[str], last_error: Exception | None = None) -> None:
         super().__init__(message)
         self.tried_providers = tried_providers
         self.last_error = last_error
@@ -151,7 +150,7 @@ class CallRecord:
         self.error_message = error_message
         self.response_preview = response_preview
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典 (JSONL 序列化)."""
         return {
             "timestamp": self.timestamp,
@@ -192,15 +191,15 @@ class LLMRouter:
         ...     print(reply)
     """
 
-    _instance: Optional["LLMRouter"] = None
+    _instance: LLMRouter | None = None
     _lock: threading.RLock = threading.RLock()
 
     def __init__(self) -> None:
-        self._config: Dict[str, Any] = {}
-        self._settings: Dict[str, Any] = {}
-        self._providers_config: Dict[str, Dict[str, Any]] = {}
-        self._fallback_chain: List[str] = []
-        self._provider_fns: Dict[str, ProviderFn] = {}
+        self._config: dict[str, Any] = {}
+        self._settings: dict[str, Any] = {}
+        self._providers_config: dict[str, dict[str, Any]] = {}
+        self._fallback_chain: list[str] = []
+        self._provider_fns: dict[str, ProviderFn] = {}
         self._audit_log_dir: Path = _AUDIT_LOG_DIR
         self._audit_log_enabled: bool = True
         self._feature_flag_name: str = "USE_LLM_REPORT_ANALYZER"
@@ -218,7 +217,7 @@ class LLMRouter:
         self._register_default_providers()
 
     @classmethod
-    def get_instance(cls) -> "LLMRouter":
+    def get_instance(cls) -> LLMRouter:
         """获取单例 (线程安全)."""
         with cls._lock:
             if cls._instance is None:
@@ -341,9 +340,9 @@ class LLMRouter:
         self,
         prompt: str,
         system: str = "",
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-    ) -> Optional[str]:
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str | None:
         """多模型 fallback 对话.
 
         Feature Flag 透传 (HC-1):
@@ -376,9 +375,9 @@ class LLMRouter:
         self,
         prompt: str,
         system: str = "",
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-    ) -> Optional[str]:
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str | None:
         """深度思考模式 (主: DeepSeek R1 / 备: Ollama deepseek-r1:14b).
 
         适用于复杂决策分析 (对冲/仓位/多标的联动).
@@ -425,7 +424,7 @@ class LLMRouter:
         logger.info("chat_deep 降级到普通 chat")
         return self.chat(prompt, system, temp, tokens)
 
-    def test_connection(self) -> Dict[str, Any]:
+    def test_connection(self) -> dict[str, Any]:
         """连通性探测.
 
         Returns:
@@ -435,8 +434,8 @@ class LLMRouter:
                 "status": "ok" / "degraded"
             }
         """
-        providers_status: Dict[str, bool] = {}
-        available: Optional[str] = None
+        providers_status: dict[str, bool] = {}
+        available: str | None = None
 
         for name in self._fallback_chain:
             provider_cfg = self._providers_config.get(name, {})
@@ -470,7 +469,7 @@ class LLMRouter:
             "status": "ok" if available else "degraded",
         }
 
-    def list_providers(self) -> List[Dict[str, Any]]:
+    def list_providers(self) -> list[dict[str, Any]]:
         """列出所有已注册 provider (审计用)."""
         result = []
         for name in self._fallback_chain:
@@ -498,10 +497,10 @@ class LLMRouter:
         system: str,
         temperature: float,
         max_tokens: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """执行 fallback 链."""
-        tried_providers: List[str] = []
-        last_error: Optional[Exception] = None
+        tried_providers: list[str] = []
+        last_error: Exception | None = None
 
         for name in self._fallback_chain:
             provider_cfg = self._providers_config.get(name, {})
@@ -609,9 +608,9 @@ class LLMRouter:
         self,
         prompt: str,
         system: str,
-        temperature: Optional[float],
-        max_tokens: Optional[int],
-    ) -> Optional[str]:
+        temperature: float | None,
+        max_tokens: int | None,
+    ) -> str | None:
         """透传到旧 llm_client (HC-1: flag=False 时的默认行为)."""
         try:
             import importlib
@@ -626,7 +625,7 @@ class LLMRouter:
                 )
                 return None
             # 旧 llm_client.chat(prompt, system, temperature, max_tokens)
-            kwargs: Dict[str, Any] = {}
+            kwargs: dict[str, Any] = {}
             if temperature is not None:
                 kwargs["temperature"] = temperature
             if max_tokens is not None:
@@ -666,7 +665,7 @@ class LLMRouter:
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """OmniRoute 网关 (P0 最高优先级) — 290+ provider, 500+ 模型.
 
         由 OmniRouteClient 内部处理:
@@ -691,7 +690,7 @@ class LLMRouter:
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """DeepSeek V3 (deepseek-chat) — OpenAI 兼容接口, 主 LLM."""
         cfg = self._providers_config.get("deepseek", {})
         base_url = os.environ.get(
@@ -725,7 +724,7 @@ class LLMRouter:
         system: str,
         temperature: float,
         max_tokens: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """DeepSeek R1 (deepseek-reasoner) 云端推理模型, 用于复杂决策.
 
         支持 reasoning_content 字段 (思考过程).
@@ -750,7 +749,7 @@ class LLMRouter:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}",
             }
-            messages: List[Dict[str, str]] = []
+            messages: list[dict[str, str]] = []
             if system:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
@@ -789,7 +788,7 @@ class LLMRouter:
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """豆包 Speed (火山引擎 Ark) — OpenAI 兼容接口."""
         cfg = self._providers_config.get("doubao", {})
         base_url = os.environ.get(
@@ -825,7 +824,7 @@ class LLMRouter:
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """智谱 GLM-5 — OpenAI 兼容接口."""
         cfg = self._providers_config.get("glm", {})
         base_url = os.environ.get(
@@ -859,7 +858,7 @@ class LLMRouter:
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """SiliconFlow — OpenAI 兼容接口."""
         cfg = self._providers_config.get("siliconflow", {})
         base_url = os.environ.get(
@@ -893,7 +892,7 @@ class LLMRouter:
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Ollama 本地 — OpenAI 兼容接口 (Ollama 兼容 OpenAI API)."""
         cfg = self._providers_config.get("ollama", {})
         base_url = os.environ.get(
@@ -929,7 +928,7 @@ class LLMRouter:
         system: str,
         temperature: float,
         max_tokens: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Ollama 深度推理模型 (deepseek-r1:14b)."""
         cfg = self._providers_config.get("ollama", {})
         base_url = os.environ.get(
@@ -946,7 +945,7 @@ class LLMRouter:
         try:
             url = base_url.rstrip("/") + "/api/chat"
             headers = {"Content-Type": "application/json"}
-            messages: List[Dict[str, str]] = []
+            messages: list[dict[str, str]] = []
             if system:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
@@ -992,7 +991,7 @@ class LLMRouter:
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """OpenAI 兼容 chat/completions 调用.
 
         适用于: 豆包 / GLM / SiliconFlow / Ollama (OpenAI 兼容端点)
@@ -1002,7 +1001,7 @@ class LLMRouter:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
         }
-        messages: List[Dict[str, str]] = []
+        messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
@@ -1017,7 +1016,7 @@ class LLMRouter:
         ).encode("utf-8")
 
         # 单 provider 内重试
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for attempt in range(1 + self._max_retries):
             try:
                 req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
@@ -1073,9 +1072,9 @@ class LLMRouter:
 def chat(
     prompt: str,
     system: str = "",
-    temperature: Optional[float] = None,
-    max_tokens: Optional[int] = None,
-) -> Optional[str]:
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+) -> str | None:
     """快捷函数: 多模型 fallback 对话.
 
     Usage:
@@ -1088,19 +1087,19 @@ def chat(
 def chat_deep(
     prompt: str,
     system: str = "",
-    temperature: Optional[float] = None,
-    max_tokens: Optional[int] = None,
-) -> Optional[str]:
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+) -> str | None:
     """快捷函数: 深度思考模式 (主: DeepSeek R1 / 备: Ollama deepseek-r1:14b)."""
     return LLMRouter.get_instance().chat_deep(prompt, system, temperature, max_tokens)
 
 
-def test_connection() -> Dict[str, Any]:
+def test_connection() -> dict[str, Any]:
     """快捷函数: 连通性探测."""
     return LLMRouter.get_instance().test_connection()
 
 
-def list_providers() -> List[Dict[str, Any]]:
+def list_providers() -> list[dict[str, Any]]:
     """快捷函数: 列出所有 provider (审计用)."""
     return LLMRouter.get_instance().list_providers()
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """检查单股 fundamentals 详情"""
 import json
 from pathlib import Path
@@ -10,7 +9,7 @@ for sym in ["600519_SH", "000333_SZ", "600276_SH", "601989_SH"]:
     if not fp.exists():
         print(f"{sym}: 文件不存在")
         continue
-    with open(fp, "r", encoding="utf-8") as f:
+    with open(fp, encoding="utf-8") as f:
         d = json.load(f)
     print(f"\n{sym}:")
     print(f"  report_year={d.get('report_year')} Q{d.get('report_quarter')}")

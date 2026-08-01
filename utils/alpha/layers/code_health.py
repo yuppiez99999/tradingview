@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """代码层健康度采集器 — 三层面自我进化 Stage 1.
 
 模块整合 8.4 — ARCHITECTURE_三层面进化 §第1阶段
@@ -31,7 +30,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ from utils.alpha.health_metrics import LayerScore
 # 常量
 # ============================================================
 
-DEFAULT_WEIGHTS: Dict[str, float] = {
+DEFAULT_WEIGHTS: dict[str, float] = {
     "p0_pass_rate": 0.40,
     "blocking_failures": 0.20,
     "static_analysis": 0.20,
@@ -71,7 +70,7 @@ class CodeHealthLayer:
 
     def __init__(
         self,
-        weights: Optional[Dict[str, float]] = None,
+        weights: dict[str, float] | None = None,
         feature_flag_name: str = FLAG_NAME,
     ) -> None:
         self.feature_flag_name = feature_flag_name
@@ -99,7 +98,7 @@ class CodeHealthLayer:
     # ============================================================
     # 配置加载 (HC-5)
     # ============================================================
-    def _load_weights(self) -> Dict[str, float]:
+    def _load_weights(self) -> dict[str, float]:
         try:
             from utils.config_manager import get_config
             cfg = get_config("evolution") or {}
@@ -154,7 +153,7 @@ class CodeHealthLayer:
     # ============================================================
     # 子指标采集
     # ============================================================
-    def _run_system_check(self) -> Optional[Any]:
+    def _run_system_check(self) -> Any | None:
         """运行 SystemChecker (skip_datasource=True, 捕获 stdout)."""
         try:
             from utils.system_check import SystemChecker
@@ -168,7 +167,7 @@ class CodeHealthLayer:
             return None
 
     @staticmethod
-    def _calc_p0_pass_rate(report: Optional[Any]) -> float:
+    def _calc_p0_pass_rate(report: Any | None) -> float:
         """计算 P0 检查通过率 (ERROR 级通过数/总 ERROR 级数)."""
         if report is None:
             return 0.0
@@ -186,7 +185,7 @@ class CodeHealthLayer:
             return 1.0 if getattr(report, "all_passed", False) else 0.5
 
     @staticmethod
-    def _calc_blocking_score(report: Optional[Any]) -> float:
+    def _calc_blocking_score(report: Any | None) -> float:
         """计算 blocking_failures 倒数分 (0 失败=1.0, 40 失败=0.0)."""
         if report is None:
             return 0.0

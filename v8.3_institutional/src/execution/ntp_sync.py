@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 NTP 时间同步 —— 防止本地时钟漂移导致"未来函数"
 
@@ -32,7 +31,7 @@ import logging
 import time
 from collections import deque
 from datetime import datetime, timedelta
-from typing import Callable, Optional
+from typing import Callable
 
 logger = logging.getLogger("v75.execution.ntp")
 
@@ -61,10 +60,10 @@ class NTPSync:
         server: str = "ntp.tencent.com",
         resync_interval_min: int = 30,
         max_drift_ms: float = 50.0,
-        fallback_servers: Optional[list] = None,
-        drift_warning_ms: Optional[float] = None,
-        drift_critical_ms: Optional[float] = None,
-        alert_callback: Optional[Callable[[dict], None]] = None,
+        fallback_servers: list | None = None,
+        drift_warning_ms: float | None = None,
+        drift_critical_ms: float | None = None,
+        alert_callback: Callable[[dict], None] | None = None,
     ):
         """
         Args:
@@ -103,7 +102,7 @@ class NTPSync:
         self._alert_callback = alert_callback
 
         self.offset_seconds: float = 0.0
-        self.last_sync: Optional[datetime] = None
+        self.last_sync: datetime | None = None
         self.sync_failed_count: int = 0
         self.active_server: str = server  # 当前成功的服务器
 

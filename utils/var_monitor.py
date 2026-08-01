@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 VaR (Value at Risk) 监控模块
 =============================
@@ -24,7 +23,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import numpy as np
 
@@ -42,16 +41,16 @@ class VaRMonitor:
     VAR_99_LIMIT_PCT = -0.05  # 99% VaR 日限额: -5%
     LOOKBACK_DAYS = 252  # 历史模拟法窗口
 
-    def __init__(self, lookback_days: Optional[int] = None):  # type: ignore
+    def __init__(self, lookback_days: int | None = None):  # type: ignore
         self.lookback_days = lookback_days or self.LOOKBACK_DAYS
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     def calculate_var(
         self,
-        returns_history: Union[List[float], np.ndarray],
+        returns_history: list[float] | np.ndarray,
         portfolio_value: float,
-        confidence_levels: Optional[List[float]] = None,
-    ) -> Dict[str, Any]:
+        confidence_levels: list[float] | None = None,
+    ) -> dict[str, Any]:
         """计算 VaR (历史模拟法)
 
         Args:
@@ -86,14 +85,14 @@ class VaRMonitor:
         if len(returns) > self.lookback_days:
             returns = returns[-self.lookback_days :]
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "method": "historical_simulation",
             "lookback_days": len(returns),
             "portfolio_value": portfolio_value,
         }
 
-        actions: List[str] = []
+        actions: list[str] = []
 
         for cl in confidence_levels:
             # 历史模拟法: 取分位数
@@ -124,8 +123,8 @@ class VaRMonitor:
         return result
 
     def calculate_var_from_positions(
-        self, positions: List[Dict[str, Any]], returns_matrix: Dict[str, List[float]], portfolio_value: float
-    ) -> Dict[str, Any]:
+        self, positions: list[dict[str, Any]], returns_matrix: dict[str, list[float]], portfolio_value: float
+    ) -> dict[str, Any]:
         """从持仓明细和各标的收益率序列计算组合 VaR
 
         Args:
@@ -142,7 +141,7 @@ class VaRMonitor:
             if dates is None or len(rets) < len(dates):
                 dates = list(range(len(rets)))
 
-        portfolio_returns: List[float] = []
+        portfolio_returns: list[float] = []
         for i in dates:  # type: ignore
             daily_ret = 0.0
             for pos in positions:
@@ -155,7 +154,7 @@ class VaRMonitor:
 
         return self.calculate_var(portfolio_returns, portfolio_value)
 
-    def execute_breach_response(self, var_type: str) -> Dict[str, Any]:
+    def execute_breach_response(self, var_type: str) -> dict[str, Any]:
         """执行 VaR 超限响应
 
         Args:
@@ -164,7 +163,7 @@ class VaRMonitor:
         Returns:
             响应动作清单
         """
-        actions: List[Dict] = []
+        actions: list[dict] = []
 
         if var_type == "var_95":
             actions.append(
@@ -203,7 +202,7 @@ class VaRMonitor:
         logger.warning(f"⚠️ VaR 超限响应: {var_type}, 动作数={len(actions)}")
         return result
 
-    def _empty_result(self, portfolio_value: float) -> Dict[str, Any]:
+    def _empty_result(self, portfolio_value: float) -> dict[str, Any]:
         """空结果"""
         return {
             "timestamp": datetime.now().isoformat(),
@@ -221,7 +220,7 @@ class VaRMonitor:
             "error": "insufficient_data",
         }
 
-    def _log_event(self, event: Dict) -> None:
+    def _log_event(self, event: dict) -> None:
         """记录 VaR 事件"""
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
@@ -229,16 +228,16 @@ class VaRMonitor:
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"写入 VaR 日志失败: {e}")
 
-    def get_event_history(self, days: int = 30) -> List[Dict]:
+    def get_event_history(self, days: int = 30) -> list[dict]:
         """获取最近 N 天的 VaR 事件历史"""
         if not LOG_FILE.exists():
             return []
 
-        records: List[Dict] = []
+        records: list[dict] = []
         cutoff = datetime.now().timestamp() - days * 86400
 
         try:
-            with open(LOG_FILE, "r", encoding="utf-8") as f:
+            with open(LOG_FILE, encoding="utf-8") as f:
                 for line in f:
                     try:
                         record = json.loads(line.strip())

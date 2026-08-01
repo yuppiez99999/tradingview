@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 iFinD 资讯研判命令行入口
 """
@@ -8,7 +7,6 @@ import argparse
 import json
 import sys
 from datetime import datetime
-from typing import List, Optional
 
 from utils.ifind_news_analyzer import IFinDNewsAnalyzer, StockInsight
 
@@ -25,7 +23,7 @@ def _serialize_insight(insight: StockInsight) -> dict:
     }
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="iFinD 资讯读取并做标的研判")
     parser.add_argument("--symbol", help="单个标的，如 300308")
     parser.add_argument("--name", help="标的名称，如 中际旭创")

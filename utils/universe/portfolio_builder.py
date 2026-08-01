@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 分层组合构建 + 风险预算
 
@@ -15,7 +14,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -72,13 +70,13 @@ class LayeredPortfolio:
     """分层组合"""
 
     trade_date: str = ""
-    holdings: List[Holding] = field(default_factory=list)
+    holdings: list[Holding] = field(default_factory=list)
     universe_size: int = 0  # 股票池总数
     filtered_size: int = 0  # 过滤后总数
     # 行业暴露
-    industry_exposure: Dict[str, float] = field(default_factory=dict)
+    industry_exposure: dict[str, float] = field(default_factory=dict)
     # 各层统计
-    layer_stats: Dict[str, Dict] = field(default_factory=dict)
+    layer_stats: dict[str, dict] = field(default_factory=dict)
     # 风险指标
     portfolio_volatility: float = 0.0
     concentration_hhi: float = 0.0  # Herfindahl 集中度
@@ -139,11 +137,11 @@ def _select_layer(
     scores_df: pd.DataFrame,
     n: int,
     emphasis: str,
-    industry_map: Dict[str, str],
-    name_map: Dict[str, str],
+    industry_map: dict[str, str],
+    name_map: dict[str, str],
     exclude_symbols: set,
     layer_name: str,
-) -> List[Holding]:
+) -> list[Holding]:
     """选取单层组合
 
     Args:
@@ -187,8 +185,8 @@ def _select_layer(
     unique_industries = len([c for c in industry_counter.values() if c > 0])
     # 单行业上限 = max(3, ceil(n / max(unique_industries, 1)))
     max_per_industry = max(3, -(-n // max(unique_industries, 1)))  # ceil division
-    industry_count: Dict[str, int] = {}
-    selected: List[Holding] = []
+    industry_count: dict[str, int] = {}
+    selected: list[Holding] = []
     for sym, row in available.iterrows():
         if len(selected) >= n:
             break
@@ -232,7 +230,7 @@ def apply_risk_constraints(
     }
 
     # 计算每只股票的初始权重
-    layer_holdings: Dict[str, List[Holding]] = {"short": [], "mid": [], "long": []}
+    layer_holdings: dict[str, list[Holding]] = {"short": [], "mid": [], "long": []}
     for h in portfolio.holdings:
         layer_holdings[h.layer].append(h)
 
@@ -246,7 +244,7 @@ def apply_risk_constraints(
             h.weight = min(per_stock, config.max_single_position)
 
     # 行业暴露约束
-    industry_total: Dict[str, float] = {}
+    industry_total: dict[str, float] = {}
     for h in portfolio.holdings:
         industry_total[h.industry] = industry_total.get(h.industry, 0) + h.weight
 
@@ -292,9 +290,9 @@ def apply_risk_constraints(
 
 def build_layered_portfolio(
     scores_df: pd.DataFrame,
-    industry_map: Dict[str, str],
-    name_map: Optional[Dict[str, str]] = None,
-    config: Optional[PortfolioConfig] = None,
+    industry_map: dict[str, str],
+    name_map: dict[str, str] | None = None,
+    config: PortfolioConfig | None = None,
     trade_date: str = "",
     universe_size: int = 0,
     filtered_size: int = 0,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """系统完整性检查脚本"""
 import ast
 import pathlib
@@ -13,7 +12,7 @@ syntax_errors = []
 
 def check_file(fp):
     try:
-        with open(fp, 'r', encoding='utf-8') as f:
+        with open(fp, encoding='utf-8') as f:
             source = f.read()
         ast.parse(source)
         return True, None

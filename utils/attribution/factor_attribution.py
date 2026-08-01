@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T5.2 因子归因 — Barra 风格因子 + 行业因子 PnL 拆分.
 
 对冲基金 L7 归因层核心模块, 实现 Barra 风险因子收益归因:
@@ -65,7 +64,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from utils.config_manager import get_config
 
@@ -114,7 +113,7 @@ CONCENTRATION_THRESHOLD = 0.8
 MISSING_THRESHOLD = -0.3
 
 # Barra 风格因子 (10 个, 对齐 utils/barra_risk_decomposer.py BARRA_STYLE_FACTORS)
-BARRA_STYLE_FACTORS: List[str] = [
+BARRA_STYLE_FACTORS: list[str] = [
     "Size",
     "Beta",
     "Momentum",
@@ -128,7 +127,7 @@ BARRA_STYLE_FACTORS: List[str] = [
 ]
 
 # 行业因子 (8 大行业, 对齐 brinson_attribution.py DEFAULT_SECTORS)
-SECTOR_FACTORS: List[str] = [
+SECTOR_FACTORS: list[str] = [
     "tech",
     "manufacturing",
     "cyclical",
@@ -140,7 +139,7 @@ SECTOR_FACTORS: List[str] = [
 ]
 
 # 因子中文名称映射
-FACTOR_NAMES: Dict[str, str] = {
+FACTOR_NAMES: dict[str, str] = {
     # Barra 风格因子
     "Size": "市值",
     "Beta": "市场敏感度",
@@ -241,9 +240,9 @@ class FactorAttribution:
     is_significant: bool = False
     is_concentrated: bool = False
     is_missing: bool = False
-    ic_metrics: Optional[Dict[str, Any]] = None
+    ic_metrics: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典 (用于 JSON 序列化)."""
         return {
             "factor_name": self.factor_name,
@@ -308,8 +307,8 @@ class FactorAttributionResult:
     factor_pnl: float = 0.0
     specific_pnl: float = 0.0
     residual: float = 0.0
-    style_factor_attributions: List[FactorAttribution] = field(default_factory=list)
-    sector_factor_attributions: List[FactorAttribution] = field(default_factory=list)
+    style_factor_attributions: list[FactorAttribution] = field(default_factory=list)
+    sector_factor_attributions: list[FactorAttribution] = field(default_factory=list)
     n_factors: int = 0
     n_significant: int = 0
     active_risk: float = 0.0
@@ -323,13 +322,13 @@ class FactorAttributionResult:
     risk_budget_used: float = 0.0
     risk_budget_remaining: float = 0.0
     risk_budget_utilization: float = 0.0
-    concentrated_factors: List[str] = field(default_factory=list)
-    missing_factors: List[str] = field(default_factory=list)
+    concentrated_factors: list[str] = field(default_factory=list)
+    missing_factors: list[str] = field(default_factory=list)
     benchmark_code: str = ""
     status: str = STATUS_OK
     reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典 (用于 JSON 序列化)."""
         return {
             "attribution_date": self.attribution_date,
@@ -365,7 +364,7 @@ class FactorAttributionResult:
 
     def to_markdown(self) -> str:
         """转为 Markdown 报告."""
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append(f"# 因子归因报告 — {self.attribution_date or 'N/A'}")
         lines.append("")
         lines.append(f"- 基准标的: `{self.benchmark_code or 'N/A'}`")
@@ -486,8 +485,8 @@ def compute_active_exposure(
 
 
 def compute_factor_risk(
-    active_exposures: Dict[str, float],
-    factor_cov_matrix: Optional[Dict[str, Dict[str, float]]] = None,
+    active_exposures: dict[str, float],
+    factor_cov_matrix: dict[str, dict[str, float]] | None = None,
     annualization_factor: float = DEFAULT_ANNUALIZATION_FACTOR,
 ) -> float:
     """计算因子风险贡献 (年化).
@@ -529,8 +528,8 @@ def compute_factor_risk(
 
 
 def compute_specific_risk(
-    active_weights: Dict[str, float],
-    stock_specific_risks: Dict[str, float],
+    active_weights: dict[str, float],
+    stock_specific_risks: dict[str, float],
     annualization_factor: float = DEFAULT_ANNUALIZATION_FACTOR,
 ) -> float:
     """计算个股特异性风险 (年化).
@@ -575,10 +574,10 @@ def compute_information_ratio(active_return: float, active_risk: float) -> float
 
 
 def align_factors(
-    portfolio_exposures: Dict[str, float],
-    benchmark_exposures: Dict[str, float],
-    factor_returns: Dict[str, float],
-) -> List[str]:
+    portfolio_exposures: dict[str, float],
+    benchmark_exposures: dict[str, float],
+    factor_returns: dict[str, float],
+) -> list[str]:
     """对齐组合与基准的因子集合 (取并集).
 
     Args:
@@ -612,22 +611,22 @@ def categorize_factor(factor_name: str) -> str:
 
 
 def attribute_factors(
-    portfolio_exposures: Dict[str, float],
-    benchmark_exposures: Dict[str, float],
-    factor_returns: Dict[str, float],
+    portfolio_exposures: dict[str, float],
+    benchmark_exposures: dict[str, float],
+    factor_returns: dict[str, float],
     portfolio_value: float = 1_000_000.0,
     specific_pnl: float = 0.0,
-    active_return: Optional[float] = None,
+    active_return: float | None = None,
     attribution_date: str = "",
     benchmark_code: str = "",
-    factor_names: Optional[Dict[str, str]] = None,
-    factor_cov_matrix: Optional[Dict[str, Dict[str, float]]] = None,
-    active_weights: Optional[Dict[str, float]] = None,
-    stock_specific_risks: Optional[Dict[str, float]] = None,
+    factor_names: dict[str, str] | None = None,
+    factor_cov_matrix: dict[str, dict[str, float]] | None = None,
+    active_weights: dict[str, float] | None = None,
+    stock_specific_risks: dict[str, float] | None = None,
     risk_budget: float = DEFAULT_RISK_BUDGET,
     significance_threshold: float = DEFAULT_SIGNIFICANCE_THRESHOLD,
     annualization_factor: float = DEFAULT_ANNUALIZATION_FACTOR,
-    ic_metrics: Optional[Dict[str, Any]] = None,
+    ic_metrics: dict[str, Any] | None = None,
 ) -> FactorAttributionResult:
     """执行因子归因 (核心算法, 不依赖 Feature Flag).
 
@@ -681,11 +680,11 @@ def attribute_factors(
         )
 
     # 逐因子计算贡献
-    style_results: List[FactorAttribution] = []
-    sector_results: List[FactorAttribution] = []
+    style_results: list[FactorAttribution] = []
+    sector_results: list[FactorAttribution] = []
     sum_factor_pnl = 0.0
-    concentrated: List[str] = []
-    missing: List[str] = []
+    concentrated: list[str] = []
+    missing: list[str] = []
     n_significant = 0
 
     for factor in factors:
@@ -857,7 +856,7 @@ class FactorAttributionManager:
         self,
         config_name: str = DEFAULT_CONFIG_NAME,
         feature_flag_name: str = FLAG_NAME,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         """初始化.
 
@@ -887,7 +886,7 @@ class FactorAttributionManager:
         self._missing_threshold = float(self._thresholds.get("missing_threshold", MISSING_THRESHOLD))
 
         # 因子名称映射 (从配置加载, 不存在则用默认)
-        self._factor_names: Dict[str, str] = dict(FACTOR_NAMES)
+        self._factor_names: dict[str, str] = dict(FACTOR_NAMES)
         for f in self._factors_cfg:
             if isinstance(f, dict):
                 code = f.get("code", "")
@@ -902,11 +901,11 @@ class FactorAttributionManager:
                     self._factor_names[code] = name
 
         # 默认基准因子暴露
-        self._default_benchmark_exposures: Dict[str, float] = {
+        self._default_benchmark_exposures: dict[str, float] = {
             k: float(v) for k, v in (self._config.get("benchmark_factor_exposures", {}) or {}).items()
         }
 
-    def _load_config(self, config_name: str) -> Dict[str, Any]:
+    def _load_config(self, config_name: str) -> dict[str, Any]:
         """加载配置 (走 ConfigManager 4 级优先级, HC-5)."""
         try:
             cfg = get_config(config_name, default={}) or {}
@@ -939,18 +938,18 @@ class FactorAttributionManager:
 
     def attribute(
         self,
-        portfolio_exposures: Dict[str, float],
-        benchmark_exposures: Optional[Dict[str, float]] = None,
-        factor_returns: Optional[Dict[str, float]] = None,
+        portfolio_exposures: dict[str, float],
+        benchmark_exposures: dict[str, float] | None = None,
+        factor_returns: dict[str, float] | None = None,
         portfolio_value: float = 1_000_000.0,
         specific_pnl: float = 0.0,
-        active_return: Optional[float] = None,
+        active_return: float | None = None,
         attribution_date: str = "",
-        benchmark_code: Optional[str] = None,
-        factor_cov_matrix: Optional[Dict[str, Dict[str, float]]] = None,
-        active_weights: Optional[Dict[str, float]] = None,
-        stock_specific_risks: Optional[Dict[str, float]] = None,
-        ic_metrics: Optional[Dict[str, Any]] = None,
+        benchmark_code: str | None = None,
+        factor_cov_matrix: dict[str, dict[str, float]] | None = None,
+        active_weights: dict[str, float] | None = None,
+        stock_specific_risks: dict[str, float] | None = None,
+        ic_metrics: dict[str, Any] | None = None,
     ) -> FactorAttributionResult:
         """执行因子归因.
 
@@ -1038,12 +1037,12 @@ class FactorAttributionManager:
 
     def attribute_from_positions(
         self,
-        portfolio_positions: List[Dict[str, Any]],
-        benchmark_positions: List[Dict[str, Any]],
-        factor_returns: Dict[str, float],
+        portfolio_positions: list[dict[str, Any]],
+        benchmark_positions: list[dict[str, Any]],
+        factor_returns: dict[str, float],
         portfolio_value: float = 1_000_000.0,
         attribution_date: str = "",
-        benchmark_code: Optional[str] = None,
+        benchmark_code: str | None = None,
     ) -> FactorAttributionResult:
         """从持仓列表执行归因 (聚合到因子维度).
 
@@ -1091,8 +1090,8 @@ class FactorAttributionManager:
 
     def _aggregate_positions_to_factors(
         self,
-        positions: List[Dict[str, Any]],
-    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        positions: list[dict[str, Any]],
+    ) -> tuple[dict[str, float], dict[str, float]]:
         """将资产级持仓聚合到因子级 (按权重加权平均).
 
         Args:
@@ -1101,9 +1100,9 @@ class FactorAttributionManager:
         Returns:
             (factor_exposures, active_weights) 因子暴露字典 + 主动权重字典
         """
-        factor_exposures: Dict[str, float] = {}
-        weight_sum: Dict[str, float] = {}
-        active_weights: Dict[str, float] = {}
+        factor_exposures: dict[str, float] = {}
+        weight_sum: dict[str, float] = {}
+        active_weights: dict[str, float] = {}
 
         for pos in positions:
             code = str(pos.get("code", ""))
@@ -1123,11 +1122,11 @@ class FactorAttributionManager:
 
         return factor_exposures, active_weights
 
-    def get_default_benchmark_exposures(self) -> Dict[str, float]:
+    def get_default_benchmark_exposures(self) -> dict[str, float]:
         """获取默认基准因子暴露."""
         return dict(self._default_benchmark_exposures)
 
-    def get_factor_names(self) -> Dict[str, str]:
+    def get_factor_names(self) -> dict[str, str]:
         """获取因子名称映射."""
         return dict(self._factor_names)
 
@@ -1161,9 +1160,9 @@ def is_factor_attribution_enabled() -> bool:
 
 
 def attribute_factors_simple(
-    portfolio_exposures: Dict[str, float],
-    benchmark_exposures: Dict[str, float],
-    factor_returns: Dict[str, float],
+    portfolio_exposures: dict[str, float],
+    benchmark_exposures: dict[str, float],
+    factor_returns: dict[str, float],
     portfolio_value: float = 1_000_000.0,
     attribution_date: str = "",
     benchmark_code: str = DEFAULT_PRIMARY_BENCHMARK,

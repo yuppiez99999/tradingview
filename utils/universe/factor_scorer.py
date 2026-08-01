@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 多因子横截面均衡打分
 
@@ -22,7 +21,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -38,7 +36,7 @@ if str(_REPO_ROOT) not in sys.path:
 # ============================================================
 # 因子主题均衡权重（对冲基金多因子模型标准）
 # ============================================================
-DEFAULT_THEME_WEIGHTS: Dict[str, float] = {
+DEFAULT_THEME_WEIGHTS: dict[str, float] = {
     "momentum": 0.30,  # 动量
     "reversal": 0.20,  # 反转
     "volume": 0.20,  # 量价
@@ -51,7 +49,7 @@ DEFAULT_THEME_WEIGHTS: Dict[str, float] = {
 class ScoringConfig:
     """打分配置"""
 
-    theme_weights: Dict[str, float] = field(default_factory=lambda: dict(DEFAULT_THEME_WEIGHTS))
+    theme_weights: dict[str, float] = field(default_factory=lambda: dict(DEFAULT_THEME_WEIGHTS))
     # 每个主题选取的因子数上限（避免某主题因子数过多压制其他主题）
     max_factors_per_theme: int = 30
     # 并行计算
@@ -68,8 +66,8 @@ class ScoringConfig:
 def _compute_single_stock_factor(
     symbol: str,
     kline_df: pd.DataFrame,
-    factor_ids: List[str],
-) -> Tuple[str, Dict[str, float]]:
+    factor_ids: list[str],
+) -> tuple[str, dict[str, float]]:
     """计算单只股票的指定因子（独立函数，可 pickle）
 
     Args:
@@ -98,13 +96,13 @@ def _compute_single_stock_factor(
 # ============================================================
 # 主入口
 # ============================================================
-def select_factor_ids(adapter, config: ScoringConfig) -> Dict[str, List[str]]:
+def select_factor_ids(adapter, config: ScoringConfig) -> dict[str, list[str]]:
     """按主题选择因子 ID
 
     Returns:
         {theme: [factor_id, ...]}
     """
-    theme_factors: Dict[str, List[str]] = {}
+    theme_factors: dict[str, list[str]] = {}
     _all_factors = adapter.list_factors()  # noqa: F841  保留调用以触发适配器初始化
 
     # 按 zoo 优先级：gtja191 > qlib158 > alpha101 > academic > fundamental
@@ -114,7 +112,7 @@ def select_factor_ids(adapter, config: ScoringConfig) -> Dict[str, List[str]]:
         if weight <= 0:
             continue
         # 在所有 zoo 中找该主题的因子
-        candidates: List[str] = []
+        candidates: list[str] = []
         for zoo in zoo_priority:
             ids = adapter.list_factors(zoo=zoo, theme=theme)
             # 标准化 ID（加 zoo 前缀避免歧义）
@@ -136,11 +134,11 @@ def select_factor_ids(adapter, config: ScoringConfig) -> Dict[str, List[str]]:
 
 
 def batch_compute_factors(
-    symbols: List[str],
+    symbols: list[str],
     klines_loader,
-    config: Optional[ScoringConfig] = None,
+    config: ScoringConfig | None = None,
     progress_callback=None,
-) -> Tuple[pd.DataFrame, Dict[str, List[str]]]:
+) -> tuple[pd.DataFrame, dict[str, list[str]]]:
     """批量计算多只股票的多因子值
 
     Args:
@@ -176,7 +174,7 @@ def batch_compute_factors(
     logger.info(f"步骤 2: 批量计算因子 ({len(symbols)} 只股票 × {total_factors} 因子)")
     logger.info("=" * 60)
 
-    factor_values: Dict[str, Dict[str, float]] = {}
+    factor_values: dict[str, dict[str, float]] = {}
     start_time = time.time()
 
     # 用线程池（避免进程池的 pickle 问题）
@@ -245,8 +243,8 @@ def batch_compute_factors(
 
 def cross_sectional_score(
     factor_df: pd.DataFrame,
-    theme_factors: Dict[str, List[str]],
-    theme_weights: Optional[Dict[str, float]] = None,
+    theme_factors: dict[str, list[str]],
+    theme_weights: dict[str, float] | None = None,
 ) -> pd.DataFrame:
     """横截面均衡多因子打分
 
@@ -332,7 +330,7 @@ def cross_sectional_score(
 
 def industry_neutralize(
     scores: pd.Series,
-    industry_map: Dict[str, str],
+    industry_map: dict[str, str],
 ) -> pd.Series:
     """行业中性化：在每个行业内做 z-score
 

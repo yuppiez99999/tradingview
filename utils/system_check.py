@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P0 启动自检系统 (System Check)
 ==================================
@@ -53,7 +52,6 @@ import traceback
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List
 
 # 项目根目录 (此模块位于 utils/system_check.py, 父目录即项目根)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -111,8 +109,8 @@ class SystemCheckReport:
     warnings: int = 0                        # 警告数 (WARN FAIL)
     blocking_failures: int = 0               # 阻止性失败数
     exit_code: int = 0                       # 推荐退出码 (0/1/2)
-    results: List[CheckResult] = field(default_factory=list)
-    error_summary: List[str] = field(default_factory=list)  # 失败项摘要
+    results: list[CheckResult] = field(default_factory=list)
+    error_summary: list[str] = field(default_factory=list)  # 失败项摘要
 
     @property
     def all_passed(self) -> bool:
@@ -169,7 +167,7 @@ class SystemChecker:
         """
         self.strict = strict
         self.skip_datasource = skip_datasource
-        self._results: List[CheckResult] = []
+        self._results: list[CheckResult] = []
 
     # --------------------------------------------------------------------
     # 注册检查项
@@ -382,7 +380,7 @@ class SystemChecker:
                            detail="文件不存在",
                            remediation="从备份恢复 config/positions.json")
             else:
-                with open(positions_path, "r", encoding="utf-8") as f:
+                with open(positions_path, encoding="utf-8") as f:
                     data = json.load(f)
                 if not isinstance(data, dict):
                     self._fail("C4.1", "positions.json 格式", CheckLevel.ERROR,
@@ -584,7 +582,7 @@ class SystemChecker:
                            remediation="运行 shadow_admission_launcher.py 生成")
             else:
                 # 读取末尾 5 行
-                with open(returns_path, "r", encoding="utf-8") as f:
+                with open(returns_path, encoding="utf-8") as f:
                     lines = f.readlines()[-5:]
                 parsed = 0
                 for line in lines:
@@ -596,7 +594,7 @@ class SystemChecker:
                         parsed += 1
                     except json.JSONDecodeError:
                         pass
-                if parsed == len([l for l in lines if l.strip()]):
+                if parsed == len([line for line in lines if line.strip()]):
                     self._pass("C8.1", "daily_returns.jsonl 完整性", CheckLevel.WARN,
                                detail=f"末尾 {parsed} 行均可解析")
                 else:
@@ -616,7 +614,7 @@ class SystemChecker:
                            detail="heartbeat 文件不存在 (可能首次运行)")
             else:
                 # 读取最后一行
-                with open(heartbeat_path, "r", encoding="utf-8") as f:
+                with open(heartbeat_path, encoding="utf-8") as f:
                     lines = f.readlines()
                 if lines:
                     last = json.loads(lines[-1].strip())

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """V3 DSR + Walk-Forward 稳定性验证
 
 对比 V2 结果:
@@ -18,7 +17,7 @@ sys.path.insert(0, str(Path("v8.3_institutional/src/validation").resolve()))
 
 # 加载V3回测结果 (使用归一化版本)
 v3_file = Path("output/validation_reports/lgb_backtest_v3_maxweight10_20260724_210628.json")
-with open(v3_file, "r", encoding="utf-8") as f:
+with open(v3_file, encoding="utf-8") as f:
     data = json.load(f)
 
 records = data.get("records", [])

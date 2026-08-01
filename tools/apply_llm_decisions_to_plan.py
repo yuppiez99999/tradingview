@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LLM 决策灌入次日计划
 ====================
@@ -87,7 +86,7 @@ def _prev_trading_day(d: datetime) -> datetime:
 
 
 def _load_json(path: Path) -> dict:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 

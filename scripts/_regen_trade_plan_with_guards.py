@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 重生成 trade_plan_20260727.json 并应用 7-Guard 链
 执行流程:
@@ -20,7 +19,7 @@ print("=" * 70)
 
 # 加载最新生成的 trade_plan
 plan_path = BASE / "v8.3_institutional" / "trade_plans" / "trade_plan_20260727.json"
-with open(plan_path, "r", encoding="utf-8") as f:
+with open(plan_path, encoding="utf-8") as f:
     before_plan = json.load(f)
 
 print("\n=== Guard 前状态 ===")
@@ -36,7 +35,7 @@ integrator = RiskGuardIntegrator(report_date="2026-07-25")  # 用最近一个交
 updated_plan = integrator.run_all_guards("2026-07-27")
 
 # 重新加载并校验
-with open(plan_path, "r", encoding="utf-8") as f:
+with open(plan_path, encoding="utf-8") as f:
     after_plan = json.load(f)
 
 print("\n=== Guard 后状态 ===")

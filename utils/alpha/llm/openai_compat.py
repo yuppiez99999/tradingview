@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """OpenAI 兼容 chat/completions 通用调用 (含单 provider 内重试).
 
 从原 `utils/alpha/llm_router.py:LLMRouter._openai_compatible_chat` 拆出 (B3.4.3)。
@@ -20,7 +19,6 @@ import logging
 import time
 import urllib.error
 import urllib.request
-from typing import Dict, List, Optional
 
 from utils.alpha.llm.base import _safe_urlopen
 
@@ -38,7 +36,7 @@ def openai_compatible_chat(
     timeout: int,
     max_retries: int = 1,
     retry_delay: float = 1.0,
-) -> Optional[str]:
+) -> str | None:
     """OpenAI 兼容 chat/completions 调用.
 
     Args:
@@ -61,7 +59,7 @@ def openai_compatible_chat(
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
     }
-    messages: List[Dict[str, str]] = []
+    messages: list[dict[str, str]] = []
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
@@ -75,7 +73,7 @@ def openai_compatible_chat(
         }
     ).encode("utf-8")
 
-    last_error: Optional[Exception] = None
+    last_error: Exception | None = None
     for attempt in range(1 + max_retries):
         try:
             req = urllib.request.Request(url, data=payload, headers=headers, method="POST")

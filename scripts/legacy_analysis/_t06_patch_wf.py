@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T06: 给 walk_forward.py 添加 run_cpcv 方法."""
 from __future__ import annotations
 

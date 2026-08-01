@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """隔夜跳空 Guard (Overnight Gap Guard)
 ====================================
 T11 (2026-07-28): 监控开盘隔夜跳空, 跳空 > 3% 自动降仓.
@@ -30,7 +29,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional
 
 logger = logging.getLogger("overnight_gap_guard")
 
@@ -47,7 +45,7 @@ class GapStatus:
     level: int  # 0/1/2/3
     level_name: str  # "正常"/"L1警戒"/"L2降仓"/"L3清仓"
     reduce_pct: float  # 降仓比例 (0.0/0.0/0.30/0.50)
-    actions: List[str] = field(default_factory=list)
+    actions: list[str] = field(default_factory=list)
     timestamp: str = ""
 
 
@@ -74,11 +72,11 @@ class OvernightGapGuard:
 
     def __init__(
         self,
-        l1_threshold: Optional[float] = None,
-        l2_threshold: Optional[float] = None,
-        l3_threshold: Optional[float] = None,
-        l2_reduce_pct: Optional[float] = None,
-        l3_reduce_pct: Optional[float] = None,
+        l1_threshold: float | None = None,
+        l2_threshold: float | None = None,
+        l3_threshold: float | None = None,
+        l2_reduce_pct: float | None = None,
+        l3_reduce_pct: float | None = None,
     ):
         """初始化隔夜跳空 Guard.
 
@@ -138,7 +136,7 @@ class OvernightGapGuard:
         # 确定级别
         level = 0
         reduce_pct = 0.0
-        actions: List[str] = []
+        actions: list[str] = []
         level_name = "正常"
 
         if abs_gap >= self.l3_threshold:
@@ -191,10 +189,10 @@ class OvernightGapGuard:
 
     def apply_to_plan(
         self,
-        plan: Dict,
+        plan: dict,
         status: GapStatus,
-        positions: Dict[str, Dict],
-    ) -> Dict:
+        positions: dict[str, dict],
+    ) -> dict:
         """将跳空状态应用到交易计划, 生成降仓订单.
 
         Args:
@@ -231,7 +229,7 @@ class OvernightGapGuard:
             return plan
 
         # L2/L3: 生成降仓订单 (仅不利方向持仓)
-        reduce_orders: List[Dict] = []
+        reduce_orders: list[dict] = []
         target_symbol = status.symbol
 
         for symbol, pos in positions.items():

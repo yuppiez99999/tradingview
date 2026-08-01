@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """气象因子集成端到端验证脚本 (v8.6.13)
 
 验证链路:
@@ -19,7 +18,6 @@ import os
 import sys
 import time
 import traceback
-from typing import Dict, List
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
@@ -35,7 +33,7 @@ class TestResult:
     def __init__(self):
         self.passed = 0
         self.failed = 0
-        self.errors: List[str] = []
+        self.errors: list[str] = []
 
     def ok(self, name: str):
         self.passed += 1
@@ -195,7 +193,7 @@ try:
     results.ok(f"信号分布: {dict(signal_counts)}")
 
     # 按类别分组
-    category_scores: Dict[str, List[float]] = {}
+    category_scores: dict[str, list[float]] = {}
     for r in all_results:
         cat = r.category
         category_scores.setdefault(cat, []).append(r.composite_score)

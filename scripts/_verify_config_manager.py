@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 P1-Q8 验证脚本: 统一 ConfigManager
 ==================================

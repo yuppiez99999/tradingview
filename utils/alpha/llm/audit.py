@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """LLM 调用审计日志 (JSONL 按日切分).
 
 从原 `utils/alpha/llm_router.py:LLMRouter._write_audit_log` 拆出 (B3.4.3)。

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_kill_switch_protocol_integration.py — KillSwitch 三级熔断协议端到端集成测试
 
 5 条关键链路 #2: margin_usage → KillSwitch.check_margin_status → execute_kill_switch → broker_callback

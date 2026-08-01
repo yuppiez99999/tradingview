@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Skill 适配器包 — 将已安装的 CodeBuddy Skills 适配为量化交易系统的可用模块
 

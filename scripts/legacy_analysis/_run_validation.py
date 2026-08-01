@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """修复后真实性能评估: Walk-Forward + Purged CV + Deflated Sharpe
 
 依赖:
@@ -30,7 +29,7 @@ def load_backtest_result() -> dict:
     if not path.exists():
         logger.error("回测结果文件不存在: %s", path)
         return {}
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 

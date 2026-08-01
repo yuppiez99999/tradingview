@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T3.5 TCA 执行后归因单元测试.
 
 验证:
@@ -22,7 +21,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -66,7 +65,7 @@ class MockPreTradeEstimate:
         self.estimated_cost_bps = estimated_cost_bps
         self.estimated_cost_amount = estimated_cost_amount
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "symbol": self.symbol,
             "side": self.side,
@@ -487,7 +486,7 @@ class TestJsonlPersistence:
         date_str = datetime.now().strftime("%Y-%m-%d")
         file_path = tmp_path / f"fills_{date_str}.jsonl"
         assert file_path.exists()
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             record = json.loads(f.readline())
         assert record["type"] == "fill"
         assert record["fill"]["symbol"] == "600276"
@@ -511,7 +510,7 @@ class TestJsonlPersistence:
         date_str = datetime.now().strftime("%Y-%m-%d")
         file_path = tmp_path / f"pnl_attribution_{date_str}.jsonl"
         assert file_path.exists()
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             record = json.loads(f.readline())
         assert record["type"] == "pnl_attribution"
         assert record["symbol"] == "600276"
@@ -534,7 +533,7 @@ class TestJsonlPersistence:
         date_str = datetime.now().strftime("%Y-%m-%d")
         file_path = tmp_path / f"calibration_{date_str}.jsonl"
         assert file_path.exists()
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             record = json.loads(f.readline())
         assert record["type"] == "calibration"
         assert record["old_threshold_bps"] == 30.0

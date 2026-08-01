@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """持仓盈亏明细快照 — 基于 config/positions.json 的 est_price 计算.
 
 价格日期: positions.json 中各标的的 last_update (默认 2026-07-22 快照).
@@ -12,7 +11,7 @@ from collections import defaultdict
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 POS_PATH = os.path.join(BASE, "config", "positions.json")
 
-with open(POS_PATH, "r", encoding="utf-8") as f:
+with open(POS_PATH, encoding="utf-8") as f:
     data = json.load(f)
 
 positions = data["positions"]

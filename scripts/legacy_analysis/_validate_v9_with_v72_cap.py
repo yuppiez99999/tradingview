@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 V9 + V7.2 Cap 后处理验证脚本
 ================================
@@ -44,7 +43,7 @@ _V71_BULL_VOL_PENALTY = 0.5
 def load_v9_records() -> dict:
     """加载最新 V9 回测记录"""
     report_file = BASE_DIR / "output" / "validation_reports" / "v9_regime_specific_backtest_20260725_114943.json"
-    with open(report_file, "r", encoding="utf-8") as f:
+    with open(report_file, encoding="utf-8") as f:
         return json.load(f)
 
 

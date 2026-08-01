@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T02: 给 broker_adapters.py 的 broad-except 添加 noqa 注释.
 
 策略: broker API 边界的 broad-except 是合理的 fail-safe 模式

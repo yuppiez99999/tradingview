@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """彩云天气 API 探测脚本
 
 验证 tj_live API key 的可用性、返回字段结构和覆盖范围.

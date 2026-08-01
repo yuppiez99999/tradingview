@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T02: 更新 planning.md, 标记 T02 完成."""
 from __future__ import annotations
 

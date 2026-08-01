@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """分析窗口1 (2023-07~2024-09) 月度表现, 找出Alpha信号问题"""
 import json
 from pathlib import Path
@@ -7,7 +6,7 @@ import pandas as pd
 
 # 加载V4.1回测结果
 v4_file = Path("output/validation_reports/lgb_backtest_v4_1_tuned_20260724_211027.json")
-with open(v4_file, "r", encoding="utf-8") as f:
+with open(v4_file, encoding="utf-8") as f:
     data = json.load(f)
 
 records = data.get("records", [])

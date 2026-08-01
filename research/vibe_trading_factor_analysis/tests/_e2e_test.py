@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """端到端集成测试（T8）- CIO v1.0
 
 验证：
@@ -130,7 +129,7 @@ def test_audit_trail_complete():
         )
         audit_file = Path(tmpdir) / "e2e_test" / "pipeline_state.json"
         assert audit_file.exists()
-        with open(audit_file, "r", encoding="utf-8") as f:
+        with open(audit_file, encoding="utf-8") as f:
             data = json.load(f)
         # 必备字段
         assert "batch_id" in data
@@ -230,12 +229,15 @@ def main():
     passed = failed = 0
     for t in tests:
         try:
-            t(); passed += 1
+            t()
+            passed += 1
         except AssertionError as e:
-            failed += 1; print(f"  ✗ FAIL: {e}")
+            failed += 1
+            print(f"  ✗ FAIL: {e}")
         except Exception as e:
             failed += 1
             import traceback
+
             print(f"  ✗ ERROR: {type(e).__name__}: {e}")
             print(traceback.format_exc()[:300])
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """代码层根因诊断器 — 三层面自我进化 Stage 2.
 
 模块整合 8.4 — ARCHITECTURE_三层面进化 §第2阶段
@@ -31,7 +30,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +54,7 @@ from utils.alpha.root_cause import (  # noqa: E402
 # ============================================================
 
 # CheckLevel → severity 映射
-_LEVEL_TO_SEVERITY: Dict[str, str] = {
+_LEVEL_TO_SEVERITY: dict[str, str] = {
     "ERROR": SEVERITY_HIGH,  # ERROR FAIL 默认 high (个别阻断性升 critical)
     "WARN": SEVERITY_MEDIUM,
     "INFO": SEVERITY_LOW,
@@ -84,7 +83,7 @@ class CodeDiagnoser:
     # ============================================================
     # 核心诊断
     # ============================================================
-    def diagnose(self, health_report: Any) -> List[RootCause]:
+    def diagnose(self, health_report: Any) -> list[RootCause]:
         """诊断代码层根因.
 
         Args:
@@ -94,7 +93,7 @@ class CodeDiagnoser:
             List[RootCause] 代码层根因列表
         """
         now = datetime.now(timezone.utc).isoformat()
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
 
         # 1. 运行 SystemChecker 获取检查结果
         report = self._run_check() if self._run_system_check else None
@@ -109,7 +108,7 @@ class CodeDiagnoser:
     # ============================================================
     # 子诊断
     # ============================================================
-    def _run_check(self) -> Optional[Any]:
+    def _run_check(self) -> Any | None:
         """运行 SystemChecker (skip_datasource=True, 捕获 stdout)."""
         try:
             from utils.system_check import SystemChecker
@@ -120,9 +119,9 @@ class CodeDiagnoser:
             logger.warning("SystemChecker 运行失败 (代码层诊断降级): %s", e)
             return None
 
-    def _diagnose_from_check_report(self, report: Any, now: str) -> List[RootCause]:
+    def _diagnose_from_check_report(self, report: Any, now: str) -> list[RootCause]:
         """从 SystemCheckReport 生成 RootCause 列表."""
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             results = getattr(report, "results", [])
             for cr in results:
@@ -170,9 +169,9 @@ class CodeDiagnoser:
             logger.warning("从 SystemCheckReport 诊断失败: %s", e)
         return causes
 
-    def _diagnose_from_health(self, health_report: Any, now: str) -> List[RootCause]:
+    def _diagnose_from_health(self, health_report: Any, now: str) -> list[RootCause]:
         """从 HealthReport 的 code 层子指标补充诊断 (低分指标 → 根因)."""
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             layer_score = self._get_code_layer_score(health_report)
             if layer_score is None:
@@ -261,7 +260,7 @@ class CodeDiagnoser:
         return ""
 
     @staticmethod
-    def _get_code_layer_score(health_report: Any) -> Optional[Any]:
+    def _get_code_layer_score(health_report: Any) -> Any | None:
         """从 HealthReport 提取 code 层 LayerScore (兼容对象/字典)."""
         try:
             if hasattr(health_report, "layer_scores"):
@@ -271,7 +270,7 @@ class CodeDiagnoser:
                 if ls is not None:
                     # 字典形式包装为简单对象
                     class _Wrap:
-                        def __init__(self, d: Dict[str, Any]) -> None:
+                        def __init__(self, d: dict[str, Any]) -> None:
                             self.sub_metrics = d.get("sub_metrics", {})
                     return _Wrap(ls)
         except Exception:

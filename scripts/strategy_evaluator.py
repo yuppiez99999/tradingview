@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """策略多维评分器 (N2) — Self-Evolution 框架 Day 2.
 
 实现方案文档第七节要求:
@@ -86,7 +85,7 @@ def load_daily_returns(jsonl_path: str) -> List[Tuple[str, float]]:
     records = []
     if not os.path.exists(jsonl_path):
         return records
-    with open(jsonl_path, "r", encoding="utf-8") as f:
+    with open(jsonl_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -154,7 +153,7 @@ def compute_sharpe(daily_returns: List[float], risk_free: float = 0.03) -> float
 
 def load_positions(pos_path: str) -> Dict:
     """加载 positions.json."""
-    with open(pos_path, "r", encoding="utf-8") as f:
+    with open(pos_path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -240,7 +239,7 @@ def _check_feature_flag(flag_name: str) -> bool:
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         config_path = os.path.join(base, "config", "features.json")
         if os.path.exists(config_path):
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 features = json.load(f)
             return features.get(flag_name, False)
     except Exception:

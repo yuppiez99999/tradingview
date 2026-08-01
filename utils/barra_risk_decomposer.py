@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Barra 风险因子暴露分解 (Barra Risk Factor Decomposition)
 
@@ -32,7 +31,6 @@ import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Union
 
 import numpy as np
 
@@ -103,8 +101,8 @@ class BarraDecomposition:
     """Barra 风险分解结果"""
 
     # 因子暴露
-    style_factor_exposures: List[FactorExposure]  # 10 个风格因子
-    industry_exposures: Dict[str, float]  # 行业暴露
+    style_factor_exposures: list[FactorExposure]  # 10 个风格因子
+    industry_exposures: dict[str, float]  # 行业暴露
     country_exposure: float  # 国家因子暴露
 
     # 风险分解
@@ -129,13 +127,13 @@ class BarraDecomposition:
     risk_budget_utilization: float  # 风险预算利用率
 
     # 持仓列表
-    symbols: List[str]
-    weights: List[float]
-    benchmark_weights: List[float]
+    symbols: list[str]
+    weights: list[float]
+    benchmark_weights: list[float]
 
     # 诊断
-    concentrated_factors: List[str]  # 暴露过大的因子
-    missing_factors: List[str]  # 暴露不足的因子
+    concentrated_factors: list[str]  # 暴露过大的因子
+    missing_factors: list[str]  # 暴露不足的因子
 
 
 # ============================================================
@@ -179,14 +177,14 @@ class BarraRiskDecomposer:
 
     def decompose(
         self,
-        symbols: List[str],
-        weights: Union[List[float], np.ndarray],
-        benchmark_weights: Union[List[float], np.ndarray],
-        factor_exposures: Dict[str, Dict[str, float]],
-        factor_returns: Optional[Dict[str, float]] = None,
-        factor_cov_matrix: Optional[np.ndarray] = None,
-        stock_specific_risks: Optional[Dict[str, float]] = None,
-        industries: Optional[Dict[str, str]] = None,
+        symbols: list[str],
+        weights: list[float] | np.ndarray,
+        benchmark_weights: list[float] | np.ndarray,
+        factor_exposures: dict[str, dict[str, float]],
+        factor_returns: dict[str, float] | None = None,
+        factor_cov_matrix: np.ndarray | None = None,
+        stock_specific_risks: dict[str, float] | None = None,
+        industries: dict[str, str] | None = None,
         risk_budget: float = 0.05,
     ) -> BarraDecomposition:
         """运行 Barra 风险分解
@@ -280,7 +278,7 @@ class BarraRiskDecomposer:
         risk_budget_utilization = active_risk / risk_budget if risk_budget > 0 else 0.0
 
         # 9. 行业暴露
-        industry_exposures: Dict[str, float] = {}
+        industry_exposures: dict[str, float] = {}
         if industries:
             for i, sym in enumerate(symbols):
                 ind = industries.get(sym, "未知")
@@ -291,7 +289,7 @@ class BarraRiskDecomposer:
         country_exposure = float(active_factor_exposure[beta_factor_idx])
 
         # 11. 构建因子暴露明细
-        style_exposures: List[FactorExposure] = []
+        style_exposures: list[FactorExposure] = []
         for j, f in enumerate(factors):
             # 对主动风险的贡献: exposure × Σ_f × exposure / active_risk
             marginal_contrib = float((factor_cov[j, :] @ active_factor_exposure) * active_factor_exposure[j])
@@ -343,8 +341,8 @@ class BarraRiskDecomposer:
 
     def decompose_from_positions(
         self,
-        positions: List[Dict],
-        benchmark_weights: Optional[Dict[str, float]] = None,
+        positions: list[dict],
+        benchmark_weights: dict[str, float] | None = None,
         risk_budget: float = 0.05,
     ) -> BarraDecomposition:
         """从持仓列表自动估算因子暴露 (简化版)
@@ -372,7 +370,7 @@ class BarraRiskDecomposer:
             bench = [1.0 / len(symbols)] * len(symbols)
 
         # 简化因子暴露估算
-        factor_exposures: Dict[str, Dict[str, float]] = {}
+        factor_exposures: dict[str, dict[str, float]] = {}
         for p in positions:
             code = p.get("code", "")
             amount = float(p.get("amount", 0))
@@ -435,7 +433,7 @@ class BarraRiskDecomposer:
     # 保存
     # ------------------------------------------------------------
 
-    def save_result(self, result: BarraDecomposition, path: Union[str, Path]) -> Path:
+    def save_result(self, result: BarraDecomposition, path: str | Path) -> Path:
         """保存分解结果到 JSON"""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)

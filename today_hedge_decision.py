@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 今日开仓对冲决策 - 优化版
 基于组合结构的智能评估 + v7.5 对冲引擎
@@ -21,10 +20,10 @@ from hedging.hedge_coordinator import HedgeCoordinator
 positions_path = r"e:\各种PY程序\28-终极量化交易系统7.1\config\positions.json"
 plan_path = r"e:\各种PY程序\28-终极量化交易系统7.1\500万建仓计划_20260706.json"
 
-with open(positions_path, "r", encoding="utf-8") as f:
+with open(positions_path, encoding="utf-8") as f:
     positions_data = json.load(f)["positions"]
 
-with open(plan_path, "r", encoding="utf-8") as f:
+with open(plan_path, encoding="utf-8") as f:
     plan_data = json.load(f)
 
 positions = {}

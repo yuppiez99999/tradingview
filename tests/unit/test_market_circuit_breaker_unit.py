@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_market_circuit_breaker_unit.py — 大盘熔断监控器单元测试
 
 覆盖 bug 回归:

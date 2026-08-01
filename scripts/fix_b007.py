@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """批量修复 ruff B007 错误 (未使用循环变量 → _变量) — 文本解析版"""
 import os
 import re
@@ -39,7 +38,7 @@ for fname, fixes in by_file.items():
     if not os.path.exists(fname):
         print(f'  SKIP (not found): {fname}')
         continue
-    with open(fname, 'r', encoding='utf-8') as f:
+    with open(fname, encoding='utf-8') as f:
         lines = f.readlines()
 
     changed = False

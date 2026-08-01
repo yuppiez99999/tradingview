@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Phase implementation: phase_shadow_monitor
 
@@ -52,7 +51,7 @@ def phase_shadow_monitor(workflow) -> bool:
             }
             return True
 
-        with open(state_file, "r", encoding="utf-8") as f:
+        with open(state_file, encoding="utf-8") as f:
             shadow_state = _json.load(f)
 
         # 已终止的影子账户仅记录状态, 不再更新
@@ -84,7 +83,7 @@ def phase_shadow_monitor(workflow) -> bool:
             try:
                 _trade_plan_path = BASE_DIR / "trade_plans" / f"trade_plan_{workflow.trade_date.replace('-', '')}.json"
                 if _trade_plan_path.exists():
-                    with open(_trade_plan_path, "r", encoding="utf-8") as _tp_f:
+                    with open(_trade_plan_path, encoding="utf-8") as _tp_f:
                         _tp = _json.load(_tp_f)
                     _exec_plan = _tp.get("execution_plan", {})
                     _day_capital = float(_tp.get("execution_plan", {}).get("day_capital", 100000))
@@ -272,7 +271,7 @@ def phase_shadow_monitor(workflow) -> bool:
             _replaced = False
             if _jsonl_path.exists():
                 try:
-                    with open(_jsonl_path, "r", encoding="utf-8") as _f:
+                    with open(_jsonl_path, encoding="utf-8") as _f:
                         _existing_lines = _f.readlines()
                 except (_json.JSONDecodeError, OSError):
                     _existing_lines = []

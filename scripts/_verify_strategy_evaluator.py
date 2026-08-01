@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """StrategyEvaluator 验证脚本 — 自我进化框架第 1 阶段验证.
 
 验证项:

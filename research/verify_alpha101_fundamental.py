@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证 Fundamental 和 Alpha101 补全效果"""
 import sys
 

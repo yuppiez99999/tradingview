@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """iFinD 连接测试 + 财务数据拉取验证
 
 测试项:
@@ -32,7 +31,7 @@ if env_path.exists():
     env_content = None
     for enc in ["gbk", "utf-8", "utf-8-sig", "latin-1"]:
         try:
-            with open(env_path, "r", encoding=enc) as f:
+            with open(env_path, encoding=enc) as f:
                 env_content = f.read()
             print(f"  .env 编码: {enc}")
             break

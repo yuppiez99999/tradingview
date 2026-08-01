@@ -57,7 +57,7 @@ def try_find_edit_controls(window):
                 pass
 
         logger.info(f"找到 {len(edit_controls)} 个编辑类控件")
-        for i, class_name, ctrl in edit_controls:
+        for i, class_name, _ctrl in edit_controls:
             logger.info(f"  控件[{i}]: class='{class_name}'")
 
         return edit_controls

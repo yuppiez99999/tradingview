@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_finance_agents_unit.py — 5 个金融专家 Agent 单元测试
 
 测试范围:

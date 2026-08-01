@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T4.1 ML 回测验证引擎 — FastBacktest.
 
 提供统一的 ML 策略回测验证接口, 整合:
@@ -33,7 +32,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -138,11 +137,11 @@ class BacktestResult:
     sharpe_cv: float = 0.0
     n_windows: int = 0
     n_trials: int = 1
-    window_details: List[Dict[str, Any]] = field(default_factory=list)
+    window_details: list[dict[str, Any]] = field(default_factory=list)
     passed_v9: bool = False
-    v9_failures: List[str] = field(default_factory=list)
+    v9_failures: list[str] = field(default_factory=list)
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         """返回汇总字典."""
         return {
             "annual_return": self.annual_return,
@@ -196,7 +195,7 @@ class FastBacktest:
         result = engine.run(returns=returns_series, n_trials=10)
     """
 
-    def __init__(self, config: Optional[BacktestConfig] = None) -> None:
+    def __init__(self, config: BacktestConfig | None = None) -> None:
         self.config = config or BacktestConfig()
 
     # ============================================================
@@ -204,11 +203,11 @@ class FastBacktest:
     # ============================================================
     def run(
         self,
-        returns: Union[pd.Series, np.ndarray, Sequence[float]],
+        returns: pd.Series | np.ndarray | Sequence[float],
         n_trials: int = 1,
-        ic_series: Optional[Union[pd.Series, np.ndarray, Sequence[float]]] = None,
-        strategy_fn: Optional[Callable] = None,
-        data: Optional[pd.DataFrame] = None,
+        ic_series: pd.Series | np.ndarray | Sequence[float] | None = None,
+        strategy_fn: Callable | None = None,
+        data: pd.DataFrame | None = None,
     ) -> BacktestResult:
         """执行回测验证.
 
@@ -281,7 +280,7 @@ class FastBacktest:
     # ============================================================
     # 基础绩效指标 (独立实现, 不依赖 v8.3 模块)
     # ============================================================
-    def _compute_basic_metrics(self, returns: pd.Series) -> Dict[str, float]:
+    def _compute_basic_metrics(self, returns: pd.Series) -> dict[str, float]:
         """计算基础绩效指标.
 
         独立实现以避免对 v8.3_institutional/src/backtest/metrics.py 的硬依赖,
@@ -400,7 +399,7 @@ class FastBacktest:
     # ============================================================
     def _compute_ic_ir(
         self,
-        ic_series: Union[pd.Series, np.ndarray, Sequence[float]],
+        ic_series: pd.Series | np.ndarray | Sequence[float],
     ) -> float:
         """计算 IC 信息比率 (IC_IR = mean(IC) / std(IC)).
 
@@ -513,7 +512,7 @@ class FastBacktest:
         annual_return: float,
         max_drawdown: float,
         sharpe_cv: float,
-    ) -> List[str]:
+    ) -> list[str]:
         """检查是否通过 V9 评估标准.
 
         V9 标准 (对齐 project_memory.md):
@@ -558,7 +557,7 @@ class FastBacktest:
     # ============================================================
     @staticmethod
     def _normalize_returns(
-        returns: Union[pd.Series, np.ndarray, Sequence[float]],
+        returns: pd.Series | np.ndarray | Sequence[float],
     ) -> pd.Series:
         """将输入标准化为 pd.Series."""
         if isinstance(returns, pd.Series):
@@ -572,10 +571,10 @@ class FastBacktest:
 # 模块级便捷函数
 # ============================================================
 def run_fast_backtest(
-    returns: Union[pd.Series, np.ndarray, Sequence[float]],
+    returns: pd.Series | np.ndarray | Sequence[float],
     n_trials: int = 1,
-    ic_series: Optional[Union[pd.Series, np.ndarray, Sequence[float]]] = None,
-    config: Optional[BacktestConfig] = None,
+    ic_series: pd.Series | np.ndarray | Sequence[float] | None = None,
+    config: BacktestConfig | None = None,
 ) -> BacktestResult:
     """快速运行回测验证 (模块级便捷函数).
 
@@ -592,7 +591,7 @@ def run_fast_backtest(
     return engine.run(returns=returns, n_trials=n_trials, ic_series=ic_series)
 
 
-def check_v9_standards(result: BacktestResult) -> Tuple[bool, List[str]]:
+def check_v9_standards(result: BacktestResult) -> tuple[bool, list[str]]:
     """检查回测结果是否通过 V9 评估标准.
 
     Args:

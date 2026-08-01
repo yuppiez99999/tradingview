@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Kronos 因子有效性验证脚本 (阶段 1: 研究验证)
 ==================================================
@@ -47,7 +46,6 @@ import traceback
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -130,7 +128,7 @@ class KronosFactorResult:
     prediction_latency_ms: float = 0.0
     error_count: int = 0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
 
@@ -138,16 +136,16 @@ class KronosFactorResult:
 class KronosValidationReport:
     """完整验证报告"""
     generation_time: str
-    model_sizes_tested: List[str]
-    symbols: List[str]
-    date_range: Tuple[str, str]
+    model_sizes_tested: list[str]
+    symbols: list[str]
+    date_range: tuple[str, str]
     lookback: int
     pred_len: int
-    results: List[KronosFactorResult] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
-    notes: List[str] = field(default_factory=list)
+    results: list[KronosFactorResult] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         d = asdict(self)
         d["results"] = [r.to_dict() for r in self.results]
         return d
@@ -184,7 +182,7 @@ class KronosModelWrapper:
         return self._available
 
     @property
-    def error_msg(self) -> Optional[str]:
+    def error_msg(self) -> str | None:
         return self._error_msg
 
     def _try_init(self) -> None:
@@ -278,7 +276,7 @@ class KronosModelWrapper:
         pred_len: int = 20,
         temperature: float = 1.0,
         top_p: float = 0.9,
-    ) -> Optional[pd.DataFrame]:
+    ) -> pd.DataFrame | None:
         """对单只标的的历史数据进行预测
 
         Args:
@@ -349,7 +347,7 @@ class KronosModelWrapper:
 def extract_kronos_factors(
     pred_df: pd.DataFrame,
     hist_df: pd.DataFrame,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """从 Kronos 预测结果中提取因子信号
 
     提取的因子:
@@ -423,7 +421,7 @@ class KronosValidationEngine:
     def __init__(
         self,
         output_dir: Path,
-        model_sizes: List[str] = None,
+        model_sizes: list[str] = None,
         lookback: int = 400,
         pred_len: int = 20,
     ):
@@ -433,9 +431,9 @@ class KronosValidationEngine:
         self.lookback = lookback
         self.pred_len = pred_len
         self._data_source = None
-        self._models: Dict[str, KronosModelWrapper] = {}
-        self._factor_panels: Dict[str, pd.DataFrame] = {}
-        self._ic_series: Dict[str, List[float]] = {}
+        self._models: dict[str, KronosModelWrapper] = {}
+        self._factor_panels: dict[str, pd.DataFrame] = {}
+        self._ic_series: dict[str, list[float]] = {}
 
     def _get_data_source(self):
         """获取数据源 (延迟初始化)"""
@@ -450,7 +448,7 @@ class KronosValidationEngine:
             self._models[size] = KronosModelWrapper(model_size=size)
         return self._models[size]
 
-    def _fetch_from_local_cache(self, symbol: str) -> Optional[pd.DataFrame]:
+    def _fetch_from_local_cache(self, symbol: str) -> pd.DataFrame | None:
         """从本地数据缓存读取历史K线
 
         缓存文件命名: historical_{code}_5y_base.parquet
@@ -480,10 +478,10 @@ class KronosValidationEngine:
 
     def fetch_data(
         self,
-        symbols: List[str],
+        symbols: list[str],
         start_date: str,
         end_date: str,
-    ) -> Dict[str, pd.DataFrame]:
+    ) -> dict[str, pd.DataFrame]:
         """获取所有标的的历史K线数据 (优先本地缓存, 兜底远程数据源)"""
         LOGGER.info(f"获取 {len(symbols)} 只标的的历史K线数据 ({start_date} ~ {end_date})")
         ds = None
@@ -530,7 +528,7 @@ class KronosValidationEngine:
 
     def generate_factor_panel(
         self,
-        all_data: Dict[str, pd.DataFrame],
+        all_data: dict[str, pd.DataFrame],
         model_size: str,
         rebalance_freq: str = "weekly",
     ) -> pd.DataFrame:
@@ -646,9 +644,9 @@ class KronosValidationEngine:
 
     def compute_forward_returns(
         self,
-        all_data: Dict[str, pd.DataFrame],
-        horizons: List[int] = None,
-    ) -> Dict[int, pd.DataFrame]:
+        all_data: dict[str, pd.DataFrame],
+        horizons: list[int] = None,
+    ) -> dict[int, pd.DataFrame]:
         """计算未来收益率面板 (用于IC计算)
 
         Args:
@@ -680,10 +678,10 @@ class KronosValidationEngine:
     def validate_factor(
         self,
         factor_panel: pd.DataFrame,
-        returns_panels: Dict[int, pd.DataFrame],
+        returns_panels: dict[int, pd.DataFrame],
         factor_name: str,
         model_size: str,
-    ) -> Optional[KronosFactorResult]:
+    ) -> KronosFactorResult | None:
         """验证单个因子的有效性
 
         Args:
@@ -785,7 +783,7 @@ class KronosValidationEngine:
 
     def run(
         self,
-        symbols: List[str],
+        symbols: list[str],
         start_date: str,
         end_date: str,
     ) -> KronosValidationReport:
@@ -956,7 +954,7 @@ class KronosValidationEngine:
 # CLI 入口
 # ============================================================
 
-def get_default_symbols(fast: bool = False) -> List[str]:
+def get_default_symbols(fast: bool = False) -> list[str]:
     """获取默认标的池"""
     core_etfs = [
         "510300.SH", "510500.SH", "512100.SH", "588000.SH",

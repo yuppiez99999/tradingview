@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 研究蒸馏信号 → SignalFusion 集成测试
 =====================================
@@ -156,7 +155,7 @@ class TestResearchDistillerPersistenceRoundTrip:
         path = distiller.save_daily_snapshot(sample_distilled_signals, '20260726')
         assert path.exists()
         # 验证文件内容是合法 JSON, 格式为 dict (含 signals/signal_map/signal_count)
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             data = json.load(f)
         assert isinstance(data, dict)
         assert 'signals' in data

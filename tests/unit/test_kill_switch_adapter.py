@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T3.2 KillSwitchAdapter 单元测试.
 
 验证:
@@ -16,7 +15,7 @@ from __future__ import annotations
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -38,7 +37,7 @@ from utils.risk.risk_event import (
 class MockKillSwitch:
     """模拟 KillSwitch 用于测试."""
 
-    def __init__(self, response: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, response: dict[str, Any] | None = None) -> None:
         self.response = response or {
             "level": 0,
             "margin_usage_ratio": 0.30,
@@ -48,15 +47,15 @@ class MockKillSwitch:
             "can_open": True,
             "action": "normal",
         }
-        self.execute_response: Dict[str, Any] = {"executed": True, "level": 1, "actions_taken": []}
-        self.check_calls: List[Optional[float]] = []
-        self.execute_calls: List[int] = []
+        self.execute_response: dict[str, Any] = {"executed": True, "level": 1, "actions_taken": []}
+        self.check_calls: list[float | None] = []
+        self.execute_calls: list[int] = []
 
-    def check_margin_status(self, margin_usage: Optional[float] = None) -> Dict[str, Any]:
+    def check_margin_status(self, margin_usage: float | None = None) -> dict[str, Any]:
         self.check_calls.append(margin_usage)
         return dict(self.response)
 
-    def execute_kill_switch(self, level: int) -> Dict[str, Any]:
+    def execute_kill_switch(self, level: int) -> dict[str, Any]:
         self.execute_calls.append(level)
         return dict(self.execute_response)
 
@@ -185,7 +184,7 @@ class TestEventPublish:
         """level=0 时不发布事件."""
         bus = RiskBus()
         bus.clear_subscribers()
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
         bus.subscribe(RiskEventType.MARGIN_BREACH, lambda e: received.append(e))
 
         mock_ks = MockKillSwitch({"level": 0, "margin_usage_ratio": 0.30})
@@ -201,7 +200,7 @@ class TestEventPublish:
         """level=1 时发布 MARGIN_BREACH 事件."""
         bus = RiskBus()
         bus.clear_subscribers()
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
         bus.subscribe(RiskEventType.MARGIN_BREACH, lambda e: received.append(e))
 
         mock_ks = MockKillSwitch({"level": 1, "margin_usage_ratio": 0.55})
@@ -222,7 +221,7 @@ class TestEventPublish:
         """level=2 时发布 CRITICAL 事件."""
         bus = RiskBus()
         bus.clear_subscribers()
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
         bus.subscribe(RiskEventType.MARGIN_BREACH, lambda e: received.append(e))
 
         mock_ks = MockKillSwitch({"level": 2, "margin_usage_ratio": 0.78})
@@ -238,7 +237,7 @@ class TestEventPublish:
         """execute_kill_switch 后发布 KILL_SWITCH_TRIGGERED 事件."""
         bus = RiskBus()
         bus.clear_subscribers()
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
         bus.subscribe(RiskEventType.KILL_SWITCH_TRIGGERED, lambda e: received.append(e))
 
         mock_ks = MockKillSwitch()
@@ -267,7 +266,7 @@ class TestEventPublish:
         """USE_RISK_BUS_EVENT_DRIVEN=False 时仅日志, 不发布事件."""
         bus = RiskBus()
         bus.clear_subscribers()
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
         bus.subscribe(RiskEventType.MARGIN_BREACH, lambda e: received.append(e))
 
         mock_ks = MockKillSwitch({"level": 1, "margin_usage_ratio": 0.55})
@@ -283,7 +282,7 @@ class TestEventPublish:
         """publish_events=False 时不发布事件."""
         bus = RiskBus()
         bus.clear_subscribers()
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
         bus.subscribe(RiskEventType.MARGIN_BREACH, lambda e: received.append(e))
 
         mock_ks = MockKillSwitch({"level": 1, "margin_usage_ratio": 0.55})
@@ -298,7 +297,7 @@ class TestEventPublish:
         """execute_kill_switch 未执行时不发布事件."""
         bus = RiskBus()
         bus.clear_subscribers()
-        received: List[RiskEvent] = []
+        received: list[RiskEvent] = []
         bus.subscribe(RiskEventType.KILL_SWITCH_TRIGGERED, lambda e: received.append(e))
 
         mock_ks = MockKillSwitch()
@@ -460,7 +459,7 @@ class TestEndToEnd:
         adapter.register_as_decision_subscriber()
 
         # 2. 订阅 MARGIN_BREACH 事件做日志归档
-        archived: List[RiskEvent] = []
+        archived: list[RiskEvent] = []
         bus.subscribe(RiskEventType.MARGIN_BREACH, lambda e: archived.append(e))
 
         # 3. 触发 check_margin_status (Flag=True)

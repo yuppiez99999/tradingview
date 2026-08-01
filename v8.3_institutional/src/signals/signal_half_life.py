@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.6 Signal Half-Life Manager — 信号半衰期管理
 
@@ -20,7 +19,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -68,18 +66,18 @@ class SignalHalfLifeManager:
 
     def __init__(self, default_max_signals: int = 50):
         self.default_max_signals = default_max_signals
-        self.signals: Dict[str, SignalHalfLife] = {}
-        self.signal_snapshots: Dict[str, List[Dict]] = {}
-        self.decay_log: List[Dict] = []
-        self.active_signals: Dict[str, Dict] = {}
+        self.signals: dict[str, SignalHalfLife] = {}
+        self.signal_snapshots: dict[str, list[dict]] = {}
+        self.decay_log: list[dict] = []
+        self.active_signals: dict[str, dict] = {}
 
     # ---------- 注册与估计 ----------
     def register_signal(
         self,
         signal_name: str,
         category: str,
-        half_life: Optional[float] = None,
-        max_valid_days: Optional[int] = None,
+        half_life: float | None = None,
+        max_valid_days: int | None = None,
         min_retain_weight: float = 0.05,
     ) -> SignalHalfLife:
         """注册新信号
@@ -151,7 +149,7 @@ class SignalHalfLifeManager:
         logger.info(f"{signal_name}: T_half={half_life:.1f}d, λ={decay_rate:.4f}, R²={r2:.3f}")
         return meta
 
-    def _estimate_via_autocorr(self, values: np.ndarray, max_lag: int) -> Tuple[float, float, float]:
+    def _estimate_via_autocorr(self, values: np.ndarray, max_lag: int) -> tuple[float, float, float]:
         """自相关法估计半衰期
 
         方法: 计算 seq=values 的一阶自回归系数 ρ
@@ -189,7 +187,7 @@ class SignalHalfLifeManager:
 
         return float(half_life), float(np.log(2) / half_life), float(r2)
 
-    def _estimate_via_variance_ratio(self, values: np.ndarray, max_lag: int) -> Tuple[float, float, float]:
+    def _estimate_via_variance_ratio(self, values: np.ndarray, max_lag: int) -> tuple[float, float, float]:
         """方差比法估计半衰期
 
         方差比 = var(k-period returns) / (k * var(1-period returns))
@@ -233,7 +231,7 @@ class SignalHalfLifeManager:
 
     # ---------- 衰减应用 ----------
     def decay_weight(
-        self, signal_name: str, original_weight: float, days_ago: float = 0.0, custom_half_life: Optional[float] = None
+        self, signal_name: str, original_weight: float, days_ago: float = 0.0, custom_half_life: float | None = None
     ) -> float:
         """按半衰期衰减信号权重
 
@@ -293,8 +291,8 @@ class SignalHalfLifeManager:
         return decayed
 
     def apply_decay_to_signals(
-        self, signals: Dict[str, Dict], current_time: Optional[datetime] = None
-    ) -> Dict[str, float]:
+        self, signals: dict[str, dict], current_time: datetime | None = None
+    ) -> dict[str, float]:
         """对活跃信号批量应用衰减
 
         Args:
@@ -328,7 +326,7 @@ class SignalHalfLifeManager:
         return decayed
 
     # ---------- 新鲜度评分 ----------
-    def freshness_score(self) -> Dict:
+    def freshness_score(self) -> dict:
         """计算当前信号新鲜度评分
 
         Returns:
@@ -374,7 +372,7 @@ class SignalHalfLifeManager:
         }
 
     # ---------- 批量管理与报告 ----------
-    def prune_stale_signals(self, max_age_multiplier: float = 3.0) -> List[str]:
+    def prune_stale_signals(self, max_age_multiplier: float = 3.0) -> list[str]:
         """剔除超过 max_age_multiplier × T_half 的过期信号"""
         removed = []
         for name in list(self.active_signals.keys()):
@@ -390,7 +388,7 @@ class SignalHalfLifeManager:
 
         return removed
 
-    def report(self) -> Dict:
+    def report(self) -> dict:
         """生成信号半衰期管理报告"""
         freshness = self.freshness_score()
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """诊断 baostock 财务接口返回数据"""
 import baostock as bs
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """从已持久化的 pipeline_state.json 重新生成批次报告 Markdown
 
 用途：
@@ -43,7 +42,7 @@ def regenerate(batch_id: str, symbols: list[str] = None, n_trials: int = None) -
         logger.error("找不到批次状态文件: %s", state_file)
         return 1
 
-    with open(state_file, "r", encoding="utf-8") as f:
+    with open(state_file, encoding="utf-8") as f:
         state = json.load(f)
 
     logger.info("加载批次状态: %s (factors=%d)", batch_id, len(state.get("factors", [])))

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 组合回撤控制器 (Drawdown Controller)
 ====================================
@@ -27,7 +26,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("drawdown_controller")
 
@@ -48,8 +47,8 @@ class DrawdownController:
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     def check_drawdown(
-        self, peak_value: float, current_value: float, high_water_mark: Optional[float] = None
-    ) -> Dict[str, Any]:
+        self, peak_value: float, current_value: float, high_water_mark: float | None = None
+    ) -> dict[str, Any]:
         """计算当前回撤级别
 
         Args:
@@ -104,9 +103,9 @@ class DrawdownController:
 
     def _build_result(
         self, peak: float, current: float, dd_amount: float, dd_pct: float, level_name: str, level: int = 0
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """构建回撤检测结果"""
-        actions: List[str] = []
+        actions: list[str] = []
         spot_reduce = 0.0
         hedge_ratio = 0.40  # 默认正常对冲比例
         build_allowed = True
@@ -188,7 +187,7 @@ class DrawdownController:
 
         return result
 
-    def _log_event(self, event: Dict) -> None:
+    def _log_event(self, event: dict) -> None:
         """记录回撤事件"""
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
@@ -196,7 +195,7 @@ class DrawdownController:
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"写入回撤日志失败: {e}")
 
-    def execute_response(self, level: int) -> Dict[str, Any]:
+    def execute_response(self, level: int) -> dict[str, Any]:
         """执行回撤响应动作 (返回动作清单, 实际执行需对接交易接口)
 
         Args:
@@ -213,7 +212,7 @@ class DrawdownController:
         if level not in (1, 2, 3, 4):
             return {"executed": False, "reason": "invalid_level"}
 
-        actions_taken: List[Dict] = []
+        actions_taken: list[dict] = []
 
         if level == 1:
             actions_taken.append(
@@ -276,16 +275,16 @@ class DrawdownController:
         logger.warning(f"⚠️ 执行回撤响应 L{level}: 动作数={len(actions_taken)}")
         return result
 
-    def get_event_history(self, days: int = 30) -> List[Dict]:
+    def get_event_history(self, days: int = 30) -> list[dict]:
         """获取最近 N 天的回撤事件历史"""
         if not LOG_FILE.exists():
             return []
 
-        records: List[Dict] = []
+        records: list[dict] = []
         cutoff = datetime.now().timestamp() - days * 86400
 
         try:
-            with open(LOG_FILE, "r", encoding="utf-8") as f:
+            with open(LOG_FILE, encoding="utf-8") as f:
                 for line in f:
                     try:
                         record = json.loads(line.strip())

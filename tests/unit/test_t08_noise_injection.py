@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T08: Noise Injection 稳定性测试单元测试."""
 from __future__ import annotations
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 期货/期权市场扫描与商品套利分析模块 v1.0
 
@@ -41,7 +40,7 @@ os.makedirs(_log_dir, exist_ok=True)
 _log = logging.getLogger("futures_options")
 _log.setLevel(logging.INFO)
 _fh = logging.FileHandler(
-    os.path.join(_log_dir, "futures_options_{:%Y%m%d}.log".format(datetime.now())), encoding="utf-8"
+    os.path.join(_log_dir, f"futures_options_{datetime.now():%Y%m%d}.log"), encoding="utf-8"
 )
 _fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
 _log.addHandler(_fh)
@@ -247,7 +246,7 @@ def _wind_mcp_call(server_type: str, tool_name: str, params: dict, timeout: int 
         if not wind_env.get("WIND_API_KEY"):
             env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
             if os.path.exists(env_path):
-                with open(env_path, "r", encoding="utf-8") as f:
+                with open(env_path, encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
                         if line.startswith("#") or not line or "=" not in line:

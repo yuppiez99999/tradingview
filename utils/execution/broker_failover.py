@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """券商故障切换管理器 — T5.7 交付物.
 
 模块整合 8.4 — ARCHITECTURE §3.4
@@ -40,7 +39,7 @@ import threading
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger("broker_failover")
 
@@ -160,7 +159,7 @@ class BrokerHealthTracker:
             BrokerHealthState.UNKNOWN,  # 初始状态允许尝试
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """状态快照."""
         return {
             "broker_name": self.broker_name,
@@ -190,7 +189,7 @@ class BrokerFailoverManager:
         mgr.stop()  # 停止
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         """初始化.
 
         Args:
@@ -215,15 +214,15 @@ class BrokerFailoverManager:
                 }
         """
         self.config = config
-        self._brokers: Dict[str, Dict[str, Any]] = {}  # name -> {adapter, tracker, priority, type, config}
-        self._active_broker_name: Optional[str] = None
+        self._brokers: dict[str, dict[str, Any]] = {}  # name -> {adapter, tracker, priority, type, config}
+        self._active_broker_name: str | None = None
         self._failover_count: int = 0
         self._max_failover_count: int = config.get("failover", {}).get("max_failover_count", 3)
         self._auto_failover: bool = config.get("failover", {}).get("auto_failover", True)
         self._recovery_check_interval: float = config.get("failover", {}).get("recovery_check_interval_sec", 60.0)
         self._stopped: bool = True
         self._lock = threading.RLock()
-        self._health_check_thread: Optional[threading.Thread] = None
+        self._health_check_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         # 审计日志
         self._audit_log_dir = Path(config.get("audit_log_dir", "reports/broker_failover"))
@@ -323,7 +322,7 @@ class BrokerFailoverManager:
                 raise NoHealthyBrokerError(f"活跃 broker {self._active_broker_name} 未注册")
             return info["adapter"]
 
-    def get_active_broker_name(self) -> Optional[str]:
+    def get_active_broker_name(self) -> str | None:
         """获取当前活跃 broker 名称."""
         with self._lock:
             return self._active_broker_name
@@ -427,7 +426,7 @@ class BrokerFailoverManager:
             logger.error("故障切换失败: 无可用备用 broker")
             return False
 
-    def force_failover(self, target_broker: Optional[str] = None, reason: str = "manual") -> bool:
+    def force_failover(self, target_broker: str | None = None, reason: str = "manual") -> bool:
         """强制故障切换 (人工触发).
 
         Args:
@@ -527,7 +526,7 @@ class BrokerFailoverManager:
                     except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
                         logger.warning("broker %s 恢复失败: %s", name, e)
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取故障切换管理器状态快照."""
         with self._lock:
             brokers_status = []
@@ -554,7 +553,7 @@ class BrokerFailoverManager:
                 "timestamp": datetime.utcnow().isoformat() + "Z",
             }
 
-    def _audit(self, event: str, data: Dict[str, Any]) -> None:
+    def _audit(self, event: str, data: dict[str, Any]) -> None:
         """写审计日志 (JSONL)."""
         record = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -572,11 +571,11 @@ class BrokerFailoverManager:
 # ============================================================
 # 便捷函数
 # ============================================================
-_default_manager: Optional[BrokerFailoverManager] = None
+_default_manager: BrokerFailoverManager | None = None
 _default_lock = threading.Lock()
 
 
-def initialize_failover_manager(config: Dict[str, Any]) -> BrokerFailoverManager:
+def initialize_failover_manager(config: dict[str, Any]) -> BrokerFailoverManager:
     """初始化全局故障切换管理器 (单例).
 
     Args:

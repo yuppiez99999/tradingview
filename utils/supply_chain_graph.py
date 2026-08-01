@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -78,24 +78,24 @@ class PropagationPath:
 
     source: str
     target: str
-    path: List[str]  # 路径节点序列
+    path: list[str]  # 路径节点序列
     total_strength: float  # 累计传播强度
     hops: int  # 跳数
-    edge_types: List[str]  # 各段边类型
+    edge_types: list[str]  # 各段边类型
 
 
 @dataclass
 class SupplyChainResult:
     """供应链分析结果"""
 
-    nodes: List[str] = field(default_factory=list)
-    edges: List[SupplyChainEdge] = field(default_factory=list)
-    metrics: Dict[str, NodeMetrics] = field(default_factory=dict)
+    nodes: list[str] = field(default_factory=list)
+    edges: list[SupplyChainEdge] = field(default_factory=list)
+    metrics: dict[str, NodeMetrics] = field(default_factory=dict)
     # 关键节点
-    hubs: List[str] = field(default_factory=list)
-    bottlenecks: List[str] = field(default_factory=list)
+    hubs: list[str] = field(default_factory=list)
+    bottlenecks: list[str] = field(default_factory=list)
     # 风险传染评估
-    risk_contagion: Dict[str, float] = field(default_factory=dict)  # {symbol: risk_score}
+    risk_contagion: dict[str, float] = field(default_factory=dict)  # {symbol: risk_score}
     # 网络统计
     network_density: float = 0.0
     avg_path_length: float = 0.0
@@ -162,9 +162,9 @@ class SupplyChainGraph:
         self.pr_iterations = int(pagerank_iterations)
 
         # 邻接表
-        self.adjacency: Dict[str, List[SupplyChainEdge]] = defaultdict(list)
-        self.reverse_adjacency: Dict[str, List[SupplyChainEdge]] = defaultdict(list)
-        self.all_nodes: Set[str] = set()
+        self.adjacency: dict[str, list[SupplyChainEdge]] = defaultdict(list)
+        self.reverse_adjacency: dict[str, list[SupplyChainEdge]] = defaultdict(list)
+        self.all_nodes: set[str] = set()
 
     # ------------------------------------------------------------
     # 图构建
@@ -177,7 +177,7 @@ class SupplyChainGraph:
         self.all_nodes.add(edge.source)
         self.all_nodes.add(edge.target)
 
-    def add_edges(self, edges: List[SupplyChainEdge]) -> int:
+    def add_edges(self, edges: list[SupplyChainEdge]) -> int:
         """批量添加边"""
         count = 0
         for e in edges:
@@ -214,8 +214,8 @@ class SupplyChainGraph:
         self,
         source: str,
         impact_strength: float = 1.0,
-        max_hops: Optional[int] = None,
-    ) -> List[PropagationPath]:
+        max_hops: int | None = None,
+    ) -> list[PropagationPath]:
         """从源节点传播影响
 
         Args:
@@ -231,8 +231,8 @@ class SupplyChainGraph:
             return []
 
         # BFS 传播
-        paths: List[PropagationPath] = []
-        visited: Set[str] = {source}
+        paths: list[PropagationPath] = []
+        visited: set[str] = {source}
         queue: deque = deque([(source, [source], impact_strength, [], [])])
 
         while queue:
@@ -269,10 +269,10 @@ class SupplyChainGraph:
         self,
         source: str,
         impact_threshold: float = 0.05,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """获取受影响标的及强度"""
         paths = self.propagate_impact(source)
-        affected: Dict[str, float] = {}
+        affected: dict[str, float] = {}
         for p in paths:
             if p.total_strength >= impact_threshold:
                 # 取最大传播强度
@@ -284,9 +284,9 @@ class SupplyChainGraph:
     # 中心性分析
     # ------------------------------------------------------------
 
-    def compute_centrality(self) -> Dict[str, NodeMetrics]:
+    def compute_centrality(self) -> dict[str, NodeMetrics]:
         """计算所有节点中心性指标"""
-        metrics: Dict[str, NodeMetrics] = {}
+        metrics: dict[str, NodeMetrics] = {}
         for node in self.all_nodes:
             m = NodeMetrics(symbol=node)
             # 度中心性
@@ -308,15 +308,15 @@ class SupplyChainGraph:
 
         return metrics
 
-    def _compute_betweenness(self, metrics: Dict[str, NodeMetrics]) -> None:
+    def _compute_betweenness(self, metrics: dict[str, NodeMetrics]) -> None:
         """简化版介数中心性 (BFS)"""
         nodes = list(self.all_nodes)
-        between_count: Dict[str, int] = defaultdict(int)
+        between_count: dict[str, int] = defaultdict(int)
         total_paths = 0
 
         for source in nodes:
             # BFS 找到所有可达目标
-            visited: Set[str] = {source}
+            visited: set[str] = {source}
             queue: deque = deque([(source, [source])])
             while queue:
                 current, path = queue.popleft()
@@ -336,7 +336,7 @@ class SupplyChainGraph:
         for node, m in metrics.items():
             m.betweenness_centrality = between_count[node] / total_paths if total_paths > 0 else 0.0
 
-    def _compute_pagerank(self, metrics: Dict[str, NodeMetrics]) -> None:
+    def _compute_pagerank(self, metrics: dict[str, NodeMetrics]) -> None:
         """PageRank 计算"""
         nodes = list(self.all_nodes)
         n = len(nodes)
@@ -350,7 +350,7 @@ class SupplyChainGraph:
 
         # 迭代
         for _ in range(self.pr_iterations):
-            new_pr: Dict[str, float] = {}
+            new_pr: dict[str, float] = {}
             dangling_sum = sum(pr[node] for node in nodes if not self.adjacency.get(node))
             for node in nodes:
                 rank = (1 - self.pr_damping) / n
@@ -374,8 +374,8 @@ class SupplyChainGraph:
 
     def assess_risk_contagion(
         self,
-        shock_sources: Dict[str, float],  # {symbol: shock_magnitude}
-    ) -> Dict[str, float]:
+        shock_sources: dict[str, float],  # {symbol: shock_magnitude}
+    ) -> dict[str, float]:
         """评估单点风险沿网络的传染
 
         Args:
@@ -384,7 +384,7 @@ class SupplyChainGraph:
         Returns:
             {symbol: total_risk_score}
         """
-        total_risk: Dict[str, float] = defaultdict(float)
+        total_risk: dict[str, float] = defaultdict(float)
         for source, magnitude in shock_sources.items():
             affected = self.get_affected_symbols(source)
             for sym, strength in affected.items():
@@ -427,7 +427,7 @@ class SupplyChainGraph:
 
     def _count_components(self) -> int:
         """连通分量数"""
-        visited: Set[str] = set()
+        visited: set[str] = set()
         count = 0
         for node in self.all_nodes:
             if node in visited:
@@ -452,18 +452,18 @@ class SupplyChainGraph:
     # 工具方法
     # ------------------------------------------------------------
 
-    def get_relations(self, symbol: str) -> Dict[str, List[SupplyChainEdge]]:
+    def get_relations(self, symbol: str) -> dict[str, list[SupplyChainEdge]]:
         """获取标的所有关系"""
         return {
             "outgoing": list(self.adjacency.get(symbol, [])),
             "incoming": list(self.reverse_adjacency.get(symbol, [])),
         }
 
-    def find_path(self, source: str, target: str) -> Optional[List[str]]:
+    def find_path(self, source: str, target: str) -> list[str] | None:
         """BFS 找最短路径"""
         if source not in self.all_nodes or target not in self.all_nodes:
             return None
-        visited: Set[str] = {source}
+        visited: set[str] = {source}
         queue: deque = deque([(source, [source])])
         while queue:
             current, path = queue.popleft()
@@ -477,7 +477,7 @@ class SupplyChainGraph:
                 queue.append((next_node, [*path, next_node]))
         return None
 
-    def summarize(self, result: Optional[SupplyChainResult] = None) -> Dict[str, Any]:
+    def summarize(self, result: SupplyChainResult | None = None) -> dict[str, Any]:
         """生成摘要"""
         result = result or self.analyze()
         return {

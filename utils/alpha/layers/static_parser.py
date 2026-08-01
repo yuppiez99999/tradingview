@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """mypy/pylint 输出解析器 — 三层面自我进化 Stage 2 增强工具.
 
 模块整合 8.4 — ARCHITECTURE_三层面进化 §第2阶段 (2.6)
@@ -35,7 +34,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +78,7 @@ _PYLINT_PATTERN = re.compile(
 )
 
 # pylint 错误类型前缀 → severity 映射
-_PYLINT_SEVERITY_MAP: Dict[str, str] = {
+_PYLINT_SEVERITY_MAP: dict[str, str] = {
     "E": SEVERITY_HIGH,    # Error
     "F": SEVERITY_HIGH,    # Fatal
     "W": SEVERITY_MEDIUM,  # Warning
@@ -89,7 +88,7 @@ _PYLINT_SEVERITY_MAP: Dict[str, str] = {
 }
 
 # mypy severity 映射
-_MYPY_SEVERITY_MAP: Dict[str, str] = {
+_MYPY_SEVERITY_MAP: dict[str, str] = {
     "error": SEVERITY_HIGH,
     "warning": SEVERITY_MEDIUM,
     "note": SEVERITY_LOW,
@@ -124,7 +123,7 @@ class StaticError:
     message: str = ""
     symbol: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "tool": self.tool,
             "file": self.file,
@@ -163,7 +162,7 @@ class StaticParser:
     # ============================================================
     # mypy 解析
     # ============================================================
-    def parse_mypy(self, text: str) -> List[StaticError]:
+    def parse_mypy(self, text: str) -> list[StaticError]:
         """解析 mypy 输出文本.
 
         Args:
@@ -172,7 +171,7 @@ class StaticParser:
         Returns:
             List[StaticError] 解析出的错误列表
         """
-        errors: List[StaticError] = []
+        errors: list[StaticError] = []
         if not text:
             return errors
         try:
@@ -188,7 +187,7 @@ class StaticParser:
         return errors
 
     @staticmethod
-    def _parse_mypy_line(line: str) -> Optional[StaticError]:
+    def _parse_mypy_line(line: str) -> StaticError | None:
         """解析单行 mypy 输出."""
         m = _MYPY_PATTERN.match(line.strip())
         if m is None:
@@ -210,7 +209,7 @@ class StaticParser:
     # ============================================================
     # pylint 解析
     # ============================================================
-    def parse_pylint(self, text: str) -> List[StaticError]:
+    def parse_pylint(self, text: str) -> list[StaticError]:
         """解析 pylint 输出文本.
 
         Args:
@@ -219,7 +218,7 @@ class StaticParser:
         Returns:
             List[StaticError] 解析出的错误列表
         """
-        errors: List[StaticError] = []
+        errors: list[StaticError] = []
         if not text:
             return errors
         try:
@@ -235,7 +234,7 @@ class StaticParser:
         return errors
 
     @staticmethod
-    def _parse_pylint_line(line: str) -> Optional[StaticError]:
+    def _parse_pylint_line(line: str) -> StaticError | None:
         """解析单行 pylint 输出."""
         m = _PYLINT_PATTERN.match(line.strip())
         if m is None:
@@ -260,9 +259,9 @@ class StaticParser:
     # ============================================================
     def to_root_causes(
         self,
-        errors: List[StaticError],
-        now: Optional[str] = None,
-    ) -> List[RootCause]:
+        errors: list[StaticError],
+        now: str | None = None,
+    ) -> list[RootCause]:
         """将 StaticError 列表转为 RootCause 列表.
 
         Args:
@@ -275,7 +274,7 @@ class StaticParser:
         if now is None:
             now = datetime.now(timezone.utc).isoformat()
 
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         for err in errors:
             try:
                 cause = RootCause(
@@ -317,7 +316,7 @@ class StaticParser:
     # ============================================================
     # 解析报告文件 (可选)
     # ============================================================
-    def parse_reports(self, reports_dir: Path) -> List[RootCause]:
+    def parse_reports(self, reports_dir: Path) -> list[RootCause]:
         """解析报告目录中的 mypy/pylint 输出文件.
 
         查找:
@@ -330,7 +329,7 @@ class StaticParser:
         Returns:
             List[RootCause] 所有报告的根因列表
         """
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         try:
             if not reports_dir.exists():
                 return causes

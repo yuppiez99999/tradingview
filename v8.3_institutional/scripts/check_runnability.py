@@ -86,7 +86,7 @@ def extract_imports_from_file(filepath: Path) -> Dict[str, Set[str]]:
     """使用AST提取文件中的import语句"""
     imports = {"stdlib": set(), "third_party": set(), "internal": set(), "relative": set()}
     try:
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             tree = ast.parse(f.read(), filename=str(filepath))
     except SyntaxError as e:
         return {"_syntax_error": {str(e)}}
@@ -124,7 +124,7 @@ def classify_import(module_name: str, imports: Dict[str, Set[str]]):
 def check_syntax(filepath: Path) -> Tuple[bool, str]:
     """编译检查语法"""
     try:
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             f.read() + "\n"
         py_compile.compile(filepath, doraise=True)
         return True, ""

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 再平衡执行单生成器
 基于当前持仓与目标配置，生成可执行的再平衡订单
@@ -39,7 +38,7 @@ TARGET_TOTAL = 5_000_000.0
 def load_positions():
     # T3.6 修正: 使用动态解析的项目根目录 (不再硬编码 v7.1 路径)
     path = _PROJECT_ROOT / "config" / "positions.json"
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)["positions"]
     positions = {}
     prices = {}

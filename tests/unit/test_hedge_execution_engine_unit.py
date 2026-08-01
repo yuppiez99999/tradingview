@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_hedge_execution_engine_unit.py — 对冲执行引擎单元测试
 
 覆盖 bug 回归:

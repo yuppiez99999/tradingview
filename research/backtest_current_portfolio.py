@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 实际持仓回测验证 (Backtest Current Portfolio)
 =============================================
@@ -36,7 +35,6 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -105,16 +103,16 @@ class PortfolioBacktester:
                 logger.warning(f"Vibe-Trading 适配器初始化失败: {e}")
                 self.use_vibe = False
 
-    def _load_positions(self) -> Dict:
+    def _load_positions(self) -> dict:
         """加载持仓配置"""
         try:
-            with open(self.positions_file, 'r', encoding='utf-8') as f:
+            with open(self.positions_file, encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"加载持仓失败: {e}")
             return {}
 
-    def get_portfolio_codes(self) -> Dict[str, Dict]:
+    def get_portfolio_codes(self) -> dict[str, dict]:
         """提取持仓代码和权重
 
         Returns:
@@ -268,7 +266,7 @@ class PortfolioBacktester:
         return df
 
     def calc_risk_parity_weights(self, returns: pd.DataFrame,
-                                  base_weights: Dict[str, float]) -> pd.Series:
+                                  base_weights: dict[str, float]) -> pd.Series:
         """计算 Risk Parity 权重
 
         基于过去60日波动率的倒数加权:
@@ -298,7 +296,7 @@ class PortfolioBacktester:
         return blended
 
     def backtest(self, start_date: str = "2021-01-01", end_date: str = None,
-                 use_hedge: bool = True, use_risk_parity: bool = True) -> Dict:
+                 use_hedge: bool = True, use_risk_parity: bool = True) -> dict:
         """执行回测
 
         Args:
@@ -433,7 +431,7 @@ class PortfolioBacktester:
         return result
 
     def _calc_performance_metrics(self, daily_returns: pd.Series,
-                                   cumulative_nav: pd.Series) -> Dict:
+                                   cumulative_nav: pd.Series) -> dict:
         """计算绩效指标"""
         n_years = len(daily_returns) / 252
 
@@ -476,7 +474,7 @@ class PortfolioBacktester:
             "n_years": round(n_years, 2),
         }
 
-    def _check_targets(self, metrics: Dict) -> Dict:
+    def _check_targets(self, metrics: dict) -> dict:
         """检查是否达标"""
         checks = {
             "annual_return": metrics["annual_return"] >= self.TARGET_ANNUAL_RETURN,
@@ -494,8 +492,8 @@ class PortfolioBacktester:
         }
         return checks
 
-    def _generate_suggestions(self, metrics: Dict, portfolio: Dict,
-                              returns_df: pd.DataFrame) -> List[Dict]:
+    def _generate_suggestions(self, metrics: dict, portfolio: dict,
+                              returns_df: pd.DataFrame) -> list[dict]:
         """生成调仓建议"""
         suggestions = []
 
@@ -556,7 +554,7 @@ class PortfolioBacktester:
 
         return suggestions
 
-    def save_report(self, result: Dict, output_dir: Path = None) -> str:
+    def save_report(self, result: dict, output_dir: Path = None) -> str:
         """保存回测报告"""
         if output_dir is None:
             output_dir = REPORTS_DIR

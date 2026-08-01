@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """三层面自我进化 Stage 2 验证脚本.
 
 按 ARCHITECTURE_三层面进化 §第2阶段验收标准执行 12 项验证:
@@ -426,7 +425,7 @@ try:
             report = analyzer.analyze(None)
             check("采集后文件存在", persist_path.exists())
             content = persist_path.read_text(encoding="utf-8").strip()
-            lines = [l for l in content.splitlines() if l.strip()]
+            lines = [line for line in content.splitlines() if line.strip()]
             check("文件有 1 行", len(lines) == 1, f"行数={len(lines)}")
             # 验证行是有效 JSON
             parsed = json.loads(lines[0])

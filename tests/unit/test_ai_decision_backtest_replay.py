@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ai_decision.backtest_replay 测试套件 — 历史回放 + 三基线对比
 
 覆盖路线图步骤 6 的 4 个验收场景:
@@ -364,7 +363,7 @@ def test_save_creates_md_and_json():
     assert os.path.getsize(json_path) > 0
 
     # JSON 可反序列化
-    with open(json_path, "r", encoding="utf-8") as fh:
+    with open(json_path, encoding="utf-8") as fh:
         loaded = json.load(fh)
     assert "baselines" in loaded
     assert "marginal_sharpe_debate_vs_agents" in loaded

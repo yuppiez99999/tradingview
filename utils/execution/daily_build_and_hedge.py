@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 每日建仓计划 + 期货期权对冲联动系统 v8.0
 =========================================
@@ -26,7 +25,7 @@ import logging
 import sys
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, cast
+from typing import Any, Dict, cast
 
 # T3.6 迁移修正: __file__ 从根目录变为 utils/execution/, 需回退两级到项目根目录
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -65,17 +64,17 @@ class DailyBuildHedgeSystem:
     8. 输出完整执行报告
     """
 
-    def __init__(self, target_date: Optional[date] = None, dry_run: bool = False):
+    def __init__(self, target_date: date | None = None, dry_run: bool = False):
         self.target_date = target_date or date.today()
         self.dry_run = dry_run
-        self.plan_data: Dict[str, Any] = {}
-        self.market_state: Dict[str, Any] = {}
-        self.build_plan: Dict[str, Any] = {}
-        self.hedge_plan: Dict[str, Any] = {}
-        self.risk_status: Dict[str, Any] = {}
-        self.stock_positions: Dict[str, Dict] = {}
-        self.holdings: Dict[str, float] = {}
-        self.prices: Dict[str, float] = {}
+        self.plan_data: dict[str, Any] = {}
+        self.market_state: dict[str, Any] = {}
+        self.build_plan: dict[str, Any] = {}
+        self.hedge_plan: dict[str, Any] = {}
+        self.risk_status: dict[str, Any] = {}
+        self.stock_positions: dict[str, dict] = {}
+        self.holdings: dict[str, float] = {}
+        self.prices: dict[str, float] = {}
         self._load_plan()
 
     def _load_plan(self):
@@ -87,7 +86,7 @@ class DailyBuildHedgeSystem:
         for path in candidates:
             if path.exists():
                 try:
-                    with open(path, "r", encoding="utf-8") as f:
+                    with open(path, encoding="utf-8") as f:
                         self.plan_data = json.load(f)
                     logger.info(f"已加载交易计划: {path.name}")
                     return
@@ -96,7 +95,7 @@ class DailyBuildHedgeSystem:
 
         logger.error("未找到交易计划文件")
 
-    def get_active_phase(self) -> Tuple[Optional[Dict], str]:
+    def get_active_phase(self) -> tuple[dict | None, str]:
         """获取当前活跃建仓阶段"""
         exec_plan = self.plan_data.get("execution_plan", {})
         phases = ["phase1", "phase2", "phase3", "phase4"]
@@ -120,7 +119,7 @@ class DailyBuildHedgeSystem:
 
         return None, "completed"
 
-    def assess_market_state(self) -> Dict[str, Any]:
+    def assess_market_state(self) -> dict[str, Any]:
         """评估市场状态 (含ETF资金流 + LLM辅助决策)"""
         try:
             from utils.etf_flow_monitor import ETFMonitor  # type: ignore
@@ -191,7 +190,7 @@ class DailyBuildHedgeSystem:
         self.market_state = market_state
         return market_state
 
-    def calculate_risk_budget(self, phase: Dict) -> Dict[str, Any]:
+    def calculate_risk_budget(self, phase: dict) -> dict[str, Any]:
         """计算风险预算"""
         from utils.risk_budget_allocator import RiskBudgetAllocator
 
@@ -243,7 +242,7 @@ class DailyBuildHedgeSystem:
 
         return self.risk_status
 
-    def generate_build_instructions(self, phase: Dict) -> Dict[str, Any]:
+    def generate_build_instructions(self, phase: dict) -> dict[str, Any]:
         """生成股票/ETF建仓指令"""
         from build_plan_executor import BuildPlanExecutor
         from utils.data_types import normalize_stock_code
@@ -255,7 +254,7 @@ class DailyBuildHedgeSystem:
         capital_multiplier = protocol.get("day_capital_multiplier", 1.0)
 
         plan_path_500w = BASE_DIR / "500万建仓计划_20260706.json"
-        with open(plan_path_500w, "r", encoding="utf-8") as f:
+        with open(plan_path_500w, encoding="utf-8") as f:
             plan_500w = json.load(f)
 
         price_quotes = {}
@@ -347,7 +346,7 @@ class DailyBuildHedgeSystem:
         self.build_plan = build_instructions
         return build_instructions
 
-    def calculate_hedge_plan(self) -> Dict[str, Any]:
+    def calculate_hedge_plan(self) -> dict[str, Any]:
         """计算期货/期权对冲计划"""
         from utils.greek_hedge_manager import GreekHedgeManager, HedgeInstrument
 
@@ -476,7 +475,7 @@ class DailyBuildHedgeSystem:
         self.hedge_plan = hedge_plan
         return hedge_plan
 
-    def _load_target_portfolio_plan(self) -> Dict[str, Any]:
+    def _load_target_portfolio_plan(self) -> dict[str, Any]:
         """加载含 target_portfolio 的目标建仓计划 (500万建仓计划_20260706.json)。
 
         该计划与每日建仓指令 (BuildPlanExecutor) 使用同一文件, 是宽基ETF与
@@ -484,14 +483,14 @@ class DailyBuildHedgeSystem:
         """
         if getattr(self, "_target_plan_cache", None) is None:
             try:
-                with open(BASE_DIR / "500万建仓计划_20260706.json", "r", encoding="utf-8") as f:
+                with open(BASE_DIR / "500万建仓计划_20260706.json", encoding="utf-8") as f:
                     self._target_plan_cache = cast(Dict[str, Any], json.load(f))
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"加载目标建仓计划失败: {e}")
                 self._target_plan_cache = {}
         return self._target_plan_cache
 
-    def fetch_realtime_quotes(self) -> Dict[str, Any]:
+    def fetch_realtime_quotes(self) -> dict[str, Any]:
         """拉取组合全部标的实时行情 (东财优先 + 腾讯回退, 来自 A股全栈数据 skill)。
 
         覆盖自动交易计划 positions 与目标建仓计划 target_portfolio 的全部代码,
@@ -880,7 +879,7 @@ class DailyBuildHedgeSystem:
 
         return "\n".join(lines)
 
-    def save_report(self, output_dir: Optional[str] = None):
+    def save_report(self, output_dir: str | None = None):
         """保存报告到文件"""
         out_dir = Path(output_dir) if output_dir else BASE_DIR / "每日报告归档" / self.target_date.strftime("%Y-%m-%d")
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -940,7 +939,7 @@ class DailyBuildHedgeSystem:
 
         return str(md_path), str(json_path)
 
-    def run(self) -> Dict[str, Any]:
+    def run(self) -> dict[str, Any]:
         """执行完整流程"""
         logger.info("=" * 60)
         logger.info("每日建仓计划 + 对冲联动系统 v8.0")

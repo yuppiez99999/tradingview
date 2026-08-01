@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Phase implementation: phase_cash_management
 
@@ -12,7 +11,7 @@ The function receives a DailyWorkflow instance as its first parameter ("workflow
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def phase_cash_management(workflow) -> Dict[str, Any]:
+def phase_cash_management(workflow) -> dict[str, Any]:
     """现金管理 — 逆回购自动下单 + 应急金监控 + 保证金追加检查
 
     v10.0 投资计划 cash_management (130 万资金, 占总资本 26%):
@@ -42,7 +41,7 @@ def phase_cash_management(workflow) -> Dict[str, Any]:
     logger.info("Phase 4.8: 现金管理 (逆回购 + 货基 + 应急金)")
     logger.info("=" * 60)
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "status": "PASS",
         "action": "skip",
         "total_cash": 0.0,

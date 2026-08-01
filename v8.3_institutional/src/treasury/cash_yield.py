@@ -6,7 +6,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional
 
 logger = logging.getLogger("v76.treasury")
 
@@ -23,9 +22,9 @@ class CashYieldConfig:
 class CashYieldManager:
     """桥水式现金管理: 闲置现金 → GC001 逆回购自动化"""
 
-    def __init__(self, config: Optional[CashYieldConfig] = None):
+    def __init__(self, config: CashYieldConfig | None = None):
         self.cfg = config or CashYieldConfig()
-        self._daily_log: List[dict] = []
+        self._daily_log: list[dict] = []
         self._cumulative_income: float = 0.0
         self._days_active: int = 0
 

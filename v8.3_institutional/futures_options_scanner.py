@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 期货期权市场机会扫描器 v1.0
 扫描维度：商品期货 / 股指期货 / 期权波动率 / 对冲需求
@@ -12,7 +11,7 @@ import math
 import os
 import sys
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # 保证可导入项目内 ifind skill 与 data 模块
 _HERE = os.path.dirname(__file__)
@@ -67,9 +66,9 @@ _AKSHARE_FUTURES_MAP = {
 # 工具函数
 # ========================
 
-def _parse_edb_table(raw_text: str) -> List[Tuple[str, float]]:
+def _parse_edb_table(raw_text: str) -> list[tuple[str, float]]:
     """从 iFinD EDB 返回的文本中解析 日期|数值 表格"""
-    rows: List[Tuple[str, float]] = []
+    rows: list[tuple[str, float]] = []
     for line in raw_text.splitlines():
         line = line.strip()
         if not line.startswith("|") or line.startswith("|---") or line.startswith("|日期"):
@@ -93,13 +92,13 @@ def _safe_num(v: Any, default: float = 0.0) -> float:
         return default
 
 
-def _pct_change(series: List[Tuple[str, float]], window: int = 20) -> Optional[float]:
+def _pct_change(series: list[tuple[str, float]], window: int = 20) -> float | None:
     if len(series) < window + 1:
         return None
     return (series[-1][1] - series[-window - 1][1]) / series[-window - 1][1]
 
 
-def _volatility(series: List[Tuple[str, float]], window: int = 20) -> Optional[float]:
+def _volatility(series: list[tuple[str, float]], window: int = 20) -> float | None:
     if len(series) < window + 1:
         return None
     rets = []
@@ -115,7 +114,7 @@ def _volatility(series: List[Tuple[str, float]], window: int = 20) -> Optional[f
     return math.sqrt(var) * math.sqrt(252)
 
 
-def _trend_score(series: List[Tuple[str, float]], window: int = 20) -> Optional[float]:
+def _trend_score(series: list[tuple[str, float]], window: int = 20) -> float | None:
     if len(series) < window:
         return None
     recent = [v for _, v in series[-window:]]
@@ -123,7 +122,7 @@ def _trend_score(series: List[Tuple[str, float]], window: int = 20) -> Optional[
     return up / (len(recent) - 1)
 
 
-def _rsi(series: List[Tuple[str, float]], window: int = 14) -> Optional[float]:
+def _rsi(series: list[tuple[str, float]], window: int = 14) -> float | None:
     """简易 RSI，用于辅助判断超买/超卖"""
     if len(series) < window + 1:
         return None
@@ -147,7 +146,7 @@ def _rsi(series: List[Tuple[str, float]], window: int = 14) -> Optional[float]:
     return 100.0 - 100.0 / (1.0 + rs)
 
 
-def _max_drawdown(series: List[Tuple[str, float]], window: int = 20) -> Optional[float]:
+def _max_drawdown(series: list[tuple[str, float]], window: int = 20) -> float | None:
     """近 window 日最大回撤"""
     if len(series) < window:
         return None
@@ -163,7 +162,7 @@ def _max_drawdown(series: List[Tuple[str, float]], window: int = 20) -> Optional
     return max_dd
 
 
-def _to_edb_like(name: str, df: Any) -> Dict[str, Any]:
+def _to_edb_like(name: str, df: Any) -> dict[str, Any]:
     """将 AKShare DataFrame 转成 EDBFuturesData.fetch() 的近似结构"""
     try:
         if df is None or (hasattr(df, "empty") and df.empty):
@@ -178,7 +177,7 @@ def _to_edb_like(name: str, df: Any) -> Dict[str, Any]:
                 rename_map[c] = c
         if rename_map:
             df = df.rename(columns=rename_map)
-        series: List[Tuple[str, float]] = []
+        series: list[tuple[str, float]] = []
         for _, row in df.iterrows():
             dt = row.get("date")
             close = row.get("close")
@@ -197,7 +196,7 @@ def _to_edb_like(name: str, df: Any) -> Dict[str, Any]:
 # 扫描逻辑
 # ========================
 
-def _akshare_fallback(name: str) -> Dict[str, Any]:
+def _akshare_fallback(name: str) -> dict[str, Any]:
     """EDB 无数据时的 AKShare 回退"""
     if not HAS_AKSHARE_FUTURES:
         return {}
@@ -211,8 +210,8 @@ def _akshare_fallback(name: str) -> Dict[str, Any]:
 class FuturesOptionsScanner:
     def __init__(self):
         self.report_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-        self.items: List[Dict[str, Any]] = []
-        self._raw_series: Dict[str, List[Tuple[str, float]]] = {}
+        self.items: list[dict[str, Any]] = []
+        self._raw_series: dict[str, list[tuple[str, float]]] = {}
 
     def scan_commodity_futures(self):
         """商品期货：覆盖 AI 算力链、十五五战略资源、能源/化工"""
@@ -258,7 +257,7 @@ class FuturesOptionsScanner:
             chg_1d = (latest - prev) / prev if prev > 0 else None
 
             score = 0.0
-            reasons: List[str] = []
+            reasons: list[str] = []
             if ret20 is not None:
                 if ret20 > 0.05:
                     score += 2
@@ -330,7 +329,7 @@ class FuturesOptionsScanner:
             chg_1d = (latest - prev) / prev if prev > 0 else None
 
             score = 0.0
-            reasons: List[str] = []
+            reasons: list[str] = []
             if ret20 is not None:
                 if ret20 > 0.03:
                     score += 2
@@ -450,7 +449,7 @@ class FuturesOptionsScanner:
             qual_score = ann["manual_score"] / 5.0 * 3.0
 
             bonus = 0.0
-            bonus_reasons: List[str] = []
+            bonus_reasons: list[str] = []
             if rsi14 is not None:
                 if rsi14 < 30:
                     bonus += 1.0
@@ -490,7 +489,7 @@ class FuturesOptionsScanner:
             if vol20 is None or trend20 is None:
                 continue
             opt_score = 0.0
-            reasons: List[str] = []
+            reasons: list[str] = []
             if vol20 > 0.22:
                 opt_score += 2
                 reasons.append("高波动利好期权卖方/买方")
@@ -536,7 +535,7 @@ class FuturesOptionsScanner:
                     })
         return aligned
 
-    def run(self) -> Dict[str, Any]:
+    def run(self) -> dict[str, Any]:
         self.scan_commodity_futures()
         self.scan_ai_power_core()
         self.scan_index_futures()
@@ -568,8 +567,8 @@ def _fmt_num(v: Any) -> str:
     return str(v)
 
 
-def print_report(result: Dict[str, Any]) -> str:
-    lines: List[str] = []
+def print_report(result: dict[str, Any]) -> str:
+    lines: list[str] = []
     lines.append("=" * 80)
     lines.append("  期货期权市场机会扫描报告")
     lines.append(f"  生成时间：{result.get('report_time')}")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P1 风控缺口修复验证脚本 (v8.6.6)
 =================================
@@ -58,7 +57,7 @@ def verify_p1_g() -> bool:
 
     try:
         workflow_path = PROJECT_ROOT / "v8.3_institutional" / "daily_workflow.py"
-        with open(workflow_path, "r", encoding="utf-8") as f:
+        with open(workflow_path, encoding="utf-8") as f:
             content = f.read()
 
         lines = content.split("\n")
@@ -591,7 +590,7 @@ def verify_eod_guard_integration() -> bool:
 
     try:
         rgi_path = PROJECT_ROOT / "utils" / "risk_guard_integrator.py"
-        with open(rgi_path, "r", encoding="utf-8") as f:
+        with open(rgi_path, encoding="utf-8") as f:
             content = f.read()
 
         # 检查 run_all_guards 中调用了所有 7 个 Guard

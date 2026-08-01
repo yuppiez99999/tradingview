@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T02: 测量 pylint broad-except 基线"""
 import subprocess
 import sys

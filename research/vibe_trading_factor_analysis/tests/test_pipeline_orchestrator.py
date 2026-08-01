@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """PipelineOrchestrator 单元测试 - CIO v1.0
 
 验证 8 级流水线状态机：
@@ -85,7 +84,7 @@ def test_pipeline_state_persistence():
         # 验证审计文件
         audit_file = Path(tmpdir) / "test_batch" / "pipeline_state.json"
         assert audit_file.exists(), f"审计文件应存在: {audit_file}"
-        with open(audit_file, "r", encoding="utf-8") as f:
+        with open(audit_file, encoding="utf-8") as f:
             data = json.load(f)
         assert "batch_id" in data
         assert "factors" in data
@@ -146,11 +145,14 @@ def main():
     passed = failed = 0
     for t in tests:
         try:
-            t(); passed += 1
+            t()
+            passed += 1
         except AssertionError as e:
-            failed += 1; print(f"  ✗ FAIL: {e}")
+            failed += 1
+            print(f"  ✗ FAIL: {e}")
         except Exception as e:
-            failed += 1; print(f"  ✗ ERROR: {type(e).__name__}: {e}")
+            failed += 1
+            print(f"  ✗ ERROR: {type(e).__name__}: {e}")
     print("\n" + "=" * 60)
     print(f"总计: {passed} 通过, {failed} 失败 (共 {len(tests)} 项)")
     print("=" * 60)

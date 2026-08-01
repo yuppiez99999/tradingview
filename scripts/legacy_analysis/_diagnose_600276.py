@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """诊断 600276 LightGBM access violation 崩溃原因
 
 检查项:

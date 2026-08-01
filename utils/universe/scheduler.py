@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 每日盘后定时调度器
 
@@ -21,7 +20,6 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
 
 import pandas as pd
 
@@ -44,7 +42,7 @@ class ScanResult:
     output_dir: str = ""
     success: bool = False
     error: str = ""
-    report_paths: Dict[str, str] = field(default_factory=dict)
+    report_paths: dict[str, str] = field(default_factory=dict)
 
 
 class KlinesLoader:
@@ -53,13 +51,13 @@ class KlinesLoader:
     优先用通达信（TCP 稳定），降级用 AKShare
     """
 
-    def __init__(self, count: int = 300, cache_dir: Optional[Path] = None):
+    def __init__(self, count: int = 300, cache_dir: Path | None = None):
         self.count = count
         self.cache_dir = cache_dir or (_REPO_ROOT / "data" / "cache" / "klines")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._tdx_source = None
         self._akshare_source = None
-        self._cache: Dict[str, pd.DataFrame] = {}
+        self._cache: dict[str, pd.DataFrame] = {}
 
     def _get_tdx(self):
         """获取通达信数据源（优先）"""
@@ -86,7 +84,7 @@ class KlinesLoader:
                 logger.debug(f"AKShare 不可用: {e}")
         return self._akshare_source
 
-    def __call__(self, symbol: str) -> Optional[pd.DataFrame]:
+    def __call__(self, symbol: str) -> pd.DataFrame | None:
         """加载单只股票 K 线"""
         if symbol in self._cache:
             return self._cache[symbol]
@@ -194,8 +192,8 @@ class KlinesLoader:
 
 
 def run_daily_scan(
-    trade_date: Optional[str] = None,
-    output_dir: Optional[str] = None,
+    trade_date: str | None = None,
+    output_dir: str | None = None,
     pool: str = "hs300_zz500",
     smoke_test: bool = False,
     smoke_count: int = 10,

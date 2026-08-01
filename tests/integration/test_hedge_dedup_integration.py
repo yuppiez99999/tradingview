@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_hedge_dedup_integration.py — 对冲订单去重 + apply_to_plan 集成测试
 
 5 条关键链路 #5: HedgeExecutionEngine + ProtectivePutEngine → 同一底层重复 → 去重

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """SkillManager: 经验沉淀管理器 (N5).
 
 记录策略运行中的经验教训, 沉淀到经验日志文件供后续复用.
@@ -21,7 +20,7 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("skill_manager")
 
@@ -63,8 +62,8 @@ class SkillManager:
 
     def __init__(
         self,
-        project_base: Optional[str] = None,
-        skill_file_path: Optional[str] = None,
+        project_base: str | None = None,
+        skill_file_path: str | None = None,
     ):
         """初始化.
 
@@ -94,12 +93,12 @@ class SkillManager:
             logger.debug(f"创建目录失败 (非致命): {e}")
 
     # ---------- 读 ----------
-    def load_experience_log(self) -> List[Dict[str, Any]]:
+    def load_experience_log(self) -> list[dict[str, Any]]:
         """加载结构化经验日志."""
         if not os.path.exists(self.experience_log_path):
             return []
         try:
-            with open(self.experience_log_path, "r", encoding="utf-8") as f:
+            with open(self.experience_log_path, encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, list):
                 return data
@@ -109,10 +108,10 @@ class SkillManager:
 
     def get_recent_lessons(
         self,
-        symbol: Optional[str] = None,
+        symbol: str | None = None,
         days: int = 7,
-        lesson_type: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        lesson_type: str | None = None,
+    ) -> list[dict[str, Any]]:
         """获取近 N 天的经验.
 
         Args:
@@ -144,8 +143,8 @@ class SkillManager:
     def save_experience(
         self,
         symbol: str,
-        lesson: Dict[str, Any],
-        enabled: Optional[bool] = None,
+        lesson: dict[str, Any],
+        enabled: bool | None = None,
     ) -> bool:
         """记录一条经验.
 
@@ -183,7 +182,7 @@ class SkillManager:
         if impact not in _SKILL_CONFIG["valid_impacts"]:
             impact = "neutral"
 
-        entry: Dict[str, Any] = {
+        entry: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "symbol": str(symbol),
             "lesson_type": lesson_type,
@@ -215,7 +214,7 @@ class SkillManager:
 
         return success
 
-    def _append_skill_markdown(self, entry: Dict[str, Any]) -> None:
+    def _append_skill_markdown(self, entry: dict[str, Any]) -> None:
         """将经验追加到 Skill Markdown 文件 (最小可用实现, 修复 v1 pass 空实现).
 
         采用纯追加模式, 不解析现有 Markdown, 避免破坏已有内容.
@@ -243,7 +242,7 @@ class SkillManager:
         # 检查是否已存在同名 section (避免重复追加同一秒内的重复写入)
         try:
             if os.path.exists(self.skill_path):
-                with open(self.skill_path, "r", encoding="utf-8") as f:
+                with open(self.skill_path, encoding="utf-8") as f:
                     existing = f.read()
                 # 用时间戳去重
                 if entry.get("timestamp", "")[:16] in existing:
@@ -256,15 +255,15 @@ class SkillManager:
             f.write(block)
 
     # ---------- 统计 ----------
-    def summary(self, days: int = 30) -> Dict[str, Any]:
+    def summary(self, days: int = 30) -> dict[str, Any]:
         """生成经验统计摘要."""
         lessons = self.get_recent_lessons(days=days)
-        by_type: Dict[str, int] = {}
-        by_impact: Dict[str, int] = {"positive": 0, "negative": 0, "neutral": 0}
-        for l in lessons:
-            t = l.get("lesson_type", "unknown")
+        by_type: dict[str, int] = {}
+        by_impact: dict[str, int] = {"positive": 0, "negative": 0, "neutral": 0}
+        for lesson in lessons:
+            t = lesson.get("lesson_type", "unknown")
             by_type[t] = by_type.get(t, 0) + 1
-            imp = l.get("impact", "neutral")
+            imp = lesson.get("impact", "neutral")
             by_impact[imp] = by_impact.get(imp, 0) + 1
         return {
             "total": len(lessons),
@@ -348,8 +347,8 @@ if __name__ == "__main__":
         # 2. 读取
         lessons = sm.get_recent_lessons(days=7)
         logger.info(f"\n--- 读取 {len(lessons)} 条近 7 天经验 ---")
-        for l in lessons:
-            logger.info(f"  [{l['lesson_type']}] {l['symbol']}: {l['description'][:40]}...")
+        for lesson in lessons:
+            logger.info(f"  [{lesson['lesson_type']}] {lesson['symbol']}: {lesson['description'][:40]}...")
 
         # 3. 统计
         s = sm.summary(days=7)

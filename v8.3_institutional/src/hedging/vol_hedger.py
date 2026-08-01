@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 波动率对冲引擎 —— VIX 分级 + 期权保护性 Put
 
@@ -15,7 +14,6 @@ v7.5 波动率对冲引擎 —— VIX 分级 + 期权保护性 Put
 from __future__ import annotations
 
 import logging
-from typing import Dict
 
 logger = logging.getLogger("v75.hedging.vol")
 
@@ -48,7 +46,7 @@ class VolHedger:
         self.budget_high = float(budget_high_pct)
         self.delta_target = float(delta_target)
 
-    def compute_hedge(self, vix: float, portfolio_value: float) -> Dict[str, object]:
+    def compute_hedge(self, vix: float, portfolio_value: float) -> dict[str, object]:
         """根据 VIX 计算期权对冲指令
 
         Args:

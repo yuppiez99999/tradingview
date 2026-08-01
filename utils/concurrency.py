@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 并发安全工具模块 (Phase 2 并发专项, 2026-07-29)
 
@@ -26,7 +25,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, TypeVar, Union
+from typing import Any, Callable, Iterator, TypeVar, Union
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ R = TypeVar("R")
 # 哨兵: 区分 "未传 fail_default" 与 "fail_default=None"
 _UNSET = object()
 
-_PATH_LOCKS: Dict[str, threading.Lock] = {}
+_PATH_LOCKS: dict[str, threading.Lock] = {}
 _REGISTRY_LOCK = threading.Lock()
 
 PathLike = Union[str, Path]
@@ -60,7 +59,7 @@ def get_path_lock(path: PathLike) -> threading.Lock:
 def _replace_with_retry(src: str, dst: PathLike, retries: int = 50, delay: float = 0.02) -> None:
     """Windows 下 os.replace 在目标文件被其它进程打开时抛 PermissionError
     (共享违规)。短暂重试直到读方释放句柄, 保持替换原子性。"""
-    last_err: Optional[BaseException] = None
+    last_err: BaseException | None = None
     for _ in range(retries):
         try:
             os.replace(src, dst)
@@ -110,7 +109,7 @@ def read_json_locked(path: PathLike, default: Any = None) -> Any:
     lock = get_path_lock(target)
     with lock:
         try:
-            with open(target, "r", encoding="utf-8") as f:
+            with open(target, encoding="utf-8") as f:
                 return json.load(f)
         except FileNotFoundError:
             return default
@@ -121,7 +120,7 @@ def read_json_locked(path: PathLike, default: Any = None) -> Any:
 
 @contextmanager
 def process_lock(
-    name: str, timeout: float = 0.0, stale_seconds: float = 3600.0, lock_dir: Optional[PathLike] = None
+    name: str, timeout: float = 0.0, stale_seconds: float = 3600.0, lock_dir: PathLike | None = None
 ) -> Iterator[bool]:
     """跨进程互斥锁 (Windows 计划任务重入防护)。
 
@@ -176,15 +175,15 @@ def process_lock(
 # 通用并发 IO 批量执行 (B2.1)
 # ============================================================
 def run_io_batch(
-    items: List[T],
+    items: list[T],
     fn: Callable[[T], R],
     *,
     max_workers: int = 8,
-    timeout: Optional[float] = 30.0,
+    timeout: float | None = 30.0,
     fail_default: Any = _UNSET,
-    progress_cb: Optional[Callable[[int, int], None]] = None,
+    progress_cb: Callable[[int, int], None] | None = None,
     desc: str = "",
-) -> List[Any]:
+) -> list[Any]:
     """通用并发 IO 批量执行 helper (B2.1)
 
     用 ThreadPoolExecutor 并发执行 ``fn(item)``, 支持:
@@ -222,7 +221,7 @@ def run_io_batch(
 
     fallback = None if fail_default is _UNSET else fail_default
     total = len(items)
-    results: List[Any] = [fallback] * total
+    results: list[Any] = [fallback] * total
     completed = 0
 
     # 限制 max_workers 不超过 items 数量 (避免空线程)

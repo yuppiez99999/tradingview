@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """run_io_batch 单元测试 (B2.1)
 
 覆盖场景:

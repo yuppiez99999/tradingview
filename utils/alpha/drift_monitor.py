@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """模型漂移检测器 (re-export + 增强) — T5.8 交付物.
 
 模块整合 8.4 — ARCHITECTURE §4.2
@@ -31,7 +30,7 @@ import logging
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
 
 logger = logging.getLogger("drift_monitor")
 
@@ -113,9 +112,9 @@ class DriftMonitor:
     def __init__(
         self,
         model_name: str = "default",
-        detector: Optional[Any] = None,
-        alerts_dir: Optional[str] = None,
-        retrain_callback: Optional[Callable[[List[Any]], bool]] = None,
+        detector: Any | None = None,
+        alerts_dir: str | None = None,
+        retrain_callback: Callable[[list[Any]], bool] | None = None,
         retrain_threshold_count: int = 3,
         retrain_threshold_severity: str = "critical",
     ) -> None:
@@ -150,10 +149,10 @@ class DriftMonitor:
         self.retrain_threshold_count = retrain_threshold_count
         self.retrain_threshold_severity = retrain_threshold_severity
         # 状态
-        self._alerts_history: List[Dict[str, Any]] = []
+        self._alerts_history: list[dict[str, Any]] = []
         self._retrain_triggered: bool = False
-        self._last_retrain_time: Optional[str] = None
-        self._monitoring_thread: Optional[threading.Thread] = None
+        self._last_retrain_time: str | None = None
+        self._monitoring_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._lock = threading.RLock()
         self._monitoring_interval = 60.0  # 默认 60s 检查一次
@@ -161,7 +160,7 @@ class DriftMonitor:
     # ============================================================
     # 数据更新 (委托给 ModelDriftDetector)
     # ============================================================
-    def update_ic(self, date: str, ic_value: float) -> Optional[Any]:
+    def update_ic(self, date: str, ic_value: float) -> Any | None:
         """更新 IC 值 (委托)."""
         if self.detector is None:
             return None
@@ -174,7 +173,7 @@ class DriftMonitor:
             logger.exception("IC 更新失败: %s", e)
             return None
 
-    def update_adwin(self, value: float) -> Optional[Any]:
+    def update_adwin(self, value: float) -> Any | None:
         """更新 ADWIN (委托)."""
         if self.detector is None:
             return None
@@ -187,7 +186,7 @@ class DriftMonitor:
             logger.exception("ADWIN 更新失败: %s", e)
             return None
 
-    def check_feature_drift(self, current_features: Dict[str, Any]) -> List[Any]:
+    def check_feature_drift(self, current_features: dict[str, Any]) -> list[Any]:
         """检查特征漂移 (委托)."""
         if self.detector is None:
             return []
@@ -200,7 +199,7 @@ class DriftMonitor:
             logger.exception("特征漂移检查失败: %s", e)
             return []
 
-    def check_all(self) -> List[Any]:
+    def check_all(self) -> list[Any]:
         """全量检查 (委托)."""
         if self.detector is None:
             return []
@@ -245,7 +244,7 @@ class DriftMonitor:
     # ============================================================
     # 重训练触发
     # ============================================================
-    def _check_retrain_trigger(self, alerts: List[Any]) -> bool:
+    def _check_retrain_trigger(self, alerts: list[Any]) -> bool:
         """检查是否需要触发重训练."""
         if self.retrain_callback is None:
             return False
@@ -335,7 +334,7 @@ class DriftMonitor:
     # ============================================================
     # 状态查询
     # ============================================================
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取监控状态快照."""
         with self._lock:
             return {
@@ -349,12 +348,12 @@ class DriftMonitor:
                 "timestamp": datetime.utcnow().isoformat() + "Z",
             }
 
-    def get_alerts_history(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_alerts_history(self, limit: int = 100) -> list[dict[str, Any]]:
         """获取告警历史."""
         with self._lock:
             return list(self._alerts_history[-limit:])
 
-    def generate_report(self) -> Dict[str, Any]:
+    def generate_report(self) -> dict[str, Any]:
         """生成漂移报告."""
         if self.detector is None:
             return {"model_name": self.model_name, "error": "detector 不可用"}
@@ -380,7 +379,7 @@ class DriftMonitor:
 # ============================================================
 def create_drift_monitor(
     model_name: str,
-    retrain_callback: Optional[Callable[[List[Any]], bool]] = None,
+    retrain_callback: Callable[[list[Any]], bool] | None = None,
 ) -> DriftMonitor:
     """创建漂移监控器 (便捷函数)."""
     return DriftMonitor(
@@ -476,7 +475,7 @@ class DriftReport:
     owner: str = ""
     runbook_url: str = "docs/runbooks/MODEL_DRIFT_RUNBOOK.md"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为 dict (用于持久化到 JSON)."""
         return {
             "timestamp": self.timestamp,
@@ -677,7 +676,7 @@ def compute_prediction_drift(
     )
 
 
-def _load_alert_owners(config_path: Optional[str] = None) -> Dict[str, Dict[str, str]]:
+def _load_alert_owners(config_path: str | None = None) -> dict[str, dict[str, str]]:
     """加载告警 owner 配置.
 
     Args:
@@ -691,7 +690,7 @@ def _load_alert_owners(config_path: Optional[str] = None) -> Dict[str, Dict[str,
     try:
         import yaml
 
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         # 支持 {models: [...]} 或直接 {model_name: {...}} 两种格式
         if "models" in data:
@@ -734,11 +733,11 @@ class SimModeDriftMonitor:
         self,
         model_name: str,
         model_version: str,
-        baseline_panel: Optional[pd.DataFrame] = None,
+        baseline_panel: pd.DataFrame | None = None,
         sim_mode: bool = False,
-        feature_columns: Optional[Sequence[str]] = None,
-        reports_dir: Optional[str] = None,
-        alert_owners_path: Optional[str] = None,
+        feature_columns: Sequence[str] | None = None,
+        reports_dir: str | None = None,
+        alert_owners_path: str | None = None,
     ) -> None:
         """初始化.
 
@@ -757,7 +756,7 @@ class SimModeDriftMonitor:
         self._baseline_panel = baseline_panel
         # 推断特征列
         if feature_columns is not None:
-            self._feature_columns: List[str] = list(feature_columns)
+            self._feature_columns: list[str] = list(feature_columns)
         elif baseline_panel is not None:
             self._feature_columns = [c for c in baseline_panel.columns if c not in ("code", "date", "y", "symbol")]
         else:
@@ -773,7 +772,7 @@ class SimModeDriftMonitor:
         # 告警 owner
         self._alert_owners = _load_alert_owners(alert_owners_path)
         # 累积报告历史
-        self._history: List[DriftReport] = []
+        self._history: list[DriftReport] = []
 
     def is_active(self) -> bool:
         """是否激活.
@@ -790,7 +789,7 @@ class SimModeDriftMonitor:
         if not self._feature_columns:
             self._feature_columns = [c for c in panel.columns if c not in ("code", "date", "y", "symbol")]
 
-    def run_daily_check(self, current_panel: pd.DataFrame) -> List[DriftReport]:
+    def run_daily_check(self, current_panel: pd.DataFrame) -> list[DriftReport]:
         """每日漂移检查 (批量检查所有特征).
 
         Args:
@@ -810,7 +809,7 @@ class SimModeDriftMonitor:
             logger.warning("基线 panel 未设置, 无法检查漂移")
             return []
 
-        reports: List[DriftReport] = []
+        reports: list[DriftReport] = []
         for feature in self._feature_columns:
             if feature not in current_panel.columns:
                 continue
@@ -907,21 +906,21 @@ class SimModeDriftMonitor:
         """设置基线预测分布 (训练集 OOF predictions)."""
         self._baseline_predictions = np.asarray(predictions)  # type: ignore
 
-    def _get_owner_info(self) -> Dict[str, str]:
+    def _get_owner_info(self) -> dict[str, str]:
         """获取当前模型的 owner 信息."""
         return self._alert_owners.get(self.model_name, {})
 
-    def _persist_reports(self, reports: List[DriftReport]) -> None:
+    def _persist_reports(self, reports: list[DriftReport]) -> None:
         """持久化报告到 reports/drift/drift_report_{date}.json."""
         if not reports:
             return
         try:
             date_str = datetime.utcnow().strftime("%Y-%m-%d")
             report_file = self.reports_dir / f"drift_report_{date_str}.json"
-            existing: List[Dict[str, Any]] = []
+            existing: list[dict[str, Any]] = []
             if report_file.exists():
                 try:
-                    with open(report_file, "r", encoding="utf-8") as f:
+                    with open(report_file, encoding="utf-8") as f:
                         existing = json.load(f)
                         if not isinstance(existing, list):
                             existing = []
@@ -938,13 +937,13 @@ class SimModeDriftMonitor:
         except Exception as e:  # noqa: BLE001  # 持久化失败不阻断
             logger.warning("漂移报告持久化失败: %s", e)
 
-    def get_history(self, limit: int = 100) -> List[DriftReport]:
+    def get_history(self, limit: int = 100) -> list[DriftReport]:
         """获取历史报告."""
         return list(self._history[-limit:])
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """获取漂移检查汇总."""
-        severity_counts: Dict[str, int] = {s.value: 0 for s in DriftSeverity}
+        severity_counts: dict[str, int] = {s.value: 0 for s in DriftSeverity}
         for r in self._history:
             severity_counts[r.severity.value] = severity_counts.get(r.severity.value, 0) + 1
         return {

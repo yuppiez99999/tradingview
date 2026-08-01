@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """持仓配置加载器 — 统一入口 (B1.7)
 
 所有模块应通过本模块加载 config/positions.json, 避免散落的 json.load
@@ -27,7 +26,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +36,9 @@ DEFAULT_POSITIONS_PATH = _PROJECT_ROOT / "config" / "positions.json"
 
 
 def load_positions(
-    path: Optional[Union[str, Path]] = None,
+    path: str | Path | None = None,
     default: Any = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """加载 config/positions.json 持仓配置 (统一入口)
 
     Args:
@@ -68,14 +67,14 @@ def load_positions(
             return result
         except ImportError:
             # 并发模块不可用时回退到普通读取
-            with open(target, "r", encoding="utf-8") as f:
+            with open(target, encoding="utf-8") as f:
                 return json.load(f)
     except (json.JSONDecodeError, OSError, ValueError) as e:
         logger.warning("加载 positions.json 失败 (%s): %s", target.name, e)
         return default
 
 
-def get_positions_list(path: Optional[Union[str, Path]] = None) -> list:
+def get_positions_list(path: str | Path | None = None) -> list:
     """便捷方法: 返回持仓列表 (positions dict 的 values)
 
     Args:
@@ -93,7 +92,7 @@ def get_positions_list(path: Optional[Union[str, Path]] = None) -> list:
     return []
 
 
-def get_positions_dict(path: Optional[Union[str, Path]] = None) -> Dict[str, Dict]:
+def get_positions_dict(path: str | Path | None = None) -> dict[str, dict]:
     """便捷方法: 返回 {code: item} 映射
 
     Args:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Deflated Sharpe Ratio v1.0 — Bailey & Lopez de Prado 方法
 

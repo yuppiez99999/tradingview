@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 期权行权/指派风险管理 (Option Exercise & Assignment Risk)
 
@@ -25,7 +24,6 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +58,7 @@ class ExerciseRiskResult:
 OPTION_CODE_PATTERN = re.compile(r"^(\d{6})([CP])(\d{2})(\d{2})(M\d{5})\.(SH|SZ)$")
 
 
-def _parse_option_code(code: str) -> Optional[Dict]:
+def _parse_option_code(code: str) -> dict | None:
     """解析期权代码"""
     match = OPTION_CODE_PATTERN.match(code)
     if not match:
@@ -117,7 +115,7 @@ class OptionExerciseRiskManager:
         quantity: int,
         underlying_price: float,
         premium: float = 0.0,
-    ) -> Optional[ExerciseRiskResult]:
+    ) -> ExerciseRiskResult | None:
         """评估单只期权的行权/指派风险
 
         Args:
@@ -327,9 +325,9 @@ class OptionExerciseRiskManager:
 
     def check_all(
         self,
-        positions: List[Dict],
-        underlying_prices: Dict[str, float],
-    ) -> List[ExerciseRiskResult]:
+        positions: list[dict],
+        underlying_prices: dict[str, float],
+    ) -> list[ExerciseRiskResult]:
         """批量检测所有期权持仓
 
         Args:
@@ -379,9 +377,9 @@ class OptionExerciseRiskManager:
 
     def generate_close_orders(
         self,
-        risk_results: List[ExerciseRiskResult],
+        risk_results: list[ExerciseRiskResult],
         close_threshold: str = "HIGH",
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """为高风险期权生成平仓建议
 
         Args:
@@ -435,11 +433,11 @@ class OptionExerciseRiskManager:
 
     def auto_close_deep_itm(
         self,
-        positions: List[Dict],
-        underlying_prices: Dict[str, float],
+        positions: list[dict],
+        underlying_prices: dict[str, float],
         moneyness_threshold: float = 1.05,
         max_days: int = 5,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """深度实值期权自动平仓 (避免到期被指派)
 
         条件: 实值程度 > moneyness_threshold + 距到期 < max_days + 卖方持仓

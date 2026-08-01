@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """v8.4 phase_hedge sim_mode 分支 + _execute_sim_hedge_orders 测试.
 
 验证:

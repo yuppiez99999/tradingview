@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """PipelineOrchestrator - 8 级因子流水线编排（CIO 视角 v1.0）
 
 状态机：candidate -> g1 -> g2 -> g3 -> g4 -> enhanced -> shadow -> committee -> approved/rejected
@@ -24,7 +23,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -159,21 +158,21 @@ class FactorPipelineState:
     state: str = PipelineState.CANDIDATE.value
     entered_at: str = ""
     # 各关卡结果（dict 形式，便于序列化）
-    g1_orthogonality: Optional[Dict[str, Any]] = None
-    g2_ic_stability: Optional[Dict[str, Any]] = None
-    g3_dsr: Optional[Dict[str, Any]] = None
-    g4_economic: Optional[Dict[str, Any]] = None
-    enhancement_capacity: Optional[Dict[str, Any]] = None
-    enhancement_regime: Optional[Dict[str, Any]] = None
-    shadow_result: Optional[Dict[str, Any]] = None
-    committee_verdict: Optional[Dict[str, Any]] = None
+    g1_orthogonality: dict[str, Any] | None = None
+    g2_ic_stability: dict[str, Any] | None = None
+    g3_dsr: dict[str, Any] | None = None
+    g4_economic: dict[str, Any] | None = None
+    enhancement_capacity: dict[str, Any] | None = None
+    enhancement_regime: dict[str, Any] | None = None
+    shadow_result: dict[str, Any] | None = None
+    committee_verdict: dict[str, Any] | None = None
     # 失败原因
-    fail_reasons: List[str] = field(default_factory=list)
+    fail_reasons: list[str] = field(default_factory=list)
     # 最终决议
     approved: bool = False
     final_score: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -195,14 +194,14 @@ class PipelineResult:
     failed: int = 0
     # P1.5 改进：因 fundamentals 为 proxy 而 defer 的因子数
     deferred_fundamentals: int = 0
-    factors: List[Dict[str, Any]] = field(default_factory=list)
-    audit_trail: List[Dict[str, Any]] = field(default_factory=list)
+    factors: list[dict[str, Any]] = field(default_factory=list)
+    audit_trail: list[dict[str, Any]] = field(default_factory=list)
     # P2.2 v6.8 改进：IC 加权组合结果（第十九批次 Config_E_plus1 突破）
     # 设计依据：IC 加权 + Config_E_plus1 = 完整 Shadow 通过（live_dsr=+0.6151, max_dd=0.0438）
     # 与单因子流水线独立运行，不阻断主流程
-    factor_combinations: List[Dict[str, Any]] = field(default_factory=list)
+    factor_combinations: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -220,7 +219,7 @@ class PipelineOrchestrator:
         >>> print(f"通过：{result.approved} / 总计：{result.total_candidates}")
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         c = config or {}
         self.ortho_threshold = float(c.get("ortho_threshold", ORTHO_THRESHOLD))
         self.ic_ir_threshold = float(c.get("ic_ir_threshold", IC_IR_120D_THRESHOLD))
@@ -316,15 +315,15 @@ class PipelineOrchestrator:
 
     def run(
         self,
-        price_data: Dict[str, Any],
-        fundamentals: Optional[Dict[str, Any]] = None,
-        benchmark_returns: Optional[List[float]] = None,
+        price_data: dict[str, Any],
+        fundamentals: dict[str, Any] | None = None,
+        benchmark_returns: list[float] | None = None,
         portfolio_value: float = 1e8,
         n_trials: int = 13,
-        batch_id: Optional[str] = None,
+        batch_id: str | None = None,
         history_days: int = 120,
         forward_window: int = 5,
-        fundamentals_history: Optional[Dict[str, Any]] = None,
+        fundamentals_history: dict[str, Any] | None = None,
     ) -> PipelineResult:
         """执行 8 级流水线
 
@@ -509,8 +508,8 @@ class PipelineOrchestrator:
 
     def _load_fundamentals_history(
         self,
-        symbols: List[str],
-    ) -> Dict[str, Any]:
+        symbols: list[str],
+    ) -> dict[str, Any]:
         """P2.2 自动加载历史季度财务数据（从 cache/fundamentals/{symbol}_history.json）
 
         Args:
@@ -519,7 +518,7 @@ class PipelineOrchestrator:
         Returns:
             {symbol: {"quarters": [...], "n_valid": int, "data_quality": str}}
         """
-        history: Dict[str, Any] = {}
+        history: dict[str, Any] = {}
         try:
             cache_dir = _PROJECT_ROOT / "cache" / "fundamentals"
             for sym in symbols:
@@ -527,7 +526,7 @@ class PipelineOrchestrator:
                     cache_path = cache_dir / f"{sym}_history.json"
                     if not cache_path.exists():
                         continue
-                    with open(cache_path, "r", encoding="utf-8") as f:
+                    with open(cache_path, encoding="utf-8") as f:
                         data = json.load(f)
                     # 验证数据结构
                     if isinstance(data, dict) and "quarters" in data:
@@ -551,13 +550,13 @@ class PipelineOrchestrator:
         self,
         ps: FactorPipelineState,
         candidate: CandidateFactor,
-        price_data: Dict[str, Any],
-        benchmark_returns: Optional[List[float]],
-        existing_factors: Dict[str, Any],
+        price_data: dict[str, Any],
+        benchmark_returns: list[float] | None,
+        existing_factors: dict[str, Any],
         portfolio_value: float,
         n_trials: int,
-        factor_history: List[Dict[str, float]] = None,  # type: ignore
-        forward_returns_history: List[Dict[str, float]] = None,  # type: ignore
+        factor_history: list[dict[str, float]] = None,  # type: ignore
+        forward_returns_history: list[dict[str, float]] = None,  # type: ignore
     ) -> None:
         """处理单个因子走完 8 级流水线"""
 
@@ -612,7 +611,7 @@ class PipelineOrchestrator:
         self,
         ps: FactorPipelineState,
         candidate: CandidateFactor,
-        existing_factors: Dict[str, Any],
+        existing_factors: dict[str, Any],
     ) -> bool:
         """Gate 1: 候选因子与现有因子的正交性检查"""
         ortho_results = self.adapter.check_orthogonality(
@@ -649,9 +648,9 @@ class PipelineOrchestrator:
         self,
         ps: FactorPipelineState,
         candidate: CandidateFactor,
-        price_data: Dict[str, Any],
-        factor_history: List[Dict[str, float]] = None,  # type: ignore
-        forward_returns_history: List[Dict[str, float]] = None,  # type: ignore
+        price_data: dict[str, Any],
+        factor_history: list[dict[str, float]] = None,  # type: ignore
+        forward_returns_history: list[dict[str, float]] = None,  # type: ignore
     ) -> bool:
         """Gate 2: IC_IR_120d >= 0.3 且衰减 < 0.6
 
@@ -708,7 +707,7 @@ class PipelineOrchestrator:
         self,
         ps: FactorPipelineState,
         candidate: CandidateFactor,
-        price_data: Dict[str, Any],
+        price_data: dict[str, Any],
     ) -> bool:
         """Gate2 旧版（无日频历史时的降级实现）"""
         try:
@@ -752,10 +751,10 @@ class PipelineOrchestrator:
         self,
         ps: FactorPipelineState,
         candidate: CandidateFactor,
-        price_data: Dict[str, Any],
+        price_data: dict[str, Any],
         n_trials: int,
-        factor_history: List[Dict[str, float]] = None,  # type: ignore
-        forward_returns_history: List[Dict[str, float]] = None,  # type: ignore
+        factor_history: list[dict[str, float]] = None,  # type: ignore
+        forward_returns_history: list[dict[str, float]] = None,  # type: ignore
     ) -> bool:
         """Gate 3: DSR > 0, n_trials >= 5
 
@@ -797,9 +796,9 @@ class PipelineOrchestrator:
 
     def _compute_factor_returns_from_history(
         self,
-        factor_history: List[Dict[str, float]],
-        forward_returns_history: List[Dict[str, float]],
-    ) -> List[float]:
+        factor_history: list[dict[str, float]],
+        forward_returns_history: list[dict[str, float]],
+    ) -> list[float]:
         """从日频因子历史构建多空组合日 PnL 序列
 
         对每个时间点 t：
@@ -934,11 +933,11 @@ class PipelineOrchestrator:
         self,
         ps: FactorPipelineState,
         candidate: CandidateFactor,
-        price_data: Dict[str, Any],
-        benchmark_returns: Optional[List[float]],
+        price_data: dict[str, Any],
+        benchmark_returns: list[float] | None,
         portfolio_value: float,
-        factor_history: List[Dict[str, float]] = None,  # type: ignore
-        forward_returns_history: List[Dict[str, float]] = None,  # type: ignore
+        factor_history: list[dict[str, float]] = None,  # type: ignore
+        forward_returns_history: list[dict[str, float]] = None,  # type: ignore
     ) -> bool:
         """Stage 6: Enhancement (Capacity + Regime)
 
@@ -1014,10 +1013,10 @@ class PipelineOrchestrator:
         self,
         ps: FactorPipelineState,
         candidate: CandidateFactor,
-        price_data: Dict[str, Any],
+        price_data: dict[str, Any],
         n_trials: int,
-        factor_history: List[Dict[str, float]] = None,  # type: ignore
-        forward_returns_history: List[Dict[str, float]] = None,  # type: ignore
+        factor_history: list[dict[str, float]] = None,  # type: ignore
+        forward_returns_history: list[dict[str, float]] = None,  # type: ignore
     ) -> bool:
         """Stage 7: 90 日影子账户纸面交易
 
@@ -1145,8 +1144,8 @@ class PipelineOrchestrator:
     def _compute_factor_returns(
         self,
         candidate: CandidateFactor,
-        price_data: Dict[str, Any],
-    ) -> List[float]:
+        price_data: dict[str, Any],
+    ) -> list[float]:
         """计算因子多空组合日收益率序列（简化版）"""
         # 取 TopN 多空
         sorted_syms = sorted(
@@ -1214,9 +1213,9 @@ class PipelineOrchestrator:
     # ------------------------------------------------------------
     def _assess_fundamentals_quality(
         self,
-        fundamentals: Optional[Dict[str, Dict[str, Any]]],
-        fundamentals_history: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        fundamentals: dict[str, dict[str, Any]] | None,
+        fundamentals_history: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """评估 fundamentals 数据质量，决定 V/Q/S/Growth/QualityTrend 类因子是否 defer
 
         评估规则：
@@ -1374,11 +1373,11 @@ class PipelineOrchestrator:
 
     def _build_ic_weighted_combinations(
         self,
-        factor_history: Dict[str, List[Dict[str, float]]],
-        forward_returns_history: List[Dict[str, float]],
+        factor_history: dict[str, list[dict[str, float]]],
+        forward_returns_history: list[dict[str, float]],
         n_trials: int,
         result: PipelineResult,
-        audit: List[Dict[str, Any]],
+        audit: list[dict[str, Any]],
     ) -> None:
         """构建 IC 加权组合并执行 Shadow 验证
 
@@ -1466,10 +1465,10 @@ class PipelineOrchestrator:
         factor_a_name: str,
         factor_b_name: str,
         pair_desc: str,
-        factor_history: Dict[str, List[Dict[str, float]]],
-        forward_returns_history: List[Dict[str, float]],
+        factor_history: dict[str, list[dict[str, float]]],
+        forward_returns_history: list[dict[str, float]],
         n_trials: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """构建单个 IC 加权组合并验证（Config_E_plus1 参数）
 
         Args:
@@ -1595,10 +1594,10 @@ class PipelineOrchestrator:
 
     def _combine_factors_ic_weighted(
         self,
-        hist_a: List[Dict[str, float]],
-        hist_b: List[Dict[str, float]],
-        ic_series_a: List[float],
-        ic_series_b: List[float],
+        hist_a: list[dict[str, float]],
+        hist_b: list[dict[str, float]],
+        ic_series_a: list[float],
+        ic_series_b: list[float],
         lookback: int,
     ) -> tuple:
         """IC 加权组合两个因子（动态权重，符号自适应）
@@ -1621,8 +1620,8 @@ class PipelineOrchestrator:
             (combined_history, weights_history)
         """
         n = min(len(hist_a), len(hist_b))
-        combined: List[Dict[str, float]] = []
-        weights_history: List[Dict[str, float]] = []
+        combined: list[dict[str, float]] = []
+        weights_history: list[dict[str, float]] = []
 
         for t in range(n):
             ic_ir_a = self._compute_rolling_ic_ir_at_t(ic_series_a, t, lookback)
@@ -1656,7 +1655,7 @@ class PipelineOrchestrator:
         return combined, weights_history
 
     @staticmethod
-    def _cross_sectional_rank(values: Dict[str, float]) -> Dict[str, float]:
+    def _cross_sectional_rank(values: dict[str, float]) -> dict[str, float]:
         """cross-sectional rank 标准化到 [0, 1]
 
         rank 适合 Spearman IC 和 IC 加权组合（避免大量级因子主导权重）。
@@ -1672,7 +1671,7 @@ class PipelineOrchestrator:
 
     @staticmethod
     def _compute_rolling_ic_ir_at_t(
-        ic_series: List[float],
+        ic_series: list[float],
         t: int,
         lookback: int,
     ) -> float:
@@ -1696,10 +1695,10 @@ class PipelineOrchestrator:
 
     @staticmethod
     def _compute_weights_statistics(
-        weights_history: List[Dict[str, float]],
+        weights_history: list[dict[str, float]],
         lookback: int,
         n_days: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """统计 IC 加权组合的权重变化（用于诊断信号反转）"""
         if not weights_history or n_days <= lookback:
             return {"available": False, "reason": "samples insufficient"}
@@ -1764,9 +1763,9 @@ class PipelineOrchestrator:
 
 
 def quick_run(
-    price_data: Dict[str, Any],
-    fundamentals: Optional[Dict[str, Any]] = None,
-    benchmark_returns: Optional[List[float]] = None,
+    price_data: dict[str, Any],
+    fundamentals: dict[str, Any] | None = None,
+    benchmark_returns: list[float] | None = None,
     portfolio_value: float = 1e8,
     n_trials: int = 13,
 ) -> PipelineResult:

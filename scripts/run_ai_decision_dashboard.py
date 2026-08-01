@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """每日 EOD 生成 ai_decision 延迟/成本看板
 
 任务: 步骤 4 CLI 入口

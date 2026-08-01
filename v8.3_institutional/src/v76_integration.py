@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger("v76.integration")
 
@@ -36,7 +36,7 @@ class v76IntegrationBridge:
         logger.info("v7.6 全部模块加载完成 [6/6]")
         return self
 
-    def run_daily_enhanced(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def run_daily_enhanced(self, context: dict[str, Any]) -> dict[str, Any]:
         """增强版日度流程 — 返回全局决策向量
 
         context 需包含:

@@ -23,7 +23,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -39,7 +39,7 @@ HARD_STOP_MAX_DRAWDOWN: float = -0.20
 
 # ── 历史极端情景 ──────────────────────────────────────────────────────────
 
-HISTORICAL_SCENARIOS: List[Dict[str, Any]] = [
+HISTORICAL_SCENARIOS: list[dict[str, Any]] = [
     {
         "name": "2015股灾",
         "market_drop": -0.45,
@@ -125,7 +125,7 @@ HISTORICAL_SCENARIOS: List[Dict[str, Any]] = [
 
 def compute_stress_loss(
     weights: np.ndarray,
-    sector_returns: Dict[str, float],
+    sector_returns: dict[str, float],
 ) -> float:
     """计算组合在压力情景下的损失比例。
 
@@ -155,10 +155,10 @@ def compute_stress_loss(
 
 
 def compute_sector_losses(
-    sector_returns: Dict[str, float],
+    sector_returns: dict[str, float],
     weights: np.ndarray,
-    sectors: Dict[str, str],
-) -> Dict[str, float]:
+    sectors: dict[str, str],
+) -> dict[str, float]:
     """计算各板块压力损失。
 
     Args:
@@ -169,8 +169,8 @@ def compute_sector_losses(
     Returns:
         {板块: 板块总收益率}
     """
-    sector_total: Dict[str, float] = {}
-    sector_weight: Dict[str, float] = {}
+    sector_total: dict[str, float] = {}
+    sector_weight: dict[str, float] = {}
     for _name, sector in sectors.items():
         sector_total[sector] = sector_total.get(sector, 0.0)
         sector_weight[sector] = sector_weight.get(sector, 0.0)
@@ -302,8 +302,8 @@ def expected_shortfall(
 def generate_stress_report(
     returns: np.ndarray,
     weights: np.ndarray,
-    names: Optional[List[str]] = None,
-    sectors: Optional[Dict[str, str]] = None,
+    names: list[str] | None = None,
+    sectors: dict[str, str] | None = None,
 ) -> str:
     """生成压力测试日报。
 
@@ -326,7 +326,7 @@ def generate_stress_report(
     cov = np.cov(returns, rowvar=False)  # 每列是一个资产，返回(n_assets, n_assets)
     port_vol = float(np.sqrt(weights @ cov @ weights) * np.sqrt(252))
 
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("## 极端压力测试日报")
     lines.append("")
     lines.append(f"- 组合年化波动率: **{port_vol:.2%}**")

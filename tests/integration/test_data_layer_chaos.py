@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """DataLayer Chaos Test — T1.7-E.
 
 模块整合 8.4 — TASK T1.7 验收标准 4: chaos test
@@ -25,7 +24,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 from unittest.mock import MagicMock
 
 import pandas as pd
@@ -64,7 +63,7 @@ def make_sample_df(symbol: str = "510300.SH", n: int = 30) -> pd.DataFrame:
     )
 
 
-def make_snapshot(symbol: str = "510300.SH") -> Dict[str, Any]:
+def make_snapshot(symbol: str = "510300.SH") -> dict[str, Any]:
     """生成样本快照."""
     return {
         "symbol": symbol,
@@ -76,7 +75,7 @@ def make_snapshot(symbol: str = "510300.SH") -> Dict[str, Any]:
     }
 
 
-def make_macro() -> Dict[str, Any]:
+def make_macro() -> dict[str, Any]:
     """生成样本宏观数据."""
     return {"cpi_yoy": 0.5, "pmi": 51.2, "m2_yoy": 8.5, "shibor_1y": 2.0}
 
@@ -95,7 +94,7 @@ class FaultyProvider:
         fail_count: int = 0,
         fail_forever: bool = False,
         latency_ms: float = 0.0,
-        fail_with: Optional[Exception] = None,
+        fail_with: Exception | None = None,
     ) -> None:
         self.name = name
         self.data = data
@@ -213,7 +212,7 @@ class TestScenario1P0FailP1Takeover:
 
         log_file = chaos_layer.get_fallback_log_path()
         assert log_file.exists()
-        lines = [l for l in log_file.read_text(encoding="utf-8").strip().split("\n") if l]
+        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
         assert len(lines) >= 1
         record = json.loads(lines[0])
         assert record["failed_level"] == "P0"
@@ -281,10 +280,10 @@ class TestScenario2MultiFailP6Cache:
         chaos_layer.get_ohlcv("510300.SH")
 
         log_file = chaos_layer.get_fallback_log_path()
-        lines = [l for l in log_file.read_text(encoding="utf-8").strip().split("\n") if l]
+        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
         # 至少 3 条 fallback (P0→P1, P1→P2, P2→P6)
         assert len(lines) >= 3
-        failed_levels = [json.loads(l)["failed_level"] for l in lines]
+        failed_levels = [json.loads(line)["failed_level"] for line in lines]
         assert "P0" in failed_levels
         assert "P1" in failed_levels
         assert "P2" in failed_levels
@@ -410,8 +409,8 @@ class TestScenario5ConcurrentAccess:
         chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df))
         chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df))
 
-        results: List[Any] = []
-        errors: List[Exception] = []
+        results: list[Any] = []
+        errors: list[Exception] = []
         lock = threading.Lock()
 
         def _worker() -> None:
@@ -455,7 +454,7 @@ class TestScenario5ConcurrentAccess:
             t.join()
 
         log_file = chaos_layer.get_fallback_log_path()
-        lines = [l for l in log_file.read_text(encoding="utf-8").strip().split("\n") if l]
+        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
         # 20 个线程, 每个至少 1 条 fallback (P0→P1)
         assert len(lines) >= 20
         # 所有行都是有效 JSON
@@ -562,7 +561,7 @@ class TestScenario8AuditLogIntegrity:
         chaos_layer.get_ohlcv("510300.SH")
 
         log_file = chaos_layer.get_fallback_log_path()
-        lines = [l for l in log_file.read_text(encoding="utf-8").strip().split("\n") if l]
+        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
         assert len(lines) >= 1
 
         required_fields = {
@@ -591,7 +590,7 @@ class TestScenario8AuditLogIntegrity:
 
         log_file = chaos_layer.get_fallback_log_path()
         content = log_file.read_text(encoding="utf-8")
-        lines = [l for l in content.strip().split("\n") if l]
+        lines = [line for line in content.strip().split("\n") if line]
 
         # 每行都是有效 JSON
         for line in lines:
@@ -611,7 +610,7 @@ class TestScenario8AuditLogIntegrity:
         chaos_layer.get_ohlcv("510300.SH")
 
         log_file = chaos_layer.get_fallback_log_path()
-        lines = [l for l in log_file.read_text(encoding="utf-8").strip().split("\n") if l]
+        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
         record = json.loads(lines[0])
         assert record["latency_ms"] >= 50.0  # 至少 P0 的 50ms
 
@@ -632,7 +631,7 @@ class TestScenario8AuditLogIntegrity:
         chaos_layer.get_ohlcv("510300.SH")
 
         log_file = chaos_layer.get_fallback_log_path()
-        lines = [l for l in log_file.read_text(encoding="utf-8").strip().split("\n") if l]
+        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
         record = json.loads(lines[0])
         # error_message 被截断到 500 字符 (在 _write_fallback_log 中 str(e)[:500])
         # RuntimeError 的 str 包含 long_msg

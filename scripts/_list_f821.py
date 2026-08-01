@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """列出所有 F821 错误的详细信息"""
 import json
 import os

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 快速系统检查：验证 v7.5 关键配置与代码一致性
 """

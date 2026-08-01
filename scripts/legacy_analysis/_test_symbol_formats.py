@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """诊断: 测试不同代码格式和周期对 get_historical_data 的影响"""
 import sys
 

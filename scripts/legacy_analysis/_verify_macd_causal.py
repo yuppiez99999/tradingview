@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 验证 MACD 特征是否因果 (无前视偏差)
 
@@ -100,7 +99,7 @@ def perturb_test():
         sys.path.insert(0, str(BASE_DIR / "v8.3_institutional" / "src"))
         from validation.purged_cv import check_lookahead_bias
         report = check_lookahead_bias(feat_orig)
-        macd_leaks = [l for l in report["suspected_leaks"] if "macd" in l.lower()]
+        macd_leaks = [line for line in report["suspected_leaks"] if "macd" in line.lower()]
         if not macd_leaks:
             print(f"  ✅ macd 类特征未再被误报 (leak_count={report['leak_count']})")
         else:

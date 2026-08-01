@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 隔夜跳空缺口监控器 (Overnight Gap Monitor)
 ============================================
@@ -38,7 +37,6 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger("overnight_gap_monitor")
 
@@ -83,11 +81,11 @@ class OvernightGapMonitor:
 
     def __init__(
         self,
-        sp500_l2_threshold: Optional[float] = None,  # type: ignore
-        sp500_l3_threshold: Optional[float] = None,  # type: ignore
-        adr_l2_threshold: Optional[float] = None,  # type: ignore
-        adr_l3_threshold: Optional[float] = None,  # type: ignore
-        fail_closed_pct: Optional[float] = None,  # type: ignore
+        sp500_l2_threshold: float | None = None,  # type: ignore
+        sp500_l3_threshold: float | None = None,  # type: ignore
+        adr_l2_threshold: float | None = None,  # type: ignore
+        adr_l3_threshold: float | None = None,  # type: ignore
+        fail_closed_pct: float | None = None,  # type: ignore
     ):
         """初始化隔夜跳空监控器
 
@@ -108,7 +106,7 @@ class OvernightGapMonitor:
     # 公开 API
     # ------------------------------------------------------------
 
-    def evaluate_overnight_risk(self) -> Dict:
+    def evaluate_overnight_risk(self) -> dict:
         """评估隔夜跳空风险
 
         Returns:
@@ -177,7 +175,7 @@ class OvernightGapMonitor:
 
         return result
 
-    def apply_to_plan(self, plan: Dict, risk: Dict) -> Dict:
+    def apply_to_plan(self, plan: dict, risk: dict) -> dict:
         """将隔夜风险应用到次日交易计划
 
         L3: 清空所有订单 + halt_all_trading
@@ -320,7 +318,7 @@ class OvernightGapMonitor:
     # 私有: 三层 fallback 数据获取
     # ------------------------------------------------------------
 
-    def _fetch_overnight_data(self) -> Tuple[float, float, str]:
+    def _fetch_overnight_data(self) -> tuple[float, float, str]:
         """获取隔夜外盘数据 (四层 fallback)
 
         Returns:
@@ -350,7 +348,7 @@ class OvernightGapMonitor:
         )
         return self.fail_closed_pct, 0.0, "fail_closed"
 
-    def _fetch_via_tdx_proxy(self) -> Tuple[Optional[float], Optional[float], bool]:
+    def _fetch_via_tdx_proxy(self) -> tuple[float | None, float | None, bool]:
         """Layer 1.5: 通达信 A 股指数代理 (v8.6.8)
 
         用沪深300ETF 当日涨跌幅作为 S&P500 隔夜风险的代理指标.
@@ -445,7 +443,7 @@ class OvernightGapMonitor:
             logger.debug("[OvernightGapMonitor] 通达信代理获取失败: %s", e)
             return None, None, False
 
-    def _fetch_via_external_source(self) -> Tuple[Optional[float], Optional[float], bool]:
+    def _fetch_via_external_source(self) -> tuple[float | None, float | None, bool]:
         """Layer 1: ExternalDataSource 获取 S&P500 + ADR"""
         try:
             from utils.external_data_source import ExternalDataManager
@@ -496,14 +494,14 @@ class OvernightGapMonitor:
             logger.debug("[OvernightGapMonitor] ExternalDataSource 获取失败: %s", e)
             return None, None, False
 
-    def _fetch_via_cache(self) -> Tuple[Optional[float], Optional[float], bool]:
+    def _fetch_via_cache(self) -> tuple[float | None, float | None, bool]:
         """Layer 2: 从本地缓存获取最近一次数据"""
         try:
             cache_path = CACHE_DIR / "overnight_gap_latest.json"
             if not cache_path.exists():
                 return None, None, False
 
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(cache_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             sp500 = data.get("sp500_change_pct")

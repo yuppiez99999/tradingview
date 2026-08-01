@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 回撤分级熔断 (Drawdown Circuit Breaker)
 =======================================
@@ -22,7 +21,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict
 
 
 class DrawdownLevel(str, Enum):
@@ -41,7 +39,7 @@ class DrawdownDecision:
     allow_new_buy: bool
     breach_hard_limit: bool
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "level": self.level.value,
             "current_drawdown": round(self.current_drawdown, 4),

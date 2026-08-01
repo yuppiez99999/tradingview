@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 将 QLib 训练信号更新到 positions.json
 支持v3/v3.5/v4/v5版本报告
@@ -31,10 +30,10 @@ def update_positions_with_signals():
         return
 
     print(f"[读取] {report_path}")
-    with open(report_path, "r", encoding="utf-8") as f:
+    with open(report_path, encoding="utf-8") as f:
         report = json.load(f)
 
-    with open(POSITIONS_FILE, "r", encoding="utf-8") as f:
+    with open(POSITIONS_FILE, encoding="utf-8") as f:
         positions_data = json.load(f)
 
     signal_map = {}

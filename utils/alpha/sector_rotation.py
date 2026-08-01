@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """行业轮动信号生成器 — 终极量化交易系统 8.4 (T4.4).
 
 模块整合 8.4 — ARCHITECTURE §2.4
@@ -36,7 +35,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Sequence
 
 from utils.config_manager import get_config
 
@@ -48,14 +47,14 @@ logger = logging.getLogger("sector_rotation")
 # ============================================================
 
 # 默认信号权重
-DEFAULT_SIGNAL_WEIGHTS: Dict[str, float] = {
+DEFAULT_SIGNAL_WEIGHTS: dict[str, float] = {
     "momentum": 0.5,
     "flow": 0.3,
     "valuation": 0.2,
 }
 
 # 默认信号阈值
-DEFAULT_THRESHOLDS: Dict[str, float] = {
+DEFAULT_THRESHOLDS: dict[str, float] = {
     "momentum_strong": 3.0,
     "momentum_weak": -3.0,
     "flow_in_strong": 1.0,
@@ -65,7 +64,7 @@ DEFAULT_THRESHOLDS: Dict[str, float] = {
 }
 
 # 默认 Regime 调整 (与 macro_indicator.regime_adjustments 联动)
-DEFAULT_REGIME_ADJUSTMENTS: Dict[str, Dict[str, float]] = {
+DEFAULT_REGIME_ADJUSTMENTS: dict[str, dict[str, float]] = {
     "bull": {"momentum_boost": 1.2, "flow_boost": 1.0, "valuation_boost": 0.8},
     "bear": {"momentum_boost": 0.6, "flow_boost": 0.8, "valuation_boost": 1.5},
     "choppy": {"momentum_boost": 0.8, "flow_boost": 1.2, "valuation_boost": 1.2},
@@ -127,7 +126,7 @@ class SectorSignal:
     label: str = "NEUTRAL"  # STRONG_BUY / BUY / NEUTRAL / SELL / STRONG_SELL
     rank: int = 0  # 综合排名 (1=最佳)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -135,16 +134,16 @@ class SectorSignal:
 class RotationResult:
     """行业轮动结果."""
 
-    signals: List[SectorSignal] = field(default_factory=list)
-    top_sectors: List[str] = field(default_factory=list)  # 推荐行业 code 列表
-    bottom_sectors: List[str] = field(default_factory=list)  # 规避行业 code 列表
+    signals: list[SectorSignal] = field(default_factory=list)
+    top_sectors: list[str] = field(default_factory=list)  # 推荐行业 code 列表
+    bottom_sectors: list[str] = field(default_factory=list)  # 规避行业 code 列表
     regime: str = "unknown"
     regime_adjusted: bool = False
     n_sectors: int = 0
     timestamp: str = ""
     status: str = "ok"  # ok / feature_flag_disabled / insufficient_data
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "signals": [s.to_dict() for s in self.signals],
             "top_sectors": self.top_sectors,
@@ -165,7 +164,7 @@ class RotationResult:
 def compute_momentum_score(
     returns: Sequence[float],
     lookback_days: int = DEFAULT_LOOKBACK_DAYS,
-    thresholds: Optional[Dict[str, float]] = None,
+    thresholds: dict[str, float] | None = None,
 ) -> float:
     """计算动量评分 (0-100).
 
@@ -204,7 +203,7 @@ def compute_momentum_score(
 
 def compute_flow_score(
     flow_pct: float,
-    thresholds: Optional[Dict[str, float]] = None,
+    thresholds: dict[str, float] | None = None,
 ) -> float:
     """计算资金流评分 (0-100).
 
@@ -230,7 +229,7 @@ def compute_flow_score(
 
 def compute_valuation_score(
     quantile: float,
-    thresholds: Optional[Dict[str, float]] = None,
+    thresholds: dict[str, float] | None = None,
 ) -> float:
     """计算估值评分 (0-100).
 
@@ -297,7 +296,7 @@ class SectorRotation:
         self,
         config_name: str = DEFAULT_CONFIG_NAME,
         feature_flag_name: str = FLAG_NAME,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         """初始化行业轮动信号生成器.
 
@@ -324,12 +323,12 @@ class SectorRotation:
         self._min_samples = int(self._settings.get("min_samples", DEFAULT_MIN_SAMPLES))
 
         # 构建行业代码 -> 名称映射
-        self._sector_names: Dict[str, str] = {}
+        self._sector_names: dict[str, str] = {}
         for s in self._sectors_cfg:
             if isinstance(s, dict):
                 self._sector_names[s.get("code", "")] = s.get("name", "")
 
-    def _load_config(self, config_name: str) -> Dict[str, Any]:
+    def _load_config(self, config_name: str) -> dict[str, Any]:
         """加载配置 (走 ConfigManager 4 级优先级, HC-5)."""
         try:
             cfg = get_config(config_name, default={}) or {}
@@ -349,7 +348,7 @@ class SectorRotation:
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
-    def _get_regime_adjustment(self, regime: str) -> Dict[str, float]:
+    def _get_regime_adjustment(self, regime: str) -> dict[str, float]:
         """获取 regime 调整因子."""
         return self._regime_adjustments.get(
             regime,
@@ -358,9 +357,9 @@ class SectorRotation:
 
     def generate_signals(
         self,
-        sector_returns: Optional[Dict[str, Sequence[float]]] = None,
-        sector_flows: Optional[Dict[str, float]] = None,
-        sector_valuations: Optional[Dict[str, float]] = None,
+        sector_returns: dict[str, Sequence[float]] | None = None,
+        sector_flows: dict[str, float] | None = None,
+        sector_valuations: dict[str, float] | None = None,
         regime: str = "unknown",
     ) -> RotationResult:
         """生成行业轮动信号.
@@ -416,7 +415,7 @@ class SectorRotation:
             w_val /= total_w
 
         # 计算每个行业的信号
-        signals: List[SectorSignal] = []
+        signals: list[SectorSignal] = []
         for code in sorted(codes):
             name = self._sector_names.get(code, code)
             rets = (sector_returns or {}).get(code, [])
@@ -466,7 +465,7 @@ class SectorRotation:
 
     def _generate_equal_weight(
         self,
-        sector_returns: Optional[Dict[str, Sequence[float]]],
+        sector_returns: dict[str, Sequence[float]] | None,
         regime: str,
         status: str,
     ) -> RotationResult:
@@ -496,18 +495,18 @@ class SectorRotation:
 
     def get_top_sectors(
         self,
-        sector_returns: Optional[Dict[str, Sequence[float]]] = None,
+        sector_returns: dict[str, Sequence[float]] | None = None,
         regime: str = "unknown",
-    ) -> List[str]:
+    ) -> list[str]:
         """便捷函数: 获取 Top N 行业代码."""
         result = self.generate_signals(sector_returns=sector_returns, regime=regime)
         return result.top_sectors
 
     def get_bottom_sectors(
         self,
-        sector_returns: Optional[Dict[str, Sequence[float]]] = None,
+        sector_returns: dict[str, Sequence[float]] | None = None,
         regime: str = "unknown",
-    ) -> List[str]:
+    ) -> list[str]:
         """便捷函数: 获取 Bottom N 行业代码."""
         result = self.generate_signals(sector_returns=sector_returns, regime=regime)
         return result.bottom_sectors
@@ -519,9 +518,9 @@ class SectorRotation:
 
 
 def generate_signals(
-    sector_returns: Optional[Dict[str, Sequence[float]]] = None,
-    sector_flows: Optional[Dict[str, float]] = None,
-    sector_valuations: Optional[Dict[str, float]] = None,
+    sector_returns: dict[str, Sequence[float]] | None = None,
+    sector_flows: dict[str, float] | None = None,
+    sector_valuations: dict[str, float] | None = None,
     regime: str = "unknown",
     config_name: str = DEFAULT_CONFIG_NAME,
 ) -> RotationResult:

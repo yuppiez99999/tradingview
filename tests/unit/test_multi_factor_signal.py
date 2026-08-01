@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """multi_factor_signal 单元测试 — T2.3.
 
 验证以下方面:
@@ -21,7 +20,6 @@ from __future__ import annotations
 import math
 import sys
 from pathlib import Path
-from typing import Dict, List
 from unittest.mock import patch
 
 import pytest
@@ -75,8 +73,8 @@ def synthetic_factor_history():
     # 标的的"真实质量"排序: S001 最差, S008 最好
     quality_rank = {s: i for i, s in enumerate(symbols)}
 
-    factor_history: Dict[str, List[Dict[str, float]]] = {"F_A": [], "F_B": []}
-    forward_returns: List[Dict[str, float]] = []
+    factor_history: dict[str, list[dict[str, float]]] = {"F_A": [], "F_B": []}
+    forward_returns: list[dict[str, float]] = []
 
     for t in range(n_days):
         # forward return: 基本随质量递增, 但加入噪声

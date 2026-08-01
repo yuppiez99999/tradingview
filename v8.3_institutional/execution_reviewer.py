@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 执行复盘模块（第三步-2） — v2.0
 =================================
@@ -21,7 +20,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 _BASE = Path(__file__).resolve().parent
 if str(_BASE) not in sys.path:
@@ -38,7 +37,7 @@ except Exception:
 class ExecutionReviewer:
     """执行后复盘"""
 
-    def __init__(self, trade_date: Optional[str] = None):
+    def __init__(self, trade_date: str | None = None):
         self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
         self.date_compact = self.trade_date.replace("-", "")
         self.timestamp = datetime.now().isoformat()
@@ -51,8 +50,8 @@ class ExecutionReviewer:
         self.pnl_path = self.reports_dir / f"daily_pnl_report_{self.date_compact}.json"
         self.out_path = self.reports_dir / f"execution_review_{self.date_compact}.json"
 
-        self.approved: Dict[str, Any] = {}
-        self.pnl: Dict[str, Any] = {}
+        self.approved: dict[str, Any] = {}
+        self.pnl: dict[str, Any] = {}
 
     def load_approved(self) -> bool:
         if not self.approved_path.exists():
@@ -78,7 +77,7 @@ class ExecutionReviewer:
             self.pnl = {}
             return False
 
-    def analyze(self) -> Dict[str, Any]:
+    def analyze(self) -> dict[str, Any]:
         approved_orders = self.approved.get("approved_instructions", []) or []
         rejected_orders = self.approved.get("rejected_instructions", []) or []
 
@@ -134,12 +133,12 @@ class ExecutionReviewer:
 
         return review
 
-    def save(self, payload: Dict[str, Any]) -> Path:
+    def save(self, payload: dict[str, Any]) -> Path:
         self.out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         logger.info(f"已写入复盘结果: {self.out_path}")
         return self.out_path
 
-    def _trigger_dynamic_risk(self) -> Dict[str, Any]:
+    def _trigger_dynamic_risk(self) -> dict[str, Any]:
         """自动闭环：复盘保存后继续触发动态风控"""
         try:
             from dynamic_risk_adjuster import run_dynamic_risk_adjuster
@@ -151,7 +150,7 @@ class ExecutionReviewer:
             logger.warning(f"自动闭环：动态风控触发失败: {e}")
             return {"status": "SKIPPED", "error": str(e)}
 
-    def run(self, auto_closed_loop: bool = False) -> Dict[str, Any]:
+    def run(self, auto_closed_loop: bool = False) -> dict[str, Any]:
         self.load_approved()
         self.load_pnl()
         review = self.analyze()
@@ -172,7 +171,7 @@ class ExecutionReviewer:
         return result
 
 
-def run_execution_review(trade_date: Optional[str] = None, auto_closed_loop: bool = False) -> Dict[str, Any]:
+def run_execution_review(trade_date: str | None = None, auto_closed_loop: bool = False) -> dict[str, Any]:
     reviewer = ExecutionReviewer(trade_date=trade_date)
     return reviewer.run(auto_closed_loop=auto_closed_loop)
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """自检归档 diff 工具 — 三层面自我进化 Stage 2 增强工具.
 
 模块整合 8.4 — ARCHITECTURE_三层面进化 §第2阶段 (2.7)
@@ -47,7 +46,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +76,7 @@ STATUS_FAIL = "FAIL"
 # C* 检查项前缀 → 层面映射 (用于 RootCause.layer 归属)
 # C1 文件存在性 / C4 Schema / C5 依赖 / C7 模块导入 → 代码层
 # C2 环境变量 / C3 数据源 / C6 权限 / C8 历史完整性 → 运维层
-_PREFIX_LAYER_MAP: Dict[str, str] = {
+_PREFIX_LAYER_MAP: dict[str, str] = {
     "C1": LAYER_CODE,
     "C2": LAYER_OPS,
     "C3": LAYER_OPS,
@@ -117,7 +116,7 @@ class CheckItem:
     detail: str = ""
     remediation: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "code": self.code,
             "name": self.name,
@@ -144,14 +143,14 @@ class CheckDiff:
     """
     old_check_time: str = ""
     new_check_time: str = ""
-    regressions: List[CheckItem] = field(default_factory=list)
-    recoveries: List[CheckItem] = field(default_factory=list)
-    new_failures: List[CheckItem] = field(default_factory=list)
-    stable_pass: List[CheckItem] = field(default_factory=list)
-    stable_fail: List[CheckItem] = field(default_factory=list)
+    regressions: list[CheckItem] = field(default_factory=list)
+    recoveries: list[CheckItem] = field(default_factory=list)
+    new_failures: list[CheckItem] = field(default_factory=list)
+    stable_pass: list[CheckItem] = field(default_factory=list)
+    stable_fail: list[CheckItem] = field(default_factory=list)
     summary: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "old_check_time": self.old_check_time,
             "new_check_time": self.new_check_time,
@@ -192,7 +191,7 @@ class SystemCheckDiff:
     # 归档解析
     # ============================================================
     @staticmethod
-    def parse_archive(path: Path) -> Optional[Dict[str, Any]]:
+    def parse_archive(path: Path) -> dict[str, Any] | None:
         """解析单份自检归档 JSON.
 
         Args:
@@ -216,7 +215,7 @@ class SystemCheckDiff:
             return None
 
     @staticmethod
-    def _extract_items(report: Dict[str, Any]) -> Dict[str, CheckItem]:
+    def _extract_items(report: dict[str, Any]) -> dict[str, CheckItem]:
         """从报告 dict 提取 CheckItem 字典 (按 code 索引).
 
         Args:
@@ -225,7 +224,7 @@ class SystemCheckDiff:
         Returns:
             {code: CheckItem}, 解析失败返回空 dict
         """
-        items: Dict[str, CheckItem] = {}
+        items: dict[str, CheckItem] = {}
         try:
             results = report.get("results", [])
             if not isinstance(results, list):
@@ -256,8 +255,8 @@ class SystemCheckDiff:
     # ============================================================
     def diff(
         self,
-        old_report: Dict[str, Any],
-        new_report: Dict[str, Any],
+        old_report: dict[str, Any],
+        new_report: dict[str, Any],
     ) -> CheckDiff:
         """对比两份自检报告 dict.
 
@@ -274,11 +273,11 @@ class SystemCheckDiff:
         old_items = self._extract_items(old_report)
         new_items = self._extract_items(new_report)
 
-        regressions: List[CheckItem] = []
-        recoveries: List[CheckItem] = []
-        new_failures: List[CheckItem] = []
-        stable_pass: List[CheckItem] = []
-        stable_fail: List[CheckItem] = []
+        regressions: list[CheckItem] = []
+        recoveries: list[CheckItem] = []
+        new_failures: list[CheckItem] = []
+        stable_pass: list[CheckItem] = []
+        stable_fail: list[CheckItem] = []
 
         all_codes = set(old_items.keys()) | set(new_items.keys())
         for code in sorted(all_codes):
@@ -383,8 +382,8 @@ class SystemCheckDiff:
     def to_root_causes(
         self,
         diff: CheckDiff,
-        now: Optional[str] = None,
-    ) -> List[RootCause]:
+        now: str | None = None,
+    ) -> list[RootCause]:
         """将 diff 的回归项转为 RootCause (供 OpsDiagnoser/CodeDiagnoser 使用).
 
         仅转换 regressions + new_failures (recoveries 不产生根因).
@@ -399,7 +398,7 @@ class SystemCheckDiff:
         if now is None:
             now = datetime.now(timezone.utc).isoformat()
 
-        causes: List[RootCause] = []
+        causes: list[RootCause] = []
         # 回归项 (PASS→FAIL) 优先, 置信度更高
         for item in diff.regressions:
             cause = self._item_to_root_cause(item, now, is_regression=True)
@@ -415,7 +414,7 @@ class SystemCheckDiff:
     @staticmethod
     def _item_to_root_cause(
         item: CheckItem, now: str, is_regression: bool
-    ) -> Optional[RootCause]:
+    ) -> RootCause | None:
         """单条 CheckItem → RootCause.
 
         Args:
@@ -495,14 +494,14 @@ class SystemCheckDiff:
     # ============================================================
     @staticmethod
     def _build_summary(
-        regressions: List[CheckItem],
-        recoveries: List[CheckItem],
-        new_failures: List[CheckItem],
+        regressions: list[CheckItem],
+        recoveries: list[CheckItem],
+        new_failures: list[CheckItem],
     ) -> str:
         """构建一句话摘要."""
         if not regressions and not new_failures and not recoveries:
             return "无回归无恢复 (状态稳定)"
-        parts: List[str] = []
+        parts: list[str] = []
         if regressions:
             codes = ", ".join(c.code for c in regressions[:5])
             parts.append(f"{len(regressions)} 回归 [{codes}]")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """test_system_check_c9_unit.py — C9 兜底价格新鲜度检查单元测试
 
 R1 任务 (2026-08-01): 验证 utils.system_check.SystemChecker.check_fallback_price_freshness
@@ -84,7 +83,7 @@ def _make_futures_prices_module(
         lines.append(f"FALLBACK_PRICES_UPDATED = {updated_str!r}")
     if missing_prices:
         # 移除 DEFAULT_FUTURES_PRICES (不写入)
-        lines = [l for l in lines if not l.startswith("DEFAULT_FUTURES_PRICES")]
+        lines = [line for line in lines if not line.startswith("DEFAULT_FUTURES_PRICES")]
     if syntax_broken:
         lines.append("def broken(:")  # 故意语法错误
 

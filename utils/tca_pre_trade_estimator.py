@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TCA 执行前预估器 (Pre-Trade TCA Estimator)
 ==========================================
@@ -63,7 +62,7 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from utils.transaction_cost_model import (
     CostParameters,
@@ -123,7 +122,7 @@ class PreTradeEstimate:
     tier: str
     estimated_cost_bps: float
     estimated_cost_amount: float
-    cost_breakdown: Dict[str, float]
+    cost_breakdown: dict[str, float]
     approved: bool
     rejection_reason: str
     threshold_bps: float
@@ -134,7 +133,7 @@ class PreTradeEstimate:
         if not self.timestamp:
             self.timestamp = datetime.now().isoformat(timespec="seconds")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典 (用于持久化)"""
         return asdict(self)
 
@@ -160,9 +159,9 @@ class PreTradeEstimator:
         self,
         cost_threshold_bps: float = DEFAULT_COST_THRESHOLD_BPS,
         latency_limit_ms: float = DEFAULT_LATENCY_LIMIT_MS,
-        cost_model: Optional[TransactionCostModel] = None,
-        cost_params: Optional[CostParameters] = None,
-        estimate_dir: Optional[Path] = None,
+        cost_model: TransactionCostModel | None = None,
+        cost_params: CostParameters | None = None,
+        estimate_dir: Path | None = None,
         save_to_file: bool = True,
     ) -> None:
         """
@@ -189,8 +188,8 @@ class PreTradeEstimator:
     # ------------------------------------------------------------
     def estimate(
         self,
-        order: Dict[str, Any],
-        market_data: Optional[Dict[str, Any]] = None,
+        order: dict[str, Any],
+        market_data: dict[str, Any] | None = None,
     ) -> PreTradeEstimate:
         """执行前成本预估
 
@@ -329,9 +328,9 @@ class PreTradeEstimator:
     # ------------------------------------------------------------
     def estimate_batch(
         self,
-        orders: Dict[str, Dict[str, Any]],
-        market_data_by_symbol: Optional[Dict[str, Dict[str, Any]]] = None,
-    ) -> Dict[str, PreTradeEstimate]:
+        orders: dict[str, dict[str, Any]],
+        market_data_by_symbol: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, PreTradeEstimate]:
         """批量预估多个订单
 
         Args:
@@ -342,7 +341,7 @@ class PreTradeEstimator:
             {symbol: PreTradeEstimate}
         """
         market_data_by_symbol = market_data_by_symbol or {}
-        results: Dict[str, PreTradeEstimate] = {}
+        results: dict[str, PreTradeEstimate] = {}
         for symbol, order in orders.items():
             market_data = market_data_by_symbol.get(symbol, {})
             try:
@@ -359,9 +358,9 @@ class PreTradeEstimator:
     # ------------------------------------------------------------
     def filter_approved(
         self,
-        orders: Dict[str, Dict[str, Any]],
-        market_data_by_symbol: Optional[Dict[str, Dict[str, Any]]] = None,
-    ) -> Dict[str, PreTradeEstimate]:
+        orders: dict[str, dict[str, Any]],
+        market_data_by_symbol: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, PreTradeEstimate]:
         """返回通过 TCA 预估的订单 (过滤被否决的)
 
         Args:
@@ -394,8 +393,8 @@ class PreTradeEstimator:
     # ------------------------------------------------------------
     def get_history(
         self,
-        date_str: Optional[str] = None,
-        symbol: Optional[str] = None,
+        date_str: str | None = None,
+        symbol: str | None = None,
     ) -> list:
         """查询预估历史
 
@@ -413,7 +412,7 @@ class PreTradeEstimator:
 
         records: list = []
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:

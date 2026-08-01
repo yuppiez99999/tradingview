@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 风险预算分配器 (Risk Budget Allocator)
 
@@ -12,7 +11,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -38,7 +36,7 @@ class RiskBudgetAllocator:
         self.daily_budget_limit = daily_budget_limit
 
     def estimate_symbol_risk(
-        self, symbol: str, prices: Optional[np.ndarray] = None, default_vol: float = 0.25
+        self, symbol: str, prices: np.ndarray | None = None, default_vol: float = 0.25
     ) -> float:
         """估计单标的年化波动率"""
         if prices is None or len(prices) < 20:
@@ -51,12 +49,12 @@ class RiskBudgetAllocator:
 
     def allocate_daily_budget(
         self,
-        pending_positions: List[Dict],
-        returns_matrix: Optional[pd.DataFrame] = None,
-        signals: Optional[Dict[str, Dict]] = None,
-        macro_scores: Optional[Dict[str, Dict]] = None,
-        etf_signals: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Dict]:
+        pending_positions: list[dict],
+        returns_matrix: pd.DataFrame | None = None,
+        signals: dict[str, dict] | None = None,
+        macro_scores: dict[str, dict] | None = None,
+        etf_signals: dict[str, str] | None = None,
+    ) -> dict[str, dict]:
         """按风险预算分配当日预算
 
         Args:
@@ -110,7 +108,7 @@ class RiskBudgetAllocator:
             except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 print(f"[RiskBudgetAllocator] Risk Parity 计算失败: {e}, 回退到等权")
 
-        results: Dict[str, Dict] = {}
+        results: dict[str, dict] = {}
         for i, pos in enumerate(pending_positions):
             code = pos.get("code", "")
             code_clean = pos.get("code_clean", code)

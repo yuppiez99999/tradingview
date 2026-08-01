@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """N1 端到端验证: 实例化 IntegratedExecutionSystem 并调用修复后的 _hook_drift_and_retrain.
 
 验证三条路径:
@@ -41,7 +40,9 @@ try:
     print(f"[OK] 实例化成功: drift_detector={'有' if system.drift_detector else '无'}, report_dir={system.report_dir}")
 except Exception as e:
     print(f"[FAIL] 实例化失败: {e}")
-    import traceback; traceback.print_exc()
+    import traceback
+
+    traceback.print_exc()
     sys.exit(1)
 
 # 3. 调用 _fetch_daily_ic (验证 Bug-B 修复)
@@ -53,7 +54,9 @@ try:
         print("     → IC 数据流已修复 (旧代码 daily_ic 恒为 0)")
 except Exception as e:
     print(f"[FAIL] _fetch_daily_ic 失败: {e}")
-    import traceback; traceback.print_exc()
+    import traceback
+
+    traceback.print_exc()
 
 # 4. 调用 _hook_drift_and_retrain (验证 Bug-A/B/C/D 修复)
 print("\n[步骤3] 调用 _hook_drift_and_retrain (验证 Bug-A/B/C/D 修复)...")
@@ -75,7 +78,9 @@ try:
             print("     → 真实重训触发 (shadow_mode=False)")
 except Exception as e:
     print(f"[FAIL] _hook_drift_and_retrain 失败: {e}")
-    import traceback; traceback.print_exc()
+    import traceback
+
+    traceback.print_exc()
 
 # 5. 验证 Bug-A 修复: check_all 被调用而非 check_drift
 print("\n[步骤4] 验证 Bug-A 修复 (check_all 而非 check_drift)...")
@@ -98,7 +103,9 @@ try:
             print("     → Bug-D 修复确认: dataclass 属性访问正常 (旧代码 a.get('type') 会崩)")
 except Exception as e:
     print(f"[FAIL] Bug-A/D 验证失败: {e}")
-    import traceback; traceback.print_exc()
+    import traceback
+
+    traceback.print_exc()
 
 print("\n" + "=" * 60)
 print("  N1 端到端验证完成")

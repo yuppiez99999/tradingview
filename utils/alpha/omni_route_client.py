@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """OmniRoute 网关适配层 — 终极量化交易系统 8.4.
 
 将 OmniRoute (开源 AI 网关, 290+ provider, 500+ 模型)
@@ -41,7 +40,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("omni_route_client")
 
@@ -115,7 +114,7 @@ class OmniRouteClient:
         - 完全向后兼容: 不修改任何现有代码路径
     """
 
-    _instance: Optional["OmniRouteClient"] = None
+    _instance: OmniRouteClient | None = None
     _lock: threading.RLock = threading.RLock()
 
     def __init__(self) -> None:
@@ -133,7 +132,7 @@ class OmniRouteClient:
 
         # 熔断器状态
         self._failure_count = 0
-        self._circuit_open_since: Optional[float] = None
+        self._circuit_open_since: float | None = None
         self._circuit_lock = threading.Lock()
 
         logger.info(
@@ -144,7 +143,7 @@ class OmniRouteClient:
         )
 
     @classmethod
-    def get_instance(cls) -> "OmniRouteClient":
+    def get_instance(cls) -> OmniRouteClient:
         """获取单例 (线程安全)."""
         with cls._lock:
             if cls._instance is None:
@@ -170,9 +169,9 @@ class OmniRouteClient:
         self,
         prompt: str,
         system: str = "",
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-    ) -> Optional[str]:
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str | None:
         """普通对话 (通过 OmniRoute 路由).
 
         Args:
@@ -203,9 +202,9 @@ class OmniRouteClient:
         self,
         prompt: str,
         system: str = "",
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-    ) -> Optional[str]:
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str | None:
         """深度思考模式 (长上下文, 高 token 上限).
 
         Args:
@@ -232,7 +231,7 @@ class OmniRouteClient:
             timeout=self._timeout * 2,  # 深度模式加倍超时
         )
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         """连通性探测.
 
         Returns:
@@ -244,7 +243,7 @@ class OmniRouteClient:
                 "error": "..." (失败时)
             }
         """
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "enabled": self._feature_flag,
             "available": False,
             "base_url": self._base_url,
@@ -271,7 +270,7 @@ class OmniRouteClient:
 
         return result
 
-    def list_models(self) -> List[Dict[str, Any]]:
+    def list_models(self) -> list[dict[str, Any]]:
         """获取 OmniRoute 可用模型列表.
 
         Returns:
@@ -352,7 +351,7 @@ class OmniRouteClient:
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """调用 OmniRoute 的 OpenAI 兼容 /chat/completions 端点.
 
         Returns:
@@ -366,7 +365,7 @@ class OmniRouteClient:
                 "Authorization": "Bearer omniroute",
             }
 
-            messages: List[Dict[str, str]] = []
+            messages: list[dict[str, str]] = []
             if system:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
@@ -439,9 +438,9 @@ class OmniRouteClient:
 def chat(
     prompt: str,
     system: str = "",
-    temperature: Optional[float] = None,
-    max_tokens: Optional[int] = None,
-) -> Optional[str]:
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+) -> str | None:
     """快捷函数: 通过 OmniRoute 对话.
 
     Usage:
@@ -454,14 +453,14 @@ def chat(
 def chat_deep(
     prompt: str,
     system: str = "",
-    temperature: Optional[float] = None,
-    max_tokens: Optional[int] = None,
-) -> Optional[str]:
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+) -> str | None:
     """快捷函数: 通过 OmniRoute 深度思考模式."""
     return OmniRouteClient.get_instance().chat_deep(prompt, system, temperature, max_tokens)
 
 
-def health_check() -> Dict[str, Any]:
+def health_check() -> dict[str, Any]:
     """快捷函数: OmniRoute 连通性探测."""
     return OmniRouteClient.get_instance().health_check()
 

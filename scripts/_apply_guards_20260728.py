@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 对 trade_plan_20260728.json 应用 7-Guard 链并检查最终状态
 """

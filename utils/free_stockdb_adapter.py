@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 free-stockdb 本地数据引擎适配层 (阶段 1: 研究/回测专用)
 ==========================================================
@@ -26,7 +25,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import pandas as pd
 
@@ -201,7 +200,7 @@ def _strip_suffix(symbol: str) -> str:
     return symbol
 
 
-def _period_to_date_range(period: str) -> Tuple[str, str]:
+def _period_to_date_range(period: str) -> tuple[str, str]:
     """将 period 字符串转换为 (start_date, end_date)"""
     end_date = datetime.now()
     period_lower = period.lower()
@@ -290,8 +289,8 @@ def _http_get_ohlcv(
     start_date: str,
     end_date: str,
     frequency: str = "1d",
-    fq: Optional[str] = "qfq",
-) -> Optional[List[Dict]]:
+    fq: str | None = "qfq",
+) -> list[dict] | None:
     """通过 HTTP API 获取 OHLCV 数据
 
     Args:
@@ -356,9 +355,9 @@ def get_historical_data_fs(
     symbol: str,
     period: str = "2y",
     frequency: str = "1d",
-    fq: Optional[str] = "qfq",
+    fq: str | None = "qfq",
     use_fallback: bool = True,
-) -> Optional[pd.DataFrame]:
+) -> pd.DataFrame | None:
     """获取历史 OHLCV 数据 (free-stockdb 优先, 支持自动降级)
 
     与现有 `utils.data_provider.get_historical_data` 接口完全兼容。
@@ -430,14 +429,14 @@ def get_historical_data_fs(
 
 
 def get_batch_ohlcv_fs(
-    symbols: List[Tuple],
+    symbols: list[tuple],
     period: str = "2y",
     frequency: str = "1d",
-    fq: Optional[str] = "qfq",
+    fq: str | None = "qfq",
     use_fallback: bool = True,
-) -> Dict[str, pd.DataFrame]:
+) -> dict[str, pd.DataFrame]:
     """批量获取历史 OHLCV 数据"""
-    result: Dict[str, pd.DataFrame] = {}
+    result: dict[str, pd.DataFrame] = {}
     total = len(symbols)
 
     for code, suffix, _server_type, _name, _style in symbols:
@@ -456,7 +455,7 @@ def get_batch_ohlcv_fs(
 FORCE_FREE_STOCKDB = os.environ.get("FORCE_FREE_STOCKDB", "1") == "1"
 
 
-def get_historical_data(symbol: str, period: str = "2y") -> Optional[pd.DataFrame]:
+def get_historical_data(symbol: str, period: str = "2y") -> pd.DataFrame | None:
     """与 utils.data_provider.get_historical_data 签名完全一致的封装"""
     if FORCE_FREE_STOCKDB:
         return get_historical_data_fs(symbol, period, use_fallback=True)

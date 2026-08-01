@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """B3.3 HedgeEngine 抽取验证脚本
 
 验证项:
