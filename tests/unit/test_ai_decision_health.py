@@ -118,7 +118,7 @@ def test_get_provider_fallback_returns_mock_when_open():
 def test_get_provider_fallback_returns_real_when_closed():
     """场景 3: 未熔断时 get_provider_with_fallback 返回真实 provider"""
     mon = ModelHealthMonitor()
-    prov = mon.get_provider_with_fallback("judge")
+    mon.get_provider_with_fallback("judge")
     # 默认无 API Key, get_active_provider 返回 MockProvider, 但不是熔断降级
     # 关键是 is_circuit_open 为 False
     assert mon.is_circuit_open("judge") is False
@@ -363,7 +363,7 @@ def test_orchestrator_with_health_monitor_no_crash():
     assert dec is not None
     assert dec.symbol == "600519"
     # judge provider 调用后应有熔断器记录
-    stats = mon.get_stats()
+    mon.get_stats()
     # judge 可能被探测过 (取决于 maybe_probe interval)
     # 关键是不崩溃 + decision 正常返回
 

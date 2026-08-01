@@ -619,7 +619,7 @@ class SignalFusionEngine:
         strength, lgb_applied = self._lgb_layer.apply(strength, symbol)
 
         # v8.4.1: 外部策略信号叠加 (daily_stock_analysis 15种A股策略)
-        ext_s = self._external_strategy_layer.get_signal(symbol)
+        self._external_strategy_layer.get_signal(symbol)
         strength, ext_applied = self._external_strategy_layer.apply(strength, symbol)
 
         # v8.6.13: 气象因子信号叠加 (weather_factor_engine 7因子)

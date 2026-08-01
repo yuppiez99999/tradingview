@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 
 def _load_env_file(env_path: Path) -> None:

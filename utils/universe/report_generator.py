@@ -36,7 +36,7 @@ try:
             matplotlib.rcParams["font.sans-serif"] = [font]
             matplotlib.rcParams["axes.unicode_minus"] = False
             break
-        except Exception as e:
+        except Exception:
             continue
     _MPL_OK = True
 except ImportError:

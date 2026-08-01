@@ -170,7 +170,7 @@ def main() -> None:
             import pandas as pd
             df = pd.DataFrame(modules)
             st.dataframe(df, use_container_width=True, hide_index=True)
-        except Exception as e:
+        except Exception:
             st.json(modules)
     else:
         st.caption("默认准入模块: T2.1 LLM Router / T2.2 Decision Theories / T2.3 Multi Factor Signal")

@@ -408,7 +408,7 @@ def _build_option_order_from_cfg(item_cfg: dict, key: str, target: float) -> dic
 
 def _build_futures_order_from_cfg(
     item_cfg: dict, key: str, prices: dict, plan: dict, target: float, commodity_futures: set, existing_orders: list
-) -> dict:
+) -> Optional[dict]:
     """从配置项构建期货订单。
 
     Args:

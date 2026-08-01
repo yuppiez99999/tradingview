@@ -369,7 +369,7 @@ class VibeTradingFactorAdapter:
         results: Dict[str, OrthogonalityResult] = {}
 
         # 准备现有因子的 DataFrame（symbol 为行，factor_name 为列）
-        existing_df = self._factor_dict_to_df(existing_factors)
+        self._factor_dict_to_df(existing_factors)
 
         for cand_name, cand_factor in candidate_pool.factors.items():
             try:
@@ -750,8 +750,8 @@ class VibeTradingFactorAdapter:
         for sym, data in price_data.items():
             opens = data.get("opens", [])
             closes = data.get("closes", [])
-            highs = data.get("highs", [])
-            lows = data.get("lows", [])
+            data.get("highs", [])
+            data.get("lows", [])
             if len(opens) > 21 and len(closes) > 21:
                 # 隔夜收益: open[t] / close[t-1] - 1
                 overnight_rets = []

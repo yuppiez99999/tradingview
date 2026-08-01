@@ -211,7 +211,6 @@ def _apply_market_regime_scaling(weights: Dict, date: pd.Timestamp) -> tuple:
       3. 20日动量: <-10% → ×0.4, <-5% → ×0.6
     最终 factor = max(三层相乘, 0.3)
     """
-    from pathlib import Path as _P
     proxy = "510300"
     ma_period = 60
     slope_window = 5

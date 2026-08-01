@@ -359,9 +359,9 @@ def test_daily_workflow_integration():
 
     # 检查 v10 策略模块是否就绪
     try:
-        from utils.quant_neutral_runner import QuantNeutralRunner
-        from utils.ic_hedge_calculator import ICHedgeCalculator
-        from utils.cash_manager import CashManager
+        from utils.quant_neutral_runner import QuantNeutralRunner  # noqa: F401
+        from utils.ic_hedge_calculator import ICHedgeCalculator  # noqa: F401
+        from utils.cash_manager import CashManager  # noqa: F401
         print("✓ v10.0 策略模块全部导入成功")
         print("  - QuantNeutralRunner: 资金 ¥700,000, 目标多头 ¥1,400,000")
         print("  - ICHedgeCalculator: IC 合约乘数 200, 保证金率 12%")

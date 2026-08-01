@@ -21,6 +21,8 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 REPORTS_DIR = _PROJECT_ROOT / "research" / "vibe_trading_factor_analysis" / "reports" / "vibe_trading"
 
+logger = logging.getLogger(__name__)
+
 
 def regenerate(batch_id: str, symbols: list[str] = None, n_trials: int = None) -> int:
     """从 pipeline_state.json 重新生成报告

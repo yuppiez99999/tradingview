@@ -38,7 +38,6 @@ RESULTS: list[tuple[str, bool, str]] = []
 def check(name: str, ok: bool, detail: str = "") -> None:
     """记录一项检查结果."""
     global PASS, FAIL
-    status = "PASS" if ok else "FAIL"
     RESULTS.append((name, ok, detail))
     if ok:
         PASS += 1

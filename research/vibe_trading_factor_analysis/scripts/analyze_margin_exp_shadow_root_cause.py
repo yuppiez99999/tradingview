@@ -159,7 +159,7 @@ def main() -> int:
     logger.info("\n[5/6] 每日 PnL 深度分析（找回撤期根因）")
     daily_pnl_baseline = baseline_result.daily_pnl
     daily_pnl_rm = rm_result.daily_pnl
-    n_days = len(daily_pnl_baseline)
+    len(daily_pnl_baseline)
 
     # 累计净值
     cum_nav_baseline = np.cumprod([1.0 + p for p in daily_pnl_baseline])

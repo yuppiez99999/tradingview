@@ -163,7 +163,7 @@ def test_cr3():
 
         # 测试重复平仓保护
         liquidated["count"] = 0
-        result3 = rb.update_drawdown(equity=850_000, ts=datetime.now())
+        rb.update_drawdown(equity=850_000, ts=datetime.now())
         check("冷却期内再次熔断不重复平仓",
               liquidated["count"] == 0,
               f"重复平仓了 {liquidated['count']} 个")
@@ -330,7 +330,7 @@ def test_er4():
             "scheduler_daemon",
             os.path.join(BASE_DIR, "v8.3_institutional", "scheduler_daemon.py")
         )
-        mod = importlib.util.module_from_spec(spec)
+        importlib.util.module_from_spec(spec)
         # 不执行 exec_module 避免触发副作用, 仅检查模块结构
         check("scheduler_daemon 模块文件可加载", spec is not None)
     except Exception as e:

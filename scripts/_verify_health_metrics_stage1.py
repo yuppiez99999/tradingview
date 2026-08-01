@@ -21,7 +21,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -58,9 +57,6 @@ try:
     from utils.alpha.health_metrics import (
         UnifiedHealthMetrics, HealthReport, LayerScore,
     )
-    from utils.alpha.layers.code_health import CodeHealthLayer
-    from utils.alpha.layers.strategy_health import StrategyHealthLayer
-    from utils.alpha.layers.ops_health import OpsHealthLayer
     check("模块导入成功", True)
 except Exception as e:
     check("模块导入成功", False, str(e))

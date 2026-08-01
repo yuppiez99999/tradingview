@@ -151,7 +151,7 @@ class TestP1GBrokerCallbackRegistration:
         main_ks.set_broker_callback(broker_callback_mock)
 
         # 模拟 daily_workflow 修复后的复用逻辑
-        ks = getattr(main_ks, "ks", None) or main_ks  # 简化: 直接复用主实例
+        getattr(main_ks, "ks", None) or main_ks  # 简化: 直接复用主实例
         reused_ks = main_ks  # 在 daily_workflow 中是 self.ks
 
         # 复用的实例必须保留 callback

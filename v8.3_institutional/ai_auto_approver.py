@@ -28,7 +28,7 @@ if str(_BASE) not in sys.path:
 try:
     from utils.logger import get_logger
     logger = get_logger("ai_auto_approver")
-except Exception as e:
+except Exception:
     import logging
     logger = logging.getLogger("ai_auto_approver")
 

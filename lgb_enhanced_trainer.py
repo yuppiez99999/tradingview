@@ -37,10 +37,8 @@ import logging
 import argparse
 from pathlib import Path
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict
 
-import numpy as np
-import pandas as pd
 
 # ============================================================
 # 路径常量 (权威定义, 由 configure_paths 注入到各子模块)
@@ -63,8 +61,6 @@ sys.path.insert(0, str(BASE_DIR / "utils"))
 # 复用旧训练器的标的清单和特征工程 (供 institutional_pipeline_runner 等外部模块导入)
 from autolearn_trainer import (  # noqa: E402
     POSITION_SYMBOLS,
-    add_technical_features,
-    add_cross_sectional_features,
 )
 
 # ============================================================
@@ -142,49 +138,17 @@ _inject_paths_to_submodules()
 # 此处统一从 lgb_trainer 包重新导出, 保持向后兼容。
 
 # ── 数据层 ──
-from lgb_trainer.data_loader import (  # noqa: E402
-    load_real_ohlcv,
-    fetch_all_real_ohlcv,
-)
 
 # ── 新闻情绪因子 ──
-from lgb_trainer.news_sentiment import (  # noqa: E402
-    compute_news_sentiment_factors,
-    add_sentiment_features,
-)
 
 # ── 扩展特征工程 ──
-from lgb_trainer.feature_engineering import (  # noqa: E402
-    add_mean_reversion_features,
-    add_regime_aware_features,
-    add_industry_relative_strength_features,
-    add_capital_flow_features,
-    add_cross_market_features,
-)
 
 # ── 评估指标 + 时间序列交叉验证 ──
-from lgb_trainer.metrics import (  # noqa: E402
-    r2_score as _r2_score,
-    ic_score as _ic_score,
-    signal_sharpe as _signal_sharpe,
-    time_series_cv_evaluate,
-    select_features_by_importance,
-)
 
 # ── 模型持久化 ──
-from lgb_trainer.persistence import (  # noqa: E402
-    save_model,
-    load_model_meta,
-    should_retrain,
-)
 
 # ── 训练器核心 ──
 from lgb_trainer.trainer import (  # noqa: E402
-    train_lgb_with_fallback,
-    _train_lgb_with_fallback,  # 向后兼容别名
-    train_symbol_enhanced,
-    compute_regime_series,
-    train_symbol_regime_specific,
     run_enhanced_training,
 )
 

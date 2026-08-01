@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # Check mypy config
     print("\n" + "="*60)
     print("检查 mypy 配置...")
-    mypy_ini = ".mypy.ini"
+    myPyIni = ".mypy.ini"
     setup_py = "setup.cfg"
     pyproject_toml = "pyproject.toml"
 

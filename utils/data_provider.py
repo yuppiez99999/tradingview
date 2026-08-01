@@ -17,7 +17,6 @@ import os
 import pathlib
 import importlib.util
 import threading
-import requests
 # P1-2: 移除全局禁用TLS验证，改为默认启用证书校验
 
 from utils.logger import get_logger
@@ -32,7 +31,7 @@ try:
     import numpy as _np
 
     HAS_NUMPY = True
-except Exception as e:
+except Exception:
     _np = None  # type: ignore
     HAS_NUMPY = False
 

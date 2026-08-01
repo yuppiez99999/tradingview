@@ -26,9 +26,8 @@ from __future__ import annotations
 
 import logging
 import sys
-import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import pandas as pd
 

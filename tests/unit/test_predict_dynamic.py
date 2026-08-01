@@ -321,7 +321,7 @@ class TestGateIntegration:
         from gate_manager import ReturnExpectationGate
         from predict_annual_return import predict_annual_return_struct
 
-        prediction = predict_annual_return_struct()
+        predict_annual_return_struct()
         gate = ReturnExpectationGate()
         result = gate.evaluate(mode="sim")
 
@@ -337,7 +337,7 @@ class TestGateIntegration:
         from gate_manager import ReturnExpectationGate
         from predict_annual_return import predict_annual_return_struct
 
-        prediction = predict_annual_return_struct()
+        predict_annual_return_struct()
         gate = ReturnExpectationGate()
         result = gate.evaluate(mode="sim")
 

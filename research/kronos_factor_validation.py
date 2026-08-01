@@ -65,7 +65,7 @@ os.environ["no_proxy"] = "*"
 try:
     import requests as _requests
     _requests.adapters.DEFAULT_RETRIES = 2
-except Exception as e:
+except Exception:
     pass
 
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
@@ -74,7 +74,7 @@ os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 try:
     import huggingface_hub
     huggingface_hub.constants.HF_HUB_DISABLE_PROGRESS_BARS = True
-except Exception as e:
+except Exception:
     pass
 
 # ============================================================

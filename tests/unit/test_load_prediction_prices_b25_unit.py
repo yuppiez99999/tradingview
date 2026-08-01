@@ -459,7 +459,7 @@ def test_fetch_prediction_signals_uses_index(tmp_path, monkeypatch):
 
         if _has_predictor:
             # 真实 PricePredictor 可用时, 走完整路径
-            signals = daily_trade_executor.fetch_prediction_signals(
+            daily_trade_executor.fetch_prediction_signals(
                 ["600519", "000858"], horizon=5
             )
             # 应该只扫描 1 次

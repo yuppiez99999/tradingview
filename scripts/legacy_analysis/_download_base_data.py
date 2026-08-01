@@ -216,7 +216,7 @@ def main():
     for symbol, name, _rows, status in results:
         if status == "failed":
             continue
-        df = pd.read_parquet(CACHE_FILE := CACHE_DIR / f"historical_{symbol}_5y_base.parquet")
+        df = pd.read_parquet(_CACHE_FILE := CACHE_DIR / f"historical_{symbol}_5y_base.parquet")
         cutoff = pd.Timestamp("2024-01-01")
         before_cutoff = df[df.index <= cutoff]
         print(f"  {symbol} {name}: 总 {len(df)} 行, "

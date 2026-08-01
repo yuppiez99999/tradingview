@@ -478,7 +478,7 @@ class DelayedLabelTracker:
                 ic = float(np.corrcoef(predicted, actual)[0, 1])
             else:
                 ic = 0.0
-        except Exception as e:
+        except Exception:
             ic = 0.0
 
         # Rank IC (Spearman)
@@ -542,7 +542,7 @@ class DelayedLabelTracker:
                     ic_day = float(np.corrcoef(pred, act)[0, 1])
                     if np.isfinite(ic_day):
                         daily_ic.append(ic_day)
-        except Exception as e:
+        except Exception:
             return 0.0
 
         if len(daily_ic) < 2:

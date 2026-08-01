@@ -88,13 +88,13 @@ def main() -> None:
     with st.expander("宏观指标阈值配置 (可调)"):
         col_a, col_b, col_c = st.columns(3)
         with col_a:
-            cpi_low = st.number_input("CPI 低阈值", value=0.5, step=0.1)
-            cpi_moderate = st.number_input("CPI 中阈值", value=1.5, step=0.1)
-            cpi_high = st.number_input("CPI 高阈值", value=2.5, step=0.1)
+            st.number_input("CPI 低阈值", value=0.5, step=0.1)
+            st.number_input("CPI 中阈值", value=1.5, step=0.1)
+            st.number_input("CPI 高阈值", value=2.5, step=0.1)
         with col_b:
-            pmi_low = st.number_input("PMI 低阈值", value=48.0, step=0.5)
-            pmi_moderate = st.number_input("PMI 中阈值", value=50.0, step=0.5)
-            pmi_high = st.number_input("PMI 高阈值", value=52.0, step=0.5)
+            st.number_input("PMI 低阈值", value=48.0, step=0.5)
+            st.number_input("PMI 中阈值", value=50.0, step=0.5)
+            st.number_input("PMI 高阈值", value=52.0, step=0.5)
         with col_c:
             st.caption("应用阈值后, 系统将根据当前指标值自动分类 Regime")
 

@@ -458,7 +458,7 @@ def _run_mypy_on_target(target_filename: str, target_module_label: str) -> bool:
             error_lines.append(line)
 
     # 也捕获 "skip" 标记的导入错误 (这些是其他文件被 skip 后的提示, 不算目标错误)
-    skipped_import_lines = [
+    [
         line for line in full_output.splitlines()
         if "skip" in line.lower() and target_basename not in line
     ]

@@ -591,7 +591,7 @@ def verify_t58_mlops() -> Dict[str, Any]:
             # 场景 B: 再次触发 (任务已完成) → 应被 min_interval 拦截或成功
             try:
                 # 不重置 _last_retrain_time, 让 min_interval 拦截
-                triggered_b = scheduler.trigger_retrain(reason="second_test")
+                scheduler.trigger_retrain(reason="second_test")
                 task_b_handled = True  # 无论成功或被拦截都是正确的
             except Exception:
                 task_b_handled = True  # 抛异常也是正确的

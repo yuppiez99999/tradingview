@@ -336,7 +336,7 @@ def test_multi_strategy_coordinator():
     print(f"  ✅ 冲突 {len(decision.conflicts)} 个, 风险预算 ¥{decision.risk_budget_used:,.0f} / ¥{decision.risk_budget_limit:,.0f}")
 
     # 模拟策略失效 (相关性过高)
-    decision2 = coord.coordinate(
+    coord.coordinate(
         strategy_pnl={"stock_long": -100000},  # 大幅亏损
         strategy_correlations={"stock_long": 0.90},  # 相关性过高
     )

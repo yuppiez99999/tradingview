@@ -82,7 +82,7 @@ def _normalize_stock_results(raw: str) -> list:
                 "source": "iFinD_stock",
             })
         return results
-    except Exception as e:
+    except Exception:
         return []
 
 
@@ -111,7 +111,7 @@ def _normalize_fund_results(raw: str) -> list:
                 "source": "iFinD_fund",
             })
         return results
-    except Exception as e:
+    except Exception:
         return []
 
 
@@ -232,7 +232,7 @@ def _fetch_sina_realtime(codes):
         try:
             if latest and pre_close:
                 change_ratio = f"{(float(latest) - float(pre_close)) / float(pre_close) * 100:.6f}"
-        except Exception as e:
+        except Exception:
             change_ratio = ""
         results.append({
             "code": raw_code,

@@ -23,7 +23,7 @@ HedgeEngine 保留为 thin coordinator, 策略执行统一委托到本模块。
 import math
 import logging
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple
 
 # 双路径导入: 支持 src.hedging (正常包) 和 hedging (测试 sys.path) 两种加载方式
 try:

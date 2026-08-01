@@ -103,12 +103,10 @@ def main():
     # 尝试本地 GGUF 导入
     print("gguf_search=start")
     gguf = None
-    used_dir = None
     for model_dir in MODEL_CANDIDATES:
         print(f"candidate={model_dir}")
         gguf = find_gguf(model_dir)
         if gguf:
-            used_dir = model_dir
             break
 
     if gguf:

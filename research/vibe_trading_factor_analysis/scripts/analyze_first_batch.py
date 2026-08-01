@@ -85,7 +85,7 @@ def main() -> int:
         g2 = f["g2_ic_stability"]
         ic = g2.get("ic", 0)
         ic_ir = g2.get("ic_ir_estimated", 0)
-        threshold = g2.get("threshold", 0.3)  # 不一定有，用默认
+        g2.get("threshold", 0.3)  # 不一定有，用默认
         gap = 0.3 - ic_ir  # 阈值 0.3
         print(f"  {f['factor_name']:35s} | {ic:+.4f} | {ic_ir:+.4f} | {0.3:.4f} | {gap:+.4f}")
 

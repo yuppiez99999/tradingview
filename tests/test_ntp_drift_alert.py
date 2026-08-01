@@ -105,7 +105,6 @@ class TestDriftThresholdAlerts:
 
     def test_no_alert_when_drift_below_warning(self):
         """漂移 < 500ms: 不触发告警"""
-        stats_before = None
         with patch("ntplib.NTPClient") as mock_client_cls:
             mock_client = MagicMock()
             # 100ms 漂移, 健康范围
@@ -425,7 +424,7 @@ class TestNTPFailureScenarios:
 
             # 第一次失败不触发 CRITICAL (因为 sync_failed_count=1)
             assert ntp.sync_failed_count == 1
-            initial_critical = ntp.get_alert_stats()[ALERT_LEVEL_CRITICAL]
+            ntp.get_alert_stats()[ALERT_LEVEL_CRITICAL]
 
             # 失败 4 次以上
             for _ in range(5):

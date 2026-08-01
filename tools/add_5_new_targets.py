@@ -115,7 +115,7 @@ def main():
         pos["target_amount"] = round(STOCK_CAPITAL * new_w, 2)
         # 更新各阶段资金
         for phase in pos.get("phases", []):
-            old_phase_amount = phase["target_amount"]
+            phase["target_amount"]
             new_phase_amount = round(new_w * STOCK_CAPITAL * phase["capital_ratio"], 2)
             phase["target_amount"] = new_phase_amount
             # shares 保持不变 (避免重新计算, 后续执行时按当日资金动态分配)

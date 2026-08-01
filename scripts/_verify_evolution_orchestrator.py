@@ -40,16 +40,16 @@ def main() -> int:
     try:
         from utils.alpha.evolution_orchestrator import (
             EvolutionOrchestrator,
-            MetricsSnapshot,
-            OrchestratorStatus,
-            DecisionRecord,
+            MetricsSnapshot,  # noqa: F401
+            OrchestratorStatus,  # noqa: F401
+            DecisionRecord,  # noqa: F401
             ACTION_EVALUATE_ONLY,
             ACTION_NOOP,
             ACTION_PROMOTE,
             STATUS_DISABLED,
             STATUS_ENABLED,
             STATUS_OBSERVATION,
-            STATUS_DEGRADED,
+            STATUS_DEGRADED,  # noqa: F401
             OBSERVATION_PERIOD_DAYS,
             MIN_SAMPLES_FOR_EVALUATION,
         )

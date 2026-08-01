@@ -99,7 +99,7 @@ class KlinesLoader:
                 if not df.empty and len(df) >= self.count * 0.5:
                     self._cache[symbol] = df
                     return df
-            except Exception as e:
+            except Exception:
                 logger.warning(f"Unexpected error in scheduler.py", exc_info=True)
 
         # 2. 通达信（优先，TCP 协议稳定）
@@ -113,7 +113,7 @@ class KlinesLoader:
                 if all(c in df.columns for c in required):
                     try:
                         df.to_parquet(cache_file)
-                    except Exception as e:
+                    except Exception:
                         logger.warning(f"Unexpected error in scheduler.py", exc_info=True)
                     self._cache[symbol] = df
                     return df
@@ -139,7 +139,7 @@ class KlinesLoader:
                 if all(c in df.columns for c in required):
                     try:
                         df.to_parquet(cache_file, index=False)
-                    except Exception as e:
+                    except Exception:
                         logger.warning(f"Unexpected error in scheduler.py", exc_info=True)
                     self._cache[symbol] = df
                     return df

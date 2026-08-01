@@ -53,7 +53,7 @@ import traceback
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import List
 
 # 项目根目录 (此模块位于 utils/system_check.py, 父目录即项目根)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -539,7 +539,6 @@ class SystemChecker:
 
         # C7.1 hedge_execution_engine 可导入 (28-终极量化交易系统8.4 实际模块名)
         try:
-            from utils.hedge_execution_engine import HedgeExecutionEngine
             self._pass("C7.1", "HedgeExecutionEngine 模块", CheckLevel.ERROR,
                        detail="可导入")
         except Exception as e:
@@ -549,7 +548,6 @@ class SystemChecker:
 
         # C7.2 signal_fusion 可导入
         try:
-            from utils.signal_fusion import SignalFusionEngine
             self._pass("C7.2", "SignalFusionEngine 模块", CheckLevel.WARN,
                        detail="可导入")
         except Exception as e:
@@ -560,7 +558,7 @@ class SystemChecker:
         # C7.3 logger 可用
         try:
             from utils.logger import get_logger
-            test_logger = get_logger("system_check_test")
+            get_logger("system_check_test")
             self._pass("C7.3", "Logger 模块", CheckLevel.ERROR,
                        detail="可导入")
         except Exception as e:

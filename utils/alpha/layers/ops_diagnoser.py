@@ -66,7 +66,6 @@ from utils.alpha.root_cause import (  # noqa: E402
     RootCause,
     SEVERITY_CRITICAL,
     SEVERITY_HIGH,
-    SEVERITY_LOW,
     SEVERITY_MEDIUM,
 )
 

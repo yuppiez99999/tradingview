@@ -437,7 +437,7 @@ class DataContract:
                 dates = pd.to_datetime(date_col, errors="coerce")
             else:
                 dates = date_col
-        except Exception as e:
+        except Exception:
             return violations
 
         future_rows = (dates > current_date).sum()

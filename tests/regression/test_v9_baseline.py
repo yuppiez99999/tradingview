@@ -251,7 +251,7 @@ def _recompute_metrics_from_records(
 
     # 偏度 / 峰度 (用 numpy 计算, 与 _calc_v9_dsr_v2.py 一致)
     try:
-        import numpy as np
+        import numpy as np  # noqa: F401
         from scipy import stats as scipy_stats
         skewness = float(scipy_stats.skew(returns))
         kurtosis_fisher = float(scipy_stats.kurtosis(returns, fisher=True))

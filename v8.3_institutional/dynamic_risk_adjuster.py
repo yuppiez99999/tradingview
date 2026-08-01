@@ -30,7 +30,7 @@ if str(_BASE) not in sys.path:
 try:
     from utils.logger import get_logger
     logger = get_logger("dynamic_risk_adjuster")
-except Exception as e:
+except Exception:
     import logging
     logger = logging.getLogger("dynamic_risk_adjuster")
 

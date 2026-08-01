@@ -50,7 +50,7 @@ try:
     from hedging.hedge_coordinator import HedgeCoordinator
 
     _HEDGE_AVAILABLE = True
-except Exception as e:
+except Exception:
     HedgeCoordinator = None
     _HEDGE_AVAILABLE = False
 
@@ -73,7 +73,7 @@ try:
     from wind_mcp_fetcher import wind_get_quote
 
     _WIND_MCP_AVAILABLE = True
-except Exception as e:
+except Exception:
     wind_get_quote = None
     _WIND_MCP_AVAILABLE = False
 

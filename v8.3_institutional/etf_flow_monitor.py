@@ -18,7 +18,7 @@ from typing import Dict, List, Optional
 try:
     import requests
     REQUESTS_AVAILABLE = True
-except Exception as e:
+except Exception:
     REQUESTS_AVAILABLE = False
 
 logging.basicConfig(
@@ -47,12 +47,12 @@ if os.path.exists(_OLD_BASE_DIR):
 try:
     import tushare as ts
     TUSHARE_AVAILABLE = True
-except Exception as e:
+except Exception:
     TUSHARE_AVAILABLE = False
 
 try:
     YFINANCE_AVAILABLE = True
-except Exception as e:
+except Exception:
     YFINANCE_AVAILABLE = False
 
 # ============ 重试工具 ============
@@ -115,7 +115,7 @@ try:
         _sys.path.insert(0, _strat_dir)
     from wind_mcp_fetcher import wind_get_quote
     WIND_MCP_AVAILABLE = True
-except Exception as e:
+except Exception:
     WIND_MCP_AVAILABLE = False
 
 

@@ -85,7 +85,7 @@ class TestBasicInterface:
     def test_init_model_dir_created(self, tmp_path):
         """model_dir 自动创建."""
         model_dir = tmp_path / "test_models"
-        selector = MLEnhancedSelector(model_dir=model_dir)
+        MLEnhancedSelector(model_dir=model_dir)
         assert model_dir.exists()
 
     def test_is_trained_default_false(self):

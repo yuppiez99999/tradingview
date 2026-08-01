@@ -305,7 +305,7 @@ class FeatureFlags:
             with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(override_data, f, ensure_ascii=False, indent=2)
             temp_file.replace(override_file)
-        except Exception as e:
+        except Exception:
             if temp_file.exists():
                 temp_file.unlink(missing_ok=True)
             raise

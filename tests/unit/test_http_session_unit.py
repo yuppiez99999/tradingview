@@ -10,7 +10,6 @@ utils/http_session.py 单元测试 (B-4.1)
 
 import os
 
-import pytest
 import requests
 
 from utils.http_session import (

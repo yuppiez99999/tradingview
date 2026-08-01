@@ -19,7 +19,7 @@ import os
 import sys
 import time
 import traceback
-from typing import Any, Dict, List
+from typing import Dict, List
 
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -71,11 +71,7 @@ results = TestResult()
 print("\n[测试 1] WeatherDataAdapter 模块导入")
 try:
     from utils.weather_data_adapter import (
-        WeatherDataAdapter,
         WeatherRealtime,
-        WeatherHourlyPoint,
-        WeatherDailyPoint,
-        WeatherMinutelyPoint,
         WeatherForecast,
         get_adapter,
     )
@@ -140,10 +136,7 @@ except Exception as e:
 print("\n[测试 3] WeatherFactorEngine 因子计算")
 try:
     from utils.weather_factor_engine import (
-        WeatherFactorEngine,
         WeatherFactorResult,
-        SectorWeatherResult,
-        FactorScore,
         get_engine,
     )
     results.ok("WeatherFactorEngine 导入")

@@ -56,7 +56,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 FACTOR_KS_READY = True
 try:
     from research.vibe_trading_factor_analysis.safety.factor_kill_switch import (
-        FactorKillSwitch, FactorStatus, KillSwitchStatus,
+        FactorKillSwitch, FactorStatus, KillSwitchStatus,  # noqa: F401
     )
     from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
         load_all_for_pipeline, list_available_symbols,

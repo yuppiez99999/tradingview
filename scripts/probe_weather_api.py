@@ -5,7 +5,6 @@
 仅发送只读请求, 不修改任何状态.
 """
 
-import json
 import sys
 import time
 

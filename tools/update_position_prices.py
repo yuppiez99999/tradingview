@@ -54,7 +54,7 @@ def extract_price(market_data: dict, symbol: str = '', provider = None, old_pric
                     if simulated or price > 10 * last_close or price < last_close / 10:
                         price = last_close
                         source = f"{source}+historical_fallback".strip('+')
-        except Exception as e:
+        except Exception:
             raise  # Re-raise unknown exception
     if price == 3000:
         return 0.0, source

@@ -309,7 +309,7 @@ def _get_tdx_full_snapshot() -> pd.DataFrame:
                                     "总市值": float(q.get("liaohuan", 0) or 0),  # 流通市值
                                 }
                             )
-                    except Exception as e:
+                    except Exception:
                         continue
 
                 start += page_size
@@ -393,7 +393,7 @@ def get_tdx_full_stock_list() -> pd.DataFrame:
                 start += page_size
                 if len(stocks) < page_size:
                     break
-            except Exception as e:
+            except Exception:
                 break
 
     df = pd.DataFrame(rows)

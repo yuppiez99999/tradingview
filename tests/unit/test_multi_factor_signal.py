@@ -448,7 +448,7 @@ class TestComputeFactorICMetrics:
         IC_IR = -0.3 (恰好等于阈值) → is_inverted=True (<= -threshold)
         IC_IR = -0.29 (小于阈值) → is_inverted=False
         """
-        mfs = MultiFactorSignal(inverted_threshold=0.3)
+        MultiFactorSignal(inverted_threshold=0.3)
         # 构造 IC_IR 接近 -0.3 的因子历史
         # 使用 mock 直接测试阈值逻辑
         metrics = FactorICMetrics(

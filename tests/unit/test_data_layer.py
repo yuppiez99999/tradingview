@@ -945,7 +945,7 @@ class TestEdgeCases:
         flag_enabled_layer: DataLayer,
     ) -> None:
         """P6 缓存 key 安全转义特殊字符."""
-        key1 = flag_enabled_layer._p6_cache_key("510300.SH", "get_ohlcv")
+        flag_enabled_layer._p6_cache_key("510300.SH", "get_ohlcv")
         key2 = flag_enabled_layer._p6_cache_key("510/300\\SH:1", "get_ohlcv")
         assert "/" not in key2
         assert "\\" not in key2

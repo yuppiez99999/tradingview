@@ -361,9 +361,8 @@ def main() -> int:
     provider_info = check_provider_health()
 
     # 步骤 4: 实际数据拉取
-    fetch_results = {}
     if provider_info.get("provider"):
-        fetch_results = check_actual_fetch(provider_info["provider"])
+        check_actual_fetch(provider_info["provider"])
 
     # 步骤 5: 逐数据源独立测试
     source_results = check_source_individually()

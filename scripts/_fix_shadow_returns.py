@@ -204,7 +204,7 @@ def fetch_real_price_for_date(symbol: str, target_date: str, provider) -> float:
 
         # 将目标日期转换为 datetime
         target_dt = datetime.strptime(target_date, "%Y-%m-%d")
-        target_next = target_dt + timedelta(days=1)
+        target_dt + timedelta(days=1)
 
         # 查找目标日期的记录 (df.index 是 datetime)
         for idx, row in df.iterrows():

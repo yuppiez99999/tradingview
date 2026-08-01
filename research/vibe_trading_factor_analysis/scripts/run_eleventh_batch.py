@@ -176,7 +176,7 @@ def main() -> int:
             v5_icir = g2.get("ic_ir_estimated", 0)
             v5_corr = g1.get("max_abs_corr", 0)
             v5_factor = g1.get("max_corr_factor", "-")
-            ic_mean = g2.get("ic_mean", 0)
+            g2.get("ic_mean", 0)
             improved_corr = "✅" if v5_corr < v1_corr else ("=" if abs(v5_corr - v1_corr) < 0.01 else "❌")
             improved_icir = "✅" if abs(v5_icir) > abs(v1_icir) else ("=" if abs(v5_icir - v1_icir) < 0.005 else "❌")
             print(f"    {fname:32s} | {v1_corr:.3f}  {v1_icir:+.4f} | "
@@ -271,7 +271,7 @@ def _write_eleventh_batch_report(result, symbols, n_trials: int) -> Path:
             v5_icir = g2.get("ic_ir_estimated", 0)
             v5_corr = g1.get("max_abs_corr", 0)
             v5_factor = g1.get("max_corr_factor", "-")
-            ic_mean = g2.get("ic_mean", 0)
+            g2.get("ic_mean", 0)
             corr_change = v5_corr - v1_corr
             icir_change = v5_icir - v1_icir
             qt_rows += (

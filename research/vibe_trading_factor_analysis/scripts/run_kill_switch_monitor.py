@@ -214,7 +214,7 @@ def _load_first_batch_candidates() -> Dict[str, Dict[str, float]]:
         logger.warning("首批次 pipeline_state.json 不存在: %s", candidates_path)
         return {}
     with open(candidates_path, "r", encoding="utf-8") as f:
-        state = json.load(f)
+        json.load(f)
     # pipeline_state.json 中的 factors 列表只保留了 g1/g2 结果，没有原始 values
     # 改为重新计算候选因子（调用 adapter）
     try:

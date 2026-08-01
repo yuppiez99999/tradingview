@@ -73,7 +73,7 @@ def test_pipeline_state_persistence():
         orchestrator = PipelineOrchestrator({"reports_dir": tmpdir})
         price_data = _make_price_data(n_syms=20)
         bench = _make_benchmark_returns()
-        result = orchestrator.run(
+        orchestrator.run(
             price_data=price_data,
             benchmark_returns=bench,
             portfolio_value=1e8,

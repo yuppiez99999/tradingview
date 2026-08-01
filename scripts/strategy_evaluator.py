@@ -200,7 +200,7 @@ def evaluate_diversification(positions: Dict) -> DiversificationMetrics:
         style_diversity = 0.0
 
     # 行业集中度: 最大行业占比
-    sector_counts = Counter(sectors)
+    Counter(sectors)
     sector_weights = [w for w, s in zip(weights, sectors)]
     sector_dist = {}
     for s, w in zip(sectors, sector_weights):
@@ -336,10 +336,8 @@ class StrategyEvaluator:
                 paths_to_try.append(shadow_path)
         # 最后 fallback: 尝试从 positions 估算 (如果没回报数据)
         returns_list = []
-        found_path = None
         for p in paths_to_try:
             if os.path.exists(p):
-                found_path = p
                 records = load_daily_returns(p)
                 returns_list = [r[1] for r in records]
                 break

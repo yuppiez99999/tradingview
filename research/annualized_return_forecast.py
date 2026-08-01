@@ -378,23 +378,18 @@ def forecast_annualized_return() -> dict:
 
         # 加载价格：优先 Wind MCP，回退 QLib，再回退 akshare，再回退 iFinD MCP，最后回退本地 ETF 兜底
         prices = load_wind_mcp_data(code)
-        data_source = "wind_mcp"
 
         if len(prices) < 60:
             prices = load_qlib_bin(code, "close")
-            data_source = "QLib"
 
         if len(prices) < 60:
             prices = load_akshare_data(code)
-            data_source = "akshare"
 
         if len(prices) < 60:
             prices = load_ifind_data(code)
-            data_source = "ifind_mcp"
 
         if len(prices) < 60 and (code.startswith("5") or code.startswith("1599")):
             prices = load_local_etf_fallback(code)
-            data_source = "local_etf_fallback"
 
         if len(prices) < 60:
             logger.warning(f"  {name} ({code}) 数据不足: {len(prices)} 天, 跳过")

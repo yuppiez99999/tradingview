@@ -28,7 +28,7 @@ try:
     from data_sources.akshare_futures import fetch_futures_realtime
 
     HAS_AKSHARE_FUTURES = True
-except Exception as e:
+except Exception:
     fetch_futures_realtime = None  # type: ignore
     HAS_AKSHARE_FUTURES = False
 

@@ -171,7 +171,7 @@ def main() -> int:
     logger.info(f"  Deferred 比例: {result.deferred_fundamentals/total*100:.1f}%")
 
     # P2.1 微观结构因子专项验收
-    micro_factors_passed = sum(
+    sum(
         1 for f in result.factors
         if f.get("state", "") not in (PipelineState.REJECTED.value, PipelineState.FAILED.value)
         and ("MICRO" in f.get("factor_name", "") or "VOL_DRAIN_INV" in f.get("factor_name", ""))
@@ -277,7 +277,7 @@ def _write_seventh_batch_report(
             fail_reasons[gate_key] = fail_reasons.get(gate_key, 0) + 1
 
     # P2.1 微观结构因子专项统计
-    micro_factor_names = [
+    [
         f.get("factor_name", "") for f in result.factors
         if "MICRO" in f.get("factor_name", "") or "VOL_DRAIN_INV" in f.get("factor_name", "")
     ]

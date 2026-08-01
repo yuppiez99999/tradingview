@@ -25,7 +25,7 @@ import os
 import sys
 import json
 import threading
-from datetime import datetime, timedelta, time as datetime_time
+from datetime import datetime, time as datetime_time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 

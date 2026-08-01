@@ -74,7 +74,7 @@ class GTJA191Factors:
         try:
             meta = self._adapter.get_meta(alpha_id)
             return meta.formula
-        except Exception as e:
+        except Exception:
             return ""
 
     def get_info(self, alpha_id: str) -> Dict[str, Any]:

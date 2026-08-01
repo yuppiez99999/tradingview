@@ -18,7 +18,7 @@ def fetch_sina_price(wind_code):
     其中 code 对于上证5年期国债ETF是 "511010" (不带 .SH)
     """
     url = f"http://push2his.eastmoney.com/api/qt/kishot?symb={wind_code}&udn=d1"
-    start = time.time()
+    time.time()
     try:
         import requests
         resp = requests.get(url, timeout=10)
@@ -30,7 +30,7 @@ def fetch_sina_price(wind_code):
                 d = data['data']
                 price_str = str(d.get('price', ''))
                 name = d.get('name', '')
-                change_pct = d.get('change', '').strip('%')
+                d.get('change', '').strip('%')
                 if price_str.replace('.', '', 1).isdigit():
                     return {
                         'price': float(price_str),

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """彩云天气 API 探测 v2 - 尝试多端点 + SSL 容错"""
 
-import json
 import os
 import sys
 import time

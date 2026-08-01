@@ -104,7 +104,7 @@ def _extract_domain(url: str) -> str:
         if host.startswith("www."):
             host = host[4:]
         return host or "news.ycombinator.com"
-    except Exception as e:
+    except Exception:
         return "news.ycombinator.com"
 
 

@@ -72,7 +72,7 @@ def main() -> int:
         required_dsr=0.95,
     )
     try:
-        shadow_result = adapter.run_shadow(test_returns, is_real_data=True)
+        adapter.run_shadow(test_returns, is_real_data=True)
         shadow_metrics = adapter.get_metrics()
         print(f"  dsr                 = {shadow_metrics.dsr:.6f}")
         print(f"  annual_return       = {shadow_metrics.annual_return:.6f}")

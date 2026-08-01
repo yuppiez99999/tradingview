@@ -287,7 +287,6 @@ def _write_p2_1c_report(
     vol_reduction_pct = vol_reduction / max(baseline_result.raw_realized_vol, 1e-9) * 100
 
     verdict = "✅ 通过" if all_pass else "⚠️ 部分通过"
-    verdict_color = "success" if all_pass else "warning"
 
     content = f"""# P2.1c Shadow 风险管理层验证报告
 

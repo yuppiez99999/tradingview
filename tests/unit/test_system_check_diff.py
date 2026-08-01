@@ -44,10 +44,8 @@ from utils.alpha.layers.system_check_diff import (  # noqa: E402
 from utils.alpha.root_cause import (  # noqa: E402
     LAYER_CODE,
     LAYER_OPS,
-    RootCause,
     SEVERITY_CRITICAL,
     SEVERITY_HIGH,
-    SEVERITY_MEDIUM,
 )
 
 

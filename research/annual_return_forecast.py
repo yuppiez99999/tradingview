@@ -226,7 +226,7 @@ def _calc_scenario(spot_annual_return: float,
 
     回撤约束: max_drawdown 超过 -15% 时触发风险预警
     """
-    capital = baseline["portfolio_base"]
+    baseline["portfolio_base"]
 
     # 使用当前实际仓位 (若尚未满仓则保守估计)
     # 同时记录目标仓位用于参考

@@ -622,7 +622,7 @@ class EvolutionOrchestrator:
                         continue
                     record = json.loads(line)
                     return record.get("date")
-        except Exception as e:
+        except Exception:
             return None
         return None
 

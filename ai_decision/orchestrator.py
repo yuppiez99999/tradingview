@@ -131,7 +131,7 @@ def run_decision(symbol: str,
     }
 
     # 3. 构造多空先验 (从五 Agent 共识 + 规则解析)
-    agent_action = ctx.agent_consensus.get("action", "hold")
+    ctx.agent_consensus.get("action", "hold")
     agent_strength = ctx.agent_consensus.get("strength", 0.0)
     agent_conf = ctx.agent_consensus.get("confidence", 0.0)
 

@@ -119,7 +119,7 @@ def scan_file(filepath: Path) -> List[dict]:
     violations = []
     try:
         content = filepath.read_text(encoding="utf-8", errors="ignore")
-    except Exception as e:
+    except Exception:
         return violations
 
     lines = content.splitlines()

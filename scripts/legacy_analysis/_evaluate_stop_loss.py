@@ -2,6 +2,7 @@
 """评估不同止损规则的影响范围, 避免 V7 过度优化"""
 import json
 import numpy as np
+import pandas as pd
 
 # 加载 V6.2 结果
 with open('output/validation_reports/lgb_backtest_v6_2_profit_taking_20260725_065118.json', 'r', encoding='utf-8') as f:

@@ -216,27 +216,12 @@ def verify_bug4() -> bool:
         rgi = RiskGuardIntegrator()
 
         # 构造测试 plan, 包含 BUY 和 SELL 订单
-        test_plan = {
-            'execution_plan': {
-                'morning_orders': [
-                    {'symbol': '588080', 'direction': 'BUY', 'shares': 1000},
-                    {'symbol': '512880', 'direction': 'SELL', 'shares': 500},
-                ],
-                'afternoon_orders': [
-                    {'symbol': '510050', 'direction': 'BUY', 'shares': 2000},
-                ],
-            },
-            'market_state': {},
-            'risk_guard': {},
-        }
 
         # 模拟 L2 状态 (保证金 80%, level=2)
         # 直接调用 guard_kill_shift 的响应动作部分
         # 通过修改 _get_pnl_summary 返回模拟数据
-        original_get_summary = rgi._get_pnl_summary
-        original_fetch = None
         if hasattr(rgi, '_fetch_limit_counts'):
-            original_fetch = rgi._fetch_limit_counts
+            pass
 
         # mock _get_pnl_summary 返回 None 字段, 触发 P0-D 回退
         # 但 KillSwitch._estimate_margin_from_positions 会返回真实值

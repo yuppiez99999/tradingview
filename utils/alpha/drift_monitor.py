@@ -554,7 +554,7 @@ def compute_psi(baseline: pd.Series, current: pd.Series, n_bins: int = 10) -> fl
     # 用 baseline 的分位数作为分箱边界 (point-in-time 正确)
     try:
         bins = np.unique(np.percentile(baseline_clean, np.linspace(0, 100, n_bins + 1)))
-    except Exception as e:
+    except Exception:
         return 0.0
     if len(bins) < 2:
         return 0.0
@@ -622,7 +622,7 @@ def compute_feature_drift(
         try:
             ks_stat, _ = _scipy_stats.ks_2samp(baseline_clean.values, current_clean.values)
             ks_score = float(ks_stat)
-        except Exception as e:
+        except Exception:
             # 降级: 用均值差 / (std + eps)
             std_pool = float(np.std(list(baseline_clean) + list(current_clean))) + 1e-8
             ks_score = float(abs(np.mean(current_clean) - np.mean(baseline_clean)) / std_pool)

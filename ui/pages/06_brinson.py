@@ -42,7 +42,7 @@ def main() -> None:
     # 基准选择
     col_bench, col_date = st.columns(2)
     with col_bench:
-        benchmark = st.selectbox("基准", ["沪深300", "中证500", "中证1000"], index=0)
+        st.selectbox("基准", ["沪深300", "中证500", "中证1000"], index=0)
     with col_date:
         selected_date = st.date_input("选择日期", datetime.now())
 

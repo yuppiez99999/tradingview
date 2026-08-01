@@ -124,7 +124,7 @@ def main() -> None:
                 from utils.config_manager import get_config_source
                 source = get_config_source(selected_cfg)
                 st.info(f"📁 配置来源: `{source}`")
-            except Exception as e:
+            except Exception:
                 raise  # Re-raise unknown exception
 
             with st.expander(f"查看 {selected_cfg}.yaml 内容", expanded=True):

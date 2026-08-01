@@ -3,7 +3,6 @@
 
 import json
 import os
-import sys
 import time
 import warnings
 
@@ -101,7 +100,7 @@ def main():
     print("\n" + "#" * 60)
     print("# 2. 实时天气 (realtime)")
     print("#" * 60)
-    d2 = explore_endpoint("实时天气", {
+    explore_endpoint("实时天气", {
         "type": "realtime",
         "location": LOCATION,
     })
@@ -136,7 +135,7 @@ def main():
     print("\n" + "#" * 60)
     print("# 5. 分钟级降水 (minutely, 2小时)")
     print("#" * 60)
-    d5 = explore_endpoint("分钟级降水", {
+    explore_endpoint("分钟级降水", {
         "type": "minutely",
         "location": LOCATION,
     })
@@ -148,7 +147,7 @@ def main():
 
     if d1:
         realtime = d1.get("realtime", {})
-        minutely = d1.get("minutely", {})
+        d1.get("minutely", {})
         alerts = d1.get("alerts", [])
         summary = d1.get("summary", {})
 

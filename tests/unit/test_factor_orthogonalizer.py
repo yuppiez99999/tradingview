@@ -15,10 +15,8 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from utils.alpha.factor_orthogonalizer import (
-    DEFAULT_THRESHOLD,
     OrthogonalizationReport,
     filter_orthogonal,
     get_correlation_summary,

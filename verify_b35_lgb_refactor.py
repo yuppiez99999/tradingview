@@ -20,7 +20,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -377,7 +376,7 @@ def test_compute_regime_series():
 # ============================================================
 def test_persistence_roundtrip():
     banner("[8] persistence (save/load/should_retrain) 闭环")
-    from lgb_trainer import persistence, trainer
+    from lgb_trainer import persistence
 
     # 使用临时目录
     with tempfile.TemporaryDirectory() as tmp:
@@ -387,8 +386,8 @@ def test_persistence_roundtrip():
 
         # 构造一个 mock 模型 + 训练结果
         rng = np.random.RandomState(0)
-        X = rng.randn(100, 5)
-        y = rng.randn(100)
+        rng.randn(100, 5)
+        rng.randn(100)
 
         # 使用模块级 MockModel (局部类无法 pickle)
         result = {
@@ -458,17 +457,17 @@ def test_external_module_backward_compat():
     try:
         from lgb_enhanced_trainer import (
             LGB_ENHANCED_CONFIG,
-            POSITION_SYMBOLS,
-            train_symbol_enhanced,
-            train_symbol_regime_specific,
-            compute_regime_series,
-            add_technical_features,
-            add_cross_sectional_features,
-            add_industry_relative_strength_features,
-            add_capital_flow_features,
-            add_cross_market_features,
-            add_sentiment_features,
-            add_mean_reversion_features,
+            POSITION_SYMBOLS,  # noqa: F401
+            train_symbol_enhanced,  # noqa: F401
+            train_symbol_regime_specific,  # noqa: F401
+            compute_regime_series,  # noqa: F401
+            add_technical_features,  # noqa: F401
+            add_cross_sectional_features,  # noqa: F401
+            add_industry_relative_strength_features,  # noqa: F401
+            add_capital_flow_features,  # noqa: F401
+            add_cross_market_features,  # noqa: F401
+            add_sentiment_features,  # noqa: F401
+            add_mean_reversion_features,  # noqa: F401
         )
     except ImportError as e:
         raise AssertionError(f"外部模块向后兼容导入失败: {e}")

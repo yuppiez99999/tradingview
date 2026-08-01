@@ -78,7 +78,7 @@ def analyze_hedge_position(
                             if 0.8 <= ratio <= 1.2:
                                 if_close = fc_price
                                 break
-            except Exception as e:
+            except Exception:
                 raise  # Re-raise unknown exception
             # 2. 尝试 data_provider (close/last/price)
             if if_close == futures_price and data_provider:

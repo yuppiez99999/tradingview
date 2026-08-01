@@ -273,12 +273,12 @@ class TestT13Cache:
     @pytest.mark.unit
     @pytest.mark.p0
     def test_t13_mtime_change_invalidates_cache(self, isolated_manager, tmp_config_dir):
-        cfg1 = isolated_manager.get("portfolio")
+        isolated_manager.get("portfolio")
         path = tmp_config_dir / "portfolio.yaml"
         # 修改 mtime (必须足够大, 某些 FS 精度低)
         time.sleep(0.05)
         os.utime(path, None)
-        cfg2 = isolated_manager.get("portfolio")
+        isolated_manager.get("portfolio")
         # 缓存失效后重新加载, 应是不同对象 (或至少重新读盘)
         assert "portfolio" in isolated_manager._cache
 
@@ -307,7 +307,7 @@ class TestT13Cache:
     @pytest.mark.unit
     @pytest.mark.p1
     def test_t13_reload_skips_cache(self, isolated_manager, tmp_config_dir):
-        cfg1 = isolated_manager.get("portfolio")
+        isolated_manager.get("portfolio")
         # 修改文件内容
         path = tmp_config_dir / "portfolio.yaml"
         time.sleep(0.05)

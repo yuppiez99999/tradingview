@@ -326,14 +326,14 @@ class MockProvider(BaseProvider):
                 pe = 0.0
 
         if self.role == "bull":
-            score = change * 0.05 + self.bias
+            change * 0.05 + self.bias
             if change > 0:
                 return ("看多观点: 当前价格动量向上 (涨跌幅 %.2f%%), "
                         "技术形态偏强, 建议逢低建仓. 置信度中等偏高." % change)
             return ("看多观点: 尽管短期回调 (涨跌幅 %.2f%%), 但估值具备长期吸引力, "
                     "维持结构性看多. 置信度中等." % change)
         if self.role == "bear":
-            score = -change * 0.05 + self.bias
+            -change * 0.05 + self.bias
             if change < 0:
                 return ("看空观点: 价格动量向下 (涨跌幅 %.2f%%), 下行风险释放未尽, "
                         "建议减仓规避. 置信度中等偏高." % change)

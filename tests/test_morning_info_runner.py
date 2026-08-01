@@ -159,7 +159,7 @@ class TestTaskMorningMarket:
         monkeypatch.setattr(mir, "task_morning_market", mir.task_morning_market)
 
         # 直接调用函数, mock 内部 import
-        with patch("builtins.__import__") as mock_import:
+        with patch("builtins.__import__"):
             result = mir.task_morning_market(archive_dir, target_date, force=False)
         assert result is True
         assert called["flag"] is False  # 不应调用 main
@@ -680,7 +680,7 @@ class TestRunDailyMorningPhaseRouting:
     @pytest.mark.unit
     def test_archive_search_dirs_include_cross_project(self):
         """archive_reports 的 search_dirs 必须包含跨项目目录"""
-        rdm = importlib.import_module("run_daily_morning")
+        importlib.import_module("run_daily_morning")
         # 读取源码, 验证 search_dirs 包含跨项目路径
         src = (SCRIPT_DIR / "run_daily_morning.py").read_text(encoding="utf-8")
         assert "15_每日工作流" in src

@@ -11,12 +11,9 @@ v5.9 核心改进（基于2021-2026回测发现）:
 数据源: iFinD MCP → Wind MCP → Sina/AKShare (免费回退)
 """
 
-import math
 import logging
 from datetime import datetime
 from typing import Dict, List, Tuple, Any, Optional
-from dataclasses import dataclass, field
-from enum import Enum
 
 logger = logging.getLogger("hedge_engine")
 
@@ -26,14 +23,11 @@ logger = logging.getLogger("hedge_engine")
 # ============================================================
 try:
     from ..data.futures_prices import (  # noqa: E402
-        DEFAULT_FUTURES_PRICES,
-        get_live_futures_prices,
+        DEFAULT_FUTURES_PRICES,  # noqa: F401
+        get_live_futures_prices,  # noqa: F401
     )
 except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容路径
-    from data.futures_prices import (  # noqa: E402
-        DEFAULT_FUTURES_PRICES,
-        get_live_futures_prices,
-    )
+    pass
 
 # ============================================================
 # B-4.6: 指数规格常量已抽取到 hedging/index_specs.py
@@ -42,17 +36,14 @@ except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容
 # ============================================================
 try:
     from .index_specs import (  # noqa: E402
-        INDEX_WEIGHTS_CSI300,
-        INDEX_WEIGHTS_CSI500,
+        INDEX_WEIGHTS_CSI300,  # noqa: F401
+        INDEX_WEIGHTS_CSI500,  # noqa: F401
         INDEX_FUTURES_SPECS,
-        ETF_OPTIONS_SPECS,
+        ETF_OPTIONS_SPECS,  # noqa: F401
     )
 except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容路径
     from index_specs import (  # noqa: E402
-        INDEX_WEIGHTS_CSI300,
-        INDEX_WEIGHTS_CSI500,
         INDEX_FUTURES_SPECS,
-        ETF_OPTIONS_SPECS,
     )
 
 
@@ -61,7 +52,6 @@ except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容
 # 已抽取到 hedge_types.py (共享类型, 避免循环导入与重复定义)
 # ============================================================
 from .hedge_types import (  # noqa: E402
-    HedgeType,
     HedgeSignalStrength,
     HedgeRecommendation,
 )
@@ -74,14 +64,14 @@ from .hedge_types import (  # noqa: E402
 try:
     from ..risk.portfolio_risk_assessor import (  # noqa: E402
         PortfolioRisk,
-        DEFAULT_BETAS,
-        SECTOR_MAP,
-        FIXED_INCOME_TYPES,
-        SECTOR_LIMIT,
-        MRC_LIMIT,
-        CORRELATION_WARN,
-        HISTORICAL_STRESS_SCENARIOS,
-        FALLBACK_PRICE_MAP,
+        DEFAULT_BETAS,  # noqa: F401
+        SECTOR_MAP,  # noqa: F401
+        FIXED_INCOME_TYPES,  # noqa: F401
+        SECTOR_LIMIT,  # noqa: F401
+        MRC_LIMIT,  # noqa: F401
+        CORRELATION_WARN,  # noqa: F401
+        HISTORICAL_STRESS_SCENARIOS,  # noqa: F401
+        FALLBACK_PRICE_MAP,  # noqa: F401
         estimate_default_price as _assessor_estimate_default_price,
         compute_weighted_beta as _assessor_compute_weighted_beta,
         compute_portfolio_vol_cov as _assessor_compute_portfolio_vol_cov,
@@ -96,14 +86,6 @@ try:
 except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容路径
     from risk.portfolio_risk_assessor import (  # noqa: E402
         PortfolioRisk,
-        DEFAULT_BETAS,
-        SECTOR_MAP,
-        FIXED_INCOME_TYPES,
-        SECTOR_LIMIT,
-        MRC_LIMIT,
-        CORRELATION_WARN,
-        HISTORICAL_STRESS_SCENARIOS,
-        FALLBACK_PRICE_MAP,
         estimate_default_price as _assessor_estimate_default_price,
         compute_weighted_beta as _assessor_compute_weighted_beta,
         compute_portfolio_vol_cov as _assessor_compute_portfolio_vol_cov,
@@ -120,9 +102,6 @@ except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容
 # B3.3: 对冲策略执行层已抽取到 src/hedging/hedge_strategy_executor.py
 # ============================================================
 from .hedge_strategy_executor import (  # noqa: E402
-    HedgeType as _ExecutorHedgeType,  # 仅用于内部类型参考
-    HedgeSignalStrength as _ExecutorHedgeSignalStrength,
-    HedgeRecommendation as _ExecutorHedgeRecommendation,
     determine_hedge_signal_strength as _executor_determine_hedge_signal_strength,
     compute_optimal_hedge_ratio as _executor_compute_optimal_hedge_ratio,
     generate_futures_hedge as _executor_generate_futures_hedge,

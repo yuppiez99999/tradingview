@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from live_scheduler import _enrich_with_kronos, run_ml_signal_scan
 

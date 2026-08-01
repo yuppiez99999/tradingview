@@ -1216,7 +1216,7 @@ class TestHCCompliance:
 
     def test_hc5_config_uses_config_manager(self):
         """HC-5: 配置走 ConfigManager (验证 _load_config 调用 get_config)."""
-        panel = DailyAttributionPanel(config={})  # 显式空配置, 不走 ConfigManager
+        DailyAttributionPanel(config={})  # 显式空配置, 不走 ConfigManager
         # 当 config=None 时应走 ConfigManager
         with patch("utils.attribution.daily_panel.get_config") as mock_get:
             mock_get.return_value = {"settings": {"primary_benchmark": "510500.SH"}}

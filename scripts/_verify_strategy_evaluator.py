@@ -33,7 +33,7 @@ def main() -> int:
     try:
         from utils.alpha.strategy_evaluator import (
             StrategyEvaluator,
-            ScoreReport,
+            ScoreReport,  # noqa: F401
             DEFAULT_N_TRIALS,
         )
         print("[OK] 导入 StrategyEvaluator 成功")

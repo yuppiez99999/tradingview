@@ -183,7 +183,7 @@ class TestEODFullChainE2E:
             integrator, "_load_next_trade_plan", lambda date: sample_trade_plan
         )
 
-        plan = integrator.run_all_guards(next_trade_date="2026-07-22")
+        integrator.run_all_guards(next_trade_date="2026-07-22")
 
         # trade_plan_20260722.json 应被写入到 tmp_path/trade_plans/
         expected_path = tmp_path / "trade_plans" / "trade_plan_20260722.json"

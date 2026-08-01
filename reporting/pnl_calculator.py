@@ -229,7 +229,7 @@ def calculate_max_drawdown(details: List) -> float:
                                 "net_return": net_return,
                             }
                         )
-                except Exception as e:
+                except Exception:
                     continue
 
     # 2) 从每日报告归档/ 补充
@@ -256,7 +256,7 @@ def calculate_max_drawdown(details: List) -> float:
                             "net_return": net_return,
                         }
                     )
-                except Exception as e:
+                except Exception:
                     continue
 
     # 3) 去重排序

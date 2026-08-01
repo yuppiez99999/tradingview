@@ -474,7 +474,7 @@ def get_cache_decorator(ttl: int = DEFAULT_CACHE_TTL):
         st.cache_data 装饰器, 或 no-op 装饰器
     """
     try:
-        import streamlit as st  # type: ignore[import-not-found]
+        import streamlit as st  # type: ignore[import-not-found]  # noqa: F401  # noqa: F401
         return st.cache_data(ttl=ttl, show_spinner=False)
     except (ImportError, RuntimeError):
         # 未安装 streamlit 或不在运行时上下文
@@ -496,7 +496,7 @@ def streamlit_autorefresh(interval_sec: int = 60, key: str = "ui_autorefresh") -
         是否触发了刷新
     """
     try:
-        import streamlit as st  # type: ignore[import-not-found]
+        import streamlit as st  # type: ignore[import-not-found]  # noqa: F401
         from streamlit_autorefresh import st_autorefresh  # type: ignore[import-not-found]
         st_autorefresh(interval=interval_sec * 1000, key=key)
         return True

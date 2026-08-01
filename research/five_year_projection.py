@@ -110,7 +110,7 @@ class PortfolioProjection:
     def project_5_year_performance(self) -> Dict:
         """5年业绩预测"""
         returns = self.calculate_expected_returns()
-        portfolio_analysis = self.analyze_portfolio()
+        self.analyze_portfolio()
         
         base_return = returns['weighted_return']
         volatility = returns['weighted_volatility']

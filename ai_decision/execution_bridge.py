@@ -325,8 +325,6 @@ class GrayscaleState:
         self.last_evaluation = datetime.now().isoformat()
 
         # 2. 回滚检查 (仅 auto 模式)
-        rollback_triggered = False
-        rollback_reason = ""
         should_rb, rb_reason = self.should_rollback()
         if should_rb:
             new_stage = self.do_rollback()

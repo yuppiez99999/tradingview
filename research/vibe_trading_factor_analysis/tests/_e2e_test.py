@@ -121,7 +121,7 @@ def test_audit_trail_complete():
         from research.vibe_trading_factor_analysis.pipeline.pipeline_orchestrator import PipelineOrchestrator
         orch = PipelineOrchestrator({"reports_dir": tmpdir})
         price_data, bench, _ = _make_synthetic_data(n_syms=20)
-        result = orch.run(
+        orch.run(
             price_data=price_data,
             benchmark_returns=bench,
             portfolio_value=1e8,

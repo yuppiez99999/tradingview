@@ -252,7 +252,7 @@ def run_io_batch(
                 if progress_cb is not None:
                     try:
                         progress_cb(completed, total)
-                    except Exception as e:
+                    except Exception:
                         pass  # 进度回调失败不影响主流程
 
     return results

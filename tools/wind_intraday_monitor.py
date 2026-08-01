@@ -151,7 +151,7 @@ def _batch_fetch_klines(codes: List[str], is_fund_map: Dict[str, bool], wind_get
             klines = wind_get_kline(code, days=2, is_fund=is_fund)
             if klines and len(klines) >= 2:
                 return code, float(klines[-2].get("match", klines[-2].get("close", 0)) or 0)
-        except Exception as e:
+        except Exception:
             import logging
             logging.getLogger(__name__).warning(
                 "获取 %s 前收盘价异常", code, exc_info=True

@@ -30,7 +30,7 @@ from pathlib import Path
 if sys.stdout.encoding != 'utf-8':
     try:
         sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-    except Exception as e:
+    except Exception:
         raise  # Re-raise unknown exception
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -400,7 +400,6 @@ def _parse_sector_adjustments(ai_recs: list) -> list:
 
     for rec in ai_recs:
         rec_text = rec if isinstance(rec, str) else str(rec)
-        rec_lower = rec_text
 
         for sector, keywords in sector_keywords.items():
             if sector in seen_sectors:

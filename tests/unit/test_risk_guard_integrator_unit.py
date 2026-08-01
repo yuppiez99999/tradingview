@@ -253,7 +253,7 @@ class TestP0DFallbackInGuardKillSwitch:
         }
 
         # 不应抛异常, 使用保守值 0.50
-        plan = integrator.guard_kill_switch(sample_pnl_report_broken_p0d, sample_trade_plan)
+        integrator.guard_kill_switch(sample_pnl_report_broken_p0d, sample_trade_plan)
 
         # check_margin_status 应被调用, 参数为 0.50
         mock_instance.check_margin_status.assert_called_once()

@@ -93,7 +93,7 @@ def main():
     print("=" * 70)
 
     # 按月分组
-    monthly = daily.resample("M").sum()
+    daily.resample("M").sum()
     monthly_pct = (1 + daily).resample("M").prod() - 1
 
     print("\n全部月度收益（按时间排序）:")

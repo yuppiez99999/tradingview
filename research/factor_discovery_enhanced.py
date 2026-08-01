@@ -103,7 +103,7 @@ def compute_technical_factors(df_group: pd.DataFrame) -> pd.Series:
     volume = df_group["volume"]
     high = df_group["high"]
     low = df_group["low"]
-    open_p = df_group["open"]
+    df_group["open"]
     n = len(close)
 
     if n < 20:

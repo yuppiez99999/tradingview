@@ -17,7 +17,7 @@ try:
     import pandas as pd
 
     _HAS_PANDAS = True
-except Exception as e:
+except Exception:
     pd = None
     _HAS_PANDAS = False
 

@@ -27,7 +27,7 @@ from data.edb_futures_data import EDBFuturesData  # noqa: E402
 try:
     from utils.akshare_futures import fetch_futures_historical
     HAS_AKSHARE_FUTURES = True
-except Exception as e:
+except Exception:
     HAS_AKSHARE_FUTURES = False
 
 # 名称 -> akshare 期货代码映射（仅用于 EDB 无数据时的回退）

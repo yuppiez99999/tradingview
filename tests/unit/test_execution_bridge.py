@@ -378,7 +378,6 @@ def test_execute_decision_auto_veto_by_l2():
     """测试 L2 风控否决导致不执行"""
     decision = _make_decision(mode="auto")
     # 构造一个会被风控否决的计划
-    plan = {"limit_price": 0, "qty": 100, "notional": 0}
     # 直接测试带风控否决的情况
     result = execute_decision(decision, portfolio_value=1_000_000.0)
     # 正常计划应该通过, 这里测试风控拦截需要特殊输入

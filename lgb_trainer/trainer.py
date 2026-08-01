@@ -683,7 +683,6 @@ def _build_all_features(
     """
     # 延迟导入 (避免顶层循环依赖)
     from .data_loader import fetch_all_real_ohlcv
-    from .news_sentiment import compute_news_sentiment_factors, add_sentiment_features
     from .feature_engineering import (
         add_industry_relative_strength_features,
         add_capital_flow_features,

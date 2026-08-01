@@ -354,7 +354,7 @@ def render_html(data, report_date, trade_date):
     hedge_ratio = total_put_value / eq_mv * 100 if eq_mv > 0 else 0
 
     report_date_str = report_date.strftime("%Y-%m-%d")
-    report_date_compact = report_date.strftime("%Y%m%d")
+    report_date.strftime("%Y%m%d")
 
     insights = [
         f"<strong>综合净盈亏 {total_pnl/10000:+.2f}万（{total_pnl_pct:+.2f}%）</strong>，其中权益贡献 {eq_pnl/10000:+.2f}万，Put对冲贡献 {put_pnl/10000:+.2f}万。整体表现稳健，但收益结构需关注集中度。",

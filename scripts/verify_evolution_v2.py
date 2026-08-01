@@ -137,7 +137,7 @@ def test_n4_adaptive_optimize():
         from scripts.adaptive_optimize import adaptive_optimize, ADAPTIVE_OPTIMIZE_CONFIG
     except ImportError:
         try:
-            from adaptive_optimize import adaptive_optimize, ADAPTIVE_OPTIMIZE_CONFIG
+            from adaptive_optimize import adaptive_optimize, ADAPTIVE_OPTIMIZE_CONFIG  # noqa: F401
         except ImportError:
             print("⚠ N4 adaptive_optimize 未导入 (尚未实施), 跳过")
             return

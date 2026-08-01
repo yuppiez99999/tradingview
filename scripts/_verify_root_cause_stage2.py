@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -83,9 +82,7 @@ try:
         UnifiedRootCauseAnalyzer,
         RootCause,
         FixSuggestion,
-        CausalChain,
         RootCauseReport,
-        ACTION_MANUAL,
         LAYER_CODE,
         LAYER_STRATEGY,
         LAYER_OPS,

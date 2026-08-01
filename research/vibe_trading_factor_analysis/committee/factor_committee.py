@@ -406,7 +406,6 @@ class FactorCommittee:
     """
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        c = config or {}
         self.alpha_agent = AlphaAgent()
         self.risk_agent = RiskAgent()
         self.execution_agent = ExecutionAgent()

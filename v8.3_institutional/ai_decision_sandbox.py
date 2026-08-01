@@ -37,7 +37,7 @@ if _LLM_DIR.exists() and str(_LLM_DIR) not in sys.path:
 try:
     from utils.logger import get_logger
     logger = get_logger("ai_decision_sandbox")
-except Exception as e:
+except Exception:
     import logging
     logger = logging.getLogger("ai_decision_sandbox")
 
@@ -45,7 +45,7 @@ except Exception as e:
 try:
     from llm_client import chat as _llm_chat
     _LLM_READY = True
-except Exception as e:
+except Exception:
     _LLM_READY = False
 
 

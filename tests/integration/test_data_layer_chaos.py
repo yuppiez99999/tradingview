@@ -654,8 +654,8 @@ class TestScenario9MixedOperations:
     ) -> None:
         """混合调用 ohlcv/snapshot/macro, 各自独立降级."""
         sample_df = make_sample_df()
-        sample_snap = make_snapshot()
-        sample_macro = make_macro()
+        make_snapshot()
+        make_macro()
 
         chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
         chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df))

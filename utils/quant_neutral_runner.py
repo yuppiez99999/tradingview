@@ -101,7 +101,7 @@ DEFAULT_TARGET_BETA = 0.05
 try:
     from utils.risk_params import get_quant_neutral_max_drawdown as _get_qn_max_drawdown
     DEFAULT_MAX_DRAWDOWN = _get_qn_max_drawdown()
-except Exception as e:
+except Exception:
     DEFAULT_MAX_DRAWDOWN = 0.08
 DEFAULT_SHARPE_TARGET = 1.2
 DEFAULT_BASIS_THRESHOLD = 0.015

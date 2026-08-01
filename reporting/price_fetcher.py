@@ -12,7 +12,6 @@
 
 from typing import Any, Dict, List
 
-import requests as _requests
 
 # B-4.1: 统一无代理 Session 工厂 (绕过系统代理, 避免新浪 API 被拦截)
 from utils.http_session import make_no_proxy_session

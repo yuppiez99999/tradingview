@@ -57,7 +57,7 @@ def test_noise_recent_ic_not_treated_as_reversal():
     print("\n=== 测试 1: 噪声级 recent_ic 异号 ===")
 
     # 构造 IC 序列：前 20 天 ic=+0.033，后 5 天 ic=-0.0027
-    ic_series = [0.033] * 20 + [-0.0027] * 5
+    [0.033] * 20 + [-0.0027] * 5
     # 需要至少 long_window + 5 = 25 天
     # 但 compute_ic_decay 内部调用 compute_rolling_ic_series 会再算一次
     # 简化测试：直接验证逻辑分支

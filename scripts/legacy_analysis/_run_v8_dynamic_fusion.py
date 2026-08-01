@@ -347,7 +347,7 @@ def run_v8(ic_window: int = 3, regime_factor: float = 0.80,
     print("V8 关键验证: 2024-06 月 (bull regime 崩盘月)")
     print(f"{'-'*70}")
     jun = [r for r in v8_records if r["date"].startswith("2024-06")][0]
-    jun_old = [r for r in records if r["date"].startswith("2024-06")][0]
+    [r for r in records if r["date"].startswith("2024-06")][0]
     print(f"2024-06 组合收益: {jun['portfolio_return']*100:.2f}%  [V7.2: -5.26%, V7.1: -5.29%]")
     print(f"V8 α={jun['v8_alpha']:.2f} (rolling_ic={jun['v8_rolling_ic']:+.4f}, regime={jun['market_regime']['regime']})")
     if mode == "blend":

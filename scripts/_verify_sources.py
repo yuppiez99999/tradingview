@@ -3,7 +3,6 @@
 """验证 Wind MCP (P1) 是否真的成为 Provider 的首选数据源"""
 import os
 import sys
-import json
 from pathlib import Path
 from datetime import datetime
 

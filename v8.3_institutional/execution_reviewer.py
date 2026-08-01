@@ -30,7 +30,7 @@ if str(_BASE) not in sys.path:
 try:
     from utils.logger import get_logger
     logger = get_logger("execution_reviewer")
-except Exception as e:
+except Exception:
     import logging
     logger = logging.getLogger("execution_reviewer")
 

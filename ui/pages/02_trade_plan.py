@@ -42,7 +42,7 @@ def main() -> None:
     with col_date:
         selected_date = st.date_input("选择日期", datetime.now())
     with col_btn:
-        show_history = st.toggle("查看历史计划", value=False)
+        st.toggle("查看历史计划", value=False)
 
     # 加载计划
     plan = load_theta_plan(selected_date)

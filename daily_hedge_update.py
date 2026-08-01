@@ -100,7 +100,7 @@ def update_returns():
             if df is not None and not df.empty:
                 df["return"] = df["close"].pct_change()
                 return (symbol, df["return"].dropna())
-        except Exception as e:
+        except Exception:
             raise  # Re-raise unknown exception
         return (symbol, None)
 
@@ -177,7 +177,7 @@ def run_hedge_decision():
                         return (code, qty, price)
                 except (TypeError, ValueError):
                     pass
-        except Exception as e:
+        except Exception:
             raise  # Re-raise unknown exception
         # 回退到 est_price
         fallback_price = float(item.get("est_price", 0.0) or 0.0)
@@ -211,7 +211,7 @@ def run_hedge_decision():
             returns = pd.read_json(returns_path, orient="split")
             market_returns = pd.read_json(market_path, orient="split", typ="series")
             returns.columns = returns.columns.astype(str)
-        except Exception as e:
+        except Exception:
             raise  # Re-raise unknown exception
 
     # 运行对冲引擎
