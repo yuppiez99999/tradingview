@@ -225,7 +225,7 @@ class BuildPlanExecutor:
             est_price = safe_float(info.get("est_price", 0), default=0.0)
             total_shares = safe_int(asset.get("shares"), default=0)
 
-            if est_price is None or total_shares is None or total_shares <= 0:
+            if est_price <= 0 or total_shares is None or total_shares <= 0:
                 warnings.append(f"{raw_code} 数据无效，跳过")
                 continue
 
@@ -234,7 +234,7 @@ class BuildPlanExecutor:
                 orig_shares = total_shares
                 total_shares = max(0, int(total_shares * capital_multiplier))
                 if total_shares == 0 and orig_shares > 0 and idx <= 5:
-                    total_shares = max(100, int(orig_shares * 0.10))
+                    total_shares = max(100, int(orig_shares * capital_multiplier))
                 if total_shares != orig_shares:
                     warnings.append(
                         f"资本倍率调整: {code} {info.get('name', '')} "
@@ -373,7 +373,7 @@ class BuildPlanExecutor:
 
             score = max(-1.0, min(1.0, 1.0 - float(value) * 1e8))
             return round(float(score), 4)
-        except Exception as e:
+        except Exception:
             return None
 
     # ---------------------------------------------------------------
@@ -511,7 +511,14 @@ class BuildPlanExecutor:
 
         # 已完成阶段统计
         completed_capital = 0.0
-        for i in range(phase_idx):
+        if status == "completed":
+            phase_range = range(len(self.plan_data["phase_summary"]))  # type: ignore
+        elif status == "during_gap":
+            phase_range = range(phase_idx + 1)
+        else:  # active / not_started
+            phase_range = range(phase_idx)
+
+        for i in phase_range:
             if i < len(self.plan_data["phase_summary"]):  # type: ignore
                 completed_capital += self.plan_data["phase_summary"][i]["capital_amount"]  # type: ignore
 

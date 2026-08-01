@@ -2,6 +2,7 @@
 """从 returns_history.json 重建 ETF/股票价格序列并写入本地兜底目录"""
 import json
 import os
+import numpy as np
 import pandas as pd
 
 BASE_DIR = os.path.dirname(__file__)

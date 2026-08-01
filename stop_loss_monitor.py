@@ -125,6 +125,8 @@ class StopLossMonitor:
         - 纯文本 (safe_load): 标量已转换好的版本
         - numpy 标签 (unsafe_load): vol_adjusted_stop_loss.py 生成的版本, 含 !!python/object/apply:numpy.* 标签
         """
+        if not rules_file:
+            return {}
         if not os.path.exists(rules_file):
             logger.error(f"止损规则文件不存在: {rules_file}")
             return {}
@@ -133,7 +135,7 @@ class StopLossMonitor:
         with open(rules_file, "r", encoding="utf-8") as f:
             try:
                 data = yaml.safe_load(f)
-            except yaml.constructor.ConstructorError as e:
+            except yaml.YAMLError as e:
                 logger.warning(f"safe_load 失败 ({e.problem}), 尝试 unsafe_load 加载 numpy 标签")
                 f.seek(0)
                 try:
@@ -227,7 +229,7 @@ class StopLossMonitor:
                 df = pd.read_json(history_path, lines=True)
                 df = df[df["code"] == pure_code].tail(1)
                 if len(df) > 0:
-                    return float(df.iloc[0].get("close", 0))
+                    return float((df.iloc[0].get("close") or 0))
         except Exception:
             logger.exception("[StopLoss] 读取 price_history 失败 code=%s", pure_code)
 
@@ -258,6 +260,7 @@ class StopLossMonitor:
 
         shares = position.get("shares", 0)
         if shares <= 0:
+            self._high_water_mark.pop(pure_code, None)  # 清仓后重置最高价记录
             return None
 
         entry_price = position.get("avg_cost", 0)

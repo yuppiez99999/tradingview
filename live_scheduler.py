@@ -462,7 +462,7 @@ def run_ml_signal_scan(dry_run: bool = False) -> Dict[str, Any]:
                         "predicted_return": pred.get("predicted_return", 0),
                         "confidence": pred.get("confidence", 0),
                     }
-            except Exception as e:
+            except Exception:
                 continue
 
         # ============================================================
@@ -1007,7 +1007,7 @@ def _read_lock() -> Optional[Dict]:
         try:
             with open(LOCK_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception as e:
+        except Exception:
             return None
     return None
 
@@ -1019,11 +1019,18 @@ def _remove_lock() -> None:
 
 
 def _is_process_alive(pid: int) -> bool:
-    """检查进程是否存活（Windows 专用）"""
+    """检查进程是否存活"""
     try:
-        result = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True, timeout=5)
-        return str(pid) in result.stdout
-    except Exception as e:
+        if sys.platform == "win32":
+            result = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True, timeout=5)
+            return str(pid) in result.stdout
+        else:
+            try:
+                import psutil
+                return psutil.pid_exists(pid)
+            except ImportError:
+                return False
+    except Exception:
         return False
 
 

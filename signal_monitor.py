@@ -105,7 +105,7 @@ def analyze_signal_effectiveness():
             )
     else:
         stock_signals = report.get("stock_signals", [])
-        signals = [s["latest_signal"] for s in stock_signals]
+        signals = [s.get("latest_signal", 0) for s in stock_signals if isinstance(s, dict)]
         dist = report.get("signal_distribution", {"long": 0, "short": 0, "neutral": 0})
 
     total = sum(dist.values())
@@ -147,8 +147,8 @@ def analyze_signal_effectiveness():
     print(f"信号质量评级: {color} {quality}")
 
     print("\n--- 分位数收益分析 ---")
-    long_stocks = [s for s in stock_signals if s["direction"] == "看多"]
-    short_stocks = [s for s in stock_signals if s["direction"] == "看空"]
+    long_stocks = [s for s in stock_signals if isinstance(s, dict) and s.get("direction") == "看多"]
+    short_stocks = [s for s in stock_signals if isinstance(s, dict) and s.get("direction") == "看空"]
 
     if long_stocks and short_stocks:
         long_avg_signal = np.mean([s["latest_signal"] for s in long_stocks])

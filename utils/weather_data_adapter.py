@@ -234,12 +234,12 @@ class WeatherDataAdapter:
     """
 
     API_URL = "https://v1.apizero.cn/api/weather"
-    API_KEY = "tj_live_F8W4O894RQYp"
     OPENMETEO_URL = "https://api.open-meteo.com/v1/forecast"
     CACHE_TTL = 600  # 缓存有效期 (秒) — 延长缓存减少重复请求
 
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ.get("WEATHER_API_KEY", self.API_KEY)
+        # 安全合规: API key 仅从环境变量或参数读取, 不硬编码
+        self.api_key = api_key or os.environ.get("WEATHER_API_KEY", "")
         self._session = _get_session()
         self._cache: Dict[str, Tuple[float, Any]] = {}
         self._available: Optional[bool] = None
@@ -271,7 +271,7 @@ class WeatherDataAdapter:
             resp = self._session.get(
                 self.API_URL,
                 params={"type": "realtime", "location": "116.4,39.9", "key": self.api_key},
-                timeout=8, verify=False,
+                timeout=8, verify=True,
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -307,7 +307,7 @@ class WeatherDataAdapter:
             resp = self._session.get(
                 self.API_URL,
                 params={**params, "key": self.api_key},
-                timeout=8, verify=False,
+                timeout=8, verify=True,
             )
             if resp.status_code == 429:
                 # 触发限流 — 立即标记 apizero 不可用, 10 分钟内不再尝试
@@ -343,7 +343,8 @@ class WeatherDataAdapter:
         try:
             params = {
                 "latitude": lat, "longitude": lon,
-                "current": "temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,"
+                "current": "temperature_2m,relative_humidity_2m,apparent_temperature,"
+                           "wind_speed_10m,wind_direction_10m,"
                            "precipitation,cloud_cover,pressure_msl,visibility",
                 "hourly": "temperature_2m,wind_speed_10m,precipitation,cloud_cover",
                 "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",
@@ -441,14 +442,23 @@ class WeatherDataAdapter:
     # ----------------------------------------------------------
 
     def get_hourly(
-        self, lon: float, lat: float, hours: int = 72
+        self, lon: float, lat: float, hours: int = 72,
+        raw_data: Optional[Dict] = None,
     ) -> List[WeatherHourlyPoint]:
-        """获取指定坐标的小时级预报."""
-        loc = f"{lon},{lat}"
-        data = self._request({"type": "hourly", "location": loc, "hours": min(hours, 360)})
-        if data is None:
-            logger.info("小时预报降级到 Open-Meteo")
-            return self._fallback_hourly(lon, lat)
+        """获取指定坐标的小时级预报.
+
+        Args:
+            raw_data: 可选, 若已有综合接口 (type=weather) 返回的数据, 直接解析
+                      避免重复 API 请求 (节省配额, 防限流).
+        """
+        if raw_data is not None:
+            data = raw_data
+        else:
+            loc = f"{lon},{lat}"
+            data = self._request({"type": "hourly", "location": loc, "hours": min(hours, 360)})
+            if data is None:
+                logger.info("小时预报降级到 Open-Meteo")
+                return self._fallback_hourly(lon, lat)
 
         hourly_block = data.get("hourly", {})
         result: List[WeatherHourlyPoint] = []
@@ -531,14 +541,23 @@ class WeatherDataAdapter:
     # ----------------------------------------------------------
 
     def get_daily(
-        self, lon: float, lat: float, days: int = 15
+        self, lon: float, lat: float, days: int = 15,
+        raw_data: Optional[Dict] = None,
     ) -> List[WeatherDailyPoint]:
-        """获取指定坐标的天级预报."""
-        loc = f"{lon},{lat}"
-        data = self._request({"type": "daily", "location": loc, "days": min(days, 15)})
-        if data is None:
-            logger.info("天预报降级到 Open-Meteo")
-            return self._fallback_daily(lon, lat)
+        """获取指定坐标的天级预报.
+
+        Args:
+            raw_data: 可选, 若已有综合接口 (type=weather) 返回的数据, 直接解析
+                      避免重复 API 请求 (节省配额, 防限流).
+        """
+        if raw_data is not None:
+            data = raw_data
+        else:
+            loc = f"{lon},{lat}"
+            data = self._request({"type": "daily", "location": loc, "days": min(days, 15)})
+            if data is None:
+                logger.info("天预报降级到 Open-Meteo")
+                return self._fallback_daily(lon, lat)
 
         daily_block = data.get("daily", {})
         result: List[WeatherDailyPoint] = []
@@ -685,8 +704,8 @@ class WeatherDataAdapter:
 
         return WeatherForecast(
             realtime=realtime,
-            hourly=self.get_hourly(lon, lat, hours=days * 24),
-            daily=self.get_daily(lon, lat, days=days),
+            hourly=self.get_hourly(lon, lat, hours=days * 24, raw_data=data),
+            daily=self.get_daily(lon, lat, days=days, raw_data=data),
             alerts=alerts,
             summary_text=summary_text,
             location_name=data.get("location", {}).get("city", "") or f"{lon},{lat}",

@@ -625,7 +625,7 @@ def _tca_pre_trade_enabled() -> bool:
     try:
         from utils.infra.feature_flags import is_enabled
         return bool(is_enabled("USE_AI_DECISION_TCA_PRE_TRADE"))
-    except Exception as e:
+    except Exception:
         return False
 
 
@@ -634,7 +634,7 @@ def _tca_post_trade_enabled() -> bool:
     try:
         from utils.infra.feature_flags import is_enabled
         return bool(is_enabled("USE_AI_DECISION_TCA_POST_TRADE"))
-    except Exception as e:
+    except Exception:
         return False
 
 
@@ -732,7 +732,7 @@ def _tca_report_to_dict(report: Any) -> Dict[str, Any]:
             return report.to_dict()
         from dataclasses import asdict
         return asdict(report)
-    except Exception as e:
+    except Exception:
         return {
             "symbol": getattr(report, "symbol", ""),
             "quality_grade": getattr(report, "quality_grade", ""),

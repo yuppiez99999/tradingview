@@ -34,7 +34,7 @@ import sys
 import tempfile
 from dataclasses import FrozenInstanceError
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -53,7 +53,6 @@ def _flag_side_effect_main_only(flag_name: str, *args: Any, **kwargs: Any) -> bo
     return flag_name == "USE_ROOT_CAUSE_ANALYZER"
 
 from utils.alpha.root_cause import (  # noqa: E402
-    ACTION_CONFIG_ROLLBACK,
     ACTION_DATASOURCE_SWITCH,
     ACTION_MANUAL,
     ACTION_RETRAIN,
@@ -70,7 +69,6 @@ from utils.alpha.root_cause import (  # noqa: E402
     SEVERITY_MEDIUM,
     UnifiedRootCauseAnalyzer,
     VALID_ACTIONS,
-    VALID_SEVERITIES,
 )
 from utils.alpha.layers.code_diagnoser import CodeDiagnoser  # noqa: E402
 from utils.alpha.layers.strategy_diagnoser import StrategyDiagnoser  # noqa: E402

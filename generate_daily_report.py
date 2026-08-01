@@ -261,7 +261,7 @@ class PortfolioAnalyzer:
 
             # 成本价 = 第一次交易开盘价 (trade_plan est_price)
             # 回退: 快照 avg_price (成交均价) -> positions.json est_price
-            first_open_price = plan_prices.get(code_num, avg_price)
+            first_open_price = plan_prices.get(code_num) or avg_price or pos.get("est_price", 0)
 
             # 写入实际持仓字段
             pos["actual_shares"] = qty
@@ -1132,7 +1132,7 @@ def main():
             print(f"使用对冲文件: {hedge_file}")
 
     if hedge_file is None:
-        hedge_file = "v8.3_institutional/reports/hedge_execution_fill_2026-07-09.json"
+        hedge_file = f"v8.3_institutional/reports/hedge_execution_fill_{date_compact}.json"
 
     # 自动查找当日持仓快照
     sim_dir = project_root / "v8.3_institutional" / "sim_snapshots"

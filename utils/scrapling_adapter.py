@@ -36,7 +36,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("scrapling_adapter")
@@ -342,7 +341,7 @@ class ScraplingAdapter:
                         "AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
                     )
                 },
-                verify=False,
+                verify=True,  # 保留 SSL 证书验证 (安全合规)
             )
             resp.encoding = resp.apparent_encoding or "utf-8"
             html = resp.text

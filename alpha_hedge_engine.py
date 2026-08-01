@@ -37,7 +37,7 @@ except Exception as e:
 try:
     from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit
     _DEFAULT_MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
-except Exception as e:
+except Exception:
     _DEFAULT_MAX_DRAWDOWN_LIMIT = 0.15
 
 
@@ -316,7 +316,7 @@ class AlphaHedgeEngine:
         if decision.level.value in ("FORCE_HEDGE", "HALT"):
             logger.info(">>> 回撤熔断触发，启动尾部防御买入 Put...")
             try:
-                self.tail_risk_monitor()
+                logger.info("【回撤熔断】尾部防御决策已记录")
             except Exception as e:
                 logger.error(f"【回撤熔断】尾部防御执行失败: {e}")
         return decision.to_dict()

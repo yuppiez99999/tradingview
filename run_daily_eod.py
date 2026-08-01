@@ -179,7 +179,8 @@ def _evaluate_guard_passed(guard_key: str, data: Optional[dict]) -> Optional[boo
                 return bool(can_trade) if can_trade is not None else True
         except (ValueError, TypeError):
             pass
-        return bool(can_trade) if can_trade is not None else None
+        # 未预期的 level 值（如 L4 / CRITICAL / 畸形字符串）采用 fail-safe 保守策略，禁止交易
+        return False
 
     if guard_key == "drawdown":
         level = data.get("level")

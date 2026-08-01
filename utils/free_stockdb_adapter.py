@@ -36,7 +36,8 @@ logger = logging.getLogger("free_stockdb_adapter")
 # 路径常量
 # ============================================================
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
-_FREE_STOCKDB_ROOT = Path(r"D:\free-stockdb\stockdb")
+# 路径可通过环境变量 FREE_STOCKDB_ROOT 配置, 默认回退到本地安装路径
+_FREE_STOCKDB_ROOT = Path(os.environ.get("FREE_STOCKDB_ROOT", r"D:\free-stockdb\stockdb"))
 _FREE_STOCKDB_PYBAO = _FREE_STOCKDB_ROOT / "pybao"
 
 # HTTP API 配置
@@ -129,7 +130,7 @@ def _check_http_available() -> bool:
     try:
         r = requests.get(_FS_HTTP_BASE, timeout=2)
         return r.status_code in (200, 400)
-    except Exception as e:
+    except Exception:
         return False
 
 
@@ -246,14 +247,14 @@ def _normalize_fs_dataframe(df_raw: Any, symbol: str) -> pd.DataFrame:
         # 支持 YYYYMMDD 和 YYYY-MM-DD 两种格式
         try:
             df.index = pd.to_datetime(df[date_col], format="%Y%m%d", errors="coerce")
-        except Exception as e:
+        except Exception:
             df.index = pd.to_datetime(df[date_col], errors="coerce")
         df = df.drop(columns=[date_col])
     else:
         if not isinstance(df.index, pd.DatetimeIndex):
             try:
                 df.index = pd.to_datetime(df.index, errors="coerce")
-            except Exception as e:
+            except Exception:
                 logger.warning(f"Unexpected error in free_stockdb_adapter.py", exc_info=True)
 
     if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is not None:

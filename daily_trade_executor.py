@@ -1052,8 +1052,7 @@ def confirm_all_instructions(target_date_str: str) -> int:
             confirmed_count += 1
 
     if confirmed_count > 0:
-        with open(instruction_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        atomic_write_json(instruction_file, data)
 
     return confirmed_count
 
@@ -1291,7 +1290,7 @@ def _sync_positions_idempotent(target_date_str: str, confirmed: list, positions:
         if full_code in positions:
             pos = positions[full_code]
             # 仅在 shares=0 (未同步) 时补同步
-            if pos.get("shares", 0) == 0:
+            if (pos.get("shares") or 0) == 0:
                 pos["shares"] = qty
                 pos["est_price"] = fill_price
                 pos["avg_cost"] = fill_price
@@ -1350,8 +1349,8 @@ def _execute_single_instruction(inst: dict, wt_modules: Dict, progress: Dict, po
     # 同步 positions.json (累加 shares, 加权平均成本)
     if code in positions:
         pos = positions[code]
-        old_shares = pos.get("shares", 0)
-        old_cost = pos.get("avg_cost", 0.0)
+        old_shares = pos.get("shares") or 0
+        old_cost = pos.get("avg_cost") or 0.0
         new_shares = old_shares + qty
         if new_shares > 0:
             new_avg_cost = round((old_shares * old_cost + qty * fill_price) / new_shares, 4)
@@ -1490,11 +1489,11 @@ def execute_instructions(target_date_str: str) -> Dict:
         }
     )
 
-    save_build_progress(progress)
-
     # 保存 positions.json (P0-C1: 原子写, 防并发/崩溃写坏)
     positions_data["positions"] = positions
     atomic_write_json(POSITIONS_FILE, positions_data)
+
+    save_build_progress(progress)
 
     # 生成并保存执行报告
     result, _ = _build_and_save_execution_report(

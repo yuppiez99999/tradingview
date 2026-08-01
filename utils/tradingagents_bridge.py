@@ -373,9 +373,16 @@ class TradingAgentsBridge:
             method="POST",
             headers={"Content-Type": "application/json; charset=utf-8"},
         )
-        with urlopen(req, timeout=timeout or self.timeout) as resp:
-            raw = resp.read().decode("utf-8")
-            return json.loads(raw)
+        try:
+            with urlopen(req, timeout=timeout or self.timeout) as resp:  # nosec B310
+                raw = resp.read().decode("utf-8")
+                return json.loads(raw)
+        except URLError as e:
+            logger.warning("TradingAgents POST 请求失败 [%s]: %s", path, e)
+            return None
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning("TradingAgents POST 响应解析失败 [%s]: %s", path, e)
+            return None
 
 
 # ============================================================

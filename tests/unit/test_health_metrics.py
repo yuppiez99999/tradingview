@@ -30,8 +30,8 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch
+from typing import List
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -57,7 +57,6 @@ from utils.alpha.layers.strategy_health import (  # noqa: E402
 )
 from utils.alpha.layers.ops_health import (  # noqa: E402
     OpsHealthLayer,
-    DEFAULT_ALERT_RECENCY_WINDOW,
 )
 
 

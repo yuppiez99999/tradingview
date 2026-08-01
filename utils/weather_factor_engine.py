@@ -39,7 +39,7 @@ import logging
 import math
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("weather_factor")
 
@@ -68,7 +68,6 @@ def _load_yaml(path: str) -> Optional[Dict]:
             return yaml.safe_load(f)
     except ImportError:
         try:
-            import json
             # 备选: 简单解析 (不支持嵌套 YAML)
             logger.warning("PyYAML 不可用, 尝试 JSON 解析")
         except Exception:

@@ -25,7 +25,6 @@ R1 任务 (2026-08-01): 验证 utils.system_check.SystemChecker.check_fallback_p
 from __future__ import annotations
 
 import sys
-import textwrap
 from datetime import datetime, timedelta
 from pathlib import Path
 

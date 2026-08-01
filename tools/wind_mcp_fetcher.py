@@ -50,7 +50,7 @@ def _parse_sse_generic(text: str) -> Optional[Dict]:
             json_str = line[6:]
             try:
                 return json.loads(json_str)
-            except Exception as e:
+            except Exception:
                 return None
     return None
 
@@ -62,7 +62,7 @@ def _parse_sse_minute_quote(text: str) -> Optional[Dict]:
         return None
     try:
         payload = json.loads(m.group(1))
-    except Exception as e:
+    except Exception:
         return None
     result = (((payload.get("result") or {}).get("content") or []))
     if not result:
@@ -75,13 +75,13 @@ def _parse_sse_minute_quote(text: str) -> Optional[Dict]:
         return None
     try:
         inner = json.loads(result)
-    except Exception as e:
+    except Exception:
         return None
     data = inner.get("data") or inner
     if isinstance(data, str):
         try:
             data = json.loads(data)
-        except Exception as e:
+        except Exception:
             return None
     columns = [c.get("name") for c in (data.get("columns") or [])]
     rows = data.get("rows") or []
@@ -175,7 +175,7 @@ def _wind_http(server_endpoint: str, tool_name: str, params: Dict, api_key: str,
         # 优先用 resp.content (字节流) + 显式 UTF-8 解码, 避免 charset 推断错误
         try:
             text = resp.content.decode("utf-8", errors="replace")
-        except Exception as e:
+        except Exception:
             text = resp.text
         if not text or not text.strip():
             last_err = "wind_http_empty"
@@ -198,7 +198,7 @@ def _wind_http(server_endpoint: str, tool_name: str, params: Dict, api_key: str,
             return {"ok": True, "data": sse_data, "sse": True}
         try:
             data = json.loads(text)
-        except Exception as e:
+        except Exception:
             last_err = "wind_http_bad_json"
             continue
         # 检查业务层错误 (Wind MCP 返回 isError=true 时, 业务调用失败)
@@ -308,7 +308,7 @@ def _get_wind_api_key() -> Optional[str]:
                     if line.startswith("WIND_API_KEY="):
                         _WIND_API_KEY_CACHE = line.split("=", 1)[1].strip()
                         return _WIND_API_KEY_CACHE
-    except Exception as e:
+    except Exception:
         import logging
         logging.getLogger(__name__).error(
             "Wind API Key 加载失败: 配置文件 %s 读取异常, 所有Wind数据调用将不可用",
@@ -357,7 +357,7 @@ def _call_wind(server_type: str, tool_name: str, params: Dict, retries: int = 2)
 
         try:
             data = json.loads(stdout)
-        except Exception as e:
+        except Exception:
             last_err = {"error": "wind_cli_bad_json", "raw": stdout[:1000]}
             continue
 
@@ -439,7 +439,7 @@ def wind_get_quote(windcode: str, is_fund: bool = False) -> Optional[Dict]:
         return None
     try:
         parsed = json.loads(content)
-    except Exception as e:
+    except Exception:
         return None
 
     items = parsed.get("data") or parsed.get("result") or []
@@ -492,7 +492,7 @@ def _extract_price_indicators(data: Dict) -> Optional[Dict]:
     # text 可能是嵌套 JSON 字符串
     try:
         inner = json.loads(text)
-    except Exception as e:
+    except Exception:
         # text 可能不是 JSON, 而是纯文本 (错误消息)
         return None
 
@@ -751,7 +751,7 @@ def _extract_news_items(data: Any) -> List[Dict]:
             return []
         try:
             inner = json.loads(text)
-        except Exception as e:
+        except Exception:
             # 纯文本, 返回单条
             return [{"text": text, "title": text[:80]}]
 

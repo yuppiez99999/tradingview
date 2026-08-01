@@ -26,8 +26,7 @@ WeatherAgent — 气象因子分析 Agent (v8.6.13)
 
 from __future__ import annotations
 
-import math
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from utils.finance_agents.base_agent import BaseAgent, AgentDecision
 

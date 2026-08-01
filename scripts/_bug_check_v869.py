@@ -52,7 +52,7 @@ def run(cmd: str, timeout: int = 30) -> str:
     """安全运行命令并返回文本, 处理编码"""
     try:
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, timeout=timeout
+            cmd, shell=True, capture_output=True, timeout=timeout  # nosec B602 — 命令来源可信 (内部调用)
         )
         for enc in ("utf-8", "gbk", "cp936", "latin-1"):
             try:

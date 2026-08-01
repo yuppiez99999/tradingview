@@ -690,7 +690,7 @@ class EODReviewGenerator:
                             message=alert.get("message", ""),
                             severity=alert.get("severity", "WARNING"),
                         )
-                    except Exception as e:
+                    except Exception:
                         pass  # 单条失败不影响其他
                 logger.info("[EOD] 告警已推送: CRITICAL=%d WARNING=%d", critical_count, warning_count)
             else:

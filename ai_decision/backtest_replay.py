@@ -862,7 +862,7 @@ class BacktestReplay:
                 checks["disclosure_date_check"] = "disclosure_date" in fund
             else:
                 checks["disclosure_date_check"] = True  # 无数据视为通过
-        except Exception as e:
+        except Exception:
             checks["disclosure_date_check"] = False
 
         # 2. 成分股快照校验: loader 必须支持 get_constituents
@@ -872,7 +872,7 @@ class BacktestReplay:
                 checks["constituent_snapshot_check"] = isinstance(constituents, list)
             else:
                 checks["constituent_snapshot_check"] = True
-        except Exception as e:
+        except Exception:
             checks["constituent_snapshot_check"] = False
 
         # 3. 可交易性校验: loader 必须支持 is_tradable
@@ -882,7 +882,7 @@ class BacktestReplay:
                 checks["tradability_check"] = isinstance(tradable, bool)
             else:
                 checks["tradability_check"] = True
-        except Exception as e:
+        except Exception:
             checks["tradability_check"] = False
 
         # 4. 信号滞后校验: forward_return_horizon >= 1 (信号在 date 生成, 收益在 date+N)
