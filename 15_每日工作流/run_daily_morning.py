@@ -281,10 +281,11 @@ def archive_reports(today_dir: Path) -> int:
 
 
 # ═══════════════════════════════════════════════════════════════
-# 主流程
+# 每日早晨工作流 — 提取函数 (降低 main() 圈复杂度)
 # ═══════════════════════════════════════════════════════════════
 
-def main():
+def parse_morning_args():
+    """解析每日早晨工作流命令行参数"""
     parser = argparse.ArgumentParser(description="每日早晨工作流 (7:00AM)")
     parser.add_argument("--force", action="store_true", help="强制运行，跳过交易日检查")
     parser.add_argument("--dry-run", action="store_true", help="试运行模式，不实际执行")
@@ -294,24 +295,27 @@ def main():
     parser.add_argument("--skip-archive", action="store_true", help="跳过报告归档")
     parser.add_argument("--skip-system-check", action="store_true",
                         help="跳过 P0 启动自检 (仅紧急情况使用,默认每次启动都自检)")
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    # ═══════════════════════════════════════════════════════════════
-    # P0 启动自检 (v8.6.12) — 在任何业务逻辑之前拦截错误
-    # 自检失败立即退出,阻止 bug 传播到下游工作流
-    # ═══════════════════════════════════════════════════════════════
-    if not args.skip_system_check:
-        try:
-            # 显式将项目根加入 sys.path (此脚本位于 15_每日工作流/ 子目录)
-            if str(PROJECT_ROOT) not in sys.path:
-                sys.path.insert(0, str(PROJECT_ROOT))
-            from utils.system_check import assert_system_ready
-            assert_system_ready()  # 失败时 sys.exit(1)
-        except SystemExit:
-            raise
-        except Exception as e:
-            print(f"[P0 自检] 异常 (容错通过): {e}", file=sys.stderr)
 
+def run_p0_system_check_morning(args):
+    """P0 启动自检 (早晨工作流版本)"""
+    if args.skip_system_check:
+        return
+    try:
+        # 显式将项目根加入 sys.path (此脚本位于 15_每日工作流/ 子目录)
+        if str(PROJECT_ROOT) not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT))
+        from utils.system_check import assert_system_ready
+        assert_system_ready()  # 失败时 sys.exit(1)
+    except SystemExit:
+        raise
+    except Exception as e:
+        print(f"[P0 自检] 异常 (容错通过): {e}", file=sys.stderr)
+
+
+def setup_morning_context(args):
+    """初始化早晨工作流上下文 (日期/目录/banner)"""
     today = datetime.now()
     today_str = today.strftime("%Y-%m-%d")
     today_dir = ARCHIVE_DIR / today_str
@@ -327,12 +331,118 @@ def main():
 
     prev_trading_day_str = _prev_trading_day(today).strftime("%Y-%m-%d")
 
-    log("╔══════════════════════════════════════════════════════╗")
+    log("╔" + "═" * 60 + "╗")
     log("║  每日早晨工作流启动                                ║")
     log(f"║  日期: {today_str}                                  ║")
     log(f"║  时间: {today.strftime('%H:%M:%S')}                 ║")
     log(f"║  模式: {'强制' if args.force else '标准'}           ║")
-    log("╚══════════════════════════════════════════════════════╝")
+    log("╚" + "═" * 60 + "╝")
+
+    return today_str, today_dir, prev_trading_day_str
+
+
+def run_phase0_info(args, success_count, fail_count):
+    """阶段零：晨间信息采集"""
+    if args.phase not in ("info", "all"):
+        return success_count, fail_count
+
+    log("\n>>> 阶段零: 晨间信息采集 (DeepSeek 驱动) <<<")
+    info_args = []
+    if args.force:
+        info_args.append("--force")
+    if run_step("晨间信息采集", MORNING_INFO_SCRIPT, info_args, timeout_minutes=30):
+        success_count += 1
+    else:
+        fail_count += 1
+        log("信息采集部分失败, 后续决策阶段继续执行", "WARN")
+    return success_count, fail_count
+
+
+def run_morning_archive(today_dir, skip_archive=False):
+    """归档报告（通用归档逻辑，供多个分支复用）"""
+    if skip_archive:
+        return
+    log(f"\n>>> 归档报告到: {today_dir} <<<")
+    try:
+        count = archive_reports(today_dir)
+        log(f"[OK] 归档完成，共 {count} 个文件")
+    except Exception as e:
+        log(f"[FAIL] 归档失败: {e}", "ERROR")
+        traceback.print_exc()
+
+
+def run_phase1_calibrate(args, success_count, fail_count):
+    """阶段一：盘前市场校准"""
+    if args.phase not in ("calibrate", "all"):
+        return success_count, fail_count
+    log("\n>>> 阶段一: 盘前市场校准 <<<")
+    if run_step("市场校准与风险评估", DAILY_WORKFLOW_SCRIPT, ["--phase", "calibrate"], timeout_minutes=20):
+        success_count += 1
+    else:
+        fail_count += 1
+        log("市场校准失败，后续步骤可能受影响", "WARN")
+    return success_count, fail_count
+
+
+def run_phase2_plan(args, success_count, fail_count):
+    """阶段二：生成每日交易计划"""
+    if args.phase not in ("plan", "all"):
+        return success_count, fail_count
+    log("\n>>> 阶段二: 生成每日交易计划 <<<")
+    if run_step("生成交易计划", GENERATE_TRADE_PLAN_SCRIPT, [], timeout_minutes=15):
+        success_count += 1
+    else:
+        fail_count += 1
+    return success_count, fail_count
+
+
+def run_phase3_llm(args, prev_trading_day_str, today_str, success_count, fail_count):
+    """阶段三：应用大模型决策"""
+    if args.phase not in ("plan", "all"):
+        return success_count, fail_count
+    log("\n>>> 阶段三: 应用大模型决策 <<<")
+    # 读昨日 PnL 报告 → 灌入今日计划 (PnL 报告由 v84_DailyPnlReport 任务盘后 16:00 生成)
+    # 盘前阶段只能用昨日报告, 而非今日 (今日报告要等今日盘后才会生成)
+    log(f"  使用昨日 PnL 报告: daily_pnl_report_{prev_trading_day_str}.json → 计划日期 {today_str}")
+    if run_step("应用LLM决策", APPLY_LLM_SCRIPT, [prev_trading_day_str, today_str], timeout_minutes=10):
+        success_count += 1
+    else:
+        fail_count += 1
+        # 昨日报告缺失时降级为脚本默认行为 (脚本内部 _prev_trading_day 会再尝试)
+        log("  [WARN] 昨日 PnL 报告可能缺失, 后续可用 --phase plan 手动重试", "WARN")
+    return success_count, fail_count
+
+
+def run_phase4_report(args, success_count, fail_count):
+    """阶段四：生成每日综合报告"""
+    if args.phase not in ("report", "all"):
+        return success_count, fail_count
+    log("\n>>> 阶段四: 生成每日综合报告 <<<")
+    if run_step("生成综合报告", GENERATE_REPORT_SCRIPT, [], timeout_minutes=15):
+        success_count += 1
+    else:
+        fail_count += 1
+    return success_count, fail_count
+
+
+def print_morning_summary(success_count, fail_count, today_dir):
+    """打印早晨工作流总结"""
+    log(f"\n{'='*60}")
+    log("║  每日早晨工作流完成                                  ║")
+    log(f"║  成功: {success_count} | 失败: {fail_count}          ║")
+    log(f"║  归档目录: {today_dir}                               ║")
+    log(f"{'='*60}")
+
+
+# ═══════════════════════════════════════════════════════════════
+# 主流程
+# ═══════════════════════════════════════════════════════════════
+
+def main():
+    args = parse_morning_args()
+    run_p0_system_check_morning(args)
+    today_str, today_dir, prev_trading_day_str = setup_morning_context(args)
+    today_dir.mkdir(parents=True, exist_ok=True)
 
     if args.dry_run:
         log(">>> 试运行模式，以下仅显示将要执行的步骤 <<<")
@@ -344,112 +454,29 @@ def main():
         log(f"  5. 归档目录: {today_dir}")
         return
 
-    # 创建归档目录
-    today_dir.mkdir(parents=True, exist_ok=True)
-
     success_count = 0
     fail_count = 0
 
-    # --- 阶段零: 晨间信息采集 (DeepSeek 驱动, 无视交易日, 周末也运行) ---
-    if args.phase in ("info", "all"):
-        log("\n>>> 阶段零: 晨间信息采集 (DeepSeek 驱动) <<<")
-        info_args = []
-        if args.force:
-            info_args.append("--force")
-        if run_step("晨间信息采集", MORNING_INFO_SCRIPT, info_args, timeout_minutes=30):
-            success_count += 1
-        else:
-            fail_count += 1
-            log("信息采集部分失败, 后续决策阶段继续执行", "WARN")
+    success_count, fail_count = run_phase0_info(args, success_count, fail_count)
 
-    # 仅 info 模式: 跳过交易日检查与决策阶段, 直接归档
     if args.phase == "info":
-        if not args.skip_archive:
-            log(f"\n>>> 归档报告到: {today_dir} <<<")
-            try:
-                count = archive_reports(today_dir)
-                log(f"[OK] 归档完成，共 {count} 个文件")
-            except Exception as e:
-                log(f"[FAIL] 归档失败: {e}", "ERROR")
-                traceback.print_exc()
-        log(f"\n{'='*60}")
-        log("║  信息采集工作流完成 (仅 info 模式)                  ║")
-        log(f"║  成功: {success_count} | 失败: {fail_count}          ║")
-        log(f"║  归档目录: {today_dir}                               ║")
-        log(f"{'='*60}")
+        run_morning_archive(today_dir, args.skip_archive)
+        print_morning_summary(success_count, fail_count, today_dir)
         return
 
-    # --- 交易日检查 (仅决策类阶段需要, 信息采集已在上方无条件执行) ---
     if not args.force and not is_trading_day():
         log("今天不是交易日, 决策类阶段跳过 (信息采集已完成)")
-        if not args.skip_archive:
-            log(f"\n>>> 归档报告到: {today_dir} <<<")
-            try:
-                count = archive_reports(today_dir)
-                log(f"[OK] 归档完成，共 {count} 个文件")
-            except Exception as e:
-                log(f"[FAIL] 归档失败: {e}", "ERROR")
-                traceback.print_exc()
-        log(f"\n{'='*60}")
-        log("║  工作流完成 (非交易日, 仅信息采集)                  ║")
-        log(f"║  归档目录: {today_dir}                               ║")
-        log(f"{'='*60}")
+        run_morning_archive(today_dir, args.skip_archive)
+        print_morning_summary(success_count, fail_count, today_dir)
         return
 
-    # --- 阶段一：盘前校准 (calibrate) ---
-    if args.phase in ("calibrate", "all"):
-        log("\n>>> 阶段一: 盘前市场校准 <<<")
-        if run_step("市场校准与风险评估", DAILY_WORKFLOW_SCRIPT, ["--phase", "calibrate"], timeout_minutes=20):
-            success_count += 1
-        else:
-            fail_count += 1
-            log("市场校准失败，后续步骤可能受影响", "WARN")
+    success_count, fail_count = run_phase1_calibrate(args, success_count, fail_count)
+    success_count, fail_count = run_phase2_plan(args, success_count, fail_count)
+    success_count, fail_count = run_phase3_llm(args, prev_trading_day_str, today_str, success_count, fail_count)
+    success_count, fail_count = run_phase4_report(args, success_count, fail_count)
 
-    # --- 3. 阶段二：生成交易计划 (plan) ---
-    if args.phase in ("plan", "all"):
-        log("\n>>> 阶段二: 生成每日交易计划 <<<")
-        if run_step("生成交易计划", GENERATE_TRADE_PLAN_SCRIPT, [], timeout_minutes=15):
-            success_count += 1
-        else:
-            fail_count += 1
-
-    # --- 4. 阶段三：应用LLM决策 ---
-    if args.phase in ("plan", "all"):
-        log("\n>>> 阶段三: 应用大模型决策 <<<")
-        # 读昨日 PnL 报告 → 灌入今日计划 (PnL 报告由 v84_DailyPnlReport 任务盘后 16:00 生成)
-        # 盘前阶段只能用昨日报告, 而非今日 (今日报告要等今日盘后才会生成)
-        log(f"  使用昨日 PnL 报告: daily_pnl_report_{prev_trading_day_str}.json → 计划日期 {today_str}")
-        if run_step("应用LLM决策", APPLY_LLM_SCRIPT, [prev_trading_day_str, today_str], timeout_minutes=10):
-            success_count += 1
-        else:
-            fail_count += 1
-            # 昨日报告缺失时降级为脚本默认行为 (脚本内部 _prev_trading_day 会再尝试)
-            log("  [WARN] 昨日 PnL 报告可能缺失, 后续可用 --phase plan 手动重试", "WARN")
-
-    # --- 5. 阶段四：生成综合报告 (report) ---
-    if args.phase in ("report", "all"):
-        log("\n>>> 阶段四: 生成每日综合报告 <<<")
-        if run_step("生成综合报告", GENERATE_REPORT_SCRIPT, [], timeout_minutes=15):
-            success_count += 1
-        else:
-            fail_count += 1
-
-    # --- 6. 归档报告 ---
-    if not args.skip_archive:
-        log(f"\n>>> 归档报告到: {today_dir} <<<")
-        try:
-            count = archive_reports(today_dir)
-            log(f"[OK] 归档完成，共 {count} 个文件")
-        except Exception as e:
-            log(f"[FAIL] 归档失败: {e}", "ERROR")
-            traceback.print_exc()
-
-    # --- 7. 总结 ---
-    log(f"\n{'='*60}")
-    log("║  每日早晨工作流完成                                  ║")
-    log(f"║  成功: {success_count} | 失败: {fail_count}          ║")
-    log(f"║  归档目录: {today_dir}                               ║")
-    log(f"{'='*60}")
+    run_morning_archive(today_dir, args.skip_archive)
+    print_morning_summary(success_count, fail_count, today_dir)
 
 
 if __name__ == "__main__":

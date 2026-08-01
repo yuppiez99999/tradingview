@@ -164,6 +164,127 @@ class BuildPlanExecutor:
     # 交易指令生成
     # ---------------------------------------------------------------
 
+    def _adjust_shares_for_multiplier(self, total_shares: int, capital_multiplier: float, idx: int, code: str) -> tuple[int, list]:
+        """资金倍率调整：返回 (调整后股数, 警告列表)"""
+        warnings = []
+        if capital_multiplier >= 1.0:
+            return total_shares, warnings
+
+        orig_shares = total_shares
+        total_shares = max(0, int(total_shares * capital_multiplier))
+        if total_shares == 0 and orig_shares > 0 and idx <= 5:
+            total_shares = max(100, int(orig_shares * capital_multiplier))
+        if total_shares != orig_shares:
+            warnings.append(
+                f"资本倍率调整: {code} {orig_shares:,}→{total_shares:,}股 (倍率{capital_multiplier:.0%})"
+            )
+        return total_shares, warnings
+
+    def _check_price_deviation(self, current_price: Optional[float], est_price: float, code: str, name: str) -> tuple[bool, str]:
+        """价格偏离检查：返回 (是否暂停, 暂停原因)"""
+        if current_price is None or est_price <= 0:
+            return False, ""
+
+        deviation = (current_price - est_price) / est_price
+        if abs(deviation) > self.PRICE_DEVIATION_SKIP:
+            direction = "高于" if deviation > 0 else "低于"
+            pause_reason = (
+                f"现价{current_price:.3f}{direction}预估{est_price:.3f} "
+                f"{abs(deviation) * 100:.1f}% > 10%阈值"
+            )
+            return True, pause_reason
+        return False, ""
+
+    def _calculate_session_shares(self, total_shares: int, lot_size: int) -> tuple[int, int]:
+        """计算上下半场股数（满足最小交易单位）"""
+        morning_shares = max(0, int(total_shares * self.SESSION_SPLIT))
+        morning_shares = (morning_shares // lot_size) * lot_size
+
+        remaining = total_shares - morning_shares
+        afternoon_shares = (remaining // lot_size) * lot_size
+
+        return morning_shares, afternoon_shares
+
+    def _create_trade_order(self, idx: int, code: str, info: dict, session: str, shares: int, est_price: float, limit_price: float) -> TradeOrder:
+        """创建 TradeOrder"""
+        return TradeOrder(
+            priority=idx,
+            code=code,
+            name=info.get("name", ""),
+            session=session,
+            shares=shares,
+            est_price=est_price,
+            limit_price=limit_price,
+            est_amount=round(shares * est_price, 2),
+            style=info.get("style", ""),
+            risk=info.get("risk", ""),
+            note=f"{'上午' if session == 'morning' else '下午'}批次 {'09:30-10:30' if session == 'morning' else '14:00-14:30'}",
+            technical_alpha=self._calc_technical_alpha(code),
+        )
+
+    def _build_empty_sheet(self, target_date, phase_summary, phase_idx, status):
+        """构建非活跃状态的空交易单"""
+        sheet = DailyTradeSheet(
+            trade_date=target_date.strftime("%Y-%m-%d"),
+            phase_name="无活跃阶段",
+            phase_number=phase_idx + 1 if phase_idx >= 0 else 0,
+            total_capital=self.plan_data["metadata"]["total_capital"],
+            day_capital=0,
+        )
+        if status == "completed":
+            sheet.warnings.append("建仓计划已全部完成")
+        elif status == "not_started":
+            sheet.warnings.append("建仓计划尚未开始 (起始日: 2026-07-06)")
+        elif status == "during_gap":
+            sheet.warnings.append("当前处于阶段间隙，无新开仓指令")
+        return sheet
+
+    def _process_asset(self, idx, asset, plan, price_quotes, capital_multiplier):
+        """处理单个资产：返回订单字典或 None（跳过）"""
+        raw_code = asset["code"]
+        code = normalize_stock_code(raw_code)
+        info = plan.get(code, {}) or plan.get(raw_code, {})
+        est_price = safe_float(info.get("est_price", 0), default=0.0)
+        total_shares = safe_int(asset.get("shares"), default=0)
+
+        if est_price <= 0 or total_shares is None or total_shares <= 0:
+            return {"warnings": [f"{raw_code} 数据无效，跳过"]}
+
+        total_shares, adj_warnings = self._adjust_shares_for_multiplier(total_shares, capital_multiplier, idx, raw_code)
+
+        current_price = safe_float(price_quotes.get(code)) if price_quotes else None
+        should_pause, pause_reason = self._check_price_deviation(current_price, est_price, code, info.get("name", ""))
+        if should_pause:
+            return {
+                "paused": [{
+                    "priority": idx,
+                    "code": code,
+                    "name": info.get("name", ""),
+                    "shares": total_shares,
+                    "est_price": est_price,
+                    "current_price": current_price,
+                    "reason": pause_reason,
+                }],
+                "warnings": [f"{code} {info.get('name', '')} {pause_reason}"],
+            }
+
+        target_info = self.plan_data.get("target_portfolio", {}).get(code, {})
+        lot_size = safe_int(target_info.get("lots") or info.get("lots"), default=100)
+        lot_size = lot_size if lot_size and lot_size > 0 else 100
+        morning_shares, afternoon_shares = self._calculate_session_shares(total_shares, lot_size)
+
+        limit_price = round(est_price * (1 + self.PRICE_BUFFER), 3)
+        name = info.get("name", "")
+        style = info.get("style", "")
+        risk = info.get("risk", "")
+
+        result = {"warnings": adj_warnings}
+        if morning_shares > 0:
+            result["morning"] = [self._create_trade_order(idx, code, info, "morning", morning_shares, est_price, limit_price)]
+        if afternoon_shares > 0:
+            result["afternoon"] = [self._create_trade_order(idx, code, info, "afternoon", afternoon_shares, est_price, limit_price)]
+        return result
+
     def generate_daily_orders(
         self,
         target_date: Optional[date] = None,
@@ -185,152 +306,27 @@ class BuildPlanExecutor:
             target_date = date.today()
 
         phase_summary, phase_idx, status = self.get_active_phase(target_date)
-
-        # 处理非活跃状态
         if status != "active":
-            sheet = DailyTradeSheet(
-                trade_date=target_date.strftime("%Y-%m-%d"),
-                phase_name="无活跃阶段",
-                phase_number=phase_idx + 1 if phase_idx >= 0 else 0,
-                total_capital=self.plan_data["metadata"]["total_capital"],  # type: ignore
-                day_capital=0,
-            )
-            if status == "completed":
-                sheet.warnings.append("建仓计划已全部完成")
-            elif status == "not_started":
-                sheet.warnings.append("建仓计划尚未开始 (起始日: 2026-07-06)")
-            elif status == "during_gap":
-                sheet.warnings.append("当前处于阶段间隙，无新开仓指令")
-            return sheet
+            return self._build_empty_sheet(target_date, phase_summary, phase_idx, status)
 
-        # 获取阶段内所有标的
         plan = self.plan_data["position_plan"]  # type: ignore
         phase_assets = phase_summary["assets"]  # type: ignore
-
-        # 按金额降序排列（大权重优先执行）
         sorted_assets = sorted([a for a in phase_assets if a["shares"] > 0], key=lambda x: -x["amount"])
 
-        # 生成订单
         morning_orders = []
         afternoon_orders = []
         paused_orders = []
         warnings = []
 
         for idx, asset in enumerate(sorted_assets, 1):
-            raw_code = asset["code"]
-            code = normalize_stock_code(raw_code)
-            info = plan.get(code, {})
-            if not info:
-                info = plan.get(raw_code, {})
-            est_price = safe_float(info.get("est_price", 0), default=0.0)
-            total_shares = safe_int(asset.get("shares"), default=0)
-
-            if est_price <= 0 or total_shares is None or total_shares <= 0:
-                warnings.append(f"{raw_code} 数据无效，跳过")
+            result = self._process_asset(idx, asset, plan, price_quotes, capital_multiplier)
+            if result is None:
                 continue
+            morning_orders.extend(result.get("morning", []))
+            afternoon_orders.extend(result.get("afternoon", []))
+            paused_orders.extend(result.get("paused", []))
+            warnings.extend(result.get("warnings", []))
 
-            # ---- 资金倍率调整：紧急响应时按比例缩减 ----
-            if capital_multiplier < 1.0:
-                orig_shares = total_shares
-                total_shares = max(0, int(total_shares * capital_multiplier))
-                if total_shares == 0 and orig_shares > 0 and idx <= 5:
-                    total_shares = max(100, int(orig_shares * capital_multiplier))
-                if total_shares != orig_shares:
-                    warnings.append(
-                        f"资本倍率调整: {code} {info.get('name', '')} "
-                        f"{orig_shares:,}→{total_shares:,}股 (倍率{capital_multiplier:.0%})"
-                    )
-
-            # 检查是否有实时价格
-            current_price = None
-            if price_quotes:
-                current_price = safe_float(price_quotes.get(code))
-
-            # 价格偏离检查
-            should_pause = False
-            pause_reason = ""
-            if current_price is not None and est_price > 0:
-                deviation = (current_price - est_price) / est_price
-                if abs(deviation) > self.PRICE_DEVIATION_SKIP:
-                    should_pause = True
-                    direction = "高于" if deviation > 0 else "低于"
-                    pause_reason = (
-                        f"现价{current_price:.3f}{direction}预估{est_price:.3f} {abs(deviation) * 100:.1f}% > 10%阈值"
-                    )
-                    warnings.append(f"{code} {info.get('name', '')} {pause_reason}")
-
-            if should_pause:
-                paused_orders.append(
-                    {
-                        "priority": idx,
-                        "code": code,
-                        "name": info.get("name", ""),
-                        "shares": total_shares,
-                        "est_price": est_price,
-                        "current_price": current_price,
-                        "reason": pause_reason,
-                    }
-                )
-                continue
-
-            # 获取最小交易单位 (优先从 target_portfolio 读取)
-            target_info = self.plan_data.get("target_portfolio", {}).get(code, {})  # type: ignore
-            lot_size = safe_int(target_info.get("lots") or info.get("lots"), default=100)
-            lot_size = lot_size if lot_size and lot_size > 0 else 100
-
-            # 计算上下半场股数，并确保满足最小交易单位
-            morning_shares = max(0, int(total_shares * self.SESSION_SPLIT))
-            morning_shares = (morning_shares // lot_size) * lot_size
-
-            # 下午批次：总股数减上午(整手调整后)，再对齐
-            remaining = total_shares - morning_shares
-            afternoon_shares = (remaining // lot_size) * lot_size
-
-            # 计算限价（预估价格上浮缓冲）
-            limit_price = round(est_price * (1 + self.PRICE_BUFFER), 3)
-
-            # 名称
-            name = info.get("name", "")
-            style = info.get("style", "")
-            risk = info.get("risk", "")
-
-            if morning_shares > 0:
-                morning_orders.append(
-                    TradeOrder(
-                        priority=idx,
-                        code=code,
-                        name=name,
-                        session="morning",
-                        shares=morning_shares,
-                        est_price=est_price,
-                        limit_price=limit_price,
-                        est_amount=round(morning_shares * est_price, 2),
-                        style=style,
-                        risk=risk,
-                        note="上午批次 09:30-10:30",
-                        technical_alpha=self._calc_technical_alpha(code),
-                    )
-                )
-
-            if afternoon_shares > 0:
-                afternoon_orders.append(
-                    TradeOrder(
-                        priority=idx,
-                        code=code,
-                        name=name,
-                        session="afternoon",
-                        shares=afternoon_shares,
-                        est_price=est_price,
-                        limit_price=limit_price,
-                        est_amount=round(afternoon_shares * est_price, 2),
-                        style=style,
-                        risk=risk,
-                        note="下午批次 14:00-14:30",
-                        technical_alpha=self._calc_technical_alpha(code),
-                    )
-                )
-
-        # 计算金额汇总
         morning_total = sum(o.est_amount for o in morning_orders)
         afternoon_total = sum(o.est_amount for o in afternoon_orders)
         day_total = morning_total + afternoon_total

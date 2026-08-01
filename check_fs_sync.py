@@ -17,12 +17,8 @@ FS_HTTP = "http://127.0.0.1:7899"
 TEST_CODES = ["600519", "601318", "000001", "600036", "688041"]
 
 
-def check_sync_status():
-    print("=" * 60)
-    print("free-stockdb 数据同步状态")
-    print("=" * 60)
-
-    # 1. 数据目录
+def _check_data_dir():
+    """检查数据目录状态，返回 (file_count, total_size_mb, writing_count)"""
     data_dir = os.path.join(FS_DIR, "data")
     total_size = 0
     file_count = 0
@@ -35,10 +31,11 @@ def check_sync_status():
                 file_count += 1
                 if f.endswith(".part"):
                     writing_count += 1
-    size_mb = total_size / (1024 * 1024)
-    print(f"\n[数据目录] {file_count} 个文件, {size_mb:.2f} MB (写入中: {writing_count})")
+    return file_count, total_size / (1024 * 1024), writing_count
 
-    # 2. 进程检查
+
+def _check_running_processes():
+    """检查 free-stockdb 相关进程是否运行"""
     try:
         import psutil
 
@@ -55,7 +52,9 @@ def check_sync_status():
     except ImportError:
         pass
 
-    # 3. HTTP API 检查
+
+def _check_http_api():
+    """检查 HTTP API 是否在线，返回 http_ok bool"""
     try:
         r = requests.get(FS_HTTP, timeout=2)
         http_ok = r.status_code in (200, 400)
@@ -63,32 +62,55 @@ def check_sync_status():
     except Exception as e:
         print(f"\n[HTTP API] ❌ 离线 - {e}")
         http_ok = False
+    return http_ok
 
-    # 4. 测试标的数据查询
-    if http_ok:
-        print("\n[标的数据]")
-        ready_count = 0
-        for code in TEST_CODES:
-            try:
-                r = requests.get(f"{FS_HTTP}/?cmd=get&t=复权:{code}:2024*", timeout=3)
-                data = r.json()
-                count = len(data) if isinstance(data, list) else 0
-                if count > 0:
-                    ready_count += 1
-                    status = f"✅ {count} 行"
-                else:
-                    status = "⏳ 同步中"
-                print(f"  {code}: {status}")
-            except Exception:
-                print(f"  {code}: ❌ 查询失败")
 
-        if ready_count == len(TEST_CODES):
-            print("\n🎉 所有测试标的数据已就绪，可以运行验证脚本!")
-            print("   python verify_free_stockdb.py")
-        elif ready_count > 0:
-            print(f"\n📊 部分标的已就绪 ({ready_count}/{len(TEST_CODES)}), 继续等待...")
-        else:
-            print(f"\n⏳ 数据同步进行中，请耐心等待... (已同步 {size_mb:.2f} MB)")
+def _check_test_symbols(http_ok):
+    """检查测试标的数据状态，返回 ready_count"""
+    if not http_ok:
+        return 0
+
+    print("\n[标的数据]")
+    ready_count = 0
+    for code in TEST_CODES:
+        try:
+            r = requests.get(f"{FS_HTTP}/?cmd=get&t=复权:{code}:2024*", timeout=3)
+            data = r.json()
+            count = len(data) if isinstance(data, list) else 0
+            if count > 0:
+                ready_count += 1
+                status = f"✅ {count} 行"
+            else:
+                status = "⏳ 同步中"
+            print(f"  {code}: {status}")
+        except Exception:
+            print(f"  {code}: ❌ 查询失败")
+    return ready_count
+
+
+def _print_sync_summary(ready_count, size_mb):
+    """打印同步状态总结"""
+    if ready_count == len(TEST_CODES):
+        print("\n🎉 所有测试标的数据已就绪，可以运行验证脚本!")
+        print("   python verify_free_stockdb.py")
+    elif ready_count > 0:
+        print(f"\n📊 部分标的已就绪 ({ready_count}/{len(TEST_CODES)}), 继续等待...")
+    else:
+        print(f"\n⏳ 数据同步进行中，请耐心等待... (已同步 {size_mb:.2f} MB)")
+
+
+def check_sync_status():
+    print("=" * 60)
+    print("free-stockdb 数据同步状态")
+    print("=" * 60)
+
+    file_count, size_mb, writing_count = _check_data_dir()
+    print(f"\n[数据目录] {file_count} 个文件, {size_mb:.2f} MB (写入中: {writing_count})")
+
+    _check_running_processes()
+    http_ok = _check_http_api()
+    ready_count = _check_test_symbols(http_ok)
+    _print_sync_summary(ready_count, size_mb)
 
     print()
     return http_ok and ready_count == len(TEST_CODES)

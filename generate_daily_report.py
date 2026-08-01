@@ -144,6 +144,44 @@ from ai.recommendation_generator import (  # noqa: E402
 )
 
 
+def _load_trade_plan_prices(trade_plan_path):
+    """加载 trade_plan 获取 est_price，返回 {code_num: est_price}"""
+    plan_prices = {}
+    if not trade_plan_path:
+        return plan_prices
+    try:
+        with open(trade_plan_path, "r", encoding="utf-8") as f:
+            plan = json.load(f)
+        exec_plan = plan.get("execution_plan", {})
+        for order in exec_plan.get("morning_orders", []):
+            code = order.get("code", "")
+            code_num = code[2:] if code.startswith(("sh", "sz")) else code
+            if code_num and order.get("est_price"):
+                plan_prices[code_num] = order["est_price"]
+        for order in exec_plan.get("afternoon_orders", []):
+            code = order.get("code", "")
+            code_num = code[2:] if code.startswith(("sh", "sz")) else code
+            if code_num and order.get("est_price") and code_num not in plan_prices:
+                plan_prices[code_num] = order["est_price"]
+        print(f"加载 trade_plan: {len(plan_prices)} 个标的的开盘价")
+    except Exception as e:
+        print(f"加载 trade_plan 失败: {e}")
+    return plan_prices
+
+
+def _build_snap_index(sim_positions):
+    """建立快照索引: 去掉 sh/sz/bj 前缀后的代码 -> 快照记录"""
+    snap_index = {}
+    for sk, sv in sim_positions.items():
+        norm = sk.lower()
+        for prefix in ("sh", "sz", "bj"):
+            if norm.startswith(prefix):
+                norm = norm[len(prefix):]
+                break
+        snap_index[norm] = sv
+    return snap_index
+
+
 class PortfolioAnalyzer:
     """组合分析器 - 顶级对冲基金视角
 
@@ -183,19 +221,40 @@ class PortfolioAnalyzer:
         except Exception as e:
             print(f"数据源初始化失败: {e}")
 
+    def _merge_position(self, key, pos, snap, plan_prices):
+        """合并单个持仓，返回 matched 增量"""
+        code_num = key.split(".")[0]
+        snap = snap
+        qty = snap.get("qty", 0)
+        avg_price = snap.get("avg_price", pos.get("est_price", 0))
+        if not avg_price:
+            avg_price = pos.get("est_price", 0)
+
+        first_open_price = plan_prices.get(code_num) or avg_price or pos.get("est_price", 0)
+
+        pos["actual_shares"] = qty
+        pos["actual_avg_cost"] = avg_price
+        pos["est_price"] = first_open_price
+        return 1
+
+    def _add_extra_position(self, norm_code, sv, positions):
+        """添加快照中有但 positions 未计划的标的"""
+        positions.setdefault("positions", {})[norm_code] = {
+            "code": norm_code,
+            "name": sv.get("name", ""),
+            "style": "其他",
+            "sector": "其他",
+            "phase1_shares": 0,
+            "shares": 0,
+            "est_price": sv.get("avg_price", 0),
+            "avg_cost": sv.get("avg_price", 0),
+            "target_weight": 0.0,
+            "actual_shares": sv.get("qty", 0),
+            "actual_avg_cost": sv.get("avg_price", 0),
+        }
+
     def _apply_positions_snapshot(self, snapshot_path: str, trade_plan_path: Optional[str] = None):
-        """加载 sim_snapshots/positions_{date}.json 并构建实际持仓视图
-
-        成本价计算规则: 按"第一次交易开盘价格"计算 (trade_plan 中的 est_price)
-        - 持仓量: 用快照实际成交量 (actual_shares)
-        - 成本价: 用 trade_plan 的 est_price (第一次交易开盘价), 回退到快照 avg_price
-        - 收盘价: 用 market_prices (Wind MCP / fallback)
-
-        设计原则:
-          1. 不修改 positions.json 的计划持仓数据
-          2. 用快照生成独立字段 actual_shares / actual_avg_cost
-          3. 用 trade_plan 的 est_price 覆盖 est_price (第一次交易开盘价)
-        """
+        """加载 sim_snapshots/positions_{date}.json 并构建实际持仓视图"""
         try:
             with open(snapshot_path, "r", encoding="utf-8") as f:
                 snapshot = json.load(f)
@@ -203,91 +262,33 @@ class PortfolioAnalyzer:
             print(f"加载持仓快照失败: {e}")
             return
 
-        # 加载 trade_plan 获取第一次交易开盘价
-        plan_prices = {}  # code_num -> est_price (第一次交易开盘价)
-        if trade_plan_path:
-            try:
-                with open(trade_plan_path, "r", encoding="utf-8") as f:
-                    plan = json.load(f)
-                # 合并 morning + afternoon orders
-                exec_plan = plan.get("execution_plan", {})
-                for order in exec_plan.get("morning_orders", []):
-                    code = order.get("code", "")
-                    code_num = code[2:] if code.startswith(("sh", "sz")) else code
-                    if code_num and order.get("est_price"):
-                        plan_prices[code_num] = order["est_price"]
-                for order in exec_plan.get("afternoon_orders", []):
-                    code = order.get("code", "")
-                    code_num = code[2:] if code.startswith(("sh", "sz")) else code
-                    if code_num and order.get("est_price") and code_num not in plan_prices:
-                        plan_prices[code_num] = order["est_price"]
-                print(f"加载 trade_plan: {len(plan_prices)} 个标的的开盘价")
-            except Exception as e:
-                print(f"加载 trade_plan 失败: {e}")
+        plan_prices = _load_trade_plan_prices(trade_plan_path)
 
-        # 快照结构: {"futures": {"positions": {code: {"qty", "avg_price", "market_value"}}}}
         sim_positions = snapshot.get("futures", {}).get("positions", {})
         if not sim_positions:
             print("持仓快照为空, 跳过合并")
             return
 
-        # 建立快照索引: 去掉 sh/sz 前缀后的代码 -> 快照记录
-        snap_index = {}
-        for sk, sv in sim_positions.items():
-            norm = sk.lower()
-            for prefix in ("sh", "sz", "bj"):
-                if norm.startswith(prefix):
-                    norm = norm[len(prefix) :]
-                    break
-            snap_index[norm] = sv
-
+        snap_index = _build_snap_index(sim_positions)
         positions = self.positions_data.get("positions", {})
         matched = 0
         skipped = 0
         extra = 0
 
         for key, pos in positions.items():
-            # positions.json key: "688041.SH" -> "688041"
             code_num = key.split(".")[0]
             snap = snap_index.get(code_num)
             if snap is None:
                 skipped += 1
                 continue
+            matched += self._merge_position(key, pos, snap, plan_prices)
 
-            qty = snap.get("qty", 0)
-            avg_price = snap.get("avg_price", pos.get("est_price", 0))
-            if not avg_price:
-                avg_price = pos.get("est_price", 0)
-
-            # 成本价 = 第一次交易开盘价 (trade_plan est_price)
-            # 回退: 快照 avg_price (成交均价) -> positions.json est_price
-            first_open_price = plan_prices.get(code_num) or avg_price or pos.get("est_price", 0)
-
-            # 写入实际持仓字段
-            pos["actual_shares"] = qty
-            pos["actual_avg_cost"] = avg_price  # 成交均价 (保留供参考)
-            pos["est_price"] = first_open_price  # 覆盖为第一次交易开盘价 (成本价)
-            matched += 1
-
-        # 处理快照中有但 positions.json 未计划的标的
         known_codes = {k.split(".")[0] for k in positions.keys()}
         for norm_code, sv in snap_index.items():
             if norm_code in known_codes:
                 continue
             extra += 1
-            self.positions_data.setdefault("positions", {})[norm_code] = {
-                "code": norm_code,
-                "name": sv.get("name", ""),
-                "style": "其他",
-                "sector": "其他",
-                "phase1_shares": 0,
-                "shares": 0,
-                "est_price": sv.get("avg_price", 0),
-                "avg_cost": sv.get("avg_price", 0),
-                "target_weight": 0.0,
-                "actual_shares": sv.get("qty", 0),
-                "actual_avg_cost": sv.get("avg_price", 0),
-            }
+            self._add_extra_position(norm_code, sv, positions)
 
         print(f"持仓快照合并完成: 匹配 {matched} / 跳过 {skipped} / 新增 {extra}")
 
@@ -546,6 +547,296 @@ def print_report_summary(report: Dict):
     print("=" * 70)
 
 
+def _build_data_integrity_warning(data_health: Dict) -> str:
+    """构建数据完整性警告文本"""
+    data_status = data_health.get("status", "UNKNOWN")
+    no_data_ratio = data_health.get("no_data_ratio", 0)
+    no_data_count = data_health.get("no_data_count", 0)
+
+    if data_status == "NOSIGNAL_MAJORITY":
+        return f"""
+> **⚠️⚠️⚠️ 数据完整性严重警告 ⚠️⚠️⚠️**  
+> {no_data_count}/{data_health.get("total_positions", 0)} 个持仓标的无实际行情数据（{no_data_ratio * 100:.0f}%）。  
+> 以下盈亏数据基于计划价格计算，**并非真实交易结果**。  
+> 请检查 Wind MCP / iFinD MCP 数据源连接状态后再信任本报告。
+>
+"""
+    if data_status == "NOSIGNAL_PARTIAL":
+        return f"""
+> **⚠️ 数据完整性警告**  
+> {no_data_count}/{data_health.get("total_positions", 0)} 个持仓标的无实际行情数据（{no_data_ratio * 100:.0f}%）。  
+> 无数据标的盈亏不可用，报告中对应的 daily_pnl 和 daily_pnl_pct 显示为 N/A。
+>
+"""
+    if data_status == "FALLBACK_HEAVY":
+        return f"""
+> **⚠️ 数据源回退警告**  
+> {data_health.get("fallback_count", 0)} 个标的使用了回退价格源（fallback），数据质量下降。  
+> 建议检查主数据源（Wind MCP）是否正常运行。
+>
+"""
+    return ""
+
+
+def _render_position_details(details: List[Dict]) -> str:
+    """渲染现货持仓明细表"""
+    md = "| 代码 | 名称 | 股数 | 成本价 | 收盘价 | 日涨跌% | 盈亏 | 模式 | 状态 |\n"
+    md += "|------|------|------|------|------|------|------|------|------|\n"
+    for d in details:
+        status_icon = (
+            "✅"
+            if d["status"] == "NORMAL"
+            else ("⚠️" if d["status"] == "WARNING" else ("🔴" if d["status"] == "STOP_LOSS_TRIGGERED" else "🟢"))
+        )
+        if d.get("calc_mode") == "FALLBACK_NO_DATA":
+            mode_label = "⚠️无数据"
+        elif d.get("calc_mode") == "snapshot":
+            mode_label = "快照"
+        else:
+            mode_label = "计划"
+        pnl_display = f"{d['daily_pnl_pct']:.2f}%" if d["daily_pnl_pct"] is not None else "N/A"
+        md += f"| {d['code']} | {d['name']} | {d['shares']} | {d['cost_price']} | {d['close_price']} | {pnl_display} | {d['pnl']:,.0f} | {mode_label} | {status_icon} |\n"
+    return md
+
+
+def _render_hedge_details(details: List[Dict]) -> str:
+    """渲染期货期权对冲盈亏明细"""
+    md = ""
+    for h in details:
+        cost_bd = h.get("cost_breakdown") or {}
+        cost_note = cost_bd.get("cost_note", "")
+        md += f"""| 合约 | 方向 | 手数 | 开仓价 | 收盘价 | 对冲盈亏 | Beta降低 |
+|------|------|------|------|------|------|------|
+| {h["instrument"]} | {h["direction"]} | {h["contracts"]} | {h["entry_price"]} | {h["close_price"]} | {h["hedge_pnl"]:,.0f} | {h["beta_reduced"]:.3f} |
+
+"""
+        if cost_bd:
+            md += f"""| 成本项 | 数值 |
+|------|------|
+| 预估总成本 | {h.get("cost", 0):,.2f} |
+| 佣金费率 | {cost_bd.get("commission_rate", 0):.6f} |
+| 滑点费率 | {cost_bd.get("slippage_rate", 0):.6f} |
+| 保证金比例 | {cost_bd.get("margin_rate", 0):.2%} |
+| 预估佣金 | {cost_bd.get("estimated_commission", 0):,.2f} |
+| 预估滑点 | {cost_bd.get("estimated_slippage", 0):,.2f} |
+| 预估保证金 | {cost_bd.get("estimated_margin", 0):,.2f} |
+
+> ⚠️ {cost_note}
+
+"""
+    return md
+
+
+def _render_hedge_plan(plan: Dict) -> str:
+    """渲染期货期权计划头寸"""
+    md = ""
+    plan_details = plan.get("details", [])
+    if not plan_details:
+        return "> ⚠️ positions.json 中未配置 hedge_positions\n\n"
+
+    md += "| # | 工具 | 交易所 | 方向 | 目标手数 | 合约乘数 | 保证金率 | 目标Beta降低 | 行权价 | 权利金预算 | 估算名义价值 | 估算成本 | 说明 |\n"
+    md += "|---|------|--------|------|---------|---------|---------|------------|--------|-----------|------------|---------|------|\n"
+    for i, p in enumerate(plan_details, 1):
+        strike_str = p.get("strike") or "-"
+        premium_str = f"¥{p.get('premium_budget', 0):,}" if p.get("is_option") else "¥0"
+        md += (
+            f"| {i} | {p['instrument']} | {p['exchange']} | {p['direction']} | "
+            f"{p['target_contracts']} | {p['multiplier']} | {p['margin_rate']:.2%} | "
+            f"{p['target_beta_reduction']:.3f} | {strike_str} | {premium_str} | "
+            f"¥{p['estimated_notional']:,.0f} | ¥{p['estimated_cost']:,.0f} | {p['reason']} |\n"
+        )
+    summary = plan.get("summary", {})
+    md += (
+        f"| **合计** | - | - | - | - | - | - | **{summary.get('total_beta_reduction', 0):.3f}** | - | "
+        f"**¥{summary.get('total_premium_budget', 0):,}** | "
+        f"**¥{summary.get('total_estimated_notional', 0):,.0f}** | - | - |\n\n"
+    )
+    md += f"> 📌 **期货期权对冲工具**: 共 {summary.get('tool_count', 0)} 类工具 | "
+    md += f"期货名义价值 ¥{summary.get('total_estimated_notional', 0):,.0f} | "
+    md += f"期权权利金预算 ¥{summary.get('total_premium_budget', 0):,} | "
+    md += f"目标Beta降低 {summary.get('total_beta_reduction', 0):.3f}\n\n"
+    return md
+
+
+def _render_next_day_stock_plan(stock_acc: Dict, next_day_plan: Dict) -> str:
+    """渲染次日股票ETF账户计划"""
+    md = "| 项目 | 数值 |\n"
+    md += "|------|------|\n"
+    md += f"| 账户资金 | {stock_acc.get('capital', next_day_plan.get('stock_etf_capital', 3000000)):,.0f} |\n"
+    md += f"| 目标标的数 | {stock_acc.get('target_positions', 20)} |\n"
+    md += f"| 当日预算 | {stock_acc.get('daily_capital', 0):,.2f} |\n\n"
+    md += "**当日交易动作**:\n\n"
+    for i, action in enumerate(stock_acc.get("daily_actions", []), 1):
+        md += f"{i}. {action}\n"
+    target_detail = stock_acc.get("target_positions_detail", [])
+    if target_detail:
+        md += f"\n**次日标的明细 (共 {len(target_detail)} 只)**:\n\n"
+        md += "| # | 代码 | 名称 | 类型 | 动作 | 权重 | 目标金额 | 当日金额 | 风格 | ETF信号 | 净流入(亿) | 说明 |\n"
+        md += "|---|------|------|------|------|------|---------|---------|------|---------|-----------|------|\n"
+        for idx, pos in enumerate(target_detail, 1):
+            code = pos.get("code", "")
+            name = pos.get("name", "")
+            ptype = pos.get("type", "")
+            action = pos.get("action", "HOLD")
+            weight = pos.get("weight", 0)
+            amount = pos.get("amount", 0)
+            daily_amt = pos.get("daily_amount", 0)
+            style = pos.get("style", "")
+            etf_sig = pos.get("etf_flow_signal", "")
+            etf_inflow = pos.get("etf_inflow", "")
+            reason = pos.get("reason", "")
+            inflow_str = f"{etf_inflow:.2f}" if isinstance(etf_inflow, (int, float)) else str(etf_inflow)
+            reason_short = reason[:50] + "..." if len(reason) > 50 else reason
+            md += f"| {idx} | {code} | {name} | {ptype} | {action} | {weight:.0%} | {amount:,.0f} | {daily_amt:,.0f} | {style} | {etf_sig} | {inflow_str} | {reason_short} |\n"
+    return md
+
+
+def _render_next_day_hedge_plan(hedge_acc: Dict) -> str:
+    """渲染次日对冲账户计划"""
+    md = "| 项目 | 数值 |\n"
+    md += "|------|------|\n"
+    md += f"| 对冲模式 | {hedge_acc.get('mode', 'dynamic')} |\n"
+    md += f"| 触发阈值 | {hedge_acc.get('trigger_threshold', 0.05)} |\n"
+    md += f"| 再平衡频率 | {hedge_acc.get('rebalance_frequency', '每周五')} |\n\n"
+    md += "**对冲工具明细**:\n\n"
+    md += "| 工具 | 方向 | 目标手数 | 说明 |\n"
+    md += "|------|------|---------|------|\n"
+    for inst in hedge_acc.get("instruments", []):
+        md += f"| {inst.get('instrument', '')} | {inst.get('direction', '')} | {inst.get('target_contracts', 0)} | {inst.get('reason', '')} |\n"
+
+    hedge_positions_detail = hedge_acc.get("hedge_positions_detail", [])
+    if hedge_positions_detail:
+        md += "\n**期货期权对冲仓位明细** (来自 positions.json):\n\n"
+        md += "| # | 工具 | 交易所 | 方向 | 目标手数 | 合约乘数 | 保证金率 | 目标Beta降低 | 行权价 | 权利金预算 | 估算名义价值 | 说明 |\n"
+        md += "|---|------|--------|------|---------|---------|---------|------------|--------|-----------|------------|------|\n"
+        for idx, hp in enumerate(hedge_positions_detail, 1):
+            instrument = hp.get("instrument", "")
+            exchange = hp.get("exchange", "")
+            direction = hp.get("direction", "")
+            contracts = hp.get("target_contracts", 0)
+            multiplier = hp.get("multiplier", 0)
+            margin_rate = hp.get("margin_rate", 0)
+            beta_red = hp.get("target_beta_reduction", 0)
+            strike = hp.get("strike", "-") if hp.get("strike") else "-"
+            premium = hp.get("premium_budget", 0)
+            notional = hp.get("estimated_notional", 0)
+            reason = hp.get("reason", "")[:60]
+            md += f"| {idx} | {instrument} | {exchange} | {direction} | {contracts} | {multiplier} | {margin_rate:.2%} | {beta_red:.2f} | {strike} | ¥{premium:,} | ¥{notional:,} | {reason} |\n"
+        total_notional = sum(hp.get("estimated_notional", 0) for hp in hedge_positions_detail)
+        total_beta_red = sum(hp.get("target_beta_reduction", 0) for hp in hedge_positions_detail)
+        md += f"| **合计** | - | - | - | - | - | - | **{total_beta_red:.2f}** | - | - | **¥{total_notional:,}** | - |\n"
+    return md
+
+
+def _render_expected_performance(exp_perf: Dict, proj: Dict) -> str:
+    """渲染预期绩效对照"""
+    if not exp_perf:
+        return ""
+
+    _proj = proj or {}
+    _proj_scenarios = _proj.get("scenarios", {})
+    _proj_expected = _proj.get("expected", {})
+    _base = _proj_scenarios.get("base", {})
+
+    _ann_raw = (
+        exp_perf.get("annual_return")
+        or _base.get("weighted_annualized")
+        or _proj_expected.get("expected_annualized")
+    )
+    if isinstance(_ann_raw, (int, float)) and _ann_raw > 1:
+        _ann_raw = _ann_raw / 100.0
+    _ann_str = f"{_ann_raw:.2%}" if isinstance(_ann_raw, (int, float)) else "待测算"
+
+    _dd = exp_perf.get("max_drawdown")
+    _dd_str = f"{_dd:.2%}" if isinstance(_dd, (int, float)) else "待测算"
+
+    _sr = exp_perf.get("sharpe_ratio")
+    _sr_str = f"{_sr:.3f}" if isinstance(_sr, (int, float)) else "待测算"
+
+    _cum_raw = (
+        exp_perf.get("4_5_year_total_return")
+        or _base.get("cumulative_return")
+        or _proj_expected.get("expected_cumulative")
+    )
+    if isinstance(_cum_raw, (int, float)) and _cum_raw > 1:
+        _cum_raw = _cum_raw / 100.0
+    _cum_str = f"{_cum_raw:.2%}" if isinstance(_cum_raw, (int, float)) else "待测算"
+
+    _init_cap = _proj.get("initial_capital", 5000000)
+    _final_amt = _base.get("final_amount") or _proj_expected.get("expected_final_amount")
+    if isinstance(_final_amt, (int, float)) and _final_amt > 0:
+        _proj_str = f"¥{_init_cap:,.0f} → ¥{_final_amt:,.0f}"
+    else:
+        _proj_str = "待测算"
+
+    return f"""### 7.5 预期绩效对照
+
+| 指标 | 目标 | 预期 |
+|------|------|------|
+| 年化收益 | >8% | {_ann_str} |
+| 最大回撤 | <15% | {_dd_str} |
+| Sharpe比率 | >0.80 | {_sr_str} |
+| 4.5年总收益 | - | {_cum_str} |
+| 4.5年终值 | - | {_proj_str} |
+"""
+
+
+def _render_return_projection_section(proj: Dict) -> str:
+    """渲染收益率预测章节"""
+    if not proj or proj.get("error"):
+        return ""
+    proj_scenarios = proj.get("scenarios", {})
+    proj_expected = proj.get("expected", {})
+    proj_prob = proj.get("probability_weights", {})
+    proj_risk = proj.get("risk_disclosure", {})
+
+    md = f"""
+### 7.6 收益率预测 (基于十五五降权后持仓)
+
+**预测版本**: {proj.get("version", "unknown")}  
+**投资期限**: {proj.get("investment_horizon", "")} ({proj.get("horizon_years", 1.5)} 年)  
+**初始资本**: ¥{proj.get("initial_capital", 5000000):,}
+
+#### 四场景预测
+
+| 场景 | 概率 | 加权年化 | 累计收益 | 期末金额 | 盈亏 |
+|------|------|---------|---------|---------|------|
+"""
+    scenario_icons = {"bull": "🐂", "base": "📊", "bear": "🐻", "black_swan": "⚫"}
+    for s_key in ["bull", "base", "bear", "black_swan"]:
+        sc = proj_scenarios.get(s_key, {})
+        icon = scenario_icons.get(s_key, "")
+        prob = proj_prob.get(s_key, 0)
+        ann = sc.get("weighted_annualized", 0)
+        cum = sc.get("cumulative_return", 0)
+        fin = sc.get("final_amount", 0)
+        profit = sc.get("total_profit", 0)
+        profit_str = f"+¥{profit:,.0f}" if profit >= 0 else f"-¥{abs(profit):,.0f}"
+        md += f"| {icon} {sc.get('label', s_key)} | {prob:.0%} | {ann:.2f}% | {cum:.2f}% | ¥{fin:,.0f} | {profit_str} |\n"
+
+    md += f"""
+#### 加权期望
+
+| 指标 | 数值 |
+|------|------|
+| **加权期望年化** | **{proj_expected.get("expected_annualized", 0):.2f}%** |
+| 加权期望累计 | {proj_expected.get("expected_cumulative", 0):.2f}% |
+| 加权期望期末金额 | ¥{proj_expected.get("expected_final_amount", 0):,.0f} |
+| 加权期望盈亏 | {"+" if proj_expected.get("expected_profit", 0) >= 0 else ""}¥{proj_expected.get("expected_profit", 0):,.0f} |
+
+#### 风险披露
+
+| 风险类型 | 说明 |
+|---------|------|
+| 集中度风险 | {proj_risk.get("concentration_risk", "-")} |
+| 波动率风险 | {proj_risk.get("volatility_risk", "-")} |
+| 对冲覆盖 | {proj_risk.get("hedge_coverage", "-")} |
+| 政策风险 | {proj_risk.get("policy_risk", "-")} |
+| 流动性风险 | {proj_risk.get("liquidity_risk", "-")} |
+"""
+    return md
+
+
 def generate_markdown_report(report: Dict) -> str:
     """生成Markdown格式报告"""
     pnl_summary = report["portfolio_pnl"]["summary"]
@@ -559,45 +850,17 @@ def generate_markdown_report(report: Dict) -> str:
     net_pnl_pct = net_perf["net_pnl_pct"]
 
     current_value = total_cost + net_pnl
-
     hedge_pnl_pct = (hedge_pnl / total_cost * 100) if total_cost > 0 else 0
 
-    # 数据完整性警告
     data_health = report.get("meta", {}).get("data_source_health", {})
-    data_status = data_health.get("status", "UNKNOWN")
-    no_data_ratio = data_health.get("no_data_ratio", 0)
-    no_data_count = data_health.get("no_data_count", 0)
-
-    data_integrity_warning = ""
-    if data_status == "NOSIGNAL_MAJORITY":
-        data_integrity_warning = f"""
-> **⚠️⚠️⚠️ 数据完整性严重警告 ⚠️⚠️⚠️**  
-> {no_data_count}/{data_health.get("total_positions", 0)} 个持仓标的无实际行情数据（{no_data_ratio * 100:.0f}%）。  
-> 以下盈亏数据基于计划价格计算，**并非真实交易结果**。  
-> 请检查 Wind MCP / iFinD MCP 数据源连接状态后再信任本报告。
->
-"""
-    elif data_status == "NOSIGNAL_PARTIAL":
-        data_integrity_warning = f"""
-> **⚠️ 数据完整性警告**  
-> {no_data_count}/{data_health.get("total_positions", 0)} 个持仓标的无实际行情数据（{no_data_ratio * 100:.0f}%）。  
-> 无数据标的盈亏不可用，报告中对应的 daily_pnl 和 daily_pnl_pct 显示为 N/A。
->
-"""
-    elif data_status == "FALLBACK_HEAVY":
-        data_integrity_warning = f"""
-> **⚠️ 数据源回退警告**  
-> {data_health.get("fallback_count", 0)} 个标的使用了回退价格源（fallback），数据质量下降。  
-> 建议检查主数据源（Wind MCP）是否正常运行。
->
-"""
+    data_integrity_warning = _build_data_integrity_warning(data_health)
 
     md = f"""# 📊 综合盈亏统计报告（含期货期权对冲）
 
 **日期**: {report["meta"]["report_date"]}  
 **阶段**: {report["meta"]["phase"]}  
 **视角**: {report["meta"]["fund_style"]}  
-**数据状态**: {data_status}
+**数据状态**: {data_health.get("status", "UNKNOWN")}
 {data_integrity_warning}
 ---
 
@@ -651,26 +914,8 @@ def generate_markdown_report(report: Dict) -> str:
 
 ### 3.2 持仓明细
 
-| 代码 | 名称 | 股数 | 成本价 | 收盘价 | 日涨跌% | 盈亏 | 模式 | 状态 |
-|------|------|------|------|------|------|------|------|------|
 """
-
-    for d in report["portfolio_pnl"]["details"]:
-        status_icon = (
-            "✅"
-            if d["status"] == "NORMAL"
-            else ("⚠️" if d["status"] == "WARNING" else ("🔴" if d["status"] == "STOP_LOSS_TRIGGERED" else "🟢"))
-        )
-        # 数据来源标签
-        if d.get("calc_mode") == "FALLBACK_NO_DATA":
-            mode_label = "⚠️无数据"
-        elif d.get("calc_mode") == "snapshot":
-            mode_label = "快照"
-        else:
-            mode_label = "计划"
-        # daily_pnl_pct 可能为 None（无行情数据时）
-        pnl_display = f"{d['daily_pnl_pct']:.2f}%" if d["daily_pnl_pct"] is not None else "N/A"
-        md += f"| {d['code']} | {d['name']} | {d['shares']} | {d['cost_price']} | {d['close_price']} | {pnl_display} | {d['pnl']:,.0f} | {mode_label} | {status_icon} |\n"
+    md += _render_position_details(report["portfolio_pnl"]["details"])
 
     md += """
 ---
@@ -678,29 +923,7 @@ def generate_markdown_report(report: Dict) -> str:
 ## 四、期货期权对冲盈亏
 
 """
-
-    for h in report["hedge_position"]["details"]:
-        cost_bd = h.get("cost_breakdown") or {}
-        cost_note = cost_bd.get("cost_note", "")
-        md += f"""| 合约 | 方向 | 手数 | 开仓价 | 收盘价 | 对冲盈亏 | Beta降低 |
-|------|------|------|------|------|------|------|
-| {h["instrument"]} | {h["direction"]} | {h["contracts"]} | {h["entry_price"]} | {h["close_price"]} | {h["hedge_pnl"]:,.0f} | {h["beta_reduced"]:.3f} |
-
-"""
-        if cost_bd:
-            md += f"""| 成本项 | 数值 |
-|------|------|
-| 预估总成本 | {h.get("cost", 0):,.2f} |
-| 佣金费率 | {cost_bd.get("commission_rate", 0):.6f} |
-| 滑点费率 | {cost_bd.get("slippage_rate", 0):.6f} |
-| 保证金比例 | {cost_bd.get("margin_rate", 0):.2%} |
-| 预估佣金 | {cost_bd.get("estimated_commission", 0):,.2f} |
-| 预估滑点 | {cost_bd.get("estimated_slippage", 0):,.2f} |
-| 预估保证金 | {cost_bd.get("estimated_margin", 0):,.2f} |
-
-> ⚠️ {cost_note}
-
-"""
+    md += _render_hedge_details(report["hedge_position"]["details"])
 
     md += f"""### 4.2 对冲效果评估
 
@@ -717,33 +940,7 @@ def generate_markdown_report(report: Dict) -> str:
 ### 4.3 期货期权计划头寸 (来自 positions.json)
 
 """
-    plan = report.get("hedge_position_plan") or {}
-    plan_details = plan.get("details", [])
-    if plan_details:
-        md += "| # | 工具 | 交易所 | 方向 | 目标手数 | 合约乘数 | 保证金率 | 目标Beta降低 | 行权价 | 权利金预算 | 估算名义价值 | 估算成本 | 说明 |\n"
-        md += "|---|------|--------|------|---------|---------|---------|------------|--------|-----------|------------|---------|------|\n"
-        for i, p in enumerate(plan_details, 1):
-            strike_str = p.get("strike") or "-"
-            premium_str = f"¥{p.get('premium_budget', 0):,}" if p.get("is_option") else "¥0"
-            md += (
-                f"| {i} | {p['instrument']} | {p['exchange']} | {p['direction']} | "
-                f"{p['target_contracts']} | {p['multiplier']} | {p['margin_rate']:.2%} | "
-                f"{p['target_beta_reduction']:.3f} | {strike_str} | {premium_str} | "
-                f"¥{p['estimated_notional']:,.0f} | ¥{p['estimated_cost']:,.0f} | {p['reason']} |\n"
-            )
-        # 汇总行
-        summary = plan.get("summary", {})
-        md += (
-            f"| **合计** | - | - | - | - | - | - | **{summary.get('total_beta_reduction', 0):.3f}** | - | "
-            f"**¥{summary.get('total_premium_budget', 0):,}** | "
-            f"**¥{summary.get('total_estimated_notional', 0):,.0f}** | - | - |\n\n"
-        )
-        md += f"> 📌 **期货期权对冲工具**: 共 {summary.get('tool_count', 0)} 类工具 | "
-        md += f"期货名义价值 ¥{summary.get('total_estimated_notional', 0):,.0f} | "
-        md += f"期权权利金预算 ¥{summary.get('total_premium_budget', 0):,} | "
-        md += f"目标Beta降低 {summary.get('total_beta_reduction', 0):.3f}\n\n"
-    else:
-        md += "> ⚠️ positions.json 中未配置 hedge_positions\n\n"
+    md += _render_hedge_plan(report.get("hedge_position_plan") or {})
 
     md += f"""---
 
@@ -805,9 +1002,7 @@ def generate_markdown_report(report: Dict) -> str:
 """
 
     plan = report.get("hedge_position_plan") or {}
-    plan_details = plan.get("details", [])
     premium_total = plan.get("summary", {}).get("total_premium_budget", 0)
-
     if premium_total > 0:
         md += f"""⏳ **期权保护待启动**：
 - 当前 VIX {report["market_overview"]["vix_estimate"]}，处于{"偏低" if report["market_overview"]["vix_estimate"] < 13 else "偏高" if report["market_overview"]["vix_estimate"] >= 22 else "正常"}区间
@@ -822,7 +1017,6 @@ def generate_markdown_report(report: Dict) -> str:
 
 """
 
-    # 从交易计划元数据获取总资本（不再硬编码默认值）
     total_capital = report.get("next_day_plan", {}).get("total_capital", 5000000)
     futures_margin = (
         report["hedge_position"]["summary"].get("total_hedge_notional", 0) * 0.12
@@ -846,7 +1040,6 @@ def generate_markdown_report(report: Dict) -> str:
     for i, rec in enumerate(report["ai_recommendations"], 1):
         md += f"{i}. {rec}\n"
 
-    # 第二天交易计划章节
     next_day_plan = report.get("next_day_plan", {})
     if next_day_plan and not next_day_plan.get("error"):
         nd = next_day_plan.get("next_trading_day", "")
@@ -869,91 +1062,14 @@ def generate_markdown_report(report: Dict) -> str:
 
 ### 7.1 股票ETF账户计划
 
-| 项目 | 数值 |
-|------|------|
-| 账户资金 | {stock_acc.get("capital", next_day_plan.get("stock_etf_capital", 3000000)):,.0f} |
-| 目标标的数 | {stock_acc.get("target_positions", 20)} |
-| 当日预算 | {stock_acc.get("daily_capital", 0):,.2f} |
-
-**当日交易动作**:
-
 """
-        for i, action in enumerate(stock_acc.get("daily_actions", []), 1):
-            md += f"{i}. {action}\n"
-
-        # 7.1.1 标的明细表 (含12只股票 + 8只ETF)
-        target_detail = stock_acc.get("target_positions_detail", [])
-        if target_detail:
-            md += f"""
-**次日标的明细 (共 {len(target_detail)} 只)**:
-
-| # | 代码 | 名称 | 类型 | 动作 | 权重 | 目标金额 | 当日金额 | 风格 | ETF信号 | 净流入(亿) | 说明 |
-|---|------|------|------|------|------|---------|---------|------|---------|-----------|------|
-"""
-            for idx, pos in enumerate(target_detail, 1):
-                code = pos.get("code", "")
-                name = pos.get("name", "")
-                ptype = pos.get("type", "")
-                action = pos.get("action", "HOLD")
-                weight = pos.get("weight", 0)
-                amount = pos.get("amount", 0)
-                daily_amt = pos.get("daily_amount", 0)
-                style = pos.get("style", "")
-                etf_sig = pos.get("etf_flow_signal", "")
-                etf_inflow = pos.get("etf_inflow", "")
-                reason = pos.get("reason", "")
-
-                # 格式化ETF净流入
-                inflow_str = f"{etf_inflow:.2f}" if isinstance(etf_inflow, (int, float)) else str(etf_inflow)
-                # 截断reason到50字符
-                reason_short = reason[:50] + "..." if len(reason) > 50 else reason
-
-                md += f"| {idx} | {code} | {name} | {ptype} | {action} | {weight:.0%} | {amount:,.0f} | {daily_amt:,.0f} | {style} | {etf_sig} | {inflow_str} | {reason_short} |\n"
+        md += _render_next_day_stock_plan(stock_acc, next_day_plan)
 
         md += f"""
 ### 7.2 对冲账户计划
 
-| 项目 | 数值 |
-|------|------|
-| 对冲模式 | {hedge_acc.get("mode", "dynamic")} |
-| 触发阈值 | {hedge_acc.get("trigger_threshold", 0.05)} |
-| 再平衡频率 | {hedge_acc.get("rebalance_frequency", "每周五")} |
-
-**对冲工具明细**:
-
-| 工具 | 方向 | 目标手数 | 说明 |
-|------|------|---------|------|
 """
-        for inst in hedge_acc.get("instruments", []):
-            md += f"| {inst.get('instrument', '')} | {inst.get('direction', '')} | {inst.get('target_contracts', 0)} | {inst.get('reason', '')} |\n"
-
-        # 7.2.1 期货期权对冲仓位明细 (来自 positions.json)
-        hedge_positions_detail = hedge_acc.get("hedge_positions_detail", [])
-        if hedge_positions_detail:
-            md += """
-**期货期权对冲仓位明细** (来自 positions.json):
-
-| # | 工具 | 交易所 | 方向 | 目标手数 | 合约乘数 | 保证金率 | 目标Beta降低 | 行权价 | 权利金预算 | 估算名义价值 | 说明 |
-|---|------|--------|------|---------|---------|---------|------------|--------|-----------|------------|------|
-"""
-            for idx, hp in enumerate(hedge_positions_detail, 1):
-                instrument = hp.get("instrument", "")
-                exchange = hp.get("exchange", "")
-                direction = hp.get("direction", "")
-                contracts = hp.get("target_contracts", 0)
-                multiplier = hp.get("multiplier", 0)
-                margin_rate = hp.get("margin_rate", 0)
-                beta_red = hp.get("target_beta_reduction", 0)
-                strike = hp.get("strike", "-") if hp.get("strike") else "-"
-                premium = hp.get("premium_budget", 0)
-                notional = hp.get("estimated_notional", 0)
-                reason = hp.get("reason", "")[:60]
-                md += f"| {idx} | {instrument} | {exchange} | {direction} | {contracts} | {multiplier} | {margin_rate:.2%} | {beta_red:.2f} | {strike} | ¥{premium:,} | ¥{notional:,} | {reason} |\n"
-
-            # 汇总行
-            total_notional = sum(hp.get("estimated_notional", 0) for hp in hedge_positions_detail)
-            total_beta_red = sum(hp.get("target_beta_reduction", 0) for hp in hedge_positions_detail)
-            md += f"| **合计** | - | - | - | - | - | - | **{total_beta_red:.2f}** | - | - | **¥{total_notional:,}** | - |\n"
+        md += _render_next_day_hedge_plan(hedge_acc)
 
         if etf_mon:
             md += f"""
@@ -982,114 +1098,10 @@ def generate_markdown_report(report: Dict) -> str:
 | 单板块权重上限 | {risk_ctrl.get("max_sector_exposure", 0.30):.0%} |
 """
 
-        if exp_perf:
-            # 从 return_projection 提取 base 场景真实测算值, 替代硬编码默认值
-            # 旧代码硬编码 0.1072/0.1465/0.863/0.4832 等假数据, 违反数据真实性原则
-            _proj = report.get("return_projection", {})
-            _proj_scenarios = _proj.get("scenarios", {})
-            _proj_expected = _proj.get("expected", {})
-            _base = _proj_scenarios.get("base", {})
+        md += _render_expected_performance(exp_perf, report.get("return_projection", {}))
 
-            # 年化收益: exp_perf(小数) > base.weighted_annualized(百分比需/100) > expected_annualized
-            _ann_raw = (
-                exp_perf.get("annual_return")
-                or _base.get("weighted_annualized")
-                or _proj_expected.get("expected_annualized")
-            )
-            if isinstance(_ann_raw, (int, float)) and _ann_raw > 1:
-                _ann_raw = _ann_raw / 100.0  # 百分比 → 小数
-            _ann_str = f"{_ann_raw:.2%}" if isinstance(_ann_raw, (int, float)) else "待测算"
-
-            # 最大回撤
-            _dd = exp_perf.get("max_drawdown")
-            _dd_str = f"{_dd:.2%}" if isinstance(_dd, (int, float)) else "待测算"
-
-            # Sharpe 比率
-            _sr = exp_perf.get("sharpe_ratio")
-            _sr_str = f"{_sr:.3f}" if isinstance(_sr, (int, float)) else "待测算"
-
-            # 累计收益: exp_perf > base.cumulative_return > expected_cumulative
-            _cum_raw = (
-                exp_perf.get("4_5_year_total_return")
-                or _base.get("cumulative_return")
-                or _proj_expected.get("expected_cumulative")
-            )
-            if isinstance(_cum_raw, (int, float)) and _cum_raw > 1:
-                _cum_raw = _cum_raw / 100.0  # 百分比 → 小数
-            _cum_str = f"{_cum_raw:.2%}" if isinstance(_cum_raw, (int, float)) else "待测算"
-
-            # 期末终值: 从 return_projection 构造 "初始 → 期末" 字符串
-            _init_cap = _proj.get("initial_capital", 5000000)
-            _final_amt = _base.get("final_amount") or _proj_expected.get("expected_final_amount")
-            if isinstance(_final_amt, (int, float)) and _final_amt > 0:
-                _proj_str = f"¥{_init_cap:,.0f} → ¥{_final_amt:,.0f}"
-            else:
-                _proj_str = "待测算"
-
-            md += f"""
-### 7.5 预期绩效对照
-
-| 指标 | 目标 | 预期 |
-|------|------|------|
-| 年化收益 | >8% | {_ann_str} |
-| 最大回撤 | <15% | {_dd_str} |
-| Sharpe比率 | >0.80 | {_sr_str} |
-| 4.5年总收益 | - | {_cum_str} |
-| 4.5年终值 | - | {_proj_str} |
-"""
-
-    # 八、收益率预测章节 (基于 portfolio_return_projection.json)
     proj = report.get("return_projection", {})
-    if proj and not proj.get("error"):
-        proj_scenarios = proj.get("scenarios", {})
-        proj_expected = proj.get("expected", {})
-        proj_prob = proj.get("probability_weights", {})
-        proj_risk = proj.get("risk_disclosure", {})
-
-        md += f"""
-### 7.6 收益率预测 (基于十五五降权后持仓)
-
-**预测版本**: {proj.get("version", "unknown")}  
-**投资期限**: {proj.get("investment_horizon", "")} ({proj.get("horizon_years", 1.5)} 年)  
-**初始资本**: ¥{proj.get("initial_capital", 5000000):,}
-
-#### 四场景预测
-
-| 场景 | 概率 | 加权年化 | 累计收益 | 期末金额 | 盈亏 |
-|------|------|---------|---------|---------|------|
-"""
-        scenario_icons = {"bull": "🐂", "base": "📊", "bear": "🐻", "black_swan": "⚫"}
-        for s_key in ["bull", "base", "bear", "black_swan"]:
-            sc = proj_scenarios.get(s_key, {})
-            icon = scenario_icons.get(s_key, "")
-            prob = proj_prob.get(s_key, 0)
-            ann = sc.get("weighted_annualized", 0)
-            cum = sc.get("cumulative_return", 0)
-            fin = sc.get("final_amount", 0)
-            profit = sc.get("total_profit", 0)
-            profit_str = f"+¥{profit:,.0f}" if profit >= 0 else f"-¥{abs(profit):,.0f}"
-            md += f"| {icon} {sc.get('label', s_key)} | {prob:.0%} | {ann:.2f}% | {cum:.2f}% | ¥{fin:,.0f} | {profit_str} |\n"
-
-        md += f"""
-#### 加权期望
-
-| 指标 | 数值 |
-|------|------|
-| **加权期望年化** | **{proj_expected.get("expected_annualized", 0):.2f}%** |
-| 加权期望累计 | {proj_expected.get("expected_cumulative", 0):.2f}% |
-| 加权期望期末金额 | ¥{proj_expected.get("expected_final_amount", 0):,.0f} |
-| 加权期望盈亏 | {"+" if proj_expected.get("expected_profit", 0) >= 0 else ""}¥{proj_expected.get("expected_profit", 0):,.0f} |
-
-#### 风险披露
-
-| 风险类型 | 说明 |
-|---------|------|
-| 集中度风险 | {proj_risk.get("concentration_risk", "-")} |
-| 波动率风险 | {proj_risk.get("volatility_risk", "-")} |
-| 对冲覆盖 | {proj_risk.get("hedge_coverage", "-")} |
-| 政策风险 | {proj_risk.get("policy_risk", "-")} |
-| 流动性风险 | {proj_risk.get("liquidity_risk", "-")} |
-"""
+    md += _render_return_projection_section(proj)
 
     md += f"""
 ---
@@ -1097,7 +1109,6 @@ def generate_markdown_report(report: Dict) -> str:
 **报告生成时间**: {report["meta"]["generated_at"]}
 **数据源**: Wind MCP > iFinD MCP
 """
-
     return md
 
 

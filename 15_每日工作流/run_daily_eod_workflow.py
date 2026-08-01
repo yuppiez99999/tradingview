@@ -324,11 +324,8 @@ def verify_llm_overrides_applied(plan_path: Path) -> dict:
         return {"applied": False, "reason": str(e)}
 
 
-# ═══════════════════════════════════════════════════════════════
-# 主流程
-# ═══════════════════════════════════════════════════════════════
-
-def main():
+def parse_eod_args():
+    """解析 EOD 工作流命令行参数"""
     parser = argparse.ArgumentParser(description="每日收盘工作流 (15:30 收盘后运行)")
     parser.add_argument("--date", type=str, default=None,
                         help="报告日期 YYYY-MM-DD (默认今天)")
@@ -346,30 +343,27 @@ def main():
                         help="跳过阶段四点五 (Phase 10 Shadow 数据收集, 观察期专用)")
     parser.add_argument("--skip-system-check", action="store_true",
                         help="跳过 P0 启动自检 (仅紧急情况使用,默认每次启动都自检)")
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    # ═══════════════════════════════════════════════════════════════
-    # P0 启动自检 (v8.6.12) — 在任何业务逻辑之前拦截错误
-    # 自检失败立即退出,阻止 bug 传播到下游工作流
-    # ═══════════════════════════════════════════════════════════════
-    if not args.skip_system_check:
-        try:
-            # 显式将项目根加入 sys.path (此脚本位于 15_每日工作流/ 子目录)
-            if str(PROJECT_ROOT) not in sys.path:
-                sys.path.insert(0, str(PROJECT_ROOT))
-            from utils.system_check import assert_system_ready
-            assert_system_ready()  # 失败时 sys.exit(1)
-        except SystemExit:
-            raise
-        except Exception as e:
-            print(f"[P0 自检] 异常 (容错通过): {e}", file=sys.stderr)
 
-    # 确定报告日期
-    if args.date:
-        report_date = args.date
-    else:
-        report_date = datetime.now().strftime("%Y-%m-%d")
+def run_p0_system_check(args):
+    """P0 启动自检"""
+    if args.skip_system_check:
+        return
+    try:
+        if str(PROJECT_ROOT) not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT))
+        from utils.system_check import assert_system_ready
+        assert_system_ready()  # 失败时 sys.exit(1)
+    except SystemExit:
+        raise
+    except Exception as e:
+        print(f"[P0 自检] 异常 (容错通过): {e}", file=sys.stderr)
 
+
+def setup_eod_context(args):
+    """初始化 EOD 工作流上下文 (日期/目录/banner)"""
+    report_date = args.date or datetime.now().strftime("%Y-%m-%d")
     next_trade_date = get_next_trading_day(report_date)
     today_dir = ARCHIVE_DIR / report_date
 
@@ -381,45 +375,11 @@ def main():
     log(f"║  模式: {'强制' if args.force else '标准'}                               ║")
     log("╚" + "═" * 60 + "╝")
 
-    # 交易日检查 (EOD 必须在交易日运行)
-    if not args.force and not is_trading_day(report_date):
-        log(f"{report_date} 不是交易日 (周末), EOD 工作流跳过", "WARN")
-        log("如需强制运行, 请使用 --force 参数")
-        return
+    return report_date, next_trade_date, today_dir
 
-    if args.dry_run:
-        log(">>> 试运行模式, 以下仅显示将要执行的步骤 <<<")
-        log(f"  阶段一: 生成收盘报告    {GENERATE_REPORT_SCRIPT} {report_date}")
-        log(f"  阶段二: 生成次日计划    {GENERATE_TRADE_PLAN_SCRIPT}")
-        log(f"  阶段三: 应用LLM决策     {APPLY_LLM_SCRIPT} {report_date} {next_trade_date}")
-        log(f"  阶段四: EOD 风控守卫    {RUN_DAILY_EOD_SCRIPT} --date {report_date}")
-        log(f"  阶段四点五: Shadow 收集 {DAILY_WORKFLOW_SCRIPT} --phase shadow_monitor --date {report_date}")
-        log(f"  阶段五: 归档目录        {today_dir}")
-        return
 
-    # 创建归档目录
-    today_dir.mkdir(parents=True, exist_ok=True)
-
-    success_count = 0
-    fail_count = 0
-    eod_summary = {
-        "report_date": report_date,
-        "next_trade_date": next_trade_date,
-        "started_at": datetime.now().isoformat(),
-        "phases": {},
-    }
-
-    # M10 修复: 关键失败标志 — 阶段失败阻断依赖阶段, 防止级联错误
-    # 依赖关系: 阶段三依赖阶段一(AI建议)+阶段二(计划); 阶段四依赖阶段二(计划)
-    # 阶段五(归档)始终执行, 保留已生成的证据
-    skip_phase3 = False  # 阶段一失败 → 跳过阶段三 (无 AI 建议可灌入)
-    skip_phase4 = False  # 阶段二失败且无计划 → 跳过阶段四 (无计划可更新风控字段)
-
-    # ─────────────────────────────────────────────────────────
-    # 阶段零: 年化收益预测校准 (生成 portfolio_return_projection.json)
-    # ─────────────────────────────────────────────────────────
-    # 供阶段一报告引用真实测算值, 替代旧代码硬编码 0.1072 等假数据
-    # 非关键阶段: 失败不阻断后续流程 (报告将显示 "待测算")
+def run_phase0_calibrate(report_date, eod_summary):
+    """阶段零：年化收益预测校准"""
     log("\n>>> 阶段零: 年化收益预测校准 <<<")
     if CALIBRATE_PROJECTION_SCRIPT.exists():
         phase0_success, _ = run_step(
@@ -433,20 +393,21 @@ def main():
             "script": str(CALIBRATE_PROJECTION_SCRIPT),
         }
         if phase0_success:
-            success_count += 1
             log("  ✅ portfolio_return_projection.json 已生成, 报告将引用真实测算值")
         else:
             log("  ⚠️ 年化收益校准失败, 报告预期绩效将显示 '待测算'", "WARN")
     else:
         log(f"  ⚠️ 校准脚本不存在: {CALIBRATE_PROJECTION_SCRIPT}", "WARN")
+        phase0_success = False
         eod_summary["phases"]["phase0_calibrate_projection"] = {
             "skipped": True,
             "reason": "script not found",
         }
+    return phase0_success
 
-    # ─────────────────────────────────────────────────────────
-    # 阶段一: 生成收盘盈亏报告 (含 DeepSeek AI 决策建议)
-    # ─────────────────────────────────────────────────────────
+
+def run_phase1_generate_report(report_date, eod_summary):
+    """阶段一：生成收盘盈亏报告"""
     log("\n>>> 阶段一: 生成收盘盈亏报告 (DeepSeek 驱动) <<<")
     phase1_success, _phase1_stdout = run_step(
         "收盘报告生成 (DeepSeek AI 建议)",
@@ -459,8 +420,6 @@ def main():
         "script": str(GENERATE_REPORT_SCRIPT),
     }
     if phase1_success:
-        success_count += 1
-        # 验证报告是否包含 AI 建议
         report_json = REPORTS_DIR_V83 / f"daily_pnl_report_{report_date}.json"
         if report_json.exists():
             try:
@@ -474,50 +433,40 @@ def main():
                 eod_summary["phases"]["phase1_generate_report"]["ai_recommendations"] = ai_recs
             except Exception as e:
                 log(f"  ⚠️ 读取报告 AI 建议失败: {e}", "WARN")
-    else:
-        fail_count += 1
-        # M10 修复: 阶段一失败 → 阶段三无 AI 建议可灌入, 标记跳过
-        skip_phase3 = True
-        log("收盘报告生成失败 [关键失败] — 阶段三 (LLM决策灌入) 将跳过, 因无 AI 建议可用", "ERROR")
-        eod_summary["phases"]["phase1_generate_report"]["critical"] = True
-        eod_summary["phases"]["phase1_generate_report"]["skip_downstream"] = ["phase3_apply_llm"]
+    return phase1_success
 
-    # ─────────────────────────────────────────────────────────
-    # 阶段二: 生成次日交易计划 (基础计划, 待 LLM 决策覆盖)
-    # ─────────────────────────────────────────────────────────
-    if not args.skip_generate_plan:
-        log("\n>>> 阶段二: 生成次日交易计划 <<<")
-        phase2_success, _ = run_step(
-            "次日交易计划生成",
-            GENERATE_TRADE_PLAN_SCRIPT,
-            [],
-            timeout_minutes=10,
-        )
-        eod_summary["phases"]["phase2_generate_plan"] = {
-            "success": phase2_success,
-            "script": str(GENERATE_TRADE_PLAN_SCRIPT),
-        }
-        if phase2_success:
-            success_count += 1
-        else:
-            fail_count += 1
-            log("次日交易计划生成失败, 尝试使用已存在的计划", "WARN")
-    else:
+
+def run_phase2_generate_plan(report_date, next_trade_date, eod_summary, args):
+    """阶段二：生成次日交易计划"""
+    if args.skip_generate_plan:
         log("\n>>> 阶段二: 跳过 (使用已存在的次日交易计划) <<<")
         eod_summary["phases"]["phase2_generate_plan"] = {"skipped": True}
+        return True
 
-    # 验证次日计划是否存在
+    log("\n>>> 阶段二: 生成次日交易计划 <<<")
+    phase2_success, _ = run_step(
+        "次日交易计划生成",
+        GENERATE_TRADE_PLAN_SCRIPT,
+        [],
+        timeout_minutes=10,
+    )
+    eod_summary["phases"]["phase2_generate_plan"] = {
+        "success": phase2_success,
+        "script": str(GENERATE_TRADE_PLAN_SCRIPT),
+    }
+    return phase2_success
+
+
+def validate_next_plan(next_trade_date, eod_summary):
+    """验证次日计划存在，返回 (exists, skip_phase3, skip_phase4)"""
     next_plan_filename = f"trade_plan_{next_trade_date.replace('-', '')}.json"
     next_plan_path = TRADE_PLANS_DIR / next_plan_filename
     if not next_plan_path.exists():
-        # M10 修复: 无次日计划 → 阶段三/四无法执行 (无计划可灌入/更新风控)
-        # 这是级联错误的关键节点: 计划缺失会导致后续阶段全部空转
         skip_phase3 = True
         skip_phase4 = True
         log(f"[FAIL] 次日交易计划不存在: {next_plan_path} [关键失败]", "ERROR")
         log("请确认 generate_daily_trade_plan.py 已运行, 或使用 --skip-generate-plan 仅在计划已存在时使用", "ERROR")
         log("阶段三 (LLM决策灌入) 和 阶段四 (风控守卫) 将跳过, 因无计划可操作", "ERROR")
-        fail_count += 1
         eod_summary["phases"]["phase2_generate_plan"] = eod_summary["phases"].get(
             "phase2_generate_plan", {}
         )
@@ -526,145 +475,124 @@ def main():
         eod_summary["phases"]["phase2_generate_plan"]["skip_downstream"] = [
             "phase3_apply_llm", "phase4_risk_guard"
         ]
-    else:
-        log(f"  ✅ 次日交易计划已就绪: {next_plan_path.name}")
+        return False, True, True
+    log(f"  ✅ 次日交易计划已就绪: {next_plan_path.name}")
+    return True, False, False
 
-    # ─────────────────────────────────────────────────────────
-    # 阶段三: 应用 DeepSeek 决策到次日交易计划
-    # ─────────────────────────────────────────────────────────
-    # M10 修复: 阶段一失败 (无AI建议) 或 阶段二失败 (无计划) 时跳过
-    if skip_phase3:
-        log("\n>>> 阶段三: 跳过 (前置关键阶段失败, 无 AI 建议/计划可用) <<<", "WARN")
-        eod_summary["phases"]["phase3_apply_llm"] = {
-            "skipped": True,
-            "skip_reason": "upstream critical failure (phase1 or phase2)",
-        }
-    elif next_plan_path.exists():
-        log("\n>>> 阶段三: 应用 DeepSeek 决策到次日交易计划 <<<")
-        log(f"  报告日期: {report_date} → 次交易日: {next_trade_date}")
-        phase3_success, _ = run_step(
-            "LLM 决策灌入次日计划",
-            APPLY_LLM_SCRIPT,
-            [report_date, next_trade_date],
-            timeout_minutes=5,
-        )
-        eod_summary["phases"]["phase3_apply_llm"] = {
-            "success": phase3_success,
-            "script": str(APPLY_LLM_SCRIPT),
-            "report_date": report_date,
-            "plan_date": next_trade_date,
-        }
-        if phase3_success:
-            success_count += 1
-            # 验证 LLM 决策是否成功写入
-            verify_result = verify_llm_overrides_applied(next_plan_path)
-            eod_summary["phases"]["phase3_apply_llm"]["verification"] = verify_result
-            if verify_result.get("applied"):
-                # v8.6.13 P1 FIX: 用 `or {}` 兜底 None, 避免 "..." in None 抛 TypeError
-                overrides = verify_result.get("overrides") or {}
-                log("  ✅ LLM 决策已写入次日计划:")
-                if "futures_if_contracts" in overrides:
-                    log(f"     - IF 期货空头: {overrides['futures_if_contracts']} 手")
-                if "put_protection" in overrides:
-                    log(f"     - Put 保护: {len(overrides['put_protection'])} 个标的")
-                if "build_sequence" in overrides:
-                    log(f"     - 建仓顺序: {overrides['build_sequence']}")
-                if "stop_loss_adjustments" in overrides:
-                    log(f"     - 止损调整: {len(overrides['stop_loss_adjustments'])} 个标的")
-                if "position_adjustments" in overrides:
-                    log(f"     - 仓位调整: {len(overrides['position_adjustments'])} 个标的")
-            else:
-                log(f"  ⚠️ LLM 决策未写入: {verify_result.get('reason', '未知原因')}", "WARN")
+
+def run_phase3_apply_llm(report_date, next_trade_date, next_plan_path, eod_summary):
+    """阶段三：应用 DeepSeek 决策到次日交易计划"""
+    log("\n>>> 阶段三: 应用 DeepSeek 决策到次日交易计划 <<<")
+    log(f"  报告日期: {report_date} → 次交易日: {next_trade_date}")
+    phase3_success, _ = run_step(
+        "LLM 决策灌入次日计划",
+        APPLY_LLM_SCRIPT,
+        [report_date, next_trade_date],
+        timeout_minutes=5,
+    )
+    eod_summary["phases"]["phase3_apply_llm"] = {
+        "success": phase3_success,
+        "script": str(APPLY_LLM_SCRIPT),
+        "report_date": report_date,
+        "plan_date": next_trade_date,
+    }
+    if phase3_success:
+        verify_result = verify_llm_overrides_applied(next_plan_path)
+        eod_summary["phases"]["phase3_apply_llm"]["verification"] = verify_result
+        if verify_result.get("applied"):
+            overrides = verify_result.get("overrides") or {}
+            log("  ✅ LLM 决策已写入次日计划:")
+            if "futures_if_contracts" in overrides:
+                log(f"     - IF 期货空头: {overrides['futures_if_contracts']} 手")
+            if "put_protection" in overrides:
+                log(f"     - Put 保护: {len(overrides['put_protection'])} 个标的")
+            if "build_sequence" in overrides:
+                log(f"     - 建仓顺序: {overrides['build_sequence']}")
+            if "stop_loss_adjustments" in overrides:
+                log(f"     - 止损调整: {len(overrides['stop_loss_adjustments'])} 个标的")
+            if "position_adjustments" in overrides:
+                log(f"     - 仓位调整: {len(overrides['position_adjustments'])} 个标的")
         else:
-            fail_count += 1
-            # M10 修复: 阶段三失败为非关键 — 计划仍可用 (无 LLM 覆盖), 阶段四可继续
-            log("LLM 决策应用失败 [非关键] — 次日计划仍可使用 (无 LLM 覆盖), 继续阶段四", "WARN")
+            log(f"  ⚠️ LLM 决策未写入: {verify_result.get('reason', '未知原因')}", "WARN")
+    return phase3_success
 
-    # ─────────────────────────────────────────────────────────
-    # 阶段四: 执行 EOD 四 Guard 风控链
-    # ─────────────────────────────────────────────────────────
-    # M10 修复: 阶段二失败 (无计划) 时跳过 — 风控守卫需更新计划 risk_guard 字段
+
+def run_phase4_risk_guard(report_date, eod_summary, skip_phase4, args):
+    """阶段四：EOD 四 Guard 风控链"""
     if skip_phase4:
         log("\n>>> 阶段四: 跳过 (前置关键阶段失败, 无计划可更新风控字段) <<<", "WARN")
         eod_summary["phases"]["phase4_risk_guard"] = {
             "skipped": True,
             "skip_reason": "upstream critical failure (no trade plan available)",
         }
-    elif not args.skip_risk_guard:
-        log("\n>>> 阶段四: 执行 EOD 四 Guard 风控链 <<<")
-        phase4_success, _ = run_step(
-            "EOD 四 Guard 风控守卫",
-            RUN_DAILY_EOD_SCRIPT,
-            ["--date", report_date],
-            timeout_minutes=10,
-        )
-        eod_summary["phases"]["phase4_risk_guard"] = {
-            "success": phase4_success,
-            "script": str(RUN_DAILY_EOD_SCRIPT),
-        }
-        if phase4_success:
-            success_count += 1
-        else:
-            fail_count += 1
-            # M10 修复: 阶段四失败为非关键 — 次日计划仍可使用 (缺少风控更新), 继续归档
-            log("EOD 风控守卫执行失败 [非关键] — 次日计划仍可使用, 但缺少风控更新, 继续归档", "WARN")
-    else:
+        return False
+
+    if args.skip_risk_guard:
         log("\n>>> 阶段四: 跳过 EOD 风控守卫 (--skip-risk-guard) <<<")
         eod_summary["phases"]["phase4_risk_guard"] = {"skipped": True}
+        return False
 
-    # ─────────────────────────────────────────────────────────
-    # 阶段四点五: Phase 10 Shadow 数据收集 (观察期自动写入)
-    # ─────────────────────────────────────────────────────────
-    # 调用 daily_workflow.py --phase shadow_monitor
-    # 计算当日影子账户净值并写入 reports/shadow/daily_returns.jsonl
-    # 失败为非关键 — 不影响归档和次日交易, 但观察期会缺一天数据
-    if not args.skip_shadow:
-        log("\n>>> 阶段四点五: Phase 10 Shadow 数据收集 (观察期) <<<")
-        phase_shadow_success, _ = run_step(
-            "Phase 10 Shadow Monitor",
-            DAILY_WORKFLOW_SCRIPT,
-            ["--phase", "shadow_monitor", "--date", report_date],
-            timeout_minutes=5,
-        )
-        eod_summary["phases"]["phase4_5_shadow_monitor"] = {
-            "success": phase_shadow_success,
-            "script": str(DAILY_WORKFLOW_SCRIPT),
-        }
-        if phase_shadow_success:
-            success_count += 1
-        else:
-            fail_count += 1
-            log("Phase 10 Shadow 数据收集失败 [非关键] — 观察期数据可能缺失, 不影响次日交易", "WARN")
-    else:
+    log("\n>>> 阶段四: 执行 EOD 四 Guard 风控链 <<<")
+    phase4_success, _ = run_step(
+        "EOD 四 Guard 风控守卫",
+        RUN_DAILY_EOD_SCRIPT,
+        ["--date", report_date],
+        timeout_minutes=10,
+    )
+    eod_summary["phases"]["phase4_risk_guard"] = {
+        "success": phase4_success,
+        "script": str(RUN_DAILY_EOD_SCRIPT),
+    }
+    return phase4_success
+
+
+def run_phase4_5_shadow(report_date, eod_summary, args):
+    """阶段四点五：Shadow 数据收集"""
+    if args.skip_shadow:
         log("\n>>> 阶段四点五: 跳过 Shadow 数据收集 (--skip-shadow) <<<")
         eod_summary["phases"]["phase4_5_shadow_monitor"] = {"skipped": True}
+        return False
 
-    # ─────────────────────────────────────────────────────────
-    # 阶段五: 归档所有报告
-    # ─────────────────────────────────────────────────────────
-    if not args.skip_archive:
-        log(f"\n>>> 阶段五: 归档报告到 {today_dir} <<<")
-        try:
-            count = archive_reports(today_dir, report_date)
-            log(f"[OK] 归档完成, 共 {count} 个文件")
-            eod_summary["phases"]["phase5_archive"] = {
-                "success": True,
-                "archived_count": count,
-                "archive_dir": str(today_dir),
-            }
-            success_count += 1
-        except Exception as e:
-            log(f"[FAIL] 归档失败: {e}", "ERROR")
-            traceback.print_exc()
-            eod_summary["phases"]["phase5_archive"] = {"success": False, "error": str(e)}
-            fail_count += 1
-    else:
+    log("\n>>> 阶段四点五: Phase 10 Shadow 数据收集 (观察期) <<<")
+    phase_shadow_success, _ = run_step(
+        "Phase 10 Shadow Monitor",
+        DAILY_WORKFLOW_SCRIPT,
+        ["--phase", "shadow_monitor", "--date", report_date],
+        timeout_minutes=5,
+    )
+    eod_summary["phases"]["phase4_5_shadow_monitor"] = {
+        "success": phase_shadow_success,
+        "script": str(DAILY_WORKFLOW_SCRIPT),
+    }
+    return phase_shadow_success
+
+
+def run_phase5_archive(report_date, today_dir, eod_summary, args):
+    """阶段五：归档报告"""
+    if args.skip_archive:
         log("\n>>> 阶段五: 跳过归档 (--skip-archive) <<<")
         eod_summary["phases"]["phase5_archive"] = {"skipped": True}
+        return False
 
-    # ─────────────────────────────────────────────────────────
-    # 生成 EOD 工作流摘要报告
-    # ─────────────────────────────────────────────────────────
+    log(f"\n>>> 阶段五: 归档报告到 {today_dir} <<<")
+    try:
+        count = archive_reports(today_dir, report_date)
+        log(f"[OK] 归档完成, 共 {count} 个文件")
+        eod_summary["phases"]["phase5_archive"] = {
+            "success": True,
+            "archived_count": count,
+            "archive_dir": str(today_dir),
+        }
+        return True
+    except Exception as e:
+        log(f"[FAIL] 归档失败: {e}", "ERROR")
+        traceback.print_exc()
+        eod_summary["phases"]["phase5_archive"] = {"success": False, "error": str(e)}
+        return False
+
+
+def save_eod_summary(eod_summary, today_dir, report_date, success_count, fail_count):
+    """保存 EOD 工作流摘要"""
     eod_summary["completed_at"] = datetime.now().isoformat()
     eod_summary["success_count"] = success_count
     eod_summary["fail_count"] = fail_count
@@ -679,9 +607,9 @@ def main():
     except Exception as e:
         log(f"  ⚠️ 摘要保存失败: {e}", "WARN")
 
-    # ─────────────────────────────────────────────────────────
-    # 总结
-    # ─────────────────────────────────────────────────────────
+
+def print_eod_summary(success_count, fail_count, report_date, next_trade_date, today_dir):
+    """打印 EOD 工作流总结"""
     log("\n" + "=" * 60)
     log("║  每日收盘工作流完成                                    ║")
     log(f"║  成功: {success_count} | 失败: {fail_count}                          ║")
@@ -690,7 +618,82 @@ def main():
     log(f"║  归档目录: {today_dir}                  ║")
     log("=" * 60)
 
-    # 退出码: 全部成功=0, 部分失败=1
+
+# ═══════════════════════════════════════════════════════════════
+# 主流程
+# ═══════════════════════════════════════════════════════════════
+
+def main():
+    args = parse_eod_args()
+    run_p0_system_check(args)
+    report_date, next_trade_date, today_dir = setup_eod_context(args)
+
+    if not args.force and not is_trading_day(report_date):
+        log(f"{report_date} 不是交易日 (周末), EOD 工作流跳过", "WARN")
+        return
+
+    if args.dry_run:
+        log(">>> 试运行模式, 以下仅显示将要执行的步骤 <<<")
+        log(f"  阶段一: 生成收盘报告    {GENERATE_REPORT_SCRIPT} {report_date}")
+        log(f"  阶段二: 生成次日计划    {GENERATE_TRADE_PLAN_SCRIPT}")
+        log(f"  阶段三: 应用LLM决策     {APPLY_LLM_SCRIPT} {report_date} {next_trade_date}")
+        log(f"  阶段四: EOD 风控守卫    {RUN_DAILY_EOD_SCRIPT} --date {report_date}")
+        log(f"  阶段四点五: Shadow 收集 {DAILY_WORKFLOW_SCRIPT} --phase shadow_monitor --date {report_date}")
+        log(f"  阶段五: 归档目录        {today_dir}")
+        return
+
+    today_dir.mkdir(parents=True, exist_ok=True)
+    eod_summary = {
+        "report_date": report_date,
+        "next_trade_date": next_trade_date,
+        "started_at": datetime.now().isoformat(),
+        "phases": {},
+    }
+
+    skip_phase3 = False
+    skip_phase4 = False
+    success_count = 0
+    fail_count = 0
+
+    phase0_success = run_phase0_calibrate(report_date, eod_summary)
+    success_count += phase0_success
+
+    phase1_success = run_phase1_generate_report(report_date, eod_summary)
+    success_count += phase1_success
+    fail_count += not phase1_success
+    if not phase1_success:
+        skip_phase3 = True
+
+    phase2_success = run_phase2_generate_plan(report_date, next_trade_date, eod_summary, args)
+    success_count += phase2_success
+    fail_count += not phase2_success
+
+    plan_exists, skip_phase3, skip_phase4 = validate_next_plan(next_trade_date, eod_summary)
+    fail_count += not plan_exists
+    if not plan_exists:
+        skip_phase3 = True
+        skip_phase4 = True
+
+    if not skip_phase3:
+        phase3_success = run_phase3_apply_llm(report_date, next_trade_date, TRADE_PLANS_DIR / f"trade_plan_{next_trade_date.replace('-', '')}.json", eod_summary)
+        success_count += phase3_success
+        fail_count += not phase3_success
+
+    phase4_success = run_phase4_risk_guard(report_date, eod_summary, skip_phase4, args)
+    success_count += phase4_success
+    fail_count += not phase4_success
+
+    phase_shadow_success = run_phase4_5_shadow(report_date, eod_summary, args)
+    success_count += phase_shadow_success
+    fail_count += not phase_shadow_success
+
+    phase5_success = run_phase5_archive(report_date, today_dir, eod_summary, args)
+    success_count += phase5_success
+    fail_count += not phase5_success
+
+    save_eod_summary(eod_summary, today_dir, report_date, success_count, fail_count)
+    print_eod_summary(success_count, fail_count, report_date, next_trade_date, today_dir)
+
     sys.exit(0 if fail_count == 0 else 1)
 
 

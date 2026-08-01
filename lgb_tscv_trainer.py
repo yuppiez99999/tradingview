@@ -697,15 +697,45 @@ def run_lgb_tscv_training(
 # ============================================================
 # 对比报告
 # ============================================================
-def generate_comparison_report(result: Dict) -> Path:
-    """生成新旧模型对比报告"""
-    today = datetime.now().strftime("%Y%m%d")
-    report_path = REPORTS_DIR / f"lgb_tscv_report_{today}.md"
+def _load_old_model_metrics(code: str, old_models_dir: Path) -> Tuple[Any, Any]:
+    """加载旧模型元数据中的 ensemble_r2 / ensemble_ic"""
+    old_meta_path = old_models_dir / code / f"{code}_meta.json"
+    old_r2 = "N/A"
+    old_ic = "N/A"
+    if old_meta_path.exists():
+        with open(old_meta_path, "r", encoding="utf-8") as f:
+            old_meta = json.load(f)
+        old_r2 = old_meta.get("metrics", {}).get("ensemble_r2", "N/A")
+        old_ic = old_meta.get("metrics", {}).get("ensemble_ic", "N/A")
+    return old_r2, old_ic
 
-    # 加载旧模型元数据 (如果存在)
-    old_models_dir = BASE_DIR / "models" / "autolearn"
 
-    lines = [
+def _extract_new_metrics(r: Dict) -> Tuple[Any, Any, float, float]:
+    """从结果中提取新模型指标"""
+    if r.get("status") == "OK":
+        new_r2 = r["cv_after_selection"]["mean_r2"]
+        new_ic = r["cv_after_selection"]["mean_ic"]
+        new_r2_std = r["cv_after_selection"]["std_r2"]
+        new_ic_std = r["cv_after_selection"]["std_ic"]
+    else:
+        new_r2 = r.get("meta", {}).get("cv_after_selection", {}).get("mean_r2", "N/A")
+        new_ic = r.get("meta", {}).get("cv_after_selection", {}).get("mean_ic", "N/A")
+        new_r2_std = r.get("meta", {}).get("cv_after_selection", {}).get("std_r2", 0)
+        new_ic_std = r.get("meta", {}).get("cv_after_selection", {}).get("std_ic", 0)
+    return new_r2, new_ic, new_r2_std, new_ic_std
+
+
+def _compute_improvement(old_val: Any, new_val: Any) -> str:
+    """计算指标改进值"""
+    if isinstance(old_val, (int, float)) and isinstance(new_val, (int, float)):
+        diff = round(new_val - old_val, 4)
+        return f"{diff:+.4f}"
+    return "N/A"
+
+
+def _build_report_header(result: Dict, report_path: Path) -> List[str]:
+    """构建报告头部"""
+    return [
         f"# LightGBM + TSCV 训练报告 - {datetime.now().strftime('%Y-%m-%d')}",
         "",
         f"**生成时间**: {datetime.now().isoformat()}",
@@ -734,78 +764,60 @@ def generate_comparison_report(result: Dict) -> Path:
         "|------|------|---------|------------|------|-------|---------|------|",
     ]
 
-    improvements_r2 = []
-    improvements_ic = []
+
+def _build_comparison_table(result: Dict, old_models_dir: Path) -> Tuple[List[str], List[float], List[float]]:
+    """构建新旧模型对比表格"""
+    lines = []
+    improvements_r2: List[float] = []
+    improvements_ic: List[float] = []
+
     for code, r in result["results"].items():
         if r.get("status") not in ("OK", "CACHED"):
             continue
         name = r.get("name", "")
-        # 旧指标
-        old_meta_path = old_models_dir / code / f"{code}_meta.json"
-        old_r2 = "N/A"
-        old_ic = "N/A"
-        if old_meta_path.exists():
-            with open(old_meta_path, "r", encoding="utf-8") as f:
-                old_meta = json.load(f)
-            old_r2 = old_meta.get("metrics", {}).get("ensemble_r2", "N/A")
-            old_ic = old_meta.get("metrics", {}).get("ensemble_ic", "N/A")
+        old_r2, old_ic = _load_old_model_metrics(code, old_models_dir)
+        new_r2, new_ic, new_r2_std, new_ic_std = _extract_new_metrics(r)
 
-        # 新指标
-        if r.get("status") == "OK":
-            new_r2 = r["cv_after_selection"]["mean_r2"]
-            new_ic = r["cv_after_selection"]["mean_ic"]
-            new_r2_std = r["cv_after_selection"]["std_r2"]
-            new_ic_std = r["cv_after_selection"]["std_ic"]
-        else:
-            new_r2 = r.get("meta", {}).get("cv_after_selection", {}).get("mean_r2", "N/A")
-            new_ic = r.get("meta", {}).get("cv_after_selection", {}).get("mean_ic", "N/A")
-            new_r2_std = r.get("meta", {}).get("cv_after_selection", {}).get("std_r2", 0)
-            new_ic_std = r.get("meta", {}).get("cv_after_selection", {}).get("std_ic", 0)
+        r2_improve = _compute_improvement(old_r2, new_r2)
+        ic_improve = _compute_improvement(old_ic, new_ic)
 
-        # 改进
         if isinstance(old_r2, (int, float)) and isinstance(new_r2, (int, float)):
-            r2_diff = round(new_r2 - old_r2, 4)
-            improvements_r2.append(r2_diff)
-            r2_improve = f"{r2_diff:+.4f}"
-        else:
-            r2_improve = "N/A"
-
+            improvements_r2.append(round(new_r2 - old_r2, 4))
         if isinstance(old_ic, (int, float)) and isinstance(new_ic, (int, float)):
-            ic_diff = round(new_ic - old_ic, 4)
-            improvements_ic.append(ic_diff)
-            ic_improve = f"{ic_diff:+.4f}"
-        else:
-            ic_improve = "N/A"
+            improvements_ic.append(round(new_ic - old_ic, 4))
 
         lines.append(
             f"| {code} | {name} | {old_r2} | {new_r2}±{new_r2_std} | {r2_improve} | "
             f"{old_ic} | {new_ic}±{new_ic_std} | {ic_improve} |"
         )
 
-    # 汇总
-    if improvements_r2:
-        lines.extend(
-            [
-                "",
-                "## 二、整体改进汇总",
-                "",
-                f"- R² 平均改进: **{np.mean(improvements_r2):+.4f}**",
-                f"- R² 改进标的数: {sum(1 for x in improvements_r2 if x > 0)} / {len(improvements_r2)}",
-                f"- IC 平均改进: **{np.mean(improvements_ic):+.4f}**",
-                f"- IC 改进标的数: {sum(1 for x in improvements_ic if x > 0)} / {len(improvements_ic)}",
-            ]
-        )
+    return lines, improvements_r2, improvements_ic
 
-    # CV 详情
-    lines.extend(
-        [
-            "",
-            "## 三、CV 详情 (特征选择后)",
-            "",
-            "| 标的 | 名称 | Fold 数 | CV R² (mean±std) | CV IC (mean±std) | CV Sharpe | 最终 R² | 最终 IC | 信号 | 特征数 |",
-            "|------|------|---------|------------------|------------------|-----------|---------|--------|------|--------|",
-        ]
-    )
+
+def _build_improvement_summary(improvements_r2: List[float], improvements_ic: List[float]) -> List[str]:
+    """构建整体改进汇总"""
+    if not improvements_r2:
+        return []
+    return [
+        "",
+        "## 二、整体改进汇总",
+        "",
+        f"- R² 平均改进: **{np.mean(improvements_r2):+.4f}**",
+        f"- R² 改进标的数: {sum(1 for x in improvements_r2 if x > 0)} / {len(improvements_r2)}",
+        f"- IC 平均改进: **{np.mean(improvements_ic):+.4f}**",
+        f"- IC 改进标的数: {sum(1 for x in improvements_ic if x > 0)} / {len(improvements_ic)}",
+    ]
+
+
+def _build_cv_details_section(result: Dict) -> List[str]:
+    """构建 CV 详情表格"""
+    lines = [
+        "",
+        "## 三、CV 详情 (特征选择后)",
+        "",
+        "| 标的 | 名称 | Fold 数 | CV R² (mean±std) | CV IC (mean±std) | CV Sharpe | 最终 R² | 最终 IC | 信号 | 特征数 |",
+        "|------|------|---------|------------------|------------------|-----------|---------|--------|------|--------|",
+    ]
     for code, r in result["results"].items():
         if r.get("status") != "OK":
             continue
@@ -820,15 +832,16 @@ def generate_comparison_report(result: Dict) -> Path:
             f"{fm['r2']} | {fm['ic']} | {r['signal']} | "
             f"{r['n_features_before']}→{r['n_features_after']} |"
         )
+    return lines
 
-    # Top 特征
-    lines.extend(
-        [
-            "",
-            "## 四、特征重要性 (Top 5)",
-            "",
-        ]
-    )
+
+def _build_top_features_section(result: Dict) -> List[str]:
+    """构建特征重要性章节"""
+    lines = [
+        "",
+        "## 四、特征重要性 (Top 5)",
+        "",
+    ]
     for code, r in result["results"].items():
         if r.get("status") != "OK":
             continue
@@ -840,15 +853,16 @@ def generate_comparison_report(result: Dict) -> Path:
         for i, (feat, imp) in enumerate(list(top_feat.items())[:5], 1):
             lines.append(f"{i}. **{feat}**: {imp}")
         lines.append("")
+    return lines
 
-    # CV 折详情
-    lines.extend(
-        [
-            "",
-            "## 五、CV 折详情 (第一个 OK 标的)",
-            "",
-        ]
-    )
+
+def _build_cv_folds_section(result: Dict) -> List[str]:
+    """构建 CV 折详情章节 (第一个 OK 标的)"""
+    lines = [
+        "",
+        "## 五、CV 折详情 (第一个 OK 标的)",
+        "",
+    ]
     for code, r in result["results"].items():
         if r.get("status") != "OK":
             continue
@@ -863,22 +877,41 @@ def generate_comparison_report(result: Dict) -> Path:
                 f"{fold['r2']} | {fold['ic']} | {fold['sharpe']} | {fold['best_iteration']} |"
             )
         break
+    return lines
 
-    lines.extend(
-        [
-            "",
-            "## 六、风险提示",
-            "",
-            "- 历史数据仅含日收益率, OHLCV 为合成数据, 实际特征质量受限",
-            "- TimeSeriesSplit CV 更稳健, 但样本数仍偏少 (~191 日)",
-            "- 早停可能让模型欠拟合, 如 R² 仍为负, 建议放宽 early_stopping_rounds",
-            "- IC 为负说明预测方向相反, 可考虑反向操作或检查数据/标签",
-            "",
-            "---",
-            f"**报告路径**: `{report_path}`",
-            "**信号文件**: `models/lgb_tscv/lgb_tscv_signals.json`",
-        ]
-    )
+
+def _build_risk_notes(report_path: Path) -> List[str]:
+    """构建风险提示"""
+    return [
+        "",
+        "## 六、风险提示",
+        "",
+        "- 历史数据仅含日收益率, OHLCV 为合成数据, 实际特征质量受限",
+        "- TimeSeriesSplit CV 更稳健, 但样本数仍偏少 (~191 日)",
+        "- 早停可能让模型欠拟合, 如 R² 仍为负, 建议放宽 early_stopping_rounds",
+        "- IC 为负说明预测方向相反, 可考虑反向操作或检查数据/标签",
+        "",
+        "---",
+        f"**报告路径**: `{report_path}`",
+        "**信号文件**: `models/lgb_tscv/lgb_tscv_signals.json`",
+    ]
+
+
+def generate_comparison_report(result: Dict) -> Path:
+    """生成新旧模型对比报告"""
+    today = datetime.now().strftime("%Y%m%d")
+    report_path = REPORTS_DIR / f"lgb_tscv_report_{today}.md"
+
+    old_models_dir = BASE_DIR / "models" / "autolearn"
+
+    lines = _build_report_header(result, report_path)
+    comparison_lines, improvements_r2, improvements_ic = _build_comparison_table(result, old_models_dir)
+    lines.extend(comparison_lines)
+    lines.extend(_build_improvement_summary(improvements_r2, improvements_ic))
+    lines.extend(_build_cv_details_section(result))
+    lines.extend(_build_top_features_section(result))
+    lines.extend(_build_cv_folds_section(result))
+    lines.extend(_build_risk_notes(report_path))
 
     with open(report_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))

@@ -495,7 +495,8 @@ def generate_retrain_report(
 # 主流程
 # ═══════════════════════════════════════════════════════════════
 
-def main():
+def parse_retrain_args():
+    """解析命令行参数"""
     parser = argparse.ArgumentParser(description="ML 模型自动重训工作流")
     parser.add_argument("--force", action="store_true",
                         help="强制全量重训 (忽略年龄)")
@@ -507,10 +508,11 @@ def main():
                         help="跳过新闻因子 (加速训练)")
     parser.add_argument("--date", type=str, default=None,
                         help="报告日期 YYYY-MM-DD (默认今天)")
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    report_date = args.date or datetime.now().strftime("%Y-%m-%d")
 
+def print_retrain_banner(args, report_date):
+    """打印启动 banner"""
     log("╔" + "═" * 60 + "╗")
     log("║  ML 模型自动重训工作流启动                            ║")
     log(f"║  报告日期: {report_date}                              ║")
@@ -519,19 +521,12 @@ def main():
         f"{'试运行' if args.dry_run else '生产'}                        ║")
     log("╚" + "═" * 60 + "╝")
 
-    # 解析指定标的
-    symbols = None
-    if args.symbols:
-        symbols = [s.strip() for s in args.symbols.split(",") if s.strip()]
-        log(f"  指定标的: {symbols}")
 
-    # ─────────────────────────────────────────────────────────
-    # 阶段一: 扫描所有模型
-    # ─────────────────────────────────────────────────────────
+def run_phase1_scan_models():
+    """阶段一: 扫描所有 LGB Enhanced 模型"""
     log("\n>>> 阶段一: 扫描所有 LGB Enhanced 模型 <<<")
     models = scan_models()
     log(f"  ✅ 扫描到 {len(models)} 个模型")
-
     if not models:
         log("  ⚠️ 未找到任何模型, 退出", "WARN")
         sys.exit(1)
@@ -542,11 +537,13 @@ def main():
     for m in models:
         log(f"  {m['symbol']:<8} {m['trained_at'][:19]:<22} {m['age_days']:<5}天 "
             f"{m['ic']:<+8.3f} {m['sharpe']:<+8.2f} {m['signal']:<+8.3f}")
+    return models
 
-    # ─────────────────────────────────────────────────────────
-    # 阶段二: 识别需要重训的模型
-    # ─────────────────────────────────────────────────────────
+
+def run_phase2_identify_candidates(models, args):
+    """阶段二: 识别需要重训的模型"""
     log("\n>>> 阶段二: 识别重训候选 <<<")
+    symbols = [s.strip() for s in args.symbols.split(",")] if args.symbols else None
     to_retrain, to_skip = identify_retrain_candidates(models, force=args.force, symbols=symbols)
 
     log(f"  需重训: {len(to_retrain)} 个")
@@ -560,7 +557,7 @@ def main():
         log("\n  ✅ 所有模型均无需重训, 退出")
         # 仍生成空报告
         if not args.dry_run:
-            report_path = generate_retrain_report(report_date, [], models, [], [])
+            report_path = generate_retrain_report(args.date or datetime.now().strftime("%Y-%m-%d"), [], models, [], [])
             log(f"\n📋 重训报告: {report_path}")
         sys.exit(0)
 
@@ -571,9 +568,11 @@ def main():
             log(f"    - {m['symbol']} (年龄{m['age_days']}天, IC={m['ic']:.3f})")
         sys.exit(0)
 
-    # ─────────────────────────────────────────────────────────
-    # 阶段三: 执行重训
-    # ─────────────────────────────────────────────────────────
+    return to_retrain, to_skip
+
+
+def run_phase3_retrain_models(to_retrain, args):
+    """阶段三: 执行重训"""
     log(f"\n>>> 阶段三: 执行重训 ({len(to_retrain)} 个模型) <<<")
     retrain_results = []
     verifications = []
@@ -640,25 +639,47 @@ def main():
             log(f"    ❌ {symbol} 重训失败: {info.get('error', info.get('stderr_tail', '')[:200])}", "ERROR")
             verifications.append({"verified": False, "symbol": symbol, "reason": "training failed"})
 
-    # ─────────────────────────────────────────────────────────
-    # 阶段四: 生成报告并归档
-    # ─────────────────────────────────────────────────────────
-    log("\n>>> 阶段四: 生成重训报告并归档 <<<")
-    report_path = generate_retrain_report(report_date, to_retrain, to_skip, retrain_results, verifications)
+    return retrain_results, verifications
 
-    # ─────────────────────────────────────────────────────────
-    # 总结
-    # ─────────────────────────────────────────────────────────
+
+def run_phase4_report(report_date, to_retrain, to_skip, retrain_results, verifications):
+    """阶段四: 生成重训报告"""
+    log("\n>>> 阶段四: 生成重训报告并归档 <<<")
+    return generate_retrain_report(report_date, to_retrain, to_skip, retrain_results, verifications)
+
+
+def print_retrain_summary(to_retrain, retrain_results, report_path):
+    """打印重训总结"""
     success_count = sum(1 for r in retrain_results if r["success"])
     fail_count = sum(1 for r in retrain_results if not r["success"])
-
     log("\n" + "=" * 60)
     log("║  ML 模型自动重训完成                                  ║")
     log(f"║  重训: {len(to_retrain)} | 成功: {success_count} | 失败: {fail_count}     ║")
     log(f"║  报告: {report_path.name}  ║")
     log("=" * 60)
+    return success_count, fail_count
 
-    # 退出码: 全部成功=0, 部分失败=1, 全部失败=2
+
+def main():
+    args = parse_retrain_args()
+    report_date = args.date or datetime.now().strftime("%Y-%m-%d")
+    print_retrain_banner(args, report_date)
+
+    symbols = [s.strip() for s in args.symbols.split(",") if s.strip()] if args.symbols else None
+    if symbols:
+        log(f"  指定标的: {symbols}")
+
+    models = run_phase1_scan_models()
+    to_retrain, to_skip = run_phase2_identify_candidates(models, args)
+
+    if args.dry_run:
+        return
+
+    retrain_results, verifications = run_phase3_retrain_models(to_retrain, args)
+    report_path = run_phase4_report(report_date, to_retrain, to_skip, retrain_results, verifications)
+
+    success_count, fail_count = print_retrain_summary(to_retrain, retrain_results, report_path)
+
     if fail_count == 0:
         sys.exit(0)
     elif success_count > 0:

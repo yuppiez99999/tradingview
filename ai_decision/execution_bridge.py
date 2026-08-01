@@ -739,6 +739,384 @@ def _tca_report_to_dict(report: Any) -> Dict[str, Any]:
 
 
 # ============================================================
+# 核心桥接函数 - Helper
+# ============================================================
+
+
+def _build_l2_veto_return(
+    decision: TradingDecision,
+    mode: str,
+    risk_result: ExecutionRiskResult,
+    escalation: bool,
+    escalation_reason: str,
+    execution_plan: Dict[str, Any],
+) -> Dict[str, Any]:
+    """构建 L2 风控否决时的审计记录和返回字典"""
+    escalation = True
+    escalation_reason = f"L2 风控否决: {risk_result.veto_reason}"
+    record = {
+        "timestamp": datetime.now().isoformat(),
+        "symbol": decision.symbol,
+        "action": decision.action,
+        "mode": mode,
+        "executed": False,
+        "veto": True,
+        "veto_reason": risk_result.veto_reason,
+        "escalation": True,
+        "escalation_reason": escalation_reason,
+        "checks": risk_result.checks,
+    }
+    _write_execution_audit(record)
+    return {
+        "executed": False,
+        "mode": mode,
+        "execution_plan": execution_plan,
+        "execution_result": None,
+        "risk_result": risk_result.__dict__,
+        "audit_path": "",
+        "message": f"L2 执行风控否决: {risk_result.veto_reason}",
+        "veto": True,
+        "veto_reason": risk_result.veto_reason,
+        "escalation": True,
+        "escalation_reason": escalation_reason,
+        "tca_pre_estimate": None,
+        "tca_post_report": None,
+        "tca_error": "",
+    }
+
+
+def _build_grayscale_veto_return(
+    decision: TradingDecision,
+    mode: str,
+    execution_plan: Dict[str, Any],
+    risk_result: ExecutionRiskResult,
+    tca_pre_estimate: Optional[Dict[str, Any]],
+    tca_error: str,
+    veto_reason: str,
+    escalation: bool,
+    escalation_reason: str,
+    msg: str,
+) -> Dict[str, Any]:
+    """构建灰度回滚到 0 时的审计记录和返回字典"""
+    record = {
+        "timestamp": datetime.now().isoformat(),
+        "symbol": decision.symbol,
+        "action": decision.action,
+        "mode": mode,
+        "executed": False,
+        "veto": True,
+        "veto_reason": veto_reason,
+        "escalation": True,
+        "escalation_reason": escalation_reason,
+    }
+    _write_execution_audit(record)
+    return {
+        "executed": False,
+        "mode": mode,
+        "execution_plan": execution_plan,
+        "execution_result": None,
+        "risk_result": risk_result.__dict__,
+        "audit_path": "",
+        "message": msg,
+        "veto": True,
+        "veto_reason": veto_reason,
+        "escalation": True,
+        "escalation_reason": escalation_reason,
+        "tca_pre_estimate": tca_pre_estimate,
+        "tca_post_report": None,
+        "tca_error": tca_error,
+    }
+
+
+def _run_tca_pre_trade(
+    decision: TradingDecision,
+    execution_plan: Dict[str, Any],
+    market_data_for_tca: Optional[Dict[str, Any]],
+    tca_pre_trade_estimator: Any,
+) -> Tuple[Optional[Dict[str, Any]], bool, str, str]:
+    """TCA 执行前预筛
+
+    预筛否决是软阈值 (escalation 而非 veto)。
+    异常隔离: TCA 异常仅记日志 + tca_error, 主路径不阻断 (fail-safe)。
+    """
+    tca_pre_estimate: Optional[Dict[str, Any]] = None
+    tca_error = ""
+    escalation = False
+    escalation_reason = ""
+
+    if _tca_pre_trade_enabled() and tca_pre_trade_estimator is not None:
+        try:
+            tca_order = {
+                "symbol": execution_plan["symbol"],
+                "side": execution_plan["side"],
+                "shares": execution_plan["qty"],
+                "price": execution_plan["limit_price"],
+                "notional": execution_plan["notional"],
+                "market_cap": (market_data_for_tca or {}).get("market_cap"),
+            }
+            estimate = tca_pre_trade_estimator.estimate(tca_order, market_data_for_tca)
+            tca_pre_estimate = estimate.to_dict()
+            if not estimate.approved:
+                escalation = True
+                escalation_reason = f"TCA 预筛否决: {estimate.rejection_reason}"
+                logger.warning(
+                    "[TCA-PreTrade] %s 预筛否决: %s (cost=%.2f bps)",
+                    decision.symbol, estimate.rejection_reason,
+                    estimate.estimated_cost_bps,
+                )
+            else:
+                logger.info(
+                    "[TCA-PreTrade] %s 预筛通过 (cost=%.2f bps, tier=%s)",
+                    decision.symbol, estimate.estimated_cost_bps,
+                    estimate.tier,
+                )
+        except Exception as exc:
+            logger.error("[ExecutionBridge] TCA 预筛异常 (降级为不预估): %s", exc)
+            tca_error = f"pre_trade: {exc}"
+
+    return tca_pre_estimate, escalation, escalation_reason, tca_error
+
+
+def _dispatch_execution_mode(
+    decision: TradingDecision,
+    execution_plan: Dict[str, Any],
+    mode: str,
+    price: Optional[float],
+    order_router: Any,
+    broker: Any,
+    market_state: str,
+    tca_pre_estimate: Optional[Dict[str, Any]],
+    tca_error: str,
+    risk_result: ExecutionRiskResult,
+) -> Tuple[Optional[Dict[str, Any]], str, bool, str, bool, str]:
+    """模式分派: shadow / paper / auto / unknown
+
+    Returns:
+        (execution_result, msg, veto, veto_reason, mode_escalation, mode_escalation_reason)
+        veto 为 True 时表示灰度回滚到 0, 需由调用方构建最终返回。
+    """
+    execution_result: Optional[Dict[str, Any]] = None
+    msg = ""
+    veto = False
+    veto_reason = ""
+    mode_escalation = False
+    mode_escalation_reason = ""
+
+    if mode == "shadow":
+        msg = f"[SHADOW] {decision.symbol} {decision.action} 仅记录, 不执行"
+        logger.info(msg)
+
+    elif mode == "paper":
+        simulated_fill = _simulate_fill(execution_plan, price or 10.0)
+        execution_result = simulated_fill
+        msg = f"[PAPER] {decision.symbol} {decision.action} 模拟成交 @{simulated_fill.get('avg_price', 0):.2f}"
+        logger.info(msg)
+
+    elif mode == "auto":
+        gs = GrayscaleState.load()
+        should_rb, rb_reason = gs.should_rollback()
+        if should_rb:
+            new_stage = gs.do_rollback()
+            msg = f"[AUTO] 触发回滚 {gs.stage} -> {new_stage}: {rb_reason}"
+            logger.warning(msg)
+            effective_pct = gs.effective_allocation_pct()
+            if effective_pct == 0:
+                veto = True
+                veto_reason = f"灰度回滚到 {new_stage}, 暂停执行"
+                mode_escalation = True
+                mode_escalation_reason = f"灰度回滚至 {new_stage}, 暂停执行: {rb_reason}"
+                return execution_result, msg, veto, veto_reason, mode_escalation, mode_escalation_reason
+
+        if order_router is None or broker is None:
+            msg = "[AUTO] 缺少 OrderRouter/broker, 降级为 paper 执行"
+            logger.warning(msg)
+            execution_result = _simulate_fill(execution_plan, price or 10.0)
+        else:
+            effective_pct = gs.effective_allocation_pct()
+            if 0 < effective_pct < 1.0:
+                original_qty = execution_plan.get("qty", 0)
+                scaled_qty = int(original_qty * effective_pct)
+                scaled_qty = max((scaled_qty // 100) * 100, 100)
+                if scaled_qty != original_qty:
+                    original_price = execution_plan.get("limit_price", 0)
+                    execution_plan = dict(execution_plan)
+                    execution_plan["qty"] = scaled_qty
+                    execution_plan["notional"] = round(scaled_qty * original_price, 2)
+                    if "slice_info" in execution_plan:
+                        slices = execution_plan.get("slices", 1)
+                        new_slice_size = max(scaled_qty // slices, 100)
+                        execution_plan["slice_info"] = {
+                            **execution_plan["slice_info"],
+                            "size": new_slice_size,
+                        }
+                    logger.info(
+                        "[GRAYSCALE] %s 阶段缩放: qty %d -> %d (%.0f%%), "
+                        "notional %.2f -> %.2f",
+                        gs.stage, original_qty, scaled_qty,
+                        effective_pct * 100,
+                        original_qty * original_price,
+                        execution_plan["notional"],
+                    )
+
+            try:
+                start = time.perf_counter()
+                result = order_router.route_order(execution_plan, market_state)
+                elapsed = time.perf_counter() - start
+                execution_result = {
+                    "success": result.get("success", False),
+                    "routed_orders": result.get("routed_orders", []),
+                    "target_pool": result.get("target_pool", ""),
+                    "elapsed_seconds": round(elapsed, 4),
+                }
+                if execution_result["success"]:
+                    msg = (f"[AUTO] {decision.symbol} {decision.action} "
+                           f"已下单, 耗时 {elapsed:.3f}s, "
+                           f"路由 {len(execution_result['routed_orders'])} 笔")
+                else:
+                    mode_escalation = True
+                    mode_escalation_reason = (
+                        f"下单失败: {execution_result.get('error', 'broker 拒单')}"
+                    )
+                    msg = f"[AUTO] {decision.symbol} {decision.action} 下单失败"
+                logger.info(msg)
+            except Exception as exc:
+                logger.error("下单异常: %s", exc)
+                mode_escalation = True
+                mode_escalation_reason = f"下单异常: {exc}"
+                execution_result = {"success": False, "error": str(exc)}
+                msg = f"[AUTO] 下单异常: {exc}"
+
+    else:
+        mode_escalation = True
+        mode_escalation_reason = f"未知模式 {mode}, 按 shadow 处理"
+        msg = f"[{mode}] 未知模式, 按 shadow 处理"
+
+    return execution_result, msg, veto, veto_reason, mode_escalation, mode_escalation_reason
+
+
+def _run_tca_post_trade(
+    tca_post_trade_manager: Any,
+    execution_plan: Dict[str, Any],
+    execution_result: Optional[Dict[str, Any]],
+    market_data_for_tca: Optional[Dict[str, Any]],
+    decision: TradingDecision,
+) -> Tuple[Optional[Dict[str, Any]], str]:
+    """TCA 事后归因
+
+    仅执行成功后调用。异常隔离: 归因异常仅记日志 + tca_error, 主路径不阻断。
+    """
+    tca_post_report: Optional[Dict[str, Any]] = None
+    tca_error = ""
+
+    if not (_tca_post_trade_enabled()
+            and tca_post_trade_manager is not None
+            and execution_result is not None
+            and execution_result.get("success", True)):
+        return tca_post_report, tca_error
+
+    try:
+        fills = _build_fills_from_execution(execution_plan, execution_result)
+        benchmark = _build_benchmark_from_market_data(market_data_for_tca, execution_plan)
+        if fills and benchmark:
+            report = tca_post_trade_manager.analyze(
+                fills=fills,
+                benchmark=benchmark,
+                order_shares=execution_plan.get("qty"),
+            )
+            tca_post_report = _tca_report_to_dict(report)
+            logger.info(
+                "[TCA-PostTrade] %s 归因完成: IS=%.2f bps, grade=%s",
+                decision.symbol,
+                getattr(report, "is_cost_bps", 0.0),
+                getattr(report, "quality_grade", "N/A"),
+            )
+        else:
+            logger.debug(
+                "[TCA-PostTrade] %s 跳过归因 (fills/benchmark 数据不足)",
+                decision.symbol,
+            )
+    except Exception as exc:
+        logger.error("[ExecutionBridge] TCA 事后归因异常: %s", exc)
+        tca_error = f"post_trade: {exc}"
+
+    return tca_post_report, tca_error
+
+
+def _build_success_audit_record(
+    decision: TradingDecision,
+    mode: str,
+    execution_plan: Dict[str, Any],
+    execution_result: Optional[Dict[str, Any]],
+    risk_result: ExecutionRiskResult,
+    veto: bool,
+    veto_reason: str,
+    escalation: bool,
+    escalation_reason: str,
+    tca_pre_estimate: Optional[Dict[str, Any]],
+    tca_post_report: Optional[Dict[str, Any]],
+    tca_error: str,
+    msg: str,
+) -> Dict[str, Any]:
+    """构建成功/最终执行审计记录"""
+    return {
+        "timestamp": datetime.now().isoformat(),
+        "symbol": decision.symbol,
+        "action": decision.action,
+        "mode": mode,
+        "executed": execution_result is not None and execution_result.get("success", False),
+        "execution_plan": execution_plan,
+        "execution_result": execution_result,
+        "risk_checks": risk_result.checks,
+        "decision_confidence": decision.confidence,
+        "decision_strength": decision.strength,
+        "verdict_type": decision.verdict_type,
+        "veto": veto,
+        "veto_reason": veto_reason,
+        "escalation": escalation,
+        "escalation_reason": escalation_reason,
+        "tca_pre_estimate": tca_pre_estimate,
+        "tca_post_report": tca_post_report,
+        "tca_error": tca_error,
+        "message": msg,
+    }
+
+
+def _build_success_return(
+    decision: TradingDecision,
+    mode: str,
+    execution_plan: Dict[str, Any],
+    execution_result: Optional[Dict[str, Any]],
+    risk_result: ExecutionRiskResult,
+    audit_path: str,
+    msg: str,
+    veto: bool,
+    veto_reason: str,
+    escalation: bool,
+    escalation_reason: str,
+    tca_pre_estimate: Optional[Dict[str, Any]],
+    tca_post_report: Optional[Dict[str, Any]],
+    tca_error: str,
+) -> Dict[str, Any]:
+    """构建成功执行后的返回字典"""
+    return {
+        "executed": execution_result is not None and execution_result.get("success", False),
+        "mode": mode,
+        "execution_plan": execution_plan,
+        "execution_result": execution_result,
+        "risk_result": risk_result.__dict__,
+        "audit_path": audit_path,
+        "message": msg,
+        "veto": veto,
+        "veto_reason": veto_reason,
+        "escalation": escalation,
+        "escalation_reason": escalation_reason,
+        "tca_pre_estimate": tca_pre_estimate,
+        "tca_post_report": tca_post_report,
+        "tca_error": tca_error,
+    }
+
+
+# ============================================================
 # 核心桥接函数
 # ============================================================
 
@@ -802,8 +1180,6 @@ def execute_decision(
     mode = force_mode or decision.mode
 
     # ===== 步骤 1: 初始化 escalation 从 decision.escalation 继承 (保留 L1 已设) =====
-    # 设计原则: veto 是硬阈值 (风控直接拦截), escalation 是软阈值 (人工确认)
-    # L1 decision_gate.apply_mode() 可能已设 escalation (如硬风控否决时), 这里继承不覆盖
     escalation: bool = bool(decision.escalation)
     escalation_reason: str = decision.escalation_reason or ""
 
@@ -822,296 +1198,69 @@ def execute_decision(
     risk_result = _execution_risk_check(
         execution_plan, market_state, portfolio_value,
         risk_context=risk_context, decision=decision,
-        mode=mode,  # 传入模式, auto 模式下 price_missing 强制 veto
+        mode=mode,
     )
 
     if risk_result.veto:
-        # 失败分支 1: L2 风控否决 (硬阈值 + 软阈值双触发)
         escalation = True
         escalation_reason = f"L2 风控否决: {risk_result.veto_reason}"
-        record = {
-            "timestamp": datetime.now().isoformat(),
-            "symbol": decision.symbol,
-            "action": decision.action,
-            "mode": mode,
-            "executed": False,
-            "veto": True,
-            "veto_reason": risk_result.veto_reason,
-            "escalation": True,
-            "escalation_reason": escalation_reason,
-            "checks": risk_result.checks,
-        }
-        _write_execution_audit(record)
-        return {
-            "executed": False,
-            "mode": mode,
-            "execution_plan": execution_plan,
-            "execution_result": None,
-            "risk_result": risk_result.__dict__,
-            "audit_path": "",
-            "message": f"L2 执行风控否决: {risk_result.veto_reason}",
-            "veto": True,
-            "veto_reason": risk_result.veto_reason,
-            "escalation": True,
-            "escalation_reason": escalation_reason,
-            # 步骤 2: L2 否决时 TCA 预筛未执行
-            "tca_pre_estimate": None,
-            "tca_post_report": None,
-            "tca_error": "",
-        }
+        return _build_l2_veto_return(
+            decision, mode, risk_result,
+            escalation, escalation_reason, execution_plan
+        )
 
     # ===== Step B+: TCA 执行前预筛 (步骤 2, Feature Flag 控制) =====
-    # 设计: 预筛否决是软阈值 (escalation 而非 veto), 避免 TCA 误判阻断所有小盘股交易
-    # 异常隔离: TCA 异常仅记日志 + tca_error, 主路径不阻断 (fail-safe)
-    if _tca_pre_trade_enabled() and tca_pre_trade_estimator is not None:
-        try:
-            tca_order = {
-                "symbol": execution_plan["symbol"],
-                "side": execution_plan["side"],
-                "shares": execution_plan["qty"],
-                "price": execution_plan["limit_price"],
-                "notional": execution_plan["notional"],
-                "market_cap": (market_data_for_tca or {}).get("market_cap"),
-            }
-            estimate = tca_pre_trade_estimator.estimate(
-                tca_order, market_data_for_tca
-            )
-            tca_pre_estimate = estimate.to_dict()
-            if not estimate.approved:
-                # 软阈值: TCA 预筛否决升级人工确认, 但不硬 veto (executed 仍可 True)
-                escalation = True
-                escalation_reason = f"TCA 预筛否决: {estimate.rejection_reason}"
-                logger.warning(
-                    "[TCA-PreTrade] %s 预筛否决: %s (cost=%.2f bps)",
-                    decision.symbol, estimate.rejection_reason,
-                    estimate.estimated_cost_bps,
-                )
-            else:
-                logger.info(
-                    "[TCA-PreTrade] %s 预筛通过 (cost=%.2f bps, tier=%s)",
-                    decision.symbol, estimate.estimated_cost_bps,
-                    estimate.tier,
-                )
-        except Exception as exc:
-            logger.error("[ExecutionBridge] TCA 预筛异常 (降级为不预估): %s", exc)
-            tca_error = f"pre_trade: {exc}"
-            # 主路径继续 (fail-safe)
+    tca_pre_estimate, pre_escalation, pre_escalation_reason, tca_error = _run_tca_pre_trade(
+        decision, execution_plan, market_data_for_tca, tca_pre_trade_estimator
+    )
+    if pre_escalation:
+        escalation = True
+        escalation_reason = pre_escalation_reason
 
     # ===== Step C: 按模式分派 =====
-    execution_result: Optional[Dict[str, Any]] = None
-    msg = ""
-    # 走到 Step C 说明 L2 风控已通过, 默认 veto=False
-    veto = False
-    veto_reason = ""
+    execution_result, msg, grayscale_veto, veto_reason, mode_escalation, mode_escalation_reason = _dispatch_execution_mode(
+        decision, execution_plan, mode, price, order_router, broker,
+        market_state, tca_pre_estimate, tca_error, risk_result
+    )
 
-    if mode == "shadow":
-        msg = f"[SHADOW] {decision.symbol} {decision.action} 仅记录, 不执行"
-        logger.info(msg)
-
-    elif mode == "paper":
-        # 模拟执行: 生成模拟成交结果
-        simulated_fill = _simulate_fill(execution_plan, price or 10.0)
-        execution_result = simulated_fill
-        msg = f"[PAPER] {decision.symbol} {decision.action} 模拟成交 @{simulated_fill.get('avg_price', 0):.2f}"
-        logger.info(msg)
-
-    elif mode == "auto":
-        # 灰度检查
-        gs = GrayscaleState.load()
-        should_rb, rb_reason = gs.should_rollback()
-        if should_rb:
-            new_stage = gs.do_rollback()
-            msg = f"[AUTO] 触发回滚 {gs.stage} -> {new_stage}: {rb_reason}"
-            logger.warning(msg)
-            # 回滚后当前阶段决定是否执行
-            effective_pct = gs.effective_allocation_pct()
-            if effective_pct == 0:
-                # 失败分支 2: 灰度回滚到 0 (硬阈值 + 软阈值双触发)
-                veto = True
-                veto_reason = f"灰度回滚到 {new_stage}, 暂停执行"
-                escalation = True
-                escalation_reason = f"灰度回滚至 {new_stage}, 暂停执行: {rb_reason}"
-                record = {
-                    "timestamp": datetime.now().isoformat(),
-                    "symbol": decision.symbol,
-                    "action": decision.action,
-                    "mode": mode,
-                    "executed": False,
-                    "veto": True,
-                    "veto_reason": veto_reason,
-                    "escalation": True,
-                    "escalation_reason": escalation_reason,
-                }
-                _write_execution_audit(record)
-                return {
-                    "executed": False,
-                    "mode": mode,
-                    "execution_plan": execution_plan,
-                    "execution_result": None,
-                    "risk_result": risk_result.__dict__,
-                    "audit_path": "",
-                    "message": msg,
-                    "veto": True,
-                    "veto_reason": veto_reason,
-                    "escalation": True,
-                    "escalation_reason": escalation_reason,
-                    # 步骤 2: 灰度回滚时 TCA 预筛已完成, 事后归因未执行
-                    "tca_pre_estimate": tca_pre_estimate,
-                    "tca_post_report": None,
-                    "tca_error": tca_error,
-                }
-
-        # 检查是否具备真实执行条件
-        if order_router is None or broker is None:
-            msg = "[AUTO] 缺少 OrderRouter/broker, 降级为 paper 执行"
-            logger.warning(msg)
-            execution_result = _simulate_fill(execution_plan, price or 10.0)
-        else:
-            # P1 修复: 按灰度阶段缩放执行计划 (grayscale allocation scaling)
-            # auto_10 = 10% 仓位, auto_50 = 50% 仓位, auto_100 = 100% 仓位
-            # 原代码直接发送全尺寸计划, 导致 auto_10 实际敞口为预期的 10x
-            effective_pct = gs.effective_allocation_pct()
-            if 0 < effective_pct < 1.0:
-                original_qty = execution_plan.get("qty", 0)
-                scaled_qty = int(original_qty * effective_pct)
-                # 调整为 100 的整数倍 (A股交易单位), 最小 100 股
-                scaled_qty = max((scaled_qty // 100) * 100, 100)
-                if scaled_qty != original_qty:
-                    original_price = execution_plan.get("limit_price", 0)
-                    execution_plan = dict(execution_plan)  # 浅拷贝, 不修改原计划
-                    execution_plan["qty"] = scaled_qty
-                    execution_plan["notional"] = round(scaled_qty * original_price, 2)
-                    # 同步分片信息
-                    if "slice_info" in execution_plan:
-                        slices = execution_plan.get("slices", 1)
-                        new_slice_size = max(scaled_qty // slices, 100)
-                        execution_plan["slice_info"] = {
-                            **execution_plan["slice_info"],
-                            "size": new_slice_size,
-                        }
-                    logger.info(
-                        "[GRAYSCALE] %s 阶段缩放: qty %d → %d (%.0f%%), "
-                        "notional %.2f → %.2f",
-                        gs.stage, original_qty, scaled_qty,
-                        effective_pct * 100,
-                        original_qty * original_price,
-                        execution_plan["notional"],
-                    )
-
-            # 真实下单
-            try:
-                start = time.perf_counter()
-                result = order_router.route_order(execution_plan, market_state)
-                elapsed = time.perf_counter() - start
-                execution_result = {
-                    "success": result.get("success", False),
-                    "routed_orders": result.get("routed_orders", []),
-                    "target_pool": result.get("target_pool", ""),
-                    "elapsed_seconds": round(elapsed, 4),
-                }
-                if execution_result["success"]:
-                    msg = (f"[AUTO] {decision.symbol} {decision.action} "
-                           f"已下单, 耗时 {elapsed:.3f}s, "
-                           f"路由 {len(execution_result['routed_orders'])} 笔")
-                else:
-                    # 失败分支 3: 下单失败 (仅软阈值, broker 拒单非硬风控)
-                    escalation = True
-                    escalation_reason = (
-                        f"下单失败: {execution_result.get('error', 'broker 拒单')}"
-                    )
-                    msg = f"[AUTO] {decision.symbol} {decision.action} 下单失败"
-                logger.info(msg)
-            except Exception as exc:
-                # 失败分支 4: 下单异常 (仅软阈值, 异常需人工介入)
-                logger.error("下单异常: %s", exc)
-                escalation = True
-                escalation_reason = f"下单异常: {exc}"
-                execution_result = {"success": False, "error": str(exc)}
-                msg = f"[AUTO] 下单异常: {exc}"
-    else:
-        # 失败分支 5: 未知模式 (仅软阈值, 按 shadow 处理但需人工确认)
+    if grayscale_veto:
+        veto = True
         escalation = True
-        escalation_reason = f"未知模式 {mode}, 按 shadow 处理"
-        msg = f"[{mode}] 未知模式, 按 shadow 处理"
+        escalation_reason = mode_escalation_reason
+        return _build_grayscale_veto_return(
+            decision, mode, execution_plan, risk_result,
+            tca_pre_estimate, tca_error, veto_reason,
+            escalation, escalation_reason, msg
+        )
+
+    if mode_escalation:
+        escalation = True
+        escalation_reason = mode_escalation_reason
 
     # ===== Step D: TCA 事后归因 (步骤 2, 仅执行成功后, Feature Flag 控制) =====
-    # 设计: 用决策价 → 执行价计算 Implementation Shortfall, 输出质量评级
-    # 异常隔离: 归因异常仅记日志 + tca_error, 主路径不阻断
-    if (_tca_post_trade_enabled()
-            and tca_post_trade_manager is not None
-            and execution_result is not None
-            and execution_result.get("success", True)):
-        try:
-            fills = _build_fills_from_execution(execution_plan, execution_result)
-            benchmark = _build_benchmark_from_market_data(
-                market_data_for_tca, execution_plan
-            )
-            if fills and benchmark:
-                report = tca_post_trade_manager.analyze(
-                    fills=fills,
-                    benchmark=benchmark,
-                    order_shares=execution_plan.get("qty"),
-                )
-                tca_post_report = _tca_report_to_dict(report)
-                logger.info(
-                    "[TCA-PostTrade] %s 归因完成: IS=%.2f bps, grade=%s",
-                    decision.symbol,
-                    getattr(report, "is_cost_bps", 0.0),
-                    getattr(report, "quality_grade", "N/A"),
-                )
-            else:
-                logger.debug(
-                    "[TCA-PostTrade] %s 跳过归因 (fills/benchmark 数据不足)",
-                    decision.symbol,
-                )
-        except Exception as exc:
-            logger.error("[ExecutionBridge] TCA 事后归因异常: %s", exc)
-            tca_error = f"post_trade: {exc}" if not tca_error else f"{tca_error}; post_trade: {exc}"
-            # 主路径继续 (fail-safe)
+    if execution_result is not None and execution_result.get("success", True):
+        tca_post_report, post_tca_error = _run_tca_post_trade(
+            tca_post_trade_manager, execution_plan, execution_result,
+            market_data_for_tca, decision
+        )
+        if post_tca_error:
+            tca_error = f"{tca_error}; {post_tca_error}" if tca_error else post_tca_error
 
     # ===== 写入执行审计 =====
-    record = {
-        "timestamp": datetime.now().isoformat(),
-        "symbol": decision.symbol,
-        "action": decision.action,
-        "mode": mode,
-        "executed": execution_result is not None and execution_result.get("success", False),
-        "execution_plan": execution_plan,
-        "execution_result": execution_result,
-        "risk_checks": risk_result.checks,
-        "decision_confidence": decision.confidence,
-        "decision_strength": decision.strength,
-        "verdict_type": decision.verdict_type,
-        "veto": veto,
-        "veto_reason": veto_reason,
-        "escalation": escalation,
-        "escalation_reason": escalation_reason,
-        # 步骤 2: TCA 双轨记录 (供步骤 4 看板 + 步骤 7 EOD 复盘消费)
-        "tca_pre_estimate": tca_pre_estimate,
-        "tca_post_report": tca_post_report,
-        "tca_error": tca_error,
-        "message": msg,
-    }
+    veto = False
+    veto_reason = ""
+    record = _build_success_audit_record(
+        decision, mode, execution_plan, execution_result, risk_result,
+        veto, veto_reason, escalation, escalation_reason,
+        tca_pre_estimate, tca_post_report, tca_error, msg
+    )
     audit_path = _write_execution_audit(record)
 
-    return {
-        "executed": record["executed"],
-        "mode": mode,
-        "execution_plan": execution_plan,
-        "execution_result": execution_result,
-        "risk_result": risk_result.__dict__,
-        "audit_path": audit_path,
-        "message": msg,
-        "veto": veto,
-        "veto_reason": veto_reason,
-        "escalation": escalation,
-        "escalation_reason": escalation_reason,
-        # 步骤 2: TCA 双轨返回 (供 cli.py 同步 + 上层决策消费)
-        "tca_pre_estimate": tca_pre_estimate,
-        "tca_post_report": tca_post_report,
-        "tca_error": tca_error,
-    }
-
+    return _build_success_return(
+        decision, mode, execution_plan, execution_result, risk_result,
+        audit_path, msg, veto, veto_reason, escalation, escalation_reason,
+        tca_pre_estimate, tca_post_report, tca_error
+    )
 
 def _simulate_fill(plan: Dict[str, Any], ref_price: float) -> Dict[str, Any]:
     """模拟成交 (paper 模式) — 带 A 股滑点模型"""
