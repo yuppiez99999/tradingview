@@ -214,7 +214,7 @@ def calculate_max_drawdown(details: List) -> float:
         if reports_dir.exists():
             for f in sorted(reports_dir.glob("daily_pnl_report_*.json")):
                 try:
-                    with open(f, "r", encoding="utf-8") as fp:
+                    with open(f, encoding="utf-8") as fp:
                         r = json.load(fp)
                     net_return = _extract_return(r, f.name)
                     if net_return is None:
@@ -243,7 +243,7 @@ def calculate_max_drawdown(details: List) -> float:
                 if any(h["date"] == date_str for h in pnl_history):
                     continue
                 try:
-                    with open(f, "r", encoding="utf-8") as fp:
+                    with open(f, encoding="utf-8") as fp:
                         r = json.load(fp)
                     net_return = _extract_return(r, f.name)
                     if net_return is None:

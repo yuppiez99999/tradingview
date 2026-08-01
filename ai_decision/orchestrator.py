@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.orchestrator — 顶层编排流水线
 =========================================
@@ -21,7 +20,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ai_decision.config import get_config
 from ai_decision.consensus_aggregator import aggregate
@@ -62,7 +61,7 @@ def _write_audit(decision: TradingDecision) -> str:
         return ""
 
 
-def _run_five_agents(symbol: str, ctx) -> Dict[str, Any]:
+def _run_five_agents(symbol: str, ctx) -> dict[str, Any]:
     """集成现有五 Agent (FinanceAgentOrchestrator), 失败则回退规则兜底"""
     try:
         from utils.finance_agent_orchestrator import FinanceAgentOrchestrator
@@ -93,14 +92,14 @@ def _run_five_agents(symbol: str, ctx) -> Dict[str, Any]:
 
 
 def run_decision(symbol: str,
-                 market_data: Optional[Dict[str, Any]] = None,
-                 fundamentals: Optional[Dict[str, Any]] = None,
-                 news: Optional[List[Dict[str, Any]]] = None,
-                 macro: Optional[Dict[str, Any]] = None,
-                 mode: Optional[str] = None,
-                 risk_context: Optional[RiskContext] = None,
-                 health_monitor: Optional[ModelHealthMonitor] = None,
-                 timeout: Optional[int] = None) -> TradingDecision:
+                 market_data: dict[str, Any] | None = None,
+                 fundamentals: dict[str, Any] | None = None,
+                 news: list[dict[str, Any]] | None = None,
+                 macro: dict[str, Any] | None = None,
+                 mode: str | None = None,
+                 risk_context: RiskContext | None = None,
+                 health_monitor: ModelHealthMonitor | None = None,
+                 timeout: int | None = None) -> TradingDecision:
     """运行一次完整决策
 
     Args:
@@ -152,10 +151,10 @@ def run_decision(symbol: str,
     )
 
     ctx_prompt = context_to_prompt(ctx)
-    debate: Optional[DebateDecision] = None
+    debate: DebateDecision | None = None
     debate_record = DebateRecord(symbol=symbol, triggered=False)
 
-    views: List[ModelView] = [bull_prior, bear_prior]
+    views: list[ModelView] = [bull_prior, bear_prior]
 
     if trigger.should_debate() and not _mon.is_circuit_open("judge"):
         # 4a. 触发完整辩论
@@ -241,12 +240,12 @@ def run_decision(symbol: str,
     return decision
 
 
-def run_batch(symbols: List[str], mode: Optional[str] = None,
-              data_provider=None) -> List[TradingDecision]:
+def run_batch(symbols: list[str], mode: str | None = None,
+              data_provider=None) -> list[TradingDecision]:
     """批量决策; data_provider(symbol)->dict 可选, 提供每只标的上游数据"""
-    out: List[TradingDecision] = []
+    out: list[TradingDecision] = []
     for sym in symbols:
-        kwargs: Dict[str, Any] = {"mode": mode}
+        kwargs: dict[str, Any] = {"mode": mode}
         if data_provider:
             try:
                 d = data_provider(sym) or {}

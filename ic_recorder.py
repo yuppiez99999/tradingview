@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """IC 记录器 (N3): 每日计算并持久化 IC, 修复 Bug-B 数据流断裂.
 
 背景: system_integration.py:_hook_drift_and_retrain 读取 reports/daily_ic_scores.json
@@ -72,7 +71,7 @@ def load_ic_store() -> Dict:
     if not os.path.exists(IC_STORE_PATH):
         return {"latest_ic": 0.0, "history": []}
     try:
-        with open(IC_STORE_PATH, "r", encoding="utf-8") as f:
+        with open(IC_STORE_PATH, encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         logger.warning(f"读取 IC 存储失败, 返回空: {e}")
@@ -134,7 +133,7 @@ def record_ic_from_qlib_report(report_path: str) -> Optional[float]:
     if not os.path.exists(report_path):
         return None
     try:
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             report = json.load(f)
         mean_ic = float(report.get("mean_daily_ic", 0) or 0)
         record_daily_ic(mean_ic, source="qlib_report")

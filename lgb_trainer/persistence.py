@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """模型持久化 (B3.5: 从 lgb_enhanced_trainer.py 抽取)
 
 本模块集中以下职责:
@@ -16,7 +15,7 @@ import logging
 import pickle
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger("lgb_enhanced")
 
@@ -38,7 +37,7 @@ def configure_paths(base_dir: Path, models_dir: Path) -> None:
 # ============================================================
 # 模型持久化
 # ============================================================
-def save_model(symbol: str, result: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, str]:
+def save_model(symbol: str, result: dict[str, Any], config: dict[str, Any]) -> dict[str, str]:
     """保存 LGB 模型 + 元数据。
 
     Args:
@@ -59,7 +58,7 @@ def save_model(symbol: str, result: Dict[str, Any], config: Dict[str, Any]) -> D
     with open(model_path, "wb") as f:
         pickle.dump(result["model"], f)
 
-    meta: Dict[str, Any] = {
+    meta: dict[str, Any] = {
         "symbol": symbol,
         "saved_at": datetime.now().isoformat(),
         "model_type": "LightGBM_Enhanced_RealOHLCV_Sentiment",
@@ -94,7 +93,7 @@ def save_model(symbol: str, result: Dict[str, Any], config: Dict[str, Any]) -> D
     return {"model_path": str(model_path), "meta_path": str(meta_path)}
 
 
-def load_model_meta(symbol: str) -> Optional[Dict[str, Any]]:
+def load_model_meta(symbol: str) -> dict[str, Any] | None:
     """加载模型元数据。
 
     Args:
@@ -106,11 +105,11 @@ def load_model_meta(symbol: str) -> Optional[Dict[str, Any]]:
     meta_path = MODELS_DIR / symbol / f"{symbol}_meta.json"
     if not meta_path.exists():
         return None
-    with open(meta_path, "r", encoding="utf-8") as f:
+    with open(meta_path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def should_retrain(symbol: str, config: Dict[str, Any]) -> bool:
+def should_retrain(symbol: str, config: dict[str, Any]) -> bool:
     """根据 retrain_interval_days 判定是否需要重训。
 
     Args:

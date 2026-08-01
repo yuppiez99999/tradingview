@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.config — 配置加载与查询
 ====================================
@@ -15,14 +14,14 @@ ai_decision.config — 配置加载与查询
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 _CONFIG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "v8.3_institutional", "config", "ai_decision.yaml"
 )
 
-DEFAULT_CONFIG: Dict[str, Any] = {
+DEFAULT_CONFIG: dict[str, Any] = {
     "version": "1.0.0",
     # 运行模式: shadow(默认, 仅记录不执行) / paper(模拟) / auto(经阈值放行)
     "mode": "shadow",
@@ -69,10 +68,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     },
 }
 
-_CONFIG: Optional[Dict[str, Any]] = None
+_CONFIG: dict[str, Any] | None = None
 
 
-def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     out = dict(base)
     for k, v in override.items():
         if isinstance(v, dict) and isinstance(out.get(k), dict):
@@ -82,7 +81,7 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
     return out
 
 
-def _load() -> Dict[str, Any]:
+def _load() -> dict[str, Any]:
     global _CONFIG
     if _CONFIG is not None:
         return _CONFIG
@@ -90,7 +89,7 @@ def _load() -> Dict[str, Any]:
     if os.path.exists(_CONFIG_PATH):
         try:
             import yaml
-            with open(_CONFIG_PATH, "r", encoding="utf-8") as fh:
+            with open(_CONFIG_PATH, encoding="utf-8") as fh:
                 user = yaml.safe_load(fh) or {}
             cfg = _deep_merge(cfg, user)
         except Exception as exc:  # 解析失败回退默认

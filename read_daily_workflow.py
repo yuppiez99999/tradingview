@@ -2,7 +2,7 @@
 
 # 读取 daily_workflow.py 的前 300 行
 file_path = 'v8.3_institutional/daily_workflow.py'
-with open(file_path, 'r', encoding='utf-8') as f:
+with open(file_path, encoding='utf-8') as f:
     lines = f.readlines()
 
 print(f'总行数: {len(lines)}')

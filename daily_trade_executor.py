@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 每日自动执行交易计划 (模拟执行 + 人工确认)
 ==========================================
@@ -215,7 +214,7 @@ def load_trade_plan() -> Dict:
     """加载交易计划"""
     if not TRADE_PLAN_FILE.exists():
         return {"stock_etf_account": {"positions": []}}
-    with open(TRADE_PLAN_FILE, "r", encoding="utf-8") as f:
+    with open(TRADE_PLAN_FILE, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -227,7 +226,7 @@ def load_build_progress() -> Dict:
             "daily_records": [],
             "built_amounts": {},  # {code: accumulated_amount}
         }
-    with open(PROGRESS_FILE, "r", encoding="utf-8") as f:
+    with open(PROGRESS_FILE, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -362,7 +361,7 @@ def load_latest_prices() -> Dict[str, float]:
 
     latest_file = json_files[0]
     try:
-        with open(latest_file, "r", encoding="utf-8") as f:
+        with open(latest_file, encoding="utf-8") as f:
             report = json.load(f)
         prices = {}
         for detail in report.get("portfolio_pnl", {}).get("details", []):
@@ -537,7 +536,7 @@ def _get_prediction_prices_index() -> Dict[str, List[float]]:
         json_files = sorted(reports_dir.glob("daily_pnl_report_*.json"))
         for jf in json_files:
             try:
-                with open(jf, "r", encoding="utf-8") as f:
+                with open(jf, encoding="utf-8") as f:
                     report = _json.load(f)
                 # 每个文件内, 同一 symbol 只取第一个匹配 (保持原 break 语义)
                 seen_in_file: set = set()
@@ -1043,7 +1042,7 @@ def confirm_all_instructions(target_date_str: str) -> int:
     if not instruction_file.exists():
         return 0
 
-    with open(instruction_file, "r", encoding="utf-8") as f:
+    with open(instruction_file, encoding="utf-8") as f:
         data = json.load(f)
 
     confirmed_count = 0
@@ -1274,7 +1273,7 @@ def _sync_positions_idempotent(target_date_str: str, confirmed: list, positions:
     """
     execution_file = INSTRUCTIONS_DIR / f"{target_date_str}_execution.json"
     if execution_file.exists():
-        with open(execution_file, "r", encoding="utf-8") as f:
+        with open(execution_file, encoding="utf-8") as f:
             prev_report = json.load(f)
         prev_results = prev_report.get("execution_results", [])
     else:
@@ -1439,7 +1438,7 @@ def execute_instructions(target_date_str: str) -> Dict:
     if not instruction_file.exists():
         return {"status": "error", "reason": f"指令文件不存在: {instruction_file}"}
 
-    with open(instruction_file, "r", encoding="utf-8") as f:
+    with open(instruction_file, encoding="utf-8") as f:
         instructions_data = json.load(f)
 
     # 执行前风控检查 + 筛选已确认指令

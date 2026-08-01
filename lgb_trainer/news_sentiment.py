@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """新闻情绪因子 (B3.5: 从 lgb_enhanced_trainer.py 抽取)
 
 本模块集中以下职责:
@@ -21,7 +20,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -34,14 +33,14 @@ logger = logging.getLogger("lgb_enhanced")
 # ============================================================
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 CACHE_DIR: Path = BASE_DIR / "cache" / "ohlcv"
-LGB_ENHANCED_CONFIG: Dict[str, Any] = {
+LGB_ENHANCED_CONFIG: dict[str, Any] = {
     "news_cache_hours": 6,
     "news_lookback_days": 30,
 }
 
 
 def configure_paths(
-    base_dir: Path, cache_dir: Path, config: Dict[str, Any]
+    base_dir: Path, cache_dir: Path, config: dict[str, Any]
 ) -> None:
     """由主模块注入路径和配置。"""
     global BASE_DIR, CACHE_DIR, LGB_ENHANCED_CONFIG
@@ -53,7 +52,7 @@ def configure_paths(
 # ============================================================
 # 利好/利空关键词 (原 iFinD 关键词 + Wind MCP 新闻常见事件关键词)
 # ============================================================
-NEWS_KEYWORDS_POSITIVE: List[str] = [
+NEWS_KEYWORDS_POSITIVE: list[str] = [
     # 原 iFinD 关键词 (业绩/订单类)
     "预增", "增长", "中标", "订单", "扩产", "出海", "份额提升", "超预期", "盈利", "放量", "景气",
     # Wind MCP 扩展 (事件/资金/技术类)
@@ -61,7 +60,7 @@ NEWS_KEYWORDS_POSITIVE: List[str] = [
     "投产", "启动", "上线", "推出", "成长", "提升", "向好", "强势", "加仓", "登顶", "首破",
 ]
 
-NEWS_KEYWORDS_NEGATIVE: List[str] = [
+NEWS_KEYWORDS_NEGATIVE: list[str] = [
     # 原 iFinD 关键词
     "预减", "下滑", "亏损", "处罚", "减持", "质押", "暴雷", "下调", "断供", "降价", "过剩",
     # Wind MCP 扩展
@@ -70,7 +69,7 @@ NEWS_KEYWORDS_NEGATIVE: List[str] = [
 ]
 
 # 新闻发布时间日期格式
-_PUB_TIME_FORMATS: Tuple[str, ...] = (
+_PUB_TIME_FORMATS: tuple[str, ...] = (
     "%Y-%m-%d %H:%M:%S",
     "%Y-%m-%d",
     "%Y/%m/%d",
@@ -81,7 +80,7 @@ _PUB_TIME_FORMATS: Tuple[str, ...] = (
 # ============================================================
 # 缓存
 # ============================================================
-def _load_news_sentiment_cache(cache_file: Path) -> Optional[Dict[str, pd.DataFrame]]:
+def _load_news_sentiment_cache(cache_file: Path) -> dict[str, pd.DataFrame] | None:
     """加载新闻情绪因子缓存。
 
     Args:
@@ -91,7 +90,7 @@ def _load_news_sentiment_cache(cache_file: Path) -> Optional[Dict[str, pd.DataFr
         缓存的 DataFrame 字典, 失败返回 None
     """
     try:
-        with open(cache_file, "r", encoding="utf-8") as f:
+        with open(cache_file, encoding="utf-8") as f:
             cache = json.load(f)
         return _sentiment_cache_to_df(cache)
     except Exception as e:
@@ -100,7 +99,7 @@ def _load_news_sentiment_cache(cache_file: Path) -> Optional[Dict[str, pd.DataFr
 
 
 def _save_news_sentiment_cache(
-    cache_file: Path, sentiment_dict: Dict[str, pd.DataFrame]
+    cache_file: Path, sentiment_dict: dict[str, pd.DataFrame]
 ) -> None:
     """保存新闻情绪因子到缓存文件。"""
     try:
@@ -117,9 +116,9 @@ def _save_news_sentiment_cache(
         logger.warning(f"保存新闻情绪缓存失败: {e}", exc_info=True)
 
 
-def _sentiment_cache_to_df(cache: Dict) -> Dict[str, pd.DataFrame]:
+def _sentiment_cache_to_df(cache: dict) -> dict[str, pd.DataFrame]:
     """缓存转 DataFrame。"""
-    out: Dict[str, pd.DataFrame] = {}
+    out: dict[str, pd.DataFrame] = {}
     for code, data in cache.items():
         try:
             dates = pd.to_datetime(data["index"])
@@ -139,7 +138,7 @@ def _sentiment_cache_to_df(cache: Dict) -> Dict[str, pd.DataFrame]:
 # ============================================================
 # 数据源初始化
 # ============================================================
-def _init_news_data_sources() -> Tuple[Optional[Callable], Optional[Any]]:
+def _init_news_data_sources() -> tuple[Callable | None, Any | None]:
     """初始化新闻数据源 (Wind MCP 优先, iFinD 回退)。
 
     Returns:
@@ -174,10 +173,10 @@ def _init_news_data_sources() -> Tuple[Optional[Callable], Optional[Any]]:
 def _fetch_news_for_symbol(
     code: str,
     name: str,
-    wind_search_news_fn: Optional[Callable],
-    ifind_analyzer: Optional[Any],
+    wind_search_news_fn: Callable | None,
+    ifind_analyzer: Any | None,
     lookback_days: int,
-) -> Tuple[List[Tuple[str, str, str]], str]:
+) -> tuple[list[tuple[str, str, str]], str]:
     """拉取单个标的的新闻数据 (Wind MCP 优先, iFinD 回退)。
 
     Args:
@@ -190,7 +189,7 @@ def _fetch_news_for_symbol(
     Returns:
         (normalized_news, source) 元组, source 为 "wind"/"ifind"/"none"
     """
-    normalized_news: List[Tuple[str, str, str]] = []
+    normalized_news: list[tuple[str, str, str]] = []
     source = "none"
 
     # 1. 优先 Wind MCP
@@ -233,7 +232,7 @@ def _fetch_news_for_symbol(
 # ============================================================
 # 日期解析与按日聚合
 # ============================================================
-def _parse_news_date(pub_time: str) -> Optional[pd.Timestamp]:
+def _parse_news_date(pub_time: str) -> pd.Timestamp | None:
     """解析新闻发布时间为 Timestamp。"""
     if not pub_time:
         return None
@@ -251,10 +250,10 @@ def _parse_news_date(pub_time: str) -> Optional[pd.Timestamp]:
 
 
 def _aggregate_daily_sentiment(
-    normalized_news: List[Tuple[str, str, str]],
+    normalized_news: list[tuple[str, str, str]],
     dates: pd.DatetimeIndex,
     lookback_days: int,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """按日聚合新闻情绪分。
 
     Args:
@@ -332,10 +331,10 @@ def _compute_sentiment_scores(
 # 主入口
 # ============================================================
 def compute_news_sentiment_factors(
-    symbols: List[Tuple],
+    symbols: list[tuple],
     lookback_days: int = 30,
     use_cache: bool = True,
-) -> Dict[str, pd.DataFrame]:
+) -> dict[str, pd.DataFrame]:
     """计算新闻情绪因子 - 真实历史时间序列版 (Wind MCP 优先, iFinD 回退)。
 
     数据源优先级:
@@ -378,7 +377,7 @@ def compute_news_sentiment_factors(
         logger.warning("Wind MCP 和 iFinD 新闻分析器均不可用, 跳过情绪因子")
         return {}
 
-    sentiment_dict: Dict[str, pd.DataFrame] = {}
+    sentiment_dict: dict[str, pd.DataFrame] = {}
     success_count = 0
     wind_count = 0
     ifind_count = 0
@@ -454,9 +453,9 @@ def compute_news_sentiment_factors(
 
 
 def add_sentiment_features(
-    ohlcv_dict: Dict[str, pd.DataFrame],
-    sentiment_dict: Dict[str, pd.DataFrame],
-) -> Dict[str, pd.DataFrame]:
+    ohlcv_dict: dict[str, pd.DataFrame],
+    sentiment_dict: dict[str, pd.DataFrame],
+) -> dict[str, pd.DataFrame]:
     """将情绪因子合并到 OHLCV 数据上。
 
     Args:
@@ -475,7 +474,7 @@ def add_sentiment_features(
         - sent_acceleration: 情绪加速度 (v3 新增)
         - sent_price_interaction: 情绪-价格交互 (v3 新增)
     """
-    out: Dict[str, pd.DataFrame] = {}
+    out: dict[str, pd.DataFrame] = {}
     for code, df in ohlcv_dict.items():
         new_df = df.copy()
         if code in sentiment_dict:

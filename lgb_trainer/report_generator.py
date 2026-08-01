@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """三方对比报告生成 (B3.5: 从 lgb_enhanced_trainer.py 抽取)
 
 本模块集中以下职责:
@@ -24,7 +23,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -37,14 +36,14 @@ logger = logging.getLogger("lgb_enhanced")
 # 默认值 (若主模块未注入则使用)
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 REPORTS_DIR: Path = BASE_DIR / "reports" / "lgb_enhanced"
-LGB_ENHANCED_CONFIG: Dict[str, Any] = {
+LGB_ENHANCED_CONFIG: dict[str, Any] = {
     "adaptive_retrain_threshold": 5,
     "adaptive_retrain_lr": 0.001,
     "adaptive_retrain_n_estimators": 5000,
 }
 
 
-def configure_paths(base_dir: Path, reports_dir: Path, config: Dict[str, Any]) -> None:
+def configure_paths(base_dir: Path, reports_dir: Path, config: dict[str, Any]) -> None:
     """由主模块注入路径和配置 (在主模块 import 后调用)。
 
     Args:
@@ -59,7 +58,7 @@ def configure_paths(base_dir: Path, reports_dir: Path, config: Dict[str, Any]) -
 
 
 # 扩展特征分类配置 (v2 新增)
-_EXTENDED_FEATURE_CATEGORIES: Dict[str, List[str]] = {
+_EXTENDED_FEATURE_CATEGORIES: dict[str, list[str]] = {
     "行业相对强度": [
         "industry_return_5",
         "industry_return_20",
@@ -88,7 +87,7 @@ _EXTENDED_FEATURE_CATEGORIES: Dict[str, List[str]] = {
 # ============================================================
 # 报告章节构建函数
 # ============================================================
-def _build_report_header(result: Dict[str, Any]) -> List[str]:
+def _build_report_header(result: dict[str, Any]) -> list[str]:
     """构建报告标题 + 优化点说明 + 三方对比表头。"""
     return [
         f"# LightGBM 增强训练报告 - {datetime.now().strftime('%Y-%m-%d')}",
@@ -129,7 +128,7 @@ def _build_report_header(result: Dict[str, Any]) -> List[str]:
     ]
 
 
-def _load_old_meta_metrics(old_models_dir: Path, code: str) -> Tuple[Any, Any]:
+def _load_old_meta_metrics(old_models_dir: Path, code: str) -> tuple[Any, Any]:
     """加载旧集成模型的 R² 和 IC 指标。
 
     Args:
@@ -143,14 +142,14 @@ def _load_old_meta_metrics(old_models_dir: Path, code: str) -> Tuple[Any, Any]:
     old_ic = "N/A"
     old_meta_path = old_models_dir / code / f"{code}_meta.json"
     if old_meta_path.exists():
-        with open(old_meta_path, "r", encoding="utf-8") as f:
+        with open(old_meta_path, encoding="utf-8") as f:
             old_meta = json.load(f)
         old_r2 = old_meta.get("metrics", {}).get("ensemble_r2", "N/A")
         old_ic = old_meta.get("metrics", {}).get("ensemble_ic", "N/A")
     return old_r2, old_ic
 
 
-def _load_tscv_meta_metrics(tscv_models_dir: Path, code: str) -> Tuple[Any, Any]:
+def _load_tscv_meta_metrics(tscv_models_dir: Path, code: str) -> tuple[Any, Any]:
     """加载 LGB+TSCV 模型的 R² 和 IC 指标。
 
     Args:
@@ -164,14 +163,14 @@ def _load_tscv_meta_metrics(tscv_models_dir: Path, code: str) -> Tuple[Any, Any]
     tscv_ic = "N/A"
     tscv_meta_path = tscv_models_dir / code / f"{code}_meta.json"
     if tscv_meta_path.exists():
-        with open(tscv_meta_path, "r", encoding="utf-8") as f:
+        with open(tscv_meta_path, encoding="utf-8") as f:
             tscv_meta = json.load(f)
         tscv_r2 = tscv_meta.get("cv_after_selection", {}).get("mean_r2", "N/A")
         tscv_ic = tscv_meta.get("cv_after_selection", {}).get("mean_ic", "N/A")
     return tscv_r2, tscv_ic
 
 
-def _extract_enhanced_metrics(r: Dict[str, Any]) -> Tuple[Any, Any, Any, Any]:
+def _extract_enhanced_metrics(r: dict[str, Any]) -> tuple[Any, Any, Any, Any]:
     """从训练结果提取增强模型的 R²/IC 及标准差。
 
     Args:
@@ -193,7 +192,7 @@ def _extract_enhanced_metrics(r: Dict[str, Any]) -> Tuple[Any, Any, Any, Any]:
 
 
 def _compute_metric_improvement(
-    old_val: Any, new_val: Any, improvements_list: List[float]
+    old_val: Any, new_val: Any, improvements_list: list[float]
 ) -> str:
     """计算指标改进值并记录到 improvements_list, 返回格式化字符串。
 
@@ -213,8 +212,8 @@ def _compute_metric_improvement(
 
 
 def _build_comparison_table(
-    result: Dict[str, Any], old_models_dir: Path, tscv_models_dir: Path
-) -> Tuple[List[str], List[float], List[float]]:
+    result: dict[str, Any], old_models_dir: Path, tscv_models_dir: Path
+) -> tuple[list[str], list[float], list[float]]:
     """构建三方对比表 (旧集成 / TSCV / 增强)。
 
     Args:
@@ -225,9 +224,9 @@ def _build_comparison_table(
     Returns:
         (table_lines, improvements_r2, improvements_ic) 元组
     """
-    lines: List[str] = []
-    improvements_r2: List[float] = []
-    improvements_ic: List[float] = []
+    lines: list[str] = []
+    improvements_r2: list[float] = []
+    improvements_ic: list[float] = []
     for code, r in result["results"].items():
         if r.get("status") not in ("OK", "CACHED"):
             continue
@@ -246,8 +245,8 @@ def _build_comparison_table(
 
 
 def _build_summary_section(
-    improvements_r2: List[float], improvements_ic: List[float]
-) -> List[str]:
+    improvements_r2: list[float], improvements_ic: list[float]
+) -> list[str]:
     """构建整体改进汇总章节 (R²/IC 平均改进 + 改进标的数)。
 
     Args:
@@ -270,7 +269,7 @@ def _build_summary_section(
     ]
 
 
-def _build_cv_detail_section(result: Dict[str, Any]) -> List[str]:
+def _build_cv_detail_section(result: dict[str, Any]) -> list[str]:
     """构建 CV 详情章节 (特征选择后的交叉验证指标)。"""
     lines = [
         "",
@@ -332,7 +331,7 @@ def _classify_feature_tag(feat: str) -> str:
     return ""
 
 
-def _build_feature_importance_section(result: Dict[str, Any]) -> List[str]:
+def _build_feature_importance_section(result: dict[str, Any]) -> list[str]:
     """构建特征重要性章节 (每个标的 Top 10 特征)。"""
     lines = ["", "## 四、特征重要性 (Top 10)", ""]
     for code, r in result["results"].items():
@@ -350,7 +349,7 @@ def _build_feature_importance_section(result: Dict[str, Any]) -> List[str]:
     return lines
 
 
-def _build_sentiment_stats_section(result: Dict[str, Any]) -> List[str]:
+def _build_sentiment_stats_section(result: dict[str, Any]) -> list[str]:
     """构建情绪因子入选统计章节。"""
     lines = ["", "## 五、情绪因子入选统计", ""]
     sent_included = 0
@@ -369,13 +368,13 @@ def _build_sentiment_stats_section(result: Dict[str, Any]) -> List[str]:
     return lines
 
 
-def _build_extended_feature_section(result: Dict[str, Any]) -> List[str]:
+def _build_extended_feature_section(result: dict[str, Any]) -> list[str]:
     """构建扩展特征入选统计章节 (行业/资金流向/跨市场信号)。"""
     lines = ["", "## 五(补)、扩展特征入选统计 (v2 新增)", ""]
     total_ok = sum(1 for r in result["results"].values() if r.get("status") == "OK")
     for cat_name, cat_features in _EXTENDED_FEATURE_CATEGORIES.items():
         included_count = 0
-        included_details: List[str] = []
+        included_details: list[str] = []
         for code, r in result["results"].items():
             if r.get("status") != "OK":
                 continue
@@ -390,7 +389,7 @@ def _build_extended_feature_section(result: Dict[str, Any]) -> List[str]:
     return lines
 
 
-def _build_adaptive_retrain_section(result: Dict[str, Any]) -> List[str]:
+def _build_adaptive_retrain_section(result: dict[str, Any]) -> list[str]:
     """构建自适应重训统计章节 (欠拟合标的)。"""
     adaptive_count = 0
     adaptive_improved = 0
@@ -412,7 +411,7 @@ def _build_adaptive_retrain_section(result: Dict[str, Any]) -> List[str]:
     ]
 
 
-def _build_risk_notes_section(report_path: Path) -> List[str]:
+def _build_risk_notes_section(report_path: Path) -> list[str]:
     """构建风险提示章节 (含报告路径和信号文件位置)。"""
     return [
         "",
@@ -432,7 +431,7 @@ def _build_risk_notes_section(report_path: Path) -> List[str]:
 # ============================================================
 # 主入口
 # ============================================================
-def generate_comparison_report(result: Dict[str, Any]) -> Path:
+def generate_comparison_report(result: dict[str, Any]) -> Path:
     """生成三方对比报告。
 
     Args:

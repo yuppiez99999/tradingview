@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 只监控用户交易计划中的 14 个标的。
 数据源优先级：iFinD MCP > Wind MCP > 新浪 HTTP

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """训练器核心层 (B3.5: 从 lgb_enhanced_trainer.py 抽取)
 
 本模块集中以下职责:
@@ -25,7 +24,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -64,9 +63,9 @@ def train_lgb_with_fallback(
     y_train: np.ndarray,
     X_eval: np.ndarray,
     y_eval: np.ndarray,
-    config: Dict[str, Any],
+    config: dict[str, Any],
     log_tag: str = "",
-) -> Tuple[Any, str]:
+) -> tuple[Any, str]:
     """训练 LightGBM 模型 (GPU 失败自动回退 CPU)
 
     Args:
@@ -128,8 +127,8 @@ def reset_gpu_disabled_flag() -> None:
 def train_symbol_enhanced(
     symbol: str,
     df: pd.DataFrame,
-    config: Dict[str, Any],
-) -> Dict[str, Any]:
+    config: dict[str, Any],
+) -> dict[str, Any]:
     """训练单标的: 真实OHLCV + 情绪因子 + 放宽早停
 
     流程:
@@ -383,9 +382,9 @@ def compute_regime_series(
 def _prepare_regime_training_data(
     symbol: str,
     df: pd.DataFrame,
-    config: Dict[str, Any],
+    config: dict[str, Any],
     regime_series: pd.Series,
-) -> Optional[Tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series, int, int, List[str]]]:
+) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series, int, int, list[str]] | None:
     """准备 regime 训练数据: 构建标签 + 对齐 regime + 分割样本。
 
     Returns:
@@ -422,11 +421,11 @@ def _train_one_regime_model(
     df: pd.DataFrame,
     mask: pd.Series,
     n_samples: int,
-    all_feature_cols: List[str],
-    config: Dict[str, Any],
+    all_feature_cols: list[str],
+    config: dict[str, Any],
     regime_label: str,
     min_samples_per_regime: int,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """训练单个 regime 子集模型 (bull 或 non_bull)。
 
     Returns:
@@ -465,9 +464,9 @@ def _train_one_regime_model(
 def _train_full_fallback_model(
     symbol: str,
     df: pd.DataFrame,
-    config: Dict[str, Any],
+    config: dict[str, Any],
     need_full: bool,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Fallback: 训练全样本模型 (用于 regime 模型均失败时)。
 
     Returns:
@@ -491,10 +490,10 @@ def _train_full_fallback_model(
 
 def _select_active_regime_model(
     regime_aligned: pd.Series,
-    bull_result: Optional[Dict[str, Any]],
-    non_bull_result: Optional[Dict[str, Any]],
-    full_result: Optional[Dict[str, Any]],
-) -> Tuple[str, Dict[str, Any]]:
+    bull_result: dict[str, Any] | None,
+    non_bull_result: dict[str, Any] | None,
+    full_result: dict[str, Any] | None,
+) -> tuple[str, dict[str, Any]]:
     """选择当前 regime 对应的模型 (用最新样本的 regime)。"""
     current_regime = regime_aligned.iloc[-1] if len(regime_aligned) > 0 else "unknown"
     if current_regime == "bull" and bull_result is not None:
@@ -511,10 +510,10 @@ def _select_active_regime_model(
 def train_symbol_regime_specific(
     symbol: str,
     df: pd.DataFrame,
-    config: Dict[str, Any],
+    config: dict[str, Any],
     regime_series: pd.Series,
     min_samples_per_regime: int = 100,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """V9: 训练 regime-specific 双模型 (bull / non-bull)
 
     Args:
@@ -595,11 +594,11 @@ def train_symbol_regime_specific(
 def _train_regime_subset(
     symbol: str,
     df_sub: pd.DataFrame,
-    all_feature_cols: List[str],
-    config: Dict[str, Any],
+    all_feature_cols: list[str],
+    config: dict[str, Any],
     regime_label: str,
     min_samples_per_regime: int = 100,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """训练单个 regime 子集的 LGB 模型 (复用 train_symbol_enhanced 流程)
 
     Args:
@@ -642,7 +641,7 @@ def _train_regime_subset(
 # ============================================================
 # 完整训练流程编排 (run_enhanced_training)
 # ============================================================
-def _log_training_header(config: Dict[str, Any], use_news: bool, symbols: List[Tuple]) -> None:
+def _log_training_header(config: dict[str, Any], use_news: bool, symbols: list[tuple]) -> None:
     """输出训练头日志 + GPU 可用性验证。"""
     logger.info("#" * 70)
     logger.info("# LightGBM 增强训练 (真实OHLCV + 情绪因子 + 放宽早停)")
@@ -657,7 +656,7 @@ def _log_training_header(config: Dict[str, Any], use_news: bool, symbols: List[T
     logger.info("#" * 70)
 
 
-def _verify_gpu_availability(config: Dict[str, Any]) -> None:
+def _verify_gpu_availability(config: dict[str, Any]) -> None:
     """v8.7: GPU 可用性验证 (失败时回退 CPU 并打印警告)。"""
     try:
         import lightgbm as _lgb
@@ -678,10 +677,10 @@ def _verify_gpu_availability(config: Dict[str, Any]) -> None:
 
 
 def _build_all_features(
-    symbols: List[Tuple],
-    config: Dict[str, Any],
+    symbols: list[tuple],
+    config: dict[str, Any],
     use_news: bool,
-) -> Optional[Dict[str, pd.DataFrame]]:
+) -> dict[str, pd.DataFrame] | None:
     """执行 Step 1~3: 拉取 OHLCV + 技术因子 + 扩展特征 + 新闻情绪因子。
 
     Returns:
@@ -734,11 +733,11 @@ def _build_all_features(
 
 
 def _build_sentiment_features(
-    featured_dict: Dict[str, pd.DataFrame],
-    symbols: List[Tuple],
+    featured_dict: dict[str, pd.DataFrame],
+    symbols: list[tuple],
     use_news: bool,
-    config: Dict[str, Any],
-) -> Dict[str, pd.DataFrame]:
+    config: dict[str, Any],
+) -> dict[str, pd.DataFrame]:
     """Step 3: 构建新闻情绪因子 (Wind MCP 优先, iFinD 回退)。"""
     from .news_sentiment import add_sentiment_features, compute_news_sentiment_factors
 
@@ -759,7 +758,7 @@ def _build_sentiment_features(
     return featured_dict
 
 
-def _resolve_symbol_config(code: str, config: Dict[str, Any]) -> Dict[str, Any]:
+def _resolve_symbol_config(code: str, config: dict[str, Any]) -> dict[str, Any]:
     """N4: 自适应超参数优化 (基于漂移信号)。
 
     在训练前根据模型漂移状态动态调整 LGB 配置。
@@ -800,10 +799,10 @@ def _train_single_symbol(
     code: str,
     name: str,
     style: str,
-    featured_dict: Dict[str, pd.DataFrame],
-    config: Dict[str, Any],
+    featured_dict: dict[str, pd.DataFrame],
+    config: dict[str, Any],
     force_retrain: bool,
-) -> Tuple[str, Dict[str, Any]]:
+) -> tuple[str, dict[str, Any]]:
     """训练单个标的。
 
     Returns:
@@ -844,7 +843,7 @@ def _train_single_symbol(
         return "FAIL", {"status": "FAIL", "symbol": code, "error": str(e)}
 
 
-def _mark_quality_flag(code: str, result: Dict[str, Any], config: Dict[str, Any]) -> None:
+def _mark_quality_flag(code: str, result: dict[str, Any], config: dict[str, Any]) -> None:
     """根据 CV 指标设置 quality_flag。"""
     cv_metrics = result["cv_after_selection"]
     quality_ok = (
@@ -863,7 +862,7 @@ def _mark_quality_flag(code: str, result: Dict[str, Any], config: Dict[str, Any]
         result["quality_flag"] = "OK"
 
 
-def _log_saved_symbol(code: str, result: Dict[str, Any]) -> None:
+def _log_saved_symbol(code: str, result: dict[str, Any]) -> None:
     """输出训练成功日志。"""
     cv_metrics = result["cv_after_selection"]
     logger.info(
@@ -879,10 +878,10 @@ def _log_saved_symbol(code: str, result: Dict[str, Any]) -> None:
     )
 
 
-def _generate_integrated_signals(results: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+def _generate_integrated_signals(results: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Step 5: 生成集成信号文件。"""
     logger.info("Step 5: 生成集成信号")
-    signals: Dict[str, Any] = {}
+    signals: dict[str, Any] = {}
     for code, res in results.items():
         if res.get("status") in ("OK", "CACHED"):
             signals[code] = {
@@ -894,7 +893,7 @@ def _generate_integrated_signals(results: Dict[str, Dict[str, Any]]) -> Dict[str
             }
 
     signals_path = MODELS_DIR / "lgb_enhanced_signals.json"
-    signals_data: Dict[str, Any] = {
+    signals_data: dict[str, Any] = {
         "generated_at": datetime.now().isoformat(),
         "trade_date": datetime.now().strftime("%Y-%m-%d"),
         "model_type": "LightGBM_Enhanced_RealOHLCV_Sentiment",
@@ -915,11 +914,11 @@ def _generate_integrated_signals(results: Dict[str, Dict[str, Any]]) -> Dict[str
 
 
 def run_enhanced_training(
-    symbols: Optional[List[Tuple]] = None,
+    symbols: list[tuple] | None = None,
     force_retrain: bool = False,
-    config: Optional[Dict[str, Any]] = None,
+    config: dict[str, Any] | None = None,
     use_news: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """执行增强训练
 
     Args:
@@ -981,7 +980,7 @@ def run_enhanced_training(
 
     # Step 4: 训练
     logger.info("Step 4: 训练 LightGBM + TSCV (放宽早停)")
-    results: Dict[str, Dict[str, Any]] = {}
+    results: dict[str, dict[str, Any]] = {}
     saved = 0
     skipped = 0
     failed = 0

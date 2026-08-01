@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.cli — 命令行入口
 ============================
@@ -21,7 +20,6 @@ import json
 import logging
 import os
 import sys
-from typing import List
 
 from ai_decision.decision_gate import RiskContext
 from ai_decision.execution_bridge import execute_decision
@@ -46,7 +44,7 @@ def _build_risk_context(args) -> RiskContext:
     )
 
 
-def main(argv: List[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ai_decision", description="多 AI 辩论共识自动交易决策系统")
     parser.add_argument("--symbol", help="单标的代码, 如 600519")
@@ -113,8 +111,8 @@ def main(argv: List[str] | None = None) -> int:
         return 0
 
     # batch
-    symbols: List[str] = []
-    with open(args.batch, "r", encoding="utf-8") as fh:
+    symbols: list[str] = []
+    with open(args.batch, encoding="utf-8") as fh:
         for line in fh:
             s = line.strip()
             if s and not s.startswith("#"):

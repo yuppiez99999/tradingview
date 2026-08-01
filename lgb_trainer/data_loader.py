@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """真实 OHLCV 数据加载 (B3.5: 从 lgb_enhanced_trainer.py 抽取)
 
 本模块集中以下职责:
@@ -16,7 +15,6 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -45,7 +43,7 @@ def configure_paths(base_dir: Path, cache_dir: Path) -> None:
 # ============================================================
 # 真实 OHLCV 数据加载
 # ============================================================
-def load_real_ohlcv(symbol: str, period: str = "2y") -> Optional[pd.DataFrame]:
+def load_real_ohlcv(symbol: str, period: str = "2y") -> pd.DataFrame | None:
     """拉取真实 OHLCV (free-stockdb 本地优先, 自动回退 MarketDataProvider)
 
     数据源优先级 (阶段 1: 研究/训练专用, 不影响实盘):
@@ -114,9 +112,9 @@ def load_real_ohlcv(symbol: str, period: str = "2y") -> Optional[pd.DataFrame]:
 
 
 def fetch_all_real_ohlcv(
-    symbols: List[Tuple],
+    symbols: list[tuple],
     period: str = "2y",
-) -> Dict[str, pd.DataFrame]:
+) -> dict[str, pd.DataFrame]:
     """批量拉取真实 OHLCV
 
     Args:
@@ -126,7 +124,7 @@ def fetch_all_real_ohlcv(
     Returns:
         {code: DataFrame}
     """
-    ohlcv_dict: Dict[str, pd.DataFrame] = {}
+    ohlcv_dict: dict[str, pd.DataFrame] = {}
     logger.info(f"拉取真实 OHLCV 数据 ({period})...")
     for code, suffix, _, name, _ in symbols:
         symbol = f"{code}{suffix}"

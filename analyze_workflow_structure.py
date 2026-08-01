@@ -40,7 +40,7 @@ def analyze_file(filepath: str):
     print(f"分析文件: {filepath}")
     print('='*70)
 
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, encoding='utf-8') as f:
         source = f.read()
 
     try:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LightGBM + 时间序列交叉验证训练器
 =================================
@@ -30,7 +29,7 @@ import pickle
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -101,11 +100,11 @@ logger = logging.getLogger("lgb_tscv")
 def time_series_cv_evaluate(
     X: np.ndarray,
     y: np.ndarray,
-    config: Dict,
+    config: dict,
     n_splits: int = 5,
     use_purged: bool = True,
     embargo_pct: float = 0.01,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """时间序列交叉验证评估 (v8.3.2: Purged KFold 防泄漏)
 
     使用 Purged TimeSeriesSplit 进行滚动窗口验证:
@@ -291,11 +290,11 @@ def _signal_sharpe(y_true, y_pred):
 # 特征选择
 # ============================================================
 def select_features_by_importance(
-    feature_cols: List[str],
+    feature_cols: list[str],
     importances: np.ndarray,
     threshold: float = 5.0,
     top_n: int = 15,
-) -> List[str]:
+) -> list[str]:
     """根据 CV 平均特征重要性筛选特征
 
     Args:
@@ -325,8 +324,8 @@ def select_features_by_importance(
 def train_symbol_with_cv(
     symbol: str,
     df: pd.DataFrame,
-    config: Dict,
-) -> Dict[str, Any]:
+    config: dict,
+) -> dict[str, Any]:
     """训练单标的: CV 评估 -> 特征选择 -> 最终模型
 
     流程:
@@ -467,7 +466,7 @@ def train_symbol_with_cv(
 # ============================================================
 # 模型持久化
 # ============================================================
-def save_model(symbol: str, result: Dict, config: Dict) -> Dict:
+def save_model(symbol: str, result: dict, config: dict) -> dict:
     """保存模型与元数据"""
     symbol_dir = MODELS_DIR / symbol
     symbol_dir.mkdir(exist_ok=True)
@@ -513,16 +512,16 @@ def save_model(symbol: str, result: Dict, config: Dict) -> Dict:
     }
 
 
-def load_model_meta(symbol: str) -> Optional[Dict]:
+def load_model_meta(symbol: str) -> dict | None:
     """加载已有模型的元数据"""
     meta_path = MODELS_DIR / symbol / f"{symbol}_meta.json"
     if not meta_path.exists():
         return None
-    with open(meta_path, "r", encoding="utf-8") as f:
+    with open(meta_path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def should_retrain(symbol: str, config: Dict) -> bool:
+def should_retrain(symbol: str, config: dict) -> bool:
     meta = load_model_meta(symbol)
     if meta is None:
         return True
@@ -535,10 +534,10 @@ def should_retrain(symbol: str, config: Dict) -> bool:
 # 主训练流程
 # ============================================================
 def run_lgb_tscv_training(
-    symbols: Optional[List[Tuple]] = None,
+    symbols: list[tuple] | None = None,
     force_retrain: bool = False,
-    config: Optional[Dict] = None,
-) -> Dict[str, Any]:
+    config: dict | None = None,
+) -> dict[str, Any]:
     """执行 LightGBM + TSCV 训练
 
     Args:
@@ -698,20 +697,20 @@ def run_lgb_tscv_training(
 # ============================================================
 # 对比报告
 # ============================================================
-def _load_old_model_metrics(code: str, old_models_dir: Path) -> Tuple[Any, Any]:
+def _load_old_model_metrics(code: str, old_models_dir: Path) -> tuple[Any, Any]:
     """加载旧模型元数据中的 ensemble_r2 / ensemble_ic"""
     old_meta_path = old_models_dir / code / f"{code}_meta.json"
     old_r2 = "N/A"
     old_ic = "N/A"
     if old_meta_path.exists():
-        with open(old_meta_path, "r", encoding="utf-8") as f:
+        with open(old_meta_path, encoding="utf-8") as f:
             old_meta = json.load(f)
         old_r2 = old_meta.get("metrics", {}).get("ensemble_r2", "N/A")
         old_ic = old_meta.get("metrics", {}).get("ensemble_ic", "N/A")
     return old_r2, old_ic
 
 
-def _extract_new_metrics(r: Dict) -> Tuple[Any, Any, float, float]:
+def _extract_new_metrics(r: dict) -> tuple[Any, Any, float, float]:
     """从结果中提取新模型指标"""
     if r.get("status") == "OK":
         new_r2 = r["cv_after_selection"]["mean_r2"]
@@ -734,7 +733,7 @@ def _compute_improvement(old_val: Any, new_val: Any) -> str:
     return "N/A"
 
 
-def _build_report_header(result: Dict, report_path: Path) -> List[str]:
+def _build_report_header(result: dict, report_path: Path) -> list[str]:
     """构建报告头部"""
     return [
         f"# LightGBM + TSCV 训练报告 - {datetime.now().strftime('%Y-%m-%d')}",
@@ -766,11 +765,11 @@ def _build_report_header(result: Dict, report_path: Path) -> List[str]:
     ]
 
 
-def _build_comparison_table(result: Dict, old_models_dir: Path) -> Tuple[List[str], List[float], List[float]]:
+def _build_comparison_table(result: dict, old_models_dir: Path) -> tuple[list[str], list[float], list[float]]:
     """构建新旧模型对比表格"""
     lines = []
-    improvements_r2: List[float] = []
-    improvements_ic: List[float] = []
+    improvements_r2: list[float] = []
+    improvements_ic: list[float] = []
 
     for code, r in result["results"].items():
         if r.get("status") not in ("OK", "CACHED"):
@@ -795,7 +794,7 @@ def _build_comparison_table(result: Dict, old_models_dir: Path) -> Tuple[List[st
     return lines, improvements_r2, improvements_ic
 
 
-def _build_improvement_summary(improvements_r2: List[float], improvements_ic: List[float]) -> List[str]:
+def _build_improvement_summary(improvements_r2: list[float], improvements_ic: list[float]) -> list[str]:
     """构建整体改进汇总"""
     if not improvements_r2:
         return []
@@ -810,7 +809,7 @@ def _build_improvement_summary(improvements_r2: List[float], improvements_ic: Li
     ]
 
 
-def _build_cv_details_section(result: Dict) -> List[str]:
+def _build_cv_details_section(result: dict) -> list[str]:
     """构建 CV 详情表格"""
     lines = [
         "",
@@ -836,7 +835,7 @@ def _build_cv_details_section(result: Dict) -> List[str]:
     return lines
 
 
-def _build_top_features_section(result: Dict) -> List[str]:
+def _build_top_features_section(result: dict) -> list[str]:
     """构建特征重要性章节"""
     lines = [
         "",
@@ -857,7 +856,7 @@ def _build_top_features_section(result: Dict) -> List[str]:
     return lines
 
 
-def _build_cv_folds_section(result: Dict) -> List[str]:
+def _build_cv_folds_section(result: dict) -> list[str]:
     """构建 CV 折详情章节 (第一个 OK 标的)"""
     lines = [
         "",
@@ -881,7 +880,7 @@ def _build_cv_folds_section(result: Dict) -> List[str]:
     return lines
 
 
-def _build_risk_notes(report_path: Path) -> List[str]:
+def _build_risk_notes(report_path: Path) -> list[str]:
     """构建风险提示"""
     return [
         "",
@@ -898,7 +897,7 @@ def _build_risk_notes(report_path: Path) -> List[str]:
     ]
 
 
-def generate_comparison_report(result: Dict) -> Path:
+def generate_comparison_report(result: dict) -> Path:
     """生成新旧模型对比报告"""
     today = datetime.now().strftime("%Y%m%d")
     report_path = REPORTS_DIR / f"lgb_tscv_report_{today}.md"

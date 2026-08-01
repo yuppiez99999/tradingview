@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 今日对冲数量计算器
 基于组合结构 + v7.5 引擎
@@ -17,7 +16,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # 读取持仓
 positions_path = PROJECT_ROOT / "config" / "positions.json"
-with open(positions_path, "r", encoding="utf-8") as f:
+with open(positions_path, encoding="utf-8") as f:
     positions_data = json.load(f)["positions"]
 
 positions = {}

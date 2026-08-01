@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 对冲执行单生成器 v2.1
 修复: C4 期货品种精确匹配 / C5 期货价格从配置读取 / M11 strike 类型统一 / M18 None 防御 / C9 归档路径统一
@@ -125,7 +124,7 @@ def _get_futures_price(instrument: str, prices: dict, cfg: Optional[dict] = None
 def load_positions():
     # C8 修复: 使用动态 PROJECT_ROOT
     path = PROJECT_ROOT / "config" / "positions.json"
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     positions = {}
     prices = {}
@@ -600,7 +599,7 @@ def _find_latest_hedge_plan(reports_dir: str) -> dict:
     if not prev_dates:
         return default_plan
     try:
-        with open(os.path.join(reports_dir, prev_dates[0]), "r", encoding="utf-8") as f:
+        with open(os.path.join(reports_dir, prev_dates[0]), encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         raise  # Re-raise unknown exception
@@ -624,7 +623,7 @@ def _load_hedge_plan(reports_dir: str, today_str: str) -> dict:
     plan_path = os.path.join(reports_dir, f"hedge_decision_{today_str}.json")
     if os.path.exists(plan_path):
         try:
-            with open(plan_path, "r", encoding="utf-8") as f:
+            with open(plan_path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             raise  # Re-raise unknown exception

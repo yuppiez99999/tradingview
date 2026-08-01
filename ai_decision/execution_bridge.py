@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.execution_bridge — 决策→执行桥接层
 ================================================
@@ -29,7 +28,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, ClassVar, Dict, List, Optional, Tuple
+from typing import Any, ClassVar
 
 from ai_decision.config import get_config
 from ai_decision.decision_gate import RiskContext, run_hard_risk
@@ -51,12 +50,12 @@ class GrayscaleState:
     stage: str = "shadow"                     # shadow / paper / auto_10 / auto_50 / auto_100
     started_at: str = ""                      # 当前阶段开始时间 ISO
     cumulative_pnl: float = 0.0               # 累计 PnL
-    daily_pnl_series: List[float] = field(default_factory=list)  # 最近 30 日 PnL
+    daily_pnl_series: list[float] = field(default_factory=list)  # 最近 30 日 PnL
     consecutive_losses: int = 0               # 连续亏损天数
     rollback_count: int = 0                   # 回滚次数
     last_evaluation: str = ""                 # 上次评估时间
     # Step 5 新增: 推进条件评估所需指标
-    daily_decision_count: List[int] = field(default_factory=list)  # 每日决策数 (shadow→paper 条件)
+    daily_decision_count: list[int] = field(default_factory=list)  # 每日决策数 (shadow→paper 条件)
     paper_fill_rate: float = 0.0              # paper 阶段模拟成交率 (paper→auto_10 条件)
     escalation_count: int = 0                 # 当前阶段 escalation 计数 (paper→auto_10 条件)
 
@@ -72,7 +71,7 @@ class GrayscaleState:
         """
         try:
             if os.path.exists(_GRAYSCALE_STATE_FILE):
-                with open(_GRAYSCALE_STATE_FILE, "r", encoding="utf-8") as fh:
+                with open(_GRAYSCALE_STATE_FILE, encoding="utf-8") as fh:
                     data = json.load(fh)
                     return cls(**{k: data.get(k, v) for k, v in cls().__dict__.items()})
         except Exception as e:
@@ -101,12 +100,12 @@ class GrayscaleState:
             json.dump({k: getattr(self, k) for k in self.__dict__},
                       fh, ensure_ascii=False, indent=2)
 
-    def should_rollback(self) -> Tuple[bool, str]:
+    def should_rollback(self) -> tuple[bool, str]:
         """检查是否应触发回滚 (在 auto 模式下每笔交易前调用)"""
         if self.stage in ("shadow", "paper"):
             return False, ""
 
-        reasons: List[str] = []
+        reasons: list[str] = []
 
         # 1. 连续亏损 (连续 5 笔亏损回滚一档, 连续 8 笔回滚到 paper)
         if self.consecutive_losses >= 8:
@@ -174,7 +173,7 @@ class GrayscaleState:
 
     # 推进条件矩阵 (roadmap line 303-310)
     # ClassVar 标记为类变量, 不被 dataclass 当作字段
-    _ADVANCE_MAP: ClassVar[Dict[str, Tuple[str, int]]] = {
+    _ADVANCE_MAP: ClassVar[dict[str, tuple[str, int]]] = {
         # 当前阶段 → (下一阶段, 最小停留天数)
         "shadow":  ("paper",   14),  # shadow → paper: 跑满 14 天
         "paper":   ("auto_10", 3),   # paper → auto_10: 跑满 3 天
@@ -207,7 +206,7 @@ class GrayscaleState:
             return 0.0
         return sum(self.daily_decision_count) / len(self.daily_decision_count)
 
-    def _check_advance_conditions(self) -> Tuple[bool, str]:
+    def _check_advance_conditions(self) -> tuple[bool, str]:
         """检查当前阶段是否满足推进条件 (推进条件矩阵)
 
         推进条件矩阵 (roadmap line 303-310):
@@ -276,9 +275,9 @@ class GrayscaleState:
         self,
         daily_pnl: float = 0.0,
         daily_decision_count: int = 0,
-        paper_fill_rate: Optional[float] = None,
-        escalation_count: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        paper_fill_rate: float | None = None,
+        escalation_count: int | None = None,
+    ) -> dict[str, Any]:
         """灰度自动推进主函数 (含 14 天硬约束自检)
 
         每日 EOD 调用一次, 记录当日指标并尝试推进灰度阶段.
@@ -384,9 +383,9 @@ class GrayscaleState:
 def _generate_execution_plan(
     decision: TradingDecision,
     portfolio_value: float,
-    price: Optional[float] = None,
-    max_single_pct: Optional[float] = None,
-) -> Dict[str, Any]:
+    price: float | None = None,
+    max_single_pct: float | None = None,
+) -> dict[str, Any]:
     """将 TradingDecision 映射为 OrderRouter.route_order() 可消费的执行计划
 
     Args:
@@ -492,15 +491,15 @@ class ExecutionRiskResult:
     passed: bool = True
     veto: bool = False
     veto_reason: str = ""
-    checks: Dict[str, Any] = field(default_factory=dict)
+    checks: dict[str, Any] = field(default_factory=dict)
 
 
 def _execution_risk_check(
-    execution_plan: Dict[str, Any],
+    execution_plan: dict[str, Any],
     market_state: str = "normal",
     portfolio_value: float = 1_000_000.0,
-    risk_context: Optional[RiskContext] = None,
-    decision: Optional[TradingDecision] = None,
+    risk_context: RiskContext | None = None,
+    decision: TradingDecision | None = None,
     mode: str = "shadow",
 ) -> ExecutionRiskResult:
     """L2 执行层硬风控 — 下单前最后一次拦截
@@ -522,8 +521,8 @@ def _execution_risk_check(
         ExecutionRiskResult (passed/veto/veto_reason/checks)
     """
     result = ExecutionRiskResult()
-    checks: Dict[str, Any] = {}
-    veto_reasons: List[str] = []
+    checks: dict[str, Any] = {}
+    veto_reasons: list[str] = []
 
     # ===== Phase 1: 复用 L1 decision_gate.run_hard_risk() =====
     if risk_context is not None and decision is not None:
@@ -600,7 +599,7 @@ def _execution_risk_check(
 # 执行审计
 # ============================================================
 
-def _write_execution_audit(record: Dict[str, Any]) -> str:
+def _write_execution_audit(record: dict[str, Any]) -> str:
     """写入执行审计日志"""
     os.makedirs(_EXEC_AUDIT_DIR, exist_ok=True)
     path = os.path.join(_EXEC_AUDIT_DIR,
@@ -641,9 +640,9 @@ def _tca_post_trade_enabled() -> bool:
 # ============================================================
 
 def _build_fills_from_execution(
-    execution_plan: Dict[str, Any],
-    execution_result: Dict[str, Any],
-) -> List[Any]:
+    execution_plan: dict[str, Any],
+    execution_result: dict[str, Any],
+) -> list[Any]:
     """从 execution_result 构造 FillRecord 列表 (供 TCAManager.analyze 使用)
 
     兼容 paper 模式 (_simulate_fill 返回 average_price) 和 auto 模式 (routed_orders)
@@ -686,9 +685,9 @@ def _build_fills_from_execution(
 
 
 def _build_benchmark_from_market_data(
-    market_data: Optional[Dict[str, Any]],
-    execution_plan: Dict[str, Any],
-) -> Optional[Any]:
+    market_data: dict[str, Any] | None,
+    execution_plan: dict[str, Any],
+) -> Any | None:
     """从 market_data 构造 BenchmarkPrices (供 TCAManager.analyze 使用)
 
     Args:
@@ -723,7 +722,7 @@ def _build_benchmark_from_market_data(
     )
 
 
-def _tca_report_to_dict(report: Any) -> Dict[str, Any]:
+def _tca_report_to_dict(report: Any) -> dict[str, Any]:
     """将 TCAReport 转为 dict (兼容 dataclass + 自定义 to_dict)"""
     try:
         if hasattr(report, "to_dict"):
@@ -749,8 +748,8 @@ def _build_l2_veto_return(
     risk_result: ExecutionRiskResult,
     escalation: bool,
     escalation_reason: str,
-    execution_plan: Dict[str, Any],
-) -> Dict[str, Any]:
+    execution_plan: dict[str, Any],
+) -> dict[str, Any]:
     """构建 L2 风控否决时的审计记录和返回字典"""
     escalation_reason = f"L2 风控否决: {risk_result.veto_reason}"
     record = {
@@ -787,15 +786,15 @@ def _build_l2_veto_return(
 def _build_grayscale_veto_return(
     decision: TradingDecision,
     mode: str,
-    execution_plan: Dict[str, Any],
+    execution_plan: dict[str, Any],
     risk_result: ExecutionRiskResult,
-    tca_pre_estimate: Optional[Dict[str, Any]],
+    tca_pre_estimate: dict[str, Any] | None,
     tca_error: str,
     veto_reason: str,
     escalation: bool,
     escalation_reason: str,
     msg: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """构建灰度回滚到 0 时的审计记录和返回字典"""
     record = {
         "timestamp": datetime.now().isoformat(),
@@ -829,16 +828,16 @@ def _build_grayscale_veto_return(
 
 def _run_tca_pre_trade(
     decision: TradingDecision,
-    execution_plan: Dict[str, Any],
-    market_data_for_tca: Optional[Dict[str, Any]],
+    execution_plan: dict[str, Any],
+    market_data_for_tca: dict[str, Any] | None,
     tca_pre_trade_estimator: Any,
-) -> Tuple[Optional[Dict[str, Any]], bool, str, str]:
+) -> tuple[dict[str, Any] | None, bool, str, str]:
     """TCA 执行前预筛
 
     预筛否决是软阈值 (escalation 而非 veto)。
     异常隔离: TCA 异常仅记日志 + tca_error, 主路径不阻断 (fail-safe)。
     """
-    tca_pre_estimate: Optional[Dict[str, Any]] = None
+    tca_pre_estimate: dict[str, Any] | None = None
     tca_error = ""
     escalation = False
     escalation_reason = ""
@@ -878,23 +877,23 @@ def _run_tca_pre_trade(
 
 def _dispatch_execution_mode(
     decision: TradingDecision,
-    execution_plan: Dict[str, Any],
+    execution_plan: dict[str, Any],
     mode: str,
-    price: Optional[float],
+    price: float | None,
     order_router: Any,
     broker: Any,
     market_state: str,
-    tca_pre_estimate: Optional[Dict[str, Any]],
+    tca_pre_estimate: dict[str, Any] | None,
     tca_error: str,
     risk_result: ExecutionRiskResult,
-) -> Tuple[Optional[Dict[str, Any]], str, bool, str, bool, str]:
+) -> tuple[dict[str, Any] | None, str, bool, str, bool, str]:
     """模式分派: shadow / paper / auto / unknown
 
     Returns:
         (execution_result, msg, veto, veto_reason, mode_escalation, mode_escalation_reason)
         veto 为 True 时表示灰度回滚到 0, 需由调用方构建最终返回。
     """
-    execution_result: Optional[Dict[str, Any]] = None
+    execution_result: dict[str, Any] | None = None
     msg = ""
     veto = False
     veto_reason = ""
@@ -995,16 +994,16 @@ def _dispatch_execution_mode(
 
 def _run_tca_post_trade(
     tca_post_trade_manager: Any,
-    execution_plan: Dict[str, Any],
-    execution_result: Optional[Dict[str, Any]],
-    market_data_for_tca: Optional[Dict[str, Any]],
+    execution_plan: dict[str, Any],
+    execution_result: dict[str, Any] | None,
+    market_data_for_tca: dict[str, Any] | None,
     decision: TradingDecision,
-) -> Tuple[Optional[Dict[str, Any]], str]:
+) -> tuple[dict[str, Any] | None, str]:
     """TCA 事后归因
 
     仅执行成功后调用。异常隔离: 归因异常仅记日志 + tca_error, 主路径不阻断。
     """
-    tca_post_report: Optional[Dict[str, Any]] = None
+    tca_post_report: dict[str, Any] | None = None
     tca_error = ""
 
     if not (_tca_post_trade_enabled()
@@ -1044,18 +1043,18 @@ def _run_tca_post_trade(
 def _build_success_audit_record(
     decision: TradingDecision,
     mode: str,
-    execution_plan: Dict[str, Any],
-    execution_result: Optional[Dict[str, Any]],
+    execution_plan: dict[str, Any],
+    execution_result: dict[str, Any] | None,
     risk_result: ExecutionRiskResult,
     veto: bool,
     veto_reason: str,
     escalation: bool,
     escalation_reason: str,
-    tca_pre_estimate: Optional[Dict[str, Any]],
-    tca_post_report: Optional[Dict[str, Any]],
+    tca_pre_estimate: dict[str, Any] | None,
+    tca_post_report: dict[str, Any] | None,
     tca_error: str,
     msg: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """构建成功/最终执行审计记录"""
     return {
         "timestamp": datetime.now().isoformat(),
@@ -1083,8 +1082,8 @@ def _build_success_audit_record(
 def _build_success_return(
     decision: TradingDecision,
     mode: str,
-    execution_plan: Dict[str, Any],
-    execution_result: Optional[Dict[str, Any]],
+    execution_plan: dict[str, Any],
+    execution_result: dict[str, Any] | None,
     risk_result: ExecutionRiskResult,
     audit_path: str,
     msg: str,
@@ -1092,10 +1091,10 @@ def _build_success_return(
     veto_reason: str,
     escalation: bool,
     escalation_reason: str,
-    tca_pre_estimate: Optional[Dict[str, Any]],
-    tca_post_report: Optional[Dict[str, Any]],
+    tca_pre_estimate: dict[str, Any] | None,
+    tca_post_report: dict[str, Any] | None,
     tca_error: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """构建成功执行后的返回字典"""
     return {
         "executed": execution_result is not None and execution_result.get("success", False),
@@ -1122,17 +1121,17 @@ def _build_success_return(
 def execute_decision(
     decision: TradingDecision,
     portfolio_value: float = 1_000_000.0,
-    price: Optional[float] = None,
+    price: float | None = None,
     market_state: str = "normal",
     order_router: Any = None,
     broker: Any = None,
-    force_mode: Optional[str] = None,
-    risk_context: Optional[RiskContext] = None,
+    force_mode: str | None = None,
+    risk_context: RiskContext | None = None,
     # 步骤 2: TCA 双轨参数 (Feature Flag 控制, 默认 None=不启用)
-    tca_pre_trade_estimator: Optional[Any] = None,
-    tca_post_trade_manager: Optional[Any] = None,
-    market_data_for_tca: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    tca_pre_trade_estimator: Any | None = None,
+    tca_post_trade_manager: Any | None = None,
+    market_data_for_tca: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """将 TradingDecision 转化为执行指令并 (可选) 下单
 
     这是从 AI 决策到 broker 的唯一桥梁。分四步:
@@ -1183,8 +1182,8 @@ def execute_decision(
     escalation_reason: str = decision.escalation_reason or ""
 
     # ===== 步骤 2: 初始化 TCA 双轨变量 (Feature Flag 控制, 默认 None=不启用) =====
-    tca_pre_estimate: Optional[Dict[str, Any]] = None
-    tca_post_report: Optional[Dict[str, Any]] = None
+    tca_pre_estimate: dict[str, Any] | None = None
+    tca_post_report: dict[str, Any] | None = None
     tca_error: str = ""
 
     # ===== Step A: 生成执行计划 =====
@@ -1261,7 +1260,7 @@ def execute_decision(
         tca_pre_estimate, tca_post_report, tca_error
     )
 
-def _simulate_fill(plan: Dict[str, Any], ref_price: float) -> Dict[str, Any]:
+def _simulate_fill(plan: dict[str, Any], ref_price: float) -> dict[str, Any]:
     """模拟成交 (paper 模式) — 带 A 股滑点模型"""
     import random
     qty = plan.get("qty", 0)
@@ -1284,7 +1283,7 @@ def _simulate_fill(plan: Dict[str, Any], ref_price: float) -> Dict[str, Any]:
 # 灰度管理工具函数
 # ============================================================
 
-def get_grayscale_summary() -> Dict[str, Any]:
+def get_grayscale_summary() -> dict[str, Any]:
     """获取当前灰度状态摘要 (用于仪表盘)"""
     gs = GrayscaleState.load()
     should_rb, rb_reason = gs.should_rollback()
@@ -1305,9 +1304,9 @@ def get_grayscale_summary() -> Dict[str, Any]:
 def advance_grayscale(
     daily_pnl: float = 0.0,
     daily_decision_count: int = 0,
-    paper_fill_rate: Optional[float] = None,
-    escalation_count: Optional[int] = None,
-) -> Dict[str, Any]:
+    paper_fill_rate: float | None = None,
+    escalation_count: int | None = None,
+) -> dict[str, Any]:
     """每日 EOD 推送, 自动评估灰度阶段推进/回滚 (Step 5 实现)
 
     Step 5 升级: 委托给 GrayscaleState.advance_grayscale() 方法, 包含:

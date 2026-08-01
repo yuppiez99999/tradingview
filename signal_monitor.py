@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 信号有效性监控 — 评估QLib模型信号的实际效果
 支持v3/v3.5/v4/v5版本报告
@@ -42,7 +41,7 @@ def analyze_signal_effectiveness():
         return
 
     print(f"[读取] {report_path}")
-    with open(report_path, "r", encoding="utf-8") as f:
+    with open(report_path, encoding="utf-8") as f:
         report = json.load(f)
 
     print(f"\n{'=' * 70}")

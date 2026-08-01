@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 影子账户启动脚本 (Shadow Account Launcher)
 ==========================================
@@ -53,7 +52,7 @@ def load_config() -> dict:
     if not CONFIG_FILE.exists():
         logger.error("配置文件不存在: %s", CONFIG_FILE)
         sys.exit(1)
-    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+    with open(CONFIG_FILE, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -62,7 +61,7 @@ def load_state() -> dict | None:
     if not STATE_FILE.exists():
         return None
     try:
-        with open(STATE_FILE, "r", encoding="utf-8") as f:
+        with open(STATE_FILE, encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         logger.warning("加载状态失败: %s", e)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 系统集成层 v1.0 — 步骤5
 
@@ -45,7 +44,7 @@ _PROJECT_ROOT = os.path.dirname(_BASE)
 _ENV_PATH = os.path.join(_PROJECT_ROOT, ".env")
 if os.path.exists(_ENV_PATH):
     try:
-        with open(_ENV_PATH, "r", encoding="utf-8") as _f:
+        with open(_ENV_PATH, encoding="utf-8") as _f:
             for _line in _f:
                 _line = _line.strip()
                 if not _line or _line.startswith("#") or "=" not in _line:
@@ -100,7 +99,7 @@ def _read_retrain_lock(symbol: str) -> Optional[datetime]:
     if not os.path.exists(lock_path):
         return None
     try:
-        with open(lock_path, "r", encoding="utf-8") as f:
+        with open(lock_path, encoding="utf-8") as f:
             return datetime.fromisoformat(json.load(f).get("last_retrain"))
     except Exception as e:
         logger.debug(f"读取重训锁失败 {symbol}: {e}")
@@ -238,7 +237,7 @@ def load_qlib_bin(field: str, qlib_code: str) -> Optional[pd.Series]:
         return None
 
     try:
-        with open(cal_path, "r", encoding="utf-8") as f:
+        with open(cal_path, encoding="utf-8") as f:
             dates = [line.strip() for line in f if line.strip()]
     except Exception:
         logger.exception("[SysInt] 读取交易日历文件失败: %s", cal_path)
@@ -374,7 +373,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             return
 
         try:
-            with open(local_pos_path, "r", encoding="utf-8") as f:
+            with open(local_pos_path, encoding="utf-8") as f:
                 data = json.load(f)
         except Exception as e:
             logger.warning(f"读取本地 positions.json 失败: {e}")
@@ -394,7 +393,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         src_data = {}
         if os.path.exists(src_pos_path):
             try:
-                with open(src_pos_path, "r", encoding="utf-8") as f:
+                with open(src_pos_path, encoding="utf-8") as f:
                     src_data = json.load(f).get("positions", {})
             except Exception as e:
                 logger.warning(f"读取 11_量化策略 positions.json 失败: {e}")
@@ -506,7 +505,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             return weights
 
         try:
-            with open(report_path, "r", encoding="utf-8") as f:
+            with open(report_path, encoding="utf-8") as f:
                 report = json.load(f)
             mean_ic = float(report.get("mean_daily_ic", 0) or 0)
             ic_ir = float(report.get("ic_ir", 0) or 0)
@@ -558,7 +557,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             report_path = self._find_latest_qlib_report()
             if report_path:
                 try:
-                    with open(report_path, "r", encoding="utf-8") as f:
+                    with open(report_path, encoding="utf-8") as f:
                         report = json.load(f)
                     initial_ic = float(report.get("mean_daily_ic", 0) or 0)
                     if initial_ic != 0:
@@ -754,7 +753,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         ic_path = os.path.join(self.report_dir, "daily_ic_scores.json")
         if os.path.exists(ic_path):
             try:
-                with open(ic_path, "r", encoding="utf-8") as f:
+                with open(ic_path, encoding="utf-8") as f:
                     ic_data = json.load(f)
                 latest = float(ic_data.get("latest_ic", 0) or 0)
                 if abs(latest) >= EVOLUTION_CONFIG["ic_min_abs_threshold"]:
@@ -766,7 +765,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         report_path = self._find_latest_qlib_report()
         if report_path:
             try:
-                with open(report_path, "r", encoding="utf-8") as f:
+                with open(report_path, encoding="utf-8") as f:
                     report = json.load(f)
                 mean_ic = float(report.get("mean_daily_ic", 0) or 0)
                 if abs(mean_ic) >= EVOLUTION_CONFIG["ic_min_abs_threshold"]:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LightGBM 增强训练器 — Thin Coordinator (B3.5 重构)
 ====================================================
@@ -37,7 +36,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 # ============================================================
 # 路径常量 (权威定义, 由 configure_paths 注入到各子模块)
@@ -65,7 +64,7 @@ from autolearn_trainer import (  # noqa: E402
 # ============================================================
 # 增强训练配置 (权威配置源, 子模块通过 configure_paths 注入)
 # ============================================================
-LGB_ENHANCED_CONFIG: Dict[str, Any] = {
+LGB_ENHANCED_CONFIG: dict[str, Any] = {
     "lookback_days": 500,
     "min_samples": 150,
     "test_ratio": 0.2,

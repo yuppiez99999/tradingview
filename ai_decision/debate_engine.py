@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.debate_engine — Bull/Bear/Judge 结构化辩论引擎
 ==========================================================
@@ -16,7 +15,6 @@ from __future__ import annotations
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional, Tuple
 
 from ai_decision.config import get_config
 from ai_decision.models import (
@@ -45,7 +43,7 @@ _SYSTEM_JUDGE = (
 )
 
 
-def _parse_strength_conf(text: str) -> Tuple[float, float]:
+def _parse_strength_conf(text: str) -> tuple[float, float]:
     """从模型文本中解析强度 [-1,1] 与置信度 [0,1] (兼容真实模型与 Mock)"""
     strength = 0.0
     conf = 0.5
@@ -69,14 +67,14 @@ def _parse_strength_conf(text: str) -> Tuple[float, float]:
     return strength, conf
 
 
-def _call_role(role: str, prompt: str, system: str, timeout: int) -> Optional[str]:
+def _call_role(role: str, prompt: str, system: str, timeout: int) -> str | None:
     prov = get_active_provider(role)
     return prov.generate(prompt, system=system, timeout=timeout)
 
 
 def run_debate(symbol: str, context_prompt: str,
                bull_prior: ModelView, bear_prior: ModelView,
-               timeout: Optional[int] = None) -> Tuple[DebateRecord, DebateDecision]:
+               timeout: int | None = None) -> tuple[DebateRecord, DebateDecision]:
     """运行 Bull/Bear/Judge 辩论
 
     Args:

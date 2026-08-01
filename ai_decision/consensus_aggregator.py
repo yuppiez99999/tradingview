@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.consensus_aggregator — 非线性共识聚合器
 ===================================================
@@ -18,7 +17,6 @@ import logging
 import math
 import sqlite3
 from collections import Counter
-from typing import Dict, List, Optional, Tuple
 
 from ai_decision.config import get_config
 from ai_decision.models import DebateDecision, ModelView
@@ -41,7 +39,7 @@ def _word_overlap(a: str, b: str) -> float:
     return inter / union if union else 0.0
 
 
-def _load_brier_weights(roles: List[str], window_days: int) -> Dict[str, float]:
+def _load_brier_weights(roles: list[str], window_days: int) -> dict[str, float]:
     """从 ai_decision_accuracy 表加载各角色 Brier 动态权重
 
     表结构对齐 AICoordinator: (role, decision_date, predicted_strength,
@@ -54,7 +52,7 @@ def _load_brier_weights(roles: List[str], window_days: int) -> Dict[str, float]:
     try:
         conn = sqlite3.connect(_DB_PATH)
         cur = conn.cursor()
-        briers: Dict[str, List[float]] = {r: [] for r in roles}
+        briers: dict[str, list[float]] = {r: [] for r in roles}
         for r in roles:
             try:
                 cur.execute(
@@ -69,7 +67,7 @@ def _load_brier_weights(roles: List[str], window_days: int) -> Dict[str, float]:
                 continue
         conn.close()
         # 计算负均 Brier 并 softmax
-        neg_mean: Dict[str, float] = {}
+        neg_mean: dict[str, float] = {}
         for r in roles:
             bs = briers[r]
             if bs:
@@ -89,7 +87,7 @@ def _load_brier_weights(roles: List[str], window_days: int) -> Dict[str, float]:
         return uniform
 
 
-def _diversity_bonus(views: List[ModelView]) -> Dict[int, float]:
+def _diversity_bonus(views: list[ModelView]) -> dict[int, float]:
     """多样性奖励: 少数派 (与多数行动不同) 且来源独立, 给予奖励"""
     if not views:
         return {}
@@ -97,7 +95,7 @@ def _diversity_bonus(views: List[ModelView]) -> Dict[int, float]:
     cnt = Counter(actions)
     majority = cnt.most_common(1)[0][0] if cnt else "hold"
     bonus_cap = float(get_config("aggregator.diversity_bonus", 0.1))
-    bonus: Dict[int, float] = {}
+    bonus: dict[int, float] = {}
     n_minority = sum(1 for a in actions if a != majority)
     if n_minority == 0:
         return bonus
@@ -108,9 +106,9 @@ def _diversity_bonus(views: List[ModelView]) -> Dict[int, float]:
     return bonus
 
 
-def aggregate(views: List[ModelView],
-              debate: Optional[DebateDecision] = None,
-              agent_consensus: Optional[Dict[str, float]] = None) -> Tuple[str, float, float]:
+def aggregate(views: list[ModelView],
+              debate: DebateDecision | None = None,
+              agent_consensus: dict[str, float] | None = None) -> tuple[str, float, float]:
     """非线性聚合, 返回 (action, strength, confidence)。
 
     Args:
@@ -131,7 +129,7 @@ def aggregate(views: List[ModelView],
 
     # 语义去重: 标记高重叠冗余观点并降权
     dup_thr = float(get_config("aggregator.semantic_dup_threshold", 0.6))
-    eff_weights: List[float] = []
+    eff_weights: list[float] = []
     for i, v in enumerate(views):
         w = base_weights.get(v.role, 1.0 / max(1, len(views)))
         # 与已保留观点高重叠 -> 降权

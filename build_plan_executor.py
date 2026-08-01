@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 建仓计划执行器 - Build Plan Executor
 =====================================
@@ -108,7 +107,7 @@ class BuildPlanExecutor:
         """加载建仓计划 JSON"""
         if not os.path.exists(self.plan_path):
             raise FileNotFoundError(f"建仓计划文件不存在: {self.plan_path}")
-        with open(self.plan_path, "r", encoding="utf-8") as f:
+        with open(self.plan_path, encoding="utf-8") as f:
             self.plan_data = json.load(f)
 
     # ---------------------------------------------------------------

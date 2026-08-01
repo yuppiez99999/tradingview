@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.health — 模型健康检查 + 熔断器
 ==========================================
@@ -50,7 +49,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ai_decision.providers import BaseProvider, MockProvider, get_active_provider
 
@@ -148,7 +147,7 @@ class HealthStatus:
     provider_name: str = ""
     circuit_open: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "role": self.role,
             "healthy": self.healthy,
@@ -208,9 +207,9 @@ class ModelHealthMonitor:
         self._max_failures = int(max_failures)
         self._cooldown_seconds = int(cooldown_seconds)
         self._probe_interval = float(probe_interval_seconds)
-        self._breakers: Dict[str, CircuitBreaker] = {}
-        self._last_probe: Dict[str, float] = {}  # role -> last probe timestamp
-        self._last_status: Dict[str, HealthStatus] = {}  # role -> 最近状态缓存
+        self._breakers: dict[str, CircuitBreaker] = {}
+        self._last_probe: dict[str, float] = {}  # role -> last probe timestamp
+        self._last_status: dict[str, HealthStatus] = {}  # role -> 最近状态缓存
         # 并发保护: 多线程 (如 run_batch 并行) 下保护 _breakers 字典初始化竞态
         self._lock = threading.Lock()
 
@@ -344,7 +343,7 @@ class ModelHealthMonitor:
         self._last_probe[role] = status.last_check
         return status
 
-    def maybe_probe(self, role: str, timeout: float = 2.0) -> Optional[HealthStatus]:
+    def maybe_probe(self, role: str, timeout: float = 2.0) -> HealthStatus | None:
         """受 probe_interval 控制的探测 (避免频繁调用 API)
 
         如果距上次探测不足 probe_interval_seconds, 返回缓存的最近状态.
@@ -387,7 +386,7 @@ class ModelHealthMonitor:
     # 统计 (供步骤 4 看板消费)
     # ------------------------------------------------------------
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取所有 role 的熔断器状态 + 最近探测结果
 
         Returns:
@@ -414,7 +413,7 @@ class ModelHealthMonitor:
         而非直接读 cb.is_open, 否则会与 get_health_summary 状态不一致
         (一个已过冷却期的熔断器在 get_stats 显示 open=True, 在 get_health_summary 显示已恢复).
         """
-        roles: Dict[str, Any] = {}
+        roles: dict[str, Any] = {}
         for role, cb in self._breakers.items():
             # 统一通过 is_circuit_open() 判断 (含冷却恢复尝试), 与 get_health_summary 一致
             is_open = self.is_circuit_open(role)
@@ -437,7 +436,7 @@ class ModelHealthMonitor:
             },
         }
 
-    def get_health_summary(self) -> Dict[str, Any]:
+    def get_health_summary(self) -> dict[str, Any]:
         """获取健康摘要 (简版, 供快速判断)
 
         Returns:
@@ -475,7 +474,7 @@ class ModelHealthMonitor:
 # 模块级单例 (供 orchestrator 默认使用)
 # ============================================================
 
-_default_monitor: Optional[ModelHealthMonitor] = None
+_default_monitor: ModelHealthMonitor | None = None
 
 
 def get_default_monitor() -> ModelHealthMonitor:

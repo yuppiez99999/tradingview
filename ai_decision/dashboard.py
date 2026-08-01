@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.dashboard — 延迟/成本基准看板
 ==========================================
@@ -58,7 +57,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ai_decision.config import get_config
 from ai_decision.health import ModelHealthMonitor, get_default_monitor
@@ -115,14 +114,14 @@ class DashboardReport:
         generated_at: 生成时间 ISO
     """
     date: str = ""
-    model_health: Dict[str, Any] = field(default_factory=dict)
-    tca_summary: Dict[str, Any] = field(default_factory=dict)
-    decision_summary: Dict[str, Any] = field(default_factory=dict)
-    execution_summary: Dict[str, Any] = field(default_factory=dict)
-    alerts: List[Dict[str, Any]] = field(default_factory=list)
+    model_health: dict[str, Any] = field(default_factory=dict)
+    tca_summary: dict[str, Any] = field(default_factory=dict)
+    decision_summary: dict[str, Any] = field(default_factory=dict)
+    execution_summary: dict[str, Any] = field(default_factory=dict)
+    alerts: list[dict[str, Any]] = field(default_factory=list)
     generated_at: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为 dict (用于 JSON 序列化)"""
         return {
             "date": self.date,
@@ -150,8 +149,8 @@ class DashboardGenerator:
 
     def __init__(
         self,
-        health_monitor: Optional[ModelHealthMonitor] = None,
-        budget: Optional[BudgetConfig] = None,
+        health_monitor: ModelHealthMonitor | None = None,
+        budget: BudgetConfig | None = None,
     ) -> None:
         """
         Args:
@@ -165,7 +164,7 @@ class DashboardGenerator:
     # 主入口
     # ------------------------------------------------------------
 
-    def generate_daily_dashboard(self, date_str: Optional[str] = None) -> Dict[str, Any]:
+    def generate_daily_dashboard(self, date_str: str | None = None) -> dict[str, Any]:
         """生成每日看板报告
 
         Args:
@@ -208,7 +207,7 @@ class DashboardGenerator:
     # 数据源 1: 模型健康 (从 ModelHealthMonitor.get_stats() 收集)
     # ------------------------------------------------------------
 
-    def _collect_model_health(self) -> Dict[str, Any]:
+    def _collect_model_health(self) -> dict[str, Any]:
         """收集模型健康数据 (延迟/成功率/熔断状态)
 
         Returns:
@@ -223,7 +222,7 @@ class DashboardGenerator:
         try:
             stats = self._monitor.get_stats()
             summary = self._monitor.get_health_summary()
-            roles_detail: Dict[str, Any] = {}
+            roles_detail: dict[str, Any] = {}
             for role, role_stats in stats.get("roles", {}).items():
                 last_status = role_stats.get("last_status", {})
                 roles_detail[role] = {
@@ -249,7 +248,7 @@ class DashboardGenerator:
     # 数据源 2: TCA 成本 (从 reports/tca/estimate_*.jsonl 收集)
     # ------------------------------------------------------------
 
-    def _collect_tca_summary(self, date_str: str) -> Dict[str, Any]:
+    def _collect_tca_summary(self, date_str: str) -> dict[str, Any]:
         """收集 TCA 预估成本数据
 
         Returns:
@@ -285,7 +284,7 @@ class DashboardGenerator:
             "symbols": list({e.get("symbol", "") for e in estimates}),
         }
 
-    def _load_tca_estimates(self, date_str: str) -> List[Dict[str, Any]]:
+    def _load_tca_estimates(self, date_str: str) -> list[dict[str, Any]]:
         """加载指定日期的 TCA 预估记录
 
         文件路径: reports/tca/estimate_{date}.jsonl
@@ -293,9 +292,9 @@ class DashboardGenerator:
         path = _TCA_ESTIMATE_DIR / f"estimate_{date_str}.jsonl"
         if not path.exists():
             return []
-        records: List[Dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 for line in fh:
                     line = line.strip()
                     if line:
@@ -311,7 +310,7 @@ class DashboardGenerator:
     # 数据源 3: 决策分布 (从 reports/ai_decision/audit_*.jsonl 收集)
     # ------------------------------------------------------------
 
-    def _collect_decision_summary(self, date_str: str) -> Dict[str, Any]:
+    def _collect_decision_summary(self, date_str: str) -> dict[str, Any]:
         """收集决策分布数据 (action / mode / verdict_type)
 
         Returns:
@@ -331,9 +330,9 @@ class DashboardGenerator:
                 "verdict_type_distribution": {},
             }
 
-        action_dist: Dict[str, int] = {}
-        mode_dist: Dict[str, int] = {}
-        verdict_dist: Dict[str, int] = {}
+        action_dist: dict[str, int] = {}
+        mode_dist: dict[str, int] = {}
+        verdict_dist: dict[str, int] = {}
 
         for r in records:
             action = r.get("action", "unknown")
@@ -350,7 +349,7 @@ class DashboardGenerator:
             "verdict_type_distribution": verdict_dist,
         }
 
-    def _load_decision_audit(self, date_str: str) -> List[Dict[str, Any]]:
+    def _load_decision_audit(self, date_str: str) -> list[dict[str, Any]]:
         """加载指定日期的决策审计记录
 
         文件路径: reports/ai_decision/audit_{date}.jsonl 或 exec_{date}.jsonl
@@ -375,7 +374,7 @@ class DashboardGenerator:
     # 数据源 4: 执行质量 (从 reports/ai_decision/execution/exec_*.jsonl 收集)
     # ------------------------------------------------------------
 
-    def _collect_execution_summary(self, date_str: str) -> Dict[str, Any]:
+    def _collect_execution_summary(self, date_str: str) -> dict[str, Any]:
         """收集执行质量数据 (成功率 / escalation 分布 / TCA 评级)
 
         Returns:
@@ -409,7 +408,7 @@ class DashboardGenerator:
         ]
 
         # TCA 评级分布 (从 tca_post_report 提取)
-        grade_dist: Dict[str, int] = {}
+        grade_dist: dict[str, int] = {}
         for r in records:
             post_report = r.get("tca_post_report")
             if isinstance(post_report, dict):
@@ -426,7 +425,7 @@ class DashboardGenerator:
             "tca_grade_distribution": grade_dist,
         }
 
-    def _load_execution_audit(self, date_str: str) -> List[Dict[str, Any]]:
+    def _load_execution_audit(self, date_str: str) -> list[dict[str, Any]]:
         """加载指定日期的执行审计记录
 
         文件路径: reports/ai_decision/execution/exec_{date}.jsonl
@@ -444,11 +443,11 @@ class DashboardGenerator:
             return self._load_all_exec_audit_by_date(date_str)
         return self._load_jsonl(path)
 
-    def _load_all_exec_audit_by_date(self, date_str: str) -> List[Dict[str, Any]]:
+    def _load_all_exec_audit_by_date(self, date_str: str) -> list[dict[str, Any]]:
         """从所有 exec_*.jsonl 文件按 timestamp 过滤指定日期"""
         if not _EXEC_AUDIT_DIR.exists():
             return []
-        records: List[Dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         for f in _EXEC_AUDIT_DIR.glob("exec_*.jsonl"):
             for r in self._load_jsonl(f):
                 ts = r.get("timestamp", "")
@@ -456,11 +455,11 @@ class DashboardGenerator:
                     records.append(r)
         return records
 
-    def _load_jsonl(self, path: Path) -> List[Dict[str, Any]]:
+    def _load_jsonl(self, path: Path) -> list[dict[str, Any]]:
         """加载 JSONL 文件 (逐行 JSON)"""
-        records: List[Dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 for line in fh:
                     line = line.strip()
                     if line:
@@ -478,10 +477,10 @@ class DashboardGenerator:
 
     def _check_budget_alerts(
         self,
-        model_health: Dict[str, Any],
-        tca_summary: Dict[str, Any],
-        execution_summary: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+        model_health: dict[str, Any],
+        tca_summary: dict[str, Any],
+        execution_summary: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         """检查预算阈值, 返回告警列表
 
         告警规则:
@@ -492,7 +491,7 @@ class DashboardGenerator:
         5. 执行 escalation 率 > 50% → WARNING
         6. TCA 评级 D/F 占比 > 20% → WARNING
         """
-        alerts: List[Dict[str, Any]] = []
+        alerts: list[dict[str, Any]] = []
 
         # 1. 模型延迟
         roles = model_health.get("roles", {})
@@ -568,7 +567,7 @@ class DashboardGenerator:
 
         return alerts
 
-    def check_budget_alert(self) -> List[Dict[str, Any]]:
+    def check_budget_alert(self) -> list[dict[str, Any]]:
         """公开接口: 检查预算告警 (生成今日看板后提取告警)"""
         report = self.generate_daily_dashboard()
         return report.get("alerts", [])
@@ -577,7 +576,7 @@ class DashboardGenerator:
     # 超预算降级
     # ------------------------------------------------------------
 
-    def maybe_degrade_on_budget(self) -> Dict[str, str]:
+    def maybe_degrade_on_budget(self) -> dict[str, str]:
         """超预算时返回 role → 降级标记
 
         降级规则:
@@ -590,7 +589,7 @@ class DashboardGenerator:
         report = self.generate_daily_dashboard()
         model_health = report.get("model_health", {})
         roles = model_health.get("roles", {})
-        degrade: Dict[str, str] = {}
+        degrade: dict[str, str] = {}
 
         for role, detail in roles.items():
             # 熔断开启 → 降级
@@ -613,7 +612,7 @@ class DashboardGenerator:
     # Markdown 输出 (5 章节)
     # ------------------------------------------------------------
 
-    def to_markdown(self, report: Dict[str, Any]) -> str:
+    def to_markdown(self, report: dict[str, Any]) -> str:
         """将报告转为 Markdown (5 章节)
 
         章节:
@@ -624,7 +623,7 @@ class DashboardGenerator:
         5. 告警 (预算超限/熔断/异常)
         """
         date = report.get("date", "")
-        lines: List[str] = [
+        lines: list[str] = [
             f"# ai_decision 每日看板 — {date}",
             "",
             f"> 生成时间: {report.get('generated_at', '')}",
@@ -644,7 +643,7 @@ class DashboardGenerator:
 
         return "\n".join(lines)
 
-    def _md_model_health(self, mh: Dict[str, Any]) -> List[str]:
+    def _md_model_health(self, mh: dict[str, Any]) -> list[str]:
         """章节 1: 模型健康"""
         lines = ["## 1. 模型健康", ""]
         total = mh.get("total_roles", 0)
@@ -672,7 +671,7 @@ class DashboardGenerator:
             lines.append("")
         return lines
 
-    def _md_tca_summary(self, tca: Dict[str, Any]) -> List[str]:
+    def _md_tca_summary(self, tca: dict[str, Any]) -> list[str]:
         """章节 2: TCA 成本"""
         lines = ["## 2. TCA 成本", ""]
         total = tca.get("total_estimates", 0)
@@ -689,7 +688,7 @@ class DashboardGenerator:
         lines.append("")
         return lines
 
-    def _md_decision_summary(self, dec: Dict[str, Any]) -> List[str]:
+    def _md_decision_summary(self, dec: dict[str, Any]) -> list[str]:
         """章节 3: 决策分布"""
         lines = ["## 3. 决策分布", ""]
         total = dec.get("total_decisions", 0)
@@ -712,7 +711,7 @@ class DashboardGenerator:
         lines.append("")
         return lines
 
-    def _md_execution_summary(self, exe: Dict[str, Any]) -> List[str]:
+    def _md_execution_summary(self, exe: dict[str, Any]) -> list[str]:
         """章节 4: 执行质量"""
         lines = ["## 4. 执行质量", ""]
         total = exe.get("total_executions", 0)
@@ -738,7 +737,7 @@ class DashboardGenerator:
         lines.append("")
         return lines
 
-    def _md_alerts(self, alerts: List[Dict[str, Any]]) -> List[str]:
+    def _md_alerts(self, alerts: list[dict[str, Any]]) -> list[str]:
         """章节 5: 告警"""
         lines = ["## 5. 告警", ""]
         if not alerts:
@@ -766,7 +765,7 @@ class DashboardGenerator:
     # 落盘
     # ------------------------------------------------------------
 
-    def save(self, report: Dict[str, Any], date_str: Optional[str] = None) -> str:
+    def save(self, report: dict[str, Any], date_str: str | None = None) -> str:
         """落盘 Markdown + JSON 双格式
 
         文件路径:

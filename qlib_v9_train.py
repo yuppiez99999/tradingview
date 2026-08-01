@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 QLib v9训练脚本 — v5配置+适度正则化+CSI50训练池
 """
@@ -82,7 +81,7 @@ def main():
         available_symbols = {d for d in os.listdir(features_dir) if os.path.isdir(os.path.join(features_dir, d))}
 
     cal_path = os.path.join(QLIB_DATA_DIR, "calendars", "day.txt")
-    with open(cal_path, "r") as f:
+    with open(cal_path) as f:
         calendar_dates = pd.to_datetime([line.strip() for line in f if line.strip()])
     cal_end = calendar_dates[-1].strftime("%Y-%m-%d")
 
@@ -145,7 +144,7 @@ def main():
     features_path = os.path.join(_cwd, "config", f"top_{TOP_N}_features.json")
 
     if os.path.exists(features_path):
-        with open(features_path, "r", encoding="utf-8") as f:
+        with open(features_path, encoding="utf-8") as f:
             top_features_config = json.load(f)
         top_features = top_features_config["top_features"]
         print(f"已加载Top {TOP_N}特征配置")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """LightGBM 增强训练器 — 模块化拆分 (B3.5)
 
 本包将原 `lgb_enhanced_trainer.py` (2739 行) 按职责拆分为 7 个聚焦模块:

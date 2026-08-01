@@ -461,7 +461,7 @@ def main():
     # 示例: engine = AlphaHedgeEngine(..., mode="sim")
     #       engine.execute_options_order("y2608-C-9000", 1, "BUY_OPEN", 512.5)
 
-    logger.info("\n引擎已就绪 (mode=%s)，未执行任何订单。" % engine.mode)
+    logger.info(f"\n引擎已就绪 (mode={engine.mode})，未执行任何订单。")
 
     logger.info("\n" + "=" * 60)
     logger.info("执行完毕")

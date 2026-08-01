@@ -31,7 +31,7 @@ PHASE_MAPPING = {
 
 def extract_method_with_ast(filename: str, method_name: str):
     """Extract a method from a Python file using AST parsing."""
-    with open(filename, 'r', encoding='utf-8') as f:
+    with open(filename, encoding='utf-8') as f:
         source = f.read()
 
     tree = ast.parse(source, filename=filename)
@@ -255,7 +255,7 @@ def main():
     logger.info("创建正确的 phase 模块...")
     TARGET_DIR.mkdir(parents=True, exist_ok=True)
 
-    with open(SOURCE_FILE, 'r', encoding='utf-8') as f:
+    with open(SOURCE_FILE, encoding='utf-8') as f:
         source = f.read()
 
     daily_workflow_class = _find_daily_workflow_class(source)

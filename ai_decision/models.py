@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.models — 多 AI 辩论共识决策系统的核心数据结构
 =========================================================
@@ -23,7 +22,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ============================================================
 # 辩论触发判定
@@ -79,7 +78,7 @@ class ModelView:
     strength: float = 0.0                # [-1, 1] 正向看涨, 负向看跌
     confidence: float = 0.0              # [0, 1]
     reasoning: str = ""                  # 人类可读理由 (审计)
-    key_points: List[str] = field(default_factory=list)  # 关键论据 (用于语义去重)
+    key_points: list[str] = field(default_factory=list)  # 关键论据 (用于语义去重)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def __post_init__(self) -> None:
@@ -92,7 +91,7 @@ class ModelView:
         if self.action not in ("buy", "sell", "hold"):
             self.action = "hold"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "role": self.role,
             "provider": self.provider,
@@ -117,14 +116,14 @@ class DebateRecord:
     """
 
     symbol: str = ""
-    bull_rounds: List[str] = field(default_factory=list)   # 看多方各轮论证
-    bear_rounds: List[str] = field(default_factory=list)   # 看空方各轮论证
+    bull_rounds: list[str] = field(default_factory=list)   # 看多方各轮论证
+    bear_rounds: list[str] = field(default_factory=list)   # 看空方各轮论证
     judge_verdict: str = ""                                 # Judge 裁决文本
     rounds: int = 0                                         # 实际辩论轮数 (0 表示跳过)
     triggered: bool = False                                 # 是否触发完整辩论
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "symbol": self.symbol,
             "bull_rounds": self.bull_rounds,
@@ -154,7 +153,7 @@ class DebateDecision:
         self.strength = max(-1.0, min(1.0, self.strength))
         self.confidence = max(0.0, min(1.0, self.confidence))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "action": self.action,
             "strength": round(self.strength, 4),
@@ -176,15 +175,15 @@ class DecisionContext:
     """
 
     symbol: str = ""
-    market_data: Dict[str, Any] = field(default_factory=dict)   # 行情 (close/change_pct/...)
-    fundamentals: Dict[str, Any] = field(default_factory=dict)  # 基本面 (pe/pb/roe/...)
-    news_items: List[str] = field(default_factory=list)         # 新闻事件
-    macro_data: Dict[str, Any] = field(default_factory=dict)    # 宏观指标
-    agent_decisions: List[Dict[str, Any]] = field(default_factory=list)  # 五 Agent 输出
-    agent_consensus: Dict[str, Any] = field(default_factory=dict)        # 加权共识
+    market_data: dict[str, Any] = field(default_factory=dict)   # 行情 (close/change_pct/...)
+    fundamentals: dict[str, Any] = field(default_factory=dict)  # 基本面 (pe/pb/roe/...)
+    news_items: list[str] = field(default_factory=list)         # 新闻事件
+    macro_data: dict[str, Any] = field(default_factory=dict)    # 宏观指标
+    agent_decisions: list[dict[str, Any]] = field(default_factory=list)  # 五 Agent 输出
+    agent_consensus: dict[str, Any] = field(default_factory=dict)        # 加权共识
     as_of: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "symbol": self.symbol,
             "market_data": self.market_data,
@@ -217,15 +216,15 @@ class TradingDecision:
     veto: bool = False                   # 硬风控/风险 Agent 否决
     veto_reason: str = ""
     verdict_type: str = "FAST"
-    debate: Optional[Dict[str, Any]] = None
-    model_views: List[Dict[str, Any]] = field(default_factory=list)
-    agent_consensus: Dict[str, Any] = field(default_factory=dict)
-    risk_checks: Dict[str, Any] = field(default_factory=dict)
+    debate: dict[str, Any] | None = None
+    model_views: list[dict[str, Any]] = field(default_factory=list)
+    agent_consensus: dict[str, Any] = field(default_factory=dict)
+    risk_checks: dict[str, Any] = field(default_factory=dict)
     escalation: bool = False             # 是否升级人工确认
     escalation_reason: str = ""
     summary: str = ""
     # --- 执行桥接相关字段 ---
-    execution_result: Optional[Dict[str, Any]] = None  # execute_bridge 返回结果
+    execution_result: dict[str, Any] | None = None  # execute_bridge 返回结果
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def __post_init__(self) -> None:
@@ -238,7 +237,7 @@ class TradingDecision:
         if self.action not in ("buy", "sell", "hold", "veto", "review"):
             self.action = "hold"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = {
             "symbol": self.symbol,
             "action": self.action,

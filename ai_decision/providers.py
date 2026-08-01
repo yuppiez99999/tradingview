@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.providers — 统一 Provider 抽象层 + 优雅降级
 ======================================================
@@ -26,7 +25,6 @@ from __future__ import annotations
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
 
 logger = logging.getLogger("ai_decision.providers")
 
@@ -45,7 +43,7 @@ class BaseProvider(ABC):
     is_mock: bool = False
 
     @abstractmethod
-    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> Optional[str]:
+    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> str | None:
         """返回模型生成文本; 任何失败 (网络/超时/Key 缺失) 返回 None"""
         raise NotImplementedError
 
@@ -101,7 +99,7 @@ class LlmClientProvider(BaseProvider):
     def is_mock(self) -> bool:
         return False
 
-    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> Optional[str]:
+    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> str | None:
         try:
             import sys
             from pathlib import Path
@@ -149,7 +147,7 @@ class MoonshotProvider(BaseProvider):
     def available(self) -> bool:
         return bool(self._key)
 
-    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> Optional[str]:
+    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> str | None:
         if not self.available:
             return None
         try:
@@ -196,7 +194,7 @@ class ClaudeProvider(BaseProvider):
     def available(self) -> bool:
         return bool(self._key)
 
-    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> Optional[str]:
+    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> str | None:
         if not self.available:
             return None
         try:
@@ -247,7 +245,7 @@ class GptProvider(BaseProvider):
     def available(self) -> bool:
         return bool(self._key)
 
-    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> Optional[str]:
+    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> str | None:
         if not self.available:
             return None
         try:
@@ -295,7 +293,7 @@ class MockProvider(BaseProvider):
     def available(self) -> bool:
         return True  # Mock 永远可用, 是无 Key 时的兜底
 
-    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> Optional[str]:
+    def generate(self, prompt: str, system: str = "", timeout: int = 30) -> str | None:
         try:
             return self._rule_based_response(prompt)
         except Exception as exc:  # pragma: no cover
@@ -328,17 +326,17 @@ class MockProvider(BaseProvider):
         if self.role == "bull":
             change * 0.05 + self.bias
             if change > 0:
-                return ("看多观点: 当前价格动量向上 (涨跌幅 %.2f%%), "
-                        "技术形态偏强, 建议逢低建仓. 置信度中等偏高." % change)
-            return ("看多观点: 尽管短期回调 (涨跌幅 %.2f%%), 但估值具备长期吸引力, "
-                    "维持结构性看多. 置信度中等." % change)
+                return (f"看多观点: 当前价格动量向上 (涨跌幅 {change:.2f}%), "
+                        "技术形态偏强, 建议逢低建仓. 置信度中等偏高.")
+            return (f"看多观点: 尽管短期回调 (涨跌幅 {change:.2f}%), 但估值具备长期吸引力, "
+                    "维持结构性看多. 置信度中等.")
         if self.role == "bear":
             -change * 0.05 + self.bias
             if change < 0:
-                return ("看空观点: 价格动量向下 (涨跌幅 %.2f%%), 下行风险释放未尽, "
-                        "建议减仓规避. 置信度中等偏高." % change)
-            return ("看空观点: 虽短期反弹, 但估值偏高 (PE=%.1f) 且宏观不确定性大, "
-                    "维持谨慎看空. 置信度中等." % pe)
+                return (f"看空观点: 价格动量向下 (涨跌幅 {change:.2f}%), 下行风险释放未尽, "
+                        "建议减仓规避. 置信度中等偏高.")
+            return (f"看空观点: 虽短期反弹, 但估值偏高 (PE={pe:.1f}) 且宏观不确定性大, "
+                    "维持谨慎看空. 置信度中等.")
         # judge
         if change > 1:
             return "裁决: 多方动量占优, 但需警惕追高风险, 建议偏多但控制仓位."
@@ -352,7 +350,7 @@ class MockProvider(BaseProvider):
 # ============================================================
 
 # 角色 -> (真实 Provider 工厂, 缺省真实后端标识)
-_ROLE_BACKENDS: Dict[str, str] = {
+_ROLE_BACKENDS: dict[str, str] = {
     "signal": "deepseek",       # DeepSeek = 信号计算/代码
     "compliance": "ollama",     # Ollama 本地 = 合规审计 (qwen2.5:3b 兜底)
     "research": "moonshot",     # Kimi3 = 研报图表多模态
@@ -364,7 +362,7 @@ _ROLE_BACKENDS: Dict[str, str] = {
 }
 
 
-def get_active_provider(role: str, role_backends: Optional[Dict[str, str]] = None) -> BaseProvider:
+def get_active_provider(role: str, role_backends: dict[str, str] | None = None) -> BaseProvider:
     """按角色返回可用 Provider; 缺失 Key 自动降级到 MockProvider
 
     Args:

@@ -69,7 +69,7 @@ def _load_trade_plan(
         return None, f"plan file not found: {plan_file}"
 
     try:
-        with open(plan_file, "r", encoding="utf-8") as f:
+        with open(plan_file, encoding="utf-8") as f:
             return json.load(f), None
     except Exception as e:
         return None, f"plan load failed: {e}"
@@ -285,7 +285,7 @@ def _build_hedge_positions_detail(
         if not positions_file.exists():
             return hedge_positions_detail
 
-        with open(positions_file, "r", encoding="utf-8") as f:
+        with open(positions_file, encoding="utf-8") as f:
             pos_data = json.load(f)
         hedge_pos = pos_data.get("hedge_positions", {})
         for key, hp in hedge_pos.items():

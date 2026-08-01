@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 每日收盘工作流脚本 — 每日15:30收盘后自动运行 (v5.9 EOD 统一入口)
 =================================================================
@@ -307,7 +306,7 @@ def verify_llm_overrides_applied(plan_path: Path) -> dict:
     if not plan_path.exists():
         return {"applied": False, "reason": "plan file not found"}
     try:
-        with open(plan_path, "r", encoding="utf-8") as f:
+        with open(plan_path, encoding="utf-8") as f:
             plan = json.load(f)
         # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
         # 原代码 plan.get("llm_overrides", {}) 在 JSON 显式为 null 时返回 None (非默认 {}),
@@ -423,7 +422,7 @@ def run_phase1_generate_report(report_date, eod_summary):
         report_json = REPORTS_DIR_V83 / f"daily_pnl_report_{report_date}.json"
         if report_json.exists():
             try:
-                with open(report_json, "r", encoding="utf-8") as f:
+                with open(report_json, encoding="utf-8") as f:
                     report_data = json.load(f)
                 ai_recs = report_data.get("ai_recommendations", [])
                 log(f"  ✅ 报告包含 {len(ai_recs)} 条 AI 决策建议")

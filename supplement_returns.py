@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 历史收益率数据补充器
 用于 v7.5 对冲引擎的真实 Beta / 相关性计算
@@ -16,7 +15,7 @@ from utils.data_provider import MarketDataProvider
 
 # 读取持仓
 positions_path = r"e:\各种PY程序\28-终极量化交易系统7.1\config\positions.json"
-with open(positions_path, "r", encoding="utf-8") as f:
+with open(positions_path, encoding="utf-8") as f:
     positions_data = json.load(f)["positions"]
 
 symbols = []

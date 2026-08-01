@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """评估指标 + 时间序列交叉验证 (B3.5: 从 lgb_enhanced_trainer.py 抽取)
 
 本模块集中以下职责:
@@ -16,7 +15,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -84,11 +83,11 @@ def signal_sharpe(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 def time_series_cv_evaluate(
     X: np.ndarray,
     y: np.ndarray,
-    config: Dict,
+    config: dict,
     n_splits: int = 5,
     code: str = "",
-    train_fn: Optional[Callable] = None,
-) -> Dict[str, Any]:
+    train_fn: Callable | None = None,
+) -> dict[str, Any]:
     """时间序列交叉验证评估 (Purged K-Fold, 防标签泄漏)。
 
     P3-1 FIX (2026-07-29): 用 Purged K-Fold 替代裸 TimeSeriesSplit
@@ -127,8 +126,8 @@ def time_series_cv_evaluate(
 
     folds = list(purged_timeseries_split(n_samples=n_samples, n_splits=n_splits, embargo_pct=embargo_pct))
 
-    fold_metrics: List[Dict[str, Any]] = []
-    all_importances: List[np.ndarray] = []
+    fold_metrics: list[dict[str, Any]] = []
+    all_importances: list[np.ndarray] = []
     n_features = X.shape[1]
 
     for fold_idx, (train_idx, test_idx) in enumerate(folds):
@@ -199,13 +198,13 @@ def time_series_cv_evaluate(
 # 特征选择
 # ============================================================
 def select_features_by_importance(
-    feature_cols: List[str],
+    feature_cols: list[str],
     importances: np.ndarray,
     threshold: float = 3.0,
     top_n: int = 20,
-    protected_patterns: Optional[List[str]] = None,
+    protected_patterns: list[str] | None = None,
     min_protected: int = 1,
-) -> List[str]:
+) -> list[str]:
     """根据 CV 平均特征重要性筛选特征。
 
     Args:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """扩展特征工程 (B3.5: 从 lgb_enhanced_trainer.py 抽取)
 
 本模块集中以下职责:
@@ -17,7 +16,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -28,7 +26,7 @@ logger = logging.getLogger("lgb_enhanced")
 # ============================================================
 # 行业映射 (从 autolearn_trainer 复用)
 # ============================================================
-def _build_sector_map() -> Dict[str, str]:
+def _build_sector_map() -> dict[str, str]:
     """构建 code→sector 映射 (从 POSITION_SYMBOLS)。
 
     POSITION_SYMBOLS 由外部注入, 避免循环导入。
@@ -46,7 +44,7 @@ _REGIME_PROXY_SYMBOL = "510300"
 
 
 # 跨市场代理标的 (用持仓 ETF/股票作为跨市场信号)
-_CROSS_MARKET_PROXIES: Dict[str, str] = {
+_CROSS_MARKET_PROXIES: dict[str, str] = {
     "gold_safe_haven": "518880",  # 黄金ETF华安 - 避险情绪代理
     "bank_rate_proxy": "600036",  # 招商银行 - 利率/信贷代理
     "tech_growth_proxy": "588000",  # 科创50ETF - 成长风格代理
@@ -54,7 +52,7 @@ _CROSS_MARKET_PROXIES: Dict[str, str] = {
 }
 
 # 跨市场特征列名 → 代理键 映射 (单一来源, 避免散落 if/else)
-_CROSS_MARKET_TREND_COLS: Tuple[Tuple[str, str], ...] = (
+_CROSS_MARKET_TREND_COLS: tuple[tuple[str, str], ...] = (
     ("gold_trend_20", "gold_safe_haven"),
     ("bank_trend_20", "bank_rate_proxy"),
     ("tech_style_20", "tech_growth_proxy"),
@@ -66,8 +64,8 @@ _CROSS_MARKET_TREND_COLS: Tuple[Tuple[str, str], ...] = (
 # 均值回归特征 (V6)
 # ============================================================
 def add_mean_reversion_features(
-    ohlcv_dict: Dict[str, pd.DataFrame],
-) -> Dict[str, pd.DataFrame]:
+    ohlcv_dict: dict[str, pd.DataFrame],
+) -> dict[str, pd.DataFrame]:
     """添加均值回归特征 (V6: 提升震荡市Alpha信号质量)
 
     动机:
@@ -93,7 +91,7 @@ def add_mean_reversion_features(
     Returns:
         合并后的字典, 每个 DataFrame 新增 9 个均值回归特征
     """
-    out: Dict[str, pd.DataFrame] = {}
+    out: dict[str, pd.DataFrame] = {}
     for code, df in ohlcv_dict.items():
         new_df = df.copy()
         close = new_df["close"]
@@ -174,8 +172,8 @@ def add_mean_reversion_features(
 # Regime-Aware 特征 (V7)
 # ============================================================
 def add_regime_aware_features(
-    ohlcv_dict: Dict[str, pd.DataFrame],
-) -> Dict[str, pd.DataFrame]:
+    ohlcv_dict: dict[str, pd.DataFrame],
+) -> dict[str, pd.DataFrame]:
     """添加 Regime-Aware 特征 (V7: 解决 bull regime 下 Alpha 信号失效)
 
     动机:
@@ -215,9 +213,9 @@ def add_regime_aware_features(
     mom_lookback = 20
 
     # === Step 1: 从大盘 proxy 计算 regime 序列 ===
-    regime_series: Optional[pd.Series] = None
-    market_vol_series: Optional[pd.Series] = None
-    market_mom_series: Optional[pd.Series] = None
+    regime_series: pd.Series | None = None
+    market_vol_series: pd.Series | None = None
+    market_mom_series: pd.Series | None = None
 
     if proxy_code in ohlcv_dict:
         proxy_df = ohlcv_dict[proxy_code].copy()
@@ -248,7 +246,7 @@ def add_regime_aware_features(
             market_mom_series = close.pct_change(mom_lookback)
 
     # === Step 2: 为每个标的添加 regime-aware 特征 ===
-    out: Dict[str, pd.DataFrame] = {}
+    out: dict[str, pd.DataFrame] = {}
     for code, df in ohlcv_dict.items():
         new_df = df.copy()
 
@@ -312,8 +310,8 @@ def add_regime_aware_features(
 # 行业相对强度特征
 # ============================================================
 def add_industry_relative_strength_features(
-    ohlcv_dict: Dict[str, pd.DataFrame],
-) -> Dict[str, pd.DataFrame]:
+    ohlcv_dict: dict[str, pd.DataFrame],
+) -> dict[str, pd.DataFrame]:
     """行业相对强度特征 (自构建行业基准)
 
     针对周期股/ETF 的 best_iter=1 问题:
@@ -341,14 +339,14 @@ def add_industry_relative_strength_features(
     returns_20 = closes.pct_change(20)
 
     # 按行业分组构建行业基准 (等权平均)
-    sector_codes: Dict[str, List[str]] = {}
+    sector_codes: dict[str, list[str]] = {}
     for code in ohlcv_dict.keys():
         sector = sector_map.get(code, "其他")
         sector_codes.setdefault(sector, []).append(code)
 
     # 计算行业基准收益
-    industry_ret_5: Dict[str, pd.Series] = {}
-    industry_ret_20: Dict[str, pd.Series] = {}
+    industry_ret_5: dict[str, pd.Series] = {}
+    industry_ret_20: dict[str, pd.Series] = {}
     for sector, codes in sector_codes.items():
         valid_codes = [c for c in codes if c in returns_5.columns]
         if len(valid_codes) >= 2:
@@ -360,7 +358,7 @@ def add_industry_relative_strength_features(
             industry_ret_5[sector] = returns_5[valid_codes[0]]
             industry_ret_20[sector] = returns_20[valid_codes[0]]
 
-    out: Dict[str, pd.DataFrame] = {}
+    out: dict[str, pd.DataFrame] = {}
     for code, df in ohlcv_dict.items():
         new_df = df.copy()
         sector = sector_map.get(code, "其他")
@@ -405,8 +403,8 @@ def add_industry_relative_strength_features(
 # 资金流向特征
 # ============================================================
 def add_capital_flow_features(
-    ohlcv_dict: Dict[str, pd.DataFrame],
-) -> Dict[str, pd.DataFrame]:
+    ohlcv_dict: dict[str, pd.DataFrame],
+) -> dict[str, pd.DataFrame]:
     """资金流向特征 (基于价量关系估算)
 
     针对周期股 best_iter=1 问题, 增加资金行为维度:
@@ -425,7 +423,7 @@ def add_capital_flow_features(
     Returns:
         合并后的字典, 每个 DataFrame 新增 5 个资金流向特征
     """
-    out: Dict[str, pd.DataFrame] = {}
+    out: dict[str, pd.DataFrame] = {}
     for code, df in ohlcv_dict.items():
         new_df = df.copy()
 
@@ -495,7 +493,7 @@ def add_capital_flow_features(
 # 跨市场信号特征
 # ============================================================
 def _attach_proxy_trend(
-    new_df: pd.DataFrame, proxy_trend_20: Dict[str, pd.Series]
+    new_df: pd.DataFrame, proxy_trend_20: dict[str, pd.Series]
 ) -> pd.DataFrame:
     """将 4 个代理趋势列合并到 new_df (缺失则填 0.0)。"""
     for col, proxy_key in _CROSS_MARKET_TREND_COLS:
@@ -509,8 +507,8 @@ def _attach_proxy_trend(
 
 def _attach_derived_signals(
     new_df: pd.DataFrame,
-    style_rotation: Optional[pd.Series],
-    gold_vol_ratio: Optional[pd.Series],
+    style_rotation: pd.Series | None,
+    gold_vol_ratio: pd.Series | None,
 ) -> pd.DataFrame:
     """合并风格轮动信号 + 避险资金流入 (缺失则填 0.0)。"""
     if style_rotation is not None:
@@ -526,11 +524,11 @@ def _attach_derived_signals(
 
 
 def _collect_cross_market_proxies(
-    ohlcv_dict: Dict[str, pd.DataFrame],
-) -> Tuple[Dict[str, pd.Series], Dict[str, pd.Series]]:
+    ohlcv_dict: dict[str, pd.DataFrame],
+) -> tuple[dict[str, pd.Series], dict[str, pd.Series]]:
     """收集代理标的收盘价和成交量序列。"""
-    proxy_data: Dict[str, pd.Series] = {}  # {proxy_name: close_series}
-    proxy_vol: Dict[str, pd.Series] = {}
+    proxy_data: dict[str, pd.Series] = {}  # {proxy_name: close_series}
+    proxy_vol: dict[str, pd.Series] = {}
     for proxy_name, code in _CROSS_MARKET_PROXIES.items():
         if code in ohlcv_dict:
             df = ohlcv_dict[code]
@@ -541,9 +539,9 @@ def _collect_cross_market_proxies(
     return proxy_data, proxy_vol
 
 
-def _compute_proxy_trends(proxy_data: Dict[str, pd.Series]) -> Dict[str, pd.Series]:
+def _compute_proxy_trends(proxy_data: dict[str, pd.Series]) -> dict[str, pd.Series]:
     """计算各代理标的的 20 日趋势 (close/ma20 - 1)。"""
-    proxy_trend_20: Dict[str, pd.Series] = {}
+    proxy_trend_20: dict[str, pd.Series] = {}
     for name, close in proxy_data.items():
         if len(close) >= 20:
             ma20 = close.rolling(20, min_periods=1).mean()
@@ -552,8 +550,8 @@ def _compute_proxy_trends(proxy_data: Dict[str, pd.Series]) -> Dict[str, pd.Seri
 
 
 def _compute_style_rotation(
-    proxy_trend_20: Dict[str, pd.Series]
-) -> Optional[pd.Series]:
+    proxy_trend_20: dict[str, pd.Series]
+) -> pd.Series | None:
     """风格轮动: 科技 vs 红利 的 20 日趋势差 (5 日变化)。"""
     tech_trend = proxy_trend_20.get("tech_growth_proxy")
     div_trend = proxy_trend_20.get("dividend_defensive")
@@ -563,7 +561,7 @@ def _compute_style_rotation(
     return style_diff.diff(5).fillna(0)
 
 
-def _compute_gold_vol_ratio(proxy_vol: Dict[str, pd.Series]) -> Optional[pd.Series]:
+def _compute_gold_vol_ratio(proxy_vol: dict[str, pd.Series]) -> pd.Series | None:
     """避险资金流入: 黄金ETF 成交量比 (相对 20 日均量)。"""
     if "gold_safe_haven" not in proxy_vol:
         return None
@@ -573,8 +571,8 @@ def _compute_gold_vol_ratio(proxy_vol: Dict[str, pd.Series]) -> Optional[pd.Seri
 
 
 def add_cross_market_features(
-    ohlcv_dict: Dict[str, pd.DataFrame],
-) -> Dict[str, pd.DataFrame]:
+    ohlcv_dict: dict[str, pd.DataFrame],
+) -> dict[str, pd.DataFrame]:
     """跨市场信号特征 (用持仓 ETF/股票作为跨市场代理)
 
     针对周期股/ETF 的 best_iter=1 问题, 增加跨市场维度:
@@ -602,7 +600,7 @@ def add_cross_market_features(
     style_rotation = _compute_style_rotation(proxy_trend_20)
     gold_vol_ratio = _compute_gold_vol_ratio(proxy_vol)
 
-    out: Dict[str, pd.DataFrame] = {}
+    out: dict[str, pd.DataFrame] = {}
     for code, df in ohlcv_dict.items():
         new_df = df.copy()
         _attach_proxy_trend(new_df, proxy_trend_20)

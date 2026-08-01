@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 信号后处理 — 行业中性化 + 排名归一化
 通过组内排名消除行业偏差，提升信号质量
@@ -50,10 +49,10 @@ def apply_industry_neutralization():
         return
 
     print(f"[读取] {report_path}")
-    with open(report_path, "r", encoding="utf-8") as f:
+    with open(report_path, encoding="utf-8") as f:
         report = json.load(f)
 
-    with open(POSITIONS_FILE, "r", encoding="utf-8") as f:
+    with open(POSITIONS_FILE, encoding="utf-8") as f:
         positions_data = json.load(f)
 
     stock_signals = {}

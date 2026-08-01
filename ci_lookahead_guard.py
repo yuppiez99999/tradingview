@@ -23,7 +23,6 @@ import argparse
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 # 项目根目录
 ROOT = Path(__file__).resolve().parent
@@ -67,7 +66,7 @@ EXCLUDE_DIRS = {
 
 # 前视偏差检测规则
 # (规则名, 正则模式, 严重程度, 说明)
-RULES: List[Tuple[str, str, str, str]] = [
+RULES: list[tuple[str, str, str, str]] = [
     (
         "Bfill",
         r"\.bfill\s*\(",
@@ -110,7 +109,7 @@ def should_exclude(path: Path) -> bool:
     return False
 
 
-def scan_file(filepath: Path) -> List[dict]:
+def scan_file(filepath: Path) -> list[dict]:
     """扫描单个文件中的前视偏差模式
 
     Returns:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 实时监控并发调度器 (--live 模式)
 ====================================
@@ -46,7 +45,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from datetime import time as dt_time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
 
 # ============================================================
 # 路径初始化
@@ -76,7 +75,7 @@ logger.addHandler(file_handler)
 # 全局状态
 # ============================================================
 RUNNING = True
-MODULE_STATUS: Dict[str, Dict] = {}
+MODULE_STATUS: dict[str, dict] = {}
 PYTHON = sys.executable
 LOCK_FILE = BASE_DIR / ".live_scheduler.lock"
 
@@ -143,7 +142,7 @@ MODULE_DEFINITIONS = [
 # ============================================================
 
 
-def run_market_monitor(dry_run: bool = False) -> Dict[str, Any]:
+def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
     """实时行情监控任务"""
     start = datetime.now()
     result = {"status": "OK", "data": {}}
@@ -154,7 +153,7 @@ def run_market_monitor(dry_run: bool = False) -> Dict[str, Any]:
 
         positions_path = BASE_DIR / "config" / "positions.json"
         if positions_path.exists():
-            with open(positions_path, "r", encoding="utf-8") as f:
+            with open(positions_path, encoding="utf-8") as f:
                 positions_data = json.load(f)
             codes = list(positions_data.get("positions", {}).keys())
         else:
@@ -189,7 +188,7 @@ def run_market_monitor(dry_run: bool = False) -> Dict[str, Any]:
     return result
 
 
-def run_auto_rebalance(dry_run: bool = False) -> Dict[str, Any]:
+def run_auto_rebalance(dry_run: bool = False) -> dict[str, Any]:
     """自动再平衡任务"""
     start = datetime.now()
     result = {"status": "OK", "data": {}}
@@ -198,7 +197,7 @@ def run_auto_rebalance(dry_run: bool = False) -> Dict[str, Any]:
 
         positions_path = BASE_DIR / "config" / "positions.json"
         if positions_path.exists():
-            with open(positions_path, "r", encoding="utf-8") as f:
+            with open(positions_path, encoding="utf-8") as f:
                 positions_data = json.load(f)
             positions = positions_data.get("positions", {})
 
@@ -206,7 +205,7 @@ def run_auto_rebalance(dry_run: bool = False) -> Dict[str, Any]:
 
             trade_plan_path = V75_DIR / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
             if trade_plan_path.exists():
-                with open(trade_plan_path, "r", encoding="utf-8") as f:
+                with open(trade_plan_path, encoding="utf-8") as f:
                     plan = json.load(f)
                 target_weights = {}
                 for pos in plan.get("stock_etf_account", {}).get("positions", []):
@@ -235,7 +234,7 @@ def run_auto_rebalance(dry_run: bool = False) -> Dict[str, Any]:
     return result
 
 
-def run_hedge_rebalance(dry_run: bool = False) -> Dict[str, Any]:
+def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
     """对冲再平衡联动任务"""
     start = datetime.now()
     result = {"status": "OK", "data": {}}
@@ -244,7 +243,7 @@ def run_hedge_rebalance(dry_run: bool = False) -> Dict[str, Any]:
 
         positions_path = BASE_DIR / "config" / "positions.json"
         if positions_path.exists():
-            with open(positions_path, "r", encoding="utf-8") as f:
+            with open(positions_path, encoding="utf-8") as f:
                 positions_data = json.load(f)
             positions = positions_data.get("positions", {})
 
@@ -295,7 +294,7 @@ def run_hedge_rebalance(dry_run: bool = False) -> Dict[str, Any]:
                 }
 
                 # 优先: hedge_engine_v59 多源聚合 (iFinD→Wind→AKShare→Sina→efinance)
-                live_prices: Dict[str, float] = {}
+                live_prices: dict[str, float] = {}
                 try:
                     live_prices = get_live_futures_prices() or {}
                 except Exception as e:
@@ -402,7 +401,7 @@ def run_hedge_rebalance(dry_run: bool = False) -> Dict[str, Any]:
     return result
 
 
-def run_etf_flow_monitor(dry_run: bool = False) -> Dict[str, Any]:
+def run_etf_flow_monitor(dry_run: bool = False) -> dict[str, Any]:
     """ETF资金流监控任务"""
     start = datetime.now()
     result = {"status": "OK", "data": {}}
@@ -438,7 +437,7 @@ def run_etf_flow_monitor(dry_run: bool = False) -> Dict[str, Any]:
     return result
 
 
-def run_ml_signal_scan(dry_run: bool = False) -> Dict[str, Any]:
+def run_ml_signal_scan(dry_run: bool = False) -> dict[str, Any]:
     """ML信号扫描任务
 
     Phase 3 集成: Kronos 时序模型作为 AB test Challenger 注入.
@@ -489,7 +488,7 @@ def run_ml_signal_scan(dry_run: bool = False) -> Dict[str, Any]:
     return result
 
 
-def _enrich_with_kronos(predictions: Dict[str, Any], codes: List[str]) -> Dict[str, Any]:
+def _enrich_with_kronos(predictions: dict[str, Any], codes: list[str]) -> dict[str, Any]:
     """用 Kronos Challenger 预测丰富 predictions 字典.
 
     HC-1: USE_KRONOS_PREDICTOR=False 时返回 disabled 状态, 不修改 predictions.
@@ -508,7 +507,7 @@ def _enrich_with_kronos(predictions: Dict[str, Any], codes: List[str]) -> Dict[s
                 "error": str (仅 status=error 时),
             }
     """
-    meta: Dict[str, Any] = {
+    meta: dict[str, Any] = {
         "status": "disabled",
         "enriched_count": 0,
         "factors_added": [],
@@ -569,7 +568,7 @@ def _enrich_with_kronos(predictions: Dict[str, Any], codes: List[str]) -> Dict[s
     return meta
 
 
-def run_daily_report(dry_run: bool = False) -> Dict[str, Any]:
+def run_daily_report(dry_run: bool = False) -> dict[str, Any]:
     """收盘报告任务"""
     start = datetime.now()
     result = {"status": "OK", "data": {}}
@@ -610,7 +609,7 @@ def run_daily_report(dry_run: bool = False) -> Dict[str, Any]:
     return result
 
 
-def run_strategy_evaluation(dry_run: bool = False) -> Dict[str, Any]:
+def run_strategy_evaluation(dry_run: bool = False) -> dict[str, Any]:
     """N6: 策略健康度评估任务 (每日收盘后运行).
 
     对接真实数据源:
@@ -660,17 +659,17 @@ def run_strategy_evaluation(dry_run: bool = False) -> Dict[str, Any]:
         signal_hist_path = BASE_DIR / "reports" / "signal_history.json"
         trade_hist_path = BASE_DIR / "reports" / "trade_history.json"
 
-        signal_history: List[Dict] = []
-        _trade_history: List[Dict] = []  # 预留，后续 strategy_eval 扩展用
+        signal_history: list[dict] = []
+        _trade_history: list[dict] = []  # 预留，后续 strategy_eval 扩展用
         if signal_hist_path.exists():
             try:
-                with open(signal_hist_path, "r", encoding="utf-8") as f:
+                with open(signal_hist_path, encoding="utf-8") as f:
                     signal_history = json.load(f)
             except Exception as e:
                 logger.warning(f"[strategy_eval] 读取信号历史失败: {e}")
         if trade_hist_path.exists():
             try:
-                with open(trade_hist_path, "r", encoding="utf-8") as f:
+                with open(trade_hist_path, encoding="utf-8") as f:
                     _trade_history = json.load(f)  # 预留，后续 strategy_eval 扩展用
             except Exception as e:
                 logger.warning(f"[strategy_eval] 读取交易历史失败: {e}")
@@ -846,9 +845,9 @@ class LiveScheduler:
         self.dry_run = dry_run
         self.max_workers = max_workers
         self.executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="live")
-        self.timers: Dict[str, threading.Timer] = {}
-        self.module_last_run: Dict[str, datetime] = {}
-        self.module_results: Dict[str, List[Dict]] = {}
+        self.timers: dict[str, threading.Timer] = {}
+        self.module_last_run: dict[str, datetime] = {}
+        self.module_results: dict[str, list[dict]] = {}
 
         for mod in MODULE_DEFINITIONS:
             self.module_results[mod["name"]] = []
@@ -880,7 +879,7 @@ class LiveScheduler:
                 "error": str(e),
             }
 
-    def _schedule_module(self, module_def: Dict) -> None:
+    def _schedule_module(self, module_def: dict) -> None:
         """调度单个模块"""
         name = module_def["name"]
         interval = module_def["interval_seconds"]
@@ -900,7 +899,7 @@ class LiveScheduler:
 
         run_and_reschedule()
 
-    def _schedule_timed_module(self, module_def: Dict) -> None:
+    def _schedule_timed_module(self, module_def: dict) -> None:
         """调度定时触发模块 (interval_seconds=None, 按 trigger_time 每日定时执行)
 
         v8.6.13 P0 FIX (2026-08-01 AI 扫描):
@@ -982,7 +981,7 @@ class LiveScheduler:
         logger.info("  调度器已停止")
         logger.info("=" * 70)
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取当前状态"""
         return {
             "running": RUNNING,
@@ -1002,11 +1001,11 @@ def _write_lock(pid: int) -> None:
         json.dump({"pid": pid, "start_time": datetime.now().isoformat()}, f)
 
 
-def _read_lock() -> Optional[Dict]:
+def _read_lock() -> dict | None:
     """读取锁文件"""
     if LOCK_FILE.exists():
         try:
-            with open(LOCK_FILE, "r", encoding="utf-8") as f:
+            with open(LOCK_FILE, encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             return None

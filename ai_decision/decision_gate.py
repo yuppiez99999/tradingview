@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.decision_gate — 决策门 (硬风控独立 + 模式开关)
 =========================================================
@@ -23,7 +22,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ai_decision.config import get_config
 from ai_decision.models import TradingDecision
@@ -70,7 +69,7 @@ class GateResult:
     passed: bool = True                   # 是否通过硬风控
     veto: bool = False
     veto_reason: str = ""
-    risk_checks: Dict[str, Any] = field(default_factory=dict)
+    risk_checks: dict[str, Any] = field(default_factory=dict)
 
 
 def run_hard_risk(decision: TradingDecision, rc: RiskContext) -> GateResult:
@@ -86,7 +85,7 @@ def run_hard_risk(decision: TradingDecision, rc: RiskContext) -> GateResult:
     Returns:
         GateResult: 含 passed/veto/veto_reason/risk_checks 的检查结果
     """
-    checks: Dict[str, Any] = {}
+    checks: dict[str, Any] = {}
     res = GateResult()
 
     # 1. 黑名单
@@ -146,7 +145,7 @@ def run_hard_risk(decision: TradingDecision, rc: RiskContext) -> GateResult:
 
 
 def apply_mode(decision: TradingDecision, gate: GateResult,
-               mode: Optional[str] = None) -> TradingDecision:
+               mode: str | None = None) -> TradingDecision:
     """按运行模式决定最终执行态并写入 decision。
 
     根据 gate 结果与运行模式 (shadow/paper/auto) 设置 decision 的

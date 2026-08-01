@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """v8.1 系统自检脚本"""
 
 import json

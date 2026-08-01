@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.backtest_replay — 历史回放 + 三基线对比
 ====================================================
@@ -50,7 +49,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Protocol
 
 import numpy as np
 import pandas as pd
@@ -112,7 +111,7 @@ class ReplayConfig:
     """
     start_date: str = ""
     end_date: str = ""
-    symbols: Optional[List[str]] = None
+    symbols: list[str] | None = None
     rebalance_freq: str = "W"
     forward_return_horizon: int = 5
     use_mock_providers: bool = True
@@ -134,17 +133,17 @@ class BaselineResult:
         n_buy / n_sell / n_hold: action 分布
     """
     baseline: str = ""
-    decisions: List[Dict[str, Any]] = field(default_factory=list)
-    returns: List[float] = field(default_factory=list)
-    ic_series: List[float] = field(default_factory=list)
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    decisions: list[dict[str, Any]] = field(default_factory=list)
+    returns: list[float] = field(default_factory=list)
+    ic_series: list[float] = field(default_factory=list)
+    metrics: dict[str, Any] = field(default_factory=dict)
     debate_trigger_rate: float = 0.0
     n_decisions: int = 0
     n_buy: int = 0
     n_sell: int = 0
     n_hold: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "baseline": self.baseline,
             "n_decisions": self.n_decisions,
@@ -172,15 +171,15 @@ class ComparisonReport:
         bias_checks: 前视偏差校验结果
         generated_at: 生成时间
     """
-    config: Dict[str, Any] = field(default_factory=dict)
-    baselines: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    config: dict[str, Any] = field(default_factory=dict)
+    baselines: dict[str, dict[str, Any]] = field(default_factory=dict)
     marginal_sharpe_debate_vs_agents: float = 0.0
     marginal_sharpe_agents_vs_rule: float = 0.0
     recommendation: str = "shadow"
-    bias_checks: Dict[str, bool] = field(default_factory=dict)
+    bias_checks: dict[str, bool] = field(default_factory=dict)
     generated_at: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "config": self.config,
             "baselines": self.baselines,
@@ -202,11 +201,11 @@ class HistoryDataLoader(Protocol):
     实现此协议的类需提供以下方法. 用于解耦回放引擎与具体数据源.
     """
 
-    def get_trading_dates(self, start: str, end: str) -> List[str]:
+    def get_trading_dates(self, start: str, end: str) -> list[str]:
         """获取交易日列表 (YYYY-MM-DD)"""
         ...
 
-    def get_market_data(self, symbol: str, date: str) -> Dict[str, Any]:
+    def get_market_data(self, symbol: str, date: str) -> dict[str, Any]:
         """获取指定日期的行情数据
 
         Returns:
@@ -215,7 +214,7 @@ class HistoryDataLoader(Protocol):
         """
         ...
 
-    def get_fundamentals(self, symbol: str, date: str) -> Dict[str, Any]:
+    def get_fundamentals(self, symbol: str, date: str) -> dict[str, Any]:
         """获取指定日期可见的基本面 (用披露日, 非报告期截止日)
 
         Returns:
@@ -231,7 +230,7 @@ class HistoryDataLoader(Protocol):
         """
         ...
 
-    def get_constituents(self, date: str) -> List[str]:
+    def get_constituents(self, date: str) -> list[str]:
         """获取指定日期的成分股快照 (防幸存者偏差)"""
         ...
 
@@ -253,7 +252,7 @@ class MockHistoryDataLoader:
 
     def __init__(
         self,
-        symbols: Optional[List[str]] = None,
+        symbols: list[str] | None = None,
         days: int = 60,
         start_date: str = "2025-01-01",
         seed: int = 42,
@@ -264,7 +263,7 @@ class MockHistoryDataLoader:
         np.random.seed(seed)
 
         # 生成交易日序列 (跳过周末)
-        self._dates: List[str] = []
+        self._dates: list[str] = []
         d = datetime.strptime(start_date, "%Y-%m-%d")
         for _ in range(days):
             while d.weekday() >= 5:  # 5=周六, 6=周日
@@ -273,8 +272,8 @@ class MockHistoryDataLoader:
             d += timedelta(days=1)
 
         # 为每个 symbol 生成价格序列 (随机游走)
-        self._prices: Dict[str, List[float]] = {}
-        self._halts: Dict[str, set] = {s: set() for s in self._symbols}
+        self._prices: dict[str, list[float]] = {}
+        self._halts: dict[str, set] = {s: set() for s in self._symbols}
         for sym in self._symbols:
             price = 10.0 + self._rng.uniform(0, 90)  # 10~100 元
             prices = [price]
@@ -289,10 +288,10 @@ class MockHistoryDataLoader:
                 if self._rng.random() < 0.05:
                     self._halts[sym].add(dt)
 
-    def get_trading_dates(self, start: str, end: str) -> List[str]:
+    def get_trading_dates(self, start: str, end: str) -> list[str]:
         return [d for d in self._dates if start <= d <= end]
 
-    def get_market_data(self, symbol: str, date: str) -> Dict[str, Any]:
+    def get_market_data(self, symbol: str, date: str) -> dict[str, Any]:
         if symbol not in self._prices or date not in self._dates:
             return {"close": 0.0, "change_pct": 0.0, "volume": 0.0,
                     "is_halted": True, "is_limit_up": False, "is_limit_down": False}
@@ -313,7 +312,7 @@ class MockHistoryDataLoader:
             "is_limit_down": is_limit_down,
         }
 
-    def get_fundamentals(self, symbol: str, date: str) -> Dict[str, Any]:
+    def get_fundamentals(self, symbol: str, date: str) -> dict[str, Any]:
         # 用披露日而非报告期截止日: disclosure_date <= date 才可见
         return {
             "pe": round(self._rng.uniform(5, 50), 2),
@@ -334,7 +333,7 @@ class MockHistoryDataLoader:
             return float("nan")
         return (p1 - p0) / p0
 
-    def get_constituents(self, date: str) -> List[str]:
+    def get_constituents(self, date: str) -> list[str]:
         # 简化: 成分股固定 (实际应逐日快照防幸存者偏差)
         return list(self._symbols)
 
@@ -364,8 +363,8 @@ class BacktestReplay:
     def __init__(
         self,
         loader: HistoryDataLoader,
-        config: Optional[ReplayConfig] = None,
-        health_monitor: Optional[ModelHealthMonitor] = None,
+        config: ReplayConfig | None = None,
+        health_monitor: ModelHealthMonitor | None = None,
     ) -> None:
         """
         Args:
@@ -406,7 +405,7 @@ class BacktestReplay:
         bias_checks = self._check_bias()
 
         # 运行三基线
-        baselines: Dict[str, BaselineResult] = {}
+        baselines: dict[str, BaselineResult] = {}
         for bt in BaselineType:
             try:
                 result = self.replay_history(bt)
@@ -470,10 +469,10 @@ class BacktestReplay:
         # 否则整个回测期间都用固定列表, 引入幸存者偏差 (已退市/ST 股被排除).
         # 正确做法: 每日循环中重新获取当日成分股快照 (项目记忆硬约束).
 
-        all_decisions: List[Dict[str, Any]] = []
+        all_decisions: list[dict[str, Any]] = []
         # 按日聚合: 每日的 action 强度作为因子, 对应前瞻收益
-        daily_factor: Dict[str, Dict[str, float]] = {}  # date -> {symbol: strength}
-        daily_forward: Dict[str, Dict[str, float]] = {}  # date -> {symbol: fwd_return}
+        daily_factor: dict[str, dict[str, float]] = {}  # date -> {symbol: strength}
+        daily_forward: dict[str, dict[str, float]] = {}  # date -> {symbol: fwd_return}
         debate_triggered_count = 0
         total_decisions = 0
 
@@ -553,8 +552,8 @@ class BacktestReplay:
 
     def _run_ai_debate(
         self, symbol: str, date_str: str,
-        market_data: Dict[str, Any], fundamentals: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        market_data: dict[str, Any], fundamentals: dict[str, Any],
+    ) -> dict[str, Any]:
         """基线 1: 完整 run_decision (辩论 + 聚合 + 风控)
 
         复用 orchestrator.run_decision() 全链路.
@@ -583,8 +582,8 @@ class BacktestReplay:
 
     def _run_five_agents_only(
         self, symbol: str, date_str: str,
-        market_data: Dict[str, Any], fundamentals: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        market_data: dict[str, Any], fundamentals: dict[str, Any],
+    ) -> dict[str, Any]:
         """基线 2: 仅五 Agent 共识 (跳过辩论/judge)
 
         直接调用 _run_five_agents() + apply_mode(), 不进入辩论环节.
@@ -624,8 +623,8 @@ class BacktestReplay:
 
     def _run_rule_only(
         self, symbol: str, date_str: str,
-        market_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        market_data: dict[str, Any],
+    ) -> dict[str, Any]:
         """基线 3: 纯规则兜底 (跳过 AI)
 
         规则公式 (单位修正版):
@@ -664,8 +663,8 @@ class BacktestReplay:
     # ------------------------------------------------------------
 
     def _compute_returns(
-        self, decisions: List[Dict[str, Any]], dates: List[str],
-    ) -> List[float]:
+        self, decisions: list[dict[str, Any]], dates: list[str],
+    ) -> list[float]:
         """计算策略日收益序列
 
         简化模型: 每日等权持有所有 buy 决策的标的, 收益 = 前瞻收益均值.
@@ -676,8 +675,8 @@ class BacktestReplay:
         FastBacktest (会让 Sharpe/波动率严重失真). 这里除以 horizon 转为日均收益.
         """
         # 按日聚合
-        daily_returns: List[float] = []
-        decisions_by_date: Dict[str, List[Dict[str, Any]]] = {}
+        daily_returns: list[float] = []
+        decisions_by_date: dict[str, list[dict[str, Any]]] = {}
         for d in decisions:
             decisions_by_date.setdefault(d.get("date", ""), []).append(d)
 
@@ -686,7 +685,7 @@ class BacktestReplay:
         for date_str in dates:
             day_decs = decisions_by_date.get(date_str, [])
             # 取 buy 决策的前瞻收益
-            long_returns: List[float] = []
+            long_returns: list[float] = []
             for d in day_decs:
                 if d.get("action") == "buy":
                     sym = d.get("symbol", "")
@@ -707,15 +706,15 @@ class BacktestReplay:
 
     def _compute_ic_series(
         self,
-        daily_factor: Dict[str, Dict[str, float]],
-        daily_forward: Dict[str, Dict[str, float]],
-    ) -> List[float]:
+        daily_factor: dict[str, dict[str, float]],
+        daily_forward: dict[str, dict[str, float]],
+    ) -> list[float]:
         """计算每日 Spearman IC 序列
 
         对每个交易日, 用决策强度 (因子) 与前瞻收益 (label) 计算 Spearman 秩相关.
         样本不足 (< MIN_IC_SAMPLES) 的日期跳过.
         """
-        ic_list: List[float] = []
+        ic_list: list[float] = []
         for date_str in sorted(daily_factor.keys()):
             factors = daily_factor[date_str]
             forwards = daily_forward.get(date_str, {})
@@ -732,8 +731,8 @@ class BacktestReplay:
 
     @staticmethod
     def _spearman_ic(
-        factor_values: Dict[str, float],
-        forward_returns: Dict[str, float],
+        factor_values: dict[str, float],
+        forward_returns: dict[str, float],
     ) -> float:
         """计算 Spearman 秩相关 IC (复用 multi_factor_signal 公式)
 
@@ -744,7 +743,7 @@ class BacktestReplay:
             Spearman IC, 样本不足返回 nan
         """
         common = set(factor_values.keys()) & set(forward_returns.keys())
-        pairs: List[tuple] = []
+        pairs: list[tuple] = []
         for sym in common:
             fv = factor_values.get(sym)
             fr = forward_returns.get(sym)
@@ -778,8 +777,8 @@ class BacktestReplay:
         return num / denom
 
     def _compute_metrics(
-        self, returns: List[float], ic_series: List[float],
-    ) -> Dict[str, Any]:
+        self, returns: list[float], ic_series: list[float],
+    ) -> dict[str, Any]:
         """用 FastBacktest 计算绩效指标 (复用, 不重写)"""
         try:
             from utils.alpha.fast_backtest import BacktestResult, FastBacktest
@@ -797,7 +796,7 @@ class BacktestReplay:
             return self._empty_metrics()
 
     @staticmethod
-    def _empty_metrics() -> Dict[str, Any]:
+    def _empty_metrics() -> dict[str, Any]:
         """空指标 (数据不足或异常时降级)"""
         return {
             "annual_return": 0.0, "annual_vol": 0.0, "sharpe": 0.0,
@@ -814,7 +813,7 @@ class BacktestReplay:
         self,
         marginal_debate_vs_agents: float,
         marginal_agents_vs_rule: float,
-        bias_checks: Dict[str, bool],
+        bias_checks: dict[str, bool],
     ) -> str:
         """根据边际夏普 + 偏差校验给出上线建议
 
@@ -841,7 +840,7 @@ class BacktestReplay:
     # 前视偏差校验
     # ------------------------------------------------------------
 
-    def _check_bias(self) -> Dict[str, bool]:
+    def _check_bias(self) -> dict[str, bool]:
         """前视偏差校验 (项目记忆硬约束)
 
         校验项:
@@ -850,7 +849,7 @@ class BacktestReplay:
         3. tradability_check: 停牌冻结/涨跌停不可成交
         4. signal_lag_check: 信号至少滞后一期
         """
-        checks: Dict[str, bool] = {}
+        checks: dict[str, bool] = {}
 
         # 1. 披露日校验: loader 返回的 fundamentals 必须含 disclosure_date
         try:
@@ -898,7 +897,7 @@ class BacktestReplay:
     def to_markdown(self, report: ComparisonReport) -> str:
         """将对比报告转为 Markdown"""
         cfg = report.config
-        lines: List[str] = [
+        lines: list[str] = [
             "# ai_decision 历史回放 + 三基线对比",
             "",
             f"> 生成时间: {report.generated_at}",

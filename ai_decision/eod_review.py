@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.eod_review — 审计日志自动复盘
 ==========================================
@@ -48,7 +47,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ai_decision.config import get_config
 from ai_decision.health import ModelHealthMonitor, get_default_monitor
@@ -121,15 +120,15 @@ class EODReviewReport:
         generated_at: 生成时间 ISO
     """
     date: str = ""
-    decision_distribution: Dict[str, Any] = field(default_factory=dict)
-    debate_effectiveness: Dict[str, Any] = field(default_factory=dict)
-    risk_interception: Dict[str, Any] = field(default_factory=dict)
-    execution_quality: Dict[str, Any] = field(default_factory=dict)
-    anomaly_detection: Dict[str, Any] = field(default_factory=dict)
-    alerts: List[Dict[str, Any]] = field(default_factory=list)
+    decision_distribution: dict[str, Any] = field(default_factory=dict)
+    debate_effectiveness: dict[str, Any] = field(default_factory=dict)
+    risk_interception: dict[str, Any] = field(default_factory=dict)
+    execution_quality: dict[str, Any] = field(default_factory=dict)
+    anomaly_detection: dict[str, Any] = field(default_factory=dict)
+    alerts: list[dict[str, Any]] = field(default_factory=list)
     generated_at: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "date": self.date,
             "decision_distribution": self.decision_distribution,
@@ -157,8 +156,8 @@ class EODReviewGenerator:
 
     def __init__(
         self,
-        health_monitor: Optional[ModelHealthMonitor] = None,
-        alerts_config: Optional[AlertsConfig] = None,
+        health_monitor: ModelHealthMonitor | None = None,
+        alerts_config: AlertsConfig | None = None,
     ) -> None:
         """
         Args:
@@ -172,7 +171,7 @@ class EODReviewGenerator:
     # 主入口
     # ------------------------------------------------------------
 
-    def generate_eod_review(self, date_str: Optional[str] = None) -> Dict[str, Any]:
+    def generate_eod_review(self, date_str: str | None = None) -> dict[str, Any]:
         """生成每日 EOD 复盘报告
 
         Args:
@@ -220,7 +219,7 @@ class EODReviewGenerator:
     # 审计日志聚合
     # ------------------------------------------------------------
 
-    def _aggregate_exec_audit(self, date_str: str) -> List[Dict[str, Any]]:
+    def _aggregate_exec_audit(self, date_str: str) -> list[dict[str, Any]]:
         """聚合指定日期的执行审计记录
 
         文件路径: reports/ai_decision/execution/exec_{date}.jsonl
@@ -237,11 +236,11 @@ class EODReviewGenerator:
             return self._load_jsonl(path)
         return self._load_all_exec_by_date(date_str)
 
-    def _load_all_exec_by_date(self, date_str: str) -> List[Dict[str, Any]]:
+    def _load_all_exec_by_date(self, date_str: str) -> list[dict[str, Any]]:
         """扫描所有 exec_*.jsonl 按时间戳过滤"""
         if not _EXEC_AUDIT_DIR.exists():
             return []
-        records: List[Dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         for f in _EXEC_AUDIT_DIR.glob("exec_*.jsonl"):
             for r in self._load_jsonl(f):
                 ts = r.get("timestamp", "")
@@ -249,18 +248,18 @@ class EODReviewGenerator:
                     records.append(r)
         return records
 
-    def _aggregate_tca_estimates(self, date_str: str) -> List[Dict[str, Any]]:
+    def _aggregate_tca_estimates(self, date_str: str) -> list[dict[str, Any]]:
         """聚合指定日期的 TCA 预估记录"""
         path = _TCA_ESTIMATE_DIR / f"estimate_{date_str}.jsonl"
         if not path.exists():
             return []
         return self._load_jsonl(path)
 
-    def _load_jsonl(self, path: Path) -> List[Dict[str, Any]]:
+    def _load_jsonl(self, path: Path) -> list[dict[str, Any]]:
         """加载 JSONL 文件"""
-        records: List[Dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 for line in fh:
                     line = line.strip()
                     if line:
@@ -277,8 +276,8 @@ class EODReviewGenerator:
     # ------------------------------------------------------------
 
     def _analyze_decision_distribution(
-        self, records: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, records: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """维度 1: 决策分布 (action / mode / verdict_type / confidence)
 
         Returns:
@@ -299,10 +298,10 @@ class EODReviewGenerator:
                 "confidence_stats": {"mean": 0.0, "min": 0.0, "max": 0.0},
             }
 
-        action_dist: Dict[str, int] = {}
-        mode_dist: Dict[str, int] = {}
-        verdict_dist: Dict[str, int] = {}
-        confidences: List[float] = []
+        action_dist: dict[str, int] = {}
+        mode_dist: dict[str, int] = {}
+        verdict_dist: dict[str, int] = {}
+        confidences: list[float] = []
 
         for r in records:
             action = r.get("action", "unknown")
@@ -336,8 +335,8 @@ class EODReviewGenerator:
     # ------------------------------------------------------------
 
     def _analyze_debate_effectiveness(
-        self, records: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, records: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """维度 2: 辩论有效性 (触发率 / 置信度提升 / FP 率)
 
         从审计记录中提取辩论相关信息:
@@ -392,8 +391,8 @@ class EODReviewGenerator:
     # ------------------------------------------------------------
 
     def _analyze_risk_interception(
-        self, records: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, records: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """维度 3: 风控拦截 (veto / escalation 原因 Top 5)
 
         Returns:
@@ -445,9 +444,9 @@ class EODReviewGenerator:
 
     def _analyze_execution_quality(
         self,
-        exec_records: List[Dict[str, Any]],
-        tca_records: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        exec_records: list[dict[str, Any]],
+        tca_records: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """维度 4: 执行质量 (成功率 / 延迟 / TCA 评级)
 
         Returns:
@@ -470,7 +469,7 @@ class EODReviewGenerator:
 
         executed = sum(1 for r in exec_records if r.get("executed", False))
         # 延迟从 execution_result.elapsed_seconds 提取
-        latencies: List[float] = []
+        latencies: list[float] = []
         for r in exec_records:
             er = r.get("execution_result")
             if isinstance(er, dict):
@@ -479,8 +478,8 @@ class EODReviewGenerator:
                     latencies.append(float(elapsed) * 1000.0)  # 转 ms
 
         # TCA 评级 (从事后归因报告提取)
-        grade_dist: Dict[str, int] = {}
-        is_costs: List[float] = []
+        grade_dist: dict[str, int] = {}
+        is_costs: list[float] = []
         for r in exec_records:
             post = r.get("tca_post_report")
             if isinstance(post, dict):
@@ -511,9 +510,9 @@ class EODReviewGenerator:
 
     def _detect_anomalies(
         self,
-        exec_records: List[Dict[str, Any]],
-        decision_dist: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        exec_records: list[dict[str, Any]],
+        decision_dist: dict[str, Any],
+    ) -> dict[str, Any]:
         """维度 5: 异常检测 (模型连续失败 / Brier / auto 放量)
 
         Returns:
@@ -525,8 +524,8 @@ class EODReviewGenerator:
             }
         """
         # 模型健康 (从 ModelHealthMonitor 获取)
-        model_failures: Dict[str, int] = {}
-        open_breakers: List[str] = []
+        model_failures: dict[str, int] = {}
+        open_breakers: list[str] = []
         try:
             stats = self._monitor.get_stats()
             for role, role_stats in stats.get("roles", {}).items():
@@ -559,12 +558,12 @@ class EODReviewGenerator:
 
     def _generate_alerts(
         self,
-        decision_dist: Dict[str, Any],
-        debate_eff: Dict[str, Any],
-        risk_inter: Dict[str, Any],
-        exec_quality: Dict[str, Any],
-        anomaly: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+        decision_dist: dict[str, Any],
+        debate_eff: dict[str, Any],
+        risk_inter: dict[str, Any],
+        exec_quality: dict[str, Any],
+        anomaly: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         """生成告警列表 (5 条规则)
 
         规则:
@@ -574,7 +573,7 @@ class EODReviewGenerator:
         4. 硬风控拦截率 > veto_spike_ratio × 平均 → WARNING
         5. TCA 评级 D/F 占比 > tca_df_ratio → WARNING
         """
-        alerts: List[Dict[str, Any]] = []
+        alerts: list[dict[str, Any]] = []
 
         # 规则 1: 模型连续失败
         model_failures = anomaly.get("model_consecutive_failures", {})
@@ -662,7 +661,7 @@ class EODReviewGenerator:
     # 告警推送 (try-except 隔离)
     # ------------------------------------------------------------
 
-    def _push_alerts(self, alerts: List[Dict[str, Any]], date_str: str) -> None:
+    def _push_alerts(self, alerts: list[dict[str, Any]], date_str: str) -> None:
         """推送告警到 realtime_monitor (try-except 隔离)
 
         设计: realtime_monitor 接口变化不影响复盘主路径
@@ -710,10 +709,10 @@ class EODReviewGenerator:
     # Markdown 输出 (5 维度 + 告警)
     # ------------------------------------------------------------
 
-    def to_markdown(self, report: Dict[str, Any]) -> str:
+    def to_markdown(self, report: dict[str, Any]) -> str:
         """将报告转为 Markdown (5 维度 + 告警)"""
         date = report.get("date", "")
-        lines: List[str] = [
+        lines: list[str] = [
             f"# ai_decision EOD 复盘 — {date}",
             "",
             f"> 生成时间: {report.get('generated_at', '')}",
@@ -729,7 +728,7 @@ class EODReviewGenerator:
 
         return "\n".join(lines)
 
-    def _md_decision_distribution(self, dd: Dict[str, Any]) -> List[str]:
+    def _md_decision_distribution(self, dd: dict[str, Any]) -> list[str]:
         """维度 1: 决策分布"""
         lines = ["## 1. 决策分布", ""]
         total = dd.get("total_decisions", 0)
@@ -749,7 +748,7 @@ class EODReviewGenerator:
         lines.append("")
         return lines
 
-    def _md_debate_effectiveness(self, de: Dict[str, Any]) -> List[str]:
+    def _md_debate_effectiveness(self, de: dict[str, Any]) -> list[str]:
         """维度 2: 辩论有效性"""
         lines = ["## 2. 辩论有效性", ""]
         triggered = de.get("debate_triggered", 0)
@@ -764,7 +763,7 @@ class EODReviewGenerator:
         lines.append("")
         return lines
 
-    def _md_risk_interception(self, ri: Dict[str, Any]) -> List[str]:
+    def _md_risk_interception(self, ri: dict[str, Any]) -> list[str]:
         """维度 3: 风控拦截"""
         lines = ["## 3. 风控拦截", ""]
         veto = ri.get("total_veto", 0)
@@ -788,7 +787,7 @@ class EODReviewGenerator:
         lines.append("")
         return lines
 
-    def _md_execution_quality(self, eq: Dict[str, Any]) -> List[str]:
+    def _md_execution_quality(self, eq: dict[str, Any]) -> list[str]:
         """维度 4: 执行质量"""
         lines = ["## 4. 执行质量", ""]
         total = eq.get("total_executions", 0)
@@ -809,7 +808,7 @@ class EODReviewGenerator:
         lines.append("")
         return lines
 
-    def _md_anomaly_detection(self, ad: Dict[str, Any]) -> List[str]:
+    def _md_anomaly_detection(self, ad: dict[str, Any]) -> list[str]:
         """维度 5: 异常检测"""
         lines = ["## 5. 异常检测", ""]
         model_failures = ad.get("model_consecutive_failures", {})
@@ -829,7 +828,7 @@ class EODReviewGenerator:
         lines.append("")
         return lines
 
-    def _md_alerts(self, alerts: List[Dict[str, Any]]) -> List[str]:
+    def _md_alerts(self, alerts: list[dict[str, Any]]) -> list[str]:
         """告警章节"""
         lines = ["## 6. 告警", ""]
         if not alerts:
@@ -856,7 +855,7 @@ class EODReviewGenerator:
     # 落盘
     # ------------------------------------------------------------
 
-    def save(self, report: Dict[str, Any], date_str: Optional[str] = None) -> str:
+    def save(self, report: dict[str, Any], date_str: str | None = None) -> str:
         """落盘 Markdown + JSON 双格式
 
         文件路径:

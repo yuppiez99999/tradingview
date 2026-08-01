@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 机构级量化闭环运行器 (Institutional Pipeline Runner)
 ======================================================
@@ -25,7 +24,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -170,10 +169,10 @@ class PipelineContext:
     """运行上下文"""
 
     mode: str = "smoke"
-    symbols: List[str] = field(default_factory=list)
+    symbols: list[str] = field(default_factory=list)
     total_capital: float = 3_000_000
     report_date: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d"))
-    output_path: Optional[Path] = None
+    output_path: Path | None = None
 
     def __post_init__(self) -> None:
         if self.output_path is None:
@@ -188,7 +187,7 @@ class PipelineContext:
 class InstitutionalPipelineRunner:
     """机构级闭环运行器"""
 
-    def __init__(self, ctx: Optional[PipelineContext] = None):
+    def __init__(self, ctx: PipelineContext | None = None):
         self.ctx = ctx or PipelineContext()
         self.ctx.output_path.mkdir(parents=True, exist_ok=True)
 
@@ -217,15 +216,15 @@ class InstitutionalPipelineRunner:
         self.data_provider = MarketDataProvider(backtest_mode=(ctx.mode == "backtest")) if _HAS_DATA_PROVIDER else None
         if self.data_provider is not None and ctx.mode == "backtest":
             self.data_provider.set_backtest_date(ctx.report_date)
-        self._historical_cache: Dict[str, pd.DataFrame] = {}
+        self._historical_cache: dict[str, pd.DataFrame] = {}
         # B2.2: cache 回填并发安全锁 (run_io_batch 多线程同时拉取历史数据时)
         # _cache_lock 仅保护 _historical_cache 字典读写;
         # 真正阻止并发重复拉取同一 symbol 的是 _sym_locks[symbol] (per-symbol 锁)
         self._cache_lock = threading.Lock()
-        self._sym_locks: Dict[str, threading.Lock] = {}
+        self._sym_locks: dict[str, threading.Lock] = {}
         self._sym_locks_lock = threading.Lock()  # 保护 _sym_locks 字典本身
         # LGB Walk-forward 模型缓存（内存中，不落盘）
-        self._lgb_models: Dict[str, Dict] = {}
+        self._lgb_models: dict[str, dict] = {}
         if ctx.mode == "backtest":
             self._preload_historical_data()
 
@@ -233,7 +232,7 @@ class InstitutionalPipelineRunner:
     # 主流程
     # ------------------------------------------------------------
 
-    def run(self) -> Dict[str, Any]:
+    def run(self) -> dict[str, Any]:
         """运行完整闭环"""
         logger.info("[Pipeline] 启动模式=%s symbols=%s", self.ctx.mode, self.ctx.symbols)
         result = {
@@ -400,7 +399,7 @@ class InstitutionalPipelineRunner:
     # Step 1: 数据门控（真实数据）
     # ------------------------------------------------------------
 
-    def _step_data_gate(self) -> Dict[str, Any]:
+    def _step_data_gate(self) -> dict[str, Any]:
         logger.info("[Pipeline] Step 1: 数据门控")
         gate_results = []
         all_allowed = True
@@ -421,7 +420,7 @@ class InstitutionalPipelineRunner:
     # Step 2: Alpha 评估
     # ------------------------------------------------------------
 
-    def _build_sector_map(self) -> Dict[str, str]:
+    def _build_sector_map(self) -> dict[str, str]:
         """板块映射（用于板块集中度硬约束）。
 
         覆盖全部 23 个 POSITION_SYMBOLS + 历史标的, 未知标的规定为 unknown。
@@ -510,19 +509,19 @@ class InstitutionalPipelineRunner:
             logger.warning("[Pipeline] 真实 alpha 不可用，回退 mock；该结果不得作为有效回测/收益证据")
         return real_eval
 
-    def _real_alpha_evaluation(self) -> Dict[str, Any]:
+    def _real_alpha_evaluation(self) -> dict[str, Any]:
         """Alpha 评估：LGB Walk-forward 模型 CV IC + 动量 IC 混合。
 
         有 LGB 模型的标的使用 CV IC（OOS 指标，无前视偏差）；
         无 LGB 模型的标的回退到 60 日动量 IC（基于真实历史行情）。
         """
-        evaluations: List[Dict[str, Any]] = []
+        evaluations: list[dict[str, Any]] = []
         active = 0
         lgb_count = 0
         mom_count = 0
 
         # === 第一轮: LGB 模型（有模型的标的） ===
-        symbols_needing_momentum: List[str] = []
+        symbols_needing_momentum: list[str] = []
         for symbol in self.ctx.symbols:
             if self._lgb_models:
                 model_info = self._lgb_models.get(symbol)
@@ -601,7 +600,7 @@ class InstitutionalPipelineRunner:
     # Step 3: 信号融合
     # ------------------------------------------------------------
 
-    def _step_signal_fusion(self, alpha_report: Any) -> List[FusionSignal]:
+    def _step_signal_fusion(self, alpha_report: Any) -> list[FusionSignal]:
         logger.info("[Pipeline] Step 3: 信号融合")
         alpha_signals = self._real_alpha_signals()
         llm_signals = self._real_llm_signals()
@@ -627,7 +626,7 @@ class InstitutionalPipelineRunner:
     # Step 4: 组合优化
     # ------------------------------------------------------------
 
-    def _step_portfolio_optimization(self, signals: List[FusionSignal]) -> PortfolioDecision:
+    def _step_portfolio_optimization(self, signals: list[FusionSignal]) -> PortfolioDecision:
         logger.info("[Pipeline] Step 4: 组合优化")
         tradable = [s for s in signals if s.strength != 0.0 and s.confidence > 0]
         if not tradable:
@@ -993,7 +992,7 @@ class InstitutionalPipelineRunner:
             price_data=price_data,  # P0-10: 真实价格数据, 启用 VaR 1.5% 检查
         )
 
-    def _apply_v72_bull_regime_cap(self, decision, regime_info: Dict[str, Any]) -> Dict[str, Any]:
+    def _apply_v72_bull_regime_cap(self, decision, regime_info: dict[str, Any]) -> dict[str, Any]:
         """P0-8: V7.2 bull regime 5% 上限 + V7.1 高波动惩罚 (生产路径复制)
 
         回测验证结论 (V7.1/V7.2/V8 三轮优化):
@@ -1054,7 +1053,7 @@ class InstitutionalPipelineRunner:
 
         return cap_info
 
-    def _compute_regime_cutoff(self) -> "pd.Timestamp":
+    def _compute_regime_cutoff(self) -> pd.Timestamp:
         """计算 regime 分析用的 cutoff 时间戳 (去除时区)。"""
         cutoff = pd.Timestamp(self.ctx.report_date).normalize()
         try:
@@ -1065,14 +1064,14 @@ class InstitutionalPipelineRunner:
         return cutoff
 
     def _detect_high_vol_symbols(
-        self, weights: Dict[str, float], cutoff: "pd.Timestamp"
-    ) -> Dict[str, float]:
+        self, weights: dict[str, float], cutoff: pd.Timestamp
+    ) -> dict[str, float]:
         """V7.1: 识别 vol20 > 4.5% 的高波动股票。
 
         Returns:
             {symbol: vol20} 字典, 空字典表示无高波动股票
         """
-        penalized: Dict[str, float] = {}
+        penalized: dict[str, float] = {}
         for symbol, w in weights.items():
             if w <= 0:
                 continue
@@ -1084,7 +1083,7 @@ class InstitutionalPipelineRunner:
                 penalized[symbol] = vol20
         return penalized
 
-    def _compute_vol20(self, df_sym: "pd.DataFrame", cutoff: "pd.Timestamp") -> Optional[float]:
+    def _compute_vol20(self, df_sym: pd.DataFrame, cutoff: pd.Timestamp) -> float | None:
         """计算 20 日波动率 (截止 cutoff 时间), 不足返回 None。"""
         try:
             df_sym = df_sym.sort_index()
@@ -1103,15 +1102,15 @@ class InstitutionalPipelineRunner:
             return None
 
     def _apply_max_weight_cap(
-        self, weights: Dict[str, float]
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, float], float]:
+        self, weights: dict[str, float]
+    ) -> tuple[list[dict[str, Any]], dict[str, float], float]:
         """V7.2: 应用单票上限 5% 截断。
 
         Returns:
             (capped_symbols, capped_weights, excess_weight) 元组
         """
-        capped_symbols: List[Dict[str, Any]] = []
-        capped_weights: Dict[str, float] = {}
+        capped_symbols: list[dict[str, Any]] = []
+        capped_weights: dict[str, float] = {}
         excess_weight = 0.0
         for symbol, w in weights.items():
             if w > _V72_BULL_REGIME_MAX_WEIGHT:
@@ -1124,8 +1123,8 @@ class InstitutionalPipelineRunner:
 
     def _redistribute_excess_weight(
         self,
-        capped_weights: Dict[str, float],
-        capped_symbols: List[Dict[str, Any]],
+        capped_weights: dict[str, float],
+        capped_symbols: list[dict[str, Any]],
         excess_weight: float,
     ) -> None:
         """将截断释放的权重按比例重分配给未超限的股票 (原地修改 capped_weights)。"""
@@ -1137,7 +1136,7 @@ class InstitutionalPipelineRunner:
             if symbol not in capped_symbol_set:
                 capped_weights[symbol] += excess_weight * (capped_weights[symbol] / non_capped_total)
 
-    def _step_kill_switch_check(self, decision) -> Dict[str, Any]:
+    def _step_kill_switch_check(self, decision) -> dict[str, Any]:
         """P0-13: KillSwitch 熔断检查 (生产 pipeline 集成)
 
         审计问题: 生产 pipeline 未集成 KillSwitch, L1/L2/L3 熔断对 pipeline 无效。
@@ -1273,7 +1272,7 @@ class InstitutionalPipelineRunner:
     # Step 6: 执行路由
     # ------------------------------------------------------------
 
-    def _regenerate_trades_from_weights(self, decision: PortfolioDecision) -> Dict[str, Any]:
+    def _regenerate_trades_from_weights(self, decision: PortfolioDecision) -> dict[str, Any]:
         """BUG-05 修复: 根据最新 target_weights 重建 trades 列表.
 
         背景: portfolio_decision.trades 在 optimizer.optimize() 内基于原始权重生成,
@@ -1301,9 +1300,9 @@ class InstitutionalPipelineRunner:
 
         # 重建 trades: 当前生产路径 current_weights = 0 (无存量持仓)
         # 未来接入实盘后, 应从 decision.meta 或外部持仓源获取 current_weights
-        current_weights: Dict[str, float] = decision.meta.get("current_weights", {}) or {}
+        current_weights: dict[str, float] = decision.meta.get("current_weights", {}) or {}
 
-        new_trades: List[Dict[str, Any]] = []
+        new_trades: list[dict[str, Any]] = []
         max_diff = 0.0
         for symbol, target_w in decision.target_weights.items():
             target_w = float(target_w)
@@ -1341,8 +1340,8 @@ class InstitutionalPipelineRunner:
     def _step_execution_routing(
         self,
         decision: PortfolioDecision,
-        signals: List[FusionSignal],
-    ) -> List[ExecutionPlan]:
+        signals: list[FusionSignal],
+    ) -> list[ExecutionPlan]:
         logger.info("[Pipeline] Step 6: 执行路由")
         signal_map = {s.symbol: s.to_dict() for s in signals}
         plans = []
@@ -1367,7 +1366,7 @@ class InstitutionalPipelineRunner:
     # 持久化
     # ------------------------------------------------------------
 
-    def _save(self, result: Dict[str, Any]) -> None:
+    def _save(self, result: dict[str, Any]) -> None:
         path = self.ctx.output_path / f"pipeline_{self.ctx.mode}.json"
         try:
             with open(path, "w", encoding="utf-8") as f:
@@ -1380,7 +1379,7 @@ class InstitutionalPipelineRunner:
     # 回测预加载
     # ------------------------------------------------------------
 
-    def _load_base_cache(self, symbol: str) -> Optional[pd.DataFrame]:
+    def _load_base_cache(self, symbol: str) -> pd.DataFrame | None:
         """读取预下载的 5y 基础缓存（_base.parquet），绕过 data_provider 的 24h TTL。
 
         由 _download_base_data.py 预先生成，覆盖 2021~2026 约 1260 个交易日，
@@ -1397,7 +1396,7 @@ class InstitutionalPipelineRunner:
             logger.debug("[Pipeline] 读取 _base 缓存失败 %s: %s", symbol, e)
         return None
 
-    def _load_and_truncate(self, symbol: str, period: str, cutoff: pd.Timestamp) -> Optional[pd.DataFrame]:
+    def _load_and_truncate(self, symbol: str, period: str, cutoff: pd.Timestamp) -> pd.DataFrame | None:
         """加载历史数据并截断到回测日期（杜绝前视偏差）。
 
         优先级: _base.parquet 预下载缓存 > data_provider.get_historical_data(5y)
@@ -1461,7 +1460,7 @@ class InstitutionalPipelineRunner:
             "512010", "512480", "512760", "515030", "515790",
         ]
         # 用 dict 保留插入顺序 (Python 3.7+ dict 有序), 同时去重
-        merged: Dict[str, None] = {}
+        merged: dict[str, None] = {}
         for s in self.ctx.symbols:
             merged.setdefault(s, None)
         if _HAS_LGB:
@@ -1485,7 +1484,7 @@ class InstitutionalPipelineRunner:
         # B2.3: 并发拉取 (替代串行 for 循环)
         # _load_and_truncate 优先读 parquet, 失败回退 data_provider; 无需 _cache_lock 双检锁
         # (预加载在 __init__ 阶段单线程执行, cache 写入无需锁; _get_or_load_historical 后续会处理并发读)
-        def _worker(symbol: str) -> Tuple[str, Optional[pd.DataFrame]]:
+        def _worker(symbol: str) -> tuple[str, pd.DataFrame | None]:
             try:
                 df = self._load_and_truncate(symbol, "5y", cutoff)
                 return (symbol, df)
@@ -1519,7 +1518,7 @@ class InstitutionalPipelineRunner:
     # LGB Walk-forward 集成
     # ------------------------------------------------------------
 
-    def _build_lgb_feature_dict(self) -> Dict[str, pd.DataFrame]:
+    def _build_lgb_feature_dict(self) -> dict[str, pd.DataFrame]:
         """从 _historical_cache 构建完整特征字典（与训练管线一致）。
 
         流程:
@@ -1533,7 +1532,7 @@ class InstitutionalPipelineRunner:
             return {}
 
         # Step 1: 提取 OHLCV
-        ohlcv_dict: Dict[str, pd.DataFrame] = {}
+        ohlcv_dict: dict[str, pd.DataFrame] = {}
         for symbol, df in self._historical_cache.items():
             if df is not None and not df.empty:
                 required_cols = {"open", "high", "low", "close", "volume"}
@@ -1545,7 +1544,7 @@ class InstitutionalPipelineRunner:
             return {}
 
         # Step 2: 技术因子（逐标的）
-        featured_dict: Dict[str, pd.DataFrame] = {}
+        featured_dict: dict[str, pd.DataFrame] = {}
         for symbol, df in ohlcv_dict.items():
             try:
                 df_feat = add_technical_features(df)
@@ -1588,7 +1587,7 @@ class InstitutionalPipelineRunner:
 
         return featured_dict
 
-    def _compute_regime_series_for_cutoff(self) -> Optional[pd.Series]:
+    def _compute_regime_series_for_cutoff(self) -> pd.Series | None:
         """V9: 计算截至 cutoff 的大盘 regime 序列 (bull/bear/choppy/rebound)
 
         用 _V9_REGIME_PROXY_SYMBOL (510300) 作为大盘代理,
@@ -1626,7 +1625,7 @@ class InstitutionalPipelineRunner:
             logger.warning("[V9-Regime] regime 序列计算异常: %s", e)
             return None
 
-    def _lgb_walkforward_train(self) -> Dict[str, Any]:
+    def _lgb_walkforward_train(self) -> dict[str, Any]:
         """Walk-forward 训练 LGB 模型（用截至 cutoff 的数据，无前视偏差）。
 
         V9: 当 _V9_REGIME_SPECIFIC_ENABLED=True 时, 每个标的训练 bull/non-bull 双模型,
@@ -1690,7 +1689,7 @@ class InstitutionalPipelineRunner:
         logger.info("[LGB-WF] 训练完成: trained=%d failed=%d skipped=%d", trained, failed, skipped)
         return {"trained": trained, "failed": failed, "skipped": skipped, "results": self._lgb_models}
 
-    def _build_regime_series_safe(self) -> Optional[Any]:
+    def _build_regime_series_safe(self) -> Any | None:
         """V9: 计算大盘 regime 序列 (用截至 cutoff 的 proxy 数据), 失败返回 None。"""
         if not _V9_REGIME_SPECIFIC_ENABLED:
             return None
@@ -1705,10 +1704,10 @@ class InstitutionalPipelineRunner:
     def _train_symbol_with_retry(
         self,
         code: str,
-        df: "pd.DataFrame",
-        config: Dict,
-        regime_series: Optional[Any],
-    ) -> Optional[Dict[str, Any]]:
+        df: pd.DataFrame,
+        config: dict,
+        regime_series: Any | None,
+    ) -> dict[str, Any] | None:
         """训练单个标的 (带重试机制), 失败抛异常, SKIP 返回 None。"""
         result = None
         last_err = None
@@ -1740,7 +1739,7 @@ class InstitutionalPipelineRunner:
             return None
         return result
 
-    def _build_model_cache(self, result: Dict[str, Any], regime_series: Optional[Any]) -> Dict[str, Any]:
+    def _build_model_cache(self, result: dict[str, Any], regime_series: Any | None) -> dict[str, Any]:
         """构建模型缓存 (内存中, 不落盘)。
 
         V9: 额外缓存 models_by_regime / features_by_regime / selected_regime
@@ -1767,8 +1766,8 @@ class InstitutionalPipelineRunner:
         self,
         code: str,
         name: str,
-        result: Dict[str, Any],
-        regime_series: Optional[Any],
+        result: dict[str, Any],
+        regime_series: Any | None,
     ) -> None:
         """输出训练成功日志。"""
         cv_m = result["cv_after_selection"]
@@ -1809,7 +1808,7 @@ class InstitutionalPipelineRunner:
     # 真实数据快照
     # ------------------------------------------------------------
 
-    def _real_snapshot(self, symbol: str) -> Dict[str, Any]:
+    def _real_snapshot(self, symbol: str) -> dict[str, Any]:
         if self.data_provider is None:
             return self._mock_snapshot(symbol)
         try:
@@ -1838,7 +1837,7 @@ class InstitutionalPipelineRunner:
     # Mock 数据（smoke test / 真实环境可替换）
     # ------------------------------------------------------------
 
-    def _mock_snapshot(self, symbol: str) -> Dict[str, Any]:
+    def _mock_snapshot(self, symbol: str) -> dict[str, Any]:
         return {
             "price": 10.0,
             "quality_score": 95.0,
@@ -1860,10 +1859,10 @@ class InstitutionalPipelineRunner:
 
         return MockResult(symbols)
 
-    def _mock_forward_returns(self) -> Dict[str, float]:
+    def _mock_forward_returns(self) -> dict[str, float]:
         return {s: float(np.random.randn() * 0.01) for s in self.ctx.symbols}
 
-    def _build_alpha_signals(self, alpha_report: Any) -> Dict[str, Dict[str, Any]]:
+    def _build_alpha_signals(self, alpha_report: Any) -> dict[str, dict[str, Any]]:
         evaluations = []
         if isinstance(alpha_report, dict):
             evaluations = alpha_report.get("evaluations", [])
@@ -1891,13 +1890,13 @@ class InstitutionalPipelineRunner:
                 signals[symbol] = {"strength": strength, "confidence": confidence}
         return signals
 
-    def _mock_llm_signals(self) -> Dict[str, Dict[str, Any]]:
+    def _mock_llm_signals(self) -> dict[str, dict[str, Any]]:
         return {s: {"strength": 0.0, "confidence": 0.3} for s in self.ctx.symbols}
 
-    def _mock_etf_signals(self) -> Dict[str, Dict[str, Any]]:
+    def _mock_etf_signals(self) -> dict[str, dict[str, Any]]:
         return {s: {"strength": 0.0, "confidence": 0.3} for s in self.ctx.symbols}
 
-    def _mock_macro_signals(self) -> Dict[str, Dict[str, Any]]:
+    def _mock_macro_signals(self) -> dict[str, dict[str, Any]]:
         return {"macro_index": {"strength": 0.0, "confidence": 0.2}}
 
     # ------------------------------------------------------------
@@ -1920,7 +1919,7 @@ class InstitutionalPipelineRunner:
                 self._sym_locks[symbol] = lock
             return lock
 
-    def _get_or_load_historical(self, symbol: str) -> Optional[pd.DataFrame]:
+    def _get_or_load_historical(self, symbol: str) -> pd.DataFrame | None:
         """获取历史数据 (cache 优先 + 回填 + 日期截断)
 
         B2.2: 替代散落在 4 个 _real_*_signals 方法中的重复 cache 检查逻辑。
@@ -1972,7 +1971,7 @@ class InstitutionalPipelineRunner:
 
         return self._truncate_history_by_date(df, symbol)
 
-    def _truncate_history_by_date(self, df: pd.DataFrame, symbol: str) -> Optional[pd.DataFrame]:
+    def _truncate_history_by_date(self, df: pd.DataFrame, symbol: str) -> pd.DataFrame | None:
         """按 report_date 截断历史数据 (回测模式防前视偏差).
 
         B2.2: 从 _get_or_load_historical 抽取, 保持单一职责.
@@ -1994,12 +1993,12 @@ class InstitutionalPipelineRunner:
             logger.debug("[Pipeline] 日期截断失败 %s: %s", symbol, e)
             return df
 
-    def _real_alpha_signals(self) -> Dict[str, Dict[str, Any]]:
+    def _real_alpha_signals(self) -> dict[str, dict[str, Any]]:
         """B2.2: 并发拉取多 symbol 历史数据 + 计算技术指标 (替代串行 for 循环)"""
         if self.data_provider is None:
             return {s: {"strength": 0.0, "confidence": 0.2} for s in self.ctx.symbols}
 
-        def _worker(symbol: str) -> Tuple[str, Dict[str, Any]]:
+        def _worker(symbol: str) -> tuple[str, dict[str, Any]]:
             try:
                 close, volume = self._load_symbol_close_volume(symbol)
                 components = self._compute_alpha_components(close, volume)
@@ -2020,7 +2019,7 @@ class InstitutionalPipelineRunner:
         )
         return {s: sig for s, sig in pairs if s is not None}
 
-    def _load_symbol_close_volume(self, symbol: str) -> Tuple["pd.Series", "pd.Series"]:
+    def _load_symbol_close_volume(self, symbol: str) -> tuple[pd.Series, pd.Series]:
         """加载单个 symbol 的 close / volume 序列 (不足 30 行抛异常)。"""
         df = self._get_or_load_historical(symbol)
         if df is None or df.empty or len(df) < 30:
@@ -2029,7 +2028,7 @@ class InstitutionalPipelineRunner:
         volume = df["volume"].dropna() if "volume" in df.columns else pd.Series(dtype=float)
         return close, volume
 
-    def _compute_alpha_components(self, close: "pd.Series", volume: "pd.Series") -> Dict[str, float]:
+    def _compute_alpha_components(self, close: pd.Series, volume: pd.Series) -> dict[str, float]:
         """计算动量、波动率、换手率、RSI、均线、MACD、布林带等组件信号。"""
         return {
             "momentum": self._calc_momentum(close),
@@ -2041,21 +2040,21 @@ class InstitutionalPipelineRunner:
             "bb_signal": self._calc_bb_signal(close),
         }
 
-    def _calc_momentum(self, close: "pd.Series") -> float:
+    def _calc_momentum(self, close: pd.Series) -> float:
         """多周期动量: 5d/20d/60d 加权。"""
         ret_5d = float(close.iloc[-1] / close.iloc[-6] - 1) if len(close) > 5 else 0.0
         ret_20d = float(close.iloc[-1] / close.iloc[-21] - 1) if len(close) > 20 else 0.0
         ret_60d = float(close.iloc[-1] / close.iloc[-61] - 1) if len(close) > 60 else 0.0
         return 0.40 * ret_5d + 0.35 * ret_20d + 0.25 * ret_60d
 
-    def _calc_vol_breakout(self, close: "pd.Series") -> float:
+    def _calc_vol_breakout(self, close: pd.Series) -> float:
         """波动率突破: 当前 vs 历史波动率。"""
         vol_20d = float(close.pct_change().rolling(20).std().iloc[-1]) if len(close) > 20 else 0.0
         vol_60d = float(close.pct_change().rolling(60).std().iloc[-1]) if len(close) > 60 else vol_20d
         vol_ratio = float(vol_20d / vol_60d) if vol_60d > 1e-12 else 1.0
         return float(max(-1.0, min(1.0, (vol_ratio - 1.0) * 8)))
 
-    def _calc_turnover_signal(self, volume: "pd.Series") -> float:
+    def _calc_turnover_signal(self, volume: pd.Series) -> float:
         """换手率异常: 当前成交量 vs 历史均值。"""
         if len(volume) <= 20:
             return 0.0
@@ -2063,7 +2062,7 @@ class InstitutionalPipelineRunner:
         vol_ratio_now = float(volume.iloc[-1] / vol_ma20) if vol_ma20 > 1e-12 else 1.0
         return float(max(-1.0, min(1.0, (vol_ratio_now - 1.0) * 0.5)))
 
-    def _calc_rsi_signal(self, close: "pd.Series") -> float:
+    def _calc_rsi_signal(self, close: pd.Series) -> float:
         """相对强弱: 当前价格 vs 20日最高/最低。"""
         if len(close) <= 20:
             return 0.0
@@ -2076,7 +2075,7 @@ class InstitutionalPipelineRunner:
         )
         return float(max(-1.0, min(1.0, (rsi_proxy - 0.5) * 2)))
 
-    def _calc_ma_breakout(self, close: "pd.Series") -> float:
+    def _calc_ma_breakout(self, close: pd.Series) -> float:
         """均线突破: 价格与 MA5/MA20/MA60 的关系。"""
         if len(close) <= 60:
             return 0.0
@@ -2090,7 +2089,7 @@ class InstitutionalPipelineRunner:
             return -1.0
         return 0.0
 
-    def _calc_macd_signal(self, close: "pd.Series") -> float:
+    def _calc_macd_signal(self, close: pd.Series) -> float:
         """MACD 信号。"""
         if len(close) <= 26:
             return 0.0
@@ -2101,7 +2100,7 @@ class InstitutionalPipelineRunner:
         macd_val = float(macd_line.iloc[-1] - signal_line.iloc[-1])
         return float(max(-1.0, min(1.0, macd_val * 80)))
 
-    def _calc_bb_signal(self, close: "pd.Series") -> float:
+    def _calc_bb_signal(self, close: pd.Series) -> float:
         """布林带位置信号。"""
         if len(close) <= 20:
             return 0.0
@@ -2115,8 +2114,8 @@ class InstitutionalPipelineRunner:
         return float(max(-1.0, min(1.0, (bb_pos - 0.5) * 2)))
 
     def _compose_momentum_signal(
-        self, close: "pd.Series", components: Dict[str, float]
-    ) -> Tuple[float, float]:
+        self, close: pd.Series, components: dict[str, float]
+    ) -> tuple[float, float]:
         """综合 Alpha 信号: 动量为主, 其余为辅; 并计算置信度。"""
         mom_strength = (
             0.35 * components["momentum"]
@@ -2146,7 +2145,7 @@ class InstitutionalPipelineRunner:
 
     def _fuse_with_lgb_signal(
         self, symbol: str, mom_strength: float, mom_confidence: float
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """LGB Walk-forward 信号融合: LGB 80% + 动量 20%。
 
         _lgb_get_signal 只读 self._lgb_models, dict.get 原子操作, 多线程安全。
@@ -2159,7 +2158,7 @@ class InstitutionalPipelineRunner:
         confidence = float(min(1.0, 0.8 * lgb_confidence + 0.2 * mom_confidence))
         return strength, confidence
 
-    def _real_macro_signals(self) -> Dict[str, Dict[str, Any]]:
+    def _real_macro_signals(self) -> dict[str, dict[str, Any]]:
         """B2.2: 宏观信号 — sentiment API 失败时并发拉取多 symbol 计算代理"""
         if self.data_provider is None:
             return {"macro_index": {"strength": 0.0, "confidence": 0.2}}
@@ -2176,7 +2175,7 @@ class InstitutionalPipelineRunner:
             if strength == 0.0:
                 try:
                     # B2.2: 并发拉取每个 symbol 的 5d 收益率 (原 period="1y" 改用 "5y" superset, 命中 cache)
-                    def _worker(symbol: str) -> Optional[float]:
+                    def _worker(symbol: str) -> float | None:
                         try:
                             df = self._get_or_load_historical(symbol)
                             if df is None or df.empty or "close" not in df.columns:
@@ -2210,12 +2209,12 @@ class InstitutionalPipelineRunner:
             logger.warning("[Pipeline] 真实宏观信号获取失败: %s", e)
             return {"macro_index": {"strength": 0.0, "confidence": 0.2}}
 
-    def _real_llm_signals(self) -> Dict[str, Dict[str, Any]]:
+    def _real_llm_signals(self) -> dict[str, dict[str, Any]]:
         """B2.2: LLM 信号 — 并发拉取多 symbol 新闻情绪 + 历史数据兜底"""
         if self.data_provider is None:
             return {s: {"strength": 0.0, "confidence": 0.2} for s in self.ctx.symbols}
 
-        def _worker(symbol: str) -> Tuple[str, Dict[str, Any]]:
+        def _worker(symbol: str) -> tuple[str, dict[str, Any]]:
             try:
                 news_sentiment = self.data_provider.get_news_sentiment(symbol, limit=20)
                 strength = 0.0
@@ -2267,7 +2266,7 @@ class InstitutionalPipelineRunner:
         )
         return {s: sig for s, sig in pairs if s is not None}
 
-    def _real_etf_signals(self) -> Dict[str, Dict[str, Any]]:
+    def _real_etf_signals(self) -> dict[str, dict[str, Any]]:
         """B2.2: ETF 信号 — 并发拉取多 symbol 的匹配 ETF 行情 + 历史数据兜底"""
         if self.data_provider is None:
             return {s: {"strength": 0.0, "confidence": 0.2} for s in self.ctx.symbols}
@@ -2306,7 +2305,7 @@ class InstitutionalPipelineRunner:
             "000063": ["通信", "5G", "科技"],
         }
 
-        def _worker(symbol: str) -> Tuple[str, Dict[str, Any]]:
+        def _worker(symbol: str) -> tuple[str, dict[str, Any]]:
             try:
                 matched_etf = None
                 for code in etf_candidates:

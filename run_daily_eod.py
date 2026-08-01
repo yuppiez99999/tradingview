@@ -430,7 +430,7 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
                 try:
                     shutil.copy2(plan_file, backup_path)
                     print(f"[EOD] 已备份原交易计划: {backup_path.name}")
-                except (OSError, IOError) as e:
+                except OSError as e:
                     print(f"[EOD][WARN] 备份失败, 继续写入: {e}")
 
             # 原子写入: 先写 .tmp 再 replace, 防止中途异常导致文件损坏
@@ -440,7 +440,7 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
                     json.dump(updated_plan, f, ensure_ascii=False, indent=2)
                 tmp_path.replace(plan_file)
                 print(f"[EOD] 已更新交易计划: {plan_file.name}")
-            except (OSError, IOError, ValueError) as e:
+            except (OSError, ValueError) as e:
                 print(f"[EOD][ERROR] 交易计划写入失败: {e}")
                 # 清理临时文件
                 if tmp_path.exists():

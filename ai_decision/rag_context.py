@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ai_decision.rag_context — 实时 RAG 上下文构建
 =============================================
@@ -16,14 +15,14 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ai_decision.models import DecisionContext
 
 logger = logging.getLogger("ai_decision.rag_context")
 
 # 来源可信度分级 (越高越优先保留)
-_SOURCE_TIER: Dict[str, int] = {
+_SOURCE_TIER: dict[str, int] = {
     "official": 3,     # 交易所/公司公告/监管
     "broker": 2,       # 券商研报
     "news": 1,         # 财经新闻
@@ -34,7 +33,7 @@ _SOURCE_TIER: Dict[str, int] = {
 _RELEVANCE_WINDOW_DAYS = 7
 
 
-def _parse_dt(value: Any) -> Optional[datetime]:
+def _parse_dt(value: Any) -> datetime | None:
     if isinstance(value, datetime):
         return value
     if isinstance(value, str):
@@ -46,11 +45,11 @@ def _parse_dt(value: Any) -> Optional[datetime]:
     return None
 
 
-def _relevance_filter(items: List[Dict[str, Any]], symbol: str,
-                      now: datetime) -> List[str]:
+def _relevance_filter(items: list[dict[str, Any]], symbol: str,
+                      now: datetime) -> list[str]:
     """相关性 + 时效性 + 来源三层过滤, 返回保留的新闻/研报摘要文本"""
-    kept: List[str] = []
-    scored: List[tuple] = []
+    kept: list[str] = []
+    scored: list[tuple] = []
     for it in items:
         text = str(it.get("text") or it.get("title") or it.get("content") or "")
         if not text.strip():
@@ -76,12 +75,12 @@ def _relevance_filter(items: List[Dict[str, Any]], symbol: str,
 
 
 def build_context(symbol: str,
-                  market_data: Optional[Dict[str, Any]] = None,
-                  fundamentals: Optional[Dict[str, Any]] = None,
-                  news: Optional[List[Dict[str, Any]]] = None,
-                  macro: Optional[Dict[str, Any]] = None,
-                  agent_decisions: Optional[List[Dict[str, Any]]] = None,
-                  agent_consensus: Optional[Dict[str, Any]] = None) -> DecisionContext:
+                  market_data: dict[str, Any] | None = None,
+                  fundamentals: dict[str, Any] | None = None,
+                  news: list[dict[str, Any]] | None = None,
+                  macro: dict[str, Any] | None = None,
+                  agent_decisions: list[dict[str, Any]] | None = None,
+                  agent_consensus: dict[str, Any] | None = None) -> DecisionContext:
     """构建决策上下文
 
     各上游数据均可为空 (Mock 场景), 缺失项以占位填充, 保证全链路可跑.
@@ -111,7 +110,7 @@ def build_context(symbol: str,
 
 def context_to_prompt(ctx: DecisionContext) -> str:
     """将 DecisionContext 序列化为注入 prompt 的结构化文本"""
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append(f"# 决策上下文 — {ctx.symbol} (as_of: {ctx.as_of})")
     md = ctx.market_data
     if md:

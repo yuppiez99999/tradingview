@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Hacker News 每日热帖讨论榜报告生成器
 =====================================
@@ -28,7 +27,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import urlencode
 
 import requests
@@ -63,7 +62,7 @@ logger = logging.getLogger("hn_daily_report")
 # ============================================================
 # 分类标签规则
 # ============================================================
-_TAG_RULES: List[tuple[List[str], str]] = [
+_TAG_RULES: list[tuple[list[str], str]] = [
     (
         ["ai", "gpt", "llm", "claude", "gemini", "openai", "deepseek", "模型", "machine learning", "deep learning"],
         "AI/ML",
@@ -108,7 +107,7 @@ def _extract_domain(url: str) -> str:
         return "news.ycombinator.com"
 
 
-def _clean_text(text: Optional[str], max_length: int = 140) -> str:
+def _clean_text(text: str | None, max_length: int = 140) -> str:
     """清洗文本并截断为摘要长度。"""
     if not text:
         return ""
@@ -123,7 +122,7 @@ def _clean_text(text: Optional[str], max_length: int = 140) -> str:
     return text
 
 
-def _summarize_story(story: Dict[str, Any]) -> str:
+def _summarize_story(story: dict[str, Any]) -> str:
     """基于 story_text / title / url 生成简短摘要。"""
     text = story.get("story_text") or story.get("text") or ""
     if _clean_text(text):
@@ -136,7 +135,7 @@ def _summarize_story(story: Dict[str, Any]) -> str:
     return title or "暂无摘要"
 
 
-def _fetch_item_summary(object_id: str) -> Dict[str, Any]:
+def _fetch_item_summary(object_id: str) -> dict[str, Any]:
     """从 Algolia items 端点获取单个帖子的摘要信息。"""
     url = f"{ALGOLIA_ITEM_URL}/{object_id}"
     try:
@@ -153,7 +152,7 @@ def _fetch_item_summary(object_id: str) -> Dict[str, Any]:
     return {"summary": "", "story_text": "", "domain": ""}
 
 
-def _fetch_top_comments(object_id: str, max_comments: int = 3) -> List[str]:
+def _fetch_top_comments(object_id: str, max_comments: int = 3) -> list[str]:
     """获取高赞/热门评论的简短摘要。"""
     url = f"{ALGOLIA_ITEM_URL}/{object_id}"
     try:
@@ -165,7 +164,7 @@ def _fetch_top_comments(object_id: str, max_comments: int = 3) -> List[str]:
     except requests.RequestException:
         return []
 
-    scored: List[tuple[int, str]] = []
+    scored: list[tuple[int, str]] = []
     for child in children[: max(20, max_comments * 3)]:
         if child.get("type") != "comment":
             continue
@@ -184,7 +183,7 @@ def _fetch_top_comments(object_id: str, max_comments: int = 3) -> List[str]:
 # ============================================================
 # HN 数据抓取
 # ============================================================
-def _parse_date(date_str: Optional[str]) -> datetime.date:
+def _parse_date(date_str: str | None) -> datetime.date:
     """解析 YYYY-MM-DD 日期字符串。"""
     if not date_str:
         return datetime.date.today()
@@ -195,7 +194,7 @@ def _parse_date(date_str: Optional[str]) -> datetime.date:
         sys.exit(1)
 
 
-def _score(hit: Dict[str, Any]) -> float:
+def _score(hit: dict[str, Any]) -> float:
     """综合互动分：评论数 + 点赞数（评论权重更高，反映讨论热度）。"""
     points = hit.get("points") or 0
     comments = hit.get("num_comments") or 0
@@ -203,8 +202,8 @@ def _score(hit: Dict[str, Any]) -> float:
 
 
 def fetch_hn_top_stories(
-    top_n: int = DEFAULT_TOP_N, target_date: Optional[datetime.date] = None
-) -> List[Dict[str, Any]]:
+    top_n: int = DEFAULT_TOP_N, target_date: datetime.date | None = None
+) -> list[dict[str, Any]]:
     """从 HN Algolia 获取热门帖子。
 
     Args:
@@ -241,7 +240,7 @@ def fetch_hn_top_stories(
     hits = data.get("hits", [])
 
     # 客户端过滤：最低互动门槛 + 日期过滤
-    filtered: List[Dict[str, Any]] = []
+    filtered: list[dict[str, Any]] = []
     for h in hits:
         points = h.get("points") or 0
         comments = h.get("num_comments") or 0
@@ -263,7 +262,7 @@ def fetch_hn_top_stories(
 
     ranked = sorted(filtered, key=_score, reverse=True)[:top_n]
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     for rank, hit in enumerate(ranked, start=1):
         object_id = hit.get("objectID", "")
         title = hit.get("title") or "(无标题)"
@@ -299,13 +298,13 @@ def fetch_hn_top_stories(
 # ============================================================
 # 报告生成
 # ============================================================
-def render_markdown(stories: List[Dict[str, Any]], report_date: datetime.date, top_n: int) -> str:
+def render_markdown(stories: list[dict[str, Any]], report_date: datetime.date, top_n: int) -> str:
     """渲染基础版 HN 热帖讨论榜 Markdown 报告。"""
     today_str = report_date.strftime("%Y-%m-%d")
     now_str = datetime.datetime.now().strftime("%H:%M:%S")
     weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][report_date.weekday()]
 
-    lines: List[str] = []
+    lines: list[str] = []
     add = lines.append
 
     add("# 🔥 Hacker News 热帖讨论榜")
@@ -348,13 +347,13 @@ def render_markdown(stories: List[Dict[str, Any]], report_date: datetime.date, t
     return "\n".join(lines)
 
 
-def render_markdown_enhanced(stories: List[Dict[str, Any]], report_date: datetime.date, top_n: int) -> str:
+def render_markdown_enhanced(stories: list[dict[str, Any]], report_date: datetime.date, top_n: int) -> str:
     """渲染增强版 HN 热帖讨论榜：自动分类 + 摘要 + 热门评论摘要。"""
     today_str = report_date.strftime("%Y-%m-%d")
     now_str = datetime.datetime.now().strftime("%H:%M:%S")
     weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][report_date.weekday()]
 
-    lines: List[str] = []
+    lines: list[str] = []
     add = lines.append
 
     add("# 🧠 HN 每日热帖讨论榜（增强版）")
@@ -378,7 +377,7 @@ def render_markdown_enhanced(stories: List[Dict[str, Any]], report_date: datetim
         return "\n".join(lines)
 
     # 分类统计
-    tag_counts: Dict[str, int] = {}
+    tag_counts: dict[str, int] = {}
     for s in stories:
         tag = s.get("tag") or "综合"
         tag_counts[tag] = tag_counts.get(tag, 0) + 1
@@ -430,12 +429,12 @@ def render_markdown_enhanced(stories: List[Dict[str, Any]], report_date: datetim
     return "\n".join(lines)
 
 
-def enrich_stories(stories: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def enrich_stories(stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """为帖子补充分类、摘要和评论摘要。"""
-    enriched: List[Dict[str, Any]] = []
+    enriched: list[dict[str, Any]] = []
     for s in stories:
         object_id = s.get("object_id", "")
-        item_info: Dict[str, Any] = {"summary": "", "story_text": "", "domain": ""}
+        item_info: dict[str, Any] = {"summary": "", "story_text": "", "domain": ""}
         if object_id:
             item_info = _fetch_item_summary(object_id)
 
@@ -443,7 +442,7 @@ def enrich_stories(stories: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         domain = item_info.get("domain") or _extract_domain(s.get("url", ""))
         summary = item_info.get("summary") or s.get("title", "")
 
-        top_comments: List[str] = []
+        top_comments: list[str] = []
         if object_id and s.get("comments", 0) > 0:
             top_comments = _fetch_top_comments(object_id, max_comments=3)
 

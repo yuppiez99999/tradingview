@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ML 模型自动重训工作流 (Auto Retrain Workflow)
 ==============================================
@@ -46,7 +45,6 @@ import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 # 强制 UTF-8 输出
 if sys.stdout.encoding != 'utf-8':
@@ -112,7 +110,7 @@ def log(msg: str, level: str = "INFO") -> None:
         pass
 
 
-def scan_models() -> List[Dict]:
+def scan_models() -> list[dict]:
     """扫描所有模型元数据, 返回模型状态列表"""
     models = []
     if not MODELS_DIR.exists():
@@ -131,7 +129,7 @@ def scan_models() -> List[Dict]:
             continue
 
         try:
-            with open(meta_path, "r", encoding="utf-8") as f:
+            with open(meta_path, encoding="utf-8") as f:
                 meta = json.load(f)
 
             saved_at = meta.get("saved_at", "")
@@ -187,10 +185,10 @@ def scan_models() -> List[Dict]:
 
 
 def identify_retrain_candidates(
-    models: List[Dict],
+    models: list[dict],
     force: bool = False,
-    symbols: Optional[List[str]] = None,
-) -> Tuple[List[Dict], List[Dict]]:
+    symbols: list[str] | None = None,
+) -> tuple[list[dict], list[dict]]:
     """识别需要重训的模型, 返回 (需要重训, 不需要重训)"""
     to_retrain = []
     to_skip = []
@@ -231,7 +229,7 @@ def identify_retrain_candidates(
     return to_retrain, to_skip
 
 
-def backup_model(model_info: Dict) -> Optional[Path]:
+def backup_model(model_info: dict) -> Path | None:
     """重训前备份旧模型"""
     if not RETRAIN_CONFIG["backup_old_models"]:
         return None
@@ -261,7 +259,7 @@ def retrain_model(
     symbol: str,
     no_news: bool = False,
     timeout_min: int = 60,
-) -> Tuple[bool, Dict]:
+) -> tuple[bool, dict]:
     """调用 lgb_enhanced_trainer.py 重训单个标的
 
     返回 (success, result_info)
@@ -312,14 +310,14 @@ def retrain_model(
         return False, {"error": str(e)}
 
 
-def verify_retrained_model(symbol: str, old_info: Dict) -> Dict:
+def verify_retrained_model(symbol: str, old_info: dict) -> dict:
     """验证重训后的模型, 返回新旧对比"""
     meta_path = Path(old_info["meta_path"])
     if not meta_path.exists():
         return {"verified": False, "reason": "meta file not found after retrain"}
 
     try:
-        with open(meta_path, "r", encoding="utf-8") as f:
+        with open(meta_path, encoding="utf-8") as f:
             new_meta = json.load(f)
 
         saved_at = new_meta.get("saved_at", "")
@@ -372,10 +370,10 @@ def verify_retrained_model(symbol: str, old_info: Dict) -> Dict:
 
 def generate_retrain_report(
     report_date: str,
-    to_retrain: List[Dict],
-    to_skip: List[Dict],
-    retrain_results: List[Dict],
-    verifications: List[Dict],
+    to_retrain: list[dict],
+    to_skip: list[dict],
+    retrain_results: list[dict],
+    verifications: list[dict],
 ) -> Path:
     """生成重训报告并归档"""
     lines = [

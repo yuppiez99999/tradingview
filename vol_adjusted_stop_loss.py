@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 波动率调整止损止盈生成器 v1.0 — P0 修复
 
@@ -123,7 +122,7 @@ def get_volatility_from_wind(code: str) -> Optional[float]:
     try:
         env_file = r"E:\各种PY程序\11_量化策略\.env"
         wind_dir = r"C:\Users\Administrator\.agents\skills\wind-mcp-skill"
-        with open(env_file, "r", encoding="utf-8") as f:
+        with open(env_file, encoding="utf-8") as f:
             for line in f:
                 if line.strip().startswith("WIND_API_KEY="):
                     api_key = line.split("=", 1)[1].strip()
@@ -349,7 +348,7 @@ def main():
     existing_config_path = r"E:\各种PY程序\11_量化策略\config\stop_loss_rules_auto.yaml"
     base_prices = {}
     if os.path.exists(existing_config_path):
-        with open(existing_config_path, "r", encoding="utf-8") as f:
+        with open(existing_config_path, encoding="utf-8") as f:
             existing = yaml.safe_load(f)
         if existing and "assets" in existing:
             for asset in existing["assets"]:
@@ -371,7 +370,7 @@ def main():
     # 读取旧配置对比
     old_stops = {}
     if os.path.exists(existing_config_path):
-        with open(existing_config_path, "r", encoding="utf-8") as f:
+        with open(existing_config_path, encoding="utf-8") as f:
             existing = yaml.safe_load(f)
         if existing and "assets" in existing:
             for asset in existing["assets"]:

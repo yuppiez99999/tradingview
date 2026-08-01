@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """T3.6 re-export 兼容层 — 已迁移到 utils/execution/automated_execution_system.py.
 
 原根目录文件已迁移到 ``utils/execution/`` 子目录 (2026-07-27).

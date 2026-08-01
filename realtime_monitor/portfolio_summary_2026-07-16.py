@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 组合总盈亏 + 对冲明细报告生成器
 输入：config/positions.json + realtime_monitor/realtime_positions_YYYY-MM-DD.json
@@ -41,7 +40,7 @@ def normalize_code(code: str) -> str:
 
 
 def load_positions():
-    with open(POSITIONS_PATH, "r", encoding="utf-8") as f:
+    with open(POSITIONS_PATH, encoding="utf-8") as f:
         data = json.load(f)
     return data
 
@@ -50,7 +49,7 @@ def load_realtime(date_str: str):
     path = os.path.join(REALTIME_DIR, f"realtime_positions_{date_str}.json")
     if not os.path.isfile(path):
         return {}
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     return {normalize_code(item["code"]): item for item in data.get("items", [])}
 

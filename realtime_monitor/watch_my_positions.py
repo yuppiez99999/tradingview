@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 基于真实持仓生成收盘行情报告。
 数据源：iFinD MCP > Wind MCP > 新浪 HTTP
@@ -35,7 +34,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 def load_positions():
-    with open(POSITIONS_PATH, "r", encoding="utf-8") as f:
+    with open(POSITIONS_PATH, encoding="utf-8") as f:
         data = json.load(f)
     positions = data.get("positions", {})
     universe = []

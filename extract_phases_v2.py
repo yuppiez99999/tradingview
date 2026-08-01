@@ -31,7 +31,7 @@ PHASE_METHODS = {
 
 def extract_method(source_path: str, method_name: str) -> tuple:
     """Extract a single method from source file. Returns (content, start_line, end_line)."""
-    with open(source_path, 'r', encoding='utf-8') as f:
+    with open(source_path, encoding='utf-8') as f:
         lines = f.readlines()
 
     # Find the method definition line pattern

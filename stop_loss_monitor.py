@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 止损止盈自动触发引擎 v1.0 — 步骤4
 
@@ -133,7 +132,7 @@ class StopLossMonitor:
             return {}
 
         data = None
-        with open(rules_file, "r", encoding="utf-8") as f:
+        with open(rules_file, encoding="utf-8") as f:
             try:
                 data = yaml.safe_load(f)
             except yaml.YAMLError as e:
@@ -187,7 +186,7 @@ class StopLossMonitor:
             return self.broker.get_positions()
 
         if os.path.exists(self.positions_file):
-            with open(self.positions_file, "r", encoding="utf-8") as f:
+            with open(self.positions_file, encoding="utf-8") as f:
                 data = json.load(f)
                 return data.get("positions", {})
         return {}
@@ -211,7 +210,7 @@ class StopLossMonitor:
         # 2. 尝试从 positions.json 读取最新价格
         try:
             if os.path.exists(self.positions_file):
-                with open(self.positions_file, "r", encoding="utf-8") as f:
+                with open(self.positions_file, encoding="utf-8") as f:
                     data = json.load(f)
                 positions = data.get("positions", {})
                 if pure_code in positions:
@@ -230,7 +229,7 @@ class StopLossMonitor:
                 df = pd.read_json(history_path, lines=True)
                 df = df[df["code"] == pure_code].tail(1)
                 if len(df) > 0:
-                    return float((df.iloc[0].get("close") or 0))
+                    return float(df.iloc[0].get("close") or 0)
         except Exception:
             logger.exception("[StopLoss] 读取 price_history 失败 code=%s", pure_code)
 
@@ -414,7 +413,7 @@ class StopLossMonitor:
         existing = []
         if os.path.exists(log_path):
             try:
-                with open(log_path, "r", encoding="utf-8") as f:
+                with open(log_path, encoding="utf-8") as f:
                     existing = json.load(f)
                 if not isinstance(existing, list):
                     logger.warning("触发日志文件非数组格式, 重置为空数组: %s", log_path)

@@ -24,7 +24,7 @@ def _load_dotenv() -> None:
     if not env_path.exists():
         return
     try:
-        with open(env_path, "r", encoding="utf-8") as f:
+        with open(env_path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"):
@@ -170,7 +170,7 @@ def _load_trade_plan_prices(trade_plan_path):
     if not trade_plan_path:
         return plan_prices
     try:
-        with open(trade_plan_path, "r", encoding="utf-8") as f:
+        with open(trade_plan_path, encoding="utf-8") as f:
             plan = json.load(f)
         exec_plan = plan.get("execution_plan", {})
         for order in exec_plan.get("morning_orders", []):
@@ -226,7 +226,7 @@ class PortfolioAnalyzer:
 
     def _load_json(self, path: str) -> Dict:
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             print(f"加载文件失败: {path}, {e}")
@@ -276,7 +276,7 @@ class PortfolioAnalyzer:
     def _apply_positions_snapshot(self, snapshot_path: str, trade_plan_path: Optional[str] = None):
         """加载 sim_snapshots/positions_{date}.json 并构建实际持仓视图"""
         try:
-            with open(snapshot_path, "r", encoding="utf-8") as f:
+            with open(snapshot_path, encoding="utf-8") as f:
                 snapshot = json.load(f)
         except Exception as e:
             print(f"加载持仓快照失败: {e}")
@@ -403,7 +403,7 @@ class PortfolioAnalyzer:
             proj_file = _Path(__file__).parent / "portfolio_return_projection.json"
             if not proj_file.exists():
                 return {"error": f"projection file not found: {proj_file}"}
-            with open(proj_file, "r", encoding="utf-8") as f:
+            with open(proj_file, encoding="utf-8") as f:
                 proj = json.load(f)
             # 提取关键字段
             scenarios = proj.get("scenarios", {})
