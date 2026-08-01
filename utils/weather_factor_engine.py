@@ -634,10 +634,10 @@ class WeatherFactorEngine:
                 desc = f"适度降水 {precip_sum:.0f}mm → 水电蓄水改善"
             elif precip < 0.5:
                 score = -0.3
-                desc = f"降水偏少 → 水电蓄水压力"
+                desc = "降水偏少 → 水电蓄水压力"
             else:
                 score = 0.1
-                desc = f"降水正常"
+                desc = "降水正常"
         elif category == "mining":
             if max_precip >= heavy:
                 score = -0.8
@@ -647,10 +647,10 @@ class WeatherFactorEngine:
                 desc = f"中到大雨 {max_precip:.0f}mm → 采矿受限"
             elif precip < 0.5:
                 score = 0.3
-                desc = f"无雨 → 采矿作业顺利"
+                desc = "无雨 → 采矿作业顺利"
             else:
                 score = 0.0
-                desc = f"降水中性"
+                desc = "降水中性"
         elif category == "agriculture":
             if precip_sum > 150:
                 score = -0.6
@@ -660,17 +660,17 @@ class WeatherFactorEngine:
                 desc = f"适宜降水 {precip_sum:.0f}mm → 作物生长"
             elif precip < 0.1:
                 score = -0.5
-                desc = f"干旱 → 作物受损"
+                desc = "干旱 → 作物受损"
             else:
                 score = 0.2
-                desc = f"降水正常"
+                desc = "降水正常"
         else:
             if max_precip >= heavy:
                 score = -0.3
-                desc = f"暴雨影响运输/作业"
+                desc = "暴雨影响运输/作业"
             else:
                 score = 0.0
-                desc = f"降水中性"
+                desc = "降水中性"
 
         return FactorScore(
             name="precipitation", value=max(precip, precip_sum / 7.0),
@@ -717,14 +717,14 @@ class WeatherFactorEngine:
                 desc = f"静风 {max_wind:.1f}m/s → 风电出力↓"
             else:
                 score = 0.0
-                desc = f"风力一般"
+                desc = "风力一般"
         elif category == "mining":
             if max_wind >= strong:
                 score = -0.6
                 desc = f"大风 {max_wind:.1f}m/s → 露天矿安全!"
             else:
                 score = 0.1
-                desc = f"风力适宜"
+                desc = "风力适宜"
         else:
             if max_wind >= extreme:
                 score = -0.5
@@ -734,7 +734,7 @@ class WeatherFactorEngine:
                 desc = f"较强风 {max_wind:.1f}m/s"
             else:
                 score = 0.0
-                desc = f"风力正常"
+                desc = "风力正常"
 
         return FactorScore(
             name="wind", value=max_wind, score=score,
@@ -776,17 +776,17 @@ class WeatherFactorEngine:
                 desc = f"弱辐照 {dswrf:.0f}W/m² → 光伏出力↓"
             else:
                 score = 0.1
-                desc = f"日照正常"
+                desc = "日照正常"
         elif category == "agriculture":
             if dswrf >= 400:
                 score = 0.3
-                desc = f"充足日照 → 光合作用↑"
+                desc = "充足日照 → 光合作用↑"
             else:
                 score = 0.0
-                desc = f"日照一般"
+                desc = "日照一般"
         else:
             score = 0.0
-            desc = f"辐照中性"
+            desc = "辐照中性"
 
         return FactorScore(
             name="dswrf", value=dswrf, score=score,

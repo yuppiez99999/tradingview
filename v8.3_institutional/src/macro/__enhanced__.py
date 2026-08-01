@@ -11,7 +11,7 @@ try:
 except ImportError:
     FifteenFivePlanAnalyzer = None
 try:
-    from .social_security_etf import SocialSecurityETFTracker, NationalTeamSignalDetector
+    from .social_security_etf import NationalTeamSignalDetector, SocialSecurityETFTracker
 except ImportError:
     SocialSecurityETFTracker = None
     NationalTeamSignalDetector = None

@@ -5,6 +5,7 @@
 直接点击搜索结果中的豆油期权合约。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

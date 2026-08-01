@@ -19,10 +19,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
-
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
+from utils.risk.kill_switch_adapter import KillSwitchAdapter, adapt_kill_switch
 from utils.risk.risk_bus import RiskBus
 from utils.risk.risk_event import (
     RiskAction,
@@ -30,7 +30,6 @@ from utils.risk.risk_event import (
     RiskEventType,
     RiskSeverity,
 )
-from utils.risk.kill_switch_adapter import KillSwitchAdapter, adapt_kill_switch
 
 
 # ============================================================

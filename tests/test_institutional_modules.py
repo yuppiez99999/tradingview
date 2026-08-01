@@ -12,9 +12,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
-from utils.black_litterman_optimizer import BlackLittermanOptimizer, View as BLView
-from utils.tca_engine import TCAManager, FillRecord, BenchmarkPrices
+
 from utils.barra_risk_decomposer import BarraRiskDecomposer
+from utils.black_litterman_optimizer import BlackLittermanOptimizer
+from utils.black_litterman_optimizer import View as BLView
+from utils.tca_engine import BenchmarkPrices, FillRecord, TCAManager
 
 
 def test_black_litterman_optimizer():

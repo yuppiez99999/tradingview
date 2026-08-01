@@ -40,7 +40,7 @@ def main():
     logger.info("="*70)
     logger.info("v8.5 模块集成状态检查")
     logger.info("="*70)
-    
+
     # v8.5模块列表 (基于实际文件路径)
     modules = [
         {"path": "src.utils.environment_isolation", "class": "EnvironmentIsolation", "name": "环境隔离管理器"},
@@ -49,22 +49,22 @@ def main():
         {"path": "src.risk.liquidity_monitor", "class": "LiquidityMonitor", "name": "流动性监控"},
         {"path": "src.risk.evt_tail_risk", "class": "ExtremeValueAnalyzer", "name": "EVT肥尾建模"},
     ]
-    
+
     results = []
     passed = 0
     failed = 0
-    
+
     for i, mod in enumerate(modules, 1):
         logger.info(f"[{i}/{len(modules)}] 检查 {mod['name']}...")
         success, error = check_module_import(mod['path'], mod['class'])
-        
+
         if success:
             passed += 1
             status = "可用"
         else:
             failed += 1
             status = f"不可用: {error}"
-        
+
         results.append({
             "index": i,
             "name": mod['name'],
@@ -72,10 +72,10 @@ def main():
             "class_name": mod['class'],
             "status": status
         })
-        
+
         icon = "[OK]" if success else "[XX]"
         logger.info(f"  {icon} {mod['name']}: {status}")
-    
+
     # 打印总结
     print("\n" + "="*70)
     print("v8.5 模块集成状态总结")
@@ -86,11 +86,11 @@ def main():
     if len(modules) > 0:
         print(f"集成率: {passed/len(modules)*100:.1f}%")
     print("="*70)
-    
+
     # 保存结果
     output_dir = Path(__file__).parent / "reports"
     output_dir.mkdir(exist_ok=True)
-    
+
     output_file = output_dir / f"v85_module_status_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump({
@@ -101,9 +101,9 @@ def main():
             "modules": results,
             "timestamp": datetime.now().isoformat()
         }, f, ensure_ascii=False, indent=2)
-    
+
     logger.info(f"检查结果已保存至: {output_file}")
-    
+
     return 0 if failed == 0 else 1
 
 

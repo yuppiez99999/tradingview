@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-
 # 顶级对冲基金审慎默认值
 # V3优化 (2026-07-24): 单标的硬上限 15%→10%
 # 动机: 2025-08 300308 占 15% 权重产生 +84% 月收益, 导致极端月份依赖

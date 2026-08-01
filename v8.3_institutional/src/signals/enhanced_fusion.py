@@ -22,14 +22,15 @@
 """
 
 import sqlite3
-import time
-import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Tuple
-from dataclasses import dataclass, field
-from collections import defaultdict
 import threading
+import time
 import warnings
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 warnings.filterwarnings("ignore")
 
@@ -43,7 +44,7 @@ except ImportError:
     logger = logging.getLogger("enhanced_signal_fusion")
 
 try:
-    from .signal_fusion_v59 import SignalResult, FusedSignal, SignalFusionEngine
+    from .signal_fusion_v59 import FusedSignal, SignalFusionEngine, SignalResult
 except ImportError:
     # fallback stub
     class SignalResult:
@@ -307,8 +308,8 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             for source in sources:
                 cursor = conn.execute(
                     """
-                    SELECT predicted_action, date 
-                    FROM signal_audit 
+                    SELECT predicted_action, date
+                    FROM signal_audit
                     WHERE source = ? AND date >= ?
                     ORDER BY date DESC
                     LIMIT 100
@@ -511,8 +512,8 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
             cursor.execute(
                 """
-                INSERT OR REPLACE INTO source_performance 
-                (source_name, date, total_signals, correct_predictions, accuracy, 
+                INSERT OR REPLACE INTO source_performance
+                (source_name, date, total_signals, correct_predictions, accuracy,
                  volatility, avg_response_time, consecutive_losses, consecutive_wins, diversity_score)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,

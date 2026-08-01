@@ -3,20 +3,23 @@
 
 from __future__ import annotations
 
-import os
-import sys
 import json
+import os
 import shutil
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from ai_decision.execution_bridge import (
-    GrayscaleState, execute_decision, _generate_execution_plan,
-    _execution_risk_check, get_grayscale_summary, advance_grayscale,
-)
 from ai_decision.decision_gate import RiskContext
+from ai_decision.execution_bridge import (
+    GrayscaleState,
+    _execution_risk_check,
+    _generate_execution_plan,
+    advance_grayscale,
+    execute_decision,
+    get_grayscale_summary,
+)
 from ai_decision.models import TradingDecision
-
 
 # ============================================================
 # 辅助函数
@@ -738,8 +741,8 @@ def test_tca_disabled_by_default():
     """验收 1: Flag 关闭 (默认) → tca_pre_estimate=None, 行为与步骤 1 一致"""
     _reset_test_dirs()
     _reset_grayscale_state()
-    from utils.tca_pre_trade_estimator import PreTradeEstimator
     from utils.tca_engine import TCAManager
+    from utils.tca_pre_trade_estimator import PreTradeEstimator
     decision = _make_decision(mode="paper", action="buy")
     estimator = PreTradeEstimator(save_to_file=False)
     result = execute_decision(
@@ -851,8 +854,8 @@ def test_tca_post_trade_attribution_on_paper_success():
     _reset_test_dirs()
     _reset_grayscale_state()
     _cleanup_tca_estimates()
-    from utils.tca_pre_trade_estimator import PreTradeEstimator
     from utils.tca_engine import TCAManager
+    from utils.tca_pre_trade_estimator import PreTradeEstimator
     decision = _make_decision(mode="paper", action="buy")
     estimator = PreTradeEstimator(cost_threshold_bps=100.0, save_to_file=False)
     manager = TCAManager()
@@ -891,8 +894,9 @@ def test_tca_pre_trade_persistence_to_jsonl():
     _reset_test_dirs()
     _reset_grayscale_state()
     _cleanup_tca_estimates()
-    from utils.tca_pre_trade_estimator import PreTradeEstimator
     import glob
+
+    from utils.tca_pre_trade_estimator import PreTradeEstimator
     decision = _make_decision(mode="paper", action="buy")
     estimator = PreTradeEstimator(cost_threshold_bps=100.0, save_to_file=True)
     orig = _enable_tca_flag("pre")
@@ -925,8 +929,8 @@ def test_tca_audit_record_contains_tca_fields():
     _reset_test_dirs()
     _reset_grayscale_state()
     _cleanup_tca_estimates()
-    from utils.tca_pre_trade_estimator import PreTradeEstimator
     from utils.tca_engine import TCAManager
+    from utils.tca_pre_trade_estimator import PreTradeEstimator
     decision = _make_decision(mode="paper", action="buy")
     estimator = PreTradeEstimator(cost_threshold_bps=100.0, save_to_file=False)
     manager = TCAManager()
@@ -999,7 +1003,8 @@ def test_tca_post_trade_skipped_on_execution_failure():
 #   auto_10 → auto_50: 跑满 3 天 + 累计 PnL > 0 + 无回滚
 #   auto_50 → auto_100: 跑满 7 天 + 累计 PnL > 0 + 无回滚
 
-from datetime import datetime, timedelta as _td
+from datetime import datetime
+from datetime import timedelta as _td
 
 
 def _make_gs_at_stage(stage: str, days_ago: int, **kwargs) -> GrayscaleState:

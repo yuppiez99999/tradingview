@@ -15,13 +15,14 @@
     python vol_adjusted_stop_loss.py --output config/stop_loss_vol_adjusted.yaml
 """
 
-import os
 import json
-import numpy as np
-import yaml
+import logging
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Optional
-import logging
+
+import numpy as np
+import yaml
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("vol_stop_loss")

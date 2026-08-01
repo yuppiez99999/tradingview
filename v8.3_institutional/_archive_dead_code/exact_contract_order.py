@@ -5,6 +5,7 @@
 直接输入正确的合约代码 y2608-C-9000。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

@@ -13,10 +13,10 @@ v10.0 第二优先级模块单元测试
     cd e:\\各种PY程序\\28-终极量化交易系统7.1
     python tests/test_v10_strategy_modules.py
 """
-import sys
-import os
 import json
 import logging
+import os
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -53,7 +53,7 @@ def test_ic_hedge_calculator():
     # 断言: 应该需要 1-3 张合约
     assert 1 <= result.target_contracts <= 3, f"合约数应在 1-3 张, 实际 {result.target_contracts}"
     assert result.net_beta < 0.85, "对冲后净 beta 应小于原 beta"
-    assert result.feasible == True, "应该可行"
+    assert result.feasible, "应该可行"
     print(f"✓ 场景 A 通过: 合约 {result.target_contracts} 张, 净 beta {result.net_beta:.3f}")
 
     # 场景 B: 高 beta, 需要更多对冲
@@ -78,7 +78,7 @@ def test_ic_hedge_calculator():
     )
     print("\n场景 C: 基差贴水警告")
     print(calc.summary(result_c))
-    assert result_c.basis_warning == True, "应该触发基差警告"
+    assert result_c.basis_warning, "应该触发基差警告"
     assert result_c.adjusted_contracts <= result_c.target_contracts, "调整后合约数应 <= 目标合约数"
     print(f"✓ 场景 C 通过: 基差警告触发, 合约 {result_c.target_contracts} → {result_c.adjusted_contracts}")
 
@@ -111,10 +111,10 @@ def test_quant_neutral_runner():
     print("测试 2: QuantNeutralRunner")
     print("=" * 60)
 
-    from utils.quant_neutral_runner import QuantNeutralRunner
-
     # 场景 A: 月度调仓 (正常场景)
     import random
+
+    from utils.quant_neutral_runner import QuantNeutralRunner
     random.seed(42)
 
     # 生成 50 只候选股票 (50 只不同 A 股代码, 避免重复)
@@ -227,7 +227,7 @@ def test_quant_neutral_runner():
         trade_date=date(2026, 7, 31),
     )
     print(runner.summary(result_d))
-    assert result_d.basis_warning == True, "应触发基差警告"
+    assert result_d.basis_warning, "应触发基差警告"
     print("✓ 场景 D 通过: 基差警告触发")
 
     # 场景 E: 因子打分测试
@@ -289,9 +289,9 @@ def test_cash_manager():
         trade_date=date(2026, 9, 28),  # 季末
     )
     print(cm.summary(result_b))
-    assert result_b.is_quarter_end == True, "应识别为季末"
+    assert result_b.is_quarter_end, "应识别为季末"
     assert result_b.reverse_repo >= result.reverse_repo, "高利率应加大投放"
-    assert result_b.repo_order.get("is_quarter_end") == True, "指令应标记季末"
+    assert result_b.repo_order.get("is_quarter_end"), "指令应标记季末"
     print(f"✓ 场景 B 通过: 季末逆回购 ¥{result_b.reverse_repo:,.0f}")
 
     # 场景 C: 应急金动用
@@ -305,7 +305,7 @@ def test_cash_manager():
         trade_date=date(2026, 7, 14),
     )
     print(cm.summary(result_c))
-    assert result_c.emergency_replenish_needed == True, "应触发补足标记"
+    assert result_c.emergency_replenish_needed, "应触发补足标记"
     assert result_c.emergency_used == 50_000, "应记录已动用金额"
 
     # 检查补足建议
@@ -359,9 +359,9 @@ def test_daily_workflow_integration():
 
     # 检查 v10 策略模块是否就绪
     try:
-        from utils.quant_neutral_runner import QuantNeutralRunner  # noqa: F401
-        from utils.ic_hedge_calculator import ICHedgeCalculator  # noqa: F401
         from utils.cash_manager import CashManager  # noqa: F401
+        from utils.ic_hedge_calculator import ICHedgeCalculator  # noqa: F401
+        from utils.quant_neutral_runner import QuantNeutralRunner  # noqa: F401
         print("✓ v10.0 策略模块全部导入成功")
         print("  - QuantNeutralRunner: 资金 ¥700,000, 目标多头 ¥1,400,000")
         print("  - ICHedgeCalculator: IC 合约乘数 200, 保证金率 12%")

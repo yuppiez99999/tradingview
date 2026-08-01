@@ -14,9 +14,10 @@ P0-3 修复: 消除回测前视偏差
 - walk-forward: 滚动窗口训练，模拟真实交易中模型随时间演进
 """
 
+from typing import Generator, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
-from typing import Tuple, Generator, Union, Optional
 from sklearn.model_selection import BaseCrossValidator
 
 

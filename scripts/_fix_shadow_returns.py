@@ -11,11 +11,11 @@
 5. 更新 daily_returns.jsonl
 """
 
+import json
 import os
 import sys
-import json
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # NO_PROXY 必须在导入 requests/akshare 前设置
 os.environ["NO_PROXY"] = "push2his.eastmoney.com,push2.eastmoney.com,eastmoney.com,sinajs.cn,sina.com.cn,127.0.0.1,localhost"
@@ -46,7 +46,7 @@ def test_three_sources_individually():
             spec.loader.exec_module(mod)
 
             # 测试 wind_get_quote
-            print(f"  测试 wind_get_quote('600276.SH')...")
+            print("  测试 wind_get_quote('600276.SH')...")
             quote = mod.wind_get_quote("600276.SH", is_fund=False)
             if quote:
                 price = quote.get("price")
@@ -54,11 +54,11 @@ def test_three_sources_individually():
                 print(f"  [OK] quote: price={price}, prev_close={prev_close}, source={quote.get('source')}")
                 results["wind_mcp_quote"] = {"ok": True, "price": price, "prev_close": prev_close}
             else:
-                print(f"  [FAIL] wind_get_quote 返回空")
+                print("  [FAIL] wind_get_quote 返回空")
                 results["wind_mcp_quote"] = {"ok": False, "reason": "empty_quote"}
 
             # 测试 wind_get_kline
-            print(f"  测试 wind_get_kline('600276.SH', days=5)...")
+            print("  测试 wind_get_kline('600276.SH', days=5)...")
             klines = mod.wind_get_kline("600276.SH", days=5, is_fund=False)
             if klines:
                 print(f"  [OK] kline: 返回 {len(klines)} 条 K 线")
@@ -67,17 +67,17 @@ def test_three_sources_individually():
                     print(f"    {k}")
                 results["wind_mcp_kline"] = {"ok": True, "count": len(klines)}
             else:
-                print(f"  [FAIL] wind_get_kline 返回空")
+                print("  [FAIL] wind_get_kline 返回空")
                 results["wind_mcp_kline"] = {"ok": False, "reason": "empty_kline"}
 
             # 测试 ETF (588000)
-            print(f"  测试 wind_get_quote('588000.SH', is_fund=True)...")
+            print("  测试 wind_get_quote('588000.SH', is_fund=True)...")
             etf_quote = mod.wind_get_quote("588000.SH", is_fund=True)
             if etf_quote:
                 print(f"  [OK] etf_quote: price={etf_quote.get('price')}")
                 results["wind_mcp_etf"] = {"ok": True, "price": etf_quote.get("price")}
             else:
-                print(f"  [FAIL] wind_get_quote ETF 返回空")
+                print("  [FAIL] wind_get_quote ETF 返回空")
                 results["wind_mcp_etf"] = {"ok": False, "reason": "empty_etf_quote"}
 
         except Exception as e:
@@ -94,7 +94,7 @@ def test_three_sources_individually():
         client = IFindClient()
 
         # 测试股票 (600276)
-        print(f"  测试 ifind.get_historical_klines('600276', days=5)...")
+        print("  测试 ifind.get_historical_klines('600276', days=5)...")
         klines = client.get_historical_klines("600276", days=5)
         if klines:
             print(f"  [OK] 返回 {len(klines)} 条 K 线")
@@ -102,10 +102,10 @@ def test_three_sources_individually():
                 print(f"    {k}")
             results["ifind_stock"] = {"ok": True, "count": len(klines)}
         else:
-            print(f"  [FAIL] 返回空")
+            print("  [FAIL] 返回空")
 
             # 尝试调用底层 call 方法看具体错误
-            print(f"  诊断: 尝试直接调用 ifind.call('stock', 'get_stock_performance', ...)...")
+            print("  诊断: 尝试直接调用 ifind.call('stock', 'get_stock_performance', ...)...")
             try:
                 end_date = datetime.now().strftime("%Y%m%d")
                 start_date = (datetime.now() - timedelta(days=10)).strftime("%Y%m%d")
@@ -127,13 +127,13 @@ def test_three_sources_individually():
             results["ifind_stock"] = {"ok": False, "reason": "empty_klines"}
 
         # 测试 ETF (588000)
-        print(f"  测试 ifind.get_historical_klines('588000', days=5)...")
+        print("  测试 ifind.get_historical_klines('588000', days=5)...")
         etf_klines = client.get_historical_klines("588000", days=5)
         if etf_klines:
             print(f"  [OK] ETF 返回 {len(etf_klines)} 条 K 线")
             results["ifind_etf"] = {"ok": True, "count": len(etf_klines)}
         else:
-            print(f"  [FAIL] ETF 返回空")
+            print("  [FAIL] ETF 返回空")
             results["ifind_etf"] = {"ok": False, "reason": "empty_etf"}
 
     except Exception as e:
@@ -149,13 +149,13 @@ def test_three_sources_individually():
 
         tdx = get_tdx_source()
         if not tdx or not tdx.source_health.get("tdx", {}).get("ok"):
-            print(f"  [FAIL] 通达信连接失败")
+            print("  [FAIL] 通达信连接失败")
             results["tdx"] = {"ok": False, "reason": "connection_failed"}
         else:
-            print(f"  [OK] 通达信连接已建立")
+            print("  [OK] 通达信连接已建立")
 
             # 测试 get_historical_klines
-            print(f"  测试 tdx.get_historical_klines('600276', period='1d', count=5)...")
+            print("  测试 tdx.get_historical_klines('600276', period='1d', count=5)...")
             df = tdx.get_historical_klines("600276", period="1d", count=5)
             if df is not None and not df.empty:
                 print(f"  [OK] 返回 {len(df)} 行")
@@ -163,18 +163,18 @@ def test_three_sources_individually():
                 print(df.tail(2).to_string())
                 results["tdx_stock"] = {"ok": True, "rows": len(df)}
             else:
-                print(f"  [FAIL] 返回空")
+                print("  [FAIL] 返回空")
                 results["tdx_stock"] = {"ok": False, "reason": "empty"}
 
             # 测试 ETF (588000)
-            print(f"\n  测试 tdx.get_historical_klines('588000', period='1d', count=5)...")
+            print("\n  测试 tdx.get_historical_klines('588000', period='1d', count=5)...")
             etf_df = tdx.get_historical_klines("588000", period="1d", count=5)
             if etf_df is not None and not etf_df.empty:
                 print(f"  [OK] ETF 返回 {len(etf_df)} 行")
                 print(etf_df.tail(2).to_string())
                 results["tdx_etf"] = {"ok": True, "rows": len(etf_df)}
             else:
-                print(f"  [FAIL] ETF 返回空")
+                print("  [FAIL] ETF 返回空")
                 results["tdx_etf"] = {"ok": False, "reason": "empty"}
 
     except Exception as e:
@@ -322,7 +322,7 @@ def recalculate_daily_returns():
     try:
         from utils.data_provider import MarketDataProvider
         provider = MarketDataProvider(backtest_mode=False)
-        print(f"\n  Provider 初始化完成")
+        print("\n  Provider 初始化完成")
         print(f"    Wind MCP: ok={provider.source_health['wind_mcp']['ok']}")
         print(f"    iFinD MCP: ok={provider.source_health['ifind_mcp']['ok']}")
         print(f"    通达信: ok={provider.source_health['tdx']['ok']}")
@@ -351,7 +351,7 @@ def recalculate_daily_returns():
         fail_count = 0
 
         if total_weight <= 0:
-            print(f"    总权重为 0, 跳过")
+            print("    总权重为 0, 跳过")
             calculated_returns[date_str] = 0.0
             continue
 
@@ -483,7 +483,7 @@ def update_daily_returns_jsonl(calculated_returns):
     print(f"\n  更新完成: 共更新 {updated_count} 条记录")
 
     # 验证
-    print(f"\n  === 最终 daily_returns.jsonl 内容 ===")
+    print("\n  === 最终 daily_returns.jsonl 内容 ===")
     with open(jsonl_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -514,14 +514,14 @@ def main():
     print("\n" + "=" * 70)
     print("  汇总")
     print("=" * 70)
-    print(f"\n  数据源独立测试结果:")
+    print("\n  数据源独立测试结果:")
     for name, info in source_results.items():
         if isinstance(info, dict):
             ok = info.get("ok", False)
             print(f"    {name}: {'OK' if ok else 'FAIL'}")
 
     if calculated_returns:
-        print(f"\n  重新计算的 daily_returns:")
+        print("\n  重新计算的 daily_returns:")
         for date_str, ret in calculated_returns.items():
             print(f"    {date_str}: {ret*100:+.4f}%")
 

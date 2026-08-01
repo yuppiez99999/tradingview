@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import sys
+
 sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")
 
 from morning_market_fetcher import (
-    _exec_ifind, _is_ifind_success,
+    _exec_ifind,
+    _is_ifind_success,
 )
 
 print("=== 测试 iFinD MCP 动力煤 ===")

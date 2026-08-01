@@ -31,18 +31,18 @@ def vectorized_dataframe_to_qlib(df):
     """向量化实现"""
     idx = df.index
     dates = [ts.strftime('%Y-%m-%d') if hasattr(ts, 'strftime') else str(ts) for ts in idx]
-    
+
     opens = pd.to_numeric(df.get('open', pd.Series(0, index=idx)), errors='coerce').fillna(0).to_numpy(dtype=float)
     highs = pd.to_numeric(df.get('high', pd.Series(0, index=idx)), errors='coerce').fillna(0).to_numpy(dtype=float)
     lows = pd.to_numeric(df.get('low', pd.Series(0, index=idx)), errors='coerce').fillna(0).to_numpy(dtype=float)
     closes = pd.to_numeric(df.get('close', pd.Series(0, index=idx)), errors='coerce').fillna(0).to_numpy(dtype=float)
     volumes = pd.to_numeric(df.get('volume', pd.Series(0, index=idx)), errors='coerce').fillna(0).to_numpy(dtype=float)
-    
+
     if 'amount' in df.columns:
         amounts = pd.to_numeric(df['amount'], errors='coerce').fillna(0).to_numpy(dtype=float)
     else:
         amounts = volumes.copy()
-    
+
     records = [
         {
             'date': dates[i],

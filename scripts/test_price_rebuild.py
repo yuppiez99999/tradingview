@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 
+
 def original_rebuild(rets, ref_price):
     """原始 for 循环实现"""
     prices = pd.Series(index=rets.index, dtype=float)

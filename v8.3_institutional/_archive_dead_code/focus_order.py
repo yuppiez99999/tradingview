@@ -5,6 +5,7 @@
 确保期货通窗口获得焦点后再执行下单操作。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

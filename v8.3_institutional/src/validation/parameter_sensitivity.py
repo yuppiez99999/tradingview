@@ -38,12 +38,13 @@
     analyzer.save_report('sensitivity_report.html')
 """
 
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import pandas as pd
 
 
 @dataclass
@@ -391,17 +392,17 @@ class ParameterSensitivity:
 <body>
     <h1>参数敏感性分析报告</h1>
     <p>生成时间: {self.results.timestamp}</p>
-    
+
     <div class="summary">
         <h2>总体评估</h2>
         <p><strong>总体稳定性评分:</strong> {self.results.overall_stability_score:.2f}/100</p>
         <p><strong>建议:</strong> {self.results.recommendation}</p>
     </div>
-    
+
     <h2>基准信息</h2>
     <p><strong>基准参数:</strong> {self.results.base_parameters}</p>
     <p><strong>基准性能:</strong> {self.results.base_performance}</p>
-    
+
     <h2>参数敏感性详情</h2>
     <table>
         <tr>

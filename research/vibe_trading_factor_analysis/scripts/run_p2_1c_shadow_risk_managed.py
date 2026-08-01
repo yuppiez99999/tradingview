@@ -33,21 +33,22 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-
 # 项目根路径注入
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
-    list_available_symbols,
-    load_price_data, load_fundamentals, load_benchmark_returns,
-)
 from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (
     build_factor_history,
 )
 from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import (
     VibeTradingFactorAdapter,
+)
+from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
+    list_available_symbols,
+    load_benchmark_returns,
+    load_fundamentals,
+    load_price_data,
 )
 from research.vibe_trading_factor_analysis.shadow.shadow_account import ShadowAccount
 

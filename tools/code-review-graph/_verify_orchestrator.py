@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
 """临时验证 finance_agent_orchestrator 模块"""
 import sys
+
 sys.path.insert(0, '.')
 
 print('=== 1. Import finance_agents package ===')
 from utils.finance_agents import (
     AgentDecision,
 )
+
 print('OK: 5 agents + BaseAgent + AgentDecision imported')
 
 print('=== 2. Import orchestrator ===')
 from utils.finance_agent_orchestrator import (
     FinanceAgentOrchestrator,
 )
+
 print('OK: orchestrator imported')
 
 print('=== 3. Test AgentDecision NaN defense ===')

@@ -6,8 +6,8 @@
 
 本文件保留以确保向后兼容: pytest v8.3_institutional/tests/ 仍可运行
 """
-import sys
 import os
+import sys
 
 # 转发到项目统一 conftest
 _UNIFIED_CONFTEST = os.path.join(

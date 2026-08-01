@@ -2,6 +2,7 @@
 # 替换当前 8% 静态预期收益 → 动态先验 + 观点融合
 # 核心理念: 市场均衡收益(隐含) + 主观观点 → 后验收益 → 更优权重
 from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from typing import List, Optional

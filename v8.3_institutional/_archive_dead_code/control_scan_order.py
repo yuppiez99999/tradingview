@@ -5,6 +5,7 @@
 使用pywinauto遍历控件，找到准确的期权下单标签位置。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 
@@ -44,7 +45,7 @@ print("\n[1] 遍历控件查找期权下单标签")
 try:
     all_controls = main_window.descendants()
     print(f"找到 {len(all_controls)} 个控件")
-    
+
     option_tabs = []
     for i, ctrl in enumerate(all_controls[:100]):
         try:
@@ -54,7 +55,7 @@ try:
                 print(f"控件 {i}: '{text}' - {ctrl.rectangle()}")
         except Exception:
             pass
-    
+
     if option_tabs:
         print(f"\n找到 {len(option_tabs)} 个期权相关控件:")
         for idx, text, rect in option_tabs:

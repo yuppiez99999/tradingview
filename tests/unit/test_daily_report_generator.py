@@ -46,45 +46,43 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.reporting.report_sections import (
-    NA_PLACEHOLDER,
-    EMPTY_SECTION_PLACEHOLDER,
-    REPORT_SEPARATOR,
-    PHASE_NAMES,
-    ALLOW_DEGRADE_PHASES,
-    build_report_header,
-    build_phase_execution_summary,
-    render_phase_summary,
-    render_pnl_attribution,
-    render_barra_decomposition,
-    render_eod_guard_chain,
-    build_report_summary,
-    write_report_with_retry,
-    save_state_json,
-)
-
 from utils.reporting.daily_report_generator import (
-    FLAG_NAME,
     DEFAULT_CONFIG_NAME,
-    DEFAULT_REPORT_DIR,
-    DEFAULT_MD_TEMPLATE,
     DEFAULT_JSON_TEMPLATE,
-    STATUS_OK,
-    STATUS_FEATURE_FLAG_DISABLED,
+    DEFAULT_MD_TEMPLATE,
+    DEFAULT_REPORT_DIR,
+    FLAG_NAME,
     STATUS_EMPTY_INPUT,
     STATUS_ERROR,
+    STATUS_FEATURE_FLAG_DISABLED,
+    STATUS_OK,
     STATUS_PARTIAL,
+    DailyReportGenerator,
     DailyReportGeneratorError,
-    ReportWriteError,
     FeatureFlagError,
     ReportInput,
     ReportResult,
-    DailyReportGenerator,
-    is_daily_report_generator_enabled,
+    ReportWriteError,
     create_default_generator,
     generate_daily_report,
+    is_daily_report_generator_enabled,
 )
-
+from utils.reporting.report_sections import (
+    ALLOW_DEGRADE_PHASES,
+    EMPTY_SECTION_PLACEHOLDER,
+    NA_PLACEHOLDER,
+    PHASE_NAMES,
+    REPORT_SEPARATOR,
+    build_phase_execution_summary,
+    build_report_header,
+    build_report_summary,
+    render_barra_decomposition,
+    render_eod_guard_chain,
+    render_phase_summary,
+    render_pnl_attribution,
+    save_state_json,
+    write_report_with_retry,
+)
 
 # ============================================================
 # 1. 常量定义测试

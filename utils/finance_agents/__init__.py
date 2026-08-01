@@ -23,12 +23,12 @@
 
 from __future__ import annotations
 
-from utils.finance_agents.base_agent import BaseAgent, AgentDecision
-from utils.finance_agents.value_agent import ValueAgent
-from utils.finance_agents.momentum_agent import MomentumAgent
-from utils.finance_agents.sentiment_agent import SentimentAgent
-from utils.finance_agents.risk_agent import RiskAgent
+from utils.finance_agents.base_agent import AgentDecision, BaseAgent
 from utils.finance_agents.macro_agent import MacroAgent
+from utils.finance_agents.momentum_agent import MomentumAgent
+from utils.finance_agents.risk_agent import RiskAgent
+from utils.finance_agents.sentiment_agent import SentimentAgent
+from utils.finance_agents.value_agent import ValueAgent
 
 __all__ = [
     "AgentDecision",

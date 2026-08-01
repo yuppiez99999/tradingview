@@ -5,6 +5,7 @@
 根据截图精确校准所有坐标。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
 """src/risk __init__ — v7.6风控子包 (含v5.9+v7.6增强)"""
 
+from .circuit_breaker import CircuitBreaker
+from .deep_stress import DEEP_SHOCK_SCENARIOS, DeepStressTester, ShockScenario
+from .pm_limits import LimitLevel, LimitStatus, PMLimitsMatrix, create_default_limits
 from .risk_budgeter import RiskBudgeter
 from .risk_manager import RiskManager
-from .circuit_breaker import CircuitBreaker
 from .stress_tester import StressTester
-from .pm_limits import PMLimitsMatrix, LimitStatus, LimitLevel, create_default_limits
-from .deep_stress import DeepStressTester, ShockScenario, DEEP_SHOCK_SCENARIOS
 
 # v8.4 P0-7: 统一风险驾驶舱 (整合KillSwitch+CircuitBreaker+Drawdown+VaR回测)
 try:
     from .unified_risk_cockpit import (
+        DrawdownController,
+        RiskLevel,
+        RiskSnapshot,
         UnifiedRiskCockpit,
         VaRBacktester,
         VaRModel,
-        DrawdownController,
-        RiskSnapshot,
-        RiskLevel,
     )
 except ImportError:
     UnifiedRiskCockpit = None
@@ -39,7 +39,7 @@ except ImportError:
 
 # v5.9风险控制增强（仅存在文件的模块）
 try:
-    from .risk_controls_v59 import RiskControls, RiskControlLevel
+    from .risk_controls_v59 import RiskControlLevel, RiskControls
 except ImportError:
     RiskControls = None
     RiskControlLevel = None

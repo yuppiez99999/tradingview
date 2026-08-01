@@ -32,7 +32,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 BASE = Path(__file__).resolve().parent
 PLAN_DIR = BASE / "trade_plans"
@@ -116,7 +116,7 @@ try:
     MACRO_SCORE_DIR = BASE.parent / "ms_strategy" / "src" / "macro"
     if str(MACRO_SCORE_DIR) not in sys.path:
         sys.path.insert(0, str(MACRO_SCORE_DIR))
-    from macro_policy_scoring import score_macro_policy, macro_score_to_factor
+    from macro_policy_scoring import macro_score_to_factor, score_macro_policy
     MACRO_SCORE_READY = True
 except Exception as _e:
     print(f"[WARN] 宏观评分模块导入失败 (降级模式): {_e}", file=sys.stderr)
@@ -200,7 +200,7 @@ def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 1_000_000
         for o in hedge_data.get("orders", []):
             o_copy = o.copy()
             o_type = o.get("type", "")
-            
+
             if o_type == "OPTIONS":
                 o_copy["execution_window"] = "09:30-10:00"
                 total_premium += o.get("premium_budget", 0)
@@ -210,7 +210,7 @@ def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 1_000_000
             elif o_type == "SAFE_HAVEN":
                 o_copy["execution_window"] = "09:30-15:00"
                 total_safe_haven += o.get("amount", 0)
-            
+
             orders_with_window.append(o_copy)
 
         result["hedge_orders"] = orders_with_window
@@ -255,10 +255,10 @@ def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 1_000_000
 HEDGE_FUND_READY = False
 try:
     sys.path.insert(0, str(BASE.parent / "utils"))
-    from theta_engine import ThetaEngine
     from gamma_engine import GammaEngine
     from kill_switch import KillSwitch
     from liquidation_scheduler import LiquidationScheduler
+    from theta_engine import ThetaEngine
     HEDGE_FUND_READY = True
 except ImportError as _e:
     print(f"[WARN] 对冲基金模块导入失败 (降级模式): {_e}", file=sys.stderr)

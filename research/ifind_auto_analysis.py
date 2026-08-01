@@ -26,13 +26,13 @@ def _load_portfolio_symbols(portfolio_path: str) -> List[Dict[str, Any]]:
         raise FileNotFoundError(f"portfolio.yaml 不存在: {portfolio_path}")
     with open(portfolio_path, 'r', encoding='utf-8') as f:
         data = yaml.safe_load(f) or {}
-    
+
     # 支持两种格式：positions (对象) 或 assets (数组)
     positions = data.get('positions') or {}
     assets = data.get('assets') or []
-    
+
     items: List[Dict[str, Any]] = []
-    
+
     # 优先使用 assets 数组（新格式）
     if isinstance(assets, list) and len(assets) > 0:
         for asset in assets:
@@ -45,7 +45,7 @@ def _load_portfolio_symbols(portfolio_path: str) -> List[Dict[str, Any]]:
                     'target_weight': asset.get('weight'),
                     'asset_type': str(asset.get('category', '')),
                 })
-    
+
     # 如果没有从 assets 获取到数据，尝试 positions（旧格式）
     if not items and isinstance(positions, dict) and len(positions) > 0:
         for code, pos in positions.items():
@@ -56,13 +56,13 @@ def _load_portfolio_symbols(portfolio_path: str) -> List[Dict[str, Any]]:
                 'target_weight': pos.get('weight', pos.get('target_weight')),
                 'asset_type': str(pos.get('asset_type', '')),
             })
-    
+
     if not items:
         if isinstance(positions, dict) and not positions:
             print("警告：portfolio.yaml 中 positions 为空")
         else:
             print("警告：未从 portfolio.yaml 中读取到有效持仓标的")
-    
+
     return items
 
 
@@ -72,8 +72,8 @@ def _calc_technical_alpha(code: str) -> Optional[float]:
     若因子库或历史数据不可用，则返回 None。
     """
     try:
-        from utils.gtja191_factors import GTJA191Factors
         from utils.data_provider import get_historical_data
+        from utils.gtja191_factors import GTJA191Factors
 
         df = get_historical_data(code, period="6m")
         if df is None or df.empty or "close" not in df.columns or "amount" not in df.columns:

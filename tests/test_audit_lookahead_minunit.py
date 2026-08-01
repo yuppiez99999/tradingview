@@ -17,8 +17,8 @@ import sys
 import unittest
 from pathlib import Path
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -39,9 +39,10 @@ class LookAheadBfillFixTest(unittest.TestCase):
         检查方法调用 (.bfill() 形式), 而非注释中的文本.
         修复后的代码用 df.ffill() 替代 df.bfill().ffill().
         """
-        from alpha import qlib_signal_adapter as qsa
         import inspect
         import re
+
+        from alpha import qlib_signal_adapter as qsa
 
         source = inspect.getsource(qsa._add_technical_features)
         # 检查 .bfill( 方法调用形式 (带点号和左括号), 排除注释中的描述性文本

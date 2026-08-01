@@ -22,13 +22,13 @@ REPORTS_DIR = Path(__file__).parent / 'reports'
 
 def generate_execution_plan():
     """生成P0执行计划"""
-    
+
     plan = {
         "execution_date": datetime.now().strftime("%Y-%m-%d"),
         "priority": "CRITICAL",
         "estimated_duration": "2小时",
         "expected_rating_improvement": "B+(88分) → A-(92分)",
-        
+
         "task_1_futures_topup": {
             "name": "补齐IF期货空头至5手",
             "current_status": "3手IF空头",
@@ -45,7 +45,7 @@ def generate_execution_plan():
                 "若前1手滑点>100bp则暂停并重新评估"
             ]
         },
-        
+
         "task_2_options_protection": {
             "name": "买入上证50ETF Put 20张",
             "budget": "560万元(期权权利金预算)",
@@ -57,7 +57,7 @@ def generate_execution_plan():
             "execution_strategy": [
                 "分4批执行,每批5张,间隔15分钟",
                 "第1批: 9:45买入5张",
-                "第2批: 10:00买入5张", 
+                "第2批: 10:00买入5张",
                 "第3批: 10:15买入5张",
                 "第4批: 10:30买入5张"
             ],
@@ -68,7 +68,7 @@ def generate_execution_plan():
             ],
             "fallback_plan": "若Put成本过高,改用Put Spread(买1个ATM Put+卖1个OTM Put降低成本30-50%)"
         },
-        
+
         "task_3_stop_loss_adjustment": {
             "name": "收紧组合止损线至-8%",
             "current_level": "-10%至-15%",
@@ -82,13 +82,13 @@ def generate_execution_plan():
             "expected_benefit": "极端损失减少3-5%,年化保护价值约50-80万元"
         }
     }
-    
+
     return plan
 
 
 def calculate_expected_impact():
     """计算预期影响"""
-    
+
     impact = {
         "beta_reduction": {
             "before": 1.052,
@@ -118,13 +118,13 @@ def calculate_expected_impact():
             ]
         }
     }
-    
+
     return impact
 
 
 def save_execution_plan(plan, impact):
     """保存执行计划到报告目录"""
-    
+
     report = {
         "metadata": {
             "title": "P0紧急对冲执行计划",
@@ -144,34 +144,34 @@ def save_execution_plan(plan, impact):
             "□ 执行报告已归档"
         ]
     }
-    
+
     output_path = REPORTS_DIR / f"p0_execution_plan_{datetime.now().strftime('%Y%m%d')}.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
-    
+
     logger.info(f"执行计划已保存: {output_path}")
     return output_path
 
 
 def main():
     """主执行流程"""
-    
+
     logger.info("=" * 80)
     logger.info("P0紧急对冲执行计划生成器")
     logger.info("=" * 80)
-    
+
     # 1. 生成执行计划
     logger.info("[1/4] 生成执行计划...")
     plan = generate_execution_plan()
-    
+
     # 2. 计算预期影响
     logger.info("[2/4] 计算预期影响...")
     impact = calculate_expected_impact()
-    
+
     # 3. 保存执行计划
     logger.info("[3/4] 保存执行计划...")
     report_path = save_execution_plan(plan, impact)
-    
+
     # 4. 输出摘要
     logger.info("[4/4] 执行摘要:")
     logger.info(f"  执行日期: {plan['execution_date']}")
@@ -186,7 +186,7 @@ def main():
     logger.info("")
     logger.info(f"完整执行计划已保存至: {report_path}")
     logger.info("=" * 80)
-    
+
     return plan, impact, report_path
 
 

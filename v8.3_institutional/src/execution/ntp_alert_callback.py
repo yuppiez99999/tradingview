@@ -195,8 +195,8 @@ class NTPAlertCallback:
         }
 
         try:
-            import urllib.request
             import json as _json
+            import urllib.request
 
             # B310 防护: 校验 webhook URL 必须为 http/https 协议
             webhook_url = self._dingtalk_webhook
@@ -226,8 +226,8 @@ class NTPAlertCallback:
 
         try:
             import smtplib
-            from email.mime.text import MIMEText
             from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
 
             subject = f"[NTP-CRITICAL] 漂移 {alert_payload.get('drift_ms', 0):.1f} ms 超阈值"
             body = (

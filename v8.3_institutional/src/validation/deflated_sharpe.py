@@ -30,8 +30,8 @@ Deflated Sharpe Ratio v1.0 — Bailey & Lopez de Prado 方法
 """
 
 import math
-from typing import Tuple
 from dataclasses import dataclass
+from typing import Tuple
 
 
 @dataclass

@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from utils.finance_agents.base_agent import BaseAgent, AgentDecision
+from utils.finance_agents.base_agent import AgentDecision, BaseAgent
 
 
 class MomentumAgent(BaseAgent):

@@ -14,8 +14,8 @@ A股实时行情接入层 (零 key, 不封 IP).
 from __future__ import annotations
 
 import json
-import time
 import threading
+import time
 import urllib.request
 from typing import Dict, List, Optional
 

@@ -8,6 +8,7 @@
 NO_PROXY 必须在 import akshare 前设置 (项目硬约束: 系统代理拒绝国内金融 API).
 """
 import os
+
 # NO_PROXY 必须在 import akshare/requests 前 (项目硬约束)
 os.environ['NO_PROXY'] = 'push2his.eastmoney.com,push2.eastmoney.com,eastmoney.com,sinajs.cn,sina.com.cn,api.dataide.eastmoney.com'
 os.environ['no_proxy'] = os.environ['NO_PROXY']

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """QMT 审计修复项集成测试 — 验证所有 P0 修复"""
 
-import sys
 import os
+import sys
+
 # 必须在 import 之前插入 sys.path
 # 项目根目录 (用于 import utils.* / ms_strategy.*)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -17,7 +18,7 @@ failed = 0
 # ================================================================
 # P0-10: T+0/T+1 交易制度
 # ================================================================
-from utils.trading_rules import is_t0_eligible, get_trading_rule
+from utils.trading_rules import get_trading_rule, is_t0_eligible
 
 tests = [
     ("511880.SH 债券ETF", is_t0_eligible("511880.SH"), True),
@@ -54,6 +55,7 @@ print(f"  trading_rules: {passed}/{passed+failed}")
 # ================================================================
 tp = passed
 from utils.wt_contracts_manager import ContractsManager
+
 cm = ContractsManager()
 
 # 精确匹配
@@ -85,6 +87,7 @@ print(f"  contracts_manager: {passed-tp}/{6}")
 # ================================================================
 tp = passed
 from utils.futures_rollover_manager import FuturesRolloverManager
+
 mgr = FuturesRolloverManager()
 
 # 主力合约
@@ -94,9 +97,9 @@ assert "IF" in active, f"Missing IF prefix: {active}"
 passed += 2
 
 # 可交易性
-assert mgr.is_tradable("IF2507.CFFEX") == True, "Tradable failed"
-assert mgr.is_tradable("IF.IDX") == False, "IDX should be non-tradable"
-assert mgr.is_tradable("IF00.CFFEX") == False, "Continuous should be non-tradable"
+assert mgr.is_tradable("IF2507.CFFEX"), "Tradable failed"
+assert not mgr.is_tradable("IF.IDX"), "IDX should be non-tradable"
+assert not mgr.is_tradable("IF00.CFFEX"), "Continuous should be non-tradable"
 passed += 3
 
 # 合约解析
@@ -115,7 +118,11 @@ print(f"  futures_rollover: {passed-tp}/{10}")
 # ================================================================
 tp = passed
 from utils.option_margin_monitor import (
-    OptionMarginMonitor, OptionPosition, parse_option_code, calc_call_margin, calc_put_margin,
+    OptionMarginMonitor,
+    OptionPosition,
+    calc_call_margin,
+    calc_put_margin,
+    parse_option_code,
 )
 
 # 期权代码解析
@@ -170,6 +177,7 @@ print(f"  _infer_suffix: {passed-tp}/{7}")
 # ================================================================
 tp = passed
 from utils.futures_rollover_manager import FuturesRolloverManager
+
 mgr2 = FuturesRolloverManager()
 
 # 具体合约直接返回
@@ -202,7 +210,9 @@ print(f"  resolve_hedge_contract: {passed-tp}/{5}")
 # ================================================================
 tp = passed
 from utils.option_exercise_risk import (
-    OptionExerciseRiskManager, _parse_option_code, _get_expiry_date,
+    OptionExerciseRiskManager,
+    _get_expiry_date,
+    _parse_option_code,
 )
 
 # 代码解析
@@ -226,7 +236,7 @@ result = mgr3.assess_risk(
 )
 assert result is not None, "评估失败"
 assert result.side == "SELL"
-assert result.is_itm == True, "实值期权应 is_itm=True"
+assert result.is_itm, "实值期权应 is_itm=True"
 assert result.assignment_probability in ("CERTAIN", "HIGH", "MEDIUM", "LOW"), \
     f"意外状态: {result.assignment_probability}"
 passed += 3
@@ -236,7 +246,7 @@ result = mgr3.assess_risk(
     "510050C2608M03000.SH", "BUY", 10, 2.800, 0.05,
 )
 assert result is not None
-assert result.is_itm == False, "虚值期权应 is_itm=False"
+assert not result.is_itm, "虚值期权应 is_itm=False"
 assert result.potential_loss > 0, "买方最大亏损 = 权利金"
 passed += 2
 

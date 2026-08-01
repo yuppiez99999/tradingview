@@ -2,6 +2,7 @@
 import os
 import re
 import sys
+
 import requests
 
 resp = requests.get("https://pypi.org/simple/iFinDAPI/", timeout=30, verify=True)

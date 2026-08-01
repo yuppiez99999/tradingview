@@ -57,7 +57,7 @@ class TestModelStage(unittest.TestCase):
         self.assertEqual(ModelStage.from_string("STAGING"), ModelStage.STAGING)
 
     def test_invalid_string_raises(self) -> None:
-        from utils.alpha.model_registry import ModelStage, ModelRegistryError
+        from utils.alpha.model_registry import ModelRegistryError, ModelStage
         with self.assertRaises(ModelRegistryError):
             ModelStage.from_string("invalid")
 
@@ -142,7 +142,8 @@ class TestModelRegistry(unittest.TestCase):
     def test_invalid_stage_transition_raises(self) -> None:
         """非法阶段转换应抛异常."""
         from utils.alpha.model_registry import (
-            ModelStage, StageTransitionError,
+            ModelStage,
+            StageTransitionError,
         )
         v1 = self.registry.register_model("invalid", _DummyModel(), {"dsr": 5.0})
         # REGISTERED → ARCHIVED 是合法的, 但 ARCHIVED → PRODUCTION 是非法的
@@ -325,7 +326,8 @@ class TestABTestFramework(unittest.TestCase):
 
     def test_evaluate_test_insufficient_data(self) -> None:
         from utils.alpha.ab_testing import (
-            ABTestConfig, InsufficientDataError,
+            ABTestConfig,
+            InsufficientDataError,
         )
         cfg = ABTestConfig(
             name="eval", champion_model="c", challenger_model="d",
@@ -514,10 +516,12 @@ class TestAutoRetrainScheduler(unittest.TestCase):
 
     def test_min_interval_respected(self) -> None:
         """测试最小重训练间隔."""
-        from utils.alpha.auto_retrain_scheduler import (
-            AutoRetrainScheduler, RetrainTrigger,
-        )
         from datetime import datetime, timedelta
+
+        from utils.alpha.auto_retrain_scheduler import (
+            AutoRetrainScheduler,
+            RetrainTrigger,
+        )
         scheduler = AutoRetrainScheduler(config={
             "enabled": True,
             "min_interval_hours": 24,
@@ -530,7 +534,8 @@ class TestAutoRetrainScheduler(unittest.TestCase):
 
     def test_trigger_retrain_creates_task(self) -> None:
         from utils.alpha.auto_retrain_scheduler import (
-            AutoRetrainScheduler, RetrainTrigger,
+            AutoRetrainScheduler,
+            RetrainTrigger,
         )
         scheduler = AutoRetrainScheduler(config={
             "enabled": True,
@@ -806,7 +811,8 @@ class TestMLOpsPipelineEnabled(unittest.TestCase):
     def test_global_pipeline_singleton(self) -> None:
         """测试全局单例函数."""
         from utils.alpha.mlops_pipeline import (
-            get_pipeline, initialize_pipeline,
+            get_pipeline,
+            initialize_pipeline,
         )
         pipeline1 = initialize_pipeline(config={"test_key": "test_value"})
         pipeline2 = get_pipeline()
@@ -1217,7 +1223,9 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
     def test_trigger_retrain_in_progress(self) -> None:
         """已有训练在跑应抛 TrainingInProgressError."""
         from utils.alpha.auto_retrain_scheduler import (
-            TrainingInProgressError, RetrainStatus, RetrainTask,
+            RetrainStatus,
+            RetrainTask,
+            TrainingInProgressError,
         )
         scheduler = self._make_scheduler(enabled=True)
         # 注入正在跑的任务
@@ -1231,8 +1239,9 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
 
     def test_trigger_retrain_min_interval(self) -> None:
         """距上次重训练不足最小间隔应返回 False."""
-        from utils.alpha.auto_retrain_scheduler import AutoRetrainScheduler
         from datetime import datetime, timedelta
+
+        from utils.alpha.auto_retrain_scheduler import AutoRetrainScheduler
         scheduler = AutoRetrainScheduler(
             config={
                 "enabled": True,
@@ -1467,7 +1476,8 @@ class TestABTestingExtended(unittest.TestCase):
     def test_list_tests_with_status_filter(self) -> None:
         """list_tests 支持状态过滤."""
         from utils.alpha.ab_testing import (
-            ABTestConfig, ABTestStatus,
+            ABTestConfig,
+            ABTestStatus,
         )
         fw = self._make_framework()
         config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
@@ -1510,7 +1520,8 @@ class TestABTestingExtended(unittest.TestCase):
     def test_promote_challenger_not_evaluated(self) -> None:
         """promote_challenger 未评估抛 ABTestError."""
         from utils.alpha.ab_testing import (
-            ABTestConfig, ABTestError,
+            ABTestConfig,
+            ABTestError,
         )
         fw = self._make_framework()
         config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
@@ -1548,7 +1559,8 @@ class TestABTestingExtended(unittest.TestCase):
     def test_rollback_to_champion_no_versions(self) -> None:
         """rollback_to_champion champion 模型无版本."""
         from utils.alpha.ab_testing import (
-            ABTestConfig, ABTestError,
+            ABTestConfig,
+            ABTestError,
         )
         fw = self._make_framework()
         fw._model_registry.get_model_versions.return_value = []
@@ -1584,7 +1596,7 @@ class TestABTestingExtended(unittest.TestCase):
 
     def test_make_recommendation_rollback(self) -> None:
         """_make_recommendation 回滚条件触发."""
-        from utils.alpha.ab_testing import ABTestConfig, ABTest
+        from utils.alpha.ab_testing import ABTest, ABTestConfig
         fw = self._make_framework()
         config = ABTestConfig(
             name="t1", champion_model="c", challenger_model="ch",
@@ -1604,7 +1616,8 @@ class TestABTestingExtended(unittest.TestCase):
     def test_make_recommendation_promote(self) -> None:
         """_make_recommendation 晋升条件触发."""
         from utils.alpha.ab_testing import (
-            ABTestConfig, ABTest,
+            ABTest,
+            ABTestConfig,
         )
         fw = self._make_framework()
         config = ABTestConfig(
@@ -1624,7 +1637,8 @@ class TestABTestingExtended(unittest.TestCase):
     def test_make_recommendation_continue(self) -> None:
         """_make_recommendation 默认 continue."""
         from utils.alpha.ab_testing import (
-            ABTestConfig, ABTest,
+            ABTest,
+            ABTestConfig,
         )
         fw = self._make_framework()
         config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
@@ -1640,7 +1654,7 @@ class TestABTestingExtended(unittest.TestCase):
 
     def test_detect_primary_metric_default(self) -> None:
         """_detect_primary_metric 默认 ic."""
-        from utils.alpha.ab_testing import ABTestConfig, ABTest
+        from utils.alpha.ab_testing import ABTest, ABTestConfig
         fw = self._make_framework()
         config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
         test = ABTest(config=config)
@@ -1648,7 +1662,7 @@ class TestABTestingExtended(unittest.TestCase):
 
     def test_detect_primary_metric_dsr(self) -> None:
         """_detect_primary_metric 优先 dsr."""
-        from utils.alpha.ab_testing import ABTestConfig, ABTest
+        from utils.alpha.ab_testing import ABTest, ABTestConfig
         fw = self._make_framework()
         config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
         test = ABTest(config=config)

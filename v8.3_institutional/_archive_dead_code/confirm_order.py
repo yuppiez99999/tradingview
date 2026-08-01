@@ -5,6 +5,7 @@
 添加确认弹窗处理和委托列表验证。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

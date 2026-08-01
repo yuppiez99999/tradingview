@@ -5,6 +5,7 @@
 使用精确坐标，完全自动执行。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

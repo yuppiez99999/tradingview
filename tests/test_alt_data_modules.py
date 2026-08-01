@@ -10,8 +10,8 @@
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 import unittest
 from datetime import datetime, timedelta
 
@@ -30,7 +30,7 @@ class TestNewsSentimentEngine(unittest.TestCase):
 
     def setUp(self):
         """每个测试前创建一个新的引擎实例"""
-        from utils.news_sentiment_engine import NewsSentimentEngine, NewsItem
+        from utils.news_sentiment_engine import NewsItem, NewsSentimentEngine
         self.engine = NewsSentimentEngine()
         self.NewsItem = NewsItem
 
@@ -192,7 +192,7 @@ class TestSupplyChainGraph(unittest.TestCase):
     """供应链关系图谱测试"""
 
     def setUp(self):
-        from utils.supply_chain_graph import SupplyChainGraph, SupplyChainEdge
+        from utils.supply_chain_graph import SupplyChainEdge, SupplyChainGraph
         self.graph = SupplyChainGraph()
         self.SupplyChainEdge = SupplyChainEdge
 
@@ -311,8 +311,11 @@ class TestAltDataIndicators(unittest.TestCase):
 
     def setUp(self):
         from utils.alt_data_indicators import (
-            AltDataIndicators, SatelliteIndicator,
-            SearchIndexIndicator, RecruitmentIndicator, PatentIndicator,
+            AltDataIndicators,
+            PatentIndicator,
+            RecruitmentIndicator,
+            SatelliteIndicator,
+            SearchIndexIndicator,
         )
         self.engine = AltDataIndicators()
         self.SatelliteIndicator = SatelliteIndicator

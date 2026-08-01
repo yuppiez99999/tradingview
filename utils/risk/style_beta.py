@@ -16,7 +16,6 @@
 
 from typing import Dict
 
-
 # ── 风格 Beta 代理字典 (基于风格标签的 rough estimation) ──
 # 来源: hedge_quantity_calculator.py L42-56 / today_hedge_decision.py L71-86
 # (2026-08-01 统一抽取, 消除 DRY 违规)

@@ -166,7 +166,7 @@ class _VibeTradingCore:
 
         try:
             # 延迟导入 Vibe-Trading 核心模块
-            from backtest.loaders.registry import LOADER_REGISTRY, resolve_loader, _ensure_registered
+            from backtest.loaders.registry import LOADER_REGISTRY, _ensure_registered, resolve_loader
 
             # 强制注册所有 loader
             _ensure_registered()

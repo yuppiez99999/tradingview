@@ -21,11 +21,11 @@ from utils.infra.feature_flags import (
     FeatureFlags,
     FlagNotFoundError,
     FlagPermissionError,
+    audit_trail,
     disable,
     enable,
     is_enabled,
     list_flags,
-    audit_trail,
 )
 
 

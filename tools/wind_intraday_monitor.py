@@ -8,8 +8,8 @@ Wind 终端盘中标的抓取与研判
   2. 盘中异动检测（涨跌幅/成交量/价格偏离）
   3. 生成买/卖/持有研判结论
 """
-import os
 import json
+import os
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -82,7 +82,6 @@ def _normalize_code(code: str) -> str:
 
 
 import importlib.util
-
 
 _WIND_FETCHER_PATH = os.path.join(os.path.dirname(_BASE_DIR), "wind_mcp_fetcher.py")
 

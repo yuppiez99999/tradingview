@@ -55,12 +55,11 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field, asdict
+import math
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
-
-import math
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("pnl_attribution")
 

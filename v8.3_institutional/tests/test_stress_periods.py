@@ -2,15 +2,13 @@
 v7.5 测试：三段极端行情压力测试 — 合规必过
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §4.3, §7.2
 """
-import sys
 import os
+import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from backtest.scenario_lib import (
-    ScenarioLibrary, StressScenario, STRESS_SCENARIOS
-)
+from backtest.scenario_lib import STRESS_SCENARIOS, ScenarioLibrary, StressScenario
 
 
 class TestStressScenarios(unittest.TestCase):

@@ -9,10 +9,11 @@
     - 验证 _deduplicate_put_orders 在 plan 字段层级正确去重
 """
 import json
+
 import pytest
 
-from utils.risk_guard_integrator import RiskGuardIntegrator
 from utils.hedge_execution_engine import HedgeExecutionEngine
+from utils.risk_guard_integrator import RiskGuardIntegrator
 
 
 @pytest.fixture

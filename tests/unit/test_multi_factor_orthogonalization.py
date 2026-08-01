@@ -17,10 +17,10 @@ from contextlib import ExitStack
 from unittest.mock import patch
 
 from utils.alpha.multi_factor_signal import (
-    MultiFactorSignal,
     ORTHO_DEFAULT_THRESHOLD,
     ORTHO_FLAG_NAME,
     ORTHO_MIN_SAMPLES,
+    MultiFactorSignal,
 )
 
 

@@ -16,30 +16,36 @@
 """
 
 # 关键导出 (供外部调用方保持向后兼容)
-from .metrics import (
-    r2_score as _r2_score,
-    ic_score as _ic_score,
-    signal_sharpe as _signal_sharpe,
-    time_series_cv_evaluate,
-    select_features_by_importance,
-)
-from .data_loader import load_real_ohlcv, fetch_all_real_ohlcv
-from .news_sentiment import compute_news_sentiment_factors, add_sentiment_features
+from .data_loader import fetch_all_real_ohlcv, load_real_ohlcv
 from .feature_engineering import (
-    add_mean_reversion_features,
-    add_regime_aware_features,
-    add_industry_relative_strength_features,
     add_capital_flow_features,
     add_cross_market_features,
+    add_industry_relative_strength_features,
+    add_mean_reversion_features,
+    add_regime_aware_features,
 )
-from .persistence import save_model, load_model_meta, should_retrain
+from .metrics import (
+    ic_score as _ic_score,
+)
+from .metrics import (
+    r2_score as _r2_score,
+)
+from .metrics import (
+    select_features_by_importance,
+    time_series_cv_evaluate,
+)
+from .metrics import (
+    signal_sharpe as _signal_sharpe,
+)
+from .news_sentiment import add_sentiment_features, compute_news_sentiment_factors
+from .persistence import load_model_meta, save_model, should_retrain
+from .report_generator import generate_comparison_report
 from .trainer import (
-    train_symbol_enhanced,
-    train_symbol_regime_specific,
     compute_regime_series,
     run_enhanced_training,
+    train_symbol_enhanced,
+    train_symbol_regime_specific,
 )
-from .report_generator import generate_comparison_report
 
 __all__ = [
     # 数据层

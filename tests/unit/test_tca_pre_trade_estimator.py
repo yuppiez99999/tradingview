@@ -682,6 +682,7 @@ class TestExecutionRouterRouteWithTCA:
             tmp_path,
         )
         from utils.execution_router import ExecutionRouter
+
         # 注入 estimator 避免重复创建
         from utils.tca_pre_trade_estimator import PreTradeEstimator
         estimator = PreTradeEstimator(

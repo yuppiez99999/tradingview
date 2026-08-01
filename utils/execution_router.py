@@ -22,7 +22,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
-
 from utils.execution_algo_engine import ExecutionAlgoEngine
 
 logger = logging.getLogger("execution_router")

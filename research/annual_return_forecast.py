@@ -50,6 +50,7 @@ if sys.platform == "win32":
 TARGET_ANNUAL_RETURN = 0.08
 # B1.3: 从 config/risk_params.yaml 统一读取 (fail-safe 兜底 0.15)
 from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
+
 MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
 RF_RATE = 0.025  # 无风险利率 (10年国债)
 TARGET_SHARPE = 1.0
@@ -243,7 +244,7 @@ def _calc_scenario(spot_annual_return: float,
     cash_contribution = baseline["cash_interest_annual"] * cash_ratio
     put_cost = baseline.get("put_premium_cost", 0.0)  # Put保护权利金年化成本
 
-    total_annual_return = (spot_contribution + hedge_contribution 
+    total_annual_return = (spot_contribution + hedge_contribution
                          + cc_contribution + cash_contribution - put_cost)
 
     # 估算波动率: 现货年化波动 ~18%, 对冲后降至 ~12%; 现金 1%

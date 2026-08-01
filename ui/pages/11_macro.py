@@ -105,8 +105,9 @@ def main() -> None:
     st.caption("此处展示近 12 个月的宏观指标走势 (示例数据)")
 
     try:
-        import pandas as pd
         from datetime import datetime, timedelta
+
+        import pandas as pd
         dates = [datetime.now() - timedelta(days=30 * i) for i in range(12)]
         dates.reverse()
         sample_data = pd.DataFrame({

@@ -11,13 +11,14 @@
 数据源：新浪财经 KLine 接口（免费，无需 token，绕过系统代理）
 """
 
-import os
 import json
-import time
+import os
 import pathlib
-import requests
-import pandas as pd
+import time
 from typing import List, Tuple
+
+import pandas as pd
+import requests
 
 # 禁用系统代理（与 data_provider 的 Sina session 一致）
 os.environ['HTTP_PROXY'] = ''

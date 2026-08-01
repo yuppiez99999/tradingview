@@ -10,10 +10,11 @@
     6. 按 symbols 过滤撤单
     7. 部分失败时 success=False
 """
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock
+
+import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))

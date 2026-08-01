@@ -27,13 +27,13 @@ AI 报告代理 (AI Report Agent)
   - 可审计: 每次分析记录输入/输出/模型/耗时
 """
 
-import sys
 import json
+import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from utils.logger import get_logger
 

@@ -77,13 +77,13 @@ class TestCircuitBreaker(unittest.TestCase):
         from risk.circuit_breaker import CircuitBreaker, CircuitState
         self.cb = CircuitBreaker("test_breaker")
         self.CircuitState = CircuitState
-    
+
     def test_level_1(self):
         """跌 3% → LEVEL_1"""
         # CircuitBreaker没有check方法，测试allow_request
         allowed = self.cb.allow_request()
         self.assertTrue(allowed)
-    
+
     def test_level_2(self):
         """跌 5% → LEVEL_2"""
         # 模拟连续失败触发熔断（默认threshold=5）
@@ -91,7 +91,7 @@ class TestCircuitBreaker(unittest.TestCase):
             self.cb.on_failure(Exception("test error"))
         allowed = self.cb.allow_request()
         self.assertFalse(allowed)
-    
+
     def test_level_3(self):
         """跌 7% → LEVEL_3"""
         # 测试状态转换
@@ -100,13 +100,13 @@ class TestCircuitBreaker(unittest.TestCase):
         state_after = self.cb.state
         # 状态应该从CLOSED变为OPEN
         self.assertEqual(state_after, self.CircuitState.OPEN)
-    
+
     def test_level_4_vix(self):
         """VIX > 80 → LEVEL_4"""
         # 测试stats获取 - get_stats返回CircuitStats对象
         stats = self.cb.get_stats()
         self.assertIsNotNone(stats)
-    
+
     def test_vix_escalate(self):
         """VIX>=60 且跌>5% → LEVEL_3"""
         # 测试恢复流程（需要5次失败）
@@ -114,7 +114,7 @@ class TestCircuitBreaker(unittest.TestCase):
             self.cb.on_failure(Exception("error"))
         # 应该被熔断
         self.assertFalse(self.cb.allow_request())
-    
+
     def test_allowed_actions(self):
         """允许操作检查"""
         # 测试成功恢复
@@ -128,8 +128,8 @@ class TestHedging(unittest.TestCase):
 
     def setUp(self):
         from hedging.beta_hedger import BetaHedger
-        from hedging.vol_hedger import VolHedger
         from hedging.correlation_hedger import CorrelationHedger
+        from hedging.vol_hedger import VolHedger
         self.BetaHedger = BetaHedger
         self.VolHedger = VolHedger
         self.CorrelationHedger = CorrelationHedger
@@ -221,8 +221,8 @@ class TestExecution(unittest.TestCase):
 
     def test_sor_execute(self):
         """SOR 执行"""
-        from execution.smart_order_router import SmartOrderRouter, MockBroker
         from execution.algo_engine import AlgoType
+        from execution.smart_order_router import MockBroker, SmartOrderRouter
         broker = MockBroker(price_dict={"TEST": 10.0})
         sor = SmartOrderRouter(broker)
         fills = sor.execute(symbol="TEST", target_qty=500,

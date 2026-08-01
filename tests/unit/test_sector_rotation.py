@@ -17,29 +17,37 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.alpha.sector_rotation import (
+    DEFAULT_CONFIG_NAME,
+    DEFAULT_LOOKBACK_DAYS,
+    DEFAULT_REGIME_ADJUSTMENTS,
     # 常量
-    DEFAULT_SIGNAL_WEIGHTS, DEFAULT_THRESHOLDS, DEFAULT_REGIME_ADJUSTMENTS,
-    DEFAULT_TOP_N, DEFAULT_LOOKBACK_DAYS, FLAG_NAME, DEFAULT_CONFIG_NAME,
-    # 异常
-    SectorRotationError, InsufficientSectorsError, InvalidSignalError,
-    # 数据类
-    SectorSignal, RotationResult,
-    # 评分函数
-    compute_momentum_score, compute_flow_score, compute_valuation_score,
-    classify_signal_label,
+    DEFAULT_SIGNAL_WEIGHTS,
+    DEFAULT_THRESHOLDS,
+    DEFAULT_TOP_N,
+    FLAG_NAME,
+    InsufficientSectorsError,
+    InvalidSignalError,
+    RotationResult,
     # 主类
     SectorRotation,
+    # 异常
+    SectorRotationError,
+    # 数据类
+    SectorSignal,
+    classify_signal_label,
+    compute_flow_score,
+    # 评分函数
+    compute_momentum_score,
+    compute_valuation_score,
     # 便捷函数
     is_sector_rotation_enabled,
 )
-
 
 # ============================================================
 # TestConstants - 常量定义测试

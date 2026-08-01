@@ -34,16 +34,16 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.reporting.report_sections import (  # noqa: E402
+    build_phase_execution_summary,
     # 常量
     build_report_header,
-    build_phase_execution_summary,
-    render_phase_summary,
-    render_pnl_attribution,
+    build_report_summary,
     render_barra_decomposition,
     render_eod_guard_chain,
-    build_report_summary,
-    write_report_with_retry,
+    render_phase_summary,
+    render_pnl_attribution,
     save_state_json,
+    write_report_with_retry,
 )
 
 logger = logging.getLogger("daily_report_generator")

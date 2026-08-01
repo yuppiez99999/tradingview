@@ -12,10 +12,11 @@
 
 import os
 import sys
-import numpy as np
+from collections import defaultdict, deque
 from datetime import datetime
 from typing import Dict, List, Optional
-from collections import defaultdict, deque
+
+import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

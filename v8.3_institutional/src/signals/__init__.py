@@ -3,7 +3,7 @@
 
 # v7.5原生
 try:
-    from .crowding_detector import SignalCrowdingDetector, CrowdingConfig
+    from .crowding_detector import CrowdingConfig, SignalCrowdingDetector
 except ImportError:
     SignalCrowdingDetector = None
     CrowdingConfig = None
@@ -35,7 +35,7 @@ except ImportError:
     RuleEngine = None
 
 # v7.6 信号半衰期管理
-from .signal_half_life import SignalHalfLifeManager, SignalHalfLife, PRESET_HALF_LIVES
+from .signal_half_life import PRESET_HALF_LIVES, SignalHalfLife, SignalHalfLifeManager
 
 __all__ = [
     "PRESET_HALF_LIVES",

@@ -2,6 +2,7 @@ import os
 
 QLIB_DATA_DIR = r"E:\各种PY程序\28-终极量化交易系统8.4\qlib_data\cn_data"
 import qlib
+
 qlib.init(provider_uri=QLIB_DATA_DIR, region="cn")
 
 from qlib.data import D

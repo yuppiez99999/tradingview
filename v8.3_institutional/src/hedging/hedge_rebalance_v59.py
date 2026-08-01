@@ -19,15 +19,16 @@ v5.9 核心改进（基于v2.0回测验证）：
 数据源: iFinD MCP → Wind MCP → AKShare → Sina → efinance → 默认回退
 """
 
-import pandas as pd
-import os
-import sys
 import json
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
+import os
+import sys
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
+import pandas as pd
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _project_dir = os.path.dirname(_current_dir)
@@ -99,15 +100,15 @@ def _get_ifind_prices_batch(codes: List[str]) -> Dict[str, float]:
 
 try:
     from .hedge_engine_v59 import (
+        DEFAULT_FUTURES_PRICES,  # noqa: F401
+        ETF_OPTIONS_SPECS,  # noqa: F401
+        INDEX_FUTURES_SPECS,
         HedgeEngine,
+        HedgeRecommendation,  # noqa: F401
         HedgeSignalStrength,  # noqa: F401
         HedgeType,  # noqa: F401
-        HedgeRecommendation,  # noqa: F401
         PortfolioRisk,
-        INDEX_FUTURES_SPECS,
-        ETF_OPTIONS_SPECS,  # noqa: F401
         get_live_futures_prices,  # noqa: F401
-        DEFAULT_FUTURES_PRICES,  # noqa: F401
     )
 
     _HEDGE_OK = True

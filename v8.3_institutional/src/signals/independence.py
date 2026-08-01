@@ -12,8 +12,9 @@
   5. 有效独立信号源数量 -- 基于特征值分解
 """
 
+from typing import Dict, List, Optional
+
 import numpy as np
-from typing import List, Dict, Optional
 
 
 def compute_signal_correlation_matrix(

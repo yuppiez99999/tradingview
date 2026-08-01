@@ -29,13 +29,13 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.alpha.data_contract import (  # noqa: E402
+    V9_DEFAULT_CONTRACT,
     DataContractError,
     DataContractViolationError,
     FeatureSchema,
     Severity,
     ValidationMode,
     Violation,
-    V9_DEFAULT_CONTRACT,
     validate_point_in_time,
 )
 

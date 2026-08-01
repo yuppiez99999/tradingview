@@ -9,8 +9,8 @@ free-stockdb 数据同步进度监控
 import os
 import sys
 import time
-import requests
 
+import requests
 
 FS_DIR = r"D:\free-stockdb\stockdb"
 FS_HTTP = "http://127.0.0.1:7899"

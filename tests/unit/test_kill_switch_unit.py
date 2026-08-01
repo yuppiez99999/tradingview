@@ -10,11 +10,11 @@
     - 隔离 TRADING_ENV / KILL_SWITCH_SIM_MODE 等环境变量
     - 每个 bug 至少一个用例, 函数名包含 bug 编号
 """
-import pytest
 from unittest.mock import MagicMock
 
-from utils.kill_switch import KillSwitch
+import pytest
 
+from utils.kill_switch import KillSwitch
 
 # ============================================================
 # P0-D 回归: margin_used/total_equity 为 None 时 check_margin_status 崩溃

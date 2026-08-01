@@ -33,16 +33,17 @@
 """
 from __future__ import annotations
 
-import sys
-import json
-import pickle
-import logging
 import argparse
+import json
+import logging
+import pickle
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any
 
 # ============================================================
 # 路径
@@ -376,8 +377,8 @@ def train_symbol(
     Returns:
         训练结果字典
     """
-    from lightgbm import LGBMRegressor
     import xgboost as xgb
+    from lightgbm import LGBMRegressor
 
     # 构造目标: 次日收益率
     df = df.copy()

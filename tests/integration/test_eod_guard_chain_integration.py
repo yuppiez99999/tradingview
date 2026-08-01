@@ -9,8 +9,9 @@
     - 验证 Guard 间状态传递 (L3 优先级覆盖 L2, risk_guard 字段叠加)
     - 不写入真实文件 (mock _save_trade_plan / _write_guard_log)
 """
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from utils.risk_guard_integrator import RiskGuardIntegrator
 

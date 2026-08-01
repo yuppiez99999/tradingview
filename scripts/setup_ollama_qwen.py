@@ -7,9 +7,9 @@
     OLLAMA_MODEL=qwen2.5:7b py -3.8 scripts/setup_ollama_qwen.py
 """
 import os
-import sys
-import subprocess
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

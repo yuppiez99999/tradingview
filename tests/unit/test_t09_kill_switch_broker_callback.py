@@ -10,11 +10,11 @@
     6. dry_run 模式下不真实下单
     7. broker 未连接时返回失败
 """
-import pytest
-from unittest.mock import MagicMock
-
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))

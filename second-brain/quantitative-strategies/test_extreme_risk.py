@@ -6,6 +6,7 @@
 import numpy as np
 from risk_control_system import MultiLevelRiskControlSystem, RiskType
 
+
 def create_extreme_risk_data():
     """创建极端风险测试数据"""
     return {
@@ -49,13 +50,13 @@ def create_extreme_risk_data():
 def test_extreme_risk():
     """测试极端风险场景"""
     print("开始测试极端风险场景...")
-    
+
     # 创建风险控制系统
     risk_system = MultiLevelRiskControlSystem()
-    
+
     # 创建极端风险数据
     extreme_data = create_extreme_risk_data()
-    
+
     # 测试极端风险场景
     print("\n=== 极端风险场景测试 ===")
     overall_score, individual_scores = risk_system.calculate_overall_risk(extreme_data)
@@ -66,7 +67,7 @@ def test_extreme_risk():
         print(f"  {risk_type}: {score:.3f}")
         level = risk_system._get_overall_risk_level(score)
         print(f"    风险等级: {level}")
-    
+
     # 测试风险告警
     print("\n=== 风险告警测试 ===")
     alerts = risk_system.generate_all_alerts(extreme_data)
@@ -78,7 +79,7 @@ def test_extreme_risk():
         print(f"    建议: {alert.suggested_action}")
         print(f"    置信度: {alert.confidence:.3f}")
         print(f"    时间戳: {alert.timestamp}")
-    
+
     # 测试风险摘要
     print("\n=== 风险摘要测试 ===")
     summary = risk_system.get_risk_summary(extreme_data)
@@ -88,14 +89,14 @@ def test_extreme_risk():
     print("告警按类型统计:")
     for risk_type, count in summary['alert_count_by_type'].items():
         print(f"  {risk_type}: {count}个告警")
-    
+
     # 测试风险建议
     print("\n=== 风险建议测试 ===")
     recommendations = risk_system.get_risk_recommendations(extreme_data)
     print("风险控制建议:")
     for i, rec in enumerate(recommendations, 1):
         print(f"  {i}. {rec}")
-    
+
     # 测试风险场景模拟
     print("\n=== 风险场景模拟测试 ===")
     scenarios = [
@@ -105,7 +106,7 @@ def test_extreme_risk():
         {'emotional': {'fear_greed_index': 92}},
         {'operational': {'trades_per_day': 250}}
     ]
-    
+
     simulation_results = risk_system.simulate_risk_scenarios(extreme_data, scenarios)
     print("\n场景模拟结果:")
     for result in simulation_results:
@@ -113,7 +114,7 @@ def test_extreme_risk():
         print(f"  整体风险分数: {result['overall_risk_score']:.3f}")
         print(f"  风险等级: {result['risk_level']}")
         print(f"  告警数量: {result['alert_count']}")
-    
+
     # 测试风险趋势分析
     print("\n=== 风险趋势分析测试 ===")
     historical_data = [extreme_data] * 10
@@ -125,7 +126,7 @@ def test_extreme_risk():
     print(f"变化率: {trend_analysis['change_rate']:.3f}")
     print(f"峰值风险: {trend_analysis['peak_risk_score']:.3f}")
     print(f"谷值风险: {trend_analysis['trough_risk_score']:.3f}")
-    
+
     # 测试不同置信度阈值
     print("\n=== 测试不同置信度阈值 ===")
     for threshold in [0.5, 0.7, 0.9]:
@@ -136,31 +137,31 @@ def test_extreme_risk():
 def test_risk_control_configurations():
     """测试风险控制配置"""
     print("\n=== 测试风险控制配置 ===")
-    
+
     # 创建风险控制系统
     risk_system = MultiLevelRiskControlSystem()
-    
+
     # 创建极端风险数据
     extreme_data = create_extreme_risk_data()
-    
+
     # 测试关闭所有风险控制
     print("\n测试关闭所有风险控制...")
     for risk_type in RiskType:
         risk_system.disable_control(risk_type)
-    
+
     overall_score, _ = risk_system.calculate_overall_risk(extreme_data)
     print(f"关闭所有风险控制后: {overall_score:.3f}")
-    
+
     # 测试只保留市场风险控制
     print("\n测试只保留市场风险控制...")
     for risk_type in RiskType:
         risk_system.disable_control(risk_type)
     risk_system.enable_control(RiskType.MARKET)
-    
+
     overall_score, individual_scores = risk_system.calculate_overall_risk(extreme_data)
     print(f"只保留市场风险控制: {overall_score:.3f}")
     print(f"市场风险分数: {individual_scores.get('market', 0):.3f}")
-    
+
     # 测试自定义阈值
     print("\n测试自定义阈值...")
     risk_system.enable_control(RiskType.SINGLE_STOCK)
@@ -168,7 +169,7 @@ def test_risk_control_configurations():
         RiskType.SINGLE_STOCK,
         {'low': 0.1, 'medium': 0.2, 'high': 0.3, 'critical': 0.4}
     )
-    
+
     overall_score, individual_scores = risk_system.calculate_overall_risk(extreme_data)
     print(f"自定义阈值后: {overall_score:.3f}")
     print(f"单股票风险分数: {individual_scores.get('single_stock', 0):.3f}")

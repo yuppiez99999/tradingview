@@ -17,10 +17,10 @@ sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(BASE_DIR / "utils"))
 
 from lgb_enhanced_trainer import (
-    train_symbol_regime_specific,
-    compute_regime_series,
     LGB_ENHANCED_CONFIG,
     add_technical_features,
+    compute_regime_series,
+    train_symbol_regime_specific,
 )
 
 

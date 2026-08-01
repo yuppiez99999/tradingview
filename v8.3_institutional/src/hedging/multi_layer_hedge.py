@@ -16,15 +16,16 @@
 - 压力测试和回测
 """
 
-import numpy as np
 from datetime import datetime
 from typing import Dict, List
 
+import numpy as np
+
 try:
-    from utils.logger import get_logger
     from utils.data_provider import get_market_data  # noqa: F401
-    from utils.risk_metrics import calculate_var, calculate_es, calculate_max_drawdown  # noqa: F401
+    from utils.logger import get_logger
     from utils.performance_metrics import calculate_sharpe_ratio, calculate_sortino_ratio  # noqa: F401
+    from utils.risk_metrics import calculate_es, calculate_max_drawdown, calculate_var  # noqa: F401
 
     logger = get_logger("multi_layer_hedge")
 except ImportError:
@@ -33,8 +34,8 @@ except ImportError:
     logger = logging.getLogger("multi_layer_hedge")
 
 from .enhanced_delta import EnhancedDeltaHedge
-from .vol_hedge import VolatilityHedge
 from .tail_risk import TailRiskHedge
+from .vol_hedge import VolatilityHedge
 
 
 class MultiLayerHedgeManager:

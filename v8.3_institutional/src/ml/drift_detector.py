@@ -20,13 +20,14 @@
             print("触发自动重训练!")
 """
 
-import numpy as np
-from collections import deque
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
-from enum import Enum
 import logging
+from collections import deque
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 
 logger = logging.getLogger("drift_detector")
 

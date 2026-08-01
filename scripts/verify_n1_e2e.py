@@ -7,9 +7,9 @@
   2. _fetch_daily_ic 多源回退
   3. _trigger_retrain_with_cooldown 影子模式不执行真实重训
 """
+import logging
 import os
 import sys
-import logging
 
 BASE = r"e:\各种PY程序\28-终极量化交易系统8.4"
 sys.path.insert(0, BASE)
@@ -28,13 +28,14 @@ print("=" * 60)
 
 # 1. 确认 IC 数据存在 (N3 写入)
 from ic_recorder import load_ic_store
+
 store = load_ic_store()
 print(f"\n[预置] daily_ic_scores.json: latest_ic={store.get('latest_ic')}, source={store.get('latest_source')}")
 
 # 2. 实例化 (捕获异常, 避免数据源连接失败阻断)
 print("\n[步骤1] 实例化 IntegratedExecutionSystem...")
 try:
-    from system_integration import IntegratedExecutionSystem, EVOLUTION_CONFIG
+    from system_integration import EVOLUTION_CONFIG, IntegratedExecutionSystem
     print(f"[预置] EVOLUTION_CONFIG.shadow_mode = {EVOLUTION_CONFIG['shadow_mode']}")
     system = IntegratedExecutionSystem(total_capital=5_000_000)
     print(f"[OK] 实例化成功: drift_detector={'有' if system.drift_detector else '无'}, report_dir={system.report_dir}")

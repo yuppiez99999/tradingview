@@ -25,10 +25,10 @@
     system.start_system()
 """
 
-import os
-import sys
 import json
 import logging
+import os
+import sys
 import traceback
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
@@ -575,7 +575,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             # N1-4: QLib 预热未成功时, 回退到历史模型 CV IC 预热
             if not _preheated:
                 try:
-                    from lgb_enhanced_trainer import load_model_meta, POSITION_SYMBOLS
+                    from lgb_enhanced_trainer import POSITION_SYMBOLS, load_model_meta
 
                     hist_ic_values = []
                     for sym_tuple in POSITION_SYMBOLS[:5]:
@@ -800,9 +800,9 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
 
         try:
             from lgb_enhanced_trainer import (
-                run_enhanced_training,
-                POSITION_SYMBOLS,
                 LGB_ENHANCED_CONFIG,
+                POSITION_SYMBOLS,
+                run_enhanced_training,
             )
         except Exception as e:
             logger.warning(f"无法导入训练模块, 重训取消: {e}")

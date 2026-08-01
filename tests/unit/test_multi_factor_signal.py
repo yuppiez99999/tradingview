@@ -42,7 +42,6 @@ from utils.alpha.multi_factor_signal import (
 )
 from utils.infra.feature_flags import FeatureFlags
 
-
 # ============================================================
 # 测试 fixture
 # ============================================================

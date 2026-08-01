@@ -5,6 +5,7 @@
 使用最新价按钮获取当前市场价格，确保订单能成交。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

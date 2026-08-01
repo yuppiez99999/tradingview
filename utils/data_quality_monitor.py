@@ -44,10 +44,10 @@ from __future__ import annotations
 import json
 import logging
 import math
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, date, timedelta
+from dataclasses import asdict, dataclass, field
+from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("data_quality")
 

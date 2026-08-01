@@ -9,7 +9,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 
 # ── 对冲类型枚举 ──

@@ -14,22 +14,23 @@ Optuna 超参数优化训练器 v1.0
 - 自动选择最佳模型 + 保存
 """
 
-import os
-import json
 import glob
+import json
+import os
 import warnings
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
-from datetime import datetime
-from typing import Dict, List, Tuple, Any, Optional
 
 warnings.filterwarnings("ignore")
 
 try:
     import optuna
-    from optuna.samplers import TPESampler
     from optuna.pruners import MedianPruner
+    from optuna.samplers import TPESampler
 
     OPTUNA_AVAILABLE = True
 except ImportError:
@@ -37,10 +38,10 @@ except ImportError:
 
 _has_sklearn = False
 try:
-    from sklearn.model_selection import TimeSeriesSplit, cross_val_score
-    from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, precision_score, recall_score
-    from sklearn.ensemble import GradientBoostingClassifier, ExtraTreesClassifier
+    from sklearn.ensemble import ExtraTreesClassifier, GradientBoostingClassifier
     from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
+    from sklearn.model_selection import TimeSeriesSplit, cross_val_score
 
     _has_sklearn = True
 except ImportError as e:
@@ -513,7 +514,7 @@ def run_optuna_training(
     # 标签
     if use_triple_barrier:
         print(f"Using Triple Barrier labeling (upper {tb_upper:.1%}/lower {tb_lower:.1%}/{tb_time})")
-        from .labeling import TripleBarrierLabeler, BarrierConfig
+        from .labeling import BarrierConfig, TripleBarrierLabeler
 
         labeler = TripleBarrierLabeler(
             BarrierConfig(

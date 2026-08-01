@@ -3,8 +3,8 @@
 """验证 Wind MCP (P1) 是否真的成为 Provider 的首选数据源"""
 import os
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 os.environ["NO_PROXY"] = "push2his.eastmoney.com,push2.eastmoney.com,eastmoney.com,sinajs.cn,sina.com.cn,127.0.0.1,localhost,mcp.wind.com.cn"
 
@@ -44,13 +44,13 @@ def test_provider_with_fresh_fetch():
     from utils.data_provider import MarketDataProvider
 
     provider = MarketDataProvider(backtest_mode=False)
-    print(f"\n  Provider 健康度:")
+    print("\n  Provider 健康度:")
     for src in ["wind_mcp", "ifind_mcp", "tdx", "akshare", "sina_http"]:
         s = provider.source_health.get(src, {})
         print(f"    {src}: ok={s.get('ok')}, err={str(s.get('last_error', ''))[:50]}")
 
     # 清空缓存
-    print(f"\n  清空缓存...")
+    print("\n  清空缓存...")
     clear_cache(provider)
 
     # 测试 3 个标的
@@ -67,7 +67,7 @@ def test_provider_with_fresh_fetch():
 
             df = provider.get_historical_data(sym, period="5d")
             if df is None or df.empty:
-                print(f"    [FAIL] 返回空")
+                print("    [FAIL] 返回空")
                 continue
 
             print(f"    [OK] 返回 {len(df)} 行")
@@ -77,7 +77,7 @@ def test_provider_with_fresh_fetch():
             print(f"    日收益率: {ret*100:+.4f}%")
 
             # 显示最终健康度
-            print(f"    调用后健康度:")
+            print("    调用后健康度:")
             for src in ["wind_mcp", "ifind_mcp", "tdx"]:
                 s = provider.source_health.get(src, {})
                 ok = s.get("ok")

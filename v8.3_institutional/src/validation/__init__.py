@@ -6,7 +6,7 @@ try:
 except ImportError:
     WalkForwardValidator = None
 try:
-    from .purged_cv import PurgedWalkForward, PurgedKFold, WalkForwardValidator
+    from .purged_cv import PurgedKFold, PurgedWalkForward, WalkForwardValidator
 except ImportError:
     PurgedWalkForward = None
     PurgedKFold = None

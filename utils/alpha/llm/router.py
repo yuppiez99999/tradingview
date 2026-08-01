@@ -24,20 +24,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# 复用 ConfigManager 4 级优先级 (HC-5)
-from utils.config_manager import get_config
-
-# 复用 Feature Flag 框架
-from utils.infra.feature_flags import is_enabled
-
 # 子模块
 from utils.alpha.llm.audit import write_audit_log
 from utils.alpha.llm.base import (
+    _AUDIT_LOG_DIR,
+    _PROJECT_ROOT,
     AllProvidersFailedError,
     CallRecord,
     ProviderFn,
-    _AUDIT_LOG_DIR,
-    _PROJECT_ROOT,
 )
 from utils.alpha.llm.passthrough import passthrough_deep_to_legacy, passthrough_to_legacy
 from utils.alpha.llm.providers import (
@@ -50,6 +44,12 @@ from utils.alpha.llm.providers import (
     call_omniroute,
     call_siliconflow,
 )
+
+# 复用 ConfigManager 4 级优先级 (HC-5)
+from utils.config_manager import get_config
+
+# 复用 Feature Flag 框架
+from utils.infra.feature_flags import is_enabled
 
 logger = logging.getLogger("llm_router")
 

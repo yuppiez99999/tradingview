@@ -3,8 +3,8 @@
 单标的完整报告验证：GTJA191 Alpha144 -> FactorModel -> 交易建议输出
 """
 
-import sys
 import os
+import sys
 from datetime import datetime
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))

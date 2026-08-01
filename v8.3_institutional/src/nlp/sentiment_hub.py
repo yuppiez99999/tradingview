@@ -22,10 +22,10 @@
     MediaCrawler → 小红书/抖音/B站/微博/知乎 7大平台自媒体舆情 → 自媒体舆情日报 (Feature Flag 控制)
 """
 
-import os
-import sys
 import json
+import os
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -97,15 +97,15 @@ def _run_trendsonar_import(target_date: str, output_dir: Path) -> dict:
     try:
         sys.path.insert(0, str(_SENTIMENT_DIR))
         from trendsonar_daily import (
-            load_config,
-            fetch_rss,
-            fetch_web_36kr,
-            fetch_eastmoney,
-            fetch_sina_finance,
-            deduplicate_articles,
-            filter_by_keywords,
             ask_ai,
+            deduplicate_articles,
+            fetch_eastmoney,
+            fetch_rss,
+            fetch_sina_finance,
+            fetch_web_36kr,
+            filter_by_keywords,
             generate_report,
+            load_config,
         )
 
         date_short = target_date.replace("-", "")
@@ -238,14 +238,17 @@ def _run_coal_import(target_date: str, output_dir: Path) -> dict:
         sys.path.insert(0, str(_COAL_DATA_DIR))
         sys.path.insert(0, str(_MODULE_DIR))  # deepseek_investment_summary
 
-        from coal_sentiment_daily import (
-            main as coal_main,
-            TODAY_ISO as _orig_today,  # noqa: F401
-            TODAY_SHORT as _orig_short,  # noqa: F401
-        )
-
         # coal_sentiment_daily.py 用模块级 REPORT_DATE / TODAY_ISO / TODAY_SHORT，需要猴子补丁替换日期
         import coal_sentiment_daily as csd
+        from coal_sentiment_daily import (
+            TODAY_ISO as _orig_today,  # noqa: F401
+        )
+        from coal_sentiment_daily import (
+            TODAY_SHORT as _orig_short,  # noqa: F401
+        )
+        from coal_sentiment_daily import (
+            main as coal_main,
+        )
 
         _save_report_date = csd.REPORT_DATE
         _save_iso = csd.TODAY_ISO

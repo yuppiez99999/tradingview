@@ -39,19 +39,19 @@ def main() -> int:
     # 导入编排器
     try:
         from utils.alpha.evolution_orchestrator import (
-            EvolutionOrchestrator,
-            MetricsSnapshot,  # noqa: F401
-            OrchestratorStatus,  # noqa: F401
-            DecisionRecord,  # noqa: F401
             ACTION_EVALUATE_ONLY,
             ACTION_NOOP,
             ACTION_PROMOTE,
+            MIN_SAMPLES_FOR_EVALUATION,
+            OBSERVATION_PERIOD_DAYS,
+            STATUS_DEGRADED,  # noqa: F401
             STATUS_DISABLED,
             STATUS_ENABLED,
             STATUS_OBSERVATION,
-            STATUS_DEGRADED,  # noqa: F401
-            OBSERVATION_PERIOD_DAYS,
-            MIN_SAMPLES_FOR_EVALUATION,
+            DecisionRecord,  # noqa: F401
+            EvolutionOrchestrator,
+            MetricsSnapshot,  # noqa: F401
+            OrchestratorStatus,  # noqa: F401
         )
         print("[OK] 导入 EvolutionOrchestrator 成功")
     except ImportError as e:

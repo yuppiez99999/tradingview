@@ -5,6 +5,7 @@
 在关键步骤等待用户确认，确保每一步都正确。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

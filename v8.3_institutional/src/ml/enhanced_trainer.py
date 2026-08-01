@@ -13,36 +13,37 @@ ML 增强训练引擎 v2.0 — 四项核心优化
 - 支持 Optuna 超参数优化管线
 """
 
+import json
+import logging
 import os
 import sys
-import json
 import warnings
-import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
-from datetime import datetime
-from typing import Dict, List, Tuple, Optional, Any
 
 warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
 # ── ML 依赖 ──
-from sklearn.model_selection import TimeSeriesSplit  # noqa: E402
-from sklearn.feature_selection import SelectKBest, mutual_info_classif, f_classif  # noqa: E402
 from sklearn.ensemble import (  # noqa: E402
-    GradientBoostingClassifier,
     ExtraTreesClassifier,
+    GradientBoostingClassifier,
     RandomForestClassifier,
 )
+from sklearn.feature_selection import SelectKBest, f_classif, mutual_info_classif  # noqa: E402
 from sklearn.metrics import (  # noqa: E402
     accuracy_score,
     f1_score,
-    roc_auc_score,
     precision_score,
     recall_score,
+    roc_auc_score,
 )
+from sklearn.model_selection import TimeSeriesSplit  # noqa: E402
 
 try:
     import xgboost as xgb
@@ -60,8 +61,8 @@ except ImportError:
 
 try:
     import optuna
-    from optuna.samplers import TPESampler
     from optuna.pruners import MedianPruner
+    from optuna.samplers import TPESampler
 
     _HAS_OPTUNA = True
 except ImportError:

@@ -11,48 +11,56 @@
 7. _compute_weighted_beta / _compute_mrc / _compute_portfolio_vol_cov 委托
 """
 
-import sys
 import os
+import sys
 
 # 确保 v8.3_institutional 在 path 中
 V83_DIR = r"e:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional"
 sys.path.insert(0, V83_DIR)
 
-from src.hedging.hedge_engine_v59 import (
-    HedgeEngine,
-    PortfolioRisk,
-    HedgeRecommendation,
-    HedgeType,
-    HedgeSignalStrength,
-    INDEX_FUTURES_SPECS,
-)
-from src.risk.portfolio_risk_assessor import (
-    PortfolioRisk as AssessorPortfolioRisk,
-    DEFAULT_BETAS,
-    SECTOR_MAP,
-    HISTORICAL_STRESS_SCENARIOS,
-    FALLBACK_PRICE_MAP,
-    assess_portfolio_risk,
-    compute_weighted_beta,
-    compute_portfolio_vol_cov,
-    compute_expected_shortfall,
-    compute_mrc,
-    run_historical_stress_tests,
-)
-from src.hedging.hedge_strategy_executor import (
-    HedgeType as ExecutorHedgeType,
-    HedgeSignalStrength as ExecutorHedgeSignalStrength,
-    HedgeRecommendation as ExecutorHedgeRecommendation,
-    determine_hedge_signal_strength,
-    compute_optimal_hedge_ratio,
-    generate_futures_hedge,
-    generate_options_hedge,
-    generate_hedge_plan,
-    generate_hedge_reason,
-)
 from src.data.futures_prices import (
     DEFAULT_FUTURES_PRICES,
     get_live_futures_prices,
+)
+from src.hedging.hedge_engine_v59 import (
+    INDEX_FUTURES_SPECS,
+    HedgeEngine,
+    HedgeRecommendation,
+    HedgeSignalStrength,
+    HedgeType,
+    PortfolioRisk,
+)
+from src.hedging.hedge_strategy_executor import (
+    HedgeRecommendation as ExecutorHedgeRecommendation,
+)
+from src.hedging.hedge_strategy_executor import (
+    HedgeSignalStrength as ExecutorHedgeSignalStrength,
+)
+from src.hedging.hedge_strategy_executor import (
+    HedgeType as ExecutorHedgeType,
+)
+from src.hedging.hedge_strategy_executor import (
+    compute_optimal_hedge_ratio,
+    determine_hedge_signal_strength,
+    generate_futures_hedge,
+    generate_hedge_plan,
+    generate_hedge_reason,
+    generate_options_hedge,
+)
+from src.risk.portfolio_risk_assessor import (
+    DEFAULT_BETAS,
+    FALLBACK_PRICE_MAP,
+    HISTORICAL_STRESS_SCENARIOS,
+    SECTOR_MAP,
+    assess_portfolio_risk,
+    compute_expected_shortfall,
+    compute_mrc,
+    compute_portfolio_vol_cov,
+    compute_weighted_beta,
+    run_historical_stress_tests,
+)
+from src.risk.portfolio_risk_assessor import (
+    PortfolioRisk as AssessorPortfolioRisk,
 )
 
 
@@ -233,7 +241,7 @@ def test_data_futures_prices_module():
 
     # 不实际联网，仅验证函数可调用
     assert callable(get_live_futures_prices)
-    print(f"  ✓ get_live_futures_prices 可调用")
+    print("  ✓ get_live_futures_prices 可调用")
 
 
 def test_index_futures_specs_preserved():

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 

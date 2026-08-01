@@ -52,29 +52,28 @@ def _flag_side_effect_main_only(flag_name: str, *args: Any, **kwargs: Any) -> bo
     """
     return flag_name == "USE_ROOT_CAUSE_ANALYZER"
 
+from utils.alpha.causal_chain import CausalChainBuilder  # noqa: E402
+from utils.alpha.layers.code_diagnoser import CodeDiagnoser  # noqa: E402
+from utils.alpha.layers.ops_diagnoser import OpsDiagnoser  # noqa: E402
+from utils.alpha.layers.strategy_diagnoser import StrategyDiagnoser  # noqa: E402
 from utils.alpha.root_cause import (  # noqa: E402
     ACTION_DATASOURCE_SWITCH,
     ACTION_MANUAL,
     ACTION_RETRAIN,
-    CausalChain,
-    FixSuggestion,
     LAYER_CODE,
     LAYER_OPS,
     LAYER_STRATEGY,
-    RootCause,
-    RootCauseReport,
     SEVERITY_CRITICAL,
     SEVERITY_HIGH,
     SEVERITY_LOW,
     SEVERITY_MEDIUM,
-    UnifiedRootCauseAnalyzer,
     VALID_ACTIONS,
+    CausalChain,
+    FixSuggestion,
+    RootCause,
+    RootCauseReport,
+    UnifiedRootCauseAnalyzer,
 )
-from utils.alpha.layers.code_diagnoser import CodeDiagnoser  # noqa: E402
-from utils.alpha.layers.strategy_diagnoser import StrategyDiagnoser  # noqa: E402
-from utils.alpha.layers.ops_diagnoser import OpsDiagnoser  # noqa: E402
-from utils.alpha.causal_chain import CausalChainBuilder  # noqa: E402
-
 
 # ============================================================
 # FixSuggestion 数据类测试
@@ -878,8 +877,8 @@ class TestIntegrationFullFlow:
             analyzer = UnifiedRootCauseAnalyzer(persistence_path=persist_path)
             # 替换诊断器为真实实例 (但 mock CodeDiagnoser._run_check)
             from utils.alpha.layers.code_diagnoser import CodeDiagnoser as CD
-            from utils.alpha.layers.strategy_diagnoser import StrategyDiagnoser as SD
             from utils.alpha.layers.ops_diagnoser import OpsDiagnoser as OD
+            from utils.alpha.layers.strategy_diagnoser import StrategyDiagnoser as SD
 
             analyzer._code_diagnoser = CD(run_system_check=True)
             analyzer._code_diagnoser._run_check = lambda: _MockReport()

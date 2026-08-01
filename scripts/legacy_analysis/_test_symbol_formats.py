@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """诊断: 测试不同代码格式和周期对 get_historical_data 的影响"""
 import sys
+
 sys.path.insert(0, '.')
 
 from utils.data_provider import get_historical_data

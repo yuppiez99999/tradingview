@@ -19,15 +19,16 @@
     monitor.check_and_execute()
 """
 
+import json
+import logging
 import os
 import sys
-import json
-import yaml
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-import logging
+from typing import Dict, List, Optional, Tuple
+
+import yaml
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("stop_loss_monitor")

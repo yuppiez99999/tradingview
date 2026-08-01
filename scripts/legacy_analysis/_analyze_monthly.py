@@ -36,6 +36,7 @@ for r in sorted_recs[-5:]:
 print()
 print("=== 各 regime 平均收益 ===")
 from collections import defaultdict
+
 regime_stats = defaultdict(list)
 for r in records:
     regime = r.get('market_regime', {}).get('regime', 'unknown')

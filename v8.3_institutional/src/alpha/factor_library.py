@@ -3,11 +3,12 @@ v7.5 FactorLibrary — 五维因子库：价值 / 质量 / 动量 / 增长 / 安
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §6 (src/alpha/)
 """
 
+import logging
+from dataclasses import dataclass, field
+from typing import Dict, Optional
+
 import numpy as np
 import pandas as pd
-import logging
-from typing import Optional, Dict
-from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 

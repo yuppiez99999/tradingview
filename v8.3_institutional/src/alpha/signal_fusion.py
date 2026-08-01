@@ -7,13 +7,14 @@ P0 修复:
 3. IC_IR 加权 (IC 均值 / IC 标准差), 非简单命中率
 """
 
+import logging
+from collections import deque
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-import logging
-from typing import Optional, List, Dict, Tuple
-from datetime import datetime
-from dataclasses import dataclass
-from collections import deque
 
 logger = logging.getLogger(__name__)
 

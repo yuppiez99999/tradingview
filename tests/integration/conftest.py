@@ -9,8 +9,9 @@ pytest 自动加载规则: 仅识别名为 conftest.py 的文件
     - production_kill_switch: 复用主 KillSwitch 实例 (模拟 daily_workflow 集成)
     - mock_all_external_sources: mock 所有外部数据源, 模拟网络全不可用
 """
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 
 @pytest.fixture

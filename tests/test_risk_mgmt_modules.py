@@ -12,10 +12,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
+
 from utils.ledoit_wolf_covariance import LedoitWolfCovariance
 from utils.risk_budget_optimizer import RiskBudgetOptimizer
 from utils.stress_test_scenario_library import (
-    StressTestEngine, ShockFactors,
+    ShockFactors,
+    StressTestEngine,
 )
 
 

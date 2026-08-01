@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
+r"""
 止损止盈监控模块
 
 来源：整合自 E:\各种PY程序\stop_loss_monitor.py
@@ -20,8 +20,8 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
 from enum import Enum
+from typing import Dict, List, Optional
 
 from utils.data_types import safe_float
 

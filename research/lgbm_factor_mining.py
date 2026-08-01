@@ -4,10 +4,10 @@ LightGBM 因子挖掘 - 训练模型识别有效因子
 从本地缓存数据计算 50+ 因子，训练 LightGBM 预测未来收益，
 提取特征重要性排序，发现新的有效因子。
 """
-import sys
 import logging
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
@@ -23,10 +23,10 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 # ECC GAP-7: 训练管道可复现性 (延迟导入避免循环依赖)
 from research.lgbm_reproducibility import (  # noqa: E402
+    ManifestWriteError,
     TrainingConfig,
     artifact_name,
     write_manifest,
-    ManifestWriteError,
 )
 
 
@@ -271,8 +271,8 @@ def train_and_analyze(
     """
     try:
         import lightgbm as lgb
-        from sklearn.model_selection import TimeSeriesSplit
         from sklearn.metrics import mean_squared_error, r2_score
+        from sklearn.model_selection import TimeSeriesSplit
     except ImportError:
         logger.error("请先安装 lightgbm: pip install lightgbm")
         return None

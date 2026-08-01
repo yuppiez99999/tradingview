@@ -6,8 +6,8 @@ v7.5 全量集成脚本 — 将v5.9/v5.10的50+增强模块迁移到v7.5_institu
 """
 
 import os
-import shutil
 import re
+import shutil
 
 BASE_59 = r"e:\各种PY程序\11_量化策略"
 BASE_75 = r"e:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional\src"
@@ -24,11 +24,11 @@ COPY_LIST = [
     (f"{BASE_59}/hedge_strategies/tail_risk_hedge.py",           f"{BASE_75}/hedging/tail_risk.py"),
     (f"{BASE_59}/hedge_strategies/volatility_hedge.py",          f"{BASE_75}/hedging/vol_hedge.py"),
     (f"{BASE_59}/hedge_strategies/enhanced_delta_hedge.py",      f"{BASE_75}/hedging/enhanced_delta.py"),
-    
+
     # === 衍生品 (→ src/derivatives/) ===
     (f"{BASE_59}/quant_modules/greeks_calculator.py",  f"{BASE_75}/derivatives/greeks.py"),
     (f"{BASE_59}/quant_modules/futures_options_scanner.py", f"{BASE_75}/derivatives/futures_scan.py"),
-    
+
     # === 风险控制 (→ src/risk/) ===
     (f"{BASE_59}/utils/risk_controls.py",      f"{BASE_75}/risk/risk_controls_v59.py"),
     (f"{BASE_59}/utils/stress_test.py",         f"{BASE_75}/risk/stress_test.py"),
@@ -37,14 +37,14 @@ COPY_LIST = [
     (f"{BASE_59}/utils/correlation_monitor.py",  f"{BASE_75}/risk/correlation_monitor.py"),
     (f"{BASE_59}/utils/dynamic_risk_budget.py",  f"{BASE_75}/risk/dynamic_risk_budget.py"),
     (f"{BASE_59}/utils/psi_monitor.py",          f"{BASE_75}/risk/psi_monitor.py"),
-    
+
     # === 信号融合 (→ src/signals/) ===
     (f"{BASE_59}/utils/signal_fusion.py",          f"{BASE_75}/signals/signal_fusion_v59.py"),
     (f"{BASE_59}/utils/enhanced_signal_fusion.py", f"{BASE_75}/signals/enhanced_fusion.py"),
     (f"{BASE_59}/utils/signal_independence.py",    f"{BASE_75}/signals/independence.py"),
     (f"{BASE_59}/utils/signal_audit.py",           f"{BASE_75}/signals/audit.py"),
     (f"{BASE_59}/utils/rule_engine.py",            f"{BASE_75}/signals/rule_engine.py"),
-    
+
     # === ML体系 (→ src/ml/) ===
     (f"{BASE_59}/utils/ml_predictor.py",          f"{BASE_75}/ml/ml_predictor_v59.py"),
     (f"{BASE_59}/utils/ml_enhanced_trainer.py",   f"{BASE_75}/ml/enhanced_trainer.py"),
@@ -52,7 +52,7 @@ COPY_LIST = [
     (f"{BASE_59}/utils/mlflow_tracker.py",        f"{BASE_75}/ml/mlflow_tracker.py"),
     (f"{BASE_59}/utils/ml_significance.py",       f"{BASE_75}/ml/significance.py"),
     (f"{BASE_59}/utils/ml_labeling.py",           f"{BASE_75}/ml/labeling.py"),
-    
+
     # === 验证体系 (→ src/validation/) ===
     (f"{BASE_59}/utils/walk_forward.py",              f"{BASE_75}/validation/walk_forward.py"),
     (f"{BASE_59}/utils/purged_cv.py",                 f"{BASE_75}/validation/purged_cv.py"),
@@ -60,34 +60,34 @@ COPY_LIST = [
     (f"{BASE_59}/utils/deflated_sharpe.py",            f"{BASE_75}/validation/deflated_sharpe.py"),
     (f"{BASE_59}/utils/statistical_significance.py",   f"{BASE_75}/validation/stat_sig.py"),
     (f"{BASE_59}/utils/pre_deployment_validation.py",  f"{BASE_75}/validation/pre_deploy.py"),
-    
+
     # === 宏观周期 (→ src/macro/) ===
     (f"{BASE_59}/utils/kondratiev_cycle.py",    f"{BASE_75}/macro/kondratiev.py"),
     (f"{BASE_59}/utils/five_year_plan.py",      f"{BASE_75}/macro/five_year_plan.py"),
     (f"{BASE_59}/utils/social_security_etf.py",  f"{BASE_75}/macro/social_security_etf.py"),
-    
+
     # === AI路由 (→ src/ai/) ===
     (f"{BASE_59}/utils/multi_model_router.py",    f"{BASE_75}/ai/model_router.py"),
     (f"{BASE_59}/utils/glm5_decision_engine.py",  f"{BASE_75}/ai/glm5_engine.py"),
     (f"{BASE_59}/utils/ai_coordinator.py",        f"{BASE_75}/ai/coordinator.py"),
     (f"{WORKFLOW}/llm_client.py",                 f"{BASE_75}/ai/llm_client.py"),
-    
+
     # === NLP/情感 (→ src/nlp/) ===
     (f"{BASE_59}/fin_sentiment_analyzer.py",   f"{BASE_75}/nlp/sentiment.py"),
     (f"{BASE_59}/event_driven_factor.py",      f"{BASE_75}/nlp/event_factor.py"),
     (f"{WORKFLOW}/sentiment_hub.py",           f"{BASE_75}/nlp/sentiment_hub.py"),
-    
+
     # === 因子模型 (→ src/factors/) ===
     (f"{BASE_59}/five_factor_model.py",                f"{BASE_75}/factors/five_factor.py"),
     (f"{BASE_59}/quant_modules/dynamic_position.py",    f"{BASE_75}/factors/dynamic_position.py"),
     (f"{BASE_59}/quant_modules/decision_theories.py",   f"{BASE_75}/factors/decision_theories.py"),
     (f"{BASE_59}/utils/market_impact.py",               f"{BASE_75}/factors/market_impact.py"),
-    
+
     # === 基础设施 (→ src/config/) ===
     (f"{BASE_59}/utils/config_hub.py",           f"{BASE_75}/config/config_hub.py"),
     (f"{BASE_59}/utils/config_validator.py",      f"{BASE_75}/config/config_validator.py"),
     (f"{BASE_59}/utils/performance_attribution.py", f"{BASE_75}/config/perf_attribution.py"),
-    
+
     # === 回测增强 ===
     (f"{BASE_ROOT}/fast_backtest_v2.py", f"{BASE_75}/backtest/fast_backtest_v2.py"),
 ]
@@ -95,7 +95,7 @@ COPY_LIST = [
 # ── Import修复规则: (target_file, 正则模式, 替换内容) ──
 IMPORT_FIXES = [
     # 跨目录修复
-    ("hedging/hedge_rebalance_v59.py", 
+    ("hedging/hedge_rebalance_v59.py",
      r"from utils\.hedge_engine import",
      r"from .hedge_engine_v59 import"),
     ("hedging/hedge_rebalance_v59.py",

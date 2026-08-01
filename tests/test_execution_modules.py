@@ -16,8 +16,8 @@
 - 反贪吃检测
 """
 
-import sys
 import os
+import sys
 import unittest
 import warnings
 
@@ -245,7 +245,7 @@ class TestSmartOrderRouter(unittest.TestCase):
 
     def test_gaming_detection(self):
         """测试反贪吃检测"""
-        from utils.smart_order_router import SmartOrderRouter, OrderBookSnapshot
+        from utils.smart_order_router import OrderBookSnapshot, SmartOrderRouter
         router = SmartOrderRouter(gaming_threshold=0.5)
         # 构造不平衡盘口
         book = OrderBookSnapshot(

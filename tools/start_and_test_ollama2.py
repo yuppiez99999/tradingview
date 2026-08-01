@@ -1,10 +1,11 @@
-import subprocess
-import os
-import time
-import sys
 import json
+import os
+import subprocess
+import sys
+import time
 import urllib.request
 from pathlib import Path
+
 
 def _get_ollama_path() -> str:
     return os.environ.get("OLLAMA_PATH",

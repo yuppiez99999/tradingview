@@ -28,17 +28,17 @@ for _code, pos in positions['positions'].items():
     target_amount = pos.get('amount', 0)
     style = pos.get('style', '其他')
     sector = pos.get('sector', '其他')
-    
+
     current_cost_value += shares * avg_cost
     current_market_value += shares * est_price
     target_total += target_amount
-    
+
     if style not in style_stats:
         style_stats[style] = {'current_value': 0, 'target_amount': 0, 'count': 0}
     style_stats[style]['current_value'] += shares * est_price
     style_stats[style]['target_amount'] += target_amount
     style_stats[style]['count'] += 1
-    
+
     if sector not in sector_stats:
         sector_stats[sector] = {'current_value': 0, 'target_amount': 0}
     sector_stats[sector]['current_value'] += shares * est_price

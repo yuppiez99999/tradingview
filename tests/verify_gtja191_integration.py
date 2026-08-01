@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """验证 GTJA191 Alpha144 在 28-终极量化交易系统7.1 中的集成"""
 
-import sys
 import os
+import sys
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
@@ -29,8 +29,9 @@ def check_imports():
 def check_factor_calculation():
     print("[2/4] 检查 Alpha144 因子计算...")
     try:
-        import pandas as pd
         import numpy as np
+        import pandas as pd
+
         from utils.gtja191_factors import GTJA191Factors
 
         dates = pd.date_range("2024-01-01", periods=60, freq="B")
@@ -57,8 +58,9 @@ def check_factor_calculation():
 def check_factor_model_integration():
     print("[3/4] 检查 FactorModel 集成 technical_alpha...")
     try:
-        import pandas as pd
         import numpy as np
+        import pandas as pd
+
         from utils.factor_model import FactorModel
 
         dates = pd.date_range("2024-01-01", periods=80, freq="B")
@@ -89,8 +91,9 @@ def check_factor_model_integration():
 def check_composite_signal():
     print("[4/4] 检查组合信号生成...")
     try:
-        import pandas as pd
         import numpy as np
+        import pandas as pd
+
         from utils.factor_model import FactorModel
 
         dates = pd.date_range("2024-01-01", periods=80, freq="B")

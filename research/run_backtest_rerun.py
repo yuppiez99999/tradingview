@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "v8.3_institutional"))
 sys.path.insert(0, str(ROOT / "utils"))
 
-from research.backtest_runner import run_backtest, MIN_ANNUAL_RETURN, MAX_DRAWDOWN_LIMIT  # noqa: E402
+from research.backtest_runner import MAX_DRAWDOWN_LIMIT, MIN_ANNUAL_RETURN, run_backtest  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,

@@ -13,12 +13,12 @@
 5. 收益率计算验证
 """
 
+import importlib.util
+import json
 import os
 import sys
-import json
-import importlib.util
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # 设置 NO_PROXY 必须在导入 requests/akshare 前
 os.environ["NO_PROXY"] = "push2his.eastmoney.com,push2.eastmoney.com,eastmoney.com,sinajs.cn,sina.com.cn,127.0.0.1,localhost"
@@ -372,24 +372,24 @@ def main() -> int:
 
     # === 汇总 ===
     print_header("汇总")
-    print(f"\n  文件状态:")
+    print("\n  文件状态:")
     for name, info in files_info.items():
         print_row(name, "存在" if info["exists"] else "缺失", ok=info["exists"])
 
-    print(f"\n  环境变量:")
+    print("\n  环境变量:")
     for name, exists in env_info.items():
         print_row(name, "已设置" if exists else "未设置", ok=exists)
 
-    print(f"\n  数据源健康度:")
+    print("\n  数据源健康度:")
     if provider_info.get("health"):
         for src, info in provider_info["health"].items():
             print_row(src, info.get("ok", False), ok=info.get("ok", False))
 
-    print(f"\n  独立测试结果:")
+    print("\n  独立测试结果:")
     for src, info in source_results.items():
         print_row(src, info.get("ok", False), ok=info.get("ok", False))
 
-    print(f"\n  影子账户数据质量:")
+    print("\n  影子账户数据质量:")
     print_row("零收益占比",
               f"{shadow_info.get('zero_count', 0)}/{shadow_info.get('total', 0)}",
               ok=shadow_info.get("zero_count", 0) == 0)

@@ -21,7 +21,6 @@ import time
 import traceback
 from typing import Dict, List
 
-
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -55,7 +54,7 @@ class TestResult:
         print(f"\n{'='*60}")
         print(f"  总计: {total} 项 | 通过: {self.passed} | 失败: {self.failed}")
         if self.failed > 0:
-            print(f"\n  失败详情:")
+            print("\n  失败详情:")
             for e in self.errors:
                 print(f"    {e.strip()}")
         print(f"{'='*60}")
@@ -71,8 +70,8 @@ results = TestResult()
 print("\n[测试 1] WeatherDataAdapter 模块导入")
 try:
     from utils.weather_data_adapter import (
-        WeatherRealtime,
         WeatherForecast,
+        WeatherRealtime,
         get_adapter,
     )
     results.ok("WeatherDataAdapter 导入")
@@ -239,8 +238,8 @@ except Exception as e:
 # ============================================================
 print("\n[测试 6] WeatherAgent 标准化决策")
 try:
-    from utils.finance_agents.weather_agent import WeatherAgent, create_weather_agent
     from utils.finance_agents.base_agent import AgentDecision
+    from utils.finance_agents.weather_agent import WeatherAgent, create_weather_agent
 
     agent = create_weather_agent()
     results.ok("WeatherAgent 实例化")

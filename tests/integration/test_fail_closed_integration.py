@@ -10,8 +10,8 @@
 """
 import pytest
 
-from utils.overnight_gap_monitor import OvernightGapMonitor
 from utils.market_circuit_breaker import MarketCircuitBreaker
+from utils.overnight_gap_monitor import OvernightGapMonitor
 
 
 @pytest.fixture

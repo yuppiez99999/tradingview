@@ -20,13 +20,13 @@
 
 from __future__ import annotations
 
-import sys
+import argparse
 import json
 import logging
-import argparse
-from datetime import datetime, date
+import sys
+from datetime import date, datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Any
+from typing import Any, Dict, Optional, Tuple
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
@@ -127,18 +127,18 @@ class DailyBuildHedgeSystem:
             etf_data = etf_monitor.get_summary()
         except Exception:
             etf_data = {}
-        
+
         # ★ 新增: ETF资金流向盘前/盘中决策 (LLM辅助)
         llm_decision = None
         try:
             from utils.etf_flow_decision import ETFFlowDecisionEngine
             decision_engine = ETFFlowDecisionEngine()
-            
+
             # 判断当前时段
             current_hour = datetime.now().hour
             current_min = datetime.now().minute
             current_time_str = f"{current_hour:02d}:{current_min:02d}"
-            
+
             if "09:15" <= current_time_str <= "09:25":
                 # 盘前决策 (09:15-09:25)
                 logger.info("检测到盘前时段 (09:15-09:25)，生成ETF资金流预配置计划...")
@@ -157,7 +157,7 @@ class DailyBuildHedgeSystem:
                 llm_decision = decision_engine.pre_market_decision()
         except Exception as e:
             logger.warning(f"ETF资金流决策引擎不可用: {e}，继续使用规则引擎")
-        
+
         market_state = {
             "date": self.target_date.strftime("%Y-%m-%d"),
             "vix_proxy": 18.5,
@@ -277,6 +277,7 @@ class DailyBuildHedgeSystem:
                for info in plan_500w.get("target_portfolio", {}).values()):
             try:
                 import copy as _copy
+
                 from utils.broad_based_etf_policy import adjust_plan_with_national_team_flow
                 adj_plan = _copy.deepcopy(plan_500w)
                 adj_result = adjust_plan_with_national_team_flow(adj_plan)
@@ -750,19 +751,19 @@ class DailyBuildHedgeSystem:
             lines.append("")
             lines.append(f"- 实时行情快照暂不可用: {e}")
             lines.append("")
-        
+
         # ★ 新增: 九、ETF资金流向盘前/盘中决策 (LLM辅助)
         try:
             etf_flow_decision = self.market_state.get("etf_flow_decision")
             if etf_flow_decision and etf_flow_decision.get("status") == "success":
                 lines.append("## 九、ETF资金流向盘前/盘中决策 (LLM辅助)")
                 lines.append("")
-                
+
                 # 时段信息
                 phase = etf_flow_decision.get("phase", "unknown")
                 timestamp = etf_flow_decision.get("timestamp", "")
                 elapsed = etf_flow_decision.get("elapsed_seconds", 0)
-                
+
                 phase_labels = {
                     "pre_market": "【盘前决策】(09:15-09:25)",
                     "intraday": "【盘中决策】(09:30-15:00)",
@@ -772,7 +773,7 @@ class DailyBuildHedgeSystem:
                 lines.append(f"- **时间戳**: {timestamp}")
                 lines.append(f"- **耗时**: {elapsed:.1f}秒")
                 lines.append("")
-                
+
                 # 摘要统计
                 summary = etf_flow_decision.get("summary", {})
                 lines.append("### 信号摘要")
@@ -782,7 +783,7 @@ class DailyBuildHedgeSystem:
                 lines.append(f"- **中信号数**: {summary.get('medium_signals', 0)}")
                 total_inflow = summary.get('total_inflow', 0)
                 lines.append(f"- **总净流入**: {total_inflow:+.2f} 亿元")
-                
+
                 # 盘中突变信号
                 if phase == "intraday":
                     sudden_changes = summary.get("sudden_changes", 0)
@@ -792,9 +793,9 @@ class DailyBuildHedgeSystem:
                         lines.append("#### 突变信号详情")
                         for change in etf_flow_decision.get("sudden_changes", [])[:5]:
                             lines.append(f"- {change['name']}: {change['description']}")
-                
+
                 lines.append("")
-                
+
                 # 交易建议 Top 10
                 recommendations = etf_flow_decision.get("recommendations", [])
                 if recommendations:
@@ -802,7 +803,7 @@ class DailyBuildHedgeSystem:
                     lines.append("")
                     lines.append("| 优先级 | 代码 | 名称 | 动作 | 强度 | 置信度 | 净流入(亿) | 价格变动% | 原因 |")
                     lines.append("|:-------|:-----|:-----|:-----|-----:|-------:|----------:|---------:|:-----|")
-                    
+
                     for i, rec in enumerate(recommendations[:10], 1):
                         action = rec.get("action", "观望")
                         strength = rec.get("strength", 0)
@@ -810,14 +811,14 @@ class DailyBuildHedgeSystem:
                         net_flow = rec.get("net_flow_yi", 0)
                         price_change = rec.get("price_change_pct", 0)
                         reason = rec.get("reason", "")
-                        
+
                         lines.append(
                             f"| {i} | {rec['code']} | {rec['name']} | "
                             f"{action} | {strength:+.2f} | {confidence:.2f} | "
                             f"{net_flow:+.2f} | {price_change:+.2f}% | {reason} |"
                         )
                     lines.append("")
-                
+
                 # LLM分析结果
                 llm_analysis = etf_flow_decision.get("llm_analysis")
                 if llm_analysis:
@@ -825,7 +826,7 @@ class DailyBuildHedgeSystem:
                     lines.append("")
                     lines.append("> " + "\n> ".join(llm_analysis.split("\n")[:10]))  # 限制长度
                     lines.append("")
-                
+
                 # 信号融合结果
                 fused_signals = etf_flow_decision.get("fused_signals", [])
                 if fused_signals:
@@ -833,7 +834,7 @@ class DailyBuildHedgeSystem:
                     lines.append("")
                     lines.append("| 代码 | 名称 | 融合强度 | 置信度 | 资金流 | LLM | 价格动量 |")
                     lines.append("|:-----|:-----|--------:|-------:|------:|-----:|--------:|")
-                    
+
                     for sig in fused_signals[:5]:
                         lines.append(
                             f"| {sig['symbol']} | {sig.get('meta', {}).get('name', '-')} | "
@@ -879,10 +880,10 @@ class DailyBuildHedgeSystem:
         broad_based_data = {}
         try:
             from utils.broad_based_etf_policy import (
-                validate_portfolio_compliance,
                 fetch_national_team_flow_signals,
                 flow_to_adjustment,
                 get_broad_based_codes,
+                validate_portfolio_compliance,
             )
             target_plan = self._load_target_portfolio_plan()
             compliance_data = validate_portfolio_compliance(target_plan.get("target_portfolio", {}))

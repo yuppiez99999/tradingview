@@ -4,6 +4,7 @@
 系统健康检查脚本 - 验证模块加载与配置一致性
 """
 from __future__ import annotations
+
 import json
 import sys
 from pathlib import Path
@@ -18,7 +19,7 @@ print("=" * 70)
 # 1. 验证 ConfigManager 资金配置
 print("\n[1] ConfigManager 资金配置加载:")
 try:
-    from utils.config_manager import get_portfolio_config, list_available_configs, get_config_source
+    from utils.config_manager import get_config_source, get_portfolio_config, list_available_configs
     cfg = get_portfolio_config()
     stock = cfg.get("stock_etf_capital")
     hedge = cfg.get("hedge_capital")
@@ -106,8 +107,8 @@ for cls_name, mod_path in risk_modules:
 # 6. 验证 KillSwitch 实例化与 broker_callback 注册能力
 print("\n[6] KillSwitch 实例化测试:")
 try:
-    from utils.kill_switch import KillSwitch
     from utils.config_manager import clear_config_cache
+    from utils.kill_switch import KillSwitch
     clear_config_cache()
     ks = KillSwitch()
     print("  KillSwitch 实例化: OK")

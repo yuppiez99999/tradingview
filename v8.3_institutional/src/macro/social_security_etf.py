@@ -15,7 +15,6 @@ import os
 from datetime import datetime
 from typing import Dict, List, Optional
 
-
 # ============================================================
 # 社保基金投资风格配置（借鉴 social_security_tracker.py）
 # ============================================================

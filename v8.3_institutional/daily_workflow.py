@@ -29,18 +29,19 @@ v7.5 机构级每日交易工作流
 
 from __future__ import annotations
 
-import os
-import sys
-import json
-import math
-import logging
 import argparse
+import json
+import logging
+import math
+import os
 import re
-import requests  # type: ignore[import-untyped]
-from datetime import datetime, date
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
+import sys
 from dataclasses import asdict
+from datetime import date, datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
+import requests  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
     import pandas as pd  # 仅用于类型注解, 运行时按需导入
@@ -77,14 +78,17 @@ logger = logging.getLogger("v75.daily_workflow")
 # 导入 v7.5 模块
 # ============================================================
 # === v7.5 核心模块 (硬性要求 - 缺失时系统拒绝启动) ===
-from risk.risk_manager import RiskManager  # noqa: E402
 from risk.circuit_breaker import CircuitBreaker  # noqa: E402
+from risk.risk_manager import RiskManager  # noqa: E402
+
+
 class CircuitLevel:
     LEVEL_1 = 1; LEVEL_2 = 2; LEVEL_3 = 3; LEVEL_4 = 4
-from hedging.hedge_coordinator import HedgeCoordinator  # noqa: E402
-from execution.smart_order_router import SmartOrderRouter, MockBroker  # noqa: E402
 from execution.algo_engine import AlgoType  # noqa: E402
 from execution.ntp_sync import NTPSync  # noqa: E402
+from execution.smart_order_router import MockBroker, SmartOrderRouter  # noqa: E402
+from hedging.hedge_coordinator import HedgeCoordinator  # noqa: E402
+
 V75_READY = True
 logger.info("v7.5 核心模块加载成功: RiskManager/CircuitBreaker/HedgeCoordinator/SmartOrderRouter/AlgoEngine")
 
@@ -116,16 +120,16 @@ except ImportError as e:
 # 优先使用 lgb_enhanced_trainer (真实OHLCV + 情绪因子 + 自适应重训)
 # 不可用时回退到旧 autolearn_trainer
 try:
-    from lgb_enhanced_trainer import run_enhanced_training as _run_autolearn
     from lgb_enhanced_trainer import generate_comparison_report as _generate_autolearn_report
+    from lgb_enhanced_trainer import run_enhanced_training as _run_autolearn
     AUTOLEARN_READY = True
     AUTOLEARN_ENGINE = "lgb_enhanced"
     logger.info("使用增强训练器: lgb_enhanced_trainer (真实OHLCV + 情绪因子 + 自适应重训)")
 except ImportError as e:
     logger.warning(f"增强训练器导入失败: {e}, 尝试旧训练器")
     try:
-        from autolearn_trainer import run_autolearn as _run_autolearn
         from autolearn_trainer import generate_report as _generate_autolearn_report
+        from autolearn_trainer import run_autolearn as _run_autolearn
         AUTOLEARN_READY = True
         AUTOLEARN_ENGINE = "autolearn_legacy"
     except ImportError as e2:
@@ -137,11 +141,12 @@ except ImportError as e:
 # 对冲基金视角模块 (v7.7: Theta引擎 + Gamma尾部防御 + 三级熔断 + 2030清仓)
 # ============================================================
 # === 对冲基金核心模块 (硬性要求 - 缺失时系统拒绝启动) ===
-from utils.theta_engine import ThetaEngine  # noqa: E402
+from utils.data_gate import DataGate  # noqa: E402  # 数据质量门控 (DataGate) — P0-8 接入
 from utils.gamma_engine import GammaEngine  # noqa: E402
 from utils.kill_switch import KillSwitch  # noqa: E402
-from utils.data_gate import DataGate  # noqa: E402  # 数据质量门控 (DataGate) — P0-8 接入
 from utils.liquidation_scheduler import LiquidationScheduler  # noqa: E402
+from utils.theta_engine import ThetaEngine  # noqa: E402
+
 HEDGE_FUND_CORE_READY = True
 logger.info("对冲基金核心模块加载成功: Theta/Gamma/KillSwitch/LiquidationScheduler")
 
@@ -165,9 +170,9 @@ except ImportError as _e_cockpit:
 V10_RISK_READY = False
 try:
     from utils.drawdown_controller import DrawdownController
-    from utils.var_monitor import VaRMonitor
     from utils.stress_test_runner import StressTestRunner
     from utils.v10_config_loader import V10ConfigLoader
+    from utils.var_monitor import VaRMonitor
     V10_RISK_READY = True
     logger.info("v10.0 风控模块加载成功: DrawdownController/VaRMonitor/StressTestRunner/V10ConfigLoader")
 except ImportError as e:
@@ -178,10 +183,10 @@ except ImportError as e:
 # ============================================================
 V10_STRATEGY_READY = False
 try:
-    from utils.quant_neutral_runner import QuantNeutralRunner
-    from utils.ic_hedge_calculator import ICHedgeCalculator  # noqa: F401
     from utils.cash_manager import CashManager
     from utils.directional_futures_trader import DirectionalFuturesTrader
+    from utils.ic_hedge_calculator import ICHedgeCalculator  # noqa: F401
+    from utils.quant_neutral_runner import QuantNeutralRunner
     V10_STRATEGY_READY = True
     logger.info("v10.0 策略模块加载成功: QuantNeutralRunner/ICHedgeCalculator/CashManager/DirectionalFuturesTrader")
 except ImportError as e:
@@ -192,7 +197,7 @@ except ImportError as e:
 # ============================================================
 PHASE_MANAGER_READY = False
 try:
-    from utils.phase_manager import PhaseManager, PhaseInfo, QuarterlyReviewResult  # noqa: F401
+    from utils.phase_manager import PhaseInfo, PhaseManager, QuarterlyReviewResult  # noqa: F401
     PHASE_MANAGER_READY = True
     logger.info("十五五阶段管理器加载成功: PhaseManager (5年度/季度评估/2030清仓)")
 except ImportError as e:
@@ -204,10 +209,11 @@ except ImportError as e:
 # ============================================================
 HEDGE_FUND_MODULES_READY = False
 try:
-    from utils.execution_algo_engine import ExecutionAlgoEngine, AlgoType as ExecAlgoType  # noqa: F401
-    from utils.pnl_attribution_engine import PnLAttributionEngine
     from utils.data_quality_monitor import DataQualityMonitor
+    from utils.execution_algo_engine import AlgoType as ExecAlgoType
+    from utils.execution_algo_engine import ExecutionAlgoEngine  # noqa: F401
     from utils.multi_strategy_coordinator import MultiStrategyCoordinator
+    from utils.pnl_attribution_engine import PnLAttributionEngine
     HEDGE_FUND_MODULES_READY = True
     logger.info("对冲基金模块加载成功: ExecutionAlgo/PnLAttribution/DataQuality/MultiStrategyCoord")
 except ImportError as e:
@@ -216,9 +222,10 @@ except ImportError as e:
 # 顶级配置模块 (Black-Litterman / TCA / Barra)
 INSTITUTIONAL_MODULES_READY = False
 try:
-    from utils.black_litterman_optimizer import BlackLittermanOptimizer, View as BLView, BLResult  # noqa: F401
-    from utils.tca_engine import TCAManager, FillRecord, BenchmarkPrices, TCAReport  # noqa: F401
-    from utils.barra_risk_decomposer import BarraRiskDecomposer, BarraDecomposition, BARRA_STYLE_FACTORS  # noqa: F401
+    from utils.barra_risk_decomposer import BARRA_STYLE_FACTORS, BarraDecomposition, BarraRiskDecomposer  # noqa: F401
+    from utils.black_litterman_optimizer import BlackLittermanOptimizer, BLResult  # noqa: F401
+    from utils.black_litterman_optimizer import View as BLView
+    from utils.tca_engine import BenchmarkPrices, FillRecord, TCAManager, TCAReport  # noqa: F401
     INSTITUTIONAL_MODULES_READY = True
     logger.info("机构级模块加载成功: BlackLitterman/TCA/Barra")
 except ImportError as e:
@@ -230,7 +237,10 @@ try:
     from utils.ledoit_wolf_covariance import LedoitWolfCovariance, ShrinkageResult  # noqa: F401
     from utils.risk_budget_optimizer import RiskBudgetOptimizer, RiskBudgetResult  # noqa: F401
     from utils.stress_test_scenario_library import (
-        StressTestEngine, StressScenario, ShockFactors, StressTestResult,  # noqa: F401
+        ShockFactors,
+        StressScenario,
+        StressTestEngine,  # noqa: F401
+        StressTestResult,
     )
     RISK_MGT_MODULES_READY = True
     logger.info("风险管理模块加载成功: LedoitWolf/RiskBudgetOpt/StressTest")
@@ -241,7 +251,7 @@ except ImportError as e:
 ALPHA_MODULES_READY = False
 try:
     from utils.alpha_factor_library import AlphaFactorLibrary, FactorLibraryResult  # noqa: F401
-    from utils.momentum_reversal_engine import MomentumReversalEngine, MomentumResult  # noqa: F401
+    from utils.momentum_reversal_engine import MomentumResult, MomentumReversalEngine  # noqa: F401
     from utils.smart_beta_engine import SmartBetaEngine, SmartBetaResult  # noqa: F401
     ALPHA_MODULES_READY = True
     logger.info("Alpha 生成模块加载成功: AlphaFactorLib/MomentumReversal/SmartBeta")
@@ -253,10 +263,16 @@ EXECUTION_MODULES_READY = False
 try:
     from utils.execution_algorithm_engine import (
         ExecutionAlgorithmEngine as InstitutionExecAlgoEngine,
-        Order as ExecOrder, ExecutionPlan,  # noqa: F401
     )
-    from utils.market_impact_model import MarketImpactModel, ImpactParams  # noqa: F401
-    from utils.smart_order_router import SmartOrderRouter as InstitutionSmartRouter, Venue as RoutingVenue  # noqa: F401
+    from utils.execution_algorithm_engine import (
+        ExecutionPlan,
+    )
+    from utils.execution_algorithm_engine import (
+        Order as ExecOrder,  # noqa: F401
+    )
+    from utils.market_impact_model import ImpactParams, MarketImpactModel  # noqa: F401
+    from utils.smart_order_router import SmartOrderRouter as InstitutionSmartRouter  # noqa: F401
+    from utils.smart_order_router import Venue as RoutingVenue
     EXECUTION_MODULES_READY = True
     logger.info("执行层模块加载成功: ExecAlgo/MarketImpact/SmartRouter")
 except ImportError as e:
@@ -265,9 +281,9 @@ except ImportError as e:
 # 顶级另类数据模块 (新闻情感 / 供应链 / 另类数据) — Renaissance/Two Sigma 标准
 ALT_DATA_MODULES_READY = False
 try:
-    from utils.news_sentiment_engine import NewsSentimentEngine, NewsItem  # noqa: F401
-    from utils.supply_chain_graph import SupplyChainGraph, SupplyChainEdge  # noqa: F401
     from utils.alt_data_indicators import AltDataIndicators
+    from utils.news_sentiment_engine import NewsItem, NewsSentimentEngine  # noqa: F401
+    from utils.supply_chain_graph import SupplyChainEdge, SupplyChainGraph  # noqa: F401
     ALT_DATA_MODULES_READY = True
     logger.info("另类数据模块加载成功: NewsSentiment/SupplyChain/AltData")
 except ImportError as e:
@@ -283,8 +299,10 @@ except ImportError as e:
 FACTOR_KS_READY = False
 try:
     from research.vibe_trading_factor_analysis.scripts.kill_switch_daily_runner import (
-        run_daily_kill_switch as _run_factor_kill_switch_daily,
         FACTOR_KS_READY,
+    )
+    from research.vibe_trading_factor_analysis.scripts.kill_switch_daily_runner import (
+        run_daily_kill_switch as _run_factor_kill_switch_daily,
     )
     if FACTOR_KS_READY:
         logger.info("FactorKillSwitch 模块加载成功 (S6 持续监控就绪)")
@@ -802,13 +820,13 @@ class DailyWorkflow:
         if self.sim_mode:
             try:
                 from sim_broker_integration import (
+                    PositionSync,
+                    SimAccount,
                     SimExecutionEngine,
                     SimStockBroker,
-                    SimAccount,
-                    PositionSync,
                     TradingSessionCalendar,
                 )
-                from ths_sim_broker import THSQuoteProvider, SimOptionsBroker, THSSimFuturesBroker
+                from ths_sim_broker import SimOptionsBroker, THSQuoteProvider, THSSimFuturesBroker
                 calendar = TradingSessionCalendar()
                 stock_account = SimAccount(
                     account_id="SIM-STOCK",
@@ -862,6 +880,7 @@ class DailyWorkflow:
             融合配置字典，加载失败时返回默认值
         """
         import os
+
         import yaml as _yaml  # type: ignore[import-untyped]
         defaults = {
             "qlib_weight": 0.50,
@@ -1372,7 +1391,7 @@ class DailyWorkflow:
         # 阈值: age > 7 天 WARN (告警不阻断), age > 30 天 ERROR (fail-closed 禁止开仓)
         # 依据: utils/system_check.py C9 维度 + hedge_rebalance_v59.py is_price_safe()
         try:
-            from utils.system_check import SystemChecker, CheckLevel, CheckStatus
+            from utils.system_check import CheckLevel, CheckStatus, SystemChecker
             _c9_checker = SystemChecker(strict=False, skip_datasource=True)
             _c9_checker._results = []  # 重置, 仅运行 C9
             _c9_checker.check_fallback_price_freshness()
@@ -4150,7 +4169,7 @@ class DailyWorkflow:
             signal: phase_signal 主信号字典 (会被原位修改)
         """
         try:
-            from utils.trading_env import get_trading_env, TradingEnv
+            from utils.trading_env import TradingEnv, get_trading_env
             _current_env = get_trading_env()
             if _current_env == TradingEnv.PRODUCTION:
                 signal["research_distilled_applied"] = False
@@ -5892,9 +5911,9 @@ class DailyWorkflow:
         """
         try:
             from alpha.qlib_signal_adapter import (
+                fetch_ifind_ohlcv,
                 generate_signal,
                 is_qlib_available,
-                fetch_ifind_ohlcv,
             )
         except ImportError:
             logger.warning("Qlib 信号适配器不可用")
@@ -7279,8 +7298,8 @@ class DailyWorkflow:
             # === 执行层: 执行算法 + 市场冲击 + 智能路由 ===
             if EXECUTION_MODULES_READY and self.execution_algo_engine is not None:
                 try:
-                    import pandas as _pd_exec
                     import numpy as _np_exec
+                    import pandas as _pd_exec
                     # 为每笔成交生成执行计划与冲击估计
                     exec_plans_summary: List[Dict[str, Any]] = []
                     impact_estimates: List[Dict[str, Any]] = []
@@ -8244,9 +8263,10 @@ class DailyWorkflow:
         # === v8.6.6: EOD 七 Guard 风控链强制执行 (P1-H/J/I/K 扩展) ===
         lines.extend(["", "## EOD 七 Guard 风控链 (v8.6.6)", ""])
         try:
-            from utils.risk_guard_integrator import RiskGuardIntegrator
             # 计算下一交易日 (跳过周末)
             from datetime import timedelta as _td
+
+            from utils.risk_guard_integrator import RiskGuardIntegrator
             _next_dt = datetime.strptime(self.trade_date, "%Y-%m-%d") + _td(days=1)
             while _next_dt.weekday() >= 5:
                 _next_dt += _td(days=1)
@@ -9079,8 +9099,8 @@ def main():
         sys.exit(0)
 
     if args.auto_closed_loop and not args.execution_review and not args.dynamic_risk:
-        from execution_reviewer import run_execution_review
         from dynamic_risk_adjuster import run_dynamic_risk_adjuster
+        from execution_reviewer import run_execution_review
         review_result = run_execution_review(trade_date=args.date, auto_closed_loop=True)
         risk_result = run_dynamic_risk_adjuster(trade_date=args.date, write_gate_limits=True)
         print(json.dumps({
@@ -9127,7 +9147,7 @@ def main():
 
     # 退出码：允许降级通过的阶段列表（非关键阶段失败不影响自动任务）
     allow_degrade_phases = {"calibrate", "autolearn", "factor_kill_switch"}
-    
+
     all_pass = True
     for name, phase in state.get("phases", {}).items():
         status = phase.get("status")

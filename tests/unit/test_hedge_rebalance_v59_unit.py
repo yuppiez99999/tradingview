@@ -21,10 +21,10 @@ C-1.5 测试任务 (2026-08-01): 为 hedge_rebalance_v59.py 补单元测试覆�
 """
 from __future__ import annotations
 
-import sys
 import json
+import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -36,29 +36,28 @@ for _p in (str(PROJECT_ROOT), str(SRC_ROOT)):
         sys.path.insert(0, _p)
 
 from hedging.hedge_rebalance_v59 import (  # noqa: E402
-    HedgeRebalanceIntegrator,
-    MarketRegime,
-    HedgeMode,
-    PositionWeight,
-    HedgeDecision,
-    RebalanceDecision,
-    JointPlan,
+    DEFAULT_SECTOR_WEIGHTS,
     PORTFOLIO_HEDGE_THRESHOLDS,
-    TAIL_VOL_TRIGGER,
-    TAIL_DD_TRIGGER,
-    TAIL_MIN_HEDGE,
-    TAIL_MAX_HEDGE,
     REBALANCE_THRESHOLDS,
     SECTOR_ROTATION,
-    DEFAULT_SECTOR_WEIGHTS,
-    _estimate_portfolio_vol,
+    TAIL_DD_TRIGGER,
+    TAIL_MAX_HEDGE,
+    TAIL_MIN_HEDGE,
+    TAIL_VOL_TRIGGER,
+    HedgeDecision,
+    HedgeMode,
+    HedgeRebalanceIntegrator,
+    JointPlan,
+    MarketRegime,
+    PositionWeight,
+    RebalanceDecision,
     _estimate_portfolio_dd_60d,
-    _load_yaml,
+    _estimate_portfolio_vol,
     _load_json,
+    _load_yaml,
     get_integrator,
 )
 from risk.portfolio_risk_assessor import PortfolioRisk  # noqa: E402
-
 
 # ============================================================
 # Fixture

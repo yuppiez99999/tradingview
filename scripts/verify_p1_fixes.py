@@ -263,7 +263,7 @@ def verify_p1_h() -> bool:
         s2_pass = (
             len(plan_l3['execution_plan']['morning_orders']) == 0
             and len(plan_l3['execution_plan']['afternoon_orders']) == 0
-            and plan_l3['market_state'].get('halt_all_trading') == True
+            and plan_l3['market_state'].get('halt_all_trading')
         )
         record(
             "P1-H 场景2: 跌 7% → L3 清空所有订单 + halt_all_trading",
@@ -331,8 +331,8 @@ def verify_p1_j() -> bool:
         s1_pass = (
             len(plan['execution_plan']['morning_orders']) == 0
             and len(plan['execution_plan']['afternoon_orders']) == 0
-            and plan['market_state'].get('liquidity_crisis') == True
-            and plan['risk_guard']['liquidity_crisis']['triggered'] == True
+            and plan['market_state'].get('liquidity_crisis')
+            and plan['risk_guard']['liquidity_crisis']['triggered']
         )
         record(
             "P1-J 场景1: 涨跌停 2500 > 2000 → 全局撤单",
@@ -354,7 +354,7 @@ def verify_p1_j() -> bool:
         plan = rgi.guard_liquidity_crisis({}, plan)
         s2_pass = (
             len(plan['execution_plan']['morning_orders']) == 1
-            and plan['risk_guard']['liquidity_crisis']['triggered'] == False
+            and not plan['risk_guard']['liquidity_crisis']['triggered']
         )
         record(
             "P1-J 场景2: 涨跌停 500 < 2000 → 正常",
@@ -382,8 +382,9 @@ def verify_p1_i() -> bool:
     print("=" * 70)
 
     try:
-        from utils.overnight_gap_monitor import OvernightGapMonitor
         import copy
+
+        from utils.overnight_gap_monitor import OvernightGapMonitor
 
         ogm = OvernightGapMonitor()
 
@@ -438,7 +439,7 @@ def verify_p1_i() -> bool:
         plan_l3 = ogm.apply_to_plan(copy.deepcopy(test_plan), l3_risk)
         s2_pass = (
             len(plan_l3['execution_plan']['morning_orders']) == 0
-            and plan_l3['market_state'].get('halt_all_trading') == True
+            and plan_l3['market_state'].get('halt_all_trading')
         )
         record(
             "P1-I 场景2: S&P500 跌 3.5% → L3 全局平仓",
@@ -511,10 +512,9 @@ def verify_p1_k() -> bool:
         _v83_src = PROJECT_ROOT / "v8.3_institutional" / "src"
         if str(_v83_src) not in _sys.path:
             _sys.path.insert(0, str(_v83_src))
-        from hedging.correlation_hedger import CorrelationHedger
-
-        import pandas as pd
         import numpy as np
+        import pandas as pd
+        from hedging.correlation_hedger import CorrelationHedger
 
         hedger = CorrelationHedger()
 

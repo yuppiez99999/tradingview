@@ -30,7 +30,7 @@ B3.4.4 统一调用层后, 所有 LLM 调用走 LLMRouter:
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 # ── 自动加载 .env ────────────────────────────────────────
@@ -76,6 +76,8 @@ _router_test_connection = None
 try:
     from utils.alpha.llm_router import (
         chat as _router_chat,
+    )
+    from utils.alpha.llm_router import (
         test_connection as _router_test_connection,
     )
     _LLM_ROUTER_AVAILABLE = True

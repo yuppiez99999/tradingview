@@ -50,7 +50,7 @@ import os
 import shutil
 import sys
 import traceback
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import List
@@ -60,6 +60,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # 日志 (避免循环导入,使用独立 logger)
 import logging
+
 logger = logging.getLogger("system_check")
 
 
@@ -261,7 +262,7 @@ class SystemChecker:
                            detail=f"已设置: {masked}")
             else:
                 self._fail(code, f"{desc} ({var_name})", CheckLevel.ERROR,
-                           detail=f"环境变量未设置",
+                           detail="环境变量未设置",
                            remediation=f"PowerShell: $env:{var_name}='your_key'\n"
                                        f"或写入系统环境变量 (永久生效)")
 
@@ -455,7 +456,7 @@ class SystemChecker:
                            detail="可导入")
             except ImportError:
                 self._fail(code, f"{desc} ({mod_name})", CheckLevel.ERROR,
-                           detail=f"模块未安装",
+                           detail="模块未安装",
                            remediation=f"pip install {mod_name}")
 
         # 可选模块
@@ -773,8 +774,8 @@ class SystemChecker:
             self._fail(code_age, "兜底价格新鲜度", CheckLevel.WARN,
                        detail=f"最后更新 {updated_str}, 已 {age_days} 天 "
                               f"(超 {warn_days} 天告警阈值), 价格: {price_summary}",
-                       remediation=f"建议尽快更新 DEFAULT_FUTURES_PRICES "
-                                   f"并刷新 FALLBACK_PRICES_UPDATED",
+                       remediation="建议尽快更新 DEFAULT_FUTURES_PRICES "
+                                   "并刷新 FALLBACK_PRICES_UPDATED",
                        elapsed_ms=elapsed_load)
         else:
             self._pass(code_age, "兜底价格新鲜度", CheckLevel.INFO,

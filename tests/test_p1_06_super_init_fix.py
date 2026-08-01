@@ -23,7 +23,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

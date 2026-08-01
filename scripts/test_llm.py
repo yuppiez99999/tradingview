@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
+
 sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")
 
-from llm_client import test_connection, chat
+from llm_client import chat, test_connection
 
 print("=== 测试 LLM 连接 ===")
 status = test_connection()

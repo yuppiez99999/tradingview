@@ -22,8 +22,8 @@ import streamlit as st  # type: ignore[import-not-found]
 from ui.auth import require_auth
 from ui.data_loader import (
     load_llm_router_calls,
-    load_risk_bus_events,
     load_recent_data_quality,
+    load_risk_bus_events,
     load_strategy_registry_events,
 )
 from ui.layout import (

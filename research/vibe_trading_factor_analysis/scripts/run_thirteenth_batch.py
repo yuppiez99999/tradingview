@@ -34,18 +34,20 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
-    list_available_symbols,
-    load_price_data, load_fundamentals, load_benchmark_returns,
-    compute_equal_weight_benchmark,
-)
 from research.vibe_trading_factor_analysis.pipeline.pipeline_orchestrator import (
-    PipelineOrchestrator, PipelineState,
+    PipelineOrchestrator,
+    PipelineState,
+)
+from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
+    compute_equal_weight_benchmark,
+    list_available_symbols,
+    load_benchmark_returns,
+    load_fundamentals,
+    load_price_data,
 )
 
 logger = logging.getLogger("run_thirteenth_batch")

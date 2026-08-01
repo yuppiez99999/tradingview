@@ -13,10 +13,11 @@ Triple Barrier Labeling — 三维标签引擎 v1.0
 - 与ML模型结合后，可输出"买入后持N天"的实际操作建议
 """
 
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
+
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, Optional
-from dataclasses import dataclass
 
 
 @dataclass

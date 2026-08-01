@@ -44,7 +44,7 @@ import os
 import sys
 import time
 import traceback
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -194,11 +194,11 @@ class KronosModelWrapper:
             LOGGER.info(f"正在加载 Kronos-{self.model_size} 模型...")
 
             try:
-                from model import Kronos, KronosTokenizer, KronosPredictor
+                from model import Kronos, KronosPredictor, KronosTokenizer
             except ImportError:
                 LOGGER.warning("未找到 Kronos 本地模块，尝试从 GitHub 克隆...")
                 self._clone_and_install()
-                from model import Kronos, KronosTokenizer, KronosPredictor
+                from model import Kronos, KronosPredictor, KronosTokenizer
 
             model_name_map = {
                 "mini": ("NeoQuasar/Kronos-Tokenizer-2k", "NeoQuasar/Kronos-mini", 2048),

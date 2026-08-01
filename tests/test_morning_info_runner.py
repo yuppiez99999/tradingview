@@ -11,10 +11,10 @@ test_morning_info_runner.py — 晨间信息采集工作流单元测试
 
 标记: @pytest.mark.unit — 全 mock, <1s, 无外部 API
 """
-import sys
 import importlib
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -29,7 +29,6 @@ if str(SCRIPT_DIR) not in sys.path:
 
 # 导入被测模块 (会自动将 15_每日工作流 / 11_量化策略 / v8.3/src 加入 sys.path)
 import morning_info_runner as mir
-
 
 # ============================================================
 # Fixtures

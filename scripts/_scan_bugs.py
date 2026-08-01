@@ -15,8 +15,8 @@
 """
 import ast
 import os
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -263,6 +263,7 @@ for code in sorted(issues.keys()):
 
 # 保存为 JSON 供后续生成报告
 import json
+
 out = {code: [{'file': fp, 'line': ln, 'issue': d, 'fix': f} for fp, ln, d, f in items]
        for code, items in issues.items()}
 out_path = PROJECT_ROOT / 'scripts' / '_bug_scan_results.json'

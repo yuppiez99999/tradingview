@@ -16,11 +16,11 @@ HedgeEngine 保留为对冲信号 + 对冲方案生成器, 风险评估统一委
 依赖: math / logging
 """
 
-import math
 import logging
-from datetime import datetime
-from typing import Dict, List, Any, Optional
+import math
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("hedge_engine")
 

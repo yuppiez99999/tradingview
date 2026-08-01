@@ -18,9 +18,9 @@
 - Bridgewater All-Weather 风险平价框架.
 """
 
-import numpy as np
-from typing import Tuple, Optional, List, Dict
+from typing import Dict, List, Optional, Tuple
 
+import numpy as np
 
 # ── 常量 ──
 DEFAULT_WINDOW = 60  # 滚动窗口 (交易日)

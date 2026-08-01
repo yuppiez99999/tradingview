@@ -526,9 +526,10 @@ def phase_report(workflow) -> Path:
     # === v8.6.6: EOD 七 Guard 风控链强制执行 (P1-H/J/I/K 扩展) ===
     lines.extend(["", "## EOD 七 Guard 风控链 (v8.6.6)", ""])
     try:
-        from utils.risk_guard_integrator import RiskGuardIntegrator
         # 计算下一交易日 (跳过周末)
         from datetime import timedelta as _td
+
+        from utils.risk_guard_integrator import RiskGuardIntegrator
         _next_dt = datetime.strptime(workflow.trade_date, "%Y-%m-%d") + _td(days=1)
         while _next_dt.weekday() >= 5:
             _next_dt += _td(days=1)

@@ -9,21 +9,23 @@
 - 数据验证
 """
 
-import pandas as pd
-from datetime import datetime
-from typing import Dict, List, Optional
+import importlib.util
 import json
 import os
 import pathlib
-import importlib.util
 import threading
-# P1-2: 移除全局禁用TLS验证，改为默认启用证书校验
+from datetime import datetime
+from typing import Dict, List, Optional
 
-from utils.logger import get_logger
+import pandas as pd
+
 from utils.data_types import safe_float
 
 # B-4.1: 统一无代理 Session 工厂 (绕过系统代理, 避免国内金融 API 被拦截)
 from utils.http_session import make_no_proxy_session
+
+# P1-2: 移除全局禁用TLS验证，改为默认启用证书校验
+from utils.logger import get_logger
 
 _SINA_SESSION = make_no_proxy_session("sina")
 
@@ -1241,8 +1243,8 @@ class MarketDataProvider:
     def get_news_sentiment(self, symbol: str, limit: int = 20) -> List[Dict]:
         """获取新闻+情感分析 (web_scraper + ai_report_agent)"""
         try:
-            from utils.web_scraper import WebScraper
             from utils.ai_report_agent import AIReportAgent
+            from utils.web_scraper import WebScraper
 
             scraper = WebScraper()
             agent = AIReportAgent()

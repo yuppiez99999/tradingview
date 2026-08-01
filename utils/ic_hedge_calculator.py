@@ -38,7 +38,7 @@ import logging
 import math
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger("ic_hedge")
 

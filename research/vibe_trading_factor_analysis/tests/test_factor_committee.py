@@ -24,7 +24,6 @@ from research.vibe_trading_factor_analysis.committee.factor_committee import (
     quick_review,
 )
 
-
 # ============== 因子报告模板 ==============
 
 def _excellent_factor():

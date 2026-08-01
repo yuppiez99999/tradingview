@@ -11,8 +11,8 @@ sys.path.insert(0, r"e:\各种PY程序\28-终极量化交易系统8.4")
 import numpy as np
 import pandas as pd
 
-from utils.vibe_trading_adapter import get_vibe_adapter
 from utils.gtja191_factors import GTJA191Factors
+from utils.vibe_trading_adapter import get_vibe_adapter
 
 
 def generate_test_data(n_days: int = 300) -> pd.DataFrame:

@@ -5,6 +5,7 @@
 此脚本自动执行下单流程，每步都截图保存。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 
@@ -29,7 +30,7 @@ if main_window:
     main_window.set_focus()
     time.sleep(1)
     print(f"已连接窗口: {main_window.window_text()}")
-    
+
     rect = main_window.rectangle()
     left = rect.left
     top = rect.top

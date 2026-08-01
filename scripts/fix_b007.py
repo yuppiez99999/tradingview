@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """批量修复 ruff B007 错误 (未使用循环变量 → _变量) — 文本解析版"""
-import re, os, subprocess
+import os
+import re
+import subprocess
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(project_root)

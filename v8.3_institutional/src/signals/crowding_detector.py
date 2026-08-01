@@ -2,11 +2,12 @@
 # 防止追逐已被定价的信号, 检测 Alpha 衰减
 # 逻辑: ETF 大额流入 → 拥挤度上升 → Alpha 预期下降 → 信号降权
 from __future__ import annotations
+
 import logging
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Deque, Optional, Tuple
+from typing import Deque, Dict, List, Optional, Tuple
 
 import numpy as np
 

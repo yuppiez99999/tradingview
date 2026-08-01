@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """验证 path_config 路径配置是否正确指向 D 盘"""
 import json
-import sys
 import os
+import sys
 
 # 添加项目根目录到 sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

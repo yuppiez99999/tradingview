@@ -45,24 +45,24 @@ REPORTS_DIR_ARCHIVE = PROJECT_ROOT.parent / "每日报告归档"  # e:\各种PY�
 def _find_report(report_date: str) -> Path:
     """自动检测 P&L 报告位置（v8.3 优先，回退 v7.5 兼容，最后查归档）"""
     filename = f"daily_pnl_report_{report_date}.json"
-    
+
     # 1) v8.3_institutional/reports/
     path = REPORTS_DIR_V83 / filename
     if path.exists():
         return path
-    
+
     # 2) v7.5_institutional/reports/ (历史兼容)
     path = REPORTS_DIR_V75 / filename
     if path.exists():
         return path
-    
+
     # 3) 每日报告归档/YYYY-MM-DD/
     if REPORTS_DIR_ARCHIVE.exists():
         date_dir = REPORTS_DIR_ARCHIVE / report_date
         path = date_dir / filename
         if path.exists():
             return path
-    
+
     # 4) 没找到
     return REPORTS_DIR_V83 / filename  # 返回 v8.3 路径（最可能的位置）
 

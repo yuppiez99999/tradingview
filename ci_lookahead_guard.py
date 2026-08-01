@@ -19,9 +19,9 @@ CI 前视偏差自动检测门禁
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
-import argparse
 from pathlib import Path
 from typing import List, Tuple
 

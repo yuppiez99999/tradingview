@@ -559,11 +559,11 @@ class FinanceAgentOrchestrator:
         """初始化默认 6 个 Agent (v8.6.13 新增 WeatherAgent)"""
         try:
             from utils.finance_agents import (
-                ValueAgent,
-                MomentumAgent,
-                SentimentAgent,
-                RiskAgent,
                 MacroAgent,
+                MomentumAgent,
+                RiskAgent,
+                SentimentAgent,
+                ValueAgent,
             )
 
             agents: List[Any] = [

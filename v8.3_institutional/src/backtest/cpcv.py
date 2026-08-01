@@ -20,7 +20,7 @@ v7.6 CPCV (Combinatorial Purged Cross-Validation) — 组合净化交叉验证
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Tuple, Callable, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd

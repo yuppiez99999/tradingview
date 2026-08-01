@@ -3,9 +3,10 @@ v7.5 PerformanceMetrics — Sortino / Calmar / DSR 等绩效指标
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §4.1, §4.5
 """
 
+from typing import Optional
+
 import numpy as np
 import pandas as pd
-from typing import Optional
 from scipy.stats import norm
 
 

@@ -24,7 +24,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _V83_DIR = _PROJECT_ROOT / "v8.3_institutional"
 sys.path.insert(0, str(_PROJECT_ROOT))
@@ -117,7 +116,7 @@ class TestReturnExpectationGate:
 
     def test_sim_mode_does_not_block(self):
         """sim_mode 不达标 → enforce 返回 True (继续)"""
-        from gate_manager import ReturnExpectationGate, GateResult
+        from gate_manager import GateResult, ReturnExpectationGate
         gate = ReturnExpectationGate()
         fake_result = GateResult(
             gate_name="return_expectation", passed=False, mode="sim",
@@ -128,7 +127,7 @@ class TestReturnExpectationGate:
 
     def test_live_mode_blocks_on_failure(self):
         """live_mode 不达标 → enforce 返回 False (阻断)"""
-        from gate_manager import ReturnExpectationGate, GateResult
+        from gate_manager import GateResult, ReturnExpectationGate
         gate = ReturnExpectationGate()
         fake_result = GateResult(
             gate_name="return_expectation", passed=False, mode="live",
@@ -139,7 +138,7 @@ class TestReturnExpectationGate:
 
     def test_live_mode_passes_when_passed(self):
         """live_mode 达标 → enforce 返回 True"""
-        from gate_manager import ReturnExpectationGate, GateResult
+        from gate_manager import GateResult, ReturnExpectationGate
         gate = ReturnExpectationGate()
         fake_result = GateResult(
             gate_name="return_expectation", passed=True, mode="live",

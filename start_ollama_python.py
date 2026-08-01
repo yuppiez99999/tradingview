@@ -1,5 +1,5 @@
-import subprocess
 import os
+import subprocess
 import time
 
 env = os.environ.copy()
@@ -17,8 +17,8 @@ proc = subprocess.Popen(
 print("Ollama server starting...")
 time.sleep(5)
 
-import urllib.request  # noqa: E402
 import json  # noqa: E402
+import urllib.request  # noqa: E402
 
 try:
     req = urllib.request.Request("http://localhost:11434/api/tags", method="GET")

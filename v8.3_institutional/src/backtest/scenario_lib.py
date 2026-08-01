@@ -3,9 +3,10 @@ v7.5 ScenarioLibrary — 三段极端行情压力测试库
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §4.3
 """
 
-import numpy as np
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
+
+import numpy as np
 
 
 @dataclass

@@ -4,8 +4,8 @@
 from __future__ import annotations
 
 import os
-import sys
 import shutil
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -173,8 +173,8 @@ def test_full_pipeline_end_to_end():
     _reset_test_dirs()
     os.environ["DEEPSEEK_API_KEY"] = "dummy"
     try:
-        from ai_decision.orchestrator import run_decision
         from ai_decision.execution_bridge import execute_decision, get_grayscale_summary
+        from ai_decision.orchestrator import run_decision
 
         # Step 1: 生成决策
         dec = run_decision("600519", mode="paper")

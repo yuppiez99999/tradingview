@@ -100,8 +100,12 @@ def verify_t57_broker_adapters() -> Dict[str, Any]:
         print("\n[1/4] 订单生成准确率 (dry-run 模式)")
         try:
             from utils.execution.broker_adapters import (
-                ThsBrokerAdapter, XueqiuBrokerAdapter, BrokerOrder,
-                OrderSide, OrderType, OrderStatus,
+                BrokerOrder,
+                OrderSide,
+                OrderStatus,
+                OrderType,
+                ThsBrokerAdapter,
+                XueqiuBrokerAdapter,
             )
 
             # 构造 10 笔测试订单 (BrokerOrder 不接受 order_id, 自动生成)
@@ -457,10 +461,13 @@ def verify_t58_mlops() -> Dict[str, Any]:
         # --------------------------------------------------------
         print("\n[2/5] A/B 测试流量分割可重现性")
         try:
-            from utils.alpha.ab_testing import (
-                ABTestFramework, ABTestConfig, SplitStrategy,
-            )
             from unittest.mock import MagicMock
+
+            from utils.alpha.ab_testing import (
+                ABTestConfig,
+                ABTestFramework,
+                SplitStrategy,
+            )
 
             framework = ABTestFramework(
                 results_dir=str(Path(tmpdir) / "ab_tests"),
@@ -503,8 +510,9 @@ def verify_t58_mlops() -> Dict[str, Any]:
         # --------------------------------------------------------
         print("\n[3/5] 漂移检测告警准确率")
         try:
-            from utils.alpha.drift_monitor import DriftMonitor
             from unittest.mock import MagicMock
+
+            from utils.alpha.drift_monitor import DriftMonitor
 
             monitor = DriftMonitor(
                 model_name="v9_lgb_test",
@@ -554,10 +562,12 @@ def verify_t58_mlops() -> Dict[str, Any]:
         # --------------------------------------------------------
         print("\n[4/5] 自动重训练触发正确性")
         try:
-            from utils.alpha.auto_retrain_scheduler import (
-                AutoRetrainScheduler, RetrainTrigger,
-            )
             from unittest.mock import MagicMock
+
+            from utils.alpha.auto_retrain_scheduler import (
+                AutoRetrainScheduler,
+                RetrainTrigger,
+            )
 
             scheduler = AutoRetrainScheduler(
                 config={

@@ -29,11 +29,11 @@ def main() -> int:
     print("=" * 70)
 
     try:
-        from utils.alpha.strategy_evaluator import StrategyEvaluator
         from utils.alpha.shadow_account_adapter import (
-            ShadowAccountAdapter,
             InsufficientReturnsError,
+            ShadowAccountAdapter,
         )
+        from utils.alpha.strategy_evaluator import StrategyEvaluator
     except ImportError as e:
         print(f"[FAIL] 导入失败: {e}")
         return 1

@@ -15,14 +15,15 @@
 python five_factor_model.py
 """
 
+import logging
 import os
 import sys
-import yaml
+from pathlib import Path
+from typing import Dict, Optional
+
 import numpy as np
 import pandas as pd
-from typing import Dict, Optional
-import logging
-from pathlib import Path
+import yaml
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -435,7 +436,7 @@ def main():
             _project_root = Path(__file__).resolve().parent.parent.parent.parent
             if str(_project_root) not in sys.path:
                 sys.path.insert(0, str(_project_root))
-            from utils.config_manager import get_settings_config, get_portfolio_config
+            from utils.config_manager import get_portfolio_config, get_settings_config
 
             settings = get_settings_config()
             portfolio = get_portfolio_config()

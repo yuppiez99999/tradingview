@@ -17,7 +17,6 @@ import os
 from datetime import datetime
 from typing import Dict, List, Optional
 
-
 # ============================================================
 # 康波周期阶段定义（借鉴 Vibe-Trading macro_strategy_forum 多维度框架）
 # ============================================================

@@ -57,16 +57,15 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from utils.alpha.root_cause import (  # noqa: E402
     ACTION_MANUAL,
-    FixSuggestion,
     LAYER_CODE,
     LAYER_OPS,
-    RootCause,
     SEVERITY_CRITICAL,
     SEVERITY_HIGH,
     SEVERITY_LOW,
     SEVERITY_MEDIUM,
+    FixSuggestion,
+    RootCause,
 )
-
 
 # ============================================================
 # 常量

@@ -6,6 +6,7 @@
 import numpy as np
 from risk_control_system import MultiLevelRiskControlSystem, RiskType
 
+
 def create_high_risk_data():
     """创建高风险测试数据"""
     return {
@@ -93,14 +94,14 @@ def create_medium_risk_data():
 def test_risk_scenarios():
     """测试不同风险场景"""
     print("开始测试高风险场景...")
-    
+
     # 创建风险控制系统
     risk_system = MultiLevelRiskControlSystem()
-    
+
     # 创建测试数据
     high_risk_data = create_high_risk_data()
     medium_risk_data = create_medium_risk_data()
-    
+
     # 测试高风险场景
     print("\n=== 高风险场景测试 ===")
     overall_score, individual_scores = risk_system.calculate_overall_risk(high_risk_data)
@@ -109,7 +110,7 @@ def test_risk_scenarios():
     print("各维度风险分数:")
     for risk_type, score in individual_scores.items():
         print(f"  {risk_type}: {score:.3f}")
-    
+
     # 测试风险告警
     alerts = risk_system.generate_all_alerts(high_risk_data)
     print(f"\n告警数量: {len(alerts)}")
@@ -117,7 +118,7 @@ def test_risk_scenarios():
         print(f"  {alert.risk_type.value}: {alert.risk_level.value} ({alert.risk_score:.3f})")
         print(f"    描述: {alert.description}")
         print(f"    建议: {alert.suggested_action}")
-    
+
     # 测试中等风险场景
     print("\n=== 中等风险场景测试 ===")
     overall_score_medium, individual_scores_medium = risk_system.calculate_overall_risk(medium_risk_data)
@@ -126,14 +127,14 @@ def test_risk_scenarios():
     print("各维度风险分数:")
     for risk_type, score in individual_scores_medium.items():
         print(f"  {risk_type}: {score:.3f}")
-    
+
     # 测试场景对比
     print("\n=== 场景对比分析 ===")
     print("高风险 vs 中等风险:")
     for risk_type in individual_scores.keys():
         diff = individual_scores[risk_type] - individual_scores_medium[risk_type]
         print(f"  {risk_type}: 高风险比中等风险高 {diff:.3f}")
-    
+
     # 测试风险趋势分析
     print("\n=== 风险趋势分析 ===")
     historical_data = [high_risk_data, medium_risk_data, high_risk_data, medium_risk_data]
@@ -145,16 +146,16 @@ def test_risk_scenarios():
     print(f"变化率: {trend_analysis['change_rate']:.3f}")
     print(f"峰值风险: {trend_analysis['peak_risk_score']:.3f}")
     print(f"谷值风险: {trend_analysis['trough_risk_score']:.3f}")
-    
+
     # 测试风险建议
     print("\n=== 风险建议 ===")
     high_risk_recommendations = risk_system.get_risk_recommendations(high_risk_data)
     medium_risk_recommendations = risk_system.get_risk_recommendations(medium_risk_data)
-    
+
     print("高风险场景建议:")
     for i, rec in enumerate(high_risk_recommendations, 1):
         print(f"  {i}. {rec}")
-    
+
     print("\n中等风险场景建议:")
     for i, rec in enumerate(medium_risk_recommendations, 1):
         print(f"  {i}. {rec}")
@@ -162,36 +163,36 @@ def test_risk_scenarios():
 def test_control_thresholds():
     """测试风险控制阈值调整"""
     print("\n=== 测试风险控制阈值调整 ===")
-    
+
     # 创建风险控制系统
     risk_system = MultiLevelRiskControlSystem()
-    
+
     # 创建中等风险数据
     data = create_medium_risk_data()
-    
+
     # 初始风险计算
     overall_score, _ = risk_system.calculate_overall_risk(data)
     print(f"初始风险分数: {overall_score:.3f}")
-    
+
     # 调整市场风险阈值
     risk_system.update_control_thresholds(
-        RiskType.MARKET, 
+        RiskType.MARKET,
         {'medium': 0.4, 'high': 0.7, 'critical': 0.85}
     )
-    
+
     # 重新计算风险
     overall_score, _ = risk_system.calculate_overall_risk(data)
     print(f"调整阈值后风险分数: {overall_score:.3f}")
     print(f"风险等级: {risk_system._get_overall_risk_level(overall_score)}")
-    
+
     # 测试启用/禁用控制
     print("\n测试启用/禁用风险控制模块...")
-    
+
     # 禁用情绪风险控制
     risk_system.disable_control(RiskType.EMOTIONAL)
     overall_score, individual_scores = risk_system.calculate_overall_risk(data)
     print(f"禁用情绪风险后整体风险分数: {overall_score:.3f}")
-    
+
     # 启用情绪风险控制
     risk_system.enable_control(RiskType.EMOTIONAL)
     overall_score, _individual_scores = risk_system.calculate_overall_risk(data)

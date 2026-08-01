@@ -43,8 +43,8 @@ print("=" * 70)
 print("验证2: factor_library build_all_factors 18 因子")
 print("=" * 70)
 try:
-    import pandas as pd
     import numpy as np
+    import pandas as pd
     from alpha.factor_library import FactorLibrary
     fl = FactorLibrary()
     # 构造 3 个标的的模拟价格数据（足够长度计算所有因子）

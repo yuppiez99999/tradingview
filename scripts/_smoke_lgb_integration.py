@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """快速烟雾测试: 模拟 daily_workflow.py 调用路径验证 LGB 信号接入"""
-import sys
 import json
+import sys
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parents[1]

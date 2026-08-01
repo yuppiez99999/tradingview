@@ -13,24 +13,24 @@
 """
 import os
 import time
+
 import pytest
 
 from utils.config_manager import (
-    ConfigManager,
     _NAMED_CONFIGS,
+    ConfigManager,
+    clear_config_cache,
+    get_backtest_config,
     get_config,
+    get_config_source,
+    get_execution_config,
     get_kill_switch_config,
     get_portfolio_config,
-    get_settings_config,
-    get_execution_config,
-    get_backtest_config,
     get_risk_budget_config,
+    get_settings_config,
     get_stop_loss_config,
     list_available_configs,
-    clear_config_cache,
-    get_config_source,
 )
-
 
 # ============================================================
 # Fixtures

@@ -23,7 +23,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from scipy.cluster.hierarchy import linkage, dendrogram
+from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 
 logger = logging.getLogger("v76.portfolio.hrp")

@@ -32,18 +32,17 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.data.data_layer import (
+    _DEFAULT_FALLBACK_CHAIN,
+    PROVIDER_LEVELS,
     AllSourcesFailedError,
     DataLayer,
     DataLayerError,
     DataQualityBlockedError,
     FallbackRecord,
-    PROVIDER_LEVELS,
     QueryResult,
-    _DEFAULT_FALLBACK_CHAIN,
     get_data_layer,
     reset_data_layer_singleton,
 )
-
 
 # ============================================================
 # Fixtures

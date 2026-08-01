@@ -31,11 +31,11 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum, auto
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import yaml  # type: ignore[import-untyped]
@@ -267,6 +267,7 @@ class VaRBacktester:
         LR_POF = -2 * ln( (1-p)^{n-x} * p^x / (1-x/n)^{n-x} * (x/n)^x )
         """
         import math
+
         from scipy.stats import chi2
 
         if x in (0, n):
@@ -313,6 +314,7 @@ class VaRBacktester:
         pi2 = (n01 + n11) / max(n00 + n01 + n10 + n11, eps)
 
         import math
+
         from scipy.stats import chi2
 
         lr_ind = -2 * math.log(

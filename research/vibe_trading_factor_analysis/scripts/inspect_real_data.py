@@ -56,6 +56,7 @@ print()
 # 4. 检查是否有现成的数据加载器
 print("\n[4] 数据加载器接口检查")
 import sys
+
 sys.path.insert(0, str(PROJECT))
 try:
     from utils.data_provider import MarketDataProvider

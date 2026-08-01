@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """T18: ParameterAdjustmentGovernor 单元测试 — 防 chasing 机制."""
-import pytest
 from datetime import datetime, timedelta
 
+import pytest
+
 from utils.param_adjustment_governor import (
-    ParameterAdjustmentGovernor,
-    AdjustmentRequest,
     AdjustmentReason,
+    AdjustmentRequest,
+    ParameterAdjustmentGovernor,
     RejectionCode,
 )
-
 
 # ============================================================
 # Fixtures

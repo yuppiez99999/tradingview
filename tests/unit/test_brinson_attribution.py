@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -34,49 +34,48 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.attribution.brinson_attribution import (
-    # 常量
-    FLAG_NAME,
+    ABNORMAL_RETURN_THRESHOLD,
     DEFAULT_CONFIG_NAME,
+    DEFAULT_MIN_SECTORS,
     DEFAULT_PRIMARY_BENCHMARK,
     DEFAULT_SECONDARY_BENCHMARK,
     DEFAULT_SECTORS,
-    SECTOR_NAMES,
     DEFAULT_WEIGHT_SUM_TOLERANCE,
-    DEFAULT_MIN_SECTORS,
-    ZERO_WEIGHT_EPSILON,
-    ZERO_RETURN_EPSILON,
-    ABNORMAL_RETURN_THRESHOLD,
-    # 状态码
-    STATUS_OK,
+    # 常量
+    FLAG_NAME,
+    SECTOR_NAMES,
+    STATUS_EMPTY_INPUT,
     STATUS_FEATURE_FLAG_DISABLED,
     STATUS_INSUFFICIENT_DATA,
+    # 状态码
+    STATUS_OK,
     STATUS_SECTOR_MISMATCH,
-    STATUS_EMPTY_INPUT,
+    ZERO_RETURN_EPSILON,
+    ZERO_WEIGHT_EPSILON,
     # 异常
     BrinsonAttributionError,
+    # 主类
+    BrinsonAttributionManager,
+    BrinsonResult,
     InsufficientDataError,
-    SectorMismatchError,
-    WeightNotNormalizedError,
     InvalidInputError,
     # 数据类
     SectorAttribution,
-    BrinsonResult,
-    # 核心算法函数
-    compute_allocation_effect,
-    compute_selection_effect,
-    compute_interaction_effect,
-    compute_total_return,
-    validate_weights,
+    SectorMismatchError,
+    WeightNotNormalizedError,
     align_sectors,
     attribute_brinson,
-    # 主类
-    BrinsonAttributionManager,
+    attribute_brinson_simple,
+    # 核心算法函数
+    compute_allocation_effect,
+    compute_interaction_effect,
+    compute_selection_effect,
+    compute_total_return,
+    create_default_manager,
     # 便捷函数
     is_brinson_attribution_enabled,
-    attribute_brinson_simple,
-    create_default_manager,
+    validate_weights,
 )
-
 
 # ============================================================
 # 1. 常量定义测试

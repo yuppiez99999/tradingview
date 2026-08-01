@@ -11,8 +11,8 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from reporting.pnl_calculator import (
-    calculate_volatility,
     calculate_max_drawdown,
+    calculate_volatility,
     count_stop_loss_status,
 )
 from reporting.price_fetcher import assess_data_source_health

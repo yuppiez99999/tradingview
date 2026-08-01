@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-import sys
 import os
+import sys
+
 base = os.path.abspath(r"..\..\15_每日工作流")
 print('cwd=', os.getcwd())
 print('insert=', base)
@@ -19,4 +20,5 @@ print("THS:", _fetch_ths_coal_price())
 print("WEB:", _web_search_fallback_coal_price())
 
 from llm_client import test_connection
+
 print("LLM:", test_connection())

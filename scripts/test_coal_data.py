@@ -5,12 +5,12 @@ import sys
 sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")
 
 from morning_market_fetcher import (
-    _fetch_sina_coal_price,
-    _fetch_ths_coal_price,
-    _web_search_fallback_coal_price,
     _fetch_sina_coal_inventory,
+    _fetch_sina_coal_price,
     _fetch_ths_coal_inventory,
+    _fetch_ths_coal_price,
     _web_search_fallback_coal,
+    _web_search_fallback_coal_price,
 )
 
 print("=== 测试动力煤价格 ===")

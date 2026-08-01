@@ -10,11 +10,12 @@
 
 from __future__ import annotations
 
-import time
 import math
-import numpy as np
-from typing import Optional, List, Dict
+import time
 from copy import deepcopy
+from typing import Dict, List, Optional
+
+import numpy as np
 
 
 class DynamicPositionManager:

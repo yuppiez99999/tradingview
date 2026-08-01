@@ -12,14 +12,15 @@
 使用:
     python annualized_return_forecast.py
 """
+import json
+import logging
 import os
 import sys
-import json
-import numpy as np
-import pandas as pd
 from datetime import datetime
 from typing import Dict
-import logging
+
+import numpy as np
+import pandas as pd
 
 # 统一成本模型（全系统唯一成本来源，禁止本地硬编码）
 from utils.cost_model import get_cost_model
@@ -394,7 +395,7 @@ def forecast_annualized_return() -> dict:
         if len(prices) < 60:
             logger.warning(f"  {name} ({code}) 数据不足: {len(prices)} 天, 跳过")
             continue
-        
+
         # 检查数据是否过期（超过1年）
         last_date = prices.index[-1]
         days_since_last = (datetime.now() - last_date).days

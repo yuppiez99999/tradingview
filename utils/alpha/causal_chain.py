@@ -57,13 +57,12 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.alpha.root_cause import (  # noqa: E402
-    CausalChain,
     LAYER_CODE,
     LAYER_OPS,
     LAYER_STRATEGY,
+    CausalChain,
     RootCause,
 )
-
 
 # ============================================================
 # 常量

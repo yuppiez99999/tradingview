@@ -18,14 +18,15 @@
 5. 反馈优化层：基于历史表现的持续优化
 """
 
-import numpy as np
+from collections import deque
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
-from collections import deque
+
+import numpy as np
 
 try:
-    from utils.logger import get_logger
     from utils.data_provider import get_market_data, get_sentiment_data, get_technical_indicators  # noqa: F401
+    from utils.logger import get_logger
     from utils.ml_models import MarketPredictor  # noqa: F401
 
     logger = get_logger("smart_hedge_trigger")

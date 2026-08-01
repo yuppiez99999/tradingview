@@ -15,14 +15,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from utils.research_distiller import DistilledSignal, ResearchDistiller
 from utils.signal_fusion import SignalFusionEngine
-from utils.research_distiller import ResearchDistiller, DistilledSignal
-
 
 # ============================================================
 # E2E 测试组 1: 真实端到端链路

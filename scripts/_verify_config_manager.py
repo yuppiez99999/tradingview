@@ -118,8 +118,10 @@ def test_typed_accessors() -> bool:
     print("=" * 70)
 
     from utils.config_manager import (
-        get_kill_switch_config, get_portfolio_config,
-        get_settings_config, get_execution_config
+        get_execution_config,
+        get_kill_switch_config,
+        get_portfolio_config,
+        get_settings_config,
     )
 
     # kill_switch 配置
@@ -232,8 +234,8 @@ def test_kill_switch_integration() -> bool:
     print("T6: kill_switch.py 迁移后集成")
     print("=" * 70)
 
-    from utils.kill_switch import KillSwitch
     from utils.config_manager import clear_config_cache
+    from utils.kill_switch import KillSwitch
 
     # 清空缓存
     clear_config_cache()

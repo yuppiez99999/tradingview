@@ -8,14 +8,14 @@ WonderTrader 风格对冲策略模板
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
 from dataclasses import dataclass
 from datetime import datetime
-import logging
+from typing import Dict, List, Optional
 
-from .wt_structs import TickData, BarData
 from .wt_contracts_manager import get_contracts_manager
+from .wt_structs import BarData, TickData
 
 logger = logging.getLogger(__name__)
 

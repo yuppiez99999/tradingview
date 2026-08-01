@@ -29,11 +29,11 @@ if _PROJECT_ROOT not in sys.path:
 try:
     # 从新路径 re-export 全部公开 API
     from utils.alpha.decision_theories import (
-        TheoryDecision,
-        SorosReflexivityEngine,
+        BuffettMungerFramework,
         DalioEconomicMachine,
         FirstPrinciplesAnalyzer,
-        BuffettMungerFramework,
+        SorosReflexivityEngine,
+        TheoryDecision,
         TheoryFusionEngine,
         run_full_theory_analysis,
     )

@@ -13,12 +13,10 @@
 """
 from __future__ import annotations
 
-
 import pytest
 
 from utils.finance_agent_orchestrator import FinanceAgentOrchestrator
-from utils.signal_fusion import SignalFusionEngine, FusionSignal
-
+from utils.signal_fusion import FusionSignal, SignalFusionEngine
 
 # ============================================================
 # E2E: 真实 SignalFusion 集成

@@ -5,6 +5,7 @@
 使用键盘操作代替鼠标点击，避免坐标定位问题。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

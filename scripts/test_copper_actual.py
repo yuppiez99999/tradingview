@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
+
 sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")
 
 import json
+
 from morning_market_fetcher import _format_wind_result
 
 # 加载实际的铜数据
@@ -24,7 +26,7 @@ for key in ["kline", "inventory", "basis"]:
     print(f"  keys: {item.keys() if isinstance(item, dict) else 'N/A'}")
     print(f"  source: {item.get('source', 'N/A')}")
     print(f"  error: {item.get('error', 'N/A')}")
-    
+
     data_field = item.get("data")
     print(f"  data type: {type(data_field)}")
     if isinstance(data_field, list):
@@ -37,6 +39,6 @@ for key in ["kline", "inventory", "basis"]:
                 print(f"  first row: {rows[0]}")
     elif isinstance(data_field, dict):
         print(f"  data keys: {data_field.keys()}")
-    
+
     result = _format_wind_result(item, key)
     print(f"  _format_wind_result: {result}")

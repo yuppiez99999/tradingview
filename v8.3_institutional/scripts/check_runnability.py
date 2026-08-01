@@ -8,13 +8,13 @@ v7.5_institutional 系统可运行性全面检查 & 外部依赖清单生成
 3. 外部依赖分析 (区分 stdlib / third-party / internal)
 4. 生成 requirements.txt
 """
-import sys
 import ast
 import importlib
-from pathlib import Path
-from collections import Counter
-from typing import Dict, List, Set, Tuple
 import py_compile
+import sys
+from collections import Counter
+from pathlib import Path
+from typing import Dict, List, Set, Tuple
 
 # 配置
 BASE_DIR = Path(r"E:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional")

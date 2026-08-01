@@ -3,8 +3,8 @@
 风险管理系统完整报告验证：GTJA191 Alpha144 -> FactorModel -> 风险决策/预警输出
 """
 
-import sys
 import os
+import sys
 from datetime import datetime
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -44,8 +44,9 @@ def check_risk_manager_integration():
 
     print("[3/4] 构造含真实/本地行情的 market_data ...")
     try:
-        import pandas as pd
         import numpy as np
+        import pandas as pd
+
         from utils.data_provider import get_historical_data
 
         codes = ["000001", "000002", "600519"]

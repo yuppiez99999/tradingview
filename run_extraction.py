@@ -2,6 +2,7 @@
 """Run the phase extraction script."""
 
 import sys
+
 sys.path.insert(0, '.')
 
 from extract_phases import main

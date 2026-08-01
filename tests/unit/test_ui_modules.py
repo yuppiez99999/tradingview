@@ -31,9 +31,11 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from ui import FLAG_NAME, __version__
+from ui import data_loader as dl
+from ui import layout as layout_module
 from ui.auth import (
-    AuthConfig,
     DEFAULT_SESSION_TTL,
+    AuthConfig,
     authenticate,
     check_session_valid,
     hash_password,
@@ -43,10 +45,9 @@ from ui.auth import (
     load_auth_config,
     verify_password,
 )
-from ui import data_loader as dl
 from ui.data_loader import (
-    INTRADAY_CACHE_TTL,
     DEFAULT_CACHE_TTL,
+    INTRADAY_CACHE_TTL,
     file_exists,
     find_latest_file,
     format_date,
@@ -61,7 +62,6 @@ from ui.data_loader import (
     resolve_path,
     today_str,
 )
-from ui import layout as layout_module
 from ui.layout import (
     COLOR_CRITICAL,
     COLOR_MUTED,
@@ -73,7 +73,6 @@ from ui.layout import (
     get_status_from_value,
 )
 from ui.pages import PAGE_REGISTRY
-
 
 # ============================================================
 # Fixtures

@@ -22,13 +22,13 @@ AI 自动决策引擎 v5.8 — 量化交易系统 AI 决策模块 (多模型场�
     decisions = engine.make_decisions(market_data, portfolio_data, scene="rebalancing_analysis")
 """
 
-import sys
 import json
 import logging
-from typing import Dict, List, Any, Optional
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # 添加当前目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))

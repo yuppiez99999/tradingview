@@ -27,8 +27,8 @@
   sinajs.cn, sina.com.cn, 127.0.0.1, localhost, mcp.wind.com.cn
 """
 
-import os
 import logging
+import os
 from typing import Optional
 
 import requests

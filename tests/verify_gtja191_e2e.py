@@ -3,8 +3,8 @@
 端到端验证 GTJA191 Alpha144 在 28-终极量化交易系统7.1 中的真实数据路径。
 """
 
-import sys
 import os
+import sys
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
@@ -64,8 +64,8 @@ def check_kronos_real_data():
 def run_factor_evaluation(df, label="data"):
     print(f"[3/3] 使用 {label} 运行 GTJA191 + FactorModel 端到端评估...")
     try:
-        from utils.gtja191_factors import GTJA191Factors
         from utils.factor_model import FactorModel
+        from utils.gtja191_factors import GTJA191Factors
 
         factors = GTJA191Factors(lookback=20)
         alpha144 = factors.alpha144(df)

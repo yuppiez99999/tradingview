@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """检查本地训练能力"""
-from pathlib import Path
 import time
+from pathlib import Path
 
 print("=" * 70)
 print("本地训练能力检查")

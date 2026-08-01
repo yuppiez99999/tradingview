@@ -68,7 +68,10 @@ class TestThsBrokerAdapterDryRun(unittest.TestCase):
     def test_dry_run_submit_order(self) -> None:
         """dry-run 模式提交订单应记录但不实际下单."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerOrder, OrderSide, OrderType,
+            BrokerOrder,
+            OrderSide,
+            OrderType,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter(self.config)
         adapter.connect()
@@ -103,8 +106,11 @@ class TestThsBrokerAdapterDryRun(unittest.TestCase):
     def test_not_connected_raises(self) -> None:
         """未连接就下单应抛 BrokerNotConnectedError."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerNotConnectedError,
-            BrokerOrder, OrderSide, OrderType,
+            BrokerNotConnectedError,
+            BrokerOrder,
+            OrderSide,
+            OrderType,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter(self.config)
         # 未连接
@@ -118,7 +124,10 @@ class TestThsBrokerAdapterDryRun(unittest.TestCase):
     def test_audit_log_written(self) -> None:
         """审计日志应被写入 JSONL 文件."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerOrder, OrderSide, OrderType,
+            BrokerOrder,
+            OrderSide,
+            OrderType,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter(self.config)
         adapter.connect()
@@ -161,7 +170,10 @@ class TestXueqiuBrokerAdapterDryRun(unittest.TestCase):
 
     def test_dry_run_submit_order(self) -> None:
         from utils.execution.broker_adapters import (
-            XueqiuBrokerAdapter, BrokerOrder, OrderSide, OrderType,
+            BrokerOrder,
+            OrderSide,
+            OrderType,
+            XueqiuBrokerAdapter,
         )
         adapter = XueqiuBrokerAdapter(self.config)
         adapter.connect()
@@ -175,7 +187,11 @@ class TestXueqiuBrokerAdapterDryRun(unittest.TestCase):
     def test_broker_mode_requires_broker_param(self) -> None:
         """broker 模式必须配置 broker 参数."""
         from utils.execution.broker_adapters import (
-            XueqiuBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            XueqiuBrokerAdapter,
         )
         config = dict(self.config)
         config["mode"] = "broker"
@@ -201,14 +217,16 @@ class TestBrokerFactory(unittest.TestCase):
 
     def test_create_ths(self) -> None:
         from utils.execution.broker_adapters import (
-            create_broker_adapter, ThsBrokerAdapter,
+            ThsBrokerAdapter,
+            create_broker_adapter,
         )
         adapter = create_broker_adapter("ths", {"live": False})
         self.assertIsInstance(adapter, ThsBrokerAdapter)
 
     def test_create_xueqiu(self) -> None:
         from utils.execution.broker_adapters import (
-            create_broker_adapter, XueqiuBrokerAdapter,
+            XueqiuBrokerAdapter,
+            create_broker_adapter,
         )
         adapter = create_broker_adapter("xueqiu", {"live": False})
         self.assertIsInstance(adapter, XueqiuBrokerAdapter)
@@ -228,8 +246,9 @@ class TestBrokerFactory(unittest.TestCase):
     def test_register_custom_adapter(self) -> None:
         """测试动态注册 adapter."""
         from utils.execution.broker_adapters import (
-            register_broker_adapter, list_supported_brokers,
             _BaseLiveAdapter,
+            list_supported_brokers,
+            register_broker_adapter,
         )
         # 创建自定义 adapter
         class CustomAdapter(_BaseLiveAdapter):
@@ -257,7 +276,8 @@ class TestBrokerHealthTracker(unittest.TestCase):
 
     def test_initial_state_unknown(self) -> None:
         from utils.execution.broker_failover import (
-            BrokerHealthTracker, BrokerHealthState,
+            BrokerHealthState,
+            BrokerHealthTracker,
         )
         tracker = BrokerHealthTracker("test")
         self.assertEqual(tracker.state, BrokerHealthState.UNKNOWN)
@@ -265,7 +285,8 @@ class TestBrokerHealthTracker(unittest.TestCase):
 
     def test_record_success_becomes_healthy(self) -> None:
         from utils.execution.broker_failover import (
-            BrokerHealthTracker, BrokerHealthState,
+            BrokerHealthState,
+            BrokerHealthTracker,
         )
         tracker = BrokerHealthTracker("test", window_size=5)
         for _ in range(5):
@@ -275,7 +296,8 @@ class TestBrokerHealthTracker(unittest.TestCase):
 
     def test_record_failure_becomes_unhealthy(self) -> None:
         from utils.execution.broker_failover import (
-            BrokerHealthTracker, BrokerHealthState,
+            BrokerHealthState,
+            BrokerHealthTracker,
         )
         tracker = BrokerHealthTracker(
             "test", window_size=10,
@@ -356,14 +378,16 @@ class TestBrokerFailoverManager(unittest.TestCase):
 
     def test_no_brokers_raises(self) -> None:
         from utils.execution.broker_failover import (
-            BrokerFailoverManager, BrokerConfigError,
+            BrokerConfigError,
+            BrokerFailoverManager,
         )
         with self.assertRaises(BrokerConfigError):
             BrokerFailoverManager({"brokers": []})
 
     def test_invalid_broker_type_raises(self) -> None:
         from utils.execution.broker_failover import (
-            BrokerFailoverManager, BrokerConfigError,
+            BrokerConfigError,
+            BrokerFailoverManager,
         )
         config = {
             "brokers": [{
@@ -488,7 +512,8 @@ class TestBrokerFailoverGlobal(unittest.TestCase):
 
     def test_initialize_and_get(self) -> None:
         from utils.execution.broker_failover import (
-            initialize_failover_manager, get_failover_manager,
+            get_failover_manager,
+            initialize_failover_manager,
         )
         config = {
             "brokers": [
@@ -503,7 +528,8 @@ class TestBrokerFailoverGlobal(unittest.TestCase):
 
     def test_get_without_init_raises(self) -> None:
         from utils.execution.broker_failover import (
-            get_failover_manager, shutdown_failover_manager,
+            get_failover_manager,
+            shutdown_failover_manager,
         )
         shutdown_failover_manager()
         with self.assertRaises(RuntimeError):
@@ -565,7 +591,11 @@ class TestThsLiveModeMocked(unittest.TestCase):
     def test_live_submit_order_success(self) -> None:
         """实盘下单成功."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter(self.config)
         adapter._do_connect = lambda: True  # type: ignore
@@ -587,7 +617,11 @@ class TestThsLiveModeMocked(unittest.TestCase):
     def test_live_submit_order_exception(self) -> None:
         """实盘下单异常应被捕获."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter(self.config)
         adapter._do_connect = lambda: True  # type: ignore
@@ -753,7 +787,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
     def test_get_positions_not_connected_raises(self) -> None:
         """未连接查询持仓应抛异常."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerNotConnectedError,
+            BrokerNotConnectedError,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter(self.config)
         with self.assertRaises(BrokerNotConnectedError):
@@ -762,7 +797,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
     def test_get_account_info_not_connected_raises(self) -> None:
         """未连接查询账户应抛异常."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerNotConnectedError,
+            BrokerNotConnectedError,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter(self.config)
         with self.assertRaises(BrokerNotConnectedError):
@@ -771,7 +807,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
     def test_get_market_data_not_connected_raises(self) -> None:
         """未连接获取行情应抛异常."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerNotConnectedError,
+            BrokerNotConnectedError,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter(self.config)
         with self.assertRaises(BrokerNotConnectedError):
@@ -780,7 +817,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
     def test_cancel_order_not_connected_raises(self) -> None:
         """未连接撤单应抛异常."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerNotConnectedError,
+            BrokerNotConnectedError,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter(self.config)
         with self.assertRaises(BrokerNotConnectedError):
@@ -856,7 +894,11 @@ class TestThsIfindConnectPaths(unittest.TestCase):
     def test_do_submit_order_ifind(self) -> None:
         """iFinD 模式下单."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter({
             "live": True, "mode": "ifind", "account": "acc",
@@ -873,7 +915,11 @@ class TestThsIfindConnectPaths(unittest.TestCase):
     def test_do_submit_order_gui(self) -> None:
         """GUI 模式下单."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter({
             "live": True, "mode": "gui", "client_path": "C:\\ths\\client.exe",
@@ -890,7 +936,11 @@ class TestThsIfindConnectPaths(unittest.TestCase):
     def test_do_submit_order_no_client(self) -> None:
         """未连接 api_client/gui_client 时下单应被拒绝."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter({
             "live": True, "mode": "ifind", "audit_log_dir": self.tmpdir,
@@ -1031,7 +1081,11 @@ class TestXueqiuLiveModeMocked(unittest.TestCase):
     def test_submit_order_portfolio_mode(self) -> None:
         """组合模式下单."""
         from utils.execution.broker_adapters import (
-            XueqiuBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            XueqiuBrokerAdapter,
         )
         adapter = XueqiuBrokerAdapter({
             "live": True, "mode": "portfolio", "cookies": "test_cookies",
@@ -1048,7 +1102,11 @@ class TestXueqiuLiveModeMocked(unittest.TestCase):
     def test_submit_order_broker_mode(self) -> None:
         """券商模式下单."""
         from utils.execution.broker_adapters import (
-            XueqiuBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            XueqiuBrokerAdapter,
         )
         adapter = XueqiuBrokerAdapter({
             "live": True, "mode": "broker", "cookies": "test_cookies",
@@ -1065,7 +1123,11 @@ class TestXueqiuLiveModeMocked(unittest.TestCase):
     def test_submit_order_no_session(self) -> None:
         """未建立 session 时下单应被拒绝."""
         from utils.execution.broker_adapters import (
-            XueqiuBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            XueqiuBrokerAdapter,
         )
         adapter = XueqiuBrokerAdapter({
             "live": True, "mode": "portfolio", "cookies": "test_cookies",
@@ -1081,7 +1143,11 @@ class TestXueqiuLiveModeMocked(unittest.TestCase):
     def test_submit_order_unknown_mode(self) -> None:
         """未知 mode 应被拒绝."""
         from utils.execution.broker_adapters import (
-            XueqiuBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            XueqiuBrokerAdapter,
         )
         adapter = XueqiuBrokerAdapter({
             "live": True, "mode": "unknown", "cookies": "test_cookies",
@@ -1194,7 +1260,9 @@ class TestPreTradeCheck(unittest.TestCase):
         })
         # dry-run 模式 _pre_trade_check 总是返回 True
         from utils.execution.broker_adapters import (
-            BrokerOrder, OrderSide, OrderType,
+            BrokerOrder,
+            OrderSide,
+            OrderType,
         )
         order = BrokerOrder(
             symbol="000001", side=OrderSide.BUY, order_type=OrderType.LIMIT,
@@ -1205,7 +1273,11 @@ class TestPreTradeCheck(unittest.TestCase):
     def test_daily_limit_exceeded(self) -> None:
         """超出单日限额应被拒绝."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter({
             "live": True, "mode": "ifind", "account": "acc",
@@ -1223,7 +1295,11 @@ class TestPreTradeCheck(unittest.TestCase):
     def test_circuit_breaker_triggered(self) -> None:
         """熔断状态应拒绝下单."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerOrder, OrderSide, OrderType, OrderStatus,
+            BrokerOrder,
+            OrderSide,
+            OrderStatus,
+            OrderType,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter({
             "live": True, "mode": "ifind", "account": "acc",
@@ -1243,7 +1319,10 @@ class TestPreTradeCheck(unittest.TestCase):
     def test_daily_limit_resets_next_day(self) -> None:
         """日交易额应跨日重置."""
         from utils.execution.broker_adapters import (
-            ThsBrokerAdapter, BrokerOrder, OrderSide, OrderType,
+            BrokerOrder,
+            OrderSide,
+            OrderType,
+            ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter({
             "live": True, "mode": "ifind", "account": "acc",
@@ -1270,7 +1349,8 @@ class TestFactoryEdgeCases(unittest.TestCase):
     def test_create_with_none_config(self) -> None:
         """config=None 应使用默认空字典."""
         from utils.execution.broker_adapters import (
-            create_broker_adapter, ThsBrokerAdapter,
+            ThsBrokerAdapter,
+            create_broker_adapter,
         )
         adapter = create_broker_adapter("ths", None)
         self.assertIsInstance(adapter, ThsBrokerAdapter)
@@ -1278,7 +1358,8 @@ class TestFactoryEdgeCases(unittest.TestCase):
     def test_create_uppercase_type(self) -> None:
         """broker_type 大写应能识别."""
         from utils.execution.broker_adapters import (
-            create_broker_adapter, ThsBrokerAdapter,
+            ThsBrokerAdapter,
+            create_broker_adapter,
         )
         adapter = create_broker_adapter("THS", {"live": False})
         self.assertIsInstance(adapter, ThsBrokerAdapter)

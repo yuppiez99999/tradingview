@@ -782,7 +782,7 @@ class BacktestReplay:
     ) -> Dict[str, Any]:
         """用 FastBacktest 计算绩效指标 (复用, 不重写)"""
         try:
-            from utils.alpha.fast_backtest import FastBacktest, BacktestResult
+            from utils.alpha.fast_backtest import BacktestResult, FastBacktest
             if len(returns) < MIN_TRADING_DAYS:
                 return self._empty_metrics()
             bt = FastBacktest()

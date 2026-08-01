@@ -107,10 +107,10 @@ def test_n2_strategy_evaluator():
 def test_n3_ic_recorder():
     """N3: 测试 IC 记录器 (scripts/ic_recorder.py)"""
     try:
-        from scripts.ic_recorder import compute_ic_from_signals, record_daily_ic, load_ic_store
+        from scripts.ic_recorder import compute_ic_from_signals, load_ic_store, record_daily_ic
     except ImportError:
         try:
-            from ic_recorder import compute_ic_from_signals, record_daily_ic, load_ic_store
+            from ic_recorder import compute_ic_from_signals, load_ic_store, record_daily_ic
         except ImportError:
             print("⚠ N3 ICRecorder 未导入 (尚未实施), 跳过")
             return
@@ -134,10 +134,10 @@ def test_n3_ic_recorder():
 def test_n4_adaptive_optimize():
     """N4: 验证 adaptive_optimize (scripts/adaptive_optimize.py)"""
     try:
-        from scripts.adaptive_optimize import adaptive_optimize, ADAPTIVE_OPTIMIZE_CONFIG
+        from scripts.adaptive_optimize import ADAPTIVE_OPTIMIZE_CONFIG, adaptive_optimize
     except ImportError:
         try:
-            from adaptive_optimize import adaptive_optimize, ADAPTIVE_OPTIMIZE_CONFIG  # noqa: F401
+            from adaptive_optimize import ADAPTIVE_OPTIMIZE_CONFIG, adaptive_optimize  # noqa: F401
         except ImportError:
             print("⚠ N4 adaptive_optimize 未导入 (尚未实施), 跳过")
             return

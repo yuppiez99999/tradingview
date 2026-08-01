@@ -28,11 +28,23 @@ try:
         FlagError,
         FlagNotFoundError,
         FlagPermissionError,
-        is_enabled as flag_is_enabled,
-        enable as flag_enable,
-        disable as flag_disable,
-        list_flags as flag_list,
+    )
+    from utils.infra.feature_flags import (
         audit_trail as flag_audit_trail,
+    )
+    from utils.infra.feature_flags import (
+        disable as flag_disable,
+    )
+    from utils.infra.feature_flags import (
+        enable as flag_enable,
+    )
+    from utils.infra.feature_flags import (
+        is_enabled as flag_is_enabled,
+    )
+    from utils.infra.feature_flags import (
+        list_flags as flag_list,
+    )
+    from utils.infra.feature_flags import (
         reload as flag_reload,
     )
 except ImportError:  # pragma: no cover
@@ -43,63 +55,63 @@ except ImportError:  # pragma: no cover
 # 原有模块 (v7.5 — 严禁删除, V9 基线依赖)
 # ============================================================
 # 原有模块
-from .etf_flow_monitor import ETFRealTimeTracker, refresh_etf_flow_signals, get_etf_flow_summary
-from .wt_execution_algo import MinImpactExecutor, TWAPExecutor, VWAPExecutor, execute_order_with_algorithm
+from .etf_flow_monitor import ETFRealTimeTracker, get_etf_flow_summary, refresh_etf_flow_signals
 from .wt_backtest_engine import (
+    BacktestDataLoader,
     BacktestEngine,
     ETFSignalStrategy,
-    BacktestDataLoader,
-    run_etf_signal_backtest,
     compare_strategies,
+    run_etf_signal_backtest,
+)
+from .wt_contracts_manager import (
+    DEFAULT_CONTRACTS,
+    ContractsManager,
+    get_contracts_manager,
+)
+from .wt_execution_algo import MinImpactExecutor, TWAPExecutor, VWAPExecutor, execute_order_with_algorithm
+from .wt_hedge_strategy import (
+    BetaHedgeStrategy,
+    DynamicHedgeStrategy,
+    HedgeContext,
+    HedgePosition,
+    HedgeStrategy,
+    PortfolioMetrics,
+    TailRiskHedgeStrategy,
 )
 from .wt_risk_control import (
-    RiskControl,
-    StopLossManager,
     PortfolioRiskAnalyzer,
+    RiskControl,
     RiskReportGenerator,
+    StopLossManager,
     create_risk_control,
     create_stop_loss_manager,
+)
+from .wt_spread_strategy import (
+    ETF_PAIR_SPREADS,
+    SpreadBacktester,
+    SpreadCalculator,
+    SpreadContext,
+    SpreadDefinition,
+    SpreadStrategy,
 )
 
 # WonderTrader 风格新模块
 from .wt_structs import (
-    TickData,
     BarData,
-    OrderData,
-    TradeData,
-    PositionData,
     ContractData,
-    tick_to_dict,
+    OrderData,
+    PositionData,
+    TickData,
+    TradeData,
     bar_to_dict,
-)
-from .wt_contracts_manager import (
-    ContractsManager,
-    DEFAULT_CONTRACTS,
-    get_contracts_manager,
-)
-from .wt_spread_strategy import (
-    SpreadDefinition,
-    SpreadCalculator,
-    SpreadStrategy,
-    SpreadContext,
-    SpreadBacktester,
-    ETF_PAIR_SPREADS,
-)
-from .wt_hedge_strategy import (
-    HedgePosition,
-    PortfolioMetrics,
-    HedgeStrategy,
-    HedgeContext,
-    BetaHedgeStrategy,
-    TailRiskHedgeStrategy,
-    DynamicHedgeStrategy,
+    tick_to_dict,
 )
 from .wt_tick_engine import (
-    TickMatcher,
     TickBacktestEngine,
-    ticks_from_csv,
+    TickMatcher,
     bars_from_csv,
     run_tick_backtest,
+    ticks_from_csv,
 )
 
 __all__ = [

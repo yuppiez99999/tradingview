@@ -5,6 +5,7 @@
 使用更精确的坐标，确保点击期权面板的买多按钮。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

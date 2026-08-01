@@ -11,10 +11,10 @@
 
 import os
 import sys
-from pathlib import Path
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, Any
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 
 class EnvironmentType(Enum):

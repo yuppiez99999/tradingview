@@ -6,12 +6,12 @@
 集成: 28-终极量化交易系统7.1
 """
 
-import os
-import sys
 import csv
 import json
 import logging
+import os
 import re
+import sys
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -129,7 +129,7 @@ def _load_local_price(etf_code: str) -> Optional[Dict]:
         os.path.join(_CACHE_DIR, f'price_{etf_code}.SH_daily.json'),
         os.path.join(_CACHE_DIR, f'price_{etf_code}.SZ_daily.json'),
     ]
-    
+
     rows = []
     used_path = None
     for path in candidates:
@@ -159,19 +159,19 @@ def _load_local_price(etf_code: str) -> Optional[Dict]:
                 break
             except Exception:
                 rows = []
-    
+
     valid = [r for r in rows if r['date'] and r['close'] == r['close'] and r['close'] > 0]
     if not valid:
         return None
-    
+
     valid.sort(key=lambda x: x['date'])
     latest = valid[-1]['close']
     prev = valid[-2]['close'] if len(valid) > 1 else latest
-    
+
     # 近5日平均收盘价
     recent = valid[-5:] if len(valid) >= 5 else valid
     avg_close = sum(r['close'] for r in recent) / len(recent)
-    
+
     return {
         'latest': latest,
         'prev': prev,
@@ -309,7 +309,7 @@ ETF_TO_RELATED = {
 
 class ETFRealTimeTracker:
     """实时ETF资金流向追踪器 + 盘后报告生成"""
-    
+
     def __init__(self):
         self.pro = None
         if TUSHARE_AVAILABLE:
@@ -350,19 +350,19 @@ class ETFRealTimeTracker:
 
         self._flow_cache: Dict[str, Dict] = {}
         self._source_stats: Dict[str, int] = {}
-    
+
     def _record_source(self, source: Optional[str]) -> None:
         if source:
             self._source_stats[source] = self._source_stats.get(source, 0) + 1
-    
+
     def get_source_stats(self) -> Dict[str, int]:
         return dict(self._source_stats)
-    
+
     def primary_source(self) -> Optional[str]:
         if not self._source_stats:
             return None
         return max(self._source_stats.items(), key=lambda item: item[1])[0]
-    
+
     def get_etf_fund_flow(self, etf_code: str) -> Optional[Dict]:
         """获取ETF资金流向数据（含单次运行缓存）"""
         if etf_code in self._flow_cache:
@@ -463,14 +463,14 @@ class ETFRealTimeTracker:
 
         # 真实数据失败时直接跳过，不输出模拟/缓存/估算结果
         return None
-    
+
     def detect_signals(self, flow_data: Dict) -> List[Dict]:
         """检测国家队资金信号"""
         signals = []
-        
+
         for code, data in flow_data.items():
             net_flow = data.get("net_flow_yi", 0)
-            
+
             # 信号强度判定
             if net_flow >= SIGNAL_THRESHOLDS["high"]:
                 confidence = "高"
@@ -492,7 +492,7 @@ class ETFRealTimeTracker:
                 signal_type = "国家队减持关注"
             else:
                 continue
-            
+
             signals.append({
                 "code": code,
                 "name": data.get("name", code),
@@ -504,15 +504,15 @@ class ETFRealTimeTracker:
                 "confidence": confidence,
                 "source": data.get("source", "未知"),
             })
-        
+
         # 排序：置信度 > 净流入金额
         signals.sort(key=lambda x: (
             0 if x["confidence"] == "高" else 1 if x["confidence"] == "中" else 2,
             -abs(x["net_flow_yi"])
         ))
-        
+
         return signals
-    
+
     def generate_report(self, signals: List[Dict], flow_data: Dict) -> str:
         """生成实时资金流向报告"""
         lines = []
@@ -524,18 +524,18 @@ class ETFRealTimeTracker:
         lines.append("")
         lines.append("---")
         lines.append("")
-        
+
         # 资金流向概况
         total_flow = sum(d["net_flow_yi"] for d in flow_data.values())
         overall_trend = "净流入" if total_flow > 0 else "净流出" if total_flow < 0 else "平衡"
-        
+
         lines.append("## 一、资金流向概况")
         lines.append("")
         lines.append(f"- **整体态势**: {overall_trend}")
         lines.append(f"- **今日净流入**: {total_flow:+.2f} 亿元")
         lines.append(f"- **强信号数量**: {len([s for s in signals if s['confidence'] == '高'])} 条")
         lines.append("")
-        
+
         # 信号详情
         if signals:
             lines.append("## 二、国家队资金信号")
@@ -546,7 +546,7 @@ class ETFRealTimeTracker:
                 "green" if s["net_flow_yi"] > 0 else "red"
                 lines.append(f"| {s['name']} | {s['code']} | {s['net_flow_yi']:+.2f} | {s['change_pct']:+.2f}% | {s['signal_type']} | {s['confidence']} |")
             lines.append("")
-        
+
         # ETF资金流向排行
         lines.append("## 三、ETF资金流向排行")
         lines.append("")
@@ -557,11 +557,11 @@ class ETFRealTimeTracker:
             arrow = "📈" if data["net_flow_yi"] > 0 else "📉"
             lines.append(f"| {i} | {arrow} {data['name']} | {data['net_flow_yi']:+.2f} | {data['change_pct']:+.2f}% | {data['amount_yi']:.2f} |")
         lines.append("")
-        
+
         # 投资建议
         lines.append("## 四、投资建议")
         lines.append("")
-        
+
         # 强信号建议
         strong_signals = [s for s in signals if s["confidence"] == "高"]
         if strong_signals:
@@ -579,28 +579,28 @@ class ETFRealTimeTracker:
         else:
             lines.append("⚠️ 当前无强信号，建议继续观察")
             lines.append("")
-        
+
         lines.append("---")
         lines.append("*本报告由实时ETF资金流向监控系统自动生成*")
         lines.append(f"*数据源: {'iFinD MCP' if any(d.get('source') == 'ifind_mcp' for d in flow_data.values()) else 'Wind MCP' if any(d.get('source') == 'wind_mcp' for d in flow_data.values()) else 'tushare' if any(d.get('source') == 'tushare' for d in flow_data.values()) else 'yfinance' if any(d.get('source') == 'yfinance' for d in flow_data.values()) else 'sina' if any(d.get('source') == 'sina' for d in flow_data.values()) else 'local_cache' if any(d.get('source') == 'local_cache' for d in flow_data.values()) else '模拟数据'}*")
-        
+
         return "\n".join(lines)
-    
+
     def generate_trading_plan(self, signals: List[Dict], flow_data: Dict) -> str:
         """根据ETF资金流向信号生成交易计划决策"""
         lines = []
         lines.append("## 五、交易计划决策")
         lines.append("")
-        
+
         if not signals:
             lines.append("> 当前无显著资金信号，维持现有持仓不变。")
             return "\n".join(lines)
-        
+
         strong_buy = [s for s in signals if '强加仓' in s['signal_type']]
         strong_sell = [s for s in signals if '强减仓' in s['signal_type']]
         med_buy = [s for s in signals if s['confidence'] == '中' and '加仓' in s['signal_type']]
         med_sell = [s for s in signals if s['confidence'] == '中' and '减仓' in s['signal_type']]
-        
+
         # === 总体判断 ===
         total_flow = sum(d['net_flow_yi'] for d in flow_data.values())
         if total_flow > 100:
@@ -618,38 +618,38 @@ class ETFRealTimeTracker:
         else:
             market_stance = "中性震荡"
             action_tone = "高抛低吸"
-        
+
         lines.append(f"**市场总判**: {market_stance} | **操作基调**: {action_tone}")
         lines.append(f"**累计净流入**: {total_flow:+.1f} 亿 | **信号总数**: {len(signals)}")
         lines.append("")
-        
+
         # === 具体操作计划 ===
         lines.append("### 5.1 操作计划")
         lines.append("")
-        
+
         # 强买入信号 -> 推荐加仓标的
         if strong_buy:
             lines.append(f"**强加仓信号 ({len(strong_buy)}条)** — 建议增持以下标的:")
             lines.append("")
             lines.append("| 优先 | ETF | 净流入 | 关联个股/ETF | 建议操作 | 仓位调整 |")
             lines.append("|------|-----|--------|-------------|---------|---------|")
-            
+
             for i, s in enumerate(strong_buy, 1):
                 code = s['code']
                 stock_info = ETF_TO_STOCKS.get(code, {})
                 sector = stock_info.get('板块', s['category'])
                 stocks = stock_info.get('个股票池', [])
                 related_etfs = ETF_TO_RELATED.get(code, [])
-                
+
                 action = "加仓"
                 adjustment = "+3~5%"
                 targets = ", ".join(stocks[:3]) if stocks else "-"
                 if related_etfs:
                     targets += f" (替代ETF: {', '.join(related_etfs[:1])})"
-                
+
                 lines.append(f"| {i} | {s['name']}({code}) | +{s['net_flow_yi']:.1f}亿 | {targets} | {action} | {adjustment} |")
             lines.append("")
-        
+
         # 强卖出信号 -> 推荐减仓
         if strong_sell:
             lines.append(f"**强减仓信号 ({len(strong_sell)}条)** — 建议减持以下标的:")
@@ -665,7 +665,7 @@ class ETFRealTimeTracker:
                 if related_etfs:
                     lines.append(f"  > 替代方案: 转向 {', '.join(related_etfs)}")
             lines.append("")
-        
+
         # 中等买入信号
         if med_buy:
             lines.append(f"**中等加仓信号 ({len(med_buy)}条)** — 可逢低建仓:")
@@ -677,7 +677,7 @@ class ETFRealTimeTracker:
                 targets = ", ".join(stocks[:2]) if stocks else "-"
                 lines.append(f"- [{s['name']}({code})] +{s['net_flow_yi']:.1f}亿 -> 关注 {targets} | 仓位 +1~2%")
             lines.append("")
-        
+
         # 中等卖出信号
         if med_sell:
             lines.append(f"**中等减仓信号 ({len(med_sell)}条)** — 可适当止盈:")
@@ -689,11 +689,11 @@ class ETFRealTimeTracker:
                 targets = ", ".join(stocks[:2]) if stocks else "-"
                 lines.append(f"- [{s['name']}({code})] {s['net_flow_yi']:.1f}亿 -> 减仓 {targets} | 仓位 -1~2%")
             lines.append("")
-        
+
         # === 板块轮动 ===
         lines.append("### 5.2 板块轮动建议")
         lines.append("")
-        
+
         # 按板块汇总
         sector_flows = {}
         for s in signals:
@@ -701,9 +701,9 @@ class ETFRealTimeTracker:
             stock_info = ETF_TO_STOCKS.get(code, {})
             sector = stock_info.get('板块', s['category'])
             sector_flows[sector] = sector_flows.get(sector, 0) + s['net_flow_yi']
-        
+
         ranked_sectors = sorted(sector_flows.items(), key=lambda x: -x[1])
-        
+
         lines.append("| 板块 | 资金信号 | 操作建议 |")
         lines.append("|------|---------|---------|")
         for sector, flow in ranked_sectors:
@@ -720,11 +720,11 @@ class ETFRealTimeTracker:
             arrow = "📈" if flow > 0 else "📉" if flow < 0 else "➡️"
             lines.append(f"| {arrow} {sector} | {flow:+.1f}亿 | {advice} |")
         lines.append("")
-        
+
         # === 仓位建议 ===
         lines.append("### 5.3 整体仓位建议")
         lines.append("")
-        
+
         # 根据资金流向计算建议仓位
         if market_stance == "强烈看多":
             suggest_position = "85-95%"
@@ -741,7 +741,7 @@ class ETFRealTimeTracker:
         else:
             suggest_position = "60-75%"
             cash_reserve = "25-40%"
-        
+
         lines.append("| 指标 | 建议 |")
         lines.append("|------|------|")
         lines.append(f"| 建议仓位 | **{suggest_position}** |")
@@ -749,11 +749,11 @@ class ETFRealTimeTracker:
         lines.append(f"| 操作基调 | **{action_tone}** |")
         lines.append(f"| 强信号方向 | {'多头' if len(strong_buy) > len(strong_sell) else '空头' if len(strong_sell) > len(strong_buy) else '均衡'} |")
         lines.append("")
-        
+
         # === 风控指令 ===
         lines.append("### 5.4 今日风控指令")
         lines.append("")
-        
+
         if market_stance in ("强烈看空", "偏空"):
             lines.append("1. 单只止损线收紧至 **-10%**（正常 -15%）")
             lines.append("2. 板块ETF止损线收紧至 **-15%**（正常 -20%）")
@@ -766,13 +766,13 @@ class ETFRealTimeTracker:
             lines.append("1. 单只止损线可放宽至 **-18%**（正常 -15%）")
             lines.append("2. 涨幅超40%再考虑止盈")
             lines.append("3. 可在回调时加仓强势板块")
-        
+
         lines.append("")
         lines.append("---")
         lines.append(f"*交易计划由实时ETF资金流向监控自动生成 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
-        
+
         return "\n".join(lines)
-    
+
     def collect_flow_data(self) -> Dict[str, Dict]:
         """统一采集当前配置中的 ETF 资金流向"""
         flow_data: Dict[str, Dict] = {}
@@ -782,22 +782,22 @@ class ETFRealTimeTracker:
                 continue
             flow_data[etf["code"]] = data
         return flow_data
-    
+
     def run_intraday(self) -> Dict:
         """
         盘中决策模式（每15分钟执行）
         返回决策结果，供 llm_intraday_decision_engine.py 使用
         """
         logger.info("===== 盘中ETF资金流向决策 =====")
-        
+
         flow_data = self.collect_flow_data()
         if not flow_data:
             logger.warning("未获取到任何ETF数据")
             return {"signals": [], "flow_data": {}, "market_stance": "未知"}
-        
+
         # 检测信号
         signals = self.detect_signals(flow_data)
-        
+
         # 计算市场总判
         total_flow = sum(d['net_flow_yi'] for d in flow_data.values())
         if total_flow > 100:
@@ -810,7 +810,7 @@ class ETFRealTimeTracker:
             market_stance = "偏空"
         else:
             market_stance = "中性震荡"
-        
+
         # 生成决策摘要
         decision = {
             "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -824,44 +824,44 @@ class ETFRealTimeTracker:
             "source_stats": self.get_source_stats(),
             "primary_source": self.primary_source(),
         }
-        
+
         # 保存盘中决策
         self._save_intraday_decision(decision)
-        
+
         logger.info(f"市场总判: {market_stance} | 累计净流入: {total_flow:+.1f}亿 | 信号数: {len(signals)}")
-        
+
         return decision
-    
+
     def run_eod(self) -> str:
         """
         盘后报告模式（收盘后执行）
         生成完整 Markdown 报告
         """
         logger.info("===== 盘后ETF资金流向报告 =====")
-        
+
         flow_data = self.collect_flow_data()
         if not flow_data:
             logger.warning("未获取到任何ETF数据")
             return ""
-        
+
         # 检测信号
         signals = self.detect_signals(flow_data)
-        
+
         # 生成报告
         report = self.generate_report(signals, flow_data)
         trading_plan = self.generate_trading_plan(signals, flow_data)
         full_report = report + "\n\n" + trading_plan
-        
+
         # 保存到盘后报告目录
         reports_dir = os.path.join(_BASE_DIR, 'reports')
         os.makedirs(reports_dir, exist_ok=True)
         report_path = os.path.join(reports_dir, f"etf_flow_report_{datetime.now().strftime('%Y%m%d')}.md")
-        
+
         with open(report_path, 'w', encoding='utf-8') as f:
             f.write(full_report)
-        
+
         logger.info(f"盘后报告已保存: {report_path}")
-        
+
         # 同时保存 JSON 格式（供 LLM 决策引擎使用）
         json_path = os.path.join(reports_dir, f"etf_flow_report_{datetime.now().strftime('%Y%m%d')}.json")
         total_flow = round(sum(d['net_flow_yi'] for d in flow_data.values()), 2)
@@ -885,27 +885,27 @@ class ETFRealTimeTracker:
         }
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(json_data, f, ensure_ascii=False, indent=2)
-        
+
         logger.info(f"JSON数据已保存: {json_path}")
         logger.info(f"数据源统计: {self.get_source_stats()} | primary_source={self.primary_source()}")
-        
+
         return full_report
-    
+
     def _save_intraday_decision(self, decision: Dict):
         """保存盘中决策到文件"""
         decisions_dir = os.path.join(_BASE_DIR, 'v7.5_institutional', 'intraday_decisions')
         os.makedirs(decisions_dir, exist_ok=True)
         decision_path = os.path.join(decisions_dir, f"etf_flow_decision_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
-        
+
         with open(decision_path, 'w', encoding='utf-8') as f:
             json.dump(decision, f, ensure_ascii=False, indent=2)
-        
+
         logger.info(f"盘中决策已保存: {decision_path}")
-    
+
     def run(self, mode: str = "eod"):
         """
         统一运行入口
-        
+
         Args:
             mode: "intraday" 盘中决策 | "eod" 盘后报告
         """
@@ -917,10 +917,10 @@ class ETFRealTimeTracker:
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description='ETF资金流向监控')
     parser.add_argument('--mode', choices=['intraday', 'eod'], default='eod', help='运行模式')
     args = parser.parse_args()
-    
+
     tracker = ETFRealTimeTracker()
     tracker.run(mode=args.mode)

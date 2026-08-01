@@ -28,14 +28,13 @@ Barra 风险因子暴露分解 (Barra Risk Factor Decomposition)
 
 from __future__ import annotations
 
+import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-import json
-import math
 import numpy as np
-
 
 # ============================================================
 # 数据结构

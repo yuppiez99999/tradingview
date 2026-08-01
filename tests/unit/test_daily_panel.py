@@ -26,7 +26,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -36,51 +36,50 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.attribution.daily_panel import (
-    # 常量
-    FLAG_NAME,
+    DEFAULT_BPS_PRECISION,
     DEFAULT_CONFIG_NAME,
-    DEFAULT_PRIMARY_BENCHMARK,
-    DEFAULT_SECONDARY_BENCHMARK,
-    DEFAULT_REPORT_DIR,
+    DEFAULT_DECIMAL_PRECISION,
+    DEFAULT_GENERATION_TIMEOUT,
     DEFAULT_JSON_TEMPLATE,
     DEFAULT_MARKDOWN_TEMPLATE,
-    DEFAULT_DECIMAL_PRECISION,
-    DEFAULT_RETURN_PRECISION,
-    DEFAULT_BPS_PRECISION,
-    DEFAULT_GENERATION_TIMEOUT,
+    DEFAULT_PRIMARY_BENCHMARK,
+    DEFAULT_REPORT_DIR,
     DEFAULT_RESIDUAL_TOLERANCE,
-    MODULE_STATUS_OK,
+    DEFAULT_RETURN_PRECISION,
+    DEFAULT_SECONDARY_BENCHMARK,
+    # 常量
+    FLAG_NAME,
     MODULE_STATUS_DEGRADED,
-    MODULE_STATUS_SKIPPED,
+    MODULE_STATUS_EMPTY_INPUT,
     MODULE_STATUS_ERROR,
     MODULE_STATUS_FEATURE_FLAG_DISABLED,
-    MODULE_STATUS_EMPTY_INPUT,
-    STATUS_OK,
-    STATUS_FEATURE_FLAG_DISABLED,
-    STATUS_PARTIAL,
+    MODULE_STATUS_OK,
+    MODULE_STATUS_SKIPPED,
     STATUS_ALL_DEGRADED,
     STATUS_EMPTY_INPUT,
     STATUS_ERROR,
-    # 异常
-    DailyPanelError,
-    PanelGenerationError,
-    PersistenceError,
-    ModuleAggregationError,
+    STATUS_FEATURE_FLAG_DISABLED,
+    STATUS_OK,
+    STATUS_PARTIAL,
     # 输入数据类
     BrinsonInput,
-    FactorInput,
-    TCAInput,
-    DailyReportInput,
-    # 输出数据类
-    ModuleStatus,
-    DailyAttributionReport,
     # 主类与便捷函数
     DailyAttributionPanel,
-    is_daily_panel_enabled,
-    generate_daily_report,
+    DailyAttributionReport,
+    # 异常
+    DailyPanelError,
+    DailyReportInput,
+    FactorInput,
+    ModuleAggregationError,
+    # 输出数据类
+    ModuleStatus,
+    PanelGenerationError,
+    PersistenceError,
+    TCAInput,
     create_default_panel,
+    generate_daily_report,
+    is_daily_panel_enabled,
 )
-
 
 # ============================================================
 # 1. 常量定义测试

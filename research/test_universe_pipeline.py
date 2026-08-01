@@ -85,7 +85,7 @@ class TestRiskFilter(unittest.TestCase):
         self.assertFalse(_is_st_stock("中国平安"))
 
     def test_filter_universe_basic(self):
-        from utils.universe.risk_filter import filter_universe, RiskFilterConfig
+        from utils.universe.risk_filter import RiskFilterConfig, filter_universe
         # 构造测试数据
         universe_df = pd.DataFrame({
             "code": ["600519", "000001", "600001", "000002"],
@@ -159,7 +159,7 @@ class TestPortfolioBuilder(unittest.TestCase):
     """组合构建器测试"""
 
     def test_build_layered_portfolio(self):
-        from utils.universe.portfolio_builder import build_layered_portfolio, PortfolioConfig
+        from utils.universe.portfolio_builder import PortfolioConfig, build_layered_portfolio
         np.random.seed(42)
         n = 100
         symbols = [f"stock_{i:03d}" for i in range(n)]
@@ -227,10 +227,11 @@ class TestEndToEnd(unittest.TestCase):
 
     def test_full_pipeline_with_mock_data(self):
         """使用模拟数据跑完整 pipeline"""
-        from utils.universe.factor_scorer import batch_compute_factors, cross_sectional_score, ScoringConfig
-        from utils.universe.portfolio_builder import build_layered_portfolio, PortfolioConfig
-        from utils.universe.report_generator import generate_full_report
         import tempfile
+
+        from utils.universe.factor_scorer import ScoringConfig, batch_compute_factors, cross_sectional_score
+        from utils.universe.portfolio_builder import PortfolioConfig, build_layered_portfolio
+        from utils.universe.report_generator import generate_full_report
 
         # 1. 生成 20 只模拟股票
         n_stocks = 20

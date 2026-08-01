@@ -9,15 +9,15 @@ PTP精确时间同步模块
 4. 系统中绝对禁止使用本地系统时间做决策
 """
 
-import time
+import logging
 import socket
 import struct
-import logging
-from typing import Optional, Dict, List, Any
-from dataclasses import dataclass
-from enum import Enum
 import subprocess
 import threading
+import time
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -88,8 +88,8 @@ class HardwareTimestamping:
         """获取硬件时间戳（纳秒）"""
         try:
             # 使用SIOCGSTAMP ioctl获取
-            import fcntl
             import array
+            import fcntl
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             data = array.array("i", [0])

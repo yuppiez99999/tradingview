@@ -49,9 +49,9 @@ try:
         sys.path.insert(0, str(_ms_path))
     from src.ml.drift_detector import (
         ADWINDetector,
-        ModelDriftDetector,
         DriftAlert,
         DriftType,
+        ModelDriftDetector,
         Severity,
     )
 
@@ -64,9 +64,9 @@ except ImportError:
             sys.path.insert(0, str(_v83_path))
         from src.ml.drift_detector import (
             ADWINDetector,
-            ModelDriftDetector,
             DriftAlert,
             DriftType,
+            ModelDriftDetector,
             Severity,
         )
 

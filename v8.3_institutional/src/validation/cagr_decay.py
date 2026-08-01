@@ -32,10 +32,11 @@ CAGR衰减是过拟合和因子衰减的最强信号之一。
         print("⚠️ 检测到严重CAGR衰减,策略可能过拟合!")
 """
 
+from dataclasses import dataclass
+from typing import Dict
+
 import numpy as np
 import pandas as pd
-from typing import Dict
-from dataclasses import dataclass
 
 
 @dataclass

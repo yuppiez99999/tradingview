@@ -29,7 +29,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, ClassVar
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from ai_decision.config import get_config
 from ai_decision.decision_gate import RiskContext, run_hard_risk

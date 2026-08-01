@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 """验证导入和板块约束"""
 import sys
+
 sys.path.insert(0, '.')
 sys.path.insert(0, 'research')
 
 from research.backtest_runner import (
     _BACKTEST_SECTOR_MAP,
-    _DRAWDOWN_BREAKER_THRESHOLD, _DRAWDOWN_BREAKER_FACTOR,
-    _DRAWDOWN_SEVERE_THRESHOLD, _DRAWDOWN_SEVERE_FACTOR
+    _DRAWDOWN_BREAKER_FACTOR,
+    _DRAWDOWN_BREAKER_THRESHOLD,
+    _DRAWDOWN_SEVERE_FACTOR,
+    _DRAWDOWN_SEVERE_THRESHOLD,
 )
 from utils.risk_constraints import enforce_hard_constraints
 
@@ -21,6 +24,7 @@ missing = [s for s in test_symbols if s not in _BACKTEST_SECTOR_MAP]
 print("missing:", missing if missing else "NONE (all 23 covered)")
 
 from collections import Counter
+
 sectors = Counter([_BACKTEST_SECTOR_MAP[s] for s in test_symbols])
 print("sector distribution:")
 for sec, count in sorted(sectors.items(), key=lambda x: -x[1]):

@@ -6,8 +6,8 @@
 - 黑天鹅与不可抗力风险评估
 """
 
-import sys
 import json
+import sys
 from datetime import datetime
 from typing import Dict, List
 
@@ -19,12 +19,12 @@ sys.path.insert(0, '.')
 
 class PortfolioProjection:
     """组合5年预测分析器"""
-    
+
     def __init__(self, positions_file: str, hedge_file: str):
         self.positions_data = self._load_json(positions_file)
         self.hedge_data = self._load_json(hedge_file)
         self.projection = {}
-    
+
     def _load_json(self, path: str) -> Dict:
         try:
             with open(path, 'r', encoding='utf-8') as f:
@@ -32,31 +32,31 @@ class PortfolioProjection:
         except Exception as e:
             print(f"加载文件失败: {path}, {e}")
             return {}
-    
+
     def analyze_portfolio(self) -> Dict:
         """分析组合结构"""
         positions = self.positions_data.get('positions', {})
-        
+
         style_weights = {}
         risk_counts = {}
         type_counts = {}
-        
+
         total_value = 0
-        
+
         for _key, pos in positions.items():
             style = pos.get('style', 'unknown')
             risk = pos.get('risk', 'unknown')
             pos_type = pos.get('type', 'unknown')
             amount = pos.get('phase1_amount', 0)
-            
+
             style_weights[style] = style_weights.get(style, 0) + amount
             risk_counts[risk] = risk_counts.get(risk, 0) + 1
             type_counts[pos_type] = type_counts.get(pos_type, 0) + 1
             total_value += amount
-        
+
         # 归一化权重
         style_weights_norm = {k: round(v / total_value * 100, 2) for k, v in style_weights.items()}
-        
+
         return {
             'total_value': round(total_value, 2),
             'position_count': len(positions),
@@ -65,7 +65,7 @@ class PortfolioProjection:
             'type_counts': type_counts,
             'avg_stop_loss': round(sum(p.get('stop_loss', 0) for p in positions.values()) / len(positions), 3)
         }
-    
+
     def calculate_expected_returns(self) -> Dict:
         """计算各风格预期年化收益率"""
         style_returns = {
@@ -84,21 +84,21 @@ class PortfolioProjection:
             '避险': {'base_return': 0.04, 'volatility': 0.12, 'beta': 0.3},
             'unknown': {'base_return': 0.07, 'volatility': 0.20, 'beta': 1.0}
         }
-        
+
         portfolio_analysis = self.analyze_portfolio()
         style_weights = portfolio_analysis['style_weights']
-        
+
         weighted_return = 0.0
         weighted_volatility = 0.0
         weighted_beta = 0.0
-        
+
         for style, weight in style_weights.items():
             info = style_returns.get(style, style_returns['unknown'])
             weight_pct = weight / 100
             weighted_return += info['base_return'] * weight_pct
             weighted_volatility += info['volatility'] * weight_pct
             weighted_beta += info['beta'] * weight_pct
-        
+
         return {
             'style_returns': style_returns,
             'weighted_return': round(weighted_return, 4),
@@ -106,27 +106,27 @@ class PortfolioProjection:
             'weighted_beta': round(weighted_beta, 4),
             'style_weights': style_weights
         }
-    
+
     def project_5_year_performance(self) -> Dict:
         """5年业绩预测"""
         returns = self.calculate_expected_returns()
         self.analyze_portfolio()
-        
+
         base_return = returns['weighted_return']
         volatility = returns['weighted_volatility']
-        
+
         hedge_info = self.hedge_data
         portfolio_beta = hedge_info.get('portfolio_beta', 1.0)
         target_beta = 0.3
         beta_reduction = portfolio_beta - target_beta
-        
+
         # 对冲有效性系数：此前为魔法数字 0.7686。此处保留名义值，但应改为
         # 由已实现对冲 P&L 回归估计（见 utils/hedge_effectiveness.py 待建）。
         hedge_effectiveness = 0.7686
-        
+
         hedged_return = base_return * (1 - 0.4 * hedge_effectiveness)
         hedged_volatility = volatility * (1 - beta_reduction * hedge_effectiveness)
-        
+
         # 成本：统一成本模型（佣金+印花税 / 冲击 / 期权覆盖+期货对冲）
         cost_model = get_cost_model()
         cb = cost_model.breakdown()
@@ -134,17 +134,17 @@ class PortfolioProjection:
         slippage = cb["market_impact"]
         management_fee = cb["option_overlay"] + cb["futures_basis"]
         total_costs = cost_model.annual_total_cost
-        
+
         net_annual_return = hedged_return - total_costs
-        
+
         five_year_total_return = (1 + net_annual_return) ** 5 - 1
-        
+
         max_drawdown_base = volatility * 2.33
         hedged_max_drawdown = max_drawdown_base * (1 - beta_reduction * hedge_effectiveness * 0.6)
-        
+
         sharpe_ratio = net_annual_return / volatility if volatility > 0 else 0
         sortino_ratio = net_annual_return / (volatility * 0.6) if volatility > 0 else 0
-        
+
         return {
             'base_annual_return': round(base_return * 100, 2),
             'hedged_annual_return': round(hedged_return * 100, 2),
@@ -163,14 +163,14 @@ class PortfolioProjection:
                 'management_fee': round(management_fee * 100, 2)
             }
         }
-    
+
     def identify_black_swan_risk(self) -> List[Dict]:
         """识别黑天鹅风险"""
         portfolio_analysis = self.analyze_portfolio()
         style_weights = portfolio_analysis['style_weights']
-        
+
         risks = []
-        
+
         if style_weights.get('科技', 0) + style_weights.get('高端制造', 0) > 30:
             risks.append({
                 'risk_id': 'tech_concentration',
@@ -183,7 +183,7 @@ class PortfolioProjection:
                 'mitigation': '分散配置至传统行业，增加防御性资产',
                 'stress_test_loss': '组合可能损失15-20%'
             })
-        
+
         if portfolio_analysis['risk_counts'].get('高', 0) > 5:
             risks.append({
                 'risk_id': 'high_risk_count',
@@ -196,7 +196,7 @@ class PortfolioProjection:
                 'mitigation': '限制单只高风险标的权重不超过5%',
                 'stress_test_loss': '组合可能损失8-12%'
             })
-        
+
         risks.append({
             'risk_id': 'geopolitical',
             'name': '地缘政治风险',
@@ -208,7 +208,7 @@ class PortfolioProjection:
             'mitigation': '增加黄金ETF至10%以上，配置港股通标的',
             'stress_test_loss': '组合可能损失20-25%'
         })
-        
+
         risks.append({
             'risk_id': 'interest_rate',
             'name': '利率持续上行',
@@ -220,7 +220,7 @@ class PortfolioProjection:
             'mitigation': '增加短久期债券，减少高PE成长股',
             'stress_test_loss': '组合可能损失10-15%'
         })
-        
+
         risks.append({
             'risk_id': 'liquidity_crisis',
             'name': '流动性危机',
@@ -232,7 +232,7 @@ class PortfolioProjection:
             'mitigation': '保持10%现金储备，分散银行股配置',
             'stress_test_loss': '组合可能损失25-35%'
         })
-        
+
         risks.append({
             'risk_id': 'regulatory',
             'name': '政策监管风险',
@@ -244,7 +244,7 @@ class PortfolioProjection:
             'mitigation': '关注政策风向，保持灵活仓位',
             'stress_test_loss': '组合可能损失5-10%'
         })
-        
+
         risks.append({
             'risk_id': 'inflation',
             'name': '恶性通胀',
@@ -256,7 +256,7 @@ class PortfolioProjection:
             'mitigation': '增加黄金、资源股配置',
             'stress_test_loss': '组合可能损失8-12%'
         })
-        
+
         risks.append({
             'risk_id': 'pandemic',
             'name': '全球性疫情复发',
@@ -268,16 +268,16 @@ class PortfolioProjection:
             'mitigation': '增加在线经济标的，配置必需消费品',
             'stress_test_loss': '组合可能损失20-30%'
         })
-        
+
         return risks
-    
+
     def generate_comprehensive_report(self) -> Dict:
         """生成综合预测报告"""
         portfolio_analysis = self.analyze_portfolio()
         expected_returns = self.calculate_expected_returns()
         five_year = self.project_5_year_performance()
         black_swans = self.identify_black_swan_risk()
-        
+
         report = {
             'meta': {
                 'report_date': datetime.now().strftime('%Y-%m-%d'),
@@ -292,30 +292,30 @@ class PortfolioProjection:
             'strategic_recommendations': self._generate_strategic_recommendations(five_year, black_swans),
             'scenario_analysis': self._generate_scenario_analysis(five_year, black_swans)
         }
-        
+
         return report
-    
+
     def _generate_strategic_recommendations(self, five_year: Dict, black_swans: List[Dict]) -> List[str]:
         """生成战略建议"""
         recommendations = []
-        
+
         if five_year['net_annual_return'] < 8:
             recommendations.append("当前预期年化收益率低于8%基准，建议增加高成长板块配置")
-        
+
         if five_year['max_drawdown'] > 15:
             recommendations.append("最大回撤预测超过15%，建议增加对冲工具（如期权保护）")
-        
+
         high_severity_risks = [r for r in black_swans if r['severity'] == 'HIGH']
         if len(high_severity_risks) > 3:
             recommendations.append("存在超过3个高严重性风险，建议重新审视组合风险敞口")
-        
+
         recommendations.append("建议每季度进行压力测试，动态调整仓位")
         recommendations.append("设置10%现金储备作为流动性缓冲")
         recommendations.append("考虑引入Tail Risk对冲策略（如VIX期权）")
         recommendations.append("科技股集中度较高，建议分散至消费、医疗等防御性板块")
-        
+
         return recommendations
-    
+
     def _generate_scenario_analysis(self, five_year: Dict, black_swans: List[Dict]) -> Dict:
         """生成情景分析"""
         base_case = {
@@ -325,7 +325,7 @@ class PortfolioProjection:
             'probability': '40%',
             'end_value': five_year['expected_5y_end_value']
         }
-        
+
         bull_case = {
             'description': '乐观情景：AI产业爆发，科技股持续领跑',
             'annual_return': round(five_year['net_annual_return'] * 1.5, 2),
@@ -333,7 +333,7 @@ class PortfolioProjection:
             'probability': '25%',
             'end_value': round(5000000 * (1 + five_year['net_annual_return'] * 1.5 / 100) ** 5, 2)
         }
-        
+
         bear_case = {
             'description': '悲观情景：地缘冲突加剧，经济衰退',
             'annual_return': round(five_year['net_annual_return'] * 0.3, 2),
@@ -341,7 +341,7 @@ class PortfolioProjection:
             'probability': '20%',
             'end_value': round(5000000 * (1 + five_year['net_annual_return'] * 0.3 / 100) ** 5, 2)
         }
-        
+
         crisis_case = {
             'description': '危机情景：黑天鹅事件触发',
             'annual_return': round(-5.0, 2),
@@ -349,7 +349,7 @@ class PortfolioProjection:
             'probability': '15%',
             'end_value': round(5000000 * (1 - 0.05) ** 5, 2)
         }
-        
+
         return {
             'base_case': base_case,
             'bull_case': bull_case,
@@ -367,7 +367,7 @@ def print_report(report: Dict):
     print(f"日期: {report['meta']['report_date']}")
     print(f"总资金: {report['meta']['total_capital']:,}")
     print()
-    
+
     print("【1】组合结构分析")
     pa = report['portfolio_analysis']
     print(f"  持仓数: {pa['position_count']}")
@@ -377,14 +377,14 @@ def print_report(report: Dict):
     for style, weight in sorted(pa['style_weights'].items(), key=lambda x: -x[1]):
         print(f"    {style}: {weight:.2f}%")
     print()
-    
+
     print("【2】预期收益率")
     er = report['expected_returns']
     print(f"  加权年化收益: {er['weighted_return']*100:.2f}%")
     print(f"  加权波动率: {er['weighted_volatility']*100:.2f}%")
     print(f"  加权Beta: {er['weighted_beta']:.2f}")
     print()
-    
+
     print("【3】5年业绩预测")
     fy = report['five_year_projection']
     print(f"  基准年化收益: {fy['base_annual_return']:.2f}%")
@@ -398,7 +398,7 @@ def print_report(report: Dict):
     print(f"  Sortino Ratio: {fy['sortino_ratio']:.2f}")
     print(f"  Beta敞口: {fy['beta_exposure']:.3f}")
     print()
-    
+
     print("【4】情景分析")
     sa = report['scenario_analysis']
     for _name, scenario in sa.items():
@@ -408,7 +408,7 @@ def print_report(report: Dict):
         print(f"    最大回撤: {scenario['max_drawdown']:.2f}%")
         print(f"    5年末价值: {scenario['end_value']:,.2f}")
         print()
-    
+
     print("【5】黑天鹅风险识别")
     for i, risk in enumerate(report['black_swan_risk'], 1):
         severity_icon = {'HIGH': '🔴', 'MEDIUM': '🟡', 'LOW': '🟢'}[risk['severity']]
@@ -418,11 +418,11 @@ def print_report(report: Dict):
         print(f"     压力测试损失: {risk['stress_test_loss']}")
         print(f"     缓释措施: {risk['mitigation']}")
         print()
-    
+
     print("【6】战略建议")
     for i, rec in enumerate(report['strategic_recommendations'], 1):
         print(f"  {i}. {rec}")
-    
+
     print("=" * 70)
 
 
@@ -437,11 +437,11 @@ def generate_markdown_report(report: Dict) -> str:
     er = report['expected_returns']
     fy = report['five_year_projection']
     sa = report['scenario_analysis']
-    
+
     md = f"""# 5年投资组合预测分析报告
 
-**视角**: {report['meta']['perspective']}  
-**日期**: {report['meta']['report_date']}  
+**视角**: {report['meta']['perspective']}
+**日期**: {report['meta']['report_date']}
 **总资金**: {report['meta']['total_capital']:,}
 
 ---
@@ -463,7 +463,7 @@ def generate_markdown_report(report: Dict) -> str:
 """
     for style, weight in sorted(report['portfolio_analysis']['style_weights'].items(), key=lambda x: -x[1]):
         md += f"| {style} | {weight:.2f}% |\n"
-    
+
     md += f"""
 ---
 
@@ -517,7 +517,7 @@ def generate_markdown_report(report: Dict) -> str:
 ## 五、黑天鹅与不可抗力风险
 
 """
-    
+
     for risk in report['black_swan_risk']:
         severity_icon = {'HIGH': '🔴', 'MEDIUM': '🟡', 'LOW': '🟢'}[risk['severity']]
         md += f"""### {severity_icon} {risk['name']}
@@ -533,39 +533,39 @@ def generate_markdown_report(report: Dict) -> str:
 | 缓释措施 | {risk['mitigation']} |
 
 """
-    
+
     md += """
 ---
 
 ## 六、战略建议
 
 """
-    
+
     for i, rec in enumerate(report['strategic_recommendations'], 1):
         md += f"{i}. {rec}\n"
-    
+
     md += f"""
 
 ---
 
 **生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
-    
+
     return md
 
 
 def main():
     positions_file = "config/positions.json"
     hedge_file = "reports/hedge_decision_20260706.json"
-    
+
     analyzer = PortfolioProjection(positions_file, hedge_file)
     report = analyzer.generate_comprehensive_report()
-    
+
     print_report(report)
-    
+
     json_output = f"reports/five_year_projection_{datetime.now().strftime('%Y-%m-%d')}.json"
     save_report(report, json_output)
-    
+
     md_content = generate_markdown_report(report)
     md_output = f"reports/five_year_projection_{datetime.now().strftime('%Y-%m-%d')}.md"
     with open(md_output, 'w', encoding='utf-8') as f:

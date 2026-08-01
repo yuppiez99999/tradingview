@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """使用原始DSR模块验证V2结果"""
-import sys
 import json
+import sys
+
 import pandas as pd
+
 sys.path.insert(0, 'v8.3_institutional/src/validation')
 from deflated_sharpe import deflated_sharpe_ratio
 

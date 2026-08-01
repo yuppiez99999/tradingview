@@ -27,33 +27,32 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.alpha.shadow_account_adapter import (
-    # 异常
-    ShadowAccountAdapterError,
-    InsufficientReturnsError,
-    FailFastTriggeredError,
-    # 数据类
-    ShadowMetrics,
-    RunShadowResult,
-    # 主类
-    ShadowAccountAdapter,
-    # 便捷函数
-    create_default_adapter,
-    run_shadow_with_returns,
+    CUMULATIVE_3D_DRAWDOWN_THRESHOLD,
+    DAILY_DRAWDOWN_THRESHOLD,
     # 常量
     DEFAULT_ACCOUNT_ID,
-    DEFAULT_STRATEGY_ID,
     DEFAULT_INITIAL_CAPITAL,
-    DEFAULT_RISK_FREE_RATE,
     DEFAULT_N_TRIALS,
     DEFAULT_REQUIRED_DSR,
+    DEFAULT_RISK_FREE_RATE,
     DEFAULT_SHARPE_CV_WINDOW,
-    DAILY_DRAWDOWN_THRESHOLD,
-    CUMULATIVE_3D_DRAWDOWN_THRESHOLD,
+    DEFAULT_STRATEGY_ID,
     MIN_SAMPLES_FOR_DSR,
     MIN_SAMPLES_FOR_SHARPE_CV,
     TRADING_DAYS_PER_YEAR,
+    FailFastTriggeredError,
+    InsufficientReturnsError,
+    RunShadowResult,
+    # 主类
+    ShadowAccountAdapter,
+    # 异常
+    ShadowAccountAdapterError,
+    # 数据类
+    ShadowMetrics,
+    # 便捷函数
+    create_default_adapter,
+    run_shadow_with_returns,
 )
-
 
 # ============================================================
 # Fixtures

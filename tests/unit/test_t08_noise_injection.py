@@ -14,8 +14,8 @@ sys.path.insert(0, str(PROJECT_ROOT / "ms_strategy"))
 
 from ms_strategy.src.backtest.noise_injection_test import (
     NoiseInjectionResult,
-    run_noise_injection_test,
     noise_injection_summary,
+    run_noise_injection_test,
 )
 
 

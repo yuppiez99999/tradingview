@@ -28,8 +28,8 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import (
-    VibeTradingFactorAdapter,
     CandidateFactor,
+    VibeTradingFactorAdapter,
 )
 
 logging.basicConfig(level=logging.INFO)

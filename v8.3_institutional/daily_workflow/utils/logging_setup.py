@@ -2,9 +2,11 @@
 """日志配置工具 — 统一日志初始化逻辑。"""
 
 from __future__ import annotations
+
 import logging
 from datetime import datetime
 from pathlib import Path
+
 
 def setup_logger(level: int = logging.INFO) -> None:
     log_dir = Path("logs")

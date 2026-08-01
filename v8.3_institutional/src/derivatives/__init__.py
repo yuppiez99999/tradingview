@@ -13,7 +13,7 @@ try:
 except ImportError:
     GreeksCalculator = None
 try:
-    from .futures_scan import FuturesQuote, FuturesTermStructure, ArbitrageSignal, OptionsSnapshot
+    from .futures_scan import ArbitrageSignal, FuturesQuote, FuturesTermStructure, OptionsSnapshot
 except ImportError:
     FuturesQuote = None
     FuturesTermStructure = None

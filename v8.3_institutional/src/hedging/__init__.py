@@ -2,13 +2,13 @@
 """v7.5 对冲子包 — 基础 + v5.9增强"""
 
 from .beta_hedger import BetaHedger
-from .vol_hedger import VolHedger
 from .correlation_hedger import CorrelationHedger
 from .hedge_coordinator import HedgeCoordinator
+from .vol_hedger import VolHedger
 
 # v5.9增强对冲
 try:
-    from .hedge_engine_v59 import HedgeEngine, PortfolioRisk, HedgeRecommendation
+    from .hedge_engine_v59 import HedgeEngine, HedgeRecommendation, PortfolioRisk
 except ImportError:
     HedgeEngine = None
     PortfolioRisk = None

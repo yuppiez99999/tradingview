@@ -2,10 +2,11 @@
 # 当前: 34.8% 现金 (=174万) 年化收益 0% → 优化 → 逆回购 ≈ 1.5-1.8% 年化
 # 174万 × 1.5% = 年入 2.6万 ÷ 500万 = 组合级 +0.52%/年
 from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional, List
+from typing import List, Optional
 
 logger = logging.getLogger("v76.treasury")
 

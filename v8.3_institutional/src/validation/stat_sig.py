@@ -12,15 +12,16 @@
   python "量化策略系统 v5.10.py" --ml-significance
 """
 
+import glob
+import json
+import logging
+import os
+import warnings
+from datetime import datetime
+from typing import Dict, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-import os
-import json
-import glob
-from datetime import datetime
-from typing import Dict, Tuple, Optional
-import warnings
-import logging
 
 warnings.filterwarnings("ignore")
 
@@ -324,10 +325,10 @@ def validate_all_models(X: np.ndarray, y: np.ndarray, models_info: Dict, output_
     if not _SKLEARN_AVAILABLE:
         return {"error": "sklearn not available"}
 
-    from sklearn.ensemble import GradientBoostingClassifier, ExtraTreesClassifier, RandomForestClassifier
-    from sklearn.linear_model import LogisticRegression
-    import xgboost as xgb
     import lightgbm as lgb
+    import xgboost as xgb
+    from sklearn.ensemble import ExtraTreesClassifier, GradientBoostingClassifier, RandomForestClassifier
+    from sklearn.linear_model import LogisticRegression
 
     # 模型类映射
     model_classes = {

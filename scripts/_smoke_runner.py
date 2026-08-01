@@ -111,6 +111,7 @@ IMPORT_SMOKE_TESTS = [
 def _api_data_contract_validate():
     """API: V9_DEFAULT_CONTRACT.validate 能调用."""
     import pandas as pd
+
     from utils.alpha.data_contract import V9_DEFAULT_CONTRACT
     empty_panel = pd.DataFrame(columns=["code", "date", "close", "open", "high", "low", "volume", "y"])
     result = V9_DEFAULT_CONTRACT.validate(empty_panel, mode="warn_only")
@@ -127,6 +128,7 @@ def _api_drift_severity():
 def _api_compute_psi():
     """API: compute_psi 能计算."""
     import pandas as pd
+
     from utils.alpha.drift_monitor import compute_psi
     psi = compute_psi(pd.Series([1, 2, 3, 4, 5]), pd.Series([1, 2, 3, 4, 5]))
     assert psi >= 0, "PSI 应非负"

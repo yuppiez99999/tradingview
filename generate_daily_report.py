@@ -5,12 +5,12 @@
 - 严谨高效的持仓盈亏明细
 """
 
-import sys
-import os
 import json
+import os
+import sys
 from datetime import datetime
 from pathlib import Path as _Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 import requests as _requests
 
@@ -118,29 +118,49 @@ def _call_deepseek(
 # - reporting.next_day_planner: 次日计划
 # - ai.recommendation_generator: AI 建议生成
 # ═══════════════════════════════════════════════════════════════
-from reporting.pnl_calculator import (  # noqa: E402
-    calculate_pnl as _pnl_calc,
-    get_position_status as _pnl_get_position_status,
-    calculate_volatility as _pnl_calculate_volatility,
-    calculate_max_drawdown as _pnl_calculate_max_drawdown,
-    count_stop_loss_status as _pnl_count_stop_loss_status,
+from ai.recommendation_generator import (  # noqa: E402
+    generate_ai_recommendations as _ai_generate_recommendations,
+)
+from ai.recommendation_generator import (
+    generate_deepseek_recommendations as _ai_generate_deepseek_recs,
 )
 from reporting.hedge_analyzer import (  # noqa: E402
     analyze_hedge_position as _hedge_analyze_position,
-    calculate_hedge_effectiveness as _hedge_calculate_effectiveness,
+)
+from reporting.hedge_analyzer import (
     analyze_hedge_positions_plan as _hedge_analyze_positions_plan,
 )
-from reporting.price_fetcher import (  # noqa: E402
-    to_sina_code as _price_to_sina_code,
-    fetch_sina_realtime as _price_fetch_sina_realtime,
-    fetch_market_prices as _price_fetch_market_prices,
-    assess_data_source_health as _price_assess_data_source_health,
+from reporting.hedge_analyzer import (
+    calculate_hedge_effectiveness as _hedge_calculate_effectiveness,
 )
 from reporting.markdown_renderer import generate_report as _md_generate_report  # noqa: E402
 from reporting.next_day_planner import generate_next_day_plan as _plan_generate_next_day  # noqa: E402
-from ai.recommendation_generator import (  # noqa: E402
-    generate_ai_recommendations as _ai_generate_recommendations,
-    generate_deepseek_recommendations as _ai_generate_deepseek_recs,
+from reporting.pnl_calculator import (
+    calculate_max_drawdown as _pnl_calculate_max_drawdown,
+)
+from reporting.pnl_calculator import (  # noqa: E402
+    calculate_pnl as _pnl_calc,
+)
+from reporting.pnl_calculator import (
+    calculate_volatility as _pnl_calculate_volatility,
+)
+from reporting.pnl_calculator import (
+    count_stop_loss_status as _pnl_count_stop_loss_status,
+)
+from reporting.pnl_calculator import (
+    get_position_status as _pnl_get_position_status,
+)
+from reporting.price_fetcher import (
+    assess_data_source_health as _price_assess_data_source_health,
+)
+from reporting.price_fetcher import (
+    fetch_market_prices as _price_fetch_market_prices,
+)
+from reporting.price_fetcher import (
+    fetch_sina_realtime as _price_fetch_sina_realtime,
+)
+from reporting.price_fetcher import (  # noqa: E402
+    to_sina_code as _price_to_sina_code,
 )
 
 
@@ -555,23 +575,23 @@ def _build_data_integrity_warning(data_health: Dict) -> str:
 
     if data_status == "NOSIGNAL_MAJORITY":
         return f"""
-> **⚠️⚠️⚠️ 数据完整性严重警告 ⚠️⚠️⚠️**  
-> {no_data_count}/{data_health.get("total_positions", 0)} 个持仓标的无实际行情数据（{no_data_ratio * 100:.0f}%）。  
-> 以下盈亏数据基于计划价格计算，**并非真实交易结果**。  
+> **⚠️⚠️⚠️ 数据完整性严重警告 ⚠️⚠️⚠️**
+> {no_data_count}/{data_health.get("total_positions", 0)} 个持仓标的无实际行情数据（{no_data_ratio * 100:.0f}%）。
+> 以下盈亏数据基于计划价格计算，**并非真实交易结果**。
 > 请检查 Wind MCP / iFinD MCP 数据源连接状态后再信任本报告。
 >
 """
     if data_status == "NOSIGNAL_PARTIAL":
         return f"""
-> **⚠️ 数据完整性警告**  
-> {no_data_count}/{data_health.get("total_positions", 0)} 个持仓标的无实际行情数据（{no_data_ratio * 100:.0f}%）。  
+> **⚠️ 数据完整性警告**
+> {no_data_count}/{data_health.get("total_positions", 0)} 个持仓标的无实际行情数据（{no_data_ratio * 100:.0f}%）。
 > 无数据标的盈亏不可用，报告中对应的 daily_pnl 和 daily_pnl_pct 显示为 N/A。
 >
 """
     if data_status == "FALLBACK_HEAVY":
         return f"""
-> **⚠️ 数据源回退警告**  
-> {data_health.get("fallback_count", 0)} 个标的使用了回退价格源（fallback），数据质量下降。  
+> **⚠️ 数据源回退警告**
+> {data_health.get("fallback_count", 0)} 个标的使用了回退价格源（fallback），数据质量下降。
 > 建议检查主数据源（Wind MCP）是否正常运行。
 >
 """
@@ -793,8 +813,8 @@ def _render_return_projection_section(proj: Dict) -> str:
     md = f"""
 ### 7.6 收益率预测 (基于十五五降权后持仓)
 
-**预测版本**: {proj.get("version", "unknown")}  
-**投资期限**: {proj.get("investment_horizon", "")} ({proj.get("horizon_years", 1.5)} 年)  
+**预测版本**: {proj.get("version", "unknown")}
+**投资期限**: {proj.get("investment_horizon", "")} ({proj.get("horizon_years", 1.5)} 年)
 **初始资本**: ¥{proj.get("initial_capital", 5000000):,}
 
 #### 四场景预测
@@ -857,9 +877,9 @@ def generate_markdown_report(report: Dict) -> str:
 
     md = f"""# 📊 综合盈亏统计报告（含期货期权对冲）
 
-**日期**: {report["meta"]["report_date"]}  
-**阶段**: {report["meta"]["phase"]}  
-**视角**: {report["meta"]["fund_style"]}  
+**日期**: {report["meta"]["report_date"]}
+**阶段**: {report["meta"]["phase"]}
+**视角**: {report["meta"]["fund_style"]}
 **数据状态**: {data_health.get("status", "UNKNOWN")}
 {data_integrity_warning}
 ---
@@ -1056,8 +1076,8 @@ def generate_markdown_report(report: Dict) -> str:
 
 ## 八、次日交易计划
 
-**下一交易日**: {nd} ({wd})  
-**所属阶段**: {phase.get("name_cn", "")} (第 {phase.get("day_index", 0)} 天 / {phase.get("period", "")})  
+**下一交易日**: {nd} ({wd})
+**所属阶段**: {phase.get("name_cn", "")} (第 {phase.get("day_index", 0)} 天 / {phase.get("period", "")})
 **阶段策略**: {phase.get("strategy", "")}
 
 ### 7.1 股票ETF账户计划
@@ -1065,7 +1085,7 @@ def generate_markdown_report(report: Dict) -> str:
 """
         md += _render_next_day_stock_plan(stock_acc, next_day_plan)
 
-        md += f"""
+        md += """
 ### 7.2 对冲账户计划
 
 """

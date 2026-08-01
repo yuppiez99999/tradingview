@@ -23,11 +23,11 @@ CONFIG_DIR = Path(__file__).parent / 'src' / 'config'
 
 def update_risk_config():
     """更新风控配置文件"""
-    
+
     logger.info("=" * 80)
     logger.info("P0风控参数更新")
     logger.info("=" * 80)
-    
+
     # 目标配置
     new_risk_params = {
         "portfolio_stop_loss_threshold": -0.08,  # -8%止损线
@@ -45,12 +45,12 @@ def update_risk_config():
         "volatility_threshold": 0.28,  # 波动率阈值28%
         "drawdown_threshold": 0.12  # 回撤阈值12%
     }
-    
+
     # 保存配置
     risk_config_path = CONFIG_DIR / 'risk_config_p0.json'
     with open(risk_config_path, 'w', encoding='utf-8') as f:
         json.dump(new_risk_params, f, ensure_ascii=False, indent=2)
-    
+
     logger.info(f"风控配置已保存: {risk_config_path}")
     logger.info("")
     logger.info("关键参数变更:")
@@ -60,13 +60,13 @@ def update_risk_config():
     logger.info("  个股止损线: -8% (保持不变)")
     logger.info("  单日亏损限制: -3%")
     logger.info(f"  连续亏损上限: {new_risk_params['consecutive_loss_limit']}次")
-    
+
     return new_risk_params
 
 
 def generate_risk_update_report(params):
     """生成风控更新报告"""
-    
+
     report = {
         "metadata": {
             "title": "P0风控参数更新报告",
@@ -91,30 +91,30 @@ def generate_risk_update_report(params):
             "annual_protection_value": "约50-80万元(极端损失减少3-5%)"
         }
     }
-    
+
     report_path = Path(__file__).parent / 'reports' / f'risk_update_report_{datetime.now().strftime("%Y%m%d")}.json'
     with open(report_path, 'w', encoding='utf-8') as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
-    
+
     logger.info(f"风控更新报告已保存: {report_path}")
     return report_path
 
 
 def main():
     """主执行流程"""
-    
+
     logger.info("")
     logger.info("╔" + "=" * 78 + "╗")
     logger.info("║" + " P0风控参数更新器 ".center(78) + "║")
     logger.info("╚" + "=" * 78 + "╝")
     logger.info("")
-    
+
     # 更新风控配置
     params = update_risk_config()
-    
+
     # 生成报告
     report_path = generate_risk_update_report(params)
-    
+
     logger.info("")
     logger.info("=" * 80)
     logger.info("风控参数更新完成")

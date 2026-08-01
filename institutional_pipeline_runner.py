@@ -31,27 +31,27 @@ import numpy as np
 import pandas as pd
 
 from utils.alpha_evaluator import AlphaEvaluator
-from utils.concurrency import run_io_batch
-from utils.signal_fusion import SignalFusionEngine, FusionSignal
-from utils.risk_budget_engine import RiskBudgetEngine, RiskCheckResult
-from utils.institutional_optimizer import InstitutionalPortfolioOptimizer, PortfolioDecision
-from utils.execution_router import ExecutionRouter, ExecutionPlan
-from utils.data_gate import DataGate
-from utils.path_config import get_institutional_pipeline_report_dir, get_historical_base_file
-
-# 顶级对冲基金整改：统一成本、硬性风险约束、回撤熔断、回测完整性守卫
-from utils.risk_constraints import (
-    enforce_hard_constraints,
-    DEFAULT_MAX_WEIGHT,
-    DEFAULT_MAX_SECTOR,
-    DEFAULT_MAX_DAILY_VAR,
-    DEFAULT_MAX_SINGLE_VAR,
-)
-from utils.drawdown_breaker import DrawdownCircuitBreaker
 from utils.backtest_integrity import (
     evaluate_alpha_provenance,
     validate_backtest,
 )
+from utils.concurrency import run_io_batch
+from utils.data_gate import DataGate
+from utils.drawdown_breaker import DrawdownCircuitBreaker
+from utils.execution_router import ExecutionPlan, ExecutionRouter
+from utils.institutional_optimizer import InstitutionalPortfolioOptimizer, PortfolioDecision
+from utils.path_config import get_historical_base_file, get_institutional_pipeline_report_dir
+from utils.risk_budget_engine import RiskBudgetEngine, RiskCheckResult
+
+# 顶级对冲基金整改：统一成本、硬性风险约束、回撤熔断、回测完整性守卫
+from utils.risk_constraints import (
+    DEFAULT_MAX_DAILY_VAR,
+    DEFAULT_MAX_SECTOR,
+    DEFAULT_MAX_SINGLE_VAR,
+    DEFAULT_MAX_WEIGHT,
+    enforce_hard_constraints,
+)
+from utils.signal_fusion import FusionSignal, SignalFusionEngine
 
 # === P0-13: KillSwitch 集成 (2026-07-25 顶级对冲基金审计) ===
 # 审计问题: 生产 pipeline 未集成 KillSwitch, L1/L2/L3 熔断对 pipeline 无效
@@ -87,16 +87,16 @@ try:
     from lgb_enhanced_trainer import (
         LGB_ENHANCED_CONFIG,
         POSITION_SYMBOLS,
-        train_symbol_enhanced,
-        train_symbol_regime_specific,  # V9: regime-specific 双模型训练
-        compute_regime_series,  # V9: 计算 regime 序列
-        add_technical_features,
-        add_cross_sectional_features,
-        add_industry_relative_strength_features,
         add_capital_flow_features,
         add_cross_market_features,
-        add_sentiment_features,
+        add_cross_sectional_features,
+        add_industry_relative_strength_features,
         add_mean_reversion_features,  # V6: 均值回归特征, 提升震荡市Alpha
+        add_sentiment_features,
+        add_technical_features,
+        compute_regime_series,  # V9: 计算 regime 序列
+        train_symbol_enhanced,
+        train_symbol_regime_specific,  # V9: regime-specific 双模型训练
     )
 
     _HAS_LGB = True

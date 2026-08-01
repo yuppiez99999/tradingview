@@ -20,7 +20,6 @@ Almgren-Chriss 冲击成本模型 — v5.10 P1-2 修复
 import math
 from typing import List, Optional
 
-
 # ── 常量 ──
 DEFAULT_GAMMA = 1.0e-6  # 永久冲击系数 (A股典型值)
 DEFAULT_ETA = 0.14  # 临时冲击系数 (A股典型值)

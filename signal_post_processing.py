@@ -5,8 +5,9 @@
 """
 
 import json
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 POSITIONS_FILE = PROJECT_ROOT / "config" / "positions.json"

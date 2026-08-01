@@ -5,11 +5,11 @@
   V3: 年化18.25%, 回撤9.59%, Sharpe 1.236, WF Sharpe CV=0.70, DSR n_trials<=5
   V4: 添加月度止盈机制 (单标的>30%→下月×0.5, 组合>10%→下月×0.8)
 """
+import glob
 import json
 import sys
-import glob
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path("v8.3_institutional/src/validation").resolve()))
 
 # 自动查找最新的V4回测结果 (按修改时间排序, 取最新)
 import os
+
 v4_files = glob.glob("output/validation_reports/lgb_backtest_v4*.json")
 if not v4_files:
     print("ERROR: 未找到V4回测结果文件")

@@ -2,13 +2,15 @@
 """CLI 参数解析与工作流调度入口。"""
 
 from __future__ import annotations
+
 import argparse
 import logging
 from datetime import date
 
-from ..core.workflow_orchestrator import DailyWorkflow
 from ..config.workflow_config import WorkflowConfig
+from ..core.workflow_orchestrator import DailyWorkflow
 from ..utils.logging_setup import setup_logger
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="v7.5 机构级每日交易工作流")

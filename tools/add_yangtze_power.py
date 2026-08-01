@@ -5,12 +5,11 @@
 该脚本从 JSON 文件加载现有计划，缩放已有标的权重以腾出 5% 给长江电力，
 然后写入更新后的 JSON。 不再依赖 `_archive_dead_code` 中的 Python 生成器。
 """
-import os
-import sys
 import json
+import os
 import shutil
+import sys
 from datetime import datetime
-
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _PLAN_JSON = os.path.join(_BASE_DIR, "500万建仓计划_20260706.json")

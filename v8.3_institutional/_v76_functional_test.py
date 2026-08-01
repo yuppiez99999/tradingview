@@ -1,9 +1,11 @@
 """v7.6 功能验证脚本"""
 import sys
+
 sys.path.insert(0, 'src')
 
 import numpy as np
 import pandas as pd
+
 np.random.seed(42)
 
 print("=== v7.6 功能验证 ===")
@@ -12,6 +14,7 @@ print()
 # 1. PM Limits Matrix
 print("[1/7] PM限额矩阵...")
 from risk.pm_limits import create_default_limits
+
 pm = create_default_limits(total_nav=5_000_000)
 test_pos = {'300308.SZ': 0.15, '688041.SH': 0.12, '601088.SH': 0.10}
 result = pm.check_all(test_pos)
@@ -25,6 +28,7 @@ print(f"  Pre-trade 300308: {pre.status.value} -> {pre.message[:60] if pre.messa
 # 2. 深度压力测试
 print("[2/7] 深度压力测试...")
 from risk.deep_stress import DeepStressTester
+
 dpt = DeepStressTester(total_nav=5_000_000)
 exposures = {'equity_cn': 4_000_000, 'cn_bond': 1_000_000, 'gold': 500_000}
 report = dpt.run_all(exposures)
@@ -32,7 +36,8 @@ print(f"  评级: {report['overall_rating']}, CVaR: {report['cvar']['pct']:.2%},
 
 # 3. TCA
 print("[3/7] TCA交易成本...")
-from execution.tca import TransactionCostAnalyzer, TradeRecord
+from execution.tca import TradeRecord, TransactionCostAnalyzer
+
 tca = TransactionCostAnalyzer()
 trade = TradeRecord(
     symbol='300308.SZ', side='BUY', order_qty=10000, fill_qty=9800,
@@ -50,6 +55,7 @@ print(f"  改进建议: {attr['suggestions'][0][:60]}...")
 # 4. Implementation Shortfall
 print("[4/7] 实现缺口(IS)...")
 from execution.implementation_shortfall import ImplementationShortfall
+
 iss = ImplementationShortfall()
 decomp = iss.decompose(
     symbol='600900.SH', side='BUY', order_type='TWAP',
@@ -66,6 +72,7 @@ if sugs:
 # 5. HRP
 print("[5/7] 分层风险平价...")
 from portfolio.hrp import HierarchicalRiskParity
+
 dates = pd.date_range('2025-01-01', '2026-07-20', freq='B')
 np.random.seed(42)
 returns = pd.DataFrame({
@@ -81,6 +88,7 @@ print(f"  HRP年化波动率: {risk_rpt['annual_vol']:.1%}")
 # 6. 机制协方差
 print("[6/7] 机制条件协方差...")
 from portfolio.regime_covariance import RegimeConditionalCovariance
+
 rcc = RegimeConditionalCovariance()
 rcc.fit(returns)
 pred = rcc.predict_covariance(horizon=20, current_vix_proxy=0.15)
@@ -92,7 +100,8 @@ print(f"  切换预警: {warning['action']}")
 
 # 7. 信号半衰期
 print("[7/7] 信号半衰期管理...")
-from signals.signal_half_life import SignalHalfLifeManager, PRESET_HALF_LIVES
+from signals.signal_half_life import PRESET_HALF_LIVES, SignalHalfLifeManager
+
 mgr = SignalHalfLifeManager()
 for name, cfg in list(PRESET_HALF_LIVES.items())[:5]:
     mgr.register_signal(name, cfg['cat'], cfg['hl'])

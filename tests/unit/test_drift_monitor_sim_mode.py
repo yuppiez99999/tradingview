@@ -25,6 +25,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from utils.alpha.delayed_label_tracker import (
+    DelayedLabelTracker,
+    DelayedMetrics,
+    PredictionRecord,
+)
+
 # 测试目标模块
 from utils.alpha.drift_monitor import (
     DriftReport,
@@ -33,16 +39,10 @@ from utils.alpha.drift_monitor import (
     _classify_severity,
     _load_alert_owners,
     compute_feature_drift,
-    compute_psi,
     compute_prediction_drift,
+    compute_psi,
     create_sim_mode_drift_monitor,
 )
-from utils.alpha.delayed_label_tracker import (
-    DelayedLabelTracker,
-    DelayedMetrics,
-    PredictionRecord,
-)
-
 
 # ============================================================
 # pytest marker

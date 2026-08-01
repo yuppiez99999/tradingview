@@ -13,10 +13,10 @@ import logging
 import math
 import os
 import re
-import time
 import threading
+import time
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 

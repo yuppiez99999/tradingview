@@ -3,6 +3,7 @@
 
 import os
 
+
 def analyze_file(filepath: str):
     if not os.path.exists(filepath):
         print(f"File not found: {filepath}")

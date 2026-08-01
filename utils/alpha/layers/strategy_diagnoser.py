@@ -53,15 +53,14 @@ from utils.alpha.root_cause import (  # noqa: E402
     ACTION_CONFIG_ROLLBACK,
     ACTION_MANUAL,
     ACTION_RETRAIN,
-    FixSuggestion,
     LAYER_STRATEGY,
-    RootCause,
     SEVERITY_CRITICAL,
     SEVERITY_HIGH,
     SEVERITY_LOW,
     SEVERITY_MEDIUM,
+    FixSuggestion,
+    RootCause,
 )
-
 
 # ============================================================
 # 常量

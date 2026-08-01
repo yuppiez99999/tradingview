@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import math
 import sys
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -37,7 +37,6 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from research.vibe_trading_factor_analysis.validators.dsr_validator import DSRValidator
-
 
 # ============== CIO 锁定参数（DECISION v1.0）==============
 SHADOW_OBSERVATION_DAYS = 90          # 观察期 90d（比原方案 60d 严格 50%）

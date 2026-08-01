@@ -3,12 +3,13 @@
 只监控用户交易计划中的 14 个标的。
 数据源优先级：iFinD MCP > Wind MCP > 新浪 HTTP
 """
-import os
-import json
-import sys
-import requests
 import importlib.util
+import json
+import os
+import sys
 from datetime import datetime
+
+import requests
 
 # ── 路径修正 ──────────────────────────────────────────
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

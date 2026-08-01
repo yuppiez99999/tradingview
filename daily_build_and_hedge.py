@@ -15,9 +15,9 @@ from __future__ import annotations
 # ============================================================
 try:
     from utils.execution.daily_build_and_hedge import (
-        DailyBuildHedgeSystem,
         BASE_DIR,
         LOG_DIR,
+        DailyBuildHedgeSystem,
         logger,
     )
 except ImportError as _e:

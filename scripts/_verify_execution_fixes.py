@@ -24,8 +24,8 @@ _V83_SRC = _PROJECT_ROOT / "v8.3_institutional" / "src"
 if str(_V83_SRC) not in sys.path:
     sys.path.insert(0, str(_V83_SRC))
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 PASS_COUNT = 0
 FAIL_COUNT = 0

@@ -72,12 +72,12 @@ def test_package_imports():
     # 子模块均能独立导入
     from lgb_trainer import (  # noqa: F401
         data_loader,
-        news_sentiment,
         feature_engineering,
         metrics,
+        news_sentiment,
         persistence,
-        trainer,
         report_generator,
+        trainer,
     )
 
     # __init__.py 导出的关键符号
@@ -160,8 +160,8 @@ def test_thin_coordinator_backward_compat():
 # ============================================================
 def test_configure_paths_injection():
     banner("[3] configure_paths 路径注入")
-    from lgb_trainer import data_loader, news_sentiment, persistence, report_generator, trainer
     import lgb_enhanced_trainer
+    from lgb_trainer import data_loader, news_sentiment, persistence, report_generator, trainer
 
     # 主模块导入时 _inject_paths_to_submodules 应已自动调用
     # 验证子模块的 BASE_DIR 与主模块一致
@@ -224,8 +224,8 @@ def test_metrics_correctness():
 # ============================================================
 def test_time_series_cv_uses_purged_kfold():
     banner("[5] time_series_cv_evaluate 使用 Purged K-Fold")
-    from lgb_trainer import metrics
     import utils.purged_kfold as pk_mod
+    from lgb_trainer import metrics
 
     X = np.random.RandomState(0).randn(240, 6).astype(float)
     y = np.random.RandomState(1).randn(240).astype(float)
@@ -458,16 +458,16 @@ def test_external_module_backward_compat():
         from lgb_enhanced_trainer import (
             LGB_ENHANCED_CONFIG,
             POSITION_SYMBOLS,  # noqa: F401
-            train_symbol_enhanced,  # noqa: F401
-            train_symbol_regime_specific,  # noqa: F401
-            compute_regime_series,  # noqa: F401
-            add_technical_features,  # noqa: F401
-            add_cross_sectional_features,  # noqa: F401
-            add_industry_relative_strength_features,  # noqa: F401
             add_capital_flow_features,  # noqa: F401
             add_cross_market_features,  # noqa: F401
-            add_sentiment_features,  # noqa: F401
+            add_cross_sectional_features,  # noqa: F401
+            add_industry_relative_strength_features,  # noqa: F401
             add_mean_reversion_features,  # noqa: F401
+            add_sentiment_features,  # noqa: F401
+            add_technical_features,  # noqa: F401
+            compute_regime_series,  # noqa: F401
+            train_symbol_enhanced,  # noqa: F401
+            train_symbol_regime_specific,  # noqa: F401
         )
     except ImportError as e:
         raise AssertionError(f"外部模块向后兼容导入失败: {e}")

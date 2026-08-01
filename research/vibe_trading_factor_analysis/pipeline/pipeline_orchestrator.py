@@ -20,7 +20,7 @@ import logging
 import math
 import sys
 import traceback
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -33,24 +33,29 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import (
-    VibeTradingFactorAdapter, CandidateFactor, CandidateFactorPool,
-)
 from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (
-    build_factor_history, compute_rolling_ic_series, compute_ic_ir, compute_ic_decay,
+    build_factor_history,
+    compute_ic_decay,
+    compute_ic_ir,
+    compute_rolling_ic_series,
 )
-from research.vibe_trading_factor_analysis.validators.dsr_validator import DSRValidator
-from research.vibe_trading_factor_analysis.validators.regime_conditioner import (
-    RegimeConditioner,
+from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import (
+    CandidateFactor,
+    CandidateFactorPool,
+    VibeTradingFactorAdapter,
 )
-from research.vibe_trading_factor_analysis.validators.capacity_analyzer import (
-    CapacityAnalyzer,
+from research.vibe_trading_factor_analysis.committee.factor_committee import (
+    FactorCommittee,
 )
 from research.vibe_trading_factor_analysis.shadow.shadow_account import (
     ShadowAccount,
 )
-from research.vibe_trading_factor_analysis.committee.factor_committee import (
-    FactorCommittee,
+from research.vibe_trading_factor_analysis.validators.capacity_analyzer import (
+    CapacityAnalyzer,
+)
+from research.vibe_trading_factor_analysis.validators.dsr_validator import DSRValidator
+from research.vibe_trading_factor_analysis.validators.regime_conditioner import (
+    RegimeConditioner,
 )
 
 

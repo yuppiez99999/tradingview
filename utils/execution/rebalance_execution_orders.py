@@ -8,9 +8,9 @@ T3.6 迁移: 2026-07-27 从项目根目录迁移到 utils/execution/
 - 修正路径: sys.path / positions.json / 输出文件路径
 """
 
-import sys
-import os
 import json
+import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict

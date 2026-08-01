@@ -21,11 +21,12 @@ automated_execution_system 单元测试 (C-1.3)
 目标覆盖率: ≥ 40%
 """
 
+import json
 import os
 import sys
-import json
 import threading
-from datetime import datetime, time as datetime_time
+from datetime import datetime
+from datetime import time as datetime_time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -43,14 +44,13 @@ if str(PROJECT_ROOT) not in sys.path:
 os.environ.pop("TRADING_ENV", None)
 
 from utils.execution.automated_execution_system import (  # noqa: E402
-    _to_wind_code,
-    TradingCalendar,
-    MarketStateEvaluator,
-    ExecutionStrategy,
-    OrderRouter,
     AutomatedExecutionSystem,
+    ExecutionStrategy,
+    MarketStateEvaluator,
+    OrderRouter,
+    TradingCalendar,
+    _to_wind_code,
 )
-
 
 # ============================================================
 # 1. 纯函数测试

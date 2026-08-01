@@ -31,14 +31,14 @@ LLM降级链: DeepSeek (V3/R1, 主 LLM) → Ollama本地 → GLM-5 → 豆包 �
     post_review = engine.post_market_review()
 """
 
-import sys
-import json
-import time
-import threading
 import argparse
+import json
+import sys
+import threading
+import time
 from datetime import datetime
-from typing import Dict, List, Optional, Any
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # 支持直接运行: python utils/etf_flow_decision.py --phase pre_market
 if __package__ is None:
@@ -47,9 +47,9 @@ if __package__ is None:
         sys.path.insert(0, _pkg_root)
 
 # 导入28系统核心模块
-from utils.logger import get_logger
-from utils.etf_flow_monitor import ETFRealTimeTracker, NATIONAL_TEAM_ETFS
 from utils.astock_realtime import get_realtime_quotes
+from utils.etf_flow_monitor import NATIONAL_TEAM_ETFS, ETFRealTimeTracker
+from utils.logger import get_logger
 from utils.signal_fusion import SignalFusionEngine
 
 logger = get_logger("etf_flow_decision")

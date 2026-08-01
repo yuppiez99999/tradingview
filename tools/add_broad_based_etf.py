@@ -12,8 +12,8 @@
   python add_broad_based_etf.py
 """
 import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 import utils.broad_based_etf_policy as policy
 

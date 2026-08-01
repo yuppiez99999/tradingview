@@ -2,21 +2,22 @@
 """工作流编排器 — 核心调度逻辑，仅负责按顺序调用各 phase。"""
 
 from __future__ import annotations
+
 import logging
 from typing import Optional
 
-from .config.workflow_config import WorkflowConfig, CircuitLevel
-from .phases.phase_check import phase_check as phase_check_impl
-from .phases.phase_calibrate import phase_calibrate as phase_calibrate_impl
-from .phases.phase_market import phase_market as phase_market_impl
-from .phases.phase_risk import phase_risk as phase_risk_impl
-from .phases.phase_hedge import phase_hedge as phase_hedge_impl
-from .phases.phase_signal import phase_signal as phase_signal_impl
-from .phases.phase_execute import phase_execute as phase_execute_impl
-from .phases.phase_report import phase_report as phase_report_impl
+from .config.workflow_config import CircuitLevel, WorkflowConfig
 from .phases.phase_autolearn import phase_autolearn as phase_autolearn_impl
+from .phases.phase_calibrate import phase_calibrate as phase_calibrate_impl
+from .phases.phase_check import phase_check as phase_check_impl
+from .phases.phase_execute import phase_execute as phase_execute_impl
 from .phases.phase_factor_kill import phase_factor_kill as phase_factor_kill_impl
+from .phases.phase_hedge import phase_hedge as phase_hedge_impl
+from .phases.phase_market import phase_market as phase_market_impl
+from .phases.phase_report import phase_report as phase_report_impl
+from .phases.phase_risk import phase_risk as phase_risk_impl
 from .phases.phase_shadow import phase_shadow as phase_shadow_impl
+from .phases.phase_signal import phase_signal as phase_signal_impl
 
 logger = logging.getLogger("v75.workflow.orchestrator")
 

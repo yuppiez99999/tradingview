@@ -163,11 +163,11 @@ def main():
         for alert in alerts:
             print(f"  - {alert}")
 
-        print(f"\n## summary 摘要:")
+        print("\n## summary 摘要:")
         print(f"  {json.dumps(summary, ensure_ascii=False)[:300]}")
 
         # 检查 hourly 和 daily 是否在综合接口中
-        print(f"\n## 综合接口包含的子模块:")
+        print("\n## 综合接口包含的子模块:")
         for key in d1:
             val = d1[key]
             if isinstance(val, list):
@@ -179,7 +179,7 @@ def main():
 
     if d3:
         hourly_data = d3
-        print(f"\n## hourly 小时预报:")
+        print("\n## hourly 小时预报:")
         if isinstance(hourly_data, dict):
             for k in hourly_data:
                 v = hourly_data[k]
@@ -195,7 +195,7 @@ def main():
 
     if d4:
         daily_data = d4
-        print(f"\n## daily 天预报:")
+        print("\n## daily 天预报:")
         if isinstance(daily_data, dict):
             for k in daily_data:
                 v = daily_data[k]

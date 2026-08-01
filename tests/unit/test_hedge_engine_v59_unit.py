@@ -32,23 +32,22 @@ for _p in (str(PROJECT_ROOT), str(SRC_ROOT)):
         sys.path.insert(0, _p)
 
 from hedging.hedge_engine_v59 import (  # noqa: E402
-    HedgeEngine,
-    get_hedge_engine,
-    calculate_portfolio_beta,
-    VOLATILITY_TARGET_ANNUAL,
-    HEDGE_ROLL_COST_ANNUAL,
+    COST_BENEFIT_THRESHOLD,
     HEDGE_MARGIN_OPP_COST,
+    HEDGE_ROLL_COST_ANNUAL,
     INDEX_ALLOCATION_ORDER,
     PORTFOLIO_TAIL_HEDGE_TRIGGERS,
-    COST_BENEFIT_THRESHOLD,
+    VOLATILITY_TARGET_ANNUAL,
+    HedgeEngine,
+    calculate_portfolio_beta,
+    get_hedge_engine,
 )
 from hedging.hedge_types import (  # noqa: E402
-    HedgeType,
-    HedgeSignalStrength,
     HedgeRecommendation,
+    HedgeSignalStrength,
+    HedgeType,
 )
 from risk.portfolio_risk_assessor import PortfolioRisk  # noqa: E402
-
 
 # ============================================================
 # Fixture: 真实持仓数据 (端到端流程使用)

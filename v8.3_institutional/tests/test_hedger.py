@@ -1,18 +1,19 @@
 """
 v7.5 测试：三联对冲 — Beta / Vol / Correlation
 """
-import sys
 import os
+import sys
 import unittest
+
 import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from hedging.beta_hedger import BetaHedger
-from hedging.vol_hedger import VolHedger
 from hedging.correlation_hedger import CorrelationHedger
 from hedging.hedge_coordinator import HedgeCoordinator
+from hedging.vol_hedger import VolHedger
 
 
 class TestBetaHedger(unittest.TestCase):

@@ -6,14 +6,14 @@
   2. 检查是否崩溃
   3. 如果崩溃, 定位具体原因 (数据/特征/标签)
 """
-import sys
 import logging
+import sys
 import traceback
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 print("=" * 70)
 print("600276 LGB 训练崩溃重现测试")
@@ -28,9 +28,9 @@ print(f"原始数据: shape={df.shape}, columns={list(df.columns)}")
 # Step 2: 特征工程
 try:
     from lgb_enhanced_trainer import (
-        add_technical_features,
         add_mean_reversion_features,
         add_regime_aware_features,
+        add_technical_features,
     )
 
     print("\nStep 2: 特征工程")
@@ -79,7 +79,7 @@ except Exception as e:
 # Step 3: 尝试 LGB 训练
 print("\nStep 3: LGB 训练")
 try:
-    from lgb_enhanced_trainer import train_symbol_enhanced, LGB_ENHANCED_CONFIG
+    from lgb_enhanced_trainer import LGB_ENHANCED_CONFIG, train_symbol_enhanced
 
     # 模拟 walk-forward 训练 (截止 2024-10-01)
     cutoff = pd.Timestamp("2024-10-01")

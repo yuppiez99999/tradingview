@@ -11,8 +11,9 @@ pytest 自动加载规则: 仅识别名为 conftest.py 的文件
     - e2e_trade_plans: 加载所有真实交易计划
 """
 import json
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture(scope="session")

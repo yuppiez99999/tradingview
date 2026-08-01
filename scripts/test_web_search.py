@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-import requests
 import re
+
+import requests
+
 
 def test_web_search_coal(port):
     """测试 Web 搜索港口库存"""
@@ -9,7 +11,7 @@ def test_web_search_coal(port):
         "https://futures.eastmoney.com/",
         "https://www.baidu.com/s?wd=动力煤港口库存",
     ]
-    
+
     for url in urls:
         try:
             print(f"\n测试 URL: {url}")
@@ -18,7 +20,7 @@ def test_web_search_coal(port):
             if resp.status_code == 200:
                 content = resp.text
                 print(f"内容长度: {len(content)}")
-                
+
                 # 搜索港口库存
                 patterns = [
                     rf'{port}港.*?(\d+(?:\.\d+)?)\s*万吨',
@@ -30,12 +32,12 @@ def test_web_search_coal(port):
                     if m:
                         print(f"匹配到: {m.group(1)} 万吨")
                         return float(m.group(1))
-                
+
                 # 如果没有匹配到，打印一些内容
                 print(f"未匹配到，内容片段: {content[:500]}")
         except Exception as e:
             print(f"错误: {e}")
-    
+
     return None
 
 for port in ["秦皇岛", "曹妃甸", "黄骅港"]:

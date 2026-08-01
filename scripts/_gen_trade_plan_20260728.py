@@ -2,8 +2,8 @@
 """
 手动生成 trade_plan_20260728.json (用于验证自动生成逻辑)
 """
-import sys
 import json
+import sys
 from pathlib import Path
 
 BASE = Path(r"E:\各种PY程序\28-终极量化交易系统8.4")

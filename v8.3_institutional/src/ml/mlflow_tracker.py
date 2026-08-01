@@ -17,13 +17,13 @@ CLI:
     python utils/mlflow_tracker.py --compare --experiment quant_v5.7
 """
 
-import os
 import json
-import time
 import logging
-from datetime import datetime
-from typing import Dict, List, Optional, Any
+import os
+import time
 from contextlib import contextmanager
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +40,9 @@ def _lazy_import_mlflow():
     if not _MLFLOW_AVAILABLE:
         try:
             import mlflow
+            import mlflow.lightgbm
             import mlflow.sklearn
             import mlflow.xgboost
-            import mlflow.lightgbm
             from mlflow.tracking import MlflowClient
 
             _MLFLOW_AVAILABLE = True
@@ -53,9 +53,9 @@ def _lazy_import_mlflow():
             raise
     else:
         import mlflow
+        import mlflow.lightgbm
         import mlflow.sklearn
         import mlflow.xgboost
-        import mlflow.lightgbm
         from mlflow.tracking import MlflowClient
 
         return mlflow, mlflow.sklearn, mlflow.xgboost, mlflow.lightgbm, MlflowClient

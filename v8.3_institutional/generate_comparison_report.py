@@ -7,8 +7,8 @@ v1 / v2 / v3 三方对比报告生成器
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 # 统一到根目录 每日报告归档, 默认使用今天日期

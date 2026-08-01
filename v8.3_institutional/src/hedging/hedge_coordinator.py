@@ -23,9 +23,9 @@ import numpy as np
 import pandas as pd
 
 from .beta_hedger import BetaHedger
-from .vol_hedger import VolHedger
 from .correlation_hedger import CorrelationHedger
-from .tail_risk_hedge import TailRiskHedger, MarketRegime
+from .tail_risk_hedge import MarketRegime, TailRiskHedger
+from .vol_hedger import VolHedger
 
 logger = logging.getLogger("v75.hedging.coordinator")
 

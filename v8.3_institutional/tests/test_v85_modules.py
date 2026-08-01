@@ -16,8 +16,8 @@ v8.5 新增模块单元测试
 
 import sys
 import unittest
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -43,7 +43,7 @@ class TestVegaMonitor(unittest.TestCase):
     """Vega 风险监控模块测试"""
 
     def setUp(self):
-        from src.risk.vega_monitor import VegaMonitor, OptionPosition
+        from src.risk.vega_monitor import OptionPosition, VegaMonitor
         self.monitor = VegaMonitor(nav=5_000_000)
         self.test_positions = [
             OptionPosition(
@@ -77,16 +77,16 @@ class TestVegaMonitor(unittest.TestCase):
     def test_calculate_exposure(self):
         """测试 Vega 暴露计算"""
         exposure = self.monitor.calculate_exposure(self.test_positions)
-        
+
         # 总 Vega = 100*0.3 + 50*0.25 = 30 + 12.5 = 42.5
         self.assertAlmostEqual(exposure.total_vega, 42.5, places=2)
-        
+
         # Vega PnL 1% 变动 = 42.5 * 0.01 = 0.425
         self.assertAlmostEqual(exposure.vega_pnl_1pct_move, 0.425, places=2)
-        
+
         # Put Vega = 50 * 0.25 = 12.5
         self.assertAlmostEqual(exposure.put_vega, 12.5, places=2)
-        
+
         # Call Vega = 100 * 0.3 = 30
         self.assertAlmostEqual(exposure.call_vega, 30.0, places=2)
 
@@ -115,7 +115,7 @@ class TestVegaMonitor(unittest.TestCase):
                 market_value=1500000
             ),
         ]
-        
+
         report = self.monitor.generate_report(high_vega_positions)
         self.assertIn(report.status, ["OK", "WARNING", "CRITICAL"])
         self.assertGreater(len(report.warnings), 0)
@@ -133,7 +133,7 @@ class TestLiquidityMonitor(unittest.TestCase):
     def setUp(self):
         from src.risk.liquidity_monitor import LiquidityMonitor
         self.monitor = LiquidityMonitor()
-        
+
         self.test_stocks = [
             {
                 'symbol': '600519.SH',
@@ -176,7 +176,7 @@ class TestLiquidityMonitor(unittest.TestCase):
     def test_scan_market(self):
         """测试市场扫描"""
         report = self.monitor.scan_market(self.test_stocks)
-        
+
         self.assertEqual(report.total_stocks, 2)
         self.assertEqual(report.suspended_count, 1)
         self.assertGreater(report.avg_liquidity_score, 0)
@@ -202,7 +202,7 @@ class TestEVTTailRisk(unittest.TestCase):
     def setUp(self):
         from src.risk.evt_tail_risk import ExtremeValueAnalyzer
         self.evt_model = ExtremeValueAnalyzer(confidence_level=0.99)
-        
+
         # 生成测试数据 (模拟 A 股日收益率)
         import numpy as np
         np.random.seed(42)
@@ -219,7 +219,7 @@ class TestEVTTailRisk(unittest.TestCase):
         except Exception as e:
             # scipy版本不兼容时跳过
             self.skipTest(f"scipy not compatible: {e}")
-        
+
     def test_estimate_tail_index(self):
         """测试尾部指数估计"""
         import numpy as np
@@ -229,7 +229,7 @@ class TestEVTTailRisk(unittest.TestCase):
             self.assertGreater(gpd_params.xi, 0)
         except Exception as e:
             self.skipTest(f"scipy not compatible: {e}")
-        
+
     def test_generate_stress_scenarios(self):
         """测试压力情景生成"""
         import numpy as np
@@ -238,7 +238,7 @@ class TestEVTTailRisk(unittest.TestCase):
             portfolio_returns=returns,
             portfolio_value=5_000_000
         )
-        
+
         self.assertGreater(len(scenarios), 0)
         for scenario in scenarios:
             # StressTestResult 对象有 loss 属性
@@ -259,7 +259,7 @@ class TestFactorDecayMonitor(unittest.TestCase):
     def setUp(self):
         from src.model_monitoring.factor_decay_monitor import FactorDecayMonitor
         self.monitor = FactorDecayMonitor()
-        
+
         # 生成模拟 IC 序列
         import numpy as np
         np.random.seed(42)
@@ -267,9 +267,9 @@ class TestFactorDecayMonitor(unittest.TestCase):
 
     def test_calculate_decay_rate(self):
         """测试衰减率计算"""
-        from src.model_monitoring.factor_decay_monitor import FactorIC
         # 准备IC数据
         import numpy as np
+        from src.model_monitoring.factor_decay_monitor import FactorIC
         ic_data = []
         for i in range(100):
             ic_data.append(FactorIC(
@@ -287,15 +287,15 @@ class TestFactorDecayMonitor(unittest.TestCase):
                 monotonicity=0.7
             ))
         self.monitor.record_ic(ic_data)
-        
+
         half_life = self.monitor.calculate_half_life("TestFactor")
         if half_life:  # 可能返回None如果数据不足
             self.assertGreater(half_life.half_life_days, 0)
 
     def test_detect_anomalies(self):
         """测试异常检测"""
-        from src.model_monitoring.factor_decay_monitor import FactorIC
         import numpy as np
+        from src.model_monitoring.factor_decay_monitor import FactorIC
         ic_data = []
         for i in range(100):
             ic_data.append(FactorIC(
@@ -313,7 +313,7 @@ class TestFactorDecayMonitor(unittest.TestCase):
                 monotonicity=0.7
             ))
         self.monitor.record_ic(ic_data)
-        
+
         crowding = self.monitor.check_crowding("TestFactor")
         self.assertIsNotNone(crowding)
         # FactorCrowding 对象可能有 level、score 或 other 属性
@@ -323,7 +323,7 @@ class TestFactorDecayMonitor(unittest.TestCase):
     def test_generate_report(self):
         """测试报告生成"""
         report = self.monitor.generate_health_report()
-        
+
         self.assertIsNotNone(report)
         if isinstance(report, dict):
             self.assertIn('factor_name', report)
@@ -359,7 +359,7 @@ class TestShadowAccount(unittest.TestCase):
             live_pnl=95000,
             deviation_pct=0.05
         )
-        
+
         self.assertGreater(len(self.shadow.deviation_history), 0)
 
     def test_check_compliance(self):
@@ -396,7 +396,7 @@ class TestPurgedKFoldCV(unittest.TestCase):
         """测试折叠生成"""
         n_samples = 1000
         folds = self.cv.generate_folds(n_samples)
-        
+
         self.assertEqual(len(folds), 5)
         for train_idx, val_idx in folds:
             self.assertGreater(len(train_idx), 0)
@@ -405,7 +405,7 @@ class TestPurgedKFoldCV(unittest.TestCase):
     def test_no_data_leakage(self):
         """测试无数据泄漏"""
         folds = self.cv.generate_folds(100)
-        
+
         for train_idx, val_idx in folds:
             # 训练集和验证集不应有重叠
             overlap = set(train_idx) & set(val_idx)

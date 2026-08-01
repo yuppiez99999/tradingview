@@ -10,11 +10,12 @@ AKShare 股票数据源适配器
 - 免费数据，无额度限制
 """
 
+import logging
 import os
 import time
-import logging
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Dict, Optional
+
 import pandas as pd
 
 os.environ["NO_PROXY"] = "*"

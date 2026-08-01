@@ -82,7 +82,7 @@ def load_real_ohlcv(symbol: str, period: str = "2y") -> Optional[pd.DataFrame]:
                     cache_file.unlink(missing_ok=True)
                 except Exception as e:
                     logger.warning(
-                        f"Unexpected error in load_real_ohlcv cache cleanup",
+                        "Unexpected error in load_real_ohlcv cache cleanup",
                         exc_info=True,
                     )
 

@@ -118,7 +118,7 @@ class TestTailRiskHedgerCore(unittest.TestCase):
 
     def setUp(self):
         """初始化测试环境"""
-        from src.hedging.tail_risk_hedge import TailRiskHedger, TailRiskConfig
+        from src.hedging.tail_risk_hedge import TailRiskConfig, TailRiskHedger
 
         self.hedger = TailRiskHedger()
         self.custom_config = TailRiskHedger(TailRiskConfig(max_protection_ratio=0.50))

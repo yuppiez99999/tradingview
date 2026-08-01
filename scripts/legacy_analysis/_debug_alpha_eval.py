@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """诊断: 为什么 _real_alpha_evaluation 返回 mock"""
 import sys
+
 sys.path.insert(0, '.')
 
 import pandas as pd
+
 from utils.data_provider import MarketDataProvider
 
 dp = MarketDataProvider(backtest_mode=True)

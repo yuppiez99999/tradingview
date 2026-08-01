@@ -3,11 +3,12 @@
 基于 pytdx/pytdx2 实现，接入现有数据提供者架构
 """
 
-import time
 import logging
 import threading
+import time
 from datetime import datetime
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
+
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -31,16 +32,16 @@ class TDXDataSource:
         try:
             # 尝试导入 pytdx 或 pytdx2
             try:
-                from pytdx.hq import TdxHq_API
                 from pytdx.exhq import TdxExHq_API
+                from pytdx.hq import TdxHq_API
 
                 self._api_cls = TdxHq_API
                 self._ex_api_cls = TdxExHq_API
                 logger.info("使用 pytdx 原生库")
             except ImportError:
                 try:
-                    from pytdx2.hq import TdxHq_API
                     from pytdx2.exhq import TdxExHq_API
+                    from pytdx2.hq import TdxHq_API
 
                     self._api_cls = TdxHq_API
                     self._ex_api_cls = TdxExHq_API

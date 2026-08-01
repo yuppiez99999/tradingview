@@ -5,12 +5,12 @@
   - output/backtest_result_latest.json (由 research/backtest_runner.py 生成)
   - v8.3_institutional/src/validation/ 下的验证模块
 """
-import sys
 import json
-import math
 import logging
-from pathlib import Path
+import math
+import sys
 from datetime import datetime
+from pathlib import Path
 
 BASE = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE))

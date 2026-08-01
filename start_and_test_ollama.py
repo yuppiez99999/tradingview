@@ -1,8 +1,9 @@
-import subprocess
 import os
-import time
+import subprocess
 import sys
+import time
 from pathlib import Path
+
 
 def _get_ollama_path() -> str:
     return os.environ.get("OLLAMA_PATH",
@@ -24,8 +25,8 @@ proc = subprocess.Popen(
 
 time.sleep(30)
 
-import urllib.request  # noqa: E402
 import json  # noqa: E402
+import urllib.request  # noqa: E402
 
 try:
     req = urllib.request.Request("http://localhost:11434/api/tags", method="GET")

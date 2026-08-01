@@ -8,7 +8,6 @@
 """
 import datetime
 
-
 from utils.trade_calendar import is_trading_day
 
 

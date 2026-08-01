@@ -1,4 +1,5 @@
 import sys
+
 sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional')
 
 tests = [
@@ -12,7 +13,7 @@ tests = [
     ('src.hedging', 'SmartHedgeTrigger', 'SmartHedgeTrigger'),
     ('src.hedging', 'BetaHedger', 'BetaHedger'),
     ('src.hedging', 'HedgeCoordinator', 'HedgeCoordinator'),
-    
+
     ('src.risk', 'CircuitBreaker', 'CircuitBreaker'),
     ('src.risk', 'RiskBudgeter', 'RiskBudgeter'),
     ('src.risk', 'RiskManager', 'RiskManager'),
@@ -22,47 +23,47 @@ tests = [
     ('src.risk', 'StressTestEngine', 'StressTestEngine'),
     ('src.risk', 'RiskControls', 'RiskControls'),
     ('src.risk', 'CorrelationMonitor', 'CorrelationMonitor'),
-    
+
     ('src.macro', 'KondratievCycleAnalyzer', 'KondratievCycleAnalyzer'),
     ('src.macro', 'FifteenFivePlanAnalyzer', 'FifteenFivePlanAnalyzer'),
     ('src.macro', 'SocialSecurityETFTracker', 'SocialSecurityETFTracker'),
-    
+
     ('src.validation', 'PurgedWalkForward', 'PurgedWalkForward'),
     ('src.validation', 'DeflatedSharpeResult', 'DeflatedSharpeResult'),
     ('src.validation', 'WalkForwardValidator', 'WalkForwardValidator'),
     ('src.validation', 'PITChecker', 'PITChecker'),
     ('src.validation', 'PreDeploymentValidator', 'PreDeploymentValidator'),
     ('src.validation', 'StatisticalSignificance', 'StatisticalSignificance'),
-    
+
     ('src.signals', 'SignalFusionEngine', 'SignalFusionEngine'),
     ('src.signals', 'EnhancedSignalFusion', 'EnhancedSignalFusion'),
     ('src.signals', 'SignalIndependenceAnalyzer', 'SignalIndependenceAnalyzer'),
     ('src.signals', 'SignalAuditor', 'SignalAuditor'),
     ('src.signals', 'RuleEngine', 'RuleEngine'),
     ('src.signals', 'SignalCrowdingDetector', 'SignalCrowdingDetector'),
-    
+
     ('src.ai', 'ModelRouter', 'ModelRouter'),
     ('src.ai', 'GLM5DecisionEngine', 'GLM5DecisionEngine'),
     ('src.ai', 'AICoordinator', 'AICoordinator'),
     ('src.ai', 'LLMClient', 'LLMClient'),
-    
+
     ('src.nlp', 'FinSentimentAnalyzer', 'FinSentimentAnalyzer'),
     ('src.nlp', 'EventDrivenFactor', 'EventDrivenFactor'),
     ('src.nlp', 'SentimentHub', 'SentimentHub'),
-    
+
     ('src.factors', 'FiveFactorModel', 'FiveFactorModel'),
     ('src.factors', 'DynamicPositionSizer', 'DynamicPositionSizer'),
     ('src.factors', 'DecisionTheoryEngine', 'DecisionTheoryEngine'),
     ('src.factors', 'MarketImpactModel', 'MarketImpactModel'),
-    
+
     ('src.derivatives', 'GreeksCalculator', 'GreeksCalculator'),
     ('src.derivatives', 'FuturesQuote', 'FuturesQuote'),
     ('src.derivatives', 'OptionsSnapshot', 'OptionsSnapshot'),
-    
+
     ('src.config', 'ConfigHub', 'ConfigHub'),
     ('src.config', 'ConfigValidator', 'ConfigValidator'),
     ('src.config', 'PerformanceAttribution', 'PerformanceAttribution'),
-    
+
     ('src.ml', 'MLPredictor', 'MLPredictor'),
     ('src.ml', 'EnhancedTrainer', 'EnhancedTrainer'),
     ('src.ml', 'OptunaTrainer', 'OptunaTrainer'),

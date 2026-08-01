@@ -22,7 +22,7 @@ import logging
 import math
 import sys
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 import numpy as np
 
@@ -30,18 +30,23 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
-    list_available_symbols, load_price_data, load_fundamentals,
-    load_benchmark_returns, compute_equal_weight_benchmark,
+from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (
+    build_factor_history,
+    compute_ic_ir,
+    compute_rolling_ic_series,
 )
 from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import (
     VibeTradingFactorAdapter,
 )
-from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (
-    build_factor_history, compute_rolling_ic_series, compute_ic_ir,
-)
 from research.vibe_trading_factor_analysis.pipeline.pipeline_orchestrator import (
     PipelineOrchestrator,
+)
+from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
+    compute_equal_weight_benchmark,
+    list_available_symbols,
+    load_benchmark_returns,
+    load_fundamentals,
+    load_price_data,
 )
 
 logger = logging.getLogger("test_v6a")

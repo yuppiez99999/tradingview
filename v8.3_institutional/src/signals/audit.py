@@ -20,7 +20,7 @@
 import os
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 try:
     from .logging_manager import get_logger

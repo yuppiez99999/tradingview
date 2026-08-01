@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import logging
 import subprocess
-import time
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List

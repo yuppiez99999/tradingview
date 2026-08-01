@@ -29,16 +29,16 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from research.lgbm_factor_mining import construct_default_config  # noqa: E402
 from research.lgbm_reproducibility import (  # noqa: E402
-    TrainingConfig,
     MANIFEST_REQUIRED_FIELDS,
+    TrainingConfig,
     artifact_name,
     compute_code_sha,
     compute_dataset_uri,
     verify_reproducibility,
     write_manifest,
 )
-from research.lgbm_factor_mining import construct_default_config  # noqa: E402
 
 
 # ============================================================

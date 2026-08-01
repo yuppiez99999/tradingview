@@ -2,11 +2,12 @@
 # 当前: 仅有简单日盈亏, 不知道盈亏来源
 # 优化: 分解为 Beta收益 + Alpha + 风格因子 + 行业 + 个股特异 + 对冲 + 成本
 from __future__ import annotations
+
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import List, Dict
+from typing import Dict, List
 
 import numpy as np
 

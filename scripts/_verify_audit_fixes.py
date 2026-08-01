@@ -16,9 +16,9 @@
 
 运行: python scripts/_verify_audit_fixes.py
 """
+import logging
 import os
 import sys
-import logging
 from datetime import datetime
 
 # 项目根目录
@@ -282,7 +282,9 @@ def test_er3():
 
     # 功能测试: 验证时间窗口计算不抛 ValueError
     try:
-        from datetime import datetime as dt, time as dt_time, timedelta as td
+        from datetime import datetime as dt
+        from datetime import time as dt_time
+        from datetime import timedelta as td
         trigger_time = dt_time(15, 15)
         now = dt(2026, 7, 28, 16, 0)  # 16:00, 在窗口内
         today_trigger = dt.combine(now.date(), trigger_time)

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """验证 Fundamental 和 Alpha101 补全效果"""
 import sys
+
 sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4')
 
 import numpy as np
@@ -24,6 +25,7 @@ df = pd.DataFrame({
 }, index=dates)
 
 from utils.vibe_trading_adapter import get_vibe_adapter
+
 adapter = get_vibe_adapter()
 
 print('=' * 70)

@@ -12,6 +12,7 @@
     - 不依赖真实报告文件, 全部使用 fixture 构造样本
 """
 import pytest
+
 from utils.risk_guard_integrator import RiskGuardIntegrator
 
 

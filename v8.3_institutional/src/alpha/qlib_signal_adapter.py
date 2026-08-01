@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import pandas as pd
 
@@ -520,9 +520,10 @@ def generate_qlib_signal(
 # 本地回退模型 (Qlib 不可用时使用)
 # ============================================================
 
-import joblib  # noqa: E402
 import json  # noqa: E402
 from pathlib import Path  # noqa: E402
+
+import joblib  # noqa: E402
 
 # 模型保存目录
 MODEL_DIR = Path(__file__).resolve().parent.parent.parent / "models" / "qlib_local"

@@ -241,7 +241,7 @@ class TestEndToEndRegimeImpact:
     def test_zero_drawdown_yields_normal_regime(self):
         """hwm_drawdown=0.0 + 低 VIX → normal regime, 不应触发危机对冲."""
         from hedging.hedge_coordinator import HedgeCoordinator
-        from hedging.tail_risk_hedge import TailRiskHedger, MarketRegime
+        from hedging.tail_risk_hedge import MarketRegime, TailRiskHedger
 
         # 用真实 TailRiskHedger, 其他 mock
         hc = HedgeCoordinator.__new__(HedgeCoordinator)
@@ -271,7 +271,7 @@ class TestEndToEndRegimeImpact:
     def test_large_drawdown_yields_crisis_regime(self):
         """hwm_drawdown=0.33 + VIX=20 → crisis regime (回撤权重 40%)."""
         from hedging.hedge_coordinator import HedgeCoordinator
-        from hedging.tail_risk_hedge import TailRiskHedger, MarketRegime
+        from hedging.tail_risk_hedge import MarketRegime, TailRiskHedger
 
         hc = HedgeCoordinator.__new__(HedgeCoordinator)
         hc.beta_hedger = MagicMock()
@@ -305,7 +305,7 @@ class TestEndToEndRegimeImpact:
     def test_large_drawdown_with_high_vix_yields_crisis(self):
         """hwm_drawdown=0.33 + VIX=80 → crisis regime (回撤+VIX双高分)."""
         from hedging.hedge_coordinator import HedgeCoordinator
-        from hedging.tail_risk_hedge import TailRiskHedger, MarketRegime
+        from hedging.tail_risk_hedge import MarketRegime, TailRiskHedger
 
         hc = HedgeCoordinator.__new__(HedgeCoordinator)
         hc.beta_hedger = MagicMock()

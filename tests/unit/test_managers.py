@@ -20,39 +20,40 @@
 """
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
-from unittest.mock import MagicMock, patch
 
 # ============================================================
 # 导入被测模块
 # ============================================================
 from utils.attribution.managers import (
-    # 异常
-    ManagersError,
-    PortfolioOptimizationError,
-    CommodityMonitorError,
-    ETFFlowError,
-    # 数据类
-    CommoditySnapshot,
-    ManagersReport,
-    # 管理器
-    PortfolioManager,
-    CommodityManager,
-    ETFFlowManager,
-    AttributionManagersFacade,
-    # 便捷函数
-    is_attribution_managers_enabled,
-    create_default_facade,
-    create_commodity_only_facade,
+    COMMODITY_TREND_THRESHOLD,
+    COMMODITY_VOLATILITY_THRESHOLD,
+    DEFAULT_COMMODITY_LOOKBACK_DAYS,
+    DEFAULT_CONFIDENCE,
     # 常量
     DEFAULT_RISK_AVERSION,
     DEFAULT_TAU,
-    DEFAULT_CONFIDENCE,
-    DEFAULT_COMMODITY_LOOKBACK_DAYS,
-    COMMODITY_VOLATILITY_THRESHOLD,
-    COMMODITY_TREND_THRESHOLD,
     SUPPORTED_COMMODITIES,
+    AttributionManagersFacade,
+    CommodityManager,
+    CommodityMonitorError,
+    # 数据类
+    CommoditySnapshot,
+    ETFFlowError,
+    ETFFlowManager,
+    # 异常
+    ManagersError,
+    ManagersReport,
+    # 管理器
+    PortfolioManager,
+    PortfolioOptimizationError,
+    create_commodity_only_facade,
+    create_default_facade,
+    # 便捷函数
+    is_attribution_managers_enabled,
 )
 
 

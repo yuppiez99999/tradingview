@@ -2,7 +2,7 @@
 """
 多因子选股模型 — 五维因子评估框架
 
-来源：整合自 E:\各种PY程序\11_量化策略\five_factor_model.py + event_driven_factor.py
+来源：整合自 E:\\各种PY程序\11_量化策略\five_factor_model.py + event_driven_factor.py
 
 五维因子体系：
 1. 价值因子 (Value) — 估值水平、股息率
@@ -23,11 +23,12 @@
   signal = model.generate_signal(scores)
 """
 
+import logging
+from dataclasses import dataclass
+from typing import Dict, Optional
+
 import numpy as np
 import pandas as pd
-from typing import Dict, Optional
-from dataclasses import dataclass
-import logging
 
 try:
     from utils.gtja191_factors import GTJA191Factors

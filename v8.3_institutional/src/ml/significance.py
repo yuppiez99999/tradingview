@@ -21,9 +21,9 @@ Renaissance标准: 单一信号 t-statistic > 2.0 才纳入组合。
 """
 
 import math
-import numpy as np
-from typing import List, Dict, Union, Optional
+from typing import Dict, List, Optional, Union
 
+import numpy as np
 
 # ═══════════════════════════════════════════════════════
 #  Bootstrap 置信区间

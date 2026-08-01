@@ -1,18 +1,19 @@
 """
 v7.5 测试：RiskManager — 三级回撤 + Kelly + Risk Parity
 """
-import sys
 import os
+import sys
 import unittest
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
-from datetime import datetime
 
 # 添加 src 到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from risk.risk_manager import RiskManager
 from risk.risk_budgeter import RiskBudgeter
+from risk.risk_manager import RiskManager
 
 
 class TestRiskBudgeter(unittest.TestCase):

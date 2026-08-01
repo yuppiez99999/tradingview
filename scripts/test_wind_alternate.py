@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 import sys
+
 sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")
 
 from morning_market_fetcher import (
-    _exec_wind_analytics, _exec_wind_economic,
-    _fetch_sina_coal_inventory, _fetch_ths_coal_inventory, _web_search_fallback_coal,
+    _exec_wind_analytics,
+    _exec_wind_economic,
+    _fetch_sina_coal_inventory,
+    _fetch_ths_coal_inventory,
     _is_wind_success,
+    _web_search_fallback_coal,
 )
 
 print("=== 测试 Wind MCP 港口库存 ===")
@@ -39,12 +43,12 @@ for port in ["秦皇岛", "曹妃甸", "黄骅港"]:
     print(f"  新浪: {r.get('source', 'N/A')} - {r.get('error', 'OK')}")
     if r.get('data'):
         print(f"    数据: {r['data']}")
-    
+
     r = _fetch_ths_coal_inventory(port)
     print(f"  同花顺: {r.get('source', 'N/A')} - {r.get('error', 'OK')}")
     if r.get('data'):
         print(f"    数据: {r['data']}")
-    
+
     r = _web_search_fallback_coal(port)
     print(f"  全网: {r.get('source', 'N/A')} - {r.get('error', 'OK')}")
     if r.get('data'):

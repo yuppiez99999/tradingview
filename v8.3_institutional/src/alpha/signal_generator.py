@@ -4,10 +4,11 @@ v7.5 SignalGenerator — 多因子 Alpha 信号生成
 采用 LASSO (L1) 特征选择 + 岭回归 (L2) 权重优化
 """
 
+import logging
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-import logging
-from typing import Optional, Tuple, List, Dict
 from sklearn.linear_model import LassoCV, RidgeCV
 from sklearn.preprocessing import StandardScaler
 

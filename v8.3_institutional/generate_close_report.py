@@ -2,8 +2,8 @@
 """
 生成 2026-07-21 收盘报告（含市场跟踪指标）
 """
-import sys
 import os
+import sys
 from pathlib import Path
 
 BASE = Path(r"e:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional")
@@ -12,25 +12,26 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 
 from weekly_trade_executor import WeeklyTradeExecutor  # noqa: E402
 
+
 def main():
     print("=" * 80)
     print("生成 2026-07-21 收盘报告")
     print("=" * 80)
-    
+
     executor = WeeklyTradeExecutor(
         trade_date="2026-07-21",
         session="all",
         dry_run=False
     )
-    
+
     # 加载计划
     if not executor.load_daily_plan():
         print("[ERROR] 未找到当日计划，退出")
         return
-    
+
     if not executor.load_weekly_plan():
         print("[WARN] 未找到周计划，继续生成日报")
-    
+
     # 加载今天的执行结果
     executor.execution_results = {
         "stock": {"success": 0, "failed": 0, "total_amount": 0, "orders": []},
@@ -40,13 +41,13 @@ def main():
         ],
         "options": {"success": 10, "failed": 0, "total_premium": 0, "orders": []},
     }
-    
+
     # 生成报告
     report = executor.generate_report()
-    
+
     # 保存报告
     report_file = executor.save_report(report)
-    
+
     print(f"\n报告已生成: {report_file}")
     print("\n" + "=" * 80)
     print("报告预览:")

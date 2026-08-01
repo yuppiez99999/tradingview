@@ -15,15 +15,15 @@ from __future__ import annotations
 # ============================================================
 try:
     from utils.execution.automated_execution_system import (
+        _HEDGE_AVAILABLE,  # noqa: F401
+        _WIND_MCP_AVAILABLE,  # noqa: F401
         AutomatedExecutionSystem,
         ExecutionStrategy,
+        HedgeCoordinator,  # noqa: F401
         MarketStateEvaluator,
         OrderRouter,
         TradingCalendar,
         _to_wind_code,
-        _HEDGE_AVAILABLE,  # noqa: F401
-        _WIND_MCP_AVAILABLE,  # noqa: F401
-        HedgeCoordinator,  # noqa: F401
         logger,  # noqa: F401
         wind_get_quote,  # noqa: F401
     )

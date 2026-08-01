@@ -51,6 +51,7 @@ CACHE_DIR = BASE_DIR / "cache"
 # B1.3: 从 config/risk_params.yaml 统一读取回撤上限 (fail-safe 兜底 0.15)
 sys.path.insert(0, str(BASE_DIR))
 from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
+
 _DEFAULT_MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
 
 # Vibe-Trading 适配器 (可选, 不可用时优雅降级)
@@ -64,13 +65,13 @@ except ImportError:
 
 class PortfolioBacktester:
     """实际持仓回测器
-    
+
     策略:
         1. 按 positions.json 的 target_weight 持有
         2. Risk Parity 调整: 按波动率倒数加权
         3. IF期货空头: 覆盖50% Beta暴露
         4. 月度再平衡
-        
+
     绩效目标:
         - 年化收益 >= 8%
         - 最大回撤 < 15%
@@ -115,7 +116,7 @@ class PortfolioBacktester:
 
     def get_portfolio_codes(self) -> Dict[str, Dict]:
         """提取持仓代码和权重
-        
+
         Returns:
             {
                 "510050.SH": {"name": "...", "weight": 0.07, "sector": "..."},
@@ -124,7 +125,7 @@ class PortfolioBacktester:
         """
         positions = self.positions_data.get("positions", {})
         portfolio = {}
-        
+
         for code, pos in positions.items():
             weight = pos.get("target_weight", 0)
             if weight <= 0:
@@ -132,28 +133,28 @@ class PortfolioBacktester:
                 amount = pos.get("amount", 0)
                 total_capital = self.positions_data.get("meta", {}).get("total_capital", 5_000_000)
                 weight = amount / total_capital if total_capital > 0 else 0
-            
+
             if weight <= 0:
                 continue
-                
+
             portfolio[code] = {
                 "name": pos.get("name", code),
                 "weight": weight,
                 "sector": pos.get("sector", "其他"),
                 "type": pos.get("type", "STOCK"),
             }
-        
+
         return portfolio
 
-    def fetch_historical_data(self, start_date: str = "2021-01-01", 
+    def fetch_historical_data(self, start_date: str = "2021-01-01",
                               end_date: str = None) -> pd.DataFrame:
         """拉取历史日频数据 (v8.4.1 Vibe-Trading 集成版)
-        
+
         数据源优先级:
             1. Vibe-Trading 多源加载器 (Tushare/AkShare/Sina 自动 fallback)
             2. 本地 parquet 缓存
             3. 代理映射 (降级方案)
-        
+
         Returns:
             DataFrame with columns = 持仓代码, index = 日期, values = 收盘价
         """
@@ -266,13 +267,13 @@ class PortfolioBacktester:
         )
         return df
 
-    def calc_risk_parity_weights(self, returns: pd.DataFrame, 
+    def calc_risk_parity_weights(self, returns: pd.DataFrame,
                                   base_weights: Dict[str, float]) -> pd.Series:
         """计算 Risk Parity 权重
-        
+
         基于过去60日波动率的倒数加权:
             w_i = (1/vol_i) / sum(1/vol_j)
-        
+
         然后与基础权重混合 (70% risk parity + 30% 原始权重)
         """
         if returns.empty:
@@ -299,13 +300,13 @@ class PortfolioBacktester:
     def backtest(self, start_date: str = "2021-01-01", end_date: str = None,
                  use_hedge: bool = True, use_risk_parity: bool = True) -> Dict:
         """执行回测
-        
+
         Args:
             start_date: 回测起始日
             end_date: 回测结束日
             use_hedge: 是否使用IF期货对冲
             use_risk_parity: 是否使用Risk Parity权重
-            
+
         Returns:
             完整回测结果
         """
@@ -324,11 +325,11 @@ class PortfolioBacktester:
 
         # 获取基础权重
         portfolio = self.get_portfolio_codes()
-        base_weights = {code: info["weight"] for code, info in portfolio.items() 
+        base_weights = {code: info["weight"] for code, info in portfolio.items()
                        if code in returns_df.columns}
-        
+
         if not base_weights:
-            return {"error": "持仓代码与历史数据无交集", 
+            return {"error": "持仓代码与历史数据无交集",
                     "available": list(returns_df.columns),
                     "required": list(portfolio.keys())}
 
@@ -341,7 +342,7 @@ class PortfolioBacktester:
         portfolio_returns = []
         rebalance_dates = []
         weights_history = []
-        
+
         for i in range(len(returns_df)):
             date = returns_df.index[i]
             daily_returns = returns_df.iloc[i]
@@ -355,7 +356,7 @@ class PortfolioBacktester:
                     )
                 else:
                     current_weights = pd.Series(base_weights).reindex(returns_df.columns).fillna(0)
-                
+
                 rebalance_dates.append(date)
                 weights_history.append(current_weights.to_dict())
 
@@ -379,7 +380,7 @@ class PortfolioBacktester:
                     if code in daily_returns.index:
                         hs300_code = code
                         break
-                
+
                 if hs300_code:
                     market_return = daily_returns[hs300_code]
                 else:
@@ -399,7 +400,7 @@ class PortfolioBacktester:
 
         # 计算绩效指标
         metrics = self._calc_performance_metrics(nav, cumulative_nav)
-        
+
         # 达标检查
         meets_targets = self._check_targets(metrics)
 
@@ -431,7 +432,7 @@ class PortfolioBacktester:
 
         return result
 
-    def _calc_performance_metrics(self, daily_returns: pd.Series, 
+    def _calc_performance_metrics(self, daily_returns: pd.Series,
                                    cumulative_nav: pd.Series) -> Dict:
         """计算绩效指标"""
         n_years = len(daily_returns) / 252
@@ -484,7 +485,7 @@ class PortfolioBacktester:
             "calmar_ratio": metrics["calmar_ratio"] >= self.TARGET_CALMAR,
         }
         checks["overall"] = all(checks.values())
-        
+
         checks["details"] = {
             "annual_return": f"{metrics['annual_return']*100:.2f}% {'✅' if checks['annual_return'] else '❌'} (目标≥{self.TARGET_ANNUAL_RETURN*100:.0f}%)",
             "max_drawdown": f"{metrics['max_drawdown']*100:.2f}% {'✅' if checks['max_drawdown'] else '❌'} (目标<{self.TARGET_MAX_DRAWDOWN*100:.0f}%)",
@@ -493,7 +494,7 @@ class PortfolioBacktester:
         }
         return checks
 
-    def _generate_suggestions(self, metrics: Dict, portfolio: Dict, 
+    def _generate_suggestions(self, metrics: Dict, portfolio: Dict,
                               returns_df: pd.DataFrame) -> List[Dict]:
         """生成调仓建议"""
         suggestions = []
@@ -589,7 +590,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     bt = PortfolioBacktester(use_vibe=not args.no_vibe)
-    
+
     logger.info("=" * 60)
     logger.info("实际持仓回测验证 (Vibe-Trading 集成版)")
     logger.info(f"持仓文件: {bt.positions_file}")
@@ -621,11 +622,11 @@ if __name__ == "__main__":
     logger.info(f"   交易天数: {result['trading_days']}")
     logger.info(f"   标的数量: {result['portfolio_count']}")
     print()
-    
+
     targets = result["targets_check"]
     for _key, detail in targets.get("details", {}).items():
         logger.info(f"   {detail}")
-    
+
     overall = "✅ 全部达标" if targets["overall"] else "❌ 未达标"
     logger.info(f"\n   综合判定: {overall}")
 

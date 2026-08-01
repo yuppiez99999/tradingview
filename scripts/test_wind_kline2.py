@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
+
 sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")
 
 from morning_market_fetcher import _exec_wind_kline, _is_wind_success

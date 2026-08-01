@@ -2,7 +2,7 @@
 """v7.5 增强风控子包 — 从v5.9迁移"""
 
 try:
-    from .risk_controls_v59 import RiskControls, RiskControlLevel
+    from .risk_controls_v59 import RiskControlLevel, RiskControls
 except ImportError:
     RiskControls = None
     RiskControlLevel = None

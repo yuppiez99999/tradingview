@@ -78,23 +78,23 @@ print("=" * 70)
 print("测试 1: 模块导入")
 print("=" * 70)
 try:
+    from utils.alpha.causal_chain import CausalChainBuilder
+    from utils.alpha.layers.code_diagnoser import CodeDiagnoser
+    from utils.alpha.layers.ops_diagnoser import OpsDiagnoser
+    from utils.alpha.layers.strategy_diagnoser import StrategyDiagnoser
     from utils.alpha.root_cause import (
-        UnifiedRootCauseAnalyzer,
-        RootCause,
-        FixSuggestion,
-        RootCauseReport,
         LAYER_CODE,
-        LAYER_STRATEGY,
         LAYER_OPS,
+        LAYER_STRATEGY,
         SEVERITY_CRITICAL,
         SEVERITY_HIGH,
-        SEVERITY_MEDIUM,
         SEVERITY_LOW,
+        SEVERITY_MEDIUM,
+        FixSuggestion,
+        RootCause,
+        RootCauseReport,
+        UnifiedRootCauseAnalyzer,
     )
-    from utils.alpha.layers.code_diagnoser import CodeDiagnoser
-    from utils.alpha.layers.strategy_diagnoser import StrategyDiagnoser
-    from utils.alpha.layers.ops_diagnoser import OpsDiagnoser
-    from utils.alpha.causal_chain import CausalChainBuilder
     check("模块导入成功", True)
 except Exception as e:
     check("模块导入成功", False, str(e))

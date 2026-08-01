@@ -3,10 +3,12 @@
 验证多层次风险控制系统的完整功能
 """
 
-import numpy as np
-from risk_control_system import MultiLevelRiskControlSystem, RiskType
 import json
 from datetime import datetime, timedelta
+
+import numpy as np
+from risk_control_system import MultiLevelRiskControlSystem, RiskType
+
 
 def create_comprehensive_test_data():
     """创建综合测试数据"""
@@ -93,34 +95,34 @@ def create_crisis_test_data():
 def test_risk_control_system():
     """测试风险控制系统的完整功能"""
     print("开始综合风险控制系统测试...")
-    
+
     # 创建风险控制系统
     risk_system = MultiLevelRiskControlSystem()
-    
+
     # 创建测试数据
     test_data = create_comprehensive_test_data()
     crisis_data = create_crisis_test_data()
-    
+
     # 1. 基本功能测试
     print("\n=== 1. 基本功能测试 ===")
     test_basic_functions(risk_system, test_data)
-    
+
     # 2. 危机场景测试
     print("\n=== 2. 危机场景测试 ===")
     test_crisis_scenario(risk_system, crisis_data)
-    
+
     # 3. 风险配置测试
     print("\n=== 3. 风险配置测试 ===")
     test_risk_configuration(risk_system)
-    
+
     # 4. 历史数据分析测试
     print("\n=== 4. 历史数据分析测试 ===")
     test_historical_analysis(risk_system)
-    
+
     # 5. 实时监控测试
     print("\n=== 5. 实时监控测试 ===")
     test_realtime_monitoring(risk_system)
-    
+
     # 6. 风险控制建议测试
     print("\n=== 6. 风险控制建议测试 ===")
     test_risk_recommendations(risk_system, test_data, crisis_data)
@@ -131,19 +133,19 @@ def test_basic_functions(risk_system, test_data):
     overall_score, individual_scores = risk_system.calculate_overall_risk(test_data)
     print(f"整体风险分数: {overall_score:.3f}")
     print(f"风险等级: {risk_system._get_overall_risk_level(overall_score)}")
-    
+
     # 各维度风险
     print("各维度风险分数:")
     for risk_type, score in individual_scores.items():
         level = risk_system._get_overall_risk_level(score)
         print(f"  {risk_type}: {score:.3f} ({level})")
-    
+
     # 风险告警
     alerts = risk_system.generate_all_alerts(test_data)
     print(f"\n告警数量: {len(alerts)}")
     for alert in alerts:
         print(f"  [{alert.risk_type.value}] {alert.risk_level.value} - {alert.description}")
-    
+
     # 风险摘要
     summary = risk_system.get_risk_summary(test_data)
     print("\n风险摘要:")
@@ -153,22 +155,22 @@ def test_basic_functions(risk_system, test_data):
 def test_crisis_scenario(risk_system, crisis_data):
     """测试危机场景"""
     print("危机场景分析:")
-    
+
     # 计算危机场景风险
     overall_score, individual_scores = risk_system.calculate_overall_risk(crisis_data)
     print(f"整体风险分数: {overall_score:.3f}")
     print(f"风险等级: {risk_system._get_overall_risk_level(overall_score)}")
-    
+
     # 各维度风险
     print("各维度风险分数:")
     for risk_type, score in individual_scores.items():
         level = risk_system._get_overall_risk_level(score)
         print(f"  {risk_type}: {score:.3f} ({level})")
-    
+
     # 危机场景告警
     alerts = risk_system.generate_all_alerts(crisis_data)
     print(f"\n危机场景告警数量: {len(alerts)}")
-    
+
     if alerts:
         print("危机场景告警详情:")
         for alert in alerts:
@@ -181,15 +183,15 @@ def test_crisis_scenario(risk_system, crisis_data):
 def test_risk_configuration(risk_system):
     """测试风险配置"""
     print("\n风险配置测试:")
-    
+
     # 创建危机数据
     crisis_data = create_crisis_test_data()
-    
+
     # 原始配置
     print("原始配置测试:")
     original_score, _ = risk_system.calculate_overall_risk(crisis_data)
     print(f"原始风险分数: {original_score:.3f}")
-    
+
     # 更保守的配置
     print("\n保守配置测试:")
     for risk_type in RiskType:
@@ -197,10 +199,10 @@ def test_risk_configuration(risk_system):
             risk_type,
             {'low': 0.05, 'medium': 0.15, 'high': 0.25, 'critical': 0.35}
         )
-    
+
     conservative_score, _ = risk_system.calculate_overall_risk(crisis_data)
     print(f"保守风险分数: {conservative_score:.3f}")
-    
+
     # 更激进的配置
     print("\n激进配置测试:")
     for risk_type in RiskType:
@@ -208,10 +210,10 @@ def test_risk_configuration(risk_system):
             risk_type,
             {'low': 0.3, 'medium': 0.5, 'high': 0.7, 'critical': 0.9}
         )
-    
+
     aggressive_score, _ = risk_system.calculate_overall_risk(crisis_data)
     print(f"激进风险分数: {aggressive_score:.3f}")
-    
+
     # 恢复默认配置
     print("\n恢复默认配置:")
     for risk_type in RiskType:
@@ -219,18 +221,18 @@ def test_risk_configuration(risk_system):
             risk_type,
             {'low': 0.1, 'medium': 0.25, 'high': 0.4, 'critical': 0.6}
         )
-    
+
     final_score, _ = risk_system.calculate_overall_risk(crisis_data)
     print(f"最终风险分数: {final_score:.3f}")
 
 def test_historical_analysis(risk_system):
     """测试历史数据分析"""
     print("\n历史数据分析测试:")
-    
+
     # 创建历史数据序列
     historical_data = []
     base_data = create_comprehensive_test_data()
-    
+
     # 模拟30天的数据
     for i in range(30):
         # 逐渐增加风险
@@ -241,10 +243,10 @@ def test_historical_analysis(risk_system):
             day_data['stock']['position_size'] += (i - 15) * 0.02
         if i > 20:
             day_data['operational']['trades_per_day'] += (i - 20) * 10
-        
+
         day_data['timestamp'] = (datetime.now() - timedelta(days=30-i)).isoformat()
         historical_data.append(day_data)
-    
+
     # 进行趋势分析
     trend_analysis = risk_system.get_risk_trend_analysis(historical_data)
     print("风险趋势分析:")
@@ -259,26 +261,26 @@ def test_historical_analysis(risk_system):
 def test_realtime_monitoring(risk_system):
     """测试实时监控"""
     print("\n实时监控测试:")
-    
+
     # 模拟实时数据流
     print("模拟实时数据监控:")
     base_data = create_comprehensive_test_data()
-    
+
     for i in range(5):
         # 模拟数据变化
         current_data = base_data.copy()
         current_data['market']['vix'] += i * 5
         current_data['stock']['position_size'] += i * 0.02
         current_data['operational']['trades_per_day'] += i * 20
-        
+
         # 计算实时风险
         overall_score, _individual_scores = risk_system.calculate_overall_risk(current_data)
         alerts = risk_system.generate_all_alerts(current_data)
-        
+
         print(f"\n时间点 {i+1}:")
         print(f"  整体风险: {overall_score:.3f} ({risk_system._get_overall_risk_level(overall_score)})")
         print(f"  告警数量: {len(alerts)}")
-        
+
         if alerts:
             print("  实时告警:")
             for alert in alerts[:2]:  # 只显示前两个告警
@@ -287,19 +289,19 @@ def test_realtime_monitoring(risk_system):
 def test_risk_recommendations(risk_system, normal_data, crisis_data):
     """测试风险控制建议"""
     print("\n风险控制建议测试:")
-    
+
     # 正常场景建议
     normal_recommendations = risk_system.get_risk_recommendations(normal_data)
     print("正常场景建议:")
     for i, rec in enumerate(normal_recommendations, 1):
         print(f"  {i}. {rec}")
-    
+
     # 危机场景建议
     crisis_recommendations = risk_system.get_risk_recommendations(crisis_data)
     print("\n危机场景建议:")
     for i, rec in enumerate(crisis_recommendations, 1):
         print(f"  {i}. {rec}")
-    
+
     # 场景模拟
     print("\n场景模拟测试:")
     scenarios = [
@@ -309,7 +311,7 @@ def test_risk_recommendations(risk_system, normal_data, crisis_data):
         {'name': '系统故障', 'data': {'operational': {'system_health': 0.3, 'execution_quality': 0.2}}},
         {'name': '市场恐慌', 'data': {'emotional': {'fear_greed_index': 92}}}
     ]
-    
+
     simulation_results = risk_system.simulate_risk_scenarios(normal_data, scenarios)
     print("场景模拟结果:")
     for result in simulation_results:
@@ -318,13 +320,13 @@ def test_risk_recommendations(risk_system, normal_data, crisis_data):
 def generate_risk_report(risk_system, test_data):
     """生成风险报告"""
     print("\n=== 生成综合风险报告 ===")
-    
+
     # 计算各种指标
     overall_score, individual_scores = risk_system.calculate_overall_risk(test_data)
     alerts = risk_system.generate_all_alerts(test_data)
     summary = risk_system.get_risk_summary(test_data)
     recommendations = risk_system.get_risk_recommendations(test_data)
-    
+
     # 生成报告
     report = {
         'timestamp': datetime.now().isoformat(),
@@ -338,21 +340,21 @@ def generate_risk_report(risk_system, test_data):
             'confidence_threshold': risk_system.confidence_threshold
         }
     }
-    
+
     # 保存报告
     with open('risk_control_report.json', 'w', encoding='utf-8') as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
-    
+
     print("风险报告已保存到: risk_control_report.json")
     return report
 
 if __name__ == "__main__":
     test_risk_control_system()
-    
+
     # 生成最终报告
     risk_system = MultiLevelRiskControlSystem()
     test_data = create_comprehensive_test_data()
     report = generate_risk_report(risk_system, test_data)
-    
+
     print("\n=== 综合风险控制系统测试完成 ===")
     print("所有功能测试通过，系统运行正常！")

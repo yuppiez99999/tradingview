@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """系统完整性检查脚本"""
-import sys
 import ast
 import pathlib
+import sys
 
 base = pathlib.Path(r'E:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional')
 src = base / 'src'

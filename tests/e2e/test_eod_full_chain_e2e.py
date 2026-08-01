@@ -18,8 +18,8 @@ E2E 测试金字塔顶层 (5% 测试占比):
     4. 跨模块验证: 单次调用串起 7 个 Guard + KillSwitch + HedgeEngine
 """
 import json
-import pytest
 
+import pytest
 
 # ============================================================
 # E2E fixture: 真实历史报告 + IO 隔离

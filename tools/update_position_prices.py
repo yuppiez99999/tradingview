@@ -7,14 +7,15 @@
 3. 计算持仓盈亏
 4. 生成价格更新报告
 """
-import sys
-import os
 import json
+import os
+import sys
 from datetime import datetime
 
 sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统7.1')
 
 from utils.data_provider import MarketDataProvider
+
 
 def extract_price(market_data: dict, symbol: str = '', provider = None, old_price: float = 0.0):
     if not market_data:
@@ -80,35 +81,35 @@ def update_prices():
     print('=' * 70)
     print(f'运行时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     print()
-    
+
     # 加载持仓
     data = load_positions()
     positions = data.get('positions', {})
     meta = data.get('meta', {})
-    
+
     print(f'持仓标的数: {len(positions)}')
     print(f'总资金: {meta.get("total_capital", 0):,.0f}')
     print(f'已建仓: {meta.get("day_capital", 0):,.0f}')
     print()
-    
+
     # 获取实时价格
     provider = MarketDataProvider()
     update_count = 0
     fail_count = 0
     price_changes = []
-    
+
     print('-' * 70)
     print(f'{"代码":12s} {"名称":12s} {"旧价格":>8s} {"新价格":>8s} {"变化":>8s} {"持仓金额":>12s}')
     print('-' * 70)
-    
+
     for _key, item in positions.items():
         code = item.get('code')
         old_price = item.get('est_price', 0.0)
         shares = item.get('phase1_shares') or item.get('total_shares') or item.get('shares', 0)
-        
+
         if not code or not shares:
             continue
-        
+
         # 获取实时价格
         try:
             market_data = provider.get_market_data(code)
@@ -134,14 +135,14 @@ def update_prices():
                 item['est_price'] = new_price
                 item['last_update'] = datetime.now().isoformat()
                 item['price_source'] = price_source
-                
+
                 change_pct = ((new_price - old_price) / old_price * 100) if old_price > 0 else 0.0
                 position_value = shares * new_price
-                
+
                 print(f'{code:12s} {item.get("name", ""):12s} '
                       f'{old_price:>8.2f} {new_price:>8.2f} '
                       f'{change_pct:>+7.2f}% {position_value:>12,.0f} [{price_source}]')
-                
+
                 price_changes.append({
                     'code': code,
                     'name': item.get('name', ''),
@@ -158,22 +159,22 @@ def update_prices():
         except Exception as e:
             fail_count += 1
             print(f'{code:12s} {item.get("name", ""):12s} 获取价格失败: {e}')
-    
+
     print('-' * 70)
     print(f'更新成功: {update_count}, 失败: {fail_count}')
     print()
-    
+
     # 计算总持仓市值
     total_value = sum(
         item.get('phase1_shares', 0) * item.get('est_price', 0.0)
         for item in positions.values()
     )
-    
+
     # 计算总盈亏
     total_cost = meta.get('day_capital', 0.0)
     total_pnl = total_value - total_cost
     total_pnl_pct = (total_pnl / total_cost * 100) if total_cost > 0 else 0.0
-    
+
     print('=' * 70)
     print('持仓概览')
     print('=' * 70)
@@ -182,14 +183,14 @@ def update_prices():
     print(f'总盈亏:     {total_pnl:>+12,.0f}')
     print(f'总盈亏率:   {total_pnl_pct:>+11.2f}%')
     print()
-    
+
     # 按风格统计
     style_stats = {}
     for item in positions.values():
         style = item.get('style', '其他')
         value = item.get('phase1_shares', 0) * item.get('est_price', 0.0)
         style_stats[style] = style_stats.get(style, 0) + value
-    
+
     print('-' * 70)
     print(f'{"风格":12s} {"市值":>12s} {"占比":>8s}')
     print('-' * 70)
@@ -199,12 +200,12 @@ def update_prices():
     print('-' * 70)
     print(f'{"合计":12s} {total_value:>12,.0f} {"100.0%":>8s}')
     print()
-    
+
     # 保存更新后的数据
     save_positions(data)
     print('持仓数据已保存到: config/positions.json')
     print()
-    
+
     # 生成报告
     report = {
         'update_time': datetime.now().isoformat(),
@@ -217,19 +218,19 @@ def update_prices():
         'price_changes': price_changes,
         'style_stats': {k: v for k, v in style_stats.items()}
     }
-    
+
     report_dir = r'e:\各种PY程序\28-终极量化交易系统7.1\reports'
     os.makedirs(report_dir, exist_ok=True)
     report_path = os.path.join(report_dir, f'price_update_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json')
     with open(report_path, 'w', encoding='utf-8') as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
-    
+
     print(f'价格更新报告: {report_path}')
     print()
     print('=' * 70)
     print('更新完成')
     print('=' * 70)
-    
+
     return report
 
 if __name__ == '__main__':

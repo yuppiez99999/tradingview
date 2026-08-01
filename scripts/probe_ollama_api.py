@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-import urllib.request
-import urllib.error
 import json
+import urllib.error
+import urllib.request
 
 base = "http://localhost:11434"
 model = "qwen2.5:1.5b"

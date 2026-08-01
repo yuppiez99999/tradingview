@@ -32,13 +32,12 @@ LightGBM 增强训练器 — Thin Coordinator (B3.5 重构)
 
 from __future__ import annotations
 
-import sys
-import logging
 import argparse
-from pathlib import Path
+import logging
+import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict
-
 
 # ============================================================
 # 路径常量 (权威定义, 由 configure_paths 注入到各子模块)
@@ -148,13 +147,12 @@ _inject_paths_to_submodules()
 # ── 模型持久化 ──
 
 # ── 训练器核心 ──
-from lgb_trainer.trainer import (  # noqa: E402
-    run_enhanced_training,
-)
-
 # ── 报告生成 ──
 from lgb_trainer.report_generator import (  # noqa: E402
     generate_comparison_report,
+)
+from lgb_trainer.trainer import (  # noqa: E402
+    run_enhanced_training,
 )
 
 

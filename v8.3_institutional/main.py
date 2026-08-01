@@ -4,13 +4,14 @@ v7.5 Institutional — 主入口
 
 日度运行：风控检查 → Alpha 信号 → 对冲评估 → 执行
 """
+import argparse
+import logging
 import os
 import sys
-import yaml
-import logging
-import argparse
 from datetime import datetime
 from typing import Optional
+
+import yaml
 
 # 添加 src 路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -38,21 +39,18 @@ except ImportError:
     except (OSError, UnicodeDecodeError, ValueError):
         pass
 
-from risk.risk_manager import RiskManager  # noqa: E402
-from risk.risk_budgeter import RiskBudgeter  # noqa: E402
-from risk.circuit_breaker import CircuitBreaker, SlippageCircuitBreaker  # noqa: E402
-from risk.stress_tester import StressTester  # noqa: E402
-
-from hedging.hedge_coordinator import HedgeCoordinator  # noqa: E402
-
-from execution.ntp_sync import NTPSync  # noqa: E402
-from execution.smart_order_router import SmartOrderRouter, MockBroker  # noqa: E402
+from alpha.factor_library import FactorLibrary  # noqa: E402
+from alpha.signal_fusion import SignalFusion  # noqa: E402
+from alpha.signal_generator import SignalGenerator  # noqa: E402
 from execution.algo_engine import AlgoEngine  # noqa: E402
 from execution.broker_api import SimulatedBroker  # noqa: E402
-
-from alpha.factor_library import FactorLibrary  # noqa: E402
-from alpha.signal_generator import SignalGenerator  # noqa: E402
-from alpha.signal_fusion import SignalFusion  # noqa: E402
+from execution.ntp_sync import NTPSync  # noqa: E402
+from execution.smart_order_router import MockBroker, SmartOrderRouter  # noqa: E402
+from hedging.hedge_coordinator import HedgeCoordinator  # noqa: E402
+from risk.circuit_breaker import CircuitBreaker, SlippageCircuitBreaker  # noqa: E402
+from risk.risk_budgeter import RiskBudgeter  # noqa: E402
+from risk.risk_manager import RiskManager  # noqa: E402
+from risk.stress_tester import StressTester  # noqa: E402
 
 # 日志
 logging.basicConfig(
@@ -141,7 +139,7 @@ class V75InstitutionalSystem:
 
         self.capital = sys_cfg.get('base_capital', 5_000_000)
         self.max_dd = sys_cfg.get('max_drawdown', 0.15)
-        
+
         # 动态目标收益率(替代硬编码0.08)
         from src.config.dynamic_target import get_dynamic_target_from_config
         target_config = sys_cfg.get('target_return_config', {})
@@ -428,8 +426,8 @@ def main():
             return
 
         # 模拟交易会话
-        import pandas as pd
         import numpy as np
+        import pandas as pd
 
         np.random.seed(42)
         dates = pd.date_range('2026-06-01', '2026-07-04', freq='B')

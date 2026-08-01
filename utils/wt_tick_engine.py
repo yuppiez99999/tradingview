@@ -9,13 +9,14 @@ WonderTrader 风格 Tick 级事件驱动回测引擎
 from __future__ import annotations
 
 import logging
-import numpy as np
-from typing import Dict, List, Optional, Any
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from .wt_structs import TickData, BarData, OrderData, TradeData, PositionData
+import numpy as np
+
 from .wt_contracts_manager import get_contracts_manager
+from .wt_structs import BarData, OrderData, PositionData, TickData, TradeData
 
 logger = logging.getLogger(__name__)
 

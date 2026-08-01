@@ -5,6 +5,7 @@
 根据期权界面截图精确调整所有坐标。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

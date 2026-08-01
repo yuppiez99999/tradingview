@@ -20,12 +20,10 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Union
-
-import json
-
 
 # ============================================================
 # 数据结构
@@ -507,8 +505,10 @@ class TCAManager:
             estimate: T3.4 的 PreTradeEstimate (可选)
         """
         from utils.tca_post_trade_attribution import (
-            PostTradeAttribution,
             FillRecord as PTAFillRecord,
+        )
+        from utils.tca_post_trade_attribution import (
+            PostTradeAttribution,
         )
 
         # 延迟初始化 (单例缓存)

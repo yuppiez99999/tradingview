@@ -8,11 +8,12 @@
 """
 
 import json
-import numpy as np
-from datetime import datetime
-from dataclasses import dataclass, field
-from typing import List, Dict
 import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, List
+
+import numpy as np
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

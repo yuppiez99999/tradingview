@@ -1,4 +1,5 @@
 import subprocess
+
 from pywinauto import Application
 
 result = subprocess.run(

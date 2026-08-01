@@ -13,7 +13,7 @@ v5.9 核心改进（基于2021-2026回测发现）:
 
 import logging
 from datetime import datetime
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("hedge_engine")
 
@@ -36,10 +36,10 @@ except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容
 # ============================================================
 try:
     from .index_specs import (  # noqa: E402
+        ETF_OPTIONS_SPECS,  # noqa: F401
+        INDEX_FUTURES_SPECS,
         INDEX_WEIGHTS_CSI300,  # noqa: F401
         INDEX_WEIGHTS_CSI500,  # noqa: F401
-        INDEX_FUTURES_SPECS,
-        ETF_OPTIONS_SPECS,  # noqa: F401
     )
 except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容路径
     from index_specs import (  # noqa: E402
@@ -52,10 +52,9 @@ except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容
 # 已抽取到 hedge_types.py (共享类型, 避免循环导入与重复定义)
 # ============================================================
 from .hedge_types import (  # noqa: E402
-    HedgeSignalStrength,
     HedgeRecommendation,
+    HedgeSignalStrength,
 )
-
 
 # ============================================================
 # B3.3: 风险评估层已抽取到 src/risk/portfolio_risk_assessor.py
@@ -63,51 +62,101 @@ from .hedge_types import (  # noqa: E402
 # ============================================================
 try:
     from ..risk.portfolio_risk_assessor import (  # noqa: E402
-        PortfolioRisk,
-        DEFAULT_BETAS,  # noqa: F401
-        SECTOR_MAP,  # noqa: F401
-        FIXED_INCOME_TYPES,  # noqa: F401
-        SECTOR_LIMIT,  # noqa: F401
-        MRC_LIMIT,  # noqa: F401
         CORRELATION_WARN,  # noqa: F401
-        HISTORICAL_STRESS_SCENARIOS,  # noqa: F401
+        DEFAULT_BETAS,  # noqa: F401
         FALLBACK_PRICE_MAP,  # noqa: F401
-        estimate_default_price as _assessor_estimate_default_price,
-        compute_weighted_beta as _assessor_compute_weighted_beta,
-        compute_portfolio_vol_cov as _assessor_compute_portfolio_vol_cov,
-        compute_expected_shortfall as _assessor_compute_expected_shortfall,
-        compute_mrc as _assessor_compute_mrc,
-        compute_correlation_matrix as _assessor_compute_correlation_matrix,
+        FIXED_INCOME_TYPES,  # noqa: F401
+        HISTORICAL_STRESS_SCENARIOS,  # noqa: F401
+        MRC_LIMIT,  # noqa: F401
+        SECTOR_LIMIT,  # noqa: F401
+        SECTOR_MAP,  # noqa: F401
+        PortfolioRisk,
+    )
+    from ..risk.portfolio_risk_assessor import (
         assess_portfolio_risk as _assessor_assess_portfolio_risk,
-        run_historical_stress_tests as _assessor_run_historical_stress_tests,
-        monitor_daily_correlation as _assessor_monitor_daily_correlation,
+    )
+    from ..risk.portfolio_risk_assessor import (
         check_sector_concentration as _assessor_check_sector_concentration,
+    )
+    from ..risk.portfolio_risk_assessor import (
+        compute_correlation_matrix as _assessor_compute_correlation_matrix,
+    )
+    from ..risk.portfolio_risk_assessor import (
+        compute_expected_shortfall as _assessor_compute_expected_shortfall,
+    )
+    from ..risk.portfolio_risk_assessor import (
+        compute_mrc as _assessor_compute_mrc,
+    )
+    from ..risk.portfolio_risk_assessor import (
+        compute_portfolio_vol_cov as _assessor_compute_portfolio_vol_cov,
+    )
+    from ..risk.portfolio_risk_assessor import (
+        compute_weighted_beta as _assessor_compute_weighted_beta,
+    )
+    from ..risk.portfolio_risk_assessor import (
+        estimate_default_price as _assessor_estimate_default_price,
+    )
+    from ..risk.portfolio_risk_assessor import (
+        monitor_daily_correlation as _assessor_monitor_daily_correlation,
+    )
+    from ..risk.portfolio_risk_assessor import (
+        run_historical_stress_tests as _assessor_run_historical_stress_tests,
     )
 except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容路径
     from risk.portfolio_risk_assessor import (  # noqa: E402
         PortfolioRisk,
-        estimate_default_price as _assessor_estimate_default_price,
-        compute_weighted_beta as _assessor_compute_weighted_beta,
-        compute_portfolio_vol_cov as _assessor_compute_portfolio_vol_cov,
-        compute_expected_shortfall as _assessor_compute_expected_shortfall,
-        compute_mrc as _assessor_compute_mrc,
-        compute_correlation_matrix as _assessor_compute_correlation_matrix,
+    )
+    from risk.portfolio_risk_assessor import (
         assess_portfolio_risk as _assessor_assess_portfolio_risk,
-        run_historical_stress_tests as _assessor_run_historical_stress_tests,
-        monitor_daily_correlation as _assessor_monitor_daily_correlation,
+    )
+    from risk.portfolio_risk_assessor import (
         check_sector_concentration as _assessor_check_sector_concentration,
+    )
+    from risk.portfolio_risk_assessor import (
+        compute_correlation_matrix as _assessor_compute_correlation_matrix,
+    )
+    from risk.portfolio_risk_assessor import (
+        compute_expected_shortfall as _assessor_compute_expected_shortfall,
+    )
+    from risk.portfolio_risk_assessor import (
+        compute_mrc as _assessor_compute_mrc,
+    )
+    from risk.portfolio_risk_assessor import (
+        compute_portfolio_vol_cov as _assessor_compute_portfolio_vol_cov,
+    )
+    from risk.portfolio_risk_assessor import (
+        compute_weighted_beta as _assessor_compute_weighted_beta,
+    )
+    from risk.portfolio_risk_assessor import (
+        estimate_default_price as _assessor_estimate_default_price,
+    )
+    from risk.portfolio_risk_assessor import (
+        monitor_daily_correlation as _assessor_monitor_daily_correlation,
+    )
+    from risk.portfolio_risk_assessor import (
+        run_historical_stress_tests as _assessor_run_historical_stress_tests,
     )
 
 # ============================================================
 # B3.3: 对冲策略执行层已抽取到 src/hedging/hedge_strategy_executor.py
 # ============================================================
+from .hedge_strategy_executor import (
+    compute_optimal_hedge_ratio as _executor_compute_optimal_hedge_ratio,
+)
 from .hedge_strategy_executor import (  # noqa: E402
     determine_hedge_signal_strength as _executor_determine_hedge_signal_strength,
-    compute_optimal_hedge_ratio as _executor_compute_optimal_hedge_ratio,
+)
+from .hedge_strategy_executor import (
     generate_futures_hedge as _executor_generate_futures_hedge,
-    generate_options_hedge as _executor_generate_options_hedge,
+)
+from .hedge_strategy_executor import (
     generate_hedge_plan as _executor_generate_hedge_plan,
+)
+from .hedge_strategy_executor import (
     generate_hedge_reason as _executor_generate_hedge_reason,
+)
+from .hedge_strategy_executor import (
+    generate_options_hedge as _executor_generate_options_hedge,
 )
 
 # 注: HedgeRecommendation 已从 hedge_types.py 导入 (见上方), 此处不再重复定义

@@ -15,26 +15,27 @@
     result = bt.run_strategy(prices, signals, target_weights)
 """
 
+import logging
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional
-from dataclasses import dataclass, field
-import logging
 
 logger = logging.getLogger("cost_aware_backtest")
 
 # 尝试导入 v7.5 CostModel
 try:
-    from ..backtest.cost_model import CostModel, CostConfig
+    from ..backtest.cost_model import CostConfig, CostModel
 
     _COST_MODEL_AVAILABLE = True
 except ImportError:
     try:
-        import sys
         import os
+        import sys
 
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-        from src.backtest.cost_model import CostModel, CostConfig
+        from src.backtest.cost_model import CostConfig, CostModel
 
         _COST_MODEL_AVAILABLE = True
     except ImportError:

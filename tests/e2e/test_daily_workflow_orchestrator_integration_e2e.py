@@ -28,7 +28,6 @@ import pytest
 
 from utils.finance_agent_orchestrator import FinanceAgentOrchestrator
 
-
 # ============================================================
 # 辅助函数: 复刻 daily_workflow.py 中 orchestrator 调用块逻辑
 # ============================================================

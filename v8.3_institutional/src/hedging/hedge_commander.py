@@ -2,11 +2,12 @@
 # 当前: 3手IF空单 + 有期权计划 + 对冲效果 = 0
 # 修复: (1) 确认/强制执行 (2) 自动对齐 (3) 超时告警
 from __future__ import annotations
+
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
 logger = logging.getLogger("v76.hedge.commander")
 

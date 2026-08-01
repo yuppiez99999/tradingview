@@ -20,38 +20,37 @@ HedgeEngine 保留为 thin coordinator, 策略执行统一委托到本模块。
   - get_live_futures_prices / DEFAULT_FUTURES_PRICES (from ..data.futures_prices)
 """
 
-import math
 import logging
+import math
 from datetime import datetime
-from typing import Dict, Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 # 双路径导入: 支持 src.hedging (正常包) 和 hedging (测试 sys.path) 两种加载方式
 try:
-    from ..risk.portfolio_risk_assessor import PortfolioRisk, run_historical_stress_tests
     from ..data.futures_prices import DEFAULT_FUTURES_PRICES, get_live_futures_prices
+    from ..risk.portfolio_risk_assessor import PortfolioRisk, run_historical_stress_tests
 except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容路径
-    from risk.portfolio_risk_assessor import PortfolioRisk, run_historical_stress_tests
     from data.futures_prices import DEFAULT_FUTURES_PRICES, get_live_futures_prices
+    from risk.portfolio_risk_assessor import PortfolioRisk, run_historical_stress_tests
 
 logger = logging.getLogger("hedge_engine")
 
 
 # ── 对冲类型枚举 (B3.3: 从 hedge_types 共享, 避免重复定义) ──
 from .hedge_types import (  # noqa: E402
-    HedgeType,
-    HedgeSignalStrength,
     HedgeRecommendation,
+    HedgeSignalStrength,
+    HedgeType,
 )
-
 
 # ============================================================
 # B-4.6: 指数规格常量已抽取到 hedging/index_specs.py (从 config/index_specs.yaml 加载)
 # 双路径导入: 支持 src.hedging (正常包) 和 hedging (测试 sys.path) 两种加载方式
 # ============================================================
 try:
-    from .index_specs import INDEX_FUTURES_SPECS, ETF_OPTIONS_SPECS  # noqa: E402
+    from .index_specs import ETF_OPTIONS_SPECS, INDEX_FUTURES_SPECS  # noqa: E402
 except (ImportError, ValueError):  # pragma: no cover — 测试 sys.path 兼容路径
-    from index_specs import INDEX_FUTURES_SPECS, ETF_OPTIONS_SPECS  # noqa: E402
+    from index_specs import ETF_OPTIONS_SPECS, INDEX_FUTURES_SPECS  # noqa: E402
 
 
 # ── v5.9 对冲参数常量 ──

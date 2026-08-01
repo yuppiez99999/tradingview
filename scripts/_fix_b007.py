@@ -8,8 +8,8 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 os_sep = "\\" if sys.platform == "win32" else "/"

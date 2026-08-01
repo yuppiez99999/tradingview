@@ -13,6 +13,7 @@ sys.path.insert(0, str(_PROJECT_ROOT))
 
 # 1. utils/quant_neutral_runner (中性策略专属 0.08)
 from utils.quant_neutral_runner import DEFAULT_MAX_DRAWDOWN
+
 print(f"[1] quant_neutral DEFAULT_MAX_DRAWDOWN: {DEFAULT_MAX_DRAWDOWN} (期望 0.08)")
 assert DEFAULT_MAX_DRAWDOWN == 0.08, f"中性策略应为 0.08, 实际 {DEFAULT_MAX_DRAWDOWN}"
 
@@ -28,31 +29,37 @@ assert MAX_DRAWDOWN_LIMIT == 0.15, f"组合整体应为 0.15, 实际 {MAX_DRAWDO
 
 # 3. research/annual_return_forecast (组合整体 0.15)
 from research.annual_return_forecast import MAX_DRAWDOWN_LIMIT as forecast_dd
+
 print(f"[3] annual_return_forecast MAX_DRAWDOWN_LIMIT: {forecast_dd} (期望 0.15)")
 assert forecast_dd == 0.15, f"应为 0.15, 实际 {forecast_dd}"
 
 # 4. research/backtest_runner (组合整体 0.15)
 from research.backtest_runner import MAX_DRAWDOWN_LIMIT as backtest_dd
+
 print(f"[4] backtest_runner MAX_DRAWDOWN_LIMIT: {backtest_dd} (期望 0.15)")
 assert backtest_dd == 0.15, f"应为 0.15, 实际 {backtest_dd}"
 
 # 5. alpha_hedge_engine (组合整体 0.15)
 from alpha_hedge_engine import _DEFAULT_MAX_DRAWDOWN_LIMIT
+
 print(f"[5] alpha_hedge _DEFAULT_MAX_DRAWDOWN_LIMIT: {_DEFAULT_MAX_DRAWDOWN_LIMIT} (期望 0.15)")
 assert _DEFAULT_MAX_DRAWDOWN_LIMIT == 0.15, f"应为 0.15, 实际 {_DEFAULT_MAX_DRAWDOWN_LIMIT}"
 
 # 6. research/backtest_current_portfolio (组合整体 0.15)
 from research.backtest_current_portfolio import PortfolioBacktester
+
 print(f"[6] PortfolioBacktester TARGET_MAX_DRAWDOWN: {PortfolioBacktester.TARGET_MAX_DRAWDOWN} (期望 0.15)")
 assert PortfolioBacktester.TARGET_MAX_DRAWDOWN == 0.15, f"应为 0.15, 实际 {PortfolioBacktester.TARGET_MAX_DRAWDOWN}"
 
 # 7. research/fast_backtest_aggregator (组合整体 0.15)
 import research.fast_backtest_aggregator as fba
+
 print(f"[7] fast_backtest _MAX_DRAWDOWN_LIMIT: {fba._MAX_DRAWDOWN_LIMIT} (期望 0.15)")
 assert fba._MAX_DRAWDOWN_LIMIT == 0.15, f"应为 0.15, 实际 {fba._MAX_DRAWDOWN_LIMIT}"
 
 # 8. 验证 alpha_hedge_engine RiskControl 默认行为
 from alpha_hedge_engine import RiskControl
+
 rc = RiskControl()  # 不传 max_drawdown_limit
 print(f"[8] RiskControl() 默认 max_drawdown_limit: {rc.max_drawdown_limit} (期望 0.15)")
 assert rc.max_drawdown_limit == 0.15, f"默认应为 0.15, 实际 {rc.max_drawdown_limit}"
@@ -64,6 +71,7 @@ assert rc2.max_drawdown_limit == 0.20, f"显式传参应生效, 实际 {rc2.max_
 
 # 10. 验证 config/risk_params.yaml 为唯一事实源
 from utils.risk_params import get_max_drawdown_limit, get_quant_neutral_max_drawdown
+
 print(f"[10] config 读取: max_drawdown_limit={get_max_drawdown_limit()}, "
       f"quant_neutral={get_quant_neutral_max_drawdown()}")
 assert get_max_drawdown_limit() == 0.15

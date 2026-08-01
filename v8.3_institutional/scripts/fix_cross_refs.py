@@ -48,28 +48,28 @@ for root, _dirs, files in os.walk(BASE):
             with open(full, 'r', encoding='utf-8') as fh:
                 content = fh.read()
         except Exception: continue
-        
+
         modified = False
         new_content = content
-        
+
         for old_name, new_name in FILE_RENAME.items():
             if old_name == f.replace('.py', ''):
                 continue  # skip self
-            
+
             # Fix: from .old_name import  →  from .new_name import
             pat1 = rf"from \.{old_name} import"
             rep1 = rf"from .{new_name} import"
             if re.search(pat1, new_content):
                 new_content = re.sub(pat1, rep1, new_content)
                 modified = True
-                
+
             # Fix: from old_name import (no dot - sibling import in same dir)
             pat2 = rf"from {old_name} import"
             rep2 = rf"from .{new_name} import"
             if re.search(pat2, new_content):
                 new_content = re.sub(pat2, rep2, new_content)
                 modified = True
-        
+
         if modified:
             with open(full, 'w', encoding='utf-8') as fh:
                 fh.write(new_content)

@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
 from .wt_structs import ContractData
-
 
 # 默认合约规格库 (A股+股指期货+期权)
 DEFAULT_CONTRACTS = {

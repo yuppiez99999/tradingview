@@ -3,12 +3,13 @@
 基于真实持仓生成收盘行情报告。
 数据源：iFinD MCP > Wind MCP > 新浪 HTTP
 """
-import os
-import json
-import sys
-import requests
 import importlib.util
+import json
+import os
+import sys
 from datetime import datetime
+
+import requests
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:

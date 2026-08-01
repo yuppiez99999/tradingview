@@ -26,6 +26,15 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
+from utils.risk.risk_bus import (
+    RiskBus,
+    RiskDecisionAggregator,
+    SubscriptionError,
+    get_bus,
+    publish,
+    subscribe,
+    sync_decide,
+)
 from utils.risk.risk_event import (
     RiskAction,
     RiskDecision,
@@ -35,15 +44,6 @@ from utils.risk.risk_event import (
     make_drawdown_breach_event,
     make_kill_switch_triggered_event,
     make_margin_breach_event,
-)
-from utils.risk.risk_bus import (
-    RiskBus,
-    RiskDecisionAggregator,
-    SubscriptionError,
-    get_bus,
-    publish,
-    subscribe,
-    sync_decide,
 )
 
 

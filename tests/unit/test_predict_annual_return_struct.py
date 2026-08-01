@@ -14,7 +14,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _V83_DIR = _PROJECT_ROOT / "v8.3_institutional"
 sys.path.insert(0, str(_PROJECT_ROOT))

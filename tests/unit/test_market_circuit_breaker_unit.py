@@ -13,7 +13,6 @@ import pytest
 
 from utils.market_circuit_breaker import MarketCircuitBreaker
 
-
 # ============================================================
 # BUG#1b 回归: fail-closed 默认值不应误触发 L3 全局平仓
 # ============================================================

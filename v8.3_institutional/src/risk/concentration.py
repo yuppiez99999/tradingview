@@ -14,8 +14,9 @@
   6. 日报生成
 """
 
+from typing import Dict, List, Optional
+
 import numpy as np
-from typing import List, Dict, Optional
 
 
 def compute_mrc(

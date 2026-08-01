@@ -12,12 +12,13 @@ v7.5 风险预算器 —— Risk Parity + 改进 Kelly + 三级回撤防御
 引入完整的风险预算框架。
 """
 
-import numpy as np
-import pandas as pd
+import logging
 from collections import deque
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Callable
-import logging
+from typing import Callable, Dict, List, Optional
+
+import numpy as np
+import pandas as pd
 
 logger = logging.getLogger("v7.5.risk_budgeter")
 

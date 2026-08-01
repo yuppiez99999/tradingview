@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
 import numpy as np

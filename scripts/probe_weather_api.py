@@ -41,11 +41,11 @@ def probe_realtime(location: str, name: str) -> dict:
             result = data.get("result", {})
             realtime = result.get("realtime", {})
 
-            print(f"  ✅ 可用")
+            print("  ✅ 可用")
             print(f"  实时数据字段: {list(realtime.keys())}")
 
             # 核心变量
-            print(f"  --- 核心指标 ---")
+            print("  --- 核心指标 ---")
             print(f"  温度: {realtime.get('temperature')} ℃")
             print(f"  湿度: {realtime.get('humidity')} %")
             print(f"  风向: {realtime.get('windDirection')} °")

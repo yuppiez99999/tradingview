@@ -76,8 +76,8 @@ if acceptance:
         print(f"  [{ok}] {c['metric']}: {c['value']} (要求 {c['required']})")
 
 import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 output_path = Path("output/validation_reports")
 output_path.mkdir(parents=True, exist_ok=True)

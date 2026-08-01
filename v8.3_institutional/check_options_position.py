@@ -5,6 +5,7 @@
 检查同花顺期货通中的期权持仓状态。
 """
 import time
+
 import pyautogui
 from pywinauto import Application, findwindows
 
@@ -22,7 +23,7 @@ for elem in elements:
     width = rect.right - rect.left
     if width < 800:
         continue
-    
+
     app = Application(backend="win32").connect(process=elem.process_id)
     main_window = app.window(handle=elem.handle)
     main_window.set_focus()

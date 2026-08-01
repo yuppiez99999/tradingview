@@ -9,11 +9,11 @@
     - 全 mock KillSwitch / DrawdownController 等依赖, 不触发真实文件 IO
     - 重点验证 level 字符串归一化 (L0/L1/L2/L3/OK) 和订单过滤逻辑
 """
-import pytest
 from unittest.mock import MagicMock
 
-from utils.risk_guard_integrator import RiskGuardIntegrator
+import pytest
 
+from utils.risk_guard_integrator import RiskGuardIntegrator
 
 # ============================================================
 # 辅助 fixture

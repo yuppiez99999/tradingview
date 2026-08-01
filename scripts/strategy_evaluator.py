@@ -16,10 +16,10 @@
 对比 Day 1 N1: N1 专注漂移检测+重训触发; N2 专注静态策略评估。两者独立运行, 结果可被 N6 调度器聚合。
 """
 import json
-import os
 import logging
+import os
 from collections import Counter
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 # ========== 配置 (复用 Day 1 EVOLUTION_CONFIG) ==========

@@ -18,7 +18,6 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 
-
 LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(pathname)s:%(lineno)d | %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 DEFAULT_LOG_DIR = "logs"

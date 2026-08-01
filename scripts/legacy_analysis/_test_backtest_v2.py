@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """验证: alpha 评估修复后是否产生 real alpha"""
 import sys
+
 sys.path.insert(0, '.')
 import logging
+
 logging.basicConfig(level=logging.WARNING, format='%(name)s: %(message)s')
 
 from institutional_pipeline_runner import InstitutionalPipelineRunner, PipelineContext

@@ -44,18 +44,19 @@
   python daily_trade_executor.py post-market-auto --date 2026-07-13
 """
 
-import sys
-import json
 import argparse
+import json
+import sys
 import threading
+from datetime import date, datetime
 from pathlib import Path
-from datetime import datetime, date
 from typing import Dict, List, Optional
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 from utils.concurrency import atomic_write_json  # noqa: E402  # P0-C1 原子写
+
 # B1.2: 统一使用 utils.trade_calendar 判断交易日 (支持节假日)
 from utils.trade_calendar import is_trading_day  # noqa: E402
 
@@ -142,10 +143,10 @@ def init_wt_modules():
     """
     wt_modules = {}
     try:
-        from utils.wt_risk_control import RiskControl, StopLossManager, PortfolioRiskAnalyzer
-        from utils.wt_execution_algo import MinImpactExecutor, TWAPExecutor, VWAPExecutor
-        from utils.wt_hedge_strategy import HedgeContext, BetaHedgeStrategy, TailRiskHedgeStrategy
         from utils.wt_contracts_manager import get_contracts_manager
+        from utils.wt_execution_algo import MinImpactExecutor, TWAPExecutor, VWAPExecutor
+        from utils.wt_hedge_strategy import BetaHedgeStrategy, HedgeContext, TailRiskHedgeStrategy
+        from utils.wt_risk_control import PortfolioRiskAnalyzer, RiskControl, StopLossManager
 
         wt_modules["risk_control"] = RiskControl(
             {

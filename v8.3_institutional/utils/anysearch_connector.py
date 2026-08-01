@@ -12,11 +12,11 @@
 
 from __future__ import annotations
 
-import os
-import sys
 import json
-import subprocess
 import logging
+import os
+import subprocess
+import sys
 from typing import Dict, List, Optional
 
 logger = logging.getLogger("v75.anysearch")

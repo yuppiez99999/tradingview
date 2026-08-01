@@ -7,17 +7,19 @@ daily_hedge_update.py
 3. 生成对冲报告
 """
 
-import sys
-import os
 import json
-import pandas as pd
+import os
+import sys
 from datetime import datetime
+
+import pandas as pd
 
 sys.path.insert(0, r"e:\各种PY程序\28-终极量化交易系统8.4")
 sys.path.insert(0, r"e:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional\src")
 
-from wind_mcp_fetcher import wind_get_quote, wind_get_kline
 from hedging.hedge_coordinator import HedgeCoordinator
+from wind_mcp_fetcher import wind_get_kline, wind_get_quote
+
 # B2.4: 通用并发 IO 批量执行 (替代串行 for 循环拉取 Wind MCP 行情)
 from utils.concurrency import run_io_batch
 

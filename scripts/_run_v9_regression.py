@@ -56,9 +56,9 @@ def print_baseline_summary() -> int:
     """
     try:
         from tests.regression.conftest import (
+            BASELINE_LOCK_FILE,
             _find_latest_json,
             _parse_baseline_lock,
-            BASELINE_LOCK_FILE,
         )
     except ImportError as e:
         logger.error("无法导入 tests.regression.conftest: %s", e)
@@ -208,8 +208,8 @@ def main() -> int:
     # 先做基线文件存在性预检
     try:
         from tests.regression.conftest import (
-            _find_latest_json,
             BASELINE_LOCK_FILE,
+            _find_latest_json,
         )
         if not BASELINE_LOCK_FILE.exists():
             logger.error("预检失败: V9_BASELINE_LOCK.txt 不存在")

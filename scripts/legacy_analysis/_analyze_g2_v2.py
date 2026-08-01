@@ -46,6 +46,7 @@ for d in g2_data:
 
 # 统计 IC 分布
 import numpy as np
+
 ics = [d["ic"] for d in g2_data]
 ic_irs = [d["ic_ir"] for d in g2_data]
 print("\n=== 统计 ===")

@@ -57,6 +57,7 @@ for i in bear_months:
         v62_ratios.append(v62_after / v62_before)
 
 import statistics
+
 print("V6 bear/rebound 月份 exposure_after/before:")
 print(f"  平均: {statistics.mean(v6_ratios):.4f}")
 print(f"  范围: {min(v6_ratios):.4f} ~ {max(v6_ratios):.4f}")

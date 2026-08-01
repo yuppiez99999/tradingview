@@ -32,9 +32,9 @@ def main() -> int:
     # 导入评估器
     try:
         from utils.alpha.strategy_evaluator import (
-            StrategyEvaluator,
-            ScoreReport,  # noqa: F401
             DEFAULT_N_TRIALS,
+            ScoreReport,  # noqa: F401
+            StrategyEvaluator,
         )
         print("[OK] 导入 StrategyEvaluator 成功")
     except ImportError as e:

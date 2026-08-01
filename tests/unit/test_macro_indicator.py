@@ -26,25 +26,43 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.alpha.macro_indicator import (
+    ALL_REGIMES,
+    DEFAULT_CHOPPY_BAND,
+    DEFAULT_CONFIG_NAME,
+    DEFAULT_MA_WINDOW,
+    DEFAULT_POSITION_FACTORS,
+    DEFAULT_RISK_BUDGET,
+    FLAG_NAME,
+    REGIME_BEAR,
     # 常量
-    REGIME_BULL, REGIME_BEAR, REGIME_CHOPPY, REGIME_REBOUND,
-    REGIME_WARMUP, REGIME_UNKNOWN, REGIME_INSUFFICIENT, ALL_REGIMES,
-    DEFAULT_MA_WINDOW, DEFAULT_CHOPPY_BAND, DEFAULT_POSITION_FACTORS, DEFAULT_RISK_BUDGET,
-    FLAG_NAME, DEFAULT_CONFIG_NAME,
+    REGIME_BULL,
+    REGIME_CHOPPY,
+    REGIME_INSUFFICIENT,
+    REGIME_REBOUND,
+    REGIME_UNKNOWN,
+    REGIME_WARMUP,
+    InsufficientDataError,
+    InvalidRegimeError,
     # 异常
-    MacroIndicatorError, InsufficientDataError, InvalidRegimeError,
-    # 数据类
-    RegimeResult, MacroSnapshot,
-    # 函数
-    classify_regime, classify_regimes_batch,
-    classify_cpi, classify_pmi, classify_m2, classify_rate,
-    compute_composite_score,
+    MacroIndicatorError,
     # 主类
     MacroIndicatorManager,
+    MacroSnapshot,
+    # 数据类
+    RegimeResult,
+    classify_cpi,
+    classify_m2,
+    classify_pmi,
+    classify_rate,
+    # 函数
+    classify_regime,
     # 便捷函数
-    classify_regime_simple, get_regime_for_returns, is_macro_indicator_enabled,
+    classify_regime_simple,
+    classify_regimes_batch,
+    compute_composite_score,
+    get_regime_for_returns,
+    is_macro_indicator_enabled,
 )
-
 
 # ============================================================
 # TestConstants - 常量定义测试

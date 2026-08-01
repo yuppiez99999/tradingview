@@ -74,7 +74,7 @@ def extract_method(source_path: str, method_name: str) -> tuple:
 def transform_method(method_name: str, extracted_content: str) -> str:
     """Transform extracted method into a standalone function with workflow parameter."""
     lines = extracted_content.split('\n')
-    
+
     # Step 1: Remove leading whitespace from each line (dedent)
     dedented = []
     for line in lines:
@@ -83,7 +83,7 @@ def transform_method(method_name: str, extracted_content: str) -> str:
         else:
             # Remove common leading indentation (assume first non-empty line sets the indent)
             dedented.append(line)
-    
+
     # Step 2: Find and transform the function signature
     transformed_lines = []
     for line in dedented:
@@ -93,7 +93,7 @@ def transform_method(method_name: str, extracted_content: str) -> str:
         if sig_match:
             indent = sig_match.group(1)
             params_str = sig_match.group(2).strip()
-            
+
             # Replace 'self' with 'workflow' in parameters
             param_parts = [p.strip() for p in params_str.split(',')]
             new_params = []
@@ -108,30 +108,30 @@ def transform_method(method_name: str, extracted_content: str) -> str:
                     new_params.append(new_param)
                 elif p.strip():
                     new_params.append(p)
-            
+
             new_sig = f"{indent}def {method_name}({', '.join(new_params)}{sig_match.group(3)}"
             transformed_lines.append(new_sig)
         else:
             transformed_lines.append(line)
-    
+
     # Step 3: Replace all self.xxxx references with workflow.xxxxx inside the function body
     final_lines = []
     in_function_body = False
-    
+
     for i, line in enumerate(transformed_lines):
         stripped = line.strip()
-        
+
         # Check if we're entering a function body (next line after def with indent increase)
         if i > 0 and transformed_lines[i-1].strip().startswith('def '):
             in_function_body = True
-        
+
         if in_function_body and stripped:
             # Replace self. with workflow. only if it's not a docstring or comment
             # Simple heuristic: don't replace inside strings (basic check)
             line = re.sub(r'\bself\.\b', 'workflow.', line)
-        
+
         final_lines.append(line)
-    
+
     return '\n'.join(final_lines)
 
 
@@ -168,10 +168,10 @@ def main():
     logger.info("开始提取 phase 模块...")
     logger.info(f"源文件: {SOURCE_FILE}")
     logger.info(f"目标目录: {TARGET_DIR}")
-    
+
     # Ensure target directory exists
     TARGET_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     # Create __init__.py
     init_content = '''# Phases package entry point.
 
@@ -196,23 +196,23 @@ __all__ = [
 '''
     (TARGET_DIR / "__init__.py").write_text(init_content)
     logger.info(f"✓ 创建 {TARGET_DIR}/__init__.py")
-    
+
     extracted_count = 0
     for method_name, target_basename in PHASE_METHODS.items():
         try:
             content, start_line, end_line = extract_method(str(SOURCE_FILE), method_name)
-            
+
             # Transform the method
             transformed = transform_method(method_name, content)
-            
+
             # Format into full module
             formatted = format_phase_module(method_name, transformed)
-            
+
             target_file = TARGET_DIR / f"{target_basename}.py"
             target_file.write_text(formatted)
             logger.info(f"✓ 提取 {method_name} ({end_line - start_line} 行) → {target_file.name}")
             extracted_count += 1
-            
+
         except Exception as e:
             logger.info(f"✗ 提取 {method_name} 失败: {e}")
             import traceback
@@ -229,13 +229,13 @@ __all__ = [
                     extracted_count += 1
                 except Exception as e2:
                     logger.info(f"✗ (备用) 也失败: {e2}")
-    
+
     logger.info(f"\n成功提取 {extracted_count}/{len(PHASE_METHODS)} 个 phase 模块")
-    
+
     if extracted_count < len(PHASE_METHODS):
         logger.info("\n警告：部分 phase 未成功提取，请检查原始文件内容")
         return 1
-    
+
     return 0
 
 

@@ -101,8 +101,8 @@ def test_kill_switch_migration() -> bool:
     print("=" * 70)
 
     try:
-        from utils.kill_switch import KillSwitch
         from utils.config_manager import clear_config_cache
+        from utils.kill_switch import KillSwitch
         clear_config_cache()
         ks = KillSwitch()
         _check("KillSwitch 实例化成功", True)

@@ -1,16 +1,17 @@
 """
 v7.5 测试：Smart Order Router — Iceberg + 滑点熔断
 """
-import sys
 import os
+import sys
 import unittest
 from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from execution.smart_order_router import SmartOrderRouter
-from execution.algo_engine import AlgoEngine
 from typing import Optional
+
+from execution.algo_engine import AlgoEngine
+from execution.smart_order_router import SmartOrderRouter
 
 
 class TestSmartOrderRouter(unittest.TestCase):
@@ -23,7 +24,7 @@ class TestSmartOrderRouter(unittest.TestCase):
             '600519.SH': {'bid': 1800, 'ask': 1802, 'volume': 10000},
             '000858.SZ': {'bid': 50, 'ask': 50.5, 'volume': 50000}
         }
-        
+
         class MockBroker:
             """模拟券商接口"""
             def get_order_book(self, symbol: str, levels: int = 5) -> dict:
@@ -34,17 +35,17 @@ class TestSmartOrderRouter(unittest.TestCase):
                     'bid_volume': [data['volume']] * levels,
                     'ask_volume': [data['volume']] * levels
                 }
-            
-            def place(self, symbol: str, qty: int, side: str, 
+
+            def place(self, symbol: str, qty: int, side: str,
                      order_type: str = "LIMIT", price: Optional[float] = None) -> str:
                 return f"ORDER_{symbol}_{qty}"
-            
+
             def wait_fill(self, order_id: str, timeout: int = 30) -> dict:
                 return {'price': 1800.0, 'qty': 100, 'ts': datetime.now().timestamp()}
-            
+
             def cancel(self, order_id: str) -> bool:
                 return True
-        
+
         self.broker = MockBroker()
         self.sor = SmartOrderRouter(broker=self.broker)
 
@@ -75,7 +76,7 @@ class TestSmartOrderRouter(unittest.TestCase):
             status = fills[0].get('status', '') if isinstance(fills[0], dict) else ''
             # 如果处于暂停状态，应该返回空列表或PAUSED状态
             self.assertIn(status, ['PAUSED', ''])
-    
+
     def test_server_ts(self):
         # SmartOrderRouter没有server_ts方法，测试应验证这一点
         self.assertFalse(hasattr(self.sor, 'server_ts'))

@@ -1,10 +1,10 @@
 # v7.6 集成桥接 — 连接 6 个新模块到现有日度工作流
 # 用法: 在 daily_workflow.py 的 Stage 2 (风险) 和 Stage 5 (对冲) 之间插入
 from __future__ import annotations
+
 import logging
 from datetime import datetime
-from typing import Dict, Any
-
+from typing import Any, Dict
 
 logger = logging.getLogger("v76.integration")
 
@@ -18,12 +18,12 @@ class v76IntegrationBridge:
 
     def initialize(self):
         """惰性加载所有模块"""
-        from src.risk.vol_targeting import VolTargetingEngine
-        from src.treasury.cash_yield import CashYieldManager
         from src.hedging.hedge_commander import HedgeExecutionCommander
-        from src.signals.crowding_detector import SignalCrowdingDetector
-        from src.portfolio.black_litterman import BlackLittermanEngine
         from src.pnl.pnl_attribution import PnLAttributionEngine
+        from src.portfolio.black_litterman import BlackLittermanEngine
+        from src.risk.vol_targeting import VolTargetingEngine
+        from src.signals.crowding_detector import SignalCrowdingDetector
+        from src.treasury.cash_yield import CashYieldManager
 
         self._modules = {
             "vol_target": VolTargetingEngine(),

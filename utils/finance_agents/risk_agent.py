@@ -31,7 +31,7 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List
 
-from utils.finance_agents.base_agent import BaseAgent, AgentDecision
+from utils.finance_agents.base_agent import AgentDecision, BaseAgent
 
 
 class RiskAgent(BaseAgent):

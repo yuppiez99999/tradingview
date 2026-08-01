@@ -5,6 +5,7 @@
 先确认期权面板切换成功，再执行下单操作。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

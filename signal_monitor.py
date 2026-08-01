@@ -4,11 +4,12 @@
 支持v3/v3.5/v4/v5版本报告
 """
 
-import os
 import json
+import os
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 REPORTS_DIR = PROJECT_ROOT / "reports"

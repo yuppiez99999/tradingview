@@ -15,16 +15,17 @@
 - v8.3_institutional/src/validation/ (验证工具库)
 """
 
-import sys
 import json
-import math
 import logging
-import warnings
+import math
 import pathlib
+import sys
+import warnings
+from datetime import datetime
+from typing import Dict, List
+
 import numpy as np
 import pandas as pd
-from datetime import datetime
-from typing import List, Dict
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -36,9 +37,8 @@ VALIDATION_DIR = BASE_DIR / "v8.3_institutional" / "src" / "validation"
 sys.path.insert(0, str(VALIDATION_DIR))
 
 from deflated_sharpe import deflated_sharpe_ratio
-from walk_forward import walk_forward_stability_test
 from purged_cv import PurgedKFold, check_lookahead_bias
-
+from walk_forward import walk_forward_stability_test
 
 # ============================================================
 # 1. 加载月度权重和日K线数据，计算日度组合收益
@@ -229,7 +229,8 @@ def run_purged_cv_alpha_ic() -> Dict:
     logger.info("=== Purged K-Fold CV (LGB Alpha OOS IC) ===")
     try:
         from lgb_enhanced_trainer import (
-            POSITION_SYMBOLS, add_technical_features,
+            POSITION_SYMBOLS,
+            add_technical_features,
         )
     except Exception as e:
         logger.warning("LGB 依赖不可用，跳过 Purged CV: %s", e)

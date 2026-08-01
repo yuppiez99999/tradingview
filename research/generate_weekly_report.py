@@ -11,11 +11,12 @@
 
 调度: 每周五收盘后自动运行 (见 run_weekly_report.bat + schtasks)
 """
-import sys
 import math
 import subprocess
+import sys
+from datetime import date, datetime
 from pathlib import Path
-from datetime import datetime, date
+
 import pandas as pd
 
 # ============ 路径配置 ============

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """v8.1 系统自检脚本"""
 
-import sys
 import json
+import sys
 from pathlib import Path
 
 sys.path.insert(0, ".")
@@ -92,7 +92,7 @@ except Exception as e:
 # ------------------------------------------------------------
 print("\n[4/7] 风险归因面板 (risk_attribution)")
 try:
-    from utils.risk_attribution import compute_attribution, attribution_to_dict
+    from utils.risk_attribution import attribution_to_dict, compute_attribution
 
     attr = compute_attribution()
     d = attribution_to_dict(attr)

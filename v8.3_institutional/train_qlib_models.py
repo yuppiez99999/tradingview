@@ -25,16 +25,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-
 # 添加项目路径
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.alpha.qlib_signal_adapter import (  # noqa: E402
-    fetch_ifind_ohlcv,
-    _local_lightgbm_signal,
-    load_local_model,
     MODEL_DIR,
+    _local_lightgbm_signal,
+    fetch_ifind_ohlcv,
+    load_local_model,
 )
 
 # 日志

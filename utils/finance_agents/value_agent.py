@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from utils.finance_agents.base_agent import BaseAgent, AgentDecision
+from utils.finance_agents.base_agent import AgentDecision, BaseAgent
 
 
 class ValueAgent(BaseAgent):

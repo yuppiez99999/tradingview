@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """临时测试: 验证 data_provider 能否返回真实历史数据"""
 import sys
+
 sys.path.insert(0, '.')
 
 from utils.data_provider import MarketDataProvider

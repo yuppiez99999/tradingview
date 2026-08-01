@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """检查 P1 改进当前状态"""
-from pathlib import Path
 import re
+from pathlib import Path
 
 # === 1. 标的池 ===
 print('=== 1. 标的池状态 ===')

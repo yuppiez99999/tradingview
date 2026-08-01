@@ -4,11 +4,12 @@ v7.5 WalkForward — 滚动样本外回测
 train 24m / test 3m / step 3m, 5-fold CV
 """
 
+import logging
+from dataclasses import dataclass, field
+from typing import Callable, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-import logging
-from typing import Optional, Callable, List, Tuple
-from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 

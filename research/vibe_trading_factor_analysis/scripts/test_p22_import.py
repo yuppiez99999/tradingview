@@ -12,8 +12,8 @@ from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter 
     VibeTradingFactorAdapter,
 )
 from research.vibe_trading_factor_analysis.pipeline.pipeline_orchestrator import (
-    PipelineOrchestrator,
     FUNDAMENTALS_DEPENDENT_CATEGORIES,
+    PipelineOrchestrator,
 )
 
 

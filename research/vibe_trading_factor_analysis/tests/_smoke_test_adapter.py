@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """VibeTradingFactorAdapter 烟雾测试"""
-import sys
 import os
+import sys
 
 # 添加路径
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -14,8 +14,8 @@ sys.path.insert(0, os.path.join(adapter_dir, "adapters"))
 
 try:
     from adapters.vibe_trading_factor_adapter import (
-        VibeTradingFactorAdapter,
         FACTOR_ORIGIN,
+        VibeTradingFactorAdapter,
     )
     print("[OK] 模块导入成功")
     print("[OK] FACTOR_ORIGIN = " + FACTOR_ORIGIN)

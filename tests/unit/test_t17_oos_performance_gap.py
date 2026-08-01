@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 """T17: OOS Performance Gap monitoring."""
-import pytest
 from datetime import datetime
+
+import pytest
+
 from ms_strategy.src.ml.drift_detector import (
-    ModelDriftDetector,
     DriftType,
+    ModelDriftDetector,
     Severity,
 )
+
 
 class TestT17UpdateIsIc:
     @pytest.mark.unit

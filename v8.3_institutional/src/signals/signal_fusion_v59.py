@@ -12,12 +12,12 @@
 - 信号持久化（SQLite 存储，支持事后验证）
 """
 
-import os
 import json
+import os
 import sqlite3
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from .logging_manager import get_logger
@@ -920,8 +920,9 @@ def _get_gtja191_signal_source(code: str) -> Optional[SignalResult]:
     基于短周期价量特征，只统计下跌日“收益率绝对值/成交额”的效率。
     """
     try:
-        from .gtja191_factors import GTJA191Factors
         from utils.kronos_predictor import fetch_a_stock_data
+
+        from .gtja191_factors import GTJA191Factors
 
         df = fetch_a_stock_data(code, days=60, verbose=False)
         if df is None or len(df) < 21:

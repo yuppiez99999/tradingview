@@ -76,7 +76,7 @@ def main() -> int:
     print(f"{'='*70}")
 
     status = metrics.get_status()
-    print(f"\n系统状态:")
+    print("\n系统状态:")
     print(f"  Feature Flag: {status['feature_flag']} = {status['enabled']}")
     print(f"  权重: {status['weights']}")
     print(f"  历史路径: {status['history_path']}")

@@ -12,7 +12,7 @@ The function receives a DailyWorkflow instance as its first parameter ("workflow
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
     pass
@@ -490,8 +490,8 @@ def phase_execute(workflow, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
         # === 执行层: 执行算法 + 市场冲击 + 智能路由 ===
         if EXECUTION_MODULES_READY and workflow.execution_algo_engine is not None:
             try:
-                import pandas as _pd_exec
                 import numpy as _np_exec
+                import pandas as _pd_exec
                 # 为每笔成交生成执行计划与冲击估计
                 exec_plans_summary: List[Dict[str, Any]] = []
                 impact_estimates: List[Dict[str, Any]] = []

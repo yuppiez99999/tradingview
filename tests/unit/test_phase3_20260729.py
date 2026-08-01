@@ -6,8 +6,8 @@
   P3-2: unified_risk_cockpit.VaRBacktester 含 Basel 交通灯, 且 run_var_backtest 经报告接线生效
   P3-3: daily_workflow._connect_live_broker 抽离 CTP→同花顺连接逻辑, 三处调用点复用
 """
-import sys
 import importlib.util
+import sys
 import types
 from contextlib import contextmanager
 from pathlib import Path
@@ -16,16 +16,17 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "v8.3_institutional"))
 
-import numpy as np
 from types import SimpleNamespace
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from utils.purged_kfold import purged_timeseries_split
-import lgb_enhanced_trainer
+import numpy as np
 from src.risk.unified_risk_cockpit import (
     UnifiedRiskCockpit,
     VaRBacktester,
 )
+
+import lgb_enhanced_trainer
+from utils.purged_kfold import purged_timeseries_split
 
 
 def _load_daily_workflow():

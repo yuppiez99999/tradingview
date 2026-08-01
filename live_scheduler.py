@@ -33,19 +33,20 @@ v7.5 实时监控并发调度器 (--live 模式)
 
 from __future__ import annotations
 
-import os
-import sys
-import json
-import time
-import signal
-import threading
-import logging
 import argparse
+import json
+import logging
+import os
+import signal
 import subprocess
-from datetime import datetime, timedelta, time as dt_time
+import sys
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
+from datetime import time as dt_time
 from pathlib import Path
-from typing import Dict, List, Optional, Callable, Any
+from typing import Any, Callable, Dict, List, Optional
 
 # ============================================================
 # 路径初始化
@@ -406,7 +407,7 @@ def run_etf_flow_monitor(dry_run: bool = False) -> Dict[str, Any]:
     start = datetime.now()
     result = {"status": "OK", "data": {}}
     try:
-        from utils.etf_flow_monitor import refresh_etf_flow_signals, get_etf_flow_summary
+        from utils.etf_flow_monitor import get_etf_flow_summary, refresh_etf_flow_signals
 
         summary = get_etf_flow_summary()
 
@@ -643,15 +644,15 @@ def run_strategy_evaluation(dry_run: bool = False) -> Dict[str, Any]:
         try:
             from scripts.ic_recorder import (
                 compute_ic_from_signals,
-                record_daily_ic,
                 load_ic_store,
+                record_daily_ic,
                 record_ic_from_qlib_report,
             )
         except ImportError:
             from ic_recorder import (
                 compute_ic_from_signals,
-                record_daily_ic,
                 load_ic_store,
+                record_daily_ic,
                 record_ic_from_qlib_report,
             )
 

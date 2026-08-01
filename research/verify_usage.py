@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """验证用户示例代码"""
 import sys
+
 sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4')
 
 import numpy as np
@@ -33,6 +34,7 @@ print('方式1: GTJA191Factors 测试')
 print('=' * 60)
 
 from utils.gtja191_factors import GTJA191Factors
+
 calc = GTJA191Factors()
 
 # 全量计算
@@ -69,6 +71,7 @@ print('方式2: Vibe-Trading 适配器测试')
 print('=' * 60)
 
 from utils.vibe_trading_adapter import get_vibe_adapter
+
 adapter = get_vibe_adapter()
 
 print(f'注册表健康状态: {adapter.health}')

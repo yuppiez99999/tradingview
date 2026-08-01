@@ -26,7 +26,6 @@ from utils.finance_agent_orchestrator import (
 )
 from utils.finance_agents import AgentDecision
 
-
 # ============================================================
 # AgentDecision 数据结构测试
 # ============================================================

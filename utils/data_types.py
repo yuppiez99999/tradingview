@@ -12,7 +12,6 @@ import math
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-
 # ============================================
 # 安全类型转换
 # ============================================

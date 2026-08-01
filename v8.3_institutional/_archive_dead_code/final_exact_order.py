@@ -5,6 +5,7 @@
 根据截图分析，使用正确的买多按钮坐标。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

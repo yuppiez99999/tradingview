@@ -13,8 +13,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from cache.symbol_universe import get_universe
 from cache.data_downloader import download_fundamentals_history_batch
+from cache.symbol_universe import get_universe
 
 
 def main() -> int:

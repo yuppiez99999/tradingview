@@ -13,6 +13,7 @@ V75_DIR = PROJECT_ROOT / "v7.5_institutional"
 sys.path.insert(0, str(V75_DIR))
 
 import os
+
 os.chdir(V75_DIR)
 
 from daily_workflow import DailyWorkflow

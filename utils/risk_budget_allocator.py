@@ -11,11 +11,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Dict, List, Optional
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 

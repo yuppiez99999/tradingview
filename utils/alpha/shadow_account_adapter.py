@@ -434,8 +434,8 @@ class ShadowAccountAdapter:
         延迟导入避免 import 时报错, 同时允许自定义 FailFastMonitor 阈值.
         """
         from shadow_account_system import (
-            ShadowAccount,
             FailFastMonitor,
+            ShadowAccount,
         )
 
         account = ShadowAccount(

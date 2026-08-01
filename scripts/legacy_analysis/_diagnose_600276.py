@@ -7,9 +7,10 @@
   3. 数据长度是否足够 (walk-forward 需要足够样本)
   4. 与其他标的对比, 找出异常差异
 """
-import pandas as pd
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 # 加载 600276 数据
 f = Path("data_cache") / "historical_600276_5y_base.parquet"
@@ -82,7 +83,7 @@ print("\n=== 特征工程预检 ===")
 try:
     import sys
     sys.path.insert(0, ".")
-    from lgb_enhanced_trainer import add_technical_features, add_mean_reversion_features
+    from lgb_enhanced_trainer import add_mean_reversion_features, add_technical_features
 
     # 尝试对 600276 做特征工程
     feat_df = df.copy()

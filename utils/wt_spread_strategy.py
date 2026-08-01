@@ -8,13 +8,13 @@ WonderTrader 风格价差策略框架
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple
-from dataclasses import dataclass
 import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
 
-from .wt_structs import TickData, BarData, TradeData
 from .wt_contracts_manager import get_contracts_manager
+from .wt_structs import BarData, TickData, TradeData
 
 logger = logging.getLogger(__name__)
 

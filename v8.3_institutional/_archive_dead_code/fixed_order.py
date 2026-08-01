@@ -5,6 +5,7 @@
 先确保期货通窗口处于前台，再执行下单。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 
@@ -28,7 +29,7 @@ if main_window:
     main_window.set_focus()
     main_window.maximize()
     time.sleep(1)
-    
+
     rect = main_window.rectangle()
     left = rect.left
     top = rect.top

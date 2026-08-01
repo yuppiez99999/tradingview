@@ -17,13 +17,12 @@ from __future__ import annotations
 import pytest
 
 from utils.finance_agents import (
-    ValueAgent,
-    MomentumAgent,
-    SentimentAgent,
-    RiskAgent,
     MacroAgent,
+    MomentumAgent,
+    RiskAgent,
+    SentimentAgent,
+    ValueAgent,
 )
-
 
 # ============================================================
 # ValueAgent 测试

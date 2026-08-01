@@ -2,6 +2,7 @@
 """快速验证优化器信号倾斜"""
 import numpy as np
 import pandas as pd
+
 from utils.institutional_optimizer import InstitutionalPortfolioOptimizer
 
 optimizer = InstitutionalPortfolioOptimizer(total_capital=3_000_000, max_weight=0.25)

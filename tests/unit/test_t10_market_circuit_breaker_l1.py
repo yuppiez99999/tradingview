@@ -27,9 +27,10 @@
     -5.0%  → L2 (预警: 禁止开仓)
     -7.0%  → L3 (熔断: 全局平仓)
 """
-import pytest
-from unittest.mock import patch
 from typing import Dict
+from unittest.mock import patch
+
+import pytest
 
 from utils.market_circuit_breaker import MarketCircuitBreaker
 

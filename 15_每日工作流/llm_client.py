@@ -1,11 +1,11 @@
 # 导入依赖
-import os
 import json
-import urllib.request
-import urllib.error
+import os
 import subprocess
-import time
 import threading
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any, Dict, Optional
 

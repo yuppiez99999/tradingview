@@ -32,10 +32,10 @@
 
 import json
 import logging
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, Optional, Tuple
 from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 

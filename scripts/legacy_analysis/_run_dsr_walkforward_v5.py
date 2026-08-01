@@ -5,12 +5,12 @@
   V4.1: 年化15.71%, 回撤9.27%, Sharpe 1.191, WF Sharpe CV=0.66, DSR n_trials<=8
   V5: 添加防御性权重调整 (bear/rebound regime下, 高波动→×0.5, 低波动→×1.2)
 """
-import json
-import sys
-import os
 import glob
-from pathlib import Path
+import json
+import os
+import sys
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd

@@ -241,7 +241,7 @@ class SignalFusionEngine:
         _research_weight = research_distilled_weight
         _research_enabled = True
         try:
-            from utils.trading_env import get_trading_env, TradingEnv
+            from utils.trading_env import TradingEnv, get_trading_env
 
             if get_trading_env() == TradingEnv.PRODUCTION:
                 _research_weight = 0.0

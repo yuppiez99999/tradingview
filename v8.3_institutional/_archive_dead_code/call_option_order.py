@@ -5,6 +5,7 @@
 先选择认购期权类型，再输入正确的合约代码。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

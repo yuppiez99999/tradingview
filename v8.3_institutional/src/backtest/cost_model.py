@@ -3,8 +3,9 @@ v7.5 CostModel — 交易成本模型 (Almgren-Chriss & 固定费率)
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §4.4
 """
 
-import numpy as np
 from dataclasses import dataclass
+
+import numpy as np
 
 
 @dataclass
@@ -58,7 +59,7 @@ class CostModel:
         Almgren-Chriss 市场冲击模型（平方根）
 
         $$
-        \text{Impact} = \sigma \cdot \eta \cdot \sqrt{Q / V}
+        \text{Impact} = \\sigma \\cdot \\eta \\cdot \\sqrt{Q / V}
         $$
 
         Args:

@@ -19,22 +19,24 @@
 6. 性能监控：执行性能监控和分析
 """
 
-import numpy as np
-import pandas as pd
-from datetime import datetime, timedelta, time as datetime_time
-from typing import Any, Dict, List, Optional, Tuple, cast
-from collections import deque
 import json
 import threading
 import time
+from collections import deque
+from datetime import datetime, timedelta
+from datetime import time as datetime_time
+from typing import Any, Dict, List, Optional, Tuple, cast
+
+import numpy as np
+import pandas as pd
 
 # schedule 模块为可选依赖 (本文件实际未使用其 API, 仅保留 import 以兼容旧代码)
 try:
     import schedule  # noqa: F401
 except ImportError:
     schedule = None
-import sys
 import os
+import sys
 
 # T3.6 迁移修正: __file__ 从根目录变为 utils/execution/, 需回退两级到项目根目录
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -55,11 +57,11 @@ except Exception:
     _HEDGE_AVAILABLE = False
 
 try:
-    from utils.logger import get_logger
-    from utils.data_provider import get_market_data, MarketDataProvider  # noqa: F401
-    from utils.order_execution import execute_order, cancel_order  # noqa: F401
-    from utils.risk_metrics import calculate_var, calculate_es  # noqa: F401
+    from utils.data_provider import MarketDataProvider, get_market_data  # noqa: F401
     from utils.data_types import safe_float
+    from utils.logger import get_logger
+    from utils.order_execution import cancel_order, execute_order  # noqa: F401
+    from utils.risk_metrics import calculate_es, calculate_var  # noqa: F401
 
     logger = get_logger("automated_execution_system")
 except ImportError:
@@ -2198,11 +2200,11 @@ class AutomatedExecutionSystem:
         try:
             # T3.6 迁移修正: 使用绝对路径导入, 不再 sys.path.insert
             from utils.execution.rebalance_execution_orders import (
-                load_positions,
+                TARGET_ALLOCATION,
+                build_report,
                 calc_current_allocation,
                 generate_rebalance_orders,
-                build_report,
-                TARGET_ALLOCATION,
+                load_positions,
             )
 
             positions, prices, styles = load_positions()

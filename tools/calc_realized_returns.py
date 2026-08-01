@@ -5,8 +5,9 @@
 """
 import json
 import os
-import numpy as np
 from datetime import datetime
+
+import numpy as np
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 

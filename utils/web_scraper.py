@@ -29,13 +29,13 @@
   news = scraper.fetch_news("半导体")  # 半导体行业新闻
 """
 
-import re
 import json
+import re
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 import requests
 import urllib3
@@ -52,7 +52,7 @@ except ImportError:
 
 # Scrapling (可选, 增强 Cloudflare 等反爬绕过)
 try:
-    from scrapling import StealthyFetcher, Fetcher
+    from scrapling import Fetcher, StealthyFetcher
 
     HAS_SCRAPLING = True
 except ImportError:

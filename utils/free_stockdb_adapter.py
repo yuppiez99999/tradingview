@@ -169,7 +169,7 @@ def _init_free_stockdb() -> bool:
             pybao_path = str(_FREE_STOCKDB_PYBAO)
             if pybao_path not in sys.path:
                 sys.path.insert(0, pybao_path)
-            from stock_sdk import rd, zb, bk  # type: ignore
+            from stock_sdk import bk, rd, zb  # type: ignore
 
             global _fs_client
             _fs_client = {"rd": rd, "zb": zb, "bk": bk}
@@ -255,7 +255,7 @@ def _normalize_fs_dataframe(df_raw: Any, symbol: str) -> pd.DataFrame:
             try:
                 df.index = pd.to_datetime(df.index, errors="coerce")
             except Exception:
-                logger.warning(f"Unexpected error in free_stockdb_adapter.py", exc_info=True)
+                logger.warning("Unexpected error in free_stockdb_adapter.py", exc_info=True)
 
     if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is not None:
         df.index = df.index.tz_localize(None)

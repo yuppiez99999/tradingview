@@ -23,9 +23,9 @@ import os
 import sys
 from typing import List
 
-from ai_decision.orchestrator import run_batch, run_decision
 from ai_decision.decision_gate import RiskContext
 from ai_decision.execution_bridge import execute_decision
+from ai_decision.orchestrator import run_batch, run_decision
 
 
 def _force_mock() -> None:

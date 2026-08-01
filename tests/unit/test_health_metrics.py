@@ -42,23 +42,22 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from utils.alpha.health_metrics import (  # noqa: E402
     DEFAULT_WEIGHTS,
-    UnifiedHealthMetrics,
     HealthReport,
     LayerScore,
+    UnifiedHealthMetrics,
 )
 from utils.alpha.layers.code_health import (  # noqa: E402
-    CodeHealthLayer,
-    MAX_BLOCKING_FAILURES,
     EXPECTED_VERIFY_SCRIPTS,
-)
-from utils.alpha.layers.strategy_health import (  # noqa: E402
-    StrategyHealthLayer,
-    DEFAULT_OBSERVATION_TOTAL,
+    MAX_BLOCKING_FAILURES,
+    CodeHealthLayer,
 )
 from utils.alpha.layers.ops_health import (  # noqa: E402
     OpsHealthLayer,
 )
-
+from utils.alpha.layers.strategy_health import (  # noqa: E402
+    DEFAULT_OBSERVATION_TOTAL,
+    StrategyHealthLayer,
+)
 
 # ============================================================
 # Fixtures

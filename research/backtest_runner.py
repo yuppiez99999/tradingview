@@ -21,8 +21,8 @@ import pandas as pd
 
 from institutional_pipeline_runner import InstitutionalPipelineRunner, PipelineContext
 from utils.data_provider import MarketDataProvider
-from utils.risk_constraints import enforce_hard_constraints, DEFAULT_MAX_WEIGHT, DEFAULT_MAX_SECTOR
-from utils.path_config import get_historical_base_file, get_data_cache_dir
+from utils.path_config import get_data_cache_dir, get_historical_base_file
+from utils.risk_constraints import DEFAULT_MAX_SECTOR, DEFAULT_MAX_WEIGHT, enforce_hard_constraints
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("backtest")
@@ -89,6 +89,7 @@ BACKTEST_INTEGRITY_WARNING = (
 MIN_ANNUAL_RETURN = 0.08      # 年化收益率下限：>= 8%
 # B1.3: 从 config/risk_params.yaml 统一读取 (fail-safe 兜底 0.15)
 from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
+
 MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()  # 最大回撤上限：<= 15%
 
 

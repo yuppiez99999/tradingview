@@ -23,16 +23,17 @@ LightGBM + 时间序列交叉验证训练器
 
 from __future__ import annotations
 
-import sys
-import json
-import pickle
-import logging
 import argparse
+import json
+import logging
+import pickle
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any
 
 # ============================================================
 # 路径
@@ -52,10 +53,10 @@ if _v7_path.exists():
     sys.path.insert(0, str(_v7_path))
 from autolearn_trainer import (  # noqa: E402
     POSITION_SYMBOLS,
+    add_cross_sectional_features,
+    add_technical_features,
     load_returns_history,
     synthesize_ohlcv_from_returns,
-    add_technical_features,
-    add_cross_sectional_features,
 )
 
 # ============================================================
@@ -140,7 +141,7 @@ def time_series_cv_evaluate(
 
     # --- 分割器选择 ---
     if use_purged and n_samples >= 100:
-        from utils.purged_kfold import purged_timeseries_split, overfitting_diagnosis
+        from utils.purged_kfold import overfitting_diagnosis, purged_timeseries_split
 
         folds = list(purged_timeseries_split(n_samples, n_splits=n_splits, embargo_pct=embargo_pct))
         logger.info(
@@ -342,8 +343,8 @@ def train_symbol_with_cv(
     Returns:
         训练结果字典
     """
-    from lightgbm import LGBMRegressor
     import lightgbm as lgb
+    from lightgbm import LGBMRegressor
 
     # 构造目标: 次日收益率
     df = df.copy()

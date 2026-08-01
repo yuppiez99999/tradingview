@@ -35,60 +35,59 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.attribution.factor_attribution import (
-    # 常量
-    FLAG_NAME,
-    DEFAULT_CONFIG_NAME,
-    DEFAULT_PRIMARY_BENCHMARK,
-    DEFAULT_SECONDARY_BENCHMARK,
-    DEFAULT_ANNUALIZATION_FACTOR,
-    DEFAULT_RISK_BUDGET,
-    DEFAULT_MIN_FACTORS,
-    DEFAULT_SIGNIFICANCE_THRESHOLD,
-    ZERO_EXPOSURE_EPSILON,
-    ZERO_RETURN_EPSILON,
     ABNORMAL_FACTOR_RETURN_THRESHOLD,
-    CONCENTRATION_THRESHOLD,
-    MISSING_THRESHOLD,
     BARRA_STYLE_FACTORS,
-    SECTOR_FACTORS,
-    FACTOR_NAMES,
+    CATEGORY_COUNTRY,
+    CATEGORY_SECTOR,
+    CATEGORY_SPECIFIC,
     # 因子类别
     CATEGORY_STYLE,
-    CATEGORY_SECTOR,
-    CATEGORY_COUNTRY,
-    CATEGORY_SPECIFIC,
-    # 状态码
-    STATUS_OK,
+    CONCENTRATION_THRESHOLD,
+    DEFAULT_ANNUALIZATION_FACTOR,
+    DEFAULT_CONFIG_NAME,
+    DEFAULT_MIN_FACTORS,
+    DEFAULT_PRIMARY_BENCHMARK,
+    DEFAULT_RISK_BUDGET,
+    DEFAULT_SECONDARY_BENCHMARK,
+    DEFAULT_SIGNIFICANCE_THRESHOLD,
+    FACTOR_NAMES,
+    # 常量
+    FLAG_NAME,
+    MISSING_THRESHOLD,
+    SECTOR_FACTORS,
+    STATUS_EMPTY_INPUT,
+    STATUS_FACTOR_MISMATCH,
     STATUS_FEATURE_FLAG_DISABLED,
     STATUS_INSUFFICIENT_DATA,
-    STATUS_FACTOR_MISMATCH,
-    STATUS_EMPTY_INPUT,
-    # 异常
-    FactorAttributionError,
-    InsufficientFactorDataError,
-    FactorMismatchError,
+    # 状态码
+    STATUS_OK,
+    ZERO_EXPOSURE_EPSILON,
+    ZERO_RETURN_EPSILON,
     ExposureNotNormalizedError,
-    InvalidFactorInputError,
     # 数据类
     FactorAttribution,
-    FactorAttributionResult,
-    # 核心算法函数
-    compute_factor_contribution,
-    compute_active_exposure,
-    compute_factor_risk,
-    compute_specific_risk,
-    compute_information_ratio,
-    align_factors,
-    categorize_factor,
-    attribute_factors,
+    # 异常
+    FactorAttributionError,
     # 主类
     FactorAttributionManager,
+    FactorAttributionResult,
+    FactorMismatchError,
+    InsufficientFactorDataError,
+    InvalidFactorInputError,
+    align_factors,
+    attribute_factors,
+    attribute_factors_simple,
+    categorize_factor,
+    compute_active_exposure,
+    # 核心算法函数
+    compute_factor_contribution,
+    compute_factor_risk,
+    compute_information_ratio,
+    compute_specific_risk,
+    create_default_manager,
     # 便捷函数
     is_factor_attribution_enabled,
-    attribute_factors_simple,
-    create_default_manager,
 )
-
 
 # ============================================================
 # 1. 常量定义测试

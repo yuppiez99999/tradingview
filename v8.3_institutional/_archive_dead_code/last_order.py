@@ -5,6 +5,7 @@
 调整买多按钮坐标，使用更精确的位置。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

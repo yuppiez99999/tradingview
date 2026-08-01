@@ -55,7 +55,9 @@ print("测试 1: 模块导入")
 print("=" * 70)
 try:
     from utils.alpha.health_metrics import (
-        UnifiedHealthMetrics, HealthReport, LayerScore,
+        HealthReport,
+        LayerScore,
+        UnifiedHealthMetrics,
     )
     check("模块导入成功", True)
 except Exception as e:

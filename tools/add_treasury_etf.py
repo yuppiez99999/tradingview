@@ -35,10 +35,10 @@ def save_positions(positions):
 
 def main():
     positions = load_positions()
-    
+
     sector_current = {}
     sector_positions = {}
-    
+
     for code, pos in positions['positions'].items():
         sector = pos.get('sector', '其他')
         amount = pos.get('amount', 0)
@@ -47,34 +47,34 @@ def main():
             sector_positions[sector] = []
         sector_current[sector] += amount
         sector_positions[sector].append((code, pos))
-    
+
     print("当前行业分布:")
     total_current = sum(sector_current.values())
     for sector, amount in sector_current.items():
         print(f"  {sector}: {amount} ({amount/total_current*100:.1f}%)")
     print(f"  总计: {total_current}")
-    
+
     print("\n目标行业分布:")
     target_amounts = {}
     for sector, weight in NEW_TARGET_WEIGHTS.items():
         target_amounts[sector] = int(weight * TARGET_TOTAL)
         print(f"  {sector}: {target_amounts[sector]} ({weight*100:.1f}%)")
     print(f"  总计: {TARGET_TOTAL}")
-    
+
     print("\n调整方案:")
     for sector in sector_positions:
         if sector not in NEW_TARGET_WEIGHTS:
             continue
-        
+
         current = sector_current[sector]
         target = target_amounts[sector]
         diff = target - current
-        
+
         if diff == 0:
             continue
-        
+
         print(f"  {sector}: {current} → {target} ({'+' if diff > 0 else ''}{diff})")
-        
+
         positions_in_sector = sector_positions[sector]
         if diff > 0:
             avg_increase = diff / len(positions_in_sector)
@@ -93,7 +93,7 @@ def main():
                 for _code, pos in positions_in_sector:
                     pos['amount'] = 0
                     pos['target_weight'] = 0
-    
+
     treasury_amount = target_amounts.get('国债', 0)
     if treasury_amount > 0:
         if '511010.SH' in positions['positions']:
@@ -121,20 +121,20 @@ def main():
             }
             positions['positions']['511010.SH'] = treasury_etf
             print(f"\n新增: 上证5年期国债ETF (511010.SH): {treasury_amount} ({treasury_amount/TARGET_TOTAL*100:.1f}%)")
-    
+
     sector_after = {}
     for _code, pos in positions['positions'].items():
         sector = pos.get('sector', '其他')
         if sector not in sector_after:
             sector_after[sector] = 0
         sector_after[sector] += pos.get('amount', 0)
-    
+
     print("\n调整后行业分布:")
     total_after = sum(sector_after.values())
     for sector, amount in sector_after.items():
         print(f"  {sector}: {amount} ({amount/total_after*100:.1f}%)")
     print(f"  总计: {total_after}")
-    
+
     sector_beta = {
         '科技': 1.3,
         '医药': 1.1,
@@ -149,13 +149,13 @@ def main():
         '国债': 0.1,
         '其他': 1.0,
     }
-    
+
     portfolio_beta = sum(
         sector_after.get(sector, 0) / total_after * sector_beta.get(sector, 1.0)
         for sector in sector_after
     )
     print(f"\n组合Beta: {portfolio_beta:.2f}")
-    
+
     save_positions(positions)
     print("\n配置已保存到 positions.json")
 

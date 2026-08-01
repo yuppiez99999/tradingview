@@ -15,14 +15,14 @@
   python build_plan_executor.py --check-status         # 查看建仓状态
 """
 
+import json
 import os
 import sys
-import json
-from datetime import datetime, date, timedelta
+from dataclasses import asdict, dataclass, field
+from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field, asdict
 
-from utils.data_types import safe_float, safe_int, normalize_stock_code
+from utils.data_types import normalize_stock_code, safe_float, safe_int
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PLAN_FILE = os.path.join(BASE_DIR, "500万建仓计划_20260706.json")
@@ -352,8 +352,8 @@ class BuildPlanExecutor:
         若因子库或历史数据不可用，则返回 None，不影响正常下单流程。
         """
         try:
-            from utils.gtja191_factors import GTJA191Factors
             from utils.data_provider import get_historical_data
+            from utils.gtja191_factors import GTJA191Factors
 
             df = get_historical_data(code, period="6m")
             if df is None or df.empty or "close" not in df.columns or "amount" not in df.columns:

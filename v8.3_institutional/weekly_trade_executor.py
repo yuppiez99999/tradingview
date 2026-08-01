@@ -26,13 +26,13 @@ v8.4 本周自动交易计划执行器 (纯期权对冲模式)
 """
 from __future__ import annotations
 
-import sys
+import argparse
 import json
 import logging
-import argparse
-from datetime import datetime, date, timedelta
+import sys
+from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 BASE_DIR = Path(__file__).resolve().parent
 LOG_DIR = BASE_DIR / "logs"
@@ -486,7 +486,7 @@ class WeeklyTradeExecutor:
             return results
 
         try:
-            from sim_broker_integration import SimStockBroker, SimAccount
+            from sim_broker_integration import SimAccount, SimStockBroker
             from ths_sim_broker import THSQuoteProvider
 
             snapshot = self._load_account_snapshot()
@@ -580,8 +580,8 @@ class WeeklyTradeExecutor:
 
         try:
             from sim_broker_integration import SimAccount
-            from ths_sim_broker import THSQuoteProvider, THSSimFuturesBroker
             from ths_real_broker import THSRealBroker
+            from ths_sim_broker import THSQuoteProvider, THSSimFuturesBroker
 
             snapshot = self._load_account_snapshot()
             futures_snapshot = snapshot.get("futures", {})
@@ -655,8 +655,8 @@ class WeeklyTradeExecutor:
 
         try:
             from sim_broker_integration import SimAccount
-            from ths_sim_broker import THSQuoteProvider, SimOptionsBroker
             from ths_real_broker import THSRealBroker
+            from ths_sim_broker import SimOptionsBroker, THSQuoteProvider
 
             snapshot = self._load_account_snapshot()
             options_snapshot = snapshot.get("options", {})
@@ -1073,7 +1073,7 @@ def main():
     parser.add_argument("--date", type=str, help="指定交易日期 (YYYY-MM-DD)")
     parser.add_argument("--dry-run", action="store_true", help="干跑模式")
     parser.add_argument("--week", action="store_true", help="查看本周计划概览")
-    parser.add_argument("--session", type=str, default="all", 
+    parser.add_argument("--session", type=str, default="all",
                         choices=["morning", "afternoon", "night", "all"],
                         help="执行批次: morning/afternoon/night/all (默认all, 夜盘仅期货)")
     args = parser.parse_args()

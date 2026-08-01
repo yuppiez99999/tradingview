@@ -5,8 +5,8 @@
 """
 
 import json
-import sys
 import py_compile
+import sys
 from pathlib import Path
 
 BASE_DIR = Path(r"e:\各种PY程序\28-终极量化交易系统8.4")

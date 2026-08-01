@@ -30,7 +30,6 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from utils.signal_fusion import SignalFusionEngine
 
-
 # ============================================================
 # Fixtures
 # ============================================================

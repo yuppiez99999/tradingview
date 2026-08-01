@@ -21,14 +21,14 @@
   python run_daily_morning.py --phase all --force        # 完整流程: info→calibrate→plan→report
 """
 
+import argparse
 import os
-import sys
 import shutil
 import subprocess
-import argparse
+import sys
 import traceback
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # 强制 UTF-8 输出，解决 GBK 编码问题
 if sys.stdout.encoding != 'utf-8':

@@ -134,7 +134,7 @@ $$\\sigma_A^2 = \\sigma_F^2 + \\sigma_S^2$$
 
 $$IR = \\frac{\\alpha}{\\sigma_A}$$
 
-**10 风格因子**: Size / Beta / Momentum / Residual Volatility / Non-linear Size / 
+**10 风格因子**: Size / Beta / Momentum / Residual Volatility / Non-linear Size /
 Book-to-Price / Liquidity / Earnings Yield / Growth / Leverage
 
 **8 行业因子**: 基于申万一级行业分类

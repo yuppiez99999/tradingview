@@ -8,8 +8,9 @@
     - 验证报告字段缺失 (None) 时 Guard 链路的鲁棒性
     - 不修改真实报告文件 (只读)
 """
-import pytest
 from pathlib import Path
+
+import pytest
 
 from utils.risk_guard_integrator import RiskGuardIntegrator
 

@@ -1,8 +1,9 @@
 # v7.6 波动率目标控制引擎 -- 桥水全天候 / AQR 标准
 # 对应当前最大痛点: 实盘波动 62.5% vs 目标 12%, 差 5.2 倍
 from __future__ import annotations
-import math
+
 import logging
+import math
 from collections import deque
 from dataclasses import dataclass
 from typing import Deque, Optional

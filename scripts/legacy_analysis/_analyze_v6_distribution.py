@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """分析V6月度收益分布, 识别峰度来源, 设计止盈调优方案"""
 import json
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 # 加载V6结果
 v6_file = Path("output/validation_reports/lgb_backtest_v6_alpha_quality_20260725_063847.json")

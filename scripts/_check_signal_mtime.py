@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from pathlib import Path
 import time
+from pathlib import Path
 
 p = Path('models/pipeline_factor_signals')
 for f in sorted(p.glob('*.json'), reverse=True)[:5]:

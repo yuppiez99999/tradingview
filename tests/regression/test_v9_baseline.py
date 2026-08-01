@@ -596,8 +596,8 @@ class TestV9CodeImportability:
             sys.path.insert(0, str(PROJECT_ROOT))
 
         from lgb_enhanced_trainer import (
-            train_symbol_regime_specific,
             compute_regime_series,
+            train_symbol_regime_specific,
         )
         assert callable(train_symbol_regime_specific), (
             "train_symbol_regime_specific 不可调用"

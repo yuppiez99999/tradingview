@@ -13,7 +13,6 @@ import pytest
 
 from utils.overnight_gap_monitor import OvernightGapMonitor
 
-
 # ============================================================
 # BUG#1 回归: fail-closed 默认值不应误触发 L3 全局平仓
 # ============================================================

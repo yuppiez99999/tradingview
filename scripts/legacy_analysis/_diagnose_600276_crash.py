@@ -6,13 +6,13 @@
 2. 识别崩溃根本原因 (NaN/Inf/数据类型/内存)
 3. 验证修复方案 (数据清洗 + 鲁棒性增强)
 """
+import json
+import logging
 import sys
 import time
-import logging
 import traceback
-import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -59,7 +59,7 @@ def load_600276_data() -> pd.DataFrame:
 
 def build_features_simple(df: pd.DataFrame) -> pd.DataFrame:
     """使用 lgb_enhanced_trainer 的特征工程"""
-    from autolearn_trainer import add_technical_features, add_cross_sectional_features
+    from autolearn_trainer import add_cross_sectional_features, add_technical_features
 
     df = df.copy()
     # 技术因子
@@ -131,7 +131,7 @@ def validate_data_quality(df: pd.DataFrame, label: str) -> dict:
 
 def test_train_600276(df: pd.DataFrame, cutoff: str) -> dict:
     """测试训练 600276 单标的"""
-    from lgb_enhanced_trainer import train_symbol_enhanced, LGB_ENHANCED_CONFIG
+    from lgb_enhanced_trainer import LGB_ENHANCED_CONFIG, train_symbol_enhanced
 
     # 模拟 walk-forward 配置 (与 institutional_pipeline_runner.WALKFORWARD_LGB_CONFIG 一致)
     config = {

@@ -82,7 +82,7 @@ def format_phase_module(method_name: str, extracted_content: str):
     # Clean up: remove 'self' parameter first parameter, convert to top-level function
     # Extract the method signature line
     lines = extracted_content.split('\n')
-    
+
     # Build module header
     module_header = f'''#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
@@ -107,10 +107,10 @@ logger = logging.getLogger(__name__)
     new_lines = []
     in_method = False
     skip_next = False
-    
+
     for i, line in enumerate(lines):
         stripped = line.strip()
-        
+
         # Check if this is the method definition line
         if stripped.startswith(f'def {method_name}(self'):
             in_method = True
@@ -130,28 +130,28 @@ logger = logging.getLogger(__name__)
             else:
                 new_lines.append(line.replace('def ' + method_name + '(self,', f'def {method_name}('))
                 continue
-        
+
         if in_method:
             # Check if we need to dedent by one level (remove the self->indent shift)
             # The method body originally was indented relative to def, now it stays same level
             # We just keep the line as-is but ensure proper indentation for the module
-            
+
             # Skip continuation lines that are purely continuation (...)
             if stripped.startswith('...'):
                 continue
-                
+
             new_lines.append(line)
-            
+
             # Check if this is the end marker (blank line after method body)
             if i > 0 and lines[i-1].strip() == '' and i < len(lines) - 1:
                 # Simple heuristic: if next line looks like a new definition
                 next_stripped = lines[i+1].strip()
                 if next_stripped.startswith('def ') or next_stripped.startswith('class '):
                     break
-    
+
     # Ensure we close properly
     module_body = '\n'.join(new_lines)
-    
+
     # Add docstring and return
     full_module = f"{module_header}\n\n{module_body}\n\n"
     return full_module
@@ -162,10 +162,10 @@ def main():
     logger.info("开始提取 phase 模块...")
     logger.info(f"源文件: {SOURCE_FILE}")
     logger.info(f"目标目录: {TARGET_DIR}")
-    
+
     # Ensure target directory exists
     TARGET_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     # Create __init__.py
     init_content = '''# Phases package entry point.
 
@@ -190,13 +190,13 @@ __all__ = [
 '''
     (TARGET_DIR / "__init__.py").write_text(init_content)
     logger.info(f"✓ 创建 {TARGET_DIR}/__init__.py")
-    
+
     extracted_count = 0
     for method_name, target_basename in PHASE_METHODS.items():
         try:
             content, start_line, end_line = extract_method(str(SOURCE_FILE), method_name)
             formatted = format_phase_module(method_name, content)
-            
+
             target_file = TARGET_DIR / f"{target_basename}.py"
             target_file.write_text(formatted)
             logger.info(f"✓ 提取 {method_name} ({end_line - start_line} 行) → {target_file.name}")
@@ -215,13 +215,13 @@ __all__ = [
                     extracted_count += 1
                 except Exception as e2:
                     logger.info(f"✗ (备用) 也失败: {e2}")
-    
+
     logger.info(f"\n成功提取 {extracted_count}/{len(PHASE_METHODS)} 个 phase 模块")
-    
+
     if extracted_count < len(PHASE_METHODS):
         logger.info("\n警告：部分 phase 未成功提取，请检查原始文件内容并手动完成")
         return 1
-    
+
     return 0
 
 

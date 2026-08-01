@@ -30,13 +30,13 @@ def test_all_components_importable():
     """测试 1: 所有 7 个核心组件可加载"""
     print("\n[Test 1] 所有组件可加载...")
     from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import VibeTradingFactorAdapter
+    from research.vibe_trading_factor_analysis.committee.factor_committee import FactorCommittee
+    from research.vibe_trading_factor_analysis.pipeline.pipeline_orchestrator import PipelineOrchestrator, PipelineState
+    from research.vibe_trading_factor_analysis.safety.factor_kill_switch import FactorKillSwitch
+    from research.vibe_trading_factor_analysis.shadow.shadow_account import ShadowAccount
+    from research.vibe_trading_factor_analysis.validators.capacity_analyzer import CapacityAnalyzer
     from research.vibe_trading_factor_analysis.validators.dsr_validator import DSRValidator
     from research.vibe_trading_factor_analysis.validators.regime_conditioner import RegimeConditioner
-    from research.vibe_trading_factor_analysis.validators.capacity_analyzer import CapacityAnalyzer
-    from research.vibe_trading_factor_analysis.shadow.shadow_account import ShadowAccount
-    from research.vibe_trading_factor_analysis.committee.factor_committee import FactorCommittee
-    from research.vibe_trading_factor_analysis.safety.factor_kill_switch import FactorKillSwitch
-    from research.vibe_trading_factor_analysis.pipeline.pipeline_orchestrator import PipelineOrchestrator, PipelineState
 
     # 实例化每个组件
     adapter = VibeTradingFactorAdapter()
@@ -152,7 +152,8 @@ def test_kill_switch_integration():
     """测试 4: KillSwitch 与流水线集成"""
     print("\n[Test 4] KillSwitch 集成...")
     from research.vibe_trading_factor_analysis.safety.factor_kill_switch import (
-        FactorKillSwitch, FactorStatus,
+        FactorKillSwitch,
+        FactorStatus,
     )
     ks = FactorKillSwitch()
     ks.init("VT_E2E_TEST")

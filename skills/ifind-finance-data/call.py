@@ -1,6 +1,7 @@
 import json
 import math
 import os
+
 import requests
 
 # 安全修复: 禁止从配置文件读取 Token,仅允许环境变量
@@ -208,7 +209,7 @@ def list_tools(server_type):
         }
 
     resp.raise_for_status()
-    
+
     return {
         "ok": True,
         "status_code": resp.status_code,
@@ -217,4 +218,4 @@ def list_tools(server_type):
 
 
 if __name__ == "__main__":
-    print("未调用工具函数及输入查询参数，请按照说明文档发起请求")    
+    print("未调用工具函数及输入查询参数，请按照说明文档发起请求")

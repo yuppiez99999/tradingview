@@ -46,7 +46,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-
 # 项目根路径
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -56,10 +55,13 @@ if str(_PROJECT_ROOT) not in sys.path:
 FACTOR_KS_READY = True
 try:
     from research.vibe_trading_factor_analysis.safety.factor_kill_switch import (
-        FactorKillSwitch, FactorStatus, KillSwitchStatus,  # noqa: F401
+        FactorKillSwitch,  # noqa: F401
+        FactorStatus,
+        KillSwitchStatus,
     )
     from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
-        load_all_for_pipeline, list_available_symbols,
+        list_available_symbols,
+        load_all_for_pipeline,
     )
 except ImportError as _e:
     FACTOR_KS_READY = False

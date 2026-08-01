@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """生成代码质量评估报告 (扫描后自动产出)"""
 import json
-from pathlib import Path
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 d = json.load(open(ROOT / 'scripts' / '_bug_scan_results.json', 'r', encoding='utf-8'))

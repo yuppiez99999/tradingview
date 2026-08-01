@@ -15,18 +15,18 @@ from __future__ import annotations
 # ============================================================
 try:
     from utils.execution.rebalance_execution_orders import (
-        TARGET_ALLOCATION,
-        MIN_TRADE_AMOUNT,
         MAX_SINGLE_ORDER_AMOUNT,
         MIN_LOT_SIZE,
+        MIN_TRADE_AMOUNT,
+        TARGET_ALLOCATION,
         TARGET_TOTAL,
-        load_positions,
-        classify_style,
-        calc_current_allocation,
-        validate_order,
-        generate_rebalance_orders,
         build_report,
+        calc_current_allocation,
+        classify_style,
+        generate_rebalance_orders,
+        load_positions,
         main,
+        validate_order,
     )
 except ImportError as _e:
     # 兜底: 当 utils 包不可导入时, 尝试从同目录加载

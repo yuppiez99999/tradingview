@@ -35,7 +35,7 @@ def _compute_next_trading_day(
         (next_day, next_dt, weekday_cn, error) 元组, error 非 None 表示失败
     """
     try:
-        from utils.trade_calendar import next_trading_day, is_trading_day  # noqa: F401
+        from utils.trade_calendar import is_trading_day, next_trading_day  # noqa: F401
     except ImportError as e:
         return "", None, "", f"trade_calendar import failed: {e}"
 

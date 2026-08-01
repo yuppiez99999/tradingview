@@ -20,14 +20,13 @@ Black-Litterman 组合优化器 (Black-Litterman Portfolio Optimizer)
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
-import json
 import numpy as np
 import pandas as pd
-
 
 # ============================================================
 # 数据结构
@@ -352,8 +351,8 @@ class BlackLittermanOptimizer:
 
         # 有约束: 使用 scipy
         try:
-            from scipy.optimize import minimize
             from scipy.linalg import cholesky, solve_triangular  # noqa: F401
+            from scipy.optimize import minimize
 
             def neg_sharpe(w):
                 ret = float(w @ expected_returns)

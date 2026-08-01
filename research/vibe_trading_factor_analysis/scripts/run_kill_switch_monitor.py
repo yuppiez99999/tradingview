@@ -31,11 +31,14 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
-    load_all_for_pipeline, list_available_symbols,
-)
 from research.vibe_trading_factor_analysis.safety.factor_kill_switch import (
-    FactorKillSwitch, FactorStatus, KillSwitchStatus,
+    FactorKillSwitch,
+    FactorStatus,
+    KillSwitchStatus,
+)
+from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
+    list_available_symbols,
+    load_all_for_pipeline,
 )
 
 logger = logging.getLogger("kill_switch_monitor")
@@ -222,7 +225,8 @@ def _load_first_batch_candidates() -> Dict[str, Dict[str, float]]:
             VibeTradingFactorAdapter,
         )
         from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
-            load_all_for_pipeline, list_available_symbols,
+            list_available_symbols,
+            load_all_for_pipeline,
         )
         symbols = list_available_symbols()
         price_data, fundamentals, bench = load_all_for_pipeline(symbols=symbols)

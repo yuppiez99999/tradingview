@@ -4,8 +4,8 @@
 基于组合结构 + v7.5 引擎
 """
 
-import sys
 import json
+import sys
 from pathlib import Path
 
 # C8 修复: 使用动态 PROJECT_ROOT

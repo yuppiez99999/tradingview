@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """临时诊断脚本: 定位 shadow daily_return 连续 0% 的根因."""
-import sys, os, json
+import json
+import os
+import sys
+
 sys.path.insert(0, '.')
 sys.path.insert(0, 'v8.3_institutional')
 os.environ['NO_PROXY'] = 'push2his.eastmoney.com,push2.eastmoney.com,eastmoney.com,sinajs.cn,sina.com.cn'
@@ -23,6 +26,7 @@ for d in ['20260727', '20260728', '20260729', '20260730']:
 print()
 print('=== 2. 测试 MarketDataProvider 数据源健康度 ===')
 from utils.data_provider import MarketDataProvider
+
 p = MarketDataProvider(backtest_mode=False)
 h = p.source_health
 for src in ['wind_mcp', 'ifind_mcp', 'tdx', 'akshare']:

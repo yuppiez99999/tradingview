@@ -5,12 +5,15 @@
 import json
 import sys
 from pathlib import Path
+
 import pandas as pd
 
 from utils.data_provider import MarketDataProvider
+
 # B1.3: 从 config/risk_params.yaml 统一读取回撤上限
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
+
 _MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
 
 BASE = Path("E:/各种PY程序/28-终极量化交易系统8.4/output/institutional_pipeline")

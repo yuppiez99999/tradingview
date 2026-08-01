@@ -20,11 +20,11 @@ import pytest
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 import sys  # noqa: E402
+
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from utils import trade_calendar  # noqa: E402
 from utils.trade_calendar import is_trading_day, next_trading_day  # noqa: E402
-
 
 # ============================================================
 # 多类型入参兼容性 (B1.2 核心改动)

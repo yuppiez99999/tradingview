@@ -100,7 +100,7 @@ class KlinesLoader:
                     self._cache[symbol] = df
                     return df
             except Exception:
-                logger.warning(f"Unexpected error in scheduler.py", exc_info=True)
+                logger.warning("Unexpected error in scheduler.py", exc_info=True)
 
         # 2. 通达信（优先，TCP 协议稳定）
         tdx = self._get_tdx()
@@ -114,7 +114,7 @@ class KlinesLoader:
                     try:
                         df.to_parquet(cache_file)
                     except Exception:
-                        logger.warning(f"Unexpected error in scheduler.py", exc_info=True)
+                        logger.warning("Unexpected error in scheduler.py", exc_info=True)
                     self._cache[symbol] = df
                     return df
 
@@ -140,7 +140,7 @@ class KlinesLoader:
                     try:
                         df.to_parquet(cache_file, index=False)
                     except Exception:
-                        logger.warning(f"Unexpected error in scheduler.py", exc_info=True)
+                        logger.warning("Unexpected error in scheduler.py", exc_info=True)
                     self._cache[symbol] = df
                     return df
 
@@ -239,7 +239,7 @@ def run_daily_scan(
         # 阶段 1: 获取股票池
         # ============================================================
         logger.info(f"\n[1/6] 获取股票池 ({pool})...")
-        from .stock_universe import get_universe, get_full_market_snapshot, get_industry_map, _get_builtin_pool
+        from .stock_universe import _get_builtin_pool, get_full_market_snapshot, get_industry_map, get_universe
 
         universe_df = get_universe(pool=pool)
         if universe_df.empty:
@@ -260,7 +260,7 @@ def run_daily_scan(
         logger.info("\n[2/6] 拉取全市场快照 + 风险过滤...")
         spot_df = get_full_market_snapshot()
 
-        from .risk_filter import filter_universe, RiskFilterConfig
+        from .risk_filter import RiskFilterConfig, filter_universe
 
         if spot_df.empty:
             # 降级：跳过风险过滤，直接用股票池
@@ -311,7 +311,7 @@ def run_daily_scan(
                 if (i + 1) % 100 == 0:
                     logger.info(f"    K线进度: {i + 1}/{len(symbols)}")
 
-        from .factor_scorer import batch_compute_factors, cross_sectional_score, industry_neutralize, ScoringConfig
+        from .factor_scorer import ScoringConfig, batch_compute_factors, cross_sectional_score, industry_neutralize
 
         # 烟雾测试用更少因子
         scoring_config = ScoringConfig()
@@ -354,7 +354,7 @@ def run_daily_scan(
         # 阶段 5: 分层组合构建
         # ============================================================
         logger.info("\n[5/6] 分层组合构建...")
-        from .portfolio_builder import build_layered_portfolio, PortfolioConfig
+        from .portfolio_builder import PortfolioConfig, build_layered_portfolio
 
         port_config = PortfolioConfig()
         if smoke_test:

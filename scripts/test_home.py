@@ -2,6 +2,7 @@
 import os
 import platform
 
+
 def _get_real_home():
     if platform.system() != 'Windows':
         return os.path.expanduser('~')

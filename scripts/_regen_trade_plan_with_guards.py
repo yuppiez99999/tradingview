@@ -5,8 +5,8 @@
   1. generate_daily_trade_plan.py 生成基础 trade_plan (已完成)
   2. risk_guard_integrator.run_all_guards("2026-07-27") 应用 7 Guard + 一致性校验
 """
-import sys
 import json
+import sys
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent.parent
@@ -84,9 +84,9 @@ else:
 cl = ms.get("circuit_level", "NORMAL").upper()
 ba = ms.get("build_allowed")
 sba = ms.get("spot_build_allowed")
-if cl == "CRITICAL" and (ba != False or sba != False):
+if cl == "CRITICAL" and (ba or sba):
     errors.append(f"circuit_level=CRITICAL 时 build_allowed={ba}, spot_build_allowed={sba} 必须为 False")
-elif cl == "WARNING" and sba != False:
+elif cl == "WARNING" and sba:
     errors.append(f"circuit_level=WARNING 时 spot_build_allowed={sba} 必须为 False")
 else:
     print(f"  ✅ circuit_level={cl} 与 build_allowed={ba} / spot_build_allowed={sba} 一致")
@@ -95,9 +95,9 @@ else:
 if he:
     if not he.get("execution_status"):
         errors.append("hedge_execution 缺少 execution_status 字段")
-    elif cs.get("within_budget") == False and he.get("execution_status") != "CANCELLED":
+    elif not cs.get("within_budget") and he.get("execution_status") != "CANCELLED":
         errors.append(f"within_budget=false 时 execution_status={he.get('execution_status')} 应为 CANCELLED")
-    elif cs.get("within_budget") == True and he.get("execution_status") != "PENDING":
+    elif cs.get("within_budget") and he.get("execution_status") != "PENDING":
         errors.append(f"within_budget=true 时 execution_status={he.get('execution_status')} 应为 PENDING")
     else:
         print(f"  ✅ execution_status={he.get('execution_status')} 与 within_budget={cs.get('within_budget')} 一致")

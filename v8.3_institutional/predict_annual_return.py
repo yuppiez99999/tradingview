@@ -15,11 +15,11 @@ v8.4 Phase 1 增强: predict_annual_return_struct() 动态化双路径
     · sharpe = V9 backtest sharpe_annual (1.315) 替代静态 0.72
 """
 
+import io
 import json
+import logging
 import math
 import sys
-import io
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple

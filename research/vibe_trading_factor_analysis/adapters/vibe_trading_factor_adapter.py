@@ -35,7 +35,7 @@ import logging
 import math
 import sys
 import traceback
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -50,7 +50,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 # 只读引用现有系统（绝不修改）
 try:
-    from utils.alpha_factor_library import AlphaFactorLibrary, FactorValue, FactorLibraryResult
+    from utils.alpha_factor_library import AlphaFactorLibrary, FactorLibraryResult, FactorValue
     _UTILS_AVAILABLE = True
 except ImportError as e:
     _UTILS_AVAILABLE = False

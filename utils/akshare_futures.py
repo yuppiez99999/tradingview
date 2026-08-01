@@ -23,7 +23,7 @@ os.environ["HTTPS_PROXY"] = ""
 os.environ["http_proxy"] = ""
 os.environ["https_proxy"] = ""
 
-from ifind_futures_quotes import fetch_futures_quotes, fetch_futures_base_info
+from ifind_futures_quotes import fetch_futures_base_info, fetch_futures_quotes
 
 _IFIND_QUOTE_INDICATORS = [
     "tradeDate",

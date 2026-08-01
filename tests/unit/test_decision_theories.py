@@ -16,7 +16,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
@@ -31,7 +30,6 @@ from utils.alpha.decision_theories import (
     TheoryFusionEngine,
     run_full_theory_analysis,
 )
-
 
 # ============================================================
 # 1. TheoryDecision dataclass 测试
@@ -729,6 +727,7 @@ class TestReexportCompat:
     def test_new_path_identity(self):
         """新路径是生产唯一事实源."""
         from utils.alpha.decision_theories import SorosReflexivityEngine as NewEngine
+
         # 再次导入应该返回同一类对象
         from utils.alpha.decision_theories import SorosReflexivityEngine as NewEngine2
         assert NewEngine is NewEngine2

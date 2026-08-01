@@ -2,8 +2,8 @@
 """
 方向性期货交易模块单元测试
 """
-import sys
 import random
+import sys
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -12,9 +12,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from utils.directional_futures_trader import (
+    CONTRACT_SPECS,
     DirectionalFuturesTrader,
     FuturesSignal,
-    CONTRACT_SPECS,
 )
 
 

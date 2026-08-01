@@ -54,8 +54,8 @@ print("=" * 70)
 print("0. 模块导入")
 print("=" * 70)
 try:
-    from utils.alpha.strategy_evaluator import StrategyEvaluator, ScoreReport
     from utils.alpha.evolution_orchestrator import EvolutionOrchestrator
+    from utils.alpha.strategy_evaluator import ScoreReport, StrategyEvaluator
     check("模块导入成功", True)
 except Exception as e:
     check("模块导入成功", False, str(e))

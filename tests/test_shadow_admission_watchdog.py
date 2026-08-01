@@ -17,7 +17,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 # 路径设置
 PROJECT_ROOT = Path(__file__).resolve().parents[1]

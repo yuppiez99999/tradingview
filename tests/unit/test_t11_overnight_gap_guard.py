@@ -10,9 +10,10 @@
     6. 降仓数量不足 100 股时跳过
     7. 非跳空标的的持仓不受影响
 """
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))

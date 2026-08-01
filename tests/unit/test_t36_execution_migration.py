@@ -96,8 +96,8 @@ class TestPathEquivalence:
 
     def test_rebalance_target_allocation_equivalent(self):
         """新旧路径的 TARGET_ALLOCATION 等价."""
-        from utils.execution.rebalance_execution_orders import TARGET_ALLOCATION as new_tgt
         import rebalance_execution_orders as old_mod
+        from utils.execution.rebalance_execution_orders import TARGET_ALLOCATION as new_tgt
         assert new_tgt == old_mod.TARGET_ALLOCATION
         # 验证关键内容
         assert new_tgt["宽基"] == 0.25
@@ -105,13 +105,13 @@ class TestPathEquivalence:
 
     def test_rebalance_constants_equivalent(self):
         """新旧路径的常量等价."""
+        import rebalance_execution_orders as old_mod
         from utils.execution.rebalance_execution_orders import (
-            MIN_TRADE_AMOUNT,
             MAX_SINGLE_ORDER_AMOUNT,
             MIN_LOT_SIZE,
+            MIN_TRADE_AMOUNT,
             TARGET_TOTAL,
         )
-        import rebalance_execution_orders as old_mod
         assert MIN_TRADE_AMOUNT == old_mod.MIN_TRADE_AMOUNT == 10000
         assert MAX_SINGLE_ORDER_AMOUNT == old_mod.MAX_SINGLE_ORDER_AMOUNT == 200000
         assert MIN_LOT_SIZE == old_mod.MIN_LOT_SIZE == 100
@@ -119,27 +119,27 @@ class TestPathEquivalence:
 
     def test_rebalance_functions_are_same_object(self):
         """新旧路径导入的函数是同一对象 (内存等价)."""
+        import rebalance_execution_orders as old_mod
         from utils.execution.rebalance_execution_orders import (
             load_positions as new_func,
         )
-        import rebalance_execution_orders as old_mod
         # re-export 应该是同一对象引用
         assert new_func is old_mod.load_positions
 
     def test_automated_execution_class_equivalent(self):
         """新旧路径的 AutomatedExecutionSystem 类等价."""
+        import automated_execution_system as old_mod
         from utils.execution.automated_execution_system import (
             AutomatedExecutionSystem as new_cls,
         )
-        import automated_execution_system as old_mod
         assert new_cls is old_mod.AutomatedExecutionSystem
 
     def test_daily_build_class_equivalent(self):
         """新旧路径的 DailyBuildHedgeSystem 类等价."""
+        import daily_build_and_hedge as old_mod
         from utils.execution.daily_build_and_hedge import (
             DailyBuildHedgeSystem as new_cls,
         )
-        import daily_build_and_hedge as old_mod
         assert new_cls is old_mod.DailyBuildHedgeSystem
 
 

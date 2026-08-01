@@ -378,10 +378,10 @@ def _compute_real_metrics(
 
     try:
         from utils.alpha.shadow_account_adapter import (
-            ShadowAccountAdapter,
-            InsufficientReturnsError,
-            FailFastTriggeredError,
             MIN_SAMPLES_FOR_DSR,
+            FailFastTriggeredError,
+            InsufficientReturnsError,
+            ShadowAccountAdapter,
         )
 
         ff_cfg = cfg.get("fail_fast", {}) or {}

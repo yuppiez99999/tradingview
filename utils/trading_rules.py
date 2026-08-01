@@ -21,7 +21,6 @@ from __future__ import annotations
 from datetime import date
 from typing import Dict, Tuple
 
-
 # ============================================================
 # T+0 标的数据库
 # ============================================================

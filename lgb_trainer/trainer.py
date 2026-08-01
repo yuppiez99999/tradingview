@@ -148,11 +148,17 @@ def train_symbol_enhanced(
     """
     # 延迟导入 (避免顶层循环依赖)
     from .metrics import (
-        r2_score as _r2_score,
         ic_score as _ic_score,
-        signal_sharpe as _signal_sharpe,
-        time_series_cv_evaluate,
+    )
+    from .metrics import (
+        r2_score as _r2_score,
+    )
+    from .metrics import (
         select_features_by_importance,
+        time_series_cv_evaluate,
+    )
+    from .metrics import (
+        signal_sharpe as _signal_sharpe,
     )
 
     df = df.copy()
@@ -682,13 +688,14 @@ def _build_all_features(
         特征字典, 无数据时返回 None
     """
     # 延迟导入 (避免顶层循环依赖)
+    from autolearn_trainer import add_cross_sectional_features, add_technical_features
+
     from .data_loader import fetch_all_real_ohlcv
     from .feature_engineering import (
-        add_industry_relative_strength_features,
         add_capital_flow_features,
         add_cross_market_features,
+        add_industry_relative_strength_features,
     )
-    from autolearn_trainer import add_technical_features, add_cross_sectional_features
 
     # Step 1: 拉取真实 OHLCV
     logger.info("Step 1: 拉取真实 OHLCV 数据 (Wind MCP > iFinD MCP > 新浪 HTTP)")
@@ -733,7 +740,7 @@ def _build_sentiment_features(
     config: Dict[str, Any],
 ) -> Dict[str, pd.DataFrame]:
     """Step 3: 构建新闻情绪因子 (Wind MCP 优先, iFinD 回退)。"""
-    from .news_sentiment import compute_news_sentiment_factors, add_sentiment_features
+    from .news_sentiment import add_sentiment_features, compute_news_sentiment_factors
 
     if not use_news:
         logger.info("Step 3: 跳过新闻情绪因子")
@@ -803,7 +810,7 @@ def _train_single_symbol(
         (status, result) 元组, status ∈ {"OK","CACHED","SKIP","FAIL"}
     """
     # 延迟导入持久化函数
-    from .persistence import save_model, load_model_meta, should_retrain
+    from .persistence import load_model_meta, save_model, should_retrain
 
     if code not in featured_dict:
         logger.warning(f"  [SKIP] {code} ({name}): 无数据")

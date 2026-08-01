@@ -11,9 +11,10 @@ P2 FIX (2026-07-22): 统一 tests/ 和 v8.3_institutional/tests/ 两套测试
 import os
 import sys
 import warnings
-import pytest
+
 import numpy as np
 import pandas as pd
+import pytest
 
 # ============================================================
 # 路径设置 — 确保两个测试目录都能找到核心模块

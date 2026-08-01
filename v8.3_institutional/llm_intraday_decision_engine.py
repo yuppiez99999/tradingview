@@ -51,6 +51,7 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 TARGET_ANNUAL_RETURN = 0.08
 # B1.3: 从 config/risk_params.yaml 统一读取 (fail-safe 兜底 0.15)
 from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
+
 MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
 PORTFOLIO_STOP_LOSS = -0.10
 SINGLE_STOP_LOSS = -0.10
@@ -96,21 +97,21 @@ def _load_positions() -> Dict[str, Any]:
 def _load_latest_pnl_report() -> Optional[Dict[str, Any]]:
     if not REPORTS_DIR.exists():
         return None
-    
+
     files = list(REPORTS_DIR.glob("daily_pnl_report_*.json"))
     if not files:
         return None
-    
+
     # Filter out invalid filenames like daily_pnl_report_--date.json
     valid_files = [f for f in files if "--" not in f.stem.replace("daily_pnl_report_", "")]
     if not valid_files:
         return None
-    
+
     # Support both YYYY-MM-DD and YYYYMMDD formats in filename
     def _extract_date(p: Path) -> str:
         stem = p.stem.replace("daily_pnl_report_", "")
         return stem.replace("-", "")
-    
+
     files_sorted = sorted(valid_files, key=_extract_date, reverse=True)
     try:
         with open(files_sorted[0], "r", encoding="utf-8") as f:

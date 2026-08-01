@@ -5,6 +5,7 @@
 根据截图精确调整买多按钮坐标。
 """
 import time
+
 import pyautogui
 from pywinauto import Application
 

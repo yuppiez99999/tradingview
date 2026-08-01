@@ -22,7 +22,8 @@ print("=" * 70)
 
 # === Fix #1: 资金配置从 portfolio.yaml 读取 ===
 print("\n[Fix #1] generate_daily_trade_plan.py 从 portfolio.yaml 读取 4M/1M")
-from generate_daily_trade_plan import _load_capital_config, PORTFOLIO_YAML
+from generate_daily_trade_plan import PORTFOLIO_YAML, _load_capital_config
+
 stock, hedge = _load_capital_config(5_000_000)
 print(f"  portfolio.yaml 路径: {PORTFOLIO_YAML}")
 print(f"  读取结果: stock={stock:,}, hedge={hedge:,}")
@@ -32,7 +33,7 @@ print("  ✅ PASS: 资金配置从 portfolio.yaml 正确读取 (4M/1M, 不再硬
 
 # === Fix #4 + #5 + #3: hedge_execution_engine 联合验证 ===
 print("\n[Fix #4/#5/#3] hedge_execution_engine 联合验证")
-from utils.hedge_execution_engine import HedgeExecutionEngine, TRADE_PLANS_DIR
+from utils.hedge_execution_engine import TRADE_PLANS_DIR, HedgeExecutionEngine
 
 print(f"  TRADE_PLANS_DIR: {TRADE_PLANS_DIR}")
 assert "v8.3_institutional" in str(TRADE_PLANS_DIR), \
@@ -75,7 +76,7 @@ print("  ✅ PASS: Fix #5 per-put premium_budget 与 budget_summary 一致 (825K
 # Fix #3: within_budget=true 时订单 status=PENDING
 within_budget = cost_summary.get('within_budget')
 print(f"\n  within_budget: {within_budget}")
-assert within_budget == True, \
+assert within_budget, \
     f"Fix #3: 825K <= 825K threshold, 应 within_budget=True, 实际 {within_budget}"
 print("  ✅ PASS: Fix #3 预算检查通过 (825K <= 825K threshold)")
 
@@ -116,11 +117,11 @@ print(f"    market_state.spot_build_allowed = {test_plan['market_state']['spot_b
 print(f"    hedge_fund_overlays.v77_notes.build_allowed = {notes['build_allowed']}")
 print(f"    hedge_fund_overlays.v77_notes.reason_if_blocked = {notes.get('reason_if_blocked')}")
 
-assert test_plan['market_state']['build_allowed'] == False, \
+assert not test_plan['market_state']['build_allowed'], \
     "Fix #2: CRITICAL 时 build_allowed 必须为 False"
-assert test_plan['market_state']['spot_build_allowed'] == False, \
+assert not test_plan['market_state']['spot_build_allowed'], \
     "Fix #2: CRITICAL 时 spot_build_allowed 必须为 False"
-assert notes['build_allowed'] == False, \
+assert not notes['build_allowed'], \
     "Fix #2: v77_notes.build_allowed 必须与 market_state 同步"
 print("  ✅ PASS: Fix #2 circuit_level=CRITICAL 时一致性校验强制 build_allowed=False")
 

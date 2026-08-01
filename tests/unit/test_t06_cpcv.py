@@ -14,9 +14,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "ms_strategy"))
 
 from ms_strategy.src.backtest.combinatorial_purged_cv import (
+    CombinatorialPurgedCV,
     CPCVConfig,
     CPCVResult,
-    CombinatorialPurgedCV,
 )
 
 

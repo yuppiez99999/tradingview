@@ -4,8 +4,8 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
 from collections import Counter
+from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 gated_list = Path(os.environ.get("TEMP", "/tmp")) / "gated_files.txt"

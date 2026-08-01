@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 import logging
 import time
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("v75.today_options")
@@ -20,8 +20,8 @@ def load_plan() -> dict:
 
 def build_options_broker():
     from sim_broker_integration import SimAccount
-    from ths_sim_broker import THSQuoteProvider, SimOptionsBroker
     from ths_real_broker import THSRealBroker
+    from ths_sim_broker import SimOptionsBroker, THSQuoteProvider
 
     account = SimAccount(
         account_id="SIM-OPTIONS-TODAY",

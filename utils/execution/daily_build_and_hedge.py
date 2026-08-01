@@ -20,13 +20,13 @@
 
 from __future__ import annotations
 
-import sys
+import argparse
 import json
 import logging
-import argparse
-from datetime import datetime, date
+import sys
+from datetime import date, datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Any, cast
+from typing import Any, Dict, Optional, Tuple, cast
 
 # T3.6 迁移修正: __file__ 从根目录变为 utils/execution/, 需回退两级到项目根目录
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -282,6 +282,7 @@ class DailyBuildHedgeSystem:
         ):
             try:
                 import copy as _copy
+
                 from utils.broad_based_etf_policy import adjust_plan_with_national_team_flow
 
                 adj_plan = _copy.deepcopy(plan_500w)
@@ -897,10 +898,10 @@ class DailyBuildHedgeSystem:
         broad_based_data = {}
         try:
             from utils.broad_based_etf_policy import (
-                validate_portfolio_compliance,
                 fetch_national_team_flow_signals,
                 flow_to_adjustment,
                 get_broad_based_codes,
+                validate_portfolio_compliance,
             )
 
             target_plan = self._load_target_portfolio_plan()

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """调试 ConfigManager 资金配置问题"""
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -13,11 +14,11 @@ print("ConfigManager 调试")
 print("=" * 70)
 
 from utils.config_manager import (
-    get_portfolio_config,
+    clear_config_cache,
     get_config,
     get_config_source,
+    get_portfolio_config,
     list_available_configs,
-    clear_config_cache,
 )
 
 clear_config_cache()
@@ -29,6 +30,7 @@ print(f"  path: {yaml_path}")
 print(f"  exists: {yaml_path.exists()}")
 
 import yaml
+
 with open(yaml_path, encoding="utf-8") as f:
     raw_cfg = yaml.safe_load(f)
 print(f"  raw type: {type(raw_cfg).__name__}")

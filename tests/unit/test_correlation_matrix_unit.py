@@ -50,7 +50,6 @@ from risk.portfolio_risk_assessor import (  # noqa: E402
     monitor_daily_correlation,
 )
 
-
 # ============================================================
 # Fixture: 确定性测试数据
 # ============================================================
