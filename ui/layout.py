@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Streamlit UI 共享布局组件 — 终极量化交易系统 8.4 (T5.6).
 
 任务: T5.6
@@ -21,7 +20,7 @@ from __future__ import annotations
 import logging
 import math
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger("ui.layout")
 
@@ -90,7 +89,7 @@ def render_page_header(
 
 def render_status_badge(
     status: str,
-    label: Optional[str] = None,
+    label: str | None = None,
     size: str = "normal",
 ) -> None:
     """渲染状态徽标.
@@ -146,7 +145,7 @@ def render_status_metric(label: str, value: str, status: str = "NORMAL") -> None
 def render_kpi_card(
     label: str,
     value: str,
-    delta: Optional[str] = None,
+    delta: str | None = None,
     delta_positive: bool = True,
     icon: str = "",
 ) -> None:
@@ -215,9 +214,9 @@ def render_kpi_row(items: list) -> None:
 def render_sidebar(
     system_status: str = "NORMAL",
     intraday_mode: bool = False,
-    username: Optional[str] = None,
-    extra_metrics: Optional[list] = None,
-) -> Dict[str, Any]:
+    username: str | None = None,
+    extra_metrics: list | None = None,
+) -> dict[str, Any]:
     """渲染侧边栏.
 
     Args:

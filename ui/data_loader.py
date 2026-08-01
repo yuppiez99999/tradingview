@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Streamlit UI 统一数据加载器 — 终极量化交易系统 8.4 (T5.6).
 
 任务: T5.6
@@ -33,7 +32,7 @@ import json
 import logging
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 try:
     import yaml
@@ -76,7 +75,7 @@ def today_str(fmt: str = "%Y-%m-%d") -> str:
     return datetime.now().strftime(fmt)
 
 
-def format_date(d: Union[str, date, datetime], fmt: str = "%Y-%m-%d") -> str:
+def format_date(d: str | date | datetime, fmt: str = "%Y-%m-%d") -> str:
     """格式化日期为字符串.
 
     Args:
@@ -95,7 +94,7 @@ def format_date(d: Union[str, date, datetime], fmt: str = "%Y-%m-%d") -> str:
     raise TypeError(f"不支持的日期类型: {type(d).__name__}")
 
 
-def resolve_path(path: Union[str, Path]) -> Path:
+def resolve_path(path: str | Path) -> Path:
     """将路径解析为绝对路径.
 
     支持相对路径 (相对项目根目录) 和绝对路径.
@@ -112,7 +111,7 @@ def resolve_path(path: Union[str, Path]) -> Path:
     return _PROJECT_ROOT / p
 
 
-def file_exists(path: Union[str, Path]) -> bool:
+def file_exists(path: str | Path) -> bool:
     """检查文件是否存在."""
     return resolve_path(path).exists()
 
@@ -122,7 +121,7 @@ def file_exists(path: Union[str, Path]) -> bool:
 # ============================================================
 
 def read_json(
-    path: Union[str, Path],
+    path: str | Path,
     default: Any = None,
 ) -> Any:
     """读取 JSON 文件 (容错降级).
@@ -147,7 +146,7 @@ def read_json(
 
 
 def read_yaml(
-    path: Union[str, Path],
+    path: str | Path,
     default: Any = None,
 ) -> Any:
     """读取 YAML 文件 (容错降级).
@@ -176,9 +175,9 @@ def read_yaml(
 
 
 def read_jsonl(
-    path: Union[str, Path],
-    default: Optional[List[Dict[str, Any]]] = None,
-) -> List[Dict[str, Any]]:
+    path: str | Path,
+    default: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """读取 JSONL 文件 (每行一个 JSON 对象).
 
     Args:
@@ -196,7 +195,7 @@ def read_jsonl(
         logger.debug("JSONL 文件不存在: %s", abs_path)
         return default
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     try:
         with abs_path.open("r", encoding="utf-8") as f:
             for line_no, line in enumerate(f, 1):
@@ -218,7 +217,7 @@ def read_jsonl(
 
 
 def read_text(
-    path: Union[str, Path],
+    path: str | Path,
     default: str = "",
     encoding: str = "utf-8",
 ) -> str:
@@ -245,8 +244,8 @@ def read_text(
 
 def list_files(
     pattern: str,
-    directory: Union[str, Path] = REPORTS_DIR,
-) -> List[Path]:
+    directory: str | Path = REPORTS_DIR,
+) -> list[Path]:
     """按 glob 模式列出文件.
 
     Args:
@@ -266,8 +265,8 @@ def list_files(
 
 def find_latest_file(
     pattern: str,
-    directory: Union[str, Path] = REPORTS_DIR,
-) -> Optional[Path]:
+    directory: str | Path = REPORTS_DIR,
+) -> Path | None:
     """查找最新的匹配文件.
 
     Args:
@@ -285,7 +284,7 @@ def find_latest_file(
 # 业务专用加载函数
 # ============================================================
 
-def load_attribution_panel(target_date: Optional[Union[str, date, datetime]] = None) -> Optional[Dict[str, Any]]:
+def load_attribution_panel(target_date: str | date | datetime | None = None) -> dict[str, Any] | None:
     """加载日级归因面板 JSON.
 
     Args:
@@ -299,7 +298,7 @@ def load_attribution_panel(target_date: Optional[Union[str, date, datetime]] = N
     return read_json(path, default=None)
 
 
-def load_attribution_markdown(target_date: Optional[Union[str, date, datetime]] = None) -> str:
+def load_attribution_markdown(target_date: str | date | datetime | None = None) -> str:
     """加载日级归因面板 Markdown.
 
     Args:
@@ -313,12 +312,12 @@ def load_attribution_markdown(target_date: Optional[Union[str, date, datetime]] 
     return read_text(path, default="")
 
 
-def load_shadow_state() -> Optional[Dict[str, Any]]:
+def load_shadow_state() -> dict[str, Any] | None:
     """加载 Shadow 账户准入状态."""
     return read_json(REPORTS_DIR / "shadow" / "admission_state.json", default=None)
 
 
-def load_shadow_dsr(target_date: Optional[Union[str, date, datetime]] = None) -> Optional[Dict[str, Any]]:
+def load_shadow_dsr(target_date: str | date | datetime | None = None) -> dict[str, Any] | None:
     """加载 Shadow DSR 报告.
 
     Args:
@@ -332,7 +331,7 @@ def load_shadow_dsr(target_date: Optional[Union[str, date, datetime]] = None) ->
     return read_json(path, default=None)
 
 
-def load_theta_plan(target_date: Optional[Union[str, date, datetime]] = None) -> Optional[Dict[str, Any]]:
+def load_theta_plan(target_date: str | date | datetime | None = None) -> dict[str, Any] | None:
     """加载 Theta 交易计划.
 
     Args:
@@ -347,7 +346,7 @@ def load_theta_plan(target_date: Optional[Union[str, date, datetime]] = None) ->
     return read_json(path, default=None)
 
 
-def load_tca_fills(target_date: Optional[Union[str, date, datetime]] = None) -> List[Dict[str, Any]]:
+def load_tca_fills(target_date: str | date | datetime | None = None) -> list[dict[str, Any]]:
     """加载 TCA 执行归因 JSONL.
 
     Args:
@@ -361,7 +360,7 @@ def load_tca_fills(target_date: Optional[Union[str, date, datetime]] = None) -> 
     return read_jsonl(path, default=[])
 
 
-def load_risk_bus_events(target_date: Optional[Union[str, date, datetime]] = None) -> List[Dict[str, Any]]:
+def load_risk_bus_events(target_date: str | date | datetime | None = None) -> list[dict[str, Any]]:
     """加载风险总线审计事件.
 
     Args:
@@ -375,7 +374,7 @@ def load_risk_bus_events(target_date: Optional[Union[str, date, datetime]] = Non
     return read_jsonl(path, default=[])
 
 
-def load_llm_router_calls(target_date: Optional[Union[str, date, datetime]] = None) -> List[Dict[str, Any]]:
+def load_llm_router_calls(target_date: str | date | datetime | None = None) -> list[dict[str, Any]]:
     """加载 LLM 路由审计日志.
 
     Args:
@@ -389,7 +388,7 @@ def load_llm_router_calls(target_date: Optional[Union[str, date, datetime]] = No
     return read_jsonl(path, default=[])
 
 
-def load_pnl_attribution(target_date: Optional[Union[str, date, datetime]] = None) -> Optional[Dict[str, Any]]:
+def load_pnl_attribution(target_date: str | date | datetime | None = None) -> dict[str, Any] | None:
     """加载 PnL 归因报告.
 
     Args:
@@ -403,16 +402,16 @@ def load_pnl_attribution(target_date: Optional[Union[str, date, datetime]] = Non
     return read_json(path, default=None)
 
 
-def load_strategy_registry_events() -> List[Dict[str, Any]]:
+def load_strategy_registry_events() -> list[dict[str, Any]]:
     """加载策略注册审计事件 (聚合所有日期)."""
     files = list_files("strategy_registry/*.jsonl")
-    all_events: List[Dict[str, Any]] = []
+    all_events: list[dict[str, Any]] = []
     for f in files:
         all_events.extend(read_jsonl(f, default=[]))
     return all_events
 
 
-def load_pipeline_state(latest: bool = True) -> Optional[Dict[str, Any]]:
+def load_pipeline_state(latest: bool = True) -> dict[str, Any] | None:
     """加载流水线状态.
 
     Args:
@@ -428,13 +427,13 @@ def load_pipeline_state(latest: bool = True) -> Optional[Dict[str, Any]]:
     return read_json(target, default=None)
 
 
-def load_feature_flags_config() -> Dict[str, Any]:
+def load_feature_flags_config() -> dict[str, Any]:
     """加载 Feature Flags 配置."""
     result = read_yaml(CONFIG_DIR / "feature_flags.yaml", default={})
     return result if isinstance(result, dict) else {}
 
 
-def load_config_file(name: str) -> Dict[str, Any]:
+def load_config_file(name: str) -> dict[str, Any]:
     """加载配置文件 (yaml).
 
     Args:
@@ -447,7 +446,7 @@ def load_config_file(name: str) -> Dict[str, Any]:
     return result if isinstance(result, dict) else {}
 
 
-def load_recent_data_quality(n: int = 5) -> List[Dict[str, Any]]:
+def load_recent_data_quality(n: int = 5) -> list[dict[str, Any]]:
     """加载最近 N 份数据质量报告.
 
     Args:

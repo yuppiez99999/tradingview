@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Streamlit UI 鉴权模块 — 终极量化交易系统 8.4 (T5.6).
 
 任务: T5.6
@@ -38,7 +37,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from utils.config_manager import get_config
 from utils.infra.feature_flags import is_enabled
@@ -77,12 +76,12 @@ class AuthConfig:
         credentials: 凭据列表 [{username, password_hash}]
         session_ttl_seconds: 会话 TTL (秒)
     """
-    enabled: Optional[bool] = None
+    enabled: bool | None = None
     require_in_production: bool = True
-    credentials: List[Dict[str, str]] = field(default_factory=list)
+    credentials: list[dict[str, str]] = field(default_factory=list)
     session_ttl_seconds: int = DEFAULT_SESSION_TTL
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为字典 (用于审计日志)."""
         return {
             "enabled": self.enabled,
@@ -158,7 +157,7 @@ def is_production_env() -> bool:
     return os.environ.get("TRADING_ENV", "").lower() == "production"
 
 
-def is_auth_required(config: Optional[AuthConfig] = None) -> bool:
+def is_auth_required(config: AuthConfig | None = None) -> bool:
     """判断当前是否需要鉴权.
 
     优先级:
@@ -198,7 +197,7 @@ def is_ui_enabled() -> bool:
 def authenticate(
     username: str,
     password: str,
-    config: Optional[AuthConfig] = None,
+    config: AuthConfig | None = None,
 ) -> bool:
     """校验用户名密码.
 
@@ -230,7 +229,7 @@ def authenticate(
 def check_session_valid(
     login_at: float,
     ttl: int = DEFAULT_SESSION_TTL,
-    now: Optional[float] = None,
+    now: float | None = None,
 ) -> bool:
     """检查会话是否仍在有效期内.
 
