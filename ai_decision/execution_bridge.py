@@ -752,7 +752,6 @@ def _build_l2_veto_return(
     execution_plan: Dict[str, Any],
 ) -> Dict[str, Any]:
     """构建 L2 风控否决时的审计记录和返回字典"""
-    escalation = True
     escalation_reason = f"L2 风控否决: {risk_result.veto_reason}"
     record = {
         "timestamp": datetime.now().isoformat(),

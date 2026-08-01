@@ -462,8 +462,6 @@ def validate_next_plan(next_trade_date, eod_summary):
     next_plan_filename = f"trade_plan_{next_trade_date.replace('-', '')}.json"
     next_plan_path = TRADE_PLANS_DIR / next_plan_filename
     if not next_plan_path.exists():
-        skip_phase3 = True
-        skip_phase4 = True
         log(f"[FAIL] 次日交易计划不存在: {next_plan_path} [关键失败]", "ERROR")
         log("请确认 generate_daily_trade_plan.py 已运行, 或使用 --skip-generate-plan 仅在计划已存在时使用", "ERROR")
         log("阶段三 (LLM决策灌入) 和 阶段四 (风控守卫) 将跳过, 因无计划可操作", "ERROR")

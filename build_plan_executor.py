@@ -274,9 +274,6 @@ class BuildPlanExecutor:
         morning_shares, afternoon_shares = self._calculate_session_shares(total_shares, lot_size)
 
         limit_price = round(est_price * (1 + self.PRICE_BUFFER), 3)
-        name = info.get("name", "")
-        style = info.get("style", "")
-        risk = info.get("risk", "")
 
         result = {"warnings": adj_warnings}
         if morning_shares > 0:
