@@ -18,21 +18,36 @@
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
-import numpy as np
 
 from utils.execution_algo_engine import ExecutionAlgoEngine
 
 logger = logging.getLogger("execution_router")
 
 
+# ============================================================
+# T3.4: Feature Flag 透传 (HC-1)
+# ============================================================
+# USE_TCA_PRE_TRADE_ESTIMATE 默认 False, 关闭时 route_with_tca 降级为
+# route() + None (兼容模式, 不改变生产行为)
+def _tca_pre_trade_enabled() -> bool:
+    """检查 USE_TCA_PRE_TRADE_ESTIMATE 是否启用 (延迟导入避免循环依赖)"""
+    try:
+        from utils.infra.feature_flags import is_enabled
+
+        return bool(is_enabled("USE_TCA_PRE_TRADE_ESTIMATE"))
+    except Exception:  # P2 模块 fail-safe, 待后续精确化
+        # Feature Flag 框架不可用时, fail-safe 返回 False
+        return False
+
+
 @dataclass
 class ExecutionPlan:
     """执行计划"""
+
     symbol: str
     algorithm: str
     urgency: str
@@ -56,6 +71,7 @@ class ExecutionPlan:
 @dataclass
 class ExecutionReview:
     """执行复盘"""
+
     symbol: str
     planned_price: float
     executed_price: float
@@ -77,16 +93,23 @@ class ExecutionRouter:
         self,
         shortfall_tolerance_bps: float = 8.0,
         review_save_dir: Optional[str] = None,
+        tca_estimator: Optional[Any] = None,
+        tca_threshold_bps: float = 30.0,
     ):
         self.shortfall_tolerance_bps = float(shortfall_tolerance_bps)
         self.review_save_dir = review_save_dir or "reports/execution"
         self._algo = ExecutionAlgoEngine()
+        # T3.4: TCA 预估器 (延迟初始化, 仅在 flag 启用时创建)
+        self._tca_estimator = tca_estimator
+        self._tca_threshold_bps = float(tca_threshold_bps)
 
     # ------------------------------------------------------------
     # 路由
     # ------------------------------------------------------------
 
-    def route(self, order: Dict[str, Any], signal: Optional[Dict[str, Any]], market_state: Optional[Dict[str, Any]] = None) -> ExecutionPlan:
+    def route(
+        self, order: Dict[str, Any], signal: Optional[Dict[str, Any]], market_state: Optional[Dict[str, Any]] = None
+    ) -> ExecutionPlan:
         """根据订单、信号、市场状态选择执行算法
 
         Args:
@@ -125,6 +148,80 @@ class ExecutionRouter:
                 "volatility": vol,
             },
         )
+
+    # ============================================================
+    # T3.4: 带 TCA 预估的执行路由 (HC-1 Feature Flag 透传)
+    # ============================================================
+    def route_with_tca(
+        self,
+        order: Dict[str, Any],
+        signal: Optional[Dict[str, Any]] = None,
+        market_state: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[ExecutionPlan, Optional[Any]]:
+        """带 TCA 预估的执行路由
+
+        HC-1 透传: 当 USE_TCA_PRE_TRADE_ESTIMATE=False (默认) 时,
+        降级为 route() + None (兼容模式, 不改变生产行为)
+        当 =True 时, 调用 PreTradeEstimator.estimate() 预估成本,
+        若预估 cost_bps > threshold 则 plan.meta 添加 tca_rejected=True
+
+        Args:
+            order: 订单字典 (同 route)
+            signal: 信号字典 (同 route)
+            market_state: 市场状态字典 (同 route, 同时用作 TCA market_data)
+
+        Returns:
+            (ExecutionPlan, Optional[PreTradeEstimate])
+            - 当 flag 关闭: (plan, None)
+            - 当 flag 启用: (plan, estimate)
+        """
+        # 1. 先调用原始 route() (HC-2 同步路径保留)
+        plan = self.route(order, signal, market_state)
+
+        # 2. 检查 Feature Flag
+        if not _tca_pre_trade_enabled():
+            # 兼容模式: 不做 TCA 预估
+            plan.meta["tca_enabled"] = False
+            return plan, None
+
+        # 3. 启用 TCA 预估
+        plan.meta["tca_enabled"] = True
+        try:
+            estimator = self._get_tca_estimator()
+            # 从 market_state 提取 TCA 所需数据
+            market_state = market_state or {}
+            market_data = {
+                "adv": float(market_state.get("adv", 0)),
+                "volatility": float(market_state.get("volatility", 0.02)),
+            }
+            estimate = estimator.estimate(order, market_data)
+            plan.meta["tca_cost_bps"] = round(estimate.estimated_cost_bps, 4)
+            plan.meta["tca_approved"] = estimate.approved
+            if not estimate.approved:
+                plan.meta["tca_rejected"] = True
+                plan.meta["tca_rejection_reason"] = estimate.rejection_reason
+                logger.warning(
+                    "[ExecutionRouter] TCA 否决订单: %s (%s)",
+                    order.get("symbol", ""),
+                    estimate.rejection_reason,
+                )
+            return plan, estimate
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            # TCA 异常 fail-safe: 不阻断主路径, 仅记录
+            logger.error("[ExecutionRouter] TCA 预估异常 (降级为不预估): %s", e)
+            plan.meta["tca_error"] = str(e)
+            return plan, None
+
+    def _get_tca_estimator(self):
+        """获取 TCA 预估器 (延迟初始化)"""
+        if self._tca_estimator is None:
+            from utils.tca_pre_trade_estimator import PreTradeEstimator
+
+            self._tca_estimator = PreTradeEstimator(
+                cost_threshold_bps=self._tca_threshold_bps,
+                save_to_file=True,
+            )
+        return self._tca_estimator
 
     # ------------------------------------------------------------
     # 复盘
@@ -213,11 +310,12 @@ class ExecutionRouter:
     def _save_review(self, review: ExecutionReview) -> None:
         import json
         from pathlib import Path
+
         save_dir = Path(self.review_save_dir)
         save_dir.mkdir(parents=True, exist_ok=True)
         path = save_dir / f"{datetime.now():%Y-%m-%d}.jsonl"
         try:
             with open(path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(review.__dict__, ensure_ascii=False) + "\n")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error("[ExecutionRouter] 保存执行复盘失败: %s", e)

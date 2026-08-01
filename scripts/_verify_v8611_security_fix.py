@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 
 def _check_version(name: str, expected_min: str, actual: str) -> bool:
@@ -42,7 +42,7 @@ def test_dependabot_alerts_fixed() -> None:
     ]
 
     all_pass = True
-    for pkg, import_name, min_ver, expected_actual, severity in cases:
+    for pkg, import_name, min_ver, _expected_actual, severity in cases:
         try:
             mod = __import__(import_name)
             actual = mod.__version__

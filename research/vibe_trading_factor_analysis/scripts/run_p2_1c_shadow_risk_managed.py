@@ -29,12 +29,10 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import sys
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 
 # 项目根路径注入
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -70,23 +68,23 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("P2.1c Shadow 风险管理层验证")
-    print(f"目标因子: {TARGET_FACTOR}")
-    print("=" * 70)
-    print("P2.1c 改进内容:")
-    print("  1. 波动率缩放: 目标年化波动率 15% (对齐生产)")
-    print("  2. 回撤去杠杆: 回撤 > 5% 时敞口降至 50%")
-    print("  3. 对照组: 无风险管理 (复现第八批次结果)")
-    print("  4. 实验组: 启用风险管理 (预期 max_dd < 12%)")
+    logger.info("=" * 70)
+    logger.info("P2.1c Shadow 风险管理层验证")
+    logger.info(f"目标因子: {TARGET_FACTOR}")
+    logger.info("=" * 70)
+    logger.info("P2.1c 改进内容:")
+    logger.info("  1. 波动率缩放: 目标年化波动率 15% (对齐生产)")
+    logger.info("  2. 回撤去杠杆: 回撤 > 5% 时敞口降至 50%")
+    logger.info("  3. 对照组: 无风险管理 (复现第八批次结果)")
+    logger.info("  4. 实验组: 启用风险管理 (预期 max_dd < 12%)")
 
     # ============ Step 1: 加载数据 ============
-    print("\n[1/5] 加载 P1 改进后的真实数据")
+    logger.info("\n[1/5] 加载 P1 改进后的真实数据")
     symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
+    logger.info(f"  可用标的数: {len(symbols)}")
 
     price_data = load_price_data(symbols=symbols)
-    print(f"  price_data: {len(price_data)} 个标的")
+    logger.info(f"  price_data: {len(price_data)} 个标的")
 
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns()
@@ -95,14 +93,14 @@ def main() -> int:
             compute_equal_weight_benchmark,
         )
         benchmark_returns = compute_equal_weight_benchmark(price_data)
-    print(f"  benchmark_returns: {len(benchmark_returns)} 天")
+    logger.info(f"  benchmark_returns: {len(benchmark_returns)} 天")
 
     if not price_data:
-        print("[ERROR] 价格数据加载失败")
+        logger.info("[ERROR] 价格数据加载失败")
         return 1
 
     # ============ Step 2: 构建因子历史 ============
-    print("\n[2/5] 构建日频因子历史 (120d)")
+    logger.info("\n[2/5] 构建日频因子历史 (120d)")
     adapter = VibeTradingFactorAdapter()
     factor_history, fwd_returns_hist, valid_dates = build_factor_history(
         adapter=adapter,
@@ -112,22 +110,22 @@ def main() -> int:
         history_days=120,
         forward_window=5,
     )
-    print(f"  因子数: {len(factor_history)}")
-    print(f"  有效天数: {len(valid_dates)}")
+    logger.info(f"  因子数: {len(factor_history)}")
+    logger.info(f"  有效天数: {len(valid_dates)}")
 
     if TARGET_FACTOR not in factor_history:
-        print(f"[ERROR] 目标因子 {TARGET_FACTOR} 不在因子历史中")
-        print(f"  可用因子: {sorted(factor_history.keys())[:20]}")
+        logger.info(f"[ERROR] 目标因子 {TARGET_FACTOR} 不在因子历史中")
+        logger.info(f"  可用因子: {sorted(factor_history.keys())[:20]}")
         return 1
 
     target_history = factor_history[TARGET_FACTOR]
-    print(f"  {TARGET_FACTOR} 历史长度: {len(target_history)}")
-    print(f"  forward_returns 历史长度: {len(fwd_returns_hist)}")
+    logger.info(f"  {TARGET_FACTOR} 历史长度: {len(target_history)}")
+    logger.info(f"  forward_returns 历史长度: {len(fwd_returns_hist)}")
 
     # ============ Step 3: 对照组 - 无风险管理 ============
-    print("\n[3/5] 对照组: 无风险管理 Shadow 测试")
+    logger.info("\n[3/5] 对照组: 无风险管理 Shadow 测试")
     n_trials = max(len(symbols), 13)
-    print(f"  n_trials: {n_trials}")
+    logger.info(f"  n_trials: {n_trials}")
 
     baseline_account = ShadowAccount(config={
         "reports_dir": str(REPORTS_DIR),
@@ -139,22 +137,22 @@ def main() -> int:
         factor_name=TARGET_FACTOR,
     )
 
-    print("-" * 70)
-    print(f"  [对照组 - 无风险管理]")
-    print(f"  pass_shadow      : {baseline_result.pass_shadow}")
-    print(f"  live_dsr         : {baseline_result.live_dsr:.4f}  (阈值 > 0.5)")
-    print(f"  sr_observed      : {baseline_result.sr_observed:.4f}")
-    print(f"  max_drawdown     : {baseline_result.max_drawdown:.4f}  (阈值 < 0.12)")
-    print(f"  mc_p95_dd        : {baseline_result.monte_carlo_p95_dd:.4f}  (阈值 < 0.18)")
-    print(f"  mc_mean_dd       : {baseline_result.monte_carlo_mean_dd:.4f}")
-    print(f"  total_return     : {baseline_result.total_return:.4f}")
-    print(f"  raw_realized_vol : {baseline_result.raw_realized_vol:.4f}")
-    print(f"  n_obs_days       : {baseline_result.n_obs_days}")
-    print(f"  fail_reasons     : {baseline_result.fail_reasons}")
-    print("-" * 70)
+    logger.info("-" * 70)
+    logger.info("  [对照组 - 无风险管理]")
+    logger.info(f"  pass_shadow      : {baseline_result.pass_shadow}")
+    logger.info(f"  live_dsr         : {baseline_result.live_dsr:.4f}  (阈值 > 0.5)")
+    logger.info(f"  sr_observed      : {baseline_result.sr_observed:.4f}")
+    logger.info(f"  max_drawdown     : {baseline_result.max_drawdown:.4f}  (阈值 < 0.12)")
+    logger.info(f"  mc_p95_dd        : {baseline_result.monte_carlo_p95_dd:.4f}  (阈值 < 0.18)")
+    logger.info(f"  mc_mean_dd       : {baseline_result.monte_carlo_mean_dd:.4f}")
+    logger.info(f"  total_return     : {baseline_result.total_return:.4f}")
+    logger.info(f"  raw_realized_vol : {baseline_result.raw_realized_vol:.4f}")
+    logger.info(f"  n_obs_days       : {baseline_result.n_obs_days}")
+    logger.info(f"  fail_reasons     : {baseline_result.fail_reasons}")
+    logger.info("-" * 70)
 
     # ============ Step 4: 实验组 - 启用风险管理 ============
-    print("\n[4/5] 实验组: 启用风险管理 Shadow 测试")
+    logger.info("\n[4/5] 实验组: 启用风险管理 Shadow 测试")
     rm_account = ShadowAccount(config={
         "reports_dir": str(REPORTS_DIR),
         "risk_managed": True,
@@ -171,38 +169,38 @@ def main() -> int:
         factor_name=TARGET_FACTOR,
     )
 
-    print("-" * 70)
-    print(f"  [实验组 - 启用风险管理]")
-    print(f"  pass_shadow      : {rm_result.pass_shadow}")
-    print(f"  live_dsr         : {rm_result.live_dsr:.4f}  (阈值 > 0.5)")
-    print(f"  sr_observed      : {rm_result.sr_observed:.4f}")
-    print(f"  max_drawdown     : {rm_result.max_drawdown:.4f}  (阈值 < 0.12)")
-    print(f"  mc_p95_dd        : {rm_result.monte_carlo_p95_dd:.4f}  (阈值 < 0.18)")
-    print(f"  mc_mean_dd       : {rm_result.monte_carlo_mean_dd:.4f}")
-    print(f"  total_return     : {rm_result.total_return:.4f}")
-    print(f"  realized_vol     : {rm_result.realized_vol:.4f}  (目标 0.15)")
-    print(f"  avg_scaler       : {rm_result.avg_scaler:.4f}")
-    print(f"  derisk_days      : {rm_result.derisk_triggered_days} / {rm_result.n_obs_days}")
-    print(f"  fail_reasons     : {rm_result.fail_reasons}")
-    print("-" * 70)
+    logger.info("-" * 70)
+    logger.info("  [实验组 - 启用风险管理]")
+    logger.info(f"  pass_shadow      : {rm_result.pass_shadow}")
+    logger.info(f"  live_dsr         : {rm_result.live_dsr:.4f}  (阈值 > 0.5)")
+    logger.info(f"  sr_observed      : {rm_result.sr_observed:.4f}")
+    logger.info(f"  max_drawdown     : {rm_result.max_drawdown:.4f}  (阈值 < 0.12)")
+    logger.info(f"  mc_p95_dd        : {rm_result.monte_carlo_p95_dd:.4f}  (阈值 < 0.18)")
+    logger.info(f"  mc_mean_dd       : {rm_result.monte_carlo_mean_dd:.4f}")
+    logger.info(f"  total_return     : {rm_result.total_return:.4f}")
+    logger.info(f"  realized_vol     : {rm_result.realized_vol:.4f}  (目标 0.15)")
+    logger.info(f"  avg_scaler       : {rm_result.avg_scaler:.4f}")
+    logger.info(f"  derisk_days      : {rm_result.derisk_triggered_days} / {rm_result.n_obs_days}")
+    logger.info(f"  fail_reasons     : {rm_result.fail_reasons}")
+    logger.info("-" * 70)
 
     # ============ Step 5: 对比分析与验收 ============
-    print("\n[5/5] 对比分析")
-    print("=" * 70)
-    print(f"{'指标':<20s} {'对照组(无RM)':>15s} {'实验组(有RM)':>15s} {'变化':>12s} {'阈值':>10s}")
-    print("-" * 70)
-    print(f"{'pass_shadow':<20s} {str(baseline_result.pass_shadow):>15s} {str(rm_result.pass_shadow):>15s} {'-':>12s} {'-':>10s}")
-    print(f"{'live_dsr':<20s} {baseline_result.live_dsr:>15.4f} {rm_result.live_dsr:>15.4f} {rm_result.live_dsr-baseline_result.live_dsr:>+12.4f} {'>0.5':>10s}")
-    print(f"{'sr_observed':<20s} {baseline_result.sr_observed:>15.4f} {rm_result.sr_observed:>15.4f} {rm_result.sr_observed-baseline_result.sr_observed:>+12.4f} {'-':>10s}")
-    print(f"{'max_drawdown':<20s} {baseline_result.max_drawdown:>15.4f} {rm_result.max_drawdown:>15.4f} {rm_result.max_drawdown-baseline_result.max_drawdown:>+12.4f} {'<0.12':>10s}")
-    print(f"{'mc_p95_dd':<20s} {baseline_result.monte_carlo_p95_dd:>15.4f} {rm_result.monte_carlo_p95_dd:>15.4f} {rm_result.monte_carlo_p95_dd-baseline_result.monte_carlo_p95_dd:>+12.4f} {'<0.18':>10s}")
-    print(f"{'mc_mean_dd':<20s} {baseline_result.monte_carlo_mean_dd:>15.4f} {rm_result.monte_carlo_mean_dd:>15.4f} {rm_result.monte_carlo_mean_dd-baseline_result.monte_carlo_mean_dd:>+12.4f} {'-':>10s}")
-    print(f"{'total_return':<20s} {baseline_result.total_return:>15.4f} {rm_result.total_return:>15.4f} {rm_result.total_return-baseline_result.total_return:>+12.4f} {'-':>10s}")
-    print(f"{'realized_vol':<20s} {baseline_result.raw_realized_vol:>15.4f} {rm_result.realized_vol:>15.4f} {rm_result.realized_vol-baseline_result.raw_realized_vol:>+12.4f} {'target=0.15':>10s}")
-    print("=" * 70)
+    logger.info("\n[5/5] 对比分析")
+    logger.info("=" * 70)
+    logger.info(f"{'指标':<20s} {'对照组(无RM)':>15s} {'实验组(有RM)':>15s} {'变化':>12s} {'阈值':>10s}")
+    logger.info("-" * 70)
+    logger.info(f"{'pass_shadow':<20s} {baseline_result.pass_shadow!s:>15s} {rm_result.pass_shadow!s:>15s} {'-':>12s} {'-':>10s}")
+    logger.info(f"{'live_dsr':<20s} {baseline_result.live_dsr:>15.4f} {rm_result.live_dsr:>15.4f} {rm_result.live_dsr-baseline_result.live_dsr:>+12.4f} {'>0.5':>10s}")
+    logger.info(f"{'sr_observed':<20s} {baseline_result.sr_observed:>15.4f} {rm_result.sr_observed:>15.4f} {rm_result.sr_observed-baseline_result.sr_observed:>+12.4f} {'-':>10s}")
+    logger.info(f"{'max_drawdown':<20s} {baseline_result.max_drawdown:>15.4f} {rm_result.max_drawdown:>15.4f} {rm_result.max_drawdown-baseline_result.max_drawdown:>+12.4f} {'<0.12':>10s}")
+    logger.info(f"{'mc_p95_dd':<20s} {baseline_result.monte_carlo_p95_dd:>15.4f} {rm_result.monte_carlo_p95_dd:>15.4f} {rm_result.monte_carlo_p95_dd-baseline_result.monte_carlo_p95_dd:>+12.4f} {'<0.18':>10s}")
+    logger.info(f"{'mc_mean_dd':<20s} {baseline_result.monte_carlo_mean_dd:>15.4f} {rm_result.monte_carlo_mean_dd:>15.4f} {rm_result.monte_carlo_mean_dd-baseline_result.monte_carlo_mean_dd:>+12.4f} {'-':>10s}")
+    logger.info(f"{'total_return':<20s} {baseline_result.total_return:>15.4f} {rm_result.total_return:>15.4f} {rm_result.total_return-baseline_result.total_return:>+12.4f} {'-':>10s}")
+    logger.info(f"{'realized_vol':<20s} {baseline_result.raw_realized_vol:>15.4f} {rm_result.realized_vol:>15.4f} {rm_result.realized_vol-baseline_result.raw_realized_vol:>+12.4f} {'target=0.15':>10s}")
+    logger.info("=" * 70)
 
     # 验收检查
-    print("\n验收检查:")
+    logger.info("\n验收检查:")
     checks = [
         ("max_dd < 0.12", rm_result.max_drawdown < 0.12, rm_result.max_drawdown),
         ("mc_p95_dd < 0.18", rm_result.monte_carlo_p95_dd < 0.18, rm_result.monte_carlo_p95_dd),
@@ -212,24 +210,24 @@ def main() -> int:
     all_pass = True
     for name, passed, value in checks:
         mark = "✅" if passed else "❌"
-        print(f"  {mark} {name} | 实际值={value:.4f}")
+        logger.info(f"  {mark} {name} | 实际值={value:.4f}")
         if not passed:
             all_pass = False
 
     print()
     if all_pass:
-        print("=" * 70)
-        print("🎉 P2.1c 验收通过: VT_MICRO_VOL_SKEW_INV 在风险管理下通过 Shadow")
-        print("=" * 70)
-        print("结论: 因子本身 Alpha 信号有效 (live_dsr > 0.5)，高回撤源于无风险管理")
-        print("      启用波动率缩放 + 回撤去杠杆后，回撤降至可接受范围")
-        print("      建议将 risk_managed=True 作为 Shadow 默认配置（与生产使用一致）")
+        logger.info("=" * 70)
+        logger.info("🎉 P2.1c 验收通过: VT_MICRO_VOL_SKEW_INV 在风险管理下通过 Shadow")
+        logger.info("=" * 70)
+        logger.info("结论: 因子本身 Alpha 信号有效 (live_dsr > 0.5)，高回撤源于无风险管理")
+        logger.info("      启用波动率缩放 + 回撤去杠杆后，回撤降至可接受范围")
+        logger.info("      建议将 risk_managed=True 作为 Shadow 默认配置（与生产使用一致）")
     else:
-        print("=" * 70)
-        print("⚠️  P2.1c 验收未完全通过")
-        print("=" * 70)
-        print("结论: 风险管理未能将所有指标降至阈值内")
-        print("      需进一步调整风险管理参数或考虑组合层面控制")
+        logger.info("=" * 70)
+        logger.info("⚠️  P2.1c 验收未完全通过")
+        logger.info("=" * 70)
+        logger.info("结论: 风险管理未能将所有指标降至阈值内")
+        logger.info("      需进一步调整风险管理参数或考虑组合层面控制")
 
     # ============ 写入报告 ============
     md_path = _write_p2_1c_report(
@@ -240,7 +238,7 @@ def main() -> int:
         target_factor=TARGET_FACTOR,
         all_pass=all_pass,
     )
-    print(f"\n报告路径: {md_path}")
+    logger.info(f"\n报告路径: {md_path}")
 
     # 保存原始结果 JSON
     json_path = md_path.parent / "p2_1c_results.json"
@@ -263,7 +261,7 @@ def main() -> int:
     }
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(results_json, f, indent=2, ensure_ascii=False, default=str)
-    print(f"JSON 结果: {json_path}")
+    logger.info(f"JSON 结果: {json_path}")
 
     return 0 if all_pass else 0  # 即使未完全通过也返回 0（脚本本身成功执行）
 

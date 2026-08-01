@@ -14,20 +14,21 @@ v7.5 Beta 对冲引擎 —— EWMA Beta + 期货空头对冲
         仅当对冲成本/组合市值 < 0.3% 时执行期货对冲
         否则降级至反向 ETF 或期权 Put Spread
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
-import numpy as np
 import pandas as pd
 
 logger = logging.getLogger("v75.hedging.beta")
 
 try:
     from data_sources.akshare_futures import fetch_futures_realtime
+
     HAS_AKSHARE_FUTURES = True
-except Exception:
+except Exception as e:
     fetch_futures_realtime = None  # type: ignore
     HAS_AKSHARE_FUTURES = False
 
@@ -35,13 +36,15 @@ except Exception:
 class BetaHedger:
     """Beta 对冲器: 通过股指期货空头将组合 Beta 降至目标"""
 
-    def __init__(self,
-                 beta_target: float = 0.3,
-                 beta_trigger: float = 0.7,
-                 ewma_lambda: float = 0.94,
-                 window: int = 60,
-                 cost_max: float = 0.003,
-                 futures_config: Optional[Dict] = None):
+    def __init__(
+        self,
+        beta_target: float = 0.3,
+        beta_trigger: float = 0.4,
+        ewma_lambda: float = 0.94,
+        window: int = 60,
+        cost_max: float = 0.003,
+        futures_config: Optional[Dict] = None,
+    ):
         """
         Args:
             beta_target: 目标组合 Beta
@@ -63,8 +66,7 @@ class BetaHedger:
             "IM": {"multiplier": 200, "beta": 1.1, "price": 5800.0},
         }
 
-    def ewma_beta(self, asset_returns: pd.Series,
-                  market_returns: pd.Series) -> float:
+    def ewma_beta(self, asset_returns: pd.Series, market_returns: pd.Series) -> float:
         """计算 EWMA Beta
 
         Args:
@@ -96,11 +98,9 @@ class BetaHedger:
 
         return float(cov_am / var_m) if var_m > 0 else 0.0
 
-    def portfolio_beta(self,
-                       positions: Dict[str, float],
-                       prices: Dict[str, float],
-                       returns: pd.DataFrame,
-                       market_returns: pd.Series) -> float:
+    def portfolio_beta(
+        self, positions: Dict[str, float], prices: Dict[str, float], returns: pd.DataFrame, market_returns: pd.Series
+    ) -> float:
         """计算组合加权 Beta
 
         Args:
@@ -112,8 +112,9 @@ class BetaHedger:
         Returns:
             组合 Beta
         """
-        market_value = {s: positions.get(s, 0) * prices.get(s, 0)
-                        for s in positions if s in prices and s in returns.columns}
+        market_value = {
+            s: positions.get(s, 0) * prices.get(s, 0) for s in positions if s in prices and s in returns.columns
+        }
         total = sum(market_value.values())
         if total <= 0:
             return 0.0
@@ -125,10 +126,9 @@ class BetaHedger:
             beta_port += w * b
         return float(beta_port)
 
-    def compute_hedge(self,
-                      portfolio_beta: float,
-                      portfolio_value: float,
-                      preferred_futures: str = "IF") -> Dict[str, object]:
+    def compute_hedge(
+        self, portfolio_beta: float, portfolio_value: float, preferred_futures: str = "IF"
+    ) -> Dict[str, object]:
         """计算对冲指令
 
         Args:
@@ -140,9 +140,11 @@ class BetaHedger:
             对冲指令字典
         """
         if portfolio_beta <= self.beta_trigger:
-            return {"action": "NO_HEDGE",
-                    "reason": f"Beta {portfolio_beta:.3f} ≤ 触发阈值 {self.beta_trigger}",
-                    "current_beta": portfolio_beta}
+            return {
+                "action": "NO_HEDGE",
+                "reason": f"Beta {portfolio_beta:.3f} ≤ 触发阈值 {self.beta_trigger}",
+                "current_beta": portfolio_beta,
+            }
 
         # 计算需要对冲的 Beta 部分
         excess_beta = portfolio_beta - self.beta_target
@@ -158,15 +160,13 @@ class BetaHedger:
             return {"action": "ERROR", "reason": "期货合约参数异常"}
 
         # 对冲手数 (四舍五入)
-        n_contracts = int(round(value_to_hedge / beta_adjusted_notional))
+        n_contracts = round(value_to_hedge / beta_adjusted_notional)
         if n_contracts <= 0:
-            return {"action": "NO_HEDGE",
-                    "reason": "计算对冲手数 ≤ 0",
-                    "current_beta": portfolio_beta}
+            return {"action": "NO_HEDGE", "reason": "计算对冲手数 ≤ 0", "current_beta": portfolio_beta}
 
         # 估算对冲成本 (手续费 + 滑点)
-        commission_rate = 0.000023   # 万 0.23
-        slippage_rate = 0.0001       # 万 1
+        commission_rate = 0.000023  # 万 0.23
+        slippage_rate = 0.0001  # 万 1
         cost = n_contracts * notional_per_contract * (commission_rate + slippage_rate)
         cost_ratio = cost / portfolio_value if portfolio_value > 0 else 1.0
 
@@ -189,13 +189,19 @@ class BetaHedger:
         # 成本阈值检查
         if cost_ratio > self.cost_max:
             result["action"] = "DOWNGRADE_TO_PUT_SPREAD"
-            result["reason"] = (f"对冲成本 {cost_ratio:.4f} > 阈值 {self.cost_max:.4f}, "
-                                f"降级至期权 Put Spread")
+            result["reason"] = f"对冲成本 {cost_ratio:.4f} > 阈值 {self.cost_max:.4f}, 降级至期权 Put Spread"
             logger.warning("Beta 对冲降级: %s", result["reason"])
 
-        logger.info("Beta 对冲: Beta %.3f → %.3f, %s %d 手 @ %.2f, 成本 %.0f (%.4f)",
-                    portfolio_beta, self.beta_target,
-                    preferred_futures, n_contracts, live_price, cost, cost_ratio)
+        logger.info(
+            "Beta 对冲: Beta %.3f → %.3f, %s %d 手 @ %.2f, 成本 %.0f (%.4f)",
+            portfolio_beta,
+            self.beta_target,
+            preferred_futures,
+            n_contracts,
+            live_price,
+            cost,
+            cost_ratio,
+        )
         return result
 
     def _resolve_futures_price(self, preferred_futures: str, fut: Dict) -> float:
@@ -215,9 +221,7 @@ class BetaHedger:
         return float(price)
 
 
-def pick_futures_contract(portfolio_beta: float,
-                          portfolio_value: float,
-                          futures_config: Dict) -> str:
+def pick_futures_contract(portfolio_beta: float, portfolio_value: float, futures_config: Dict) -> str:
     """根据组合特征选择最合适的期货合约
 
     Args:
@@ -231,8 +235,8 @@ def pick_futures_contract(portfolio_beta: float,
     # 简单启发式: 大盘股用 IF, 中盘用 IC, 小盘用 IM
     # 实盘应根据持仓成分股的中位数市值判断
     if portfolio_beta > 1.1:
-        return "IF"   # 大盘股, 高 Beta
+        return "IF"  # 大盘股, 高 Beta
     elif portfolio_beta > 0.9:
-        return "IC"   # 中盘股
+        return "IC"  # 中盘股
     else:
-        return "IM"   # 小盘股
+        return "IM"  # 小盘股

@@ -3,6 +3,7 @@ v7.5 SignalGenerator — 多因子 Alpha 信号生成
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §6 (src/alpha/)
 采用 LASSO (L1) 特征选择 + 岭回归 (L2) 权重优化
 """
+
 import numpy as np
 import pandas as pd
 import logging
@@ -28,10 +29,13 @@ class SignalGenerator:
     - 训练窗口仅使用 as_of_date 及之前的数据
     """
 
-    def __init__(self, factor_library,
-                 lasso_alpha_range: Tuple[float, ...] = (0.001, 0.01, 0.1, 1.0, 10.0),
-                 ridge_alpha_range: Tuple[float, ...] = (0.1, 1.0, 10.0, 100.0),
-                 lookback: int = 252):
+    def __init__(
+        self,
+        factor_library,
+        lasso_alpha_range: Tuple[float, ...] = (0.001, 0.01, 0.1, 1.0, 10.0),
+        ridge_alpha_range: Tuple[float, ...] = (0.1, 1.0, 10.0, 100.0),
+        lookback: int = 252,
+    ):
         """
         Args:
             factor_library: FactorLibrary 实例
@@ -51,8 +55,7 @@ class SignalGenerator:
         self._forward_returns_warned = False
 
     # ---------- 特征选择 ----------
-    def select_features(self, X: pd.DataFrame, y: pd.Series,
-                        as_of_date: Optional[pd.Timestamp] = None) -> List[str]:
+    def select_features(self, X: pd.DataFrame, y: pd.Series, as_of_date: Optional[pd.Timestamp] = None) -> List[str]:
         """
         LASSO L1 特征选择
 
@@ -95,8 +98,7 @@ class SignalGenerator:
         return selected
 
     # ---------- 权重估计 ----------
-    def estimate_weights(self, X: pd.DataFrame, y: pd.Series,
-                         as_of_date: Optional[pd.Timestamp] = None) -> np.ndarray:
+    def estimate_weights(self, X: pd.DataFrame, y: pd.Series, as_of_date: Optional[pd.Timestamp] = None) -> np.ndarray:
         """
         Ridge L2 权重估计
 
@@ -154,7 +156,8 @@ class SignalGenerator:
             return True
 
         from scipy.stats import pearsonr
-        idx = y_clean.index[:min(200, len(y_clean))]
+
+        idx = y_clean.index[: min(200, len(y_clean))]
         corr, pval = pearsonr(y_clean.loc[idx], y_clean.loc[idx].shift(-1).dropna())
 
         if corr > 0.8 and pval < 0.01:
@@ -162,7 +165,8 @@ class SignalGenerator:
                 "⚠️ 数据泄露风险: forward_returns 自相关过高 (r=%.4f, p=%.6f)。"
                 "forward_returns 可能未做 shift(-1) 偏移，训练可能使用了同期数据。"
                 "请确保传入的是 t+1 前向收益。",
-                corr, pval
+                corr,
+                pval,
             )
             self._forward_returns_warned = True
             return False
@@ -170,10 +174,13 @@ class SignalGenerator:
         self._forward_returns_warned = True
         return True
 
-    def generate(self, factor_matrix: Optional[pd.DataFrame] = None,
-                 forward_returns: Optional[pd.Series] = None,
-                 retrain: bool = True,
-                 as_of_date: Optional[pd.Timestamp] = None) -> pd.Series:
+    def generate(
+        self,
+        factor_matrix: Optional[pd.DataFrame] = None,
+        forward_returns: Optional[pd.Series] = None,
+        retrain: bool = True,
+        as_of_date: Optional[pd.Timestamp] = None,
+    ) -> pd.Series:
         """
         生成 Alpha 信号
 
@@ -196,14 +203,10 @@ class SignalGenerator:
         # 特征选择 + 权重
         if retrain and forward_returns is not None:
             self._validate_forward_returns(forward_returns)
-            self.selected_factors = self.select_features(
-                factor_matrix, forward_returns, as_of_date=as_of_date
-            )
+            self.selected_factors = self.select_features(factor_matrix, forward_returns, as_of_date=as_of_date)
             if self.selected_factors:
                 X_selected = factor_matrix[self.selected_factors]
-                self.factor_weights = self.estimate_weights(
-                    X_selected, forward_returns, as_of_date=as_of_date
-                )
+                self.factor_weights = self.estimate_weights(X_selected, forward_returns, as_of_date=as_of_date)
             else:
                 self.selected_factors = list(factor_matrix.columns)
                 self.factor_weights = np.ones(len(self.selected_factors)) / len(self.selected_factors)
@@ -227,11 +230,11 @@ class SignalGenerator:
         signal = pd.Series(np.clip(normalized, -1, 1), index=X.index)
 
         # 更新最新信号
-        self.latest_signals = {col: signal[col].iloc[-1] if len(signal) > 0 else 0
-                               for col in factor_matrix.columns}
+        self.latest_signals = {col: signal[col].iloc[-1] if len(signal) > 0 else 0 for col in factor_matrix.columns}
 
-        logger.info(f"信号生成完成: {len(self.selected_factors)} 个因子, "
-                    f"信号范围 [{signal.min():.3f}, {signal.max():.3f}]")
+        logger.info(
+            f"信号生成完成: {len(self.selected_factors)} 个因子, 信号范围 [{signal.min():.3f}, {signal.max():.3f}]"
+        )
         return signal
 
     # ---------- IC 分析 ----------
@@ -239,11 +242,11 @@ class SignalGenerator:
         """计算信号 IC (Information Coefficient)"""
         common = signal.dropna().index.intersection(forward_returns.dropna().index)
         if len(common) < 10:
-            return {'ic': 0.0, 'ir': 0.0}
+            return {"ic": 0.0, "ir": 0.0}
 
         ic_series = forward_returns.loc[common].corr(signal.loc[common])
         ic_monthly = []
-        for _, group in forward_returns.loc[common].groupby(pd.Grouper(freq='M')):
+        for _, group in forward_returns.loc[common].groupby(pd.Grouper(freq="M")):
             idx = group.index.intersection(common)
             if len(idx) > 5:
                 ic_monthly.append(group.loc[idx].corr(signal.loc[idx]))
@@ -251,4 +254,4 @@ class SignalGenerator:
         ic_vals = [ic for ic in ic_monthly if not np.isnan(ic)]
         ir = np.mean(ic_vals) / max(np.std(ic_vals), 1e-8) if ic_vals else 0.0
 
-        return {'ic': ic_series, 'ir': ir, 'ic_monthly': ic_monthly}
+        return {"ic": ic_series, "ir": ir, "ic_monthly": ic_monthly}

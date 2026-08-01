@@ -3,6 +3,11 @@ import os
 import time
 import json
 import urllib.request
+from pathlib import Path
+
+def _get_ollama_path() -> str:
+    return os.environ.get("OLLAMA_PATH",
+        str(Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe"))
 
 subprocess.run(["taskkill", "/F", "/IM", "ollama.exe"], capture_output=True)
 subprocess.run(["taskkill", "/F", "/IM", "llama-server.exe"], capture_output=True)
@@ -10,7 +15,7 @@ time.sleep(3)
 
 print("Starting Ollama with GPU...")
 proc = subprocess.Popen(
-    ["C:\\Users\\Administrator\\AppData\\Local\\Programs\\Ollama\\ollama.exe", "serve"],
+    [_get_ollama_path(), "serve"],
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
     text=True,

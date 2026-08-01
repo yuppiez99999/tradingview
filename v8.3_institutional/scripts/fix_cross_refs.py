@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """批量修复v5.9模块中的跨文件导入引用"""
-import os, re
+import os
+import re
 
 BASE = r'e:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional\src'
 
@@ -38,7 +39,7 @@ FILE_RENAME = {
 }
 
 count = 0
-for root, dirs, files in os.walk(BASE):
+for root, _dirs, files in os.walk(BASE):
     for f in files:
         if not f.endswith('.py'):
             continue

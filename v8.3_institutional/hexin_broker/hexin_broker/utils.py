@@ -44,7 +44,7 @@ def retry(max_retries: int = 3, interval: float = 1.0):
     def decorator(func):
         def wrapper(*args, **kwargs):
             last = None
-            for i in range(max_retries):
+            for _i in range(max_retries):
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
@@ -88,7 +88,6 @@ def find_controls_by_text(node: Any, keyword: str, max_depth: int = 10) -> List[
 
 def read_funds_by_text(window: Any) -> Dict[str, Optional[str]]:
     """尝试从资金区域文本中解析关键字段"""
-    import re
     text = ""
     try:
         text = window.window_text() or ""

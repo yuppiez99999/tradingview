@@ -23,28 +23,27 @@ import json
 import time
 import logging
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 
-if sys.platform == 'win32':
+if sys.platform == "win32":
     try:
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
 
 # ---- 日志 ----
-_log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+_log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
 os.makedirs(_log_dir, exist_ok=True)
 
-_log = logging.getLogger('futures_options')
+_log = logging.getLogger("futures_options")
 _log.setLevel(logging.INFO)
 _fh = logging.FileHandler(
-    os.path.join(_log_dir, 'futures_options_{:%Y%m%d}.log'.format(datetime.now())),
-    encoding='utf-8'
+    os.path.join(_log_dir, "futures_options_{:%Y%m%d}.log".format(datetime.now())), encoding="utf-8"
 )
-_fh.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+_fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
 _log.addHandler(_fh)
 
 # ============================================================
@@ -68,17 +67,17 @@ SHF_FUTURES = {
 
 # 大连商品交易所 (DCE)
 DCE_FUTURES = {
-    "I":  {"name": "铁矿石", "contract_unit": 100, "margin_pct": 0.15, "price_scale": 0.5},
-    "J":  {"name": "焦炭", "contract_unit": 100, "margin_pct": 0.20, "price_scale": 0.5},
+    "I": {"name": "铁矿石", "contract_unit": 100, "margin_pct": 0.15, "price_scale": 0.5},
+    "J": {"name": "焦炭", "contract_unit": 100, "margin_pct": 0.20, "price_scale": 0.5},
     "JM": {"name": "焦煤", "contract_unit": 60, "margin_pct": 0.20, "price_scale": 0.5},
     "TC": {"name": "动力煤", "contract_unit": 100, "margin_pct": 0.20, "price_scale": 0.5},
-    "M":  {"name": "豆粕", "contract_unit": 10, "margin_pct": 0.10, "price_scale": 1},
-    "Y":  {"name": "豆油", "contract_unit": 10, "margin_pct": 0.11, "price_scale": 2},
-    "P":  {"name": "棕榈油", "contract_unit": 10, "margin_pct": 0.12, "price_scale": 2},
-    "A":  {"name": "豆一", "contract_unit": 10, "margin_pct": 0.11, "price_scale": 1},
-    "C":  {"name": "玉米", "contract_unit": 10, "margin_pct": 0.10, "price_scale": 1},
+    "M": {"name": "豆粕", "contract_unit": 10, "margin_pct": 0.10, "price_scale": 1},
+    "Y": {"name": "豆油", "contract_unit": 10, "margin_pct": 0.11, "price_scale": 2},
+    "P": {"name": "棕榈油", "contract_unit": 10, "margin_pct": 0.12, "price_scale": 2},
+    "A": {"name": "豆一", "contract_unit": 10, "margin_pct": 0.11, "price_scale": 1},
+    "C": {"name": "玉米", "contract_unit": 10, "margin_pct": 0.10, "price_scale": 1},
     "CS": {"name": "淀粉", "contract_unit": 10, "margin_pct": 0.10, "price_scale": 1},
-    "L":  {"name": "塑料", "contract_unit": 5, "margin_pct": 0.12, "price_scale": 5},
+    "L": {"name": "塑料", "contract_unit": 5, "margin_pct": 0.12, "price_scale": 5},
     "PP": {"name": "PP", "contract_unit": 5, "margin_pct": 0.12, "price_scale": 1},
     "EG": {"name": "乙二醇", "contract_unit": 10, "margin_pct": 0.13, "price_scale": 1},
 }
@@ -102,7 +101,7 @@ CFFEX_FUTURES = {
     "IC": {"name": "中证500股指", "contract_multiplier": 200, "margin_pct": 0.14},
     "IM": {"name": "中证1000股指", "contract_multiplier": 200, "margin_pct": 0.15},
     "IH": {"name": "上证50股指", "contract_multiplier": 300, "margin_pct": 0.12},
-    "T":  {"name": "10年国债", "contract_multiplier": 10000, "margin_pct": 0.02},
+    "T": {"name": "10年国债", "contract_multiplier": 10000, "margin_pct": 0.02},
     "TF": {"name": "5年国债", "contract_multiplier": 10000, "margin_pct": 0.01},
 }
 
@@ -120,7 +119,37 @@ ALL_FUTURES.update({k: {**v, "exchange": "CFFEX"} for k, v in CFFEX_FUTURES.item
 ALL_FUTURES.update({k: {**v, "exchange": "INE"} for k, v in INE_FUTURES.items()})
 
 # 监控品种 (精选流动性好的主力品种)
-MONITOR_FUTURES = ["CU", "AL", "SN", "AU", "AG", "RB", "HC", "RU", "I", "J", "JM", "TC", "M", "Y", "P", "A", "C", "CF", "SR", "TA", "MA", "SA", "SC", "IF", "IC", "IM", "IH", "T", "TF"]
+MONITOR_FUTURES = [
+    "CU",
+    "AL",
+    "SN",
+    "AU",
+    "AG",
+    "RB",
+    "HC",
+    "RU",
+    "I",
+    "J",
+    "JM",
+    "TC",
+    "M",
+    "Y",
+    "P",
+    "A",
+    "C",
+    "CF",
+    "SR",
+    "TA",
+    "MA",
+    "SA",
+    "SC",
+    "IF",
+    "IC",
+    "IM",
+    "IH",
+    "T",
+    "TF",
+]
 
 # 套利配对 (跨品种/跨市场)
 ARBITRAGE_PAIRS = [
@@ -138,27 +167,30 @@ ARBITRAGE_PAIRS = [
 # 数据类定义
 # ============================================================
 
+
 @dataclass
 class FuturesQuote:
     """期货行情快照"""
-    symbol: str          # 代码如 CU2506
-    name: str            # 名称如 沪铜2506
-    exchange: str        # SHF/DCE/ZCE/CFFEX
-    price: float         # 最新价
-    open: float          # 开盘价
-    high: float          # 最高价
-    low: float           # 最低价
-    volume: float        # 成交量
-    open_interest: float # 持仓量
-    change_pct: float    # 涨跌幅%
-    settlement: float    # 昨结算价
-    basis: float = 0     # 基差(现货-期货)
+
+    symbol: str  # 代码如 CU2506
+    name: str  # 名称如 沪铜2506
+    exchange: str  # SHF/DCE/ZCE/CFFEX
+    price: float  # 最新价
+    open: float  # 开盘价
+    high: float  # 最高价
+    low: float  # 最低价
+    volume: float  # 成交量
+    open_interest: float  # 持仓量
+    change_pct: float  # 涨跌幅%
+    settlement: float  # 昨结算价
+    basis: float = 0  # 基差(现货-期货)
     source: str = "unknown"
 
 
 @dataclass
 class FuturesTermStructure:
     """期货期限结构"""
+
     symbol: str
     name: str
     contracts: List[Dict] = field(default_factory=list)  # [{month, price, volume, oi}]
@@ -169,32 +201,34 @@ class FuturesTermStructure:
 @dataclass
 class ArbitrageSignal:
     """套利机会信号"""
-    name: str                    # 套利名称
-    pair: Tuple[str, str]        # 品种对
-    arb_type: str                # cross_market/cross_sector/calendar_spread
-    spread_current: float        # 当前价差
-    spread_mean: float           # 历史均值价差
-    spread_std: float            # 价差标准差
-    z_score: float               # 价差Z-score
-    direction: str               # LONG_SPREAD/SHORT_SPREAD
-    signal: str                  # BUY/SELL/HOLD
-    score: float                 # 评分 0-100
-    expected_return: float       # 预期收益率%
-    risk_level: str              # LOW/MEDIUM/HIGH
-    summary: str                 # 一句话摘要
+
+    name: str  # 套利名称
+    pair: Tuple[str, str]  # 品种对
+    arb_type: str  # cross_market/cross_sector/calendar_spread
+    spread_current: float  # 当前价差
+    spread_mean: float  # 历史均值价差
+    spread_std: float  # 价差标准差
+    z_score: float  # 价差Z-score
+    direction: str  # LONG_SPREAD/SHORT_SPREAD
+    signal: str  # BUY/SELL/HOLD
+    score: float  # 评分 0-100
+    expected_return: float  # 预期收益率%
+    risk_level: str  # LOW/MEDIUM/HIGH
+    summary: str  # 一句话摘要
 
 
 @dataclass
 class OptionsSnapshot:
     """期权快照"""
-    underlying: str              # 标的代码
-    underlying_price: float      # 标的价格
-    call_put_ratio: float        # 认购/认沽比
-    atm_iv: float                # ATM隐含波动率
-    iv_skew: float               # 波动率偏斜
-    iv_term_structure: str       # 波动率期限结构描述
-    max_pain: float              # 最大痛点
-    put_call_ratio: float        # 持仓量PCR
+
+    underlying: str  # 标的代码
+    underlying_price: float  # 标的价格
+    call_put_ratio: float  # 认购/认沽比
+    atm_iv: float  # ATM隐含波动率
+    iv_skew: float  # 波动率偏斜
+    iv_term_structure: str  # 波动率期限结构描述
+    max_pain: float  # 最大痛点
+    put_call_ratio: float  # 持仓量PCR
     signals: List[Dict] = field(default_factory=list)
     greeks: Optional[Dict[str, float]] = None  #  Greeks: delta/gamma/theta/vega/rho
 
@@ -203,53 +237,58 @@ class OptionsSnapshot:
 # Wind MCP 数据获取层
 # ============================================================
 
+
 def _wind_mcp_call(server_type: str, tool_name: str, params: dict, timeout: int = 25) -> Optional[dict]:
     """调用 Wind MCP CLI (复用 wind_mcp.py 逻辑)"""
     try:
-        wind_skill_dir = r'C:\Users\Administrator\.agents\skills\wind-mcp-skill'
+        wind_skill_dir = r"C:\Users\Administrator\.agents\skills\wind-mcp-skill"
         wind_env = os.environ.copy()
-        wind_env['no_proxy'] = '*'
-        if not wind_env.get('WIND_API_KEY'):
-            env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+        wind_env["no_proxy"] = "*"
+        if not wind_env.get("WIND_API_KEY"):
+            env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
             if os.path.exists(env_path):
-                with open(env_path, 'r', encoding='utf-8') as f:
+                with open(env_path, "r", encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
-                        if line.startswith('#') or not line or '=' not in line:
+                        if line.startswith("#") or not line or "=" not in line:
                             continue
-                        k, v = line.split('=', 1)
-                        if k.strip() == 'WIND_API_KEY':
-                            wind_env['WIND_API_KEY'] = v.strip()
+                        k, v = line.split("=", 1)
+                        if k.strip() == "WIND_API_KEY":
+                            wind_env["WIND_API_KEY"] = v.strip()
         for k in list(wind_env.keys()):
-            if k.lower() in ('http_proxy', 'https_proxy'):
+            if k.lower() in ("http_proxy", "https_proxy"):
                 del wind_env[k]
 
         result = subprocess.run(
-            ['node', 'scripts/cli.mjs', 'call', server_type, tool_name,
-             json.dumps(params, ensure_ascii=False)],
-            cwd=wind_skill_dir, capture_output=True, text=True, timeout=timeout,
-            env=wind_env, encoding='utf-8', errors='replace'
+            ["node", "scripts/cli.mjs", "call", server_type, tool_name, json.dumps(params, ensure_ascii=False)],
+            cwd=wind_skill_dir,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=wind_env,
+            encoding="utf-8",
+            errors="replace",
         )
         if result.returncode != 0 or not result.stdout.strip():
             return None
         stdout = result.stdout.strip()
-        if '\n' in stdout and '#< CLIXML' in stdout:
-            stdout = stdout.split('\n')[0]
+        if "\n" in stdout and "#< CLIXML" in stdout:
+            stdout = stdout.split("\n")[0]
         outer = json.loads(stdout)
-        if outer.get('isError'):
+        if outer.get("isError"):
             return None
-        text = (outer.get('content', [{}])[0] or {}).get('text', '')
+        text = (outer.get("content", [{}])[0] or {}).get("text", "")
         if not text:
             return None
         inner = json.loads(text)
-        if inner.get('error'):
+        if inner.get("error"):
             return None
-        return inner.get('data')
+        return inner.get("data")
     except Exception:
         return None
 
 
-def _build_futures_windcode(symbol: str, exchange: str, month: str = None) -> str:
+def _build_futures_windcode(symbol: str, exchange: str, month: Optional[str] = None) -> str:
     """
     构建Wind期货代码
     如 CU + SHF + 2506 → CU2506.SHF
@@ -263,23 +302,20 @@ def _build_futures_windcode(symbol: str, exchange: str, month: str = None) -> st
             y += 1
         month = f"{y % 100:02d}{m:02d}"
 
-    exchange_map = {
-        "SHF": "SHF", "DCE": "DCE", "ZCE": "ZCE", "CFFEX": "CFE",
-        "INE": "INE", "GFE": "GFE", "CZC": "CZC"
-    }
+    exchange_map = {"SHF": "SHF", "DCE": "DCE", "ZCE": "ZCE", "CFFEX": "CFE", "INE": "INE", "GFE": "GFE", "CZC": "CZC"}
     exch = exchange_map.get(exchange, exchange)
     return f"{symbol}{month}.{exch}"
 
 
 def fetch_futures_quote_analytics(windcode: str) -> Optional[Dict]:
     """通过 Wind analytics_data 获取期货行情 (NL查询, 最稳定)"""
-    data = _wind_mcp_call('analytics_data', 'get_financial_data', {
-        "question": f"查询期货{windcode}的最新成交价、涨跌幅、成交量、持仓量"
-    })
+    data = _wind_mcp_call(
+        "analytics_data", "get_financial_data", {"question": f"查询期货{windcode}的最新成交价、涨跌幅、成交量、持仓量"}
+    )
     if not data:
         return None
     try:
-        data_list = data.get('data', data.get('rows', []))
+        data_list = data.get("data", data.get("rows", []))
         if isinstance(data_list, list) and len(data_list) > 0:
             # 格式1: [{columns: [...], rows: [[...]]}] (直接)
             # 格式2: [{data: [{columns: [...], rows: [[...]]}]}] (嵌套)
@@ -287,17 +323,17 @@ def fetch_futures_quote_analytics(windcode: str) -> Optional[Dict]:
             item = data_list[0]
             if isinstance(item, dict):
                 # 格式1/2
-                if 'columns' in item and 'rows' in item:
+                if "columns" in item and "rows" in item:
                     ds = item  # 格式1
-                elif 'data' in item and item['data']:
-                    ds = item['data'][0] if isinstance(item['data'], list) else item['data']  # 格式2
+                elif item.get("data"):
+                    ds = item["data"][0] if isinstance(item["data"], list) else item["data"]  # 格式2
                 else:
                     return None
-                columns = [c['name'] for c in ds.get('columns', [])]
-                rows = ds.get('rows', [])
+                columns = [c["name"] for c in ds.get("columns", [])]
+                rows = ds.get("rows", [])
             elif isinstance(item, list):
                 # 格式3
-                columns = [c['name'] for c in data.get('columns', [])]
+                columns = [c["name"] for c in data.get("columns", [])]
                 rows = data_list
             else:
                 return None
@@ -306,43 +342,45 @@ def fetch_futures_quote_analytics(windcode: str) -> Optional[Dict]:
                 row = rows[0]
                 col_map = {c: i for i, c in enumerate(columns)}
                 # 列名可能带前缀: '最新成交价', '最新涨跌幅', '最新持仓量', '最新成交量'
-                price = _try_col(row, col_map, ['最新成交价', '收盘价', 'close', 'price'])
+                price = _try_col(row, col_map, ["最新成交价", "收盘价", "close", "price"])
                 if price and price > 0:
                     return {
-                        'price': price,
-                        'change_pct': _try_col(row, col_map, ['最新涨跌幅', '涨跌幅', 'change_pct', 'pct_chg'], 0),
-                        'volume': _try_col(row, col_map, ['最新成交量', '成交量', 'volume', 'vol'], 0),
-                        'open_interest': _try_col(row, col_map, ['最新持仓量', '持仓量', 'open_interest', 'oi'], 0),
-                        'open': _try_col(row, col_map, ['开盘价', 'open'], price),
-                        'high': _try_col(row, col_map, ['最高价', 'high'], price),
-                        'low': _try_col(row, col_map, ['最低价', 'low'], price),
-                        'settlement': _try_col(row, col_map, ['昨结算价', '昨结算', 'settlement', 'pre_settle'], price),
-                        'source': 'wind_analytics',
+                        "price": price,
+                        "change_pct": _try_col(row, col_map, ["最新涨跌幅", "涨跌幅", "change_pct", "pct_chg"], 0),
+                        "volume": _try_col(row, col_map, ["最新成交量", "成交量", "volume", "vol"], 0),
+                        "open_interest": _try_col(row, col_map, ["最新持仓量", "持仓量", "open_interest", "oi"], 0),
+                        "open": _try_col(row, col_map, ["开盘价", "open"], price),
+                        "high": _try_col(row, col_map, ["最高价", "high"], price),
+                        "low": _try_col(row, col_map, ["最低价", "low"], price),
+                        "settlement": _try_col(row, col_map, ["昨结算价", "昨结算", "settlement", "pre_settle"], price),
+                        "source": "wind_analytics",
                     }
     except Exception as e:
         _log.debug(f"[futures_analytics] parse err: {e}")
     return None
 
 
-def fetch_futures_quote_mcp(symbol: str, exchange: str, month: str = None) -> Optional[FuturesQuote]:
+def fetch_futures_quote_mcp(symbol: str, exchange: str, month: Optional[str] = None) -> Optional[FuturesQuote]:
     """通过Wind MCP analytics_data获取期货行情 (NL查询,最稳定)"""
     windcode = _build_futures_windcode(symbol, exchange, month)
     info = ALL_FUTURES.get(symbol, {})
-    name = info.get('name', symbol)
+    name = info.get("name", symbol)
 
     result = fetch_futures_quote_analytics(windcode)
-    if result and result.get('price', 0) > 0:
+    if result and result.get("price", 0) > 0:
         return FuturesQuote(
-            symbol=symbol, name=name, exchange=exchange,
-            price=result['price'],
-            open=result.get('open', result['price']),
-            high=result.get('high', result['price']),
-            low=result.get('low', result['price']),
-            volume=result.get('volume', 0),
-            open_interest=result.get('open_interest', 0),
-            change_pct=result.get('change_pct', 0),
-            settlement=result.get('settlement', result['price']),
-            source='wind_analytics',
+            symbol=symbol,
+            name=name,
+            exchange=exchange,
+            price=result["price"],
+            open=result.get("open", result["price"]),
+            high=result.get("high", result["price"]),
+            low=result.get("low", result["price"]),
+            volume=result.get("volume", 0),
+            open_interest=result.get("open_interest", 0),
+            change_pct=result.get("change_pct", 0),
+            settlement=result.get("settlement", result["price"]),
+            source="wind_analytics",
         )
     return None
 
@@ -358,6 +396,7 @@ def _safe_float(row, col_map, keys, default=0.0):
                 continue
     return default
 
+
 # 别名
 _try_col = _safe_float
 
@@ -366,31 +405,52 @@ _try_col = _safe_float
 # 免费数据回退层
 # ============================================================
 
+
 def _fetch_futures_free(symbol: str, exchange: str) -> Optional[FuturesQuote]:
     """免费数据源回退: akshare → efinance → 新浪"""
     # 1. akshare
     try:
         import akshare as ak
+
         symbol_map = {
-            "CU": "cu", "AL": "al", "ZN": "zn", "AU": "au", "AG": "ag",
-            "RB": "rb", "RU": "ru", "I": "i", "J": "j", "M": "m",
-            "Y": "y", "P": "p", "CF": "CF", "SR": "SR", "TA": "TA",
-            "MA": "MA", "SA": "SA", "FG": "FG",
+            "CU": "cu",
+            "AL": "al",
+            "ZN": "zn",
+            "AU": "au",
+            "AG": "ag",
+            "RB": "rb",
+            "RU": "ru",
+            "I": "i",
+            "J": "j",
+            "M": "m",
+            "Y": "y",
+            "P": "p",
+            "CF": "CF",
+            "SR": "SR",
+            "TA": "TA",
+            "MA": "MA",
+            "SA": "SA",
+            "FG": "FG",
         }
         ak_symbol = symbol_map.get(symbol, symbol.lower())
         df = ak.futures_main_sina(symbol=ak_symbol)
         if not df.empty:
             latest = df.iloc[-1]
-            price = float(latest['close']) if 'close' in latest else float(latest['最新价'])
+            price = float(latest["close"]) if "close" in latest else float(latest["最新价"])
             info = ALL_FUTURES.get(symbol, {})
             return FuturesQuote(
-                symbol=symbol, name=info.get('name', symbol), exchange=exchange,
-                price=price, open=float(latest.get('open', price)),
-                high=float(latest.get('high', price)), low=float(latest.get('low', price)),
-                volume=float(latest.get('volume', 0)), open_interest=float(latest.get('hold', 0)),
-                change_pct=float(latest.get('change_pct', 0)),
-                settlement=float(latest.get('settle', price)),
-                source='akshare',
+                symbol=symbol,
+                name=info.get("name", symbol),
+                exchange=exchange,
+                price=price,
+                open=float(latest.get("open", price)),
+                high=float(latest.get("high", price)),
+                low=float(latest.get("low", price)),
+                volume=float(latest.get("volume", 0)),
+                open_interest=float(latest.get("hold", 0)),
+                change_pct=float(latest.get("change_pct", 0)),
+                settlement=float(latest.get("settle", price)),
+                source="akshare",
             )
     except ImportError:
         pass
@@ -400,49 +460,67 @@ def _fetch_futures_free(symbol: str, exchange: str) -> Optional[FuturesQuote]:
     # 2. 新浪财经实时接口
     try:
         import requests
+
         sina_map = {
-            ("CU", "SHF"): "nf_CU0", ("AL", "SHF"): "nf_AL0", ("AU", "SHF"): "nf_AU0",
-            ("AG", "SHF"): "nf_AG0", ("RB", "SHF"): "nf_RB0", ("RU", "SHF"): "nf_RU0",
-            ("I", "DCE"): "nf_I0", ("J", "DCE"): "nf_J0", ("M", "DCE"): "nf_M0",
-            ("Y", "DCE"): "nf_Y0", ("P", "DCE"): "nf_P0",
-            ("CF", "ZCE"): "nf_CF0", ("SR", "ZCE"): "nf_SR0", ("TA", "ZCE"): "nf_TA0",
-            ("MA", "ZCE"): "nf_MA0", ("SA", "ZCE"): "nf_SA0", ("FG", "ZCE"): "nf_FG0",
-            ("IF", "CFFEX"): "nf_IF0", ("IC", "CFFEX"): "nf_IC0",
-            ("IH", "CFFEX"): "nf_IH0", ("IM", "CFFEX"): "nf_IM0",
-            ("T", "CFFEX"): "nf_T0", ("TF", "CFFEX"): "nf_TF0",
+            ("CU", "SHF"): "nf_CU0",
+            ("AL", "SHF"): "nf_AL0",
+            ("AU", "SHF"): "nf_AU0",
+            ("AG", "SHF"): "nf_AG0",
+            ("RB", "SHF"): "nf_RB0",
+            ("RU", "SHF"): "nf_RU0",
+            ("I", "DCE"): "nf_I0",
+            ("J", "DCE"): "nf_J0",
+            ("M", "DCE"): "nf_M0",
+            ("Y", "DCE"): "nf_Y0",
+            ("P", "DCE"): "nf_P0",
+            ("CF", "ZCE"): "nf_CF0",
+            ("SR", "ZCE"): "nf_SR0",
+            ("TA", "ZCE"): "nf_TA0",
+            ("MA", "ZCE"): "nf_MA0",
+            ("SA", "ZCE"): "nf_SA0",
+            ("FG", "ZCE"): "nf_FG0",
+            ("IF", "CFFEX"): "nf_IF0",
+            ("IC", "CFFEX"): "nf_IC0",
+            ("IH", "CFFEX"): "nf_IH0",
+            ("IM", "CFFEX"): "nf_IM0",
+            ("T", "CFFEX"): "nf_T0",
+            ("TF", "CFFEX"): "nf_TF0",
         }
         sina_code = sina_map.get((symbol, exchange), f"nf_{symbol}0")
         url = f"https://hq.sinajs.cn/list={sina_code}"
         resp = requests.get(url, headers={"Referer": "https://finance.sina.com.cn"}, timeout=8)
         if resp.status_code == 200 and resp.text:
             data_str = resp.text.split('="')[1].rstrip('";')
-            parts = data_str.split(',')
+            parts = data_str.split(",")
             n = len(parts)
             info = ALL_FUTURES.get(symbol, {})
             # 两种格式: 商品期货(44字段) vs CFFEX金融期货(50字段)
             if n >= 50:
                 # CFFEX金融期货: [3]=price, [4]=volume, [15]=oi, [0]=settle
                 price_idx, vol_idx, oi_idx, settle_idx = 3, 4, 15, 0
-                open_idx, high_idx, low_idx = 2, 6, -1  # CFFEX highest not at fixed idx
+                open_idx, _high_idx, _low_idx = 2, 6, -1  # CFFEX highest not at fixed idx
             else:
                 # 商品期货: [5]=price, [14]=volume, [13]=oi, [2]=settle
                 price_idx, vol_idx, oi_idx, settle_idx = 5, 14, 13, 2
-                open_idx, high_idx, low_idx = 4, -1, -1
+                open_idx, _high_idx, _low_idx = 4, -1, -1
             price = float(parts[price_idx]) if parts[price_idx] else 0
             settlement = float(parts[settle_idx]) if parts[settle_idx] else 0
             volume = float(parts[vol_idx]) if len(parts) > vol_idx and parts[vol_idx] else 0
             oi = float(parts[oi_idx]) if len(parts) > oi_idx and parts[oi_idx] else 0
             if price > 0:
                 return FuturesQuote(
-                    symbol=symbol, name=info.get('name', symbol), exchange=exchange,
+                    symbol=symbol,
+                    name=info.get("name", symbol),
+                    exchange=exchange,
                     price=price,
                     open=float(parts[open_idx]) if open_idx >= 0 and len(parts) > open_idx and parts[open_idx] else 0,
-                    high=0, low=0,  # 新浪期货格式不含完整的high/low
+                    high=0,
+                    low=0,  # 新浪期货格式不含完整的high/low
                     volume=volume,
                     open_interest=oi,
                     change_pct=((price - settlement) / settlement * 100) if settlement > 0 else 0,
                     settlement=settlement,
-                    source='sina',
+                    source="sina",
                 )
     except ImportError:
         pass
@@ -456,7 +534,8 @@ def _fetch_futures_free(symbol: str, exchange: str) -> Optional[FuturesQuote]:
 # 期货市场扫描
 # ============================================================
 
-def scan_futures_market(symbols: List[str] = None, use_wind: bool = True) -> Dict[str, FuturesQuote]:
+
+def scan_futures_market(symbols: Optional[List[str]] = None, use_wind: bool = True) -> Dict[str, FuturesQuote]:
     """
     扫描期货市场行情
 
@@ -477,7 +556,7 @@ def scan_futures_market(symbols: List[str] = None, use_wind: bool = True) -> Dic
         info = ALL_FUTURES.get(symbol)
         if not info:
             continue
-        exchange = info.get('exchange', 'SHF')
+        exchange = info.get("exchange", "SHF")
 
         quote = None
         if use_wind:
@@ -488,7 +567,6 @@ def scan_futures_market(symbols: List[str] = None, use_wind: bool = True) -> Dic
 
         if quote:
             # 计算基差(近似)
-            settlement = quote.settlement if quote.settlement > 0 else quote.price
             quote.basis = -quote.change_pct * quote.price / 100  # 简化基差
             results[symbol] = quote
             _log.info(f"  {symbol} {info['name']}: {quote.price:.2f} ({quote.change_pct:+.2f}%) [{quote.source}]")
@@ -496,7 +574,7 @@ def scan_futures_market(symbols: List[str] = None, use_wind: bool = True) -> Dic
     return results
 
 
-def compute_term_structure(symbol: str, futures_quotes: Dict[str, Dict] = None) -> FuturesTermStructure:
+def compute_term_structure(symbol: str, futures_quotes: Optional[Dict[str, Dict]] = None) -> FuturesTermStructure:
     """
     计算期货期限结构 (近月/远月价差)
     简化版: 基于当前价格 vs 历史均值估算
@@ -504,7 +582,7 @@ def compute_term_structure(symbol: str, futures_quotes: Dict[str, Dict] = None) 
     info = ALL_FUTURES.get(symbol, {})
     ts = FuturesTermStructure(
         symbol=symbol,
-        name=info.get('name', symbol),
+        name=info.get("name", symbol),
         contracts=[],
     )
 
@@ -521,7 +599,8 @@ def compute_term_structure(symbol: str, futures_quotes: Dict[str, Dict] = None) 
 # 期权市场扫描
 # ============================================================
 
-def scan_options_market(underlyings: List[str] = None) -> Dict[str, OptionsSnapshot]:
+
+def scan_options_market(underlyings: Optional[List[str]] = None) -> Dict[str, OptionsSnapshot]:
     """
     扫描期权市场 — 获取ETF期权和股指期权的隐含波动率/Greeks
 
@@ -529,7 +608,7 @@ def scan_options_market(underlyings: List[str] = None) -> Dict[str, OptionsSnaps
         underlyings: 标的列表如 ['510300', '000300', '510050']
     """
     if underlyings is None:
-        underlyings = ['510300', '510050', '000300']  # 沪深300ETF/上证50ETF/沪深300指数
+        underlyings = ["510300", "510050", "000300"]  # 沪深300ETF/上证50ETF/沪深300指数
 
     results = {}
     _log.info(f"[options_scan] scanning {len(underlyings)} underlyings...")
@@ -538,7 +617,9 @@ def scan_options_market(underlyings: List[str] = None) -> Dict[str, OptionsSnaps
         snapshot = _fetch_options_snapshot_free(ul)
         if snapshot:
             results[ul] = snapshot
-            _log.info(f"  {snapshot.underlying}: ATM IV={snapshot.atm_iv:.1%} CPR={snapshot.call_put_ratio:.2f} PCR={snapshot.put_call_ratio:.2f}")
+            _log.info(
+                f"  {snapshot.underlying}: ATM IV={snapshot.atm_iv:.1%} CPR={snapshot.call_put_ratio:.2f} PCR={snapshot.put_call_ratio:.2f}"
+            )
 
     return results
 
@@ -547,18 +628,14 @@ def _fetch_options_snapshot_free(underlying: str) -> Optional[OptionsSnapshot]:
     """免费数据源获取期权快照"""
     try:
         import akshare as ak
-        name_map = {
-            '510300': '沪深300ETF', '510050': '上证50ETF', '588000': '科创50ETF',
-            '159915': '创业板ETF', '510500': '中证500ETF', '000300': '沪深300指数',
-        }
 
         ul_price = 0
         try:
             df_spot = ak.stock_zh_a_hist(symbol=underlying, period="daily", adjust="")
             if not df_spot.empty:
-                ul_price = float(df_spot.iloc[-1]['收盘'])
+                ul_price = float(df_spot.iloc[-1]["收盘"])
         except Exception:
-            ul_price = 3.8 if underlying == '510300' else 2.7
+            ul_price = 3.8 if underlying == "510300" else 2.7
 
         snapshot = OptionsSnapshot(
             underlying=underlying,
@@ -572,7 +649,7 @@ def _fetch_options_snapshot_free(underlying: str) -> Optional[OptionsSnapshot]:
             signals=[
                 {"type": "IV_RANK", "value": 45, "interpretation": "IV处于历史中位，适合卖出跨式"},
                 {"type": "SKEW", "value": "put_skew", "interpretation": "认沽偏斜，市场偏谨慎"},
-            ]
+            ],
         )
         return snapshot
     except ImportError:
@@ -586,9 +663,9 @@ def _fetch_options_snapshot_free(underlying: str) -> Optional[OptionsSnapshot]:
 # 商品套利机会分析
 # ============================================================
 
+
 def analyze_arbitrage_opportunities(
-    futures_quotes: Dict[str, FuturesQuote],
-    pairs: List[Dict] = None
+    futures_quotes: Dict[str, FuturesQuote], pairs: Optional[List[Dict]] = None
 ) -> List[ArbitrageSignal]:
     """
     分析商品套利机会
@@ -612,7 +689,7 @@ def analyze_arbitrage_opportunities(
     _log.info(f"[arbitrage] analyzing {len(pairs)} pairs...")
 
     for pair_def in pairs:
-        pair = pair_def['pair']
+        pair = pair_def["pair"]
         signal = _evaluate_arbitrage_pair(pair, pair_def, futures_quotes)
         if signal:
             signals.append(signal)
@@ -623,19 +700,17 @@ def analyze_arbitrage_opportunities(
 
 
 def _evaluate_arbitrage_pair(
-    pair: Tuple[str, str],
-    pair_def: Dict,
-    quotes: Dict[str, FuturesQuote]
+    pair: Tuple[str, str], pair_def: Dict, quotes: Dict[str, FuturesQuote]
 ) -> Optional[ArbitrageSignal]:
     """评估单个套利配对"""
     s1, s2 = pair
-    arb_type = pair_def.get('type', 'cross_sector')
+    arb_type = pair_def.get("type", "cross_sector")
 
     q1 = quotes.get(s1)
     q2 = quotes.get(s2) if s2 in quotes else None
 
     # 跨市场套利 — 仅用品种1的价格
-    if arb_type == 'cross_market':
+    if arb_type == "cross_market":
         if q1 is None:
             return None
         price1 = q1.price
@@ -696,7 +771,7 @@ def _evaluate_arbitrage_pair(
     expected_return = abs(z_score) * 2.0 if signal != "HOLD" else 0.5
 
     return ArbitrageSignal(
-        name=pair_def['name'],
+        name=pair_def["name"],
         pair=pair,
         arb_type=arb_type,
         spread_current=round(spread, 4),
@@ -716,9 +791,9 @@ def _evaluate_arbitrage_pair(
 # 跨期套利分析 (日历价差)
 # ============================================================
 
+
 def analyze_calendar_spreads(
-    futures_quotes: Dict[str, FuturesQuote],
-    symbols: List[str] = None
+    futures_quotes: Dict[str, FuturesQuote], symbols: Optional[List[str]] = None
 ) -> List[Dict]:
     """
     跨期套利分析 — 同一品种近月vs远月
@@ -726,7 +801,7 @@ def analyze_calendar_spreads(
     由于Wind MCP通常返回主力合约，这里使用历史波动率估算跨期价差范围
     """
     if symbols is None:
-        symbols = [s for s in MONITOR_FUTURES if s in futures_quotes and s not in ('IF', 'IC', 'IM', 'IH', 'T', 'TF')]
+        symbols = [s for s in MONITOR_FUTURES if s in futures_quotes and s not in ("IF", "IC", "IM", "IH", "T", "TF")]
 
     results = []
     for sym in symbols:
@@ -736,29 +811,46 @@ def analyze_calendar_spreads(
         info = ALL_FUTURES.get(sym, {})
         # 近月vs远月: 用价格*月间价差率估算
         monthly_carry_rate = {
-            "CU": -0.005, "AL": -0.003, "ZN": -0.004, "AU": -0.002, "AG": -0.003,
-            "RB": 0.003, "I": 0.008, "J": 0.010, "M": 0.005, "Y": 0.004,
-            "P": 0.003, "CF": 0.002, "SR": 0.003, "TA": 0.002, "MA": 0.001,
-            "SA": 0.004, "FG": 0.005,
+            "CU": -0.005,
+            "AL": -0.003,
+            "ZN": -0.004,
+            "AU": -0.002,
+            "AG": -0.003,
+            "RB": 0.003,
+            "I": 0.008,
+            "J": 0.010,
+            "M": 0.005,
+            "Y": 0.004,
+            "P": 0.003,
+            "CF": 0.002,
+            "SR": 0.003,
+            "TA": 0.002,
+            "MA": 0.001,
+            "SA": 0.004,
+            "FG": 0.005,
         }.get(sym, 0.002)
 
         spread_est = q.price * monthly_carry_rate * 3  # 近远月差3个月
         structure = "contango" if monthly_carry_rate > 0 else "backwardation"
 
-        results.append({
-            "symbol": sym,
-            "name": info.get('name', sym),
-            "near_month_price": round(q.price, 2),
-            "far_month_est": round(q.price + spread_est, 2),
-            "spread": round(spread_est, 2),
-            "spread_pct": round(monthly_carry_rate * 300, 2),
-            "structure": structure,
-            "opportunity": "跨期正套" if structure == "contango" and abs(monthly_carry_rate) > 0.005 else
-                         "跨期反套" if structure == "backwardation" and abs(monthly_carry_rate) > 0.005 else
-                         "观望",
-        })
+        results.append(
+            {
+                "symbol": sym,
+                "name": info.get("name", sym),
+                "near_month_price": round(q.price, 2),
+                "far_month_est": round(q.price + spread_est, 2),
+                "spread": round(spread_est, 2),
+                "spread_pct": round(monthly_carry_rate * 300, 2),
+                "structure": structure,
+                "opportunity": "跨期正套"
+                if structure == "contango" and abs(monthly_carry_rate) > 0.005
+                else "跨期反套"
+                if structure == "backwardation" and abs(monthly_carry_rate) > 0.005
+                else "观望",
+            }
+        )
 
-    results.sort(key=lambda x: abs(x['spread_pct']), reverse=True)
+    results.sort(key=lambda x: abs(x["spread_pct"]), reverse=True)
     return results
 
 
@@ -766,11 +858,12 @@ def analyze_calendar_spreads(
 # DeepSeek V4 Pro AI 衍生品分析
 # ============================================================
 
+
 def analyze_with_deepseek(
     futures_data: Dict[str, FuturesQuote],
     arbitrage_signals: List[ArbitrageSignal],
-    options_data: Dict[str, OptionsSnapshot] = None,
-    calendar_spreads: List[Dict] = None,
+    options_data: Optional[Dict[str, OptionsSnapshot]] = None,
+    calendar_spreads: Optional[List[Dict]] = None,
 ) -> Dict[str, Any]:
     """
     使用 DeepSeek V4 Pro AI 综合分析衍生品市场
@@ -802,7 +895,7 @@ def analyze_with_deepseek(
             )
 
         arb_summary = []
-        sig_levels = {'BUY': 0, 'SELL': 0, 'HOLD': 0}
+        sig_levels = {"BUY": 0, "SELL": 0, "HOLD": 0}
         for sig in arbitrage_signals[:8]:
             sig_levels[sig.signal] = sig_levels.get(sig.signal, 0) + 1
             arb_summary.append(f"{sig.name}: {sig.signal}(得分{sig.score:.0f}) {sig.summary}")
@@ -812,12 +905,12 @@ def analyze_with_deepseek(
 你是一个专业的商品期货与衍生品分析师。请基于以下数据对今日期货市场进行分析。
 
 ## 期货行情快照:
-{chr(10).join(futures_summary) if futures_summary else '无数据'}
+{chr(10).join(futures_summary) if futures_summary else "无数据"}
 
 ## 套利机会:
-{chr(10).join(arb_summary) if arb_summary else '无显著套利机会'}
+{chr(10).join(arb_summary) if arb_summary else "无显著套利机会"}
 
-## 信号统计: BUY={sig_levels.get('BUY',0)}, SELL={sig_levels.get('SELL',0)}, HOLD={sig_levels.get('HOLD',0)}
+## 信号统计: BUY={sig_levels.get("BUY", 0)}, SELL={sig_levels.get("SELL", 0)}, HOLD={sig_levels.get("HOLD", 0)}
 
 请用3-5句话分析:
 1. 今日期货市场风格特征 (多头/空头/震荡)
@@ -825,15 +918,15 @@ def analyze_with_deepseek(
 3. 对A股持仓组合的潜在影响 (铜/金/油/钢铁等)
 """
 
-        advisor = LLMTradingAdvisor(provider='volcengine')
+        advisor = LLMTradingAdvisor(provider="volcengine")
         if not advisor.api_key:
             return _generate_rule_based_analysis(futures_data, arbitrage_signals, options_data)
 
         result = advisor.ask(context[:2000])
-        analysis_text = result if isinstance(result, str) else result.get('text', str(result))
+        analysis_text = result if isinstance(result, str) else result.get("text", str(result))
 
         # 提取顶部信号
-        top_signals = [s for s in arbitrage_signals if s.signal in ('BUY', 'SELL')][:3]
+        top_signals = [s for s in arbitrage_signals if s.signal in ("BUY", "SELL")][:3]
 
         return {
             "summary": analysis_text[:500],
@@ -853,7 +946,7 @@ def analyze_with_deepseek(
 def _generate_rule_based_analysis(
     futures_data: Dict[str, FuturesQuote],
     arbitrage_signals: List[ArbitrageSignal],
-    options_data: Dict[str, OptionsSnapshot] = None
+    options_data: Optional[Dict[str, OptionsSnapshot]] = None,
 ) -> Dict[str, Any]:
     """基于规则的分析 (DeepSeek不可用时的回退)"""
     # 计算多空比
@@ -896,17 +989,17 @@ def _generate_correlation_note(futures_data: Dict[str, FuturesQuote]) -> str:
     """生成商品-股票联动说明"""
     notes = []
     # 铜→有色金属板块
-    cu = futures_data.get('CU')
+    cu = futures_data.get("CU")
     if cu:
         direction = "偏强" if cu.change_pct > 0.5 else "偏弱" if cu.change_pct < -0.5 else "震荡"
         notes.append(f"沪铜{direction}({cu.change_pct:+.2f}%)→关注有色金属板块(紫金矿业/江西铜业/藏格矿业)")
     # 金→避险
-    au = futures_data.get('AU')
+    au = futures_data.get("AU")
     if au:
         direction = "偏强" if au.change_pct > 0.3 else "偏弱" if au.change_pct < -0.3 else "震荡"
         notes.append(f"沪金{direction}({au.change_pct:+.2f}%)→关注避险资产(黄金ETF 518880)")
     # 螺纹→钢铁/基建
-    rb = futures_data.get('RB')
+    rb = futures_data.get("RB")
     if rb:
         direction = "偏强" if rb.change_pct > 0.5 else "偏弱" if rb.change_pct < -0.5 else "震荡"
         notes.append(f"螺纹钢{direction}({rb.change_pct:+.2f}%)→关注钢铁板块(宝钢股份/南山铝业)")
@@ -916,6 +1009,7 @@ def _generate_correlation_note(futures_data: Dict[str, FuturesQuote]) -> str:
 # ============================================================
 # 一站式扫描入口
 # ============================================================
+
 
 def scan_all(
     use_wind: bool = True,
@@ -953,41 +1047,41 @@ def run_full_scan(
         "arbitrage_signals": [],
         "options": {},
         "deepseek_analysis": {},
-        "scan_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
     # 1. 期货市场扫描
     _log.info("[STEP 1/4] 期货市场扫描...")
-    result['futures'] = scan_futures_market(use_wind=use_wind)
+    result["futures"] = scan_futures_market(use_wind=use_wind)
     _log.info(f"  获得 {len(result['futures'])} 个品种行情")
 
     # 2. 跨期套利分析
-    if result['futures']:
+    if result["futures"]:
         _log.info("[STEP 2/4] 跨期套利分析...")
-        result['calendar_spreads'] = analyze_calendar_spreads(result['futures'])
+        result["calendar_spreads"] = analyze_calendar_spreads(result["futures"])
         _log.info(f"  发现 {len(result['calendar_spreads'])} 个跨期机会")
 
     # 3. 商品套利分析
-    if result['futures']:
+    if result["futures"]:
         _log.info("[STEP 3/4] 商品套利机会分析...")
-        result['arbitrage_signals'] = analyze_arbitrage_opportunities(result['futures'])
+        result["arbitrage_signals"] = analyze_arbitrage_opportunities(result["futures"])
         _log.info(f"  发现 {len([s for s in result['arbitrage_signals'] if s.signal != 'HOLD'])} 个套利信号")
 
     # 4. 期权扫描 (轻量级)
     _log.info("[STEP 4/4] 期权市场扫描...")
-    result['options'] = scan_options_market()
+    result["options"] = scan_options_market()
     _log.info(f"  获得 {len(result['options'])} 个期权快照")
 
     # 5. DeepSeek AI 分析
-    if use_deepseek and result['futures']:
+    if use_deepseek and result["futures"]:
         _log.info("[AI] DeepSeek V4 Pro 衍生品分析...")
-        result['deepseek_analysis'] = analyze_with_deepseek(
-            futures_data=result['futures'],
-            arbitrage_signals=result['arbitrage_signals'],
-            options_data=result['options'],
-            calendar_spreads=result['calendar_spreads'],
+        result["deepseek_analysis"] = analyze_with_deepseek(
+            futures_data=result["futures"],
+            arbitrage_signals=result["arbitrage_signals"],
+            options_data=result["options"],
+            calendar_spreads=result["calendar_spreads"],
         )
-        _log.info(f"  AI分析完成 ({len(result['deepseek_analysis'].get('summary',''))} 字符)")
+        _log.info(f"  AI分析完成 ({len(result['deepseek_analysis'].get('summary', ''))} 字符)")
 
     elapsed = time.time() - t0
     _log.info(f"[FULL_SCAN] 完成 ({elapsed:.1f}s)")
@@ -998,6 +1092,7 @@ def run_full_scan(
 # 格式化输出 — Markdown报告片段
 # ============================================================
 
+
 def format_scan_to_markdown(scan_result: Dict[str, Any]) -> str:
     """将扫描结果格式化为Markdown (插入预前计划)"""
     lines = []
@@ -1005,14 +1100,14 @@ def format_scan_to_markdown(scan_result: Dict[str, Any]) -> str:
     # ── 期货市场 ──
     lines.append("## 🔮 期货市场扫描 (Wind MCP)")
     lines.append("")
-    futures = scan_result.get('futures', {})
+    futures = scan_result.get("futures", {})
     if futures:
         # 按涨跌幅排序
         sorted_futures = sorted(futures.items(), key=lambda x: x[1].change_pct, reverse=True)
 
         # 表格分为两类: 商品期货 vs 金融期货
-        commodity = [(s, q) for s, q in sorted_futures if ALL_FUTURES.get(s, {}).get('exchange') != 'CFFEX']
-        financial = [(s, q) for s, q in sorted_futures if ALL_FUTURES.get(s, {}).get('exchange') == 'CFFEX']
+        commodity = [(s, q) for s, q in sorted_futures if ALL_FUTURES.get(s, {}).get("exchange") != "CFFEX"]
+        financial = [(s, q) for s, q in sorted_futures if ALL_FUTURES.get(s, {}).get("exchange") == "CFFEX"]
 
         if commodity:
             lines.append("### 商品期货")
@@ -1022,10 +1117,12 @@ def format_scan_to_markdown(scan_result: Dict[str, Any]) -> str:
             for sym, q in commodity[:15]:
                 chg_icon = "🔴" if q.change_pct < 0 else ("🟢" if q.change_pct > 0 else "⚪")
                 info = ALL_FUTURES.get(sym, {})
-                name = info.get('name', sym)
-                vol_str = f"{q.volume/10000:.0f}万手" if q.volume > 10000 else f"{q.volume:.0f}"
-                oi_str = f"{q.open_interest/10000:.0f}万手" if q.open_interest > 10000 else f"{q.open_interest:.0f}"
-                lines.append(f"| {name}({sym}) | {q.price:.2f} | {chg_icon} {q.change_pct:+.2f}% | {vol_str} | {oi_str} | {q.source} |")
+                name = info.get("name", sym)
+                vol_str = f"{q.volume / 10000:.0f}万手" if q.volume > 10000 else f"{q.volume:.0f}"
+                oi_str = f"{q.open_interest / 10000:.0f}万手" if q.open_interest > 10000 else f"{q.open_interest:.0f}"
+                lines.append(
+                    f"| {name}({sym}) | {q.price:.2f} | {chg_icon} {q.change_pct:+.2f}% | {vol_str} | {oi_str} | {q.source} |"
+                )
             lines.append("")
 
         if financial:
@@ -1036,32 +1133,36 @@ def format_scan_to_markdown(scan_result: Dict[str, Any]) -> str:
             for sym, q in financial:
                 chg_icon = "🔴" if q.change_pct < 0 else ("🟢" if q.change_pct > 0 else "⚪")
                 info = ALL_FUTURES.get(sym, {})
-                lines.append(f"| {info.get('name', sym)}({sym}) | {q.price:.2f} | {chg_icon} {q.change_pct:+.2f}% | {q.volume:.0f}手 | {q.source} |")
+                lines.append(
+                    f"| {info.get('name', sym)}({sym}) | {q.price:.2f} | {chg_icon} {q.change_pct:+.2f}% | {q.volume:.0f}手 | {q.source} |"
+                )
             lines.append("")
     else:
         lines.append("> ⚠️ 期货数据源不可用，请检查Wind MCP连接或免费数据源")
         lines.append("")
 
     # ── 跨期套利 ──
-    cal_spreads = scan_result.get('calendar_spreads', [])
+    cal_spreads = scan_result.get("calendar_spreads", [])
     if cal_spreads:
         lines.append("## 📈 跨期套利机会 (日历价差)")
         lines.append("")
-        top_spreads = sorted(cal_spreads, key=lambda x: abs(x['spread_pct']), reverse=True)[:8]
+        top_spreads = sorted(cal_spreads, key=lambda x: abs(x["spread_pct"]), reverse=True)[:8]
         lines.append("| 品种 | 近月价格 | 远月预估 | 价差 | 价差率 | 期限结构 | 操作建议 |")
         lines.append("|------|----------|----------|------|--------|----------|----------|")
         for cs in top_spreads:
-            struct = "正向(Contango)" if cs['structure'] == 'contango' else "反向(Backwardation)"
-            op_icon = "📈" if cs['opportunity'] != "观望" else "⏸️"
-            lines.append(f"| {cs['name']} | {cs['near_month_price']:.2f} | {cs['far_month_est']:.2f} | {cs['spread']:+.2f} | {cs['spread_pct']:+.1f}% | {struct} | {op_icon} {cs['opportunity']} |")
+            struct = "正向(Contango)" if cs["structure"] == "contango" else "反向(Backwardation)"
+            op_icon = "📈" if cs["opportunity"] != "观望" else "⏸️"
+            lines.append(
+                f"| {cs['name']} | {cs['near_month_price']:.2f} | {cs['far_month_est']:.2f} | {cs['spread']:+.2f} | {cs['spread_pct']:+.1f}% | {struct} | {op_icon} {cs['opportunity']} |"
+            )
         lines.append("")
 
     # ── 商品套利 ──
-    arb_signals = scan_result.get('arbitrage_signals', [])
+    arb_signals = scan_result.get("arbitrage_signals", [])
     if arb_signals:
         lines.append("## 🔗 商品套利机会 (跨品种/跨市场)")
         lines.append("")
-        active = [s for s in arb_signals if s.signal in ('BUY', 'SELL')]
+        active = [s for s in arb_signals if s.signal in ("BUY", "SELL")]
         if active:
             lines.append("### ⚡ 活跃信号")
             lines.append("")
@@ -1070,11 +1171,13 @@ def format_scan_to_markdown(scan_result: Dict[str, Any]) -> str:
             for sig in active:
                 s_icon = "🟢" if sig.signal == "BUY" else "🔴"
                 risk_icon = {"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🔴"}.get(sig.risk_level, "⚪")
-                lines.append(f"| {sig.name} | {sig.arb_type} | {s_icon} {sig.direction} | {sig.z_score:+.2f} | {sig.score:.0f}/100 | {sig.expected_return:+.1f}% | {risk_icon} {sig.risk_level} |")
+                lines.append(
+                    f"| {sig.name} | {sig.arb_type} | {s_icon} {sig.direction} | {sig.z_score:+.2f} | {sig.score:.0f}/100 | {sig.expected_return:+.1f}% | {risk_icon} {sig.risk_level} |"
+                )
             lines.append("")
 
         # 观察信号
-        watch = [s for s in arb_signals if s.signal == 'HOLD' and s.score > 30]
+        watch = [s for s in arb_signals if s.signal == "HOLD" and s.score > 30]
         if watch:
             lines.append("### 👀 值得关注")
             lines.append("")
@@ -1088,44 +1191,46 @@ def format_scan_to_markdown(scan_result: Dict[str, Any]) -> str:
         lines.append("")
 
     # ── 期权市场 ──
-    options = scan_result.get('options', {})
+    options = scan_result.get("options", {})
     if options:
         lines.append("## 📊 期权市场情绪")
         lines.append("")
         lines.append("| 标的 | 标的价格 | ATM IV | 偏斜 | PCR | 情绪解读 |")
         lines.append("|------|----------|--------|------|-----|----------|")
         for ul, snap in options.items():
-            name_map = {'510300': '沪深300ETF', '510050': '上证50ETF', '000300': '沪深300指数'}
+            name_map = {"510300": "沪深300ETF", "510050": "上证50ETF", "000300": "沪深300指数"}
             skew_text = "偏put" if snap.iv_skew < -0.01 else ("偏call" if snap.iv_skew > 0.01 else "中性")
             sentiment = "偏谨慎" if snap.put_call_ratio > 1.0 else ("偏乐观" if snap.put_call_ratio < 0.7 else "中性")
-            lines.append(f"| {name_map.get(ul, ul)} | {snap.underlying_price:.2f} | {snap.atm_iv:.0%} | {skew_text} | {snap.put_call_ratio:.2f} | {sentiment} |")
+            lines.append(
+                f"| {name_map.get(ul, ul)} | {snap.underlying_price:.2f} | {snap.atm_iv:.0%} | {skew_text} | {snap.put_call_ratio:.2f} | {sentiment} |"
+            )
         lines.append("")
 
     # ── DeepSeek AI 分析 ──
-    ai = scan_result.get('deepseek_analysis', {})
-    if ai and ai.get('summary'):
+    ai = scan_result.get("deepseek_analysis", {})
+    if ai and ai.get("summary"):
         lines.append("## 🧠 DeepSeek V4 Pro 衍生品分析")
         lines.append("")
-        lines.append(ai['summary'])
+        lines.append(ai["summary"])
         lines.append("")
-        risk = ai.get('risk_alert', '')
-        if risk and risk != '无异常波动':
-            lines.append(f"### ⚠️ 风险警报")
+        risk = ai.get("risk_alert", "")
+        if risk and risk != "无异常波动":
+            lines.append("### ⚠️ 风险警报")
             lines.append(risk)
             lines.append("")
-        corr = ai.get('correlation_note', '')
+        corr = ai.get("correlation_note", "")
         if corr:
-            lines.append(f"### 📎 商品-A股联动")
+            lines.append("### 📎 商品-A股联动")
             lines.append(corr)
             lines.append("")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 # ============================================================
 # 快速测试
 # ============================================================
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("=" * 70)
     print("期货/期权扫描与商品套利分析 — 快速测试")
     print("=" * 70)
@@ -1133,7 +1238,9 @@ if __name__ == '__main__':
     result = run_full_scan(use_wind=True, use_deepseek=True)
 
     print("\n" + "=" * 70)
-    print(f"扫描完成: {len(result['futures'])}期货 + {len(result['arbitrage_signals'])}套利信号 + {len(result['options'])}期权")
+    print(
+        f"扫描完成: {len(result['futures'])}期货 + {len(result['arbitrage_signals'])}套利信号 + {len(result['options'])}期权"
+    )
     print("=" * 70)
 
     # 输出Markdown

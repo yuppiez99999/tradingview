@@ -25,14 +25,16 @@
   - 本地缓存: 避免重复请求
   - 环境变量管理API Key
 """
+
 import os
 import json
 import time
 import logging
+import threading
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import requests
 
@@ -51,19 +53,42 @@ _SESSION.proxies = {"http": None, "https": None}
 # 默认超时
 DEFAULT_TIMEOUT = 15  # 秒
 
+# P0-C1 修复 (2026-07-29): 缓存文件读写锁 (多线程/计划任务重入防护)
+_CACHE_LOCK = threading.Lock()
+
+
+def _parse_api_float(value: Any) -> Optional[float]:
+    """安全解析 API 返回的数值字段。
+
+    P1-T1 修复 (2026-07-29): FRED 缺失值返回 ".", 其它 API 可能返回
+    None/"N/A"/空串, 此前 float() 直接抛异常被外层 fail-safe 吞掉,
+    导致整条指标数据静默丢失。
+    """
+    if value is None:
+        return None
+    try:
+        result = float(value)
+    except (ValueError, TypeError):
+        return None
+    if result != result:  # NaN
+        return None
+    return result
+
+
 # 缓存有效期
 CACHE_TTL = {
-    "macro": 3600,          # 宏观数据缓存1小时
-    "stock": 300,            # 股票行情缓存5分钟
-    "crypto": 180,           # 加密货币缓存3分钟
-    "news": 600,             # 新闻缓存10分钟
-    "bond": 1800,            # 国债收益率缓存30分钟
+    "macro": 3600,  # 宏观数据缓存1小时
+    "stock": 300,  # 股票行情缓存5分钟
+    "crypto": 180,  # 加密货币缓存3分钟
+    "news": 600,  # 新闻缓存10分钟
+    "bond": 1800,  # 国债收益率缓存30分钟
 }
 
 
 @dataclass
 class MacroIndicator:
     """宏观经济指标"""
+
     name: str
     value: float
     unit: str
@@ -133,15 +158,16 @@ class FREDApi:
                 return None
 
             latest = observations[0]
-            value = float(latest.get("value", 0))
+            # P1-T1: FRED 缺失值为 ".", float() 会抛异常吞掉整条数据
+            value = _parse_api_float(latest.get("value"))
+            if value is None:
+                logger.warning(f"FRED {series_id} 最新观测值无效: {latest.get('value')!r}")
+                return None
             date = latest.get("date", "")
 
             previous = None
             if len(observations) > 1:
-                try:
-                    previous = float(observations[1].get("value", 0))
-                except (ValueError, TypeError):
-                    pass
+                previous = _parse_api_float(observations[1].get("value"))
 
             change = (value - previous) if previous is not None else None
 
@@ -155,7 +181,7 @@ class FREDApi:
                 change=change,
             )
 
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"FRED 获取 {series_id} 失败: {e}")
             return None
 
@@ -215,7 +241,11 @@ class EcondbApi:
                 return None
 
             latest = series_data[-1]
-            value = float(latest.get("value", 0))
+            # P1-T1: 缺失值 None/"N/A" 此前 float() 抛异常吞掉整条数据
+            value = _parse_api_float(latest.get("value"))
+            if value is None:
+                logger.warning(f"Econdb {ticker} 最新观测值无效: {latest.get('value')!r}")
+                return None
             date = latest.get("date", "")
 
             return MacroIndicator(
@@ -226,7 +256,7 @@ class EcondbApi:
                 source="Econdb",
             )
 
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Econdb 获取 {ticker} 失败: {e}")
             return None
 
@@ -268,7 +298,7 @@ class FedTreasuryApi:
             for record in records:
                 desc = record.get("security_desc", "")
                 rate = float(record.get("avg_interest_rate_amount", 0))
-                date = record.get("record_date", "")
+                record.get("record_date", "")
 
                 # 简化: 根据描述匹配期限
                 if "3-Month" in desc or "3 Month" in desc:
@@ -288,7 +318,7 @@ class FedTreasuryApi:
 
             return yields
 
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Fed Treasury 获取国债收益率失败: {e}")
             return {}
 
@@ -343,7 +373,7 @@ class AlphaVantageApi:
                 "source": "alpha_vantage",
             }
 
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Alpha Vantage 获取 {symbol} 失败: {e}")
             return None
 
@@ -396,7 +426,7 @@ class FinnhubApi:
                 "source": "finnhub",
             }
 
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Finnhub 获取 {symbol} 失败: {e}")
             return None
 
@@ -432,7 +462,7 @@ class FinnhubApi:
                 for n in news[:10]  # 最多10条
             ]
 
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Finnhub 获取新闻失败: {e}")
             return []
 
@@ -482,7 +512,7 @@ class CoinGeckoApi:
                 "source": "coingecko",
             }
 
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"CoinGecko 获取 {coin_id} 失败: {e}")
             return None
 
@@ -503,7 +533,7 @@ class CoinGeckoApi:
                 "source": "coingecko",
             }
 
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"CoinGecko 全球市场数据获取失败: {e}")
             return None
 
@@ -545,17 +575,20 @@ class ExternalDataManager:
             return None
 
         try:
-            cache = json.load(open(cache_file, "r", encoding="utf-8"))
+            with _CACHE_LOCK:
+                with open(cache_file, "r", encoding="utf-8") as _f:
+                    cache = json.load(_f)
             cache_time = cache.get("_cache_time", 0)
             ttl = CACHE_TTL.get(category, 300)
             if time.time() - cache_time < ttl:
                 return cache.get("data")
-        except Exception:
-            pass
+        except (json.JSONDecodeError, OSError, ValueError) as e:
+            # P1-02 修复: 此前 except: pass 静默吞掉损坏缓存, 无法察觉
+            logger.debug(f"缓存读取失败 ({cache_file.name}): {e}")
         return None
 
     def _save_cache(self, category: str, key: str, data: Any):
-        """保存缓存"""
+        """保存缓存 (P0-C1: 临时文件+os.replace 原子写, 防并发写坏缓存)"""
         cache_file = self._cache_path(category, key)
         try:
             cache = {
@@ -563,9 +596,13 @@ class ExternalDataManager:
                 "_cache_date": datetime.now().isoformat(),
                 "data": data,
             }
-            json.dump(cache, open(cache_file, "w", encoding="utf-8"),
-                      ensure_ascii=False, indent=2, default=str)
-        except Exception as e:
+            payload = json.dumps(cache, ensure_ascii=False, indent=2, default=str)
+            with _CACHE_LOCK:
+                # 复用统一原子写 (临时文件+os.replace+Windows共享违规重试)
+                from utils.concurrency import atomic_write_text
+
+                atomic_write_text(cache_file, payload)
+        except Exception as e:  # 缓存失败不阻断主流程
             logger.warning(f"缓存保存失败: {e}")
 
     def get_macro_snapshot(self) -> Dict[str, Any]:
@@ -581,7 +618,7 @@ class ExternalDataManager:
         # 检查缓存
         cached = self._load_cache("macro", "snapshot")
         if cached:
-            return cached
+            return cached  # type: ignore
 
         snapshot = {}
 
@@ -594,7 +631,7 @@ class ExternalDataManager:
         # 国债收益率
         treasury_yields = self.treasury.get_treasury_yields()
         if treasury_yields:
-            snapshot["treasury_yields"] = treasury_yields
+            snapshot["treasury_yields"] = treasury_yields  # type: ignore
 
         # 加密货币市场情绪 (风险偏好指标)
         crypto_global = self.coingecko.get_global_market()
@@ -617,7 +654,7 @@ class ExternalDataManager:
         # 检查缓存
         cached = self._load_cache("stock", symbol)
         if cached:
-            return cached
+            return cached  # type: ignore
 
         quote = None
 
@@ -638,7 +675,7 @@ class ExternalDataManager:
         """获取加密货币价格"""
         cached = self._load_cache("crypto", coin_id)
         if cached:
-            return cached
+            return cached  # type: ignore
 
         quote = self.coingecko.get_price(coin_id)
         if quote:
@@ -650,7 +687,7 @@ class ExternalDataManager:
         """获取市场新闻"""
         cached = self._load_cache("news", "market")
         if cached:
-            return cached
+            return cached  # type: ignore
 
         news = self.finnhub.get_market_news("general") if self.finnhub.available else []
 
@@ -671,7 +708,7 @@ class ExternalDataManager:
         """
         snapshot = self.get_macro_snapshot()
 
-        sentiment = {
+        sentiment = {  # type: ignore
             "timestamp": datetime.now().isoformat(),
             "vix_proxy": None,
             "treasury_yield_curve": {},
@@ -702,34 +739,34 @@ class ExternalDataManager:
 
 # 模块自检
 if __name__ == "__main__":
-    print("=" * 60)
-    print("外部数据源模块自检")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("外部数据源模块自检")
+    logger.info("=" * 60)
 
     manager = ExternalDataManager()
 
     # 测试宏观经济快照
-    print("\n--- 宏观经济快照 ---")
+    logger.info("\n--- 宏观经济快照 ---")
     macro = manager.get_macro_snapshot()
     for source, data in macro.items():
-        print(f"\n[{source}]")
+        logger.info(f"\n[{source}]")
         if isinstance(data, dict):
             for key, val in list(data.items())[:5]:
                 if isinstance(val, dict):
-                    print(f"  {key}: {val.get('value', val)}")
+                    logger.info(f"  {key}: {val.get('value', val)}")
                 else:
-                    print(f"  {key}: {val}")
+                    logger.info(f"  {key}: {val}")
 
     # 测试风险情绪
-    print("\n--- 风险情绪指标 ---")
+    logger.info("\n--- 风险情绪指标 ---")
     sentiment = manager.get_risk_sentiment()
     for key, val in sentiment.items():
-        print(f"  {key}: {val}")
+        logger.info(f"  {key}: {val}")
 
     # 测试加密货币 (无需API Key)
-    print("\n--- 加密货币价格 ---")
+    logger.info("\n--- 加密货币价格 ---")
     btc = manager.get_crypto_price("bitcoin")
     if btc:
-        print(f"  BTC: ${btc.get('price', 0):,.2f} ({btc.get('change_24h_pct', 0):.2f}%)")
+        logger.info(f"  BTC: ${btc.get('price', 0):,.2f} ({btc.get('change_24h_pct', 0):.2f}%)")
 
-    print("\n✅ 自检完成")
+    logger.info("\n✅ 自检完成")

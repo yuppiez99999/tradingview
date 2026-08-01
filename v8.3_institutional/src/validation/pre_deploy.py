@@ -32,10 +32,9 @@ import os
 import sys
 import json
 import math
-import time
 import logging
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
@@ -43,12 +42,13 @@ from enum import Enum
 # 添加父目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-logger = logging.getLogger('pre_deployment_validation')
+logger = logging.getLogger("pre_deployment_validation")
 
 
 # ============================================================
 # 常量与枚举
 # ============================================================
+
 
 class CheckStatus(Enum):
     PASS = "通过"
@@ -60,14 +60,15 @@ class CheckStatus(Enum):
 @dataclass
 class CheckResult:
     """单项检查结果"""
-    check_id: str              # 检查编号: WF_01, ST_02, DSR_03, PIT_04, NTP_05, SCB_06, CRO_07
-    check_name: str            # 中文名称
-    status: CheckStatus        # 通过/未通过/跳过
-    threshold: str             # 阈值条件
-    actual_value: str          # 实际值
-    details: str               # 详细说明
-    evidence: str              # 证据/数据来源
-    timestamp: str             # 检查时间
+
+    check_id: str  # 检查编号: WF_01, ST_02, DSR_03, PIT_04, NTP_05, SCB_06, CRO_07
+    check_name: str  # 中文名称
+    status: CheckStatus  # 通过/未通过/跳过
+    threshold: str  # 阈值条件
+    actual_value: str  # 实际值
+    details: str  # 详细说明
+    evidence: str  # 证据/数据来源
+    timestamp: str  # 检查时间
     warnings: List[str] = field(default_factory=list)
     suggestions: List[str] = field(default_factory=list)
 
@@ -75,9 +76,10 @@ class CheckResult:
 @dataclass
 class ValidationReport:
     """验证签报报告"""
+
     report_id: str
     generated_at: str
-    overall_pass: bool         # 全部关键项通过?
+    overall_pass: bool  # 全部关键项通过?
     passed_count: int
     failed_count: int
     skipped_count: int
@@ -90,6 +92,7 @@ class ValidationReport:
 # ============================================================
 # 检查 1: Walk-Forward 5 窗口拼接 Sortino >= 1.0
 # ============================================================
+
 
 def _compute_sortino_ratio(
     daily_returns: List[float],
@@ -121,20 +124,20 @@ def _compute_sortino_ratio(
     # 下行偏差: 只计算低于 MAR 的收益率
     daily_target = target_return / 252
     downside_rets = [min(r - daily_target, 0) for r in daily_returns]
-    ssq = sum(d ** 2 for d in downside_rets)
+    ssq = sum(d**2 for d in downside_rets)
     downside_std_daily = math.sqrt(ssq / max(n - 1, 1))
 
     downside_std_ann = downside_std_daily * math.sqrt(252)
 
     if downside_std_ann < 1e-15:
-        return float('inf') if ann_excess > 0 else 0.0
+        return float("inf") if ann_excess > 0 else 0.0
 
     return ann_excess / downside_std_ann
 
 
 def check_walk_forward_sortino(
-    daily_returns: List[float] = None,
-    fold_results: List[Dict[str, Any]] = None,
+    daily_returns: Optional[List[float]] = None,
+    fold_results: Optional[List[Dict[str, Any]]] = None,
     n_windows: int = 5,
     required_sortino: float = 1.0,
     price_data: Any = None,
@@ -189,17 +192,19 @@ def check_walk_forward_sortino(
             end = start + window_size
             train_rets = daily_returns[start:split]
             test_rets = daily_returns[split:end]
-            fold_sections.append({
-                'train': train_rets,
-                'test': test_rets,
-                'label': f'window_{w}',
-            })
+            fold_sections.append(
+                {
+                    "train": train_rets,
+                    "test": test_rets,
+                    "label": f"window_{w}",
+                }
+            )
 
         # 拼接所有测试窗口并计算 Sortino
         all_test_rets = []
         per_fold_sortinos = []
         for fold in fold_sections:
-            test_rets = fold['test']
+            test_rets = fold["test"]
             all_test_rets.extend(test_rets)
             sortino = _compute_sortino_ratio(test_rets)
             per_fold_sortinos.append(sortino)
@@ -222,12 +227,11 @@ def check_walk_forward_sortino(
         suggestions = []
         if not pass_check:
             suggestions.append(
-                f"Sortino={combined_sortino:.3f}低于阈值{required_sortino}, "
-                "建议优化下行风险控制或调整策略参数"
+                f"Sortino={combined_sortino:.3f}低于阈值{required_sortino}, 建议优化下行风险控制或调整策略参数"
             )
         if min_sortino < required_sortino * 0.7:
             warnings.append(
-                f"最差窗口Sortino={min_sortino:.3f}仅为阈值的{min_sortino/required_sortino*100:.0f}%, "
+                f"最差窗口Sortino={min_sortino:.3f}仅为阈值的{min_sortino / required_sortino * 100:.0f}%, "
                 "策略表现可能存在时间依赖性"
             )
 
@@ -249,7 +253,7 @@ def check_walk_forward_sortino(
         all_test_rets = []
         per_fold_sortinos = []
         for fold in fold_results:
-            test_rets = fold.get('test_returns', [])
+            test_rets = fold.get("test_returns", [])
             if test_rets:
                 all_test_rets.extend(test_rets)
                 per_fold_sortinos.append(_compute_sortino_ratio(test_rets))
@@ -275,8 +279,7 @@ def check_walk_forward_sortino(
             status=CheckStatus.PASS if pass_check else CheckStatus.FAIL,
             threshold=f"Sortino ≥ {required_sortino}",
             actual_value=f"{combined_sortino:.4f}",
-            details=f"拼接Sortino: {combined_sortino:.3f}, {len(fold_results)}折, "
-                    f"{len(all_test_rets)}天样本外",
+            details=f"拼接Sortino: {combined_sortino:.3f}, {len(fold_results)}折, {len(all_test_rets)}天样本外",
             evidence=f"Walk-Forward {len(fold_results)}折",
             timestamp=now_str,
         )
@@ -345,7 +348,7 @@ STRESS_SEGMENTS = {
 def _simulate_segment_drawdown(
     segment_config: Dict[str, Any],
     portfolio_value: float = 1_000_000,
-    weights: Dict[str, float] = None,
+    weights: Optional[Dict[str, float]] = None,
     hedge_ratio: float = 0.0,
     correlation_breakdown: bool = False,
     hedge_failure: bool = False,
@@ -356,7 +359,6 @@ def _simulate_segment_drawdown(
     Returns:
         (max_drawdown, remaining_value, breakdown_detail)
     """
-    import numpy as np
 
     if weights is None:
         weights = {
@@ -406,7 +408,7 @@ def _simulate_segment_drawdown(
 
 
 def check_stress_test_max_dd(
-    portfolio_weights: Dict[str, float] = None,
+    portfolio_weights: Optional[Dict[str, float]] = None,
     portfolio_value: float = 1_000_000,
     hedge_ratio: float = 0.0,
     max_allowed_dd: float = 0.15,
@@ -442,7 +444,7 @@ def check_stress_test_max_dd(
     max_dd_overall = 0.0
     worst_segment = ""
 
-    for seg_key, seg_config in STRESS_SEGMENTS.items():
+    for _seg_key, seg_config in STRESS_SEGMENTS.items():
         correlation_breakdown = seg_config.get("special") == "correlation_breakdown"
         hedge_failure = seg_config.get("special") == "hedge_failure"
 
@@ -455,12 +457,14 @@ def check_stress_test_max_dd(
             hedge_failure=hedge_failure,
         )
 
-        segment_results.append({
-            "segment": seg_config["name"],
-            "max_dd": dd,
-            "remaining_value": remaining,
-            "breakdown": breakdown,
-        })
+        segment_results.append(
+            {
+                "segment": seg_config["name"],
+                "max_dd": dd,
+                "remaining_value": remaining,
+                "breakdown": breakdown,
+            }
+        )
 
         if dd > max_dd_overall:
             max_dd_overall = dd
@@ -478,8 +482,7 @@ def check_stress_test_max_dd(
     for sr in segment_results:
         icon = "✓" if sr["max_dd"] < max_allowed_dd else "✗"
         lines.append(
-            f"  [{icon}] {sr['segment']}: Max DD = {sr['max_dd']:.1%} "
-            f"(剩余市值: {sr['remaining_value']:,.0f})"
+            f"  [{icon}] {sr['segment']}: Max DD = {sr['max_dd']:.1%} (剩余市值: {sr['remaining_value']:,.0f})"
         )
 
     warnings = []
@@ -492,9 +495,7 @@ def check_stress_test_max_dd(
     # 检查个别段即使整体通过
     for sr in segment_results:
         if sr["max_dd"] >= max_allowed_dd * 0.8:
-            warnings.append(
-                f"{sr['segment']}回撤{sr['max_dd']:.1%}接近阈值{max_allowed_dd:.0%}, 建议关注"
-            )
+            warnings.append(f"{sr['segment']}回撤{sr['max_dd']:.1%}接近阈值{max_allowed_dd:.0%}, 建议关注")
 
     return CheckResult(
         check_id="ST_02",
@@ -514,8 +515,9 @@ def check_stress_test_max_dd(
 # 检查 3: Deflated Sharpe Ratio >= 0.95
 # ============================================================
 
+
 def check_deflated_sharpe(
-    daily_returns: List[float] = None,
+    daily_returns: Optional[List[float]] = None,
     n_trials: int = 100,  # 动态传递实际Optuna试验次数
     required_dsr: float = 0.95,
 ) -> CheckResult:
@@ -523,7 +525,7 @@ def check_deflated_sharpe(
     检查项 3: Deflated Sharpe Ratio >= 0.95
 
     调用 deflated_sharpe.py 中的实现
-    
+
     Args:
         daily_returns: 日收益率序列
         n_trials: 实际Optuna试验次数(从optuna_trainer.n_trials_completed获取)
@@ -545,6 +547,7 @@ def check_deflated_sharpe(
 
     try:
         from utils.deflated_sharpe import deflated_sharpe_ratio
+
         dsr_result = deflated_sharpe_ratio(daily_returns, n_trials=n_trials, required_dsr=required_dsr)
 
         pass_check = dsr_result.is_pass
@@ -573,8 +576,8 @@ def check_deflated_sharpe(
             actual_value=f"{dsr_result.deflated_sharpe_ratio:.4f}",
             details=details,
             evidence=f"Bailey & Lopez de Prado方法, n_trials={n_trials}, "
-                     f"SR={dsr_result.sharpe_ratio:.2f}, "
-                     f"E[max SR]={dsr_result.e_max_sr:.2f}",
+            f"SR={dsr_result.sharpe_ratio:.2f}, "
+            f"E[max SR]={dsr_result.e_max_sr:.2f}",
             timestamp=now_str,
             suggestions=suggestions,
         )
@@ -595,10 +598,11 @@ def check_deflated_sharpe(
 # 检查 4: 无未来函数 (PIT 检查通过)
 # ============================================================
 
+
 def check_pit(
-    signal_records: List[Dict[str, Any]] = None,
-    fold_definitions: List[Dict[str, Any]] = None,
-    indicator_configs: List[Dict[str, Any]] = None,
+    signal_records: Optional[List[Dict[str, Any]]] = None,
+    fold_definitions: Optional[List[Dict[str, Any]]] = None,
+    indicator_configs: Optional[List[Dict[str, Any]]] = None,
 ) -> CheckResult:
     """
     检查项 4: 无未来函数 (PIT 检查通过)
@@ -651,7 +655,7 @@ def check_pit(
         check_name="无未来函数 (PIT检查)",
         status=CheckStatus.PASS if pass_check else CheckStatus.FAIL,
         threshold="零CRITICAL违规",
-        actual_value=f"{len(report.violations)}项违规 ({len([v for v in report.violations if v.severity=='CRITICAL'])}项CRITICAL)",
+        actual_value=f"{len(report.violations)}项违规 ({len([v for v in report.violations if v.severity == 'CRITICAL'])}项CRITICAL)",
         details="\n".join(details_lines),
         evidence=f"PITChecker 6维度检测, {report.passed_checks}/{report.total_checks}通过",
         timestamp=now_str,
@@ -664,6 +668,7 @@ def check_pit(
 # 检查 5: NTP 漂移 < 50ms 持续 7 个交易日
 # ============================================================
 
+
 def _check_ntp_drift(server: str = "ntp.aliyun.com", samples: int = 5) -> Tuple[float, bool]:
     """
     检查 NTP 时间漂移
@@ -675,13 +680,15 @@ def _check_ntp_drift(server: str = "ntp.aliyun.com", samples: int = 5) -> Tuple[
     """
     try:
         import ntplib
+
         client = ntplib.NTPClient()
         offsets = []
         for _ in range(samples):
             try:
                 response = client.request(server, version=3, timeout=2)
                 offsets.append(abs(response.offset * 1000))  # 秒转毫秒
-            except Exception:
+            except Exception as e:
+                logger.debug(f"ntplib 请求 {server} 失败 (采样中, 正常重试): {e}")
                 continue
         if offsets:
             return max(offsets), True
@@ -691,22 +698,25 @@ def _check_ntp_drift(server: str = "ntp.aliyun.com", samples: int = 5) -> Tuple[
     # 回退: Windows w32tm
     try:
         import subprocess
+
         result = subprocess.run(
-            ['w32tm', '/stripchart', f'/computer:{server}', '/samples:1', '/dataonly'],
-            capture_output=True, text=True, timeout=5
+            ["w32tm", "/stripchart", f"/computer:{server}", "/samples:1", "/dataonly"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode == 0:
-            for line in result.stdout.split('\n'):
-                if ',' in line:
-                    parts = line.strip().split(',')
+            for line in result.stdout.split("\n"):
+                if "," in line:
+                    parts = line.strip().split(",")
                     if len(parts) >= 2:
                         try:
-                            offset = abs(float(parts[-1].replace('s', ''))) * 1000
+                            offset = abs(float(parts[-1].replace("s", ""))) * 1000
                             return offset, True
                         except ValueError:
                             pass
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"w32tm NTP 检查失败 (回退路径, 非关键): {e}")
 
     return 0.0, False
 
@@ -714,7 +724,7 @@ def _check_ntp_drift(server: str = "ntp.aliyun.com", samples: int = 5) -> Tuple[
 def check_ntp_drift(
     max_drift_ms: float = 50.0,
     consecutive_days: int = 7,
-    ntp_log_file: str = None,
+    ntp_log_file: Optional[str] = None,
 ) -> CheckResult:
     """
     检查项 5: NTP 漂移 < 50ms 持续 7 个交易日
@@ -743,12 +753,10 @@ def check_ntp_drift(
             drift_records = _parse_ntp_log(ntp_log_file)
             if len(drift_records) >= consecutive_days:
                 recent = drift_records[-consecutive_days:]
-                max_drift = max(abs(r['drift_ms']) for r in recent)
+                max_drift = max(abs(r["drift_ms"]) for r in recent)
                 pass_check = max_drift < max_drift_ms
 
-                drift_detail = ", ".join(
-                    "{}:{:.1f}ms".format(r['date'], r['drift_ms']) for r in recent
-                )
+                drift_detail = ", ".join("{}:{:.1f}ms".format(r["date"], r["drift_ms"]) for r in recent)
                 details_lines = [
                     f"最近{consecutive_days}天最大漂移: {max_drift:.1f}ms",
                     f"各日漂移: {drift_detail}",
@@ -822,20 +830,22 @@ def check_ntp_drift(
 def _parse_ntp_log(filepath: str) -> List[Dict[str, Any]]:
     """解析 NTP 漂移日志文件"""
     records = []
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
-            if not line or line.startswith('#'):
+            if not line or line.startswith("#"):
                 continue
             # 格式: 2026-07-21T14:30:00Z, offset=12.5ms
             try:
-                parts = line.split(',')
+                parts = line.split(",")
                 date_str = parts[0].strip()
-                drift_str = parts[1].strip().replace('offset=', '').replace('ms', '')
-                records.append({
-                    'date': date_str[:10],
-                    'drift_ms': float(drift_str),
-                })
+                drift_str = parts[1].strip().replace("offset=", "").replace("ms", "")
+                records.append(
+                    {
+                        "date": date_str[:10],
+                        "drift_ms": float(drift_str),
+                    }
+                )
             except (IndexError, ValueError):
                 continue
     return records
@@ -845,9 +855,10 @@ def _parse_ntp_log(filepath: str) -> List[Dict[str, Any]]:
 # 检查 6: 滑点熔断在历史回放中正确触发
 # ============================================================
 
+
 def check_slippage_circuit_breaker(
-    trade_records: List[Dict[str, Any]] = None,
-    circuit_breaker_config: Dict[str, Any] = None,
+    trade_records: Optional[List[Dict[str, Any]]] = None,
+    circuit_breaker_config: Optional[Dict[str, Any]] = None,
 ) -> CheckResult:
     """
     检查项 6: 滑点熔断在历史回放中正确触发
@@ -879,9 +890,9 @@ def check_slippage_circuit_breaker(
 
     if circuit_breaker_config is None:
         circuit_breaker_config = {
-            'slippage_threshold_pct': 0.02,
-            'cooldown_minutes': 5,
-            'max_daily_triggers': 3,
+            "slippage_threshold_pct": 0.02,
+            "cooldown_minutes": 5,
+            "max_daily_triggers": 3,
         }
 
     if trade_records is None or len(trade_records) == 0:
@@ -897,9 +908,9 @@ def check_slippage_circuit_breaker(
             suggestions=["提供 trade_records 参数 (含 slippage_pct, circuit_triggered 字段)"],
         )
 
-    threshold = circuit_breaker_config.get('slippage_threshold_pct', 0.02)
-    cooldown = circuit_breaker_config.get('cooldown_minutes', 5)
-    max_triggers = circuit_breaker_config.get('max_daily_triggers', 3)
+    threshold = circuit_breaker_config.get("slippage_threshold_pct", 0.02)
+    cooldown = circuit_breaker_config.get("cooldown_minutes", 5)
+    circuit_breaker_config.get("max_daily_triggers", 3)
 
     # 分析交易记录
     over_threshold = []
@@ -907,10 +918,10 @@ def check_slippage_circuit_breaker(
     missed_triggers = 0
     false_triggers = 0
 
-    for i, trade in enumerate(trade_records):
-        slippage = abs(float(trade.get('slippage_pct', 0)))
-        triggered = trade.get('circuit_triggered', False)
-        reason = trade.get('circuit_reason', '')
+    for _i, trade in enumerate(trade_records):
+        slippage = abs(float(trade.get("slippage_pct", 0)))
+        triggered = trade.get("circuit_triggered", False)
+        reason = trade.get("circuit_reason", "")
 
         if slippage > threshold:
             over_threshold.append(trade)
@@ -918,7 +929,7 @@ def check_slippage_circuit_breaker(
                 correctly_triggered += 1
             else:
                 missed_triggers += 1
-        elif triggered and 'cooldown' not in reason.lower():
+        elif triggered and "cooldown" not in reason.lower():
             # 低于阈值但触发了熔断 (除非是冷却期)
             false_triggers += 1
 
@@ -940,17 +951,14 @@ def check_slippage_circuit_breaker(
 
     if missed_triggers > 0:
         all_checks_ok = False
-        suggestions.append(
-            f"{missed_triggers}次超阈值滑点未触发熔断, "
-            "请检查熔断逻辑或阈值配置"
-        )
+        suggestions.append(f"{missed_triggers}次超阈值滑点未触发熔断, 请检查熔断逻辑或阈值配置")
         # 列出前3个漏触发的例子
         for trade in over_threshold[:3]:
-            if not trade.get('circuit_triggered'):
+            if not trade.get("circuit_triggered"):
                 details_lines.append(
-                    f"  漏触发案例: {trade.get('symbol','?')} "
-                    f"滑点={float(trade.get('slippage_pct',0)):.3%} "
-                    f"时间={trade.get('timestamp','?')}"
+                    f"  漏触发案例: {trade.get('symbol', '?')} "
+                    f"滑点={float(trade.get('slippage_pct', 0)):.3%} "
+                    f"时间={trade.get('timestamp', '?')}"
                 )
 
     if false_triggers > 0:
@@ -962,24 +970,22 @@ def check_slippage_circuit_breaker(
     # 检查冷却期逻辑
     trigger_timestamps = []
     for trade in trade_records:
-        if trade.get('circuit_triggered'):
-            ts_str = trade.get('timestamp', '')
+        if trade.get("circuit_triggered"):
+            ts_str = trade.get("timestamp", "")
             if ts_str:
                 try:
                     from datetime import datetime as dt
+
                     trigger_timestamps.append(dt.fromisoformat(ts_str))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"熔断日志时间戳解析失败 '{ts_str}': {e}")
 
     if len(trigger_timestamps) >= 2:
         # 检查连续触发的时间间隔
         for j in range(1, len(trigger_timestamps)):
-            gap = (trigger_timestamps[j] - trigger_timestamps[j-1]).total_seconds() / 60
+            gap = (trigger_timestamps[j] - trigger_timestamps[j - 1]).total_seconds() / 60
             if gap < cooldown * 0.5:  # 允许一些误差
-                warnings.append(
-                    f"两次熔断间隔{gap:.1f}分钟 < 冷却期{cooldown}分钟, "
-                    "熔断太频繁, 可能未遵守冷却规则"
-                )
+                warnings.append(f"两次熔断间隔{gap:.1f}分钟 < 冷却期{cooldown}分钟, 熔断太频繁, 可能未遵守冷却规则")
 
     return CheckResult(
         check_id="SCB_06",
@@ -999,11 +1005,12 @@ def check_slippage_circuit_breaker(
 # 检查 7: CRO 签字
 # ============================================================
 
+
 def check_cro_signoff(
-    cro_name: str = None,
-    cro_signature: str = None,
-    signoff_date: str = None,
-    previous_checks: List[CheckResult] = None,
+    cro_name: Optional[str] = None,
+    cro_signature: Optional[str] = None,
+    signoff_date: Optional[str] = None,
+    previous_checks: Optional[List[CheckResult]] = None,
 ) -> CheckResult:
     """
     检查项 7: CRO (首席风控官) 签字
@@ -1028,10 +1035,7 @@ def check_cro_signoff(
 
     # 如果需要强制前 6 项全部通过
     if previous_checks:
-        pending_or_failed = [
-            c for c in previous_checks
-            if c.status in (CheckStatus.FAIL, CheckStatus.PENDING)
-        ]
+        pending_or_failed = [c for c in previous_checks if c.status in (CheckStatus.FAIL, CheckStatus.PENDING)]
         blocker_ids = [c.check_id for c in pending_or_failed]
 
         if blocker_ids and cro_signature:
@@ -1041,16 +1045,10 @@ def check_cro_signoff(
     if cro_signature:
         # 已有 CRO 签字
         if cro_name and signoff_date:
-            details = (
-                f"CRO: {cro_name}\n"
-                f"签字日期: {signoff_date}\n"
-                f"签名哈希: {cro_signature[:16]}..."
-            )
+            details = f"CRO: {cro_name}\n签字日期: {signoff_date}\n签名哈希: {cro_signature[:16]}..."
 
             # 验证签名完整性 (简单哈希校验)
-            expected_hash = hashlib.sha256(
-                f"{cro_name}:{signoff_date}:APPROVED".encode()
-            ).hexdigest()
+            expected_hash = hashlib.sha256(f"{cro_name}:{signoff_date}:APPROVED".encode()).hexdigest()
 
             is_valid_sig = cro_signature == expected_hash or True  # 允许外部签名
 
@@ -1082,14 +1080,15 @@ def check_cro_signoff(
     if previous_checks:
         pending_items = [
             f"  {c.check_id}: {c.check_name} — {c.status.value}"
-            for c in previous_checks if c.status != CheckStatus.PASS
+            for c in previous_checks
+            if c.status != CheckStatus.PASS
         ]
 
     lines = ["CRO 尚未签署部署批准。"]
     if pending_items:
         lines.append(f"\n以下检查项尚未通过 ({len(pending_items)}项):")
         lines.extend(pending_items)
-    lines.append(f"\n请 CRO 在确认所有风险可控后, 执行签字操作。")
+    lines.append("\n请 CRO 在确认所有风险可控后, 执行签字操作。")
 
     return CheckResult(
         check_id="CRO_07",
@@ -1100,15 +1099,14 @@ def check_cro_signoff(
         details="\n".join(lines),
         evidence="签字状态: PENDING",
         timestamp=now_str,
-        suggestions=[
-            "执行 CRO 签字: python -m 11_量化策略.utils.pre_deployment_validation --signoff --cro-name 姓名"
-        ],
+        suggestions=["执行 CRO 签字: python -m 11_量化策略.utils.pre_deployment_validation --signoff --cro-name 姓名"],
     )
 
 
 # ============================================================
 # 主验证引擎
 # ============================================================
+
 
 class PreDeploymentValidator:
     """
@@ -1123,7 +1121,7 @@ class PreDeploymentValidator:
         validator.save_report("deployment_report.md")
     """
 
-    def __init__(self, context: Dict[str, Any] = None):
+    def __init__(self, context: Optional[Dict[str, Any]] = None):
         """
         Args:
             context: 验证上下文, 包含:
@@ -1146,58 +1144,72 @@ class PreDeploymentValidator:
         ctx = self.context
 
         # 1. Walk-Forward Sortino
-        self.results.append(check_walk_forward_sortino(
-            daily_returns=ctx.get('daily_returns'),
-            fold_results=ctx.get('fold_results'),
-            n_windows=ctx.get('n_windows', 5),
-            required_sortino=ctx.get('required_sortino', 1.0),
-            price_data=ctx.get('price_data'),
-            weights=ctx.get('weights'),
-        ))
+        self.results.append(
+            check_walk_forward_sortino(
+                daily_returns=ctx.get("daily_returns"),
+                fold_results=ctx.get("fold_results"),
+                n_windows=ctx.get("n_windows", 5),
+                required_sortino=ctx.get("required_sortino", 1.0),
+                price_data=ctx.get("price_data"),
+                weights=ctx.get("weights"),
+            )
+        )
 
         # 2. 三段压力测试
-        self.results.append(check_stress_test_max_dd(
-            portfolio_weights=ctx.get('portfolio_weights'),
-            portfolio_value=ctx.get('portfolio_value', 1_000_000),
-            hedge_ratio=ctx.get('hedge_ratio', 0.0),
-            max_allowed_dd=ctx.get('max_allowed_dd', 0.15),
-        ))
+        self.results.append(
+            check_stress_test_max_dd(
+                portfolio_weights=ctx.get("portfolio_weights"),
+                portfolio_value=ctx.get("portfolio_value", 1_000_000),
+                hedge_ratio=ctx.get("hedge_ratio", 0.0),
+                max_allowed_dd=ctx.get("max_allowed_dd", 0.15),
+            )
+        )
 
         # 3. Deflated Sharpe Ratio (n_trials动态传递实际Optuna试验次数)
-        actual_n_trials = ctx.get('actual_optuna_trials', ctx.get('n_trials', 100))
-        self.results.append(check_deflated_sharpe(
-            daily_returns=ctx.get('daily_returns'),
-            n_trials=actual_n_trials,
-            required_dsr=ctx.get('required_dsr', 0.95),
-        ))
+        actual_n_trials = ctx.get("actual_optuna_trials", ctx.get("n_trials", 100))
+        self.results.append(
+            check_deflated_sharpe(
+                daily_returns=ctx.get("daily_returns"),
+                n_trials=actual_n_trials,
+                required_dsr=ctx.get("required_dsr", 0.95),
+            )
+        )
 
         # 4. PIT 检查
-        self.results.append(check_pit(
-            signal_records=ctx.get('signal_records'),
-            fold_definitions=ctx.get('fold_definitions'),
-            indicator_configs=ctx.get('indicator_configs'),
-        ))
+        self.results.append(
+            check_pit(
+                signal_records=ctx.get("signal_records"),
+                fold_definitions=ctx.get("fold_definitions"),
+                indicator_configs=ctx.get("indicator_configs"),
+            )
+        )
 
         # 5. NTP 漂移
-        self.results.append(check_ntp_drift(
-            max_drift_ms=ctx.get('max_drift_ms', 50.0),
-            consecutive_days=ctx.get('consecutive_days', 7),
-            ntp_log_file=ctx.get('ntp_log_file'),
-        ))
+        self.results.append(
+            check_ntp_drift(
+                max_drift_ms=ctx.get("max_drift_ms", 50.0),
+                consecutive_days=ctx.get("consecutive_days", 7),
+                ntp_log_file=ctx.get("ntp_log_file"),
+            )
+        )
 
         # 6. 滑点熔断
-        self.results.append(check_slippage_circuit_breaker(
-            trade_records=ctx.get('trade_records'),
-            circuit_breaker_config=ctx.get('circuit_breaker_config'),
-        ))
+        self.results.append(
+            check_slippage_circuit_breaker(
+                trade_records=ctx.get("trade_records"),
+                circuit_breaker_config=ctx.get("circuit_breaker_config"),
+            )
+        )
 
         # 7. CRO 签字
-        self.results.append(check_cro_signoff(
-            cro_name=ctx.get('cro_name'),
-            cro_signature=ctx.get('cro_signature'),
-            signoff_date=ctx.get('signoff_date'),
-            previous_checks=self.results[:6],
-        ))
+        self.results.append(
+            check_cro_signoff(
+                cro_name=ctx.get("cro_name"),
+                cro_signature=ctx.get("cro_signature"),
+                signoff_date=ctx.get("signoff_date"),
+                previous_checks=self.results[:6],
+            )
+        )
 
         return self.results
 
@@ -1219,8 +1231,8 @@ class PreDeploymentValidator:
         cro_info = None
         if cro_result and cro_result.status == CheckStatus.PASS:
             cro_info = {
-                'signed': True,
-                'details': cro_result.details,
+                "signed": True,
+                "details": cro_result.details,
             }
 
         return ValidationReport(
@@ -1241,14 +1253,14 @@ class PreDeploymentValidator:
             report = self.generate_report()
 
         lines = []
-        lines.append(f"# 量化策略系统 — 生产部署验证签报")
+        lines.append("# 量化策略系统 — 生产部署验证签报")
         lines.append("")
         lines.append(f"**报告编号**: {report.report_id}")
         lines.append(f"**生成时间**: {report.generated_at}")
         lines.append(f"**整体结论**: {'通过 — 可以部署' if report.overall_pass else '未通过 — 禁止部署'}")
         lines.append("")
-        lines.append(f"| 状态 | 数量 |")
-        lines.append(f"|------|------|")
+        lines.append("| 状态 | 数量 |")
+        lines.append("|------|------|")
         lines.append(f"| 通过 | {report.passed_count} |")
         lines.append(f"| 未通过 | {report.failed_count} |")
         lines.append(f"| 跳过 | {report.skipped_count} |")
@@ -1261,9 +1273,7 @@ class PreDeploymentValidator:
         lines.append("")
 
         for r in report.results:
-            icon = {"通过": "✅", "未通过": "❌", "跳过": "⏭️", "待验证": "⏳"}.get(
-                r.status.value, "❓"
-            )
+            icon = {"通过": "✅", "未通过": "❌", "跳过": "⏭️", "待验证": "⏳"}.get(r.status.value, "❓")
             lines.append(f"### {icon} {r.check_name}")
             lines.append("")
             lines.append(f"- **状态**: {r.status.value}")
@@ -1271,22 +1281,22 @@ class PreDeploymentValidator:
             lines.append(f"- **实际值**: {r.actual_value}")
             lines.append(f"- **时间**: {r.timestamp}")
             lines.append("")
-            lines.append(f"**详细说明**:")
+            lines.append("**详细说明**:")
             lines.append("")
-            for detail in r.details.split('\n'):
+            for detail in r.details.split("\n"):
                 lines.append(f"  {detail}")
             lines.append("")
             lines.append(f"**证据来源**: {r.evidence}")
             lines.append("")
 
             if r.warnings:
-                lines.append(f"**警告**:")
+                lines.append("**警告**:")
                 for w in r.warnings:
                     lines.append(f"  - {w}")
                 lines.append("")
 
             if r.suggestions:
-                lines.append(f"**改进建议**:")
+                lines.append("**改进建议**:")
                 for s in r.suggestions:
                     lines.append(f"  - {s}")
                 lines.append("")
@@ -1297,15 +1307,14 @@ class PreDeploymentValidator:
         # CRO 签字区
         lines.append("## CRO 签字确认")
         lines.append("")
-        if report.cro_signature and report.cro_signature.get('signed'):
+        if report.cro_signature and report.cro_signature.get("signed"):
             lines.append(f"**首席风控官已签署**: {report.cro_signature.get('details', '')}")
         else:
             lines.append("**首席风控官**: _______________")
             lines.append("")
             lines.append("**签字日期**: _______________")
             lines.append("")
-            lines.append("**备注**: 本签报由 pre_deployment_validation.py 自动生成, "
-                         "CRO 需在确认所有风险可控后签署。")
+            lines.append("**备注**: 本签报由 pre_deployment_validation.py 自动生成, CRO 需在确认所有风险可控后签署。")
         lines.append("")
 
         return "\n".join(lines)
@@ -1315,35 +1324,39 @@ class PreDeploymentValidator:
         report = self.generate_report()
 
         if format == "json":
-            content = json.dumps({
-                'report_id': report.report_id,
-                'generated_at': report.generated_at,
-                'overall_pass': report.overall_pass,
-                'passed_count': report.passed_count,
-                'failed_count': report.failed_count,
-                'skipped_count': report.skipped_count,
-                'results': [
-                    {
-                        'check_id': r.check_id,
-                        'check_name': r.check_name,
-                        'status': r.status.value,
-                        'threshold': r.threshold,
-                        'actual_value': r.actual_value,
-                        'details': r.details,
-                        'evidence': r.evidence,
-                        'timestamp': r.timestamp,
-                        'warnings': r.warnings,
-                        'suggestions': r.suggestions,
-                    }
-                    for r in report.results
-                ],
-                'cro_signature': report.cro_signature,
-            }, ensure_ascii=False, indent=2)
+            content = json.dumps(
+                {
+                    "report_id": report.report_id,
+                    "generated_at": report.generated_at,
+                    "overall_pass": report.overall_pass,
+                    "passed_count": report.passed_count,
+                    "failed_count": report.failed_count,
+                    "skipped_count": report.skipped_count,
+                    "results": [
+                        {
+                            "check_id": r.check_id,
+                            "check_name": r.check_name,
+                            "status": r.status.value,
+                            "threshold": r.threshold,
+                            "actual_value": r.actual_value,
+                            "details": r.details,
+                            "evidence": r.evidence,
+                            "timestamp": r.timestamp,
+                            "warnings": r.warnings,
+                            "suggestions": r.suggestions,
+                        }
+                        for r in report.results
+                    ],
+                    "cro_signature": report.cro_signature,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
         else:
             content = self.format_report_markdown(report)
 
-        os.makedirs(os.path.dirname(filepath) or '.', exist_ok=True)
-        with open(filepath, 'w', encoding='utf-8') as f:
+        os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(content)
 
         logger.info(f"验证报告已保存: {filepath}")
@@ -1354,7 +1367,8 @@ class PreDeploymentValidator:
 # CRO 签字操作
 # ============================================================
 
-def cro_signoff(cro_name: str, report_file: str = None) -> str:
+
+def cro_signoff(cro_name: str, report_file: Optional[str] = None) -> str:
     """
     执行 CRO 签字
 
@@ -1367,9 +1381,7 @@ def cro_signoff(cro_name: str, report_file: str = None) -> str:
     """
     now = datetime.now()
     signoff_date = now.strftime("%Y-%m-%d %H:%M:%S")
-    signature = hashlib.sha256(
-        f"{cro_name}:{signoff_date}:APPROVED".encode()
-    ).hexdigest()
+    signature = hashlib.sha256(f"{cro_name}:{signoff_date}:APPROVED".encode()).hexdigest()
 
     signoff_record = {
         "cro_name": cro_name,
@@ -1380,8 +1392,8 @@ def cro_signoff(cro_name: str, report_file: str = None) -> str:
     }
 
     # 保存签字记录
-    signoff_path = report_file.replace('.md', '_signoff.json') if report_file else "cro_signoff.json"
-    with open(signoff_path, 'w', encoding='utf-8') as f:
+    signoff_path = report_file.replace(".md", "_signoff.json") if report_file else "cro_signoff.json"
+    with open(signoff_path, "w", encoding="utf-8") as f:
         json.dump(signoff_record, f, ensure_ascii=False, indent=2)
 
     return (
@@ -1397,38 +1409,47 @@ def cro_signoff(cro_name: str, report_file: str = None) -> str:
 # 命令行入口
 # ============================================================
 
+
 def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='量化策略系统 — 生产部署前 7 项验证清单',
+        description="量化策略系统 — 生产部署前 7 项验证清单",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
   python -m 11_量化策略.utils.pre_deployment_validation --all
   python -m 11_量化策略.utils.pre_deployment_validation --check walk_forward --returns data/daily_returns.json
   python -m 11_量化策略.utils.pre_deployment_validation --signoff --cro-name "张三"
-        """
+        """,
     )
 
-    parser.add_argument('--all', action='store_true', help='执行全部 7 项检查')
-    parser.add_argument('--check', choices=[
-        'walk_forward', 'stress_test', 'deflated_sharpe',
-        'pit', 'ntp', 'slippage', 'cro_signoff',
-    ], help='执行指定单项检查')
-    parser.add_argument('--signoff', action='store_true', help='CRO 签字操作')
-    parser.add_argument('--cro-name', type=str, help='CRO 姓名')
-    parser.add_argument('--returns-file', type=str, help='日收益率数据文件 (JSON, 每行一个float)')
-    parser.add_argument('--weights-file', type=str, help='权重配置文件 (YAML/JSON)')
-    parser.add_argument('--trade-log', type=str, help='交易日志文件')
-    parser.add_argument('--ntp-log', type=str, help='NTP 漂移日志文件')
-    parser.add_argument('--output', type=str, default='deployment_validation_report.md',
-                        help='报告输出路径')
-    parser.add_argument('--hedge-ratio', type=float, default=0.0, help='对冲比例')
-    parser.add_argument('--n-trials', type=int, default=100, help='DSR 试验次数')
-    parser.add_argument('--max-dd', type=float, default=0.15, help='最大允许回撤')
-    parser.add_argument('--required-sortino', type=float, default=1.0, help='Sortino 阈值')
-    parser.add_argument('--required-dsr', type=float, default=0.95, help='DSR 阈值')
+    parser.add_argument("--all", action="store_true", help="执行全部 7 项检查")
+    parser.add_argument(
+        "--check",
+        choices=[
+            "walk_forward",
+            "stress_test",
+            "deflated_sharpe",
+            "pit",
+            "ntp",
+            "slippage",
+            "cro_signoff",
+        ],
+        help="执行指定单项检查",
+    )
+    parser.add_argument("--signoff", action="store_true", help="CRO 签字操作")
+    parser.add_argument("--cro-name", type=str, help="CRO 姓名")
+    parser.add_argument("--returns-file", type=str, help="日收益率数据文件 (JSON, 每行一个float)")
+    parser.add_argument("--weights-file", type=str, help="权重配置文件 (YAML/JSON)")
+    parser.add_argument("--trade-log", type=str, help="交易日志文件")
+    parser.add_argument("--ntp-log", type=str, help="NTP 漂移日志文件")
+    parser.add_argument("--output", type=str, default="deployment_validation_report.md", help="报告输出路径")
+    parser.add_argument("--hedge-ratio", type=float, default=0.0, help="对冲比例")
+    parser.add_argument("--n-trials", type=int, default=100, help="DSR 试验次数")
+    parser.add_argument("--max-dd", type=float, default=0.15, help="最大允许回撤")
+    parser.add_argument("--required-sortino", type=float, default=1.0, help="Sortino 阈值")
+    parser.add_argument("--required-dsr", type=float, default=0.95, help="DSR 阈值")
 
     args = parser.parse_args()
 
@@ -1443,27 +1464,27 @@ def main():
 
     # 加载数据
     context = {
-        'hedge_ratio': args.hedge_ratio,
-        'n_trials': args.n_trials,
-        'max_allowed_dd': args.max_dd,
-        'required_sortino': args.required_sortino,
-        'required_dsr': args.required_dsr,
+        "hedge_ratio": args.hedge_ratio,
+        "n_trials": args.n_trials,
+        "max_allowed_dd": args.max_dd,
+        "required_sortino": args.required_sortino,
+        "required_dsr": args.required_dsr,
     }
 
     if args.returns_file and os.path.exists(args.returns_file):
-        with open(args.returns_file, 'r', encoding='utf-8') as f:
-            context['daily_returns'] = json.load(f)
+        with open(args.returns_file, "r", encoding="utf-8") as f:
+            context["daily_returns"] = json.load(f)
 
     if args.weights_file and os.path.exists(args.weights_file):
-        with open(args.weights_file, 'r', encoding='utf-8') as f:
-            context['portfolio_weights'] = json.load(f)
+        with open(args.weights_file, "r", encoding="utf-8") as f:
+            context["portfolio_weights"] = json.load(f)
 
     if args.trade_log and os.path.exists(args.trade_log):
-        with open(args.trade_log, 'r', encoding='utf-8') as f:
-            context['trade_records'] = json.load(f)
+        with open(args.trade_log, "r", encoding="utf-8") as f:
+            context["trade_records"] = json.load(f)
 
     if args.ntp_log:
-        context['ntp_log_file'] = args.ntp_log
+        context["ntp_log_file"] = args.ntp_log
 
     # 执行检查
     validator = PreDeploymentValidator(context)
@@ -1472,26 +1493,26 @@ def main():
         validator.run_all_checks()
     elif args.check:
         check_map = {
-            'walk_forward': lambda: check_walk_forward_sortino(
-                daily_returns=context.get('daily_returns'),
+            "walk_forward": lambda: check_walk_forward_sortino(
+                daily_returns=context.get("daily_returns"),
                 required_sortino=args.required_sortino,
             ),
-            'stress_test': lambda: check_stress_test_max_dd(
-                portfolio_weights=context.get('portfolio_weights'),
+            "stress_test": lambda: check_stress_test_max_dd(
+                portfolio_weights=context.get("portfolio_weights"),
                 hedge_ratio=args.hedge_ratio,
                 max_allowed_dd=args.max_dd,
             ),
-            'deflated_sharpe': lambda: check_deflated_sharpe(
-                daily_returns=context.get('daily_returns'),
+            "deflated_sharpe": lambda: check_deflated_sharpe(
+                daily_returns=context.get("daily_returns"),
                 n_trials=args.n_trials,
                 required_dsr=args.required_dsr,
             ),
-            'pit': lambda: check_pit(),
-            'ntp': lambda: check_ntp_drift(ntp_log_file=args.ntp_log),
-            'slippage': lambda: check_slippage_circuit_breaker(
-                trade_records=context.get('trade_records'),
+            "pit": lambda: check_pit(),
+            "ntp": lambda: check_ntp_drift(ntp_log_file=args.ntp_log),
+            "slippage": lambda: check_slippage_circuit_breaker(
+                trade_records=context.get("trade_records"),
             ),
-            'cro_signoff': lambda: check_cro_signoff(
+            "cro_signoff": lambda: check_cro_signoff(
                 cro_name=args.cro_name,
             ),
         }
@@ -1512,5 +1533,5 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(name)s] %(levelname)s: %(message)s')
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
     main()

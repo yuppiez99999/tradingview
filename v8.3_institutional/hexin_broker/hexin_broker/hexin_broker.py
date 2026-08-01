@@ -12,7 +12,7 @@ SmartOrderRouter 可直接使用此类，无需任何修改。
 
 import logging
 import time
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict
 
 from .hexin_config import (
     ENABLE_CLIENT_AUTOMATION,
@@ -82,12 +82,13 @@ class HexinBroker(BrokerAPI):
               ts: str = "", **kwargs) -> Optional[Order]:
         """统一下单接口（股票+期货+期权）"""
         if self._use_client:
-            return self._place_via_client(symbol, qty, side, order_type, price, ts)
+            return self._place_via_client(symbol, qty, side, order_type, price, ts, **kwargs)
         else:
             return self._place_via_sim(symbol, qty, side, order_type, price, ts)
 
     def _place_via_client(self, symbol: str, qty: int, side: str,
-                          order_type: str, price: float, ts: str) -> Optional[Order]:
+                          order_type: str, price: float, ts: str,
+                          **kwargs) -> Optional[Order]:
         """通过同花顺客户端下单"""
         market = self._detect_market(symbol)
         try:
@@ -96,7 +97,7 @@ class HexinBroker(BrokerAPI):
                     symbol=symbol, qty=qty, side=side,
                     price=price, order_type=order_type
                 )
-                result = self.stock_trader.place_order(req)
+                self.stock_trader.place_order(req)
             else:
                 # 期货/期权
                 option_type = kwargs.get("option_type")
@@ -105,7 +106,7 @@ class HexinBroker(BrokerAPI):
                     price=price, order_type=order_type,
                     option_type=option_type,
                 )
-                result = self.futures_trader.place_order(req)
+                self.futures_trader.place_order(req)
 
             order_id = f"HEXIN-{int(time.time()*1000)}"
             order = Order(
@@ -161,7 +162,6 @@ class HexinBroker(BrokerAPI):
     def _wait_fill_via_client(self, order: Order, timeout: int = 30) -> Optional[dict]:
         """通过同花顺客户端真实界面确认成交"""
         import time as _time
-        from pywinauto.keyboard import send_keys
 
         symbol = order.symbol
         market = self._detect_market(symbol)

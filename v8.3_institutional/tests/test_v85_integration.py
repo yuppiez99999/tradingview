@@ -17,9 +17,9 @@ v8.5 Institutional Modules Integration Tests
 import json
 import logging
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Add v8.3_institutional to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -76,7 +76,7 @@ class TestResult:
         }
 
 
-def _try_import(module_path: str, class_name: str = None):
+def _try_import(module_path: str, class_name: Optional[str] = None):
     """安全导入模块，失败时返回None"""
     try:
         if class_name:

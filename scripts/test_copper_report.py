@@ -3,7 +3,6 @@ import sys
 sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")
 
 from morning_market_fetcher import generate_markdown_report, fetch_market_data
-from datetime import datetime
 
 # 获取市场数据
 market_data = fetch_market_data("2026-07-17")

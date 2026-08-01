@@ -1,0 +1,26 @@
+{
+  "GTJA191": {
+    "status": "OK",
+    "implemented": 1,
+    "total": 191
+  },
+  "Alpha主因子库": {
+    "status": "OK",
+    "total": 51,
+    "categories": 6
+  },
+  "Vibe-Trading": {
+    "status": "参考资料已就绪",
+    "qlib158": 154,
+    "academic": 13,
+    "total": 452
+  },
+  "QLib Alpha158": {
+    "status": "已集成",
+    "qlib_installed": true
+  },
+  "增强因子挖掘": {
+    "status": "OK",
+    "total": 50
+  }
+}

@@ -1,0 +1,77 @@
+# ruff 代码质量检查配置
+# https://docs.astral.sh/ruff/configuration/
+
+# 目标 Python 版本
+target-version = "py38"
+
+# 行长度（与 black 一致）
+line-length = 120
+
+# 排除目录（第三方/生成/缓存代码）
+extend-exclude = [
+    "temp",
+    "qlib_env",
+    "ifind-finance-data-1.3.0",
+    "v8.3_institutional/hexin_broker",
+    "node_modules",
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+[lint]
+# 启用规则集
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes (F401 未使用导入, F811 重定义, F821 未定义名称, F841 未使用变量)
+    "W",    # pycodestyle warnings
+    "B",    # flake8-bugbear (B006 可变默认参数等)
+    "C90",  # mccabe 复杂度
+    "I",    # isort 导入排序
+    "N",    # pep8-naming 命名规范
+    "UP",   # pyupgrade 现代语法
+    "ANN",  # flake8-annotations 类型注解
+]
+
+# 忽略规则（项目特定）
+ignore = [
+    "E501",   # 行长度由 black 处理
+    "ANN101", # self 参数不需要注解
+    "ANN102", # cls 参数不需要注解
+    "ANN204", # 特殊方法 __init__/__str__ 等不需要返回注解
+    "B008",   # 函数默认值中的函数调用（如 Depends()）
+]
+
+# 修复规则
+fixable = ["ALL"]
+unfixable = [
+    "B",    # bugbear 检测不自动修复
+    "ANN",  # 类型注解不自动添加
+]
+
+[lint.mccabe]
+# 最大圈复杂度
+max-complexity = 15
+
+[lint.isort]
+# 导入排序配置
+known-first-party = ["ai_decision", "utils", "ms_strategy"]
+force-single-line = false
+
+[lint.per-file-ignores]
+# 测试文件允许缺少类型注解
+"tests/**/*.py" = ["ANN"]
+# __init__.py 允许未使用导入（re-export 模式）
+"__init__.py" = ["F401"]
+# 脚本目录放宽限制
+"scripts/**/*.py" = ["ANN", "C901"]
+# B3.1 未完成重构的 phases/ 目录 — 死代码, 仅供后续子任务参考, 生产仍用 daily_workflow.py
+# 见 v8.3_institutional/daily_workflow/phases/__init__.py 的警告说明
+"v8.3_institutional/daily_workflow/phases/**/*.py" = ["F821", "F841", "ANN", "C901"]
+# 一次性重构脚本 (extract_phases*.py / create_correct_phases.py) — 已废弃, 不再维护
+"extract_phases*.py" = ["F821", "F841"]
+"create_correct_phases.py" = ["F821", "F841"]
+# verify_b33_hedge_refactor.py — 一次性验证脚本, 未使用 import 是断言性导入
+"verify_b33_hedge_refactor.py" = ["F401"]

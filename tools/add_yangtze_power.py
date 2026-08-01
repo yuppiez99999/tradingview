@@ -31,7 +31,7 @@ def _scale_existing_weights(data: dict, scale: float) -> None:
     target_portfolio = data.setdefault("target_portfolio", {})
     position_plan = data.setdefault("position_plan", {})
 
-    for code, cfg in list(target_portfolio.items()):
+    for _code, cfg in list(target_portfolio.items()):
         cfg["weight"] = round(float(cfg.get("weight", 0)) * scale, 4)
         cfg["target_amount"] = round(5_000_000 * cfg["weight"], 0)
         cfg["total_shares"] = int(cfg["target_amount"] / cfg["est_price"] / cfg.get("lots", 100)) * cfg.get("lots", 100)

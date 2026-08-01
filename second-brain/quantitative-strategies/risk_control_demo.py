@@ -4,8 +4,7 @@
 """
 
 import numpy as np
-import pandas as pd
-from risk_control_system import MultiLevelRiskControlSystem, RiskType, RiskLevel
+from risk_control_system import MultiLevelRiskControlSystem, RiskType
 
 def demo_basic_risk_assessment():
     """演示基本风险评估"""
@@ -204,7 +203,7 @@ def demo_risk_scenarios():
         data = scenario['data']
         overall_score, individual_scores = risk_system.calculate_overall_risk(data)
         level = risk_system._get_overall_risk_level(overall_score)
-        alerts = risk_system.generate_all_alerts(data)
+        risk_system.generate_all_alerts(data)
         
         market_score = individual_scores.get('market', 0)
         stock_score = individual_scores.get('single_stock', 0)
@@ -262,7 +261,7 @@ def demo_risk_management_strategies():
     }
     
     print("危机场景分析:")
-    overall_score, individual_scores = risk_system.calculate_overall_risk(crisis_data)
+    overall_score, _individual_scores = risk_system.calculate_overall_risk(crisis_data)
     level = risk_system._get_overall_risk_level(overall_score)
     alerts = risk_system.generate_all_alerts(crisis_data)
     

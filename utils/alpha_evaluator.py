@@ -31,7 +31,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-import pandas as pd
 
 logger = logging.getLogger("alpha_evaluator")
 
@@ -42,6 +41,7 @@ REPORT_DIR = BASE_DIR / "reports" / "alpha"
 @dataclass
 class FactorEvaluation:
     """单因子评估结果"""
+
     factor_name: str
     category: str
     ic_1d: float = 0.0
@@ -57,6 +57,7 @@ class FactorEvaluation:
 @dataclass
 class AlphaEvaluationReport:
     """Alpha 评估日报"""
+
     report_date: str
     total_factors: int = 0
     active_factors: int = 0
@@ -136,11 +137,14 @@ class AlphaEvaluator:
                 last_update=report_date,
             )
             evaluations.append(asdict(evaluation))
-            self._append_history(factor_name, {
-                "date": report_date,
-                "ic_1d": evaluation.ic_1d,
-                "ic_ir": evaluation.ic_ir,
-            })
+            self._append_history(
+                factor_name,
+                {
+                    "date": report_date,  # type: ignore
+                    "ic_1d": evaluation.ic_1d,
+                    "ic_ir": evaluation.ic_ir,
+                },
+            )
 
         active = sum(1 for e in evaluations if e["status"] == "active")
         degraded = sum(1 for e in evaluations if e["status"] == "degraded")
@@ -159,7 +163,11 @@ class AlphaEvaluator:
         self._save_report(report)
         logger.info(
             "[AlphaEvaluator] %s | total=%d active=%d degraded=%d dead=%d",
-            report_date, len(evaluations), active, degraded, dead,
+            report_date,
+            len(evaluations),
+            active,
+            degraded,
+            dead,
         )
         return report
 
@@ -216,7 +224,7 @@ class AlphaEvaluator:
         history = self._history.get(factor_name, [])
         if len(history) < 10:
             return 0.0
-        recent = [h.get("ic_1d", 0.0) for h in history[-self.DECAY_WINDOW:]]
+        recent = [h.get("ic_1d", 0.0) for h in history[-self.DECAY_WINDOW :]]
         if not recent:
             return 0.0
         avg_abs = float(np.mean(np.abs(recent)))
@@ -257,7 +265,7 @@ class AlphaEvaluator:
                     if not name:
                         continue
                     self._history.setdefault(name, []).append(item)
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("[AlphaEvaluator] 加载历史失败: %s", e)
 
     def _save_report(self, report: AlphaEvaluationReport) -> None:
@@ -267,7 +275,7 @@ class AlphaEvaluator:
             json_path = date_path / "alpha_evaluation.json"
             with open(json_path, "w", encoding="utf-8") as f:
                 json.dump(report.to_dict(), f, ensure_ascii=False, indent=2)
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error("[AlphaEvaluator] 保存报告失败: %s", e)
 
     def _build_summary(self, active: int, degraded: int, dead: int) -> str:

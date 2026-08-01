@@ -212,7 +212,7 @@ def run_shadow_test(
     print(f"      total_return={result.total_return:+.4f}  sr_observed={result.sr_observed:.4f}  "
           f"realized_vol={result.realized_vol:.4f}  avg_scaler={result.avg_scaler:.4f}")
     if result.fail_reasons:
-        print(f"      fail_reasons: {result.fail_reasons}")
+        logger.info(f"      fail_reasons: {result.fail_reasons}")
     return {
         "pass_shadow": bool(result.pass_shadow),
         "live_dsr": float(result.live_dsr),
@@ -251,38 +251,38 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("S3 第十八批次：IC 加权组合 + Config_E 超激进参数测试（P2.2 v6.6）")
-    print("=" * 70)
-    print("v6.6 改进内容:")
-    print(f"  - Factor A: {FACTOR_A}（信号反转因子）")
-    print(f"  - Factor B: {FACTOR_B}（信号正常因子）")
-    print(f"  - 组合方法：IC 加权（lookback={ROLLING_LOOKBACK}）")
-    print("  - Shadow 参数：4 组对比（Config_A → Config_E 梯度激进）")
+    logger.info("=" * 70)
+    logger.info("S3 第十八批次：IC 加权组合 + Config_E 超激进参数测试（P2.2 v6.6）")
+    logger.info("=" * 70)
+    logger.info("v6.6 改进内容:")
+    logger.info(f"  - Factor A: {FACTOR_A}（信号反转因子）")
+    logger.info(f"  - Factor B: {FACTOR_B}（信号正常因子）")
+    logger.info(f"  - 组合方法：IC 加权（lookback={ROLLING_LOOKBACK}）")
+    logger.info("  - Shadow 参数：4 组对比（Config_A → Config_E 梯度激进）")
     print()
-    print("v6.6 验证目标:")
-    print("  - IC 加权组合在 Config_E 下能否通过 Shadow（live_dsr > 0.5, max_dd < 0.12）")
-    print("  - 不同参数下的 max_dd / live_dsr / total_return 权衡")
-    print("  - 找到 IC 加权组合的最优 Shadow 参数")
+    logger.info("v6.6 验证目标:")
+    logger.info("  - IC 加权组合在 Config_E 下能否通过 Shadow（live_dsr > 0.5, max_dd < 0.12）")
+    logger.info("  - 不同参数下的 max_dd / live_dsr / total_return 权衡")
+    logger.info("  - 找到 IC 加权组合的最优 Shadow 参数")
 
     # ============ Step 1: 加载数据 ============
-    print("\n[1/5] 加载数据")
+    logger.info("\n[1/5] 加载数据")
     symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
+    logger.info(f"  可用标的数: {len(symbols)}")
     price_data = load_price_data(symbols=symbols)
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns()
     if not benchmark_returns:
         benchmark_returns = compute_equal_weight_benchmark(price_data)
-    print(f"  price_data: {len(price_data)} | benchmark: {len(benchmark_returns)} 天")
+    logger.info(f"  price_data: {len(price_data)} | benchmark: {len(benchmark_returns)} 天")
 
     # ============ Step 2: 加载 fundamentals_history ============
-    print("\n[2/5] 加载历史季度财务数据")
+    logger.info("\n[2/5] 加载历史季度财务数据")
     fundamentals_history = load_fundamentals_history(symbols)
-    print(f"  fundamentals_history: {len(fundamentals_history)} 个标的")
+    logger.info(f"  fundamentals_history: {len(fundamentals_history)} 个标的")
 
     # ============ Step 3: 构建日频因子历史 ============
-    print("\n[3/5] 构建日频因子历史（history_days=120, forward_window=5）")
+    logger.info("\n[3/5] 构建日频因子历史（history_days=120, forward_window=5）")
     adapter = VibeTradingFactorAdapter()
     factor_history, fwd_returns_hist, valid_dates = build_factor_history(
         adapter=adapter,
@@ -293,12 +293,12 @@ def main() -> int:
         forward_window=5,
         fundamentals_history=fundamentals_history,
     )
-    print(f"  factor_history: {len(factor_history)} 个因子 | valid_dates: {len(valid_dates)} 天")
+    logger.info(f"  factor_history: {len(factor_history)} 个因子 | valid_dates: {len(valid_dates)} 天")
 
     # ============ Step 4: 提取单因子 + 构建 IC 加权组合 ============
-    print("\n[4/5] 提取单因子并构建 IC 加权组合")
+    logger.info("\n[4/5] 提取单因子并构建 IC 加权组合")
     if FACTOR_A not in factor_history or FACTOR_B not in factor_history:
-        print(f"[ERROR] 因子不存在: A={FACTOR_A in factor_history} B={FACTOR_B in factor_history}")
+        logger.info(f"[ERROR] 因子不存在: A={FACTOR_A in factor_history} B={FACTOR_B in factor_history}")
         return 1
 
     hist_a = factor_history[FACTOR_A]
@@ -307,8 +307,8 @@ def main() -> int:
     hist_a = hist_a[:n]
     hist_b = hist_b[:n]
     fwd_returns_hist = fwd_returns_hist[:n]
-    print(f"  Factor A ({FACTOR_A}): {len(hist_a)} 天")
-    print(f"  Factor B ({FACTOR_B}): {len(hist_b)} 天")
+    logger.info(f"  Factor A ({FACTOR_A}): {len(hist_a)} 天")
+    logger.info(f"  Factor B ({FACTOR_B}): {len(hist_b)} 天")
 
     # 计算各因子 IC 序列
     ic_series_a = compute_rolling_ic_series(hist_a, fwd_returns_hist)
@@ -317,14 +317,14 @@ def main() -> int:
     # 全局 IC_IR（120 天）
     ic_ir_a_full, _, _ = compute_ic_ir(ic_series_a)
     ic_ir_b_full, _, _ = compute_ic_ir(ic_series_b)
-    print(f"  Factor A 全局 IC_IR: {ic_ir_a_full:+.4f}")
-    print(f"  Factor B 全局 IC_IR: {ic_ir_b_full:+.4f}")
+    logger.info(f"  Factor A 全局 IC_IR: {ic_ir_a_full:+.4f}")
+    logger.info(f"  Factor B 全局 IC_IR: {ic_ir_b_full:+.4f}")
 
     # IC 加权组合
-    combined_ic_weighted, weights_history = combine_factors_ic_weighted(
+    combined_ic_weighted, _weights_history = combine_factors_ic_weighted(
         hist_a, hist_b, ic_series_a, ic_series_b, lookback=ROLLING_LOOKBACK
     )
-    print(f"  IC 加权组合: {len(combined_ic_weighted)} 天")
+    logger.info(f"  IC 加权组合: {len(combined_ic_weighted)} 天")
 
     # 组合 IC 指标
     ic_ir_combo, ic_mean_combo, ic_std_combo = compute_ic_ir(
@@ -335,15 +335,15 @@ def main() -> int:
           f"IC_std: {ic_std_combo:.4f}  decay: {decay_combo:.4f}")
 
     # ============ Step 5: 多组 Shadow 参数测试 ============
-    print("\n[5/5] 多组 Shadow 参数测试")
-    print("-" * 70)
+    logger.info("\n[5/5] 多组 Shadow 参数测试")
+    logger.info("-" * 70)
     n_trials = max(len(symbols), 13)
-    print(f"  n_trials: {n_trials}\n")
+    logger.info(f"  n_trials: {n_trials}\n")
 
     shadow_results: Dict[str, Dict[str, Any]] = {}
 
     for config_name, cfg in SHADOW_CONFIGS.items():
-        print(f"\n  [{config_name}] {cfg['desc']}")
+        logger.info(f"\n  [{config_name}] {cfg['desc']}")
         print(f"    target_vol={cfg['target_vol']}  dd_threshold={cfg['dd_derisk_threshold']}  "
               f"dd_factor={cfg['dd_derisk_factor']}")
         shadow_config = {
@@ -361,20 +361,20 @@ def main() -> int:
         shadow_results[config_name] = result
 
     # ============ 汇总对比 ============
-    print("\n" + "=" * 70)
-    print("汇总对比")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("汇总对比")
+    logger.info("=" * 70)
 
-    print("\n[IC 加权组合 IC 指标]")
-    print(f"  IC_IR: {ic_ir_combo:+.4f}")
-    print(f"  IC_mean: {ic_mean_combo:+.4f}")
-    print(f"  IC_std: {ic_std_combo:.4f}")
-    print(f"  decay: {decay_combo:.4f}")
+    logger.info("\n[IC 加权组合 IC 指标]")
+    logger.info(f"  IC_IR: {ic_ir_combo:+.4f}")
+    logger.info(f"  IC_mean: {ic_mean_combo:+.4f}")
+    logger.info(f"  IC_std: {ic_std_combo:.4f}")
+    logger.info(f"  decay: {decay_combo:.4f}")
 
-    print("\n[Shadow 多配置对比]")
+    logger.info("\n[Shadow 多配置对比]")
     print(f"{'配置':<25s} {'pass':>6s} {'live_dsr':>10s} {'max_dd':>10s} "
           f"{'total_ret':>12s} {'sr':>8s} {'avg_scaler':>12s}")
-    print("-" * 90)
+    logger.info("-" * 90)
     for config_name, res in shadow_results.items():
         print(f"{config_name:<25s} {'✅' if res['pass_shadow'] else '❌':>6s} "
               f"{res['live_dsr']:>+10.4f} {res['max_drawdown']:>10.4f} "
@@ -382,24 +382,24 @@ def main() -> int:
               f"{res['avg_scaler']:>12.4f}")
 
     # ============ 找最优配置 ============
-    print("\n[最优配置分析]")
+    logger.info("\n[最优配置分析]")
     # 优先：通过 Shadow 的配置
     passed_configs = [k for k, v in shadow_results.items() if v["pass_shadow"]]
     if passed_configs:
-        print(f"  ✅ 通过 Shadow 的配置: {passed_configs}")
+        logger.info(f"  ✅ 通过 Shadow 的配置: {passed_configs}")
         # 在通过的配置中找 live_dsr 最高的
         best_config = max(passed_configs, key=lambda k: shadow_results[k]["live_dsr"])
         best = shadow_results[best_config]
-        print(f"  🎉 最优配置: {best_config}")
+        logger.info(f"  🎉 最优配置: {best_config}")
         print(f"     live_dsr={best['live_dsr']:+.4f}  max_dd={best['max_drawdown']:.4f}  "
               f"total_return={best['total_return']:+.4f}")
     else:
-        print(f"  ❌ 无配置通过 Shadow")
+        logger.info("  ❌ 无配置通过 Shadow")
         # 找 max_dd 最低的
         min_dd_config = min(shadow_results.keys(),
                             key=lambda k: shadow_results[k]["max_drawdown"])
         min_dd_res = shadow_results[min_dd_config]
-        print(f"  最低 max_dd 配置: {min_dd_config}")
+        logger.info(f"  最低 max_dd 配置: {min_dd_config}")
         print(f"     max_dd={min_dd_res['max_drawdown']:.4f}  "
               f"live_dsr={min_dd_res['live_dsr']:+.4f}  "
               f"total_return={min_dd_res['total_return']:+.4f}")
@@ -407,17 +407,17 @@ def main() -> int:
         max_dsr_config = max(shadow_results.keys(),
                              key=lambda k: shadow_results[k]["live_dsr"])
         max_dsr_res = shadow_results[max_dsr_config]
-        print(f"  最高 live_dsr 配置: {max_dsr_config}")
+        logger.info(f"  最高 live_dsr 配置: {max_dsr_config}")
         print(f"     live_dsr={max_dsr_res['live_dsr']:+.4f}  "
               f"max_dd={max_dsr_res['max_drawdown']:.4f}  "
               f"total_return={max_dsr_res['total_return']:+.4f}")
 
     # ============ 趋势分析 ============
-    print("\n[参数敏感性趋势分析]")
+    logger.info("\n[参数敏感性趋势分析]")
     config_order = ["Config_A_baseline", "Config_Conservative", "Config_Mid", "Config_E_aggressive"]
     print(f"{'配置':<25s} {'target_vol':>12s} {'dd_threshold':>14s} "
           f"{'max_dd':>10s} {'live_dsr':>10s} {'total_ret':>12s}")
-    print("-" * 90)
+    logger.info("-" * 90)
     for cfg_name in config_order:
         if cfg_name not in shadow_results:
             continue
@@ -427,28 +427,28 @@ def main() -> int:
               f"{cfg['dd_derisk_threshold']:>14.2f} "
               f"{res['max_drawdown']:>10.4f} {res['live_dsr']:>+10.4f} "
               f"{res['total_return']:>+12.4f}")
-    print("\n  观察要点:")
-    print("  1. target_vol 越低 → max_dd 越低（缩放更激进）")
-    print("  2. dd_threshold 越低 → 触发去杠杆越早（max_dd 控制更好）")
-    print("  3. dd_factor 越低 → 去杠杆幅度越大（敞口降得更多）")
-    print("  4. 但过度激进 → Alpha 信号被压缩（live_dsr 可能下降）")
-    print("  5. 需要在 max_dd 控制和 live_dsr 保持之间找平衡")
+    logger.info("\n  观察要点:")
+    logger.info("  1. target_vol 越低 → max_dd 越低（缩放更激进）")
+    logger.info("  2. dd_threshold 越低 → 触发去杠杆越早（max_dd 控制更好）")
+    logger.info("  3. dd_factor 越低 → 去杠杆幅度越大（敞口降得更多）")
+    logger.info("  4. 但过度激进 → Alpha 信号被压缩（live_dsr 可能下降）")
+    logger.info("  5. 需要在 max_dd 控制和 live_dsr 保持之间找平衡")
 
     # ============ v6.6 结论 ============
-    print("\n[v6.6 验证结论]")
+    logger.info("\n[v6.6 验证结论]")
     if passed_configs:
-        print(f"  🎉 IC 加权组合在 {passed_configs} 配置下通过 Shadow 验证")
-        print(f"  → IC 加权组合 + 超激进参数 = 完整 Shadow 通过")
-        print(f"  → 验证了 IC 加权方法学的有效性（适应信号反转 + 风险管理控制回撤）")
+        logger.info(f"  🎉 IC 加权组合在 {passed_configs} 配置下通过 Shadow 验证")
+        logger.info("  → IC 加权组合 + 超激进参数 = 完整 Shadow 通过")
+        logger.info("  → 验证了 IC 加权方法学的有效性（适应信号反转 + 风险管理控制回撤）")
     else:
         best_max_dd = min(res["max_drawdown"] for res in shadow_results.values())
         best_live_dsr = max(res["live_dsr"] for res in shadow_results.values())
-        print(f"  ⚠️ 即使 Config_E 超激进参数也无法让 IC 加权组合通过 Shadow")
-        print(f"     最低 max_dd: {best_max_dd:.4f} {'< 0.12 ✅' if best_max_dd < 0.12 else '>= 0.12 ❌'}")
-        print(f"     最高 live_dsr: {best_live_dsr:+.4f} {'> 0.5 ✅' if best_live_dsr > 0.5 else '<= 0.5 ❌'}")
-        print(f"  → 根因可能是 VT_MICRO_VOL_SKEW_INV 信号反转过于严重")
-        print(f"  → 后续可尝试：剔除 VT_MICRO_VOL_SKEW_INV，只用 MARGIN_EXP 单因子")
-        print(f"  → 或寻找其他与 MARGIN_EXP 信号方向一致的因子组合")
+        logger.info("  ⚠️ 即使 Config_E 超激进参数也无法让 IC 加权组合通过 Shadow")
+        logger.info(f"     最低 max_dd: {best_max_dd:.4f} {'< 0.12 ✅' if best_max_dd < 0.12 else '>= 0.12 ❌'}")
+        logger.info(f"     最高 live_dsr: {best_live_dsr:+.4f} {'> 0.5 ✅' if best_live_dsr > 0.5 else '<= 0.5 ❌'}")
+        logger.info("  → 根因可能是 VT_MICRO_VOL_SKEW_INV 信号反转过于严重")
+        logger.info("  → 后续可尝试：剔除 VT_MICRO_VOL_SKEW_INV，只用 MARGIN_EXP 单因子")
+        logger.info("  → 或寻找其他与 MARGIN_EXP 信号方向一致的因子组合")
 
     # ============ 保存结果 ============
     batch_id = f"eighteenth_batch_ic_weighted_config_e_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -480,8 +480,8 @@ def main() -> int:
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False, default=str)
 
-    print(f"\n结果已保存至: {output_path}")
-    print(f"批次 ID: {batch_id}")
+    logger.info(f"\n结果已保存至: {output_path}")
+    logger.info(f"批次 ID: {batch_id}")
 
     return 0
 

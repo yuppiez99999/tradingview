@@ -16,21 +16,20 @@
             极端行情下影子账户可能持续亏损而未被终止
 """
 
-import os
 import json
 import logging
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from enum import Enum
-import copy
 
 logger = logging.getLogger(__name__)
 
 
 class ShadowStatus(Enum):
     """影子账户状态"""
+
     RUNNING = "running"
     PASS = "pass"
     FAIL = "fail"
@@ -41,6 +40,7 @@ class ShadowStatus(Enum):
 @dataclass
 class ShadowMetrics:
     """影子账户指标"""
+
     strategy_id: str
     period_start: str
     period_end: str
@@ -73,9 +73,7 @@ class FailFastMonitor:
       3. 触发 GrayReleaseManager._rollback() 回滚
     """
 
-    def __init__(self,
-                 daily_drawdown_threshold: float = 0.03,
-                 cumulative_3d_drawdown_threshold: float = 0.05):
+    def __init__(self, daily_drawdown_threshold: float = 0.03, cumulative_3d_drawdown_threshold: float = 0.05):
         """初始化 fail-fast 监控器
 
         Args:
@@ -159,11 +157,13 @@ class FailFastMonitor:
                     return self._triggered_result()
 
         # 未触发: 记录检查历史
-        self._history.append({
-            "date": latest_date,
-            "nav": latest_nav,
-            "status": "ok",
-        })
+        self._history.append(
+            {
+                "date": latest_date,
+                "nav": latest_nav,
+                "status": "ok",
+            }
+        )
         return {"triggered": False, "reason": "", "details": {}}
 
     def _trigger(self, reason: str, date: str, details: Dict[str, Any]):
@@ -174,7 +174,9 @@ class FailFastMonitor:
         self.trigger_details = details
         logger.critical(
             "[FailFast] 影子账户 fail-fast 触发! reason=%s date=%s details=%s",
-            reason, date, details,
+            reason,
+            date,
+            details,
         )
 
     def _triggered_result(self) -> Dict[str, Any]:
@@ -221,21 +223,17 @@ class ShadowAccount:
             cumulative_3d_drawdown_threshold=0.05,
         )
         self.fail_fast_log: List[Dict[str, Any]] = []
-    
+
     def record_trade(self, trade: Dict[str, Any]):
         """记录交易"""
-        self.trade_log.append({
-            **trade,
-            "shadow_account": self.account_id,
-            "recorded_at": datetime.now().isoformat()
-        })
-        
+        self.trade_log.append({**trade, "shadow_account": self.account_id, "recorded_at": datetime.now().isoformat()})
+
         # 更新资金
         if trade.get("side") == "buy":
             self.current_capital -= trade.get("amount", 0)
         elif trade.get("side") == "sell":
             self.current_capital += trade.get("amount", 0)
-    
+
     def record_daily_nav(self, date: str, nav: float):
         """记录每日净值 (P0-11(shadow): 集成 fail-fast 检查)
 
@@ -248,16 +246,19 @@ class ShadowAccount:
         if self.status == ShadowStatus.TERMINATED:
             logger.warning(
                 "[ShadowAccount %s] 已被 fail-fast 终止, 拒绝记录净值 (原因: %s)",
-                self.account_id, self.fail_fast_monitor.trigger_reason,
+                self.account_id,
+                self.fail_fast_monitor.trigger_reason,
             )
             return
 
-        self.daily_nav.append({
-            "date": date,
-            "nav": nav,
-            "capital": nav * self.initial_capital / self.daily_nav[-1]["nav"] if self.daily_nav else nav,
-            "recorded_at": datetime.now().isoformat()
-        })
+        self.daily_nav.append(
+            {
+                "date": date,
+                "nav": nav,
+                "capital": nav * self.initial_capital / self.daily_nav[-1]["nav"] if self.daily_nav else nav,
+                "recorded_at": datetime.now().isoformat(),
+            }
+        )
 
         # P0-11(shadow): 检查 fail-fast 触发条件
         ff_result = self.fail_fast_monitor.check(self.daily_nav)
@@ -284,64 +285,66 @@ class ShadowAccount:
             termination_record["final_nav"],
             termination_record["days_tracked"],
         )
-    
+
     def get_performance(self) -> Dict[str, Any]:
         """获取绩效数据"""
         if not self.daily_nav:
             return {}
-        
+
         start_nav = self.daily_nav[0]["nav"]
         end_nav = self.daily_nav[-1]["nav"]
-        days = (datetime.strptime(self.daily_nav[-1]["date"], "%Y-%m-%d") - 
-                datetime.strptime(self.daily_nav[0]["date"], "%Y-%m-%d")).days
-        
+        days = (
+            datetime.strptime(self.daily_nav[-1]["date"], "%Y-%m-%d")
+            - datetime.strptime(self.daily_nav[0]["date"], "%Y-%m-%d")
+        ).days
+
         # 计算CAGR
         if days > 0:
             cagr = (end_nav / start_nav) ** (365 / days) - 1
         else:
             cagr = 0
-        
+
         # 计算夏普比率（简化）
         returns = [
-            (nav["nav"] - self.daily_nav[i-1]["nav"]) / self.daily_nav[i-1]["nav"]
+            (nav["nav"] - self.daily_nav[i - 1]["nav"]) / self.daily_nav[i - 1]["nav"]
             for i, nav in enumerate(self.daily_nav[1:], 1)
         ]
-        
+
         if returns:
             avg_return = sum(returns) / len(returns)
             std_return = (sum((r - avg_return) ** 2 for r in returns) / len(returns)) ** 0.5
             sharpe = avg_return / std_return if std_return > 0 else 0
         else:
             sharpe = 0
-        
+
         # 计算最大回撤
         peak = self.daily_nav[0]["nav"]
         max_dd = 0
-        
+
         for nav_data in self.daily_nav:
             peak = max(peak, nav_data["nav"])
             dd = (peak - nav_data["nav"]) / peak
             max_dd = max(max_dd, dd)
-        
+
         return {
             "cagr": cagr,
             "sharpe": sharpe,
             "max_dd": max_dd,
             "days": days,
             "trades": len(self.trade_log),
-            "current_nav": end_nav
+            "current_nav": end_nav,
         }
 
 
 class GrayReleaseManager:
     """灰度发布管理器"""
-    
+
     STAGES = [
         {"name": "stage_1", "capital_pct": 0.1, "duration_days": 3, "threshold": "10%资金"},
         {"name": "stage_2", "capital_pct": 0.5, "duration_days": 7, "threshold": "50%资金"},
         {"name": "stage_3", "capital_pct": 1.0, "duration_days": 0, "threshold": "全量上线"},
     ]
-    
+
     def __init__(self, strategy_id: str, total_capital: float = 10_000_000):
         self.strategy_id = strategy_id
         self.total_capital = total_capital
@@ -349,26 +352,24 @@ class GrayReleaseManager:
         self.release_capital = 0
         self.start_time = None
         self.shadow_accounts: List[ShadowAccount] = []
-        
+
         # 回测基准
         self.backtest_benchmark: Optional[Dict[str, Any]] = None
-    
+
     def set_backtest_benchmark(self, benchmark: Dict[str, Any]):
         """设置回测基准"""
         self.backtest_benchmark = benchmark
         logger.info(f"[GRAY-RELEASE] Backtest benchmark set for {self.strategy_id}")
-    
+
     def create_shadow_accounts(self, num_accounts: int = 3):
         """创建影子账户"""
         for i in range(num_accounts):
             account = ShadowAccount(
-                account_id=f"shadow_{self.strategy_id}_{i}",
-                strategy_id=self.strategy_id,
-                initial_capital=1_000_000
+                account_id=f"shadow_{self.strategy_id}_{i}", strategy_id=self.strategy_id, initial_capital=1_000_000
             )
             self.shadow_accounts.append(account)
             logger.info(f"[GRAY-RELEASE] Created shadow account: {account.account_id}")
-    
+
     def evaluate_shadow_performance(self) -> Tuple[bool, str]:
         """
         评估影子账户表现 (P0-11(shadow): 集成 fail-fast 检查)
@@ -391,61 +392,64 @@ class GrayReleaseManager:
                 details = ff_status.get("details", {})
                 logger.critical(
                     "[GRAY-RELEASE] 影子账户 %s 已被 fail-fast 终止! reason=%s, 立即回滚",
-                    account.account_id, reason,
+                    account.account_id,
+                    reason,
                 )
                 return False, (
-                    f"FAIL_FAST_TERMINATED: {account.account_id} "
-                    f"reason={reason} details={details} — 立即回滚"
+                    f"FAIL_FAST_TERMINATED: {account.account_id} reason={reason} details={details} — 立即回滚"
                 )
-        
+
         # 检查运行时间是否>=2周
         min_days = 14
         for account in self.shadow_accounts:
             days_running = (datetime.now() - account.start_time).days
             if days_running < min_days:
-                return False, f"Shadow account {account.account_id} running for only {days_running} days (min {min_days})"
-        
+                return (
+                    False,
+                    f"Shadow account {account.account_id} running for only {days_running} days (min {min_days})",
+                )
+
         # 计算平均影子账户绩效
         avg_shadow_cagr = 0
         avg_shadow_sharpe = 0
         avg_shadow_dd = 0
-        
+
         for account in self.shadow_accounts:
             perf = account.get_performance()
             if perf:
                 avg_shadow_cagr += perf.get("cagr", 0)
                 avg_shadow_sharpe += perf.get("sharpe", 0)
                 avg_shadow_dd += perf.get("max_dd", 0)
-        
+
         n = len(self.shadow_accounts)
         avg_shadow_cagr /= n
         avg_shadow_sharpe /= n
         avg_shadow_dd /= n
-        
+
         # 计算偏差
         backtest_cagr = self.backtest_benchmark.get("cagr", 0)
         deviation = abs(avg_shadow_cagr - backtest_cagr) / abs(backtest_cagr) * 100 if backtest_cagr != 0 else 0
-        
+
         # 判断标准
         if deviation > 30:
             return False, f"Deviation {deviation:.1f}% > 30% threshold"
-        
+
         if avg_shadow_sharpe < 0.5:
             return False, f"Shadow Sharpe {avg_shadow_sharpe:.2f} < 0.5"
-        
+
         if avg_shadow_dd > backtest_cagr * 2:
             return False, f"Shadow DD {avg_shadow_dd:.2%} > 2x backtest CAGR"
-        
+
         return True, f"All metrics within tolerance (deviation: {deviation:.1f}%)"
-    
+
     def advance_stage(self) -> bool:
         """推进到下一阶段"""
         if self.current_stage >= len(self.STAGES) - 1:
             logger.info(f"[GRAY-RELEASE] Strategy {self.strategy_id} reached final stage")
             return True
-        
+
         current_stage = self.STAGES[self.current_stage]
-        
+
         # 检查当前阶段持续时间
         if self.start_time:
             elapsed = (datetime.now() - self.start_time).days
@@ -455,27 +459,27 @@ class GrayReleaseManager:
                     f"{elapsed}/{current_stage['duration_days']} days"
                 )
                 return False
-        
+
         # 评估影子账户
         passed, reason = self.evaluate_shadow_performance()
-        
+
         if not passed:
             logger.warning(f"[GRAY-RELEASE] Shadow evaluation FAILED: {reason}")
             self._rollback()
             return False
-        
+
         # 推进阶段
         self.current_stage += 1
         self.release_capital = self.total_capital * self.STAGES[self.current_stage]["capital_pct"]
         self.start_time = datetime.now()
-        
+
         logger.info(
             f"[GRAY-RELEASE] Advanced to {self.STAGES[self.current_stage]['name']}: "
             f"{self.STAGES[self.current_stage]['threshold']}"
         )
-        
+
         return True
-    
+
     def _rollback(self):
         """执行回滚"""
         logger.warning(f"[GRAY-RELEASE] ROLLBACK triggered for {self.strategy_id}")
@@ -484,7 +488,7 @@ class GrayReleaseManager:
         # - 平仓
         # - 恢复至上一个稳定版本
         self.current_stage = max(0, self.current_stage - 1)
-    
+
     def get_status(self) -> Dict[str, Any]:
         """获取灰度发布状态"""
         return {
@@ -493,20 +497,18 @@ class GrayReleaseManager:
             "stage_name": self.STAGES[self.current_stage]["name"] if self.STAGES[self.current_stage] else None,
             "capital_allocated": self.release_capital,
             "shadow_accounts": len(self.shadow_accounts),
-            "shadow_metrics": [
-                account.get_performance() for account in self.shadow_accounts
-            ]
+            "shadow_metrics": [account.get_performance() for account in self.shadow_accounts],
         }
 
 
 class StrategyReleaseManager:
     """策略发布管理器（主入口）"""
-    
+
     def __init__(self, base_dir: str = "./strategy_releases"):
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.releases: Dict[str, Dict[str, Any]] = {}
-    
+
     def register_strategy(self, strategy_id: str, backtest_results: Dict[str, Any]):
         """注册待发布的策略"""
         release_info = {
@@ -515,69 +517,64 @@ class StrategyReleaseManager:
             "gray_release": GrayReleaseManager(strategy_id),
             "shadow_accounts_created": False,
             "registered_at": datetime.now().isoformat(),
-            "release_history": []
+            "release_history": [],
         }
-        
+
         self.releases[strategy_id] = release_info
-        
+
         # 保存注册信息
         reg_file = self.base_dir / f"{strategy_id}_registration.json"
-        with open(reg_file, 'w', encoding='utf-8') as f:
+        with open(reg_file, "w", encoding="utf-8") as f:
             json.dump(release_info, f, ensure_ascii=False, indent=2, default=str)
-        
+
         logger.info(f"[STRATEGY-RELEASE] Registered strategy: {strategy_id}")
-    
+
     def create_shadow_accounts(self, strategy_id: str, num_accounts: int = 3):
         """创建影子账户"""
         if strategy_id not in self.releases:
             raise ValueError(f"Strategy {strategy_id} not registered")
-        
+
         release = self.releases[strategy_id]
         gray_mgr = release["gray_release"]
-        
+
         # 设置回测基准
         gray_mgr.set_backtest_benchmark(release["backtest_results"])
-        
+
         # 创建影子账户
         gray_mgr.create_shadow_accounts(num_accounts)
         release["shadow_accounts_created"] = True
-        
+
         logger.info(f"[STRATEGY-RELEASE] Created {num_accounts} shadow accounts for {strategy_id}")
-    
+
     def evaluate_and_advance(self, strategy_id: str) -> Dict[str, Any]:
         """评估并推进策略发布"""
         if strategy_id not in self.releases:
             return {"status": "error", "message": "Strategy not registered"}
-        
+
         release = self.releases[strategy_id]
         gray_mgr = release["gray_release"]
-        
+
         # 推进阶段
         advanced = gray_mgr.advance_stage()
-        
+
         if advanced:
             # 记录发布历史
-            release["release_history"].append({
-                "timestamp": datetime.now().isoformat(),
-                "stage": gray_mgr.current_stage,
-                "status": "advanced"
-            })
-            
+            release["release_history"].append(
+                {"timestamp": datetime.now().isoformat(), "stage": gray_mgr.current_stage, "status": "advanced"}
+            )
+
             status = gray_mgr.get_status()
             status["overall_status"] = "approved" if gray_mgr.current_stage == 2 else "in_progress"
-            
+
             return status
         else:
-            return {
-                "status": "pending",
-                "message": "Shadow evaluation not yet complete or failed"
-            }
-    
+            return {"status": "pending", "message": "Shadow evaluation not yet complete or failed"}
+
     def get_release_status(self, strategy_id: str) -> Dict[str, Any]:
         """获取策略发布状态"""
         if strategy_id not in self.releases:
             return {"status": "error", "message": "Strategy not registered"}
-        
+
         return self.releases[strategy_id]["gray_release"].get_status()
 
 

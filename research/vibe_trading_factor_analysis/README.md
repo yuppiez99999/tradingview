@@ -1,6 +1,6 @@
-# Vibe-Trading 因子分析项目
+# Vibe-Trading 因子分析项目 v8.7.2
 
-> Vibe-Trading 开源因子库（450+ Alpha 因子）与现有量化交易系统的桥接层。
+> Vibe-Trading 开源因子库（450+ Alpha 因子）与现有量化交易系统 v8.7.2 的桥接层。
 > **8 级流水线验证 + IC 加权组合 + 影子账户 + 因子委员会** —— 候选因子经完整流水线验证后才能进入生产因子库。
 
 参考：research_report_github_projects_integration_strategy_20260725.md / P2_FACTOR_ALPHA_QUALITY.md

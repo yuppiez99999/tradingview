@@ -6,24 +6,27 @@ daily_hedge_update.py
 2. 运行对冲决策
 3. 生成对冲报告
 """
+
 import sys
 import os
 import json
 import pandas as pd
 from datetime import datetime
 
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4')
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional\src')
+sys.path.insert(0, r"e:\各种PY程序\28-终极量化交易系统8.4")
+sys.path.insert(0, r"e:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional\src")
 
 from wind_mcp_fetcher import wind_get_quote, wind_get_kline
 from hedging.hedge_coordinator import HedgeCoordinator
+# B2.4: 通用并发 IO 批量执行 (替代串行 for 循环拉取 Wind MCP 行情)
+from utils.concurrency import run_io_batch
 
 
 def _to_wind_code(symbol: str):
     s = str(symbol).strip()
     for prefix in ("sh", "sz", "bj", "SH", "SZ", "BJ"):
         if s.startswith(prefix):
-            s = s[len(prefix):]
+            s = s[len(prefix) :]
             break
     for suffix in (".SH", ".SZ", ".BJ", ".sh", ".sz", ".bj"):
         if s.endswith(suffix):
@@ -70,97 +73,147 @@ def _get_historical_kline(symbol: str, days: int = 252):
 
 
 def update_returns():
-    """更新历史收益率数据 - Wind MCP 直连"""
-    print('=' * 60)
-    print('1. 更新历史收益率数据')
-    print('=' * 60)
-    
-    positions_path = r'e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json'
-    with open(positions_path, 'r', encoding='utf-8') as f:
-        positions_data = json.load(f)['positions']
-    
-    symbols = [item.get('code') for item in positions_data.values() if item.get('code')]
+    """更新历史收益率数据 - Wind MCP 直连
+
+    B2.4: 用 run_io_batch 并发拉取多 symbol 的 252 日 K 线 (替代串行 for 循环).
+    Wind MCP 单次请求约 200-500ms, 串行 N 个标的需 N×500ms,
+    并发 8 workers 后约 (N/8)×500ms.
+    """
+    print("=" * 60)
+    print("1. 更新历史收益率数据")
+    print("=" * 60)
+
+    positions_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json"
+    with open(positions_path, "r", encoding="utf-8") as f:
+        positions_data = json.load(f)["positions"]
+
+    symbols = [item.get("code") for item in positions_data.values() if item.get("code")]
     returns_data = {}
     success_count = 0
     fail_count = 0
-    
-    for symbol in symbols:
+
+    # B2.4: 并发拉取多 symbol K 线 (替代串行 for 循环)
+    def _fetch_kline(symbol):
+        """单 symbol 拉取 + 计算 returns; 失败返回 None"""
         try:
             df = _get_historical_kline(symbol, days=252)
             if df is not None and not df.empty:
-                df['return'] = df['close'].pct_change()
-                returns_data[symbol] = df['return'].dropna()
-                success_count += 1
-            else:
-                fail_count += 1
-        except Exception:
+                df["return"] = df["close"].pct_change()
+                return (symbol, df["return"].dropna())
+        except Exception as e:
+            raise  # Re-raise unknown exception
+        return (symbol, None)
+
+    pairs = run_io_batch(
+        symbols,
+        _fetch_kline,
+        max_workers=8,
+        timeout=60,
+        desc="update_returns",
+    )
+
+    for symbol, ret_series in pairs:
+        if symbol is None or ret_series is None:
             fail_count += 1
-    
-    print(f'更新完成: 成功 {success_count}, 失败 {fail_count}')
-    
+            continue
+        returns_data[symbol] = ret_series
+        success_count += 1
+
+    print(f"更新完成: 成功 {success_count}, 失败 {fail_count}")
+
     if returns_data:
         returns_df = pd.DataFrame(returns_data)
-        returns_path = r'e:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json'
-        returns_df.to_json(returns_path, orient='split', date_format='iso')
-        
-        market_symbol = '510300'
+        returns_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json"
+        returns_df.to_json(returns_path, orient="split", date_format="iso")
+
+        market_symbol = "510300"
         market_df = _get_historical_kline(market_symbol, days=252)
         if market_df is not None and not market_df.empty:
-            market_returns = market_df['close'].pct_change().dropna()
-            market_path = r'e:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json'
-            market_returns.to_json(market_path, orient='split', date_format='iso')
-        
-        return returns_df, market_returns if 'market_returns' in dir() else None
+            market_returns = market_df["close"].pct_change().dropna()
+            market_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json"
+            market_returns.to_json(market_path, orient="split", date_format="iso")
+
+        return returns_df, market_returns if "market_returns" in dir() else None
     else:
         return None, None
 
 
 def run_hedge_decision():
-    """运行对冲决策 - Wind MCP 直连"""
+    """运行对冲决策 - Wind MCP 直连
+
+    B2.4: 用 run_io_batch 并发拉取多 position 的实时报价 (替代串行 for 循环).
+    wind_get_quote 单次请求约 100-300ms, 串行 N 个标的需 N×300ms,
+    并发 8 workers 后约 (N/8)×300ms.
+    """
     print()
-    print('=' * 60)
-    print('2. 运行对冲决策')
-    print('=' * 60)
-    
-    positions_path = r'e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json'
-    with open(positions_path, 'r', encoding='utf-8') as f:
-        positions_data = json.load(f)['positions']
-    
-    positions = {}
-    prices = {}
-    for key, item in positions_data.items():
-        code = item.get('code')
-        qty = item.get('phase1_shares') or item.get('total_shares') or item.get('shares', 0)
+    print("=" * 60)
+    print("2. 运行对冲决策")
+    print("=" * 60)
+
+    positions_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json"
+    with open(positions_path, "r", encoding="utf-8") as f:
+        positions_data = json.load(f)["positions"]
+
+    # 先解析有效持仓项 (qty>0 且 code 非空)
+    valid_items = []
+    for _key, item in positions_data.items():
+        code = item.get("code")
+        qty = item.get("phase1_shares") or item.get("total_shares") or item.get("shares", 0)
         if not code or not qty:
             continue
-        wind_code, is_fund = _to_wind_code(code)
-        quote = wind_get_quote(wind_code, is_fund=is_fund)
-        price = None
-        if quote and quote.get('price') is not None:
-            try:
-                price = float(quote['price'])
-            except (TypeError, ValueError):
-                price = None
-        if price is None or price <= 0:
-            price = float(item.get('est_price', 0.0) or 0.0)
+        valid_items.append((code, float(qty), item))
+
+    # B2.4: 并发拉取多 position 的实时报价
+    def _fetch_quote(item_tuple):
+        """单 position 拉取报价; 失败回退 est_price; 返回 (code, price)"""
+        code, qty, item = item_tuple
+        try:
+            wind_code, is_fund = _to_wind_code(code)
+            quote = wind_get_quote(wind_code, is_fund=is_fund)
+            if quote and quote.get("price") is not None:
+                try:
+                    price = float(quote["price"])
+                    if price > 0:
+                        return (code, qty, price)
+                except (TypeError, ValueError):
+                    pass
+        except Exception as e:
+            raise  # Re-raise unknown exception
+        # 回退到 est_price
+        fallback_price = float(item.get("est_price", 0.0) or 0.0)
+        return (code, qty, fallback_price)
+
+    triples = run_io_batch(
+        valid_items,
+        _fetch_quote,
+        max_workers=8,
+        timeout=30,
+        desc="hedge_quotes",
+    )
+
+    positions = {}
+    prices = {}
+    for code, qty, price in triples:
+        if code is None:
+            continue
         positions[code] = float(qty)
         prices[code] = price
-    
+
     # 加载历史数据
-    returns_path = r'e:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json'
-    market_path = r'e:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json'
-    
+    returns_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json"
+    market_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json"
+
     returns = pd.DataFrame()
     market_returns = pd.Series(dtype=float)
-    
+
     if os.path.exists(returns_path) and os.path.exists(market_path):
         try:
-            returns = pd.read_json(returns_path, orient='split')
-            market_returns = pd.read_json(market_path, orient='split', typ='series')
+            returns = pd.read_json(returns_path, orient="split")
+            market_returns = pd.read_json(market_path, orient="split", typ="series")
             returns.columns = returns.columns.astype(str)
-        except Exception:
-            pass
-    
+        except Exception as e:
+            raise  # Re-raise unknown exception
+
     # 运行对冲引擎
     coordinator = HedgeCoordinator(enable_tail_risk=True)
     plan = coordinator.coordinate(
@@ -173,86 +226,87 @@ def run_hedge_decision():
         hwm_drawdown=0.03,
         bs_loss=0.0,
     )
-    
-    print(f'动作: {plan.get("action")}')
-    print(f'组合Beta: {plan.get("portfolio_beta"):.4f}')
-    print(f'总对冲比例: {float(plan.get("total_hedge_pct", 0.0) or 0.0)*100:.2f}%')
-    print(f'总成本比例: {float(plan.get("total_cost_pct", 0.0) or 0.0)*100:.4f}%')
-    print(f'市场状态: {plan.get("regime")}')
-    
+
+    print(f"动作: {plan.get('action')}")
+    print(f"组合Beta: {plan.get('portfolio_beta'):.4f}")
+    print(f"总对冲比例: {float(plan.get('total_hedge_pct', 0.0) or 0.0) * 100:.2f}%")
+    print(f"总成本比例: {float(plan.get('total_cost_pct', 0.0) or 0.0) * 100:.4f}%")
+    print(f"市场状态: {plan.get('regime')}")
+
     return plan
 
 
 def generate_report(plan):
     """生成对冲报告"""
     print()
-    print('=' * 60)
-    print('3. 生成对冲报告')
-    print('=' * 60)
-    
-    report_dir = r'e:\各种PY程序\28-终极量化交易系统8.4\reports'
-    os.makedirs(report_dir, exist_ok=True)
-    
-    report = {
-        'date': datetime.now().strftime('%Y-%m-%d'),
-        'time': datetime.now().strftime('%H:%M:%S'),
-        'action': plan.get('action'),
-        'portfolio_beta': float(plan.get('portfolio_beta', 0.0) or 0.0),
-        'total_hedge_pct': float(plan.get('total_hedge_pct', 0.0) or 0.0),
-        'total_cost_pct': float(plan.get('total_cost_pct', 0.0) or 0.0),
-        'regime': str(plan.get('regime')),
-        'orders': plan.get('orders', []),
-        'summary': plan.get('summary', {}),
-    }
-    
-    report_path = os.path.join(report_dir, f'hedge_decision_{datetime.now().strftime("%Y%m%d")}.json')
-    with open(report_path, 'w', encoding='utf-8') as f:
-        json.dump(report, f, ensure_ascii=False, indent=2)
-    
-    print(f'报告已保存: {report_path}')
-    
-    # 生成可读报告
-    readme_path = os.path.join(report_dir, f'hedge_decision_{datetime.now().strftime("%Y%m%d")}.md')
-    with open(readme_path, 'w', encoding='utf-8') as f:
-        f.write(f'# 对冲决策报告 - {report["date"]}\n\n')
-        f.write(f'## 决策结果\n\n')
-        f.write(f'- **动作**: {report["action"]}\n')
-        f.write(f'- **组合Beta**: {report["portfolio_beta"]:.4f}\n')
-        f.write(f'- **总对冲比例**: {report["total_hedge_pct"]*100:.2f}%\n')
-        f.write(f'- **总成本比例**: {report["total_cost_pct"]*100:.4f}%\n')
-        f.write(f'- **市场状态**: {report["regime"]}\n\n')
-        
-        if report['orders']:
-            f.write(f'## 对冲指令\n\n')
-            for i, order in enumerate(report['orders'], 1):
-                f.write(f'### {i}. {order.get("hedge_type", "UNKNOWN")}\n\n')
-                f.write(f'- 动作: {order.get("action")}\n')
-                f.write(f'- 标的: {order.get("instrument", "N/A")}\n')
-                f.write(f'- 手数: {order.get("contracts", "N/A")}\n')
-                f.write(f'- 名义价值: {order.get("notional", 0):,.0f}\n')
-                f.write(f'- 预估成本: {order.get("estimated_cost", order.get("budget", 0)):,.0f}\n\n')
-        else:
-            f.write(f'## 结论\n\n')
-            f.write(f'当前无需开启额外对冲。\n')
-    
-    print(f'可读报告: {readme_path}')
+    print("=" * 60)
+    print("3. 生成对冲报告")
+    print("=" * 60)
 
-if __name__ == '__main__':
-    print('每日对冲自动更新 - Wind MCP')
-    print('=' * 60)
-    print(f'运行时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    report_dir = r"e:\各种PY程序\28-终极量化交易系统8.4\reports"
+    os.makedirs(report_dir, exist_ok=True)
+
+    report = {
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "time": datetime.now().strftime("%H:%M:%S"),
+        "action": plan.get("action"),
+        "portfolio_beta": float(plan.get("portfolio_beta", 0.0) or 0.0),
+        "total_hedge_pct": float(plan.get("total_hedge_pct", 0.0) or 0.0),
+        "total_cost_pct": float(plan.get("total_cost_pct", 0.0) or 0.0),
+        "regime": str(plan.get("regime")),
+        "orders": plan.get("orders", []),
+        "summary": plan.get("summary", {}),
+    }
+
+    report_path = os.path.join(report_dir, f"hedge_decision_{datetime.now().strftime('%Y%m%d')}.json")
+    with open(report_path, "w", encoding="utf-8") as f:
+        json.dump(report, f, ensure_ascii=False, indent=2)
+
+    print(f"报告已保存: {report_path}")
+
+    # 生成可读报告
+    readme_path = os.path.join(report_dir, f"hedge_decision_{datetime.now().strftime('%Y%m%d')}.md")
+    with open(readme_path, "w", encoding="utf-8") as f:
+        f.write(f"# 对冲决策报告 - {report['date']}\n\n")
+        f.write("## 决策结果\n\n")
+        f.write(f"- **动作**: {report['action']}\n")
+        f.write(f"- **组合Beta**: {report['portfolio_beta']:.4f}\n")
+        f.write(f"- **总对冲比例**: {report['total_hedge_pct'] * 100:.2f}%\n")
+        f.write(f"- **总成本比例**: {report['total_cost_pct'] * 100:.4f}%\n")
+        f.write(f"- **市场状态**: {report['regime']}\n\n")
+
+        if report["orders"]:
+            f.write("## 对冲指令\n\n")
+            for i, order in enumerate(report["orders"], 1):
+                f.write(f"### {i}. {order.get('hedge_type', 'UNKNOWN')}\n\n")
+                f.write(f"- 动作: {order.get('action')}\n")
+                f.write(f"- 标的: {order.get('instrument', 'N/A')}\n")
+                f.write(f"- 手数: {order.get('contracts', 'N/A')}\n")
+                f.write(f"- 名义价值: {order.get('notional', 0):,.0f}\n")
+                f.write(f"- 预估成本: {order.get('estimated_cost', order.get('budget', 0)):,.0f}\n\n")
+        else:
+            f.write("## 结论\n\n")
+            f.write("当前无需开启额外对冲。\n")
+
+    print(f"可读报告: {readme_path}")
+
+
+if __name__ == "__main__":
+    print("每日对冲自动更新 - Wind MCP")
+    print("=" * 60)
+    print(f"运行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
-    
+
     # 1. 更新收益率数据
     returns_df, market_returns = update_returns()
-    
+
     # 2. 运行对冲决策
     plan = run_hedge_decision()
-    
+
     # 3. 生成报告
     generate_report(plan)
-    
+
     print()
-    print('=' * 60)
-    print('更新完成')
-    print('=' * 60)
+    print("=" * 60)
+    print("更新完成")
+    print("=" * 60)

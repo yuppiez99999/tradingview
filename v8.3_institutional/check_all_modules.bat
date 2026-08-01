@@ -3,13 +3,13 @@ chcp 65001 >nul
 REM ============================================================
 REM 全模块检查（7 phases dry-run）
 REM ============================================================
-set PYTHON=C:\Program Files\Python38\python.exe
-set SCRIPT=%~dp0v7.5_institutional\daily_workflow.py
+set PYTHON=C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe
+set SCRIPT=%~dp0daily_workflow.py
 set DATE=%1
 if "%DATE%"=="" set DATE=2026-07-06
 
 echo ============================================================
-echo   v7.5 全模块检查
+echo   v8.4 全模块检查
 echo   Date: %DATE%
 echo ============================================================
 

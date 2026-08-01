@@ -54,12 +54,12 @@ for i, s in enumerate(symbols):
 print()
 
 # 4. 检查是否有现成的数据加载器
-print(f"\n[4] 数据加载器接口检查")
+print("\n[4] 数据加载器接口检查")
 import sys
 sys.path.insert(0, str(PROJECT))
 try:
     from utils.data_provider import MarketDataProvider
-    print(f"    ✓ utils.data_provider.MarketDataProvider 可导入")
+    print("    ✓ utils.data_provider.MarketDataProvider 可导入")
     import inspect
     sig = inspect.signature(MarketDataProvider.__init__) if hasattr(MarketDataProvider, "__init__") else "N/A"
     print(f"    __init__ 签名: {sig}")
@@ -69,10 +69,10 @@ except Exception as e:
     print(f"    ✗ 导入失败: {e}")
 
 # 5. 检查 alpha_factor_library 接口
-print(f"\n[5] AlphaFactorLibrary 接口检查")
+print("\n[5] AlphaFactorLibrary 接口检查")
 try:
-    from utils.alpha_factor_library import AlphaFactorLibrary, FactorValue, FactorLibraryResult
-    print(f"    ✓ AlphaFactorLibrary 可导入")
+    from utils.alpha_factor_library import AlphaFactorLibrary, FactorValue
+    print("    ✓ AlphaFactorLibrary 可导入")
     import inspect
     sig = inspect.signature(AlphaFactorLibrary.compute_all)
     print(f"    compute_all 签名: {sig}")

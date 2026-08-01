@@ -7,7 +7,7 @@ echo   AutoHedge 交易日调度器
 echo ========================================
 echo.
 
-set PYTHON=C:\Program Files\Python38\python.exe
+set PYTHON=C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe
 set WORKDIR=%~dp0
 set LOG=%WORKDIR%logs\trading_scheduler.log
 if not exist "%WORKDIR%logs" mkdir "%WORKDIR%logs"

@@ -3,7 +3,6 @@
 对 trade_plan_20260728.json 应用 7-Guard 链并检查最终状态
 """
 import sys
-import json
 from pathlib import Path
 
 BASE = Path(r"E:\各种PY程序\28-终极量化交易系统8.4")

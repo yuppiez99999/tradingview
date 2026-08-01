@@ -35,12 +35,14 @@ logger = logging.getLogger(__name__)
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class ImpactParams:
     """冲击成本参数"""
-    eta: float = 0.142           # 临时冲击系数 (Almgren 2003 估计)
-    gamma: float = 0.314         # 永久冲击系数
-    alpha: float = 0.6           # 非线性冲击指数 (0.5 平方根, 1.0 线性)
+
+    eta: float = 0.142  # 临时冲击系数 (Almgren 2003 估计)
+    gamma: float = 0.314  # 永久冲击系数
+    alpha: float = 0.6  # 非线性冲击指数 (0.5 平方根, 1.0 线性)
     # Square-Root 模型
     sr_coefficient: float = 0.5  # σ × c 的乘子
     # 波动率调整
@@ -51,10 +53,11 @@ class ImpactParams:
 @dataclass
 class ImpactEstimate:
     """冲击成本估计"""
+
     symbol: str
     order_shares: float
-    adv: float                       # 日均成交量
-    participation_rate: float       # 参与度 = order_shares / adv
+    adv: float  # 日均成交量
+    participation_rate: float  # 参与度 = order_shares / adv
     # 临时冲击 (bps)
     temporary_impact_bps: float
     # 永久冲击 (bps)
@@ -68,7 +71,7 @@ class ImpactEstimate:
     # 预期执行价
     expected_exec_price: float
     # 模型
-    model_used: str                  # AC / SQRT / LINEAR
+    model_used: str  # AC / SQRT / LINEAR
     # 元数据
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -76,21 +79,23 @@ class ImpactEstimate:
 @dataclass
 class OptimalTrajectory:
     """最优执行轨迹 (Almgren-Chriss)"""
-    times: List[float]              # 时间点 [0, T]
-    holdings: List[float]            # 持仓轨迹 x(t)
-    trades: List[float]              # 交易轨迹 Δx(t)
-    speeds: List[float]              # 交易速度 v(t)
+
+    times: List[float]  # 时间点 [0, T]
+    holdings: List[float]  # 持仓轨迹 x(t)
+    trades: List[float]  # 交易轨迹 Δx(t)
+    speeds: List[float]  # 交易速度 v(t)
     # 成本与风险
-    expected_cost: float             # 预期成本
-    cost_variance: float             # 成本方差
+    expected_cost: float  # 预期成本
+    cost_variance: float  # 成本方差
     # AC 参数
-    efficient_frontier_lam: float    # 风险厌恶系数
-    half_life: float                 # 半衰期 (调仓强度)
+    efficient_frontier_lam: float  # 风险厌恶系数
+    half_life: float  # 半衰期 (调仓强度)
 
 
 # ============================================================
 # 市场冲击模型
 # ============================================================
+
 
 class MarketImpactModel:
     """市场冲击模型
@@ -99,7 +104,7 @@ class MarketImpactModel:
         model = MarketImpactModel()
         est = model.estimate(symbol="600519", order_shares=10000, adv=500000,
                              decision_price=1800.0)
-        print(est.total_impact_bps)
+        logger.info(est.total_impact_bps)
     """
 
     def __init__(
@@ -153,29 +158,16 @@ class MarketImpactModel:
         # === Square-Root 模型 (主) ===
         # Δp_bps = σ × c × sqrt(participation)
         # 这里用 sr_coefficient × vol_scale × sqrt(participation) × 10000
-        sqrt_impact_bps = (
-            self.params.sr_coefficient
-            * vol_scale
-            * math.sqrt(max(participation, 1e-10))
-            * 10000
-        )
+        sqrt_impact_bps = self.params.sr_coefficient * vol_scale * math.sqrt(max(participation, 1e-10)) * 10000
 
         # === Almgren-Chriss 分解 ===
         # 临时冲击 (非线性): h(v) = η × v^α
         # 永久冲击 (线性): g(v) = γ × v
         # 在 T 时间内匀速执行: v = X / T
         v = order_shares / max(execution_time_days, 1e-6) / adv  # 标准化速度
-        temp_bps = (
-            self.params.eta
-            * (v ** self.params.alpha)
-            * 10000
-            * vol_scale
-        )
+        temp_bps = self.params.eta * (v**self.params.alpha) * 10000 * vol_scale
         perm_bps = (
-            self.params.gamma
-            * participation
-            * 10000
-            * 0.5  # 永久冲击平均影响一半
+            self.params.gamma * participation * 10000 * 0.5  # 永久冲击平均影响一半
         )
 
         # 综合: Square-Root 为主, AC 分解修正
@@ -214,9 +206,9 @@ class MarketImpactModel:
     def optimal_trajectory(
         self,
         total_shares: float,
-        time_horizon: float = 1.0,       # T (天)
+        time_horizon: float = 1.0,  # T (天)
         volatility: float = 0.02,
-        risk_aversion: float = 1.0,       # λ
+        risk_aversion: float = 1.0,  # λ
         n_steps: int = 10,
     ) -> OptimalTrajectory:
         """Almgren-Chriss 最优执行轨迹 (线性冲击闭式解)
@@ -250,8 +242,9 @@ class MarketImpactModel:
             # 线性递减
             for i in range(n_steps + 1):
                 holdings[i] = total_shares * (1 - i / n_steps)
-            trades = [-holdings[i] + holdings[i - 1] if i > 0 else total_shares - holdings[0]
-                      for i in range(n_steps + 1)]
+            trades = [
+                -holdings[i] + holdings[i - 1] if i > 0 else total_shares - holdings[0] for i in range(n_steps + 1)
+            ]
             speeds = [t / (time_horizon / n_steps) for t in trades]
             return OptimalTrajectory(
                 times=times,
@@ -275,23 +268,25 @@ class MarketImpactModel:
         sin_kT = math.sinh(kappa * T)
         if abs(sin_kT) < 1e-10:
             # 退化: 匀速
-            holdings = total_shares * (1 - t_array / T)
+            holdings = total_shares * (1 - t_array / T)  # type: ignore
         else:
             holdings = total_shares * np.sinh(kappa * (T - t_array)) / sin_kT
 
         # 交易 = -Δx
-        trades = np.diff(-holdings)
+        trades = np.diff(-holdings)  # type: ignore
         # 第一个交易把持仓从 0 拉到 x(0)? 实际 AC 模型: 初始持仓 = X, 逐步卖到 0
         # 所以 holdings[0] = X (初始), holdings[-1] = 0 (终止)
         trades_full = np.concatenate([[total_shares - holdings[0]], trades])
         # 修正: holdings[0] = total_shares
         # 这里 holdings[0] 已经 = X * sinh(kT)/sinh(kT) = X, OK
-        trades_full = np.diff(np.concatenate([[total_shares], -holdings]))
+        trades_full = np.diff(np.concatenate([[total_shares], -holdings]))  # type: ignore
         # 简化: trades[i] = holdings[i-1] - holdings[i]
-        trades_full = np.concatenate([
-            [total_shares - holdings[0]],
-            [holdings[i] - holdings[i + 1] for i in range(n_steps)],
-        ])
+        trades_full = np.concatenate(
+            [
+                [total_shares - holdings[0]],
+                [holdings[i] - holdings[i + 1] for i in range(n_steps)],
+            ]
+        )
         speeds = trades_full / (T / n_steps)
 
         # 成本 = (γ/2) × X² + (η/(α+1)) × Σ v_i^(α+1) × Δt
@@ -302,7 +297,7 @@ class MarketImpactModel:
         total_cost = perm_cost + temp_cost
 
         # 风险 = σ² × Σ x_i² × Δt
-        cost_var = sigma * sigma * np.sum(holdings[:-1] ** 2) * dt
+        cost_var = sigma * sigma * np.sum(holdings[:-1] ** 2) * dt  # type: ignore
 
         # 半衰期: x(t) 减半的时间
         # X/2 = X × sinh(κ(T-t_h)) / sinh(κT)
@@ -316,7 +311,7 @@ class MarketImpactModel:
 
         return OptimalTrajectory(
             times=t_array.tolist(),
-            holdings=holdings.tolist(),
+            holdings=holdings.tolist(),  # type: ignore
             trades=trades_full.tolist(),
             speeds=speeds.tolist(),
             expected_cost=float(total_cost),
@@ -390,6 +385,7 @@ class MarketImpactModel:
 # ============================================================
 # 工具函数
 # ============================================================
+
 
 def classify_order_urgency(
     order_shares: float,

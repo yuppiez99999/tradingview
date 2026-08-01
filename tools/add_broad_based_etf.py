@@ -208,7 +208,7 @@ def main():
     # 7. 校验
     total_weight = sum(float(v.get("weight", 0)) for v in tp.values())
     total_amount = sum(float(v.get("target_amount", 0)) for v in tp.values())
-    print(f"\n=== 校验 ===")
+    print("\n=== 校验 ===")
     print(f"  标的数量: {len(tp)}")
     print(f"  总权重: {total_weight:.6f} ({total_weight*100:.4f}%)")
     print(f"  总金额: CNY {total_amount:,.0f} (基准 CNY {total_capital:,.0f})")

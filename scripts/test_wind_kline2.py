@@ -3,7 +3,6 @@ import sys
 sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")
 
 from morning_market_fetcher import _exec_wind_kline, _is_wind_success
-import json
 
 print("=== 测试 _exec_wind_kline 沪铜期货 ===")
 r = _exec_wind_kline("CU.SHF", days=5)

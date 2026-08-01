@@ -38,6 +38,7 @@
     monitor = DataQualityMonitor()
     report = monitor.check_market_data(data, expected_symbols=["300308", "002475"])
 """
+
 from __future__ import annotations
 
 import json
@@ -46,19 +47,21 @@ import math
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, date, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger("data_quality")
 
 try:
     import numpy as np
+
     HAS_NUMPY = True
 except ImportError:
-    np = None
+    np = None  # type: ignore
     HAS_NUMPY = False
 
 try:
     import pandas as pd
+
     HAS_PANDAS = True
 except ImportError:
     pd = None
@@ -71,24 +74,26 @@ REPORT_DIR = BASE_DIR / "reports" / "data_quality"
 @dataclass
 class QualityIssue:
     """数据质量问题"""
-    severity: str                  # info / warning / error / critical
-    category: str                  # outlier / missing / consistency / latency / completeness
-    field: str                     # 字段名
-    symbol: str = ""               # 标的代码
-    description: str = ""          # 问题描述
-    value: Any = None              # 异常值
-    expected: Any = None           # 期望值
-    timestamp: str = ""            # 检测时间
+
+    severity: str  # info / warning / error / critical
+    category: str  # outlier / missing / consistency / latency / completeness
+    field: str  # 字段名
+    symbol: str = ""  # 标的代码
+    description: str = ""  # 问题描述
+    value: Any = None  # 异常值
+    expected: Any = None  # 期望值
+    timestamp: str = ""  # 检测时间
 
 
 @dataclass
 class QualityReport:
     """数据质量报告"""
+
     report_date: str = ""
     total_symbols: int = 0
     checked_fields: int = 0
     issues: List[QualityIssue] = field(default_factory=list)
-    freshness_score: float = 0.0    # 0-100
+    freshness_score: float = 0.0  # 0-100
     completeness_score: float = 0.0
     consistency_score: float = 0.0
     overall_score: float = 0.0
@@ -213,16 +218,18 @@ class DataQualityMonitor:
 
         missing_symbols = [s for s in expected_symbols if s not in data]
         for symbol in missing_symbols:
-            report.issues.append(QualityIssue(
-                severity="critical",
-                category="completeness",
-                field="symbol",
-                symbol=symbol,
-                description=f"期望标的 {symbol} 数据缺失",
-            ))
+            report.issues.append(
+                QualityIssue(
+                    severity="critical",
+                    category="completeness",
+                    field="symbol",
+                    symbol=symbol,
+                    description=f"期望标的 {symbol} 数据缺失",
+                )
+            )
 
         # 字段完整性
-        all_fields = set()
+        all_fields = set()  # type: ignore
         for fields in data.values():
             all_fields.update(fields.keys())
         report.checked_fields = len(all_fields)
@@ -240,26 +247,30 @@ class DataQualityMonitor:
             for field_name in self.REQUIRED_FIELDS:
                 value = fields.get(field_name)
                 if value is None or (isinstance(value, float) and math.isnan(value)):
-                    report.issues.append(QualityIssue(
-                        severity="error",
-                        category="missing",
-                        field=field_name,
-                        symbol=symbol,
-                        description=f"必填字段 {field_name} 缺失",
-                    ))
+                    report.issues.append(
+                        QualityIssue(
+                            severity="error",
+                            category="missing",
+                            field=field_name,
+                            symbol=symbol,
+                            description=f"必填字段 {field_name} 缺失",
+                        )
+                    )
 
             # 其他字段缺失告警 (非必填)
             for field_name in self.PRICE_FIELDS + self.VOLUME_FIELDS:
                 if field_name in fields:
                     value = fields[field_name]
                     if value is None or (isinstance(value, float) and math.isnan(value)):
-                        report.issues.append(QualityIssue(
-                            severity="warning",
-                            category="missing",
-                            field=field_name,
-                            symbol=symbol,
-                            description=f"字段 {field_name} 缺失",
-                        ))
+                        report.issues.append(
+                            QualityIssue(
+                                severity="warning",
+                                category="missing",
+                                field=field_name,
+                                symbol=symbol,
+                                description=f"字段 {field_name} 缺失",
+                            )
+                        )
 
     # ------------------------------------------------------------
     # 异常值检查
@@ -286,22 +297,24 @@ class DataQualityMonitor:
             high = fields.get("high")
             low = fields.get("low")
             close = fields.get("close")
-            open_ = fields.get("open")
+            fields.get("open")
 
             if high is not None and low is not None:
                 try:
                     high = float(high)
                     low = float(low)
                     if high < low:
-                        report.issues.append(QualityIssue(
-                            severity="error",
-                            category="outlier",
-                            field="high/low",
-                            symbol=symbol,
-                            description=f"high ({high}) < low ({low}) 逻辑错误",
-                            value=high,
-                            expected=f">= {low}",
-                        ))
+                        report.issues.append(
+                            QualityIssue(
+                                severity="error",
+                                category="outlier",
+                                field="high/low",
+                                symbol=symbol,
+                                description=f"high ({high}) < low ({low}) 逻辑错误",
+                                value=high,
+                                expected=f">= {low}",
+                            )
+                        )
                 except (TypeError, ValueError):
                     pass
 
@@ -310,46 +323,52 @@ class DataQualityMonitor:
                 try:
                     close_val = float(close)
                     if close_val <= 0:
-                        report.issues.append(QualityIssue(
-                            severity="critical",
-                            category="outlier",
-                            field="close",
-                            symbol=symbol,
-                            description=f"close <= 0 ({close_val})",
-                            value=close_val,
-                            expected="> 0",
-                        ))
+                        report.issues.append(
+                            QualityIssue(
+                                severity="critical",
+                                category="outlier",
+                                field="close",
+                                symbol=symbol,
+                                description=f"close <= 0 ({close_val})",
+                                value=close_val,
+                                expected="> 0",
+                            )
+                        )
                     elif close_val > 10000:
-                        report.issues.append(QualityIssue(
-                            severity="error",
-                            category="outlier",
-                            field="close",
-                            symbol=symbol,
-                            description=f"close 异常偏高 ({close_val})",
-                            value=close_val,
-                            expected="< 10000",
-                        ))
+                        report.issues.append(
+                            QualityIssue(
+                                severity="error",
+                                category="outlier",
+                                field="close",
+                                symbol=symbol,
+                                description=f"close 异常偏高 ({close_val})",
+                                value=close_val,
+                                expected="< 10000",
+                            )
+                        )
                 except (TypeError, ValueError):
                     pass
 
             # 日内波动 > 20%
             if all(v is not None for v in [high, low, close]):
                 try:
-                    high_f = float(high)
-                    low_f = float(low)
-                    close_f = float(close)
+                    high_f = float(high)  # type: ignore
+                    low_f = float(low)  # type: ignore
+                    close_f = float(close)  # type: ignore
                     if close_f > 0:
                         intraday_range = (high_f - low_f) / close_f
                         if intraday_range > 0.20:
-                            report.issues.append(QualityIssue(
-                                severity="warning",
-                                category="outlier",
-                                field="intraday_range",
-                                symbol=symbol,
-                                description=f"日内波动 {intraday_range:.1%} 超过 20%",
-                                value=intraday_range,
-                                expected="<= 20%",
-                            ))
+                            report.issues.append(
+                                QualityIssue(
+                                    severity="warning",
+                                    category="outlier",
+                                    field="intraday_range",
+                                    symbol=symbol,
+                                    description=f"日内波动 {intraday_range:.1%} 超过 20%",
+                                    value=intraday_range,
+                                    expected="<= 20%",
+                                )
+                            )
                 except (TypeError, ValueError):
                     pass
 
@@ -359,15 +378,17 @@ class DataQualityMonitor:
                 try:
                     volume_val = float(volume)
                     if volume_val < 0:
-                        report.issues.append(QualityIssue(
-                            severity="error",
-                            category="outlier",
-                            field="volume",
-                            symbol=symbol,
-                            description=f"成交量为负 ({volume_val})",
-                            value=volume_val,
-                            expected=">= 0",
-                        ))
+                        report.issues.append(
+                            QualityIssue(
+                                severity="error",
+                                category="outlier",
+                                field="volume",
+                                symbol=symbol,
+                                description=f"成交量为负 ({volume_val})",
+                                value=volume_val,
+                                expected=">= 0",
+                            )
+                        )
                 except (TypeError, ValueError):
                     pass
 
@@ -397,9 +418,7 @@ class DataQualityMonitor:
         f = int(k)
         c = k - f
         if f + 1 < n:
-            return float(sorted_values[f]) + c * (
-                float(sorted_values[f + 1]) - float(sorted_values[f])
-            )
+            return float(sorted_values[f]) + c * (float(sorted_values[f + 1]) - float(sorted_values[f]))
         return float(sorted_values[f])
 
     @staticmethod
@@ -425,7 +444,7 @@ class DataQualityMonitor:
                 return [False] * n
             mean = sum(values) / n
             variance = sum((x - mean) ** 2 for x in values) / (n - 1)
-            std = variance ** 0.5
+            std = variance**0.5
             if std == 0:
                 return [False] * n
             return [abs((v - mean) / std) > threshold for v in values]
@@ -511,16 +530,10 @@ class DataQualityMonitor:
             sorted_vals = sorted(values)
             mid = n // 2
             median = (
-                float(sorted_vals[mid])
-                if n % 2 == 1
-                else (float(sorted_vals[mid - 1]) + float(sorted_vals[mid])) / 2
+                float(sorted_vals[mid]) if n % 2 == 1 else (float(sorted_vals[mid - 1]) + float(sorted_vals[mid])) / 2
             )
             abs_devs = sorted(abs(v - median) for v in values)
-            mad = (
-                float(abs_devs[mid])
-                if n % 2 == 1
-                else (float(abs_devs[mid - 1]) + float(abs_devs[mid])) / 2
-            )
+            mad = float(abs_devs[mid]) if n % 2 == 1 else (float(abs_devs[mid - 1]) + float(abs_devs[mid])) / 2
             if mad == 0:
                 return [False] * n
             modified_z = [abs(v - median) / (1.4826 * mad) for v in values]
@@ -575,49 +588,46 @@ class DataQualityMonitor:
             z_mask = self.detect_zscore_outliers(vals, threshold=self.Z_SCORE_THRESHOLD)
             for i, is_outlier in enumerate(z_mask):
                 if is_outlier:
-                    report.issues.append(QualityIssue(
-                        severity="warning",
-                        category="outlier",
-                        field=field_name,
-                        symbol=symbols[i],
-                        description=(
-                            f"Z-score 异常: {field_name}={vals[i]} "
-                            f"(Z>{self.Z_SCORE_THRESHOLD})"
-                        ),
-                        value=vals[i],
-                    ))
+                    report.issues.append(
+                        QualityIssue(
+                            severity="warning",
+                            category="outlier",
+                            field=field_name,
+                            symbol=symbols[i],
+                            description=(f"Z-score 异常: {field_name}={vals[i]} (Z>{self.Z_SCORE_THRESHOLD})"),
+                            value=vals[i],
+                        )
+                    )
 
             # IQR 检测
             iqr_mask = self.detect_iqr_outliers(vals, multiplier=self.IQR_MULTIPLIER)
             for i, is_outlier in enumerate(iqr_mask):
                 if is_outlier:
-                    report.issues.append(QualityIssue(
-                        severity="warning",
-                        category="outlier",
-                        field=field_name,
-                        symbol=symbols[i],
-                        description=(
-                            f"IQR 异常: {field_name}={vals[i]} "
-                            f"(IQR×{self.IQR_MULTIPLIER})"
-                        ),
-                        value=vals[i],
-                    ))
+                    report.issues.append(
+                        QualityIssue(
+                            severity="warning",
+                            category="outlier",
+                            field=field_name,
+                            symbol=symbols[i],
+                            description=(f"IQR 异常: {field_name}={vals[i]} (IQR×{self.IQR_MULTIPLIER})"),
+                            value=vals[i],
+                        )
+                    )
 
             # MAD 检测
             mad_mask = self.detect_mad_outliers(vals, threshold=self.MAD_THRESHOLD)
             for i, is_outlier in enumerate(mad_mask):
                 if is_outlier:
-                    report.issues.append(QualityIssue(
-                        severity="warning",
-                        category="outlier",
-                        field=field_name,
-                        symbol=symbols[i],
-                        description=(
-                            f"MAD 异常: {field_name}={vals[i]} "
-                            f"(modZ>{self.MAD_THRESHOLD})"
-                        ),
-                        value=vals[i],
-                    ))
+                    report.issues.append(
+                        QualityIssue(
+                            severity="warning",
+                            category="outlier",
+                            field=field_name,
+                            symbol=symbols[i],
+                            description=(f"MAD 异常: {field_name}={vals[i]} (modZ>{self.MAD_THRESHOLD})"),
+                            value=vals[i],
+                        )
+                    )
 
     # ------------------------------------------------------------
     # 一致性检查
@@ -636,27 +646,31 @@ class DataQualityMonitor:
 
             if all(v is not None for v in [close, high, low]):
                 try:
-                    c, h, l = float(close), float(high), float(low)
+                    c, h, lo = float(close), float(high), float(low)  # type: ignore
                     if c > h:
-                        report.issues.append(QualityIssue(
-                            severity="warning",
-                            category="consistency",
-                            field="close>high",
-                            symbol=symbol,
-                            description=f"close ({c}) > high ({h})",
-                            value=c,
-                            expected=f"<= {h}",
-                        ))
-                    elif c < l:
-                        report.issues.append(QualityIssue(
-                            severity="warning",
-                            category="consistency",
-                            field="close<low",
-                            symbol=symbol,
-                            description=f"close ({c}) < low ({l})",
-                            value=c,
-                            expected=f">= {l}",
-                        ))
+                        report.issues.append(
+                            QualityIssue(
+                                severity="warning",
+                                category="consistency",
+                                field="close>high",
+                                symbol=symbol,
+                                description=f"close ({c}) > high ({h})",
+                                value=c,
+                                expected=f"<= {h}",
+                            )
+                        )
+                    elif c < lo:
+                        report.issues.append(
+                            QualityIssue(
+                                severity="warning",
+                                category="consistency",
+                                field="close<low",
+                                symbol=symbol,
+                                description=f"close ({c}) < low ({lo})",
+                                value=c,
+                                expected=f">= {lo}",
+                            )
+                        )
                 except (TypeError, ValueError):
                     pass
 
@@ -666,14 +680,16 @@ class DataQualityMonitor:
                 # 简单格式检查
                 ts_str = str(timestamp)
                 if not any(c.isdigit() for c in ts_str):
-                    report.issues.append(QualityIssue(
-                        severity="warning",
-                        category="consistency",
-                        field="timestamp",
-                        symbol=symbol,
-                        description=f"时间戳格式异常: {ts_str}",
-                        value=ts_str,
-                    ))
+                    report.issues.append(
+                        QualityIssue(
+                            severity="warning",
+                            category="consistency",
+                            field="timestamp",
+                            symbol=symbol,
+                            description=f"时间戳格式异常: {ts_str}",
+                            value=ts_str,
+                        )
+                    )
 
     # ------------------------------------------------------------
     # 延迟检查
@@ -701,15 +717,17 @@ class DataQualityMonitor:
 
             if latency_minutes > self.max_latency_minutes:
                 severity = "critical" if latency_minutes > 120 else "warning"
-                report.issues.append(QualityIssue(
-                    severity=severity,
-                    category="latency",
-                    field=timestamp_field,
-                    symbol=symbol,
-                    description=f"数据延迟 {latency_minutes:.0f} 分钟 (超过 {self.max_latency_minutes} 分钟)",
-                    value=latency_minutes,
-                    expected=f"<= {self.max_latency_minutes}",
-                ))
+                report.issues.append(
+                    QualityIssue(
+                        severity=severity,
+                        category="latency",
+                        field=timestamp_field,
+                        symbol=symbol,
+                        description=f"数据延迟 {latency_minutes:.0f} 分钟 (超过 {self.max_latency_minutes} 分钟)",
+                        value=latency_minutes,
+                        expected=f"<= {self.max_latency_minutes}",
+                    )
+                )
 
     def _parse_timestamp(self, ts: Any) -> Optional[datetime]:
         """解析时间戳"""
@@ -739,35 +757,28 @@ class DataQualityMonitor:
     # ------------------------------------------------------------
     def _calculate_scores(self, report: QualityReport) -> None:
         """计算综合评分"""
-        total_symbols = max(1, report.total_symbols)
-        total_fields = max(1, report.checked_fields)
+        max(1, report.total_symbols)
+        max(1, report.checked_fields)
 
         # 完整性评分
         critical_completeness = sum(
-            1 for i in report.issues
-            if i.category == "completeness" and i.severity == "critical"
+            1 for i in report.issues if i.category == "completeness" and i.severity == "critical"
         )
         report.completeness_score = max(0, 100 - critical_completeness * 20)
 
         # 一致性评分
         consistency_issues = sum(
-            1 for i in report.issues
-            if i.category in ("consistency", "outlier") and i.severity in ("error", "critical")
+            1 for i in report.issues if i.category in ("consistency", "outlier") and i.severity in ("error", "critical")
         )
         report.consistency_score = max(0, 100 - consistency_issues * 10)
 
         # 新鲜度评分 (基于延迟)
-        latency_issues = sum(
-            1 for i in report.issues
-            if i.category == "latency"
-        )
+        latency_issues = sum(1 for i in report.issues if i.category == "latency")
         report.freshness_score = max(0, 100 - latency_issues * 15)
 
         # 综合评分 (加权平均)
         report.overall_score = (
-            report.completeness_score * 0.40 +
-            report.consistency_score * 0.35 +
-            report.freshness_score * 0.25
+            report.completeness_score * 0.40 + report.consistency_score * 0.35 + report.freshness_score * 0.25
         )
 
     # ------------------------------------------------------------
@@ -777,17 +788,17 @@ class DataQualityMonitor:
         """生成报告摘要"""
         lines = [
             f"数据质量报告 ({report.report_date})",
-            f"=" * 50,
+            "=" * 50,
             f"检查标的: {report.total_symbols}",
             f"检查字段: {report.checked_fields}",
-            f"",
-            f"评分:",
+            "",
+            "评分:",
             f"  完整性: {report.completeness_score:.1f}/100",
             f"  一致性: {report.consistency_score:.1f}/100",
             f"  新鲜度: {report.freshness_score:.1f}/100",
             f"  综合:   {report.overall_score:.1f}/100",
-            f"",
-            f"问题统计:",
+            "",
+            "问题统计:",
             f"  Critical: {report.critical_count}",
             f"  Error:    {report.error_count}",
             f"  Warning:  {report.warning_count}",
@@ -821,7 +832,7 @@ class DataQualityMonitor:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(report.to_dict(), f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"数据质量报告已保存: {path}")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存数据质量报告失败: {e}")
         return path
 
@@ -831,7 +842,6 @@ class DataQualityMonitor:
 # ============================================================
 if __name__ == "__main__":
     import argparse
-    import random
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
@@ -845,61 +855,85 @@ if __name__ == "__main__":
         # 模拟数据 (含异常)
         data = {
             "300308": {
-                "open": 35.50, "high": 36.20, "low": 35.30, "close": 36.10,
-                "volume": 1_500_000, "timestamp": datetime.now().isoformat(),
+                "open": 35.50,
+                "high": 36.20,
+                "low": 35.30,
+                "close": 36.10,
+                "volume": 1_500_000,
+                "timestamp": datetime.now().isoformat(),
             },
             "002475": {
-                "open": 38.20, "high": 38.80, "low": 38.00, "close": 38.50,
-                "volume": 2_200_000, "timestamp": datetime.now().isoformat(),
+                "open": 38.20,
+                "high": 38.80,
+                "low": 38.00,
+                "close": 38.50,
+                "volume": 2_200_000,
+                "timestamp": datetime.now().isoformat(),
             },
             "600519": {
-                "open": 1680.0, "high": 1700.0, "low": 1675.0, "close": 1695.0,
-                "volume": 50000, "timestamp": datetime.now().isoformat(),
+                "open": 1680.0,
+                "high": 1700.0,
+                "low": 1675.0,
+                "close": 1695.0,
+                "volume": 50000,
+                "timestamp": datetime.now().isoformat(),
             },
             # 异常标的 1: high < low
             "000001": {
-                "open": 12.50, "high": 12.30, "low": 12.80, "close": 12.60,
-                "volume": -100, "timestamp": datetime.now().isoformat(),
+                "open": 12.50,
+                "high": 12.30,
+                "low": 12.80,
+                "close": 12.60,
+                "volume": -100,
+                "timestamp": datetime.now().isoformat(),
             },
             # 异常标的 2: 缺失 close
             "600036": {
-                "open": 38.00, "high": 38.50, "low": 37.80,
-                "volume": 800000, "timestamp": datetime.now().isoformat(),
+                "open": 38.00,
+                "high": 38.50,
+                "low": 37.80,
+                "volume": 800000,
+                "timestamp": datetime.now().isoformat(),
             },
             # 异常标的 3: 延迟
             "601318": {
-                "open": 50.00, "high": 50.50, "low": 49.80, "close": 50.20,
-                "volume": 1_200_000, "timestamp": (datetime.now() - timedelta(hours=3)).isoformat(),
+                "open": 50.00,
+                "high": 50.50,
+                "low": 49.80,
+                "close": 50.20,
+                "volume": 1_200_000,
+                "timestamp": (datetime.now() - timedelta(hours=3)).isoformat(),
             },
         }
 
         expected = ["300308", "002475", "600519", "000001", "600036", "601318", "缺失标的1", "缺失标的2"]
 
         report = monitor.check_market_data(data, expected_symbols=expected)
-        print(report.summary)
+        logger.info(report.summary)
         monitor.save_report(report)
 
     # 统计异常检测算法演示
-    print("\n" + "=" * 50)
-    print("统计异常检测算法演示 (Z-score / IQR / MAD)")
-    print("=" * 50)
+    logger.info("\n" + "=" * 50)
+    logger.info("统计异常检测算法演示 (Z-score / IQR / MAD)")
+    logger.info("=" * 50)
 
     test_data = [10.0, 10.5, 11.0, 9.8, 10.2, 10.8, 9.5, 10.3, 55.0, 10.1]
-    print(f"\n测试数据: {test_data}")
+    logger.debug(f"\n测试数据: {test_data}")
 
     z_mask = DataQualityMonitor.detect_zscore_outliers(test_data, threshold=3.0)
-    print(f"Z-score mask:  {list(z_mask)}")
+    logger.info(f"Z-score mask:  {list(z_mask)}")
 
     iqr_mask = DataQualityMonitor.detect_iqr_outliers(test_data, multiplier=1.5)
-    print(f"IQR mask:      {list(iqr_mask)}")
+    logger.info(f"IQR mask:      {list(iqr_mask)}")
 
     mad_mask = DataQualityMonitor.detect_mad_outliers(test_data, threshold=3.5)
-    print(f"MAD mask:      {list(mad_mask)}")
+    logger.info(f"MAD mask:      {list(mad_mask)}")
 
     # pandas Series 测试
     if HAS_PANDAS:
         import pandas as pd
+
         s = pd.Series(test_data, name="price")
         z_s = DataQualityMonitor.detect_zscore_outliers(s, threshold=3.0)
-        print(f"\npandas Series 输入 -> 输出类型: {type(z_s).__name__}")
-        print(f"Z-score Series:\n{z_s}")
+        logger.info(f"\npandas Series 输入 -> 输出类型: {type(z_s).__name__}")
+        logger.info(f"Z-score Series:\n{z_s}")

@@ -10,7 +10,6 @@
 """
 from __future__ import annotations
 
-import math
 import sys
 from pathlib import Path
 
@@ -21,7 +20,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from research.vibe_trading_factor_analysis.shadow.shadow_account import (
-    ShadowAccount, ShadowResult, quick_shadow,
+    ShadowAccount, quick_shadow,
 )
 
 
@@ -36,7 +35,7 @@ def _gen_synthetic_history(n_days: int, n_syms: int, alpha_strength: float = 0.0
     fv_hist = []
     fr_hist = []
     syms = [f"S{i:03d}" for i in range(n_syms)]
-    for d in range(n_days):
+    for _d in range(n_days):
         fv = {s: float(rng.normal(0, 1)) for s in syms}
         # forward return 与因子值正相关（alpha_strength 控制强度）
         fr = {s: float(alpha_strength * fv[s] + rng.normal(0, noise_vol)) for s in syms}
@@ -76,7 +75,7 @@ def test_strong_alpha_pass():
     print(f"  live_DSR={r.live_dsr:.3f}, sr={r.sr_observed:.3f}, dd={r.max_drawdown:.3f}, mc_p95={r.monte_carlo_p95_dd:.3f}")
     # 强 alpha 应通过
     if r.pass_shadow:
-        print(f"  ✓ 通过影子账户")
+        print("  ✓ 通过影子账户")
     else:
         print(f"  ⚠ 未通过: {r.reason}")
         # 弱通过也接受：至少 DSR > 0
@@ -94,7 +93,7 @@ def test_max_drawdown_rejection():
         assert any("max_dd" in reason for reason in r.fail_reasons), "应报告 max_dd 超限"
         print(f"  ✓ 拒绝原因: {r.reason}")
     else:
-        print(f"  ⚠ 噪声未触发 max_dd 阈值（可接受）")
+        print("  ⚠ 噪声未触发 max_dd 阈值（可接受）")
 
 
 def test_monte_carlo_runs():

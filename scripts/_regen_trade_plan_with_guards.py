@@ -106,7 +106,7 @@ if he:
     if cs.get("hedge_mode") == "OPTIONS_ONLY" and len(fo) > 0:
         errors.append(f"hedge_mode=OPTIONS_ONLY 但仍生成 {len(fo)} 笔期货订单")
     elif cs.get("hedge_mode") == "OPTIONS_ONLY" and len(fo) == 0:
-        print(f"  ✅ hedge_mode=OPTIONS_ONLY, futures_orders=0 (一致)")
+        print("  ✅ hedge_mode=OPTIONS_ONLY, futures_orders=0 (一致)")
 
     # 6. 订单 status 一致性
     all_orders = fo + oo

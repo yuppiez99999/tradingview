@@ -3,7 +3,7 @@ v7.5 BrokerAPI — 券商/期货接口抽象层
 支持 CTP 期货接口 + Wind 终端股票接口
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §3
 """
-import time
+
 import logging
 import uuid
 from datetime import datetime
@@ -22,8 +22,8 @@ class OrderBook:
     bid1_vol: int = 0
     ask1: float = 0.0
     ask1_vol: int = 0
-    bid_volumes: List[int] = field(default_factory=lambda: [0]*5)
-    ask_volumes: List[int] = field(default_factory=lambda: [0]*5)
+    bid_volumes: List[int] = field(default_factory=lambda: [0] * 5)
+    ask_volumes: List[int] = field(default_factory=lambda: [0] * 5)
     total_volume: int = 0
     timestamp: str = ""
 
@@ -84,9 +84,9 @@ class BrokerAPI:
         raise NotImplementedError
 
     # ---------- 下单 ----------
-    def place(self, symbol: str, qty: int, side: str,
-              order_type: str = 'LIMIT', price: float = 0.0,
-              ts: str = "") -> Optional[Order]:
+    def place(
+        self, symbol: str, qty: int, side: str, order_type: str = "LIMIT", price: float = 0.0, ts: str = ""
+    ) -> Optional[Order]:
         raise NotImplementedError
 
     # ---------- 撤单 ----------
@@ -107,16 +107,19 @@ class BrokerAPI:
 
     # ---------- 账户 ----------
     def get_account_info(self) -> dict:
-        return {'available': 0, 'total': 0, 'margin': 0}
+        return {"available": 0, "total": 0, "margin": 0}
 
 
 class SimulatedBroker(BrokerAPI):
     """回测模式：模拟盘口与撮合"""
 
-    def __init__(self, initial_capital: float = 5_000_000,
-                 commission_stock: float = 0.00025,
-                 commission_futures: float = 0.000023,
-                 slippage_bps: float = 2.0):
+    def __init__(
+        self,
+        initial_capital: float = 5_000_000,
+        commission_stock: float = 0.00025,
+        commission_futures: float = 0.000023,
+        slippage_bps: float = 2.0,
+    ):
         super().__init__()
         self.capital = initial_capital
         self.available = initial_capital
@@ -137,19 +140,32 @@ class SimulatedBroker(BrokerAPI):
             return None
         vol = self._volumes.get(symbol, 100000)
         return {
-            'symbol': symbol,
-            'bid1': price * 0.9999,
-            'bid1_vol': vol // 2,
-            'ask1': price * 1.0001,
-            'ask1_vol': vol // 2,
-            'total_volume': vol,
-            'bid_volumes': [vol // (i+2) for i in range(5)],
-            'ask_volumes': [vol // (i+2) for i in range(5)],
+            "symbol": symbol,
+            "bid1": price * 0.9999,
+            "bid1_vol": vol // 2,
+            "ask1": price * 1.0001,
+            "ask1_vol": vol // 2,
+            "total_volume": vol,
+            "bid_volumes": [vol // (i + 2) for i in range(5)],
+            "ask_volumes": [vol // (i + 2) for i in range(5)],
         }
 
-    def place(self, symbol: str, qty: int, side: str,
-              order_type: str = 'LIMIT', price: float = 0.0,
-              ts: str = "") -> Optional[Order]:
+    def place(
+        self, symbol: str, qty: int, side: str, order_type: str = "LIMIT", price: float = 0.0, ts: str = ""
+    ) -> Optional[Order]:
+        # P1-04: 下单前检查可用资金/持仓
+        if side == "BUY" and hasattr(self, "_account") and self._account:
+            estimated_cost = qty * (price or 0) * 1.001  # 含佣金
+            available = getattr(self._account, "available_cash", float("inf"))
+            if estimated_cost > available:
+                logger.error("资金不足: 需要 %.2f, 可用 %.2f, 拒绝下单 %s %s", estimated_cost, available, symbol, side)
+                return None
+        elif side == "SELL" and hasattr(self, "_account") and self._account:
+            pos = self._account.positions.get(symbol, 0) if hasattr(self._account, "positions") else float("inf")
+            if qty > pos:
+                logger.error("持仓不足: 需要 %d, 持有 %d, 拒绝下单 %s %s", qty, pos, symbol, side)
+                return None
+
         order_id = f"SIM-{uuid.uuid4().hex[:8]}"
         order = Order(
             order_id=order_id,
@@ -158,7 +174,7 @@ class SimulatedBroker(BrokerAPI):
             side=side,
             order_type=order_type,
             price=price,
-            ts=ts or datetime.now().isoformat()
+            ts=ts or datetime.now().isoformat(),
         )
         self.orders[order_id] = order
         return order
@@ -177,7 +193,7 @@ class SimulatedBroker(BrokerAPI):
 
         # 模拟滑点
         slip = self.slippage_bps / 10000
-        fill_price = price * (1 + slip) if order.side == 'BUY' else price * (1 - slip)
+        fill_price = price * (1 + slip) if order.side == "BUY" else price * (1 - slip)
         fill_qty = min(order.qty, self._volumes.get(order.symbol, order.qty) // 10)
 
         fill = Fill(
@@ -187,7 +203,7 @@ class SimulatedBroker(BrokerAPI):
             qty=fill_qty,
             price=fill_price,
             side=order.side,
-            ts=datetime.now().isoformat()
+            ts=datetime.now().isoformat(),
         )
         self.fills.append(fill)
 
@@ -196,24 +212,24 @@ class SimulatedBroker(BrokerAPI):
         order.status = "FILLED"
 
         # 更新持仓
-        delta = fill_qty if order.side == 'BUY' else -fill_qty
+        delta = fill_qty if order.side == "BUY" else -fill_qty
         self.positions[order.symbol] = self.positions.get(order.symbol, 0) + delta
 
         # 更新资金
         cost = fill_qty * fill_price
-        if order.side == 'BUY':
+        if order.side == "BUY":
             self.available -= cost
         else:
             self.available += cost
 
         return {
-            'order_id': order.order_id,
-            'fill_id': fill.fill_id,
-            'symbol': order.symbol,
-            'qty': fill_qty,
-            'price': fill_price,
-            'side': order.side,
-            'ts': fill.ts
+            "order_id": order.order_id,
+            "fill_id": fill.fill_id,
+            "symbol": order.symbol,
+            "qty": fill_qty,
+            "price": fill_price,
+            "side": order.side,
+            "ts": fill.ts,
         }
 
     def get_volume_profile(self, symbol: str, window_minutes: int = 30) -> Optional[List[float]]:
@@ -222,7 +238,7 @@ class SimulatedBroker(BrokerAPI):
 
     def get_account_info(self) -> dict:
         return {
-            'available': self.available,
-            'total': self.capital,
-            'margin': 0,
+            "available": self.available,
+            "total": self.capital,
+            "margin": 0,
         }

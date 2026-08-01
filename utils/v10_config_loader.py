@@ -17,11 +17,12 @@ v10.0 投资计划配置加载器
     phase = loader.get_current_phase()
     allocation = loader.get_allocation()
 """
+
 from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, date
+from datetime import date
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -52,7 +53,7 @@ class V10ConfigLoader:
                 self._config = json.load(f)
             logger.info(f"v10.0 配置加载成功: {self.config_path.name}")
             return self._config
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"v10.0 配置加载失败: {e}")
             return {}
 
@@ -60,42 +61,42 @@ class V10ConfigLoader:
         """获取 6 账户资金分配"""
         cfg = self.load()
         meta = cfg.get("meta", {})
-        return meta.get("allocation", {})
+        return meta.get("allocation", {})  # type: ignore
 
     def get_hedge_fund_standard(self) -> Dict[str, Any]:
         """获取对冲基金标准风控参数"""
         cfg = self.load()
-        return cfg.get("meta", {}).get("hedge_fund_standard", {})
+        return cfg.get("meta", {}).get("hedge_fund_standard", {})  # type: ignore
 
     def get_stock_positions(self) -> List[Dict]:
         """获取股票多头持仓列表"""
         cfg = self.load()
-        return cfg.get("stock_long_account", {}).get("positions", [])
+        return cfg.get("stock_long_account", {}).get("positions", [])  # type: ignore
 
     def get_etf_positions(self) -> List[Dict]:
         """获取 ETF 持仓列表"""
         cfg = self.load()
-        return cfg.get("etf_account", {}).get("positions", [])
+        return cfg.get("etf_account", {}).get("positions", [])  # type: ignore
 
     def get_futures_config(self) -> Dict:
         """获取期货账户配置"""
         cfg = self.load()
-        return cfg.get("macro_hedge_account", {})
+        return cfg.get("macro_hedge_account", {})  # type: ignore
 
     def get_quant_neutral_config(self) -> Dict:
         """获取量化中性策略配置"""
         cfg = self.load()
-        return cfg.get("quant_neutral_account", {})
+        return cfg.get("quant_neutral_account", {})  # type: ignore
 
     def get_options_config(self) -> Dict:
         """获取期权策略配置"""
         cfg = self.load()
-        return cfg.get("options_account", {})
+        return cfg.get("options_account", {})  # type: ignore
 
     def get_cash_config(self) -> Dict:
         """获取现金管理配置"""
         cfg = self.load()
-        return cfg.get("cash_management", {})
+        return cfg.get("cash_management", {})  # type: ignore
 
     def get_current_phase(self, today: Optional[date] = None) -> Dict[str, Any]:
         """根据日期获取当前年度阶段
@@ -139,42 +140,42 @@ class V10ConfigLoader:
     def get_daily_schedule(self) -> Dict[str, Dict]:
         """获取每日时间表"""
         cfg = self.load()
-        return cfg.get("daily_schedule", {})
+        return cfg.get("daily_schedule", {})  # type: ignore
 
     def get_risk_automation(self) -> Dict[str, Any]:
         """获取风控自动化配置"""
         cfg = self.load()
-        return cfg.get("risk_automation", {})
+        return cfg.get("risk_automation", {})  # type: ignore
 
     def get_rebalance_config(self) -> Dict[str, Any]:
         """获取再平衡配置"""
         cfg = self.load()
-        return cfg.get("dynamic_rebalance", {})
+        return cfg.get("dynamic_rebalance", {})  # type: ignore
 
     def get_drawdown_config(self) -> Dict[str, Any]:
         """获取回撤控制配置"""
         risk = self.get_risk_automation()
-        return risk.get("drawdown_control", {})
+        return risk.get("drawdown_control", {})  # type: ignore
 
     def get_var_config(self) -> Dict[str, Any]:
         """获取 VaR 监控配置"""
         risk = self.get_risk_automation()
-        return risk.get("var_monitoring", {})
+        return risk.get("var_monitoring", {})  # type: ignore
 
     def get_concentration_limits(self) -> Dict[str, Any]:
         """获取集中度限制"""
         risk = self.get_risk_automation()
-        return risk.get("concentration_limits", {})
+        return risk.get("concentration_limits", {})  # type: ignore
 
     def get_stress_test_scenarios(self) -> Dict[str, Any]:
         """获取压力测试场景"""
         risk = self.get_risk_automation()
-        return risk.get("stress_test_scenarios", {})
+        return risk.get("stress_test_scenarios", {})  # type: ignore
 
     def get_early_warning_signals(self) -> Dict[str, Any]:
         """获取早期预警信号"""
         risk = self.get_risk_automation()
-        return risk.get("early_warning_signals", {})
+        return risk.get("early_warning_signals", {})  # type: ignore
 
     def get_total_capital(self) -> float:
         """获取总资金"""
@@ -209,7 +210,7 @@ class V10ConfigLoader:
 
         lines = [
             "=" * 60,
-            f"v10.0 投资计划配置摘要",
+            "v10.0 投资计划配置摘要",
             "=" * 60,
             f"总资金: ¥{total:,.0f}",
             f"最大杠杆: {self.get_max_leverage():.1f}x",
@@ -222,20 +223,22 @@ class V10ConfigLoader:
             pct = amount / total * 100 if total > 0 else 0
             lines.append(f"  {account}: ¥{amount:,.0f} ({pct:.1f}%)")
 
-        lines.extend([
-            "",
-            f"当前阶段: {phase.get('phase_key', 'N/A')} - {phase.get('name', 'N/A')}",
-            f"阶段周期: {phase.get('period', 'N/A')}",
-            f"目标收益: {phase.get('target_return', 0):.1%}",
-            f"最大回撤: {phase.get('max_drawdown', 0):.1%}",
-            f"每日建仓限额: ¥{self.get_daily_build_limit():,.0f}",
-            "",
-            "持仓统计:",
-            f"  股票: {len(self.get_stock_positions())} 只",
-            f"  ETF: {len(self.get_etf_positions())} 只",
-            f"  期货: {len(self.get_futures_config().get('positions', []))} 种",
-            "=" * 60,
-        ])
+        lines.extend(
+            [
+                "",
+                f"当前阶段: {phase.get('phase_key', 'N/A')} - {phase.get('name', 'N/A')}",
+                f"阶段周期: {phase.get('period', 'N/A')}",
+                f"目标收益: {phase.get('target_return', 0):.1%}",
+                f"最大回撤: {phase.get('max_drawdown', 0):.1%}",
+                f"每日建仓限额: ¥{self.get_daily_build_limit():,.0f}",
+                "",
+                "持仓统计:",
+                f"  股票: {len(self.get_stock_positions())} 只",
+                f"  ETF: {len(self.get_etf_positions())} 只",
+                f"  期货: {len(self.get_futures_config().get('positions', []))} 种",
+                "=" * 60,
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -258,18 +261,18 @@ if __name__ == "__main__":
     loader = V10ConfigLoader()
 
     if args.summary or not any(vars(args).values()):
-        print(loader.summary())
+        logger.info(loader.summary())
 
     if args.phase:
         phase = loader.get_current_phase()
-        print(json.dumps(phase, ensure_ascii=False, indent=2, default=str))
+        logger.info(json.dumps(phase, ensure_ascii=False, indent=2, default=str))
 
     if args.schedule:
         schedule = loader.get_daily_schedule()
-        print("\n每日时间表:")
+        logger.info("\n每日时间表:")
         for time_slot, info in schedule.items():
-            print(f"  {time_slot}: {info.get('stage', '')} - {info.get('action', '')}")
+            logger.info(f"  {time_slot}: {info.get('stage', '')} - {info.get('action', '')}")
 
     if args.risk:
         risk = loader.get_risk_automation()
-        print(json.dumps(risk, ensure_ascii=False, indent=2, default=str))
+        logger.info(json.dumps(risk, ensure_ascii=False, indent=2, default=str))

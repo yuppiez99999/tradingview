@@ -271,7 +271,7 @@ def main() -> int:
 
     if hard_errors == 0:
         if soft_errors == 0:
-            print(f"✅ T1.4 验收通过 — 0 个错误")
+            print("✅ T1.4 验收通过 — 0 个错误")
             return 0
         print(f"✅ T1.4 验收通过 (硬性标准 0 错误) — {soft_errors} 个软性警告需后续清理")
         return 0

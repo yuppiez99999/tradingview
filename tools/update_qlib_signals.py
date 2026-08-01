@@ -3,7 +3,6 @@
 将 QLib 训练信号更新到 positions.json
 支持v3/v3.5/v4/v5版本报告
 """
-import os
 import json
 import re
 from pathlib import Path
@@ -41,7 +40,7 @@ def update_positions_with_signals():
     signal_map = {}
 
     if "portfolio_signals" in report:
-        for code, info in report["portfolio_signals"].items():
+        for _code, info in report["portfolio_signals"].items():
             symbol = info["symbol"]
             exchange = symbol[:2]
             number = symbol[2:]
@@ -102,7 +101,7 @@ def update_positions_with_signals():
         json.dump(positions_data, f, indent=2, ensure_ascii=False)
 
     print(f"\n{'='*70}")
-    print(f"QLib 信号更新完成")
+    print("QLib 信号更新完成")
     print(f"{'='*70}")
     print(f"训练报告: {report_path.name}")
     print(f"模型版本: {report.get('version', 'unknown')} ({report.get('model', 'unknown')})")
@@ -112,7 +111,7 @@ def update_positions_with_signals():
     print(f"IC IR: {report.get('ic_ir', 0):.4f}")
     print(f"{'='*70}\n")
 
-    for key, pos in positions_data["positions"].items():
+    for _key, pos in positions_data["positions"].items():
         if "qlib_signal" in pos:
             signal_str = f"{pos['qlib_signal']:.4f}" if pos['qlib_signal'] is not None else "None"
             print(f"{pos['code']} {pos['name']:<10} 信号: {signal_str} 方向: {pos['qlib_direction']}")

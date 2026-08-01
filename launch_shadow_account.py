@@ -16,6 +16,7 @@
 
 2026-07-25 顶级对冲基金审计: 影子账户 fail-fast 立即执行
 """
+
 from __future__ import annotations
 
 import argparse
@@ -80,7 +81,8 @@ def init_shadow_account() -> dict:
     config = load_config()
 
     # 检查环境
-    from utils.trading_env import get_trading_env, get_trading_env_config
+    from utils.trading_env import get_trading_env_config
+
     env_config = get_trading_env_config()
     logger.info("=" * 70)
     logger.info("影子账户初始化")
@@ -89,8 +91,7 @@ def init_shadow_account() -> dict:
 
     if not env_config.fail_closed:
         logger.warning(
-            "⚠️ 当前环境 %s 未激活 fail-closed! "
-            "建议设置 TRADING_ENV=production 或 TRADING_ENV=shadow",
+            "⚠️ 当前环境 %s 未激活 fail-closed! 建议设置 TRADING_ENV=production 或 TRADING_ENV=shadow",
             env_config.env,
         )
 
@@ -103,16 +104,23 @@ def init_shadow_account() -> dict:
     shadow_capital = float(capital_config.get("shadow_initial_capital", 500_000))
 
     logger.info("策略 ID: %s", config.get("strategy_id", ""))
-    logger.info("回测基准: 年化=%.2f%%, 回撤=%.2f%%, Sharpe=%.2f",
-                benchmark.get("annual_return", 0) * 100,
-                benchmark.get("max_drawdown", 0) * 100,
-                benchmark.get("sharpe_annual", 0))
-    logger.info("影子资金: ¥%.0f (总资金 %.0f 的 %.0f%%)",
-                shadow_capital, total_capital,
-                shadow_capital / total_capital * 100 if total_capital > 0 else 0)
-    logger.info("Fail-fast: 单日>%.0f%%, 3日>%.0f%%",
-                fail_fast_config.get("daily_drawdown_threshold", 0.03) * 100,
-                fail_fast_config.get("cumulative_3d_drawdown_threshold", 0.05) * 100)
+    logger.info(
+        "回测基准: 年化=%.2f%%, 回撤=%.2f%%, Sharpe=%.2f",
+        benchmark.get("annual_return", 0) * 100,
+        benchmark.get("max_drawdown", 0) * 100,
+        benchmark.get("sharpe_annual", 0),
+    )
+    logger.info(
+        "影子资金: ¥%.0f (总资金 %.0f 的 %.0f%%)",
+        shadow_capital,
+        total_capital,
+        shadow_capital / total_capital * 100 if total_capital > 0 else 0,
+    )
+    logger.info(
+        "Fail-fast: 单日>%.0f%%, 3日>%.0f%%",
+        fail_fast_config.get("daily_drawdown_threshold", 0.03) * 100,
+        fail_fast_config.get("cumulative_3d_drawdown_threshold", 0.05) * 100,
+    )
 
     # 创建影子账户状态
     state = {
@@ -219,7 +227,9 @@ def advance_stage() -> None:
     if len(daily_nav) < min_days:
         logger.warning(
             "运行天数不足: %d/%d 天 (需至少 %d 天才能推进)",
-            len(daily_nav), min_days, min_days,
+            len(daily_nav),
+            min_days,
+            min_days,
         )
         return
 
@@ -240,12 +250,8 @@ def advance_stage() -> None:
     save_state(state)
 
     logger.info("=" * 70)
-    logger.info("✓ 灰度阶段推进: %s → %s",
-                stages[current_stage].get("name", ""),
-                next_stage_info.get("name", ""))
-    logger.info("  资金分配: ¥%.0f (%.0f%%)",
-                state["capital_allocated"],
-                state["capital_pct"] * 100)
+    logger.info("✓ 灰度阶段推进: %s → %s", stages[current_stage].get("name", ""), next_stage_info.get("name", ""))
+    logger.info("  资金分配: ¥%.0f (%.0f%%)", state["capital_allocated"], state["capital_pct"] * 100)
     logger.info("=" * 70)
 
 

@@ -41,11 +41,29 @@ def check_no_future_leakage(prices, as_of_date) -> Tuple[bool, str]:
     try:
         import pandas as pd
 
+        # BUG 修复 (2026-08-01 顶级对冲基金重跑验证发现):
+        # 原代码 cutoff 未做 tz 规范化, 当 as_of_date 是 tz-aware Timestamp
+        # 或 idx 元素为 tz-aware Timestamp 时, 比较抛
+        # "Cannot compare tz-naive and tz-aware timestamps", 触发 fail-closed
+        # 但这是检测器本身的 bug, 不是数据真的泄漏, 导致所有回测月份都被标记 invalid。
+        # 修复: 统一两侧都强制 tz-naive 后再比较。
         cutoff = pd.Timestamp(as_of_date).normalize()
+        if hasattr(cutoff, "tz") and cutoff.tz is not None:
+            cutoff = cutoff.tz_localize(None)
+
         idx = prices.index
         if hasattr(idx, "tz") and idx.tz is not None:
             idx = idx.tz_localize(None)
-        future = [d for d in idx if pd.Timestamp(d).normalize() > cutoff]
+
+        # 单个元素也强制 tz-naive (部分 pandas 版本下 idx.tz_localize(None)
+        # 不会改变迭代元素的 tz 属性, 需逐个规范化)
+        def _to_naive_ts(d):
+            ts = pd.Timestamp(d)
+            if hasattr(ts, "tz") and ts.tz is not None:
+                ts = ts.tz_localize(None)
+            return ts.normalize()
+
+        future = [d for d in idx if _to_naive_ts(d) > cutoff]
         if future:
             return False, f"检测到 {len(future)} 条 as_of_date 之后的未来数据（前视偏差）"
         return True, "无未来数据泄漏"
@@ -72,15 +90,10 @@ def evaluate_alpha_provenance(alpha_report: Any) -> str:
             return "real"
         active = alpha_report.get("active_factors", 0)
         evals = alpha_report.get("evaluations", []) or []
-        real_evals = [
-            e for e in evals
-            if isinstance(e, dict) and e.get("category") != "mock"
-        ]
+        real_evals = [e for e in evals if isinstance(e, dict) and e.get("category") != "mock"]
         if real_evals and active > 0:
             return "real"
-        if active == 0 or (evals and all(
-            (e.get("category") == "mock") for e in evals if isinstance(e, dict)
-        )):
+        if active == 0 or (evals and all((e.get("category") == "mock") for e in evals if isinstance(e, dict))):
             return "mock"
         return "unknown"
 
@@ -127,10 +140,7 @@ def validate_backtest(
     # 2) alpha 来源
     provenance = evaluate_alpha_provenance(alpha_report)
     if require_real_alpha and provenance != "real":
-        issues.append(
-            f"alpha 来源为 '{provenance}'，非真实信号；"
-            f"按尽职调查标准，该结果不得作为有效回测/收益证据"
-        )
+        issues.append(f"alpha 来源为 '{provenance}'，非真实信号；按尽职调查标准，该结果不得作为有效回测/收益证据")
 
     is_valid = len(issues) == 0
     if not is_valid:

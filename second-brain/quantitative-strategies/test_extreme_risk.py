@@ -4,8 +4,7 @@
 """
 
 import numpy as np
-import pandas as pd
-from risk_control_system import MultiLevelRiskControlSystem, RiskType, RiskLevel
+from risk_control_system import MultiLevelRiskControlSystem, RiskType
 
 def create_extreme_risk_data():
     """创建极端风险测试数据"""

@@ -18,11 +18,10 @@
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Dict, List
 
 import numpy as np
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +29,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StockStatus:
     """股票状态数据"""
+
     symbol: str
     name: str
     is_suspended: bool  # 是否停牌
@@ -44,6 +44,7 @@ class StockStatus:
 @dataclass
 class LiquidityMetrics:
     """流动性指标"""
+
     avg_daily_volume: float  # 日均成交量(股)
     avg_daily_turnover: float  # 日均成交额(元)
     current_volume: float  # 当前成交量
@@ -58,6 +59,7 @@ class LiquidityMetrics:
 @dataclass
 class ImpactCost:
     """市场冲击成本"""
+
     estimated_slippage_bps: float  # 预估滑点(bps)
     slippage_cny: float  # 滑点金额(元)
     execution_cost: float  # 执行总成本
@@ -68,6 +70,7 @@ class ImpactCost:
 @dataclass
 class TradeFeasibility:
     """交易可行性评估"""
+
     symbol: str
     can_trade: bool  # 是否可以交易
     trade_direction: str  # 'BUY', 'SELL', 'NONE'
@@ -80,6 +83,7 @@ class TradeFeasibility:
 @dataclass
 class LiquidityReport:
     """流动性报告"""
+
     timestamp: datetime
     total_stocks: int
     suspended_count: int  # 停牌数
@@ -104,14 +108,16 @@ class LimitUpDownDetector:
 
         logger.info("[LimitUpDownDetector] 初始化完成")
 
-    def detect(self,
-               symbol: str,
-               current_price: float,
-               prev_close: float,
-               today_high: float,
-               today_low: float,
-               board_type: str = 'MAIN',  # 'MAIN', 'GEM', 'STAR', 'ST'
-               is_suspended: bool = False) -> StockStatus:
+    def detect(
+        self,
+        symbol: str,
+        current_price: float,
+        prev_close: float,
+        today_high: float,
+        today_low: float,
+        board_type: str = "MAIN",  # 'MAIN', 'GEM', 'STAR', 'ST'
+        is_suspended: bool = False,
+    ) -> StockStatus:
         """
         检测股票涨跌停状态
 
@@ -137,16 +143,16 @@ class LimitUpDownDetector:
                 daily_return=0.0,
                 limit_up_price=0,
                 limit_down_price=0,
-                change_pct_limit=0.0
+                change_pct_limit=0.0,
             )
 
         # 计算涨跌幅
         daily_return = (current_price - prev_close) / prev_close
 
         # 确定涨跌停阈值
-        if board_type == 'GEM' or board_type == 'STAR':
+        if board_type == "GEM" or board_type == "STAR":
             threshold = self.gem_board_threshold
-        elif board_type == 'ST':
+        elif board_type == "ST":
             threshold = self.st_threshold
         else:
             threshold = self.main_board_threshold
@@ -157,10 +163,8 @@ class LimitUpDownDetector:
 
         # 判断是否触及涨跌停(允许±0.01元误差)
         tolerance = 0.01
-        is_limit_up = (today_high >= limit_up_price - tolerance and
-                       today_low >= limit_up_price - tolerance)
-        is_limit_down = (today_low <= limit_down_price + tolerance and
-                         today_high <= limit_down_price + tolerance)
+        is_limit_up = today_high >= limit_up_price - tolerance and today_low >= limit_up_price - tolerance
+        is_limit_down = today_low <= limit_down_price + tolerance and today_high <= limit_down_price + tolerance
 
         return StockStatus(
             symbol=symbol,
@@ -171,35 +175,37 @@ class LimitUpDownDetector:
             daily_return=daily_return,
             limit_up_price=limit_up_price,
             limit_down_price=limit_down_price,
-            change_pct_limit=abs(daily_return) / threshold
+            change_pct_limit=abs(daily_return) / threshold,
         )
 
 
 class LiquidityChecker:
     """流动性检查器"""
 
-    def __init__(self,
-                 min_turnover: float = 10_000_000,  # 最低成交额1000万
-                 min_volume: float = 1_000_000,  # 最低成交量100万股
-                 min_liquidity_score: float = 30.0):  # 最低流动性评分30分
+    def __init__(
+        self,
+        min_turnover: float = 10_000_000,  # 最低成交额1000万
+        min_volume: float = 1_000_000,  # 最低成交量100万股
+        min_liquidity_score: float = 30.0,
+    ):  # 最低流动性评分30分
         self.min_turnover = min_turnover
         self.min_volume = min_volume
         self.min_liquidity_score = min_liquidity_score
 
-        logger.info(f"[LiquidityChecker] 初始化完成 | "
-                    f"Min Turnover={min_turnover:,.0f} | "
-                    f"Min Volume={min_volume:,.0f}")
+        logger.info(f"[LiquidityChecker] 初始化完成 | Min Turnover={min_turnover:,.0f} | Min Volume={min_volume:,.0f}")
 
-    def calculate_metrics(self,
-                          current_volume: float,
-                          avg_daily_volume: float,
-                          current_turnover: float,
-                          avg_daily_turnover: float,
-                          bid_price: float,
-                          ask_price: float,
-                          bid_volume: float,
-                          ask_volume: float,
-                          total_shares: float) -> LiquidityMetrics:
+    def calculate_metrics(
+        self,
+        current_volume: float,
+        avg_daily_volume: float,
+        current_turnover: float,
+        avg_daily_turnover: float,
+        bid_price: float,
+        ask_price: float,
+        bid_volume: float,
+        ask_volume: float,
+        total_shares: float,
+    ) -> LiquidityMetrics:
         """
         计算流动性指标
 
@@ -244,15 +250,12 @@ class LiquidityChecker:
             turnover_rate=turnover_rate,
             bid_ask_spread=bid_ask_spread,
             market_depth=market_depth,
-            liquidity_score=liquidity_score
+            liquidity_score=liquidity_score,
         )
 
-    def _calculate_liquidity_score(self,
-                                   turnover: float,
-                                   volume_ratio: float,
-                                   turnover_rate: float,
-                                   bid_ask_spread: float,
-                                   market_depth: float) -> float:
+    def _calculate_liquidity_score(
+        self, turnover: float, volume_ratio: float, turnover_rate: float, bid_ask_spread: float, market_depth: float
+    ) -> float:
         """
         计算流动性评分(0-100)
 
@@ -317,12 +320,14 @@ class LiquidityChecker:
 
         return min(score, 100)
 
-    def check_feasibility(self,
-                          symbol: str,
-                          order_value: float,
-                          liquidity: LiquidityMetrics,
-                          stock_status: StockStatus,
-                          max_impact_pct: float = 0.005) -> TradeFeasibility:
+    def check_feasibility(
+        self,
+        symbol: str,
+        order_value: float,
+        liquidity: LiquidityMetrics,
+        stock_status: StockStatus,
+        max_impact_pct: float = 0.005,
+    ) -> TradeFeasibility:
         """
         检查交易可行性
 
@@ -341,24 +346,24 @@ class LiquidityChecker:
             return TradeFeasibility(
                 symbol=symbol,
                 can_trade=False,
-                trade_direction='NONE',
+                trade_direction="NONE",
                 reason="股票停牌,无法交易",
                 max_order_size=0,
                 estimated_impact_cost=self._estimate_impact(0),
-                risk_level='BLOCKED'
+                risk_level="BLOCKED",
             )
 
         # 2. 涨跌停检查
-        if stock_status.is_limit_up and stock_status.symbol.startswith(('6', '9')):
+        if stock_status.is_limit_up and stock_status.symbol.startswith(("6", "9")):
             # 涨停无法买入
             return TradeFeasibility(
                 symbol=symbol,
                 can_trade=False,
-                trade_direction='SELL',
+                trade_direction="SELL",
                 reason="股票涨停,无法买入",
                 max_order_size=0,
                 estimated_impact_cost=self._estimate_impact(0),
-                risk_level='BLOCKED'
+                risk_level="BLOCKED",
             )
 
         if stock_status.is_limit_down:
@@ -366,11 +371,11 @@ class LiquidityChecker:
             return TradeFeasibility(
                 symbol=symbol,
                 can_trade=False,
-                trade_direction='BUY',
+                trade_direction="BUY",
                 reason="股票跌停,无法卖出",
                 max_order_size=0,
                 estimated_impact_cost=self._estimate_impact(0),
-                risk_level='BLOCKED'
+                risk_level="BLOCKED",
             )
 
         # 3. 流动性检查
@@ -378,11 +383,11 @@ class LiquidityChecker:
             return TradeFeasibility(
                 symbol=symbol,
                 can_trade=False,
-                trade_direction='NONE',
+                trade_direction="NONE",
                 reason=f"流动性不足(评分{liquidity.liquidity_score:.1f}<{self.min_liquidity_score})",
                 max_order_size=0,
                 estimated_impact_cost=self._estimate_impact(0),
-                risk_level='HIGH'
+                risk_level="HIGH",
             )
 
         # 4. 计算最大订单大小(不超过日均成交额的5%)
@@ -394,25 +399,23 @@ class LiquidityChecker:
 
         # 6. 风险评估
         if impact_cost.estimated_slippage_bps > 30:
-            risk_level = 'HIGH'
+            risk_level = "HIGH"
         elif impact_cost.estimated_slippage_bps > 10:
-            risk_level = 'MEDIUM'
+            risk_level = "MEDIUM"
         else:
-            risk_level = 'LOW'
+            risk_level = "LOW"
 
         return TradeFeasibility(
             symbol=symbol,
             can_trade=True,
-            trade_direction='BUY' if order_value > 0 else 'SELL',
+            trade_direction="BUY" if order_value > 0 else "SELL",
             reason="流动性充足,可以交易",
             max_order_size=max_order_size,
             estimated_impact_cost=impact_cost,
-            risk_level=risk_level
+            risk_level=risk_level,
         )
 
-    def _estimate_impact(self,
-                         order_size: float,
-                         market_size: float = 50_000_000) -> ImpactCost:
+    def _estimate_impact(self, order_size: float, market_size: float = 50_000_000) -> ImpactCost:
         """
         使用Almgren-Chriss平方根模型估算市场冲击成本
 
@@ -431,7 +434,7 @@ class LiquidityChecker:
                 slippage_cny=0,
                 execution_cost=0,
                 recommended_order_size=market_size * 0.05,
-                execution_days=1
+                execution_days=1,
             )
 
         # 平方根模型
@@ -455,28 +458,22 @@ class LiquidityChecker:
             slippage_cny=slippage_cny,
             execution_cost=order_size + slippage_cny,
             recommended_order_size=recommended_size,
-            execution_days=execution_days
+            execution_days=execution_days,
         )
 
 
 class LiquidityMonitor:
     """流动性监控主控制器"""
 
-    def __init__(self,
-                 min_turnover: float = 10_000_000,
-                 min_liquidity_score: float = 30.0):
+    def __init__(self, min_turnover: float = 10_000_000, min_liquidity_score: float = 30.0):
         self.limit_detector = LimitUpDownDetector()
-        self.liquidity_checker = LiquidityChecker(
-            min_turnover=min_turnover,
-            min_liquidity_score=min_liquidity_score
+        self.liquidity_checker = LiquidityChecker(min_turnover=min_turnover, min_liquidity_score=min_liquidity_score)
+
+        logger.info(
+            f"[LiquidityMonitor] 初始化完成 | Min Turnover={min_turnover:,.0f} | Min Score={min_liquidity_score}"
         )
 
-        logger.info(f"[LiquidityMonitor] 初始化完成 | "
-                    f"Min Turnover={min_turnover:,.0f} | "
-                    f"Min Score={min_liquidity_score}")
-
-    def scan_market(self,
-                    stock_data: List[Dict]) -> LiquidityReport:
+    def scan_market(self, stock_data: List[Dict]) -> LiquidityReport:
         """
         扫描全市场股票流动性
 
@@ -511,17 +508,17 @@ class LiquidityMonitor:
         liquidity_scores = []
 
         for stock in stock_data:
-            symbol = stock.get('symbol', '')
+            symbol = stock.get("symbol", "")
 
             # 1. 涨跌停检测
             status = self.limit_detector.detect(
                 symbol=symbol,
-                current_price=stock.get('current_price', 0),
-                prev_close=stock.get('prev_close', 0),
-                today_high=stock.get('today_high', 0),
-                today_low=stock.get('today_low', 0),
-                board_type=stock.get('board_type', 'MAIN'),
-                is_suspended=stock.get('is_suspended', False)
+                current_price=stock.get("current_price", 0),
+                prev_close=stock.get("prev_close", 0),
+                today_high=stock.get("today_high", 0),
+                today_low=stock.get("today_low", 0),
+                board_type=stock.get("board_type", "MAIN"),
+                is_suspended=stock.get("is_suspended", False),
             )
 
             if status.is_suspended:
@@ -533,15 +530,15 @@ class LiquidityMonitor:
 
             # 2. 流动性指标计算
             liquidity = self.liquidity_checker.calculate_metrics(
-                current_volume=stock.get('volume', 0),
-                avg_daily_volume=stock.get('avg_daily_volume', 0),
-                current_turnover=stock.get('turnover', 0),
-                avg_daily_turnover=stock.get('avg_daily_turnover', 0),
-                bid_price=stock.get('bid_price', 0),
-                ask_price=stock.get('ask_price', 0),
-                bid_volume=stock.get('bid_volume', 0),
-                ask_volume=stock.get('ask_volume', 0),
-                total_shares=stock.get('total_shares', 1)
+                current_volume=stock.get("volume", 0),
+                avg_daily_volume=stock.get("avg_daily_volume", 0),
+                current_turnover=stock.get("turnover", 0),
+                avg_daily_turnover=stock.get("avg_daily_turnover", 0),
+                bid_price=stock.get("bid_price", 0),
+                ask_price=stock.get("ask_price", 0),
+                bid_volume=stock.get("bid_volume", 0),
+                ask_volume=stock.get("ask_volume", 0),
+                total_shares=stock.get("total_shares", 1),
             )
 
             liquidity_scores.append(liquidity.liquidity_score)
@@ -569,80 +566,80 @@ class LiquidityMonitor:
             low_liquidity_count=low_liquidity_count,
             avg_liquidity_score=np.mean(liquidity_scores) if liquidity_scores else 0,
             blocked_trades=blocked_trades,
-            warnings=warnings
+            warnings=warnings,
         )
 
 
 if __name__ == "__main__":
     # 测试示例
     print("涨跌停检测与流动性检查模块测试\n")
-    print("="*60)
+    print("=" * 60)
 
     monitor = LiquidityMonitor()
 
     # 模拟股票数据
     test_stocks = [
         {
-            'symbol': '600519.SH',
-            'current_price': 1800.00,
-            'prev_close': 1730.00,
-            'today_high': 1805.00,
-            'today_low': 1780.00,
-            'volume': 5000,
-            'turnover': 9_000_000,
-            'avg_daily_volume': 50000,
-            'avg_daily_turnover': 100_000_000,
-            'bid_price': 1799.00,
-            'ask_price': 1801.00,
-            'bid_volume': 100,
-            'ask_volume': 150,
-            'total_shares': 25_000_000_000,
-            'board_type': 'MAIN',
-            'is_suspended': False
+            "symbol": "600519.SH",
+            "current_price": 1800.00,
+            "prev_close": 1730.00,
+            "today_high": 1805.00,
+            "today_low": 1780.00,
+            "volume": 5000,
+            "turnover": 9_000_000,
+            "avg_daily_volume": 50000,
+            "avg_daily_turnover": 100_000_000,
+            "bid_price": 1799.00,
+            "ask_price": 1801.00,
+            "bid_volume": 100,
+            "ask_volume": 150,
+            "total_shares": 25_000_000_000,
+            "board_type": "MAIN",
+            "is_suspended": False,
         },
         {
-            'symbol': '300750.SZ',
-            'current_price': 50.00,
-            'prev_close': 40.00,
-            'today_high': 50.50,
-            'today_low': 49.00,
-            'volume': 1_000_000,
-            'turnover': 50_000_000,
-            'avg_daily_volume': 500_000,
-            'avg_daily_turnover': 25_000_000,
-            'bid_price': 49.90,
-            'ask_price': 50.10,
-            'bid_volume': 5000,
-            'ask_volume': 6000,
-            'total_shares': 5_000_000_000,
-            'board_type': 'GEM',
-            'is_suspended': False
+            "symbol": "300750.SZ",
+            "current_price": 50.00,
+            "prev_close": 40.00,
+            "today_high": 50.50,
+            "today_low": 49.00,
+            "volume": 1_000_000,
+            "turnover": 50_000_000,
+            "avg_daily_volume": 500_000,
+            "avg_daily_turnover": 25_000_000,
+            "bid_price": 49.90,
+            "ask_price": 50.10,
+            "bid_volume": 5000,
+            "ask_volume": 6000,
+            "total_shares": 5_000_000_000,
+            "board_type": "GEM",
+            "is_suspended": False,
         },
         {
-            'symbol': '000001.SZ',
-            'current_price': 15.00,
-            'prev_close': 15.00,
-            'today_high': 15.00,
-            'today_low': 15.00,
-            'volume': 0,
-            'turnover': 0,
-            'avg_daily_volume': 10_000_000,
-            'avg_daily_turnover': 150_000_000,
-            'bid_price': 15.00,
-            'ask_price': 15.00,
-            'bid_volume': 0,
-            'ask_volume': 0,
-            'total_shares': 18_000_000_000,
-            'board_type': 'MAIN',
-            'is_suspended': True
-        }
+            "symbol": "000001.SZ",
+            "current_price": 15.00,
+            "prev_close": 15.00,
+            "today_high": 15.00,
+            "today_low": 15.00,
+            "volume": 0,
+            "turnover": 0,
+            "avg_daily_volume": 10_000_000,
+            "avg_daily_turnover": 150_000_000,
+            "bid_price": 15.00,
+            "ask_price": 15.00,
+            "bid_volume": 0,
+            "ask_volume": 0,
+            "total_shares": 18_000_000_000,
+            "board_type": "MAIN",
+            "is_suspended": True,
+        },
     ]
 
     # 扫描市场
     report = monitor.scan_market(test_stocks)
 
     print(f"\n市场流动性概览 ({report.timestamp.strftime('%Y-%m-%d %H:%M')})")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"总股票数: {report.total_stocks}")
     print(f"停牌数: {report.suspended_count}")
     print(f"涨停数: {report.limit_up_count}")
@@ -651,13 +648,13 @@ if __name__ == "__main__":
     print(f"平均流动性评分: {report.avg_liquidity_score:.1f}/100")
 
     if report.blocked_trades:
-        print(f"\n被阻止的交易:")
+        print("\n被阻止的交易:")
         for symbol in report.blocked_trades:
             print(f"  - {symbol}")
 
     if report.warnings:
-        print(f"\n[WARNING] 警告:")
+        print("\n[WARNING] 警告:")
         for w in report.warnings:
             print(f"  {w}")
 
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")

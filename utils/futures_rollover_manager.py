@@ -12,10 +12,10 @@ QMT 关键规则:
 - detect_rollover_need(): 检测是否需要换月
 - generate_roll_orders(): 生成换月订单 (平旧合约 + 开新合约)
 """
+
 from __future__ import annotations
 
-import calendar
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 from typing import Dict, List, Optional, Tuple
 import logging
 import re
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # 股指期货到期日计算
 # ============================================================
+
 
 def _get_third_friday(year: int, month: int) -> date:
     """计算指定年月的第三个周五 (股指期货到期日)"""
@@ -64,9 +65,7 @@ def _get_futures_expiry(product: str, month_str: str, year: int) -> Optional[dat
 ROLLOVER_DAYS_BEFORE_EXPIRY = 3
 
 # 期货代码格式: {PRODUCT}{YY}{MM}.{EXCHANGE}
-FUTURES_CODE_PATTERN = re.compile(
-    r'^([A-Za-z]+)(\d{2})(\d{2})\.(CFFEX|SHF|DCE|ZCE|GFEX|CZCE)$'
-)
+FUTURES_CODE_PATTERN = re.compile(r"^([A-Za-z]+)(\d{2})(\d{2})\.(CFFEX|SHF|DCE|ZCE|GFEX|CZCE)$")
 
 
 class FuturesRolloverManager:
@@ -147,9 +146,9 @@ class FuturesRolloverManager:
         if parsed is None:
             return False, f"无法解析合约代码: {contract_code}"
 
-        product, year_str, month_str, exchange = parsed
+        product, year_str, month_str, _exchange = parsed
         year = 2000 + int(year_str)
-        month = int(month_str)
+        int(month_str)
 
         expiry = _get_futures_expiry(product, month_str, year)
         if expiry is None:
@@ -160,8 +159,7 @@ class FuturesRolloverManager:
 
         if days_to_expiry <= self.rollover_days:
             return True, (
-                f"{contract_code} 距到期 ({expiry}) 仅 {days_to_expiry} 天, "
-                f"<= {self.rollover_days} 天, 需要换月"
+                f"{contract_code} 距到期 ({expiry}) 仅 {days_to_expiry} 天, <= {self.rollover_days} 天, 需要换月"
             )
 
         return False, ""
@@ -205,14 +203,14 @@ class FuturesRolloverManager:
             {
                 "symbol": old_contract,
                 "side": close_side,
-                "offset": "CLOSE",    # 平仓
+                "offset": "CLOSE",  # 平仓
                 "quantity": quantity,
                 "description": f"换月—平旧合约 {old_contract}",
             },
             {
                 "symbol": new_contract,
                 "side": open_side,
-                "offset": "OPEN",     # 开仓
+                "offset": "OPEN",  # 开仓
                 "quantity": quantity,
                 "description": f"换月—开新合约 {new_contract}",
             },
@@ -220,9 +218,11 @@ class FuturesRolloverManager:
 
         logger.info(
             "换月订单: %s %s %d 手 → %s %s %d 手",
-            old_contract, "平仓" if direction == "SHORT" else "平仓",
+            old_contract,
+            "平仓",
             quantity,
-            new_contract, "开仓" if direction == "SHORT" else "开仓",
+            new_contract,
+            "开仓",
             quantity,
         )
 
@@ -232,9 +232,7 @@ class FuturesRolloverManager:
     # 合约代码解析
     # ------------------------------------------------------------
 
-    def _parse_contract(
-        self, code: str
-    ) -> Optional[Tuple[str, str, str, str]]:
+    def _parse_contract(self, code: str) -> Optional[Tuple[str, str, str, str]]:
         """解析合约代码
 
         Args:
@@ -320,7 +318,7 @@ class FuturesRolloverManager:
         product = self._HEDGE_NAME_MAP.get(hedge_name)
         if product is None:
             # 尝试从合约名中提取产品代码
-            match = re.match(r'^([A-Za-z]+)', hedge_name)
+            match = re.match(r"^([A-Za-z]+)", hedge_name)
             if match:
                 product = match.group(1).upper()
             else:
@@ -329,7 +327,7 @@ class FuturesRolloverManager:
 
         # 3. 获取主力合约
         exchange = "CFFEX" if product in ("IF", "IC", "IM", "IH") else None
-        active = self.get_active_contract(product, exchange)
+        active = self.get_active_contract(product, exchange)  # type: ignore
         if active is None:
             logger.warning("无法获取 %s 的主力合约", product)
             return None
@@ -339,6 +337,6 @@ class FuturesRolloverManager:
 
 
 __all__ = [
-    "FuturesRolloverManager",
     "ROLLOVER_DAYS_BEFORE_EXPIRY",
+    "FuturesRolloverManager",
 ]

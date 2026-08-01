@@ -34,7 +34,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -186,8 +185,8 @@ def compute_all_ic_metrics(
     ic_series = compute_rolling_ic_series(factor_history, forward_returns_history)
     ic_ir, ic_mean, ic_std = compute_ic_ir(ic_series)
     decay = compute_ic_decay(factor_history, forward_returns_history)
-    print(f"  {name}:")
-    print(f"    IC_IR={ic_ir:+.4f}  IC_mean={ic_mean:+.4f}  IC_std={ic_std:.4f}  decay={decay:.4f}")
+    logger.info(f"  {name}:")
+    logger.info(f"    IC_IR={ic_ir:+.4f}  IC_mean={ic_mean:+.4f}  IC_std={ic_std:.4f}  decay={decay:.4f}")
     return {
         "ic_ir": float(ic_ir),
         "ic_mean": float(ic_mean),
@@ -210,13 +209,13 @@ def run_shadow_test(
         n_trials=n_trials,
         factor_name=name,
     )
-    print(f"  {name}:")
+    logger.info(f"  {name}:")
     print(f"    pass_shadow={result.pass_shadow}  live_dsr={result.live_dsr:+.4f}  "
           f"max_dd={result.max_drawdown:.4f}")
     print(f"    total_return={result.total_return:+.4f}  sr_observed={result.sr_observed:.4f}  "
           f"realized_vol={result.realized_vol:.4f}")
     if result.fail_reasons:
-        print(f"    fail_reasons: {result.fail_reasons}")
+        logger.info(f"    fail_reasons: {result.fail_reasons}")
     return {
         "pass_shadow": bool(result.pass_shadow),
         "live_dsr": float(result.live_dsr),
@@ -255,33 +254,33 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("S3 第十七批次：IC 加权组合验证（P2.2 v6.5 动态权重适应信号反转）")
-    print("=" * 70)
-    print("v6.5 改进内容:")
-    print(f"  - Factor A: {FACTOR_A}（第十五批次等权组合中 IC_IR=-0.3050，信号反转）")
-    print(f"  - Factor B: {FACTOR_B}（第十五批次等权组合中 IC_IR=+0.3981，信号正常）")
-    print(f"  - 组合方法：滚动 IC_IR 加权（lookback={ROLLING_LOOKBACK} 天）")
-    print("  - 信号方向自适应：IC_IR 为负时权重为负（反向使用因子）")
+    logger.info("=" * 70)
+    logger.info("S3 第十七批次：IC 加权组合验证（P2.2 v6.5 动态权重适应信号反转）")
+    logger.info("=" * 70)
+    logger.info("v6.5 改进内容:")
+    logger.info(f"  - Factor A: {FACTOR_A}（第十五批次等权组合中 IC_IR=-0.3050，信号反转）")
+    logger.info(f"  - Factor B: {FACTOR_B}（第十五批次等权组合中 IC_IR=+0.3981，信号正常）")
+    logger.info(f"  - 组合方法：滚动 IC_IR 加权（lookback={ROLLING_LOOKBACK} 天）")
+    logger.info("  - 信号方向自适应：IC_IR 为负时权重为负（反向使用因子）")
 
     # ============ Step 1: 加载数据 ============
-    print("\n[1/6] 加载数据")
+    logger.info("\n[1/6] 加载数据")
     symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
+    logger.info(f"  可用标的数: {len(symbols)}")
     price_data = load_price_data(symbols=symbols)
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns()
     if not benchmark_returns:
         benchmark_returns = compute_equal_weight_benchmark(price_data)
-    print(f"  price_data: {len(price_data)} | benchmark: {len(benchmark_returns)} 天")
+    logger.info(f"  price_data: {len(price_data)} | benchmark: {len(benchmark_returns)} 天")
 
     # ============ Step 2: 加载 fundamentals_history ============
-    print("\n[2/6] 加载历史季度财务数据")
+    logger.info("\n[2/6] 加载历史季度财务数据")
     fundamentals_history = load_fundamentals_history(symbols)
-    print(f"  fundamentals_history: {len(fundamentals_history)} 个标的")
+    logger.info(f"  fundamentals_history: {len(fundamentals_history)} 个标的")
 
     # ============ Step 3: 构建日频因子历史 ============
-    print("\n[3/6] 构建日频因子历史（history_days=120, forward_window=5）")
+    logger.info("\n[3/6] 构建日频因子历史（history_days=120, forward_window=5）")
     adapter = VibeTradingFactorAdapter()
     factor_history, fwd_returns_hist, valid_dates = build_factor_history(
         adapter=adapter,
@@ -292,12 +291,12 @@ def main() -> int:
         forward_window=5,
         fundamentals_history=fundamentals_history,
     )
-    print(f"  factor_history: {len(factor_history)} 个因子 | valid_dates: {len(valid_dates)} 天")
+    logger.info(f"  factor_history: {len(factor_history)} 个因子 | valid_dates: {len(valid_dates)} 天")
 
     # ============ Step 4: 提取单因子历史 + 计算 IC 序列 ============
-    print("\n[4/6] 提取单因子历史并计算 IC 序列")
+    logger.info("\n[4/6] 提取单因子历史并计算 IC 序列")
     if FACTOR_A not in factor_history or FACTOR_B not in factor_history:
-        print(f"[ERROR] 因子不存在: A={FACTOR_A in factor_history} B={FACTOR_B in factor_history}")
+        logger.info(f"[ERROR] 因子不存在: A={FACTOR_A in factor_history} B={FACTOR_B in factor_history}")
         return 1
 
     hist_a = factor_history[FACTOR_A]
@@ -306,8 +305,8 @@ def main() -> int:
     hist_a = hist_a[:n]
     hist_b = hist_b[:n]
     fwd_returns_hist = fwd_returns_hist[:n]
-    print(f"  Factor A ({FACTOR_A}): {len(hist_a)} 天")
-    print(f"  Factor B ({FACTOR_B}): {len(hist_b)} 天")
+    logger.info(f"  Factor A ({FACTOR_A}): {len(hist_a)} 天")
+    logger.info(f"  Factor B ({FACTOR_B}): {len(hist_b)} 天")
 
     # 计算各因子 IC 序列
     ic_series_a = compute_rolling_ic_series(hist_a, fwd_returns_hist)
@@ -316,17 +315,17 @@ def main() -> int:
     # 全局 IC_IR（120 天）
     ic_ir_a_full, _, _ = compute_ic_ir(ic_series_a)
     ic_ir_b_full, _, _ = compute_ic_ir(ic_series_b)
-    print(f"  Factor A 全局 IC_IR: {ic_ir_a_full:+.4f}")
-    print(f"  Factor B 全局 IC_IR: {ic_ir_b_full:+.4f}")
+    logger.info(f"  Factor A 全局 IC_IR: {ic_ir_a_full:+.4f}")
+    logger.info(f"  Factor B 全局 IC_IR: {ic_ir_b_full:+.4f}")
 
     # ============ Step 5: 构建 IC 加权组合 + 等权组合（对照） ============
-    print("\n[5/6] 构建 IC 加权组合（vs 等权组合对照）")
+    logger.info("\n[5/6] 构建 IC 加权组合（vs 等权组合对照）")
 
     # IC 加权组合
     combined_ic_weighted, weights_history = combine_factors_ic_weighted(
         hist_a, hist_b, ic_series_a, ic_series_b, lookback=ROLLING_LOOKBACK
     )
-    print(f"  IC 加权组合: {len(combined_ic_weighted)} 天")
+    logger.info(f"  IC 加权组合: {len(combined_ic_weighted)} 天")
 
     # 等权组合（对照，与第十五批次一致）
     combined_equal_weight = []
@@ -335,10 +334,10 @@ def main() -> int:
         rank_b = cross_sectional_rank(hist_b[i])
         common_syms = set(rank_a.keys()) & set(rank_b.keys())
         combined_equal_weight.append({s: 0.5 * rank_a[s] + 0.5 * rank_b[s] for s in common_syms})
-    print(f"  等权组合: {len(combined_equal_weight)} 天")
+    logger.info(f"  等权组合: {len(combined_equal_weight)} 天")
 
     # 分析权重变化
-    print(f"\n  权重变化分析（lookback={ROLLING_LOOKBACK}）:")
+    logger.info(f"\n  权重变化分析（lookback={ROLLING_LOOKBACK}）:")
     w_a_arr = np.array([w["weight_a"] for w in weights_history])
     w_b_arr = np.array([w["weight_b"] for w in weights_history])
     ic_ir_a_arr = np.array([w["ic_ir_a"] for w in weights_history])
@@ -370,8 +369,8 @@ def main() -> int:
               f"({100*pos_a_days/len(w_a_valid):.1f}%)")
 
     # ============ Step 6: IC 指标和 Shadow 对比 ============
-    print("\n[6/6] IC 指标和 Shadow 对比")
-    print("-" * 70)
+    logger.info("\n[6/6] IC 指标和 Shadow 对比")
+    logger.info("-" * 70)
 
     metrics_a = compute_all_ic_metrics(hist_a, fwd_returns_hist, FACTOR_A)
     print()
@@ -381,7 +380,7 @@ def main() -> int:
     print()
     metrics_ic_weighted = compute_all_ic_metrics(combined_ic_weighted, fwd_returns_hist, "IC 加权组合 (v6.5)")
 
-    print("\n  Shadow 测试（Config_A 基线）:")
+    logger.info("\n  Shadow 测试（Config_A 基线）:")
     shadow_config = {
         "risk_managed": True,
         "target_vol": 0.15,
@@ -390,10 +389,10 @@ def main() -> int:
         "dd_derisk_factor": 0.5,
         "scaler_cap": 2.0,
     }
-    print(f"  Shadow 配置: {shadow_config}")
+    logger.info(f"  Shadow 配置: {shadow_config}")
     sa = ShadowAccount(shadow_config)
     n_trials = max(len(symbols), 13)
-    print(f"  n_trials: {n_trials}\n")
+    logger.info(f"  n_trials: {n_trials}\n")
 
     shadow_a = run_shadow_test(sa, hist_a, fwd_returns_hist, n_trials, FACTOR_A)
     print()
@@ -404,13 +403,13 @@ def main() -> int:
     shadow_ic_weighted = run_shadow_test(sa, combined_ic_weighted, fwd_returns_hist, n_trials, "IC 加权组合")
 
     # ============ 汇总对比 ============
-    print("\n" + "=" * 70)
-    print("汇总对比")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("汇总对比")
+    logger.info("=" * 70)
 
-    print("\n[IC 指标]")
-    print(f"{'因子':<35s} {'IC_IR':>8s} {'IC_mean':>10s} {'IC_std':>8s} {'decay':>8s}")
-    print("-" * 75)
+    logger.info("\n[IC 指标]")
+    logger.info(f"{'因子':<35s} {'IC_IR':>8s} {'IC_mean':>10s} {'IC_std':>8s} {'decay':>8s}")
+    logger.info("-" * 75)
     print(f"{FACTOR_A:<35s} {metrics_a['ic_ir']:>+8.4f} {metrics_a['ic_mean']:>+10.4f} "
           f"{metrics_a['ic_std']:>8.4f} {metrics_a['ic_decay']:>8.4f}")
     print(f"{FACTOR_B:<35s} {metrics_b['ic_ir']:>+8.4f} {metrics_b['ic_mean']:>+10.4f} "
@@ -422,10 +421,10 @@ def main() -> int:
           f"{metrics_ic_weighted['ic_mean']:>+10.4f} {metrics_ic_weighted['ic_std']:>8.4f} "
           f"{metrics_ic_weighted['ic_decay']:>8.4f}")
 
-    print("\n[Shadow 指标 - Config_A 基线]")
+    logger.info("\n[Shadow 指标 - Config_A 基线]")
     print(f"{'因子':<35s} {'pass':>6s} {'live_dsr':>10s} {'max_dd':>10s} "
           f"{'total_ret':>12s} {'sr':>8s}")
-    print("-" * 90)
+    logger.info("-" * 90)
     print(f"{FACTOR_A:<35s} {'✅' if shadow_a['pass_shadow'] else '❌':>6s} "
           f"{shadow_a['live_dsr']:>+10.4f} {shadow_a['max_drawdown']:>10.4f} "
           f"{shadow_a['total_return']:>+12.4f} {shadow_a['sr_observed']:>8.4f}")
@@ -442,7 +441,7 @@ def main() -> int:
           f"{shadow_ic_weighted['total_return']:>+12.4f} {shadow_ic_weighted['sr_observed']:>8.4f}")
 
     # ============ IC 加权 vs 等权对比 ============
-    print("\n[IC 加权 vs 等权组合对比]")
+    logger.info("\n[IC 加权 vs 等权组合对比]")
     ic_ir_improvement = metrics_ic_weighted["ic_ir"] - metrics_equal["ic_ir"]
     max_dd_change = shadow_ic_weighted["max_drawdown"] - shadow_equal["max_drawdown"]
     live_dsr_change = shadow_ic_weighted["live_dsr"] - shadow_equal["live_dsr"]
@@ -458,21 +457,21 @@ def main() -> int:
           f"{'✅ 提升' if live_dsr_change > 0 else '❌ 未提升'}")
 
     # ============ 结论判断 ============
-    print("\n[v6.5 验证结论]")
+    logger.info("\n[v6.5 验证结论]")
     best_single_ic_ir = max(metrics_a["ic_ir"], metrics_b["ic_ir"])
     ic_weighted_beats_equal = metrics_ic_weighted["ic_ir"] > metrics_equal["ic_ir"]
     ic_weighted_beats_single = metrics_ic_weighted["ic_ir"] > best_single_ic_ir
 
-    print(f"  IC 加权 vs 等权: IC_IR {'✅ 优于' if ic_weighted_beats_equal else '❌ 不及'}等权组合")
-    print(f"  IC 加权 vs 单因子最优: IC_IR {'✅ 优于' if ic_weighted_beats_single else '❌ 不及'}单因子最优 ({best_single_ic_ir:+.4f})")
+    logger.info(f"  IC 加权 vs 等权: IC_IR {'✅ 优于' if ic_weighted_beats_equal else '❌ 不及'}等权组合")
+    logger.info(f"  IC 加权 vs 单因子最优: IC_IR {'✅ 优于' if ic_weighted_beats_single else '❌ 不及'}单因子最优 ({best_single_ic_ir:+.4f})")
 
     if ic_weighted_beats_equal:
-        print(f"\n  🎉 v6.5 IC 加权组合验证成功：动态权重适应信号反转有效")
-        print(f"  核心改进：当因子 IC_IR 为负时，权重为负（反向使用），避免 Alpha 稀释")
+        logger.info("\n  🎉 v6.5 IC 加权组合验证成功：动态权重适应信号反转有效")
+        logger.info("  核心改进：当因子 IC_IR 为负时，权重为负（反向使用），避免 Alpha 稀释")
     else:
-        print(f"\n  ⚠️ IC 加权组合未优于等权组合，可能原因：")
-        print(f"     - 滚动 IC_IR 是滞后指标，权重调整不够及时")
-        print(f"     - 20 天 lookback 窗口可能不适配因子信号的周期")
+        logger.info("\n  ⚠️ IC 加权组合未优于等权组合，可能原因：")
+        logger.info("     - 滚动 IC_IR 是滞后指标，权重调整不够及时")
+        logger.info("     - 20 天 lookback 窗口可能不适配因子信号的周期")
 
     # ============ 保存结果 ============
     batch_id = f"seventeenth_batch_ic_weighted_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -540,8 +539,8 @@ def main() -> int:
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False, default=str)
 
-    print(f"\n结果已保存至: {output_path}")
-    print(f"批次 ID: {batch_id}")
+    logger.info(f"\n结果已保存至: {output_path}")
+    logger.info(f"批次 ID: {batch_id}")
 
     return 0
 

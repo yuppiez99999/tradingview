@@ -20,9 +20,8 @@ from __future__ import annotations
 
 import json
 import math
-import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from unittest.mock import patch
 
 import pytest
@@ -119,7 +118,7 @@ def _run_finance_agent_shadow_mode(
                 shadow_veto_count += 1
             if diff.direction_match:
                 shadow_direction_match_count += 1
-        except Exception as e:
+        except Exception:
             # 标的级失败不阻断, 继续处理下一个
             pass
 

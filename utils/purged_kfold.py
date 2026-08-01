@@ -23,7 +23,7 @@ Claude Audit 2026-07-22 改进项 #4 — 过拟合防护 (评级 B- → A)
 from __future__ import annotations
 
 import logging
-from typing import Generator, List, Optional, Tuple
+from typing import Generator, List, Tuple
 
 import numpy as np
 
@@ -133,7 +133,7 @@ def purged_kfold_generator(
         if test_end <= test_start or train_end < purge_size:
             continue
 
-        train_idx = indices[:train_end - purge_size]
+        train_idx = indices[: train_end - purge_size]
         test_idx = indices[test_start:test_end]
         folds.append((train_idx, test_idx))
 
@@ -164,8 +164,7 @@ def validate_embargo(
 
     if gap < min_gap:
         return False, (
-            f"间隔不足: train_max={train_max}, test_min={test_min}, "
-            f"gap={gap} < min_gap={min_gap} — 存在标签泄漏风险"
+            f"间隔不足: train_max={train_max}, test_min={test_min}, gap={gap} < min_gap={min_gap} — 存在标签泄漏风险"
         )
 
     return True, f"安全间隔: gap={gap} >= min_gap={min_gap}"

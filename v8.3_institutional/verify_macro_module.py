@@ -10,7 +10,7 @@ from pathlib import Path
 BASE_DIR = Path(r"e:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional")
 sys.path.insert(0, str(BASE_DIR / "src" / "macro"))
 
-from macro_policy_scoring import score_macro_policy, FIFTEEN_FIVE_DIRECTIONS, KONDRATIEV_STYLE_WEIGHTS
+from macro_policy_scoring import score_macro_policy, FIFTEEN_FIVE_DIRECTIONS, KONDRATIEV_STYLE_WEIGHTS  # noqa: E402
 
 symbols = [
     "sz510300", "sz515180", "sh600089", "sz588000", "sh688041",

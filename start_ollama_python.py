@@ -17,14 +17,11 @@ proc = subprocess.Popen(
 print("Ollama server starting...")
 time.sleep(5)
 
-import urllib.request
-import json
+import urllib.request  # noqa: E402
+import json  # noqa: E402
 
 try:
-    req = urllib.request.Request(
-        "http://localhost:11434/api/tags",
-        method="GET"
-    )
+    req = urllib.request.Request("http://localhost:11434/api/tags", method="GET")
     with urllib.request.urlopen(req, timeout=10) as resp:
         data = json.loads(resp.read().decode("utf-8"))
         print("Ollama started successfully!")

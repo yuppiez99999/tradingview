@@ -36,7 +36,7 @@ def main():
         print(f"已备份原文件: {backup_file.name}")
     
     # 调用生成脚本重新生成
-    python = r"C:\Program Files\Python38\python.exe"
+    python = r"C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
     generator = BASE / "generate_daily_trade_plan.py"
     
     env = os.environ.copy()
@@ -50,7 +50,7 @@ def main():
     )
     
     if result.returncode != 0:
-        print(f"生成失败:")
+        print("生成失败:")
         try:
             print(result.stderr.decode("utf-8", errors="replace"))
         except Exception:
@@ -82,7 +82,7 @@ def main():
         json.dump(plan, f, ensure_ascii=False, indent=2)
     
     print(f"已恢复 Put 期权: {len(PUT_OPTIONS)} 笔")
-    print(f"已更新 IF 期货目标: 5 手")
+    print("已更新 IF 期货目标: 5 手")
     
     # 验证新 ETF 是否在计划中
     new_etfs = ["512100", "510500", "588200", "159516"]
@@ -106,7 +106,7 @@ def main():
     options_count = plan.get("execution_plan", {}).get("options_orders_count", 0)
     total_amount = plan.get("execution_plan", {}).get("total_amount", 0)
     
-    print(f"\n今日计划统计:")
+    print("\n今日计划统计:")
     print(f"  上午订单: {morning_count} 笔")
     print(f"  下午订单: {afternoon_count} 笔")
     print(f"  期权订单: {options_count} 笔")

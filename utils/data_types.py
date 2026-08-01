@@ -9,14 +9,14 @@
 """
 
 import math
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 
 # ============================================
 # 安全类型转换
 # ============================================
+
 
 def safe_float(val: Any, default: Optional[float] = None) -> Optional[float]:
     """
@@ -121,6 +121,7 @@ def normalize_stock_code(code: Optional[str]) -> str:
 # 市场标签/币种辅助
 # ============================================
 
+
 def get_market_tag(code: Optional[str]) -> str:
     """
     根据标准化代码推断市场标签
@@ -150,20 +151,20 @@ def get_currency_tag(code: Optional[str]) -> str:
     根据代码推断报价币种
     """
     market = get_market_tag(code)
-    return {"cn": "CNY", "hk": "HKD", "us": "USD", "tw": "TWD", "jp": "JPY", "kr": "KRW"}.get(
-        market, "CNY"
-    )
+    return {"cn": "CNY", "hk": "HKD", "us": "USD", "tw": "TWD", "jp": "JPY", "kr": "KRW"}.get(market, "CNY")
 
 
 # ============================================
 # 行情结果辅助
 # ============================================
 
+
 @dataclass
 class QuoteResult:
     """
     行情结果包装，便于上层在不依赖具体 Fetcher 类型的前提下处理结果
     """
+
     code: str
     price: Optional[float] = None
     raw: Any = None
@@ -185,6 +186,7 @@ class SourceHealth:
     """
     数据源健康状态快照，供监控/降级决策使用
     """
+
     code: str
     available: bool
     failure_count: int

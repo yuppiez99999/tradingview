@@ -31,6 +31,7 @@ API:
     - HC-5: ConfigManager 4 级优先级解析不可绕过
     - HC-2: KillSwitch.check_kill_switch() 同步路径延迟 <1ms
 """
+
 from __future__ import annotations
 
 import logging
@@ -40,8 +41,34 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Callable, Dict, Optional
 
+
+def _find_project_root() -> Path:
+    """向上查找项目根目录 (通过已知 marker 文件/目录识别).
+
+    比硬编码 parent.parent.parent 更健壮, 文件移动不会失效.
+    """
+    project_markers = [
+        "config",
+        "utils",
+        "v8.3_institutional",
+        "research",
+        "tests",
+        "requirements.txt",
+        "ruff.toml",
+        "pytest.ini",
+    ]
+    current = Path(__file__).resolve().parent
+    for _ in range(10):
+        if any((current / m).exists() for m in project_markers):
+            return current
+        if current.parent == current:
+            break
+        current = current.parent
+    return Path(__file__).resolve().parent.parent.parent
+
+
 # 项目根目录
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_PROJECT_ROOT = _find_project_root()
 
 # 幂等控制
 _initialized: bool = False
@@ -71,6 +98,7 @@ class BootstrapError(Exception):
 @dataclass
 class BootstrapResult:
     """全局初始化结果 (持有所有单例引用)."""
+
     config_manager: Any  # ConfigManager 实例 (避免循环导入用 Any)
     env_config: Any  # TradingEnvConfig dataclass
     kill_switch: Any  # KillSwitch 实例
@@ -98,17 +126,24 @@ def _load_env_file() -> Dict[str, str]:
 
     # 优先用 python-dotenv (如果安装)
     try:
-        from dotenv import load_dotenv  # type: ignore[import-untyped]
+        from dotenv import load_dotenv
+
         # 查找 .env: 当前目录 > 项目根
         for env_path in [Path.cwd() / ".env", _PROJECT_ROOT / ".env"]:
             if env_path.is_file():
+                # 记录加载前的环境变量快照，用于计算 diff
+                before_keys = set(os.environ.keys())
                 load_dotenv(env_path, override=False)
-                loaded["_dotenv_loaded"] = str(env_path)
+                after_keys = set(os.environ.keys())
+                # 返回实际新增的键值对
+                new_keys = after_keys - before_keys
+                for k in new_keys:
+                    loaded[k] = os.environ[k]
                 break
         return loaded
     except ImportError:
         pass  # dotenv 未安装, 走手动解析
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         raise BootstrapError(
             step="load_env",
             reason=f"python-dotenv 加载失败: {e}",
@@ -117,20 +152,20 @@ def _load_env_file() -> Dict[str, str]:
 
     # 回退: 手动解析 .env (复制自 v8.3_institutional/main.py L18-39)
     try:
-        env_path = None
+        env_path_fallback: Optional[Path] = None
         for candidate in [Path.cwd() / ".env", _PROJECT_ROOT / ".env"]:
             if candidate.is_file():
-                env_path = candidate
+                env_path_fallback = candidate
                 break
 
-        if env_path is None:
+        if env_path_fallback is None:
             return loaded  # 无 .env 文件, 静默返回
 
         # 多编码支持 (与 utils/trading_env.py 一致)
         content: Optional[str] = None
         for encoding in ["utf-8", "gbk", "utf-8-sig", "latin-1"]:
             try:
-                content = env_path.read_text(encoding=encoding)
+                content = env_path_fallback.read_text(encoding=encoding)
                 break
             except UnicodeDecodeError:
                 continue
@@ -138,7 +173,7 @@ def _load_env_file() -> Dict[str, str]:
         if content is None:
             raise BootstrapError(
                 step="load_env",
-                reason=f".env 文件编码无法解析 (尝试 utf-8/gbk/utf-8-sig/latin-1 均失败): {env_path}",
+                reason=f".env 文件编码无法解析 (尝试 utf-8/gbk/utf-8-sig/latin-1 均失败): {env_path_fallback}",
             )
 
         for line in content.splitlines():
@@ -158,7 +193,7 @@ def _load_env_file() -> Dict[str, str]:
         return loaded
     except BootstrapError:
         raise
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         raise BootstrapError(
             step="load_env",
             reason=f".env 手动解析失败: {e}",
@@ -176,7 +211,8 @@ def _init_logger(log_prefix: str, log_dir: str, console_level: int) -> None:
         BootstrapError: 日志初始化失败
     """
     try:
-        from utils.logger import _init_root_logging  # type: ignore[attr-defined]
+        from utils.logger import _init_root_logging
+
         _init_root_logging(log_prefix=log_prefix, log_dir=log_dir, console_level=console_level)
     except ImportError as e:
         raise BootstrapError(
@@ -184,7 +220,7 @@ def _init_logger(log_prefix: str, log_dir: str, console_level: int) -> None:
             reason=f"无法导入 utils.logger._init_root_logging: {e}",
             cause=e,
         ) from e
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         raise BootstrapError(
             step="init_logger",
             reason=f"根日志器初始化失败: {e}",
@@ -206,6 +242,7 @@ def _init_config_manager() -> Any:
     """
     try:
         from utils.config_manager import ConfigManager
+
         return ConfigManager.get_instance()
     except ImportError as e:
         raise BootstrapError(
@@ -213,7 +250,7 @@ def _init_config_manager() -> Any:
             reason=f"无法导入 ConfigManager: {e}",
             cause=e,
         ) from e
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         raise BootstrapError(
             step="init_config_manager",
             reason=f"ConfigManager 单例初始化失败: {e}",
@@ -235,11 +272,12 @@ def _init_trading_env() -> Any:
     """
     try:
         from utils.trading_env import get_trading_env_config, print_env_status
+
         config = get_trading_env_config()
         # 打印环境状态到日志 (调试用)
         try:
             print_env_status()
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass  # print_env_status 失败不影响初始化
         return config
     except ImportError as e:
@@ -248,7 +286,7 @@ def _init_trading_env() -> Any:
             reason=f"无法导入 utils.trading_env: {e}",
             cause=e,
         ) from e
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         raise BootstrapError(
             step="init_trading_env",
             reason=f"TradingEnv 配置读取失败: {e}",
@@ -270,6 +308,7 @@ def _init_kill_switch() -> Any:
     """
     try:
         from utils.kill_switch import KillSwitch
+
         # 关键: 不传 config_path, 让 KillSwitch._load_config 走路径 2 (ConfigManager)
         # 传 config_path 会触发路径 1 (直接读取), 绕过 ConfigManager (HC-5 违规)
         return KillSwitch()
@@ -279,7 +318,7 @@ def _init_kill_switch() -> Any:
             reason=f"无法导入 utils.kill_switch: {e}",
             cause=e,
         ) from e
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         raise BootstrapError(
             step="init_kill_switch",
             reason=f"KillSwitch 初始化失败: {e}",
@@ -305,7 +344,7 @@ def _register_broker_callback(ks: Any, callback: Optional[Callable]) -> None:
 
     try:
         ks.set_broker_callback(callback)
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         raise BootstrapError(
             step="register_broker_callback",
             reason=f"broker_callback 注册失败: {e}",
@@ -327,6 +366,7 @@ def _check_feature_flags() -> Any:
     """
     try:
         from utils.infra.feature_flags import FeatureFlags
+
         flags = FeatureFlags.get_instance()
         # 仅日志, 不阻塞: flag 关闭时 bootstrap 仍完成初始化
         # (调用方根据 flag 决定是否使用 result)
@@ -342,7 +382,7 @@ def _check_feature_flags() -> Any:
             reason=f"无法导入 FeatureFlags: {e}",
             cause=e,
         ) from e
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         raise BootstrapError(
             step="check_feature_flags",
             reason=f"FeatureFlags 初始化失败: {e}",
@@ -396,13 +436,15 @@ def initialize(
 
         logger = logging.getLogger("bootstrap")
 
-        # 步骤 1: 加载 .env
-        logger.info("Bootstrap 步骤 1/7: 加载 .env")
-        _load_env_file()
-
-        # 步骤 2: 初始化根日志器
-        logger.info("Bootstrap 步骤 2/7: 初始化根日志器")
+        # 步骤 1: 初始化根日志器（必须最先执行，确保后续日志可被捕获）
+        logger.info("Bootstrap 步骤 1/7: 初始化根日志器")
         _init_logger(log_prefix=log_prefix, log_dir=log_dir, console_level=console_level)
+
+        # 步骤 2: 加载 .env
+        logger.info("Bootstrap 步骤 2/7: 加载 .env")
+        env_loaded = _load_env_file()
+        if env_loaded:
+            logger.info(".env 加载完成: %d 个变量", len(env_loaded))
 
         # 步骤 3: 预热 ConfigManager
         logger.info("Bootstrap 步骤 3/7: 预热 ConfigManager 单例")
@@ -450,6 +492,11 @@ def reset() -> None:
     """重置 bootstrap 状态 (仅测试用).
 
     清空 _initialized 与 _last_result, 并调用各单例的 reset_instance().
+
+    注意:
+        - 仅重置 ConfigManager 和 FeatureFlags.
+        - KillSwitch 与 TradingEnv 当前不提供 reset_instance(),
+          如测试序列需要完全隔离, 请在测试间手动清理相关状态.
     生产代码不应调用此函数.
     """
     global _initialized, _last_result
@@ -461,14 +508,16 @@ def reset() -> None:
         # 重置依赖单例 (尽力而为, 失败不阻塞)
         try:
             from utils.config_manager import ConfigManager
+
             ConfigManager.reset_instance()
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         try:
             from utils.infra.feature_flags import FeatureFlags
+
             FeatureFlags.reset_instance()
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
 

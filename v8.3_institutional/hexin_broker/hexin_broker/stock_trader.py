@@ -10,20 +10,16 @@ v7.5 同花顺客户端自动化 — 股票交易
 
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from dataclasses import dataclass
 
 from .hexin_config import (
     HEXIN_STOCK_WINDOW_TITLES,
     HEXIN_SIM_STOCK_TITLES,
-    STOCK_ORDER_CONTROLS,
-    QUERY_CONTROLS,
-    QUERY_REFRESH_TIMEOUT,
     ORDER_SUBMIT_TIMEOUT,
     MAX_RETRY,
-    HEXIN_STOCK_EXE,
 )
-from .utils import find_window, retry, safe_call, find_controls_by_text, parse_static_pairs
+from .utils import find_window, retry, parse_static_pairs
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +108,6 @@ class HexinStockTrader:
     def place_order(self, req: StockOrderRequest) -> Dict:
         """执行股票下单（键盘模拟方案）"""
         self._focus()
-        window = self._window
 
         from pywinauto.keyboard import send_keys
 
@@ -349,7 +344,7 @@ def _parse_account_from_tree(window) -> Dict[str, float]:
 
     # 如果没有可用金额，尝试从其他数值推断
     if account.get("available", 0.0) == 0.0:
-        for auto_id, txt in auto_id_text.items():
+        for _auto_id, txt in auto_id_text.items():
             try:
                 value = float(txt.replace(",", ""))
                 if value > 0:

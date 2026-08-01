@@ -36,22 +36,24 @@
         current_repo_rate=0.025,
     )
 """
+
 from __future__ import annotations
 
 import json
 import logging
 from dataclasses import dataclass, field, asdict
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 
 logger = logging.getLogger("cash_manager")
 
 try:
     from utils.v10_config_loader import V10ConfigLoader
+
     _HAS_V10 = True
 except ImportError:
-    V10ConfigLoader = None
+    V10ConfigLoader = None  # type: ignore[assignment,misc]
     _HAS_V10 = False
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -61,10 +63,10 @@ REPORTS_DIR = BASE_DIR / "reports"
 # 默认资金分配 (来自 v10.0 配置)
 # ============================================================
 DEFAULT_ALLOCATION = {
-    "futures_margin": 500_000,       # 期货保证金
-    "options_collateral": 100_000,   # 期权抵押金
-    "emergency_margin": 300_000,     # 应急保证金
-    "reverse_repo": 400_000,         # 逆回购 / 货基
+    "futures_margin": 500_000,  # 期货保证金
+    "options_collateral": 100_000,  # 期权抵押金
+    "emergency_margin": 300_000,  # 应急保证金
+    "reverse_repo": 400_000,  # 逆回购 / 货基
 }
 
 # 默认收益目标
@@ -72,21 +74,22 @@ DEFAULT_YIELD_TARGET = 0.025
 
 # 工具配置
 DEFAULT_INSTRUMENTS = {
-    "reverse_repo": "RCO001",       # 交易所逆回购
+    "reverse_repo": "RCO001",  # 交易所逆回购
     "money_market_fund": "511990.SH",  # 货币基金
-    "short_term_bond": "019696.SH",   # 短期国债
+    "short_term_bond": "019696.SH",  # 短期国债
 }
 
 # 阈值
-MIN_REPO_AMOUNT = 10_000              # 闲置资金 > 1 万才下单逆回购
-HIGH_RATE_THRESHOLD = 0.04            # 利率 > 4% 加大投放
-HIGH_RATE_BOOST_PCT = 1.20            # 高利率时投放增加 20%
-EMERGENCY_REPLENISH_DAYS = 2          # 应急金动用后 2 日内补足
+MIN_REPO_AMOUNT = 10_000  # 闲置资金 > 1 万才下单逆回购
+HIGH_RATE_THRESHOLD = 0.04  # 利率 > 4% 加大投放
+HIGH_RATE_BOOST_PCT = 1.20  # 高利率时投放增加 20%
+EMERGENCY_REPLENISH_DAYS = 2  # 应急金动用后 2 日内补足
 
 
 @dataclass
 class CashAllocation:
     """现金分配结果"""
+
     trade_date: str = ""
     total_cash: float = 0.0
     # 各账户分配
@@ -94,7 +97,7 @@ class CashAllocation:
     options_collateral: float = 0.0
     emergency_margin: float = 0.0
     reverse_repo: float = 0.0
-    idle_cash: float = 0.0          # 闲置资金 (可投逆回购/货基)
+    idle_cash: float = 0.0  # 闲置资金 (可投逆回购/货基)
     # 逆回购指令
     repo_order: Dict[str, Any] = field(default_factory=dict)
     # 收益预测
@@ -102,13 +105,13 @@ class CashAllocation:
     estimated_daily_income: float = 0.0
     # 风控状态
     futures_margin_ratio: float = 0.0  # 期货保证金占用率
-    emergency_used: float = 0.0        # 应急金已动用金额
+    emergency_used: float = 0.0  # 应急金已动用金额
     emergency_replenish_needed: bool = False
     # 元数据
     current_repo_rate: float = 0.0
     is_month_end: bool = False
     is_quarter_end: bool = False
-    action: str = ""                   # allocate / hold / replenish
+    action: str = ""  # allocate / hold / replenish
     reason: str = ""
 
 
@@ -154,13 +157,10 @@ class CashManager:
                     self.yield_target = float(cash_cfg.get("yield_target", self.yield_target))
                     if "instruments" in cash_cfg:
                         self.instruments = cash_cfg["instruments"]
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"v10.0 现金配置加载失败, 使用默认值: {e}")
 
-        logger.info(
-            f"[CashManager] 初始化: 总资金 ¥{self.total_cash:,.0f}, "
-            f"目标年化 {self.yield_target:.2%}"
-        )
+        logger.info(f"[CashManager] 初始化: 总资金 ¥{self.total_cash:,.0f}, 目标年化 {self.yield_target:.2%}")
 
     # ------------------------------------------------------------
     # 主流程: 闲置资金分配
@@ -229,7 +229,9 @@ class CashManager:
         if current_repo_rate > HIGH_RATE_THRESHOLD:
             # 高利率期: 加大投放
             repo_amount = min(idle_cash, base_repo * HIGH_RATE_BOOST_PCT)
-            result.reason += f" | 高利率 {current_repo_rate*100:.2f}% > {HIGH_RATE_THRESHOLD*100:.0f}%, 加大逆回购投放"
+            result.reason += (
+                f" | 高利率 {current_repo_rate * 100:.2f}% > {HIGH_RATE_THRESHOLD * 100:.0f}%, 加大逆回购投放"
+            )
         else:
             repo_amount = min(idle_cash, base_repo)
 
@@ -246,9 +248,12 @@ class CashManager:
             )
             result.action = "allocate"
             if not result.reason:
-                result.reason = f"逆回购下单 ¥{repo_amount:,.0f}, 利率 {current_repo_rate*100:.2f}%"
+                result.reason = f"逆回购下单 ¥{repo_amount:,.0f}, 利率 {current_repo_rate * 100:.2f}%"
         else:
-            result.repo_order = {"action": "skip", "reason": f"闲置资金 ¥{idle_cash:,.0f} < 最低限额 ¥{MIN_REPO_AMOUNT:,.0f}"}
+            result.repo_order = {
+                "action": "skip",
+                "reason": f"闲置资金 ¥{idle_cash:,.0f} < 最低限额 ¥{MIN_REPO_AMOUNT:,.0f}",
+            }
             result.action = "hold"
             if not result.reason:
                 result.reason = "闲置资金不足, 暂不下单"
@@ -264,8 +269,7 @@ class CashManager:
         result.estimated_daily_income = daily_repo_income + daily_mmf_income
         # 年化收益预测 (按交易日 250 日)
         result.estimated_annual_yield = (
-            (daily_repo_income + daily_mmf_income) * 250 / total_cash
-            if total_cash > 0 else 0
+            (daily_repo_income + daily_mmf_income) * 250 / total_cash if total_cash > 0 else 0
         )
 
         # 8. 月末/季末加码
@@ -440,7 +444,7 @@ class CashManager:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report_data, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"[CashManager] 报告已保存: {report_path}")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"[CashManager] 报告保存失败: {e}")
 
     def summary(self, result: CashAllocation) -> str:
@@ -450,7 +454,7 @@ class CashManager:
             f"现金管理报告 ({result.trade_date})",
             "=" * 60,
             f"总现金: ¥{result.total_cash:,.0f}",
-            f"当前逆回购利率: {result.current_repo_rate*100:.2f}%",
+            f"当前逆回购利率: {result.current_repo_rate * 100:.2f}%",
             f"月末: {'是' if result.is_month_end else '否'} | 季末: {'是' if result.is_quarter_end else '否'}",
             "",
             "资金分配:",
@@ -507,12 +511,12 @@ if __name__ == "__main__":
         current_repo_rate=args.repo_rate,
     )
 
-    print(cm.summary(result))
+    logger.info(cm.summary(result))
 
     # 演示季末高利率场景
-    print("\n" + "=" * 60)
-    print("季末高利率场景演示:")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("季末高利率场景演示:")
+    logger.info("=" * 60)
     result_eom = cm.allocate_idle_cash(
         total_cash=args.total_cash,
         futures_margin_used=args.futures_margin_used,
@@ -520,4 +524,4 @@ if __name__ == "__main__":
         current_repo_rate=0.065,  # 6.5% 季末高利率
         trade_date=date(2026, 9, 28),  # 季末
     )
-    print(cm.summary(result_eom))
+    logger.info(cm.summary(result_eom))

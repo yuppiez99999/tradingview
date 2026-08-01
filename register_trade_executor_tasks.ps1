@@ -1,11 +1,14 @@
+# DEPRECATED: 已被 scripts\register_all_tasks_unified.ps1 替代，请勿执行
+# 迁移日期: 2026-07-30
+# 原因: 盘前/盘后交易执行已由 v84_PreMarketInstructions(09:00) 和 v84_PostMarketExecute(15:35) 承担
 # 注册每日自动交易执行任务
 # 盘前 09:00 生成交易指令
 # 盘后 15:30 执行已确认指令
 
 $ErrorActionPreference = "Stop"
 
-$projectRoot = "e:\各种PY程序\28-终极量化交易系统7.1"
-$pythonExe = "C:\Program Files\Python38\python.exe"
+$projectRoot = "e:\各种PY程序\28-终极量化交易系统8.4"
+$pythonExe = "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
 $executorScript = Join-Path $projectRoot "daily_trade_executor.py"
 
 # 使用 COM 对象创建计划任务 (比 PowerShell cmdlet 更稳定)

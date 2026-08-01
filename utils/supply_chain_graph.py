@@ -21,12 +21,10 @@ A股适配:
 from __future__ import annotations
 
 import logging
-import math
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Any, Dict, FrozenSet, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, List, Optional, Set
 
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +33,14 @@ logger = logging.getLogger(__name__)
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class SupplyChainEdge:
     """供应链关系边"""
-    source: str                        # 上游标的
-    target: str                        # 下游标的
-    relation_type: str                 # SUPPLIER / CUSTOMER / COMPETITOR / PARTNER
+
+    source: str  # 上游标的
+    target: str  # 下游标的
+    relation_type: str  # SUPPLIER / CUSTOMER / COMPETITOR / PARTNER
     # 关系强度 [0, 1]
     strength: float = 0.5
     # 业务占比 (source 对 target 的营收占比, 如果是 SUPPLIER 关系)
@@ -48,12 +48,13 @@ class SupplyChainEdge:
     # 关系起始日期
     start_date: str = ""
     # 来源
-    source_info: str = ""              # "2024年报" / "公告" 等
+    source_info: str = ""  # "2024年报" / "公告" 等
 
 
 @dataclass
 class NodeMetrics:
     """节点中心性指标"""
+
     symbol: str
     # 度中心性
     in_degree: int = 0
@@ -68,24 +69,26 @@ class NodeMetrics:
     # 聚类系数
     clustering_coefficient: float = 0.0
     # 关键节点标记
-    is_hub: bool = False               # 枢纽节点
-    is_bottleneck: bool = False        # 瓶颈节点
+    is_hub: bool = False  # 枢纽节点
+    is_bottleneck: bool = False  # 瓶颈节点
 
 
 @dataclass
 class PropagationPath:
     """影响传播路径"""
+
     source: str
     target: str
-    path: List[str]                    # 路径节点序列
-    total_strength: float              # 累计传播强度
-    hops: int                          # 跳数
-    edge_types: List[str]              # 各段边类型
+    path: List[str]  # 路径节点序列
+    total_strength: float  # 累计传播强度
+    hops: int  # 跳数
+    edge_types: List[str]  # 各段边类型
 
 
 @dataclass
 class SupplyChainResult:
     """供应链分析结果"""
+
     nodes: List[str] = field(default_factory=list)
     edges: List[SupplyChainEdge] = field(default_factory=list)
     metrics: Dict[str, NodeMetrics] = field(default_factory=dict)
@@ -104,6 +107,7 @@ class SupplyChainResult:
 # 供应链关系图谱
 # ============================================================
 
+
 class SupplyChainGraph:
     """供应链关系图谱
 
@@ -121,20 +125,20 @@ class SupplyChainGraph:
     DEFAULT_CHAINS = {
         # 算力链
         "compute_chain": [
-            ("688981", "300308", "SUPPLIER", 0.6),    # 中芯国际 → 中际旭创
-            ("300308", "000977", "SUPPLIER", 0.5),    # 中际旭创 → 浪潮信息
-            ("000977", "600519", "CUSTOMER", 0.3),    # 浪潮信息 → (酒企客户)
+            ("688981", "300308", "SUPPLIER", 0.6),  # 中芯国际 → 中际旭创
+            ("300308", "000977", "SUPPLIER", 0.5),  # 中际旭创 → 浪潮信息
+            ("000977", "600519", "CUSTOMER", 0.3),  # 浪潮信息 → (酒企客户)
         ],
         # 新能源车链
         "nev_chain": [
-            ("002475", "300750", "SUPPLIER", 0.7),    # 立讯精密 → 宁德时代
-            ("300750", "002594", "SUPPLIER", 0.6),    # 宁德时代 → 比亚迪
-            ("002594", "002126", "SUPPLIER", 0.4),    # 比亚迪 → 银轮股份
+            ("002475", "300750", "SUPPLIER", 0.7),  # 立讯精密 → 宁德时代
+            ("300750", "002594", "SUPPLIER", 0.6),  # 宁德时代 → 比亚迪
+            ("002594", "002126", "SUPPLIER", 0.4),  # 比亚迪 → 银轮股份
         ],
         # 半导体链
         "semi_chain": [
-            ("688981", "002049", "SUPPLIER", 0.7),    # 中芯国际 → 紫光国微
-            ("002049", "300142", "SUPPLIER", 0.5),    # 紫光国微 → 沃森生物(疫苗业务合作)
+            ("688981", "002049", "SUPPLIER", 0.7),  # 中芯国际 → 紫光国微
+            ("002049", "300142", "SUPPLIER", 0.5),  # 紫光国微 → 沃森生物(疫苗业务合作)
             ("688981", "300142", "SUPPLIER", 0.3),
         ],
     }
@@ -142,10 +146,10 @@ class SupplyChainGraph:
     def __init__(
         self,
         # 传播参数
-        decay_per_hop: float = 0.6,        # 每跳衰减
-        max_propagation_hops: int = 4,     # 最大传播跳数
+        decay_per_hop: float = 0.6,  # 每跳衰减
+        max_propagation_hops: int = 4,  # 最大传播跳数
         # 关键节点阈值
-        hub_degree_threshold: int = 5,    # 枢纽节点度数阈值
+        hub_degree_threshold: int = 5,  # 枢纽节点度数阈值
         bottleneck_betweenness_threshold: float = 0.3,
         # PageRank 参数
         pagerank_damping: float = 0.85,
@@ -181,7 +185,7 @@ class SupplyChainGraph:
             try:
                 self.add_edge(e)
                 count += 1
-            except Exception as exc:
+            except Exception as exc:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("[SupplyChain] 添加边失败: %s", exc)
         return count
 
@@ -190,11 +194,15 @@ class SupplyChainGraph:
         count = 0
         for chain_name, edges in self.DEFAULT_CHAINS.items():
             for src, tgt, rtype, strength in edges:
-                self.add_edge(SupplyChainEdge(
-                    source=src, target=tgt,
-                    relation_type=rtype, strength=strength,
-                    source_info=f"默认_{chain_name}",
-                ))
+                self.add_edge(
+                    SupplyChainEdge(
+                        source=src,
+                        target=tgt,
+                        relation_type=rtype,
+                        strength=strength,
+                        source_info=f"默认_{chain_name}",
+                    )
+                )
                 count += 1
         logger.info("[SupplyChain] 加载默认产业链: %d 条边", count)
         return count
@@ -242,17 +250,19 @@ class SupplyChainGraph:
                 if new_strength < 0.01:
                     continue
                 visited.add(next_node)
-                new_path = path + [next_node]
-                new_edge_types = edge_types + [edge.relation_type]
-                paths.append(PropagationPath(
-                    source=source,
-                    target=next_node,
-                    path=new_path,
-                    total_strength=new_strength,
-                    hops=len(new_path) - 1,
-                    edge_types=new_edge_types,
-                ))
-                queue.append((next_node, new_path, new_strength, new_edge_types, edge_strengths + [edge.strength]))
+                new_path = [*path, next_node]
+                new_edge_types = [*edge_types, edge.relation_type]
+                paths.append(
+                    PropagationPath(
+                        source=source,
+                        target=next_node,
+                        path=new_path,
+                        total_strength=new_strength,
+                        hops=len(new_path) - 1,
+                        edge_types=new_edge_types,
+                    )
+                )
+                queue.append((next_node, new_path, new_strength, new_edge_types, [*edge_strengths, edge.strength]))
 
         return paths
 
@@ -316,7 +326,7 @@ class SupplyChainGraph:
                     if next_node in visited:
                         continue
                     visited.add(next_node)
-                    new_path = path + [next_node]
+                    new_path = [*path, next_node]
                     # 路径中间节点 +1
                     for intermediate in new_path[1:-1]:
                         between_count[intermediate] += 1
@@ -325,9 +335,7 @@ class SupplyChainGraph:
 
         # 归一化
         for node, m in metrics.items():
-            m.betweenness_centrality = (
-                between_count[node] / total_paths if total_paths > 0 else 0.0
-            )
+            m.betweenness_centrality = between_count[node] / total_paths if total_paths > 0 else 0.0
 
     def _compute_pagerank(self, metrics: Dict[str, NodeMetrics]) -> None:
         """PageRank 计算"""
@@ -395,7 +403,7 @@ class SupplyChainGraph:
         result = SupplyChainResult()
         result.nodes = list(self.all_nodes)
         result.edges = []
-        for src, edges in self.adjacency.items():
+        for _src, edges in self.adjacency.items():
             result.edges.extend(edges)
 
         # 中心性
@@ -461,13 +469,13 @@ class SupplyChainGraph:
         while queue:
             current, path = queue.popleft()
             if current == target:
-                return path
+                return path  # type: ignore
             for edge in self.adjacency.get(current, []):
                 next_node = edge.target
                 if next_node in visited:
                     continue
                 visited.add(next_node)
-                queue.append((next_node, path + [next_node]))
+                queue.append((next_node, [*path, next_node]))
         return None
 
     def summarize(self, result: Optional[SupplyChainResult] = None) -> Dict[str, Any]:
@@ -488,7 +496,5 @@ class SupplyChainGraph:
                 [(s, m.betweenness_centrality) for s, m in result.metrics.items()],
                 key=lambda x: -x[1],
             )[:5],
-            "high_risk_symbols": sorted(
-                result.risk_contagion.items(), key=lambda x: -x[1]
-            )[:5],
+            "high_risk_symbols": sorted(result.risk_contagion.items(), key=lambda x: -x[1])[:5],
         }

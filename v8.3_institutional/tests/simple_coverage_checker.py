@@ -48,7 +48,7 @@ class SimpleCoverageTracker:
     
     def run_with_coverage(self, test_script, target_dir):
         """运行测试并追踪覆盖率"""
-        source_files = self.analyze_files(target_dir)
+        self.analyze_files(target_dir)
         
         # 设置追踪
         sys.settrace(self.trace_function)

@@ -10,23 +10,23 @@
     4. 多策略协调器 (失效检测/权重调整/冲突检测/风险预算/现金缓冲)
 """
 import sys
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from utils.execution_algo_engine import (
-    ExecutionAlgoEngine, AlgoType, ExecutionPlan, ExecutionSlice,
+    ExecutionAlgoEngine, AlgoType,
 )
 from utils.pnl_attribution_engine import (
-    PnLAttributionEngine, AttributionResult, FactorContribution,
+    PnLAttributionEngine, AttributionResult,
 )
 from utils.data_quality_monitor import (
-    DataQualityMonitor, QualityReport, QualityIssue,
+    DataQualityMonitor,
 )
 from utils.multi_strategy_coordinator import (
-    MultiStrategyCoordinator, StrategyState, CoordinationDecision,
+    MultiStrategyCoordinator, CoordinationDecision,
 )
 
 
@@ -112,7 +112,7 @@ def test_execution_algo_engine():
     assert algo_large == AlgoType.POV, "大单应选 POV"
     algo_high = engine.select_algo(10000, 1_000_000, "high")
     assert algo_high == AlgoType.IS, "高紧急应选 IS"
-    print(f"  ✅ 自动选择: 小单→TWAP, 大单→POV, 高紧急→IS")
+    print("  ✅ 自动选择: 小单→TWAP, 大单→POV, 高紧急→IS")
 
     # 保存
     path = engine.save_plan(plan_twap)

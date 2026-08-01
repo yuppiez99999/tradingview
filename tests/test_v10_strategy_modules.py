@@ -17,7 +17,7 @@ import sys
 import os
 import json
 import logging
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 # 设置项目根目录
@@ -35,7 +35,7 @@ def test_ic_hedge_calculator():
     print("测试 1: ICHedgeCalculator")
     print("=" * 60)
 
-    from utils.ic_hedge_calculator import ICHedgeCalculator, ICHedgeResult
+    from utils.ic_hedge_calculator import ICHedgeCalculator
 
     # 场景 A: 标准对冲场景
     # 多头市值 140 万, 组合 beta 0.85, 目标 beta 0.05, IC 5500 点
@@ -47,7 +47,7 @@ def test_ic_hedge_calculator():
         ic_price=5500.0,
     )
 
-    print(f"\n场景 A: 标准对冲")
+    print("\n场景 A: 标准对冲")
     print(calc.summary(result))
 
     # 断言: 应该需要 1-3 张合约
@@ -63,7 +63,7 @@ def test_ic_hedge_calculator():
         target_beta=0.05,
         ic_price=5500.0,
     )
-    print(f"\n场景 B: 高 beta 对冲")
+    print("\n场景 B: 高 beta 对冲")
     print(calc.summary(result_b))
     assert result_b.target_contracts >= result.target_contracts, "高 beta 应该需要更多合约"
     print(f"✓ 场景 B 通过: 合约 {result_b.target_contracts} 张")
@@ -76,7 +76,7 @@ def test_ic_hedge_calculator():
         ic_price=5500.0,
         basis=0.02,  # 2% 贴水 > 1.5% 阈值
     )
-    print(f"\n场景 C: 基差贴水警告")
+    print("\n场景 C: 基差贴水警告")
     print(calc.summary(result_c))
     assert result_c.basis_warning == True, "应该触发基差警告"
     assert result_c.adjusted_contracts <= result_c.target_contracts, "调整后合约数应 <= 目标合约数"
@@ -89,17 +89,17 @@ def test_ic_hedge_calculator():
         target_beta=0.05,
         ic_price=5500.0,
     )
-    print(f"\n场景 D: 已达标, 无需对冲")
+    print("\n场景 D: 已达标, 无需对冲")
     print(calc.summary(result_d))
     assert result_d.target_contracts == 0, "已达标应该 0 张合约"
-    print(f"✓ 场景 D 通过: 0 张合约 (已达标)")
+    print("✓ 场景 D 通过: 0 张合约 (已达标)")
 
     # 场景 E: 对冲指令生成
     order = calc.build_hedge_order(result, date(2026, 7, 31))
-    print(f"\n场景 E: 对冲指令")
+    print("\n场景 E: 对冲指令")
     print(json.dumps(order, ensure_ascii=False, indent=2, default=str))
     assert order["action"] == "open_short", "动作应为 open_short"
-    print(f"✓ 场景 E 通过: 指令生成成功")
+    print("✓ 场景 E 通过: 指令生成成功")
 
     print("\n✓ 测试 1 全部通过")
     return True
@@ -111,7 +111,7 @@ def test_quant_neutral_runner():
     print("测试 2: QuantNeutralRunner")
     print("=" * 60)
 
-    from utils.quant_neutral_runner import QuantNeutralRunner, StockFactorScore
+    from utils.quant_neutral_runner import QuantNeutralRunner
 
     # 场景 A: 月度调仓 (正常场景)
     import random
@@ -164,7 +164,7 @@ def test_quant_neutral_runner():
         })
 
     runner = QuantNeutralRunner()
-    print(f"\n场景 A: 月度调仓 (正常)")
+    print("\n场景 A: 月度调仓 (正常)")
     print(f"资金: ¥{runner.capital:,.0f}")
     print(f"目标多头: ¥{runner.target_long_value:,.0f}")
     print(f"目标 beta: {runner.target_beta}")
@@ -188,7 +188,7 @@ def test_quant_neutral_runner():
     print(f"✓ 场景 A 通过: 做多 {result.long_count} 只, 净敞口 {result.net_exposure:.3f}")
 
     # 场景 B: 风控触发 — 策略回撤 > 8% (最大回撤) → 暂停
-    print(f"\n场景 B: 策略回撤 10% > 最大回撤 8%, 应触发暂停")
+    print("\n场景 B: 策略回撤 10% > 最大回撤 8%, 应触发暂停")
     result_b = runner.run_monthly_rebalance(
         candidate_universe=universe,
         current_holdings=[],
@@ -199,10 +199,10 @@ def test_quant_neutral_runner():
     )
     print(runner.summary(result_b))
     assert result_b.action == "pause", f"回撤超限应触发暂停, 实际 {result_b.action}"
-    print(f"✓ 场景 B 通过: 暂停策略")
+    print("✓ 场景 B 通过: 暂停策略")
 
     # 场景 C: 连续 3 月回撤超限 → 暂停 1 月
-    print(f"\n场景 C: 连续 3 月回撤超限, 应暂停 1 月")
+    print("\n场景 C: 连续 3 月回撤超限, 应暂停 1 月")
     result_c = runner.run_monthly_rebalance(
         candidate_universe=universe,
         current_holdings=[],
@@ -214,10 +214,10 @@ def test_quant_neutral_runner():
     )
     print(runner.summary(result_c))
     assert result_c.action == "pause", "连续 3 月超限应暂停"
-    print(f"✓ 场景 C 通过: 连续超限暂停")
+    print("✓ 场景 C 通过: 连续超限暂停")
 
     # 场景 D: IC 基差贴水警告
-    print(f"\n场景 D: IC 基差贴水 2% > 1.5%, 应减仓 30%")
+    print("\n场景 D: IC 基差贴水 2% > 1.5%, 应减仓 30%")
     result_d = runner.run_monthly_rebalance(
         candidate_universe=universe,
         current_holdings=[],
@@ -228,10 +228,10 @@ def test_quant_neutral_runner():
     )
     print(runner.summary(result_d))
     assert result_d.basis_warning == True, "应触发基差警告"
-    print(f"✓ 场景 D 通过: 基差警告触发")
+    print("✓ 场景 D 通过: 基差警告触发")
 
     # 场景 E: 因子打分测试
-    print(f"\n场景 E: 因子打分测试")
+    print("\n场景 E: 因子打分测试")
     scores = runner.score_factors(universe)
     assert len(scores) == len(universe), f"打分数量应等于候选数, 实际 {len(scores)}"
     assert scores[0].composite >= scores[-1].composite, "应按综合得分降序"
@@ -250,14 +250,14 @@ def test_cash_manager():
     print("测试 3: CashManager")
     print("=" * 60)
 
-    from utils.cash_manager import CashManager, CashAllocation
+    from utils.cash_manager import CashManager
 
     cm = CashManager()
     print(f"\n资金配置: ¥{cm.total_cash:,.0f}")
     print(f"目标年化: {cm.yield_target:.2%}")
 
     # 场景 A: 标准分配
-    print(f"\n场景 A: 标准分配 (利率 2.5%)")
+    print("\n场景 A: 标准分配 (利率 2.5%)")
     result = cm.allocate_idle_cash(
         total_cash=1_300_000,
         futures_margin_used=480_000,
@@ -279,7 +279,7 @@ def test_cash_manager():
     print(f"✓ 场景 A 通过: 逆回购 ¥{result.reverse_repo:,.0f}, 日收益 ¥{result.estimated_daily_income:.2f}")
 
     # 场景 B: 季末高利率
-    print(f"\n场景 B: 季末高利率 (6.5%)")
+    print("\n场景 B: 季末高利率 (6.5%)")
     result_b = cm.allocate_idle_cash(
         total_cash=1_300_000,
         futures_margin_used=480_000,
@@ -295,7 +295,7 @@ def test_cash_manager():
     print(f"✓ 场景 B 通过: 季末逆回购 ¥{result_b.reverse_repo:,.0f}")
 
     # 场景 C: 应急金动用
-    print(f"\n场景 C: 应急金动用 ¥50,000")
+    print("\n场景 C: 应急金动用 ¥50,000")
     result_c = cm.allocate_idle_cash(
         total_cash=1_300_000,
         futures_margin_used=480_000,
@@ -314,7 +314,7 @@ def test_cash_manager():
     print(f"✓ 场景 C 通过: 应急金补足 {replenish['action']}")
 
     # 场景 D: 期货保证金追加
-    print(f"\n场景 D: 期货保证金维持率超 60%")
+    print("\n场景 D: 期货保证金维持率超 60%")
     margin_check = cm.check_margin_call(
         futures_account_value=500_000,
         futures_margin_used=350_000,  # 70% > 60%
@@ -325,7 +325,7 @@ def test_cash_manager():
     print(f"✓ 场景 D 通过: 追加 ¥{margin_check['amount_needed']:,.0f}")
 
     # 场景 E: 保证金正常
-    print(f"\n场景 E: 期货保证金正常 (30%)")
+    print("\n场景 E: 期货保证金正常 (30%)")
     margin_check_e = cm.check_margin_call(
         futures_account_value=500_000,
         futures_margin_used=150_000,  # 30%
@@ -353,7 +353,7 @@ def test_daily_workflow_integration():
         )
         # 不完整加载, 仅检查语法
         print(f"模块路径: {spec.origin}")
-        print(f"✓ 模块加载规范已建立")
+        print("✓ 模块加载规范已建立")
     except Exception as e:
         print(f"⚠ 模块加载检查失败: {e}")
 
@@ -363,9 +363,9 @@ def test_daily_workflow_integration():
         from utils.ic_hedge_calculator import ICHedgeCalculator
         from utils.cash_manager import CashManager
         print("✓ v10.0 策略模块全部导入成功")
-        print(f"  - QuantNeutralRunner: 资金 ¥700,000, 目标多头 ¥1,400,000")
-        print(f"  - ICHedgeCalculator: IC 合约乘数 200, 保证金率 12%")
-        print(f"  - CashManager: 总资金 ¥1,300,000, 目标年化 2.5%")
+        print("  - QuantNeutralRunner: 资金 ¥700,000, 目标多头 ¥1,400,000")
+        print("  - ICHedgeCalculator: IC 合约乘数 200, 保证金率 12%")
+        print("  - CashManager: 总资金 ¥1,300,000, 目标年化 2.5%")
         return True
     except ImportError as e:
         print(f"✗ v10.0 策略模块导入失败: {e}")
@@ -395,7 +395,7 @@ def test_v10_config_compatibility():
         print("✗ 配置加载失败")
         return False
 
-    print(f"✓ 配置加载成功")
+    print("✓ 配置加载成功")
 
     # 验证 6 账户结构
     alloc = loader.get_allocation()

@@ -20,10 +20,9 @@
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FactorIC:
     """因子IC数据"""
+
     factor_name: str
     date: datetime
     rank_ic: float  # RankIC
@@ -48,6 +48,7 @@ class FactorIC:
 @dataclass
 class FactorHalfLife:
     """因子半衰期"""
+
     factor_name: str
     half_life_days: float  # 半衰期(天)
     decay_rate: float  # 衰减速率
@@ -57,6 +58,7 @@ class FactorHalfLife:
 @dataclass
 class FactorCrowding:
     """因子拥挤度"""
+
     factor_name: str
     current_score: float  # 当前拥挤度评分(0-100)
     percentile: float  # 历史百分位
@@ -69,6 +71,7 @@ class FactorCrowding:
 @dataclass
 class FactorHealthScore:
     """因子健康度评分"""
+
     factor_name: str
     overall_score: float  # 综合评分(0-100)
     ic_score: float  # IC得分(0-40)
@@ -81,6 +84,7 @@ class FactorHealthScore:
 @dataclass
 class FactorDeprecationTrigger:
     """因子退役触发条件"""
+
     factor_name: str
     trigger_reason: str  # 触发原因
     severity: str  # 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'
@@ -91,6 +95,7 @@ class FactorDeprecationTrigger:
 @dataclass
 class FactorMonitorReport:
     """因子监控报告"""
+
     timestamp: datetime
     total_factors: int
     healthy_factors: int
@@ -126,11 +131,13 @@ class FactorDecayMonitor:
         triggers = monitor.check_deprecation_triggers()
     """
 
-    def __init__(self,
-                 max_factors: int = 20,
-                 min_icir: float = 0.2,
-                 min_sharpe: float = 0.0,
-                 crowding_percentile_threshold: float = 80.0):
+    def __init__(
+        self,
+        max_factors: int = 20,
+        min_icir: float = 0.2,
+        min_sharpe: float = 0.0,
+        crowding_percentile_threshold: float = 80.0,
+    ):
         self.max_factors = max_factors
         self.min_icir = min_icir
         self.min_sharpe = min_sharpe
@@ -145,10 +152,12 @@ class FactorDecayMonitor:
         # 退役触发记录
         self.deprecation_triggers: Dict[str, List[FactorDeprecationTrigger]] = {}
 
-        logger.info(f"[FactorDecayMonitor] 初始化完成 | "
-                    f"Max Factors={max_factors} | "
-                    f"Min ICIR={min_icir} | "
-                    f"Crowding Threshold={crowding_percentile_threshold}%")
+        logger.info(
+            f"[FactorDecayMonitor] 初始化完成 | "
+            f"Max Factors={max_factors} | "
+            f"Min ICIR={min_icir} | "
+            f"Crowding Threshold={crowding_percentile_threshold}%"
+        )
 
     def record_ic(self, ic_data: List[FactorIC]):
         """
@@ -166,14 +175,12 @@ class FactorDecayMonitor:
             # 保持最近365天数据
             cutoff_date = datetime.now() - timedelta(days=365)
             self.ic_history[ic.factor_name] = [
-                item for item in self.ic_history[ic.factor_name]
-                if item.date >= cutoff_date
+                item for item in self.ic_history[ic.factor_name] if item.date >= cutoff_date
             ]
 
         logger.debug(f"[FactorDecayMonitor] 记录{len(ic_data)}个因子IC数据")
 
-    def calculate_half_life(self,
-                            factor_name: str) -> Optional[FactorHalfLife]:
+    def calculate_half_life(self, factor_name: str) -> Optional[FactorHalfLife]:
         """
         计算因子半衰期
 
@@ -209,27 +216,26 @@ class FactorDecayMonitor:
         log_abs_ic = np.log(np.abs(ic_values) + 1e-8)
 
         # 线性回归
-        slope, intercept = np.polyfit(t_days, log_abs_ic, 1)
+        slope, _intercept = np.polyfit(t_days, log_abs_ic, 1)
 
         # 衰减速率
         decay_rate = -slope
-        half_life_days = np.log(2) / decay_rate if decay_rate > 0 else float('inf')
+        half_life_days = np.log(2) / decay_rate if decay_rate > 0 else float("inf")
 
         # 稳定性判断(半衰期>60天为稳定)
         is_stable = half_life_days > 60
 
         return FactorHalfLife(
-            factor_name=factor_name,
-            half_life_days=half_life_days,
-            decay_rate=decay_rate,
-            is_stable=is_stable
+            factor_name=factor_name, half_life_days=half_life_days, decay_rate=decay_rate, is_stable=is_stable
         )
 
-    def check_crowding(self,
-                       factor_name: str,
-                       valuation_spread: float = 0.05,
-                       top_concentration: float = 0.3,
-                       qfii_scale_change: float = 0.2) -> FactorCrowding:
+    def check_crowding(
+        self,
+        factor_name: str,
+        valuation_spread: float = 0.05,
+        top_concentration: float = 0.3,
+        qfii_scale_change: float = 0.2,
+    ) -> FactorCrowding:
         """
         检查因子拥挤度
 
@@ -295,11 +301,10 @@ class FactorDecayMonitor:
             valuation_spread=valuation_spread,
             top_concentration=top_concentration,
             qfii_scale_change=qfii_scale_change,
-            risk_level=risk_level
+            risk_level=risk_level,
         )
 
-    def calculate_health_score(self,
-                               factor_name: str) -> Optional[FactorHealthScore]:
+    def calculate_health_score(self, factor_name: str) -> Optional[FactorHealthScore]:
         """
         计算因子健康度评分
 
@@ -382,7 +387,7 @@ class FactorDecayMonitor:
         # 距峰值天数
         peak_icir = max(ic.icir for ic in ics)
         days_since_peak = 0
-        for i, ic in enumerate(reversed(ics)):
+        for _i, ic in enumerate(reversed(ics)):
             if ic.icir < peak_icir * 0.5:
                 break
             days_since_peak += 1
@@ -394,11 +399,10 @@ class FactorDecayMonitor:
             stability_score=stability_score,
             crowding_score=crowding_score,
             status=status,
-            days_since_peak=days_since_peak
+            days_since_peak=days_since_peak,
         )
 
-    def check_deprecation_triggers(self,
-                                   factor_name: str) -> List[FactorDeprecationTrigger]:
+    def check_deprecation_triggers(self, factor_name: str) -> List[FactorDeprecationTrigger]:
         """
         检查因子退役触发条件
 
@@ -428,39 +432,43 @@ class FactorDecayMonitor:
         if len(recent_6m) >= 90:
             low_icir_count = sum(1 for ic in recent_6m if ic.icir < self.min_icir)
             if low_icir_count > 90 * 0.8:  # 80%时间ICIR低于阈值
-                triggers.append(FactorDeprecationTrigger(
-                    factor_name=factor_name,
-                    trigger_reason=f"连续{low_icir_count}天ICIR<{self.min_icir}(超80%时间)",
-                    severity="HIGH",
-                    recommended_action="启动因子退役流程,寻找替代因子",
-                    grace_period_days=30
-                ))
+                triggers.append(
+                    FactorDeprecationTrigger(
+                        factor_name=factor_name,
+                        trigger_reason=f"连续{low_icir_count}天ICIR<{self.min_icir}(超80%时间)",
+                        severity="HIGH",
+                        recommended_action="启动因子退役流程,寻找替代因子",
+                        grace_period_days=30,
+                    )
+                )
 
         # 2. 检查连续3个月多空夏普 < 0
         recent_3m = ics[-63:]
         if len(recent_3m) >= 60:
-            negative_sharpe_count = sum(
-                1 for ic in recent_3m if ic.long_short_sharpe < self.min_sharpe
-            )
+            negative_sharpe_count = sum(1 for ic in recent_3m if ic.long_short_sharpe < self.min_sharpe)
             if negative_sharpe_count > 60 * 0.5:  # 超过50%时间夏普为负
-                triggers.append(FactorDeprecationTrigger(
-                    factor_name=factor_name,
-                    trigger_reason=f"连续{negative_sharpe_count}天多空夏普<{self.min_sharpe}",
-                    severity="HIGH",
-                    recommended_action="立即暂停因子实盘,全面复盘",
-                    grace_period_days=14
-                ))
+                triggers.append(
+                    FactorDeprecationTrigger(
+                        factor_name=factor_name,
+                        trigger_reason=f"连续{negative_sharpe_count}天多空夏普<{self.min_sharpe}",
+                        severity="HIGH",
+                        recommended_action="立即暂停因子实盘,全面复盘",
+                        grace_period_days=14,
+                    )
+                )
 
         # 3. 检查拥挤度
         crowding = self.check_crowding(factor_name)
         if crowding.percentile > self.crowding_percentile_threshold:
-            triggers.append(FactorDeprecationTrigger(
-                factor_name=factor_name,
-                trigger_reason=f"因子拥挤度{crowding.percentile:.1f}分位(阈值{self.crowding_percentile_threshold}%)",
-                severity="MEDIUM",
-                recommended_action="降低因子权重,逐步减仓",
-                grace_period_days=60
-            ))
+            triggers.append(
+                FactorDeprecationTrigger(
+                    factor_name=factor_name,
+                    trigger_reason=f"因子拥挤度{crowding.percentile:.1f}分位(阈值{self.crowding_percentile_threshold}%)",
+                    severity="MEDIUM",
+                    recommended_action="降低因子权重,逐步减仓",
+                    grace_period_days=60,
+                )
+            )
 
         return triggers
 
@@ -504,12 +512,8 @@ class FactorDecayMonitor:
             if triggers:
                 for trigger in triggers:
                     if trigger.severity in ["HIGH", "CRITICAL"]:
-                        warnings.append(
-                            f"[{trigger.severity}] 因子'{factor}': {trigger.trigger_reason}"
-                        )
-                        recommendations.append(
-                            f"- {trigger.recommended_action} (因子: {factor})"
-                        )
+                        warnings.append(f"[{trigger.severity}] 因子'{factor}': {trigger.trigger_reason}")
+                        recommendations.append(f"- {trigger.recommended_action} (因子: {factor})")
 
         # 总数统计
         n_healthy = len(healthy)
@@ -527,12 +531,8 @@ class FactorDecayMonitor:
 
         # 因子库容量警告
         if total_factors > self.max_factors * 0.8:
-            warnings.append(
-                f"[WARNING] 因子库接近上限({total_factors}/{self.max_factors})"
-            )
-            recommendations.append(
-                "优先保留健康因子,淘汰deprecated因子后再添加新因子"
-            )
+            warnings.append(f"[WARNING] 因子库接近上限({total_factors}/{self.max_factors})")
+            recommendations.append("优先保留健康因子,淘汰deprecated因子后再添加新因子")
 
         return FactorMonitorReport(
             timestamp=datetime.now(),
@@ -544,14 +544,14 @@ class FactorDecayMonitor:
             new_deprecations=new_deprecations,
             warnings=warnings,
             recommendations=recommendations,
-            status=status
+            status=status,
         )
 
 
 if __name__ == "__main__":
     # 测试示例
     print("因子衰减监控系统测试\n")
-    print("="*60)
+    print("=" * 60)
 
     # 创建监控器
     monitor = FactorDecayMonitor()
@@ -577,52 +577,58 @@ if __name__ == "__main__":
         date = base_date + timedelta(days=i)
 
         # 因子1
-        ic_records.append(FactorIC(
-            factor_name="stable_value",
-            date=date,
-            rank_ic=stable_ic[i],
-            ic_mean=np.mean(stable_ic[:i+1]),
-            ic_std=np.std(stable_ic[:i+1]),
-            icir=np.mean(stable_ic[:i+1]) / max(np.std(stable_ic[:i+1]), 1e-8),
-            long_return=0.02,
-            short_return=-0.01,
-            long_short_sharpe=1.5,
-            top_group_return=0.03,
-            bottom_group_return=-0.02,
-            monotonicity=0.85
-        ))
+        ic_records.append(
+            FactorIC(
+                factor_name="stable_value",
+                date=date,
+                rank_ic=stable_ic[i],
+                ic_mean=np.mean(stable_ic[: i + 1]),
+                ic_std=np.std(stable_ic[: i + 1]),
+                icir=np.mean(stable_ic[: i + 1]) / max(np.std(stable_ic[: i + 1]), 1e-8),
+                long_return=0.02,
+                short_return=-0.01,
+                long_short_sharpe=1.5,
+                top_group_return=0.03,
+                bottom_group_return=-0.02,
+                monotonicity=0.85,
+            )
+        )
 
         # 因子2
-        ic_records.append(FactorIC(
-            factor_name="decaying_momentum",
-            date=date,
-            rank_ic=max(decay_ic[i], 0),
-            ic_mean=np.mean(decay_ic[:i+1]),
-            ic_std=np.std(decay_ic[:i+1]),
-            icir=np.mean(decay_ic[:i+1]) / max(np.std(decay_ic[:i+1]), 1e-8),
-            long_return=0.015,
-            short_return=-0.005,
-            long_short_sharpe=0.8,
-            top_group_return=0.02,
-            bottom_group_return=-0.01,
-            monotonicity=0.6
-        ))
+        ic_records.append(
+            FactorIC(
+                factor_name="decaying_momentum",
+                date=date,
+                rank_ic=max(decay_ic[i], 0),
+                ic_mean=np.mean(decay_ic[: i + 1]),
+                ic_std=np.std(decay_ic[: i + 1]),
+                icir=np.mean(decay_ic[: i + 1]) / max(np.std(decay_ic[: i + 1]), 1e-8),
+                long_return=0.015,
+                short_return=-0.005,
+                long_short_sharpe=0.8,
+                top_group_return=0.02,
+                bottom_group_return=-0.01,
+                monotonicity=0.6,
+            )
+        )
 
         # 因子3
-        ic_records.append(FactorIC(
-            factor_name="volatile_quality",
-            date=date,
-            rank_ic=max(volatile_ic[i], 0),
-            ic_mean=np.mean(volatile_ic[:i+1]),
-            ic_std=np.std(volatile_ic[:i+1]),
-            icir=np.mean(volatile_ic[:i+1]) / max(np.std(volatile_ic[:i+1]), 1e-8),
-            long_return=0.01,
-            short_return=0.005,
-            long_short_sharpe=0.3,
-            top_group_return=0.015,
-            bottom_group_return=0.005,
-            monotonicity=0.4
-        ))
+        ic_records.append(
+            FactorIC(
+                factor_name="volatile_quality",
+                date=date,
+                rank_ic=max(volatile_ic[i], 0),
+                ic_mean=np.mean(volatile_ic[: i + 1]),
+                ic_std=np.std(volatile_ic[: i + 1]),
+                icir=np.mean(volatile_ic[: i + 1]) / max(np.std(volatile_ic[: i + 1]), 1e-8),
+                long_return=0.01,
+                short_return=0.005,
+                long_short_sharpe=0.3,
+                top_group_return=0.015,
+                bottom_group_return=0.005,
+                monotonicity=0.4,
+            )
+        )
 
     # 批量记录
     monitor.record_ic(ic_records)
@@ -631,7 +637,7 @@ if __name__ == "__main__":
     report = monitor.generate_health_report()
 
     print(f"\n因子健康度报告 ({report.timestamp.strftime('%Y-%m-%d %H:%M')})")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"总因子数: {report.total_factors}")
     print(f"健康: {report.healthy_factors}")
     print(f"警告: {report.warning_factors}")
@@ -640,18 +646,18 @@ if __name__ == "__main__":
     print(f"\n状态: {report.status}")
 
     if report.warnings:
-        print(f"\n[WARNING] 警告:")
+        print("\n[WARNING] 警告:")
         for w in report.warnings:
             print(f"  - {w}")
 
     if report.recommendations:
-        print(f"\n[RECOMMENDATION] 建议:")
+        print("\n[RECOMMENDATION] 建议:")
         for r in report.recommendations:
             print(f"  {r}")
 
     # 打印各因子详情
-    print(f"\n各因子详情:")
-    print(f"{'-'*60}")
+    print("\n各因子详情:")
+    print(f"{'-' * 60}")
     for factor, health in monitor.health_scores.items():
         print(f"\n{factor}:")
         print(f"  综合评分: {health.overall_score:.1f}/100")
@@ -666,4 +672,4 @@ if __name__ == "__main__":
         if hl:
             print(f"  半衰期: {hl.half_life_days:.1f}天 {'(稳定)' if hl.is_stable else '(不稳定)'}")
 
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")

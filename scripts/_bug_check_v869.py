@@ -106,7 +106,7 @@ def main() -> int:
 
     if stale_plans:
         for name, mt in stale_plans:
-            bug("P1", "STALE_PLAN", f"未来日期 plan mtime 过早", f"{name} mtime={mt}")
+            bug("P1", "STALE_PLAN", "未来日期 plan mtime 过早", f"{name} mtime={mt}")
 
     # ============================================================
     # 2. 最新 plan 的字段一致性

@@ -18,9 +18,9 @@ Purged K-Fold 交叉验证模块 (v8.5升级)
 """
 
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import List, Tuple, Optional, Dict, Any
+from dataclasses import dataclass
+from datetime import datetime
+from typing import List, Optional, Dict
 
 import numpy as np
 import pandas as pd
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PurgedKFoldConfig:
     """Purged K-Fold配置"""
+
     n_splits: int = 5  # K值
     n_purge: int = 20  #  purge天数(移除重叠期)
     n_embargo: int = 10  # embargo天数(缓冲期)
@@ -40,6 +41,7 @@ class PurgedKFoldConfig:
 @dataclass
 class FoldResult:
     """单折验证结果"""
+
     fold_index: int
     train_start: datetime
     train_end: datetime
@@ -57,6 +59,7 @@ class FoldResult:
 @dataclass
 class CrossValidationReport:
     """交叉验证报告"""
+
     config: PurgedKFoldConfig
     folds: List[FoldResult]
     mean_ic: float
@@ -82,25 +85,15 @@ class PurgedKFold:
                   f"Test [{fold.test_start}, {fold.test_end}]")
     """
 
-    def __init__(self,
-                 n_splits: int = 5,
-                 n_purge: int = 20,
-                 n_embargo: int = 10,
-                 min_train_size: int = 60):
+    def __init__(self, n_splits: int = 5, n_purge: int = 20, n_embargo: int = 10, min_train_size: int = 60):
         self.config = PurgedKFoldConfig(
-            n_splits=n_splits,
-            n_purge=n_purge,
-            n_embargo=n_embargo,
-            min_train_size=min_train_size
+            n_splits=n_splits, n_purge=n_purge, n_embargo=n_embargo, min_train_size=min_train_size
         )
-        logger.info(f"[PurgedKFold] 初始化完成 | Splits={n_splits} | "
-                    f"Purge={n_purge}天 | Embargo={n_embargo}天")
+        logger.info(f"[PurgedKFold] 初始化完成 | Splits={n_splits} | Purge={n_purge}天 | Embargo={n_embargo}天")
 
-    def fit(self,
-            X: pd.DataFrame,
-            y: pd.Series,
-            dates: pd.DatetimeIndex,
-            feature_names: Optional[List[str]] = None) -> CrossValidationReport:
+    def fit(
+        self, X: pd.DataFrame, y: pd.Series, dates: pd.DatetimeIndex, feature_names: Optional[List[str]] = None
+    ) -> CrossValidationReport:
         """
         执行Purged K-Fold交叉验证
 
@@ -141,27 +134,25 @@ class PurgedKFold:
 
             # 验证训练集大小
             if train_mask.sum() < self.config.min_train_size:
-                logger.warning(
-                    f"Fold {i+1}: 训练集过小({train_mask.sum()}<{self.config.min_train_size}),跳过"
-                )
+                logger.warning(f"Fold {i + 1}: 训练集过小({train_mask.sum()}<{self.config.min_train_size}),跳过")
                 continue
 
-            folds.append({
-                'index': i + 1,
-                'train_indices': indices[train_mask],
-                'test_indices': indices[test_start_idx:test_end_idx],
-                'purge_indices': indices[purge_start_idx:purge_end_idx],
-                'embargo_indices': indices[embargo_start_idx:test_start_idx]
-            })
+            folds.append(
+                {
+                    "index": i + 1,
+                    "train_indices": indices[train_mask],
+                    "test_indices": indices[test_start_idx:test_end_idx],
+                    "purge_indices": indices[purge_start_idx:purge_end_idx],
+                    "embargo_indices": indices[embargo_start_idx:test_start_idx],
+                }
+            )
 
         logger.info(f"[PurgedKFold] 生成{len(folds)}个有效折叠")
 
         # 执行每折验证
         fold_results = []
         for fold in folds:
-            result = self._validate_fold(
-                X, y, dates, fold, feature_names
-            )
+            result = self._validate_fold(X, y, dates, fold, feature_names)
             fold_results.append(result)
 
         # 生成汇总报告
@@ -175,12 +166,9 @@ class PurgedKFold:
 
         return report
 
-    def _validate_fold(self,
-                       X: pd.DataFrame,
-                       y: pd.Series,
-                       dates: pd.DatetimeIndex,
-                       fold: Dict,
-                       feature_names: Optional[List[str]]) -> FoldResult:
+    def _validate_fold(
+        self, X: pd.DataFrame, y: pd.Series, dates: pd.DatetimeIndex, fold: Dict, feature_names: Optional[List[str]]
+    ) -> FoldResult:
         """
         执行单折验证
 
@@ -194,8 +182,8 @@ class PurgedKFold:
         Returns:
             FoldResult对象
         """
-        train_dates = dates[fold['train_indices']]
-        test_dates = dates[fold['test_indices']]
+        train_dates = dates[fold["train_indices"]]
+        test_dates = dates[fold["test_indices"]]
 
         # 计算IC (如果提供了特征名称)
         ic = 0.0
@@ -223,12 +211,12 @@ class PurgedKFold:
                 icir = ic / ic_std if ic_std > 0 else 0.0
 
             # 计算多空收益(基于因子得分分组)
-            if 'factor_score' in test_X.columns and 'return' in y.index.name or 'return' in test_X.columns:
+            if ("factor_score" in test_X.columns and "return" in y.index.name) or "return" in test_X.columns:
                 # 简化版: 按因子得分分位数分组
                 pass
 
         return FoldResult(
-            fold_index=fold['index'],
+            fold_index=fold["index"],
             train_start=train_dates[0],
             train_end=train_dates[-1],
             test_start=test_dates[0],
@@ -238,12 +226,10 @@ class PurgedKFold:
             long_return=long_return,
             short_return=short_return,
             long_sharpe=long_sharpe,
-            turnover=turnover
+            turnover=turnover,
         )
 
-    def _generate_report(self,
-                         folds: List[FoldResult],
-                         features: Optional[List[str]] = None) -> CrossValidationReport:
+    def _generate_report(self, folds: List[FoldResult], features: Optional[List[str]] = None) -> CrossValidationReport:
         """
         生成交叉验证汇总报告
 
@@ -273,21 +259,20 @@ class PurgedKFold:
 
         # 过拟合检测
         # 经验法则: 样本内夏普>3.0几乎一定过拟合
-        is_overfit = (mean_long_sharpe > 3.0 or
-                      abs(ic_decay_rate) > 0.1)
+        is_overfit = mean_long_sharpe > 3.0 or abs(ic_decay_rate) > 0.1
 
         # 生成摘要
         summary = (
             f"Purged K-Fold CV Report (K={self.config.n_splits}, "
             f"Purge={self.config.n_purge}, Embargo={self.config.n_embargo})\n"
-            f"{'='*60}\n"
+            f"{'=' * 60}\n"
             f"Mean IC: {mean_ic:.4f} ± {std_ic:.4f}\n"
             f"Mean ICIR: {mean_icir:.4f}\n"
             f"Mean Long-Short Sharpe: {mean_long_sharpe:.4f}\n"
             f"Mean Turnover: {mean_turnover:.2%}\n"
             f"IC Decay Rate: {ic_decay_rate:.4f}/fold\n"
             f"Overfit Risk: {'YES [WARNING]' if is_overfit else 'NO [OK]'}\n"
-            f"{'='*60}"
+            f"{'=' * 60}"
         )
 
         return CrossValidationReport(
@@ -300,13 +285,11 @@ class PurgedKFold:
             mean_turnover=mean_turnover,
             ic_decay_rate=ic_decay_rate,
             is_overfit=is_overfit,
-            summary=summary
+            summary=summary,
         )
 
 
-def create_purged_kfold_cv(n_splits: int = 5,
-                           n_purge: int = 20,
-                           n_embargo: int = 10) -> PurgedKFold:
+def create_purged_kfold_cv(n_splits: int = 5, n_purge: int = 20, n_embargo: int = 10) -> PurgedKFold:
     """
     创建Purged K-Fold交叉验证器
 
@@ -318,35 +301,25 @@ def create_purged_kfold_cv(n_splits: int = 5,
     Returns:
         PurgedKFold实例
     """
-    return PurgedKFold(
-        n_splits=n_splits,
-        n_purge=n_purge,
-        n_embargo=n_embargo
-    )
+    return PurgedKFold(n_splits=n_splits, n_purge=n_purge, n_embargo=n_embargo)
 
 
 if __name__ == "__main__":
     # 测试示例
     print("Purged K-Fold 交叉验证模块测试\n")
-    print("="*60)
+    print("=" * 60)
 
     # 生成模拟数据
     np.random.seed(42)
     n_samples = 1000
-    dates = pd.date_range('2020-01-01', periods=n_samples, freq='B')
+    dates = pd.date_range("2020-01-01", periods=n_samples, freq="B")
 
     # 创建特征矩阵
-    X = pd.DataFrame(
-        np.random.randn(n_samples, 5),
-        index=dates,
-        columns=[f'feature_{i}' for i in range(5)]
-    )
+    X = pd.DataFrame(np.random.randn(n_samples, 5), index=dates, columns=[f"feature_{i}" for i in range(5)])
 
     # 创建目标变量(与feature_0有部分相关性)
     y = pd.Series(
-        0.5 * X['feature_0'] + 0.3 * X['feature_1'] + np.random.randn(n_samples) * 0.1,
-        index=dates,
-        name='target'
+        0.5 * X["feature_0"] + 0.3 * X["feature_1"] + np.random.randn(n_samples) * 0.1, index=dates, name="target"
     )
 
     # 执行交叉验证
@@ -358,7 +331,7 @@ if __name__ == "__main__":
 
     # 打印各折详情
     print("\n各折详情:")
-    print("-"*60)
+    print("-" * 60)
     for fold in report.folds:
         print(
             f"Fold {fold.fold_index}: "
@@ -369,10 +342,10 @@ if __name__ == "__main__":
 
     # 过拟合警告
     if report.is_overfit:
-        print(f"\n[WARNING] 检测到过拟合风险!")
+        print("\n[WARNING] 检测到过拟合风险!")
         print(f"   Mean Sharpe={report.mean_long_sharpe:.2f} > 3.0")
-        print(f"   建议: 减少参数数量,增加正则化")
+        print("   建议: 减少参数数量,增加正则化")
     else:
-        print(f"\n[OK] 未检测到明显过拟合")
+        print("\n[OK] 未检测到明显过拟合")
 
-    print("="*60)
+    print("=" * 60)

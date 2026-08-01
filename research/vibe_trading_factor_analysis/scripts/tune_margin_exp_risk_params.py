@@ -21,13 +21,11 @@
 """
 from __future__ import annotations
 
-import json
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -105,34 +103,34 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print(f"MARGIN_EXP 风险管理参数调优实验（P2.2 v6.2b）")
-    print(f"目标因子: {TARGET_FACTOR}")
-    print("=" * 70)
-    print("实验组:")
+    logger.info("=" * 70)
+    logger.info("MARGIN_EXP 风险管理参数调优实验（P2.2 v6.2b）")
+    logger.info(f"目标因子: {TARGET_FACTOR}")
+    logger.info("=" * 70)
+    logger.info("实验组:")
     for cfg in EXPERIMENT_CONFIGS:
         print(f"  {cfg['name']:30s}: target_vol={cfg['target_vol']:.2f} "
               f"dd_threshold={cfg['dd_derisk_threshold']:.2f} "
               f"dd_factor={cfg['dd_derisk_factor']:.1f}")
     print()
-    print("验收标准: max_dd<0.12, live_dsr>0.5, pass_shadow=True")
+    logger.info("验收标准: max_dd<0.12, live_dsr>0.5, pass_shadow=True")
 
     # ============ Step 1: 加载数据 ============
-    print("\n[1/4] 加载数据")
+    logger.info("\n[1/4] 加载数据")
     symbols = list_available_symbols()
     price_data = load_price_data(symbols=symbols)
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns()
     if not benchmark_returns:
         benchmark_returns = compute_equal_weight_benchmark(price_data)
-    print(f"  标的数: {len(symbols)} | benchmark: {len(benchmark_returns)} 天")
+    logger.info(f"  标的数: {len(symbols)} | benchmark: {len(benchmark_returns)} 天")
 
     # ============ Step 2: 构建因子历史 ============
-    print("\n[2/4] 构建因子历史 (120d)")
+    logger.info("\n[2/4] 构建因子历史 (120d)")
     orchestrator = PipelineOrchestrator(config={"reports_dir": str(REPORTS_DIR)})
     fundamentals_history = orchestrator._load_fundamentals_history(list(price_data.keys()))
     adapter = VibeTradingFactorAdapter()
-    factor_history, fwd_returns_hist, valid_dates = build_factor_history(
+    factor_history, fwd_returns_hist, _valid_dates = build_factor_history(
         adapter=adapter,
         price_data=price_data,
         fundamentals=fundamentals,
@@ -142,15 +140,15 @@ def main() -> int:
         fundamentals_history=fundamentals_history,
     )
     target_history = factor_history[TARGET_FACTOR]
-    print(f"  {TARGET_FACTOR} 历史长度: {len(target_history)}")
+    logger.info(f"  {TARGET_FACTOR} 历史长度: {len(target_history)}")
 
     # ============ Step 3: 跑 5 组实验 ============
-    print("\n[3/4] 跑 5 组实验")
+    logger.info("\n[3/4] 跑 5 组实验")
     n_trials = max(len(symbols), 13)
     results = []
 
     for cfg in EXPERIMENT_CONFIGS:
-        print(f"\n  [{cfg['name']}] {cfg['desc']}")
+        logger.info(f"\n  [{cfg['name']}] {cfg['desc']}")
         account = ShadowAccount(config={
             "reports_dir": str(REPORTS_DIR),
             "risk_managed": True,
@@ -173,52 +171,52 @@ def main() -> int:
               f"scaler={result.avg_scaler:.4f} derisk={result.derisk_triggered_days}/{result.n_obs_days}")
 
     # ============ Step 4: 对比汇总 ============
-    print("\n[4/4] 对比汇总")
-    print("=" * 110)
+    logger.info("\n[4/4] 对比汇总")
+    logger.info("=" * 110)
     print(f"{'Config':<32s} {'pass':>6s} {'live_dsr':>10s} {'max_dd':>10s} {'mc_p95':>10s} "
           f"{'return':>10s} {'vol':>8s} {'scaler':>8s} {'derisk':>10s}")
-    print("-" * 110)
+    logger.info("-" * 110)
     for cfg, result in results:
-        print(f"{cfg['name']:<32s} {str(result.pass_shadow):>6s} "
+        print(f"{cfg['name']:<32s} {result.pass_shadow!s:>6s} "
               f"{result.live_dsr:>10.4f} {result.max_drawdown:>10.4f} "
               f"{result.monte_carlo_p95_dd:>10.4f} {result.total_return:>10.4f} "
               f"{result.realized_vol:>8.4f} {result.avg_scaler:>8.4f} "
               f"{result.derisk_triggered_days:>4d}/{result.n_obs_days:<4d}")
-    print("=" * 110)
+    logger.info("=" * 110)
 
     # 找最优配置
-    print("\n最优配置分析:")
+    logger.info("\n最优配置分析:")
     # 优先 max_dd < 0.12
     pass_dd = [(cfg, r) for cfg, r in results if r.max_drawdown < 0.12]
     if pass_dd:
         # 在 max_dd 通过的里面找 live_dsr 最高的
         best_cfg, best_result = max(pass_dd, key=lambda x: x[1].live_dsr)
-        print(f"  ✅ 找到 max_dd<0.12 的配置: {best_cfg['name']}")
+        logger.info(f"  ✅ 找到 max_dd<0.12 的配置: {best_cfg['name']}")
         print(f"     live_dsr={best_result.live_dsr:.4f} (阈值 >0.5: "
               f"{'✅' if best_result.live_dsr > 0.5 else '❌'})")
-        print(f"     pass_shadow={best_result.pass_shadow}")
+        logger.info(f"     pass_shadow={best_result.pass_shadow}")
         if best_result.pass_shadow:
-            print(f"  🎉 MARGIN_EXP 通过 Shadow! 推荐配置: {best_cfg['name']}")
+            logger.info(f"  🎉 MARGIN_EXP 通过 Shadow! 推荐配置: {best_cfg['name']}")
         else:
-            print(f"  ⚠️ max_dd 通过但 live_dsr 未达标，需进一步调优或考虑组合")
+            logger.info("  ⚠️ max_dd 通过但 live_dsr 未达标，需进一步调优或考虑组合")
     else:
-        print(f"  ❌ 所有配置 max_dd 均 ≥ 0.12，无法通过 Shadow 阈值")
+        logger.info("  ❌ 所有配置 max_dd 均 ≥ 0.12，无法通过 Shadow 阈值")
         # 找 max_dd 最低的
         min_dd_cfg, min_dd_result = min(results, key=lambda x: x[1].max_drawdown)
-        print(f"  最低 max_dd 配置: {min_dd_cfg['name']} max_dd={min_dd_result.max_drawdown:.4f}")
-        print(f"  对应 live_dsr={min_dd_result.live_dsr:.4f}")
-        print(f"  结论: 单因子 Shadow 在 105 标的下无法通过，需考虑:")
-        print(f"    1. 扩大样本至 200+ 标的")
-        print(f"    2. 因子组合（MARGIN_EXP + VT_MICRO_VOL_SKEW_INV）")
-        print(f"    3. 改进因子设计（如改用扣非净利润）")
+        logger.info(f"  最低 max_dd 配置: {min_dd_cfg['name']} max_dd={min_dd_result.max_drawdown:.4f}")
+        logger.info(f"  对应 live_dsr={min_dd_result.live_dsr:.4f}")
+        logger.info("  结论: 单因子 Shadow 在 105 标的下无法通过，需考虑:")
+        logger.info("    1. 扩大样本至 200+ 标的")
+        logger.info("    2. 因子组合（MARGIN_EXP + VT_MICRO_VOL_SKEW_INV）")
+        logger.info("    3. 改进因子设计（如改用扣非净利润）")
 
     # 写入报告
     md_path = _write_tuning_report(results, symbols_count=len(symbols), n_trials=n_trials)
-    print(f"\n报告路径: {md_path}")
+    logger.info(f"\n报告路径: {md_path}")
 
-    print("\n" + "=" * 70)
-    print("MARGIN_EXP 风险管理参数调优实验完成")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("MARGIN_EXP 风险管理参数调优实验完成")
+    logger.info("=" * 70)
     return 0
 
 

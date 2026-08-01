@@ -1,5 +1,10 @@
 {
   "mcpServers": {
+    "codebase-memory": {
+      "command": "C:\\Users\\Administrator\\.local\\bin\\codebase-memory-mcp.exe",
+      "args": ["serve"],
+      "type": "stdio"
+    },
     "code-review-graph": {
       "command": "uvx",
       "args": [

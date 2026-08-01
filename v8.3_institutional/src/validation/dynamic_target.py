@@ -20,7 +20,7 @@ class DynamicTargetCalculator:
     def __init__(self, strategy_type: str = "daily", market_volatility: float = 0.20):
         """
         初始化计算器
-        
+
         Args:
             strategy_type: 策略类型 ('high_frequency', 'daily', 'weekly')
             market_volatility: 当前市场波动率（年化）
@@ -51,30 +51,30 @@ class DynamicTargetCalculator:
     def calculate_target(self, sample_size: int) -> Tuple[float, float]:
         """
         计算动态目标夏普比率范围
-        
+
         Args:
             sample_size: 样本数量
-            
+
         Returns:
             (lower_bound, upper_bound): 动态目标夏普比率范围
         """
         # 样本量调整因子：样本越少，要求越高（避免小样本过拟合）
         sample_adjustment = math.sqrt(sample_size / self._base_sample_size)
-        
+
         # 调整后的范围
         lower = self._expected_sharpe_range[0] * min(sample_adjustment, 1.5)  # 上限1.5倍
-        upper = self._expected_sharpe_range[1] * max(sample_adjustment, 0.5)   # 下限0.5倍
+        upper = self._expected_sharpe_range[1] * max(sample_adjustment, 0.5)  # 下限0.5倍
 
         return (round(lower, 2), round(upper, 2))
 
     def is_acceptable(self, sharpe_ratio: float, sample_size: int) -> bool:
         """
         判断夏普比率是否在可接受范围内
-        
+
         Args:
             sharpe_ratio: 策略夏普比率
             sample_size: 样本数量
-            
+
         Returns:
             True表示在可接受范围内
         """

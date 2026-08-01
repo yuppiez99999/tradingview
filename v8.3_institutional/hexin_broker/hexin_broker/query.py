@@ -12,7 +12,7 @@ v7.5 同花顺客户端自动化 — 查询模块
 """
 
 import logging
-from typing import Dict, Optional
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 

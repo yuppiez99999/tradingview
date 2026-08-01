@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """模拟计划任务环境下 _home 解析为 systemprofile 时的修复验证"""
 import os
-import sys
-import importlib.util
 
 # 模拟计划任务环境：_home = C:\windows\system32\config\systemprofile
 simulated_home = r"C:\windows\system32\config\systemprofile"

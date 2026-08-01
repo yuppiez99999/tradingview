@@ -322,39 +322,39 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("S3 第二十一批次：IC 加权组合 lookback 窗口优化验证（P2.2 v6.9）")
-    print("=" * 70)
-    print("v6.9 改进内容:")
-    print(f"  - Factor A: {FACTOR_A}（信号反转因子）")
-    print(f"  - Factor B: {FACTOR_B}（信号正常因子）")
-    print(f"  - 固定 Shadow 参数：Config_E_plus1（v6.7 已验证最优）")
-    print(f"  - 变化参数：lookback = {[c['lookback'] for c in LOOKBACK_CONFIGS.values()]}")
+    logger.info("=" * 70)
+    logger.info("S3 第二十一批次：IC 加权组合 lookback 窗口优化验证（P2.2 v6.9）")
+    logger.info("=" * 70)
+    logger.info("v6.9 改进内容:")
+    logger.info(f"  - Factor A: {FACTOR_A}（信号反转因子）")
+    logger.info(f"  - Factor B: {FACTOR_B}（信号正常因子）")
+    logger.info("  - 固定 Shadow 参数：Config_E_plus1（v6.7 已验证最优）")
+    logger.info(f"  - 变化参数：lookback = {[c['lookback'] for c in LOOKBACK_CONFIGS.values()]}")
     print()
-    print("v6.9 验证目标:")
-    print("  - 找到 live_dsr / max_dd / total_return / IC_IR 的最优权衡点")
-    print("  - 确认 lookback=20 是否为最优，或找到更好的配置")
-    print("  - 验证 IC 加权方法对 lookback 参数的稳健性")
-    print("  - 分析权重变化频率（适应速度指标）")
+    logger.info("v6.9 验证目标:")
+    logger.info("  - 找到 live_dsr / max_dd / total_return / IC_IR 的最优权衡点")
+    logger.info("  - 确认 lookback=20 是否为最优，或找到更好的配置")
+    logger.info("  - 验证 IC 加权方法对 lookback 参数的稳健性")
+    logger.info("  - 分析权重变化频率（适应速度指标）")
 
     # ============ Step 1: 加载数据 ============
-    print("\n[1/5] 加载数据")
+    logger.info("\n[1/5] 加载数据")
     symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
+    logger.info(f"  可用标的数: {len(symbols)}")
     price_data = load_price_data(symbols=symbols)
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns()
     if not benchmark_returns:
         benchmark_returns = compute_equal_weight_benchmark(price_data)
-    print(f"  price_data: {len(price_data)} | benchmark: {len(benchmark_returns)} 天")
+    logger.info(f"  price_data: {len(price_data)} | benchmark: {len(benchmark_returns)} 天")
 
     # ============ Step 2: 加载 fundamentals_history ============
-    print("\n[2/5] 加载历史季度财务数据")
+    logger.info("\n[2/5] 加载历史季度财务数据")
     fundamentals_history = load_fundamentals_history(symbols)
-    print(f"  fundamentals_history: {len(fundamentals_history)} 个标的")
+    logger.info(f"  fundamentals_history: {len(fundamentals_history)} 个标的")
 
     # ============ Step 3: 构建日频因子历史 ============
-    print("\n[3/5] 构建日频因子历史（history_days=120, forward_window=5）")
+    logger.info("\n[3/5] 构建日频因子历史（history_days=120, forward_window=5）")
     adapter = VibeTradingFactorAdapter()
     factor_history, fwd_returns_hist, valid_dates = build_factor_history(
         adapter=adapter,
@@ -365,12 +365,12 @@ def main() -> int:
         forward_window=5,
         fundamentals_history=fundamentals_history,
     )
-    print(f"  factor_history: {len(factor_history)} 个因子 | valid_dates: {len(valid_dates)} 天")
+    logger.info(f"  factor_history: {len(factor_history)} 个因子 | valid_dates: {len(valid_dates)} 天")
 
     # ============ Step 4: 提取单因子 + 计算全局 IC_IR ============
-    print("\n[4/5] 提取单因子并计算全局 IC_IR")
+    logger.info("\n[4/5] 提取单因子并计算全局 IC_IR")
     if FACTOR_A not in factor_history or FACTOR_B not in factor_history:
-        print(f"[ERROR] 因子不存在: A={FACTOR_A in factor_history} B={FACTOR_B in factor_history}")
+        logger.info(f"[ERROR] 因子不存在: A={FACTOR_A in factor_history} B={FACTOR_B in factor_history}")
         return 1
 
     hist_a = factor_history[FACTOR_A]
@@ -379,34 +379,34 @@ def main() -> int:
     hist_a = hist_a[:n]
     hist_b = hist_b[:n]
     fwd_returns_hist = fwd_returns_hist[:n]
-    print(f"  Factor A ({FACTOR_A}): {len(hist_a)} 天")
-    print(f"  Factor B ({FACTOR_B}): {len(hist_b)} 天")
+    logger.info(f"  Factor A ({FACTOR_A}): {len(hist_a)} 天")
+    logger.info(f"  Factor B ({FACTOR_B}): {len(hist_b)} 天")
 
     # 单因子全局 IC_IR（不依赖 lookback）
     ic_series_a = compute_rolling_ic_series(hist_a, fwd_returns_hist)
     ic_series_b = compute_rolling_ic_series(hist_b, fwd_returns_hist)
     ic_ir_a_full, _, _ = compute_ic_ir(ic_series_a)
     ic_ir_b_full, _, _ = compute_ic_ir(ic_series_b)
-    print(f"  Factor A 全局 IC_IR: {ic_ir_a_full:+.4f}")
-    print(f"  Factor B 全局 IC_IR: {ic_ir_b_full:+.4f}")
+    logger.info(f"  Factor A 全局 IC_IR: {ic_ir_a_full:+.4f}")
+    logger.info(f"  Factor B 全局 IC_IR: {ic_ir_b_full:+.4f}")
 
     # ============ Step 5: 遍历 lookback 配置，构建 IC 加权组合并测试 ============
-    print("\n[5/5] 遍历 lookback 配置（Config_E_plus1 固定）")
-    print("-" * 70)
-    print(f"  Shadow 配置: {SHADOW_CONFIG_E_PLUS1}")
+    logger.info("\n[5/5] 遍历 lookback 配置（Config_E_plus1 固定）")
+    logger.info("-" * 70)
+    logger.info(f"  Shadow 配置: {SHADOW_CONFIG_E_PLUS1}")
     n_trials = max(len(symbols), 13)
-    print(f"  n_trials: {n_trials}")
+    logger.info(f"  n_trials: {n_trials}")
 
     all_results: Dict[str, Dict[str, Any]] = {}
 
     for config_name, config in LOOKBACK_CONFIGS.items():
         lookback = config["lookback"]
         desc = config["desc"]
-        print(f"\n  [{config_name}] lookback={lookback}  ({desc})")
+        logger.info(f"\n  [{config_name}] lookback={lookback}  ({desc})")
 
         # 检查样本充足性
         if n < lookback + 5:
-            print(f"    ❌ 样本不足: n={n} < lookback+5={lookback+5}")
+            logger.info(f"    ❌ 样本不足: n={n} < lookback+5={lookback+5}")
             all_results[config_name] = {
                 "lookback": lookback,
                 "desc": desc,
@@ -459,14 +459,14 @@ def main() -> int:
         }
 
     # ============ 汇总对比 ============
-    print("\n" + "=" * 70)
-    print("汇总对比")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("汇总对比")
+    logger.info("=" * 70)
 
-    print("\n[IC 指标对比]")
+    logger.info("\n[IC 指标对比]")
     print(f"{'配置':<20s} {'lookback':>10s} {'IC_IR':>10s} {'IC_mean':>10s} "
           f"{'IC_std':>10s} {'decay':>10s}")
-    print("-" * 80)
+    logger.info("-" * 80)
     for config_name, res in all_results.items():
         if not res.get("ic_metrics"):
             continue
@@ -474,10 +474,10 @@ def main() -> int:
         print(f"{config_name:<20s} {res['lookback']:>10d} {ic['ic_ir']:>+10.4f} "
               f"{ic['ic_mean']:>+10.4f} {ic['ic_std']:>10.4f} {ic['ic_decay']:>10.4f}")
 
-    print("\n[Shadow 指标对比 - Config_E_plus1 固定]")
+    logger.info("\n[Shadow 指标对比 - Config_E_plus1 固定]")
     print(f"{'配置':<20s} {'lookback':>10s} {'pass':>6s} {'live_dsr':>10s} "
           f"{'max_dd':>10s} {'total_ret':>12s} {'sr':>8s}")
-    print("-" * 90)
+    logger.info("-" * 90)
     for config_name, res in all_results.items():
         if not res.get("shadow"):
             continue
@@ -487,14 +487,14 @@ def main() -> int:
               f"{sh['live_dsr']:>+10.4f} {sh['max_drawdown']:>10.4f} "
               f"{sh['total_return']:>+12.4f} {sh['sr_observed']:>8.4f}")
 
-    print("\n[权重适应速度对比]")
+    logger.info("\n[权重适应速度对比]")
     print(f"{'配置':<20s} {'lookback':>10s} {'A_neg%':>8s} {'A_flips':>10s} "
           f"{'A_flip_rate':>12s} {'A_vol':>8s} {'B_neg%':>8s} {'B_flips':>10s}")
-    print("-" * 100)
+    logger.info("-" * 100)
     for config_name, res in all_results.items():
         ws = res.get("weights_stats", {})
         if not ws.get("available"):
-            print(f"{config_name:<20s} {res.get('lookback', '?'):>10} {'N/A':>8s}")
+            logger.info(f"{config_name:<20s} {res.get('lookback', '?'):>10} {'N/A':>8s}")
             continue
         wa = ws["factor_a"]
         wb = ws["factor_b"]
@@ -504,20 +504,20 @@ def main() -> int:
               f"{wb['neg_weight_pct']*100:>7.1f}% {wb['weight_flips']:>10d}")
 
     # ============ 寻找最优 lookback ============
-    print("\n[最优 lookback 分析]")
+    logger.info("\n[最优 lookback 分析]")
 
     # 找到所有通过 Shadow 的配置
     passed_configs = [
         (name, res) for name, res in all_results.items()
         if res.get("passed", False)
     ]
-    print(f"  通过 Shadow 的配置数: {len(passed_configs)}/{len(all_results)}")
+    logger.info(f"  通过 Shadow 的配置数: {len(passed_configs)}/{len(all_results)}")
 
     if not passed_configs:
-        print("  ❌ 没有配置通过 Shadow")
+        logger.info("  ❌ 没有配置通过 Shadow")
         best_lookback = None
     else:
-        print("\n  通过 Shadow 的配置详情:")
+        logger.info("\n  通过 Shadow 的配置详情:")
         for name, res in passed_configs:
             sh = res["shadow"]
             ic = res["ic_metrics"]
@@ -528,15 +528,15 @@ def main() -> int:
         # 最优标准：综合 live_dsr, total_return, IC_IR
         # "最小必要激进化"原则的扩展：选择最简单（最小 lookback）的通过配置
         # 但也要考虑 total_return 和 IC_IR
-        print("\n  最优 lookback 选择标准:")
-        print("    1. 必须通过 Shadow (live_dsr>0.5, max_dd<0.12)")
-        print("    2. total_return 越高越好（保留 Alpha 信号）")
-        print("    3. IC_IR 越高越好（信号质量）")
-        print("    4. 权重翻转次数适中（适应速度与稳定性平衡）")
+        logger.info("\n  最优 lookback 选择标准:")
+        logger.info("    1. 必须通过 Shadow (live_dsr>0.5, max_dd<0.12)")
+        logger.info("    2. total_return 越高越好（保留 Alpha 信号）")
+        logger.info("    3. IC_IR 越高越好（信号质量）")
+        logger.info("    4. 权重翻转次数适中（适应速度与稳定性平衡）")
 
         # 按 total_return 排序
         by_return = sorted(passed_configs, key=lambda x: -x[1]["shadow"]["total_return"])
-        print(f"\n  按 total_return 排序:")
+        logger.info("\n  按 total_return 排序:")
         for i, (name, res) in enumerate(by_return):
             sh = res["shadow"]
             print(f"    {i+1}. {name} (lookback={res['lookback']}): "
@@ -544,7 +544,7 @@ def main() -> int:
 
         # 按 IC_IR 排序
         by_icir = sorted(passed_configs, key=lambda x: -x[1]["ic_metrics"]["ic_ir"])
-        print(f"\n  按 IC_IR 排序:")
+        logger.info("\n  按 IC_IR 排序:")
         for i, (name, res) in enumerate(by_icir):
             ic = res["ic_metrics"]
             print(f"    {i+1}. {name} (lookback={res['lookback']}): "
@@ -559,7 +559,7 @@ def main() -> int:
               f"(lookback={minimal_lookback[1]['lookback']})")
 
         # 综合 ranking：用 z-score 综合三个指标
-        print("\n  综合评分（z-score: live_dsr + total_return + IC_IR）:")
+        logger.info("\n  综合评分（z-score: live_dsr + total_return + IC_IR）:")
         all_dsrs = [res["shadow"]["live_dsr"] for _, res in passed_configs]
         all_returns = [res["shadow"]["total_return"] for _, res in passed_configs]
         all_icirs = [res["ic_metrics"]["ic_ir"] for _, res in passed_configs]
@@ -586,8 +586,8 @@ def main() -> int:
               f"(lookback={best_lookback}, score={best_config[2]:+.3f})")
 
     # ============ 验收检查 ============
-    print("\n[验收检查]")
-    print("-" * 70)
+    logger.info("\n[验收检查]")
+    logger.info("-" * 70)
     checks = []
 
     # Check 1: lookback=20 通过 Shadow（v6.5~v6.8 基线）
@@ -634,28 +634,28 @@ def main() -> int:
     all_pass = True
     for desc, ok in checks:
         status = "✅ PASS" if ok else "❌ FAIL"
-        print(f"  [{status}] {desc}")
+        logger.info(f"  [{status}] {desc}")
         if not ok:
             all_pass = False
 
     # ============ 结论 ============
-    print("\n" + "=" * 70)
+    logger.info("\n" + "=" * 70)
     if all_pass:
-        print("🎉 v6.9 lookback 窗口优化验证全部通过")
+        logger.info("🎉 v6.9 lookback 窗口优化验证全部通过")
         if best_lookback is not None:
-            print(f"   最优 lookback = {best_lookback} 天")
+            logger.info(f"   最优 lookback = {best_lookback} 天")
             if best_lookback == 20:
-                print("   ✅ 确认 v6.5~v6.8 使用的 lookback=20 是最优配置")
+                logger.info("   ✅ 确认 v6.5~v6.8 使用的 lookback=20 是最优配置")
             elif best_lookback < 20:
-                print(f"   ⚠️ 发现更优 lookback={best_lookback}（比基线 20 更短，更快适应）")
-                print(f"      建议更新 DEFAULT_IC_WEIGHTED_LOOKBACK = {best_lookback}")
+                logger.info(f"   ⚠️ 发现更优 lookback={best_lookback}（比基线 20 更短，更快适应）")
+                logger.info(f"      建议更新 DEFAULT_IC_WEIGHTED_LOOKBACK = {best_lookback}")
             else:
-                print(f"   ⚠️ 发现更优 lookback={best_lookback}（比基线 20 更长，更稳定）")
-                print(f"      建议更新 DEFAULT_IC_WEIGHTED_LOOKBACK = {best_lookback}")
-        print("   IC 加权方法对 lookback 参数稳健")
+                logger.info(f"   ⚠️ 发现更优 lookback={best_lookback}（比基线 20 更长，更稳定）")
+                logger.info(f"      建议更新 DEFAULT_IC_WEIGHTED_LOOKBACK = {best_lookback}")
+        logger.info("   IC 加权方法对 lookback 参数稳健")
     else:
-        print("⚠️ v6.9 lookback 窗口优化验证存在失败项")
-    print("=" * 70)
+        logger.info("⚠️ v6.9 lookback 窗口优化验证存在失败项")
+    logger.info("=" * 70)
 
     # ============ 保存结果 ============
     batch_id = f"twentyfirst_batch_lookback_optimization_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -685,8 +685,8 @@ def main() -> int:
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False, default=str)
 
-    print(f"\n结果已保存至: {output_path}")
-    print(f"批次 ID: {batch_id}")
+    logger.info(f"\n结果已保存至: {output_path}")
+    logger.info(f"批次 ID: {batch_id}")
 
     return 0 if all_pass else 1
 

@@ -23,8 +23,9 @@ NEW_TARGET_WEIGHTS = {
 
 
 def load_positions():
-    with open('config/positions.json', 'r', encoding='utf-8') as f:
-        return json.load(f)
+    # B1.7: 委托给 utils.positions_loader 统一入口
+    from utils.positions_loader import load_positions as _load
+    return _load('config/positions.json')
 
 
 def save_positions(positions):
@@ -47,20 +48,20 @@ def main():
         sector_current[sector] += amount
         sector_positions[sector].append((code, pos))
     
-    print(f"当前行业分布:")
+    print("当前行业分布:")
     total_current = sum(sector_current.values())
     for sector, amount in sector_current.items():
         print(f"  {sector}: {amount} ({amount/total_current*100:.1f}%)")
     print(f"  总计: {total_current}")
     
-    print(f"\n目标行业分布:")
+    print("\n目标行业分布:")
     target_amounts = {}
     for sector, weight in NEW_TARGET_WEIGHTS.items():
         target_amounts[sector] = int(weight * TARGET_TOTAL)
         print(f"  {sector}: {target_amounts[sector]} ({weight*100:.1f}%)")
     print(f"  总计: {TARGET_TOTAL}")
     
-    print(f"\n调整方案:")
+    print("\n调整方案:")
     for sector in sector_positions:
         if sector not in NEW_TARGET_WEIGHTS:
             continue
@@ -77,19 +78,19 @@ def main():
         positions_in_sector = sector_positions[sector]
         if diff > 0:
             avg_increase = diff / len(positions_in_sector)
-            for code, pos in positions_in_sector:
+            for _code, pos in positions_in_sector:
                 pos['amount'] = int(pos.get('amount', 0) + avg_increase)
                 pos['target_weight'] = round(pos['amount'] / TARGET_TOTAL, 4)
         else:
             total_sector = sum(p[1].get('amount', 0) for p in positions_in_sector)
             if total_sector > 0:
-                for code, pos in positions_in_sector:
+                for _code, pos in positions_in_sector:
                     ratio = pos.get('amount', 0) / total_sector
                     new_amount = int(target * ratio)
                     pos['amount'] = new_amount
                     pos['target_weight'] = round(new_amount / TARGET_TOTAL, 4)
             else:
-                for code, pos in positions_in_sector:
+                for _code, pos in positions_in_sector:
                     pos['amount'] = 0
                     pos['target_weight'] = 0
     
@@ -122,13 +123,13 @@ def main():
             print(f"\n新增: 上证5年期国债ETF (511010.SH): {treasury_amount} ({treasury_amount/TARGET_TOTAL*100:.1f}%)")
     
     sector_after = {}
-    for code, pos in positions['positions'].items():
+    for _code, pos in positions['positions'].items():
         sector = pos.get('sector', '其他')
         if sector not in sector_after:
             sector_after[sector] = 0
         sector_after[sector] += pos.get('amount', 0)
     
-    print(f"\n调整后行业分布:")
+    print("\n调整后行业分布:")
     total_after = sum(sector_after.values())
     for sector, amount in sector_after.items():
         print(f"  {sector}: {amount} ({amount/total_after*100:.1f}%)")

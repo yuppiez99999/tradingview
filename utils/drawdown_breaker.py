@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict
 
 
 class DrawdownLevel(str, Enum):
@@ -105,9 +105,7 @@ class DrawdownCircuitBreaker:
                 breach,
             )
 
-        return DrawdownDecision(
-            DrawdownLevel.NORMAL, dd, "正常交易", True, breach
-        )
+        return DrawdownDecision(DrawdownLevel.NORMAL, dd, "正常交易", True, breach)
 
     def target_scale(self, current_drawdown: float) -> float:
         """返回当前允许的目标仓位缩放系数（1.0 = 满仓）。
@@ -118,6 +116,7 @@ class DrawdownCircuitBreaker:
         dd = float(current_drawdown)
         if dd > 0:
             import logging
+
             logging.getLogger("drawdown_breaker").warning(
                 f"target_scale 收到正数回撤 {dd:.4f}, 自动转为负值 (调用方符号可能错误)"
             )

@@ -124,7 +124,8 @@
     }
   },
   "llm_config": {
-    "provider": "doubao",
+    "provider": "deepseek",
+    "_security_note": "API Key 必须通过环境变量 DEEPSEEK_API_KEY 配置 (见 .env), 禁止在此文件中存储",
     "doubao": {
       "api_key": "",
       "base_url": "https://ark.cn-beijing.volces.com/api/v3",
@@ -133,11 +134,12 @@
     "deepseek": {
       "api_key": "",
       "base_url": "https://api.deepseek.com",
-      "model": "deepseek-chat"
+      "model": "deepseek-chat",
+      "reasoner_model": "deepseek-reasoner"
     },
     "ollama": {
       "base_url": "http://localhost:11434",
-      "model": "llama3"
+      "model": "qwen2.5:14b-instruct-q6_K"
     }
   }
 }

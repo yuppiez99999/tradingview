@@ -33,7 +33,6 @@
 """
 from __future__ import annotations
 
-import os
 import sys
 import json
 import pickle
@@ -42,7 +41,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 
 # ============================================================
@@ -200,13 +199,17 @@ def load_real_ohlcv(
         _project_root = str(Path(__file__).resolve().parent.parent)
         if _project_root not in _sys.path:
             _sys.path.insert(0, _project_root)
-        from utils.data_provider import get_historical_data
+        # 阶段 1: free-stockdb 本地优先 (研究/训练专用), 自动回退
+        try:
+            from utils.free_stockdb_adapter import get_historical_data
+        except Exception:
+            from utils.data_provider import get_historical_data
     except Exception as e:
         logger.error(f"无法导入 data_provider: {e}")
         return ohlcv_dict, provenance
 
     success_count = 0
-    for code, suffix, _, name, _ in symbols:
+    for code, _suffix, _, name, _ in symbols:
         # data_provider 仅接受纯 6 位代码, 不接受 .SH/.SZ 后缀
         # period 支持 1y/2y/3y/5y 格式
         period_str = "2y" if lookback_days <= 504 else "3y"
@@ -641,7 +644,7 @@ def run_autolearn(
     skipped = 0
     failed = 0
 
-    for code, suffix, _, name, style in symbols:
+    for code, _suffix, _, name, style in symbols:
         if code not in featured_dict:
             logger.warning(f"  [SKIP] {code} ({name}): 无历史数据")
             skipped += 1
@@ -912,7 +915,7 @@ def generate_report(result: Dict) -> Path:
         "",
         "---",
         f"**报告路径**: `{report_path}`",
-        f"**信号文件**: `models/autolearn/ensemble_signals.json`",
+        "**信号文件**: `models/autolearn/ensemble_signals.json`",
     ])
 
     with open(report_path, "w", encoding="utf-8") as f:
@@ -962,7 +965,7 @@ def main():
         print(f"\n✓ 训练完成, 日报: {report_path}")
         sys.exit(0)
     else:
-        print(f"\n✗ 训练失败")
+        print("\n✗ 训练失败")
         sys.exit(1)
 
 

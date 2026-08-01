@@ -3,11 +3,11 @@ v7.5 WalkForward — 滚动样本外回测
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §4.2
 train 24m / test 3m / step 3m, 5-fold CV
 """
+
 import numpy as np
 import pandas as pd
 import logging
 from typing import Optional, Callable, List, Tuple
-from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class WalkForwardResult:
     """单窗口回测结果"""
+
     window_id: int
     train_start: str
     train_end: str
@@ -39,8 +40,7 @@ class WalkForward:
     最终指标：所有测试集拼接后的整体 Sortino / Calmar / Max DD
     """
 
-    def __init__(self, train_months: int = 24, test_months: int = 3,
-                 step_months: int = 3, cv_folds: int = 5):
+    def __init__(self, train_months: int = 24, test_months: int = 3, step_months: int = 3, cv_folds: int = 5):
         self.train_months = train_months
         self.test_months = test_months
         self.step_months = step_months
@@ -69,12 +69,14 @@ class WalkForward:
 
         while test_end <= end:
             train_start = train_end - pd.DateOffset(months=self.train_months)
-            windows.append((
-                train_start.strftime('%Y-%m-%d'),
-                train_end.strftime('%Y-%m-%d'),
-                test_start.strftime('%Y-%m-%d'),
-                test_end.strftime('%Y-%m-%d'),
-            ))
+            windows.append(
+                (
+                    train_start.strftime("%Y-%m-%d"),
+                    train_end.strftime("%Y-%m-%d"),
+                    test_start.strftime("%Y-%m-%d"),
+                    test_end.strftime("%Y-%m-%d"),
+                )
+            )
 
             # 步进
             train_end += pd.DateOffset(months=self.step_months)
@@ -85,14 +87,17 @@ class WalkForward:
         return windows
 
     # ---------- 执行 ----------
-    def run(self, data: pd.DataFrame,
-            strategy_fn: Optional[Callable] = None,
-            date_col: Optional[str] = None,
-            train_func: Optional[Callable] = None,
-            test_func: Optional[Callable] = None,
-            param_grid: Optional[dict] = None,
-            objective: str = 'sortino',
-            verbose: bool = True):
+    def run(
+        self,
+        data: pd.DataFrame,
+        strategy_fn: Optional[Callable] = None,
+        date_col: Optional[str] = None,
+        train_func: Optional[Callable] = None,
+        test_func: Optional[Callable] = None,
+        param_grid: Optional[dict] = None,
+        objective: str = "sortino",
+        verbose: bool = True,
+    ):
         """
         执行 Walk-Forward Analysis
 
@@ -121,14 +126,11 @@ class WalkForward:
 
         # 完整模式 (原逻辑)
         if train_func is None or test_func is None:
-            return {'status': 'ERROR',
-                    'reason': '需提供 strategy_fn 或 (train_func + test_func)'}
+            return {"status": "ERROR", "reason": "需提供 strategy_fn 或 (train_func + test_func)"}
 
         windows = self.generate_windows(
-            data.index[0].strftime('%Y-%m-%d') if isinstance(data.index[0], pd.Timestamp)
-            else str(data.index[0]),
-            data.index[-1].strftime('%Y-%m-%d') if isinstance(data.index[-1], pd.Timestamp)
-            else str(data.index[-1])
+            data.index[0].strftime("%Y-%m-%d") if isinstance(data.index[0], pd.Timestamp) else str(data.index[0]),
+            data.index[-1].strftime("%Y-%m-%d") if isinstance(data.index[-1], pd.Timestamp) else str(data.index[-1]),
         )
 
         self.results = []
@@ -144,8 +146,7 @@ class WalkForward:
 
             # 训练（含 CV）
             if param_grid:
-                best_params = self._cv_optimize(train_data, train_func, test_func,
-                                                param_grid, objective)
+                best_params = self._cv_optimize(train_data, train_func, test_func, param_grid, objective)
             else:
                 best_params = train_func(train_data)
 
@@ -155,6 +156,7 @@ class WalkForward:
 
             # 计算指标
             from .metrics import PerformanceMetrics
+
             pm = PerformanceMetrics(test_ret)
 
             result = WalkForwardResult(
@@ -175,21 +177,19 @@ class WalkForward:
             self.results.append(result)
 
             if verbose:
-                logger.info(f"Window {i}: {te_s}~{te_e} | "
-                            f"Sortino={result.sortino:.3f} Calmar={result.calmar:.3f} "
-                            f"MaxDD={result.max_dd:.3f}")
+                logger.info(
+                    f"Window {i}: {te_s}~{te_e} | "
+                    f"Sortino={result.sortino:.3f} Calmar={result.calmar:.3f} "
+                    f"MaxDD={result.max_dd:.3f}"
+                )
 
         return self.results
 
-    def _run_simple(self, data: pd.DataFrame,
-                    strategy_fn: Callable,
-                    verbose: bool = True) -> dict:
+    def _run_simple(self, data: pd.DataFrame, strategy_fn: Callable, verbose: bool = True) -> dict:
         """简化模式: strategy_fn(train_df, test_df) -> returns"""
         windows = self.generate_windows(
-            data.index[0].strftime('%Y-%m-%d') if isinstance(data.index[0], pd.Timestamp)
-            else str(data.index[0]),
-            data.index[-1].strftime('%Y-%m-%d') if isinstance(data.index[-1], pd.Timestamp)
-            else str(data.index[-1])
+            data.index[0].strftime("%Y-%m-%d") if isinstance(data.index[0], pd.Timestamp) else str(data.index[0]),
+            data.index[-1].strftime("%Y-%m-%d") if isinstance(data.index[-1], pd.Timestamp) else str(data.index[-1]),
         )
 
         # 若月度窗口不足，回退到日数窗口 (1 月 = 21 交易日)
@@ -205,9 +205,7 @@ class WalkForward:
                 tr_end = data.index[start_idx + train_days - 1]
                 te_start = data.index[start_idx + train_days]
                 te_end = data.index[start_idx + train_days + test_days - 1]
-                windows.append((
-                    str(tr_start), str(tr_end), str(te_start), str(te_end)
-                ))
+                windows.append((str(tr_start), str(tr_end), str(te_start), str(te_end)))
                 start_idx += step_days
             if verbose:
                 logger.info(f"月度窗口不足, 回退日数窗口: {len(windows)} 个")
@@ -228,9 +226,8 @@ class WalkForward:
                 start_idx = i * step_days
                 if start_idx + train_days + test_days > len(data):
                     continue
-                train_data = data.iloc[start_idx:start_idx + train_days]
-                test_data = data.iloc[start_idx + train_days:
-                                      start_idx + train_days + test_days]
+                train_data = data.iloc[start_idx : start_idx + train_days]
+                test_data = data.iloc[start_idx + train_days : start_idx + train_days + test_days]
 
             if len(train_data) < 50 or len(test_data) < 5:
                 if verbose:
@@ -244,6 +241,7 @@ class WalkForward:
                 all_test_returns.append(test_ret)
 
                 from .metrics import PerformanceMetrics
+
                 pm = PerformanceMetrics(test_ret)
 
                 result = WalkForwardResult(
@@ -264,25 +262,22 @@ class WalkForward:
                 self.results.append(result)
 
                 if verbose:
-                    logger.info(f"Window {i}: {te_s}~{te_e} | "
-                                f"Sortino={result.sortino:.3f} Calmar={result.calmar:.3f}")
+                    logger.info(f"Window {i}: {te_s}~{te_e} | Sortino={result.sortino:.3f} Calmar={result.calmar:.3f}")
             except Exception as e:
                 logger.error(f"Window {i} 执行失败: {e}")
                 continue
 
         return {
-            'status': 'OK' if len(self.results) > 0 else 'NO_VALID_WINDOW',
-            'n_windows': len(self.results),
-            'results': self.results,
-            'aggregated': self.aggregate_metrics() if self.results else {},
+            "status": "OK" if len(self.results) > 0 else "NO_VALID_WINDOW",
+            "n_windows": len(self.results),
+            "results": self.results,
+            "aggregated": self.aggregate_metrics() if self.results else {},
         }
 
     # ---------- CV 优化 ----------
-    def _cv_optimize(self, train_data: pd.DataFrame,
-                     train_func: Callable,
-                     test_func: Callable,
-                     param_grid: dict,
-                     objective: str) -> dict:
+    def _cv_optimize(
+        self, train_data: pd.DataFrame, train_func: Callable, test_func: Callable, param_grid: dict, objective: str
+    ) -> dict:
         """5-fold CV 选择最优超参数"""
         # 简化：遍历 param_grid
         # 注：完整实现应做 rolling CV，这里做简单 grid search
@@ -295,7 +290,7 @@ class WalkForward:
                 try:
                     train_result = train_func(train_data, **params)
                     if isinstance(train_result, dict):
-                        score = train_result.get('sortino', train_result.get('sharpe', 0))
+                        score = train_result.get("sortino", train_result.get("sharpe", 0))
                     else:
                         score = 0
                     if score > best_score:
@@ -324,18 +319,18 @@ class WalkForward:
         pm = PerformanceMetrics(ret_series)
 
         return {
-            'n_windows': len(self.results),
-            'sortino': pm.sortino_ratio(),
-            'calmar': pm.calmar_ratio(),
-            'max_dd': pm.max_drawdown(),
-            'annual_return': pm.annual_return(),
-            'annual_vol': pm.annual_vol(),
-            'sharpe': pm.sharpe_ratio(),
-            'win_rate': float((ret_series > 0).mean()),
+            "n_windows": len(self.results),
+            "sortino": pm.sortino_ratio(),
+            "calmar": pm.calmar_ratio(),
+            "max_dd": pm.max_drawdown(),
+            "annual_return": pm.annual_return(),
+            "annual_vol": pm.annual_vol(),
+            "sharpe": pm.sharpe_ratio(),
+            "win_rate": float((ret_series > 0).mean()),
             # 各窗口指标
-            'window_sortinos': [r.sortino for r in self.results],
-            'window_calmars': [r.calmar for r in self.results],
-            'window_max_dds': [r.max_dd for r in self.results],
+            "window_sortinos": [r.sortino for r in self.results],
+            "window_calmars": [r.calmar for r in self.results],
+            "window_max_dds": [r.max_dd for r in self.results],
         }
 
     def summary(self) -> str:
@@ -351,4 +346,4 @@ class WalkForward:
             f"Sharpe:         {metrics.get('sharpe', 0):.4f}",
             f"Win Rate:       {metrics.get('win_rate', 0):.2%}",
         ]
-        return '\n'.join(lines)
+        return "\n".join(lines)

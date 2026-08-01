@@ -24,7 +24,6 @@ v7.5 每日交易工作流 - Python 调度守护进程
 
 from __future__ import annotations
 
-import os
 import sys
 import time
 import logging
@@ -32,13 +31,13 @@ import argparse
 import subprocess
 from datetime import datetime, timedelta, date
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 # ============================================================
 # 配置
 # ============================================================
 BASE_DIR = Path(__file__).resolve().parent
-PYTHON = r"C:\Program Files\Python38\python.exe"
+PYTHON = r"C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
 WORKFLOW_SCRIPT = BASE_DIR / "daily_workflow.py"
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
@@ -49,25 +48,31 @@ MAX_RETRY = 3                    # 最大重试次数
 RETRY_INTERVAL = 300             # 重试间隔 (秒) = 5 分钟
 HEARTBEAT_INTERVAL = 60          # 心跳间隔 (秒)
 
-# 节假日列表 (2026 年, 简化版, 实际应从 Wind/同花顺 API 获取)
-HOLIDAYS_2026 = {
-    # 元旦
-    date(2026, 1, 1),
-    # 春节
-    date(2026, 2, 16), date(2026, 2, 17), date(2026, 2, 18),
-    date(2026, 2, 19), date(2026, 2, 20), date(2026, 2, 23),
-    # 清明
-    date(2026, 4, 6), date(2026, 4, 7),
-    # 劳动节
-    date(2026, 5, 4), date(2026, 5, 5),
-    # 端午
-    date(2026, 6, 19), date(2026, 6, 22),
-    # 中秋
-    date(2026, 9, 25),
-    # 国庆
-    date(2026, 10, 5), date(2026, 10, 6), date(2026, 10, 7),
-    date(2026, 10, 8),
-}
+# ER4 修复: 节假日列表改为从 utils.trade_calendar (akshare 动态获取) 委托
+# 原 HOLIDAYS_2026 仅含 2026 假期, 2027 年后所有节假日会被误判为交易日
+# 现统一走 akshare 动态日历, 自动覆盖任意年份, 失败时回退到周一至周五模式
+HOLIDAYS_2026 = set()  # 保留变量名向后兼容, 实际不再使用
+try:
+    from utils.trade_calendar import is_trading_day as _dyn_is_trading_day
+    _DYNAMIC_CALENDAR_AVAILABLE = True
+    # 注意: logger 尚未初始化, 用 print 输出启动信息
+    print("[ER4] 节假日判断已委托给 utils.trade_calendar (akshare 动态获取)")
+except ImportError:
+    _DYNAMIC_CALENDAR_AVAILABLE = False
+    # ImportError 时回退: 保留 2026 硬编码列表作为兜底
+    HOLIDAYS_2026 = {
+        date(2026, 1, 1),
+        date(2026, 2, 16), date(2026, 2, 17), date(2026, 2, 18),
+        date(2026, 2, 19), date(2026, 2, 20), date(2026, 2, 23),
+        date(2026, 4, 6), date(2026, 4, 7),
+        date(2026, 5, 4), date(2026, 5, 5),
+        date(2026, 6, 19), date(2026, 6, 22),
+        date(2026, 9, 25),
+        date(2026, 10, 5), date(2026, 10, 6), date(2026, 10, 7),
+        date(2026, 10, 8),
+    }
+    print("[ER4] utils.trade_calendar 不可用, 回退到 2026 硬编码假期列表 "
+          "(2027+ 年节假日将无法识别)")
 
 # ============================================================
 # 日志
@@ -100,16 +105,29 @@ class DailyScheduler:
     # --------------------------------------------------------
     # 交易日判断
     # --------------------------------------------------------
-    def is_trading_day(self, d: date = None) -> bool:
-        """判断是否为交易日 (周一至五且非节假日)"""
+    def is_trading_day(self, d: Optional[date] = None) -> bool:
+        """判断是否为交易日 (周一至五且非节假日)
+
+        ER4 修复: 优先委托给 utils.trade_calendar (akshare 动态获取),
+        覆盖任意年份的节假日; 动态日历不可用时回退到 HOLIDAYS_2026 硬编码列表。
+        """
         if d is None:
             d = date.today()
 
-        # 周末
+        # ER4 修复: 优先使用动态日历
+        if _DYNAMIC_CALENDAR_AVAILABLE:
+            try:
+                return _dyn_is_trading_day(d.strftime('%Y-%m-%d'))
+            except Exception as e:
+                logger.warning(
+                    f"[ER4] 动态日历查询失败 (date={d}), 回退到硬编码列表: {e}"
+                )
+
+        # 回退: 周末判断
         if d.weekday() >= 5:
             return False
 
-        # 节假日
+        # 回退: 硬编码节假日列表 (仅 2026 年有效)
         if d in HOLIDAYS_2026:
             return False
 
@@ -118,7 +136,7 @@ class DailyScheduler:
     # --------------------------------------------------------
     # 执行工作流
     # --------------------------------------------------------
-    def run_workflow(self, trade_date: str = None) -> bool:
+    def run_workflow(self, trade_date: Optional[str] = None) -> bool:
         """执行每日工作流"""
         if trade_date is None:
             trade_date = datetime.now().strftime("%Y-%m-%d")
@@ -160,7 +178,7 @@ class DailyScheduler:
     # --------------------------------------------------------
     # 带重试的执行
     # --------------------------------------------------------
-    def run_with_retry(self, trade_date: str = None) -> bool:
+    def run_with_retry(self, trade_date: Optional[str] = None) -> bool:
         """带重试的执行"""
         for attempt in range(1, MAX_RETRY + 1):
             logger.info(f"执行尝试 {attempt}/{MAX_RETRY}...")

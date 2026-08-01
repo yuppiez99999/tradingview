@@ -63,7 +63,7 @@ entries = [
     "scripts/run_pipeline_factor_offline.py",
     "research/vibe_trading_factor_analysis/pipeline/pipeline_orchestrator.py",
     "ms_strategy/training/qlib_train_test.py",
-    "ms_strategy/training/autolearn_trainer.py",
+    "v8.3_institutional/autolearn_trainer.py",
     "v8.3_institutional/src/ml/enhanced_trainer.py",
 ]
 for e in entries:

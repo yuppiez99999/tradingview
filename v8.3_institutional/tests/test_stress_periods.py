@@ -5,7 +5,6 @@ v7.5 测试：三段极端行情压力测试 — 合规必过
 import sys
 import os
 import unittest
-import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 

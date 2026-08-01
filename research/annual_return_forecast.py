@@ -26,12 +26,16 @@ import math
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 # ============================================================
 # 路径常量
 # ============================================================
-PROJECT_ROOT = Path(__file__).resolve().parent
+# 注意: 本文件位于 research/ 子目录, PROJECT_ROOT 必须上溯一级到项目根目录.
+# 旧代码用 Path(__file__).resolve().parent 指向 research/, 导致
+# PLAN_DIR/REPORTS_DIR 变成 research/v8.3_institutional/... (不存在),
+# 进而 trade_plan 与 pnl_report 全部加载失败, stock_ratio 恒为 0.0.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PLAN_DIR = PROJECT_ROOT / "v8.3_institutional" / "trade_plans"
 REPORTS_DIR = PROJECT_ROOT / "v8.3_institutional" / "reports"
 CONFIG_DIR = PROJECT_ROOT / "config"
@@ -44,7 +48,9 @@ if sys.platform == "win32":
 # 目标参数 (与 README 对齐: 年化>=8%, 回撤<15%)
 # ============================================================
 TARGET_ANNUAL_RETURN = 0.08
-MAX_DRAWDOWN_LIMIT = 0.15
+# B1.3: 从 config/risk_params.yaml 统一读取 (fail-safe 兜底 0.15)
+from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
+MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
 RF_RATE = 0.025  # 无风险利率 (10年国债)
 TARGET_SHARPE = 1.0
 

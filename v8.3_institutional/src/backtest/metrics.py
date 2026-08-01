@@ -2,6 +2,7 @@
 v7.5 PerformanceMetrics — Sortino / Calmar / DSR 等绩效指标
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §4.1, §4.5
 """
+
 import numpy as np
 import pandas as pd
 from typing import Optional
@@ -17,8 +18,7 @@ class PerformanceMetrics:
 
     ANNUAL_FACTOR = 252
 
-    def __init__(self, returns: pd.Series, rf: float = 0.02,
-                 l2_lambda: float = 0.1):
+    def __init__(self, returns: pd.Series, rf: float = 0.02, l2_lambda: float = 0.1):
         """
         Args:
             returns: 日收益序列
@@ -65,7 +65,7 @@ class PerformanceMetrics:
         excess = self.returns - self.rf_daily
         downside = excess[excess < target_return]
         if len(downside) == 0:
-            return float('inf') if self.annual_return() > self.rf else 0.0
+            return float("inf") if self.annual_return() > self.rf else 0.0
         downside_std = downside.std() * np.sqrt(self.ANNUAL_FACTOR)
         ann_excess = self.annual_return() - self.rf
         return ann_excess / downside_std if downside_std > 0 else 0.0
@@ -84,7 +84,7 @@ class PerformanceMetrics:
         calmar = self.calmar_ratio()
         penalty = 0.0
         if weights is not None:
-            penalty = self.l2_lambda * np.sum(weights ** 2)
+            penalty = self.l2_lambda * np.sum(weights**2)
         return sortino + 0.5 * calmar - penalty
 
     # ---------- 进阶指标 ----------
@@ -104,29 +104,29 @@ class PerformanceMetrics:
     def profit_factor(self) -> float:
         gains = self.returns[self.returns > 0].sum()
         losses = abs(self.returns[self.returns < 0].sum())
-        return gains / losses if losses > 0 else float('inf')
+        return gains / losses if losses > 0 else float("inf")
 
     def omega_ratio(self, threshold: float = 0.0) -> float:
         gains = self.returns[self.returns > threshold].sum()
         losses = abs(self.returns[self.returns < threshold].sum())
-        return gains / losses if losses > 0 else float('inf')
+        return gains / losses if losses > 0 else float("inf")
 
     # ---------- 汇总 ----------
     def summary(self) -> dict:
         return {
-            'annual_return': self.annual_return(),
-            'annual_vol': self.annual_vol(),
-            'max_drawdown': self.max_drawdown(),
-            'sharpe': self.sharpe_ratio(),
-            'sortino': self.sortino_ratio(),
-            'calmar': self.calmar_ratio(),
-            'objective': self.objective(),
-            'var_95': self.value_at_risk(0.95),
-            'cvar_95': self.conditional_var(0.95),
-            'win_rate': self.win_rate(),
-            'profit_factor': self.profit_factor(),
-            'omega': self.omega_ratio(),
-            'n_days': len(self.returns),
+            "annual_return": self.annual_return(),
+            "annual_vol": self.annual_vol(),
+            "max_drawdown": self.max_drawdown(),
+            "sharpe": self.sharpe_ratio(),
+            "sortino": self.sortino_ratio(),
+            "calmar": self.calmar_ratio(),
+            "objective": self.objective(),
+            "var_95": self.value_at_risk(0.95),
+            "cvar_95": self.conditional_var(0.95),
+            "win_rate": self.win_rate(),
+            "profit_factor": self.profit_factor(),
+            "omega": self.omega_ratio(),
+            "n_days": len(self.returns),
         }
 
     def summary_str(self) -> str:
@@ -156,9 +156,9 @@ class DeflatedSharpeRatio:
     若 DSR < 0.95，则不能拒绝"策略 Sharpe 系随机取得"的原假设。
     """
 
-    def __init__(self, sharpe_ratio: float, n_trials: int,
-                 n_observations: int, skewness: float = 0.0,
-                 kurtosis: float = 3.0):
+    def __init__(
+        self, sharpe_ratio: float, n_trials: int, n_observations: int, skewness: float = 0.0, kurtosis: float = 3.0
+    ):
         """
         Args:
             sharpe_ratio: 策略的经验 Sharpe Ratio
@@ -184,8 +184,7 @@ class DeflatedSharpeRatio:
         # 近似：E[Z_{(n)}] ≈ sqrt(2 * log(n))  for large n
         Z_max = np.sqrt(2 * np.log(max(self.n_trials, 2)))
         # 考虑偏度/峰度修正
-        correction = 1 + (self.skew / 6) * (Z_max**2 - 1) + \
-                     ((self.kurt - 3) / 24) * (Z_max**3 - 3 * Z_max)
+        correction = 1 + (self.skew / 6) * (Z_max**2 - 1) + ((self.kurt - 3) / 24) * (Z_max**3 - 3 * Z_max)
         return Z_max * correction / np.sqrt(max(self.T, 1))
 
     def compute(self) -> float:
@@ -201,12 +200,12 @@ class DeflatedSharpeRatio:
     def summary(self) -> dict:
         dsr = self.compute()
         return {
-            'sharpe_ratio': self.sr,
-            'expected_max_sr': self.expected_max_sr(),
-            'dsr': dsr,
-            'significant': self.is_significant(),
-            'n_trials': self.n_trials,
-            'n_observations': self.T,
+            "sharpe_ratio": self.sr,
+            "expected_max_sr": self.expected_max_sr(),
+            "dsr": dsr,
+            "significant": self.is_significant(),
+            "n_trials": self.n_trials,
+            "n_observations": self.T,
         }
 
 
@@ -214,13 +213,13 @@ class DeflatedSharpeRatio:
 # 模块级便捷函数 (兼容测试 API)
 # ============================================================
 
+
 def compute_sharpe(returns: pd.Series, rf: float = 0.02) -> float:
     """计算 Sharpe Ratio"""
     return PerformanceMetrics(returns, rf=rf).sharpe_ratio()
 
 
-def compute_sortino(returns: pd.Series, rf: float = 0.02,
-                    target: float = 0.0) -> float:
+def compute_sortino(returns: pd.Series, rf: float = 0.02, target: float = 0.0) -> float:
     """计算 Sortino Ratio"""
     return PerformanceMetrics(returns, rf=rf).sortino_ratio(target)
 
@@ -257,17 +256,13 @@ def compute_max_drawdown(equity: pd.Series) -> tuple:
     trough_idx = int(dd.idxmin())
     max_dd = float(dd.iloc[trough_idx])
     # 峰值在谷值之前
-    peak_idx = int(s.iloc[:trough_idx + 1].idxmax()) if trough_idx > 0 else 0
+    peak_idx = int(s.iloc[: trough_idx + 1].idxmax()) if trough_idx > 0 else 0
 
     # 返回绝对值 (回撤幅度)
     return abs(max_dd), peak_idx, trough_idx
 
 
-def compute_dsr(observed_sr: float,
-                n_trials: int,
-                t_obs: int,
-                skewness: float = 0.0,
-                kurtosis: float = 3.0) -> float:
+def compute_dsr(observed_sr: float, n_trials: int, t_obs: int, skewness: float = 0.0, kurtosis: float = 3.0) -> float:
     """
     计算 Deflated Sharpe Ratio
 
@@ -302,5 +297,5 @@ def compute_all_metrics(returns: pd.Series, rf: float = 0.02) -> dict:
     pm = PerformanceMetrics(returns, rf=rf)
     base = pm.summary()
     # 确保 max_drawdown 是正数 (回撤幅度)
-    base['max_drawdown'] = abs(base.get('max_drawdown', 0.0))
+    base["max_drawdown"] = abs(base.get("max_drawdown", 0.0))
     return base

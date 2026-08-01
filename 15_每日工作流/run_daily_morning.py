@@ -1,18 +1,24 @@
 """
-每日早晨工作流脚本 — 每天早上7:00自动运行
+每日早晨工作流脚本 — 每天早上7:00自动运行 (v5.9 统一入口)
 功能：
-  1. 检查是否为交易日
+  0. 晨间信息采集 (DeepSeek 驱动, 无视交易日) — 7 项报告
+     · 晨间行情摘要 / 康波周期 / ETF 资金流向 / 舆情综合+动力煤
+     · CNEMC 空气质量 / iFinD 自动研判 / 棉花加仓方案
+  1. 检查是否为交易日 (仅决策类阶段需要, 信息采集始终运行)
   2. 运行盘前市场校准与风险评估
   3. 生成每日交易计划
-  4. 应用大模型决策到交易计划
+  4. 应用大模型决策到交易计划 (DeepSeek API)
   5. 生成每日综合报告
   6. 将所有报告归档至 每日报告归档/YYYY-MM-DD/
 
 使用方式：
-  python run_daily_morning.py                    # 标准运行
-  python run_daily_morning.py --force            # 强制运行（忽略交易日检查）
-  python run_daily_morning.py --dry-run          # 试运行（不实际执行）
-  python run_daily_morning.py --phase calibrate   # 仅校准阶段
+  python run_daily_morning.py                            # 标准运行 (默认 calibrate)
+  python run_daily_morning.py --force                    # 强制运行（忽略交易日检查）
+  python run_daily_morning.py --dry-run                  # 试运行（不实际执行）
+  python run_daily_morning.py --phase info               # 仅信息采集阶段 (周末也运行)
+  python run_daily_morning.py --phase info --force       # 强制重新生成全部信息采集报告
+  python run_daily_morning.py --phase calibrate          # 仅校准阶段
+  python run_daily_morning.py --phase all --force        # 完整流程: info→calibrate→plan→report
 """
 
 import os
@@ -24,7 +30,6 @@ import argparse
 import traceback
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Optional
 
 # 强制 UTF-8 输出，解决 GBK 编码问题
 if sys.stdout.encoding != 'utf-8':
@@ -43,8 +48,8 @@ if sys.stderr.encoding != 'utf-8':
 # ═══════════════════════════════════════════════════════════════
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-ARCHIVE_DIR = PROJECT_ROOT / "每日报告归档"
-VENV_PYTHON = r"C:\Python312\python.exe"  # 默认Python路径，可按需修改
+ARCHIVE_DIR = PROJECT_ROOT / "每日报告归档"  # 归档到项目根目录下
+VENV_PYTHON = r"C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"  # Python 3.11 (DeepSeek SSL 兼容)
 
 # 关键脚本路径
 DAILY_WORKFLOW_SCRIPT = PROJECT_ROOT / "v8.3_institutional" / "daily_workflow.py"
@@ -53,9 +58,12 @@ APPLY_LLM_SCRIPT = PROJECT_ROOT / "tools" / "apply_llm_decisions_to_plan.py"
 GENERATE_REPORT_SCRIPT = PROJECT_ROOT / "generate_daily_report.py"
 RUN_DAILY_EOD_SCRIPT = PROJECT_ROOT / "run_daily_eod.py"
 CALENDAR_FILE = PROJECT_ROOT / "v8.3_institutional" / "data" / "trading_calendar.json"
+# 信息采集阶段脚本 (新增, 调用 morning_info_runner.py 薄包装)
+MORNING_INFO_SCRIPT = SCRIPT_DIR / "morning_info_runner.py"
 
 # 可能输出的报告文件列表（用于归档）
 REPORT_PATTERNS = [
+    # 既有决策类
     "每日综合报告_*.md",
     "组合总盈亏报告_*.md",
     "交易计划_*.md",
@@ -65,6 +73,18 @@ REPORT_PATTERNS = [
     "daily_report_*.md",
     "pre_market_*.md",
     "calibrate_report_*.md",
+    # 新增信息采集类 (v5.9 统一入口)
+    "晨间行情摘要_*.md",
+    "康波周期分析_*.md",
+    "实时ETF资金流向_*.md",
+    "舆情综合日报_*.md",
+    "动力煤舆情日报_*.md",
+    "空气质量CNEMC日报_*.md",
+    "iFinD自动标的研判报告_*.md",
+    "棉花的加仓方案与期权保护策略_*.md",
+    "sentiment_summary_*.json",
+    "morning_market_data_*.json",
+    "air_quality_cnemc_*.json",
 ]
 
 # ═══════════════════════════════════════════════════════════════
@@ -100,30 +120,28 @@ def log(msg: str, level: str = "INFO"):
 
 
 def is_trading_day() -> bool:
-    """检查今天是否为交易日"""
-    # 周末直接返回False
-    weekday = datetime.now().weekday()
-    if weekday >= 5:
-        log(f"今天是周末 (weekday={weekday})，非交易日")
-        return False
+    """检查今天是否为交易日 (B1.2: 委托 utils.trade_calendar 统一实现)
 
-    # 检查交易日历文件
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    if CALENDAR_FILE.exists():
-        try:
-            with open(CALENDAR_FILE, "r", encoding="utf-8") as f:
-                calendar = json.load(f)
-            trading_days = calendar.get("trading_days", []) or calendar.get("交易日", [])
-            if isinstance(trading_days, list) and len(trading_days) > 0:
-                is_trading = today_str in trading_days
-                log(f"交易日历检查: {today_str} -> {'交易日' if is_trading else '非交易日'}")
-                return is_trading
-        except Exception as e:
-            log(f"交易日历读取失败: {e}，按工作日处理", "WARN")
-
-    # 没有交易日历默认按工作日处理（周一到周五）
-    log(f"未找到交易日历，默认按工作日处理")
-    return True
+    迁移说明 (2026-08-01):
+        原 MC9 实现: 读本地 CALENDAR_FILE, 缺失/损坏时 Fail-Safe 返回 False
+        新统一实现: utils.trade_calendar.is_trading_day() 支持 akshare 在线拉取 + 缓存
+        语义变化: 无数据时从"返回 False (保守)"变为"回退到周末判断 (weekday < 5)"
+        风险评估: 统一实现会尝试 akshare 拉取, 仅在 akshare 也不可用时才回退周末判断;
+                  比 MC9 的本地静态文件更可靠 (本地文件需手动维护, 易过期).
+        调用方无需改动 (函数签名不变, 仍为无参=今天).
+    """
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+    try:
+        from utils.trade_calendar import is_trading_day as _unified_is_trading_day
+        result = _unified_is_trading_day()  # 无参 = 今天
+        log(f"交易日历检查 (统一实现): 今天 -> {'交易日' if result else '非交易日'}")
+        return result
+    except Exception as e:
+        # 兜底: 统一实现导入失败时, 回退到周末判断 (与统一实现的回退逻辑一致)
+        log(f"utils.trade_calendar 导入失败 ({e}), 回退到周末判断", "WARN")
+        weekday = datetime.now().weekday()
+        return weekday < 5
 
 
 def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30) -> bool:
@@ -132,7 +150,7 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30) -> 
     返回 True 表示成功，False 表示失败
     """
     python = get_python()
-    cmd = [python, str(script)] + args
+    cmd = [python, str(script), *args]
 
     log(f"{'='*60}")
     log(f">>> 开始执行: {name}")
@@ -205,9 +223,12 @@ def archive_reports(today_dir: Path) -> int:
         PROJECT_ROOT,
         PROJECT_ROOT / "v8.3_institutional",
         PROJECT_ROOT / "v8.3_institutional" / "reports",
-        PROJECT_ROOT / "v8.3_institutional",
-        PROJECT_ROOT / "v8.3_institutional" / "reports",
         SCRIPT_DIR,
+        # 新增: 信息采集输出可能落在以下目录 (跨项目复用模块的直接输出)
+        PROJECT_ROOT.parent / "15_每日工作流",                          # morning_market_fetcher 直接输出
+        PROJECT_ROOT.parent / "11_量化策略" / "engine",                  # etf_flow 直接输出
+        PROJECT_ROOT.parent / "02_舆情与竞品监控" / "舆情监控" / "data" / "综合日报",
+        PROJECT_ROOT.parent / "02_舆情与竞品监控" / "舆情监控" / "煤炭舆情日报",
     ]
 
     today_str_compact = datetime.now().strftime("%Y%m%d")
@@ -269,29 +290,54 @@ def main():
     parser.add_argument("--force", action="store_true", help="强制运行，跳过交易日检查")
     parser.add_argument("--dry-run", action="store_true", help="试运行模式，不实际执行")
     parser.add_argument("--phase", type=str, default="calibrate",
-                        choices=["calibrate", "plan", "report", "all"],
-                        help="运行阶段 (默认: calibrate)")
+                        choices=["info", "calibrate", "plan", "report", "all"],
+                        help="运行阶段 (默认: calibrate; all = info→calibrate→plan→report)")
     parser.add_argument("--skip-archive", action="store_true", help="跳过报告归档")
+    parser.add_argument("--skip-system-check", action="store_true",
+                        help="跳过 P0 启动自检 (仅紧急情况使用,默认每次启动都自检)")
     args = parser.parse_args()
+
+    # ═══════════════════════════════════════════════════════════════
+    # P0 启动自检 (v8.6.12) — 在任何业务逻辑之前拦截错误
+    # 自检失败立即退出,阻止 bug 传播到下游工作流
+    # ═══════════════════════════════════════════════════════════════
+    if not args.skip_system_check:
+        try:
+            # 显式将项目根加入 sys.path (此脚本位于 15_每日工作流/ 子目录)
+            if str(PROJECT_ROOT) not in sys.path:
+                sys.path.insert(0, str(PROJECT_ROOT))
+            from utils.system_check import assert_system_ready
+            assert_system_ready()  # 失败时 sys.exit(1)
+        except SystemExit:
+            raise
+        except Exception as e:
+            print(f"[P0 自检] 异常 (容错通过): {e}", file=sys.stderr)
 
     today = datetime.now()
     today_str = today.strftime("%Y-%m-%d")
     today_dir = ARCHIVE_DIR / today_str
 
-    log(f"╔══════════════════════════════════════════════════════╗")
-    log(f"║  每日早晨工作流启动                                ║")
+    # 计算上一个交易日 (供 LLM 决策灌入使用: 读昨日 PnL 报告 → 写今日计划)
+    # PnL 报告由 v84_DailyPnlReport 任务在盘后 16:00 生成, 盘前阶段只能读昨日报告
+    def _prev_trading_day(d: datetime) -> datetime:
+        """回退到最近一个周一至周五 (不含节假日, 简化版)"""
+        day = d - timedelta(days=1)
+        while day.weekday() >= 5:  # 5=周六, 6=周日
+            day -= timedelta(days=1)
+        return day
+
+    prev_trading_day_str = _prev_trading_day(today).strftime("%Y-%m-%d")
+
+    log("╔══════════════════════════════════════════════════════╗")
+    log("║  每日早晨工作流启动                                ║")
     log(f"║  日期: {today_str}                                  ║")
     log(f"║  时间: {today.strftime('%H:%M:%S')}                 ║")
     log(f"║  模式: {'强制' if args.force else '标准'}           ║")
-    log(f"╚══════════════════════════════════════════════════════╝")
-
-    # --- 1. 交易日检查 ---
-    if not args.force and not is_trading_day():
-        log("今天不是交易日，工作流跳过")
-        return
+    log("╚══════════════════════════════════════════════════════╝")
 
     if args.dry_run:
         log(">>> 试运行模式，以下仅显示将要执行的步骤 <<<")
+        log(f"  0. 信息采集: {MORNING_INFO_SCRIPT}")
         log(f"  1. 市场校准: {DAILY_WORKFLOW_SCRIPT} --phase calibrate")
         log(f"  2. 交易计划: {GENERATE_TRADE_PLAN_SCRIPT}")
         log(f"  3. LLM决策:  {APPLY_LLM_SCRIPT}")
@@ -305,7 +351,53 @@ def main():
     success_count = 0
     fail_count = 0
 
-    # --- 2. 阶段一：盘前校准 (calibrate) ---
+    # --- 阶段零: 晨间信息采集 (DeepSeek 驱动, 无视交易日, 周末也运行) ---
+    if args.phase in ("info", "all"):
+        log("\n>>> 阶段零: 晨间信息采集 (DeepSeek 驱动) <<<")
+        info_args = []
+        if args.force:
+            info_args.append("--force")
+        if run_step("晨间信息采集", MORNING_INFO_SCRIPT, info_args, timeout_minutes=30):
+            success_count += 1
+        else:
+            fail_count += 1
+            log("信息采集部分失败, 后续决策阶段继续执行", "WARN")
+
+    # 仅 info 模式: 跳过交易日检查与决策阶段, 直接归档
+    if args.phase == "info":
+        if not args.skip_archive:
+            log(f"\n>>> 归档报告到: {today_dir} <<<")
+            try:
+                count = archive_reports(today_dir)
+                log(f"[OK] 归档完成，共 {count} 个文件")
+            except Exception as e:
+                log(f"[FAIL] 归档失败: {e}", "ERROR")
+                traceback.print_exc()
+        log(f"\n{'='*60}")
+        log("║  信息采集工作流完成 (仅 info 模式)                  ║")
+        log(f"║  成功: {success_count} | 失败: {fail_count}          ║")
+        log(f"║  归档目录: {today_dir}                               ║")
+        log(f"{'='*60}")
+        return
+
+    # --- 交易日检查 (仅决策类阶段需要, 信息采集已在上方无条件执行) ---
+    if not args.force and not is_trading_day():
+        log("今天不是交易日, 决策类阶段跳过 (信息采集已完成)")
+        if not args.skip_archive:
+            log(f"\n>>> 归档报告到: {today_dir} <<<")
+            try:
+                count = archive_reports(today_dir)
+                log(f"[OK] 归档完成，共 {count} 个文件")
+            except Exception as e:
+                log(f"[FAIL] 归档失败: {e}", "ERROR")
+                traceback.print_exc()
+        log(f"\n{'='*60}")
+        log("║  工作流完成 (非交易日, 仅信息采集)                  ║")
+        log(f"║  归档目录: {today_dir}                               ║")
+        log(f"{'='*60}")
+        return
+
+    # --- 阶段一：盘前校准 (calibrate) ---
     if args.phase in ("calibrate", "all"):
         log("\n>>> 阶段一: 盘前市场校准 <<<")
         if run_step("市场校准与风险评估", DAILY_WORKFLOW_SCRIPT, ["--phase", "calibrate"], timeout_minutes=20):
@@ -325,11 +417,15 @@ def main():
     # --- 4. 阶段三：应用LLM决策 ---
     if args.phase in ("plan", "all"):
         log("\n>>> 阶段三: 应用大模型决策 <<<")
-        # 校准阶段已生成今天P&L报告，使用今天日期（而非昨日默认值）
-        if run_step("应用LLM决策", APPLY_LLM_SCRIPT, [today_str, today_str], timeout_minutes=10):
+        # 读昨日 PnL 报告 → 灌入今日计划 (PnL 报告由 v84_DailyPnlReport 任务盘后 16:00 生成)
+        # 盘前阶段只能用昨日报告, 而非今日 (今日报告要等今日盘后才会生成)
+        log(f"  使用昨日 PnL 报告: daily_pnl_report_{prev_trading_day_str}.json → 计划日期 {today_str}")
+        if run_step("应用LLM决策", APPLY_LLM_SCRIPT, [prev_trading_day_str, today_str], timeout_minutes=10):
             success_count += 1
         else:
             fail_count += 1
+            # 昨日报告缺失时降级为脚本默认行为 (脚本内部 _prev_trading_day 会再尝试)
+            log("  [WARN] 昨日 PnL 报告可能缺失, 后续可用 --phase plan 手动重试", "WARN")
 
     # --- 5. 阶段四：生成综合报告 (report) ---
     if args.phase in ("report", "all"):
@@ -351,7 +447,7 @@ def main():
 
     # --- 7. 总结 ---
     log(f"\n{'='*60}")
-    log(f"║  每日早晨工作流完成                                  ║")
+    log("║  每日早晨工作流完成                                  ║")
     log(f"║  成功: {success_count} | 失败: {fail_count}          ║")
     log(f"║  归档目录: {today_dir}                               ║")
     log(f"{'='*60}")

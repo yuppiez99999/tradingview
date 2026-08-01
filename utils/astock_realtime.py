@@ -10,6 +10,7 @@ A股实时行情接入层 (零 key, 不封 IP).
 - 东财 push2 fflow 主力净流入: 真实资金流向 (元 -> 亿)
 - 腾讯财经 qt.gtimg.cn: 实时价/PE/PB/涨跌/市值 (GBK)
 """
+
 from __future__ import annotations
 
 import json
@@ -55,7 +56,7 @@ def _http_get(url: str, ref: Optional[str] = None, timeout: int = 10) -> bytes:
     req.add_header("User-Agent", "Mozilla/5.0")
     if ref:
         req.add_header("Referer", ref)
-    return _opener.open(req, timeout=timeout).read()
+    return _opener.open(req, timeout=timeout).read()  # type: ignore
 
 
 def get_eastmoney_quotes(codes: List[str]) -> Dict[str, Dict]:
@@ -100,7 +101,7 @@ def get_eastmoney_quotes(codes: List[str]) -> Dict[str, Dict]:
             }
         if out:
             logger.info(f"东财实时价成功: {len(out)} 只")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.warning(f"东财实时价获取失败: {e}")
         _eastmoney_blocked = True
         logger.warning("东财实时价被封禁/不可用，本次运行内跳过后续尝试")
@@ -138,7 +139,7 @@ def get_tencent_quotes(codes: List[str]) -> Dict[str, Dict]:
                         "pb": pb or None,
                         "source": "tencent",
                     }
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.warning(f"腾讯实时价获取失败: {e}")
     return out
 
@@ -154,7 +155,7 @@ def get_realtime_quotes(codes: List[str], use_cache: bool = True) -> Dict[str, D
         with _cache_lock:
             c = _cache.get(key)
             if c and now - c[0] < CACHE_TTL:
-                return c[1]
+                return c[1]  # type: ignore
     res = get_eastmoney_quotes(codes)
     missing = [c for c in codes if c not in res]
     if missing:

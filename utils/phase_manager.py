@@ -31,6 +31,7 @@
     if pm.is_liquidation_phase():
         actions = pm.get_liquidation_actions()
 """
+
 from __future__ import annotations
 
 import json
@@ -38,7 +39,7 @@ import logging
 from dataclasses import dataclass, field, asdict
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger("phase_manager")
 
@@ -149,12 +150,12 @@ LIQUIDATION_QUARTERLY_ACTIONS: Dict[str, Dict[str, Any]] = {
     "Q1": {
         "name": "保留核心+方向性清零",
         "period": "2030-01-01 to 2030-03-31",
-        "stock_target_pct": 0.50,       # 保留 50% 核心持仓
-        "etf_target_pct": 0.50,          # 保留 50% ETF
+        "stock_target_pct": 0.50,  # 保留 50% 核心持仓
+        "etf_target_pct": 0.50,  # 保留 50% ETF
         "futures_directional": "clear",  # 方向性仓位清零
-        "futures_hedge": "keep_short",   # 仅保留对冲空头
+        "futures_hedge": "keep_short",  # 仅保留对冲空头
         "quant_neutral": "reduce_50pct",
-        "options": "keep_tail_put",      # 保留尾部保护
+        "options": "keep_tail_put",  # 保留尾部保护
         "weekly_sell_pct": None,
         "actions": [
             "保留 50% 核心持仓 (第一梯队龙头)",
@@ -173,9 +174,9 @@ LIQUIDATION_QUARTERLY_ACTIONS: Dict[str, Dict[str, Any]] = {
         "etf_target_pct": 0.0,
         "futures_directional": "clear",
         "futures_hedge": "reduce_50pct",
-        "quant_neutral": "close_all",    # 多头卖出+空头平仓
+        "quant_neutral": "close_all",  # 多头卖出+空头平仓
         "options": "exercise_or_close",
-        "weekly_sell_pct": 0.25,         # 每周卖出 25%
+        "weekly_sell_pct": 0.25,  # 每周卖出 25%
         "actions": [
             "股票分 4 周卖出, 每周 25%, 避免冲击成本",
             "优先卖出流动性差的小盘股",
@@ -196,9 +197,9 @@ LIQUIDATION_QUARTERLY_ACTIONS: Dict[str, Dict[str, Any]] = {
         "quant_neutral": "closed",
         "options": "expired",
         "cash_allocation": {
-            "reverse_repo": 0.50,       # 50% 逆回购
-            "money_market_fund": 0.30,   # 30% 货基
-            "short_term_bond": 0.20,     # 20% 短期国债
+            "reverse_repo": 0.50,  # 50% 逆回购
+            "money_market_fund": 0.30,  # 30% 货基
+            "short_term_bond": 0.20,  # 20% 短期国债
         },
         "actions": [
             "全部持仓清零",
@@ -240,6 +241,7 @@ LIQUIDATION_QUARTERLY_ACTIONS: Dict[str, Dict[str, Any]] = {
 @dataclass
 class PhaseInfo:
     """年度阶段信息"""
+
     year: str
     phase_name: str
     period: str
@@ -249,15 +251,16 @@ class PhaseInfo:
     actions: Dict[str, str] = field(default_factory=dict)
     risk_focus: str = ""
     is_liquidation_year: bool = False
-    current_quarter: str = ""           # Q1/Q2/Q3/Q4
+    current_quarter: str = ""  # Q1/Q2/Q3/Q4
     liquidation_actions: Optional[Dict] = None
 
 
 @dataclass
 class QuarterlyReviewResult:
     """季度评估结果"""
+
     review_date: str = ""
-    quarter: str = ""                   # Q1/Q2/Q3/Q4
+    quarter: str = ""  # Q1/Q2/Q3/Q4
     is_quarter_end: bool = False
     stress_test_triggered: bool = False
     stress_test_result: Optional[Dict] = None
@@ -290,10 +293,7 @@ class PhaseManager:
 
     def __init__(self):
         self.phases = ANNUAL_PHASES.copy()
-        logger.info(
-            f"[PhaseManager] 初始化: 计划周期 {self.PLAN_START_DATE} ~ {self.PLAN_END_DATE}, "
-            f"5 个年度阶段"
-        )
+        logger.info(f"[PhaseManager] 初始化: 计划周期 {self.PLAN_START_DATE} ~ {self.PLAN_END_DATE}, 5 个年度阶段")
 
     # --------------------------------------------------------
     # 当前阶段判断
@@ -352,7 +352,7 @@ class PhaseManager:
         current_quarter = f"Q{(today.month - 1) // 3 + 1}"
 
         # 判断是否为清仓年 (2030)
-        is_liquidation_year = (year_str == "2030")
+        is_liquidation_year = year_str == "2030"
         liquidation_actions = None
         if is_liquidation_year:
             liquidation_actions = LIQUIDATION_QUARTERLY_ACTIONS.get(current_quarter, {})
@@ -446,14 +446,13 @@ class PhaseManager:
             actions.append("触发季度压力测试 (4 场景: 2015股灾/2018慢熊/2020冲击/流动性危机)")
             try:
                 from utils.stress_test_runner import StressTestRunner
+
                 runner = StressTestRunner()
                 stress_result = runner.run_all_scenarios(positions or [], portfolio_value)
                 scenarios = stress_result.get("scenarios", {})
                 result.stress_test_result = {
                     "scenarios_run": len(scenarios),
-                    "all_passed": all(
-                        s.get("pass", True) for s in scenarios.values()
-                    ),
+                    "all_passed": all(s.get("pass", True) for s in scenarios.values()),
                     "worst_drawdown": min(
                         (s.get("actual_portfolio_dd", 0) for s in scenarios.values()),
                         default=0,
@@ -461,14 +460,14 @@ class PhaseManager:
                     "worst_scenario": stress_result.get("worst_scenario", ""),
                 }
                 actions.append(f"压力测试完成: {result.stress_test_result['scenarios_run']} 场景")
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"[PhaseManager] 压力测试失败 (降级): {e}")
                 actions.append(f"压力测试降级: {e}")
 
         # 2. 策略有效性检验
         phase = self.get_current_phase(today)
         result.strategy_effectiveness = {
-            "phase": phase.phase_name,
+            "phase": phase.phase_name,  # type: ignore
             "target_return": phase.target_return,
             "max_drawdown_limit": phase.max_drawdown,
             "leverage_target": phase.leverage_target,
@@ -627,7 +626,7 @@ class PhaseManager:
                 json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
             logger.info(f"[PhaseManager] 季度评估报告已保存: {file_path}")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"[PhaseManager] 保存季度评估报告失败: {e}")
 
     # --------------------------------------------------------
@@ -693,29 +692,29 @@ if __name__ == "__main__":
         sim_date = datetime.strptime(args.date, "%Y-%m-%d").date()
 
     if args.current or not (args.quarterly or args.liquidation):
-        print(pm.summary(sim_date))
+        logger.info(pm.summary(sim_date))
 
     if args.quarterly:
         result = pm.trigger_quarterly_review(today=sim_date)
-        print(f"\n季度评估结果:")
-        print(f"  季度: {result.quarter}")
-        print(f"  季度末: {result.is_quarter_end}")
-        print(f"  压测触发: {result.stress_test_triggered}")
-        print(f"  调仓需要: {result.rebalance_needed}")
-        print(f"  动作数: {len(result.actions)}")
+        logger.info("\n季度评估结果:")
+        logger.info(f"  季度: {result.quarter}")
+        logger.info(f"  季度末: {result.is_quarter_end}")
+        logger.debug(f"  压测触发: {result.stress_test_triggered}")
+        logger.info(f"  调仓需要: {result.rebalance_needed}")
+        logger.info(f"  动作数: {len(result.actions)}")
         for action in result.actions:
-            print(f"    - {action}")
+            logger.info(f"    - {action}")
 
     if args.liquidation:
         if pm.is_liquidation_phase(sim_date):
             actions = pm.get_liquidation_actions(sim_date)
-            print(f"\n2030 清仓动作 ({actions.get('period', '')}):")
-            print(f"  名称: {actions.get('name', '')}")
-            print(f"  动作:")
-            for action in actions.get("actions", []):
-                print(f"    - {action}")
-            print(f"\n清仓顺序:")
+            print(f"\n2030 清仓动作 ({actions.get('period', '')}):")  # type: ignore
+            print(f"  名称: {actions.get('name', '')}")  # type: ignore
+            logger.info("  动作:")
+            for action in actions.get("actions", []):  # type: ignore
+                logger.info(f"    - {action}")
+            logger.info("\n清仓顺序:")
             for i, step in enumerate(pm.get_liquidation_order(), 1):
-                print(f"  {i}. {step}")
+                logger.info(f"  {i}. {step}")
         else:
-            print("\n当前不在清仓阶段 (2030 年)")
+            logger.info("\n当前不在清仓阶段 (2030 年)")

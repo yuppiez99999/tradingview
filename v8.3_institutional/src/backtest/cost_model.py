@@ -2,27 +2,28 @@
 v7.5 CostModel — 交易成本模型 (Almgren-Chriss & 固定费率)
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §4.4
 """
+
 import numpy as np
-import pandas as pd
 from dataclasses import dataclass
 
 
 @dataclass
 class CostConfig:
     """成本配置"""
-    commission_stock: float = 0.00025       # 万 2.5 股票佣金
-    commission_futures: float = 0.000023    # 万 0.23 期货
-    commission_options: float = 5.0         # 元/张 期权
 
-    stamp_duty: float = 0.001              # 印花税 (卖出 0.1%)
-    transfer_fee: float = 0.00002          # 过户费
+    commission_stock: float = 0.00025  # 万 2.5 股票佣金
+    commission_futures: float = 0.000023  # 万 0.23 期货
+    commission_options: float = 5.0  # 元/张 期权
 
-    slippage_coef: float = 0.142           # Almgren-Chriss 平方根系数
+    stamp_duty: float = 0.001  # 印花税 (卖出 0.1%)
+    transfer_fee: float = 0.00002  # 过户费
+
+    slippage_coef: float = 0.142  # Almgren-Chriss 平方根系数
     volatility_scaling: bool = True
 
-    margin_long: float = 0.06              # 融资利率
-    margin_short: float = 0.06             # 融券利率
-    repo: float = 0.018                    # 逆回购利率
+    margin_long: float = 0.06  # 融资利率
+    margin_short: float = 0.06  # 融券利率
+    repo: float = 0.018  # 逆回购利率
 
 
 class CostModel:
@@ -31,8 +32,7 @@ class CostModel:
     def __init__(self, config: CostConfig = None):
         self.cfg = config or CostConfig()
 
-    def commission(self, notional: float, asset_type: str = 'stock',
-                   side: str = 'BUY') -> float:
+    def commission(self, notional: float, asset_type: str = "stock", side: str = "BUY") -> float:
         """
         佣金估算
 
@@ -41,20 +41,19 @@ class CostModel:
             asset_type: 'stock' | 'futures' | 'options'
             side: 'BUY' | 'SELL'
         """
-        if asset_type == 'stock':
+        if asset_type == "stock":
             cost = notional * self.cfg.commission_stock
-            if side == 'SELL':
+            if side == "SELL":
                 cost += notional * self.cfg.stamp_duty  # 印花税
             cost += notional * self.cfg.transfer_fee
             return cost
-        elif asset_type == 'futures':
+        elif asset_type == "futures":
             return notional * self.cfg.commission_futures
-        elif asset_type == 'options':
+        elif asset_type == "options":
             return self.cfg.commission_options
         return 0.0
 
-    def market_impact(self, qty: int, daily_volume: int,
-                      volatility: float, price: float) -> float:
+    def market_impact(self, qty: int, daily_volume: int, volatility: float, price: float) -> float:
         """
         Almgren-Chriss 市场冲击模型（平方根）
 
@@ -79,9 +78,9 @@ class CostModel:
 
         return impact_bps * price * qty
 
-    def total_cost(self, qty: int, price: float, daily_volume: int,
-                   volatility: float, asset_type: str = 'stock',
-                   side: str = 'BUY') -> dict:
+    def total_cost(
+        self, qty: int, price: float, daily_volume: int, volatility: float, asset_type: str = "stock", side: str = "BUY"
+    ) -> dict:
         """
         总交易成本
 
@@ -96,15 +95,14 @@ class CostModel:
         bps = total / notional if notional > 0 else 0.0
 
         return {
-            'commission': comm,
-            'market_impact': impact,
-            'total_cost': total,
-            'bps': bps,
-            'notional': notional,
+            "commission": comm,
+            "market_impact": impact,
+            "total_cost": total,
+            "bps": bps,
+            "notional": notional,
         }
 
-    def financing_cost(self, notional: float, days: int = 1,
-                       position_type: str = 'long') -> float:
+    def financing_cost(self, notional: float, days: int = 1, position_type: str = "long") -> float:
         """
         融资成本
 
@@ -113,9 +111,9 @@ class CostModel:
             days: 持有天数
             position_type: 'long' | 'short' | 'repo'
         """
-        if position_type == 'repo':
+        if position_type == "repo":
             annual_rate = self.cfg.repo
-        elif position_type == 'short':
+        elif position_type == "short":
             annual_rate = self.cfg.margin_short
         else:
             annual_rate = self.cfg.margin_long
@@ -125,14 +123,16 @@ class CostModel:
     # ============================================================
     # 便捷方法: trade_cost (兼容测试 API)
     # ============================================================
-    def trade_cost(self,
-                   symbol: str,
-                   qty: int,
-                   price: float,
-                   side: str = "BUY",
-                   asset_type: str = "stock",
-                   adv: int = 0,
-                   volatility: float = 0.02) -> dict:
+    def trade_cost(
+        self,
+        symbol: str,
+        qty: int,
+        price: float,
+        side: str = "BUY",
+        asset_type: str = "stock",
+        adv: int = 0,
+        volatility: float = 0.02,
+    ) -> dict:
         """
         综合交易成本 (佣金 + 滑点 + 印花税)
 
@@ -157,7 +157,7 @@ class CostModel:
 
         # 2) 印花税 (仅卖出)
         stamp_duty = 0.0
-        if asset_type == 'stock' and side.upper() == 'SELL':
+        if asset_type == "stock" and side.upper() == "SELL":
             stamp_duty = notional * self.cfg.stamp_duty
             # commission 已含印花税，需分离报告
             commission = commission - stamp_duty
@@ -188,39 +188,42 @@ class CostModel:
 class AlmgrenChrissCost(CostModel):
     """
     增强版 Almgren-Chriss 成本模型
-    
+
     含永久冲击 + 临时冲击 + 波动率缩放
     """
 
-    def __init__(self, config: CostConfig = None,
-                 permanent_impact: float = 0.1,
-                 temporary_impact: float = 0.15):
+    def __init__(self, config: CostConfig = None, permanent_impact: float = 0.1, temporary_impact: float = 0.15):
         super().__init__(config)
         self.permanent_impact = permanent_impact
         self.temporary_impact = temporary_impact
 
-    def total_cost(self, qty: int, price: float, daily_volume: int,
-                   volatility: float, asset_type: str = 'stock',
-                   side: str = 'BUY', time_horizon: int = 1) -> dict:
-        base = super().total_cost(qty, price, daily_volume, volatility,
-                                  asset_type, side)
-        notional = base['notional']
+    def total_cost(
+        self,
+        qty: int,
+        price: float,
+        daily_volume: int,
+        volatility: float,
+        asset_type: str = "stock",
+        side: str = "BUY",
+        time_horizon: int = 1,
+    ) -> dict:
+        base = super().total_cost(qty, price, daily_volume, volatility, asset_type, side)
+        notional = base["notional"]
         participation = qty / daily_volume if daily_volume > 0 else 0
 
         # 永久冲击
         permanent = self.permanent_impact * volatility * participation * notional
 
         # 临时冲击
-        temp = (self.temporary_impact * volatility *
-                np.sqrt(participation / time_horizon) * notional)
+        temp = self.temporary_impact * volatility * np.sqrt(participation / time_horizon) * notional
 
-        total = base['total_cost'] + permanent + temp
+        total = base["total_cost"] + permanent + temp
         return {
-            'commission': base['commission'],
-            'market_impact': base['market_impact'],
-            'permanent_impact': permanent,
-            'temporary_impact': temp,
-            'total_cost': total,
-            'bps': total / notional if notional > 0 else 0.0,
-            'notional': notional,
+            "commission": base["commission"],
+            "market_impact": base["market_impact"],
+            "permanent_impact": permanent,
+            "temporary_impact": temp,
+            "total_cost": total,
+            "bps": total / notional if notional > 0 else 0.0,
+            "notional": notional,
         }

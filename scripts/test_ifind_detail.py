@@ -4,9 +4,6 @@ sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")
 
 from morning_market_fetcher import (
     _exec_ifind, _is_ifind_success,
-    fetch_coal_data, fetch_carbon_market,
-    _fetch_sina_coal_inventory, _fetch_ths_coal_inventory, _web_search_fallback_coal,
-    _fetch_sina_coal_price, _fetch_ths_coal_price, _web_search_fallback_coal_price,
 )
 
 print("=== 测试 iFinD MCP 动力煤 ===")

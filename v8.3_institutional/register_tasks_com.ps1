@@ -64,10 +64,10 @@ function Register-Task($taskName, $batPath, $workDir, $triggerTime, $description
 # ============================================================
 # 注册三个任务
 # ============================================================
-$v75Dir = "E:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional"
+$v75Dir = "E:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional"
 $runDaily = Join-Path $v75Dir "run_daily.bat"
 $runAllModules = Join-Path $v75Dir "run_all_modules.bat"
-$runDailyReport = "E:\各种PY程序\28-终极量化交易系统7.1\run_daily_report.bat"
+$runDailyReport = "E:\各种PY程序\28-终极量化交易系统8.4\run_daily_report.bat"
 
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "  Registering v7.5 Scheduled Tasks (via COM)" -ForegroundColor Cyan

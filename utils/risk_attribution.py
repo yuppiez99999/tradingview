@@ -13,14 +13,14 @@
   - config/positions.json (持仓 + hedge_positions)
   - 可选: v7.5_institutional/reports/daily_pnl_report_*.json (Beta/相关性)
 """
+
 from __future__ import annotations
 
 import json
-import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 # ============================================================
 # 默认路径
@@ -35,6 +35,7 @@ DEFAULT_POSITIONS_PATH = PROJECT_ROOT / "config" / "positions.json"
 @dataclass
 class RiskAttribution:
     """风险归因结果"""
+
     total_value: float = 0.0
     by_sector: Dict[str, float] = field(default_factory=dict)
     by_style: Dict[str, float] = field(default_factory=dict)
@@ -55,23 +56,25 @@ def load_positions(path: Union[str, Path] = DEFAULT_POSITIONS_PATH) -> List[Dict
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-    except Exception:
+    except Exception:  # P2 模块 fail-safe, 待后续精确化
         return []
 
     positions = []
     for item in data.get("positions", {}).values():
-        positions.append({
-            "code": item.get("code", ""),
-            "name": item.get("name", ""),
-            "amount": float(item.get("amount", 0.0) or 0.0),
-            "shares": float(item.get("shares", 0) or 0.0),
-            "est_price": float(item.get("est_price", 0.0) or 0.0),
-            "avg_cost": float(item.get("avg_cost", 0.0) or 0.0),
-            "style": item.get("style", "其他"),
-            "sector": item.get("sector", "其他"),
-            "type": item.get("type", "STOCK"),
-            "beta": float(item.get("beta", 1.0) or 1.0),
-        })
+        positions.append(
+            {
+                "code": item.get("code", ""),
+                "name": item.get("name", ""),
+                "amount": float(item.get("amount", 0.0) or 0.0),
+                "shares": float(item.get("shares", 0) or 0.0),
+                "est_price": float(item.get("est_price", 0.0) or 0.0),
+                "avg_cost": float(item.get("avg_cost", 0.0) or 0.0),
+                "style": item.get("style", "其他"),
+                "sector": item.get("sector", "其他"),
+                "type": item.get("type", "STOCK"),
+                "beta": float(item.get("beta", 1.0) or 1.0),
+            }
+        )
     return positions
 
 
@@ -82,8 +85,8 @@ def load_hedge_positions(path: Union[str, Path] = DEFAULT_POSITIONS_PATH) -> Dic
         return {}
     try:
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f).get("hedge_positions", {})
-    except Exception:
+            return json.load(f).get("hedge_positions", {})  # type: ignore
+    except Exception:  # P2 模块 fail-safe, 待后续精确化
         return {}
 
 
@@ -143,8 +146,7 @@ def _to_pct_map(value_map: Dict[str, float], total: float) -> Dict[str, float]:
 # ============================================================
 # 对冲工具剩余风险
 # ============================================================
-def _calc_hedge_residual(positions: List[Dict[str, Any]],
-                         hedge_positions: Dict[str, Any]) -> Dict[str, Any]:
+def _calc_hedge_residual(positions: List[Dict[str, Any]], hedge_positions: Dict[str, Any]) -> Dict[str, Any]:
     """计算对冲后的剩余风险
 
     Returns:
@@ -251,7 +253,9 @@ def compute_attribution(positions_path: Union[str, Path] = DEFAULT_POSITIONS_PAT
     if result.hedge_residual.get("residual_beta", 0) > 0.5:
         result.warnings.append(f"对冲后剩余 Beta = {result.hedge_residual['residual_beta']:.2f} > 0.5, 对冲不足")
     if result.hedge_residual.get("tail_risk_coverage_pct", 0) < 0.10:
-        result.warnings.append(f"尾部风险覆盖率 = {result.hedge_residual['tail_risk_coverage_pct']:.2%} < 10%, 期权保护不足")
+        result.warnings.append(
+            f"尾部风险覆盖率 = {result.hedge_residual['tail_risk_coverage_pct']:.2%} < 10%, 期权保护不足"
+        )
 
     return result
 

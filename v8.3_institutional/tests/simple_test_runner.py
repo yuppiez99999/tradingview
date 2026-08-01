@@ -4,7 +4,6 @@
 支持基本的单元测试和覆盖率检查
 """
 
-import os
 import sys
 import importlib.util
 import inspect
@@ -31,11 +30,11 @@ class SimpleTestCase:
             return True
         except AssertionError as e:
             self.result = 'failed'
-            self.message = f'AssertionError: {str(e)}'
+            self.message = f'AssertionError: {e!s}'
             return False
         except Exception as e:
             self.result = 'error'
-            self.message = f'Error: {str(e)}'
+            self.message = f'Error: {e!s}'
             traceback.print_exc()
             return False
 
@@ -92,7 +91,7 @@ class TestRunner:
                 print(f"\n[{i}/{len(self.tests)}] 运行测试: {test.name}")
                 
             start_time = datetime.now()
-            success = test.run()
+            test.run()
             end_time = datetime.now()
             
             duration = (end_time - start_time).total_seconds()
@@ -121,7 +120,7 @@ class TestRunner:
                     print(f"  信息: {test.message}")
                     
         print("\n" + "=" * 60)
-        print(f"测试结果汇总:")
+        print("测试结果汇总:")
         print(f"  总计: {len(self.tests)}")
         print(f"  通过: {passed} ({passed/max(len(self.tests), 1)*100:.1f}%)")
         print(f"  失败: {failed}")
@@ -138,7 +137,6 @@ class TestRunner:
         
         # 统计测试覆盖的代码行
         covered_lines = set()
-        total_lines = 0
         
         for result in self.results:
             if result['result'] == 'passed':
@@ -176,7 +174,7 @@ class TestRunner:
             failed = sum(1 for r in self.results if r['result'] == 'failed')
             errors = sum(1 for r in self.results if r['result'] == 'error')
             
-            f.write(f"测试汇总:\n")
+            f.write("测试汇总:\n")
             f.write(f"  总计: {len(self.results)}\n")
             f.write(f"  通过: {passed}\n")
             f.write(f"  失败: {failed}\n")
@@ -211,10 +209,10 @@ def main():
     
     # 发现并运行测试
     runner.discover_tests()
-    passed, failed, errors = runner.run_tests()
+    _passed, failed, errors = runner.run_tests()
     
     # 生成覆盖率报告
-    coverage = runner.generate_coverage_report()
+    runner.generate_coverage_report()
     
     # 保存结果
     runner.save_results('test_results.txt')

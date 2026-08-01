@@ -16,24 +16,29 @@ import json
 import os
 import math
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, List, Callable, Optional
 
 
 class BacktestEngine:
     """轻量级回测引擎"""
 
-    def __init__(self, initial_capital: float = 1000000.0, commission_rate: float = 0.0003,
-                 slippage_rate: float = 0.001, min_commission: float = 5.0):
+    def __init__(
+        self,
+        initial_capital: float = 1000000.0,
+        commission_rate: float = 0.0003,
+        slippage_rate: float = 0.001,
+        min_commission: float = 5.0,
+    ):
         self.initial_capital = initial_capital
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate
         self.min_commission = min_commission
 
         self.cash = initial_capital
-        self.positions = {}
-        self.trades = []
-        self.daily_pnl = []
-        self.equity_curve = []
+        self.positions = {}  # type: ignore
+        self.trades = []  # type: ignore
+        self.daily_pnl = []  # type: ignore
+        self.equity_curve = []  # type: ignore
         self.current_date = None
 
     def reset(self):
@@ -67,7 +72,7 @@ class BacktestEngine:
         if total_cost + commission > self.cash:
             return False
 
-        self.cash -= (total_cost + commission)
+        self.cash -= total_cost + commission
 
         if code not in self.positions:
             self.positions[code] = {
@@ -82,16 +87,18 @@ class BacktestEngine:
         pos["qty"] = total_qty
         pos["current_price"] = price
 
-        self.trades.append({
-            "date": self.current_date,
-            "code": code,
-            "action": "BUY",
-            "qty": qty,
-            "price": price,
-            "execution_price": execution_price,
-            "commission": commission,
-            "total_cost": total_cost + commission,
-        })
+        self.trades.append(
+            {
+                "date": self.current_date,
+                "code": code,
+                "action": "BUY",
+                "qty": qty,
+                "price": price,
+                "execution_price": execution_price,
+                "commission": commission,
+                "total_cost": total_cost + commission,
+            }
+        )
 
         return True
 
@@ -104,7 +111,7 @@ class BacktestEngine:
         total_revenue = execution_price * qty
         commission = self.calculate_commission(total_revenue)
 
-        self.cash += (total_revenue - commission)
+        self.cash += total_revenue - commission
 
         pos = self.positions[code]
         pos["qty"] -= qty
@@ -113,16 +120,18 @@ class BacktestEngine:
         if pos["qty"] == 0:
             del self.positions[code]
 
-        self.trades.append({
-            "date": self.current_date,
-            "code": code,
-            "action": "SELL",
-            "qty": qty,
-            "price": price,
-            "execution_price": execution_price,
-            "commission": commission,
-            "total_revenue": total_revenue - commission,
-        })
+        self.trades.append(
+            {
+                "date": self.current_date,
+                "code": code,
+                "action": "SELL",
+                "qty": qty,
+                "price": price,
+                "execution_price": execution_price,
+                "commission": commission,
+                "total_revenue": total_revenue - commission,
+            }
+        )
 
         return True
 
@@ -134,11 +143,8 @@ class BacktestEngine:
 
     def get_total_equity(self) -> float:
         """计算总权益"""
-        position_value = sum(
-            pos["qty"] * pos["current_price"]
-            for pos in self.positions.values()
-        )
-        return self.cash + position_value
+        position_value = sum(pos["qty"] * pos["current_price"] for pos in self.positions.values())
+        return self.cash + position_value  # type: ignore
 
     def record_daily_pnl(self, date: str):
         """记录每日盈亏"""
@@ -153,18 +159,19 @@ class BacktestEngine:
             daily_return = 0.0
             daily_pnl = 0.0
 
-        self.daily_pnl.append({
-            "date": date,
-            "equity": equity,
-            "cash": self.cash,
-            "position_value": equity - self.cash,
-            "daily_return": daily_return,
-            "daily_pnl": daily_pnl,
-            "positions": {k: v.copy() for k, v in self.positions.items()},
-        })
+        self.daily_pnl.append(
+            {
+                "date": date,
+                "equity": equity,
+                "cash": self.cash,
+                "position_value": equity - self.cash,
+                "daily_return": daily_return,
+                "daily_pnl": daily_pnl,
+                "positions": {k: v.copy() for k, v in self.positions.items()},
+            }
+        )
 
-    def run(self, data: List[Dict], strategy_func: Callable[[Dict, Dict], List[Dict]],
-            verbose: bool = False) -> Dict:
+    def run(self, data: List[Dict], strategy_func: Callable[[Dict, Dict], List[Dict]], verbose: bool = False) -> Dict:
         """运行回测
 
         Args:
@@ -177,7 +184,7 @@ class BacktestEngine:
         """
         self.reset()
 
-        for i, day_data in enumerate(data):
+        for _i, day_data in enumerate(data):
             self.current_date = day_data["date"]
             prices = day_data.get("prices", {})
 
@@ -204,7 +211,7 @@ class BacktestEngine:
                 if verbose and success:
                     print(f"  {self.current_date} {action} {code} {qty} @ {price:.4f}")
 
-            self.record_daily_pnl(self.current_date)
+            self.record_daily_pnl(self.current_date)  # type: ignore
 
         return self.generate_report()
 
@@ -241,14 +248,18 @@ class BacktestEngine:
 
         total_commission = sum(t["commission"] for t in self.trades)
         total_trades = len(self.trades)
-        avg_trade_amount = sum(t.get("total_cost", t.get("total_revenue", 0)) for t in self.trades) / max(total_trades, 1)
+        avg_trade_amount = sum(t.get("total_cost", t.get("total_revenue", 0)) for t in self.trades) / max(
+            total_trades, 1
+        )
 
         return {
             "status": "success",
             "initial_capital": self.initial_capital,
             "final_equity": self.equity_curve[-1]["equity"],
             "total_return": total_return,
-            "annualized_return": (1 + total_return) ** (252 / len(self.daily_pnl)) - 1 if len(self.daily_pnl) > 0 else 0,
+            "annualized_return": (max(1 + total_return, 1e-9) ** (252 / len(self.daily_pnl)) - 1)
+            if len(self.daily_pnl) > 0
+            else 0,
             "avg_daily_return": avg_daily_return,
             "std_daily_return": std_daily_return,
             "sharpe_ratio": sharpe_ratio,
@@ -279,8 +290,12 @@ class ETFSignalStrategy:
     不得包含未来信息。建议在回测循环中实时计算信号而非预计算。
     """
 
-    def __init__(self, signal_thresholds: Dict = None, max_position_pct: float = 0.3,
-                 validate_no_lookahead: bool = True):
+    def __init__(
+        self,
+        signal_thresholds: Optional[Dict] = None,
+        max_position_pct: float = 0.3,  # type: ignore
+        validate_no_lookahead: bool = True,
+    ):
         self.signal_thresholds = signal_thresholds or {
             "strong_buy": "强加仓",
             "medium_buy": "加仓",
@@ -300,7 +315,7 @@ class ETFSignalStrategy:
 
         for code, signal_info in etf_signals.items():
             signal = signal_info.get("signal", "")
-            inflow = signal_info.get("inflow", 0)
+            signal_info.get("inflow", 0)
             price = prices.get(code, 0)
 
             if price <= 0:
@@ -347,7 +362,7 @@ class BacktestDataLoader:
     """
 
     @staticmethod
-    def load_from_positions_history(positions_history_dir: str, tickers: List[str] = None) -> List[Dict]:
+    def load_from_positions_history(positions_history_dir: str, tickers: Optional[List[str]] = None) -> List[Dict]:  # type: ignore
         """从positions.json历史记录加载数据"""
         data = []
         files = sorted(os.listdir(positions_history_dir))
@@ -377,33 +392,35 @@ class BacktestDataLoader:
                     }
                     # 使用 est_price 或 avg_cost 作为价格 — 若这些值来自盘后文件，存在数据泄露风险
                     price = pos.get("est_price", 0) or pos.get("avg_cost", 0)
-                    if pos.get("est_price", 0) and not hasattr(
-                        BacktestDataLoader, '_warned_est_price'
-                    ):
+                    if pos.get("est_price", 0) and not hasattr(BacktestDataLoader, "_warned_est_price"):
                         import logging
-                        logging.getLogger('backtest').warning(
+
+                        logging.getLogger("backtest").warning(
                             "⚠️ 回测使用 est_price（估算价格），可能包含事后信息。"
                             "建议使用独立的历史 OHLC 数据源以获得无偏回测结果。"
                         )
-                        BacktestDataLoader._warned_est_price = True
+                        BacktestDataLoader._warned_est_price = True  # type: ignore
                     prices[code] = price
 
                 if prices:
-                    data.append({
-                        "date": date_str,
-                        "prices": prices,
-                        "etf_signals": etf_signals,
-                        "raw_data": pos_data,
-                    })
+                    data.append(
+                        {
+                            "date": date_str,
+                            "prices": prices,
+                            "etf_signals": etf_signals,
+                            "raw_data": pos_data,
+                        }
+                    )
 
-            except Exception as e:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 continue
 
         return data
 
     @staticmethod
-    def generate_synthetic_data(start_date: str, end_date: str, tickers: List[str],
-                                base_price: float = 2.0, volatility: float = 0.02) -> List[Dict]:
+    def generate_synthetic_data(
+        start_date: str, end_date: str, tickers: List[str], base_price: float = 2.0, volatility: float = 0.02
+    ) -> List[Dict]:
         """生成合成回测数据"""
         data = []
         start = datetime.strptime(start_date, "%Y-%m-%d")
@@ -413,6 +430,7 @@ class BacktestDataLoader:
         prices = {t: base_price for t in tickers}
 
         import random
+
         random.seed(42)
 
         while current <= end:
@@ -424,7 +442,7 @@ class BacktestDataLoader:
 
             for ticker in tickers:
                 change = (random.random() - 0.48) * 2 * volatility
-                prices[ticker] *= (1 + change)
+                prices[ticker] *= 1 + change
                 prices[ticker] = round(prices[ticker], 4)
 
             inflow_values = [0, 5, 10, 15, 20, 25, 30, 50, 70, 100]
@@ -448,19 +466,20 @@ class BacktestDataLoader:
 
                 etf_signals[ticker] = {"signal": signal, "inflow": inflow}
 
-            data.append({
-                "date": date_str,
-                "prices": prices.copy(),
-                "etf_signals": etf_signals,
-            })
+            data.append(
+                {
+                    "date": date_str,
+                    "prices": prices.copy(),
+                    "etf_signals": etf_signals,
+                }
+            )
 
             current += timedelta(days=1)
 
         return data
 
 
-def run_etf_signal_backtest(data: List[Dict], initial_capital: float = 1000000.0,
-                            **kwargs) -> Dict:
+def run_etf_signal_backtest(data: List[Dict], initial_capital: float = 1000000.0, **kwargs) -> Dict:
     """便捷函数：运行ETF信号策略回测"""
     strategy = ETFSignalStrategy(**kwargs)
     engine = BacktestEngine(initial_capital=initial_capital)
@@ -471,8 +490,7 @@ def run_etf_signal_backtest(data: List[Dict], initial_capital: float = 1000000.0
     return engine.run(data, strategy_func)
 
 
-def compare_strategies(data: List[Dict], strategies: Dict[str, Callable],
-                       initial_capital: float = 1000000.0) -> Dict:
+def compare_strategies(data: List[Dict], strategies: Dict[str, Callable], initial_capital: float = 1000000.0) -> Dict:
     """比较多个策略"""
     results = {}
 

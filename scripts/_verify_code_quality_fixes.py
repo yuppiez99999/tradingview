@@ -65,7 +65,7 @@ def test_p0_q1_lookahead_bias_fix() -> None:
     target_weights = {"AAA": 0.5, "BBB": 0.5}
     daily_pnl_history = [0.10, -0.0455, -0.0952, 0.05]
 
-    scaled, stats = po.apply_risk_management(target_weights, daily_pnl_history)
+    _scaled, stats = po.apply_risk_management(target_weights, daily_pnl_history)
 
     # 验证修复标记
     check(
@@ -115,7 +115,7 @@ def test_p0_q3_exposure_cap() -> None:
     # 此时 vol_scaler = min(0.15/0.008, 2.0) = 2.0 (cap)
     daily_pnl_history = [0.001, -0.0005, 0.0008, -0.0003, 0.0006, -0.0002, 0.0004, 0.0001]
 
-    scaled, stats = po.apply_risk_management(target_weights, daily_pnl_history)
+    _scaled, stats = po.apply_risk_management(target_weights, daily_pnl_history)
 
     # combined_scaler 应接近 2.0 (低波动 + 无回撤)
     combined_scaler = stats.get("combined_scaler", 0)
@@ -144,7 +144,7 @@ def test_p0_q3_exposure_cap() -> None:
     target_weights_2 = {"AAA": 0.5, "BBB": 0.5}
     # 高波动 + 大幅回撤
     daily_pnl_2 = [0.05, -0.08, 0.04, -0.06, 0.05, -0.07, 0.04, -0.10]
-    scaled_2, stats_2 = po.apply_risk_management(target_weights_2, daily_pnl_2)
+    _scaled_2, stats_2 = po.apply_risk_management(target_weights_2, daily_pnl_2)
 
     check(
         "高波动场景 combined_scaler < 1.0",

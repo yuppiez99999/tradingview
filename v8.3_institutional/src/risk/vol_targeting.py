@@ -5,11 +5,12 @@ import math
 import logging
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Optional, List
+from typing import Deque, Optional
 
 import numpy as np
 
 logger = logging.getLogger("v76.risk.vol_targeting")
+
 
 @dataclass
 class VolTargetConfig:
@@ -32,7 +33,7 @@ class VolTargetingEngine:
     def __init__(self, config: Optional[VolTargetConfig] = None):
         self.cfg = config or VolTargetConfig()
         self._returns: Deque[float] = deque(maxlen=self.cfg.ewma_window)
-        self._garch_sigma2: float = (self.cfg.target_ann_vol ** 2) / 252
+        self._garch_sigma2: float = (self.cfg.target_ann_vol**2) / 252
         self.smoothed_scale: float = 1.0
         self.current_ann_vol: float = self.cfg.target_ann_vol
         logger.info("VolTargeting 就绪: target=%.0f%%", self.cfg.target_ann_vol * 100)
@@ -48,9 +49,7 @@ class VolTargetingEngine:
         realized_vol = max(ewma_vol * 0.60 + garch_vol * 0.40, 0.01)
         self.current_ann_vol = realized_vol
 
-        raw_scale = max(self.cfg.min_leverage,
-                        min(self.cfg.max_leverage,
-                            self.cfg.target_ann_vol / realized_vol))
+        raw_scale = max(self.cfg.min_leverage, min(self.cfg.max_leverage, self.cfg.target_ann_vol / realized_vol))
 
         # 平滑 + 变动限制
         alpha = self.cfg.smoothing_alpha
@@ -66,15 +65,14 @@ class VolTargetingEngine:
         if dd > 0.10:
             new_scale = min(new_scale, new_scale * self.cfg.dd_max_scale_reduction)
 
-        self.smoothed_scale = max(self.cfg.scale_floor,
-                                  min(self.cfg.scale_ceiling, new_scale))
+        self.smoothed_scale = max(self.cfg.scale_floor, min(self.cfg.scale_ceiling, new_scale))
         return self.smoothed_scale
 
     def _estimate_ewma(self) -> float:
         if len(self._returns) < 2:
             return self.cfg.target_ann_vol
         returns = np.array(list(self._returns))
-        w = np.array([self.cfg.ewma_lambda ** i for i in range(len(returns) - 1, -1, -1)])
+        w = np.array([self.cfg.ewma_lambda**i for i in range(len(returns) - 1, -1, -1)])
         w /= w.sum()
         daily_var = np.sum(w * (returns - returns.mean()) ** 2)
         return math.sqrt(daily_var * 252)
@@ -86,9 +84,8 @@ class VolTargetingEngine:
 
     def report(self) -> dict:
         return {
-            'current_scale': round(self.smoothed_scale, 4),
-            'realized_ann_vol': round(self.current_ann_vol, 4),
-            'vol_ratio': round(self.current_ann_vol / self.cfg.target_ann_vol, 2),
-            'status': ('减仓' if self.smoothed_scale < 0.80
-                       else '正常' if self.smoothed_scale < 1.20 else '加仓'),
+            "current_scale": round(self.smoothed_scale, 4),
+            "realized_ann_vol": round(self.current_ann_vol, 4),
+            "vol_ratio": round(self.current_ann_vol / self.cfg.target_ann_vol, 2),
+            "status": ("减仓" if self.smoothed_scale < 0.80 else "正常" if self.smoothed_scale < 1.20 else "加仓"),
         }

@@ -23,11 +23,12 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 import time
 import threading
 from datetime import datetime, date, time as dtime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -98,21 +99,35 @@ FUTURES_NIGHT_SESSIONS = {
     "TS": {"name": "2年期国债", "night_start": "21:00", "night_end": "23:00"},
     # 无夜盘或夜盘不常见
     "ZC": {"name": "动力煤", "night_start": None, "night_end": None},
-    "SF": {"name": "硅铁", "night_start": None, "night_end": None},
 }
 
-# 节假日列表（2026 年简化版）
-HOLIDAYS_2026 = {
-    date(2026, 1, 1),
-    date(2026, 2, 16), date(2026, 2, 17), date(2026, 2, 18),
-    date(2026, 2, 19), date(2026, 2, 20), date(2026, 2, 23),
-    date(2026, 4, 6), date(2026, 4, 7),
-    date(2026, 5, 4), date(2026, 5, 5),
-    date(2026, 6, 19), date(2026, 6, 22),
-    date(2026, 9, 25),
-    date(2026, 10, 5), date(2026, 10, 6), date(2026, 10, 7),
-    date(2026, 10, 8),
-}
+# ER4 修复: 节假日列表委托给 utils.trade_calendar (akshare 动态获取)
+# 原 HOLIDAYS_2026 仅含 2026 假期, 2027 年后所有节假日会被误判为交易日
+# 现统一走 akshare 动态日历, 自动覆盖任意年份, 失败时回退到 2026 硬编码列表
+HOLIDAYS_2026 = set()  # 保留变量名向后兼容, 实际不再使用
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent  # 项目根目录 (utils/ 在此层级)
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+try:
+    from utils.trade_calendar import is_trading_day as _dyn_is_trading_day
+    _DYNAMIC_CALENDAR_AVAILABLE = True
+    logger.info("[ER4] 节假日判断已委托给 utils.trade_calendar (akshare 动态获取)")
+except ImportError:
+    _DYNAMIC_CALENDAR_AVAILABLE = False
+    # 回退: 保留 2026 硬编码列表 (仅 2026 年有效)
+    HOLIDAYS_2026 = {
+        date(2026, 1, 1),
+        date(2026, 2, 16), date(2026, 2, 17), date(2026, 2, 18),
+        date(2026, 2, 19), date(2026, 2, 20), date(2026, 2, 23),
+        date(2026, 4, 6), date(2026, 4, 7),
+        date(2026, 5, 4), date(2026, 5, 5),
+        date(2026, 6, 19), date(2026, 6, 22),
+        date(2026, 9, 25),
+        date(2026, 10, 5), date(2026, 10, 6), date(2026, 10, 7),
+        date(2026, 10, 8),
+    }
+    logger.warning("[ER4] utils.trade_calendar 不可用, 回退到 2026 硬编码假期列表 "
+                   "(2027+ 年节假日将无法识别)")
 
 
 class SessionType(str, Enum):
@@ -142,7 +157,7 @@ class TradingSessionCalendar:
         - 当前 session 类型
     """
 
-    def __init__(self, holidays: set = None):
+    def __init__(self, holidays: Optional[set] = None):
         self.holidays = holidays or HOLIDAYS_2026
 
         # A股交易时段
@@ -161,17 +176,35 @@ class TradingSessionCalendar:
             TradingSession("FUTURES_DAY_AFTER", dtime(15, 0),  dtime(15, 30), "futures"),
         ]
 
-    def is_trading_day(self, d: date = None) -> bool:
-        """是否为交易日（A股+期货通用）"""
+    def is_trading_day(self, d: Optional[date] = None) -> bool:
+        """是否为交易日（A股+期货通用）
+
+        ER4 修复: 优先委托给 utils.trade_calendar (akshare 动态获取),
+        覆盖任意年份的节假日; 动态日历不可用时回退到 self.holidays 硬编码列表。
+        """
         if d is None:
             d = date.today()
+
+        # ER4 修复: 优先使用动态日历
+        if _DYNAMIC_CALENDAR_AVAILABLE:
+            try:
+                return _dyn_is_trading_day(d.strftime('%Y-%m-%d'))
+            except Exception as e:
+                logger.warning(
+                    f"[ER4] 动态日历查询失败 (date={d}), 回退到硬编码列表: {e}"
+                )
+
+        # 回退: 周末判断
         if d.weekday() >= 5:
             return False
+
+        # 回退: 硬编码节假日列表 (仅 2026 年有效)
         if d in self.holidays:
             return False
+
         return True
 
-    def is_futures_trading_day(self, d: date = None) -> bool:
+    def is_futures_trading_day(self, d: Optional[date] = None) -> bool:
         """是否为期货交易日（与A股一致，节假日休市）"""
         return self.is_trading_day(d)
 
@@ -203,7 +236,7 @@ class TradingSessionCalendar:
         session_type, _ = self.get_current_session(now)
         return session_type != SessionType.CLOSED
 
-    def get_next_session_start(self, d: date = None) -> Tuple[date, Optional[dtime]]:
+    def get_next_session_start(self, d: Optional[date] = None) -> Tuple[date, Optional[dtime]]:
         """获取下一交易日/下一时段开始时间"""
         if d is None:
             d = date.today()
@@ -304,7 +337,7 @@ class SimBrokerBase:
         with self._lock:
             self._fills.append(fill)
 
-    def get_fills(self, session: str = None) -> List[Dict]:
+    def get_fills(self, session: Optional[str] = None) -> List[Dict]:
         """获取成交记录"""
         with self._lock:
             if session:
@@ -390,7 +423,7 @@ class SimFuturesBroker(SimBrokerBase):
     """
 
     def __init__(self, account: SimAccount, price_provider=None,
-                 margin_rates: Dict[str, float] = None):
+                 margin_rates: Optional[Dict[str, float]] = None):
         super().__init__(account)
         self.price_provider = price_provider
         self.margin_rates = margin_rates or {
@@ -479,7 +512,7 @@ class SimBrokerRouter:
         self.options_broker = options_broker  # 可选，SimOptionsBroker 实例
         self.calendar = calendar or TradingSessionCalendar()
 
-    def route(self, order: Dict, session: str = None) -> Dict:
+    def route(self, order: Dict, session: Optional[str] = None) -> Dict:
         """路由订单到对应模拟盘
 
         Args:
@@ -584,7 +617,7 @@ class PositionSync:
         4. 支持导出到 positions.json / 每日报告
     """
 
-    def __init__(self, router: SimBrokerRouter, snapshot_dir: Path = None):
+    def __init__(self, router: SimBrokerRouter, snapshot_dir: Optional[Path] = None):
         self.router = router
         self.snapshot_dir = snapshot_dir or Path("sim_snapshots")
         self.snapshot_dir.mkdir(parents=True, exist_ok=True)
@@ -615,7 +648,7 @@ class PositionSync:
                 },
             }
 
-    def save_daily_snapshot(self, trade_date: str = None) -> Path:
+    def save_daily_snapshot(self, trade_date: Optional[str] = None) -> Path:
         """保存当日持仓快照"""
         if trade_date is None:
             trade_date = datetime.now().strftime("%Y-%m-%d")
@@ -719,7 +752,7 @@ class SimExecutionEngine:
         self.options_broker = options_broker
         self._executed_sessions: set = set()  # 防止同一 session 重复执行
 
-    def is_trading_day(self, d: date = None) -> bool:
+    def is_trading_day(self, d: Optional[date] = None) -> bool:
         return self.calendar.is_trading_day(d)
 
     def execute_stock_orders(self, orders: List[Dict], session: str = "day") -> List[Dict]:
@@ -839,18 +872,18 @@ class SimExecutionEngine:
         self.position_sync.update_positions_from_fills([fill])
         return fill
 
-    def get_session_key(self, session: str, d: date = None) -> str:
+    def get_session_key(self, session: str, d: Optional[date] = None) -> str:
         """生成 session 唯一键（用于去重）"""
         if d is None:
             d = date.today()
         return f"{d.isoformat()}-{session}"
 
-    def mark_session_executed(self, session: str, d: date = None) -> None:
+    def mark_session_executed(self, session: str, d: Optional[date] = None) -> None:
         """标记 session 已执行"""
         key = self.get_session_key(session, d)
         self._executed_sessions.add(key)
 
-    def is_session_executed(self, session: str, d: date = None) -> bool:
+    def is_session_executed(self, session: str, d: Optional[date] = None) -> bool:
         """检查 session 是否已执行"""
         key = self.get_session_key(session, d)
         return key in self._executed_sessions

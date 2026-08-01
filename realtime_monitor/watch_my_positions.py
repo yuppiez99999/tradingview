@@ -5,7 +5,6 @@
 """
 import os
 import json
-import re
 import sys
 import requests
 import importlib.util
@@ -15,7 +14,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from utils.ifind_client import IFindClient
+from utils.ifind_client import IFindClient  # noqa: E402
 
 # Wind MCP
 _WIND_FETCHER_PATH = os.path.join(REPO_ROOT, "wind_mcp_fetcher.py")
@@ -169,7 +168,7 @@ def _fetch_sina_realtime(codes):
         try:
             if latest and pre_close:
                 change_ratio = f"{(float(latest) - float(pre_close)) / float(pre_close) * 100:.6f}"
-        except Exception:
+        except Exception as e:
             change_ratio = ""
         results.append({
             "code": raw_code,
@@ -220,8 +219,8 @@ def fetch_stock_snapshot(client: IFindClient, symbols: str) -> list:
                         "source": "iFinD_stock",
                     })
                 return rows
-        except Exception:
-            pass
+        except Exception as e:
+            raise  # Re-raise unknown exception
     print("stock_ifind_failed=", result.get("error", ""))
     return []
 
@@ -259,8 +258,8 @@ def fetch_fund_snapshot(client: IFindClient, symbols: str) -> list:
                         "source": "iFinD_fund",
                     })
                 return rows
-        except Exception:
-            pass
+        except Exception as e:
+            raise  # Re-raise unknown exception
     print("fund_ifind_failed=", result.get("error", ""))
     return []
 

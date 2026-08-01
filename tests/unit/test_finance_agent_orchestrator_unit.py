@@ -15,8 +15,6 @@
 from __future__ import annotations
 
 import json
-import math
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -288,7 +286,7 @@ class TestWeightedVote:
             {"agent_name": "value", "action": "buy", "strength": 0.8, "confidence": 0.9},
             {"agent_name": "macro", "action": "sell", "strength": -0.8, "confidence": 0.1},
         ]
-        s, c, detail = orchestrator._weighted_vote(decisions)
+        s, _c, _detail = orchestrator._weighted_vote(decisions)
         # value 权重 0.25 × 置信度 0.9 = 0.225
         # macro 权重 0.10 × 置信度 0.1 = 0.010
         # value 主导, strength > 0
@@ -309,7 +307,7 @@ class TestWeightedVote:
             {"agent_name": "value", "action": "buy", "strength": 0.5, "confidence": 0.8},
             {"agent_name": "momentum", "error": True, "action": "hold", "strength": 0, "confidence": 0},
         ]
-        s, c, detail = orchestrator._weighted_vote(decisions)
+        _s, _c, detail = orchestrator._weighted_vote(decisions)
         # 只有 value 被计入
         assert "value" in detail
         assert "momentum" not in detail

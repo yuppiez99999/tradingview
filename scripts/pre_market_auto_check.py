@@ -85,7 +85,7 @@ def check_ntp_sync() -> None:
         check(
             is_running,
             "NTP-1a w32time 服务运行中",
-            f"找到 RUNNING" if is_running else "未找到 RUNNING"
+            "找到 RUNNING" if is_running else "未找到 RUNNING"
         )
     except Exception as e:
         check(False, "NTP-1a w32time 服务查询异常", str(e)[:100])
@@ -102,7 +102,7 @@ def check_ntp_sync() -> None:
         check(
             is_auto,
             "NTP-1b w32time 启动类型=AUTO_START",
-            f"找到 AUTO_START" if is_auto else "未找到 AUTO_START"
+            "找到 AUTO_START" if is_auto else "未找到 AUTO_START"
         )
     except Exception as e:
         check(False, "NTP-1b w32time 启动类型查询异常", str(e)[:100])
@@ -144,7 +144,7 @@ def check_ntp_sync() -> None:
         check(
             has_metrics,
             "NTP-2c 同步指标存在 (RootDelay/RootDispersion)",
-            f"找到指标" if has_metrics else "未找到指标"
+            "找到指标" if has_metrics else "未找到指标"
         )
     except Exception as e:
         check(False, "NTP-2 NTP 同步状态查询异常", str(e)[:100])
@@ -269,7 +269,7 @@ def check_trade_plan(trade_date: str) -> None:
     plan_path = TRADE_PLANS_DIR / f"trade_plan_{trade_date.replace('-', '')}.json"
     check(
         plan_path.exists(),
-        f"TP-1 trade_plan 文件存在",
+        "TP-1 trade_plan 文件存在",
         f"path={plan_path.name}"
     )
 
@@ -366,7 +366,7 @@ def check_trade_plan(trade_date: str) -> None:
 # ============================================================
 def check_7guard_and_validation(trade_date: str) -> None:
     print("\n" + "=" * 72)
-    print(f"[6/6] 7-Guard 链 + 27 项 P0/P1 校验")
+    print("[6/6] 7-Guard 链 + 27 项 P0/P1 校验")
     print("=" * 72)
 
     # 通过 _verify_v868_live_ready.py 校验 (需要先修改目标日期)
@@ -427,7 +427,7 @@ def main() -> int:
     trade_date = sys.argv[1] if len(sys.argv) > 1 else get_next_trade_date()
 
     print("=" * 72)
-    print(f"实盘开盘前综合自动检测 (Pre-Market Auto Check)")
+    print("实盘开盘前综合自动检测 (Pre-Market Auto Check)")
     print(f"检测日期: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"目标交易日: {trade_date}")
     print("=" * 72)

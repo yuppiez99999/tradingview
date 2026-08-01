@@ -64,7 +64,7 @@ class EastMoneyDataFetcher:
                         data = response.json()
                         
                         # 解析数据
-                        if 'data' in data and data['data']:
+                        if data.get('data'):
                             stock_data = data['data'].get(secid, {})
                             
                             results[symbol] = {
@@ -138,10 +138,10 @@ class EastMoneyDataFetcher:
                 
                 # 解析K线数据
                 klines = []
-                if 'data' in data and data['data']:
+                if data.get('data'):
                     stock_data = data['data'].get(secid, {})
                     
-                    for key, value in stock_data.items():
+                    for _key, value in stock_data.items():
                         if isinstance(value, list):
                             for item in value:
                                 if isinstance(item, dict):
@@ -187,7 +187,7 @@ class EastMoneyDataFetcher:
             if response.status_code == 200:
                 data = response.json()
                 
-                if 'data' in data and data['data']:
+                if data.get('data'):
                     stock_data = data['data'].get(secid, {})
                     
                     return {
@@ -234,7 +234,7 @@ class EastMoneyDataFetcher:
             if response.status_code == 200:
                 data = response.json()
                 
-                if 'data' in data and data['data']:
+                if data.get('data'):
                     stock_data = data['data'].get(secid, {})
                     
                     return {
@@ -261,13 +261,13 @@ if __name__ == '__main__':
     test_symbols = ['600519', '000001', '300750']
     quotes = fetcher.get_realtime_quotes(test_symbols)
     
-    print("\n东方财富实时行情测试:")
-    print("=" * 80)
+    logger.info("\n东方财富实时行情测试:")
+    logger.info("=" * 80)
     for symbol, quote in quotes.items():
         if 'error' not in quote:
-            print(f"\n{symbol} - {quote.get('name', 'N/A')}")
-            print(f"  价格: {quote.get('price')}")
-            print(f"  涨跌幅: {quote.get('change_pct')}%")
-            print(f"  成交量: {quote.get('volume')}")
+            logger.info(f"\n{symbol} - {quote.get('name', 'N/A')}")
+            logger.info(f"  价格: {quote.get('price')}")
+            logger.info(f"  涨跌幅: {quote.get('change_pct')}%")
+            logger.info(f"  成交量: {quote.get('volume')}")
         else:
-            print(f"\n{symbol}: {quote['error']}")
+            logger.info(f"\n{symbol}: {quote['error']}")

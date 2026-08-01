@@ -38,11 +38,11 @@ class RiskAgent(BaseAgent):
     """风险分析 Agent (含 veto 权)"""
 
     # 阈值常量 (可调)
-    DRAWDOWN_WARN_PCT = 0.15           # 15% 回撤预警
-    DRAWDOWN_VETO_PCT = 0.25           # 25% 回撤 veto
-    VOLATILITY_WARN_PCT = 0.40         # 40% 年化波动率预警
-    VOLATILITY_VETO_PCT = 0.60         # 60% 年化波动率 veto
-    WEIGHT_WARN_PCT = 0.15             # 15% 权重预警
+    DRAWDOWN_WARN_PCT = 0.15  # 15% 回撤预警
+    DRAWDOWN_VETO_PCT = 0.25  # 25% 回撤 veto
+    VOLATILITY_WARN_PCT = 0.40  # 40% 年化波动率预警
+    VOLATILITY_VETO_PCT = 0.60  # 60% 年化波动率 veto
+    WEIGHT_WARN_PCT = 0.15  # 15% 权重预警
     LIQUIDITY_MIN_AMOUNT = 50_000_000  # 5000 万最低流动性
 
     def __init__(self, name: str = "risk"):
@@ -124,7 +124,7 @@ class RiskAgent(BaseAgent):
             metrics["avg_amount_20d"] = round(liquidity_amount, 0)
             if liquidity_amount < self.LIQUIDITY_MIN_AMOUNT:
                 strength -= 0.2
-                signals.append(f"20日均成交额 {liquidity_amount/1e8:.2f}亿 (低流动性)")
+                signals.append(f"20日均成交额 {liquidity_amount / 1e8:.2f}亿 (低流动性)")
 
         # 决策动作
         if strength < -0.5:
@@ -189,7 +189,7 @@ class RiskAgent(BaseAgent):
         if not isinstance(kline, list) or len(kline) < period + 1:
             return None
         closes = []
-        for k in kline[-(period + 1):]:
+        for k in kline[-(period + 1) :]:
             if not isinstance(k, dict):
                 continue
             c = RiskAgent._safe_float(k.get("close"))

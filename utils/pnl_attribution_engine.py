@@ -50,12 +50,13 @@ P&L 多维度归因分析引擎 (P&L Attribution Engine) v1.0
         hedge_pnl=-200.0,              # 对冲盈亏
     )
 """
+
 from __future__ import annotations
 
 import json
 import logging
 from dataclasses import dataclass, field, asdict
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
@@ -70,17 +71,19 @@ REPORT_DIR = BASE_DIR / "reports" / "pnl_attribution"
 @dataclass
 class FactorContribution:
     """因子贡献"""
+
     factor_name: str
-    contribution: float            # 绝对贡献 (元或%)
-    contribution_pct: float        # 占总 P&L 比例
-    exposure: float = 0.0          # 因子暴露
-    factor_return: float = 0.0     # 因子收益
-    is_significant: bool = False   # 是否显著 (>5%)
+    contribution: float  # 绝对贡献 (元或%)
+    contribution_pct: float  # 占总 P&L 比例
+    exposure: float = 0.0  # 因子暴露
+    factor_return: float = 0.0  # 因子收益
+    is_significant: bool = False  # 是否显著 (>5%)
 
 
 @dataclass
 class AttributionResult:
     """归因结果"""
+
     attribution_date: str = ""
     period_start: str = ""
     period_end: str = ""
@@ -88,21 +91,21 @@ class AttributionResult:
     total_return_pct: float = 0.0
 
     # 分解项 (单位: 元)
-    alpha_pnl: float = 0.0           # 选股超额
-    beta_pnl: float = 0.0            # 市场系统性
-    style_pnl: float = 0.0           # 风格因子
-    sector_pnl: float = 0.0          # 行业暴露
-    timing_pnl: float = 0.0          # 择时
-    hedge_pnl: float = 0.0           # 对冲盈亏 (负值=对冲成本)
-    trading_cost: float = 0.0        # 交易成本 (负值)
-    funding_cost: float = 0.0        # 资金成本 (负值)
+    alpha_pnl: float = 0.0  # 选股超额
+    beta_pnl: float = 0.0  # 市场系统性
+    style_pnl: float = 0.0  # 风格因子
+    sector_pnl: float = 0.0  # 行业暴露
+    timing_pnl: float = 0.0  # 择时
+    hedge_pnl: float = 0.0  # 对冲盈亏 (负值=对冲成本)
+    trading_cost: float = 0.0  # 交易成本 (负值)
+    funding_cost: float = 0.0  # 资金成本 (负值)
 
     # 因子明细
     style_factors: List[FactorContribution] = field(default_factory=list)
     sector_factors: List[FactorContribution] = field(default_factory=list)
 
     # 风险指标
-    information_ratio: float = 0.0    # IR = Alpha / Tracking Error
+    information_ratio: float = 0.0  # IR = Alpha / Tracking Error
     tracking_error: float = 0.0
     sharpe_ratio: float = 0.0
 
@@ -119,25 +122,25 @@ class PnLAttributionEngine:
 
     # 七大风格因子 (与 factor_model.py 对齐)
     STYLE_FACTORS = [
-        "momentum",          # 动量 20%
-        "reversal",          # 反转 15%
-        "volatility",        # 波动率 15%
-        "liquidity",         # 流动性 10%
+        "momentum",  # 动量 20%
+        "reversal",  # 反转 15%
+        "volatility",  # 波动率 15%
+        "liquidity",  # 流动性 10%
         "earnings_quality",  # 盈利质量 15%
-        "growth",            # 成长 15%
-        "valuation",         # 估值 10%
+        "growth",  # 成长 15%
+        "valuation",  # 估值 10%
     ]
 
     # 行业分类 (十五五规划相关)
     SECTORS = [
-        "tech",              # 科技 (含算力)
-        "manufacturing",     # 高端制造
-        "cyclical",          # 顺周期
-        "resources",         # 资源
-        "defensive",         # 防御
-        "finance",           # 金融
-        "consumer",          # 消费
-        "healthcare",        # 医药
+        "tech",  # 科技 (含算力)
+        "manufacturing",  # 高端制造
+        "cyclical",  # 顺周期
+        "resources",  # 资源
+        "defensive",  # 防御
+        "finance",  # 金融
+        "consumer",  # 消费
+        "healthcare",  # 医药
     ]
 
     def __init__(self, risk_free_rate: float = 0.025):
@@ -190,7 +193,7 @@ class PnLAttributionEngine:
         else:
             cumulative = 1.0
             for r in portfolio_returns:
-                cumulative *= (1 + r)
+                cumulative *= 1 + r
             total_return_pct = cumulative - 1
         total_pnl = portfolio_value * total_return_pct
 
@@ -204,14 +207,10 @@ class PnLAttributionEngine:
         )
 
         # === 1. Beta 分解 ===
-        result.beta_pnl = self._calc_beta_pnl(
-            positions, portfolio_returns, market_returns, portfolio_value
-        )
+        result.beta_pnl = self._calc_beta_pnl(positions, portfolio_returns, market_returns, portfolio_value)
 
         # === 2. Alpha 分解 (相对于基准的超额) ===
-        result.alpha_pnl = self._calc_alpha_pnl(
-            positions, portfolio_returns, benchmark_returns, portfolio_value
-        )
+        result.alpha_pnl = self._calc_alpha_pnl(positions, portfolio_returns, benchmark_returns, portfolio_value)
 
         # === 3. 风格因子归因 ===
         result.style_pnl, result.style_factors = self._calc_style_attribution(
@@ -225,17 +224,19 @@ class PnLAttributionEngine:
 
         # === 5. 择时收益 (总收益 - alpha - beta - style - sector) ===
         explained = (
-            result.alpha_pnl + result.beta_pnl +
-            result.style_pnl + result.sector_pnl +
-            result.hedge_pnl + result.trading_cost + result.funding_cost
+            result.alpha_pnl
+            + result.beta_pnl
+            + result.style_pnl
+            + result.sector_pnl
+            + result.hedge_pnl
+            + result.trading_cost
+            + result.funding_cost
         )
         result.timing_pnl = total_pnl - explained
 
         # === 6. 风险指标 ===
         result.tracking_error = self._calc_tracking_error(portfolio_returns, benchmark_returns)
-        result.information_ratio = self._calc_information_ratio(
-            portfolio_returns, benchmark_returns
-        )
+        result.information_ratio = self._calc_information_ratio(portfolio_returns, benchmark_returns)
         result.sharpe_ratio = self._calc_sharpe_ratio(portfolio_returns)
 
         # === 7. 异常检测 ===
@@ -246,7 +247,9 @@ class PnLAttributionEngine:
 
         logger.info(
             "[PnLAttribution] %s 总收益 %.2f%% (¥%.0f) | Alpha %.2f%% | Beta %.2f%% | Style %.2f%% | Sector %.2f%% | Timing %.2f%%",
-            attribution_date, total_return_pct * 100, total_pnl,
+            attribution_date,
+            total_return_pct * 100,
+            total_pnl,
             result.alpha_pnl / portfolio_value * 100,
             result.beta_pnl / portfolio_value * 100,
             result.style_pnl / portfolio_value * 100,
@@ -306,8 +309,8 @@ class PnLAttributionEngine:
         portfolio_cum = 1.0
         bench_cum = 1.0
         for i in range(n):
-            portfolio_cum *= (1 + portfolio_returns[i])
-            bench_cum *= (1 + benchmark_returns[i])
+            portfolio_cum *= 1 + portfolio_returns[i]
+            bench_cum *= 1 + benchmark_returns[i]
         alpha_return = portfolio_cum - bench_cum
         return alpha_return * portfolio_value
 
@@ -355,20 +358,22 @@ class PnLAttributionEngine:
                 # 累积因子收益
                 cum = 1.0
                 for r in f_returns:
-                    cum *= (1 + r)
+                    cum *= 1 + r
                 f_return = cum - 1
 
             contribution = exp * f_return * portfolio_value
             total_style_pnl += contribution
 
-            contributions.append(FactorContribution(
-                factor_name=factor,
-                contribution=contribution,
-                contribution_pct=contribution / portfolio_value,
-                exposure=exp,
-                factor_return=f_return,
-                is_significant=abs(contribution / portfolio_value) > 0.005,
-            ))
+            contributions.append(
+                FactorContribution(
+                    factor_name=factor,
+                    contribution=contribution,
+                    contribution_pct=contribution / portfolio_value,
+                    exposure=exp,
+                    factor_return=f_return,
+                    is_significant=abs(contribution / portfolio_value) > 0.005,
+                )
+            )
 
         return total_style_pnl, contributions
 
@@ -416,20 +421,22 @@ class PnLAttributionEngine:
             else:
                 cum = 1.0
                 for r in s_returns:
-                    cum *= (1 + r)
+                    cum *= 1 + r
                 s_return = cum - 1
 
             contribution = weight * s_return * portfolio_value
             total_sector_pnl += contribution
 
-            contributions.append(FactorContribution(
-                factor_name=sector,
-                contribution=contribution,
-                contribution_pct=contribution / portfolio_value,
-                exposure=weight,
-                factor_return=s_return,
-                is_significant=abs(weight) > 0.05,
-            ))
+            contributions.append(
+                FactorContribution(
+                    factor_name=sector,
+                    contribution=contribution,
+                    contribution_pct=contribution / portfolio_value,
+                    exposure=weight,
+                    factor_return=s_return,
+                    is_significant=abs(weight) > 0.05,
+                )
+            )
 
         return total_sector_pnl, contributions
 
@@ -471,8 +478,8 @@ class PnLAttributionEngine:
         p_cum = 1.0
         b_cum = 1.0
         for i in range(n):
-            p_cum *= (1 + portfolio_returns[i])
-            b_cum *= (1 + benchmark_returns[i])
+            p_cum *= 1 + portfolio_returns[i]
+            b_cum *= 1 + benchmark_returns[i]
         alpha_return = p_cum - b_cum
 
         return alpha_return / te
@@ -544,10 +551,10 @@ class PnLAttributionEngine:
         """生成归因摘要"""
         lines = [
             f"P&L 归因摘要 ({result.attribution_date})",
-            f"=" * 50,
+            "=" * 50,
             f"总收益: ¥{result.total_pnl:,.0f} ({result.total_return_pct:.2%})",
-            f"",
-            f"分解:",
+            "",
+            "分解:",
             f"  Alpha (选股超额):     ¥{result.alpha_pnl:,.0f}",
             f"  Beta (市场系统性):    ¥{result.beta_pnl:,.0f}",
             f"  Style (风格因子):     ¥{result.style_pnl:,.0f}",
@@ -556,8 +563,8 @@ class PnLAttributionEngine:
             f"  Hedge (对冲):         ¥{result.hedge_pnl:,.0f}",
             f"  Trading Cost (成本):  ¥{result.trading_cost:,.0f}",
             f"  Funding (资金):        ¥{result.funding_cost:,.0f}",
-            f"",
-            f"风险指标:",
+            "",
+            "风险指标:",
             f"  Sharpe Ratio:         {result.sharpe_ratio:.2f}",
             f"  Information Ratio:    {result.information_ratio:.2f}",
             f"  Tracking Error:       {result.tracking_error:.2%}",
@@ -602,7 +609,7 @@ class PnLAttributionEngine:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(result.to_dict(), f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"归因报告已保存: {path}")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存归因报告失败: {e}")
         return path
 
@@ -625,16 +632,41 @@ if __name__ == "__main__":
     if args.simulate:
         # 模拟持仓
         positions = [
-            {"code": "300308", "name": "中际旭创", "weight": 0.15, "sector": "tech",
-             "style_exposures": {"momentum": 0.8, "growth": 0.7, "valuation": -0.3}},
-            {"code": "002475", "name": "立讯精密", "weight": 0.08, "sector": "tech",
-             "style_exposures": {"momentum": 0.5, "growth": 0.6, "valuation": -0.2}},
-            {"code": "600519", "name": "贵州茅台", "weight": 0.10, "sector": "consumer",
-             "style_exposures": {"earnings_quality": 0.9, "valuation": 0.5, "momentum": 0.3}},
-            {"code": "601088", "name": "中国神华", "weight": 0.12, "sector": "cyclical",
-             "style_exposures": {"valuation": 0.8, "earnings_quality": 0.7, "momentum": 0.2}},
-            {"code": "ETF", "name": "黄金ETF华安", "weight": 0.15, "sector": "resources",
-             "style_exposures": {"reversal": 0.3, "volatility": -0.2}},
+            {
+                "code": "300308",
+                "name": "中际旭创",
+                "weight": 0.15,
+                "sector": "tech",
+                "style_exposures": {"momentum": 0.8, "growth": 0.7, "valuation": -0.3},
+            },
+            {
+                "code": "002475",
+                "name": "立讯精密",
+                "weight": 0.08,
+                "sector": "tech",
+                "style_exposures": {"momentum": 0.5, "growth": 0.6, "valuation": -0.2},
+            },
+            {
+                "code": "600519",
+                "name": "贵州茅台",
+                "weight": 0.10,
+                "sector": "consumer",
+                "style_exposures": {"earnings_quality": 0.9, "valuation": 0.5, "momentum": 0.3},
+            },
+            {
+                "code": "601088",
+                "name": "中国神华",
+                "weight": 0.12,
+                "sector": "cyclical",
+                "style_exposures": {"valuation": 0.8, "earnings_quality": 0.7, "momentum": 0.2},
+            },
+            {
+                "code": "ETF",
+                "name": "黄金ETF华安",
+                "weight": 0.15,
+                "sector": "resources",
+                "style_exposures": {"reversal": 0.3, "volatility": -0.2},
+            },
         ]
 
         # 模拟 30 天收益
@@ -672,5 +704,5 @@ if __name__ == "__main__":
             hedge_pnl=-2000.0,
         )
 
-        print(result.summary)
+        logger.info(result.summary)
         engine.save_report(result)

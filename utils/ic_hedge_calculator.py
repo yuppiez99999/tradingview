@@ -30,49 +30,50 @@ IC 合约规格 (中金所):
         ic_price=5500.0,
     )
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import math
-from dataclasses import dataclass, asdict, field
-from datetime import date, datetime
-from pathlib import Path
-from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+from datetime import date
+from typing import Dict, Optional, Any
 
 logger = logging.getLogger("ic_hedge")
 
 # ============================================================
 # IC 合约规格 (中证500股指期货)
 # ============================================================
-IC_MULTIPLIER = 200.0          # 合约乘数: 200 元/点
-IC_MARGIN_RATE = 0.12           # 保证金比例: 12%
-IC_MIN_TICK = 0.2               # 最小变动价位
-IC_MAX_CONTRACTS = 3            # v10.0 限制: 最多 3 张 (quant_neutral_account.short_contracts_max)
-IC_BASIS_THRESHOLD = 0.015      # 贴水 1.5% 触发减仓
-IC_BASIS_REDUCE_PCT = 0.30      # 贴水超限时减少 30% 对冲量
-DEFAULT_TARGET_BETA = 0.05      # 目标 beta
-MAX_NET_EXPOSURE = 0.10         # 最大净敞口
-MARGIN_MAINTENANCE_MIN = 0.60   # 维持保证金最低 60%
+IC_MULTIPLIER = 200.0  # 合约乘数: 200 元/点
+IC_MARGIN_RATE = 0.12  # 保证金比例: 12%
+IC_MIN_TICK = 0.2  # 最小变动价位
+IC_MAX_CONTRACTS = 3  # v10.0 限制: 最多 3 张 (quant_neutral_account.short_contracts_max)
+IC_BASIS_THRESHOLD = 0.015  # 贴水 1.5% 触发减仓
+IC_BASIS_REDUCE_PCT = 0.30  # 贴水超限时减少 30% 对冲量
+DEFAULT_TARGET_BETA = 0.05  # 目标 beta
+MAX_NET_EXPOSURE = 0.10  # 最大净敞口
+MARGIN_MAINTENANCE_MIN = 0.60  # 维持保证金最低 60%
 
 
 @dataclass
 class ICHedgeResult:
     """IC 对冲计算结果"""
-    target_contracts: int = 0           # 目标做空合约数
-    hedge_notional: float = 0.0         # 对冲名义市值
-    required_margin: float = 0.0        # 所需保证金
-    margin_usage_ratio: float = 0.0      # 保证金占用率
-    net_beta: float = 0.0                # 对冲后净 beta
-    net_exposure: float = 0.0            # 净敞口
-    basis_warning: bool = False          # 基差警告 (贴水过高)
-    adjusted_contracts: int = 0          # 基差调整后实际合约数
-    ic_price: float = 0.0                # IC 点位
-    long_market_value: float = 0.0       # 多头组合市值
-    portfolio_beta: float = 0.0          # 原始组合 beta
-    target_beta: float = 0.0              # 目标 beta
-    feasible: bool = True                # 是否可行
-    reason: str = ""                     # 不可行原因
+
+    target_contracts: int = 0  # 目标做空合约数
+    hedge_notional: float = 0.0  # 对冲名义市值
+    required_margin: float = 0.0  # 所需保证金
+    margin_usage_ratio: float = 0.0  # 保证金占用率
+    net_beta: float = 0.0  # 对冲后净 beta
+    net_exposure: float = 0.0  # 净敞口
+    basis_warning: bool = False  # 基差警告 (贴水过高)
+    adjusted_contracts: int = 0  # 基差调整后实际合约数
+    ic_price: float = 0.0  # IC 点位
+    long_market_value: float = 0.0  # 多头组合市值
+    portfolio_beta: float = 0.0  # 原始组合 beta
+    target_beta: float = 0.0  # 目标 beta
+    feasible: bool = True  # 是否可行
+    reason: str = ""  # 不可行原因
 
 
 class ICHedgeCalculator:
@@ -155,6 +156,10 @@ class ICHedgeCalculator:
         # 3. 计算所需 IC 合约数
         # 使用 ceil 向上取整: 宁可过度对冲也不要敞口超限 (hedge fund 实务)
         contract_value = self.multiplier * ic_price  # 1 张 IC 合约名义价值
+        if contract_value <= 0:
+            result.target_contracts = 0
+            result.reason = f"合约价值无效 (multiplier={self.multiplier}, ic_price={ic_price})"
+            return result
         raw_contracts = hedge_notional / contract_value
         target_contracts = max(1, math.ceil(raw_contracts))  # 至少 1 张, 向上取整
 
@@ -171,18 +176,15 @@ class ICHedgeCalculator:
         if basis is not None and basis > self.basis_threshold:
             result.basis_warning = True
             # 贴水过高, 减少 30% 对冲量
-            adjusted = max(0, int(round(target_contracts * (1 - self.basis_reduce_pct))))
+            adjusted = max(0, round(target_contracts * (1 - self.basis_reduce_pct)))
             if adjusted == 0 and target_contracts > 0:
                 # 完全不对冲, 转向 ETF 组合
                 result.reason = (
-                    f"基差贴水 {basis*100:.2f}% > {self.basis_threshold*100:.0f}%, "
-                    f"减少 {self.basis_reduce_pct*100:.0f}% 对冲量, "
+                    f"基差贴水 {basis * 100:.2f}% > {self.basis_threshold * 100:.0f}%, "
+                    f"减少 {self.basis_reduce_pct * 100:.0f}% 对冲量, "
                     "建议转向 ETF + 个股直接组合"
                 )
-            logger.warning(
-                f"[IC对冲] 基差警告: 贴水 {basis*100:.2f}%, "
-                f"对冲量 {target_contracts} → {adjusted} 张"
-            )
+            logger.warning(f"[IC对冲] 基差警告: 贴水 {basis * 100:.2f}%, 对冲量 {target_contracts} → {adjusted} 张")
 
         result.adjusted_contracts = adjusted
 
@@ -206,7 +208,7 @@ class ICHedgeCalculator:
                     result.feasible = False
                     result.reason = (
                         f"可用保证金不足: 需要 ¥{required_margin:,.0f}, "
-                        f"维持率要求 ≥ {MARGIN_MAINTENANCE_MIN*100:.0f}%"
+                        f"维持率要求 ≥ {MARGIN_MAINTENANCE_MIN * 100:.0f}%"
                     )
 
         # 8. 计算对冲后净 beta 和净敞口
@@ -222,15 +224,11 @@ class ICHedgeCalculator:
         # 9. 净敞口超限警告
         if result.net_exposure > MAX_NET_EXPOSURE:
             logger.warning(
-                f"[IC对冲] 净敞口 {result.net_exposure:.2%} 超过上限 {MAX_NET_EXPOSURE:.0%}, "
-                "需减少多头仓位或增加对冲"
+                f"[IC对冲] 净敞口 {result.net_exposure:.2%} 超过上限 {MAX_NET_EXPOSURE:.0%}, 需减少多头仓位或增加对冲"
             )
 
         if capped:
-            result.reason = (
-                f"已达最大合约数上限 {self.max_contracts} 张, "
-                f"建议增加 ETF + 个股直接组合以降低 beta"
-            )
+            result.reason = f"已达最大合约数上限 {self.max_contracts} 张, 建议增加 ETF + 个股直接组合以降低 beta"
 
         return result
 
@@ -406,8 +404,8 @@ if __name__ == "__main__":
         basis=args.basis,
     )
 
-    print(calc.summary(result))
+    logger.info(calc.summary(result))
 
-    print("\n对冲指令:")
+    logger.info("\n对冲指令:")
     order = calc.build_hedge_order(result)
-    print(json.dumps(order, ensure_ascii=False, indent=2, default=str))
+    logger.info(json.dumps(order, ensure_ascii=False, indent=2, default=str))

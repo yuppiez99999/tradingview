@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import threading
 import time
@@ -756,7 +755,7 @@ class TestFindNextProvider:
 
     def test_find_next_p1_to_p6(self, flag_enabled_layer: DataLayer) -> None:
         """P1 → P6 (跳过 P2-P5 因降级链只有 3 级)."""
-        level, name = flag_enabled_layer._find_next_provider("P1")
+        level, _name = flag_enabled_layer._find_next_provider("P1")
         assert level == "P2"  # 全局级别
         # 但当前 chain 中没有 P2, 返回 name=None
         # 实际逻辑: 找到下一个 chain entry, 但 P2 不在 chain 中

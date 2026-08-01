@@ -20,15 +20,13 @@
 
 from __future__ import annotations
 
-import os
 import sys
 import json
-import math
 import logging
 import argparse
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple, Any
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
@@ -287,7 +285,7 @@ class DailyBuildHedgeSystem:
                     logger.info(f"宽基ETF国家队加减仓已应用: {adj_result.get('summary')}")
                 else:
                     logger.info(f"宽基ETF国家队加减仓未应用: {adj_result.get('reason')}")
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning(f"宽基ETF加减仓集成失败, 维持基准权重: {e}")
 
         sheet = executor.generate_daily_orders(
@@ -477,7 +475,7 @@ class DailyBuildHedgeSystem:
             try:
                 with open(BASE_DIR / "500万建仓计划_20260706.json", "r", encoding="utf-8") as f:
                     self._target_plan_cache = json.load(f)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning(f"加载目标建仓计划失败: {e}")
                 self._target_plan_cache = {}
         return self._target_plan_cache
@@ -503,7 +501,7 @@ class DailyBuildHedgeSystem:
             self.realtime_quotes = quotes
             logger.info(f"实时行情已获取: {len(quotes)} 只标的 (源: 东财/腾讯)")
             return quotes
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"实时行情获取失败: {e}")
             self.realtime_quotes = {}
             return {}
@@ -669,7 +667,7 @@ class DailyBuildHedgeSystem:
                     f"{h['level']} | {h['action']} |"
                 )
             lines.append("")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"合规校验展示失败: {e}")
             lines.append("## 六、十五五规划 + 康波周期 合规校验")
             lines.append("")
@@ -709,7 +707,7 @@ class DailyBuildHedgeSystem:
                         f"{target_w:.2%} | {scale:.2f}x |"
                     )
                 lines.append("")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"宽基ETF加减仓展示失败: {e}")
             lines.append("## 七、宽基ETF 社保国家队资金流加减仓")
             lines.append("")
@@ -746,7 +744,7 @@ class DailyBuildHedgeSystem:
                         f"{mc:.1f} | {q.get('source', '?')} |"
                     )
                 lines.append("")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"实时行情快照展示失败: {e}")
             lines.append("## 八、实时行情快照")
             lines.append("")
@@ -851,7 +849,7 @@ class DailyBuildHedgeSystem:
                 lines.append("- ETF资金流决策引擎暂不可用 (数据获取失败或LLM未配置)")
                 lines.append("- 继续使用规则引擎进行宽基ETF加减仓 (第七节)")
                 lines.append("")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"ETF资金流决策展示失败: {e}")
             lines.append("## 九、ETF资金流向盘前/盘中决策")
             lines.append("")
@@ -902,7 +900,7 @@ class DailyBuildHedgeSystem:
                     for c in get_broad_based_codes(target_plan)
                 ],
             }
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"报告JSON合规/加减仓数据收集失败: {e}")
 
         with open(json_path, "w", encoding="utf-8") as f:
@@ -934,7 +932,7 @@ class DailyBuildHedgeSystem:
         logger.info(f"市场状态: {self.market_state.get('market_regime')}")
 
         self.calculate_risk_budget(phase)
-        logger.info(f"风险预算计算完成")
+        logger.info("风险预算计算完成")
 
         self.generate_build_instructions(phase)
         morning_count = len(self.build_plan.get("morning_orders", []))
@@ -1012,6 +1010,6 @@ if __name__ == "__main__":
 
     if args.save:
         md_path, json_path = system.save_report(args.output_dir)
-        print(f"\n报告已保存:", file=sys.stderr)
+        print("\n报告已保存:", file=sys.stderr)
         print(f"  Markdown: {md_path}", file=sys.stderr)
         print(f"  JSON:     {json_path}", file=sys.stderr)

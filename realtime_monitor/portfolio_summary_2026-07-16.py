@@ -174,7 +174,6 @@ def build_position_report():
 
     # 组合总览
     total_return_pct = (total_pnl / total_cost * 100.0) if total_cost else 0.0
-    total_assets = total_market
     hedge_capital = float(meta.get("hedge_capital", 1000000))
     stock_etf_capital = float(meta.get("stock_etf_capital", 4000000))
     total_capital = float(meta.get("total_capital", 5000000))

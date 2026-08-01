@@ -27,18 +27,25 @@ AI 报告代理 (AI Report Agent)
   - 可审计: 每次分析记录输入/输出/模型/耗时
 """
 
-import os
 import sys
 import json
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 from utils.logger import get_logger
 
-logger = get_logger('ai_report_agent')
+logger = get_logger("ai_report_agent")
+
+# MarkItDown 适配器 (可选, 用于导入外部研报)
+try:
+    from utils.markitdown_adapter import MarkItDownAdapter
+    _MARKITDOWN_AVAILABLE = True
+except ImportError:
+    _MARKITDOWN_AVAILABLE = False
+    MarkItDownAdapter = None  # type: ignore
 
 # ============================================================
 # 导入 LLM 客户端 (15_每日工作流/llm_client.py)
@@ -55,13 +62,14 @@ if _LLM_CLIENT_PATH.exists():
     if str(_LLM_CLIENT_PATH) not in sys.path:
         sys.path.insert(0, str(_LLM_CLIENT_PATH))
     try:
-        import llm_client  # type: ignore
+        import llm_client
+
         _chat_fn = llm_client.chat
         _generate_analysis_fn = llm_client.generate_analysis
         _test_connection_fn = llm_client.test_connection
         _LLM_CLIENT_AVAILABLE = True
         logger.info("AIReportAgent: llm_client.py 已加载 (豆包→DeepSeek→Ollama)")
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         logger.warning(f"AIReportAgent: llm_client 加载失败 ({e}), 启用规则引擎兜底")
 else:
     logger.warning(f"AIReportAgent: llm_client.py 路径不存在 ({_LLM_CLIENT_PATH}), 启用规则引擎兜底")
@@ -71,25 +79,28 @@ else:
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class SentimentResult:
     """情感分析结果"""
+
     title: str
-    sentiment: str = "neutral"          # positive/negative/neutral
-    score: float = 0.0                  # [-1, 1]
-    summary: str = ""                   # AI 摘要
+    sentiment: str = "neutral"  # positive/negative/neutral
+    score: float = 0.0  # [-1, 1]
+    summary: str = ""  # AI 摘要
     keywords: List[str] = field(default_factory=list)
-    confidence: float = 0.0             # [0, 1]
+    confidence: float = 0.0  # [0, 1]
 
 
 @dataclass
 class AnalysisRecord:
     """分析审计记录"""
+
     timestamp: str
-    analysis_type: str                 # sentiment/daily_report/signal_explain
+    analysis_type: str  # sentiment/daily_report/signal_explain
     model: str = "unknown"
-    input_summary: str = ""            # 输入摘要 (前 200 字)
-    output_summary: str = ""           # 输出摘要 (前 200 字)
+    input_summary: str = ""  # 输入摘要 (前 200 字)
+    output_summary: str = ""  # 输出摘要 (前 200 字)
     elapsed_ms: float = 0.0
     success: bool = True
     error: str = ""
@@ -98,22 +109,24 @@ class AnalysisRecord:
 @dataclass
 class DailyReport:
     """每日投资分析报告"""
+
     report_date: str
     generated_at: str
-    market_overview: str = ""          # 市场总览 (AI 生成)
-    portfolio_analysis: str = ""       # 组合分析
+    market_overview: str = ""  # 市场总览 (AI 生成)
+    portfolio_analysis: str = ""  # 组合分析
     news_highlights: List[Dict] = field(default_factory=list)  # 重要新闻
-    sentiment_summary: str = ""        # 情感汇总
-    trade_signals: List[Dict] = field(default_factory=list)    # 交易信号
-    risk_warnings: List[str] = field(default_factory=list)     # 风险提示
-    recommendations: List[str] = field(default_factory=list)   # 建议
-    model_used: str = "rule_engine"     # llm 名称 / rule_engine
+    sentiment_summary: str = ""  # 情感汇总
+    trade_signals: List[Dict] = field(default_factory=list)  # 交易信号
+    risk_warnings: List[str] = field(default_factory=list)  # 风险提示
+    recommendations: List[str] = field(default_factory=list)  # 建议
+    model_used: str = "rule_engine"  # llm 名称 / rule_engine
     raw_llm_output: str = ""
 
 
 # ============================================================
 # AI 报告代理
 # ============================================================
+
 
 class AIReportAgent:
     """AI 自动化分析/报告代理
@@ -125,20 +138,65 @@ class AIReportAgent:
 
     # 情感关键词词典 (规则引擎兜底用)
     POSITIVE_WORDS = [
-        "利好", "增长", "超预期", "突破", "创新高", "上涨", "盈利", "加仓",
-        "增持", "买入", "强劲", "复苏", "景气", "扩张", "订单", "中标",
-        "回购", "分红", "获批", "合作", "升级", "龙头",
+        "利好",
+        "增长",
+        "超预期",
+        "突破",
+        "创新高",
+        "上涨",
+        "盈利",
+        "加仓",
+        "增持",
+        "买入",
+        "强劲",
+        "复苏",
+        "景气",
+        "扩张",
+        "订单",
+        "中标",
+        "回购",
+        "分红",
+        "获批",
+        "合作",
+        "升级",
+        "龙头",
     ]
     NEGATIVE_WORDS = [
-        "利空", "下降", "亏损", "减持", "警示", "风险", "违规", "处罚",
-        "退市", "停牌", "暴跌", "下跌", "疲软", "萎缩", "滞销", "商誉减值",
-        "质押", "诉讼", "问询", "监管", "爆雷", "违约",
+        "利空",
+        "下降",
+        "亏损",
+        "减持",
+        "警示",
+        "风险",
+        "违规",
+        "处罚",
+        "退市",
+        "停牌",
+        "暴跌",
+        "下跌",
+        "疲软",
+        "萎缩",
+        "滞销",
+        "商誉减值",
+        "质押",
+        "诉讼",
+        "问询",
+        "监管",
+        "爆雷",
+        "违约",
     ]
 
     # 高严重性负面关键词 (触发交易暂停)
     CRITICAL_NEGATIVE_WORDS = [
-        "立案调查", "退市", "重大违规", "财务造假", "证监会处罚",
-        "强制退市", "爆雷", "违约", "质押爆仓",
+        "立案调查",
+        "退市",
+        "重大违规",
+        "财务造假",
+        "证监会处罚",
+        "强制退市",
+        "爆雷",
+        "违约",
+        "质押爆仓",
     ]
 
     def __init__(self, audit_log_dir: Optional[Path] = None):
@@ -151,8 +209,9 @@ class AIReportAgent:
     # LLM 调用封装
     # ----------------------------------------------------------
 
-    def _call_llm(self, prompt: str, system: str = "",
-                  temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
+    def _call_llm(
+        self, prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
+    ) -> Optional[str]:
         """调用 LLM (失败返回 None, 触发降级)"""
         if not self.llm_available or _chat_fn is None:
             return None
@@ -171,15 +230,22 @@ class AIReportAgent:
                 model = result.split("] ", 1)[0][1:]
                 result = result.split("] ", 1)[1]
             self._record_audit("llm_call", model, prompt, result, elapsed_ms, True)
-            return result
-        except Exception as e:
+            return result  # type: ignore
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"LLM 调用失败: {e}")
             self._record_audit("llm_call", "error", prompt, str(e), 0, False, str(e))
             return None
 
-    def _record_audit(self, analysis_type: str, model: str,
-                      input_text: str, output_text: str,
-                      elapsed_ms: float, success: bool, error: str = ""):
+    def _record_audit(
+        self,
+        analysis_type: str,
+        model: str,
+        input_text: str,
+        output_text: str,
+        elapsed_ms: float,
+        success: bool,
+        error: str = "",
+    ):
         """记录审计"""
         record = AnalysisRecord(
             timestamp=datetime.now().isoformat(),
@@ -200,8 +266,7 @@ class AIReportAgent:
     # 情感分析
     # ----------------------------------------------------------
 
-    def analyze_news_sentiment(self, news_items: List[Dict],
-                               use_llm: bool = True) -> List[SentimentResult]:
+    def analyze_news_sentiment(self, news_items: List[Dict], use_llm: bool = True) -> List[SentimentResult]:
         """批量分析新闻情感
 
         Args:
@@ -271,14 +336,16 @@ class AIReportAgent:
             for entry in data:
                 idx = int(entry.get("index", 0)) - 1
                 if 0 <= idx < len(news_items):
-                    results.append(SentimentResult(
-                        title=news_items[idx].get("title", ""),
-                        sentiment=entry.get("sentiment", "neutral"),
-                        score=float(entry.get("score", 0)),
-                        summary=entry.get("summary", ""),
-                        keywords=entry.get("keywords", []),
-                        confidence=0.8,
-                    ))
+                    results.append(
+                        SentimentResult(
+                            title=news_items[idx].get("title", ""),
+                            sentiment=entry.get("sentiment", "neutral"),
+                            score=float(entry.get("score", 0)),
+                            summary=entry.get("summary", ""),
+                            keywords=entry.get("keywords", []),
+                            confidence=0.8,
+                        )
+                    )
             return results if results else None
         except (json.JSONDecodeError, ValueError, KeyError) as e:
             logger.warning(f"LLM 情感分析 JSON 解析失败: {e}")
@@ -361,21 +428,21 @@ class AIReportAgent:
             # 筛选重要新闻 (强负面/强正面)
             for s in sentiments:
                 if abs(s.score) >= 0.5:
-                    report.news_highlights.append({
-                        "title": s.title,
-                        "sentiment": s.sentiment,
-                        "score": s.score,
-                        "summary": s.summary,
-                    })
+                    report.news_highlights.append(
+                        {
+                            "title": s.title,
+                            "sentiment": s.sentiment,
+                            "score": s.score,
+                            "summary": s.summary,
+                        }
+                    )
 
         # 风险预警 (检测重大负面新闻)
         for item in news_items or []:
             text = item.get("title", "") + " " + item.get("content", "")
             for word in self.CRITICAL_NEGATIVE_WORDS:
                 if word in text:
-                    report.risk_warnings.append(
-                        f"⚠️ 重大负面: 检测到 '{word}' (标的: {item.get('symbol', '未知')})"
-                    )
+                    report.risk_warnings.append(f"⚠️ 重大负面: 检测到 '{word}' (标的: {item.get('symbol', '未知')})")
                     break
 
         # 交易信号整理
@@ -385,19 +452,25 @@ class AIReportAgent:
                 confidence = pred.get("confidence", 0)
                 symbol = pred.get("symbol", "")
                 if direction != "NEUTRAL" and confidence >= 0.6:
-                    report.trade_signals.append({
-                        "symbol": symbol,
-                        "direction": direction,
-                        "confidence": confidence,
-                        "target_price": pred.get("target_price", 0),
-                        "method": pred.get("method", "unknown"),
-                    })
+                    report.trade_signals.append(
+                        {
+                            "symbol": symbol,
+                            "direction": direction,
+                            "confidence": confidence,
+                            "target_price": pred.get("target_price", 0),
+                            "method": pred.get("method", "unknown"),
+                        }
+                    )
 
         # LLM 生成市场总览与组合分析
         if self.llm_available:
             prompt = self._build_daily_report_prompt(
-                symbols, positions_data, predictions, report.news_highlights,
-                report.risk_warnings, report.trade_signals,
+                symbols,
+                positions_data,
+                predictions,
+                report.news_highlights,
+                report.risk_warnings,
+                report.trade_signals,
             )
             llm_output = self._call_llm(prompt, temperature=0.3, max_tokens=2500)
             if llm_output:
@@ -410,26 +483,24 @@ class AIReportAgent:
                         report.recommendations.append(line)
             else:
                 # LLM 不可用, 规则引擎兜底
-                report.market_overview = self._rule_market_overview(
-                    symbols, predictions, report.risk_warnings
-                )
+                report.market_overview = self._rule_market_overview(symbols, predictions, report.risk_warnings)
                 report.model_used = "rule_engine"
         else:
-            report.market_overview = self._rule_market_overview(
-                symbols, predictions, report.risk_warnings
-            )
+            report.market_overview = self._rule_market_overview(symbols, predictions, report.risk_warnings)
             report.model_used = "rule_engine"
 
-        report.portfolio_analysis = self._rule_portfolio_analysis(
-            symbols, positions_data, predictions
-        )
+        report.portfolio_analysis = self._rule_portfolio_analysis(symbols, positions_data, predictions)
 
         return report
 
     def _build_daily_report_prompt(
-        self, symbols: List[str], positions_data: Optional[Dict],
-        predictions: Optional[List[Dict]], news_highlights: List[Dict],
-        risk_warnings: List[str], trade_signals: List[Dict],
+        self,
+        symbols: List[str],
+        positions_data: Optional[Dict],
+        predictions: Optional[List[Dict]],
+        news_highlights: List[Dict],
+        risk_warnings: List[str],
+        trade_signals: List[Dict],
     ) -> str:
         """构造每日报告 prompt"""
         # 持仓摘要
@@ -451,27 +522,29 @@ class AIReportAgent:
             lines = []
             for p in predictions[:5]:
                 lines.append(
-                    f"  - {p.get('symbol','')}: {p.get('direction','')} "
-                    f"目标价{p.get('target_price',0):.2f} "
-                    f"置信度{p.get('confidence',0):.0%} ({p.get('method','')})"
+                    f"  - {p.get('symbol', '')}: {p.get('direction', '')} "
+                    f"目标价{p.get('target_price', 0):.2f} "
+                    f"置信度{p.get('confidence', 0):.0%} ({p.get('method', '')})"
                 )
             pred_summary = "\n".join(lines)
 
         # 新闻摘要
-        news_summary = "无重要新闻" if not news_highlights else "\n".join(
-            f"  - [{n['sentiment']}] {n['title']} (score={n['score']:.2f})"
-            for n in news_highlights[:5]
+        news_summary = (
+            "无重要新闻"
+            if not news_highlights
+            else "\n".join(f"  - [{n['sentiment']}] {n['title']} (score={n['score']:.2f})" for n in news_highlights[:5])
         )
 
         # 风险
-        risk_summary = "无风险预警" if not risk_warnings else "\n".join(
-            f"  - {w}" for w in risk_warnings
-        )
+        risk_summary = "无风险预警" if not risk_warnings else "\n".join(f"  - {w}" for w in risk_warnings)
 
         # 信号
-        signal_summary = "无交易信号" if not trade_signals else "\n".join(
-            f"  - {s['symbol']}: {s['direction']} 置信度{s['confidence']:.0%}"
-            for s in trade_signals[:5]
+        signal_summary = (
+            "无交易信号"
+            if not trade_signals
+            else "\n".join(
+                f"  - {s['symbol']}: {s['direction']} 置信度{s['confidence']:.0%}" for s in trade_signals[:5]
+            )
         )
 
         return f"""请生成今日投资分析报告。以下是市场数据摘要:
@@ -498,15 +571,12 @@ class AIReportAgent:
 4. 风险提示 (1-2句)
 """
 
-    def _rule_market_overview(self, symbols: List[str],
-                              predictions: Optional[List[Dict]],
-                              risk_warnings: List[str]) -> str:
+    def _rule_market_overview(
+        self, symbols: List[str], predictions: Optional[List[Dict]], risk_warnings: List[str]
+    ) -> str:
         """规则引擎市场总览 (LLM 不可用时兜底)"""
         if risk_warnings:
-            return (
-                f"今日检测到 {len(risk_warnings)} 条重大风险预警, "
-                f"建议暂停相关标的交易, 优先排查负面新闻。"
-            )
+            return f"今日检测到 {len(risk_warnings)} 条重大风险预警, 建议暂停相关标的交易, 优先排查负面新闻。"
         if predictions:
             up_count = sum(1 for p in predictions if p.get("direction") == "UP")
             down_count = sum(1 for p in predictions if p.get("direction") == "DOWN")
@@ -517,23 +587,24 @@ class AIReportAgent:
             return "多空均衡, 市场震荡。"
         return "暂无足够数据生成市场总览。"
 
-    def _rule_portfolio_analysis(self, symbols: List[str],
-                                  positions_data: Optional[Dict],
-                                  predictions: Optional[List[Dict]]) -> str:
+    def _rule_portfolio_analysis(
+        self, symbols: List[str], positions_data: Optional[Dict], predictions: Optional[List[Dict]]
+    ) -> str:
         """规则引擎组合分析"""
         if not positions_data or "positions" not in positions_data:
             return "持仓数据不可用。"
 
         total_symbols = len(symbols)
-        built_count = sum(
-            1 for s in symbols
-            if positions_data["positions"].get(s, {}).get("shares", 0) > 0
-        ) if positions_data else 0
+        built_count = (
+            sum(1 for s in symbols if positions_data["positions"].get(s, {}).get("shares", 0) > 0)
+            if positions_data
+            else 0
+        )
 
         pred_up = sum(1 for p in (predictions or []) if p.get("direction") == "UP")
         return (
             f"组合共 {total_symbols} 个标的, 已建仓 {built_count} 个 "
-            f"({built_count/total_symbols:.0%}), "
+            f"({built_count / total_symbols:.0%}), "
             f"其中 {pred_up} 个预测上涨。"
         )
 
@@ -546,17 +617,14 @@ class AIReportAgent:
         neu = sum(1 for s in sentiments if s.sentiment == "neutral")
         avg_score = sum(s.score for s in sentiments) / len(sentiments)
         return (
-            f"共分析 {len(sentiments)} 条新闻: "
-            f"利好 {pos} 条, 利空 {neg} 条, 中性 {neu} 条, "
-            f"平均情感分 {avg_score:+.2f}"
+            f"共分析 {len(sentiments)} 条新闻: 利好 {pos} 条, 利空 {neg} 条, 中性 {neu} 条, 平均情感分 {avg_score:+.2f}"
         )
 
     # ----------------------------------------------------------
     # 交易信号解读
     # ----------------------------------------------------------
 
-    def explain_trade_signals(self, predictions: List[Dict],
-                              news_sentiments: Optional[List[Dict]] = None) -> str:
+    def explain_trade_signals(self, predictions: List[Dict], news_sentiments: Optional[List[Dict]] = None) -> str:
         """将交易信号转化为可读建议
 
         Args:
@@ -573,10 +641,10 @@ class AIReportAgent:
         pred_text = []
         for p in predictions[:8]:
             pred_text.append(
-                f"- {p.get('symbol','')}: 方向={p.get('direction','')} "
-                f"目标价={p.get('target_price',0):.2f} "
-                f"置信度={p.get('confidence',0):.0%} "
-                f"方法={p.get('method','')}"
+                f"- {p.get('symbol', '')}: 方向={p.get('direction', '')} "
+                f"目标价={p.get('target_price', 0):.2f} "
+                f"置信度={p.get('confidence', 0):.0%} "
+                f"方法={p.get('method', '')}"
             )
         pred_block = "\n".join(pred_text)
 
@@ -584,10 +652,7 @@ class AIReportAgent:
         if news_sentiments:
             sent_lines = []
             for s in news_sentiments[:5]:
-                sent_lines.append(
-                    f"- {s.get('title','')}: {s.get('sentiment','')} "
-                    f"score={s.get('score',0):.2f}"
-                )
+                sent_lines.append(f"- {s.get('title', '')}: {s.get('sentiment', '')} score={s.get('score', 0):.2f}")
             sentiment_block = "\n".join(sent_lines)
 
         prompt = f"""请解读以下交易信号, 给出操作建议 (不要 markdown 代码块):
@@ -617,11 +682,13 @@ class AIReportAgent:
         if strong:
             lines.append("强信号标的:")
             for p in strong:
-                lines.append(f"  - {p.get('symbol','')}: {p.get('direction','')} 目标价{p.get('target_price',0):.2f}")
+                lines.append(
+                    f"  - {p.get('symbol', '')}: {p.get('direction', '')} 目标价{p.get('target_price', 0):.2f}"
+                )
         if weak:
             lines.append("弱信号标的 (建议观望):")
             for p in weak:
-                lines.append(f"  - {p.get('symbol','')}: {p.get('direction','')}")
+                lines.append(f"  - {p.get('symbol', '')}: {p.get('direction', '')}")
         return "\n".join(lines)
 
     # ----------------------------------------------------------
@@ -673,13 +740,44 @@ class AIReportAgent:
 
         return md_path
 
+    def import_external_report(self, file_path: str) -> str:
+        """导入外部研报/公告并转换为 Markdown.
+
+        使用 MarkItDown 适配器将 PDF/Word/Excel/PPT 转换为 Markdown,
+        供报告生成管道引用外部研究材料.
+
+        Args:
+            file_path: 外部文档路径 (PDF/Word/Excel/PPT等)
+
+        Returns:
+            Markdown 文本, 不可用时返回占位提示
+        """
+        if not _MARKITDOWN_AVAILABLE:
+            logger.warning("MarkItDown 适配器不可用, 无法导入外部文档")
+            return f"[外部文档导入不可用: {Path(file_path).name}]"
+
+        try:
+            adapter = MarkItDownAdapter.get_instance()
+            md_text = adapter.convert_to_markdown(file_path)
+            if md_text:
+                logger.info(f"外部文档导入成功: {Path(file_path).name} → {len(md_text)} 字符")
+                return md_text
+            logger.warning(f"外部文档转换失败: {file_path}")
+            return f"[文档转换失败: {Path(file_path).name}]"
+        except Exception as e:
+            logger.error(f"导入外部文档异常: {e}")
+            return f"[文档导入异常: {e}]"
+
     def save_audit_logs(self) -> Path:
         """保存审计日志"""
         log_path = self.audit_log_dir / f"audit_{datetime.now().strftime('%Y%m%d')}.json"
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(
                 [r.__dict__ for r in self.audit_records],
-                f, ensure_ascii=False, indent=2, default=str,
+                f,
+                ensure_ascii=False,
+                indent=2,
+                default=str,
             )
         return log_path
 
@@ -697,7 +795,7 @@ class AIReportAgent:
         if self.llm_available and _test_connection_fn is not None:
             try:
                 status["llm_status"] = _test_connection_fn()
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 status["llm_status"] = {"error": str(e)}
         return status
 
@@ -739,7 +837,7 @@ class AIReportAgent:
 
         try:
             sentiments = self.analyze_news_sentiment(news_items, use_llm=True)
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("to_agent_decision: analyze_news_sentiment 异常: %s", e)
             return {
                 "agent_name": "ai_report_adapter",
@@ -847,7 +945,8 @@ def generate_daily_report(symbols: List[str], **kwargs) -> Dict:
 # 自检
 # ============================================================
 
-import re  # 延迟导入 (自检时需要)
+import re  # noqa: E402  # 延迟导入 (自检时需要)
+
 
 def self_test() -> bool:
     """模块自检 (不发起 LLM 调用, 仅验证类与规则引擎)"""
@@ -874,7 +973,13 @@ def self_test() -> bool:
             symbols=["002371", "688041"],
             positions_data={"positions": {"002371": {"name": "北方华创", "shares": 100, "weight": 0.04}}},
             predictions=[
-                {"symbol": "002371", "direction": "UP", "target_price": 825.0, "confidence": 0.8, "method": "tensorflow"},
+                {
+                    "symbol": "002371",
+                    "direction": "UP",
+                    "target_price": 825.0,
+                    "confidence": 0.8,
+                    "method": "tensorflow",
+                },
                 {"symbol": "688041", "direction": "DOWN", "target_price": 340.0, "confidence": 0.6, "method": "arima"},
             ],
             news_items=fake_news,
@@ -887,9 +992,11 @@ def self_test() -> bool:
         assert len(report.risk_warnings) > 0
 
         # 测试信号解读 (规则引擎兜底)
-        explain = agent.explain_trade_signals([
-            {"symbol": "002371", "direction": "UP", "target_price": 825.0, "confidence": 0.8, "method": "tf"},
-        ])
+        explain = agent.explain_trade_signals(
+            [
+                {"symbol": "002371", "direction": "UP", "target_price": 825.0, "confidence": 0.8, "method": "tf"},
+            ]
+        )
         assert "信号汇总" in explain
 
         # 测试状态
@@ -902,8 +1009,9 @@ def self_test() -> bool:
         print(f"  - 测试报告模型: {report.model_used}")
         print(f"  - 风险预警数: {len(report.risk_warnings)}")
         return True
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         import traceback
+
         print(f"[FAIL] ai_report_agent.py 自检失败: {e}")
         traceback.print_exc()
         return False

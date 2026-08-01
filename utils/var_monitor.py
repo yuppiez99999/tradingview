@@ -17,11 +17,11 @@ VaR (Value at Risk) 监控模块
     if result["var_95_breach"]:
         actions = vm.execute_breach_response("var_95")
 """
+
 from __future__ import annotations
 
 import json
 import logging
-import math
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union
@@ -42,13 +42,16 @@ class VaRMonitor:
     VAR_99_LIMIT_PCT = -0.05  # 99% VaR 日限额: -5%
     LOOKBACK_DAYS = 252  # 历史模拟法窗口
 
-    def __init__(self, lookback_days: int = None):
+    def __init__(self, lookback_days: Optional[int] = None):  # type: ignore
         self.lookback_days = lookback_days or self.LOOKBACK_DAYS
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    def calculate_var(self, returns_history: Union[List[float], np.ndarray],
-                      portfolio_value: float,
-                      confidence_levels: Optional[List[float]] = None) -> Dict[str, Any]:
+    def calculate_var(
+        self,
+        returns_history: Union[List[float], np.ndarray],
+        portfolio_value: float,
+        confidence_levels: Optional[List[float]] = None,
+    ) -> Dict[str, Any]:
         """计算 VaR (历史模拟法)
 
         Args:
@@ -81,7 +84,7 @@ class VaRMonitor:
 
         # 取最近 N 日
         if len(returns) > self.lookback_days:
-            returns = returns[-self.lookback_days:]
+            returns = returns[-self.lookback_days :]
 
         result: Dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
@@ -113,19 +116,16 @@ class VaRMonitor:
                     actions.append("99% VaR 超限: 减仓 20% + 加对冲")
 
         result["actions"] = actions
-        result["any_breach"] = any(
-            result.get(f"var_{int(cl * 100)}_breach", False)
-            for cl in confidence_levels
-        )
+        result["any_breach"] = any(result.get(f"var_{int(cl * 100)}_breach", False) for cl in confidence_levels)
 
         if result["any_breach"]:
             self._log_event(result)
 
         return result
 
-    def calculate_var_from_positions(self, positions: List[Dict[str, Any]],
-                                      returns_matrix: Dict[str, List[float]],
-                                      portfolio_value: float) -> Dict[str, Any]:
+    def calculate_var_from_positions(
+        self, positions: List[Dict[str, Any]], returns_matrix: Dict[str, List[float]], portfolio_value: float
+    ) -> Dict[str, Any]:
         """从持仓明细和各标的收益率序列计算组合 VaR
 
         Args:
@@ -138,12 +138,12 @@ class VaRMonitor:
         """
         # 构建组合日收益率序列
         dates = None
-        for symbol, rets in returns_matrix.items():
+        for _symbol, rets in returns_matrix.items():
             if dates is None or len(rets) < len(dates):
                 dates = list(range(len(rets)))
 
         portfolio_returns: List[float] = []
-        for i in dates:
+        for i in dates:  # type: ignore
             daily_ret = 0.0
             for pos in positions:
                 symbol = pos.get("code", "")
@@ -167,26 +167,30 @@ class VaRMonitor:
         actions: List[Dict] = []
 
         if var_type == "var_95":
-            actions.append({
-                "action": "reduce_position",
-                "pct": 0.10,
-                "reason": "95% VaR 超限",
-                "status": "pending_execute",
-            })
-        elif var_type == "var_99":
-            actions.extend([
+            actions.append(
                 {
                     "action": "reduce_position",
-                    "pct": 0.20,
-                    "reason": "99% VaR 超限",
+                    "pct": 0.10,
+                    "reason": "95% VaR 超限",
                     "status": "pending_execute",
-                },
-                {
-                    "action": "increase_hedge",
-                    "reason": "99% VaR 超限, 加大对冲",
-                    "status": "pending_execute",
-                },
-            ])
+                }
+            )
+        elif var_type == "var_99":
+            actions.extend(
+                [
+                    {
+                        "action": "reduce_position",
+                        "pct": 0.20,
+                        "reason": "99% VaR 超限",
+                        "status": "pending_execute",
+                    },
+                    {
+                        "action": "increase_hedge",
+                        "reason": "99% VaR 超限, 加大对冲",
+                        "status": "pending_execute",
+                    },
+                ]
+            )
 
         result = {
             "executed": True,
@@ -222,7 +226,7 @@ class VaRMonitor:
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"写入 VaR 日志失败: {e}")
 
     def get_event_history(self, days: int = 30) -> List[Dict]:
@@ -243,9 +247,9 @@ class VaRMonitor:
                             dt = datetime.fromisoformat(ts)
                             if dt.timestamp() >= cutoff:
                                 records.append(record)
-                    except Exception:
+                    except Exception:  # P2 模块 fail-safe, 待后续精确化
                         continue
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         return records
@@ -271,15 +275,15 @@ if __name__ == "__main__":
         np.random.seed(42)
         returns = np.random.normal(0.0003, 0.012, 252).tolist()
         result = vm.calculate_var(returns, args.portfolio)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        logger.info(json.dumps(result, ensure_ascii=False, indent=2))
 
         if result.get("any_breach"):
-            print("\n⚠️ VaR 超限!")
+            logger.info("\n⚠️ VaR 超限!")
             for a in result["actions"]:
-                print(f"  - {a}")
+                logger.info(f"  - {a}")
         else:
-            print("\n✅ VaR 在限额内")
+            logger.info("\n✅ VaR 在限额内")
 
-    print(f"\n历史模拟法窗口: {vm.lookback_days} 日")
-    print(f"95% VaR 限额: {vm.VAR_95_LIMIT_PCT:.0%} ({vm.VAR_95_LIMIT_PCT * args.portfolio:.0f} 元)")
-    print(f"99% VaR 限额: {vm.VAR_99_LIMIT_PCT:.0%} ({vm.VAR_99_LIMIT_PCT * args.portfolio:.0f} 元)")
+    logger.info(f"\n历史模拟法窗口: {vm.lookback_days} 日")
+    logger.info(f"95% VaR 限额: {vm.VAR_95_LIMIT_PCT:.0%} ({vm.VAR_95_LIMIT_PCT * args.portfolio:.0f} 元)")
+    logger.info(f"99% VaR 限额: {vm.VAR_99_LIMIT_PCT:.0%} ({vm.VAR_99_LIMIT_PCT * args.portfolio:.0f} 元)")

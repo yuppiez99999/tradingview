@@ -53,7 +53,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.8'
+  PYTHON_VERSION: '3.11'
   PYTHONUNBUFFERED: '1'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
   PIP_DEFAULT_TIMEOUT: '300'
@@ -90,19 +90,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install mypy pylint pyyaml pandas numpy
 
-      - name: MyPy Typecheck (utils/* — Phase 3-B 渐进式严格)
+      - name: MyPy Typecheck (utils/* — 阻断式)
         shell: powershell
-        # Phase 3-B: mypy 错误为非阻断 (渐进式严格模式)
-        # Phase 3-C 将改为阻断: || true 移除
-        continue-on-error: true
+        # P0-4 FIX: 移除 continue-on-error, mypy 错误现在阻断 PR 合并
+        # 渐进式严格模式由 mypy.ini 控制 (当前 strict_optional=False)
         run: |
           python -m mypy --config-file mypy.ini utils/
 
       - name: Pylint (utils/infra, utils/risk, utils/execution)
         shell: powershell
-        # Phase 3-B: pylint 错误为非阻断
-        # Phase 3-C 将改为阻断
-        continue-on-error: true
+        # P0-4 FIX: 移除 continue-on-error, pylint 错误现在阻断 PR 合并
         run: |
           python -m pylint --rcfile=.pylintrc utils/infra/ utils/risk/ utils/execution/ utils/data/
 
@@ -111,6 +108,51 @@ jobs:
         # 此脚本含 72 个断言, 任何失败即 CI 阻断
         run: |
           python scripts/_verify_phase3b_static_analysis.py
+
+  # ============================================================
+  # Job 1.5: Smoke Tests (GAP-1 — 快速验证导入/API/配置)
+  # ============================================================
+  smoke-tests:
+    name: Smoke Tests (GAP-1)
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            setup.py
+
+      - name: Install smoke dependencies
+        shell: powershell
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pyyaml pandas numpy scipy
+
+      - name: Run smoke runner script
+        shell: powershell
+        # GAP-1: 18 项烟雾测试, < 60s, 失败阻断合并
+        run: |
+          python scripts/_smoke_runner.py
+
+      - name: Run smoke pytest tests
+        shell: powershell
+        run: |
+          python -m pytest tests/smoke -v --tb=short -m "smoke"
+
+      - name: Smoke tests summary
+        if: always()
+        shell: powershell
+        run: |
+          Write-Host "Smoke tests completed. Status: ${{ job.status }}"
 
   # ============================================================
   # Job 2: Unit Tests (并行启动)
@@ -140,10 +182,54 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-cov pytest-xdist pyyaml pandas numpy
 
-      - name: Run unit tests (parallel)
+      - name: Select affected tests (GAP-5)
+        id: select-tests
         shell: powershell
+        # GAP-5: 智能测试选择, 基于 AST 依赖图只跑受影响测试
+        # 输出 ALL=全量 / NONE=无需跑 / 空格分隔的测试列表=子集
         run: |
-          python -m pytest tests/unit -v --tb=short -n auto -m "not slow"
+          $selected = python scripts/_select_tests_by_diff.py --quiet --base origin/${{ github.base_ref }} --head HEAD
+          Write-Host "Selected tests: $selected"
+          if ($selected -eq "ALL" -or $selected -eq "NONE") {
+            echo "run_full=true" >> $env:GITHUB_OUTPUT
+            echo "test_list=tests/unit" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "run_full=false" >> $env:GITHUB_OUTPUT
+            echo "test_list=$selected" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Run unit tests (parallel + coverage)
+        shell: powershell
+        # GAP-3: 覆盖率 CI 集成 --cov --cov-fail-under=60 (渐进式, 阶段 2 升 70)
+        # GAP-5: 智能测试选择, ${{ steps.select-tests.outputs.test_list }} 为受影响测试
+        run: |
+          python -m pytest ${{ steps.select-tests.outputs.test_list }} -v --tb=short -n auto -m "not slow" --cov=utils --cov=v8.3_institutional/src --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=60
+
+      - name: Run contract + unit-regression tests (快测层)
+        shell: powershell
+        # v8.6.12 新增: 数据契约测试 + 回归测试 (排除 integration 标记的慢测)
+        # - 契约测试: 16 项 <0.3s (纯 JSON Schema 校验)
+        # - 回归测试: 14 项 <0.5s (排除 1 项 integration 标记的 TDX 连接测试)
+        # 总耗时 <1s,作为 PR 快速闸门
+        run: |
+          python -m pytest tests/test_data_contracts.py tests/test_regression_bugfixes.py -v --tb=short -m "not integration and not slow" --cov=utils --cov=v8.3_institutional/src --cov-append --cov-report=term-missing
+
+      - name: Check coverage trend
+        if: always()
+        shell: powershell
+        # GAP-3: 覆盖率趋势检测, 下降 > 2% 时 exit 1
+        run: |
+          python scripts/_check_coverage_trend.py
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            htmlcov/
+          retention-days: 7
 
       - name: Unit tests summary
         if: always()
@@ -183,6 +269,13 @@ jobs:
         shell: powershell
         run: |
           python -m pytest tests/integration -v --tb=short -m "not slow"
+
+      - name: Run integration-marked regression tests (慢测层)
+        shell: powershell
+        # v8.6.12 新增: 跑 integration 标记的回归测试 (如 TDX 连接验证)
+        # 与单元回归测试分离,避免拖慢 PR 快测
+        run: |
+          python -m pytest tests/test_regression_bugfixes.py -v --tb=short -m "integration and not slow"
 
       - name: Integration tests summary
         if: always()
@@ -308,9 +401,10 @@ jobs:
         run: |
           python scripts/_run_v9_regression.py --full
 
-      - name: Run full test suite (含 nightly marked)
+      - name: Run full test suite (含 nightly marked + GAP-2 E2E)
         shell: powershell
         # nightly marker 测试默认 deselected, 这里主动包含
+        # GAP-2: tests/e2e/ 下的 E2E 测试 (含 test_ecc_ml_pipeline_e2e.py) 也在此跑
         run: |
           python -m pytest tests -v --tb=short
 
@@ -342,7 +436,7 @@ jobs:
   ci-summary:
     name: CI Summary (最终闸门)
     runs-on: windows-latest
-    needs: [lint-typecheck, unit-tests, integration-tests, reexport-compat, v9-quick-regression]
+    needs: [lint-typecheck, smoke-tests, unit-tests, integration-tests, reexport-compat, v9-quick-regression]
     if: always()
     timeout-minutes: 5
     steps:
@@ -350,6 +444,7 @@ jobs:
         shell: powershell
         run: |
           $lint = "${{ needs.lint-typecheck.result }}"
+          $smoke = "${{ needs.smoke-tests.result }}"
           $unit = "${{ needs.unit-tests.result }}"
           $integration = "${{ needs.integration-tests.result }}"
           $reexport = "${{ needs.reexport-compat.result }}"
@@ -359,14 +454,18 @@ jobs:
           Write-Host "CI Summary"
           Write-Host "============================================================"
           Write-Host "lint-typecheck:       $lint"
+          Write-Host "smoke-tests:          $smoke"
           Write-Host "unit-tests:           $unit"
           Write-Host "integration-tests:    $integration"
           Write-Host "reexport-compat:      $reexport"
           Write-Host "v9-quick-regression:  $v9"
           Write-Host "============================================================"
 
-          # 阻断条件: 阻断 job 失败 (continue-on-error 的 mypy/pylint 不参与阻断)
+          # P0-4 FIX: lint-typecheck 现已阻断 (移除了 continue-on-error)
+          # GAP-1: smoke-tests 加入阻断列表
           $failed = @()
+          if ($lint -ne "success") { $failed += "lint-typecheck" }
+          if ($smoke -ne "success") { $failed += "smoke-tests" }
           if ($unit -ne "success") { $failed += "unit-tests" }
           if ($integration -ne "success") { $failed += "integration-tests" }
           if ($reexport -ne "success") { $failed += "reexport-compat" }

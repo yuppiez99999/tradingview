@@ -20,17 +20,19 @@ Black-Litterman 组合优化器 (Black-Litterman Portfolio Optimizer)
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import json
 import numpy as np
+import pandas as pd
 
 
 # ============================================================
 # 数据结构
 # ============================================================
+
 
 @dataclass
 class View:
@@ -43,36 +45,39 @@ class View:
         # 相对观点: "标的 A 将跑赢 B 3%"
         View(type="relative", assets=["A", "B"], weights=[1.0, -1.0], expected_return=0.03, confidence=0.7)
     """
+
     type: str  # "absolute" or "relative"
     assets: List[str]
-    weights: List[float]          # P 矩阵的行向量
-    expected_return: float        # Q 向量元素
-    confidence: float = 0.5       # 观点置信度 (0-1), 越高 Ω 越小
+    weights: List[float]  # P 矩阵的行向量
+    expected_return: float  # Q 向量元素
+    confidence: float = 0.5  # 观点置信度 (0-1), 越高 Ω 越小
 
 
 @dataclass
 class BLResult:
     """Black-Litterman 优化结果"""
-    posterior_returns: np.ndarray           # 后验期望收益
-    posterior_cov: np.ndarray               # 后验协方差矩阵
-    optimal_weights: np.ndarray            # 最优权重
-    implied_equilibrium_returns: np.ndarray # 市场隐含收益 (Π)
-    assets: List[str]                       # 标的列表
-    views: List[View]                       # 观点列表
-    risk_aversion: float                    # 风险厌恶系数 δ
+
+    posterior_returns: np.ndarray  # 后验期望收益
+    posterior_cov: np.ndarray  # 后验协方差矩阵
+    optimal_weights: np.ndarray  # 最优权重
+    implied_equilibrium_returns: np.ndarray  # 市场隐含收益 (Π)
+    assets: List[str]  # 标的列表
+    views: List[View]  # 观点列表
+    risk_aversion: float  # 风险厌恶系数 δ
 
     # 诊断信息
-    weight_change_vs_market: np.ndarray    # vs 市场权重变化
-    diversification_ratio: float           # 分散化比率
-    effective_n: float                     # 有效持仓数
-    expected_portfolio_return: float       # 组合预期收益
-    expected_portfolio_vol: float          # 组合预期波动
-    sharpe_ratio: float                     # 夏普比率
+    weight_change_vs_market: np.ndarray  # vs 市场权重变化
+    diversification_ratio: float  # 分散化比率
+    effective_n: float  # 有效持仓数
+    expected_portfolio_return: float  # 组合预期收益
+    expected_portfolio_vol: float  # 组合预期波动
+    sharpe_ratio: float  # 夏普比率
 
 
 # ============================================================
 # Black-Litterman 优化器
 # ============================================================
+
 
 class BlackLittermanOptimizer:
     """Black-Litterman 组合优化器
@@ -98,17 +103,17 @@ class BlackLittermanOptimizer:
 
     def __init__(
         self,
-        risk_aversion: float = 2.5,      # δ 风险厌恶系数 (典型 2-4)
-        tau: float = 0.05,                # τ 观点不确定性缩放 (典型 0.025-0.05)
+        risk_aversion: float = 2.5,  # δ 风险厌恶系数 (典型 2-4)
+        tau: float = 0.05,  # τ 观点不确定性缩放 (典型 0.025-0.05)
         default_confidence: float = 0.5,
-        use_idzorek_omega: bool = True,   # Idzorek (2007) 置信度→Ω 方法
+        use_idzorek_omega: bool = True,  # Idzorek (2007) 置信度→Ω 方法
     ):
         if risk_aversion <= 0:
             raise ValueError(f"risk_aversion 必须 > 0, 实际 {risk_aversion}")
         if not (0 < tau <= 1):
             raise ValueError(f"tau 必须在 (0,1] 区间, 实际 {tau}")
         if not (0 <= default_confidence <= 1):
-            raise ValueError(f"default_confidence 必须在 [0,1] 区间")
+            raise ValueError("default_confidence 必须在 [0,1] 区间")
 
         self.delta = float(risk_aversion)
         self.tau = float(tau)
@@ -123,12 +128,12 @@ class BlackLittermanOptimizer:
         self,
         assets: List[str],
         market_weights: Union[List[float], np.ndarray],
-        cov_matrix: Union[np.ndarray, "pd.DataFrame"],  # type: ignore  # noqa: F821
+        cov_matrix: Union[np.ndarray, "pd.DataFrame"],  # type: ignore
         views: Optional[List[View]] = None,
         risk_free_rate: float = 0.03,
         target_return: Optional[float] = None,  # None=无约束, 数值=目标收益
-        max_weight: Optional[float] = None,      # 单一标的权重上限
-        min_weight: Optional[float] = 0.0,       # 单一标的权重下限
+        max_weight: Optional[float] = None,  # 单一标的权重上限
+        min_weight: Optional[float] = 0.0,  # 单一标的权重下限
     ) -> BLResult:
         """运行 Black-Litterman 优化
 
@@ -179,8 +184,12 @@ class BlackLittermanOptimizer:
 
         # 4. 均值-方差优化
         optimal_weights = self._mean_variance_optimize(
-            posterior_returns, posterior_cov, risk_free_rate,
-            target_return, max_weight, min_weight,
+            posterior_returns,
+            posterior_cov,
+            risk_free_rate,
+            target_return,
+            max_weight,
+            min_weight,
         )
 
         # 5. 诊断
@@ -194,7 +203,7 @@ class BlackLittermanOptimizer:
         weighted_avg_vol = float(optimal_weights @ marginal_vols)
         diversification_ratio = weighted_avg_vol / port_vol if port_vol > 0 else 1.0
         # 有效持仓数 (1/HHI)
-        hhi = float(np.sum(optimal_weights ** 2))
+        hhi = float(np.sum(optimal_weights**2))
         effective_n = 1.0 / hhi if hhi > 0 else 0.0
 
         return BLResult(
@@ -337,14 +346,14 @@ class BlackLittermanOptimizer:
         if max_weight is None and min_weight is None and target_return is None:
             # 简单归一化为满仓
             if w_unconstrained.sum() > 0:
-                return w_unconstrained / w_unconstrained.sum()
+                return w_unconstrained / w_unconstrained.sum()  # type: ignore
             # 全负则等权
             return np.ones(n) / n
 
         # 有约束: 使用 scipy
         try:
             from scipy.optimize import minimize
-            from scipy.linalg import cholesky, solve_triangular
+            from scipy.linalg import cholesky, solve_triangular  # noqa: F401
 
             def neg_sharpe(w):
                 ret = float(w @ expected_returns)
@@ -354,10 +363,12 @@ class BlackLittermanOptimizer:
             # 约束
             constraints = [{"type": "eq", "fun": lambda w: w.sum() - 1.0}]
             if target_return is not None:
-                constraints.append({
-                    "type": "eq",
-                    "fun": lambda w: float(w @ expected_returns) - target_return,
-                })
+                constraints.append(
+                    {
+                        "type": "eq",
+                        "fun": lambda w: float(w @ expected_returns) - target_return,
+                    }
+                )
 
             bounds = []
             for _ in range(n):
@@ -367,8 +378,11 @@ class BlackLittermanOptimizer:
 
             x0 = np.ones(n) / n  # 等权起点
             res = minimize(
-                neg_sharpe, x0, method="SLSQP",
-                bounds=bounds, constraints=constraints,
+                neg_sharpe,
+                x0,
+                method="SLSQP",
+                bounds=bounds,
+                constraints=constraints,
                 options={"maxiter": 200, "ftol": 1e-9},
             )
             if res.success:
@@ -376,7 +390,7 @@ class BlackLittermanOptimizer:
                 # 归一化 (数值误差)
                 if w.sum() > 0:
                     w = w / w.sum()
-                return w
+                return w  # type: ignore
         except ImportError:
             pass
 
@@ -387,7 +401,7 @@ class BlackLittermanOptimizer:
         if min_weight is not None:
             w = np.maximum(w, min_weight)
         if w.sum() > 0:
-            return w / w.sum()
+            return w / w.sum()  # type: ignore
         return np.ones(n) / n
 
     def _to_numpy_matrix(self, m) -> np.ndarray:
@@ -396,7 +410,7 @@ class BlackLittermanOptimizer:
             return m.astype(float)
         try:
             return np.asarray(m, dtype=float)
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             return np.array(m, dtype=float)
 
     # ------------------------------------------------------------
@@ -426,7 +440,8 @@ class BlackLittermanOptimizer:
                     "weights": v.weights,
                     "expected_return": v.expected_return,
                     "confidence": v.confidence,
-                } for v in result.views
+                }
+                for v in result.views
             ],
         }
         with open(path, "w", encoding="utf-8") as f:

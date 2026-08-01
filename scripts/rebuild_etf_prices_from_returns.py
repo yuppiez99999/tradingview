@@ -3,7 +3,6 @@
 import json
 import os
 import pandas as pd
-from datetime import datetime
 
 BASE_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))

@@ -110,7 +110,7 @@ try:
     from utils.config_manager import clear_config_cache
     clear_config_cache()
     ks = KillSwitch()
-    print(f"  KillSwitch 实例化: OK")
+    print("  KillSwitch 实例化: OK")
     print(f"  ks.config keys: {list(ks.config.keys())[:5]}")
     has_set_callback = hasattr(ks, "set_broker_callback")
     has_execute = hasattr(ks, "execute_kill_switch")
@@ -133,12 +133,12 @@ try:
     import daily_workflow
     v85_ready = getattr(daily_workflow, "V85_READY", None)
     failures = getattr(daily_workflow, "_V85_FAILURES", [])
-    print(f"  daily_workflow 导入: OK")
+    print("  daily_workflow 导入: OK")
     print(f"  V85_READY = {v85_ready}")
     if failures:
         print(f"  _V85_FAILURES = {failures}")
     else:
-        print(f"  _V85_FAILURES = [] (9/9 全部就绪)")
+        print("  _V85_FAILURES = [] (9/9 全部就绪)")
     # 检查 phase 方法
     phases = ["phase_check", "phase_signal", "phase_execute", "phase_report",
               "phase_shadow_monitor", "phase_factor_kill_switch"]

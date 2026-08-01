@@ -5,14 +5,13 @@ sys.path.insert(0, '.')
 
 print('=== 1. Import finance_agents package ===')
 from utils.finance_agents import (
-    BaseAgent, AgentDecision,
-    ValueAgent, MomentumAgent, SentimentAgent, RiskAgent, MacroAgent,
+    AgentDecision,
 )
 print('OK: 5 agents + BaseAgent + AgentDecision imported')
 
 print('=== 2. Import orchestrator ===')
 from utils.finance_agent_orchestrator import (
-    FinanceAgentOrchestrator, AgentConsensus, ShadowDiff,
+    FinanceAgentOrchestrator,
 )
 print('OK: orchestrator imported')
 

@@ -4,10 +4,10 @@ echo 安装每日对冲自动更新定时任务...
 echo.
 
 :: 设置变量
-set "PYTHON=C:\Program Files\Python38\python.exe"
-set "SCRIPT=E:\各种PY程序\28-终极量化交易系统7.1\daily_hedge_update.py"
+set "PYTHON=C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
+set "SCRIPT=E:\各种PY程序\28-终极量化交易系统8.4\daily_hedge_update.py"
 set "TASK_NAME=DailyHedgeUpdate"
-set "LOG_DIR=E:\各种PY程序\28-终极量化交易系统7.1\logs"
+set "LOG_DIR=E:\各种PY程序\28-终极量化交易系统8.4\logs"
 set "LOG_FILE=%LOG_DIR%\daily_hedge_update.log"
 
 :: 创建日志目录

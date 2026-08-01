@@ -11,11 +11,11 @@ v7.6 TCA (Transaction Cost Analysis) — 交易成本分析闭环
 
 TCA 闭环价值: 每笔交易节省 10-15bps = 确定性年化收益提升
 """
+
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -26,23 +26,24 @@ logger = logging.getLogger("v76.execution.tca")
 @dataclass
 class TradeRecord:
     """单笔交易记录"""
+
     symbol: str
-    side: str                    # 'BUY' | 'SELL'
-    order_qty: int               # 订单股数
-    fill_qty: int                # 成交股数
-    arrival_price: float         # 决策时价格
-    avg_fill_price: float        # 成交均价
-    vwap_benchmark: float        # 当日 VWAP
-    close_price: float           # 当日收盘价
-    decision_time: str           # ISO 时间
+    side: str  # 'BUY' | 'SELL'
+    order_qty: int  # 订单股数
+    fill_qty: int  # 成交股数
+    arrival_price: float  # 决策时价格
+    avg_fill_price: float  # 成交均价
+    vwap_benchmark: float  # 当日 VWAP
+    close_price: float  # 当日收盘价
+    decision_time: str  # ISO 时间
     first_fill_time: Optional[str] = None
     last_fill_time: Optional[str] = None
-    market_volume: float = 0.0   # 当日市场成交量
+    market_volume: float = 0.0  # 当日市场成交量
     commission_rate: float = 0.00025  # 佣金率 2.5bps
-    stamp_tax_rate: float = 0.001     # 印花税 10bps (仅卖出)
+    stamp_tax_rate: float = 0.001  # 印花税 10bps (仅卖出)
 
     # 订单属性
-    order_type: str = "LIMIT"    # LIMIT / MARKET / TWAP / VWAP / POV
+    order_type: str = "LIMIT"  # LIMIT / MARKET / TWAP / VWAP / POV
     limit_price: Optional[float] = None
     participation_rate: Optional[float] = None  # POV 订单参与率
 
@@ -53,6 +54,7 @@ class TradeRecord:
 @dataclass
 class TCAReportLine:
     """TCA 单笔分析结果"""
+
     symbol: str
     side: str
     order_qty: int
@@ -62,23 +64,23 @@ class TCAReportLine:
     # 成本分解 (单位: bps)
     commission_bps: float
     stamp_tax_bps: float
-    spread_cost_bps: float       # 买卖价差成本
-    slippage_bps: float          # 滑点: avg_fill - arrival (方向调整)
-    impact_bps: float            # 市场冲击: arrival - vwap (方向调整)
-    delay_bps: float             # 延迟成本: arrival - close (未成交部分)
-    opportunity_bps: float       # 机会成本: 未成交部分的 adverse move
+    spread_cost_bps: float  # 买卖价差成本
+    slippage_bps: float  # 滑点: avg_fill - arrival (方向调整)
+    impact_bps: float  # 市场冲击: arrival - vwap (方向调整)
+    delay_bps: float  # 延迟成本: arrival - close (未成交部分)
+    opportunity_bps: float  # 机会成本: 未成交部分的 adverse move
 
     total_cost_bps: float
     total_cost_rmb: float
-    vwap_vs_arrival_bps: float   # VWAP 相对 arrival 的偏移
-    fill_vs_vwap_bps: float      # 成交价相对 VWAP
-    fill_vs_close_bps: float     # 成交价相对收盘
+    vwap_vs_arrival_bps: float  # VWAP 相对 arrival 的偏移
+    fill_vs_vwap_bps: float  # 成交价相对 VWAP
+    fill_vs_close_bps: float  # 成交价相对收盘
 
     # 执行质量评分
-    vwap_score: float            # vs VWAP: >0 = 优于 VWAP
-    arrival_score: float         # vs Arrival: 绝对值越小越好
-    timing_score: float          # 时机选择评分
-    overall_score: float         # 0-100 综合评分
+    vwap_score: float  # vs VWAP: >0 = 优于 VWAP
+    arrival_score: float  # vs Arrival: 绝对值越小越好
+    timing_score: float  # 时机选择评分
+    overall_score: float  # 0-100 综合评分
 
 
 class TransactionCostAnalyzer:
@@ -98,9 +100,12 @@ class TransactionCostAnalyzer:
         summary = tca.rolling_summary(window_days=20)
     """
 
-    def __init__(self, nav: float = 5_000_000,
-                 spread_estimate: float = 0.0005,   # 5bps 平均价差
-                 impact_model: str = "sqrt"):       # 'sqrt' | 'linear'
+    def __init__(
+        self,
+        nav: float = 5_000_000,
+        spread_estimate: float = 0.0005,  # 5bps 平均价差
+        impact_model: str = "sqrt",
+    ):  # 'sqrt' | 'linear'
         self.nav = nav
         self.spread_estimate = spread_estimate
         self.impact_model = impact_model
@@ -123,7 +128,7 @@ class TransactionCostAnalyzer:
         if trade.arrival_price <= 0:
             return 0.0, 0.0
 
-        direction = 1 if trade.side == 'BUY' else -1
+        direction = 1 if trade.side == "BUY" else -1
         raw = (trade.avg_fill_price - trade.arrival_price) / trade.arrival_price
         slippage_bps = direction * raw * 10000
 
@@ -138,7 +143,7 @@ class TransactionCostAnalyzer:
         if trade.vwap_benchmark <= 0 or trade.avg_fill_price <= 0:
             return 0.0
 
-        direction = 1 if trade.side == 'BUY' else -1
+        direction = 1 if trade.side == "BUY" else -1
         vwap_diff = (trade.vwap_benchmark - trade.avg_fill_price) / trade.vwap_benchmark
         return round(direction * vwap_diff * 10000, 2)
 
@@ -181,7 +186,7 @@ class TransactionCostAnalyzer:
         if arrival <= 0 or close <= 0:
             return 0.0
 
-        direction = 1 if trade.side == 'BUY' else -1
+        direction = 1 if trade.side == "BUY" else -1
         adverse_move = direction * (close - arrival) / arrival
         opp_cost_bps = adverse_move * unfilled_ratio * 10000
 
@@ -192,7 +197,7 @@ class TransactionCostAnalyzer:
         if trade.arrival_price <= 0 or trade.vwap_benchmark <= 0:
             return 0.0
 
-        direction = 1 if trade.side == 'BUY' else -1
+        direction = 1 if trade.side == "BUY" else -1
         timing = direction * (trade.vwap_benchmark - trade.arrival_price) / trade.arrival_price
         return round(timing * 10000, 2)
 
@@ -203,7 +208,7 @@ class TransactionCostAnalyzer:
         commission_bps = round(trade.commission_rate * 10000, 2)
 
         # 印花税 (仅卖出)
-        stamp_tax_bps = round(trade.stamp_tax_rate * 10000, 1) if trade.side == 'SELL' else 0
+        stamp_tax_bps = round(trade.stamp_tax_rate * 10000, 1) if trade.side == "SELL" else 0
 
         # 价差成本
         spread_cost_bps = round(self.spread_estimate * 10000 / 2, 2)  # 半价差
@@ -223,18 +228,24 @@ class TransactionCostAnalyzer:
         # VWAP & 相对价格
         fill_rate = trade.fill_qty / max(trade.order_qty, 1)
         vwap_score = self._calc_vwap_score(trade)
-        vwap_vs_arrival = round(
-            (trade.vwap_benchmark / max(trade.arrival_price, 1e-8) - 1)
-            * (-1 if trade.side == 'SELL' else 1) * 10000,
-            2
-        ) if trade.arrival_price > 0 and trade.vwap_benchmark > 0 else 0
-        fill_vs_close = round(
-            (trade.avg_fill_price / max(trade.close_price, 1e-8) - 1) * 10000, 2
-        ) if trade.close_price > 0 else 0
+        vwap_vs_arrival = (
+            round(
+                (trade.vwap_benchmark / max(trade.arrival_price, 1e-8) - 1)
+                * (-1 if trade.side == "SELL" else 1)
+                * 10000,
+                2,
+            )
+            if trade.arrival_price > 0 and trade.vwap_benchmark > 0
+            else 0
+        )
+        fill_vs_close = (
+            round((trade.avg_fill_price / max(trade.close_price, 1e-8) - 1) * 10000, 2) if trade.close_price > 0 else 0
+        )
 
         # 总成本
-        total_cost_bps = commission_bps + stamp_tax_bps + spread_cost_bps \
-            + slippage_bps + impact_bps + timing_bps + opportunity_bps
+        total_cost_bps = (
+            commission_bps + stamp_tax_bps + spread_cost_bps + slippage_bps + impact_bps + timing_bps + opportunity_bps
+        )
         total_cost_rmb = round(total_cost_bps / 10000 * notional, 2)
 
         # 执行质量评分 (0-100)
@@ -249,9 +260,8 @@ class TransactionCostAnalyzer:
         timing_score = max(0, min(100, 100 - timing_abs * 2))
 
         overall_score = round(
-            arrival_score * 0.35 + vwap_norm_score * 0.25
-            + timing_score * 0.10 + fill_rate * 50 * 0.30
-        , 1)
+            arrival_score * 0.35 + vwap_norm_score * 0.25 + timing_score * 0.10 + fill_rate * 50 * 0.30, 1
+        )
 
         report = TCAReportLine(
             symbol=trade.symbol,
@@ -291,41 +301,42 @@ class TransactionCostAnalyzer:
             self.analyze()
 
         if not self.reports:
-            return {'n_trades': 0}
+            return {"n_trades": 0}
 
         # 按类型汇总
-        buys = [r for r in self.reports if r.side == 'BUY']
-        sells = [r for r in self.reports if r.side == 'SELL']
+        buys = [r for r in self.reports if r.side == "BUY"]
+        sells = [r for r in self.reports if r.side == "SELL"]
 
         def _avg(items, attr):
-            if not items: return 0
+            if not items:
+                return 0
             return round(np.mean([getattr(i, attr) for i in items]), 2)
 
         def _sum(items, attr):
             return round(sum(getattr(i, attr) for i in items), 2)
 
         return {
-            'n_trades': len(self.reports),
-            'n_buys': len(buys),
-            'n_sells': len(sells),
-            'avg_fill_rate': _avg(self.reports, 'fill_rate'),
+            "n_trades": len(self.reports),
+            "n_buys": len(buys),
+            "n_sells": len(sells),
+            "avg_fill_rate": _avg(self.reports, "fill_rate"),
             # 成本分解 (bps)
-            'avg_total_cost_bps': _avg(self.reports, 'total_cost_bps'),
-            'avg_commission_bps': _avg(self.reports, 'commission_bps'),
-            'avg_stamp_tax_bps': _avg(self.reports, 'stamp_tax_bps'),
-            'avg_spread_cost_bps': _avg(self.reports, 'spread_cost_bps'),
-            'avg_slippage_bps': _avg(self.reports, 'slippage_bps'),
-            'avg_impact_bps': _avg(self.reports, 'impact_bps'),
-            'avg_opportunity_bps': _avg(self.reports, 'opportunity_bps'),
-            'total_cost_rmb': _sum(self.reports, 'total_cost_rmb'),
+            "avg_total_cost_bps": _avg(self.reports, "total_cost_bps"),
+            "avg_commission_bps": _avg(self.reports, "commission_bps"),
+            "avg_stamp_tax_bps": _avg(self.reports, "stamp_tax_bps"),
+            "avg_spread_cost_bps": _avg(self.reports, "spread_cost_bps"),
+            "avg_slippage_bps": _avg(self.reports, "slippage_bps"),
+            "avg_impact_bps": _avg(self.reports, "impact_bps"),
+            "avg_opportunity_bps": _avg(self.reports, "opportunity_bps"),
+            "total_cost_rmb": _sum(self.reports, "total_cost_rmb"),
             # 执行质量
-            'avg_vwap_score': _avg(self.reports, 'vwap_score'),
-            'avg_overall_score': _avg(self.reports, 'overall_score'),
+            "avg_vwap_score": _avg(self.reports, "vwap_score"),
+            "avg_overall_score": _avg(self.reports, "overall_score"),
             # 拆分
-            'buy_total_cost_bps': _avg(buys, 'total_cost_bps'),
-            'sell_total_cost_bps': _avg(sells, 'total_cost_bps'),
-            'buy_slippage_bps': _avg(buys, 'slippage_bps'),
-            'sell_slippage_bps': _avg(sells, 'slippage_bps'),
+            "buy_total_cost_bps": _avg(buys, "total_cost_bps"),
+            "sell_total_cost_bps": _avg(sells, "total_cost_bps"),
+            "buy_slippage_bps": _avg(buys, "slippage_bps"),
+            "sell_slippage_bps": _avg(sells, "slippage_bps"),
         }
 
     def cost_attribution_report(self) -> Dict:
@@ -334,44 +345,41 @@ class TransactionCostAnalyzer:
 
         # 成本归因
         categories = {
-            '佣金': summary['avg_commission_bps'],
-            '印花税': summary['avg_stamp_tax_bps'],
-            '价差': summary['avg_spread_cost_bps'],
-            '滑点': summary['avg_slippage_bps'],
-            '冲击': summary['avg_impact_bps'],
-            '机会': summary['avg_opportunity_bps'],
+            "佣金": summary["avg_commission_bps"],
+            "印花税": summary["avg_stamp_tax_bps"],
+            "价差": summary["avg_spread_cost_bps"],
+            "滑点": summary["avg_slippage_bps"],
+            "冲击": summary["avg_impact_bps"],
+            "机会": summary["avg_opportunity_bps"],
         }
 
         total = sum(v for v in categories.values())
-        attribution = {
-            cat: round(val / max(total, 0.01) * 100, 1)
-            for cat, val in categories.items()
-        }
+        attribution = {cat: round(val / max(total, 0.01) * 100, 1) for cat, val in categories.items()}
 
         # 改进建议
         suggestions = []
-        if summary['avg_slippage_bps'] > 5:
+        if summary["avg_slippage_bps"] > 5:
             suggestions.append("滑点偏高 (>5bps): 建议使用限价单替代市价单, 或使用 TWAP 分散执行")
-        if summary['avg_impact_bps'] > 8:
+        if summary["avg_impact_bps"] > 8:
             suggestions.append("冲击成本偏高 (>8bps): 降低 POV 参与率, 延长执行时间窗口")
-        if summary['avg_opportunity_bps'] > 3:
+        if summary["avg_opportunity_bps"] > 3:
             suggestions.append("机会成本偏高 (>3bps): 提高激进程度, 缩短执行期限")
-        if summary.get('avg_vwap_score', 0) < -5:
+        if summary.get("avg_vwap_score", 0) < -5:
             suggestions.append(f"VWAP 执行落后 ({summary['avg_vwap_score']}bps): 检查算法参数或更换算法类型")
-        if summary['avg_overall_score'] < 70:
+        if summary["avg_overall_score"] < 70:
             suggestions.append(f"总体执行质量偏低 (评分 {summary['avg_overall_score']}): 建议全面审核执行流程")
 
         return {
-            'total_cost_bps': total,
-            'attribution_pct': attribution,
-            'absolute_costs_bps': categories,
-            'total_cost_rmb': summary['total_cost_rmb'],
-            'suggestions': suggestions if suggestions else ['执行质量良好, 无需重大调整'],
-            'benchmark_comparison': {
-                'current': total,
-                'industry_avg': 15,     # 行业平均约 15bps
-                'top_quartile': 8,      # 顶级基金目标 8bps
-                'gap_to_top': total - 8,
+            "total_cost_bps": total,
+            "attribution_pct": attribution,
+            "absolute_costs_bps": categories,
+            "total_cost_rmb": summary["total_cost_rmb"],
+            "suggestions": suggestions if suggestions else ["执行质量良好, 无需重大调整"],
+            "benchmark_comparison": {
+                "current": total,
+                "industry_avg": 15,  # 行业平均约 15bps
+                "top_quartile": 8,  # 顶级基金目标 8bps
+                "gap_to_top": total - 8,
             },
         }
 
@@ -382,11 +390,9 @@ class TransactionCostAnalyzer:
 
         return {
             **summary,
-            'attribution': attribution,
-            'daily_savings_potential_rmb': round(
-                (attribution['total_cost_bps'] - 8) / 10000 * self.nav * 0.01, 2
-            ),
-            'annualized_savings_potential_rmb': round(
-                (attribution['total_cost_bps'] - 8) / 10000 * self.nav * 2.0, 2
+            "attribution": attribution,
+            "daily_savings_potential_rmb": round((attribution["total_cost_bps"] - 8) / 10000 * self.nav * 0.01, 2),
+            "annualized_savings_potential_rmb": round(
+                (attribution["total_cost_bps"] - 8) / 10000 * self.nav * 2.0, 2
             ),  # 假设 200% 年换手
         }

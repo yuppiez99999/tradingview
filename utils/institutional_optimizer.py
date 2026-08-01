@@ -37,6 +37,7 @@ logger = logging.getLogger("institutional_optimizer")
 @dataclass
 class PortfolioDecision:
     """组合优化决策"""
+
     target_weights: Dict[str, float] = field(default_factory=dict)
     expected_return: float = 0.0
     expected_risk: float = 0.0
@@ -169,7 +170,7 @@ class InstitutionalPortfolioOptimizer:
             weights[i] = value
             total_value += value
         if total_value > 0:
-            weights = weights / total_value
+            weights = weights / total_value  # type: ignore
         return weights
 
     # ------------------------------------------------------------
@@ -334,13 +335,15 @@ class InstitutionalPortfolioOptimizer:
             target_w = float(weights[i])
             current_w = float(current_weights[i])
             if abs(target_w - current_w) > 1e-6:
-                trades.append({
-                    "symbol": symbol,
-                    "current_weight": round(current_w, 4),
-                    "target_weight": round(target_w, 4),
-                    "change": round(target_w - current_w, 4),
-                    "estimated_cost": round(float(impact_costs[i]), 6),
-                })
+                trades.append(
+                    {
+                        "symbol": symbol,
+                        "current_weight": round(current_w, 4),
+                        "target_weight": round(target_w, 4),
+                        "change": round(target_w - current_w, 4),
+                        "estimated_cost": round(float(impact_costs[i]), 6),
+                    }
+                )
 
         turnover = float(np.sum(np.abs(weights - current_weights)))
         decision = PortfolioDecision(
@@ -358,7 +361,10 @@ class InstitutionalPortfolioOptimizer:
         )
         logger.info(
             "[InstitutionalOptimizer] 优化完成: return=%.2f%%, risk=%.2f%%, cost=%.2f%%, turnover=%.2f%%",
-            expected_return * 100, expected_risk * 100, estimated_cost * 100, turnover * 100,
+            expected_return * 100,
+            expected_risk * 100,
+            estimated_cost * 100,
+            turnover * 100,
         )
         return decision
 

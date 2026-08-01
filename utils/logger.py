@@ -16,7 +16,7 @@ import sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 
 LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(pathname)s:%(lineno)d | %(message)s"
@@ -72,7 +72,7 @@ class Logger:
         self,
         name: str,
         level: str = "INFO",
-        log_file: str = None,
+        log_file: Optional[str] = None,  # type: ignore
         console_output: bool = True,
         max_file_size: int = 10 * 1024 * 1024,
         backup_count: int = 5,
@@ -93,8 +93,9 @@ class Logger:
 
     def _setup_handlers(self):
         """兼容旧行为：控制台 + 单文件轮转"""
-        formatter = RelativePathFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-                                          relative_to=Path.cwd())
+        formatter = RelativePathFormatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s", relative_to=Path.cwd()
+        )
 
         if self.log_file:
             log_dir = os.path.dirname(self.log_file)
@@ -274,4 +275,4 @@ if __name__ == "__main__":
     logger.error("这是一条错误信息")
     logger.critical("这是一条严重错误信息")
 
-    print("日志测试完成")
+    logger.info("日志测试完成")

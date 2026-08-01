@@ -115,17 +115,17 @@ def _make_mock_fundamentals_history(
 
 def test_import():
     """1. import 测试"""
-    print("\n=== 测试 1: 模块 import ===")
+    logger.info("\n=== 测试 1: 模块 import ===")
     adapter = VibeTradingFactorAdapter()
     assert "QualityTrend" in adapter.VIBE_TRADING_CATEGORIES
-    print("  ✅ VibeTradingFactorAdapter 实例化成功")
-    print("  ✅ QualityTrend 类别已注册")
+    logger.info("  ✅ VibeTradingFactorAdapter 实例化成功")
+    logger.info("  ✅ QualityTrend 类别已注册")
     return adapter
 
 
 def test_quality_trend_factors(adapter: VibeTradingFactorAdapter):
     """2. QualityTrend 4 因子计算测试"""
-    print("\n=== 测试 2: QualityTrend 因子计算 ===")
+    logger.info("\n=== 测试 2: QualityTrend 因子计算 ===")
     history = _make_mock_fundamentals_history(n_symbols=10)
     factors = adapter._compute_vt_quality_trend_factors(
         fundamentals={},
@@ -143,14 +143,14 @@ def test_quality_trend_factors(adapter: VibeTradingFactorAdapter):
         f = factors[name]
         assert isinstance(f, CandidateFactor)
         assert len(f.values) > 0, f"{name} 值为空"
-        print(f"  ✅ {name:32s} | n={len(f.values):3d} | sample={list(f.values.items())[:2]}")
+        logger.info(f"  ✅ {name:32s} | n={len(f.values):3d} | sample={list(f.values.items())[:2]}")
 
     return factors
 
 
 def test_growth_accel_uses_v5_pure_v1(factors: dict):
     """3. VT_QUALTREND_GROWTH_ACCEL 使用 v5 纯 v1 净利润 YoY 加速（不做 winsorize）"""
-    print("\n=== 测试 3: VT_QUALTREND_GROWTH_ACCEL v5 (纯 v1 净利润 YoY 加速) ===")
+    logger.info("\n=== 测试 3: VT_QUALTREND_GROWTH_ACCEL v5 (纯 v1 净利润 YoY 加速) ===")
     f = factors["VT_QUALTREND_GROWTH_ACCEL"]
     assert len(f.values) == 10, f"应有 10 个值, 实际 {len(f.values)}"
 
@@ -159,21 +159,21 @@ def test_growth_accel_uses_v5_pure_v1(factors: dict):
     # 大量级增长率的极端值携带 Alpha 信号，winsorize 裁剪会丢失信号
     # mock 数据 i 越大增长加速越明显（yoy_growth_cur 随 i 递增）
     sorted_syms = sorted(f.values.keys(), key=lambda s: f.values[s])
-    print(f"  v1 最低: {sorted_syms[0]} = {f.values[sorted_syms[0]]:.4f}")
-    print(f"  v1 最高: {sorted_syms[-1]} = {f.values[sorted_syms[-1]]:.4f}")
+    logger.info(f"  v1 最低: {sorted_syms[0]} = {f.values[sorted_syms[0]]:.4f}")
+    logger.info(f"  v1 最高: {sorted_syms[-1]} = {f.values[sorted_syms[-1]]:.4f}")
 
     # 期望 TEST009 应高于 TEST000（增长加速更明显）
     assert f.values["TEST009_SZ"] > f.values["TEST000_SZ"], (
         f"TEST009 ({f.values['TEST009_SZ']}) 应大于 TEST000 ({f.values['TEST000_SZ']})"
     )
-    print("  ✅ v5 逻辑生效：增长加速明显的标的有更高的 accel 值")
-    print(f"  ✅ 公式: {f.vt_formula}")
+    logger.info("  ✅ v5 逻辑生效：增长加速明显的标的有更高的 accel 值")
+    logger.info(f"  ✅ 公式: {f.vt_formula}")
 
     # 验证 v5 不含 winsorize（v4 实测 winsorize 有害，v5 回退纯 v1）
     assert "winsorize" not in f.vt_formula, (
         f"v5 公式不应含 winsorize，实际: {f.vt_formula}"
     )
-    print(f"  ✅ v5 验证：公式不含 winsorize（v4 实测 winsorize 降低 IC_IR）")
+    logger.info("  ✅ v5 验证：公式不含 winsorize（v4 实测 winsorize 降低 IC_IR）")
 
     # 验证非 rank 标准化：rank 会将 10 个值均匀映射到 [0,1]（间距恒定 1/9≈0.111）
     # v5 保留原始加速度量级（约 0.05~0.14），间距 0.01 明显区别于 rank 间距 1/9≈0.111
@@ -196,24 +196,24 @@ def test_growth_accel_uses_v5_pure_v1(factors: dict):
 
 def test_debt_red_uses_current_ratio(factors: dict):
     """4. VT_QUALTREND_DEBT_RED 使用 current_ratio（v2 改进保留）"""
-    print("\n=== 测试 4: VT_QUALTREND_DEBT_RED 使用 current_ratio（v2 改进保留）===")
+    logger.info("\n=== 测试 4: VT_QUALTREND_DEBT_RED 使用 current_ratio（v2 改进保留）===")
     f = factors["VT_QUALTREND_DEBT_RED"]
     # 检查公式描述
     assert "current_ratio" in f.vt_formula, f"公式应含 current_ratio, 实际: {f.vt_formula}"
-    assert "current_ratio" in f.description, f"描述应含 current_ratio"
-    print(f"  ✅ 公式: {f.vt_formula}")
-    print(f"  ✅ 描述: {f.description}")
+    assert "current_ratio" in f.description, "描述应含 current_ratio"
+    logger.info(f"  ✅ 公式: {f.vt_formula}")
+    logger.info(f"  ✅ 描述: {f.description}")
 
     # mock 数据 current_ratio 在 q=0 比 q=4 高（base_cr * (1 - 0) vs base_cr * (1 - 0.04)）
     # 所以 debt_red 值应为正（流动性改善）
     for sym, val in f.values.items():
         assert val > 0, f"{sym} 流动性应改善（val > 0）, 实际 {val}"
-    print(f"  ✅ 所有 {len(f.values)} 个标的有正值（current_ratio 上升）")
+    logger.info(f"  ✅ 所有 {len(f.values)} 个标的有正值（current_ratio 上升）")
 
 
 def test_roe_delta_uses_winsorize(factors: dict):
     """5. VT_QUALTREND_ROE_DELTA / MARGIN_EXP 使用 v1 绝对值 + v3 winsorize"""
-    print("\n=== 测试 5: VT_QUALTREND_ROE_DELTA / MARGIN_EXP 使用 winsorize ===")
+    logger.info("\n=== 测试 5: VT_QUALTREND_ROE_DELTA / MARGIN_EXP 使用 winsorize ===")
     for name in ["VT_QUALTREND_ROE_DELTA", "VT_QUALTREND_MARGIN_EXP"]:
         f = factors[name]
         # v3 改进：winsorize 替代 rank
@@ -225,13 +225,13 @@ def test_roe_delta_uses_winsorize(factors: dict):
             max_val = max(all_vals)
             min_val = min(all_vals)
             # ROE/gm YoY 变化值通常很小（< 0.5），不应是 [0, 1] 的 rank
-            print(f"  ✅ {name:32s} | 公式: {f.vt_formula}")
-            print(f"     值域: [{min_val:.4f}, {max_val:.4f}]（保留原始量级，非 rank [0,1]）")
+            logger.info(f"  ✅ {name:32s} | 公式: {f.vt_formula}")
+            logger.info(f"     值域: [{min_val:.4f}, {max_val:.4f}]（保留原始量级，非 rank [0,1]）")
 
 
 def test_backward_compat_no_v2_fields():
     """6. 向后兼容：旧版缓存（无 revenue/yoy_pni）应降级到原版净利润计算"""
-    print("\n=== 测试 6: 向后兼容（旧版缓存无 v2 字段）===")
+    logger.info("\n=== 测试 6: 向后兼容（旧版缓存无 v2 字段）===")
     # 构造不含 revenue/yoy_pni 的旧版数据
     history = {}
     for i in range(10):
@@ -256,25 +256,25 @@ def test_backward_compat_no_v2_fields():
     # VT_QUALTREND_GROWTH_ACCEL 应能通过降级逻辑（净利润计算）正常生成
     f = factors["VT_QUALTREND_GROWTH_ACCEL"]
     assert len(f.values) > 0, "向后兼容：应有值（降级到净利润计算）"
-    print(f"  ✅ 旧版缓存降级成功: GROWTH_ACCEL n={len(f.values)}")
-    print(f"  ✅ 说明: 缺 revenue/yoy_pni 时自动降级到净利润 YoY 加速计算")
+    logger.info(f"  ✅ 旧版缓存降级成功: GROWTH_ACCEL n={len(f.values)}")
+    logger.info("  ✅ 说明: 缺 revenue/yoy_pni 时自动降级到净利润 YoY 加速计算")
 
 
 def test_empty_history():
     """7. 空 history 返回空因子（安全降级）"""
-    print("\n=== 测试 7: 空 history 安全降级 ===")
+    logger.info("\n=== 测试 7: 空 history 安全降级 ===")
     adapter = VibeTradingFactorAdapter()
     factors = adapter._compute_vt_quality_trend_factors(
         fundamentals={}, fundamentals_history=None,
     )
     assert len(factors) == 0
-    print("  ✅ 空 history 返回空因子池（安全降级）")
+    logger.info("  ✅ 空 history 返回空因子池（安全降级）")
 
 
 def main() -> int:
-    print("=" * 70)
-    print("P2.2 v5 改进因子单元测试（差异化极端值处理方案）")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("P2.2 v5 改进因子单元测试（差异化极端值处理方案）")
+    logger.info("=" * 70)
     try:
         adapter = test_import()
         factors = test_quality_trend_factors(adapter)
@@ -283,12 +283,12 @@ def main() -> int:
         test_roe_delta_uses_winsorize(factors)
         test_backward_compat_no_v2_fields()
         test_empty_history()
-        print("\n" + "=" * 70)
-        print("✅ 全部测试通过")
-        print("=" * 70)
+        logger.info("\n" + "=" * 70)
+        logger.info("✅ 全部测试通过")
+        logger.info("=" * 70)
         return 0
     except AssertionError as e:
-        print(f"\n❌ 测试失败: {e}")
+        logger.info(f"\n❌ 测试失败: {e}")
         import traceback
         traceback.print_exc()
         return 1

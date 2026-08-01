@@ -45,13 +45,13 @@
     coord.register_strategy("quant_neutral", capital=700_000, max_weight=0.20)
     decision = coord.coordinate(target_signals={...}, current_positions={...})
 """
+
 from __future__ import annotations
 
 import json
 import logging
-import math
 from dataclasses import dataclass, field, asdict
-from datetime import datetime, date
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
@@ -64,6 +64,7 @@ STATE_DIR = BASE_DIR / "config"
 @dataclass
 class StrategyState:
     """策略状态"""
+
     name: str
     capital: float = 0.0
     max_weight: float = 0.40
@@ -87,17 +88,19 @@ class StrategyState:
 @dataclass
 class StrategyConflict:
     """策略冲突"""
-    conflict_type: str               # opposite_signal / over_position / cash_conflict / risk_budget_exceeded
+
+    conflict_type: str  # opposite_signal / over_position / cash_conflict / risk_budget_exceeded
     strategies: List[str]
     symbol: str = ""
     description: str = ""
-    severity: str = "warning"        # info / warning / error
+    severity: str = "warning"  # info / warning / error
     suggested_action: str = ""
 
 
 @dataclass
 class CoordinationDecision:
     """协调决策"""
+
     decision_date: str = ""
     total_capital: float = 0.0
     total_allocated: float = 0.0
@@ -112,7 +115,11 @@ class CoordinationDecision:
 
 
 class MultiStrategyCoordinator:
-    """多策略协调器"""
+    """多策略协调器。
+
+    管理股票多头 / ETF 配置 / 宏观对冲 / 量化中性 / 期权尾部 / 现金管理
+    六类策略的资金分配、权重调整、冲突检测与风险预算控制。
+    """
 
     # v10.0 默认策略配置
     DEFAULT_STRATEGIES = {
@@ -149,11 +156,16 @@ class MultiStrategyCoordinator:
     }
 
     # 风险预算
-    TOTAL_RISK_BUDGET = 0.15       # 总最大回撤 15%
-    PER_STRATEGY_RISK = 0.05       # 单策略最大回撤 5%
-    CORRELATION_THRESHOLD = 0.70   # 相关性告警阈值
+    TOTAL_RISK_BUDGET = 0.15  # 总最大回撤 15%
+    PER_STRATEGY_RISK = 0.05  # 单策略最大回撤 5%
+    CORRELATION_THRESHOLD = 0.70  # 相关性告警阈值
 
     def __init__(self, total_capital: float = 5_000_000):
+        """初始化多策略协调器并加载默认策略配置。
+
+        Args:
+            total_capital: 总资金规模，默认 500 万
+        """
         self.total_capital = total_capital
         self.strategies: Dict[str, StrategyState] = {}
         self._initialize_default_strategies()
@@ -179,7 +191,14 @@ class MultiStrategyCoordinator:
         max_weight: float = 0.40,
         min_weight: float = 0.05,
     ) -> None:
-        """注册新策略"""
+        """注册新策略到协调器。
+
+        Args:
+            name: 策略名称
+            capital: 分配资金额度
+            max_weight: 最大权重上限，默认 0.40
+            min_weight: 最小权重下限，默认 0.05
+        """
         self.strategies[name] = StrategyState(
             name=name,
             capital=capital,
@@ -187,7 +206,7 @@ class MultiStrategyCoordinator:
             min_weight=min_weight,
             current_weight=capital / self.total_capital,
         )
-        logger.info(f"[StrategyCoord] 注册策略 {name}: 资金 {capital:,.0f}, 权重 {capital/self.total_capital:.1%}")
+        logger.info(f"[StrategyCoord] 注册策略 {name}: 资金 {capital:,.0f}, 权重 {capital / self.total_capital:.1%}")
 
     # ------------------------------------------------------------
     # 主入口: 协调策略
@@ -199,7 +218,10 @@ class MultiStrategyCoordinator:
         strategy_pnl: Optional[Dict[str, float]] = None,
         strategy_correlations: Optional[Dict[str, float]] = None,
     ) -> CoordinationDecision:
-        """协调多策略
+        """协调多策略。
+
+        依次执行策略表现更新、失效检测、权重调整、冲突检测、风险预算
+        与现金缓冲检查，最终汇总为协调决策。
 
         Args:
             target_signals: {strategy_name: {symbol: signal}}
@@ -208,7 +230,7 @@ class MultiStrategyCoordinator:
             strategy_correlations: {strategy_name: correlation_to_portfolio}
 
         Returns:
-            CoordinationDecision
+            CoordinationDecision: 含策略权重/资金分配/冲突/风险预算/是否通过等字段
         """
         decision = CoordinationDecision(
             decision_date=datetime.now().strftime("%Y-%m-%d"),
@@ -311,13 +333,15 @@ class MultiStrategyCoordinator:
             if reasons:
                 s.is_degraded = True
                 s.degradation_reason = "; ".join(reasons)
-                decision.conflicts.append(StrategyConflict(
-                    conflict_type="strategy_degraded",
-                    strategies=[name],
-                    description=f"策略 {name} 失效: {s.degradation_reason}",
-                    severity="warning",
-                    suggested_action=f"降低 {name} 权重或暂停策略",
-                ))
+                decision.conflicts.append(
+                    StrategyConflict(
+                        conflict_type="strategy_degraded",
+                        strategies=[name],
+                        description=f"策略 {name} 失效: {s.degradation_reason}",
+                        severity="warning",
+                        suggested_action=f"降低 {name} 权重或暂停策略",
+                    )
+                )
             else:
                 s.is_degraded = False
                 s.degradation_reason = ""
@@ -378,13 +402,11 @@ class MultiStrategyCoordinator:
                 decision.strategy_capital[name] = round(decision.strategy_capital[name] * scale, 0)
 
         decision.total_allocated = sum(
-            cap for name, cap in decision.strategy_capital.items()
-            if name != "cash_management"
+            cap for name, cap in decision.strategy_capital.items() if name != "cash_management"
         )
         # 现金缓冲 = cash_management 策略资金 + 未分配资金
-        decision.cash_buffer = (
-            decision.strategy_capital.get("cash_management", 0)
-            + (self.total_capital - sum(decision.strategy_capital.values()))
+        decision.cash_buffer = decision.strategy_capital.get("cash_management", 0) + (
+            self.total_capital - sum(decision.strategy_capital.values())
         )
 
     # ------------------------------------------------------------
@@ -408,7 +430,7 @@ class MultiStrategyCoordinator:
             for symbol, signal in signals.items():
                 direction = ""
                 if isinstance(signal, dict):
-                    direction = signal.get("direction", signal.get("action", ""))
+                    direction = signal.get("direction", signal.get("action", ""))  # type: ignore
                 elif isinstance(signal, str):
                     direction = signal
                 if direction:
@@ -424,39 +446,45 @@ class MultiStrategyCoordinator:
             has_short = any("short" in d or "sell" in d for _, d in sigs)
             if has_long and has_short:
                 strategies_involved = [s for s, _ in sigs]
-                decision.conflicts.append(StrategyConflict(
-                    conflict_type="opposite_signal",
-                    strategies=strategies_involved,
-                    symbol=symbol,
-                    description=f"标的 {symbol} 存在相反信号: {sigs}",
-                    severity="warning",
-                    suggested_action="按优先级取较高置信度信号, 或对冲处理",
-                ))
+                decision.conflicts.append(
+                    StrategyConflict(
+                        conflict_type="opposite_signal",
+                        strategies=strategies_involved,
+                        symbol=symbol,
+                        description=f"标的 {symbol} 存在相反信号: {sigs}",
+                        severity="warning",
+                        suggested_action="按优先级取较高置信度信号, 或对冲处理",
+                    )
+                )
 
         # 检测总持仓超限
         total_weight = sum(p.get("weight", 0) for p in current_positions.values())
         if total_weight > 1.0:
-            decision.conflicts.append(StrategyConflict(
-                conflict_type="over_position",
-                strategies=list(self.strategies.keys()),
-                description=f"总持仓权重 {total_weight:.1%} 超过 100%",
-                severity="error",
-                suggested_action="立即减仓至 100% 以内",
-            ))
+            decision.conflicts.append(
+                StrategyConflict(
+                    conflict_type="over_position",
+                    strategies=list(self.strategies.keys()),
+                    description=f"总持仓权重 {total_weight:.1%} 超过 100%",
+                    severity="error",
+                    suggested_action="立即减仓至 100% 以内",
+                )
+            )
 
         # 单标的持仓超限 (>5%)
         for symbol, pos in current_positions.items():
             weight = pos.get("weight", 0)
             if weight > 0.05:
                 strategies_in_symbol = [pos.get("strategy", "unknown")]
-                decision.conflicts.append(StrategyConflict(
-                    conflict_type="over_position",
-                    strategies=strategies_in_symbol,
-                    symbol=symbol,
-                    description=f"标的 {symbol} 持仓 {weight:.1%} 超过 5% 上限",
-                    severity="warning",
-                    suggested_action=f"减仓 {symbol} 至 5% 以内",
-                ))
+                decision.conflicts.append(
+                    StrategyConflict(
+                        conflict_type="over_position",
+                        strategies=strategies_in_symbol,
+                        symbol=symbol,
+                        description=f"标的 {symbol} 持仓 {weight:.1%} 超过 5% 上限",
+                        severity="warning",
+                        suggested_action=f"减仓 {symbol} 至 5% 以内",
+                    )
+                )
 
     # ------------------------------------------------------------
     # 风险预算检查
@@ -470,19 +498,23 @@ class MultiStrategyCoordinator:
         for name, s in self.strategies.items():
             weight = decision.strategy_weights.get(name, s.current_weight)
             # 简化: 假设 VaR_95 = 3% × weight × capital
-            strategy_risk = abs(s.var_95) * weight * self.total_capital if s.var_95 else 0.03 * weight * self.total_capital
+            strategy_risk = (
+                abs(s.var_95) * weight * self.total_capital if s.var_95 else 0.03 * weight * self.total_capital
+            )
             total_risk += strategy_risk
 
         decision.risk_budget_used = total_risk
 
         if total_risk > decision.risk_budget_limit:
-            decision.conflicts.append(StrategyConflict(
-                conflict_type="risk_budget_exceeded",
-                strategies=list(self.strategies.keys()),
-                description=f"总风险预算 {total_risk:,.0f} 超过限额 {decision.risk_budget_limit:,.0f}",
-                severity="error",
-                suggested_action="降低高风险策略权重",
-            ))
+            decision.conflicts.append(
+                StrategyConflict(
+                    conflict_type="risk_budget_exceeded",
+                    strategies=list(self.strategies.keys()),
+                    description=f"总风险预算 {total_risk:,.0f} 超过限额 {decision.risk_budget_limit:,.0f}",
+                    severity="error",
+                    suggested_action="降低高风险策略权重",
+                )
+            )
 
     # ------------------------------------------------------------
     # 现金缓冲检查
@@ -491,13 +523,15 @@ class MultiStrategyCoordinator:
         """检查现金缓冲"""
         min_buffer = self.total_capital * 0.10  # 最低 10% 现金
         if decision.cash_buffer < min_buffer:
-            decision.conflicts.append(StrategyConflict(
-                conflict_type="cash_conflict",
-                strategies=["cash_management"],
-                description=f"现金缓冲 {decision.cash_buffer:,.0f} 低于最低 {min_buffer:,.0f}",
-                severity="warning",
-                suggested_action="增加现金管理策略权重",
-            ))
+            decision.conflicts.append(
+                StrategyConflict(
+                    conflict_type="cash_conflict",
+                    strategies=["cash_management"],
+                    description=f"现金缓冲 {decision.cash_buffer:,.0f} 低于最低 {min_buffer:,.0f}",
+                    severity="warning",
+                    suggested_action="增加现金管理策略权重",
+                )
+            )
 
     # ------------------------------------------------------------
     # 摘要生成
@@ -506,13 +540,13 @@ class MultiStrategyCoordinator:
         """生成协调摘要"""
         lines = [
             f"多策略协调摘要 ({decision.decision_date})",
-            f"=" * 60,
+            "=" * 60,
             f"总资金: ¥{decision.total_capital:,.0f}",
             f"已分配: ¥{decision.total_allocated:,.0f}",
             f"现金缓冲: ¥{decision.cash_buffer:,.0f}",
             f"风险预算: ¥{decision.risk_budget_used:,.0f} / ¥{decision.risk_budget_limit:,.0f}",
-            f"",
-            f"策略权重:",
+            "",
+            "策略权重:",
         ]
 
         for name, weight in decision.strategy_weights.items():
@@ -545,7 +579,11 @@ class MultiStrategyCoordinator:
     # 保存状态
     # ------------------------------------------------------------
     def save_state(self) -> Path:
-        """保存协调器状态"""
+        """保存协调器状态到 JSON 文件。
+
+        Returns:
+            Path: 状态文件路径 (config/strategy_coordinator_state.json)
+        """
         path = STATE_DIR / "strategy_coordinator_state.json"
         state = {
             "total_capital": self.total_capital,
@@ -556,7 +594,7 @@ class MultiStrategyCoordinator:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(state, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"策略协调器状态已保存: {path}")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存策略协调器状态失败: {e}")
         return path
 
@@ -611,9 +649,9 @@ if __name__ == "__main__":
         decision = coord.coordinate(
             target_signals=target_signals,
             current_positions=current_positions,
-            strategy_pnl=pnl,
+            strategy_pnl=pnl,  # type: ignore
             strategy_correlations=correlations,
         )
 
-        print(decision.summary)
+        logger.info(decision.summary)
         coord.save_state()

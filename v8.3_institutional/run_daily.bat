@@ -6,7 +6,7 @@ REM Auto-run each trading day (called by Task Scheduler)
 REM Passes all args through to daily_workflow.py
 REM ============================================================
 
-set PYTHON=C:\Program Files\Python38\python.exe
+set PYTHON=C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe
 set WORKDIR=%~dp0
 set LOGDIR=%WORKDIR%logs
 set DAILY_SCRIPT=%WORKDIR%daily_workflow.py

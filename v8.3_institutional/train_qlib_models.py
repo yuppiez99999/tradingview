@@ -20,19 +20,17 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import pandas as pd
 
 # 添加项目路径
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.alpha.qlib_signal_adapter import (
+from src.alpha.qlib_signal_adapter import (  # noqa: E402
     fetch_ifind_ohlcv,
     _local_lightgbm_signal,
     load_local_model,

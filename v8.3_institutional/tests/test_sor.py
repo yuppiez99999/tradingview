@@ -4,13 +4,13 @@ v7.5 测试：Smart Order Router — Iceberg + 滑点熔断
 import sys
 import os
 import unittest
-from datetime import datetime, time
+from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from execution.broker_api import SimulatedBroker
 from execution.smart_order_router import SmartOrderRouter
 from execution.algo_engine import AlgoEngine
+from typing import Optional
 
 
 class TestSmartOrderRouter(unittest.TestCase):
@@ -36,7 +36,7 @@ class TestSmartOrderRouter(unittest.TestCase):
                 }
             
             def place(self, symbol: str, qty: int, side: str, 
-                     order_type: str = "LIMIT", price: float = None) -> str:
+                     order_type: str = "LIMIT", price: Optional[float] = None) -> str:
                 return f"ORDER_{symbol}_{qty}"
             
             def wait_fill(self, order_id: str, timeout: int = 30) -> dict:

@@ -44,7 +44,7 @@ def main() -> int:
     print(f"  失败: {failed_count}")
 
     if failed_syms:
-        print(f"  失败标的（前 10 个）:")
+        print("  失败标的（前 10 个）:")
         for s in failed_syms[:10]:
             print(f"    {s}")
 

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -31,7 +30,7 @@ if str(_BASE) not in sys.path:
 try:
     from utils.logger import get_logger
     logger = get_logger("dynamic_risk_adjuster")
-except Exception:
+except Exception as e:
     import logging
     logger = logging.getLogger("dynamic_risk_adjuster")
 

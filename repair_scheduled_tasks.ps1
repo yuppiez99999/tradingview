@@ -9,10 +9,10 @@ $service = New-Object -ComObject Schedule.Service
 $service.Connect()
 $rootFolder = $service.GetFolder("\")
 
-$py38 = "C:\Program Files\Python38\python.exe"
-$py314 = "C:\Program Files\Python38\python.exe"
-$v75Dir = "E:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional"
-$baseDir = "E:\各种PY程序\28-终极量化交易系统7.1"
+$py38 = "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
+$py314 = "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
+$v75Dir = "E:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional"
+$baseDir = "E:\各种PY程序\28-终极量化交易系统8.4"
 $flowDir = "E:\各种PY程序\15_每日工作流"
 $sentDir = "E:\各种PY程序\02_舆情与竞品监控\舆情监控"
 $stratDir = "E:\各种PY程序\11_量化策略"

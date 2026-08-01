@@ -4,7 +4,7 @@
 
 ### 1. 系统要求
 
-- Python 3.8 或更高版本
+- Python 3.11 或更高版本
 - 必要的Python库：
   - pandas, numpy, matplotlib
   - yfinance (数据获取)

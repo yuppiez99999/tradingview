@@ -17,7 +17,7 @@
 
 使用方式：
   from utils.factor_model import FactorModel
-  
+
   model = FactorModel()
   scores = model.evaluate(klines_data)
   signal = model.generate_signal(scores)
@@ -25,28 +25,30 @@
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 from dataclasses import dataclass
 import logging
 
 try:
     from utils.gtja191_factors import GTJA191Factors
+
     _HAS_GTJA191 = True
 except ImportError:
-    GTJA191Factors = None
+    GTJA191Factors = None  # type: ignore[assignment,misc]
     _HAS_GTJA191 = False
 
-logger = logging.getLogger('factor_model')
+logger = logging.getLogger("factor_model")
 
 
 @dataclass
 class FactorResult:
     """单只标的因子评估结果"""
+
     code: str
-    composite: float              # 综合得分 [-1, 1]
-    factors: Dict[str, float]     # 各因子得分
-    signal: str                   # strong_buy/buy/hold/sell/strong_sell
-    rank: int = 0                 # 排名
+    composite: float  # 综合得分 [-1, 1]
+    factors: Dict[str, float]  # 各因子得分
+    signal: str  # strong_buy/buy/hold/sell/strong_sell
+    rank: int = 0  # 排名
 
 
 class FactorModel:
@@ -54,26 +56,25 @@ class FactorModel:
 
     # 因子权重
     DEFAULT_WEIGHTS = {
-        'value': 0.18,
-        'quality': 0.18,
-        'momentum': 0.17,
-        'growth': 0.14,
-        'safety': 0.13,
-        'sentiment': 0.04,      # 可选：事件驱动
-        'event_impact': 0.04,   # 可选：事件驱动
-        'technical_alpha': 0.12,  # GTJA191 Alpha144 等短周期量价因子
+        "value": 0.18,
+        "quality": 0.18,
+        "momentum": 0.17,
+        "growth": 0.14,
+        "safety": 0.13,
+        "sentiment": 0.04,  # 可选：事件驱动
+        "event_impact": 0.04,  # 可选：事件驱动
+        "technical_alpha": 0.12,  # GTJA191 Alpha144 等短周期量价因子
     }
 
     # 信号阈值
     SIGNAL_THRESHOLDS = {
-        'strong_buy': 0.30,
-        'buy': 0.10,
-        'hold_lower': -0.10,
-        'sell': -0.30,
+        "strong_buy": 0.30,
+        "buy": 0.10,
+        "hold_lower": -0.10,
+        "sell": -0.30,
     }
 
-    def __init__(self, weights: Optional[Dict[str, float]] = None,
-                 lookback: int = 252):
+    def __init__(self, weights: Optional[Dict[str, float]] = None, lookback: int = 252):
         """
         Args:
             weights: 因子权重，默认使用 DEFAULT_WEIGHTS
@@ -85,10 +86,13 @@ class FactorModel:
     # ============================================================
     # 因子1: 价值因子
     # ============================================================
-    def value_factor(self, df: pd.DataFrame,
-                     pe: Optional[float] = None,
-                     pb: Optional[float] = None,
-                     dividend_yield: Optional[float] = None) -> float:
+    def value_factor(
+        self,
+        df: pd.DataFrame,
+        pe: Optional[float] = None,
+        pb: Optional[float] = None,
+        dividend_yield: Optional[float] = None,
+    ) -> float:
         """
         价值因子：低估值 + 高股息 = 高分。
 
@@ -117,10 +121,13 @@ class FactorModel:
     # ============================================================
     # 因子2: 质量因子
     # ============================================================
-    def quality_factor(self, df: pd.DataFrame,
-                       roe: Optional[float] = None,
-                       debt_ratio: Optional[float] = None,
-                       profit_margin: Optional[float] = None) -> float:
+    def quality_factor(
+        self,
+        df: pd.DataFrame,
+        roe: Optional[float] = None,
+        debt_ratio: Optional[float] = None,
+        profit_margin: Optional[float] = None,
+    ) -> float:
         """
         质量因子：高ROE + 低负债 + 高利润率 = 高分。
         """
@@ -149,10 +156,10 @@ class FactorModel:
 
         正值表示正向动量。
         """
-        if df.empty or 'close' not in df.columns:
+        if df.empty or "close" not in df.columns:
             return 0.0
 
-        prices = df['close'].values
+        prices = df["close"].values
         if len(prices) < 60:
             return 0.0
 
@@ -161,7 +168,7 @@ class FactorModel:
         mom_3m = (prices[-1] / prices[-min(60, len(prices))] - 1) if len(prices) >= 60 else 0
         mom_6m = (prices[-1] / prices[-min(120, len(prices))] - 1) if len(prices) >= 120 else 0
 
-        score = (mom_1m * 0.3 + mom_3m * 0.4 + mom_6m * 0.3)
+        score = mom_1m * 0.3 + mom_3m * 0.4 + mom_6m * 0.3
         score = max(-1, min(1, score * 5))  # 归一化
 
         return round(score, 4)
@@ -169,8 +176,7 @@ class FactorModel:
     # ============================================================
     # 因子4: 增长因子
     # ============================================================
-    def growth_factor(self, revenue_growth: Optional[float] = None,
-                      earnings_growth: Optional[float] = None) -> float:
+    def growth_factor(self, revenue_growth: Optional[float] = None, earnings_growth: Optional[float] = None) -> float:
         """
         增长因子：高收入/盈利增长 = 高分。
         """
@@ -193,10 +199,10 @@ class FactorModel:
         """
         安全因子：低波动 + 低回撤 + 高Sharpe = 高分。
         """
-        if df.empty or 'close' not in df.columns:
+        if df.empty or "close" not in df.columns:
             return 0.0
 
-        prices = df['close'].values
+        prices = df["close"].values
         if len(prices) < 20:
             return 0.0
 
@@ -216,7 +222,7 @@ class FactorModel:
         sharpe_score = max(-1, min(1, (sharpe - 0) / 1.5))
 
         score = vol_score * 0.4 + dd_score * 0.3 + sharpe_score * 0.3
-        return round(score, 4)
+        return round(score, 4)  # type: ignore
 
     # ============================================================
     # 因子6: 技术Alpha因子（GTJA191 Alpha144）
@@ -238,7 +244,7 @@ class FactorModel:
         if not _HAS_GTJA191 or df is None or df.empty:
             return 0.0
 
-        if 'close' not in df.columns or 'amount' not in df.columns:
+        if "close" not in df.columns or "amount" not in df.columns:
             return 0.0
 
         try:
@@ -251,16 +257,19 @@ class FactorModel:
             # 经验阈值做截断，避免极端值主导
             score = max(-1.0, min(1.0, 1.0 - float(value) * 1e8))
             return round(float(score), 4)
-        except Exception as exc:
+        except Exception as exc:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"technical_alpha_factor 计算失败: {exc}")
             return 0.0
 
     # ============================================================
     # 综合评估
     # ============================================================
-    def evaluate(self, klines: Dict[str, pd.DataFrame],
-                 fundamentals: Optional[Dict[str, Dict]] = None,
-                 event_factors: Optional[Dict[str, Dict]] = None) -> Dict[str, FactorResult]:
+    def evaluate(
+        self,
+        klines: Dict[str, pd.DataFrame],
+        fundamentals: Optional[Dict[str, Dict]] = None,
+        event_factors: Optional[Dict[str, Dict]] = None,
+    ) -> Dict[str, FactorResult]:
         """
         对所有标的进行五维因子评估。
 
@@ -282,35 +291,28 @@ class FactorModel:
             events = (event_factors or {}).get(code, {})
 
             factors = {
-                'value': self.value_factor(
-                    df, pe=fund.get('pe'), pb=fund.get('pb'),
-                    dividend_yield=fund.get('dividend_yield')
+                "value": self.value_factor(
+                    df, pe=fund.get("pe"), pb=fund.get("pb"), dividend_yield=fund.get("dividend_yield")
                 ),
-                'quality': self.quality_factor(
-                    df, roe=fund.get('roe'),
-                    debt_ratio=fund.get('debt_ratio'),
-                    profit_margin=fund.get('profit_margin')
+                "quality": self.quality_factor(
+                    df, roe=fund.get("roe"), debt_ratio=fund.get("debt_ratio"), profit_margin=fund.get("profit_margin")
                 ),
-                'momentum': self.momentum_factor(df),
-                'growth': self.growth_factor(
-                    revenue_growth=fund.get('revenue_growth'),
-                    earnings_growth=fund.get('earnings_growth')
+                "momentum": self.momentum_factor(df),
+                "growth": self.growth_factor(
+                    revenue_growth=fund.get("revenue_growth"), earnings_growth=fund.get("earnings_growth")
                 ),
-                'safety': self.safety_factor(df),
-                'technical_alpha': self.technical_alpha_factor(df),
+                "safety": self.safety_factor(df),
+                "technical_alpha": self.technical_alpha_factor(df),
             }
 
             # 合并事件驱动因子（如果提供）
-            if 'sentiment' in events:
-                factors['sentiment'] = events['sentiment']
-            if 'event_impact' in events:
-                factors['event_impact'] = events['event_impact']
+            if "sentiment" in events:
+                factors["sentiment"] = events["sentiment"]
+            if "event_impact" in events:
+                factors["event_impact"] = events["event_impact"]
 
             # 加权综合
-            composite = sum(
-                factors.get(name, 0) * self.weights.get(name, 0)
-                for name in self.weights
-            )
+            composite = sum(factors.get(name, 0) * self.weights.get(name, 0) for name in self.weights)
 
             # 信号
             signal = self._to_signal(composite)
@@ -323,8 +325,7 @@ class FactorModel:
             )
 
         # 排名
-        sorted_codes = sorted(results.keys(),
-                              key=lambda c: results[c].composite, reverse=True)
+        sorted_codes = sorted(results.keys(), key=lambda c: results[c].composite, reverse=True)
         for rank, code in enumerate(sorted_codes, 1):
             results[code].rank = rank
 
@@ -344,13 +345,13 @@ class FactorModel:
             }
         """
         if not results:
-            return {'signal': 'hold', 'avg_composite': 0.0, 'note': '无数据'}
+            return {"signal": "hold", "avg_composite": 0.0, "note": "无数据"}
 
         composites = [r.composite for r in results.values()]
         avg = np.mean(composites)
 
         # 信号分布
-        dist = {}
+        dist = {}  # type: ignore
         for r in results.values():
             dist[r.signal] = dist.get(r.signal, 0) + 1
 
@@ -360,25 +361,25 @@ class FactorModel:
         bottom_3 = [r.code for r in sorted_r[-3:]]
 
         return {
-            'avg_composite': round(avg, 4),
-            'signal': self._to_signal(avg),
-            'distribution': dist,
-            'top_3': top_3,
-            'bottom_3': bottom_3,
+            "avg_composite": round(avg, 4),
+            "signal": self._to_signal(avg),  # type: ignore
+            "distribution": dist,
+            "top_3": top_3,
+            "bottom_3": bottom_3,
         }
 
     def _to_signal(self, composite: float) -> str:
         """因子得分 → 交易信号"""
-        if composite >= self.SIGNAL_THRESHOLDS['strong_buy']:
-            return 'strong_buy'
-        elif composite >= self.SIGNAL_THRESHOLDS['buy']:
-            return 'buy'
-        elif composite >= self.SIGNAL_THRESHOLDS['hold_lower']:
-            return 'hold'
-        elif composite >= self.SIGNAL_THRESHOLDS['sell']:
-            return 'sell'
+        if composite >= self.SIGNAL_THRESHOLDS["strong_buy"]:
+            return "strong_buy"
+        elif composite >= self.SIGNAL_THRESHOLDS["buy"]:
+            return "buy"
+        elif composite >= self.SIGNAL_THRESHOLDS["hold_lower"]:
+            return "hold"
+        elif composite >= self.SIGNAL_THRESHOLDS["sell"]:
+            return "sell"
         else:
-            return 'strong_sell'
+            return "strong_sell"
 
     def compute_factor_correlation(self, results: Dict[str, FactorResult]) -> pd.DataFrame:
         """

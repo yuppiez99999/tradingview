@@ -99,8 +99,8 @@ class OptionHedgeExecutor:
             logger.info("[模拟模式] 跳过实际下单")
             logger.info(f"  总权利金预算: ¥{execution_plan['total_budget']:,.0f}")
             logger.info(f"  预期总Delta覆盖: {execution_plan['target_delta']}")
-            logger.info(f"  执行批次: 4批")
-            logger.info(f"  预期尾部风险覆盖: 99% VaR")
+            logger.info("  执行批次: 4批")
+            logger.info("  预期尾部风险覆盖: 99% VaR")
 
             self.execution_log.append({
                 "timestamp": datetime.now().isoformat(),
@@ -165,8 +165,8 @@ class OptionHedgeExecutor:
 
         if self.simulation_mode:
             logger.info("[模拟模式] 策略已配置")
-            logger.info(f"  监控频率: 每5分钟")
-            logger.info(f"  触发条件: VIX > 30自动执行L2对冲")
+            logger.info("  监控频率: 每5分钟")
+            logger.info("  触发条件: VIX > 30自动执行L2对冲")
 
             self.execution_log.append({
                 "timestamp": datetime.now().isoformat(),
@@ -290,13 +290,13 @@ def main():
     executor = OptionHedgeExecutor(simulation_mode=True)
 
     # 执行任务1: Put组合
-    put_plan = executor.execute_put_portfolio()
+    executor.execute_put_portfolio()
 
     # 执行任务2: 波动率分级对冲
-    vol_plan = executor.execute_volatility_hedge()
+    executor.execute_volatility_hedge()
 
     # 执行任务3: 风控参数更新
-    risk_plan = executor.update_risk_parameters()
+    executor.update_risk_parameters()
 
     # 生成执行报告
     report_path = executor.generate_execution_report()

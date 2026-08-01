@@ -14,24 +14,28 @@
     bt = CostAwareBacktest(initial_capital=5_000_000)
     result = bt.run_strategy(prices, signals, target_weights)
 """
+
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from dataclasses import dataclass, field
-from datetime import datetime
 import logging
 
-logger = logging.getLogger('cost_aware_backtest')
+logger = logging.getLogger("cost_aware_backtest")
 
 # 尝试导入 v7.5 CostModel
 try:
     from ..backtest.cost_model import CostModel, CostConfig
+
     _COST_MODEL_AVAILABLE = True
 except ImportError:
     try:
-        import sys, os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+        import sys
+        import os
+
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
         from src.backtest.cost_model import CostModel, CostConfig
+
         _COST_MODEL_AVAILABLE = True
     except ImportError:
         _COST_MODEL_AVAILABLE = False
@@ -41,9 +45,10 @@ except ImportError:
 @dataclass
 class TradeRecord:
     """交易记录"""
+
     date: pd.Timestamp
     code: str
-    side: str          # BUY / SELL
+    side: str  # BUY / SELL
     qty: int
     price: float
     notional: float
@@ -57,6 +62,7 @@ class TradeRecord:
 @dataclass
 class BacktestResult:
     """回测结果"""
+
     # 收益
     total_return: float = 0.0
     annual_return: float = 0.0
@@ -94,13 +100,15 @@ class CostAwareBacktest:
         Impact = σ × η × √(Q/V)
     """
 
-    def __init__(self,
-                 initial_capital: float = 5_000_000,
-                 commission_rate: float = 0.00025,
-                 stamp_duty_rate: float = 0.001,
-                 transfer_fee_rate: float = 0.00002,
-                 slippage_coef: float = 0.142,
-                 min_cost_bps: float = 3.0):
+    def __init__(
+        self,
+        initial_capital: float = 5_000_000,
+        commission_rate: float = 0.00025,
+        stamp_duty_rate: float = 0.001,
+        transfer_fee_rate: float = 0.00002,
+        slippage_coef: float = 0.142,
+        min_cost_bps: float = 3.0,
+    ):
         """
         Args:
             initial_capital: 初始资金
@@ -135,13 +143,15 @@ class CostAwareBacktest:
             f"冲击系数={slippage_coef}"
         )
 
-    def compute_trade_cost(self,
-                           notional: float,
-                           side: str,
-                           qty: int = 0,
-                           daily_volume: int = 0,
-                           volatility: float = 0.02,
-                           price: float = 0.0) -> Dict[str, float]:
+    def compute_trade_cost(
+        self,
+        notional: float,
+        side: str,
+        qty: int = 0,
+        daily_volume: int = 0,
+        volatility: float = 0.02,
+        price: float = 0.0,
+    ) -> Dict[str, float]:
         """计算单笔交易的全部成本
 
         Args:
@@ -159,7 +169,7 @@ class CostAwareBacktest:
         commission = notional * self.commission_rate
 
         # 印花税 (仅卖出)
-        stamp_duty = notional * self.stamp_duty_rate if side == 'SELL' else 0.0
+        stamp_duty = notional * self.stamp_duty_rate if side == "SELL" else 0.0
 
         # 过户费 (买卖都收)
         transfer_fee = notional * self.transfer_fee_rate
@@ -168,8 +178,7 @@ class CostAwareBacktest:
         market_impact = 0.0
         if self.cost_model and qty > 0 and daily_volume > 0 and price > 0:
             market_impact = self.cost_model.market_impact(
-                qty=qty, daily_volume=daily_volume,
-                volatility=volatility, price=price
+                qty=qty, daily_volume=daily_volume, volatility=volatility, price=price
             )
         elif qty > 0 and daily_volume > 0:
             # 简化版: σ × η × √(Q/V) × price × qty
@@ -184,18 +193,20 @@ class CostAwareBacktest:
             total = min_cost
 
         return {
-            'commission': commission,
-            'stamp_duty': stamp_duty,
-            'transfer_fee': transfer_fee,
-            'market_impact': market_impact,
-            'total_cost': total,
+            "commission": commission,
+            "stamp_duty": stamp_duty,
+            "transfer_fee": transfer_fee,
+            "market_impact": market_impact,
+            "total_cost": total,
         }
 
-    def run_strategy(self,
-                     prices: pd.DataFrame,
-                     target_weights: pd.DataFrame,
-                     rebalance_threshold: float = 0.05,
-                     daily_volumes: Optional[pd.DataFrame] = None) -> BacktestResult:
+    def run_strategy(
+        self,
+        prices: pd.DataFrame,
+        target_weights: pd.DataFrame,
+        rebalance_threshold: float = 0.05,
+        daily_volumes: Optional[pd.DataFrame] = None,
+    ) -> BacktestResult:
         """运行成本感知回测
 
         Args:
@@ -219,13 +230,11 @@ class CostAwareBacktest:
         trades = []
         daily_costs_list = []
 
-        logger.info(f"开始回测: {n_days} 天, {len(codes)} 标的, "
-                    f"初始资本 {self.capital:,.0f}")
+        logger.info(f"开始回测: {n_days} 天, {len(codes)} 标的, 初始资本 {self.capital:,.0f}")
 
         for i, date in enumerate(dates):
             day_prices = prices.loc[date]
-            day_volumes = (daily_volumes.loc[date] if daily_volumes is not None
-                          else pd.Series(1e6, index=codes))
+            day_volumes = daily_volumes.loc[date] if daily_volumes is not None else pd.Series(1e6, index=codes)
 
             # 目标权重
             if date in target_weights.index:
@@ -237,7 +246,7 @@ class CostAwareBacktest:
             # 计算权重偏离
             if i > 0:
                 # 价格变动导致的权重漂移
-                prev_prices = prices.iloc[i-1]
+                prev_prices = prices.iloc[i - 1]
                 if current_weights.sum() > 0:
                     new_weights = current_weights * (day_prices / prev_prices)
                     total = new_weights.sum() + current_cash
@@ -259,7 +268,7 @@ class CostAwareBacktest:
                     if abs(delta_w) < 0.001 or delta_w != delta_w:  # 忽略微小调整和 NaN
                         continue
 
-                    side = 'BUY' if delta_w > 0 else 'SELL'
+                    side = "BUY" if delta_w > 0 else "SELL"
                     notional = abs(delta_w) * equity
                     if notional != notional or notional <= 0:  # NaN 检查
                         continue
@@ -278,7 +287,7 @@ class CostAwareBacktest:
                     actual_notional = qty * price
                     vol = day_volumes.get(code, 1e6)
                     daily_ret = prices[code].pct_change()
-                    vol_30d = daily_ret.iloc[max(0, i-30):i].std() if i > 30 else 0.02
+                    vol_30d = daily_ret.iloc[max(0, i - 30) : i].std() if i > 30 else 0.02
                     vol_30d = vol_30d if not np.isnan(vol_30d) else 0.02
 
                     costs = self.compute_trade_cost(
@@ -290,17 +299,23 @@ class CostAwareBacktest:
                         price=price,
                     )
 
-                    daily_cost += costs['total_cost']
+                    daily_cost += costs["total_cost"]
 
-                    trades.append(TradeRecord(
-                        date=date, code=code, side=side,
-                        qty=qty, price=price, notional=actual_notional,
-                        commission=costs['commission'],
-                        stamp_duty=costs['stamp_duty'],
-                        transfer_fee=costs['transfer_fee'],
-                        market_impact=costs['market_impact'],
-                        total_cost=costs['total_cost'],
-                    ))
+                    trades.append(
+                        TradeRecord(
+                            date=date,
+                            code=code,
+                            side=side,
+                            qty=qty,
+                            price=price,
+                            notional=actual_notional,
+                            commission=costs["commission"],
+                            stamp_duty=costs["stamp_duty"],
+                            transfer_fee=costs["transfer_fee"],
+                            market_impact=costs["market_impact"],
+                            total_cost=costs["total_cost"],
+                        )
+                    )
 
                     current_weights[code] = target_w
 
@@ -308,9 +323,9 @@ class CostAwareBacktest:
 
             # 计算当日收益
             if i > 0:
-                daily_ret = (day_prices / prices.iloc[i-1] - 1).fillna(0)
+                daily_ret = (day_prices / prices.iloc[i - 1] - 1).fillna(0)
                 portfolio_ret = (current_weights * daily_ret).sum()
-                equity *= (1 + portfolio_ret)
+                equity *= 1 + portfolio_ret
                 # 扣除成本
                 equity -= daily_cost
 
@@ -337,7 +352,11 @@ class CostAwareBacktest:
         # Sortino
         downside_returns = daily_returns[daily_returns < 0]
         downside_std = downside_returns.std() if len(downside_returns) > 0 else np.nan
-        sortino = (daily_returns.mean() * 252 - 0.02) / (downside_std * np.sqrt(252)) if np.isfinite(downside_std) and downside_std > 1e-6 else 0.0
+        sortino = (
+            (daily_returns.mean() * 252 - 0.02) / (downside_std * np.sqrt(252))
+            if np.isfinite(downside_std) and downside_std > 1e-6
+            else 0.0
+        )
 
         # Calmar
         calmar = annual_return / abs(max_dd) if max_dd < 0 else 0
@@ -377,7 +396,7 @@ class CostAwareBacktest:
 
         logger.info(
             f"回测完成: 年化收益 {annual_return:.2%}, 夏普 {sharpe:.3f}, "
-            f"最大回撤 {max_dd:.2%}, 总成本 {total_cost:,.0f} ({total_cost/self.capital:.2%}%), "
+            f"最大回撤 {max_dd:.2%}, 总成本 {total_cost:,.0f} ({total_cost / self.capital:.2%}%), "
             f"交易 {n_trades} 笔, 换手 {turnover:.1f}x"
         )
 
@@ -386,16 +405,18 @@ class CostAwareBacktest:
     def compare_with_no_cost(self, result: BacktestResult) -> dict:
         """对比有无成本的差异"""
         return {
-            'total_return_with_cost': result.total_return,
-            'total_return_without_cost': result.total_return + result.cost_as_return_pct,
-            'cost_drag': result.cost_as_return_pct,
-            'cost_breakdown': {
-                'commission': result.total_commission,
-                'stamp_duty': result.total_stamp_duty,
-                'market_impact': result.total_market_impact,
+            "total_return_with_cost": result.total_return,
+            "total_return_without_cost": result.total_return + result.cost_as_return_pct,
+            "cost_drag": result.cost_as_return_pct,
+            "cost_breakdown": {
+                "commission": result.total_commission,
+                "stamp_duty": result.total_stamp_duty,
+                "market_impact": result.total_market_impact,
             },
-            'sharpe_with_cost': result.sharpe_ratio,
-            'turnover': result.turnover,
-            'n_trades': result.n_trades,
-            'avg_cost_bps': result.avg_cost_per_trade / (self.capital / result.n_trades) * 10000 if result.n_trades > 0 else 0,
+            "sharpe_with_cost": result.sharpe_ratio,
+            "turnover": result.turnover,
+            "n_trades": result.n_trades,
+            "avg_cost_bps": result.avg_cost_per_trade / (self.capital / result.n_trades) * 10000
+            if result.n_trades > 0
+            else 0,
         }

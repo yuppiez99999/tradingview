@@ -182,7 +182,7 @@ def update_build_plan():
     # 更新风格分布
     style_amounts = {}
     style_risks = {}
-    for code, info in target_portfolio.items():
+    for _code, info in target_portfolio.items():
         style = info.get("style", "其他")
         amount = info.get("target_amount", 0)
         risk = info.get("risk", "中")
@@ -201,7 +201,7 @@ def update_build_plan():
         }
 
     # 更新 broad_based_policy
-    plan["broad_based_policy"]["codes"] = list(set(plan["broad_based_policy"].get("codes", []) + ["512100", "510500"]))
+    plan["broad_based_policy"]["codes"] = list(set([*plan["broad_based_policy"].get("codes", []), "512100", "510500"]))
 
     with open(BUILD_PLAN_FILE, "w", encoding="utf-8") as f:
         json.dump(plan, f, ensure_ascii=False, indent=2)
@@ -269,7 +269,7 @@ def generate_weekly_plan():
 
     print(f"\n已生成本周计划: {week_plan_path.name}")
     print(f"本周日期: {WEEK_START.strftime('%Y-%m-%d')} ~ {(WEEK_START + timedelta(days=4)).strftime('%Y-%m-%d')}")
-    print(f"每日计划文件:")
+    print("每日计划文件:")
     for day in week_plan["daily_plans"]:
         print(f"  {day['date']} ({day['weekday']}): {day['file']}")
     return week_plan_path
@@ -321,6 +321,6 @@ if __name__ == "__main__":
     print("=" * 80)
     print(f"\n本周计划文件: {week_path}")
     print(f"建仓计划文件: {BUILD_PLAN_FILE}")
-    print(f"\n新增4只ETF:")
+    print("\n新增4只ETF:")
     for code, info in MISSING_ETFS.items():
         print(f"  {code} {info['name']} 资金净流入={info['net_flow_yi']}亿 风格={info['style']}")

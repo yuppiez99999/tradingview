@@ -4,7 +4,6 @@
 不依赖外部包,使用标准库实现
 """
 
-import os
 import sys
 import importlib.util
 import inspect
@@ -65,10 +64,10 @@ class TestFunctionCase(TestCase):
             self.message = '测试通过'
         except AssertionError as e:
             self.result = 'failed'
-            self.message = f'断言失败: {str(e)}'
+            self.message = f'断言失败: {e!s}'
         except Exception as e:
             self.result = 'error'
-            self.message = f'执行错误: {str(e)}'
+            self.message = f'执行错误: {e!s}'
             traceback.print_exc()
         finally:
             end = datetime.now()
@@ -166,7 +165,7 @@ class TestRunner:
             failed = sum(1 for r in self.results if r.result == 'failed')
             errors = sum(1 for r in self.results if r.result == 'error')
             
-            f.write(f"测试汇总:\n")
+            f.write("测试汇总:\n")
             f.write(f"  总计: {len(self.results)}\n")
             f.write(f"  通过: {passed}\n")
             f.write(f"  失败: {failed}\n")
@@ -263,7 +262,7 @@ def main():
     print("执行总结:")
     print(f"  测试通过率: {passed/max(len(runner.results),1)*100:.1f}%")
     print(f"  估算覆盖率: {coverage:.1f}%")
-    print(f"  目标覆盖率: 80.0%")
+    print("  目标覆盖率: 80.0%")
     
     if coverage >= 80.0:
         print("  [PASS] 覆盖率达标!")

@@ -1,5 +1,5 @@
 """v7.6 功能验证脚本"""
-import sys, os
+import sys
 sys.path.insert(0, 'src')
 
 import numpy as np
@@ -11,7 +11,7 @@ print()
 
 # 1. PM Limits Matrix
 print("[1/7] PM限额矩阵...")
-from risk.pm_limits import PMLimitsMatrix, create_default_limits
+from risk.pm_limits import create_default_limits
 pm = create_default_limits(total_nav=5_000_000)
 test_pos = {'300308.SZ': 0.15, '688041.SH': 0.12, '601088.SH': 0.10}
 result = pm.check_all(test_pos)
@@ -24,7 +24,7 @@ print(f"  Pre-trade 300308: {pre.status.value} -> {pre.message[:60] if pre.messa
 
 # 2. 深度压力测试
 print("[2/7] 深度压力测试...")
-from risk.deep_stress import DeepStressTester, DEEP_SHOCK_SCENARIOS
+from risk.deep_stress import DeepStressTester
 dpt = DeepStressTester(total_nav=5_000_000)
 exposures = {'equity_cn': 4_000_000, 'cn_bond': 1_000_000, 'gold': 500_000}
 report = dpt.run_all(exposures)
@@ -74,7 +74,7 @@ returns = pd.DataFrame({
 }, index=dates)
 hrp = HierarchicalRiskParity()
 w = hrp.fit(returns)
-print(f"  权重: {{k: round(v,3) for k,v in w.items()}}")
+print("  权重: {k: round(v,3) for k,v in w.items()}")
 risk_rpt = hrp.portfolio_risk(returns)
 print(f"  HRP年化波动率: {risk_rpt['annual_vol']:.1%}")
 

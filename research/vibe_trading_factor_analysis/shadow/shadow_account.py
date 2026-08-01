@@ -236,7 +236,7 @@ class ShadowAccount:
             r.daily_pnl = daily_pnl
             r.realized_vol = rm_stats["realized_vol"]
             r.avg_scaler = rm_stats["avg_scaler"]
-            r.derisk_triggered_days = rm_stats["derisk_triggered_days"]
+            r.derisk_triggered_days = rm_stats["derisk_triggered_days"]  # type: ignore
             logger.info(
                 "[ShadowAccount] %s 风险管理 | raw_dd=%.3f→rm_dd=%.3f raw_vol=%.3f→rm_vol=%.3f derisk_days=%d",
                 factor_name, r.raw_max_drawdown, rm_stats["rm_max_dd"],

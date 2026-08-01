@@ -5,7 +5,7 @@
 $ErrorActionPreference = 'Stop'
 
 $taskName = 'Quant_LLM_IntradayDecision'
-$python = 'C:\Program Files\Python38\python.exe'
+$python = 'C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe'
 $script = 'E:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional\llm_intraday_decision_engine.py'
 $logDir = 'E:\各种PY程序\28-终极量化交易系统8.4\logs'
 

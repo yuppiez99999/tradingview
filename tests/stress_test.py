@@ -4,16 +4,15 @@
 验证2026-2030年期间年化收益>=8%，回撤<15%
 """
 
-import json
 import yaml
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
 
 
 def load_positions():
-    with open('config/positions.json', 'r', encoding='utf-8') as f:
-        return json.load(f)
+    # B1.7: 委托给 utils.positions_loader 统一入口
+    from utils.positions_loader import load_positions as _load
+    return _load('config/positions.json')
 
 
 def load_portfolio():
@@ -79,7 +78,7 @@ def get_dynamic_hedge_ratio(market_state):
 def calculate_portfolio_returns(positions, market_returns, hedge_ratio=0.5, market_state='neutral'):
     sector_amounts = {}
     total_amount = 0
-    for code, pos in positions['positions'].items():
+    for _code, pos in positions['positions'].items():
         sector = pos.get('sector', '其他')
         amount = pos.get('amount', 0)
         if sector not in sector_amounts:
@@ -183,7 +182,7 @@ def main():
     start_date = portfolio.get('start_date', '2026-07-13')
     end_date = portfolio.get('clearance_date', '2030-12-31')
     
-    print(f"=== 组合压力测试 ===")
+    print("=== 组合压力测试 ===")
     print(f"测试周期: {start_date} ~ {end_date}")
     print(f"初始资金: {portfolio.get('stock_etf_capital', 4000000):,} 元")
     print(f"目标年化: {portfolio.get('target_annual_return', 0.08) * 100:.1f}%")
@@ -203,7 +202,7 @@ def main():
         hedge_ratios = []
         drawdown_scales = []
         
-        for i, date in enumerate(market_returns.index):
+        for i, _date in enumerate(market_returns.index):
             if i == 0:
                 continue
             
@@ -249,7 +248,7 @@ def main():
         print(f"平均回撤熔断系数: {avg_drawdown_scale:.2f}")
         print()
     
-    print(f"=== 测试结果汇总 ===")
+    print("=== 测试结果汇总 ===")
     print(f"{'情景':<10} {'年化收益':<12} {'最大回撤':<12} {'收益达标':<8} {'回撤达标':<8}")
     print(f"{'---':<10} {'---':<12} {'---':<12} {'---':<8} {'---':<8}")
     for r in results:

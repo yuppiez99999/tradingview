@@ -25,6 +25,7 @@ v8.6.8 P2-LIVE-10 升级 (2026-07-26):
       c) 跨日结算时点错位
       d) 监管报送时间戳异常
 """
+
 from __future__ import annotations
 
 import logging
@@ -46,7 +47,7 @@ class NTPSync:
     """NTP 时间同步器 (v8.6.8 P2-LIVE-10 升级)"""
 
     # 告警级别阈值默认值 (毫秒)
-    DEFAULT_DRIFT_WARNING_MS = 500.0    # 500ms 告警
+    DEFAULT_DRIFT_WARNING_MS = 500.0  # 500ms 告警
     DEFAULT_DRIFT_CRITICAL_MS = 1300.0  # 1300ms 严重告警
 
     # 告警去抖周期 (秒): 同级别告警在窗口内不重复触发
@@ -55,14 +56,16 @@ class NTPSync:
     # 历史漂移记录容量
     HISTORY_CAPACITY = 100
 
-    def __init__(self,
-                 server: str = "ntp.tencent.com",
-                 resync_interval_min: int = 30,
-                 max_drift_ms: float = 50.0,
-                 fallback_servers: Optional[list] = None,
-                 drift_warning_ms: float = None,
-                 drift_critical_ms: float = None,
-                 alert_callback: Optional[Callable[[dict], None]] = None):
+    def __init__(
+        self,
+        server: str = "ntp.tencent.com",
+        resync_interval_min: int = 30,
+        max_drift_ms: float = 50.0,
+        fallback_servers: Optional[list] = None,
+        drift_warning_ms: Optional[float] = None,
+        drift_critical_ms: Optional[float] = None,
+        alert_callback: Optional[Callable[[dict], None]] = None,
+    ):
         """
         Args:
             server: 主 NTP 服务器
@@ -78,14 +81,20 @@ class NTPSync:
         self.resync_interval = timedelta(minutes=resync_interval_min)
         self.max_drift_ms = float(max_drift_ms)
         # v8.6.8 P2-LIVE-10: 三级阈值分级告警
-        self.drift_warning_ms = float(drift_warning_ms) if drift_warning_ms is not None else self.DEFAULT_DRIFT_WARNING_MS
-        self.drift_critical_ms = float(drift_critical_ms) if drift_critical_ms is not None else self.DEFAULT_DRIFT_CRITICAL_MS
+        self.drift_warning_ms = (
+            float(drift_warning_ms) if drift_warning_ms is not None else self.DEFAULT_DRIFT_WARNING_MS
+        )
+        self.drift_critical_ms = (
+            float(drift_critical_ms) if drift_critical_ms is not None else self.DEFAULT_DRIFT_CRITICAL_MS
+        )
         # 阈值合理性校验: critical > warning > max
         if not (self.drift_critical_ms > self.drift_warning_ms > self.max_drift_ms):
             logger.warning(
                 "NTP 漂移阈值配置异常: max=%.1f ms, warning=%.1f ms, critical=%.1f ms "
                 "(应为 critical > warning > max), 使用默认值",
-                self.max_drift_ms, self.drift_warning_ms, self.drift_critical_ms,
+                self.max_drift_ms,
+                self.drift_warning_ms,
+                self.drift_critical_ms,
             )
             self.drift_warning_ms = self.DEFAULT_DRIFT_WARNING_MS
             self.drift_critical_ms = self.DEFAULT_DRIFT_CRITICAL_MS
@@ -129,12 +138,11 @@ class NTPSync:
             return False
 
         client = ntplib.NTPClient()
-        servers_to_try = [self.server] + list(self.fallback_servers)
+        servers_to_try = [self.server, *list(self.fallback_servers)]
 
         for srv in servers_to_try:
             try:
                 resp = client.request(srv, version=3, timeout=5)
-                old_offset = self.offset_seconds
                 self.offset_seconds = float(resp.tx_time - time.time())
                 self.last_sync = datetime.utcnow()
                 self.sync_failed_count = 0
@@ -142,18 +150,21 @@ class NTPSync:
 
                 # v8.6.8 P2-LIVE-10: 记录漂移历史并触发分级告警
                 current_drift_ms = self.drift_ms()
-                self._drift_history.append({
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "drift_ms": current_drift_ms,
-                    "offset_seconds": float(self.offset_seconds),
-                    "server": srv,
-                })
+                self._drift_history.append(
+                    {
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "drift_ms": current_drift_ms,
+                        "offset_seconds": float(self.offset_seconds),
+                        "server": srv,
+                    }
+                )
                 self._check_drift_and_alert(current_drift_ms, server=srv)
 
                 # 兼容旧逻辑: 超过 max_drift_ms 自动校准
                 if current_drift_ms > self.max_drift_ms:
-                    logger.warning("NTP 漂移 %.1f ms > 阈值 %.1f ms, 已校准 (server=%s)",
-                                   current_drift_ms, self.max_drift_ms, srv)
+                    logger.warning(
+                        "NTP 漂移 %.1f ms > 阈值 %.1f ms, 已校准 (server=%s)", current_drift_ms, self.max_drift_ms, srv
+                    )
                 else:
                     logger.info("NTP 同步成功, offset=%.3f s (server=%s)", self.offset_seconds, srv)
                 return True
@@ -227,8 +238,7 @@ class NTPSync:
         last_at = self._last_alert_at.get(level)
         if last_at is not None and (now_ts - last_at) < self.ALERT_DEBOUNCE_SECONDS:
             # 去抖: 窗口内同级别告警不重复触发
-            logger.debug("NTP 告警去抖: level=%s 在 %.0f 秒内已触发过, 跳过",
-                         level, self.ALERT_DEBOUNCE_SECONDS)
+            logger.debug("NTP 告警去抖: level=%s 在 %.0f 秒内已触发过, 跳过", level, self.ALERT_DEBOUNCE_SECONDS)
             return
 
         # 更新去抖时间戳和计数
@@ -300,9 +310,7 @@ class NTPSync:
         - 漂移 < drift_warning_ms (500ms) 才算健康
         - CRITICAL 级别告警自动标记为不健康
         """
-        return (self.last_sync is not None
-                and self.sync_failed_count < 5
-                and self.drift_ms() < self.drift_warning_ms)
+        return self.last_sync is not None and self.sync_failed_count < 5 and self.drift_ms() < self.drift_warning_ms
 
     def snapshot(self) -> dict:
         """返回 NTP 完整快照 (含 v8.6.8 P2-LIVE-10 告警统计)"""
@@ -320,12 +328,9 @@ class NTPSync:
                 "drift_critical_ms": float(self.drift_critical_ms),
             },
             "alert_stats": dict(self._alert_stats),
-            "last_alert_at": {k: datetime.utcfromtimestamp(v).isoformat()
-                              for k, v in self._last_alert_at.items()},
+            "last_alert_at": {k: datetime.utcfromtimestamp(v).isoformat() for k, v in self._last_alert_at.items()},
             "drift_history_count": len(self._drift_history),
-            "drift_history_latest": (
-                self._drift_history[-1] if self._drift_history else None
-            ),
+            "drift_history_latest": (self._drift_history[-1] if self._drift_history else None),
         }
 
     # ------------------------------------------------------------

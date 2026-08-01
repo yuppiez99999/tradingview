@@ -19,13 +19,11 @@
 """
 from __future__ import annotations
 
-import json
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 
 # 项目根路径注入
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -50,21 +48,21 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("S3 第九批次流水线跑批（P2.1c+P2.1d 集成验证）")
-    print("=" * 70)
-    print("集成改进:")
-    print("  P2.1c: risk_managed=True 作为 Shadow 默认配置")
-    print("  P2.1d: 4 个新反向因子 (VT_REV_OVERREACTION_INV 等)")
-    print("  Committee: 通过 Shadow 的因子自动进入评审")
+    logger.info("=" * 70)
+    logger.info("S3 第九批次流水线跑批（P2.1c+P2.1d 集成验证）")
+    logger.info("=" * 70)
+    logger.info("集成改进:")
+    logger.info("  P2.1c: risk_managed=True 作为 Shadow 默认配置")
+    logger.info("  P2.1d: 4 个新反向因子 (VT_REV_OVERREACTION_INV 等)")
+    logger.info("  Committee: 通过 Shadow 的因子自动进入评审")
 
     # ============ Step 1: 加载数据 ============
-    print("\n[1/5] 加载 P1 改进后的真实数据")
+    logger.info("\n[1/5] 加载 P1 改进后的真实数据")
     symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
+    logger.info(f"  可用标的数: {len(symbols)}")
 
     price_data = load_price_data(symbols=symbols)
-    print(f"  price_data: {len(price_data)} 个标的")
+    logger.info(f"  price_data: {len(price_data)} 个标的")
 
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns()
@@ -73,14 +71,14 @@ def main() -> int:
             compute_equal_weight_benchmark,
         )
         benchmark_returns = compute_equal_weight_benchmark(price_data)
-    print(f"  benchmark_returns: {len(benchmark_returns)} 天")
+    logger.info(f"  benchmark_returns: {len(benchmark_returns)} 天")
 
     if not price_data:
-        print("[ERROR] 价格数据加载失败")
+        logger.info("[ERROR] 价格数据加载失败")
         return 1
 
     # ============ Step 2: 初始化流水线（risk_managed=True 默认启用）============
-    print("\n[2/5] 初始化 PipelineOrchestrator（Shadow 默认启用风险管理层）")
+    logger.info("\n[2/5] 初始化 PipelineOrchestrator（Shadow 默认启用风险管理层）")
     orchestrator = PipelineOrchestrator(
         config={
             "reports_dir": str(REPORTS_DIR),
@@ -88,13 +86,13 @@ def main() -> int:
         }
     )
     batch_id = f"ninth_batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    print(f"  batch_id: {batch_id}")
-    print(f"  shadow risk_managed: {orchestrator.shadow_account.risk_managed}")
+    logger.info(f"  batch_id: {batch_id}")
+    logger.info(f"  shadow risk_managed: {orchestrator.shadow_account.risk_managed}")
 
     # ============ Step 3: 跑流水线 ============
-    print("\n[3/5] 执行 8 级流水线（含 4 个新反向因子 + 风险管理 Shadow）")
+    logger.info("\n[3/5] 执行 8 级流水线（含 4 个新反向因子 + 风险管理 Shadow）")
     n_trials = max(len(symbols), 13)
-    print(f"  n_trials: {n_trials}")
+    logger.info(f"  n_trials: {n_trials}")
 
     result = orchestrator.run(
         price_data=price_data,
@@ -108,72 +106,72 @@ def main() -> int:
     )
 
     # ============ Step 4: 汇总结果 ============
-    print("\n[4/5] 汇总批次结果")
-    print("-" * 70)
-    print(f"  batch_id           : {result.batch_id}")
-    print(f"  total_candidates   : {result.total_candidates}")
-    print(f"  G1 正交性通过       : {result.g1_passed}")
-    print(f"  G2 IC 稳定性通过    : {result.g2_passed}")
-    print(f"  G3 DSR 防过拟合通过  : {result.g3_passed}")
-    print(f"  G4 经济逻辑通过      : {result.g4_passed}")
-    print(f"  Enhancement 通过    : {result.enhanced}")
-    print(f"  Shadow 通过(risk_managed): {result.shadow_passed}")
-    print(f"  Committee 通过(Approved): {result.approved}")
-    print(f"  Rejected            : {result.rejected}")
-    print(f"  Failed              : {result.failed}")
-    print(f"  Deferred(fundamentals): {result.deferred_fundamentals}")
-    print("-" * 70)
+    logger.info("\n[4/5] 汇总批次结果")
+    logger.info("-" * 70)
+    logger.info(f"  batch_id           : {result.batch_id}")
+    logger.info(f"  total_candidates   : {result.total_candidates}")
+    logger.info(f"  G1 正交性通过       : {result.g1_passed}")
+    logger.info(f"  G2 IC 稳定性通过    : {result.g2_passed}")
+    logger.info(f"  G3 DSR 防过拟合通过  : {result.g3_passed}")
+    logger.info(f"  G4 经济逻辑通过      : {result.g4_passed}")
+    logger.info(f"  Enhancement 通过    : {result.enhanced}")
+    logger.info(f"  Shadow 通过(risk_managed): {result.shadow_passed}")
+    logger.info(f"  Committee 通过(Approved): {result.approved}")
+    logger.info(f"  Rejected            : {result.rejected}")
+    logger.info(f"  Failed              : {result.failed}")
+    logger.info(f"  Deferred(fundamentals): {result.deferred_fundamentals}")
+    logger.info("-" * 70)
 
     # P2.1c 验收：VT_MICRO_VOL_SKEW_INV 是否通过 Shadow
     target = next((f for f in result.factors if f.get("factor_name") == "VT_MICRO_VOL_SKEW_INV"), None)
     if target:
         shadow = target.get("shadow_result") or {}
         committee = target.get("committee_verdict") or {}
-        print(f"\n  P2.1c 验收 - VT_MICRO_VOL_SKEW_INV:")
-        print(f"    state          : {target.get('state', '-')}")
-        print(f"    shadow pass    : {shadow.get('pass_shadow', False)}")
-        print(f"    shadow max_dd  : {shadow.get('max_drawdown', 0):.4f} (阈值 < 0.12)")
-        print(f"    shadow mc_p95  : {shadow.get('monte_carlo_p95_dd', 0):.4f} (阈值 < 0.18)")
-        print(f"    shadow live_dsr: {shadow.get('live_dsr', 0):.4f} (阈值 > 0.5)")
-        print(f"    risk_managed   : {shadow.get('risk_managed', False)}")
-        print(f"    avg_scaler     : {shadow.get('avg_scaler', 0):.4f}")
-        print(f"    derisk_days    : {shadow.get('derisk_triggered_days', 0)}")
-        print(f"    committee      : avg={committee.get('avg_score', 0):.2f} approved={committee.get('approved', False)}")
-        print(f"    chair_decision : {committee.get('chair_decision', '-')}")
+        logger.info("\n  P2.1c 验收 - VT_MICRO_VOL_SKEW_INV:")
+        logger.info(f"    state          : {target.get('state', '-')}")
+        logger.info(f"    shadow pass    : {shadow.get('pass_shadow', False)}")
+        logger.info(f"    shadow max_dd  : {shadow.get('max_drawdown', 0):.4f} (阈值 < 0.12)")
+        logger.info(f"    shadow mc_p95  : {shadow.get('monte_carlo_p95_dd', 0):.4f} (阈值 < 0.18)")
+        logger.info(f"    shadow live_dsr: {shadow.get('live_dsr', 0):.4f} (阈值 > 0.5)")
+        logger.info(f"    risk_managed   : {shadow.get('risk_managed', False)}")
+        logger.info(f"    avg_scaler     : {shadow.get('avg_scaler', 0):.4f}")
+        logger.info(f"    derisk_days    : {shadow.get('derisk_triggered_days', 0)}")
+        logger.info(f"    committee      : avg={committee.get('avg_score', 0):.2f} approved={committee.get('approved', False)}")
+        logger.info(f"    chair_decision : {committee.get('chair_decision', '-')}")
 
     # P2.1d 验收：4 个新反向因子的 G2 表现
-    print(f"\n  P2.1d 验收 - 4 个新反向因子:")
+    logger.info("\n  P2.1d 验收 - 4 个新反向因子:")
     new_inv_factors = ["VT_REV_OVERREACTION_INV", "VT_MOM_OVERNIGHT_GAP_INV",
                        "VT_MOM_HIGH_VOL_ALPHA_INV", "VT_VOL_CLUSTERING_INV"]
     for fname in new_inv_factors:
         f = next((x for x in result.factors if x.get("factor_name") == fname), None)
         if f:
             g2 = f.get("g2_ic_stability") or {}
-            print(f"    {fname:30s} | IC_IR={g2.get('ic_ir_estimated', 0):+.4f} | state={f.get('state', '-')}")
+            logger.info(f"    {fname:30s} | IC_IR={g2.get('ic_ir_estimated', 0):+.4f} | state={f.get('state', '-')}")
 
     # ============ Step 5: 写入报告 ============
-    print("\n[5/5] 写入批次报告")
+    logger.info("\n[5/5] 写入批次报告")
     md_path = _write_ninth_batch_report(result, symbols, n_trials)
-    print(f"  报告路径: {md_path}")
+    logger.info(f"  报告路径: {md_path}")
 
     # 状态分布
     state_dist: dict[str, int] = {}
     for f in result.factors:
         state = f.get("state", "unknown")
         state_dist[state] = state_dist.get(state, 0) + 1
-    print(f"\n  状态分布:")
+    logger.info("\n  状态分布:")
     for state, cnt in sorted(state_dist.items(), key=lambda kv: -kv[1]):
-        print(f"    {state:30s} : {cnt}")
+        logger.info(f"    {state:30s} : {cnt}")
 
     # Top 5 因子
     ranked = _rank_factors_by_progress(result.factors)
-    print(f"\n  Top 5 因子:")
+    logger.info("\n  Top 5 因子:")
     for f in ranked[:5]:
-        print(f"    {f['factor_name']:30s} | state={f.get('state', ''):20s} | score={f.get('final_score', 0):.2f}")
+        logger.info(f"    {f['factor_name']:30s} | state={f.get('state', ''):20s} | score={f.get('final_score', 0):.2f}")
 
-    print("\n" + "=" * 70)
-    print("S3 第九批次流水线跑批完成（P2.1c+P2.1d 集成验证）")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("S3 第九批次流水线跑批完成（P2.1c+P2.1d 集成验证）")
+    logger.info("=" * 70)
     return 0
 
 

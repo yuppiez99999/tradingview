@@ -11,7 +11,7 @@
     - 每个 bug 至少一个用例, 函数名包含 bug 编号
 """
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from utils.kill_switch import KillSwitch
 

@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -65,12 +64,12 @@ def regenerate(batch_id: str, symbols: list[str] = None, n_trials: int = None) -
         setattr(result, k, v)
 
     md_path = _write_batch_report_md(result, symbols, n_trials)
-    print(f"\n报告重新生成: {md_path}")
+    logger.info(f"\n报告重新生成: {md_path}")
     return 0
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("用法: python regenerate_batch_report.py <batch_id>")
+        logger.info("用法: python regenerate_batch_report.py <batch_id>")
         sys.exit(2)
     sys.exit(regenerate(sys.argv[1]))

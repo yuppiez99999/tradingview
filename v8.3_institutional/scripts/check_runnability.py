@@ -8,12 +8,13 @@ v7.5_institutional 系统可运行性全面检查 & 外部依赖清单生成
 3. 外部依赖分析 (区分 stdlib / third-party / internal)
 4. 生成 requirements.txt
 """
-import os, sys, re, ast, subprocess, importlib
+import sys
+import ast
+import importlib
 from pathlib import Path
-from collections import defaultdict, Counter
+from collections import Counter
 from typing import Dict, List, Set, Tuple
 import py_compile
-import traceback
 
 # 配置
 BASE_DIR = Path(r"E:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional")
@@ -124,7 +125,7 @@ def check_syntax(filepath: Path) -> Tuple[bool, str]:
     """编译检查语法"""
     try:
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-            source = f.read() + "\n"
+            f.read() + "\n"
         py_compile.compile(filepath, doraise=True)
         return True, ""
     except py_compile.PyCompileError as e:
@@ -201,7 +202,7 @@ def main():
     print(f"\n[1/5] 文件扫描: 找到 {len(all_files)} 个Python文件")
 
     # 2. 语法检查
-    print(f"\n[2/5] 逐文件语法检查 (py_compile)...")
+    print("\n[2/5] 逐文件语法检查 (py_compile)...")
     syntax_errors = []
     ok_count = 0
     for f in all_files:
@@ -217,7 +218,7 @@ def main():
     print(f"  结果: {ok_count}/{len(all_files)} 通过, {len(syntax_errors)} 个语法错误")
 
     # 3. 导入分析
-    print(f"\n[3/5] 导入分析 (AST 解析)...")
+    print("\n[3/5] 导入分析 (AST 解析)...")
     all_third_party = Counter()
     all_stdlib = Counter()
     file_imports: Dict[str, Dict] = {}
@@ -236,7 +237,7 @@ def main():
     print(f"  发现 {len(all_third_party)} 个唯一第三方依赖包")
 
     # 4. 检查当前环境各包安装情况
-    print(f"\n[4/5] 第三方依赖安装状态检查...")
+    print("\n[4/5] 第三方依赖安装状态检查...")
     dep_status = {}
     for pkg, count in all_third_party.most_common():
         installed = check_importable(pkg)
@@ -245,7 +246,7 @@ def main():
         print(f"  {'[OK]' if installed else '[MISS]'} {pkg:20s} - 被 {count:3d} 个文件引用 - {status}")
 
     # 5. 内部模块导入测试
-    print(f"\n[5/5] 内部子包导入测试...")
+    print("\n[5/5] 内部子包导入测试...")
     sys.path.insert(0, str(BASE_DIR))
     src_results = check_src_module_imports()
     for pkg, (ok, msg) in src_results.items():
@@ -258,18 +259,18 @@ def main():
     print("=" * 70)
 
     # 语法检查汇总
-    print(f"\n--- 语法检查 ---")
+    print("\n--- 语法检查 ---")
     print(f"  总文件数: {len(all_files)}")
     print(f"  通过: {ok_count}")
     print(f"  失败: {len(syntax_errors)}")
     if syntax_errors:
-        print(f"\n  语法错误文件列表:")
+        print("\n  语法错误文件列表:")
         for fname, err in syntax_errors:
             print(f"    - {fname}")
             print(f"      {err.split(chr(10))[0][:150]}")
 
     # 内部模块导入状态
-    print(f"\n--- 内部子包导入 (src/) ---")
+    print("\n--- 内部子包导入 (src/) ---")
     ok_pkgs = [p.replace("src.", "") for p, (ok, _) in src_results.items() if ok]
     fail_pkgs = [(p.replace("src.", ""), m) for p, (ok, m) in src_results.items() if not ok]
     print(f"  可导入: {len(ok_pkgs)}/{len(src_results)}")
@@ -377,13 +378,13 @@ def main():
     overall = (syntax_score * 0.3 + import_score * 0.3 + dep_score * 0.4)
     print(f"\n  综合评分: {overall:.0f}/100")
     if overall >= 90:
-        print(f"  评级: 🟢 优秀 - 系统可正常运行")
+        print("  评级: 🟢 优秀 - 系统可正常运行")
     elif overall >= 70:
-        print(f"  评级: 🟡 良好 - 需小幅修复")
+        print("  评级: 🟡 良好 - 需小幅修复")
     elif overall >= 50:
-        print(f"  评级: 🟠 一般 - 需中等程度修复")
+        print("  评级: 🟠 一般 - 需中等程度修复")
     else:
-        print(f"  评级: 🔴 较差 - 需大规模修复")
+        print("  评级: 🔴 较差 - 需大规模修复")
 
     return syntax_errors, src_results, dep_status
 

@@ -18,8 +18,8 @@ v7.6 Signal Half-Life Manager — 信号半衰期管理
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -31,19 +31,20 @@ logger = logging.getLogger("v76.signals.half_life")
 @dataclass
 class SignalHalfLife:
     """信号半衰期信息"""
+
     signal_name: str
-    half_life: float             # 半衰期 (天)
-    estimated_at: str            # 估计时间
-    method: str                  # 'autocorr' | 'variance_ratio' | 'fixed'
-    decay_rate: float            # λ = ln(2) / half_life
-    r2: float = 0.0              # 拟合 R²
-    is_stable: bool = True       # 半衰期是否稳定
+    half_life: float  # 半衰期 (天)
+    estimated_at: str  # 估计时间
+    method: str  # 'autocorr' | 'variance_ratio' | 'fixed'
+    decay_rate: float  # λ = ln(2) / half_life
+    r2: float = 0.0  # 拟合 R²
+    is_stable: bool = True  # 半衰期是否稳定
 
     # 信号类别
-    category: str = "unknown"    # 'technical' | 'fundamental' | 'sentiment' | 'macro' | 'alternative'
+    category: str = "unknown"  # 'technical' | 'fundamental' | 'sentiment' | 'macro' | 'alternative'
 
     # 推荐使用策略
-    max_valid_days: int = 10     # 信号最大有效天数 (3 × half_life)
+    max_valid_days: int = 10  # 信号最大有效天数 (3 × half_life)
     weight_decay_method: str = "exponential"
     min_retain_weight: float = 0.05  # 低于此权重丢弃
 
@@ -73,12 +74,14 @@ class SignalHalfLifeManager:
         self.active_signals: Dict[str, Dict] = {}
 
     # ---------- 注册与估计 ----------
-    def register_signal(self,
-                        signal_name: str,
-                        category: str,
-                        half_life: Optional[float] = None,
-                        max_valid_days: Optional[int] = None,
-                        min_retain_weight: float = 0.05) -> SignalHalfLife:
+    def register_signal(
+        self,
+        signal_name: str,
+        category: str,
+        half_life: Optional[float] = None,
+        max_valid_days: Optional[int] = None,
+        min_retain_weight: float = 0.05,
+    ) -> SignalHalfLife:
         """注册新信号
 
         如果未提供 half_life, 将标记为通过数据估计
@@ -94,7 +97,7 @@ class SignalHalfLifeManager:
             signal_name=signal_name,
             half_life=half_life or 0,
             estimated_at=datetime.now().isoformat(),
-            method='fixed' if half_life else 'unknown',
+            method="fixed" if half_life else "unknown",
             decay_rate=round(decay_rate, 6),
             category=category,
             max_valid_days=max_valid,
@@ -104,11 +107,9 @@ class SignalHalfLifeManager:
         self.signal_snapshots[signal_name] = []
         return meta
 
-    def estimate_half_life(self,
-                           signal_name: str,
-                           signal_values: pd.Series,
-                           method: str = 'autocorr',
-                           max_lag: int = 60) -> SignalHalfLife:
+    def estimate_half_life(
+        self, signal_name: str, signal_values: pd.Series, method: str = "autocorr", max_lag: int = 60
+    ) -> SignalHalfLife:
         """从历史数据估计半衰期
 
         Args:
@@ -122,13 +123,13 @@ class SignalHalfLifeManager:
         """
         if len(signal_values) < max_lag:
             logger.warning(f"{signal_name}: 数据不足 {len(signal_values)} < {max_lag}")
-            return self.register_signal(signal_name, 'unknown', half_life=5.0)
+            return self.register_signal(signal_name, "unknown", half_life=5.0)
 
         values = signal_values.dropna().values
 
-        if method == 'autocorr':
+        if method == "autocorr":
             half_life, decay_rate, r2 = self._estimate_via_autocorr(values, max_lag)
-        elif method == 'variance_ratio':
+        elif method == "variance_ratio":
             half_life, decay_rate, r2 = self._estimate_via_variance_ratio(values, max_lag)
         else:
             half_life, decay_rate, r2 = 5.0, np.log(2) / 5.0, 0
@@ -143,15 +144,14 @@ class SignalHalfLifeManager:
             method=method,
             decay_rate=round(decay_rate, 6),
             r2=round(r2, 4),
-            category=getattr(self.signals.get(signal_name), 'category', 'unknown'),
+            category=getattr(self.signals.get(signal_name), "category", "unknown"),
             max_valid_days=int(3 * half_life),
         )
         self.signals[signal_name] = meta
         logger.info(f"{signal_name}: T_half={half_life:.1f}d, λ={decay_rate:.4f}, R²={r2:.3f}")
         return meta
 
-    def _estimate_via_autocorr(self, values: np.ndarray,
-                                max_lag: int) -> Tuple[float, float, float]:
+    def _estimate_via_autocorr(self, values: np.ndarray, max_lag: int) -> Tuple[float, float, float]:
         """自相关法估计半衰期
 
         方法: 计算 seq=values 的一阶自回归系数 ρ
@@ -176,7 +176,7 @@ class SignalHalfLifeManager:
 
         # 取最前 20 个 lags 估计 ρ
         acf_arr = np.array(acf)
-        rho = np.mean(acf_arr[:min(20, len(acf_arr)), 1])
+        rho = np.mean(acf_arr[: min(20, len(acf_arr)), 1])
 
         if rho <= 0 or rho >= 1:
             return 5.0, np.log(2) / 5.0, 0.0
@@ -185,12 +185,11 @@ class SignalHalfLifeManager:
 
         # R²: 用 AR(1) 拟合的残差
         # 简化: 用 (1-rho)^2 近似
-        r2 = rho ** 2
+        r2 = rho**2
 
         return float(half_life), float(np.log(2) / half_life), float(r2)
 
-    def _estimate_via_variance_ratio(self, values: np.ndarray,
-                                      max_lag: int) -> Tuple[float, float, float]:
+    def _estimate_via_variance_ratio(self, values: np.ndarray, max_lag: int) -> Tuple[float, float, float]:
         """方差比法估计半衰期
 
         方差比 = var(k-period returns) / (k * var(1-period returns))
@@ -233,11 +232,9 @@ class SignalHalfLifeManager:
         return float(half_life), float(np.log(2) / max(half_life, 0.1)), float(max(0, 1 - target_lag / max_lag))
 
     # ---------- 衰减应用 ----------
-    def decay_weight(self,
-                     signal_name: str,
-                     original_weight: float,
-                     days_ago: float = 0.0,
-                     custom_half_life: Optional[float] = None) -> float:
+    def decay_weight(
+        self, signal_name: str, original_weight: float, days_ago: float = 0.0, custom_half_life: Optional[float] = None
+    ) -> float:
         """按半衰期衰减信号权重
 
         w(t) = w0 * exp(-λ * t)
@@ -269,9 +266,12 @@ class SignalHalfLifeManager:
 
         # 最小保留阈值
         default_meta = SignalHalfLife(
-            signal_name=signal_name, half_life=0,
-            estimated_at=datetime.now().isoformat(), method='unknown',
-            decay_rate=0.0, min_retain_weight=0.05
+            signal_name=signal_name,
+            half_life=0,
+            estimated_at=datetime.now().isoformat(),
+            method="unknown",
+            decay_rate=0.0,
+            min_retain_weight=0.05,
         )
         min_retain = self.signals.get(signal_name, default_meta).min_retain_weight
 
@@ -280,19 +280,21 @@ class SignalHalfLifeManager:
 
         decayed = round(max(0.0, min(decayed, 1.0)), 6)
 
-        self.decay_log.append({
-            'ts': datetime.now().isoformat(),
-            'signal': signal_name,
-            'original': original_weight,
-            'decayed': decayed,
-            'days_ago': days_ago,
-        })
+        self.decay_log.append(
+            {
+                "ts": datetime.now().isoformat(),
+                "signal": signal_name,
+                "original": original_weight,
+                "decayed": decayed,
+                "days_ago": days_ago,
+            }
+        )
 
         return decayed
 
-    def apply_decay_to_signals(self,
-                               signals: Dict[str, Dict],
-                               current_time: Optional[datetime] = None) -> Dict[str, float]:
+    def apply_decay_to_signals(
+        self, signals: Dict[str, Dict], current_time: Optional[datetime] = None
+    ) -> Dict[str, float]:
         """对活跃信号批量应用衰减
 
         Args:
@@ -306,8 +308,8 @@ class SignalHalfLifeManager:
         decayed = {}
 
         for name, info in signals.items():
-            w = info.get('weight', 1.0)
-            gen_at = info.get('generated_at')
+            w = info.get("weight", 1.0)
+            gen_at = info.get("generated_at")
 
             if gen_at is None:
                 days_ago = 0.0
@@ -321,10 +323,7 @@ class SignalHalfLifeManager:
             if dw > 0:
                 decayed[name] = dw
 
-        self.active_signals = {
-            name: {'weight': w, 'ts': now.isoformat()}
-            for name, w in decayed.items()
-        }
+        self.active_signals = {name: {"weight": w, "ts": now.isoformat()} for name, w in decayed.items()}
 
         return decayed
 
@@ -341,15 +340,14 @@ class SignalHalfLifeManager:
             }
         """
         if not self.active_signals:
-            return {'overall_freshness': 0, 'signal_count': 0,
-                    'stale_signals': [], 'fresh_signals': []}
+            return {"overall_freshness": 0, "signal_count": 0, "stale_signals": [], "fresh_signals": []}
 
         n_total = len(self.active_signals)
         fresh = []
         stale = []
 
         for name, info in self.active_signals.items():
-            w = info['weight']
+            w = info["weight"]
             meta = self.signals.get(name)
             if meta and meta.half_life > 0:
                 # 估算 age
@@ -367,12 +365,12 @@ class SignalHalfLifeManager:
         freshness = round(len(fresh) / max(n_total, 1) * 100, 1)
 
         return {
-            'overall_freshness': freshness,
-            'signal_count': n_total,
-            'n_fresh': len(fresh),
-            'n_stale': len(stale),
-            'stale_signals': stale,
-            'fresh_signals': fresh,
+            "overall_freshness": freshness,
+            "signal_count": n_total,
+            "n_fresh": len(fresh),
+            "n_stale": len(stale),
+            "stale_signals": stale,
+            "fresh_signals": fresh,
         }
 
     # ---------- 批量管理与报告 ----------
@@ -383,7 +381,7 @@ class SignalHalfLifeManager:
             meta = self.signals.get(name)
             if meta and meta.half_life > 0:
                 info = self.active_signals[name]
-                gen_at = datetime.fromisoformat(info.get('ts', datetime.now().isoformat()))
+                gen_at = datetime.fromisoformat(info.get("ts", datetime.now().isoformat()))
                 age = (datetime.now() - gen_at).total_seconds() / 86400
                 if age > max_age_multiplier * meta.half_life:
                     removed.append(name)
@@ -399,23 +397,23 @@ class SignalHalfLifeManager:
         signal_details = {}
         for name, meta in self.signals.items():
             signal_details[name] = {
-                'half_life_days': meta.half_life,
-                'decay_rate': meta.decay_rate,
-                'category': meta.category,
-                'max_valid_days': meta.max_valid_days,
-                'method': meta.method,
-                'r2': meta.r2,
-                'is_stable': meta.is_stable,
+                "half_life_days": meta.half_life,
+                "decay_rate": meta.decay_rate,
+                "category": meta.category,
+                "max_valid_days": meta.max_valid_days,
+                "method": meta.method,
+                "r2": meta.r2,
+                "is_stable": meta.is_stable,
             }
 
         return {
-            'total_registered': len(self.signals),
-            'active_signals': freshness['signal_count'],
-            'freshness_score': freshness['overall_freshness'],
-            'signal_details': signal_details,
-            'stale_signals': freshness['stale_signals'],
-            'recommended_prune': freshness['stale_signals'],
-            'recent_decays': self.decay_log[-20:] if self.decay_log else [],
+            "total_registered": len(self.signals),
+            "active_signals": freshness["signal_count"],
+            "freshness_score": freshness["overall_freshness"],
+            "signal_details": signal_details,
+            "stale_signals": freshness["stale_signals"],
+            "recommended_prune": freshness["stale_signals"],
+            "recent_decays": self.decay_log[-20:] if self.decay_log else [],
         }
 
 
@@ -424,32 +422,28 @@ class SignalHalfLifeManager:
 # ============================================================
 PRESET_HALF_LIVES = {
     # 技术面信号 (衰减快)
-    'momentum_5d':   {'hl': 2.0,  'cat': 'technical'},
-    'momentum_20d':  {'hl': 5.0,  'cat': 'technical'},
-    'momentum_60d':  {'hl': 10.0, 'cat': 'technical'},
-    'rsi_14':        {'hl': 2.0,  'cat': 'technical'},
-    'macd_signal':   {'hl': 3.0,  'cat': 'technical'},
-    'volume_break':  {'hl': 1.0,  'cat': 'technical'},
-    'bollinger_band':{'hl': 1.5,  'cat': 'technical'},
-
+    "momentum_5d": {"hl": 2.0, "cat": "technical"},
+    "momentum_20d": {"hl": 5.0, "cat": "technical"},
+    "momentum_60d": {"hl": 10.0, "cat": "technical"},
+    "rsi_14": {"hl": 2.0, "cat": "technical"},
+    "macd_signal": {"hl": 3.0, "cat": "technical"},
+    "volume_break": {"hl": 1.0, "cat": "technical"},
+    "bollinger_band": {"hl": 1.5, "cat": "technical"},
     # 基本面信号 (衰减慢)
-    'pe_ratio':      {'hl': 30.0, 'cat': 'fundamental'},
-    'roe':           {'hl': 60.0, 'cat': 'fundamental'},
-    'profit_growth': {'hl': 45.0, 'cat': 'fundamental'},
-    'dividend_yield':{'hl': 40.0, 'cat': 'fundamental'},
-
+    "pe_ratio": {"hl": 30.0, "cat": "fundamental"},
+    "roe": {"hl": 60.0, "cat": "fundamental"},
+    "profit_growth": {"hl": 45.0, "cat": "fundamental"},
+    "dividend_yield": {"hl": 40.0, "cat": "fundamental"},
     # 情绪/舆情信号
-    'news_sentiment':{'hl': 1.0,  'cat': 'sentiment'},
-    'social_media':  {'hl': 0.5,  'cat': 'sentiment'},
-    'analyst_rating':{'hl': 15.0, 'cat': 'sentiment'},
-
+    "news_sentiment": {"hl": 1.0, "cat": "sentiment"},
+    "social_media": {"hl": 0.5, "cat": "sentiment"},
+    "analyst_rating": {"hl": 15.0, "cat": "sentiment"},
     # 宏观信号
-    'macro_pmi':     {'hl': 25.0, 'cat': 'macro'},
-    'macro_cpi':     {'hl': 25.0, 'cat': 'macro'},
-    'macro_rate':    {'hl': 20.0, 'cat': 'macro'},
-
+    "macro_pmi": {"hl": 25.0, "cat": "macro"},
+    "macro_cpi": {"hl": 25.0, "cat": "macro"},
+    "macro_rate": {"hl": 20.0, "cat": "macro"},
     # 另类数据
-    'satellite_image':{'hl': 7.0,  'cat': 'alternative'},
-    'supply_chain':  {'hl': 10.0,  'cat': 'alternative'},
-    'credit_card':   {'hl': 14.0,  'cat': 'alternative'},
+    "satellite_image": {"hl": 7.0, "cat": "alternative"},
+    "supply_chain": {"hl": 10.0, "cat": "alternative"},
+    "credit_card": {"hl": 14.0, "cat": "alternative"},
 }

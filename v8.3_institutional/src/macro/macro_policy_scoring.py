@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 # =====================
@@ -78,7 +78,7 @@ KONDRATIEV_STYLE_WEIGHTS = {
     "科技": 1.15,
     "新能源": 1.10,  # 2026-07-09 新增: 康波繁荣期成长股
     "制造": 1.10,
-    "资源": 1.10,    # 2026-07-09 新增: 周金涛理论大宗商品主升浪
+    "资源": 1.10,  # 2026-07-09 新增: 周金涛理论大宗商品主升浪
     "避险": 1.05,
     "医药": 1.05,
     "红利": 1.00,
@@ -148,6 +148,7 @@ def score_kondratiev(symbols: List[str]) -> Dict[str, KondratievScore]:
 # 综合评分
 # =====================
 
+
 @dataclass
 class MacroPolicyScore:
     symbol: str
@@ -185,13 +186,15 @@ def score_macro_policy(symbols: List[str]) -> Dict[str, MacroPolicyScore]:
     return results
 
 
-def macro_score_to_factor(combined_score: float,
-                          *,
-                          boost_threshold: float = 1.15,
-                          neutral_min: float = 1.0,
-                          cut_max: float = 0.85,
-                          clamp_min: float = 0.5,
-                          clamp_max: float = 1.3) -> float:
+def macro_score_to_factor(
+    combined_score: float,
+    *,
+    boost_threshold: float = 1.15,
+    neutral_min: float = 1.0,
+    cut_max: float = 0.85,
+    clamp_min: float = 0.5,
+    clamp_max: float = 1.3,
+) -> float:
     """将宏观综合评分映射到订单调整系数
 
     Args:
@@ -224,41 +227,59 @@ def macro_score_to_factor(combined_score: float,
 CANDIDATE_POOL: List[Dict[str, str]] = [
     # 高优先级 - 补十五五关键缺口
     {
-        "code": "sz300274", "name": "阳光电源",
-        "fifteen_five_dir": "new_energy", "kondratiev_style": "高端制造",
+        "code": "sz300274",
+        "name": "阳光电源",
+        "fifteen_five_dir": "new_energy",
+        "kondratiev_style": "高端制造",
         "reason": "补十五五新能源与储能缺口; 康波繁荣期成长股优先",
-        "suggested_weight": 0.05, "priority": "HIGH",
+        "suggested_weight": 0.05,
+        "priority": "HIGH",
     },
     {
-        "code": "sh603019", "name": "中科曙光",
-        "fifteen_five_dir": "ai_infra", "kondratiev_style": "科技",
+        "code": "sh603019",
+        "name": "中科曙光",
+        "fifteen_five_dir": "ai_infra",
+        "kondratiev_style": "科技",
         "reason": "补 AI 算力基础设施; 国产替代核心标的",
-        "suggested_weight": 0.04, "priority": "HIGH",
+        "suggested_weight": 0.04,
+        "priority": "HIGH",
     },
     {
-        "code": "sh600089", "name": "特变电工",
-        "fifteen_five_dir": "advanced_equip", "kondratiev_style": "制造",
+        "code": "sh600089",
+        "name": "特变电工",
+        "fifteen_five_dir": "advanced_equip",
+        "kondratiev_style": "制造",
         "reason": "补高端装备制造覆盖过薄; 算力+电网输变电",
-        "suggested_weight": 0.03, "priority": "HIGH",
+        "suggested_weight": 0.03,
+        "priority": "HIGH",
     },
     # 中优先级 - 补资源/防御
     {
-        "code": "sh600219", "name": "南山铝业",
-        "fifteen_five_dir": "resource_security", "kondratiev_style": "制造",
+        "code": "sh600219",
+        "name": "南山铝业",
+        "fifteen_five_dir": "resource_security",
+        "kondratiev_style": "制造",
         "reason": "补战略资源; 康波繁荣期大宗商品主升浪",
-        "suggested_weight": 0.03, "priority": "MEDIUM",
+        "suggested_weight": 0.03,
+        "priority": "MEDIUM",
     },
     {
-        "code": "sh600019", "name": "宝钢股份",
-        "fifteen_five_dir": "resource_security", "kondratiev_style": "制造",
+        "code": "sh600019",
+        "name": "宝钢股份",
+        "fifteen_five_dir": "resource_security",
+        "kondratiev_style": "制造",
         "reason": "补黑色系; 周金涛理论强调繁荣期铜铁主升浪",
-        "suggested_weight": 0.02, "priority": "MEDIUM",
+        "suggested_weight": 0.02,
+        "priority": "MEDIUM",
     },
     {
-        "code": "sh688017", "name": "绿的谐波",
-        "fifteen_five_dir": "advanced_equip", "kondratiev_style": "制造",
+        "code": "sh688017",
+        "name": "绿的谐波",
+        "fifteen_five_dir": "advanced_equip",
+        "kondratiev_style": "制造",
         "reason": "补机器人产业链; 高端制造谐波减速器龙头",
-        "suggested_weight": 0.02, "priority": "MEDIUM",
+        "suggested_weight": 0.02,
+        "priority": "MEDIUM",
     },
 ]
 
@@ -266,6 +287,7 @@ CANDIDATE_POOL: List[Dict[str, str]] = [
 @dataclass
 class CandidateEvaluation:
     """候选标的评估结果"""
+
     code: str
     name: str
     priority: str
@@ -323,18 +345,20 @@ def evaluate_candidate_pool(current_positions: List[str]) -> List[CandidateEvalu
         else:
             recommendation = "WATCH"
 
-        results.append(CandidateEvaluation(
-            code=code,
-            name=candidate["name"],
-            priority=candidate["priority"],
-            fifteen_five_score=ff_score,
-            kondratiev_score=kp_score,
-            combined_score=combined,
-            suggested_weight=float(candidate["suggested_weight"]),
-            reason=candidate["reason"],
-            in_position=in_pos,
-            recommendation=recommendation,
-        ))
+        results.append(
+            CandidateEvaluation(
+                code=code,
+                name=candidate["name"],
+                priority=candidate["priority"],
+                fifteen_five_score=ff_score,
+                kondratiev_score=kp_score,
+                combined_score=combined,
+                suggested_weight=float(candidate["suggested_weight"]),
+                reason=candidate["reason"],
+                in_position=in_pos,
+                recommendation=recommendation,
+            )
+        )
 
     # 按综合评分降序
     results.sort(key=lambda x: x.combined_score, reverse=True)

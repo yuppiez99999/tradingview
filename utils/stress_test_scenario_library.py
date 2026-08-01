@@ -16,59 +16,68 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import json
-import math
-import numpy as np
 
 
 # ============================================================
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class ShockFactors:
     """单场景冲击因子 (各类资产的收益率冲击)"""
-    equity_market: float = 0.0        # 大盘股票冲击 (e.g. -0.30 = -30%)
-    equity_growth: float = 0.0       # 成长股额外冲击
-    equity_value: float = 0.0        # 价值股额外冲击
-    equity_small_cap: float = 0.0    # 小盘股额外冲击
-    equity_tech: float = 0.0         # 科技股额外冲击
-    equity_finance: float = 0.0      # 金融股额外冲击
-    equity_consumer: float = 0.0     # 消费股额外冲击
-    equity_energy: float = 0.0       # 能源股额外冲击
 
-    rates_2y: float = 0.0            # 2 年期利率冲击 (e.g. -0.02 = -200bps)
-    rates_10y: float = 0.0           # 10 年期利率冲击
-    credit_spread: float = 0.0        # 信用利差冲击
+    equity_market: float = 0.0  # 大盘股票冲击 (e.g. -0.30 = -30%)
+    equity_growth: float = 0.0  # 成长股额外冲击
+    equity_value: float = 0.0  # 价值股额外冲击
+    equity_small_cap: float = 0.0  # 小盘股额外冲击
+    equity_tech: float = 0.0  # 科技股额外冲击
+    equity_finance: float = 0.0  # 金融股额外冲击
+    equity_consumer: float = 0.0  # 消费股额外冲击
+    equity_energy: float = 0.0  # 能源股额外冲击
 
-    fx_usd_cny: float = 0.0          # USD/CNY 汇率冲击
-    fx_usd_eur: float = 0.0           # USD/EUR 汇率冲击
+    rates_2y: float = 0.0  # 2 年期利率冲击 (e.g. -0.02 = -200bps)
+    rates_10y: float = 0.0  # 10 年期利率冲击
+    credit_spread: float = 0.0  # 信用利差冲击
 
-    commodity_gold: float = 0.0      # 黄金价格冲击
-    commodity_oil: float = 0.0        # 原油价格冲击
-    commodity_copper: float = 0.0    # 铜价冲击
-    commodity_iron: float = 0.0      # 铁矿石价格冲击
+    fx_usd_cny: float = 0.0  # USD/CNY 汇率冲击
+    fx_usd_eur: float = 0.0  # USD/EUR 汇率冲击
 
-    volatility_equity: float = 0.0    # 股票波动率冲击 (e.g. 2.0 = 波动率翻倍)
-    volatility_rates: float = 0.0      # 利率波动率冲击
+    commodity_gold: float = 0.0  # 黄金价格冲击
+    commodity_oil: float = 0.0  # 原油价格冲击
+    commodity_copper: float = 0.0  # 铜价冲击
+    commodity_iron: float = 0.0  # 铁矿石价格冲击
+
+    volatility_equity: float = 0.0  # 股票波动率冲击 (e.g. 2.0 = 波动率翻倍)
+    volatility_rates: float = 0.0  # 利率波动率冲击
 
     # 基准利率 (无风险利率)
     risk_free_rate: float = 0.0
+
+    # P2-增强 (v8.4 2026-07-30): 流动性风险专用字段
+    # 这些字段用于模拟 ETF 跌停+期货流动性枯竭的双重流动性陷阱
+    # 默认值 0.0, 向后兼容 (现有 8 个场景不设置此字段)
+    etf_limit_down_pct: float = 0.0  # 持仓中 ETF 跌停比例 (0-1, e.g. 0.6=60% ETF 跌停)
+    futures_liquidity_dry_up: float = 0.0  # 期货流动性枯竭程度 (0=正常, 1=完全枯竭)
+    hedge_slippage_bps: float = 0.0  # 对冲滑点 (bps, 期货流动性枯竭时的额外滑点)
+    put_premium_spike: float = 0.0  # Put 期权权利金飙升倍数 (1.0=正常, 3.0=3倍)
 
 
 @dataclass
 class StressScenario:
     """压力测试场景"""
-    name: str                        # 场景名 (如 "2008金融危机")
-    description: str                 # 场景描述
-    start_date: str                  # 历史起止日期
+
+    name: str  # 场景名 (如 "2008金融危机")
+    description: str  # 场景描述
+    start_date: str  # 历史起止日期
     end_date: str
-    severity: str                    # "mild" / "moderate" / "severe" / "extreme"
-    shocks: ShockFactors             # 冲击因子
+    severity: str  # "mild" / "moderate" / "severe" / "extreme"
+    shocks: ShockFactors  # 冲击因子
     # 历史参考数据
     historical_market_return: float = 0.0  # 历史市场实际收益
     historical_max_drawdown: float = 0.0
@@ -77,24 +86,26 @@ class StressScenario:
 @dataclass
 class StressTestResult:
     """压力测试结果"""
+
     scenario_name: str
-    portfolio_pnl: float             # 组合 P&L (金额)
-    portfolio_return: float          # 组合收益率
-    by_asset: Dict[str, float]        # 单标的 P&L
-    by_sector: Dict[str, float]       # 行业 P&L
-    by_factor: Dict[str, float]      # 因子贡献
+    portfolio_pnl: float  # 组合 P&L (金额)
+    portfolio_return: float  # 组合收益率
+    by_asset: Dict[str, float]  # 单标的 P&L
+    by_sector: Dict[str, float]  # 行业 P&L
+    by_factor: Dict[str, float]  # 因子贡献
     # 风险指标
-    var_before: float                 # 压力前 VaR
-    var_after: float                  # 压力后 VaR
-    var_change: float                # VaR 变化
+    var_before: float  # 压力前 VaR
+    var_after: float  # 压力后 VaR
+    var_change: float  # VaR 变化
     # 通过性
-    is_breach: bool                   # 是否突破风险限制
-    breach_reason: str = ""           # 突破原因
+    is_breach: bool  # 是否突破风险限制
+    breach_reason: str = ""  # 突破原因
 
 
 # ============================================================
 # 预定义场景库
 # ============================================================
+
 
 def _build_default_scenarios() -> List[StressScenario]:
     """构建默认 8 个历史危机场景"""
@@ -312,12 +323,92 @@ def _build_default_scenarios() -> List[StressScenario]:
             historical_market_return=-0.15,
             historical_max_drawdown=-0.20,
         ),
+        # P2-增强 (v8.4 2026-07-30): 量化基金特有风险场景
+        # 这些场景针对 ETF 持仓为主的对冲基金, 模拟双重流动性陷阱
+        StressScenario(
+            name="ETF跌停+期货流动性枯竭 (双重流动性陷阱)",
+            description=(
+                "ETF 持仓占主导的量化基金特有极端场景: "
+                "大盘暴跌触发 ETF 集中跌停 (无法卖出止损), "
+                "同时 IF/IC/IM 期货流动性枯竭 (无法对冲), "
+                "形成现货+对冲双重流动性陷阱. "
+                "参考: 2015 股灾 7/8 月 ETF 频繁跌停 + 期货空头被限制, "
+                "2024 小盘股流动性危机 IC 期货贴水 20%+."
+            ),
+            start_date="2015-08-24",  # 参考 2015 股灾最严重一天
+            end_date="2015-09-15",
+            severity="extreme",
+            shocks=ShockFactors(
+                equity_market=-0.25,  # 大盘跌 25% (3 天累计, 触发 ETF 跌停)
+                equity_growth=-0.15,
+                equity_value=-0.05,
+                equity_small_cap=-0.30,  # 小盘 ETF 跌停更严重 (中证 1000 ETF 跌停)
+                equity_tech=-0.20,
+                equity_finance=-0.15,
+                equity_consumer=-0.10,
+                equity_energy=-0.10,
+                rates_2y=-0.005,
+                rates_10y=-0.005,
+                credit_spread=0.12,  # 信用利差扩大 1200bps (期货流动性枯竭信号)
+                fx_usd_cny=0.03,
+                commodity_gold=0.08,  # 黄金避险上涨
+                commodity_oil=-0.15,
+                commodity_copper=-0.20,
+                volatility_equity=5.0,  # 波动率翻 5 倍
+                # 新增流动性字段
+                etf_limit_down_pct=0.60,  # 60% 持仓 ETF 跌停
+                futures_liquidity_dry_up=0.80,  # 期货流动性枯竭 80%
+                hedge_slippage_bps=200,  # 对冲滑点 200bps (2%)
+                put_premium_spike=2.5,  # Put 权利金飙升 2.5 倍
+            ),
+            historical_market_return=-0.25,
+            historical_max_drawdown=-0.30,
+        ),
+        StressScenario(
+            name="期货期权流动性双重枯竭 (对冲瘫痪)",
+            description=(
+                "对冲账户极端场景: 期货空头无法平仓 (流动性枯竭) + "
+                "期权 Put 无法买入 (做市商撤退). "
+                "对冲账户 100% 失效, 组合完全暴露于下行风险. "
+                "参考: 2020-03 美股熔断期间期权做市商撤退, "
+                "Put 权利金飙升 3-5 倍; 2015 中国限制期货空头."
+            ),
+            start_date="2020-03-16",  # 参考 2020 美股熔断周
+            end_date="2020-03-23",
+            severity="extreme",
+            shocks=ShockFactors(
+                equity_market=-0.30,  # 大盘跌 30%
+                equity_growth=-0.20,
+                equity_value=-0.10,
+                equity_small_cap=-0.25,
+                equity_tech=-0.15,
+                equity_finance=-0.25,
+                equity_consumer=-0.15,
+                equity_energy=-0.30,
+                rates_2y=-0.02,
+                rates_10y=-0.015,
+                credit_spread=0.15,  # 信用利差扩大 1500bps
+                fx_usd_cny=0.05,
+                commodity_gold=0.05,  # 黄金小幅上涨 (但流动性也差)
+                commodity_oil=-0.40,
+                commodity_copper=-0.30,
+                volatility_equity=6.0,  # 波动率翻 6 倍 (VIX 80+)
+                # 新增流动性字段
+                etf_limit_down_pct=0.40,  # 40% ETF 跌停
+                futures_liquidity_dry_up=1.0,  # 期货流动性完全枯竭
+                hedge_slippage_bps=500,  # 对冲滑点 500bps (5%)
+                put_premium_spike=4.0,  # Put 权利金飙升 4 倍
+            ),
+            historical_market_return=-0.30,
+            historical_max_drawdown=-0.35,
+        ),
     ]
 
 
 # ============================================================
 # 压力测试引擎
 # ============================================================
+
 
 class StressTestEngine:
     """压力测试情景库引擎
@@ -438,6 +529,21 @@ class StressTestEngine:
                 asset_pnl += amount * shocks.equity_market
                 by_factor["equity_market"] += amount * shocks.equity_market
 
+            # P2-增强 (v8.4 2026-07-30): 流动性风险附加冲击
+            # ETF 跌停: 无法卖出止损 → 加额外冲击 (跌停 = -10% 锁定损失)
+            if asset_type == "ETF" and shocks.etf_limit_down_pct > 0:
+                # 该 ETF 是否在被跌停的范围内 (用 code 哈希模拟随机性, 确定性可复现)
+                # 简化: 如果场景设定 60% ETF 跌停, 则按比例影响
+                limit_down_loss = amount * shocks.etf_limit_down_pct * (-0.10)  # 跌停 -10%
+                by_factor["liquidity"] = by_factor.get("liquidity", 0.0) + limit_down_loss
+                asset_pnl += limit_down_loss
+
+            # 期货流动性枯竭: 无法平仓对冲 → 加额外滑点损失
+            if asset_type == "FUTURES" and shocks.futures_liquidity_dry_up > 0:
+                slippage_loss = amount * (shocks.futures_liquidity_dry_up * shocks.hedge_slippage_bps / 10000.0)
+                by_factor["liquidity"] = by_factor.get("liquidity", 0.0) - abs(slippage_loss)
+                asset_pnl -= abs(slippage_loss)
+
             by_asset[code] = asset_pnl
             by_sector[sector] = by_sector.get(sector, 0.0) + asset_pnl
             total_pnl += asset_pnl
@@ -449,6 +555,11 @@ class StressTestEngine:
         # 估算日波动率 (基准 1.5%)
         base_vol = 0.015
         stressed_vol = base_vol * max(shocks.volatility_equity, 1.0)
+        # 流动性枯竭 → VaR 放大 (无法平仓 = 持有期延长)
+        if shocks.futures_liquidity_dry_up > 0:
+            # 假设流动性枯竭导致持有期从 1 天延长到 3-5 天 (sqrt-T 法则)
+            holding_days = 1.0 + shocks.futures_liquidity_dry_up * 4.0  # 1-5 天
+            stressed_vol *= holding_days ** 0.5
         var_before = total_portfolio_value * base_vol * z
         var_after = total_portfolio_value * stressed_vol * z
 
@@ -456,6 +567,11 @@ class StressTestEngine:
         breach_reason = ""
         if breach:
             breach_reason = f"组合收益 {portfolio_return:.2%} 低于阈值 {self.risk_threshold:.2%}"
+            # P2-增强: 流动性场景的额外 breach 原因
+            if shocks.etf_limit_down_pct > 0:
+                breach_reason += f"; ETF 跌停比例 {shocks.etf_limit_down_pct:.0%}"
+            if shocks.futures_liquidity_dry_up > 0:
+                breach_reason += f"; 期货流动性枯竭 {shocks.futures_liquidity_dry_up:.0%}"
 
         return StressTestResult(
             scenario_name=scenario.name,
@@ -574,7 +690,8 @@ class StressTestEngine:
                     "var_change": r.var_change,
                     "is_breach": r.is_breach,
                     "breach_reason": r.breach_reason,
-                } for r in results
+                }
+                for r in results
             ],
             "summary": self.summarize(results),
         }

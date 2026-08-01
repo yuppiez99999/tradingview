@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 
 print('=' * 70)
 print('  5年年化收益率与回撤预测 — 顶级对冲基金视角')
@@ -19,19 +18,19 @@ capital = plan['capital']
 risk = plan['risk_controls']
 hedge = plan['hedge_config']
 
-print(f'\n【基础参数】')
+print('\n【基础参数】')
 print(f'初始资本: {capital:,.0f} RMB')
 print(f'股票/ETF部分: {plan["stock_etf_capital"]:,.0f} RMB')
 print(f'对冲资本: {plan["hedge_capital"]:,.0f} RMB')
 print(f'策略: {plan["strategy"]}')
 
 # 2. 组合构成分析
-print(f'\n【组合构成】')
+print('\n【组合构成】')
 etf_amount = 0
 stock_amount = 0
 commodity_amount = 0
 style_map = {}
-for code, pos in positions.items():
+for _code, pos in positions.items():
     amt = pos['phase1_amount']
     style = pos.get('style', '其他')
     ptype = pos.get('type', '个股')
@@ -48,12 +47,12 @@ print(f'ETF: {etf_amount:,.0f} RMB ({etf_amount/total_position*100:.1f}%)')
 print(f'个股: {stock_amount:,.0f} RMB ({stock_amount/total_position*100:.1f}%)')
 print(f'商品: {commodity_amount:,.0f} RMB ({commodity_amount/total_position*100:.1f}%)')
 print(f'总持仓: {total_position:,.0f} RMB')
-print(f'风格分布:')
+print('风格分布:')
 for style, amt in sorted(style_map.items(), key=lambda x: -x[1]):
     print(f'  {style}: {amt:,.0f} RMB ({amt/total_position*100:.1f}%)')
 
 # 3. 5年收益测算
-print(f'\n【5年收益预测】')
+print('\n【5年收益预测】')
 
 # 假设参数
 expected_return = 0.10  # 股票部分预期年化收益
@@ -96,7 +95,6 @@ downside_vol = volatility * 1.2
 sortino = (cagr - rf_rate) / downside_vol if downside_vol > 0 else 0
 
 # 资金曲线模拟
-import math
 print(f'股票部分预期年化: {expected_return*100:.1f}%')
 print(f'对冲成本: -{hedge_cost*100:.1f}%')
 print(f'再平衡成本: -{rebalance_cost*100:.1f}%')
@@ -109,7 +107,7 @@ print(f'卡玛比率: {calmar:.2f}')
 print(f'索提诺比率: {sortino:.2f}')
 
 # 模拟资金曲线
-print(f'\n【5年资金曲线模拟】')
+print('\n【5年资金曲线模拟】')
 balance = capital
 print(f'初始资金: {balance:,.0f}')
 for year in range(1, years + 1):
@@ -125,21 +123,21 @@ print(f'5年后总资产: {balance:,.0f} RMB')
 print(f'总收益率: {(balance/capital-1)*100:.1f}%')
 
 # 4. 黑天鹅风险
-print(f'\n【黑天鹅与不可抗力风险】')
-print(f'1. 地缘政治冲突升级 → 流动性危机，A股波动率跃升30%+')
-print(f'2. 全球央行政策转向 → 利率超预期上行，成长股估值重估')
-print(f'3. 科技制裁加码 → 半导体/AI产业链供应链断裂')
-print(f'4. 房地产市场尾部风险 → 信用链条传导至银行/保险')
-print(f'5. 黑天鹅尾部事件 → 单日跌幅>8%，触发多层熔断')
-print(f'6. 汇率危机 → 人民币急贬，资本外流压力')
-print(f'7. 极端气候灾害 → 能源/粮食价格冲击，通胀失控')
+print('\n【黑天鹅与不可抗力风险】')
+print('1. 地缘政治冲突升级 → 流动性危机，A股波动率跃升30%+')
+print('2. 全球央行政策转向 → 利率超预期上行，成长股估值重估')
+print('3. 科技制裁加码 → 半导体/AI产业链供应链断裂')
+print('4. 房地产市场尾部风险 → 信用链条传导至银行/保险')
+print('5. 黑天鹅尾部事件 → 单日跌幅>8%，触发多层熔断')
+print('6. 汇率危机 → 人民币急贬，资本外流压力')
+print('7. 极端气候灾害 → 能源/粮食价格冲击，通胀失控')
 
-print(f'\n【风险缓解措施】')
-print(f'- 多层对冲: 期货Beta对冲 + 期权保护 + 黄金避险')
-print(f'- 动态止损: 个股-8%~-12%，组合-15%熔断')
-print(f'- 仓位管控: 单标的<10%，行业<30%')
-print(f'- 外部报告监控: 每日舆情+ETF资金流向+康波周期')
-print(f'- 降级机制: 三因子信号融合，单因子失效自动降权')
+print('\n【风险缓解措施】')
+print('- 多层对冲: 期货Beta对冲 + 期权保护 + 黄金避险')
+print('- 动态止损: 个股-8%~-12%，组合-15%熔断')
+print('- 仓位管控: 单标的<10%，行业<30%')
+print('- 外部报告监控: 每日舆情+ETF资金流向+康波周期')
+print('- 降级机制: 三因子信号融合，单因子失效自动降权')
 
 print('=' * 70)
 print('  分析完成')

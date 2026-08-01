@@ -14,19 +14,17 @@
     python vol_adjusted_stop_loss.py
     python vol_adjusted_stop_loss.py --output config/stop_loss_vol_adjusted.yaml
 """
+
 import os
-import sys
 import json
-import math
 import numpy as np
-import pandas as pd
 import yaml
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, Optional
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(message)s')
-logger = logging.getLogger('vol_stop_loss')
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger("vol_stop_loss")
 
 
 def to_native(obj):
@@ -78,7 +76,7 @@ SECTOR_K = {
     "科技成长": {"stop_k": 3.0, "profit_k": 6.0, "max_holding_days": 120},
     "高端制造": {"stop_k": 2.5, "profit_k": 5.0, "max_holding_days": 90},
     "防御红利": {"stop_k": 2.0, "profit_k": 4.0, "max_holding_days": 120},
-    "黄金":    {"stop_k": 1.5, "profit_k": 3.0, "max_holding_days": 180},
+    "黄金": {"stop_k": 1.5, "profit_k": 3.0, "max_holding_days": 180},
 }
 
 
@@ -86,23 +84,28 @@ def get_volatility_from_ifind(code: str) -> Optional[float]:
     """从 iFinD 获取 60 日年化波动率"""
     try:
         import importlib.util
+
         skill_dir = os.path.join(os.path.expanduser("~"), ".trae", "skills", "ifind-finance-data")
         call_path = os.path.join(skill_dir, "call.py")
         spec = importlib.util.spec_from_file_location("ifind_call", call_path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
 
-        pure_code = code.split('.')[0]
-        result = mod.call("stock", "get_stock_history", {
-            "code": pure_code,
-            "indicators": "CLOSE",
-            "start_date": (datetime.now() - timedelta(days=120)).strftime("%Y-%m-%d"),
-            "end_date": datetime.now().strftime("%Y-%m-%d"),
-        })
+        pure_code = code.split(".")[0]
+        result = mod.call(
+            "stock",
+            "get_stock_history",
+            {
+                "code": pure_code,
+                "indicators": "CLOSE",
+                "start_date": (datetime.now() - timedelta(days=120)).strftime("%Y-%m-%d"),
+                "end_date": datetime.now().strftime("%Y-%m-%d"),
+            },
+        )
 
         if isinstance(result, dict) and result.get("data"):
             data = result["data"]
-            if "rows" in data and data["rows"]:
+            if data.get("rows"):
                 closes = [float(r[0]) for r in data["rows"] if r[0]]
                 if len(closes) > 20:
                     returns = np.diff(closes) / closes[:-1]
@@ -126,24 +129,33 @@ def get_volatility_from_wind(code: str) -> Optional[float]:
                     break
 
         import subprocess
-        code_parts = code.split('.')
+
+        code_parts = code.split(".")
         wind_code = f"{code_parts[0]}.{code_parts[1]}"
 
-        params = json.dumps({
-            "windcode": wind_code,
-            "begin_date": (datetime.now() - timedelta(days=120)).strftime("%Y%m%d"),
-            "end_date": datetime.now().strftime("%Y%m%d"),
-            "period": "10",
-            "aftime": "0",
-        }, ensure_ascii=False)
+        params = json.dumps(
+            {
+                "windcode": wind_code,
+                "begin_date": (datetime.now() - timedelta(days=120)).strftime("%Y%m%d"),
+                "end_date": datetime.now().strftime("%Y%m%d"),
+                "period": "10",
+                "aftime": "0",
+            },
+            ensure_ascii=False,
+        )
 
         env = os.environ.copy()
         env["WIND_API_KEY"] = api_key
 
         result = subprocess.run(
             ["node", "scripts/cli.mjs", "call", "stock_data", "get_stock_kline", params],
-            cwd=wind_dir, capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=60, env=env,
+            cwd=wind_dir,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=60,
+            env=env,
         )
 
         if result.returncode == 0 and result.stdout.strip():
@@ -199,10 +211,7 @@ def estimate_volatility(code: str, name: str, sector: str) -> float:
     return vol
 
 
-def compute_vol_adjusted_stop_loss(entry_price: float,
-                                     annual_vol: float,
-                                     sector: str,
-                                     holding_days: int = 20) -> dict:
+def compute_vol_adjusted_stop_loss(entry_price: float, annual_vol: float, sector: str, holding_days: int = 20) -> dict:
     """计算波动率调整止损止盈
 
     止损 = entry - k_stop × σ_daily × √(holding_days)
@@ -218,7 +227,7 @@ def compute_vol_adjusted_stop_loss(entry_price: float,
 
     k_stop = config["stop_k"]
     k_profit = config["profit_k"]
-    max_days = config["max_holding_days"]
+    _max_days = config["max_holding_days"]  # 预留，待用于持有天数上限判断
 
     # 日波动率
     sigma_daily = annual_vol / np.sqrt(252)
@@ -282,7 +291,7 @@ def generate_vol_adjusted_rules(base_prices: Optional[Dict] = None) -> dict:
             "rebalance_on_vol_change": True,
             "vol_recalc_frequency": "monthly",
         },
-        "assets": []
+        "assets": [],
     }
 
     for code, name, sector in PORTFOLIO_STOCKS:
@@ -315,14 +324,17 @@ def generate_vol_adjusted_rules(base_prices: Optional[Dict] = None) -> dict:
         result["risk_level"] = "high" if annual_vol > 0.25 else ("medium" if annual_vol > 0.18 else "low")
         result["position_weight"] = 0.04  # 默认, 由 portfolio.yaml 覆盖
         result["monitoring_indicators"] = ["rsi", "macd", "boll"]
-        result["notes"] = (f"波动率调整: σ_annual={annual_vol:.1%}, "
-                          f"k_stop={result['stop_k']}, k_profit={result['profit_k']}, "
-                          f"持仓={holding_days}天")
+        result["notes"] = (
+            f"波动率调整: σ_annual={annual_vol:.1%}, "
+            f"k_stop={result['stop_k']}, k_profit={result['profit_k']}, "
+            f"持仓={holding_days}天"
+        )
 
         rules["assets"].append(result)
 
-        logger.info(f"    σ={annual_vol:.1%}, 止损={result['stop_loss_pct']:.1f}%, "
-                    f"止盈={result['take_profit_pct']:.1f}%")
+        logger.info(
+            f"    σ={annual_vol:.1%}, 止损={result['stop_loss_pct']:.1f}%, 止盈={result['take_profit_pct']:.1f}%"
+        )
 
     return rules
 
@@ -373,7 +385,9 @@ def main():
         old_stop = old_stops.get(code, -12.0)
         diff = new_stop - old_stop
         diff_str = f"{diff:+.1f}%" if diff != 0 else "—"
-        logger.info(f"{code:<14} {name:<10} {vol:>7.1%} {new_stop:>7.1f}% {new_profit:>7.1f}% {old_stop:>7.1f}% {diff_str:>8}")
+        logger.info(
+            f"{code:<14} {name:<10} {vol:>7.1%} {new_stop:>7.1f}% {new_profit:>7.1f}% {old_stop:>7.1f}% {diff_str:>8}"
+        )
 
     logger.info("─" * 70)
     logger.info(f"共 {len(rules['assets'])} 只标的\n")

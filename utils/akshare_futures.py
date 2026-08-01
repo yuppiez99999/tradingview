@@ -26,12 +26,38 @@ os.environ["https_proxy"] = ""
 from ifind_futures_quotes import fetch_futures_quotes, fetch_futures_base_info
 
 _IFIND_QUOTE_INDICATORS = [
-    "tradeDate", "tradeTime", "ms", "preClose", "open", "high", "low",
-    "latest", "latestVolume", "avgPrice", "volume", "change", "changeSettle",
-    "changeRatio", "changeRatioSettle", "increasePositionVol", "preSettlement",
-    "sellVolume", "buyVolume", "dailyIncreasePosition", "swing", "latest_price",
-    "settlement", "dealDirection", "dealtype", "openInterest", "positionDiff",
-    "capitalFlow", "capitalDeposition", "amplitude", "upperLimit", "downLimit",
+    "tradeDate",
+    "tradeTime",
+    "ms",
+    "preClose",
+    "open",
+    "high",
+    "low",
+    "latest",
+    "latestVolume",
+    "avgPrice",
+    "volume",
+    "change",
+    "changeSettle",
+    "changeRatio",
+    "changeRatioSettle",
+    "increasePositionVol",
+    "preSettlement",
+    "sellVolume",
+    "buyVolume",
+    "dailyIncreasePosition",
+    "swing",
+    "latest_price",
+    "settlement",
+    "dealDirection",
+    "dealtype",
+    "openInterest",
+    "positionDiff",
+    "capitalFlow",
+    "capitalDeposition",
+    "amplitude",
+    "upperLimit",
+    "downLimit",
     "dealtypecode",
 ]
 
@@ -59,7 +85,7 @@ def _to_float(v: Any) -> Optional[float]:
         if v is None:
             return None
         return float(v)
-    except Exception:
+    except Exception:  # P2 模块 fail-safe, 待后续精确化
         return None
 
 
@@ -68,7 +94,7 @@ def _to_str(v: Any) -> Optional[str]:
         if v is None:
             return None
         return str(v)
-    except Exception:
+    except Exception:  # P2 模块 fail-safe, 待后续精确化
         return None
 
 
@@ -76,7 +102,7 @@ def _normalize_ak_quotes(df) -> Dict[str, Dict[str, Any]]:
     result: Dict[str, Dict[str, Any]] = {}
     try:
         records = df.to_dict(orient="records") if hasattr(df, "to_dict") else []
-    except Exception:
+    except Exception:  # P2 模块 fail-safe, 待后续精确化
         records = []
     for row in records:
         sym = row.get("symbol") or row.get("合约代码") or row.get("代码")
@@ -102,7 +128,7 @@ def _normalize_ak_daily(df) -> Dict[str, Dict[str, Any]]:
     result: Dict[str, Dict[str, Any]] = {}
     try:
         records = df.to_dict(orient="records") if hasattr(df, "to_dict") else []
-    except Exception:
+    except Exception:  # P2 模块 fail-safe, 待后续精确化
         records = []
     for row in records:
         sym = row.get("symbol") or row.get("合约代码") or row.get("代码")
@@ -169,11 +195,11 @@ def _try_http_futures_quotes(symbols: List[str]) -> Dict[str, Any]:
                     "settlement": _to_float(parts[10]),
                     "change_ratio": None,
                 }
-            except Exception:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 continue
         if result:
             return result
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         print(f"[DEBUG] 新浪HTTP失败: {e}")
 
     # 腾讯期货
@@ -204,11 +230,11 @@ def _try_http_futures_quotes(symbols: List[str]) -> Dict[str, Any]:
                     "settlement": _to_float(parts[4]),
                     "change_ratio": _to_float(parts[32]),
                 }
-            except Exception:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 continue
         if result:
             return result
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         print(f"[DEBUG] 腾讯HTTP失败: {e}")
 
     return {}
@@ -219,8 +245,10 @@ def _try_wind_futures_quotes(symbols: List[str]) -> Dict[str, Any]:
     try:
         import os
         import sys
+
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from wind_mcp_fetcher import wind_get_quote
+
         result: Dict[str, Dict[str, Any]] = {}
         for sym in symbols:
             try:
@@ -241,13 +269,13 @@ def _try_wind_futures_quotes(symbols: List[str]) -> Dict[str, Any]:
                         "settlement": float(inner.get("settlement", 0) or 0),
                         "change_ratio": float(inner.get("change_pct", 0) or inner.get("pct_change", 0)),
                     }
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 print(f"[DEBUG] Wind MCP 期货 {sym} 失败: {e}")
                 continue
         if result:
             print(f"[DEBUG] Wind MCP 期货返回 {len(result)} 个标的")
             return result
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         print(f"[DEBUG] Wind MCP 期货接口不可用: {e}")
     return {}
 
@@ -259,11 +287,12 @@ def get_futures_realtime(symbols: List[str]) -> Dict[str, Any]:
 
     quotes = fetch_futures_quotes(symbols)
     if quotes:
-        return quotes
+        return quotes  # type: ignore
 
     print("[DEBUG] Wind MCP/iFinD 不可用，回退 AKShare 实时行情")
     try:
         import akshare as ak
+
         seen = set()
         candidates: List[tuple] = []
         if hasattr(ak, "futures_zh_spot"):
@@ -283,10 +312,10 @@ def get_futures_realtime(symbols: List[str]) -> Dict[str, Any]:
                 print(f"[DEBUG] AKShare {func_name} 返回: empty={getattr(df, 'empty', 'n/a')}")
                 if df is not None and not (hasattr(df, "empty") and df.empty):
                     return _normalize_ak_quotes(df)
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 print(f"[DEBUG] AKShare {func_name} 失败: {e}")
                 continue
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         print(f"[DEBUG] AKShare 导入失败: {e}")
 
     print("[DEBUG] AKShare 实时行情全部失败，回退 HTTP")
@@ -296,6 +325,7 @@ def get_futures_realtime(symbols: List[str]) -> Dict[str, Any]:
 def get_futures_daily(symbol: str, market: str = "CF") -> Dict[str, Any]:
     try:
         import akshare as ak
+
         # 主力日K
         df = ak.futures_main_sina(symbol=symbol)
         print(f"[DEBUG] AKShare 日K 返回: empty={getattr(df, 'empty', 'n/a')}")
@@ -305,7 +335,7 @@ def get_futures_daily(symbol: str, market: str = "CF") -> Dict[str, Any]:
         df = df.copy()
         df["symbol"] = symbol
         return _normalize_ak_daily(df)
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         print(f"[DEBUG] AKShare 日K 失败: {e}")
         return {}
 
@@ -313,7 +343,7 @@ def get_futures_daily(symbol: str, market: str = "CF") -> Dict[str, Any]:
 def get_futures_base_info(symbols: List[str]) -> Dict[str, Any]:
     info = fetch_futures_base_info(symbols)
     if info:
-        return info
+        return info  # type: ignore
 
     print("[DEBUG] iFinD 基础数据不可用，AKShare 无直接基础数据接口")
     return {}
@@ -321,10 +351,20 @@ def get_futures_base_info(symbols: List[str]) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     demo = [
-        "A00.DCE", "A01.DCE", "A02.DCE", "A03.DCE",
-        "A2607.DCE", "A2609.DCE", "A2611.DCE", "A2701.DCE",
-        "A2703.DCE", "A2705.DCE", "A8888.DCE", "AZL.DCE",
-        "AZL1.DCE", "AZL2.DCE"
+        "A00.DCE",
+        "A01.DCE",
+        "A02.DCE",
+        "A03.DCE",
+        "A2607.DCE",
+        "A2609.DCE",
+        "A2611.DCE",
+        "A2701.DCE",
+        "A2703.DCE",
+        "A2705.DCE",
+        "A8888.DCE",
+        "AZL.DCE",
+        "AZL1.DCE",
+        "AZL2.DCE",
     ]
     quotes = get_futures_realtime(demo)
     print("\n===== 实时行情 =====")

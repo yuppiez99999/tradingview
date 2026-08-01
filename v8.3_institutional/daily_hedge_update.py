@@ -128,7 +128,7 @@ def run_hedge_decision():
     
     positions = {}
     prices = {}
-    for key, item in positions_data.items():
+    for _key, item in positions_data.items():
         code = item.get('code')
         qty = item.get('phase1_shares') or item.get('total_shares') or item.get('shares', 0)
         if not code or not qty:
@@ -215,7 +215,7 @@ def generate_report(plan):
     readme_path = os.path.join(report_dir, f'hedge_decision_{datetime.now().strftime("%Y%m%d")}.md')
     with open(readme_path, 'w', encoding='utf-8') as f:
         f.write(f'# 对冲决策报告 - {report["date"]}\n\n')
-        f.write(f'## 决策结果\n\n')
+        f.write('## 决策结果\n\n')
         f.write(f'- **动作**: {report["action"]}\n')
         f.write(f'- **组合Beta**: {report["portfolio_beta"]:.4f}\n')
         f.write(f'- **总对冲比例**: {report["total_hedge_pct"]*100:.2f}%\n')
@@ -223,7 +223,7 @@ def generate_report(plan):
         f.write(f'- **市场状态**: {report["regime"]}\n\n')
         
         if report['orders']:
-            f.write(f'## 对冲指令\n\n')
+            f.write('## 对冲指令\n\n')
             for i, order in enumerate(report['orders'], 1):
                 f.write(f'### {i}. {order.get("hedge_type", "UNKNOWN")}\n\n')
                 f.write(f'- 动作: {order.get("action")}\n')
@@ -232,8 +232,8 @@ def generate_report(plan):
                 f.write(f'- 名义价值: {order.get("notional", 0):,.0f}\n')
                 f.write(f'- 预估成本: {order.get("estimated_cost", order.get("budget", 0)):,.0f}\n\n')
         else:
-            f.write(f'## 结论\n\n')
-            f.write(f'当前无需开启额外对冲。\n')
+            f.write('## 结论\n\n')
+            f.write('当前无需开启额外对冲。\n')
     
     print(f'可读报告: {readme_path}')
 

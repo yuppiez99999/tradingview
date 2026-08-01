@@ -18,7 +18,6 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-import numpy as np
 
 logger = logging.getLogger("factor_kill_switch")
 

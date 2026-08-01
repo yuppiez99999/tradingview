@@ -1,7 +1,8 @@
-import py_compile, os, sys
+import py_compile
+import os
 base = r'e:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional\src'
 errors = 0
-for root, dirs, files in os.walk(base):
+for root, _dirs, files in os.walk(base):
     for f in files:
         if not f.endswith('.py'):
             continue

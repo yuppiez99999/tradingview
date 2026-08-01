@@ -45,12 +45,14 @@ logger = logging.getLogger("risk_cockpit")
 # ── 动态导入, 单文件部署无依赖 ──
 try:
     from utils.kill_switch import KillSwitch  # pylint: disable=unused-import
+
     _HAS_KILL_SWITCH = True
 except ImportError:
     _HAS_KILL_SWITCH = False
 
 try:
-    from src.risk.circuit_breaker import CircuitBreaker, CircuitState  # pylint: disable=unused-import
+    from src.risk.circuit_breaker import CircuitBreaker, CircuitState  # noqa: F401  # pylint: disable=unused-import
+
     _HAS_CIRCUIT_BREAKER = True
 except ImportError:
     _HAS_CIRCUIT_BREAKER = False
@@ -59,6 +61,7 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════
 # 数据类
 # ═══════════════════════════════════════════════════════════════
+
 
 class RiskLevel(Enum):
     NORMAL = auto()
@@ -70,6 +73,7 @@ class RiskLevel(Enum):
 @dataclass
 class RiskSnapshot:
     """风控快照 — 所有子系统的统一输出格式"""
+
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     # 保证金状态
@@ -105,6 +109,7 @@ class RiskSnapshot:
 # ═══════════════════════════════════════════════════════════════
 # 回撤控制器 (轻量内嵌版, 避免跨模块依赖)
 # ═══════════════════════════════════════════════════════════════
+
 
 class DrawdownController:
     """回撤控制器 — 动态减仓"""
@@ -143,6 +148,7 @@ class DrawdownController:
 # VaR 模型
 # ═══════════════════════════════════════════════════════════════
 
+
 class VaRModel:
     """在险价值计算 — 历史模拟 + 蒙特卡洛"""
 
@@ -154,8 +160,7 @@ class VaRModel:
         """更新日收益率序列"""
         self._return_history = returns[-252:]  # 保留最近252个交易日
 
-    def compute_var(self, portfolio_value: float,
-                    method: str = "historical") -> Dict[str, float]:
+    def compute_var(self, portfolio_value: float, method: str = "historical") -> Dict[str, float]:
         """计算 VaR
 
         Returns:
@@ -189,6 +194,7 @@ class VaRModel:
 # VaR 回测
 # ═══════════════════════════════════════════════════════════════
 
+
 class VaRBacktester:
     """VaR 回测 — Kupiec 无条件覆盖检验 + Christoffersen 条件覆盖检验
 
@@ -202,8 +208,7 @@ class VaRBacktester:
     def __init__(self, confidence: float = 0.95):
         self.confidence = confidence
 
-    def run_tests(self, returns: List[float],
-                  var_values: List[float]) -> Dict[str, Any]:
+    def run_tests(self, returns: List[float], var_values: List[float]) -> Dict[str, Any]:
         """执行全部 VaR 回测检验
 
         Args:
@@ -214,8 +219,7 @@ class VaRBacktester:
             检验结果字典
         """
         if len(returns) < 50:
-            return {"status": "INSUFFICIENT_DATA",
-                    "message": f"数据不足 (n={len(returns)} < 50)"}
+            return {"status": "INSUFFICIENT_DATA", "message": f"数据不足 (n={len(returns)} < 50)"}
 
         returns_arr = np.array(returns)
         var_arr = np.array(var_values)
@@ -238,6 +242,9 @@ class VaRBacktester:
         kupiec_pass = kupiec_result.get("p_value", 0) > 0.05
         christoffersen_pass = christoffersen_result.get("p_value", 0) > 0.05
 
+        # P3-2a: Basel 交通灯 (新增, 补全 Kupiec/Christoffersen + 交通灯 三重校验)
+        basel_zone = self._basel_traffic_light(int(n_violations), n, self.confidence)
+
         return {
             "status": "COMPLETE",
             "n_observations": n,
@@ -246,10 +253,11 @@ class VaRBacktester:
             "expected_rate": round(expected_rate, 4),
             "kupiec_pof": kupiec_result,
             "christoffersen": christoffersen_result,
+            "basel_traffic_light": basel_zone,
             "overall_pass": kupiec_pass and christoffersen_pass,
-            "verdict": ("PASS — VaR 模型统计可靠"
-                        if kupiec_pass and christoffersen_pass
-                        else "FAIL — VaR 模型需重新校准"),
+            "verdict": (
+                "PASS — VaR 模型统计可靠" if kupiec_pass and christoffersen_pass else "FAIL — VaR 模型需重新校准"
+            ),
         }
 
     @staticmethod
@@ -271,14 +279,12 @@ class VaRBacktester:
         p_hat = max(eps, min(1 - eps, p_hat))
         p = max(eps, min(1 - eps, p))
 
-        lr_stat = -2 * (
-            (n - x) * math.log((1 - p) / (1 - p_hat)) +
-            x * math.log(p / p_hat)
-        )
+        lr_stat = -2 * ((n - x) * math.log((1 - p) / (1 - p_hat)) + x * math.log(p / p_hat))
 
         try:
             p_value = 1 - chi2.cdf(lr_stat, df=1)
-        except Exception:
+        except Exception as _exc:
+            logger.debug("[VaRBacktest] Kupiec POF 检验异常, 保守置 p_value=1.0: %s", _exc)
             p_value = 1.0
 
         return {
@@ -286,9 +292,7 @@ class VaRBacktester:
             "p_value": round(float(p_value), 4),
             "pass": p_value > 0.05,
             "interpretation": (
-                "H0不能拒绝: VaR突破率与预期一致"
-                if p_value > 0.05
-                else "拒绝H0: VaR突破率偏离预期 (模型可能不准确)"
+                "H0不能拒绝: VaR突破率与预期一致" if p_value > 0.05 else "拒绝H0: VaR突破率偏离预期 (模型可能不准确)"
             ),
         }
 
@@ -312,14 +316,15 @@ class VaRBacktester:
         from scipy.stats import chi2
 
         lr_ind = -2 * math.log(
-            ((1 - pi2) ** (n00 + n10) * pi2 ** (n01 + n11)) /
-            ((1 - pi01) ** n00 * pi01 ** n01 * (1 - pi11) ** n10 * pi11 ** n11 + eps)
+            ((1 - pi2) ** (n00 + n10) * pi2 ** (n01 + n11))
+            / ((1 - pi01) ** n00 * pi01**n01 * (1 - pi11) ** n10 * pi11**n11 + eps)
             + eps
         )
 
         try:
             p_value = 1 - chi2.cdf(lr_ind, df=1)
-        except Exception:
+        except Exception as _exc:
+            logger.debug("[VaRBacktest] Christoffersen 检验异常, 保守置 p_value=1.0: %s", _exc)
             p_value = 1.0
 
         return {
@@ -327,20 +332,56 @@ class VaRBacktester:
             "p_value": round(float(p_value), 4),
             "pass": p_value > 0.05,
             "transition_matrix": {
-                "00": int(n00), "01": int(n01),
-                "10": int(n10), "11": int(n11),
+                "00": int(n00),
+                "01": int(n01),
+                "10": int(n10),
+                "11": int(n11),
             },
             "interpretation": (
-                "H0不能拒绝: 突破独立分布 (无聚集)"
-                if p_value > 0.05
-                else "拒绝H0: 突破存在聚集性 (风险模型可能滞后)"
+                "H0不能拒绝: 突破独立分布 (无聚集)" if p_value > 0.05 else "拒绝H0: 突破存在聚集性 (风险模型可能滞后)"
             ),
+        }
+
+    @staticmethod
+    def _basel_traffic_light(n_violations: int, n: int, confidence: float) -> Dict[str, Any]:
+        """Basel 委员会 99% VaR 交通灯机制 (基于二项分布置信带).
+
+        绿区: 例外数 <= 95% 上界 (模型有效)
+        黄区: 例外数介于 95% 与 99.99% 上界之间 (需关注)
+        红区: 例外数 >= 99.99% 上界 (模型无效, 须立即修正)
+        """
+        from scipy.stats import binom
+
+        try:
+            green_max = int(binom.ppf(0.95, n, 1 - confidence))
+            red_min = int(binom.ppf(0.9999, n, 1 - confidence))
+        except Exception:
+            import math
+
+            z = 1.645 if confidence >= 0.99 else 1.96
+            expected = (1 - confidence) * n
+            sd = math.sqrt(n * (1 - confidence) * confidence)
+            green_max = int(expected + z * sd)
+            red_min = int(expected + 3.09 * sd)
+        if n_violations <= green_max:
+            zone, desc = "GREEN", "模型有效"
+        elif n_violations < red_min:
+            zone, desc = "YELLOW", "模型需关注, 建议检查校准"
+        else:
+            zone, desc = "RED", "模型无效, 必须立即修正"
+        return {
+            "zone": zone,
+            "description": desc,
+            "green_max": green_max,
+            "red_min": red_min,
+            "expected_exceptions": round(float((1 - confidence) * n), 2),
         }
 
 
 # ═══════════════════════════════════════════════════════════════
 # 统一风险驾驶舱
 # ═══════════════════════════════════════════════════════════════
+
 
 class UnifiedRiskCockpit:
     """统一风险管理驾驶舱 — 整合所有风控子系统
@@ -358,10 +399,9 @@ class UnifiedRiskCockpit:
         snapshot_dict → RiskSnapshot → action_list
     """
 
-    def __init__(self,
-                 portfolio_value: float = 5_000_000,
-                 config_path: Optional[Path] = None,
-                 enable_var_backtest: bool = True):
+    def __init__(
+        self, portfolio_value: float = 5_000_000, config_path: Optional[Path] = None, enable_var_backtest: bool = True
+    ):
         """
         Args:
             portfolio_value: 组合总市值
@@ -369,9 +409,7 @@ class UnifiedRiskCockpit:
             enable_var_backtest: 是否启用 VaR 回测
         """
         self.portfolio_value = portfolio_value
-        self.config_path = config_path or (
-            Path(__file__).resolve().parent.parent.parent / "configs" / "portfolio.yaml"
-        )
+        self.config_path = config_path or (Path(__file__).resolve().parent.parent.parent / "configs" / "portfolio.yaml")
         self.enable_var_backtest = enable_var_backtest
 
         # ── 初始化子系统 ──
@@ -402,7 +440,7 @@ class UnifiedRiskCockpit:
             return {}
         status = {}
         for name, breaker in self._circuit_breakers.items():
-            status[name] = str(breaker.state) if hasattr(breaker, 'state') else "unknown"
+            status[name] = str(breaker.state) if hasattr(breaker, "state") else "unknown"
         return status
 
     # ── 回报率记录 (用于 VaR 计算) ──
@@ -414,11 +452,13 @@ class UnifiedRiskCockpit:
 
     # ── 核心扫描 ──
 
-    def full_scan(self,
-                  margin_usage: Optional[float] = None,
-                  positions: Optional[Dict[str, Dict]] = None,
-                  pnl: float = 0.0,
-                  current_value: Optional[float] = None) -> RiskSnapshot:
+    def full_scan(
+        self,
+        margin_usage: Optional[float] = None,
+        positions: Optional[Dict[str, Dict]] = None,
+        pnl: float = 0.0,
+        current_value: Optional[float] = None,
+    ) -> RiskSnapshot:
         """全量风控扫描 — 所有子系统一次性检查
 
         Args:
@@ -491,10 +531,7 @@ class UnifiedRiskCockpit:
             if self.kill_switch:
                 try:
                     ks_result = self.kill_switch.check_margin_status(margin_usage)
-                    snapshot.kill_switch_level = max(
-                        snapshot.kill_switch_level,
-                        ks_result.get("level", 0)
-                    )
+                    snapshot.kill_switch_level = max(snapshot.kill_switch_level, ks_result.get("level", 0))
                 except Exception as e:
                     logger.warning(f"KillSwitch执行异常: {e}")
             snapshot.summary += f"[KillSwitch] L{snapshot.kill_switch_level}熔断! "
@@ -509,8 +546,7 @@ class UnifiedRiskCockpit:
             snapshot.drawdown_breach = True
             snapshot.drawdown_reduce_pct = dd_result["reduce_pct"]
             snapshot.actions_required.append(
-                f"DD_BREACH: 回撤{dd_result['drawdown']:.2%}, "
-                f"建议减仓{dd_result['reduce_pct']:.0%}"
+                f"DD_BREACH: 回撤{dd_result['drawdown']:.2%}, 建议减仓{dd_result['reduce_pct']:.0%}"
             )
             snapshot.summary += (
                 f"[DD] 回撤{dd_result['drawdown']:.2%}>"
@@ -518,8 +554,7 @@ class UnifiedRiskCockpit:
                 f"建议减仓{dd_result['reduce_pct']:.0%}; "
             )
 
-    def _scan_positions(self, snapshot: RiskSnapshot,
-                        positions: Dict[str, Dict]):
+    def _scan_positions(self, snapshot: RiskSnapshot, positions: Dict[str, Dict]):
         """仓位限制检查"""
         if not positions:
             return
@@ -529,25 +564,29 @@ class UnifiedRiskCockpit:
         try:
             _project_root = Path(__file__).resolve().parent.parent.parent.parent
             import sys as _sys
+
             if str(_project_root) not in _sys.path:
                 _sys.path.insert(0, str(_project_root))
             from utils.config_manager import get_portfolio_config
+
             cfg = get_portfolio_config()
-        except Exception:
-            pass
+        except Exception as _exc:
+            logger.debug("[RiskCockpit] get_portfolio_config 导入/调用失败, 回退 YAML: %s", _exc)
 
         if not cfg:
             try:
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     cfg = yaml.safe_load(f) or {}
-            except Exception:
+            except Exception as _exc:
+                logger.debug("[RiskCockpit] portfolio.yaml 读取失败, 使用默认风控参数: %s", _exc)
                 cfg = {}
 
         try:
             risk_params = cfg.get("risk_parameters", {})
             max_single = risk_params.get("max_single_position", 0.08)
             max_sector = risk_params.get("max_sector_exposure", 0.30)
-        except Exception:
+        except Exception as _exc:
+            logger.debug("[RiskCockpit] 风控参数解析异常, 使用默认上限: %s", _exc)
             max_single = 0.08
             max_sector = 0.30
 
@@ -555,22 +594,18 @@ class UnifiedRiskCockpit:
         for code, pos in positions.items():
             weight = pos.get("weight", 0)
             if weight > max_single:
-                snapshot.position_warnings.append(
-                    f"{code}: 权重{weight:.2%}>{max_single:.0%}上限"
-                )
+                snapshot.position_warnings.append(f"{code}: 权重{weight:.2%}>{max_single:.0%}上限")
                 snapshot.position_limit_breach = True
 
         # 行业集中度检查
         sector_weights: Dict[str, float] = {}
-        for code, pos in positions.items():
+        for _code, pos in positions.items():
             sector = pos.get("category", "unknown")
             sector_weights[sector] = sector_weights.get(sector, 0) + pos.get("weight", 0)
 
         for sector, weight in sector_weights.items():
             if weight > max_sector:
-                snapshot.position_warnings.append(
-                    f"行业{sector}: 权重{weight:.2%}>{max_sector:.0%}上限"
-                )
+                snapshot.position_warnings.append(f"行业{sector}: 权重{weight:.2%}>{max_sector:.0%}上限")
                 snapshot.position_limit_breach = True
 
         if snapshot.position_limit_breach:
@@ -598,9 +633,7 @@ class UnifiedRiskCockpit:
         if snapshot.kill_switch_level >= 2:
             snapshot.risk_level = RiskLevel.CIRCUIT_BREAK
             all_clear = False
-        elif (snapshot.kill_switch_level >= 1 or
-              snapshot.drawdown_breach or
-              snapshot.var_breach):
+        elif snapshot.kill_switch_level >= 1 or snapshot.drawdown_breach or snapshot.var_breach:
             snapshot.risk_level = RiskLevel.CRITICAL
             all_clear = False
         elif snapshot.position_limit_breach:
@@ -613,6 +646,27 @@ class UnifiedRiskCockpit:
             snapshot.summary = "PASS: 所有风控指标正常"
 
     # ── VaR 回测 ──
+
+    def _var_backtest_lines(self) -> List[str]:
+        """P3-2b: 将此前定义却从未调用的 run_var_backtest 接入报告。
+
+        generate_report 通过 *(self._var_backtest_lines()) 内联调用,
+        使 VaR 回测(Kupiec + Christoffersen + Basel 交通灯)在每次报告生成时真正执行。
+        """
+        vb = self.run_var_backtest()
+        out: List[str] = []
+        if vb.get("status") == "COMPLETE":
+            out.append(f"  突破数/观测: {vb.get('n_violations')}/{vb.get('n_observations')}")
+            out.append(f"  突破率/预期: {vb.get('violation_rate')} / {vb.get('expected_rate')}")
+            bl = vb.get("basel_traffic_light") or {}
+            if bl:
+                out.append(f"  Basel 交通灯: {bl.get('zone')} ({bl.get('description')})")
+            out.append(f"  结论: {vb.get('verdict')}")
+        elif vb.get("status") == "SKIPPED":
+            out.append("  (数据不足, 跳过 VaR 回测)")
+        else:
+            out.append(f"  (VaR 回测未执行: {vb.get('status')})")
+        return out
 
     def run_var_backtest(self) -> Dict[str, Any]:
         """执行 VaR 回测检验"""
@@ -636,7 +690,7 @@ class UnifiedRiskCockpit:
             if i < window:
                 var_series.append(0.0)
                 continue
-            window_returns = returns_arr[i - window:i]
+            window_returns = returns_arr[i - window : i]
             # P3-B FIX (2026-07-26): var_backtester 可能为 None, 加守卫
             confidence = self.var_backtester.confidence if self.var_backtester else 0.95
             var = np.percentile(window_returns, (1 - confidence) * 100)
@@ -667,11 +721,14 @@ class UnifiedRiskCockpit:
             "── 回撤 ──",
             f"  当前回撤: {snapshot.current_drawdown:.2%}",
             f"  回撤上限: {snapshot.max_drawdown_limit:.0%}",
-            f"  是否突破: {'是 - 建议减仓' + str(int(snapshot.drawdown_reduce_pct*100)) + '%' if snapshot.drawdown_breach else '否'}",
+            f"  是否突破: {'是 - 建议减仓' + str(int(snapshot.drawdown_reduce_pct * 100)) + '%' if snapshot.drawdown_breach else '否'}",
             "",
             "── VaR ──",
             f"  VaR 95%: ¥{abs(snapshot.daily_var_95):,.0f}",
             f"  VaR 99%: ¥{abs(snapshot.daily_var_99):,.0f}",
+            "",
+            "── VaR 回测 (Kupiec + Christoffersen + Basel 交通灯) ──",
+            *(self._var_backtest_lines()),
             "",
             "── 仓位 ──",
             f"  是否超限: {'是' if snapshot.position_limit_breach else '否'}",
@@ -702,11 +759,13 @@ class UnifiedRiskCockpit:
         results = []
         for action in actions:
             logger.warning("执行风控动作: %s", action)
-            results.append({
-                "action": action,
-                "status": "LOGGED",  # 实际环境应为 EXECUTED
-                "timestamp": datetime.now().isoformat(),
-            })
+            results.append(
+                {
+                    "action": action,
+                    "status": "LOGGED",  # 实际环境应为 EXECUTED
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         return {
             "total_actions": len(actions),

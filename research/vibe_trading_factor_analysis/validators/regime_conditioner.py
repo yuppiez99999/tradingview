@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict
 
 import numpy as np
 
@@ -99,7 +99,7 @@ class RegimeConditioner:
                 # P2.2 v6.2d 修复：样本数 < 5 的 regime 不计入 min_regime_ic_ir
                 # 旧版设为 -1.0 会导致 CapacityAgent 误否决（min_regime_ic_ir=-1.000 < 0.2）
                 # 新版：标记为 "insufficient_samples"，不计入 min_regime_ic_ir 计算
-                r.per_regime_ic_ir[reg] = None  # type: ignore
+                r.per_regime_ic_ir[reg] = None
         # 过滤掉 None 值（样本不足的 regime）
         r.per_regime_ic_ir = {k: v for k, v in r.per_regime_ic_ir.items() if v is not None}
         return self._finalize(r)
@@ -125,7 +125,7 @@ class RegimeConditioner:
             if r.per_regime_ic_ir:
                 r.reason = f"weakest {r.weakest_regime} ic_ir={r.min_regime_ic_ir:.3f} < {self.ic_ir_threshold}"
             else:
-                r.reason = f"所有 regime 样本数不足（< 5），无法计算 IC_IR"
+                r.reason = "所有 regime 样本数不足（< 5），无法计算 IC_IR"
         return r
 
     def _single_ic(self, fv, fr):

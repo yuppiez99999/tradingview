@@ -18,7 +18,7 @@ Alpha 因子库 (Alpha Factor Library)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -28,23 +28,26 @@ import pandas as pd
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class FactorValue:
     """单个因子值"""
-    name: str                # 因子名
-    category: str             # 因子类别
+
+    name: str  # 因子名
+    category: str  # 因子类别
     values: Dict[str, float]  # {symbol: factor_value}
-    ic_1d: float = 0.0        # 1 日 IC
-    ic_5d: float = 0.0        # 5 日 IC
-    ic_20d: float = 0.0       # 20 日 IC
-    ic_ir: float = 0.0         # IC 信息比率
+    ic_1d: float = 0.0  # 1 日 IC
+    ic_5d: float = 0.0  # 5 日 IC
+    ic_20d: float = 0.0  # 20 日 IC
+    ic_ir: float = 0.0  # IC 信息比率
     factor_return: float = 0.0  # 因子收益率 (年化)
-    turnover: float = 0.0       # 因子换手率
+    turnover: float = 0.0  # 因子换手率
 
 
 @dataclass
 class FactorLibraryResult:
     """因子库计算结果"""
+
     factors: Dict[str, FactorValue] = field(default_factory=dict)
     # 因子相关性矩阵
     factor_corr_matrix: Optional[pd.DataFrame] = None
@@ -57,6 +60,7 @@ class FactorLibraryResult:
 # ============================================================
 # Alpha 因子库
 # ============================================================
+
 
 class AlphaFactorLibrary:
     """Alpha 因子库
@@ -198,8 +202,7 @@ class AlphaFactorLibrary:
         factors: Dict[str, FactorValue] = {}
 
         # MOM_20D / 60D / 120D / 252D
-        for window, name in [(20, "MOM_20D"), (60, "MOM_60D"),
-                              (120, "MOM_120D"), (252, "MOM_252D")]:
+        for window, name in [(20, "MOM_20D"), (60, "MOM_60D"), (120, "MOM_120D"), (252, "MOM_252D")]:
             values = {}
             for sym, data in price_data.items():
                 closes = data.get("closes", [])
@@ -234,8 +237,7 @@ class AlphaFactorLibrary:
                 vol_avg = np.mean(vols[-60:]) if vols else 1
                 vol_ratio = vols[-1] / vol_avg if vol_avg > 0 else 1
                 values[sym] = float(ret_60 * vol_ratio)
-        factors["MOM_VOLUME_ADJ"] = FactorValue(
-            name="MOM_VOLUME_ADJ", category="Momentum", values=values)
+        factors["MOM_VOLUME_ADJ"] = FactorValue(name="MOM_VOLUME_ADJ", category="Momentum", values=values)
 
         # MOM_UP_DOWN (上涨下跌日比)
         values = {}
@@ -247,8 +249,7 @@ class AlphaFactorLibrary:
                 down_days = np.sum(rets < 0)
                 if down_days > 0:
                     values[sym] = float(up_days / down_days)
-        factors["MOM_UP_DOWN"] = FactorValue(
-            name="MOM_UP_DOWN", category="Momentum", values=values)
+        factors["MOM_UP_DOWN"] = FactorValue(name="MOM_UP_DOWN", category="Momentum", values=values)
 
         # MOM_INDUSTRY_ADJ (后续中性化处理)
         values = {}
@@ -256,8 +257,7 @@ class AlphaFactorLibrary:
             closes = data.get("closes", [])
             if len(closes) > 60:
                 values[sym] = float(closes[-1] / closes[-60] - 1)
-        factors["MOM_INDUSTRY_ADJ"] = FactorValue(
-            name="MOM_INDUSTRY_ADJ", category="Momentum", values=values)
+        factors["MOM_INDUSTRY_ADJ"] = FactorValue(name="MOM_INDUSTRY_ADJ", category="Momentum", values=values)
 
         return factors
 
@@ -272,10 +272,10 @@ class AlphaFactorLibrary:
         factors: Dict[str, FactorValue] = {}
 
         value_factors_spec = [
-            ("VAL_PE", "pe", -1),               # 市盈率倒数
-            ("VAL_PB", "pb", -1),               # 市净率倒数
-            ("VAL_PS", "ps", -1),               # 市销率倒数
-            ("VAL_PCF", "pcf", -1),             # 现金流收益率
+            ("VAL_PE", "pe", -1),  # 市盈率倒数
+            ("VAL_PB", "pb", -1),  # 市净率倒数
+            ("VAL_PS", "ps", -1),  # 市销率倒数
+            ("VAL_PCF", "pcf", -1),  # 现金流收益率
             ("VAL_EARNINGS_YIELD", "earnings_yield", 1),
             ("VAL_BOOK_YIELD", "book_yield", 1),
             ("VAL_DIVIDEND_YIELD", "dividend_yield", 1),
@@ -284,10 +284,10 @@ class AlphaFactorLibrary:
             ("VAL_SALES_EV", "sales_ev", -1),
         ]
 
-        for name, field, sign in value_factors_spec:
+        for name, fld, sign in value_factors_spec:
             values = {}
             for sym, fund in fundamentals.items():
-                raw = fund.get(field, 0)
+                raw = fund.get(fld, 0)
                 if raw and raw > 0:
                     values[sym] = float(sign * (1.0 / raw if sign < 0 else raw))
             factors[name] = FactorValue(name=name, category="Value", values=values)
@@ -315,12 +315,12 @@ class AlphaFactorLibrary:
             ("QUA_ACCRUALS", "accruals"),  # 反向
         ]
 
-        for name, field in quality_fields:
+        for name, fld in quality_fields:
             values = {}
             for sym, fund in fundamentals.items():
-                raw = fund.get(field, 0)
+                raw = fund.get(fld, 0)
                 if raw:
-                    sign = -1 if "debt" in field or "accrual" in field else 1
+                    sign = -1 if "debt" in fld or "accrual" in fld else 1
                     values[sym] = float(sign * raw)
             factors[name] = FactorValue(name=name, category="Quality", values=values)
 
@@ -338,13 +338,12 @@ class AlphaFactorLibrary:
         factors: Dict[str, FactorValue] = {}
 
         # VOL_20D / 60D / 120D / 252D
-        for window, name in [(20, "VOL_20D"), (60, "VOL_60D"),
-                              (120, "VOL_120D"), (252, "VOL_252D")]:
+        for window, name in [(20, "VOL_20D"), (60, "VOL_60D"), (120, "VOL_120D"), (252, "VOL_252D")]:
             values = {}
             for sym, data in price_data.items():
                 closes = data.get("closes", [])
                 if len(closes) > window:
-                    rets = np.diff(closes[-window-1:])
+                    rets = np.diff(closes[-window - 1 :])
                     vol = float(np.std(rets) * np.sqrt(252))
                     if vol > 0:
                         values[sym] = -vol  # 反向: 低波 = 高分
@@ -357,7 +356,7 @@ class AlphaFactorLibrary:
             for sym, data in price_data.items():
                 closes = data.get("closes", [])
                 if len(closes) > len(bench):
-                    rets = np.diff(closes[-len(bench)-1:])
+                    rets = np.diff(closes[-len(bench) - 1 :])
                     if len(rets) == len(bench):
                         cov = np.cov(rets, bench)[0, 1]
                         var_b = float(np.var(bench))
@@ -383,7 +382,11 @@ class AlphaFactorLibrary:
                 closes = data.get("closes", [])
                 if len(closes) > 60:
                     rets = np.diff(closes[-61:])
-                    bench = np.array(benchmark_returns[-60:]) if len(benchmark_returns) >= 60 else np.array(benchmark_returns)
+                    bench = (
+                        np.array(benchmark_returns[-60:])
+                        if len(benchmark_returns) >= 60
+                        else np.array(benchmark_returns)
+                    )
                     if len(rets) == len(bench):
                         beta = np.cov(rets, bench)[0, 1] / max(np.var(bench), 1e-10)
                         resid = rets - beta * bench
@@ -420,10 +423,10 @@ class AlphaFactorLibrary:
             ("SIZE_LOG_ASSETS", "total_assets"),
         ]
 
-        for name, field in size_fields:
+        for name, fld in size_fields:
             values = {}
             for sym, fund in fundamentals.items():
-                raw = fund.get(field, 0)
+                raw = fund.get(fld, 0)
                 if raw and raw > 0:
                     values[sym] = -float(np.log(raw))  # 反向: 小盘 = 高分
             factors[name] = FactorValue(name=name, category="Size", values=values)
@@ -438,8 +441,7 @@ class AlphaFactorLibrary:
                     cap = float(fund.get("market_cap", 0))
                     if median_cap > 0 and cap > 0:
                         values[sym] = float(median_cap / cap)
-        factors["SIZE_SMALL_LARGE_RATIO"] = FactorValue(
-            name="SIZE_SMALL_LARGE_RATIO", category="Size", values=values)
+        factors["SIZE_SMALL_LARGE_RATIO"] = FactorValue(name="SIZE_SMALL_LARGE_RATIO", category="Size", values=values)
 
         # SIZE_NON_LINEAR (非线性市值)
         values = {}
@@ -448,18 +450,16 @@ class AlphaFactorLibrary:
             if cap > 0:
                 log_cap = np.log(cap)
                 # 非线性: 偏离中位数的立方
-                values[sym] = -float(log_cap ** 3)
-        factors["SIZE_NON_LINEAR"] = FactorValue(
-            name="SIZE_NON_LINEAR", category="Size", values=values)
+                values[sym] = -float(log_cap**3)
+        factors["SIZE_NON_LINEAR"] = FactorValue(name="SIZE_NON_LINEAR", category="Size", values=values)
 
         # SIZE_CUBIC
         values = {}
         for sym, fund in fundamentals.items():
             cap = float(fund.get("market_cap", 0))
             if cap > 0:
-                values[sym] = -float(cap ** (1/3))
-        factors["SIZE_CUBIC"] = FactorValue(
-            name="SIZE_CUBIC", category="Size", values=values)
+                values[sym] = -float(cap ** (1 / 3))
+        factors["SIZE_CUBIC"] = FactorValue(name="SIZE_CUBIC", category="Size", values=values)
 
         return factors
 
@@ -495,8 +495,7 @@ class AlphaFactorLibrary:
                 vols_20[vols_20 == 0] = 1e-10
                 illiq = float(np.mean(rets / vols_20))
                 values[sym] = illiq  # 高 = 流动性差 = 低分
-        factors["LIQ_AMIHUD"] = FactorValue(
-            name="LIQ_AMIHUD", category="Liquidity", values=values)
+        factors["LIQ_AMIHUD"] = FactorValue(name="LIQ_AMIHUD", category="Liquidity", values=values)
 
         # LIQ_SPREAD (买卖价差近似: high-low / close)
         values = {}
@@ -511,8 +510,7 @@ class AlphaFactorLibrary:
                         spreads.append((highs[i] - lows[i]) / closes[i])
                 if spreads:
                     values[sym] = -float(np.mean(spreads))
-        factors["LIQ_SPREAD"] = FactorValue(
-            name="LIQ_SPREAD", category="Liquidity", values=values)
+        factors["LIQ_SPREAD"] = FactorValue(name="LIQ_SPREAD", category="Liquidity", values=values)
 
         # LIQ_DEPTH (深度: 平均成交量)
         values = {}
@@ -520,8 +518,7 @@ class AlphaFactorLibrary:
             vols = data.get("volumes", [])
             if len(vols) > 20:
                 values[sym] = -float(np.mean(vols[-20:]))  # 反向
-        factors["LIQ_DEPTH"] = FactorValue(
-            name="LIQ_DEPTH", category="Liquidity", values=values)
+        factors["LIQ_DEPTH"] = FactorValue(name="LIQ_DEPTH", category="Liquidity", values=values)
 
         # LIQ_RSVP (周转率)
         values = {}
@@ -532,8 +529,7 @@ class AlphaFactorLibrary:
                 avg_amount = float(np.mean(np.array(vols[-20:]) * np.array(closes[-20:])))
                 if avg_amount > 0:
                     values[sym] = -avg_amount  # 反向
-        factors["LIQ_RSVP"] = FactorValue(
-            name="LIQ_RSVP", category="Liquidity", values=values)
+        factors["LIQ_RSVP"] = FactorValue(name="LIQ_RSVP", category="Liquidity", values=values)
 
         # LIQ_ZERO_RET_DAYS (零收益天数)
         values = {}
@@ -543,8 +539,7 @@ class AlphaFactorLibrary:
                 rets = np.diff(closes[-21:])
                 zero_days = np.sum(np.abs(rets) < 1e-6)
                 values[sym] = float(zero_days)  # 高 = 流动性差
-        factors["LIQ_ZERO_RET_DAYS"] = FactorValue(
-            name="LIQ_ZERO_RET_DAYS", category="Liquidity", values=values)
+        factors["LIQ_ZERO_RET_DAYS"] = FactorValue(name="LIQ_ZERO_RET_DAYS", category="Liquidity", values=values)
 
         # LIQ_VOLUME_ZSCORE
         values = {}
@@ -554,8 +549,7 @@ class AlphaFactorLibrary:
                 vols_60 = np.array(vols[-60:])
                 z = float((vols[-1] - np.mean(vols_60)) / max(np.std(vols_60), 1e-10))
                 values[sym] = -z  # 反向
-        factors["LIQ_VOLUME_ZSCORE"] = FactorValue(
-            name="LIQ_VOLUME_ZSCORE", category="Liquidity", values=values)
+        factors["LIQ_VOLUME_ZSCORE"] = FactorValue(name="LIQ_VOLUME_ZSCORE", category="Liquidity", values=values)
 
         return factors
 
@@ -600,10 +594,7 @@ class AlphaFactorLibrary:
 
         industry_means = {ind: float(np.mean(vs)) for ind, vs in industry_groups.items() if vs}
 
-        return {
-            sym: float(values[sym] - industry_means.get(industries.get(sym, ""), 0))
-            for sym in values
-        }
+        return {sym: float(values[sym] - industry_means.get(industries.get(sym, ""), 0)) for sym in values}
 
     def _neutralize_by_size(
         self,
@@ -689,5 +680,5 @@ class AlphaFactorLibrary:
         try:
             df = pd.DataFrame({name: pd.Series(fv.values) for name, fv in factors.items()})
             return df.corr()
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             return None

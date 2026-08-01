@@ -193,7 +193,7 @@ def parse_kline_data(resp: dict) -> pd.DataFrame:
 
     # 检查 isError
     if resp.get("isError") is True:
-        logger.warning(f"    Wind 返回 isError=True")
+        logger.warning("    Wind 返回 isError=True")
         return pd.DataFrame()
 
     # 获取 content[0].text
@@ -222,7 +222,7 @@ def parse_kline_data(resp: dict) -> pd.DataFrame:
     rows = data.get("rows") or []
 
     if not columns or not rows:
-        logger.warning(f"    columns 或 rows 为空")
+        logger.warning("    columns 或 rows 为空")
         return pd.DataFrame()
 
     # 找到 TIME 和 MATCH (收盘价) 列的索引
@@ -347,7 +347,7 @@ def main():
             resp = call_wind_kline(windcode, server_type)
             df = parse_kline_data(resp)
             if df.empty:
-                logger.warning(f"    无数据, 跳过")
+                logger.warning("    无数据, 跳过")
                 continue
             df.set_index("date", inplace=True)
             all_klines[windcode] = {
@@ -429,8 +429,8 @@ def main():
         returns_df = returns_df.dropna()
         if len(returns_df) > 30:
             real_corr = returns_df.corr()
-            for i, name1 in enumerate(available_classes):
-                for j, name2 in enumerate(available_classes):
+            for _i, name1 in enumerate(available_classes):
+                for _j, name2 in enumerate(available_classes):
                     if name1 in available_indices and name2 in available_indices:
                         idx1 = available_indices[name1]
                         idx2 = available_indices[name2]
@@ -509,7 +509,7 @@ def main():
         "# v3 资产参数校准报告 (Wind MCP 真实历史数据)",
         "",
         f"**生成时间**: {datetime.now():%Y-%m-%d %H:%M:%S}",
-        f"**数据源**: Wind MCP",
+        "**数据源**: Wind MCP",
         f"**时间范围**: {BEGIN_DATE} ~ {END_DATE}",
         f"**标的数**: {len(instrument_metrics)}",
         "",

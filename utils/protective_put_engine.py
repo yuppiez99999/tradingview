@@ -34,6 +34,7 @@
     orders = ppe.generate_put_orders()
     ppe.check_and_roll()
 """
+
 from __future__ import annotations
 
 import json
@@ -41,7 +42,7 @@ import logging
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 
 logger = logging.getLogger("protective_put_engine")
 
@@ -64,14 +65,14 @@ class ProtectivePutEngine:
     """
 
     # 保护参数
-    MIN_PORTFOLIO_VALUE = 1_000_000   # 最低保护启动市值 100万
-    OTM_PCT = 0.05                     # 虚值程度 5%
-    TARGET_DTE_MIN = 25                # 最短到期天数
-    TARGET_DTE_MAX = 60                # 最长到期天数
-    PREFERRED_DTE = 45                 # 首选到期天数
-    ROLL_DTE_THRESHOLD = 5             # 到期前5天滚仓
-    MAX_ANNUAL_COST_PCT = 0.025        # 最大年化成本 2.5%
-    TOTAL_CAPITAL = 5_000_000          # 总资本
+    MIN_PORTFOLIO_VALUE = 1_000_000  # 最低保护启动市值 100万
+    OTM_PCT = 0.05  # 虚值程度 5%
+    TARGET_DTE_MIN = 25  # 最短到期天数
+    TARGET_DTE_MAX = 60  # 最长到期天数
+    PREFERRED_DTE = 45  # 首选到期天数
+    ROLL_DTE_THRESHOLD = 5  # 到期前5天滚仓
+    MAX_ANNUAL_COST_PCT = 0.025  # 最大年化成本 2.5%
+    TOTAL_CAPITAL = 5_000_000  # 总资本
 
     # 保护目标 ETF 配置 (v8.4 OPTIONS_ONLY: 200万纯期权对冲, 无期货)
     PROTECTION_TARGETS = [
@@ -113,9 +114,9 @@ class ProtectivePutEngine:
         },
     ]
 
-    def __init__(self, total_capital: float = None):
+    def __init__(self, total_capital: Optional[float] = None):  # type: ignore
         if total_capital is not None:
-            self.TOTAL_CAPITAL = total_capital
+            self.TOTAL_CAPITAL = total_capital  # type: ignore
         self._load_state()
 
     def _load_state(self):
@@ -124,29 +125,29 @@ class ProtectivePutEngine:
         PUT_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         if PUT_STATE_FILE.exists():
             try:
-                with open(PUT_STATE_FILE, 'r', encoding='utf-8') as f:
+                with open(PUT_STATE_FILE, "r", encoding="utf-8") as f:
                     self.state = json.load(f)
-            except Exception:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 self.state = {}
 
     def _save_state(self):
         """保存状态"""
         try:
-            with open(PUT_STATE_FILE, 'w', encoding='utf-8') as f:
+            with open(PUT_STATE_FILE, "w", encoding="utf-8") as f:
                 json.dump(self.state, f, ensure_ascii=False, indent=2)
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存Put状态失败: {e}")
 
     def _get_portfolio_value(self) -> float:
         """获取当前组合市值"""
         try:
-            with open(CONFIG_DIR / "positions.json", 'r', encoding='utf-8') as f:
+            with open(CONFIG_DIR / "positions.json", "r", encoding="utf-8") as f:
                 positions = json.load(f)
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             return 0
 
         total = 0.0
-        for code, pos in positions.get("positions", {}).items():
+        for _code, pos in positions.get("positions", {}).items():
             shares = pos.get("actual_shares", pos.get("shares", 0))
             price = pos.get("est_price", 0)
             if shares > 0 and price > 0:
@@ -156,21 +157,20 @@ class ProtectivePutEngine:
     def _get_etf_spot_price(self, code: str) -> float:
         """获取ETF现价"""
         try:
-            with open(CONFIG_DIR / "positions.json", 'r', encoding='utf-8') as f:
+            with open(CONFIG_DIR / "positions.json", "r", encoding="utf-8") as f:
                 positions = json.load(f)
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             return 0
 
         # 尝试匹配 code.SH 或 code.SZ
         for key, pos in positions.get("positions", {}).items():
             if key.startswith(code) or pos.get("code", "").startswith(code):
-                return pos.get("est_price", 0)
+                return pos.get("est_price", 0)  # type: ignore
         return 0
 
-    def _estimate_put_premium(self, spot: float, strike: float, dte: int,
-                               iv: float = 0.25) -> float:
+    def _estimate_put_premium(self, spot: float, strike: float, dte: int, iv: float = 0.25) -> float:
         """估算认沽期权权利金 (Black-Scholes近似)
-        
+
         对于OTM 5%的认沽期权, 使用简化公式:
         P ≈ spot * N(-d2) * exp(-r*T) - strike * N(-d1)
         简化为: P ≈ spot * iv * sqrt(T) * N(-d1) 的近似
@@ -188,13 +188,14 @@ class ProtectivePutEngine:
 
         # 标准正态CDF
         from scipy.stats import norm
+
         put_price = strike * math.exp(-r * T) * norm.cdf(-d2) - spot * norm.cdf(-d1)
 
-        return max(put_price, 0.0001)  # 最低价
+        return max(put_price, 0.0001)  # type: ignore[no-any-return]  # 最低价
 
     def should_buy_protection(self) -> Tuple[bool, str]:
         """判断是否需要买入认沽保护
-        
+
         触发条件:
             1. 组合市值 > 100万
             2. 无任何有效Put持仓 (或已到期)
@@ -216,7 +217,7 @@ class ProtectivePutEngine:
                     if expiry > datetime.now() + timedelta(days=self.ROLL_DTE_THRESHOLD):
                         has_valid_put = True
                         break
-                except Exception:
+                except Exception:  # P2 模块 fail-safe, 待后续精确化
                     continue
 
         if has_valid_put:
@@ -232,10 +233,10 @@ class ProtectivePutEngine:
 
     def generate_put_orders(self, drawdown_level: int = 0) -> Dict[str, Any]:
         """生成认沽期权买入订单
-        
+
         Args:
             drawdown_level: 回撤级别 (0-4), Level 2+ 增加手数
-            
+
         Returns:
             {
                 "should_execute": bool,
@@ -246,7 +247,7 @@ class ProtectivePutEngine:
             }
         """
         should_buy, reason = self.should_buy_protection()
-        
+
         result = {
             "generated_at": datetime.now().isoformat(),
             "should_execute": should_buy,
@@ -279,16 +280,16 @@ class ProtectivePutEngine:
 
         for target in self.PROTECTION_TARGETS:
             code = target["code"]
-            spot = self._get_etf_spot_price(code)
+            spot = self._get_etf_spot_price(code)  # type: ignore
             if spot <= 0:
                 logger.warning(f"无法获取 {code} 现价, 跳过")
                 continue
 
             # OTM 5% 行权价
             strike = round(spot * (1 - self.OTM_PCT), 4)
-            
+
             # 合约数 (回撤加码)
-            contracts = int(target["contracts"] * contract_multiplier)
+            contracts = int(target["contracts"] * contract_multiplier)  # type: ignore
 
             # 到期日选择: 下月第4个周三 (中国ETF期权到期日)
             expiry_date = self._calc_next_expiry()
@@ -312,29 +313,31 @@ class ProtectivePutEngine:
                 contracts = max(1, int(contracts * budget_alloc / premium_total))
                 premium_total = premium_per_unit * contracts * 10000
 
-            orders.append({
-                "order_id": f"PUT_{code}_{datetime.now():%Y%m%d}",
-                "type": "BUY_PUT",
-                "underlying": code,
-                "underlying_name": target["name"],
-                "exchange": target["exchange"],
-                "spot_price": spot,
-                "strike": strike,
-                "otm_pct": self.OTM_PCT,
-                "contracts": contracts,
-                "dte": dte,
-                "expiry_date": expiry_date.strftime("%Y-%m-%d"),
-                "iv_estimate": iv,
-                "premium_per_unit": round(premium_per_unit, 4),
-                "premium_total": round(premium_total, 2),
-                "multiplier": 10000,
-                "execution_window": "09:30-10:00",
-                "order_type": "LIMIT",
-                "price_buffer": 0.05,  # 权利金上浮5%确保成交
-                "priority": target["priority"],
-                "reason": target["reason"],
-                "status": "PENDING",
-            })
+            orders.append(
+                {
+                    "order_id": f"PUT_{code}_{datetime.now():%Y%m%d}",
+                    "type": "BUY_PUT",
+                    "underlying": code,
+                    "underlying_name": target["name"],
+                    "exchange": target["exchange"],
+                    "spot_price": spot,
+                    "strike": strike,
+                    "otm_pct": self.OTM_PCT,
+                    "contracts": contracts,
+                    "dte": dte,
+                    "expiry_date": expiry_date.strftime("%Y-%m-%d"),
+                    "iv_estimate": iv,
+                    "premium_per_unit": round(premium_per_unit, 4),
+                    "premium_total": round(premium_total, 2),
+                    "multiplier": 10000,
+                    "execution_window": "09:30-10:00",
+                    "order_type": "LIMIT",
+                    "price_buffer": 0.05,  # 权利金上浮5%确保成交
+                    "priority": target["priority"],
+                    "reason": target["reason"],
+                    "status": "PENDING",
+                }
+            )
             total_premium += premium_total
 
         result["orders"] = orders
@@ -346,7 +349,7 @@ class ProtectivePutEngine:
 
     def check_and_roll(self) -> Dict[str, Any]:
         """检查现有Put是否需要滚仓
-        
+
         Returns:
             {
                 "needs_roll": bool,
@@ -356,7 +359,7 @@ class ProtectivePutEngine:
         """
         active_puts = self.state.get("active_puts", [])
         expiring = []
-        
+
         for put in active_puts:
             expiry_str = put.get("expiry_date", "")
             if not expiry_str:
@@ -366,7 +369,7 @@ class ProtectivePutEngine:
                 days_left = (expiry - datetime.now()).days
                 if days_left <= self.ROLL_DTE_THRESHOLD:
                     expiring.append(put)
-            except Exception:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 continue
 
         if not expiring:
@@ -374,7 +377,7 @@ class ProtectivePutEngine:
 
         # 需要滚仓: 平仓到期合约 + 买入新月合约
         logger.info(f"需要滚仓: {len(expiring)} 组认沽期权即将到期")
-        
+
         # 生成新订单 (直接调用 generate_put_orders)
         new_orders = self.generate_put_orders()
 
@@ -394,7 +397,7 @@ class ProtectivePutEngine:
             "new_orders": new_orders.get("orders", []),
         }
 
-    def record_execution(self, orders: List[Dict], actual_premium: float = None):
+    def record_execution(self, orders: List[Dict], actual_premium: Optional[float] = None):  # type: ignore
         """记录执行结果, 更新状态"""
         if actual_premium is None:
             actual_premium = sum(o.get("premium_total", 0) for o in orders)
@@ -403,14 +406,16 @@ class ProtectivePutEngine:
         active_puts = self.state.get("active_puts", [])
         for order in orders:
             if order.get("status") in ("FILLED", "PENDING"):
-                active_puts.append({
-                    "underlying": order.get("underlying"),
-                    "strike": order.get("strike"),
-                    "contracts": order.get("contracts"),
-                    "expiry_date": order.get("expiry_date"),
-                    "premium_paid": order.get("premium_total"),
-                    "entry_date": datetime.now().strftime("%Y-%m-%d"),
-                })
+                active_puts.append(
+                    {
+                        "underlying": order.get("underlying"),
+                        "strike": order.get("strike"),
+                        "contracts": order.get("contracts"),
+                        "expiry_date": order.get("expiry_date"),
+                        "premium_paid": order.get("premium_total"),
+                        "entry_date": datetime.now().strftime("%Y-%m-%d"),
+                    }
+                )
 
         # 更新年度已花费
         ytd_spent = self.state.get("ytd_premium_spent", 0) + actual_premium
@@ -483,11 +488,11 @@ class ProtectivePutEngine:
 # ============================================================
 if __name__ == "__main__":
     import argparse
+
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
     parser = argparse.ArgumentParser(description="认沽期权保护引擎")
-    parser.add_argument("--action", choices=["check", "generate", "roll", "status"],
-                        default="status", help="执行动作")
+    parser.add_argument("--action", choices=["check", "generate", "roll", "status"], default="status", help="执行动作")
     parser.add_argument("--drawdown-level", type=int, default=0, help="回撤级别")
     args = parser.parse_args()
 
@@ -495,14 +500,14 @@ if __name__ == "__main__":
 
     if args.action == "status":
         status = ppe.get_protection_status()
-        print(json.dumps(status, ensure_ascii=False, indent=2))
+        logger.info(json.dumps(status, ensure_ascii=False, indent=2))
     elif args.action == "check":
         should, reason = ppe.should_buy_protection()
-        print(f"需要买入保护: {'是' if should else '否'}")
-        print(f"原因: {reason}")
+        logger.info(f"需要买入保护: {'是' if should else '否'}")
+        logger.info(f"原因: {reason}")
     elif args.action == "generate":
         result = ppe.generate_put_orders(drawdown_level=args.drawdown_level)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        logger.info(json.dumps(result, ensure_ascii=False, indent=2))
     elif args.action == "roll":
         result = ppe.check_and_roll()
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        logger.info(json.dumps(result, ensure_ascii=False, indent=2))

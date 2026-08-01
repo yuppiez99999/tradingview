@@ -3,11 +3,12 @@
 信号后处理 — 行业中性化 + 排名归一化
 通过组内排名消除行业偏差，提升信号质量
 """
+
 import json
 import numpy as np
 from pathlib import Path
 
-PROJECT_ROOT = Path(r"e:\各种PY程序\28-终极量化交易系统7.1")
+PROJECT_ROOT = Path(__file__).resolve().parent
 POSITIONS_FILE = PROJECT_ROOT / "config" / "positions.json"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 
@@ -88,7 +89,9 @@ def apply_industry_neutralization():
             stock_signals[stock_code]["neutral_signal"] = neutral_signal
             direction = "看多" if neutral_signal > 0.3 else ("看空" if neutral_signal < -0.3 else "中性")
             stock_signals[stock_code]["neutral_direction"] = direction
-            print(f"    {stock_code} {stock_signals[stock_code]['name']:6s} 原始:{stock_signals[stock_code]['raw_signal']:+.4f} → 中性化:{neutral_signal:+.4f} ({direction})")
+            print(
+                f"    {stock_code} {stock_signals[stock_code]['name']:6s} 原始:{stock_signals[stock_code]['raw_signal']:+.4f} → 中性化:{neutral_signal:+.4f} ({direction})"
+            )
 
     def convert_code(code):
         if code.startswith("SH"):
@@ -104,7 +107,7 @@ def apply_industry_neutralization():
             pos = positions_data["positions"][pos_code]
             pos["qlib_neutral_signal"] = sig_info.get("neutral_signal")
             pos["qlib_neutral_direction"] = sig_info.get("neutral_direction", pos.get("qlib_direction"))
-            print(f"    {stock_code} → {pos_code} {pos.get('name','')} 中性化:{sig_info.get('neutral_direction','')}")
+            print(f"    {stock_code} → {pos_code} {pos.get('name', '')} 中性化:{sig_info.get('neutral_direction', '')}")
 
     positions_data["meta"]["last_qlib_neutral_update"] = report.get("timestamp", "")
 

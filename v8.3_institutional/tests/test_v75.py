@@ -11,7 +11,7 @@ v7.5 Institutional — 单元测试
 import os
 import sys
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -95,7 +95,6 @@ class TestCircuitBreaker(unittest.TestCase):
     def test_level_3(self):
         """跌 7% → LEVEL_3"""
         # 测试状态转换
-        state_before = self.cb.state
         for _ in range(5):
             self.cb.on_failure(Exception("error"))
         state_after = self.cb.state
@@ -280,7 +279,7 @@ class TestBacktest(unittest.TestCase):
 
     def test_stress_scenarios(self):
         """压力测试场景"""
-        from backtest.scenario_lib import StressScenarioLib, STRESS_SCENARIOS
+        from backtest.scenario_lib import STRESS_SCENARIOS
         self.assertEqual(len(STRESS_SCENARIOS), 3)
         names = [s.name for s in STRESS_SCENARIOS]
         self.assertIn("COVID_CRASH", names)

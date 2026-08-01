@@ -8,9 +8,9 @@ import pandas as pd
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-logger = logging.getLogger('v7.5.stress_tester')
+logger = logging.getLogger("v7.5.stress_tester")
 
 
 @dataclass
@@ -32,59 +32,83 @@ class StressTester:
     BUILTIN_SCENARIOS = [
         StressScenario(
             name="GFC_2008",
-            start="2008-09-15", end="2009-03-09",
-            market_shock=-0.55, vol_multiplier=5.0,
-            liquidity_haircut=0.7, correlation_converge=0.98,
-            description="全球金融危机, S&P -56%, 上证 -72%, 雷曼破产+信贷冻结"
+            start="2008-09-15",
+            end="2009-03-09",
+            market_shock=-0.55,
+            vol_multiplier=5.0,
+            liquidity_haircut=0.7,
+            correlation_converge=0.98,
+            description="全球金融危机, S&P -56%, 上证 -72%, 雷曼破产+信贷冻结",
         ),
         StressScenario(
             name="CHINA_2015_CRASH",
-            start="2015-06-12", end="2015-08-26",
-            market_shock=-0.45, vol_multiplier=4.5,
-            liquidity_haircut=0.8, correlation_converge=0.95,
-            description="A股股灾, 上证 -43%, 千股跌停+熔断机制失灵"
+            start="2015-06-12",
+            end="2015-08-26",
+            market_shock=-0.45,
+            vol_multiplier=4.5,
+            liquidity_haircut=0.8,
+            correlation_converge=0.95,
+            description="A股股灾, 上证 -43%, 千股跌停+熔断机制失灵",
         ),
         StressScenario(
             name="CHINA_2016_CIRCUIT",
-            start="2016-01-04", end="2016-01-28",
-            market_shock=-0.25, vol_multiplier=3.5,
-            liquidity_haircut=0.9, correlation_converge=0.92,
-            description="熔断机制, 4天2次熔断, 流动性枯竭"
+            start="2016-01-04",
+            end="2016-01-28",
+            market_shock=-0.25,
+            vol_multiplier=3.5,
+            liquidity_haircut=0.9,
+            correlation_converge=0.92,
+            description="熔断机制, 4天2次熔断, 流动性枯竭",
         ),
         StressScenario(
             name="TRADE_WAR_2018",
-            start="2018-03-22", end="2018-10-29",
-            market_shock=-0.25, vol_multiplier=2.5,
-            liquidity_haircut=0.3, correlation_converge=0.7,
-            description="中美贸易战, 上证 -25%, 科技股重创, 关税冲击"
+            start="2018-03-22",
+            end="2018-10-29",
+            market_shock=-0.25,
+            vol_multiplier=2.5,
+            liquidity_haircut=0.3,
+            correlation_converge=0.7,
+            description="中美贸易战, 上证 -25%, 科技股重创, 关税冲击",
         ),
         StressScenario(
             name="COVID_CRASH",
-            start="2020-02-19", end="2020-03-23",
-            market_shock=-0.30, vol_multiplier=3.0,
-            liquidity_haircut=0.5, correlation_converge=0.9,
-            description="新冠闪崩, S&P -33.5%, A股 -13%, 流动性枯竭"
+            start="2020-02-19",
+            end="2020-03-23",
+            market_shock=-0.30,
+            vol_multiplier=3.0,
+            liquidity_haircut=0.5,
+            correlation_converge=0.9,
+            description="新冠闪崩, S&P -33.5%, A股 -13%, 流动性枯竭",
         ),
         StressScenario(
             name="LUNA_CRASH",
-            start="2022-05-01", end="2022-05-12",
-            market_shock=-0.25, vol_multiplier=4.0,
-            liquidity_haircut=0.3, correlation_converge=0.85,
-            description="LUNA崩盘, 加密传染"
+            start="2022-05-01",
+            end="2022-05-12",
+            market_shock=-0.25,
+            vol_multiplier=4.0,
+            liquidity_haircut=0.3,
+            correlation_converge=0.85,
+            description="LUNA崩盘, 加密传染",
         ),
         StressScenario(
             name="BOND_MASSACRE_2022",
-            start="2022-01-01", end="2022-10-24",
-            market_shock=-0.20, vol_multiplier=2.8,
-            liquidity_haircut=0.2, correlation_converge=0.8,
-            description="全球债券大屠杀, 美债-17%, 英债闪崩, 股债双杀"
+            start="2022-01-01",
+            end="2022-10-24",
+            market_shock=-0.20,
+            vol_multiplier=2.8,
+            liquidity_haircut=0.2,
+            correlation_converge=0.8,
+            description="全球债券大屠杀, 美债-17%, 英债闪崩, 股债双杀",
         ),
         StressScenario(
             name="YEN_CARRY_UNWIND",
-            start="2024-08-01", end="2024-08-05",
-            market_shock=-0.35, vol_multiplier=5.0,
-            liquidity_haircut=0.4, correlation_converge=0.95,
-            description="日元套息平仓, 日经-12.4%, VIX飙至65"
+            start="2024-08-01",
+            end="2024-08-05",
+            market_shock=-0.35,
+            vol_multiplier=5.0,
+            liquidity_haircut=0.4,
+            correlation_converge=0.95,
+            description="日元套息平仓, 日经-12.4%, VIX飙至65",
         ),
     ]
 
@@ -93,29 +117,29 @@ class StressTester:
         self.custom_scenarios: List[StressScenario] = []
         self.results: List[Dict] = []
 
-    def run_scenario(self, scenario: StressScenario,
-                     portfolio_returns: pd.Series,
-                     market_returns: Optional[pd.Series] = None) -> Dict:
+    def run_scenario(
+        self, scenario: StressScenario, portfolio_returns: pd.Series, market_returns: Optional[pd.Series] = None
+    ) -> Dict:
         """运行单个场景压力测试"""
         mask = (portfolio_returns.index >= scenario.start) & (portfolio_returns.index <= scenario.end)
         period_returns = portfolio_returns[mask]
 
         if len(period_returns) == 0:
             return {
-                'scenario': scenario.name,
-                'status': 'NO_DATA',
-                'max_dd': 0,
-                'pass': True,
+                "scenario": scenario.name,
+                "status": "NO_DATA",
+                "max_dd": 0,
+                "pass": True,
             }
 
         # 累计收益
         cumulative = (1 + period_returns).cumprod()
         if not np.isfinite(cumulative).all():
             return {
-                'scenario': scenario.name,
-                'status': 'BAD_DATA',
-                'max_dd': 0,
-                'pass': True,
+                "scenario": scenario.name,
+                "status": "BAD_DATA",
+                "max_dd": 0,
+                "pass": True,
             }
         peak = cumulative.cummax()
         denom = peak.replace(0, np.nan)
@@ -125,31 +149,32 @@ class StressTester:
         passed = abs(max_dd) < self.max_dd_threshold
 
         result = {
-            'scenario': scenario.name,
-            'description': scenario.description,
-            'start': scenario.start,
-            'end': scenario.end,
-            'max_dd': round(max_dd, 4),
-            'total_return': round(float(cumulative.iloc[-1] - 1), 4),
-            'pass': passed,
-            'status': 'PASS' if passed else ('HIGH_RISK' if abs(max_dd) < 0.20 else 'FAIL'),
+            "scenario": scenario.name,
+            "description": scenario.description,
+            "start": scenario.start,
+            "end": scenario.end,
+            "max_dd": round(max_dd, 4),
+            "total_return": round(float(cumulative.iloc[-1] - 1), 4),
+            "pass": passed,
+            "status": "PASS" if passed else ("HIGH_RISK" if abs(max_dd) < 0.20 else "FAIL"),
         }
         self.results.append(result)
         logger.info(f"[压力测试] {scenario.name}: DD={max_dd:.2%}, {'通过' if passed else '失败'}")
         return result
 
-    def run_monte_carlo(self,
-                        initial_value: float,
-                        annual_return: float = 0.08,
-                        annual_vol: float = 0.15,
-                        n_sims: int = 10000,
-                        horizon_days: int = 252,
-                        t_df: float = 5.0,
-                        jump_prob: float = 0.01,
-                        jump_mean: float = -0.03,
-                        jump_std: float = 0.05) -> Dict:
+    def run_monte_carlo(
+        self,
+        initial_value: float,
+        annual_return: float = 0.08,
+        annual_vol: float = 0.15,
+        n_sims: int = 10000,
+        horizon_days: int = 252,
+        t_df: float = 5.0,
+        jump_prob: float = 0.01,
+        jump_mean: float = -0.03,
+        jump_std: float = 0.05,
+    ) -> Dict:
         """厚尾分布 + 跳跃扩散 + 波动率聚类的蒙特卡洛模拟"""
-        dt = 1.0 / 252
         mean_daily = annual_return / 252
         vol_daily = annual_vol / np.sqrt(252)
         final_values = np.zeros(n_sims)
@@ -166,10 +191,7 @@ class StressTester:
             vol_path = np.zeros(horizon_days)
             vol_path[0] = vol_daily
             for t in range(1, horizon_days):
-                vol_path[t] = np.sqrt(
-                    (1 - vol_persistence) * vol_daily**2
-                    + vol_persistence * vol_path[t-1]**2
-                )
+                vol_path[t] = np.sqrt((1 - vol_persistence) * vol_daily**2 + vol_persistence * vol_path[t - 1] ** 2)
 
             if not np.isfinite(vol_path).all():
                 vol_path = np.full(horizon_days, max(vol_daily, 1e-6))
@@ -202,28 +224,30 @@ class StressTester:
         cvar_95 = float(np.mean(initial_value - final_values[final_values <= np.percentile(final_values, 5)]))
 
         result = {
-            'n_sims': n_sims,
-            'expected_value': float(np.mean(final_values)),
-            'median_value': float(np.median(final_values)),
-            'var_95': float(var_95),
-            'var_95_pct': float(var_95 / initial_value),
-            'var_99': float(var_99),
-            'cvar_95': float(cvar_95),
-            'avg_max_dd': float(np.mean(max_drawdowns)),
-            'max_dd_99': float(np.percentile(max_drawdowns, 99)),
-            'loss_probability': float(np.mean(final_values < initial_value)),
-            'ruin_probability': float(np.mean(final_values <= initial_value * 0.20)),
-            'scenario': 'MONTE_CARLO',
+            "n_sims": n_sims,
+            "expected_value": float(np.mean(final_values)),
+            "median_value": float(np.median(final_values)),
+            "var_95": float(var_95),
+            "var_95_pct": float(var_95 / initial_value),
+            "var_99": float(var_99),
+            "cvar_95": float(cvar_95),
+            "avg_max_dd": float(np.mean(max_drawdowns)),
+            "max_dd_99": float(np.percentile(max_drawdowns, 99)),
+            "loss_probability": float(np.mean(final_values < initial_value)),
+            "ruin_probability": float(np.mean(final_values <= initial_value * 0.20)),
+            "scenario": "MONTE_CARLO",
         }
         self.results.append(result)
         return result
 
-    def run_all(self,
-                portfolio_returns: pd.Series,
-                initial_value: float,
-                annual_return: float = 0.08,
-                annual_vol: float = 0.15,
-                market_returns: Optional[pd.Series] = None) -> Dict:
+    def run_all(
+        self,
+        portfolio_returns: pd.Series,
+        initial_value: float,
+        annual_return: float = 0.08,
+        annual_vol: float = 0.15,
+        market_returns: Optional[pd.Series] = None,
+    ) -> Dict:
         """运行全部压力测试"""
         all_scenarios = self.BUILTIN_SCENARIOS + self.custom_scenarios
         scenario_results = []
@@ -236,25 +260,34 @@ class StressTester:
         scenario_results.append(mc_result)
 
         # 汇总判断
-        any_fail = any(r.get('status') == 'FAIL' for r in scenario_results)
-        any_high_risk = any(r.get('status') == 'HIGH_RISK' for r in scenario_results)
+        any_fail = any(r.get("status") == "FAIL" for r in scenario_results)
+        any_high_risk = any(r.get("status") == "HIGH_RISK" for r in scenario_results)
 
         return {
-            'timestamp': datetime.now().isoformat(),
-            'scenarios': scenario_results,
-            'overall_pass': not any_fail,
-            'needs_review': any_high_risk,
-            'overall_status': 'FAIL' if any_fail else ('HIGH_RISK_NEEDS_CRO' if any_high_risk else 'PASS'),
+            "timestamp": datetime.now().isoformat(),
+            "scenarios": scenario_results,
+            "overall_pass": not any_fail,
+            "needs_review": any_high_risk,
+            "overall_status": "FAIL" if any_fail else ("HIGH_RISK_NEEDS_CRO" if any_high_risk else "PASS"),
         }
 
-    def add_custom_scenario(self, name: str, start: str, end: str,
-                            market_shock: float, vol_multiplier: float = 3.0,
-                            liquidity_haircut: float = 0.5,
-                            correlation_converge: float = 0.9,
-                            description: str = ""):
+    def add_custom_scenario(
+        self,
+        name: str,
+        start: str,
+        end: str,
+        market_shock: float,
+        vol_multiplier: float = 3.0,
+        liquidity_haircut: float = 0.5,
+        correlation_converge: float = 0.9,
+        description: str = "",
+    ):
         sc = StressScenario(
-            name=name, start=start, end=end,
-            market_shock=market_shock, vol_multiplier=vol_multiplier,
+            name=name,
+            start=start,
+            end=end,
+            market_shock=market_shock,
+            vol_multiplier=vol_multiplier,
             liquidity_haircut=liquidity_haircut,
             correlation_converge=correlation_converge,
             description=description,

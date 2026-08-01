@@ -13,12 +13,13 @@ Greeks 暴露监控面板 (Greek Exposure Dashboard)
   - config/positions.json  (持仓 + 期权 Greeks + 对冲工具)
   - utils/greek_hedge_manager.py (Black-Scholes + 再平衡信号)
 """
+
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 # ============================================================
 # 默认路径
@@ -33,6 +34,7 @@ DEFAULT_POSITIONS_PATH = PROJECT_ROOT / "config" / "positions.json"
 @dataclass
 class GreekSnapshot:
     """Greeks 快照"""
+
     delta: float = 0.0
     gamma: float = 0.0
     theta: float = 0.0
@@ -43,6 +45,7 @@ class GreekSnapshot:
 @dataclass
 class GreekDashboard:
     """Greeks 监控面板结果"""
+
     snapshot: GreekSnapshot = field(default_factory=GreekSnapshot)
     targets: Dict[str, float] = field(default_factory=dict)
     rebalance_signals: Dict[str, bool] = field(default_factory=dict)
@@ -62,7 +65,7 @@ def load_positions(path: Union[str, Path] = DEFAULT_POSITIONS_PATH):
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-    except Exception:
+    except Exception:  # P2 模块 fail-safe, 待后续精确化
         return {}, {}
 
     positions = {}
@@ -126,14 +129,10 @@ def _build_recommendations(exposure: Any, signals: Dict[str, bool], levels: Dict
             )
 
     if levels.get("gamma") in ("WARN", "CRITICAL") and signals.get("gamma_rebalance"):
-        recs.append(
-            f"Gamma 再平衡: 当前 Gamma {exposure.gamma:,.2f}, 建议调整期权头寸以平抑二阶导风险"
-        )
+        recs.append(f"Gamma 再平衡: 当前 Gamma {exposure.gamma:,.2f}, 建议调整期权头寸以平抑二阶导风险")
 
     if levels.get("vega") in ("WARN", "CRITICAL") and signals.get("vega_rebalance"):
-        recs.append(
-            f"Vega 再平衡: 当前 Vega {exposure.vega:,.2f}, 建议买入/卖出跨式期权降低波动率敞口"
-        )
+        recs.append(f"Vega 再平衡: 当前 Vega {exposure.vega:,.2f}, 建议买入/卖出跨式期权降低波动率敞口")
 
     if levels.get("theta") in ("WARN", "CRITICAL") and signals.get("theta_rebalance"):
         recs.append(
@@ -150,12 +149,14 @@ def _build_recommendations(exposure: Any, signals: Dict[str, bool], levels: Dict
 # ============================================================
 # 主面板函数
 # ============================================================
-def compute_dashboard(positions_path: Union[str, Path] = DEFAULT_POSITIONS_PATH,
-                      target_delta: float = 0.0,
-                      target_gamma: float = 0.0,
-                      max_vega: float = 50_000.0,
-                      max_theta_burn: float = -5_000.0,
-                      tolerance: float = 0.05) -> GreekDashboard:
+def compute_dashboard(
+    positions_path: Union[str, Path] = DEFAULT_POSITIONS_PATH,
+    target_delta: float = 0.0,
+    target_gamma: float = 0.0,
+    max_vega: float = 50_000.0,
+    max_theta_burn: float = -5_000.0,
+    tolerance: float = 0.05,
+) -> GreekDashboard:
     """计算 Greeks 监控面板
 
     Args:
@@ -211,8 +212,12 @@ def compute_dashboard(positions_path: Union[str, Path] = DEFAULT_POSITIONS_PATH,
     dashboard.signal_levels = {
         "delta": _signal_level(exposure.delta, target_delta, tolerance),
         "gamma": _signal_level(exposure.gamma, target_gamma, tolerance),
-        "vega": "OK" if abs(exposure.vega) <= max_vega else ("WARN" if abs(exposure.vega) <= 1.5 * max_vega else "CRITICAL"),
-        "theta": "OK" if exposure.theta >= max_theta_burn else ("WARN" if exposure.theta >= 1.5 * max_theta_burn else "CRITICAL"),
+        "vega": "OK"
+        if abs(exposure.vega) <= max_vega
+        else ("WARN" if abs(exposure.vega) <= 1.5 * max_vega else "CRITICAL"),
+        "theta": "OK"
+        if exposure.theta >= max_theta_burn
+        else ("WARN" if exposure.theta >= 1.5 * max_theta_burn else "CRITICAL"),
     }
 
     # 每标的 Greeks 贡献 (Top 10)
@@ -228,15 +233,17 @@ def compute_dashboard(positions_path: Union[str, Path] = DEFAULT_POSITIONS_PATH,
         gamma_contrib = notional * beta * float(pos.get("gamma", 0.0))
         theta_contrib = notional * beta * float(pos.get("theta", 0.0))
         vega_contrib = notional * beta * float(pos.get("vega", 0.0))
-        per_position.append({
-            "code": code,
-            "name": pos.get("name", code),
-            "notional": round(notional, 2),
-            "delta_contrib": round(delta_contrib, 2),
-            "gamma_contrib": round(gamma_contrib, 2),
-            "theta_contrib": round(theta_contrib, 2),
-            "vega_contrib": round(vega_contrib, 2),
-        })
+        per_position.append(
+            {
+                "code": code,
+                "name": pos.get("name", code),
+                "notional": round(notional, 2),
+                "delta_contrib": round(delta_contrib, 2),
+                "gamma_contrib": round(gamma_contrib, 2),
+                "theta_contrib": round(theta_contrib, 2),
+                "vega_contrib": round(vega_contrib, 2),
+            }
+        )
     per_position.sort(key=lambda x: abs(x["delta_contrib"]), reverse=True)
     dashboard.per_position = per_position[:10]
 

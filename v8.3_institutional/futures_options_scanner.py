@@ -11,7 +11,7 @@ import json
 import math
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 # 保证可导入项目内 ifind skill 与 data 模块
@@ -22,12 +22,12 @@ for _p in [_IFIND_SKILL, _DATA_DIR]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from data.edb_futures_data import EDBSource, EDBFuturesData, _build_query_window  # noqa: E402
+from data.edb_futures_data import EDBFuturesData  # noqa: E402
 
 try:
     from utils.akshare_futures import fetch_futures_historical
     HAS_AKSHARE_FUTURES = True
-except Exception:
+except Exception as e:
     HAS_AKSHARE_FUTURES = False
 
 # 名称 -> akshare 期货代码映射（仅用于 EDB 无数据时的回退）
@@ -166,7 +166,6 @@ def _max_drawdown(series: List[Tuple[str, float]], window: int = 20) -> Optional
 def _to_edb_like(name: str, df: Any) -> Dict[str, Any]:
     """将 AKShare DataFrame 转成 EDBFuturesData.fetch() 的近似结构"""
     try:
-        import pandas as pd
         if df is None or (hasattr(df, "empty") and df.empty):
             return {}
         if not hasattr(df, "columns"):

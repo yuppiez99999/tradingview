@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 def test_risk_budgeter_initialization():

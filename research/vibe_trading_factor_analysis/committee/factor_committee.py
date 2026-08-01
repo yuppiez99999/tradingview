@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 import logging
-import math
 import sys
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -285,8 +284,8 @@ class CapacityAgent:
             v.score = 5.0
             v.veto = False
             v.rationale = (
-                f"regime 样本不足（所有 regime < 5 天），IC_IR 统计不可靠，"
-                f"给予中性评分 5.0 观察期"
+                "regime 样本不足（所有 regime < 5 天），IC_IR 统计不可靠，"
+                "给予中性评分 5.0 观察期"
             )
             v.score = max(0.0, min(10.0, round(v.score / SCORE_STEP) * SCORE_STEP))
             return v
@@ -437,16 +436,16 @@ class FactorCommittee:
         votes = []
         for agent in self.agents:
             try:
-                vote = agent.vote(factor_report)
+                vote = agent.vote(factor_report)  # type: ignore
                 votes.append(vote)
                 logger.info(
                     "[Committee] %s | %s score=%.1f veto=%s | %s",
-                    factor_name, agent.name, vote.score, vote.veto, vote.rationale,
+                    factor_name, agent.name, vote.score, vote.veto, vote.rationale,  # type: ignore
                 )
             except Exception as e:
-                logger.error("[Committee] %s | %s 评分失败：%s", factor_name, agent.name, e)
+                logger.error("[Committee] %s | %s 评分失败：%s", factor_name, agent.name, e)  # type: ignore
                 error_vote = AgentVote(
-                    agent_name=agent.name, score=0.0, veto=True,
+                    agent_name=agent.name, score=0.0, veto=True,  # type: ignore
                     rationale=f"评分异常：{type(e).__name__}: {e}",
                 )
                 votes.append(error_vote)

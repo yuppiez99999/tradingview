@@ -39,18 +39,18 @@ from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter 
 from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (
     build_factor_history, compute_rolling_ic_series, compute_ic_ir, compute_ic_decay,
 )
-from research.vibe_trading_factor_analysis.validators.dsr_validator import DSRValidator, DSRResult
+from research.vibe_trading_factor_analysis.validators.dsr_validator import DSRValidator
 from research.vibe_trading_factor_analysis.validators.regime_conditioner import (
-    RegimeConditioner, RegimeResult,
+    RegimeConditioner,
 )
 from research.vibe_trading_factor_analysis.validators.capacity_analyzer import (
-    CapacityAnalyzer, CapacityResult,
+    CapacityAnalyzer,
 )
 from research.vibe_trading_factor_analysis.shadow.shadow_account import (
-    ShadowAccount, ShadowResult,
+    ShadowAccount,
 )
 from research.vibe_trading_factor_analysis.committee.factor_committee import (
-    FactorCommittee, CommitteeVerdict,
+    FactorCommittee,
 )
 
 
@@ -551,8 +551,8 @@ class PipelineOrchestrator:
         existing_factors: Dict[str, Any],
         portfolio_value: float,
         n_trials: int,
-        factor_history: List[Dict[str, float]] = None,
-        forward_returns_history: List[Dict[str, float]] = None,
+        factor_history: List[Dict[str, float]] = None,  # type: ignore
+        forward_returns_history: List[Dict[str, float]] = None,  # type: ignore
     ) -> None:
         """处理单个因子走完 8 级流水线"""
 
@@ -645,8 +645,8 @@ class PipelineOrchestrator:
         ps: FactorPipelineState,
         candidate: CandidateFactor,
         price_data: Dict[str, Any],
-        factor_history: List[Dict[str, float]] = None,
-        forward_returns_history: List[Dict[str, float]] = None,
+        factor_history: List[Dict[str, float]] = None,  # type: ignore
+        forward_returns_history: List[Dict[str, float]] = None,  # type: ignore
     ) -> bool:
         """Gate 2: IC_IR_120d >= 0.3 且衰减 < 0.6
 
@@ -749,8 +749,8 @@ class PipelineOrchestrator:
         candidate: CandidateFactor,
         price_data: Dict[str, Any],
         n_trials: int,
-        factor_history: List[Dict[str, float]] = None,
-        forward_returns_history: List[Dict[str, float]] = None,
+        factor_history: List[Dict[str, float]] = None,  # type: ignore
+        forward_returns_history: List[Dict[str, float]] = None,  # type: ignore
     ) -> bool:
         """Gate 3: DSR > 0, n_trials >= 5
 
@@ -932,8 +932,8 @@ class PipelineOrchestrator:
         price_data: Dict[str, Any],
         benchmark_returns: Optional[List[float]],
         portfolio_value: float,
-        factor_history: List[Dict[str, float]] = None,
-        forward_returns_history: List[Dict[str, float]] = None,
+        factor_history: List[Dict[str, float]] = None,  # type: ignore
+        forward_returns_history: List[Dict[str, float]] = None,  # type: ignore
     ) -> bool:
         """Stage 6: Enhancement (Capacity + Regime)
 
@@ -1011,8 +1011,8 @@ class PipelineOrchestrator:
         candidate: CandidateFactor,
         price_data: Dict[str, Any],
         n_trials: int,
-        factor_history: List[Dict[str, float]] = None,
-        forward_returns_history: List[Dict[str, float]] = None,
+        factor_history: List[Dict[str, float]] = None,  # type: ignore
+        forward_returns_history: List[Dict[str, float]] = None,  # type: ignore
     ) -> bool:
         """Stage 7: 90 日影子账户纸面交易
 
@@ -1037,7 +1037,7 @@ class PipelineOrchestrator:
                 # 降级：旧版占位
                 fv_hist = [candidate.values] * 90
                 fr_hist_daily = []
-                for day_idx in range(90):
+                for _day_idx in range(90):
                     daily = {}
                     for sym in candidate.values:
                         closes = price_data.get(sym, {}).get("closes", [])
@@ -1281,7 +1281,7 @@ class PipelineOrchestrator:
         proxy_count = 0
         missing_count = 0
 
-        for sym, fund in fundamentals.items():
+        for _sym, fund in fundamentals.items():
             if not isinstance(fund, dict):
                 missing_count += 1
                 continue

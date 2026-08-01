@@ -22,8 +22,9 @@ Ledoit-Wolf 收缩协方差估计器 (Ledoit-Wolf Shrinkage Covariance Estimator
 
 from __future__ import annotations
 
+import pandas as pd
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
+from typing import Tuple, Union
 
 import numpy as np
 
@@ -32,26 +33,29 @@ import numpy as np
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class ShrinkageResult:
     """收缩估计结果"""
-    cov_shrunk: np.ndarray          # 收缩后协方差矩阵
-    sample_cov: np.ndarray          # 原始样本协方差
-    target: np.ndarray              # 收缩目标 F
-    shrinkage_intensity: float      # 收缩强度 δ* ∈ [0, 1]
+
+    cov_shrunk: np.ndarray  # 收缩后协方差矩阵
+    sample_cov: np.ndarray  # 原始样本协方差
+    target: np.ndarray  # 收缩目标 F
+    shrinkage_intensity: float  # 收缩强度 δ* ∈ [0, 1]
     # 诊断
-    n_observations: int              # 样本数
-    n_assets: int                    # 资产数
-    condition_number_before: float   # 收缩前条件数
-    condition_number_after: float    # 收缩后条件数
-    avg_variance: float              # 平均方差
-    avg_correlation: float          # 平均相关性
-    method: str                     # 估计方法
+    n_observations: int  # 样本数
+    n_assets: int  # 资产数
+    condition_number_before: float  # 收缩前条件数
+    condition_number_after: float  # 收缩后条件数
+    avg_variance: float  # 平均方差
+    avg_correlation: float  # 平均相关性
+    method: str  # 估计方法
 
 
 # ============================================================
 # Ledoit-Wolf 收缩协方差估计器
 # ============================================================
+
 
 class LedoitWolfCovariance:
     """Ledoit-Wolf 收缩协方差估计器
@@ -76,7 +80,7 @@ class LedoitWolfCovariance:
     # 主入口
     # ------------------------------------------------------------
 
-    def fit(self, returns: Union[np.ndarray, "pd.DataFrame"]) -> ShrinkageResult:  # type: ignore  # noqa: F821
+    def fit(self, returns: Union[np.ndarray, "pd.DataFrame"]) -> ShrinkageResult:  # type: ignore
         """估计收缩协方差矩阵
 
         Args:
@@ -219,7 +223,7 @@ class LedoitWolfCovariance:
         # 简化估计: ρ̂ = π̂ × |corr(S, F)|  (近似)
         # 更精确: 见 Ledoit (2004) 原文
         # 用 Frobenius 内积近似
-        s_f_diff = S - F
+        S - F
         rho_hat = 0.0
         if N > 1:
             # 计算相关矩阵
@@ -252,14 +256,14 @@ class LedoitWolfCovariance:
     # 便利方法
     # ------------------------------------------------------------
 
-    def fit_predict(self, returns: Union[np.ndarray, "pd.DataFrame"]) -> np.ndarray:  # type: ignore  # noqa: F821
+    def fit_predict(self, returns: Union[np.ndarray, "pd.DataFrame"]) -> np.ndarray:  # type: ignore
         """便利方法: 直接返回收缩后协方差矩阵"""
         result = self.fit(returns)
         return result.cov_shrunk
 
     def fit_with_uncertainty(
         self,
-        returns: Union[np.ndarray, "pd.DataFrame"],
+        returns: Union[np.ndarray, "pd.DataFrame"],  # type: ignore
         n_bootstrap: int = 100,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """带自助法的协方差估计
@@ -271,7 +275,7 @@ class LedoitWolfCovariance:
             R = np.asarray(returns.values, dtype=float)
         else:
             R = np.asarray(returns, dtype=float)
-        T, N = R.shape
+        T, _N = R.shape
 
         # 主估计
         main_result = self.fit(R)
@@ -286,7 +290,7 @@ class LedoitWolfCovariance:
                 try:
                     rb = self.fit(Rb)
                     bootstraps.append(rb.cov_shrunk)
-                except Exception:
+                except Exception:  # P2 模块 fail-safe, 待后续精确化
                     continue
             if bootstraps:
                 stacked = np.stack(bootstraps, axis=0)

@@ -9,10 +9,8 @@
     - 验证 Guard 间状态传递 (L3 优先级覆盖 L2, risk_guard 字段叠加)
     - 不写入真实文件 (mock _save_trade_plan / _write_guard_log)
 """
-import json
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from utils.risk_guard_integrator import RiskGuardIntegrator
 
@@ -177,7 +175,6 @@ class TestEODGuardChainExecution:
         )
 
         # Mock KillSwitch 返回 L2
-        from utils.kill_switch import KillSwitch
         mock_ks = MagicMock()
         mock_ks._estimate_margin_from_positions.return_value = 0.78
         mock_ks.check_margin_status.return_value = {
@@ -190,7 +187,6 @@ class TestEODGuardChainExecution:
         )
 
         # Mock 大盘熔断返回 L3
-        from utils.market_circuit_breaker import MarketCircuitBreaker
         mock_mcb = MagicMock()
         mock_mcb.check_market_status.return_value = {
             "level": 3, "hs300_change_pct": -0.08,

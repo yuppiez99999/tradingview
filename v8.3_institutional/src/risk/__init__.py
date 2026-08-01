@@ -10,9 +10,14 @@ from .deep_stress import DeepStressTester, ShockScenario, DEEP_SHOCK_SCENARIOS
 
 # v8.4 P0-7: 统一风险驾驶舱 (整合KillSwitch+CircuitBreaker+Drawdown+VaR回测)
 try:
-    from .unified_risk_cockpit import \
-        UnifiedRiskCockpit, VaRBacktester, VaRModel, \
-        DrawdownController, RiskSnapshot, RiskLevel
+    from .unified_risk_cockpit import (
+        UnifiedRiskCockpit,
+        VaRBacktester,
+        VaRModel,
+        DrawdownController,
+        RiskSnapshot,
+        RiskLevel,
+    )
 except ImportError:
     UnifiedRiskCockpit = None
     VaRBacktester = None
@@ -24,6 +29,7 @@ except ImportError:
 # v5.9增强兼容
 try:
     from .circuit_breaker import CircuitBreakerRegistry, CircuitState, CircuitStats
+
     SlippageCircuitBreaker = CircuitBreaker  # v5.9别名
 except ImportError:
     CircuitBreakerRegistry = None
@@ -32,25 +38,55 @@ except ImportError:
     SlippageCircuitBreaker = None
 
 # v5.9风险控制增强（仅存在文件的模块）
-try: from .risk_controls_v59 import RiskControls, RiskControlLevel
-except ImportError: RiskControls = None; RiskControlLevel = None
-try: from .stress_test import StressTestEngine
-except ImportError: StressTestEngine = None
-try: from .concentration import ConcentrationRiskMonitor
-except ImportError: ConcentrationRiskMonitor = None
-try: from .correlation_monitor import CorrelationMonitor
-except ImportError: CorrelationMonitor = None
-try: from .psi_monitor import PSIMonitor
-except ImportError: PSIMonitor = None
+try:
+    from .risk_controls_v59 import RiskControls, RiskControlLevel
+except ImportError:
+    RiskControls = None
+    RiskControlLevel = None
+try:
+    from .stress_test import StressTestEngine
+except ImportError:
+    StressTestEngine = None
+try:
+    from .concentration import ConcentrationRiskMonitor
+except ImportError:
+    ConcentrationRiskMonitor = None
+try:
+    from .correlation_monitor import CorrelationMonitor
+except ImportError:
+    CorrelationMonitor = None
+try:
+    from .psi_monitor import PSIMonitor
+except ImportError:
+    PSIMonitor = None
 
 __all__ = [
-    'RiskBudgeter', 'RiskManager', 'CircuitBreaker', 'StressTester',
-    'SlippageCircuitBreaker', 'CircuitBreakerRegistry', 'CircuitState', 'CircuitStats',
-    'RiskControls', 'RiskControlLevel', 'StressTestEngine', 'ConcentrationRiskMonitor',
-    'CorrelationMonitor', 'PSIMonitor',
-    'PMLimitsMatrix', 'LimitStatus', 'LimitLevel', 'create_default_limits',
-    'DeepStressTester', 'ShockScenario', 'DEEP_SHOCK_SCENARIOS',
+    "DEEP_SHOCK_SCENARIOS",
+    "CircuitBreaker",
+    "CircuitBreakerRegistry",
+    "CircuitState",
+    "CircuitStats",
+    "ConcentrationRiskMonitor",
+    "CorrelationMonitor",
+    "DeepStressTester",
+    "DrawdownController",
+    "LimitLevel",
+    "LimitStatus",
+    "PMLimitsMatrix",
+    "PSIMonitor",
+    "RiskBudgeter",
+    "RiskControlLevel",
+    "RiskControls",
+    "RiskLevel",
+    "RiskManager",
+    "RiskSnapshot",
+    "ShockScenario",
+    "SlippageCircuitBreaker",
+    "StressTestEngine",
+    "StressTester",
     # v8.4 P0-7: 统一风险驾驶舱
-    'UnifiedRiskCockpit', 'VaRBacktester', 'VaRModel',
-    'DrawdownController', 'RiskSnapshot', 'RiskLevel',
+    "UnifiedRiskCockpit",
+    "VaRBacktester",
+    "VaRModel",
+    "create_default_limits",
 ]

@@ -22,9 +22,8 @@ A股适配:
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -35,26 +34,29 @@ logger = logging.getLogger(__name__)
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class Venue:
     """交易场所"""
-    name: str                       # 场所名 (SSE_MAIN / SZSE_MAIN / DARK_POOL_1)
-    venue_type: str                 # EXCHANGE / DARK_POOL / BLOCK_TRADE
+
+    name: str  # 场所名 (SSE_MAIN / SZSE_MAIN / DARK_POOL_1)
+    venue_type: str  # EXCHANGE / DARK_POOL / BLOCK_TRADE
     # 优势
-    liquidity_score: float = 0.5    # 流动性评分 [0, 1]
-    cost_score: float = 0.5         # 成本评分 [0, 1] (越高越省)
-    speed_score: float = 0.5        # 速度评分
-    anonymity_score: float = 0.0    # 匿名性评分 (暗池高)
+    liquidity_score: float = 0.5  # 流动性评分 [0, 1]
+    cost_score: float = 0.5  # 成本评分 [0, 1] (越高越省)
+    speed_score: float = 0.5  # 速度评分
+    anonymity_score: float = 0.0  # 匿名性评分 (暗池高)
     # 状态
     available: bool = True
     # 费用
-    commission_bps: float = 2.5     # 佣金 (bps)
-    fee_bps: float = 0.5            # 规费 (bps)
+    commission_bps: float = 2.5  # 佣金 (bps)
+    fee_bps: float = 0.5  # 规费 (bps)
 
 
 @dataclass
 class OrderBookSnapshot:
     """盘口快照"""
+
     venue_name: str
     timestamp: str
     # 5 档买卖盘
@@ -71,8 +73,9 @@ class OrderBookSnapshot:
 @dataclass
 class VenueScore:
     """场所评分"""
+
     venue_name: str
-    total_score: float              # 总评分 [0, 1]
+    total_score: float  # 总评分 [0, 1]
     # 分项评分
     liquidity_score: float
     cost_score: float
@@ -80,8 +83,8 @@ class VenueScore:
     anonymity_score: float
     # 预期执行参数
     expected_fill_price: float
-    expected_fill_ratio: float      # 预期成交率
-    expected_cost_bps: float        # 预期成本 (bps)
+    expected_fill_ratio: float  # 预期成交率
+    expected_cost_bps: float  # 预期成本 (bps)
     # 推荐分配
     recommended_shares: float = 0.0
     recommended_split_ratio: float = 0.0
@@ -90,8 +93,9 @@ class VenueScore:
 @dataclass
 class RoutingDecision:
     """路由决策"""
+
     symbol: str
-    side: str                       # BUY / SELL
+    side: str  # BUY / SELL
     total_shares: float
     # 分配到各场所的子订单
     allocations: List[VenueScore] = field(default_factory=list)
@@ -103,13 +107,14 @@ class RoutingDecision:
     gaming_detected: bool = False
     gaming_risk_score: float = 0.0  # [0, 1]
     # 元数据
-    strategy: str = "SMART"         # SMART / TWAP_SPLIT / ICEBERG / DARK_FIRST
+    strategy: str = "SMART"  # SMART / TWAP_SPLIT / ICEBERG / DARK_FIRST
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 # ============================================================
 # 智能订单路由器
 # ============================================================
+
 
 class SmartOrderRouter:
     """智能订单路由器
@@ -151,7 +156,7 @@ class SmartOrderRouter:
             name="BLOCK_TRADE",
             venue_type="BLOCK_TRADE",
             liquidity_score=0.7,
-            cost_score=0.95,        # 大宗交易成本更低
+            cost_score=0.95,  # 大宗交易成本更低
             speed_score=0.5,
             anonymity_score=0.8,
             commission_bps=1.5,
@@ -180,7 +185,7 @@ class SmartOrderRouter:
         # 反贪吃阈值
         gaming_threshold: float = 0.7,
         # 冰山订单参数
-        iceberg_visible_ratio: float = 0.1,   # 可见比例 10%
+        iceberg_visible_ratio: float = 0.1,  # 可见比例 10%
         # 最小分配比例
         min_allocation_ratio: float = 0.05,
         seed: int = 42,
@@ -253,7 +258,7 @@ class SmartOrderRouter:
 
         # 2) 选择策略
         if strategy == "DARK_FIRST":
-            scores = [s for s in scores if self.venues.get(s.venue_name).venue_type in ("DARK_POOL", "BLOCK_TRADE")]
+            scores = [s for s in scores if self.venues.get(s.venue_name).venue_type in ("DARK_POOL", "BLOCK_TRADE")]  # type: ignore
             if not scores:
                 strategy = "SMART"
                 scores = self._score_venues(side, total_shares, order_books)
@@ -342,8 +347,10 @@ class SmartOrderRouter:
 
             total_fee_bps = venue.commission_bps + venue.fee_bps + spread_bps / 2
             expected_price = (
-                book.ask_prices[0] if (book and book.ask_prices) and side.upper() == "BUY"
-                else book.bid_prices[0] if (book and book.bid_prices) and side.upper() == "SELL"
+                book.ask_prices[0]
+                if (book and book.ask_prices) and side.upper() == "BUY"
+                else book.bid_prices[0]
+                if (book and book.bid_prices) and side.upper() == "SELL"
                 else (book.last_price if book else 0.0)
             )
 
@@ -365,17 +372,19 @@ class SmartOrderRouter:
             else:
                 fill_ratio = 0.5
 
-            scores.append(VenueScore(
-                venue_name=name,
-                total_score=total_score,
-                liquidity_score=liq_score,
-                cost_score=cost_score,
-                speed_score=venue.speed_score,
-                anonymity_score=venue.anonymity_score,
-                expected_fill_price=expected_price,
-                expected_fill_ratio=fill_ratio,
-                expected_cost_bps=total_fee_bps,
-            ))
+            scores.append(
+                VenueScore(
+                    venue_name=name,
+                    total_score=total_score,
+                    liquidity_score=liq_score,
+                    cost_score=cost_score,
+                    speed_score=venue.speed_score,
+                    anonymity_score=venue.anonymity_score,
+                    expected_fill_price=expected_price,
+                    expected_fill_ratio=fill_ratio,
+                    expected_cost_bps=total_fee_bps,
+                )
+            )
 
         # 按总分排序
         scores.sort(key=lambda s: s.total_score, reverse=True)
@@ -463,7 +472,7 @@ class SmartOrderRouter:
             return False, 0.0
 
         risk_scores: List[float] = []
-        for name, book in order_books.items():
+        for _name, book in order_books.items():
             if not book.bid_sizes or not book.ask_sizes:
                 continue
             bid_total = sum(book.bid_sizes)
@@ -476,10 +485,7 @@ class SmartOrderRouter:
             # 价差异常
             spread_bps = 0.0
             if book.bid_prices and book.ask_prices and book.last_price > 0:
-                spread_bps = (
-                    (book.ask_prices[0] - book.bid_prices[0])
-                    / book.last_price * 10000
-                )
+                spread_bps = (book.ask_prices[0] - book.bid_prices[0]) / book.last_price * 10000
             spread_anomaly = 1.0 if spread_bps < 1.0 else 0.0
 
             # 综合风险

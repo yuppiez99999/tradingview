@@ -24,12 +24,10 @@ from __future__ import annotations
 
 import os
 import sys
-import json
-import shutil
 import logging
 import argparse
 import subprocess
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -37,7 +35,7 @@ from typing import Dict, List, Optional
 # 路径与全局配置
 # ============================================================
 BASE_DIR = Path(__file__).resolve().parent
-PYTHON = r"C:\Program Files\Python38\python.exe"
+PYTHON = r"C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
@@ -51,18 +49,31 @@ else:
 # 报告归档目录 (统一到根目录 e:\各种PY程序\每日报告归档)
 ARCHIVE_ROOT = BASE_DIR.parent.parent / "每日报告归档"
 
-# 2026 节假日 (简化版, 与 scheduler_daemon.py 一致)
-HOLIDAYS_2026 = {
-    date(2026, 1, 1),
-    date(2026, 2, 16), date(2026, 2, 17), date(2026, 2, 18),
-    date(2026, 2, 19), date(2026, 2, 20), date(2026, 2, 23),
-    date(2026, 4, 6), date(2026, 4, 7),
-    date(2026, 5, 4), date(2026, 5, 5),
-    date(2026, 6, 19), date(2026, 6, 22),
-    date(2026, 9, 25),
-    date(2026, 10, 5), date(2026, 10, 6), date(2026, 10, 7),
-    date(2026, 10, 8),
-}
+# ER4 修复: 节假日列表改为从 utils.trade_calendar (akshare 动态获取) 委托
+# 原 HOLIDAYS_2026 仅含 2026 假期, 2027 年后所有节假日会被误判为交易日
+# 现统一走 akshare 动态日历, 自动覆盖任意年份, 失败时回退到 2026 硬编码列表
+HOLIDAYS_2026 = set()  # 保留变量名向后兼容, 实际不再使用
+try:
+    from utils.trade_calendar import is_trading_day as _dyn_is_trading_day
+    _DYNAMIC_CALENDAR_AVAILABLE = True
+    # 注意: logger 尚未初始化, 用 print 输出启动信息
+    print("[ER4] 节假日判断已委托给 utils.trade_calendar (akshare 动态获取)")
+except ImportError:
+    _DYNAMIC_CALENDAR_AVAILABLE = False
+    # ImportError 时回退: 保留 2026 硬编码列表作为兜底
+    HOLIDAYS_2026 = {
+        date(2026, 1, 1),
+        date(2026, 2, 16), date(2026, 2, 17), date(2026, 2, 18),
+        date(2026, 2, 19), date(2026, 2, 20), date(2026, 2, 23),
+        date(2026, 4, 6), date(2026, 4, 7),
+        date(2026, 5, 4), date(2026, 5, 5),
+        date(2026, 6, 19), date(2026, 6, 22),
+        date(2026, 9, 25),
+        date(2026, 10, 5), date(2026, 10, 6), date(2026, 10, 7),
+        date(2026, 10, 8),
+    }
+    print("[ER4] utils.trade_calendar 不可用, 回退到 2026 硬编码假期列表 "
+          "(2027+ 年节假日将无法识别)")
 
 # ============================================================
 # 日志
@@ -112,7 +123,7 @@ class ModuleRunner:
         self.extra_args = extra_args or []
         self.result: Optional[Dict] = None
 
-    def should_run_today(self, d: date = None) -> bool:
+    def should_run_today(self, d: Optional[date] = None) -> bool:
         """判断今天是否应该运行"""
         if d is None:
             d = date.today()
@@ -143,7 +154,7 @@ class ModuleRunner:
             logger.info(f"[{self.name}] 开始执行: {self.description}")
             start = datetime.now()
             try:
-                cmd = [PYTHON, str(self.script)] + list(self.extra_args)
+                cmd = [PYTHON, str(self.script), *list(self.extra_args)]
                 result = subprocess.run(
                     cmd,
                     cwd=str(BASE_DIR),
@@ -277,14 +288,32 @@ class AllModulesScheduler:
         self.archive_dir = ARCHIVE_ROOT / datetime.now().strftime("%Y-%m-%d")
         self.archive_dir.mkdir(parents=True, exist_ok=True)
 
-    def is_trading_day(self, d: date = None) -> bool:
-        """判断是否为交易日"""
+    def is_trading_day(self, d: Optional[date] = None) -> bool:
+        """判断是否为交易日
+
+        ER4 修复: 优先委托给 utils.trade_calendar (akshare 动态获取),
+        覆盖任意年份的节假日; 动态日历不可用时回退到 HOLIDAYS_2026 硬编码列表。
+        """
         if d is None:
             d = date.today()
+
+        # ER4 修复: 优先使用动态日历
+        if _DYNAMIC_CALENDAR_AVAILABLE:
+            try:
+                return _dyn_is_trading_day(d.strftime('%Y-%m-%d'))
+            except Exception as e:
+                logger.warning(
+                    f"[ER4] 动态日历查询失败 (date={d}), 回退到硬编码列表: {e}"
+                )
+
+        # 回退: 周末判断
         if d.weekday() >= 5:
             return False
+
+        # 回退: 硬编码节假日列表 (仅 2026 年有效)
         if d in HOLIDAYS_2026:
             return False
+
         return True
 
     def run_phase(self, phase: str) -> bool:
@@ -329,7 +358,7 @@ class AllModulesScheduler:
         report_path = self.archive_dir / f"all_modules_summary_{self.trade_date.replace('-','')}.md"
 
         with open(report_path, "w", encoding="utf-8") as f:
-            f.write(f"# v7.5 全核心模块运行汇总报告\n\n")
+            f.write("# v7.5 全核心模块运行汇总报告\n\n")
             f.write(f"**交易日**: {self.trade_date}\n")
             f.write(f"**生成时间**: {datetime.now():%Y-%m-%d %H:%M:%S}\n")
             f.write(f"**总耗时**: {duration:.0f} 秒\n")

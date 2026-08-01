@@ -9,12 +9,13 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("v85_module_check")
 
 
-def check_module_import(module_path: str, class_name: str = None):
+def check_module_import(module_path: str, class_name: Optional[str] = None):
     """检查模块是否可以导入"""
     try:
         if class_name:
@@ -22,7 +23,7 @@ def check_module_import(module_path: str, class_name: str = None):
             module = __import__(module_path)
             for part in parts[1:]:
                 module = getattr(module, part)
-            cls = getattr(module, class_name)
+            getattr(module, class_name)
             return True, None
         else:
             __import__(module_path)

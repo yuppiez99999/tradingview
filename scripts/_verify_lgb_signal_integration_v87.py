@@ -392,7 +392,7 @@ def test_integration_full_pipeline(signals_data: dict) -> None:
     )
 
     # 输出 Top 5 融合信号样本
-    print(f"\n  Top 5 融合信号样本:")
+    print("\n  Top 5 融合信号样本:")
     for r in results[:5]:
         flag = r.meta.get("lgb_quality_flag", "N/A")
         applied = "✓" if r.meta.get("lgb_enhanced_applied") else "✗"
@@ -437,9 +437,9 @@ def main() -> None:
     print(f"  - 标的总数: {signals_data.get('summary', {}).get('total', 0)}")
     print(f"  - OK 标的: {sum(1 for v in signals_data.get('signals', {}).values() if v.get('quality_flag') == 'OK')}")
     print(f"  - LOW_QUALITY 标的: {sum(1 for v in signals_data.get('signals', {}).values() if v.get('quality_flag') == 'LOW_QUALITY')}")
-    print(f"  - 默认权重: 0.04 (LOW_QUALITY 降至 0.02)")
-    print(f"  - post-mix 模式: 在 alpha+llm+etf+macro+pipeline+research 之后叠加")
-    print(f"  - 4 层 NaN 防御: 注入过滤 + 取值防御 + 融合后检查 + 最终裁剪")
+    print("  - 默认权重: 0.04 (LOW_QUALITY 降至 0.02)")
+    print("  - post-mix 模式: 在 alpha+llm+etf+macro+pipeline+research 之后叠加")
+    print("  - 4 层 NaN 防御: 注入过滤 + 取值防御 + 融合后检查 + 最终裁剪")
 
 
 if __name__ == "__main__":

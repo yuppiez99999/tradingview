@@ -21,9 +21,7 @@ Phase 3-A 验证脚本: ConfigManager 全项目迁移
 """
 from __future__ import annotations
 
-import os
 import sys
-import importlib.util
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

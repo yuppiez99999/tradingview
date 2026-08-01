@@ -230,4 +230,4 @@ plan["metadata"]["target_count"] = 28
 with open(PLAN_FILE, "w", encoding="utf-8") as f:
     json.dump(plan, f, ensure_ascii=False, indent=4)
 
-print(f"[OK] 500万建仓计划已更新为28标的")
+print("[OK] 500万建仓计划已更新为28标的")

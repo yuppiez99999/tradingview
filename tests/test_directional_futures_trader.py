@@ -3,7 +3,6 @@
 方向性期货交易模块单元测试
 """
 import sys
-import os
 import random
 from datetime import date, timedelta
 from pathlib import Path
@@ -15,8 +14,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from utils.directional_futures_trader import (
     DirectionalFuturesTrader,
     FuturesSignal,
-    FuturesOrder,
-    DirectionalFuturesResult,
     CONTRACT_SPECS,
 )
 
@@ -94,7 +91,7 @@ def test_position_sizing():
 
     # 中性信号 (强度 < 0.3) 应不开仓
     weak_signal = FuturesSignal(symbol="CU", name="沪铜期货", direction="long", strength=0.2)
-    c2, n2, m2 = trader.calculate_position("CU", weak_signal, 75000)
+    c2, _n2, _m2 = trader.calculate_position("CU", weak_signal, 75000)
     assert c2 == 0, "弱信号应不开仓"
 
     print(f"\n✓ 测试 2 通过: 强信号 {contracts} 张, 弱信号 {c2} 张")
@@ -135,7 +132,7 @@ def test_risk_control():
     print(f"  D 暂停期内: {status}, 暂停至 {pause}")
     assert status == "paused", "暂停期内应为 paused"
 
-    print(f"\n✓ 测试 3 通过")
+    print("\n✓ 测试 3 通过")
     return True
 
 
@@ -170,7 +167,7 @@ def test_order_generation():
         print(f"  {o.symbol} {o.action} {o.contracts} 张")
         assert o.action in ("close_long", "close_short"), f"暂停应平仓, 实际 {o.action}"
 
-    print(f"\n✓ 测试 4 通过")
+    print("\n✓ 测试 4 通过")
     return True
 
 
@@ -198,7 +195,7 @@ def test_full_workflow():
     assert len(result.orders) == 3
     assert result.margin_usage_ratio <= 0.60 + 0.01, f"保证金占用率应 ≤ 60%, 实际 {result.margin_usage_ratio:.1%}"
 
-    print(f"\n✓ 测试 5 通过")
+    print("\n✓ 测试 5 通过")
     return True
 
 

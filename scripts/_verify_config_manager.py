@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import os
 import sys
-import importlib.util
 import tempfile
 from pathlib import Path
 
@@ -90,7 +89,7 @@ def test_priority_resolution() -> bool:
     print("T2: 优先级解析 (v8.3 > configs)")
     print("=" * 70)
 
-    from utils.config_manager import get_config_source, ConfigManager
+    from utils.config_manager import get_config_source
 
     # portfolio.yaml 应来自 v8.3_institutional/config/ (唯一事实源)
     source = get_config_source("portfolio")
@@ -120,9 +119,7 @@ def test_typed_accessors() -> bool:
 
     from utils.config_manager import (
         get_kill_switch_config, get_portfolio_config,
-        get_settings_config, get_execution_config,
-        get_backtest_config, get_risk_budget_config,
-        get_stop_loss_config
+        get_settings_config, get_execution_config
     )
 
     # kill_switch 配置

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """临时脚本:对 generate_daily_trade_plan.py 应用 4 处编辑"""
-import sys
 
 p = r'e:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional\generate_daily_trade_plan.py'
 with open(p, 'r', encoding='utf-8') as f:

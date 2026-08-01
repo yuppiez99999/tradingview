@@ -21,19 +21,20 @@ Renaissance标准: 单一信号 t-statistic > 2.0 才纳入组合。
 """
 
 import math
-from typing import List, Dict, Optional, Union
-from collections import Counter
+import numpy as np
+from typing import List, Dict, Union, Optional
 
 
 # ═══════════════════════════════════════════════════════
 #  Bootstrap 置信区间
 # ═══════════════════════════════════════════════════════
 
+
 def bootstrap_accuracy_ci(
     predictions: List[int],
     n_bootstrap: int = 1000,
     confidence: float = 0.95,
-    random_seed: int = None,
+    random_seed: Optional[int] = None,
 ) -> Dict[str, float]:
     """Bootstrap 准确率置信区间
 
@@ -49,11 +50,12 @@ def bootstrap_accuracy_ci(
         {'mean': 平均准确率, 'ci_lower': 下界, 'ci_upper': 上界, 'std': 标准差}
     """
     import random
+
     rng = random.Random(random_seed) if random_seed else random.Random()
     n = len(predictions)
 
     if n == 0:
-        return {'mean': 0.0, 'ci_lower': 0.0, 'ci_upper': 0.0, 'std': 0.0}
+        return {"mean": 0.0, "ci_lower": 0.0, "ci_upper": 0.0, "std": 0.0}
 
     # 真实准确率
     obs_accuracy = sum(predictions) / n
@@ -73,10 +75,10 @@ def bootstrap_accuracy_ci(
     idx_upper = int((1 - alpha) * n_bootstrap)
 
     return {
-        'mean': round(obs_accuracy, 6),
-        'ci_lower': round(boot_means[idx_lower], 6),
-        'ci_upper': round(boot_means[idx_upper], 6),
-        'std': round(std_acc, 6),
+        "mean": round(obs_accuracy, 6),
+        "ci_lower": round(boot_means[idx_lower], 6),
+        "ci_upper": round(boot_means[idx_upper], 6),
+        "std": round(std_acc, 6),
     }
 
 
@@ -84,12 +86,13 @@ def bootstrap_accuracy_ci(
 #  置换检验
 # ═══════════════════════════════════════════════════════
 
+
 def permutation_test(
     y_true: List[int],
     y_pred: List[int],
     n_permutations: int = 1000,
-    metric: str = 'accuracy',
-    random_seed: int = None,
+    metric: str = "accuracy",
+    random_seed: Optional[int] = None,
 ) -> Dict[str, Union[float, str]]:
     """置换检验: 预测是否显著优于随机打乱标签
 
@@ -109,11 +112,12 @@ def permutation_test(
         {'observed': 观察值, 'p_value': p值, 'null_mean': 零分布均值}
     """
     import random
+
     rng = random.Random(random_seed) if random_seed else random.Random()
 
     n = len(y_true)
     if n == 0:
-        return {'observed': 0.0, 'p_value': 1.0, 'null_mean': 0.0}
+        return {"observed": 0.0, "p_value": 1.0, "null_mean": 0.0}
 
     # 观察值
     observed = _compute_metric(y_true, y_pred, metric)
@@ -129,11 +133,11 @@ def permutation_test(
     p_value = sum(1 for v in null_dist if v >= observed) / n_permutations
 
     return {
-        'observed': round(observed, 6),
-        'p_value': round(p_value, 6),
-        'null_mean': round(null_mean, 6),
-        'metric': metric,
-        'n_permutations': n_permutations,
+        "observed": round(observed, 6),
+        "p_value": round(p_value, 6),
+        "null_mean": round(null_mean, 6),
+        "metric": metric,
+        "n_permutations": n_permutations,
     }
 
 
@@ -146,10 +150,10 @@ def _compute_metric(y_true: List[int], y_pred: List[int], metric: str) -> float:
     correct = sum(1 for t, p in zip(y_true, y_pred) if t == p)
     accuracy = correct / n
 
-    if metric == 'accuracy':
+    if metric == "accuracy":
         return accuracy
 
-    if metric == 'f1':
+    if metric == "f1":
         # F1-score
         tp = sum(1 for t, p in zip(y_true, y_pred) if t == 1 and p == 1)
         fp = sum(1 for t, p in zip(y_true, y_pred) if t == 0 and p == 1)
@@ -169,9 +173,10 @@ def _compute_metric(y_true: List[int], y_pred: List[int], metric: str) -> float:
 #  Rank IC 计算与显著性
 # ═══════════════════════════════════════════════════════
 
+
 def compute_rank_ic(
-    predictions: 'np.ndarray',
-    future_returns: 'np.ndarray',
+    predictions: "np.ndarray",
+    future_returns: "np.ndarray",
 ) -> float:
     """计算 Rank IC (Spearman 秩相关系数)
 
@@ -202,8 +207,8 @@ def compute_rank_ic(
 
 
 def rank_ic_analysis(
-    predictions: 'np.ndarray',
-    future_returns: 'np.ndarray',
+    predictions: "np.ndarray",
+    future_returns: "np.ndarray",
 ) -> Dict[str, float]:
     """Rank IC 显著性分析
 
@@ -216,16 +221,18 @@ def rank_ic_analysis(
     Returns:
         {'mean_ic', 'std_ic', 'ic_ir', 't_statistic', 'p_value', 'n'}
     """
-    import numpy as np
-    from scipy.stats import t as t_dist
 
     ic = compute_rank_ic(predictions, future_returns)
     n = len(predictions)
 
     if n < 3:
         return {
-            'mean_ic': ic, 'std_ic': 0.0, 'ic_ir': 0.0,
-            't_statistic': 0.0, 'p_value': 1.0, 'n': n,
+            "mean_ic": ic,
+            "std_ic": 0.0,
+            "ic_ir": 0.0,
+            "t_statistic": 0.0,
+            "p_value": 1.0,
+            "n": n,
         }
 
     # 单个IC值的"标准差"用Jackknife近似
@@ -243,12 +250,12 @@ def rank_ic_analysis(
     p_value = 2.0 * (1.0 - _t_cdf(abs(t_stat), df)) if df > 0 else 1.0
 
     return {
-        'mean_ic': round(ic, 6),
-        'std_ic': round(std_ic, 6),
-        'ic_ir': round(ic_ir, 4),
-        't_statistic': round(t_stat, 4),
-        'p_value': round(p_value, 6),
-        'n': n,
+        "mean_ic": round(ic, 6),
+        "std_ic": round(std_ic, 6),
+        "ic_ir": round(ic_ir, 4),
+        "t_statistic": round(t_stat, 4),
+        "p_value": round(p_value, 6),
+        "n": n,
     }
 
 
@@ -267,6 +274,7 @@ def _t_cdf(t_val: float, df: float) -> float:
 # ═══════════════════════════════════════════════════════
 #  Benjamini-Hochberg FDR 校正
 # ═══════════════════════════════════════════════════════
+
 
 def benjamini_hochberg_correction(
     p_values: List[float],
@@ -289,7 +297,7 @@ def benjamini_hochberg_correction(
     """
     n = len(p_values)
     if n == 0:
-        return {'significant': [], 'rejected': 0, 'threshold': 0.0, 'adjusted_p_values': []}
+        return {"significant": [], "rejected": 0, "threshold": 0.0, "adjusted_p_values": []}
 
     # 按p值升序排列, 记录原始索引
     sorted_indices = sorted(range(n), key=lambda i: p_values[i])
@@ -317,14 +325,13 @@ def benjamini_hochberg_correction(
     for i, idx in enumerate(sorted_indices):
         original_adjusted[idx] = adjusted[i]
 
-    significant = [(sorted_indices[i], sorted_p[i])
-                   for i in range(rejected)]
+    significant = [(sorted_indices[i], sorted_p[i]) for i in range(rejected)]
 
     return {
-        'significant': significant,
-        'rejected': rejected,
-        'threshold': round(rejected * alpha / n if rejected > 0 else 0.0, 6),
-        'adjusted_p_values': [round(v, 6) for v in original_adjusted],
+        "significant": significant,
+        "rejected": rejected,
+        "threshold": round(rejected * alpha / n if rejected > 0 else 0.0, 6),
+        "adjusted_p_values": [round(v, 6) for v in original_adjusted],
     }
 
 
@@ -332,10 +339,11 @@ def benjamini_hochberg_correction(
 #  White's Reality Check
 # ═══════════════════════════════════════════════════════
 
+
 def whites_reality_check(
-    returns_matrix: 'np.ndarray',
+    returns_matrix: "np.ndarray",
     n_bootstrap: int = 1000,
-    random_seed: int = None,
+    random_seed: Optional[int] = None,
 ) -> Dict:
     """White's Reality Check for Data Snooping
 
@@ -354,11 +362,13 @@ def whites_reality_check(
     """
     import numpy as np
 
-    n_periods, n_strat = returns_matrix.shape
+    n_periods, _n_strat = returns_matrix.shape
     if n_periods < 10:
         return {
-            'best_strategy': 0, 'p_value': 1.0,
-            'nominal_p_value': 1.0, 'mean_returns': [],
+            "best_strategy": 0,
+            "p_value": 1.0,
+            "nominal_p_value": 1.0,
+            "mean_returns": [],
         }
 
     # 各策略平均收益
@@ -386,16 +396,17 @@ def whites_reality_check(
     if returns_matrix[:, best_idx].std() > 0:
         t_stat = observed / (returns_matrix[:, best_idx].std() / np.sqrt(n_periods))
         from scipy.stats import t as t_dist
+
         nominal_p = 1.0 - t_dist.cdf(t_stat, n_periods - 1)
     else:
         nominal_p = 1.0
 
     return {
-        'best_strategy': best_idx,
-        'p_value': round(float(p_value), 6),
-        'nominal_p_value': round(float(nominal_p), 6),
-        'mean_returns': [round(float(r), 6) for r in mean_rets],
-        'observed': round(observed, 8),
+        "best_strategy": best_idx,
+        "p_value": round(float(p_value), 6),
+        "nominal_p_value": round(float(nominal_p), 6),
+        "mean_returns": [round(float(r), 6) for r in mean_rets],
+        "observed": round(observed, 8),
     }
 
 
@@ -403,14 +414,15 @@ def whites_reality_check(
 #  综合显著性报告
 # ═══════════════════════════════════════════════════════
 
+
 def generate_significance_report(
     y_true: List[int],
     y_pred: List[int],
-    y_prob: List[float] = None,
-    model_name: str = 'MLModel',
-    accuracy: float = None,
-    f1: float = None,
-    auc: float = None,
+    y_prob: Optional[List[float]] = None,
+    model_name: str = "MLModel",
+    accuracy: Optional[float] = None,
+    f1: Optional[float] = None,
+    auc: Optional[float] = None,
 ) -> str:
     """生成模型统计显著性综合报告
 
@@ -433,7 +445,7 @@ def generate_significance_report(
     if accuracy is None:
         accuracy = obs_acc
     if f1 is None:
-        f1_val = _compute_metric(y_true, y_pred, 'f1')
+        f1_val = _compute_metric(y_true, y_pred, "f1")
         f1 = f1_val
 
     lines = []
@@ -443,7 +455,7 @@ def generate_significance_report(
     if auc is not None:
         lines.append(f" | **AUC**: {auc:.4f}")
     lines.append("")
-    lines.append(f"**Renaissance标准**: 单一信号 t-statistic > 2.0 才纳入组合")
+    lines.append("**Renaissance标准**: 单一信号 t-statistic > 2.0 才纳入组合")
     lines.append("")
 
     # 1. Bootstrap 置信区间
@@ -454,13 +466,14 @@ def generate_significance_report(
     lines.append(f"- 标准差: {bootstrap['std']:.4f}")
 
     # 判断: 95% CI 下界是否 > 0.50
-    if bootstrap['ci_lower'] > 0.50:
+    if bootstrap["ci_lower"] > 0.50:
         lines.append(f"- ✅ 95% CI 下界({bootstrap['ci_lower']:.4f}) > 0.50, 模型显著优于抛硬币")
-    elif bootstrap['ci_upper'] < 0.50:
+    elif bootstrap["ci_upper"] < 0.50:
         lines.append(f"- ❌ 95% CI 上界({bootstrap['ci_upper']:.4f}) < 0.50, 模型显著劣于抛硬币!")
     else:
-        lines.append(f"- ⚠️ 95% CI包含0.50 [{bootstrap['ci_lower']:.4f}, {bootstrap['ci_upper']:.4f}], "
-                     f"无法拒绝准确率=50%的零假设")
+        lines.append(
+            f"- ⚠️ 95% CI包含0.50 [{bootstrap['ci_lower']:.4f}, {bootstrap['ci_upper']:.4f}], 无法拒绝准确率=50%的零假设"
+        )
     lines.append("")
 
     # 2. 置换检验
@@ -469,11 +482,11 @@ def generate_significance_report(
     lines.append(f"- 观察准确率: {perm['observed']:.4f}")
     lines.append(f"- 零分布均值: {perm['null_mean']:.4f}")
     lines.append(f"- p值: {perm['p_value']:.4f}")
-    if perm['p_value'] < 0.01:
+    if perm["p_value"] < 0.01:
         lines.append("- ✅ p < 0.01, 模型预测力极显著")
-    elif perm['p_value'] < 0.05:
+    elif perm["p_value"] < 0.05:
         lines.append("- ✅ p < 0.05, 模型预测力显著")
-    elif perm['p_value'] < 0.10:
+    elif perm["p_value"] < 0.10:
         lines.append("- ⚠️ 0.05 ≤ p < 0.10, 边缘显著, 需更大样本验证")
     else:
         lines.append(f"- ❌ p = {perm['p_value']:.4f} ≥ 0.05, 模型预测力不显著于随机!")
@@ -482,6 +495,7 @@ def generate_significance_report(
     # 3. Rank IC (如果有概率预测)
     if y_prob is not None and len(y_prob) == n:
         import numpy as np
+
         future_returns = np.array([1.0 if t == 1 else -1.0 for t in y_true])
         pred_proba = np.array(y_prob)
 
@@ -492,7 +506,7 @@ def generate_significance_report(
         lines.append(f"- t统计量: {ic_analysis['t_statistic']:.2f}")
         lines.append(f"- p值: {ic_analysis['p_value']:.4f}")
 
-        if ic_analysis['t_statistic'] > 2.0:
+        if ic_analysis["t_statistic"] > 2.0:
             lines.append("- ✅ t > 2.0, 通过Renaissance信号纳入标准")
         else:
             lines.append(f"- ❌ t = {ic_analysis['t_statistic']:.2f} < 2.0, 未达到Renaissance标准!")
@@ -500,27 +514,26 @@ def generate_significance_report(
 
     # 4. 综合判定
     lines.append("### 4. 综合判定")
-    is_significant = (
-        bootstrap['ci_lower'] > 0.50 and
-        perm['p_value'] < 0.05
-    )
+    is_significant = bootstrap["ci_lower"] > 0.50 and perm["p_value"] < 0.05
     if is_significant:
-        lines.append("✅ **模型预测力统计显著**, 可用于实盘信号生成。"
-                     "建议持续监控IC_IR衰减。")
+        lines.append("✅ **模型预测力统计显著**, 可用于实盘信号生成。建议持续监控IC_IR衰减。")
     else:
-        lines.append("❌ **模型预测力统计不显著**。建议: "
-                     "(1)增加特征维度; (2)扩大训练集; "
-                     "(3)优化标签构造(Triple Barrier); "
-                     "(4)考虑模型是否过度依赖噪音。")
+        lines.append(
+            "❌ **模型预测力统计不显著**。建议: "
+            "(1)增加特征维度; (2)扩大训练集; "
+            "(3)优化标签构造(Triple Barrier); "
+            "(4)考虑模型是否过度依赖噪音。"
+        )
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 # ═══════════════════════════════════════════════════════
 #  自测
 # ═══════════════════════════════════════════════════════
-if __name__ == '__main__':
+if __name__ == "__main__":
     import random
+
     rng = random.Random(42)
     n = 500
 
@@ -530,9 +543,13 @@ if __name__ == '__main__':
     y_prob = [rng.uniform(0.3, 0.7) for _ in range(n)]
 
     report = generate_significance_report(
-        y_true=y_true, y_pred=y_pred, y_prob=y_prob,
-        model_name='GradientBoosting v2.0',
-        accuracy=0.56, f1=0.628, auc=0.62,
+        y_true=y_true,
+        y_pred=y_pred,
+        y_prob=y_prob,
+        model_name="GradientBoosting v2.0",
+        accuracy=0.56,
+        f1=0.628,
+        auc=0.62,
     )
     print(report)
     print("\n✅ ML显著性检验模块自测通过")

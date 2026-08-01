@@ -62,10 +62,11 @@ class SentimentAgent(BaseAgent):
         self._init_tried = True
         try:
             from utils.ai_report_agent import AIReportAgent
+
             self._report_agent = AIReportAgent()
             logger.info("SentimentAgent: 已复用 AIReportAgent")
             return self._report_agent
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("SentimentAgent: AIReportAgent 初始化失败: %s", e)
             return None
 
@@ -79,11 +80,10 @@ class SentimentAgent(BaseAgent):
         news_items: List[Dict] = self._safe_get(context, "news_items", default=[]) or []
         # 过滤出与该 symbol 相关的新闻
         related_news = [
-            n for n in news_items
-            if isinstance(n, dict) and (
-                n.get("symbol") == symbol
-                or symbol.split(".")[0] in (n.get("title", "") + n.get("content", ""))
-            )
+            n
+            for n in news_items
+            if isinstance(n, dict)
+            and (n.get("symbol") == symbol or symbol.split(".")[0] in (n.get("title", "") + n.get("content", "")))
         ]
         # 若无相关新闻, 用全部新闻做市场情绪
         analyzed_news = related_news if related_news else news_items
@@ -109,7 +109,7 @@ class SentimentAgent(BaseAgent):
 
         try:
             sentiments = agent.analyze_news_sentiment(analyzed_news, use_llm=True)
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("SentimentAgent: AIReportAgent.analyze_news_sentiment 异常: %s", e)
             return self._fallback_keyword_sentiment(symbol, analyzed_news)
 
@@ -180,17 +180,16 @@ class SentimentAgent(BaseAgent):
     # 降级: 关键词匹配
     # ----------------------------------------------------------
 
-    def _fallback_keyword_sentiment(
-        self, symbol: str, news_items: List[Dict]
-    ) -> AgentDecision:
+    def _fallback_keyword_sentiment(self, symbol: str, news_items: List[Dict]) -> AgentDecision:
         """规则引擎兜底 (LLM 不可用时)"""
         # 复用 AIReportAgent 的关键词词典
         try:
             from utils.ai_report_agent import AIReportAgent
+
             pos_words = AIReportAgent.POSITIVE_WORDS
             neg_words = AIReportAgent.NEGATIVE_WORDS
             crit_words = AIReportAgent.CRITICAL_NEGATIVE_WORDS
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pos_words = ["利好", "增长", "上涨", "突破"]
             neg_words = ["利空", "下降", "下跌", "风险"]
             crit_words = ["立案调查", "退市", "财务造假"]

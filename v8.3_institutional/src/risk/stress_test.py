@@ -22,14 +22,12 @@
 
 from __future__ import annotations
 
-import math
 import logging
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Any
 
 import numpy as np
 
-logger = logging.getLogger('stress_test')
+logger = logging.getLogger("stress_test")
 
 # ── 常量 ──────────────────────────────────────────────────────────────────
 
@@ -43,86 +41,87 @@ HARD_STOP_MAX_DRAWDOWN: float = -0.20
 
 HISTORICAL_SCENARIOS: List[Dict[str, Any]] = [
     {
-        'name': '2015股灾',
-        'market_drop': -0.45,
-        'description': '2015年6月A股泡沫破裂，沪深300最大回撤约45%',
-        'sector_impacts': {
-            '高端制造': -0.50,
-            '顺周期': -0.35,
-            '资源': -0.05,
-            '防御': -0.15,
+        "name": "2015股灾",
+        "market_drop": -0.45,
+        "description": "2015年6月A股泡沫破裂，沪深300最大回撤约45%",
+        "sector_impacts": {
+            "高端制造": -0.50,
+            "顺周期": -0.35,
+            "资源": -0.05,
+            "防御": -0.15,
         },
-        'duration_days': 90,
-        'recovery_months': 24,
+        "duration_days": 90,
+        "recovery_months": 24,
     },
     {
-        'name': '2016熔断',
-        'market_drop': -0.25,
-        'description': '2016年1月两次触发熔断机制，A股连续暴跌',
-        'sector_impacts': {
-            '高端制造': -0.30,
-            '顺周期': -0.25,
-            '资源': -0.15,
-            '防御': -0.10,
+        "name": "2016熔断",
+        "market_drop": -0.25,
+        "description": "2016年1月两次触发熔断机制，A股连续暴跌",
+        "sector_impacts": {
+            "高端制造": -0.30,
+            "顺周期": -0.25,
+            "资源": -0.15,
+            "防御": -0.10,
         },
-        'duration_days': 10,
-        'recovery_months': 6,
+        "duration_days": 10,
+        "recovery_months": 6,
     },
     {
-        'name': '2018贸易战',
-        'market_drop': -0.32,
-        'description': '2018年中美贸易摩擦升级，沪深300下跌约32%',
-        'sector_impacts': {
-            '高端制造': -0.35,
-            '顺周期': -0.30,
-            '资源': -0.20,
-            '防御': -0.10,
+        "name": "2018贸易战",
+        "market_drop": -0.32,
+        "description": "2018年中美贸易摩擦升级，沪深300下跌约32%",
+        "sector_impacts": {
+            "高端制造": -0.35,
+            "顺周期": -0.30,
+            "资源": -0.20,
+            "防御": -0.10,
         },
-        'duration_days': 180,
-        'recovery_months': 12,
+        "duration_days": 180,
+        "recovery_months": 12,
     },
     {
-        'name': '2020疫情闪崩',
-        'market_drop': -0.16,
-        'description': '2020年新冠疫情全球爆发，A股春节后开盘暴跌',
-        'sector_impacts': {
-            '高端制造': -0.18,
-            '顺周期': -0.20,
-            '资源': -0.12,
-            '防御': -0.08,
+        "name": "2020疫情闪崩",
+        "market_drop": -0.16,
+        "description": "2020年新冠疫情全球爆发，A股春节后开盘暴跌",
+        "sector_impacts": {
+            "高端制造": -0.18,
+            "顺周期": -0.20,
+            "资源": -0.12,
+            "防御": -0.08,
         },
-        'duration_days': 5,
-        'recovery_months': 3,
+        "duration_days": 5,
+        "recovery_months": 3,
     },
     {
-        'name': '2024国庆后暴跌',
-        'market_drop': -0.20,
-        'description': '2024年国庆后市场情绪急转，主要指数大幅回调',
-        'sector_impacts': {
-            '高端制造': -0.22,
-            '顺周期': -0.18,
-            '资源': -0.10,
-            '防御': -0.08,
+        "name": "2024国庆后暴跌",
+        "market_drop": -0.20,
+        "description": "2024年国庆后市场情绪急转，主要指数大幅回调",
+        "sector_impacts": {
+            "高端制造": -0.22,
+            "顺周期": -0.18,
+            "资源": -0.10,
+            "防御": -0.08,
         },
-        'duration_days': 15,
-        'recovery_months': 4,
+        "duration_days": 15,
+        "recovery_months": 4,
     },
     {
-        'name': '黑天鹅',
-        'market_drop': -0.35,
-        'description': '假设性极端黑天鹅事件，流动性枯竭，所有资产同跌',
-        'sector_impacts': {
-            '高端制造': -0.40,
-            '顺周期': -0.35,
-            '资源': -0.25,
-            '防御': -0.15,
+        "name": "黑天鹅",
+        "market_drop": -0.35,
+        "description": "假设性极端黑天鹅事件，流动性枯竭，所有资产同跌",
+        "sector_impacts": {
+            "高端制造": -0.40,
+            "顺周期": -0.35,
+            "资源": -0.25,
+            "防御": -0.15,
         },
-        'duration_days': 30,
-        'recovery_months': 18,
+        "duration_days": 30,
+        "recovery_months": 18,
     },
 ]
 
 # ── 核心计算 ──────────────────────────────────────────────────────────────
+
 
 def compute_stress_loss(
     weights: np.ndarray,
@@ -172,7 +171,7 @@ def compute_sector_losses(
     """
     sector_total: Dict[str, float] = {}
     sector_weight: Dict[str, float] = {}
-    for name, sector in sectors.items():
+    for _name, sector in sectors.items():
         sector_total[sector] = sector_total.get(sector, 0.0)
         sector_weight[sector] = sector_weight.get(sector, 0.0)
 
@@ -211,6 +210,7 @@ def should_reduce_position(
 
 
 # ── 蒙特卡洛压力模拟 ──────────────────────────────────────────────────────
+
 
 def monte_carlo_stress(
     weights: np.ndarray,
@@ -298,6 +298,7 @@ def expected_shortfall(
 
 # ── 报告生成 ──────────────────────────────────────────────────────────────
 
+
 def generate_stress_report(
     returns: np.ndarray,
     weights: np.ndarray,
@@ -316,37 +317,34 @@ def generate_stress_report(
         Markdown 报告
     """
     if names is None:
-        names = [f'Asset_{i}' for i in range(len(weights))]
+        names = [f"Asset_{i}" for i in range(len(weights))]
     if sectors is None:
-        sectors = {name: '未分类' for name in names}
+        sectors = {name: "未分类" for name in names}
 
     # 年化波动率
-    vols = np.std(returns, axis=0) * np.sqrt(252)
+    np.std(returns, axis=0) * np.sqrt(252)
     cov = np.cov(returns, rowvar=False)  # 每列是一个资产，返回(n_assets, n_assets)
     port_vol = float(np.sqrt(weights @ cov @ weights) * np.sqrt(252))
 
     lines: List[str] = []
-    lines.append('## 极端压力测试日报')
-    lines.append('')
-    lines.append(f'- 组合年化波动率: **{port_vol:.2%}**')
-    lines.append(f'- 尾部保护阈值: **{TAIL_HEDGE_THRESHOLD:.0%}**')
-    lines.append('')
+    lines.append("## 极端压力测试日报")
+    lines.append("")
+    lines.append(f"- 组合年化波动率: **{port_vol:.2%}**")
+    lines.append(f"- 尾部保护阈值: **{TAIL_HEDGE_THRESHOLD:.0%}**")
+    lines.append("")
 
     # 历史情景
-    lines.append('### 历史极端情景')
-    lines.append('')
-    lines.append('| 情景 | 市场跌幅 | 预估组合回撤 | 当前保护能否守住15% |')
-    lines.append('|------|---------|-------------|-------------------|')
+    lines.append("### 历史极端情景")
+    lines.append("")
+    lines.append("| 情景 | 市场跌幅 | 预估组合回撤 | 当前保护能否守住15% |")
+    lines.append("|------|---------|-------------|-------------------|")
 
     for scenario in HISTORICAL_SCENARIOS:
-        sector_rets = scenario.get('sector_impacts', {})
+        sector_rets = scenario.get("sector_impacts", {})
         loss = compute_stress_loss(weights, sector_rets)
-        can_hold = '是' if abs(loss) <= 0.15 else '否'
-        lines.append(
-            f"| {scenario['name']} | {scenario['market_drop']:.1%} | "
-            f"{loss:.1%} | {can_hold} |"
-        )
-    lines.append('')
+        can_hold = "是" if abs(loss) <= 0.15 else "否"
+        lines.append(f"| {scenario['name']} | {scenario['market_drop']:.1%} | {loss:.1%} | {can_hold} |")
+    lines.append("")
 
     # 蒙特卡洛
     try:
@@ -363,16 +361,16 @@ def generate_stress_report(
         worst = float(np.min(final_rets))
         best = float(np.max(final_rets))
 
-        lines.append('### 蒙特卡洛压力模拟 (1000路径, 63交易日)')
-        lines.append('')
-        lines.append(f'- MC VaR@95%: **{mc_var:.2%}**')
-        lines.append(f'- MC ES@95%: **{mc_es:.2%}**')
-        lines.append(f'- 最坏路径: **{worst:.2%}**')
-        lines.append(f'- 最好路径: **{best:.2%}**')
-        lines.append('')
+        lines.append("### 蒙特卡洛压力模拟 (1000路径, 63交易日)")
+        lines.append("")
+        lines.append(f"- MC VaR@95%: **{mc_var:.2%}**")
+        lines.append(f"- MC ES@95%: **{mc_es:.2%}**")
+        lines.append(f"- 最坏路径: **{worst:.2%}**")
+        lines.append(f"- 最好路径: **{best:.2%}**")
+        lines.append("")
     except Exception as exc:
-        lines.append(f'*蒙特卡洛模拟失败: {exc}*')
-        lines.append('')
+        lines.append(f"*蒙特卡洛模拟失败: {exc}*")
+        lines.append("")
 
     # 硬止损检查
     port_rets = returns @ weights if len(returns) > 0 else np.array([0])
@@ -380,13 +378,13 @@ def generate_stress_report(
     running_max = np.maximum.accumulate(cum_rets)
     drawdowns = (cum_rets - running_max) / running_max
     max_dd = float(np.min(drawdowns))
-    
-    trigger = should_reduce_position(-0.20, max_dd=max_dd)
-    lines.append('### 硬止损检查')
-    lines.append('')
-    lines.append(f'- 回撤阈值: **{HARD_STOP_MAX_DRAWDOWN:.1%}**')
-    lines.append(f'- 当前回撤: **{max_dd:.1%}**')
-    lines.append(f'- 应减仓至50%: **{"是" if trigger else "否"}**')
-    lines.append('')
 
-    return '\n'.join(lines)
+    trigger = should_reduce_position(-0.20, max_dd=max_dd)
+    lines.append("### 硬止损检查")
+    lines.append("")
+    lines.append(f"- 回撤阈值: **{HARD_STOP_MAX_DRAWDOWN:.1%}**")
+    lines.append(f"- 当前回撤: **{max_dd:.1%}**")
+    lines.append(f"- 应减仓至50%: **{'是' if trigger else '否'}**")
+    lines.append("")
+
+    return "\n".join(lines)

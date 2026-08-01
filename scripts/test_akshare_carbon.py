@@ -3,7 +3,6 @@ import sys
 sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")
 
 import akshare as ak
-import pandas as pd
 
 print("=== 测试 akshare 碳市场数据 ===")
 try:

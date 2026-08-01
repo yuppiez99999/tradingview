@@ -17,7 +17,7 @@
     engine = RiskBudgetEngine(total_capital=3_000_000)
     result = engine.check_pre_trade(target_portfolio, current_positions, price_data)
     if not result.allowed:
-        print(result.violations)
+        logger.info(result.violations)
 """
 
 from __future__ import annotations
@@ -38,6 +38,7 @@ logger = logging.getLogger("risk_budget_engine")
 @dataclass
 class RiskCheckResult:
     """事前风险检查结果"""
+
     allowed: bool = True
     portfolio_var_95: float = 0.0
     portfolio_var_99: float = 0.0
@@ -114,18 +115,14 @@ class RiskBudgetEngine:
         result.portfolio_var_99 = float(port_var_99)
 
         if port_var_95 > self.max_daily_var_95:
-            result.violations.append(
-                f"组合VaR 95%={port_var_95:.2%} 超过上限 {self.max_daily_var_95:.2%}"
-            )
+            result.violations.append(f"组合VaR 95%={port_var_95:.2%} 超过上限 {self.max_daily_var_95:.2%}")
 
         # 2. 单标的 VaR
         single_vars = self._single_var(target_portfolio, price_data)
         result.single_var = single_vars
         for symbol, var in single_vars.items():
             if var > self.max_single_var_95:
-                result.violations.append(
-                    f"单标的 {symbol} VaR 95%={var:.2%} 超过上限 {self.max_single_var_95:.2%}"
-                )
+                result.violations.append(f"单标的 {symbol} VaR 95%={var:.2%} 超过上限 {self.max_single_var_95:.2%}")
 
         # 3. 集中度检查
         concentration_violations = self._check_concentration(target_portfolio)
@@ -144,7 +141,8 @@ class RiskBudgetEngine:
         else:
             logger.info(
                 "[RiskBudgetEngine] 交易通过: VaR95=%.2f%%, usage=%.2f%%",
-                port_var_95, result.budget_usage * 100,
+                port_var_95,
+                result.budget_usage * 100,
             )
 
         return result
@@ -163,7 +161,7 @@ class RiskBudgetEngine:
         weights = []
         for symbol, weight in target_portfolio.items():
             series = price_data.get(symbol)
-            if series is None or len(series) < 5:
+            if series is None or not isinstance(series, pd.Series) or len(series) < 5:
                 continue
             ret = series.pct_change().dropna()
             if len(ret) == 0:
@@ -203,7 +201,7 @@ class RiskBudgetEngine:
         result = {}
         for symbol, weight in target_portfolio.items():
             series = price_data.get(symbol)
-            if series is None or len(series) < 5:
+            if series is None or not isinstance(series, pd.Series) or len(series) < 5:
                 vol = self.default_volatility / math.sqrt(252)
                 var = vol * 1.65 * abs(weight)
                 result[symbol] = float(var)
@@ -213,7 +211,8 @@ class RiskBudgetEngine:
                 result[symbol] = 0.0
                 continue
             symbol_var = calculate_var(ret, confidence_level=self.confidence_level, method="historical")
-            result[symbol] = float(abs(symbol_var) * abs(weight))
+            # BUG-03 修复 (2026-07-31): calculate_var 已统一返回正数, 无需再 abs()
+            result[symbol] = float(symbol_var * abs(weight))
         return result
 
     # ------------------------------------------------------------
@@ -246,7 +245,11 @@ class RiskBudgetEngine:
             if shares <= 0 or cost <= 0:
                 continue
             series = price_data.get(symbol)
-            price = float(series.iloc[-1]) if series is not None and len(series) else cost
+            price = (
+                float(series.iloc[-1])
+                if series is not None and isinstance(series, pd.Series) and len(series) > 0
+                else cost
+            )
             value = shares * price
             values.append(value)
             total_value += value
@@ -256,15 +259,12 @@ class RiskBudgetEngine:
 
         # 简易回撤估算：当前市值 vs 成本
         current_value = sum(
-            float(pos.get("shares", 0)) * float(pos.get("cost_price", 0))
-            for pos in current_positions.values()
+            float(pos.get("shares", 0)) * float(pos.get("cost_price", 0)) for pos in current_positions.values()
         )
         if current_value > 0:
             drawdown = (total_value - current_value) / current_value
             if drawdown < -self.max_drawdown:
-                violations.append(
-                    f"当前回撤 {drawdown:.2%} 超过预算 {self.max_drawdown:.2%}"
-                )
+                violations.append(f"当前回撤 {drawdown:.2%} 超过预算 {self.max_drawdown:.2%}")
         return violations
 
     # ------------------------------------------------------------

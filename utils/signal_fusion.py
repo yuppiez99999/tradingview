@@ -25,8 +25,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -61,6 +60,7 @@ class PostMixLayer:
         quality_decay: LOW_QUALITY 标的权重衰减系数 (默认 0.5)
         enabled: 是否启用 (production 隔离时设为 False)
     """
+
     name: str
     weight: float
     signals: Dict[str, float] = field(default_factory=dict)
@@ -122,9 +122,7 @@ class PostMixLayer:
         """获取单标的信号值 (含 NaN 防御)"""
         sig = self.signals.get(symbol, 0.0)
         if not math.isfinite(sig):
-            logger.warning(
-                f"[PostMixLayer:{self.name}] {symbol} 信号为 NaN/Inf, 归零"
-            )
+            logger.warning(f"[PostMixLayer:{self.name}] {symbol} 信号为 NaN/Inf, 归零")
             return 0.0
         return sig
 
@@ -177,6 +175,7 @@ class PostMixLayer:
 @dataclass
 class FusionSignal:
     """融合后的单标信号"""
+
     symbol: str
     strength: float = 0.0
     confidence: float = 0.0
@@ -214,6 +213,15 @@ class SignalFusionEngine:
         # 数据来源: models/lgb_enhanced/lgb_enhanced_signals.json (真实OHLCV+情绪因子)
         # 安全设计: post-mix 模式 + NaN 防御 + 低质量标的 quality_flag=LOW_QUALITY 降权
         lgb_enhanced_weight: float = 0.04,
+        # v8.4.1 新增: 外部策略信号（第 8 信号源, 保守 3%）
+        # 设计依据: daily_stock_analysis 15种A股策略(缠论/龙头/情绪周期), LLM执行
+        # 安全设计: post-mix 模式 + LLM不可用时自动降级为中性信号
+        external_strategy_weight: float = 0.03,
+        # v8.6.13 新增: 气象因子信号（第 9 信号源, 保守 4%）
+        # 设计依据: weather_factor_engine 7因子体系(温度/降水/风速/辐照/气压/AQI/能见度)
+        # 覆盖能源/矿业/农业/制造/医药/大宗商品板块
+        # 安全设计: post-mix 模式 + apizero 不可用时自动降级为中性信号
+        weather_signal_weight: float = 0.04,
     ):
         # 默认权重：Alpha 为主，LLM/ETF/宏观为辅助
         self.alpha_weight = alpha_weight
@@ -234,6 +242,7 @@ class SignalFusionEngine:
         _research_enabled = True
         try:
             from utils.trading_env import get_trading_env, TradingEnv
+
             if get_trading_env() == TradingEnv.PRODUCTION:
                 _research_weight = 0.0
                 _research_enabled = False
@@ -241,7 +250,7 @@ class SignalFusionEngine:
                     "[SignalFusion] production 实盘模式: research_distilled_weight 强制为 0 "
                     "(v8.6.9 环境隔离: 仅 shadow/development 模式激活)"
                 )
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             # trading_env 不可用时保持配置值 (fail-open for 新功能, 不影响主流程)
             pass
         self.research_distilled_weight = _research_weight
@@ -249,6 +258,13 @@ class SignalFusionEngine:
         # 设计依据: 23 标的平均 IC=0.1631, IC>0.3 的 6 个, IC>0.2 的 9 个
         # 安全设计: post-mix 模式 + 低质量标的 (LOW_QUALITY) 降权至 50%
         self.lgb_enhanced_weight = lgb_enhanced_weight
+        # v8.4.1: 外部策略信号权重（保守 3%, post-mix）
+        # 设计依据: daily_stock_analysis 15种A股策略(缠论/龙头/情绪周期), LLM执行
+        # 安全设计: post-mix 模式 + LLM不可用时自动降级为中性信号
+        self.external_strategy_weight = external_strategy_weight
+        # v8.6.13: 气象因子信号权重（保守 4%, post-mix）
+        # 设计依据: 7因子体系 + 行业敏感度加权, 覆盖 14 标的 + 期货
+        self.weather_signal_weight = weather_signal_weight
         # 动态 IC 权重支持：注入 forward_returns 后按各源 IC 动态加权
         self._forward_returns: Optional[Dict[str, float]] = None
         self._ic_weights: Optional[Dict[str, float]] = None
@@ -276,6 +292,16 @@ class SignalFusionEngine:
             name="lgb_enhanced",
             weight=self.lgb_enhanced_weight,
             quality_decay=0.5,  # LOW_QUALITY 标的权重降至 50%
+        )
+        # v8.4.1: 外部策略信号层 (daily_stock_analysis 15种A股策略)
+        self._external_strategy_layer = PostMixLayer(
+            name="external_strategy",
+            weight=self.external_strategy_weight,
+        )
+        # v8.6.13: 气象因子信号层 (weather_factor_engine 7因子体系)
+        self._weather_layer = PostMixLayer(
+            name="weather_factor",
+            weight=self.weather_signal_weight,
         )
 
         # 向后兼容: 保留旧字段供外部读取 (不直接用于 _fuse_symbol, 仅用于审计)
@@ -363,10 +389,13 @@ class SignalFusionEngine:
             else:
                 logger.warning("inject_qlib_signal: 不支持的类型 %s", type(signal_series))
                 return
-            self._qlib_signals = {str(k): float(v) for k, v in qlib_dict.items()
-                                  if isinstance(v, (int, float)) and math.isfinite(float(v))}
+            self._qlib_signals = {
+                str(k): float(v)
+                for k, v in qlib_dict.items()
+                if isinstance(v, (int, float)) and math.isfinite(float(v))
+            }
             logger.info("已注入 Qlib 信号: %d 个标的", len(self._qlib_signals))
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("inject_qlib_signal 异常: %s", e)
 
     def inject_pipeline_factor_signals(self, signals: Dict[str, float]) -> None:
@@ -381,7 +410,7 @@ class SignalFusionEngine:
             self._pipeline_layer.update_signals(signals)
             # 向后兼容: 同步更新旧字段供外部读取
             self._pipeline_factor_signals = self._pipeline_layer.signals
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("inject_pipeline_factor_signals 异常: %s", e)
 
     def inject_research_distilled_signals(self, signals: Dict[str, float]) -> None:
@@ -393,7 +422,7 @@ class SignalFusionEngine:
             self._research_layer.update_signals(signals)
             # 向后兼容
             self._research_distilled_signals = self._research_layer.signals
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("inject_research_distilled_signals 异常: %s", e)
 
     def inject_lgb_enhanced_signals(
@@ -412,8 +441,37 @@ class SignalFusionEngine:
             # 向后兼容
             self._lgb_enhanced_signals = self._lgb_layer.signals
             self._lgb_quality_flags = self._lgb_layer.quality_flags
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("inject_lgb_enhanced_signals 异常: %s", e)
+
+    def inject_external_strategy_signals(self, signals: Dict[str, float]) -> None:
+        """注入外部策略信号（v8.4.1 第 8 信号源）
+
+        daily_stock_analysis 15种A股策略(缠论/龙头/情绪周期等)的共识信号.
+        信号值范围: -1.0 (强看空) ~ +1.0 (强看空), 0 = 中性.
+
+        Args:
+            signals: {symbol: signal_value} 外部策略共识信号
+        """
+        try:
+            self._external_strategy_layer.update_signals(signals)
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            logger.warning("inject_external_strategy_signals 异常: %s", e)
+
+    def inject_weather_signals(self, signals: Dict[str, float]) -> None:
+        """注入气象因子信号（v8.6.13 第 9 信号源）
+
+        weather_factor_engine 7因子体系(温度/降水/风速/辐照/气压/AQI/能见度)
+        计算的气象条件对标的影响信号. 信号值范围: -1.0 (气象利空) ~ +1.0 (气象利好).
+
+        Args:
+            signals: {symbol: signal_value} 气象因子信号
+                     可接受 {symbol: float} 或 {symbol: {"signal": float, "quality_flag": str}}
+        """
+        try:
+            self._weather_layer.update_signals(signals)
+        except Exception as e:
+            logger.warning("inject_weather_signals 异常: %s", e)
 
     def inject_forward_returns(self, forward_returns: Dict[str, float]) -> None:
         """注入前向收益，激活动态 IC 加权
@@ -428,8 +486,11 @@ class SignalFusionEngine:
         if not isinstance(forward_returns, dict) or not forward_returns:
             logger.warning("inject_forward_returns: 输入为空，跳过")
             return
-        self._forward_returns = {str(k): float(v) for k, v in forward_returns.items()
-                                 if isinstance(v, (int, float)) and math.isfinite(float(v))}
+        self._forward_returns = {
+            str(k): float(v)
+            for k, v in forward_returns.items()
+            if isinstance(v, (int, float)) and math.isfinite(float(v))
+        }
         # 重置 IC 权重，等待下次 fuse() 或显式 _compute_ic_weights 计算
         self._ic_weights = None
         logger.info("已注入 forward_returns: %d 个标的，将激活动态 IC 权重", len(self._forward_returns))
@@ -457,12 +518,13 @@ class SignalFusionEngine:
                 continue
             try:
                 import pandas as _pd
+
                 sig_series = _pd.Series([p[0] for p in pairs])
                 fr_series = _pd.Series([p[1] for p in pairs])
                 ic = float(sig_series.corr(fr_series, method="spearman"))
                 if not math.isfinite(ic):
                     ic = 0.0
-            except Exception:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 ic = 0.0
             ic_by_source[source] = ic
 
@@ -480,11 +542,12 @@ class SignalFusionEngine:
             # 混合: 70% IC 权重 + 30% 默认权重（避免极端单一源主导）
             ic_norm = {s: abs_ic[s] / total_abs for s in abs_ic}
             default_norm = {s: defaults[s] / default_total for s in defaults}
-            self._ic_weights = {s: 0.7 * ic_norm.get(s, 0.0) + 0.3 * default_norm.get(s, 0.0)
-                                for s in defaults}
-            logger.info("IC 权重已计算: IC=%s -> 权重=%s",
-                        {s: round(v, 4) for s, v in ic_by_source.items()},
-                        {s: round(v, 4) for s, v in self._ic_weights.items()})
+            self._ic_weights = {s: 0.7 * ic_norm.get(s, 0.0) + 0.3 * default_norm.get(s, 0.0) for s in defaults}
+            logger.info(
+                "IC 权重已计算: IC=%s -> 权重=%s",
+                {s: round(v, 4) for s, v in ic_by_source.items()},
+                {s: round(v, 4) for s, v in self._ic_weights.items()},
+            )
 
     # ------------------------------------------------------------
     # 单标的融合
@@ -528,16 +591,17 @@ class SignalFusionEngine:
 
         # === 主融合: alpha + llm + etf + macro ===
         strength = (
-            weights["alpha"] * alpha_s
-            + weights["llm"] * llm_s
-            + weights["etf"] * etf_s
-            + weights["macro"] * macro_bias
+            weights["alpha"] * alpha_s + weights["llm"] * llm_s + weights["etf"] * etf_s + weights["macro"] * macro_bias
         )
         if not math.isfinite(strength):
             logger.warning(
-                "[SignalFusion] 主融合 NaN (symbol=%s): alpha_s=%s, llm_s=%s, etf_s=%s, "
-                "macro_bias=%s, weights=%s",
-                symbol, alpha_s, llm_s, etf_s, macro_bias, weights,
+                "[SignalFusion] 主融合 NaN (symbol=%s): alpha_s=%s, llm_s=%s, etf_s=%s, macro_bias=%s, weights=%s",
+                symbol,
+                alpha_s,
+                llm_s,
+                etf_s,
+                macro_bias,
+                weights,
             )
             strength = 0.0
         strength = max(-1.0, min(1.0, strength))
@@ -554,17 +618,18 @@ class SignalFusionEngine:
         lgb_s = self._lgb_layer.get_signal(symbol)
         strength, lgb_applied = self._lgb_layer.apply(strength, symbol)
 
+        # v8.4.1: 外部策略信号叠加 (daily_stock_analysis 15种A股策略)
+        ext_s = self._external_strategy_layer.get_signal(symbol)
+        strength, ext_applied = self._external_strategy_layer.apply(strength, symbol)
+
+        # v8.6.13: 气象因子信号叠加 (weather_factor_engine 7因子)
+        weather_s = self._weather_layer.get_signal(symbol)
+        strength, weather_applied = self._weather_layer.apply(strength, symbol)
+
         # === confidence 计算 ===
-        raw_confidence = (
-            weights["alpha"] * alpha_c
-            + weights["llm"] * llm_c
-            + weights["etf"] * etf_c
-            + 0.05
-        )
+        raw_confidence = weights["alpha"] * alpha_c + weights["llm"] * llm_c + weights["etf"] * etf_c + 0.05
         if not math.isfinite(raw_confidence):
-            logger.warning(
-                "[SignalFusion] confidence NaN (symbol=%s), 归零", symbol
-            )
+            logger.warning("[SignalFusion] confidence NaN (symbol=%s), 归零", symbol)
             raw_confidence = 0.0
         confidence = max(0.0, min(1.0, raw_confidence))
 
@@ -594,6 +659,7 @@ class SignalFusionEngine:
                 "pipeline_factor_strength": pipeline_s,
                 "research_distilled_strength": research_s,
                 "lgb_enhanced_strength": lgb_s,
+                "weather_factor_strength": weather_s,
             },
             meta={
                 "weights": weights,
@@ -608,6 +674,8 @@ class SignalFusionEngine:
                 "effective_lgb_weight": effective_lgb_weight,
                 "lgb_quality_flag": lgb_quality_flag,
                 "lgb_enhanced_applied": lgb_applied,
+                "weather_factor_weight": self._weather_layer.weight,
+                "weather_factor_applied": weather_applied,
                 "nan_defense_applied": True,
                 # P1-Q5 审计字段: 标记重构后使用 PostMixLayer 抽象
                 "postmix_layer_refactored": True,
@@ -676,7 +744,7 @@ class SignalFusionEngine:
         try:
             v = float(value)
             return v if math.isfinite(v) else 0.0
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             return 0.0
 
     # ------------------------------------------------------------

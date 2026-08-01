@@ -20,7 +20,6 @@ P1 风控缺口修复验证脚本 (v8.6.6)
 from __future__ import annotations
 
 import sys
-import os
 from pathlib import Path
 
 # 确保项目根目录在 sys.path 中
@@ -182,7 +181,7 @@ def verify_p1_l() -> bool:
         )
 
         # 场景 4: 数据不足 (len < 2)
-        scaled, stats = opt.apply_risk_management(target_weights, [0.01])
+        _scaled, stats = opt.apply_risk_management(target_weights, [0.01])
         s4_pass = stats.get('note') == 'insufficient_pnl_history' and stats['combined_scaler'] == 1.0
         record(
             "P1-L 场景4: 数据不足 → 返回原始权重",

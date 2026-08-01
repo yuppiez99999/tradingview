@@ -21,7 +21,6 @@ P2.1b 设计依据：
 """
 from __future__ import annotations
 
-import json
 import logging
 import sys
 from datetime import datetime
@@ -35,7 +34,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
-    load_all_for_pipeline, list_available_symbols,
+    list_available_symbols,
     load_price_data, load_fundamentals, load_benchmark_returns,
 )
 from research.vibe_trading_factor_analysis.pipeline.pipeline_orchestrator import (
@@ -56,32 +55,32 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("S3 第八批次流水线跑批（P2.1b 反向信号因子增强）")
-    print("=" * 70)
-    print("P2.1b 改进内容:")
-    print("  新增 VT_MICRO_VOL_SKEW_INV (第七批次 IC_IR=-0.42 反向使用)")
-    print("  预期通过 G2 (IC_IR>=0.3) 和 G3 DSR (DSR>0)")
+    logger.info("=" * 70)
+    logger.info("S3 第八批次流水线跑批（P2.1b 反向信号因子增强）")
+    logger.info("=" * 70)
+    logger.info("P2.1b 改进内容:")
+    logger.info("  新增 VT_MICRO_VOL_SKEW_INV (第七批次 IC_IR=-0.42 反向使用)")
+    logger.info("  预期通过 G2 (IC_IR>=0.3) 和 G3 DSR (DSR>0)")
 
     # ============ Step 1: 加载 P1 改进后的数据 ============
-    print("\n[1/5] 加载 P1 改进后的真实数据")
+    logger.info("\n[1/5] 加载 P1 改进后的真实数据")
     symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
+    logger.info(f"  可用标的数: {len(symbols)}")
 
     # 显式分步加载（便于统计各数据源状态）
     price_data = load_price_data(symbols=symbols)
-    print(f"  price_data: {len(price_data)} 个标的")
+    logger.info(f"  price_data: {len(price_data)} 个标的")
 
     fundamentals = load_fundamentals(price_data)
     real_fund = sum(1 for f in fundamentals.values()
                     if isinstance(f, dict) and f.get("data_quality") == "real")
     proxy_fund = sum(1 for f in fundamentals.values()
                      if isinstance(f, dict) and f.get("data_quality") == "proxy")
-    print(f"  fundamentals: {len(fundamentals)} 个 (real={real_fund} / proxy={proxy_fund})")
+    logger.info(f"  fundamentals: {len(fundamentals)} 个 (real={real_fund} / proxy={proxy_fund})")
 
     benchmark_returns = load_benchmark_returns()
     if not benchmark_returns:
-        print("  [WARNING] 沪深300基准不可用, 降级等权代理")
+        logger.info("  [WARNING] 沪深300基准不可用, 降级等权代理")
         from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
             compute_equal_weight_benchmark,
         )
@@ -91,9 +90,9 @@ def main() -> int:
 
     # 标的池规模验证（P1.1 验收点）
     if len(price_data) < 100:
-        print(f"  [WARNING] P1.1 目标未达成: 标的 {len(price_data)} < 100")
+        logger.info(f"  [WARNING] P1.1 目标未达成: 标的 {len(price_data)} < 100")
     else:
-        print(f"  [OK] P1.1 达成: 标的 {len(price_data)} >= 100")
+        logger.info(f"  [OK] P1.1 达成: 标的 {len(price_data)} >= 100")
 
     # 真实 fundamentals 比例验证（P1.2 验收点）
     if real_fund / max(len(price_data), 1) >= 0.5:
@@ -106,28 +105,28 @@ def main() -> int:
     # 沪深300基准验证（P1.3 验收点）
     from research.vibe_trading_factor_analysis.scripts.real_data_loader import BENCHMARK_PARQUET
     if BENCHMARK_PARQUET.exists():
-        print(f"  [OK] P1.3 达成: 沪深300指数基准可用 ({BENCHMARK_PARQUET.name})")
+        logger.info(f"  [OK] P1.3 达成: 沪深300指数基准可用 ({BENCHMARK_PARQUET.name})")
     else:
-        print(f"  [WARNING] P1.3 目标未达成: 沪深300指数基准缺失")
+        logger.info("  [WARNING] P1.3 目标未达成: 沪深300指数基准缺失")
 
     if not price_data:
-        print("[ERROR] 价格数据加载失败")
+        logger.info("[ERROR] 价格数据加载失败")
         return 1
 
     # ============ Step 2: 初始化流水线 ============
-    print("\n[2/5] 初始化 PipelineOrchestrator")
+    logger.info("\n[2/5] 初始化 PipelineOrchestrator")
     orchestrator = PipelineOrchestrator(
         config={
             "reports_dir": str(REPORTS_DIR),
         }
     )
     batch_id = f"eighth_batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    print(f"  batch_id: {batch_id}")
+    logger.info(f"  batch_id: {batch_id}")
 
     # ============ Step 3: 跑流水线 ============
-    print("\n[3/5] 执行 8 级流水线（P2.1b: 105 标的 + VT_MICRO_VOL_SKEW_INV 增强因子）")
+    logger.info("\n[3/5] 执行 8 级流水线（P2.1b: 105 标的 + VT_MICRO_VOL_SKEW_INV 增强因子）")
     n_trials = max(len(symbols), 13)  # 多重检验基数
-    print(f"  n_trials (多重检验基数): {n_trials}")
+    logger.info(f"  n_trials (多重检验基数): {n_trials}")
 
     result = orchestrator.run(
         price_data=price_data,
@@ -141,31 +140,31 @@ def main() -> int:
     )
 
     # ============ Step 4: 汇总结果 ============
-    print("\n[4/5] 汇总批次结果")
-    print("-" * 70)
-    print(f"  batch_id           : {result.batch_id}")
-    print(f"  started_at         : {result.started_at}")
-    print(f"  finished_at        : {result.finished_at}")
-    print(f"  total_candidates   : {result.total_candidates}")
-    print(f"  G1 正交性通过       : {result.g1_passed}")
-    print(f"  G2 IC 稳定性通过    : {result.g2_passed}")
-    print(f"  G3 DSR 防过拟合通过  : {result.g3_passed}")
-    print(f"  G4 经济逻辑通过      : {result.g4_passed}")
-    print(f"  Enhancement 通过    : {result.enhanced}")
-    print(f"  Shadow 通过         : {result.shadow_passed}")
-    print(f"  Committee 通过(Approved): {result.approved}")
-    print(f"  Rejected            : {result.rejected}")
-    print(f"  Failed              : {result.failed}")
-    print(f"  Deferred(fundamentals): {result.deferred_fundamentals}")
-    print("-" * 70)
+    logger.info("\n[4/5] 汇总批次结果")
+    logger.info("-" * 70)
+    logger.info(f"  batch_id           : {result.batch_id}")
+    logger.info(f"  started_at         : {result.started_at}")
+    logger.info(f"  finished_at        : {result.finished_at}")
+    logger.info(f"  total_candidates   : {result.total_candidates}")
+    logger.info(f"  G1 正交性通过       : {result.g1_passed}")
+    logger.info(f"  G2 IC 稳定性通过    : {result.g2_passed}")
+    logger.info(f"  G3 DSR 防过拟合通过  : {result.g3_passed}")
+    logger.info(f"  G4 经济逻辑通过      : {result.g4_passed}")
+    logger.info(f"  Enhancement 通过    : {result.enhanced}")
+    logger.info(f"  Shadow 通过         : {result.shadow_passed}")
+    logger.info(f"  Committee 通过(Approved): {result.approved}")
+    logger.info(f"  Rejected            : {result.rejected}")
+    logger.info(f"  Failed              : {result.failed}")
+    logger.info(f"  Deferred(fundamentals): {result.deferred_fundamentals}")
+    logger.info("-" * 70)
 
     # ============ 验收标准检查 ============
     total = max(result.total_candidates, 1)
     g1_rate = result.g1_passed / total * 100
     g2_rate = result.g2_passed / total * 100
-    print(f"\n  G1 通过率: {g1_rate:.1f}% (P2.1 目标 > 80%)")
-    print(f"  G2 通过率: {g2_rate:.1f}% (P2.1 目标 > 30%)")
-    print(f"  Deferred 比例: {result.deferred_fundamentals/total*100:.1f}%")
+    logger.info(f"\n  G1 通过率: {g1_rate:.1f}% (P2.1 目标 > 80%)")
+    logger.info(f"  G2 通过率: {g2_rate:.1f}% (P2.1 目标 > 30%)")
+    logger.info(f"  Deferred 比例: {result.deferred_fundamentals/total*100:.1f}%")
 
     # P2.1 微观结构因子专项验收
     micro_factors_passed = sum(
@@ -178,16 +177,16 @@ def main() -> int:
         if (f.get("g2_ic_stability") or {}).get("ic_ir_estimated", 0) >= 0.3
         and ("MICRO" in f.get("factor_name", "") or "VOL_DRAIN_INV" in f.get("factor_name", ""))
     )
-    print(f"  P2.1 微观结构因子通过 G2: {micro_factors_g2_passed} 个")
+    logger.info(f"  P2.1 微观结构因子通过 G2: {micro_factors_g2_passed} 个")
 
     if g2_rate > 30:
-        print(f"  [OK] P2.1 验收达成: G2 通过率 {g2_rate:.1f}% > 30%")
+        logger.info(f"  [OK] P2.1 验收达成: G2 通过率 {g2_rate:.1f}% > 30%")
     else:
-        print(f"  [INFO] P2.1 验收未达: G2 通过率 {g2_rate:.1f}% <= 30%")
-        print(f"         （但微观结构因子是新增维度，可能需要 P2.2+ 进一步改进）")
+        logger.info(f"  [INFO] P2.1 验收未达: G2 通过率 {g2_rate:.1f}% <= 30%")
+        logger.info("         （但微观结构因子是新增维度，可能需要 P2.2+ 进一步改进）")
 
     # ============ Step 5: 写入报告 ============
-    print("\n[5/5] 写入批次报告")
+    logger.info("\n[5/5] 写入批次报告")
     md_path = _write_eighth_batch_report(
         result, symbols, n_trials,
         price_data_count=len(price_data),
@@ -195,27 +194,27 @@ def main() -> int:
         fundamentals_proxy=proxy_fund,
         benchmark_days=len(benchmark_returns),
     )
-    print(f"  报告路径: {md_path}")
+    logger.info(f"  报告路径: {md_path}")
 
     # 状态分布明细
     state_dist: dict[str, int] = {}
     for f in result.factors:
         state = f.get("state", "unknown")
         state_dist[state] = state_dist.get(state, 0) + 1
-    print(f"\n  状态分布:")
+    logger.info("\n  状态分布:")
     for state, cnt in sorted(state_dist.items(), key=lambda kv: -kv[1]):
-        print(f"    {state:30s} : {cnt}")
+        logger.info(f"    {state:30s} : {cnt}")
 
     # Top 5 因子
     ranked = _rank_factors_by_progress(result.factors)
-    print(f"\n  Top 5 因子（按流水线进度）:")
+    logger.info("\n  Top 5 因子（按流水线进度）:")
     for f in ranked[:5]:
         print(f"    {f['factor_name']:30s} | state={f.get('state', ''):15s} | "
               f"score={f.get('final_score', 0):.2f}")
 
-    print("\n" + "=" * 70)
-    print("S3 第八批次流水线跑批完成（P2.1b 反向信号因子增强）")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("S3 第八批次流水线跑批完成（P2.1b 反向信号因子增强）")
+    logger.info("=" * 70)
     return 0
 
 

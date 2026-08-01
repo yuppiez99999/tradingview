@@ -10,7 +10,7 @@ BASE = Path(r"e:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutiona
 sys.path.insert(0, str(BASE))
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
-from weekly_trade_executor import WeeklyTradeExecutor
+from weekly_trade_executor import WeeklyTradeExecutor  # noqa: E402
 
 def main():
     print("=" * 80)

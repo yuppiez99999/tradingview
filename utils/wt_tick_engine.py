@@ -5,15 +5,13 @@ WonderTrader 风格 Tick 级事件驱动回测引擎
 参考 wtpy/WtBtEngine.py 设计。
 支持 Tick/Bar 双模式事件驱动回测,替代现有日频批处理回测。
 """
+
 from __future__ import annotations
 
-import json
-import math
 import logging
 import numpy as np
-from typing import Dict, List, Optional, Callable, Any, Union
-from datetime import datetime, date, timedelta
-from dataclasses import asdict
+from typing import Dict, List, Optional, Any
+from datetime import datetime
 from collections import defaultdict
 
 from .wt_structs import TickData, BarData, OrderData, TradeData, PositionData
@@ -31,10 +29,13 @@ class TickMatcher:
     - 滑点: 按配置添加滑点
     """
 
-    def __init__(self, slippage_rate: float = 0.001,
-                 commission_rate: float = 0.0003,
-                 min_commission: float = 5.0,
-                 stamp_duty: float = 0.001):
+    def __init__(
+        self,
+        slippage_rate: float = 0.001,
+        commission_rate: float = 0.0003,
+        min_commission: float = 5.0,
+        stamp_duty: float = 0.001,
+    ):
         self.slippage_rate = slippage_rate
         self.commission_rate = commission_rate
         self.min_commission = min_commission
@@ -84,7 +85,7 @@ class TickMatcher:
             commission += amount * self.stamp_duty
 
         return TradeData(
-            trade_id=f"T_{int(tick.timestamp*1000)}_{order.order_id}",
+            trade_id=f"T_{int(tick.timestamp * 1000)}_{order.order_id}",
             order_id=order.order_id,
             code=order.code,
             exchange=order.exchange,
@@ -116,12 +117,14 @@ class TickBacktestEngine:
         result = engine.run()
     """
 
-    def __init__(self,
-                 initial_capital: float = 1_000_000.0,
-                 slippage_rate: float = 0.001,
-                 commission_rate: float = 0.0003,
-                 min_commission: float = 5.0,
-                 stamp_duty: float = 0.001):
+    def __init__(
+        self,
+        initial_capital: float = 1_000_000.0,
+        slippage_rate: float = 0.001,
+        commission_rate: float = 0.0003,
+        min_commission: float = 5.0,
+        stamp_duty: float = 0.001,
+    ):
         self.initial_capital = initial_capital
         self.cash = initial_capital
         self.matcher = TickMatcher(slippage_rate, commission_rate, min_commission, stamp_duty)
@@ -140,7 +143,7 @@ class TickBacktestEngine:
 
         # Tick 数据
         self.tick_data: Dict[str, List[TickData]] = {}  # code -> list of ticks
-        self.bar_data: Dict[str, List[BarData]] = {}    # code -> list of bars
+        self.bar_data: Dict[str, List[BarData]] = {}  # code -> list of bars
 
     def reset(self) -> None:
         """重置回测状态"""
@@ -175,11 +178,17 @@ class TickBacktestEngine:
         """加载 Bar 数据"""
         self.bar_data = bars
 
-    def send_order(self, code: str, direction: str, volume: float,
-                   price: float = 0, order_type: str = "LIMIT",
-                   offset: str = "OPEN") -> str:
+    def send_order(
+        self,
+        code: str,
+        direction: str,
+        volume: float,
+        price: float = 0,
+        order_type: str = "LIMIT",
+        offset: str = "OPEN",
+    ) -> str:
         """发送委托"""
-        order_id = f"O_{len(self.pending_orders)+1}"
+        order_id = f"O_{len(self.pending_orders) + 1}"
         contract = self.contracts.get_contract(code)
 
         order = OrderData(
@@ -197,13 +206,11 @@ class TickBacktestEngine:
         self.pending_orders.append(order)
         return order_id
 
-    def buy(self, code: str, volume: float, price: float = 0,
-            order_type: str = "LIMIT") -> str:
+    def buy(self, code: str, volume: float, price: float = 0, order_type: str = "LIMIT") -> str:
         """买入"""
         return self.send_order(code, "BUY", volume, price, order_type, "OPEN")
 
-    def sell(self, code: str, volume: float, price: float = 0,
-             order_type: str = "LIMIT") -> str:
+    def sell(self, code: str, volume: float, price: float = 0, order_type: str = "LIMIT") -> str:
         """卖出"""
         return self.send_order(code, "SELL", volume, price, order_type, "CLOSE")
 
@@ -246,11 +253,11 @@ class TickBacktestEngine:
             new_vol = pos.volume + trade.volume
             pos.avg_price = (pos.avg_price * pos.volume + trade.price * trade.volume) / new_vol if new_vol > 0 else 0
             pos.volume = new_vol
-            self.cash -= (trade.amount + commission)
+            self.cash -= trade.amount + commission
         else:
             # 卖出
             pos.volume -= trade.volume
-            self.cash += (trade.amount - commission)
+            self.cash += trade.amount - commission
             if pos.volume <= 0:
                 pos.volume = 0
                 pos.avg_price = 0
@@ -268,19 +275,11 @@ class TickBacktestEngine:
 
     def get_position_profit(self) -> float:
         """获取总持仓盈亏"""
-        return sum(
-            (pos.last_price - pos.avg_price) * pos.volume
-            for pos in self.positions.values()
-            if pos.volume > 0
-        )
+        return sum((pos.last_price - pos.avg_price) * pos.volume for pos in self.positions.values() if pos.volume > 0)
 
     def get_total_equity(self) -> float:
         """获取总权益"""
-        pos_value = sum(
-            pos.volume * pos.last_price
-            for pos in self.positions.values()
-            if pos.volume > 0
-        )
+        pos_value = sum(pos.volume * pos.last_price for pos in self.positions.values() if pos.volume > 0)
         return self.cash + pos_value
 
     def run(self) -> Dict:
@@ -294,7 +293,7 @@ class TickBacktestEngine:
 
         # 合并所有 code 的 Tick, 按时间排序
         all_ticks: List[TickData] = []
-        for code, ticks in self.tick_data.items():
+        for _code, ticks in self.tick_data.items():
             all_ticks.extend(ticks)
         all_ticks.sort(key=lambda t: t.timestamp)
 
@@ -322,27 +321,31 @@ class TickBacktestEngine:
 
             # 4. 记录权益
             equity = self.get_total_equity()
-            self.equity_curve.append({
-                "timestamp": tick.timestamp,
-                "date": tick.date,
-                "time": tick.time,
-                "code": tick.code,
-                "price": tick.price,
-                "equity": equity,
-                "cash": self.cash,
-            })
+            self.equity_curve.append(
+                {
+                    "timestamp": tick.timestamp,
+                    "date": tick.date,
+                    "time": tick.time,
+                    "code": tick.code,
+                    "price": tick.price,
+                    "equity": equity,
+                    "cash": self.cash,
+                }
+            )
 
         # 日终结算
         for d, ticks in daily_ticks.items():
-            last_tick = ticks[-1]
+            ticks[-1]
             equity = self.get_total_equity()
             pnl = equity - prev_equity
-            self.daily_pnl.append({
-                "date": d,
-                "equity": equity,
-                "pnl": pnl,
-                "return": pnl / prev_equity if prev_equity > 0 else 0,
-            })
+            self.daily_pnl.append(
+                {
+                    "date": d,
+                    "equity": equity,
+                    "pnl": pnl,
+                    "return": pnl / prev_equity if prev_equity > 0 else 0,
+                }
+            )
             prev_equity = equity
 
         return self._generate_report()
@@ -375,7 +378,7 @@ class TickBacktestEngine:
             if np.std(returns) > 0:
                 # Tick 频率转年化: 假设 252 交易日, 每天 240 个 Tick (分钟级)
                 n_ticks_per_year = 252 * 240
-                sharpe = (np.mean(returns) / np.std(returns)) * (n_ticks_per_year ** 0.5)
+                sharpe = (np.mean(returns) / np.std(returns)) * (n_ticks_per_year**0.5)
             else:
                 sharpe = 0
         else:
@@ -385,7 +388,7 @@ class TickBacktestEngine:
         daily_returns = [d["return"] for d in self.daily_pnl] if self.daily_pnl else []
         daily_sharpe = 0
         if len(daily_returns) > 1 and np.std(daily_returns) > 0:
-            daily_sharpe = (np.mean(daily_returns) / np.std(daily_returns)) * (252 ** 0.5)
+            daily_sharpe = (np.mean(daily_returns) / np.std(daily_returns)) * (252**0.5)
 
         # 胜率
         win_days = sum(1 for d in self.daily_pnl if d["pnl"] > 0)
@@ -397,7 +400,7 @@ class TickBacktestEngine:
             "initial_capital": self.initial_capital,
             "final_equity": round(final_equity, 2),
             "total_return": round(total_return, 4),
-            "annual_return": round(total_return / max(len(self.daily_pnl)/252, 0.01), 4),
+            "annual_return": round(total_return / max(len(self.daily_pnl) / 252, 0.01), 4),
             "max_drawdown": round(max_dd, 4),
             "max_drawdown_date": max_dd_date,
             "sharpe_ratio": round(sharpe, 4),
@@ -408,13 +411,13 @@ class TickBacktestEngine:
             "n_trades": len(self.trades),
             "n_pending_orders": len(self.pending_orders),
             "total_commission": round(
-                sum(t.amount * self.contracts.get_contract(t.code).commission_rate
-                    for t in self.trades), 2
+                sum(t.amount * self.contracts.get_contract(t.code).commission_rate for t in self.trades), 2
             ),
         }
 
 
 # === 工具函数 ===
+
 
 def ticks_from_csv(csv_path: str, code: str, exchange: str = "SSE") -> List[TickData]:
     """从 CSV 加载 Tick 数据
@@ -422,34 +425,37 @@ def ticks_from_csv(csv_path: str, code: str, exchange: str = "SSE") -> List[Tick
     CSV 格式: timestamp,price,open,high,low,pre_close,volume,amount
     """
     import csv
+
     ticks = []
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             ts = float(row.get("timestamp", 0))
             dt = datetime.fromtimestamp(ts) if ts > 0 else datetime.now()
-            ticks.append(TickData(
-                code=code,
-                exchange=exchange,
-                price=float(row["price"]),
-                open=float(row.get("open", row["price"])),
-                high=float(row.get("high", row["price"])),
-                low=float(row.get("low", row["price"])),
-                pre_close=float(row.get("pre_close", row["price"])),
-                volume=float(row.get("volume", 0)),
-                amount=float(row.get("amount", 0)),
-                timestamp=ts,
-                datetime_str=dt.strftime("%Y-%m-%d %H:%M:%S"),
-                date=int(dt.strftime("%Y%m%d")),
-                time=int(dt.strftime("%H%M%S")),
-            ))
+            ticks.append(
+                TickData(
+                    code=code,
+                    exchange=exchange,
+                    price=float(row["price"]),
+                    open=float(row.get("open", row["price"])),
+                    high=float(row.get("high", row["price"])),
+                    low=float(row.get("low", row["price"])),
+                    pre_close=float(row.get("pre_close", row["price"])),
+                    volume=float(row.get("volume", 0)),
+                    amount=float(row.get("amount", 0)),
+                    timestamp=ts,
+                    datetime_str=dt.strftime("%Y-%m-%d %H:%M:%S"),
+                    date=int(dt.strftime("%Y%m%d")),
+                    time=int(dt.strftime("%H%M%S")),
+                )
+            )
     return ticks
 
 
-def bars_from_csv(csv_path: str, code: str, exchange: str = "SSE",
-                  period: str = "1d") -> List[BarData]:
+def bars_from_csv(csv_path: str, code: str, exchange: str = "SSE", period: str = "1d") -> List[BarData]:
     """从 CSV 加载 Bar 数据"""
     import csv
+
     bars = []
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -459,23 +465,26 @@ def bars_from_csv(csv_path: str, code: str, exchange: str = "SSE",
                 d = int(date_str.replace("-", ""))
             except (ValueError, TypeError):
                 d = 0
-            bars.append(BarData(
-                code=code, exchange=exchange, period=period,
-                open=float(row["open"]),
-                high=float(row["high"]),
-                low=float(row["low"]),
-                close=float(row["close"]),
-                volume=float(row.get("volume", 0)),
-                amount=float(row.get("amount", 0)),
-                date=d,
-            ))
+            bars.append(
+                BarData(
+                    code=code,
+                    exchange=exchange,
+                    period=period,
+                    open=float(row["open"]),
+                    high=float(row["high"]),
+                    low=float(row["low"]),
+                    close=float(row["close"]),
+                    volume=float(row.get("volume", 0)),
+                    amount=float(row.get("amount", 0)),
+                    date=d,
+                )
+            )
     return bars
 
 
-def run_tick_backtest(strategy: Any,
-                      tick_data: Dict[str, List[TickData]],
-                      initial_capital: float = 1_000_000,
-                      slippage: float = 0.001) -> Dict:
+def run_tick_backtest(
+    strategy: Any, tick_data: Dict[str, List[TickData]], initial_capital: float = 1_000_000, slippage: float = 0.001
+) -> Dict:
     """便捷函数: 一行运行 Tick 回测"""
     engine = TickBacktestEngine(
         initial_capital=initial_capital,
@@ -487,6 +496,9 @@ def run_tick_backtest(strategy: Any,
 
 
 __all__ = [
-    "TickMatcher", "TickBacktestEngine",
-    "ticks_from_csv", "bars_from_csv", "run_tick_backtest",
+    "TickBacktestEngine",
+    "TickMatcher",
+    "bars_from_csv",
+    "run_tick_backtest",
+    "ticks_from_csv",
 ]

@@ -24,10 +24,9 @@ A股适配:
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -38,33 +37,36 @@ logger = logging.getLogger(__name__)
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class SatelliteIndicator:
     """卫星图像指标"""
-    region: str                       # 区域 (上海港/宁波港/...)
-    indicator_type: str               # PORT_ACTIVITY / OIL_TANK / NIGHT_LIGHTS / CROP
-    value: float                       # 指标值
+
+    region: str  # 区域 (上海港/宁波港/...)
+    indicator_type: str  # PORT_ACTIVITY / OIL_TANK / NIGHT_LIGHTS / CROP
+    value: float  # 指标值
     timestamp: datetime = field(default_factory=datetime.now)
     # 变化
-    yoy_change: float = 0.0            # 同比变化 (%)
-    mom_change: float = 0.0            # 环比变化 (%)
+    yoy_change: float = 0.0  # 同比变化 (%)
+    mom_change: float = 0.0  # 环比变化 (%)
     # 关联标的
     related_symbols: List[str] = field(default_factory=list)
     related_industries: List[str] = field(default_factory=list)
     # 置信度
-    confidence: float = 0.8            # 数据置信度
+    confidence: float = 0.8  # 数据置信度
 
 
 @dataclass
 class SearchIndexIndicator:
     """搜索指数指标"""
-    keyword: str                       # 关键词 (公司名/产品/行业)
-    platform: str                      # BAIDU / WEIBO / ZHIHU
-    index_value: float                # 指数值
+
+    keyword: str  # 关键词 (公司名/产品/行业)
+    platform: str  # BAIDU / WEIBO / ZHIHU
+    index_value: float  # 指数值
     timestamp: datetime = field(default_factory=datetime.now)
     # 趋势
-    trend_7d: float = 0.0             # 7日趋势
-    trend_30d: float = 0.0           # 30日趋势
+    trend_7d: float = 0.0  # 7日趋势
+    trend_30d: float = 0.0  # 30日趋势
     # 突增标记
     is_breakout: bool = False
     # 关联标的
@@ -74,19 +76,21 @@ class SearchIndexIndicator:
 @dataclass
 class RecruitmentIndicator:
     """招聘数据指标"""
+
     company: str
-    job_count: int                     # 岗位数
+    job_count: int  # 岗位数
     avg_salary: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now)
     # 变化
     job_count_yoy: float = 0.0
     salary_change: float = 0.0
-    related_symbol: str = ""           # 关联股票代码
+    related_symbol: str = ""  # 关联股票代码
 
 
 @dataclass
 class PatentIndicator:
     """专利数据指标"""
+
     company: str
     patent_count: int = 0
     citation_count: int = 0
@@ -102,9 +106,10 @@ class PatentIndicator:
 @dataclass
 class AltDataSignal:
     """另类数据综合信号"""
+
     symbol: str
     # 卫星指标汇总
-    satellite_score: float = 0.0       # [-1, 1]
+    satellite_score: float = 0.0  # [-1, 1]
     satellite_indicators: List[Dict[str, Any]] = field(default_factory=list)
     # 搜索指数汇总
     search_score: float = 0.0
@@ -116,15 +121,16 @@ class AltDataSignal:
     patent_score: float = 0.0
     patent_indicators: List[Dict[str, Any]] = field(default_factory=list)
     # 综合
-    composite_score: float = 0.0       # [-1, 1]
+    composite_score: float = 0.0  # [-1, 1]
     confidence: float = 0.0
     # 数据覆盖
-    coverage: float = 0.0               # [0, 1] 数据覆盖率
+    coverage: float = 0.0  # [0, 1] 数据覆盖率
 
 
 @dataclass
 class AltDataResult:
     """另类数据分析结果"""
+
     signals: Dict[str, AltDataSignal] = field(default_factory=dict)
     market_alt_score: float = 0.0
     # 全局异常
@@ -137,6 +143,7 @@ class AltDataResult:
 # ============================================================
 # 另类数据指标引擎
 # ============================================================
+
 
 class AltDataIndicators:
     """另类数据指标引擎
@@ -170,7 +177,7 @@ class AltDataIndicators:
         w_recruitment: float = 0.2,
         w_patent: float = 0.25,
         # 异常阈值
-        anomaly_threshold: float = 2.0,    # 2 倍标准差视为异常
+        anomaly_threshold: float = 2.0,  # 2 倍标准差视为异常
         # 数据过期阈值 (天)
         data_expiry_days: int = 30,
     ):
@@ -222,10 +229,7 @@ class AltDataIndicators:
             coverage_count = 0
 
             # 1) 卫星指标
-            sat_related = [
-                s for s in self.satellite_data
-                if sym in s.related_symbols and s.timestamp > cutoff
-            ]
+            sat_related = [s for s in self.satellite_data if sym in s.related_symbols and s.timestamp > cutoff]
             if sat_related:
                 signal.satellite_score = self._calc_satellite_score(sat_related)
                 signal.satellite_indicators = [
@@ -242,10 +246,7 @@ class AltDataIndicators:
                 total_indicators += len(sat_related)
 
             # 2) 搜索指数
-            search_related = [
-                s for s in self.search_data
-                if sym in s.related_symbols and s.timestamp > cutoff
-            ]
+            search_related = [s for s in self.search_data if sym in s.related_symbols and s.timestamp > cutoff]
             if search_related:
                 signal.search_score = self._calc_search_score(search_related)
                 signal.search_indicators = [
@@ -262,10 +263,7 @@ class AltDataIndicators:
                 total_indicators += len(search_related)
 
             # 3) 招聘数据
-            recruit_related = [
-                r for r in self.recruitment_data
-                if r.related_symbol == sym and r.timestamp > cutoff
-            ]
+            recruit_related = [r for r in self.recruitment_data if r.related_symbol == sym and r.timestamp > cutoff]
             if recruit_related:
                 signal.recruitment_score = self._calc_recruitment_score(recruit_related)
                 signal.recruitment_indicators = [
@@ -281,10 +279,7 @@ class AltDataIndicators:
                 total_indicators += len(recruit_related)
 
             # 4) 专利数据
-            patent_related = [
-                p for p in self.patent_data
-                if p.related_symbol == sym and p.timestamp > cutoff
-            ]
+            patent_related = [p for p in self.patent_data if p.related_symbol == sym and p.timestamp > cutoff]
             if patent_related:
                 signal.patent_score = self._calc_patent_score(patent_related)
                 signal.patent_indicators = [
@@ -316,11 +311,13 @@ class AltDataIndicators:
 
             # 异常检测
             if abs(signal.composite_score) > 0.5:
-                result.anomalies.append({
-                    "symbol": sym,
-                    "score": signal.composite_score,
-                    "coverage": signal.coverage,
-                })
+                result.anomalies.append(
+                    {
+                        "symbol": sym,
+                        "score": signal.composite_score,
+                        "coverage": signal.coverage,
+                    }
+                )
 
         # 全市场评分
         all_scores = [s.composite_score for s in result.signals.values()]
@@ -397,44 +394,52 @@ class AltDataIndicators:
         count = 0
         for sym in symbols:
             # 卫星数据
-            self.add_satellite(SatelliteIndicator(
-                region=f"港口_{sym[:3]}",
-                indicator_type="PORT_ACTIVITY",
-                value=float(np.random.uniform(60, 100)),
-                yoy_change=float(np.random.uniform(-15, 25)),
-                mom_change=float(np.random.uniform(-5, 8)),
-                related_symbols=[sym],
-                confidence=float(np.random.uniform(0.7, 0.95)),
-            ))
+            self.add_satellite(
+                SatelliteIndicator(
+                    region=f"港口_{sym[:3]}",
+                    indicator_type="PORT_ACTIVITY",
+                    value=float(np.random.uniform(60, 100)),
+                    yoy_change=float(np.random.uniform(-15, 25)),
+                    mom_change=float(np.random.uniform(-5, 8)),
+                    related_symbols=[sym],
+                    confidence=float(np.random.uniform(0.7, 0.95)),
+                )
+            )
             # 搜索数据
-            self.add_search(SearchIndexIndicator(
-                keyword=f"{sym}",
-                platform="BAIDU",
-                index_value=float(np.random.uniform(500, 5000)),
-                trend_7d=float(np.random.uniform(-30, 50)),
-                trend_30d=float(np.random.uniform(-15, 30)),
-                is_breakout=bool(np.random.random() > 0.85),
-                related_symbols=[sym],
-            ))
+            self.add_search(
+                SearchIndexIndicator(
+                    keyword=f"{sym}",
+                    platform="BAIDU",
+                    index_value=float(np.random.uniform(500, 5000)),
+                    trend_7d=float(np.random.uniform(-30, 50)),
+                    trend_30d=float(np.random.uniform(-15, 30)),
+                    is_breakout=bool(np.random.random() > 0.85),
+                    related_symbols=[sym],
+                )
+            )
             # 招聘数据
-            self.add_recruitment(RecruitmentIndicator(
-                company=f"公司_{sym}",
-                job_count=int(np.random.randint(50, 500)),
-                avg_salary=float(np.random.uniform(15, 45)),
-                job_count_yoy=float(np.random.uniform(-20, 40)),
-                salary_change=float(np.random.uniform(-10, 15)),
-                related_symbol=sym,
-            ))
+            self.add_recruitment(
+                RecruitmentIndicator(
+                    company=f"公司_{sym}",
+                    job_count=int(np.random.randint(50, 500)),
+                    avg_salary=float(np.random.uniform(15, 45)),
+                    job_count_yoy=float(np.random.uniform(-20, 40)),
+                    salary_change=float(np.random.uniform(-10, 15)),
+                    related_symbol=sym,
+                )
+            )
             # 专利数据
-            self.add_patent(PatentIndicator(
-                company=f"公司_{sym}",
-                patent_count=int(np.random.randint(10, 200)),
-                citation_count=int(np.random.randint(50, 1000)),
-                patent_count_yoy=float(np.random.uniform(-10, 30)),
-                citation_growth=float(np.random.uniform(-15, 40)),
-                tech_distribution={"AI": np.random.randint(5, 50), "芯片": np.random.randint(5, 50)},
-                related_symbol=sym,
-            ))
+            self.add_patent(
+                PatentIndicator(
+                    company=f"公司_{sym}",
+                    patent_count=int(np.random.randint(10, 200)),
+                    citation_count=int(np.random.randint(50, 1000)),
+                    patent_count_yoy=float(np.random.uniform(-10, 30)),
+                    citation_growth=float(np.random.uniform(-15, 40)),
+                    tech_distribution={"AI": np.random.randint(5, 50), "芯片": np.random.randint(5, 50)},
+                    related_symbol=sym,
+                )
+            )
             count += 4
         return count
 

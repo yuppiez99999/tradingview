@@ -18,24 +18,31 @@
     monitor = StopLossMonitor(broker=mock_broker)
     monitor.check_and_execute()
 """
+
 import os
 import sys
 import json
-import time
 import yaml
-import numpy as np
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
-logger = logging.getLogger('stop_loss_monitor')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("stop_loss_monitor")
 
 # 添加路径
 _BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _BASE)
+
+# P0-C1: 原子写 JSON (回退到非原子写以保证模块独立可用)
+try:
+    from utils.concurrency import atomic_write_json as _atomic_write_json
+except ImportError:
+    def _atomic_write_json(path, data):
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 class TriggerType(Enum):
@@ -48,6 +55,7 @@ class TriggerType(Enum):
 @dataclass
 class TriggerRecord:
     """触发记录"""
+
     timestamp: str
     code: str
     name: str
@@ -68,10 +76,7 @@ class StopLossMonitor:
     监控持仓标的的实时价格, 触发止损/止盈/移动止损
     """
 
-    def __init__(self,
-                 rules_file: str = None,
-                 positions_file: str = None,
-                 broker=None):
+    def __init__(self, rules_file: Optional[str] = None, positions_file: Optional[str] = None, broker=None):
         """
         Args:
             rules_file: 止损规则 YAML 文件路径
@@ -97,7 +102,8 @@ class StopLossMonitor:
             os.path.join(_BASE, "..", "11_量化策略", "config", "positions.json"),
         ]
         self.positions_file = positions_file or next(
-            (p for p in _pos_candidates if os.path.exists(p)), _pos_candidates[0])
+            (p for p in _pos_candidates if os.path.exists(p)), _pos_candidates[0]
+        )
 
         # Broker
         self.broker = broker
@@ -128,9 +134,7 @@ class StopLossMonitor:
             try:
                 data = yaml.safe_load(f)
             except yaml.constructor.ConstructorError as e:
-                logger.warning(
-                    f"safe_load 失败 ({e.problem}), 尝试 unsafe_load 加载 numpy 标签"
-                )
+                logger.warning(f"safe_load 失败 ({e.problem}), 尝试 unsafe_load 加载 numpy 标签")
                 f.seek(0)
                 try:
                     data = yaml.unsafe_load(f)
@@ -154,8 +158,8 @@ class StopLossMonitor:
                 try:
                     if hasattr(v, "item"):
                         v = v.item()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"转换 NumPy 类型失败 ({k}={v}): {e}")
                 cleaned[k] = v
             rules[pure_code] = cleaned
 
@@ -168,6 +172,7 @@ class StopLossMonitor:
             quant_dir = os.path.join(_BASE, "..", "11_量化策略")
             sys.path.insert(0, quant_dir)
             from quant_modules.broker_adapter import BrokerFactory
+
             return BrokerFactory.create("mock")
         except Exception as e:
             logger.error(f"创建 MockBroker 失败: {e}")
@@ -191,13 +196,14 @@ class StopLossMonitor:
         # 1. 尝试 Wind MCP
         try:
             from wind_mcp_fetcher import wind_get_quote
+
             if wind_get_quote:
                 wind_code = self._to_wind_code(pure_code)
                 quote = wind_get_quote(wind_code)
-                if quote and 'current' in quote:
-                    return float(quote['current'])
+                if quote and "current" in quote:
+                    return float(quote["current"])
         except Exception:
-            pass
+            logger.exception("[StopLoss] Wind MCP 获取价格失败 code=%s", pure_code)
 
         # 2. 尝试从 positions.json 读取最新价格
         try:
@@ -210,19 +216,20 @@ class StopLossMonitor:
                     if price > 0:
                         return float(price)
         except Exception:
-            pass
+            logger.exception("[StopLoss] 读取 positions.json 价格失败 code=%s", pure_code)
 
         # 3. 尝试从 price_history 读取
         try:
             history_path = os.path.join(_BASE, "..", "11_量化策略", "config", "price_history.jsonl")
             if os.path.exists(history_path):
                 import pandas as pd
+
                 df = pd.read_json(history_path, lines=True)
-                df = df[df['code'] == pure_code].tail(1)
+                df = df[df["code"] == pure_code].tail(1)
                 if len(df) > 0:
-                    return float(df.iloc[0].get('close', 0))
+                    return float(df.iloc[0].get("close", 0))
         except Exception:
-            pass
+            logger.exception("[StopLoss] 读取 price_history 失败 code=%s", pure_code)
 
         return None
 
@@ -281,9 +288,7 @@ class StopLossMonitor:
         if trailing_stop:
             if pure_code not in self._high_water_mark:
                 self._high_water_mark[pure_code] = entry_price
-            self._high_water_mark[pure_code] = max(
-                self._high_water_mark[pure_code], current_price
-            )
+            self._high_water_mark[pure_code] = max(self._high_water_mark[pure_code], current_price)
             high = self._high_water_mark[pure_code]
             # 移动止损线 = 最高价 × (1 + stop_loss_pct)
             trailing_stop_price = high * (1 + stop_loss_pct)
@@ -294,10 +299,13 @@ class StopLossMonitor:
 
         # 检查止损
         if current_price <= stop_loss_price:
-            trigger_type = TriggerType.TRAILING_STOP if trailing_stop and current_price > entry_price else TriggerType.STOP_LOSS
+            trigger_type = (
+                TriggerType.TRAILING_STOP if trailing_stop and current_price > entry_price else TriggerType.STOP_LOSS
+            )
             return TriggerRecord(
                 timestamp=datetime.now().isoformat(),
-                code=pure_code, name=name,
+                code=pure_code,
+                name=name,
                 trigger_type=trigger_type,
                 entry_price=entry_price,
                 current_price=current_price,
@@ -311,7 +319,8 @@ class StopLossMonitor:
         if current_price >= take_profit_price:
             return TriggerRecord(
                 timestamp=datetime.now().isoformat(),
-                code=pure_code, name=name,
+                code=pure_code,
+                name=name,
                 trigger_type=TriggerType.TAKE_PROFIT,
                 entry_price=entry_price,
                 current_price=current_price,
@@ -326,7 +335,8 @@ class StopLossMonitor:
         if atr_stop_price > 0 and current_price <= atr_stop_price:
             return TriggerRecord(
                 timestamp=datetime.now().isoformat(),
-                code=pure_code, name=name,
+                code=pure_code,
+                name=name,
                 trigger_type=TriggerType.ATR_STOP,
                 entry_price=entry_price,
                 current_price=current_price,
@@ -392,36 +402,46 @@ class StopLossMonitor:
             return False, str(e)
 
     def _save_trigger_log(self, records: List[TriggerRecord]):
-        """保存触发日志"""
+        """保存触发日志 (P0-C1: 原子写 + 异常隔离, 防止日志写坏影响主流程)"""
         log_dir = os.path.join(_BASE, "reports")
         os.makedirs(log_dir, exist_ok=True)
 
         log_path = os.path.join(log_dir, f"stop_loss_trigger_{datetime.now().strftime('%Y%m%d')}.json")
         existing = []
         if os.path.exists(log_path):
-            with open(log_path, "r", encoding="utf-8") as f:
-                existing = json.load(f)
+            try:
+                with open(log_path, "r", encoding="utf-8") as f:
+                    existing = json.load(f)
+                if not isinstance(existing, list):
+                    logger.warning("触发日志文件非数组格式, 重置为空数组: %s", log_path)
+                    existing = []
+            except Exception:
+                logger.exception("[StopLoss] 读取触发日志失败, 将覆盖: %s", log_path)
+                existing = []
 
         for r in records:
-            existing.append({
-                "timestamp": r.timestamp,
-                "code": r.code,
-                "name": r.name,
-                "trigger_type": r.trigger_type.value,
-                "entry_price": r.entry_price,
-                "current_price": r.current_price,
-                "trigger_price": r.trigger_price,
-                "shares": r.shares,
-                "action": r.action,
-                "pnl_pct": round(r.pnl_pct, 4),
-                "executed": r.executed,
-                "order_id": r.order_id,
-            })
+            existing.append(
+                {
+                    "timestamp": r.timestamp,
+                    "code": r.code,
+                    "name": r.name,
+                    "trigger_type": r.trigger_type.value,
+                    "entry_price": r.entry_price,
+                    "current_price": r.current_price,
+                    "trigger_price": r.trigger_price,
+                    "shares": r.shares,
+                    "action": r.action,
+                    "pnl_pct": round(r.pnl_pct, 4),
+                    "executed": r.executed,
+                    "order_id": r.order_id,
+                }
+            )
 
-        with open(log_path, "w", encoding="utf-8") as f:
-            json.dump(existing, f, ensure_ascii=False, indent=2)
-
-        logger.info(f"触发日志已保存: {log_path}")
+        try:
+            _atomic_write_json(log_path, existing)
+            logger.info("触发日志已保存: %s", log_path)
+        except Exception:
+            logger.exception("[StopLoss] 触发日志原子写失败: %s", log_path)
 
     def get_monitoring_status(self) -> dict:
         """获取监控状态摘要"""
@@ -431,8 +451,9 @@ class StopLossMonitor:
             "total_positions": len(positions),
             "monitored": n_monitored,
             "rules_loaded": len(self.rules),
-            "triggers_today": len([t for t in self.trigger_history
-                                   if t.timestamp.startswith(datetime.now().strftime("%Y-%m-%d"))]),
+            "triggers_today": len(
+                [t for t in self.trigger_history if t.timestamp.startswith(datetime.now().strftime("%Y-%m-%d"))]
+            ),
             "high_water_marks": dict(self._high_water_mark),
         }
 
@@ -450,7 +471,7 @@ def main():
 
     # 打印状态
     status = monitor.get_monitoring_status()
-    logger.info(f"\n监控状态:")
+    logger.info("\n监控状态:")
     logger.info(f"  总持仓: {status['total_positions']}")
     logger.info(f"  已监控: {status['monitored']}")
     logger.info(f"  规则数: {status['rules_loaded']}")

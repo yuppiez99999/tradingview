@@ -7,6 +7,7 @@
 3. 回撤越大，仓位越低（线性惩罚）
 4. 结合原有三级风控，输出最终仓位比例
 """
+
 from __future__ import annotations
 
 import time
@@ -55,10 +56,10 @@ class DynamicPositionManager:
             return self.target_vol * 100  # 数据不足，返回目标波动率
 
         # 兼容 numpy.ndarray 和 pandas.Series
-        if hasattr(returns_series, 'tail'):
+        if hasattr(returns_series, "tail"):
             recent = returns_series.tail(self.vol_lookback)
         else:
-            recent = returns_series[-self.vol_lookback:]
+            recent = returns_series[-self.vol_lookback :]
 
         daily_std = np.std(recent, ddof=1)
         if np.isnan(daily_std) or daily_std == 0:
@@ -80,7 +81,7 @@ class DynamicPositionManager:
             return 0.0
 
         # 兼容 numpy.ndarray 和 pandas.Series
-        if hasattr(equity_curve, 'cummax'):
+        if hasattr(equity_curve, "cummax"):
             peak = equity_curve.cummax()
             current = equity_curve.iloc[-1]
             peak_val = peak.iloc[-1]
@@ -138,21 +139,18 @@ class DynamicPositionManager:
             dd_factor = 1.0 - 0.7 * (dd_abs - 5.0) / 10.0
 
         # Step 4: 最终仓位
-        final_position = max(
-            self.min_position,
-            self.base_position * vol_factor * dd_factor
-        )
+        final_position = max(self.min_position, self.base_position * vol_factor * dd_factor)
         final_position = round(final_position, 4)
 
         # Step 5: 记录历史
         record = {
-            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'position_ratio': final_position,
-            'vol_pct': vol,
-            'vol_factor': round(vol_factor, 4),
-            'dd_factor': round(dd_factor, 4),
-            'drawdown_pct': round(drawdown, 2),
-            'adjustment_reason': self._get_reason(vol_factor, dd_factor),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "position_ratio": final_position,
+            "vol_pct": vol,
+            "vol_factor": round(vol_factor, 4),
+            "dd_factor": round(dd_factor, 4),
+            "drawdown_pct": round(drawdown, 2),
+            "adjustment_reason": self._get_reason(vol_factor, dd_factor),
         }
         self._position_history.append(record)
 
@@ -180,11 +178,11 @@ class DynamicPositionManager:
             '低' / '中' / '高'
         """
         if vol > 20.0 or drawdown < -10.0:
-            return '高'
+            return "高"
         elif vol > 15.0 or drawdown < -5.0:
-            return '中'
+            return "中"
         else:
-            return '低'
+            return "低"
 
     def get_position_history(self) -> List[Dict]:
         """获取仓位调整历史记录"""
@@ -193,7 +191,7 @@ class DynamicPositionManager:
     def summary(self, returns_series, equity_curve) -> str:
         """生成仓位管理摘要报告"""
         result = self.compute_position_size(returns_series, equity_curve)
-        risk = self.get_risk_level(result['vol_pct'], result['drawdown_pct'])
+        risk = self.get_risk_level(result["vol_pct"], result["drawdown_pct"])
 
         lines = [
             "=" * 60,
@@ -203,9 +201,9 @@ class DynamicPositionManager:
             f"  当前回撤:    {result['drawdown_pct']:.2f}%",
             f"  波动率因子:  {result['vol_factor']:.4f}",
             f"  回撤因子:    {result['dd_factor']:.4f}",
-            f"  推荐仓位:    {result['position_ratio']*100:.1f}%",
+            f"  推荐仓位:    {result['position_ratio'] * 100:.1f}%",
             f"  风险等级:    {risk}",
             f"  调整原因:    {result['adjustment_reason']}",
             "=" * 60,
         ]
-        return '\n'.join(lines)
+        return "\n".join(lines)

@@ -21,8 +21,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from research.vibe_trading_factor_analysis.committee.factor_committee import (
-    FactorCommittee, AlphaAgent, RiskAgent, ExecutionAgent,
-    EconomicAgent, CapacityAgent, ChairAgent, quick_review,
+    quick_review,
 )
 
 

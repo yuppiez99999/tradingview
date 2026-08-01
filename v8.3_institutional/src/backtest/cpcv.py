@@ -16,12 +16,11 @@ v7.6 CPCV (Combinatorial Purged Cross-Validation) — 组合净化交叉验证
 
 预期改进: 假正率从 ~40% 降至 ~5% (Harvey-Liu-Zhu 2016 多重检验校正)
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Callable
-from itertools import combinations
+from typing import Dict, List, Tuple, Callable, Optional
 
 import numpy as np
 import pandas as pd
@@ -38,12 +37,14 @@ class CPCVCrossValidator:
         results = cv.run(data, train_func, test_func)
     """
 
-    def __init__(self,
-                 n_groups: int = 6,
-                 n_test_groups: int = 2,
-                 purge_days: int = 5,
-                 embargo_days: int = 0,
-                 min_train_groups: int = 2):
+    def __init__(
+        self,
+        n_groups: int = 6,
+        n_test_groups: int = 2,
+        purge_days: int = 5,
+        embargo_days: int = 0,
+        min_train_groups: int = 2,
+    ):
         """
         Args:
             n_groups: 总分组数 (推荐 6-15)
@@ -100,12 +101,8 @@ class CPCVCrossValidator:
             if self.embargo_days > 0:
                 train_end -= self.embargo_days
 
-            train_start = 0
             train_data = data.iloc[:train_end]
-            test_data = data.iloc[
-                test_groups[0] * group_size:
-                test_groups[-1] * group_size + group_size
-            ]
+            test_data = data.iloc[test_groups[0] * group_size : test_groups[-1] * group_size + group_size]
 
             if len(train_data) >= self.min_train_groups * group_size and len(test_data) > 0:
                 splits.append((train_data, test_data))
@@ -114,11 +111,7 @@ class CPCVCrossValidator:
         logger.info(f"CPCV: {self.n_groups} 组 → {self.n_paths_} 条验证路径")
         return splits
 
-    def run(self,
-            data: pd.DataFrame,
-            train_fn: Callable,
-            test_fn: Callable,
-            **kwargs) -> Dict:
+    def run(self, data: pd.DataFrame, train_fn: Callable, test_fn: Callable, **kwargs) -> Dict:
         """执行 CPCV 验证
 
         Args:
@@ -145,11 +138,13 @@ class CPCVCrossValidator:
                 model = train_fn(train_data, **kwargs)
                 score = test_fn(model, test_data, **kwargs)
                 scores.append(score)
-                self.results_.append({
-                    'train_size': len(train_data),
-                    'test_size': len(test_data),
-                    'score': score,
-                })
+                self.results_.append(
+                    {
+                        "train_size": len(train_data),
+                        "test_size": len(test_data),
+                        "score": score,
+                    }
+                )
             except Exception as e:
                 logger.warning(f"CPCV 路径失败: {str(e)[:80]}")
                 continue
@@ -157,7 +152,7 @@ class CPCVCrossValidator:
         self.scores_ = scores
 
         if not scores:
-            return {'mean_score': 0, 'std_score': 0, 'n_paths': 0}
+            return {"mean_score": 0, "std_score": 0, "n_paths": 0}
 
         scores_arr = np.array(scores)
         mean_score = float(np.mean(scores_arr))
@@ -170,27 +165,28 @@ class CPCVCrossValidator:
         deflated = self.deflated_sharpe_ratio(scores_arr)
 
         result = {
-            'scores': [round(s, 6) for s in scores],
-            'mean_score': round(mean_score, 6),
-            'std_score': round(std_score, 6),
-            'sharpe_ratio': round(sr, 4),
-            'deflated_sharpe': round(deflated['deflated_sr'], 4),
-            'deflated_p_value': round(deflated['p_value'], 6),
-            'significant_at_5pct': deflated['p_value'] < 0.05,
-            'n_paths': len(scores),
-            'min_score': round(float(np.min(scores_arr)), 6),
-            'max_score': round(float(np.max(scores_arr)), 6),
+            "scores": [round(s, 6) for s in scores],
+            "mean_score": round(mean_score, 6),
+            "std_score": round(std_score, 6),
+            "sharpe_ratio": round(sr, 4),
+            "deflated_sharpe": round(deflated["deflated_sr"], 4),
+            "deflated_p_value": round(deflated["p_value"], 6),
+            "significant_at_5pct": deflated["p_value"] < 0.05,
+            "n_paths": len(scores),
+            "min_score": round(float(np.min(scores_arr)), 6),
+            "max_score": round(float(np.max(scores_arr)), 6),
         }
 
-        logger.info(f"CPCV 验证: SR={sr:.3f}, DeflatedSR={deflated['deflated_sr']:.3f}, "
-                    f"P={deflated['p_value']:.4f}, paths={len(scores)}")
+        logger.info(
+            f"CPCV 验证: SR={sr:.3f}, DeflatedSR={deflated['deflated_sr']:.3f}, "
+            f"P={deflated['p_value']:.4f}, paths={len(scores)}"
+        )
 
         return result
 
-    def deflated_sharpe_ratio(self,
-                              observed_sr: float,
-                              n_trials: int = 100,
-                              variance_observed_sr: float = None) -> Dict:
+    def deflated_sharpe_ratio(
+        self, observed_sr: float, n_trials: int = 100, variance_observed_sr: Optional[float] = None
+    ) -> Dict:
         """Deflated Sharpe Ratio (Harvey-Liu-Zhu 2016)
 
         多重检验下的显著性校正:
@@ -209,11 +205,12 @@ class CPCVCrossValidator:
         # 假设 SRs 服从标准正态 (最保守)
         if variance_observed_sr is None:
             # SR 的渐近方差 (Lo 2002)
-            variance_observed_sr = 1.0 + observed_sr ** 2 / 2
+            variance_observed_sr = 1.0 + observed_sr**2 / 2
 
         # 第 k 个 order statistic 的期望
         # E[max_1..N(SR)] ~ sqrt(2 * log(N)) for large N
         import math
+
         expected_max_sr = math.sqrt(2 * math.log(max(n_trials, 2)))
 
         # Deflated SR
@@ -221,20 +218,21 @@ class CPCVCrossValidator:
 
         # P-value
         from scipy import stats
+
         p_value = 1 - stats.norm.cdf(deflated_sr)
 
         return {
-            'observed_sr': observed_sr,
-            'n_trials': n_trials,
-            'expected_max_sr': round(expected_max_sr, 4),
-            'deflated_sr': round(deflated_sr, 4),
-            'p_value': round(p_value, 6),
+            "observed_sr": observed_sr,
+            "n_trials": n_trials,
+            "expected_max_sr": round(expected_max_sr, 4),
+            "deflated_sr": round(deflated_sr, 4),
+            "p_value": round(p_value, 6),
         }
 
     def _deflated_sharpe_ratio(self, scores: np.ndarray) -> Dict:
         """从 CPCV 分数计算 Deflated SR"""
         if len(scores) == 0:
-            return {'deflated_sr': 0, 'p_value': 1}
+            return {"deflated_sr": 0, "p_value": 1}
 
         sr = np.mean(scores) / max(np.std(scores, ddof=1), 1e-8)
         return self.deflated_sharpe_ratio(observed_sr=sr, n_trials=self.n_paths_)
@@ -250,8 +248,7 @@ class PurgedKFold:
     解决: 每个 fold 之间插入 purge gap (标签重叠天数)
     """
 
-    def __init__(self, n_splits: int = 5, purge_days: int = 5,
-                 embargo_days: int = 0):
+    def __init__(self, n_splits: int = 5, purge_days: int = 5, embargo_days: int = 0):
         self.n_splits = n_splits
         self.purge_days = purge_days
         self.embargo_days = embargo_days

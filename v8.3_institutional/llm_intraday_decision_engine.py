@@ -28,7 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -40,7 +40,7 @@ if sys.platform == "win32":
 # 路径 (v8.0 fix: 以项目根目录为基准)
 # ============================================================
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-BASE = PROJECT_ROOT / "v7.5_institutional"
+BASE = PROJECT_ROOT / "v8.3_institutional"
 PLAN_DIR = BASE / "trade_plans"
 REPORTS_DIR = BASE / "reports"
 CONFIG_DIR = PROJECT_ROOT / "config"
@@ -49,7 +49,9 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 # 目标参数 (顶级对冲基金标准)
 # ============================================================
 TARGET_ANNUAL_RETURN = 0.08
-MAX_DRAWDOWN_LIMIT = 0.15
+# B1.3: 从 config/risk_params.yaml 统一读取 (fail-safe 兜底 0.15)
+from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
+MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
 PORTFOLIO_STOP_LOSS = -0.10
 SINGLE_STOP_LOSS = -0.10
 SINGLE_DAY_LOSS_PAUSE = -0.02

@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import copy
 from typing import Dict, List, Optional
 
 from utils.logger import get_logger
@@ -30,27 +29,47 @@ logger = get_logger("broad_based_etf_policy")
 # 是承接社保国家队流入最纯粹的载体。
 BROAD_BASED_ETFS: List[Dict] = [
     {
-        "code": "510300", "name": "沪深300ETF华泰柏瑞", "style": "宽基",
-        "base_weight": 0.05, "est_price": 4.10, "lots": 100,
-        "ff_dir": "defensive_utility", "kc_style": "宽基",
+        "code": "510300",
+        "name": "沪深300ETF华泰柏瑞",
+        "style": "宽基",
+        "base_weight": 0.05,
+        "est_price": 4.10,
+        "lots": 100,
+        "ff_dir": "defensive_utility",
+        "kc_style": "宽基",
         "reason": "A股核心资产宽基, 十五五防御型公用事业映射, 康波宽基中性; 社保国家队护盘首选载体",
     },
     {
-        "code": "510500", "name": "中证500ETF南方", "style": "宽基",
-        "base_weight": 0.04, "est_price": 6.20, "lots": 100,
-        "ff_dir": "defensive_utility", "kc_style": "宽基",
+        "code": "510500",
+        "name": "中证500ETF南方",
+        "style": "宽基",
+        "base_weight": 0.04,
+        "est_price": 6.20,
+        "lots": 100,
+        "ff_dir": "defensive_utility",
+        "kc_style": "宽基",
         "reason": "中盘成长宽基, 十五五中小市值战略新兴承载, 康波宽基中性; 承接结构性流入",
     },
     {
-        "code": "510050", "name": "上证50ETF华夏", "style": "宽基",
-        "base_weight": 0.04, "est_price": 2.95, "lots": 100,
-        "ff_dir": "defensive_utility", "kc_style": "宽基",
+        "code": "510050",
+        "name": "上证50ETF华夏",
+        "style": "宽基",
+        "base_weight": 0.04,
+        "est_price": 2.95,
+        "lots": 100,
+        "ff_dir": "defensive_utility",
+        "kc_style": "宽基",
         "reason": "大盘蓝筹宽基, 十五五核心资产映射, 康波宽基中性; 社保国家队底仓压舱石",
     },
     {
-        "code": "512100", "name": "中证1000ETF南方", "style": "宽基",
-        "base_weight": 0.03, "est_price": 2.65, "lots": 100,
-        "ff_dir": "defensive_utility", "kc_style": "宽基",
+        "code": "512100",
+        "name": "中证1000ETF南方",
+        "style": "宽基",
+        "base_weight": 0.03,
+        "est_price": 2.65,
+        "lots": 100,
+        "ff_dir": "defensive_utility",
+        "kc_style": "宽基",
         "reason": "小盘风格宽基, 十五五专精特新映射, 康波宽基中性; 弹性承接国家队边际流入",
     },
 ]
@@ -84,9 +103,10 @@ def _import_macro():
     for modname in candidates:
         try:
             import importlib
+
             mod = importlib.import_module(modname)
             return mod
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.debug(f"导入 {modname} 失败: {e}")
     return None
 
@@ -176,12 +196,20 @@ def validate_portfolio_compliance(target_portfolio: Dict) -> Dict:
         if passed:
             passed_count += 1
 
-        holdings.append({
-            "code": code, "name": name, "style": style,
-            "ff_score": round(ff_score, 4), "kc_score": round(kc_score, 4),
-            "combined": combined, "passed": passed, "level": level,
-            "note": f"十五五命中分 {ff_score:.2f}; 康波 {kc_note}", "action": action,
-        })
+        holdings.append(
+            {
+                "code": code,
+                "name": name,
+                "style": style,
+                "ff_score": round(ff_score, 4),
+                "kc_score": round(kc_score, 4),
+                "combined": combined,
+                "passed": passed,
+                "level": level,
+                "note": f"十五五命中分 {ff_score:.2f}; 康波 {kc_note}",
+                "action": action,
+            }
+        )
 
     summary = {
         "total": len(holdings),
@@ -200,8 +228,7 @@ def flow_to_adjustment(net_flow_yi: float) -> Dict:
     """将单只ETF净流(亿元) 映射为加减仓信号/动作/系数。"""
     for direction, lo, hi, signal, action, factor in ADJUST_BANDS:
         if lo <= net_flow_yi < hi:
-            return {"signal": signal, "action": action, "factor": factor,
-                    "direction": direction}
+            return {"signal": signal, "action": action, "factor": factor, "direction": direction}
     # 兜底
     return {"signal": "中性", "action": "持有", "factor": 0.0, "direction": "hold"}
 
@@ -216,8 +243,7 @@ def get_broad_based_codes(plan: Dict) -> List[str]:
     return codes
 
 
-def compute_broad_based_adjustments(flow_signals: Dict,
-                                    broad_based: Optional[List[Dict]] = None) -> List[Dict]:
+def compute_broad_based_adjustments(flow_signals: Dict, broad_based: Optional[List[Dict]] = None) -> List[Dict]:
     """
     根据社保国家队ETF资金流信号, 计算宽基ETF加减仓方案。
 
@@ -239,18 +265,25 @@ def compute_broad_based_adjustments(flow_signals: Dict,
         adj = flow_to_adjustment(net_flow)
         scale = max(MIN_SCALE, min(MAX_SCALE, 1.0 + adj["factor"]))
         target_weight = round(base * scale, 6)
-        out.append({
-            "code": code, "name": etf["name"], "base_weight": base,
-            "net_flow_yi": net_flow, "signal": adj["signal"],
-            "action": adj["action"], "factor": adj["factor"],
-            "target_weight": target_weight, "scale": round(scale, 4),
-        })
+        out.append(
+            {
+                "code": code,
+                "name": etf["name"],
+                "base_weight": base,
+                "net_flow_yi": net_flow,
+                "signal": adj["signal"],
+                "action": adj["action"],
+                "factor": adj["factor"],
+                "target_weight": target_weight,
+                "scale": round(scale, 4),
+            }
+        )
     return out
 
 
-def apply_broad_based_adjustments_to_plan(plan: Dict,
-                                          flow_signals: Dict,
-                                          broad_based: Optional[List[Dict]] = None) -> Dict:
+def apply_broad_based_adjustments_to_plan(
+    plan: Dict, flow_signals: Dict, broad_based: Optional[List[Dict]] = None
+) -> Dict:
     """
     将宽基ETF加减仓方案就地应用到计划 dict (target_portfolio / position_plan / phase_summary)。
     基于 base_weight / base_shares / base_amount 做幂等相对调整。
@@ -277,7 +310,9 @@ def apply_broad_based_adjustments_to_plan(plan: Dict,
         # target_portfolio
         info = tp[code]
         info["weight"] = target_weight
-        info["target_amount"] = round(3_000_000 * target_weight, 2) if "target_amount" in info else info.get("target_amount")
+        info["target_amount"] = (
+            round(3_000_000 * target_weight, 2) if "target_amount" in info else info.get("target_amount")
+        )
         if info.get("est_price", 0) > 0:
             raw = info["target_amount"] / info["est_price"]
             lots = info.get("lots", 100)
@@ -312,7 +347,7 @@ def apply_broad_based_adjustments_to_plan(plan: Dict,
                     if b_amount is None:
                         b_amount = float(asset.get("amount", 0.0))
                         asset["base_amount"] = b_amount
-                    asset["shares"] = int(round(b_shares * scale))
+                    asset["shares"] = round(b_shares * scale)
                     asset["amount"] = round(b_amount * scale, 2)
 
     return {
@@ -332,9 +367,10 @@ def fetch_national_team_flow_signals() -> Dict:
     """
     try:
         from utils.etf_flow_monitor import ETFRealTimeTracker
+
         tracker = ETFRealTimeTracker()
         return tracker.get_all_etf_fund_flows()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.warning(f"获取社保国家队资金流失败, 宽基ETF维持基准权重: {e}")
         return {}
 
@@ -349,6 +385,6 @@ def adjust_plan_with_national_team_flow(plan: Dict) -> Dict:
         if not flow:
             return {"applied": False, "reason": "无资金流数据", "adjustments": []}
         return apply_broad_based_adjustments_to_plan(plan, flow)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.warning(f"宽基ETF国家队加减仓执行异常, 维持基准: {e}")
         return {"applied": False, "reason": str(e), "adjustments": []}

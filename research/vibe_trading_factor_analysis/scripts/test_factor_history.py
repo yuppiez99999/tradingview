@@ -76,7 +76,7 @@ def main() -> int:
         })
 
     # 排序展示
-    print(f"\n[3] 按 IC_IR 排序（找出最值得通过的因子）")
+    print("\n[3] 按 IC_IR 排序（找出最值得通过的因子）")
     print("-" * 80)
     results_sorted = sorted(results, key=lambda r: r["ic_ir"], reverse=True)
     for i, r in enumerate(results_sorted[:10], 1):

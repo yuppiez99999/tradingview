@@ -2,6 +2,7 @@
 """
 iFinD 资讯读取 + 标的研判模块
 """
+
 from __future__ import annotations
 
 import json
@@ -20,6 +21,7 @@ logger = get_logger("ifind_news_analyzer")
 @dataclass
 class NewsItem:
     """单条资讯"""
+
     title: str
     snippet: str
     source: str
@@ -33,6 +35,7 @@ class NewsItem:
 @dataclass
 class StockInsight:
     """单个标的研究结论"""
+
     symbol: str
     name: str
     direction: str
@@ -53,7 +56,8 @@ class IFinDNewsAnalyzer:
         )
         sys.path.insert(0, self.skill_dir)
         try:
-            from call import call as _call  # type: ignore
+            from call import call as _call
+
             self._call = _call
         except Exception as exc:  # pragma: no cover
             logger.error("iFinD call 模块导入失败: %s", exc)
@@ -70,7 +74,9 @@ class IFinDNewsAnalyzer:
         """检索公告"""
         return self._call_news("search_notice", query, size=size, days=days)
 
-    def search_trending(self, keyword: str, industry_name: str = "", time_scope: str = "24小时", size: int = 5) -> List[NewsItem]:
+    def search_trending(
+        self, keyword: str, industry_name: str = "", time_scope: str = "24小时", size: int = 5
+    ) -> List[NewsItem]:
         """热点事件"""
         items: List[NewsItem] = []
         if self._call is None:
@@ -84,7 +90,7 @@ class IFinDNewsAnalyzer:
             result = self._call("news", "search_trending_news", params)
             if result.get("ok"):
                 items = self._parse_news_result(result.get("data", {}))
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             logger.error("热点事件查询失败:\n%s", traceback.format_exc())
         return items
 
@@ -108,14 +114,16 @@ class IFinDNewsAnalyzer:
             news_count=len(all_items),
         )
 
-    def batch_analyze(self, symbols: List[str], name_map: Optional[Dict[str, str]] = None, size: int = 4, days: int = 3) -> List[StockInsight]:
+    def batch_analyze(
+        self, symbols: List[str], name_map: Optional[Dict[str, str]] = None, size: int = 4, days: int = 3
+    ) -> List[StockInsight]:
         """批量研判"""
         name_map = name_map or {}
         results: List[StockInsight] = []
         for symbol in symbols:
             try:
                 results.append(self.analyze_symbol(symbol, name=name_map.get(symbol, ""), size=size, days=days))
-            except Exception:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 logger.error("研判失败: %s", symbol, exc_info=True)
         return results
 
@@ -124,12 +132,11 @@ class IFinDNewsAnalyzer:
         if self._call is None:
             return items
         try:
-            end = datetime.now()
-            start = datetime(end.year, end.month, end.day) if False else end
             time_start = (datetime.now()).strftime("%Y-%m-%d")
             time_end = (datetime.now()).strftime("%Y-%m-%d")
             if days > 0:
                 from datetime import timedelta
+
                 time_start = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
             result = self._call(
                 "news",
@@ -138,7 +145,7 @@ class IFinDNewsAnalyzer:
             )
             if result.get("ok"):
                 items = self._parse_news_result(result.get("data", {}))
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             logger.error("%s 查询失败:\n%s", tool_name, traceback.format_exc())
         return items
 
@@ -147,13 +154,13 @@ class IFinDNewsAnalyzer:
         try:
             parsed = data if isinstance(data, dict) else json.loads(str(data))
             # MCP 文本包装：result.content[0].text 内层又是业务 JSON
-            result_block = (((parsed or {}).get("result") or {}).get("content") or [])
+            result_block = ((parsed or {}).get("result") or {}).get("content") or []
             if result_block and isinstance(result_block[0], dict):
                 text_content = result_block[0].get("text")
                 if isinstance(text_content, str):
                     try:
                         parsed = json.loads(text_content)
-                    except Exception:
+                    except Exception:  # P2 模块 fail-safe, 待后续精确化
                         parsed = {}
             results = self._extract_results(parsed)
             for item in results:
@@ -179,11 +186,7 @@ class IFinDNewsAnalyzer:
                             or ""
                         ),
                         source=str(
-                            item.get("来源")
-                            or item.get("source")
-                            or item.get("news_source")
-                            or item.get("媒体")
-                            or ""
+                            item.get("来源") or item.get("source") or item.get("news_source") or item.get("媒体") or ""
                         ),
                         publish_time=str(
                             item.get("日期")
@@ -206,7 +209,7 @@ class IFinDNewsAnalyzer:
                         ),
                     )
                 )
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             logger.error("资讯解析失败:\n%s", traceback.format_exc())
         return items
 
@@ -219,7 +222,7 @@ class IFinDNewsAnalyzer:
         if isinstance(inner, str):
             try:
                 inner = json.loads(inner)
-            except Exception:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 inner = None
         if isinstance(inner, dict):
             return self._extract_results(inner)
@@ -239,7 +242,19 @@ class IFinDNewsAnalyzer:
         positive_hits = 0
         negative_hits = 0
         reasons: List[str] = []
-        keywords_positive = ["预增", "增长", "中标", "订单", "扩产", "出海", "份额提升", "超预期", "盈利", "放量", "景气"]
+        keywords_positive = [
+            "预增",
+            "增长",
+            "中标",
+            "订单",
+            "扩产",
+            "出海",
+            "份额提升",
+            "超预期",
+            "盈利",
+            "放量",
+            "景气",
+        ]
         keywords_negative = ["预减", "下滑", "亏损", "处罚", "减持", "质押", "暴雷", "下调", "断供", "降价", "过剩"]
 
         for item in items:
@@ -268,8 +283,9 @@ class IFinDNewsAnalyzer:
         entities: List[str] = []
         try:
             import re
+
             for pattern in [r"\d{6}\.[A-Za-z]{2}", r"[A-Za-z]{2,4}\d{5,6}", r"\d{6}"]:
                 entities.extend(re.findall(pattern, text))
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
         return entities[:10]

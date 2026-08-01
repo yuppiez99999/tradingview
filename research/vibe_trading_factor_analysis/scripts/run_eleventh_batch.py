@@ -46,13 +46,11 @@
 """
 from __future__ import annotations
 
-import json
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 
 # 项目根路径注入
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -78,35 +76,35 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("S3 第十一批次流水线跑批（P2.2 v5 最终改进验证 - 差异化极端值处理方案）")
-    print("=" * 70)
-    print("v5 最终改进决策（基于 v2/v3/v4 失败教训的差异化方案）:")
-    print("  VT_QUALTREND_ROE_DELTA   : winsorize(roe[q]-roe[q-4])  - v3/v4 验证 IC_IR +0.1811 ✅")
-    print("  VT_QUALTREND_MARGIN_EXP   : winsorize(gm[q]-gm[q-4])   - v3/v4 验证 IC_IR +0.2742 ✅ (接近 0.3)")
-    print("  VT_QUALTREND_DEBT_RED     : current_ratio[q]-cr[q-4]   - v2 解共线有效，保留")
-    print("  VT_QUALTREND_GROWTH_ACCEL : 纯 v1 净利润 YoY 加速      - v4 实测 winsorize 有害(0.1409)，回退 v1(0.2676)")
+    logger.info("=" * 70)
+    logger.info("S3 第十一批次流水线跑批（P2.2 v5 最终改进验证 - 差异化极端值处理方案）")
+    logger.info("=" * 70)
+    logger.info("v5 最终改进决策（基于 v2/v3/v4 失败教训的差异化方案）:")
+    logger.info("  VT_QUALTREND_ROE_DELTA   : winsorize(roe[q]-roe[q-4])  - v3/v4 验证 IC_IR +0.1811 ✅")
+    logger.info("  VT_QUALTREND_MARGIN_EXP   : winsorize(gm[q]-gm[q-4])   - v3/v4 验证 IC_IR +0.2742 ✅ (接近 0.3)")
+    logger.info("  VT_QUALTREND_DEBT_RED     : current_ratio[q]-cr[q-4]   - v2 解共线有效，保留")
+    logger.info("  VT_QUALTREND_GROWTH_ACCEL : 纯 v1 净利润 YoY 加速      - v4 实测 winsorize 有害(0.1409)，回退 v1(0.2676)")
 
     # ============ Step 1: 加载数据 ============
-    print("\n[1/5] 加载 P1 改进后的真实数据")
+    logger.info("\n[1/5] 加载 P1 改进后的真实数据")
     symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
+    logger.info(f"  可用标的数: {len(symbols)}")
 
     price_data = load_price_data(symbols=symbols)
-    print(f"  price_data: {len(price_data)} 个标的")
+    logger.info(f"  price_data: {len(price_data)} 个标的")
 
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns()
     if not benchmark_returns:
         benchmark_returns = compute_equal_weight_benchmark(price_data)
-    print(f"  benchmark_returns: {len(benchmark_returns)} 天")
+    logger.info(f"  benchmark_returns: {len(benchmark_returns)} 天")
 
     if not price_data:
-        print("[ERROR] 价格数据加载失败")
+        logger.info("[ERROR] 价格数据加载失败")
         return 1
 
     # ============ Step 2: 初始化流水线 ============
-    print("\n[2/5] 初始化 PipelineOrchestrator")
+    logger.info("\n[2/5] 初始化 PipelineOrchestrator")
     orchestrator = PipelineOrchestrator(
         config={
             "reports_dir": str(REPORTS_DIR),
@@ -114,18 +112,18 @@ def main() -> int:
         }
     )
     batch_id = f"eleventh_batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    print(f"  batch_id: {batch_id}")
-    print(f"  shadow risk_managed: {orchestrator.shadow_account.risk_managed}")
+    logger.info(f"  batch_id: {batch_id}")
+    logger.info(f"  shadow risk_managed: {orchestrator.shadow_account.risk_managed}")
 
     # ============ Step 3: 跑流水线 ============
-    print("\n[3/5] 执行 8 级流水线（含 4 个 QualityTrend v5 因子）")
-    print("  QualityTrend v5 因子（差异化极端值处理方案）:")
-    print("    - VT_QUALTREND_ROE_DELTA (winsorize(roe[q] - roe[q-4], p5/p95))")
-    print("    - VT_QUALTREND_MARGIN_EXP (winsorize(gm[q] - gm[q-4], p5/p95))")
-    print("    - VT_QUALTREND_DEBT_RED (current_ratio[q] - current_ratio[q-4])")
-    print("    - VT_QUALTREND_GROWTH_ACCEL (纯 v1: (np[q]/np[q-4]-1) - (np[q-1]/np[q-5]-1))")
+    logger.info("\n[3/5] 执行 8 级流水线（含 4 个 QualityTrend v5 因子）")
+    logger.info("  QualityTrend v5 因子（差异化极端值处理方案）:")
+    logger.info("    - VT_QUALTREND_ROE_DELTA (winsorize(roe[q] - roe[q-4], p5/p95))")
+    logger.info("    - VT_QUALTREND_MARGIN_EXP (winsorize(gm[q] - gm[q-4], p5/p95))")
+    logger.info("    - VT_QUALTREND_DEBT_RED (current_ratio[q] - current_ratio[q-4])")
+    logger.info("    - VT_QUALTREND_GROWTH_ACCEL (纯 v1: (np[q]/np[q-4]-1) - (np[q-1]/np[q-5]-1))")
     n_trials = max(len(symbols), 13)
-    print(f"  n_trials: {n_trials}")
+    logger.info(f"  n_trials: {n_trials}")
 
     result = orchestrator.run(
         price_data=price_data,
@@ -140,24 +138,24 @@ def main() -> int:
     )
 
     # ============ Step 4: 汇总结果 ============
-    print("\n[4/5] 汇总批次结果")
-    print("-" * 70)
-    print(f"  batch_id           : {result.batch_id}")
-    print(f"  total_candidates   : {result.total_candidates}")
-    print(f"  G1 正交性通过       : {result.g1_passed}")
-    print(f"  G2 IC 稳定性通过    : {result.g2_passed}")
-    print(f"  G3 DSR 防过拟合通过  : {result.g3_passed}")
-    print(f"  G4 经济逻辑通过      : {result.g4_passed}")
-    print(f"  Enhancement 通过    : {result.enhanced}")
-    print(f"  Shadow 通过(risk_managed): {result.shadow_passed}")
-    print(f"  Committee 通过(Approved): {result.approved}")
-    print(f"  Rejected            : {result.rejected}")
-    print(f"  Failed              : {result.failed}")
-    print(f"  Deferred(fundamentals): {result.deferred_fundamentals}")
-    print("-" * 70)
+    logger.info("\n[4/5] 汇总批次结果")
+    logger.info("-" * 70)
+    logger.info(f"  batch_id           : {result.batch_id}")
+    logger.info(f"  total_candidates   : {result.total_candidates}")
+    logger.info(f"  G1 正交性通过       : {result.g1_passed}")
+    logger.info(f"  G2 IC 稳定性通过    : {result.g2_passed}")
+    logger.info(f"  G3 DSR 防过拟合通过  : {result.g3_passed}")
+    logger.info(f"  G4 经济逻辑通过      : {result.g4_passed}")
+    logger.info(f"  Enhancement 通过    : {result.enhanced}")
+    logger.info(f"  Shadow 通过(risk_managed): {result.shadow_passed}")
+    logger.info(f"  Committee 通过(Approved): {result.approved}")
+    logger.info(f"  Rejected            : {result.rejected}")
+    logger.info(f"  Failed              : {result.failed}")
+    logger.info(f"  Deferred(fundamentals): {result.deferred_fundamentals}")
+    logger.info("-" * 70)
 
     # P2.2 v5 验收：4 个 QualityTrend 因子表现（v1 基线 → v5 最终方案对比）
-    print(f"\n  P2.2 v5 验收 - 4 个 QualityTrend 因子（v1 基线 → v5 最终方案对比）:")
+    logger.info("\n  P2.2 v5 验收 - 4 个 QualityTrend 因子（v1 基线 → v5 最终方案对比）:")
     quality_trend_factors = [
         ("VT_QUALTREND_ROE_DELTA",     0.543, 0.1364, "MOM_252D"),
         ("VT_QUALTREND_MARGIN_EXP",    0.279, 0.1270, "QUA_ROE"),
@@ -167,9 +165,9 @@ def main() -> int:
     qt_pass_g1 = 0
     qt_pass_g2 = 0
     qt_deferred = 0
-    print(f"    {'因子':32s} | v1_corr v1_ICIR | v5_corr v5_ICIR | v5_max_corr_factor")
-    print(f"    {'-'*32}-+-{'-'*17}-+-{'-'*17}-+-{'-'*30}")
-    for fname, v1_corr, v1_icir, v1_factor in quality_trend_factors:
+    logger.info(f"    {'因子':32s} | v1_corr v1_ICIR | v5_corr v5_ICIR | v5_max_corr_factor")
+    logger.info(f"    {'-'*32}-+-{'-'*17}-+-{'-'*17}-+-{'-'*30}")
+    for fname, v1_corr, v1_icir, _v1_factor in quality_trend_factors:
         f = next((x for x in result.factors if x.get("factor_name") == fname), None)
         if f:
             g1 = f.get("g1_orthogonality") or {}
@@ -191,37 +189,37 @@ def main() -> int:
                 if g2.get("passed"):
                     qt_pass_g2 += 1
         else:
-            print(f"    {fname:32s} | 未找到")
+            logger.info(f"    {fname:32s} | 未找到")
 
     print()
-    print(f"  P2.2 v5 验收汇总:")
-    print(f"    QualityTrend 通过 G1: {qt_pass_g1} / 4")
-    print(f"    QualityTrend 通过 G2: {qt_pass_g2} / 4")
-    print(f"    QualityTrend 因 fundamentals_history 不足 defer: {qt_deferred} / 4")
+    logger.info("  P2.2 v5 验收汇总:")
+    logger.info(f"    QualityTrend 通过 G1: {qt_pass_g1} / 4")
+    logger.info(f"    QualityTrend 通过 G2: {qt_pass_g2} / 4")
+    logger.info(f"    QualityTrend 因 fundamentals_history 不足 defer: {qt_deferred} / 4")
 
     # ============ Step 5: 写入报告 ============
-    print("\n[5/5] 写入批次报告")
+    logger.info("\n[5/5] 写入批次报告")
     md_path = _write_eleventh_batch_report(result, symbols, n_trials)
-    print(f"  报告路径: {md_path}")
+    logger.info(f"  报告路径: {md_path}")
 
     # 状态分布
     state_dist: dict = {}
     for f in result.factors:
         state = f.get("state", "unknown")
         state_dist[state] = state_dist.get(state, 0) + 1
-    print(f"\n  状态分布:")
+    logger.info("\n  状态分布:")
     for state, cnt in sorted(state_dist.items(), key=lambda kv: -kv[1]):
-        print(f"    {state:30s} : {cnt}")
+        logger.info(f"    {state:30s} : {cnt}")
 
     # Top 5 因子
     ranked = _rank_factors_by_progress(result.factors)
-    print(f"\n  Top 5 因子:")
+    logger.info("\n  Top 5 因子:")
     for f in ranked[:5]:
-        print(f"    {f['factor_name']:32s} | state={f.get('state', ''):20s} | score={f.get('final_score', 0):.2f}")
+        logger.info(f"    {f['factor_name']:32s} | state={f.get('state', ''):20s} | score={f.get('final_score', 0):.2f}")
 
-    print("\n" + "=" * 70)
-    print("S3 第十一批次流水线跑批完成（P2.2 v5 差异化极端值处理方案）")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("S3 第十一批次流水线跑批完成（P2.2 v5 差异化极端值处理方案）")
+    logger.info("=" * 70)
     return 0
 
 
@@ -264,7 +262,7 @@ def _write_eleventh_batch_report(result, symbols, n_trials: int) -> Path:
         ("VT_QUALTREND_GROWTH_ACCEL",  0.292, 0.2676, "MOM_20D",          "(np[q]/np[q-4]-1) - (np[q-1]/np[q-5]-1)"),
     ]
     qt_rows = ""
-    for fname, v1_corr, v1_icir, v1_factor, v5_formula in quality_trend_factors:
+    for fname, v1_corr, v1_icir, v1_factor, _v5_formula in quality_trend_factors:
         f = next((x for x in result.factors if x.get("factor_name") == fname), None)
         if f:
             g1 = f.get("g1_orthogonality") or {}

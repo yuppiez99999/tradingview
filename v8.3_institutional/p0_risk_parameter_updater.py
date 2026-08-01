@@ -54,11 +54,11 @@ def update_risk_config():
     logger.info(f"风控配置已保存: {risk_config_path}")
     logger.info("")
     logger.info("关键参数变更:")
-    logger.info(f"  组合止损线: -10%~-15% → -8%")
-    logger.info(f"  组合预警线: 无 → -6%")
-    logger.info(f"  紧急行动: 回撤>15%暂停 → 触及-8%减半仓位,48小时清仓")
-    logger.info(f"  个股止损线: -8% (保持不变)")
-    logger.info(f"  单日亏损限制: -3%")
+    logger.info("  组合止损线: -10%~-15% → -8%")
+    logger.info("  组合预警线: 无 → -6%")
+    logger.info("  紧急行动: 回撤>15%暂停 → 触及-8%减半仓位,48小时清仓")
+    logger.info("  个股止损线: -8% (保持不变)")
+    logger.info("  单日亏损限制: -3%")
     logger.info(f"  连续亏损上限: {new_risk_params['consecutive_loss_limit']}次")
     
     return new_risk_params

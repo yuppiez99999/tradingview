@@ -2,10 +2,11 @@
 v7.5 FactorLibrary — 五维因子库：价值 / 质量 / 动量 / 增长 / 安全
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §6 (src/alpha/)
 """
+
 import numpy as np
 import pandas as pd
 import logging
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FactorGroup:
     """单组因子"""
+
     name: str
     factors: Dict[str, pd.Series] = field(default_factory=dict)
     weight: float = 1.0
@@ -36,11 +38,11 @@ class FactorLibrary:
 
     def __init__(self):
         self.factor_groups: Dict[str, FactorGroup] = {
-            'value': FactorGroup(name='value'),
-            'quality': FactorGroup(name='quality'),
-            'momentum': FactorGroup(name='momentum'),
-            'growth': FactorGroup(name='growth'),
-            'safety': FactorGroup(name='safety'),
+            "value": FactorGroup(name="value"),
+            "quality": FactorGroup(name="quality"),
+            "momentum": FactorGroup(name="momentum"),
+            "growth": FactorGroup(name="growth"),
+            "safety": FactorGroup(name="safety"),
         }
         self._all_factors: Dict[str, pd.Series] = {}
 
@@ -55,10 +57,12 @@ class FactorLibrary:
         return price / max(sales_per_share, 0.01)
 
     def compute_fcf_yield(self, price: pd.Series, fcf_per_share: float) -> pd.Series:
-        return fcf_per_share / max(price.iloc[-1], 0.01)
+        last_price = price.iloc[-1] if len(price) > 0 else 0.0
+        return fcf_per_share / max(float(last_price), 0.01)
 
     def compute_dividend_yield(self, price: pd.Series, dps: float) -> pd.Series:
-        return dps / max(price.iloc[-1], 0.01)
+        last_price = price.iloc[-1] if len(price) > 0 else 0.0
+        return dps / max(float(last_price), 0.01)
 
     # ---------- Quality 因子 ----------
     def compute_roe(self, net_income: float, equity: float) -> float:
@@ -119,8 +123,7 @@ class FactorLibrary:
         common = returns.dropna().index.intersection(market_returns.dropna().index)
         if len(common) < window:
             return 1.0
-        cov = np.cov(returns.loc[common].values[-window:],
-                     market_returns.loc[common].values[-window:])[0, 1]
+        cov = np.cov(returns.loc[common].values[-window:], market_returns.loc[common].values[-window:])[0, 1]
         var_m = market_returns.loc[common].iloc[-window:].var()
         return cov / max(var_m, 1e-8)
 
@@ -130,6 +133,7 @@ class FactorLibrary:
             std = returns.std()
             return 0.0 if pd.isna(std) else float(std)
         import statsmodels.api as sm
+
         y = returns.loc[common].iloc[-window:].dropna()
         x = market_returns.loc[y.index]
         if len(y) < 10:
@@ -165,8 +169,9 @@ class FactorLibrary:
         return np.clip((series - mean) / std, -self.ZSCORE_CLIP, self.ZSCORE_CLIP)
 
     # ---------- 批量因子计算 ----------
-    def build_all_factors(self, price_data: Dict[str, pd.DataFrame],
-                          fundamentals: Dict[str, dict] = None) -> Dict[str, pd.Series]:
+    def build_all_factors(
+        self, price_data: Dict[str, pd.DataFrame], fundamentals: Optional[Dict[str, dict]] = None
+    ) -> Dict[str, pd.Series]:
         """
         对全部标的计算五维因子
 
@@ -181,30 +186,28 @@ class FactorLibrary:
         all_factors = {}
 
         for symbol, df in price_data.items():
-            price = df.get('close', df[df.columns[0]])
-            returns = price.pct_change().dropna()
+            price = df.get("close", df[df.columns[0]])
+            price.pct_change().dropna()
             fund = fundamentals.get(symbol, {})
 
             # --- Value ---
-            all_factors[f'{symbol}_momentum_1m'] = self.zscore(self.compute_momentum(price, 21))
-            all_factors[f'{symbol}_momentum_3m'] = self.zscore(self.compute_momentum(price, 63))
-            all_factors[f'{symbol}_momentum_6m'] = self.zscore(self.compute_momentum(price, 126))
+            all_factors[f"{symbol}_momentum_1m"] = self.zscore(self.compute_momentum(price, 21))
+            all_factors[f"{symbol}_momentum_3m"] = self.zscore(self.compute_momentum(price, 63))
+            all_factors[f"{symbol}_momentum_6m"] = self.zscore(self.compute_momentum(price, 126))
 
             # --- Momentum Technical ---
-            all_factors[f'{symbol}_rsi'] = self.zscore(self.compute_rsi(price, 14)) / 100.0
+            all_factors[f"{symbol}_rsi"] = self.zscore(self.compute_rsi(price, 14)) / 100.0
 
             # --- Safety ---
-            all_factors[f'{symbol}_max_dd_60'] = pd.Series(
-                self.compute_max_dd(price.tail(60)), index=price.index
-            )
+            all_factors[f"{symbol}_max_dd_60"] = pd.Series(self.compute_max_dd(price.tail(60)), index=price.index)
 
             # --- 基本面因子（低频）---
             if fund:
-                pe = self.compute_pe(price, fund.get('eps', 0.01))
-                all_factors[f'{symbol}_pe'] = self.zscore(pe)
+                pe = self.compute_pe(price, fund.get("eps", 0.01))
+                all_factors[f"{symbol}_pe"] = self.zscore(pe)
 
-                roe_val = self.compute_roe(fund.get('net_income', 0), fund.get('equity', 1))
-                all_factors[f'{symbol}_roe'] = pd.Series(roe_val, index=price.index)
+                roe_val = self.compute_roe(fund.get("net_income", 0), fund.get("equity", 1))
+                all_factors[f"{symbol}_roe"] = pd.Series(roe_val, index=price.index)
 
             logger.debug(f"完成 {symbol} 因子计算: {len(all_factors)} 个因子")
 
@@ -215,4 +218,4 @@ class FactorLibrary:
         """将所有因子合并为 DataFrame"""
         if not self._all_factors:
             return None
-        return pd.DataFrame(self._all_factors).dropna(how='all')
+        return pd.DataFrame(self._all_factors).dropna(how="all")

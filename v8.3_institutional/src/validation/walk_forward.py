@@ -17,7 +17,7 @@ walk_forward.py — Purged Walk-Forward Cross-Validation 框架 v1.0
 """
 
 import math
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 
 
@@ -25,13 +25,15 @@ from dataclasses import dataclass, field
 # 数据类
 # ============================================================
 
+
 @dataclass
 class WalkForwardFold:
     """单折 Walk-Forward 结构"""
+
     fold_id: int
     train_start: int
-    train_end: int          # 清洗后的训练结束索引 (排他)
-    train_end_raw: int      # 清洗前的原始训练结束索引
+    train_end: int  # 清洗后的训练结束索引 (排他)
+    train_end_raw: int  # 清洗前的原始训练结束索引
     test_start: int
     test_end: int
     purge_days: int
@@ -54,6 +56,7 @@ class WalkForwardFold:
 @dataclass
 class WalkForwardResult:
     """单折回测结果"""
+
     fold: WalkForwardFold
     train_metrics: Dict[str, float] = field(default_factory=dict)
     test_metrics: Dict[str, float] = field(default_factory=dict)
@@ -78,6 +81,7 @@ class WalkForwardResult:
 @dataclass
 class WalkForwardReport:
     """多折 Walk-Forward 汇总报告"""
+
     results: List[WalkForwardResult]
     n_folds: int
     total_test_days: int
@@ -87,7 +91,7 @@ class WalkForwardReport:
     mean_test_return: float = 0.0
     std_test_return: float = 0.0
     mean_sharpe_decay: float = 0.0
-    prob_sharpe_positive: float = 0.0   # P(SR>0)
+    prob_sharpe_positive: float = 0.0  # P(SR>0)
     is_stable: bool = False
     stability_score: float = 0.0
 
@@ -96,6 +100,7 @@ class WalkForwardReport:
 # 核心API
 # ============================================================
 
+
 def purged_walk_forward_split(
     n_total: int,
     train_size: int,
@@ -103,7 +108,7 @@ def purged_walk_forward_split(
     purge_days: int = 5,
     embargo_days: int = 0,
     min_train_size: int = 100,
-    step_size: int = None,
+    step_size: Optional[int] = None,
 ) -> List[WalkForwardFold]:
     """
     Purged Walk-Forward 时序分割
@@ -154,16 +159,18 @@ def purged_walk_forward_split(
         if test_end > n_total:
             break
 
-        folds.append(WalkForwardFold(
-            fold_id=fold_id,
-            train_start=train_start,
-            train_end=train_end,
-            train_end_raw=train_end_raw,
-            test_start=test_start,
-            test_end=test_end,
-            purge_days=purge_days,
-            embargo_days=embargo_days,
-        ))
+        folds.append(
+            WalkForwardFold(
+                fold_id=fold_id,
+                train_start=train_start,
+                train_end=train_end,
+                train_end_raw=train_end_raw,
+                test_start=test_start,
+                test_end=test_end,
+                purge_days=purge_days,
+                embargo_days=embargo_days,
+            )
+        )
 
         start += step_size
         fold_id += 1
@@ -218,16 +225,18 @@ def combinatorial_purged_cv(
         if train_end - train_start < min_train_size:
             continue
 
-        folds.append(WalkForwardFold(
-            fold_id=k,
-            train_start=train_start,
-            train_end=train_end,
-            train_end_raw=train_end,  # 组合CV中purge已体现在gap中
-            test_start=test_start,
-            test_end=test_end,
-            purge_days=purge_days,
-            embargo_days=embargo_days,
-        ))
+        folds.append(
+            WalkForwardFold(
+                fold_id=k,
+                train_start=train_start,
+                train_end=train_end,
+                train_end_raw=train_end,  # 组合CV中purge已体现在gap中
+                test_start=test_start,
+                test_end=test_end,
+                purge_days=purge_days,
+                embargo_days=embargo_days,
+            )
+        )
 
     return folds
 
@@ -249,9 +258,7 @@ def check_cv_leakage(folds: List[WalkForwardFold]) -> List[str]:
     for i, f in enumerate(folds):
         # 检查1: 同折内
         if f.train_end >= f.test_start:
-            issues.append(
-                f"折{i}: train_end({f.train_end}) >= test_start({f.test_start}), 同折泄露"
-            )
+            issues.append(f"折{i}: train_end({f.train_end}) >= test_start({f.test_start}), 同折泄露")
 
         for j, g in enumerate(folds):
             if i >= j:
@@ -262,9 +269,7 @@ def check_cv_leakage(folds: List[WalkForwardFold]) -> List[str]:
             tj = set(range(g.test_start, g.test_end))
             overlap = ti & tj
             if overlap:
-                issues.append(
-                    f"折{i}测试 vs 折{j}测试: 重叠{len(overlap)}天 [{min(overlap)},{max(overlap)}]"
-                )
+                issues.append(f"折{i}测试 vs 折{j}测试: 重叠{len(overlap)}天 [{min(overlap)},{max(overlap)}]")
 
     return issues
 
@@ -299,11 +304,11 @@ def walk_forward_stability_test(
     n = len(performance_series)
     if n < n_windows * 50:
         return {
-            'stable': False,
-            'windows': [],
-            'reasons': [f'数据量不足: {n}天 < {n_windows * 50}天'],
-            'sharpe_cv': 0.0,
-            'return_cv': 0.0,
+            "stable": False,
+            "windows": [],
+            "reasons": [f"数据量不足: {n}天 < {n_windows * 50}天"],
+            "sharpe_cv": 0.0,
+            "return_cv": 0.0,
         }
 
     window_size = n // n_windows
@@ -322,42 +327,44 @@ def walk_forward_stability_test(
         sharpe = ann_ret / max(ann_vol, 0.0001)
         max_dd = _max_drawdown_from_returns(window_rets)
 
-        window_stats.append({
-            'window': w,
-            'start': start,
-            'end': end,
-            'n_days': len(window_rets),
-            'ann_return': ann_ret,
-            'ann_volatility': ann_vol,
-            'sharpe': sharpe,
-            'max_drawdown': max_dd,
-        })
+        window_stats.append(
+            {
+                "window": w,
+                "start": start,
+                "end": end,
+                "n_days": len(window_rets),
+                "ann_return": ann_ret,
+                "ann_volatility": ann_vol,
+                "sharpe": sharpe,
+                "max_drawdown": max_dd,
+            }
+        )
 
     if len(window_stats) < 2:
         return {
-            'stable': True,
-            'windows': window_stats,
-            'reasons': ['窗口数不足, 无法评估稳定性'],
-            'sharpe_cv': 0.0,
-            'return_cv': 0.0,
+            "stable": True,
+            "windows": window_stats,
+            "reasons": ["窗口数不足, 无法评估稳定性"],
+            "sharpe_cv": 0.0,
+            "return_cv": 0.0,
         }
 
     # 计算跨窗口统计
-    sharpes = [w['sharpe'] for w in window_stats]
-    returns = [w['ann_return'] for w in window_stats]
+    sharpes = [w["sharpe"] for w in window_stats]
+    returns = [w["ann_return"] for w in window_stats]
 
     mean_sharpe = sum(sharpes) / len(sharpes)
     mean_return = sum(returns) / len(returns)
 
-    std_sharpe = math.sqrt(
-        sum((s - mean_sharpe)**2 for s in sharpes) / (len(sharpes) - 1)
-    ) if len(sharpes) > 1 else 0.0
-    std_return = math.sqrt(
-        sum((r - mean_return)**2 for r in returns) / (len(returns) - 1)
-    ) if len(returns) > 1 else 0.0
+    std_sharpe = (
+        math.sqrt(sum((s - mean_sharpe) ** 2 for s in sharpes) / (len(sharpes) - 1)) if len(sharpes) > 1 else 0.0
+    )
+    std_return = (
+        math.sqrt(sum((r - mean_return) ** 2 for r in returns) / (len(returns) - 1)) if len(returns) > 1 else 0.0
+    )
 
-    sharpe_cv = abs(std_sharpe / mean_sharpe) if mean_sharpe != 0 else float('inf')
-    return_cv = abs(std_return / mean_return) if mean_return != 0 else float('inf')
+    sharpe_cv = abs(std_sharpe / mean_sharpe) if mean_sharpe != 0 else float("inf")
+    return_cv = abs(std_return / mean_return) if mean_return != 0 else float("inf")
 
     stable = True
     reasons = []
@@ -366,8 +373,7 @@ def walk_forward_stability_test(
     if sharpe_cv > sharpe_range_threshold:
         stable = False
         reasons.append(
-            f"夏普变异系数{sharpe_cv:.1f} > 阈值{sharpe_range_threshold} "
-            f"(跨窗口夏普: {[f'{s:.2f}' for s in sharpes]})"
+            f"夏普变异系数{sharpe_cv:.1f} > 阈值{sharpe_range_threshold} (跨窗口夏普: {[f'{s:.2f}' for s in sharpes]})"
         )
 
     # 收益变异检查
@@ -375,21 +381,21 @@ def walk_forward_stability_test(
         stable = False
         reasons.append(
             f"收益变异系数{return_cv:.1f} > 阈值{return_range_threshold} "
-            f"(跨窗口收益: {[f'{r*100:.1f}%' for r in returns]})"
+            f"(跨窗口收益: {[f'{r * 100:.1f}%' for r in returns]})"
         )
 
     # 符号一致性 (所有窗口收益同号)
     if all(r > 0 for r in returns) or all(r < 0 for r in returns):
         pass  # 一致性好
     else:
-        reasons.append(f"收益符号不一致: {[f'{r*100:.1f}%' for r in returns]}")
+        reasons.append(f"收益符号不一致: {[f'{r * 100:.1f}%' for r in returns]}")
 
     return {
-        'stable': stable,
-        'windows': window_stats,
-        'reasons': reasons,
-        'sharpe_cv': sharpe_cv,
-        'return_cv': return_cv,
+        "stable": stable,
+        "windows": window_stats,
+        "reasons": reasons,
+        "sharpe_cv": sharpe_cv,
+        "return_cv": return_cv,
     }
 
 
@@ -407,8 +413,11 @@ def generate_walk_forward_report(
     """
     if not fold_results:
         return WalkForwardReport(
-            results=[], n_folds=0, total_test_days=0,
-            is_stable=False, stability_score=0.0,
+            results=[],
+            n_folds=0,
+            total_test_days=0,
+            is_stable=False,
+            stability_score=0.0,
         )
 
     n_folds = len(fold_results)
@@ -420,13 +429,9 @@ def generate_walk_forward_report(
     n = len(test_sharpes)
 
     mean_sharpe = sum(test_sharpes) / n
-    std_sharpe = math.sqrt(
-        sum((s - mean_sharpe)**2 for s in test_sharpes) / max(n - 1, 1)
-    )
+    std_sharpe = math.sqrt(sum((s - mean_sharpe) ** 2 for s in test_sharpes) / max(n - 1, 1))
     mean_return = sum(test_returns) / n
-    std_return = math.sqrt(
-        sum((r - mean_return)**2 for r in test_returns) / max(n - 1, 1)
-    )
+    std_return = math.sqrt(sum((r - mean_return) ** 2 for r in test_returns) / max(n - 1, 1))
     mean_decay = sum(sharpe_decays) / n
 
     # P(SR > 0): 正夏普折占比
@@ -443,7 +448,7 @@ def generate_walk_forward_report(
         stability += 0.3
     if prob_positive >= 0.66:
         stability += 0.3
-    sharpe_cv = abs(std_sharpe / mean_sharpe) if mean_sharpe != 0 else float('inf')
+    sharpe_cv = abs(std_sharpe / mean_sharpe) if mean_sharpe != 0 else float("inf")
     if sharpe_cv < 1.0:
         stability += 0.2
     if all(r > 0 for r in test_returns):
@@ -468,13 +473,14 @@ def generate_walk_forward_report(
 # 辅助函数
 # ============================================================
 
+
 def _annualized_return(daily_rets: List[float]) -> float:
     """年化收益率 (252交易日)"""
     if not daily_rets:
         return 0.0
     total = 1.0
     for r in daily_rets:
-        total *= (1 + r)
+        total *= 1 + r
     n_years = len(daily_rets) / 252
     if n_years <= 0:
         return 0.0
@@ -487,7 +493,7 @@ def _annualized_volatility(daily_rets: List[float]) -> float:
     if n < 2:
         return 0.0
     mean = sum(daily_rets) / n
-    var = sum((r - mean)**2 for r in daily_rets) / (n - 1)
+    var = sum((r - mean) ** 2 for r in daily_rets) / (n - 1)
     return math.sqrt(var) * math.sqrt(252)
 
 
@@ -511,6 +517,7 @@ def _max_drawdown_from_returns(daily_rets: List[float]) -> float:
 # ============================================================
 # 便捷打印函数
 # ============================================================
+
 
 def format_fold_summary(fold: WalkForwardFold) -> str:
     """格式化单折摘要"""
@@ -536,9 +543,9 @@ def print_walk_forward_report(report: WalkForwardReport):
     print("=" * 60)
     print(f"  总样本外天数: {report.total_test_days}")
     print(f"  样本外夏普: {report.mean_test_sharpe:.2f} ± {report.std_test_sharpe:.2f}")
-    print(f"  样本外年化: {report.mean_test_return*100:.2f}% ± {report.std_test_return*100:.2f}%")
-    print(f"  夏普衰减: {report.mean_sharpe_decay*100:.1f}%")
-    print(f"  P(SR>0): {report.prob_sharpe_positive*100:.0f}%")
+    print(f"  样本外年化: {report.mean_test_return * 100:.2f}% ± {report.std_test_return * 100:.2f}%")
+    print(f"  夏普衰减: {report.mean_sharpe_decay * 100:.1f}%")
+    print(f"  P(SR>0): {report.prob_sharpe_positive * 100:.0f}%")
     print(f"  稳定性评分: {report.stability_score:.2f}")
     print(f"  通过检验: {'是' if report.is_stable else '否'}")
 

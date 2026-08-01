@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import sys
-import time
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -30,9 +29,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.infra.core import (
-    PerformanceRecord,
     StrategyAlreadyRegisteredError,
-    StrategyMetadata,
     StrategyNotFoundError,
     StrategyRegistry,
     registry,

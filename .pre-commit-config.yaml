@@ -1,0 +1,51 @@
+# pre-commit 钩子 — 28-终极量化交易系统8.4
+# 作用：在提交前拦截"静默吞异常 / 裸 except / 未使用 import / 安全漏洞 / 死代码"
+# 安装：pip install pre-commit ruff bandit vulture && pre-commit install
+# 手工全量检查：pre-commit run --all-files
+#
+# 门禁范围（v8.4 Phase A 扩展）：
+#   - v8.3_institutional/(src|utils)   核心机构策略
+#   - 根目录核心交易/风控/执行模块     历史盲区，本次纳入
+# 排除：_*.py 一次性脚本、tests/、research/、tools/、scripts/、ms_strategy/
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: ["--fix", "--exit-non-zero-on-fix"]
+        # 排除一次性脚本与辅助目录，其余 .py 全部纳入门禁
+        exclude: '(_.*\.py$|^tests/|^research/|^tools/|^scripts/|^ms_strategy/|^v8\.3_institutional/src/ai/llm_client\.py$)'
+      - id: ruff-format
+        exclude: '(_.*\.py$|^tests/|^research/|^tools/|^scripts/|^ms_strategy/|^v8\.3_institutional/src/ai/llm_client\.py$)'
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        # -lll 只报 HIGH 严重度，-ii 只报 HIGH 置信度，-c 指定配置
+        args: ["-c", "bandit.yaml", "-lll", "-ii", "-r"]
+        # bandit 只扫描核心交易路径，避免对脚本/测试误报
+        files: '^(v8\.3_institutional/(src|utils)/|daily_trade_executor|generate_daily_report|live_scheduler|alpha_hedge_engine|hedge_execution_orders|stop_loss_monitor|build_plan_executor).*\.py$'
+        exclude: '(_.*\.py$|llm_client\.py$)'
+
+  - repo: local
+    hooks:
+      - id: forbid-bare-except
+        name: 禁止裸 except 与无日志的宽泛 except
+        entry: python scripts/check_exception_policy.py
+        language: system
+        types: [python]
+        # 自定义脚本已自带 baseline 机制，保持原范围
+        files: ^v8\.3_institutional/(src|utils)/.*\.py$
+
+      - id: vulture
+        name: 死代码扫描（unused import / variable / function）
+        entry: vulture
+        language: system
+        types: [python]
+        # min-confidence 80 过滤低置信度噪声；仅核心路径
+        args: ["--min-confidence", "80"]
+        files: '^(v8\.3_institutional/src/|daily_trade_executor|generate_daily_report|live_scheduler|alpha_hedge_engine).*\.py$'
+        exclude: '(_.*\.py$)'
+        # 死代码不阻断提交（信息性），除非加 --exit-non-zero-on-fix

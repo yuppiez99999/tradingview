@@ -23,7 +23,7 @@ def test_web_search_coal(port):
                 patterns = [
                     rf'{port}港.*?(\d+(?:\.\d+)?)\s*万吨',
                     rf'{port}.*?(\d+(?:\.\d+)?)\s*万吨',
-                    rf'库存.*?(\d+(?:\.\d+)?)\s*万吨',
+                    r'库存.*?(\d+(?:\.\d+)?)\s*万吨',
                 ]
                 for pattern in patterns:
                     m = re.search(pattern, content)

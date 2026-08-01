@@ -9,7 +9,7 @@ REM   run_all_modules.bat all      (all, for testing)
 REM   run_all_modules.bat pre dry-run
 REM ============================================================
 
-set PYTHON=C:\Program Files\Python38\python.exe
+set PYTHON=C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe
 set WORKDIR=%~dp0
 set LOGDIR=%WORKDIR%logs
 set SCRIPT=%WORKDIR%run_all_modules.py

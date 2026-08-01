@@ -635,6 +635,8 @@ class TestV9FullBacktestNightly:
         import sys
         if str(PROJECT_ROOT) not in sys.path:
             sys.path.insert(0, str(PROJECT_ROOT))
+        if str(PROJECT_ROOT / "research") not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT / "research"))
 
         # 加载基线指标
         baseline_path = (

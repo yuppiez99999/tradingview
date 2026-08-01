@@ -1,5 +1,4 @@
 """验证所有向量化优化的正确性"""
-import sys
 import numpy as np
 import pandas as pd
 
@@ -79,8 +78,8 @@ for i in range(len(orig_records)):
         assert orig_records[i][key] == vect_records[i][key], f"字段 {key} 在第 {i} 行不匹配"
 
 print(f"✓ 记录数量: {len(orig_records)}")
-print(f"✓ 所有字段完全匹配")
-print(f"✓ 测试通过")
+print("✓ 所有字段完全匹配")
+print("✓ 测试通过")
 
 # ============================================================================
 # 测试 2: rebuild_etf_prices_from_returns.py - 价格重建
@@ -132,7 +131,7 @@ max_diff_extreme = np.max(np.abs(orig_extreme.values - vect_extreme.values))
 assert max_diff_extreme < 1e-10, f"极端收益率测试失败: {max_diff_extreme}"
 
 print(f"✓ 测试用例 2 (极端收益率): 长度={len(orig_extreme)}, 最大差异={max_diff_extreme:.2e}")
-print(f"✓ 测试通过")
+print("✓ 测试通过")
 
 # ============================================================================
 # 测试 3: risk_budget_optimizer.py - 因子检查
@@ -168,7 +167,7 @@ print(f"✓ 因子数量: {len(active_factor)}")
 print(f"✓ 违反阈值: {max_exposure}")
 print(f"✓ 检测到违反: {len(orig_violations)} 个")
 print(f"✓ 违反列表: {orig_violations}")
-print(f"✓ 测试通过")
+print("✓ 测试通过")
 
 # ============================================================================
 # 测试 4: qlib_*_train.py - 字典构建
@@ -201,7 +200,7 @@ assert orig_dict == vect_dict, f"字典不匹配: {orig_dict} vs {vect_dict}"
 
 print(f"✓ 标的数量: {len(test_data)}")
 print(f"✓ 字典内容: {vect_dict}")
-print(f"✓ 测试通过")
+print("✓ 测试通过")
 
 # ============================================================================
 # 性能对比
@@ -231,7 +230,7 @@ for _ in range(10):
     vectorized_dataframe_to_qlib(large_df)
 vect_time = time.perf_counter() - start
 
-print(f"\n[qlib_data_bridge] 1000 行 DataFrame 转换 (10 次平均)")
+print("\n[qlib_data_bridge] 1000 行 DataFrame 转换 (10 次平均)")
 print(f"  原始: {orig_time/10*1000:.2f} ms")
 print(f"  优化: {vect_time/10*1000:.2f} ms")
 print(f"  加速: {orig_time/vect_time:.1f}x")
@@ -249,7 +248,7 @@ for _ in range(100):
     vectorized_price_rebuild(large_rets, 100.0)
 vect_time = time.perf_counter() - start
 
-print(f"\n[rebuild_prices] 500 行价格重建 (100 次平均)")
+print("\n[rebuild_prices] 500 行价格重建 (100 次平均)")
 print(f"  原始: {orig_time/100*1000:.2f} ms")
 print(f"  优化: {vect_time/100*1000:.2f} ms")
 print(f"  加速: {orig_time/vect_time:.1f}x")

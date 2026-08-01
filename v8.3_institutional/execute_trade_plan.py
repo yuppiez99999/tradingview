@@ -29,11 +29,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import time
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 
 # ============================================================
 # 路径初始化
@@ -178,8 +177,8 @@ def _run_guards_standalone(trade_date: str, plan: Dict) -> Dict:
 
     # Guard 4: Hedge + Protective Put
     try:
-        from utils.hedge_execution_engine import HedgeExecutionEngine
-        from utils.protective_put_engine import ProtectivePutEngine
+        from utils.hedge_execution_engine import HedgeExecutionEngine  # noqa: F401
+        from utils.protective_put_engine import ProtectivePutEngine  # noqa: F401
     except ImportError:
         logger.info("[Guard4] 对冲模块不可用 (降级)")
 
@@ -294,7 +293,7 @@ def _generate_execution_report(trade_date: str, plan: Dict, engine: MockExecutio
     lines.append(f"# 交易计划执行报告 — {trade_date}")
     lines.append("")
     lines.append(f"> 生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}")
-    lines.append(f"> 执行模式: MOCK_BROKER (v8.4 OPTIONS_ONLY)")
+    lines.append("> 执行模式: MOCK_BROKER (v8.4 OPTIONS_ONLY)")
     lines.append("")
 
     # Guard 结果
@@ -313,8 +312,8 @@ def _generate_execution_report(trade_date: str, plan: Dict, engine: MockExecutio
     pp = rg.get("protective_put", {})
     pp_ok = pp.get("passed", True)
 
-    lines.append(f"| Guard | 状态 | 详情 |")
-    lines.append(f"|---|---|---|")
+    lines.append("| Guard | 状态 | 详情 |")
+    lines.append("|---|---|---|")
     lines.append(f"| 1. KillSwitch | {'PASS' if ks_ok else 'BLOCKED'} | L{ks.get('level',0)} |")
     lines.append(f"| 2. Drawdown | {'PASS' if dd_ok else 'TRIGGERED'} | Level {dd.get('level',0)} |")
     lines.append(f"| 3. VolTarget | {'PASS' if vt_ok else 'SCALED'} | scale={vt.get('vol_scale',1.0):.2f} |")

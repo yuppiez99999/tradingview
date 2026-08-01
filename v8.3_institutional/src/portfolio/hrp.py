@@ -15,10 +15,11 @@ v7.6 HRP (Hierarchical Risk Parity) — 分层风险平价
 
 优势: 不需要逆协方差矩阵 → 更稳定, 样本外表现优于传统 RP
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -39,11 +40,13 @@ class HierarchicalRiskParity:
         # weights: {symbol: weight}
     """
 
-    def __init__(self,
-                 cluster_method: str = 'ward',
-                 distance_method: str = 'correlation',
-                 min_weight: float = 0.01,
-                 max_weight: float = 0.30):
+    def __init__(
+        self,
+        cluster_method: str = "ward",
+        distance_method: str = "correlation",
+        min_weight: float = 0.01,
+        max_weight: float = 0.30,
+    ):
         """
         Args:
             cluster_method: 聚类方法 ('ward'/'single'/'complete'/'average')
@@ -239,14 +242,13 @@ class HierarchicalRiskParity:
         self.sorted_idx_ = sorted_idx
         self.cov_ = cov
 
-        logger.info(f"HRP 拟合完成: {len(weights_map)} 标的, "
-                    f"top3: {sorted(weights_map.items(), key=lambda x: -x[1])[:3]}")
+        logger.info(
+            f"HRP 拟合完成: {len(weights_map)} 标的, top3: {sorted(weights_map.items(), key=lambda x: -x[1])[:3]}"
+        )
 
         return weights_map
 
-    def _ledoit_wolf_shrink(self, sample_cov: np.ndarray,
-                            returns: pd.DataFrame,
-                            shrinkage: float = 0.3) -> np.ndarray:
+    def _ledoit_wolf_shrink(self, sample_cov: np.ndarray, returns: pd.DataFrame, shrinkage: float = 0.3) -> np.ndarray:
         """Ledoit-Wolf 风格收缩估计 (简化版)"""
         n = sample_cov.shape[0]
 
@@ -276,10 +278,7 @@ class HierarchicalRiskParity:
     def _apply_constraints(self, weights: Dict[str, float]) -> Dict[str, float]:
         """应用 min/max 约束"""
         # 先 clip
-        clipped = {
-            k: np.clip(v, self.min_weight, self.max_weight)
-            for k, v in weights.items()
-        }
+        clipped = {k: np.clip(v, self.min_weight, self.max_weight) for k, v in weights.items()}
         return clipped
 
     def _fallback_rp(self, returns: pd.DataFrame) -> Dict[str, float]:
@@ -310,18 +309,15 @@ class HierarchicalRiskParity:
 
         # 风险贡献 (Euler decomposition)
         mrc = cov @ w  # Marginal Risk Contribution
-        rc = w * mrc   # Risk Contribution
+        rc = w * mrc  # Risk Contribution
         rc_pct = rc / max(rc.sum(), 1e-8)
 
         return {
-            'portfolio_vol': round(float(port_vol), 6),
-            'annual_vol': round(float(port_vol * np.sqrt(252)), 4),
-            'risk_contributions': {
-                s: round(float(pct), 4)
-                for s, pct in zip(symbols, rc_pct)
-            },
-            'risk_concentration_hhi': round(float(np.sum(rc_pct ** 2)), 4),
-            'weight_concentration_hhi': round(float(np.sum(w ** 2)), 4),
+            "portfolio_vol": round(float(port_vol), 6),
+            "annual_vol": round(float(port_vol * np.sqrt(252)), 4),
+            "risk_contributions": {s: round(float(pct), 4) for s, pct in zip(symbols, rc_pct)},
+            "risk_concentration_hhi": round(float(np.sum(rc_pct**2)), 4),
+            "weight_concentration_hhi": round(float(np.sum(w**2)), 4),
         }
 
     def plot_dendrogram(self, title: str = "HRP 聚类树"):
@@ -332,10 +328,15 @@ class HierarchicalRiskParity:
 
         try:
             import matplotlib.pyplot as plt
+
             fig, ax = plt.subplots(figsize=(12, 6))
-            dendrogram(self.clusters_, labels=list(self.weights_.keys()),
-                       leaf_rotation=90, leaf_font_size=8,
-                       color_threshold=0.7 * max(self.clusters_[:, 2]))
+            dendrogram(
+                self.clusters_,
+                labels=list(self.weights_.keys()),
+                leaf_rotation=90,
+                leaf_font_size=8,
+                color_threshold=0.7 * max(self.clusters_[:, 2]),
+            )
             ax.set_title(title)
             ax.set_xlabel("标的")
             ax.set_ylabel("距离")

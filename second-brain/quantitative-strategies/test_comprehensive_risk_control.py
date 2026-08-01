@@ -4,8 +4,7 @@
 """
 
 import numpy as np
-import pandas as pd
-from risk_control_system import MultiLevelRiskControlSystem, RiskType, RiskLevel
+from risk_control_system import MultiLevelRiskControlSystem, RiskType
 import json
 from datetime import datetime, timedelta
 
@@ -147,7 +146,7 @@ def test_basic_functions(risk_system, test_data):
     
     # 风险摘要
     summary = risk_system.get_risk_summary(test_data)
-    print(f"\n风险摘要:")
+    print("\n风险摘要:")
     print(f"  整体风险: {summary['overall_risk_score']:.3f} ({summary['overall_risk_level']})")
     print(f"  活跃告警: {summary['active_alerts']}")
 
@@ -248,7 +247,7 @@ def test_historical_analysis(risk_system):
     
     # 进行趋势分析
     trend_analysis = risk_system.get_risk_trend_analysis(historical_data)
-    print(f"风险趋势分析:")
+    print("风险趋势分析:")
     print(f"  当前风险分数: {trend_analysis['current_risk_score']:.3f}")
     print(f"  平均风险分数: {trend_analysis['average_risk_score']:.3f}")
     print(f"  风险波动性: {trend_analysis['risk_volatility']:.3f}")
@@ -273,7 +272,7 @@ def test_realtime_monitoring(risk_system):
         current_data['operational']['trades_per_day'] += i * 20
         
         # 计算实时风险
-        overall_score, individual_scores = risk_system.calculate_overall_risk(current_data)
+        overall_score, _individual_scores = risk_system.calculate_overall_risk(current_data)
         alerts = risk_system.generate_all_alerts(current_data)
         
         print(f"\n时间点 {i+1}:")

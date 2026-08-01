@@ -19,8 +19,6 @@ import tempfile
 import json
 import time
 import threading
-import numpy as np
-from pathlib import Path
 from datetime import datetime, timedelta
 
 # 设置正确的模块路径 - tests目录在v8.3_institutional/tests下
@@ -43,7 +41,7 @@ class TestInputValidation(unittest.TestCase):
         """测试1: 空列表输入处理"""
         data = []
         with self.assertRaises((ValueError, IndexError)):
-            first_element = data[0]
+            data[0]
     
     def test_none_parameter(self):
         """测试2: None参数传递处理"""
@@ -56,7 +54,7 @@ class TestInputValidation(unittest.TestCase):
         """测试3: 类型错误输入处理"""
         string_input = "should_be_int"
         with self.assertRaises(TypeError):
-            result = string_input + 5
+            string_input + 5
 
 
 # ============================================================================
@@ -78,7 +76,7 @@ class TestFilesystemExceptions(unittest.TestCase):
         nonexistent_file = os.path.join(self.temp_dir, "nonexistent.txt")
         with self.assertRaises(FileNotFoundError):
             with open(nonexistent_file, 'r') as f:
-                content = f.read()
+                f.read()
     
     def test_permission_denied(self):
         """测试5: 权限不足异常(模拟)"""
@@ -95,7 +93,7 @@ class TestFilesystemExceptions(unittest.TestCase):
             f.write("{invalid json content")
         with self.assertRaises(json.JSONDecodeError):
             with open(invalid_json_file, 'r') as f:
-                config = json.load(f)
+                json.load(f)
 
 
 # ============================================================================
@@ -355,7 +353,7 @@ class TestVegaMonitorExceptions(unittest.TestCase):
             )
         ]
         try:
-            exposure = monitor.calculate_exposure(positions)
+            monitor.calculate_exposure(positions)
         except Exception as e:
             self.fail(f"负净值场景不应抛出异常: {e}")
     
@@ -436,14 +434,14 @@ class TestComprehensiveExceptionScenarios(unittest.TestCase):
             try:
                 inner_function()
             except (TypeError, ValueError) as e:
-                raise RuntimeError(f"外层处理: {e}")
+                raise RuntimeError(f"外层处理: {e}") from e
         
         def inner_function():
             try:
                 data = []
                 _ = data[0]
             except IndexError as e:
-                raise TypeError(f"类型转换: {e}")
+                raise TypeError(f"类型转换: {e}") from e
         
         with self.assertRaises(RuntimeError) as exc_info:
             outer_function()
@@ -453,7 +451,7 @@ class TestComprehensiveExceptionScenarios(unittest.TestCase):
         """测试30: 异常上下文链"""
         with self.assertRaises(ValueError) as context:
             try:
-                result = 1 / 0
+                pass
             except ZeroDivisionError as e:
                 raise ValueError("除零错误已捕获") from e
         

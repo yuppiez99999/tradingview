@@ -12,12 +12,13 @@ WonderTrader风格执行算法模块
 
 import math
 import time
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
+from typing import Dict, List, Tuple
+from datetime import datetime
 
 
-def _get_adaptive_execution_params(target_amount: float, ref_price: float,
-                                   avg_daily_volume: float, volatility: float) -> Dict:
+def _get_adaptive_execution_params(
+    target_amount: float, ref_price: float, avg_daily_volume: float, volatility: float
+) -> Dict:
     """根据实时市场数据计算自适应执行参数
 
     Args:
@@ -80,7 +81,7 @@ def _get_adaptive_execution_params(target_amount: float, ref_price: float,
 
 class MinImpactExecutor:
     """最小冲击拆单执行器
-    
+
     将大单拆分为多个小单，根据市场流动性和冲击模型决定每笔订单的大小和时间间隔。
     核心思想：订单越大，市场冲击越大，因此需要拆分并分散执行。
     """
@@ -89,16 +90,17 @@ class MinImpactExecutor:
         self.max_participation_pct = max_participation_pct
         self.min_order_size = min_order_size
 
-    def calculate_optimal_splits(self, target_amount: float, ref_price: float,
-                                 avg_daily_volume: float = 0, volatility: float = 0.02) -> List[Dict]:
+    def calculate_optimal_splits(
+        self, target_amount: float, ref_price: float, avg_daily_volume: float = 0, volatility: float = 0.02
+    ) -> List[Dict]:
         """计算最优拆单方案
-        
+
         Args:
             target_amount: 目标金额（元）
             ref_price: 参考价格
             avg_daily_volume: 日均成交量（股），用于估算市场深度
             volatility: 波动率（默认2%）
-            
+
         Returns:
             拆单列表，每个元素包含：order_idx, qty, amount, delay_minutes
         """
@@ -107,13 +109,15 @@ class MinImpactExecutor:
 
         target_qty = int(target_amount / ref_price)
         if target_qty < self.min_order_size:
-            return [{
-                "order_idx": 1,
-                "qty": target_qty,
-                "amount": round(target_qty * ref_price, 2),
-                "delay_minutes": 0,
-                "type": "single",
-            }]
+            return [
+                {
+                    "order_idx": 1,
+                    "qty": target_qty,
+                    "amount": round(target_qty * ref_price, 2),
+                    "delay_minutes": 0,
+                    "type": "single",
+                }
+            ]
 
         adaptive = _get_adaptive_execution_params(target_amount, ref_price, avg_daily_volume, volatility)
         max_participation_pct = adaptive.get("max_participation_pct", self.max_participation_pct)
@@ -144,16 +148,18 @@ class MinImpactExecutor:
             else:
                 delay = int((5 + i * 3) * delay_factor)
 
-            orders.append({
-                "order_idx": i + 1,
-                "qty": qty,
-                "amount": round(qty * ref_price, 2),
-                "delay_minutes": delay,
-                "type": "min_impact",
-                "cumulative_qty": total_qty,
-                "cumulative_amount": round(total_qty * ref_price, 2),
-                "adaptive_params": adaptive,
-            })
+            orders.append(
+                {
+                    "order_idx": i + 1,
+                    "qty": qty,
+                    "amount": round(qty * ref_price, 2),
+                    "delay_minutes": delay,
+                    "type": "min_impact",
+                    "cumulative_qty": total_qty,
+                    "cumulative_amount": round(total_qty * ref_price, 2),
+                    "adaptive_params": adaptive,
+                }
+            )
 
             if total_qty >= target_qty:
                 break
@@ -162,11 +168,11 @@ class MinImpactExecutor:
 
     def simulate_execution(self, orders: List[Dict], market_impact_factor: float = 0.001) -> Dict:
         """模拟执行结果
-        
+
         Args:
             orders: 拆单列表
             market_impact_factor: 市场冲击系数（每100万订单价格滑点比例）
-            
+
         Returns:
             执行结果摘要
         """
@@ -189,7 +195,7 @@ class MinImpactExecutor:
             slippage_total += impact * order["amount"]
 
         if total_executed > 0:
-            avg_execution_price = total_amount / total_executed
+            avg_execution_price = total_amount / total_executed  # type: ignore
 
         return {
             "total_qty": total_executed,
@@ -206,7 +212,7 @@ class MinImpactExecutor:
 
 class TWAPExecutor:
     """时间加权平均执行器
-    
+
     在指定时间段内均匀拆分订单，以时间加权平均价格执行。
     """
 
@@ -218,16 +224,17 @@ class TWAPExecutor:
         """计算TWAP拆单方案"""
         return self.calculate_optimal_splits(target_amount, ref_price)
 
-    def calculate_optimal_splits(self, target_amount: float, ref_price: float,
-                                 avg_daily_volume: float = 0, volatility: float = 0.02) -> List[Dict]:
+    def calculate_optimal_splits(
+        self, target_amount: float, ref_price: float, avg_daily_volume: float = 0, volatility: float = 0.02
+    ) -> List[Dict]:
         """计算TWAP拆单方案
-        
+
         Args:
             target_amount: 目标金额
             ref_price: 参考价格
             avg_daily_volume: 日均成交量（股）
             volatility: 波动率
-            
+
         Returns:
             拆单列表
         """
@@ -252,16 +259,18 @@ class TWAPExecutor:
             qty = base_qty + (1 if i < remainder else 0)
             total_qty += qty
 
-            orders.append({
-                "order_idx": i + 1,
-                "qty": qty,
-                "amount": round(qty * ref_price, 2),
-                "delay_minutes": i * interval_minutes,
-                "type": "twap",
-                "cumulative_qty": total_qty,
-                "cumulative_amount": round(total_qty * ref_price, 2),
-                "adaptive_params": adaptive,
-            })
+            orders.append(
+                {
+                    "order_idx": i + 1,
+                    "qty": qty,
+                    "amount": round(qty * ref_price, 2),
+                    "delay_minutes": i * interval_minutes,
+                    "type": "twap",
+                    "cumulative_qty": total_qty,
+                    "cumulative_amount": round(total_qty * ref_price, 2),
+                    "adaptive_params": adaptive,
+                }
+            )
 
             if total_qty >= target_qty:
                 break
@@ -271,7 +280,7 @@ class TWAPExecutor:
 
 class VWAPExecutor:
     """成交量加权平均执行器
-    
+
     根据历史成交量分布来分配订单执行时间，在成交量高峰期执行更多订单。
     """
 
@@ -280,45 +289,79 @@ class VWAPExecutor:
 
     def get_volume_profile(self, session_type: str = "day") -> List[Tuple[int, float]]:
         """获取成交量分布曲线
-        
+
         Args:
             session_type: 交易时段类型（day/night）
-            
+
         Returns:
             [(分钟偏移, 权重), ...]
         """
         if session_type == "night":
             return [
-                (0, 0.05), (5, 0.08), (10, 0.10), (15, 0.12), (20, 0.10),
-                (25, 0.08), (30, 0.08), (35, 0.07), (40, 0.07), (45, 0.07),
-                (50, 0.06), (55, 0.06), (60, 0.05),
+                (0, 0.05),
+                (5, 0.08),
+                (10, 0.10),
+                (15, 0.12),
+                (20, 0.10),
+                (25, 0.08),
+                (30, 0.08),
+                (35, 0.07),
+                (40, 0.07),
+                (45, 0.07),
+                (50, 0.06),
+                (55, 0.06),
+                (60, 0.05),
             ]
         else:
             return [
-                (0, 0.08), (5, 0.10), (10, 0.08), (15, 0.06), (20, 0.05),
-                (25, 0.04), (30, 0.04), (35, 0.04), (40, 0.04), (45, 0.04),
-                (50, 0.04), (55, 0.04), (60, 0.04), (65, 0.04), (70, 0.04),
-                (75, 0.04), (80, 0.04), (85, 0.04), (90, 0.04), (95, 0.04),
-                (100, 0.04), (105, 0.04), (110, 0.04), (115, 0.05), (120, 0.06),
+                (0, 0.08),
+                (5, 0.10),
+                (10, 0.08),
+                (15, 0.06),
+                (20, 0.05),
+                (25, 0.04),
+                (30, 0.04),
+                (35, 0.04),
+                (40, 0.04),
+                (45, 0.04),
+                (50, 0.04),
+                (55, 0.04),
+                (60, 0.04),
+                (65, 0.04),
+                (70, 0.04),
+                (75, 0.04),
+                (80, 0.04),
+                (85, 0.04),
+                (90, 0.04),
+                (95, 0.04),
+                (100, 0.04),
+                (105, 0.04),
+                (110, 0.04),
+                (115, 0.05),
+                (120, 0.06),
             ]
 
-    def calculate_splits(self, target_amount: float, ref_price: float,
-                         session_type: str = "day") -> List[Dict]:
+    def calculate_splits(self, target_amount: float, ref_price: float, session_type: str = "day") -> List[Dict]:
         """计算VWAP拆单方案"""
         return self.calculate_optimal_splits(target_amount, ref_price, session_type=session_type)
 
-    def calculate_optimal_splits(self, target_amount: float, ref_price: float,
-                                 avg_daily_volume: float = 0, volatility: float = 0.02,
-                                 session_type: str = "day") -> List[Dict]:
+    def calculate_optimal_splits(
+        self,
+        target_amount: float,
+        ref_price: float,
+        avg_daily_volume: float = 0,
+        volatility: float = 0.02,
+        session_type: str = "day",
+    ) -> List[Dict]:
         """计算VWAP拆单方案
-        
+
         Args:
             target_amount: 目标金额
             ref_price: 参考价格
             avg_daily_volume: 日均成交量（股）
             volatility: 波动率
             session_type: 交易时段类型
-            
+
         Returns:
             拆单列表
         """
@@ -329,14 +372,14 @@ class VWAPExecutor:
         volume_profile = self.get_volume_profile(session_type)
 
         # 根据深度和波动率动态调整权重分布
-        depth_ratio = adaptive.get("depth_ratio", 0.0)
+        adaptive.get("depth_ratio", 0.0)
         high_volatility = adaptive.get("high_volatility", False)
         shallow_market = adaptive.get("shallow_market", False)
 
         adjusted_profile = []
         if shallow_market or high_volatility:
             # 深度不足或高波动时，将更多权重分配到后半段
-            for idx, (delay, weight) in enumerate(volume_profile):
+            for _idx, (delay, weight) in enumerate(volume_profile):
                 if delay >= 60:
                     adjusted_weight = weight * 1.3
                 elif delay <= 15:
@@ -363,17 +406,19 @@ class VWAPExecutor:
 
             total_qty += qty
 
-            orders.append({
-                "order_idx": idx + 1,
-                "qty": qty,
-                "amount": round(qty * ref_price, 2),
-                "delay_minutes": delay,
-                "type": "vwap",
-                "volume_weight": round(weight / total_weight, 4),
-                "cumulative_qty": total_qty,
-                "cumulative_amount": round(total_qty * ref_price, 2),
-                "adaptive_params": adaptive,
-            })
+            orders.append(
+                {
+                    "order_idx": idx + 1,
+                    "qty": qty,
+                    "amount": round(qty * ref_price, 2),
+                    "delay_minutes": delay,
+                    "type": "vwap",
+                    "volume_weight": round(weight / total_weight, 4),
+                    "cumulative_qty": total_qty,
+                    "cumulative_amount": round(total_qty * ref_price, 2),
+                    "adaptive_params": adaptive,
+                }
+            )
 
             if total_qty >= target_qty:
                 break
@@ -381,8 +426,8 @@ class VWAPExecutor:
         if total_qty < target_qty:
             remaining = target_qty - total_qty
             if orders:
-                orders[-1]["qty"] += remaining
-                orders[-1]["amount"] = round(orders[-1]["qty"] * ref_price, 2)
+                orders[-1]["qty"] += remaining  # type: ignore
+                orders[-1]["amount"] = round(orders[-1]["qty"] * ref_price, 2)  # type: ignore
                 orders[-1]["cumulative_qty"] = target_qty
                 orders[-1]["cumulative_amount"] = round(target_qty * ref_price, 2)
 
@@ -391,7 +436,7 @@ class VWAPExecutor:
 
 class OrderExecutor:
     """统一订单执行器
-    
+
     封装多种执行算法，提供统一接口。
     """
 
@@ -402,9 +447,10 @@ class OrderExecutor:
         self._executor = self._create_executor(algorithm, kwargs)
         try:
             from utils.transaction_cost_model import TransactionCostModel
+
             self.cost_model = TransactionCostModel()
-        except Exception:
-            self.cost_model = None
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
+            self.cost_model = None  # type: ignore
 
     def _create_executor(self, algorithm: str, kwargs: Dict):
         if algorithm == "min_impact":
@@ -422,35 +468,36 @@ class OrderExecutor:
         else:
             return MinImpactExecutor()
 
-    def split_order(self, target_amount: float, ref_price: float,
-                    avg_daily_volume: float = 0, volatility: float = 0.02) -> List[Dict]:
+    def split_order(
+        self, target_amount: float, ref_price: float, avg_daily_volume: float = 0, volatility: float = 0.02
+    ) -> List[Dict]:
         """拆分订单
-        
+
         Args:
             target_amount: 目标金额
             ref_price: 参考价格
             avg_daily_volume: 日均成交量
             volatility: 波动率
-            
+
         Returns:
             拆单列表
         """
         if self.algorithm == "immediate":
             qty = int(target_amount / ref_price)
-            return [{
-                "order_idx": 1,
-                "qty": qty,
-                "amount": round(qty * ref_price, 2),
-                "delay_minutes": 0,
-                "type": "immediate",
-                "cumulative_qty": qty,
-                "cumulative_amount": round(qty * ref_price, 2),
-            }]
+            return [
+                {
+                    "order_idx": 1,
+                    "qty": qty,
+                    "amount": round(qty * ref_price, 2),
+                    "delay_minutes": 0,
+                    "type": "immediate",
+                    "cumulative_qty": qty,
+                    "cumulative_amount": round(qty * ref_price, 2),
+                }
+            ]
 
         if isinstance(self._executor, MinImpactExecutor):
-            return self._executor.calculate_optimal_splits(
-                target_amount, ref_price, avg_daily_volume, volatility
-            )
+            return self._executor.calculate_optimal_splits(target_amount, ref_price, avg_daily_volume, volatility)
         elif isinstance(self._executor, TWAPExecutor):
             return self._executor.calculate_splits(target_amount, ref_price)
         elif isinstance(self._executor, VWAPExecutor):
@@ -478,15 +525,14 @@ class OrderExecutor:
             }
 
     @staticmethod
-    def compare_algorithms(target_amount: float, ref_price: float,
-                           avg_daily_volume: float = 0) -> Dict:
+    def compare_algorithms(target_amount: float, ref_price: float, avg_daily_volume: float = 0) -> Dict:
         """比较不同执行算法的效果
-        
+
         Args:
             target_amount: 目标金额
             ref_price: 参考价格
             avg_daily_volume: 日均成交量
-            
+
         Returns:
             各算法对比结果
         """
@@ -501,7 +547,7 @@ class OrderExecutor:
             if executor.cost_model is not None:
                 try:
                     cost_info = executor.cost_model.estimate_total_cost(simulation["total_amount"], avg_daily_volume)
-                except Exception:
+                except Exception:  # P2 模块 fail-safe, 待后续精确化
                     cost_info = {}
 
             results[algo] = {
@@ -520,28 +566,27 @@ class OrderExecutor:
         return results
 
 
-def split_order(target_amount: float, ref_price: float,
-                algorithm: str = "min_impact", **kwargs) -> List[Dict]:
+def split_order(target_amount: float, ref_price: float, algorithm: str = "min_impact", **kwargs) -> List[Dict]:
     """便捷函数：拆分订单"""
     executor = OrderExecutor(algorithm=algorithm, **kwargs)
-    return executor.split_order(target_amount, ref_price,
-                                kwargs.get("avg_daily_volume", 0),
-                                kwargs.get("volatility", 0.02))
+    return executor.split_order(
+        target_amount, ref_price, kwargs.get("avg_daily_volume", 0), kwargs.get("volatility", 0.02)
+    )
 
 
-def compare_execution(target_amount: float, ref_price: float,
-                      avg_daily_volume: float = 0) -> Dict:
+def compare_execution(target_amount: float, ref_price: float, avg_daily_volume: float = 0) -> Dict:
     """便捷函数：比较执行算法"""
     return OrderExecutor.compare_algorithms(target_amount, ref_price, avg_daily_volume)
 
 
-def execute_order_with_algorithm(target_amount: float, ref_price: float,
-                                  algorithm: str = "min_impact", **kwargs) -> Dict:
+def execute_order_with_algorithm(
+    target_amount: float, ref_price: float, algorithm: str = "min_impact", **kwargs
+) -> Dict:
     """便捷函数：使用指定算法执行订单"""
     executor = OrderExecutor(algorithm=algorithm, **kwargs)
-    orders = executor.split_order(target_amount, ref_price,
-                                  kwargs.get("avg_daily_volume", 0),
-                                  kwargs.get("volatility", 0.02))
+    orders = executor.split_order(
+        target_amount, ref_price, kwargs.get("avg_daily_volume", 0), kwargs.get("volatility", 0.02)
+    )
     simulation = executor.simulate(orders)
     return {
         "algorithm": algorithm,

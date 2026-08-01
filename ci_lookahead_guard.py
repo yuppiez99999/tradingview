@@ -16,6 +16,7 @@ CI 前视偏差自动检测门禁
   0 — 通过 (无违规)
   1 — 失败 (发现前视偏差模式)
 """
+
 from __future__ import annotations
 
 import re
@@ -29,25 +30,38 @@ ROOT = Path(__file__).resolve().parent
 
 # 需要扫描的目录 (排除虚拟环境和第三方库)
 SCAN_DIRS = [
-    "utils", "src", "v8.3_institutional/src", "v8.3_institutional",
-    "research", "scripts", "tools", "realtime_monitor", "15_每日工作流",
+    "utils",
+    "src",
+    "v8.3_institutional/src",
+    "v8.3_institutional",
+    "research",
+    "scripts",
+    "tools",
+    "realtime_monitor",
+    "15_每日工作流",
     "tests",
 ]
 
 # 根目录下需要单独扫描的关键生产文件 (2026-07-25 审计 P1-10 修复)
 # 这些文件不在 SCAN_DIRS 的子目录中, 此前未被 CI 守卫覆盖
 SCAN_FILES = [
-    "lgb_enhanced_trainer.py",          # V9 训练核心 (含 shift(-5) 标签构造)
+    "lgb_enhanced_trainer.py",  # V9 训练核心 (含 shift(-5) 标签构造)
     "institutional_pipeline_runner.py",  # V9 集成核心 (生产 pipeline 入口)
-    "system_health_check.py",           # 系统健康检查
+    "system_health_check.py",  # 系统健康检查
     "daily_workflow.py" if Path("daily_workflow.py").exists() else None,
 ]
 SCAN_FILES = [f for f in SCAN_FILES if f is not None]
 
 # 排除的目录
 EXCLUDE_DIRS = {
-    "qlib_env", "ifind-finance-data-1.3.0", "temp", ".agents",
-    "second-brain", "__pycache__", ".git", "node_modules",
+    "qlib_env",
+    "ifind-finance-data-1.3.0",
+    "temp",
+    ".agents",
+    "second-brain",
+    "__pycache__",
+    ".git",
+    "node_modules",
     "ms_strategy/dataset",
 }
 
@@ -105,7 +119,7 @@ def scan_file(filepath: Path) -> List[dict]:
     violations = []
     try:
         content = filepath.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
+    except Exception as e:
         return violations
 
     lines = content.splitlines()
@@ -122,21 +136,28 @@ def scan_file(filepath: Path) -> List[dict]:
                     continue
                 # 特殊处理: shift(-N) 用于标签构造是允许的
                 if rule_name == "NegativeShift" and any(
-                    keyword in line.lower() for keyword in [
-                        "label", "target", "forward_return", "y_", "ret_fwd",
+                    keyword in line.lower()
+                    for keyword in [
+                        "label",
+                        "target",
+                        "forward_return",
+                        "y_",
+                        "ret_fwd",
                         "pct_change",  # pct_change().shift(-1) 是构造前瞻收益标签的标准做法
                     ]
                 ):
                     continue
 
-                violations.append({
-                    "file": str(filepath.relative_to(ROOT)),
-                    "line": i,
-                    "rule": rule_name,
-                    "severity": severity,
-                    "code": stripped[:120],
-                    "description": description,
-                })
+                violations.append(
+                    {
+                        "file": str(filepath.relative_to(ROOT)),
+                        "line": i,
+                        "rule": rule_name,
+                        "severity": severity,
+                        "code": stripped[:120],
+                        "description": description,
+                    }
+                )
 
     return violations
 
@@ -163,18 +184,16 @@ def main() -> int:
         for scan_dir in SCAN_DIRS:
             dir_path = ROOT / scan_dir
             if dir_path.is_dir():
-                files_to_scan.extend(
-                    f for f in dir_path.rglob("*.py") if not should_exclude(f)
-                )
+                files_to_scan.extend(f for f in dir_path.rglob("*.py") if not should_exclude(f))
 
     # 去重
     files_to_scan = list(set(files_to_scan))
 
-    print(f"CI 前视偏差检测门禁")
-    print(f"=" * 60)
+    print("CI 前视偏差检测门禁")
+    print("=" * 60)
     print(f"扫描文件数: {len(files_to_scan)}")
     print(f"检测规则数: {len(RULES)}")
-    print(f"=" * 60)
+    print("=" * 60)
 
     all_violations = []
     for filepath in sorted(files_to_scan):

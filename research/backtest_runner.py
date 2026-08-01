@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
@@ -23,6 +22,7 @@ import pandas as pd
 from institutional_pipeline_runner import InstitutionalPipelineRunner, PipelineContext
 from utils.data_provider import MarketDataProvider
 from utils.risk_constraints import enforce_hard_constraints, DEFAULT_MAX_WEIGHT, DEFAULT_MAX_SECTOR
+from utils.path_config import get_historical_base_file, get_data_cache_dir
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("backtest")
@@ -87,7 +87,9 @@ BACKTEST_INTEGRITY_WARNING = (
 
 # 回测模型验收约束（与 enhanced_backtest 保持一致）
 MIN_ANNUAL_RETURN = 0.08      # 年化收益率下限：>= 8%
-MAX_DRAWDOWN_LIMIT = 0.15     # 最大回撤上限：<= 15%
+# B1.3: 从 config/risk_params.yaml 统一读取 (fail-safe 兜底 0.15)
+from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
+MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()  # 最大回撤上限：<= 15%
 
 
 def _evaluate_acceptance(annual_return: float, max_drawdown: float) -> Dict:
@@ -137,33 +139,54 @@ def _next_month_returns(symbol: str, date: pd.Timestamp, provider: MarketDataPro
         # 优先读预下载的 5y _base.parquet (覆盖 2021-04 ~ 2026-07)
         # 避免 provider.get_historical_data(period="3y") 只返回 2023-06 之后数据
         # 导致早期回测日 (2022-04 ~ 2023-05) 因 compare_date < data_start 返回 0
-        from pathlib import Path as _P
-        base_file = _P("data_cache") / f"historical_{symbol}_5y_base.parquet"
+        # 优先读 _base.parquet (完整5年基础缓存), 通过集中配置指向 D 盘
+        base_file = get_historical_base_file(symbol)
         df = None
         if base_file.exists():
             try:
                 df = pd.read_parquet(base_file)
             except Exception:
                 df = None
-        # 回退到在线拉取
+        # 如果 _base.parquet 不存在, 尝试按日期分片的 _5y_{date}.parquet
+        if df is None or df.empty:
+            date_str = pd.Timestamp(date).strftime("%Y-%m-%d")
+            dated_file = get_data_cache_dir() / f"historical_{symbol}_5y_{date_str}.parquet"
+            if dated_file.exists():
+                try:
+                    df = pd.read_parquet(dated_file)
+                except Exception:
+                    df = None
+        # 直接用 data_provider (跳过 free_stockdb, 避免启动超时15s导致回测卡住)
         if (df is None or df.empty) and provider is not None:
             df = provider.get_historical_data(symbol, period="3y")
         if df is None or df.empty or len(df) < 22:
             return 0.0
         df = df.sort_index()
-        # 强制索引和比较日期都为 tz-naive，避免混合时区比较报错
-        try:
-            if hasattr(df.index, "tz") and df.index.tz is not None:
-                df.index = df.index.tz_localize(None)
-        except Exception:
-            df.index = pd.DatetimeIndex([pd.Timestamp(idx).tz_localize(None) if pd.Timestamp(idx).tzinfo else pd.Timestamp(idx) for idx in df.index])
-        compare_date = pd.Timestamp(date).normalize()
-        try:
-            if hasattr(compare_date, "tz") and compare_date.tz is not None:
-                compare_date = compare_date.tz_localize(None)
-        except Exception:
-            compare_date = pd.Timestamp(compare_date).tz_localize(None) if pd.Timestamp(compare_date).tzinfo else pd.Timestamp(compare_date)
-        data_start = df.index[0]
+        # BUG 修复 (2026-08-01 顶级对冲基金重跑验证发现):
+        # 原代码仅 try/except 规范化 df.index, 但 fallback 的 except 分支构造的
+        # DatetimeIndex 仍可能因 pd.Timestamp(idx).tz_localize(None) 在 idx 已 naive 时
+        # 抛 "Already tz-aware" 而失败, 同时 compare_date 与 df.index 元素之间
+        # 仍可能存在 tz-naive / tz-aware 混合比较.
+        # 修复: 统一用稳健的辅助函数强制两侧 tz-naive.
+        def _to_naive_idx(idx):
+            """将 DatetimeIndex 强制转为 tz-naive, 元素也 tz-naive."""
+            try:
+                if hasattr(idx, "tz") and idx.tz is not None:
+                    idx = idx.tz_localize(None)
+                # 元素级规范化 (部分 pandas 版本下 idx.tz_localize(None) 不改元素 tz)
+                return pd.DatetimeIndex([pd.Timestamp(d).tz_localize(None) if pd.Timestamp(d).tzinfo else pd.Timestamp(d) for d in idx])
+            except Exception:
+                return idx
+
+        def _to_naive_ts(ts):
+            t = pd.Timestamp(ts)
+            if hasattr(t, "tz") and t.tz is not None:
+                t = t.tz_localize(None)
+            return t.normalize()
+
+        df.index = _to_naive_idx(df.index)
+        compare_date = _to_naive_ts(date)
+        data_start = _to_naive_ts(df.index[0])
         if compare_date < data_start:
             return 0.0
         future = df[df.index > compare_date]
@@ -206,7 +229,7 @@ def _apply_market_regime_scaling(weights: Dict, date: pd.Timestamp) -> tuple:
     except Exception:
         cutoff = pd.Timestamp(cutoff).tz_localize(None) if pd.Timestamp(cutoff).tzinfo else pd.Timestamp(cutoff)
 
-    base_file = _P("data_cache") / f"historical_{proxy}_5y_base.parquet"
+    base_file = get_historical_base_file(proxy)
     df = None
     if base_file.exists():
         try:
@@ -273,7 +296,7 @@ def _apply_market_regime_scaling(weights: Dict, date: pd.Timestamp) -> tuple:
     if regime in ("bear", "rebound") and scaled:
         symbol_rets = {}
         for symbol in scaled:
-            sym_base = _P("data_cache") / f"historical_{symbol}_5y_base.parquet"
+            sym_base = get_historical_base_file(symbol)
             df_sym = None
             if sym_base.exists():
                 try:
@@ -296,7 +319,7 @@ def _apply_market_regime_scaling(weights: Dict, date: pd.Timestamp) -> tuple:
         if symbol_rets:
             adjustments = {}
             n_oversold = n_overbought = 0
-            for symbol, w in scaled.items():
+            for symbol, _w in scaled.items():
                 ret_20d = symbol_rets.get(symbol, 0.0)
                 if ret_20d < -0.10:
                     adjustments[symbol] = 1.3
@@ -697,10 +720,13 @@ def run_backtest(symbols: List[str], start: str = "2023-07-01", end: str = "2025
     returns = pd.Series([r["portfolio_return"] for r in records])
     equity = (1 + returns).cumprod()
     peak = equity.cummax()
-    # 回撤取正值幅度（与 enhanced_backtest 一致），避免负值导致"回撤<=15%"判定恒为真
     dd_series = (peak - equity) / peak
     max_dd = float(dd_series.max()) if not dd_series.empty else 0.0
-    annual_return = float((1 + returns.mean()) ** 12 - 1) if not returns.empty else 0.0
+    n_months = len(returns)
+    if n_months > 0 and equity.iloc[-1] > 0:
+        annual_return = float(equity.iloc[-1] ** (12.0 / n_months) - 1.0)
+    else:
+        annual_return = 0.0
     win_rate = float((returns > 0).mean()) if not returns.empty else 0.0
 
     # 回测模型验收：年化收益率 >= 8% 且 最大回撤 <= 15%
@@ -724,9 +750,9 @@ def run_backtest(symbols: List[str], start: str = "2023-07-01", end: str = "2025
 
 if __name__ == "__main__":
     # 前视偏差修复警示
-    print("=" * 80)
-    print(BACKTEST_INTEGRITY_WARNING)
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.debug(BACKTEST_INTEGRITY_WARNING)
+    logger.info("=" * 80)
     logger.warning(BACKTEST_INTEGRITY_WARNING)
     result = run_backtest(["600519", "000858", "601318", "000001", "600036", "601398", "600276", "000063"], start="2024-01-01", end="2025-12-31")
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    logger.info(json.dumps(result, ensure_ascii=False, indent=2))

@@ -17,8 +17,9 @@ Greeks 计算模块 v1.0
 from __future__ import annotations
 
 import math
+import pandas as pd
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from datetime import datetime
 import os
 
@@ -38,6 +39,7 @@ def _norm_cdf(x: float) -> float:
 @dataclass
 class OptionContract:
     """期权合约基础信息"""
+
     symbol: str
     underlying: str
     underlying_price: float
@@ -54,6 +56,7 @@ class OptionContract:
 @dataclass
 class OptionGreeks:
     """单个期权 Greeks"""
+
     symbol: str
     underlying: str
     strike: float
@@ -76,6 +79,7 @@ class OptionGreeks:
 @dataclass
 class PortfolioGreeks:
     """组合级 Greeks"""
+
     underlying: str
     total_delta: float = 0.0
     total_gamma: float = 0.0
@@ -105,7 +109,7 @@ def black_scholes_price(
 ) -> float:
     """Black-Scholes 欧式期权理论价"""
     if t <= 0 or sigma <= 0:
-        inner = (underlying_price * (1.0 - q) / strike) if strike > 0 else 0.0
+        (underlying_price * (1.0 - q) / strike) if strike > 0 else 0.0
         if option_type.upper().startswith("C"):
             return max(underlying_price - strike, 0.0)
         return max(strike - underlying_price, 0.0)
@@ -183,9 +187,17 @@ def compute_greeks(contract: OptionContract, now: Optional[datetime] = None) -> 
 
     # theta: 按自然日
     if option_type.startswith("C"):
-        theta = -(s * nd1 * sigma * math.exp(-q * t)) / (2.0 * sqrt_t) - r * k * math.exp(-r * t) * _norm_cdf(d2) + q * s * math.exp(-q * t) * _norm_cdf(d1)
+        theta = (
+            -(s * nd1 * sigma * math.exp(-q * t)) / (2.0 * sqrt_t)
+            - r * k * math.exp(-r * t) * _norm_cdf(d2)
+            + q * s * math.exp(-q * t) * _norm_cdf(d1)
+        )
     else:
-        theta = -(s * nd1 * sigma * math.exp(-q * t)) / (2.0 * sqrt_t) + r * k * math.exp(-r * t) * _norm_cdf(-d2) - q * s * math.exp(-q * t) * _norm_cdf(-d1)
+        theta = (
+            -(s * nd1 * sigma * math.exp(-q * t)) / (2.0 * sqrt_t)
+            + r * k * math.exp(-r * t) * _norm_cdf(-d2)
+            - q * s * math.exp(-q * t) * _norm_cdf(-d1)
+        )
 
     theta = theta / 365.0
 
@@ -209,7 +221,9 @@ def compute_greeks(contract: OptionContract, now: Optional[datetime] = None) -> 
     return g
 
 
-def aggregate_portfolio_greeks(contracts: List[OptionContract], now: Optional[datetime] = None) -> Dict[str, PortfolioGreeks]:
+def aggregate_portfolio_greeks(
+    contracts: List[OptionContract], now: Optional[datetime] = None
+) -> Dict[str, PortfolioGreeks]:
     """
     按 underlying 聚合组合 Greeks
 
@@ -233,13 +247,16 @@ def aggregate_portfolio_greeks(contracts: List[OptionContract], now: Optional[da
             pg.net_contracts += g.quantity if g.position == "long" else -g.quantity
 
             expiry_key = g.expiry.strftime("%Y-%m-%d")
-            bucket = pg.exposure_by_expiry.setdefault(expiry_key, {
-                "delta": 0.0,
-                "gamma": 0.0,
-                "theta": 0.0,
-                "vega": 0.0,
-                "contracts": 0,
-            })
+            bucket = pg.exposure_by_expiry.setdefault(
+                expiry_key,
+                {
+                    "delta": 0.0,
+                    "gamma": 0.0,
+                    "theta": 0.0,
+                    "vega": 0.0,
+                    "contracts": 0,
+                },
+            )
             bucket["delta"] += g.delta
             bucket["gamma"] += g.gamma
             bucket["theta"] += g.theta
@@ -276,17 +293,19 @@ def build_demo_contracts(underlying_price_map: Dict[str, float]) -> List[OptionC
         for expiry in expiries:
             for strike in strikes:
                 for opt_type in ("C", "P"):
-                    contracts.append(OptionContract(
-                        symbol=f"{ul}{expiry.strftime('%y%m')}{'C' if opt_type == 'C' else 'P'}{int(strike):05d}",
-                        underlying=ul,
-                        underlying_price=price,
-                        strike=strike,
-                        expiry=expiry,
-                        option_type=opt_type,
-                        implied_vol=0.18 + abs(math.log(price / strike)) * 0.5,
-                        quantity=1,
-                        position="long",
-                    ))
+                    contracts.append(
+                        OptionContract(
+                            symbol=f"{ul}{expiry.strftime('%y%m')}{'C' if opt_type == 'C' else 'P'}{int(strike):05d}",
+                            underlying=ul,
+                            underlying_price=price,
+                            strike=strike,
+                            expiry=expiry,
+                            option_type=opt_type,
+                            implied_vol=0.18 + abs(math.log(price / strike)) * 0.5,
+                            quantity=1,
+                            position="long",
+                        )
+                    )
     return contracts
 
 
@@ -296,17 +315,19 @@ def greeks_to_dataframe(portfolio: Dict[str, PortfolioGreeks]) -> "pd.DataFrame"
 
     rows = []
     for ul, pg in portfolio.items():
-        rows.append({
-            "标的": ul,
-            "Delta": round(pg.total_delta, 4),
-            "Gamma": round(pg.total_gamma, 4),
-            "Theta": round(pg.total_theta, 4),
-            "Vega": round(pg.total_vega, 4),
-            "Rho": round(pg.total_rho, 4),
-            "净张数": pg.net_contracts,
-            "到期日数": len(pg.exposure_by_expiry),
-            "告警数": len(pg.warnings),
-        })
+        rows.append(
+            {
+                "标的": ul,
+                "Delta": round(pg.total_delta, 4),
+                "Gamma": round(pg.total_gamma, 4),
+                "Theta": round(pg.total_theta, 4),
+                "Vega": round(pg.total_vega, 4),
+                "Rho": round(pg.total_rho, 4),
+                "净张数": pg.net_contracts,
+                "到期日数": len(pg.exposure_by_expiry),
+                "告警数": len(pg.warnings),
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -316,14 +337,16 @@ def expiry_bucket_to_dataframe(pg: PortfolioGreeks) -> "pd.DataFrame":
 
     rows = []
     for exp, bucket in sorted(pg.exposure_by_expiry.items()):
-        rows.append({
-            "到期日": exp,
-            "Delta": round(bucket.get("delta", 0.0), 4),
-            "Gamma": round(bucket.get("gamma", 0.0), 4),
-            "Theta": round(bucket.get("theta", 0.0), 4),
-            "Vega": round(bucket.get("vega", 0.0), 4),
-            "净张数": bucket.get("contracts", 0),
-        })
+        rows.append(
+            {
+                "到期日": exp,
+                "Delta": round(bucket.get("delta", 0.0), 4),
+                "Gamma": round(bucket.get("gamma", 0.0), 4),
+                "Theta": round(bucket.get("theta", 0.0), 4),
+                "Vega": round(bucket.get("vega", 0.0), 4),
+                "净张数": bucket.get("contracts", 0),
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -355,6 +378,7 @@ def load_positions_for_greeks(path: Optional[str] = None) -> List[OptionContract
 
     try:
         import json
+
         with open(path, "r", encoding="utf-8") as f:
             raw = json.load(f)
 
@@ -362,19 +386,21 @@ def load_positions_for_greeks(path: Optional[str] = None) -> List[OptionContract
         for item in raw:
             expiry_str = item.get("expiry")
             expiry = datetime.strptime(expiry_str, "%Y-%m-%d") if expiry_str else datetime.now()
-            contracts.append(OptionContract(
-                symbol=str(item.get("symbol", "")),
-                underlying=str(item.get("underlying", "")),
-                underlying_price=float(item.get("underlying_price", 0.0) or 0.0),
-                strike=float(item.get("strike", 0.0) or 0.0),
-                expiry=expiry,
-                option_type=str(item.get("option_type", "C") or "C"),
-                implied_vol=float(item.get("implied_vol", 0.18) or 0.18),
-                risk_free_rate=float(item.get("risk_free_rate", 0.02) or 0.02),
-                dividend_yield=float(item.get("dividend_yield", 0.0) or 0.0),
-                quantity=int(item.get("quantity", 1) or 1),
-                position=str(item.get("position", "long") or "long"),
-            ))
+            contracts.append(
+                OptionContract(
+                    symbol=str(item.get("symbol", "")),
+                    underlying=str(item.get("underlying", "")),
+                    underlying_price=float(item.get("underlying_price", 0.0) or 0.0),
+                    strike=float(item.get("strike", 0.0) or 0.0),
+                    expiry=expiry,
+                    option_type=str(item.get("option_type", "C") or "C"),
+                    implied_vol=float(item.get("implied_vol", 0.18) or 0.18),
+                    risk_free_rate=float(item.get("risk_free_rate", 0.02) or 0.02),
+                    dividend_yield=float(item.get("dividend_yield", 0.0) or 0.0),
+                    quantity=int(item.get("quantity", 1) or 1),
+                    position=str(item.get("position", "long") or "long"),
+                )
+            )
         return contracts
     except Exception:
         return []
@@ -384,11 +410,13 @@ def load_positions_for_greeks(path: Optional[str] = None) -> List[OptionContract
 # 快速测试
 # ============================================================
 if __name__ == "__main__":
-    demo_contracts = build_demo_contracts({
-        "510300": 3.8,
-        "510050": 2.7,
-        "000300": 3850.0,
-    })
+    demo_contracts = build_demo_contracts(
+        {
+            "510300": 3.8,
+            "510050": 2.7,
+            "000300": 3850.0,
+        }
+    )
     portfolio = aggregate_portfolio_greeks(demo_contracts)
     df = greeks_to_dataframe(portfolio)
     print(df.to_string(index=False))

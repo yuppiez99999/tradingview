@@ -23,20 +23,21 @@ from typing import Tuple, Optional, List, Dict
 
 
 # ── 常量 ──
-DEFAULT_WINDOW = 60       # 滚动窗口 (交易日)
+DEFAULT_WINDOW = 60  # 滚动窗口 (交易日)
 DEFAULT_SURGE_THRESHOLD = 0.25  # 相关性突增阈值
-DEFAULT_CORR_THRESHOLD = 0.70   # 集中度预警阈值
-DEFAULT_CONCENTRATION = 0.50    # 高相关资产比例阈值
+DEFAULT_CORR_THRESHOLD = 0.70  # 集中度预警阈值
+DEFAULT_CONCENTRATION = 0.50  # 高相关资产比例阈值
 
 
 # ═══════════════════════════════════════════════════════
 #  滚动相关矩阵
 # ═══════════════════════════════════════════════════════
 
+
 def rolling_correlation_matrix(
     returns: np.ndarray,
     window: int = DEFAULT_WINDOW,
-    asset_names: List[str] = None,
+    asset_names: Optional[List[str]] = None,
 ) -> Tuple[Optional[np.ndarray], str]:
     """计算最近 window 个交易日的滚动相关矩阵
 
@@ -49,7 +50,7 @@ def rolling_correlation_matrix(
         (corr_matrix, last_date_str) 或 (None, '') 如果数据不足
     """
     if returns is None or returns.shape[0] < window:
-        return None, ''
+        return None, ""
 
     recent = returns[-window:, :]
     corr = np.corrcoef(recent, rowvar=False)
@@ -59,19 +60,20 @@ def rolling_correlation_matrix(
     # 对角线强制为1
     np.fill_diagonal(corr, 1.0)
 
-    return corr, f't-{window}'
+    return corr, f"t-{window}"
 
 
 # ═══════════════════════════════════════════════════════
 #  相关性突增检测
 # ═══════════════════════════════════════════════════════
 
+
 def detect_correlation_surge(
     returns: np.ndarray,
     window: int = DEFAULT_WINDOW,
     short_window: int = 20,
     surge_threshold: float = DEFAULT_SURGE_THRESHOLD,
-    asset_names: List[str] = None,
+    asset_names: Optional[List[str]] = None,
 ) -> List[Dict]:
     """检测相关性突增 (危机预警信号)
 
@@ -96,7 +98,7 @@ def detect_correlation_surge(
         return []
 
     if asset_names is None:
-        asset_names = [f'Asset_{i}' for i in range(n_assets)]
+        asset_names = [f"Asset_{i}" for i in range(n_assets)]
 
     # 计算长短窗口相关矩阵
     long_corr, _ = rolling_correlation_matrix(returns, window)
@@ -110,17 +112,19 @@ def detect_correlation_surge(
         for j in range(i + 1, n_assets):
             delta = short_corr[i, j] - long_corr[i, j]
             if delta > surge_threshold:
-                alerts.append({
-                    'pair': f'{asset_names[i]} vs {asset_names[j]}',
-                    'i': i,
-                    'j': j,
-                    'long_corr': round(float(long_corr[i, j]), 4),
-                    'short_corr': round(float(short_corr[i, j]), 4),
-                    'delta': round(float(delta), 4),
-                })
+                alerts.append(
+                    {
+                        "pair": f"{asset_names[i]} vs {asset_names[j]}",
+                        "i": i,
+                        "j": j,
+                        "long_corr": round(float(long_corr[i, j]), 4),
+                        "short_corr": round(float(short_corr[i, j]), 4),
+                        "delta": round(float(delta), 4),
+                    }
+                )
 
     # 按delta降序排列
-    alerts.sort(key=lambda x: x['delta'], reverse=True)
+    alerts.sort(key=lambda x: x["delta"], reverse=True)
     return alerts
 
 
@@ -128,12 +132,13 @@ def detect_correlation_surge(
 #  集中度预警
 # ═══════════════════════════════════════════════════════
 
+
 def check_concentration_risk(
     returns: np.ndarray,
     window: int = DEFAULT_WINDOW,
     corr_threshold: float = DEFAULT_CORR_THRESHOLD,
     concentration_threshold: float = DEFAULT_CONCENTRATION,
-    asset_names: List[str] = None,
+    asset_names: Optional[List[str]] = None,
 ) -> List[Dict]:
     """检查组合集中度风险
 
@@ -157,7 +162,7 @@ def check_concentration_risk(
 
     n_assets = corr.shape[0]
     if asset_names is None:
-        asset_names = [f'Asset_{i}' for i in range(n_assets)]
+        asset_names = [f"Asset_{i}" for i in range(n_assets)]
 
     total_pairs = n_assets * (n_assets - 1) // 2
     if total_pairs == 0:
@@ -167,26 +172,32 @@ def check_concentration_risk(
     for i in range(n_assets):
         for j in range(i + 1, n_assets):
             if corr[i, j] > corr_threshold:
-                high_corr_pairs.append({
-                    'pair': f'{asset_names[i]} vs {asset_names[j]}',
-                    'correlation': round(float(corr[i, j]), 4),
-                })
+                high_corr_pairs.append(
+                    {
+                        "pair": f"{asset_names[i]} vs {asset_names[j]}",
+                        "correlation": round(float(corr[i, j]), 4),
+                    }
+                )
 
     ratio = len(high_corr_pairs) / total_pairs
     warnings = []
 
     if ratio > concentration_threshold:
-        warnings.append({
-            'type': 'concentration',
-            'level': 'HIGH' if ratio > 0.7 else 'MEDIUM',
-            'high_corr_pairs': len(high_corr_pairs),
-            'total_pairs': total_pairs,
-            'ratio': round(float(ratio), 4),
-            'threshold': concentration_threshold,
-            'details': high_corr_pairs[:10],  # 最多10对
-            'message': (f'高相关标的占比 {ratio:.1%} 超过阈值 {concentration_threshold:.0%}, '
-                       f'({len(high_corr_pairs)}/{total_pairs} 对相关性 > {corr_threshold})'),
-        })
+        warnings.append(
+            {
+                "type": "concentration",
+                "level": "HIGH" if ratio > 0.7 else "MEDIUM",
+                "high_corr_pairs": len(high_corr_pairs),
+                "total_pairs": total_pairs,
+                "ratio": round(float(ratio), 4),
+                "threshold": concentration_threshold,
+                "details": high_corr_pairs[:10],  # 最多10对
+                "message": (
+                    f"高相关标的占比 {ratio:.1%} 超过阈值 {concentration_threshold:.0%}, "
+                    f"({len(high_corr_pairs)}/{total_pairs} 对相关性 > {corr_threshold})"
+                ),
+            }
+        )
 
     return warnings
 
@@ -194,6 +205,7 @@ def check_concentration_risk(
 # ═══════════════════════════════════════════════════════
 #  边际风险贡献 (MRC)
 # ═══════════════════════════════════════════════════════
+
 
 def marginal_risk_contributions(
     weights: np.ndarray,
@@ -233,6 +245,7 @@ def marginal_risk_contributions(
 #  协方差半正定性修复
 # ═══════════════════════════════════════════════════════
 
+
 def ensure_psd(matrix: np.ndarray, epsilon: float = 1e-8) -> np.ndarray:
     """确保协方差/相关矩阵半正定 (PSD)
 
@@ -271,10 +284,11 @@ def ensure_psd(matrix: np.ndarray, epsilon: float = 1e-8) -> np.ndarray:
 #  每日监控报告生成
 # ═══════════════════════════════════════════════════════
 
+
 def generate_correlation_report(
     returns: np.ndarray,
     window: int = DEFAULT_WINDOW,
-    asset_names: List[str] = None,
+    asset_names: Optional[List[str]] = None,
     weights: np.ndarray = None,
 ) -> str:
     """生成每日相关性监控报告
@@ -290,7 +304,7 @@ def generate_correlation_report(
     """
     n_assets = returns.shape[1]
     if asset_names is None:
-        asset_names = [f'标的{i+1}' for i in range(n_assets)]
+        asset_names = [f"标的{i + 1}" for i in range(n_assets)]
 
     if weights is None:
         weights = np.ones(n_assets) / n_assets
@@ -302,10 +316,10 @@ def generate_correlation_report(
     lines.append("")
 
     # 1. 滚动相关矩阵
-    corr, date_label = rolling_correlation_matrix(returns, window, asset_names)
+    corr, _date_label = rolling_correlation_matrix(returns, window, asset_names)
     if corr is None:
         lines.append(f"⚠️ 数据不足 (需要 ≥{window} 个交易日)")
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     # 2. 平均相关性
     mask = ~np.eye(n_assets, dtype=bool)
@@ -315,7 +329,8 @@ def generate_correlation_report(
 
     # 3. 集中度检查
     conc_warnings = check_concentration_risk(
-        returns, window,
+        returns,
+        window,
         asset_names=asset_names,
     )
 
@@ -323,23 +338,23 @@ def generate_correlation_report(
         lines.append("### 🚨 集中度预警")
         for w in conc_warnings:
             lines.append(f"- **{w['level']}**: {w['message']}")
-            if w.get('details'):
-                for d in w['details'][:5]:
+            if w.get("details"):
+                for d in w["details"][:5]:
                     lines.append(f"  - {d['pair']}: {d['correlation']:.4f}")
         lines.append("")
 
     # 4. 相关性突增检测
     surge_alerts = detect_correlation_surge(
-        returns, window, 20,
+        returns,
+        window,
+        20,
         asset_names=asset_names,
     )
     if surge_alerts:
         lines.append("### 📈 相关性突增预警")
         for a in surge_alerts[:5]:
             lines.append(
-                f"- {a['pair']}: "
-                f"长窗口{a['long_corr']:.3f} → 短窗口{a['short_corr']:.3f} "
-                f"(Δ={a['delta']:.3f})"
+                f"- {a['pair']}: 长窗口{a['long_corr']:.3f} → 短窗口{a['short_corr']:.3f} (Δ={a['delta']:.3f})"
             )
         lines.append("")
 
@@ -359,25 +374,21 @@ def generate_correlation_report(
 
         mrc_pct = mrc / mrc.sum() if mrc.sum() > 0 else np.zeros_like(mrc)
         for i in range(n_assets):
-            lines.append(
-                f"| {asset_names[i]} | {weights[i]:.1%} "
-                f"| {mrc[i]:.4%} | {mrc_pct[i]:.1%} |"
-            )
+            lines.append(f"| {asset_names[i]} | {weights[i]:.1%} | {mrc[i]:.4%} | {mrc_pct[i]:.1%} |")
 
         # 最大MRC检查
         max_mrc_idx = int(np.argmax(mrc_pct))
         if mrc_pct[max_mrc_idx] > 0.30:
             lines.append("")
-            lines.append(f"⚠️ **{asset_names[max_mrc_idx]}** 风险贡献 = {mrc_pct[max_mrc_idx]:.0%} "
-                        "超过 30% 上限!")
+            lines.append(f"⚠️ **{asset_names[max_mrc_idx]}** 风险贡献 = {mrc_pct[max_mrc_idx]:.0%} 超过 30% 上限!")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 # ═══════════════════════════════════════════════════════
 #  自测
 # ═══════════════════════════════════════════════════════
-if __name__ == '__main__':
+if __name__ == "__main__":
     np.random.seed(42)
 
     # 生成6标的模拟数据
@@ -388,7 +399,7 @@ if __name__ == '__main__':
     for i in range(n_assets):
         returns[:, i] = common_1 * (0.3 + 0.6 * (i < 3)) + np.random.randn(n_days) * 0.005
 
-    names = ['中际旭创', '海光信息', '北方华创', '中国神华', '长江电力', '恒瑞医药']
+    names = ["中际旭创", "海光信息", "北方华创", "中国神华", "长江电力", "恒瑞医药"]
 
     # 生成报告
     report = generate_correlation_report(returns, 60, names)

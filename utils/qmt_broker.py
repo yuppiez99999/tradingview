@@ -15,6 +15,7 @@ qmt_broker re-export shim
 
 注意: 若 ms_strategy 模块结构发生变化，需同步更新本 shim。
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,14 +28,15 @@ if str(_MS_STRATEGY_DIR) not in sys.path:
     sys.path.insert(0, str(_MS_STRATEGY_DIR))
 
 try:
-    from ms_strategy.src.execution.qmt_broker import *  # noqa: F401,F403
-    from ms_strategy.src.execution.qmt_broker import (  # noqa: F401
-        __name__ as _upstream_name,
+    from ms_strategy.src.execution.qmt_broker import *  # noqa: F403
+    from ms_strategy.src.execution.qmt_broker import (
+        __name__ as _upstream_name,  # noqa: F401
     )
     # 显式重新导出常见 API（基于实际 qmt_broker.py 内容）
     # 注意：使用 module 级 __all__ 已通过 * 导出，此处显式列出便于 IDE 提示
 except ImportError as _e:
     import logging
+
     logging.getLogger("utils.qmt_broker").warning(
         "qmt_broker re-export shim: 无法从 ms_strategy.src.execution.qmt_broker 导入 — %s", _e
     )

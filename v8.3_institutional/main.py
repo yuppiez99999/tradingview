@@ -9,7 +9,7 @@ import sys
 import yaml
 import logging
 import argparse
-from datetime import datetime, time
+from datetime import datetime
 from typing import Optional
 
 # 添加 src 路径
@@ -38,21 +38,21 @@ except ImportError:
     except (OSError, UnicodeDecodeError, ValueError):
         pass
 
-from risk.risk_manager import RiskManager
-from risk.risk_budgeter import RiskBudgeter
-from risk.circuit_breaker import CircuitBreaker, SlippageCircuitBreaker
-from risk.stress_tester import StressTester
+from risk.risk_manager import RiskManager  # noqa: E402
+from risk.risk_budgeter import RiskBudgeter  # noqa: E402
+from risk.circuit_breaker import CircuitBreaker, SlippageCircuitBreaker  # noqa: E402
+from risk.stress_tester import StressTester  # noqa: E402
 
-from hedging.hedge_coordinator import HedgeCoordinator
+from hedging.hedge_coordinator import HedgeCoordinator  # noqa: E402
 
-from execution.ntp_sync import NTPSync
-from execution.smart_order_router import SmartOrderRouter, MockBroker
-from execution.algo_engine import AlgoEngine
-from execution.broker_api import SimulatedBroker
+from execution.ntp_sync import NTPSync  # noqa: E402
+from execution.smart_order_router import SmartOrderRouter, MockBroker  # noqa: E402
+from execution.algo_engine import AlgoEngine  # noqa: E402
+from execution.broker_api import SimulatedBroker  # noqa: E402
 
-from alpha.factor_library import FactorLibrary
-from alpha.signal_generator import SignalGenerator
-from alpha.signal_fusion import SignalFusion
+from alpha.factor_library import FactorLibrary  # noqa: E402
+from alpha.signal_generator import SignalGenerator  # noqa: E402
+from alpha.signal_fusion import SignalFusion  # noqa: E402
 
 # 日志
 logging.basicConfig(
@@ -188,7 +188,7 @@ class V75InstitutionalSystem:
         # SOR 参数
         exec_cfg = self.config.get('execution', {})
         slip_cfg = exec_cfg.get('slippage', {})
-        sor_cfg = exec_cfg.get('sor', {})
+        exec_cfg.get('sor', {})
 
         # MockBroker 需要价格字典
         self.mock_broker = MockBroker(price_dict={
@@ -321,7 +321,7 @@ class V75InstitutionalSystem:
             factor_matrix = self.factor_lib.build_all_factors(market_data)
             signal = self.signal_gen.generate(factor_matrix, retrain=False)
             return {'signal': signal, 'latest': self.signal_gen.latest_signals}
-        except (ValueError, RuntimeError, KeyError) as e:
+        except (ValueError, RuntimeError, KeyError):
             logger.exception("信号生成失败, 完整堆栈:")
             return {}
 
@@ -364,7 +364,7 @@ class V75InstitutionalSystem:
 
         lib = ScenarioLibrary()
         results = lib.run_compliance_tests(positions, prices)
-        all_pass, needs_cro, details = lib.check_pass_criteria(results)
+        all_pass, needs_cro, _details = lib.check_pass_criteria(results)
 
         logger.info(f"压力测试: all_passed={all_pass}, CRO签字={needs_cro}")
 

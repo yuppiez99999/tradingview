@@ -1,3 +1,6 @@
+# DEPRECATED: 已被 scripts\register_all_tasks_unified.ps1 替代，请勿执行
+# 迁移日期: 2026-07-30
+# 原因: EOD 四 Guard 风控链已合并到 v84_PostMarket（15:30 调用 run_daily_eod_workflow.py）
 # ============================================================
 # 注册盘后报告自动运行任务 (16:00 触发)
 # ============================================================
@@ -16,13 +19,13 @@ $ErrorActionPreference = "Stop"
 # 路径配置 (v8.6.1: 从 v7.1 更新到 v8.4)
 # ============================================================
 $projectDir = "E:\各种PY程序\28-终极量化交易系统8.4"
-$pythonExe  = "C:\Program Files\Python38\python.exe"
+$pythonExe  = "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
 $scriptPath = Join-Path $projectDir "run_daily_eod.py"
 
 # 检查 python.exe 是否存在
 if (-not (Test-Path $pythonExe)) {
     Write-Host "[ERROR] Python not found: $pythonExe" -ForegroundColor Red
-    Write-Host "        Please install Python 3.8+ or update this script." -ForegroundColor Yellow
+    Write-Host "        Please install Python 3.11+ or update this script." -ForegroundColor Yellow
     exit 1
 }
 

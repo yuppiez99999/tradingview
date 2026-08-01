@@ -11,7 +11,6 @@
 
 import os
 import sys
-import json
 from pathlib import Path
 from datetime import datetime
 from enum import Enum
@@ -20,6 +19,7 @@ from typing import Optional, Dict, Any
 
 class EnvironmentType(Enum):
     """环境类型枚举"""
+
     RESEARCH = "research"
     PRODUCTION = "production"
     SHADOW = "shadow"  # 影子账户环境
@@ -28,16 +28,16 @@ class EnvironmentType(Enum):
 
 class EnvironmentIsolation:
     """环境隔离管理器"""
-    
+
     _current_env: Optional[EnvironmentType] = None
     _config: Dict[str, Any] = {}
-    
+
     @classmethod
     def detect_environment(cls) -> EnvironmentType:
         """自动检测当前运行环境"""
         # 检查环境变量
         env_var = os.environ.get("QUANT_SYSTEM_ENV", "").lower()
-        
+
         if env_var == "production":
             cls._current_env = EnvironmentType.PRODUCTION
         elif env_var == "shadow":
@@ -54,43 +54,40 @@ class EnvironmentIsolation:
             else:
                 # 默认视为研究环境（安全优先）
                 cls._current_env = EnvironmentType.RESEARCH
-        
+
         return cls._current_env
-    
+
     @classmethod
     def set_environment(cls, env: EnvironmentType):
         """手动设置环境类型（用于测试）"""
         cls._current_env = env
         os.environ["QUANT_SYSTEM_ENV"] = env.value
-    
+
     @classmethod
     def get_current_environment(cls) -> EnvironmentType:
         """获取当前环境"""
         if cls._current_env is None:
             return cls.detect_environment()
         return cls._current_env
-    
+
     @classmethod
     def is_production(cls) -> bool:
         """是否在生产环境"""
-        return cls.get_current_environment() in [
-            EnvironmentType.PRODUCTION,
-            EnvironmentType.SHADOW
-        ]
-    
+        return cls.get_current_environment() in [EnvironmentType.PRODUCTION, EnvironmentType.SHADOW]
+
     @classmethod
     def is_research(cls) -> bool:
         """是否在研究环境"""
         return cls.get_current_environment() == EnvironmentType.RESEARCH
-    
+
     @classmethod
     def require_production(cls, operation: str):
         """
         要求当前必须是生产环境才能执行操作
-        
+
         Args:
             operation: 操作名称（用于错误提示）
-        
+
         Raises:
             RuntimeError: 如果当前不是生产环境
         """
@@ -100,15 +97,15 @@ class EnvironmentIsolation:
                 f"当前环境: {cls.get_current_environment().value}\n"
                 f"请设置环境变量 QUANT_SYSTEM_ENV=production 或进入生产目录运行"
             )
-    
+
     @classmethod
     def require_research(cls, operation: str):
         """
         要求当前必须是研究环境才能执行操作
-        
+
         Args:
             operation: 操作名称（用于错误提示）
-        
+
         Raises:
             RuntimeError: 如果当前是生产环境
         """
@@ -118,21 +115,21 @@ class EnvironmentIsolation:
                 f"当前环境: {cls.get_current_environment().value}\n"
                 f"研究代码严禁直接上线到生产环境"
             )
-    
+
     @classmethod
     def validate_data_access(cls, data_source: str, operation: str = "read"):
         """
         验证数据访问权限
-        
+
         Args:
             data_source: 数据源路径
             operation: 操作类型（read/write）
-        
+
         Raises:
             PermissionError: 如果数据源不在当前环境允许范围内
         """
         current_env = cls.get_current_environment()
-        
+
         # 定义各环境允许的数据源
         allowed_sources = {
             EnvironmentType.RESEARCH: ["research/data", "tmp", "temp"],
@@ -140,28 +137,28 @@ class EnvironmentIsolation:
             EnvironmentType.SHADOW: ["src/data", "shadow/data", "cache"],
             EnvironmentType.TESTING: ["tests/data", "tmp", "test_fixtures"],
         }
-        
+
         allowed = allowed_sources.get(current_env, [])
         is_allowed = any(source in data_source for source in allowed)
-        
+
         if not is_allowed:
             raise PermissionError(
                 f"⚠️ [DATA SECURITY] 环境 '{current_env.value}' 无权访问数据源: {data_source}\n"
                 f"允许的数据源路径: {', '.join(allowed)}"
             )
-    
+
     @classmethod
     def log_environment_context(cls, context: str = ""):
         """记录环境上下文到日志"""
         timestamp = datetime.now().isoformat()
         env = cls.get_current_environment()
         message = f"[{timestamp}] ENV={env.value} | {context}"
-        
+
         # 输出到stderr以确保可见性
         print(message, file=sys.stderr, flush=True)
-        
+
         return message
-    
+
     @classmethod
     def get_environment_summary(cls) -> Dict[str, Any]:
         """获取环境摘要信息"""
@@ -171,7 +168,7 @@ class EnvironmentIsolation:
             "is_research": cls.is_research(),
             "working_directory": str(Path.cwd().resolve()),
             "timestamp": datetime.now().isoformat(),
-            "config": cls._config
+            "config": cls._config,
         }
 
 
@@ -181,27 +178,33 @@ EnvironmentIsolation.detect_environment()
 
 def production_only(operation: str):
     """装饰器：限制函数仅在生产环境执行"""
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             EnvironmentIsolation.require_production(operation)
             EnvironmentIsolation.log_environment_context(f"Executing: {operation}")
             return func(*args, **kwargs)
+
         wrapper.__name__ = func.__name__
         wrapper.__doc__ = func.__doc__
         return wrapper
+
     return decorator
 
 
 def research_only(operation: str):
     """装饰器：限制函数仅在研究环境执行"""
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             EnvironmentIsolation.require_research(operation)
             EnvironmentIsolation.log_environment_context(f"Executing: {operation}")
             return func(*args, **kwargs)
+
         wrapper.__name__ = func.__name__
         wrapper.__doc__ = func.__doc__
         return wrapper
+
     return decorator
 
 

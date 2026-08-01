@@ -34,7 +34,6 @@ RIA--TV++ 方法论 (借鉴 cangjie-skill, 原生实现, 不依赖源码):
 from __future__ import annotations
 
 import json
-import logging
 import math
 import re
 import sys
@@ -69,12 +68,13 @@ for _candidate in _LLM_CANDIDATE_PATHS:
         if _candidate.exists() and str(_candidate) not in sys.path:
             sys.path.insert(0, str(_candidate))
         # 即使已加入 sys.path, 也要确保 llm_client 真的能 import
-        import llm_client  # type: ignore
+        import llm_client
+
         _chat_fn = llm_client.chat
         _LLM_CLIENT_AVAILABLE = True
         logger.info("ResearchDistiller: llm_client.py 已加载 (%s)", _candidate)
         break
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         # 继续尝试下一个候选路径
         logger.debug("ResearchDistiller: 候选路径 %s 加载失败: %s", _candidate, e)
         continue
@@ -86,6 +86,7 @@ if not _LLM_CLIENT_AVAILABLE:
 # ============================================================
 # 数据结构: DistilledSignal
 # ============================================================
+
 
 @dataclass
 class DistilledSignal:
@@ -122,13 +123,15 @@ class DistilledSignal:
         if not math.isfinite(self.strength):
             logger.warning(
                 "[DistilledSignal] %s strength=%s 非有限值, 归零",
-                self.symbol, self.strength,
+                self.symbol,
+                self.strength,
             )
             self.strength = 0.0
         if not math.isfinite(self.confidence):
             logger.warning(
                 "[DistilledSignal] %s confidence=%s 非有限值, 归零",
-                self.symbol, self.confidence,
+                self.symbol,
+                self.confidence,
             )
             self.confidence = 0.0
         # 边界裁剪
@@ -139,7 +142,8 @@ class DistilledSignal:
         if self.source_type not in valid_types:
             logger.warning(
                 "[DistilledSignal] %s source_type=%s 不合法, 降级为 news",
-                self.symbol, self.source_type,
+                self.symbol,
+                self.source_type,
             )
             self.source_type = "news"
         # symbol 必须非空字符串
@@ -182,6 +186,7 @@ class DistilledSignal:
 # 工具函数
 # ============================================================
 
+
 def _safe_float(value: Any, default: float = 0.0) -> float:
     """安全转 float, 处理 None/NaN/Inf/字符串 (与 BaseAgent._safe_float 一致)"""
     if value is None:
@@ -196,6 +201,7 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
 # ============================================================
 # ResearchDistiller 主类
 # ============================================================
+
 
 class ResearchDistiller:
     """研究内容蒸馏器 (RIA--TV++ 量化版)
@@ -220,37 +226,95 @@ class ResearchDistiller:
 
     # 复用 AIReportAgent 的关键词词典 (与 utils/ai_report_agent.py 保持一致)
     POSITIVE_WORDS = [
-        "利好", "增长", "超预期", "突破", "创新高", "上涨", "盈利", "加仓",
-        "增持", "买入", "强劲", "复苏", "景气", "扩张", "订单", "中标",
-        "回购", "分红", "获批", "合作", "升级", "龙头",
+        "利好",
+        "增长",
+        "超预期",
+        "突破",
+        "创新高",
+        "上涨",
+        "盈利",
+        "加仓",
+        "增持",
+        "买入",
+        "强劲",
+        "复苏",
+        "景气",
+        "扩张",
+        "订单",
+        "中标",
+        "回购",
+        "分红",
+        "获批",
+        "合作",
+        "升级",
+        "龙头",
     ]
     NEGATIVE_WORDS = [
-        "利空", "下降", "亏损", "减持", "警示", "风险", "违规", "处罚",
-        "退市", "停牌", "暴跌", "下跌", "疲软", "萎缩", "滞销", "商誉减值",
-        "质押", "诉讼", "问询", "监管", "爆雷", "违约",
+        "利空",
+        "下降",
+        "亏损",
+        "减持",
+        "警示",
+        "风险",
+        "违规",
+        "处罚",
+        "退市",
+        "停牌",
+        "暴跌",
+        "下跌",
+        "疲软",
+        "萎缩",
+        "滞销",
+        "商誉减值",
+        "质押",
+        "诉讼",
+        "问询",
+        "监管",
+        "爆雷",
+        "违约",
     ]
     # 高严重性负面关键词 (触发强负面信号, 类似 veto)
     CRITICAL_NEGATIVE_WORDS = [
-        "立案调查", "退市", "重大违规", "财务造假", "证监会处罚",
-        "强制退市", "爆雷", "违约", "质押爆仓",
+        "立案调查",
+        "退市",
+        "重大违规",
+        "财务造假",
+        "证监会处罚",
+        "强制退市",
+        "爆雷",
+        "违约",
+        "质押爆仓",
     ]
 
     # 研报专用强信号词典 (任务要求 5.2)
     STRONG_POSITIVE_WORDS = [
-        "强烈推荐", "买入评级", "目标价上调", "戴维斯双击",
-        "业绩超预期", "净利润大增", "毛利率提升", "ROE提升", "超预期",
+        "强烈推荐",
+        "买入评级",
+        "目标价上调",
+        "戴维斯双击",
+        "业绩超预期",
+        "净利润大增",
+        "毛利率提升",
+        "ROE提升",
+        "超预期",
     ]
     STRONG_NEGATIVE_WORDS = [
-        "卖出评级", "目标价下调", "业绩预警", "商誉减值", "质押爆仓",
-        "业绩不及预期", "毛利率下滑", "ROE下滑",
+        "卖出评级",
+        "目标价下调",
+        "业绩预警",
+        "商誉减值",
+        "质押爆仓",
+        "业绩不及预期",
+        "毛利率下滑",
+        "ROE下滑",
     ]
 
     # 信号时效 (天数): 不同来源的信号失效时间 (任务要求 5.4)
     VALIDITY_DAYS: Dict[str, int] = {
-        "report": 7,         # 研报: 默认 7 天
+        "report": 7,  # 研报: 默认 7 天
         "earnings_call": 30,  # 业绩会: 30 天 (信息含量高, 时效长)
-        "book": 90,           # 书籍: 90 天 (长期方法论)
-        "news": 1,            # 新闻: 1 天 (时效短)
+        "book": 90,  # 书籍: 90 天 (长期方法论)
+        "news": 1,  # 新闻: 1 天 (时效短)
     }
 
     # A 股代码正则 (6 位数字, 首位 6/0/3/9, 不前后接数字)
@@ -275,7 +339,7 @@ class ResearchDistiller:
         self.cache_dir = Path(cache_dir) if cache_dir else Path("data/distilled_signals")
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("ResearchDistiller: 创建 cache_dir 失败 (%s): %s", self.cache_dir, e)
 
         # 加载持仓名称词典 (用于 NER: "恒瑞医药" → "600276.SH")
@@ -314,7 +378,7 @@ class ResearchDistiller:
                 "ResearchDistiller: 已加载 %d 个标的名称映射",
                 len(self._name_to_symbol),
             )
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("ResearchDistiller: 加载 positions.json 失败: %s", e)
 
     # ----------------------------------------------------------
@@ -340,9 +404,11 @@ class ResearchDistiller:
                 logger.warning("distill_report: 文本提取失败或过短: %s", pdf_path)
                 return []
             return self._distill_text(
-                text, "report", source_id=pdf_path.name,
+                text,
+                "report",
+                source_id=pdf_path.name,
             )
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("distill_report 异常 (%s): %s", pdf_path, e)
             return []
 
@@ -369,11 +435,12 @@ class ResearchDistiller:
                 logger.warning("distill_earnings_call: 标的代码不合法: %s", symbol)
                 return []
             return self._distill_text(
-                transcript, "earnings_call",
+                transcript,
+                "earnings_call",
                 source_id=f"earnings_{normalized}",
                 forced_symbol=normalized,
             )
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("distill_earnings_call 异常 (%s): %s", symbol, e)
             return []
 
@@ -411,7 +478,7 @@ class ResearchDistiller:
             if chapter:
                 source_id = f"{source_id}#{chapter}"
             return self._distill_text(text, "book", source_id=source_id)
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("distill_book_chapter 异常 (%s): %s", book_path, e)
             return []
 
@@ -439,12 +506,13 @@ class ResearchDistiller:
                 if not text:
                     continue
                 item_signals = self._distill_text(
-                    text, "news",
+                    text,
+                    "news",
                     source_id=title[:50] if title else "untitled",
                     forced_symbol=forced_symbol or None,
                 )
                 signals.extend(item_signals)
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("distill_news_batch: 单条新闻处理异常: %s", e)
         self._stats["signals_emitted"] += len(signals)
         return signals
@@ -495,7 +563,7 @@ class ResearchDistiller:
                 # 边界裁剪
                 avg = max(-1.0, min(1.0, avg))
                 result[symbol] = round(avg, 4)
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("to_signal_map: 聚合异常 (%s): %s", symbol, e)
         return result
 
@@ -539,10 +607,11 @@ class ResearchDistiller:
                 json.dump(payload, f, ensure_ascii=False, indent=2, default=str)
             logger.info(
                 "save_daily_snapshot: 已保存 %d 个信号到 %s",
-                len(valid_signals), output_path,
+                len(valid_signals),
+                output_path,
             )
             return output_path
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("save_daily_snapshot 异常: %s", e)
             return Path()
 
@@ -577,10 +646,11 @@ class ResearchDistiller:
                     continue
             logger.info(
                 "load_daily_snapshot: 已加载 %d 个信号 (%s)",
-                len(result), input_path.name,
+                len(result),
+                input_path.name,
             )
             return result
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("load_daily_snapshot 异常: %s", e)
             return {}
 
@@ -607,7 +677,10 @@ class ResearchDistiller:
         if self.llm_available and _chat_fn is not None:
             try:
                 llm_signals = self._llm_distill(
-                    text, source_type, source_id, forced_symbol,
+                    text,
+                    source_type,
+                    source_id,
+                    forced_symbol,
                 )
                 if llm_signals:
                     return llm_signals
@@ -616,9 +689,10 @@ class ResearchDistiller:
                     "_distill_text: LLM 返回空结果, 降级到规则引擎 (source_id=%s)",
                     source_id,
                 )
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(
-                    "_distill_text: LLM 蒸馏异常, 降级到规则引擎: %s", e,
+                    "_distill_text: LLM 蒸馏异常, 降级到规则引擎: %s",
+                    e,
                 )
                 self._stats["llm_failures"] += 1
 
@@ -638,7 +712,7 @@ class ResearchDistiller:
         truncated = text[:8000] if len(text) > 8000 else text
         prompt = self._build_distill_prompt(truncated, source_type, forced_symbol)
         self._stats["llm_calls"] += 1
-        result = _chat_fn(
+        result = _chat_fn(  # type: ignore[misc]
             prompt=prompt,
             system="你是资深A股投研分析师,擅长将研究内容蒸馏为可执行交易信号。",
             temperature=0.1,
@@ -650,7 +724,10 @@ class ResearchDistiller:
         if result.startswith("[") and "] " in result[:50]:
             result = result.split("] ", 1)[1]
         return self._parse_llm_response(
-            result, source_type, source_id, forced_symbol,
+            result,
+            source_type,
+            source_id,
+            forced_symbol,
         )
 
     def _build_distill_prompt(
@@ -728,16 +805,18 @@ class ResearchDistiller:
                 if not isinstance(key_factors, list):
                     key_factors = []
                 key_factors = [str(k)[:50] for k in key_factors[:3]]
-                signals.append(DistilledSignal(
-                    symbol=symbol,
-                    strength=strength,
-                    confidence=confidence,
-                    source_type=source_type,
-                    source_id=source_id,
-                    reasoning=reasoning,
-                    valid_until=valid_until,
-                    key_factors=key_factors,
-                ))
+                signals.append(
+                    DistilledSignal(
+                        symbol=symbol,
+                        strength=strength,
+                        confidence=confidence,
+                        source_type=source_type,
+                        source_id=source_id,
+                        reasoning=reasoning,
+                        valid_until=valid_until,
+                        key_factors=key_factors,
+                    )
+                )
             return signals
         except (json.JSONDecodeError, ValueError, KeyError) as e:
             logger.warning("_parse_llm_response: JSON 解析失败: %s", e)
@@ -775,7 +854,8 @@ class ResearchDistiller:
             symbols = self._extract_symbols(text)
         if not symbols:
             logger.debug(
-                "_rule_distill: 未识别到任何标的 (source_id=%s)", source_id,
+                "_rule_distill: 未识别到任何标的 (source_id=%s)",
+                source_id,
             )
             return []
 
@@ -793,12 +873,7 @@ class ResearchDistiller:
             reasoning = f"规则引擎: 检测到 {critical_neg} 个重大负面关键词"
             key_factors = [w for w in self.CRITICAL_NEGATIVE_WORDS if w in text][:3]
         else:
-            raw_strength = (
-                0.15 * pos_count
-                + 0.30 * strong_pos
-                - 0.15 * neg_count
-                - 0.30 * strong_neg
-            )
+            raw_strength = 0.15 * pos_count + 0.30 * strong_pos - 0.15 * neg_count - 0.30 * strong_neg
             strength = max(-1.0, min(1.0, raw_strength))
             total_signals = pos_count + neg_count + strong_pos + strong_neg
             if total_signals == 0:
@@ -814,14 +889,10 @@ class ResearchDistiller:
                 if strong_neg > 0:
                     factors.extend(w for w in self.STRONG_NEGATIVE_WORDS if w in text)
                 if not factors:
-                    factors = [
-                        w for w in (self.POSITIVE_WORDS + self.NEGATIVE_WORDS)
-                        if w in text
-                    ]
+                    factors = [w for w in (self.POSITIVE_WORDS + self.NEGATIVE_WORDS) if w in text]
                 key_factors = factors[:3]
                 reasoning = (
-                    f"规则引擎: 强正面{strong_pos}个, 强负面{strong_neg}个, "
-                    f"正面{pos_count}个, 负面{neg_count}个"
+                    f"规则引擎: 强正面{strong_pos}个, 强负面{strong_neg}个, 正面{pos_count}个, 负面{neg_count}个"
                 )
 
         valid_until = self._compute_valid_until(source_type)
@@ -829,16 +900,18 @@ class ResearchDistiller:
         # 4. 为每个识别到的标的生成信号
         signals: List[DistilledSignal] = []
         for symbol in symbols:
-            signals.append(DistilledSignal(
-                symbol=symbol,
-                strength=strength,
-                confidence=confidence,
-                source_type=source_type,
-                source_id=source_id,
-                reasoning=reasoning,
-                valid_until=valid_until,
-                key_factors=list(key_factors),
-            ))
+            signals.append(
+                DistilledSignal(
+                    symbol=symbol,
+                    strength=strength,
+                    confidence=confidence,
+                    source_type=source_type,
+                    source_id=source_id,
+                    reasoning=reasoning,
+                    valid_until=valid_until,
+                    key_factors=list(key_factors),
+                )
+            )
         return signals
 
     # ----------------------------------------------------------
@@ -921,7 +994,8 @@ class ResearchDistiller:
         try:
             # 优先 pdfplumber
             try:
-                import pdfplumber  # type: ignore
+                import pdfplumber
+
                 with pdfplumber.open(pdf_path) as pdf:
                     pages_text = []
                     for page in pdf.pages[:50]:  # 最多 50 页
@@ -932,7 +1006,8 @@ class ResearchDistiller:
                 pass
             # 备用 pdfminer
             try:
-                from pdfminer.high_level import extract_text  # type: ignore
+                from pdfminer.high_level import extract_text
+
                 return extract_text(str(pdf_path)) or ""
             except ImportError:
                 pass
@@ -940,7 +1015,7 @@ class ResearchDistiller:
                 "_extract_pdf_text: pdfplumber/pdfminer 未安装, 无法提取 PDF",
             )
             return ""
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("_extract_pdf_text 异常 (%s): %s", pdf_path, e)
             return ""
 
@@ -1016,6 +1091,7 @@ def get_distiller() -> ResearchDistiller:
 # 自检
 # ============================================================
 
+
 def self_test() -> bool:
     """模块自检 (不发起 LLM 调用, 仅验证类与规则引擎)"""
     try:
@@ -1025,10 +1101,12 @@ def self_test() -> bool:
         assert d.cache_dir.exists()
 
         # 测试新闻蒸馏
-        signals = d.distill_news_batch([
-            {"title": "恒瑞医药业绩超预期", "content": "净利润增长 30%, 强烈推荐", "symbol": "600276.SH"},
-            {"title": "某公司被立案调查", "content": "财务造假", "symbol": "000001.SZ"},
-        ])
+        signals = d.distill_news_batch(
+            [
+                {"title": "恒瑞医药业绩超预期", "content": "净利润增长 30%, 强烈推荐", "symbol": "600276.SH"},
+                {"title": "某公司被立案调查", "content": "财务造假", "symbol": "000001.SZ"},
+            ]
+        )
         assert len(signals) == 2
         assert signals[0].symbol == "600276.SH"
         assert signals[0].strength > 0  # 超预期 + 强烈推荐 = 看涨
@@ -1050,7 +1128,7 @@ def self_test() -> bool:
         # 清理测试文件
         try:
             saved_path.unlink()
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         print("[OK] research_distiller.py 自检通过")
@@ -1059,8 +1137,9 @@ def self_test() -> bool:
         print(f"  - 测试信号数: {len(signals)}")
         print(f"  - 信号 map: {signal_map}")
         return True
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         import traceback
+
         print(f"[FAIL] research_distiller.py 自检失败: {e}")
         traceback.print_exc()
         return False

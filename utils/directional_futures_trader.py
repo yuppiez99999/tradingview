@@ -26,13 +26,13 @@
     signals = trader.generate_signals(market_data)
     orders = trader.generate_orders(signals, current_positions, trade_date)
 """
+
 from __future__ import annotations
 
 import json
 import logging
-import math
 from dataclasses import dataclass, field, asdict
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
@@ -41,46 +41,46 @@ logger = logging.getLogger("directional_futures")
 # ============================================================
 # v10.0 配置常量 (来自 auto_trade_plan_v10_十五五.json)
 # ============================================================
-FUTURES_MARGIN_CAPITAL = 500_000       # 期货账户总资金
-FUTURES_MARGIN_MAX_PCT = 0.60           # 保证金占用上限 60%
+FUTURES_MARGIN_CAPITAL = 500_000  # 期货账户总资金
+FUTURES_MARGIN_MAX_PCT = 0.60  # 保证金占用上限 60%
 
 # 单品种资金分配 (3 个方向性品种: CU/AU/T)
 PER_SYMBOL_MARGIN_BUDGET = FUTURES_MARGIN_CAPITAL * 0.30  # 每品种最多 15 万保证金
 
 # 风控阈值
-MAX_SINGLE_TRADE_LOSS_PCT = 0.20       # 单笔最大亏损 20%
-DAILY_MAX_LOSS_PCT = 0.15              # 日最大亏损 15%
-WEEKLY_CONSECUTIVE_LOSS_MAX_PCT = 0.25 # 周连续亏损 25%
-LOSS_PAUSE_DAYS = 7                    # 连续亏损暂停 7 天
+MAX_SINGLE_TRADE_LOSS_PCT = 0.20  # 单笔最大亏损 20%
+DAILY_MAX_LOSS_PCT = 0.15  # 日最大亏损 15%
+WEEKLY_CONSECUTIVE_LOSS_MAX_PCT = 0.25  # 周连续亏损 25%
+LOSS_PAUSE_DAYS = 7  # 连续亏损暂停 7 天
 
 # 合约规格
 CONTRACT_SPECS = {
     "CU": {
         "name": "沪铜期货",
         "exchange": "SHFE",
-        "multiplier": 5,           # 5 吨/手
-        "margin_rate": 0.09,       # 保证金 9%
-        "tick_size": 10,           # 最小变动 10 元/吨
+        "multiplier": 5,  # 5 吨/手
+        "margin_rate": 0.09,  # 保证金 9%
+        "tick_size": 10,  # 最小变动 10 元/吨
         "price_unit": "元/吨",
-        "purpose": "new_energy_demand",   # 新能源需求
+        "purpose": "new_energy_demand",  # 新能源需求
         "default_direction": "long",
     },
     "AU": {
         "name": "黄金期货",
         "exchange": "SHFE",
-        "multiplier": 1000,        # 1000 克/手
-        "margin_rate": 0.06,      # 保证金 6%
-        "tick_size": 0.02,         # 最小变动 0.02 元/克
+        "multiplier": 1000,  # 1000 克/手
+        "margin_rate": 0.06,  # 保证金 6%
+        "tick_size": 0.02,  # 最小变动 0.02 元/克
         "price_unit": "元/克",
-        "purpose": "safe_haven",   # 避险
+        "purpose": "safe_haven",  # 避险
         "default_direction": "long",
     },
     "T": {
         "name": "10年国债期货",
         "exchange": "CFFEX",
-        "multiplier": 10_000,      # 面值 1万/点 (实际是 100万/手, 但报价是点数)
-        "margin_rate": 0.02,      # 保证金 2%
-        "tick_size": 0.005,       # 最小变动 0.005 元
+        "multiplier": 10_000,  # 面值 1万/点 (实际是 100万/手, 但报价是点数)
+        "margin_rate": 0.02,  # 保证金 2%
+        "tick_size": 0.005,  # 最小变动 0.005 元
         "price_unit": "元",
         "purpose": "rate_directional",  # 利率方向
         "default_direction": "short",
@@ -94,32 +94,34 @@ CONTRACT_SPECS = {
 @dataclass
 class FuturesSignal:
     """单品种期货信号"""
+
     symbol: str
     name: str
-    direction: str = "flat"       # long / short / flat
-    strength: float = 0.0          # 信号强度 [-1, 1]
+    direction: str = "flat"  # long / short / flat
+    strength: float = 0.0  # 信号强度 [-1, 1]
     ma20: float = 0.0
     ma60: float = 0.0
     rsi: float = 50.0
     macd_hist: float = 0.0
-    rationale: str = ""            # 信号依据
-    confidence: float = 0.0        # 置信度 [0, 1]
+    rationale: str = ""  # 信号依据
+    confidence: float = 0.0  # 置信度 [0, 1]
 
 
 @dataclass
 class FuturesOrder:
     """单品种期货交易指令"""
+
     symbol: str
     name: str
     exchange: str
-    action: str = "hold"           # open_long / open_short / close_long / close_short / add / reduce / hold
-    direction: str = "flat"        # long / short / flat
+    action: str = "hold"  # open_long / open_short / close_long / close_short / add / reduce / hold
+    direction: str = "flat"  # long / short / flat
     contracts: int = 0
     price: float = 0.0
     notional_value: float = 0.0
     required_margin: float = 0.0
-    stop_loss: float = 0.0         # 止损价
-    take_profit: float = 0.0       # 止盈价
+    stop_loss: float = 0.0  # 止损价
+    take_profit: float = 0.0  # 止盈价
     trade_date: str = ""
     rationale: str = ""
 
@@ -127,14 +129,15 @@ class FuturesOrder:
 @dataclass
 class DirectionalFuturesResult:
     """方向性期货组合结果"""
+
     trade_date: str = ""
-    action: str = "skip"             # trade / skip / pause (供 daily_workflow 消费)
+    action: str = "skip"  # trade / skip / pause (供 daily_workflow 消费)
     signals: List[FuturesSignal] = field(default_factory=list)
     orders: List[FuturesOrder] = field(default_factory=list)
     total_margin_used: float = 0.0
     total_notional: float = 0.0
     margin_usage_ratio: float = 0.0
-    risk_status: str = "normal"     # normal / warning / paused
+    risk_status: str = "normal"  # normal / warning / paused
     pause_until: Optional[str] = None
     summary_text: str = ""
 
@@ -185,7 +188,7 @@ class DirectionalFuturesTrader:
 
             signal = FuturesSignal(
                 symbol=symbol,
-                name=spec["name"],
+                name=spec["name"],  # type: ignore
             )
 
             if len(closes) < 60:
@@ -228,7 +231,9 @@ class DirectionalFuturesTrader:
             signal.strength = round(min(1.0, strength), 3)
 
             # 置信度
-            confirm_count = sum([1 for v in [trend, momentum, rsi_signal] if v == (1 if signal.direction == "long" else -1)])
+            confirm_count = sum(
+                [1 for v in [trend, momentum, rsi_signal] if v == (1 if signal.direction == "long" else -1)]
+            )
             signal.confidence = round(confirm_count / 3, 3)
 
             # 基本面因子 (可选)
@@ -292,8 +297,8 @@ class DirectionalFuturesTrader:
         macd_series = []
         for i in range(-9, 0):
             if abs(i) + 26 <= len(closes):
-                e12 = self._calc_ema(closes[:len(closes) + i + 1] if i < -1 else closes, 12)
-                e26 = self._calc_ema(closes[:len(closes) + i + 1] if i < -1 else closes, 26)
+                e12 = self._calc_ema(closes[: len(closes) + i + 1] if i < -1 else closes, 12)
+                e26 = self._calc_ema(closes[: len(closes) + i + 1] if i < -1 else closes, 26)
                 macd_series.append(e12 - e26)
         signal_line = sum(macd_series) / len(macd_series) if macd_series else macd_line
         return round(macd_line - signal_line, 6)
@@ -304,7 +309,7 @@ class DirectionalFuturesTrader:
             return sum(closes) / len(closes) if closes else 0
         multiplier = 2 / (period + 1)
         ema = closes[-period]
-        for price in closes[-period + 1:]:
+        for price in closes[-period + 1 :]:
             ema = price * multiplier + ema * (1 - multiplier)
         return ema
 
@@ -333,14 +338,14 @@ class DirectionalFuturesTrader:
         # 保证金 = 名义价值 × 保证金率
         # 按信号强度分配资金
         budget = self.per_symbol_budget * signal.strength
-        one_contract_margin = current_price * multiplier * margin_rate
+        one_contract_margin = current_price * multiplier * margin_rate  # type: ignore
 
         if one_contract_margin <= 0:
             return 0, 0.0, 0.0
 
         contracts = max(1, int(budget // one_contract_margin))
-        notional = contracts * current_price * multiplier
-        margin = notional * margin_rate
+        notional = contracts * current_price * multiplier  # type: ignore
+        margin = notional * margin_rate  # type: ignore
 
         return contracts, notional, margin
 
@@ -410,7 +415,9 @@ class DirectionalFuturesTrader:
                 pos = current_positions.get(symbol, {})
                 if pos.get("contracts", 0) > 0:
                     action = "close_long" if pos.get("direction") == "long" else "close_short"
-                    orders.append(self._build_close_order(symbol, pos, prices.get(symbol, 0), trade_date, "风控暂停强制平仓"))
+                    orders.append(
+                        self._build_close_order(symbol, pos, prices.get(symbol, 0), trade_date, "风控暂停强制平仓")
+                    )
             return orders
 
         for signal in signals:
@@ -420,7 +427,7 @@ class DirectionalFuturesTrader:
             current = current_positions.get(symbol, {})
             current_dir = current.get("direction", "flat")
             current_contracts = current.get("contracts", 0)
-            entry_price = current.get("entry_price", 0)
+            current.get("entry_price", 0)
 
             if price <= 0:
                 continue
@@ -457,8 +464,8 @@ class DirectionalFuturesTrader:
 
             order = FuturesOrder(
                 symbol=symbol,
-                name=spec["name"],
-                exchange=spec["exchange"],
+                name=spec["name"],  # type: ignore
+                exchange=spec["exchange"],  # type: ignore
                 action=action,
                 direction=target_dir,
                 contracts=contracts,
@@ -486,8 +493,8 @@ class DirectionalFuturesTrader:
         spec = CONTRACT_SPECS[symbol]
         return FuturesOrder(
             symbol=symbol,
-            name=spec["name"],
-            exchange=spec["exchange"],
+            name=spec["name"],  # type: ignore
+            exchange=spec["exchange"],  # type: ignore
             action="close_long" if position.get("direction") == "long" else "close_short",
             direction="flat",
             contracts=position.get("contracts", 0),
@@ -575,14 +582,21 @@ class DirectionalFuturesTrader:
         result.orders = orders
 
         # 4. 统计
-        result.total_margin_used = sum(o.required_margin for o in orders if o.action in ("open_long", "open_short", "add", "reverse"))
-        result.total_notional = sum(o.notional_value for o in orders if o.action in ("open_long", "open_short", "add", "reverse"))
+        result.total_margin_used = sum(
+            o.required_margin for o in orders if o.action in ("open_long", "open_short", "add", "reverse")
+        )
+        result.total_notional = sum(
+            o.notional_value for o in orders if o.action in ("open_long", "open_short", "add", "reverse")
+        )
         result.margin_usage_ratio = result.total_margin_used / self.capital if self.capital > 0 else 0
 
         # 4.1 设置 action 字段 (供 daily_workflow 消费)
         if risk_status == "paused":
             result.action = "pause"
-        elif any(o.action in ("open_long", "open_short", "close_long", "close_short", "add", "reduce", "reverse") for o in orders):
+        elif any(
+            o.action in ("open_long", "open_short", "close_long", "close_short", "add", "reduce", "reverse")
+            for o in orders
+        ):
             result.action = "trade"
         else:
             result.action = "skip"
@@ -612,17 +626,21 @@ class DirectionalFuturesTrader:
         if result.pause_until:
             lines.append(f"暂停至: {result.pause_until}")
 
-        lines.extend([
-            "",
-            "信号:",
-        ])
+        lines.extend(
+            [
+                "",
+                "信号:",
+            ]
+        )
         for s in result.signals:
             lines.append(f"  {s.symbol} ({s.name}): {s.direction} (强度 {s.strength:.2f}, 置信 {s.confidence:.2f})")
 
-        lines.extend([
-            "",
-            "指令:",
-        ])
+        lines.extend(
+            [
+                "",
+                "指令:",
+            ]
+        )
         for o in result.orders:
             lines.append(
                 f"  {o.symbol} {o.action} {o.contracts} 张 @ {o.price:.2f}, "
@@ -630,12 +648,14 @@ class DirectionalFuturesTrader:
                 f"止损 {o.stop_loss:.2f}, 止盈 {o.take_profit:.2f}"
             )
 
-        lines.extend([
-            "",
-            f"总保证金占用: ¥{result.total_margin_used:,.0f} ({result.margin_usage_ratio:.1%})",
-            f"总名义价值: ¥{result.total_notional:,.0f}",
-            "=" * 60,
-        ])
+        lines.extend(
+            [
+                "",
+                f"总保证金占用: ¥{result.total_margin_used:,.0f} ({result.margin_usage_ratio:.1%})",
+                f"总名义价值: ¥{result.total_notional:,.0f}",
+                "=" * 60,
+            ]
+        )
         return "\n".join(lines)
 
     def summary(self, result: DirectionalFuturesResult) -> str:
@@ -672,7 +692,7 @@ class DirectionalFuturesTrader:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report_data, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"[DirectionalFutures] 报告已保存: {report_path}")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"[DirectionalFutures] 报告保存失败: {e}")
 
 
@@ -693,7 +713,7 @@ if __name__ == "__main__":
         base_price = {"CU": 75000, "AU": 550, "T": 100}[symbol]
         closes = [base_price]
         for _ in range(60):
-            closes.append(closes[-1] * (1 + random.uniform(-0.02, 0.025)))
+            closes.append(closes[-1] * (1 + random.uniform(-0.02, 0.025)))  # type: ignore
         market_data[symbol] = {"closes": closes}
 
     prices = {symbol: data["closes"][-1] for symbol, data in market_data.items()}
@@ -701,8 +721,8 @@ if __name__ == "__main__":
     result = trader.run(
         market_data=market_data,
         current_positions={},
-        prices=prices,
+        prices=prices,  # type: ignore
         trade_date=date(2026, 7, 14),
     )
 
-    print(result.summary_text)
+    logger.info(result.summary_text)

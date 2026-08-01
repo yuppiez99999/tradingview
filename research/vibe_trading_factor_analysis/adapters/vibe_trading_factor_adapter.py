@@ -38,7 +38,7 @@ import traceback
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -1456,7 +1456,7 @@ class VibeTradingFactorAdapter:
         # 经济含义：净利润增长率加速 → 二阶导为正 → 看涨
         # 改进依据：v1 IC_IR=0.2676 是 4 版改进中最高值，回退 v1 为最终方案
         # ============================================================
-        values: Dict[str, float] = {}
+        values: Dict[str, float] = {}  # type: ignore
 
         for sym, hist in fundamentals_history.items():
             if not isinstance(hist, dict):

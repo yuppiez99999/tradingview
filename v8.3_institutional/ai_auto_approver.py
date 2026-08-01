@@ -16,7 +16,6 @@ AI 自动确认模块（第三步-1） — v1.0
 from __future__ import annotations
 
 import json
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -29,7 +28,7 @@ if str(_BASE) not in sys.path:
 try:
     from utils.logger import get_logger
     logger = get_logger("ai_auto_approver")
-except Exception:
+except Exception as e:
     import logging
     logger = logging.getLogger("ai_auto_approver")
 

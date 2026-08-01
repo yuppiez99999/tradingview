@@ -131,6 +131,10 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "p0: P0 致命级 bug 回归")
     config.addinivalue_line("markers", "p1: P1 风险缺口级 bug 回归")
     config.addinivalue_line("markers", "bug(id): 关联 bug 编号, 如 @pytest.mark.bug('P0-E')")
+    # ECC GAP-7/8/6 新增标记 (2026-07-29)
+    config.addinivalue_line("markers", "reproducibility: 可复现性测试 (ECC GAP-7, 同 config+seed+dataset 重跑一致性)")
+    config.addinivalue_line("markers", "contract: 数据契约测试 (ECC GAP-8, 字段/类型/null/point-in-time 校验)")
+    config.addinivalue_line("markers", "drift: 漂移监控测试 (ECC GAP-6, sim_mode 激活 + KS/PSI + 延迟标签)")
 
     import logging
     logging.getLogger("matplotlib").setLevel(logging.WARNING)

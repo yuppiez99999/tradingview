@@ -12,7 +12,7 @@
     6. 计划外日期处理 (pre_plan / post_plan / 未定义年份)
 """
 import sys
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 # 将项目根目录加入 sys.path
@@ -21,7 +21,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from utils.phase_manager import (
     PhaseManager,
-    PhaseInfo,
     QuarterlyReviewResult,
     ANNUAL_PHASES,
     LIQUIDATION_QUARTERLY_ACTIONS,
@@ -142,7 +141,7 @@ def test_quarter_end_detection():
     assert pm.get_current_quarter(date(2026, 4, 15)) == "Q2", "Q2 判断失败"
     assert pm.get_current_quarter(date(2026, 7, 15)) == "Q3", "Q3 判断失败"
     assert pm.get_current_quarter(date(2026, 10, 15)) == "Q4", "Q4 判断失败"
-    print(f"\n  ✅ 季度标识: Q1/Q2/Q3/Q4 判断正确")
+    print("\n  ✅ 季度标识: Q1/Q2/Q3/Q4 判断正确")
 
     print("\n  结果: 季度末判断全部通过 ✅")
 
@@ -206,7 +205,7 @@ def test_liquidation_actions():
     assert pm.is_liquidation_phase(date(2026, 7, 14)) is False, "2026 不应清仓"
     assert pm.is_liquidation_phase(date(2029, 12, 31)) is False, "2029 不应清仓"
     assert pm.get_liquidation_actions(date(2026, 7, 14)) is None, "2026 应返回 None"
-    print(f"  ✅ 非清仓年: is_liquidation_phase=False, get_liquidation_actions=None")
+    print("  ✅ 非清仓年: is_liquidation_phase=False, get_liquidation_actions=None")
 
     # Q1-Q4 清仓动作
     q1 = pm.get_liquidation_actions(date(2030, 2, 15))
@@ -241,7 +240,7 @@ def test_liquidation_actions():
     assert len(order) == 6, f"清仓顺序应为 6 步, 实际 {len(order)}"
     assert order[0] == "1_illiquid_small_cap", "第1步应为小盘股"
     assert order[-1] == "6_futures_hedge_close", "最后一步应为对冲平仓"
-    print(f"  ✅ 清仓顺序: 6 步 (小盘股 → 量化中性 → 方向性期货 → 大盘股 → 期权 → 对冲平仓)")
+    print("  ✅ 清仓顺序: 6 步 (小盘股 → 量化中性 → 方向性期货 → 大盘股 → 期权 → 对冲平仓)")
 
     print("\n  结果: 2030 清仓 Q1-Q4 分步动作全部通过 ✅")
 
@@ -257,7 +256,7 @@ def test_early_exit_trigger():
     # 无触发 (回撤 < 5%)
     result = pm.check_early_exit_trigger(0.03)
     assert result is None, f"回撤 3% 不应触发: {result}"
-    print(f"  ✅ 回撤 3%: 无触发")
+    print("  ✅ 回撤 3%: 无触发")
 
     # 5% 预警
     result = pm.check_early_exit_trigger(0.05)
@@ -292,7 +291,7 @@ def test_early_exit_trigger():
     result = pm.check_early_exit_trigger(0.18)
     assert result is not None, "回撤 18% 应触发"
     assert result["trigger"] == "drawdown_15pct", "18% 仍应触发 15% 红线"
-    print(f"  ✅ 回撤 18%: 触发 15% 红线 (defensive_mode)")
+    print("  ✅ 回撤 18%: 触发 15% 红线 (defensive_mode)")
 
     print("\n  结果: 提前退出 4 级回撤触发全部通过 ✅")
 
@@ -315,13 +314,13 @@ def test_summary_output():
     # 季度末
     summary_q = pm.summary(date(2026, 9, 29))
     assert "季度末" in summary_q, "季度末摘要应包含 '季度末'"
-    print(f"  ✅ 2026-09-29 季度末摘要 (含触发标记)")
+    print("  ✅ 2026-09-29 季度末摘要 (含触发标记)")
 
     # 清仓年
     summary_l = pm.summary(date(2030, 5, 15))
     assert "2030 清仓年" in summary_l, "清仓年摘要应包含 '2030 清仓年'"
     assert "Q2" in summary_l, "清仓年摘要应包含季度"
-    print(f"  ✅ 2030-05-15 清仓年 Q2 摘要 (含清仓动作)")
+    print("  ✅ 2030-05-15 清仓年 Q2 摘要 (含清仓动作)")
 
     print("\n  结果: 摘要输出全部通过 ✅")
 
@@ -348,7 +347,7 @@ def test_config_completeness():
     # 2030 必须包含清仓顺序
     assert "liquidation_order" in ANNUAL_PHASES["2030"], "2030 应包含 liquidation_order"
     assert len(ANNUAL_PHASES["2030"]["liquidation_order"]) == 6, "2030 清仓顺序应为 6 步"
-    print(f"  ✅ 2030 清仓顺序: 6 步")
+    print("  ✅ 2030 清仓顺序: 6 步")
 
     # Q1-Q4 清仓动作全部定义
     expected_qs = {"Q1", "Q2", "Q3", "Q4"}

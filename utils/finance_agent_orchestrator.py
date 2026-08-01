@@ -42,6 +42,7 @@ logger = get_logger("finance_agent_orchestrator")
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class AgentConsensus:
     """多 Agent 协调器的最终共识决策
@@ -57,6 +58,7 @@ class AgentConsensus:
         weighted_vote_detail: 加权投票明细
         timestamp: ISO 时间戳
     """
+
     symbol: str
     action: str = "hold"
     strength: float = 0.0
@@ -103,6 +105,7 @@ class ShadowDiff:
         action_match: 动作是否一致
         timestamp: ISO 时间戳
     """
+
     symbol: str
     fusion_strength: float = 0.0
     agent_strength: float = 0.0
@@ -127,6 +130,7 @@ class ShadowDiff:
 # 主协调器
 # ============================================================
 
+
 class FinanceAgentOrchestrator:
     """金融多 Agent 协调器 (Shadow Mode)
 
@@ -139,11 +143,12 @@ class FinanceAgentOrchestrator:
 
     # Agent 默认权重 (基于历史置信度, 可调)
     DEFAULT_WEIGHTS: Dict[str, float] = {
-        "value": 0.25,         # 估值: 长期逻辑
-        "momentum": 0.25,      # 动量: 中期信号
-        "sentiment": 0.15,     # 情绪: 短期事件
-        "risk": 0.25,          # 风险: veto + 风险评分
-        "macro": 0.10,         # 宏观: 环境因素
+        "value": 0.22,  # 估值: 长期逻辑
+        "momentum": 0.22,  # 动量: 中期信号
+        "sentiment": 0.13,  # 情绪: 短期事件
+        "risk": 0.22,  # 风险: veto + 风险评分
+        "macro": 0.10,  # 宏观: 环境因素
+        "weather": 0.11,  # v8.6.13: 气象因子 (7因子体系)
     }
 
     def __init__(
@@ -177,7 +182,7 @@ class FinanceAgentOrchestrator:
         self.audit_log_dir = audit_log_dir or Path("data/agent_orchestrator_audit")
         try:
             self.audit_log_dir.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("审计日志目录创建失败: %s", e)
 
         logger.info(
@@ -186,13 +191,106 @@ class FinanceAgentOrchestrator:
             {k: round(v, 3) for k, v in self.weights.items()},
         )
 
+        # v8.4.1: TradingAgents 桥接客户端 (懒加载)
+        # 通过 HTTP 调用 28_bridge.py 微服务 (Python 3.10+), 获取多 Agent 决策
+        # 降级链: 微服务 → 本地 orchestrate → 中性决策
+        self._tradingagents_bridge = None
+
+    # ----------------------------------------------------------
+    # v8.4.1: TradingAgents 多 Agent 决策引擎 (外部集成)
+    # ----------------------------------------------------------
+
+    def orchestrate_tradingagents(
+        self,
+        symbol: str,
+        date: Optional[str] = None,
+        analysts: Optional[List[str]] = None,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> AgentConsensus:
+        """调用 TradingAgents 多 Agent 决策系统.
+
+        通过 HTTP 桥接微服务调用 langgraph 多 Agent 框架 (Python 3.10+),
+        获取 market/news/fundamentals/social 分析师协作决策.
+
+        降级链:
+            1. TradingAgents 微服务 (多 Agent 推理)
+            2. 本地 orchestrate() (5 Agent 投票)
+            3. 中性决策 (HOLD)
+
+        Args:
+            symbol: 标的代码 (如 "600519.SH" / "AAPL")
+            date: 分析日期 "YYYY-MM-DD", 默认今天
+            analysts: 指定分析师列表, 默认全部
+            context: 上下文 (保留参数, 供未来扩展)
+
+        Returns:
+            AgentConsensus 共识决策 (source 字段标注决策来源)
+        """
+        # 懒加载桥接客户端
+        if self._tradingagents_bridge is None:
+            try:
+                from utils.tradingagents_bridge import TradingAgentsBridge
+
+                self._tradingagents_bridge = TradingAgentsBridge()
+            except ImportError as e:
+                logger.warning("TradingAgentsBridge 不可用: %s, 降级到本地", e)
+                return self.orchestrate(symbol, context or {})
+
+        # 调用微服务
+        result = self._tradingagents_bridge.analyze(symbol, date, analysts)
+
+        # 将桥接结果转换为 AgentConsensus 格式
+        action = result.get("action", "HOLD").lower()
+        confidence = float(result.get("confidence", 0.0))
+        source = result.get("source", "unknown")
+        reasoning = result.get("reasoning", "")
+
+        # action 映射: BUY→buy, SELL→sell, HOLD→hold
+        if action not in ("buy", "sell", "hold"):
+            action = "hold"
+
+        # strength 映射: buy→+confidence, sell→-confidence, hold→0
+        if action == "buy":
+            strength = confidence
+        elif action == "sell":
+            strength = -confidence
+        else:
+            strength = 0.0
+
+        consensus = AgentConsensus(
+            symbol=symbol,
+            action=action,
+            strength=strength,
+            confidence=confidence,
+            veto=False,
+            veto_reason="",
+            agent_decisions=[
+                {
+                    "agent": "tradingagents",
+                    "source": source,
+                    "action": action,
+                    "confidence": confidence,
+                    "reasoning": reasoning,
+                }
+            ],
+            weighted_vote_detail={"tradingagents": strength},
+        )
+
+        logger.info(
+            "TradingAgents 决策: %s → %s (strength=%.3f, conf=%.3f, source=%s)",
+            symbol,
+            action,
+            strength,
+            confidence,
+            source,
+        )
+        return consensus
+
     # ----------------------------------------------------------
     # 主入口
     # ----------------------------------------------------------
 
-    def orchestrate(
-        self, symbol: str, context: Dict[str, Any]
-    ) -> AgentConsensus:
+    def orchestrate(self, symbol: str, context: Dict[str, Any]) -> AgentConsensus:
         """协调所有 Agent 分析单个标的
 
         Args:
@@ -212,7 +310,8 @@ class FinanceAgentOrchestrator:
                 if not agent.is_available(context):
                     logger.debug(
                         "Agent %s 对 %s 不可用, 跳过",
-                        agent.name, symbol,
+                        agent.name,
+                        symbol,
                     )
                     continue
                 decision = agent.analyze(symbol, context)
@@ -224,24 +323,30 @@ class FinanceAgentOrchestrator:
                     veto_reason = decision.veto_reason or f"{agent.name} 触发 veto"
                     logger.warning(
                         "[Shadow] %s/%s 触发 VETO: %s",
-                        agent.name, symbol, veto_reason,
+                        agent.name,
+                        symbol,
+                        veto_reason,
                     )
                     # 不 break, 继续收集其他 Agent 决策 (用于审计)
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(
                     "Agent %s 分析 %s 异常: %s",
-                    agent.name, symbol, e,
+                    agent.name,
+                    symbol,
+                    e,
                 )
                 # 异常不影响其他 Agent
-                all_decisions.append({
-                    "agent_name": agent.name,
-                    "symbol": symbol,
-                    "action": "hold",
-                    "strength": 0.0,
-                    "confidence": 0.0,
-                    "reasoning": f"Agent 异常: {e}",
-                    "error": True,
-                })
+                all_decisions.append(
+                    {
+                        "agent_name": agent.name,
+                        "symbol": symbol,
+                        "action": "hold",
+                        "strength": 0.0,
+                        "confidence": 0.0,
+                        "reasoning": f"Agent 异常: {e}",
+                        "error": True,
+                    }
+                )
 
         # veto 优先
         if veto_triggered:
@@ -257,9 +362,7 @@ class FinanceAgentOrchestrator:
             )
 
         # 加权投票
-        weighted_strength, weighted_confidence, vote_detail = self._weighted_vote(
-            all_decisions
-        )
+        weighted_strength, weighted_confidence, vote_detail = self._weighted_vote(all_decisions)
 
         # 决策动作
         if weighted_strength > 0.3:
@@ -322,7 +425,7 @@ class FinanceAgentOrchestrator:
         # 动作一致性
         fusion_action = self._strength_to_action(fusion_strength)
         agent_action = agent_result.action
-        action_match = (fusion_action == agent_action)
+        action_match = fusion_action == agent_action
 
         return ShadowDiff(
             symbol=agent_result.symbol,
@@ -364,13 +467,11 @@ class FinanceAgentOrchestrator:
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
             return log_file
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("审计日志写入失败: %s", e)
             return None
 
-    def load_audit_log(
-        self, trade_date: str
-    ) -> List[Dict[str, Any]]:
+    def load_audit_log(self, trade_date: str) -> List[Dict[str, Any]]:
         """加载指定日期的审计日志
 
         Args:
@@ -389,7 +490,7 @@ class FinanceAgentOrchestrator:
                     line = line.strip()
                     if line:
                         entries.append(json.loads(line))
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("审计日志读取失败: %s", e)
         return entries
 
@@ -397,9 +498,7 @@ class FinanceAgentOrchestrator:
     # 内部方法
     # ----------------------------------------------------------
 
-    def _weighted_vote(
-        self, decisions: List[Dict[str, Any]]
-    ) -> tuple:
+    def _weighted_vote(self, decisions: List[Dict[str, Any]]) -> tuple:
         """加权投票
 
         Returns:
@@ -457,20 +556,34 @@ class FinanceAgentOrchestrator:
 
     @staticmethod
     def _init_default_agents() -> List[Any]:
-        """初始化默认 5 个 Agent"""
+        """初始化默认 6 个 Agent (v8.6.13 新增 WeatherAgent)"""
         try:
             from utils.finance_agents import (
-                ValueAgent, MomentumAgent, SentimentAgent,
-                RiskAgent, MacroAgent,
+                ValueAgent,
+                MomentumAgent,
+                SentimentAgent,
+                RiskAgent,
+                MacroAgent,
             )
-            return [
+
+            agents: List[Any] = [
                 ValueAgent(),
                 MomentumAgent(),
                 SentimentAgent(),
                 RiskAgent(),
                 MacroAgent(),
             ]
-        except Exception as e:
+
+            # v8.6.13: 气象因子 Agent (懒加载, 不影响系统启动)
+            try:
+                from utils.finance_agents.weather_agent import WeatherAgent
+                agents.append(WeatherAgent())
+                logger.info("WeatherAgent 初始化成功")
+            except Exception as weather_err:
+                logger.warning("WeatherAgent 初始化失败 (降级跳过): %s", weather_err)
+
+            return agents
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error("默认 Agent 初始化失败: %s", e)
             return []
 

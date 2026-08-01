@@ -8,4 +8,5 @@ v7.5 Institutional — 机构级实盘交易系统
     - src/execution:     SOR + Iceberg + NTP
     - src/backtest:      Walk-Forward + 三段压力测试
 """
+
 __version__ = "7.5.0-institutional"

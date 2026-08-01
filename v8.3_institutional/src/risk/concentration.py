@@ -104,7 +104,7 @@ def compute_hhi(weights: np.ndarray) -> float:
     Returns:
         HHI 值
     """
-    return float(np.sum(weights ** 2))
+    return float(np.sum(weights**2))
 
 
 def detect_concentration_alerts(
@@ -133,7 +133,7 @@ def detect_concentration_alerts(
     """
     n_assets = len(weights)
     if names is None:
-        names = [f'Asset_{i}' for i in range(n_assets)]
+        names = [f"Asset_{i}" for i in range(n_assets)]
 
     alerts = []
 
@@ -141,50 +141,47 @@ def detect_concentration_alerts(
     rc = compute_risk_contribution(returns, weights)
     for i in range(n_assets):
         if rc[i] > mrc_threshold * 100:  # 转为百分比
-            alerts.append({
-                'type': 'mrc',
-                'asset': names[i],
-                'value': rc[i],
-                'threshold': mrc_threshold * 100,
-                'message': (
-                    f"{names[i]} MRC占比{rc[i]:.1f}%超过"
-                    f"阈值{mrc_threshold*100:.0f}%"
-                ),
-            })
+            alerts.append(
+                {
+                    "type": "mrc",
+                    "asset": names[i],
+                    "value": rc[i],
+                    "threshold": mrc_threshold * 100,
+                    "message": (f"{names[i]} MRC占比{rc[i]:.1f}%超过阈值{mrc_threshold * 100:.0f}%"),
+                }
+            )
 
     # 2. 板块集中度
     if sectors is not None:
         sector_weights: Dict[str, float] = {}
         for i in range(n_assets):
-            sector = sectors.get(names[i], '未分类')
+            sector = sectors.get(names[i], "未分类")
             sector_weights[sector] = sector_weights.get(sector, 0.0) + weights[i]
 
         for sector, weight in sector_weights.items():
             if weight > sector_threshold:
-                alerts.append({
-                    'type': 'sector_concentration',
-                    'asset': sector,
-                    'value': weight * 100,
-                    'threshold': sector_threshold * 100,
-                    'message': (
-                        f"板块 '{sector}' 权重{weight*100:.1f}%超过"
-                        f"阈值{sector_threshold*100:.0f}%"
-                    ),
-                })
+                alerts.append(
+                    {
+                        "type": "sector_concentration",
+                        "asset": sector,
+                        "value": weight * 100,
+                        "threshold": sector_threshold * 100,
+                        "message": (f"板块 '{sector}' 权重{weight * 100:.1f}%超过阈值{sector_threshold * 100:.0f}%"),
+                    }
+                )
 
     # 3. HHI 警报
     hhi = compute_hhi(weights)
     if hhi > hhi_threshold:
-        alerts.append({
-            'type': 'hhi',
-            'asset': '组合整体',
-            'value': hhi,
-            'threshold': hhi_threshold,
-            'message': (
-                f"HHI={hhi:.4f}超过阈值{hhi_threshold:.2f}, "
-                f"有效分散资产数={1/hhi:.1f}"
-            ),
-        })
+        alerts.append(
+            {
+                "type": "hhi",
+                "asset": "组合整体",
+                "value": hhi,
+                "threshold": hhi_threshold,
+                "message": (f"HHI={hhi:.4f}超过阈值{hhi_threshold:.2f}, 有效分散资产数={1 / hhi:.1f}"),
+            }
+        )
 
     return alerts
 
@@ -214,14 +211,18 @@ def generate_concentration_report(
     """
     n_assets = len(weights)
     if names is None:
-        names = [f'标的_{i+1}' for i in range(n_assets)]
+        names = [f"标的_{i + 1}" for i in range(n_assets)]
 
     rc = compute_risk_contribution(returns, weights)
     hhi = compute_hhi(weights)
     eff_n = effective_number_of_assets(weights)
     alerts = detect_concentration_alerts(
-        returns, weights, names=names, sectors=sectors,
-        mrc_threshold=mrc_threshold, sector_threshold=sector_threshold,
+        returns,
+        weights,
+        names=names,
+        sectors=sectors,
+        mrc_threshold=mrc_threshold,
+        sector_threshold=sector_threshold,
         hhi_threshold=hhi_threshold,
     )
 
@@ -254,10 +255,7 @@ def generate_concentration_report(
     for i in range(n_assets):
         status = "WARN" if rc[i] > mrc_threshold * 100 else "OK"
         sector_str = f" [{sectors.get(names[i], '')}]" if sectors else ""
-        lines.append(
-            f"| {names[i]}{sector_str} | {weights[i]:.1%} | "
-            f"{rc[i]:.1f}% | {status} |"
-        )
+        lines.append(f"| {names[i]}{sector_str} | {weights[i]:.1%} | {rc[i]:.1f}% | {status} |")
     lines.append("")
 
     # 板块汇总
@@ -265,7 +263,7 @@ def generate_concentration_report(
         sector_weights: Dict[str, float] = {}
         sector_rc: Dict[str, float] = {}
         for i in range(n_assets):
-            s = sectors.get(names[i], '未分类')
+            s = sectors.get(names[i], "未分类")
             sector_weights[s] = sector_weights.get(s, 0.0) + weights[i]
             sector_rc[s] = sector_rc.get(s, 0.0) + rc[i]
 
@@ -275,10 +273,7 @@ def generate_concentration_report(
         lines.append("|------|------|------|------|")
         for sector in sorted(sector_weights):
             s_status = "WARN" if sector_weights[sector] > sector_threshold else "OK"
-            lines.append(
-                f"| {sector} | {sector_weights[sector]:.1%} | "
-                f"{sector_rc[sector]:.1f}% | {s_status} |"
-            )
+            lines.append(f"| {sector} | {sector_weights[sector]:.1%} | {sector_rc[sector]:.1f}% | {s_status} |")
         lines.append("")
 
     # 警报详情

@@ -14,8 +14,6 @@
 """
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -23,10 +21,6 @@ import pytest
 from utils.finance_agent_orchestrator import (
     AgentConsensus,
     FinanceAgentOrchestrator,
-    ShadowDiff,
-)
-from utils.finance_agents import (
-    ValueAgent, MomentumAgent, SentimentAgent, RiskAgent, MacroAgent,
 )
 
 

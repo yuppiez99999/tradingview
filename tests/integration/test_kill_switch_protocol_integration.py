@@ -9,7 +9,6 @@
     - 验证 L1/L2/L3 → 动作映射 → broker 调用参数
 """
 import pytest
-from unittest.mock import MagicMock
 
 from utils.kill_switch import KillSwitch
 
@@ -60,7 +59,7 @@ class TestKillSwitchProtocolEndToEnd:
         self, real_kill_switch_with_callback, sample_trade_plan
     ):
         """L2 协议: 75% 保证金 → 强平深虚值期权空头"""
-        ks, callback = real_kill_switch_with_callback
+        ks, _callback = real_kill_switch_with_callback
 
         status = ks.check_margin_status(margin_usage=0.78)
         assert status["level"] == 2
@@ -77,7 +76,7 @@ class TestKillSwitchProtocolEndToEnd:
         self, real_kill_switch_with_callback, sample_trade_plan
     ):
         """L3 协议: 95% 保证金 → 变现 10% 红利 ETF"""
-        ks, callback = real_kill_switch_with_callback
+        ks, _callback = real_kill_switch_with_callback
 
         status = ks.check_margin_status(margin_usage=0.96)
         assert status["level"] == 3

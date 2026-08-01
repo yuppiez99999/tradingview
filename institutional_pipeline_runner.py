@@ -37,6 +37,7 @@ from utils.risk_budget_engine import RiskBudgetEngine, RiskCheckResult
 from utils.institutional_optimizer import InstitutionalPortfolioOptimizer, PortfolioDecision
 from utils.execution_router import ExecutionRouter, ExecutionPlan
 from utils.data_gate import DataGate
+from utils.path_config import get_institutional_pipeline_report_dir, get_historical_base_file
 
 # 顶级对冲基金整改：统一成本、硬性风险约束、回撤熔断、回测完整性守卫
 from utils.risk_constraints import (
@@ -155,7 +156,8 @@ logging.basicConfig(
 logger = logging.getLogger("institutional_pipeline")
 
 BASE_DIR = Path(__file__).resolve().parent
-REPORT_DIR = BASE_DIR / "output" / "institutional_pipeline"
+# 数据存储路径通过集中配置管理 (支持 QUANT_DATA_ROOT 迁移到 D 盘)
+REPORT_DIR = get_institutional_pipeline_report_dir()
 
 
 # ============================================================================
@@ -548,6 +550,11 @@ class InstitutionalPipelineRunner:
             import pandas as pd
 
             cutoff = pd.Timestamp(self.ctx.report_date).normalize()
+            # BUG 修复 (2026-08-01): cutoff 必须强制 tz-naive, 否则与
+            # tz-naive 的 s.index 比较会抛 "Cannot compare tz-naive and tz-aware
+            # timestamps", 导致动量 IC 全部失败, alpha=mock.
+            if hasattr(cutoff, "tz") and cutoff.tz is not None:
+                cutoff = cutoff.tz_localize(None)
             for symbol in symbols_needing_momentum:
                 try:
                     df = self._historical_cache.get(symbol)
@@ -1083,7 +1090,11 @@ class InstitutionalPipelineRunner:
             df_sym = df_sym.sort_index()
             if hasattr(df_sym.index, "tz") and df_sym.index.tz is not None:
                 df_sym.index = df_sym.index.tz_localize(None)
-            df_sym = df_sym[df_sym.index <= cutoff]
+            # BUG 修复 (2026-08-01): cutoff 强制 tz-naive, 与 df_sym.index 比较才安全.
+            cutoff_naive = pd.Timestamp(cutoff)
+            if hasattr(cutoff_naive, "tz") and cutoff_naive.tz is not None:
+                cutoff_naive = cutoff_naive.tz_localize(None)
+            df_sym = df_sym[df_sym.index <= cutoff_naive]
             if len(df_sym) < 22:
                 return None
             daily_rets = df_sym["close"].pct_change().tail(20)
@@ -1375,7 +1386,7 @@ class InstitutionalPipelineRunner:
         由 _download_base_data.py 预先生成，覆盖 2021~2026 约 1260 个交易日，
         截断到回测日期后仍有 ~640 行，远超 LGB min_samples=150。
         """
-        base_file = BASE_DIR / "data_cache" / f"historical_{symbol}_5y_base.parquet"
+        base_file = get_historical_base_file(symbol)
         if not base_file.exists():
             return None
         try:
@@ -1402,10 +1413,34 @@ class InstitutionalPipelineRunner:
                 df = None
         if df is None or df.empty:
             return None
-        # 截断到回测日期, 移除时区
-        if hasattr(df.index, "tz") and df.index.tz is not None:
-            df.index = df.index.tz_localize(None)
-        df = df[df.index <= cutoff]
+        # BUG 修复 (2026-08-01 顶级对冲基金重跑验证发现, V2 增强):
+        # V1 修复仅对 df.index 做 tz_localize(None), 但部分 pandas 版本下
+        # DatetimeIndex.tz_localize(None) 不改元素 tz, 仍抛
+        # "Cannot compare tz-naive and tz-aware timestamps"。
+        # V2 修复: 元素级强制 tz-naive (与 backtest_runner._to_naive_idx 一致)。
+        def _to_naive_idx(idx):
+            """将 DatetimeIndex 强制转为 tz-naive, 元素也 tz-naive。"""
+            try:
+                if hasattr(idx, "tz") and idx.tz is not None:
+                    idx = idx.tz_localize(None)
+                # 元素级规范化 (部分 pandas 版本下 idx.tz_localize(None) 不改元素 tz)
+                return pd.DatetimeIndex([
+                    pd.Timestamp(d).tz_localize(None) if pd.Timestamp(d).tzinfo else pd.Timestamp(d)
+                    for d in idx
+                ])
+            except Exception:
+                return idx
+
+        try:
+            df.index = _to_naive_idx(df.index)
+        except Exception:
+            pass  # 索引转换失败不阻断, 后续比较仍会处理
+
+        cutoff_naive = pd.Timestamp(cutoff)
+        if hasattr(cutoff_naive, "tz") and cutoff_naive.tz is not None:
+            cutoff_naive = cutoff_naive.tz_localize(None)
+        cutoff_naive = cutoff_naive.normalize()
+        df = df[df.index <= cutoff_naive]
         return df if not df.empty else None
 
     def _preload_historical_data(self) -> None:

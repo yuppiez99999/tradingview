@@ -53,7 +53,7 @@ def main() -> int:
     g1_passed = [f for f in factors if f.get("g1_orthogonality") and f["g1_orthogonality"].get("passed")]
     print(f"  G1 通过: {len(g1_passed)}/{total} ({len(g1_passed)/total*100:.1f}%)")
     print(f"  G1 拒绝: {len(g1_failed)}/{total} ({len(g1_failed)/total*100:.1f}%)")
-    print(f"\n  G1 失败明细（按 max_abs_corr 降序）:")
+    print("\n  G1 失败明细（按 max_abs_corr 降序）:")
     print(f"  {'Factor':35s} | {'|corr|':>8s} | {'最相关现有因子':20s}")
     print(f"  {'-'*35}-+-{'-'*8}-+-{'-'*20}")
     g1_failed_sorted = sorted(
@@ -74,7 +74,7 @@ def main() -> int:
     print(f"  G2 尝试: {len(g2_attempted)} (通过 G1 的)")
     print(f"  G2 通过: {len(g2_passed)}")
     print(f"  G2 拒绝: {len(g2_failed)}")
-    print(f"\n  G2 失败明细（按 IC_IR 升序）:")
+    print("\n  G2 失败明细（按 IC_IR 升序）:")
     print(f"  {'Factor':35s} | {'IC':>8s} | {'IC_IR':>8s} | {'阈值':>6s} | {'gap':>8s}")
     print(f"  {'-'*35}-+-{'-'*8}-+-{'-'*8}-+-{'-'*6}-+-{'-'*8}")
     g2_sorted = sorted(
@@ -121,7 +121,7 @@ def main() -> int:
             cat_pass[cat][0] += 1
     print(f"  {'Category':15s} | {'总数':>4s} | {'G1通过':>6s} | {'G1通过率':>8s}")
     print(f"  {'-'*15}-+-{'-'*4}-+-{'-'*6}-+-{'-'*8}")
-    for cat, total_in_cat in cat_count.most_common():
+    for cat, _total_in_cat in cat_count.most_common():
         passed, tot = cat_pass[cat]
         rate = passed / tot * 100 if tot > 0 else 0
         print(f"  {cat:15s} | {tot:4d} | {passed:6d} | {rate:7.1f}%")
@@ -136,12 +136,12 @@ def main() -> int:
     print(f"  G2 通过率: {g2_pass_rate:.1f}% (目标 > 30%: {'✓' if g2_pass_rate > 30 else '✗'})")
     print()
     print("  关键发现:")
-    print(f"  1. 架构验证: ✓ 流水线 8 级状态机正常流转，0 异常崩溃")
-    print(f"  2. G1 表现合理: 9/16 (56%) 通过正交性，说明现有 51 因子有正交补集空间")
-    print(f"  3. G2 全部失败: 0/16 通过 IC 稳定性，根因有 3 类：")
-    print(f"     a) 简化 IC_IR 计算（单期 IC 经验映射）放大噪声")
-    print(f"     b) 23 标的样本量小，cross-sectional IC 稳定性天然差")
-    print(f"     c) VT_MOM_GAP / VT_REV_SHORT_TERM 等极端因子 IC 接近 0，可能本身无 alpha")
+    print("  1. 架构验证: ✓ 流水线 8 级状态机正常流转，0 异常崩溃")
+    print("  2. G1 表现合理: 9/16 (56%) 通过正交性，说明现有 51 因子有正交补集空间")
+    print("  3. G2 全部失败: 0/16 通过 IC 稳定性，根因有 3 类：")
+    print("     a) 简化 IC_IR 计算（单期 IC 经验映射）放大噪声")
+    print("     b) 23 标的样本量小，cross-sectional IC 稳定性天然差")
+    print("     c) VT_MOM_GAP / VT_REV_SHORT_TERM 等极端因子 IC 接近 0，可能本身无 alpha")
     print()
     print("  下批次改进方向（按优先级排序）:")
     print("  P0: 实现 compute_factor_history() 提供日频因子值序列")
@@ -183,7 +183,7 @@ def _write_s4_report(
     cat_pass: dict,
 ) -> None:
     """写入 S4 根因分析报告"""
-    content = f"""# S4 首批次流水线根因分析报告
+    content = """# S4 首批次流水线根因分析报告
 
 > CIO 视角深度根因分析（v1.0）
 > 生成时间：2026-07-25
@@ -215,7 +215,7 @@ def _write_s4_report(
             f"`{g1.get('max_corr_factor', '-')}` | 与现有因子高度重叠 |\n"
         )
 
-    content += f"""
+    content += """
 **G1 失败根因分析**：
 - VT_MOM_GAP / VT_REV_SHORT_TERM 与现有因子相关性 1.0，本质是同一因子的不同实现
 - VT_MOM_ILLIQUID_60D 与现有 MOM_60D 相关性 0.85，是动量因子族冗余
@@ -237,7 +237,7 @@ def _write_s4_report(
             f"| {i} | `{f['factor_name']}` | {ic:+.4f} | {ic_ir:+.4f} | 0.3000 | {gap:+.4f} |\n"
         )
 
-    content += f"""
+    content += """
 **G2 失败根因分析**（三层归因）：
 
 ### 3.1 简化实现缺陷（主因，P0 修复）
@@ -271,7 +271,7 @@ def _write_s4_report(
         rate = passed / tot * 100 if tot > 0 else 0
         content += f"| {cat} | {tot} | {passed} | {rate:.1f}% |\n"
 
-    content += f"""
+    content += """
 **类别分布观察**：
 - Momentum / Reversal 类因子 G1 通过率最低（与现有动量库强相关）
 - Liquidity / Volatility 类因子有正交补集空间（值得下批次重点挖掘）

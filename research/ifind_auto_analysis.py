@@ -9,7 +9,12 @@ import json
 import os
 import sys
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
+
+# 确保能导入 utils 模块
+project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 import yaml
 
@@ -21,16 +26,43 @@ def _load_portfolio_symbols(portfolio_path: str) -> List[Dict[str, Any]]:
         raise FileNotFoundError(f"portfolio.yaml 不存在: {portfolio_path}")
     with open(portfolio_path, 'r', encoding='utf-8') as f:
         data = yaml.safe_load(f) or {}
-    positions = ((data.get('positions') or {}))
+    
+    # 支持两种格式：positions (对象) 或 assets (数组)
+    positions = data.get('positions') or {}
+    assets = data.get('assets') or []
+    
     items: List[Dict[str, Any]] = []
-    for code, pos in positions.items():
-        items.append({
-            'code': str(code),
-            'name': str(pos.get('name', code)),
-            'sector': str(pos.get('sector', pos.get('category', ''))),
-            'target_weight': pos.get('target_weight'),
-            'asset_type': str(pos.get('asset_type', '')),
-        })
+    
+    # 优先使用 assets 数组（新格式）
+    if isinstance(assets, list) and len(assets) > 0:
+        for asset in assets:
+            code = asset.get('code', '')
+            if code and code != 'CASH':  # 跳过现金项
+                items.append({
+                    'code': str(code),
+                    'name': str(asset.get('name', code)),
+                    'sector': str(asset.get('category', asset.get('style', ''))),
+                    'target_weight': asset.get('weight'),
+                    'asset_type': str(asset.get('category', '')),
+                })
+    
+    # 如果没有从 assets 获取到数据，尝试 positions（旧格式）
+    if not items and isinstance(positions, dict) and len(positions) > 0:
+        for code, pos in positions.items():
+            items.append({
+                'code': str(code),
+                'name': str(pos.get('code', code)),  # 注意：这里可能需要调整
+                'sector': str(pos.get('sector', pos.get('category', ''))),
+                'target_weight': pos.get('weight', pos.get('target_weight')),
+                'asset_type': str(pos.get('asset_type', '')),
+            })
+    
+    if not items:
+        if isinstance(positions, dict) and not positions:
+            print("警告：portfolio.yaml 中 positions 为空")
+        else:
+            print("警告：未从 portfolio.yaml 中读取到有效持仓标的")
+    
     return items
 
 
@@ -60,17 +92,17 @@ def _calc_technical_alpha(code: str) -> Optional[float]:
 
 def _build_markdown_report(insights: List[StockInsight], items: List[Dict[str, Any]], meta: Dict[str, Any]) -> str:
     lines = [
-        f"# iFinD 自动标的研判报告",
-        f"",
+        "# iFinD 自动标的研判报告",
+        "",
         f"- 生成时间：{meta.get('generated_at', datetime.now().isoformat())}",
         f"- 标的数量：{len(insights)}",
-        f"- 数据源：iFinD 新闻/公告语义检索 + GTJA191 Alpha144 技术因子",
-        f"- 研判逻辑：关键词多空信号 + 置信度 + technical_alpha",
-        f"",
-        f"## 标的概览",
-        f"",
-        f"| 标的 | 名称 | 方向 | 置信度 | 资讯数 | technical_alpha | 研判结论 |",
-        f"| --- | --- | --- | --- | --- | --- | --- |",
+        "- 数据源：iFinD 新闻/公告语义检索 + GTJA191 Alpha144 技术因子",
+        "- 研判逻辑：关键词多空信号 + 置信度 + technical_alpha",
+        "",
+        "## 标的概览",
+        "",
+        "| 标的 | 名称 | 方向 | 置信度 | 资讯数 | technical_alpha | 研判结论 |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     direction_emoji = {'positive': '📈', 'negative': '📉', 'neutral': '➡️'}
     for item, insight in zip(items, insights):
@@ -81,24 +113,24 @@ def _build_markdown_report(insights: List[StockInsight], items: List[Dict[str, A
             f"| {item['code']} | {item['name']} | {emoji} {insight.direction} | {insight.confidence:.2f} | {insight.news_count} | {alpha_str} | {'；'.join(insight.reasons[:2])} |"
         )
     lines.extend([
-        f"",
-        f"## 逐标的详情",
-        f"",
+        "",
+        "## 逐标的详情",
+        "",
     ])
     for item, insight in zip(items, insights):
         technical_alpha = _calc_technical_alpha(item['code'])
         alpha_str = f"{technical_alpha:.4f}" if technical_alpha is not None else "N/A"
         lines.extend([
             f"### {item['name']} ({item['code']})",
-            f"",
+            "",
             f"- 板块：{item['sector'] or '未知'}",
             f"- 方向：{insight.direction}",
             f"- 置信度：{insight.confidence:.2f}",
             f"- 资讯数：{insight.news_count}",
             f"- technical_alpha：{alpha_str}",
             f"- 更新时间：{insight.updated_at}",
-            f"",
-            f"**研判理由：**",
+            "",
+            "**研判理由：**",
         ])
         for reason in insight.reasons[:8]:
             lines.append(f"- {reason}")

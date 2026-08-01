@@ -1,0 +1,22 @@
+{
+  "generation_time": "2026-07-28 18:23:33",
+  "model_sizes_tested": [
+    "mini"
+  ],
+  "symbols": [
+    "510300.SH",
+    "600900.SH"
+  ],
+  "date_range": [
+    "2024-06-01",
+    "2026-07-28"
+  ],
+  "lookback": 252,
+  "pred_len": 20,
+  "results": [],
+  "errors": [],
+  "notes": [
+    "Kronos-mini: 未生成因子面板 (模型可能不可用)",
+    "总耗时: 173.9s"
+  ]
+}

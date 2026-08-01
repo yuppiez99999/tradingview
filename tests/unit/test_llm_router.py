@@ -18,7 +18,7 @@ import os
 import sys
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -95,18 +95,21 @@ def router_with_mocks(flag_enabled):
     """启用 flag 并注入 mock provider 的 router."""
     router = LLMRouter.get_instance()
 
-    # 注入 mock provider
+    # 注入 mock provider (含 deepseek, 当前 fallback chain 第一位)
+    mock_deepseek = MagicMock(return_value="[DeepSeek] 你好")
     mock_doubao = MagicMock(return_value="[豆包] 你好")
     mock_glm = MagicMock(return_value="[GLM] 你好")
     mock_siliconflow = MagicMock(return_value="[SiliconFlow] 你好")
     mock_ollama = MagicMock(return_value="[Ollama] 你好")
 
+    router.register_provider("deepseek", mock_deepseek)
     router.register_provider("doubao", mock_doubao)
     router.register_provider("glm", mock_glm)
     router.register_provider("siliconflow", mock_siliconflow)
     router.register_provider("ollama", mock_ollama)
 
     yield router, {
+        "deepseek": mock_deepseek,
         "doubao": mock_doubao,
         "glm": mock_glm,
         "siliconflow": mock_siliconflow,
@@ -156,9 +159,9 @@ class TestLLMRouterBasics:
         assert all(inst is instances[0] for inst in instances)
 
     def test_default_fallback_chain(self):
-        """默认 fallback 链: doubao → glm → siliconflow → ollama."""
+        """默认 fallback 链: deepseek → doubao → glm → siliconflow → ollama."""
         router = LLMRouter.get_instance()
-        assert router._fallback_chain == ["doubao", "glm", "siliconflow", "ollama"]
+        assert router._fallback_chain == ["deepseek", "doubao", "glm", "siliconflow", "ollama"]
 
     def test_default_timeout_5_seconds(self):
         """默认超时 5 秒 (云 API, HC-2)."""
@@ -212,7 +215,7 @@ class TestFeatureFlagPassthrough:
             router.chat("prompt", "system")
 
         legacy_chat.assert_called_once()
-        args, kwargs = legacy_chat.call_args
+        _args, kwargs = legacy_chat.call_args
         # 默认不传 temperature/max_tokens
         assert "temperature" not in kwargs
         assert "max_tokens" not in kwargs
@@ -253,31 +256,44 @@ class TestFallbackChain:
     """Fallback 链测试."""
 
     def test_first_provider_success(self, router_with_mocks):
-        """P0 (doubao) 成功, 不调用其他 provider."""
+        """P0 (deepseek) 成功, 不调用其他 provider."""
         router, mocks = router_with_mocks
 
         result = router.chat("你好")
 
-        assert result == "[豆包] 你好"
-        mocks["doubao"].assert_called_once()
+        assert result == "[DeepSeek] 你好"
+        mocks["deepseek"].assert_called_once()
+        mocks["doubao"].assert_not_called()
         mocks["glm"].assert_not_called()
         mocks["siliconflow"].assert_not_called()
         mocks["ollama"].assert_not_called()
 
     def test_p0_fail_p1_takeover(self, router_with_mocks):
-        """P0 失败 → P1 (glm) 接管."""
+        """P0 失败 → P1 (doubao) 接管."""
         router, mocks = router_with_mocks
-        mocks["doubao"].return_value = None  # P0 软失败
+        mocks["deepseek"].return_value = None  # P0 软失败
+
+        result = router.chat("你好")
+
+        assert result == "[豆包] 你好"
+        mocks["deepseek"].assert_called_once()
+        mocks["doubao"].assert_called_once()
+
+    def test_p0_p1_fail_p2_takeover(self, router_with_mocks):
+        """P0 + P1 失败 → P2 (glm) 接管."""
+        router, mocks = router_with_mocks
+        mocks["deepseek"].return_value = None
+        mocks["doubao"].return_value = None
 
         result = router.chat("你好")
 
         assert result == "[GLM] 你好"
-        mocks["doubao"].assert_called_once()
         mocks["glm"].assert_called_once()
 
-    def test_p0_p1_fail_p2_takeover(self, router_with_mocks):
-        """P0 + P1 失败 → P2 (siliconflow) 接管."""
+    def test_p0_p1_p2_fail_p3_takeover(self, router_with_mocks):
+        """P0+P1+P2 失败 → P3 (siliconflow) 接管."""
         router, mocks = router_with_mocks
+        mocks["deepseek"].return_value = None
         mocks["doubao"].return_value = None
         mocks["glm"].return_value = None
 
@@ -285,18 +301,6 @@ class TestFallbackChain:
 
         assert result == "[SiliconFlow] 你好"
         mocks["siliconflow"].assert_called_once()
-
-    def test_p0_p1_p2_fail_p3_takeover(self, router_with_mocks):
-        """P0+P1+P2 失败 → P3 (ollama) 接管."""
-        router, mocks = router_with_mocks
-        mocks["doubao"].return_value = None
-        mocks["glm"].return_value = None
-        mocks["siliconflow"].return_value = None
-
-        result = router.chat("你好")
-
-        assert result == "[Ollama] 你好"
-        mocks["ollama"].assert_called_once()
 
     def test_all_fail_silent_fallback(self, router_with_mocks):
         """所有 provider 失败, silent_fallback=True 返回 None."""
@@ -313,8 +317,8 @@ class TestFallbackChain:
         router = LLMRouter.get_instance()
         router._silent_fallback = False
 
-        # 注入全部失败的 mock
-        for name in ["doubao", "glm", "siliconflow", "ollama"]:
+        # 注入全部失败的 mock (含 deepseek, 当前 fallback chain 第一位)
+        for name in ["deepseek", "doubao", "glm", "siliconflow", "ollama"]:
             router.register_provider(name, MagicMock(return_value=None))
 
         with pytest.raises(AllProvidersFailedError) as exc_info:
@@ -322,19 +326,20 @@ class TestFallbackChain:
 
         # 验证异常信息
         assert "所有 provider 失败" in str(exc_info.value)
-        assert exc_info.value.tried_providers == ["doubao", "glm", "siliconflow", "ollama"]
+        assert exc_info.value.tried_providers == ["deepseek", "doubao", "glm", "siliconflow", "ollama"]
 
     def test_provider_exception_continues_fallback(self, router_with_mocks):
         """Provider 抛异常时继续 fallback."""
         router, mocks = router_with_mocks
-        mocks["doubao"].side_effect = RuntimeError("连接超时")
-        mocks["glm"].return_value = "[GLM] OK"
+        # deepseek (P0) 抛异常 → doubao (P1) 接管
+        mocks["deepseek"].side_effect = RuntimeError("连接超时")
+        mocks["doubao"].return_value = "[豆包] OK"
 
         result = router.chat("你好")
 
-        assert result == "[GLM] OK"
+        assert result == "[豆包] OK"
+        mocks["deepseek"].assert_called_once()
         mocks["doubao"].assert_called_once()
-        mocks["glm"].assert_called_once()
 
     def test_disabled_provider_skipped(self, flag_enabled):
         """已禁用的 provider 被跳过."""
@@ -348,19 +353,20 @@ class TestFallbackChain:
                 return f"[{name}]"
             return fn
 
+        router.register_provider("deepseek", make_mock("deepseek"))
         router.register_provider("doubao", make_mock("doubao"))
         router.register_provider("glm", make_mock("glm"))
         router.register_provider("siliconflow", make_mock("siliconflow"))
         router.register_provider("ollama", make_mock("ollama"))
 
-        # 禁用 doubao
-        router._providers_config["doubao"] = {"enabled": False, "timeout_seconds": 5}
+        # 禁用 deepseek (P0), 期望 doubao (P1) 接管
+        router._providers_config["deepseek"] = {"enabled": False, "timeout_seconds": 5}
 
         result = router.chat("你好")
 
-        assert result == "[glm]"
-        assert "doubao" not in called
-        assert "glm" in called
+        assert result == "[doubao]"
+        assert "deepseek" not in called
+        assert "doubao" in called
 
 
 # ============================================================
@@ -372,7 +378,7 @@ class TestAuditLog:
 
     def test_success_recorded(self, router_with_mocks, tmp_path):
         """成功调用记录审计日志."""
-        router, mocks = router_with_mocks
+        router, _mocks = router_with_mocks
         router._audit_log_dir = tmp_path
         router._audit_log_enabled = True
 
@@ -391,14 +397,16 @@ class TestAuditLog:
         assert len(records) >= 1
         success_records = [r for r in records if r["success"]]
         assert len(success_records) >= 1
-        assert success_records[0]["provider"] == "doubao"
-        assert success_records[0]["response_preview"] == "[豆包] 你好"
+        # deepseek 是 fallback chain 第一位, 成功时记录的 provider 应为 deepseek
+        assert success_records[0]["provider"] == "deepseek"
+        assert success_records[0]["response_preview"] == "[DeepSeek] 你好"
 
     def test_failure_recorded(self, router_with_mocks, tmp_path):
         """失败调用记录审计日志."""
         router, mocks = router_with_mocks
         router._audit_log_dir = tmp_path
-        mocks["doubao"].return_value = None  # 软失败
+        # deepseek 是 fallback chain 第一位, 让它软失败以触发审计记录
+        mocks["deepseek"].return_value = None  # 软失败
 
         router.chat("你好")
 
@@ -410,17 +418,18 @@ class TestAuditLog:
             for line in f:
                 records.append(json.loads(line))
 
-        # 应该有失败记录 (doubao) + 成功记录 (glm)
+        # 应该有失败记录 (deepseek) + 成功记录 (doubao)
         failure_records = [r for r in records if not r["success"]]
         assert len(failure_records) >= 1
-        assert failure_records[0]["provider"] == "doubao"
+        assert failure_records[0]["provider"] == "deepseek"
         assert failure_records[0]["error_type"] == "SoftFailure"
 
     def test_exception_recorded(self, router_with_mocks, tmp_path):
         """异常调用记录审计日志."""
         router, mocks = router_with_mocks
         router._audit_log_dir = tmp_path
-        mocks["doubao"].side_effect = RuntimeError("test error")
+        # deepseek (P0) 抛异常 → doubao (P1) 接管成功
+        mocks["deepseek"].side_effect = RuntimeError("test error")
 
         router.chat("你好")
 
@@ -436,7 +445,7 @@ class TestAuditLog:
 
     def test_audit_log_disabled(self, router_with_mocks, tmp_path):
         """禁用审计日志时不写入文件."""
-        router, mocks = router_with_mocks
+        router, _mocks = router_with_mocks
         router._audit_log_dir = tmp_path
         router._audit_log_enabled = False
 
@@ -600,8 +609,10 @@ class TestChatDeep:
         """flag=True 时 chat_deep 调用 Ollama deep model."""
         router = LLMRouter.get_instance()
 
-        # Mock _call_ollama_deep
-        with patch.object(router, "_call_ollama_deep", return_value="deep_reply") as mock_deep:
+        # Mock _call_deepseek_reasoner 返回 None (跳过 DeepSeek R1 云端)
+        # Mock _call_ollama_deep 返回 deep_reply (本地 deep model 接管)
+        with patch.object(router, "_call_deepseek_reasoner", return_value=None), \
+             patch.object(router, "_call_ollama_deep", return_value="deep_reply") as mock_deep:
             result = router.chat_deep("复杂决策", system="system")
 
         assert result == "deep_reply"
@@ -611,8 +622,10 @@ class TestChatDeep:
         """chat_deep 失败时降级到普通 chat."""
         router = LLMRouter.get_instance()
 
-        # _call_ollama_deep 返回 None
-        with patch.object(router, "_call_ollama_deep", return_value=None), \
+        # _call_deepseek_reasoner 和 _call_ollama_deep 都返回 None
+        # 触发降级到普通 chat
+        with patch.object(router, "_call_deepseek_reasoner", return_value=None), \
+             patch.object(router, "_call_ollama_deep", return_value=None), \
              patch.object(router, "chat", return_value="normal_reply") as mock_chat:
             result = router.chat_deep("复杂决策")
 
@@ -628,14 +641,14 @@ class TestConnectionAndList:
     """连通性探测与 provider 列表测试."""
 
     def test_list_providers(self, flag_enabled):
-        """list_providers 返回 4 个 provider 配置."""
+        """list_providers 返回 5 个 provider 配置."""
         router = LLMRouter.get_instance()
 
         providers = router.list_providers()
 
-        assert len(providers) == 4
+        assert len(providers) == 5
         names = [p["name"] for p in providers]
-        assert names == ["doubao", "glm", "siliconflow", "ollama"]
+        assert names == ["deepseek", "doubao", "glm", "siliconflow", "ollama"]
 
     def test_list_providers_in_fallback_chain(self, flag_enabled):
         """所有 provider 都在 fallback 链中."""
@@ -666,8 +679,8 @@ class TestConnectionAndList:
         """test_connection 返回正确结构."""
         router = LLMRouter.get_instance()
 
-        # 所有 provider 都返回 None (无可用)
-        for name in ["doubao", "glm", "siliconflow", "ollama"]:
+        # 所有 provider 都返回 None (无可用), 必须包含 deepseek (fallback chain 第一位)
+        for name in ["deepseek", "doubao", "glm", "siliconflow", "ollama"]:
             router.register_provider(name, MagicMock(return_value=None))
 
         result = router.test_connection()
@@ -682,7 +695,9 @@ class TestConnectionAndList:
         """test_connection 找到可用 provider."""
         router = LLMRouter.get_instance()
 
-        # doubao 可用
+        # deepseek 返回 None (不可用), doubao 可用
+        # deepseek 是 fallback chain 第一位, 必须 mock 以避免真实 API 调用
+        router.register_provider("deepseek", MagicMock(return_value=None))
         router.register_provider("doubao", MagicMock(return_value="pong"))
 
         # 设置 API Key
@@ -723,7 +738,8 @@ class TestModuleLevelFunctions:
     def test_test_connection_function(self, flag_enabled):
         """test_connection() 快捷函数."""
         router = LLMRouter.get_instance()
-        for name in ["doubao", "glm", "siliconflow", "ollama"]:
+        # 必须包含 deepseek (fallback chain 第一位) 以避免真实 API 调用
+        for name in ["deepseek", "doubao", "glm", "siliconflow", "ollama"]:
             router.register_provider(name, MagicMock(return_value=None))
 
         result = test_connection()
@@ -735,7 +751,7 @@ class TestModuleLevelFunctions:
         """list_providers() 快捷函数."""
         result = list_providers()
 
-        assert len(result) == 4
+        assert len(result) == 5
 
     def test_reload_function(self, flag_enabled):
         """reload() 快捷函数."""

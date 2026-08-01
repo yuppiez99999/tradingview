@@ -28,9 +28,9 @@ Barra 风险因子暴露分解 (Barra Risk Factor Decomposition)
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import json
 import math
@@ -43,34 +43,57 @@ import numpy as np
 
 # 10 个 Barra 风格因子
 BARRA_STYLE_FACTORS = [
-    "Size",                   # 市值
-    "Beta",                   # 市场敏感度
-    "Momentum",               # 动量
-    "ResidualVolatility",     # 残差波动率
-    "NonLinearSize",          # 非线性市值
-    "BookToPrice",            # 账面市值比
-    "Liquidity",              # 流动性
-    "EarningsYield",          # 盈利收益率
-    "Growth",                 # 增长
-    "Leverage",               # 杠杆
+    "Size",  # 市值
+    "Beta",  # 市场敏感度
+    "Momentum",  # 动量
+    "ResidualVolatility",  # 残差波动率
+    "NonLinearSize",  # 非线性市值
+    "BookToPrice",  # 账面市值比
+    "Liquidity",  # 流动性
+    "EarningsYield",  # 盈利收益率
+    "Growth",  # 增长
+    "Leverage",  # 杠杆
 ]
 
 # 行业分类 (申万一级)
 SW_INDUSTRIES = [
-    "银行", "非银金融", "食品饮料", "医药生物", "纺织服装",
-    "轻工制造", "公用事业", "交通运输", "房地产", "商业贸易",
-    "餐饮旅游", "农林牧渔", "采掘", "化工", "钢铁",
-    "有色金属", "建筑材料", "建筑装饰", "电气设备", "机械设备",
-    "国防军工", "汽车", "家用电器", "电子", "通信",
-    "计算机", "传媒", "综合",
+    "银行",
+    "非银金融",
+    "食品饮料",
+    "医药生物",
+    "纺织服装",
+    "轻工制造",
+    "公用事业",
+    "交通运输",
+    "房地产",
+    "商业贸易",
+    "餐饮旅游",
+    "农林牧渔",
+    "采掘",
+    "化工",
+    "钢铁",
+    "有色金属",
+    "建筑材料",
+    "建筑装饰",
+    "电气设备",
+    "机械设备",
+    "国防军工",
+    "汽车",
+    "家用电器",
+    "电子",
+    "通信",
+    "计算机",
+    "传媒",
+    "综合",
 ]
 
 
 @dataclass
 class FactorExposure:
     """单个因子暴露"""
+
     factor_name: str
-    exposure: float              # 暴露值 (标准化后)
+    exposure: float  # 暴露值 (标准化后)
     contribution_to_active_risk: float  # 对主动风险的贡献
     factor_return: float = 0.0  # 因子收益
     contribution_to_active_return: float = 0.0  # 对主动收益的贡献
@@ -79,31 +102,32 @@ class FactorExposure:
 @dataclass
 class BarraDecomposition:
     """Barra 风险分解结果"""
+
     # 因子暴露
-    style_factor_exposures: List[FactorExposure]   # 10 个风格因子
-    industry_exposures: Dict[str, float]            # 行业暴露
-    country_exposure: float                         # 国家因子暴露
+    style_factor_exposures: List[FactorExposure]  # 10 个风格因子
+    industry_exposures: Dict[str, float]  # 行业暴露
+    country_exposure: float  # 国家因子暴露
 
     # 风险分解
-    active_risk: float                  # 主动风险 (年化, 跟踪误差)
-    factor_risk: float                  # 因子风险贡献
-    specific_risk: float                # 个股特异性风险
-    factor_risk_pct: float              # 因子风险占比
+    active_risk: float  # 主动风险 (年化, 跟踪误差)
+    factor_risk: float  # 因子风险贡献
+    specific_risk: float  # 个股特异性风险
+    factor_risk_pct: float  # 因子风险占比
 
     # 收益归因
-    active_return: float                # 主动收益
-    factor_return: float                # 因子收益贡献
-    specific_return: float              # 个股特异性收益
+    active_return: float  # 主动收益
+    factor_return: float  # 因子收益贡献
+    specific_return: float  # 个股特异性收益
 
     # 信息比率分解
-    information_ratio: float            # IR = 主动收益 / 主动风险
-    factor_ir: float                    # 因子部分 IR
-    specific_ir: float                  # 个股部分 IR
+    information_ratio: float  # IR = 主动收益 / 主动风险
+    factor_ir: float  # 因子部分 IR
+    specific_ir: float  # 个股部分 IR
 
     # 风险预算审计
-    risk_budget_used: float             # 已使用风险预算
-    risk_budget_remaining: float        # 剩余风险预算
-    risk_budget_utilization: float      # 风险预算利用率
+    risk_budget_used: float  # 已使用风险预算
+    risk_budget_remaining: float  # 剩余风险预算
+    risk_budget_utilization: float  # 风险预算利用率
 
     # 持仓列表
     symbols: List[str]
@@ -111,13 +135,14 @@ class BarraDecomposition:
     benchmark_weights: List[float]
 
     # 诊断
-    concentrated_factors: List[str]     # 暴露过大的因子
-    missing_factors: List[str]           # 暴露不足的因子
+    concentrated_factors: List[str]  # 暴露过大的因子
+    missing_factors: List[str]  # 暴露不足的因子
 
 
 # ============================================================
 # Barra 风险分解引擎
 # ============================================================
+
 
 class BarraRiskDecomposer:
     """Barra 风险因子暴露分解引擎
@@ -144,9 +169,9 @@ class BarraRiskDecomposer:
 
     # 暴露阈值 (标准化后)
     CONCENTRATION_THRESHOLD = 0.8  # |exposure| > 0.8 视为集中
-    MISSING_THRESHOLD = -0.3       # exposure < -0.3 视为缺失
+    MISSING_THRESHOLD = -0.3  # exposure < -0.3 视为缺失
 
-    def __init__(self, annualization_factor: float = 252 ** 0.5):
+    def __init__(self, annualization_factor: float = 252**0.5):
         self.annual_factor = float(annualization_factor)
 
     # ------------------------------------------------------------
@@ -201,8 +226,8 @@ class BarraRiskDecomposer:
                 X[i, j] = float(sym_factors.get(f, 0.0))
 
         # 2. 组合因子暴露 = X' w
-        portfolio_factor_exposure = X.T @ w
-        benchmark_factor_exposure = X.T @ w_bench
+        X.T @ w
+        X.T @ w_bench
         active_factor_exposure = X.T @ active_weights  # 主动暴露
 
         # 3. 因子风险 (需要因子协方差矩阵)
@@ -224,23 +249,22 @@ class BarraRiskDecomposer:
         if stock_specific_risks:
             for i, sym in enumerate(symbols):
                 sr = float(stock_specific_risks.get(sym, 0.02))
-                specific_var += (active_weights[i] ** 2) * (sr ** 2)
+                specific_var += (active_weights[i] ** 2) * (sr**2)
         else:
             # 默认 2% 日波动
             for i in range(n):
-                specific_var += (active_weights[i] ** 2) * (0.02 ** 2)
+                specific_var += (active_weights[i] ** 2) * (0.02**2)
         specific_risk = math.sqrt(max(specific_var, 0)) * self.annual_factor
 
         # 5. 主动风险 (跟踪误差)
-        active_risk = math.sqrt(factor_risk ** 2 + specific_risk ** 2)
-        factor_risk_pct = factor_risk ** 2 / active_risk ** 2 if active_risk > 0 else 0.0
+        active_risk = math.sqrt(factor_risk**2 + specific_risk**2)
+        factor_risk_pct = factor_risk**2 / active_risk**2 if active_risk > 0 else 0.0
 
         # 6. 因子收益归因
         factor_returns_dict = factor_returns or {f: 0.0 for f in factors}
         # 主动收益 = Σ(active_exposure_i × factor_return_i) + Σ(active_weight_i × specific_return_i)
         factor_return = sum(
-            active_factor_exposure[j] * float(factor_returns_dict.get(factors[j], 0.0))
-            for j in range(n_factors)
+            active_factor_exposure[j] * float(factor_returns_dict.get(factors[j], 0.0)) for j in range(n_factors)
         )
         # 个股特异性收益简化为 0 (实盘接入后由残差填充)
         specific_return = 0.0
@@ -271,30 +295,24 @@ class BarraRiskDecomposer:
         style_exposures: List[FactorExposure] = []
         for j, f in enumerate(factors):
             # 对主动风险的贡献: exposure × Σ_f × exposure / active_risk
-            marginal_contrib = float(
-                (factor_cov[j, :] @ active_factor_exposure) * active_factor_exposure[j]
-            )
+            marginal_contrib = float((factor_cov[j, :] @ active_factor_exposure) * active_factor_exposure[j])
             contrib_to_risk = math.sqrt(max(marginal_contrib, 0)) * self.annual_factor if marginal_contrib > 0 else 0.0
             f_ret = float(factor_returns_dict.get(f, 0.0))
             contrib_to_return = float(active_factor_exposure[j] * f_ret)
 
-            style_exposures.append(FactorExposure(
-                factor_name=f,
-                exposure=float(active_factor_exposure[j]),
-                contribution_to_active_risk=contrib_to_risk,
-                factor_return=f_ret,
-                contribution_to_active_return=contrib_to_return,
-            ))
+            style_exposures.append(
+                FactorExposure(
+                    factor_name=f,
+                    exposure=float(active_factor_exposure[j]),
+                    contribution_to_active_risk=contrib_to_risk,
+                    factor_return=f_ret,
+                    contribution_to_active_return=contrib_to_return,
+                )
+            )
 
         # 12. 集中/缺失因子诊断
-        concentrated = [
-            fe.factor_name for fe in style_exposures
-            if abs(fe.exposure) > self.CONCENTRATION_THRESHOLD
-        ]
-        missing = [
-            fe.factor_name for fe in style_exposures
-            if fe.exposure < self.MISSING_THRESHOLD
-        ]
+        concentrated = [fe.factor_name for fe in style_exposures if abs(fe.exposure) > self.CONCENTRATION_THRESHOLD]
+        missing = [fe.factor_name for fe in style_exposures if fe.exposure < self.MISSING_THRESHOLD]
 
         return BarraDecomposition(
             style_factor_exposures=style_exposures,
@@ -373,7 +391,7 @@ class BarraRiskDecomposer:
             log_size = math.log(max(market_cap, 1)) / math.log(1e8)  # 1亿=0
             ep = 1.0 / pe if pe > 0 else 0
             bp = 1.0 / pb if pb > 0 else 0
-            nls = log_size ** 2 - 0.5  # 非线性市值简化
+            nls = log_size**2 - 0.5  # 非线性市值简化
 
             factor_exposures[code] = {
                 "Size": log_size,
@@ -395,7 +413,7 @@ class BarraRiskDecomposer:
         factor_returns["BookToPrice"] = 0.0005
 
         # 简化因子协方差 (对角, 日波动 1%)
-        factor_cov = np.eye(len(BARRA_STYLE_FACTORS)) * 0.01 ** 2
+        factor_cov = np.eye(len(BARRA_STYLE_FACTORS)) * 0.01**2
 
         # 个股特异性风险 (年化 30%)
         specific_risks = {s: 0.30 / math.sqrt(252) for s in symbols}
@@ -430,7 +448,8 @@ class BarraRiskDecomposer:
                     "contribution_to_active_risk": fe.contribution_to_active_risk,
                     "factor_return": fe.factor_return,
                     "contribution_to_active_return": fe.contribution_to_active_return,
-                } for fe in result.style_factor_exposures
+                }
+                for fe in result.style_factor_exposures
             ],
             "industry_exposures": result.industry_exposures,
             "country_exposure": result.country_exposure,

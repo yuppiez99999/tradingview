@@ -11,11 +11,11 @@ import os
 import sys
 from datetime import datetime
 
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统7.1')
+sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4')
 
 from wind_mcp_fetcher import wind_get_quote
 
-POSITIONS_PATH = r'e:\各种PY程序\28-终极量化交易系统7.1\config\positions.json'
+POSITIONS_PATH = r'e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json'
 
 
 def to_wind_code(code: str):
@@ -42,8 +42,9 @@ def to_wind_code(code: str):
 
 
 def load_positions():
-    with open(POSITIONS_PATH, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    # B1.7: 委托给 utils.positions_loader 统一入口
+    from utils.positions_loader import load_positions as _load
+    return _load(POSITIONS_PATH)
 
 
 def save_positions(data):
@@ -75,7 +76,7 @@ def update_prices():
     print(f'{"代码":12s} {"名称":12s} {"旧价格":>8s} {"新价格":>8s} {"变化":>8s} {"持仓金额":>12s} {"来源":20s}')
     print('-' * 70)
 
-    for key, item in positions.items():
+    for _key, item in positions.items():
         code = item.get('code')
         old_price = item.get('est_price', 0.0)
         shares = item.get('phase1_shares') or item.get('total_shares') or item.get('shares', 0)
@@ -165,7 +166,7 @@ def update_prices():
     print()
 
     save_positions(data)
-    print(f'持仓数据已保存到: config/positions.json')
+    print('持仓数据已保存到: config/positions.json')
     print()
 
     report = {

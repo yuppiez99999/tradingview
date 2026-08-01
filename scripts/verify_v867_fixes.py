@@ -60,7 +60,7 @@ def verify_bug1() -> bool:
         )
 
         # 验证 fail-closed 时触发 L2 (不是 L3)
-        sp500_change, adr, source = ogm._fetch_overnight_data()
+        sp500_change, _adr, source = ogm._fetch_overnight_data()
         # 如果数据源可用, 会返回真实数据; 不可用则返回 fail_closed
         if source == "fail_closed":
             s2_pass = sp500_change == -0.02

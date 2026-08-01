@@ -7,10 +7,9 @@
 """
 
 import sys
-import os
 import json
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List
 
 # 统一成本模型（与 annualized_return_forecast.py 共用，消除 0.45% vs 2.8% 矛盾）
 from utils.cost_model import get_cost_model
@@ -44,7 +43,7 @@ class PortfolioProjection:
         
         total_value = 0
         
-        for key, pos in positions.items():
+        for _key, pos in positions.items():
             style = pos.get('style', 'unknown')
             risk = pos.get('risk', 'unknown')
             pos_type = pos.get('type', 'unknown')
@@ -402,7 +401,7 @@ def print_report(report: Dict):
     
     print("【4】情景分析")
     sa = report['scenario_analysis']
-    for name, scenario in sa.items():
+    for _name, scenario in sa.items():
         print(f"  {scenario['description']}")
         print(f"    概率: {scenario['probability']}")
         print(f"    年化收益: {scenario['annual_return']:.2f}%")

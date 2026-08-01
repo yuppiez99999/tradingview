@@ -22,6 +22,7 @@ API:
 硬约束:
     - HC-5: ConfigManager 4 级优先级解析不可绕过
 """
+
 from __future__ import annotations
 
 import json
@@ -38,11 +39,34 @@ from utils.config_manager import get_config
 
 logger = logging.getLogger("feature_flags")
 
-# 项目根目录
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
-# 审计日志目录
-_AUDIT_LOG_DIR = _PROJECT_ROOT / "reports" / "flag_audit"
+def _find_project_root() -> Path:
+    """向上查找项目根目录 (通过已知 marker 文件/目录识别).
+
+    比硬编码 parent.parent.parent 更健壮, 文件移动不会失效.
+    """
+    project_markers = [
+        "config",
+        "utils",
+        "v8.3_institutional",
+        "research",
+        "tests",
+        "requirements.txt",
+        "ruff.toml",
+        "pytest.ini",
+    ]
+    current = Path(__file__).resolve().parent
+    for _ in range(10):
+        if any((current / m).exists() for m in project_markers):
+            return current
+        if current.parent == current:
+            break
+        current = current.parent
+    return Path(__file__).resolve().parent.parent.parent
+
+
+# 项目根目录
+_PROJECT_ROOT = _find_project_root()
 
 # 运行时覆盖目录 (测试/紧急回滚用)
 # 优先级: 环境变量 QUANT_FLAG_OVERRIDE_DIR > reports/flag_overrides/
@@ -152,8 +176,7 @@ class FeatureFlags:
         """重新加载配置 + 覆盖 (用于热加载)."""
         with self._lock:
             self._load_config()
-            logger.info("FeatureFlags reloaded: %d flags, %d overrides",
-                        len(self._flags_cache), len(self._overrides))
+            logger.info("FeatureFlags reloaded: %d flags, %d overrides", len(self._flags_cache), len(self._overrides))
 
     # ============================================================
     # 查询 API
@@ -207,8 +230,7 @@ class FeatureFlags:
     # ============================================================
     # 变更 API (双签 / 单签)
     # ============================================================
-    def enable(self, name: str, signer: str, co_signer: str,
-               reason: str = "") -> None:
+    def enable(self, name: str, signer: str, co_signer: str, reason: str = "") -> None:
         """启用 flag (需双签).
 
         Args:
@@ -224,21 +246,16 @@ class FeatureFlags:
         if not name or not isinstance(name, str):
             raise FlagError("name must be non-empty string")
         if not signer or not co_signer:
-            raise FlagPermissionError(
-                f"Enable {name} requires dual signature (signer + co_signer)"
-            )
+            raise FlagPermissionError(f"Enable {name} requires dual signature (signer + co_signer)")
         if signer == co_signer:
-            raise FlagPermissionError(
-                f"Enable {name}: signer and co_signer must be different persons"
-            )
+            raise FlagPermissionError(f"Enable {name}: signer and co_signer must be different persons")
 
         if name not in self._flags_cache:
             raise FlagNotFoundError(f"Flag not registered: {name}")
 
         with self._lock:
             self._set_override(name, True, signer, co_signer, reason, "enable")
-            logger.info("Flag ENABLED: %s by %s + %s (reason: %s)",
-                        name, signer, co_signer, reason)
+            logger.info("Flag ENABLED: %s by %s + %s (reason: %s)", name, signer, co_signer, reason)
 
     def disable(self, name: str, signer: str, reason: str = "") -> None:
         """禁用 flag (单签即可, 任何风控人员可一键关闭).
@@ -251,26 +268,23 @@ class FeatureFlags:
         if not name or not isinstance(name, str):
             raise FlagError("name must be non-empty string")
         if not signer:
-            raise FlagPermissionError(
-                f"Disable {name} requires signer"
-            )
+            raise FlagPermissionError(f"Disable {name} requires signer")
 
         if name not in self._flags_cache:
             raise FlagNotFoundError(f"Flag not registered: {name}")
 
         with self._lock:
             self._set_override(name, False, signer, "", reason, "disable")
-            logger.warning("Flag DISABLED: %s by %s (reason: %s)",
-                           name, signer, reason)
+            logger.warning("Flag DISABLED: %s by %s (reason: %s)", name, signer, reason)
 
-    def _set_override(self, name: str, enabled: bool,
-                      signer: str, co_signer: str,
-                      reason: str, action: str) -> None:
-        """写入覆盖文件 + 审计日志."""
-        # 1. 写覆盖文件
+    def _set_override(self, name: str, enabled: bool, signer: str, co_signer: str, reason: str, action: str) -> None:
+        """写入覆盖文件 + 审计日志.
+
+        使用原子写入模式（先写临时文件再 rename），避免并发写入导致文件损坏.
+        """
+        # 1. 写覆盖文件（原子写入）
         self._audit_log_dir.mkdir(parents=True, exist_ok=True)
-        override_dir = Path(os.environ.get(_OVERRIDE_DIR_ENV, "").strip()
-                            or _DEFAULT_OVERRIDE_DIR)
+        override_dir = Path(os.environ.get(_OVERRIDE_DIR_ENV, "").strip() or _DEFAULT_OVERRIDE_DIR)
         override_dir.mkdir(parents=True, exist_ok=True)
         override_file = override_dir / f"{name}.json"
         override_data = {
@@ -282,8 +296,19 @@ class FeatureFlags:
             "action": action,
             "timestamp": datetime.utcnow().isoformat() + "Z",
         }
-        with open(override_file, "w", encoding="utf-8") as f:
-            json.dump(override_data, f, ensure_ascii=False, indent=2)
+
+        # 原子写入：临时文件 + rename，避免并发损坏
+        if override_file.exists():
+            logger.info("Overwriting existing flag override: %s at %s", name, override_file)
+        temp_file = override_file.with_suffix(".json.tmp")
+        try:
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(override_data, f, ensure_ascii=False, indent=2)
+            temp_file.replace(override_file)
+        except Exception as e:
+            if temp_file.exists():
+                temp_file.unlink(missing_ok=True)
+            raise
 
         # 2. 更新内存
         self._overrides[name] = enabled

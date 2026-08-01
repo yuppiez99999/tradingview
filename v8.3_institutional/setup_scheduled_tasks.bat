@@ -14,6 +14,10 @@ REM   v8.6.10 (2026-07-26): P1 修复 — 彻底断根 SYSTEM 用户 exit code=1
 REM     问题: SYSTEM 用户 PATH 环境变量缺失, py launcher 找不到 Python
 REM     修复: 所有任务改用 junction 路径 C:\QuantSys + 显式 Python 3.14 路径
 REM     新增: PATH 防御性设置 + 日志记录 + 错误处理
+REM   v8.6.11 (2026-07-27): 新增 QuantEOD_1530 任务 (EOD 风控 + Shadow daily 报告)
+REM     触发: 每周一至五 15:30 (A股收盘后)
+REM     流程: run_daily_eod.py 四 Guard → V9 Phase 10 → shadow_admission_launcher.py daily
+REM     目的: 每日收盘后生成 daily_returns.jsonl + Shadow DSR 报告 (T2.4 准入数据源)
 REM ============================================================
 
 REM v8.6.10: 使用 junction 路径 (避免中文路径编码问题)
@@ -55,9 +59,10 @@ schtasks /delete /tn "QuantPipelineFactor_06AM" /f 2>nul
 schtasks /delete /tn "QuantWorkflow_07AM" /f 2>nul
 schtasks /delete /tn "QuantMorning_0930" /f 2>nul
 schtasks /delete /tn "QuantAfternoon_1400" /f 2>nul
+schtasks /delete /tn "QuantEOD_1530" /f 2>nul
 
 REM ============================================================
-REM v8.6.10 P1 修复: 注册 4 个任务 (SYSTEM 账户 + 最高权限 + junction 路径)
+REM v8.6.11: 注册 5 个任务 (SYSTEM 账户 + 最高权限 + junction 路径)
 REM 关键参数:
 REM   /rl HIGHEST  — 最高权限运行 (KillSwitch fail-closed 强平需要)
 REM   /ru SYSTEM   — 系统账户运行 (用户登出/锁屏时仍可触发)
@@ -81,8 +86,11 @@ schtasks /create /tn "QuantMorning_0930" /tr "%WORKFLOW_BAT% morning" /sc weekly
 REM 14:00 午盘建仓
 schtasks /create /tn "QuantAfternoon_1400" /tr "%WORKFLOW_BAT% afternoon" /sc weekly /d MON,TUE,WED,THU,FRI /st 14:00 /rl HIGHEST /ru SYSTEM /f
 
+REM 15:30 EOD 风控 + Shadow daily 报告 (v8.6.11 新增)
+schtasks /create /tn "QuantEOD_1530" /tr "%WORKFLOW_BAT% eod" /sc weekly /d MON,TUE,WED,THU,FRI /st 15:30 /rl HIGHEST /ru SYSTEM /f
+
 echo.
-echo === 任务计划注册完成 (4个任务, v8.6.10 P1 修复) ===
+echo === 任务计划注册完成 (5个任务, v8.6.11 EOD 新增) ===
 echo 关键改进 (v8.6.10):
 echo   - junction 路径: C:\QuantSys (避免中文路径编码问题)
 echo   - 显式 Python 3.14 路径 (避免 PATH 环境变量缺失)
@@ -90,6 +98,9 @@ echo   - PATH 防御性设置 + PYTHONPATH 环境变量
 echo   - 日志记录: C:\QuantSys\logs\
 echo   - /rl HIGHEST: 最高权限运行 (KillSwitch 强平可执行)
 echo   - /ru SYSTEM:  系统账户运行 (用户登出/锁屏时仍可触发)
+echo.
+echo v8.6.11 新增:
+echo   - QuantEOD_1530: 15:30 EOD 四 Guard + V9 Phase 10 + Shadow daily 报告
 echo.
 echo === 验证任务状态 ===
 echo.
@@ -105,11 +116,15 @@ echo.
 echo [QuantAfternoon_1400]
 schtasks /query /tn "QuantAfternoon_1400" /fo list | findstr /i "Task To Run\|Run As User\|Next Run\|Status"
 echo.
+echo [QuantEOD_1530]
+schtasks /query /tn "QuantEOD_1530" /fo list | findstr /i "Task To Run\|Run As User\|Next Run\|Status"
+echo.
 echo ============================================================
 echo 验证方法:
-echo   1. 手动触发: schtasks /run /tn "QuantPipelineFactor_06AM"
-echo   2. 检查日志: type C:\QuantSys\logs\pipeline_factor_offline.log
-echo   3. 检查结果: schtasks /query /tn "QuantPipelineFactor_06AM" /v /fo LIST ^| findstr "Last Result"
-echo   4. 检查信号: dir C:\QuantSys\models\pipeline_factor_signals\*.json
+echo   1. 手动触发: schtasks /run /tn "QuantEOD_1530"
+echo   2. 检查日志: type C:\QuantSys\logs\workflow_eod_latest.log
+echo   3. 检查结果: schtasks /query /tn "QuantEOD_1530" /v /fo LIST ^| findstr "Last Result"
+echo   4. 检查 Shadow daily returns: type C:\QuantSys\reports\shadow\daily_returns.jsonl
+echo   5. 检查 Shadow DSR 报告: dir C:\QuantSys\reports\shadow\*_dsr.json
 echo ============================================================
 pause

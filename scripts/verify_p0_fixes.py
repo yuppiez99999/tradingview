@@ -5,7 +5,6 @@ P0-E: hedge_execution_engine.py 'str' object has no attribute 'get'
 P0-F: Windows 任务从未运行 (改为 SYSTEM + HIGHEST)
 """
 import sys
-import json
 from pathlib import Path
 
 # 添加项目根目录到 path
@@ -56,7 +55,7 @@ def verify_p0_d():
     can_trade = ks_field.get("can_trade")
     can_open = ks_field.get("can_open")
 
-    print(f"[验证] EOD Guard kill_switch 字段:")
+    print("[验证] EOD Guard kill_switch 字段:")
     print(f"  level:         {level}")
     print(f"  margin_usage:  {margin_usage}")
     print(f"  can_trade:     {can_trade}")
@@ -83,7 +82,7 @@ def verify_p0_e():
 
     try:
         result = engine.generate_hedge_orders(drawdown_level=0)
-        print(f"[PASS] ✅ P0-E 修复生效: generate_hedge_orders() 执行成功")
+        print("[PASS] ✅ P0-E 修复生效: generate_hedge_orders() 执行成功")
 
         futures_orders = result.get("futures_orders", [])
         options_orders = result.get("options_orders", [])
@@ -173,9 +172,9 @@ def verify_p0_f():
             all_pass = False
 
     if all_pass:
-        print(f"[PASS] ✅ P0-F 修复生效: 4 个任务全部以 SYSTEM + Background 模式运行")
+        print("[PASS] ✅ P0-F 修复生效: 4 个任务全部以 SYSTEM + Background 模式运行")
     else:
-        print(f"[FAIL] ❌ P0-F 修复未完全生效")
+        print("[FAIL] ❌ P0-F 修复未完全生效")
     return all_pass
 
 
@@ -198,10 +197,10 @@ def main():
 
     all_pass = all(results.values())
     if all_pass:
-        print(f"\n[全部通过] 3 个 P0 级 bug 修复全部生效, 符合项目硬约束")
+        print("\n[全部通过] 3 个 P0 级 bug 修复全部生效, 符合项目硬约束")
         return 0
     else:
-        print(f"\n[部分失败] 需要进一步排查")
+        print("\n[部分失败] 需要进一步排查")
         return 1
 
 

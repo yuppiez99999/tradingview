@@ -19,14 +19,14 @@ Gamma/Vega 引擎 - 尾部危机防御 (Tail Risk Insurance)
     if status["triggered"]:
         engine.execute_tail_hedge(status["trigger_type"], status["budget"])
 """
+
 from __future__ import annotations
 
-import os
 import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 
 import yaml
 
@@ -61,28 +61,29 @@ class GammaEngine:
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(cfg, dict) else {}
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
                 return {}
 
         # 路径 2: 通过 ConfigManager 统一加载 (P1-Q8, 生产路径)
         try:
             from utils.config_manager import get_config
+
             portfolio_cfg = get_config("portfolio")
             cfg = portfolio_cfg.get("hedge", {}).get("gamma_vega_engine", {})
             if cfg:
-                return cfg
+                return cfg  # type: ignore
             # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, "r", encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
             return fallback_cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(fallback_cfg, dict) else {}
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
             try:
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(cfg, dict) else {}
-            except Exception as e2:
+            except Exception as e2:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"全部加载路径失败: {e2}")
                 return {}
 
@@ -94,15 +95,17 @@ class GammaEngine:
         # 尝试 Wind MCP
         try:
             from wind_mcp_fetcher import wind_get_index_data
+
             df = wind_get_index_data("000300.SH", days=70)
             if df is not None and len(df) >= 60:
                 return float(df["close"].tail(60).mean())
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 回退: 新浪 HTTP
         try:
             import requests
+
             url = "http://hq.sinajs.cn/list=sh000300"
             headers = {"Referer": "https://finance.sina.com.cn"}
             r = requests.get(url, headers=headers, timeout=5)
@@ -110,7 +113,7 @@ class GammaEngine:
                 parts = r.text.split(",")
                 if len(parts) > 3:
                     return float(parts[3])
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         return None
@@ -122,10 +125,11 @@ class GammaEngine:
         """
         try:
             from wind_mcp_fetcher import wind_get_option_iv
+
             iv_data = wind_get_option_iv("510050.SH")
             if iv_data and "iv_percentile" in iv_data:
                 return float(iv_data["iv_percentile"])
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 回退: 用 VIX 代理 (中国波指 iVIX 已停用, 用 510050 Put/Call 估算)
@@ -149,21 +153,22 @@ class GammaEngine:
                 "action": null
             }
         """
-        triggers_cfg = self.config.get("triggers", [])
+        self.config.get("triggers", [])
 
         # 触发条件1: 大盘跌破60日均线
-        market_price = self._get_market_ma60()  # 简化: 当前价用最新价代替
+        self._get_market_ma60()  # 简化: 当前价用最新价代替
         ma60_value = None
         ma60_broken = False
 
         try:
             from wind_mcp_fetcher import wind_get_index_data
+
             df = wind_get_index_data("000300.SH", days=70)
             if df is not None and len(df) >= 60:
                 ma60_value = float(df["close"].tail(60).mean())
                 current_price = float(df["close"].iloc[-1])
                 ma60_broken = current_price < ma60_value
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 触发条件2: IV < 10% 历史分位
@@ -190,10 +195,7 @@ class GammaEngine:
 
         # 若两个条件同时触发, 取较大预算
         if ma60_broken and iv_low:
-            budget = max(
-                int(5000000 * 0.01),
-                int(5000000 * 0.02)
-            )
+            budget = max(int(5000000 * 0.01), int(5000000 * 0.02))
 
         result = {
             "timestamp": datetime.now().isoformat(),
@@ -218,7 +220,7 @@ class GammaEngine:
         try:
             with open(TRIGGER_LOG, "a", encoding="utf-8") as f:
                 f.write(json.dumps(trigger_info, ensure_ascii=False) + "\n")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"写入触发日志失败: {e}")
 
     def execute_tail_hedge(self, trigger_type: str, budget: int) -> Dict:
@@ -249,22 +251,22 @@ class GammaEngine:
                 break
 
             # 预算分配 (按比例)
-            total_budget_cfg = sum(
-                p.get("premium_budget", 0) for p in put_options
-            )
+            total_budget_cfg = sum(p.get("premium_budget", 0) for p in put_options)
             if total_budget_cfg <= 0:
                 break
 
             allocation = (opt.get("premium_budget", 0) / total_budget_cfg) * budget
             allocation = min(allocation, budget - used_budget)
 
-            orders.append({
-                "instrument": opt["instrument"],
-                "direction": "BUY",
-                "strike": "OTM_10%",  # Deep OTM (比常态OTM_5%更深)
-                "budget": int(allocation),
-                "contracts_est": int(allocation / 0.05),  # 简化估算
-            })
+            orders.append(
+                {
+                    "instrument": opt["instrument"],
+                    "direction": "BUY",
+                    "strike": "OTM_10%",  # Deep OTM (比常态OTM_5%更深)
+                    "budget": int(allocation),
+                    "contracts_est": int(allocation / 0.05),  # 简化估算
+                }
+            )
             used_budget += allocation
 
         result = {
@@ -276,10 +278,7 @@ class GammaEngine:
             "note": "实际执行需对接 QMT/券商 API",
         }
 
-        logger.info(
-            f"尾部对冲执行: 触发={trigger_type}, 预算={budget}, "
-            f"订单数={len(orders)}"
-        )
+        logger.info(f"尾部对冲执行: 触发={trigger_type}, 预算={budget}, 订单数={len(orders)}")
 
         return result
 
@@ -308,9 +307,9 @@ class GammaEngine:
                             dt = datetime.fromisoformat(ts)
                             if dt.timestamp() >= cutoff:
                                 records.append(record)
-                    except Exception:
+                    except Exception:  # P2 模块 fail-safe, 待后续精确化
                         continue
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         return records
@@ -335,21 +334,18 @@ if __name__ == "__main__":
 
     if args.monitor or (not args.execute and not args.history):
         status = engine.monitor()
-        print(json.dumps(status, ensure_ascii=False, indent=2))
+        logger.info(json.dumps(status, ensure_ascii=False, indent=2))
         if status["triggered"]:
-            print(f"\n⚠️ 触发: {status['trigger_type']}")
-            print(f"预算: {status['budget']}")
-            print(f"动作: {status['action']}")
+            logger.info(f"\n⚠️ 触发: {status['trigger_type']}")
+            logger.info(f"预算: {status['budget']}")
+            logger.info(f"动作: {status['action']}")
 
     if args.execute:
         result = engine.execute_tail_hedge(args.execute, args.budget)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        logger.info(json.dumps(result, ensure_ascii=False, indent=2))
 
     if args.history:
         history = engine.get_trigger_history(args.history)
-        print(f"\n最近 {args.history} 天触发历史: {len(history)} 次")
+        logger.info(f"\n最近 {args.history} 天触发历史: {len(history)} 次")
         for r in history:
-            print(
-                f"  {r.get('timestamp', 'N/A')} - {r.get('trigger_type', 'N/A')} "
-                f"(预算 {r.get('budget', 0)})"
-            )
+            logger.info(f"  {r.get('timestamp', 'N/A')} - {r.get('trigger_type', 'N/A')} (预算 {r.get('budget', 0)})")

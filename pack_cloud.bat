@@ -5,7 +5,7 @@ echo  QLib 云端训练打包工具
 echo ================================================================
 echo.
 
-cd /d "e:\各种PY程序\28-终极量化交易系统7.1"
+cd /d "e:\各种PY程序\28-终极量化交易系统8.4"
 
 echo [1/3] 打包 QLib 数据 (qlib_data.zip)...
 if exist "qlib_data.zip" del "qlib_data.zip"

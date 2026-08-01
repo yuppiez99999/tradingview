@@ -13,7 +13,7 @@
 """
 
 import numpy as np
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 
 
 def compute_signal_correlation_matrix(
@@ -65,20 +65,22 @@ def detect_redundant_signals(
     """
     n = corr.shape[0]
     if names is None:
-        names = [f'Signal_{i}' for i in range(n)]
+        names = [f"Signal_{i}" for i in range(n)]
 
     redundant = []
     for i in range(n):
         for j in range(i + 1, n):
             if abs(corr[i, j]) >= threshold:
-                redundant.append({
-                    'signal_a': names[i],
-                    'signal_b': names[j],
-                    'correlation': float(abs(corr[i, j])),
-                })
+                redundant.append(
+                    {
+                        "signal_a": names[i],
+                        "signal_b": names[j],
+                        "correlation": float(abs(corr[i, j])),
+                    }
+                )
 
     # 按相关性降序排列
-    redundant.sort(key=lambda x: x['correlation'], reverse=True)
+    redundant.sort(key=lambda x: x["correlation"], reverse=True)
     return redundant
 
 
@@ -102,12 +104,11 @@ def effective_independent_signals(corr: np.ndarray) -> float:
         return 1.0
     norm_eig = eigenvalues / total
     # Effective N = 1 / sum(p_i^2)
-    n_eff = 1.0 / (norm_eig ** 2).sum()
+    n_eff = 1.0 / (norm_eig**2).sum()
     return min(max(n_eff, 1.0), float(len(eigenvalues)))
 
 
-def residualize(new_signal: np.ndarray,
-                existing_signal: np.ndarray) -> np.ndarray:
+def residualize(new_signal: np.ndarray, existing_signal: np.ndarray) -> np.ndarray:
     """对单个已有信号做残差化。
 
     regress new_signal on existing_signal, 保留残差。
@@ -201,8 +202,7 @@ def bayesian_shrinkage_weights(
     effective_n = n_periods * np.clip(signal_activity, 0.05, 1.0)
 
     # 贝叶斯收缩
-    posterior = (effective_n * historical_accuracy + prior_strength * prior_mean) / \
-                (effective_n + prior_strength)
+    posterior = (effective_n * historical_accuracy + prior_strength * prior_mean) / (effective_n + prior_strength)
 
     # 归一化为权重
     total = posterior.sum()
@@ -236,8 +236,7 @@ def analyze_signal_independence(
     corr = compute_signal_correlation_matrix(signals, names=names)
 
     # 2. 冗余对检测
-    redundant = detect_redundant_signals(corr, threshold=corr_threshold,
-                                         names=names)
+    redundant = detect_redundant_signals(corr, threshold=corr_threshold, names=names)
 
     # 3. 有效独立信号数
     n_eff = effective_independent_signals(corr)
@@ -264,8 +263,7 @@ def analyze_signal_independence(
     sep = "|---|" + "|".join(":---:" for _ in range(n_signals)) + "|"
     lines.append(sep)
     for i in range(n_signals):
-        row = f"| {names[i][:8]} |" + \
-              "|".join(f" {corr[i,j]:.2f} " for j in range(n_signals)) + "|"
+        row = f"| {names[i][:8]} |" + "|".join(f" {corr[i, j]:.2f} " for j in range(n_signals)) + "|"
         lines.append(row)
     lines.append("")
 
@@ -274,10 +272,7 @@ def analyze_signal_independence(
     lines.append("")
     if redundant:
         for r in redundant:
-            lines.append(
-                f"- **{r['signal_a']}** — **{r['signal_b']}**: "
-                f"r = {r['correlation']:.3f}"
-            )
+            lines.append(f"- **{r['signal_a']}** — **{r['signal_b']}**: r = {r['correlation']:.3f}")
     else:
         lines.append(f"- 未检测到相关性 > {corr_threshold:.1%} 的信号对")
 
@@ -288,8 +283,8 @@ def analyze_signal_independence(
     # 有效独立信号
     lines.append("### 有效独立信号源数量")
     lines.append("")
-    lines.append(f"- 原始: **{n_eff:.2f}** / {n_signals} ({n_eff/n_signals*100:.0f}%)")
-    lines.append(f"- 残差化后: **{n_eff_after:.2f}** / {n_signals} ({n_eff_after/n_signals*100:.0f}%)")
+    lines.append(f"- 原始: **{n_eff:.2f}** / {n_signals} ({n_eff / n_signals * 100:.0f}%)")
+    lines.append(f"- 残差化后: **{n_eff_after:.2f}** / {n_signals} ({n_eff_after / n_signals * 100:.0f}%)")
     improvement = (n_eff_after - n_eff) / n_signals * 100
     lines.append(f"- 提升: {improvement:+.1f}%")
     lines.append("")
@@ -313,13 +308,11 @@ def analyze_signal_independence(
     lines.append("### 改进建议")
     lines.append("")
     if n_eff < n_signals * 0.6:
-        lines.append(f"- 有效信号仅{n_eff:.1f}个(占比{n_eff/n_signals*100:.0f}%)，"
-                     f"建议启用残差化融合以减少冗余")
+        lines.append(f"- 有效信号仅{n_eff:.1f}个(占比{n_eff / n_signals * 100:.0f}%)，建议启用残差化融合以减少冗余")
     if len(redundant) > 0:
-        high_pairs = [r for r in redundant if r['correlation'] > 0.5]
+        high_pairs = [r for r in redundant if r["correlation"] > 0.5]
         if high_pairs:
-            lines.append(f"- {len(high_pairs)}对信号高度相关(r > 0.5)，"
-                         f"建议考虑合并或移除冗余信号源")
+            lines.append(f"- {len(high_pairs)}对信号高度相关(r > 0.5)，建议考虑合并或移除冗余信号源")
     if weights.max() > 0.30:
         lines.append(f"- 最大权重{weights.max():.1%}仍较高，可增加 prior_strength 参数")
 

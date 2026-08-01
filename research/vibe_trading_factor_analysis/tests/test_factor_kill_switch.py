@@ -99,7 +99,7 @@ def test_force_retire():
     s = ks.get_status("VT_FORCE")
     assert s.status == FactorStatus.RETIRED.value
     assert s.is_terminal
-    print(f"  ✓ 强制退役成功")
+    print("  ✓ 强制退役成功")
 
 
 def test_recovery_to_active():
@@ -115,7 +115,7 @@ def test_recovery_to_active():
         s = ks.update("VT_RECOVER", ic=0.05, daily_pnl=0.001)
     assert s.status == FactorStatus.ACTIVE.value, f"应恢复 ACTIVE, 实际 {s.status}"
     assert s.current_position_ratio == 1.0
-    print(f"  ✓ 恢复 ACTIVE")
+    print("  ✓ 恢复 ACTIVE")
 
 
 def test_quick_check_helper():

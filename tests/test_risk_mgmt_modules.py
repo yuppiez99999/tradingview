@@ -15,7 +15,7 @@ import numpy as np
 from utils.ledoit_wolf_covariance import LedoitWolfCovariance
 from utils.risk_budget_optimizer import RiskBudgetOptimizer
 from utils.stress_test_scenario_library import (
-    StressTestEngine, StressScenario, ShockFactors,
+    StressTestEngine, ShockFactors,
 )
 
 
@@ -144,7 +144,10 @@ def test_stress_test_engine():
 
     engine = StressTestEngine(risk_threshold=-0.10)
     print(f"  预定义场景数: {len(engine.scenarios)}")
-    assert len(engine.scenarios) == 8
+    # v8.4 (2026-07-30): 场景数从 8 扩展为 10, 新增 2 个流动性风险场景
+    #   9. ETF跌停+期货流动性枯竭 (双重流动性陷阱)
+    #   10. 期货期权流动性双重枯竭 (对冲瘫痪)
+    assert len(engine.scenarios) == 10
 
     positions = [
         {"code": "600519", "amount": 100000, "sector": "食品饮料", "style": "value", "type": "STOCK"},
@@ -162,7 +165,7 @@ def test_stress_test_engine():
         print(f"    {r.scenario_name}: return={r.portfolio_return:+.2%}, pnl=¥{r.portfolio_pnl:+.0f}, "
               f"breach={r.is_breach}")
 
-    assert len(results) == 8
+    assert len(results) == 10  # v8.4: 8 原场景 + 2 新流动性场景
 
     # 验证极端场景 (2008 金融危机) 损失较大
     worst = engine.get_worst_scenario(results)
@@ -182,7 +185,7 @@ def test_stress_test_engine():
     print(f"\n  汇总: 最严重={summary['worst_scenario']}, "
           f"worst_return={summary['worst_return']:.2%}, "
           f"breaches={summary['n_breaches']}")
-    assert summary["n_scenarios"] == 8
+    assert summary["n_scenarios"] == 10  # v8.4: 8 原场景 + 2 新流动性场景
 
     # 测试 3d: 自定义场景
     custom = engine.create_custom_shock(
@@ -190,7 +193,7 @@ def test_stress_test_engine():
         description="自定义冲击测试",
         shocks=ShockFactors(equity_market=-0.10, commodity_gold=0.05),
     )
-    assert len(engine.scenarios) == 9
+    assert len(engine.scenarios) == 11  # v8.4: 10 默认 + 1 自定义
     custom_result = engine.run_scenario(custom, positions, total_value)
     assert custom_result.scenario_name == "测试场景"
     print(f"\n  自定义场景: return={custom_result.portfolio_return:+.2%}")

@@ -19,16 +19,16 @@
         if any(a['severity'] == 'critical' for a in alerts):
             print("触发自动重训练!")
 """
+
 import numpy as np
-import pandas as pd
 from collections import deque
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 import logging
 
-logger = logging.getLogger('drift_detector')
+logger = logging.getLogger("drift_detector")
 
 
 class DriftType(Enum):
@@ -47,6 +47,7 @@ class Severity(Enum):
 @dataclass
 class DriftAlert:
     """漂移告警"""
+
     timestamp: str
     drift_type: DriftType
     severity: Severity
@@ -106,17 +107,12 @@ class ADWINDetector:
 
             # ADWIN 检验统计量
             n_total = n0 + n1
-            epsilon = np.sqrt(
-                1.0 / (2.0 * n_total) *
-                np.log(4.0 / self.delta)
-            )
+            epsilon = np.sqrt(1.0 / (2.0 * n_total) * np.log(4.0 / self.delta))
 
             if abs(mean0 - mean1) > epsilon:
                 # 检测到漂移, 截断旧窗口
                 logger.warning(
-                    f"ADWIN 漂移检测: 窗口分割 {split}/{n}, "
-                    f"均值差异 {mean0:.4f} vs {mean1:.4f}, "
-                    f"阈值 {epsilon:.4f}"
+                    f"ADWIN 漂移检测: 窗口分割 {split}/{n}, 均值差异 {mean0:.4f} vs {mean1:.4f}, 阈值 {epsilon:.4f}"
                 )
                 # 保留新窗口
                 self.window = deque(w1)
@@ -137,13 +133,15 @@ class ModelDriftDetector:
     4. PSI: 人口稳定性指数
     """
 
-    def __init__(self,
-                 ic_window: int = 20,
-                 ic_threshold: float = 0.02,
-                 ic_consecutive_days: int = 5,
-                 ks_pvalue: float = 0.05,
-                 psi_threshold: float = 0.25,
-                 adwin_delta: float = 0.002):
+    def __init__(
+        self,
+        ic_window: int = 20,
+        ic_threshold: float = 0.02,
+        ic_consecutive_days: int = 5,
+        ks_pvalue: float = 0.05,
+        psi_threshold: float = 0.25,
+        adwin_delta: float = 0.002,
+    ):
         """
         Args:
             ic_window: IC 滚动窗口
@@ -193,11 +191,7 @@ class ModelDriftDetector:
         Returns:
             DriftAlert 如果检测到衰减, 否则 None
         """
-        self._ic_history.append({
-            'date': date,
-            'ic': ic_value,
-            'timestamp': datetime.now()
-        })
+        self._ic_history.append({"date": date, "ic": ic_value, "timestamp": datetime.now()})
 
         # 检查连续低 IC
         if abs(ic_value) < self.ic_threshold:
@@ -210,13 +204,12 @@ class ModelDriftDetector:
             alert = DriftAlert(
                 timestamp=datetime.now().isoformat(),
                 drift_type=DriftType.IC_DECAY,
-                severity=Severity.CRITICAL if self._low_ic_streak >= self.ic_consecutive_days * 2
-                         else Severity.WARNING,
+                severity=Severity.CRITICAL if self._low_ic_streak >= self.ic_consecutive_days * 2 else Severity.WARNING,
                 message=f"IC 连续 {self._low_ic_streak} 天低于阈值 {self.ic_threshold}",
                 metric_name="rolling_ic",
                 current_value=ic_value,
                 threshold=self.ic_threshold,
-                recommendation="触发模型重训练, 检查特征有效性"
+                recommendation="触发模型重训练, 检查特征有效性",
             )
             self._alert_history.append(alert)
             logger.warning(alert.message)
@@ -224,7 +217,7 @@ class ModelDriftDetector:
 
         # 检查滚动 IC 均值下降
         if len(self._ic_history) >= self.ic_window:
-            recent_ics = [h['ic'] for h in list(self._ic_history)[-self.ic_window:]]
+            recent_ics = [h["ic"] for h in list(self._ic_history)[-self.ic_window :]]
             rolling_mean = np.mean(recent_ics)
             rolling_std = np.std(recent_ics)
 
@@ -237,7 +230,7 @@ class ModelDriftDetector:
                     metric_name="rolling_ic_mean",
                     current_value=rolling_mean,
                     threshold=0.0,
-                    recommendation="检查模型是否过期, 考虑增量更新"
+                    recommendation="检查模型是否过期, 考虑增量更新",
                 )
                 self._alert_history.append(alert)
                 logger.warning(alert.message)
@@ -269,7 +262,7 @@ class ModelDriftDetector:
                 metric_name="adwin",
                 current_value=value,
                 threshold=0.0,
-                recommendation="数据分布发生显著变化, 立即重训练模型"
+                recommendation="数据分布发生显著变化, 立即重训练模型",
             )
             self._alert_history.append(alert)
             logger.critical(alert.message)
@@ -327,7 +320,7 @@ class ModelDriftDetector:
                     metric_name=name,
                     current_value=statistic,
                     threshold=self.ks_pvalue,
-                    recommendation=f"特征 '{name}' 分布已变化, 检查数据源或重训练"
+                    recommendation=f"特征 '{name}' 分布已变化, 检查数据源或重训练",
                 )
                 alerts.append(alert)
                 self._alert_history.append(alert)
@@ -358,8 +351,7 @@ class ModelDriftDetector:
             PSI 值
         """
         # 合并分箱边界
-        breakpoints = np.percentile(np.concatenate([expected, actual]),
-                                     np.linspace(0, 100, bins + 1))
+        breakpoints = np.percentile(np.concatenate([expected, actual]), np.linspace(0, 100, bins + 1))
         breakpoints = np.unique(breakpoints)
 
         # 计算各组频率
@@ -411,7 +403,7 @@ class ModelDriftDetector:
                     metric_name=name,
                     current_value=psi,
                     threshold=self.psi_threshold,
-                    recommendation=f"特征 '{name}' 稳定性差, 考虑重新训练或剔除"
+                    recommendation=f"特征 '{name}' 稳定性差, 考虑重新训练或剔除",
                 )
                 alerts.append(alert)
                 self._alert_history.append(alert)
@@ -433,10 +425,7 @@ class ModelDriftDetector:
         """
         # 返回最近 24 小时内的告警
         cutoff = datetime.now() - timedelta(hours=24)
-        recent = [
-            a for a in self._alert_history
-            if datetime.fromisoformat(a.timestamp) > cutoff
-        ]
+        recent = [a for a in self._alert_history if datetime.fromisoformat(a.timestamp) > cutoff]
         return recent
 
     def should_retrain(self) -> Tuple[bool, str]:
@@ -466,31 +455,31 @@ class ModelDriftDetector:
         recent = self.check_all()
 
         # IC 统计
-        ics = [h['ic'] for h in self._ic_history]
+        ics = [h["ic"] for h in self._ic_history]
         ic_stats = {
-            'n_samples': len(ics),
-            'latest_ic': ics[-1] if ics else None,
-            'mean_ic_20d': float(np.mean(ics[-20:])) if len(ics) >= 20 else None,
-            'mean_ic_60d': float(np.mean(ics[-60:])) if len(ics) >= 60 else None,
-            'low_ic_streak': self._low_ic_streak,
-            'ic_threshold': self.ic_threshold,
+            "n_samples": len(ics),
+            "latest_ic": ics[-1] if ics else None,
+            "mean_ic_20d": float(np.mean(ics[-20:])) if len(ics) >= 20 else None,
+            "mean_ic_60d": float(np.mean(ics[-60:])) if len(ics) >= 60 else None,
+            "low_ic_streak": self._low_ic_streak,
+            "ic_threshold": self.ic_threshold,
         }
 
         return {
-            'timestamp': datetime.now().isoformat(),
-            'ic_stats': ic_stats,
-            'alerts_24h': [
+            "timestamp": datetime.now().isoformat(),
+            "ic_stats": ic_stats,
+            "alerts_24h": [
                 {
-                    'type': a.drift_type.value,
-                    'severity': a.severity.value,
-                    'message': a.message,
-                    'metric': a.metric_name,
-                    'current': a.current_value,
-                    'threshold': a.threshold,
-                    'recommendation': a.recommendation,
+                    "type": a.drift_type.value,
+                    "severity": a.severity.value,
+                    "message": a.message,
+                    "metric": a.metric_name,
+                    "current": a.current_value,
+                    "threshold": a.threshold,
+                    "recommendation": a.recommendation,
                 }
                 for a in recent
             ],
-            'should_retrain': self.should_retrain(),
-            'total_alerts': len(self._alert_history),
+            "should_retrain": self.should_retrain(),
+            "total_alerts": len(self._alert_history),
         }

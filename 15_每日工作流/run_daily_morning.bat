@@ -22,8 +22,11 @@ if not defined PYTHON_PATH (
 )
 
 %PYTHON_EXE% "15_每日工作流\run_daily_morning.py" --phase all %*
+set EXITCODE=%ERRORLEVEL%
 
 echo.
 echo ============================================================
-echo   工作流执行完毕
+echo   工作流执行完毕 (退出码: %EXITCODE%)
 echo ============================================================
+
+exit /b %EXITCODE%

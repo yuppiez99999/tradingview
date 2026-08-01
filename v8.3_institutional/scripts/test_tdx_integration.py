@@ -29,7 +29,7 @@ def test_pytdx_installation():
     print("=" * 60)
     
     try:
-        import pytdx
+        import pytdx  # noqa: F401
         print("[PASS] pytdx已安装")
         return True
     except ImportError:

@@ -19,8 +19,6 @@ E2E 测试金字塔顶层 (5% 测试占比):
 """
 import json
 import pytest
-from pathlib import Path
-from unittest.mock import patch
 
 
 # ============================================================
@@ -386,7 +384,7 @@ class TestEODMultiDayRegression:
                 "hedge_config": {"layers": {"layer1_futures": {"ratio": 0.15}}},
             }
             monkeypatch.setattr(
-                integrator, "_load_next_trade_plan", lambda date: simple_plan
+                integrator, "_load_next_trade_plan", lambda date, _sp=simple_plan: _sp
             )
 
             # 执行 — 不应崩溃

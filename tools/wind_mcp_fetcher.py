@@ -50,7 +50,7 @@ def _parse_sse_generic(text: str) -> Optional[Dict]:
             json_str = line[6:]
             try:
                 return json.loads(json_str)
-            except Exception:
+            except Exception as e:
                 return None
     return None
 
@@ -62,7 +62,7 @@ def _parse_sse_minute_quote(text: str) -> Optional[Dict]:
         return None
     try:
         payload = json.loads(m.group(1))
-    except Exception:
+    except Exception as e:
         return None
     result = (((payload.get("result") or {}).get("content") or []))
     if not result:
@@ -75,13 +75,13 @@ def _parse_sse_minute_quote(text: str) -> Optional[Dict]:
         return None
     try:
         inner = json.loads(result)
-    except Exception:
+    except Exception as e:
         return None
     data = inner.get("data") or inner
     if isinstance(data, str):
         try:
             data = json.loads(data)
-        except Exception:
+        except Exception as e:
             return None
     columns = [c.get("name") for c in (data.get("columns") or [])]
     rows = data.get("rows") or []
@@ -162,7 +162,7 @@ def _wind_http(server_endpoint: str, tool_name: str, params: Dict, api_key: str,
         "params": {"name": tool_name, "arguments": params},
     }
     last_err = None
-    for attempt in range(1, retries + 1):
+    for _attempt in range(1, retries + 1):
         try:
             resp = _requests.post(server_endpoint, headers=headers, json=payload, timeout=60, proxies={"http": None, "https": None})
         except Exception as e:
@@ -175,7 +175,7 @@ def _wind_http(server_endpoint: str, tool_name: str, params: Dict, api_key: str,
         # 优先用 resp.content (字节流) + 显式 UTF-8 解码, 避免 charset 推断错误
         try:
             text = resp.content.decode("utf-8", errors="replace")
-        except Exception:
+        except Exception as e:
             text = resp.text
         if not text or not text.strip():
             last_err = "wind_http_empty"
@@ -198,7 +198,7 @@ def _wind_http(server_endpoint: str, tool_name: str, params: Dict, api_key: str,
             return {"ok": True, "data": sse_data, "sse": True}
         try:
             data = json.loads(text)
-        except Exception:
+        except Exception as e:
             last_err = "wind_http_bad_json"
             continue
         # 检查业务层错误 (Wind MCP 返回 isError=true 时, 业务调用失败)
@@ -214,6 +214,74 @@ def _wind_http(server_endpoint: str, tool_name: str, params: Dict, api_key: str,
             return {"ok": False, "error": f"wind_api_error: {error_msg}", "data": data}
         return {"ok": True, "data": data, "sse": False}
     return {"ok": False, "error": last_err or "wind_http_failed"}
+
+
+def _wind_http_generic(server_endpoint: str, tool_name: str, params: Dict, api_key: str, retries: int = 2) -> Dict:
+    """v8.6.11 新增: 通用 HTTP 调用 (不调用 _parse_sse_minute_quote)
+
+    用于 K 线类工具 (get_stock_kline / get_fund_kline), 这类工具返回多行 K 线数据,
+    不应被 _parse_sse_minute_quote 误解析为单条 quote。
+
+    解析顺序:
+        1. _parse_sse_generic (提取 SSE 中的 JSON)
+        2. 直接 json.loads
+    """
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+    }
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {"name": tool_name, "arguments": params},
+    }
+    last_err = None
+    for _attempt in range(1, retries + 1):
+        try:
+            resp = _requests.post(server_endpoint, headers=headers, json=payload, timeout=60, proxies={"http": None, "https": None})
+        except Exception as e:
+            last_err = f"wind_http_generic_error: {e}"
+            continue
+        if resp.status_code != 200:
+            last_err = f"wind_http_generic_status:{resp.status_code}"
+            continue
+        try:
+            text = resp.content.decode("utf-8", errors="replace")
+        except Exception:
+            text = resp.text
+        if not text or not text.strip():
+            last_err = "wind_http_generic_empty"
+            continue
+        # 仅使用通用 SSE 解析 (不调用 _parse_sse_minute_quote)
+        sse_data = _parse_sse_generic(text)
+        if sse_data is not None:
+            # 检查业务错误
+            result = sse_data.get("result") if isinstance(sse_data, dict) else None
+            if isinstance(result, dict) and result.get("isError"):
+                error_texts = []
+                for content in (result.get("content") or []):
+                    if isinstance(content, dict) and content.get("text"):
+                        error_texts.append(content["text"])
+                error_msg = " | ".join(error_texts) if error_texts else "unknown_wind_error"
+                return {"ok": False, "error": f"wind_api_error: {error_msg}", "data": sse_data}
+            return {"ok": True, "data": sse_data, "sse": True}
+        try:
+            data = json.loads(text)
+        except Exception:
+            last_err = "wind_http_generic_bad_json"
+            continue
+        result = data.get("result") if isinstance(data, dict) else None
+        if isinstance(result, dict) and result.get("isError"):
+            error_texts = []
+            for content in (result.get("content") or []):
+                if isinstance(content, dict) and content.get("text"):
+                    error_texts.append(content["text"])
+            error_msg = " | ".join(error_texts) if error_texts else "unknown_wind_error"
+            return {"ok": False, "error": f"wind_api_error: {error_msg}", "data": data}
+        return {"ok": True, "data": data, "sse": False}
+    return {"ok": False, "error": last_err or "wind_http_generic_failed"}
 
 
 _WIND_API_KEY_CACHE = None
@@ -240,8 +308,12 @@ def _get_wind_api_key() -> Optional[str]:
                     if line.startswith("WIND_API_KEY="):
                         _WIND_API_KEY_CACHE = line.split("=", 1)[1].strip()
                         return _WIND_API_KEY_CACHE
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(
+            "Wind API Key 加载失败: 配置文件 %s 读取异常, 所有Wind数据调用将不可用",
+            cfg, exc_info=True
+        )
     _WIND_API_KEY_CACHE = None
     return None
 
@@ -261,7 +333,7 @@ def _call_wind(server_type: str, tool_name: str, params: Dict, retries: int = 2)
     ]
 
     last_err = None
-    for attempt in range(1, retries + 1):
+    for _attempt in range(1, retries + 1):
         try:
             proc = subprocess.run(
                 args,
@@ -285,7 +357,7 @@ def _call_wind(server_type: str, tool_name: str, params: Dict, retries: int = 2)
 
         try:
             data = json.loads(stdout)
-        except Exception:
+        except Exception as e:
             last_err = {"error": "wind_cli_bad_json", "raw": stdout[:1000]}
             continue
 
@@ -367,7 +439,7 @@ def wind_get_quote(windcode: str, is_fund: bool = False) -> Optional[Dict]:
         return None
     try:
         parsed = json.loads(content)
-    except Exception:
+    except Exception as e:
         return None
 
     items = parsed.get("data") or parsed.get("result") or []
@@ -420,7 +492,7 @@ def _extract_price_indicators(data: Dict) -> Optional[Dict]:
     # text 可能是嵌套 JSON 字符串
     try:
         inner = json.loads(text)
-    except Exception:
+    except Exception as e:
         # text 可能不是 JSON, 而是纯文本 (错误消息)
         return None
 
@@ -482,51 +554,107 @@ def wind_get_batch_quotes(windcodes: List[str], is_fund: bool = False) -> Dict[s
 
 
 def wind_get_kline(windcode: str, days: int = 2, is_fund: bool = False) -> Optional[List[Dict]]:
+    """获取股票/ETF 历史 K 线数据
+
+    v8.6.11 FIX:
+        1. 添加 HTTP 直连优先路径 (原仅走 CLI, CLI 不可用时全部失败)
+        2. 使用 _wind_http_generic 而非 _wind_http (后者调用 _parse_sse_minute_quote
+           会把 K 线数据错误解析成单条 quote)
+        3. 优先级: HTTP 直连 (有 api_key) → CLI 回退 → None
+    """
     server_type = "fund_data" if is_fund else "stock_data"
     tool_name = "get_fund_kline" if is_fund else "get_stock_kline"
     import datetime as dt
     end_date = dt.datetime.now()
     start_date = end_date - dt.timedelta(days=int(days * 1.5))
+
+    # 构造请求参数
+    kline_params = {
+        "windcode": windcode,
+        "begin_date": start_date.strftime("%Y%m%d"),
+        "end_date": end_date.strftime("%Y%m%d"),
+    }
+
+    # === 优先路径 1: HTTP 直连 (有 api_key 时, 使用 generic SSE 解析) ===
+    api_key = _get_wind_api_key()
+    if api_key:
+        endpoint = WIND_FUND_ENDPOINT if is_fund else WIND_STOCK_ENDPOINT
+        # v8.6.11 FIX: 使用 _wind_http_generic 避免被 _parse_sse_minute_quote 误解析
+        http_res = _wind_http_generic(endpoint, tool_name, kline_params, api_key)
+        if http_res.get("ok") and isinstance(http_res.get("data"), dict):
+            records = _extract_kline_records(http_res["data"])
+            if records:
+                return records[-days:] if len(records) > days else records
+        # HTTP 失败, 回退到 CLI
+        if http_res.get("error"):
+            import logging
+            logging.getLogger(__name__).debug(
+                f"Wind HTTP ({tool_name}) 失败, 回退到 CLI: {http_res.get('error')}"
+            )
+
+    # === 回退路径 2: CLI 调用 ===
     res = _call_wind(
         server_type,
         tool_name,
-        {
-            "windcode": windcode,
-            "begin_date": start_date.strftime("%Y%m%d"),
-            "end_date": end_date.strftime("%Y%m%d"),
-        },
+        kline_params,
     )
     if not res.get("ok"):
         return None
 
     data = res.get("data") or {}
-    _content = (((data.get("result") or data).get("content") or []))
-    if not _content:
-        return None
-    _first = _content[0]
-    if not isinstance(_first, dict):
-        return None
-    content = (_first.get("text") or "")
-    if not content:
-        return None
-    try:
-        parsed = json.loads(content)
-    except Exception:
-        return None
-
-    inner = parsed.get("data") or parsed.get("result") or {}
-    if not isinstance(inner, dict):
-        return None
-    columns = [c.get("name") for c in (inner.get("columns") or [])]
-    rows = inner.get("rows") or []
-    records = []
-    for row in rows:
-        if len(columns) != len(row):
-            continue
-        records.append(dict(zip(columns, row)))
+    records = _extract_kline_records(data)
     if not records:
         return None
     return records[-days:] if len(records) > days else records
+
+
+def _extract_kline_records(data: Dict) -> List[Dict]:
+    """从 Wind MCP 响应中提取 K 线记录 (CLI 和 HTTP 通用)
+
+    支持多种返回格式:
+        - CLI: {"content": [{"type": "text", "text": "..."}]}
+        - HTTP SSE: {"result": {"content": [{"type": "text", "text": "..."}]}}
+        - 直接 JSON: {"data": {"columns": [...], "rows": [...]}}
+    """
+    if not data:
+        return []
+
+    # 路径 1: MCP content[0].text 嵌套 JSON
+    _content = (((data.get("result") or data).get("content") or []))
+    if _content and isinstance(_content, list):
+        _first = _content[0]
+        if isinstance(_first, dict):
+            content = (_first.get("text") or "")
+            if content:
+                try:
+                    parsed = json.loads(content)
+                except Exception:
+                    return []
+                inner = parsed.get("data") or parsed.get("result") or parsed
+                if isinstance(inner, dict):
+                    columns = [c.get("name") for c in (inner.get("columns") or [])]
+                    rows = inner.get("rows") or []
+                    records = []
+                    for row in rows:
+                        if len(columns) == len(row):
+                            records.append(dict(zip(columns, row)))
+                    return records
+                # 也可能是 list 直接返回
+                if isinstance(inner, list):
+                    return inner
+
+    # 路径 2: 直接 {data: {columns, rows}}
+    inner_data = data.get("data") if isinstance(data, dict) else None
+    if isinstance(inner_data, dict):
+        columns = [c.get("name") for c in (inner_data.get("columns") or [])]
+        rows = inner_data.get("rows") or []
+        records = []
+        for row in rows:
+            if len(columns) == len(row):
+                records.append(dict(zip(columns, row)))
+        return records
+
+    return []
 
 
 def fetch_realtime_price(windcode: str) -> Optional[float]:
@@ -623,7 +751,7 @@ def _extract_news_items(data: Any) -> List[Dict]:
             return []
         try:
             inner = json.loads(text)
-        except Exception:
+        except Exception as e:
             # 纯文本, 返回单条
             return [{"text": text, "title": text[:80]}]
 
@@ -730,10 +858,10 @@ def _extract_news_items(data: Any) -> List[Dict]:
 
 # 显式声明对外接口 (方便 from wind_mcp_fetcher import *)
 __all__ = [
-    "wind_get_quote",
+    "fetch_realtime_price",  # 兼容旧接口
     "wind_get_batch_quotes",
     "wind_get_kline",
-    "fetch_realtime_price",  # 兼容旧接口
+    "wind_get_quote",
     "wind_search_news",  # 财经新闻搜索
 ]
 

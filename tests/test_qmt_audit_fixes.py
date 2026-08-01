@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """QMT 审计修复项集成测试 — 验证所有 P0 修复"""
 
-import sys, os
+import sys
+import os
 # 必须在 import 之前插入 sys.path
 # 项目根目录 (用于 import utils.* / ms_strategy.*)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,7 +17,7 @@ failed = 0
 # ================================================================
 # P0-10: T+0/T+1 交易制度
 # ================================================================
-from utils.trading_rules import is_t0_eligible, can_sell_today, get_trading_rule
+from utils.trading_rules import is_t0_eligible, get_trading_rule
 
 tests = [
     ("511880.SH 债券ETF", is_t0_eligible("511880.SH"), True),
@@ -64,7 +65,7 @@ passed += 2
 # 期货月份匹配
 ct = cm.get_contract("IF2507.CFFEX")
 assert ct.product_class == "FUTURE", f"Futures fallback failed: {ct.product_class}"
-assert ct.contract_multiplier == 300.0, f"Wrong futures multiplier"
+assert ct.contract_multiplier == 300.0, "Wrong futures multiplier"
 passed += 2
 
 # 期权回退
@@ -74,7 +75,7 @@ passed += 1
 
 # 股票回退
 ct = cm.get_contract("000001.SZ")
-assert ct.product_class == "STOCK", f"Stock fallback failed"
+assert ct.product_class == "STOCK", "Stock fallback failed"
 passed += 1
 
 print(f"  contracts_manager: {passed-tp}/{6}")
@@ -114,8 +115,7 @@ print(f"  futures_rollover: {passed-tp}/{10}")
 # ================================================================
 tp = passed
 from utils.option_margin_monitor import (
-    OptionMarginMonitor, OptionPosition, calc_margin,
-    parse_option_code, calc_call_margin, calc_put_margin,
+    OptionMarginMonitor, OptionPosition, parse_option_code, calc_call_margin, calc_put_margin,
 )
 
 # 期权代码解析

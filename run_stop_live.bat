@@ -5,7 +5,7 @@ echo   v7.5 实时监控并发调度器 - 停止
 echo ========================================
 echo.
 
-set PYTHON=C:\Program Files\Python38\python.exe
+set PYTHON=C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe
 set WORKDIR=%~dp0
 set LOG=%WORKDIR%logs\live_scheduler.log
 

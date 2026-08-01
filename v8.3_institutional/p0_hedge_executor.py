@@ -64,7 +64,7 @@ class HedgeExecutor:
         if self.simulation_mode:
             logger.info("[模拟模式] 跳过实际下单")
             logger.info(f"  预计保证金占用: ¥{execution_plan['estimated_margin_required']:,.0f}")
-            logger.info(f"  预计Beta降低: 1.052 → 0.85-0.90")
+            logger.info("  预计Beta降低: 1.052 → 0.85-0.90")
             
             # 记录执行日志
             self.execution_log.append({
@@ -117,8 +117,8 @@ class HedgeExecutor:
             logger.info("[模拟模式] 跳过实际下单")
             logger.info(f"  总权利金预算: ¥{execution_plan['budget']:,.0f}")
             logger.info(f"  执行批次: {execution_plan['batch_size']}张 x 4批")
-            logger.info(f"  预期Delta覆盖: -0.5至-0.8")
-            logger.info(f"  预期尾部风险覆盖: 99% VaR")
+            logger.info("  预期Delta覆盖: -0.5至-0.8")
+            logger.info("  预期尾部风险覆盖: 99% VaR")
             
             self.execution_log.append({
                 "timestamp": datetime.now().isoformat(),
@@ -140,7 +140,7 @@ class HedgeExecutor:
         logger.info("=" * 80)
         
         # 当前配置
-        config_path = Path(__file__).parent / 'src' / 'config' / 'risk_config.json'
+        Path(__file__).parent / 'src' / 'config' / 'risk_config.json'
         
         new_parameters = {
             "task": "RISK_PARAMETER_UPDATE",
@@ -244,13 +244,13 @@ def main():
     executor = HedgeExecutor(simulation_mode=True)
     
     # 执行任务1: 期货补齐
-    futures_plan = executor.execute_futures_topup()
+    executor.execute_futures_topup()
     
     # 执行任务2: 期权保护
-    options_plan = executor.execute_options_protection()
+    executor.execute_options_protection()
     
     # 执行任务3: 风控参数更新
-    risk_plan = executor.update_risk_parameters()
+    executor.update_risk_parameters()
     
     # 生成执行报告
     report_path = executor.generate_execution_report()

@@ -106,7 +106,7 @@ if sample_meta.exists():
     if device == "gpu":
         print(f"  GPU 平台 ID: {lgb_params.get('gpu_platform_id')}")
         print(f"  GPU 设备 ID: {lgb_params.get('gpu_device_id')}")
-        print(f"  ✅ GPU 加速已启用 (v8.7)")
+        print("  ✅ GPU 加速已启用 (v8.7)")
 
 # 6. 信号分布
 print("\n=== 6. 信号分布 ===")

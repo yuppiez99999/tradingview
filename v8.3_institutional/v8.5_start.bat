@@ -103,7 +103,15 @@ goto end
 :run_script
 echo    脚本: %~1
 echo    描述: %~2
-python "%~dp0%~1" 2>&1 | tee logs\%~n1_%date:~0,4%%date:~5,2%%date:~8,2%.log
+REM B1.4: 副本删除后, generate_daily_report.py 改为调用根目录版
+if exist "%~dp0%~1" (
+    python "%~dp0%~1" 2>&1 | tee logs\%~n1_%date:~0,4%%date:~5,2%%date:~8,2%.log
+) else if exist "%~dp0..\%~1" (
+    python "%~dp0..\%~1" 2>&1 | tee logs\%~n1_%date:~0,4%%date:~5,2%%date:~8,2%.log
+) else (
+    echo [ERROR] 脚本不存在: %~1
+    exit /b 1
+)
 if !errorlevel! equ 0 (
     echo [SUCCESS] %~2 执行成功!
 ) else (

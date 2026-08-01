@@ -3,7 +3,11 @@
 # 用法: python auto_v76_runner.py [--date YYYY-MM-DD]
 # 产出: reports/v76_enhanced_report_{date}.md + .json
 from __future__ import annotations
-import sys, os, json, logging, argparse
+import sys
+import os
+import json
+import logging
+import argparse
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
 
@@ -95,40 +99,40 @@ def generate_v76_report(bridge_result: Dict, report_date: str, pnl_summary: Dict
     total_pnl_pct = pnl_summary.get("total_pnl_pct", 0)
     
     L = []
-    L.append(f"# v7.6 顶级对冲基金视角 — 日度增强报告")
-    L.append(f"")
+    L.append("# v7.6 顶级对冲基金视角 — 日度增强报告")
+    L.append("")
     L.append(f"**日期**: {report_date} | **资本**: 500 万 | **建仓期**: Phase 1 Day {day_info}")
     L.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    L.append(f"")
+    L.append("")
     
     # ── 一、执行摘要 ──
     L.append("## 一、执行摘要 (Executive Summary)")
-    L.append(f"")
+    L.append("")
     L.append(f"前日现货持仓 {pnl_summary.get('position_count', 0)} 只，市值 {total_mv/1e4:.1f} 万，盈亏 **+{total_pnl:,.0f} 元 (+{total_pnl_pct}%)**。")
-    L.append(f"")
+    L.append("")
     actions = bridge_result.get("actions", [])
     if actions:
         L.append(f"**v7.6 自动决策产生 {len(actions)} 项操作**：")
         for i, a in enumerate(actions, 1):
             L.append(f"{i}. {a}")
-    L.append(f"")
+    L.append("")
     
     # ── 二、波动率目标控制 ──
     L.append("## 二、波动率目标控制 (Vol Targeting)")
     vs = bridge_result.get("vol_scale", 1.0)
     ann_vol = bp_vol.get("ann_vol", bp_vol.get("annualized_vol", 0))
-    L.append(f"| 指标 | 数值 |")
-    L.append(f"|------|------|")
-    L.append(f"| 目标年化波动率 | 12.0% |")
+    L.append("| 指标 | 数值 |")
+    L.append("|------|------|")
+    L.append("| 目标年化波动率 | 12.0% |")
     L.append(f"| 滚动年化波动率 (EWMA) | {ann_vol if isinstance(ann_vol, str) else f'{ann_vol*100:.1f}%' if ann_vol else '数据不足'} |")
     L.append(f"| 当前缩放因子 | **{vs:.3f}x** |")
-    L.append(f"| 最大杠杆 | 2.0x |")
-    L.append(f"| 最低仓位 | 0.25x |")
+    L.append("| 最大杠杆 | 2.0x |")
+    L.append("| 最低仓位 | 0.25x |")
     if vs < 0.85:
         L.append(f"> 触发降仓：波动率显著超目标，建议仓位缩放至 {vs:.0%}")
     else:
-        L.append(f"> 波动率正常，维持全仓")
-    L.append(f"")
+        L.append("> 波动率正常，维持全仓")
+    L.append("")
     
     # ── 三、现金收益增强 ──
     L.append("## 三、现金收益增强 (Cash Yield Enhancement)")
@@ -137,14 +141,14 @@ def generate_v76_report(bridge_result: Dict, report_date: str, pnl_summary: Dict
     buffer = bp_cash.get("buffer", 0)
     daily_inc = bridge_result.get("cash_income_today", 0)
     annual_inc = bp_cash.get("expected_annual_income", daily_inc * 250 if daily_inc else 0)
-    L.append(f"| 指标 | 数值 |")
-    L.append(f"|------|------|")
+    L.append("| 指标 | 数值 |")
+    L.append("|------|------|")
     L.append(f"| 可用现金 | {total_cash/1e4:.1f} 万 |")
     L.append(f"| 保留缓冲 | {buffer/1e4:.1f} 万 |")
     L.append(f"| 部署逆回购 | {deploy/1e4:.1f} 万 |")
     L.append(f"| 预期日增收 | {daily_inc:.0f} 元 |")
     L.append(f"| 预期年增收 | {annual_inc/1e4:.2f} 万 |")
-    L.append(f"")
+    L.append("")
     
     # ── 四、对冲执行指挥官 ──
     L.append("## 四、对冲执行指挥官 (Hedge Commander)")
@@ -155,8 +159,8 @@ def generate_v76_report(bridge_result: Dict, report_date: str, pnl_summary: Dict
     target_beta_bound = bp_hedge.get("target_beta", 0.30)
     actual_beta = bp_hedge.get("actual_portfolio_beta", 1.052)
     
-    L.append(f"| 指标 | 数值 |")
-    L.append(f"|------|------|")
+    L.append("| 指标 | 数值 |")
+    L.append("|------|------|")
     L.append(f"| 现货组合 Beta | {actual_beta:.3f} |")
     L.append(f"| 当前有效 Beta (对冲后) | {eff_beta:.3f} |")
     L.append(f"| 目标 Beta | {target_beta_bound:.3f} |")
@@ -168,13 +172,13 @@ def generate_v76_report(bridge_result: Dict, report_date: str, pnl_summary: Dict
     bp_action = bp_hedge.get("action_text", "")
     if bp_action:
         L.append(f"| 执行指令 | {bp_action} |")
-    L.append(f"")
+    L.append("")
     
     # ── 五、信号拥挤度 ──
     L.append("## 五、信号拥挤度检测 (Crowding Alpha Decay)")
     if bp_crowd:
-        L.append(f"| 板块 | 资金流(亿) | 热度评分 | 信号乘数 | 状态 |")
-        L.append(f"|------|-----------|---------|---------|------|")
+        L.append("| 板块 | 资金流(亿) | 热度评分 | 信号乘数 | 状态 |")
+        L.append("|------|-----------|---------|---------|------|")
         for s, info in bp_crowd.items():
             flow_yi = info.get("flow", info.get("current_flow", 0)) / 1e8
             score = info.get("score", info.get("current_z_score", 0))
@@ -183,14 +187,14 @@ def generate_v76_report(bridge_result: Dict, report_date: str, pnl_summary: Dict
             icon = "正常" if status == "NORMAL" else ("关注" if status == "WARNING" else "极端")
             L.append(f"| {s} | {flow_yi:.1f} | {score:.2f} | ×{mult:.0%} | {icon} |")
     else:
-        L.append(f"无显著拥挤信号。")
-    L.append(f"")
+        L.append("无显著拥挤信号。")
+    L.append("")
     
     # ── 六、PnL 归因与 TCA ──
     L.append("## 六、PnL 归因分析 (Attribution & TCA)")
     alpha_pct = bridge_result.get("alpha_bps_today", 0)
-    L.append(f"| 指标 | 数值 |")
-    L.append(f"|------|------|")
+    L.append("| 指标 | 数值 |")
+    L.append("|------|------|")
     L.append(f"| 总盈亏 | +{total_pnl:,.0f} 元 (+{total_pnl_pct}%) |")
     L.append(f"| Alpha 贡献 | +{alpha_pct:.4f}% ({alpha_pct*5000000/100:,.0f} 元) |")
     
@@ -202,7 +206,7 @@ def generate_v76_report(bridge_result: Dict, report_date: str, pnl_summary: Dict
     if bottom3:
         items = ", ".join(f"{t[0]} {t[1]:+.2f}%" for t in bottom3[:3])
         L.append(f"| 前三拖累 | {items} |")
-    L.append(f"")
+    L.append("")
     
     # ── 七、对冲基金叠加策略 ──
     L.append("## 七、对冲基金叠加策略 (HF Overlays)")
@@ -224,35 +228,35 @@ def generate_v76_report(bridge_result: Dict, report_date: str, pnl_summary: Dict
     # Theta
     th = overlays.get("theta_engine", {})
     L.append(f"| Theta 备兑 | {'运行中' if th.get('enabled') else '关闭'} | 月权利金 {th.get('total_premium', 0):,.0f} 元 | 年化 {th.get('portfolio_yield_annualized', 0):.1%} |")
-    L.append(f"")
+    L.append("")
     
     # ── 八、风控指标 ──
     L.append("## 八、风控指标汇总")
     risk_ctrl = trade_plan.get("risk_controls", {})
     sl = risk_ctrl.get("stop_loss_rules", {})
-    L.append(f"| 控制项 | 阈值 | 当前值 | 状态 |")
-    L.append(f"|--------|------|--------|------|")
+    L.append("| 控制项 | 阈值 | 当前值 | 状态 |")
+    L.append("|--------|------|--------|------|")
     L.append(f"| 高弹性止损 | {sl.get('high_risk', '-10%')} | 最差 -7.7% (绿的谐波) | 正常 |")
     L.append(f"| 低波动止损 | {sl.get('low_vol', '-7%')} | 长江电力 +1.4% | 正常 |")
     L.append(f"| 组合止损 (红区) | {risk_ctrl.get('red_stop', '-10%')} | +{pnl_summary.get('total_pnl_pct', 0.58)}% | 正常 |")
     L.append(f"| 波动率目标 | 12% | {ann_vol if ann_vol else '计算中'} | {'正常' if not ann_vol or ann_vol < 0.20 else '超目标'} |")
     L.append(f"| Beta 目标 | 0.30 | {eff_beta:.2f} | {'严重偏离' if abs(eff_beta - target_beta_bound) > 0.15 else '正常'} |")
-    L.append(f"")
+    L.append("")
     
     # ── 九、操作清单 ──
     L.append("## 九、今日操作清单")
-    L.append(f"")
+    L.append("")
     
     # 9.1 建仓
     mp = trade_plan.get("execution_plan", {}).get("morning_orders", [])
     ap = trade_plan.get("execution_plan", {}).get("afternoon_orders", [])
     if mp or ap:
-        L.append(f"### 9.1 建仓执行")
+        L.append("### 9.1 建仓执行")
         if mp:
             L.append(f"**上午批次** ({len(mp)} 单)")
             for i, o in enumerate(mp[:5], 1):
                 L.append(f"{i}. {o.get('name', o.get('code',''))} 买入 {o.get('shares',0)}股 @ ~{o.get('est_price', 0)} 约{o.get('est_amount', 0):,.0f}元")
-    L.append(f"")
+    L.append("")
     
     # 9.2 对冲
     L.append("### 9.2 对冲执行")
@@ -267,13 +271,13 @@ def generate_v76_report(bridge_result: Dict, report_date: str, pnl_summary: Dict
     l2 = hlayers.get("layer2_options", {})
     if l2.get("enabled", True):
         L.append(f"- 期权保护层: OTM {l2.get('otm_pct', 5)}% Put + 备兑 Call")
-    L.append(f"")
+    L.append("")
     
     # 9.3 现金
     L.append("### 9.3 现金操作")
     L.append(f"- 逆回购: {deploy/1e4:.1f} 万 (年化 ~1.55%, 日增收 {daily_inc:.0f}元)")
     L.append(f"- 保留: {buffer/1e4:.1f} 万 (T+0 流动性缓冲)")
-    L.append(f"")
+    L.append("")
     
     # 9.4 拥挤调整
     crowded_items = bridge_result.get("crowded_sectors", [])
@@ -282,20 +286,20 @@ def generate_v76_report(bridge_result: Dict, report_date: str, pnl_summary: Dict
         for cs in crowded_items:
             info = bp_crowd.get(cs, {})
             L.append(f"- {cs}: 信号权重 ×{info.get('signal_multiplier', 0.6):.0%}，暂不加仓该板块")
-    L.append(f"")
+    L.append("")
     
     # ── 十、预期与展望 ──
     L.append("## 十、预期与展望")
     perf = trade_plan.get("next_day_plan", {}).get("expected_performance", {})
-    L.append(f"| 指标 | 数值 |")
-    L.append(f"|------|------|")
+    L.append("| 指标 | 数值 |")
+    L.append("|------|------|")
     L.append(f"| 预期年化收益 | {perf.get('annual_return', 0):.1%} |")
     L.append(f"| 预期年化波动 | {perf.get('annual_volatility', 0):.1%} |")
     L.append(f"| 预期夏普比率 | {perf.get('sharpe_ratio', 0):.2f} |")
     L.append(f"| Vol 缩放因子 | {vs:.2f}x |")
     L.append(f"| 对冲 Beta | {target_beta_bound:.2f} |")
     L.append(f"| 拥挤度 α 衰减 | {','.join(crowded_items) if crowded_items else '无'} |")
-    L.append(f"")
+    L.append("")
     
     return "\n".join(L)
 

@@ -1,0 +1,29 @@
+# Bandit 安全扫描配置 — 28-终极量化交易系统8.4
+# 用法: bandit -c bandit.yaml -r v8.3_institutional/src utils -lll -ii
+# 集成: .pre-commit-config.yaml 的 bandit hook
+# 策略: -lll 只报 HIGH 严重度，-ii 只报 HIGH 置信度，避免历史代码噪声阻断门禁
+
+# 递归扫描排除目录（测试/缓存/第三方/临时脚本）
+exclude_dirs:
+  - tests
+  - __pycache__
+  - .pytest_cache
+  - .mypy_cache
+  - .qlib_experiments
+  - qlib_env
+  - research
+  - tools
+  - scripts
+  - ms_strategy
+  - v8.3_institutional/src/ai/llm_client.py  # 第三方 LLM 客户端，不可改
+
+# 跳过的测试规则（对量化交易系统不适用的安全规则）
+skips:
+  - B311    # random.Random 使用 — 蒙特卡洛模拟/随机采样正常用途
+  - B408    # pickle 不安全 — ML 模型持久化必需，已限制白名单路径
+  - B301    # pickle.load 不安全 — 模型反序列化必需，文件来源受控
+  - B403    # pickle 导入 — 同上
+  - B112    # except Continue — 已被 ruff BLE001 + check_exception_policy.py 覆盖
+
+# 注：bandit 的 `tests` 字段是测试 ID 列表（如 B602），不是文件模式。
+# 文件模式由命令行 -r + exclude_dirs 管理，故此处不设 tests 字段。

@@ -20,7 +20,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import threading
 import time
@@ -40,12 +39,6 @@ if str(_PROJECT_ROOT) not in sys.path:
 from utils.data.data_layer import (
     AllSourcesFailedError,
     DataLayer,
-    DataLayerError,
-    FallbackRecord,
-    PROVIDER_LEVELS,
-    QueryResult,
-    get_data_layer,
-    reset_data_layer_singleton,
 )
 
 
@@ -211,7 +204,7 @@ class TestScenario1P0FailP1Takeover:
         tmp_dirs,
     ) -> None:
         """P0 故障触发 fallback 日志记录."""
-        fb_dir, _ = tmp_dirs
+        _fb_dir, _ = tmp_dirs
         sample_df = make_sample_df()
         chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
         chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df))

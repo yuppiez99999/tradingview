@@ -104,9 +104,9 @@ class THSQuoteProvider:
         Returns:
             {latest, implied_vol, delta, gamma, theta, vega, ...} 或 None
         """
+        now = time.time()
         if symbol in self._cache and (now - self._cache_ts.get(symbol, 0)) < self._cache_ttl:
             return self._cache[symbol]
-        now = time.time()
 
         if self._ifind:
             try:
@@ -477,7 +477,7 @@ class SimOptionsBroker:
     def get_account(self):
         return self.account
 
-    def get_fills(self, session: str = None) -> List[Dict]:
+    def get_fills(self, session: Optional[str] = None) -> List[Dict]:
         with self._lock:
             if session:
                 return [f for f in self._fills if f.get("session") == session]
@@ -491,7 +491,7 @@ class SimOptionsBroker:
         total_vega = 0.0
 
         with self._lock:
-            for symbol, pos in self.account.positions.items():
+            for _symbol, pos in self.account.positions.items():
                 qty = pos.get("qty", 0)
                 if qty == 0:
                     continue
@@ -855,7 +855,7 @@ class THSSimFuturesBroker:
     def get_account(self):
         return self.account
 
-    def get_fills(self, session: str = None) -> List[Dict]:
+    def get_fills(self, session: Optional[str] = None) -> List[Dict]:
         with self._lock:
             if session:
                 return [f for f in self._fills if f.get("session") == session]

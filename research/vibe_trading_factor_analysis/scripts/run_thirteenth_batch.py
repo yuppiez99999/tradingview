@@ -29,13 +29,11 @@ v6.2c 验证目标：
 """
 from __future__ import annotations
 
-import json
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -60,48 +58,48 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("S3 第十三批次流水线跑批（P2.2 v6.2c Config_E 超激进参数完整验证）")
-    print("=" * 70)
-    print("v6.2c 改进内容（基于 v6.2b 调优实验结果）:")
-    print("  - PipelineOrchestrator 默认 ShadowAccount 配置采用 Config_E 超激进参数")
-    print("  - target_vol=0.08（基线 0.15→0.08，进一步压缩波动率）")
-    print("  - dd_derisk_threshold=0.02（基线 0.05→0.02，更早触发去杠杆）")
-    print("  - dd_derisk_factor=0.2（基线 0.5→0.2，去杠杆至 20% 敞口）")
+    logger.info("=" * 70)
+    logger.info("S3 第十三批次流水线跑批（P2.2 v6.2c Config_E 超激进参数完整验证）")
+    logger.info("=" * 70)
+    logger.info("v6.2c 改进内容（基于 v6.2b 调优实验结果）:")
+    logger.info("  - PipelineOrchestrator 默认 ShadowAccount 配置采用 Config_E 超激进参数")
+    logger.info("  - target_vol=0.08（基线 0.15→0.08，进一步压缩波动率）")
+    logger.info("  - dd_derisk_threshold=0.02（基线 0.05→0.02，更早触发去杠杆）")
+    logger.info("  - dd_derisk_factor=0.2（基线 0.5→0.2，去杠杆至 20% 敞口）")
     print()
-    print("v6.2c 验证目标:")
-    print("  - MARGIN_EXP 是否能走完 G1-G4+Enhancement+Regime+Shadow+Committee 全部 8 个 Gate")
-    print("  - 若通过 Committee，则是 QualityTrend 类首个 approved 因子")
-    print("  - 验证其他因子（如 VT_MICRO_VOL_SKEW_INV）在 Config_E 参数下表现")
+    logger.info("v6.2c 验证目标:")
+    logger.info("  - MARGIN_EXP 是否能走完 G1-G4+Enhancement+Regime+Shadow+Committee 全部 8 个 Gate")
+    logger.info("  - 若通过 Committee，则是 QualityTrend 类首个 approved 因子")
+    logger.info("  - 验证其他因子（如 VT_MICRO_VOL_SKEW_INV）在 Config_E 参数下表现")
     print()
-    print("预期路径（基于 v6.1+v6.2b 已验证结果）:")
-    print("  G1 正交性  ✅ (v6.1: max_corr=0.342)")
-    print("  G2 IC 稳定性 ✅ (v6.1: IC_IR=0.3981, decay=0.9186)")
-    print("  G3 DSR     ✅ (v6.1: DSR=0.5304)")
-    print("  G4 经济逻辑 ❓ (v6.1 未运行 G4)")
-    print("  Enhancement ❓")
-    print("  Regime    ❓")
-    print("  Shadow    ✅ (v6.2b Config_E: live_dsr=0.9960, max_dd=0.0759)")
-    print("  Committee ❓")
+    logger.info("预期路径（基于 v6.1+v6.2b 已验证结果）:")
+    logger.info("  G1 正交性  ✅ (v6.1: max_corr=0.342)")
+    logger.info("  G2 IC 稳定性 ✅ (v6.1: IC_IR=0.3981, decay=0.9186)")
+    logger.info("  G3 DSR     ✅ (v6.1: DSR=0.5304)")
+    logger.info("  G4 经济逻辑 ❓ (v6.1 未运行 G4)")
+    logger.info("  Enhancement ❓")
+    logger.info("  Regime    ❓")
+    logger.info("  Shadow    ✅ (v6.2b Config_E: live_dsr=0.9960, max_dd=0.0759)")
+    logger.info("  Committee ❓")
 
     # ============ Step 1: 加载数据 ============
-    print("\n[1/5] 加载 P1 改进后的真实数据")
+    logger.info("\n[1/5] 加载 P1 改进后的真实数据")
     symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
+    logger.info(f"  可用标的数: {len(symbols)}")
 
     price_data = load_price_data(symbols=symbols)
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns()
     if not benchmark_returns:
         benchmark_returns = compute_equal_weight_benchmark(price_data)
-    print(f"  price_data: {len(price_data)} | benchmark_returns: {len(benchmark_returns)} 天")
+    logger.info(f"  price_data: {len(price_data)} | benchmark_returns: {len(benchmark_returns)} 天")
 
     if not price_data:
-        print("[ERROR] 价格数据加载失败")
+        logger.info("[ERROR] 价格数据加载失败")
         return 1
 
     # ============ Step 2: 初始化流水线（Config_E 参数已默认应用） ============
-    print("\n[2/5] 初始化 PipelineOrchestrator (v6.2c Config_E)")
+    logger.info("\n[2/5] 初始化 PipelineOrchestrator (v6.2c Config_E)")
     orchestrator = PipelineOrchestrator(
         config={
             "reports_dir": str(REPORTS_DIR),
@@ -110,16 +108,16 @@ def main() -> int:
         }
     )
     batch_id = f"thirteenth_batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    print(f"  batch_id: {batch_id}")
-    print(f"  shadow risk_managed: {orchestrator.shadow_account.risk_managed}")
-    print(f"  shadow target_vol: {orchestrator.shadow_account.target_vol}")
-    print(f"  shadow dd_derisk_threshold: {orchestrator.shadow_account.dd_derisk_threshold}")
-    print(f"  shadow dd_derisk_factor: {orchestrator.shadow_account.dd_derisk_factor}")
+    logger.info(f"  batch_id: {batch_id}")
+    logger.info(f"  shadow risk_managed: {orchestrator.shadow_account.risk_managed}")
+    logger.info(f"  shadow target_vol: {orchestrator.shadow_account.target_vol}")
+    logger.info(f"  shadow dd_derisk_threshold: {orchestrator.shadow_account.dd_derisk_threshold}")
+    logger.info(f"  shadow dd_derisk_factor: {orchestrator.shadow_account.dd_derisk_factor}")
 
     # ============ Step 3: 跑流水线 ============
-    print("\n[3/5] 执行 8 级流水线（v6.2c Config_E）")
+    logger.info("\n[3/5] 执行 8 级流水线（v6.2c Config_E）")
     n_trials = max(len(symbols), 13)
-    print(f"  n_trials: {n_trials}")
+    logger.info(f"  n_trials: {n_trials}")
 
     result = orchestrator.run(
         price_data=price_data,
@@ -134,24 +132,24 @@ def main() -> int:
     )
 
     # ============ Step 4: 汇总结果 ============
-    print("\n[4/5] 汇总批次结果")
-    print("-" * 70)
-    print(f"  batch_id           : {result.batch_id}")
-    print(f"  total_candidates   : {result.total_candidates}")
-    print(f"  G1 正交性通过       : {result.g1_passed}")
-    print(f"  G2 IC 稳定性通过    : {result.g2_passed}")
-    print(f"  G3 DSR 防过拟合通过  : {result.g3_passed}")
-    print(f"  G4 经济逻辑通过      : {result.g4_passed}")
-    print(f"  Enhancement 通过    : {result.enhanced}")
-    print(f"  Shadow 通过(Config_E): {result.shadow_passed}")
-    print(f"  Committee 通过(Approved): {result.approved}")
-    print(f"  Rejected            : {result.rejected}")
-    print(f"  Failed              : {result.failed}")
-    print(f"  Deferred(fundamentals): {result.deferred_fundamentals}")
-    print("-" * 70)
+    logger.info("\n[4/5] 汇总批次结果")
+    logger.info("-" * 70)
+    logger.info(f"  batch_id           : {result.batch_id}")
+    logger.info(f"  total_candidates   : {result.total_candidates}")
+    logger.info(f"  G1 正交性通过       : {result.g1_passed}")
+    logger.info(f"  G2 IC 稳定性通过    : {result.g2_passed}")
+    logger.info(f"  G3 DSR 防过拟合通过  : {result.g3_passed}")
+    logger.info(f"  G4 经济逻辑通过      : {result.g4_passed}")
+    logger.info(f"  Enhancement 通过    : {result.enhanced}")
+    logger.info(f"  Shadow 通过(Config_E): {result.shadow_passed}")
+    logger.info(f"  Committee 通过(Approved): {result.approved}")
+    logger.info(f"  Rejected            : {result.rejected}")
+    logger.info(f"  Failed              : {result.failed}")
+    logger.info(f"  Deferred(fundamentals): {result.deferred_fundamentals}")
+    logger.info("-" * 70)
 
     # P2.2 v6.2c 验收：MARGIN_EXP 是否走完 8 级流水线
-    print(f"\n  P2.2 v6.2c 验收 - MARGIN_EXP 在 Config_E 参数下的 8 级流水线进度:")
+    logger.info("\n  P2.2 v6.2c 验收 - MARGIN_EXP 在 Config_E 参数下的 8 级流水线进度:")
     target_factor = "VT_QUALTREND_MARGIN_EXP"
     f = next((x for x in result.factors if x.get("factor_name") == target_factor), None)
     if f:
@@ -167,8 +165,8 @@ def main() -> int:
         final_score = f.get("final_score", 0)
         fail_reasons = f.get("fail_reasons", [])
 
-        print(f"    {'Gate':<25s} {'通过':>6s} {'详情':>40s}")
-        print(f"    {'-'*25} {'-'*6} {'-'*40}")
+        logger.info(f"    {'Gate':<25s} {'通过':>6s} {'详情':>40s}")
+        logger.info(f"    {'-'*25} {'-'*6} {'-'*40}")
         print(f"    {'G1 正交性':<25s} {'✅' if g1.get('passed') else '❌':>6s} "
               f"max_corr={g1.get('max_abs_corr', 0):.3f} ({g1.get('max_corr_factor', '-')})")
         print(f"    {'G2 IC 稳定性':<25s} {'✅' if g2.get('passed') else '❌':>6s} "
@@ -186,10 +184,10 @@ def main() -> int:
         print(f"    {'Committee':<25s} {'✅' if committee.get('approved') else '❌':>6s} "
               f"avg={committee.get('avg_score', 0):.2f} verdict={committee.get('verdict', '-')}")
         print()
-        print(f"    最终状态: {state}")
-        print(f"    最终评分: {final_score:.2f}")
+        logger.info(f"    最终状态: {state}")
+        logger.info(f"    最终评分: {final_score:.2f}")
         if fail_reasons:
-            print(f"    失败原因: {fail_reasons}")
+            logger.info(f"    失败原因: {fail_reasons}")
 
         # 验收检查
         all_gates_pass = (
@@ -199,9 +197,9 @@ def main() -> int:
         )
         print()
         if all_gates_pass:
-            print(f"    🎉🎉🎉 重大突破！MARGIN_EXP 通过全部 8 级验证！")
-            print(f"    🎉 这是 QualityTrend 类首个 approved 因子！")
-            print(f"    🎉 也是继 VT_MICRO_VOL_SKEW_INV 之后第二个 approved 因子！")
+            logger.info("    🎉🎉🎉 重大突破！MARGIN_EXP 通过全部 8 级验证！")
+            logger.info("    🎉 这是 QualityTrend 类首个 approved 因子！")
+            logger.info("    🎉 也是继 VT_MICRO_VOL_SKEW_INV 之后第二个 approved 因子！")
         else:
             passed_count = sum([
                 bool(g1.get("passed")), bool(g2.get("passed")), bool(g3.get("passed")),
@@ -209,45 +207,45 @@ def main() -> int:
                 bool(enh_cap.get("passed")) or bool(enh_reg.get("passed")),
                 bool(shadow.get("pass_shadow")), bool(committee.get("approved"))
             ])
-            print(f"    进度: {passed_count} / 7 个关键 Gate 通过")
+            logger.info(f"    进度: {passed_count} / 7 个关键 Gate 通过")
     else:
-        print(f"    [ERROR] 未找到 {target_factor}")
+        logger.info(f"    [ERROR] 未找到 {target_factor}")
 
     # 也检查 VT_MICRO_VOL_SKEW_INV 在 Config_E 下的表现
-    print(f"\n  P2.2 v6.2c 附加验证 - VT_MICRO_VOL_SKEW_INV 在 Config_E 参数下:")
+    logger.info("\n  P2.2 v6.2c 附加验证 - VT_MICRO_VOL_SKEW_INV 在 Config_E 参数下:")
     skew_inv = next((x for x in result.factors if x.get("factor_name") == "VT_MICRO_VOL_SKEW_INV"), None)
     if skew_inv:
         shadow = skew_inv.get("shadow_result") or {}
         state = skew_inv.get("state", "-")
-        print(f"    state={state}")
-        print(f"    Shadow pass: {shadow.get('pass_shadow', False)}")
-        print(f"    live_dsr: {shadow.get('live_dsr', 0):.4f}")
-        print(f"    max_dd: {shadow.get('max_drawdown', 0):.4f}")
-        print(f"    total_return: {shadow.get('total_return', 0):.4f}")
+        logger.info(f"    state={state}")
+        logger.info(f"    Shadow pass: {shadow.get('pass_shadow', False)}")
+        logger.info(f"    live_dsr: {shadow.get('live_dsr', 0):.4f}")
+        logger.info(f"    max_dd: {shadow.get('max_drawdown', 0):.4f}")
+        logger.info(f"    total_return: {shadow.get('total_return', 0):.4f}")
 
     # ============ Step 5: 写入报告 ============
-    print("\n[5/5] 写入批次报告")
+    logger.info("\n[5/5] 写入批次报告")
     md_path = _write_thirteenth_batch_report(result, symbols, n_trials)
-    print(f"  报告路径: {md_path}")
+    logger.info(f"  报告路径: {md_path}")
 
     # 状态分布
     state_dist: dict = {}
     for fx in result.factors:
         st = fx.get("state", "unknown")
         state_dist[st] = state_dist.get(st, 0) + 1
-    print(f"\n  状态分布:")
+    logger.info("\n  状态分布:")
     for st, cnt in sorted(state_dist.items(), key=lambda kv: -kv[1]):
-        print(f"    {st:30s} : {cnt}")
+        logger.info(f"    {st:30s} : {cnt}")
 
     # Top 5 因子
     ranked = _rank_factors_by_progress(result.factors)
-    print(f"\n  Top 5 因子:")
+    logger.info("\n  Top 5 因子:")
     for fx in ranked[:5]:
-        print(f"    {fx['factor_name']:32s} | state={fx.get('state', ''):20s} | score={fx.get('final_score', 0):.2f}")
+        logger.info(f"    {fx['factor_name']:32s} | state={fx.get('state', ''):20s} | score={fx.get('final_score', 0):.2f}")
 
-    print("\n" + "=" * 70)
-    print("S3 第十三批次流水线跑批完成（P2.2 v6.2c Config_E）")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("S3 第十三批次流水线跑批完成（P2.2 v6.2c Config_E）")
+    logger.info("=" * 70)
     return 0
 
 
@@ -388,7 +386,7 @@ v6.2c 将 Config_E 参数应用到 PipelineOrchestrator 默认配置，验证 MA
 
     content += margin_exp_section
 
-    content += f"""
+    content += """
 ## 6. 关键结论
 
 """

@@ -15,19 +15,23 @@
 import numpy as np
 import pandas as pd
 import os
-import sys
 import json
 import glob
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, Tuple, Optional
 import warnings
-warnings.filterwarnings('ignore')
+import logging
+
+warnings.filterwarnings("ignore")
+
+logger = logging.getLogger(__name__)
 
 try:
-    from sklearn.model_selection import cross_val_score, StratifiedKFold
-    from sklearn.metrics import accuracy_score, roc_auc_score
+    from sklearn.metrics import accuracy_score
+
     _SKLEARN_AVAILABLE = True
-except Exception:
+except Exception as e:
+    logger.warning(f"sklearn导入失败: {e}")
     _SKLEARN_AVAILABLE = False
 
 # ==================== 常量 ====================
@@ -39,31 +43,33 @@ N_IC_PERIODS = 12  # IC计算的分段数（月度）
 
 # ==================== 核心函数 ====================
 
+
 def load_latest_training_metadata(models_dir: str) -> Tuple[Optional[dict], Optional[str]]:
     """加载最新的训练元数据"""
-    pattern = os.path.join(models_dir, 'training_metadata_optimized_*.json')
+    pattern = os.path.join(models_dir, "training_metadata_optimized_*.json")
     files = glob.glob(pattern)
     if not files:
         return None, None
 
     latest = max(files, key=os.path.getmtime)
-    with open(latest, 'r', encoding='utf-8') as f:
+    with open(latest, "r", encoding="utf-8") as f:
         data = json.load(f)
     return data, os.path.basename(latest)
 
 
-def load_data_for_validation(data_dir: str = 'data/cache'):
+def load_data_for_validation(data_dir: str = "data/cache"):
     """加载用于验证的数据"""
     all_data = []
     for file in os.listdir(data_dir):
-        if file.startswith('kline_') and file.endswith('.parquet'):
+        if file.startswith("kline_") and file.endswith(".parquet"):
             filepath = os.path.join(data_dir, file)
             try:
                 df = pd.read_parquet(filepath)
-                code = file.replace('kline_', '').replace('_daily.parquet', '')
-                df['code'] = code
+                code = file.replace("kline_", "").replace("_daily.parquet", "")
+                df["code"] = code
                 all_data.append(df)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"加载文件{file}失败: {e}")
                 pass
 
     if not all_data:
@@ -74,12 +80,13 @@ def load_data_for_validation(data_dir: str = 'data/cache'):
 
 
 def bootstrap_confidence_interval(
-    X: np.ndarray, y: np.ndarray,
+    X: np.ndarray,
+    y: np.ndarray,
     model_class,
     model_params: dict,
     n_bootstrap: int = N_BOOTSTRAP,
     alpha: float = ALPHA,
-    test_size: float = 0.2
+    test_size: float = 0.2,
 ) -> Dict:
     """
     Bootstrap法计算准确率的置信区间
@@ -93,7 +100,7 @@ def bootstrap_confidence_interval(
         p_value: 准确率>50%的p值
     """
     if not _SKLEARN_AVAILABLE:
-        return {'error': 'sklearn not available'}
+        return {"error": "sklearn not available"}
 
     # 修复 BUG-R3: 移除 train_test_split, 改用时序分割
     n_samples = len(y)
@@ -120,11 +127,12 @@ def bootstrap_confidence_interval(
             y_pred = model.predict(X_test)
             acc = accuracy_score(y_test, y_pred)
             bootstrap_accuracies.append(acc)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Bootstrap第{i}次迭代失败: {e}")
             continue
 
     if not bootstrap_accuracies:
-        return {'error': 'Bootstrap failed'}
+        return {"error": "Bootstrap failed"}
 
     bootstrap_accuracies = np.array(bootstrap_accuracies)
     mean_acc = np.mean(bootstrap_accuracies)
@@ -136,23 +144,24 @@ def bootstrap_confidence_interval(
     p_value = np.mean(bootstrap_accuracies > 0.5)
 
     return {
-        'n_bootstrap': len(bootstrap_accuracies),
-        'mean_accuracy': mean_acc,
-        'std': std_acc,
-        'ci_lower': ci_lower,
-        'ci_upper': ci_upper,
-        'se': std_acc,
-        'p_value': p_value,
-        'p_value_adj': min(p_value * 2, 1.0),  # Bonferroni校正
+        "n_bootstrap": len(bootstrap_accuracies),
+        "mean_accuracy": mean_acc,
+        "std": std_acc,
+        "ci_lower": ci_lower,
+        "ci_upper": ci_upper,
+        "se": std_acc,
+        "p_value": p_value,
+        "p_value_adj": min(p_value * 2, 1.0),  # Bonferroni校正
     }
 
 
 def permutation_test(
-    X: np.ndarray, y: np.ndarray,
+    X: np.ndarray,
+    y: np.ndarray,
     model_class,
     model_params: dict,
     n_permutations: int = N_PERMUTATIONS,
-    test_size: float = 0.2
+    test_size: float = 0.2,
 ) -> Dict:
     """
     置换检验: 随机打乱标签，验证模型是否显著优于随机
@@ -164,7 +173,7 @@ def permutation_test(
         significant: 是否统计显著 (p < 0.05)
     """
     if not _SKLEARN_AVAILABLE:
-        return {'error': 'sklearn not available'}
+        return {"error": "sklearn not available"}
 
     # 修复 BUG-R3: 移除 train_test_split, 改用时序分割
     n_samples = len(y)
@@ -176,7 +185,7 @@ def permutation_test(
     y_train, y_test = y[:split_idx], y[split_idx:]
 
     if len(np.unique(y_test)) < 2:
-        return {'error': 'Insufficient class diversity'}
+        return {"error": "Insufficient class diversity"}
 
     # 真实准确率
     model = model_class(**model_params)
@@ -196,11 +205,12 @@ def permutation_test(
             model_perm.fit(X_train, y_train)
             acc_perm = accuracy_score(y_test_permuted, model_perm.predict(X_test))
             permuted_accuracies.append(acc_perm)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"置换检验第{i}次迭代失败: {e}")
             continue
 
     if not permuted_accuracies:
-        return {'error': 'Permutation test failed'}
+        return {"error": "Permutation test failed"}
 
     permuted_accuracies = np.array(permuted_accuracies)
     permuted_mean = np.mean(permuted_accuracies)
@@ -213,24 +223,21 @@ def permutation_test(
     t_stat = (observed_acc - permuted_mean) / (permuted_std + 1e-10)
 
     return {
-        'n_permutations': len(permuted_accuracies),
-        'observed_accuracy': observed_acc,
-        'permuted_mean': permuted_mean,
-        'permuted_std': permuted_std,
-        'p_value': p_value,
-        'p_value_adj': min(p_value * n_permutations, 1.0),  # Bonferroni校正
-        't_statistic': t_stat,
-        'significant': p_value < 0.05,
-        'significant_adj': min(p_value * n_permutations, 1.0) < 0.05,
-        'edge_over_random': observed_acc - permuted_mean,
+        "n_permutations": len(permuted_accuracies),
+        "observed_accuracy": observed_acc,
+        "permuted_mean": permuted_mean,
+        "permuted_std": permuted_std,
+        "p_value": p_value,
+        "p_value_adj": min(p_value * n_permutations, 1.0),  # Bonferroni校正
+        "t_statistic": t_stat,
+        "significant": p_value < 0.05,
+        "significant_adj": min(p_value * n_permutations, 1.0) < 0.05,
+        "edge_over_random": observed_acc - permuted_mean,
     }
 
 
 def calculate_rank_ic(
-    X: np.ndarray, y: np.ndarray,
-    model_class,
-    model_params: dict,
-    n_periods: int = N_IC_PERIODS
+    X: np.ndarray, y: np.ndarray, model_class, model_params: dict, n_periods: int = N_IC_PERIODS
 ) -> Dict:
     """
     计算Rank IC (Information Coefficient) 和 IC_IR
@@ -245,7 +252,7 @@ def calculate_rank_ic(
     period_size = n_samples // n_periods
 
     if period_size < 30:
-        return {'error': f'Too few samples per period ({period_size})'}
+        return {"error": f"Too few samples per period ({period_size})"}
 
     ic_values = []
 
@@ -272,7 +279,7 @@ def calculate_rank_ic(
             model.fit(X_train, y_train)
 
             # 预测概率
-            if hasattr(model, 'predict_proba'):
+            if hasattr(model, "predict_proba"):
                 proba = model.predict_proba(X_test)[:, 1]
             else:
                 proba = model.predict(X_test).astype(float)
@@ -281,11 +288,12 @@ def calculate_rank_ic(
             ic = np.corrcoef(proba, y_test)[0, 1]
             if not np.isnan(ic):
                 ic_values.append(ic)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Rank IC第{i}期计算失败: {e}")
             continue
 
     if len(ic_values) < 3:
-        return {'error': f'Too few valid IC periods ({len(ic_values)})'}
+        return {"error": f"Too few valid IC periods ({len(ic_values)})"}
 
     ic_values = np.array(ic_values)
     ic_mean = np.mean(ic_values)
@@ -296,29 +304,25 @@ def calculate_rank_ic(
     t_stat = ic_mean / (ic_std / np.sqrt(len(ic_values)) + 1e-10)
 
     return {
-        'n_periods': len(ic_values),
-        'ic_mean': ic_mean,
-        'ic_std': ic_std,
-        'ic_ir': ic_ir,
-        'ic_values': ic_values.tolist(),
-        't_statistic': t_stat,
-        'significant': abs(t_stat) > 2.0,  # |t| > 2.0
-        'ic_positive_ratio': np.mean(ic_values > 0),
+        "n_periods": len(ic_values),
+        "ic_mean": ic_mean,
+        "ic_std": ic_std,
+        "ic_ir": ic_ir,
+        "ic_values": ic_values.tolist(),
+        "t_statistic": t_stat,
+        "significant": abs(t_stat) > 2.0,  # |t| > 2.0
+        "ic_positive_ratio": np.mean(ic_values > 0),
     }
 
 
-def validate_all_models(
-    X: np.ndarray, y: np.ndarray,
-    models_info: Dict,
-    output_dir: str = 'reports'
-) -> Dict:
+def validate_all_models(X: np.ndarray, y: np.ndarray, models_info: Dict, output_dir: str = "reports") -> Dict:
     """
     对所有模型进行统计显著性验证
 
     模型信息格式: {'name': {'params': {...}}}
     """
     if not _SKLEARN_AVAILABLE:
-        return {'error': 'sklearn not available'}
+        return {"error": "sklearn not available"}
 
     from sklearn.ensemble import GradientBoostingClassifier, ExtraTreesClassifier, RandomForestClassifier
     from sklearn.linear_model import LogisticRegression
@@ -327,12 +331,12 @@ def validate_all_models(
 
     # 模型类映射
     model_classes = {
-        'GradientBoosting': GradientBoostingClassifier,
-        'ExtraTrees': ExtraTreesClassifier,
-        'RandomForest': RandomForestClassifier,
-        'LogisticRegression': LogisticRegression,
-        'XGBoost_tuned': xgb.XGBClassifier,
-        'LightGBM_tuned': lgb.LGBMClassifier,
+        "GradientBoosting": GradientBoostingClassifier,
+        "ExtraTrees": ExtraTreesClassifier,
+        "RandomForest": RandomForestClassifier,
+        "LogisticRegression": LogisticRegression,
+        "XGBoost_tuned": xgb.XGBClassifier,
+        "LightGBM_tuned": lgb.LGBMClassifier,
     }
 
     results = {}
@@ -345,68 +349,66 @@ def validate_all_models(
             print(f"  [SKIP] 未知模型类型: {name}")
             continue
 
-        params = info.get('params', {})
+        params = info.get("params", {})
         # 设置默认随机种子
-        if 'random_state' not in params:
-            params['random_state'] = 42
-        if 'n_estimators' not in params and name in ['GradientBoosting', 'ExtraTrees', 'RandomForest']:
-            params['n_estimators'] = 100
+        if "random_state" not in params:
+            params["random_state"] = 42
+        if "n_estimators" not in params and name in ["GradientBoosting", "ExtraTrees", "RandomForest"]:
+            params["n_estimators"] = 100
 
         # XGBoost/LightGBM特殊参数
-        if name in ['XGBoost_tuned', 'LightGBM_tuned']:
-            if 'n_estimators' not in params:
-                params['n_estimators'] = 100
-            if 'learning_rate' not in params:
-                params['learning_rate'] = 0.05
-            if 'max_depth' not in params:
-                params['max_depth'] = 5
-            if name == 'XGBoost_tuned':
-                params['eval_metric'] = 'logloss'
+        if name in ["XGBoost_tuned", "LightGBM_tuned"]:
+            if "n_estimators" not in params:
+                params["n_estimators"] = 100
+            if "learning_rate" not in params:
+                params["learning_rate"] = 0.05
+            if "max_depth" not in params:
+                params["max_depth"] = 5
+            if name == "XGBoost_tuned":
+                params["eval_metric"] = "logloss"
             else:
-                params['verbose'] = -1
+                params["verbose"] = -1
 
         result = {
-            'name': name,
-            'reported_accuracy': info.get('accuracy', 0),
-            'reported_auc': info.get('auc', 0),
+            "name": name,
+            "reported_accuracy": info.get("accuracy", 0),
+            "reported_auc": info.get("auc", 0),
         }
 
         # 1. Bootstrap置信区间
         try:
             print(f"  Bootstrap (n={N_BOOTSTRAP})...")
             bootstrap = bootstrap_confidence_interval(X, y, model_class, params)
-            result['bootstrap'] = bootstrap
+            result["bootstrap"] = bootstrap
         except Exception as e:
-            result['bootstrap'] = {'error': str(e)}
+            logger.warning(f"[{name}] Bootstrap验证失败: {e}")
+            result["bootstrap"] = {"error": str(e)}
 
         # 2. 置换检验
         try:
             print(f"  置换检验 (n={N_PERMUTATIONS})...")
             permutation = permutation_test(X, y, model_class, params)
-            result['permutation'] = permutation
+            result["permutation"] = permutation
         except Exception as e:
-            result['permutation'] = {'error': str(e)}
+            logger.warning(f"[{name}] 置换检验失败: {e}")
+            result["permutation"] = {"error": str(e)}
 
         # 3. Rank IC
         try:
             print(f"  Rank IC (n={N_IC_PERIODS}期)...")
             rank_ic = calculate_rank_ic(X, y, model_class, params)
-            result['rank_ic'] = rank_ic
+            result["rank_ic"] = rank_ic
         except Exception as e:
-            result['rank_ic'] = {'error': str(e)}
+            logger.warning(f"[{name}] Rank IC计算失败: {e}")
+            result["rank_ic"] = {"error": str(e)}
 
         results[name] = result
-        print(f"  ✅ 完成")
+        print("  ✅ 完成")
 
     return results
 
 
-def generate_significance_report(
-    metadata: dict,
-    validation_results: Dict,
-    n_samples: int,
-    n_features: int
-) -> str:
+def generate_significance_report(metadata: dict, validation_results: Dict, n_samples: int, n_features: int) -> str:
     """生成统计显著性验证报告"""
 
     lines = []
@@ -441,27 +443,27 @@ def generate_significance_report(
         lines.append(f"### {name}")
         lines.append("")
 
-        reported_acc = result.get('reported_accuracy', 0)
+        reported_acc = result.get("reported_accuracy", 0)
         lines.append(f"**报告准确率**: {reported_acc:.2%}")
         lines.append("")
 
         # Bootstrap
-        bootstrap = result.get('bootstrap', {})
-        if 'error' not in bootstrap:
+        bootstrap = result.get("bootstrap", {})
+        if "error" not in bootstrap:
             lines.append("**Bootstrap 95%置信区间**:")
             lines.append(f"- 平均准确率: {bootstrap['mean_accuracy']:.2%}")
             lines.append(f"- 置信区间: [{bootstrap['ci_lower']:.2%}, {bootstrap['ci_upper']:.2%}]")
             lines.append(f"- 标准误差: {bootstrap['se']:.4f}")
             lines.append(f"- p值(>50%): {bootstrap['p_value']:.4f}")
-            ci_above_50 = bootstrap['ci_lower'] > 0.5
+            ci_above_50 = bootstrap["ci_lower"] > 0.5
             lines.append(f"- **CI不含50%**: {'✅ 是' if ci_above_50 else '❌ 否'}")
         else:
             lines.append(f"**Bootstrap**: ❌ {bootstrap['error']}")
         lines.append("")
 
         # Permutation
-        perm = result.get('permutation', {})
-        if 'error' not in perm:
+        perm = result.get("permutation", {})
+        if "error" not in perm:
             lines.append("**置换检验 (随机打乱标签1000次)**:")
             lines.append(f"- 观测准确率: {perm['observed_accuracy']:.2%}")
             lines.append(f"- 随机平均准确率: {perm['permuted_mean']:.2%}")
@@ -475,8 +477,8 @@ def generate_significance_report(
         lines.append("")
 
         # Rank IC
-        ic = result.get('rank_ic', {})
-        if 'error' not in ic:
+        ic = result.get("rank_ic", {})
+        if "error" not in ic:
             lines.append("**Rank IC / IC_IR**:")
             lines.append(f"- IC均值: {ic['ic_mean']:.4f}")
             lines.append(f"- IC标准差: {ic['ic_std']:.4f}")
@@ -499,14 +501,14 @@ def generate_significance_report(
     lines.append("|------|--------------|----------------|----------|----------|----------|")
 
     for name, result in validation_results.items():
-        bootstrap = result.get('bootstrap', {})
-        perm = result.get('permutation', {})
-        ic = result.get('rank_ic', {})
+        bootstrap = result.get("bootstrap", {})
+        perm = result.get("permutation", {})
+        ic = result.get("rank_ic", {})
 
-        ci_ok = 'error' not in bootstrap and bootstrap.get('ci_lower', 0) > 0.5
-        perm_ok = 'error' not in perm and perm.get('significant', False)
-        ic_t_ok = 'error' not in ic and ic.get('significant', False)
-        ic_ir_ok = 'error' not in ic and ic.get('ic_ir', 0) > 0.5
+        ci_ok = "error" not in bootstrap and bootstrap.get("ci_lower", 0) > 0.5
+        perm_ok = "error" not in perm and perm.get("significant", False)
+        ic_t_ok = "error" not in ic and ic.get("significant", False)
+        ic_ir_ok = "error" not in ic and ic.get("ic_ir", 0) > 0.5
 
         passes = sum([ci_ok, perm_ok, ic_t_ok, ic_ir_ok])
         if passes >= 3:
@@ -516,7 +518,9 @@ def generate_significance_report(
         else:
             verdict = "🔴 不显著"
 
-        lines.append(f"| {name} | {'✅' if ci_ok else '❌'} | {'✅' if perm_ok else '❌'} | {'✅' if ic_t_ok else '❌'} | {'✅' if ic_ir_ok else '❌'} | {verdict} |")
+        lines.append(
+            f"| {name} | {'✅' if ci_ok else '❌'} | {'✅' if perm_ok else '❌'} | {'✅' if ic_t_ok else '❌'} | {'✅' if ic_ir_ok else '❌'} | {verdict} |"
+        )
 
     lines.append("")
     lines.append("---")
@@ -528,15 +532,15 @@ def generate_significance_report(
 
     significant_models = []
     for name, result in validation_results.items():
-        bootstrap = result.get('bootstrap', {})
-        perm = result.get('permutation', {})
-        ic = result.get('rank_ic', {})
-        
-        ci_ok = 'error' not in bootstrap and bootstrap.get('ci_lower', 0) > 0.5
-        perm_ok = 'error' not in perm and perm.get('significant', False)
-        ic_t_ok = 'error' not in ic and ic.get('significant', False)
-        ic_ir_ok = 'error' not in ic and ic.get('ic_ir', 0) > 0.5
-        
+        bootstrap = result.get("bootstrap", {})
+        perm = result.get("permutation", {})
+        ic = result.get("rank_ic", {})
+
+        ci_ok = "error" not in bootstrap and bootstrap.get("ci_lower", 0) > 0.5
+        perm_ok = "error" not in perm and perm.get("significant", False)
+        ic_t_ok = "error" not in ic and ic.get("significant", False)
+        ic_ir_ok = "error" not in ic and ic.get("ic_ir", 0) > 0.5
+
         passes = sum([ci_ok, perm_ok, ic_t_ok, ic_ir_ok])
         if passes >= 3:
             significant_models.append(name)
@@ -558,12 +562,13 @@ def generate_significance_report(
     lines.append("---")
     lines.append("*本报告由量化策略系统 v5.10 自动生成*")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 # ==================== CLI入口 ====================
 
-def run_significance_validation(models_dir: str = 'models', data_dir: str = 'data/cache'):
+
+def run_significance_validation(models_dir: str = "models", data_dir: str = "data/cache"):
     """运行统计显著性验证"""
     print("\n📊 ML模型统计显著性验证 v5.10")
     print("=" * 70)
@@ -599,21 +604,21 @@ def run_significance_validation(models_dir: str = 'models', data_dir: str = 'dat
 
     # 4. 验证所有模型
     print("\n[4/4] 统计显著性验证...")
-    models_info = metadata.get('results', {})
+    models_info = metadata.get("results", {})
     results = validate_all_models(X, y, models_info)
 
     # 5. 生成报告
     print("\n[报告] 生成中...")
-    n_features = metadata.get('feature_count', 0)
+    n_features = metadata.get("feature_count", 0)
     report = generate_significance_report(metadata, results, len(y), n_features)
 
     # 保存报告
-    output_dir = os.path.join(os.path.dirname(models_dir) if models_dir else '.', 'reports')
+    output_dir = os.path.join(os.path.dirname(models_dir) if models_dir else ".", "reports")
     os.makedirs(output_dir, exist_ok=True)
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    report_file = os.path.join(output_dir, f'ml_significance_{timestamp}.md')
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_file = os.path.join(output_dir, f"ml_significance_{timestamp}.md")
 
-    with open(report_file, 'w', encoding='utf-8') as f:
+    with open(report_file, "w", encoding="utf-8") as f:
         f.write(report)
 
     print(f"\n✅ 报告已保存: {report_file}")
@@ -628,7 +633,7 @@ def prepare_features_fast(df: pd.DataFrame, min_periods: int = 60) -> Tuple[Opti
         features = []
         labels = []
 
-        for code, group in df.groupby('code'):
+        for _code, group in df.groupby("code"):
             if len(group) < min_periods:
                 continue
 
@@ -637,40 +642,40 @@ def prepare_features_fast(df: pd.DataFrame, min_periods: int = 60) -> Tuple[Opti
             else:
                 group = group.reset_index(drop=True)
 
-            if 'close' not in group.columns:
+            if "close" not in group.columns:
                 continue
 
-            group['close'] = pd.to_numeric(group['close'], errors='coerce')
-            group = group.dropna(subset=['close'])
+            group["close"] = pd.to_numeric(group["close"], errors="coerce")
+            group = group.dropna(subset=["close"])
 
             if len(group) < min_periods:
                 continue
 
             # 基础特征
-            group['returns'] = group['close'].pct_change()
-            group['ma5'] = group['close'].rolling(5).mean()
-            group['ma20'] = group['close'].rolling(20).mean()
-            group['ma5_ma20'] = group['ma5'] / group['ma20']
-            group['volatility_5'] = group['returns'].rolling(5).std()
-            group['volatility_20'] = group['returns'].rolling(20).std()
-            group['rsi'] = 50  # 简化RSI
+            group["returns"] = group["close"].pct_change()
+            group["ma5"] = group["close"].rolling(5).mean()
+            group["ma20"] = group["close"].rolling(20).mean()
+            group["ma5_ma20"] = group["ma5"] / group["ma20"]
+            group["volatility_5"] = group["returns"].rolling(5).std()
+            group["volatility_20"] = group["returns"].rolling(20).std()
+            group["rsi"] = 50  # 简化RSI
 
             # 标签
-            group['label'] = (group['returns'].shift(-1) > 0).astype(int)
+            group["label"] = (group["returns"].shift(-1) > 0).astype(int)
 
             # 特征列
-            feature_cols = ['ma5_ma20', 'volatility_5', 'volatility_20']
+            feature_cols = ["ma5_ma20", "volatility_5", "volatility_20"]
             available_cols = [c for c in feature_cols if c in group.columns]
 
             if len(available_cols) < 2:
                 continue
 
-            group_clean = group.dropna(subset=['label'] + available_cols)
+            group_clean = group.dropna(subset=["label", *available_cols])
             if len(group_clean) < 30:
                 continue
 
             X_group = group_clean[available_cols].values
-            y_group = group_clean['label'].values
+            y_group = group_clean["label"].values
 
             features.append(X_group)
             labels.append(y_group)
@@ -690,15 +695,16 @@ def prepare_features_fast(df: pd.DataFrame, min_periods: int = 60) -> Tuple[Opti
         return X, y
 
     except Exception as e:
-        print(f"  特征工程错误: {e}")
+        logger.error(f"特征工程失败: {e}")
         return None, None
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description='ML模型统计显著性验证')
-    parser.add_argument('--models-dir', default='models', help='模型目录')
-    parser.add_argument('--data-dir', default='data/cache', help='数据目录')
+
+    parser = argparse.ArgumentParser(description="ML模型统计显著性验证")
+    parser.add_argument("--models-dir", default="models", help="模型目录")
+    parser.add_argument("--data-dir", default="data/cache", help="数据目录")
     args = parser.parse_args()
 
     run_significance_validation(args.models_dir, args.data_dir)

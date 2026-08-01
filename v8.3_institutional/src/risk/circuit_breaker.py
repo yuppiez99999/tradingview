@@ -12,11 +12,11 @@
 
 用法:
     cb = CircuitBreaker("wind_mcp", failure_threshold=3, recovery_timeout=30)
-    
+
     @cb.protect
     def fetch_quote(code):
         ...
-    
+
     # 或手动控制
     if cb.allow_request():
         try:
@@ -34,30 +34,42 @@ import threading
 import functools
 import random
 from enum import Enum
-from typing import Callable, Any, Optional, Dict
-from dataclasses import dataclass, field
+from typing import Callable, Any, Dict, Optional
+from dataclasses import dataclass
 
 # [V75] from ..utils.alert_notifier import  # 需在v7.5创建alert_notifier AlertNotifier, AlertLevel
+# TODO(v8.5): 创建独立的 alert_notifier 模块, 替换下方 stub
+try:
+    from utils.stop_loss import AlertLevel  # type: ignore
+except ImportError:
+
+    class AlertLevel(Enum):  # type: ignore  # stub
+        NORMAL = "normal"
+        WARNING = "warning"
+        CRITICAL = "critical"
+        TRIGGERED = "triggered"
 
 
 class _AlertNotifierStub:
     """AlertNotifier的stub实现，用于测试环境"""
-    def quick_alert(self, title: str, content: str, level: 'AlertLevel', source: str):
+
+    def quick_alert(self, title: str, content: str, level: "AlertLevel", source: str):
         pass  # 空实现，仅避免测试报错
 
 
-logger = logging.getLogger('circuit_breaker')
+logger = logging.getLogger("circuit_breaker")
 
 
 class CircuitState(Enum):
-    CLOSED = "closed"          # 正常
-    OPEN = "open"              # 熔断
-    HALF_OPEN = "half_open"    # 半开探测
+    CLOSED = "closed"  # 正常
+    OPEN = "open"  # 熔断
+    HALF_OPEN = "half_open"  # 半开探测
 
 
 @dataclass
 class CircuitStats:
     """熔断器统计"""
+
     total_requests: int = 0
     total_failures: int = 0
     total_successes: int = 0
@@ -71,12 +83,14 @@ class CircuitStats:
 class CircuitBreaker:
     """熔断器 — 线程安全"""
 
-    def __init__(self,
-                 name: str,
-                 failure_threshold: int = 5,
-                 recovery_timeout: float = 30.0,
-                 half_open_max_requests: int = 2,
-                 consecutive_successes_to_close: int = 3):
+    def __init__(
+        self,
+        name: str,
+        failure_threshold: int = 5,
+        recovery_timeout: float = 30.0,
+        half_open_max_requests: int = 2,
+        consecutive_successes_to_close: int = 3,
+    ):
         """
         Args:
             name: 熔断器名称 (如 "wind_mcp", "ifind_mcp")
@@ -142,10 +156,7 @@ class CircuitBreaker:
                 self._half_open_requests = 0
                 self._half_open_successes = 0
                 self._stats.state_changes += 1
-                logger.info(
-                    f"[{self.name}] 熔断器进入半开状态 "
-                    f"(熔断{now - self._opened_at:.0f}s后尝试恢复)"
-                )
+                logger.info(f"[{self.name}] 熔断器进入半开状态 (熔断{now - self._opened_at:.0f}s后尝试恢复)")
 
     def _trip(self, reason: str = ""):
         """触发熔断"""
@@ -219,7 +230,7 @@ class CircuitBreaker:
             elif self._state == CircuitState.CLOSED:
                 self._failure_count = 0  # 成功后重置失败计数
 
-    def on_failure(self, error: Exception = None):
+    def on_failure(self, error: Optional[Exception] = None):
         """请求失败回调"""
         with self._lock:
             self._stats.total_failures += 1
@@ -242,8 +253,9 @@ class CircuitBreaker:
 
     # ── 装饰器 ──
 
-    def protect(self, func: Callable = None, *, fallback: Any = None):
+    def protect(self, func: Optional[Callable] = None, *, fallback: Any = None):
         """装饰器: 自动熔断保护"""
+
         def decorator(f):
             @functools.wraps(f)
             def wrapper(*args, **kwargs):
@@ -259,7 +271,9 @@ class CircuitBreaker:
                     if fallback is not None:
                         return fallback
                     raise
+
             return wrapper
+
         if func is not None:
             return decorator(func)
         return decorator
@@ -279,6 +293,7 @@ class CircuitBreaker:
 
 class CircuitOpenError(Exception):
     """熔断器打开异常"""
+
     pass
 
 
@@ -289,17 +304,12 @@ class CircuitBreakerRegistry:
         self._breakers: Dict[str, CircuitBreaker] = {}
         self._lock = threading.Lock()
 
-    def get_or_create(self,
-                      name: str,
-                      failure_threshold: int = 5,
-                      recovery_timeout: float = 30.0) -> CircuitBreaker:
+    def get_or_create(self, name: str, failure_threshold: int = 5, recovery_timeout: float = 30.0) -> CircuitBreaker:
         """获取或创建熔断器"""
         with self._lock:
             if name not in self._breakers:
                 self._breakers[name] = CircuitBreaker(
-                    name=name,
-                    failure_threshold=failure_threshold,
-                    recovery_timeout=recovery_timeout
+                    name=name, failure_threshold=failure_threshold, recovery_timeout=recovery_timeout
                 )
             return self._breakers[name]
 
@@ -309,10 +319,7 @@ class CircuitBreakerRegistry:
 
     def get_open_breakers(self) -> list:
         """获取当前打开的熔断器列表"""
-        return [
-            name for name, cb in self._breakers.items()
-            if cb.is_open
-        ]
+        return [name for name, cb in self._breakers.items() if cb.is_open]
 
     def reset_all(self):
         """重置所有熔断器"""
@@ -321,6 +328,7 @@ class CircuitBreakerRegistry:
 
 
 # ── 重试工具 ──
+
 
 def retry_with_backoff(
     max_retries: int = 3,
@@ -332,7 +340,7 @@ def retry_with_backoff(
 ):
     """
     指数退避重试装饰器 (带随机抖动)
-    
+
     Args:
         max_retries: 最大重试次数
         base_delay: 基础延迟 (秒)
@@ -341,6 +349,7 @@ def retry_with_backoff(
         jitter: 是否添加随机抖动 (避免惊群效应)
         retryable_exceptions: 可重试的异常类型
     """
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -351,21 +360,18 @@ def retry_with_backoff(
                 except retryable_exceptions as e:
                     last_exception = e
                     if attempt < max_retries:
-                        delay = min(base_delay * (backoff_factor ** attempt), max_delay)
+                        delay = min(base_delay * (backoff_factor**attempt), max_delay)
                         if jitter:
                             delay = delay * (0.5 + random.random())
-                        logger.debug(
-                            f"[Retry] {func.__name__} 第{attempt + 1}次重试, "
-                            f"等待{delay:.2f}s: {e}"
-                        )
+                        logger.debug(f"[Retry] {func.__name__} 第{attempt + 1}次重试, 等待{delay:.2f}s: {e}")
                         time.sleep(delay)
                     else:
-                        logger.warning(
-                            f"[Retry] {func.__name__} 重试{max_retries}次后仍失败: {e}"
-                        )
-                except Exception as e:
+                        logger.warning(f"[Retry] {func.__name__} 重试{max_retries}次后仍失败: {e}")
+                except Exception:
                     # 不可重试的异常直接抛出
                     raise
             raise last_exception
+
         return wrapper
+
     return decorator

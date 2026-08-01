@@ -46,7 +46,7 @@ try:
     integrator = RiskGuardIntegrator(report_date="2026-07-25")
     updated_plan = integrator.run_all_guards(next_trade_date="2026-07-27")
 
-    print(f"\n✅ 7-Guard 完成")
+    print("\n✅ 7-Guard 完成")
     ms = updated_plan.get('market_state', {})
     print(f"   circuit_level = {ms.get('circuit_level')}")
     print(f"   build_allowed = {ms.get('build_allowed')}")

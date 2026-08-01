@@ -24,7 +24,6 @@ ValueAgent — 估值分析 Agent (DCF / PE / PB)
 
 from __future__ import annotations
 
-import math
 from typing import Any, Dict
 
 from utils.finance_agents.base_agent import BaseAgent, AgentDecision
@@ -64,7 +63,9 @@ class ValueAgent(BaseAgent):
         strength = 0.0
         signals = []
         metrics: Dict[str, Any] = {
-            "pe": pe, "pb": pb, "roe": roe,
+            "pe": pe,
+            "pb": pb,
+            "roe": roe,
             "pe_percentile": pe_percentile,
             "pb_percentile": pb_percentile,
         }

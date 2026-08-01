@@ -21,7 +21,7 @@ target_total = 0
 style_stats = {}
 sector_stats = {}
 
-for code, pos in positions['positions'].items():
+for _code, pos in positions['positions'].items():
     shares = pos.get('shares', 0)
     avg_cost = pos.get('avg_cost', 0)
     est_price = pos.get('est_price', avg_cost) if pos.get('est_price', 0) > 0 else avg_cost
@@ -93,7 +93,7 @@ for style, stats in style_stats.items():
         else:
             print(f"⚠️ {style}低配: 实际{current_pct:.1f}% vs 目标{target_pct:.1f}%, 低配{target_pct-current_pct:.1f}个百分点")
 
-for code, pos in positions['positions'].items():
+for _code, pos in positions['positions'].items():
     target_amount = pos.get('amount', 0)
     if target_amount > 0:
         shares = pos.get('shares', 0)

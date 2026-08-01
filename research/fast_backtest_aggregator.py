@@ -3,12 +3,15 @@
 快速回测聚合：基于已有 pipeline_backtest.json 计算收益
 """
 import json
+import sys
 from pathlib import Path
-from datetime import datetime
 import pandas as pd
-import numpy as np
 
 from utils.data_provider import MarketDataProvider
+# B1.3: 从 config/risk_params.yaml 统一读取回撤上限
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
+_MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
 
 BASE = Path("E:/各种PY程序/28-终极量化交易系统8.4/output/institutional_pipeline")
 SYMBOLS = ["600519", "000858", "601318"]
@@ -43,7 +46,15 @@ def _load_pipeline_results() -> list:
 
 
 def _monthly_returns(symbol: str, start: pd.Timestamp, end: pd.Timestamp, provider: MarketDataProvider) -> float:
-    df = provider.get_historical_data(symbol, period="5y")
+    # 阶段 1: free-stockdb 本地优先 (研究/回测专用), 自动回退
+    df = None
+    try:
+        from utils.free_stockdb_adapter import get_historical_data_fs
+        df = get_historical_data_fs(symbol, period="5y", use_fallback=False)
+    except Exception:
+        df = None
+    if df is None or df.empty:
+        df = provider.get_historical_data(symbol, period="5y")
     if df is None or df.empty or len(df) < 22:
         return 0.0
     df = df.sort_index()
@@ -106,18 +117,18 @@ def run_fast_backtest(start: str = "2024-01-01", end: str = "2024-12-31") -> dic
     annual_return = float((1 + returns.mean()) ** 12 - 1) if not returns.empty else 0.0
     win_rate = float((returns > 0).mean()) if not returns.empty else 0.0
 
-    # 回测模型验收：年化收益率 >= 8% 且 最大回撤 <= 15%
+    # 回测模型验收：年化收益率 >= 8% 且 最大回撤 <= _MAX_DRAWDOWN_LIMIT (B1.3: 配置化)
     checks = [
         {"metric": "annual_return", "value": round(annual_return, 4),
          "required": ">= 8%", "ok": annual_return >= 0.08},
         {"metric": "max_drawdown", "value": round(max_dd, 4),
-         "required": "<= 15%", "ok": max_dd <= 0.15},
+         "required": f"<= {_MAX_DRAWDOWN_LIMIT:.0%}", "ok": max_dd <= _MAX_DRAWDOWN_LIMIT},
     ]
     passed = all(c["ok"] for c in checks)
     acceptance = {
         "passed": passed,
         "min_annual_return": 0.08,
-        "max_drawdown_limit": 0.15,
+        "max_drawdown_limit": _MAX_DRAWDOWN_LIMIT,
         "checks": checks,
     }
 

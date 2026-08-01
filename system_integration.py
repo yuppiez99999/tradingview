@@ -24,13 +24,14 @@
     system = IntegratedExecutionSystem(total_capital=5_000_000)
     system.start_system()
 """
+
 import os
 import sys
 import json
 import logging
 import traceback
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -41,34 +42,86 @@ sys.path.insert(0, _BASE)
 
 # 优先加载项目根目录 .env，确保 WIND / VOLCENGINE 等密钥在导入业务模块前生效
 _PROJECT_ROOT = os.path.dirname(_BASE)
-_ENV_PATH = os.path.join(_PROJECT_ROOT, '.env')
+_ENV_PATH = os.path.join(_PROJECT_ROOT, ".env")
 if os.path.exists(_ENV_PATH):
     try:
-        with open(_ENV_PATH, 'r', encoding='utf-8') as _f:
+        with open(_ENV_PATH, "r", encoding="utf-8") as _f:
             for _line in _f:
                 _line = _line.strip()
-                if not _line or _line.startswith('#') or '=' not in _line:
+                if not _line or _line.startswith("#") or "=" not in _line:
                     continue
-                _key, _, _value = _line.partition('=')
+                _key, _, _value = _line.partition("=")
                 _key = _key.strip()
                 _value = _value.strip().strip("\"'")
                 if _key and _key not in os.environ:
                     os.environ[_key] = _value
     except Exception:
-        pass
+        # logger 在第 73 行才定义, 此处 except 块若在模块加载早期触发会抛 NameError
+        # 改用 logging.getLogger 直接获取, 避免模块加载顺序依赖 (同 BUG-08 修复模式)
+        logging.getLogger("system_integration").exception(
+            "加载 .env 配置失败"
+        )
 
-# v7.5_institutional src (P0 模块)
-_V75_SRC = os.path.join(_BASE, "v7.5_institutional", "src")
+# IC1 修复: v7.5_institutional/src 目录为空, P0 模块实际位于 v8.3_institutional/src
+# 原路径导致 SignalFusion/ModelDriftDetector/CostAwareBacktest 全部静默加载失败
+_V75_SRC = os.path.join(_BASE, "v8.3_institutional", "src")
 if _V75_SRC not in sys.path:
     sys.path.insert(0, _V75_SRC)
 
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s | %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
+    format="%(asctime)s [%(levelname)s] %(name)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger('system_integration')
+logger = logging.getLogger("system_integration")
+
+
+# ============================================================
+# N1: 自我进化配置 与 重训冷却期工具
+# ============================================================
+EVOLUTION_CONFIG = {
+    "retrain_cooldown_days": 7,  # 重训冷却期 (与 retrain_interval_days 对齐)
+    "ic_min_abs_threshold": 0.001,  # IC 绝对值低于此值视为无效, 跳过更新
+    "shadow_mode": True,  # 影子模式: 重训只生成模型不替换生产 (安全开关)
+}
+
+
+def _read_retrain_lock(symbol: str) -> Optional[datetime]:
+    """读取标的最近重训时间 (冷却期判断)
+
+    Args:
+        symbol: 标的代码
+
+    Returns:
+        最近重训时间, 或 None (无锁/读取失败)
+    """
+    lock_path = os.path.join(_BASE, "reports", "retrain_locks", f"{symbol}.json")
+    if not os.path.exists(lock_path):
+        return None
+    try:
+        with open(lock_path, "r", encoding="utf-8") as f:
+            return datetime.fromisoformat(json.load(f).get("last_retrain"))
+    except Exception as e:
+        logger.debug(f"读取重训锁失败 {symbol}: {e}")
+        return None
+
+
+def _write_retrain_lock(symbol: str, when: datetime) -> None:
+    """写入标的最近重训时间
+
+    Args:
+        symbol: 标的代码
+        when: 重训时间
+    """
+    lock_dir = os.path.join(_BASE, "reports", "retrain_locks")
+    os.makedirs(lock_dir, exist_ok=True)
+    lock_path = os.path.join(lock_dir, f"{symbol}.json")
+    try:
+        with open(lock_path, "w", encoding="utf-8") as f:
+            json.dump({"last_retrain": when.isoformat()}, f, ensure_ascii=False)
+    except Exception as e:
+        logger.warning(f"写入重训锁失败 {symbol}: {e}")
 
 
 # ============================================================
@@ -76,6 +129,7 @@ logger = logging.getLogger('system_integration')
 # ============================================================
 try:
     from alpha.signal_fusion import SignalFusion
+
     _SIGNAL_FUSION_AVAILABLE = True
 except Exception as e:
     logger.warning(f"SignalFusion 不可用: {e}")
@@ -83,7 +137,8 @@ except Exception as e:
     _SIGNAL_FUSION_AVAILABLE = False
 
 try:
-    from ml.drift_detector import ModelDriftDetector, DriftType, Severity
+    from ml.drift_detector import ModelDriftDetector
+
     _DRIFT_DETECTOR_AVAILABLE = True
 except Exception as e:
     logger.warning(f"ModelDriftDetector 不可用: {e}")
@@ -93,23 +148,21 @@ except Exception as e:
 try:
     # 优先尝试 backtest.cost_aware_backtest (v7.5 src 在 sys.path)
     from backtest.cost_aware_backtest import CostAwareBacktest
+
     _COST_AWARE_BACKTEST_AVAILABLE = True
 except Exception as _e1:
     # 回退: 直接 importlib 加载文件 (绕过包结构问题)
     try:
         import importlib.util
+
         _bt_path = os.path.join(_V75_SRC, "backtest", "cost_aware_backtest.py")
         if os.path.exists(_bt_path):
-            _spec = importlib.util.spec_from_file_location(
-                "cost_aware_backtest", _bt_path
-            )
+            _spec = importlib.util.spec_from_file_location("cost_aware_backtest", _bt_path)
             _mod = importlib.util.module_from_spec(_spec)
             # 确保 cost_model 也可加载
             _cm_path = os.path.join(_V75_SRC, "backtest", "cost_model.py")
             if os.path.exists(_cm_path):
-                _spec2 = importlib.util.spec_from_file_location(
-                    "backtest.cost_model", _cm_path
-                )
+                _spec2 = importlib.util.spec_from_file_location("backtest.cost_model", _cm_path)
                 _mod2 = importlib.util.module_from_spec(_spec2)
                 sys.modules["backtest.cost_model"] = _mod2
                 _spec2.loader.exec_module(_mod2)
@@ -125,7 +178,11 @@ except Exception as _e1:
 
 # 主系统
 try:
-    from automated_execution_system import AutomatedExecutionSystem
+    # T3.6 迁移: 优先从新路径 utils/execution/ 导入, 兼容旧路径回退
+    try:
+        from utils.execution.automated_execution_system import AutomatedExecutionSystem
+    except ImportError:
+        from automated_execution_system import AutomatedExecutionSystem  # type: ignore
     _AUTO_SYSTEM_AVAILABLE = True
 except Exception as e:
     logger.error(f"AutomatedExecutionSystem 不可用: {e}")
@@ -135,6 +192,7 @@ except Exception as e:
 # 步骤4 止损监控
 try:
     from stop_loss_monitor import StopLossMonitor
+
     _STOP_LOSS_AVAILABLE = True
 except Exception as e:
     logger.warning(f"StopLossMonitor 不可用: {e}")
@@ -150,7 +208,7 @@ def code_to_qlib(code: str) -> str:
     s = str(code).strip()
     for prefix in ("sh", "sz", "bj", "SH", "SZ", "BJ"):
         if s.startswith(prefix):
-            s = s[len(prefix):]
+            s = s[len(prefix) :]
             break
     for suffix in (".SH", ".SZ", ".BJ", ".sh", ".sz", ".bj"):
         if s.endswith(suffix):
@@ -171,9 +229,7 @@ def load_qlib_bin(field: str, qlib_code: str) -> Optional[pd.Series]:
     QLib bin 格式: 头部 9 个 float (start_date, end_date, float_count, etc.)
     之后是 float32 数据, 长度对齐 calendars/day.txt
     """
-    bin_path = os.path.join(
-        _BASE, "qlib_data", "cn_data", "features", qlib_code, f"{field}.day.bin"
-    )
+    bin_path = os.path.join(_BASE, "qlib_data", "cn_data", "features", qlib_code, f"{field}.day.bin")
     if not os.path.exists(bin_path):
         return None
 
@@ -185,6 +241,7 @@ def load_qlib_bin(field: str, qlib_code: str) -> Optional[pd.Series]:
         with open(cal_path, "r", encoding="utf-8") as f:
             dates = [line.strip() for line in f if line.strip()]
     except Exception:
+        logger.exception("[SysInt] 读取交易日历文件失败: %s", cal_path)
         return None
 
     try:
@@ -232,7 +289,7 @@ def load_close_prices(codes: List[str]) -> pd.DataFrame:
     df = pd.DataFrame(data)
     # 截取最近 5 年数据 (节省计算)
     if len(df) > 252 * 5:
-        df = df.iloc[-252 * 5:]
+        df = df.iloc[-252 * 5 :]
     return df
 
 
@@ -260,7 +317,18 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         # 父类期望 dict 格式 {"code": {...}}, 但 28 目录的可能是 list 格式 ["sz588000", ...]
         self._normalize_local_positions_file()
 
-        super().__init__(total_capital=total_capital)
+        # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
+        # 原代码在父类不可用时回退到 object (第 188 行 AutomatedExecutionSystem = object),
+        # 此时 super().__init__(total_capital=...) 会调用 object.__init__(total_capital=...),
+        # 抛出 TypeError: object.__init__() takes exactly one argument (the instance to initialize).
+        # 修复: 仅在父类真实可用时调用 super().__init__(), 否则跳过并记录警告.
+        if _AUTO_SYSTEM_AVAILABLE:
+            super().__init__(total_capital=total_capital)
+        else:
+            logger.warning(
+                "[IntegratedExecutionSystem] AutomatedExecutionSystem 父类不可用, "
+                "跳过 super().__init__() — 仅初始化子类自身属性 (P0 钩子仍可运行)"
+            )
 
         # P0-1: 信号融合器
         self.signal_fusion = self._init_signal_fusion()
@@ -322,9 +390,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             return
 
         # 加载 11_量化策略 的 positions.json 作为数据源 (dict 格式, 含详细信息)
-        src_pos_path = os.path.join(
-            _BASE, "..", "11_量化策略", "config", "positions.json"
-        )
+        src_pos_path = os.path.join(_BASE, "..", "11_量化策略", "config", "positions.json")
         src_data = {}
         if os.path.exists(src_pos_path):
             try:
@@ -344,7 +410,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             for prefix in ("sh", "sz", "bj"):
                 if s.startswith(prefix):
                     exchange = prefix
-                    pure = s[len(prefix):]
+                    pure = s[len(prefix) :]
                     break
 
             # 标准代码格式 (688041.SH)
@@ -374,10 +440,10 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 "shares": shares,
                 "phase1_shares": shares,  # 父类优先读 phase1_shares
                 "total_shares": shares,
-                "est_price": avg_cost,    # 父类读 est_price
+                "est_price": avg_cost,  # 父类读 est_price
                 "avg_cost": avg_cost,
                 "target_weight": target_weight,
-                "style": sector,          # 父类读 style
+                "style": sector,  # 父类读 style
                 "sector": sector,
             }
 
@@ -387,7 +453,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             with open(backup_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception:
-            pass
+            logger.exception("[SysInt] 写入 positions 备份失败: %s", backup_path)
 
         # 覆盖 positions.json 为 dict 格式 (保留 meta)
         data["positions"] = normalized
@@ -396,8 +462,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 json.dump(data, f, ensure_ascii=False, indent=2)
             logger.info(
                 f"本地 positions.json 已规范化: list→dict, "
-                f"{len(normalized)} 个持仓"
-                + (f", 未在 11_量化策略 找到: {missing_in_src}" if missing_in_src else "")
+                f"{len(normalized)} 个持仓" + (f", 未在 11_量化策略 找到: {missing_in_src}" if missing_in_src else "")
             )
         except Exception as e:
             logger.warning(f"写回 positions.json 失败: {e}")
@@ -427,12 +492,12 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         """
         # 默认权重 (与 SignalFusion 默认值一致)
         weights = {
-            'alpha': 0.45,
-            'ml': 0.10,
-            'qlib': 0.10,
-            'ai': 0.05,
-            'macro': 0.25,
-            'causal': 0.05,
+            "alpha": 0.45,
+            "ml": 0.10,
+            "qlib": 0.10,
+            "ai": 0.05,
+            "macro": 0.25,
+            "causal": 0.05,
         }
 
         # 查找最新的 QLib 训练报告
@@ -445,15 +510,13 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 report = json.load(f)
             mean_ic = float(report.get("mean_daily_ic", 0) or 0)
             ic_ir = float(report.get("ic_ir", 0) or 0)
-            logger.info(
-                f"QLib 报告 IC={mean_ic:.4f}, IC_IR={ic_ir:.4f}, 调整权重"
-            )
+            logger.info(f"QLib 报告 IC={mean_ic:.4f}, IC_IR={ic_ir:.4f}, 调整权重")
 
             # 如果 IC > 0, 提升 ML/QLib 权重
             if mean_ic > 0 and ic_ir > 0:
-                weights['ml'] = 0.20
-                weights['qlib'] = 0.20
-                weights['alpha'] = 0.30
+                weights["ml"] = 0.20
+                weights["qlib"] = 0.20
+                weights["alpha"] = 0.30
                 # 归一化
                 total = sum(weights.values())
                 weights = {k: v / total for k, v in weights.items()}
@@ -491,6 +554,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             )
 
             # 用 QLib 报告的 IC 预热 (作为单一初始观测, 不触发告警)
+            _preheated = False
             report_path = self._find_latest_qlib_report()
             if report_path:
                 try:
@@ -503,11 +567,33 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                         for i in range(5):
                             d = seed_date + timedelta(days=i)
                             detector.update_ic(d, initial_ic)
-                        logger.info(
-                            f"漂移检测器预热: IC={initial_ic:.4f} (5 次注入)"
-                        )
+                        logger.info(f"漂移检测器预热: IC={initial_ic:.4f} (5 次注入, 源: QLib 报告)")
+                        _preheated = True
                 except Exception as e:
                     logger.warning(f"漂移检测器预热失败: {e}")
+
+            # N1-4: QLib 预热未成功时, 回退到历史模型 CV IC 预热
+            if not _preheated:
+                try:
+                    from lgb_enhanced_trainer import load_model_meta, POSITION_SYMBOLS
+
+                    hist_ic_values = []
+                    for sym_tuple in POSITION_SYMBOLS[:5]:
+                        meta = load_model_meta(sym_tuple[0])
+                        if meta and meta.get("cv_after_selection"):
+                            hist_ic_values.append(float(meta["cv_after_selection"].get("mean_ic", 0) or 0))
+                    if hist_ic_values:
+                        avg_hist_ic = float(np.mean(hist_ic_values))
+                        seed_date = datetime.now() - timedelta(days=5)
+                        for i in range(5):
+                            d = seed_date + timedelta(days=i)
+                            detector.update_ic(d, avg_hist_ic)
+                        logger.info(
+                            f"漂移检测器预热: IC={avg_hist_ic:.4f} (5 次注入, "
+                            f"源: 历史模型 CV, {len(hist_ic_values)} 个模型均值)"
+                        )
+                except Exception as e:
+                    logger.debug(f"历史模型 IC 预热失败 (非致命): {e}")
 
             return detector
         except Exception as e:
@@ -520,9 +606,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             return None
         try:
             monitor = StopLossMonitor()
-            logger.info(
-                f"止损监控器已初始化: {len(monitor.rules)} 条规则"
-            )
+            logger.info(f"止损监控器已初始化: {len(monitor.rules)} 条规则")
             return monitor
         except Exception as e:
             logger.warning(f"StopLossMonitor 初始化失败: {e}")
@@ -530,8 +614,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
 
     # ---------- 主执行钩子 ----------
 
-    def _execute_daily_trading(self, execution_name: str = 'daily_execution',
-                               force_step5c: bool = False):
+    def _execute_daily_trading(self, execution_name: str = "daily_execution", force_step5c: bool = False):
         """覆盖父类方法, 注入 P0 钩子
 
         执行顺序:
@@ -539,17 +622,34 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
           2. 前置钩子: SignalFusion IC 动态权重更新
           3. 父类原有逻辑
           4. 后置钩子: 漂移检测 / 成本回测 / 止损监控
+
+        v8.6.13 P1 FIX (2026-08-01 AI 扫描):
+            原代码后置钩子不在 finally 块中, 父类 super()._execute_daily_trading() 抛异常时,
+            所有后置风控钩子 (漂移检测/止损监控) 被跳过, 与文件头"主流程异常不影响系统集成"
+            的设计意图相反. 修复: 后置钩子放入 finally 块, 保证无论主流程是否异常都执行.
+            (止损监控是最关键的, 持仓跌破止损线却不触发卖出会扩大亏损)
         """
         # 前置钩子: 更新信号融合权重
         self._hook_update_signal_fusion()
 
-        # 执行父类流程
-        super()._execute_daily_trading(execution_name)
-
-        # 后置钩子
-        self._hook_drift_and_retrain()
-        self._hook_cost_aware_backtest(force=force_step5c)
-        self._hook_stop_loss_review()
+        # 执行父类流程, 后置钩子放入 finally 保证主流程异常时仍执行风控
+        try:
+            # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
+            # 父类不可用时回退到 object, 调用 super()._execute_daily_trading() 会抛
+            # AttributeError: 'object' object has no attribute '_execute_daily_trading'.
+            # 修复: 仅在父类真实可用时调用父类方法, 否则跳过 (P0 钩子仍可在 finally 中执行).
+            if _AUTO_SYSTEM_AVAILABLE:
+                super()._execute_daily_trading(execution_name)
+            else:
+                logger.warning(
+                    "[IntegratedExecutionSystem] AutomatedExecutionSystem 父类不可用, "
+                    "跳过 super()._execute_daily_trading() — 仅执行 P0 风控钩子"
+                )
+        finally:
+            # 后置钩子: 即使主流程异常也必须执行 (止损监控不可跳过)
+            self._hook_drift_and_retrain()
+            self._hook_cost_aware_backtest(force=force_step5c)
+            self._hook_stop_loss_review()
 
     def _hook_update_signal_fusion(self):
         """步骤5a: 更新 SignalFusion 权重"""
@@ -564,17 +664,187 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             logger.warning(f"SignalFusion 权重更新失败: {e}")
 
     def _hook_drift_and_retrain(self):
-        """步骤5b: 漂移检测 + 自动重训练触发"""
+        """步骤5b: 漂移检测 + 自动重训练触发 (N1 重写)
+
+        修复 Bug-A: check_drift() → check_all() (旧代码 hasattr 兜底让告警永远空)
+        修复 Bug-B: IC 来源多源回退 (ic_recorder → QLib 报告 → 跳过)
+        修复 Bug-C: 检测到漂移后真正触发重训, 带冷却期 (旧代码只记录不执行)
+        修复 Bug-D: DriftAlert 是 dataclass, 旧代码 a.get('type') 当 dict 访问会崩
+
+        新增: ADWIN 概念漂移注入 (用 IC 值喂给 ADWIN)
+        安全: shadow_mode=True 时只记录不真正重训, 避免破坏生产模型
+        """
         if not self.drift_detector:
             return
         try:
-            # 每日运行后检测漂移
             today = datetime.now().date()
-            # 简化: 用当日信号变化作为漂移输入
+
+            # ---------- 1. 获取当日 IC (多源回退, 修复 Bug-B) ----------
+            daily_ic = self._fetch_daily_ic()
+            if daily_ic is None:
+                logger.info("跳过漂移检测: 无可用 IC 数据 (ic_recorder 与 QLib 报告均无)")
+                self.last_drift_check = today.isoformat()
+                return
+
+            # ---------- 2. 注入 IC 到检测器 (IC衰减 + ADWIN) ----------
+            self.drift_detector.update_ic(today, daily_ic)
+            # 同步喂给 ADWIN (用 IC 值检测概念漂移)
+            try:
+                self.drift_detector.update_adwin(daily_ic)
+            except Exception as e_adwin:
+                logger.debug(f"ADWIN 更新失败 (非致命): {e_adwin}")
+
+            # ---------- 3. 综合检查 (修复 Bug-A: check_all) ----------
+            alerts = self.drift_detector.check_all()
             self.last_drift_check = today.isoformat()
-            # TODO: 接入真实漂移指标
+
+            if not alerts:
+                logger.info(f"漂移检测完成: IC={daily_ic:.4f}, 无显著漂移")
+                return
+
+            # ---------- 4. 触发重训 (修复 Bug-C, 带冷却期) ----------
+            # 修复 Bug-D: DriftAlert 是 dataclass, 用属性访问而非 .get()
+            critical_count = sum(
+                1 for a in alerts if str(getattr(getattr(a, "severity", None), "value", "")).lower() == "critical"
+            )
+            alert_summaries = [
+                f"[{getattr(getattr(a, 'severity', None), 'value', '?')}] {getattr(a, 'message', str(a))}"
+                for a in alerts[:3]
+            ]
+            logger.warning(f"漂移检测发现 {len(alerts)} 个告警 (critical={critical_count}): {alert_summaries}")
+
+            need_retrain, reason = self.drift_detector.should_retrain()
+            if not need_retrain:
+                self.last_retrain_trigger = {
+                    "date": today.isoformat(),
+                    "alert_count": len(alerts),
+                    "critical_count": critical_count,
+                    "action": "monitor_only",
+                    "reason": reason,
+                }
+                logger.info(f"漂移告警未达重训阈值, 仅监控: {reason}")
+                return
+
+            retrained = self._trigger_retrain_with_cooldown(reason=reason)
+            self.last_retrain_trigger = {
+                "date": today.isoformat(),
+                "alert_count": len(alerts),
+                "critical_count": critical_count,
+                "action": "retrain_triggered"
+                if retrained
+                else ("shadow_recorded" if EVOLUTION_CONFIG["shadow_mode"] else "cooldown_skip"),
+                "reason": reason,
+            }
         except Exception as e:
             logger.warning(f"漂移检测失败: {e}")
+            logger.debug(traceback.format_exc())
+
+    def _fetch_daily_ic(self) -> Optional[float]:
+        """获取当日 IC (多源回退, 修复 Bug-B)
+
+        优先级:
+          1. reports/daily_ic_scores.json 的 latest_ic (N3 ic_recorder 写入)
+          2. 最新 QLib 报告的 mean_daily_ic
+          3. None (跳过漂移检测)
+
+        Returns:
+            IC 值, 或 None (无可用数据)
+        """
+        # 源1: ic_recorder 写入的当日 IC
+        ic_path = os.path.join(self.report_dir, "daily_ic_scores.json")
+        if os.path.exists(ic_path):
+            try:
+                with open(ic_path, "r", encoding="utf-8") as f:
+                    ic_data = json.load(f)
+                latest = float(ic_data.get("latest_ic", 0) or 0)
+                if abs(latest) >= EVOLUTION_CONFIG["ic_min_abs_threshold"]:
+                    return latest
+            except Exception as e:
+                logger.debug(f"读取 daily_ic_scores.json 失败: {e}")
+
+        # 源2: QLib 报告 (回退)
+        report_path = self._find_latest_qlib_report()
+        if report_path:
+            try:
+                with open(report_path, "r", encoding="utf-8") as f:
+                    report = json.load(f)
+                mean_ic = float(report.get("mean_daily_ic", 0) or 0)
+                if abs(mean_ic) >= EVOLUTION_CONFIG["ic_min_abs_threshold"]:
+                    logger.info(f"IC 来源回退到 QLib 报告: mean_daily_ic={mean_ic:.4f}")
+                    return mean_ic
+            except Exception as e:
+                logger.debug(f"读取 QLib 报告 IC 失败: {e}")
+
+        return None
+
+    def _trigger_retrain_with_cooldown(self, reason: str) -> bool:
+        """触发重训 (带冷却期, 修复 Bug-C)
+
+        安全策略:
+          - shadow_mode=True (默认): 只记录"该重训"到日志和冷却锁, 不真正调用
+            run_enhanced_training, 避免破坏生产模型. 待检测准确性验证后手动切换.
+          - shadow_mode=False: 真正调用 run_enhanced_training 重训.
+
+        Args:
+            reason: 重训原因 (来自 should_retrain)
+
+        Returns:
+            True 如果实际触发了重训, False 如果影子记录/冷却跳过/失败
+        """
+        if EVOLUTION_CONFIG["shadow_mode"]:
+            logger.warning(
+                f"[影子模式] 检测到需重训 (原因: {reason}), 但 shadow_mode=True 仅记录不执行. "
+                f"验证准确性后在 EVOLUTION_CONFIG 切换 shadow_mode=False 启用真实重训."
+            )
+            return False
+
+        try:
+            from lgb_enhanced_trainer import (
+                run_enhanced_training,
+                POSITION_SYMBOLS,
+                LGB_ENHANCED_CONFIG,
+            )
+        except Exception as e:
+            logger.warning(f"无法导入训练模块, 重训取消: {e}")
+            return False
+
+        today = datetime.now()
+        cooled_symbols = []
+        skipped_by_cooldown = []
+
+        for sym_tuple in POSITION_SYMBOLS:
+            code = sym_tuple[0]
+            last = _read_retrain_lock(code)
+            if last and (today - last).days < EVOLUTION_CONFIG["retrain_cooldown_days"]:
+                skipped_by_cooldown.append(code)
+                continue
+            cooled_symbols.append(sym_tuple)
+
+        if not cooled_symbols:
+            logger.info(f"重训冷却中, 跳过 {len(skipped_by_cooldown)} 个标的")
+            return False
+
+        logger.info(
+            f"触发自适应重训: {len(cooled_symbols)} 个标的 (冷却跳过 {len(skipped_by_cooldown)}), 原因: {reason}"
+        )
+
+        try:
+            result = run_enhanced_training(
+                symbols=cooled_symbols,
+                force_retrain=True,
+                config=LGB_ENHANCED_CONFIG,
+                use_news=True,
+            )
+            # 记录冷却锁
+            for sym_tuple in cooled_symbols:
+                _write_retrain_lock(sym_tuple[0], today)
+
+            logger.info(f"重训完成: status={result.get('status', 'UNKNOWN')}")
+            return True
+        except Exception as e:
+            logger.error(f"重训执行失败: {e}")
+            logger.debug(traceback.format_exc())
+            return False
 
     def _hook_cost_aware_backtest(self, force: bool = False):
         """步骤5c: 成本感知回测验证"""
@@ -582,7 +852,6 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             return
         try:
             today = datetime.now().date()
-            # 周一执行
             if not force and today.weekday() != 0:
                 return
             if self.last_backtest_date == today.isoformat():
@@ -590,8 +859,27 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
 
             self.last_backtest_date = today.isoformat()
             backtest = CostAwareBacktest()
-            # TODO: 接入真实回测数据
-            logger.info("成本感知回测验证完成")
+            positions_path = os.path.join(_BASE, "config", "positions.json")
+            result = {}
+            if hasattr(backtest, "run_backtest"):
+                try:
+                    result = backtest.run_backtest(positions_path=positions_path)
+                except Exception as e:
+                    logger.warning(f"成本回测 run_backtest 失败: {e}")
+            elif hasattr(backtest, "evaluate"):
+                try:
+                    result = backtest.evaluate()
+                except Exception as e:
+                    logger.warning(f"成本回测 evaluate 失败: {e}")
+
+            report_path = os.path.join(self.report_dir, f"cost_backtest_{today.isoformat()}.json")
+            try:
+                with open(report_path, "w", encoding="utf-8") as f:
+                    json.dump(result, f, ensure_ascii=False, indent=2)
+            except Exception:
+                logger.exception("[SysInt] 成本回测报告写入失败: %s", report_path)
+
+            logger.info(f"成本感知回测验证完成, 报告: {report_path}")
         except Exception as e:
             logger.warning(f"成本感知回测失败: {e}")
 
@@ -601,7 +889,12 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             return
         try:
             self.last_stop_loss_check = datetime.now().isoformat()
-            # TODO: 接入真实持仓/行情数据
+            triggers = self.stop_loss_monitor.check_and_execute()
+            if triggers:
+                executed = [t for t in triggers if getattr(t, "executed", False)]
+                logger.warning(f"止损监控触发 {len(triggers)} 条规则, 已执行 {len(executed)} 笔卖出")
+            else:
+                logger.info("止损监控完成: 未触发任何止损/止盈")
         except Exception as e:
             logger.warning(f"止损监控失败: {e}")
 
@@ -619,6 +912,6 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         logger.info("集成执行系统停止")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     system = IntegratedExecutionSystem(total_capital=5_000_000)
     system.start_system()

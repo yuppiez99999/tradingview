@@ -22,7 +22,7 @@ import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from utils.logger import get_logger
 
@@ -32,6 +32,7 @@ logger = get_logger("finance_agents")
 # ============================================================
 # 数据结构 (AgentDecision)
 # ============================================================
+
 
 @dataclass
 class AgentDecision:
@@ -50,11 +51,12 @@ class AgentDecision:
         veto_reason: 若 action=veto, 必须填否决理由
         timestamp: ISO 格式时间戳
     """
+
     agent_name: str
     symbol: str
-    action: str = "hold"                    # buy / sell / hold / veto
-    strength: float = 0.0                   # [-1, 1]
-    confidence: float = 0.0                 # [0, 1]
+    action: str = "hold"  # buy / sell / hold / veto
+    strength: float = 0.0  # [-1, 1]
+    confidence: float = 0.0  # [0, 1]
     reasoning: str = ""
     key_metrics: Dict[str, Any] = field(default_factory=dict)
     veto_reason: str = ""
@@ -66,13 +68,17 @@ class AgentDecision:
         if not math.isfinite(self.strength):
             logger.warning(
                 "[AgentDecision] %s/%s strength=%s 非有限值, 归零",
-                self.agent_name, self.symbol, self.strength,
+                self.agent_name,
+                self.symbol,
+                self.strength,
             )
             self.strength = 0.0
         if not math.isfinite(self.confidence):
             logger.warning(
                 "[AgentDecision] %s/%s confidence=%s 非有限值, 归零",
-                self.agent_name, self.symbol, self.confidence,
+                self.agent_name,
+                self.symbol,
+                self.confidence,
             )
             self.confidence = 0.0
         # 边界裁剪
@@ -82,7 +88,9 @@ class AgentDecision:
         if self.action not in ("buy", "sell", "hold", "veto"):
             logger.warning(
                 "[AgentDecision] %s/%s action=%s 不合法, 降级为 hold",
-                self.agent_name, self.symbol, self.action,
+                self.agent_name,
+                self.symbol,
+                self.action,
             )
             self.action = "hold"
         # veto 必须有理由
@@ -107,6 +115,7 @@ class AgentDecision:
 # ============================================================
 # BaseAgent 抽象基类
 # ============================================================
+
 
 class BaseAgent(ABC):
     """所有金融专家 Agent 的抽象基类

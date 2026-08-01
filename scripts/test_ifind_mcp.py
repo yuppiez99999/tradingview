@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import os
 import sys
 
 sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")

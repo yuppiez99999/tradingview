@@ -30,6 +30,7 @@ API:
     3. Hot Reload: mtime 变化自动失效缓存, 支持运行时配置更新
     4. Backward Compatible: 现有 yaml.safe_load 代码不强制迁移, 渐进式替换
 """
+
 from __future__ import annotations
 
 import logging
@@ -38,7 +39,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Dict, List, Optional, Tuple
 
-import yaml  # type: ignore[import-untyped]  # PyYAML 无官方类型存根, 静态检查忽略
+import yaml  # PyYAML 无官方类型存根, 静态检查忽略
 
 logger = logging.getLogger("config_manager")
 
@@ -63,10 +64,25 @@ _NAMED_CONFIGS: Dict[str, str] = {
     "backtest": "backtest.yaml",
     "execution": "execution.yaml",
     "risk_budget": "risk_budget.yaml",
+    "risk_params": "risk_params.yaml",  # B1.3: 风控参数统一配置
     "stop_loss": "stop_loss_vol_adjusted.yaml",
     "model_router": "model_router.yaml",
     "model_routing": "model_routing.yaml",
     "liquidation_scheduler": "liquidation_scheduler.yaml",
+    # L7 归因层 (T5.1+)
+    "brinson_attribution": "brinson_attribution.yaml",
+    "factor_attribution": "factor_attribution.yaml",
+    "daily_panel": "daily_panel.yaml",
+    # L6 调度层 (T5.4)
+    "daily_report_generator": "daily_report_generator.yaml",
+    # B-4.6: 指数规格配置 (成分股权重 + 股指期货/ETF期权合约规格)
+    "index_specs": "index_specs.yaml",
+    # B-4.5: 交易执行风控参数 (单日限额/熔断/建仓期/分批金额)
+    "trade_execution": "trade_execution.yaml",
+    # 三层面自我进化系统 (Stage 1, 2026-08-01)
+    "evolution": "evolution.yaml",
+    # Feature Flag 注册表
+    "feature_flags": "feature_flags.yaml",
 }
 
 
@@ -120,8 +136,7 @@ class ConfigManager:
     _instance: Optional["ConfigManager"] = None
     _instance_lock = RLock()
 
-    def __init__(self, project_root: Optional[Path] = None,
-                 extra_search_paths: Optional[List[Path]] = None) -> None:
+    def __init__(self, project_root: Optional[Path] = None, extra_search_paths: Optional[List[Path]] = None) -> None:
         """
         Args:
             project_root: 项目根目录, 默认为 utils/config_manager.py 上两级
@@ -213,15 +228,13 @@ class ConfigManager:
             if data is None:
                 return {}
             if not isinstance(data, dict):
-                logger.warning(
-                    f"[ConfigManager] 配置文件非 dict 类型: {path}, 实际类型={type(data).__name__}"
-                )
+                logger.warning(f"[ConfigManager] 配置文件非 dict 类型: {path}, 实际类型={type(data).__name__}")
                 return {}
             return data
         except yaml.YAMLError as e:
             logger.error(f"[ConfigManager] YAML 解析失败: {path}, error={e}")
             return {}
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"[ConfigManager] 加载配置失败: {path}, error={e}", exc_info=True)
             return {}
 
@@ -273,8 +286,7 @@ class ConfigManager:
             path = self._resolve_config_path(name)
             if path is None:
                 logger.warning(
-                    f"[ConfigManager] 配置未找到: name={name}, "
-                    f"搜索路径={[str(p) for p in self._search_paths]}"
+                    f"[ConfigManager] 配置未找到: name={name}, 搜索路径={[str(p) for p in self._search_paths]}"
                 )
                 return default if default is not None else {}
 
@@ -336,6 +348,10 @@ class ConfigManager:
         """获取风险预算配置 (vol target, drawdown threshold)"""
         return self.get("risk_budget")
 
+    def get_risk_params_config(self) -> Dict:
+        """获取风控参数配置 (B1.3: max_drawdown_limit 等统一入口)"""
+        return self.get("risk_params")
+
     def get_stop_loss_config(self) -> Dict:
         """获取动态止损配置 (波动率调整止损)"""
         return self.get("stop_loss")
@@ -359,12 +375,14 @@ class ConfigManager:
                     size = path.stat().st_size
                 except OSError:
                     size = 0
-                result.append({
-                    "name": short_name,
-                    "filename": filename,
-                    "path": str(path),
-                    "size": size,
-                })
+                result.append(
+                    {
+                        "name": short_name,
+                        "filename": filename,
+                        "path": str(path),
+                        "size": size,
+                    }
+                )
                 seen.add(path)
 
         return result
@@ -457,6 +475,11 @@ def get_backtest_config() -> Dict:
 def get_risk_budget_config() -> Dict:
     """获取风险预算配置 (类型化访问器, 推荐)"""
     return ConfigManager.get_instance().get_risk_budget_config()
+
+
+def get_risk_params_config() -> Dict:
+    """获取风控参数配置 (类型化访问器, 推荐, B1.3)"""
+    return ConfigManager.get_instance().get_risk_params_config()
 
 
 def get_stop_loss_config() -> Dict:

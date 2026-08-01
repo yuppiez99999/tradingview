@@ -16,13 +16,14 @@
     runner = StressTestRunner()
     result = runner.run_all_scenarios(positions, portfolio_value=5_000_000)
 """
+
 from __future__ import annotations
 
 import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 
 logger = logging.getLogger("stress_test")
 
@@ -39,12 +40,12 @@ STRESS_SCENARIOS = {
         "duration_months": 3,
         "shape": "V",
         "asset_impacts": {
-            "stock": -0.40,        # 股票 -40%
-            "etf": -0.35,          # ETF -35%
-            "quant_neutral": -0.15, # 量化中性 -15%
-            "options_tail": 0.75,   # 尾部期权 +75% (put payoff)
+            "stock": -0.40,  # 股票 -40%
+            "etf": -0.35,  # ETF -35%
+            "quant_neutral": -0.15,  # 量化中性 -15%
+            "options_tail": 0.75,  # 尾部期权 +75% (put payoff)
             "futures_hedge": 0.30,  # 期货对冲回收 30%
-            "cash": 0.0,           # 现金无影响
+            "cash": 0.0,  # 现金无影响
         },
         "expected_portfolio_dd": -0.085,
         "limit": -0.15,
@@ -59,7 +60,7 @@ STRESS_SCENARIOS = {
             "stock": -0.25,
             "etf": -0.20,
             "quant_neutral": -0.08,
-            "options_tail": -1.0,   # 期权全部到期归零
+            "options_tail": -1.0,  # 期权全部到期归零
             "futures_hedge": 0.30,  # 对冲回收 30% (有干预时)
             "cash": 0.0,
         },
@@ -94,8 +95,8 @@ STRESS_SCENARIOS = {
             "stock": -0.35,
             "etf": -0.30,
             "quant_neutral": -0.20,  # 中性策略失效
-            "options_tail": 0.40,    # 对冲效率降至 30%
-            "futures_hedge": 0.10,   # 对冲效率降至 30%
+            "options_tail": 0.40,  # 对冲效率降至 30%
+            "futures_hedge": 0.10,  # 对冲效率降至 30%
             "cash": 0.0,
         },
         "expected_portfolio_dd": -0.186,
@@ -112,9 +113,9 @@ class StressTestRunner:
     def __init__(self):
         REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-    def run_all_scenarios(self, positions: List[Dict[str, Any]],
-                          portfolio_value: float = 5_000_000,
-                          with_intervention: bool = True) -> Dict[str, Any]:
+    def run_all_scenarios(
+        self, positions: List[Dict[str, Any]], portfolio_value: float = 5_000_000, with_intervention: bool = True
+    ) -> Dict[str, Any]:
         """运行所有压力测试场景
 
         Args:
@@ -170,9 +171,14 @@ class StressTestRunner:
 
         return results
 
-    def _run_scenario(self, scenario_id: str, scenario_def: Dict,
-                      positions: List[Dict], portfolio_value: float,
-                      with_intervention: bool) -> Dict[str, Any]:
+    def _run_scenario(
+        self,
+        scenario_id: str,
+        scenario_def: Dict,
+        positions: List[Dict],
+        portfolio_value: float,
+        with_intervention: bool,
+    ) -> Dict[str, Any]:
         """运行单个压力测试场景"""
         impacts = scenario_def["asset_impacts"]
 
@@ -254,7 +260,7 @@ class StressTestRunner:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"压力测试报告已保存: {report_path}")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存压力测试报告失败: {e}")
         return report_path
 
@@ -287,21 +293,21 @@ if __name__ == "__main__":
 
         result = runner.run_all_scenarios(positions, args.portfolio, with_intervention=True)
 
-        print("\n" + "=" * 60)
-        print("压力测试结果")
-        print("=" * 60)
+        logger.info("\n" + "=" * 60)
+        logger.info("压力测试结果")
+        logger.info("=" * 60)
         for sid, sres in result["scenarios"].items():
             status = "✅ 通过" if sres["pass"] else "❌ 超限"
-            print(f"\n{sres['scenario_name']} ({sid})")
-            print(f"  指数跌幅: {sres['index_drop_pct']:.0%}")
-            print(f"  预期回撤: {sres['expected_portfolio_dd']:.1%}")
-            print(f"  实际回撤: {sres['actual_portfolio_dd']:.1%}")
-            print(f"  限额:     {sres['limit']:.1%}")
-            print(f"  状态:     {status}")
+            logger.info(f"\n{sres['scenario_name']} ({sid})")
+            logger.info(f"  指数跌幅: {sres['index_drop_pct']:.0%}")
+            logger.info(f"  预期回撤: {sres['expected_portfolio_dd']:.1%}")
+            logger.info(f"  实际回撤: {sres['actual_portfolio_dd']:.1%}")
+            logger.info(f"  限额:     {sres['limit']:.1%}")
+            logger.info(f"  状态:     {status}")
             if sres.get("pre_action"):
-                print(f"  预警:     {sres['pre_action']}")
+                logger.info(f"  预警:     {sres['pre_action']}")
 
-        print(f"\n{'=' * 60}")
-        print(f"总体: {'✅ 全部通过' if result['all_pass'] else '❌ 有场景超限'}")
-        print(f"最差场景: {result['worst_scenario']} (回撤 {result['worst_dd']:.1%})")
-        print(f"报告: {result['report_path']}")
+        logger.info(f"\n{'=' * 60}")
+        logger.info(f"总体: {'✅ 全部通过' if result['all_pass'] else '❌ 有场景超限'}")
+        logger.info(f"最差场景: {result['worst_scenario']} (回撤 {result['worst_dd']:.1%})")
+        logger.info(f"报告: {result['report_path']}")

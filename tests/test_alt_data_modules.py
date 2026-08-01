@@ -36,7 +36,6 @@ class TestNewsSentimentEngine(unittest.TestCase):
 
     def test_engine_initialization(self):
         """测试引擎初始化"""
-        from utils.news_sentiment_engine import POSITIVE_WORDS, NEGATIVE_WORDS
         self.assertIsNotNone(self.engine.positive_words)
         self.assertIsNotNone(self.engine.negative_words)
         # 默认词典应非空
@@ -96,7 +95,7 @@ class TestNewsSentimentEngine(unittest.TestCase):
         for i in range(3):
             self.engine.add_news(self.NewsItem(
                 news_id=f"analyze_{i}",
-                title=f"业绩增长 订单增加",
+                title="业绩增长 订单增加",
                 content="业绩大增 净利增长",
                 symbols=["600519"],
                 publish_time=datetime.now() - timedelta(hours=i),
@@ -119,7 +118,7 @@ class TestNewsSentimentEngine(unittest.TestCase):
         for i, sym in enumerate(["600519", "000858", "601318"]):
             self.engine.add_news(self.NewsItem(
                 news_id=f"multi_{i}",
-                title=f"公司业绩增长",
+                title="公司业绩增长",
                 content="业绩大增",
                 symbols=[sym],
                 publish_time=datetime.now(),
@@ -255,7 +254,7 @@ class TestSupplyChainGraph(unittest.TestCase):
         metrics = self.graph.compute_centrality()
         self.assertGreater(len(metrics), 0)
         # 每个节点应有 PageRank
-        for sym, m in metrics.items():
+        for _sym, m in metrics.items():
             self.assertGreaterEqual(m.pagerank, 0.0)
             self.assertLessEqual(m.pagerank, 1.0)
             self.assertGreaterEqual(m.betweenness_centrality, 0.0)
@@ -417,7 +416,7 @@ class TestAltDataIndicators(unittest.TestCase):
         """测试综合评分范围"""
         self.engine.load_demo_data(["300308"])
         result = self.engine.analyze(symbols=["300308"])
-        for sym, sig in result.signals.items():
+        for _sym, sig in result.signals.items():
             # 综合评分应在 [-1, 1] 范围
             self.assertGreaterEqual(sig.composite_score, -1.0)
             self.assertLessEqual(sig.composite_score, 1.0)

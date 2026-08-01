@@ -5,6 +5,71 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html)。
 
+## [8.6.13] - 2026-08-01
+
+### 新增 (Added) — 气象因子引擎 + 第三方项目集成
+
+#### 气象因子引擎（7 因子体系）
+
+- **气象数据适配器** (`utils/weather_data_adapter.py`) — apizero.cn 商业 API → Open-Meteo 免费降级链
+  - 429 限流自动熔断 10 分钟，期间直接降级到 Open-Meteo，避免无效重试
+  - 双层缓存：apizero 与 Open-Meteo 结果按坐标各缓存 10 分钟，显著减少重复请求
+  - 提供实时天气 / 小时预报 / 天预报 / 分钟级降水 / 预警 5 类数据接口
+- **因子计算引擎** (`utils/weather_factor_engine.py`) — 7 因子体系
+  - 温度 / 降水 / 风速 / 辐照度 / 气压 / 空气质量 / 能见度
+  - 按行业敏感度加权（电力 1.5x / 矿业 1.4x / 农业 1.5x / 冶炼 1.2x / 医药 1.0x）
+  - 输出 STRONG_BULL (+2.0) ~ STRONG_BEAR (-2.0) 五级信号 + 置信度
+- **标的映射配置** (`config/weather_symbols_mapping.yaml`) — 14 股票标的 + ETF/期货
+  - 长江电力（三峡大坝 0.4 / 葛洲坝 0.3 / 向家坝 0.3，敏感度 0.95）
+  - 中国神华（神东矿区 / 准格尔矿区，敏感度 0.85）
+  - 宁德时代（宜宾锂矿 / 宁德总部，敏感度 0.70）
+  - 恒瑞医药（连云港总部，敏感度 0.60）等
+- **WeatherAgent** (`utils/finance_agents/weather_agent.py`) — 第 6 位专家
+  - 在 `FinanceAgentOrchestrator` 中以 11% 权重参与多 Agent 决策
+  - 权重分配：估值 22% / 动量 22% / 风险 22% / 情绪 13% / 宏观 10% / 气象 11%
+  - 支持 `WeatherFactorResult` dataclass + dict 双格式输入
+  - 降级到中性决策保证可用性
+- **信号融合第 9 层** — 通过 `PostMixLayer` 注入 `SignalFusionEngine`
+  - 与其他 8 类信号源（ML/AI Hedge Fund/GLM5/康波周期等）动态加权叠加
+
+#### 第三方项目集成
+
+- **Scrapling 反爬爬虫适配器** (`utils/scrapling_adapter.py`)
+  - 封装 StealthyFetcher / PlayWrightFetcher，提供企业级反爬能力
+  - 集成到 `news_sentiment_engine.py` 的 `fetch_and_ingest_news` / `fetch_and_ingest_announcements`
+  - 降级到 `WebScraper`（requests + bs4）保证可用性
+- **TradingAgents-CN HTTP 桥接** (`utils/tradingagents_bridge.py`)
+  - 通过 HTTP 微服务方式集成 TradingAgents-CN 多 Agent 协作框架
+  - 避免 Python 3.10+ 版本冲突（28 系统基线 Python 3.8.9）
+  - 健康检查 + 结果转换 + 降级链逻辑
+
+### 验证 (Verified)
+
+- **E2E 测试** (`scripts/test_weather_e2e_minimal.py`) — 17/17 通过
+  - 模块导入：WeatherDataAdapter / WeatherFactorEngine / WeatherAgent 全部 OK
+  - 数据适配器降级链：apizero 限流 → Open-Meteo 正确切换
+  - 因子计算：3 个代表性标的（长江电力 +0.23 / 中国神华 +0.41 / 宁德时代 +0.16）
+  - WeatherAgent 决策：返回包含 composite_score 的标准化 AgentDecision
+  - 信号融合：`_weather_layer` 正确初始化
+- **实测气象数据**（Open-Meteo 降级模式）
+  - 北京：温度 35.8°C / 湿度 48% / 风 10.2km/h / 云量 0.67%
+  - 长江电力 composite +0.23（降水充沛 326mm 利好水电蓄水）
+
+### 变更 (Changed)
+
+- `utils/finance_agent_orchestrator.py` — `DEFAULT_WEIGHTS` 新增 "weather" 11% 权重，`_init_default_agents` 添加 WeatherAgent
+- `utils/signal_fusion.py` — 新增 `_weather_layer` PostMixLayer + `weather_signal_weight` 配置
+- `utils/weather_data_adapter.py` — 429 限流熔断 + 缓存 TTL 300s → 600s + 超时 15s → 8s
+
+### 清理 (Removed) — 陈旧版本文件
+
+- 删除根目录临时测试输出：`test_report.txt` / `test_results.txt` / `test_output.txt` / `test_all.txt` / `test_all2.txt` / `output.txt` / `pylint_broad_except_baseline.txt` / `pylint_broad_except_full.txt`
+- 删除被取代的旧版审计报告：`CODE_QUALITY_CHECK_20260728.md` / `CODE_QUALITY_CHECK_2026-07-29.md` / `HEDGE_FUND_AUDIT_REPORT_20260723.md` / `P0_REPAIR_REPORT_20260723.md` / `P0_1_TOKEN_MIGRATION_REPORT.md` / `量化交易系统v8.4_综合代码审计报告.md` / `量化交易系统v8.4_综合审计报告_终版.md`
+- 删除旧版建仓计划：`500万建仓计划_20260706.json` / `500万建仓计划_20260706.md` / `portfolio_return_projection.md`
+- 保留最新版 `CODE_QUALITY_PHASE_A_2026-07-30.md` 和 `CODE_REVIEW_REPORT_2026-07-30.md` 作为当前基线
+
+---
+
 ## [8.4] - 2026-07-22
 
 ### 修复 (Fixed) — 代码质量 P0/P1/P2 修复 (2026-07-22)

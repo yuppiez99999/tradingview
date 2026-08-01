@@ -31,22 +31,24 @@ v8.5 风控增强:
 """
 
 import logging
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
-logger = logging.getLogger('v7.5.tail_risk_hedge')
+logger = logging.getLogger("v7.5.tail_risk_hedge")
 
 
 # ============================================================
 # 4 状态机 (7.4 tail_risk_hedge.py:138-148)
 # ============================================================
 
+
 class MarketRegime:
     """市场状态机"""
-    NORMAL = "normal"        # tail_risk_score < 0.3
-    WARNING = "warning"      # 0.3 ≤ score < 0.6
-    CRISIS = "crisis"        # score ≥ 0.8
-    RECOVERY = "recovery"    # 0.6 ≤ score < 0.8 (缓解期)
+
+    NORMAL = "normal"  # tail_risk_score < 0.3
+    WARNING = "warning"  # 0.3 ≤ score < 0.6
+    CRISIS = "crisis"  # score ≥ 0.8
+    RECOVERY = "recovery"  # 0.6 ≤ score < 0.8 (缓解期)
 
 
 # ============================================================
@@ -54,37 +56,39 @@ class MarketRegime:
 # ============================================================
 
 REGIME_HEDGE_RATIOS = {
-    "normal":  0.30,    # 正常: 覆盖 30%
-    "yellow":  0.50,    # 黄色: 50%
-    "orange":  0.70,    # 橙色: 70%
-    "red":     0.85,    # 红色: 85%
-    "extreme": 1.00,    # 极端: 全覆盖
+    "normal": 0.30,  # 正常: 覆盖 30%
+    "yellow": 0.50,  # 黄色: 50%
+    "orange": 0.70,  # 橙色: 70%
+    "red": 0.85,  # 红色: 85%
+    "extreme": 1.00,  # 极端: 全覆盖
 }
 
 
 @dataclass
 class TailRiskConfig:
     """尾部风险对冲配置"""
+
     # tail_risk_hedge.py:67-76
-    max_protection_ratio: float = 0.30       # 危机期最大保护比例 30%
-    warning_protection_ratio: float = 0.21   # 警告期 70% (30% * 0.7)
+    max_protection_ratio: float = 0.30  # 危机期最大保护比例 30%
+    warning_protection_ratio: float = 0.21  # 警告期 70% (30% * 0.7)
     recovery_protection_ratio: float = 0.09  # 恢复期 30% (30% * 0.3)
-    recovery_threshold: float = 0.02         # 风险缓解阈值
+    recovery_threshold: float = 0.02  # 风险缓解阈值
 
     # protective_put_manager.py:82-125
-    annual_budget_pct: float = 0.025         # 年度对冲预算 2.5%
-    min_hedge_ratio: float = 0.30            # 最低覆盖 30%
-    max_hedge_ratio: float = 1.0             # 最高全覆盖
-    expiry_months: int = 3                   # 期权期限 3 个月
+    annual_budget_pct: float = 0.025  # 年度对冲预算 2.5%
+    min_hedge_ratio: float = 0.30  # 最低覆盖 30%
+    max_hedge_ratio: float = 1.0  # 最高全覆盖
+    expiry_months: int = 3  # 期权期限 3 个月
 
     # 主副标的分配 (protective_put_manager.py:215-230)
-    main_weight: float = 0.70                # 主标的 70%
-    sub_weight: float = 0.30                 # 副标的 30%
+    main_weight: float = 0.70  # 主标的 70%
+    sub_weight: float = 0.30  # 副标的 30%
 
 
 # ============================================================
 # TailRiskHedger 主类
 # ============================================================
+
 
 class TailRiskHedger:
     """尾部风险对冲引擎 — 7.4 移植版
@@ -104,12 +108,14 @@ class TailRiskHedger:
         self.history: List[Dict] = []
 
     # ---------- 1. 状态机判定 ----------
-    def analyze_market_regime(self,
-                              vix: float,
-                              hwm_drawdown: float,
-                              portfolio_volatility: float = 0.0,
-                              var_95: float = 0.0,
-                              cvar_95: float = 0.0) -> str:
+    def analyze_market_regime(
+        self,
+        vix: float,
+        hwm_drawdown: float,
+        portfolio_volatility: float = 0.0,
+        var_95: float = 0.0,
+        cvar_95: float = 0.0,
+    ) -> str:
         """
         7.4 移植: 4 状态机判定 (tail_risk_hedge.py:138-148)
 
@@ -123,14 +129,13 @@ class TailRiskHedger:
             MarketRegime 字符串
         """
         # 综合评分 (简化版, 加权 dd + vix)
-        dd_score = min(1.0, hwm_drawdown * 3)              # dd 33% 满分
-        vix_score = min(1.0, max(0.0, (vix - 18) / 62))   # vix 18起评 → 80满分
-        vol_score = min(1.0, portfolio_volatility * 5)     # vol 20% 满分
-        var_score = min(1.0, var_95 * 10)                  # var 10% 满分
+        dd_score = min(1.0, hwm_drawdown * 3)  # dd 33% 满分
+        vix_score = min(1.0, max(0.0, (vix - 18) / 62))  # vix 18起评 → 80满分
+        vol_score = min(1.0, portfolio_volatility * 5)  # vol 20% 满分
+        var_score = min(1.0, var_95 * 10)  # var 10% 满分
 
         # 加权综合 (dd 40% + vix 35% + vol 15% + var 10%)
-        tail_score = (dd_score * 0.40 + vix_score * 0.35 +
-                      vol_score * 0.15 + var_score * 0.10)
+        tail_score = dd_score * 0.40 + vix_score * 0.35 + vol_score * 0.15 + var_score * 0.10
 
         if tail_score > 0.8:
             regime = MarketRegime.CRISIS
@@ -145,10 +150,7 @@ class TailRiskHedger:
         return regime
 
     # ---------- 2. 保护比例 (5 级 + recovery 衰减) ----------
-    def calculate_protection_ratio(self,
-                                   vix: float,
-                                   hwm_drawdown: float,
-                                   bs_loss: float = 0.0) -> float:
+    def calculate_protection_ratio(self, vix: float, hwm_drawdown: float, bs_loss: float = 0.0) -> float:
         """
         7.4 移植: 计算当前保护比例
 
@@ -199,17 +201,16 @@ class TailRiskHedger:
         self._market_state = market_state
 
         # 5. 限制在 [min, max]
-        ratio = max(self.config.min_hedge_ratio if regime != MarketRegime.NORMAL else 0.0,
-                    min(self.config.max_hedge_ratio, base))
+        ratio = max(
+            self.config.min_hedge_ratio if regime != MarketRegime.NORMAL else 0.0,
+            min(self.config.max_hedge_ratio, base),
+        )
 
         self.current_protection_ratio = ratio
         return ratio
 
     # ---------- 3. 三层 OTM Put 阶梯 ----------
-    def build_otm_ladder(self,
-                         bs_loss: float,
-                         vix: float,
-                         spot_price: float) -> List[Dict]:
+    def build_otm_ladder(self, bs_loss: float, vix: float, spot_price: float) -> List[Dict]:
         """
         7.4 移植: 三层 OTM Put 阶梯构建
 
@@ -238,19 +239,20 @@ class TailRiskHedger:
 
         ladder = []
         for otm, w in zip(otm_pcts, weights):
-            ladder.append({
-                "otm_pct": otm,
-                "strike": round(spot_price * (1 - otm), 4),
-                "weight": round(w, 3),
-                "delta_target": -0.20 * (1 + otm * 5),  # OTM 越深 delta 越小
-            })
+            ladder.append(
+                {
+                    "otm_pct": otm,
+                    "strike": round(spot_price * (1 - otm), 4),
+                    "weight": round(w, 3),
+                    "delta_target": -0.20 * (1 + otm * 5),  # OTM 越深 delta 越小
+                }
+            )
         return ladder
 
     # ---------- 4. 主副标的双层分配 ----------
-    def allocate_main_sub(self,
-                          total_budget: float,
-                          main_symbol: str = "510300",
-                          sub_symbol: str = "588000") -> Dict[str, float]:
+    def allocate_main_sub(
+        self, total_budget: float, main_symbol: str = "510300", sub_symbol: str = "588000"
+    ) -> Dict[str, float]:
         """
         7.4 移植: 主副标的双层资金分配
 
@@ -264,10 +266,7 @@ class TailRiskHedger:
         }
 
     # ---------- 5. 期权展期判断 ----------
-    def should_roll(self,
-                    days_to_expiry: int,
-                    current_vix: float,
-                    emergency_level: int = 0) -> Dict:
+    def should_roll(self, days_to_expiry: int, current_vix: float, emergency_level: int = 0) -> Dict:
         """
         7.4 移植: 期权展期判断
 
@@ -290,23 +289,23 @@ class TailRiskHedger:
             return {
                 "action": "DEEPEN_OTM",
                 "reason": f"VIX={current_vix} 风险加剧, 加深 OTM",
-                "new_otm_ladder": self.build_otm_ladder(
-                    bs_loss=0.5, vix=current_vix, spot_price=1.0
-                ),
+                "new_otm_ladder": self.build_otm_ladder(bs_loss=0.5, vix=current_vix, spot_price=1.0),
             }
 
         return {"action": "ROLL", "reason": "标准展期"}
 
     # ---------- 6. 完整对冲决策 ----------
-    def compute_hedge(self,
-                      vix: float,
-                      hwm_drawdown: float,
-                      portfolio_value: float,
-                      spot_price: float = 1.0,
-                      bs_loss: float = 0.0,
-                      portfolio_volatility: float = 0.0,
-                      var_95: float = 0.0,
-                      days_to_expiry: int = 90) -> Dict:
+    def compute_hedge(
+        self,
+        vix: float,
+        hwm_drawdown: float,
+        portfolio_value: float,
+        spot_price: float = 1.0,
+        bs_loss: float = 0.0,
+        portfolio_volatility: float = 0.0,
+        var_95: float = 0.0,
+        days_to_expiry: int = 90,
+    ) -> Dict:
         """
         完整尾部风险对冲决策 (整合 4 状态机 + 5 级 + OTM 阶梯)
         """
@@ -320,12 +319,16 @@ class TailRiskHedger:
 
         # 2. 保护比例
         protection_ratio = self.calculate_protection_ratio(
-            vix=vix, hwm_drawdown=hwm_drawdown, bs_loss=bs_loss,
+            vix=vix,
+            hwm_drawdown=hwm_drawdown,
+            bs_loss=bs_loss,
         )
 
         # 3. OTM 阶梯
         otm_ladder = self.build_otm_ladder(
-            bs_loss=bs_loss, vix=vix, spot_price=spot_price,
+            bs_loss=bs_loss,
+            vix=vix,
+            spot_price=spot_price,
         )
 
         # 4. 预算分配
@@ -339,13 +342,13 @@ class TailRiskHedger:
         if protection_ratio <= 0:
             action = "NO_HEDGE"
         elif regime == MarketRegime.CRISIS:
-            action = "EMERGENCY_PUT"     # 危机期紧急 Put
+            action = "EMERGENCY_PUT"  # 危机期紧急 Put
         elif regime == MarketRegime.WARNING:
-            action = "BARE_PUT"          # 警告期裸 Put
+            action = "BARE_PUT"  # 警告期裸 Put
         elif regime == MarketRegime.RECOVERY:
-            action = "PUT_SPREAD"        # 恢复期 Put Spread (省成本)
-        elif getattr(self, '_market_state', 'normal') in ('yellow', 'orange'):
-            action = "PUT_SPREAD"        # ★v7.6: VIX≥18黄区触发 — 轻量建仓期权保护
+            action = "PUT_SPREAD"  # 恢复期 Put Spread (省成本)
+        elif getattr(self, "_market_state", "normal") in ("yellow", "orange"):
+            action = "PUT_SPREAD"  # ★v7.6: VIX≥18黄区触发 — 轻量建仓期权保护
         else:
             action = "NO_HEDGE"
 

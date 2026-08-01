@@ -30,23 +30,24 @@ Deflated Sharpe Ratio v1.0 — Bailey & Lopez de Prado 方法
 """
 
 import math
-from typing import Tuple, Optional
+from typing import Tuple
 from dataclasses import dataclass
 
 
 @dataclass
 class DeflatedSharpeResult:
     """DSR 计算结果"""
-    sharpe_ratio: float           # 观测到的年化夏普比率
-    deflated_sharpe_ratio: float   # 去膨胀后的夏普比率 (DSR)
-    p_value: float                # DSR 对应的 p-value
-    e_max_sr: float               # 纯噪音下 N 次试验的期望最大夏普
-    n_trials: int                 # 校正试验次数
-    skewness: float               # 收益率偏度
-    kurtosis: float               # 收益率超额峰度
-    is_pass: bool                 # 是否通过阈值检验
-    required_dsr: float           # 要求的 DSR 阈值
-    verdict: str                  # 判断结论
+
+    sharpe_ratio: float  # 观测到的年化夏普比率
+    deflated_sharpe_ratio: float  # 去膨胀后的夏普比率 (DSR)
+    p_value: float  # DSR 对应的 p-value
+    e_max_sr: float  # 纯噪音下 N 次试验的期望最大夏普
+    n_trials: int  # 校正试验次数
+    skewness: float  # 收益率偏度
+    kurtosis: float  # 收益率超额峰度
+    is_pass: bool  # 是否通过阈值检验
+    required_dsr: float  # 要求的 DSR 阈值
+    verdict: str  # 判断结论
 
 
 def _compute_moments(returns: list) -> Tuple[float, float, float, float, int]:
@@ -70,11 +71,11 @@ def _compute_moments(returns: list) -> Tuple[float, float, float, float, int]:
 
     # 偏度
     m3 = sum((r - mean) ** 3 for r in returns) / n
-    skewness = m3 / (std ** 3)
+    skewness = m3 / (std**3)
 
     # 超额峰度 (excess kurtosis)
     m4 = sum((r - mean) ** 4 for r in returns) / n
-    kurtosis = m4 / (std ** 4) - 3.0
+    kurtosis = m4 / (std**4) - 3.0
 
     return mean, std, skewness, kurtosis, n
 
@@ -122,7 +123,7 @@ def _estimate_e_max_sr(
     #   Var[SR] ≈ (1 + skew^2/4 - 2*skew*SR + (kurt/4)*SR^2) / T
     # 当 SR=0 时: Var[SR] ≈ (1 + skew^2/4) / T
     T = max(sample_length, 20)  # 交易日数
-    var_sr = (1.0 + skewness ** 2 / 4.0) / T
+    var_sr = (1.0 + skewness**2 / 4.0) / T
 
     std_sr = math.sqrt(max(var_sr, 1e-10))
 
@@ -198,9 +199,14 @@ def deflated_sharpe_ratio(
     n = len(daily_returns)
     if n < 20:
         return DeflatedSharpeResult(
-            sharpe_ratio=0.0, deflated_sharpe_ratio=0.0,
-            p_value=1.0, e_max_sr=0.0, n_trials=n_trials,
-            skewness=0.0, kurtosis=0.0, is_pass=False,
+            sharpe_ratio=0.0,
+            deflated_sharpe_ratio=0.0,
+            p_value=1.0,
+            e_max_sr=0.0,
+            n_trials=n_trials,
+            skewness=0.0,
+            kurtosis=0.0,
+            is_pass=False,
             required_dsr=required_dsr,
             verdict=f"数据不足: 仅{n}个观测, 需要至少20个",
         )
@@ -210,9 +216,14 @@ def deflated_sharpe_ratio(
 
     if std_daily < 1e-15:
         return DeflatedSharpeResult(
-            sharpe_ratio=0.0, deflated_sharpe_ratio=0.0,
-            p_value=1.0, e_max_sr=0.0, n_trials=n_trials,
-            skewness=skewness, kurtosis=kurtosis, is_pass=False,
+            sharpe_ratio=0.0,
+            deflated_sharpe_ratio=0.0,
+            p_value=1.0,
+            e_max_sr=0.0,
+            n_trials=n_trials,
+            skewness=skewness,
+            kurtosis=kurtosis,
+            is_pass=False,
             required_dsr=required_dsr,
             verdict="零波动率策略, 无法评估",
         )
@@ -242,9 +253,7 @@ def deflated_sharpe_ratio(
     if T < 0.01:
         T = 0.01
 
-    se_sr = math.sqrt((1.0 + 0.5 * sr ** 2 - skewness * sr * math.sqrt(1/252)
-                       + (kurtosis / 4.0) * sr ** 2)
-                      / (T * 252))
+    se_sr = math.sqrt((1.0 + 0.5 * sr**2 - skewness * sr * math.sqrt(1 / 252) + (kurtosis / 4.0) * sr**2) / (T * 252))
 
     if se_sr < 1e-15:
         z_score = 10.0 if sr > e_max_sr else -10.0
@@ -260,8 +269,7 @@ def deflated_sharpe_ratio(
 
     if is_pass:
         verdict = (
-            f"DSR={dsr:.4f} >= {required_dsr}, 通过 — "
-            f"观测夏普{sr:.2f}显著优于{n_trials}次试验的噪音上限{e_max_sr:.2f}"
+            f"DSR={dsr:.4f} >= {required_dsr}, 通过 — 观测夏普{sr:.2f}显著优于{n_trials}次试验的噪音上限{e_max_sr:.2f}"
         )
     else:
         shortfall = required_dsr - dsr
@@ -325,17 +333,21 @@ if __name__ == "__main__":
     # 生成正夏普的模拟收益率 (SR ≈ 1.0)
     good_rets = [random.gauss(0.001, 0.015) for _ in range(1260)]  # 5年
     result_good = deflated_sharpe_ratio(good_rets, n_trials=100, required_dsr=0.95)
-    print(f"正夏普策略: SR={result_good.sharpe_ratio:.3f}, "
-          f"DSR={result_good.deflated_sharpe_ratio:.4f}, "
-          f"E[max_SR]={result_good.e_max_sr:.3f}, "
-          f"通过={result_good.is_pass}")
+    print(
+        f"正夏普策略: SR={result_good.sharpe_ratio:.3f}, "
+        f"DSR={result_good.deflated_sharpe_ratio:.4f}, "
+        f"E[max_SR]={result_good.e_max_sr:.3f}, "
+        f"通过={result_good.is_pass}"
+    )
     print(f"  {result_good.verdict}")
 
     # 生成零夏普的模拟收益率 (纯噪音)
     noise_rets = [random.gauss(0.0, 0.02) for _ in range(1260)]
     result_noise = deflated_sharpe_ratio(noise_rets, n_trials=200, required_dsr=0.95)
-    print(f"\n噪音策略: SR={result_noise.sharpe_ratio:.3f}, "
-          f"DSR={result_noise.deflated_sharpe_ratio:.4f}, "
-          f"E[max_SR]={result_noise.e_max_sr:.3f}, "
-          f"通过={result_noise.is_pass}")
+    print(
+        f"\n噪音策略: SR={result_noise.sharpe_ratio:.3f}, "
+        f"DSR={result_noise.deflated_sharpe_ratio:.4f}, "
+        f"E[max_SR]={result_noise.e_max_sr:.3f}, "
+        f"通过={result_noise.is_pass}"
+    )
     print(f"  {result_noise.verdict}")

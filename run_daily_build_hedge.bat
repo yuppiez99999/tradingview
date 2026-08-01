@@ -7,7 +7,7 @@ echo.
 
 setlocal enabledelayedexpansion
 
-set "PYTHON_PATH=C:\Program Files\Python38\python.exe"
+set "PYTHON_PATH=C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
 set "SCRIPT_PATH=%~dp0daily_build_and_hedge.py"
 set "WORK_DIR=%~dp0"
 set "LOG_DIR=%WORK_DIR%logs"

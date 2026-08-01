@@ -23,13 +23,15 @@ def _estimate_depth_ratio(target_amount: float, ref_price: float, avg_daily_volu
     return target_amount / daily_turnover
 
 
-def choose_execution_algorithm(target_amount: float,
-                               ref_price: float,
-                               avg_daily_volume: float = 0,
-                               max_execution_minutes: Optional[float] = None,
-                               cost_weight: float = 0.7,
-                               time_weight: float = 0.3,
-                               volatility: float = 0.02) -> Dict:
+def choose_execution_algorithm(
+    target_amount: float,
+    ref_price: float,
+    avg_daily_volume: float = 0,
+    max_execution_minutes: Optional[float] = None,
+    cost_weight: float = 0.7,
+    time_weight: float = 0.3,
+    volatility: float = 0.02,
+) -> Dict:
     """选择最优执行算法
 
     Args:
@@ -84,8 +86,9 @@ def choose_execution_algorithm(target_amount: float,
 
     try:
         from utils.wt_execution_algo import compare_execution
+
         comparison = compare_execution(target_amount, ref_price, avg_daily_volume)
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         return {
             "algorithm": "immediate",
             "reason": f"执行算法比较失败，回退 immediate: {e}",
@@ -134,10 +137,7 @@ def choose_execution_algorithm(target_amount: float,
     best = candidates[0]
     return {
         "algorithm": best[1],
-        "reason": (
-            f"[自适应] {adaptive_reason} | "
-            f"综合成本+时间最优: cost_bps={best[4]:.2f}, time={best[5]:.1f}min"
-        ),
+        "reason": (f"[自适应] {adaptive_reason} | 综合成本+时间最优: cost_bps={best[4]:.2f}, time={best[5]:.1f}min"),
         "estimated_cost": best[3],
         "cost_bps": best[4],
         "execution_time_minutes": best[5],

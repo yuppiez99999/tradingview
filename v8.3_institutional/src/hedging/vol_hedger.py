@@ -11,6 +11,7 @@ v7.5 波动率对冲引擎 —— VIX 分级 + 期权保护性 Put
     流动性折价 (继承 v7.2):
         Coverage_actual = Coverage_target × max(0.015, 1 - (VIX - 40)/50)
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,13 +23,15 @@ logger = logging.getLogger("v75.hedging.vol")
 class VolHedger:
     """波动率对冲器: 基于 VIX 分级买入保护性期权"""
 
-    def __init__(self,
-                 vix_trigger: float = 30.0,
-                 vix_emergency: float = 60.0,
-                 budget_low_pct: float = 0.003,
-                 budget_mid_pct: float = 0.005,
-                 budget_high_pct: float = 0.008,
-                 delta_target: float = -0.2):
+    def __init__(
+        self,
+        vix_trigger: float = 20.0,
+        vix_emergency: float = 40.0,
+        budget_low_pct: float = 0.003,
+        budget_mid_pct: float = 0.005,
+        budget_high_pct: float = 0.008,
+        delta_target: float = -0.2,
+    ):
         """
         Args:
             vix_trigger: 触发阈值
@@ -56,14 +59,13 @@ class VolHedger:
             对冲指令字典
         """
         if vix <= self.vix_trigger:
-            return {"action": "NO_HEDGE",
-                    "reason": f"VIX {vix:.1f} ≤ 触发阈值 {self.vix_trigger}"}
+            return {"action": "NO_HEDGE", "reason": f"VIX {vix:.1f} ≤ 触发阈值 {self.vix_trigger}"}
 
         # 分级决策
-        if vix <= 40.0:
+        if vix <= 30.0:
             budget = self.budget_low * portfolio_value
             action = "BUY_PUT_SPREAD"
-            strike_long = "ATM - 2 strikes"   # 买入更虚的 Put
+            strike_long = "ATM - 2 strikes"  # 买入更虚的 Put
             strike_short = "ATM - 4 strikes"  # 卖出更虚的 Put
             coverage = 1.0
         elif vix <= self.vix_emergency:
@@ -96,6 +98,5 @@ class VolHedger:
             "portfolio_value": float(portfolio_value),
         }
 
-        logger.info("Vol 对冲: VIX=%.1f → %s, 预算=%.0f, 覆盖率=%.2f",
-                    vix, action, budget, coverage)
+        logger.info("Vol 对冲: VIX=%.1f → %s, 预算=%.0f, 覆盖率=%.2f", vix, action, budget, coverage)
         return result

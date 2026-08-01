@@ -111,7 +111,8 @@ class PortfolioOptimizer:
             if file_date != trade_date:
                 logger.warning(
                     "[PortfolioOptimizer] 因子信号非当日 (文件: %s, 期望: %s), 跳过",
-                    file_date, trade_date,
+                    file_date,
+                    trade_date,
                 )
                 return {}
 
@@ -135,8 +136,7 @@ class PortfolioOptimizer:
                     continue
 
             logger.info(
-                "[PortfolioOptimizer] 因子信号加载完成: %d 个标的 (trade_date=%s, "
-                "combined_ic_ir=%.4f, live_dsr=%.4f)",
+                "[PortfolioOptimizer] 因子信号加载完成: %d 个标的 (trade_date=%s, combined_ic_ir=%.4f, live_dsr=%.4f)",
                 len(result),
                 trade_date,
                 float(data.get("factor_combination", {}).get("combined_ic_ir", 0)),
@@ -144,7 +144,7 @@ class PortfolioOptimizer:
             )
             return result
 
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("[PortfolioOptimizer] 加载因子信号失败: %s", e)
             return {}
 
@@ -194,13 +194,13 @@ class PortfolioOptimizer:
             adjusted = {k: v * scale for k, v in adjusted.items()}
 
         # 统计调整幅度
-        n_adjusted = sum(
-            1 for sym in base_weights
-            if abs(adjusted.get(sym, 0) - base_weights[sym]) > 1e-6
-        )
+        n_adjusted = sum(1 for sym in base_weights if abs(adjusted.get(sym, 0) - base_weights[sym]) > 1e-6)
         logger.info(
             "[PortfolioOptimizer] 权重调整完成: %d/%d 标的受影响, alpha=%.3f, 总暴露保持=%.4f",
-            n_adjusted, len(base_weights), alpha, total_base,
+            n_adjusted,
+            len(base_weights),
+            alpha,
+            total_base,
         )
         return adjusted
 
@@ -274,27 +274,27 @@ class PortfolioOptimizer:
             }
         """
         # 默认参数 (与 shadow_account.RISK_MANAGED_* 常量对齐)
-        TARGET_VOL = 0.15          # 目标年化波动率 15%
-        VOL_LOOKBACK = 20          # 波动率回看窗口 20 日
-        DD_DERISK_THRESHOLD = 0.05 # 回撤 > 5% 触发去杠杆
-        DD_DERISK_FACTOR = 0.5     # 去杠杆至 50% 敞口
-        SCALER_CAP = 2.0           # 缩放因子上限
+        TARGET_VOL = 0.15  # 目标年化波动率 15%
+        VOL_LOOKBACK = 20  # 波动率回看窗口 20 日
+        DD_DERISK_THRESHOLD = 0.05  # 回撤 > 5% 触发去杠杆
+        DD_DERISK_FACTOR = 0.5  # 去杠杆至 50% 敞口
+        SCALER_CAP = 2.0  # 缩放因子上限
         TRADING_DAYS_PER_YEAR = 252
         # P0-Q3 新增: 总敞口硬上限 (默认 1.5x, 可被 config 覆盖)
         MAX_EXPOSURE = self.MAX_TOTAL_EXPOSURE
 
         # 应用配置覆盖
         if config:
-            TARGET_VOL = float(config.get('target_vol', TARGET_VOL))
-            VOL_LOOKBACK = int(config.get('vol_lookback', VOL_LOOKBACK))
-            DD_DERISK_THRESHOLD = float(config.get('dd_derisk_threshold', DD_DERISK_THRESHOLD))
-            DD_DERISK_FACTOR = float(config.get('dd_derisk_factor', DD_DERISK_FACTOR))
-            SCALER_CAP = float(config.get('scaler_cap', SCALER_CAP))
-            MAX_EXPOSURE = float(config.get('max_total_exposure', MAX_EXPOSURE))
+            TARGET_VOL = float(config.get("target_vol", TARGET_VOL))
+            VOL_LOOKBACK = int(config.get("vol_lookback", VOL_LOOKBACK))
+            DD_DERISK_THRESHOLD = float(config.get("dd_derisk_threshold", DD_DERISK_THRESHOLD))
+            DD_DERISK_FACTOR = float(config.get("dd_derisk_factor", DD_DERISK_FACTOR))
+            SCALER_CAP = float(config.get("scaler_cap", SCALER_CAP))
+            MAX_EXPOSURE = float(config.get("max_total_exposure", MAX_EXPOSURE))
 
         # 边界检查
         if not target_weights:
-            return {}, {'error': 'empty_target_weights'}
+            return {}, {"error": "empty_target_weights"}
         if not daily_pnl_history or len(daily_pnl_history) < 2:
             # 数据不足, 不缩放 (保守返回原始权重)
             logger.info(
@@ -302,16 +302,16 @@ class PortfolioOptimizer:
                 len(daily_pnl_history) if daily_pnl_history else 0,
             )
             return dict(target_weights), {
-                'realized_vol': 0.0,
-                'current_dd': 0.0,
-                'vol_scaler': 1.0,
-                'dd_scaler': 1.0,
-                'combined_scaler': 1.0,
-                'exposure_cap_applied': False,
-                'derisk_triggered': False,
-                'raw_total_exposure': sum(abs(w) for w in target_weights.values()),
-                'scaled_total_exposure': sum(abs(w) for w in target_weights.values()),
-                'note': 'insufficient_pnl_history',
+                "realized_vol": 0.0,
+                "current_dd": 0.0,
+                "vol_scaler": 1.0,
+                "dd_scaler": 1.0,
+                "combined_scaler": 1.0,
+                "exposure_cap_applied": False,
+                "derisk_triggered": False,
+                "raw_total_exposure": sum(abs(w) for w in target_weights.values()),
+                "scaled_total_exposure": sum(abs(w) for w in target_weights.values()),
+                "note": "insufficient_pnl_history",
             }
 
         # === 1. 波动率缩放 ===
@@ -359,8 +359,7 @@ class PortfolioOptimizer:
             scaled_weights = {k: v * cap_scaler for k, v in scaled_weights.items()}
             exposure_cap_applied = True
             logger.warning(
-                "[PortfolioOptimizer] [P0-Q3] 总敞口 %.4fx 超 %.2fx 上限, "
-                "已按比例 cap 至 %.2fx (cap_scaler=%.4f)",
+                "[PortfolioOptimizer] [P0-Q3] 总敞口 %.4fx 超 %.2fx 上限, 已按比例 cap 至 %.2fx (cap_scaler=%.4f)",
                 scaled_total_exposure,
                 MAX_EXPOSURE,
                 MAX_EXPOSURE,
@@ -370,23 +369,23 @@ class PortfolioOptimizer:
 
         # === 5. 统计信息 ===
         stats = {
-            'realized_vol': realized_vol_annual,
-            'current_dd': float(current_dd),
-            'vol_scaler': float(vol_scaler),
-            'dd_scaler': float(dd_scaler),
-            'combined_scaler': float(combined_scaler),
-            'exposure_cap_applied': exposure_cap_applied,
-            'max_total_exposure': MAX_EXPOSURE,
-            'derisk_triggered': current_dd > DD_DERISK_THRESHOLD,
-            'raw_total_exposure': float(raw_total_exposure),
-            'scaled_total_exposure': float(scaled_total_exposure),
-            'target_vol': TARGET_VOL,
-            'vol_lookback': vol_lookback,
-            'dd_derisk_threshold': DD_DERISK_THRESHOLD,
-            'dd_derisk_factor': DD_DERISK_FACTOR,
+            "realized_vol": realized_vol_annual,
+            "current_dd": float(current_dd),
+            "vol_scaler": float(vol_scaler),
+            "dd_scaler": float(dd_scaler),
+            "combined_scaler": float(combined_scaler),
+            "exposure_cap_applied": exposure_cap_applied,
+            "max_total_exposure": MAX_EXPOSURE,
+            "derisk_triggered": current_dd > DD_DERISK_THRESHOLD,
+            "raw_total_exposure": float(raw_total_exposure),
+            "scaled_total_exposure": float(scaled_total_exposure),
+            "target_vol": TARGET_VOL,
+            "vol_lookback": vol_lookback,
+            "dd_derisk_threshold": DD_DERISK_THRESHOLD,
+            "dd_derisk_factor": DD_DERISK_FACTOR,
             # P0-Q1 审计字段: 标记前视偏差修复已生效
-            'lookahead_bias_fixed': True,
-            'dd_pnl_used': 'yesterday_only',
+            "lookahead_bias_fixed": True,
+            "dd_pnl_used": "yesterday_only",
         }
 
         logger.info(
@@ -401,14 +400,13 @@ class PortfolioOptimizer:
             combined_scaler,
             raw_total_exposure,
             scaled_total_exposure,
-            'YES' if stats['derisk_triggered'] else 'no',
-            'YES' if exposure_cap_applied else 'no',
+            "YES" if stats["derisk_triggered"] else "no",
+            "YES" if exposure_cap_applied else "no",
         )
 
-        if stats['derisk_triggered']:
+        if stats["derisk_triggered"]:
             logger.warning(
-                "[PortfolioOptimizer] [P1-L] 回撤去杠杆触发: current_dd=%.2f%% > %.2f%%, "
-                "敞口降至 %.0f%%",
+                "[PortfolioOptimizer] [P1-L] 回撤去杠杆触发: current_dd=%.2f%% > %.2f%%, 敞口降至 %.0f%%",
                 current_dd * 100,
                 DD_DERISK_THRESHOLD * 100,
                 DD_DERISK_FACTOR * 100,
@@ -446,15 +444,16 @@ class PortfolioOptimizer:
         try:
             # Step 1: 加载真实数据（复用 research 脚本）
             logger.info("[PortfolioOptimizer] Step 1: 加载真实数据...")
-            price_data, fundamentals, benchmark_returns, fundamentals_history, used_symbols = (
-                self._load_real_data(symbols)
+            price_data, fundamentals, benchmark_returns, fundamentals_history, used_symbols = self._load_real_data(
+                symbols
             )
             if not price_data:
                 logger.error("[PortfolioOptimizer] price_data 加载失败, 中断")
                 return False
             logger.info(
                 "[PortfolioOptimizer] 数据加载完成: %d 标的, %d 基准收益",
-                len(price_data), len(benchmark_returns),
+                len(price_data),
+                len(benchmark_returns),
             )
 
             # Step 2: 运行 PipelineOrchestrator 验证因子组合
@@ -478,7 +477,8 @@ class PortfolioOptimizer:
             if not result.factor_combinations:
                 logger.error(
                     "[PortfolioOptimizer] Pipeline 未生成因子组合 (approved=%d, total=%d)",
-                    result.approved, result.total_candidates,
+                    result.approved,
+                    result.total_candidates,
                 )
                 return False
 
@@ -505,7 +505,8 @@ class PortfolioOptimizer:
             if total_abs < 1e-6:
                 logger.error(
                     "[PortfolioOptimizer] IC_IR 总和过小 (a=%.4f, b=%.4f), 无法计算权重",
-                    ic_ir_a, ic_ir_b,
+                    ic_ir_a,
+                    ic_ir_b,
                 )
                 return False
 
@@ -513,7 +514,10 @@ class PortfolioOptimizer:
             w_b = ic_ir_b / total_abs
             logger.info(
                 "[PortfolioOptimizer] IC 权重: A=%s w_a=+%.4f, B=%s w_b=+%.4f",
-                factor_a, w_a, factor_b, w_b,
+                factor_a,
+                w_a,
+                factor_b,
+                w_b,
             )
 
             # Step 4: 使用 VibeTradingFactorAdapter 计算最新因子值
@@ -542,7 +546,8 @@ class PortfolioOptimizer:
             values_b = pool.factors[factor_b].values
             logger.info(
                 "[PortfolioOptimizer] 因子值: A=%d 标的, B=%d 标的",
-                len(values_a), len(values_b),
+                len(values_a),
+                len(values_b),
             )
 
             # Step 5: 计算 IC 加权组合信号
@@ -579,19 +584,14 @@ class PortfolioOptimizer:
                     "w_a": float(w_a),
                     "w_b": float(w_b),
                 },
-                "signals": {
-                    sym: {"signal": float(val), "name": sym}
-                    for sym, val in normalized.items()
-                },
+                "signals": {sym: {"signal": float(val), "name": sym} for sym, val in normalized.items()},
                 "stats": {
                     "n_symbols": len(normalized),
                     "n_positive": sum(1 for v in normalized.values() if v > 0),
                     "n_negative": sum(1 for v in normalized.values() if v < 0),
                     "max_signal": max(normalized.values()) if normalized else 0.0,
                     "min_signal": min(normalized.values()) if normalized else 0.0,
-                    "avg_signal": (
-                        sum(normalized.values()) / len(normalized) if normalized else 0.0
-                    ),
+                    "avg_signal": (sum(normalized.values()) / len(normalized) if normalized else 0.0),
                 },
                 "audit_trail": {
                     "source": "research.vibe_trading_factor_analysis.pipeline.pipeline_orchestrator",
@@ -607,8 +607,7 @@ class PortfolioOptimizer:
                 json.dump(output, f, ensure_ascii=False, indent=2, default=str)
 
             logger.info(
-                "[PortfolioOptimizer] 因子信号已保存: %s (%d 个标的, "
-                "IC_IR=%.4f, live_dsr=%.4f)",
+                "[PortfolioOptimizer] 因子信号已保存: %s (%d 个标的, IC_IR=%.4f, live_dsr=%.4f)",
                 output_path.name,
                 len(normalized),
                 float(ic_metrics.get("combined_ic_ir", 0)),
@@ -616,7 +615,7 @@ class PortfolioOptimizer:
             )
             return True
 
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error("[PortfolioOptimizer] run_offline_pipeline 失败: %s", e, exc_info=True)
             return False
 
@@ -665,8 +664,7 @@ class PortfolioOptimizer:
 
         if not cache_dir.exists():
             logger.warning(
-                "[PortfolioOptimizer] fundamentals cache 目录不存在: %s, "
-                "QualityTrend 因子将降级",
+                "[PortfolioOptimizer] fundamentals cache 目录不存在: %s, QualityTrend 因子将降级",
                 cache_dir,
             )
             return result
@@ -679,15 +677,17 @@ class PortfolioOptimizer:
                     with open(path, "r", encoding="utf-8") as f:
                         result[symbol] = json.load(f)
                     n_loaded += 1
-                except Exception as e:
+                except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                     logger.debug(
                         "[PortfolioOptimizer] 加载 %s 历史失败: %s",
-                        symbol, e,
+                        symbol,
+                        e,
                     )
 
         logger.info(
             "[PortfolioOptimizer] fundamentals_history 加载: %d/%d 标的",
-            n_loaded, len(symbols),
+            n_loaded,
+            len(symbols),
         )
         return result
 
@@ -701,25 +701,25 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("Portfolio Optimizer 自检")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("Portfolio Optimizer 自检")
+    logger.info("=" * 70)
 
     opt = PortfolioOptimizer()
-    print(f"\n信号目录: {opt.signals_dir}")
+    logger.info(f"\n信号目录: {opt.signals_dir}")
 
     # 测试 load_factor_signals（预期返回空，因为尚未生成）
     test_date = datetime.now().strftime("%Y-%m-%d")
     signals = opt.load_factor_signals(test_date)
-    print(f"load_factor_signals({test_date}): {len(signals)} 个信号 (预期 0)")
+    logger.debug(f"load_factor_signals({test_date}): {len(signals)} 个信号 (预期 0)")
 
     # 测试 adjust_target_weights
     base = {"588000": 0.10, "300308": 0.05, "601088": 0.08}
     factor = {"588000": 0.5, "300308": -0.3, "601088": 0.2}
     adj_weights = opt.adjust_target_weights(base, factor, alpha=0.05)
-    print("\nadjust_target_weights (alpha=0.05):")
+    logger.info("\nadjust_target_weights (alpha=0.05):")
     for sym, base_w in base.items():
         adj_w = adj_weights[sym]
-        print(f"  {sym}: base={base_w:+.4f} -> adjusted={adj_w:+.4f} (delta={adj_w - base_w:+.4f})")
+        logger.info(f"  {sym}: base={base_w:+.4f} -> adjusted={adj_w:+.4f} (delta={adj_w - base_w:+.4f})")
 
-    print("\n[OK] PortfolioOptimizer 自检通过")
+    logger.info("\n[OK] PortfolioOptimizer 自检通过")

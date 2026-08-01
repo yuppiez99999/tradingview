@@ -37,7 +37,7 @@ import logging
 import argparse
 import re
 import requests  # type: ignore[import-untyped]
-from datetime import datetime, timedelta, date
+from datetime import datetime, date
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from dataclasses import asdict
@@ -77,19 +77,14 @@ logger = logging.getLogger("v75.daily_workflow")
 # 导入 v7.5 模块
 # ============================================================
 # === v7.5 核心模块 (硬性要求 - 缺失时系统拒绝启动) ===
-from risk.risk_manager import RiskManager
-from risk.circuit_breaker import CircuitBreaker
+from risk.risk_manager import RiskManager  # noqa: E402
+from risk.circuit_breaker import CircuitBreaker  # noqa: E402
 class CircuitLevel:
     LEVEL_1 = 1; LEVEL_2 = 2; LEVEL_3 = 3; LEVEL_4 = 4
-from hedging.beta_hedger import BetaHedger
-from hedging.vol_hedger import VolHedger
-from hedging.correlation_hedger import CorrelationHedger
-from hedging.hedge_coordinator import HedgeCoordinator
-from execution.smart_order_router import SmartOrderRouter, MockBroker
-from execution.algo_engine import AlgoEngine, AlgoType
-from execution.ntp_sync import NTPSync
-from backtest.metrics import compute_all_metrics
-from backtest.cost_model import CostModel
+from hedging.hedge_coordinator import HedgeCoordinator  # noqa: E402
+from execution.smart_order_router import SmartOrderRouter, MockBroker  # noqa: E402
+from execution.algo_engine import AlgoType  # noqa: E402
+from execution.ntp_sync import NTPSync  # noqa: E402
 V75_READY = True
 logger.info("v7.5 核心模块加载成功: RiskManager/CircuitBreaker/HedgeCoordinator/SmartOrderRouter/AlgoEngine")
 
@@ -142,11 +137,11 @@ except ImportError as e:
 # 对冲基金视角模块 (v7.7: Theta引擎 + Gamma尾部防御 + 三级熔断 + 2030清仓)
 # ============================================================
 # === 对冲基金核心模块 (硬性要求 - 缺失时系统拒绝启动) ===
-from utils.theta_engine import ThetaEngine
-from utils.gamma_engine import GammaEngine
-from utils.kill_switch import KillSwitch
-from utils.data_gate import DataGate, DataGateResult  # 数据质量门控 (DataGate) — P0-8 接入
-from utils.liquidation_scheduler import LiquidationScheduler
+from utils.theta_engine import ThetaEngine  # noqa: E402
+from utils.gamma_engine import GammaEngine  # noqa: E402
+from utils.kill_switch import KillSwitch  # noqa: E402
+from utils.data_gate import DataGate  # noqa: E402  # 数据质量门控 (DataGate) — P0-8 接入
+from utils.liquidation_scheduler import LiquidationScheduler  # noqa: E402
 HEDGE_FUND_CORE_READY = True
 logger.info("对冲基金核心模块加载成功: Theta/Gamma/KillSwitch/LiquidationScheduler")
 
@@ -184,7 +179,7 @@ except ImportError as e:
 V10_STRATEGY_READY = False
 try:
     from utils.quant_neutral_runner import QuantNeutralRunner
-    from utils.ic_hedge_calculator import ICHedgeCalculator
+    from utils.ic_hedge_calculator import ICHedgeCalculator  # noqa: F401
     from utils.cash_manager import CashManager
     from utils.directional_futures_trader import DirectionalFuturesTrader
     V10_STRATEGY_READY = True
@@ -197,7 +192,7 @@ except ImportError as e:
 # ============================================================
 PHASE_MANAGER_READY = False
 try:
-    from utils.phase_manager import PhaseManager, PhaseInfo, QuarterlyReviewResult
+    from utils.phase_manager import PhaseManager, PhaseInfo, QuarterlyReviewResult  # noqa: F401
     PHASE_MANAGER_READY = True
     logger.info("十五五阶段管理器加载成功: PhaseManager (5年度/季度评估/2030清仓)")
 except ImportError as e:
@@ -209,7 +204,7 @@ except ImportError as e:
 # ============================================================
 HEDGE_FUND_MODULES_READY = False
 try:
-    from utils.execution_algo_engine import ExecutionAlgoEngine, AlgoType as ExecAlgoType
+    from utils.execution_algo_engine import ExecutionAlgoEngine, AlgoType as ExecAlgoType  # noqa: F401
     from utils.pnl_attribution_engine import PnLAttributionEngine
     from utils.data_quality_monitor import DataQualityMonitor
     from utils.multi_strategy_coordinator import MultiStrategyCoordinator
@@ -221,9 +216,9 @@ except ImportError as e:
 # 顶级配置模块 (Black-Litterman / TCA / Barra)
 INSTITUTIONAL_MODULES_READY = False
 try:
-    from utils.black_litterman_optimizer import BlackLittermanOptimizer, View as BLView, BLResult
-    from utils.tca_engine import TCAManager, FillRecord, BenchmarkPrices, TCAReport
-    from utils.barra_risk_decomposer import BarraRiskDecomposer, BarraDecomposition, BARRA_STYLE_FACTORS
+    from utils.black_litterman_optimizer import BlackLittermanOptimizer, View as BLView, BLResult  # noqa: F401
+    from utils.tca_engine import TCAManager, FillRecord, BenchmarkPrices, TCAReport  # noqa: F401
+    from utils.barra_risk_decomposer import BarraRiskDecomposer, BarraDecomposition, BARRA_STYLE_FACTORS  # noqa: F401
     INSTITUTIONAL_MODULES_READY = True
     logger.info("机构级模块加载成功: BlackLitterman/TCA/Barra")
 except ImportError as e:
@@ -232,10 +227,10 @@ except ImportError as e:
 # 顶级风险管理模块 (Ledoit-Wolf / 风险预算约束 / 压力测试情景)
 RISK_MGT_MODULES_READY = False
 try:
-    from utils.ledoit_wolf_covariance import LedoitWolfCovariance, ShrinkageResult
-    from utils.risk_budget_optimizer import RiskBudgetOptimizer, RiskBudgetResult
+    from utils.ledoit_wolf_covariance import LedoitWolfCovariance, ShrinkageResult  # noqa: F401
+    from utils.risk_budget_optimizer import RiskBudgetOptimizer, RiskBudgetResult  # noqa: F401
     from utils.stress_test_scenario_library import (
-        StressTestEngine, StressScenario, ShockFactors, StressTestResult,
+        StressTestEngine, StressScenario, ShockFactors, StressTestResult,  # noqa: F401
     )
     RISK_MGT_MODULES_READY = True
     logger.info("风险管理模块加载成功: LedoitWolf/RiskBudgetOpt/StressTest")
@@ -245,9 +240,9 @@ except ImportError as e:
 # 顶级 Alpha 生成模块 (Alpha 因子库 / 动量反转 / Smart Beta)
 ALPHA_MODULES_READY = False
 try:
-    from utils.alpha_factor_library import AlphaFactorLibrary, FactorLibraryResult
-    from utils.momentum_reversal_engine import MomentumReversalEngine, MomentumResult
-    from utils.smart_beta_engine import SmartBetaEngine, SmartBetaResult
+    from utils.alpha_factor_library import AlphaFactorLibrary, FactorLibraryResult  # noqa: F401
+    from utils.momentum_reversal_engine import MomentumReversalEngine, MomentumResult  # noqa: F401
+    from utils.smart_beta_engine import SmartBetaEngine, SmartBetaResult  # noqa: F401
     ALPHA_MODULES_READY = True
     logger.info("Alpha 生成模块加载成功: AlphaFactorLib/MomentumReversal/SmartBeta")
 except ImportError as e:
@@ -258,10 +253,10 @@ EXECUTION_MODULES_READY = False
 try:
     from utils.execution_algorithm_engine import (
         ExecutionAlgorithmEngine as InstitutionExecAlgoEngine,
-        Order as ExecOrder, ExecutionPlan,
+        Order as ExecOrder, ExecutionPlan,  # noqa: F401
     )
-    from utils.market_impact_model import MarketImpactModel, ImpactParams
-    from utils.smart_order_router import SmartOrderRouter as InstitutionSmartRouter, Venue as RoutingVenue
+    from utils.market_impact_model import MarketImpactModel, ImpactParams  # noqa: F401
+    from utils.smart_order_router import SmartOrderRouter as InstitutionSmartRouter, Venue as RoutingVenue  # noqa: F401
     EXECUTION_MODULES_READY = True
     logger.info("执行层模块加载成功: ExecAlgo/MarketImpact/SmartRouter")
 except ImportError as e:
@@ -270,8 +265,8 @@ except ImportError as e:
 # 顶级另类数据模块 (新闻情感 / 供应链 / 另类数据) — Renaissance/Two Sigma 标准
 ALT_DATA_MODULES_READY = False
 try:
-    from utils.news_sentiment_engine import NewsSentimentEngine, NewsItem
-    from utils.supply_chain_graph import SupplyChainGraph, SupplyChainEdge
+    from utils.news_sentiment_engine import NewsSentimentEngine, NewsItem  # noqa: F401
+    from utils.supply_chain_graph import SupplyChainGraph, SupplyChainEdge  # noqa: F401
     from utils.alt_data_indicators import AltDataIndicators
     ALT_DATA_MODULES_READY = True
     logger.info("另类数据模块加载成功: NewsSentiment/SupplyChain/AltData")
@@ -378,53 +373,53 @@ except ImportError as e:
 
 try:
     # 修复 P0: src/utils/ 无 __init__.py, 被 root utils/ 遮蔽, 改用 src.utils 前缀
-    from src.utils.environment_isolation import EnvironmentIsolation
+    from src.utils.environment_isolation import EnvironmentIsolation  # noqa: F401
     logger.info("v8.5 EnvironmentIsolation 加载成功")
 except ImportError as e:
     _V85_FAILURES.append(f"EnvironmentIsolation: {e}")
 
 try:
     # 修复 P0: 实际类名为 GlobalTimeService (非 TimeSync), 路径用 src.utils 前缀
-    from src.utils.timesync import GlobalTimeService as TimeSync
+    from src.utils.timesync import GlobalTimeService as TimeSync  # noqa: F401
     logger.info("v8.5 TimeSync(GlobalTimeService) 加载成功")
 except ImportError as e:
     _V85_FAILURES.append(f"TimeSync: {e}")
 
 try:
-    from risk.vega_monitor import VegaMonitor
+    from risk.vega_monitor import VegaMonitor  # noqa: F401
     logger.info("v8.5 VegaMonitor 加载成功")
 except ImportError as e:
     _V85_FAILURES.append(f"VegaMonitor: {e}")
 
 try:
-    from risk.liquidity_monitor import LiquidityMonitor
+    from risk.liquidity_monitor import LiquidityMonitor  # noqa: F401
     logger.info("v8.5 LiquidityMonitor 加载成功")
 except ImportError as e:
     _V85_FAILURES.append(f"LiquidityMonitor: {e}")
 
 try:
     # 修复 P0: 实际类名为 ExtremeValueAnalyzer（非 EVTTailRisk）
-    from risk.evt_tail_risk import ExtremeValueAnalyzer as EVTTailRisk
+    from risk.evt_tail_risk import ExtremeValueAnalyzer as EVTTailRisk  # noqa: F401
     logger.info("v8.5 EVTTailRisk(ExtremeValueAnalyzer) 加载成功")
 except ImportError as e:
     _V85_FAILURES.append(f"EVTTailRisk: {e}")
 
 try:
     # 修复 P0: 实际类名为 PurgedKFold（非 PurgedKFoldCV）
-    from model_validation.purged_kfold_cv import PurgedKFold as PurgedKFoldCV
+    from model_validation.purged_kfold_cv import PurgedKFold as PurgedKFoldCV  # noqa: F401
     logger.info("v8.5 PurgedKFoldCV(PurgedKFold) 加载成功")
 except ImportError as e:
     _V85_FAILURES.append(f"PurgedKFoldCV: {e}")
 
 try:
-    from model_monitoring.factor_decay_monitor import FactorDecayMonitor
+    from model_monitoring.factor_decay_monitor import FactorDecayMonitor  # noqa: F401
     logger.info("v8.5 FactorDecayMonitor 加载成功")
 except ImportError as e:
     _V85_FAILURES.append(f"FactorDecayMonitor: {e}")
 
 try:
     # 修复 P0: 实际类名为 ShadowAccount（非 ShadowAccountSystem）
-    from validation.shadow_account_system import ShadowAccount as ShadowAccountSystem
+    from validation.shadow_account_system import ShadowAccount as ShadowAccountSystem  # noqa: F401
     logger.info("v8.5 ShadowAccountSystem(ShadowAccount) 加载成功")
 except ImportError as e:
     _V85_FAILURES.append(f"ShadowAccountSystem: {e}")
@@ -809,7 +804,6 @@ class DailyWorkflow:
                 from sim_broker_integration import (
                     SimExecutionEngine,
                     SimStockBroker,
-                    SimFuturesBroker,
                     SimAccount,
                     PositionSync,
                     TradingSessionCalendar,
@@ -1371,6 +1365,71 @@ class DailyWorkflow:
             }
             logger.critical("NTP fail-closed 已激活, 禁止开仓直到 NTP 恢复")
             return True
+
+        # === R1 新增 (2026-08-01): C9 兜底价格新鲜度检查 ===
+        # 风险: 所有数据源失效时, futures_prices.py 回退到 DEFAULT_FUTURES_PRICES,
+        #       若兜底价格已过期 (>30 天), 对冲计算将基于失真价格, 名义价值/保证金错算
+        # 阈值: age > 7 天 WARN (告警不阻断), age > 30 天 ERROR (fail-closed 禁止开仓)
+        # 依据: utils/system_check.py C9 维度 + hedge_rebalance_v59.py is_price_safe()
+        try:
+            from utils.system_check import SystemChecker, CheckLevel, CheckStatus
+            _c9_checker = SystemChecker(strict=False, skip_datasource=True)
+            _c9_checker._results = []  # 重置, 仅运行 C9
+            _c9_checker.check_fallback_price_freshness()
+            c9_results = list(_c9_checker._results)
+            checks["fallback_price_freshness"] = {
+                "results": [
+                    {
+                        "code": r.code,
+                        "level": r.level.value,
+                        "status": r.status.value,
+                        "detail": r.detail,
+                    }
+                    for r in c9_results
+                ]
+            }
+            # 检查是否存在 C9 ERROR FAIL (阻断性)
+            c9_blocking = [
+                r for r in c9_results
+                if r.level == CheckLevel.ERROR and r.status == CheckStatus.FAIL
+            ]
+            c9_warns = [
+                r for r in c9_results
+                if r.level == CheckLevel.WARN and r.status == CheckStatus.FAIL
+            ]
+            if c9_blocking:
+                # ERROR: fail-closed, 禁止开仓
+                _c9_err = c9_blocking[0]
+                self.state["phases"]["check"] = {
+                    "status": "FAIL",
+                    "checks": checks,
+                    "degraded": True,
+                    "fail_closed": True,
+                    "reason": (
+                        f"C9 兜底价格新鲜度检查失败, 进入 fail-closed 模式, 禁止开仓. "
+                        f"[{_c9_err.code}] {_c9_err.detail}. "
+                        f"修复: {_c9_err.remediation}"
+                    ),
+                }
+                logger.critical(
+                    f"[Phase 1] C9 fail-closed 已激活: {_c9_err.detail}. "
+                    f"兜底价格过期将导致对冲计算失真, 必须更新后才能恢复交易."
+                )
+                return True
+            if c9_warns:
+                # WARN: 仅告警, 不阻断
+                _c9_warn = c9_warns[0]
+                logger.warning(
+                    f"[Phase 1] C9 兜底价格告警: {_c9_warn.detail}. "
+                    f"建议尽快更新, 当前不阻断交易."
+                )
+            else:
+                logger.info("[Phase 1] C9 兜底价格新鲜度检查通过")
+        except Exception as e:
+            # C9 检查本身异常 — 非致命, 不阻断 (避免自检 bug 影响主流程)
+            logger.warning(f"[Phase 1] C9 兜底价格检查异常 (非致命, 跳过): {e}")
+            checks["fallback_price_freshness"] = {"error": str(e)}
+
         self.state["phases"]["check"] = {
             "status": "PASS",
             "checks": checks,
@@ -1975,7 +2034,7 @@ class DailyWorkflow:
                 fut = futures_config.get("IF", futures_config["IF"])
                 live_price = float(fut.get("price", 3800.0))
                 notional_per_contract = float(fut.get("multiplier", 300)) * live_price
-                n_contracts = max(1, int(round((portfolio_beta - beta_target) * portfolio_value / notional_per_contract)))
+                n_contracts = max(1, round((portfolio_beta - beta_target) * portfolio_value / notional_per_contract))
                 if n_contracts <= 0:
                     n_contracts = 1
                 commission_rate = 0.000023
@@ -2094,7 +2153,7 @@ class DailyWorkflow:
                             }
                             try:
                                 gate = self.data_gate.check_and_gate(code, snapshot)
-                            except Exception as _gate_exc:  # noqa: BLE001  # 门控异常不得阻断行情获取
+                            except Exception as _gate_exc:  # 门控异常不得阻断行情获取
                                 logger.warning("[DataGate] %s 门控异常, 降级放行: %s", code, _gate_exc)
                                 gate = None
                             if gate is not None and not gate.allowed:
@@ -2334,44 +2393,11 @@ class DailyWorkflow:
 
         elif hedge_orders and not self.dry_run:
             # 尝试加载真实券商网关（按优先级：CTP > 同花顺 > Mock）
+            # v8.6.9 P3-3 重构: CTP→同花顺连接逻辑抽离为 _connect_live_broker(), 三处复用
             broker = None
-            broker_type = "mock"  # 默认降级到模拟
-            
-            # 优先级1: CTP期货网关（用于股指期权对冲）
-            try:
-                from src.execution.ctp_gateway import CTPGateway
-                ctp = CTPGateway(
-                    front_addr=getattr(self.config, 'CTP_FRONT_ADDR', ''),
-                    broker_id=getattr(self.config, 'CTP_BROKER_ID', ''),
-                    user_id=getattr(self.config, 'CTP_USER_ID', ''),
-                    password=getattr(self.config, 'CTP_PASSWORD', ''),
-                    flow_path=getattr(self.config, 'CTP_FLOW_PATH', 'ctp_flow'),
-                )
-                if ctp.is_connected():
-                    broker = ctp
-                    broker_type = "ctp"
-                    logger.info("✓ 已连接 CTP 期货网关")
-            except Exception as e:
-                logger.debug(f"CTP网关不可用: {e}")
-            
-            # 优先级2: 同花顺真实下单（用于股票交易）
-            # v8.6.8 P1-LIVE-08 修复: 显式 mode="live", 与 phase_execute 保持一致
-            # 原始 bug: 此处未传 mode, THSRealBroker 默认 mode != "live",
-            # 根据 P0-LIVE-03 守卫, 所有 place_order 会被 REJECTED, 对冲执行流形同虚设
-            if broker is None:
-                try:
-                    from ths_real_broker import THSRealBroker
-                    ths_account = getattr(self.config, 'THS_ACCOUNT', '')
-                    if ths_account:
-                        # P1-LIVE-08: 实盘模式必须显式 mode="live" 才能真实下单
-                        broker = THSRealBroker(account=ths_account, mode="live")
-                        if broker.connect():
-                            broker_type = "ths_real"
-                            logger.info("✓ 已连接 同花顺真实交易网关 (mode=live, 对冲执行通道激活)")
-                        else:
-                            broker = None
-                except Exception as e:
-                    logger.debug(f"同花顺网关不可用: {e}")
+            broker, _broker_source = self._connect_live_broker()
+            if broker is not None:
+                pass
 
             # 优先级3: 降级到 MockBroker（仅用于测试/开发环境）
             # v8.6.8 P1-LIVE-08: 降级时明确标记, 避免误认为实盘
@@ -2385,11 +2411,9 @@ class DailyWorkflow:
                 broker = MockBroker(price_dict={
                     str(k): v for k, v in self.config.MOCK_PRICES.items()
                 })
-                broker_type = "mock_fallback_hedge"
 
             # 对冲指令执行（所有 broker 类型通用；修复: 补全缺失的 try 匹配 L2305 except）
             try:
-                from execution.smart_order_router import AlgoType
 
                 for order in hedge_orders:
                     hedge_type = order.get("hedge_type", "UNKNOWN")
@@ -2456,7 +2480,7 @@ class DailyWorkflow:
                                     order_type="LIMIT",
                                     price=opt_price,
                                     option_type="PUT",
-                                    strike=0.0,
+                                    strike=order.get("strike", 0.0),
                                 )
                                 fill = broker.wait_fill(oid)
                                 executed_orders.append({
@@ -2465,7 +2489,7 @@ class DailyWorkflow:
                                     "instrument": opt_symbol,
                                     "side": "BUY",
                                     "option_type": "PUT",
-                                    "strike": 0.0,
+                                    "strike": order.get("strike", 0.0),
                                     "budget": budget,
                                     "delta_target": order.get("delta_target", -0.2),
                                     "coverage": order.get("actual_coverage", 0),
@@ -2669,7 +2693,7 @@ class DailyWorkflow:
 
         for order in hedge_orders:
             action = order.get("action", "")
-            hedge_type = order.get("hedge_type", order.get("type", ""))
+            order.get("hedge_type", order.get("type", ""))
 
             if action == "SHORT_FUTURES":
                 fut_code = order.get("instrument", "IF")
@@ -2971,8 +2995,6 @@ class DailyWorkflow:
                     "reason": "KillSwitch 未武装, 跳过检查 (P0-05)",
                 }
                 # 直接 fail-closed: 禁开仓
-                morning_orders = []
-                afternoon_orders = []
                 result["kill_switch_blocked"] = True
                 return [], [], [{"level": -1, "action": "ks_unarmed_fail_closed", "executed": False}]
             ks_status = ks.check_margin_status()
@@ -3932,7 +3954,7 @@ class DailyWorkflow:
             closes = []
             volumes = []
             price = base
-            for i in range(60):
+            for _i in range(60):
                 # 模拟价格波动 (±2%)
                 change = random.uniform(-0.02, 0.02)
                 price = price * (1 + change)
@@ -4908,8 +4930,8 @@ class DailyWorkflow:
             sc_nodes = getattr(sc_result, "nodes", []) or []
             sc_edges = getattr(sc_result, "edges", []) or []
             signal["supply_chain"] = {
-                "total_nodes": int(len(sc_nodes)),
-                "total_edges": int(len(sc_edges)),
+                "total_nodes": len(sc_nodes),
+                "total_edges": len(sc_edges),
                 "top_central": [
                     {"symbol": s, "betweenness": float(getattr(m, "betweenness_centrality", 0.0)),
                      "pagerank": float(getattr(m, "pagerank", 0.0))}
@@ -4957,7 +4979,7 @@ class DailyWorkflow:
             # 平均覆盖率
             ad_avg_cov = float(_np_alt.mean(list(ad_coverage.values()))) if ad_coverage else 0.0
             signal["alt_data"] = {
-                "total_symbols": int(len(ad_signals)),
+                "total_symbols": len(ad_signals),
                 "avg_composite_score": float(getattr(ad_result, "market_alt_score", 0.0)),
                 "coverage_rate": float(ad_avg_cov),
                 "top_scores": [
@@ -4978,7 +5000,7 @@ class DailyWorkflow:
             }
             logger.info(
                 "[AltData] 分析完成: 标的=%d, 平均综合评分=%.3f, 平均覆盖率=%.1f%%",
-                int(len(ad_signals)),
+                len(ad_signals),
                 float(getattr(ad_result, "market_alt_score", 0.0)),
                 float(ad_avg_cov) * 100,
             )
@@ -5065,7 +5087,7 @@ class DailyWorkflow:
             insight_map = self._get_ifind_insights(planned_symbols, name_map)
             cb_dir = cb_cfg.get("direction", "negative")
             cb_min_conf = float(cb_cfg.get("min_confidence", 0.9))
-            for symbol, insight in insight_map.items():
+            for _symbol, insight in insight_map.items():
                 if insight.direction == cb_dir and float(insight.confidence) >= cb_min_conf:
                     logger.warning("iFinD 重大负面新闻熔断: [%s] %s confidence=%.2f reasons=%s",
                                    insight.symbol, insight.direction, insight.confidence, insight.reasons)
@@ -5342,7 +5364,7 @@ class DailyWorkflow:
 
                 new_order = dict(order)
                 original_shares = int(order.get("shares", 0))
-                original_amount = float(order.get("est_amount", 0))
+                float(order.get("est_amount", 0))
                 new_shares = max(100, int(original_shares * factor / 100) * 100)
                 new_order["shares"] = new_shares
                 new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
@@ -5619,7 +5641,7 @@ class DailyWorkflow:
 
                 new_order = dict(order)
                 original_shares = int(order.get("shares", 0))
-                original_amount = float(order.get("est_amount", 0))
+                float(order.get("est_amount", 0))
                 new_shares = max(100, int(original_shares * fused_factor / 100) * 100)
                 new_order["shares"] = new_shares
                 new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
@@ -5722,7 +5744,7 @@ class DailyWorkflow:
 
                 new_order = dict(order)
                 original_shares = int(order.get("shares", 0))
-                original_amount = float(order.get("est_amount", 0))
+                float(order.get("est_amount", 0))
                 new_shares = max(100, int(original_shares * factor / 100) * 100)
                 new_order["shares"] = new_shares
                 new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
@@ -5799,7 +5821,7 @@ class DailyWorkflow:
 
                 new_order = dict(order)
                 original_shares = int(order.get("shares", 0))
-                original_amount = float(order.get("est_amount", 0))
+                float(order.get("est_amount", 0))
                 new_shares = max(100, int(original_shares * factor / 100) * 100)
                 new_order["shares"] = new_shares
                 new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
@@ -5849,7 +5871,7 @@ class DailyWorkflow:
         for order in orders:
             new_order = dict(order)
             original_shares = int(order.get("shares", 0))
-            original_amount = float(order.get("est_amount", 0))
+            float(order.get("est_amount", 0))
             # 按 factor 缩减股数, 并对齐到 100 股整数倍
             new_shares = max(100, (int(original_shares * factor) // 100) * 100)
             new_order["shares"] = new_shares
@@ -5950,7 +5972,6 @@ class DailyWorkflow:
             from utils.data_provider import get_historical_data
         except Exception:
             return fr
-        import pandas as _pd
         for symbol in symbols:
             try:
                 code = symbol
@@ -6022,6 +6043,63 @@ class DailyWorkflow:
             "underlyings": [],
             "note": "最小快照, 实盘应接入期权行情",
         }
+
+    # --------------------------------------------------------
+    # v8.6.9 P3-3 重构: 真实券商网关连接逻辑抽离 (三处复用)
+    # 原 daily_workflow 在 对冲执行 / 强制平仓 / 普通下单 三处各自重复近 50 行
+    # 近乎一致的 CTP→同花顺连接逻辑, 且存在行为漂移风险。
+    # 抽离为单一方法后, 升级/修复只需改一处。
+    # --------------------------------------------------------
+    def _connect_live_broker(self) -> Tuple[Optional[Any], str]:
+        """按 CTP(期货/期权)→同花顺(股票/ETF/期权) 优先级连接真实券商网关。
+
+        仅负责连接尝试, **不**负责降级策略 — 这是关键安全边界:
+          - 强制平仓(_execute_kill_switch_callback)连接失败必须 fail-closed,
+            绝不允许降级 Mock(否则会留下未平仓位, 历史熔断事故根因之一);
+          - 对冲执行/普通下单允许降级 MockBroker(仅影响执行, 不危及现有仓位)。
+        各调用点根据自身语义决定 broker=None 后的行为, 本方法不擅自降级。
+
+        原三处对 CTP broker_id 配置键不一致 (CTP_BROKER_ID vs broker_id),
+        此处统一: 优先 CTP_BROKER_ID, 缺失时回退 broker_id, 行为向后兼容。
+        """
+        broker: Any = None
+        broker_source = "none"
+        ctp_broker_id = (
+            getattr(self.config, 'CTP_BROKER_ID', '')
+            or getattr(self.config, 'broker_id', '')
+        )
+        try:
+            from src.execution.ctp_gateway import CTPGateway
+            ctp = CTPGateway(
+                front_addr=getattr(self.config, 'CTP_FRONT_ADDR', ''),
+                broker_id=ctp_broker_id,
+                user_id=getattr(self.config, 'CTP_USER_ID', ''),
+                password=getattr(self.config, 'CTP_PASSWORD', ''),
+                flow_path=getattr(self.config, 'CTP_FLOW_PATH', 'ctp_flow'),
+            )
+            if not getattr(self.config, 'CTP_PASSWORD', None):
+                logger.warning("[Broker] CTP_PASSWORD 为空, CTP 网关将无法连接")
+            if ctp.is_connected():
+                broker = ctp
+                broker_source = "ctp_live"
+                logger.info("[Broker] ✓ 已连接 CTP 实盘期货网关")
+        except Exception as e:
+            logger.debug(f"[Broker] CTP 网关不可用: {e}")
+
+        if broker is None:
+            try:
+                from ths_real_broker import THSRealBroker
+                ths_account = getattr(self.config, 'THS_ACCOUNT', '')
+                if ths_account:
+                    # P0-LIVE-03: 实盘模式必须显式 mode='live', 否则 place_order 被守卫 REJECT
+                    ths_broker = THSRealBroker(account=ths_account, mode="live")
+                    if ths_broker.connect():
+                        broker = ths_broker
+                        broker_source = "ths_live"
+                        logger.info("[Broker] ✓ 已连接 同花顺实盘交易网关 (mode=live)")
+            except Exception as e:
+                logger.debug(f"[Broker] 同花顺实盘不可用: {e}")
+        return broker, broker_source
 
     # --------------------------------------------------------
     # P0-6/P0-7/P0-9/P0-11: 顶级对冲基金审计修复 (2026-07-25)
@@ -6177,40 +6255,8 @@ class DailyWorkflow:
             RED_ETF_SELL_PCT = 0.10
 
             # 选择真实 broker (CTP 优先, 同花顺次之)
-            broker = None
-            broker_source = "none"
-
-            # 优先级 1: CTP 期货网关
-            try:
-                from src.execution.ctp_gateway import CTPGateway
-                ctp = CTPGateway(
-                    front_addr=getattr(self.config, 'CTP_FRONT_ADDR', ''),
-                    broker_id=getattr(self.config, 'CTP_BROKER_ID', ''),
-                    user_id=getattr(self.config, 'CTP_USER_ID', ''),
-                    password=getattr(self.config, 'CTP_PASSWORD', ''),
-                    flow_path=getattr(self.config, 'CTP_FLOW_PATH', 'ctp_flow'),
-                )
-                if ctp.is_connected():
-                    broker = ctp
-                    broker_source = "ctp_live"
-                    logger.info("[RealForceClose] 使用 CTP 期货网关执行平仓")
-            except Exception as e:
-                logger.debug(f"[RealForceClose] CTP 网关不可用: {e}")
-
-            # 优先级 2: 同花顺实盘 (股票/ETF/期权)
-            if broker is None:
-                try:
-                    from ths_real_broker import THSRealBroker
-                    ths_account = getattr(self.config, 'THS_ACCOUNT', '')
-                    if ths_account:
-                        # P0-LIVE-03: 显式 mode='live', 防止误触屏点击
-                        ths_broker = THSRealBroker(account=ths_account, mode="live")
-                        if ths_broker.connect():
-                            broker = ths_broker
-                            broker_source = "ths_live"
-                            logger.info("[RealForceClose] 使用同花顺实盘网关执行平仓")
-                except Exception as e:
-                    logger.debug(f"[RealForceClose] 同花顺实盘不可用: {e}")
+            # v8.6.9 P3-3 重构: CTP→同花顺连接逻辑抽离为 _connect_live_broker()
+            broker, broker_source = self._connect_live_broker()
 
             # broker 未连接: 失败返回, 触发上层 critical 告警
             if broker is None:
@@ -7083,38 +7129,9 @@ class DailyWorkflow:
                 logger.info("[Broker] %s 模式使用 MockBroker (不会真实下单)",
                             "DRY-RUN" if self.dry_run else "SIM")
             else:
-                # 优先级 1: CTP 期货网关 (股指期货/期权)
-                try:
-                    from src.execution.ctp_gateway import CTPGateway
-                    ctp = CTPGateway(
-                        front_addr=getattr(self.config, 'CTP_FRONT_ADDR', ''),
-                        broker_id=getattr(self.config, 'CTP_BROKER_ID', ''),
-                        user_id=getattr(self.config, 'CTP_USER_ID', ''),
-                        password=getattr(self.config, 'CTP_PASSWORD', ''),
-                        flow_path=getattr(self.config, 'CTP_FLOW_PATH', 'ctp_flow'),
-                    )
-                    if ctp.is_connected():
-                        broker = ctp
-                        broker_source = "ctp_live"
-                        logger.info("[Broker] ✓ 已连接 CTP 实盘期货网关")
-                except Exception as e:
-                    logger.debug(f"[Broker] CTP 网关不可用: {e}")
-
-                # 优先级 2: 同花顺实盘 (股票/ETF/期权)
-                if broker is None:
-                    try:
-                        from ths_real_broker import THSRealBroker
-                        ths_account = getattr(self.config, 'THS_ACCOUNT', '')
-                        if ths_account:
-                            # P0-LIVE-03: 显式 mode='live', 防止误触屏点击
-                            broker = THSRealBroker(account=ths_account, mode="live")
-                            if broker.connect():
-                                broker_source = "ths_live"
-                                logger.info("[Broker] ✓ 已连接 同花顺实盘交易网关")
-                            else:
-                                broker = None
-                    except Exception as e:
-                        logger.debug(f"[Broker] 同花顺实盘不可用: {e}")
+                # 优先级 1/2: CTP 期货网关 → 同花顺实盘
+                # v8.6.9 P3-3 重构: 连接逻辑抽离为 _connect_live_broker(), 三处复用
+                broker, broker_source = self._connect_live_broker()
 
                 # 优先级 3: 降级 MockBroker (开发/测试)
                 # v8.6.8 P0-07 FIX: --live 模式下 broker 连接失败必须 fail-closed, 不允许降级
@@ -8525,7 +8542,6 @@ class DailyWorkflow:
 
         try:
             import json as _json
-            from pathlib import Path as _Path
 
             # === 加载影子账户状态 ===
             # v8.6.11 FIX: 使用 BASE_DIR.parent 定位 (与 launch_shadow_account.py 一致)
@@ -8561,7 +8577,7 @@ class DailyWorkflow:
             # === 计算当日组合净值 ===
             # 从 Phase 6 获取今日执行的订单 (影子账户跟踪生产信号)
             execute_phase = self.state.get("phases", {}).get("execute", {})
-            orders = execute_phase.get("orders", []) if isinstance(execute_phase, dict) else []
+            execute_phase.get("orders", []) if isinstance(execute_phase, dict) else []
 
             # 计算当日组合收益 (简化: 使用 signal 阶段的目标权重 + 实际收益)
             signal_phase = self.state.get("phases", {}).get("signal", {})

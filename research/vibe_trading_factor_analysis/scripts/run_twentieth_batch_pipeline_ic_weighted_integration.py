@@ -32,9 +32,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
 
-import numpy as np
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -46,7 +44,7 @@ from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
     compute_equal_weight_benchmark,
 )
 from research.vibe_trading_factor_analysis.pipeline.pipeline_orchestrator import (
-    PipelineOrchestrator, PipelineResult,
+    PipelineOrchestrator,
 )
 
 logger = logging.getLogger("run_twentieth_batch_pipeline_ic_weighted")
@@ -73,41 +71,41 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("S3 第二十批次：PipelineOrchestrator IC 加权组合集成验证（P2.2 v6.8）")
-    print("=" * 70)
-    print("v6.8 集成内容:")
-    print("  - PipelineResult.factor_combinations 新字段")
-    print("  - IC 加权组合配置（Config_E_plus1：target_vol=0.07, dd=0.018, factor=0.18）")
-    print("  - run() 主流程调用 _build_ic_weighted_combinations()")
-    print("  - 验证集成后结果与第十九批次独立脚本一致")
+    logger.info("=" * 70)
+    logger.info("S3 第二十批次：PipelineOrchestrator IC 加权组合集成验证（P2.2 v6.8）")
+    logger.info("=" * 70)
+    logger.info("v6.8 集成内容:")
+    logger.info("  - PipelineResult.factor_combinations 新字段")
+    logger.info("  - IC 加权组合配置（Config_E_plus1：target_vol=0.07, dd=0.018, factor=0.18）")
+    logger.info("  - run() 主流程调用 _build_ic_weighted_combinations()")
+    logger.info("  - 验证集成后结果与第十九批次独立脚本一致")
 
     # ============ Step 1: 加载数据 ============
-    print("\n[1/4] 加载数据")
+    logger.info("\n[1/4] 加载数据")
     symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
+    logger.info(f"  可用标的数: {len(symbols)}")
     price_data = load_price_data(symbols=symbols)
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns()
     if not benchmark_returns:
         benchmark_returns = compute_equal_weight_benchmark(price_data)
-    print(f"  price_data: {len(price_data)} | benchmark: {len(benchmark_returns)} 天")
+    logger.info(f"  price_data: {len(price_data)} | benchmark: {len(benchmark_returns)} 天")
 
     # ============ Step 2: 运行 PipelineOrchestrator（含 IC 加权组合） ============
-    print("\n[2/4] 运行 PipelineOrchestrator（含单因子流水线 + IC 加权组合）")
+    logger.info("\n[2/4] 运行 PipelineOrchestrator（含单因子流水线 + IC 加权组合）")
     batch_id = f"twentieth_batch_pipeline_ic_weighted_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    print(f"  batch_id: {batch_id}")
+    logger.info(f"  batch_id: {batch_id}")
 
     orchestrator = PipelineOrchestrator()
-    print(f"  IC 加权配置:")
-    print(f"    enabled: {orchestrator.ic_weighted_enabled}")
-    print(f"    lookback: {orchestrator.ic_weighted_lookback}")
-    print(f"    pairs: {orchestrator.ic_weighted_pairs}")
-    print(f"    shadow_config (Config_E_plus1): {orchestrator.ic_weighted_shadow_config}")
+    logger.info("  IC 加权配置:")
+    logger.info(f"    enabled: {orchestrator.ic_weighted_enabled}")
+    logger.info(f"    lookback: {orchestrator.ic_weighted_lookback}")
+    logger.info(f"    pairs: {orchestrator.ic_weighted_pairs}")
+    logger.info(f"    shadow_config (Config_E_plus1): {orchestrator.ic_weighted_shadow_config}")
 
     n_trials = max(len(symbols), 13)
-    print(f"  n_trials: {n_trials}")
-    print(f"  开始运行（包含所有候选因子的 G1-G4+Shadow 流水线，预计耗时数分钟）...")
+    logger.info(f"  n_trials: {n_trials}")
+    logger.info("  开始运行（包含所有候选因子的 G1-G4+Shadow 流水线，预计耗时数分钟）...")
 
     result = orchestrator.run(
         price_data=price_data,
@@ -120,57 +118,57 @@ def main() -> int:
         forward_window=5,
     )
 
-    print(f"\n  流水线完成:")
-    print(f"    total_candidates: {result.total_candidates}")
-    print(f"    approved: {result.approved}")
-    print(f"    rejected: {result.failed + result.rejected}")
-    print(f"    deferred_fundamentals: {result.deferred_fundamentals}")
-    print(f"    factor_combinations: {len(result.factor_combinations)}")
+    logger.info("\n  流水线完成:")
+    logger.info(f"    total_candidates: {result.total_candidates}")
+    logger.info(f"    approved: {result.approved}")
+    logger.info(f"    rejected: {result.failed + result.rejected}")
+    logger.info(f"    deferred_fundamentals: {result.deferred_fundamentals}")
+    logger.info(f"    factor_combinations: {len(result.factor_combinations)}")
 
     # ============ Step 3: 验证 IC 加权组合结果 ============
-    print("\n[3/4] 验证 IC 加权组合结果")
-    print("-" * 70)
+    logger.info("\n[3/4] 验证 IC 加权组合结果")
+    logger.info("-" * 70)
 
     if not result.factor_combinations:
-        print("  ❌ 未生成 IC 加权组合结果")
-        print(f"  审计 trail 最后几条: {result.audit_trail[-5:] if result.audit_trail else 'empty'}")
+        logger.info("  ❌ 未生成 IC 加权组合结果")
+        logger.info(f"  审计 trail 最后几条: {result.audit_trail[-5:] if result.audit_trail else 'empty'}")
         return 1
 
     combo = result.factor_combinations[0]
-    print(f"\n  组合: {combo.get('factor_a')} + {combo.get('factor_b')}")
-    print(f"  desc: {combo.get('desc')}")
-    print(f"  method: {combo.get('method')}")
-    print(f"  passed: {combo.get('passed')}")
+    logger.info(f"\n  组合: {combo.get('factor_a')} + {combo.get('factor_b')}")
+    logger.info(f"  desc: {combo.get('desc')}")
+    logger.info(f"  method: {combo.get('method')}")
+    logger.info(f"  passed: {combo.get('passed')}")
 
     ic_metrics = combo.get("ic_metrics", {})
     shadow = combo.get("shadow", {})
     weights = combo.get("weights_stats", {})
 
-    print(f"\n  IC 指标:")
-    print(f"    factor_a_ic_ir: {ic_metrics.get('factor_a_ic_ir', 0):+.4f}")
-    print(f"    factor_b_ic_ir: {ic_metrics.get('factor_b_ic_ir', 0):+.4f}")
-    print(f"    combined_ic_ir: {ic_metrics.get('combined_ic_ir', 0):+.4f}")
-    print(f"    combined_ic_mean: {ic_metrics.get('combined_ic_mean', 0):+.4f}")
-    print(f"    combined_ic_std: {ic_metrics.get('combined_ic_std', 0):.4f}")
-    print(f"    combined_ic_decay: {ic_metrics.get('combined_ic_decay', 0):.4f}")
+    logger.info("\n  IC 指标:")
+    logger.info(f"    factor_a_ic_ir: {ic_metrics.get('factor_a_ic_ir', 0):+.4f}")
+    logger.info(f"    factor_b_ic_ir: {ic_metrics.get('factor_b_ic_ir', 0):+.4f}")
+    logger.info(f"    combined_ic_ir: {ic_metrics.get('combined_ic_ir', 0):+.4f}")
+    logger.info(f"    combined_ic_mean: {ic_metrics.get('combined_ic_mean', 0):+.4f}")
+    logger.info(f"    combined_ic_std: {ic_metrics.get('combined_ic_std', 0):.4f}")
+    logger.info(f"    combined_ic_decay: {ic_metrics.get('combined_ic_decay', 0):.4f}")
 
-    print(f"\n  Shadow 结果（Config_E_plus1）:")
-    print(f"    pass_shadow: {shadow.get('pass_shadow', False)}")
-    print(f"    live_dsr: {shadow.get('live_dsr', 0):+.4f}")
-    print(f"    max_drawdown: {shadow.get('max_drawdown', 0):.4f}")
-    print(f"    total_return: {shadow.get('total_return', 0):+.4f}")
-    print(f"    sr_observed: {shadow.get('sr_observed', 0):.4f}")
-    print(f"    realized_vol: {shadow.get('realized_vol', 0):.4f}")
-    print(f"    mc_p95_dd: {shadow.get('mc_p95_dd', 0):.4f}")
-    print(f"    avg_scaler: {shadow.get('avg_scaler', 0):.4f}")
-    print(f"    derisk_triggered_days: {shadow.get('derisk_triggered_days', 0)}")
+    logger.info("\n  Shadow 结果（Config_E_plus1）:")
+    logger.info(f"    pass_shadow: {shadow.get('pass_shadow', False)}")
+    logger.info(f"    live_dsr: {shadow.get('live_dsr', 0):+.4f}")
+    logger.info(f"    max_drawdown: {shadow.get('max_drawdown', 0):.4f}")
+    logger.info(f"    total_return: {shadow.get('total_return', 0):+.4f}")
+    logger.info(f"    sr_observed: {shadow.get('sr_observed', 0):.4f}")
+    logger.info(f"    realized_vol: {shadow.get('realized_vol', 0):.4f}")
+    logger.info(f"    mc_p95_dd: {shadow.get('mc_p95_dd', 0):.4f}")
+    logger.info(f"    avg_scaler: {shadow.get('avg_scaler', 0):.4f}")
+    logger.info(f"    derisk_triggered_days: {shadow.get('derisk_triggered_days', 0)}")
     if shadow.get('fail_reasons'):
-        print(f"    fail_reasons: {shadow['fail_reasons']}")
+        logger.info(f"    fail_reasons: {shadow['fail_reasons']}")
 
     if weights.get("available"):
         wa = weights.get("factor_a", {})
         wb = weights.get("factor_b", {})
-        print(f"\n  权重统计:")
+        logger.info("\n  权重统计:")
         print(f"    Factor A: weight_mean={wa.get('weight_mean', 0):+.4f} "
               f"min={wa.get('weight_min', 0):+.4f} max={wa.get('weight_max', 0):+.4f}")
         print(f"    Factor A: neg_weight_days={wa.get('neg_weight_days', 0)} "
@@ -180,11 +178,11 @@ def main() -> int:
         print(f"    Factor B: neg_weight_days={wb.get('neg_weight_days', 0)} "
               f"({wb.get('neg_weight_pct', 0)*100:.1f}% 反向使用)")
     else:
-        print(f"\n  ⚠️ 权重统计不可用: {weights.get('reason', 'unknown')}")
+        logger.info(f"\n  ⚠️ 权重统计不可用: {weights.get('reason', 'unknown')}")
 
     # ============ Step 4: 验收检查 ============
-    print("\n[4/4] 验收检查")
-    print("-" * 70)
+    logger.info("\n[4/4] 验收检查")
+    logger.info("-" * 70)
 
     checks = []
 
@@ -237,24 +235,24 @@ def main() -> int:
     all_pass = True
     for desc, ok in checks:
         status = "✅ PASS" if ok else "❌ FAIL"
-        print(f"  [{status}] {desc}")
+        logger.info(f"  [{status}] {desc}")
         if not ok:
             all_pass = False
 
-    print("\n" + "=" * 70)
+    logger.info("\n" + "=" * 70)
     if all_pass:
-        print("🎉 v6.8 集成验证全部通过：IC 加权组合机制已正确集成到 PipelineOrchestrator")
-        print("   - 集成结果与第十九批次独立脚本一致")
-        print("   - IC 加权组合通过 Shadow，可作为生产候选")
-        print("   - 主流程（单因子流水线）独立运行，未被组合失败阻断")
+        logger.info("🎉 v6.8 集成验证全部通过：IC 加权组合机制已正确集成到 PipelineOrchestrator")
+        logger.info("   - 集成结果与第十九批次独立脚本一致")
+        logger.info("   - IC 加权组合通过 Shadow，可作为生产候选")
+        logger.info("   - 主流程（单因子流水线）独立运行，未被组合失败阻断")
     else:
-        print("⚠️ v6.8 集成验证存在失败项，请检查上述 FAIL 项")
-    print("=" * 70)
+        logger.info("⚠️ v6.8 集成验证存在失败项，请检查上述 FAIL 项")
+    logger.info("=" * 70)
 
     # ============ 与第十九批次独立脚本详细对比 ============
-    print("\n[集成 vs 第十九批次独立脚本对比]")
-    print(f"{'指标':<25s} {'集成值':>12s} {'独立值':>12s} {'差异':>10s}")
-    print("-" * 65)
+    logger.info("\n[集成 vs 第十九批次独立脚本对比]")
+    logger.info(f"{'指标':<25s} {'集成值':>12s} {'独立值':>12s} {'差异':>10s}")
+    logger.info("-" * 65)
     pairs = [
         ("combined_ic_ir", combined_ic_ir, EXPECTED_RESULTS["nineteenth_batch_ic_ir"]),
         ("live_dsr", live_dsr, EXPECTED_RESULTS["nineteenth_batch_live_dsr"]),
@@ -263,7 +261,7 @@ def main() -> int:
     ]
     for name, integrated, standalone in pairs:
         diff = integrated - standalone
-        print(f"{name:<25s} {integrated:>+12.4f} {standalone:>+12.4f} {diff:>+10.4f}")
+        logger.info(f"{name:<25s} {integrated:>+12.4f} {standalone:>+12.4f} {diff:>+10.4f}")
 
     # ============ 保存结果 ============
     output_dir = REPORTS_DIR / batch_id
@@ -299,9 +297,9 @@ def main() -> int:
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False, default=str)
 
-    print(f"\n结果已保存至: {output_path}")
-    print(f"批次 ID: {batch_id}")
-    print(f"Pipeline state 已持久化: {orchestrator.reports_dir / batch_id / 'pipeline_state.json'}")
+    logger.info(f"\n结果已保存至: {output_path}")
+    logger.info(f"批次 ID: {batch_id}")
+    logger.info(f"Pipeline state 已持久化: {orchestrator.reports_dir / batch_id / 'pipeline_state.json'}")
 
     return 0 if all_pass else 1
 

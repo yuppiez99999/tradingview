@@ -9,10 +9,7 @@
     - 重点验证 fail-closed 行为: 数据不可用时只触发 L2 (禁止开仓), 不触发 L3 (强制平仓)
     - 每个 bug 至少一个用例, 函数名包含 bug 编号
 """
-import json
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 from utils.overnight_gap_monitor import OvernightGapMonitor
 

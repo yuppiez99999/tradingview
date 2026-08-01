@@ -4,6 +4,11 @@ import time
 import sys
 import json
 import urllib.request
+from pathlib import Path
+
+def _get_ollama_path() -> str:
+    return os.environ.get("OLLAMA_PATH",
+        str(Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe"))
 
 env = os.environ.copy()
 env["OLLAMA_NUM_GPUS"] = "0"
@@ -16,7 +21,7 @@ time.sleep(3)
 
 print("Starting Ollama with OLLAMA_NUM_GPUS=0...")
 proc = subprocess.Popen(
-    ["C:\\Users\\Administrator\\AppData\\Local\\Programs\\Ollama\\ollama.exe", "serve"],
+    [_get_ollama_path(), "serve"],
     env=env,
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,

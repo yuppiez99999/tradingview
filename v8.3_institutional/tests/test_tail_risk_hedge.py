@@ -16,7 +16,6 @@ tail_risk_hedge.py 完整单元测试 — v8.5 机构级增强版
 """
 
 import unittest
-from typing import Dict, List
 
 
 class TestMarketRegime(unittest.TestCase):
@@ -43,7 +42,7 @@ class TestMarketRegime(unittest.TestCase):
             MarketRegime.RECOVERY: "恢复市场",
         }
 
-        for state, desc in states.items():
+        for state, _desc in states.items():
             self.assertIsInstance(state, str)
             self.assertTrue(len(state) > 0)
 
@@ -276,7 +275,7 @@ class TestOTMLadder(unittest.TestCase):
 
     def test_vix_amplifies_weights(self):
         """测试 VIX>35 时权重放大"""
-        ladder_normal = self.hedger.build_otm_ladder(
+        self.hedger.build_otm_ladder(
             bs_loss=0.60,
             vix=25,
             spot_price=100.0,

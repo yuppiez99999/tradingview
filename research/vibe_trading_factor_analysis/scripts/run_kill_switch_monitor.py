@@ -61,23 +61,23 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 80)
-    print("S6 FactorKillSwitch 实时监控启动")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("S6 FactorKillSwitch 实时监控启动")
+    logger.info("=" * 80)
 
     if args.synthetic:
-        print("\n[1/5] 使用合成 Demo 数据（跳过依赖市场数据）")
+        logger.info("\n[1/5] 使用合成 Demo 数据（跳过依赖市场数据）")
         price_data, fundamentals, benchmark_returns, existing_factors, candidate_factors = _load_synthetic_demo_inputs()
-        print("  ✓ 合成因子/价格数据已就绪")
+        logger.info("  ✓ 合成因子/价格数据已就绪")
     else:
         # ============ Step 1: 加载真实数据 ============
-        print("\n[1/5] 加载真实 A 股历史数据")
+        logger.info("\n[1/5] 加载真实 A 股历史数据")
         symbols = list_available_symbols()
-        print(f"  可用标的数: {len(symbols)}")
+        logger.info(f"  可用标的数: {len(symbols)}")
         price_data, fundamentals, benchmark_returns = load_all_for_pipeline(symbols=symbols)
 
         # ============ Step 2: 加载现有 51 个生产因子 ============
-        print("\n[2/5] 加载现有生产因子库（51 个）")
+        logger.info("\n[2/5] 加载现有生产因子库（51 个）")
         try:
             from utils.alpha_factor_library import AlphaFactorLibrary
             lib = AlphaFactorLibrary()
@@ -87,18 +87,18 @@ def main() -> int:
                 benchmark_returns=benchmark_returns,
             )
             existing_factors = dict(result.factors)
-            print(f"  ✓ 现有生产因子加载: {len(existing_factors)} 个")
+            logger.info(f"  ✓ 现有生产因子加载: {len(existing_factors)} 个")
         except Exception as e:
-            print(f"  ✗ 现有因子库加载失败: {e}")
+            logger.info(f"  ✗ 现有因子库加载失败: {e}")
             existing_factors = {}
 
         # ============ Step 3: 加载首批次候选因子 ============
-        print("\n[3/5] 加载首批次候选因子（16 个）")
+        logger.info("\n[3/5] 加载首批次候选因子（16 个）")
         candidate_factors = _load_first_batch_candidates()
-        print(f"  ✓ 候选因子加载: {len(candidate_factors)} 个")
+        logger.info(f"  ✓ 候选因子加载: {len(candidate_factors)} 个")
 
     # ============ Step 4: 初始化 KillSwitch 并模拟历史监控 ============
-    print(f"\n[4/5] 初始化 KillSwitch + 模拟 {HISTORY_DAYS} 日历史监控")
+    logger.info(f"\n[4/5] 初始化 KillSwitch + 模拟 {HISTORY_DAYS} 日历史监控")
     ks = FactorKillSwitch()
 
     # 合并监控列表：现有因子 + 候选因子（候选因子标记为"vibe_trading 候选"）
@@ -108,11 +108,11 @@ def main() -> int:
     for name, values in candidate_factors.items():
         all_monitored[name] = {"values": values, "origin": "vibe_trading_candidate"}
 
-    print(f"  监控因子总数: {len(all_monitored)}")
+    logger.info(f"  监控因子总数: {len(all_monitored)}")
 
     # ============ Step 5: 跑 30 日历史监控 ============
-    print(f"\n[5/5] 跑 {HISTORY_DAYS} 日历史监控（演示状态转移）")
-    print("-" * 80)
+    logger.info(f"\n[5/5] 跑 {HISTORY_DAYS} 日历史监控（演示状态转移）")
+    logger.info("-" * 80)
     ic_pnl_series = _compute_historical_ic_pnl(all_monitored, price_data, HISTORY_DAYS)
 
     # 逐日推进状态机
@@ -130,20 +130,20 @@ def main() -> int:
         origin = all_monitored.get(name, {}).get("origin", "historical")
         origin_dist[origin][s.status] += 1
 
-    print(f"\n========== 监控仪表盘（{HISTORY_DAYS} 日后）==========")
-    print(f"  监控总数: {len(all_states)}")
-    print(f"\n  状态分布（全部）:")
+    logger.info(f"\n========== 监控仪表盘（{HISTORY_DAYS} 日后）==========")
+    logger.info(f"  监控总数: {len(all_states)}")
+    logger.info("\n  状态分布（全部）:")
     for state, cnt in state_dist.most_common():
-        print(f"    {state:20s}: {cnt}")
-    print(f"\n  按来源分布:")
+        logger.info(f"    {state:20s}: {cnt}")
+    logger.info("\n  按来源分布:")
     for origin, dist in origin_dist.items():
-        print(f"    {origin}:")
+        logger.info(f"    {origin}:")
         for state, cnt in dist.most_common():
-            print(f"      {state:18s}: {cnt}")
+            logger.info(f"      {state:18s}: {cnt}")
 
     # ============ 触发记录 ============
     triggered = [(n, s) for n, s in all_states.items() if s.status != FactorStatus.ACTIVE.value]
-    print(f"\n  非活跃因子 ({len(triggered)}):")
+    logger.info(f"\n  非活跃因子 ({len(triggered)}):")
     for name, s in sorted(triggered, key=lambda kv: kv[1].status):
         last_trigger = s.triggers[-1] if s.triggers else "-"
         print(f"    {name:35s} | {s.status:18s} | pos={s.current_position_ratio:.2f} | "
@@ -157,19 +157,19 @@ def main() -> int:
         state_dist=state_dist,
         origin_dist=origin_dist,
     )
-    print(f"\n  监控仪表盘写入: {md_path}")
-    print(f"  JSON 状态写入: {json_path}")
+    logger.info(f"\n  监控仪表盘写入: {md_path}")
+    logger.info(f"  JSON 状态写入: {json_path}")
 
     # ============ 提供 daily 集成入口 ============
-    print("\n" + "=" * 80)
-    print("S6 完成：FactorKillSwitch 实时监控已启动")
-    print("=" * 80)
-    print("\n  集成方式（供 daily_workflow 调用）:")
-    print("    from research.vibe_trading_factor_analysis.scripts.run_kill_switch_monitor import (")
-    print("        load_kill_switch_state, run_daily_update")
-    print("    )")
-    print("    ks = load_kill_switch_state()  # 加载持久化状态")
-    print("    new_status = run_daily_update(ks, factor_name, ic=0.05, daily_pnl=0.001)")
+    logger.info("\n" + "=" * 80)
+    logger.info("S6 完成：FactorKillSwitch 实时监控已启动")
+    logger.info("=" * 80)
+    logger.info("\n  集成方式（供 daily_workflow 调用）:")
+    logger.info("    from research.vibe_trading_factor_analysis.scripts.run_kill_switch_monitor import (")
+    logger.info("        load_kill_switch_state, run_daily_update")
+    logger.info("    )")
+    logger.info("    ks = load_kill_switch_state()  # 加载持久化状态")
+    logger.info("    new_status = run_daily_update(ks, factor_name, ic=0.05, daily_pnl=0.001)")
     print()
     return 0
 

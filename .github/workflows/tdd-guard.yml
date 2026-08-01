@@ -1,0 +1,59 @@
+# ============================================================
+# TDD Guard Workflow — GAP-4 交付物
+# ============================================================
+# 架构:
+#   PR 触发, 检查新增生产代码是否有对应测试文件
+#   失败阻断合并 (成为 required status check)
+#
+# 规则:
+#   - 新增 utils/*.py 或 v8.3_institutional/src/*.py 必须有对应 tests/unit/test_*.py
+#   - 排除: _*.py / __init__.py / test_*.py / scripts/* / tools/*
+#   - fail-open: 无法获取 git diff 时 PASS (不阻断)
+# ============================================================
+
+name: TDD Guard
+
+on:
+  pull_request:
+    branches: [ main, 'integration/**' ]
+    paths:
+      - 'utils/**'
+      - 'v8.3_institutional/src/**'
+      - 'tests/**'
+
+# 同一 PR 新 push 时取消旧 run
+concurrency:
+  group: tdd-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  tdd-guard:
+    name: TDD Guard (GAP-4)
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 完整历史, 用于 git diff
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run TDD Guard
+        shell: powershell
+        # 检查新增生产代码是否有对应测试文件
+        # exit 0 = 通过, exit 1 = 失败 (有生产代码缺少测试)
+        run: |
+          python scripts/_tdd_guard.py --base origin/${{ github.base_ref }} --head HEAD --verbose
+
+      - name: TDD Guard summary
+        if: always()
+        shell: powershell
+        run: |
+          Write-Host "TDD Guard completed. Status: ${{ job.status }}"

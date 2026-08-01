@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import datetime
-import json
 import logging
 import os
 import sys
@@ -65,7 +64,10 @@ logger = logging.getLogger("hn_daily_report")
 # 分类标签规则
 # ============================================================
 _TAG_RULES: List[tuple[List[str], str]] = [
-    (["ai", "gpt", "llm", "claude", "gemini", "openai", "deepseek", "模型", "machine learning", "deep learning"], "AI/ML"),
+    (
+        ["ai", "gpt", "llm", "claude", "gemini", "openai", "deepseek", "模型", "machine learning", "deep learning"],
+        "AI/ML",
+    ),
     (["security", "privacy", "漏洞", "leak", "hack", "攻击", "密码", "隐私"], "安全/隐私"),
     (["hardware", "chip", "cpu", "gpu", "semiconductor", "芯片", "硬件", "nvidia", "amd", "intel"], "硬件/芯片"),
     (["science", "research", "paper", "研究", "论文", "物理", "天文", "生物", "医学"], "科学/研究"),
@@ -96,12 +98,13 @@ def _extract_domain(url: str) -> str:
     """提取域名作为来源。"""
     try:
         from urllib.parse import urlparse
+
         parsed = urlparse(url)
         host = (parsed.hostname or "").lower()
         if host.startswith("www."):
             host = host[4:]
         return host or "news.ycombinator.com"
-    except Exception:
+    except Exception as e:
         return "news.ycombinator.com"
 
 
@@ -199,7 +202,9 @@ def _score(hit: Dict[str, Any]) -> float:
     return comments * 2 + points
 
 
-def fetch_hn_top_stories(top_n: int = DEFAULT_TOP_N, target_date: Optional[datetime.date] = None) -> List[Dict[str, Any]]:
+def fetch_hn_top_stories(
+    top_n: int = DEFAULT_TOP_N, target_date: Optional[datetime.date] = None
+) -> List[Dict[str, Any]]:
     """从 HN Algolia 获取热门帖子。
 
     Args:
@@ -246,7 +251,9 @@ def fetch_hn_top_stories(top_n: int = DEFAULT_TOP_N, target_date: Optional[datet
             created_at_i = h.get("created_at_i")
             if created_at_i is None:
                 continue
-            start_ts = int(datetime.datetime.combine(target_date, datetime.time.min, tzinfo=datetime.timezone.utc).timestamp())
+            start_ts = int(
+                datetime.datetime.combine(target_date, datetime.time.min, tzinfo=datetime.timezone.utc).timestamp()
+            )
             end_ts = start_ts + 86400
             if not (start_ts <= created_at_i < end_ts):
                 continue
@@ -271,18 +278,20 @@ def fetch_hn_top_stories(top_n: int = DEFAULT_TOP_N, target_date: Optional[datet
             dt = datetime.datetime.fromtimestamp(created_at_i, tz=datetime.timezone.utc)
             date_str = dt.strftime("%Y-%m-%d %H:%M UTC")
 
-        results.append({
-            "rank": rank,
-            "title": title,
-            "url": url,
-            "hn_url": hn_url,
-            "author": author,
-            "points": points,
-            "comments": comments,
-            "created_at": date_str,
-            "score": _score(hit),
-            "object_id": object_id,
-        })
+        results.append(
+            {
+                "rank": rank,
+                "title": title,
+                "url": url,
+                "hn_url": hn_url,
+                "author": author,
+                "points": points,
+                "comments": comments,
+                "created_at": date_str,
+                "score": _score(hit),
+                "object_id": object_id,
+            }
+        )
 
     return results
 
@@ -299,12 +308,12 @@ def render_markdown(stories: List[Dict[str, Any]], report_date: datetime.date, t
     lines: List[str] = []
     add = lines.append
 
-    add(f"# 🔥 Hacker News 热帖讨论榜")
+    add("# 🔥 Hacker News 热帖讨论榜")
     add("")
     add(f"> **日期**: {today_str} ({weekday_cn})  ")
     add(f"> **生成时间**: {now_str}  ")
-    add(f"> **数据源**: [Hacker News](https://news.ycombinator.com/) via Algolia API  ")
-    add(f"> **排序规则**: 综合讨论热度 = 评论数×2 + 点赞数  ")
+    add("> **数据源**: [Hacker News](https://news.ycombinator.com/) via Algolia API  ")
+    add("> **排序规则**: 综合讨论热度 = 评论数×2 + 点赞数  ")
     add("")
     add("---")
     add("")
@@ -313,7 +322,9 @@ def render_markdown(stories: List[Dict[str, Any]], report_date: datetime.date, t
         add("今日未获取到 HN 热帖，可能原因：网络异常、API 限流或当日无符合条件的帖子。")
         add("")
         add("> 建议检查网络连接后重试；若需手工验证，可直接访问：  ")
-        add(f"> [HN Algolia 查询链接]({ALGOLIA_SEARCH_URL}?{urlencode({'tags': 'story', 'numericFilters': 'points>5,num_comments>0', 'hitsPerPage': 30})})")
+        add(
+            f"> [HN Algolia 查询链接]({ALGOLIA_SEARCH_URL}?{urlencode({'tags': 'story', 'numericFilters': 'points>5,num_comments>0', 'hitsPerPage': 30})})"
+        )
         add("")
         return "\n".join(lines)
 
@@ -346,12 +357,12 @@ def render_markdown_enhanced(stories: List[Dict[str, Any]], report_date: datetim
     lines: List[str] = []
     add = lines.append
 
-    add(f"# 🧠 HN 每日热帖讨论榜（增强版）")
+    add("# 🧠 HN 每日热帖讨论榜（增强版）")
     add("")
     add(f"> **日期**: {today_str} ({weekday_cn})  ")
     add(f"> **生成时间**: {now_str}  ")
-    add(f"> **数据源**: [Hacker News](https://news.ycombinator.com/) via Algolia API  ")
-    add(f"> **增强内容**: 自动分类标签 + 摘要 + 评论摘要  ")
+    add("> **数据源**: [Hacker News](https://news.ycombinator.com/) via Algolia API  ")
+    add("> **增强内容**: 自动分类标签 + 摘要 + 评论摘要  ")
     add("")
     add("---")
     add("")
@@ -360,7 +371,9 @@ def render_markdown_enhanced(stories: List[Dict[str, Any]], report_date: datetim
         add("今日未获取到 HN 热帖，可能原因：网络异常、API 限流或当日无符合条件的帖子。")
         add("")
         add("> 建议检查网络连接后重试；若需手工验证，可直接访问：  ")
-        add(f"> [HN Algolia 查询链接]({ALGOLIA_SEARCH_URL}?{urlencode({'tags': 'story', 'numericFilters': 'points>5,num_comments>0', 'hitsPerPage': 30})})")
+        add(
+            f"> [HN Algolia 查询链接]({ALGOLIA_SEARCH_URL}?{urlencode({'tags': 'story', 'numericFilters': 'points>5,num_comments>0', 'hitsPerPage': 30})})"
+        )
         add("")
         return "\n".join(lines)
 
@@ -488,11 +501,11 @@ def main() -> int:
         markdown_text = render_markdown(stories, report_date, top_n)
 
     if args.dry_run:
-        print(markdown_text)
+        logger.info(markdown_text)
         return 0
 
     filepath = save_report(markdown_text, report_date, enhanced=enhanced)
-    print(f"✅ HN 热帖报告已生成: {filepath}")
+    logger.info(f"✅ HN 热帖报告已生成: {filepath}")
     return 0
 
 

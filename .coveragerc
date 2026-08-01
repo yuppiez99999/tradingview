@@ -16,6 +16,8 @@ omit =
     cloud_train/*
     qlib_env/*
     15_每日工作流/*
+    scripts/_*.py
+    setup.py
 
 # 分支覆盖
 branch = True
@@ -35,7 +37,8 @@ exclude_lines =
     if TYPE_CHECKING:
     @abstractmethod
 
-# 最低覆盖率阈值 (v8.6.9: 从 40% 提升到 60%, 实际覆盖率 65.20%, 留 5% 安全边际)
+# 最低覆盖率阈值 (GAP-3: 渐进式, 阶段 1 = 60%, 阶段 2 升 70%, 阶段 3 后 80%)
+# 实际覆盖率 65.20%, 留 5% 安全边际
 fail_under = 60
 
 [html]

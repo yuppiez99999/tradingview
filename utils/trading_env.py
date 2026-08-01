@@ -144,7 +144,7 @@ def _read_env_file() -> Optional[str]:
                 break  # 读取成功, 不再尝试其他编码
             except UnicodeDecodeError:
                 continue  # 尝试下一个编码
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("读取 .env 文件失败 %s (encoding=%s): %s", env_file, enc, e)
                 break
 
@@ -215,18 +215,21 @@ def assert_production_fail_closed(error: Exception, context: str = "") -> None:
         # fail-closed: 阻止交易
         logger.critical(
             "[FAIL-CLOSED] %s 环境风控异常, 阻止交易! context=%s, error=%s",
-            config.env.upper(), context, error,
+            config.env.upper(),
+            context,
+            error,
             exc_info=True,
         )
         raise RuntimeError(
-            f"FAIL-CLOSED: {config.env} 环境风控异常, 交易被阻止 "
-            f"(context={context}, error={error})"
+            f"FAIL-CLOSED: {config.env} 环境风控异常, 交易被阻止 (context={context}, error={error})"
         ) from error
     else:
         # fail-open: 降级放行 (仅开发环境)
         logger.warning(
             "[FAIL-OPEN] %s 环境风控异常, 降级放行 (仅开发环境): context=%s, error=%s",
-            config.env.upper(), context, error,
+            config.env.upper(),
+            context,
+            error,
             exc_info=True,
         )
 

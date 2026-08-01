@@ -31,7 +31,7 @@ def check_risk_manager_integration():
         print("  [OK] EnhancedRiskManager 导入成功（来源: _archive_dead_code/）")
     except Exception as e:
         print(f"  [SKIP] EnhancedRiskManager 不可用（已归档）: {e}")
-        print(f"  [INFO] v8.3 风控模块位于 src/risk/ 目录")
+        print("  [INFO] v8.3 风控模块位于 src/risk/ 目录")
         return
 
     print("[2/4] 初始化风险管理系统...")
@@ -101,7 +101,7 @@ def check_risk_manager_integration():
         factor_signals = result.get("factor_signals", {})
         risk_decision = result.get("risk_decision", {})
 
-        print(f"  [OK] 风险管理周期完成")
+        print("  [OK] 风险管理周期完成")
         print(f"      因子信号: {factor_signals.get('signal', 'N/A')}")
         print(f"      平均综合分: {factor_signals.get('avg_composite', 'N/A')}")
         print(f"      Top3: {factor_signals.get('top_3', [])}")

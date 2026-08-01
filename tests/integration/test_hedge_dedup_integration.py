@@ -10,8 +10,6 @@
 """
 import json
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock
 
 from utils.risk_guard_integrator import RiskGuardIntegrator
 from utils.hedge_execution_engine import HedgeExecutionEngine

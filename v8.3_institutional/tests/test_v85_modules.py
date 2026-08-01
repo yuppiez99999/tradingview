@@ -18,7 +18,6 @@ import sys
 import unittest
 from pathlib import Path
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
 
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -249,7 +248,7 @@ class TestEVTTailRisk(unittest.TestCase):
     def test_backtest(self):
         """测试 VaR 回测"""
         import numpy as np
-        returns = np.random.normal(0.0002, 0.015, 1000)
+        np.random.normal(0.0002, 0.015, 1000)
         mc_cvar = self.evt_model.monte_carlo_cvar(n_simulations=1000)
         self.assertGreater(mc_cvar, 0)
 

@@ -16,23 +16,32 @@ import numpy as np
 import pandas as pd
 from collections import deque
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Callable
 import logging
 
-logger = logging.getLogger('v7.5.risk_budgeter')
+logger = logging.getLogger("v7.5.risk_budgeter")
+
+
+# CR3 修复: 熔断清仓回调类型
+# callback(reason: str, dd: float, equity: float, ts: Optional[datetime]) -> int
+# 返回值: 成功平仓的持仓数量 (0 表示未平仓或回调失败)
+LiquidateCallback = Callable[[str, float, float, Optional[datetime]], int]
 
 
 class RiskBudgeter:
     """v7.5 风险预算器：Risk Parity + 改进 Kelly + 三级回撤"""
 
-    def __init__(self,
-                 total_capital: float = 5_000_000,
-                 target_return: float = 0.08,
-                 max_dd: float = 0.08,
-                 single_trade_risk: float = 0.015,
-                 kelly_tau2: float = 0.01,
-                 rf: float = 0.02,
-                 mu_market: float = 0.08):
+    def __init__(
+        self,
+        total_capital: float = 5_000_000,
+        target_return: float = 0.08,
+        max_dd: float = 0.08,
+        single_trade_risk: float = 0.015,
+        kelly_tau2: float = 0.01,
+        rf: float = 0.02,
+        mu_market: float = 0.08,
+        liquidate_callback: Optional[LiquidateCallback] = None,
+    ):
         self.C = total_capital
         self.target = target_return
         self.max_dd = max_dd
@@ -41,13 +50,18 @@ class RiskBudgeter:
         self.rf = rf
         self.mu_market = mu_market
 
+        # CR3 修复: 熔断清仓回调 (避免直接耦合 broker, 由调用方注入)
+        # 回调签名: callback(reason, dd, equity, ts) -> int (平仓数量)
+        self._liquidate_callback = liquidate_callback
+        self._last_liquidate_result: Optional[Dict] = None
+
         # 回撤追踪
         self.hwm = total_capital
         self.hwm_window = deque(maxlen=60)
         # 预填初始资本作为 HWM 基线，避免首次更新即误判为 0 回撤
         for _ in range(60):
             self.hwm_window.append(total_capital)
-        self.mode = "NORMAL"                # NORMAL / DEFENSE / CIRCUIT_BREAKER
+        self.mode = "NORMAL"  # NORMAL / DEFENSE / CIRCUIT_BREAKER
         self.position_multiplier = 1.0
         self.circuit_break_until: Optional[datetime] = None
 
@@ -55,20 +69,84 @@ class RiskBudgeter:
         self.dd_history = deque(maxlen=252)
         self.mode_history = deque(maxlen=100)
 
-        logger.info(f"RiskBudgeter 初始化完成, 资本: {self.C:,.0f}, "
-                    f"单笔风险: {self.single_risk:.2%}")
+        logger.info(
+            f"RiskBudgeter 初始化完成, 资本: {self.C:,.0f}, "
+            f"单笔风险: {self.single_risk:.2%}, "
+            f"熔断清仓回调: {'已注入' if liquidate_callback else '未注入(仅告警)'}"
+        )
+
+    def set_liquidate_callback(self, callback: LiquidateCallback) -> None:
+        """CR3 修复: 延迟注入熔断清仓回调 (用于 broker 后初始化场景)"""
+        self._liquidate_callback = callback
+        logger.info("[CR3] 熔断清仓回调已延迟注入")
+
+    def _trigger_liquidation(self, reason: str, dd: float, equity: float, ts: Optional[datetime]) -> int:
+        """CR3 修复: 熔断时触发强制平仓
+
+        fail-safe 设计: 回调异常不阻断熔断流程, 仅记录日志
+        24 小时冷却期内持仓裸奔是 P0 风险, 必须尽力平仓
+
+        Returns:
+            成功平仓的持仓数量 (0 表示回调未注入或失败)
+        """
+        if self._liquidate_callback is None:
+            logger.critical(
+                f"[CR3-熔断清仓] 回调未注入, 无法自动平仓! "
+                f"reason={reason}, DD={dd:.2%}, equity={equity:,.0f}, "
+                f"持仓将在 24h 冷却期内继续裸奔, 请人工介入"
+            )
+            self._last_liquidate_result = {
+                "reason": reason,
+                "dd": dd,
+                "equity": equity,
+                "liquidated": 0,
+                "error": "callback_not_set",
+                "ts": (ts or datetime.now()).isoformat(),
+            }
+            return 0
+
+        try:
+            n_liquidated = self._liquidate_callback(reason, dd, equity, ts)
+            n_liquidated = int(n_liquidated or 0)
+            logger.critical(
+                f"[CR3-熔断清仓] 自动平仓完成, 平掉 {n_liquidated} 个持仓, "
+                f"reason={reason}, DD={dd:.2%}, equity={equity:,.0f}"
+            )
+            self._last_liquidate_result = {
+                "reason": reason,
+                "dd": dd,
+                "equity": equity,
+                "liquidated": n_liquidated,
+                "error": None,
+                "ts": (ts or datetime.now()).isoformat(),
+            }
+            return n_liquidated
+        except Exception as e:
+            logger.critical(
+                f"[CR3-熔断清仓] 自动平仓回调抛异常, 请人工介入! "
+                f"reason={reason}, DD={dd:.2%}, equity={equity:,.0f}, "
+                f"error={e}"
+            )
+            self._last_liquidate_result = {
+                "reason": reason,
+                "dd": dd,
+                "equity": equity,
+                "liquidated": 0,
+                "error": str(e),
+                "ts": (ts or datetime.now()).isoformat(),
+            }
+            return 0
 
     # ============================================================
     # 三级回撤防御
     # ============================================================
 
-    def update_drawdown(self, equity: float,
-                        ts: Optional[datetime] = None) -> str:
+    def update_drawdown(self, equity: float, ts: Optional[datetime] = None) -> str:
         """更新回撤并返回当前模式"""
         self.hwm_window.append(equity)
         self.hwm = max(self.hwm_window) if self.hwm_window else max(self.hwm, equity)
         dd = (self.hwm - equity) / self.hwm if self.hwm > 0 else 0.0
-        self.dd_history.append({'ts': ts or datetime.now(), 'dd': dd, 'equity': equity})
+        self.dd_history.append({"ts": ts or datetime.now(), "dd": dd, "equity": equity})
 
         # 熔断期检查
         if self.circuit_break_until and ts and ts < self.circuit_break_until:
@@ -77,10 +155,21 @@ class RiskBudgeter:
 
         # 三级判定 (v8.5升级: 止损线从15%收紧至8%)
         if dd >= 0.07:
+            # CR3 修复: 熔断时不仅禁开仓, 还要强制平掉已有持仓
+            # 24 小时冷却期内持仓继续承受市场波动是 P0 风险
+            already_in_breaker = self.mode == "CIRCUIT_BREAKER"
             self.mode = "CIRCUIT_BREAKER"
             self.position_multiplier = 0.0
             self.circuit_break_until = (ts or datetime.now()) + timedelta(hours=24)
-            logger.critical(f"[熔断] DD={dd:.2%}, 强制清仓, 冷却至 {self.circuit_break_until}")
+            logger.critical(f"[熔断] DD={dd:.2%}, 触发强制清仓, 冷却至 {self.circuit_break_until}")
+            # CR3 修复: 仅在首次进入熔断状态时触发平仓 (避免冷却期内重复平仓)
+            if not already_in_breaker:
+                self._trigger_liquidation(
+                    reason=f"circuit_breaker_dd_{dd:.4f}",
+                    dd=dd,
+                    equity=equity,
+                    ts=ts,
+                )
             return "CIRCUIT_BREAKER"
 
         elif dd >= 0.05:
@@ -102,7 +191,7 @@ class RiskBudgeter:
     def current_dd(self) -> float:
         if not self.dd_history:
             return 0.0
-        return self.dd_history[-1]['dd']
+        return self.dd_history[-1]["dd"]
 
     @property
     def allow_new_positions(self) -> bool:
@@ -112,11 +201,7 @@ class RiskBudgeter:
     # 改进型 Kelly (James-Stein 收缩)
     # ============================================================
 
-    def kelly_weight(self,
-                     mu_hist: float,
-                     sigma: float,
-                     beta: float,
-                     n: int = 252) -> float:
+    def kelly_weight(self, mu_hist: float, sigma: float, beta: float, n: int = 252) -> float:
         """
         James-Stein 收缩 + 半 Kelly + 单笔风险硬约束
 
@@ -139,7 +224,7 @@ class RiskBudgeter:
         # James-Stein 收缩
         mu_prior = self.rf + beta * (self.mu_market - self.rf)
         sigma_mu = sigma / np.sqrt(max(n, 1))
-        omega = self.kelly_tau2 / (self.kelly_tau2 + sigma_mu ** 2 + 1e-10)
+        omega = self.kelly_tau2 / (self.kelly_tau2 + sigma_mu**2 + 1e-10)
         if not np.isfinite(omega):
             omega = 0.5
         mu_shrink = omega * mu_hist + (1 - omega) * mu_prior
@@ -148,7 +233,7 @@ class RiskBudgeter:
 
         # 半 Kelly
         try:
-            f_kelly = (mu_shrink - self.rf) / (sigma ** 2)
+            f_kelly = (mu_shrink - self.rf) / (sigma**2)
             f_kelly = 0.0 if not np.isfinite(f_kelly) else f_kelly
         except Exception:
             f_kelly = 0.0
@@ -169,9 +254,7 @@ class RiskBudgeter:
     # Risk Parity (等风险贡献)
     # ============================================================
 
-    def risk_parity_weights(self,
-                            returns: pd.DataFrame,
-                            cov_estimator: str = "ledoit_wolf") -> np.ndarray:
+    def risk_parity_weights(self, returns: pd.DataFrame, cov_estimator: str = "ledoit_wolf") -> np.ndarray:
         """
         Ledoit-Wolf 收缩协方差 + Newton-Raphson 求解 ERC 权重
 
@@ -189,6 +272,7 @@ class RiskBudgeter:
         # Ledoit-Wolf 收缩协方差
         try:
             from sklearn.covariance import LedoitWolf
+
             lw = LedoitWolf().fit(returns.values)
             sigma = lw.covariance_
         except ImportError:
@@ -196,7 +280,7 @@ class RiskBudgeter:
 
         # Newton-Raphson 求解
         w = np.ones(n) / n
-        for iteration in range(500):
+        for _iteration in range(500):
             port_var = w @ sigma @ w
             if not np.isfinite(port_var) or port_var <= 0:
                 break
@@ -212,7 +296,7 @@ class RiskBudgeter:
             # 对角线近似 Hessian
             w = w - 0.01 * grad / (max_grad + 1e-8)
             w = np.clip(w, 1e-4, None)
-            w = np.nan_to_num(w, nan=1.0/n, posinf=1.0/n, neginf=1.0/n)
+            w = np.nan_to_num(w, nan=1.0 / n, posinf=1.0 / n, neginf=1.0 / n)
             w = w / w.sum()
 
         return w
@@ -221,14 +305,16 @@ class RiskBudgeter:
     # 综合仓位计算
     # ============================================================
 
-    def size_positions(self,
-                       symbols: List[str],
-                       mu_hist: Dict[str, float],
-                       sigma: Dict[str, float],
-                       beta: Dict[str, float],
-                       returns: pd.DataFrame,
-                       kelly_weight: float = 0.6,
-                       rp_weight: float = 0.4) -> Dict[str, float]:
+    def size_positions(
+        self,
+        symbols: List[str],
+        mu_hist: Dict[str, float],
+        sigma: Dict[str, float],
+        beta: Dict[str, float],
+        returns: pd.DataFrame,
+        kelly_weight: float = 0.6,
+        rp_weight: float = 0.4,
+    ) -> Dict[str, float]:
         """
         综合 Kelly + Risk Parity 双轨仓位
 
@@ -251,7 +337,7 @@ class RiskBudgeter:
                 mu_hist.get(s, self.mu_market),
                 sigma.get(s, 0.25),
                 beta.get(s, 1.0),
-                n=len(returns) if returns is not None else 252
+                n=len(returns) if returns is not None else 252,
             )
             kelly_w[s] = kw
         kelly_sum = sum(kelly_w.values())
@@ -283,19 +369,18 @@ class RiskBudgeter:
     # 风险预算检查
     # ============================================================
 
-    def check_budget(self,
-                     positions: Dict[str, float],
-                     returns: pd.DataFrame) -> Dict:
+    def check_budget(self, positions: Dict[str, float], returns: pd.DataFrame) -> Dict:
         """检查组合风险预算"""
         n = len(positions)
         if n == 0:
-            return {'portfolio_vol': 0.0, 'risk_contributions': {}, 'status': 'empty'}
+            return {"portfolio_vol": 0.0, "risk_contributions": {}, "status": "empty"}
 
         w = np.array([positions.get(c, 0) for c in returns.columns])
         w = w / w.sum() if w.sum() > 0 else w
 
         try:
             from sklearn.covariance import LedoitWolf
+
             lw = LedoitWolf().fit(returns.values)
             cov = lw.covariance_
         except ImportError:
@@ -313,18 +398,21 @@ class RiskBudgeter:
             rc = np.zeros(n)
 
         return {
-            'portfolio_vol': float(port_vol),
-            'risk_contributions': dict(zip(returns.columns, rc)),
-            'max_concentration': float(np.max(w)),
-            'herfindahl': float(np.sum(w ** 2)),
+            "portfolio_vol": float(port_vol),
+            "risk_contributions": dict(zip(returns.columns, rc)),
+            "max_concentration": float(np.max(w)),
+            "herfindahl": float(np.sum(w**2)),
         }
 
     def get_status(self) -> Dict:
         return {
-            'mode': self.mode,
-            'current_dd': self.current_dd,
-            'position_multiplier': self.position_multiplier,
-            'hwm': self.hwm,
-            'allow_new_positions': self.allow_new_positions,
-            'circuit_break_until': str(self.circuit_break_until) if self.circuit_break_until else None,
+            "mode": self.mode,
+            "current_dd": self.current_dd,
+            "position_multiplier": self.position_multiplier,
+            "hwm": self.hwm,
+            "allow_new_positions": self.allow_new_positions,
+            "circuit_break_until": str(self.circuit_break_until) if self.circuit_break_until else None,
+            # CR3 修复: 暴露最近一次熔断清仓结果供监控
+            "last_liquidate_result": self._last_liquidate_result,
+            "liquidate_callback_set": self._liquidate_callback is not None,
         }

@@ -31,7 +31,7 @@ user_stocks_qlib = [
     ("sh600036", "招商银行"),
 ]
 
-print(f"\n用户持仓标的检查 (QLib sh/sz 格式):")
+print("\n用户持仓标的检查 (QLib sh/sz 格式):")
 found = 0
 for code, name in user_stocks_qlib:
     stock_dir = os.path.join(feat_dir, code)

@@ -57,7 +57,7 @@ def test_all_components_importable():
     assert ks is not None
     assert pipeline is not None
 
-    print(f"  ✓ 7 个核心组件 + PipelineOrchestrator 全部可加载")
+    print("  ✓ 7 个核心组件 + PipelineOrchestrator 全部可加载")
     print(f"  ✓ PipelineState 状态机: {[s.value for s in PipelineState]}")
 
 
@@ -170,7 +170,7 @@ def test_kill_switch_integration():
         s = ks.update("VT_E2E_TEST", ic=-0.01, daily_pnl=-0.001)
     assert s.status == FactorStatus.DISABLED.value, f"应 DISABLED, 实际 {s.status}"
     assert not s.is_tradable
-    print(f"  ✓ KillSwitch 状态机：ACTIVE -> DEGRADED -> DISABLED")
+    print("  ✓ KillSwitch 状态机：ACTIVE -> DEGRADED -> DISABLED")
 
 
 def test_at_least_one_factor_reaches_late_stage():

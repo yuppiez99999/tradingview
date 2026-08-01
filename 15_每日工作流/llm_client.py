@@ -34,6 +34,8 @@ _load_env_file(_ENV_PATH)
 VOLCENGINE_API_KEY: str = os.environ.get("VOLCENGINE_API_KEY", "")
 DEEPSEEK_API_KEY: str = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL: str = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+DEEPSEEK_MODEL: str = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
+DEEPSEEK_REASONER_MODEL: str = os.environ.get("DEEPSEEK_REASONER_MODEL", "deepseek-reasoner")
 
 # 智谱 GLM
 GLM_API_KEY: str = os.environ.get("GLM_API_KEY", "")
@@ -61,9 +63,9 @@ DOUBAO_SPEED_BASE_URL: str = os.environ.get(
 )
 DOUBAO_SPEED_MODEL: str = os.environ.get("DOUBAO_SPEED_MODEL", "doubao-speed")
 
-# 本地 Ollama（默认使用本机已有的 Qwen2.5:7b）
+# 本地 Ollama（默认使用 Qwen2.5:3b 小模型, 低内存环境稳定可用; 7b/14b 在内存不足时会 OOM）
 OLLAMA_BASE_URL: str = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL: str = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
+OLLAMA_MODEL: str = os.environ.get("OLLAMA_MODEL", "qwen2.5:3b")
 OLLAMA_DEEP_MODEL: str = os.environ.get("OLLAMA_DEEP_MODEL", "deepseek-r1:14b")
 
 # GPU 配置：优先 GPU，显存不足自动回退 CPU
@@ -87,6 +89,33 @@ if "OLLAMA_NUM_GPUS" not in os.environ:
 # Ollama 服务进程
 _ollama_process = None
 _ollama_lock = threading.Lock()
+
+# MC2 修复: Provider 熔断器 — 记录失败时间, 冷却期内跳过 (避免每次重试不可用 provider 浪费 60s)
+# 冷却时间 300 秒 (5 分钟), 无 Key 的 provider 不计入熔断 (直接跳过)
+_PROVIDER_FAILURE_TIME: Dict[str, float] = {}
+_PROVIDER_COOLDOWN_SEC = 300  # 5 分钟冷却
+
+
+def _provider_available(name: str, has_key: bool) -> bool:
+    """检查 provider 是否可用 (有 Key 且不在熔断冷却期)"""
+    if not has_key:
+        return False
+    last_fail = _PROVIDER_FAILURE_TIME.get(name)
+    if last_fail is not None:
+        elapsed = time.time() - last_fail
+        if elapsed < _PROVIDER_COOLDOWN_SEC:
+            return False  # 冷却期内, 跳过
+    return True
+
+
+def _record_provider_failure(name: str) -> None:
+    """记录 provider 失败, 启动冷却期"""
+    _PROVIDER_FAILURE_TIME[name] = time.time()
+
+
+def _record_provider_success(name: str) -> None:
+    """记录 provider 成功, 清除冷却"""
+    _PROVIDER_FAILURE_TIME.pop(name, None)
 
 
 # ============================================================
@@ -149,9 +178,15 @@ def _request_chat_completion(base_url: str, api_key: str, model: str,
                              prompt: str, system: str = "",
                              temperature: float = 0.3,
                              max_tokens: int = 2000,
-                             timeout: int = 60) -> Optional[str]:
+                             timeout: int = 60,
+                             endpoint_path: str = "/v1/chat/completions") -> Optional[str]:
+    # MC1 修复: 各 provider 的 base_url 已含版本路径时, endpoint_path 应为 "/chat/completions"
+    # - DeepSeek: base_url=https://api.deepseek.com → endpoint=/v1/chat/completions (默认)
+    # - 豆包: base_url=https://ark.cn-beijing.volces.com/api/v3 → endpoint=/chat/completions
+    # - GLM: base_url=https://open.bigmodel.cn/api/paas/v4 → endpoint=/chat/completions
+    # - HY3: base_url=https://tokenhub.tencentmaas.com/v1 → endpoint=/chat/completions
     try:
-        url = base_url.rstrip("/") + "/v1/chat/completions"
+        url = base_url.rstrip("/") + endpoint_path
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
@@ -169,7 +204,9 @@ def _request_chat_completion(base_url: str, api_key: str, model: str,
         }).encode("utf-8")
 
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        # MC5 修复: 使用无代理 opener, 避免系统代理拒绝转发国内金融 API
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(req, timeout=timeout) as resp:
             body = json.loads(resp.read().decode("utf-8"))
 
         message = body.get("choices", [{}])[0].get("message", {})
@@ -236,6 +273,7 @@ def _chat_hy3(prompt: str, system: str = "",
               temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
     if not HY3_API_KEY:
         return None
+    # MC1 修复: HY3 base_url 已含 /v1, endpoint 应为 /chat/completions
     return _request_chat_completion(
         base_url=HY3_BASE_URL,
         api_key=HY3_API_KEY,
@@ -244,6 +282,7 @@ def _chat_hy3(prompt: str, system: str = "",
         system=system,
         temperature=temperature,
         max_tokens=max_tokens,
+        endpoint_path="/chat/completions",
     )
 
 
@@ -251,6 +290,7 @@ def _chat_glm(prompt: str, system: str = "",
               temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
     if not GLM_API_KEY:
         return None
+    # MC1 修复: GLM base_url 已含 /api/paas/v4, endpoint 应为 /chat/completions
     return _request_chat_completion(
         base_url=GLM_BASE_URL,
         api_key=GLM_API_KEY,
@@ -259,11 +299,14 @@ def _chat_glm(prompt: str, system: str = "",
         system=system,
         temperature=temperature,
         max_tokens=max_tokens,
+        endpoint_path="/chat/completions",
     )
 
 
 def _chat_doubao(prompt: str, system: str = "",
                  temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
+    # MC1 修复: 豆包 base_url 已含 /api/v3, endpoint 应为 /chat/completions
+    # 原代码拼接 /api/v3 + /v1/chat/completions = /api/v3/v1/chat/completions (404)
     try:
         return _request_chat_completion(
             base_url=DOUBAO_SPEED_BASE_URL,
@@ -273,6 +316,7 @@ def _chat_doubao(prompt: str, system: str = "",
             system=system,
             temperature=temperature,
             max_tokens=max_tokens,
+            endpoint_path="/chat/completions",
         )
     except Exception:
         return None
@@ -280,17 +324,64 @@ def _chat_doubao(prompt: str, system: str = "",
 
 def _chat_deepseek(prompt: str, system: str = "",
                     temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
+    """DeepSeek V3 对话 (主 LLM)"""
     if not DEEPSEEK_API_KEY:
         return None
     return _request_chat_completion(
         base_url=DEEPSEEK_BASE_URL,
         api_key=DEEPSEEK_API_KEY,
-        model="deepseek-chat",
+        model=DEEPSEEK_MODEL,
         prompt=prompt,
         system=system,
         temperature=temperature,
         max_tokens=max_tokens,
     )
+
+
+def _chat_deepseek_reasoner(prompt: str, system: str = "",
+                             temperature: float = 0.3, max_tokens: int = 4000) -> Optional[str]:
+    """DeepSeek R1 推理模型 (深度思考, 主 deep 模型)
+
+    适用于复杂交易决策 (对冲/仓位/多标的联动)、多维度风险评估、长周期趋势研判。
+    返回 content + reasoning_content (思考过程)。
+    """
+    if not DEEPSEEK_API_KEY:
+        return None
+    try:
+        url = DEEPSEEK_BASE_URL.rstrip("/") + "/v1/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+        }
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        payload = json.dumps({
+            "model": DEEPSEEK_REASONER_MODEL,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }).encode("utf-8")
+
+        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+
+        message = body.get("choices", [{}])[0].get("message", {})
+        content = message.get("content")
+        if not content:
+            content = message.get("reasoning_content")
+        if isinstance(content, str) and content:
+            # 附带思考过程摘要 (如有)
+            reasoning = message.get("reasoning_content", "")
+            if reasoning and len(reasoning) > 50 and reasoning != content:
+                return f"{content.strip()}\n\n---\n_思考过程：{reasoning.strip()[:500]}_"
+            return content.strip()
+        return None
+    except Exception:
+        return None
 
 
 def _chat_ollama(prompt: str, system: str = "",
@@ -347,28 +438,39 @@ def _chat_ollama_api(prompt: str, system: str = "",
 
 def chat(prompt: str, system: str = "",
          temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
-    """六级降级聊天调用"""
-    # ★ 优先使用本地 Ollama API（HTTP方式更可靠）
-    result = _chat_ollama_api(prompt, system, temperature, max_tokens)
-    if result:
-        return result
-    # 备用：CLI方式
-    result = _chat_ollama(prompt, system, temperature, max_tokens)
-    if result:
-        return result
-    result = _chat_hy3(prompt, system, temperature, max_tokens)
-    if result:
-        return result
-    result = _chat_qianfan(prompt, system, temperature, max_tokens)
-    if result:
-        return result
-    result = _chat_glm(prompt, system, temperature, max_tokens)
-    if result:
-        return result
-    result = _chat_doubao(prompt, system, temperature, max_tokens)
-    if result:
-        return result
-    return _chat_deepseek(prompt, system, temperature, max_tokens)
+    """多级降级聊天调用 (DeepSeek 优先 + MC2 熔断器)
+
+    MC2 修复:
+      1. 添加 Provider 熔断器: 失败 provider 5 分钟内不再重试, 避免每次 60s 超时
+      2. 降级链对齐 AGENTS.md: DeepSeek (主) → 豆包 → GLM → Ollama → 其他
+      3. 无 Key 的 provider 直接跳过, 不触发超时
+    """
+    # MC2 修复: 按文档降级链顺序, 配合熔断器避免重复超时
+    providers = [
+        ("deepseek", _chat_deepseek, bool(DEEPSEEK_API_KEY)),
+        ("doubao", _chat_doubao, bool(VOLCENGINE_API_KEY)),
+        ("glm", _chat_glm, bool(GLM_API_KEY)),
+        ("ollama_api", _chat_ollama_api, True),  # 本地服务始终尝试
+        ("ollama_cli", _chat_ollama, True),
+        ("hy3", _chat_hy3, bool(HY3_API_KEY)),
+        ("qianfan", _chat_qianfan, bool(QIANFAN_API_KEY)),
+    ]
+
+    for name, chat_fn, has_key in providers:
+        # 熔断器: 无 Key 或冷却期内直接跳过
+        if not _provider_available(name, has_key):
+            continue
+        try:
+            result = chat_fn(prompt, system, temperature, max_tokens)
+            if result:
+                _record_provider_success(name)
+                return result
+            else:
+                _record_provider_failure(name)
+        except Exception:
+            _record_provider_failure(name)
+
+    return None
 
 
 def generate_analysis(prompt: str, temperature: float = 0.3,
@@ -380,7 +482,7 @@ def generate_analysis(prompt: str, temperature: float = 0.3,
 
 def chat_deep(prompt: str, system: str = "",
               temperature: float = 0.3, max_tokens: int = 4000) -> Optional[str]:
-    """深度思考模式：使用 deepseek-r1:14b 推理模型进行复杂决策分析
+    """深度思考模式：使用 DeepSeek R1 (deepseek-reasoner) 推理模型进行复杂决策分析
 
     适用于：
     - 复杂交易决策（对冲、仓位调整、多标的联动）
@@ -388,22 +490,27 @@ def chat_deep(prompt: str, system: str = "",
     - 长周期趋势研判
     - 复杂逻辑推导
 
-    速度较慢（CPU 模式约 1-3 分钟），但推理质量更高。
+    主路径: DeepSeek R1 云端推理 (质量最高)
+    备用: Ollama deepseek-r1:14b 本地推理 (离线兜底)
     """
     deep_system = system or (
         "你是一位资深的量化交易专家，擅长深度推理和复杂决策。"
         "请先进行严谨的分析推理，再给出最终结论。"
         "结论部分请用清晰的结构呈现。"
     )
-    # 优先 Ollama API 方式（支持 reasoning_content）
+    # ★ 主路径: DeepSeek R1 云端推理模型 (deepseek-reasoner)
+    result = _chat_deepseek_reasoner(prompt, deep_system, temperature, max_tokens)
+    if result:
+        return result
+    # 备用 1: Ollama API 方式（本地 deepseek-r1:14b, 支持 reasoning_content）
     result = _chat_ollama_deep_api(prompt, deep_system, temperature, max_tokens)
     if result:
         return result
-    # 备用 CLI 方式
+    # 备用 2: Ollama CLI 方式
     result = _chat_ollama(prompt, deep_system, temperature, max_tokens, model=OLLAMA_DEEP_MODEL)
     if result:
         return result
-    # 兜底降级到云 API 的 chat（质量稍差但能返回）
+    # 兜底降级到普通 chat（质量稍差但能返回）
     return chat(prompt, system, temperature, max_tokens)
 
 
@@ -447,23 +554,24 @@ def _chat_ollama_deep_api(prompt: str, system: str = "",
 
 
 def test_connection() -> Dict[str, Any]:
-    """连通性探测"""
+    """连通性探测 (DeepSeek 优先)"""
     providers = {
+        "deepseek": bool(DEEPSEEK_API_KEY),
         "hy3": bool(HY3_API_KEY),
         "qianfan": bool(QIANFAN_API_KEY),
         "glm": bool(GLM_API_KEY),
         "doubao": bool(VOLCENGINE_API_KEY),
-        "deepseek": bool(DEEPSEEK_API_KEY),
         "ollama": True,
     }
     available = None
-    for name in ("hy3", "qianfan", "glm", "doubao", "deepseek", "ollama"):
+    # DeepSeek 优先探测
+    for name in ("deepseek", "hy3", "qianfan", "glm", "doubao", "ollama"):
         fn = {
+            "deepseek": _chat_deepseek,
             "hy3": _chat_hy3,
             "qianfan": _chat_qianfan,
             "glm": _chat_glm,
             "doubao": _chat_doubao,
-            "deepseek": _chat_deepseek,
             "ollama": _chat_ollama,
         }[name]
         result = fn("ping", system="", temperature=0.1, max_tokens=10)

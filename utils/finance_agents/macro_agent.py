@@ -76,10 +76,10 @@ class MacroAgent(BaseAgent):
             metrics["north_flow"] = round(north_flow, 0)
             if north_flow > 5e9:  # 50 亿
                 strength += 0.3
-                signals.append(f"北向净流入 {north_flow/1e8:.1f} 亿 (强势)")
+                signals.append(f"北向净流入 {north_flow / 1e8:.1f} 亿 (强势)")
             elif north_flow < -5e9:
                 strength -= 0.3
-                signals.append(f"北向净流出 {abs(north_flow)/1e8:.1f} 亿 (弱势)")
+                signals.append(f"北向净流出 {abs(north_flow) / 1e8:.1f} 亿 (弱势)")
 
         # 3. 行业景气度 (0-1)
         industry_score = self._safe_float(macro.get("industry_score"))

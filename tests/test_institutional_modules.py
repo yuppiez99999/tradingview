@@ -14,7 +14,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import numpy as np
 from utils.black_litterman_optimizer import BlackLittermanOptimizer, View as BLView
 from utils.tca_engine import TCAManager, FillRecord, BenchmarkPrices
-from utils.barra_risk_decomposer import BarraRiskDecomposer, BARRA_STYLE_FACTORS
+from utils.barra_risk_decomposer import BarraRiskDecomposer
 
 
 def test_black_litterman_optimizer():
@@ -195,7 +195,7 @@ def test_barra_decomposer():
     print(f"  集中因子: {result.concentrated_factors}")
     print(f"  缺失因子: {result.missing_factors}")
     print(f"  行业暴露: {result.industry_exposures}")
-    print(f"\n  10 个风格因子暴露:")
+    print("\n  10 个风格因子暴露:")
     for fe in result.style_factor_exposures:
         print(f"    {fe.factor_name:25s}: exposure={fe.exposure:+.4f}, "
               f"return_contrib={fe.contribution_to_active_return:+.4f}")

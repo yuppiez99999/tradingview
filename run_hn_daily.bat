@@ -1,4 +1,4 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-"C:\Program Files\Python38\python.exe" hn_daily_report.py %*
+"C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe" hn_daily_report.py %*

@@ -3,10 +3,9 @@ import sys
 sys.path.insert(0, r"E:\各种PY程序\15_每日工作流")
 
 from morning_market_fetcher import (
-    _exec_wind_mcp, _exec_wind_analytics, _exec_wind_economic,
+    _exec_wind_analytics, _exec_wind_economic,
     _fetch_sina_coal_inventory, _fetch_ths_coal_inventory, _web_search_fallback_coal,
-    _fetch_sina_coal_price, _fetch_ths_coal_price, _web_search_fallback_coal_price,
-    _is_wind_success, _is_ifind_success,
+    _is_wind_success,
 )
 
 print("=== 测试 Wind MCP 港口库存 ===")

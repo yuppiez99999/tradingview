@@ -10,7 +10,6 @@
     - 每个 bug 至少一个用例, 函数名包含 bug 编号
 """
 import pytest
-from unittest.mock import MagicMock
 
 from utils.market_circuit_breaker import MarketCircuitBreaker
 

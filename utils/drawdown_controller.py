@@ -20,6 +20,7 @@
     if level["level"] >= 2:
         actions = dc.execute_response(level["level"])
 """
+
 from __future__ import annotations
 
 import json
@@ -46,8 +47,9 @@ class DrawdownController:
     def __init__(self):
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    def check_drawdown(self, peak_value: float, current_value: float,
-                       high_water_mark: Optional[float] = None) -> Dict[str, Any]:
+    def check_drawdown(
+        self, peak_value: float, current_value: float, high_water_mark: Optional[float] = None
+    ) -> Dict[str, Any]:
         """计算当前回撤级别
 
         Args:
@@ -72,7 +74,16 @@ class DrawdownController:
         """
         ref_peak = high_water_mark if high_water_mark is not None else peak_value
         if ref_peak <= 0:
-            return self._build_result(peak_value, current_value, 0, 0, "正常")
+            # v8.6.13 P0 FIX (2026-08-01 AI 扫描):
+            # 原代码 fail-open 返回 level=0 "正常", 数据异常时回撤防护完全失效.
+            # 风控模块必须 fail-closed: 数据不可信时按最严重场景处理.
+            # 改为返回 Level 4 "极限防御", 强制停止建仓.
+            logger.critical(
+                "ref_peak <= 0 (peak=%s, high_water_mark=%s), 数据异常, "
+                "fail-closed 返回 Level 4 极限防御",
+                peak_value, high_water_mark,
+            )
+            return self._build_result(peak_value, current_value, 0, 0, "极限防御", level=4)
 
         drawdown_amount = current_value - ref_peak
         drawdown_pct = drawdown_amount / ref_peak if ref_peak > 0 else 0
@@ -81,24 +92,19 @@ class DrawdownController:
         dd_abs = abs(min(drawdown_pct, 0))
 
         if dd_abs >= self.LEVEL_4_THRESHOLD:
-            return self._build_result(ref_peak, current_value, drawdown_amount,
-                                      drawdown_pct, "极限防御", level=4)
+            return self._build_result(ref_peak, current_value, drawdown_amount, drawdown_pct, "极限防御", level=4)
         elif dd_abs >= self.LEVEL_3_THRESHOLD:
-            return self._build_result(ref_peak, current_value, drawdown_amount,
-                                      drawdown_pct, "二级防御", level=3)
+            return self._build_result(ref_peak, current_value, drawdown_amount, drawdown_pct, "二级防御", level=3)
         elif dd_abs >= self.LEVEL_2_THRESHOLD:
-            return self._build_result(ref_peak, current_value, drawdown_amount,
-                                      drawdown_pct, "一级防御", level=2)
+            return self._build_result(ref_peak, current_value, drawdown_amount, drawdown_pct, "一级防御", level=2)
         elif dd_abs >= self.LEVEL_1_THRESHOLD:
-            return self._build_result(ref_peak, current_value, drawdown_amount,
-                                      drawdown_pct, "预警审查", level=1)
+            return self._build_result(ref_peak, current_value, drawdown_amount, drawdown_pct, "预警审查", level=1)
         else:
-            return self._build_result(ref_peak, current_value, drawdown_amount,
-                                      drawdown_pct, "正常", level=0)
+            return self._build_result(ref_peak, current_value, drawdown_amount, drawdown_pct, "正常", level=0)
 
-    def _build_result(self, peak: float, current: float,
-                      dd_amount: float, dd_pct: float,
-                      level_name: str, level: int = 0) -> Dict[str, Any]:
+    def _build_result(
+        self, peak: float, current: float, dd_amount: float, dd_pct: float, level_name: str, level: int = 0
+    ) -> Dict[str, Any]:
         """构建回撤检测结果"""
         actions: List[str] = []
         spot_reduce = 0.0
@@ -187,7 +193,7 @@ class DrawdownController:
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"写入回撤日志失败: {e}")
 
     def execute_response(self, level: int) -> Dict[str, Any]:
@@ -210,35 +216,54 @@ class DrawdownController:
         actions_taken: List[Dict] = []
 
         if level == 1:
-            actions_taken.append({
-                "action": "increase_hedge_ratio",
-                "from": 0.40,
-                "to": 0.50,
-                "status": "pending_execute",
-            })
+            actions_taken.append(
+                {
+                    "action": "increase_hedge_ratio",
+                    "from": 0.40,
+                    "to": 0.50,
+                    "status": "pending_execute",
+                }
+            )
         elif level == 2:
-            actions_taken.extend([
-                {"action": "reduce_stock_position", "pct": 0.20, "priority": "max_loss_first", "status": "pending_execute"},
-                {"action": "increase_hedge_ratio", "to": 0.60, "status": "pending_execute"},
-                {"action": "pause_covered_call_selling", "status": "pending_execute"},
-                {"action": "increase_tail_put_budget", "from_pct": 0.0025, "to_pct": 0.005, "frequency": "quarterly", "status": "pending_execute"},
-            ])
+            actions_taken.extend(
+                [
+                    {
+                        "action": "reduce_stock_position",
+                        "pct": 0.20,
+                        "priority": "max_loss_first",
+                        "status": "pending_execute",
+                    },
+                    {"action": "increase_hedge_ratio", "to": 0.60, "status": "pending_execute"},
+                    {"action": "pause_covered_call_selling", "status": "pending_execute"},
+                    {
+                        "action": "increase_tail_put_budget",
+                        "from_pct": 0.0025,
+                        "to_pct": 0.005,
+                        "frequency": "quarterly",
+                        "status": "pending_execute",
+                    },
+                ]
+            )
         elif level == 3:
-            actions_taken.extend([
-                {"action": "reduce_stock_position", "pct": 0.40, "cumulative": True, "status": "pending_execute"},
-                {"action": "increase_hedge_ratio", "to": 0.80, "status": "pending_execute"},
-                {"action": "halve_quant_neutral", "status": "pending_execute"},
-                {"action": "close_all_covered_calls_keep_puts", "status": "pending_execute"},
-                {"action": "trigger_strategy_pause_assessment", "status": "pending_execute"},
-            ])
+            actions_taken.extend(
+                [
+                    {"action": "reduce_stock_position", "pct": 0.40, "cumulative": True, "status": "pending_execute"},
+                    {"action": "increase_hedge_ratio", "to": 0.80, "status": "pending_execute"},
+                    {"action": "halve_quant_neutral", "status": "pending_execute"},
+                    {"action": "close_all_covered_calls_keep_puts", "status": "pending_execute"},
+                    {"action": "trigger_strategy_pause_assessment", "status": "pending_execute"},
+                ]
+            )
         elif level == 4:
-            actions_taken.extend([
-                {"action": "reduce_stock_position", "pct": 0.60, "cumulative": True, "status": "pending_execute"},
-                {"action": "close_all_quant_neutral", "status": "pending_execute"},
-                {"action": "move_to_cash", "target_pct": 0.60, "status": "pending_execute"},
-                {"action": "move_to_short_term_bond", "target_pct": 0.40, "status": "pending_execute"},
-                {"action": "launch_exit_assessment", "status": "pending_execute"},
-            ])
+            actions_taken.extend(
+                [
+                    {"action": "reduce_stock_position", "pct": 0.60, "cumulative": True, "status": "pending_execute"},
+                    {"action": "close_all_quant_neutral", "status": "pending_execute"},
+                    {"action": "move_to_cash", "target_pct": 0.60, "status": "pending_execute"},
+                    {"action": "move_to_short_term_bond", "target_pct": 0.40, "status": "pending_execute"},
+                    {"action": "launch_exit_assessment", "status": "pending_execute"},
+                ]
+            )
 
         result = {
             "executed": True,
@@ -248,9 +273,7 @@ class DrawdownController:
             "note": "动作清单已生成, 实际执行需对接交易接口",
         }
 
-        logger.warning(
-            f"⚠️ 执行回撤响应 L{level}: 动作数={len(actions_taken)}"
-        )
+        logger.warning(f"⚠️ 执行回撤响应 L{level}: 动作数={len(actions_taken)}")
         return result
 
     def get_event_history(self, days: int = 30) -> List[Dict]:
@@ -271,9 +294,9 @@ class DrawdownController:
                             dt = datetime.fromisoformat(ts)
                             if dt.timestamp() >= cutoff:
                                 records.append(record)
-                    except Exception:
+                    except Exception:  # P2 模块 fail-safe, 待后续精确化
                         continue
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         return records
@@ -298,18 +321,20 @@ if __name__ == "__main__":
 
     if args.execute:
         result = dc.execute_response(args.execute)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        logger.info(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         result = dc.check_drawdown(args.peak, args.current)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        logger.info(json.dumps(result, ensure_ascii=False, indent=2))
         if result["level"] > 0:
-            print(f"\n⚠️ 回撤级别: L{result['level']} - {result['level_name']}")
+            logger.info(f"\n⚠️ 回撤级别: L{result['level']} - {result['level_name']}")
             for a in result["actions"]:
-                print(f"  - {a}")
+                logger.info(f"  - {a}")
 
     if args.history:
         history = dc.get_event_history(args.history)
-        print(f"\n最近 {args.history} 天回撤事件: {len(history)} 次")
+        logger.info(f"\n最近 {args.history} 天回撤事件: {len(history)} 次")
         for r in history:
-            print(f"  {r.get('timestamp', 'N/A')} - L{r.get('level', 0)} "
-                  f"{r.get('level_name', '')} 回撤={r.get('drawdown_pct', 0):.2%}")
+            print(
+                f"  {r.get('timestamp', 'N/A')} - L{r.get('level', 0)} "
+                f"{r.get('level_name', '')} 回撤={r.get('drawdown_pct', 0):.2%}"
+            )

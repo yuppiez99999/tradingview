@@ -150,25 +150,25 @@ def main() -> int:
         else (_PROJECT_ROOT / "data" / "research_inputs")
     )
 
-    print("=" * 70)
-    print("研究内容蒸馏离线批处理 (RIA--TV++ 量化版)")
-    print(f"  trade_date: {trade_date}")
-    print(f"  input_dir:  {input_dir}")
-    print(f"  started_at: {datetime.now().isoformat()}")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("研究内容蒸馏离线批处理 (RIA--TV++ 量化版)")
+    logger.info(f"  trade_date: {trade_date}")
+    logger.info(f"  input_dir:  {input_dir}")
+    logger.info(f"  started_at: {datetime.now().isoformat()}")
+    logger.info("=" * 70)
 
     # 延迟导入, 避免日志配置前导入触发默认日志
     try:
         from utils.research_distiller import DistilledSignal, ResearchDistiller
     except Exception as e:
-        print(f"[FATAL] 无法导入 ResearchDistiller: {e}")
+        logger.info(f"[FATAL] 无法导入 ResearchDistiller: {e}")
         logger.error("导入 ResearchDistiller 失败: %s", e, exc_info=True)
         return 1
 
     try:
         distiller = ResearchDistiller()
     except Exception as e:
-        print(f"[FATAL] ResearchDistiller 初始化失败: {e}")
+        logger.info(f"[FATAL] ResearchDistiller 初始化失败: {e}")
         logger.error("ResearchDistiller 初始化失败: %s", e, exc_info=True)
         return 1
 
@@ -178,20 +178,20 @@ def main() -> int:
     # 扫描输入
     categories = scan_research_inputs(input_dir)
     total_files = sum(len(v) for v in categories.values())
-    print(f"\n[2/4] 扫描 {input_dir}: 共 {total_files} 个文件")
+    logger.info(f"\n[2/4] 扫描 {input_dir}: 共 {total_files} 个文件")
     for cat, paths in categories.items():
         if paths:
-            print(f"  - {cat}: {len(paths)} 个文件")
+            logger.info(f"  - {cat}: {len(paths)} 个文件")
 
     if total_files == 0:
-        print(f"\n[3/4] 无输入文件, 跳过蒸馏")
+        logger.info("\n[3/4] 无输入文件, 跳过蒸馏")
         # 即使无输入, 也保存一个空快照 (方便上游判断已运行)
         try:
             empty_path = distiller.save_daily_snapshot([], trade_date)
             if str(empty_path):
-                print(f"\n[4/4] 空快照已保存: {empty_path}")
+                logger.info(f"\n[4/4] 空快照已保存: {empty_path}")
             else:
-                print(f"\n[4/4] 空快照保存失败 (非致命, daily_workflow 会 fail-closed)")
+                logger.info("\n[4/4] 空快照保存失败 (非致命, daily_workflow 会 fail-closed)")
         except Exception as e:
             logger.warning("保存空快照失败 (非致命): %s", e)
         return 0
@@ -249,29 +249,29 @@ def main() -> int:
             logger.warning("新闻蒸馏失败 (%s): %s", json_path, e)
 
     # 保存快照
-    print(f"\n[3/4] 蒸馏完成, 共 {len(all_signals)} 个信号")
-    print(f"\n[4/4] 保存每日快照...")
+    logger.info(f"\n[3/4] 蒸馏完成, 共 {len(all_signals)} 个信号")
+    logger.info("\n[4/4] 保存每日快照...")
     try:
         output_path = distiller.save_daily_snapshot(all_signals, trade_date)
         if str(output_path) and output_path.exists():
-            print(f"  ✓ 已保存: {output_path}")
+            logger.info(f"  ✓ 已保存: {output_path}")
             signal_map = distiller.to_signal_map(all_signals)
-            print(f"  ✓ 聚合后标的数: {len(signal_map)}")
+            logger.info(f"  ✓ 聚合后标的数: {len(signal_map)}")
             if signal_map:
                 sample = dict(list(signal_map.items())[:5])
-                print(f"  ✓ 信号示例: {sample}")
+                logger.info(f"  ✓ 信号示例: {sample}")
             # 输出蒸馏器统计
             status = distiller.get_status()
-            print(f"  ✓ 统计: {status['stats']}")
+            logger.info(f"  ✓ 统计: {status['stats']}")
         else:
-            print(f"  ✗ 保存失败, 详见日志")
+            logger.info("  ✗ 保存失败, 详见日志")
             logger.error("保存快照失败 (output_path=%s)", output_path)
             return 1
     except Exception as e:
         logger.error("保存快照异常: %s", e, exc_info=True)
         return 1
 
-    print(f"\n完成: {datetime.now().isoformat()}")
+    logger.info(f"\n完成: {datetime.now().isoformat()}")
     return 0
 
 

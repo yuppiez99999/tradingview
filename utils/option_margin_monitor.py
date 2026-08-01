@@ -17,11 +17,12 @@ QMT 关键规则:
 - detect_expiry_risk(): 检测临近行权日风险
 - monitor(): 批量监控所有期权卖方持仓
 """
+
 from __future__ import annotations
 
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
+from datetime import datetime, date
+from typing import Dict, List, Optional
+from dataclasses import dataclass
 import logging
 import re
 
@@ -32,31 +33,34 @@ logger = logging.getLogger(__name__)
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class OptionPosition:
     """期权持仓"""
-    symbol: str                    # 如 "510050C2507M03000.SH"
-    underlying: str                # 标的代码, 如 "510050.SH"
-    option_type: str = "CALL"      # "CALL" / "PUT"
-    side: str = "BUY"             # "BUY" (买方) / "SELL" (卖方)
-    strike: float = 0.0           # 行权价
-    quantity: int = 0             # 持仓数量
-    premium: float = 0.0          # 权利金 (单价)
-    entry_price: float = 0.0      # 开仓价
-    expiry_date: str = ""         # 到期日 "YYYY-MM-DD"
+
+    symbol: str  # 如 "510050C2507M03000.SH"
+    underlying: str  # 标的代码, 如 "510050.SH"
+    option_type: str = "CALL"  # "CALL" / "PUT"
+    side: str = "BUY"  # "BUY" (买方) / "SELL" (卖方)
+    strike: float = 0.0  # 行权价
+    quantity: int = 0  # 持仓数量
+    premium: float = 0.0  # 权利金 (单价)
+    entry_price: float = 0.0  # 开仓价
+    expiry_date: str = ""  # 到期日 "YYYY-MM-DD"
     contract_multiplier: float = 10000.0  # 合约单位 (ETF期权=10000)
 
 
 @dataclass
 class MarginCheckResult:
     """保证金检查结果"""
+
     symbol: str
-    required_margin: float        # 所需保证金
-    available_funds: float        # 可用资金
-    is_sufficient: bool           # 是否充足
-    margin_ratio: float           # 保证金占可用资金比例
-    days_to_expiry: int           # 距到期天数
-    warning_level: str = "OK"     # "OK" / "WARNING" / "DANGER"
+    required_margin: float  # 所需保证金
+    available_funds: float  # 可用资金
+    is_sufficient: bool  # 是否充足
+    margin_ratio: float  # 保证金占可用资金比例
+    days_to_expiry: int  # 距到期天数
+    warning_level: str = "OK"  # "OK" / "WARNING" / "DANGER"
     message: str = ""
 
 
@@ -66,9 +70,7 @@ class MarginCheckResult:
 
 # 上交所 ETF 期权代码格式: {标的代码前3位}{C/P}{YY}{M}{行权价×1000}{SH}
 # 例: 510050C2507M03000.SH = 上证50ETF 认购期权, 2025年7月, 行权价3.000
-OPTION_CODE_PATTERN = re.compile(
-    r'^(\d{6})([CP])(\d{2})(\d{2})(M\d{5})\.(SH|SZ)$'
-)
+OPTION_CODE_PATTERN = re.compile(r"^(\d{6})([CP])(\d{2})(\d{2})(M\d{5})\.(SH|SZ)$")
 
 
 def parse_option_code(code: str) -> Optional[Dict]:
@@ -92,12 +94,12 @@ def parse_option_code(code: str) -> Optional[Dict]:
     if not match:
         return None
 
-    prefix = match.group(1)     # "510050"
-    opt_type = match.group(2)   # "C" or "P"
-    yy = int(match.group(3))    # "25"
-    month = int(match.group(4)) # "7"
-    strike_str = match.group(5) # "M03000"
-    exchange = match.group(6)   # "SH" or "SZ"
+    prefix = match.group(1)  # "510050"
+    opt_type = match.group(2)  # "C" or "P"
+    yy = int(match.group(3))  # "25"
+    month = int(match.group(4))  # "7"
+    strike_str = match.group(5)  # "M03000"
+    exchange = match.group(6)  # "SH" or "SZ"
 
     year = 2000 + yy
     strike = float(strike_str[1:]) / 1000.0  # "M03000" → 3.000
@@ -116,6 +118,7 @@ def parse_option_code(code: str) -> Optional[Dict]:
 # ============================================================
 # 保证金计算
 # ============================================================
+
 
 def calc_call_margin(
     underlying_price: float,
@@ -193,13 +196,9 @@ def calc_margin(
         总保证金金额
     """
     if option_type == "CALL":
-        per_contract = calc_call_margin(
-            underlying_price, strike, premium, contract_multiplier
-        )
+        per_contract = calc_call_margin(underlying_price, strike, premium, contract_multiplier)
     else:
-        per_contract = calc_put_margin(
-            underlying_price, strike, premium, contract_multiplier
-        )
+        per_contract = calc_put_margin(underlying_price, strike, premium, contract_multiplier)
 
     # 临近到期日加收 20% 保证金
     if days_to_expiry <= 3:
@@ -211,6 +210,7 @@ def calc_margin(
 # ============================================================
 # 期权卖方保证金监控器
 # ============================================================
+
 
 class OptionMarginMonitor:
     """期权卖方保证金动态监控
@@ -234,8 +234,8 @@ class OptionMarginMonitor:
     """
 
     # 预警阈值
-    WARNING_RATIO = 0.80   # 保证金占可用资金 > 80% → 预警
-    DANGER_RATIO = 0.95    # 保证金占可用资金 > 95% → 危险
+    WARNING_RATIO = 0.80  # 保证金占可用资金 > 80% → 预警
+    DANGER_RATIO = 0.95  # 保证金占可用资金 > 95% → 危险
     EXPIRY_WARNING_DAYS = 3  # 到期前 3 天 → 预警
 
     def __init__(
@@ -290,8 +290,7 @@ class OptionMarginMonitor:
 
             underlying_price = underlying_prices.get(pos.underlying, 0.0)
             if underlying_price <= 0:
-                logger.warning("期权 %s 标的价格 %s 不可用, 跳过保证金检查",
-                             symbol, pos.underlying)
+                logger.warning("期权 %s 标的价格 %s 不可用, 跳过保证金检查", symbol, pos.underlying)
                 continue
 
             result = self._check_single(pos, underlying_price, available_funds)
@@ -331,22 +330,13 @@ class OptionMarginMonitor:
         # 风险等级
         if ratio >= self.danger_ratio:
             level = "DANGER"
-            msg = (
-                f"保证金危险: {pos.symbol} 需要 ¥{required:,.0f}, "
-                f"可用 ¥{available_funds:,.0f}, 占比 {ratio:.1%}"
-            )
+            msg = f"保证金危险: {pos.symbol} 需要 ¥{required:,.0f}, 可用 ¥{available_funds:,.0f}, 占比 {ratio:.1%}"
         elif ratio >= self.warning_ratio:
             level = "WARNING"
-            msg = (
-                f"保证金预警: {pos.symbol} 需要 ¥{required:,.0f}, "
-                f"可用 ¥{available_funds:,.0f}, 占比 {ratio:.1%}"
-            )
+            msg = f"保证金预警: {pos.symbol} 需要 ¥{required:,.0f}, 可用 ¥{available_funds:,.0f}, 占比 {ratio:.1%}"
         elif days_to_expiry <= self.expiry_warning_days:
             level = "WARNING"
-            msg = (
-                f"临近行权日: {pos.symbol} 距到期 {days_to_expiry} 天, "
-                f"保证金 ¥{required:,.0f}"
-            )
+            msg = f"临近行权日: {pos.symbol} 距到期 {days_to_expiry} 天, 保证金 ¥{required:,.0f}"
         else:
             level = "OK"
             msg = ""
@@ -378,29 +368,35 @@ class OptionMarginMonitor:
         advice = []
         for r in results:
             if r.warning_level == "DANGER":
-                advice.append({
-                    "symbol": r.symbol,
-                    "action": "FORCE_CLOSE",
-                    "reason": f"保证金占比 {r.margin_ratio:.1%} >= {self.danger_ratio:.1%}",
-                    "required_margin": r.required_margin,
-                    "available_funds": r.available_funds,
-                })
+                advice.append(
+                    {
+                        "symbol": r.symbol,
+                        "action": "FORCE_CLOSE",
+                        "reason": f"保证金占比 {r.margin_ratio:.1%} >= {self.danger_ratio:.1%}",
+                        "required_margin": r.required_margin,
+                        "available_funds": r.available_funds,
+                    }
+                )
             elif r.days_to_expiry <= 0:
-                advice.append({
-                    "symbol": r.symbol,
-                    "action": "FORCE_CLOSE",
-                    "reason": f"已到期或今日到期 (days={r.days_to_expiry})",
-                    "required_margin": r.required_margin,
-                    "available_funds": r.available_funds,
-                })
+                advice.append(
+                    {
+                        "symbol": r.symbol,
+                        "action": "FORCE_CLOSE",
+                        "reason": f"已到期或今日到期 (days={r.days_to_expiry})",
+                        "required_margin": r.required_margin,
+                        "available_funds": r.available_funds,
+                    }
+                )
             elif r.days_to_expiry <= self.expiry_warning_days:
-                advice.append({
-                    "symbol": r.symbol,
-                    "action": "WARN_CLOSE",
-                    "reason": f"临近行权日 {r.days_to_expiry} 天",
-                    "required_margin": r.required_margin,
-                    "available_funds": r.available_funds,
-                })
+                advice.append(
+                    {
+                        "symbol": r.symbol,
+                        "action": "WARN_CLOSE",
+                        "reason": f"临近行权日 {r.days_to_expiry} 天",
+                        "required_margin": r.required_margin,
+                        "available_funds": r.available_funds,
+                    }
+                )
         return advice
 
     # ------------------------------------------------------------
@@ -418,11 +414,11 @@ class OptionMarginMonitor:
 
 
 __all__ = [
+    "MarginCheckResult",
     "OptionMarginMonitor",
     "OptionPosition",
-    "MarginCheckResult",
-    "calc_margin",
     "calc_call_margin",
+    "calc_margin",
     "calc_put_margin",
     "parse_option_code",
 ]

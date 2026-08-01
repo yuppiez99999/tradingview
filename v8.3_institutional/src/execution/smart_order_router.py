@@ -9,12 +9,13 @@ v7.5 智能订单路由 (SOR) —— Iceberg + 滑点熔断 + NTP 时间戳
     - 全市场滑点中位数 > 0.3% 全局降速 50%
     - 每笔订单携带 server_ts + local_ts + ntp_offset
 """
+
 from __future__ import annotations
 
 import logging
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Protocol
 
@@ -34,8 +35,7 @@ class BrokerAPI(Protocol):
         """获取盘口深度"""
         ...
 
-    def place(self, symbol: str, qty: int, side: str,
-              order_type: str = "LIMIT", price: Optional[float] = None) -> str:
+    def place(self, symbol: str, qty: int, side: str, order_type: str = "LIMIT", price: Optional[float] = None) -> str:
         """下单, 返回订单 ID"""
         ...
 
@@ -74,15 +74,26 @@ class MockBroker:
         p = float(self.prices.get(symbol, 10.0))
         buf = self.LIMIT_PRICE_BUFFER
         return {
-            "bid1": p * (1.0 - buf), "bid1_vol": 5000,
-            "ask1": p * (1.0 + buf), "ask1_vol": 5000,
-            "bid2": p * (1.0 - buf * 2), "bid2_vol": 8000,
-            "ask2": p * (1.0 + buf * 2), "ask2_vol": 8000,
+            "bid1": p * (1.0 - buf),
+            "bid1_vol": 5000,
+            "ask1": p * (1.0 + buf),
+            "ask1_vol": 5000,
+            "bid2": p * (1.0 - buf * 2),
+            "bid2_vol": 8000,
+            "ask2": p * (1.0 + buf * 2),
+            "ask2_vol": 8000,
         }
 
-    def place(self, symbol: str, qty: int, side: str,
-              order_type: str = "LIMIT", price: Optional[float] = None,
-              option_type: Optional[str] = None, strike: Optional[float] = None) -> str:
+    def place(
+        self,
+        symbol: str,
+        qty: int,
+        side: str,
+        order_type: str = "LIMIT",
+        price: Optional[float] = None,
+        option_type: Optional[str] = None,
+        strike: Optional[float] = None,
+    ) -> str:
         oid = f"ORD-{symbol}-{int(time.time() * 1000)}-{qty}"
         # 限价未指定则用盘口价
         if price is None:
@@ -140,6 +151,7 @@ class MockBroker:
 @dataclass
 class OrderFill:
     """成交回报"""
+
     order_id: str
     symbol: str
     side: str
@@ -151,7 +163,7 @@ class OrderFill:
     local_ts: datetime
     ntp_offset: float
     algo: str = "ICEBERG"
-    status: str = "FILLED"     # FILLED / PARTIAL / CANCELLED / SLIPPAGE_BREAK
+    status: str = "FILLED"  # FILLED / PARTIAL / CANCELLED / SLIPPAGE_BREAK
 
 
 # ----------------------------------------------------------------------
@@ -160,15 +172,17 @@ class OrderFill:
 class SmartOrderRouter:
     """v7.5 智能订单路由"""
 
-    def __init__(self,
-                 broker: BrokerAPI,
-                 ntp: Optional[NTPSync] = None,
-                 slippage_break: float = 0.005,
-                 daily_slippage_break: float = 0.010,
-                 global_slow_threshold: float = 0.003,
-                 pause_minutes: int = 30,
-                 algo_engine: Optional[AlgoEngine] = None,
-                 kill_switch=None):
+    def __init__(
+        self,
+        broker: BrokerAPI,
+        ntp: Optional[NTPSync] = None,
+        slippage_break: float = 0.005,
+        daily_slippage_break: float = 0.010,
+        global_slow_threshold: float = 0.003,
+        pause_minutes: int = 30,
+        algo_engine: Optional[AlgoEngine] = None,
+        kill_switch=None,
+    ):
         """
         Args:
             broker: 券商接口
@@ -218,14 +232,17 @@ class SmartOrderRouter:
                 # L2+: 阻止开新仓
                 logger.critical(
                     "[SOR P0-06] KillSwitch L%d 触发, 中止 %s %s 拆单 (保证金占用率 %.1f%%)",
-                    ks_level, symbol, side,
+                    ks_level,
+                    symbol,
+                    side,
                     (ks_status.get("margin_usage_ratio", 0) if isinstance(ks_status, dict) else 0) * 100,
                 )
                 return False
             if ks_level == 1 and side == "BUY":
                 # L1 + BUY: 警戒级, 禁开新仓
                 logger.warning(
-                    "[SOR P0-06] KillSwitch L1 警戒, 禁止 %s BUY 新开仓", symbol,
+                    "[SOR P0-06] KillSwitch L1 警戒, 禁止 %s BUY 新开仓",
+                    symbol,
                 )
                 return False
             return True
@@ -234,14 +251,16 @@ class SmartOrderRouter:
             logger.error("[SOR P0-06] KillSwitch 检查异常, fail-closed 阻止下单: %s", e)
             return False
 
-    def execute(self,
-                symbol: str,
-                target_qty: int,
-                side: str,
-                decision_price: float,
-                algo: AlgoType = AlgoType.ICEBERG,
-                window_minutes: int = 5,
-                volume_profile=None) -> List[OrderFill]:
+    def execute(
+        self,
+        symbol: str,
+        target_qty: int,
+        side: str,
+        decision_price: float,
+        algo: AlgoType = AlgoType.ICEBERG,
+        window_minutes: int = 5,
+        volume_profile=None,
+    ) -> List[OrderFill]:
         """执行订单
 
         Args:
@@ -262,22 +281,27 @@ class SmartOrderRouter:
         # 检查是否被暂停
         if self._is_paused(symbol):
             logger.warning("标的 %s 处于暂停状态, 跳过", symbol)
-            return [OrderFill(
-                order_id="", symbol=symbol, side=side,
-                fill_price=0, fill_qty=0,
-                decision_price=decision_price,
-                slippage=0,
-                server_ts=self.ntp.server_ts(),
-                local_ts=self.ntp.local_ts(),
-                ntp_offset=self.ntp.offset_seconds,
-                status="PAUSED")]
+            return [
+                OrderFill(
+                    order_id="",
+                    symbol=symbol,
+                    side=side,
+                    fill_price=0,
+                    fill_qty=0,
+                    decision_price=decision_price,
+                    slippage=0,
+                    server_ts=self.ntp.server_ts(),
+                    local_ts=self.ntp.local_ts(),
+                    ntp_offset=self.ntp.offset_seconds,
+                    status="PAUSED",
+                )
+            ]
 
         # 获取盘口
         depth = self.broker.get_order_book(symbol, levels=5)
 
         # 拆单
-        slices = self.algo.split(target_qty, side, algo, depth,
-                                 window_minutes, volume_profile)
+        slices = self.algo.split(target_qty, side, algo, depth, window_minutes, volume_profile)
         if not slices:
             return []
 
@@ -289,25 +313,32 @@ class SmartOrderRouter:
                 break
 
             # v8.6.8 P0-06: 拆单前重检 KillSwitch 状态
-            # 防止盘中熔断后 SOR 继续下单 (前 50 笔执行后 KillSwitch 升级到 L2, 后 50 笔应停止)
             if not self._check_kill_switch_before_slice(symbol, side):
                 logger.critical(
                     "[SOR P0-06] KillSwitch 熔断, 中止 %s %s 拆单: 已成交 %d/%d 笔, 剩余 %d 撤销",
-                    symbol, side, len(fills), len(slices), remaining,
+                    symbol,
+                    side,
+                    len(fills),
+                    len(slices),
+                    remaining,
                 )
-                # 触发实际平仓 (L2+) — 由上层 daily_workflow 监控并处理
+                break
+
+            # v8.6.8 P1-03: global_slowdown 降速检查
+            if self.global_slowdown:
+                logger.warning(
+                    "[SOR] global_slowdown 激活, 暂停 %s 拆单, 等待滑点恢复正常",
+                    symbol,
+                )
                 break
 
             # 限价
             limit_price = sl.limit_price
             if limit_price is None:
-                limit_price = depth.get("ask1") if side == "BUY" \
-                              else depth.get("bid1")
+                limit_price = depth.get("ask1") if side == "BUY" else depth.get("bid1")
 
             # 下单
-            order_id = self.broker.place(
-                symbol, sl.quantity, side,
-                order_type="LIMIT", price=limit_price)
+            order_id = self.broker.place(symbol, sl.quantity, side, order_type="LIMIT", price=limit_price)
 
             # 等待成交
             fill = self.broker.wait_fill(order_id, timeout=30)
@@ -320,8 +351,7 @@ class SmartOrderRouter:
             # 计算滑点
             fill_price = float(fill.get("price", limit_price))
             fill_qty = int(fill.get("qty", sl.quantity))
-            slip = abs(fill_price - decision_price) / decision_price \
-                if decision_price > 0 else 0.0
+            slip = abs(fill_price - decision_price) / decision_price if decision_price > 0 else 0.0
 
             of = OrderFill(
                 order_id=order_id,
@@ -343,20 +373,21 @@ class SmartOrderRouter:
 
             # 滑点熔断
             if slip > self.slip_break:
-                logger.warning("滑点熔断: %s 滑点 %.4f > %.4f, 撤单",
-                               symbol, slip, self.slip_break)
+                logger.warning("滑点熔断: %s 滑点 %.4f > %.4f, 撤单", symbol, slip, self.slip_break)
                 self.slip_per_symbol[symbol] += slip
                 if self.slip_per_symbol[symbol] > self.daily_slip_break:
-                    self.slip_pause_until[symbol] = (
-                        self.ntp.server_ts() + timedelta(minutes=self.pause_minutes))
-                    logger.error("标的 %s 日内累计滑点 %.4f > %.4f, 暂停 %d 分钟",
-                                 symbol, self.slip_per_symbol[symbol],
-                                 self.daily_slip_break, self.pause_minutes)
+                    self.slip_pause_until[symbol] = self.ntp.server_ts() + timedelta(minutes=self.pause_minutes)
+                    logger.error(
+                        "标的 %s 日内累计滑点 %.4f > %.4f, 暂停 %d 分钟",
+                        symbol,
+                        self.slip_per_symbol[symbol],
+                        self.daily_slip_break,
+                        self.pause_minutes,
+                    )
                 break
 
             # 节流 (AlgoEngine 或 AlgoConfig 均可)
-            throttle = getattr(self.algo, "throttle",
-                               getattr(self.algo, "throttle_seconds", 0))
+            throttle = getattr(self.algo, "throttle", getattr(self.algo, "throttle_seconds", 0))
             if throttle and throttle > 0:
                 time.sleep(throttle)
 
@@ -375,11 +406,11 @@ class SmartOrderRouter:
         if len(recent) < 10:
             return
         import statistics
+
         med = statistics.median(recent)
         if med > self.global_slow and not self.global_slowdown:
             self.global_slowdown = True
-            logger.warning("全局滑点中位数 %.4f > %.4f, 启用降速",
-                           med, self.global_slow)
+            logger.warning("全局滑点中位数 %.4f > %.4f, 启用降速", med, self.global_slow)
         elif med < self.global_slow * 0.5 and self.global_slowdown:
             self.global_slowdown = False
             logger.info("全局滑点恢复正常 (%.4f), 解除降速", med)
@@ -388,8 +419,7 @@ class SmartOrderRouter:
         return {
             "ntp": self.ntp.snapshot(),
             "global_slowdown": self.global_slowdown,
-            "paused_symbols": [s for s, t in self.slip_pause_until.items()
-                               if t > self.ntp.server_ts()],
+            "paused_symbols": [s for s, t in self.slip_pause_until.items() if t > self.ntp.server_ts()],
             "slip_per_symbol": dict(self.slip_per_symbol),
             "total_fills": len(self.fill_history),
         }

@@ -46,7 +46,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
 
 # 项目根路径
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -155,7 +154,7 @@ def run_daily_kill_switch(
         # ============ Step 3: 计算最近 history_days 日 IC + PnL 序列 ============
         logger.info("[Phase9] Step3: 计算最近 %d 日 IC + PnL 序列", history_days)
         symbols = list_available_symbols()
-        price_data, fundamentals, benchmark_returns = load_all_for_pipeline(symbols=symbols)
+        price_data, _fundamentals, _benchmark_returns = load_all_for_pipeline(symbols=symbols)
         ic_pnl_series = _compute_historical_ic_pnl(all_monitored, price_data, history_days)
 
         # ============ Step 4: 逐日推进状态机 + 记录当日触发 ============
@@ -495,15 +494,15 @@ def _self_test(trade_date: Optional[str] = None) -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 80)
-    print(f"FactorKillSwitch 每日运行器（自检） | trade_date={args.date}")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info(f"FactorKillSwitch 每日运行器（自检） | trade_date={args.date}")
+    logger.info("=" * 80)
     result = run_daily_kill_switch(
         trade_date=args.date,
         history_days=args.history_days,
         force_refresh=args.force_refresh,
     )
-    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    logger.info(json.dumps(result, ensure_ascii=False, indent=2, default=str))
     return 0 if result.get("status") in ("PASS", "SKIP") else 1
 
 

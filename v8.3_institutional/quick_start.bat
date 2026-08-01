@@ -40,7 +40,8 @@ if !errorlevel! equ 0 (
 echo.
 
 echo [3/3] 盘后报告 (generate_daily_report.py)...
-python "%SCRIPT_DIR%generate_daily_report.py" >> "%LOG_FILE%" 2>&1
+REM B1.4: 副本已删除, 改为调用根目录版 (含 DeepSeek AI 推荐)
+python "%SCRIPT_DIR%..\generate_daily_report.py" >> "%LOG_FILE%" 2>&1
 if !errorlevel! equ 0 (
     echo [SUCCESS] 盘后报告完成
 ) else (

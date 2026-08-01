@@ -22,43 +22,46 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import json
-import numpy as np
 
 
 # ============================================================
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class FillRecord:
     """单笔成交记录"""
+
     symbol: str
-    side: str                # "BUY" / "SELL"
+    side: str  # "BUY" / "SELL"
     shares: int
-    price: float             # 成交价
-    timestamp: str           # ISO8601
+    price: float  # 成交价
+    timestamp: str  # ISO8601
     broker: str = ""
-    venue: str = ""          # 交易所/暗池
+    venue: str = ""  # 交易所/暗池
     order_id: str = ""
 
 
 @dataclass
 class BenchmarkPrices:
     """基准价数据"""
-    decision_price: float    # 决策价 (下单时刻中价)
-    arrival_price: float     # 到达价 (订单到达时价)
-    vwap: float = 0.0        # 区间 VWAP
+
+    decision_price: float  # 决策价 (下单时刻中价)
+    arrival_price: float  # 到达价 (订单到达时价)
+    vwap: float = 0.0  # 区间 VWAP
     close_price: float = 0.0  # 当日收盘价
-    open_price: float = 0.0    # 当日开盘价
-    twap: float = 0.0          # 区间 TWAP
+    open_price: float = 0.0  # 当日开盘价
+    twap: float = 0.0  # 区间 TWAP
 
 
 @dataclass
 class TCAReport:
     """TCA 单标的报告"""
+
     symbol: str
     side: str
     total_shares: int
@@ -66,35 +69,36 @@ class TCAReport:
     vwap: float
 
     # 核心指标 (bps, 正数=成本, 负数=收益)
-    is_cost_bps: float          # Implementation Shortfall (vs 决策价)
-    arrival_cost_bps: float     # 到达价偏离
-    vwap_deviation_bps: float   # VWAP 偏离
+    is_cost_bps: float  # Implementation Shortfall (vs 决策价)
+    arrival_cost_bps: float  # 到达价偏离
+    vwap_deviation_bps: float  # VWAP 偏离
     close_deviation_bps: float  # 收盘价偏离
 
     # 分解
-    market_impact_bps: float    # 市场冲击
-    timing_cost_bps: float      # 时机成本
-    opportunity_cost_bps: float # 机会成本 (未成交部分)
-    slippage_bps: float         # 滑点
+    market_impact_bps: float  # 市场冲击
+    timing_cost_bps: float  # 时机成本
+    opportunity_cost_bps: float  # 机会成本 (未成交部分)
+    slippage_bps: float  # 滑点
 
     # 执行质量
-    fill_rate: float            # 成交率 (成交/委托)
-    participation_rate: float   # 参与率 (成交/区间成交量)
-    timing_skill_score: float   # 择时能力评分 [-1, 1]
+    fill_rate: float  # 成交率 (成交/委托)
+    participation_rate: float  # 参与率 (成交/区间成交量)
+    timing_skill_score: float  # 择时能力评分 [-1, 1]
 
     # 成本细项
     commission: float
     fees: float
-    total_cost: float           # 总成本 (含手续费)
+    total_cost: float  # 总成本 (含手续费)
 
     # 评级
-    quality_grade: str          # A+ / A / B / C / D
+    quality_grade: str  # A+ / A / B / C / D
     issues: List[str] = field(default_factory=list)
 
 
 # ============================================================
 # TCA 引擎
 # ============================================================
+
 
 class TCAManager:
     """交易后成本分析引擎
@@ -116,11 +120,11 @@ class TCAManager:
 
     # 评级阈值 (bps, 相对于决策价)
     GRADE_THRESHOLDS = {
-        "A+": 2.0,   # ≤ 2 bps
-        "A":  5.0,   # ≤ 5 bps
-        "B":  10.0,  # ≤ 10 bps
-        "C":  20.0,  # ≤ 20 bps
-        "D":  50.0,  # ≤ 50 bps
+        "A+": 2.0,  # ≤ 2 bps
+        "A": 5.0,  # ≤ 5 bps
+        "B": 10.0,  # ≤ 10 bps
+        "C": 20.0,  # ≤ 20 bps
+        "D": 50.0,  # ≤ 50 bps
         # > 50 bps = F
     }
 
@@ -128,8 +132,8 @@ class TCAManager:
         self,
         commission_rate: float = 0.0003,  # 万三
         min_commission: float = 5.0,
-        fee_rate: float = 0.000067,        # 过户费等
-        stamp_duty_rate: float = 0.0005,   # 印花税 (卖出)
+        fee_rate: float = 0.000067,  # 过户费等
+        stamp_duty_rate: float = 0.0005,  # 印花税 (卖出)
     ):
         self.commission_rate = float(commission_rate)
         self.min_commission = float(min_commission)
@@ -174,45 +178,33 @@ class TCAManager:
         # 2. 核心指标 (bps)
         # IS = (执行价 - 决策价) / 决策价 × 10000 (买入)
         #    = (决策价 - 执行价) / 决策价 × 10000 (卖出)
-        is_signed_return = self._signed_return(
-            avg_exec_price, benchmark.decision_price, side
-        )
+        is_signed_return = self._signed_return(avg_exec_price, benchmark.decision_price, side)
         is_cost_bps = is_signed_return * 10000
 
-        arrival_signed = self._signed_return(
-            avg_exec_price, benchmark.arrival_price, side
-        )
+        arrival_signed = self._signed_return(avg_exec_price, benchmark.arrival_price, side)
         arrival_cost_bps = arrival_signed * 10000
 
         # VWAP 偏离
         if benchmark.vwap > 0:
-            vwap_signed = self._signed_return(
-                avg_exec_price, benchmark.vwap, side
-            )
+            vwap_signed = self._signed_return(avg_exec_price, benchmark.vwap, side)
             vwap_deviation_bps = vwap_signed * 10000
         else:
             vwap_deviation_bps = 0.0
 
         # 收盘价偏离
         if benchmark.close_price > 0:
-            close_signed = self._signed_return(
-                avg_exec_price, benchmark.close_price, side
-            )
+            close_signed = self._signed_return(avg_exec_price, benchmark.close_price, side)
             close_deviation_bps = close_signed * 10000
         else:
             close_deviation_bps = 0.0
 
         # 3. 成本分解
         # 市场冲击 = 到达价 - 决策价 (订单造成的价格变动)
-        impact_signed = self._signed_return(
-            benchmark.arrival_price, benchmark.decision_price, side
-        )
+        impact_signed = self._signed_return(benchmark.arrival_price, benchmark.decision_price, side)
         market_impact_bps = impact_signed * 10000
 
         # 时机成本 = 执行价 - 到达价 (执行延迟)
-        timing_signed = self._signed_return(
-            avg_exec_price, benchmark.arrival_price, side
-        )
+        timing_signed = self._signed_return(avg_exec_price, benchmark.arrival_price, side)
         timing_cost_bps = timing_signed * 10000
 
         # 滑点 = 执行价 - VWAP (相对市场基准的滑点)
@@ -223,9 +215,7 @@ class TCAManager:
             unfilled = order_shares - total_shares
             # 假设未成交部分按收盘价计算损失
             if benchmark.close_price > 0:
-                opp_signed = self._signed_return(
-                    benchmark.close_price, benchmark.decision_price, side
-                )
+                opp_signed = self._signed_return(benchmark.close_price, benchmark.decision_price, side)
                 opportunity_cost_bps = opp_signed * 10000 * (unfilled / order_shares)
             else:
                 opportunity_cost_bps = 0.0
@@ -313,7 +303,7 @@ class TCAManager:
                 interval_volume = (volumes or {}).get(symbol)
                 report = self.analyze(fills, benchmarks[symbol], order_shares, interval_volume)
                 reports[symbol] = report
-            except Exception as e:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 # 单标失败不影响其他
                 continue
         return reports
@@ -329,14 +319,26 @@ class TCAManager:
 
         total_notional = sum(r.total_shares * r.avg_exec_price for r in reports.values())
         total_cost = sum(r.total_cost for r in reports.values())
-        avg_is_bps = (sum(r.is_cost_bps * r.total_shares * r.avg_exec_price
-                         for r in reports.values()) / total_notional) if total_notional > 0 else 0
-        avg_vwap_bps = (sum(r.vwap_deviation_bps * r.total_shares * r.avg_exec_price
-                           for r in reports.values()) / total_notional) if total_notional > 0 else 0
-        avg_impact_bps = (sum(r.market_impact_bps * r.total_shares * r.avg_exec_price
-                             for r in reports.values()) / total_notional) if total_notional > 0 else 0
-        avg_timing_bps = (sum(r.timing_cost_bps * r.total_shares * r.avg_exec_price
-                             for r in reports.values()) / total_notional) if total_notional > 0 else 0
+        avg_is_bps = (
+            (sum(r.is_cost_bps * r.total_shares * r.avg_exec_price for r in reports.values()) / total_notional)
+            if total_notional > 0
+            else 0
+        )
+        avg_vwap_bps = (
+            (sum(r.vwap_deviation_bps * r.total_shares * r.avg_exec_price for r in reports.values()) / total_notional)
+            if total_notional > 0
+            else 0
+        )
+        avg_impact_bps = (
+            (sum(r.market_impact_bps * r.total_shares * r.avg_exec_price for r in reports.values()) / total_notional)
+            if total_notional > 0
+            else 0
+        )
+        avg_timing_bps = (
+            (sum(r.timing_cost_bps * r.total_shares * r.avg_exec_price for r in reports.values()) / total_notional)
+            if total_notional > 0
+            else 0
+        )
         avg_fill_rate = sum(r.fill_rate for r in reports.values()) / len(reports)
 
         grade_dist: Dict[str, int] = {}
@@ -447,3 +449,100 @@ class TCAManager:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return path
+
+    # ============================================================
+    # T3.4: 执行前预估接口 (facade → PreTradeEstimator)
+    # ============================================================
+    def estimate(
+        self,
+        order: Dict,
+        market_data: Optional[Dict] = None,
+        cost_threshold_bps: float = 30.0,
+    ):
+        """执行前成本预估 (T3.4)
+
+        facade 方法: 委托给 PreTradeEstimator 实现.
+        满足任务文档要求的 `tca_engine.estimate(order)` 接口.
+
+        Args:
+            order: 订单字典 (symbol/side/shares/price/notional/market_cap?)
+            market_data: 市场数据 (adv/volatility)
+            cost_threshold_bps: 否决阈值 (bps), 默认 30
+
+        Returns:
+            PreTradeEstimate 预估结果
+
+        用法:
+            from utils.tca_engine import TCAManager
+            tca = TCAManager()
+            est = tca.estimate(order, market_data)
+            if not est.approved:
+                skip_order(order)
+        """
+        from utils.tca_pre_trade_estimator import PreTradeEstimator
+
+        # 单次调用创建独立 estimator (不缓存, 避免状态污染)
+        # 如果需要复用, 上层应直接使用 PreTradeEstimator
+        estimator = PreTradeEstimator(
+            cost_threshold_bps=cost_threshold_bps,
+            save_to_file=True,
+        )
+        return estimator.estimate(order, market_data)
+
+    # ============================================================
+    # T3.5: 执行后归因接口 (facade → PostTradeAttribution)
+    # ============================================================
+    def record(
+        self,
+        fill,
+        estimate=None,
+    ):
+        """记录成交 + 预估对比 (T3.5)
+
+        facade 方法: 委托给 PostTradeAttribution 实现.
+        满足任务文档要求的 `tca_engine.record(fill)` 接口.
+
+        Args:
+            fill: FillRecord 或兼容字典
+            estimate: T3.4 的 PreTradeEstimate (可选)
+        """
+        from utils.tca_post_trade_attribution import (
+            PostTradeAttribution,
+            FillRecord as PTAFillRecord,
+        )
+
+        # 延迟初始化 (单例缓存)
+        if not hasattr(self, "_post_trade_attribution"):
+            self._post_trade_attribution = PostTradeAttribution(save_to_file=True)
+
+        # 字典转 FillRecord
+        if isinstance(fill, dict):
+            fill = PTAFillRecord(
+                symbol=str(fill.get("symbol", "")),
+                side=str(fill.get("side", "BUY")).upper(),
+                shares=int(fill.get("shares", 0)),
+                price=float(fill.get("price", 0.0)),
+                timestamp=fill.get("timestamp", ""),
+                broker=fill.get("broker", ""),
+                venue=fill.get("venue", ""),
+                order_id=fill.get("order_id", ""),
+            )
+        return self._post_trade_attribution.record(fill, estimate)
+
+    def calibrate(self, pre_trade_estimator=None, **kwargs):
+        """EOD 触发校准 (T3.5)
+
+        facade 方法: 委托给 PostTradeAttribution.calibrate()
+
+        Args:
+            pre_trade_estimator: T3.4 的 PreTradeEstimator 实例
+            **kwargs: 传递给 calibrate() 的参数 (percentile/min_threshold/max_threshold)
+
+        Returns:
+            新的否决阈值 (bps), 无数据则返回 None
+        """
+        from utils.tca_post_trade_attribution import PostTradeAttribution
+
+        if not hasattr(self, "_post_trade_attribution"):
+            self._post_trade_attribution = PostTradeAttribution(save_to_file=True)
+        return self._post_trade_attribution.calibrate(pre_trade_estimator, **kwargs)

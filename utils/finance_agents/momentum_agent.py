@@ -168,7 +168,7 @@ class MomentumAgent(BaseAgent):
         Returns:
             float or None: RSI 值 [0, 100], 数据不足返回 None
         """
-        if len(closes) < period + 1:
+        if period <= 0 or len(closes) < period + 1:
             return None
         gains = []
         losses = []

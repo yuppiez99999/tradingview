@@ -32,6 +32,7 @@ v8.6.7 修复 (2026-07-26):
     if status['level'] >= 2:
         plan = mcb.apply_to_plan(plan, status)
 """
+
 from __future__ import annotations
 
 import logging
@@ -51,24 +52,24 @@ class MarketCircuitBreaker:
     """
 
     # 沪深300 标的代码
-    HS300_ETF_CODE = "510300"      # 沪深300ETF (实时行情)
-    HS300_INDEX_CODE = "000300"    # 沪深300 指数 (akshare)
+    HS300_ETF_CODE = "510300"  # 沪深300ETF (实时行情)
+    HS300_INDEX_CODE = "000300"  # 沪深300 指数 (akshare)
 
     # 触发阈值 (跌幅, 负值)
-    L2_THRESHOLD = -0.05           # 跌 5% → L2 预警
-    L3_THRESHOLD = -0.07           # 跌 7% → L3 全局平仓
+    L2_THRESHOLD = -0.05  # 跌 5% → L2 预警
+    L3_THRESHOLD = -0.07  # 跌 7% → L3 全局平仓
 
     # fail-closed 默认值 (数据源全部不可用时)
     # v8.6.7: 从 -0.08 改为 -0.05, 避免误触发 L3 全局平仓
     # -0.08 <= l3_threshold(-0.07) → L3 (错误, 过度反应)
     # -0.05 <= l2_threshold(-0.05) → L2 (正确, 禁止开仓但不清仓)
-    FAIL_CLOSED_PCT = -0.05        # 返回 -5% 触发 L2 (保守保护)
+    FAIL_CLOSED_PCT = -0.05  # 返回 -5% 触发 L2 (保守保护)
 
     def __init__(
         self,
-        l2_threshold: float = None,
-        l3_threshold: float = None,
-        fail_closed_pct: float = None,
+        l2_threshold: Optional[float] = None,  # type: ignore
+        l3_threshold: Optional[float] = None,  # type: ignore
+        fail_closed_pct: Optional[float] = None,  # type: ignore
     ):
         """初始化大盘熔断监控器
 
@@ -130,7 +131,7 @@ class MarketCircuitBreaker:
         if level >= 2:
             logger.warning(
                 "[MarketCircuitBreaker] %s 触发: 沪深300 跌幅 %.2f%%, 数据源=%s, 动作=%s",
-                result['level_name'],
+                result["level_name"],
                 sp500_change * 100,
                 data_source,
                 actions,
@@ -158,61 +159,67 @@ class MarketCircuitBreaker:
         Returns:
             修改后的 plan
         """
-        level = status.get('level', 0)
-        plan.setdefault('execution_plan', {})
-        plan.setdefault('market_state', {})
-        plan.setdefault('risk_guard', {})
+        level = status.get("level", 0)
+        plan.setdefault("execution_plan", {})
+        plan.setdefault("market_state", {})
+        plan.setdefault("risk_guard", {})
 
         if level >= 3:
             # L3: 全局平仓 — 清空所有订单
-            plan['execution_plan']['morning_orders'] = []
-            plan['execution_plan']['afternoon_orders'] = []
-            plan['market_state']['spot_build_allowed'] = False
-            plan['market_state']['build_allowed'] = False
-            plan['market_state']['circuit_level'] = 'CRITICAL'
-            plan['market_state']['halt_all_trading'] = True
-            plan['risk_guard']['market_circuit_breaker'] = {
-                'level': 3,
-                'hs300_change_pct': status.get('hs300_change_pct', 0),
-                'action': 'HALT_ALL_TRADING',
-                'data_source': status.get('data_source', 'unknown'),
+            plan["execution_plan"]["morning_orders"] = []
+            plan["execution_plan"]["afternoon_orders"] = []
+            plan["market_state"]["spot_build_allowed"] = False
+            plan["market_state"]["build_allowed"] = False
+            plan["market_state"]["circuit_level"] = "CRITICAL"
+            plan["market_state"]["halt_all_trading"] = True
+            plan["risk_guard"]["market_circuit_breaker"] = {
+                "level": 3,
+                "hs300_change_pct": status.get("hs300_change_pct", 0),
+                "action": "HALT_ALL_TRADING",
+                "data_source": status.get("data_source", "unknown"),
             }
-            logger.critical(
-                "[MarketCircuitBreaker] L3 全局平仓: 已清空所有订单, halt_all_trading=True"
-            )
+            logger.critical("[MarketCircuitBreaker] L3 全局平仓: 已清空所有订单, halt_all_trading=True")
 
         elif level == 2:
             # L2: 禁止开仓 — 过滤 BUY 订单, 保留 SELL
-            morning_orders = plan['execution_plan'].get('morning_orders', [])
-            plan['execution_plan']['morning_orders'] = [
-                o for o in morning_orders if o.get('direction') != 'BUY'
-            ]
-            afternoon_orders = plan['execution_plan'].get('afternoon_orders', [])
-            plan['execution_plan']['afternoon_orders'] = [
-                o for o in afternoon_orders if o.get('direction') != 'BUY'
-            ]
-            plan['market_state']['spot_build_allowed'] = False
+            # v8.6.13 P0 FIX (2026-08-01 AI 扫描):
+            # 原代码 o.get("direction") != "BUY" 在现货订单上恒为 True,
+            # 因为 trade_plan 现货订单字段是 "side" 而非 "direction",
+            # 导致 BUY 订单未被过滤, L2 大盘熔断风控完全失效.
+            # 修复: 用 side + direction 双字段判断 (兼容现货和期货两种格式)
+            def _is_buy_order(o: Dict) -> bool:
+                """判断订单是否为建仓方向 (BUY 系列)"""
+                side_val = str(o.get("side", "")).upper()
+                direction_val = str(o.get("direction", "")).upper()
+                return side_val == "BUY" or direction_val in ("BUY", "BUY_OPEN", "BUY_PUT")
+
+            morning_orders = plan["execution_plan"].get("morning_orders", [])
+            plan["execution_plan"]["morning_orders"] = [o for o in morning_orders if not _is_buy_order(o)]
+            afternoon_orders = plan["execution_plan"].get("afternoon_orders", [])
+            plan["execution_plan"]["afternoon_orders"] = [o for o in afternoon_orders if not _is_buy_order(o)]
+            plan["market_state"]["spot_build_allowed"] = False
+            # v8.6.13 P0 FIX: 同步 build_allowed=False, 与 v8.6.8 P0-02/P0-05 一致性原则对齐
+            # 原代码只设 spot_build_allowed=False, 下游执行器读 build_allowed 会绕过 L2 限制
+            plan["market_state"]["build_allowed"] = False
             # v8.6.7 修复: 不能覆盖更高优先级 Guard 设置的 CRITICAL
             # 原代码无条件设为 WARNING, 会把 KillSwitch L3 的 CRITICAL 降级
-            if plan['market_state'].get('circuit_level') != 'CRITICAL':
-                plan['market_state']['circuit_level'] = 'WARNING'
-            plan['risk_guard']['market_circuit_breaker'] = {
-                'level': 2,
-                'hs300_change_pct': status.get('hs300_change_pct', 0),
-                'action': 'NO_NEW_POSITIONS',
-                'data_source': status.get('data_source', 'unknown'),
+            if plan["market_state"].get("circuit_level") != "CRITICAL":
+                plan["market_state"]["circuit_level"] = "WARNING"
+            plan["risk_guard"]["market_circuit_breaker"] = {
+                "level": 2,
+                "hs300_change_pct": status.get("hs300_change_pct", 0),
+                "action": "NO_NEW_POSITIONS",
+                "data_source": status.get("data_source", "unknown"),
             }
-            logger.warning(
-                "[MarketCircuitBreaker] L2 预警: 已过滤 BUY 订单, 仅允许平仓"
-            )
+            logger.warning("[MarketCircuitBreaker] L2 预警: 已过滤 BUY 订单, 仅允许平仓")
 
         else:
             # L0: 正常
-            plan['risk_guard']['market_circuit_breaker'] = {
-                'level': 0,
-                'hs300_change_pct': status.get('hs300_change_pct', 0),
-                'action': 'NORMAL',
-                'data_source': status.get('data_source', 'unknown'),
+            plan["risk_guard"]["market_circuit_breaker"] = {
+                "level": 0,
+                "hs300_change_pct": status.get("hs300_change_pct", 0),
+                "action": "NORMAL",
+                "data_source": status.get("data_source", "unknown"),
             }
 
         return plan
@@ -232,12 +239,12 @@ class MarketCircuitBreaker:
         # Layer 1: astock_realtime (沪深300ETF 实时行情)
         change_pct, ok = self._fetch_via_astock()
         if ok:
-            return change_pct, "astock_realtime"
+            return change_pct, "astock_realtime"  # type: ignore
 
         # Layer 2: akshare (全市场指数快照)
         change_pct, ok = self._fetch_via_akshare()
         if ok:
-            return change_pct, "akshare"
+            return change_pct, "akshare"  # type: ignore
 
         # Layer 3: fail-closed (保守保护)
         logger.error(
@@ -250,24 +257,25 @@ class MarketCircuitBreaker:
         """Layer 1: astock_realtime 获取沪深300ETF 实时涨跌幅"""
         try:
             from utils.astock_realtime import get_realtime_quotes
+
             quotes = get_realtime_quotes([self.HS300_ETF_CODE])
             if not quotes or self.HS300_ETF_CODE not in quotes:
                 return None, False
 
             quote = quotes[self.HS300_ETF_CODE]
             # 优先使用 change_pct 字段
-            change_pct = quote.get('change_pct')
+            change_pct = quote.get("change_pct")
             if change_pct is not None:
                 return float(change_pct) / 100.0, True
 
             # 降级: 从 price 和 pre_close 计算
-            price = quote.get('price')
-            pre_close = quote.get('pre_close')
+            price = quote.get("price")
+            pre_close = quote.get("pre_close")
             if price and pre_close and pre_close > 0:
                 return (float(price) - float(pre_close)) / float(pre_close), True
 
             return None, False
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.debug("[MarketCircuitBreaker] astock_realtime 获取失败: %s", e)
             return None, False
 
@@ -275,17 +283,18 @@ class MarketCircuitBreaker:
         """Layer 2: akshare 获取沪深300 指数涨跌幅"""
         try:
             import akshare as ak
+
             # 获取全市场指数实时行情
             df = ak.stock_zh_index_spot_em(symbol="指数成份")
             if df is None or df.empty:
                 return None, False
 
             # 查找沪深300 指数 (代码 000300)
-            mask = df['代码'].astype(str).str.contains(self.HS300_INDEX_CODE)
+            mask = df["代码"].astype(str).str.contains(self.HS300_INDEX_CODE)
             matched = df[mask]
             if matched.empty:
                 # 尝试从名称匹配
-                mask2 = df['名称'].astype(str).str.contains('沪深300')
+                mask2 = df["名称"].astype(str).str.contains("沪深300")
                 matched = df[mask2]
 
             if matched.empty:
@@ -293,14 +302,14 @@ class MarketCircuitBreaker:
 
             row = matched.iloc[0]
             # akshare 涨跌幅字段可能是 '涨跌幅' (百分比数值)
-            if '涨跌幅' in row:
-                return float(row['涨跌幅']) / 100.0, True
+            if "涨跌幅" in row:
+                return float(row["涨跌幅"]) / 100.0, True
 
             return None, False
         except ImportError:
             logger.debug("[MarketCircuitBreaker] akshare 未安装, 跳过 Layer 2")
             return None, False
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.debug("[MarketCircuitBreaker] akshare 获取失败: %s", e)
             return None, False
 
@@ -314,32 +323,32 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("Market Circuit Breaker 自检")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("Market Circuit Breaker 自检")
+    logger.info("=" * 70)
 
     mcb = MarketCircuitBreaker()
     status = mcb.check_market_status()
-    print(f"\n沪深300 跌幅: {status['hs300_change_pct']:.2%}")
-    print(f"级别: L{status['level']} ({status['level_name']})")
-    print(f"数据源: {status['data_source']}")
-    print(f"动作: {status['actions']}")
+    logger.info(f"\n沪深300 跌幅: {status['hs300_change_pct']:.2%}")
+    logger.info(f"级别: L{status['level']} ({status['level_name']})")
+    logger.info(f"数据源: {status['data_source']}")
+    logger.info(f"动作: {status['actions']}")
 
     # 测试 apply_to_plan
     test_plan = {
-        'execution_plan': {
-            'morning_orders': [
-                {'symbol': '588080', 'direction': 'BUY', 'shares': 1000},
-                {'symbol': '512880', 'direction': 'SELL', 'shares': 500},
+        "execution_plan": {
+            "morning_orders": [
+                {"symbol": "588080", "direction": "BUY", "shares": 1000},
+                {"symbol": "512880", "direction": "SELL", "shares": 500},
             ],
-            'afternoon_orders': [],
+            "afternoon_orders": [],
         },
-        'market_state': {},
-        'risk_guard': {},
+        "market_state": {},
+        "risk_guard": {},
     }
     result = mcb.apply_to_plan(test_plan, status)
-    print(f"\napply_to_plan 结果:")
-    print(f"  morning_orders: {result['execution_plan']['morning_orders']}")
-    print(f"  risk_guard: {result['risk_guard'].get('market_circuit_breaker', {})}")
+    logger.info("\napply_to_plan 结果:")
+    logger.info(f"  morning_orders: {result['execution_plan']['morning_orders']}")
+    logger.info(f"  risk_guard: {result['risk_guard'].get('market_circuit_breaker', {})}")
 
-    print("\n[OK] MarketCircuitBreaker 自检通过")
+    logger.info("\n[OK] MarketCircuitBreaker 自检通过")

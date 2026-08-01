@@ -190,7 +190,7 @@ def calc_scenario_weighted(scenario: str) -> dict:
         style_breakdown[style]["weighted_return"] += contrib
 
     # 计算各风格隐含年化
-    for style, d in style_breakdown.items():
+    for _style, d in style_breakdown.items():
         d["effective_return"] = d["weighted_return"] / d["weight"] if d["weight"] > 0 else 0
 
     cumulative = (1 + weighted_annualized / 100) ** HORIZON_YEARS - 1

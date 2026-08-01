@@ -12,13 +12,13 @@ import csv
 import json
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional
 
 try:
     import requests
     REQUESTS_AVAILABLE = True
-except Exception:
+except Exception as e:
     REQUESTS_AVAILABLE = False
 
 logging.basicConfig(
@@ -47,13 +47,12 @@ if os.path.exists(_OLD_BASE_DIR):
 try:
     import tushare as ts
     TUSHARE_AVAILABLE = True
-except Exception:
+except Exception as e:
     TUSHARE_AVAILABLE = False
 
 try:
-    import yfinance as yf
     YFINANCE_AVAILABLE = True
-except Exception:
+except Exception as e:
     YFINANCE_AVAILABLE = False
 
 # ============ 重试工具 ============
@@ -110,13 +109,13 @@ def _exec_ifind(server_type: str, tool_name: str, params: dict) -> dict:
 
 # iFinD MCP (最高优先) + Wind MCP (次优先)
 try:
-    import sys as _sys, os as _os
+    import sys as _sys
     _strat_dir = os.path.dirname(os.path.abspath(__file__))
     if _strat_dir not in _sys.path:
         _sys.path.insert(0, _strat_dir)
-    from wind_mcp_fetcher import wind_get_quote, wind_get_batch_quotes
+    from wind_mcp_fetcher import wind_get_quote
     WIND_MCP_AVAILABLE = True
-except Exception:
+except Exception as e:
     WIND_MCP_AVAILABLE = False
 
 
@@ -239,8 +238,8 @@ def _fetch_sina_quote(etf_code: str) -> Optional[Dict]:
         name = fields[0]
         prev_close = float(fields[2] or 0)
         price = float(fields[3] or 0)
-        high = float(fields[4] or 0)
-        low = float(fields[5] or 0)
+        float(fields[4] or 0)
+        float(fields[5] or 0)
         volume = int(float(fields[8] or 0))
         amount = float(fields[9] or 0)
         change_pct = ((price - prev_close) / prev_close * 100) if prev_close > 0 else 0.0
@@ -544,7 +543,7 @@ class ETFRealTimeTracker:
             lines.append("| ETF名称 | 代码 | 净流入(亿) | 涨跌幅 | 信号类型 | 置信度 |")
             lines.append("|---------|------|-----------|--------|---------|--------|")
             for s in signals[:10]:
-                flow_color = "green" if s["net_flow_yi"] > 0 else "red"
+                "green" if s["net_flow_yi"] > 0 else "red"
                 lines.append(f"| {s['name']} | {s['code']} | {s['net_flow_yi']:+.2f} | {s['change_pct']:+.2f}% | {s['signal_type']} | {s['confidence']} |")
             lines.append("")
         
@@ -554,7 +553,7 @@ class ETFRealTimeTracker:
         sorted_flows = sorted(flow_data.items(), key=lambda x: -abs(x[1]["net_flow_yi"]))
         lines.append("| 排名 | ETF名称 | 净流入(亿) | 涨跌幅 | 成交额(亿) |")
         lines.append("|------|---------|-----------|--------|-----------|")
-        for i, (code, data) in enumerate(sorted_flows[:15], 1):
+        for i, (_code, data) in enumerate(sorted_flows[:15], 1):
             arrow = "📈" if data["net_flow_yi"] > 0 else "📉"
             lines.append(f"| {i} | {arrow} {data['name']} | {data['net_flow_yi']:+.2f} | {data['change_pct']:+.2f}% | {data['amount_yi']:.2f} |")
         lines.append("")
@@ -570,19 +569,19 @@ class ETFRealTimeTracker:
                 if "加仓" in s["signal_type"]:
                     lines.append(f"📈 **{s['name']}** - {s['signal_type']}")
                     lines.append(f"   - 净流入: {s['net_flow_yi']:.2f}亿元")
-                    lines.append(f"   - 建议关注相关板块机会")
+                    lines.append("   - 建议关注相关板块机会")
                     lines.append("")
                 elif "减仓" in s["signal_type"]:
                     lines.append(f"📉 **{s['name']}** - {s['signal_type']}")
                     lines.append(f"   - 净流出: {abs(s['net_flow_yi']):.2f}亿元")
-                    lines.append(f"   - 建议谨慎")
+                    lines.append("   - 建议谨慎")
                     lines.append("")
         else:
             lines.append("⚠️ 当前无强信号，建议继续观察")
             lines.append("")
         
         lines.append("---")
-        lines.append(f"*本报告由实时ETF资金流向监控系统自动生成*")
+        lines.append("*本报告由实时ETF资金流向监控系统自动生成*")
         lines.append(f"*数据源: {'iFinD MCP' if any(d.get('source') == 'ifind_mcp' for d in flow_data.values()) else 'Wind MCP' if any(d.get('source') == 'wind_mcp' for d in flow_data.values()) else 'tushare' if any(d.get('source') == 'tushare' for d in flow_data.values()) else 'yfinance' if any(d.get('source') == 'yfinance' for d in flow_data.values()) else 'sina' if any(d.get('source') == 'sina' for d in flow_data.values()) else 'local_cache' if any(d.get('source') == 'local_cache' for d in flow_data.values()) else '模拟数据'}*")
         
         return "\n".join(lines)
@@ -743,8 +742,8 @@ class ETFRealTimeTracker:
             suggest_position = "60-75%"
             cash_reserve = "25-40%"
         
-        lines.append(f"| 指标 | 建议 |")
-        lines.append(f"|------|------|")
+        lines.append("| 指标 | 建议 |")
+        lines.append("|------|------|")
         lines.append(f"| 建议仓位 | **{suggest_position}** |")
         lines.append(f"| 现金储备 | **{cash_reserve}** |")
         lines.append(f"| 操作基调 | **{action_tone}** |")

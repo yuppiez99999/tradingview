@@ -18,9 +18,10 @@ QMT 关键规则:
 - suggest_close_orders(): 生成平仓建议
 - auto_close_deep_itm(): 深度实值自动平仓 (避免被指派)
 """
+
 from __future__ import annotations
 
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 import logging
@@ -33,20 +34,22 @@ logger = logging.getLogger(__name__)
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class ExerciseRiskResult:
     """行权风险评估结果"""
-    symbol: str                   # 期权代码
-    side: str                     # "BUY" / "SELL"
-    option_type: str              # "CALL" / "PUT"
-    strike: float                 # 行权价
-    underlying_price: float       # 标的最新价
-    days_to_expiry: int           # 距到期天数
-    moneyness: float              # 实值程度 (call: price/strike, put: strike/price)
-    is_itm: bool                  # 是否实值
-    assignment_probability: str   # "LOW" / "MEDIUM" / "HIGH" / "CERTAIN"
-    recommended_action: str       # 建议操作
-    potential_loss: float         # 潜在损失 (卖方被指派)
+
+    symbol: str  # 期权代码
+    side: str  # "BUY" / "SELL"
+    option_type: str  # "CALL" / "PUT"
+    strike: float  # 行权价
+    underlying_price: float  # 标的最新价
+    days_to_expiry: int  # 距到期天数
+    moneyness: float  # 实值程度 (call: price/strike, put: strike/price)
+    is_itm: bool  # 是否实值
+    assignment_probability: str  # "LOW" / "MEDIUM" / "HIGH" / "CERTAIN"
+    recommended_action: str  # 建议操作
+    potential_loss: float  # 潜在损失 (卖方被指派)
     message: str = ""
 
 
@@ -54,9 +57,7 @@ class ExerciseRiskResult:
 # 期权代码解析 (与 option_margin_monitor 共享逻辑)
 # ============================================================
 
-OPTION_CODE_PATTERN = re.compile(
-    r'^(\d{6})([CP])(\d{2})(\d{2})(M\d{5})\.(SH|SZ)$'
-)
+OPTION_CODE_PATTERN = re.compile(r"^(\d{6})([CP])(\d{2})(\d{2})(M\d{5})\.(SH|SZ)$")
 
 
 def _parse_option_code(code: str) -> Optional[Dict]:
@@ -94,12 +95,13 @@ def _get_expiry_date(year: int, month: int) -> date:
 # 行权风险管理器
 # ============================================================
 
+
 class OptionExerciseRiskManager:
     """期权行权/指派风险管理器"""
 
     # 预警天数
-    WARNING_DAYS = 3          # 到期前 3 天预警
-    DANGER_DAYS = 1           # 到期前 1 天危险
+    WARNING_DAYS = 3  # 到期前 3 天预警
+    DANGER_DAYS = 1  # 到期前 1 天危险
 
     def __init__(self):
         self.today = date.today()
@@ -149,28 +151,54 @@ class OptionExerciseRiskManager:
         # 买方风险
         if side == "BUY":
             return self._assess_buyer_risk(
-                symbol, opt_type, strike, underlying_price,
-                days_to_expiry, is_itm, moneyness, quantity, premium,
+                symbol,
+                opt_type,
+                strike,
+                underlying_price,
+                days_to_expiry,
+                is_itm,
+                moneyness,
+                quantity,
+                premium,
             )
 
         # 卖方风险
         return self._assess_seller_risk(
-            symbol, opt_type, strike, underlying_price,
-            days_to_expiry, is_itm, moneyness, quantity, premium,
+            symbol,
+            opt_type,
+            strike,
+            underlying_price,
+            days_to_expiry,
+            is_itm,
+            moneyness,
+            quantity,
+            premium,
             parsed,
         )
 
     def _assess_buyer_risk(
-        self, symbol, opt_type, strike, underlying_price,
-        days_to_expiry, is_itm, moneyness, quantity, premium,
+        self,
+        symbol,
+        opt_type,
+        strike,
+        underlying_price,
+        days_to_expiry,
+        is_itm,
+        moneyness,
+        quantity,
+        premium,
     ) -> ExerciseRiskResult:
         """买方风险评估"""
         if days_to_expiry < 0:
             return ExerciseRiskResult(
-                symbol=symbol, side="BUY", option_type=opt_type,
-                strike=strike, underlying_price=underlying_price,
+                symbol=symbol,
+                side="BUY",
+                option_type=opt_type,
+                strike=strike,
+                underlying_price=underlying_price,
                 days_to_expiry=days_to_expiry,
-                moneyness=round(moneyness, 4), is_itm=is_itm,
+                moneyness=round(moneyness, 4),
+                is_itm=is_itm,
                 assignment_probability="EXPIRED",
                 recommended_action="期权已到期",
                 potential_loss=premium * quantity * 10000,  # 最大亏损=权利金
@@ -197,10 +225,14 @@ class OptionExerciseRiskManager:
             loss = premium * quantity * 10000
 
         return ExerciseRiskResult(
-            symbol=symbol, side="BUY", option_type=opt_type,
-            strike=strike, underlying_price=underlying_price,
+            symbol=symbol,
+            side="BUY",
+            option_type=opt_type,
+            strike=strike,
+            underlying_price=underlying_price,
             days_to_expiry=days_to_expiry,
-            moneyness=round(moneyness, 4), is_itm=is_itm,
+            moneyness=round(moneyness, 4),
+            is_itm=is_itm,
             assignment_probability=prob,
             recommended_action=action,
             potential_loss=loss,
@@ -208,8 +240,16 @@ class OptionExerciseRiskManager:
         )
 
     def _assess_seller_risk(
-        self, symbol, opt_type, strike, underlying_price,
-        days_to_expiry, is_itm, moneyness, quantity, premium,
+        self,
+        symbol,
+        opt_type,
+        strike,
+        underlying_price,
+        days_to_expiry,
+        is_itm,
+        moneyness,
+        quantity,
+        premium,
         parsed,
     ) -> ExerciseRiskResult:
         """卖方风险评估 (关键! 卖方有被指派风险)"""
@@ -217,10 +257,14 @@ class OptionExerciseRiskManager:
 
         if days_to_expiry < 0:
             return ExerciseRiskResult(
-                symbol=symbol, side="SELL", option_type=opt_type,
-                strike=strike, underlying_price=underlying_price,
+                symbol=symbol,
+                side="SELL",
+                option_type=opt_type,
+                strike=strike,
+                underlying_price=underlying_price,
                 days_to_expiry=days_to_expiry,
-                moneyness=round(moneyness, 4), is_itm=is_itm,
+                moneyness=round(moneyness, 4),
+                is_itm=is_itm,
                 assignment_probability="EXPIRED",
                 recommended_action="期权已到期",
                 potential_loss=0,
@@ -263,10 +307,14 @@ class OptionExerciseRiskManager:
             msg = f"距到期{days_to_expiry}天, 风险可控"
 
         return ExerciseRiskResult(
-            symbol=symbol, side="SELL", option_type=opt_type,
-            strike=strike, underlying_price=underlying_price,
+            symbol=symbol,
+            side="SELL",
+            option_type=opt_type,
+            strike=strike,
+            underlying_price=underlying_price,
             days_to_expiry=days_to_expiry,
-            moneyness=round(moneyness, 4), is_itm=is_itm,
+            moneyness=round(moneyness, 4),
+            is_itm=is_itm,
             assignment_probability=prob,
             recommended_action=action,
             potential_loss=potential_loss,
@@ -310,7 +358,11 @@ class OptionExerciseRiskManager:
                 continue
 
             result = self.assess_risk(
-                symbol, side, quantity, underlying_price, premium,
+                symbol,
+                side,
+                quantity,
+                underlying_price,
+                premium,
             )
             if result:
                 results.append(result)
@@ -350,27 +402,30 @@ class OptionExerciseRiskManager:
 
             # 卖方: 买入平仓
             if r.side == "SELL":
-                orders.append({
-                    "symbol": r.symbol,
-                    "side": "BUY",
-                    "offset": "CLOSE",       # 平仓
-                    "reason": f"行权风险管理: {r.assignment_probability}",
-                    "days_to_expiry": r.days_to_expiry,
-                    "potential_loss": r.potential_loss,
-                    "urgency": "high" if r.assignment_probability == "CERTAIN"
-                               else "medium",
-                })
+                orders.append(
+                    {
+                        "symbol": r.symbol,
+                        "side": "BUY",
+                        "offset": "CLOSE",  # 平仓
+                        "reason": f"行权风险管理: {r.assignment_probability}",
+                        "days_to_expiry": r.days_to_expiry,
+                        "potential_loss": r.potential_loss,
+                        "urgency": "high" if r.assignment_probability == "CERTAIN" else "medium",
+                    }
+                )
             # 买方: 卖出平仓 (虚值期权止损)
             elif r.side == "BUY" and not r.is_itm:
-                orders.append({
-                    "symbol": r.symbol,
-                    "side": "SELL",
-                    "offset": "CLOSE",
-                    "reason": f"虚值期权到期前平仓止损",
-                    "days_to_expiry": r.days_to_expiry,
-                    "potential_loss": r.potential_loss,
-                    "urgency": "medium",
-                })
+                orders.append(
+                    {
+                        "symbol": r.symbol,
+                        "side": "SELL",
+                        "offset": "CLOSE",
+                        "reason": "虚值期权到期前平仓止损",
+                        "days_to_expiry": r.days_to_expiry,
+                        "potential_loss": r.potential_loss,
+                        "urgency": "medium",
+                    }
+                )
 
         return orders
 
@@ -402,23 +457,23 @@ class OptionExerciseRiskManager:
 
         close_candidates = []
         for r in results:
-            if (r.side == "SELL"
-                    and r.is_itm
-                    and r.moneyness > moneyness_threshold
-                    and 0 <= r.days_to_expiry <= max_days):
+            if (
+                r.side == "SELL"
+                and r.is_itm
+                and r.moneyness > moneyness_threshold
+                and 0 <= r.days_to_expiry <= max_days
+            ):
                 close_candidates.append(r)
 
         if close_candidates:
-            logger.warning(
-                "深度实值期权自动平仓: %d 个持仓", len(close_candidates)
-            )
+            logger.warning("深度实值期权自动平仓: %d 个持仓", len(close_candidates))
 
         return self.generate_close_orders(close_candidates, "HIGH")
 
 
 __all__ = [
-    "OptionExerciseRiskManager",
     "ExerciseRiskResult",
-    "_parse_option_code",
+    "OptionExerciseRiskManager",
     "_get_expiry_date",
+    "_parse_option_code",
 ]

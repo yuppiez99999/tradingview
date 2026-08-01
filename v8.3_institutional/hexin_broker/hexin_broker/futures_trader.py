@@ -19,9 +19,8 @@ from .hexin_config import (
     QUERY_REFRESH_TIMEOUT,
     ORDER_SUBMIT_TIMEOUT,
     MAX_RETRY,
-    HEXIN_FUTURES_EXE,
 )
-from .utils import find_window, retry, safe_call
+from .utils import find_window, retry
 
 logger = logging.getLogger(__name__)
 

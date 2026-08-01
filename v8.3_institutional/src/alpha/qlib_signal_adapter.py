@@ -24,7 +24,6 @@ import sys
 from datetime import datetime
 from typing import Optional, Dict, Any
 
-import numpy as np
 import pandas as pd
 
 logger = logging.getLogger("v75.qlib.adapter")
@@ -40,9 +39,9 @@ _qlib_init_error: Optional[str] = None
 
 try:
     import qlib
-    from qlib.config import REG_CN
+    from qlib.config import REG_CN  # noqa: F401
     from qlib.data.dataset import DatasetH
-    from qlib.data.dataset.handler import DataHandlerLP
+    from qlib.data.dataset.handler import DataHandlerLP  # noqa: F401
 
     _QLIB_AVAILABLE = True
     logger.info("Qlib 基础模块导入成功")
@@ -62,6 +61,7 @@ Transformer = None
 if _QLIB_AVAILABLE:
     try:
         from qlib.contrib.model.lightgbm import LGBModel
+
         _LGB_MODEL_AVAILABLE = True
         logger.info("Qlib LightGBM 模型导入成功")
     except Exception as e:
@@ -69,6 +69,7 @@ if _QLIB_AVAILABLE:
 
     try:
         from qlib.contrib.model.pytorch_lstm import LSTM
+
         _LSTM_AVAILABLE = True
         logger.info("Qlib LSTM 模型导入成功")
     except Exception as e:
@@ -76,6 +77,7 @@ if _QLIB_AVAILABLE:
 
     try:
         from qlib.contrib.model.pytorch_transformer import Transformer
+
         _TRANSFORMER_AVAILABLE = True
         logger.info("Qlib Transformer 模型导入成功")
     except Exception as e:
@@ -102,6 +104,7 @@ DEFAULT_MODEL = "lightgbm"
 # ============================================================
 # 初始化
 # ============================================================
+
 
 def init_qlib(provider_uri: Optional[str] = None, region: str = "cn") -> bool:
     """
@@ -137,9 +140,8 @@ def is_qlib_available() -> bool:
 # 数据转换
 # ============================================================
 
-def v75_to_qlib_features(df: pd.DataFrame,
-                         symbol: str,
-                         feature_cols: Optional[list] = None) -> pd.DataFrame:
+
+def v75_to_qlib_features(df: pd.DataFrame, symbol: str, feature_cols: Optional[list] = None) -> pd.DataFrame:
     """
     将 v7.5 格式 DataFrame 转换为 Qlib 特征格式
 
@@ -194,15 +196,17 @@ def v75_to_qlib_features(df: pd.DataFrame,
     return qlib_df
 
 
-def prepare_qlib_dataset(df: pd.DataFrame,
-                         symbol: str,
-                         train_start: str,
-                         train_end: str,
-                         valid_start: str,
-                         valid_end: str,
-                         test_start: str,
-                         test_end: str,
-                         feature_cols: Optional[list] = None) -> Optional[DatasetH]:
+def prepare_qlib_dataset(
+    df: pd.DataFrame,
+    symbol: str,
+    train_start: str,
+    train_end: str,
+    valid_start: str,
+    valid_end: str,
+    test_start: str,
+    test_end: str,
+    feature_cols: Optional[list] = None,
+) -> Optional[DatasetH]:
     """
     准备 Qlib DatasetH
 
@@ -220,7 +224,7 @@ def prepare_qlib_dataset(df: pd.DataFrame,
         return None
 
     try:
-        qlib_df = v75_to_qlib_features(df, symbol, feature_cols)
+        v75_to_qlib_features(df, symbol, feature_cols)
 
         handler = {
             "class": "Alpha158",
@@ -229,7 +233,7 @@ def prepare_qlib_dataset(df: pd.DataFrame,
                 "instruments": symbol,
                 "start_time": train_start,
                 "end_time": test_end,
-            }
+            },
         }
 
         segments = {
@@ -251,9 +255,8 @@ def prepare_qlib_dataset(df: pd.DataFrame,
 # 模型训练与预测
 # ============================================================
 
-def train_qlib_model(dataset: DatasetH,
-                     model_type: str = DEFAULT_MODEL,
-                     **model_kwargs) -> Optional[Any]:
+
+def train_qlib_model(dataset: DatasetH, model_type: str = DEFAULT_MODEL, **model_kwargs) -> Optional[Any]:
     """
     训练 Qlib 模型
 
@@ -285,9 +288,7 @@ def train_qlib_model(dataset: DatasetH,
         return None
 
 
-def predict_qlib_signal(model: Any,
-                        dataset: DatasetH,
-                        segment: str = "test") -> Optional[pd.Series]:
+def predict_qlib_signal(model: Any, dataset: DatasetH, segment: str = "test") -> Optional[pd.Series]:
     """
     使用 Qlib 模型生成信号
 
@@ -330,6 +331,7 @@ def predict_qlib_signal(model: Any,
 # iFinD 数据获取
 # ============================================================
 
+
 def fetch_ifind_historical(symbol: str, days: int = 120) -> Optional[pd.DataFrame]:
     """
     从 iFinD MCP 获取历史 OHLCV 数据
@@ -344,10 +346,11 @@ def fetch_ifind_historical(symbol: str, days: int = 120) -> Optional[pd.DataFram
     try:
         # 尝试导入 iFinD MCP 客户端
         import importlib.util
+
         # 计算 utils 目录绝对路径
         _qlib_adapter_dir = os.path.dirname(os.path.abspath(__file__))
-        _project_root = os.path.abspath(os.path.join(_qlib_adapter_dir, '..', '..', '..'))
-        _utils_dir = os.path.join(_project_root, 'utils')
+        _project_root = os.path.abspath(os.path.join(_qlib_adapter_dir, "..", "..", ".."))
+        _utils_dir = os.path.join(_project_root, "utils")
 
         # 将 utils 加入 sys.path，确保 data_provider 内部的 from utils.xxx 能找到
         if _utils_dir not in sys.path:
@@ -357,9 +360,9 @@ def fetch_ifind_historical(symbol: str, days: int = 120) -> Optional[pd.DataFram
         if _project_root not in sys.path:
             sys.path.insert(0, _project_root)
 
-        data_provider_path = os.path.join(_utils_dir, 'data_provider.py')
+        data_provider_path = os.path.join(_utils_dir, "data_provider.py")
 
-        spec = importlib.util.spec_from_file_location('data_provider', data_provider_path)
+        spec = importlib.util.spec_from_file_location("data_provider", data_provider_path)
         if spec and spec.loader:
             data_provider = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(data_provider)
@@ -369,20 +372,20 @@ def fetch_ifind_historical(symbol: str, days: int = 120) -> Optional[pd.DataFram
 
         # 根据 days 选择 period，支持更长周期
         if days <= 20:
-            period = '1m'
+            period = "1m"
         elif days <= 60:
-            period = '3m'
+            period = "3m"
         elif days <= 120:
-            period = '6m'
+            period = "6m"
         elif days <= 252:
-            period = '1y'
+            period = "1y"
         elif days <= 504:
-            period = '2y'
+            period = "2y"
         elif days <= 756:
-            period = '3y'
+            period = "3y"
         else:
-            period = '5y'
-        
+            period = "5y"
+
         provider = MarketDataProvider()
         df = provider.get_historical_data(symbol, period=period)
 
@@ -392,12 +395,19 @@ def fetch_ifind_historical(symbol: str, days: int = 120) -> Optional[pd.DataFram
 
         # 标准化列名
         col_mapping = {
-            'open': 'open', 'Open': 'open',
-            'high': 'high', 'High': 'high',
-            'low': 'low', 'Low': 'low',
-            'close': 'close', 'Close': 'close',
-            'volume': 'volume', 'Volume': 'volume',
-            '日期': 'date', 'date': 'date', 'Date': 'date',
+            "open": "open",
+            "Open": "open",
+            "high": "high",
+            "High": "high",
+            "low": "low",
+            "Low": "low",
+            "close": "close",
+            "Close": "close",
+            "volume": "volume",
+            "Volume": "volume",
+            "日期": "date",
+            "date": "date",
+            "Date": "date",
         }
 
         df = df.copy()
@@ -406,9 +416,9 @@ def fetch_ifind_historical(symbol: str, days: int = 120) -> Optional[pd.DataFram
                 df.rename(columns={old: new}, inplace=True)
 
         # 确保 datetime index
-        if 'date' in df.columns:
-            df['date'] = pd.to_datetime(df['date'])
-            df.set_index('date', inplace=True)
+        if "date" in df.columns:
+            df["date"] = pd.to_datetime(df["date"])
+            df.set_index("date", inplace=True)
         elif not isinstance(df.index, pd.DatetimeIndex):
             df.index = pd.to_datetime(df.index)
 
@@ -417,7 +427,7 @@ def fetch_ifind_historical(symbol: str, days: int = 120) -> Optional[pd.DataFram
             df = df.tail(days)
 
         # 确保 OHLCV 列存在
-        required_cols = ['open', 'high', 'low', 'close', 'volume']
+        required_cols = ["open", "high", "low", "close", "volume"]
         missing = [c for c in required_cols if c not in df.columns]
         if missing:
             logger.warning(f"iFinD 数据缺少列 {missing}: {symbol}")
@@ -425,7 +435,7 @@ def fetch_ifind_historical(symbol: str, days: int = 120) -> Optional[pd.DataFram
 
         # 转换数据类型
         for col in required_cols:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+            df[col] = pd.to_numeric(df[col], errors="coerce")
 
         df = df[required_cols].dropna()
         if len(df) < 60:
@@ -453,11 +463,10 @@ def fetch_ifind_ohlcv(symbol: str, days: int = 120) -> Optional[pd.DataFrame]:
     """
     return fetch_ifind_historical(symbol, days)
 
-def generate_qlib_signal(df: pd.DataFrame,
-                         symbol: str,
-                         model_type: str = DEFAULT_MODEL,
-                         retrain: bool = False,
-                         **kwargs) -> Optional[pd.Series]:
+
+def generate_qlib_signal(
+    df: pd.DataFrame, symbol: str, model_type: str = DEFAULT_MODEL, retrain: bool = False, **kwargs
+) -> Optional[pd.Series]:
     """
     一键生成 Qlib 信号（训练 + 预测）
 
@@ -493,8 +502,7 @@ def generate_qlib_signal(df: pd.DataFrame,
     test_end = str(dates[-1].date())
 
     # 准备数据集
-    dataset = prepare_qlib_dataset(df, symbol, train_start, train_end,
-                                   valid_start, valid_end, test_start, test_end)
+    dataset = prepare_qlib_dataset(df, symbol, train_start, train_end, valid_start, valid_end, test_start, test_end)
     if dataset is None:
         return None
 
@@ -512,9 +520,9 @@ def generate_qlib_signal(df: pd.DataFrame,
 # 本地回退模型 (Qlib 不可用时使用)
 # ============================================================
 
-import joblib
-import json
-from pathlib import Path
+import joblib  # noqa: E402
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 # 模型保存目录
 MODEL_DIR = Path(__file__).resolve().parent.parent.parent / "models" / "qlib_local"
@@ -613,11 +621,13 @@ def _add_technical_features(data: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _local_lightgbm_signal(df: pd.DataFrame,
-                           symbol: str,
-                           feature_cols: Optional[list] = None,
-                           save_model: bool = False,
-                           model_path: Optional[str] = None) -> Dict:
+def _local_lightgbm_signal(
+    df: pd.DataFrame,
+    symbol: str,
+    feature_cols: Optional[list] = None,
+    save_model: bool = False,
+    model_path: Optional[str] = None,
+) -> Dict:
     """
     本地 LightGBM 信号生成 (Qlib 不可用时的回退方案)
 
@@ -634,29 +644,52 @@ def _local_lightgbm_signal(df: pd.DataFrame,
         import lightgbm as lgb
     except ImportError:
         logger.error("LightGBM 未安装")
-        return {'signal': None, 'model': None, 'metrics': {}}
+        return {"signal": None, "model": None, "metrics": {}}
 
     # 默认使用增强特征（OHLCV + 技术指标）
     if feature_cols is None:
         feature_cols = [
             # OHLCV 基础特征
-            "open", "high", "low", "close", "volume",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
             # 技术指标特征
-            "ma5", "ma10", "ma20", "ma60",
-            "macd", "macd_signal", "macd_hist",
-            "rsi6", "rsi12", "rsi24",
-            "boll_upper", "boll_mid", "boll_lower", "boll_width",
-            "atr", "obv",
+            "ma5",
+            "ma10",
+            "ma20",
+            "ma60",
+            "macd",
+            "macd_signal",
+            "macd_hist",
+            "rsi6",
+            "rsi12",
+            "rsi24",
+            "boll_upper",
+            "boll_mid",
+            "boll_lower",
+            "boll_width",
+            "atr",
+            "obv",
             # 量比特征
-            "vol_ratio_5", "vol_ratio_20",
+            "vol_ratio_5",
+            "vol_ratio_20",
             # 价格位置特征
-            "price_vs_ma5", "price_vs_ma20", "price_vs_ma60",
+            "price_vs_ma5",
+            "price_vs_ma20",
+            "price_vs_ma60",
             # 波动率特征
-            "volatility_5", "volatility_20", "atr_ratio",
+            "volatility_5",
+            "volatility_20",
+            "atr_ratio",
             # 量价背离特征
-            "price_change_5", "volume_change_5", "price_volume_divergence",
+            "price_change_5",
+            "volume_change_5",
+            "price_volume_divergence",
             # 高低价位置
-            "high_low_ratio", "close_position",
+            "high_low_ratio",
+            "close_position",
         ]
 
     try:
@@ -670,11 +703,11 @@ def _local_lightgbm_signal(df: pd.DataFrame,
 
         # 预测目标：次日收益率
         data["target"] = data["close"].pct_change().shift(-1)
-        data = data.dropna(subset=feature_cols + ["target"])
+        data = data.dropna(subset=[*feature_cols, "target"])
 
         if len(data) < 50:
             logger.warning(f"数据量不足: {len(data)} 行")
-            return {'signal': None, 'model': None, 'metrics': {}}
+            return {"signal": None, "model": None, "metrics": {}}
 
         X = data[feature_cols].values
         y = data["target"].values
@@ -687,14 +720,14 @@ def _local_lightgbm_signal(df: pd.DataFrame,
         # 训练 - 添加正则化防止过拟合
         model = lgb.LGBMRegressor(
             n_estimators=100,
-            learning_rate=0.05,        # 降低学习率
-            max_depth=3,               # 降低树深度
-            num_leaves=15,             # 减少叶子节点
-            min_child_samples=20,      # 增加最小样本数
-            subsample=0.8,             # 行采样
-            colsample_bytree=0.8,      # 列采样
-            reg_alpha=0.1,             # L1 正则
-            reg_lambda=0.1,            # L2 正则
+            learning_rate=0.05,  # 降低学习率
+            max_depth=3,  # 降低树深度
+            num_leaves=15,  # 减少叶子节点
+            min_child_samples=20,  # 增加最小样本数
+            subsample=0.8,  # 行采样
+            colsample_bytree=0.8,  # 列采样
+            reg_alpha=0.1,  # L1 正则
+            reg_lambda=0.1,  # L2 正则
             verbose=-1,
         )
         model.fit(X_train, y_train)
@@ -714,10 +747,10 @@ def _local_lightgbm_signal(df: pd.DataFrame,
         signal.name = "local_lgb_signal"
 
         metrics = {
-            'train_r2': round(float(train_score), 4),
-            'test_r2': round(float(test_score), 4),
-            'data_points': len(data),
-            'feature_cols': feature_cols,
+            "train_r2": round(float(train_score), 4),
+            "test_r2": round(float(test_score), 4),
+            "data_points": len(data),
+            "feature_cols": feature_cols,
         }
 
         # 保存模型
@@ -726,27 +759,32 @@ def _local_lightgbm_signal(df: pd.DataFrame,
             joblib.dump(model, save_path)
             # 保存元数据
             meta_path = str(MODEL_DIR / f"{symbol}_lgb_meta.json")
-            with open(meta_path, 'w', encoding='utf-8') as f:
-                json.dump({
-                    'symbol': symbol,
-                    'feature_cols': feature_cols,
-                    'metrics': metrics,
-                    'model_path': save_path,
-                    'trained_at': datetime.now().isoformat(),
-                }, f, ensure_ascii=False, indent=2)
+            with open(meta_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "symbol": symbol,
+                        "feature_cols": feature_cols,
+                        "metrics": metrics,
+                        "model_path": save_path,
+                        "trained_at": datetime.now().isoformat(),
+                    },
+                    f,
+                    ensure_ascii=False,
+                    indent=2,
+                )
             logger.info(f"模型已保存: {save_path}")
 
         logger.info(f"本地 LightGBM 训练完成 [{symbol}]: train_r2={train_score:.4f}, test_r2={test_score:.4f}")
 
         return {
-            'signal': signal,
-            'model': model,
-            'metrics': metrics,
+            "signal": signal,
+            "model": model,
+            "metrics": metrics,
         }
 
     except Exception as e:
         logger.error(f"本地 LightGBM 信号生成失败: {e}")
-        return {'signal': None, 'model': None, 'metrics': {}}
+        return {"signal": None, "model": None, "metrics": {}}
 
 
 def load_local_model(symbol: str) -> Optional[Dict]:
@@ -773,23 +811,25 @@ def load_local_model(symbol: str) -> Optional[Dict]:
 
         meta = {}
         if meta_path.exists():
-            with open(meta_path, 'r', encoding='utf-8') as f:
+            with open(meta_path, "r", encoding="utf-8") as f:
                 meta = json.load(f)
 
         logger.info(f"模型加载成功: {symbol}")
-        return {'model': model, 'meta': meta}
+        return {"model": model, "meta": meta}
 
     except Exception as e:
         logger.error(f"模型加载失败 [{symbol}]: {e}")
         return None
 
 
-def generate_signal(df: pd.DataFrame,
-                    symbol: str,
-                    model_type: str = DEFAULT_MODEL,
-                    use_cache: bool = True,
-                    save_model: bool = True,
-                    **kwargs) -> Optional[pd.Series]:
+def generate_signal(
+    df: pd.DataFrame,
+    symbol: str,
+    model_type: str = DEFAULT_MODEL,
+    use_cache: bool = True,
+    save_model: bool = True,
+    **kwargs,
+) -> Optional[pd.Series]:
     """
     统一信号生成接口
 
@@ -827,17 +867,40 @@ def generate_signal(df: pd.DataFrame,
                 data = _add_technical_features(df.copy())
                 if feature_cols is None:
                     feature_cols = [
-                        "open", "high", "low", "close", "volume",
-                        "ma5", "ma10", "ma20", "ma60",
-                        "macd", "macd_signal", "macd_hist",
-                        "rsi6", "rsi12", "rsi24",
-                        "boll_upper", "boll_mid", "boll_lower", "boll_width",
-                        "atr", "obv",
-                        "vol_ratio_5", "vol_ratio_20",
-                        "price_vs_ma5", "price_vs_ma20", "price_vs_ma60",
-                        "volatility_5", "volatility_20", "atr_ratio",
-                        "price_change_5", "volume_change_5", "price_volume_divergence",
-                        "high_low_ratio", "close_position",
+                        "open",
+                        "high",
+                        "low",
+                        "close",
+                        "volume",
+                        "ma5",
+                        "ma10",
+                        "ma20",
+                        "ma60",
+                        "macd",
+                        "macd_signal",
+                        "macd_hist",
+                        "rsi6",
+                        "rsi12",
+                        "rsi24",
+                        "boll_upper",
+                        "boll_mid",
+                        "boll_lower",
+                        "boll_width",
+                        "atr",
+                        "obv",
+                        "vol_ratio_5",
+                        "vol_ratio_20",
+                        "price_vs_ma5",
+                        "price_vs_ma20",
+                        "price_vs_ma60",
+                        "volatility_5",
+                        "volatility_20",
+                        "atr_ratio",
+                        "price_change_5",
+                        "volume_change_5",
+                        "price_volume_divergence",
+                        "high_low_ratio",
+                        "close_position",
                     ]
                 data = data.dropna(subset=feature_cols)
                 if len(data) > 0:

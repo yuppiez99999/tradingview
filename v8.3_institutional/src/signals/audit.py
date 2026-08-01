@@ -19,25 +19,26 @@
 
 import os
 import sqlite3
-import json
-from datetime import datetime, timedelta, date
-from typing import Dict, Any, Optional, List, Tuple
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional, List
 
 try:
     from .logging_manager import get_logger
-    logger = get_logger('signal_audit')
+
+    logger = get_logger("signal_audit")
 except ImportError:
     import logging
-    logger = logging.getLogger('signal_audit')
+
+    logger = logging.getLogger("signal_audit")
 
 
 class SignalAuditor:
     """信号质量审计器 — 追踪信号准确率并动态调整阈值"""
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            db_path = os.path.join(base_dir, 'data', 'signal_audit.db')
+            db_path = os.path.join(base_dir, "data", "signal_audit.db")
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.db_path = db_path
         self._init_db()
@@ -103,18 +104,36 @@ class SignalAuditor:
 
     # ── 信号记录 ──
 
-    def record_signal(self, code: str, source: str, action: str,
-                      probability: float = 0.5, confidence: float = 0.5,
-                      reason: str = "", market_regime: str = "neutral") -> int:
+    def record_signal(
+        self,
+        code: str,
+        source: str,
+        action: str,
+        probability: float = 0.5,
+        confidence: float = 0.5,
+        reason: str = "",
+        market_regime: str = "neutral",
+    ) -> int:
         """记录一条信号。返回信号ID（用于后续准确率评估）。"""
         try:
             conn = sqlite3.connect(self.db_path)
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 INSERT INTO signal_records
                 (generated_at, code, source, action, probability, confidence, reason, market_regime)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (datetime.now().isoformat(), code, source, action,
-                  probability, confidence, reason[:1000], market_regime))
+            """,
+                (
+                    datetime.now().isoformat(),
+                    code,
+                    source,
+                    action,
+                    probability,
+                    confidence,
+                    reason[:1000],
+                    market_regime,
+                ),
+            )
             signal_id = cursor.lastrowid
             conn.commit()
             conn.close()
@@ -135,13 +154,13 @@ class SignalAuditor:
         ids = []
         for s in signals:
             sid = self.record_signal(
-                code=s.get('code', ''),
-                source=s.get('source', 'unknown'),
-                action=s.get('action', 'HOLD'),
-                probability=s.get('probability', 0.5),
-                confidence=s.get('confidence', 0.5),
-                reason=s.get('reason', ''),
-                market_regime=s.get('market_regime', 'neutral'),
+                code=s.get("code", ""),
+                source=s.get("source", "unknown"),
+                action=s.get("action", "HOLD"),
+                probability=s.get("probability", 0.5),
+                confidence=s.get("confidence", 0.5),
+                reason=s.get("reason", ""),
+                market_regime=s.get("market_regime", "neutral"),
             )
             if sid > 0:
                 ids.append(sid)
@@ -149,8 +168,7 @@ class SignalAuditor:
 
     # ── 准确率评估 ──
 
-    def evaluate_signal(self, signal_id: int, price_at_signal: float,
-                        price_5d_later: float) -> Optional[Dict]:
+    def evaluate_signal(self, signal_id: int, price_at_signal: float, price_5d_later: float) -> Optional[Dict]:
         """评估单条信号5日后的实际效果。
 
         Returns:
@@ -159,8 +177,7 @@ class SignalAuditor:
         try:
             conn = sqlite3.connect(self.db_path)
             record = conn.execute(
-                "SELECT code, source, action, probability FROM signal_records WHERE id = ?",
-                (signal_id,)
+                "SELECT code, source, action, probability FROM signal_records WHERE id = ?", (signal_id,)
             ).fetchone()
             if not record:
                 conn.close()
@@ -170,41 +187,52 @@ class SignalAuditor:
             actual_return = (price_5d_later - price_at_signal) / price_at_signal
 
             # 判断是否正确
-            if action == 'BUY':
+            if action == "BUY":
                 was_correct = 1 if actual_return > 0 else 0
-            elif action == 'SELL':
+            elif action == "SELL":
                 was_correct = 1 if actual_return < 0 else 0
             else:
                 was_correct = 1 if abs(actual_return) < 0.02 else 0  # HOLD: 波动<2%算正确
 
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO signal_accuracy
                 (signal_id, code, source, predicted_action, predicted_prob,
                  price_at_signal, price_5d_later, actual_return_5d, was_correct, evaluated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (signal_id, code, source, action, prob,
-                  price_at_signal, price_5d_later, round(actual_return, 6),
-                  was_correct, datetime.now().isoformat()))
+            """,
+                (
+                    signal_id,
+                    code,
+                    source,
+                    action,
+                    prob,
+                    price_at_signal,
+                    price_5d_later,
+                    round(actual_return, 6),
+                    was_correct,
+                    datetime.now().isoformat(),
+                ),
+            )
             conn.commit()
             conn.close()
 
             return {
-                'signal_id': signal_id,
-                'code': code,
-                'source': source,
-                'predicted_action': action,
-                'predicted_prob': prob,
-                'price_at_signal': price_at_signal,
-                'price_5d_later': price_5d_later,
-                'actual_return_5d': round(actual_return * 100, 2),
-                'was_correct': bool(was_correct),
+                "signal_id": signal_id,
+                "code": code,
+                "source": source,
+                "predicted_action": action,
+                "predicted_prob": prob,
+                "price_at_signal": price_at_signal,
+                "price_5d_later": price_5d_later,
+                "actual_return_5d": round(actual_return * 100, 2),
+                "was_correct": bool(was_correct),
             }
         except Exception as e:
             logger.debug(f"评估信号失败: {e}")
             return None
 
-    def evaluate_accuracy(self, lookback_days: int = 30,
-                          source: str = None) -> Dict[str, Any]:
+    def evaluate_accuracy(self, lookback_days: int = 30, source: Optional[str] = None) -> Dict[str, Any]:
         """回顾N天内的信号准确率。
 
         Returns:
@@ -224,7 +252,7 @@ class SignalAuditor:
                 },
             }
         """
-        since = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
+        since = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
 
         conn = sqlite3.connect(self.db_path)
 
@@ -280,34 +308,34 @@ class SignalAuditor:
         for r in source_rows:
             s_name, total, correct = r
             by_source[s_name] = {
-                'accuracy': round(correct / total, 3) if total > 0 else 0,
-                'count': total,
+                "accuracy": round(correct / total, 3) if total > 0 else 0,
+                "count": total,
             }
 
         by_action = {}
         for r in action_rows:
             a_name, total, correct = r
             by_action[a_name] = {
-                'accuracy': round(correct / total, 3) if total > 0 else 0,
-                'count': total,
+                "accuracy": round(correct / total, 3) if total > 0 else 0,
+                "count": total,
             }
 
         total_count, total_correct = total_row if total_row else (0, 0)
 
         return {
-            'total_signals': sum(v['count'] for v in by_source.values()),
-            'evaluated_count': total_count,
-            'overall_accuracy': round(total_correct / total_count, 3) if total_count > 0 else 0,
-            'by_source': by_source,
-            'by_action': by_action,
-            'lookback_days': lookback_days,
+            "total_signals": sum(v["count"] for v in by_source.values()),
+            "evaluated_count": total_count,
+            "overall_accuracy": round(total_correct / total_count, 3) if total_count > 0 else 0,
+            "by_source": by_source,
+            "by_action": by_action,
+            "lookback_days": lookback_days,
         }
 
     # ── 动态阈值 ──
 
-    def get_optimal_threshold(self, code: str = None,
-                               market_regime: str = "neutral",
-                               min_samples: int = 10) -> Dict[str, float]:
+    def get_optimal_threshold(
+        self, code: Optional[str] = None, market_regime: str = "neutral", min_samples: int = 10
+    ) -> Dict[str, float]:
         """基于历史信号准确率，为指定市场状态计算最优买卖阈值。
 
         牛市 → 阈值上调（减少假买入）; 熊市 → 阈值上调（减少假买入）
@@ -317,41 +345,51 @@ class SignalAuditor:
             {'buy_threshold': 0.60, 'sell_threshold': 0.40}
         """
         threshold_map = {
-            'bull': {'buy': 0.62, 'sell': 0.38},
-            'bear': {'buy': 0.65, 'sell': 0.35},
-            'neutral': {'buy': 0.58, 'sell': 0.42},
-            'volatile': {'buy': 0.55, 'sell': 0.45},
+            "bull": {"buy": 0.62, "sell": 0.38},
+            "bear": {"buy": 0.65, "sell": 0.35},
+            "neutral": {"buy": 0.58, "sell": 0.42},
+            "volatile": {"buy": 0.55, "sell": 0.45},
         }
-        defaults = threshold_map.get(market_regime, threshold_map['neutral'])
+        defaults = threshold_map.get(market_regime, threshold_map["neutral"])
 
         # 尝试从数据库加载基于历史数据的优化阈值
         try:
             conn = sqlite3.connect(self.db_path)
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT buy_threshold, sell_threshold, sample_count, accuracy
                 FROM dynamic_thresholds
                 WHERE market_regime = ?
                 AND sample_count >= ?
-            """, (market_regime, min_samples)).fetchall()
+            """,
+                (market_regime, min_samples),
+            ).fetchall()
             conn.close()
 
             if rows:
                 # 选择准确率最高的阈值
                 best = max(rows, key=lambda r: r[3])
                 if best[0] and best[1]:
-                    return {'buy_threshold': best[0], 'sell_threshold': best[1]}
+                    return {"buy_threshold": best[0], "sell_threshold": best[1]}
         except Exception:
             pass
 
         return defaults
 
-    def update_threshold(self, code: str, market_regime: str,
-                          buy_threshold: float, sell_threshold: float,
-                          sample_count: int = 0, accuracy: float = 0):
+    def update_threshold(
+        self,
+        code: str,
+        market_regime: str,
+        buy_threshold: float,
+        sell_threshold: float,
+        sample_count: int = 0,
+        accuracy: float = 0,
+    ):
         """更新动态阈值"""
         try:
             conn = sqlite3.connect(self.db_path)
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO dynamic_thresholds
                 (code, market_regime, buy_threshold, sell_threshold,
                  sample_count, accuracy, updated_at)
@@ -362,8 +400,17 @@ class SignalAuditor:
                     sample_count = excluded.sample_count,
                     accuracy = excluded.accuracy,
                     updated_at = excluded.updated_at
-            """, (code, market_regime, buy_threshold, sell_threshold,
-                  sample_count, accuracy, datetime.now().isoformat()))
+            """,
+                (
+                    code,
+                    market_regime,
+                    buy_threshold,
+                    sell_threshold,
+                    sample_count,
+                    accuracy,
+                    datetime.now().isoformat(),
+                ),
+            )
             conn.commit()
             conn.close()
         except Exception as e:
@@ -371,8 +418,7 @@ class SignalAuditor:
 
     # ── 批量评估：自动查找5天前的信号并尝试评估 ──
 
-    def auto_evaluate_pending(self, price_getter=None,
-                               max_signals: int = 50) -> int:
+    def auto_evaluate_pending(self, price_getter=None, max_signals: int = 50) -> int:
         """自动评估等待验证的信号（5天前生成、尚未评估的）。
 
         Args:
@@ -381,30 +427,32 @@ class SignalAuditor:
         Returns:
             成功评估的信号数
         """
-        five_days_ago = (datetime.now() - timedelta(days=5)).strftime('%Y-%m-%d')
+        five_days_ago = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
         conn = sqlite3.connect(self.db_path)
 
         # 查找5天前生成但尚未评估的信号
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT sr.id, sr.code, sr.source, sr.action, sr.probability, sr.generated_at
             FROM signal_records sr
             WHERE sr.generated_at BETWEEN ? AND ?
             AND sr.id NOT IN (SELECT signal_id FROM signal_accuracy)
             ORDER BY sr.generated_at DESC
             LIMIT ?
-        """, (five_days_ago + " 00:00:00", five_days_ago + " 23:59:59", max_signals)
+        """,
+            (five_days_ago + " 00:00:00", five_days_ago + " 23:59:59", max_signals),
         ).fetchall()
         conn.close()
 
         evaluated = 0
         for r in rows:
-            sig_id, code, source, action, prob, gen_at = r
+            sig_id, code, _source, _action, _prob, gen_at = r
             if not price_getter:
                 continue
             try:
                 signal_date = gen_at[:10]
                 price_start = price_getter(code, signal_date)
-                five_days_later = (datetime.strptime(signal_date, '%Y-%m-%d') + timedelta(days=5)).strftime('%Y-%m-%d')
+                five_days_later = (datetime.strptime(signal_date, "%Y-%m-%d") + timedelta(days=5)).strftime("%Y-%m-%d")
                 price_end = price_getter(code, five_days_later)
                 if price_start and price_end:
                     result = self.evaluate_signal(sig_id, price_start, price_end)
@@ -424,24 +472,24 @@ class SignalAuditor:
             {'ml': 0.35, 'glm5': 0.40, 'ai_hedge': 0.25}
         """
         accuracy = self.evaluate_accuracy(lookback_days=lookback_days)
-        by_source = accuracy.get('by_source', {})
+        by_source = accuracy.get("by_source", {})
 
         if not by_source:
-            return {'ml': 0.40, 'glm5': 0.35, 'ai_hedge': 0.25}
+            return {"ml": 0.40, "glm5": 0.35, "ai_hedge": 0.25}
 
         # Softmax-like 归一化
         total_weight = 0
         weights = {}
         for src, info in by_source.items():
             # 准确率 * 样本数对数（惩罚样本太少的源）
-            w = info['accuracy'] * (1 + 0.1 * (info['count'] ** 0.5 if info['count'] > 0 else 0))
+            w = info["accuracy"] * (1 + 0.1 * (info["count"] ** 0.5 if info["count"] > 0 else 0))
             weights[src] = w
             total_weight += w
 
         if total_weight > 0:
             return {k: round(v / total_weight, 3) for k, v in weights.items()}
 
-        return {'ml': 0.40, 'glm5': 0.35, 'ai_hedge': 0.25}
+        return {"ml": 0.40, "glm5": 0.35, "ai_hedge": 0.25}
 
 
 # ── 全局单例 ──

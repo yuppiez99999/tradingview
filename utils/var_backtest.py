@@ -33,10 +33,11 @@ VaR 回测模块 (VaR Backtester)
     result = bt.backtest(var_estimates, actual_returns, confidence=0.99)
     print(result.summary_report)
 """
+
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import numpy as np
@@ -46,6 +47,7 @@ import numpy as np
 # ------------------------------------------------------------------
 try:
     from scipy.stats import chi2 as _scipy_chi2
+
     _HAS_SCIPY = True
 except ImportError:
     _HAS_SCIPY = False
@@ -65,7 +67,6 @@ def _chi2_sf(x: float, df: int = 1) -> float:
         return float(math.erfc(math.sqrt(x / 2.0)))
     # 对 df != 1 的粗略近似 (Wilson-Hilferty 变换)
     z = ((x / df) ** (1.0 / 3.0) - (1 - 2.0 / (9 * df))) / math.sqrt(2.0 / (9 * df))
-    from math import erf, sqrt
     return 0.5 * math.erfc(z / math.sqrt(2.0))
 
 
@@ -76,19 +77,19 @@ def _chi2_sf(x: float, df: int = 1) -> float:
 class VarBacktestResult:
     """VaR 回测结果。"""
 
-    exceptions_count: int               # 例外次数
-    total_observations: int            # 总观测数
-    expected_exceptions: float         # 预期例外数
-    exception_rate: float              # 实际例外率
-    expected_rate: float               # 预期例外率
-    kupiec_pof_statistic: float       # Kupiec POF 统计量
-    kupiec_p_value: float              # Kupiec POF p 值
-    christoffersen_statistic: float   # Christoffersen 统计量
-    christoffersen_p_value: float     # Christoffersen p 值
-    traffic_light: str                # GREEN / YELLOW / RED
-    is_model_valid: bool               # 模型是否有效
-    confidence: float                  # 置信水平
-    window: int                        # 回测窗口
+    exceptions_count: int  # 例外次数
+    total_observations: int  # 总观测数
+    expected_exceptions: float  # 预期例外数
+    exception_rate: float  # 实际例外率
+    expected_rate: float  # 预期例外率
+    kupiec_pof_statistic: float  # Kupiec POF 统计量
+    kupiec_p_value: float  # Kupiec POF p 值
+    christoffersen_statistic: float  # Christoffersen 统计量
+    christoffersen_p_value: float  # Christoffersen p 值
+    traffic_light: str  # GREEN / YELLOW / RED
+    is_model_valid: bool  # 模型是否有效
+    confidence: float  # 置信水平
+    window: int  # 回测窗口
     transition_matrix: Optional[list] = None  # 2x2 转移矩阵
     summary_report: str = ""
 
@@ -136,8 +137,8 @@ class VaRBacktester:
     """
 
     # Basel 交通灯阈值 (基于 250 天窗口)
-    GREEN_ZONE_MAX = 4     # 0-4: 绿区
-    YELLOW_ZONE_MAX = 9   # 5-9: 黄区; 10+: 红区
+    GREEN_ZONE_MAX = 4  # 0-4: 绿区
+    YELLOW_ZONE_MAX = 9  # 5-9: 黄区; 10+: 红区
 
     # 统计检验显著性水平
     SIGNIFICANCE_LEVEL = 0.05
@@ -199,23 +200,16 @@ class VaRBacktester:
         expected_exceptions = n * p
 
         # Kupiec POF 检验
-        kupiec_stat, kupiec_pval = self._kupiec_pof_test(
-            n=n, x=x, p=p
-        )
+        kupiec_stat, kupiec_pval = self._kupiec_pof_test(n=n, x=x, p=p)
 
         # Christoffersen 独立性检验
-        christ_stat, christ_pval, trans_matrix = (
-            self._christoffersen_test(exceptions)
-        )
+        christ_stat, christ_pval, trans_matrix = self._christoffersen_test(exceptions)
 
         # Basel 交通灯
         traffic = self._traffic_light(x)
 
         # 模型有效性: 交通灯非红区 AND Kupiec 检验不显著
-        is_valid = (
-            traffic != TRAFFIC_LIGHT_RED
-            and kupiec_pval > self.SIGNIFICANCE_LEVEL
-        )
+        is_valid = traffic != TRAFFIC_LIGHT_RED and kupiec_pval > self.SIGNIFICANCE_LEVEL
 
         # 生成报告
         report = self._generate_report(
@@ -379,9 +373,9 @@ class VaRBacktester:
         exc_next = exceptions[1:]
 
         n00 = int(np.sum((~exc_curr) & (~exc_next)))  # 0->0
-        n01 = int(np.sum((~exc_curr) & exc_next))      # 0->1
-        n10 = int(np.sum(exc_curr & (~exc_next)))       # 1->0
-        n11 = int(np.sum(exc_curr & exc_next))          # 1->1
+        n01 = int(np.sum((~exc_curr) & exc_next))  # 0->1
+        n10 = int(np.sum(exc_curr & (~exc_next)))  # 1->0
+        n11 = int(np.sum(exc_curr & exc_next))  # 1->1
 
         trans_matrix = [[n00, n01], [n10, n11]]
         total_trans = n00 + n01 + n10 + n11
@@ -407,10 +401,7 @@ class VaRBacktester:
         # 对数似然 under H0 (独立性: 使用无条件概率 pi)
         # L(pi) = (1-pi)^(n00+n10) * pi^(n01+n11)
         try:
-            ll_h0 = (
-                (n00 + n10) * math.log(1.0 - pi)
-                + (n01 + n11) * math.log(pi)
-            )
+            ll_h0 = (n00 + n10) * math.log(1.0 - pi) + (n01 + n11) * math.log(pi)
         except (ValueError, OverflowError):
             ll_h0 = float("-inf")
 
@@ -516,10 +507,7 @@ class VaRBacktester:
         lines.append(f"  LR 统计量:       {kupiec_stat:.4f}")
         lines.append(f"  p 值:           {kupiec_pval:.4f}")
         lines.append(f"  显著性水平:     {self.SIGNIFICANCE_LEVEL}")
-        lines.append(
-            f"  结论:           {'通过' if kupiec_pass else '拒绝'} "
-            f"(H0: 实际例外率 = 预期例外率)"
-        )
+        lines.append(f"  结论:           {'通过' if kupiec_pass else '拒绝'} (H0: 实际例外率 = 预期例外率)")
         lines.append("")
 
         # -- Christoffersen 独立性检验 --
@@ -530,33 +518,30 @@ class VaRBacktester:
         if trans_matrix is not None:
             n00, n01 = trans_matrix[0]
             n10, n11 = trans_matrix[1]
-            lines.append(f"  转移矩阵:")
+            lines.append("  转移矩阵:")
             lines.append(f"    无例外 -> 无例外:  n00 = {n00}")
             lines.append(f"    无例外 -> 例外:    n01 = {n01}")
             lines.append(f"    例外   -> 无例外:  n10 = {n10}")
             lines.append(f"    例外   -> 例外:    n11 = {n11}")
             if n11 > 0:
                 lines.append(f"  *** 检测到例外聚类 (n11={n11}) ***")
-        lines.append(
-            f"  结论:           {'通过' if christ_pass else '拒绝'} "
-            f"(H0: 例外事件相互独立)"
-        )
+        lines.append(f"  结论:           {'通过' if christ_pass else '拒绝'} (H0: 例外事件相互独立)")
         lines.append("")
 
         # -- Basel 交通灯 --
         lines.append("【Basel 交通灯机制】")
         if traffic == TRAFFIC_LIGHT_GREEN:
-            lines.append(f"  区域:           绿区 (GREEN)")
-            lines.append(f"  例外范围:       0-4 次 (250天内)")
-            lines.append(f"  说明:           模型表现良好, 无需额外行动")
+            lines.append("  区域:           绿区 (GREEN)")
+            lines.append("  例外范围:       0-4 次 (250天内)")
+            lines.append("  说明:           模型表现良好, 无需额外行动")
         elif traffic == TRAFFIC_LIGHT_YELLOW:
-            lines.append(f"  区域:           黄区 (YELLOW)")
-            lines.append(f"  例外范围:       5-9 次 (250天内)")
-            lines.append(f"  说明:           模型需关注, 建议检查校准")
+            lines.append("  区域:           黄区 (YELLOW)")
+            lines.append("  例外范围:       5-9 次 (250天内)")
+            lines.append("  说明:           模型需关注, 建议检查校准")
         else:
-            lines.append(f"  区域:           红区 (RED)")
-            lines.append(f"  例外范围:       10+ 次 (250天内)")
-            lines.append(f"  说明:           模型无效, 必须立即修正!")
+            lines.append("  区域:           红区 (RED)")
+            lines.append("  例外范围:       10+ 次 (250天内)")
+            lines.append("  说明:           模型无效, 必须立即修正!")
         lines.append("")
 
         # -- 综合结论 --
@@ -583,6 +568,7 @@ class VaRBacktester:
 # ------------------------------------------------------------------
 # 模块级便捷函数
 # ------------------------------------------------------------------
+
 
 def backtest(
     var_estimates: np.ndarray,
@@ -616,9 +602,7 @@ if __name__ == "__main__":
     import argparse
     import json
 
-    parser = argparse.ArgumentParser(
-        description="VaR 回测 -- Kupiec POF + Christoffersen + Basel 交通灯"
-    )
+    parser = argparse.ArgumentParser(description="VaR 回测 -- Kupiec POF + Christoffersen + Basel 交通灯")
     parser.add_argument(
         "--var-file",
         type=str,

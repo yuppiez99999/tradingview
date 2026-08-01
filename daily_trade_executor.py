@@ -43,47 +43,91 @@
   python daily_trade_executor.py pre-market --date 2026-07-10
   python daily_trade_executor.py post-market-auto --date 2026-07-13
 """
-import os
+
 import sys
 import json
 import argparse
+import threading
 from pathlib import Path
 from datetime import datetime, date
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent
+sys.path.insert(0, str(PROJECT_ROOT))
+from utils.concurrency import atomic_write_json  # noqa: E402  # P0-C1 原子写
+# B1.2: 统一使用 utils.trade_calendar 判断交易日 (支持节假日)
+from utils.trade_calendar import is_trading_day  # noqa: E402
+
 POSITIONS_FILE = PROJECT_ROOT / "config" / "positions.json"
 TRADE_PLAN_FILE = PROJECT_ROOT / "v8.3_institutional" / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
 INSTRUCTIONS_DIR = PROJECT_ROOT / "trade_instructions"
 PROGRESS_FILE = PROJECT_ROOT / "trade_instructions" / "build_progress.json"
 
+# B-4.5: 风控参数从 config/trade_execution.yaml 加载 (失败回退到硬编码默认值)
+from utils.config_manager import get_config as _get_trade_cfg  # noqa: E402
+
+_trade_cfg = _get_trade_cfg("trade_execution") or {}
+
+
+def _parse_date_from_cfg(s, default):
+    """从 yaml 字符串解析日期, 失败返回默认值"""
+    if not s:
+        return default
+    try:
+        return datetime.strptime(str(s), "%Y-%m-%d").date()
+    except Exception:
+        return default
+
+
 # 风控参数
-DAILY_AMOUNT_LIMIT = 200000        # 单日金额上限 20万 (2026-07-13起)
-PRICE_PROTECTION_PCT = 0.03        # 价格保护带 ±3%
-DAILY_LOSS_STOP_PCT = 0.03         # 单日累计亏损 -3% 熔断
-PORTFOLIO_DRAWDOWN_STOP_PCT = 0.05 # 组合回撤 -5% 熔断
+DAILY_AMOUNT_LIMIT = _trade_cfg.get("daily_amount_limit", 200000)  # 单日金额上限 20万
+PRICE_PROTECTION_PCT = _trade_cfg.get("price_protection_pct", 0.03)  # 价格保护带 ±3%
+DAILY_LOSS_STOP_PCT = _trade_cfg.get("daily_loss_stop_pct", 0.03)  # 单日累计亏损 -3% 熔断
+PORTFOLIO_DRAWDOWN_STOP_PCT = _trade_cfg.get("portfolio_drawdown_stop_pct", 0.05)  # 组合回撤 -5% 熔断
 
 # 建仓期参数 (phase_1_accumulation)
-ACCUMULATION_START = date(2026, 7, 10)
-ACCUMULATION_END = date(2026, 12, 31)
-STOCK_ETF_TARGET = 3_000_000       # 300万
+ACCUMULATION_START = _parse_date_from_cfg(_trade_cfg.get("accumulation_start"), date(2026, 7, 10))
+ACCUMULATION_END = _parse_date_from_cfg(_trade_cfg.get("accumulation_end"), date(2026, 12, 31))
+STOCK_ETF_TARGET = _trade_cfg.get("stock_etf_target", 3_000_000)  # 300万
 
 # 固定日预算起始日 (2026-07-13起改为动态信号加权预算)
-FIXED_BUDGET_START = date(2026, 7, 13)
-DAILY_FIXED_BUDGET = 200_000       # 单日金额上限/参考值
+FIXED_BUDGET_START = _parse_date_from_cfg(_trade_cfg.get("fixed_budget_start"), date(2026, 7, 13))
+DAILY_FIXED_BUDGET = _trade_cfg.get("daily_fixed_budget", 200_000)  # 单日金额上限/参考值
 
 # 智能分批金额 (仅用于2026-07-10~07-12, ETF信号强度 → 当日建仓金额)
+_signal_cfg = _trade_cfg.get("signal_amounts", {})
 SIGNAL_AMOUNTS = {
-    "strong": 50_000,   # 强信号日 5万
-    "medium": 20_000,   # 弱信号日 2万
-    "none": 10_000,     # 无信号日 1万
+    "strong": _signal_cfg.get("strong", 50_000),  # 强信号日 5万
+    "medium": _signal_cfg.get("medium", 20_000),  # 弱信号日 2万
+    "none": _signal_cfg.get("none", 10_000),  # 无信号日 1万
 }
 
+# 白酒单票上限 (占当日预算比例)
+BAIJIU_CAP_PCT = _trade_cfg.get("baijiu_cap_pct", 0.10)  # 白酒单票不超过当日预算的 10%
+BAIJIU_CODES = set(_trade_cfg.get("baijiu_codes", ["600519", "000858"]))
 
-def is_trading_day(d: date) -> bool:
-    """检查是否为A股交易日 (简易判断: 周一至周五)"""
-    return d.weekday() < 5
+
+def _infer_suffix(code: str) -> str:
+    """根据代码前缀推断交易所后缀
+
+    QMT 规范:
+    - 6xxxxx / 5xxxxx / 9xxxxx → .SH (上海)
+    - 0xxxxx / 2xxxxx / 3xxxxx → .SZ (深圳)
+    - 159xxx / 16xxxx → .SZ (深圳 ETF / LOF)
+    - 8xxxxx → .BJ (北交所)
+    - 1xxxxx (其他) → .SH (上海)
+    """
+    code = str(code).split(".")[0].zfill(6)
+    if code.startswith(('6', '5', '9')):
+        return f"{code}.SH"
+    elif code.startswith(('0', '2', '3')):
+        return f"{code}.SZ"
+    elif code.startswith(('159', '16')):
+        return f"{code}.SZ"
+    elif code.startswith('8'):
+        return f"{code}.BJ"
+    return f"{code}.SH"  # 默认上海
 
 
 def is_accumulation_period(d: date) -> bool:
@@ -93,7 +137,7 @@ def is_accumulation_period(d: date) -> bool:
 
 def init_wt_modules():
     """初始化 WonderTrader 风格模块
-    
+
     返回: dict 包含所有WT模块实例, 失败时返回空dict
     """
     wt_modules = {}
@@ -102,14 +146,16 @@ def init_wt_modules():
         from utils.wt_execution_algo import MinImpactExecutor, TWAPExecutor, VWAPExecutor
         from utils.wt_hedge_strategy import HedgeContext, BetaHedgeStrategy, TailRiskHedgeStrategy
         from utils.wt_contracts_manager import get_contracts_manager
-        
-        wt_modules["risk_control"] = RiskControl({
-            "max_daily_loss_pct": 0.05,
-            "max_portfolio_drawdown_pct": 0.15,
-            "max_position_concentration_pct": 0.30,
-            "max_single_trade_pct": 0.05,
-            "max_daily_trades": 50,
-        })
+
+        wt_modules["risk_control"] = RiskControl(
+            {
+                "max_daily_loss_pct": 0.05,
+                "max_portfolio_drawdown_pct": 0.15,
+                "max_position_concentration_pct": 0.30,
+                "max_single_trade_pct": 0.05,
+                "max_daily_trades": 50,
+            }
+        )
         wt_modules["stop_loss_manager"] = StopLossManager(
             stop_loss_pct=0.08,
             take_profit_pct=0.15,
@@ -125,46 +171,50 @@ def init_wt_modules():
         )
         wt_modules["vwap_executor"] = VWAPExecutor()
         wt_modules["contracts_manager"] = get_contracts_manager()
-        
-        beta_hedge = BetaHedgeStrategy(config={
-            "target_hedge_ratio": 0.2,
-            "max_hedge_ratio": 0.5,
-            "min_hedge_ratio": 0.05,
-        })
-        tail_hedge = TailRiskHedgeStrategy(config={
-            "target_hedge_ratio": 0.3,
-            "max_hedge_ratio": 0.6,
-            "min_hedge_ratio": 0.1,
-            "vol_threshold": 0.2,
-        })
+
+        beta_hedge = BetaHedgeStrategy(
+            config={
+                "target_hedge_ratio": 0.2,
+                "max_hedge_ratio": 0.5,
+                "min_hedge_ratio": 0.05,
+            }
+        )
+        tail_hedge = TailRiskHedgeStrategy(
+            config={
+                "target_hedge_ratio": 0.3,
+                "max_hedge_ratio": 0.6,
+                "min_hedge_ratio": 0.1,
+                "vol_threshold": 0.2,
+            }
+        )
         wt_modules["hedge_context"] = HedgeContext(beta_hedge)
         wt_modules["beta_hedge"] = beta_hedge
         wt_modules["tail_hedge"] = tail_hedge
-        
+
         print("[INFO] WonderTrader 模块初始化完成")
         print("[INFO]   - 风控模块: RiskControl, StopLossManager, PortfolioRiskAnalyzer")
         print("[INFO]   - 执行算法: MinImpactExecutor, TWAPExecutor, VWAPExecutor")
         print("[INFO]   - 对冲策略: BetaHedgeStrategy, TailRiskHedgeStrategy")
         print("[INFO]   - 合约管理: ContractsManager")
-        
+
     except Exception as e:
         print(f"[WARN] WonderTrader 模块初始化失败: {e}")
-        print(f"[WARN]   - 系统将使用内置风控规则继续运行")
-    
+        print("[WARN]   - 系统将使用内置风控规则继续运行")
+
     return wt_modules
 
 
 def load_positions() -> Dict:
-    """加载持仓配置"""
-    with open(POSITIONS_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    """加载持仓配置 (B1.7: 委托给 utils.positions_loader 统一入口)"""
+    from utils.positions_loader import load_positions as _load_positions_shared
+    return _load_positions_shared(POSITIONS_FILE)
 
 
 def load_trade_plan() -> Dict:
     """加载交易计划"""
     if not TRADE_PLAN_FILE.exists():
         return {"stock_etf_account": {"positions": []}}
-    with open(TRADE_PLAN_FILE, 'r', encoding='utf-8') as f:
+    with open(TRADE_PLAN_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -176,20 +226,19 @@ def load_build_progress() -> Dict:
             "daily_records": [],
             "built_amounts": {},  # {code: accumulated_amount}
         }
-    with open(PROGRESS_FILE, 'r', encoding='utf-8') as f:
+    with open(PROGRESS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def save_build_progress(progress: Dict):
-    """保存建仓进度"""
-    PROGRESS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(PROGRESS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(progress, f, ensure_ascii=False, indent=2)
+    """保存建仓进度 (P0-C1: 原子写)"""
+    atomic_write_json(PROGRESS_FILE, progress)
 
 
 def get_remaining_days(target_date: date) -> int:
     """计算到建仓期结束的剩余交易日数"""
     from datetime import timedelta
+
     days = 0
     current = target_date
     while current <= ACCUMULATION_END:
@@ -240,7 +289,7 @@ def calculate_daily_budget(target_date: date, progress: Dict, positions_data: Di
     strong_count = 0
     medium_count = 0
     none_count = 0
-    for code, pos in positions_data.get("positions", {}).items():
+    for _code, pos in positions_data.get("positions", {}).items():
         if not isinstance(pos, dict):
             continue
         signal = pos.get("etf_flow_signal", "")
@@ -265,7 +314,7 @@ def calculate_daily_budget(target_date: date, progress: Dict, positions_data: Di
         }
 
     # 2026-07-10~07-12: 智能分批 (原逻辑)
-    base_daily = remaining_total / remaining_days
+    base_daily = remaining_total / max(remaining_days, 1)  # 防除零
 
     if strong_count >= 3:
         signal_strength = "strong"
@@ -277,8 +326,11 @@ def calculate_daily_budget(target_date: date, progress: Dict, positions_data: Di
         signal_strength = "none"
         daily_budget = min(base_daily * 0.5, SIGNAL_AMOUNTS["none"])
 
-    # 应用单日上限
+    # 应用单日上限 + 可用资金校验 (防止超资金下单)
     daily_budget = min(daily_budget, DAILY_AMOUNT_LIMIT, remaining_total)
+    if daily_budget <= 0:
+        daily_budget = 0
+        signal_strength = "insufficient_budget"
 
     return {
         "daily_budget": round(daily_budget, 2),
@@ -298,7 +350,6 @@ def load_latest_prices() -> Dict[str, float]:
       1. v8.3_institutional/reports/daily_pnl_report_YYYY-MM-DD.json
       2. v8.3_institutional/reports/daily_pnl_report_YYYY-MM-DD.md
     """
-    import glob
     reports_dir = PROJECT_ROOT / "v8.3_institutional" / "reports"
     if not reports_dir.exists():
         return {}
@@ -310,7 +361,7 @@ def load_latest_prices() -> Dict[str, float]:
 
     latest_file = json_files[0]
     try:
-        with open(latest_file, 'r', encoding='utf-8') as f:
+        with open(latest_file, "r", encoding="utf-8") as f:
             report = json.load(f)
         prices = {}
         for detail in report.get("portfolio_pnl", {}).get("details", []):
@@ -328,17 +379,33 @@ def load_latest_prices() -> Dict[str, float]:
 
 # 默认参考价 (当无法获取真实价格时使用)
 DEFAULT_PRICES = {
-    "588080": 2.26, "512880": 1.13, "510050": 3.09, "512800": 1.50,
-    "515030": 1.71, "512760": 1.55, "512170": 0.31, "518880": 6.50,
-    "688041": 363.46, "300308": 1194.90, "002371": 878.43, "603019": 103.99,
-    "300033": 230.30, "300782": 92.83, "688017": 408.28, "300274": 100.00,
-    "000408": 35.00, "601088": 40.00, "600276": 55.61, "600900": 27.77,
+    "588080": 2.26,
+    "512880": 1.13,
+    "510050": 3.09,
+    "512800": 1.50,
+    "515030": 1.71,
+    "512760": 1.55,
+    "512170": 0.31,
+    "518880": 6.50,
+    "688041": 363.46,
+    "300308": 1194.90,
+    "002371": 878.43,
+    "603019": 103.99,
+    "300033": 230.30,
+    "300782": 92.83,
+    "688017": 408.28,
+    "300274": 100.00,
+    "000408": 35.00,
+    "601088": 40.00,
+    "600276": 55.61,
+    "600900": 27.77,
 }
 
 
 # ===========================================================
 # 价格预测信号 (v7.5+ 集成 tf_price_predictor)
 # ===========================================================
+
 
 def fetch_prediction_signals(symbols: List[str], horizon: int = 5) -> Dict[str, Dict]:
     """批量获取价格预测信号
@@ -354,6 +421,7 @@ def fetch_prediction_signals(symbols: List[str], horizon: int = 5) -> Dict[str, 
     """
     try:
         from utils.tf_price_predictor import PricePredictor
+
         predictor = PricePredictor()
         results: Dict[str, Dict] = {}
         for symbol in symbols:
@@ -371,7 +439,7 @@ def fetch_prediction_signals(symbols: List[str], horizon: int = 5) -> Dict[str, 
                     continue
                 pred = predictor.predict(symbol, prices, horizon=horizon)
                 # signal_strength: 正数看多, 负数看空
-                strength = pred.signal_strength if hasattr(pred, 'signal_strength') else 0.0
+                strength = pred.signal_strength if hasattr(pred, "signal_strength") else 0.0
                 results[symbol] = {
                     "direction": pred.direction,
                     "confidence": pred.confidence,
@@ -399,46 +467,109 @@ def fetch_prediction_signals(symbols: List[str], horizon: int = 5) -> Dict[str, 
 
 
 def _load_prediction_prices(symbol: str, days: int = 120):
-    """加载历史价格序列供预测用
+    """加载历史价格序列供预测用 (B2.5: 从内存索引读取, O(1) 查询)
 
     优先级:
       1. v8.3_institutional/reports/daily_pnl_report_*.json 中的 close_price
-      2. data_provider.get_historical_data (若可用)
+         (通过 _get_prediction_prices_index 单次扫描构建进程级缓存索引)
+      2. 数据不可用时返回 None
+
+    B2.5 优化前: 每次 fetch_prediction_signals 调用本函数都会重新扫描所有 PnL 报告,
+                 O(N×M) 次 json.load (N=symbol 数, M=报告文件数).
+    B2.5 优化后: 首次调用时单次扫描所有报告构建 {symbol: [prices]} 索引 (O(M)),
+                 后续查询直接读内存索引 (O(1)).
     """
-    import json as _json
-    import glob as _glob
-    # 从历史收盘报告聚合价格序列
-    reports_dir = PROJECT_ROOT / "v8.3_institutional" / "reports"
-    if not reports_dir.exists():
-        return None
     try:
         import numpy as np
     except ImportError:
         return None
-    # 收集所有历史报告 (按日期升序)
-    json_files = sorted(reports_dir.glob("daily_pnl_report_*.json"))
-    prices = []
+
+    index = _get_prediction_prices_index()
     code_clean = symbol.split(".")[0] if "." in symbol else symbol
-    for jf in json_files:
-        try:
-            with open(jf, 'r', encoding='utf-8') as f:
-                report = _json.load(f)
-            for detail in report.get("portfolio_pnl", {}).get("details", []):
-                if detail.get("code", "").split(".")[0] == code_clean:
-                    p = detail.get("close_price", 0)
-                    if p and p > 0:
-                        prices.append(float(p))
-                    break
-        except Exception:
-            continue
-    # 取最近 days 天
+    prices = index.get(code_clean, [])
+
+    # 取最近 days 天; 少于 30 个样本视为数据不足
     if len(prices) < 30:
         return None
     return np.array(prices[-days:], dtype=float)
 
 
-def adjust_allocation_by_signal(base_allocated: float, signal: Dict,
-                                daily_budget: float) -> tuple:
+# ===========================================================
+# B2.5: PnL 报告价格索引 (进程级单次扫描缓存)
+# ===========================================================
+
+# 进程级缓存: 首次构建后, 同一进程内所有 fetch_prediction_signals 调用复用
+_PREDICTION_PRICES_INDEX: Optional[Dict[str, List[float]]] = None
+_PREDICTION_PRICES_INDEX_LOCK = threading.Lock()
+
+
+def _get_prediction_prices_index() -> Dict[str, List[float]]:
+    """构建 {symbol_code: [close_price, ...]} 索引 (单次扫描所有 PnL 报告, 进程级缓存)
+
+    B2.5: 替代 _load_prediction_prices 的 O(N×M) 重复扫描.
+    所有 daily_pnl_report_*.json 只读取一次, 构建索引后 O(1) 查询.
+
+    语义保持 (与 B2.5 前一致):
+      - 报告文件按文件名升序处理 (文件名含日期, 等价于按日期升序)
+      - 每个报告文件中, 同一 symbol 只取第一个匹配的 detail (原 break 语义)
+      - close_price <= 0 或无法转 float 的样本跳过
+      - 解析异常的文件跳过, 不影响其他文件
+    """
+    global _PREDICTION_PRICES_INDEX
+    if _PREDICTION_PRICES_INDEX is not None:
+        return _PREDICTION_PRICES_INDEX
+
+    with _PREDICTION_PRICES_INDEX_LOCK:
+        # 双检: 持锁期间其他线程可能已完成构建
+        if _PREDICTION_PRICES_INDEX is not None:
+            return _PREDICTION_PRICES_INDEX
+
+        import json as _json
+        import logging
+
+        index: Dict[str, List[float]] = {}
+        reports_dir = PROJECT_ROOT / "v8.3_institutional" / "reports"
+        if not reports_dir.exists():
+            _PREDICTION_PRICES_INDEX = index
+            return index
+
+        json_files = sorted(reports_dir.glob("daily_pnl_report_*.json"))
+        for jf in json_files:
+            try:
+                with open(jf, "r", encoding="utf-8") as f:
+                    report = _json.load(f)
+                # 每个文件内, 同一 symbol 只取第一个匹配 (保持原 break 语义)
+                seen_in_file: set = set()
+                for detail in report.get("portfolio_pnl", {}).get("details", []):
+                    code_raw = detail.get("code", "")
+                    code_clean = code_raw.split(".")[0] if "." in code_raw else code_raw
+                    if not code_clean or code_clean in seen_in_file:
+                        continue
+                    seen_in_file.add(code_clean)
+                    p = detail.get("close_price", 0)
+                    if p and p > 0:
+                        try:
+                            index.setdefault(code_clean, []).append(float(p))
+                        except (ValueError, TypeError):
+                            continue
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "解析PnL报告异常,跳过文件: %s", jf
+                )
+                continue
+
+        _PREDICTION_PRICES_INDEX = index
+        return index
+
+
+def _reset_prediction_prices_index() -> None:
+    """重置价格索引缓存 (仅供测试使用: 在不同测试用例间隔离缓存状态)"""
+    global _PREDICTION_PRICES_INDEX
+    with _PREDICTION_PRICES_INDEX_LOCK:
+        _PREDICTION_PRICES_INDEX = None
+
+
+def adjust_allocation_by_signal(base_allocated: float, signal: Dict, daily_budget: float) -> tuple:
     """根据预测信号调整分配金额
 
     Args:
@@ -476,84 +607,82 @@ def adjust_allocation_by_signal(base_allocated: float, signal: Dict,
     return base_allocated, "neutral"
 
 
-def generate_instructions(target_date_str: str) -> Dict:
-    """盘前生成交易指令
+def _precheck_instructions_preconditions(target_date_str: str, target_date: date) -> Optional[Dict]:
+    """前置检查: 交易日和建仓期。
 
-    生成包含所有待买入标的的指令清单,
-    默认 confirm=false, 等待人工确认后改为 true.
+    Args:
+        target_date_str: 目标日期字符串 (YYYY-MM-DD)
+        target_date: 目标日期 date 对象
 
-    分配策略: 按剩余目标金额比例分配当日预算
-    (确保每个未完成建仓的标的都能获得合理份额)
+    Returns:
+        未通过返回跳过结果 dict; 通过返回 None
     """
-    target_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
-
-    # 前置检查
     if not is_trading_day(target_date):
         return {"status": "skipped", "reason": f"{target_date_str} 非交易日(周末)"}
-
     if not is_accumulation_period(target_date):
         return {"status": "skipped", "reason": f"{target_date_str} 不在建仓期(2026-07-10 ~ 2026-12-31)"}
+    return None
 
-    # 加载数据
-    positions_data = load_positions()
 
-    # v7.5+: 盘前自动刷新ETF资金流信号
+def _refresh_etf_flow(positions_file: Path) -> Dict:
+    """刷新 ETF 资金流信号并重新加载持仓配置。
+
+    Args:
+        positions_file: positions.json 路径
+
+    Returns:
+        重新加载后的 positions_data (失败时也返回当前持仓)
+    """
     try:
         from utils.etf_flow_monitor import refresh_etf_flow_signals
-        etf_result = refresh_etf_flow_signals(str(POSITIONS_FILE))
-        if etf_result.get('status') == 'success':
-            print(f"[INFO] ETF资金流信号刷新成功: 更新 {etf_result['updated_count']} 个标的, 检测到 {etf_result.get('signal_count', 0)} 条信号")
-            # 重新加载 positions_data 以获取更新后的信号
-            positions_data = load_positions()
-        else:
-            print(f"[WARN] ETF资金流信号刷新失败: {etf_result.get('message', 'unknown')}")
+
+        etf_result = refresh_etf_flow_signals(str(positions_file))
+        if etf_result.get("status") == "success":
+            print(
+                f"[INFO] ETF资金流信号刷新成功: 更新 {etf_result['updated_count']} 个标的, 检测到 {etf_result.get('signal_count', 0)} 条信号"
+            )
+            return load_positions()
+        print(f"[WARN] ETF资金流信号刷新失败: {etf_result.get('message', 'unknown')}")
     except Exception as e:
         print(f"[WARN] ETF资金流信号刷新模块加载失败: {e}")
+    return load_positions()
 
-    # v7.8+: 初始化 WonderTrader 风格模块
-    wt_modules = init_wt_modules()
-    
-    trade_plan = load_trade_plan()
-    progress = load_build_progress()
-    latest_prices = load_latest_prices()
 
-    # v7.8+: WT风控预检查 (使用 WT PortfolioRiskAnalyzer)
-    if wt_modules.get("portfolio_risk_analyzer"):
-        try:
-            risk_summary = wt_modules["portfolio_risk_analyzer"].analyze_portfolio(
-                positions_data,
-                progress.get("total_built", 0),
-                STOCK_ETF_TARGET,
-            )
-            print(f"[INFO] WT风控分析: 组合风险评分 {risk_summary.get('risk_score', 'N/A')}")
-            print(f"[INFO]   - 集中度风险: {risk_summary.get('concentration_risk', 'N/A')}")
-            print(f"[INFO]   - 行业分布: {risk_summary.get('sector_distribution', 'N/A')}")
-        except Exception as e:
-            print(f"[WARN] WT风控分析执行失败: {e}")
+def _run_wt_risk_precheck(wt_modules: Dict, positions_data: Dict, progress: Dict) -> None:
+    """WT 风控预检查 (仅打印分析日志, 不阻断执行)。
 
-    # 获取预测信号 (v7.5+ 集成 tf_price_predictor, 失败时静默降级)
-    pending_codes = [
-        p.get("code", "").split(".")[0]
-        for p in trade_plan.get("stock_etf_account", {}).get("positions", [])
-    ]
-    prediction_signals = fetch_prediction_signals(pending_codes, horizon=5)
-    if prediction_signals:
-        up_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "UP")
-        down_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "DOWN")
-        print(f"[INFO] 预测信号: {len(prediction_signals)} 个标的, 看多 {up_count}, 看空 {down_count}")
+    Args:
+        wt_modules: WonderTrader 模块 dict
+        positions_data: 持仓配置
+        progress: 建仓进度
+    """
+    analyzer = wt_modules.get("portfolio_risk_analyzer")
+    if not analyzer:
+        return
+    try:
+        risk_summary = analyzer.analyze_portfolio(
+            positions_data,
+            progress.get("total_built", 0),
+            STOCK_ETF_TARGET,
+        )
+        print(f"[INFO] WT风控分析: 组合风险评分 {risk_summary.get('risk_score', 'N/A')}")
+        print(f"[INFO]   - 集中度风险: {risk_summary.get('concentration_risk', 'N/A')}")
+        print(f"[INFO]   - 行业分布: {risk_summary.get('sector_distribution', 'N/A')}")
+    except Exception as e:
+        print(f"[WARN] WT风控分析执行失败: {e}")
 
-    # 计算当日预算
-    budget_info = calculate_daily_budget(target_date, progress, positions_data)
 
-    if budget_info["daily_budget"] <= 0:
-        return {"status": "completed", "reason": "已完成建仓目标", "budget_info": budget_info}
+def _compute_progress_ratio(target_date: date) -> float:
+    """计算建仓进度比例 (已过交易日 / 总交易日)。
 
-    # 收集所有未完成建仓的标的
-    plan_positions = trade_plan.get("stock_etf_account", {}).get("positions", [])
-    pending_positions = []
+    Args:
+        target_date: 目标日期
 
-    # 计算建仓进度 (用于按缺口排序)
+    Returns:
+        进度比例 [0, 1]
+    """
     from datetime import timedelta
+
     elapsed_days = 0
     current = ACCUMULATION_START
     while current <= target_date:
@@ -561,8 +690,21 @@ def generate_instructions(target_date_str: str) -> Dict:
             elapsed_days += 1
         current += timedelta(days=1)
     total_accumulation_days = get_remaining_days(ACCUMULATION_START)
-    progress_ratio = min(elapsed_days / max(total_accumulation_days, 1), 1.0)
+    return min(elapsed_days / max(total_accumulation_days, 1), 1.0)
 
+
+def _collect_pending_positions(plan_positions: list, progress: Dict, progress_ratio: float) -> list:
+    """收集所有未完成建仓的标的, 并计算缺口 (缺口大者优先)。
+
+    Args:
+        plan_positions: 交易计划中的标的列表
+        progress: 建仓进度
+        progress_ratio: 建仓进度比例
+
+    Returns:
+        未完成建仓的标的列表 (含 gap 字段, 已按缺口降序)
+    """
+    pending = []
     for pos in plan_positions:
         code = pos.get("code", "")
         target_amount = pos.get("amount", 0)
@@ -573,120 +715,152 @@ def generate_instructions(target_date_str: str) -> Dict:
             theoretical_built = target_amount * progress_ratio
             # 缺口 = 理论应建仓 - 实际已建仓 (正值表示落后于进度)
             gap = theoretical_built - built
-            pending_positions.append({
-                "code": code,
-                "code_clean": code.split(".")[0],
-                "name": pos.get("name", ""),
-                "weight": pos.get("weight", 0),
-                "target_amount": target_amount,
-                "built": built,
-                "remaining": remaining,
-                "gap": gap,
-            })
-
-    if not pending_positions:
-        return {"status": "completed", "reason": "所有标的已建仓完成"}
-
+            pending.append(
+                {
+                    "code": code,
+                    "code_clean": code.split(".")[0],
+                    "name": pos.get("name", ""),
+                    "weight": pos.get("weight", 0),
+                    "target_amount": target_amount,
+                    "built": built,
+                    "remaining": remaining,
+                    "gap": gap,
+                }
+            )
     # 按缺口降序排序 (缺口大的优先买入)
-    pending_positions.sort(key=lambda x: x["gap"], reverse=True)
+    pending.sort(key=lambda x: x["gap"], reverse=True)
+    return pending
 
-    # 轮换分配: 优先满足缺口大的标的
-    # 每个标的按权重比例分配当日预算, 但确保总金额不超过预算
-    daily_budget = budget_info["daily_budget"]
-    instructions = []
-    total_allocated = 0
-    remaining_budget = daily_budget
 
-    for pos in pending_positions:
-        if remaining_budget < 100:
-            break  # 预算耗尽
+def _compute_price_band(ref_price: float) -> tuple:
+    """计算价格保护带 (最大/最小买入价)。
 
-        code_clean = pos["code_clean"]
-        # 获取参考价
-        ref_price = latest_prices.get(code_clean, 0)
-        if not ref_price:
-            ref_price = DEFAULT_PRICES.get(code_clean, 10.0)
+    Args:
+        ref_price: 参考价
 
-        # 价格保护带
-        max_buy_price = round(ref_price * (1 + PRICE_PROTECTION_PCT), 4)
-        min_buy_price = round(ref_price * (1 - PRICE_PROTECTION_PCT), 4)
+    Returns:
+        (max_buy_price, min_buy_price) 元组
+    """
+    max_buy_price = round(ref_price * (1 + PRICE_PROTECTION_PCT), 4)
+    min_buy_price = round(ref_price * (1 - PRICE_PROTECTION_PCT), 4)
+    return max_buy_price, min_buy_price
 
-        # 100 股最小成本
-        min_lot_cost = 100 * ref_price
 
-        # 按权重分配预算
-        allocated = min(remaining_budget * pos["weight"] / 0.05 * 0.15, remaining_budget, pos["remaining"])
-        # 单标的上限: 当日预算的30% (20万预算下单标最多6万)
-        allocated = min(allocated, daily_budget * 0.30)
+def _allocate_position(
+    pos: dict,
+    target_date_str: str,
+    daily_budget: float,
+    remaining_budget: float,
+    latest_prices: Dict,
+    prediction_signals: Dict,
+    positions_data: Dict,
+) -> Optional[tuple]:
+    """为单个标的分配预算并构建买入指令。
 
-        # v7.5+: 根据预测信号调整分配
-        signal = prediction_signals.get(code_clean, {})
-        allocated, signal_tag = adjust_allocation_by_signal(allocated, signal, daily_budget)
-        # 强看空 → 跳过该标的
-        if signal_tag == "skip" and allocated == 0:
-            print(f"[WARN] 预测信号触发跳过: {code_clean} ({pos['name']}) - 强看空 (置信度 {signal.get('confidence', 0):.0%})")
-            continue
+    分配策略: 按权重比例分配, 受单标的上限(当日预算30%)和价格保护带约束,
+    高价股特殊处理 (100股最小手数)。
 
-        # 高价股处理: 如果 100 股成本 > 分配预算
-        if min_lot_cost > allocated:
-            # 如果 100 股成本超过当日预算的 50%, 跳过 (避免单标的占用过多预算)
-            if min_lot_cost > daily_budget * 0.50:
-                continue
-            # 否则检查剩余预算是否足够买 100 股
-            if remaining_budget < min_lot_cost:
-                continue
-            allocated = min_lot_cost  # 只买 100 股
+    Args:
+        pos: 标的持仓信息 (含 code_clean/weight/remaining 等)
+        target_date_str: 目标日期字符串
+        daily_budget: 当日总预算
+        remaining_budget: 剩余预算
+        latest_prices: 最新价格字典
+        prediction_signals: 预测信号字典
+        positions_data: 持仓配置
 
-        allocated = min(allocated, remaining_budget, pos["remaining"])
+    Returns:
+        (instruction_dict, actual_amount) 元组; None 表示跳过该标的
+    """
+    code_clean = pos["code_clean"]
+    ref_price = latest_prices.get(code_clean, 0)
+    if not ref_price:
+        ref_price = DEFAULT_PRICES.get(code_clean, 10.0)
 
-        # 估算购买数量 (100股整数倍)
-        est_qty = int(allocated / max_buy_price / 100) * 100
-        if est_qty <= 0:
-            est_qty = 100  # 最小 100 股
+    max_buy_price, min_buy_price = _compute_price_band(ref_price)
+    min_lot_cost = 100 * ref_price
 
-        actual_amount = round(est_qty * ref_price, 2)
+    # 按权重分配预算
+    allocated = min(remaining_budget * pos["weight"] / 0.05 * 0.15, remaining_budget, pos["remaining"])
+    # 单标的上限: 当日预算的30% (20万预算下单标最多6万)
+    allocated = min(allocated, daily_budget * 0.30)
 
-        # 如果实际金额超过剩余预算, 跳过
-        if actual_amount > remaining_budget:
-            continue
+    # v7.5+: 根据预测信号调整分配
+    signal = prediction_signals.get(code_clean, {})
+    allocated, signal_tag = adjust_allocation_by_signal(allocated, signal, daily_budget)
+    # 强看空 → 跳过该标的
+    if signal_tag == "skip" and allocated == 0:
+        print(
+            f"[WARN] 预测信号触发跳过: {code_clean} ({pos['name']}) - 强看空 (置信度 {signal.get('confidence', 0):.0%})"
+        )
+        return None
 
-        # 评估ETF信号
-        etf_signal = assess_etf_signal(pos["code"], positions_data)
+    # 高价股处理: 如果 100 股成本 > 分配预算
+    if min_lot_cost > allocated:
+        # 如果 100 股成本超过当日预算的 50%, 跳过 (避免单标的占用过多预算)
+        if min_lot_cost > daily_budget * 0.50:
+            return None
+        # 否则检查剩余预算是否足够买 100 股
+        if remaining_budget < min_lot_cost:
+            return None
+        allocated = min_lot_cost  # 只买 100 股
 
-        # 预测信号摘要 (供人工审核参考)
-        pred_signal = prediction_signals.get(code_clean, {})
+    allocated = min(allocated, remaining_budget, pos["remaining"])
 
-        instructions.append({
-            "instruction_id": f"{target_date_str.replace('-','')}-{code_clean}",
-            "code": code_clean,
-            "full_code": pos["code"],
-            "name": pos["name"],
-            "action": "BUY",
-            "qty": est_qty,
-            "ref_price": ref_price,
-            "max_buy_price": max_buy_price,
-            "min_buy_price": min_buy_price,
-            "estimated_amount": actual_amount,
-            "weight": pos["weight"],
-            "target_amount": pos["target_amount"],
-            "built_before": pos["built"],
-            "remaining_after": round(pos["remaining"] - actual_amount, 2),
-            "etf_signal": etf_signal,
-            "prediction_signal": {
-                "direction": pred_signal.get("direction", "NEUTRAL"),
-                "confidence": round(pred_signal.get("confidence", 0), 3),
-                "target_price": round(pred_signal.get("target_price", 0), 2),
-                "method": pred_signal.get("method", "no_data"),
-                "tag": signal_tag,
-            },
-            "gap": round(pos["gap"], 2),
-            "confirm": False,  # 默认未确认, 需人工改为 true
-        })
-        total_allocated += actual_amount
-        remaining_budget -= actual_amount
+    # 估算购买数量 (100股整数倍)
+    est_qty = int(allocated / max_buy_price / 100) * 100
+    if est_qty <= 0:
+        est_qty = 100  # 最小 100 股
 
-    # 风控检查
-    risk_checks = {
+    actual_amount = round(est_qty * ref_price, 2)
+
+    # 如果实际金额超过剩余预算, 跳过
+    if actual_amount > remaining_budget:
+        return None
+
+    # 评估ETF信号 + 预测信号摘要 (供人工审核参考)
+    etf_signal = assess_etf_signal(pos["code"], positions_data)
+    pred_signal = prediction_signals.get(code_clean, {})
+
+    instruction = {
+        "instruction_id": f"{target_date_str.replace('-', '')}-{code_clean}",
+        "code": code_clean,
+        "full_code": pos["code"],
+        "name": pos["name"],
+        "action": "BUY",
+        "qty": est_qty,
+        "ref_price": ref_price,
+        "max_buy_price": max_buy_price,
+        "min_buy_price": min_buy_price,
+        "estimated_amount": actual_amount,
+        "weight": pos["weight"],
+        "target_amount": pos["target_amount"],
+        "built_before": pos["built"],
+        "remaining_after": round(pos["remaining"] - actual_amount, 2),
+        "etf_signal": etf_signal,
+        "prediction_signal": {
+            "direction": pred_signal.get("direction", "NEUTRAL"),
+            "confidence": round(pred_signal.get("confidence", 0), 3),
+            "target_price": round(pred_signal.get("target_price", 0), 2),
+            "method": pred_signal.get("method", "no_data"),
+            "tag": signal_tag,
+        },
+        "gap": round(pos["gap"], 2),
+        "confirm": False,  # 默认未确认, 需人工改为 true
+    }
+    return instruction, actual_amount
+
+
+def _build_risk_checks(total_allocated: float) -> dict:
+    """构建风控检查字典。
+
+    Args:
+        total_allocated: 当日已分配总额
+
+    Returns:
+        风控检查字典
+    """
+    return {
         "daily_limit": {
             "rule": f"单日金额上限 {DAILY_AMOUNT_LIMIT:,}",
             "value": total_allocated,
@@ -709,10 +883,29 @@ def generate_instructions(target_date_str: str) -> Dict:
         },
     }
 
-    all_passed = all(r["passed"] for r in risk_checks.values() if "passed" in r)
-    # manual_confirm 不阻塞生成, 只标记需要确认
 
-    instruction_file = {
+def _build_instruction_file(
+    target_date_str: str,
+    progress: Dict,
+    budget_info: Dict,
+    risk_checks: Dict,
+    instructions: list,
+    total_allocated: float,
+) -> dict:
+    """构建指令文件字典 (含 meta/budget/risk/instructions)。
+
+    Args:
+        target_date_str: 目标日期字符串
+        progress: 建仓进度
+        budget_info: 预算信息
+        risk_checks: 风控检查
+        instructions: 指令列表
+        total_allocated: 已分配总额
+
+    Returns:
+        指令文件字典
+    """
+    return {
         "meta": {
             "instruction_date": target_date_str,
             "generated_at": datetime.now().isoformat(),
@@ -729,17 +922,110 @@ def generate_instructions(target_date_str: str) -> Dict:
         "confirm_instruction": "将每个 instruction 中的 confirm 字段改为 true, 然后运行 post-market 执行",
     }
 
-    # 保存
+
+def _save_instruction_file(target_date_str: str, instruction_file: dict) -> tuple:
+    """保存指令文件 (JSON + Markdown 两个版本)。
+
+    Args:
+        target_date_str: 目标日期字符串
+        instruction_file: 指令文件字典
+
+    Returns:
+        (output_file, md_file) 路径元组
+    """
     INSTRUCTIONS_DIR.mkdir(parents=True, exist_ok=True)
     output_file = INSTRUCTIONS_DIR / f"{target_date_str}_instructions.json"
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(instruction_file, f, ensure_ascii=False, indent=2)
 
     # 生成 markdown 版本
     md_file = INSTRUCTIONS_DIR / f"{target_date_str}_instructions.md"
     md_content = render_instructions_md(instruction_file)
-    with open(md_file, 'w', encoding='utf-8') as f:
+    with open(md_file, "w", encoding="utf-8") as f:
         f.write(md_content)
+    return output_file, md_file
+
+
+def generate_instructions(target_date_str: str) -> Dict:
+    """盘前生成交易指令
+
+    生成包含所有待买入标的的指令清单,
+    默认 confirm=false, 等待人工确认后改为 true.
+
+    分配策略: 按剩余目标金额比例分配当日预算
+    (确保每个未完成建仓的标的都能获得合理份额)
+    """
+    target_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
+
+    # 前置检查: 交易日 / 建仓期
+    skip = _precheck_instructions_preconditions(target_date_str, target_date)
+    if skip:
+        return skip
+
+    # 加载数据 (v7.5+: 盘前自动刷新ETF资金流信号)
+    positions_data = _refresh_etf_flow(POSITIONS_FILE)
+    wt_modules = init_wt_modules()
+    trade_plan = load_trade_plan()
+    progress = load_build_progress()
+    latest_prices = load_latest_prices()
+
+    # v7.8+: WT风控预检查 (使用 WT PortfolioRiskAnalyzer)
+    _run_wt_risk_precheck(wt_modules, positions_data, progress)
+
+    # 获取预测信号 (v7.5+ 集成 tf_price_predictor, 失败时静默降级)
+    pending_codes = [
+        p.get("code", "").split(".")[0] for p in trade_plan.get("stock_etf_account", {}).get("positions", [])
+    ]
+    prediction_signals = fetch_prediction_signals(pending_codes, horizon=5)
+    if prediction_signals:
+        up_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "UP")
+        down_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "DOWN")
+        print(f"[INFO] 预测信号: {len(prediction_signals)} 个标的, 看多 {up_count}, 看空 {down_count}")
+
+    # 计算当日预算
+    budget_info = calculate_daily_budget(target_date, progress, positions_data)
+    if budget_info["daily_budget"] <= 0:
+        return {"status": "completed", "reason": "已完成建仓目标", "budget_info": budget_info}
+
+    # 收集所有未完成建仓的标的 (按缺口降序, 缺口大的优先买入)
+    progress_ratio = _compute_progress_ratio(target_date)
+    plan_positions = trade_plan.get("stock_etf_account", {}).get("positions", [])
+    pending_positions = _collect_pending_positions(plan_positions, progress, progress_ratio)
+
+    if not pending_positions:
+        return {"status": "completed", "reason": "所有标的已建仓完成"}
+
+    # 轮换分配: 优先满足缺口大的标的
+    daily_budget = budget_info["daily_budget"]
+    instructions = []
+    total_allocated = 0
+    remaining_budget = daily_budget
+
+    for pos in pending_positions:
+        if remaining_budget < 100:
+            break  # 预算耗尽
+        result = _allocate_position(
+            pos,
+            target_date_str,
+            daily_budget,
+            remaining_budget,
+            latest_prices,
+            prediction_signals,
+            positions_data,
+        )
+        if result is None:
+            continue
+        instruction, actual_amount = result
+        instructions.append(instruction)
+        total_allocated += actual_amount
+        remaining_budget -= actual_amount
+
+    # 风控检查 + 构建指令文件 (manual_confirm 不阻塞生成, 只标记需要确认)
+    risk_checks = _build_risk_checks(total_allocated)
+    instruction_file = _build_instruction_file(
+        target_date_str, progress, budget_info, risk_checks, instructions, total_allocated,
+    )
+    output_file, md_file = _save_instruction_file(target_date_str, instruction_file)
 
     return {
         "status": "generated",
@@ -756,7 +1042,7 @@ def confirm_all_instructions(target_date_str: str) -> int:
     if not instruction_file.exists():
         return 0
 
-    with open(instruction_file, 'r', encoding='utf-8') as f:
+    with open(instruction_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     confirmed_count = 0
@@ -766,7 +1052,7 @@ def confirm_all_instructions(target_date_str: str) -> int:
             confirmed_count += 1
 
     if confirmed_count > 0:
-        with open(instruction_file, 'w', encoding='utf-8') as f:
+        with open(instruction_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
     return confirmed_count
@@ -806,7 +1092,7 @@ def render_instructions_md(data: Dict) -> str:
         f"| 单日金额上限 | {DAILY_AMOUNT_LIMIT:,} | {data['total_allocated']:,.0f} | {DAILY_AMOUNT_LIMIT:,} | {'PASS' if risk['daily_limit']['passed'] else 'FAIL'} |",
         f"| 价格保护带 | {PRICE_PROTECTION_PCT:.0%} | - | - | {'PASS' if risk['price_protection']['passed'] else 'FAIL'} |",
         f"| 熔断停止 | 单日-{DAILY_LOSS_STOP_PCT:.0%}/组合-{PORTFOLIO_DRAWDOWN_STOP_PCT:.0%} | 0% | - | {'PASS' if risk['circuit_breaker']['passed'] else 'FAIL'} |",
-        f"| 人工确认 | confirm=true | - | - | PENDING |",
+        "| 人工确认 | confirm=true | - | - | PENDING |",
         "",
         "## 交易指令",
         "",
@@ -827,64 +1113,66 @@ def render_instructions_md(data: Dict) -> str:
             f"{inst['remaining_after']:,.0f} | {confirm} |"
         )
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## 确认步骤",
-        "",
-        "1. 打开 JSON 文件: `" + data["meta"]["instruction_date"].replace("-", "") + "_instructions.json`",
-        "2. 检查每条指令的 `qty`, `max_buy_price` 等参数",
-        "3. 将需要执行的指令的 `confirm` 字段改为 `true`",
-        "4. 运行: `python daily_trade_executor.py post-market --date " + data["meta"]["instruction_date"] + "`",
-        "",
-        "## 风控规则",
-        "",
-        f"- **单日金额上限**: {DAILY_AMOUNT_LIMIT:,}",
-        f"- **价格保护带**: 买入价不超过昨收 +{PRICE_PROTECTION_PCT:.0%}",
-        f"- **单日熔断**: 亏损 >{DAILY_LOSS_STOP_PCT:.0%} 停止建仓",
-        f"- **组合熔断**: 回撤 >{PORTFOLIO_DRAWDOWN_STOP_PCT:.0%} 停止建仓",
-        "",
-        f"*由 daily_trade_executor.py 自动生成*",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## 确认步骤",
+            "",
+            "1. 打开 JSON 文件: `" + data["meta"]["instruction_date"].replace("-", "") + "_instructions.json`",
+            "2. 检查每条指令的 `qty`, `max_buy_price` 等参数",
+            "3. 将需要执行的指令的 `confirm` 字段改为 `true`",
+            "4. 运行: `python daily_trade_executor.py post-market --date " + data["meta"]["instruction_date"] + "`",
+            "",
+            "## 风控规则",
+            "",
+            f"- **单日金额上限**: {DAILY_AMOUNT_LIMIT:,}",
+            f"- **价格保护带**: 买入价不超过昨收 +{PRICE_PROTECTION_PCT:.0%}",
+            f"- **单日熔断**: 亏损 >{DAILY_LOSS_STOP_PCT:.0%} 停止建仓",
+            f"- **组合熔断**: 回撤 >{PORTFOLIO_DRAWDOWN_STOP_PCT:.0%} 停止建仓",
+            "",
+            "*由 daily_trade_executor.py 自动生成*",
+        ]
+    )
 
     return "\n".join(lines)
 
 
 def generate_next_trading_day_plan(today_str: str) -> Dict:
     """收盘后自动生成下一个交易日的执行计划
-    
+
     参数:
         today_str: 今日日期字符串 (YYYY-MM-DD)
-    
+
     返回:
         下一个交易日的交易计划结果
     """
     from datetime import timedelta
-    
+
     # 计算下一个交易日
     today = datetime.strptime(today_str, "%Y-%m-%d").date()
     next_day = today + timedelta(days=1)
-    
+
     # 跳过周末和节假日
     max_attempts = 10
     attempts = 0
     while not is_trading_day(next_day) and attempts < max_attempts:
         next_day += timedelta(days=1)
         attempts += 1
-    
+
     if attempts >= max_attempts:
         return {
             "status": "error",
             "reason": f"无法在{today_str}后的10天内找到下一个交易日",
         }
-    
+
     next_day_str = next_day.isoformat()
     print(f"[INFO] 今日: {today_str}, 下一交易日: {next_day_str}")
-    
+
     # 生成下一个交易日的计划
     result = generate_instructions(next_day_str)
-    
+
     # 添加元信息
     if isinstance(result, dict):
         meta = result.get("meta")
@@ -894,188 +1182,219 @@ def generate_next_trading_day_plan(today_str: str) -> Dict:
         meta["generated_after"] = today_str
         meta["auto_generated"] = True
         meta["next_trading_day"] = next_day_str
-    
+
     return result
 
 
-def execute_instructions(target_date_str: str) -> Dict:
-    """盘后执行已确认的交易指令
+def _check_execution_preconditions(instructions_data: dict) -> tuple:
+    """执行前风控检查 + 筛选已确认指令。
 
-    读取指令文件, 执行 confirm=true 的指令,
-    更新 positions.json (shares/avg_cost/est_price) 和 build_progress.json
+    Args:
+        instructions_data: 指令文件数据
 
-    幂等保护: 若当日已执行过, 则跳过重复累加, 仅补同步 positions.json
+    Returns:
+        (confirmed_list, error_result) 元组; error_result 非 None 表示应直接返回
     """
-    instruction_file = INSTRUCTIONS_DIR / f"{target_date_str}_instructions.json"
-
-    if not instruction_file.exists():
-        return {"status": "error", "reason": f"指令文件不存在: {instruction_file}"}
-
-    with open(instruction_file, 'r', encoding='utf-8') as f:
-        instructions_data = json.load(f)
-
-    # 执行前风控检查
+    # 模拟检查熔断 (盘后实际数据需要从报告读取); 如有风控失败则不执行
     risk_checks = instructions_data.get("risk_checks", {})
-
-    # 模拟检查熔断 (盘后实际数据需要从报告读取)
-    # 这里简化为: 如果有风控失败, 不执行
     if not risk_checks.get("daily_limit", {}).get("passed", True):
-        return {"status": "blocked", "reason": "单日金额上限未通过"}
+        return [], {"status": "blocked", "reason": "单日金额上限未通过"}
 
-    # 筛选已确认指令
     confirmed = [i for i in instructions_data.get("instructions", []) if i.get("confirm", False)]
-
     if not confirmed:
-        return {
+        return [], {
             "status": "no_confirmed",
             "reason": "无已确认指令 (所有 confirm=false)",
             "total_instructions": len(instructions_data.get("instructions", [])),
         }
+    return confirmed, None
 
-    # v7.8+: 初始化 WT 模块用于执行
-    wt_modules = init_wt_modules()
-    
-    # v7.8+: WT风控前置检查
-    if wt_modules.get("risk_control"):
-        try:
-            rc = wt_modules["risk_control"]
-            # 单笔交易额度检查
-            for inst in confirmed:
-                amount = inst.get("amount", 0)
-                ok, msg = rc.check_single_trade(amount, STOCK_ETF_TARGET)
-                if not ok:
-                    print(f"[WARN] WT风控单笔检查未通过: {msg}")
-            # 日内交易笔数检查
-            ok, msg = rc.check_daily_trade_count()
+
+def _run_wt_risk_block_check(wt_modules: Dict, confirmed: list) -> Optional[Dict]:
+    """WT 风控前置检查 (单笔额度 + 日内笔数), 未通过时阻断执行。
+
+    IC6 修复: 风控未通过时阻断执行 (原逻辑仅打印 WARN, 违反"风控一票否决"原则)。
+
+    Args:
+        wt_modules: WonderTrader 模块 dict
+        confirmed: 已确认指令列表
+
+    Returns:
+        阻断结果 dict; None 表示通过
+    """
+    rc = wt_modules.get("risk_control")
+    if not rc:
+        return None
+    try:
+        risk_blocked = False
+        # 单笔交易额度检查
+        for inst in confirmed:
+            # IC2 修复: 字段名 "amount" → "estimated_amount" (原字段名不匹配, 永远返回 0, 风控形同虚设)
+            amount = inst.get("estimated_amount", 0) or 0
+            ok, msg = rc.check_single_trade(amount, STOCK_ETF_TARGET)
             if not ok:
-                print(f"[WARN] WT风控日内笔数检查未通过: {msg}")
-        except Exception as e:
-            print(f"[WARN] WT风控检查执行失败: {e}")
+                print(f"[BLOCK] WT风控单笔检查未通过: {msg}")
+                risk_blocked = True
+        # 日内交易笔数检查
+        ok, msg = rc.check_daily_trade_count()
+        if not ok:
+            print(f"[BLOCK] WT风控日内笔数检查未通过: {msg}")
+            risk_blocked = True
 
-    # 幂等检查: 当日是否已执行过
-    progress = load_build_progress()
-    daily_records = progress.get("daily_records", [])
-    already_executed = any(r.get("date") == target_date_str for r in daily_records)
-
-    # 加载持仓文件用于同步
-    positions_data = load_positions()
-    positions = positions_data.get("positions", {})
-
-    if already_executed:
-        # 幂等模式: 不重复累加 build_progress, 只补同步 positions.json
-        execution_file = INSTRUCTIONS_DIR / f"{target_date_str}_execution.json"
-        if execution_file.exists():
-            with open(execution_file, 'r', encoding='utf-8') as f:
-                prev_report = json.load(f)
-            prev_results = prev_report.get("execution_results", [])
-        else:
-            prev_results = []
-
-        # 从已执行的成交结果重建 positions 同步数据
-        synced_count = 0
-        for r in prev_results:
-            code = r.get("code", "")
-            full_code = next((i["full_code"] for i in confirmed if i.get("code") == code), f"{code}.SH")
-            qty = r.get("qty", 0)
-            fill_price = r.get("fill_price", 0.0)
-
-            if full_code in positions:
-                pos = positions[full_code]
-                # 仅在 shares=0 (未同步) 时补同步
-                if pos.get("shares", 0) == 0:
-                    pos["shares"] = qty
-                    pos["est_price"] = fill_price
-                    pos["avg_cost"] = fill_price
-                    synced_count += 1
-
-        # 保存 positions.json
-        positions_data["positions"] = positions
-        with open(POSITIONS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(positions_data, f, ensure_ascii=False, indent=2)
-
+        # IC6 修复: 风控未通过时立即返回, 不继续执行
+        if risk_blocked:
+            return {
+                "status": "blocked",
+                "message": "WT风控检查未通过, 执行已被阻断 (风控一票否决)",
+                "blocked_reason": "WT risk control check failed",
+            }
+    except Exception as e:
+        print(f"[WARN] WT风控检查执行失败: {e}")
+        # 风控检查本身崩溃时保守拒绝 (Fail-Safe)
         return {
-            "status": "already_executed",
-            "message": f"当日已执行过, 跳过重复累加, 补同步 {synced_count} 个标的到 positions.json",
-            "synced_count": synced_count,
+            "status": "blocked",
+            "message": f"WT风控检查执行异常, 保守阻断: {e}",
+            "blocked_reason": "WT risk control check error",
         }
+    return None
 
-    # 首次执行: 累加 build_progress + 同步 positions.json
-    execution_results = []
 
-    for inst in confirmed:
-        code = inst["full_code"]
-        qty = inst["qty"]
-        ref_price = inst["ref_price"]
+def _sync_positions_idempotent(target_date_str: str, confirmed: list, positions: Dict) -> Dict:
+    """幂等模式: 当日已执行过, 跳过重复累加, 仅补同步 positions.json。
 
-        # v7.8+: 使用 WT 执行算法拆分订单 (大金额订单)
-        splits = []
-        fill_amount = 0.0
-        fill_price = ref_price
-        
-        if wt_modules.get("min_impact_executor") and inst.get("amount", 0) > 50000:
-            try:
-                splits = wt_modules["min_impact_executor"].calculate_optimal_splits(
-                    target_amount=inst["amount"],
-                    ref_price=ref_price,
-                    avg_daily_volume=1000000,
-                )
-                fill_amount = sum(s["amount"] for s in splits)
-                fill_price = ref_price
-                print(f"[INFO] WT执行算法: {inst['code']} 拆分为 {len(splits)} 笔, 总金额 {fill_amount:,.0f}")
-            except Exception as e:
-                print(f"[WARN] WT执行算法执行失败: {e}, 使用默认执行")
-                fill_amount = round(qty * ref_price, 2)
-        else:
+    从已执行的 execution.json 读取成交结果, 仅对 shares=0 的标的补同步。
+
+    Args:
+        target_date_str: 目标日期字符串
+        confirmed: 已确认指令列表 (用于 full_code 反查)
+        positions: 持仓字典 (原地修改)
+
+    Returns:
+        幂等结果 dict (含 synced_count)
+    """
+    execution_file = INSTRUCTIONS_DIR / f"{target_date_str}_execution.json"
+    if execution_file.exists():
+        with open(execution_file, "r", encoding="utf-8") as f:
+            prev_report = json.load(f)
+        prev_results = prev_report.get("execution_results", [])
+    else:
+        prev_results = []
+
+    # 从已执行的成交结果重建 positions 同步数据
+    synced_count = 0
+    for r in prev_results:
+        code = r.get("code", "")
+        full_code = next((i["full_code"] for i in confirmed if i.get("code") == code), f"{code}.SH")
+        qty = r.get("qty", 0)
+        fill_price = r.get("fill_price", 0.0)
+
+        if full_code in positions:
+            pos = positions[full_code]
+            # 仅在 shares=0 (未同步) 时补同步
+            if pos.get("shares", 0) == 0:
+                pos["shares"] = qty
+                pos["est_price"] = fill_price
+                pos["avg_cost"] = fill_price
+                synced_count += 1
+
+    return {
+        "status": "already_executed",
+        "message": f"当日已执行过, 跳过重复累加, 补同步 {synced_count} 个标的到 positions.json",
+        "synced_count": synced_count,
+    }
+
+
+def _execute_single_instruction(inst: dict, wt_modules: Dict, progress: Dict, positions: Dict) -> dict:
+    """执行单条已确认指令 (WT 拆分 + 更新建仓进度 + 同步 positions)。
+
+    Args:
+        inst: 已确认指令
+        wt_modules: WonderTrader 模块 dict
+        progress: 建仓进度 (原地修改 built_amounts/total_built)
+        positions: 持仓字典 (原地修改 shares/avg_cost/est_price)
+
+    Returns:
+        execution_result dict (含 fill_price/fill_amount/built_before/built_after)
+    """
+    code = inst["full_code"]
+    qty = inst["qty"]
+    ref_price = inst["ref_price"]
+
+    # v7.8+: 使用 WT 执行算法拆分订单 (大金额订单)
+    fill_amount = 0.0
+    fill_price = ref_price
+
+    # IC2 修复: 字段名 "amount" → "estimated_amount" (与指令字典字段名一致)
+    inst_amount = inst.get("estimated_amount", 0) or 0
+    if wt_modules.get("min_impact_executor") and inst_amount > 50000:
+        try:
+            splits = wt_modules["min_impact_executor"].calculate_optimal_splits(
+                target_amount=inst_amount,
+                ref_price=ref_price,
+                avg_daily_volume=1000000,
+            )
+            fill_amount = sum(s["amount"] for s in splits)
+            fill_price = ref_price
+            print(f"[INFO] WT执行算法: {inst['code']} 拆分为 {len(splits)} 笔, 总金额 {fill_amount:,.0f}")
+        except Exception as e:
+            print(f"[WARN] WT执行算法执行失败: {e}, 使用默认执行")
             fill_amount = round(qty * ref_price, 2)
+    else:
+        fill_amount = round(qty * ref_price, 2)
 
-        # 更新建仓进度
-        built_before = progress["built_amounts"].get(code, 0)
-        progress["built_amounts"][code] = built_before + fill_amount
-        progress["total_built"] = progress.get("total_built", 0) + fill_amount
+    # 更新建仓进度
+    built_before = progress["built_amounts"].get(code, 0)
+    progress["built_amounts"][code] = built_before + fill_amount
+    progress["total_built"] = progress.get("total_built", 0) + fill_amount
 
-        # 同步 positions.json (累加 shares, 加权平均成本)
-        if code in positions:
-            pos = positions[code]
-            old_shares = pos.get("shares", 0)
-            old_cost = pos.get("avg_cost", 0.0)
-            new_shares = old_shares + qty
-            if new_shares > 0:
-                new_avg_cost = round((old_shares * old_cost + qty * fill_price) / new_shares, 4)
-            else:
-                new_avg_cost = fill_price
-            pos["shares"] = new_shares
-            pos["est_price"] = fill_price  # 第一次交易开盘价
-            pos["avg_cost"] = new_avg_cost
+    # 同步 positions.json (累加 shares, 加权平均成本)
+    if code in positions:
+        pos = positions[code]
+        old_shares = pos.get("shares", 0)
+        old_cost = pos.get("avg_cost", 0.0)
+        new_shares = old_shares + qty
+        if new_shares > 0:
+            new_avg_cost = round((old_shares * old_cost + qty * fill_price) / new_shares, 4)
+        else:
+            new_avg_cost = fill_price
+        pos["shares"] = new_shares
+        pos["est_price"] = fill_price  # 第一次交易开盘价
+        pos["avg_cost"] = new_avg_cost
 
-        execution_results.append({
-            "code": inst["code"],
-            "name": inst["name"],
-            "action": "BUY",
-            "qty": qty,
-            "fill_price": fill_price,
-            "fill_amount": fill_amount,
-            "status": "FILLED",
-            "built_before": built_before,
-            "built_after": progress["built_amounts"][code],
-        })
+    return {
+        "code": inst["code"],
+        "name": inst["name"],
+        "action": "BUY",
+        "qty": qty,
+        "fill_price": fill_price,
+        "fill_amount": fill_amount,
+        "status": "FILLED",
+        "built_before": built_before,
+        "built_after": progress["built_amounts"][code],
+    }
 
-    # 记录每日执行
-    progress.setdefault("daily_records", []).append({
-        "date": target_date_str,
-        "executed_count": len(execution_results),
-        "total_amount": sum(r["fill_amount"] for r in execution_results),
-        "total_built_after": progress["total_built"],
-        "executed_at": datetime.now().isoformat(),
-    })
 
-    save_build_progress(progress)
+def _build_and_save_execution_report(
+    target_date_str: str,
+    instructions_data: dict,
+    confirmed: list,
+    execution_results: list,
+    progress: Dict,
+    instruction_file: Path,
+) -> tuple:
+    """构建并保存执行报告 (含 meta/summary/execution_results)。
 
-    # 保存 positions.json
-    positions_data["positions"] = positions
-    with open(POSITIONS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(positions_data, f, ensure_ascii=False, indent=2)
+    Args:
+        target_date_str: 目标日期字符串
+        instructions_data: 指令文件数据
+        confirmed: 已确认指令列表
+        execution_results: 执行结果列表
+        progress: 建仓进度 (已更新)
+        instruction_file: 指令文件路径
 
-    # 生成执行报告
+    Returns:
+        (result_dict, report_file) 元组
+    """
     execution_report = {
         "meta": {
             "execution_date": target_date_str,
@@ -1096,7 +1415,7 @@ def execute_instructions(target_date_str: str) -> Dict:
 
     # 保存执行报告
     report_file = INSTRUCTIONS_DIR / f"{target_date_str}_execution.json"
-    with open(report_file, 'w', encoding='utf-8') as f:
+    with open(report_file, "w", encoding="utf-8") as f:
         json.dump(execution_report, f, ensure_ascii=False, indent=2)
 
     result = {
@@ -1104,6 +1423,83 @@ def execute_instructions(target_date_str: str) -> Dict:
         "report_file": str(report_file),
         "summary": execution_report["summary"],
     }
+    return result, report_file
+
+
+def execute_instructions(target_date_str: str) -> Dict:
+    """盘后执行已确认的交易指令
+
+    读取指令文件, 执行 confirm=true 的指令,
+    更新 positions.json (shares/avg_cost/est_price) 和 build_progress.json
+
+    幂等保护: 若当日已执行过, 则跳过重复累加, 仅补同步 positions.json
+    """
+    instruction_file = INSTRUCTIONS_DIR / f"{target_date_str}_instructions.json"
+
+    if not instruction_file.exists():
+        return {"status": "error", "reason": f"指令文件不存在: {instruction_file}"}
+
+    with open(instruction_file, "r", encoding="utf-8") as f:
+        instructions_data = json.load(f)
+
+    # 执行前风控检查 + 筛选已确认指令
+    confirmed, error = _check_execution_preconditions(instructions_data)
+    if error:
+        return error
+
+    # v7.8+: 初始化 WT 模块用于执行
+    wt_modules = init_wt_modules()
+
+    # v7.8+: WT风控前置检查 (IC6: 风控一票否决)
+    block_result = _run_wt_risk_block_check(wt_modules, confirmed)
+    if block_result:
+        return block_result
+
+    # 幂等检查: 当日是否已执行过
+    progress = load_build_progress()
+    already_executed = any(
+        r.get("date") == target_date_str for r in progress.get("daily_records", [])
+    )
+
+    # 加载持仓文件用于同步
+    positions_data = load_positions()
+    positions = positions_data.get("positions", {})
+
+    if already_executed:
+        # 幂等模式: 不重复累加 build_progress, 只补同步 positions.json
+        result = _sync_positions_idempotent(target_date_str, confirmed, positions)
+        # 保存 positions.json (P0-C1: 原子写, 防并发/崩溃写坏)
+        positions_data["positions"] = positions
+        atomic_write_json(POSITIONS_FILE, positions_data)
+        return result
+
+    # 首次执行: 累加 build_progress + 同步 positions.json
+    execution_results = []
+    for inst in confirmed:
+        result = _execute_single_instruction(inst, wt_modules, progress, positions)
+        execution_results.append(result)
+
+    # 记录每日执行
+    progress.setdefault("daily_records", []).append(
+        {
+            "date": target_date_str,
+            "executed_count": len(execution_results),
+            "total_amount": sum(r["fill_amount"] for r in execution_results),
+            "total_built_after": progress["total_built"],
+            "executed_at": datetime.now().isoformat(),
+        }
+    )
+
+    save_build_progress(progress)
+
+    # 保存 positions.json (P0-C1: 原子写, 防并发/崩溃写坏)
+    positions_data["positions"] = positions
+    atomic_write_json(POSITIONS_FILE, positions_data)
+
+    # 生成并保存执行报告
+    result, _ = _build_and_save_execution_report(
+        target_date_str, instructions_data, confirmed, execution_results, progress, instruction_file,
+    )
 
     # 收盘后自动生成下一交易日计划
     try:
@@ -1177,13 +1573,15 @@ def generate_accumulation_schedule() -> Dict:
         week_num = current.isocalendar()[1]
         is_month_end = current.day >= 28
         if week_num != last_recorded_week or is_month_end or total >= STOCK_ETF_TARGET:
-            schedule.append({
-                "date": current.isoformat(),
-                "daily_budget": round(daily_budget, 2),
-                "cumulative": round(total, 2),
-                "completion_pct": round(completion, 2),
-                "remaining": round(STOCK_ETF_TARGET - total, 2),
-            })
+            schedule.append(
+                {
+                    "date": current.isoformat(),
+                    "daily_budget": round(daily_budget, 2),
+                    "cumulative": round(total, 2),
+                    "completion_pct": round(completion, 2),
+                    "remaining": round(STOCK_ETF_TARGET - total, 2),
+                }
+            )
             last_recorded_week = week_num
 
         current += timedelta(days=1)
@@ -1203,12 +1601,11 @@ def generate_accumulation_schedule() -> Dict:
 
 def main():
     parser = argparse.ArgumentParser(description="每日自动执行交易计划")
-    parser.add_argument("mode", choices=["pre-market", "post-market", "post-market-auto", "progress", "schedule"],
-                        help="执行模式")
-    parser.add_argument("--date", type=str, default=None,
-                        help="指定日期 (YYYY-MM-DD), 默认今天")
-    parser.add_argument("--auto-confirm", action="store_true",
-                        help="自动确认所有指令 (跳过人工确认环节)")
+    parser.add_argument(
+        "mode", choices=["pre-market", "post-market", "post-market-auto", "progress", "schedule"], help="执行模式"
+    )
+    parser.add_argument("--date", type=str, default=None, help="指定日期 (YYYY-MM-DD), 默认今天")
+    parser.add_argument("--auto-confirm", action="store_true", help="自动确认所有指令 (跳过人工确认环节)")
 
     args = parser.parse_args()
 
@@ -1217,6 +1614,21 @@ def main():
     else:
         target_date = datetime.now().strftime("%Y-%m-%d")
 
+    # P0-C1: 跨进程防重入锁 (Windows 计划任务重复触发防护)
+    # 只对会写 positions.json/build_progress.json 的执行模式加锁
+    if args.mode in ("pre-market", "post-market", "post-market-auto"):
+        from utils.concurrency import process_lock
+
+        with process_lock("daily_trade_executor", timeout=5.0) as acquired:
+            if not acquired:
+                print("[WARN] 另一个 daily_trade_executor 实例正在运行, 本次退出")
+                sys.exit(1)
+            _run_mode(args, target_date)
+        return
+    _run_mode(args, target_date)
+
+
+def _run_mode(args, target_date):
     print("=" * 70)
     print(f"每日自动执行交易计划 - {args.mode} - {target_date}")
     if args.auto_confirm:
@@ -1225,14 +1637,14 @@ def main():
 
     if args.mode == "pre-market":
         result = generate_instructions(target_date)
-        
+
         # 自动确认所有指令
         if args.auto_confirm and result.get("status") == "generated":
             confirm_count = confirm_all_instructions(target_date)
             result["auto_confirmed"] = True
             result["auto_confirm_count"] = confirm_count
             print(f"[INFO] Auto-confirmed {confirm_count} instructions")
-        
+
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
 
     elif args.mode == "post-market":
@@ -1242,14 +1654,14 @@ def main():
     elif args.mode == "post-market-auto":
         execute_result = execute_instructions(target_date)
         print(json.dumps(execute_result, ensure_ascii=False, indent=2, default=str))
-        
+
         # 自动生成下一交易日计划
         if execute_result.get("status") == "executed":
             print("\n" + "=" * 70)
             print("Generating next trading day plan")
             print("=" * 70)
             next_plan = generate_next_trading_day_plan(target_date)
-            
+
             # 自动确认下一交易日计划
             if args.auto_confirm and next_plan.get("status") == "generated":
                 next_date = next_plan.get("next_trading_day", "")
@@ -1258,7 +1670,7 @@ def main():
                     next_plan["auto_confirmed"] = True
                     next_plan["auto_confirm_count"] = confirm_count
                     print(f"[INFO] Auto-confirmed {confirm_count} instructions for next day {next_date}")
-            
+
             print(json.dumps(next_plan, ensure_ascii=False, indent=2, default=str))
 
     elif args.mode == "progress":

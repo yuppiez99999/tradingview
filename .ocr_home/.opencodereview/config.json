@@ -1,0 +1,57 @@
+{
+  "provider": "local-ollama",
+  "providers": {
+    "deepseek": {
+      "api_key": "sk-4a425d1dab284848a62a369d15d2ebfb",
+      "model": "deepseek-chat"
+    },
+    "ollama-cloud": {},
+    "openai": {
+      "api_key": "ollama",
+      "url": "http://localhost:11434/v1",
+      "model": "qwen2.5:3b"
+    },
+    "volcengine": {}
+  },
+  "custom_providers": {
+    "custom_providers.ollama_local": {},
+    "local-ollama": {
+      "api_key": "ollama",
+      "url": "http://localhost:11434/v1",
+      "protocol": "openai",
+      "model": "qwen2.5:3b",
+      "models": [
+        "qwen2.5:3b"
+      ]
+    },
+    "ollama": {
+      "url": "http://localhost:11434",
+      "protocol": "openai",
+      "model": "qwen2.5:7b",
+      "models": [
+        "qwen2.5:7b",
+        "deepseek-r1:14b",
+        "qwen2.5:3b"
+      ]
+    },
+    "ollama_local": {
+      "api_key": "ollama",
+      "url": "http://localhost:11434/v1",
+      "protocol": "openai",
+      "model": "qwen2.5:7b",
+      "auth_header": "authorization"
+    },
+    "stepfun": {
+      "api_key": "4EYIKwYxSX3UVEcPkc6UpM5iNRnjsCWu1DRUd9CnbsNKjgwMFBl9bTCNC3BflMIvE",
+      "url": "https://api.stepfun.com/v1",
+      "protocol": "openai",
+      "model": "step-3.7-flash",
+      "models": [
+        "step-3.7-flash"
+      ]
+    }
+  },
+  "llm": {
+    "model": "deepseek-chat"
+  }
+}

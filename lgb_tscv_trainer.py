@@ -20,9 +20,9 @@ LightGBM + 时间序列交叉验证训练器
     python lgb_tscv_trainer.py --symbols 688041   # 训练单个标的
     python lgb_tscv_trainer.py --force-retrain    # 强制重训
 """
+
 from __future__ import annotations
 
-import os
 import sys
 import json
 import pickle
@@ -50,7 +50,7 @@ for d in [MODELS_DIR, REPORTS_DIR, LOG_DIR]:
 _v7_path = BASE_DIR / "v8.3_institutional"
 if _v7_path.exists():
     sys.path.insert(0, str(_v7_path))
-from autolearn_trainer import (
+from autolearn_trainer import (  # noqa: E402
     POSITION_SYMBOLS,
     load_returns_history,
     synthesize_ohlcv_from_returns,
@@ -63,21 +63,21 @@ from autolearn_trainer import (
 # ============================================================
 LGB_TSCV_CONFIG = {
     "lookback_days": 500,
-    "min_samples": 150,          # 提高最小样本要求 (CV 需要更多数据)
-    "test_ratio": 0.2,           # 最终 holdout 测试集
-    "n_splits": 5,               # TimeSeriesSplit 折数
-    "top_n_features": 15,        # 保留 Top 15 重要特征 (减少噪音)
+    "min_samples": 150,  # 提高最小样本要求 (CV 需要更多数据)
+    "test_ratio": 0.2,  # 最终 holdout 测试集
+    "n_splits": 5,  # TimeSeriesSplit 折数
+    "top_n_features": 15,  # 保留 Top 15 重要特征 (减少噪音)
     "feature_selection_threshold": 5,  # 重要性 < 5 的特征剔除
     "retrain_interval_days": 7,
     "model_quality_threshold": {
-        "min_cv_r2": -0.3,       # CV 平均 R² 下限
-        "min_cv_ic": 0.0,        # CV 平均 IC 下限 (必须非负)
-        "min_cv_sharpe": 0.0,    # CV 平均 Sharpe 下限
+        "min_cv_r2": -0.3,  # CV 平均 R² 下限
+        "min_cv_ic": 0.0,  # CV 平均 IC 下限 (必须非负)
+        "min_cv_sharpe": 0.0,  # CV 平均 Sharpe 下限
     },
     "lgb_params": {
-        "n_estimators": 1000,    # 大幅增加, 配合早停
-        "learning_rate": 0.01,   # 更小学习率
-        "max_depth": 6,          # 更深树
+        "n_estimators": 1000,  # 大幅增加, 配合早停
+        "learning_rate": 0.01,  # 更小学习率
+        "max_depth": 6,  # 更深树
         "num_leaves": 31,
         "min_child_samples": 30,
         "subsample": 0.8,
@@ -141,17 +141,17 @@ def time_series_cv_evaluate(
     # --- 分割器选择 ---
     if use_purged and n_samples >= 100:
         from utils.purged_kfold import purged_timeseries_split, overfitting_diagnosis
-        folds = list(purged_timeseries_split(
-            n_samples, n_splits=n_splits, embargo_pct=embargo_pct
-        ))
-        logger.info("使用 Purged KFold (n_splits=%d, embargo_pct=%.2f%%), 共 %d 折",
-                     n_splits, embargo_pct * 100, len(folds))
+
+        folds = list(purged_timeseries_split(n_samples, n_splits=n_splits, embargo_pct=embargo_pct))
+        logger.info(
+            "使用 Purged KFold (n_splits=%d, embargo_pct=%.2f%%), 共 %d 折", n_splits, embargo_pct * 100, len(folds)
+        )
     else:
         from sklearn.model_selection import TimeSeriesSplit
+
         tscv = TimeSeriesSplit(n_splits=n_splits)
         folds = list(tscv.split(X))
-        logger.info("使用标准 TimeSeriesSplit (n_splits=%d), 共 %d 折",
-                     n_splits, len(folds))
+        logger.info("使用标准 TimeSeriesSplit (n_splits=%d), 共 %d 折", n_splits, len(folds))
 
     # --- 各折独立验证: 检查 train/test 间隔 ---
     from utils.purged_kfold import validate_embargo
@@ -169,13 +169,15 @@ def time_series_cv_evaluate(
         y_train_fold, y_test_fold = y[train_idx], y[test_idx]
 
         if len(X_train_fold) < 50 or len(X_test_fold) < 10:
-            logger.warning("Fold %d 样本量不足 (train=%d, test=%d), 跳过",
-                           fold_idx + 1, len(X_train_fold), len(X_test_fold))
+            logger.warning(
+                "Fold %d 样本量不足 (train=%d, test=%d), 跳过", fold_idx + 1, len(X_train_fold), len(X_test_fold)
+            )
             continue
 
         model = LGBMRegressor(**config["lgb_params"])
         model.fit(
-            X_train_fold, y_train_fold,
+            X_train_fold,
+            y_train_fold,
             eval_set=[(X_test_fold, y_test_fold)],
             callbacks=[
                 __import__("lightgbm").early_stopping(
@@ -192,25 +194,32 @@ def time_series_cv_evaluate(
         ic = _ic_score(y_test_fold, y_pred)
         sharpe = _signal_sharpe(y_test_fold, y_pred)
 
-        fold_metrics.append({
-            "fold": fold_idx + 1,
-            "train_size": len(train_idx),
-            "test_size": len(test_idx),
-            "gap_samples": int(test_idx[0] - train_idx[-1]) if len(train_idx) and len(test_idx) else 0,
-            "r2": round(r2, 4),
-            "ic": round(ic, 4),
-            "sharpe": round(sharpe, 4),
-            "best_iteration": int(model.best_iteration_) if hasattr(model, "best_iteration_") else config["lgb_params"]["n_estimators"],
-        })
+        fold_metrics.append(
+            {
+                "fold": fold_idx + 1,
+                "train_size": len(train_idx),
+                "test_size": len(test_idx),
+                "gap_samples": int(test_idx[0] - train_idx[-1]) if len(train_idx) and len(test_idx) else 0,
+                "r2": round(r2, 4),
+                "ic": round(ic, 4),
+                "sharpe": round(sharpe, 4),
+                "best_iteration": int(model.best_iteration_)
+                if hasattr(model, "best_iteration_")
+                else config["lgb_params"]["n_estimators"],
+            }
+        )
 
         all_importances.append(model.feature_importances_)
 
     if not fold_metrics:
         return {
             "fold_metrics": [],
-            "mean_r2": -999, "std_r2": 0,
-            "mean_ic": 0, "std_ic": 0,
-            "mean_sharpe": 0, "std_sharpe": 0,
+            "mean_r2": -999,
+            "std_r2": 0,
+            "mean_ic": 0,
+            "std_ic": 0,
+            "mean_sharpe": 0,
+            "std_sharpe": 0,
             "feature_importances": np.zeros(n_features),
             "purged_kfold_used": use_purged,
             "embargo_checks": embargo_checks,
@@ -228,10 +237,12 @@ def time_series_cv_evaluate(
     of_diag = {"overall_pass": None, "summary": "无诊断"}
     if use_purged and len(fold_metrics) >= 2:
         from utils.purged_kfold import overfitting_diagnosis
+
         of_diag = overfitting_diagnosis(fold_metrics)
         if not of_diag.get("overall_pass", True):
-            logger.warning("[OverfitDiagnosis] %s — %d 项指标异常",
-                           of_diag.get("summary", ""), of_diag.get("total_issues", 0))
+            logger.warning(
+                "[OverfitDiagnosis] %s — %d 项指标异常", of_diag.get("summary", ""), of_diag.get("total_issues", 0)
+            )
         else:
             logger.info("[OverfitDiagnosis] PASS — 无过拟合迹象")
 
@@ -347,15 +358,12 @@ def train_symbol_with_cv(
         }
 
     # 全部特征列
-    all_feature_cols = [c for c in df.columns if c not in
-                        ["open", "high", "low", "close", "volume", "target"]]
+    all_feature_cols = [c for c in df.columns if c not in ["open", "high", "low", "close", "volume", "target"]]
     X_all = np.asarray(df[all_feature_cols].values, dtype=np.float64)
     y_all = np.asarray(df["target"].values, dtype=np.float64)
 
     # === Step 1: 全特征 CV 评估 ===
-    cv_result = time_series_cv_evaluate(
-        X_all, y_all, config, n_splits=config["n_splits"]
-    )
+    cv_result = time_series_cv_evaluate(X_all, y_all, config, n_splits=config["n_splits"])
 
     # === Step 2: 特征选择 ===
     selected_features = select_features_by_importance(
@@ -367,9 +375,7 @@ def train_symbol_with_cv(
 
     # === Step 3: 用筛选后的特征重新 CV (对比) ===
     X_selected = np.asarray(df[selected_features].values, dtype=np.float64)
-    cv_after_selection = time_series_cv_evaluate(
-        X_selected, y_all, config, n_splits=config["n_splits"]
-    )
+    cv_after_selection = time_series_cv_evaluate(X_selected, y_all, config, n_splits=config["n_splits"])
 
     # === Step 4: 最终模型 (用筛选特征 + 全部数据) ===
     # holdout: 最后 20% 作为最终测试
@@ -385,7 +391,8 @@ def train_symbol_with_cv(
 
     final_model = LGBMRegressor(**config["lgb_params"])
     final_model.fit(
-        X_train, y_train,
+        X_train,
+        y_train,
         eval_set=[(X_test, y_test)],
         callbacks=[
             lgb.early_stopping(
@@ -406,11 +413,13 @@ def train_symbol_with_cv(
     signal = float(np.tanh(latest_pred * 100))
 
     # 特征重要性
-    feat_imp = pd.Series(
-        final_model.feature_importances_, index=selected_features
-    ).sort_values(ascending=False)
+    feat_imp = pd.Series(final_model.feature_importances_, index=selected_features).sort_values(ascending=False)
 
-    best_iter = int(final_model.best_iteration_) if hasattr(final_model, "best_iteration_") else config["lgb_params"]["n_estimators"]
+    best_iter = (
+        int(final_model.best_iteration_)
+        if hasattr(final_model, "best_iteration_")
+        else config["lgb_params"]["n_estimators"]
+    )
 
     return {
         "status": "OK",
@@ -580,7 +589,7 @@ def run_lgb_tscv_training(
     skipped = 0
     failed = 0
 
-    for code, suffix, _, name, style in symbols:
+    for code, _suffix, _, name, style in symbols:
         if code not in featured_dict:
             logger.warning(f"  [SKIP] {code} ({name}): 无历史数据")
             skipped += 1
@@ -700,7 +709,7 @@ def generate_comparison_report(result: Dict) -> Path:
         f"# LightGBM + TSCV 训练报告 - {datetime.now().strftime('%Y-%m-%d')}",
         "",
         f"**生成时间**: {datetime.now().isoformat()}",
-        f"**模型类型**: 纯 LightGBM + TimeSeriesSplit (5折)",
+        "**模型类型**: 纯 LightGBM + TimeSeriesSplit (5折)",
         f"**标的数**: {result['total']}",
         f"**训练成功**: {result['trained']}",
         f"**跳过**: {result['skipped']}",
@@ -775,24 +784,28 @@ def generate_comparison_report(result: Dict) -> Path:
 
     # 汇总
     if improvements_r2:
-        lines.extend([
-            "",
-            "## 二、整体改进汇总",
-            "",
-            f"- R² 平均改进: **{np.mean(improvements_r2):+.4f}**",
-            f"- R² 改进标的数: {sum(1 for x in improvements_r2 if x > 0)} / {len(improvements_r2)}",
-            f"- IC 平均改进: **{np.mean(improvements_ic):+.4f}**",
-            f"- IC 改进标的数: {sum(1 for x in improvements_ic if x > 0)} / {len(improvements_ic)}",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 二、整体改进汇总",
+                "",
+                f"- R² 平均改进: **{np.mean(improvements_r2):+.4f}**",
+                f"- R² 改进标的数: {sum(1 for x in improvements_r2 if x > 0)} / {len(improvements_r2)}",
+                f"- IC 平均改进: **{np.mean(improvements_ic):+.4f}**",
+                f"- IC 改进标的数: {sum(1 for x in improvements_ic if x > 0)} / {len(improvements_ic)}",
+            ]
+        )
 
     # CV 详情
-    lines.extend([
-        "",
-        "## 三、CV 详情 (特征选择后)",
-        "",
-        "| 标的 | 名称 | Fold 数 | CV R² (mean±std) | CV IC (mean±std) | CV Sharpe | 最终 R² | 最终 IC | 信号 | 特征数 |",
-        "|------|------|---------|------------------|------------------|-----------|---------|--------|------|--------|",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 三、CV 详情 (特征选择后)",
+            "",
+            "| 标的 | 名称 | Fold 数 | CV R² (mean±std) | CV IC (mean±std) | CV Sharpe | 最终 R² | 最终 IC | 信号 | 特征数 |",
+            "|------|------|---------|------------------|------------------|-----------|---------|--------|------|--------|",
+        ]
+    )
     for code, r in result["results"].items():
         if r.get("status") != "OK":
             continue
@@ -809,11 +822,13 @@ def generate_comparison_report(result: Dict) -> Path:
         )
 
     # Top 特征
-    lines.extend([
-        "",
-        "## 四、特征重要性 (Top 5)",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 四、特征重要性 (Top 5)",
+            "",
+        ]
+    )
     for code, r in result["results"].items():
         if r.get("status") != "OK":
             continue
@@ -827,11 +842,13 @@ def generate_comparison_report(result: Dict) -> Path:
         lines.append("")
 
     # CV 折详情
-    lines.extend([
-        "",
-        "## 五、CV 折详情 (第一个 OK 标的)",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 五、CV 折详情 (第一个 OK 标的)",
+            "",
+        ]
+    )
     for code, r in result["results"].items():
         if r.get("status") != "OK":
             continue
@@ -847,19 +864,21 @@ def generate_comparison_report(result: Dict) -> Path:
             )
         break
 
-    lines.extend([
-        "",
-        "## 六、风险提示",
-        "",
-        "- 历史数据仅含日收益率, OHLCV 为合成数据, 实际特征质量受限",
-        "- TimeSeriesSplit CV 更稳健, 但样本数仍偏少 (~191 日)",
-        "- 早停可能让模型欠拟合, 如 R² 仍为负, 建议放宽 early_stopping_rounds",
-        "- IC 为负说明预测方向相反, 可考虑反向操作或检查数据/标签",
-        "",
-        "---",
-        f"**报告路径**: `{report_path}`",
-        f"**信号文件**: `models/lgb_tscv/lgb_tscv_signals.json`",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 六、风险提示",
+            "",
+            "- 历史数据仅含日收益率, OHLCV 为合成数据, 实际特征质量受限",
+            "- TimeSeriesSplit CV 更稳健, 但样本数仍偏少 (~191 日)",
+            "- 早停可能让模型欠拟合, 如 R² 仍为负, 建议放宽 early_stopping_rounds",
+            "- IC 为负说明预测方向相反, 可考虑反向操作或检查数据/标签",
+            "",
+            "---",
+            f"**报告路径**: `{report_path}`",
+            "**信号文件**: `models/lgb_tscv/lgb_tscv_signals.json`",
+        ]
+    )
 
     with open(report_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
@@ -876,10 +895,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("--force-retrain", action="store_true",
-                        help="强制重训所有标的")
-    parser.add_argument("--symbols", nargs="+", default=None,
-                        help="指定标的代码 (默认全部持仓)")
+    parser.add_argument("--force-retrain", action="store_true", help="强制重训所有标的")
+    parser.add_argument("--symbols", nargs="+", default=None, help="指定标的代码 (默认全部持仓)")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -905,11 +922,11 @@ def main():
 
     if result["status"] == "OK":
         report_path = generate_comparison_report(result)
-        print(f"\n✓ 训练完成, 对比报告: {report_path}")
-        print(f"✓ 信号文件: models/lgb_tscv/lgb_tscv_signals.json")
+        logger.info(f"\n✓ 训练完成, 对比报告: {report_path}")
+        logger.info("✓ 信号文件: models/lgb_tscv/lgb_tscv_signals.json")
         sys.exit(0)
     else:
-        print(f"\n✗ 训练失败")
+        logger.info("\n✗ 训练失败")
         sys.exit(1)
 
 

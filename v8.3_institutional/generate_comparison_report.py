@@ -35,7 +35,7 @@ def main():
 
     # 提取关键指标
     v1_metrics = v1_data.get("metrics", v1_data.get("baseline", {}))
-    v2_baseline = v2_data.get("baseline", {})
+    v2_data.get("baseline", {})
     v2_optimized = v2_data.get("optimized", {})
     v2_mc = v2_data.get("montecarlo_verified", {})
     v3_baseline = v3_data.get("baseline", {})

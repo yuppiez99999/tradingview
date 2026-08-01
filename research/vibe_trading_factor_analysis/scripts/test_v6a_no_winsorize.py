@@ -35,7 +35,7 @@ from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
     load_benchmark_returns, compute_equal_weight_benchmark,
 )
 from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import (
-    VibeTradingFactorAdapter, CandidateFactor,
+    VibeTradingFactorAdapter,
 )
 from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (
     build_factor_history, compute_rolling_ic_series, compute_ic_ir,
@@ -101,7 +101,7 @@ def _build_factor_history_static(
     所以这里直接复制 factor_values 到每一天。
     """
     factor_history: List[Dict[str, float]] = []
-    for t in valid_dates:
+    for _t in valid_dates:
         # 每天的因子值都是相同的（基于静态 fundamentals_history）
         factor_history.append(dict(factor_values))
     return factor_history
@@ -127,12 +127,12 @@ def _build_forward_returns(
 
 
 def main() -> int:
-    print("=" * 70)
-    print("P2.2 v6a 实验：MARGIN_EXP winsorize 真实有效性验证")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("P2.2 v6a 实验：MARGIN_EXP winsorize 真实有效性验证")
+    logger.info("=" * 70)
 
     # 1. 加载数据
-    print("\n[1/3] 加载数据")
+    logger.info("\n[1/3] 加载数据")
     symbols = list_available_symbols()
     price_data = load_price_data(symbols=symbols)
     fundamentals = load_fundamentals(price_data)
@@ -141,11 +141,11 @@ def main() -> int:
     fundamentals_history = orchestrator._load_fundamentals_history(
         list(price_data.keys()) if price_data else []
     )
-    print(f"  price_data: {len(price_data)} symbols")
-    print(f"  fundamentals_history: {len(fundamentals_history)} symbols")
+    logger.info(f"  price_data: {len(price_data)} symbols")
+    logger.info(f"  fundamentals_history: {len(fundamentals_history)} symbols")
 
     # 2. 用 build_factor_history 获取 valid_dates 和 forward_returns
-    print("\n[2/3] 构建日频历史（复用 build_factor_history）")
+    logger.info("\n[2/3] 构建日频历史（复用 build_factor_history）")
     adapter = VibeTradingFactorAdapter()
     # 这里调用主要是为了获取 valid_dates 和 forward_returns
     # 因为我们修正后的 build_factor_history 会自动计算所有因子
@@ -158,15 +158,15 @@ def main() -> int:
         forward_window=5,
         fundamentals_history=fundamentals_history,
     )
-    print(f"  valid_dates: {len(valid_dates)} days")
-    print(f"  fwd_returns_hist: {len(fwd_returns_hist)} days")
+    logger.info(f"  valid_dates: {len(valid_dates)} days")
+    logger.info(f"  fwd_returns_hist: {len(fwd_returns_hist)} days")
 
     # 3. 计算两个版本的 MARGIN_EXP 因子值
-    print("\n[3/3] 对比 MARGIN_EXP winsorize vs no_winsorize 真实日频 IC_IR")
+    logger.info("\n[3/3] 对比 MARGIN_EXP winsorize vs no_winsorize 真实日频 IC_IR")
     values_winsorize = _compute_margin_exp_values(fundamentals_history, use_winsorize=True)
     values_no_winsorize = _compute_margin_exp_values(fundamentals_history, use_winsorize=False)
-    print(f"  winsorize 版本: {len(values_winsorize)} symbols")
-    print(f"  no_winsorize 版本: {len(values_no_winsorize)} symbols")
+    logger.info(f"  winsorize 版本: {len(values_winsorize)} symbols")
+    logger.info(f"  no_winsorize 版本: {len(values_no_winsorize)} symbols")
 
     # 用相同的 valid_dates 构建 factor_history（静态复制）
     hist_winsorize = _build_factor_history_static(
@@ -193,11 +193,11 @@ def main() -> int:
 
     # 输出对比结果
     print()
-    print("=" * 70)
-    print("MARGIN_EXP winsorize vs no_winsorize 真实日频 IC_IR 对比")
-    print("=" * 70)
-    print(f"  {'版本':25s} | IC_mean  | IC_std  | IC_IR   | vs 0.3")
-    print(f"  {'-'*25}-+-{'-'*8}-+-{'-'*7}-+-{'-'*7}-+-{'-'*7}")
+    logger.info("=" * 70)
+    logger.info("MARGIN_EXP winsorize vs no_winsorize 真实日频 IC_IR 对比")
+    logger.info("=" * 70)
+    logger.info(f"  {'版本':25s} | IC_mean  | IC_std  | IC_IR   | vs 0.3")
+    logger.info(f"  {'-'*25}-+-{'-'*8}-+-{'-'*7}-+-{'-'*7}-+-{'-'*7}")
     print(f"  {'pipeline内置(winsorize)':25s} | {pipeline_ic_mean:+.4f}  | "
           f"{(abs(pipeline_ic_mean)/max(pipeline_ic_ir,0.001)):.4f}  | "
           f"{pipeline_ic_ir:+.4f} | {'✅' if abs(pipeline_ic_ir) >= 0.3 else '❌'}")
@@ -207,17 +207,17 @@ def main() -> int:
           f"{ic_ir_no:+.4f} | {'✅' if abs(ic_ir_no) >= 0.3 else '❌'}")
     print()
     diff = ic_ir_win - ic_ir_no
-    print(f"  winsorize vs no_winsorize IC_IR 差异: {diff:+.4f}")
+    logger.info(f"  winsorize vs no_winsorize IC_IR 差异: {diff:+.4f}")
     if abs(diff) < 0.02:
-        print("  → 两者 IC_IR 接近，winsorize 对 MARGIN_EXP 无显著影响")
-        print("  → v5 关于 winsorize 提升 IC_IR +116% 的结论是伪 IC_IR 导致的假象")
-        print("  → 可以简化公式，去掉 winsorize")
+        logger.info("  → 两者 IC_IR 接近，winsorize 对 MARGIN_EXP 无显著影响")
+        logger.info("  → v5 关于 winsorize 提升 IC_IR +116% 的结论是伪 IC_IR 导致的假象")
+        logger.info("  → 可以简化公式，去掉 winsorize")
     elif diff > 0:
-        print(f"  → winsorize 版本 IC_IR 更高 (+{diff:.4f})，winsorize 有效")
-        print("  → v5 决策虽然基于伪 IC_IR，但结论方向正确")
+        logger.info(f"  → winsorize 版本 IC_IR 更高 (+{diff:.4f})，winsorize 有效")
+        logger.info("  → v5 决策虽然基于伪 IC_IR，但结论方向正确")
     else:
-        print(f"  → no_winsorize 版本 IC_IR 更高 ({diff:+.4f})，winsorize 有害")
-        print("  → v5 决策方向错误，应该去掉 winsorize")
+        logger.info(f"  → no_winsorize 版本 IC_IR 更高 ({diff:+.4f})，winsorize 有害")
+        logger.info("  → v5 决策方向错误，应该去掉 winsorize")
 
     return 0
 

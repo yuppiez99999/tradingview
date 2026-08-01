@@ -10,7 +10,7 @@
     - 重点验证 level 字符串归一化 (L0/L1/L2/L3/OK) 和订单过滤逻辑
 """
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from utils.risk_guard_integrator import RiskGuardIntegrator
 
@@ -98,7 +98,7 @@ class TestBUG4L2NotTreatedAsL3:
             morning: SELL 512880 (保留)
             afternoon: 空 (BUY 被过滤)
         """
-        mock_class, mock_instance = mock_kill_switch_module
+        _mock_class, mock_instance = mock_kill_switch_module
         # 配置 KillSwitch 返回 L2 (can_trade=False 是 BUG#4 触发条件)
         mock_instance.check_margin_status.return_value = {
             "level": 2,
@@ -132,7 +132,7 @@ class TestBUG4L2NotTreatedAsL3:
         self, integrator, mock_kill_switch_module, sample_trade_plan, sample_pnl_report_full
     ):
         """BUG#4 对比: L3 时确实清空所有订单 (正确行为)"""
-        mock_class, mock_instance = mock_kill_switch_module
+        _mock_class, mock_instance = mock_kill_switch_module
         mock_instance.check_margin_status.return_value = {
             "level": 3,
             "level_name": "三级互盲机制",
@@ -159,7 +159,7 @@ class TestBUG4L2NotTreatedAsL3:
         self, integrator, mock_kill_switch_module, sample_trade_plan, sample_pnl_report_full
     ):
         """BUG#4 边界: L1 时不应修改订单, 只标记 WATCH"""
-        mock_class, mock_instance = mock_kill_switch_module
+        _mock_class, mock_instance = mock_kill_switch_module
         mock_instance.check_margin_status.return_value = {
             "level": 1,
             "level_name": "一级警戒线",
@@ -189,7 +189,7 @@ class TestBUG4L2NotTreatedAsL3:
         self, integrator, mock_kill_switch_module, sample_trade_plan, sample_pnl_report_full
     ):
         """BUG#4 边界: 字符串 'L2' 也能正确归一化为 2, 不被当作 L3"""
-        mock_class, mock_instance = mock_kill_switch_module
+        _mock_class, mock_instance = mock_kill_switch_module
         # 模拟降级模式返回字符串 level
         mock_instance.check_margin_status.return_value = {
             "level": "L2",  # 字符串形式
@@ -223,7 +223,7 @@ class TestP0DFallbackInGuardKillSwitch:
         self, integrator, mock_kill_switch_module, sample_trade_plan, sample_pnl_report_broken_p0d
     ):
         """P0-D: margin_used=None, total_equity=None → 调用 _estimate_margin_from_positions"""
-        mock_class, mock_instance = mock_kill_switch_module
+        _mock_class, mock_instance = mock_kill_switch_module
         mock_instance._estimate_margin_from_positions.return_value = 0.40
         mock_instance.check_margin_status.return_value = {
             "level": 0, "margin_usage_ratio": 0.40,
@@ -245,7 +245,7 @@ class TestP0DFallbackInGuardKillSwitch:
         self, integrator, mock_kill_switch_module, sample_trade_plan, sample_pnl_report_broken_p0d
     ):
         """P0-D: _estimate_margin_from_positions 抛异常时使用保守值 0.50"""
-        mock_class, mock_instance = mock_kill_switch_module
+        _mock_class, mock_instance = mock_kill_switch_module
         mock_instance._estimate_margin_from_positions.side_effect = Exception("positions.json missing")
         mock_instance.check_margin_status.return_value = {
             "level": 1, "margin_usage_ratio": 0.50,

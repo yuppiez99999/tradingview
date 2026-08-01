@@ -36,7 +36,7 @@ if str(_BASE) not in sys.path:
 try:
     from utils.logger import get_logger
     logger = get_logger("intraday_monitor")
-except Exception:
+except Exception as e:
     logger = logging.getLogger("intraday_monitor")
 
 

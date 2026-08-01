@@ -36,6 +36,7 @@ NTP 漂移告警回调处理器 (NTP Alert Callback Handler)
         "thresholds": {max_drift_ms, drift_warning_ms, drift_critical_ms}
     }
 """
+
 from __future__ import annotations
 
 import json
@@ -44,7 +45,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 logger = logging.getLogger("ntp_alert_callback")
 
@@ -75,10 +76,7 @@ class NTPAlertCallback:
 
         # 自动检测渠道启用
         self._dingtalk_webhook = os.getenv("NTF_DINGTALK_WEBHOOK", "")
-        self._enable_dingtalk = (
-            enable_dingtalk if enable_dingtalk is not None
-            else bool(self._dingtalk_webhook)
-        )
+        self._enable_dingtalk = enable_dingtalk if enable_dingtalk is not None else bool(self._dingtalk_webhook)
 
         # SMTP 邮件配置
         self._smtp_host = os.getenv("NTF_SMTP_HOST", "")
@@ -87,16 +85,16 @@ class NTPAlertCallback:
         self._smtp_password = os.getenv("NTF_SMTP_PASSWORD", "")
         self._smtp_from = os.getenv("NTF_SMTP_FROM", self._smtp_user)
         self._smtp_to = os.getenv("NTF_SMTP_TO", "")
-        self._enable_email = (
-            enable_email if enable_email is not None
-            else bool(self._smtp_host and self._smtp_to)
-        )
+        self._enable_email = enable_email if enable_email is not None else bool(self._smtp_host and self._smtp_to)
 
         self._enable_stderr = bool(enable_stderr)
 
         logger.info(
             "NTPAlertCallback 初始化: dingtalk=%s, email=%s, stderr=%s, alert_dir=%s",
-            self._enable_dingtalk, self._enable_email, self._enable_stderr, self.alert_dir,
+            self._enable_dingtalk,
+            self._enable_email,
+            self._enable_stderr,
+            self.alert_dir,
         )
 
     # ------------------------------------------------------------
@@ -110,7 +108,7 @@ class NTPAlertCallback:
             alert_payload: 告警负载 (含 level/drift_ms/server/message/timestamp 等)
         """
         level = alert_payload.get("level", "INFO")
-        message = alert_payload.get("message", "")
+        alert_payload.get("message", "")
 
         # 渠道 1: 文件审计 (始终写入)
         try:
@@ -153,16 +151,16 @@ class NTPAlertCallback:
     def _write_to_stderr(self, alert_payload: dict) -> None:
         """CRITICAL 告警强制写 stderr (确保运维可见)"""
         msg = (
-            f"\n{'='*60}\n"
+            f"\n{'=' * 60}\n"
             f"🚨 NTP CRITICAL ALERT 🚨\n"
-            f"{'='*60}\n"
+            f"{'=' * 60}\n"
             f"Level:    {alert_payload.get('level', 'CRITICAL')}\n"
             f"Drift:    {alert_payload.get('drift_ms', 0):.1f} ms\n"
             f"Server:   {alert_payload.get('server', 'unknown')}\n"
             f"Time:     {alert_payload.get('timestamp', '')}\n"
             f"Message:  {alert_payload.get('message', '')}\n"
             f"Count:    {alert_payload.get('alert_count', 0)}\n"
-            f"{'='*60}\n"
+            f"{'=' * 60}\n"
         )
         print(msg, file=sys.stderr, flush=True)
 
@@ -200,13 +198,18 @@ class NTPAlertCallback:
             import urllib.request
             import json as _json
 
+            # B310 防护: 校验 webhook URL 必须为 http/https 协议
+            webhook_url = self._dingtalk_webhook
+            if not webhook_url or not str(webhook_url).startswith(("http://", "https://")):
+                logger.warning("钉钉 webhook URL 协议非法或为空, 跳过发送")
+                return
             req = urllib.request.Request(
-                self._dingtalk_webhook,
+                webhook_url,
                 data=_json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310  URL已校验为http/https
                 result = _json.loads(resp.read().decode("utf-8"))
                 if result.get("errcode") != 0:
                     logger.warning("钉钉返回非零错误码: %s", result)
@@ -229,15 +232,15 @@ class NTPAlertCallback:
             subject = f"[NTP-CRITICAL] 漂移 {alert_payload.get('drift_ms', 0):.1f} ms 超阈值"
             body = (
                 f"NTP 漂移告警\n"
-                f"{'='*60}\n"
+                f"{'=' * 60}\n"
                 f"级别: {alert_payload.get('level')}\n"
                 f"漂移: {alert_payload.get('drift_ms', 0):.1f} ms\n"
                 f"服务器: {alert_payload.get('server', 'unknown')}\n"
                 f"时间: {alert_payload.get('timestamp', '')}\n"
                 f"累计: {alert_payload.get('alert_count', 0)} 次\n"
-                f"{'='*60}\n"
+                f"{'=' * 60}\n"
                 f"详情:\n{alert_payload.get('message', '')}\n"
-                f"{'='*60}\n"
+                f"{'=' * 60}\n"
                 f"阈值配置:\n"
                 f"  max_drift_ms: {alert_payload.get('thresholds', {}).get('max_drift_ms')}\n"
                 f"  drift_warning_ms: {alert_payload.get('thresholds', {}).get('drift_warning_ms')}\n"
@@ -268,6 +271,7 @@ class NTPAlertCallback:
 # ------------------------------------------------------------
 # 便捷工厂函数
 # ------------------------------------------------------------
+
 
 def create_default_callback() -> NTPAlertCallback:
     """创建默认的 NTP 告警回调 (自动检测环境变量配置)"""

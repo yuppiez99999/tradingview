@@ -1,3 +1,4 @@
 {
-  "auth_token": "your ifind-mcp key"
+  "_security_note": "iFinD JWT Token 必须通过环境变量 IFIND_TOKEN 配置,禁止在此文件中明文存储",
+  "auth_token_placeholder": "${IFIND_TOKEN}"
 }

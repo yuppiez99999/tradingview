@@ -7,12 +7,10 @@
 """
 
 import pytest
-import os
 import sys
 import tempfile
 import math
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import datetime
 
 
 # ============================================================================
@@ -59,7 +57,7 @@ class TestNumericalBoundaries:
     def test_division_by_zero(self):
         """测试2: 除以零异常"""
         with pytest.raises(ZeroDivisionError):
-            result = 10 / 0
+            pass
     
     def test_negative_value(self):
         """测试3: 负值输入处理"""

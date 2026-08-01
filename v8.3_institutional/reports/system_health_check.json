@@ -1,5 +1,5 @@
 {
-  "check_time": "2026-07-24T13:09:49.499054",
+  "check_time": "2026-07-31T09:47:15.083265",
   "total": 10,
   "pass": 9,
   "fail": 1,
@@ -27,7 +27,7 @@
     {
       "module": "GreekExposureDashboard",
       "status": "PASS",
-      "detail": "Delta=2,238,848, levels={'delta': 'CRITICAL', 'gamma': 'OK', 'vega': 'OK', 'theta': 'OK'}"
+      "detail": "Delta=2,343,533, levels={'delta': 'CRITICAL', 'gamma': 'OK', 'vega': 'OK', 'theta': 'OK'}"
     },
     {
       "module": "IntradayDecisionEngine",
@@ -37,7 +37,7 @@
     {
       "module": "AnnualReturnForecast",
       "status": "FAIL",
-      "detail": "保守年化=+8.10%, 硬约束=False"
+      "detail": "保守年化=+4.10%, 硬约束=False"
     },
     {
       "module": "数据:config/positions.json",
@@ -47,12 +47,12 @@
     {
       "module": "数据:v8.3_institutional/trade_plans",
       "status": "PASS",
-      "detail": "20 JSON 文件"
+      "detail": "25 JSON 文件"
     },
     {
       "module": "数据:v8.3_institutional/reports",
       "status": "PASS",
-      "detail": "56 JSON 文件"
+      "detail": "64 JSON 文件"
     }
   ]
 }

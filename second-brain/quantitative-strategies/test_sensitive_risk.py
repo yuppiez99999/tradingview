@@ -4,7 +4,6 @@
 """
 
 import numpy as np
-import pandas as pd
 from risk_control_system import MultiLevelRiskControlSystem, RiskType
 
 def create_sensitive_risk_data():
@@ -139,7 +138,7 @@ def compare_risk_sensitivity():
     ]
     
     for name, system in systems:
-        overall_score, individual_scores = system.calculate_overall_risk(test_data)
+        overall_score, _individual_scores = system.calculate_overall_risk(test_data)
         alerts = system.generate_all_alerts(test_data)
         
         print(f"\n{name}:")
@@ -180,7 +179,7 @@ def test_risk_trend_comparison():
     risk_datasets = [mild_risk, moderate_risk, severe_risk]
     
     print("风险级别对比:")
-    for i, (level, data) in enumerate(zip(risk_levels, risk_datasets)):
+    for _i, (level, data) in enumerate(zip(risk_levels, risk_datasets)):
         overall_score, individual_scores = risk_system.calculate_overall_risk(data)
         alerts = risk_system.generate_all_alerts(data)
         
@@ -233,7 +232,7 @@ def test_operational_emotional_risks():
     
     # 测试整体影响
     print("\n整体影响测试:")
-    overall_score, individual_scores = risk_system.calculate_overall_risk(high_risk_data)
+    overall_score, _individual_scores = risk_system.calculate_overall_risk(high_risk_data)
     print(f"整体风险分数: {overall_score:.3f}")
     print(f"整体风险等级: {risk_system._get_overall_risk_level(overall_score)}")
 

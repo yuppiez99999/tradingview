@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -65,32 +64,32 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("MARGIN_EXP Shadow 失败根因分析（P2.2 v6.2 诊断）")
-    print(f"目标因子: {TARGET_FACTOR}")
-    print(f"基线参考: {BASELINE_FACTOR} (首个完整通过 8 级验证)")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("MARGIN_EXP Shadow 失败根因分析（P2.2 v6.2 诊断）")
+    logger.info(f"目标因子: {TARGET_FACTOR}")
+    logger.info(f"基线参考: {BASELINE_FACTOR} (首个完整通过 8 级验证)")
+    logger.info("=" * 70)
 
     # ============ Step 1: 加载数据 ============
-    print("\n[1/6] 加载 P1 改进后的真实数据")
+    logger.info("\n[1/6] 加载 P1 改进后的真实数据")
     symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
+    logger.info(f"  可用标的数: {len(symbols)}")
 
     price_data = load_price_data(symbols=symbols)
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns()
     if not benchmark_returns:
         benchmark_returns = compute_equal_weight_benchmark(price_data)
-    print(f"  price_data: {len(price_data)} | benchmark_returns: {len(benchmark_returns)} 天")
+    logger.info(f"  price_data: {len(price_data)} | benchmark_returns: {len(benchmark_returns)} 天")
 
     # ============ Step 2: 加载 fundamentals_history ============
-    print("\n[2/6] 加载 fundamentals_history (v6 修复后必需)")
+    logger.info("\n[2/6] 加载 fundamentals_history (v6 修复后必需)")
     orchestrator = PipelineOrchestrator(config={"reports_dir": str(REPORTS_DIR)})
     fundamentals_history = orchestrator._load_fundamentals_history(list(price_data.keys()))
-    print(f"  fundamentals_history: {len(fundamentals_history)} 个标的")
+    logger.info(f"  fundamentals_history: {len(fundamentals_history)} 个标的")
 
     # ============ Step 3: 构建因子历史 ============
-    print("\n[3/6] 构建日频因子历史 (120d)")
+    logger.info("\n[3/6] 构建日频因子历史 (120d)")
     adapter = VibeTradingFactorAdapter()
     factor_history, fwd_returns_hist, valid_dates = build_factor_history(
         adapter=adapter,
@@ -101,17 +100,17 @@ def main() -> int:
         forward_window=5,
         fundamentals_history=fundamentals_history,
     )
-    print(f"  因子数: {len(factor_history)} | 有效天数: {len(valid_dates)}")
+    logger.info(f"  因子数: {len(factor_history)} | 有效天数: {len(valid_dates)}")
 
     if TARGET_FACTOR not in factor_history:
-        print(f"[ERROR] 目标因子 {TARGET_FACTOR} 不在因子历史中")
+        logger.info(f"[ERROR] 目标因子 {TARGET_FACTOR} 不在因子历史中")
         return 1
 
     target_history = factor_history[TARGET_FACTOR]
-    print(f"  {TARGET_FACTOR} 历史长度: {len(target_history)}")
+    logger.info(f"  {TARGET_FACTOR} 历史长度: {len(target_history)}")
 
     # ============ Step 4: 对照组（无风险管理）vs 实验组（有风险管理）============
-    print("\n[4/6] 对照组 vs 实验组 Shadow 测试")
+    logger.info("\n[4/6] 对照组 vs 实验组 Shadow 测试")
     n_trials = max(len(symbols), 13)
 
     # 对照组：无风险管理
@@ -122,12 +121,12 @@ def main() -> int:
         n_trials=n_trials,
         factor_name=TARGET_FACTOR,
     )
-    print(f"\n  [对照组 - 无风险管理]")
-    print(f"    pass_shadow  : {baseline_result.pass_shadow}")
-    print(f"    live_dsr     : {baseline_result.live_dsr:.4f}  (阈值 > 0.5)")
-    print(f"    max_drawdown : {baseline_result.max_drawdown:.4f}  (阈值 < 0.12)")
-    print(f"    total_return : {baseline_result.total_return:.4f}")
-    print(f"    realized_vol : {baseline_result.raw_realized_vol:.4f}")
+    logger.info("\n  [对照组 - 无风险管理]")
+    logger.info(f"    pass_shadow  : {baseline_result.pass_shadow}")
+    logger.info(f"    live_dsr     : {baseline_result.live_dsr:.4f}  (阈值 > 0.5)")
+    logger.info(f"    max_drawdown : {baseline_result.max_drawdown:.4f}  (阈值 < 0.12)")
+    logger.info(f"    total_return : {baseline_result.total_return:.4f}")
+    logger.info(f"    realized_vol : {baseline_result.raw_realized_vol:.4f}")
 
     # 实验组：启用风险管理
     rm_account = ShadowAccount(config={
@@ -145,19 +144,19 @@ def main() -> int:
         n_trials=n_trials,
         factor_name=TARGET_FACTOR,
     )
-    print(f"\n  [实验组 - 启用风险管理]")
-    print(f"    pass_shadow      : {rm_result.pass_shadow}")
-    print(f"    live_dsr         : {rm_result.live_dsr:.4f}")
-    print(f"    max_drawdown     : {rm_result.max_drawdown:.4f}")
-    print(f"    raw_max_drawdown : {rm_result.raw_max_drawdown:.4f}  (缩放前)")
-    print(f"    total_return     : {rm_result.total_return:.4f}")
-    print(f"    realized_vol     : {rm_result.realized_vol:.4f}  (目标 0.15)")
-    print(f"    avg_scaler       : {rm_result.avg_scaler:.4f}")
-    print(f"    derisk_days      : {rm_result.derisk_triggered_days} / {rm_result.n_obs_days}")
-    print(f"    fail_reasons     : {rm_result.fail_reasons}")
+    logger.info("\n  [实验组 - 启用风险管理]")
+    logger.info(f"    pass_shadow      : {rm_result.pass_shadow}")
+    logger.info(f"    live_dsr         : {rm_result.live_dsr:.4f}")
+    logger.info(f"    max_drawdown     : {rm_result.max_drawdown:.4f}")
+    logger.info(f"    raw_max_drawdown : {rm_result.raw_max_drawdown:.4f}  (缩放前)")
+    logger.info(f"    total_return     : {rm_result.total_return:.4f}")
+    logger.info(f"    realized_vol     : {rm_result.realized_vol:.4f}  (目标 0.15)")
+    logger.info(f"    avg_scaler       : {rm_result.avg_scaler:.4f}")
+    logger.info(f"    derisk_days      : {rm_result.derisk_triggered_days} / {rm_result.n_obs_days}")
+    logger.info(f"    fail_reasons     : {rm_result.fail_reasons}")
 
     # ============ Step 5: 每日 PnL 深度分析 ============
-    print("\n[5/6] 每日 PnL 深度分析（找回撤期根因）")
+    logger.info("\n[5/6] 每日 PnL 深度分析（找回撤期根因）")
     daily_pnl_baseline = baseline_result.daily_pnl
     daily_pnl_rm = rm_result.daily_pnl
     n_days = len(daily_pnl_baseline)
@@ -192,32 +191,32 @@ def main() -> int:
     peak_b, trough_b, loss_b = find_max_dd_period(daily_pnl_baseline, dd_series_baseline)
     peak_r, trough_r, loss_r = find_max_dd_period(daily_pnl_rm, dd_series_rm)
 
-    print(f"\n  [对照组 - 无风险管理]")
-    print(f"    最大回撤: {baseline_result.max_drawdown:.4f} ({baseline_result.max_drawdown*100:.2f}%)")
-    print(f"    回撤期: day {peak_b} → day {trough_b} (持续 {trough_b - peak_b + 1} 天)")
-    print(f"    期间累计亏损: {loss_b:.4f} ({loss_b*100:.2f}%)")
-    print(f"    最大单日亏损: {min(daily_pnl_baseline):.4f} ({min(daily_pnl_baseline)*100:.2f}%)")
-    print(f"    最大单日盈利: {max(daily_pnl_baseline):.4f} ({max(daily_pnl_baseline)*100:.2f}%)")
+    logger.info("\n  [对照组 - 无风险管理]")
+    logger.info(f"    最大回撤: {baseline_result.max_drawdown:.4f} ({baseline_result.max_drawdown*100:.2f}%)")
+    logger.info(f"    回撤期: day {peak_b} → day {trough_b} (持续 {trough_b - peak_b + 1} 天)")
+    logger.info(f"    期间累计亏损: {loss_b:.4f} ({loss_b*100:.2f}%)")
+    logger.info(f"    最大单日亏损: {min(daily_pnl_baseline):.4f} ({min(daily_pnl_baseline)*100:.2f}%)")
+    logger.info(f"    最大单日盈利: {max(daily_pnl_baseline):.4f} ({max(daily_pnl_baseline)*100:.2f}%)")
 
-    print(f"\n  [实验组 - 启用风险管理]")
-    print(f"    最大回撤: {rm_result.max_drawdown:.4f} ({rm_result.max_drawdown*100:.2f}%)")
-    print(f"    回撤期: day {peak_r} → day {trough_r} (持续 {trough_r - peak_r + 1} 天)")
-    print(f"    期间累计亏损: {loss_r:.4f} ({loss_r*100:.2f}%)")
-    print(f"    最大单日亏损: {min(daily_pnl_rm):.4f} ({min(daily_pnl_rm)*100:.2f}%)")
-    print(f"    最大单日盈利: {max(daily_pnl_rm):.4f} ({max(daily_pnl_rm)*100:.2f}%)")
+    logger.info("\n  [实验组 - 启用风险管理]")
+    logger.info(f"    最大回撤: {rm_result.max_drawdown:.4f} ({rm_result.max_drawdown*100:.2f}%)")
+    logger.info(f"    回撤期: day {peak_r} → day {trough_r} (持续 {trough_r - peak_r + 1} 天)")
+    logger.info(f"    期间累计亏损: {loss_r:.4f} ({loss_r*100:.2f}%)")
+    logger.info(f"    最大单日亏损: {min(daily_pnl_rm):.4f} ({min(daily_pnl_rm)*100:.2f}%)")
+    logger.info(f"    最大单日盈利: {max(daily_pnl_rm):.4f} ({max(daily_pnl_rm)*100:.2f}%)")
 
     # 判断单点异常 vs 持续失效
-    print(f"\n  [单点异常 vs 持续失效诊断]")
+    logger.info("\n  [单点异常 vs 持续失效诊断]")
     # 找出亏损最严重的 5 天
     sorted_pnl = sorted(enumerate(daily_pnl_baseline), key=lambda x: x[1])[:5]
-    print(f"    对照组 Top 5 亏损日:")
+    logger.info("    对照组 Top 5 亏损日:")
     total_loss_top5 = 0.0
     for day_idx, pnl in sorted_pnl:
         cum_loss = float(np.prod([1.0 + p for p in daily_pnl_baseline[:day_idx + 1]]) - 1.0)
-        print(f"      day {day_idx:3d}: PnL={pnl:+.4f} ({pnl*100:+.2f}%) | 累计净值={cum_loss:+.4f}")
+        logger.info(f"      day {day_idx:3d}: PnL={pnl:+.4f} ({pnl*100:+.2f}%) | 累计净值={cum_loss:+.4f}")
         total_loss_top5 += pnl
-    print(f"    Top 5 亏损日合计: {total_loss_top5:+.4f} ({total_loss_top5*100:+.2f}%)")
-    print(f"    对照组总收益: {baseline_result.total_return:+.4f} ({baseline_result.total_return*100:+.2f}%)")
+    logger.info(f"    Top 5 亏损日合计: {total_loss_top5:+.4f} ({total_loss_top5*100:+.2f}%)")
+    logger.info(f"    对照组总收益: {baseline_result.total_return:+.4f} ({baseline_result.total_return*100:+.2f}%)")
 
     # 判断：Top 5 亏损日是否占 max_dd 的主要部分
     if abs(total_loss_top5) > baseline_result.max_drawdown * 0.7:
@@ -229,11 +228,11 @@ def main() -> int:
     else:
         diagnosis = "持续失效主导（亏损分散在多个交易日）"
         diagnosis_recommendation = "因子本身 OOS 不稳定，需扩大样本或改进因子设计"
-    print(f"\n    诊断结论: {diagnosis}")
-    print(f"    应对建议: {diagnosis_recommendation}")
+    logger.info(f"\n    诊断结论: {diagnosis}")
+    logger.info(f"    应对建议: {diagnosis_recommendation}")
 
     # ============ Step 6: 与基线因子 VT_MICRO_VOL_SKEW_INV 对比 ============
-    print(f"\n[6/6] 与基线因子 {BASELINE_FACTOR} 对比")
+    logger.info(f"\n[6/6] 与基线因子 {BASELINE_FACTOR} 对比")
     if BASELINE_FACTOR in factor_history:
         baseline_factor_history = factor_history[BASELINE_FACTOR]
         # 基线因子也跑一次 risk_managed Shadow
@@ -252,28 +251,28 @@ def main() -> int:
             n_trials=n_trials,
             factor_name=BASELINE_FACTOR,
         )
-        print(f"\n  [基线因子 {BASELINE_FACTOR} - 启用风险管理]")
-        print(f"    pass_shadow      : {baseline_rm_result.pass_shadow}")
-        print(f"    live_dsr         : {baseline_rm_result.live_dsr:.4f}")
-        print(f"    max_drawdown     : {baseline_rm_result.max_drawdown:.4f}")
-        print(f"    total_return     : {baseline_rm_result.total_return:.4f}")
-        print(f"    realized_vol     : {baseline_rm_result.realized_vol:.4f}")
-        print(f"    derisk_days      : {baseline_rm_result.derisk_triggered_days} / {baseline_rm_result.n_obs_days}")
+        logger.info(f"\n  [基线因子 {BASELINE_FACTOR} - 启用风险管理]")
+        logger.info(f"    pass_shadow      : {baseline_rm_result.pass_shadow}")
+        logger.info(f"    live_dsr         : {baseline_rm_result.live_dsr:.4f}")
+        logger.info(f"    max_drawdown     : {baseline_rm_result.max_drawdown:.4f}")
+        logger.info(f"    total_return     : {baseline_rm_result.total_return:.4f}")
+        logger.info(f"    realized_vol     : {baseline_rm_result.realized_vol:.4f}")
+        logger.info(f"    derisk_days      : {baseline_rm_result.derisk_triggered_days} / {baseline_rm_result.n_obs_days}")
 
-        print(f"\n  [MARGIN_EXP vs 基线对比]")
-        print(f"    {'指标':<20s} {'MARGIN_EXP':>15s} {'基线因子':>15s} {'差异':>12s}")
-        print(f"    {'-'*20} {'-'*15} {'-'*15} {'-'*12}")
-        print(f"    {'live_dsr':<20s} {rm_result.live_dsr:>15.4f} {baseline_rm_result.live_dsr:>15.4f} {rm_result.live_dsr-baseline_rm_result.live_dsr:>+12.4f}")
-        print(f"    {'max_drawdown':<20s} {rm_result.max_drawdown:>15.4f} {baseline_rm_result.max_drawdown:>15.4f} {rm_result.max_drawdown-baseline_rm_result.max_drawdown:>+12.4f}")
-        print(f"    {'total_return':<20s} {rm_result.total_return:>15.4f} {baseline_rm_result.total_return:>15.4f} {rm_result.total_return-baseline_rm_result.total_return:>+12.4f}")
-        print(f"    {'realized_vol':<20s} {rm_result.realized_vol:>15.4f} {baseline_rm_result.realized_vol:>15.4f} {rm_result.realized_vol-baseline_rm_result.realized_vol:>+12.4f}")
-        print(f"    {'derisk_days':<20s} {rm_result.derisk_triggered_days:>15d} {baseline_rm_result.derisk_triggered_days:>15d} {rm_result.derisk_triggered_days-baseline_rm_result.derisk_triggered_days:>+12d}")
+        logger.info("\n  [MARGIN_EXP vs 基线对比]")
+        logger.info(f"    {'指标':<20s} {'MARGIN_EXP':>15s} {'基线因子':>15s} {'差异':>12s}")
+        logger.info(f"    {'-'*20} {'-'*15} {'-'*15} {'-'*12}")
+        logger.info(f"    {'live_dsr':<20s} {rm_result.live_dsr:>15.4f} {baseline_rm_result.live_dsr:>15.4f} {rm_result.live_dsr-baseline_rm_result.live_dsr:>+12.4f}")
+        logger.info(f"    {'max_drawdown':<20s} {rm_result.max_drawdown:>15.4f} {baseline_rm_result.max_drawdown:>15.4f} {rm_result.max_drawdown-baseline_rm_result.max_drawdown:>+12.4f}")
+        logger.info(f"    {'total_return':<20s} {rm_result.total_return:>15.4f} {baseline_rm_result.total_return:>15.4f} {rm_result.total_return-baseline_rm_result.total_return:>+12.4f}")
+        logger.info(f"    {'realized_vol':<20s} {rm_result.realized_vol:>15.4f} {baseline_rm_result.realized_vol:>15.4f} {rm_result.realized_vol-baseline_rm_result.realized_vol:>+12.4f}")
+        logger.info(f"    {'derisk_days':<20s} {rm_result.derisk_triggered_days:>15d} {baseline_rm_result.derisk_triggered_days:>15d} {rm_result.derisk_triggered_days-baseline_rm_result.derisk_triggered_days:>+12d}")
     else:
-        print(f"  [WARN] 基线因子 {BASELINE_FACTOR} 不在因子历史中")
+        logger.info(f"  [WARN] 基线因子 {BASELINE_FACTOR} 不在因子历史中")
         baseline_rm_result = None
 
     # ============ 写入报告 ============
-    print("\n写入诊断报告...")
+    logger.info("\n写入诊断报告...")
     md_path = _write_diagnosis_report(
         target_factor=TARGET_FACTOR,
         baseline_factor=BASELINE_FACTOR,
@@ -293,7 +292,7 @@ def main() -> int:
         symbols_count=len(symbols),
         n_trials=n_trials,
     )
-    print(f"  报告路径: {md_path}")
+    logger.info(f"  报告路径: {md_path}")
 
     # 保存原始数据
     json_path = md_path.parent / "daily_pnl.json"
@@ -339,11 +338,11 @@ def main() -> int:
     }
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(json_data, f, indent=2, ensure_ascii=False, default=str)
-    print(f"  JSON 数据: {json_path}")
+    logger.info(f"  JSON 数据: {json_path}")
 
-    print("\n" + "=" * 70)
-    print("MARGIN_EXP Shadow 失败根因分析完成")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("MARGIN_EXP Shadow 失败根因分析完成")
+    logger.info("=" * 70)
     return 0
 
 

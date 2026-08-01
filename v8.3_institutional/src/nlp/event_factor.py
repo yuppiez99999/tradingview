@@ -9,12 +9,12 @@
   3. 文本热度因子 (Text Heat Factor)
   4. 行业联动因子 (Industry Correlation Factor)
 """
+
 import os
 import sys
-import json
 import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Dict, List, Optional
 from collections import defaultdict, deque
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -25,7 +25,7 @@ try:
 except ImportError:
     YiZhaoDataLoader = None
     YiZhaoDocument = None
-from .sentiment import FinSentimentAnalyzer, get_sentiment_analyzer
+from .sentiment import FinSentimentAnalyzer, get_sentiment_analyzer, get_yizhao_loader
 
 
 class EventDrivenFactor:
@@ -33,25 +33,26 @@ class EventDrivenFactor:
 
     # 因子权重 (可优化)
     DEFAULT_WEIGHTS = {
-        'sentiment': 0.35,      # 舆情情绪
-        'event_impact': 0.25,   # 事件冲击
-        'text_heat': 0.15,      # 文本热度
-        'industry_corr': 0.15,  # 行业联动
-        'policy_bias': 0.10     # 政策倾向
+        "sentiment": 0.35,  # 舆情情绪
+        "event_impact": 0.25,  # 事件冲击
+        "text_heat": 0.15,  # 文本热度
+        "industry_corr": 0.15,  # 行业联动
+        "policy_bias": 0.10,  # 政策倾向
     }
 
-    def __init__(self, loader: YiZhaoDataLoader = None,
-                 analyzer: FinSentimentAnalyzer = None,
-                 weights: Dict[str, float] = None):
+    def __init__(
+        self,
+        loader: YiZhaoDataLoader = None,
+        analyzer: FinSentimentAnalyzer = None,
+        weights: Optional[Dict[str, float]] = None,
+    ):
         self.loader = loader or get_yizhao_loader()
         self.analyzer = analyzer or get_sentiment_analyzer()
         self.weights = weights or self.DEFAULT_WEIGHTS
 
         # 因子缓存
         self._factor_cache: Dict[str, Dict] = {}
-        self._factor_history: Dict[str, deque] = defaultdict(
-            lambda: deque(maxlen=60)
-        )
+        self._factor_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=60))
 
     # ---- 因子1: 舆情情绪因子 ----
     def sentiment_factor(self, code: str) -> float:
@@ -63,15 +64,15 @@ class EventDrivenFactor:
             return 0.0
 
         sentiment = self.analyzer.analyze_code_sentiment(code, top_k=20)
-        if 'error' in sentiment:
+        if "error" in sentiment:
             return 0.0
 
-        score = sentiment.get('sentiment_score', 0.5)
+        score = sentiment.get("sentiment_score", 0.5)
         # 映射 [0,1] → [-1,1]
         factor = (score - 0.5) * 2.0
 
         # 考虑情绪一致性 (标准差小 = 一致性强)
-        std = sentiment.get('sentiment_std', 0.2)
+        std = sentiment.get("sentiment_std", 0.2)
         confidence = max(0, 1 - std * 2)
         factor *= confidence
 
@@ -98,13 +99,18 @@ class EventDrivenFactor:
 
             # 各类事件的冲击权重
             event_weights = {
-                '政策': 0.6, '业绩': 0.5, '并购重组': 0.4,
-                '技术创新': 0.3, '融资': 0.2, '市场行情': 0.1,
-                '监管': -0.5, '风险事件': -0.7
+                "政策": 0.6,
+                "业绩": 0.5,
+                "并购重组": 0.4,
+                "技术创新": 0.3,
+                "融资": 0.2,
+                "市场行情": 0.1,
+                "监管": -0.5,
+                "风险事件": -0.7,
             }
 
             sentiment = self.analyzer.analyze_text(text)
-            polarity_mult = 1.0 if sentiment['score'] >= 0.5 else -1.0
+            polarity_mult = 1.0 if sentiment["score"] >= 0.5 else -1.0
 
             for evt in events:
                 w = event_weights.get(evt.value, 0.1)
@@ -168,6 +174,7 @@ class EventDrivenFactor:
 
         # 搜索同行业关键词
         from .sentiment import INDUSTRY_KEYWORDS
+
         industry_kw = INDUSTRY_KEYWORDS.get(main_industry, [main_industry])
         industry_results = self.loader.search_by_keywords(industry_kw, top_k=30)
 
@@ -178,7 +185,7 @@ class EventDrivenFactor:
         scores = []
         for r in industry_results:
             s = self.analyzer.analyze_text(r.doc.text[:2000])
-            scores.append(s['score'])
+            scores.append(s["score"])
 
         avg_industry_sentiment = sum(scores) / len(scores)
         return round(avg_industry_sentiment, 4)
@@ -194,7 +201,7 @@ class EventDrivenFactor:
             return 0.0
 
         # 搜索政策相关文档
-        policy_kw = ['政策', '规划', '国务院', '发改委', '工信部', '支持', '补贴']
+        policy_kw = ["政策", "规划", "国务院", "发改委", "工信部", "支持", "补贴"]
         all_kw = keywords[:3] + policy_kw
 
         results = self.loader.search_by_keywords(all_kw, top_k=15, min_fin_score=4)
@@ -204,7 +211,7 @@ class EventDrivenFactor:
         positive_count = 0
         for r in results:
             s = self.analyzer.analyze_text(r.doc.text[:2000])
-            if s['polarity'] in ('positive', 'strong_positive'):
+            if s["polarity"] in ("positive", "strong_positive"):
                 positive_count += 1
 
         bias = positive_count / len(results) if results else 0.0
@@ -217,37 +224,34 @@ class EventDrivenFactor:
         返回: {'composite': float, 'factors': Dict, 'signal': str}
         """
         factors = {
-            'sentiment': self.sentiment_factor(code),
-            'event_impact': self.event_impact_factor(code),
-            'text_heat': self.text_heat_factor(code),
-            'industry_corr': self.industry_correlation_factor(code),
-            'policy_bias': self.policy_bias_factor(code)
+            "sentiment": self.sentiment_factor(code),
+            "event_impact": self.event_impact_factor(code),
+            "text_heat": self.text_heat_factor(code),
+            "industry_corr": self.industry_correlation_factor(code),
+            "policy_bias": self.policy_bias_factor(code),
         }
 
         # 加权合成
-        composite = sum(
-            factors[name] * self.weights.get(name, 0.2)
-            for name in factors
-        )
+        composite = sum(factors[name] * self.weights.get(name, 0.2) for name in factors)
 
         # 信号生成
         if composite >= 0.3:
-            signal = 'strong_buy'
+            signal = "strong_buy"
         elif composite >= 0.1:
-            signal = 'buy'
+            signal = "buy"
         elif composite <= -0.3:
-            signal = 'strong_sell'
+            signal = "strong_sell"
         elif composite <= -0.1:
-            signal = 'sell'
+            signal = "sell"
         else:
-            signal = 'hold'
+            signal = "hold"
 
         result = {
-            'code': code,
-            'composite': round(composite, 4),
-            'factors': {k: round(v, 4) for k, v in factors.items()},
-            'signal': signal,
-            'timestamp': datetime.now().isoformat()
+            "code": code,
+            "composite": round(composite, 4),
+            "factors": {k: round(v, 4) for k, v in factors.items()},
+            "signal": signal,
+            "timestamp": datetime.now().isoformat(),
         }
 
         # 缓存
@@ -256,7 +260,7 @@ class EventDrivenFactor:
 
         return result
 
-    def compute_portfolio_factors(self, codes: List[str] = None) -> Dict:
+    def compute_portfolio_factors(self, codes: Optional[List[str]] = None) -> Dict:
         """计算组合级别因子"""
         if codes is None:
             codes = list(self.loader.config.portfolio_keywords.keys())
@@ -267,7 +271,7 @@ class EventDrivenFactor:
         for code in codes:
             r = self.compute_composite_factor(code)
             results[code] = r
-            all_composites.append(r['composite'])
+            all_composites.append(r["composite"])
 
         avg_composite = np.mean(all_composites) if all_composites else 0
         std_composite = np.std(all_composites) if all_composites else 0
@@ -275,37 +279,37 @@ class EventDrivenFactor:
         # 信号分布
         signals = defaultdict(int)
         for r in results.values():
-            signals[r['signal']] += 1
+            signals[r["signal"]] += 1
 
         return {
-            'portfolio_composite': round(float(avg_composite), 4),
-            'composite_std': round(float(std_composite), 4),
-            'signal_distribution': dict(signals),
-            'code_factors': results,
-            'dominant_signal': max(signals, key=signals.get) if signals else 'hold'
+            "portfolio_composite": round(float(avg_composite), 4),
+            "composite_std": round(float(std_composite), 4),
+            "signal_distribution": dict(signals),
+            "code_factors": results,
+            "dominant_signal": max(signals, key=signals.get) if signals else "hold",
         }
 
     def get_factor_trend(self, code: str, window: int = 10) -> Dict:
         """获取因子趋势 (用于回测)"""
         history = list(self._factor_history.get(code, []))[-window:]
         if not history:
-            return {'trend': 'flat', 'change': 0.0}
+            return {"trend": "flat", "change": 0.0}
 
-        composites = [h['composite'] for h in history]
+        composites = [h["composite"] for h in history]
         change = composites[-1] - composites[0]
 
         if change > 0.1:
-            trend = 'improving'
+            trend = "improving"
         elif change < -0.1:
-            trend = 'deteriorating'
+            trend = "deteriorating"
         else:
-            trend = 'stable'
+            trend = "stable"
 
         return {
-            'trend': trend,
-            'change': round(change, 4),
-            'current': composites[-1],
-            'window_avg': round(np.mean(composites), 4)
+            "trend": trend,
+            "change": round(change, 4),
+            "current": composites[-1],
+            "window_avg": round(np.mean(composites), 4),
         }
 
 
@@ -318,14 +322,13 @@ class FactorBacktestValidator:
     def __init__(self, factor_gen: EventDrivenFactor = None):
         self.factor_gen = factor_gen or EventDrivenFactor()
 
-    def compute_ic(self, factor_values: List[float],
-                   future_returns: List[float]) -> Dict:
+    def compute_ic(self, factor_values: List[float], future_returns: List[float]) -> Dict:
         """
         计算信息系数 (Information Coefficient)
         IC = corr(factor, future_return)
         """
         if len(factor_values) < 10:
-            return {'ic': 0, 'error': '数据不足'}
+            return {"ic": 0, "error": "数据不足"}
 
         ic = np.corrcoef(factor_values, future_returns)[0, 1]
         ic = 0 if np.isnan(ic) else ic
@@ -335,19 +338,19 @@ class FactorBacktestValidator:
         t_stat = ic * np.sqrt(n - 2) / np.sqrt(1 - ic**2) if abs(ic) < 1 else 0
 
         return {
-            'ic': round(float(ic), 4),
-            'ic_abs': round(abs(float(ic)), 4),
-            't_stat': round(float(t_stat), 4),
-            'n_samples': n,
-            'significant': abs(float(t_stat)) > 2.0
+            "ic": round(float(ic), 4),
+            "ic_abs": round(abs(float(ic)), 4),
+            "t_stat": round(float(t_stat), 4),
+            "n_samples": n,
+            "significant": abs(float(t_stat)) > 2.0,
         }
 
-    def compute_quantile_returns(self, factor_values: List[float],
-                                  future_returns: List[float],
-                                  n_quantiles: int = 5) -> Dict:
+    def compute_quantile_returns(
+        self, factor_values: List[float], future_returns: List[float], n_quantiles: int = 5
+    ) -> Dict:
         """分层回测: 按因子值分5组, 比较各组未来收益"""
         if len(factor_values) < n_quantiles * 3:
-            return {'error': '数据不足'}
+            return {"error": "数据不足"}
 
         arr = np.array(list(zip(factor_values, future_returns)))
         arr = arr[np.argsort(arr[:, 0])]
@@ -365,15 +368,10 @@ class FactorBacktestValidator:
         spread = quantile_returns[-1] - quantile_returns[0]
 
         return {
-            'quantile_returns': quantile_returns,
-            'top_bottom_spread': round(float(spread), 6),
-            'monotonic': all(
-                quantile_returns[i] <= quantile_returns[i + 1]
-                for i in range(n_quantiles - 1)
-            ) or all(
-                quantile_returns[i] >= quantile_returns[i + 1]
-                for i in range(n_quantiles - 1)
-            )
+            "quantile_returns": quantile_returns,
+            "top_bottom_spread": round(float(spread), 6),
+            "monotonic": all(quantile_returns[i] <= quantile_returns[i + 1] for i in range(n_quantiles - 1))
+            or all(quantile_returns[i] >= quantile_returns[i + 1] for i in range(n_quantiles - 1)),
         }
 
 
@@ -393,23 +391,23 @@ def get_factor_generator() -> EventDrivenFactor:
 # ============================================================
 # 测试
 # ============================================================
-if __name__ == '__main__':
+if __name__ == "__main__":
     gen = get_factor_generator()
 
     print("=" * 60)
     print("  事件驱动因子测试")
     print("=" * 60)
 
-    test_codes = ['601088', '300274', '002371', '600276']
+    test_codes = ["601088", "300274", "002371", "600276"]
 
     for code in test_codes:
         result = gen.compute_composite_factor(code)
         print(f"\n  {code}:")
         print(f"    综合因子: {result['composite']:.4f}")
         print(f"    信号: {result['signal']}")
-        for name, val in result['factors'].items():
-            bar = '█' * int(abs(val) * 20)
-            sign = '+' if val > 0 else ' '
+        for name, val in result["factors"].items():
+            bar = "█" * int(abs(val) * 20)
+            sign = "+" if val > 0 else " "
             print(f"    {name:>15}: {sign}{val:.4f} {bar}")
 
     print(f"\n{'=' * 60}")

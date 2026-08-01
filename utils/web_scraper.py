@@ -29,23 +29,22 @@
   news = scraper.fetch_news("半导体")  # 半导体行业新闻
 """
 
-import os
 import re
 import json
 import time
-import hashlib
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Callable
-from urllib.parse import quote, urljoin
+from typing import Dict, List, Optional, Any
 
 import requests
 import urllib3
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 try:
     from bs4 import BeautifulSoup
+
     HAS_BS4 = True
 except ImportError:
     HAS_BS4 = False
@@ -53,31 +52,33 @@ except ImportError:
 
 # Scrapling (可选, 增强 Cloudflare 等反爬绕过)
 try:
-    from scrapling import StealthyFetcher, Fetcher  # type: ignore
+    from scrapling import StealthyFetcher, Fetcher
+
     HAS_SCRAPLING = True
 except ImportError:
     HAS_SCRAPLING = False
-    StealthyFetcher = None  # type: ignore
-    Fetcher = None  # type: ignore
+    StealthyFetcher = None
+    Fetcher = None
+from utils.logger import get_logger  # noqa: E402
 
-from utils.logger import get_logger
-
-logger = get_logger('web_scraper')
+logger = get_logger("web_scraper")
 
 # ============================================================
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class NewsItem:
     """新闻/公告/研报统一数据结构"""
+
     title: str
     content: str = ""
     url: str = ""
-    source: str = ""           # 来源 (eastmoney/cninfo/sina/10jqka)
-    category: str = "news"     # news/announcement/research
-    published_at: str = ""     # ISO 格式时间
-    symbol: str = ""           # 关联股票代码
+    source: str = ""  # 来源 (eastmoney/cninfo/sina/10jqka)
+    category: str = "news"  # news/announcement/research
+    published_at: str = ""  # ISO 格式时间
+    symbol: str = ""  # 关联股票代码
     sentiment_score: float = 0.0  # [-1, 1] 情感分 (需 NLP 模型填充)
     keywords: List[str] = field(default_factory=list)
     raw: Dict[str, Any] = field(default_factory=dict)
@@ -89,6 +90,7 @@ class NewsItem:
 @dataclass
 class ScrapeResult:
     """抓取结果"""
+
     success: bool
     items: List[NewsItem] = field(default_factory=list)
     source: str = ""
@@ -109,6 +111,7 @@ class ScrapeResult:
 # ============================================================
 # TTL 缓存
 # ============================================================
+
 
 class _TTLCache:
     """简单 TTL 缓存 (线程安全)"""
@@ -144,28 +147,32 @@ class _TTLCache:
 # HTTP 会话
 # ============================================================
 
+
 def _create_session() -> requests.Session:
     """创建 HTTP 会话 (绕过系统代理)"""
     s = requests.Session()
     s.trust_env = False
     s.proxies = {"http": None, "https": None}
-    s.headers.update({
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        "Accept-Encoding": "gzip, deflate",
-        "Connection": "keep-alive",
-    })
+    s.headers.update(
+        {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "Accept-Encoding": "gzip, deflate",
+            "Connection": "keep-alive",
+        }
+    )
     return s
 
 
 # ============================================================
 # 主抓取器
 # ============================================================
+
 
 class WebScraper:
     """网页抓取器 (多源降级)
@@ -177,16 +184,14 @@ class WebScraper:
 
     # 缓存 TTL (秒)
     CACHE_TTL = {
-        "announcement": 1800,   # 公告 30 分钟
-        "research": 3600,       # 研报 1 小时
-        "news": 600,            # 新闻 10 分钟
+        "announcement": 1800,  # 公告 30 分钟
+        "research": 3600,  # 研报 1 小时
+        "news": 600,  # 新闻 10 分钟
     }
 
     def __init__(self, cache_dir: Optional[Path] = None, timeout: int = 15):
         if not HAS_BS4:
-            raise ImportError(
-                "BeautifulSoup (bs4) 未安装, 请运行: pip install beautifulsoup4"
-            )
+            raise ImportError("BeautifulSoup (bs4) 未安装, 请运行: pip install beautifulsoup4")
         self.session = _create_session()
         self.timeout = timeout
         self.cache = _TTLCache(ttl_seconds=600)
@@ -209,8 +214,8 @@ class WebScraper:
             try:
                 page = Fetcher.get(url, stealthy=True, timeout=self.timeout)
                 if page and page.status == 200:
-                    return page.body
-            except Exception as e:
+                    return page.body  # type: ignore
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.debug(f"Scrapling 抓取失败 ({url}): {e}, 回退到 requests")
 
         # P2: requests + bs4
@@ -220,29 +225,31 @@ class WebScraper:
                 # 自动检测编码 (中文网站常用 gbk/utf-8)
                 if resp.encoding and resp.encoding.lower() == "iso-8859-1":
                     resp.encoding = resp.apparent_encoding
-                return resp.text
+                return resp.text  # type: ignore
             logger.warning(f"HTTP {resp.status_code}: {url}")
         except requests.exceptions.Timeout:
             logger.warning(f"请求超时 ({self.timeout}s): {url}")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"请求失败 ({url}): {e}")
         return None
 
-    def _fetch_json(self, url: str, params: Optional[Dict] = None,
-                    headers: Optional[Dict] = None) -> Optional[Any]:
+    def _fetch_json(self, url: str, params: Optional[Dict] = None, headers: Optional[Dict] = None) -> Optional[Any]:
         """获取 JSON API 响应"""
         try:
             req_headers = dict(self.session.headers)
             if headers:
                 req_headers.update(headers)
             resp = self.session.get(
-                url, params=params, headers=req_headers,
-                timeout=self.timeout, verify=False,
+                url,
+                params=params,
+                headers=req_headers,
+                timeout=self.timeout,
+                verify=False,
             )
             if resp.status_code == 200:
                 return resp.json()
             logger.warning(f"HTTP {resp.status_code}: {url}")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"JSON 请求失败 ({url}): {e}")
         return None
 
@@ -255,7 +262,7 @@ class WebScraper:
             return None
         try:
             return BeautifulSoup(html, "html.parser")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"HTML 解析失败: {e}")
             return None
 
@@ -288,7 +295,7 @@ class WebScraper:
         cached = self.cache.get(cache_key)
         if cached is not None:
             logger.debug(f"公告缓存命中: {symbol}")
-            return cached
+            return cached  # type: ignore
 
         # 东方财富公告 API (JSON 接口, 无需 HTML 解析)
         result = self._fetch_eastmoney_announcements(symbol, limit)
@@ -305,10 +312,8 @@ class WebScraper:
         # 判断市场 (沪/深)
         if symbol.startswith("6") or symbol.startswith("9"):
             market = "sse"  # 沪市
-            secid = f"1.{symbol}"
         else:
             market = "szse"  # 深市
-            secid = f"0.{symbol}"
 
         url = "https://np-anotice-stock.eastmoney.com/api/security/ann"
         params = {
@@ -332,19 +337,20 @@ class WebScraper:
             art_code = row.get("art_code", "")
             published = row.get("notice_date", "") or row.get("eiTime", "")
             content_url = (
-                f"https://np-cnotice-stock.eastmoney.com/api/content/notice?art_code={art_code}"
-                if art_code else ""
+                f"https://np-cnotice-stock.eastmoney.com/api/content/notice?art_code={art_code}" if art_code else ""
             )
-            items.append(NewsItem(
-                title=title,
-                content="",
-                url=content_url,
-                source="eastmoney",
-                category="announcement",
-                published_at=published,
-                symbol=symbol,
-                raw={"art_code": art_code, "market": market},
-            ))
+            items.append(
+                NewsItem(
+                    title=title,
+                    content="",
+                    url=content_url,
+                    source="eastmoney",
+                    category="announcement",
+                    published_at=published,
+                    symbol=symbol,
+                    raw={"art_code": art_code, "market": market},
+                )
+            )
         logger.info(f"东方财富公告 ({symbol}): 获取 {len(items)} 条")
         return items
 
@@ -377,7 +383,7 @@ class WebScraper:
             if resp.status_code != 200:
                 return []
             json_data = resp.json()
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"巨潮公告请求失败 ({symbol}): {e}")
             return []
 
@@ -385,23 +391,23 @@ class WebScraper:
         for row in json_data.get("announcements", [])[:limit]:
             title = row.get("announcementTitle", "")
             adjunct_url = row.get("adjunctUrl", "")
-            content_url = (
-                f"http://static.cninfo.com.cn/{adjunct_url}" if adjunct_url else ""
-            )
+            content_url = f"http://static.cninfo.com.cn/{adjunct_url}" if adjunct_url else ""
             published = row.get("announcementTime", "")
             # 时间戳转日期
             if isinstance(published, int):
                 published = datetime.fromtimestamp(published / 1000).isoformat()
-            items.append(NewsItem(
-                title=title,
-                content="",
-                url=content_url,
-                source="cninfo",
-                category="announcement",
-                published_at=str(published),
-                symbol=symbol,
-                raw={"sec_code": row.get("secCode", ""), "org_id": row.get("orgId", "")},
-            ))
+            items.append(
+                NewsItem(
+                    title=title,
+                    content="",
+                    url=content_url,
+                    source="cninfo",
+                    category="announcement",
+                    published_at=str(published),
+                    symbol=symbol,
+                    raw={"sec_code": row.get("secCode", ""), "org_id": row.get("orgId", "")},
+                )
+            )
         logger.info(f"巨潮公告 ({symbol}): 获取 {len(items)} 条")
         return items
 
@@ -419,7 +425,7 @@ class WebScraper:
         cache_key = f"res_{symbol}_{limit}"
         cached = self.cache.get(cache_key)
         if cached is not None:
-            return cached
+            return cached  # type: ignore
 
         result = self._fetch_eastmoney_research(symbol, limit)
         self.cache.set(cache_key, result, ttl=self.CACHE_TTL["research"])
@@ -429,9 +435,9 @@ class WebScraper:
         """东方财富研报 API"""
         # 判断沪市/深市前缀
         if symbol.startswith("6") or symbol.startswith("9"):
-            secid = f"1.{symbol}"
+            pass
         else:
-            secid = f"0.{symbol}"
+            pass
 
         url = "https://reportapi.eastmoney.com/report/list"
         params = {
@@ -464,10 +470,7 @@ class WebScraper:
             rating_change = row.get("emRatingChangeName", "")
             published = row.get("publishDate", "") or row.get("publishTime", "")
             info_code = row.get("infoCode", "")
-            content_url = (
-                f"https://data.eastmoney.com/report/zw_stock.jshtml?infoCode={info_code}"
-                if info_code else ""
-            )
+            content_url = f"https://data.eastmoney.com/report/zw_stock.jshtml?infoCode={info_code}" if info_code else ""
             # 研报内容摘要
             summary = row.get("content", "")[:500] if row.get("content") else ""
 
@@ -479,22 +482,24 @@ class WebScraper:
             if org:
                 keywords.append(org)
 
-            items.append(NewsItem(
-                title=title,
-                content=summary,
-                url=content_url,
-                source="eastmoney_research",
-                category="research",
-                published_at=str(published),
-                symbol=symbol,
-                keywords=keywords,
-                raw={
-                    "org": org,
-                    "rating": rating,
-                    "rating_change": rating_change,
-                    "info_code": info_code,
-                },
-            ))
+            items.append(
+                NewsItem(
+                    title=title,
+                    content=summary,
+                    url=content_url,
+                    source="eastmoney_research",
+                    category="research",
+                    published_at=str(published),
+                    symbol=symbol,
+                    keywords=keywords,
+                    raw={
+                        "org": org,
+                        "rating": rating,
+                        "rating_change": rating_change,
+                        "info_code": info_code,
+                    },
+                )
+            )
         logger.info(f"东方财富研报 ({symbol}): 获取 {len(items)} 条")
         return items
 
@@ -512,7 +517,7 @@ class WebScraper:
         cache_key = f"news_{keyword}_{limit}"
         cached = self.cache.get(cache_key)
         if cached is not None:
-            return cached
+            return cached  # type: ignore
 
         # 优先: 新浪财经搜索 API
         result = self._fetch_sina_news(keyword, limit)
@@ -534,7 +539,7 @@ class WebScraper:
             "ie": "utf-8",
         }
         html = self._fetch_html(url, params=params)
-        soup = self._parse_html(html)
+        soup = self._parse_html(html)  # type: ignore
         if soup is None:
             return []
 
@@ -549,15 +554,17 @@ class WebScraper:
             content = content_el.get_text(strip=True) if content_el else ""
             link = title_el.get("href", "")
             published = time_el.get_text(strip=True) if time_el else ""
-            items.append(NewsItem(
-                title=title,
-                content=content[:500],
-                url=link,
-                source="sina",
-                category="news",
-                published_at=published,
-                keywords=[keyword],
-            ))
+            items.append(
+                NewsItem(
+                    title=title,
+                    content=content[:500],
+                    url=link,  # type: ignore
+                    source="sina",
+                    category="news",
+                    published_at=published,
+                    keywords=[keyword],
+                )
+            )
         logger.info(f"新浪新闻 ({keyword}): 获取 {len(items)} 条")
         return items
 
@@ -566,49 +573,49 @@ class WebScraper:
         url = "https://search-api-web.eastmoney.com/search/jsonp"
         params = {
             "cb": "jQuery789",
-            "param": json.dumps({
-                "uid": "",
-                "keyword": keyword,
-                "type": ["cmsArticleWebOld"],
-                "client": "web",
-                "clientType": "web",
-                "clientVersion": "curr",
-                "param": {
-                    "cmsArticleWebOld": {
-                        "searchScope": "default",
-                        "sort": "default",
-                        "pageIndex": 1,
-                        "pageSize": min(limit, 20),
-                        "preTag": "",
-                        "postTag": "",
-                    }
-                },
-            }),
+            "param": json.dumps(
+                {
+                    "uid": "",
+                    "keyword": keyword,
+                    "type": ["cmsArticleWebOld"],
+                    "client": "web",
+                    "clientType": "web",
+                    "clientVersion": "curr",
+                    "param": {
+                        "cmsArticleWebOld": {
+                            "searchScope": "default",
+                            "sort": "default",
+                            "pageIndex": 1,
+                            "pageSize": min(limit, 20),
+                            "preTag": "",
+                            "postTag": "",
+                        }
+                    },
+                }
+            ),
         }
         data = self._fetch_json(url, params=params)
         if not data or not isinstance(data, dict):
             return []
 
         items = []
-        articles = (
-            data.get("result", {})
-            .get("cmsArticleWebOld", {})
-            .get("list", [])
-        )
+        articles = data.get("result", {}).get("cmsArticleWebOld", {}).get("list", [])
         for row in articles[:limit]:
             title = row.get("title", "").replace("<em>", "").replace("</em>", "")
             content = row.get("content", "")[:500]
             published = row.get("date", "")
             url_link = row.get("url", "")
-            items.append(NewsItem(
-                title=title,
-                content=content,
-                url=url_link,
-                source="eastmoney_news",
-                category="news",
-                published_at=published,
-                keywords=[keyword],
-            ))
+            items.append(
+                NewsItem(
+                    title=title,
+                    content=content,
+                    url=url_link,
+                    source="eastmoney_news",
+                    category="news",
+                    published_at=published,
+                    keywords=[keyword],
+                )
+            )
         logger.info(f"东方财富新闻 ({keyword}): 获取 {len(items)} 条")
         return items
 
@@ -679,7 +686,7 @@ class WebScraper:
             try:
                 items = self.fetch_announcements(symbol, limit=limit_per_symbol)
                 result[symbol] = items
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"抓取 {symbol} 失败: {e}")
                 result[symbol] = []
         return result
@@ -703,9 +710,99 @@ class WebScraper:
         try:
             with open(cache_file, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"读取缓存文件失败 ({cache_file}): {e}")
             return None
+
+    # ============================================================
+    # 自媒体舆情 (MediaCrawler 集成)
+    # ============================================================
+
+    def fetch_social_media_news(
+        self,
+        keyword: str,
+        platforms: Optional[List[str]] = None,
+        max_items: int = 50,
+        use_cache: bool = True,
+    ) -> List[Dict[str, Any]]:
+        """
+        抓取自媒体平台舆情新闻 (小红书/抖音/B站/微博/知乎等)
+
+        通过 MediaCrawlerAdapter 调用外部 MediaCrawler 服务,
+        Feature Flag 关闭或服务不可用时返回空列表, 不影响主流程。
+
+        参数:
+            keyword:   搜索关键词 (股票名/行业/题材, 如 "半导体", "贵州茅台")
+            platforms: 平台列表, None 表示默认 4 个主流平台
+                       支持: xhs(小红书), dy(抖音), ks(快手), bili(B站),
+                             wb(微博), tieba(贴吧), zhihu(知乎)
+            max_items: 最大返回条数
+            use_cache: 是否使用缓存
+
+        返回:
+            新闻条目列表, 格式对齐 fetch_stock_news:
+            [
+                {
+                    "title": "...",
+                    "content": "...",
+                    "url": "...",
+                    "source": "小红书",
+                    "category": "social",
+                    "published_at": "2026-07-28T10:30:00",
+                    "symbol": "",
+                    "sentiment_score": 0.0,
+                    "like_count": 1234,
+                    "comment_count": 56,
+                    "share_count": 12,
+                    ...
+                },
+                ...
+            ]
+        """
+        # 缓存 key
+        cache_key = f"social_media:{keyword}:{','.join(sorted(platforms or []))}:{max_items}"
+
+        if use_cache:
+            cached = self.cache.get(cache_key)
+            if cached is not None:
+                logger.debug(f"自媒体舆情命中缓存: {keyword}")
+                return cached
+
+        # 尝试调用 MediaCrawlerAdapter
+        try:
+            from utils.media_crawler_adapter import MediaCrawlerAdapter
+
+            adapter = MediaCrawlerAdapter(enabled=True)
+
+            # 健康检查
+            health = adapter.check_health()
+            if not health.get("available", False):
+                logger.debug(f"MediaCrawler 服务不可用 ({health.get('reason')}), 跳过自媒体舆情")
+                return []
+
+            # 抓取数据
+            items = adapter.fetch_social_news(
+                keyword=keyword,
+                platforms=platforms,
+                max_items=max_items,
+            )
+
+            # 转换为 Dict 格式 (对齐 NewsItem.to_dict())
+            result = [item.to_dict() for item in items]
+
+            # 写入缓存 (缓存 30 分钟)
+            if use_cache and result:
+                self.cache.set(cache_key, result, ttl=1800)
+
+            logger.info(f"自媒体舆情抓取完成: {keyword} → {len(result)} 条")
+            return result
+
+        except ImportError:
+            logger.debug("MediaCrawlerAdapter 未安装, 跳过自媒体舆情")
+            return []
+        except Exception as e:  # P2 模块 fail-safe
+            logger.warning(f"自媒体舆情抓取异常: {e}")
+            return []
 
     # ----------------------------------------------------------
     # 工具方法
@@ -773,6 +870,7 @@ def fetch_news(keyword: str, limit: int = 20) -> List[Dict]:
 # 自检
 # ============================================================
 
+
 def self_test() -> bool:
     """模块自检 (不发起真实网络请求, 仅验证依赖和类定义)"""
     try:
@@ -807,7 +905,7 @@ def self_test() -> bool:
         print(f"  - BeautifulSoup 可用: {status['bs4_available']}")
         print(f"  - 超时: {status['timeout']}s")
         return True
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         print(f"[FAIL] web_scraper.py 自检失败: {e}")
         return False
 

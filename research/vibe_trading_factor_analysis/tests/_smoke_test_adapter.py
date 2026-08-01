@@ -15,9 +15,6 @@ sys.path.insert(0, os.path.join(adapter_dir, "adapters"))
 try:
     from adapters.vibe_trading_factor_adapter import (
         VibeTradingFactorAdapter,
-        CandidateFactor,
-        CandidateFactorPool,
-        OrthogonalityResult,
         FACTOR_ORIGIN,
     )
     print("[OK] 模块导入成功")

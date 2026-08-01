@@ -9,9 +9,7 @@ Wind 终端盘中标的抓取与研判
   3. 生成买/卖/持有研判结论
 """
 import os
-import sys
 import json
-import time
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -97,7 +95,7 @@ def _import_wind():
         spec = importlib.util.spec_from_file_location("wind_mcp_fetcher", _WIND_FETCHER_PATH)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        return getattr(mod, "wind_get_quote"), getattr(mod, "wind_get_batch_quotes"), getattr(mod, "wind_get_kline")
+        return mod.wind_get_quote, mod.wind_get_batch_quotes, mod.wind_get_kline
     except Exception as e:
         print(f"[WARN] Wind MCP 导入失败: {e}")
         return None, None, None
@@ -153,8 +151,11 @@ def _batch_fetch_klines(codes: List[str], is_fund_map: Dict[str, bool], wind_get
             klines = wind_get_kline(code, days=2, is_fund=is_fund)
             if klines and len(klines) >= 2:
                 return code, float(klines[-2].get("match", klines[-2].get("close", 0)) or 0)
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                "获取 %s 前收盘价异常", code, exc_info=True
+            )
         return code, None
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(_fetch_one, (code, is_fund_map.get(code, False))) for code in codes]
@@ -252,10 +253,10 @@ def run(target_date: Optional[str] = None) -> Dict:
 
     report_path = os.path.join(_REPORT_DIR, f"wind_intraday_{target_short}.md")
     with open(report_path, "w", encoding="utf-8") as f:
-        f.write(f"# Wind 终端盘中标的抓取与研判\n\n")
+        f.write("# Wind 终端盘中标的抓取与研判\n\n")
         f.write(f"- **生成时间**: {now.strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"- **目标日期**: {target_date}\n")
-        f.write(f"- **数据来源**: Wind MCP\n")
+        f.write("- **数据来源**: Wind MCP\n")
         f.write(f"- **监控标的**: {len(rows)} 只\n\n")
         f.write("---\n\n")
         f.write("## 一、标的行情总览\n\n")

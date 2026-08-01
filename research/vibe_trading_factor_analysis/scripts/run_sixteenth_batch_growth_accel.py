@@ -45,7 +45,7 @@ import math
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import numpy as np
 
@@ -236,7 +236,7 @@ def evaluate_scheme(
         factor_values = winsorize_values(factor_values)
     ic_series = compute_ic_series_for_static_factor(factor_values, forward_returns_history)
     ic_ir, ic_mean, ic_std = compute_ic_ir(ic_series)
-    print(f"  {name}:")
+    logger.info(f"  {name}:")
     print(f"    IC_IR={ic_ir:+.4f}  IC_mean={ic_mean:+.4f}  IC_std={ic_std:.4f}  "
           f"n_symbols={len(factor_values)}")
     return {
@@ -254,30 +254,30 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
-    print("=" * 70)
-    print("S3 第十六批次：GROWTH_ACCEL 重新设计验证（P2.2 v6.4 改用扣非净利润）")
-    print("=" * 70)
-    print("v6.4 验证方案:")
-    print("  - v5 baseline: 净利润绝对值 YoY 增长率加速（已知 IC_IR=0.0159）")
-    print("  - v3 baseline: yoy_pni QoQ 变化（已知 IC_IR=0.0066）")
-    print("  - v6.1: yoy_pni 水平值（直接用扣非净利同比 %）")
-    print("  - v6.2: yoy_pni YoY 变化（消除季节性）")
-    print("  - v6.3: yoy_ni YoY 变化（对比扣非净利）")
-    print("  - 每个方案测试 winsorize 前后效果")
+    logger.info("=" * 70)
+    logger.info("S3 第十六批次：GROWTH_ACCEL 重新设计验证（P2.2 v6.4 改用扣非净利润）")
+    logger.info("=" * 70)
+    logger.info("v6.4 验证方案:")
+    logger.info("  - v5 baseline: 净利润绝对值 YoY 增长率加速（已知 IC_IR=0.0159）")
+    logger.info("  - v3 baseline: yoy_pni QoQ 变化（已知 IC_IR=0.0066）")
+    logger.info("  - v6.1: yoy_pni 水平值（直接用扣非净利同比 %）")
+    logger.info("  - v6.2: yoy_pni YoY 变化（消除季节性）")
+    logger.info("  - v6.3: yoy_ni YoY 变化（对比扣非净利）")
+    logger.info("  - 每个方案测试 winsorize 前后效果")
 
     # ============ Step 1: 加载数据 ============
-    print("\n[1/4] 加载数据")
+    logger.info("\n[1/4] 加载数据")
     symbols = list_available_symbols()
-    print(f"  可用标的数: {len(symbols)}")
+    logger.info(f"  可用标的数: {len(symbols)}")
     price_data = load_price_data(symbols=symbols)
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns()
     if not benchmark_returns:
         benchmark_returns = compute_equal_weight_benchmark(price_data)
-    print(f"  price_data: {len(price_data)} | benchmark: {len(benchmark_returns)} 天")
+    logger.info(f"  price_data: {len(price_data)} | benchmark: {len(benchmark_returns)} 天")
 
     # ============ Step 2: 加载 fundamentals_history ============
-    print("\n[2/4] 加载历史季度财务数据")
+    logger.info("\n[2/4] 加载历史季度财务数据")
     cache_dir = _PROJECT_ROOT / "cache" / "fundamentals"
     fundamentals_history: Dict[str, Any] = {}
     for sym in symbols:
@@ -291,12 +291,12 @@ def main() -> int:
                 fundamentals_history[sym] = data
         except Exception as e:
             logger.debug("[GrowthAccelLoader] 加载 %s 失败: %s", sym, e)
-    print(f"  fundamentals_history: {len(fundamentals_history)} 个标的")
+    logger.info(f"  fundamentals_history: {len(fundamentals_history)} 个标的")
 
     # ============ Step 3: 构建日频因子历史（获取 forward_returns） ============
-    print("\n[3/4] 构建日频因子历史（获取 forward_returns，120 天）")
+    logger.info("\n[3/4] 构建日频因子历史（获取 forward_returns，120 天）")
     adapter = VibeTradingFactorAdapter()
-    factor_history, fwd_returns_hist, valid_dates = build_factor_history(
+    _factor_history, fwd_returns_hist, valid_dates = build_factor_history(
         adapter=adapter,
         price_data=price_data,
         fundamentals=fundamentals,
@@ -305,12 +305,12 @@ def main() -> int:
         forward_window=5,
         fundamentals_history=fundamentals_history,
     )
-    print(f"  valid_dates: {len(valid_dates)} 天")
-    print(f"  forward_returns: {len(fwd_returns_hist)} 天")
+    logger.info(f"  valid_dates: {len(valid_dates)} 天")
+    logger.info(f"  forward_returns: {len(fwd_returns_hist)} 天")
 
     # ============ Step 4: 评估各方案 IC_IR ============
-    print("\n[4/4] 评估各方案 IC_IR")
-    print("-" * 70)
+    logger.info("\n[4/4] 评估各方案 IC_IR")
+    logger.info("-" * 70)
 
     results: Dict[str, Any] = {}
 
@@ -344,11 +344,11 @@ def main() -> int:
     )
 
     # ============ 汇总对比 ============
-    print("\n" + "=" * 70)
-    print("汇总对比")
-    print("=" * 70)
-    print(f"\n{'方案':<45s} {'IC_IR':>8s} {'IC_mean':>10s} {'IC_std':>8s} {'n_symbols':>10s}")
-    print("-" * 85)
+    logger.info("\n" + "=" * 70)
+    logger.info("汇总对比")
+    logger.info("=" * 70)
+    logger.info(f"\n{'方案':<45s} {'IC_IR':>8s} {'IC_mean':>10s} {'IC_std':>8s} {'n_symbols':>10s}")
+    logger.info("-" * 85)
     for name, metrics in results.items():
         winsorize_tag = " (winsorize)" if metrics["apply_winsorize"] else ""
         print(f"{name + winsorize_tag:<45s} {metrics['ic_ir']:>+8.4f} "
@@ -356,25 +356,25 @@ def main() -> int:
               f"{metrics['n_symbols']:>10d}")
 
     # ============ 找出最优方案 ============
-    print("\n[最优方案评估]")
+    logger.info("\n[最优方案评估]")
     best_name = max(results.keys(), key=lambda k: abs(results[k]["ic_ir"]))
     best_ic_ir = results[best_name]["ic_ir"]
     threshold = 0.3
 
-    print(f"  最优方案: {best_name}")
-    print(f"  IC_IR: {best_ic_ir:+.4f}")
-    print(f"  0.3 阈值: {'✅ 达标' if abs(best_ic_ir) >= threshold else '❌ 未达标'}")
+    logger.info(f"  最优方案: {best_name}")
+    logger.info(f"  IC_IR: {best_ic_ir:+.4f}")
+    logger.info(f"  0.3 阈值: {'✅ 达标' if abs(best_ic_ir) >= threshold else '❌ 未达标'}")
 
     if abs(best_ic_ir) >= threshold:
-        print(f"\n  🎉 推荐方案 {best_name} 进入完整 8 级流水线验证")
+        logger.info(f"\n  🎉 推荐方案 {best_name} 进入完整 8 级流水线验证")
         if best_ic_ir < 0:
-            print(f"  ⚠️ IC_IR 为负值，考虑反向使用（如 VT_*_INV 模式）")
+            logger.info("  ⚠️ IC_IR 为负值，考虑反向使用（如 VT_*_INV 模式）")
     else:
-        print(f"\n  ⚠️ 所有方案 IC_IR < 0.3，GROWTH_ACCEL 类因子 Alpha 信号不足")
-        print(f"  建议：")
-        print(f"    1. 重新审视 GROWTH_ACCEL 的因子设计（可能需要新数据源）")
-        print(f"    2. 考虑其他质量变化维度（如分析师预期变化、研报情感）")
-        print(f"    3. 将 GROWTH_ACCEL 标记为 defer，优先推进其他因子")
+        logger.info("\n  ⚠️ 所有方案 IC_IR < 0.3，GROWTH_ACCEL 类因子 Alpha 信号不足")
+        logger.info("  建议：")
+        logger.info("    1. 重新审视 GROWTH_ACCEL 的因子设计（可能需要新数据源）")
+        logger.info("    2. 考虑其他质量变化维度（如分析师预期变化、研报情感）")
+        logger.info("    3. 将 GROWTH_ACCEL 标记为 defer，优先推进其他因子")
 
     # ============ 保存结果 ============
     batch_id = f"sixteenth_batch_growth_accel_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -400,8 +400,8 @@ def main() -> int:
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False, default=str)
 
-    print(f"\n结果已保存至: {output_path}")
-    print(f"批次 ID: {batch_id}")
+    logger.info(f"\n结果已保存至: {output_path}")
+    logger.info(f"批次 ID: {batch_id}")
 
     return 0
 

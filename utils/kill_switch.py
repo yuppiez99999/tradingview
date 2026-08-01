@@ -17,6 +17,7 @@
     if status["level"] >= 1:
         ks.execute_kill_switch(status["level"])
 """
+
 from __future__ import annotations
 
 import os
@@ -26,7 +27,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 logger = logging.getLogger("kill_switch")
 
@@ -43,8 +44,7 @@ class KillSwitch:
         2. 集成模式: 外部调用方传入真实 margin_usage 参数
     """
 
-    def __init__(self, config_path: Optional[Path] = None,
-                 margin_limit: float = 0.50):
+    def __init__(self, config_path: Optional[Path] = None, margin_limit: float = 0.50):
         """
         Args:
             config_path: 配置文件路径
@@ -77,7 +77,7 @@ class KillSwitch:
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("kill_switch", {}) if isinstance(cfg, dict) else {}
-            except Exception as e:
+            except (FileNotFoundError, yaml.YAMLError, OSError) as e:
                 logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
                 return {}
 
@@ -85,20 +85,21 @@ class KillSwitch:
         try:
             # 延迟导入避免循环依赖
             from utils.config_manager import get_kill_switch_config
+
             cfg = get_kill_switch_config()
             if cfg:
-                return cfg  # type: ignore[no-any-return]
+                return cfg
             # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, "r", encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
             return fallback_cfg.get("kill_switch", {}) if isinstance(fallback_cfg, dict) else {}
-        except Exception as e:
+        except (ImportError, AttributeError, OSError, yaml.YAMLError) as e:
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
             try:
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("kill_switch", {}) if isinstance(cfg, dict) else {}
-            except Exception as e2:
+            except (FileNotFoundError, yaml.YAMLError, OSError) as e2:
                 logger.error(f"全部加载路径失败: {e2}")
                 return {}
 
@@ -194,15 +195,13 @@ class KillSwitch:
         positions_file = project_root / "config" / "positions.json"
 
         if not positions_file.exists():
-            logger.warning(
-                f"持仓文件不存在: {positions_file}, 使用保守保证金占用率 0.50"
-            )
+            logger.warning(f"持仓文件不存在: {positions_file}, 使用保守保证金占用率 0.50")
             return None
 
         try:
             with open(positions_file, "r", encoding="utf-8") as f:
                 return json.load(f)  # type: ignore[no-any-return]
-        except Exception as e:
+        except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
             logger.error(f"读取持仓文件失败: {e}, 使用保守值 0.50")
             return None
 
@@ -231,11 +230,21 @@ class KillSwitch:
         if not budget_summary:
             return None
 
-        # OPTIONS_ONLY 模式: budget_summary 是预算消耗进度, 非保证金占用
-        if hedge_mode == "OPTIONS_ONLY":
+        # 检查是否存在真实期货持仓 (type=FUTURE)
+        positions = data.get("positions", {})
+        has_real_futures = any(
+            isinstance(p, dict) and p.get("type", "").upper() == "FUTURE"
+            for p in positions.values()
+        ) if isinstance(positions, dict) else False
+
+        # OPTIONS_ONLY 模式 或 无真实期货持仓:
+        # budget_summary.usage_pct 是期权权利金预算消耗进度 (正常 50-90%), 非保证金占用率.
+        # 将其当作 margin_usage_ratio 会导致 L2 误触发 (82.5% > 75% 阈值).
+        if hedge_mode == "OPTIONS_ONLY" or not has_real_futures:
+            reason = "OPTIONS_ONLY 模式" if hedge_mode == "OPTIONS_ONLY" else "无真实期货持仓"
             logger.info(
-                "[KillSwitch] OPTIONS_ONLY 模式: 预算消耗 %.1f%% (非保证金占用), "
-                "跳过预算估算, 落入实际持仓估算",
+                "[KillSwitch] %s: 预算消耗 %.1f%% (非保证金占用), 跳过预算估算, 落入实际持仓估算",
+                reason,
                 float(budget_summary.get("usage_pct", 0.0)),
             )
             return None  # 落到 _estimate_from_real_positions
@@ -247,7 +256,8 @@ class KillSwitch:
                 ratio = max(0.0, min(1.0, float(usage_pct) / 100.0))
                 logger.info(
                     "[KillSwitch] 对冲预算估算保证金占用: usage_pct=%.1f%%, ratio=%.1f%%",
-                    float(usage_pct), ratio * 100,
+                    float(usage_pct),
+                    ratio * 100,
                 )
                 return ratio
             except (TypeError, ValueError):
@@ -262,7 +272,9 @@ class KillSwitch:
                 logger.info(
                     "[KillSwitch] 对冲预算估算保证金占用: "
                     "total_put_premium=¥%.0f, total_hedge_capital=¥%.0f, ratio=%.1f%%",
-                    float(total_put_premium), float(total_hedge_capital), ratio * 100,
+                    float(total_put_premium),
+                    float(total_hedge_capital),
+                    ratio * 100,
                 )
                 return ratio
             except (TypeError, ValueError):
@@ -424,7 +436,7 @@ class KillSwitch:
                 total_capital = float(data.get("meta", {}).get("total_capital", 0))
                 if total_capital > 0:
                     return total_capital
-        except Exception as e:
+        except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError, OSError) as e:
             logger.debug(f"读取 positions.json total_capital 失败: {e}")
 
         # 4. 兼容默认值
@@ -462,8 +474,7 @@ class KillSwitch:
                 ratio = max(0.0, min(1.0, float(margin_usage)))
             except (TypeError, ValueError):
                 logger.critical(
-                    f"margin_usage 类型异常 ({type(margin_usage).__name__}): {margin_usage}, "
-                    f"进入 FAIL-CLOSED"
+                    f"margin_usage 类型异常 ({type(margin_usage).__name__}): {margin_usage}, 进入 FAIL-CLOSED"
                 )
                 return self._fail_closed_response("INVALID_MARGIN_USAGE_TYPE")
 
@@ -522,7 +533,7 @@ class KillSwitch:
             auto_execute = self.config.get("level_1", {}).get("auto_execute", True)
 
         # 兼容字段: can_trade / can_open / action
-        can_trade = level < 2   # L0/L1 可交易(但不可开仓), L2+ 不可交易
+        can_trade = level < 2  # L0/L1 可交易(但不可开仓), L2+ 不可交易
         can_open = level == 0  # 仅正常状态可开仓
         action_str = actions[0] if actions else ("正常" if level == 0 else f"L{level}熔断")
 
@@ -550,7 +561,7 @@ class KillSwitch:
         try:
             with open(KILL_SWITCH_LOG, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             logger.error(f"写入熔断日志失败: {e}")
 
     def execute_kill_switch(self, level: int) -> Dict:
@@ -578,47 +589,62 @@ class KillSwitch:
 
         actions_taken = []
 
+        # P1-1 修复: 原代码在 callback 前就标记 status="executed", callback 失败时
+        # actions_taken 中仍有虚假 "executed" 记录, 误导调用方认为熔断动作已执行.
+        # 改为: 先标记 "pending", callback 成功后改为 "executed", 失败时改为 "failed".
         if level == 1:
             # L1: 切断开仓权限, 进入防守模式
-            actions_taken.append({
-                "action": "disable_new_positions",
-                "status": "executed",
-                "note": "中控切断所有新开仓权限",
-            })
-            actions_taken.append({
-                "action": "enter_defensive_mode",
-                "status": "executed",
-                "note": "进入'只平仓不计数'防守模式",
-            })
+            actions_taken.append(
+                {
+                    "action": "disable_new_positions",
+                    "status": "pending",
+                    "note": "中控切断所有新开仓权限",
+                }
+            )
+            actions_taken.append(
+                {
+                    "action": "enter_defensive_mode",
+                    "status": "pending",
+                    "note": "进入'只平仓不计数'防守模式",
+                }
+            )
 
         elif level == 2:
             # L2: 强平深虚值期权空头
-            actions_taken.append({
-                "action": "force_close_deep_otm_short",
-                "status": "executed",
-                "note": "中控强平最深虚值期权空头",
-                "positions_closed": "deepest_otm_short_calls",
-            })
-            actions_taken.append({
-                "action": "release_liquidity",
-                "status": "executed",
-                "note": "瞬间释放账户流动性",
-            })
+            actions_taken.append(
+                {
+                    "action": "force_close_deep_otm_short",
+                    "status": "pending",
+                    "note": "中控强平最深虚值期权空头",
+                    "positions_closed": "deepest_otm_short_calls",
+                }
+            )
+            actions_taken.append(
+                {
+                    "action": "release_liquidity",
+                    "status": "pending",
+                    "note": "瞬间释放账户流动性",
+                }
+            )
 
         elif level == 3:
             # L3: 变现10%红利ETF, 跨品种注入
             source_etfs = level_cfg.get("source_etfs", ["512890", "515180"])
-            actions_taken.append({
-                "action": "liquidate_red_etf",
-                "status": "executed",
-                "note": f"日内闪电变现 10% 红利ETF: {source_etfs}",
-                "amount_liquidated": "10% of source_etfs",
-            })
-            actions_taken.append({
-                "action": "cross_asset_inject",
-                "status": "executed",
-                "note": "跨品种清算注入期权账户",
-            })
+            actions_taken.append(
+                {
+                    "action": "liquidate_red_etf",
+                    "status": "pending",
+                    "note": f"日内闪电变现 10% 红利ETF: {source_etfs}",
+                    "amount_liquidated": "10% of source_etfs",
+                }
+            )
+            actions_taken.append(
+                {
+                    "action": "cross_asset_inject",
+                    "status": "pending",
+                    "note": "跨品种清算注入期权账户",
+                }
+            )
 
         # 修复 BUG-K3: callback 失败时返回 executed=False, 而非静默通过
         # 先检查执行通道是否可用
@@ -633,22 +659,31 @@ class KillSwitch:
         # 执行真实交易操作
         try:
             broker_result = self._broker_callback(level, actions)
-            actions_taken.append({
-                "action": "broker_callback_executed",
-                "status": "executed",
-                "detail": broker_result,
-            })
-            executed = True
-        except Exception as e:
-            logger.critical(
-                f"Kill Switch L{level} broker callback 执行失败! "
-                f"熔断协议未真正执行: {e}"
+            # P1-1 修复: callback 成功后, 将 pending 状态的 action 改为 executed
+            for a in actions_taken:
+                if a.get("status") == "pending":
+                    a["status"] = "executed"
+            actions_taken.append(
+                {
+                    "action": "broker_callback_executed",
+                    "status": "executed",
+                    "detail": broker_result,
+                }
             )
-            actions_taken.append({
-                "action": "broker_callback_failed",
-                "status": "failed",
-                "error": str(e),
-            })
+            executed = True
+        except Exception as e:  # broker API 异常类型不可预知, 必须 fail-closed
+            logger.critical(f"Kill Switch L{level} broker callback 执行失败! 熔断协议未真正执行: {e}")
+            # P1-1 修复: callback 失败时, 将 pending 状态的 action 改为 failed
+            for a in actions_taken:
+                if a.get("status") == "pending":
+                    a["status"] = "failed"
+            actions_taken.append(
+                {
+                    "action": "broker_callback_failed",
+                    "status": "failed",
+                    "error": str(e),
+                }
+            )
             # 关键修复: callback 失败时返回 executed=False
             return {
                 "executed": False,
@@ -669,8 +704,7 @@ class KillSwitch:
         }
 
         logger.warning(
-            f"⚠️ 执行熔断协议 L{level}: {level_cfg.get('name', '')}, "
-            f"executed={executed}, 动作数={len(actions_taken)}"
+            f"⚠️ 执行熔断协议 L{level}: {level_cfg.get('name', '')}, executed={executed}, 动作数={len(actions_taken)}"
         )
 
         return result
@@ -698,25 +732,28 @@ class KillSwitch:
         CONCENTRATION_L2 = 0.35
         CONCENTRATION_L3 = 0.50
 
-        # 计算总市值
+        # 计算总市值 (T01 FIX: 强制 float, 防御 None 导致风控误判)
         total_value = 0.0
-        pos_values = {}
+        pos_values: Dict[str, float] = {}
         for code, pos in positions.items():
             if isinstance(pos, dict):
-                mv = pos.get('market_value', pos.get('est_market_value', 0))
+                raw_mv = pos.get("market_value", pos.get("est_market_value", 0))
             else:
-                mv = float(pos)
+                raw_mv = pos
+            # 强制 float 转换, None/异常值一律按 0 处理 (风控保守)
+            try:
+                mv = float(raw_mv) if raw_mv is not None else 0.0
+            except (TypeError, ValueError):
+                mv = 0.0
             pos_values[code] = mv
             total_value += mv
 
         if total_value <= 0:
-            return {"level": "OK", "max_concentration": 0,
-                    "max_concentration_code": "", "action": "无持仓"}
+            return {"level": "OK", "max_concentration": 0, "max_concentration_code": "", "action": "无持仓"}
 
-        # 找最大集中度
-        # P3-B FIX (2026-07-26): 使用 lambda 避免 mypy 类型推断错误
+        # 找最大集中度 (T01 FIX: 显式 float 类型, 避免 None 运算)
         max_code = max(pos_values, key=lambda k: pos_values.get(k, 0.0))
-        max_conc = pos_values[max_code] / total_value
+        max_conc: float = pos_values[max_code] / total_value
 
         if max_conc >= CONCENTRATION_L3:
             level = "L3"
@@ -763,9 +800,9 @@ class KillSwitch:
                             dt = datetime.fromisoformat(ts)
                             if dt.timestamp() >= cutoff:
                                 records.append(record)
-                    except Exception:
+                    except (ValueError, KeyError, TypeError):
                         continue
-        except Exception:
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
             pass
 
         return records
@@ -789,21 +826,18 @@ if __name__ == "__main__":
 
     if args.check or (not args.execute and not args.history):
         status = ks.check_margin_status()
-        print(json.dumps(status, ensure_ascii=False, indent=2))
+        logger.info(json.dumps(status, ensure_ascii=False, indent=2))
         if status["level"] > 0:
-            print(f"\n⚠️ 熔断级别: L{status['level']} - {status['level_name']}")
+            logger.info(f"\n⚠️ 熔断级别: L{status['level']} - {status['level_name']}")
             for a in status["actions"]:
-                print(f"  - {a}")
+                logger.info(f"  - {a}")
 
     if args.execute:
         exec_result = ks.execute_kill_switch(args.execute)
-        print(json.dumps(exec_result, ensure_ascii=False, indent=2))
+        logger.info(json.dumps(exec_result, ensure_ascii=False, indent=2))
 
     if args.history:
         history = ks.get_event_history(args.history)
-        print(f"\n最近 {args.history} 天熔断事件: {len(history)} 次")
+        logger.info(f"\n最近 {args.history} 天熔断事件: {len(history)} 次")
         for r in history:
-            print(
-                f"  {r.get('timestamp', 'N/A')} - L{r.get('level', 0)} "
-                f"{r.get('level_name', '')}"
-            )
+            logger.info(f"  {r.get('timestamp', 'N/A')} - L{r.get('level', 0)} {r.get('level_name', '')}")

@@ -5,17 +5,17 @@ WonderTrader 风格对冲策略模板
 参考 wtpy/HedgeStrategy.py + HedgeContext.py 设计。
 提供组合级 Delta 对冲策略框架,比现有 hedge_engine.py 更完善。
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+from dataclasses import dataclass
 from datetime import datetime
 import logging
-import math
 
-from .wt_structs import TickData, BarData, PositionData
-from .wt_contracts_manager import get_contracts_manager, ContractData
+from .wt_structs import TickData, BarData
+from .wt_contracts_manager import get_contracts_manager
 
 logger = logging.getLogger(__name__)
 
@@ -23,25 +23,27 @@ logger = logging.getLogger(__name__)
 @dataclass
 class HedgePosition:
     """对冲持仓"""
+
     code: str
-    direction: str = "LONG"     # "LONG"/"SHORT"
+    direction: str = "LONG"  # "LONG"/"SHORT"
     volume: float = 0.0
     avg_price: float = 0.0
     last_price: float = 0.0
-    beta: float = 1.0           # 个股 Beta
-    delta: float = 1.0          # 期权 Delta (期货=1)
+    beta: float = 1.0  # 个股 Beta
+    delta: float = 1.0  # 期权 Delta (期货=1)
     contract_multiplier: float = 1.0
 
 
 @dataclass
 class PortfolioMetrics:
     """组合指标"""
-    total_value: float = 0.0      # 组合总市值
-    net_exposure: float = 0.0     # 净敞口 (多头市值-空头市值)
-    net_beta: float = 0.0         # 净 Beta
-    net_delta: float = 0.0        # 净 Delta (期权)
-    gross_exposure: float = 0.0   # 总敞口
-    hedge_ratio: float = 0.0      # 对冲比例 = 空头/多头
+
+    total_value: float = 0.0  # 组合总市值
+    net_exposure: float = 0.0  # 净敞口 (多头市值-空头市值)
+    net_beta: float = 0.0  # 净 Beta
+    net_delta: float = 0.0  # 净 Delta (期权)
+    gross_exposure: float = 0.0  # 总敞口
+    hedge_ratio: float = 0.0  # 对冲比例 = 空头/多头
 
 
 class HedgeStrategy(ABC):
@@ -77,16 +79,15 @@ class HedgeStrategy(ABC):
         """再平衡回调 — 用户在此实现对冲调整逻辑"""
         pass
 
-    def on_tick(self, ctx: "HedgeContext", tick: TickData) -> None:
+    def on_tick(self, ctx: "HedgeContext", tick: TickData) -> None:  # noqa: B027  接口占位, 子类按需覆写
         """Tick 回调"""
         pass
 
-    def on_bar(self, ctx: "HedgeContext", bar: BarData) -> None:
+    def on_bar(self, ctx: "HedgeContext", bar: BarData) -> None:  # noqa: B027  接口占位, 子类按需覆写
         """Bar 回调"""
         pass
 
-    def add_long_position(self, code: str, volume: float, price: float,
-                          beta: float = 1.0) -> None:
+    def add_long_position(self, code: str, volume: float, price: float, beta: float = 1.0) -> None:
         """添加多头持仓"""
         contract = self.contracts.get_contract(code)
         if code in self.long_positions:
@@ -97,13 +98,18 @@ class HedgeStrategy(ABC):
             pos.last_price = price
         else:
             self.long_positions[code] = HedgePosition(
-                code=code, direction="LONG", volume=volume,
-                avg_price=price, last_price=price,
-                beta=beta, contract_multiplier=contract.contract_multiplier,
+                code=code,
+                direction="LONG",
+                volume=volume,
+                avg_price=price,
+                last_price=price,
+                beta=beta,
+                contract_multiplier=contract.contract_multiplier,
             )
 
-    def add_short_position(self, code: str, volume: float, price: float,
-                           beta: float = 1.0, delta: float = -1.0) -> None:
+    def add_short_position(
+        self, code: str, volume: float, price: float, beta: float = 1.0, delta: float = -1.0
+    ) -> None:
         """添加空头对冲持仓"""
         contract = self.contracts.get_contract(code)
         if code in self.short_positions:
@@ -114,9 +120,13 @@ class HedgeStrategy(ABC):
             pos.last_price = price
         else:
             self.short_positions[code] = HedgePosition(
-                code=code, direction="SHORT", volume=volume,
-                avg_price=price, last_price=price,
-                beta=beta, delta=delta,
+                code=code,
+                direction="SHORT",
+                volume=volume,
+                avg_price=price,
+                last_price=price,
+                beta=beta,
+                delta=delta,
                 contract_multiplier=contract.contract_multiplier,
             )
 
@@ -179,8 +189,7 @@ class HedgeContext:
             self.current_prices = prices
         return self.strategy.calc_portfolio_metrics(self.current_prices)
 
-    def calc_target_hedge_volume(self, hedge_code: str,
-                                 target_ratio: Optional[float] = None) -> float:
+    def calc_target_hedge_volume(self, hedge_code: str, target_ratio: Optional[float] = None) -> float:
         """计算目标对冲手数
 
         Args:
@@ -221,13 +230,15 @@ class HedgeContext:
 
         self.strategy.add_short_position(hedge_code, hands, hedge_price, beta=-1.0, delta=-1.0)
 
-        self.hedge_orders.append({
-            "action": "OPEN_SHORT",
-            "code": hedge_code,
-            "hands": hands,
-            "price": hedge_price,
-            "timestamp": datetime.now().isoformat(),
-        })
+        self.hedge_orders.append(
+            {
+                "action": "OPEN_SHORT",
+                "code": hedge_code,
+                "hands": hands,
+                "price": hedge_price,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
         return True
 
     def close_hedge(self, hedge_code: str, hands: float, price: Optional[float] = None) -> bool:
@@ -241,13 +252,15 @@ class HedgeContext:
         hedge_price = price or self.current_prices.get(hedge_code, pos.last_price)
         pos.volume -= hands
 
-        self.hedge_orders.append({
-            "action": "CLOSE_SHORT",
-            "code": hedge_code,
-            "hands": hands,
-            "price": hedge_price,
-            "timestamp": datetime.now().isoformat(),
-        })
+        self.hedge_orders.append(
+            {
+                "action": "CLOSE_SHORT",
+                "code": hedge_code,
+                "hands": hands,
+                "price": hedge_price,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
         return True
 
     def adjust_hedge(self, target_ratio: float, hedge_code: str = "IF.CFFEX") -> Dict:
@@ -273,6 +286,7 @@ class HedgeContext:
 
 
 # === 预置对冲策略 ===
+
 
 class BetaHedgeStrategy(HedgeStrategy):
     """Beta 对冲策略
@@ -331,10 +345,9 @@ class TailRiskHedgeStrategy(HedgeStrategy):
             target_ratio = self.target_hedge_ratio
 
         target_ratio = min(target_ratio, self.max_hedge_ratio)
-        result = ctx.adjust_hedge(target_ratio, self.hedge_code)
+        ctx.adjust_hedge(target_ratio, self.hedge_code)
         self.logger.info(
-            f"尾部风险对冲: net_beta={metrics.net_beta:.3f} "
-            f"hedge_ratio={metrics.hedge_ratio:.2%} → {target_ratio:.2%}"
+            f"尾部风险对冲: net_beta={metrics.net_beta:.3f} hedge_ratio={metrics.hedge_ratio:.2%} → {target_ratio:.2%}"
         )
 
 
@@ -365,14 +378,16 @@ class DynamicHedgeStrategy(HedgeStrategy):
             target_ratio = 0.30
 
         target_ratio = min(target_ratio, self.max_hedge_ratio)
-        result = ctx.adjust_hedge(target_ratio, self.hedge_code)
-        self.logger.info(
-            f"动态对冲: market={self.market_state} target={target_ratio:.2%}"
-        )
+        ctx.adjust_hedge(target_ratio, self.hedge_code)
+        self.logger.info(f"动态对冲: market={self.market_state} target={target_ratio:.2%}")
 
 
 __all__ = [
-    "HedgePosition", "PortfolioMetrics",
-    "HedgeStrategy", "HedgeContext",
-    "BetaHedgeStrategy", "TailRiskHedgeStrategy", "DynamicHedgeStrategy",
+    "BetaHedgeStrategy",
+    "DynamicHedgeStrategy",
+    "HedgeContext",
+    "HedgePosition",
+    "HedgeStrategy",
+    "PortfolioMetrics",
+    "TailRiskHedgeStrategy",
 ]

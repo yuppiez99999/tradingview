@@ -10,8 +10,6 @@ v8.6.8 P0-01 修复验证脚本 (临时, 验证后可删除)
   #6: hedge_execution_engine.py TRADE_PLANS_DIR 指向 v8.3
 """
 import sys
-import os
-import json
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent.parent
@@ -50,7 +48,7 @@ futures_orders = result.get('futures_orders', [])
 options_orders = result.get('options_orders', [])
 cost_summary = result.get('cost_summary', {})
 
-print(f"\n  生成结果:")
+print("\n  生成结果:")
 print(f"    futures_orders 数量: {len(futures_orders)}")
 print(f"    options_orders 数量: {len(options_orders)}")
 print(f"    hedge_mode: {cost_summary.get('hedge_mode')}")
@@ -66,7 +64,7 @@ print("  ✅ PASS: Fix #4 OPTIONS_ONLY 模式跳过 IF 期货订单")
 
 # Fix #5: per-put premium_budget 与 budget_summary 一致
 total_premium = sum(o.get('premium_budget', 0) for o in options_orders)
-print(f"\n  4 份 Put 权利金明细:")
+print("\n  4 份 Put 权利金明细:")
 for o in options_orders:
     print(f"    {o.get('instrument', '?'):25s} ¥{o.get('premium_budget'):>10,}")
 print(f"  {'合计':25s} ¥{total_premium:>10,}")
@@ -112,7 +110,7 @@ if not ms.get('build_allowed', True) and not notes.get('reason_if_blocked'):
     notes['reason_if_blocked'] = f"circuit_level={circuit_lvl}"
 
 print(f"  模拟 trade_plan: circuit_level={test_plan['market_state']['circuit_level']}")
-print(f"  一致性校验后:")
+print("  一致性校验后:")
 print(f"    market_state.build_allowed = {test_plan['market_state']['build_allowed']}")
 print(f"    market_state.spot_build_allowed = {test_plan['market_state']['spot_build_allowed']}")
 print(f"    hedge_fund_overlays.v77_notes.build_allowed = {notes['build_allowed']}")

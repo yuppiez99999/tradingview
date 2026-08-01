@@ -22,7 +22,7 @@ Smart Beta 多因子加权引擎 (Smart Beta Multi-Factor Weighting Engine)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -31,42 +31,45 @@ import numpy as np
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class FactorTimingInfo:
     """因子择时信息"""
+
     factor_name: str
-    base_weight: float               # 基础权重
-    current_weight: float            # 调整后权重
-    timing_signal: float             # 择时信号 [-1, 1]
-    factor_momentum: float = 0.0     # 因子动量
-    factor_valuation: float = 0.0    # 因子估值
+    base_weight: float  # 基础权重
+    current_weight: float  # 调整后权重
+    timing_signal: float  # 择时信号 [-1, 1]
+    factor_momentum: float = 0.0  # 因子动量
+    factor_valuation: float = 0.0  # 因子估值
 
 
 @dataclass
 class SmartBetaResult:
     """Smart Beta 优化结果"""
+
     # 标的权重
     symbols: List[str]
-    smart_beta_weights: np.ndarray    # Smart Beta 权重
-    market_cap_weights: np.ndarray    # 市值权重 (对照)
-    equal_weights: np.ndarray          # 等权 (对照)
+    smart_beta_weights: np.ndarray  # Smart Beta 权重
+    market_cap_weights: np.ndarray  # 市值权重 (对照)
+    equal_weights: np.ndarray  # 等权 (对照)
 
     # 组合指标
-    composite_score: np.ndarray       # 综合因子得分
+    composite_score: np.ndarray  # 综合因子得分
     factor_exposure: Dict[str, float]  # 组合因子暴露
 
     # 风险指标
-    expected_return: float           # 预期收益
-    expected_volatility: float       # 预期波动
-    sharpe_ratio: float              # 夏普比率
-    tracking_error: float            # 跟踪误差
-    information_ratio: float         # 信息比率
+    expected_return: float  # 预期收益
+    expected_volatility: float  # 预期波动
+    sharpe_ratio: float  # 夏普比率
+    tracking_error: float  # 跟踪误差
+    information_ratio: float  # 信息比率
 
     # 诊断
-    weight_concentration: float       # 权重集中度 (HHI)
-    effective_n: float                # 有效持仓数
-    turnover_vs_market: float        # 相对市值加权的换手率
-    alpha_vs_market: float           # 相对市值加权的预期 Alpha
+    weight_concentration: float  # 权重集中度 (HHI)
+    effective_n: float  # 有效持仓数
+    turnover_vs_market: float  # 相对市值加权的换手率
+    alpha_vs_market: float  # 相对市值加权的预期 Alpha
 
     # 因子择时信息 (有默认值, 放在最后)
     factor_timing: List[FactorTimingInfo] = field(default_factory=list)
@@ -75,6 +78,7 @@ class SmartBetaResult:
 # ============================================================
 # Smart Beta 引擎
 # ============================================================
+
 
 class SmartBetaEngine:
     """Smart Beta 多因子加权引擎
@@ -97,13 +101,13 @@ class SmartBetaEngine:
     def __init__(
         self,
         # Smart Beta 加权温度参数
-        temperature: float = 0.5,       # softmax 温度, 越小越集中
+        temperature: float = 0.5,  # softmax 温度, 越小越集中
         # 因子择时参数
         enable_factor_timing: bool = True,
         timing_momentum_window: int = 60,  # 因子动量回看窗口
-        timing_alpha: float = 0.3,      # 择时调整幅度 (±30%)
+        timing_alpha: float = 0.3,  # 择时调整幅度 (±30%)
         # 风险约束
-        max_weight: float = 0.10,        # 单标的最大权重
+        max_weight: float = 0.10,  # 单标的最大权重
         min_weight: float = 0.0,
         max_tracking_error: float = 0.08,  # 跟踪误差上限
     ):
@@ -155,7 +159,7 @@ class SmartBetaEngine:
         # 1. 因子权重 (默认等权)
         if factor_weights is None:
             # 收集所有因子
-            all_factors = set()
+            all_factors = set()  # type: ignore
             for scores in factor_scores.values():
                 all_factors.update(scores.keys())
             factor_weights = {f: 1.0 / len(all_factors) for f in all_factors} if all_factors else {}
@@ -169,12 +173,14 @@ class SmartBetaEngine:
         else:
             adjusted_factor_weights = dict(factor_weights)
             for fname, w in factor_weights.items():
-                factor_timing_info.append(FactorTimingInfo(
-                    factor_name=fname,
-                    base_weight=w,
-                    current_weight=w,
-                    timing_signal=0.0,
-                ))
+                factor_timing_info.append(
+                    FactorTimingInfo(
+                        factor_name=fname,
+                        base_weight=w,
+                        current_weight=w,
+                        timing_signal=0.0,
+                    )
+                )
 
         # 3. 计算综合因子得分
         composite = np.zeros(n)
@@ -229,12 +235,12 @@ class SmartBetaEngine:
             te_var = float(active @ cov_matrix @ active)
             te = float(np.sqrt(te_var))
         else:
-            te = float(np.sqrt(np.sum(active ** 2)) * 0.20)  # 近似
+            te = float(np.sqrt(np.sum(active**2)) * 0.20)  # 近似
 
         ir = (expected_ret - float(np.mean(composite) * 0.05)) / te if te > 0 else 0.0
 
         # 8. 诊断指标
-        hhi = float(np.sum(smart_weights ** 2))
+        hhi = float(np.sum(smart_weights**2))
         effective_n = 1.0 / hhi if hhi > 0 else 0.0
         turnover_vs_mkt = float(np.sum(np.abs(active)))
         alpha_vs_mkt = float(active @ composite * 0.1)
@@ -281,7 +287,7 @@ class SmartBetaEngine:
             history = factor_returns_history.get(fname, [])
             if len(history) >= self.timing_window:
                 # 因子动量: 最近 K 日累积收益
-                recent_returns = history[-self.timing_window:]
+                recent_returns = history[-self.timing_window :]
                 momentum = float(np.sum(recent_returns))
                 # 归一化到 [-1, 1]
                 momentum_signal = np.tanh(momentum * 10)  # tanh 平滑
@@ -293,14 +299,17 @@ class SmartBetaEngine:
             adj_w = base_w * adj_factor
             adjusted[fname] = adj_w
 
-            timing_info.append(FactorTimingInfo(
-                factor_name=fname,
-                base_weight=base_w,
-                current_weight=adj_w,
-                timing_signal=float(momentum_signal),
-                factor_momentum=float(np.sum(history[-self.timing_window:])
-                                      if len(history) >= self.timing_window else 0.0),
-            ))
+            timing_info.append(
+                FactorTimingInfo(
+                    factor_name=fname,
+                    base_weight=base_w,
+                    current_weight=adj_w,
+                    timing_signal=float(momentum_signal),
+                    factor_momentum=float(
+                        np.sum(history[-self.timing_window :]) if len(history) >= self.timing_window else 0.0
+                    ),
+                )
+            )
 
         # 归一化
         total = sum(adjusted.values())

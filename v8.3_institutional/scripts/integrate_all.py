@@ -8,7 +8,6 @@ v7.5 全量集成脚本 — 将v5.9/v5.10的50+增强模块迁移到v7.5_institu
 import os
 import shutil
 import re
-import filecmp
 
 BASE_59 = r"e:\各种PY程序\11_量化策略"
 BASE_75 = r"e:\各种PY程序\28-终极量化交易系统7.1\v7.5_institutional\src"
@@ -377,11 +376,11 @@ def copy_files():
 def fix_imports():
     """批量修复 import 路径"""
     fixed = 0
-    import_pattern = re.compile(r'^\s*(import|from)\s+')
+    re.compile(r'^\s*(import|from)\s+')
     for target_pat, pattern, replacement in IMPORT_FIXES:
         rgx = re.compile(pattern)
         target_rgx = re.compile(target_pat.replace('.', r'\.'))
-        for root, dirs, files in os.walk(BASE_75):
+        for root, _dirs, files in os.walk(BASE_75):
             for f in files:
                 if not f.endswith('.py'):
                     continue
@@ -460,7 +459,7 @@ def stats():
     """统计迁移结果"""
     total_files = 0
     total_lines = 0
-    for root, dirs, files in os.walk(BASE_75):
+    for root, _dirs, files in os.walk(BASE_75):
         for f in files:
             if not f.endswith('.py'):
                 continue

@@ -63,7 +63,6 @@ def test_noise_recent_ic_not_treated_as_reversal():
     # 简化测试：直接验证逻辑分支
 
     # 手动模拟 compute_ic_decay 内部逻辑
-    import numpy as np
     recent_ic = -0.0027
     longer_ic = 0.033
     RECENT_IC_NOISE_THRESHOLD = 0.005
@@ -141,7 +140,7 @@ def test_compute_ic_decay_function_directly():
         short_window=5,
         long_window=20,
     )
-    print(f"  50 天数据，前 25 天 ic=0.05，后 25 天 ic=0.001（噪声）")
+    print("  50 天数据，前 25 天 ic=0.05，后 25 天 ic=0.001（噪声）")
     print(f"  compute_ic_decay 返回: {decay:.4f}")
     print(f"  阈值 0.6 {'❌ 不通过' if decay >= 0.6 else '✅ 通过'}")
     # decay 应小于 1.0（修复生效），但可能仍 > 0.6

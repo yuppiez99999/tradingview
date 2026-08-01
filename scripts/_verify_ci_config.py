@@ -132,7 +132,7 @@ def verify_bash(path: Path) -> bool:
         issues.append(f"do/done 配对不平衡 (循环={open_do}, done={close_done})")
 
     # 4. 检查引号平衡 (基础检查)
-    for i, line in enumerate(lines, 1):
+    for _i, line in enumerate(lines, 1):
         # 跳过注释行
         stripped = line.strip()
         if stripped.startswith("#"):

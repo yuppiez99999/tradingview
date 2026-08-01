@@ -2,16 +2,13 @@ import subprocess
 from pywinauto import Application
 
 result = subprocess.run(
-    ['powershell', '-Command', 'Get-Process -Name hexin,StockTradeApp | Select-Object Id'],
-    capture_output=True, text=True
+    ["powershell", "-Command", "Get-Process -Name hexin,StockTradeApp | Select-Object Id"],
+    capture_output=True,
+    text=True,
 )
-print(f"powershell输出: {repr(result.stdout)}")
+print(f"powershell输出: {result.stdout!r}")
 
-process_ids = [
-    int(line.strip())
-    for line in result.stdout.strip().split('\n')
-    if line.strip().isdigit()
-]
+process_ids = [int(line.strip()) for line in result.stdout.strip().split("\n") if line.strip().isdigit()]
 print(f"解析出的进程ID: {process_ids}")
 
 if process_ids:
@@ -27,9 +24,9 @@ if process_ids:
                 width = rect.right - rect.left
                 height = rect.bottom - rect.top
                 print(f"  标题: '{title}', 类名: '{class_name}', 尺寸: {width}x{height}")
-                
-                if '期货' in title:
-                    print(f"  >>> 找到期货通窗口!")
+
+                if "期货" in title:
+                    print("  >>> 找到期货通窗口!")
                     win.set_focus()
                     win.maximize()
         except Exception as e:

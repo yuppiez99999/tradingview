@@ -15,13 +15,13 @@ A股交易日历工具
         ...
     next = next_trading_day('2026-07-10')  # 返回 '2026-07-13'
 """
+
 from __future__ import annotations
 
 import json
-import os
-from datetime import datetime, timedelta
+from datetime import date as _date_cls, datetime, timedelta
 from pathlib import Path
-from typing import Optional, Set
+from typing import Optional, Set, Union
 
 # ============================================================
 # 路径与缓存
@@ -42,16 +42,17 @@ def _fetch_trade_dates_via_akshare(year: int) -> Optional[Set[str]]:
     然后筛选出指定年度的日期集合。
     """
     try:
-        import akshare as ak  # type: ignore
+        import akshare as ak
+
         df = ak.tool_trade_date_hist_sina()
         if df is None or len(df) == 0:
             return None
         # 列名兼容: trade_date / date
-        col = 'trade_date' if 'trade_date' in df.columns else df.columns[0]
+        col = "trade_date" if "trade_date" in df.columns else df.columns[0]
         dates = df[col].astype(str).str[:10].tolist()
         year_dates = {d for d in dates if d.startswith(str(year))}
         return year_dates if year_dates else None
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         print(f"[trade_calendar] akshare 拉取失败 (year={year}): {e}")
         return None
 
@@ -61,9 +62,9 @@ def _load_year_dates(year: int, allow_fetch: bool = True) -> Set[str]:
     cache_file = _cache_path(year)
     if cache_file.exists():
         try:
-            with open(cache_file, 'r', encoding='utf-8') as f:
+            with open(cache_file, "r", encoding="utf-8") as f:
                 return set(json.load(f))
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
     if not allow_fetch:
@@ -73,10 +74,10 @@ def _load_year_dates(year: int, allow_fetch: bool = True) -> Set[str]:
     dates = _fetch_trade_dates_via_akshare(year)
     if dates:
         try:
-            with open(cache_file, 'w', encoding='utf-8') as f:
+            with open(cache_file, "w", encoding="utf-8") as f:
                 json.dump(sorted(dates), f, ensure_ascii=False, indent=2)
             print(f"[trade_calendar] 缓存 {year} 年交易日: {len(dates)} 天")
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
         return dates
 
@@ -85,28 +86,34 @@ def _load_year_dates(year: int, allow_fetch: bool = True) -> Set[str]:
     return set()
 
 
-def is_trading_day(date: Optional[str] = None) -> bool:
+def is_trading_day(date: Union[str, _date_cls, datetime, None] = None) -> bool:
     """判断指定日期是否为 A 股交易日
 
     Args:
-        date: 日期字符串 'YYYY-MM-DD' 或 'YYYYMMDD', None 表示今天
+        date: 日期字符串 'YYYY-MM-DD' 或 'YYYYMMDD',
+              或 datetime.date / datetime.datetime 对象,
+              None 表示今天
 
     Returns:
         True 表示是交易日
     """
+    # 兼容 date / datetime 对象入参 (B1.2: 统一 is_trading_day 调用入口)
     if date is None:
-        date = datetime.now().strftime('%Y-%m-%d')
-    date = date.replace('-', '').replace('/', '')
-    iso_date = f"{date[:4]}-{date[4:6]}-{date[6:8]}"
+        iso_date = datetime.now().strftime("%Y-%m-%d")
+    elif isinstance(date, (datetime, _date_cls)):
+        iso_date = date.strftime("%Y-%m-%d")
+    else:
+        clean = str(date).replace("-", "").replace("/", "")
+        iso_date = f"{clean[:4]}-{clean[4:6]}-{clean[6:8]}"
 
-    year = int(date[:4])
+    year = int(iso_date[:4])
     year_dates = _load_year_dates(year)
 
     if year_dates:
         return iso_date in year_dates
 
     # 回退模式: 仅判断周末
-    d = datetime.strptime(iso_date, '%Y-%m-%d')
+    d = datetime.strptime(iso_date, "%Y-%m-%d")
     return d.weekday() < 5  # 0=周一 ... 4=周五
 
 
@@ -123,8 +130,8 @@ def next_trading_day(date: Optional[str] = None, max_lookahead: int = 30) -> str
     if date is None:
         d = datetime.now()
     else:
-        clean = date.replace('-', '').replace('/', '')
-        d = datetime.strptime(clean, '%Y%m%d')
+        clean = date.replace("-", "").replace("/", "")
+        d = datetime.strptime(clean, "%Y%m%d")
 
     # 缓存当前年和下一年的交易日 (避免每次循环都加载)
     years_needed = {d.year, d.year + 1}
@@ -132,7 +139,7 @@ def next_trading_day(date: Optional[str] = None, max_lookahead: int = 30) -> str
 
     for _ in range(max_lookahead):
         d = d + timedelta(days=1)
-        iso = d.strftime('%Y-%m-%d')
+        iso = d.strftime("%Y-%m-%d")
         year_dates = year_dates_map.get(d.year) or _load_year_dates(d.year)
         year_dates_map[d.year] = year_dates
         if year_dates:
@@ -145,7 +152,7 @@ def next_trading_day(date: Optional[str] = None, max_lookahead: int = 30) -> str
     # 兜底: 返回下周一
     while d.weekday() >= 5:
         d = d + timedelta(days=1)
-    return d.strftime('%Y-%m-%d')
+    return d.strftime("%Y-%m-%d")
 
 
 def current_trading_day(date: Optional[str] = None) -> str:
@@ -160,14 +167,14 @@ def current_trading_day(date: Optional[str] = None) -> str:
     if date is None:
         d = datetime.now()
     else:
-        clean = date.replace('-', '').replace('/', '')
-        d = datetime.strptime(clean, '%Y%m%d')
+        clean = date.replace("-", "").replace("/", "")
+        d = datetime.strptime(clean, "%Y%m%d")
 
     years_needed = {d.year, d.year - 1}
     year_dates_map = {y: _load_year_dates(y) for y in years_needed}
 
     for _ in range(30):
-        iso = d.strftime('%Y-%m-%d')
+        iso = d.strftime("%Y-%m-%d")
         year_dates = year_dates_map.get(d.year) or _load_year_dates(d.year)
         year_dates_map[d.year] = year_dates
         if year_dates:
@@ -177,12 +184,12 @@ def current_trading_day(date: Optional[str] = None) -> str:
             if d.weekday() < 5:
                 return iso
         d = d - timedelta(days=1)
-    return date or datetime.now().strftime('%Y-%m-%d')
+    return date or datetime.now().strftime("%Y-%m-%d")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # 自测
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now().strftime("%Y-%m-%d")
     print(f"今天: {today}")
     print(f"  是交易日: {is_trading_day(today)}")
     print(f"  下一交易日: {next_trading_day(today)}")

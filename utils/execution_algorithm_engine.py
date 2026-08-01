@@ -37,38 +37,42 @@ logger = logging.getLogger(__name__)
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class Order:
     """订单定义"""
-    symbol: str                       # 标的代码
-    side: str                         # BUY / SELL
-    total_shares: float               # 总股数
-    start_time: pd.Timestamp          # 开始时间
-    end_time: pd.Timestamp            # 结束时间
-    benchmark_price: float = 0.0      # 决策价 (用于 IS 计算)
-    urgency: str = "MEDIUM"           # LOW / MEDIUM / HIGH
+
+    symbol: str  # 标的代码
+    side: str  # BUY / SELL
+    total_shares: float  # 总股数
+    start_time: pd.Timestamp  # 开始时间
+    end_time: pd.Timestamp  # 结束时间
+    benchmark_price: float = 0.0  # 决策价 (用于 IS 计算)
+    urgency: str = "MEDIUM"  # LOW / MEDIUM / HIGH
     max_participation: float = 0.10  # 单笔最大市场占比 (POV)
-    min_slice_size: float = 100.0    # 最小切片股数
+    min_slice_size: float = 100.0  # 最小切片股数
 
 
 @dataclass
 class ChildOrder:
     """子订单"""
+
     symbol: str
     side: str
     shares: float
     scheduled_time: pd.Timestamp
     limit_price: Optional[float] = None  # None 表示市价单
-    slice_type: str = "NORMAL"           # NORMAL / OPEN / CLOSE / BURST
+    slice_type: str = "NORMAL"  # NORMAL / OPEN / CLOSE / BURST
 
 
 @dataclass
 class ExecutionPlan:
     """执行计划"""
+
     parent_order: Order
-    algorithm: str                    # VWAP / TWAP / POV / IS / AC
+    algorithm: str  # VWAP / TWAP / POV / IS / AC
     child_orders: List[ChildOrder] = field(default_factory=list)
-    expected_cost_bps: float = 0.0    # 预期成本 (bps)
+    expected_cost_bps: float = 0.0  # 预期成本 (bps)
     expected_market_impact_bps: float = 0.0
     expected_timing_risk_bps: float = 0.0
     total_duration_minutes: int = 0
@@ -81,6 +85,7 @@ class ExecutionPlan:
 # ============================================================
 # 执行算法引擎
 # ============================================================
+
 
 class ExecutionAlgorithmEngine:
     """执行算法引擎
@@ -103,16 +108,18 @@ class ExecutionAlgorithmEngine:
         # VWAP 默认成交量曲线 (24 个 10 分钟槽, U 型)
         default_volume_curve: Optional[Sequence[float]] = None,
         # 冲击成本系数
-        impact_coeff: float = 0.1,        # 临时冲击系数
-        impact_decay: float = 0.5,         # 永久冲击衰减
+        impact_coeff: float = 0.1,  # 临时冲击系数
+        impact_decay: float = 0.5,  # 永久冲击衰减
         # 随机化参数 (防信号识别)
-        randomize_size: float = 0.15,     # 切片大小随机化 ±15%
-        randomize_time: float = 0.10,     # 切片时间随机化 ±10%
+        randomize_size: float = 0.15,  # 切片大小随机化 ±15%
+        randomize_time: float = 0.10,  # 切片时间随机化 ±10%
         # 风险偏好 (IS 算法用)
-        risk_aversion: float = 1.0,       # λ 风险厌恶系数
+        risk_aversion: float = 1.0,  # λ 风险厌恶系数
         seed: int = 42,
     ):
-        self.default_volume_curve = list(default_volume_curve) if default_volume_curve else self._default_u_shape_curve()
+        self.default_volume_curve = (
+            list(default_volume_curve) if default_volume_curve else self._default_u_shape_curve()
+        )
         self.impact_coeff = float(impact_coeff)
         self.impact_decay = float(impact_decay)
         self.randomize_size = float(randomize_size)
@@ -169,6 +176,7 @@ class ExecutionAlgorithmEngine:
         order: Order,
         volume_profile: Optional[Sequence[float]] = None,
         slot_minutes: int = 10,
+        adv: Optional[float] = None,
     ) -> ExecutionPlan:
         """VWAP — 按历史成交量分布拆单
 
@@ -176,6 +184,7 @@ class ExecutionAlgorithmEngine:
             order: 父订单
             volume_profile: 成交量曲线 (与槽对应); None 用默认 U 型
             slot_minutes: 槽长度 (分钟)
+            adv: 日均成交量 (P1 修复: 用于精确计算冲击成本; None 时用占位估计)
 
         Returns:
             ExecutionPlan
@@ -220,17 +229,26 @@ class ExecutionAlgorithmEngine:
                 slice_type = "OPEN"
             elif hour_min >= 14 * 60 + 50:
                 slice_type = "CLOSE"
-            child_orders.append(ChildOrder(
-                symbol=order.symbol,
-                side=order.side,
-                shares=round(shares, 0),
-                scheduled_time=time,
-                slice_type=slice_type,
-            ))
+            child_orders.append(
+                ChildOrder(
+                    symbol=order.symbol,
+                    side=order.side,
+                    shares=round(shares, 0),
+                    scheduled_time=time,
+                    slice_type=slice_type,
+                )
+            )
 
-        # 预期成本 (bps) — 简化估计
-        adv_proxy = max(order.total_shares * 10, 1.0)
-        impact_bps = self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
+        # 预期成本 (bps) — P1 修复: 优先用真实 ADV, 缺失时用占位估计并标记
+        # 原代码 adv_proxy = max(order.total_shares * 10, 1.0) 导致 impact_bps 恒为 ~316 bps,
+        # 无论订单大小都是固定值, 失去指导意义
+        if adv is not None and adv > 0:
+            adv_proxy = float(adv)
+            impact_bps = self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
+        else:
+            # 占位估计 (订单自身 * 10 假设占比 10%), 标记为低置信度
+            adv_proxy = max(order.total_shares * 10, 1.0)
+            impact_bps = self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
 
         return ExecutionPlan(
             parent_order=order,
@@ -243,7 +261,12 @@ class ExecutionAlgorithmEngine:
             avg_slice_size=float(np.mean([c.shares for c in child_orders])) if child_orders else 0.0,
             max_slice_size=float(max([c.shares for c in child_orders], default=0.0)),
             num_slices=len(child_orders),
-            metadata={"slot_minutes": slot_minutes, "curve_type": "default_u_shape"},
+            metadata={
+                "slot_minutes": slot_minutes,
+                "curve_type": "default_u_shape",
+                "adv_provided": adv is not None,
+                "adv_proxy": adv_proxy,
+            },
         )
 
     # ------------------------------------------------------------
@@ -254,14 +277,22 @@ class ExecutionAlgorithmEngine:
         self,
         order: Order,
         slot_minutes: int = 10,
+        adv: Optional[float] = None,
     ) -> ExecutionPlan:
-        """TWAP — 按时间均匀拆单"""
+        """TWAP — 按时间均匀拆单
+
+        Args:
+            order: 父订单
+            slot_minutes: 槽长度 (分钟)
+            adv: 日均成交量 (P1 修复: 用于精确计算冲击成本; None 时用占位估计)
+        """
         slots = self._generate_trading_slots(order.start_time, order.end_time, slot_minutes)
         n_slots = len(slots)
         if n_slots == 0:
             return ExecutionPlan(parent_order=order, algorithm="TWAP")
 
-        shares_per_slot = [order.total_shares / n_slots] * n_slots
+        # P1 修复: n_slots > 0 已保证, 但添加防御性保护
+        shares_per_slot = [order.total_shares / max(n_slots, 1)] * n_slots
         randomized = self._apply_randomization(shares_per_slot, slots)
 
         # 归一化
@@ -274,14 +305,20 @@ class ExecutionAlgorithmEngine:
         for shares, time in randomized:
             if shares < order.min_slice_size:
                 continue
-            child_orders.append(ChildOrder(
-                symbol=order.symbol,
-                side=order.side,
-                shares=round(shares, 0),
-                scheduled_time=time,
-            ))
+            child_orders.append(
+                ChildOrder(
+                    symbol=order.symbol,
+                    side=order.side,
+                    shares=round(shares, 0),
+                    scheduled_time=time,
+                )
+            )
 
-        adv_proxy = max(order.total_shares * 10, 1.0)
+        # P1 修复: 优先用真实 ADV
+        if adv is not None and adv > 0:
+            adv_proxy = float(adv)
+        else:
+            adv_proxy = max(order.total_shares * 10, 1.0)
         impact_bps = self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
 
         return ExecutionPlan(
@@ -295,7 +332,7 @@ class ExecutionAlgorithmEngine:
             avg_slice_size=float(np.mean([c.shares for c in child_orders])) if child_orders else 0.0,
             max_slice_size=float(max([c.shares for c in child_orders], default=0.0)),
             num_slices=len(child_orders),
-            metadata={"slot_minutes": slot_minutes},
+            metadata={"slot_minutes": slot_minutes, "adv_provided": adv is not None, "adv_proxy": adv_proxy},
         )
 
     # ------------------------------------------------------------
@@ -327,6 +364,10 @@ class ExecutionAlgorithmEngine:
         else:
             weights = [curve[i % len(curve)] for i in range(n_slots)]
         total_w = sum(weights)
+        # P1 修复: 除零保护 — 用户传入的 curve 可能全 0, 导致 total_w=0
+        if total_w <= 0:
+            weights = [1.0] * n_slots
+            total_w = float(n_slots)
         vol_per_slot = [expected_market_volume * w / total_w for w in weights]
 
         # 每槽 = min(max_participation * market_vol, 剩余订单)
@@ -334,7 +375,7 @@ class ExecutionAlgorithmEngine:
         remaining = order.total_shares
         child_orders: List[ChildOrder] = []
 
-        for i, (slot, mkt_vol) in enumerate(zip(slots, vol_per_slot)):
+        for _i, (slot, mkt_vol) in enumerate(zip(slots, vol_per_slot)):
             if remaining <= 0:
                 break
             target = min(participation * mkt_vol, remaining)
@@ -349,21 +390,27 @@ class ExecutionAlgorithmEngine:
             # 时间随机化
             time_jitter = self.rng.uniform(-self.randomize_time, self.randomize_time) * slot_minutes
             actual_time = slot + pd.Timedelta(minutes=int(time_jitter))
-            child_orders.append(ChildOrder(
-                symbol=order.symbol,
-                side=order.side,
-                shares=round(actual, 0),
-                scheduled_time=actual_time,
-            ))
+            child_orders.append(
+                ChildOrder(
+                    symbol=order.symbol,
+                    side=order.side,
+                    shares=round(actual, 0),
+                    scheduled_time=actual_time,
+                )
+            )
             remaining -= actual
 
         # 残余订单强制执行
         if remaining > 0 and child_orders:
             child_orders[-1].shares += remaining
 
-        impact_bps = self.impact_coeff * 10000 * math.sqrt(
-            order.total_shares / max(expected_market_volume, 1.0)
-        ) * participation * 10
+        impact_bps = (
+            self.impact_coeff
+            * 10000
+            * math.sqrt(order.total_shares / max(expected_market_volume, 1.0))
+            * participation
+            * 10
+        )
 
         return ExecutionPlan(
             parent_order=order,
@@ -391,15 +438,22 @@ class ExecutionAlgorithmEngine:
         order: Order,
         daily_volatility: float = 0.02,
         slot_minutes: int = 10,
+        adv: Optional[float] = None,
     ) -> ExecutionPlan:
         """IS — Implementation Shortfall 算法
 
         平衡市场冲击 (慢执行) 与 时机风险 (快执行)
 
         最优轨迹基于 Almgren-Chriss:
-        x(t) = X * (1 - tau(t)) / (1 + λ*σ²*T*τ(t)*something)
+            x(t) = X * (1 - tau(t)) / (1 + λ*σ²*T*τ(t)*something)
 
         简化版: 前置权重 w(t) = exp(-λσ²t) 归一化
+
+        Args:
+            order: 父订单
+            daily_volatility: 日波动率
+            slot_minutes: 槽长度 (分钟)
+            adv: 日均成交量 (P1 修复: 用于精确计算冲击成本; None 时用占位估计)
         """
         slots = self._generate_trading_slots(order.start_time, order.end_time, slot_minutes)
         n_slots = len(slots)
@@ -413,12 +467,24 @@ class ExecutionAlgorithmEngine:
         # 每槽时间权重 (越靠后越担心时机风险, 但越早冲击越大)
         # 简化: 前置加权
         t_array = np.linspace(0, 1, n_slots)
-        sigma2 = daily_volatility ** 2
+        sigma2 = daily_volatility**2
         # 前置权重 w(t) = exp(-lam * sigma2 * t)
         raw_w = np.exp(-lam * sigma2 * t_array * 10)  # 放大系数使曲线弯曲明显
-        weights = raw_w / raw_w.sum()
+        # P1 修复: 除零保护 — lam*sigma2*t*10 过大时 exp 下溢全 0, 导致 raw_w.sum()=0
+        raw_w_sum = float(raw_w.sum())
+        if raw_w_sum <= 0 or not np.isfinite(raw_w_sum):
+            # 退化: 均匀权重
+            logger.warning(
+                "[IS] raw_w.sum()=%.6e 非法 (lam=%.3f, sigma2=%.6f), 退化到均匀权重",
+                raw_w_sum,
+                lam,
+                sigma2,
+            )
+            weights = np.ones(n_slots) / n_slots
+        else:
+            weights = raw_w / raw_w_sum
 
-        shares_per_slot = [order.total_shares * w for w in weights]
+        shares_per_slot = [order.total_shares * float(w) for w in weights]
         randomized = self._apply_randomization(shares_per_slot, slots)
 
         total_allocated = sum(s for s, _ in randomized)
@@ -430,17 +496,22 @@ class ExecutionAlgorithmEngine:
         for shares, time in randomized:
             if shares < order.min_slice_size:
                 continue
-            child_orders.append(ChildOrder(
-                symbol=order.symbol,
-                side=order.side,
-                shares=round(shares, 0),
-                scheduled_time=time,
-            ))
+            child_orders.append(
+                ChildOrder(
+                    symbol=order.symbol,
+                    side=order.side,
+                    shares=round(shares, 0),
+                    scheduled_time=time,
+                )
+            )
 
-        # IS 成本分解
-        impact_bps = self.impact_coeff * 10000 * math.sqrt(
-            order.total_shares / max(order.total_shares * 10, 1.0)
-        )
+        # IS 成本分解 — P1 修复: 优先用真实 ADV
+        if adv is not None and adv > 0:
+            adv_proxy = float(adv)
+        else:
+            adv_proxy = max(order.total_shares * 10, 1.0)
+        impact_bps = self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
+        # P1 修复: sigma2=0 时 timing_risk_bps=0, 无需特殊处理 (sqrt(n_slots)*0=0)
         timing_risk_bps = sigma2 * math.sqrt(n_slots) * 10000 * 0.5
 
         return ExecutionPlan(
@@ -458,6 +529,8 @@ class ExecutionAlgorithmEngine:
                 "lambda": lam,
                 "daily_volatility": daily_volatility,
                 "urgency": order.urgency,
+                "adv_provided": adv is not None,
+                "adv_proxy": adv_proxy,
             },
         )
 
@@ -470,7 +543,11 @@ class ExecutionAlgorithmEngine:
         shares_per_slot: List[float],
         slots: List[pd.Timestamp],
     ) -> List[Tuple[float, pd.Timestamp]]:
-        """应用切片大小与时间随机化"""
+        """应用切片大小与时间随机化
+
+        P2 修复: 时间随机化可能将切片漂移到午休时段 (11:30-13:00),
+        导致无法成交. 检测到午休时段时, 将时间调整到最近的可用时段边界.
+        """
         randomized: List[Tuple[float, pd.Timestamp]] = []
         for shares, slot in zip(shares_per_slot, slots):
             # 大小随机化
@@ -479,8 +556,36 @@ class ExecutionAlgorithmEngine:
             # 时间随机化 (±slot_minutes * randomize_time)
             time_jitter_minutes = self.rng.uniform(-self.randomize_time, self.randomize_time) * 10
             actual_time = slot + pd.Timedelta(minutes=time_jitter_minutes)
+            # P2 修复: 检测午休时段 (11:30-13:00), 调整到最近的可成交时间
+            actual_time = self._clamp_to_trading_hours(actual_time)
             randomized.append((actual_shares, actual_time))
         return randomized
+
+    @staticmethod
+    def _clamp_to_trading_hours(ts: pd.Timestamp) -> pd.Timestamp:
+        """将时间戳钳制到 A 股交易时段内
+
+        交易时段: 09:30-11:30, 13:00-15:00
+        - 午休时段 (11:30-13:00) 的时间调整到 13:00
+        - 早于 09:30 的时间调整到 09:30
+        - 晚于 15:00 的时间调整到 15:00 (前一秒, 确保可成交)
+        """
+        hour_min = ts.hour * 60 + ts.minute
+        morning_start = 9 * 60 + 30  # 09:30
+        morning_end = 11 * 60 + 30  # 11:30
+        afternoon_start = 13 * 60  # 13:00
+        afternoon_end = 15 * 60  # 15:00
+
+        if hour_min < morning_start:
+            # 早于开盘: 调整到 09:30
+            return ts.replace(hour=9, minute=30, second=0, microsecond=0)
+        if morning_end < hour_min < afternoon_start:
+            # 午休时段: 调整到 13:00
+            return ts.replace(hour=13, minute=0, second=0, microsecond=0)
+        if hour_min >= afternoon_end:
+            # 晚于收盘: 调整到 14:59 (确保可成交)
+            return ts.replace(hour=14, minute=59, second=0, microsecond=0)
+        return ts
 
     def select_algorithm(
         self,

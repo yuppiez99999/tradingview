@@ -21,7 +21,6 @@ import os
 import unittest
 import warnings
 
-import numpy as np
 import pandas as pd
 
 warnings.filterwarnings("ignore")
@@ -53,7 +52,7 @@ class TestExecutionAlgorithmEngine(unittest.TestCase):
 
     def test_module_import(self):
         from utils.execution_algorithm_engine import (
-            ExecutionAlgorithmEngine, Order, ExecutionPlan, ChildOrder,
+            ExecutionAlgorithmEngine,
         )
         self.assertTrue(callable(ExecutionAlgorithmEngine))
 
@@ -126,7 +125,7 @@ class TestMarketImpactModel(unittest.TestCase):
 
     def test_module_import(self):
         from utils.market_impact_model import (
-            MarketImpactModel, ImpactParams, ImpactEstimate, OptimalTrajectory,
+            MarketImpactModel,
         )
         self.assertTrue(callable(MarketImpactModel))
 
@@ -196,7 +195,7 @@ class TestSmartOrderRouter(unittest.TestCase):
 
     def test_module_import(self):
         from utils.smart_order_router import (
-            SmartOrderRouter, Venue, VenueScore, RoutingDecision, OrderBookSnapshot,
+            SmartOrderRouter,
         )
         self.assertTrue(callable(SmartOrderRouter))
 

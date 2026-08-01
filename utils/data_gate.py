@@ -13,7 +13,7 @@
     gate = DataGate()
     result = gate.check_and_gate(symbol, snapshot)
     if not result.allowed:
-        print(result.reasons)
+        logger.info(result.reasons)
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ logger = logging.getLogger("data_gate")
 @dataclass
 class DataGateResult:
     """数据门控结果"""
+
     allowed: bool = True
     quality_score: float = 100.0
     freshness_minutes: float = 0.0
@@ -99,20 +100,22 @@ class DataGate:
             try:
                 score = float(raw_score)
                 result.quality_score = score
-            except Exception:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 result.quality_score = score
 
-        # 新鲜度
-        freshness_minutes = self._freshness_minutes(snapshot.get("timestamp"))
-        result.freshness_minutes = freshness_minutes
-        if is_macro:
-            if freshness_minutes > self.max_macro_freshness_hours * 60:
-                score -= self.critical_penalty
-                result.reasons.append(f"宏观数据过期 {freshness_minutes/60:.1f}h")
-        else:
-            if freshness_minutes > self.max_freshness_minutes:
-                score -= self.freshness_penalty
-                result.reasons.append(f"行情数据延迟 {freshness_minutes:.1f} 分钟")
+        # 新鲜度 (仅当提供了 timestamp 时才检查; 缺失元数据不应误判为过期)
+        ts = snapshot.get("timestamp")
+        if ts is not None:
+            freshness_minutes = self._freshness_minutes(ts)
+            result.freshness_minutes = freshness_minutes
+            if is_macro:
+                if freshness_minutes > self.max_macro_freshness_hours * 60:
+                    score -= self.critical_penalty
+                    result.reasons.append(f"宏观数据过期 {freshness_minutes / 60:.1f}h")
+            else:
+                if freshness_minutes > self.max_freshness_minutes:
+                    score -= self.freshness_penalty
+                    result.reasons.append(f"行情数据延迟 {freshness_minutes:.1f} 分钟")
 
         # 多源偏离
         deviation = self._price_deviation(snapshot, peers)
@@ -149,7 +152,7 @@ class DataGate:
             else:
                 return 1e9
             return max((datetime.now() - ts).total_seconds() / 60.0, 0.0)
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             return 1e9
 
     def _price_deviation(self, snapshot: Dict[str, Any], peers: Dict[str, Dict[str, Any]]) -> float:
@@ -158,7 +161,7 @@ class DataGate:
             return 0.0
         try:
             base_price = float(base_price)
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             return 0.0
         if base_price <= 0:
             return 0.0
@@ -170,7 +173,7 @@ class DataGate:
                 continue
             try:
                 peer_price = float(peer_price)
-            except Exception:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 continue
             if peer_price <= 0:
                 continue
@@ -184,5 +187,5 @@ class DataGate:
         try:
             v = float(price)
             return math.isfinite(v) and v > 0
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             return False

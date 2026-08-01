@@ -4,7 +4,6 @@
 """
 
 import numpy as np
-import pandas as pd
 from risk_control_system import MultiLevelRiskControlSystem, RiskType
 
 def create_high_risk_data():
@@ -195,7 +194,7 @@ def test_control_thresholds():
     
     # 启用情绪风险控制
     risk_system.enable_control(RiskType.EMOTIONAL)
-    overall_score, individual_scores = risk_system.calculate_overall_risk(data)
+    overall_score, _individual_scores = risk_system.calculate_overall_risk(data)
     print(f"重新启用情绪风险后整体风险分数: {overall_score:.3f}")
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict
 
 
@@ -32,13 +32,13 @@ from typing import Dict
 class CostAssumption:
     """可审计的成本假设（单位：bps，1bps = 0.01%）"""
 
-    commission_bps: float = 2.0           # 单边佣金 (2 bps = 0.02%)
-    stamp_duty_bps: float = 5.0           # 印花税（仅卖出，A股 5 bps = 0.05%）
-    impact_per_side_bps: float = 5.0      # 单边市场冲击/滑点 (5 bps = 0.05%)
-    option_overlay_bps: float = 30.0      # 期权覆盖年化损耗 (30 bps = 0.30%)
-    futures_basis_bps: float = 15.0       # 期货对冲年化滚仓损耗 (15 bps = 0.15%)
-    rebalance_per_year: int = 12          # 年度再平衡次数
-    sell_ratio: float = 0.5               # 卖出占比（印花税估算用）
+    commission_bps: float = 2.0  # 单边佣金 (2 bps = 0.02%)
+    stamp_duty_bps: float = 5.0  # 印花税（仅卖出，A股 5 bps = 0.05%）
+    impact_per_side_bps: float = 5.0  # 单边市场冲击/滑点 (5 bps = 0.05%)
+    option_overlay_bps: float = 30.0  # 期权覆盖年化损耗 (30 bps = 0.30%)
+    futures_basis_bps: float = 15.0  # 期货对冲年化滚仓损耗 (15 bps = 0.15%)
+    rebalance_per_year: int = 12  # 年度再平衡次数
+    sell_ratio: float = 0.5  # 卖出占比（印花税估算用）
 
     @property
     def commission_annual_bps(self) -> float:

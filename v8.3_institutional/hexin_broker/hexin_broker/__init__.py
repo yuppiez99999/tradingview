@@ -33,7 +33,7 @@ v7.5 同花顺客户端自动化适配层
 
 try:
     from .hexin_broker import HexinBroker
-except Exception:
+except Exception as e:
     HexinBroker = None  # type: ignore
 
 __all__ = ["HexinBroker"]

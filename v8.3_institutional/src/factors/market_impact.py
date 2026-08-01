@@ -18,19 +18,20 @@ Almgren-Chriss 冲击成本模型 — v5.10 P1-2 修复
 """
 
 import math
-from typing import List, Tuple
+from typing import List, Optional
 
 
 # ── 常量 ──
-DEFAULT_GAMMA = 1.0e-6      # 永久冲击系数 (A股典型值)
-DEFAULT_ETA = 0.14           # 临时冲击系数 (A股典型值)
-DEFAULT_BETA = 0.6           # 临时冲击指数
-DEFAULT_RISK_LAMBDA = 1e-6   # 默认风险厌恶
+DEFAULT_GAMMA = 1.0e-6  # 永久冲击系数 (A股典型值)
+DEFAULT_ETA = 0.14  # 临时冲击系数 (A股典型值)
+DEFAULT_BETA = 0.6  # 临时冲击指数
+DEFAULT_RISK_LAMBDA = 1e-6  # 默认风险厌恶
 
 
 # ═══════════════════════════════════════════════════════
 #  核心冲击成本函数
 # ═══════════════════════════════════════════════════════
+
 
 def permanent_impact(
     shares: float,
@@ -104,8 +105,7 @@ def total_impact_cost(
     双边(买入+卖出)需要×2。
     """
     perm = permanent_impact(shares, daily_volume, volatility, gamma)
-    temp = temporary_impact(shares, daily_volume, volatility,
-                            eta, beta, execution_time_days)
+    temp = temporary_impact(shares, daily_volume, volatility, eta, beta, execution_time_days)
     return perm + temp
 
 
@@ -142,6 +142,7 @@ def impact_cost_bps(impact_amount: float, order_value: float) -> float:
 # ═══════════════════════════════════════════════════════
 #  最优执行轨迹
 # ═══════════════════════════════════════════════════════
+
 
 def optimal_execution_trajectory(
     total_shares: float,
@@ -192,13 +193,13 @@ def optimal_execution_trajectory(
     # 前端加载: 早期执行更多, 减少价格风险敞口
     # 使用经验标定使得 kappa*T ~ O(1) 产生可见前端加载
     participation = abs(total_shares) / max(daily_volume, 1)
-    eta_scaled = eta * volatility / max(participation ** DEFAULT_BETA, 1e-6)
+    eta_scaled = eta * volatility / max(participation**DEFAULT_BETA, 1e-6)
     if eta_scaled < 1e-12:
         for i in range(1, n_steps + 1):
             trajectory.append(total_shares * i / n_steps)
         return trajectory
 
-    kappa = math.sqrt(lambda_risk * (volatility ** 2) / eta_scaled)
+    kappa = math.sqrt(lambda_risk * (volatility**2) / eta_scaled)
     # 经验放大确保有可见前端加载效果 (标定系数)
     kappa = kappa * 50.0
 
@@ -223,11 +224,12 @@ def optimal_execution_trajectory(
 #  实用工具: 订单成本预估
 # ═══════════════════════════════════════════════════════
 
+
 def estimate_order_cost(
     shares: float,
     price: float,
     daily_volume: float,
-    daily_volume_value: float = None,
+    daily_volume_value: Optional[float] = None,
     volatility_30d: float = 0.025,
     commission_rate: float = 0.0003,
     stamp_tax_rate: float = 0.001,
@@ -292,21 +294,21 @@ def estimate_order_cost(
     part_rate = participation_rate(shares, daily_volume) if daily_volume > 0 else 1.0
 
     return {
-        'order_value': order_value,
-        'commission': commission,
-        'stamp_tax': stamp_tax,
-        'impact_cost': impact_amount,
-        'impact_bps': impact_bps,
-        'total_cost': total_cost,
-        'total_bps': total_bps,
-        'participation_rate': part_rate,
+        "order_value": order_value,
+        "commission": commission,
+        "stamp_tax": stamp_tax,
+        "impact_cost": impact_amount,
+        "impact_bps": impact_bps,
+        "total_cost": total_cost,
+        "total_bps": total_bps,
+        "participation_rate": part_rate,
     }
 
 
 # ═══════════════════════════════════════════════════════
 #  自测 (直接运行)
 # ═══════════════════════════════════════════════════════
-if __name__ == '__main__':
+if __name__ == "__main__":
     # 示例: 买入100万大盘股 vs 小盘股
     print("=" * 60)
     print("Almgren-Chriss 冲击成本模型 — 自测")
@@ -314,30 +316,32 @@ if __name__ == '__main__':
 
     # 大盘股
     cost_large = estimate_order_cost(
-        shares=50000, price=20,           # 100万
-        daily_volume=20000000,             # 日成交 2000万股
+        shares=50000,
+        price=20,  # 100万
+        daily_volume=20000000,  # 日成交 2000万股
         volatility_30d=0.25,
     )
-    print(f"\n大盘股 (日成交2000万股, 买入100万):")
+    print("\n大盘股 (日成交2000万股, 买入100万):")
     print(f"  参与率: {cost_large['participation_rate']:.4%}")
     print(f"  冲击成本: {cost_large['impact_bps']:.1f} bps")
     print(f"  总成本: {cost_large['total_bps']:.1f} bps = {cost_large['total_cost']:.2f}元")
 
     # 小盘股
     cost_small = estimate_order_cost(
-        shares=50000, price=20,           # 100万
-        daily_volume=250000,               # 日成交仅 25万股
+        shares=50000,
+        price=20,  # 100万
+        daily_volume=250000,  # 日成交仅 25万股
         volatility_30d=0.35,
     )
-    print(f"\n小盘股 (日成交25万股, 买入100万):")
+    print("\n小盘股 (日成交25万股, 买入100万):")
     print(f"  参与率: {cost_small['participation_rate']:.4%}")
     print(f"  冲击成本: {cost_small['impact_bps']:.1f} bps")
     print(f"  总成本: {cost_small['total_bps']:.1f} bps = {cost_small['total_cost']:.2f}元")
 
     # 最优执行轨迹
-    print(f"\n最优执行轨迹 (100,000股, 5天, n=10步):")
+    print("\n最优执行轨迹 (100,000股, 5天, n=10步):")
     traj_neutral = optimal_execution_trajectory(100000, 5.0, 10, lambda_risk=0.0)
     traj_averse = optimal_execution_trajectory(100000, 5.0, 10, lambda_risk=1e-4)
     print(f"  风险中性: {[f'{x:.0f}' for x in traj_neutral]}")
     print(f"  风险厌恶: {[f'{x:.0f}' for x in traj_averse]}")
-    print(f"\n✅ 冲击成本模型自测通过")
+    print("\n✅ 冲击成本模型自测通过")

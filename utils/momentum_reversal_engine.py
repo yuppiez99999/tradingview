@@ -24,7 +24,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -33,9 +33,11 @@ import numpy as np
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class MomentumSignal:
     """动量信号"""
+
     symbol: str
     # 时间序列动量
     tsmom_20d: float = 0.0
@@ -62,6 +64,7 @@ class MomentumSignal:
 @dataclass
 class MomentumResult:
     """动量引擎结果"""
+
     signals: Dict[str, MomentumSignal] = field(default_factory=dict)
     # 平均信号强度
     avg_signal_strength: float = 0.0
@@ -79,6 +82,7 @@ class MomentumResult:
 # ============================================================
 # 动量反转引擎
 # ============================================================
+
 
 class MomentumReversalEngine:
     """动量反转信号引擎
@@ -105,9 +109,9 @@ class MomentumReversalEngine:
         xsmom_category_weight: float = 0.3,
         reversal_category_weight: float = 0.3,
         # 仓位参数
-        max_position: float = 0.10,        # 单标的最大仓位
-        signal_threshold: float = 0.2,     # 信号阈值
-        vol_target: float = 0.15,           # 目标波动率
+        max_position: float = 0.10,  # 单标的最大仓位
+        signal_threshold: float = 0.2,  # 信号阈值
+        vol_target: float = 0.15,  # 目标波动率
     ):
         # 默认权重: 多周期加权
         self.tsmom_weights = tsmom_weights or {20: 0.2, 60: 0.4, 120: 0.3, 252: 0.1}
@@ -314,7 +318,7 @@ class MomentumReversalEngine:
                     # 成交量加权: 放量反转信号更强
                     if len(vols) > window:
                         recent_vol = float(np.mean(vols[-window:]))
-                        avg_vol = float(np.mean(vols[-min(len(vols), 60):])) if len(vols) > 0 else 1
+                        avg_vol = float(np.mean(vols[-min(len(vols), 60) :])) if len(vols) > 0 else 1
                         vol_ratio = recent_vol / max(avg_vol, 1e-10)
                         vol_weight = min(vol_ratio, 2.0)  # 限制 2x
                     else:
@@ -386,9 +390,7 @@ class MomentumReversalEngine:
         vol_adj = self.vol_target / max(vol_actual, 0.05)
 
         # 仓位 = 信号 × 置信度 × 波动率调整 × 最大仓位限制
-        weight = (
-            sig.signal_strength * sig.confidence * vol_adj * self.max_position
-        )
+        weight = sig.signal_strength * sig.confidence * vol_adj * self.max_position
 
         # 限制仓位
         return float(max(-self.max_position, min(self.max_position, weight)))
@@ -442,10 +444,7 @@ class MomentumReversalEngine:
     ) -> MomentumResult:
         """过滤低置信度信号"""
         filtered = MomentumResult()
-        filtered.signals = {
-            sym: sig for sym, sig in result.signals.items()
-            if sig.confidence >= min_confidence
-        }
+        filtered.signals = {sym: sig for sym, sig in result.signals.items() if sig.confidence >= min_confidence}
         self._diagnose(filtered)
         return filtered
 

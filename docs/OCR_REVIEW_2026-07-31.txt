@@ -1,0 +1,796 @@
+[ocr session] warning: failed to create session writer: open session file: open C:\Users\Administrator\.opencodereview\sessions\E_各种PY程序-28-终极量化交易系统8.4\95a9b6c3-f986-4874-b638-5b91feb905c1.jsonl: Access is denied.
+[ocr] Summary: 12 file(s) reviewed, 53 comment(s), ~627798 token(s) used (input: ~385466, output: ~242332), cache(read: ~316352, write: ~0), 15m32s elapsed
+
+[2m─── daily_trade_executor.py:769-770 ───[0m
+[91m[bug · high][0m Suspicious allocation formula in `_allocate_position`: the expression `remaining_budget
+* pos["weight"] / 0.05 * 0.15` multiplies the weight by 3.0, which likely over-allocates budget
+relative to the intended weight-based distribution. For a position with `weight=0.10` (10%), this
+produces `remaining_budget * 0.30` instead of `remaining_budget * 0.10`. The `/ 0.05 * 0.15` scaling
+factors need to be removed or justified; the formula should likely be `remaining_budget *
+pos["weight"]` (or capped at a sensible percentage like `min(remaining_budget * pos["weight"],
+remaining_budget * 0.15, pos["remaining"])`).
+
+
+
+[2m─── daily_trade_executor.py:1040-1042 ───[0m
+[91m[bug · high][0m `confirm_all_instructions` writes the instruction file using a bare
+`open()`/`json.dump` instead of the project's `atomic_write_json`, risking file corruption if the
+process is interrupted during the write. This is inconsistent with the rest of the codebase (e.g.,
+`save_build_progress` and positions saving use `atomic_write_json`).
+
+
+
+[2m─── daily_trade_executor.py:1479-1486 ───[0m
+[91m[bug · high][0m Partial execution state inconsistency in `execute_instructions`:
+`save_build_progress(progress)` and `atomic_write_json(POSITIONS_FILE, positions_data)` are separate
+writes. If the positions write fails after the progress write succeeds, `build_progress.json`
+reflects the execution but `positions.json` does not, leaving the system in an inconsistent state.
+Additionally, `_build_and_save_execution_report` uses a non-atomic `open()`/`json.dump` below these
+writes, so if it fails the execution report is missing even though state was mutated.
+
+
+
+[2m─── daily_trade_executor.py:1279-1284 ───[0m
+[93m[bug · medium][0m Incomplete idempotency recovery in `_sync_positions_idempotent`: it only corrects
+positions where `shares == 0`, but if a prior execution left positions with incorrect non-zero
+`shares` or `avg_cost` (e.g., partial execution, interrupted write), those discrepancies are not
+repaired from the execution report. The sync should compare against execution results and update
+mismatched fields, not only zero-share positions.
+
+
+
+[2m─── daily_trade_executor.py:1402-1405 ───[0m
+[93m[bug · medium][0m `_build_and_save_execution_report` uses a non-atomic `open()`/`json.dump` to write
+the execution report, inconsistent with the project's `atomic_write_json` pattern. If the process is
+interrupted during this write, the report file can be corrupted, making post-mortem auditing
+unreliable.
+
+
+
+[2m─── daily_trade_executor.py:97-97 ───[0m
+[94m[maintainability · low][0m Dead code: `_infer_suffix` is defined but never called anywhere in this
+module. If it is not used by other modules importing from this file, it should be removed to reduce
+maintenance burden.
+
+
+
+[2m─── build_plan_executor.py:512-516 ───[0m
+[91m[bug · high][0m In `get_build_status`, `completed_capital` is accumulated via `for i in
+range(phase_idx)`. When `status` is `"completed"`, `phase_idx` is `-1` so `range(-1)` is empty; when
+`status` is `"during_gap"` with `phase_idx=0`, `range(0)` is also empty. This causes
+`completed_capital` to always be `0` in these states, making `progress` report `0%` even after full
+execution or during inter-phase gaps. The loop must account for completed phases differently based
+on `status` (sum all for `completed`, sum through `phase_idx` for `during_gap`, sum before
+`phase_idx` for `active`).
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         # 已完成阶段统计[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         completed_capital = 0.0[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         for i in range(phase_idx):[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             if i < len(self.plan_data["phase_summary"]):  # type: ignore[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 completed_capital += self.plan_data["phase_summary"][i]["capital_amount"]  # type: ignore[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         if status == "completed":[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             completed_capital = sum([0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 p["capital_amount"] for p in self.plan_data["phase_summary"]  # type: ignore[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             )[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         elif status == "during_gap":[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             completed_capital = sum([0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 self.plan_data["phase_summary"][i]["capital_amount"]  # type: ignore[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 for i in range(phase_idx + 1)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 if i < len(self.plan_data["phase_summary"])  # type: ignore[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             )[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         else:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             completed_capital = sum([0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 self.plan_data["phase_summary"][i]["capital_amount"]  # type: ignore[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 for i in range(phase_idx)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 if i < len(self.plan_data["phase_summary"])  # type: ignore[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             )[0m[0m
+
+
+[2m─── build_plan_executor.py:533-541 ───[0m
+[93m[bug · medium][0m When `status` is `"during_gap"`, `get_active_phase` returns the most recently
+completed phase summary, so `phase_summary` is not `None`. Consequently, `get_build_status`
+populates `current_phase` with the last completed phase's data, implying an active execution phase
+even though there is a gap. This is misleading to API consumers. `current_phase` should only be
+populated when `status == "active"`.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         if phase_summary:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         if status == "active" and phase_summary:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             status_info["current_phase"] = {[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 "phase": phase_summary["phase"],[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 "name": phase_summary["name"],[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 "start": phase_summary["start"],[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 "capital_amount": phase_summary["capital_amount"],[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 "capital_ratio": phase_summary["capital_ratio"],[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 "asset_count": phase_summary["asset_count"],[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             }[0m[0m
+
+
+[2m─── build_plan_executor.py:236-237 ───[0m
+[91m[bug · high][0m When `capital_multiplier < 1.0`, if the scaled `total_shares` rounds to `0` for one of
+the first five assets, the fallback `max(100, int(orig_shares * 0.10))` can force a minimum
+100-share order regardless of the multiplier. For very small multipliers (e.g., 0.01) and modest
+`orig_shares`, this inflates the order well beyond the intended reduced allocation, distorting
+portfolio weights for high-priority assets. The fallback should be capped relative to the scaled
+target.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 if total_shares == 0 and orig_shares > 0 and idx <= 5:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                     total_shares = max(100, int(orig_shares * 0.10))[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                     scaled_target = max(lot_size, int(orig_shares * capital_multiplier))[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                     fallback = max(lot_size, int(orig_shares * 0.10))[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                     total_shares = min(fallback, scaled_target * 2)[0m[0m
+
+
+[2m─── build_plan_executor.py:228-230 ───[0m
+[91m[bug · high][0m The guard `if est_price is None or total_shares is None or total_shares <= 0` does not
+reject `est_price == 0.0`. Because `safe_float(..., default=0.0)` returns `0.0` when the key is
+missing or the value is zero, the check passes and the code generates orders with `est_price=0.0`
+and `limit_price=0.0`, which are invalid trade instructions. The guard should require `est_price >
+0`.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             if est_price is None or total_shares is None or total_shares <= 0:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             if est_price is None or est_price <= 0 or total_shares is None or total_shares <= 0:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 warnings.append(f"{raw_code} 数据无效，跳过")[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 continue[0m[0m
+
+
+[2m─── build_plan_executor.py:132-137 ───[0m
+[91m[maintainability · high][0m The phase boundaries (`build_phases_config`) are hardcoded inside
+`get_active_phase` instead of being derived from `self.plan_data["metadata"]` or `phase_summary`. If
+the JSON plan is updated with a different schedule, the date-to-phase mapping silently breaks,
+potentially assigning assets to the wrong phase or skipping them entirely. The config should be
+loaded from the plan file's metadata.
+
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         build_phases_config = [[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             {"phase": i + 1, "start": datetime.strptime(p["start"], "%Y-%m-%d").date(), "duration": p["duration"]}[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             for i, p in enumerate(self.plan_data.get("metadata", {}).get("build_phases", []))[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         ][0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         if not build_phases_config:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         build_phases_config = [[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             {"phase": 1, "start": date(2026, 7, 6), "duration": 10},[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             {"phase": 2, "start": date(2026, 7, 20), "duration": 15},[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             {"phase": 3, "start": date(2026, 8, 10), "duration": 15},[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             {"phase": 4, "start": date(2026, 9, 1), "duration": 20},[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         ][0m[0m
+
+
+[2m─── build_plan_executor.py:282-287 ───[0m
+[93m[bug · medium][0m After session-splitting and lot-size alignment, any leftover shares from floor
+division are silently dropped. For example, `total_shares=250` with `lot_size=100` yields
+`morning_shares=100` and `afternoon_shares=100`, losing 50 shares. This means the executed plan does
+not match the planned `total_shares`, causing under-investment. The remainder should be carried over
+to the afternoon batch (or allocated explicitly).
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             morning_shares = max(0, int(total_shares * self.SESSION_SPLIT))[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             morning_shares = (morning_shares // lot_size) * lot_size[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m [0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             # 下午批次：总股数减上午(整手调整后)，再对齐[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             remaining = total_shares - morning_shares[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             afternoon_shares = (remaining // lot_size) * lot_size[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             # 将取整余数并入下午批次，避免丢失股数[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             afternoon_shares += remaining % lot_size[0m[0m
+
+
+[2m─── build_plan_executor.py:124-124 ───[0m
+[94m[documentation · low][0m The docstring for `get_active_phase` documents `phase_status` as returning
+only `"active" | "completed" | "not_started"`, but the function also returns `"during_gap"` and
+`"unknown"`. This misleads callers into not handling the gap state.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             phase_status: "active" | "completed" | "not_started"[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             phase_status: "active" | "completed" | "not_started" | "during_gap" | "unknown"[0m[0m
+
+
+[2m─── alpha_hedge_engine.py:316-321 ───[0m
+[91m[bug · high][0m When drawdown triggers FORCE_HEDGE or HALT, monitor_drawdown unconditionally calls
+tail_risk_monitor. Because run_daily_routine also unconditionally calls tail_risk_monitor right
+after, the tail-risk hedging logic executes twice in the same routine, potentially generating
+duplicate protective orders.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         if decision.level.value in ("FORCE_HEDGE", "HALT"):[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             logger.info(">>> 回撤熔断触发，启动尾部防御买入 Put...")[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             try:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 self.tail_risk_monitor()[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             except Exception as e:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 logger.error(f"【回撤熔断】尾部防御执行失败: {e}")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             # tail_risk_monitor will be invoked by run_daily_routine; skip duplicate call here[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             return decision.to_dict()[0m[0m
+
+
+[2m─── alpha_hedge_engine.py:399-402 ───[0m
+[91m[bug · high][0m run_daily_routine unconditionally invokes tail_risk_monitor after monitor_drawdown. If
+monitor_drawdown already triggered tail_risk_monitor due to a FORCE_HEDGE/HALT decision, this second
+invocation produces duplicate hedging orders. Consider restructuring so tail_risk_monitor is called
+exactly once per routine (e.g., let monitor_drawdown set a flag, or move the call into an
+else-branch).
+
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             tail_risk_already_triggered = False[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             if current_drawdown is not None:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 self.monitor_drawdown(current_drawdown)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 decision = self.monitor_drawdown(current_drawdown)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 tail_risk_already_triggered = ([0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                     decision is not None[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                     and decision.get("level") in ("FORCE_HEDGE", "HALT")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 )[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             self.execute_covered_call()[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             if not tail_risk_already_triggered:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             self.tail_risk_monitor()[0m[0m
+
+
+[2m─── alpha_hedge_engine.py:345-348 ───[0m
+[91m[security · high][0m Returns hardcoded fake price (1.00) when broker is None. This meaningless value
+propagates into target_strike calculations and option contract lookups, producing invalid contract
+codes (e.g., strike=0 for low-priced underlyings after int() truncation) that appear valid but are
+based on fake market data.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     def _get_last_price(self, symbol: str) -> float:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         if self.broker and hasattr(self.broker, "get_price"):[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             return self.broker.get_price(symbol)[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         return 1.00[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         raise RuntimeError(f"Broker unavailable; cannot get last price for {symbol}")[0m[0m
+
+
+[2m─── alpha_hedge_engine.py:350-353 ───[0m
+[91m[security · high][0m Returns hardcoded fake quotes (0.105, 0.100) when broker is None. The resulting
+spread ratio is exactly 0.05 (not > 0.05), so the liquidity check always passes. This creates a
+phantom risk gate: callers believe market liquidity was validated, but the check was performed
+against meaningless fake data that is specifically tailored to pass.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     def _get_option_quotes(self, symbol: str) -> tuple:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         if self.broker and hasattr(self.broker, "get_option_quotes"):[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             return self.broker.get_option_quotes(symbol)[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         return 0.105, 0.100[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         raise RuntimeError(f"Broker unavailable; cannot get option quotes for {symbol}")[0m[0m
+
+
+[2m─── alpha_hedge_engine.py:355-358 ───[0m
+[91m[security · high][0m Returns hardcoded fake margin usage (0.45) when broker is None. This value sits
+below the degraded kill-switch threshold (0.60), so margin checks always pass with fake data. In
+execute_options_order this masks real margin issues and can permit orders that should be blocked.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     def _get_margin_usage(self) -> float:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         if self.broker and hasattr(self.broker, "get_margin_usage"):[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             return self.broker.get_margin_usage()[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         return 0.45[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         raise RuntimeError("Broker unavailable; cannot get margin usage")[0m[0m
+
+
+[2m─── alpha_hedge_engine.py:134-136 ───[0m
+[93m[performance · medium][0m Using f-strings inside logging calls defeats lazy evaluation: the formatted
+string is computed eagerly even when the log level is disabled. This pattern appears throughout the
+file (e.g., check_liquidity_spread, execute_covered_call, tail_risk_monitor, monitor_drawdown,
+run_daily_routine, main). Prefer %-style or .arg() formatting so the work is skipped when the level
+is off.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         if spread_ratio > 0.05:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             logger.warning(f"【拦截】买卖价差大于 5% ({spread_ratio:.2%})，拒绝交易。")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             logger.warning("【拦截】买卖价差大于 5%% (%s)，拒绝交易。", spread_ratio)[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             return False[0m[0m
+
+
+[2m─── alpha_hedge_engine.py:443-446 ───[0m
+[93m[maintainability · medium][0m The real-mode branch in main() loads THSRealBroker but never instantiates
+it, and always resets explicit_mode to "sim". Because broker is always None and explicit_mode is
+forced back to sim, the entire real-mode loading path is dead code that gives a false impression
+that real trading is supported from this entrypoint.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             else:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 # 注意: 此处不创建 MockAccount, 真实使用时由调用方传入真实 account[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 logger.warning("[C6] real 模式需调用方提供真实 account, 当前未实例化 broker")[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 explicit_mode = "sim"  # 安全降级: 未提供真实 account 时不进 real[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 # 真实使用时由调用方传入真实 account 并在此实例化 broker[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 account_id = os.environ.get("THS_ACCOUNT_ID")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 if not account_id:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                     raise RuntimeError("THS_ACCOUNT_ID env var required for real mode")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 broker = THSRealBroker(account_id=account_id)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 logger.info("[C6] real 模式已启用，broker 已加载")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 # explicit_mode remains "real"[0m[0m
+
+
+[2m─── generate_daily_report.py:1134-1135 ───[0m
+[91m[bug · high][0m When no hedge execution file is found for the current date, the code silently falls
+back to a hardcoded 2026-07-09 file. As of 2026-07-31, this is 22 days stale and will cause the
+report to reflect outdated hedge positions without any warning to the user. This violates data
+freshness principles for a daily P&L report.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     if hedge_file is None:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         hedge_file = "v8.3_institutional/reports/hedge_execution_fill_2026-07-09.json"[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         print("⚠️ 未找到当日对冲执行文件，请检查数据源")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         # 可选: 回退到最近可用的对冲文件而非硬编码日期[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         # hedge_file = find_most_recent_hedge_file(hedge_dir)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         raise FileNotFoundError("未找到对冲执行文件，无法生成准确报告")[0m[0m
+
+
+[2m─── generate_daily_report.py:266-269 ───[0m
+[91m[bug · high][0m `_apply_positions_snapshot` modifies `self.positions_data` in place (adding
+`actual_shares`, `actual_avg_cost`, and overwriting `est_price`), which directly contradicts its
+docstring stating "不修改 positions.json 的计划持仓数据". If the analyzer instance is reused or other
+components reference the original plan data, they will see mutated values, leading to incorrect
+results on subsequent calls.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             # 写入实际持仓字段[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             pos["actual_shares"] = qty[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             pos["actual_avg_cost"] = avg_price  # 成交均价 (保留供参考)[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             pos["est_price"] = first_open_price  # 覆盖为第一次交易开盘价 (成本价)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             # 写入实际持仓字段到副本，不修改原始计划数据[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             actual_pos = {[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 "actual_shares": qty,[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 "actual_avg_cost": avg_price,[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 "est_price": first_open_price,[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             }[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             # 将 actual_pos 合并到独立的 actual_positions 结构中[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             # 或创建 positions_data 的深拷贝后再修改[0m[0m
+
+
+[2m─── generate_daily_report.py:258-264 ───[0m
+[91m[bug · high][0m The fallback chain for `first_open_price` (plan_prices -> avg_price -> pos.est_price)
+can resolve to 0 if all sources are missing or zero. This zero is then written to `pos["est_price"]`
+without validation, which will cause division-by-zero or infinite P&L percentages in downstream
+calculations (e.g., `pnl / est_price` in `reporting.pnl_calculator`).
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             avg_price = snap.get("avg_price", pos.get("est_price", 0))[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             if not avg_price:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 avg_price = pos.get("est_price", 0)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             avg_price = snap.get("avg_price") or pos.get("est_price")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             if not avg_price or avg_price <= 0:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 print(f"⚠️ 标的 {code_num} 成本价无效 (avg_price={avg_price})，跳过")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 skipped += 1[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 continue[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m [0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             # 成本价 = 第一次交易开盘价 (trade_plan est_price)[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             # 回退: 快照 avg_price (成交均价) -> positions.json est_price[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             first_open_price = plan_prices.get(code_num, avg_price)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             if not first_open_price or first_open_price <= 0:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 print(f"⚠️ 标的 {code_num} 开盘价无效，使用 avg_price={avg_price}")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 first_open_price = avg_price[0m[0m
+
+
+[2m─── generate_daily_report.py:826-839 ───[0m
+[93m[bug · medium][0m Multiple divisions by `total_capital` in `generate_markdown_report` are unguarded. If
+`next_day_plan` returns `total_capital: 0` (or if the data is corrupted/missing), this will raise
+`ZeroDivisionError` and crash the Markdown report generation. The default of 5,000,000 only applies
+when the key is missing, not when it's explicitly set to 0.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     total_capital = report.get("next_day_plan", {}).get("total_capital", 5000000)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     if total_capital <= 0:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         total_capital = 5000000  # 防止除零错误[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     [0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     futures_margin = ([0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         report["hedge_position"]["summary"].get("total_hedge_notional", 0) * 0.12[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         if report["hedge_position"]["summary"].get("total_hedge_notional", 0) > 0[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         else 0[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     )[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m [0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     md += f"""| 类别 | 金额 | 占比 |[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m |------|------|------|[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m | 现货持仓 | ¥{total_market_value:,.0f} | {total_market_value / total_capital * 100:.1f}% |[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m | 期货保证金 | ¥{futures_margin:,.0f} | {futures_margin / total_capital * 100:.1f}% |[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m | 期权预算 | ¥{premium_total:,.0f} | {premium_total / total_capital * 100:.1f}% |[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m | 剩余现金 | ¥{(total_capital - total_market_value - futures_margin - premium_total):,.0f} | {(total_capital - total_market_value - futures_margin - premium_total) / total_capital * 100:.1f}% |[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m | **合计** | **¥{total_capital:,.0f}** | **100%** |[0m[0m
+
+
+[2m─── generate_daily_report.py:1159-1159 ───[0m
+[93m[bug · medium][0m `main()` accepts a `report_date_arg` for historical report generation, but
+`generate_report()` uses the module-level `REPORT_DATE` (always today's date) when calling
+`generate_next_day_plan()` and other date-dependent operations. If the user runs `python
+generate_daily_report.py 2026-07-15`, the report files will be dated 2026-07-15, but the next-day
+plan and AI recommendations will be calculated for 2026-07-31 (today), producing inconsistent
+content.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m report = analyzer.generate_report()[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     report = analyzer.generate_report(report_date=report_date_arg)[0m[0m
+
+
+[2m─── live_scheduler.py:794-794 ───[0m
+[1;91m[bug · critical][0m Critical: `_schedule_daily_report` retrieves the trigger time from
+`MODULE_DEFINITIONS[-1]`, which is `strategy_evaluation` (15:25), not `daily_report` (15:15). This
+causes the daily report to execute 10 minutes late every day. Fix by looking up `daily_report`
+explicitly by name instead of using the last element.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m trigger_time: dt_time = MODULE_DEFINITIONS[-1]["trigger_time"][0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m trigger_time: dt_time = next(mod["trigger_time"] for mod in MODULE_DEFINITIONS if mod["name"] == "daily_report")[0m[0m
+
+
+[2m─── live_scheduler.py:829-829 ───[0m
+[91m[bug · high][0m High: `strategy_evaluation` is defined in `MODULE_DEFINITIONS` and logged as started,
+but `_schedule_daily_report` only ever executes `run_daily_report`. There is no timer or logic that
+invokes `run_strategy_evaluation`, so this module is completely unscheduled despite being listed as
+a required module in the architecture doc.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m self._schedule_daily_report()[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m # Add scheduling for strategy_evaluation here, e.g. self._schedule_strategy_evaluation()[0m[0m
+
+
+[2m─── live_scheduler.py:885-891 ───[0m
+[91m[bug · high][0m High: `_is_process_alive` uses `tasklist`, which is Windows-only. On Linux/macOS it
+always returns `False`, so `_is_running()` treats every lock as stale and removes it. This breaks
+the singleton guarantee and allows multiple scheduler instances to run simultaneously on non-Windows
+platforms. Fix by using a cross-platform check (e.g. `os.kill(pid, 0)` on POSIX or
+`psutil.pid_exists`).
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m def _is_process_alive(pid: int) -> bool:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m     """检查进程是否存活（Windows 专用）"""[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     """检查进程是否存活（跨平台）"""[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     try:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         result = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True, timeout=5)[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         return str(pid) in result.stdout[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m     except Exception as e:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         os.kill(pid, 0)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         return True[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     except ProcessLookupError:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         return False[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     except PermissionError:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         return True  # exists but no permission[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     except Exception:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         return False[0m[0m
+
+
+[2m─── live_scheduler.py:735-735 ───[0m
+[93m[bug · medium][0m Medium: `ThreadPoolExecutor` is created in `__init__` with `max_workers`, but
+`_run_task` calls `task_func` directly in the timer thread instead of submitting it to the executor.
+This makes `max_workers` ineffective and contradicts the docstring claim that the executor
+implements concurrent execution. Either submit tasks to the executor or remove the executor to avoid
+confusion.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m result = task_func(dry_run=self.dry_run)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m # Option A: submit to executor[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m future = self.executor.submit(task_func, dry_run=self.dry_run)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m result = future.result()[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m [0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m # Option B: remove unused executor and update docstring[0m[0m
+
+
+[2m─── live_scheduler.py:743-744 ───[0m
+[94m[bug · low][0m Low: The result list trimming logic is inconsistent. It checks `len > 100` but then
+slices to `[-50:]`, which abruptly discards 51 items and leaves only 50. This looks like a typo
+where `-100:` was intended, or the threshold should be `> 50`. Fix by aligning the threshold and
+slice length.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m if len(self.module_results[module_name]) > 100:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m     self.module_results[module_name] = self.module_results[module_name][-50:][0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     self.module_results[module_name] = self.module_results[module_name][-100:][0m[0m
+
+
+[2m─── run_daily_eod.py:163-182 ───[0m
+[91m[bug · high][0m Kill Switch 等级解析存在安全漏洞：当 `level` 为未预期的字符串值（如 'L4'、'4'、'CRITICAL' 或畸形字符串）时，代码会跳过显式检查并回退到
+`return bool(can_trade) if can_trade is not None else None`。若上游数据源异常输出未预期等级且
+`can_trade=True`，最核心的保证金熔断守卫会错误通过，导致次日继续开仓而触发真实爆仓风险。
+
+修复建议：对未预期的 `level` 值统一返回 `False`（fail-safe 保守策略），或至少返回 `None` 触发异常告警，而不是依赖 `can_trade` 兜底。例如将
+`level_str in ("0", "OK", "1")` 改为 `else: return False`。
+
+
+
+[2m─── run_daily_eod.py:426-430 ───[0m
+[93m[bug · medium][0m 备份文件命名仅使用时间戳
+`%H%M%S`（秒级分辨率），同一交易计划文件在一分钟内被重复执行时，后一次运行会覆盖前一次的备份，导致若后续更新失败，无法恢复到原始计划文件。
+
+修复建议：在备份文件名中加入日期和递增序列号（或毫秒/微秒），例如
+`f".bak_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"`，确保每次备份文件名唯一。
+
+
+
+[2m─── run_daily_eod.py:549-551 ───[0m
+[93m[security · medium][0m `generate_eod_report` 直接将 `report_date` 拼接到文件路径中（`REPORTS_DIR / report_date /
+...`），未对日期格式做任何校验或规范化。虽然当前调用链路中 `get_next_trading_day` 会先验证日期格式，但 `generate_eod_report`
+本身作为独立函数缺乏防御性检查：若未来从其他上下文传入畸形日期（如包含 `..` 或 `/`），`mkdir(parents=True)` 和 `write_text`
+可能在归档目录外创建目录并写入文件，构成路径遍历风险。
+
+修复建议：在函数入口校验 `report_date` 格式（例如 `datetime.strptime(report_date, '%Y-%m-%d')`），或使用 `Path.resolve()`
+后断言路径仍在 `REPORTS_DIR` 下。
+
+
+
+[2m─── signal_monitor.py:111-116 ───[0m
+[91m[bug · high][0m When no valid signals are counted (e.g., all signals are None, or stock_signals is
+empty), total becomes 0, causing ZeroDivisionError in the percentage calculations. Add a guard to
+handle the zero-total case.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     total = sum(dist.values())[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m [0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     print("--- 信号分布统计 ---")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     if total > 0:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     print(f"看多: {dist.get('long', 0)} ({dist.get('long', 0) / total * 100:.1f}%)")[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     print(f"看空: {dist.get('short', 0)} ({dist.get('short', 0) / total * 100:.1f}%)")[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     print(f"中性: {dist.get('neutral', 0)} ({dist.get('neutral', 0) / total * 100:.1f}%)")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     else:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         print("无有效信号")[0m[0m
+
+
+[2m─── signal_monitor.py:61-80 ───[0m
+[91m[bug · high][0m Direct dictionary indexing into info assumes keys like 'signal', 'direction', 'symbol',
+and 'name' always exist in portfolio_signals entries. Missing keys raise KeyError for slightly
+different report formats. Use .get() with defaults or validate required keys.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         for _code, info in report["portfolio_signals"].items():[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             if info["signal"] is not None:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 signals.append(info["signal"])[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 if info["direction"] == "看多":[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             signal = info.get("signal")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             direction = info.get("direction")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             symbol = info.get("symbol", _code)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             name = info.get("name", "")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             if signal is not None and direction is not None:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 signals.append(signal)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 if direction == "看多":[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     dist["long"] += 1[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 elif info["direction"] == "看空":[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 elif direction == "看空":[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     dist["short"] += 1[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 else:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     dist["neutral"] += 1[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m [0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 stock_signals.append([0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     {[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                         "code": info["symbol"],[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                         "name": info["name"],[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                         "latest_signal": info["signal"],[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                         "direction": info["direction"],[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                         "code": symbol,[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                         "name": name,[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                         "latest_signal": signal,[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                         "direction": direction,[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                         "rank": None,[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                         "total": report.get("n_stocks", 0),[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     }[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 )[0m[0m
+
+
+[2m─── signal_monitor.py:87-105 ───[0m
+[91m[bug · high][0m The code compares signal > 0 without verifying the value is numeric. Non-numeric values
+(e.g., null, strings) raise TypeError during comparison or later in statistics calculations.
+Validate the type before comparison.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         for symbol, signal in signals_dict.items():[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             if not isinstance(signal, (int, float)) or isinstance(signal, bool):[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 continue[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             direction = "看多" if signal > 0 else "看空"[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             if signal > 0:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 dist["long"] += 1[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             elif signal < 0:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 dist["short"] += 1[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             else:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 dist["neutral"] += 1[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m [0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             stock_signals.append([0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 {[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     "code": symbol,[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     "name": "",[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     "latest_signal": signal,[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     "direction": direction,[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     "rank": None,[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     "total": len(signals_dict),[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 }[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             )[0m[0m
+
+
+[2m─── signal_monitor.py:106-109 ───[0m
+[91m[bug · high][0m The list comprehension assumes every item in stock_signals contains the 'latest_signal'
+key; missing keys raise KeyError when building the signals list for statistics. Use .get() with a
+default or filter invalid entries.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     else:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         stock_signals = report.get("stock_signals", [])[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         signals = [s["latest_signal"] for s in stock_signals][0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         signals = [s["latest_signal"] for s in stock_signals if "latest_signal" in s][0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         dist = report.get("signal_distribution", {"long": 0, "short": 0, "neutral": 0})[0m[0m
+
+
+[2m─── signal_monitor.py:118-123 ───[0m
+[93m[bug · medium][0m If the signals list contains non-numeric values (e.g., strings, None) that passed
+earlier parsing, np.mean, np.std, max, and min will raise TypeError. Filter signals to include only
+valid numeric values before computing statistics.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     print("\n--- 信号强度统计 ---")[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m     if signals:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         print(f"信号均值: {np.mean(signals):.4f}")[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         print(f"信号标准差: {np.std(signals):.4f}")[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         print(f"信号最大值: {max(signals):.4f}")[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         print(f"信号最小值: {min(signals):.4f}")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     numeric_signals = [s for s in signals if isinstance(s, (int, float)) and not isinstance(s, bool)][0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     if numeric_signals:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         print(f"信号均值: {np.mean(numeric_signals):.4f}")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         print(f"信号标准差: {np.std(numeric_signals):.4f}")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         print(f"信号最大值: {max(numeric_signals):.4f}")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         print(f"信号最小值: {min(numeric_signals):.4f}")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     else:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         print("无有效数值信号")[0m[0m
+
+
+[2m─── stop_loss_monitor.py:130-135 ───[0m
+[1;91m[security · critical][0m yaml.unsafe_load is used as a fallback for loading numpy-tagged YAML files.
+unsafe_load can execute arbitrary Python code if the YAML file is tampered with, posing a remote
+code execution risk. Consider pre-processing the file to strip numpy tags, validating file
+integrity, or rejecting unsafe_load entirely since the rules file should be a trusted config.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             f.seek(0)[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             try:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 data = yaml.unsafe_load(f)[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             except Exception as e2:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 logger.error(f"unsafe_load 也失败: {e2}")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             # Reject unsafe_load; instead, sanitize numpy tags or require safe YAML format[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             logger.error("YAML contains numpy tags which are not supported in safe mode")[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 return {}[0m[0m
+
+
+[2m─── stop_loss_monitor.py:251-259 ───[0m
+[91m[bug · high][0m position.get('shares', 0), position.get('avg_cost', 0), and
+position.get('current_price', 0) can all return None when the JSON source contains null values.
+Subsequent numeric comparisons (shares <= 0, entry_price <= 0, current_price <= 0) raise TypeError
+and crash the monitor. Use 'or 0' or explicit None checks to guard against null JSON values.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         shares = position.get("shares", 0)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         shares = position.get("shares") or 0[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         if shares <= 0:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             return None[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m [0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         entry_price = position.get("avg_cost", 0)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         entry_price = position.get("avg_cost") or 0[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         if entry_price <= 0:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             entry_price = rule.get("entry_price", 0)[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         if entry_price <= 0:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             return None[0m[0m
+
+
+[2m─── stop_loss_monitor.py:88-89 ───[0m
+[91m[bug · high][0m If no candidate rules files exist, rules_file remains None and is passed to
+_load_rules(None), causing os.path.exists(None) to raise TypeError and crash the constructor. Add a
+guard in the constructor or handle None inside _load_rules to return an empty rules dict gracefully.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         self.rules_file = rules_file[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         self.rules = self._load_rules(rules_file)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         self.rules = self._load_rules(rules_file) if rules_file else {}[0m[0m
+
+
+[2m─── stop_loss_monitor.py:126-129 ───[0m
+[91m[bug · high][0m _load_rules only catches yaml.constructor.ConstructorError, but yaml.safe_load can
+raise other yaml.YAMLError subclasses (e.g., ScannerError, ParserError) on malformed YAML input.
+These unhandled exceptions crash the monitor. Catch the base yaml.YAMLError to handle all YAML
+parsing failures uniformly.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m             try:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 data = yaml.safe_load(f)[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             except yaml.constructor.ConstructorError as e:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 logger.warning(f"safe_load 失败 ({e.problem}), 尝试 unsafe_load 加载 numpy 标签")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             except yaml.YAMLError as e:[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                 logger.warning(f"YAML 解析失败 ({e}), 尝试 unsafe_load 加载 numpy 标签")[0m[0m
+
+
+[2m─── stop_loss_monitor.py:105-106 ───[0m
+[91m[bug · high][0m _high_water_mark is keyed by stock code and never cleared when positions are closed. If
+a position is sold and later repurchased, the previous high watermark persists, potentially
+triggering an earlier trailing stop than intended for the new position. Add logic to clear or reset
+high-water marks when positions are exited or re-entered.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         # 最高价记录 (移动止损用)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         # 最高价记录 (移动止损用), 需在平仓后清除[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         self._high_water_mark: Dict[str, float] = {}[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         self._previous_position_state: Dict[str, bool] = {}  # 跟踪持仓状态变化[0m[0m
+
+
+[2m─── stop_loss_monitor.py:293-296 ───[0m
+[93m[bug · medium][0m When trailing_stop is enabled and current_price <= stop_loss_price but current_price
+<= entry_price, the trigger is classified as STOP_LOSS even if the trailing stop (not the original
+stop loss) was actually hit. Compare against the original stop loss price to correctly classify the
+trigger type.
+
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         original_stop_loss_price = entry_price * (1 + stop_loss_pct)[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         if current_price <= stop_loss_price:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             trigger_type = ([0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                 TriggerType.TRAILING_STOP if trailing_stop and current_price > entry_price else TriggerType.STOP_LOSS[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m             )[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             is_trailing_trigger = trailing_stop and stop_loss_price > original_stop_loss_price[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m             trigger_type = TriggerType.TRAILING_STOP if is_trailing_trigger else TriggerType.STOP_LOSS[0m[0m
+
+
+[2m─── stop_loss_monitor.py:206-209 ───[0m
+[91m[bug · high][0m positions[pure_code].get('current_price', 0) can return None if the JSON contains null.
+The subsequent 'if price > 0:' raises TypeError. Similarly, df.iloc[0].get('close', 0) can return
+None, causing float(None) to raise TypeError. Use 'or 0' to default None to 0 before numeric checks.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 if pure_code in positions:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                     price = positions[pure_code].get("current_price", 0)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                     price = positions[pure_code].get("current_price") or 0[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                     if price > 0:[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                         return float(price)[0m[0m
+
+
+[2m─── stop_loss_monitor.py:221-222 ───[0m
+[91m[bug · high][0m df.iloc[0].get('close', 0) can return None if the JSONL contains null, causing
+float(None) to raise TypeError. Use 'or 0' to default None to 0 before conversion.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m                 if len(df) > 0:[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m                     return float(df.iloc[0].get("close", 0))[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m                     return float(df.iloc[0].get("close") or 0)[0m[0m
+
+
+[2m─── stop_loss_monitor.py:326-327 ───[0m
+[93m[bug · medium][0m rule.get('atr_stop_loss_price', 0) returns None if the YAML contains
+'atr_stop_loss_price: null', causing 'atr_stop_price > 0' to raise TypeError. Use 'or 0' to default
+None to 0 before the comparison.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         atr_stop_price = rule.get("atr_stop_loss_price", 0)[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         atr_stop_price = rule.get("atr_stop_loss_price") or 0[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         if atr_stop_price > 0 and current_price <= atr_stop_price:[0m[0m
+
+
+[2m─── system_health_check.py:60-65 ───[0m
+[93m[bug · medium][0m Invalid unit aggregation in validation: `cost.get('total')` returns currency (e.g.,
+¥1,500,000) while `cost.get('cost_bps')` returns basis points (e.g., 50.0). Adding these
+incompatible units produces a meaningless metric that can yield false positives (always positive
+when total is positive) or false negatives (inflated by large bps values). Validate each metric
+independently instead.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m     total = cost.get("total", 0) + cost.get("cost_bps", 0)[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     check([0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         "TransactionCostModel",[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         isinstance(cost, dict) and total > 0,[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         isinstance(cost, dict) and cost.get("total", 0) > 0 and cost.get("cost_bps", 0) >= 0,[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         f"total=¥{cost.get('total', 0):,.2f}, bps={cost.get('cost_bps', 0):.2f}",[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     )[0m[0m
+
+
+[2m─── system_health_check.py:127-129 ───[0m
+[91m[bug · high][0m Hardcoded relative path in dynamic import: `importlib.util.spec_from_file_location`
+uses a relative path that only resolves correctly when the script is executed from the project root.
+Running from any other working directory raises `FileNotFoundError`, causing a spurious health-check
+failure.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     spec = importlib.util.spec_from_file_location([0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         "llm_intraday_decision_engine", "v8.3_institutional/llm_intraday_decision_engine.py"[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         "llm_intraday_decision_engine",[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         str(Path(__file__).parent / "v8.3_institutional/llm_intraday_decision_engine.py"),[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     )[0m[0m
+
+
+[2m─── system_health_check.py:45-45 ───[0m
+[93m[bug · medium][0m Missing None guard on external module return value: direct attribute access on
+`exp.delta` and `len(sig)` assumes `calc_portfolio_greeks()` and `rebalance_signal()` return valid
+objects. If either returns `None`, this crashes with `AttributeError` instead of reporting a clean
+FAIL.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m     check("GreekHedgeManager", exp.delta > 0 and isinstance(sig, dict), f"Delta={exp.delta:,.0f}, signals={len(sig)}")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     check([0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         "GreekHedgeManager",[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         exp is not None and getattr(exp, "delta", 0) > 0 and isinstance(sig, dict),[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         f"Delta={getattr(exp, 'delta', 0):,.0f}, signals={len(sig) if isinstance(sig, dict) else 0}",[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     )[0m[0m
+
+
+[2m─── system_health_check.py:99-103 ───[0m
+[93m[bug · medium][0m Missing None guard on external module return value: direct attribute access on
+`attr.total_value` and `len(attr.by_sector)` assumes `compute_attribution()` returns a valid object.
+If it returns `None`, this crashes with `AttributeError` instead of reporting a clean FAIL.
+
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     check([0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m         "RiskAttribution",[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         attr.total_value > 0 and len(attr.by_sector) > 0,[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         f"total=¥{attr.total_value:,.0f}, sectors={len(attr.by_sector)}, warnings={len(attr.warnings)}",[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         attr is not None and attr.total_value > 0 and len(getattr(attr, "by_sector", []) or []) > 0,[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         f"total=¥{getattr(attr, 'total_value', 0):,.0f}, sectors={len(getattr(attr, 'by_sector', []) or [])}, warnings={len(getattr(attr, 'warnings', []) or [])}",[0m[0m
+[2m[48;2;38;38;38m [0m[48;2;38;38;38m     )[0m[0m
+
+
+[2m─── system_health_check.py:115-116 ───[0m
+[93m[bug · medium][0m Missing None guard on external module return value: direct attribute access on
+`d.snapshot.delta` and `len(d.signal_levels)` assumes `compute_dashboard()` returns a valid object.
+If it returns `None`, this crashes with `AttributeError` instead of reporting a clean FAIL.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m     snap = d.snapshot[0m[0m
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m     check("GreekExposureDashboard", len(d.signal_levels) > 0, f"Delta={snap.delta:,.0f}, levels={d.signal_levels}")[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     snap = getattr(d, "snapshot", None) if d is not None else None[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     check([0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         "GreekExposureDashboard",[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         d is not None and len(getattr(d, "signal_levels", []) or []) > 0,[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         f"Delta={getattr(snap, 'delta', 0):,.0f}, levels={getattr(d, 'signal_levels', [])}",[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m     )[0m[0m
+
+
+[2m─── system_health_check.py:152-152 ───[0m
+[94m[bug · low][0m Inconsistent None default in diagnostic message: `hc.get('all_constraints_met')` is
+called without a default in the f-string, so when the key is missing the detail shows `硬约束=None`
+while the condition check uses `False` as the default. This makes the output confusing and
+inconsistent.
+
+[91m[48;2;70;0;0m-[0m[48;2;70;0;0m         f"保守年化={conservative.get('total_annual_return', 0):+.2%}, 硬约束={hc.get('all_constraints_met')}",[0m[0m
+[92m[48;2;0;60;0m+[0m[48;2;0;60;0m         f"保守年化={conservative.get('total_annual_return', 0):+.2%}, 硬约束={hc.get('all_constraints_met', False)}",[0m[0m
+

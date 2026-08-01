@@ -33,7 +33,7 @@ def test_1_optuna_train_f1_removal():
     assert 'best_f1_cv' in result, "PASS: best_f1_cv in results"
     assert 'train_auc' in result, "PASS: train_auc in results"
     
-    print(f"PASS: train_f1 successfully removed")
+    print("PASS: train_f1 successfully removed")
     print(f"   Result keys: {list(result.keys())}")
     
     return True
@@ -62,7 +62,7 @@ def test_2_dynamic_target_return():
     
     result = calculator.calculate_from_history(daily_returns)
     
-    print(f"Dynamic target return calculated successfully:")
+    print("Dynamic target return calculated successfully:")
     print(f"   Risk-free rate: {result.risk_free_rate:.2%}")
     print(f"   Market risk premium: {result.market_risk_premium:.2%}")
     print(f"   Sharpe ratio: {result.sharpe_ratio:.2f}")
@@ -123,7 +123,7 @@ def test_4_parameter_sensitivity():
     result = analyzer.run_local_sensitivity()
     analyzer.print_summary()
     
-    print(f"PASS:")
+    print("PASS:")
     print(f"   Overall stability score: {result.overall_stability_score:.2f}/100")
     print(f"   Recommendation: {result.recommendation}")
     
@@ -156,7 +156,7 @@ def test_5_cagr_decay_detection():
     result = detector.detect()
     detector.print_summary()
     
-    print(f"PASS:")
+    print("PASS:")
     print(f"   First half CAGR: {result.first_half_cagr:.2%}")
     print(f"   Second half CAGR: {result.second_half_cagr:.2%}")
     print(f"   Decay rate: {result.decay_rate:.1%}")
@@ -187,7 +187,7 @@ def main():
             results.append((test_name, passed))
         except Exception as e:
             print(f"\nFAIL: {test_name}")
-            print(f"   Error: {str(e)}")
+            print(f"   Error: {e!s}")
             import traceback
             traceback.print_exc()
             results.append((test_name, False))

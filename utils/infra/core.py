@@ -35,6 +35,7 @@ API:
     - HC-1: 不破坏 V9 基线 (默认 False, flag 关闭时旧路径仍可用)
     - HC-5: ConfigManager 4 级优先级解析不可绕过
 """
+
 from __future__ import annotations
 
 import functools
@@ -45,7 +46,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from threading import RLock
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -62,6 +63,7 @@ logger = logging.getLogger("strategy_registry")
 @dataclass
 class StrategyMetadata:
     """策略元数据 (注册时由调用方提供)."""
+
     name: str
     strategy_class: Type[Any]
     description: str = ""
@@ -76,6 +78,7 @@ class StrategyMetadata:
 @dataclass
 class PerformanceRecord:
     """性能追踪记录 (装饰器自动维护)."""
+
     strategy_name: str
     call_count: int = 0
     errors_count: int = 0
@@ -120,7 +123,10 @@ class PerformanceRecord:
         return self.max_latency_ms
 
     def to_dict(self) -> Dict[str, Any]:
-        """转为字典 (持久化用)."""
+        """转为字典 (持久化用).
+
+        所有 float 字段统一舍入到 3 位小数, 保证输出一致性.
+        """
         return {
             "strategy_name": self.strategy_name,
             "call_count": self.call_count,
@@ -129,23 +135,23 @@ class PerformanceRecord:
             "last_call_ts": self.last_call_ts,
             "avg_latency_ms": round(self.avg_latency_ms, 3),
             "p99_latency_ms": round(self.p99_latency_ms, 3),
-            "pnl_total": self.pnl_total,
-            "pnl_pct": self.pnl_pct,
-            "sharpe_ratio": self.sharpe_ratio,
-            "max_drawdown": self.max_drawdown,
-            "sortino_ratio": self.sortino_ratio,
-            "calmar_ratio": self.calmar_ratio,
-            "win_rate": self.win_rate,
-            "profit_factor": self.profit_factor,
-            "var_95": self.var_95,
-            "var_99": self.var_99,
-            "volatility": self.volatility,
-            "beta_to_market": self.beta_to_market,
-            "information_ratio": self.information_ratio,
-            "tracking_error": self.tracking_error,
-            "ic_mean": self.ic_mean,
-            "ic_ir": self.ic_ir,
-            "turnover": self.turnover,
+            "pnl_total": round(self.pnl_total, 3),
+            "pnl_pct": round(self.pnl_pct, 3),
+            "sharpe_ratio": round(self.sharpe_ratio, 3),
+            "max_drawdown": round(self.max_drawdown, 3),
+            "sortino_ratio": round(self.sortino_ratio, 3),
+            "calmar_ratio": round(self.calmar_ratio, 3),
+            "win_rate": round(self.win_rate, 3),
+            "profit_factor": round(self.profit_factor, 3),
+            "var_95": round(self.var_95, 3),
+            "var_99": round(self.var_99, 3),
+            "volatility": round(self.volatility, 3),
+            "beta_to_market": round(self.beta_to_market, 3),
+            "information_ratio": round(self.information_ratio, 3),
+            "tracking_error": round(self.tracking_error, 3),
+            "ic_mean": round(self.ic_mean, 3),
+            "ic_ir": round(self.ic_ir, 3),
+            "turnover": round(self.turnover, 3),
             "is_degraded": self.is_degraded,
             "degradation_reason": self.degradation_reason,
         }
@@ -224,9 +230,7 @@ class StrategyRegistry:
         """
         with self._lock:
             if name in self._metadata and not overwrite:
-                raise StrategyAlreadyRegisteredError(
-                    f"策略 '{name}' 已注册, overwrite=False 阻止覆盖"
-                )
+                raise StrategyAlreadyRegisteredError(f"策略 '{name}' 已注册, overwrite=False 阻止覆盖")
 
             meta_dict = metadata or {}
             self._metadata[name] = StrategyMetadata(
@@ -246,12 +250,16 @@ class StrategyRegistry:
             self._perf_records[name] = PerformanceRecord(strategy_name=name)
             self._perf_locks[name] = RLock()
 
-            self._audit_log("register", name, {
-                "class": strategy_class.__name__,
-                "module": getattr(strategy_class, "__module__", ""),
-                "overwrite": overwrite,
-                "metadata": meta_dict,
-            })
+            self._audit_log(
+                "register",
+                name,
+                {
+                    "class": strategy_class.__name__,
+                    "module": getattr(strategy_class, "__module__", ""),
+                    "overwrite": overwrite,
+                    "metadata": meta_dict,
+                },
+            )
             logger.info(f"策略已注册: {name} -> {strategy_class.__name__}")
 
     def unregister(self, name: str) -> bool:
@@ -288,7 +296,7 @@ class StrategyRegistry:
                 meta = self._metadata[name]
                 try:
                     self._instances[name] = meta.strategy_class()
-                except Exception as e:
+                except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                     logger.error(f"策略实例化失败: {name}, error={e}")
                     raise
             return self._instances[name]
@@ -362,10 +370,7 @@ class StrategyRegistry:
     def snapshot(self) -> Dict[str, Any]:
         """全量快照 (供 bootstrap.dump 使用)."""
         with self._lock:
-            return {
-                name: self.get_state(name)
-                for name in self._metadata
-            }
+            return {name: self.get_state(name) for name in self._metadata}
 
     def clear(self) -> None:
         """清空所有注册 (仅测试用)."""
@@ -430,7 +435,7 @@ class StrategyRegistry:
         """
         try:
             import numpy as np
-            from scipy.stats import spearmanr  # type: ignore[import-untyped]
+            from scipy.stats import spearmanr
 
             if len(factor_values) == 0 or len(forward_returns) == 0:
                 return
@@ -442,15 +447,32 @@ class StrategyRegistry:
             if len(factor_arr) == len(return_arr) and len(factor_arr) > 1:
                 ic = float(np.corrcoef(factor_arr, return_arr)[0, 1])
                 ic_rank = float(spearmanr(factor_arr, return_arr).correlation)
-                self.update_metrics(name, {
-                    "ic_mean": ic,
-                    "ic_ir": ic,  # 单次 IC_IR 近似为 IC (滚动 IC_IR 由策略自行计算)
-                })
+                self.update_metrics(
+                    name,
+                    {
+                        "ic_mean": ic,
+                        "ic_ir": ic,  # 单次 IC_IR 近似为 IC (滚动 IC_IR 由策略自行计算)
+                    },
+                )
                 logger.debug(f"策略 {name} IC 更新: ic={ic:.4f}, ic_rank={ic_rank:.4f}")
         except ImportError:
             logger.warning("scipy 未安装, IC 计算跳过")
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                "Alpha 指标计算数据无效: strategy=%s, factor_len=%d, return_len=%d, error=%s",
+                name,
+                len(factor_values),
+                len(forward_returns),
+                e,
+            )
         except Exception as e:
-            logger.warning(f"Alpha 指标更新失败: {name}, error={e}")
+            logger.error(
+                "Alpha 指标更新失败: strategy=%s, factor_len=%d, return_len=%d, error=%s",
+                name,
+                len(factor_values),
+                len(forward_returns),
+                e,
+            )
 
     def get_performance(self, name: str) -> PerformanceRecord:
         """获取策略性能记录."""
@@ -478,9 +500,7 @@ class StrategyRegistry:
         """
 
         def decorator(strategy_class: Type[Any]) -> Type[Any]:
-            cls.get_instance().register(
-                name, strategy_class, metadata=metadata, overwrite=overwrite
-            )
+            cls.get_instance().register(name, strategy_class, metadata=metadata, overwrite=overwrite)
             return strategy_class
 
         return decorator
@@ -501,7 +521,7 @@ class StrategyRegistry:
             }
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"审计日志写入失败: {e}")
 
 
@@ -540,16 +560,25 @@ def track_performance(
         def generate_signals(context):
             ...
     """
+    # 装饰时预导入 FeatureFlags (避免热路径每次调用都 import)
+    _FeatureFlags = None
+    try:
+        from utils.infra.feature_flags import FeatureFlags as _FF
+
+        _FeatureFlags = _FF
+    except Exception:  # P2 模块 fail-safe, 待后续精确化
+        pass
+
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # flag 检查 (每次调用, 因为 flag 可能热切换)
+            # 轻量级 flag 检查 (预导入的类直接调用, 不重复 import)
+            if _FeatureFlags is None:
+                return func(*args, **kwargs)
             try:
-                from utils.infra.feature_flags import FeatureFlags
-                if not FeatureFlags.get_instance().is_enabled("USE_INTEGRATED_CORE_REGISTRY"):
-                    return func(*args, **kwargs)  # 零开销透传
-            except Exception:
-                # FeatureFlags 加载失败, 默认透传 (不阻塞业务)
+                if not _FeatureFlags.get_instance().is_enabled("USE_INTEGRATED_CORE_REGISTRY"):
+                    return func(*args, **kwargs)
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 return func(*args, **kwargs)
 
             # flag 开启: 记录性能
@@ -559,7 +588,7 @@ def track_performance(
             try:
                 result = func(*args, **kwargs)
                 return result
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 success = False
                 error_msg = f"{type(e).__name__}: {e}"
                 raise
@@ -572,11 +601,8 @@ def track_performance(
                         success=success,
                         error_msg=error_msg,
                     )
-                except Exception as record_err:
-                    logger.warning(
-                        f"性能记录失败 (不影响业务): strategy={strategy_name}, "
-                        f"error={record_err}"
-                    )
+                except Exception as record_err:  # P2 模块 fail-safe, 待后续精确化
+                    logger.warning(f"性能记录失败 (不影响业务): strategy={strategy_name}, error={record_err}")
 
         return wrapper
 
@@ -587,11 +613,11 @@ def track_performance(
 # 公共 API
 # ============================================================
 __all__ = [
-    "StrategyRegistry",
-    "StrategyMetadata",
     "PerformanceRecord",
-    "StrategyNotFoundError",
     "StrategyAlreadyRegisteredError",
-    "track_performance",
+    "StrategyMetadata",
+    "StrategyNotFoundError",
+    "StrategyRegistry",
     "registry",
+    "track_performance",
 ]

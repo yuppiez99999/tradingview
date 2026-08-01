@@ -30,7 +30,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -89,16 +89,16 @@ def print_baseline_summary() -> int:
     with open(bt_path, "r", encoding="utf-8") as f:
         bt = json.load(f)
 
-    print("=" * 72)
-    print("V9 Regime-Specific LGB 生产基线摘要")
-    print("=" * 72)
-    print(f"LOCK 文件:           {BASELINE_LOCK_FILE}")
-    print(f"基线 commit hash:    {lock.get('commit_hash', '?')}")
-    print(f"基线 commit 主题:    {lock.get('commit_subject', '?')}")
-    print(f"基线 commit 时间:    {lock.get('commit_time', '?')}")
-    print(f"锁定日期:            {lock.get('lock_date', '?')}")
+    logger.info("=" * 72)
+    logger.info("V9 Regime-Specific LGB 生产基线摘要")
+    logger.info("=" * 72)
+    logger.info(f"LOCK 文件:           {BASELINE_LOCK_FILE}")
+    logger.info(f"基线 commit hash:    {lock.get('commit_hash', '?')}")
+    logger.info(f"基线 commit 主题:    {lock.get('commit_subject', '?')}")
+    logger.info(f"基线 commit 时间:    {lock.get('commit_time', '?')}")
+    logger.info(f"锁定日期:            {lock.get('lock_date', '?')}")
     print()
-    print("基线评估指标 (Bailey & Lopez de Prado 2014 标准公式):")
+    logger.info("基线评估指标 (Bailey & Lopez de Prado 2014 标准公式):")
     print(f"  DSR max_pass:      {dsr.get('max_pass', '?')} "
           f"(旧公式: {dsr.get('max_pass_old_formula', '?')}, "
           f"阈值: >=5)")
@@ -111,17 +111,17 @@ def print_baseline_summary() -> int:
           f"阈值: <1.0)")
     print(f"  胜率:              {dsr.get('win_rate', 0)*100:.2f}% "
           f"(额外阈值: >=60%)")
-    print(f"  年化 Sharpe:       {dsr.get('sharpe_annual', 0):.4f}")
-    print(f"  样本数 (月):       {dsr.get('n_months', '?')}")
-    print(f"  all_pass:          {dsr.get('all_pass', '?')}")
+    logger.info(f"  年化 Sharpe:       {dsr.get('sharpe_annual', 0):.4f}")
+    logger.info(f"  样本数 (月):       {dsr.get('n_months', '?')}")
+    logger.info(f"  all_pass:          {dsr.get('all_pass', '?')}")
     print()
-    print("回测元信息:")
-    print(f"  回测周期:          {bt.get('period', '?')}")
-    print(f"  标的数:            {len(bt.get('symbols', []))}")
-    print(f"  月度记录数:        {len(bt.get('records', []))}")
-    print(f"  回测 JSON:         {bt_path}")
-    print(f"  DSR JSON:          {dsr_path}")
-    print("=" * 72)
+    logger.info("回测元信息:")
+    logger.info(f"  回测周期:          {bt.get('period', '?')}")
+    logger.info(f"  标的数:            {len(bt.get('symbols', []))}")
+    logger.info(f"  月度记录数:        {len(bt.get('records', []))}")
+    logger.info(f"  回测 JSON:         {bt_path}")
+    logger.info(f"  DSR JSON:          {dsr_path}")
+    logger.info("=" * 72)
     return 0
 
 

@@ -50,7 +50,7 @@ class TestAlphaFactorLibrary(unittest.TestCase):
 
     def test_module_import(self):
         """测试模块可导入"""
-        from utils.alpha_factor_library import AlphaFactorLibrary, FactorLibraryResult
+        from utils.alpha_factor_library import AlphaFactorLibrary
         self.assertTrue(callable(AlphaFactorLibrary))
 
     def test_factor_computation(self):
@@ -99,7 +99,7 @@ class TestMomentumReversalEngine(unittest.TestCase):
         )
 
     def test_module_import(self):
-        from utils.momentum_reversal_engine import MomentumReversalEngine, MomentumResult
+        from utils.momentum_reversal_engine import MomentumReversalEngine
         self.assertTrue(callable(MomentumReversalEngine))
 
     def test_signal_generation(self):
@@ -144,7 +144,7 @@ class TestSmartBetaEngine(unittest.TestCase):
         cls.cov_matrix = np.eye(len(cls.symbols)) * 0.04
 
     def test_module_import(self):
-        from utils.smart_beta_engine import SmartBetaEngine, SmartBetaResult
+        from utils.smart_beta_engine import SmartBetaEngine
         self.assertTrue(callable(SmartBetaEngine))
 
     def test_optimization(self):

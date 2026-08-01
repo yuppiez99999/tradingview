@@ -6,12 +6,13 @@ P0 修复:
 2. 信号间相关性矩阵建模 — 去冗余, 防隐式杠杆
 3. IC_IR 加权 (IC 均值 / IC 标准差), 非简单命中率
 """
+
 import numpy as np
 import pandas as pd
 import logging
 from typing import Optional, List, Dict, Tuple
 from datetime import datetime
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from collections import deque
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ICRecord:
     """单次 IC 记录"""
+
     date: pd.Timestamp
     signal_name: str
     rank_ic: float
@@ -44,9 +46,7 @@ class SignalFusion:
     - IC_IR: IC均值/IC标准差, 衡量信号稳定性
     """
 
-    def __init__(self, weights: Optional[Dict[str, float]] = None,
-                 ic_lookback: int = 20,
-                 min_ic_samples: int = 5):
+    def __init__(self, weights: Optional[Dict[str, float]] = None, ic_lookback: int = 20, min_ic_samples: int = 5):
         """
         Args:
             weights: 各信号源初始权重
@@ -54,12 +54,12 @@ class SignalFusion:
             min_ic_samples: 最少 IC 样本数才启用动态权重
         """
         self.weights = weights or {
-            'alpha': 0.45,
-            'ml': 0.10,
-            'qlib': 0.10,
-            'ai': 0.05,
-            'macro': 0.25,
-            'causal': 0.05,
+            "alpha": 0.45,
+            "ml": 0.10,
+            "qlib": 0.10,
+            "ai": 0.05,
+            "macro": 0.25,
+            "causal": 0.05,
         }
         self._normalize_weights()
         self._signals: Dict[str, pd.Series] = {}
@@ -106,6 +106,7 @@ class SignalFusion:
 
         # Spearman rank IC
         from scipy.stats import spearmanr
+
         rank_ic, _ = spearmanr(s.values, r.values)
         if np.isnan(rank_ic):
             rank_ic = 0.0
@@ -139,7 +140,7 @@ class SignalFusion:
             result = self._compute_rank_ic(signal, self._forward_returns)
             if result is not None:
                 rank_ic, sign_ic = result
-                latest_date = signal.index[-1] if hasattr(signal.index, '__getitem__') else None
+                latest_date = signal.index[-1] if hasattr(signal.index, "__getitem__") else None
                 self._ic_history[name].append((latest_date, rank_ic, sign_ic))
 
     def _compute_signal_correlation(self) -> pd.DataFrame:
@@ -149,7 +150,7 @@ class SignalFusion:
 
         # 对齐所有信号
         signals_df = pd.DataFrame(self._signals)
-        return signals_df.corr(method='spearman')
+        return signals_df.corr(method="spearman")
 
     def _compute_ic_ir(self, signal_name: str) -> float:
         """计算信号的 IC 信息比率 = IC均值 / IC标准差
@@ -214,8 +215,9 @@ class SignalFusion:
                 if name not in corr_matrix.columns:
                     continue
                 # 计算与其他信号的平均相关性
-                other_corrs = [corr_matrix.loc[name, o] for o in self._signals
-                               if o != name and o in corr_matrix.columns]
+                other_corrs = [
+                    corr_matrix.loc[name, o] for o in self._signals if o != name and o in corr_matrix.columns
+                ]
                 if other_corrs:
                     avg_corr = np.mean(other_corrs)
                     # 高相关 → 降权 (相关 0.8 → 降 40%)
@@ -238,22 +240,22 @@ class SignalFusion:
         return adjusted
 
     # ---------- 信号注入 ----------
-    def inject_alpha_signal(self, signal: pd.Series, name: str = 'alpha') -> None:
+    def inject_alpha_signal(self, signal: pd.Series, name: str = "alpha") -> None:
         self._signals[name] = signal
 
-    def inject_ml_signal(self, signal: pd.Series, name: str = 'ml') -> None:
+    def inject_ml_signal(self, signal: pd.Series, name: str = "ml") -> None:
         self._signals[name] = signal
 
-    def inject_ai_signal(self, signal: pd.Series, source: str = 'ai') -> None:
+    def inject_ai_signal(self, signal: pd.Series, source: str = "ai") -> None:
         self._signals[source] = signal
 
-    def inject_macro_signal(self, signal: pd.Series, source: str = 'macro') -> None:
+    def inject_macro_signal(self, signal: pd.Series, source: str = "macro") -> None:
         self._signals[source] = signal
 
-    def inject_causal_signal(self, signal: pd.Series, source: str = 'causal') -> None:
+    def inject_causal_signal(self, signal: pd.Series, source: str = "causal") -> None:
         self._signals[source] = signal
 
-    def inject_qlib_signal(self, signal: pd.Series, name: str = 'qlib') -> None:
+    def inject_qlib_signal(self, signal: pd.Series, name: str = "qlib") -> None:
         """v7.5 + Qlib 集成：注入 Qlib 模型预测信号"""
         self._signals[name] = signal
 
@@ -261,7 +263,7 @@ class SignalFusion:
         self._signals[name] = signal
 
     # ---------- 融合 ----------
-    def fuse(self, method: str = 'weighted') -> pd.Series:
+    def fuse(self, method: str = "weighted") -> pd.Series:
         """
         信号融合
 
@@ -275,11 +277,11 @@ class SignalFusion:
             logger.warning("无信号可融合")
             return pd.Series(0.0, index=[0])
 
-        if method == 'weighted':
+        if method == "weighted":
             return self._fuse_weighted()
-        elif method == 'vote':
+        elif method == "vote":
             return self._fuse_vote()
-        elif method == 'dynamic':
+        elif method == "dynamic":
             return self._fuse_dynamic()
         else:
             logger.warning(f"未知融合方法 {method}，使用加权平均")
@@ -308,13 +310,15 @@ class SignalFusion:
         fused = sum(s.reindex(common_idx).fillna(0) for s in all_signals)
 
         # 记录
-        self._fusion_history.append({
-            'method': 'weighted',
-            'ts': datetime.now().isoformat(),
-            'signal_mean': float(fused.mean()),
-            'signal_std': float(fused.std()),
-            'weight_used': dict(self.weights)
-        })
+        self._fusion_history.append(
+            {
+                "method": "weighted",
+                "ts": datetime.now().isoformat(),
+                "signal_mean": float(fused.mean()),
+                "signal_std": float(fused.std()),
+                "weight_used": dict(self.weights),
+            }
+        )
 
         return fused
 
@@ -325,7 +329,8 @@ class SignalFusion:
 
         # 对齐（只保留有权重的信号，避免空信号浪费计算）
         sig_list = [
-            signal for name, signal in self._signals.items()
+            signal
+            for name, signal in self._signals.items()
             if self.weights.get(name, 0.0) > 0 and signal is not None and len(signal) > 0
         ]
         if not sig_list:
@@ -344,8 +349,7 @@ class SignalFusion:
         positive_votes = (signs > 0).sum(axis=0)
         negative_votes = (signs < 0).sum(axis=0)
 
-        result = np.where(positive_votes > vote_threshold, 1.0,
-                          np.where(negative_votes > vote_threshold, -1.0, 0.0))
+        result = np.where(positive_votes > vote_threshold, 1.0, np.where(negative_votes > vote_threshold, -1.0, 0.0))
         return pd.Series(result, index=common_idx)
 
     def _fuse_dynamic(self) -> pd.Series:
@@ -389,33 +393,34 @@ class SignalFusion:
             history = self._ic_history.get(name, [])
             ics = [h[1] for h in history] if history else []
             ic_info[name] = {
-                'ic_ir': round(ir, 4),
-                'mean_ic': round(float(np.mean(ics)), 4) if ics else None,
-                'std_ic': round(float(np.std(ics)), 4) if ics else None,
-                'n_samples': len(ics),
+                "ic_ir": round(ir, 4),
+                "mean_ic": round(float(np.mean(ics)), 4) if ics else None,
+                "std_ic": round(float(np.std(ics)), 4) if ics else None,
+                "n_samples": len(ics),
             }
 
         return {
-            'weights': dict(self.weights),
-            'dynamic_weights': dict(self._last_dynamic_weights) if self._last_dynamic_weights else None,
-            'ic_info': ic_info,
-            'signal_correlation': self._compute_signal_correlation().round(3).to_dict() if len(self._signals) > 1 else None,
-            'signals': {name: {'mean': float(s.mean()), 'std': float(s.std())}
-                        for name, s in self._signals.items()},
-            'fusion_history': self._fusion_history[-5:] if self._fusion_history else [],
+            "weights": dict(self.weights),
+            "dynamic_weights": dict(self._last_dynamic_weights) if self._last_dynamic_weights else None,
+            "ic_info": ic_info,
+            "signal_correlation": self._compute_signal_correlation().round(3).to_dict()
+            if len(self._signals) > 1
+            else None,
+            "signals": {name: {"mean": float(s.mean()), "std": float(s.std())} for name, s in self._signals.items()},
+            "fusion_history": self._fusion_history[-5:] if self._fusion_history else [],
         }
 
     # ---------- 宏观 / 康波 ----------
-    def apply_kondratieff_filter(self, signal: pd.Series, cycle_phase: str = 'neutral') -> pd.Series:
+    def apply_kondratieff_filter(self, signal: pd.Series, cycle_phase: str = "neutral") -> pd.Series:
         """
         康波周期过滤（继承 v7.4）
         - 'expansion': 放大做多信号，衰减做空信号
         - 'recession': 衰减做多信号，放大做空信号
         - 'neutral': 不变
         """
-        if cycle_phase == 'expansion':
+        if cycle_phase == "expansion":
             return signal * np.where(signal > 0, 1.2, 0.8)
-        elif cycle_phase == 'recession':
+        elif cycle_phase == "recession":
             return signal * np.where(signal < 0, 1.2, 0.8)
         else:
             return signal

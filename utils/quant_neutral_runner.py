@@ -43,32 +43,34 @@
         ic_price=5500.0,
     )
 """
+
 from __future__ import annotations
 
 import json
 import logging
-import math
 from dataclasses import dataclass, field, asdict
-from datetime import date, datetime, timedelta
+from datetime import date
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger("quant_neutral")
 
 try:
     from utils.ic_hedge_calculator import ICHedgeCalculator, ICHedgeResult
     from utils.v10_config_loader import V10ConfigLoader
+
     _HAS_DEPS = True
 except ImportError as e:
     logger.warning(f"量化中性依赖缺失 (降级模式): {e}")
-    ICHedgeCalculator = None
-    ICHedgeResult = None
-    V10ConfigLoader = None
+    ICHedgeCalculator = None  # type: ignore[assignment,misc]
+    ICHedgeResult = None  # type: ignore[assignment,misc]
+    V10ConfigLoader = None  # type: ignore[assignment,misc]
     _HAS_DEPS = False
 
 try:
-    import numpy as np
+    import numpy as np  # noqa: F401
     import pandas as pd
+
     _HAS_PANDAS = True
 except ImportError:
     _HAS_PANDAS = False
@@ -91,10 +93,16 @@ DEFAULT_FACTOR_WEIGHTS = {
 }
 
 DEFAULT_LONG_COUNT = 25
-DEFAULT_TURNOVER_TARGET = 1.5       # 月换手率 150%
+DEFAULT_TURNOVER_TARGET = 1.5  # 月换手率 150%
 DEFAULT_MAX_NET_EXPOSURE = 0.10
 DEFAULT_TARGET_BETA = 0.05
-DEFAULT_MAX_DRAWDOWN = 0.08
+# B1.3: 中性策略专属阈值 (策略文档: "策略最大回撤: 8%")
+# 从 config/risk_params.yaml::quant_neutral_max_drawdown 读取 (fail-safe 兜底 0.08)
+try:
+    from utils.risk_params import get_quant_neutral_max_drawdown as _get_qn_max_drawdown
+    DEFAULT_MAX_DRAWDOWN = _get_qn_max_drawdown()
+except Exception as e:
+    DEFAULT_MAX_DRAWDOWN = 0.08
 DEFAULT_SHARPE_TARGET = 1.2
 DEFAULT_BASIS_THRESHOLD = 0.015
 
@@ -102,20 +110,22 @@ DEFAULT_BASIS_THRESHOLD = 0.015
 @dataclass
 class StockFactorScore:
     """单只股票的因子打分结果"""
+
     code: str
     name: str = ""
     factors: Dict[str, float] = field(default_factory=dict)
-    composite: float = 0.0          # 综合得分 [-1, 1]
-    rank: int = 0                    # 排名
-    selected: bool = False          # 是否选入多头组合
-    beta: float = 1.0                # 个股 beta (用于组合 beta 加权计算)
+    composite: float = 0.0  # 综合得分 [-1, 1]
+    rank: int = 0  # 排名
+    selected: bool = False  # 是否选入多头组合
+    beta: float = 1.0  # 个股 beta (用于组合 beta 加权计算)
 
 
 @dataclass
 class QuantNeutralResult:
     """月度调仓结果"""
+
     trade_date: str = ""
-    action: str = ""                  # rebalance / skip / pause
+    action: str = ""  # rebalance / skip / pause
     reason: str = ""
     long_count: int = 0
     long_market_value: float = 0.0
@@ -128,9 +138,9 @@ class QuantNeutralResult:
     ic_hedge: Dict[str, Any] = field(default_factory=dict)
     # 风控状态
     drawdown_pct: float = 0.0
-    drawdown_action: str = ""        # normal / reduce_half / pause
+    drawdown_action: str = ""  # normal / reduce_half / pause
     basis_warning: bool = False
-    turnover_achieved: float = 0.0   # 实际换手率
+    turnover_achieved: float = 0.0  # 实际换手率
     # 元数据
     factors_used: Dict[str, float] = field(default_factory=dict)
     candidate_count: int = 0
@@ -179,7 +189,7 @@ class QuantNeutralRunner:
         if ICHedgeCalculator is not None:
             self.ic_calc = ICHedgeCalculator()
         else:
-            self.ic_calc = None
+            self.ic_calc = None  # type: ignore
 
         # v10.0 配置覆盖 (若可用)
         if V10ConfigLoader is not None:
@@ -198,7 +208,7 @@ class QuantNeutralRunner:
                     self.turnover_target = float(cfg.get("turnover_target_monthly", self.turnover_target))
                     if "factors" in cfg:
                         self.factor_weights = cfg["factors"]
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"v10.0 配置加载失败, 使用默认值: {e}")
 
         logger.info(
@@ -244,7 +254,7 @@ class QuantNeutralRunner:
         scores: List[StockFactorScore] = []
 
         # 1. 提取各因子值, 计算截面排名
-        codes = [s.get("code", "") for s in candidate_universe]
+        [s.get("code", "") for s in candidate_universe]
         factor_columns = list(self.factor_weights.keys())
 
         # 构建 DataFrame (若 pandas 可用)
@@ -291,13 +301,15 @@ class QuantNeutralRunner:
                     stock_beta = float(row.get("beta", 1.0)) if hasattr(row, "get") else 1.0
                 except (TypeError, ValueError):
                     stock_beta = 1.0
-                scores.append(StockFactorScore(
-                    code=str(code),
-                    name=str(row.get("name", "")) if hasattr(row, "get") else "",
-                    factors=factors,
-                    composite=float(composite),
-                    beta=stock_beta,
-                ))
+                scores.append(
+                    StockFactorScore(
+                        code=str(code),
+                        name=str(row.get("name", "")) if hasattr(row, "get") else "",
+                        factors=factors,
+                        composite=float(composite),
+                        beta=stock_beta,
+                    )
+                )
         else:
             # 无 pandas, 使用简单排名
             for stock in candidate_universe:
@@ -313,13 +325,15 @@ class QuantNeutralRunner:
                     stock_beta = float(stock.get("beta", 1.0))
                 except (TypeError, ValueError):
                     stock_beta = 1.0
-                scores.append(StockFactorScore(
-                    code=code,
-                    name=stock.get("name", ""),
-                    factors=factors,
-                    composite=float(composite),
-                    beta=stock_beta,
-                ))
+                scores.append(
+                    StockFactorScore(
+                        code=code,
+                        name=stock.get("name", ""),
+                        factors=factors,
+                        composite=float(composite),
+                        beta=stock_beta,
+                    )
+                )
 
         # 2. 排序
         scores.sort(key=lambda x: x.composite, reverse=True)
@@ -331,7 +345,7 @@ class QuantNeutralRunner:
         # 4. 选前 long_count 只
         top_n = min(self.long_count, len(scores))
         for i, s in enumerate(scores):
-            s.selected = (i < top_n)
+            s.selected = i < top_n
 
         return scores
 
@@ -383,11 +397,8 @@ class QuantNeutralRunner:
         if total_weight == 0:
             return 1.0  # 默认 1.0
 
-        weighted_beta = sum(
-            p.get("weight", 0) * p.get("beta", 1.0)
-            for p in long_positions
-        )
-        return weighted_beta / total_weight
+        weighted_beta = sum(p.get("weight", 0) * p.get("beta", 1.0) for p in long_positions)
+        return weighted_beta / total_weight  # type: ignore
 
     # ------------------------------------------------------------
     # 月度调仓主流程
@@ -434,8 +445,7 @@ class QuantNeutralRunner:
         if consecutive_overdrawdown_months >= 3:
             result.action = "pause"
             result.reason = (
-                f"策略连续 {consecutive_overdrawdown_months} 月回撤超限, "
-                "暂停 1 个月, 平仓所有多头和 IC 空头"
+                f"策略连续 {consecutive_overdrawdown_months} 月回撤超限, 暂停 1 个月, 平仓所有多头和 IC 空头"
             )
             result.drawdown_action = "pause"
             result.drawdown_pct = strategy_drawdown_pct
@@ -447,8 +457,8 @@ class QuantNeutralRunner:
             result.drawdown_action = "reduce_half"
             result.drawdown_pct = strategy_drawdown_pct
             logger.warning(
-                f"[QuantNeutral] 月度回撤 {strategy_drawdown_pct*100:.2f}% "
-                f"> 95% 分位 {strategy_history_95pct_drawdown*100:.2f}%, 仓位减半"
+                f"[QuantNeutral] 月度回撤 {strategy_drawdown_pct * 100:.2f}% "
+                f"> 95% 分位 {strategy_history_95pct_drawdown * 100:.2f}%, 仓位减半"
             )
             # 仓位减半: 多头目标市值减半
             self.target_long_value_adjusted = self.target_long_value * 0.5
@@ -461,7 +471,7 @@ class QuantNeutralRunner:
         if strategy_drawdown_pct > self.max_drawdown:
             result.action = "pause"
             result.reason = (
-                f"策略回撤 {strategy_drawdown_pct*100:.2f}% > 最大回撤 {self.max_drawdown*100:.0f}%, "
+                f"策略回撤 {strategy_drawdown_pct * 100:.2f}% > 最大回撤 {self.max_drawdown * 100:.0f}%, "
                 "强制暂停, 平仓所有头寸"
             )
             return self._generate_pause_order(result, current_holdings, current_ic_contracts, ic_price, trade_date)
@@ -470,8 +480,7 @@ class QuantNeutralRunner:
         if basis is not None and basis > DEFAULT_BASIS_THRESHOLD:
             result.basis_warning = True
             logger.warning(
-                f"[QuantNeutral] IC 基差贴水 {basis*100:.2f}%, "
-                f"减少中性策略仓位 30%, 转向 ETF + 个股直接组合"
+                f"[QuantNeutral] IC 基差贴水 {basis * 100:.2f}%, 减少中性策略仓位 30%, 转向 ETF + 个股直接组合"
             )
             # 减少 30% 多头目标
             self.target_long_value_adjusted *= 0.7
@@ -510,7 +519,9 @@ class QuantNeutralRunner:
             result.net_exposure = ic_result.net_exposure
         else:
             # 降级模式: 简单计算
-            contracts = max(1, min(3, int(result.long_market_value * (portfolio_beta - self.target_beta) / (200 * ic_price))))
+            contracts = max(
+                1, min(3, int(result.long_market_value * (portfolio_beta - self.target_beta) / (200 * ic_price)))
+            )
             result.ic_hedge = {
                 "action": "open_short",
                 "symbol": "IC",
@@ -521,7 +532,9 @@ class QuantNeutralRunner:
             result.net_exposure = portfolio_beta - contracts * 200 * ic_price / result.long_market_value
 
         # 9. 调仓指令: 当前 vs 目标
-        rebalance_order = self._build_rebalance_orders(current_holdings, long_positions, current_ic_contracts, result.ic_hedge, trade_date)
+        rebalance_order = self._build_rebalance_orders(
+            current_holdings, long_positions, current_ic_contracts, result.ic_hedge, trade_date
+        )
         result.ic_hedge["rebalance"] = rebalance_order["ic_action"]
         result.action = "rebalance"
         result.turnover_achieved = rebalance_order["turnover"]
@@ -556,16 +569,18 @@ class QuantNeutralRunner:
         for stock, score in zip(selected, adjusted_scores):
             weight = score / total_score
             amount = target_value * weight
-            positions.append({
-                "code": stock.code,
-                "name": stock.name,
-                "weight": float(weight),
-                "amount": float(amount),
-                "composite_score": float(stock.composite),
-                "rank": stock.rank,
-                "factors": stock.factors,
-                "beta": float(getattr(stock, "beta", 1.0)),
-            })
+            positions.append(
+                {
+                    "code": stock.code,
+                    "name": stock.name,
+                    "weight": float(weight),
+                    "amount": float(amount),
+                    "composite_score": float(stock.composite),
+                    "rank": stock.rank,
+                    "factors": stock.factors,
+                    "beta": float(getattr(stock, "beta", 1.0)),
+                }
+            )
 
         return positions
 
@@ -589,14 +604,16 @@ class QuantNeutralRunner:
                 if target["code"] == current.get("code"):
                     delta = target["amount"] - current.get("amount", 0)
                     if abs(delta) > 1000:
-                        to_adjust.append({
-                            "code": target["code"],
-                            "name": target.get("name", ""),
-                            "current_amount": current.get("amount", 0),
-                            "target_amount": target["amount"],
-                            "delta": delta,
-                            "action": "buy" if delta > 0 else "sell",
-                        })
+                        to_adjust.append(
+                            {
+                                "code": target["code"],
+                                "name": target.get("name", ""),
+                                "current_amount": current.get("amount", 0),
+                                "target_amount": target["amount"],
+                                "delta": delta,
+                                "action": "buy" if delta > 0 else "sell",
+                            }
+                        )
 
         # IC 调仓
         target_ic = ic_hedge.get("contracts", 0)
@@ -604,7 +621,12 @@ class QuantNeutralRunner:
         if ic_delta > 0:
             ic_action = {"action": "add_short", "delta": ic_delta, "from": current_ic_contracts, "to": target_ic}
         elif ic_delta < 0:
-            ic_action = {"action": "reduce_short", "delta": abs(ic_delta), "from": current_ic_contracts, "to": target_ic}
+            ic_action = {
+                "action": "reduce_short",
+                "delta": abs(ic_delta),
+                "from": current_ic_contracts,
+                "to": target_ic,
+            }
         else:
             ic_action = {"action": "hold", "from": current_ic_contracts, "to": target_ic}
 
@@ -634,14 +656,16 @@ class QuantNeutralRunner:
         """生成暂停策略的清仓指令"""
         result.long_positions = []
         for h in current_holdings:
-            result.long_positions.append({
-                "code": h.get("code"),
-                "name": h.get("name", ""),
-                "weight": 0,
-                "amount": 0,
-                "action": "sell_all",
-                "current_amount": h.get("amount", 0),
-            })
+            result.long_positions.append(
+                {
+                    "code": h.get("code"),
+                    "name": h.get("name", ""),
+                    "weight": 0,
+                    "amount": 0,
+                    "action": "sell_all",
+                    "current_amount": h.get("amount", 0),
+                }
+            )
         result.ic_hedge = {
             "action": "close_all_short",
             "symbol": "IC",
@@ -661,7 +685,7 @@ class QuantNeutralRunner:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report_data, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"[QuantNeutral] 报告已保存: {report_path}")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"[QuantNeutral] 报告保存失败: {e}")
 
     # ------------------------------------------------------------
@@ -683,13 +707,13 @@ class QuantNeutralRunner:
             f"目标 Beta: {result.target_beta:.3f}",
             f"净敞口: {result.net_exposure:.3f} (上限 {self.max_net_exposure:.2f})",
             "",
-            f"IC 对冲指令:",
+            "IC 对冲指令:",
             f"  动作: {result.ic_hedge.get('action', 'N/A')}",
             f"  合约数: {result.ic_hedge.get('contracts', 0)} 张",
             f"  价格: {result.ic_hedge.get('price', 0):.1f} 点",
             "",
             f"实际换手率: {result.turnover_achieved:.1%} (目标 {self.turnover_target:.0%})",
-            f"策略回撤: {result.drawdown_pct*100:.2f}%",
+            f"策略回撤: {result.drawdown_pct * 100:.2f}%",
             f"风控动作: {result.drawdown_action}",
         ]
 
@@ -730,31 +754,39 @@ if __name__ == "__main__":
     if args.demo:
         # 生成 50 只候选股票的示例数据
         import random
+
         random.seed(42)
         universe = []
         stock_names = [
-            ("600000.SH", "浦发银行"), ("600036.SH", "招商银行"),
-            ("601318.SH", "中国平安"), ("601398.SH", "工商银行"),
-            ("600276.SH", "恒瑞医药"), ("600900.SH", "长江电力"),
-            ("601088.SH", "中国神华"), ("600030.SH", "中信证券"),
-            ("600519.SH", "贵州茅台"), ("000858.SZ", "五粮液"),
+            ("600000.SH", "浦发银行"),
+            ("600036.SH", "招商银行"),
+            ("601318.SH", "中国平安"),
+            ("601398.SH", "工商银行"),
+            ("600276.SH", "恒瑞医药"),
+            ("600900.SH", "长江电力"),
+            ("601088.SH", "中国神华"),
+            ("600030.SH", "中信证券"),
+            ("600519.SH", "贵州茅台"),
+            ("000858.SZ", "五粮液"),
         ] * 5  # 50 只
-        for i, (code, name) in enumerate(stock_names):
-            universe.append({
-                "code": code,
-                "name": name,
-                "returns_20d": random.uniform(-0.1, 0.15),
-                "returns_5d": random.uniform(-0.05, 0.05),
-                "volatility_60d": random.uniform(0.15, 0.45),
-                "avg_turnover_amount": random.uniform(10_000_000, 200_000_000),
-                "roe": random.uniform(0.05, 0.25),
-                "cashflow_ratio": random.uniform(0.5, 1.2),
-                "revenue_growth": random.uniform(-0.1, 0.4),
-                "profit_growth": random.uniform(-0.15, 0.5),
-                "pe_percentile": random.uniform(0.1, 0.9),
-                "pb_percentile": random.uniform(0.1, 0.9),
-                "beta": random.uniform(0.6, 1.3),
-            })
+        for _i, (code, name) in enumerate(stock_names):
+            universe.append(
+                {
+                    "code": code,
+                    "name": name,
+                    "returns_20d": random.uniform(-0.1, 0.15),
+                    "returns_5d": random.uniform(-0.05, 0.05),
+                    "volatility_60d": random.uniform(0.15, 0.45),
+                    "avg_turnover_amount": random.uniform(10_000_000, 200_000_000),
+                    "roe": random.uniform(0.05, 0.25),
+                    "cashflow_ratio": random.uniform(0.5, 1.2),
+                    "revenue_growth": random.uniform(-0.1, 0.4),
+                    "profit_growth": random.uniform(-0.15, 0.5),
+                    "pe_percentile": random.uniform(0.1, 0.9),
+                    "pb_percentile": random.uniform(0.1, 0.9),
+                    "beta": random.uniform(0.6, 1.3),
+                }
+            )
 
         result = runner.run_monthly_rebalance(
             candidate_universe=universe,
@@ -764,12 +796,12 @@ if __name__ == "__main__":
             basis=args.basis,
         )
 
-        print(runner.summary(result))
+        logger.info(runner.summary(result))
     else:
-        print(f"量化市场中性策略执行器已初始化")
-        print(f"资金: ¥{runner.capital:,.0f}")
-        print(f"目标多头: ¥{runner.target_long_value:,.0f}")
-        print(f"目标 beta: {runner.target_beta}")
-        print(f"做多股票数: {runner.long_count}")
-        print(f"因子权重: {runner.factor_weights}")
-        print(f"\n使用 --demo 运行示例调仓")
+        logger.info("量化市场中性策略执行器已初始化")
+        logger.info(f"资金: ¥{runner.capital:,.0f}")
+        logger.info(f"目标多头: ¥{runner.target_long_value:,.0f}")
+        logger.info(f"目标 beta: {runner.target_beta}")
+        logger.info(f"做多股票数: {runner.long_count}")
+        logger.info(f"因子权重: {runner.factor_weights}")
+        logger.info("\n使用 --demo 运行示例调仓")

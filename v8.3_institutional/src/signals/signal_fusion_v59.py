@@ -15,29 +15,31 @@
 import os
 import json
 import sqlite3
-import time
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
 
 try:
     from .logging_manager import get_logger
-    logger = get_logger('signal_fusion')
-    from .fast_signal_processor import FastSignal, generate_fast_signals
-    from .rule_engine import evaluate_trading_decision
+
+    logger = get_logger("signal_fusion")
+    from .fast_signal_processor import FastSignal, generate_fast_signals  # noqa: F401
+    from .rule_engine import evaluate_trading_decision  # noqa: F401
 except ImportError:
     import logging
-    logger = logging.getLogger('signal_fusion')
+
+    logger = logging.getLogger("signal_fusion")
 
 
 @dataclass
 class SignalResult:
     """单个信号源的结果"""
+
     code: str
-    source: str          # 'ml' / 'ai_hedge' / 'glm5' / 'kondratiev' / 'fast_technical'
-    score: float         # 0-1，越高越看多
-    action: str          # 'BUY' / 'SELL' / 'HOLD'
-    confidence: float    # 0-1
+    source: str  # 'ml' / 'ai_hedge' / 'glm5' / 'kondratiev' / 'fast_technical'
+    score: float  # 0-1，越高越看多
+    action: str  # 'BUY' / 'SELL' / 'HOLD'
+    confidence: float  # 0-1
     reason: str = ""
     timestamp: str = ""
 
@@ -45,12 +47,13 @@ class SignalResult:
 @dataclass
 class FusedSignal:
     """融合后的综合信号"""
+
     code: str
     name: str = ""
     fused_score: float = 0.5
     action: str = "HOLD"
     confidence: float = 0.0
-    consensus: str = "unknown"   # 'strong_agree' / 'agree' / 'mixed' / 'disagree' / 'strong_disagree'
+    consensus: str = "unknown"  # 'strong_agree' / 'agree' / 'mixed' / 'disagree' / 'strong_disagree'
     individual_signals: Dict[str, SignalResult] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
 
@@ -64,10 +67,10 @@ class SignalFusionEngine:
         result = engine.get_fused_signal('600519')
     """
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            db_path = os.path.join(base_dir, 'data', 'signals.db')
+            db_path = os.path.join(base_dir, "data", "signals.db")
 
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.db_path = db_path
@@ -77,7 +80,7 @@ class SignalFusionEngine:
 
     # ── 数据源注册 ──
 
-    def register_source(self, name: str, getter: callable, initial_weight: float = None):
+    def register_source(self, name: str, getter: callable, initial_weight: Optional[float] = None):
         """注册一个信号源。
 
         Args:
@@ -114,7 +117,7 @@ class SignalFusionEngine:
 
         胜率越高的源权重越大。如果某源没有历史数据则使用默认权重。
         """
-        lookback_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        lookback_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
         accuracies = {}
 
         for source_name in self._sources:
@@ -124,9 +127,11 @@ class SignalFusionEngine:
 
         if not accuracies:
             # 无历史数据，使用注册时的默认权重
-            return dict(self._source_weights) if self._source_weights else {
-                k: 1.0 / len(self._sources) for k in self._sources
-            }
+            return (
+                dict(self._source_weights)
+                if self._source_weights
+                else {k: 1.0 / len(self._sources) for k in self._sources}
+            )
 
         # Softmax 归一化
         total = sum(accuracies.values())
@@ -138,13 +143,16 @@ class SignalFusionEngine:
         """从数据库读取信号源近期准确率"""
         try:
             conn = sqlite3.connect(self.db_path)
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT COUNT(*) as total,
                        SUM(CASE WHEN actual_outcome = predicted_action THEN 1 ELSE 0 END) as correct
                 FROM signal_audit
                 WHERE source = ? AND evaluated_at >= ?
                   AND actual_outcome IS NOT NULL
-            """, (source, since_date))
+            """,
+                (source, since_date),
+            )
             row = cursor.fetchone()
             conn.close()
             if row and row[0] >= 5:  # 至少5条才有统计意义
@@ -170,7 +178,7 @@ class SignalFusionEngine:
         if len(self._sources) < 2:
             return {}
 
-        lookback_date = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
+        lookback_date = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
         source_names = list(self._sources.keys())
         n = len(source_names)
 
@@ -178,10 +186,13 @@ class SignalFusionEngine:
 
         conn = sqlite3.connect(self.db_path)
         for source_name in source_names:
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT predicted_score FROM signal_audit
                 WHERE source = ? AND timestamp >= ? AND predicted_score IS NOT NULL
-            """, (source_name, lookback_date)).fetchall()
+            """,
+                (source_name, lookback_date),
+            ).fetchall()
             scores_by_source[source_name] = [r[0] for r in rows]
         conn.close()
 
@@ -192,22 +203,19 @@ class SignalFusionEngine:
 
         corr_matrix = {name: {name2: 0.0 for name2 in source_names} for name in source_names}
 
-        for i, name_i in enumerate(source_names):
+        for _i, name_i in enumerate(source_names):
             scores_i = scores_by_source[name_i][:min_len]
             mean_i = sum(scores_i) / len(scores_i)
             var_i = sum((s - mean_i) ** 2 for s in scores_i) / (len(scores_i) - 1)
-            std_i = (var_i ** 0.5) if var_i > 0 else 0.0001
+            std_i = (var_i**0.5) if var_i > 0 else 0.0001
 
-            for j, name_j in enumerate(source_names):
+            for _j, name_j in enumerate(source_names):
                 scores_j = scores_by_source[name_j][:min_len]
                 mean_j = sum(scores_j) / len(scores_j)
                 var_j = sum((s - mean_j) ** 2 for s in scores_j) / (len(scores_j) - 1)
-                std_j = (var_j ** 0.5) if var_j > 0 else 0.0001
+                std_j = (var_j**0.5) if var_j > 0 else 0.0001
 
-                cov = sum(
-                    (scores_i[k] - mean_i) * (scores_j[k] - mean_j)
-                    for k in range(min_len)
-                ) / (min_len - 1)
+                cov = sum((scores_i[k] - mean_i) * (scores_j[k] - mean_j) for k in range(min_len)) / (min_len - 1)
 
                 denom = std_i * std_j
                 corr = cov / denom if denom > 0 else 0.0
@@ -226,9 +234,12 @@ class SignalFusionEngine:
 
         return corr_matrix
 
-    def bayesian_shrinkage_weights(self, base_weights: Dict[str, float],
-                                    correlation_matrix: Dict[str, Dict[str, float]] = None,
-                                    shrinkage_factor: float = 0.3) -> Dict[str, float]:
+    def bayesian_shrinkage_weights(
+        self,
+        base_weights: Dict[str, float],
+        correlation_matrix: Optional[Dict[str, Dict[str, float]]] = None,
+        shrinkage_factor: float = 0.3,
+    ) -> Dict[str, float]:
         """v5.10 贝叶斯收缩估计权重 (P0-4修复)
 
         将样本权重向先验（等权重）收缩，减少样本内过拟合风险。
@@ -258,9 +269,12 @@ class SignalFusionEngine:
 
         return shrunk
 
-    def residual_fusion(self, individual: Dict[str, SignalResult],
-                         correlation_matrix: Dict[str, Dict[str, float]] = None,
-                         threshold: float = 0.3) -> Dict[str, float]:
+    def residual_fusion(
+        self,
+        individual: Dict[str, SignalResult],
+        correlation_matrix: Optional[Dict[str, Dict[str, float]]] = None,
+        threshold: float = 0.3,
+    ) -> Dict[str, float]:
         """v5.10 残差化融合 (P0-4修复核心)
 
         对相关系数>threshold的信号源进行残差化：
@@ -325,9 +339,7 @@ class SignalFusionEngine:
             FusedSignal: 融合后的综合信号
         """
         if not self._sources:
-            return FusedSignal(code=code, name=name,
-                              action="HOLD", confidence=0.0,
-                              consensus="unknown")
+            return FusedSignal(code=code, name=name, action="HOLD", confidence=0.0, consensus="unknown")
 
         individual: Dict[str, SignalResult] = {}
         for source_name, getter in self._sources.items():
@@ -339,9 +351,7 @@ class SignalFusionEngine:
                 logger.warning(f"信号源 {source_name} 获取 {code} 失败: {e}")
 
         if not individual:
-            return FusedSignal(code=code, name=name,
-                              action="HOLD", confidence=0.0,
-                              consensus="unknown")
+            return FusedSignal(code=code, name=name, action="HOLD", confidence=0.0, consensus="unknown")
 
         correlation_matrix = self.compute_source_correlation()
 
@@ -387,10 +397,17 @@ class SignalFusionEngine:
             warnings.append(f"高相关信号源: {', '.join(high_corr_pairs)}")
 
         deviation = abs(fused_score - 0.5) * 2
-        consensus_factor = 1.0 if consensus == 'strong_agree' else \
-                          0.8 if consensus == 'agree' else \
-                          0.5 if consensus == 'mixed' else \
-                          0.3 if consensus == 'disagree' else 0.2
+        consensus_factor = (
+            1.0
+            if consensus == "strong_agree"
+            else 0.8
+            if consensus == "agree"
+            else 0.5
+            if consensus == "mixed"
+            else 0.3
+            if consensus == "disagree"
+            else 0.2
+        )
         confidence = min(deviation * consensus_factor, 1.0)
 
         fused = FusedSignal(
@@ -408,8 +425,9 @@ class SignalFusionEngine:
 
         return fused
 
-    def get_fused_signals_batch(self, codes: List[str],
-                                 names: Dict[str, str] = None) -> Dict[str, FusedSignal]:
+    def get_fused_signals_batch(
+        self, codes: List[str], names: Optional[Dict[str, str]] = None
+    ) -> Dict[str, FusedSignal]:
         """批量融合多只标的的信号"""
         names = names or {}
         results = {}
@@ -420,9 +438,9 @@ class SignalFusionEngine:
     def _analyze_consensus(self, individual: Dict[str, SignalResult]) -> Tuple[str, List[str]]:
         """分析多源信号的一致性"""
         warnings = []
-        buy_count = sum(1 for s in individual.values() if s.action == 'BUY')
-        sell_count = sum(1 for s in individual.values() if s.action == 'SELL')
-        hold_count = sum(1 for s in individual.values() if s.action == 'HOLD')
+        buy_count = sum(1 for s in individual.values() if s.action == "BUY")
+        sell_count = sum(1 for s in individual.values() if s.action == "SELL")
+        hold_count = sum(1 for s in individual.values() if s.action == "HOLD")
         total = len(individual)
 
         # 检测矛盾
@@ -434,14 +452,14 @@ class SignalFusionEngine:
         ratio = max_action / total if total > 0 else 0
 
         if ratio >= 0.8:
-            consensus = 'strong_agree'
+            consensus = "strong_agree"
         elif ratio >= 0.6:
-            consensus = 'agree'
+            consensus = "agree"
         elif ratio >= 0.4:
-            consensus = 'mixed'
+            consensus = "mixed"
             warnings.append("多源信号存在较大分歧，建议观望")
         else:
-            consensus = 'disagree'
+            consensus = "disagree"
             warnings.append("严重分歧，不建议基于此信号决策")
 
         return consensus, warnings
@@ -492,91 +510,105 @@ class SignalFusionEngine:
     def _persist_signal(self, fused: FusedSignal):
         """持久化融合信号"""
         try:
-            individual_json = json.dumps({
-                k: {
-                    'source': v.source,
-                    'score': v.score,
-                    'action': v.action,
-                    'confidence': v.confidence,
-                    'reason': v.reason,
-                }
-                for k, v in fused.individual_signals.items()
-            }, ensure_ascii=False)
+            individual_json = json.dumps(
+                {
+                    k: {
+                        "source": v.source,
+                        "score": v.score,
+                        "action": v.action,
+                        "confidence": v.confidence,
+                        "reason": v.reason,
+                    }
+                    for k, v in fused.individual_signals.items()
+                },
+                ensure_ascii=False,
+            )
 
             conn = sqlite3.connect(self.db_path)
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO signal_store (code, name, timestamp, fused_score,
                     action, confidence, consensus, individual_json, warnings_json)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                fused.code, fused.name,
-                datetime.now().isoformat(),
-                fused.fused_score, fused.action, fused.confidence,
-                fused.consensus, individual_json,
-                json.dumps(fused.warnings, ensure_ascii=False)
-            ))
+            """,
+                (
+                    fused.code,
+                    fused.name,
+                    datetime.now().isoformat(),
+                    fused.fused_score,
+                    fused.action,
+                    fused.confidence,
+                    fused.consensus,
+                    individual_json,
+                    json.dumps(fused.warnings, ensure_ascii=False),
+                ),
+            )
             conn.commit()
             conn.close()
         except Exception as e:
             logger.warning(f"持久化信号失败: {e}")
 
-    def record_audit(self, code: str, source: str, timestamp: str,
-                     predicted_action: str, predicted_score: float):
+    def record_audit(self, code: str, source: str, timestamp: str, predicted_action: str, predicted_score: float):
         """记录信号预测，稍后验证"""
         try:
             conn = sqlite3.connect(self.db_path)
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO signal_audit (code, source, timestamp,
                     predicted_action, predicted_score)
                 VALUES (?, ?, ?, ?, ?)
-            """, (code, source, timestamp, predicted_action, predicted_score))
+            """,
+                (code, source, timestamp, predicted_action, predicted_score),
+            )
             conn.commit()
             conn.close()
         except Exception as e:
             logger.warning(f"记录审计失败: {e}")
 
-    def evaluate_past_signals(self, days_ago: int = 5,
-                               price_getter: callable = None) -> Dict[str, Any]:
+    def evaluate_past_signals(self, days_ago: int = 5, price_getter: Optional[callable] = None) -> Dict[str, Any]:
         """评估N天前的信号准确率。
 
         对比 T-N 日的预测与今日实际涨跌。
         """
-        target_date = (datetime.now() - timedelta(days=days_ago)).strftime('%Y-%m-%d')
+        target_date = (datetime.now() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
 
         conn = sqlite3.connect(self.db_path)
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT id, code, source, timestamp, predicted_action, predicted_score
             FROM signal_audit
             WHERE date(timestamp) = ? AND actual_outcome IS NULL
-        """, (target_date,)).fetchall()
+        """,
+            (target_date,),
+        ).fetchall()
 
         evaluated = 0
         correct = 0
         results = []
 
         for row in rows:
-            sig_id, code, source, ts, action, score = row
+            sig_id, code, source, _ts, action, _score = row
             actual = self._get_actual_outcome(code, target_date, price_getter)
             if actual is None:
                 continue
 
-            conn.execute("""
+            conn.execute(
+                """
                 UPDATE signal_audit
                 SET actual_outcome = ?, evaluated_at = ?
                 WHERE id = ?
-            """, (actual, datetime.now().isoformat(), sig_id))
+            """,
+                (actual, datetime.now().isoformat(), sig_id),
+            )
 
             evaluated += 1
-            is_correct = (action == 'BUY' and actual == 'UP') or \
-                        (action == 'SELL' and actual == 'DOWN')
+            is_correct = (action == "BUY" and actual == "UP") or (action == "SELL" and actual == "DOWN")
             if is_correct:
                 correct += 1
 
-            results.append({
-                'code': code, 'source': source,
-                'predicted': action, 'actual': actual,
-                'correct': is_correct
-            })
+            results.append(
+                {"code": code, "source": source, "predicted": action, "actual": actual, "correct": is_correct}
+            )
 
         conn.commit()
         conn.close()
@@ -584,22 +616,21 @@ class SignalFusionEngine:
         accuracy = correct / evaluated if evaluated > 0 else None
 
         return {
-            'target_date': target_date,
-            'evaluated': evaluated,
-            'correct': correct,
-            'accuracy': accuracy,
-            'details': results,
+            "target_date": target_date,
+            "evaluated": evaluated,
+            "correct": correct,
+            "accuracy": accuracy,
+            "details": results,
         }
 
-    def _get_actual_outcome(self, code: str, date: str,
-                            price_getter: callable = None) -> Optional[str]:
+    def _get_actual_outcome(self, code: str, date: str, price_getter: Optional[callable] = None) -> Optional[str]:
         """获取实际涨跌结果"""
         # 简化版：默认返回 None（需要接入真实价格数据）
         if price_getter:
             try:
                 prices = price_getter(code, date)
-                if prices and 'change_pct' in prices:
-                    return 'UP' if prices['change_pct'] > 0 else 'DOWN'
+                if prices and "change_pct" in prices:
+                    return "UP" if prices["change_pct"] > 0 else "DOWN"
             except Exception:
                 pass
         return None
@@ -609,62 +640,79 @@ class SignalFusionEngine:
     def get_recent_signals(self, code: str, limit: int = 10) -> List[Dict]:
         """获取某标的最近的融合信号历史"""
         conn = sqlite3.connect(self.db_path)
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT code, name, timestamp, fused_score, action, confidence, consensus
             FROM signal_store
             WHERE code = ?
             ORDER BY timestamp DESC
             LIMIT ?
-        """, (code, limit)).fetchall()
+        """,
+            (code, limit),
+        ).fetchall()
         conn.close()
         return [
             {
-                'code': r[0], 'name': r[1], 'timestamp': r[2],
-                'fused_score': r[3], 'action': r[4],
-                'confidence': r[5], 'consensus': r[6],
+                "code": r[0],
+                "name": r[1],
+                "timestamp": r[2],
+                "fused_score": r[3],
+                "action": r[4],
+                "confidence": r[5],
+                "consensus": r[6],
             }
             for r in rows
         ]
 
     def get_daily_summary(self) -> Dict[str, Any]:
         """获取当日信号摘要"""
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now().strftime("%Y-%m-%d")
         conn = sqlite3.connect(self.db_path)
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT code, name, action, confidence, consensus
             FROM signal_store
             WHERE date(timestamp) = ?
             ORDER BY ABS(fused_score - 0.5) DESC
-        """, (today,)).fetchall()
+        """,
+            (today,),
+        ).fetchall()
         conn.close()
 
         signals = []
         buy = sell = hold = 0
         for r in rows:
-            signals.append({
-                'code': r[0], 'name': r[1], 'action': r[2],
-                'confidence': r[3], 'consensus': r[4],
-            })
-            if r[2] == 'BUY':
+            signals.append(
+                {
+                    "code": r[0],
+                    "name": r[1],
+                    "action": r[2],
+                    "confidence": r[3],
+                    "consensus": r[4],
+                }
+            )
+            if r[2] == "BUY":
                 buy += 1
-            elif r[2] == 'SELL':
+            elif r[2] == "SELL":
                 sell += 1
             else:
                 hold += 1
 
         return {
-            'date': today,
-            'total': len(signals),
-            'buy': buy, 'sell': sell, 'hold': hold,
-            'signals': signals,
+            "date": today,
+            "total": len(signals),
+            "buy": buy,
+            "sell": sell,
+            "hold": hold,
+            "signals": signals,
         }
 
     def get_stats(self) -> Dict[str, Any]:
         """获取信号引擎统计"""
         return {
-            'sources_registered': list(self._sources.keys()),
-            'source_weights': dict(self._source_weights),
-            'db_path': self.db_path,
+            "sources_registered": list(self._sources.keys()),
+            "source_weights": dict(self._source_weights),
+            "db_path": self.db_path,
         }
 
 
@@ -689,31 +737,32 @@ def get_consensus_action(code: str, name: str = "") -> FusedSignal:
 
 # ── 快速信号源集成 ──
 
+
 def _get_fast_signal_source(code: str) -> SignalResult:
     """快速技术指标信号源"""
     try:
         # 模拟市场数据 - 实际应用中应从实时数据源获取
         # 这里简化处理，实际应用中需要接入真实数据
         from .hybrid_fusion import get_hybrid_fusion_engine
-        
+
         engine = get_hybrid_fusion_engine()
         hybrid_signal = engine.get_hybrid_signal(code, "", force_hybrid=False)
-        
-        if hybrid_signal.source == 'fast' and hybrid_signal.fast_signal:
+
+        if hybrid_signal.source == "fast" and hybrid_signal.fast_signal:
             fast_signal = hybrid_signal.fast_signal
             return SignalResult(
                 code=code,
-                source='fast_technical',
+                source="fast_technical",
                 score=fast_signal.confidence,
                 action=fast_signal.action,
                 confidence=fast_signal.confidence,
                 reason=f"快速技术指标信号: {fast_signal.action} (RSI={fast_signal.rsi:.2f}, MACD={fast_signal.macd_signal:.4f})",
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
         else:
             # 快速信号不满足条件，返回空
             return None
-            
+
     except Exception as e:
         logger.warning(f"获取快速技术指标信号失败: {e}")
         return None
@@ -723,7 +772,7 @@ def register_fast_signal_source(initial_weight: float = 0.2):
     """注册快速技术指标信号源"""
     try:
         engine = get_fusion_engine()
-        engine.register_source('fast_technical', _get_fast_signal_source, initial_weight)
+        engine.register_source("fast_technical", _get_fast_signal_source, initial_weight)
         logger.info("快速技术指标信号源已注册")
     except Exception as e:
         logger.error(f"注册快速技术指标信号源失败: {e}")
@@ -733,7 +782,7 @@ def get_fast_signal_integration_enabled() -> bool:
     """检查快速信号源是否已注册"""
     try:
         engine = get_fusion_engine()
-        return 'fast_technical' in engine._sources
+        return "fast_technical" in engine._sources
     except Exception as e:
         logger.warning(f"检查快速信号源失败: {e}")
         return False
@@ -751,88 +800,92 @@ else:
 
 # ── 对冲信号源集成 (v5.8) ──
 
+
 def _get_hedge_signal_source(code: str) -> SignalResult:
     """对冲引擎信号源 — 针对组合的对冲建议
-    
+
     将对冲需求转化为信号融合引擎可理解的格式:
     - 当不需要对冲时: HOLD (中性)
     - 当推荐对冲时: SELL 信号 (代表做空指数期货/买Put)
     """
     try:
-        from .hedge_engine_v59 import HedgeEngine, get_hedge_engine
-        
+        from .hedge_engine_v59 import get_hedge_engine
+
         # 获取持仓和价格数据
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        positions_path = os.path.join(base_dir, 'config', 'positions.json')
-        pricing_path = os.path.join(base_dir, 'config', 'price_history.jsonl')
-        
+        positions_path = os.path.join(base_dir, "config", "positions.json")
+        pricing_path = os.path.join(base_dir, "config", "price_history.jsonl")
+
         positions = {}
         prices = {}
-        
+
         if os.path.exists(positions_path):
-            with open(positions_path, 'r', encoding='utf-8') as f:
+            with open(positions_path, "r", encoding="utf-8") as f:
                 pos_data = json.load(f)
-                for code, p in pos_data.get('positions', {}).items():
-                    positions[code] = {'shares': p.get('shares', 0), 'cost': p.get('cost', 0)}
-        
+                for code, p in pos_data.get("positions", {}).items():
+                    positions[code] = {"shares": p.get("shares", 0), "cost": p.get("cost", 0)}
+
         # 从价格历史获取最新价格
         if os.path.exists(pricing_path):
-            with open(pricing_path, 'r', encoding='utf-8') as f:
+            with open(pricing_path, "r", encoding="utf-8") as f:
                 for line in f:
                     try:
                         entry = json.loads(line.strip())
-                        prices[entry['code']] = entry.get('price', 0)
+                        prices[entry["code"]] = entry.get("price", 0)
                     except (json.JSONDecodeError, KeyError):
                         continue
-        
+
         # 计算估值
-        stock_value = sum(v.get('shares', 0) * prices.get(k, 0) for k, v in positions.items())
-        cash = pos_data.get('cash', 0) if os.path.exists(positions_path) else 1000000
+        stock_value = sum(v.get("shares", 0) * prices.get(k, 0) for k, v in positions.items())
+        cash = pos_data.get("cash", 0) if os.path.exists(positions_path) else 1000000
         total_value = stock_value + cash
-        
+
         if stock_value <= 0:
             return SignalResult(
-                code=code, source='hedge_engine',
-                score=0.5, action='HOLD', confidence=0.1,
-                reason='空仓或无效持仓，无需对冲',
-                timestamp=datetime.now().isoformat()
+                code=code,
+                source="hedge_engine",
+                score=0.5,
+                action="HOLD",
+                confidence=0.1,
+                reason="空仓或无效持仓，无需对冲",
+                timestamp=datetime.now().isoformat(),
             )
-        
+
         engine = get_hedge_engine(portfolio_value=total_value)
         risk = engine.assess_portfolio_risk(positions, prices)
-        
+
         strength, score = engine.determine_hedge_signal_strength(risk)
-        
+
         # 映射为信号融合格式
         if strength.value >= 3:  # STRONG 或 FULL
-            action = 'SELL'      # 强烈建议对冲 → 卖出信号
-            sig_score = 0.25     # 低分 = 看空
+            action = "SELL"  # 强烈建议对冲 → 卖出信号
+            sig_score = 0.25  # 低分 = 看空
             confidence = min(score, 1.0)
         elif strength.value >= 2:  # MODERATE
-            action = 'SELL'
+            action = "SELL"
             sig_score = 0.35
             confidence = min(score, 0.7)
         elif strength.value >= 1:  # LIGHT
-            action = 'HOLD'
+            action = "HOLD"
             sig_score = 0.48
             confidence = 0.3
         else:
-            action = 'HOLD'
+            action = "HOLD"
             sig_score = 0.5
             confidence = 0.1
-        
-        strength_names = {4: '完全对冲', 3: '强力对冲', 2: '中度对冲', 1: '轻度对冲', 0: '无需'}
-        
+
+        strength_names = {4: "完全对冲", 3: "强力对冲", 2: "中度对冲", 1: "轻度对冲", 0: "无需"}
+
         return SignalResult(
             code=code,
-            source='hedge_engine',
+            source="hedge_engine",
             score=sig_score,
             action=action,
             confidence=confidence,
             reason=f"对冲信号: {strength_names[strength.value]} (Beta={risk.beta_csi300:.2f}, VaR={risk.var_95_daily:,.0f})",
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
-        
+
     except Exception as e:
         logger.warning(f"对冲信号获取失败: {e}")
         return None
@@ -842,7 +895,7 @@ def register_hedge_signal_source(initial_weight: float = 0.15):
     """注册对冲引擎信号源"""
     try:
         engine = get_fusion_engine()
-        engine.register_source('hedge_engine', _get_hedge_signal_source, initial_weight)
+        engine.register_source("hedge_engine", _get_hedge_signal_source, initial_weight)
         logger.info(f"对冲引擎信号源已注册 (权重={initial_weight:.3f})")
     except Exception as e:
         logger.error(f"注册对冲引擎信号源失败: {e}")
@@ -852,13 +905,14 @@ def is_hedge_signal_enabled() -> bool:
     """检查对冲信号源是否已注册"""
     try:
         engine = get_fusion_engine()
-        return 'hedge_engine' in engine._sources
+        return "hedge_engine" in engine._sources
     except Exception as e:
         logger.warning(f"检查对冲信号源失败: {e}")
         return False
 
 
 # ── GTJA191 信号源集成 ──
+
 
 def _get_gtja191_signal_source(code: str) -> Optional[SignalResult]:
     """GTJA191 量价因子信号源 — 当前实现 Alpha144
@@ -882,15 +936,15 @@ def _get_gtja191_signal_source(code: str) -> Optional[SignalResult]:
         # 经验阈值：越低越好；这里做反向后作为看多信号
         score = max(0.0, min(1.0, 1.0 - float(value) * 1e8))
         if score > 0.6:
-            action = 'BUY'
+            action = "BUY"
         elif score < 0.4:
-            action = 'SELL'
+            action = "SELL"
         else:
-            action = 'HOLD'
+            action = "HOLD"
 
         return SignalResult(
             code=code,
-            source='gtja191',
+            source="gtja191",
             score=round(score, 4),
             action=action,
             confidence=round(min(abs(score - 0.5) * 2, 1.0), 4),
@@ -906,7 +960,7 @@ def register_gtja191_signal_source(initial_weight: float = 0.1):
     """注册 GTJA191 信号源"""
     try:
         engine = get_fusion_engine()
-        engine.register_source('gtja191', _get_gtja191_signal_source, initial_weight)
+        engine.register_source("gtja191", _get_gtja191_signal_source, initial_weight)
         logger.info(f"GTJA191 信号源已注册 (权重={initial_weight:.3f})")
     except Exception as e:
         logger.error(f"注册 GTJA191 信号源失败: {e}")
@@ -916,7 +970,7 @@ def is_gtja191_signal_enabled() -> bool:
     """检查 GTJA191 信号源是否已注册"""
     try:
         engine = get_fusion_engine()
-        return 'gtja191' in engine._sources
+        return "gtja191" in engine._sources
     except Exception as e:
         logger.warning(f"检查 GTJA191 信号源失败: {e}")
         return False

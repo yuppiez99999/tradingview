@@ -21,20 +21,23 @@ import os
 import json
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Tuple
-from dataclasses import dataclass, field
+from typing import Dict, Optional, List, Tuple
+from dataclasses import dataclass
 
 try:
     from .logging_manager import get_logger
-    logger = get_logger('psi_monitor')
+
+    logger = get_logger("psi_monitor")
 except ImportError:
     import logging
-    logger = logging.getLogger('psi_monitor')
+
+    logger = logging.getLogger("psi_monitor")
 
 
 @dataclass
 class DriftResult:
     """漂移检测结果"""
+
     code: str
     source: str
     psi: float
@@ -49,10 +52,10 @@ class DriftResult:
 class PSIMonitor:
     """PSI 监控器 — 监控信号/特征分布漂移"""
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            db_path = os.path.join(base_dir, 'data', 'psi_monitor.db')
+            db_path = os.path.join(base_dir, "data", "psi_monitor.db")
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.db_path = db_path
         self._init_db()
@@ -83,8 +86,7 @@ class PSIMonitor:
         conn.close()
 
     @staticmethod
-    def calculate_psi(expected: Dict[str, float], actual: Dict[str, float],
-                      min_count: int = 10) -> float:
+    def calculate_psi(expected: Dict[str, float], actual: Dict[str, float], min_count: int = 10) -> float:
         """计算两个分布之间的 PSI
 
         Args:
@@ -129,16 +131,20 @@ class PSIMonitor:
             (level, recommendation, alert)
         """
         if psi < 0.1:
-            return 'stable', '无显著漂移，模型表现正常', False
+            return "stable", "无显著漂移，模型表现正常", False
         elif psi < 0.2:
-            return 'minor', '轻微漂移，建议增加监控频率', True
+            return "minor", "轻微漂移，建议增加监控频率", True
         else:
-            return 'major', '显著漂移，建议重新训练模型', True
+            return "major", "显著漂移，建议重新训练模型", True
 
-    def monitor_signal_drift(self, code: str, source: str,
-                             current_scores: List[float],
-                             reference_scores: List[float] = None,
-                             n_bins: int = 10) -> DriftResult:
+    def monitor_signal_drift(
+        self,
+        code: str,
+        source: str,
+        current_scores: List[float],
+        reference_scores: Optional[List[float]] = None,
+        n_bins: int = 10,
+    ) -> DriftResult:
         """监控信号分数分布漂移
 
         Args:
@@ -156,12 +162,12 @@ class PSIMonitor:
                 code=code,
                 source=source,
                 psi=0.0,
-                psi_level='stable',
+                psi_level="stable",
                 current_distribution={},
                 reference_distribution={},
                 alert=False,
-                recommendation='样本不足，无法计算PSI',
-                timestamp=datetime.now().isoformat()
+                recommendation="样本不足，无法计算PSI",
+                timestamp=datetime.now().isoformat(),
             )
 
         # 如果没有提供参考分布，从数据库获取
@@ -175,12 +181,12 @@ class PSIMonitor:
                 code=code,
                 source=source,
                 psi=0.0,
-                psi_level='stable',
+                psi_level="stable",
                 current_distribution=self._bin_scores(current_scores, n_bins),
                 reference_distribution={},
                 alert=False,
-                recommendation='首次记录，已保存为参考分布',
-                timestamp=datetime.now().isoformat()
+                recommendation="首次记录，已保存为参考分布",
+                timestamp=datetime.now().isoformat(),
             )
 
         # 计算分箱分布
@@ -192,8 +198,7 @@ class PSIMonitor:
         psi_level, recommendation, alert = self.get_psi_level(psi)
 
         # 保存记录
-        self._save_psi_record(code, source, psi, psi_level, alert,
-                              recommendation, current_dist, reference_dist)
+        self._save_psi_record(code, source, psi, psi_level, alert, recommendation, current_dist, reference_dist)
 
         return DriftResult(
             code=code,
@@ -204,13 +209,17 @@ class PSIMonitor:
             reference_distribution=reference_dist,
             alert=alert,
             recommendation=recommendation,
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
 
-    def monitor_feature_drift(self, code: str, feature_name: str,
-                              current_values: List[float],
-                              reference_values: List[float] = None,
-                              n_bins: int = 10) -> DriftResult:
+    def monitor_feature_drift(
+        self,
+        code: str,
+        feature_name: str,
+        current_values: List[float],
+        reference_values: Optional[List[float]] = None,
+        n_bins: int = 10,
+    ) -> DriftResult:
         """监控特征分布漂移
 
         Args:
@@ -230,12 +239,12 @@ class PSIMonitor:
                 code=code,
                 source=source,
                 psi=0.0,
-                psi_level='stable',
+                psi_level="stable",
                 current_distribution={},
                 reference_distribution={},
                 alert=False,
-                recommendation='样本不足，无法计算PSI',
-                timestamp=datetime.now().isoformat()
+                recommendation="样本不足，无法计算PSI",
+                timestamp=datetime.now().isoformat(),
             )
 
         if reference_values is None:
@@ -247,12 +256,12 @@ class PSIMonitor:
                 code=code,
                 source=source,
                 psi=0.0,
-                psi_level='stable',
+                psi_level="stable",
                 current_distribution=self._bin_values(current_values, n_bins),
                 reference_distribution={},
                 alert=False,
-                recommendation='首次记录，已保存为参考分布',
-                timestamp=datetime.now().isoformat()
+                recommendation="首次记录，已保存为参考分布",
+                timestamp=datetime.now().isoformat(),
             )
 
         current_dist = self._bin_values(current_values, n_bins)
@@ -261,8 +270,7 @@ class PSIMonitor:
         psi = self.calculate_psi(reference_dist, current_dist)
         psi_level, recommendation, alert = self.get_psi_level(psi)
 
-        self._save_psi_record(code, source, psi, psi_level, alert,
-                              recommendation, current_dist, reference_dist)
+        self._save_psi_record(code, source, psi, psi_level, alert, recommendation, current_dist, reference_dist)
 
         return DriftResult(
             code=code,
@@ -273,7 +281,7 @@ class PSIMonitor:
             reference_distribution=reference_dist,
             alert=alert,
             recommendation=recommendation,
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
 
     def generate_drift_report(self, days: int = 7) -> str:
@@ -287,12 +295,15 @@ class PSIMonitor:
         """
         conn = sqlite3.connect(self.db_path)
         since = (datetime.now() - timedelta(days=days)).isoformat()
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT timestamp, code, source, psi, psi_level, alert, recommendation
             FROM psi_records
             WHERE timestamp >= ?
             ORDER BY timestamp DESC
-        """, (since,)).fetchall()
+        """,
+            (since,),
+        ).fetchall()
         conn.close()
 
         if not rows:
@@ -307,8 +318,8 @@ class PSIMonitor:
 
         # 统计
         alerts = [r for r in rows if r[5]]
-        majors = [r for r in rows if r[4] == 'major']
-        minors = [r for r in rows if r[4] == 'minor']
+        majors = [r for r in rows if r[4] == "major"]
+        minors = [r for r in rows if r[4] == "minor"]
 
         lines.append("| 指标 | 数值 |")
         lines.append("|------|------|")
@@ -324,15 +335,15 @@ class PSIMonitor:
             lines.append("| 时间 | 标的 | 源 | PSI | 等级 | 建议 |")
             lines.append("|------|------|----|-----|------|------|")
             for row in alerts[:20]:
-                ts, code, source, psi, level, alert, rec = row
-                ts_short = ts.split('T')[0] if 'T' in ts else ts
+                ts, code, source, psi, level, _alert, rec = row
+                ts_short = ts.split("T")[0] if "T" in ts else ts
                 lines.append(
                     f"| {ts_short} | {code} | {source} | {psi:.4f} | {level} | {rec[:30]}{'...' if len(rec) > 30 else ''} |"
                 )
             lines.append("")
 
         lines.append("> PSI < 0.1: 稳定 | 0.1-0.2: 轻微漂移 | >= 0.2: 显著漂移")
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     # ── 私有方法 ──
 
@@ -381,11 +392,14 @@ class PSIMonitor:
         try:
             conn = sqlite3.connect(self.db_path)
             since = (datetime.now() - timedelta(days=days)).isoformat()
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT current_distribution FROM psi_records
                 WHERE code = ? AND source = ? AND timestamp >= ?
                 ORDER BY timestamp DESC
-            """, (code, source, since)).fetchall()
+            """,
+                (code, source, since),
+            ).fetchall()
             conn.close()
 
             scores = []
@@ -394,7 +408,7 @@ class PSIMonitor:
                 # 从分箱分布重构分数（简化版）
                 for bin_name, count in dist.items():
                     try:
-                        mid = float(bin_name.split('-')[0])
+                        mid = float(bin_name.split("-")[0])
                         scores.extend([mid] * count)
                     except (ValueError, IndexError):
                         continue
@@ -404,8 +418,7 @@ class PSIMonitor:
             logger.debug(f"获取历史分数失败: {e}")
             return []
 
-    def _get_historical_feature_values(self, code: str, feature_name: str,
-                                        days: int = 30) -> List[float]:
+    def _get_historical_feature_values(self, code: str, feature_name: str, days: int = 30) -> List[float]:
         """从数据库获取历史特征值"""
         # 简化实现：返回空列表，后续可从特征存储表获取
         return []
@@ -415,10 +428,13 @@ class PSIMonitor:
         try:
             conn = sqlite3.connect(self.db_path)
             dist = self._bin_scores(scores, 10)
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO psi_reference (code, source, distribution, updated_at)
                 VALUES (?, ?, ?, ?)
-            """, (code, source, json.dumps(dist), datetime.now().isoformat()))
+            """,
+                (code, source, json.dumps(dist), datetime.now().isoformat()),
+            )
             conn.commit()
             conn.close()
         except Exception as e:
@@ -429,10 +445,13 @@ class PSIMonitor:
         try:
             conn = sqlite3.connect(self.db_path)
             dist = self._bin_values(values, 10)
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO psi_feature_reference (code, feature_name, distribution, updated_at)
                 VALUES (?, ?, ?, ?)
-            """, (code, feature_name, json.dumps(dist), datetime.now().isoformat()))
+            """,
+                (code, feature_name, json.dumps(dist), datetime.now().isoformat()),
+            )
             conn.commit()
             conn.close()
         except Exception as e:
@@ -442,11 +461,14 @@ class PSIMonitor:
         """从数据库获取参考分布"""
         try:
             conn = sqlite3.connect(self.db_path)
-            row = conn.execute("""
+            row = conn.execute(
+                """
                 SELECT distribution FROM psi_reference
                 WHERE code = ? AND source = ?
                 ORDER BY updated_at DESC LIMIT 1
-            """, (code, source)).fetchone()
+            """,
+                (code, source),
+            ).fetchone()
             conn.close()
             if row and row[0]:
                 return json.loads(row[0])
@@ -454,17 +476,19 @@ class PSIMonitor:
             logger.debug(f"获取参考分布失败: {e}")
         return None
 
-    def _get_historical_feature_values(self, code: str, feature_name: str,
-                                        days: int = 30) -> List[float]:
+    def _get_historical_feature_values(self, code: str, feature_name: str, days: int = 30) -> List[float]:
         """从数据库获取历史特征值"""
         try:
             conn = sqlite3.connect(self.db_path)
             since = (datetime.now() - timedelta(days=days)).isoformat()
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT current_distribution FROM psi_records
                 WHERE code = ? AND source = ? AND timestamp >= ?
                 ORDER BY timestamp DESC
-            """, (code, f"feature_{feature_name}", since)).fetchall()
+            """,
+                (code, f"feature_{feature_name}", since),
+            ).fetchall()
             conn.close()
 
             values = []
@@ -472,7 +496,7 @@ class PSIMonitor:
                 dist = json.loads(row[0]) if row[0] else {}
                 for bin_name, count in dist.items():
                     try:
-                        mid = float(bin_name.split('-')[0])
+                        mid = float(bin_name.split("-")[0])
                         values.extend([mid] * count)
                     except (ValueError, IndexError):
                         continue
@@ -525,23 +549,27 @@ class PSIMonitor:
         conn.close()
 
     @staticmethod
-    def get_psi_level(psi: float) -> Tuple[str, str, bool]:
+    def get_psi_level(psi: float) -> Tuple[str, str, bool]:  # noqa: F811  增强版覆写
         """根据 PSI 值判断漂移等级
 
         Returns:
             (level, recommendation, alert)
         """
         if psi < 0.1:
-            return 'stable', '无显著漂移，模型表现正常', False
+            return "stable", "无显著漂移，模型表现正常", False
         elif psi < 0.2:
-            return 'minor', '轻微漂移，建议增加监控频率', True
+            return "minor", "轻微漂移，建议增加监控频率", True
         else:
-            return 'major', '显著漂移，建议重新训练模型', True
+            return "major", "显著漂移，建议重新训练模型", True
 
-    def monitor_signal_drift(self, code: str, source: str,
-                             current_scores: List[float],
-                             reference_scores: List[float] = None,
-                             n_bins: int = 10) -> DriftResult:
+    def monitor_signal_drift(  # noqa: F811  增强版覆写
+        self,
+        code: str,
+        source: str,
+        current_scores: List[float],
+        reference_scores: Optional[List[float]] = None,
+        n_bins: int = 10,
+    ) -> DriftResult:
         """监控信号分数分布漂移
 
         Args:
@@ -559,12 +587,12 @@ class PSIMonitor:
                 code=code,
                 source=source,
                 psi=0.0,
-                psi_level='stable',
+                psi_level="stable",
                 current_distribution={},
                 reference_distribution={},
                 alert=False,
-                recommendation='样本不足，无法计算PSI',
-                timestamp=datetime.now().isoformat()
+                recommendation="样本不足，无法计算PSI",
+                timestamp=datetime.now().isoformat(),
             )
 
         # 如果没有提供参考分布，从数据库获取
@@ -578,12 +606,12 @@ class PSIMonitor:
                 code=code,
                 source=source,
                 psi=0.0,
-                psi_level='stable',
+                psi_level="stable",
                 current_distribution=self._bin_scores(current_scores, n_bins),
                 reference_distribution={},
                 alert=False,
-                recommendation='首次记录，已保存为参考分布',
-                timestamp=datetime.now().isoformat()
+                recommendation="首次记录，已保存为参考分布",
+                timestamp=datetime.now().isoformat(),
             )
 
         # 计算分箱分布
@@ -595,8 +623,7 @@ class PSIMonitor:
         psi_level, recommendation, alert = self.get_psi_level(psi)
 
         # 保存记录
-        self._save_psi_record(code, source, psi, psi_level, alert,
-                              recommendation, current_dist, reference_dist)
+        self._save_psi_record(code, source, psi, psi_level, alert, recommendation, current_dist, reference_dist)
 
         return DriftResult(
             code=code,
@@ -607,13 +634,17 @@ class PSIMonitor:
             reference_distribution=reference_dist,
             alert=alert,
             recommendation=recommendation,
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
 
-    def monitor_feature_drift(self, code: str, feature_name: str,
-                              current_values: List[float],
-                              reference_values: List[float] = None,
-                              n_bins: int = 10) -> DriftResult:
+    def monitor_feature_drift(  # noqa: F811  增强版覆写
+        self,
+        code: str,
+        feature_name: str,
+        current_values: List[float],
+        reference_values: Optional[List[float]] = None,
+        n_bins: int = 10,
+    ) -> DriftResult:
         """监控特征分布漂移
 
         Args:
@@ -633,12 +664,12 @@ class PSIMonitor:
                 code=code,
                 source=source,
                 psi=0.0,
-                psi_level='stable',
+                psi_level="stable",
                 current_distribution={},
                 reference_distribution={},
                 alert=False,
-                recommendation='样本不足，无法计算PSI',
-                timestamp=datetime.now().isoformat()
+                recommendation="样本不足，无法计算PSI",
+                timestamp=datetime.now().isoformat(),
             )
 
         if reference_values is None:
@@ -649,7 +680,7 @@ class PSIMonitor:
                 reference_values = []
                 for bin_name, count in reference_dist.items():
                     try:
-                        mid = float(bin_name.split('-')[0])
+                        mid = float(bin_name.split("-")[0])
                         reference_values.extend([mid] * count)
                     except (ValueError, IndexError):
                         continue
@@ -662,12 +693,12 @@ class PSIMonitor:
                 code=code,
                 source=source,
                 psi=0.0,
-                psi_level='stable',
+                psi_level="stable",
                 current_distribution=self._bin_values(current_values, n_bins),
                 reference_distribution={},
                 alert=False,
-                recommendation='首次记录，已保存为参考分布',
-                timestamp=datetime.now().isoformat()
+                recommendation="首次记录，已保存为参考分布",
+                timestamp=datetime.now().isoformat(),
             )
 
         current_dist = self._bin_values(current_values, n_bins)
@@ -676,8 +707,7 @@ class PSIMonitor:
         psi = self.calculate_psi(reference_dist, current_dist)
         psi_level, recommendation, alert = self.get_psi_level(psi)
 
-        self._save_psi_record(code, source, psi, psi_level, alert,
-                              recommendation, current_dist, reference_dist)
+        self._save_psi_record(code, source, psi, psi_level, alert, recommendation, current_dist, reference_dist)
 
         return DriftResult(
             code=code,
@@ -688,10 +718,10 @@ class PSIMonitor:
             reference_distribution=reference_dist,
             alert=alert,
             recommendation=recommendation,
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
 
-    def generate_drift_report(self, days: int = 7) -> str:
+    def generate_drift_report(self, days: int = 7) -> str:  # noqa: F811  增强版覆写
         """生成漂移监控报告
 
         Args:
@@ -702,12 +732,15 @@ class PSIMonitor:
         """
         conn = sqlite3.connect(self.db_path)
         since = (datetime.now() - timedelta(days=days)).isoformat()
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT timestamp, code, source, psi, psi_level, alert, recommendation
             FROM psi_records
             WHERE timestamp >= ?
             ORDER BY timestamp DESC
-        """, (since,)).fetchall()
+        """,
+            (since,),
+        ).fetchall()
         conn.close()
 
         if not rows:
@@ -722,8 +755,8 @@ class PSIMonitor:
 
         # 统计
         alerts = [r for r in rows if r[5]]
-        majors = [r for r in rows if r[4] == 'major']
-        minors = [r for r in rows if r[4] == 'minor']
+        majors = [r for r in rows if r[4] == "major"]
+        minors = [r for r in rows if r[4] == "minor"]
 
         lines.append("| 指标 | 数值 |")
         lines.append("|------|------|")
@@ -739,15 +772,15 @@ class PSIMonitor:
             lines.append("| 时间 | 标的 | 源 | PSI | 等级 | 建议 |")
             lines.append("|------|------|----|-----|------|------|")
             for row in alerts[:20]:
-                ts, code, source, psi, level, alert, rec = row
-                ts_short = ts.split('T')[0] if 'T' in ts else ts
+                ts, code, source, psi, level, _alert, rec = row
+                ts_short = ts.split("T")[0] if "T" in ts else ts
                 lines.append(
                     f"| {ts_short} | {code} | {source} | {psi:.4f} | {level} | {rec[:30]}{'...' if len(rec) > 30 else ''} |"
                 )
             lines.append("")
 
         lines.append("> PSI < 0.1: 稳定 | 0.1-0.2: 轻微漂移 | >= 0.2: 显著漂移")
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     # ── 私有方法 ──
 
@@ -796,11 +829,14 @@ class PSIMonitor:
         try:
             conn = sqlite3.connect(self.db_path)
             since = (datetime.now() - timedelta(days=days)).isoformat()
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT current_distribution FROM psi_records
                 WHERE code = ? AND source = ? AND timestamp >= ?
                 ORDER BY timestamp DESC
-            """, (code, source, since)).fetchall()
+            """,
+                (code, source, since),
+            ).fetchall()
             conn.close()
 
             scores = []
@@ -809,7 +845,7 @@ class PSIMonitor:
                 # 从分箱分布重构分数（简化版）
                 for bin_name, count in dist.items():
                     try:
-                        mid = float(bin_name.split('-')[0])
+                        mid = float(bin_name.split("-")[0])
                         scores.extend([mid] * count)
                     except (ValueError, IndexError):
                         continue
@@ -819,28 +855,39 @@ class PSIMonitor:
             logger.debug(f"获取历史分数失败: {e}")
             return []
 
-    def _save_psi_record(self, code: str, source: str, psi: float, psi_level: str,
-                         alert: bool, recommendation: str,
-                         current_dist: Dict[str, float], reference_dist: Dict[str, float]):
+    def _save_psi_record(
+        self,
+        code: str,
+        source: str,
+        psi: float,
+        psi_level: str,
+        alert: bool,
+        recommendation: str,
+        current_dist: Dict[str, float],
+        reference_dist: Dict[str, float],
+    ):
         """保存 PSI 记录到数据库"""
         try:
             conn = sqlite3.connect(self.db_path)
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO psi_records
                 (timestamp, code, source, psi, psi_level, alert, recommendation,
                  current_distribution, reference_distribution)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                datetime.now().isoformat(),
-                code,
-                source,
-                psi,
-                psi_level,
-                1 if alert else 0,
-                recommendation,
-                json.dumps(current_dist),
-                json.dumps(reference_dist)
-            ))
+            """,
+                (
+                    datetime.now().isoformat(),
+                    code,
+                    source,
+                    psi,
+                    psi_level,
+                    1 if alert else 0,
+                    recommendation,
+                    json.dumps(current_dist),
+                    json.dumps(reference_dist),
+                ),
+            )
             conn.commit()
             conn.close()
         except Exception as e:

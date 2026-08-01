@@ -54,8 +54,8 @@ def extract_price(market_data: dict, symbol: str = '', provider = None, old_pric
                     if simulated or price > 10 * last_close or price < last_close / 10:
                         price = last_close
                         source = f"{source}+historical_fallback".strip('+')
-        except Exception:
-            pass
+        except Exception as e:
+            raise  # Re-raise unknown exception
     if price == 3000:
         return 0.0, source
     return price, source
@@ -101,7 +101,7 @@ def update_prices():
     print(f'{"代码":12s} {"名称":12s} {"旧价格":>8s} {"新价格":>8s} {"变化":>8s} {"持仓金额":>12s}')
     print('-' * 70)
     
-    for key, item in positions.items():
+    for _key, item in positions.items():
         code = item.get('code')
         old_price = item.get('est_price', 0.0)
         shares = item.get('phase1_shares') or item.get('total_shares') or item.get('shares', 0)
@@ -202,7 +202,7 @@ def update_prices():
     
     # 保存更新后的数据
     save_positions(data)
-    print(f'持仓数据已保存到: config/positions.json')
+    print('持仓数据已保存到: config/positions.json')
     print()
     
     # 生成报告

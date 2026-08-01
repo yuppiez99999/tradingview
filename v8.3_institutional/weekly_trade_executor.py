@@ -26,12 +26,10 @@ v8.4 本周自动交易计划执行器 (纯期权对冲模式)
 """
 from __future__ import annotations
 
-import os
 import sys
 import json
 import logging
 import argparse
-import time
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -68,6 +66,37 @@ except Exception as _e:
     logger.warning(f"LLM 盘中决策引擎加载失败，使用静态计划: {_e}")
 
 
+# ============================================================
+# ER4 修复: 节假日列表委托给 utils.trade_calendar (akshare 动态获取)
+# 原 HOLIDAYS_2026 仅含 2026 假期, 2027 年后所有节假日会被误判为交易日
+# 现统一走 akshare 动态日历, 自动覆盖任意年份, 失败时回退到 2026 硬编码列表
+# ============================================================
+HOLIDAYS_2026 = set()  # 保留变量名向后兼容, 实际不再使用
+_PROJECT_ROOT = BASE_DIR.parent  # 项目根目录 (utils/ 在此层级)
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+try:
+    from utils.trade_calendar import is_trading_day as _dyn_is_trading_day
+    _DYNAMIC_CALENDAR_AVAILABLE = True
+    logger.info("[ER4] 节假日判断已委托给 utils.trade_calendar (akshare 动态获取)")
+except ImportError:
+    _DYNAMIC_CALENDAR_AVAILABLE = False
+    # 回退: 保留 2026 硬编码列表 (仅 2026 年有效)
+    HOLIDAYS_2026 = {
+        date(2026, 1, 1),
+        date(2026, 2, 16), date(2026, 2, 17), date(2026, 2, 18),
+        date(2026, 2, 19), date(2026, 2, 20), date(2026, 2, 23),
+        date(2026, 4, 6), date(2026, 4, 7),
+        date(2026, 5, 4), date(2026, 5, 5),
+        date(2026, 6, 19), date(2026, 6, 22),
+        date(2026, 9, 25),
+        date(2026, 10, 5), date(2026, 10, 6), date(2026, 10, 7),
+        date(2026, 10, 8),
+    }
+    logger.warning("[ER4] utils.trade_calendar 不可用, 回退到 2026 硬编码假期列表 "
+                   "(2027+ 年节假日将无法识别)")
+
+
 class WeeklyTradeExecutor:
     """本周自动交易计划执行器"""
 
@@ -91,21 +120,25 @@ class WeeklyTradeExecutor:
             self.trade_date = self._get_next_trading_day(self.trade_date)
 
     def _get_next_trading_day(self, date_str: str) -> str:
-        """获取下一个交易日（处理T+1规则：夜盘属于下一个交易日）"""
+        """获取下一个交易日（处理T+1规则：夜盘属于下一个交易日）
+
+        ER4 修复: 优先委托给 utils.trade_calendar (akshare 动态获取),
+        覆盖任意年份的节假日; 动态日历不可用时回退到 HOLIDAYS_2026 硬编码列表。
+        """
+        # ER4 修复: 优先使用动态日历 (next_trading_day 已内置节假日跳过逻辑)
+        if _DYNAMIC_CALENDAR_AVAILABLE:
+            try:
+                from utils.trade_calendar import next_trading_day as _dyn_next_trading_day
+                return _dyn_next_trading_day(date_str)
+            except Exception as e:
+                logger.warning(
+                    f"[ER4] 动态日历 next_trading_day 查询失败 (date={date_str}), "
+                    f"回退到硬编码列表: {e}"
+                )
+
+        # 回退: 手动跳过周末和 HOLIDAYS_2026 (仅 2026 年有效)
         today = datetime.strptime(date_str, "%Y-%m-%d").date()
         next_day = today + timedelta(days=1)
-
-        HOLIDAYS_2026 = {
-            date(2026, 1, 1),
-            date(2026, 2, 16), date(2026, 2, 17), date(2026, 2, 18),
-            date(2026, 2, 19), date(2026, 2, 20), date(2026, 2, 23),
-            date(2026, 4, 6), date(2026, 4, 7),
-            date(2026, 5, 4), date(2026, 5, 5),
-            date(2026, 6, 19), date(2026, 6, 22),
-            date(2026, 9, 25),
-            date(2026, 10, 5), date(2026, 10, 6), date(2026, 10, 7),
-            date(2026, 10, 8),
-        }
 
         while True:
             if next_day.weekday() >= 5 or next_day in HOLIDAYS_2026:
@@ -175,7 +208,7 @@ class WeeklyTradeExecutor:
                     logger.error(f"加载当日计划失败: {e}")
                     return False
 
-        logger.warning(f"未找到当日计划文件")
+        logger.warning("未找到当日计划文件")
         return False
 
     def _refresh_llm_decisions(self) -> None:
@@ -209,23 +242,32 @@ class WeeklyTradeExecutor:
             logger.warning(f"[LLM] 刷新盘中决策失败，使用已有计划: {e}")
 
     def is_trading_day(self) -> bool:
-        """判断是否为交易日"""
+        """判断是否为交易日
+
+        ER4 修复: 优先委托给 utils.trade_calendar (akshare 动态获取),
+        覆盖任意年份的节假日; 动态日历不可用时回退到 HOLIDAYS_2026 硬编码列表。
+        """
         today = datetime.strptime(self.trade_date, "%Y-%m-%d").date()
+
+        # ER4 修复: 优先使用动态日历
+        if _DYNAMIC_CALENDAR_AVAILABLE:
+            try:
+                if not _dyn_is_trading_day(self.trade_date):
+                    logger.info(f"{self.trade_date} 非交易日 (akshare 动态日历), 跳过交易")
+                    return False
+                return True
+            except Exception as e:
+                logger.warning(
+                    f"[ER4] 动态日历查询失败 (date={self.trade_date}), "
+                    f"回退到硬编码列表: {e}"
+                )
+
+        # 回退: 周末判断
         if today.weekday() >= 5:
             logger.info(f"{self.trade_date} 是周末，跳过交易")
             return False
 
-        HOLIDAYS_2026 = {
-            date(2026, 1, 1),
-            date(2026, 2, 16), date(2026, 2, 17), date(2026, 2, 18),
-            date(2026, 2, 19), date(2026, 2, 20), date(2026, 2, 23),
-            date(2026, 4, 6), date(2026, 4, 7),
-            date(2026, 5, 4), date(2026, 5, 5),
-            date(2026, 6, 19), date(2026, 6, 22),
-            date(2026, 9, 25),
-            date(2026, 10, 5), date(2026, 10, 6), date(2026, 10, 7),
-            date(2026, 10, 8),
-        }
+        # 回退: 硬编码节假日列表 (仅 2026 年有效)
         if today in HOLIDAYS_2026:
             logger.info(f"{self.trade_date} 是节假日，跳过交易")
             return False
@@ -294,7 +336,7 @@ class WeeklyTradeExecutor:
         """从 daily_plan 中提取期权对冲订单（★期权优先：多策略组合）"""
         options_orders = []
 
-        exec_plan = self.daily_plan.get("execution_plan", {})
+        self.daily_plan.get("execution_plan", {})
         hedge_config = self.daily_plan.get("hedge_config", {})
 
         # A. 领口策略订单
@@ -456,7 +498,7 @@ class WeeklyTradeExecutor:
                 available_cash=stock_snapshot.get("available_cash", 3_000_000),
                 positions=stock_snapshot.get("positions", {}),
             )
-            ths_quote = THSQuoteProvider()
+            THSQuoteProvider()
             stock_broker = SimStockBroker(account=self.stock_account, price_provider=None)
 
             for order in orders:
@@ -868,7 +910,7 @@ class WeeklyTradeExecutor:
             for order in options_orders:
                 report += f"| {order.get('type', '')} | {order.get('name', '')} | {order.get('underlying', '')} | {order.get('contracts', 0)} | {order.get('expiry', '')} | ¥{order.get('premium', 0):.0f} | {'成功' if order.get('success', 0) else '失败'} |\n"
 
-        report += f"""
+        report += """
 ### 策略覆盖一览
 
 | 策略 | 功能 | 状态 |
@@ -1004,9 +1046,9 @@ class WeeklyTradeExecutor:
         print("=" * 60)
         print(f"周区间: {self.weekly_plan.get('week_start')} ~ {self.weekly_plan.get('week_end')}")
         print(f"阶段: {self.weekly_plan.get('phase')}")
-        print(f"对冲模式: ★纯期权对冲 (Collar+Put Spread+Put Ladder+Covered Call+VIX+138张Put全覆盖)")
-        print(f"对冲预算: 期权165万(82.5%) / 滚仓现金35万(17.5%) / 期货0 (已移除)")
-        print(f"★VIX阶梯: Tier1(12-18)裸买_EXPIRED | Tier2(18-22)PutSpread_ACTIVE(当前VIX=18.5) | Tier3(22-30)HOLD | Tier4(>30)止盈减仓")
+        print("对冲模式: ★纯期权对冲 (Collar+Put Spread+Put Ladder+Covered Call+VIX+138张Put全覆盖)")
+        print("对冲预算: 期权165万(82.5%) / 滚仓现金35万(17.5%) / 期货0 (已移除)")
+        print("★VIX阶梯: Tier1(12-18)裸买_EXPIRED | Tier2(18-22)PutSpread_ACTIVE(当前VIX=18.5) | Tier3(22-30)HOLD | Tier4(>30)止盈减仓")
         print(f"进度: {self.weekly_plan.get('progress_pct', 0):.1f}% ({self.weekly_plan.get('days_elapsed', 0)}/{self.weekly_plan.get('total_days', 0)}天)")
         print(f"剩余天数: {self.weekly_plan.get('days_remaining', 0)}天")
         print(f"每日建仓: {self.weekly_plan.get('daily_capital', 0):,}元")

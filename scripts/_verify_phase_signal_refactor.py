@@ -237,7 +237,7 @@ def verify_phase_signal_size_reduced() -> bool:
                 lines = node.end_lineno - node.lineno + 1
                 ok = lines < 800
                 _check(
-                    f"phase_signal 体积 <800 行",
+                    "phase_signal 体积 <800 行",
                     ok,
                     f"实际 {lines} 行 (原 948 行, 减少 {948 - lines} 行)",
                 )

@@ -3,15 +3,21 @@
 实际持仓回测验证 (Backtest Current Portfolio)
 =============================================
 修改原因: P4 用实际持仓做回测验证
-修改日期: 2026-07-21
+修改日期: 2026-08-01
 
 核心问题:
     回测未覆盖实际组合。本模块读取实际持仓, 拉取历史数据,
     模拟 Risk Parity 权重 + 动态Beta对冲, 验证年化收益和回撤。
 
+数据源优先级 (v8.4.1 更新):
+    1. Vibe-Trading 多源加载器 (Tushare/AkShare/Sina/Yahoo 自动 fallback)
+    2. 本地 parquet 缓存
+    3. 代理映射 (降级方案)
+    4. 兜底预定义价格
+
 功能:
     1. 读取 config/positions.json 的实际持仓和权重
-    2. 用 akshare 拉取 2021-01-01 到当前的日频数据
+    2. 通过 Vibe-Trading 适配器拉取 2021-01-01 到当前的日频数据
     3. 模拟 Risk Parity 权重分配
     4. 加入 IF空头动态Beta对冲 (覆盖50% Beta)
     5. 计算年化收益、最大回撤、Sharpe、Calmar
@@ -21,25 +27,39 @@
     python backtest_current_portfolio.py
     python backtest_current_portfolio.py --start 2022-01-01 --end 2026-07-20
     python backtest_current_portfolio.py --no-hedge  # 不含对冲
+    python backtest_current_portfolio.py --no-vibe   # 不使用 Vibe-Trading (仅代理回退)
 """
 from __future__ import annotations
 
 import json
 import logging
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
 
 logger = logging.getLogger("backtest_portfolio")
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
 REPORTS_DIR = BASE_DIR / "v8.3_institutional" / "reports"
 CACHE_DIR = BASE_DIR / "cache"
+
+# B1.3: 从 config/risk_params.yaml 统一读取回撤上限 (fail-safe 兜底 0.15)
+sys.path.insert(0, str(BASE_DIR))
+from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
+_DEFAULT_MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
+
+# Vibe-Trading 适配器 (可选, 不可用时优雅降级)
+try:
+    from utils.vibe_trading_adapter import VibeTradingAdapter
+    _VIBE_AVAILABLE = True
+except ImportError:
+    _VIBE_AVAILABLE = False
+    logger.warning("Vibe-Trading 适配器不可用, 将使用代理映射回退方案")
 
 
 class PortfolioBacktester:
@@ -60,7 +80,8 @@ class PortfolioBacktester:
 
     # 性能目标
     TARGET_ANNUAL_RETURN = 0.08
-    TARGET_MAX_DRAWDOWN = 0.15
+    # B1.3: 从 config/risk_params.yaml 读取 (fail-safe 兜底 0.15)
+    TARGET_MAX_DRAWDOWN = _DEFAULT_MAX_DRAWDOWN_LIMIT
     TARGET_SHARPE = 0.80
     TARGET_CALMAR = 0.60
 
@@ -69,10 +90,19 @@ class PortfolioBacktester:
     IF_MULTIPLIER = 300
     REBALANCE_FREQ = 20     # 20个交易日再平衡
 
-    def __init__(self, positions_file: str = None):
+    def __init__(self, positions_file: str = None, use_vibe: bool = True):
         self.positions_file = Path(positions_file) if positions_file else CONFIG_DIR / "positions.json"
         self.positions_data = self._load_positions()
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        self.use_vibe = use_vibe and _VIBE_AVAILABLE
+        self._vibe_adapter = None
+        if self.use_vibe:
+            try:
+                self._vibe_adapter = VibeTradingAdapter(force_init=False)
+                logger.info("Vibe-Trading 适配器已启用")
+            except Exception as e:
+                logger.warning(f"Vibe-Trading 适配器初始化失败: {e}")
+                self.use_vibe = False
 
     def _load_positions(self) -> Dict:
         """加载持仓配置"""
@@ -117,20 +147,23 @@ class PortfolioBacktester:
 
     def fetch_historical_data(self, start_date: str = "2021-01-01", 
                               end_date: str = None) -> pd.DataFrame:
-        """拉取历史日频数据
+        """拉取历史日频数据 (v8.4.1 Vibe-Trading 集成版)
         
-        使用 akshare 获取 A股/ETF 日线数据
+        数据源优先级:
+            1. Vibe-Trading 多源加载器 (Tushare/AkShare/Sina 自动 fallback)
+            2. 本地 parquet 缓存
+            3. 代理映射 (降级方案)
         
         Returns:
-            DataFrame with columns = 持仓代码, index = 日期, values = 日收益率
+            DataFrame with columns = 持仓代码, index = 日期, values = 收盘价
         """
         if end_date is None:
             end_date = datetime.now().strftime("%Y-%m-%d")
 
         portfolio = self.get_portfolio_codes()
-        
-        # 尝试从缓存加载
         cache_file = CACHE_DIR / f"backtest_data_{start_date}_{end_date}.pkl"
+
+        # 尝试从 pickle 缓存加载
         if cache_file.exists():
             try:
                 df = pd.read_pickle(str(cache_file))
@@ -140,33 +173,52 @@ class PortfolioBacktester:
             except Exception:
                 pass
 
-        logger.info(f"开始拉取历史数据: {len(portfolio)} 只标的, {start_date} ~ {end_date}")
-        
+        logger.info(
+            f"开始拉取历史数据: {len(portfolio)} 只标的, {start_date} ~ {end_date}"
+            f"{' (Vibe-Trading)' if self.use_vibe else ' (代理回退)'}"
+        )
+
+        symbols = list(portfolio.keys())
         price_data = {}
-        
-        # ===== 数据源1: 本地 parquet 缓存 =====
+
+        # ===== 数据源1: Vibe-Trading 多源加载器 =====
+        if self.use_vibe and self._vibe_adapter:
+            try:
+                logger.info("  [Vibe-Trading] 正在加载数据...")
+                vibe_batch = self._vibe_adapter.get_batch_ohlcv(
+                    symbols, start_date, end_date, interval="1D"
+                )
+                for code, df in vibe_batch.items():
+                    if isinstance(df, pd.DataFrame) and "close" in df.columns:
+                        price_data[code] = df["close"]
+                logger.info(f"  [Vibe-Trading] 成功加载 {len(price_data)}/{len(symbols)} 只标的")
+            except Exception as e:
+                logger.warning(f"  [Vibe-Trading] 加载失败: {e}, 尝试代理回退")
+
+        # ===== 数据源2: 本地 parquet 缓存 (补充缺失) =====
         ohlcv_dir = CACHE_DIR / "ohlcv"
-        parquet_loaded = 0
-        
-        for code, info in portfolio.items():
-            code_num = code.split('.')[0]
-            exchange = code.split('.')[-1] if '.' in code else ''
-            parquet_name = f"{code_num}_{exchange}_2y.parquet"
-            parquet_path = ohlcv_dir / parquet_name
-            
-            if parquet_path.exists():
-                try:
-                    df_p = pd.read_parquet(parquet_path)
-                    if 'close' in df_p.columns and len(df_p) > 60:
-                        price_data[code] = df_p['close']
-                        parquet_loaded += 1
-                except Exception:
-                    pass
-        
-        if parquet_loaded > 0:
-            logger.info(f"本地 parquet 加载: {parquet_loaded}/{len(portfolio)} 只标的")
-        
-        # ===== 数据源2: ETF/个股 代理映射补全 =====
+        if ohlcv_dir.exists():
+            loaded = 0
+            for code in symbols:
+                if code in price_data:
+                    continue
+                code_num = code.split('.')[0]
+                exchange = code.split('.')[-1] if '.' in code else ''
+                for suffix in ["_2y.parquet", ".parquet"]:
+                    parquet_path = ohlcv_dir / f"{code_num}_{exchange}{suffix}"
+                    if parquet_path.exists():
+                        try:
+                            df_p = pd.read_parquet(parquet_path)
+                            if 'close' in df_p.columns and len(df_p) > 60:
+                                price_data[code] = df_p['close']
+                                loaded += 1
+                        except Exception:
+                            pass
+                        break
+            if loaded > 0:
+                logger.info(f"  [本地缓存] 补充加载 {loaded} 只标的")
+
+        # ===== 数据源3: 代理映射补全 =====
         proxy_map = {
             "588080.SH": "588000.SH",   # 科创50ETF易方达 → 科创50ETF华夏
             "510050.SH": "588000.SH",   # 上证50ETF → 科创50(成长风格近似)
@@ -184,23 +236,21 @@ class PortfolioBacktester:
             "515030.SH": "588000.SH",   # 新能源车ETF → 科创50
             "511010.SH": "588000.SH",   # 国债ETF → 用588000近似(低波动)
         }
-        
+
+        proxy_applied = 0
         for code, proxy in proxy_map.items():
             if code not in price_data and proxy in price_data:
-                # 调整beta差异 (ETF相对其标的通常beta≈0.95)
                 price_data[code] = price_data[proxy]
-                logger.info(f"  {code} → 代理 {proxy}")
+                proxy_applied += 1
+                logger.info(f"  [代理映射] {code} → {proxy}")
 
         if not price_data:
-            logger.error("未获取到任何历史数据 (网络不可用且无本地缓存)")
+            logger.error("未获取到任何历史数据 (所有源均失败)")
             return pd.DataFrame()
 
         # 合并为DataFrame
         df = pd.DataFrame(price_data)
-        df.index = pd.to_datetime(df.index)
         df = df.sort_index()
-        
-        # 前向填充缺失值
         df = df.ffill().dropna(how='all')
 
         # 保存缓存
@@ -209,7 +259,11 @@ class PortfolioBacktester:
         except Exception:
             pass
 
-        logger.info(f"历史数据准备完成: {len(df)} 交易日, {len(df.columns)} 只标的")
+        coverage = len(price_data) / len(symbols) * 100
+        logger.info(
+            f"历史数据准备完成: {len(df)} 交易日, {len(df.columns)} 只标的 "
+            f"(覆盖率 {coverage:.0f}%, 代理 {proxy_applied} 个)"
+        )
         return df
 
     def calc_risk_parity_weights(self, returns: pd.DataFrame, 
@@ -525,24 +579,27 @@ if __name__ == "__main__":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-    parser = argparse.ArgumentParser(description="实际持仓回测验证")
+    parser = argparse.ArgumentParser(description="实际持仓回测验证 (Vibe-Trading 集成版)")
     parser.add_argument("--start", default="2021-01-01", help="回测起始日")
     parser.add_argument("--end", default=None, help="回测结束日")
     parser.add_argument("--no-hedge", action="store_true", help="不使用IF对冲")
     parser.add_argument("--no-rp", action="store_true", help="不使用Risk Parity")
+    parser.add_argument("--no-vibe", action="store_true", help="不使用 Vibe-Trading (仅代理回退)")
     parser.add_argument("--save", action="store_true", help="保存报告")
     args = parser.parse_args()
 
-    bt = PortfolioBacktester()
+    bt = PortfolioBacktester(use_vibe=not args.no_vibe)
     
-    print("=" * 60)
-    print("实际持仓回测验证")
-    print(f"持仓文件: {bt.positions_file}")
-    print(f"标的数: {len(bt.get_portfolio_codes())}")
-    print(f"回测期间: {args.start} ~ {args.end or '今天'}")
-    print(f"IF对冲: {'ON' if not args.no_hedge else 'OFF'}")
-    print(f"Risk Parity: {'ON' if not args.no_rp else 'OFF'}")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("实际持仓回测验证 (Vibe-Trading 集成版)")
+    logger.info(f"持仓文件: {bt.positions_file}")
+    logger.info(f"标的数: {len(bt.get_portfolio_codes())}")
+    logger.info(f"回测期间: {args.start} ~ {args.end or '今天'}")
+    logger.info(f"IF对冲: {'ON' if not args.no_hedge else 'OFF'}")
+    logger.info(f"Risk Parity: {'ON' if not args.no_rp else 'OFF'}")
+    vibe_status = "ON" if bt.use_vibe else "OFF (代理回退)"
+    logger.info(f"Vibe-Trading: {vibe_status}")
+    logger.info("=" * 60)
 
     result = bt.backtest(
         start_date=args.start,
@@ -552,33 +609,33 @@ if __name__ == "__main__":
     )
 
     if "error" in result:
-        print(f"\n❌ 回测失败: {result['error']}")
+        logger.info(f"\n❌ 回测失败: {result['error']}")
         if "suggestion" in result:
-            print(f"   建议: {result['suggestion']}")
+            logger.info(f"   建议: {result['suggestion']}")
         sys.exit(1)
 
     # 打印结果
     perf = result["performance"]
-    print(f"\n📊 回测结果:")
-    print(f"   回测期间: {result['backtest_period']} ({perf['n_years']:.1f} 年)")
-    print(f"   交易天数: {result['trading_days']}")
-    print(f"   标的数量: {result['portfolio_count']}")
+    logger.info("\n📊 回测结果:")
+    logger.debug(f"   回测期间: {result['backtest_period']} ({perf['n_years']:.1f} 年)")
+    logger.info(f"   交易天数: {result['trading_days']}")
+    logger.info(f"   标的数量: {result['portfolio_count']}")
     print()
     
     targets = result["targets_check"]
-    for key, detail in targets.get("details", {}).items():
-        print(f"   {detail}")
+    for _key, detail in targets.get("details", {}).items():
+        logger.info(f"   {detail}")
     
     overall = "✅ 全部达标" if targets["overall"] else "❌ 未达标"
-    print(f"\n   综合判定: {overall}")
+    logger.info(f"\n   综合判定: {overall}")
 
     if result.get("suggestions"):
-        print(f"\n⚠️ 调仓建议:")
+        logger.info("\n⚠️ 调仓建议:")
         for s in result["suggestions"]:
-            print(f"   [{s['severity']}] {s['message']}")
+            logger.info(f"   [{s['severity']}] {s['message']}")
             for action in s.get("actions", []):
-                print(f"      → {action}")
+                logger.info(f"      → {action}")
 
     if args.save:
         path = bt.save_report(result)
-        print(f"\n💾 报告已保存: {path}")
+        logger.info(f"\n💾 报告已保存: {path}")

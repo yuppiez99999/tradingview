@@ -48,7 +48,7 @@ def main():
     print(f"  stress_test executed: {result.get('stress_test', {}).get('executed', False)}")
 
     qr = result.get("quarterly_review", {})
-    print(f"\n  quarterly_review:")
+    print("\n  quarterly_review:")
     print(f"    executed: {qr.get('executed', False)}")
     print(f"    quarter: {qr.get('quarter', 'N/A')}")
     print(f"    is_quarter_end: {qr.get('is_quarter_end', False)}")

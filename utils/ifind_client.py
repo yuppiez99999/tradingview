@@ -21,7 +21,8 @@ from typing import Dict, List, Optional, Any, Tuple
 import requests
 
 logger = logging.getLogger("ifind_client")
-import urllib3
+import urllib3  # noqa: E402
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # 从环境变量读取 JWT Token,禁止明文存储
@@ -44,13 +45,14 @@ if not _AUTH_TOKEN:
 #   - futures: 期货实时行情（支持 THS_RQ 接口字段）
 # 注意: ETF 必须使用 fund 服务，stock 服务不支持 ETF 代码
 
-import requests
-import urllib3
+import urllib3  # noqa: E402
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-_IFIND_SESSION = requests.Session()
-_IFIND_SESSION.trust_env = False
-_IFIND_SESSION.proxies = {"http": None, "https": None}
+# B-4.1: 统一无代理 Session 工厂 (绕过系统代理, 避免 iFinD API 被拦截)
+from utils.http_session import make_no_proxy_session
+
+_IFIND_SESSION = make_no_proxy_session("ifind")
 
 BASE = "https://api-mcp.51ifind.com:8643/ds-mcp-servers"
 SERVERS = {
@@ -81,14 +83,14 @@ def _parse_markdown_table(text: str) -> List[Dict[str, str]]:
         return []
 
     sep_idx = header_idx + 1
-    if sep_idx < len(lines) and re.match(r'^[\s\|:\-]+$', lines[sep_idx].strip()):
+    if sep_idx < len(lines) and re.match(r"^[\s\|:\-]+$", lines[sep_idx].strip()):
         data_start = sep_idx + 1
     else:
         data_start = header_idx + 1
 
     raw_headers = [h.strip() for h in lines[header_idx].split("|")]
     raw_headers = [h for h in raw_headers if h]
-    headers = [re.sub(r'（[^）]*）', '', h).strip() for h in raw_headers]
+    headers = [re.sub(r"（[^）]*）", "", h).strip() for h in raw_headers]
 
     rows = []
     for line in lines[data_start:]:
@@ -158,7 +160,7 @@ def _parse_ifind_response(result: Dict) -> Dict[str, Any]:
 
         for d in data.get("datas", []):
             if d.get("success"):
-                out["datas"].append(d.get("data", {}))
+                out["datas"].append(d.get("data", {}))  # type: ignore
 
         for key in ["answer1", "answer", "text"]:
             val = data.get(key, "")
@@ -167,7 +169,7 @@ def _parse_ifind_response(result: Dict) -> Dict[str, Any]:
             if isinstance(val, str) and "|" in val:
                 table = _parse_markdown_table(val)
                 if table:
-                    out["tables"].extend(table)
+                    out["tables"].extend(table)  # type: ignore
                     continue
             if isinstance(val, str):
                 val = val.strip()
@@ -175,12 +177,12 @@ def _parse_ifind_response(result: Dict) -> Dict[str, Any]:
                 try:
                     arr = json.loads(val)
                     if isinstance(arr, list):
-                        out["tables"].extend([_normalize_row(r) for r in arr if isinstance(r, dict)])
+                        out["tables"].extend([_normalize_row(r) for r in arr if isinstance(r, dict)])  # type: ignore
                         continue
                 except json.JSONDecodeError:
                     pass
             if isinstance(val, list):
-                out["tables"].extend([_normalize_row(r) for r in val if isinstance(r, dict)])
+                out["tables"].extend([_normalize_row(r) for r in val if isinstance(r, dict)])  # type: ignore
 
     return out
 
@@ -244,7 +246,7 @@ class IFindClient:
         self._req_ids[t] = self._req_ids.get(t, 0) + 1
         return self._req_ids[t]
 
-    def _headers(self, t: str = None) -> Dict:
+    def _headers(self, t: Optional[str] = None) -> Dict:  # type: ignore
         h = {
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
@@ -281,21 +283,27 @@ class IFindClient:
             }
 
             resp = _IFIND_SESSION.post(
-                SERVERS[server_type], json=payload,
-                headers=self._headers(), verify=False, timeout=30,
+                SERVERS[server_type],
+                json=payload,
+                headers=self._headers(),
+                verify=False,
+                timeout=30,
             )
             resp.raise_for_status()
 
             session_id = resp.headers.get("Mcp-Session-Id")
             if not session_id:
-                raise RuntimeError(f"initialize 未返回 Mcp-Session-Id")
+                raise RuntimeError("initialize 未返回 Mcp-Session-Id")
 
             self._sessions[server_type] = session_id
 
             notify = {"jsonrpc": "2.0", "method": "notifications/initialized"}
             _IFIND_SESSION.post(
-                SERVERS[server_type], json=notify,
-                headers=self._headers(server_type), verify=False, timeout=10,
+                SERVERS[server_type],
+                json=notify,
+                headers=self._headers(server_type),
+                verify=False,
+                timeout=10,
             )
 
     def call(self, server_type: str, tool_name: str, params: Dict) -> Dict:
@@ -305,7 +313,11 @@ class IFindClient:
         now = time.time()
         if server_type in self._quota_exceeded:
             if now - self._quota_exceeded[server_type] < self._quota_retry_delay:
-                return {"ok": False, "error": f"quota exceeded, retry after {self._quota_retry_delay}s", "quota_exceeded": True}
+                return {
+                    "ok": False,
+                    "error": f"quota exceeded, retry after {self._quota_retry_delay}s",
+                    "quota_exceeded": True,
+                }
             else:
                 del self._quota_exceeded[server_type]
 
@@ -322,8 +334,11 @@ class IFindClient:
         with self._semaphore:
             try:
                 resp = _IFIND_SESSION.post(
-                    SERVERS[server_type], json=payload,
-                    headers=self._headers(server_type), verify=False, timeout=60,
+                    SERVERS[server_type],
+                    json=payload,
+                    headers=self._headers(server_type),
+                    verify=False,
+                    timeout=60,
                 )
                 self.call_count += 1
             except requests.RequestException as e:
@@ -334,7 +349,7 @@ class IFindClient:
         if resp.text.strip():
             try:
                 data = resp.json()
-            except Exception:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 data = resp.text
 
         if isinstance(data, dict) and "error" in data:
@@ -348,20 +363,20 @@ class IFindClient:
             return {"ok": False, "error": str(e), "status_code": resp.status_code}
 
         try:
-            content = data.get('result', {}).get('content', [])
+            content = data.get("result", {}).get("content", [])  # type: ignore
             for item in content:
-                text = item.get('text', '')
-                if '超限' in text or 'quota' in text.lower() or 'limit' in text.lower():
+                text = item.get("text", "")
+                if "超限" in text or "quota" in text.lower() or "limit" in text.lower():
                     self._quota_exceeded[server_type] = now
                     return {"ok": False, "error": "用户使用工具已超限", "quota_exceeded": True, "data": data}
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         self.last_success = time.time()
         return {"ok": True, "status_code": resp.status_code, "data": data}
 
     def get_historical_klines(self, code: str, days: int = 252) -> Optional[List[Dict]]:
-        if code.startswith('5'):
+        if code.startswith("5"):
             return self._get_fund_historical(code, days)
         else:
             return self._get_stock_historical(code, days)
@@ -379,9 +394,9 @@ class IFindClient:
             s = chunk_start.strftime("%Y%m%d")
             e = chunk_end.strftime("%Y%m%d")
 
-            result = self.call("stock", "get_stock_performance", {
-                "query": f"{code}从{s}到{e}的开盘价、收盘价、最高价、最低价、成交量"
-            })
+            result = self.call(
+                "stock", "get_stock_performance", {"query": f"{code}从{s}到{e}的开盘价、收盘价、最高价、最低价、成交量"}
+            )
             parsed = _parse_ifind_response(result)
             for row in parsed.get("tables", []):
                 date_str = (_col(row, "日期", "date", "Date", "DATE") or "").strip()
@@ -394,14 +409,16 @@ class IFindClient:
                     high_str = _col(row, "最高价", "最高", "high", "High", "HIGH") or "0"
                     low_str = _col(row, "最低价", "最低", "low", "Low", "LOW") or "0"
                     vol_str = _col(row, "成交量", "volume", "Volume", "VOLUME", "成交股数", "成交额") or "0"
-                    all_rows.append({
-                        "日期": date_str,
-                        "开盘价": float(open_str) if open_str else 0,
-                        "收盘价": float(close_str) if close_str else 0,
-                        "最高价": float(high_str) if high_str else 0,
-                        "最低价": float(low_str) if low_str else 0,
-                        "成交量": float(vol_str) if vol_str else 0,
-                    })
+                    all_rows.append(
+                        {
+                            "日期": date_str,
+                            "开盘价": float(open_str) if open_str else 0,
+                            "收盘价": float(close_str) if close_str else 0,
+                            "最高价": float(high_str) if high_str else 0,
+                            "最低价": float(low_str) if low_str else 0,
+                            "成交量": float(vol_str) if vol_str else 0,
+                        }
+                    )
                 except (ValueError, TypeError):
                     continue
 
@@ -419,21 +436,21 @@ class IFindClient:
 
         rows = []
         for d in etf_data:
-            rows.append({
-                "日期": d["date"],
-                "开盘价": d["nav"],
-                "收盘价": d["nav"],
-                "最高价": d["nav"],
-                "最低价": d["nav"],
-                "成交量": 0,
-            })
+            rows.append(
+                {
+                    "日期": d["date"],
+                    "开盘价": d["nav"],
+                    "收盘价": d["nav"],
+                    "最高价": d["nav"],
+                    "最低价": d["nav"],
+                    "成交量": 0,
+                }
+            )
         return rows
 
     def get_etf_quotes(self, codes: List[str]) -> Dict[str, Dict]:
         query = "、".join(codes)
-        result = self.call("fund", "get_fund_market_performance", {
-            "query": f"{query}最新单位净值和涨跌幅"
-        })
+        result = self.call("fund", "get_fund_market_performance", {"query": f"{query}最新单位净值和涨跌幅"})
         parsed = _parse_ifind_response(result)
         quotes = {}
         for row in parsed.get("tables", []):
@@ -453,9 +470,9 @@ class IFindClient:
         return quotes
 
     def get_etf_historical(self, code: str, days: int = 252) -> Optional[List[Dict]]:
-        result = self.call("fund", "get_fund_market_performance", {
-            "query": f"{code}近{days}个交易日的单位净值、涨跌幅"
-        })
+        result = self.call(
+            "fund", "get_fund_market_performance", {"query": f"{code}近{days}个交易日的单位净值、涨跌幅"}
+        )
         parsed = _parse_ifind_response(result)
         tables = parsed.get("tables", [])
         if not tables:
@@ -470,12 +487,14 @@ class IFindClient:
                 nav_str = _col(row, "单位净值") or "0"
                 chg_str = _col(row, "涨跌幅") or "0"
                 cum_str = _col(row, "累计", "累计单位净值") or _col(row, "累计") or "0"
-                rows.append({
-                    "date": date_str,
-                    "nav": float(nav_str),
-                    "change_pct": float(chg_str) if chg_str else 0,
-                    "cumulative_nav": float(cum_str) if cum_str else 0,
-                })
+                rows.append(
+                    {
+                        "date": date_str,
+                        "nav": float(nav_str),
+                        "change_pct": float(chg_str) if chg_str else 0,
+                        "cumulative_nav": float(cum_str) if cum_str else 0,
+                    }
+                )
             except (ValueError, TypeError):
                 continue
         return rows if rows else None
@@ -493,9 +512,7 @@ class IFindClient:
             s = chunk_start.strftime("%Y%m%d")
             e = chunk_end.strftime("%Y%m%d")
 
-            result = self.call("index", "index_data", {
-                "query": f"{index_name}从{s}到{e}的收盘价和成交额"
-            })
+            result = self.call("index", "index_data", {"query": f"{index_name}从{s}到{e}的收盘价和成交额"})
             parsed = _parse_ifind_response(result)
             for row in parsed.get("tables", []):
                 date_str = (_col(row, "日期") or "").strip()
@@ -506,11 +523,13 @@ class IFindClient:
                     close_str = _col(row, "收盘") or _col(row, "收盘价") or "0"
                     amt_str = _col(row, "成交额") or _col(row, "成交金额") or "0"
                     amt_str = amt_str.replace("亿", "").strip()
-                    all_rows.append({
-                        "date": date_str,
-                        "close": float(close_str),
-                        "amount": float(amt_str) * 1e8 if amt_str else 0,
-                    })
+                    all_rows.append(
+                        {
+                            "date": date_str,
+                            "close": float(close_str),
+                            "amount": float(amt_str) * 1e8 if amt_str else 0,
+                        }
+                    )
                 except (ValueError, TypeError):
                     continue
 
@@ -518,13 +537,11 @@ class IFindClient:
                 break
             time.sleep(0.6)
 
-        all_rows.sort(key=lambda x: x["date"])
+        all_rows.sort(key=lambda x: x["date"])  # type: ignore
         return all_rows if all_rows else None
 
     def get_index_latest(self, index_name: str) -> Optional[Dict]:
-        result = self.call("index", "index_data", {
-            "query": f"{index_name}最新收盘价和涨跌幅"
-        })
+        result = self.call("index", "index_data", {"query": f"{index_name}最新收盘价和涨跌幅"})
         parsed = _parse_ifind_response(result)
         tables = parsed.get("tables", [])
         if tables:
@@ -561,26 +578,23 @@ class IFindClient:
     def get_futures_realtime(self, codes: List[str]) -> Optional[List[Dict]]:
         if not codes:
             return None
-        
+
         codes_str = ",".join(codes)
         fields = "tradeDate;tradeTime;ms;preClose;open;high;low;latest;latestVolume;avgPrice;volume;change;changeSettle;changeRatio;changeRatioSettle;increasePositionVol;preSettlement;sellVolume;buyVolume;dailyIncreasePosition;swing;latest_price;settlement;dealDirection;dealtype;openInterest;positionDiff;capitalFlow;capitalDeposition;amplitude;upperLimit;downLimit;dealtypecode"
-        
-        result = self.call("futures", "get_futures_realtime", {
-            "query": f"{codes_str}",
-            "fields": fields
-        })
-        
+
+        result = self.call("futures", "get_futures_realtime", {"query": f"{codes_str}", "fields": fields})
+
         parsed = _parse_ifind_response(result)
         tables = parsed.get("tables", [])
-        
+
         if not tables:
             datas = parsed.get("datas", [])
             if datas:
                 tables = datas
-        
+
         if not tables:
             return None
-        
+
         rows = []
         for row in tables:
             try:
@@ -588,45 +602,76 @@ class IFindClient:
                     "tradeDate": _col(row, "tradeDate", "交易日期", "日期") or "",
                     "tradeTime": _col(row, "tradeTime", "交易时间", "时间") or "",
                     "ms": _col(row, "ms", "毫秒") or "",
-                    "preClose": float(_col(row, "preClose", "前收盘价", "昨收")) if _col(row, "preClose", "前收盘价", "昨收") else None,
-                    "open": float(_col(row, "open", "开盘价", "开盘")) if _col(row, "open", "开盘价", "开盘") else None,
-                    "high": float(_col(row, "high", "最高价", "最高")) if _col(row, "high", "最高价", "最高") else None,
-                    "low": float(_col(row, "low", "最低价", "最低")) if _col(row, "low", "最低价", "最低") else None,
-                    "latest": float(_col(row, "latest", "最新价", "现价")) if _col(row, "latest", "最新价", "现价") else None,
-                    "latestVolume": int(_col(row, "latestVolume", "现手")) if _col(row, "latestVolume", "现手") else None,
-                    "avgPrice": float(_col(row, "avgPrice", "均价")) if _col(row, "avgPrice", "均价") else None,
-                    "volume": float(_col(row, "volume", "成交量")) if _col(row, "volume", "成交量") else None,
-                    "change": float(_col(row, "change", "涨跌")) if _col(row, "change", "涨跌") else None,
-                    "changeSettle": float(_col(row, "changeSettle", "涨跌（结算价）")) if _col(row, "changeSettle", "涨跌（结算价）") else None,
-                    "changeRatio": float(_col(row, "changeRatio", "涨跌幅")) if _col(row, "changeRatio", "涨跌幅") else None,
-                    "changeRatioSettle": float(_col(row, "changeRatioSettle", "涨跌幅（结算价）")) if _col(row, "changeRatioSettle", "涨跌幅（结算价）") else None,
-                    "increasePositionVol": float(_col(row, "increasePositionVol", "增仓量")) if _col(row, "increasePositionVol", "增仓量") else None,
-                    "preSettlement": float(_col(row, "preSettlement", "昨结算价")) if _col(row, "preSettlement", "昨结算价") else None,
-                    "sellVolume": float(_col(row, "sellVolume", "内盘")) if _col(row, "sellVolume", "内盘") else None,
-                    "buyVolume": float(_col(row, "buyVolume", "外盘")) if _col(row, "buyVolume", "外盘") else None,
-                    "dailyIncreasePosition": float(_col(row, "dailyIncreasePosition", "日增仓")) if _col(row, "dailyIncreasePosition", "日增仓") else None,
-                    "swing": float(_col(row, "swing", "振幅")) if _col(row, "swing", "振幅") else None,
-                    "latest_price": float(_col(row, "latest_price", "最新成交价")) if _col(row, "latest_price", "最新成交价") else None,
-                    "settlement": float(_col(row, "settlement", "结算价")) if _col(row, "settlement", "结算价") else None,
+                    "preClose": float(_col(row, "preClose", "前收盘价", "昨收"))
+                    if _col(row, "preClose", "前收盘价", "昨收")
+                    else None,  # type: ignore
+                    "open": float(_col(row, "open", "开盘价", "开盘")) if _col(row, "open", "开盘价", "开盘") else None,  # type: ignore
+                    "high": float(_col(row, "high", "最高价", "最高")) if _col(row, "high", "最高价", "最高") else None,  # type: ignore
+                    "low": float(_col(row, "low", "最低价", "最低")) if _col(row, "low", "最低价", "最低") else None,  # type: ignore
+                    "latest": float(_col(row, "latest", "最新价", "现价"))
+                    if _col(row, "latest", "最新价", "现价")
+                    else None,  # type: ignore
+                    "latestVolume": int(_col(row, "latestVolume", "现手"))
+                    if _col(row, "latestVolume", "现手")
+                    else None,  # type: ignore
+                    "avgPrice": float(_col(row, "avgPrice", "均价")) if _col(row, "avgPrice", "均价") else None,  # type: ignore
+                    "volume": float(_col(row, "volume", "成交量")) if _col(row, "volume", "成交量") else None,  # type: ignore
+                    "change": float(_col(row, "change", "涨跌")) if _col(row, "change", "涨跌") else None,  # type: ignore
+                    "changeSettle": float(_col(row, "changeSettle", "涨跌（结算价）"))
+                    if _col(row, "changeSettle", "涨跌（结算价）")
+                    else None,  # type: ignore
+                    "changeRatio": float(_col(row, "changeRatio", "涨跌幅"))
+                    if _col(row, "changeRatio", "涨跌幅")
+                    else None,  # type: ignore
+                    "changeRatioSettle": float(_col(row, "changeRatioSettle", "涨跌幅（结算价）"))
+                    if _col(row, "changeRatioSettle", "涨跌幅（结算价）")
+                    else None,  # type: ignore
+                    "increasePositionVol": float(_col(row, "increasePositionVol", "增仓量"))
+                    if _col(row, "increasePositionVol", "增仓量")
+                    else None,  # type: ignore
+                    "preSettlement": float(_col(row, "preSettlement", "昨结算价"))
+                    if _col(row, "preSettlement", "昨结算价")
+                    else None,  # type: ignore
+                    "sellVolume": float(_col(row, "sellVolume", "内盘")) if _col(row, "sellVolume", "内盘") else None,  # type: ignore
+                    "buyVolume": float(_col(row, "buyVolume", "外盘")) if _col(row, "buyVolume", "外盘") else None,  # type: ignore
+                    "dailyIncreasePosition": float(_col(row, "dailyIncreasePosition", "日增仓"))
+                    if _col(row, "dailyIncreasePosition", "日增仓")
+                    else None,  # type: ignore
+                    "swing": float(_col(row, "swing", "振幅")) if _col(row, "swing", "振幅") else None,  # type: ignore
+                    "latest_price": float(_col(row, "latest_price", "最新成交价"))
+                    if _col(row, "latest_price", "最新成交价")
+                    else None,  # type: ignore
+                    "settlement": float(_col(row, "settlement", "结算价"))
+                    if _col(row, "settlement", "结算价")
+                    else None,  # type: ignore
                     "dealDirection": _col(row, "dealDirection", "成交方向") or "",
                     "dealtype": _col(row, "dealtype", "成交性质") or "",
-                    "openInterest": float(_col(row, "openInterest", "持仓量")) if _col(row, "openInterest", "持仓量") else None,
-                    "positionDiff": float(_col(row, "positionDiff", "仓差")) if _col(row, "positionDiff", "仓差") else None,
-                    "capitalFlow": float(_col(row, "capitalFlow", "资金流向")) if _col(row, "capitalFlow", "资金流向") else None,
-                    "capitalDeposition": float(_col(row, "capitalDeposition", "资金沉淀")) if _col(row, "capitalDeposition", "资金沉淀") else None,
-                    "amplitude": float(_col(row, "amplitude", "振幅")) if _col(row, "amplitude", "振幅") else None,
-                    "upperLimit": float(_col(row, "upperLimit", "涨停价")) if _col(row, "upperLimit", "涨停价") else None,
-                    "downLimit": float(_col(row, "downLimit", "跌停价")) if _col(row, "downLimit", "跌停价") else None,
+                    "openInterest": float(_col(row, "openInterest", "持仓量"))
+                    if _col(row, "openInterest", "持仓量")
+                    else None,  # type: ignore
+                    "positionDiff": float(_col(row, "positionDiff", "仓差"))
+                    if _col(row, "positionDiff", "仓差")
+                    else None,  # type: ignore
+                    "capitalFlow": float(_col(row, "capitalFlow", "资金流向"))
+                    if _col(row, "capitalFlow", "资金流向")
+                    else None,  # type: ignore
+                    "capitalDeposition": float(_col(row, "capitalDeposition", "资金沉淀"))
+                    if _col(row, "capitalDeposition", "资金沉淀")
+                    else None,  # type: ignore
+                    "amplitude": float(_col(row, "amplitude", "振幅")) if _col(row, "amplitude", "振幅") else None,  # type: ignore
+                    "upperLimit": float(_col(row, "upperLimit", "涨停价"))
+                    if _col(row, "upperLimit", "涨停价")
+                    else None,  # type: ignore
+                    "downLimit": float(_col(row, "downLimit", "跌停价")) if _col(row, "downLimit", "跌停价") else None,  # type: ignore
                     "dealtypecode": _col(row, "dealtypecode", "成交性质编码") or "",
                 }
                 rows.append(row_data)
             except (ValueError, TypeError):
                 continue
-        
+
         return rows if rows else None
 
-    def search_news(self, query: str, time_start: str = "",
-                    time_end: str = "", size: int = 5) -> Dict:
+    def search_news(self, query: str, time_start: str = "", time_end: str = "", size: int = 5) -> Dict:
         params = {"query": query, "size": size}
         if time_start:
             params["time_start"] = time_start
@@ -677,7 +722,7 @@ class IFindClient:
             query = f"{sym}{date_suffix}{indicator_str}"
             try:
                 resp = self.call("stock", "get_stock_financials", {"query": query})
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("[IFind.fundamentals] %s 调用异常: %s", sym, e)
                 return sym, {}
 
@@ -703,18 +748,21 @@ class IFindClient:
                     if "quota_exceeded" in str(e):
                         logger.warning(
                             "[IFind.fundamentals] 配额超限, 终止批量拉取 (已成功 %d/%d)",
-                            len(results), len(symbols),
+                            len(results),
+                            len(symbols),
                         )
                         # 取消剩余任务
                         for f in futures:
                             f.cancel()
                         break
-                except Exception as e:
+                except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                     logger.warning("[IFind.fundamentals] future 异常: %s", e)
 
         logger.info(
             "[IFind.fundamentals] 批量拉取完成 | 成功 %d/%d | indicators=%s",
-            len(results), len(symbols), indicator_str,
+            len(results),
+            len(symbols),
+            indicator_str,
         )
         return results
 

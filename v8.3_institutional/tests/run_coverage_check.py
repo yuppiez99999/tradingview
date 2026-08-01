@@ -24,6 +24,11 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+try:
+    import coverage
+except ImportError:
+    coverage = None
+
 # 设置路径
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.parent
 PROJECT_DIR = Path(__file__).parent.parent

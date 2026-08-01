@@ -12,14 +12,12 @@ if PROJECT_ROOT not in sys.path:
 def check_imports():
     print("[1/4] 检查模块导入...")
     try:
-        from utils.gtja191_factors import GTJA191Factors
         print("  [OK] GTJA191Factors 导入成功")
     except Exception as e:
         print(f"  [FAIL] GTJA191Factors 导入失败: {e}")
         return False
 
     try:
-        from utils.factor_model import FactorModel, FactorResult
         print("  [OK] FactorModel 导入成功")
     except Exception as e:
         print(f"  [FAIL] FactorModel 导入失败: {e}")

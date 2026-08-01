@@ -14,7 +14,7 @@
 
 [MAIN]
 # Python 版本
-py-version = 3.8
+py-version = 3.11
 
 # 加载插件 (后续可启用 pylint-mccabe 复杂度扩展)
 # load-plugins =
@@ -56,7 +56,7 @@ disable =
     wrong-import-position,     # 函数内动态导入是合法模式
     wrong-import-order,        # 项目允许标准库与第三方混合导入
     ungrouped-imports,
-    broad-except,              # 风控系统需要兜底异常处理
+    # broad-except 已启用 (T02, 2026-07-27): 风控路径禁止 broad exception
     duplicate-code,            # 多 Broker 适配器有重复
     protected-access,          # 内部协调器需要访问 _ 私有方法
     unused-argument,           # 接口预留参数 (如 price_limit)

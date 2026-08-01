@@ -15,7 +15,6 @@ AI 决策沙箱（只读模式） — v1.0
 from __future__ import annotations
 
 import json
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -38,7 +37,7 @@ if _LLM_DIR.exists() and str(_LLM_DIR) not in sys.path:
 try:
     from utils.logger import get_logger
     logger = get_logger("ai_decision_sandbox")
-except Exception:
+except Exception as e:
     import logging
     logger = logging.getLogger("ai_decision_sandbox")
 
@@ -46,7 +45,7 @@ except Exception:
 try:
     from llm_client import chat as _llm_chat
     _LLM_READY = True
-except Exception:
+except Exception as e:
     _LLM_READY = False
 
 

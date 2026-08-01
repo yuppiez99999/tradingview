@@ -19,14 +19,14 @@ Theta 引擎 - 常态化备兑收租 (Covered Call Overlay)
     plan = engine.generate_monthly_plan()
     engine.check_rollover()
 """
+
 from __future__ import annotations
 
-import os
 import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 
 import yaml
 
@@ -64,19 +64,20 @@ class ThetaEngine:
                 if not theta_cfg.get("enabled", False):
                     logger.warning("Theta 引擎未启用 (显式路径)")
                 return theta_cfg
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
                 return {}
 
         # 路径 2: 通过 ConfigManager 统一加载 (P1-Q8, 生产路径)
         try:
             from utils.config_manager import get_config
+
             portfolio_cfg = get_config("portfolio")
             theta_cfg = portfolio_cfg.get("hedge", {}).get("theta_engine", {})
             if theta_cfg:
                 if not theta_cfg.get("enabled", False):
                     logger.warning("Theta 引擎未启用")
-                return theta_cfg
+                return theta_cfg  # type: ignore
             # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
@@ -84,13 +85,13 @@ class ThetaEngine:
             if not theta_cfg.get("enabled", False):
                 logger.warning("Theta 引擎未启用 (回退路径)")
             return theta_cfg
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}")
             try:
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
-            except Exception as e2:
+            except Exception as e2:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"加载配置彻底失败: {e2}")
                 return {}
 
@@ -102,20 +103,22 @@ class ThetaEngine:
         # 尝试 Wind MCP
         try:
             from wind_mcp_fetcher import wind_get_etf_quote
+
             for code in target_codes:
                 try:
                     price = wind_get_etf_quote(code)
                     if price and price > 0:
                         spots[code] = float(price)
-                except Exception:
+                except Exception:  # P2 模块 fail-safe, 待后续精确化
                     pass
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 回退: 新浪 HTTP
         if len(spots) < len(target_codes):
             try:
                 import requests
+
                 for code in target_codes:
                     if code in spots:
                         continue
@@ -129,7 +132,7 @@ class ThetaEngine:
                             price = float(parts[3])
                             if price > 0:
                                 spots[code] = price
-            except Exception as e:
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"新浪行情获取失败: {e}")
 
         return spots
@@ -215,18 +218,20 @@ class ThetaEngine:
             days_to_expiry = (expiry_date - datetime.now()).days
             annualized = (est_premium_total / collateral) * (365 / days_to_expiry)
 
-            positions.append({
-                "code": code,
-                "spot_price": spot,
-                "strike": strike,
-                "strike_otm_pct": round(otm_pct, 4),
-                "contracts": contracts,
-                "est_premium_per_unit": round(est_premium, 4),
-                "est_premium_total": round(est_premium_total, 2),
-                "collateral": collateral,
-                "annualized_return": round(annualized, 4),
-                "iv_estimate": iv_estimate,
-            })
+            positions.append(
+                {
+                    "code": code,
+                    "spot_price": spot,
+                    "strike": strike,
+                    "strike_otm_pct": round(otm_pct, 4),
+                    "contracts": contracts,
+                    "est_premium_per_unit": round(est_premium, 4),
+                    "est_premium_total": round(est_premium_total, 2),
+                    "collateral": collateral,
+                    "annualized_return": round(annualized, 4),
+                    "iv_estimate": iv_estimate,
+                }
+            )
 
         portfolio_yield = total_premium / total_collateral if total_collateral > 0 else 0
 
@@ -239,9 +244,9 @@ class ThetaEngine:
             "total_collateral": total_collateral,
             "portfolio_yield_monthly": round(portfolio_yield, 4),
             "portfolio_yield_annualized": round(portfolio_yield * 12, 4),
-            "target_monthly_range": self.config.get(
-                "expected_enhancement", {}
-            ).get("monthly_theta_target", [0.005, 0.008]),
+            "target_monthly_range": self.config.get("expected_enhancement", {}).get(
+                "monthly_theta_target", [0.005, 0.008]
+            ),
         }
 
         # 保存计划
@@ -280,13 +285,15 @@ class ThetaEngine:
 
         rollover_positions = []
         for pos in latest_plan.get("positions", []):
-            rollover_positions.append({
-                "code": pos["code"],
-                "old_expiry": latest_plan["expiry_date"],
-                "old_strike": pos["strike"],
-                "action": "close_and_open_new",
-                "reason": f"距到期 {days_to_expiry} 天",
-            })
+            rollover_positions.append(
+                {
+                    "code": pos["code"],
+                    "old_expiry": latest_plan["expiry_date"],
+                    "old_strike": pos["strike"],
+                    "action": "close_and_open_new",
+                    "reason": f"距到期 {days_to_expiry} 天",
+                }
+            )
 
         logger.info(f"触发滚仓: {len(rollover_positions)} 个头寸需要滚仓")
         return rollover_positions
@@ -321,18 +328,14 @@ class ThetaEngine:
                 with open(plan_file, "r", encoding="utf-8") as f:
                     plan = json.load(f)
                 total_premium += plan.get("total_est_premium", 0)
-                monthly_yields.append(
-                    plan.get("portfolio_yield_monthly", 0)
-                )
-            except Exception:
+                monthly_yields.append(plan.get("portfolio_yield_monthly", 0))
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 continue
 
         avg_monthly = sum(monthly_yields) / len(monthly_yields) if monthly_yields else 0
         avg_annual = avg_monthly * 12
 
-        target_range = self.config.get("expected_enhancement", {}).get(
-            "annual_cashflow_boost", [0.06, 0.09]
-        )
+        target_range = self.config.get("expected_enhancement", {}).get("annual_cashflow_boost", [0.06, 0.09])
         target_met = target_range[0] <= avg_annual <= target_range[1]
 
         return {
@@ -363,24 +366,24 @@ if __name__ == "__main__":
 
     if args.generate:
         plan = engine.generate_monthly_plan()
-        print(json.dumps(plan, ensure_ascii=False, indent=2))
+        logger.info(json.dumps(plan, ensure_ascii=False, indent=2))
 
     if args.rollover:
         positions = engine.check_rollover()
         if positions:
-            print(f"需要滚仓的头寸: {len(positions)} 个")
+            logger.info(f"需要滚仓的头寸: {len(positions)} 个")
             for p in positions:
-                print(f"  {p['code']}: {p['reason']}")
+                logger.info(f"  {p['code']}: {p['reason']}")
         else:
-            print("暂无头寸需要滚仓")
+            logger.info("暂无头寸需要滚仓")
 
     if args.stats or (not any([args.generate, args.rollover, args.stats])):
         stats = engine.get_theta_statistics()
-        print("\n=== Theta 引擎统计 ===")
-        print(f"总计划数: {stats['total_plans']}")
-        print(f"累计预期权利金: {stats['total_premium_collected']:,.0f}")
-        print(f"平均月度收益率: {stats['avg_monthly_yield']:.2%}")
-        print(f"年化收益率: {stats['avg_annualized_yield']:.2%}")
+        logger.info("\n=== Theta 引擎统计 ===")
+        logger.info(f"总计划数: {stats['total_plans']}")
+        logger.info(f"累计预期权利金: {stats['total_premium_collected']:,.0f}")
+        logger.info(f"平均月度收益率: {stats['avg_monthly_yield']:.2%}")
+        logger.info(f"年化收益率: {stats['avg_annualized_yield']:.2%}")
         print(
             f"目标区间: {stats['target_range'][0]:.0%}-{stats['target_range'][1]:.0%}, "
             f"达标: {'是' if stats['target_met'] else '否'}"

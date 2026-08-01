@@ -19,7 +19,6 @@ import logging
 import sys
 from pathlib import Path
 
-import numpy as np
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -47,29 +46,29 @@ logging.basicConfig(
 
 
 def main() -> int:
-    print("=" * 70)
-    print("P2.2 v6 修复验证：build_factor_history fundamentals_history 传递")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("P2.2 v6 修复验证：build_factor_history fundamentals_history 传递")
+    logger.info("=" * 70)
 
     # 1. 加载数据
-    print("\n[1/4] 加载数据")
+    logger.info("\n[1/4] 加载数据")
     symbols = list_available_symbols()
-    print(f"  symbols: {len(symbols)}")
+    logger.info(f"  symbols: {len(symbols)}")
     price_data = load_price_data(symbols=symbols)
     fundamentals = load_fundamentals(price_data)
     benchmark_returns = load_benchmark_returns() or compute_equal_weight_benchmark(price_data)
-    print(f"  price_data: {len(price_data)} symbols")
+    logger.info(f"  price_data: {len(price_data)} symbols")
 
     # 2. 加载 fundamentals_history（与 PipelineOrchestrator 一致）
-    print("\n[2/4] 加载 fundamentals_history")
+    logger.info("\n[2/4] 加载 fundamentals_history")
     orchestrator = PipelineOrchestrator(config={})
     fundamentals_history = orchestrator._load_fundamentals_history(
         list(price_data.keys()) if price_data else []
     )
-    print(f"  fundamentals_history: {len(fundamentals_history)} symbols")
+    logger.info(f"  fundamentals_history: {len(fundamentals_history)} symbols")
 
     # 3. 调用 build_factor_history（v6 修复后）
-    print("\n[3/4] 调用 build_factor_history (v6 修复：传 fundamentals_history)")
+    logger.info("\n[3/4] 调用 build_factor_history (v6 修复：传 fundamentals_history)")
     adapter = VibeTradingFactorAdapter()
     factor_history, fwd_returns_hist, valid_dates = build_factor_history(
         adapter=adapter,
@@ -80,25 +79,25 @@ def main() -> int:
         forward_window=5,
         fundamentals_history=fundamentals_history,  # v6 修复
     )
-    print(f"  factor_history: {len(factor_history)} factors")
-    print(f"  fwd_returns_hist: {len(fwd_returns_hist)} days")
-    print(f"  valid_dates: {len(valid_dates)} days")
+    logger.info(f"  factor_history: {len(factor_history)} factors")
+    logger.info(f"  fwd_returns_hist: {len(fwd_returns_hist)} days")
+    logger.info(f"  valid_dates: {len(valid_dates)} days")
 
     # 4. 检查 QualityTrend 因子的 factor_history
-    print("\n[4/4] 检查 QualityTrend 因子 factor_history")
+    logger.info("\n[4/4] 检查 QualityTrend 因子 factor_history")
     qt_factors = [
         "VT_QUALTREND_ROE_DELTA",
         "VT_QUALTREND_MARGIN_EXP",
         "VT_QUALTREND_DEBT_RED",
         "VT_QUALTREND_GROWTH_ACCEL",
     ]
-    print(f"  {'因子':32s} | history_len | 非空天数 | IC_mean | IC_std | 真实 IC_IR")
-    print(f"  {'-'*32}-+-{'-'*11}-+-{'-'*8}-+-{'-'*8}-+-{'-'*8}-+-{'-'*10}")
+    logger.info(f"  {'因子':32s} | history_len | 非空天数 | IC_mean | IC_std | 真实 IC_IR")
+    logger.info(f"  {'-'*32}-+-{'-'*11}-+-{'-'*8}-+-{'-'*8}-+-{'-'*8}-+-{'-'*10}")
     all_pass = True
     for fname in qt_factors:
         hist = factor_history.get(fname, [])
         if not hist:
-            print(f"  {fname:32s} | ❌ 空 | - | - | - | -")
+            logger.info(f"  {fname:32s} | ❌ 空 | - | - | - | -")
             all_pass = False
             continue
         # 计算真实 IC_IR
@@ -111,23 +110,23 @@ def main() -> int:
 
     print()
     if all_pass:
-        print("✅ 修复生效：所有 QualityTrend 因子 factor_history 不为空")
-        print("✅ 现在可以使用真实日频 IC_IR 重新评估 v5 决策")
+        logger.info("✅ 修复生效：所有 QualityTrend 因子 factor_history 不为空")
+        logger.info("✅ 现在可以使用真实日频 IC_IR 重新评估 v5 决策")
     else:
-        print("❌ 修复未生效，部分因子 factor_history 仍为空")
+        logger.info("❌ 修复未生效，部分因子 factor_history 仍为空")
 
     # 对比 v5 legacy IC_IR vs v6 真实 IC_IR
-    print("\n" + "=" * 70)
-    print("v5 legacy 伪 IC_IR vs v6 真实日频 IC_IR 对比")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("v5 legacy 伪 IC_IR vs v6 真实日频 IC_IR 对比")
+    logger.info("=" * 70)
     v5_legacy = {
         "VT_QUALTREND_ROE_DELTA": 0.1811,
         "VT_QUALTREND_MARGIN_EXP": 0.2742,
         "VT_QUALTREND_DEBT_RED": 0.0839,
         "VT_QUALTREND_GROWTH_ACCEL": 0.2676,
     }
-    print(f"  {'因子':32s} | v5_legacy | v6_real | 差异")
-    print(f"  {'-'*32}-+-{'-'*9}-+-{'-'*9}-+-{'-'*9}")
+    logger.info(f"  {'因子':32s} | v5_legacy | v6_real | 差异")
+    logger.info(f"  {'-'*32}-+-{'-'*9}-+-{'-'*9}-+-{'-'*9}")
     for fname in qt_factors:
         hist = factor_history.get(fname, [])
         if not hist:
@@ -137,7 +136,7 @@ def main() -> int:
         v5_ic_ir = v5_legacy[fname]
         diff = v6_ic_ir - v5_ic_ir
         sign = "↑" if diff > 0 else ("↓" if diff < 0 else "=")
-        print(f"  {fname:32s} | {v5_ic_ir:+.4f}   | {v6_ic_ir:+.4f}  | {diff:+.4f} {sign}")
+        logger.info(f"  {fname:32s} | {v5_ic_ir:+.4f}   | {v6_ic_ir:+.4f}  | {diff:+.4f} {sign}")
 
     return 0 if all_pass else 1
 

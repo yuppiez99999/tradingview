@@ -170,7 +170,7 @@ def main():
 
     # 7. 验证总权重
     total_weight = sum(v["weight"] for v in plan["target_portfolio"].values())
-    print(f"\n=== 权重验证 ===")
+    print("\n=== 权重验证 ===")
     print(f"  23标的总权重: {total_weight:.6f} ({total_weight*100:.4f}%)")
     assert abs(total_weight - 1.0) < 0.001, f"权重不等于1.0: {total_weight}"
 
@@ -178,7 +178,7 @@ def main():
     with open(PLAN_FILE, "w", encoding="utf-8") as f:
         json.dump(plan, f, ensure_ascii=False, indent=2)
     print(f"\n✓ 已更新: {PLAN_FILE}")
-    print(f"  23标的清单:")
+    print("  23标的清单:")
     for code, info in plan["target_portfolio"].items():
         print(f"    {code} {info['name']:>10}  权重 {info['weight']:.4%}  ¥{info['target_amount']:>10}")
 

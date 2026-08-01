@@ -34,7 +34,12 @@ import pandas as pd
 logger = logging.getLogger("real_data_loader")
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 OHLCV_DIR = PROJECT_ROOT / "cache" / "ohlcv"
-DATA_CACHE_DIR = PROJECT_ROOT / "data_cache"  # P1.1 扩展: 5 年日 K 数据
+# 数据缓存通过集中配置管理 (支持 QUANT_DATA_ROOT 迁移到 D 盘)
+try:
+    from utils.path_config import get_data_cache_dir
+    DATA_CACHE_DIR = get_data_cache_dir()  # P1.1 扩展: 5 年日 K 数据
+except ImportError:
+    DATA_CACHE_DIR = PROJECT_ROOT / "data_cache"  # 回退: 项目目录
 FUNDAMENTALS_DIR = PROJECT_ROOT / "cache" / "fundamentals"
 BENCHMARK_PARQUET = OHLCV_DIR / "sh_000300_index.parquet"
 
@@ -275,7 +280,7 @@ def compute_equal_weight_benchmark(price_data: Dict[str, Dict[str, List[float]]]
     # 收集所有标的的日收益率
     all_returns = []
     max_len = 0
-    for sym, data in price_data.items():
+    for _sym, data in price_data.items():
         closes = data["closes"]
         if len(closes) < 2:
             continue
@@ -553,24 +558,24 @@ def load_all_for_pipeline(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s | %(message)s")
-    print("=" * 70)
-    print("真实 A 股历史数据加载器自检")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("真实 A 股历史数据加载器自检")
+    logger.info("=" * 70)
 
     symbols = list_available_symbols()
-    print(f"\n可用标的 ({len(symbols)} 个): {symbols}")
+    logger.info(f"\n可用标的 ({len(symbols)} 个): {symbols}")
 
     price_data, fundamentals, bench = load_all_for_pipeline()
-    print(f"\nprice_data: {len(price_data)} 个标的")
+    logger.info(f"\nprice_data: {len(price_data)} 个标的")
     sample_sym = list(price_data.keys())[0]
-    print(f"  样例 {sample_sym}: closes 长度 {len(price_data[sample_sym]['closes'])}")
-    print(f"  首 5 日 close: {price_data[sample_sym]['closes'][:5]}")
+    logger.info(f"  样例 {sample_sym}: closes 长度 {len(price_data[sample_sym]['closes'])}")
+    logger.info(f"  首 5 日 close: {price_data[sample_sym]['closes'][:5]}")
 
-    print(f"\nbenchmark_returns: 长度 {len(bench)}")
-    print(f"  首 5 日: {bench[:5]}")
-    print(f"  末 5 日: {bench[-5:]}")
-    print(f"  累计收益: {(np.prod([1+r for r in bench]) - 1) * 100:.2f}%")
+    logger.info(f"\nbenchmark_returns: 长度 {len(bench)}")
+    logger.info(f"  首 5 日: {bench[:5]}")
+    logger.info(f"  末 5 日: {bench[-5:]}")
+    logger.info(f"  累计收益: {(np.prod([1+r for r in bench]) - 1) * 100:.2f}%")
 
-    print(f"\nfundamentals: {len(fundamentals)} 个标的")
+    logger.info(f"\nfundamentals: {len(fundamentals)} 个标的")
     sample = list(fundamentals.values())[0]
-    print(f"  样例字段: {sample}")
+    logger.info(f"  样例字段: {sample}")

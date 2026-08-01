@@ -106,7 +106,7 @@ class HybridDataSourceTestSuite:
             if health.get('tdx', {}).get('ok', False):
                 # 测试获取实时行情
                 test_symbol = '600519'
-                quote = tdx.get_realtime_quote(test_symbol)
+                tdx.get_realtime_quote(test_symbol)
                 
                 return {
                     'passed': True,
@@ -144,7 +144,7 @@ class HybridDataSourceTestSuite:
                 
                 # 测试获取实时行情
                 test_symbol = '600519'
-                quote = fetcher.get_realtime_quotes([test_symbol])
+                fetcher.get_realtime_quotes([test_symbol])
                 
                 return {
                     'passed': True,
@@ -293,7 +293,7 @@ class HybridDataSourceTestSuite:
             if flow_data:
                 return {
                     'passed': True,
-                    'message': f'资金流向数据获取成功',
+                    'message': '资金流向数据获取成功',
                     'data': flow_data
                 }
             else:
@@ -340,7 +340,7 @@ class HybridDataSourceTestSuite:
             
             # 测试异常值检测
             series = pd.Series([100, 102, 98, 101, 105, 200, 99, 103, 97, 104])
-            is_normal, outlier_count = validator.detect_data_anomalies('test_series', series, method='mad')
+            _is_normal, outlier_count = validator.detect_data_anomalies('test_series', series, method='mad')
             
             return {
                 'passed': True,

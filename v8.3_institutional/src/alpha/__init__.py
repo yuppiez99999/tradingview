@@ -6,4 +6,4 @@ from .signal_generator import SignalGenerator
 from .factor_library import FactorLibrary
 from .signal_fusion import SignalFusion
 
-__all__ = ["SignalGenerator", "FactorLibrary", "SignalFusion"]
+__all__ = ["FactorLibrary", "SignalFusion", "SignalGenerator"]

@@ -31,13 +31,13 @@ from utils.finance_agents.risk_agent import RiskAgent
 from utils.finance_agents.macro_agent import MacroAgent
 
 __all__ = [
-    "BaseAgent",
     "AgentDecision",
-    "ValueAgent",
-    "MomentumAgent",
-    "SentimentAgent",
-    "RiskAgent",
+    "BaseAgent",
     "MacroAgent",
+    "MomentumAgent",
+    "RiskAgent",
+    "SentimentAgent",
+    "ValueAgent",
 ]
 
 __version__ = "1.0.0"

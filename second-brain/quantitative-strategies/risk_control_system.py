@@ -8,12 +8,9 @@
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
-import warnings
-from sklearn.preprocessing import StandardScaler
-from scipy import stats
 
 
 class RiskLevel(Enum):
@@ -673,7 +670,7 @@ class MultiLevelRiskControlSystem:
         """生成所有风险告警"""
         self.alerts = []
         
-        for risk_type, control in self.risk_controls.items():
+        for _risk_type, control in self.risk_controls.items():
             alert = control.generate_alert(data)
             if alert and alert.confidence >= self.confidence_threshold:
                 self.alerts.append(alert)
@@ -792,7 +789,7 @@ class MultiLevelRiskControlSystem:
         risk_series = pd.Series(risk_scores, index=pd.to_datetime(timestamps))
         
         # 计算移动平均
-        moving_avg = risk_series.rolling(window=min(7, len(risk_series))).mean()
+        risk_series.rolling(window=min(7, len(risk_series))).mean()
         
         # 计算趋势方向
         if len(risk_series) >= 3:

@@ -15,11 +15,10 @@
 import os
 import sys
 import json
-import math
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Dict
 import logging
 
 # 统一成本模型（全系统唯一成本来源，禁止本地硬编码）
@@ -684,7 +683,7 @@ def main():
         logger.info(f"夏普比率: {r['sharpe_ratio']:.3f}")
         logger.info(f"Sortino:  {r['sortino_ratio']:.3f}")
         logger.info(f"Calmar:   {r['calmar_ratio']:.3f}")
-        logger.info(f"\n--- 成本分析 ---")
+        logger.info("\n--- 成本分析 ---")
         logger.info(f"总成本:       {c['total_cost']:,.0f} 元 ({c['cost_as_pct']:.2%})")
         logger.info(f"  佣金:       {c['commission']:,.0f} 元")
         logger.info(f"  印花税:     {c['stamp_duty']:,.0f} 元")
@@ -692,7 +691,7 @@ def main():
         logger.info(f"  交易笔数:   {c['n_trades']}")
         logger.info(f"  平均成本:   {c['avg_cost_per_trade']:,.0f} 元/笔")
         logger.info(f"  换手率:     {c['turnover']:.1f}x")
-        logger.info(f"\n--- 有无成本对比 ---")
+        logger.info("\n--- 有无成本对比 ---")
         logger.info(f"含成本收益:   {comp['return_with_cost']:.2%}")
         logger.info(f"无成本收益:   {comp['return_without_cost']:.2%}")
         logger.info(f"成本拖累:     -{comp['cost_drag']:.2%}")

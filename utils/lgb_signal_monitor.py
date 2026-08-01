@@ -21,15 +21,15 @@ LGB 增强信号实盘监控 + 阈值优化分析
     - neutral_ratio > 70% → 建议降低门槛让信号更敏感
     - 根据各档位频率分布给出具体调整建议
 """
+
 from __future__ import annotations
 
-import os
 import json
 import argparse
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Any
 from collections import defaultdict, Counter
 
 # ============================================================
@@ -123,7 +123,10 @@ def record_lgb_application(
 
     logger.info(
         "LGB监控记录完成: %s, %d个订单, boost=%d, cut=%d",
-        trade_date, len(orders), boost_count, cut_count,
+        trade_date,
+        len(orders),
+        boost_count,
+        cut_count,
     )
     return events_written
 
@@ -133,7 +136,7 @@ def _append_jsonl(event: Dict[str, Any]) -> None:
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(event, ensure_ascii=False) + "\n")
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error("写入LGB监控日志失败: %s", e)
 
 
@@ -170,7 +173,7 @@ def load_history(days: int = 30) -> List[Dict[str, Any]]:
                     events.append(event)
                 except json.JSONDecodeError:
                     continue
-    except Exception as e:
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error("读取LGB监控日志失败: %s", e)
         return []
 
@@ -207,7 +210,7 @@ def analyze_lgb_history(days: int = 30) -> Dict[str, Any]:
     total_orders = sum(e.get("total_orders", 0) for e in summaries)
 
     # 乘数分布
-    multiplier_dist = Counter()
+    multiplier_dist = Counter()  # type: ignore
     for o in orders:
         mult = o.get("lgb_multiplier")
         if mult is not None:
@@ -241,7 +244,7 @@ def analyze_lgb_history(days: int = 30) -> Dict[str, Any]:
             signal_buckets["strong_bear (<-0.15)"] += 1
 
     # 按标的统计
-    per_symbol_stats = defaultdict(lambda: {"boost": 0, "cut": 0, "neutral": 0, "total": 0})
+    per_symbol_stats = defaultdict(lambda: {"boost": 0, "cut": 0, "neutral": 0, "total": 0})  # type: ignore
     for o in orders:
         code = o.get("code", "")
         direction = o.get("direction", "neutral")
@@ -249,7 +252,7 @@ def analyze_lgb_history(days: int = 30) -> Dict[str, Any]:
         per_symbol_stats[code]["total"] += 1
 
     # 按日期统计
-    per_date_stats = defaultdict(lambda: {"boost": 0, "cut": 0, "neutral": 0, "total": 0})
+    per_date_stats = defaultdict(lambda: {"boost": 0, "cut": 0, "neutral": 0, "total": 0})  # type: ignore
     for s in summaries:
         date = s.get("trade_date", "")
         per_date_stats[date]["boost"] = s.get("boost_count", 0)
@@ -326,10 +329,7 @@ def _generate_threshold_suggestions(
             f"中看涨门槛从 0.15 提高到 0.20"
         )
     elif boost_ratio > 0.35:
-        suggestions.append(
-            f"✓ boost比例偏高 ({boost_ratio:.1%}): "
-            f"可考虑微调强看涨门槛 0.05→0.08, 保持其他不变"
-        )
+        suggestions.append(f"✓ boost比例偏高 ({boost_ratio:.1%}): 可考虑微调强看涨门槛 0.05→0.08, 保持其他不变")
 
     # 2. cut 比例过高 → 风控触发过于频繁
     if cut_ratio > 0.4:
@@ -339,10 +339,7 @@ def _generate_threshold_suggestions(
             f"强看跌门槛从 -0.15 收紧到 -0.20"
         )
     elif cut_ratio > 0.25:
-        suggestions.append(
-            f"✓ cut比例偏高 ({cut_ratio:.1%}): "
-            f"可考虑微调弱看跌门槛 -0.05→-0.08"
-        )
+        suggestions.append(f"✓ cut比例偏高 ({cut_ratio:.1%}): 可考虑微调弱看跌门槛 -0.05→-0.08")
 
     # 3. 中性比例过高 → 信号过于保守, 建议降低门槛
     if neutral_ratio > 0.7:
@@ -358,14 +355,13 @@ def _generate_threshold_suggestions(
     strong_bear = signal_buckets.get("strong_bear (<-0.15)", 0)
     if strong_bull == 0 and total_orders > 50:
         suggestions.append(
-            f"⚠️ 强看涨信号(>=0.3)出现次数为0: "
-            f"LGB信号幅度可能不够, 建议检查信号生成逻辑, "
-            f"或考虑将强看涨门槛从 0.3 降低到 0.25"
+            "⚠️ 强看涨信号(>=0.3)出现次数为0: "
+            "LGB信号幅度可能不够, 建议检查信号生成逻辑, "
+            "或考虑将强看涨门槛从 0.3 降低到 0.25"
         )
     if strong_bear == 0 and total_orders > 50:
         suggestions.append(
-            f"⚠️ 强看跌信号(<-0.15)出现次数为0: "
-            f"LGB信号幅度可能不够, 建议将强看跌门槛从 -0.15 提高到 -0.10"
+            "⚠️ 强看跌信号(<-0.15)出现次数为0: LGB信号幅度可能不够, 建议将强看跌门槛从 -0.15 提高到 -0.10"
         )
 
     # 5. 单一乘数占比过高 → 阈值划分不合理
@@ -373,24 +369,18 @@ def _generate_threshold_suggestions(
         max_mult_count = max(multiplier_dist.values())
         max_mult_ratio = max_mult_count / sum(multiplier_dist.values())
         if max_mult_ratio > 0.6:
-            max_mult = max(multiplier_dist, key=multiplier_dist.get)
+            max_mult = max(multiplier_dist, key=multiplier_dist.get)  # type: ignore
             suggestions.append(
-                f"⚠️ 单一乘数 {max_mult} 占比过高 ({max_mult_ratio:.1%} > 60%): "
-                f"阈值划分过于集中, 建议重新分配乘数档位"
+                f"⚠️ 单一乘数 {max_mult} 占比过高 ({max_mult_ratio:.1%} > 60%): 阈值划分过于集中, 建议重新分配乘数档位"
             )
 
     # 6. 样本数太少
     if total_orders < 30:
-        suggestions.append(
-            f"ℹ️ 样本数较少 ({total_orders} < 30): "
-            f"建议累积更多交易日后再次分析, 当前建议仅供参考"
-        )
+        suggestions.append(f"ℹ️ 样本数较少 ({total_orders} < 30): 建议累积更多交易日后再次分析, 当前建议仅供参考")
 
     if not suggestions:
         suggestions.append(
-            f"✓ 当前阈值配置合理: boost={boost_ratio:.1%}, "
-            f"cut={cut_ratio:.1%}, neutral={neutral_ratio:.1%}, "
-            f"无优化建议"
+            f"✓ 当前阈值配置合理: boost={boost_ratio:.1%}, cut={cut_ratio:.1%}, neutral={neutral_ratio:.1%}, 无优化建议"
         )
 
     return suggestions
@@ -413,8 +403,8 @@ def generate_analysis_report(analysis: Dict[str, Any]) -> str:
         "",
         "## 一、总体统计",
         "",
-        f"| 指标 | 数值 |",
-        f"|------|------|",
+        "| 指标 | 数值 |",
+        "|------|------|",
         f"| 执行次数 | {analysis['total_executions']} |",
         f"| 总订单数 | {analysis['total_orders']} |",
         f"| LGB加仓 | {analysis['total_boost']} ({analysis['boost_ratio']:.1%}) |",
@@ -432,78 +422,88 @@ def generate_analysis_report(analysis: Dict[str, Any]) -> str:
         ratio = count / total_signal if total_signal > 0 else 0
         lines.append(f"| {bucket} | {count} | {ratio:.1%} |")
 
-    lines.extend([
-        "",
-        "## 三、乘数分布",
-        "",
-        "| 乘数 | 次数 | 占比 |",
-        "|------|------|------|",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 三、乘数分布",
+            "",
+            "| 乘数 | 次数 | 占比 |",
+            "|------|------|------|",
+        ]
+    )
     total_mult = sum(analysis["multiplier_dist"].values())
     for mult, count in sorted(analysis["multiplier_dist"].items()):
         ratio = count / total_mult if total_mult > 0 else 0
         lines.append(f"| {mult} | {count} | {ratio:.1%} |")
 
-    lines.extend([
-        "",
-        "## 四、按标的统计",
-        "",
-        "| 标的代码 | 加仓 | 减仓 | 中性 | 总数 | 加仓占比 |",
-        "|----------|------|------|------|------|----------|",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 四、按标的统计",
+            "",
+            "| 标的代码 | 加仓 | 减仓 | 中性 | 总数 | 加仓占比 |",
+            "|----------|------|------|------|------|----------|",
+        ]
+    )
     for code, stats in sorted(analysis["per_symbol_stats"].items()):
         boost_ratio = stats["boost"] / stats["total"] if stats["total"] > 0 else 0
         lines.append(
             f"| {code} | {stats['boost']} | {stats['cut']} | {stats['neutral']} | {stats['total']} | {boost_ratio:.1%} |"
         )
 
-    lines.extend([
-        "",
-        "## 五、按日期统计",
-        "",
-        "| 日期 | 加仓 | 减仓 | 中性 | 总数 |",
-        "|------|------|------|------|------|",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 五、按日期统计",
+            "",
+            "| 日期 | 加仓 | 减仓 | 中性 | 总数 |",
+            "|------|------|------|------|------|",
+        ]
+    )
     for date, stats in sorted(analysis["per_date_stats"].items()):
-        lines.append(
-            f"| {date} | {stats['boost']} | {stats['cut']} | {stats['neutral']} | {stats['total']} |"
-        )
+        lines.append(f"| {date} | {stats['boost']} | {stats['cut']} | {stats['neutral']} | {stats['total']} |")
 
-    lines.extend([
-        "",
-        "## 六、质量标志分布",
-        "",
-        "| 质量标志 | 次数 |",
-        "|----------|------|",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 六、质量标志分布",
+            "",
+            "| 质量标志 | 次数 |",
+            "|----------|------|",
+        ]
+    )
     for flag, count in analysis["quality_dist"].items():
         lines.append(f"| {flag} | {count} |")
 
-    lines.extend([
-        "",
-        "## 七、阈值优化建议",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 七、阈值优化建议",
+            "",
+        ]
+    )
     for i, s in enumerate(analysis["suggestions"], 1):
         lines.append(f"{i}. {s}")
 
-    lines.extend([
-        "",
-        "## 八、当前阈值表 (参考)",
-        "",
-        "| 信号范围 | 质量标志 | 乘数 | 说明 |",
-        "|----------|----------|------|------|",
-        "| >= 0.3 | OK | 1.08 | 强看涨 +8% |",
-        "| >= 0.15 | OK | 1.04 | 中看涨 +4% |",
-        "| >= 0.05 | OK | 1.00 | 弱看涨 中性 |",
-        "| >= -0.05 | - | 0.98 | 中性 -2% |",
-        "| >= -0.15 | - | 0.92 | 弱看跌 -8% |",
-        "| < -0.15 | - | 0.85 | 强看跌 -15% 风控 |",
-        "| 任意 | LOW_QUALITY | 1.00 | 忽略 |",
-        "",
-        "---",
-        f"**报告路径**: `{REPORTS_DIR / f'lgb_monitor_report_{datetime.now():%Y%m%d}.md'}`",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 八、当前阈值表 (参考)",
+            "",
+            "| 信号范围 | 质量标志 | 乘数 | 说明 |",
+            "|----------|----------|------|------|",
+            "| >= 0.3 | OK | 1.08 | 强看涨 +8% |",
+            "| >= 0.15 | OK | 1.04 | 中看涨 +4% |",
+            "| >= 0.05 | OK | 1.00 | 弱看涨 中性 |",
+            "| >= -0.05 | - | 0.98 | 中性 -2% |",
+            "| >= -0.15 | - | 0.92 | 弱看跌 -8% |",
+            "| < -0.15 | - | 0.85 | 强看跌 -15% 风控 |",
+            "| 任意 | LOW_QUALITY | 1.00 | 忽略 |",
+            "",
+            "---",
+            f"**报告路径**: `{REPORTS_DIR / f'lgb_monitor_report_{datetime.now():%Y%m%d}.md'}`",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -512,19 +512,21 @@ def generate_analysis_report(analysis: Dict[str, Any]) -> str:
 # 4. CLI 入口
 # ============================================================
 def main():
-    parser = argparse.ArgumentParser(
-        description="LGB增强信号实盘监控 + 阈值优化分析"
-    )
+    parser = argparse.ArgumentParser(description="LGB增强信号实盘监控 + 阈值优化分析")
     parser.add_argument(
-        "--analyze", action="store_true",
+        "--analyze",
+        action="store_true",
         help="分析历史日志并生成报告",
     )
     parser.add_argument(
-        "--days", type=int, default=30,
+        "--days",
+        type=int,
+        default=30,
         help="分析最近N天 (默认30, 0=全部)",
     )
     parser.add_argument(
-        "--report", action="store_true",
+        "--report",
+        action="store_true",
         help="生成Markdown报告文件",
     )
     args = parser.parse_args()
@@ -537,9 +539,9 @@ def main():
             report_file = REPORTS_DIR / f"lgb_monitor_report_{datetime.now():%Y%m%d}.md"
             with open(report_file, "w", encoding="utf-8") as f:
                 f.write(report)
-            print(f"✓ 报告已生成: {report_file}")
+            logger.info(f"✓ 报告已生成: {report_file}")
         else:
-            print(report)
+            logger.info(report)
     else:
         parser.print_help()
 

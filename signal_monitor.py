@@ -3,8 +3,8 @@
 信号有效性监控 — 评估QLib模型信号的实际效果
 支持v3/v3.5/v4/v5版本报告
 """
+
 import os
-import sys
 import json
 import numpy as np
 import pandas as pd
@@ -44,21 +44,21 @@ def analyze_signal_effectiveness():
     with open(report_path, "r", encoding="utf-8") as f:
         report = json.load(f)
 
-    print(f"\n{'='*70}")
-    print(f"信号有效性监控报告")
-    print(f"{'='*70}")
+    print(f"\n{'=' * 70}")
+    print("信号有效性监控报告")
+    print(f"{'=' * 70}")
     print(f"模型版本: {report.get('model', '未知')} (v{report.get('version', '?')})")
     print(f"报告时间: {report.get('timestamp', '')[:19]}")
     print(f"训练股票数: {report.get('n_stocks', report.get('training_pool_size', 0))}")
     print(f"测试样本: {report.get('metrics', report).get('test_samples', 0)}")
-    print(f"{'='*70}\n")
+    print(f"{'=' * 70}\n")
 
     if "portfolio_signals" in report:
         signals = []
         dist = {"long": 0, "short": 0, "neutral": 0}
         stock_signals = []
-        
-        for code, info in report["portfolio_signals"].items():
+
+        for _code, info in report["portfolio_signals"].items():
             if info["signal"] is not None:
                 signals.append(info["signal"])
                 if info["direction"] == "看多":
@@ -67,21 +67,23 @@ def analyze_signal_effectiveness():
                     dist["short"] += 1
                 else:
                     dist["neutral"] += 1
-                
-                stock_signals.append({
-                    "code": info["symbol"],
-                    "name": info["name"],
-                    "latest_signal": info["signal"],
-                    "direction": info["direction"],
-                    "rank": None,
-                    "total": report.get("n_stocks", 0),
-                })
+
+                stock_signals.append(
+                    {
+                        "code": info["symbol"],
+                        "name": info["name"],
+                        "latest_signal": info["signal"],
+                        "direction": info["direction"],
+                        "rank": None,
+                        "total": report.get("n_stocks", 0),
+                    }
+                )
     elif "signals" in report:
         signals_dict = report["signals"]
         signals = list(signals_dict.values())
         dist = {"long": 0, "short": 0, "neutral": 0}
         stock_signals = []
-        
+
         for symbol, signal in signals_dict.items():
             direction = "看多" if signal > 0 else "看空"
             if signal > 0:
@@ -90,15 +92,17 @@ def analyze_signal_effectiveness():
                 dist["short"] += 1
             else:
                 dist["neutral"] += 1
-            
-            stock_signals.append({
-                "code": symbol,
-                "name": "",
-                "latest_signal": signal,
-                "direction": direction,
-                "rank": None,
-                "total": len(signals_dict),
-            })
+
+            stock_signals.append(
+                {
+                    "code": symbol,
+                    "name": "",
+                    "latest_signal": signal,
+                    "direction": direction,
+                    "rank": None,
+                    "total": len(signals_dict),
+                }
+            )
     else:
         stock_signals = report.get("stock_signals", [])
         signals = [s["latest_signal"] for s in stock_signals]
@@ -107,18 +111,18 @@ def analyze_signal_effectiveness():
     total = sum(dist.values())
 
     print("--- 信号分布统计 ---")
-    print(f"看多: {dist.get('long', 0)} ({dist.get('long', 0)/total*100:.1f}%)")
-    print(f"看空: {dist.get('short', 0)} ({dist.get('short', 0)/total*100:.1f}%)")
-    print(f"中性: {dist.get('neutral', 0)} ({dist.get('neutral', 0)/total*100:.1f}%)")
+    print(f"看多: {dist.get('long', 0)} ({dist.get('long', 0) / total * 100:.1f}%)")
+    print(f"看空: {dist.get('short', 0)} ({dist.get('short', 0) / total * 100:.1f}%)")
+    print(f"中性: {dist.get('neutral', 0)} ({dist.get('neutral', 0) / total * 100:.1f}%)")
 
-    print(f"\n--- 信号强度统计 ---")
+    print("\n--- 信号强度统计 ---")
     if signals:
         print(f"信号均值: {np.mean(signals):.4f}")
         print(f"信号标准差: {np.std(signals):.4f}")
         print(f"信号最大值: {max(signals):.4f}")
         print(f"信号最小值: {min(signals):.4f}")
 
-    print(f"\n--- IC指标分析 ---")
+    print("\n--- IC指标分析 ---")
     metrics = report.get("metrics", report)
     print(f"整体 IC: {metrics.get('ic', metrics.get('ic_test', metrics.get('overall_ic', 0))):.4f}")
     print(f"日均 IC: {metrics.get('mean_daily_ic', metrics.get('avg_ic', 0)):.4f}")
@@ -126,7 +130,7 @@ def analyze_signal_effectiveness():
     print(f"IC IR: {metrics.get('ic_ir', 0):.4f}")
     print(f"IC > 0 占比: {metrics.get('ic_positive_ratio', 0):.2%}")
 
-    print(f"\n--- 信号质量评估 ---")
+    print("\n--- 信号质量评估 ---")
     ic_ir = metrics.get("ic_ir", 0)
     if ic_ir > 0.3:
         quality = "优秀"
@@ -142,10 +146,10 @@ def analyze_signal_effectiveness():
         color = "🔴"
     print(f"信号质量评级: {color} {quality}")
 
-    print(f"\n--- 分位数收益分析 ---")
+    print("\n--- 分位数收益分析 ---")
     long_stocks = [s for s in stock_signals if s["direction"] == "看多"]
     short_stocks = [s for s in stock_signals if s["direction"] == "看空"]
-    
+
     if long_stocks and short_stocks:
         long_avg_signal = np.mean([s["latest_signal"] for s in long_stocks])
         short_avg_signal = np.mean([s["latest_signal"] for s in short_stocks])
@@ -154,21 +158,21 @@ def analyze_signal_effectiveness():
         print(f"多头平均信号: {long_avg_signal:.4f}")
         print(f"空头平均信号: {short_avg_signal:.4f}")
 
-    print(f"\n--- 最新信号一览 ---")
+    print("\n--- 最新信号一览 ---")
     print(f"{'代码':<12} {'名称':<10} {'信号':>10} {'方向':>6}")
-    print(f"{'─'*45}")
+    print(f"{'─' * 45}")
     for sig in sorted(stock_signals, key=lambda x: x["latest_signal"], reverse=True):
         print(f"{sig['code']:<12} {sig['name']:<10} {sig['latest_signal']:>10.4f} {sig['direction']:>6}")
 
-    print(f"\n{'='*70}")
-    print(f"监控结论")
-    print(f"{'='*70}")
+    print(f"\n{'=' * 70}")
+    print("监控结论")
+    print(f"{'=' * 70}")
     if ic_ir > 0.2:
         print(f"✓ 当前模型IC IR={ic_ir:.4f}，信号有效性良好")
-        print(f"✓ 建议继续使用当前模型")
+        print("✓ 建议继续使用当前模型")
     else:
         print(f"✗ 当前模型IC IR={ic_ir:.4f}，信号有效性一般")
-        print(f"✗ 建议考虑：增加训练样本、调整特征、优化模型参数")
+        print("✗ 建议考虑：增加训练样本、调整特征、优化模型参数")
 
     monitor_report = {
         "timestamp": pd.Timestamp.now().isoformat(),

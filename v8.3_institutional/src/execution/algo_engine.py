@@ -2,6 +2,7 @@
 v7.5 AlgoEngine — 执行算法引擎：TWAP / VWAP / POV 策略调度
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §3.2-3.4
 """
+
 import logging
 from pathlib import Path
 from datetime import datetime, time, timedelta
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class AlgoType(str, Enum):
     """执行算法类型枚举"""
+
     TWAP = "TWAP"
     VWAP = "VWAP"
     POV = "POV"
@@ -25,6 +27,7 @@ class AlgoType(str, Enum):
 @dataclass
 class TradingSession:
     """交易时段定义"""
+
     name: str
     start: time
     end: time
@@ -34,6 +37,7 @@ class TradingSession:
 @dataclass
 class AlgoConfig:
     """算法配置"""
+
     iceberg_pct_of_depth: float = 0.10
     max_attempts: int = 5
     throttle_seconds: int = 2
@@ -50,6 +54,7 @@ class AlgoConfig:
 @dataclass
 class SliceOrder:
     """拆单后的子订单"""
+
     quantity: int
     suggested_time: Optional[datetime] = None
     price: Optional[float] = None
@@ -71,10 +76,10 @@ class AlgoEngine:
 
         # 默认时段
         self.sessions: List[TradingSession] = [
-            TradingSession('OPEN',  time(9, 30), time(9, 45), 'TWAP'),
-            TradingSession('MORN',  time(9, 45), time(11, 30), 'VWAP'),
-            TradingSession('NOON',  time(13, 0), time(14, 30), 'VWAP'),
-            TradingSession('CLOSE', time(14, 30), time(15, 0), 'TWAP'),
+            TradingSession("OPEN", time(9, 30), time(9, 45), "TWAP"),
+            TradingSession("MORN", time(9, 45), time(11, 30), "VWAP"),
+            TradingSession("NOON", time(13, 0), time(14, 30), "VWAP"),
+            TradingSession("CLOSE", time(14, 30), time(15, 0), "TWAP"),
         ]
         self.algo_cfg = AlgoConfig()
 
@@ -89,9 +94,11 @@ class AlgoEngine:
         try:
             _project_root = Path(__file__).resolve().parent.parent.parent.parent
             import sys as _sys
+
             if str(_project_root) not in _sys.path:
                 _sys.path.insert(0, str(_project_root))
             from utils.config_manager import get_execution_config
+
             cfg = get_execution_config()
             if cfg:
                 self._apply_config_dict(cfg)
@@ -100,7 +107,7 @@ class AlgoEngine:
 
     def _load_config(self, path: str) -> None:
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
         except Exception as e:
             logger.warning(f"加载执行配置失败: {e}，使用默认配置")
@@ -114,27 +121,29 @@ class AlgoEngine:
             return
 
         # 解析时段
-        if 'trading_windows' in cfg:
+        if "trading_windows" in cfg:
             self.sessions = []
-            for tw in cfg['trading_windows']:
-                start_h, start_m = map(int, tw['start'].split(':'))
-                end_h, end_m = map(int, tw['end'].split(':'))
-                self.sessions.append(TradingSession(
-                    name=tw.get('session', 'UNKNOWN'),
-                    start=time(start_h, start_m),
-                    end=time(end_h, end_m),
-                    algo=tw.get('algo', 'TWAP')
-                ))
+            for tw in cfg["trading_windows"]:
+                start_h, start_m = map(int, tw["start"].split(":"))
+                end_h, end_m = map(int, tw["end"].split(":"))
+                self.sessions.append(
+                    TradingSession(
+                        name=tw.get("session", "UNKNOWN"),
+                        start=time(start_h, start_m),
+                        end=time(end_h, end_m),
+                        algo=tw.get("algo", "TWAP"),
+                    )
+                )
 
         # 解析 SOR 参数
-        sor_cfg = cfg.get('sor', {})
+        sor_cfg = cfg.get("sor", {})
         self.algo_cfg = AlgoConfig(
-            iceberg_pct_of_depth=sor_cfg.get('iceberg_pct_of_depth', 0.10),
-            max_attempts=sor_cfg.get('max_attempts', 5),
-            throttle_seconds=sor_cfg.get('throttle_seconds', 2),
-            per_trade_break=cfg.get('slippage', {}).get('per_trade_break', 0.005),
-            daily_break=cfg.get('slippage', {}).get('daily_break', 0.010),
-            global_slow_threshold=cfg.get('slippage', {}).get('global_slow_threshold', 0.003),
+            iceberg_pct_of_depth=sor_cfg.get("iceberg_pct_of_depth", 0.10),
+            max_attempts=sor_cfg.get("max_attempts", 5),
+            throttle_seconds=sor_cfg.get("throttle_seconds", 2),
+            per_trade_break=cfg.get("slippage", {}).get("per_trade_break", 0.005),
+            daily_break=cfg.get("slippage", {}).get("daily_break", 0.010),
+            global_slow_threshold=cfg.get("slippage", {}).get("global_slow_threshold", 0.003),
         )
 
     # ---------- 时段判断 ----------
@@ -155,14 +164,16 @@ class AlgoEngine:
         self.sor = sor
 
     # ---------- 拆单算法 ----------
-    def split(self,
-              total_qty: int,
-              side: str,
-              algo: AlgoType = AlgoType.TWAP,
-              depth: Optional[Dict] = None,
-              window_minutes: int = 30,
-              volume_profile: Optional[List[float]] = None,
-              participation_rate: float = 0.1) -> List[SliceOrder]:
+    def split(
+        self,
+        total_qty: int,
+        side: str,
+        algo: AlgoType = AlgoType.TWAP,
+        depth: Optional[Dict] = None,
+        window_minutes: int = 30,
+        volume_profile: Optional[List[float]] = None,
+        participation_rate: float = 0.1,
+    ) -> List[SliceOrder]:
         """
         拆单算法 — 将大单拆分为多个小单
 
@@ -202,11 +213,13 @@ class AlgoEngine:
                 mid_price = None
                 if depth and "bid1" in depth and "ask1" in depth:
                     mid_price = (depth["bid1"] + depth["ask1"]) / 2.0
-                slices.append(SliceOrder(
-                    quantity=q,
-                    suggested_time=now + timedelta(minutes=offset),
-                    price=mid_price,
-                ))
+                slices.append(
+                    SliceOrder(
+                        quantity=q,
+                        suggested_time=now + timedelta(minutes=offset),
+                        price=mid_price,
+                    )
+                )
                 remaining -= q
                 offset += 1
             return slices
@@ -219,10 +232,12 @@ class AlgoEngine:
                 q = min(slice_size, remaining)
                 if q <= 0:
                     break
-                slices.append(SliceOrder(
-                    quantity=q,
-                    suggested_time=now + timedelta(minutes=i * 5),
-                ))
+                slices.append(
+                    SliceOrder(
+                        quantity=q,
+                        suggested_time=now + timedelta(minutes=i * 5),
+                    )
+                )
                 remaining -= q
             # 余量并入最后一片
             if remaining > 0 and slices:
@@ -241,10 +256,12 @@ class AlgoEngine:
                     for i, v in enumerate(volume_profile):
                         q = int(total_qty * v / total_vol)
                         if q > 0:
-                            slices.append(SliceOrder(
-                                quantity=q,
-                                suggested_time=now + timedelta(minutes=i * 5),
-                            ))
+                            slices.append(
+                                SliceOrder(
+                                    quantity=q,
+                                    suggested_time=now + timedelta(minutes=i * 5),
+                                )
+                            )
                     # 余量
                     allocated = sum(s.quantity for s in slices)
                     if allocated < total_qty and slices:
@@ -256,8 +273,7 @@ class AlgoEngine:
                         )
                     return slices
             # 无 profile 回退 TWAP
-            return self.split(total_qty, side, AlgoType.TWAP, depth,
-                              window_minutes)
+            return self.split(total_qty, side, AlgoType.TWAP, depth, window_minutes)
 
         if algo == AlgoType.POV:
             # POV: 按 participation_rate 拆分
@@ -266,10 +282,12 @@ class AlgoEngine:
             offset = 0
             while remaining > 0:
                 q = min(slice_size, remaining)
-                slices.append(SliceOrder(
-                    quantity=q,
-                    suggested_time=now + timedelta(minutes=offset),
-                ))
+                slices.append(
+                    SliceOrder(
+                        quantity=q,
+                        suggested_time=now + timedelta(minutes=offset),
+                    )
+                )
                 remaining -= q
                 offset += 1
             return slices
@@ -278,10 +296,15 @@ class AlgoEngine:
         return [SliceOrder(quantity=total_qty, suggested_time=now)]
 
     # ---------- 算法执行入口 ----------
-    def execute_order(self, symbol: str, target_qty: int, side: str,
-                      decision_price: float,
-                      algo: Optional[str] = None,
-                      price_limit: Optional[float] = None) -> List[Dict]:
+    def execute_order(
+        self,
+        symbol: str,
+        target_qty: int,
+        side: str,
+        decision_price: float,
+        algo: Optional[str] = None,
+        price_limit: Optional[float] = None,
+    ) -> List[Dict]:
         """
         按当前时段自动选择算法执行
 
@@ -310,20 +333,17 @@ class AlgoEngine:
         logger.info(f"[AlgoEngine] {symbol} {side} {target_qty} 使用 {algo}")
 
         algo_upper = algo.upper()
-        if algo_upper == 'TWAP':
+        if algo_upper == "TWAP":
             return self.sor.execute_twap(
-                symbol, target_qty, side, decision_price,
-                window_minutes=self.algo_cfg.twap_slice_minutes * 5
+                symbol, target_qty, side, decision_price, window_minutes=self.algo_cfg.twap_slice_minutes * 5
             )
-        if algo_upper == 'VWAP':
+        if algo_upper == "VWAP":
             return self.sor.execute_vwap(
-                symbol, target_qty, side, decision_price,
-                window_minutes=self.algo_cfg.vwap_window_minutes
+                symbol, target_qty, side, decision_price, window_minutes=self.algo_cfg.vwap_window_minutes
             )
-        if algo_upper == 'POV':
+        if algo_upper == "POV":
             return self.sor.execute_pov(
-                symbol, target_qty, side, decision_price,
-                participation_rate=self.algo_cfg.pov_participation_rate
+                symbol, target_qty, side, decision_price, participation_rate=self.algo_cfg.pov_participation_rate
             )
         # 未知算法回退
         logger.warning(f"未知算法 {algo}，回退到标准执行")
@@ -343,12 +363,12 @@ class AlgoEngine:
         all_fills = []
         for order in orders:
             fills = self.execute_order(
-                symbol=order['symbol'],
-                target_qty=order['qty'],
-                side=order.get('side', 'BUY'),
-                decision_price=order.get('decision_price', 0),
-                algo=order.get('algo'),
-                price_limit=order.get('price_limit'),
+                symbol=order["symbol"],
+                target_qty=order["qty"],
+                side=order.get("side", "BUY"),
+                decision_price=order.get("decision_price", 0),
+                algo=order.get("algo"),
+                price_limit=order.get("price_limit"),
             )
             all_fills.extend(fills)
         return all_fills

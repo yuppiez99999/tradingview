@@ -9,7 +9,6 @@
     - 覆盖 OvernightGapMonitor + MarketCircuitBreaker 两个 Guard
 """
 import pytest
-from unittest.mock import MagicMock
 
 from utils.overnight_gap_monitor import OvernightGapMonitor
 from utils.market_circuit_breaker import MarketCircuitBreaker

@@ -11,12 +11,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
-from utils.risk_metrics import calculate_var, calculate_max_drawdown
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -24,22 +23,23 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 class RiskBudgetAllocator:
     """日度建仓预算风险预算分配器"""
 
-    def __init__(self,
-                 total_capital: float = 3_000_000,
-                 target_return: float = 0.08,
-                 max_dd: float = 0.15,
-                 single_trade_risk: float = 0.015,
-                 daily_budget_limit: float = 200_000):
+    def __init__(
+        self,
+        total_capital: float = 3_000_000,
+        target_return: float = 0.08,
+        max_dd: float = 0.15,
+        single_trade_risk: float = 0.015,
+        daily_budget_limit: float = 200_000,
+    ):
         self.total_capital = total_capital
         self.target_return = target_return
         self.max_dd = max_dd
         self.single_trade_risk = single_trade_risk
         self.daily_budget_limit = daily_budget_limit
 
-    def estimate_symbol_risk(self,
-                             symbol: str,
-                             prices: Optional[np.ndarray] = None,
-                             default_vol: float = 0.25) -> float:
+    def estimate_symbol_risk(
+        self, symbol: str, prices: Optional[np.ndarray] = None, default_vol: float = 0.25
+    ) -> float:
         """估计单标的年化波动率"""
         if prices is None or len(prices) < 20:
             return default_vol
@@ -47,14 +47,16 @@ class RiskBudgetAllocator:
         returns = returns[~np.isnan(returns)]
         if len(returns) == 0:
             return default_vol
-        return float(np.std(returns, ddof=1)) * np.sqrt(252)
+        return float(np.std(returns, ddof=1)) * np.sqrt(252)  # type: ignore
 
-    def allocate_daily_budget(self,
-                              pending_positions: List[Dict],
-                              returns_matrix: Optional[pd.DataFrame] = None,
-                              signals: Optional[Dict[str, Dict]] = None,
-                              macro_scores: Optional[Dict[str, Dict]] = None,
-                              etf_signals: Optional[Dict[str, str]] = None) -> Dict[str, Dict]:
+    def allocate_daily_budget(
+        self,
+        pending_positions: List[Dict],
+        returns_matrix: Optional[pd.DataFrame] = None,
+        signals: Optional[Dict[str, Dict]] = None,
+        macro_scores: Optional[Dict[str, Dict]] = None,
+        etf_signals: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Dict]:
         """按风险预算分配当日预算
 
         Args:
@@ -76,13 +78,14 @@ class RiskBudgetAllocator:
             return {}
 
         # 等权风险预算基准
-        base_risk_budget = 1.0 / n
+        1.0 / n
         weights = np.ones(n) / n
 
         # Risk Parity 调整
         if returns_matrix is not None and returns_matrix.shape[1] >= 2:
             try:
                 import importlib.util
+
                 spec = importlib.util.spec_from_file_location(
                     "risk_budgeter",
                     PROJECT_ROOT / "v7.5_institutional" / "src" / "risk" / "risk_budgeter.py",
@@ -101,10 +104,10 @@ class RiskBudgetAllocator:
                         weights = rp_weights
                         print(f"[RiskBudgetAllocator] Risk Parity 权重计算成功, 目标{len(rp_weights)}个标的")
                     else:
-                        print(f"[RiskBudgetAllocator] Risk Parity 权重维度不匹配, 回退到等权")
+                        print("[RiskBudgetAllocator] Risk Parity 权重维度不匹配, 回退到等权")
                 else:
-                    print(f"[RiskBudgetAllocator] 无法加载 risk_budgeter 模块, 回退到等权")
-            except Exception as e:
+                    print("[RiskBudgetAllocator] 无法加载 risk_budgeter 模块, 回退到等权")
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
                 print(f"[RiskBudgetAllocator] Risk Parity 计算失败: {e}, 回退到等权")
 
         results: Dict[str, Dict] = {}

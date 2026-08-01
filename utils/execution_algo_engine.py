@@ -44,6 +44,7 @@
         slice_minutes=5,
     )
 """
+
 from __future__ import annotations
 
 import json
@@ -53,7 +54,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import date, datetime, time, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import List, Optional
 
 logger = logging.getLogger("execution_algo")
 
@@ -63,12 +64,13 @@ PLAN_DIR = BASE_DIR / "trade_instructions" / "execution_plans"
 
 class AlgoType(str, Enum):
     """执行算法类型"""
+
     TWAP = "TWAP"
     VWAP = "VWAP"
     POV = "POV"
-    IS = "IS"          # Implementation Shortfall
-    AC = "AC"          # Almgren-Chriss
-    DARK = "DARK"      # 暗池冰山
+    IS = "IS"  # Implementation Shortfall
+    AC = "AC"  # Almgren-Chriss
+    DARK = "DARK"  # 暗池冰山
 
 
 # A 股交易时段 (分钟级)
@@ -81,52 +83,243 @@ AFTERNOON_END = time(15, 0)
 # 经验分布 (总计 1.0): 开盘 15min 集中 ~12%, 收盘 15min 集中 ~15%
 DEFAULT_INTRADAY_VOLUME_CURVE: List[float] = [
     # 上午 120 分钟 (9:30-11:30), 每分钟占比
-    0.020, 0.018, 0.015, 0.013, 0.011, 0.010, 0.009, 0.008, 0.008, 0.007,  # 9:30-9:40 开盘集中
-    0.006, 0.006, 0.006, 0.005, 0.005, 0.005, 0.005, 0.005, 0.004, 0.004,
-    0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004,  # 10:00
-    0.004, 0.004, 0.004, 0.004, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003,
-    0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003,
-    0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003,
-    0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004,
-    0.004, 0.004, 0.004, 0.004, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005,  # 11:00 后趋活跃
-    0.005, 0.005, 0.005, 0.005, 0.006, 0.006, 0.006, 0.006, 0.006, 0.006,
-    0.007, 0.007, 0.007, 0.007, 0.008, 0.008, 0.008, 0.009, 0.009, 0.010,
-    0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.020, 0.022,  # 11:20-11:30 上午收盘集中
+    0.020,
+    0.018,
+    0.015,
+    0.013,
+    0.011,
+    0.010,
+    0.009,
+    0.008,
+    0.008,
+    0.007,  # 9:30-9:40 开盘集中
+    0.006,
+    0.006,
+    0.006,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,  # 10:00
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.003,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,  # 11:00 后趋活跃
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.006,
+    0.006,
+    0.006,
+    0.006,
+    0.006,
+    0.006,
+    0.007,
+    0.007,
+    0.007,
+    0.007,
+    0.008,
+    0.008,
+    0.008,
+    0.009,
+    0.009,
+    0.010,
+    0.011,
+    0.012,
+    0.013,
+    0.014,
+    0.015,
+    0.016,
+    0.017,
+    0.018,
+    0.020,
+    0.022,  # 11:20-11:30 上午收盘集中
     # 下午 120 分钟 (13:00-15:00), 每分钟占比
-    0.012, 0.010, 0.008, 0.007, 0.006, 0.005, 0.005, 0.005, 0.004, 0.004,  # 13:00 午后开盘
-    0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004,
-    0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004,
-    0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004,
-    0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004,
-    0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004,  # 14:00
-    0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.005, 0.005,
-    0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005,
-    0.005, 0.006, 0.006, 0.006, 0.006, 0.006, 0.006, 0.007, 0.007, 0.007,
-    0.008, 0.009, 0.010, 0.011, 0.012, 0.013, 0.014, 0.015, 0.017, 0.018,  # 14:50-15:00 收盘集中
+    0.012,
+    0.010,
+    0.008,
+    0.007,
+    0.006,
+    0.005,
+    0.005,
+    0.005,
+    0.004,
+    0.004,  # 13:00 午后开盘
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,  # 14:00
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.004,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.005,
+    0.006,
+    0.006,
+    0.006,
+    0.006,
+    0.006,
+    0.006,
+    0.007,
+    0.007,
+    0.007,
+    0.008,
+    0.009,
+    0.010,
+    0.011,
+    0.012,
+    0.013,
+    0.014,
+    0.015,
+    0.017,
+    0.018,  # 14:50-15:00 收盘集中
 ]
 
 
 @dataclass
 class ExecutionSlice:
     """执行时间片"""
-    slice_idx: int                     # 时间片序号 (0-based)
-    start_time: str                     # 开始时间 HH:MM
-    end_time: str                       # 结束时间 HH:MM
-    target_shares: int                  # 目标下单股数
-    accumulated_shares: int             # 累计已下单
-    remaining_shares: int               # 剩余未下单
-    participation_rate: float = 0.0     # 预估参与率 (POV 用)
-    limit_price: Optional[float] = None # 限价 (可选)
+
+    slice_idx: int  # 时间片序号 (0-based)
+    start_time: str  # 开始时间 HH:MM
+    end_time: str  # 结束时间 HH:MM
+    target_shares: int  # 目标下单股数
+    accumulated_shares: int  # 累计已下单
+    remaining_shares: int  # 剩余未下单
+    participation_rate: float = 0.0  # 预估参与率 (POV 用)
+    limit_price: Optional[float] = None  # 限价 (可选)
 
 
 @dataclass
 class ExecutionPlan:
     """执行计划"""
+
     plan_id: str = ""
-    algo: str = ""                     # AlgoType 值
+    algo: str = ""  # AlgoType 值
     symbol: str = ""
     name: str = ""
-    side: str = "buy"                  # buy / sell
+    side: str = "buy"  # buy / sell
     total_shares: int = 0
     executed_shares: int = 0
     remaining_shares: int = 0
@@ -139,7 +332,7 @@ class ExecutionPlan:
     expected_vwap: Optional[float] = None
     expected_slippage_bps: float = 0.0
     expected_cost: float = 0.0
-    risk_aversion: float = 0.0          # IS/AC 用
+    risk_aversion: float = 0.0  # IS/AC 用
     notes: str = ""
     created_at: str = ""
 
@@ -209,32 +402,39 @@ class ExecutionAlgoEngine:
         plan_id = f"{algo.value}_{symbol}_{side}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
         if algo == AlgoType.TWAP:
-            slices = self._plan_twap(
-                total_shares, duration_minutes, slice_minutes, start_time
-            )
+            slices = self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time)
         elif algo == AlgoType.VWAP:
-            slices = self._plan_vwap(
-                total_shares, duration_minutes, slice_minutes, start_time, volume_curve
-            )
+            slices = self._plan_vwap(total_shares, duration_minutes, slice_minutes, start_time, volume_curve)
         elif algo == AlgoType.POV:
             slices = self._plan_pov(
-                total_shares, duration_minutes, slice_minutes, start_time,
+                total_shares,
+                duration_minutes,
+                slice_minutes,
+                start_time,
                 avg_daily_volume or 1_000_000,
             )
         elif algo == AlgoType.IS:
             slices = self._plan_implementation_shortfall(
-                total_shares, duration_minutes, slice_minutes, start_time,
-                current_price or 0.0, volatility or 0.25, risk_aversion,
+                total_shares,
+                duration_minutes,
+                slice_minutes,
+                start_time,
+                current_price or 0.0,
+                volatility or 0.25,
+                risk_aversion,
             )
         elif algo == AlgoType.AC:
             slices = self._plan_almgren_chriss(
-                total_shares, duration_minutes, slice_minutes, start_time,
-                current_price or 0.0, volatility or 0.25, risk_aversion,
+                total_shares,
+                duration_minutes,
+                slice_minutes,
+                start_time,
+                current_price or 0.0,
+                volatility or 0.25,
+                risk_aversion,
             )
         elif algo == AlgoType.DARK:
-            slices = self._plan_dark_iceberg(
-                total_shares, duration_minutes, slice_minutes, start_time
-            )
+            slices = self._plan_dark_iceberg(total_shares, duration_minutes, slice_minutes, start_time)
         else:
             raise ValueError(f"不支持的算法: {algo}")
 
@@ -259,14 +459,16 @@ class ExecutionAlgoEngine:
 
         # 预估滑点与成本
         if current_price and current_price > 0:
-            plan.expected_slippage_bps = self._estimate_slippage_bps(
-                total_shares, avg_daily_volume or 1_000_000
-            )
+            plan.expected_slippage_bps = self._estimate_slippage_bps(total_shares, avg_daily_volume or 1_000_000)
             plan.expected_cost = total_shares * current_price * plan.expected_slippage_bps / 10_000
 
         logger.info(
             "[ExecAlgo] %s %s %s %d 股 → %d 片, 预估滑点 %.1fbps",
-            algo.value, side, symbol, total_shares, len(slices),
+            algo.value,
+            side,
+            symbol,
+            total_shares,
+            len(slices),
             plan.expected_slippage_bps,
         )
         return plan
@@ -306,14 +508,16 @@ class ExecutionAlgoEngine:
             target = base_shares + (remainder if i < remainder else 0)
             target = max(self.min_slice_shares, target) if i == slices_count - 1 else target
 
-            slices.append(ExecutionSlice(
-                slice_idx=i,
-                start_time=current_start.strftime("%H:%M"),
-                end_time=slice_end.strftime("%H:%M"),
-                target_shares=target,
-                accumulated_shares=accumulated,
-                remaining_shares=total_shares - accumulated - target,
-            ))
+            slices.append(
+                ExecutionSlice(
+                    slice_idx=i,
+                    start_time=current_start.strftime("%H:%M"),
+                    end_time=slice_end.strftime("%H:%M"),
+                    target_shares=target,
+                    accumulated_shares=accumulated,
+                    remaining_shares=total_shares - accumulated - target,
+                )
+            )
             accumulated += target
             current_start = slice_end
 
@@ -364,27 +568,29 @@ class ExecutionAlgoEngine:
         current_start = datetime.combine(date.today(), start_time)
 
         for i, w in enumerate(weights):
-            slice_end = current_start + timedelta(minutes=slice_minutes)
+            slice_end = current_start + timedelta(minutes=slice_minutes)  # type: ignore
             # 跳过午休
             if current_start.time() >= MORNING_END and current_start.time() < AFTERNOON_START:
                 current_start = datetime.combine(date.today(), AFTERNOON_START)
-                slice_end = current_start + timedelta(minutes=slice_minutes)
+                slice_end = current_start + timedelta(minutes=slice_minutes)  # type: ignore
 
             target = int(total_shares * w / total_weight)
             if i == len(weights) - 1:
                 target = total_shares - accumulated  # 最后一片兜底
             target = max(0, target)
 
-            slices.append(ExecutionSlice(
-                slice_idx=i,
-                start_time=current_start.strftime("%H:%M"),
-                end_time=slice_end.strftime("%H:%M"),
-                target_shares=target,
-                accumulated_shares=accumulated,
-                remaining_shares=total_shares - accumulated - target,
-            ))
+            slices.append(
+                ExecutionSlice(
+                    slice_idx=i,
+                    start_time=current_start.strftime("%H:%M"),
+                    end_time=slice_end.strftime("%H:%M"),  # type: ignore
+                    target_shares=target,
+                    accumulated_shares=accumulated,
+                    remaining_shares=total_shares - accumulated - target,
+                )
+            )
             accumulated += target
-            current_start = slice_end
+            current_start = slice_end  # type: ignore
 
         return slices
 
@@ -419,10 +625,7 @@ class ExecutionAlgoEngine:
         # 预估该 duration 内的总成交量
         expected_volume_in_duration = avg_daily_volume * (duration_minutes / 240.0)
         # 计算目标参与率
-        target_participation = min(
-            self.max_participation_rate,
-            total_shares / max(1, expected_volume_in_duration)
-        )
+        target_participation = min(self.max_participation_rate, total_shares / max(1, expected_volume_in_duration))
 
         slices_count = max(1, duration_minutes // slice_minutes)
         slices: List[ExecutionSlice] = []
@@ -444,15 +647,17 @@ class ExecutionAlgoEngine:
                 target = total_shares - accumulated
             target = max(0, target)
 
-            slices.append(ExecutionSlice(
-                slice_idx=i,
-                start_time=current_start.strftime("%H:%M"),
-                end_time=slice_end.strftime("%H:%M"),
-                target_shares=target,
-                accumulated_shares=accumulated,
-                remaining_shares=total_shares - accumulated - target,
-                participation_rate=target_participation,
-            ))
+            slices.append(
+                ExecutionSlice(
+                    slice_idx=i,
+                    start_time=current_start.strftime("%H:%M"),
+                    end_time=slice_end.strftime("%H:%M"),
+                    target_shares=target,
+                    accumulated_shares=accumulated,
+                    remaining_shares=total_shares - accumulated - target,
+                    participation_rate=target_participation,
+                )
+            )
             accumulated += target
             current_start = slice_end
 
@@ -508,14 +713,16 @@ class ExecutionAlgoEngine:
                 target = total_shares - accumulated
             target = max(0, target)
 
-            slices.append(ExecutionSlice(
-                slice_idx=i,
-                start_time=current_start.strftime("%H:%M"),
-                end_time=slice_end.strftime("%H:%M"),
-                target_shares=target,
-                accumulated_shares=accumulated,
-                remaining_shares=total_shares - accumulated - target,
-            ))
+            slices.append(
+                ExecutionSlice(
+                    slice_idx=i,
+                    start_time=current_start.strftime("%H:%M"),
+                    end_time=slice_end.strftime("%H:%M"),
+                    target_shares=target,
+                    accumulated_shares=accumulated,
+                    remaining_shares=total_shares - accumulated - target,
+                )
+            )
             accumulated += target
             current_start = slice_end
 
@@ -555,7 +762,7 @@ class ExecutionAlgoEngine:
         # 市场冲击系数 η (简化假设)
         eta = 0.001
         # κ
-        kappa = math.sqrt(max(0.0, risk_aversion * sigma_daily ** 2 / eta)) if risk_aversion > 0 else 0.0
+        kappa = math.sqrt(max(0.0, risk_aversion * sigma_daily**2 / eta)) if risk_aversion > 0 else 0.0
 
         if kappa < 1e-6 or T < 1e-6:
             # λ → 0 时退化为均匀 (TWAP)
@@ -568,8 +775,13 @@ class ExecutionAlgoEngine:
         except OverflowError:
             # κT 太大, 等价于瞬时完成 (front-loaded)
             return self._plan_implementation_shortfall(
-                total_shares, duration_minutes, slice_minutes, start_time,
-                current_price, volatility, risk_aversion * 10,
+                total_shares,
+                duration_minutes,
+                slice_minutes,
+                start_time,
+                current_price,
+                volatility,
+                risk_aversion * 10,
             )
 
         # x(t) = X * sinh(κ(T-t)) / sinh(κT)
@@ -594,21 +806,23 @@ class ExecutionAlgoEngine:
                 x_i = 0
             x_i = max(0, x_i)
 
-            target = int(round(prev_x - x_i))
+            target = round(prev_x - x_i)
             if i == N - 1:
                 target = total_shares - accumulated
             target = max(0, target)
 
-            slices.append(ExecutionSlice(
-                slice_idx=i,
-                start_time=current_start.strftime("%H:%M"),
-                end_time=slice_end.strftime("%H:%M"),
-                target_shares=target,
-                accumulated_shares=accumulated,
-                remaining_shares=total_shares - accumulated - target,
-            ))
+            slices.append(
+                ExecutionSlice(
+                    slice_idx=i,
+                    start_time=current_start.strftime("%H:%M"),
+                    end_time=slice_end.strftime("%H:%M"),
+                    target_shares=target,
+                    accumulated_shares=accumulated,
+                    remaining_shares=total_shares - accumulated - target,
+                )
+            )
             accumulated += target
-            prev_x = x_i
+            prev_x = x_i  # type: ignore
             current_start = slice_end
 
         return slices
@@ -646,14 +860,16 @@ class ExecutionAlgoEngine:
                 target = total_shares - accumulated
             target = max(0, target)
 
-            slices.append(ExecutionSlice(
-                slice_idx=i,
-                start_time=current_start.strftime("%H:%M"),
-                end_time=slice_end.strftime("%H:%M"),
-                target_shares=target,
-                accumulated_shares=accumulated,
-                remaining_shares=total_shares - accumulated - target,
-            ))
+            slices.append(
+                ExecutionSlice(
+                    slice_idx=i,
+                    start_time=current_start.strftime("%H:%M"),
+                    end_time=slice_end.strftime("%H:%M"),
+                    target_shares=target,
+                    accumulated_shares=accumulated,
+                    remaining_shares=total_shares - accumulated - target,
+                )
+            )
             accumulated += target
             current_start = slice_end
 
@@ -754,7 +970,7 @@ class ExecutionAlgoEngine:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(asdict(plan), f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"执行计划已保存: {path}")
-        except Exception as e:
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存执行计划失败: {e}")
         return path
 
@@ -786,10 +1002,8 @@ if __name__ == "__main__":
 
     # 自动选择算法
     if args.auto_select:
-        algo = engine.select_algo(
-            args.shares, args.adv, args.urgency, args.vol
-        )
-        print(f"\n自动选择算法: {algo.value}")
+        algo = engine.select_algo(args.shares, args.adv, args.urgency, args.vol)
+        logger.info(f"\n自动选择算法: {algo.value}")
     else:
         algo = AlgoType(args.algo)
 
@@ -806,24 +1020,26 @@ if __name__ == "__main__":
         risk_aversion=args.lambda_,
     )
 
-    print("\n" + "=" * 60)
-    print(f"执行计划: {plan.plan_id}")
-    print("=" * 60)
-    print(f"算法: {plan.algo}")
-    print(f"标的: {plan.symbol} {plan.side} {plan.total_shares} 股")
-    print(f"时间: {plan.start_datetime} → {plan.end_datetime} ({plan.duration_minutes} 分钟)")
-    print(f"切片数: {plan.slice_count} (每片 {plan.slice_minutes} 分钟)")
-    print(f"预估滑点: {plan.expected_slippage_bps:.2f} bps")
-    print(f"预估成本: ¥{plan.expected_cost:.2f}")
-    print(f"说明: {plan.notes}")
+    logger.info("\n" + "=" * 60)
+    logger.info(f"执行计划: {plan.plan_id}")
+    logger.info("=" * 60)
+    logger.info(f"算法: {plan.algo}")
+    logger.info(f"标的: {plan.symbol} {plan.side} {plan.total_shares} 股")
+    logger.info(f"时间: {plan.start_datetime} → {plan.end_datetime} ({plan.duration_minutes} 分钟)")
+    logger.info(f"切片数: {plan.slice_count} (每片 {plan.slice_minutes} 分钟)")
+    logger.info(f"预估滑点: {plan.expected_slippage_bps:.2f} bps")
+    logger.info(f"预估成本: ¥{plan.expected_cost:.2f}")
+    logger.info(f"说明: {plan.notes}")
 
-    print("\n时间片明细 (前 10 片):")
-    print(f"{'序号':<6}{'时段':<16}{'目标股数':<12}{'累计':<12}{'剩余':<12}{'参与率':<10}")
+    logger.info("\n时间片明细 (前 10 片):")
+    logger.info(f"{'序号':<6}{'时段':<16}{'目标股数':<12}{'累计':<12}{'剩余':<12}{'参与率':<10}")
     for s in plan.slices[:10]:
-        print(f"{s.slice_idx:<6}{s.start_time}-{s.end_time:<12}{s.target_shares:<12}{s.accumulated_shares:<12}{s.remaining_shares:<12}{s.participation_rate:<10.2%}")
+        print(
+            f"{s.slice_idx:<6}{s.start_time}-{s.end_time:<12}{s.target_shares:<12}{s.accumulated_shares:<12}{s.remaining_shares:<12}{s.participation_rate:<10.2%}"
+        )
 
     if len(plan.slices) > 10:
-        print(f"... 共 {len(plan.slices)} 片, 省略 {len(plan.slices) - 10} 片")
+        logger.info(f"... 共 {len(plan.slices)} 片, 省略 {len(plan.slices) - 10} 片")
 
     path = engine.save_plan(plan)
-    print(f"\n计划已保存: {path}")
+    logger.info(f"\n计划已保存: {path}")

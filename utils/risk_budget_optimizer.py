@@ -23,12 +23,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
 import json
 import math
 import numpy as np
+import pandas as pd
 from pathlib import Path
 
 
@@ -36,40 +37,43 @@ from pathlib import Path
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class RiskBudgetResult:
     """风险预算优化结果"""
-    optimal_weights: np.ndarray         # 最优权重
-    benchmark_weights: np.ndarray        # 基准权重
-    active_weights: np.ndarray            # 主动权重
-    symbols: List[str]                    # 标的列表
+
+    optimal_weights: np.ndarray  # 最优权重
+    benchmark_weights: np.ndarray  # 基准权重
+    active_weights: np.ndarray  # 主动权重
+    symbols: List[str]  # 标的列表
 
     # 风险指标
-    tracking_error: float                 # 跟踪误差 (年化)
-    active_risk_te: float                 # 主动风险 = TE
-    var_contribution: np.ndarray          # 各标的的 VaR 贡献
+    tracking_error: float  # 跟踪误差 (年化)
+    active_risk_te: float  # 主动风险 = TE
+    var_contribution: np.ndarray  # 各标的的 VaR 贡献
     marginal_risk_contribution: np.ndarray  # 边际风险贡献
 
     # 收益指标
-    expected_return: float                # 预期组合收益
-    active_return: float                  # 主动收益
-    information_ratio: float              # 信息比率
+    expected_return: float  # 预期组合收益
+    active_return: float  # 主动收益
+    information_ratio: float  # 信息比率
 
     # 约束状态
-    te_constraint_slack: float            # TE 约束松弛度 (正=未达上限)
-    te_constraint_binding: bool           # TE 约束是否绑定
-    weight_bounds_violated: bool          # 权重上下限是否违反
+    te_constraint_slack: float  # TE 约束松弛度 (正=未达上限)
+    te_constraint_binding: bool  # TE 约束是否绑定
+    weight_bounds_violated: bool  # 权重上下限是否违反
     factor_exposure_violations: List[str]  # 因子暴露违反列表
 
     # 优化诊断
-    solver_status: str                    # 求解器状态
-    iterations: int                       # 迭代次数
-    objective_value: float                # 目标函数值
+    solver_status: str  # 求解器状态
+    iterations: int  # 迭代次数
+    objective_value: float  # 目标函数值
 
 
 # ============================================================
 # 风险预算约束优化器
 # ============================================================
+
 
 class RiskBudgetOptimizer:
     """风险预算约束优化器
@@ -91,7 +95,7 @@ class RiskBudgetOptimizer:
         self,
         risk_aversion: float = 2.5,
         risk_free_rate: float = 0.03,
-        annualization_factor: float = 252 ** 0.5,
+        annualization_factor: float = 252**0.5,
     ):
         self.delta = float(risk_aversion)
         self.risk_free_rate = float(risk_free_rate)
@@ -105,7 +109,7 @@ class RiskBudgetOptimizer:
         self,
         symbols: List[str],
         expected_returns: Union[List[float], np.ndarray],
-        cov_matrix: Union[np.ndarray, "pd.DataFrame"],  # type: ignore  # noqa: F821
+        cov_matrix: Union[np.ndarray, "pd.DataFrame"],  # type: ignore
         benchmark_weights: Union[List[float], np.ndarray],
         max_tracking_error: float = 0.05,
         max_weight: Optional[float] = None,
@@ -254,6 +258,7 @@ class RiskBudgetOptimizer:
         # 尝试 scipy
         try:
             from scipy.optimize import minimize
+
             w0 = w_bench.copy()
 
             # 目标: 最大化 w'μ - (δ/2) TE²
@@ -270,40 +275,48 @@ class RiskBudgetOptimizer:
 
             # TE 约束 (≤ max_te)
             if max_te > 0:
-                constraints.append({
-                    "type": "ineq",
-                    "fun": lambda w: max_te ** 2 - float((w - w_bench) @ Sigma @ (w - w_bench)),
-                })
+                constraints.append(
+                    {
+                        "type": "ineq",
+                        "fun": lambda w: max_te**2 - float((w - w_bench) @ Sigma @ (w - w_bench)),
+                    }
+                )
 
             # 目标收益约束
             if target_return is not None:
-                constraints.append({
-                    "type": "eq",
-                    "fun": lambda w: float(w @ mu) - target_return,
-                })
+                constraints.append(
+                    {
+                        "type": "eq",
+                        "fun": lambda w: float(w @ mu) - target_return,
+                    }
+                )
 
             # 行业暴露约束
             if industry_groups and max_industry_exposure is not None:
-                for ind_name, indices in industry_groups.items():
+                for _ind_name, indices in industry_groups.items():
                     indices_arr = np.array(indices, dtype=int)
                     bench_ind_sum = float(w_bench[indices_arr].sum())
-                    constraints.append({
-                        "type": "ineq",
-                        "fun": lambda w, idx=indices_arr, bs=bench_ind_sum:
-                            max_industry_exposure - abs(float(w[idx].sum() - bs)),
-                    })
+                    constraints.append(
+                        {
+                            "type": "ineq",
+                            "fun": lambda w, idx=indices_arr, bs=bench_ind_sum: (
+                                max_industry_exposure - abs(float(w[idx].sum() - bs))
+                            ),
+                        }
+                    )
 
             # 因子暴露约束
             if factor_exposures is not None and max_factor_exposure is not None:
                 K = factor_exposures.shape[1]
                 for k in range(K):
-                    constraints.append({
-                        "type": "ineq",
-                        "fun": lambda w, kk=k:
-                            max_factor_exposure - abs(float(
-                                factor_exposures[:, kk] @ (w - w_bench)
-                            )),
-                    })
+                    constraints.append(
+                        {
+                            "type": "ineq",
+                            "fun": lambda w, kk=k: (
+                                max_factor_exposure - abs(float(factor_exposures[:, kk] @ (w - w_bench)))
+                            ),
+                        }
+                    )
 
             # 权重上下限
             lo = float(min_weight) if min_weight is not None else -1.0
@@ -311,8 +324,11 @@ class RiskBudgetOptimizer:
             bounds = [(lo, hi)] * n
 
             res = minimize(
-                neg_utility, w0, method="SLSQP",
-                bounds=bounds, constraints=constraints,
+                neg_utility,
+                w0,
+                method="SLSQP",
+                bounds=bounds,
+                constraints=constraints,
                 options={"maxiter": 300, "ftol": 1e-10},
             )
 
@@ -329,7 +345,7 @@ class RiskBudgetOptimizer:
         try:
             w = self._projected_gradient(mu, Sigma, w_bench, max_te, max_weight, min_weight)
             return w, "ProjectedGradient", 100
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 回退 2: 缩放法 — 将基准权重向预期收益高的方向倾斜, 同时满足 TE 约束
@@ -410,7 +426,7 @@ class RiskBudgetOptimizer:
             return m.astype(float)
         try:
             return np.asarray(m, dtype=float)
-        except Exception:
+        except Exception:  # P2 模块 fail-safe, 待后续精确化
             return np.array(m, dtype=float)
 
     def save_result(self, result: RiskBudgetResult, path: Union[str, Path]) -> Path:
@@ -472,7 +488,7 @@ class RiskBudgetOptimizer:
             return {
                 "new_weights": w_cur,
                 "adjustments": np.zeros_like(w_cur),
-                "expected_te": 0.0,
+                "expected_te": 0.0,  # type: ignore
             }
 
         # 计算缩放因子
@@ -484,9 +500,7 @@ class RiskBudgetOptimizer:
         # 截断超调的调整
         over = np.abs(adjustments) > max_adjustment
         if np.any(over):
-            adjustments = np.sign(adjustments) * np.minimum(
-                np.abs(adjustments), max_adjustment
-            )
+            adjustments = np.sign(adjustments) * np.minimum(np.abs(adjustments), max_adjustment)
             new_active = active + adjustments
 
         new_weights = w_bench + new_active

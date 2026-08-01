@@ -32,7 +32,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 BASE = Path(__file__).resolve().parent
 PLAN_DIR = BASE / "trade_plans"
@@ -219,7 +219,13 @@ def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 1_000_000
         reserve_amount = hedge_capital * 0.3
         total_cost = total_premium + futures_margin + total_safe_haven
         remaining = hedge_capital - total_cost
-        within_budget = total_cost <= hedge_capital
+        # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
+        # 原代码 within_budget = total_cost <= hedge_capital, 但 reserve_amount (30%)
+        # 已被预留为滚仓缓冲, 实际可用预算应为 hedge_capital - reserve_amount.
+        # 当 total_cost = hedge_capital * 0.85 时, 原判断 within_budget=True (0.85 <= 1.0),
+        # 但实际已占用全部预留缓冲资金 (0.85 > 0.7 可用), 下游误判预算充足导致滚仓时资金不足.
+        available_capital = hedge_capital - reserve_amount
+        within_budget = total_cost <= available_capital
 
         result["execution_timing"]["reserve_amount"] = reserve_amount
 
@@ -229,12 +235,13 @@ def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 1_000_000
             "futures_margin": futures_margin,
             "safe_haven": total_safe_haven,
             "reserve_amount": reserve_amount,
+            "available_capital": available_capital,  # v8.6.13: 实际可用预算 (扣除 reserve)
             "remaining": remaining,
             "within_budget": within_budget,
         }
 
         if not within_budget:
-            print(f"[WARN] 对冲成本超出预算! 总成本 ¥{total_cost:,.0f} > 预算 ¥{hedge_capital:,.0f}", file=sys.stderr)
+            print(f"[WARN] 对冲成本超出预算! 总成本 ¥{total_cost:,.0f} > 可用预算 ¥{available_capital:,.0f} (hedge_capital ¥{hedge_capital:,.0f} - reserve ¥{reserve_amount:,.0f})", file=sys.stderr)
 
         return result
     except Exception as e:
@@ -294,7 +301,11 @@ def _load_hedge_fund_overlays(trade_date: str) -> Dict:
             "build_allowed": ks_level == 0,  # L1+ 触发则禁止新开仓
         }
     except Exception as e:
-        overlays["kill_switch"] = {"available": False, "error": str(e), "build_allowed": True}
+        # v8.6.13 P0 FIX (2026-08-01 AI 扫描):
+        # 原代码 fail-open (build_allowed=True), 风控模块异常时无法检测熔断信号,
+        # 仍允许继续建仓, 在市场熔断或保证金不足时风控完全失效, 直接导致资金损失.
+        # 顶级对冲基金标准: 风控模块必须 fail-closed, 模块异常时按最严重场景处理.
+        overlays["kill_switch"] = {"available": False, "error": str(e), "build_allowed": False}
 
     # === 2. Theta引擎 — 加载月度Covered Call计划 ===
     try:
@@ -388,7 +399,10 @@ def _load_hedge_fund_overlays(trade_date: str) -> Dict:
             "build_allowed": phase_num == 0,  # 进入清仓阶段后不允许新建仓
         }
     except Exception as e:
-        overlays["liquidation"] = {"available": False, "error": str(e), "phase": 0, "build_allowed": True}
+        # v8.6.13 P0 FIX (2026-08-01 AI 扫描):
+        # 原代码 fail-open (build_allowed=True), 清仓调度器异常时可能在清仓阶段继续新建仓.
+        # 风控模块必须 fail-closed, 模块异常时禁止新建仓, 等待人工介入.
+        overlays["liquidation"] = {"available": False, "error": str(e), "phase": 0, "build_allowed": False}
 
     return overlays
 
@@ -440,7 +454,7 @@ def next_trading_day(date: datetime) -> datetime:
     return d
 
 
-def get_phase(date: datetime, stock_etf_capital: float = None, total_capital: float = 5_000_000) -> Dict:
+def get_phase(date: datetime, stock_etf_capital: Optional[float] = None, total_capital: float = 5_000_000) -> Dict:
     """根据日期判断当前阶段 (v8.6.8 P0-09: 动态填充 phase_capital/daily_capital)"""
     date_str = date.strftime("%Y-%m-%d")
     for p in PHASES:
@@ -513,6 +527,26 @@ def _load_real_time_prices() -> Dict[str, float]:
         return prices
     except Exception:
         return {}
+
+
+def _load_hedge_mode() -> str:
+    """从 positions.json 加载对冲模式 (v8.4 Phase 2: 支持 FUTURES_AND_OPTIONS)
+
+    Returns:
+        "FUTURES_AND_OPTIONS" 或 "OPTIONS_ONLY" (默认)
+    """
+    positions_file = BASE.parent / "config" / "positions.json"
+    if not positions_file.exists():
+        return "OPTIONS_ONLY"
+    try:
+        with open(positions_file, "r", encoding="utf-8") as f:
+            positions = json.load(f)
+        mode = str(positions.get("meta", {}).get("hedge_mode", "OPTIONS_ONLY")).upper()
+        if mode in ("FUTURES_AND_OPTIONS", "MIXED", "OPTIONS_ONLY", "FUTURES_ONLY"):
+            return mode
+        return "OPTIONS_ONLY"
+    except Exception:
+        return "OPTIONS_ONLY"
 
 
 def generate_orders(trade_date: str, phase: Dict, build_plan: Dict,
@@ -598,12 +632,23 @@ def generate_orders(trade_date: str, phase: Dict, build_plan: Dict,
         if shares <= 0:
             shares = lots_size  # 最少 1 手
 
-        est_amount = shares * est_price
-        limit_price = round(est_price * 1.008, 3)  # +0.8% 限价缓冲
+        # v8.6.13 P3 FIX: 删除死代码 (计算结果未赋值)
+        # shares * est_price
+        # round(est_price * 1.008, 3)
 
         # 上午/下午拆分 (50% / 50%)
-        morning_shares = shares // 2
+        # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
+        # 原代码 morning_shares = shares // 2 后可能不再是 100 的整数倍,
+        # 如 shares=100 → morning=50 (50 股无法下单), shares=300 → morning=150,
+        # A 股买入最小单位 100 股, 拆分后非 100 整数倍的订单会被交易所拒绝.
+        # 修复: 拆分后重新按 lots_size 取整; 若 morning_shares=0 (shares<2*lots_size),
+        # 全部放到下午 (避免上午订单数为 0 但下午有 1 手的拆分错误).
+        morning_shares = (shares // 2 // lots_size) * lots_size
         afternoon_shares = shares - morning_shares
+        # 若拆分后上午为 0 (总股数 < 2 手), 全部放下午
+        if morning_shares == 0:
+            morning_shares = 0
+            afternoon_shares = shares
 
         if morning_shares > 0:
             morning_orders.append({
@@ -663,6 +708,10 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
     # v8.6.8 P0-01 FIX: 从 portfolio.yaml 读取资金配置 (单一事实源)
     # 原代码硬编码 stock=capital*0.6, hedge=capital*0.4 与 portfolio.yaml 漂移
     stock_capital, hedge_capital = _load_capital_config(capital)
+
+    # v8.4 Phase 2: 动态加载对冲模式 (FUTURES_AND_OPTIONS / OPTIONS_ONLY)
+    hedge_mode = _load_hedge_mode()
+    is_futures_enabled = hedge_mode in ("FUTURES_AND_OPTIONS", "MIXED", "FUTURES_ONLY")
 
     # v8.6.8 P0-09 FIX: get_phase 传入 stock_etf_capital, 动态填充 phase_capital/daily_capital
     phase = get_phase(dt, stock_etf_capital=stock_capital, total_capital=capital)
@@ -726,7 +775,12 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
         "v77_notes": {
             "build_allowed": build_allowed,
             "spot_build_allowed": spot_build_allowed,
-            "options_orders_allowed": True,  # Theta引擎订单一般可继续 (备兑无额外保证金)
+            # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
+            # 原代码硬编码 True, 但 P0-04 修复在 spot_build_allowed=False 时会清空 Theta
+            # Covered Call 订单 (无现货时 SELL_CALL = 裸卖出, 风险无限).
+            # 字段值与实际行为不一致, 下游模块误以为期权订单可执行, 可能绕过 P0-04 拦截.
+            # 修复: 与现货建仓同步, Covered Call 需要底层多头支撑.
+            "options_orders_allowed": spot_build_allowed,
             "gamma_triggered": gamma_triggered,
             "reason_if_blocked": (
                 f"KillSwitch L{ks.get('level', 0)}" if not ks.get("build_allowed", True)
@@ -798,38 +852,43 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
         },
         "hedge_config": {
             "total_hedge_capital": hedge_capital,
-            # v8.6.8 P0-06 FIX (2026-07-26): hedge_mode 与 hedge_config.layers 一致性
-            # 原始 bug: hedge_mode=OPTIONS_ONLY (顶层声明), 但 hedge_config.layers.layer1_futures
-            # 仍硬编码 action=SHORT_FUTURES, capital=hedge_capital*0.5, 与 OPTIONS_ONLY 矛盾
-            # 风险: 下游模块读 hedge_config.layers 会误以为要做期货空头, 500K 对冲资金"消失"
-            # 修复: 根据 positions.json hedge_mode 动态生成 layers
-            "hedge_mode": "OPTIONS_ONLY",
+            # v8.4 Phase 2: 根据 positions.json hedge_mode 动态生成 layers
+            "hedge_mode": hedge_mode,
             "layers": (
-                # OPTIONS_ONLY 模式: 不持有 IF 期货, 全部资金用于 ETF Put 组合
                 {
-                    "layer1_futures": {
-                        "action": "DISABLED_BY_OPTIONS_ONLY",
-                        "ratio": 0.0,
-                        "target_beta": None,
-                        "instrument": "DISABLED — Beta 对冲通过 ETF Put 组合实现",
-                        "capital": 0,
-                        "reason": "hedge_mode=OPTIONS_ONLY, 不持有 IF 期货空头",
-                    },
+                    "layer1_futures": (
+                        {
+                            "action": "SHORT_FUTURES",
+                            "ratio": 0.50,
+                            "target_beta": 0.30,
+                            "instruments": ["IF_futures", "IC_futures"],
+                            "capital": int(hedge_capital * 0.50),
+                            "reason": f"hedge_mode={hedge_mode}, 期货空头管理Beta, 目标组合Beta≤0.30",
+                        }
+                        if is_futures_enabled
+                        else {
+                            "action": "DISABLED_BY_OPTIONS_ONLY",
+                            "ratio": 0.0,
+                            "target_beta": None,
+                            "instrument": "DISABLED — Beta 对冲通过 ETF Put 组合实现",
+                            "capital": 0,
+                            "reason": f"hedge_mode={hedge_mode}, 不持有 IF 期货空头",
+                        }
+                    ),
                     "layer2_options": {
                         "action": "PUT_PROTECTION_FULL",
                         "long_put_strike": 0.95,
                         "short_put_strike": None,
                         "short_call_strike": None,
-                        "capital": hedge_capital,
+                        "capital": hedge_capital if not is_futures_enabled else int(hedge_capital * 0.50),
                         "instruments": ["510050 Put", "588080 Put", "159915 Put", "510300 Put"],
-                        "total_premium_budget": int(hedge_capital * 0.825),
-                        "buffer_for_roll": int(hedge_capital * 0.175),
+                        "total_premium_budget": int((hedge_capital if not is_futures_enabled else hedge_capital * 0.50) * 0.825),
+                        "buffer_for_roll": int((hedge_capital if not is_futures_enabled else hedge_capital * 0.50) * 0.175),
                     },
                     "layer3_volatility": "监控模式 (IV/RV 偏离 > 5% 时小仓位试单)",
                     "layer4_absolute_return": "准备配对池, 暂不交易",
                     "layer5_covered_call": "v7.7 已由 Theta引擎自动生成月度计划" if overlays["theta"].get("plan_loaded") else "不启动 (建仓初期)",
                 }
-                if True else None  # 始终使用 OPTIONS_ONLY (与 positions.json 对齐)
             ),
         },
         # === v7.7 新增: 对冲基金视角融合字段 ===
@@ -943,16 +1002,17 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
                 },
             ],
         },
-        # === v8.4: 纯期权对冲执行单 (无期货) ===
+        # === v8.4 Phase 2: 期货+期权双路径对冲执行单 ===
         "futures_options_hedge": {
-            "hedge_mode": "OPTIONS_ONLY",
+            "hedge_mode": hedge_mode,
             "loaded": hedge_exec_plan.get("loaded", False),
             "portfolio_beta": hedge_exec_plan.get("portfolio_beta", 0.0),
             "hedge_pct": hedge_exec_plan.get("hedge_pct", 0.0),
             "execution_timing": hedge_exec_plan.get("execution_timing", {
-                "options_window": "09:30-10:00",
+                "futures_window": "09:30-09:45",
+                "options_window": "09:45-10:15",
                 "reserve_ratio": 0.175,
-                "reserve_amount": 350000,
+                "reserve_amount": int(hedge_capital * 0.175),
             }),
             "orders": hedge_exec_plan.get("hedge_orders", []),
             "orders_count": len(hedge_exec_plan.get("hedge_orders", [])),
@@ -961,9 +1021,28 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> Dict:
             "total_safe_haven": hedge_exec_plan.get("budget_check", {}).get("safe_haven", 0),
             "budget_check": hedge_exec_plan.get("budget_check", {}),
             "notes": [
+                (
+                    f"对冲模式: {hedge_mode} — IF/IC期货空头管理Beta (目标≤0.30), "
+                    f"4份ETF Put保护尾部风险"
+                    if is_futures_enabled
+                    else "对冲模式: OPTIONS_ONLY — 不持有IF期货空头，系统性Beta风险全部通过ETF认沽期权组合管理"
+                ),
+                "期权执行时机: 开盘后30-45分钟内完成期权建仓, 避免权利金成本波动",
+                (
+                    f"总预算: {hedge_capital/1e4:.0f}万 "
+                    f"(期货保证金 {hedge_capital*0.50/1e4:.1f}万 + "
+                    f"期权权利金 {hedge_capital*0.50*0.825/1e4:.1f}万 + "
+                    f"滚仓/保证金缓冲 {hedge_capital*0.50*0.175/1e4:.1f}万, v8.4 Phase 2)"
+                    if is_futures_enabled
+                    else f"总预算: {hedge_capital/1e4:.0f}万 ({hedge_capital*0.825/1e4:.1f}万权利金 + {hedge_capital*0.175/1e4:.1f}万滚仓/保证金缓冲, v8.6.8 P0-01 与 portfolio.yaml 对齐)"
+                ),
+                "510050 Put (60张) + 510300 Put (25张) = 沪深300 + 上证50 Beta对冲主力层",
+                "588080 Put (25张) + 159915 Put (25张) = 科技/成长尾部保护层",
+                "Covered Call Theta引擎 + Put Spread阶梯 = 保险成本回收与精确风控",
+            ] if is_futures_enabled else [
                 "对冲模式: OPTIONS_ONLY — 不持有IF期货空头，系统性Beta风险全部通过ETF认沽期权组合管理",
                 "期权执行时机: 开盘后30分钟内(09:30-10:00)完成期权建仓, 避免权利金成本波动",
-                f"总预算: {hedge_capital/1e4:.0f}万 ({hedge_capital*0.825/1e4:.1f}万权利金 + {hedge_capital*0.175/1e4:.1f}万滚仓/保证金缓冲, v8.6.8 P0-01 与 portfolio.yaml 对齐)",
+                f"总预算: {hedge_capital/1e4:.0f}万 ({hedge_capital*0.825/1e4:.1f}万权利金 + {hedge_capital*0.175/1e4:.1f}万滚仓/保证金缓冲)",
                 "510050 Put (60张) + 510300 Put (25张) = 沪深300 + 上证50 Beta对冲主力层",
                 "588080 Put (25张) + 159915 Put (25张) = 科技/成长尾部保护层",
                 "Covered Call Theta引擎 + Put Spread阶梯 = 保险成本回收与精确风控",
@@ -997,7 +1076,7 @@ def main():
         json.dump(plan, f, ensure_ascii=False, indent=2)
 
     print(f"\n✓ 已生成: {json_path}")
-    print(f"\n--- 计划摘要 (v8.4 纯期权对冲模式) ---")
+    print("\n--- 计划摘要 (v8.4 纯期权对冲模式) ---")
     print(f"交易日: {plan['trade_date']} ({plan['weekday']})")
     print(f"阶段: {plan['phase']['name']} (第 {plan['phase']['day_index']}/{plan['phase']['duration_days']} 天)")
     print(f"当日资金: ¥{plan['execution_plan']['day_capital']:,.0f}")
@@ -1012,7 +1091,7 @@ def main():
     theta = hf.get("theta_engine", {})
     gamma = hf.get("gamma_vega_engine", {})
     liq = hf.get("liquidation_protocol", {})
-    print(f"\n--- 对冲基金模块状态 ---")
+    print("\n--- 对冲基金模块状态 ---")
     print(f"KillSwitch: L{ks.get('level', 0)} ({ks.get('level_name', '正常')}) | 保证金占用率: {ks.get('margin_usage_ratio', 0)*100:.1f}%")
     print(f"Theta引擎: {'ON' if theta.get('plan_loaded') else 'OFF'} | 头寸数: {theta.get('positions_count', 0)} | 月度收益: {theta.get('portfolio_yield_monthly', 0)*100:.2f}% | 年化: {theta.get('portfolio_yield_annualized', 0)*100:.2f}%")
     print(f"Gamma引擎: 触发={'是' if gamma.get('triggered') else '否'} | MA60={gamma.get('ma60_status')} | IV分位={gamma.get('iv_percentile')}")
@@ -1023,11 +1102,11 @@ def main():
     if notes.get("reason_if_blocked"):
         print(f"  阻断原因: {notes['reason_if_blocked']}")
 
-    print(f"\n--- 前 5 订单 (上午) ---")
+    print("\n--- 前 5 订单 (上午) ---")
     for o in plan["execution_plan"]["morning_orders"][:5]:
         print(f"  {o['priority']}. {o['code']} {o['name']:<12} {o['shares']:>5} 股 @ {o['est_price']:<7.2f} = ¥{o['est_amount']:>10,.0f}")
 
-    print(f"\n--- 期权订单 (Theta引擎 Covered Call) ---")
+    print("\n--- 期权订单 (Theta引擎 Covered Call) ---")
     for o in plan["execution_plan"]["options_orders"][:5]:
         print(f"  {o['code']} | 行权价 {o['strike']:.3f} (OTM {o['strike_otm_pct']*100:.1f}%) | {o['contracts']} 张 | 权利金 ¥{o['est_premium_total']:,.0f} | 年化 {o['annualized_return']*100:.2f}%")
 
@@ -1036,7 +1115,7 @@ def main():
     if foh.get("loaded", False):
         timing = foh.get("execution_timing", {})
         budget = foh.get("budget_check", {})
-        print(f"\n--- 期货期权对冲执行单 (v7.7+) ---")
+        print("\n--- 期货期权对冲执行单 (v7.7+) ---")
         print(f"  组合Beta: {foh.get('portfolio_beta', 0.0):.4f}")
         print(f"  对冲比例: {foh.get('hedge_pct', 0.0)*100:.2f}%")
         print(f"  执行时机: 期权={timing.get('options_window')}, 期货={timing.get('futures_window')}")
@@ -1044,14 +1123,14 @@ def main():
         print(f"  订单数: {foh.get('orders_count', 0)}")
         print(f"  期权权利金合计: ¥{foh.get('total_premium', 0):,.0f}")
         print(f"  期货名义价值合计: ¥{foh.get('total_notional', 0):,.0f}")
-        print(f"\n  预算检查:")
+        print("\n  预算检查:")
         print(f"    总成本: ¥{budget.get('total_cost', 0):,.0f}")
         print(f"    期权权利金: ¥{budget.get('total_premium', 0):,.0f}")
         print(f"    期货保证金: ¥{budget.get('futures_margin', 0):,.0f}")
         print(f"    避险资产: ¥{budget.get('safe_haven', 0):,.0f}")
         print(f"    剩余资金: ¥{budget.get('remaining', 0):,.0f}")
         print(f"    预算充足: {'是' if budget.get('within_budget', True) else '否'}")
-        print(f"\n  对冲订单明细:")
+        print("\n  对冲订单明细:")
         for i, o in enumerate(foh.get("orders", []), 1):
             o_type = o.get("type", "")
             action = o.get("action", "")

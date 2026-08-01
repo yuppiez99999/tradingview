@@ -28,7 +28,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Python = "C:\Program Files\Python38\python.exe"
+$Python = "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
 $ExecutorScript = Join-Path $ScriptDir "weekly_trade_executor.py"
 
 Write-Host "============================================================" -ForegroundColor Cyan
