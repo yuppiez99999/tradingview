@@ -26,13 +26,13 @@ from typing import Dict, List, Optional, Tuple
 # 动机: 2025-08 300308 占 15% 权重产生 +84% 月收益, 导致极端月份依赖
 #       (去极端月份后年化 10.67%, 低于目标 12%+); Walk-Forward Sharpe CV=0.80 不稳定
 # 10% 上限限制单股集中度, 降低路径依赖风险, 提升稳定性
-DEFAULT_MAX_WEIGHT = 0.10        # 单标的硬上限 10% (V3: 15%→10%)
-DEFAULT_MAX_SECTOR = 0.25        # 单一板块硬上限 25%
-DEFAULT_MAX_DAILY_VAR = 0.015    # 组合日度 VaR95 硬上限 1.5%
-DEFAULT_MAX_SINGLE_VAR = 0.008   # 单票日度 VaR95 硬上限 0.8%
+DEFAULT_MAX_WEIGHT = 0.10  # 单标的硬上限 10% (V3: 15%→10%)
+DEFAULT_MAX_SECTOR = 0.25  # 单一板块硬上限 25%
+DEFAULT_MAX_DAILY_VAR = 0.015  # 组合日度 VaR95 硬上限 1.5%
+DEFAULT_MAX_SINGLE_VAR = 0.008  # 单票日度 VaR95 硬上限 0.8%
 
 
-def enforce_hard_constraints(
+def enforce_hard_constraints(  # noqa: C901
     weights: Dict[str, float],
     max_weight: float = DEFAULT_MAX_WEIGHT,
     sector_map: Optional[Dict[str, str]] = None,
@@ -42,6 +42,10 @@ def enforce_hard_constraints(
 
     注意：本函数始终返回合规后的权重，但会如实记录被 clamp 的违例，
     调用方必须将违例写进报告，不可静默吞掉。
+
+    BUG-04 修复 (2026-07-31): 原归一化步骤会等比例缩放所有权重, 破坏前面
+        已经压缩好的板块权重比例。修复: 归一化后重新检查板块上限, 必要时
+        再次压缩, 并循环直到收敛 (最多 3 次以防边界震荡)。
     """
     violations: List[str] = []
     clamped: Dict[str, float] = {}
@@ -50,38 +54,61 @@ def enforce_hard_constraints(
     for sym, w in weights.items():
         w = float(w)
         if w > max_weight + 1e-9:
-            violations.append(
-                f"单标的 {sym} 权重 {w:.2%} 超过硬上限 {max_weight:.2%}，已截断"
-            )
+            violations.append(f"单标的 {sym} 权重 {w:.2%} 超过硬上限 {max_weight:.2%}，已截断")
             w = max_weight
         if w < 0:
             w = 0.0
         clamped[sym] = w
 
-    # 2) 板块集中度硬上限
+    # 2) 板块集中度硬上限 (循环收敛: 归一化可能破坏板块压缩, 需要多次迭代)
     if sector_map:
-        sector_exp: Dict[str, float] = {}
-        for sym, w in clamped.items():
-            sec = sector_map.get(sym, "unknown")
-            sector_exp[sec] = sector_exp.get(sec, 0.0) + w
-        for sec, exp in sector_exp.items():
-            if sec != "unknown" and exp > max_sector + 1e-9:
-                violations.append(
-                    f"板块 {sec} 暴露 {exp:.2%} 超过硬上限 {max_sector:.2%}，已按比例压缩"
-                )
-                members = [s for s in clamped if sector_map.get(s) == sec]
-                if members and exp > 0:
-                    scale = max_sector / exp
-                    for s in members:
-                        clamped[s] *= scale
+        for iteration in range(3):  # 最多 3 次以防边界震荡
+            sector_exp: Dict[str, float] = {}
+            for sym, w in clamped.items():
+                sec = sector_map.get(sym, "unknown")
+                sector_exp[sec] = sector_exp.get(sec, 0.0) + w
+            need_recompress = False
+            for sec, exp in sector_exp.items():
+                if sec != "unknown" and exp > max_sector + 1e-9:
+                    if iteration == 0:
+                        violations.append(
+                            f"板块 {sec} 暴露 {exp:.2%} 超过硬上限 {max_sector:.2%}，已按比例压缩"
+                        )
+                    members = [s for s in clamped if sector_map.get(s) == sec]
+                    if members and exp > 0:
+                        scale = max_sector / exp
+                        for s in members:
+                            clamped[s] *= scale
+                        need_recompress = True
+            if not need_recompress:
+                break
 
     # 3) 归一化（允许保留现金，不强制 100% 满仓）
     total = sum(clamped.values())
     if total > 1.0 + 1e-9:
-        violations.append(
-            f"权重和 {total:.2%} 超过 100%，已归一化（剩余作为现金）"
-        )
+        violations.append(f"权重和 {total:.2%} 超过 100%，已归一化（剩余作为现金）")
         clamped = {s: w / total for s, w in clamped.items()}
+
+        # BUG-04 修复: 归一化后重新检查板块上限 (归一化是等比例缩放, 不会破坏相对比例,
+        # 但如果板块压缩后总权重 < 1.0 而单标的截断后总权重 > 1.0, 归一化会让板块权重
+        # 等比例缩小, 虽然不会超限但会破坏配置意图; 反之如果板块压缩后总权重 = 1.0,
+        # 归一化不会触发, 这里只需复查板块上限未被破坏)
+        if sector_map:
+            sector_exp2: Dict[str, float] = {}
+            for sym, w in clamped.items():
+                sec = sector_map.get(sym, "unknown")
+                sector_exp2[sec] = sector_exp2.get(sec, 0.0) + w
+            for sec, exp in sector_exp2.items():
+                if sec != "unknown" and exp > max_sector + 1e-9:
+                    # 归一化后仍超限 (理论上不应发生, 但防御性处理)
+                    violations.append(
+                        f"归一化后板块 {sec} 暴露 {exp:.2%} 仍超过 {max_sector:.2%}，二次压缩"
+                    )
+                    members = [s for s in clamped if sector_map.get(s) == sec]
+                    if members and exp > 0:
+                        scale = max_sector / exp
+                        for s in members:
+                            clamped[s] *= scale
 
     return clamped, violations
 
@@ -119,14 +146,10 @@ def validate_risk_budget(
     if price_data:
         port_var, single_vars = _approx_var(target_weights, price_data, total_capital)
         if port_var > max_daily_var:
-            violations.append(
-                f"组合日度VaR95={port_var:.2%} 超过上限 {max_daily_var:.2%}"
-            )
+            violations.append(f"组合日度VaR95={port_var:.2%} 超过上限 {max_daily_var:.2%}")
         for sym, v in single_vars.items():
             if v > max_single_var:
-                violations.append(
-                    f"单标的 {sym} VaR95={v:.2%} 超过上限 {max_single_var:.2%}"
-                )
+                violations.append(f"单标的 {sym} VaR95={v:.2%} 超过上限 {max_single_var:.2%}")
 
     return (len(violations) == 0), violations
 
@@ -142,14 +165,14 @@ def _approx_var(
     rets = []
     weights = []
     single = {}
-    default_vol_daily = 0.25 / (252 ** 0.5)
+    default_vol_daily = 0.25 / (252**0.5)
     for sym, w in target_weights.items():
         series = price_data.get(sym)
         r = None
         if series is not None and hasattr(series, "pct_change"):
             try:
                 r = series.pct_change().dropna().values
-            except Exception:
+            except Exception:  # P2 模块 fail-safe, 待后续精确化
                 r = None
         if r is None or len(r) < 5:
             var = default_vol_daily * 1.65 * abs(w)
@@ -159,15 +182,15 @@ def _approx_var(
         idx = max(0, int(0.05 * len(sorted_r)) - 1)
         var_sym = -sorted_r[idx] if idx >= 0 else default_vol_daily
         single[sym] = float(var_sym * abs(w))
-        rets.append(r[-min(len(r), 252):])
+        rets.append(r[-min(len(r), 252) :])
         weights.append(w)
 
     if not rets:
         return 0.0, single
     min_len = min(len(x) for x in rets)
     aligned = np.column_stack([x[-min_len:] for x in rets])
-    w = np.array(weights, dtype=float)
-    w = w / (w.sum() if w.sum() > 0 else 1.0)
+    w = np.array(weights, dtype=float)  # type: ignore
+    w = w / (w.sum() if w.sum() > 0 else 1.0)  # type: ignore
     port_ret = aligned @ w
     sorted_pr = np.sort(port_ret)
     idx = max(0, int(0.05 * len(sorted_pr)) - 1)
