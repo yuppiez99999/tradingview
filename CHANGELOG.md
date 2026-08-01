@@ -5,6 +5,65 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html)。
 
+## [8.6.14] - 2026-08-02
+
+### 新增 (Added) — 因子库对标国泰君安 GTJA191
+
+#### 11 大类因子体系重构（`utils/alpha_factor/` 包）
+
+- **包结构拆分**：原 51 因子单文件（835 行）拆分为 11 大类模块包，各类 < 400 行
+  - Value / Growth / Quality / Leverage / Operation / Momentum / LowVolatility / Size / Liquidity / Technical / Expectation
+  - `library.py` 聚合入口统一调度 11 大类 + 跨类正交化后处理
+  - `alpha_factor_library.py` 作为向后兼容 shim 保留旧导入接口（`DEFAULT_GTJA_30` 作为 `DEFAULT_GTJA` 别名）
+- **GTJA191 因子集成**（`technical.py`）：复用 `ms_strategy.factors.gtja191_factors.GTJA191Factors` 纯 Python 实现（21 因子）
+  - `DEFAULT_GTJA` 精选 9 个短周期量价因子（gtja191_004/018/030/044/054/084/092/148/178）
+  - 双实现回退：ms_strategy 优先，utils 版本作为可选扩展
+
+#### 三级共线解决方案（|ρ|>0.99 完全共线对 12→0）
+
+| 因子对 | 原相关性 | 修复方案 | 修复后相关性 |
+|--------|----------|----------|--------------|
+| MOM_INDUSTRY_ADJ ↔ MOM_60D | ρ=+1.000 | 行业内去均值（`neutralize_by_industry`） | ρ=+0.6214 |
+| LIQ_DEPTH ↔ LIQ_TURNOVER_20D | ρ=+1.000 | 改为 60 日成交量 CV=std/mean（无量纲） | ρ=-0.06 |
+| SIZE_NON_LINEAR ↔ SIZE_LOG_MCAP | ρ=+0.999 | 中盘 V 型得分 + 正交化残差 | ρ=+0.57 |
+| SIZE_CUBIC ↔ SIZE_LOG_MCAP | ρ≈+1.0 | `log(mcap)^3` 对 `log(mcap)` 正交化取残差 | ρ=+0.15 |
+| LIQ_TURNOVER_60D ↔ LIQ_TURNOVER_20D | ρ=+0.9923 | 60D 对 20D 残差化，保留长期趋势部分 | ρ<0.5 |
+| VOL_60D/120D ↔ VOL_20D | ρ>0.95 | 对 VOL_20D 正交化取残差 | ρ<0.5 |
+| LIQ_AMIHUD ↔ VOL_20D | ρ>0.85 | 跨类正交化后处理（library.py） | ρ<0.5 |
+
+### 修复 (Fixed) — daily_trade_executor 双 Bug + IC 歧义
+
+- **Bug 1 — 预算分配过度**（`daily_trade_executor.py` `_allocate_position`）：旧公式 `remaining_budget * pos["weight"] / 0.05 * 0.15` 等价于 weight×3，过度分配；修复为 `remaining_budget * pos["weight"]` 按纯权重比例分配
+- **Bug 2 — 状态写入顺序**（`execute_instructions`）：原先写 positions 后写 progress，崩溃可能导致状态不一致；调整为先写 progress（带 try-except 容错）后写 positions，支持幂等重放和从 progress 恢复 positions
+- **Bug 3 — IC 计算 look-ahead 歧义**（`base.py` `calc_ic`）：参数 `forward_days` 实际使用回看收益存在歧义；参数名改为 `lookback_days`，添加详细说明区分回看/前瞻收益场景
+
+### 安全 (Security) — 硬编码密钥清理 + .gitignore 加固
+
+- **probe 脚本去硬编码**（3 处）：`probe_apizero_deep.py` / `probe_weather_api.py` / `probe_weather_v2.py` 中硬编码 API Key `"tj_live_..."` 改为 `os.environ.get("APIZERO_API_KEY", "")`，并添加缺失提示
+- **.gitignore 安全加固**：新增 `.ocr_home/`（含 deepseek/stepfun 真实 API Key 的 OCR 工具配置目录）+ `.opencode*/`，防止敏感信息误入库
+- **.env.example 补全**：新增 `APIZERO_API_KEY=` 占位符，附带 Windows cmd / PowerShell 设置语法提示
+
+### 变更 (Changed) — 异常处理规范化（174 处 except: pass 补降级注释）
+
+为 `concurrency.py`（4 处）和 `data_quality_monitor.py`（6 处）等模块的 `except: pass` 补"降级语义"注释，区分合法降级与静默吞错：
+
+```python
+except (TypeError, ValueError):
+    # 降级语义: close 无法转为float, 跳过该标的价格范围检查, 不影响其他字段
+    pass
+```
+
+### 变更 (Changed) — 代码质量标准化（8 类 12 项）
+
+- 移除 `library.py` 未用 `numpy` 导入，相关功能改用 pandas 实现
+- 更新 `library.py` docstring 反映跨类正交化后处理逻辑
+- `base.py` `orthogonalize` 函数增加别名 `residualize`
+- `alpha_factor_library.py` 导入 `DEFAULT_GTJA` 并添加到 `__all__`，保留 `DEFAULT_GTJA_30` 作为别名
+- 修复 `technical.py` `_id_to_method` 前导零 Bug（生成 `alpha4` 而非 `alpha004`，匹配 ms_strategy 方法名）
+- 修复 `list_available_factors` ID 格式不一致（统一带前导零 `gtja191_004`）
+
+---
+
 ## [8.6.13] - 2026-08-01
 
 ### 新增 (Added) — 气象因子引擎 + 第三方项目集成
