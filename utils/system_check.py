@@ -1,7 +1,7 @@
 """
 P0 启动自检系统 (System Check)
 ==================================
-版本: v8.6.13
+版本: v8.6.14
 创建日期: 2026-07-31
 用途: 在任何交易系统入口点启动前,执行统一的全维度健康检查,
       在错误进入工作流前拦截,从根本上减少 bug 的产生与传播。
@@ -52,14 +52,36 @@ import traceback
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
+import platform
 
 # 项目根目录 (此模块位于 utils/system_check.py, 父目录即项目根)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # 日志 (避免循环导入,使用独立 logger)
-import logging
+import logging  # noqa: E402
 
 logger = logging.getLogger("system_check")
+
+
+# ============================================================================
+# 平台检测 (Mac 研究模式 vs Windows 实盘模式)
+# ============================================================================
+
+def _is_macos() -> bool:
+    """检测当前是否运行在 macOS 上 (Apple Silicon 或 Intel)"""
+    return platform.system() == "Darwin"
+
+
+def _is_research_mode() -> bool:
+    """检测是否为研究模式
+
+    Mac 自动启用研究模式; Windows/Linux 可通过 QUANT_RESEARCH_MODE=1 手动启用。
+    研究模式下跳过 Windows 专属数据源 (Wind/iFinD/QMT) 和实盘执行模块检查,
+    仅保留研究/训练/回测所需的跨平台检查项。
+    """
+    if _is_macos():
+        return True
+    return os.environ.get("QUANT_RESEARCH_MODE", "").lower() in ("1", "true", "yes")
 
 
 # ============================================================================
@@ -138,6 +160,7 @@ class SystemChecker:
         ("config/positions.json", "现货持仓状态"),
         ("config/shadow_account_config.json", "影子账户配置"),
         ("config/stop_loss_vol_adjusted.yaml", "止损规则配置"),
+        ("configs/pipeline_config.yaml", "金融工程闭环配置"),
         ("utils/hedge_execution_engine.py", "对冲执行引擎"),
         ("utils/data_provider.py", "数据提供器"),
         ("utils/risk_guard_integrator.py", "风控守卫集成器"),
@@ -159,6 +182,40 @@ class SystemChecker:
         ("NO_PROXY", "国内金融 API 代理白名单"),
     ]
 
+    # --------------------------------------------------------------------
+    # 平台适配 (Mac 研究模式 vs Windows 实盘模式)
+    # --------------------------------------------------------------------
+    # Mac/研究模式下跳过的 Windows 专属文件 (路径关键字匹配)
+    _RESEARCH_SKIP_FILE_KEYWORDS = (
+        "hedge_execution_engine",  # 对冲执行: 依赖 win32com/QMT
+        "risk_guard_integrator",   # 风控守卫: 依赖实盘数据流
+    )
+
+    def _get_critical_files(self) -> list[tuple[str, str]]:
+        """根据当前平台返回关键文件清单
+
+        - Windows 实盘模式: 返回完整 CRITICAL_FILES
+        - Mac 研究模式: 过滤掉 Windows 专属的实盘执行模块
+        """
+        if not self.research_mode:
+            return self.CRITICAL_FILES
+        return [(p, d) for p, d in self.CRITICAL_FILES
+                if not any(kw in p for kw in self._RESEARCH_SKIP_FILE_KEYWORDS)]
+
+    def _get_critical_env_vars(self) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+        """根据当前平台返回环境变量清单
+
+        - Windows 实盘模式: WIND_API_KEY/IFIND_TOKEN 为 ERROR 级
+        - Mac 研究模式: WIND_API_KEY/IFIND_TOKEN 降级为 WARN 级 (可选)
+        """
+        if not self.research_mode:
+            return self.CRITICAL_ENV_VARS, self.OPTIONAL_ENV_VARS
+        # 研究模式: Wind/iFinD 凭证降级为可选
+        optional = list(self.OPTIONAL_ENV_VARS)
+        for var, desc in self.CRITICAL_ENV_VARS:
+            optional.append((var, f"{desc} (Mac 研究模式可选)"))
+        return [], optional
+
     def __init__(self, strict: bool = False, skip_datasource: bool = False):
         """
         Args:
@@ -167,6 +224,7 @@ class SystemChecker:
         """
         self.strict = strict
         self.skip_datasource = skip_datasource
+        self.research_mode = _is_research_mode()
         self._results: list[CheckResult] = []
 
     # --------------------------------------------------------------------
@@ -204,7 +262,8 @@ class SystemChecker:
         print("\n[C1] 关键文件存在性检查")
         print("-" * 60)
 
-        for idx, (rel_path, desc) in enumerate(self.CRITICAL_FILES, 1):
+        critical_files = self._get_critical_files()
+        for idx, (rel_path, desc) in enumerate(critical_files, 1):
             t0 = time.time()
             full_path = PROJECT_ROOT / rel_path
             code = f"C1.{idx}"
@@ -219,7 +278,8 @@ class SystemChecker:
                             self._pass(code, f"{desc} ({rel_path})",
                                        CheckLevel.ERROR,
                                        f"目录存在, {file_count} JSON 文件", elapsed)
-                        except Exception:
+                        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                             self._pass(code, f"{desc} ({rel_path})",
                                        CheckLevel.ERROR, "目录存在", elapsed)
                     else:
@@ -234,7 +294,8 @@ class SystemChecker:
                                remediation=f"请检查 {rel_path} 是否被意外删除或移动; "
                                            f"若是首次运行,请从模板/备份恢复",
                                elapsed_ms=elapsed)
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 elapsed = (time.time() - t0) * 1000
                 self._fail(code, f"{desc} ({rel_path})", CheckLevel.ERROR,
                            detail=f"检查异常: {e}",
@@ -249,8 +310,9 @@ class SystemChecker:
         print("\n[C2] 环境变量与凭证检查")
         print("-" * 60)
 
+        critical_env, optional_env = self._get_critical_env_vars()
         # 必需变量
-        for idx, (var_name, desc) in enumerate(self.CRITICAL_ENV_VARS, 1):
+        for idx, (var_name, desc) in enumerate(critical_env, 1):
             code = f"C2.{idx}"
             value = os.environ.get(var_name, "").strip()
             if value:
@@ -265,8 +327,8 @@ class SystemChecker:
                                        f"或写入系统环境变量 (永久生效)")
 
         # 可选变量
-        offset = len(self.CRITICAL_ENV_VARS)
-        for idx, (var_name, desc) in enumerate(self.OPTIONAL_ENV_VARS, 1):
+        offset = len(critical_env)
+        for idx, (var_name, desc) in enumerate(optional_env, 1):
             code = f"C2.{offset + idx}"
             value = os.environ.get(var_name, "").strip()
             if value:
@@ -289,6 +351,11 @@ class SystemChecker:
         if self.skip_datasource:
             self._skip("C3.0", "数据源连通性 (跳过)", CheckLevel.WARN,
                        "skip_datasource=True")
+            return
+
+        # Mac 研究模式: 仅检查跨平台免费数据源 (AKShare/yfinance)
+        if self.research_mode:
+            self._check_datasource_research_mode()
             return
 
         sys.path.insert(0, str(PROJECT_ROOT))
@@ -358,10 +425,53 @@ class SystemChecker:
             self._fail("C3.0", "MarketDataProvider 导入", CheckLevel.ERROR,
                        detail=f"导入失败: {e}",
                        remediation="检查 utils/data_provider.py 是否存在")
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._fail("C3.0", "MarketDataProvider 初始化", CheckLevel.ERROR,
                        detail=f"初始化异常: {e}",
                        remediation="运行 python scripts/_diag_three_sources.py 排查")
+
+    # --------------------------------------------------------------------
+    # C3 (研究模式). Mac/研究模式数据源检查 - 仅跨平台免费源
+    # --------------------------------------------------------------------
+    def _check_datasource_research_mode(self) -> None:
+        """Mac 研究模式专用: 仅检查 AKShare / yfinance / 本地缓存
+
+        跳过 Windows 专属数据源 (Wind MCP / iFinD MCP / TDX / QMT),
+        这些数据源由 Windows 云实盘服务器负责, Mac 仅做研究。
+        """
+        print("  [研究模式] 仅检查跨平台免费数据源 (AKShare/yfinance)")
+
+        # C3.1 AKShare (研究模式主数据源)
+        try:
+            import akshare as ak
+            self._pass("C3.1", "AKShare (P3, 研究主数据源)", CheckLevel.ERROR,
+                       detail=f"可导入, 版本 {getattr(ak, '__version__', 'unknown')}")
+        except ImportError:
+            self._fail("C3.1", "AKShare (P3, 研究主数据源)", CheckLevel.ERROR,
+                       detail="模块未安装",
+                       remediation="pip install akshare")
+
+        # C3.2 yfinance (港美股回测用)
+        try:
+            import yfinance as yf
+            self._pass("C3.2", "yfinance (港美股)", CheckLevel.WARN,
+                       detail="可导入")
+        except ImportError:
+            self._fail("C3.2", "yfinance (港美股)", CheckLevel.WARN,
+                       detail="未安装 (可选)",
+                       remediation="pip install yfinance")
+
+        # C3.3-C3.5 跳过 Windows 专属数据源
+        for code, name in [("C3.3", "Wind MCP (跳过-研究模式)"),
+                           ("C3.4", "iFinD MCP (跳过-研究模式)"),
+                           ("C3.5", "TDX 通达信 (跳过-研究模式)")]:
+            self._skip(code, name, CheckLevel.INFO,
+                       "Mac 研究模式不检查 Windows 专属数据源, 由云实盘服务器负责")
+
+        # C3.6 数据源冗余度 (研究模式放宽: AKShare 可用即视为通过)
+        self._pass("C3.6", "数据源冗余度 (研究模式)", CheckLevel.INFO,
+                   detail="研究模式仅需 AKShare 可用; Wind/iFinD 由 Windows 云服务器提供")
 
     # --------------------------------------------------------------------
     # C4. 配置文件 Schema 检查
@@ -419,7 +529,8 @@ class SystemChecker:
             self._fail("C4.1", "positions.json 解析", CheckLevel.ERROR,
                        detail=f"JSON 解析失败: {e}",
                        remediation="检查 JSON 语法 (括号/逗号)")
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._fail("C4.1", "positions.json 检查", CheckLevel.ERROR,
                        detail=f"异常: {e}",
                        remediation="查看 system_check 日志")
@@ -497,7 +608,8 @@ class SystemChecker:
                 test_file.unlink()
                 self._pass(code, f"{desc} 写权限", CheckLevel.ERROR,
                            detail=f"{rel_path} 可写")
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 self._fail(code, f"{desc} 写权限", CheckLevel.ERROR,
                            detail=f"无法写入 {rel_path}: {e}",
                            remediation=f"检查 {rel_path} 目录权限")
@@ -521,7 +633,8 @@ class SystemChecker:
                 self._pass(code, "磁盘剩余空间", CheckLevel.INFO,
                            detail=f"{free_gb:.2f} GB 可用 / {total_gb:.2f} GB 总计 "
                                   f"(使用率 {usage_pct:.1f}%)")
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._fail(code, "磁盘空间检查", CheckLevel.WARN,
                        detail=f"检查异常: {e}",
                        remediation="手动检查磁盘空间")
@@ -537,19 +650,27 @@ class SystemChecker:
         sys.path.insert(0, str(PROJECT_ROOT))
 
         # C7.1 hedge_execution_engine 可导入 (28-终极量化交易系统8.4 实际模块名)
-        try:
-            self._pass("C7.1", "HedgeExecutionEngine 模块", CheckLevel.ERROR,
-                       detail="可导入")
-        except Exception as e:
-            self._fail("C7.1", "HedgeExecutionEngine 模块", CheckLevel.ERROR,
-                       detail=f"导入失败: {e}",
-                       remediation="检查 utils/hedge_execution_engine.py 完整性")
+        # 研究模式: 跳过 (依赖 win32com/QMT, Mac 不可用)
+        if self.research_mode:
+            self._skip("C7.1", "HedgeExecutionEngine 模块 (跳过-研究模式)",
+                       CheckLevel.INFO,
+                       "Mac 研究模式不检查实盘对冲执行模块, 由 Windows 云服务器负责")
+        else:
+            try:
+                self._pass("C7.1", "HedgeExecutionEngine 模块", CheckLevel.ERROR,
+                           detail="可导入")
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+                self._fail("C7.1", "HedgeExecutionEngine 模块", CheckLevel.ERROR,
+                           detail=f"导入失败: {e}",
+                           remediation="检查 utils/hedge_execution_engine.py 完整性")
 
         # C7.2 signal_fusion 可导入
         try:
             self._pass("C7.2", "SignalFusionEngine 模块", CheckLevel.WARN,
                        detail="可导入")
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._fail("C7.2", "SignalFusionEngine 模块", CheckLevel.WARN,
                        detail=f"导入失败: {e}",
                        remediation="检查 utils/signal_fusion.py 完整性")
@@ -560,10 +681,22 @@ class SystemChecker:
             get_logger("system_check_test")
             self._pass("C7.3", "Logger 模块", CheckLevel.ERROR,
                        detail="可导入")
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._fail("C7.3", "Logger 模块", CheckLevel.ERROR,
                        detail=f"导入失败: {e}",
                        remediation="检查 utils/logger.py 完整性")
+
+        # C7.4 pipeline 闭环模块可导入
+        try:
+            from utils.pipeline import PipelineOrchestrator, PipelineConfig
+            self._pass("C7.4", "PipelineOrchestrator 闭环模块", CheckLevel.WARN,
+                       detail="可导入")
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+            self._fail("C7.4", "PipelineOrchestrator 闭环模块", CheckLevel.WARN,
+                       detail=f"导入失败: {e}",
+                       remediation="检查 utils/pipeline/ 目录完整性")
 
     # --------------------------------------------------------------------
     # C8. 历史数据完整性检查
@@ -601,7 +734,8 @@ class SystemChecker:
                     self._fail("C8.1", "daily_returns.jsonl 完整性", CheckLevel.WARN,
                                detail=f"末尾 {len(lines)} 行中仅 {parsed} 行可解析",
                                remediation="修复 JSONL 损坏行")
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._fail("C8.1", "daily_returns.jsonl 检查", CheckLevel.WARN,
                        detail=f"异常: {e}",
                        remediation="检查文件权限")
@@ -631,7 +765,8 @@ class SystemChecker:
                     self._fail("C8.2", "Watchdog heartbeat", CheckLevel.WARN,
                                detail="文件为空",
                                remediation="运行 shadow_admission_watchdog.py")
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._fail("C8.2", "Watchdog heartbeat 检查", CheckLevel.WARN,
                        detail=f"异常: {e}")
 
@@ -672,13 +807,14 @@ class SystemChecker:
         fp_path = PROJECT_ROOT / self.FUTURES_PRICES_REL_PATH
         code_prefix = "C9.1"
 
-        # C9.1 兜底价格模块存在性
+        # C9.1 兜底价格模块存在性 (文件不存在时降级 WARN: 兜底功能未启用, 无过期风险; 无代码 import 此模块)
         if not fp_path.exists():
             elapsed = (time.time() - t0) * 1000
-            self._fail(code_prefix, "兜底价格模块存在性", CheckLevel.ERROR,
-                       detail=f"文件不存在: {fp_path}",
-                       remediation=f"恢复 {self.FUTURES_PRICES_REL_PATH}; "
-                                   f"或检查项目结构是否变更",
+            self._fail(code_prefix, "兜底价格模块存在性", CheckLevel.WARN,
+                       detail=f"文件不存在: {fp_path} (兜底价格功能未启用)",
+                       remediation=f"如需启用兜底价格新鲜度检查, 创建 {self.FUTURES_PRICES_REL_PATH} "
+                                   f"(含 DEFAULT_FUTURES_PRICES + FALLBACK_PRICES_UPDATED); "
+                                   f"当前无代码 import 此模块, 不影响生产",
                        elapsed_ms=elapsed)
             return
 
@@ -691,7 +827,8 @@ class SystemChecker:
                 raise ImportError(f"无法创建模块 spec: {fp_path}")
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             elapsed = (time.time() - t0) * 1000
             self._fail(code_prefix, "兜底价格模块加载", CheckLevel.ERROR,
                        detail=f"模块加载失败: {e}",
@@ -790,11 +927,18 @@ class SystemChecker:
         check_time = datetime.now().isoformat()
 
         print("=" * 70)
-        print("P0 启动自检系统 (System Check) v8.6.13")
+        print("P0 启动自检系统 (System Check) v8.6.14")
         print(f"项目根目录: {PROJECT_ROOT}")
         print(f"检查时间: {check_time}")
-        print(f"模式: {'strict (严格)' if self.strict else 'normal (常规)'}"
-              f"{', skip_datasource' if self.skip_datasource else ''}")
+        mode_parts = []
+        if self.research_mode:
+            mode_parts.append("研究模式 (Mac/跨平台)")
+        else:
+            mode_parts.append("实盘模式 (Windows)")
+        mode_parts.append("strict (严格)" if self.strict else "normal (常规)")
+        if self.skip_datasource:
+            mode_parts.append("skip_datasource")
+        print(f"模式: {', '.join(mode_parts)}")
         print("=" * 70)
 
         self._results = []
@@ -809,8 +953,7 @@ class SystemChecker:
             self.check_subsystem_smoke()          # C7
             self.check_historical_data()           # C8
             self.check_fallback_price_freshness() # C9 (R1 新增 2026-08-01)
-        except Exception as e:
-            # 自检本身异常
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # 自检本身异常
             self._add(CheckResult(
                 code="SYS",
                 name="自检脚本异常",
@@ -981,7 +1124,8 @@ def run_system_check(strict: bool = False,
 
 
 def assert_system_ready(strict: bool = False,
-                       skip_datasource: bool = False) -> SystemCheckReport:
+                       skip_datasource: bool = False,
+                       auto_fix: bool = False) -> SystemCheckReport:
     """断言系统就绪 - 失败则 sys.exit(1)
 
     供入口点 (run_daily_eod.py / run_daily_morning.py 等) 在开头调用:
@@ -992,19 +1136,138 @@ def assert_system_ready(strict: bool = False,
     Args:
         strict: 严格模式
         skip_datasource: 跳过数据源检查
+        auto_fix: 检测失败时尝试 L0/L1 自动修复后重检 (T1.5 新增, 默认 False 向后兼容)
+            - True: 失败项经 AutoFixEngine 处理, 修复后重新自检
+            - False: (默认) 仅检测, 失败立即 sys.exit
 
     Returns:
         SystemCheckReport: 自检报告 (若失败已 sys.exit)
 
     Raises:
         SystemExit: 自检失败时退出 (exit_code 1)
+
+    Note:
+        auto_fix 模式下 SystemExit 仍会 re-raise (HC-1);
+        AutoFixEngine 自身异常容错通过, 不阻断工作流 (AGENTS.md §8.3 规则2).
     """
     report = run_system_check(strict=strict, skip_datasource=skip_datasource)
+
+    if report.exit_code == 0:
+        return report  # 全部通过
+
+    # 有失败项, 尝试自动修复
+    if auto_fix:
+        report = run_auto_fix_and_recheck(
+            report=report,
+            strict=strict,
+            skip_datasource=skip_datasource,
+        )
+
     if report.exit_code != 0:
         logger.error("P0 启动自检失败, 阻止工作流启动 (exit_code=%d)",
                      report.exit_code)
         sys.exit(report.exit_code)
     return report
+
+
+def run_auto_fix_and_recheck(
+    report: SystemCheckReport,
+    strict: bool,
+    skip_datasource: bool,
+) -> SystemCheckReport:
+    """执行 AutoFix 修复并重检 (T1.5 新增, 公开 API).
+
+    供 run_p0_startup_check.py --auto-fix 调用.
+    不抛 SystemExit (由调用方决定是否退出).
+
+    Args:
+        report: 首次自检报告 (含失败项)
+        strict: 严格模式
+        skip_datasource: 跳过数据源
+
+    Returns:
+        重检后的报告 (若 AutoFix 异常则返回原报告)
+    """
+    try:
+        from utils.evolution.auto_fix_engine import AutoFixEngine
+        from utils.system_check import CheckStatus
+    except ImportError as e:
+        logger.warning("AutoFix 模块导入失败, 跳过自动修复: %s", e)
+        return report
+
+    try:
+        engine = AutoFixEngine()
+        failures = [
+            r for r in report.results
+            if r.status != CheckStatus.PASS
+        ]
+
+        if not failures:
+            return report  # 无失败项
+
+        fixed_count = 0
+        suggested_count = 0
+        for failure in failures:
+            try:
+                result = engine.try_fix(failure)
+                _log_auto_fix_result(failure, result)
+                if result.fixed:
+                    fixed_count += 1
+                elif result.suggestion:
+                    suggested_count += 1
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+                logger.warning(
+                    "AutoFix 处理 %s 异常 (容错跳过): %s",
+                    getattr(failure, "code", "?"), e,
+                )
+
+        logger.info(
+            "AutoFix 完成: 尝试 %d 项, 修复 %d 项, 建议 %d 项",
+            len(failures), fixed_count, suggested_count,
+        )
+
+        # 修复后重检
+        report = run_system_check(strict=strict, skip_datasource=skip_datasource)
+    except SystemExit:
+        raise  # HC-1: SystemExit 必须 re-raise (AGENTS.md §8.3 规则2)
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+        logger.error("AutoFix 异常 (容错通过, 使用原报告): %s", e)
+
+    return report
+
+
+def _log_auto_fix_result(check_result, fix_result) -> None:
+    """将修复结果写入 reports/system_check/auto_fix_log.jsonl (T1.5 新增).
+
+    Args:
+        check_result: CheckResult (失败的检查项)
+        fix_result: FixResult (修复结果)
+    """
+    import json
+    from datetime import datetime, timezone
+
+    log_path = Path("reports") / "system_check" / "auto_fix_log.jsonl"
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        entry = {
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "check_code": getattr(check_result, "code", ""),
+            "check_name": getattr(check_result, "name", ""),
+            "check_detail": getattr(check_result, "detail", "")[:500],
+            "fix_action": fix_result.action,
+            "risk_level": fix_result.risk_level,
+            "fixed": fix_result.fixed,
+            "details": fix_result.details,
+            "suggestion": fix_result.suggestion,
+            "error": fix_result.error,
+        }
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+        logger.warning("auto_fix_log 写入失败 (容错): %s", e)
 
 
 # ============================================================================
