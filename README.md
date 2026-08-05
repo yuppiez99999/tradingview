@@ -1,11 +1,11 @@
-# 终极量化交易系统 v8.6.14
+# 终极量化交易系统 v8.6.15
 
-> 500 万实盘部署 | 全自动交易闭环 | 年化 ≥ 8% 且最大回撤 < 15% | 双 LLM 决策 | 多源数据融合 | 风控守卫强制执行 | P0 自检系统 | 数据契约测试 | 气象因子引擎 | GTJA191 因子对标
+> 500 万实盘部署 | 全自动交易闭环 | 年化 ≥ 8% 且最大回撤 < 15% | 双 LLM 决策 | 多源数据融合 | 风控守卫强制执行 | P0 自检系统 | 数据契约测试 | 气象因子引擎 | GTJA191 因子对标 | GNN 供应链产业链因子 | 自我进化框架 | VolRegimeWeighter
 
 **作者**：yuppiez99999
 **实盘状态**：✅ 已部署（2026-07-28）
 **生产基线**：Python 3.14.4（junction `C:\QuantSys`），兼容 Python 3.9+
-**最近更新**：2026-08-02 — 因子库对标国泰君安 GTJA191 + 代码质量加固 + 安全合规
+**最近更新**：2026-08-05 — U1-U5 升级计划全部完成（时序 IC/ICIR + 涨跌停/停牌 + 复权因子 + E2E 测试 + U1 衔接 PipelineOrchestrator）+ VolRegimeWeighter 波动率 Regime 权重建议器实盘集成（Phase 0 观察期，双链路架构）+ 自我进化框架 + 38 个陈旧文档清理 + GitHub Issue #1（Python 3.10+ 迁移计划）
 
 ---
 
@@ -57,6 +57,33 @@
 - **影子账户灰度发布**：10% 资金（¥500,000）灰度运行，三阶段推进（10% → 50% → 100%）
 - **Fail-fast 触发器**：单日回撤 > 3% 或 3 日累计回撤 > 5% 立即终止 + latch 锁存
 
+### GNN 供应链产业链因子（Wave 5，2026-08-03 新增）
+- **三层渐进落地**：Layer 1 非学习版 Lead-Lag 因子验证邻居信息增量（Gate 1）→ Layer 2 GAT 动态注意力 → Layer 3 完整 GNN 因子入库，避免一步到位上深度学习（符合防过拟合 / 经济直觉铁律）
+- **第 12 大类因子 — LeadLag**（`utils/alpha_factor/graph.py`，5 因子）：CHAIN_MOM_20D/60D（邻居动量加权）、CHAIN_REVERSAL_5D（邻居反转）、CHAIN_NEIGHBOR_DIFF（个股-邻居脱钩）、CHAIN_CONCENTRATION（强度赫芬达尔）
+- **图数据源模块**（`utils/graph_data_source.py`）：东财 push2 `slist/get spt=3` 全板块分类（行业/概念/地域/指数）+ 题材边 `ths_hot_reason`，Session 复用 + 退避重试 + TTL 缓存 + 单例 + fail-safe
+- **图构建桥接**（`utils/supply_chain_builder.py`）：打通 graph_data_source → supply_chain_graph 端到端，26 持仓 → 74 节点 / 169 边，`--from-positions` 读 positions.json
+- **GAT 注意力层**（`utils/alpha_factor/gat_factor_torch.py`）：torch 2.13 自动微分 + 多头 GAT + MSE 损失，样本外增益 +0.039（学习注意力 > 静态强度权重）
+- **非对称传导**（`utils/supply_chain_graph.py`）：`up_elasticity` / `down_elasticity` 区分涨价/降价传导弹性，`propagate_asymmetric_impact` + `get_asymmetry_ratio`，实测算力链不对称度 1.61
+- **Gate 1 门禁验证**（`utils/alpha_factor/gate1_validation.py`）：跨时间窗 IC/ICIR 评估，CHAIN_CONCENTRATION ICIR 0.150→0.272 三次验证稳定为正，Gate 1 仍 FAIL（ICIR<0.3），驱动 Layer 2 GAT 突破稳定性极限
+
+### 2026-08-03 增量更新
+- **iFinD 数据源全局剔除**：从核心数据降级链移除 iFinD MCP（`data_provider.py` / `data_layer.py` / `settings_v510.yaml` / `settings_mac.yaml`），降级链变为 Wind > 通达信 > AKShare > 新浪；`utils/ifind_client.py` 保留供独立功能（新闻/研究）引用
+- **open-code-review 代码审查**（两轮）：24+12 模块精确审查，确认 11 缺陷修复 10（含 2 高严重度正确性缺陷）— FeedbackLoop TypeError、AI 信号字段错位、Greeks 边界、Beta 强制下限、data_layer 锁收窄等
+- **观察期数据缺失提示机制**（`run_daily_eod_workflow.py` `run_phase4_5_shadow`）：双保险校验 daily_returns.jsonl 实际包含日期 + 失败强提示（控制台告警 + 手动记录指引 + 告警文件），避免观察数据断档静默
+- **Shadow 数据 Feeder 修复**（`utils/alpha/shadow_real_data_feeder.py`）：`_POSITIONS_JSON` 路径修正 + `positions` 为 dict 时从 `target_weight` 提取权重，补录 08-01~08-03 观察数据断档
+
+### V8.6.15 自我进化框架 + U1-U5 升级 + VolRegimeWeighter（2026-08-05 新增）
+- **U1 时序 IC/ICIR 升级**：`utils/alpha_factor/base.py` 新增 `calc_ic_series_from_history` + `calc_ic_ir`（Spearman rank IC 序列），`evaluate_factors` 支持双模式（时序优先 + 单点降级），`FactorValue` 新增 `ic_ir`/`ic_1d`/`ic_20d` 字段
+- **U2 涨跌停/停牌数据集成**：`utils/data_provider.py` 新增涨跌停价格 + 停牌状态字段，避免异常价格污染因子计算
+- **U3 复权因子支持**：`utils/adjust_factor_provider.py` 新增 `get_aligned_prev_close` + `align_prev_close_to_today`，`pnl_calculator.py` 支持 `align_hfq` 参数对齐前收盘价
+- **U5 GAP-2 E2E 测试补齐**：`tests/e2e/test_full_pipeline_e2e.py`（8 场景）+ `tests/e2e/test_shadow_account_lifecycle_e2e.py`（8 场景 + 1 skip），覆盖 PipelineOrchestrator 完整周期和 ShadowAccount 生命周期
+- **U1 衔接 PipelineOrchestrator**：`library.py` 接入 `factor_history` 参数（A 阶段，零行为变更）+ `portfolio_optimizer.py` Step 4.5 U1 时序 IC 评估（AB 阶段）+ research 版 IC 函数统一为 U1 算法源（B3+B4 保留，B1+B2 回滚 Pearson）
+- **VolRegimeWeighter 波动率 Regime 权重建议器**（`utils/alpha/vol_regime_weighter.py`）：四档 Regime（bull/neutral/bear/crisis）× 8 资产权重矩阵，双链路架构（盘中 AutoTradingSystem 每 30s 只读建议 + EOD EvolutionOrchestrator 完整报告），VixDataSource 三级降级链（Wind→shadow_state→缓存），Phase 0 观察期（08-20 评估）
+- **自我进化框架**（`utils/alpha/evolution_orchestrator.py`）：EvolutionOrchestrator 观察期 14 天 + 最小评估样本 20 天，决策日志和进度快照自动持久化至 `reports/evolution/`，v84_EvolutionEval 任务每天 16:05 自动运行
+- **EOD 阶段 4.5B Shadow 状态同步**：`run_daily_eod_workflow.py` 新增 `run_phase4_5b_shadow_state_sync()`，在阶段 4.5 和 4.7 之间调用 `rebuild_shadow_state_from_returns.py` 重建状态，避免状态断层
+- **陈旧文档清理**：删除 38 个历史审计报告/修复计划/临时文件（根目录 18 + docs/ 20），项目结构精简化
+- **GitHub Issue #1**：Python 3.8 → 3.10+ 迁移计划（修复 4 个 Dependabot 漏洞：cryptography high + aiohttp high/medium×2）
+
 ---
 
 ## 快速开始
@@ -81,7 +108,7 @@ pip install -r requirements_dev.txt
 
 ```ini
 WIND_API_KEY=...          # Wind MCP（P1 数据源）
-IFIND_TOKEN=...           # iFinD MCP（P2 数据源）
+IFIND_TOKEN=...           # iFinD（★2026-08-03 已从核心降级链剔除，仅新闻/研究独立功能需要）
 TS_TOKEN=...              # Tushare（国内期货/CPI）
 VOLCENGINE_API_KEY=...    # 豆包 LLM
 DEEPSEEK_API_KEY=...      # DeepSeek（信号计算）
@@ -163,14 +190,14 @@ python generate_daily_report.py            # 生成日报
 
 ---
 
-## 因子体系（v8.6.14 重构）
+## 因子体系（v8.6.14 重构 + 2026-08-03 Wave 5 扩展）
 
-### 11 大类因子分类（对标国泰君安 GTJA191）
+### 12 大类因子分类（11 大类对标国泰君安 GTJA191 + 第 12 大类 LeadLag 图因子）
 
 ```
 utils/alpha_factor/
 ├── base.py                  # 基础数据结构 + 预处理工具（去极值/标准化/中性化/正交化）
-├── library.py               # 因子库聚合入口（11 大类统一调度 + 跨类正交化后处理）
+├── library.py               # 因子库聚合入口（12 大类统一调度 + 跨类正交化后处理）
 ├── alpha_factor_library.py  # 向后兼容 shim（保留旧导入接口）
 ├── value.py                 # 价值类（EP/DP/BP/SP/CFP）
 ├── growth.py                # 成长类（营收/利润/资产增长率）
@@ -179,7 +206,10 @@ utils/alpha_factor/
 ├── operation.py             # 运营类（资产周转率/存货周转率）
 ├── price_volume.py          # 量价类（动量/低波/规模/流动性）
 ├── technical.py             # 技术类（GTJA191 量价因子集成）
-└── expectation.py           # 预期类（分析师预期/微结构）
+├── expectation.py           # 预期类（分析师预期/微结构）
+├── graph.py                 # ★2026-08-03 第12大类 LeadLag（GNN 供应链产业链 5 因子）
+├── gat_factor_torch.py      # ★2026-08-03 GAT 注意力层（torch 自动微分，学习注意力>静态权重）
+└── gate1_validation.py      # ★2026-08-03 Gate 1 门禁验证（跨时间窗 IC/ICIR）
 ```
 
 ### GTJA191 因子集成
@@ -211,20 +241,21 @@ result = library.compute(data, factor_names=DEFAULT_GTJA)
 
 ## 数据源优先级
 
-全局统一标准，所有模块必须遵循以下降级链，不可跳级：
+全局统一标准，所有模块必须遵循以下降级链，不可跳级（★2026-08-03 iFinD 已从核心降级链剔除）：
 
 | 优先级 | 数据源 | 说明 | 认证 |
 |--------|--------|------|------|
 | P0 | Wind 数据终端 | 主数据源，WindPy 原生客户端 | WindPy 授权 |
 | P1 | Wind MCP | 强制回退，analytics_data / stock_data / fund_data | `WIND_API_KEY` |
-| P2 | iFinD MCP | 强制回退，同花顺金融终端 | `IFIND_TOKEN` |
-| P2.5 | 通达信 (pytdx) | 免费直连，TCP 7709 端口，仅 A 股 | 无需 |
+| P2 | 通达信 (pytdx) | 免费直连，TCP 7709 端口，仅 A 股 | 无需 |
 | P3 | AKShare / baostock | 免费回退，A 股 / 期货 / 指数 | 无需 |
 | P4 | 新浪财经 API | 免费实时行情兜底 | 无需 |
 | P5 | 本地缓存 | Parquet / JSON 缓存 | 无需 |
 | P6 | 预定义价格 | 保证系统永不崩溃 | 无需 |
 
-**强制规则**：Wind 不可用时必须尝试 Wind MCP，不可直接跳到 iFinD。
+**强制规则**：Wind 不可用时必须尝试 Wind MCP，不可直接跳到通达信。
+
+> **iFinD 剔除说明**（2026-08-03）：iFinD MCP 已从核心数据降级链移除（`data_provider.py` / `data_layer.py` / `settings_v510.yaml` / `settings_mac.yaml`），`utils/ifind_client.py` 文件保留供独立功能（`ifind_news_analyzer` / 研究）引用，`IFIND_TOKEN` 仅在这些独立功能启用时需要。
 
 ---
 
@@ -244,14 +275,17 @@ result = library.compute(data, factor_names=DEFAULT_GTJA)
 ├── build_plan_executor.py               # 建仓计划执行
 │
 ├── utils/                               # 核心工具模块（100+ 模块）
-│   ├── alpha_factor/                    # ★v8.6.14 因子库包（11 大类，对标 GTJA191）
+│   ├── alpha_factor/                    # 因子库包（12 大类，11 大类对标 GTJA191 + LeadLag 图因子）
 │   │   ├── base.py                      # 基础数据结构 + 预处理（去极值/标准化/中性化/正交化）
-│   │   ├── library.py                   # 因子库聚合入口（11 大类调度 + 跨类正交化后处理）
+│   │   ├── library.py                   # 因子库聚合入口（12 大类调度 + 跨类正交化后处理）
 │   │   ├── alpha_factor_library.py      # 向后兼容 shim
 │   │   ├── value.py / growth.py / quality.py / leverage.py / operation.py
 │   │   ├── price_volume.py              # 动量/低波/规模/流动性（含共线修复）
 │   │   ├── technical.py                 # GTJA191 量价因子集成
 │   │   ├── expectation.py               # 预期/微结构
+│   │   ├── graph.py                     # ★2026-08-03 第12大类 LeadLag（GNN 供应链 5 因子）
+│   │   ├── gat_factor_torch.py          # ★2026-08-03 GAT 注意力层（torch 自动微分）
+│   │   ├── gate1_validation.py          # ★2026-08-03 Gate 1 门禁验证（跨窗 IC/ICIR）
 │   │   ├── concurrency.py               # ★v8.6.14 并发安全（except:pass 降级注释）
 │   │   └── data_quality_monitor.py      # ★v8.6.14 数据质量监控（except:pass 降级注释）
 │   ├── alpha/                           # Alpha 信号与 LLM 路由
@@ -278,6 +312,9 @@ result = library.compute(data, factor_names=DEFAULT_GTJA)
 │   ├── weather_factor_engine.py         # ★v8.6.13 气象因子计算引擎 (7 因子体系)
 │   ├── scrapling_adapter.py             # ★v8.6.13 高性能反爬爬虫适配器
 │   ├── tradingagents_bridge.py          # ★v8.6.13 TradingAgents-CN HTTP 桥接
+│   ├── supply_chain_graph.py            # ★2026-08-03 供应链关系图谱（PageRank/介数/风险传染/非对称传导）
+│   ├── graph_data_source.py             # ★2026-08-03 图数据源（东财板块边 + 题材边，spt=3 稳定源）
+│   ├── supply_chain_builder.py          # ★2026-08-03 图构建桥接（graph_data_source→supply_chain_graph 端到端）
 │   ├── config_manager.py                # 统一配置管理
 │   ├── kill_switch.py                   # Kill Switch 三级熔断
 │   └── ...
@@ -654,7 +691,7 @@ sequenceDiagram
 |---------|---------|---------|
 | C1 关键文件 | 9 个全检 | 7 个(跳过 hedge_execution_engine / risk_guard_integrator) |
 | C2 环境变量 | WIND_API_KEY 必需 | 降级为可选 |
-| C3 数据源 | Wind + iFinD + TDX + AKShare | 仅 AKShare + yfinance |
+| C3 数据源 | Wind + TDX + AKShare（★2026-08-03 iFinD 已剔除） | 仅 AKShare + yfinance |
 | C7 子模块 | HedgeExecutionEngine 必需 | 跳过(由 Windows 负责) |
 | 启用方式 | Windows 默认 | Mac 自动 或 `QUANT_RESEARCH_MODE=1` |
 
@@ -721,11 +758,15 @@ docs(readme): 更新 README 至 v8.6.14
 |------|------|
 | [CHANGELOG.md](CHANGELOG.md) | 版本更新日志 |
 | [USER_GUIDE.md](USER_GUIDE.md) | 用户指南 |
-| [CODE_QUALITY_PHASE_A_2026-07-30.md](CODE_QUALITY_PHASE_A_2026-07-30.md) | 代码质量审计报告 |
+| [docs/POST_UPGRADE_ROADMAP_2026-08-05.md](docs/POST_UPGRADE_ROADMAP_2026-08-05.md) | ★v8.6.15 U1-U5 升级路线图 |
+| [cairn/self-evolution-framework.md](cairn/self-evolution-framework.md) | ★v8.6.15 自我进化框架设计文档 |
 | [TOKEN_SECURITY_GUIDE.md](TOKEN_SECURITY_GUIDE.md) | Token 安全指南 |
 | [.env.example](.env.example) | ★v8.6.14 环境变量模板（含 APIZERO_API_KEY） |
-| [utils/alpha_factor/library.py](utils/alpha_factor/library.py) | ★v8.6.14 因子库聚合入口（11 大类） |
+| [utils/alpha_factor/library.py](utils/alpha_factor/library.py) | ★v8.6.14 因子库聚合入口（12 大类） |
 | [utils/alpha_factor/technical.py](utils/alpha_factor/technical.py) | ★v8.6.14 GTJA191 因子集成 |
+| [utils/alpha_factor/graph.py](utils/alpha_factor/graph.py) | ★2026-08-03 第 12 大类 LeadLag 图因子（GNN 供应链 5 因子） |
+| [cairn/gnn-supply-chain-factor.md](cairn/gnn-supply-chain-factor.md) | ★2026-08-03 GNN 供应链产业链因子落地设计文档 |
+| [cairn/code-quality-review-open-code-review.md](cairn/code-quality-review-open-code-review.md) | ★2026-08-03 open-code-review 两轮代码审查报告 |
 | [config/weather_symbols_mapping.yaml](config/weather_symbols_mapping.yaml) | ★v8.6.13 气象因子标的地理映射 |
 | [scripts/test_weather_e2e_minimal.py](scripts/test_weather_e2e_minimal.py) | ★v8.6.13 气象因子 E2E 验证脚本 |
 | [docs/](docs/) | 文档目录（含归档） |
@@ -752,6 +793,9 @@ docs(readme): 更新 README 至 v8.6.14
 
 | 版本 | 日期 | 关键变更 |
 |------|------|----------|
+| v8.6.15 | 2026-08-05 | U1-U5 升级计划全部完成（时序 IC/ICIR + 涨跌停/停牌 + 复权因子 + E2E 测试 + U1 衔接 PipelineOrchestrator）+ VolRegimeWeighter 波动率 Regime 权重建议器实盘集成（Phase 0 观察期，双链路架构，306 周期监控）+ 自我进化框架（EvolutionOrchestrator 观察期 14 天）+ EOD 阶段 4.5B Shadow 状态同步 + 38 个陈旧文档清理 + GitHub Issue #1（Python 3.10+ 迁移计划） |
+| v8.6.14+ | 2026-08-04 | 观察期数据收集 Day 7（6→7/14 天，日收益 -0.0603%，三步命令 backfill/clean/watchdog 执行通过，GATE-A/B 双 FAIL 正确拦截）+ 漂移响应链路调研（auto_retrain_scheduler + mlops_pipeline + ab_testing 代码已完整，Phase 3 测试 mock 验证过，决定等 08-14 自然触发而非提前模拟注入）+ 晨间工作流 4 阶段全链路打通（9 项修复：300308 年化防御 + ai_recommendations 质量 + astock_realtime 作用域 + calibrate 路径 + 阶段三 LLM 链路 + 阶段四 ai 模块 + 主入口方案A + 阶段一校准 + trade_plan 恢复）+ 经验归档（年化校准/LLM 质量/Py38 兼容 3 篇专题） |
+| v8.6.14+ | 2026-08-03 | iFinD 数据源全局剔除（核心降级链 Wind>通达信>AKShare>新浪）+ GNN 供应链产业链因子 Wave 5（第 12 大类 LeadLag 5 因子 + GAT 注意力层 + 图数据源 + 非对称传导 + Gate 1 门禁验证）+ open-code-review 两轮代码审查（11 缺陷修复 10）+ 观察期数据缺失提示机制 + Shadow 数据 Feeder 修复 |
 | v8.6.14 | 2026-08-02 | 因子库对标 GTJA191（11 大类 + 共线修复 12→0 对）+ daily_trade_executor 双 Bug 修复 + 安全合规（probe 脚本去硬编码 / .ocr_home 入 .gitignore）+ 174 处 except:pass 补降级注释 |
 | v8.6.13 | 2026-08-01 | 气象因子引擎（7 因子体系 + apizero→Open-Meteo 降级链 + WeatherAgent 第 6 位专家 + 信号融合第 9 层）+ Scrapling 反爬爬虫适配器 + TradingAgents-CN HTTP 桥接 + E2E 验证 17/17 通过 |
 | v8.6.12 | 2026-07-31 | P0 启动自检系统 + 数据契约测试 + 回归测试套件 + 两层测试策略 + pre-commit 钩子 |
@@ -760,6 +804,87 @@ docs(readme): 更新 README 至 v8.6.14
 | v8.3.1 | 2026-07-21 | PUT 引擎去重保护 |
 | v8.3.0 | 2026-07-21 | 风控守卫强制执行系统 |
 | v8.1 | 2026-07-17 | 全自动交易闭环 + LLM 盘中决策 |
+
+### 2026-08-04 增量更新详细变更（v8.6.14+）
+
+#### 观察期数据收集 Day 7 + 漂移响应链路调研
+
+- **观察期数据收集**：三步命令（`backfill_shadow_history.py` → `clean_shadow_returns.py` → `observation_watchdog.py`）盘后执行通过。2026-08-04 组合日收益 -0.0603%（26 标的 100% 覆盖），写入 `reports/shadow/daily_returns.jsonl` + `daily_returns_cleaned.jsonl`（7 条全 real）。
+- **看门狗状态**：GATE-A 6/14 天 FAIL + GATE-B 7/14 条 FAIL，双重门槛正确拦截，未触发漂移判定。断档检测恢复为 0 天。预计 08-14 达 14 天门槛，08-20 达 20 样本门槛。
+- **漂移响应链路调研**：确认漂移响应代码已完整 — `auto_retrain_scheduler.py`（DRIFT_DETECTED 触发 + V9 训练 + 注册）+ `mlops_pipeline.py`（Facade 整合）+ `ab_testing.py`（promote_challenger）+ Phase 3 测试（mock 验证全链路）。缺口：从未用真实数据端到端验证（Phase 3 测试 DriftMonitor/AutoRetrainScheduler 为 mock）。
+- **决策**：等 08-14 自然触发漂移判定，不提前做模拟漂移注入 — 尊重观察期设计，拿真实 PSI/KS 而非构造数据。Wave 2 B3（08-26→29）才启用 `USE_AUTO_RETRAIN`。
+- **指针**：链路设计见 [cairn/shadow-data-quality-loop.md](cairn/shadow-data-quality-loop.md)；看门狗脚本 [scripts/observation_watchdog.py](scripts/observation_watchdog.py)；漂移响应 [utils/alpha/auto_retrain_scheduler.py](utils/alpha/auto_retrain_scheduler.py)。
+
+#### 晨间工作流 4 阶段全链路打通（9 项修复）
+
+- **300308 年化异常防御**（`v8.3_institutional/calibrate_returns_projection.py`）：MAX_ANNUALIZED 50.0→2.0 + 短周期贝叶斯收缩（样本期<2 年且年化>±50% 时向 15% 均值回归），组合加权年化 32%→27.86%
+- **ai_recommendations 存储质量修复**（`ai/recommendation_generator.py`）：Prompt 反描述化 + 智能截断（描述行黑名单 28 个 + 操作关键词白名单 25 个），描述行过滤率 100%，阶段三 LLM 决策链路从"空转"变"真实生效"
+- **astock_realtime res 作用域 bug 修复**：ETF 512170/515030 价格动量代理资金流恢复，free variable 错误清零
+- **calibrate Step2.5 路径修复**：macro_policy_scoring 路径 + positions 格式转换，候选池评估 6 标的全跑通
+- **阶段三 LLM 决策链路验证**：apply_llm_decisions_to_plan 跑通 EXIT=0，晨间 4 阶段全链路打通
+- **阶段四综合报告 ai 模块修复**：ai_original→ai 重命名 + setup_sys_path 路径遮蔽修复
+- **主入口文件方案A执行**：废弃 cli/modes，21 模式占位降级
+- **daily_workflow 阶段一市场校准恢复**：Wind 拉取 33 标的，校准 EXIT=0
+- **trade_plan 生成停滞根因诊断 + 脚本恢复**：两次死代码清理误删链路，从 git 恢复 3 文件
+
+#### 经验归档（3 篇专题文档）
+
+- **年化收益校准标准**（[cairn/returns-calibration-standards.md](cairn/returns-calibration-standards.md)）：6 个核心参数 + 短周期贝叶斯收缩公式 + 阈值截断规则
+- **LLM 输出质量控制标准**（[cairn/llm-output-quality-standards.md](cairn/llm-output-quality-standards.md)）：Prompt 设计规范 + 描述行黑名单 28 个 + 操作建议白名单 25 个 + 智能截断流程
+- **Python 3.8 兼容性指南**（[cairn/refactoring-standards.md#L297-L323](cairn/refactoring-standards.md#L297-L323)）：PEP 585 对照表（8 种类型映射）+ 方案 A/B 选择建议
+
+### 2026-08-03 增量更新详细变更（v8.6.14+）
+
+#### iFinD 数据源全局剔除
+
+- **核心降级链移除 iFinD MCP**：`utils/data_provider.py`（移除 `_init_ifind_mcp` / `_try_ifind_mcp_realtime` / `_try_ifind_mcp_historical` + source_health `ifind_mcp` 键）、`utils/data/data_layer.py`（`_DEFAULT_FALLBACK_CHAIN` 移除 ifind_mcp，降级链变为 `[wind_mcp, tdx, akshare, external, sina, cache]`）、`config/settings_v510.yaml`、`config/settings_mac.yaml`、`AGENTS.md` 全部同步
+- **保留**：`utils/ifind_client.py` 文件本身保留，供 `ifind_news_analyzer` / 研究等独立功能引用，仅从核心数据降级链剔除
+
+#### GNN 供应链产业链因子（Wave 5）
+
+- **设计文档**：[cairn/gnn-supply-chain-factor.md](cairn/gnn-supply-chain-factor.md) — 三层渐进落地（Layer 1 Lead-Lag → Layer 2 GAT → Layer 3 完整 GNN），避免一步到位上深度学习
+- **第 12 大类因子 LeadLag**（`utils/alpha_factor/graph.py`，5 因子）：
+  - `CHAIN_MOM_20D` / `CHAIN_MOM_60D`：邻居动量加权
+  - `CHAIN_REVERSAL_5D`：邻居反转
+  - `CHAIN_NEIGHBOR_DIFF`：个股-邻居脱钩
+  - `CHAIN_CONCENTRATION`：强度赫芬达尔（最有希望，IC>0.01 + 多空>1.0）
+  - 接入 `library.py`（`graph` 参数 + `enable_graph` 开关）+ `orthogonalize_chain_factors` 验证邻居增量
+- **图数据源**（`utils/graph_data_source.py`）：东财 push2 `slist/get spt=3` 全板块分类（行业/概念/地域/指数，稳定源）+ `ths_hot_reason` 题材边，Session 复用 + 退避重试 + TTL 缓存 + 单例 + fail-safe
+- **图构建桥接**（`utils/supply_chain_builder.py`）：打通 graph_data_source → supply_chain_graph 端到端，`--from-positions` 读 positions.json（26 持仓 → 74 节点 / 169 边）
+- **GAT 注意力层**（`utils/alpha_factor/gat_factor_torch.py`）：torch 2.13 自动微分 + 多头 GAT（`alpha=softmax(leaky_relu(a^T[Wh_i∥Wh_j]))`）+ MSE 损失 + Adam，修复 einsum 索引；多时间点样本外 GAT IC=-0.0296 vs 静态=-0.0686，**增益 +0.0390**（学习注意力 > 静态强度权重）
+- **非对称传导**（`utils/supply_chain_graph.py`）：`SupplyChainEdge` 新增 `up_elasticity` / `down_elasticity`（涨价/降价传导弹性），`propagate_asymmetric_impact(source, direction)` + `get_asymmetry_ratio(source)`；实测算力链涨价传导 0.360 vs 降价 0.120，不对称度 1.61
+- **Gate 1 门禁验证**（`utils/alpha_factor/gate1_validation.py`）：跨时间窗 IC/ICIR 评估
+  - Gate 1 三次验证：CHAIN_CONCENTRATION ICIR 0.150→0.272（持续正向，最精细产业链定位→最稳定预测），但 ICIR<0.3 仍 FAIL，驱动 Layer 2 GAT 突破稳定性极限
+  - 主营构成边增强（W5.2c）：图 5757→7328 边（+1571 主营边），免费源东财 F10 主营构成可用
+- **稳健评估修正**：跨 11 时间点（150 只/1200 样本）GAT |IC|≈0.19，方向一致 73% 为负，反向做空后是方向稳定因子；先前"绝对 IC 低"判断受单时点噪声局限
+
+#### open-code-review 代码审查（两轮，11 缺陷修复 10）
+
+- **工具**：alibaba/open-code-review v1.8.6（npm 全局安装），ocr delegate 委托模式（免 LLM Key）
+- **第一轮**（12 核心文件：数据/因子 + 交易/工作流）— 确认 6 缺陷修复 5，保留 1 架构项：
+  - [高] `run_daily_eod_workflow.py:715-731` log() 参数错误 → FeedbackLoop 成功路径抛 TypeError，EOD 误判失败
+  - [中] `institutional_pipeline_runner.py` 5 个 `_mock_*` 死代码删除
+  - [中] `data_provider.py:718` 情绪缓存 `.seconds`→`.total_seconds()`（超 1 天回绕误命中）
+  - [中] `graph_data_source.py` 主营构成缓存 dict/list 类型不匹配 → 缓存永久失效，新增 `_load_json_cache_value`
+  - [中] `data_layer.py` 锁收窄 — 原 `with self._lock` 包裹含网络 IO 的 P0-P6 降级循环（跨线程串行），改为仅保护 `_p6_cache_store`/`_write_fallback_log` 临界区
+  - [保留] `data_layer.py` P0-P5 降级链全委托同一 MarketDataProvider（性能冗余非正确性缺陷，完整修复需重构）
+- **第二轮**（24 高风险模块：对冲/AI/风控/执行/Greek）— 确认 5 缺陷修复 4，待评估 1：
+  - [高] `glm5_decision_engine.py:649-650` AI 信号 urgency/reason 字段错位（表头 cells[8]=紧急度/cells[9]=理由）
+  - [高] `greek_hedge_manager.py:208-214` `_bs_delta` 无效输入返回 0.5（哨兵(0,0)→N(0)=0.5）与其他 Greeks 返回 0 不一致 → 加边界检查返回 0
+  - [中] `hedge_engine.py:1066` `max(...,0.5)` Beta 强制下限，低 Beta 组合（黄金/国债 ETF）过度对冲 → 改 0.0
+  - [低] `gamma_engine.py:154,157` 死代码 + 冗余 IO → 删除
+  - [待评估] `signal_fusion.py:743-749` 模块 import 时自动注册建 SQLite 库 + 改全局单例（线程不安全/副作用，有 except 防护非阻塞）
+- **详见**：[cairn/code-quality-review-open-code-review.md](cairn/code-quality-review-open-code-review.md)
+
+#### 观察期数据缺失提示机制 + Shadow 数据 Feeder 修复
+
+- **观察期缺失提示**（`15_每日工作流/run_daily_eod_workflow.py` `run_phase4_5_shadow`）：
+  - 双保险校验：`_check_daily_returns_has_date` — feeder 返回 success 后仍确认 daily_returns.jsonl 实际包含该日期（避免"feeder 成功≠写盘"）
+  - 失败强提示：`_alert_observation_missing` — 控制台醒目告警 + 手动记录 4 步指引 + EOD summary `observation_alerts` 字段 + 告警文件 `reports/evolution/observation_alert_<date>.json`
+- **Shadow 数据 Feeder 修复**（`utils/alpha/shadow_real_data_feeder.py`）：
+  - `_POSITIONS_JSON` 路径错误（`data/positions.json` 不存在 → 修正为 `config/positions.json`）
+  - `_load_positions_json_file` 新增格式 3：`positions` 为 dict 时从 `target_weight` 提取权重
+  - 补录 08-01~08-03 观察数据断档（daily_returns.jsonl）
 
 ### v8.6.14 详细变更
 
@@ -867,5 +992,5 @@ except (TypeError, ValueError):
 私有项目，未授权不得使用。
 
 **作者**：yuppiez99999
-**版本**：v8.6.14
-**更新日期**：2026-08-02
+**版本**：v8.6.15（+ 2026-08-05 增量更新）
+**更新日期**：2026-08-05
