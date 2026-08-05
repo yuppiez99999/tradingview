@@ -32,28 +32,32 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (
+from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (  # noqa: E402
     build_factor_history,
     compute_ic_decay,
     compute_ic_ir,
     compute_rolling_ic_series,
 )
-from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import (
+# U1 衔接回滚 (2026-08-05): Spearman IC 导致 VT_QUALTREND_MARGIN_EXP 的 IC_IR 从正变负,
+# IC 加权组合 live_dsr 从 +2.2033 翻转到 -1.821, Shadow 审批结果翻转.
+# 回滚为 Pearson IC (compute_rolling_ic_series), 保留 library 层 U1 时序能力 (A 阶段).
+# 详见 cairn/LOG.md U1 衔接回滚条目.
+from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import (  # noqa: E402
     CandidateFactor,
     CandidateFactorPool,
     VibeTradingFactorAdapter,
 )
-from research.vibe_trading_factor_analysis.committee.factor_committee import (
+from research.vibe_trading_factor_analysis.committee.factor_committee import (  # noqa: E402
     FactorCommittee,
 )
-from research.vibe_trading_factor_analysis.shadow.shadow_account import (
+from research.vibe_trading_factor_analysis.shadow.shadow_account import (  # noqa: E402
     ShadowAccount,
 )
-from research.vibe_trading_factor_analysis.validators.capacity_analyzer import (
+from research.vibe_trading_factor_analysis.validators.capacity_analyzer import (  # noqa: E402
     CapacityAnalyzer,
 )
-from research.vibe_trading_factor_analysis.validators.dsr_validator import DSRValidator
-from research.vibe_trading_factor_analysis.validators.regime_conditioner import (
+from research.vibe_trading_factor_analysis.validators.dsr_validator import DSRValidator  # noqa: E402
+from research.vibe_trading_factor_analysis.validators.regime_conditioner import (  # noqa: E402
     RegimeConditioner,
 )
 
@@ -200,9 +204,17 @@ class PipelineResult:
     # 设计依据：IC 加权 + Config_E_plus1 = 完整 Shadow 通过（live_dsr=+0.6151, max_dd=0.0438）
     # 与单因子流水线独立运行，不阻断主流程
     factor_combinations: list[dict[str, Any]] = field(default_factory=list)
+    # U1 衔接新增: 暴露 factor_history 供下游 portfolio_optimizer 使用 (避免重复构建)
+    factor_history: dict[str, list[dict[str, float]]] = field(default_factory=dict)
+    forward_returns_history: list[dict[str, float]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        # 排除 factor_history/forward_returns_history 避免 asdict 体积膨胀
+        # (120 天 × N 因子 × M 标的, 审计日志不需此数据)
+        d = asdict(self)
+        d.pop("factor_history", None)
+        d.pop("forward_returns_history", None)
+        return d
 
 
 class PipelineOrchestrator:
@@ -324,6 +336,7 @@ class PipelineOrchestrator:
         history_days: int = 120,
         forward_window: int = 5,
         fundamentals_history: dict[str, Any] | None = None,
+        dates: list[str] | None = None,
     ) -> PipelineResult:
         """执行 8 级流水线
 
@@ -399,6 +412,7 @@ class PipelineOrchestrator:
                 history_days=history_days,
                 forward_window=forward_window,
                 fundamentals_history=fundamentals_history,
+                dates=dates,
             )
             audit.append({
                 "stage": "Stage1.5_FactorHistory",
@@ -406,6 +420,9 @@ class PipelineOrchestrator:
                 "factors_with_history": len(factor_history),
                 "valid_days": len(valid_dates),
             })
+            # U1 衔接: 暴露 factor_history 到 PipelineResult, 供下游 portfolio_optimizer 使用
+            result.factor_history = factor_history
+            result.forward_returns_history = fwd_returns_hist
 
             # ============ P1.5 改进：检查 fundamentals 数据质量 ============
             # 评估 fundamentals 中 proxy 标的占比，决定 V/Q/S/Growth/QualityTrend 类因子是否 defer
@@ -465,7 +482,8 @@ class PipelineOrchestrator:
                             factor_history=factor_history.get(fname, []),
                             forward_returns_history=fwd_returns_hist,
                         )
-                except Exception as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     ps.state = PipelineState.FAILED.value
                     ps.fail_reasons.append(f"流水线异常: {type(e).__name__}: {e}")
                     logger.error("[Pipeline] %s 流水线失败 | %s\n%s", fname, e, traceback.format_exc())
@@ -495,7 +513,8 @@ class PipelineOrchestrator:
                 batch_id, result.total_candidates, result.approved,
                 result.rejected, result.failed,
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             result.finished_at = datetime.now().isoformat()
             logger.error("[Pipeline] 流水线主流程失败 | %s\n%s", e, traceback.format_exc())
             audit.append({
@@ -532,13 +551,15 @@ class PipelineOrchestrator:
                     if isinstance(data, dict) and "quarters" in data:
                         if data.get("n_valid", 0) >= 4:
                             history[sym] = data
-                except Exception as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.debug("[Pipeline] 加载 %s 历史季度数据失败: %s", sym, e)
             logger.info(
                 "[Pipeline] 加载历史季度财务数据 | symbols_with_history=%d / %d",
                 len(history), len(symbols) if symbols else 0,
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("[Pipeline] 加载历史季度财务数据失败: %s", e)
         return history
 
@@ -555,9 +576,9 @@ class PipelineOrchestrator:
         existing_factors: dict[str, Any],
         portfolio_value: float,
         n_trials: int,
-        factor_history: list[dict[str, float]] = None,  # type: ignore
-        forward_returns_history: list[dict[str, float]] = None,  # type: ignore
-    ) -> None:
+        factor_history: list[dict[str, float]] = None,  # type: ignore[assignment]
+        forward_returns_history: list[dict[str, float]] = None,  # type: ignore[assignment]
+        ) -> None:
         """处理单个因子走完 8 级流水线"""
 
         factor_history = factor_history or []
@@ -649,9 +670,9 @@ class PipelineOrchestrator:
         ps: FactorPipelineState,
         candidate: CandidateFactor,
         price_data: dict[str, Any],
-        factor_history: list[dict[str, float]] = None,  # type: ignore
-        forward_returns_history: list[dict[str, float]] = None,  # type: ignore
-    ) -> bool:
+        factor_history: list[dict[str, float]] = None,  # type: ignore[assignment]
+        forward_returns_history: list[dict[str, float]] = None,  # type: ignore[assignment]
+        ) -> bool:
         """Gate 2: IC_IR_120d >= 0.3 且衰减 < 0.6
 
         P0 改进实现：
@@ -699,7 +720,8 @@ class PipelineOrchestrator:
                 )
                 return False
             return True
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             ps.fail_reasons.append(f"Gate2 异常: {e}")
             return False
 
@@ -740,7 +762,8 @@ class PipelineOrchestrator:
                 ps.fail_reasons.append(f"Gate2(legacy): IC_IR={ic_ir:.3f} < {self.ic_ir_threshold}")
                 return False
             return True
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             ps.fail_reasons.append(f"Gate2 legacy 异常: {e}")
             return False
 
@@ -753,9 +776,9 @@ class PipelineOrchestrator:
         candidate: CandidateFactor,
         price_data: dict[str, Any],
         n_trials: int,
-        factor_history: list[dict[str, float]] = None,  # type: ignore
-        forward_returns_history: list[dict[str, float]] = None,  # type: ignore
-    ) -> bool:
+        factor_history: list[dict[str, float]] = None,  # type: ignore[assignment]
+        forward_returns_history: list[dict[str, float]] = None,  # type: ignore[assignment]
+        ) -> bool:
         """Gate 3: DSR > 0, n_trials >= 5
 
         P0 改进：用日频因子值历史构建真实多空组合 PnL 序列。
@@ -790,7 +813,8 @@ class PipelineOrchestrator:
                 )
                 return False
             return True
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             ps.fail_reasons.append(f"Gate3 异常: {e}")
             return False
 
@@ -922,7 +946,8 @@ class PipelineOrchestrator:
                 )
                 return False
             return True
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             ps.fail_reasons.append(f"Gate4 异常: {e}")
             return False
 
@@ -936,9 +961,9 @@ class PipelineOrchestrator:
         price_data: dict[str, Any],
         benchmark_returns: list[float] | None,
         portfolio_value: float,
-        factor_history: list[dict[str, float]] = None,  # type: ignore
-        forward_returns_history: list[dict[str, float]] = None,  # type: ignore
-    ) -> bool:
+        factor_history: list[dict[str, float]] = None,  # type: ignore[assignment]
+        forward_returns_history: list[dict[str, float]] = None,  # type: ignore[assignment]
+        ) -> bool:
         """Stage 6: Enhancement (Capacity + Regime)
 
         P0 改进：Regime 用真实日频因子值历史。
@@ -1002,7 +1027,8 @@ class PipelineOrchestrator:
 
             ps.state = PipelineState.ENHANCED.value
             return True
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             ps.fail_reasons.append(f"Enhancement 异常: {e}")
             return False
 
@@ -1015,9 +1041,9 @@ class PipelineOrchestrator:
         candidate: CandidateFactor,
         price_data: dict[str, Any],
         n_trials: int,
-        factor_history: list[dict[str, float]] = None,  # type: ignore
-        forward_returns_history: list[dict[str, float]] = None,  # type: ignore
-    ) -> bool:
+        factor_history: list[dict[str, float]] = None,  # type: ignore[assignment]
+        forward_returns_history: list[dict[str, float]] = None,  # type: ignore[assignment]
+        ) -> bool:
         """Stage 7: 90 日影子账户纸面交易
 
         P0 改进：用真实日频因子值历史，替代 `[candidate.values] * 90` 占位。
@@ -1082,7 +1108,8 @@ class PipelineOrchestrator:
 
             ps.state = PipelineState.SHADOW_PASSED.value
             return True
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             ps.fail_reasons.append(f"Shadow 异常: {e}")
             return False
 
@@ -1133,7 +1160,8 @@ class PipelineOrchestrator:
                 ps.fail_reasons.append(f"Committee: {verdict.rationale}")
                 return False
             return True
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             ps.fail_reasons.append(f"Committee 异常: {e}")
             return False
 
@@ -1440,7 +1468,8 @@ class PipelineOrchestrator:
                         factor_a_name, factor_b_name,
                         combo_result.get("fail_reason", "unknown"),
                     )
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.error(
                     "[Pipeline] IC 加权组合构建失败 | %s + %s | %s\n%s",
                     factor_a_name, factor_b_name, e, traceback.format_exc(),
@@ -1758,7 +1787,8 @@ class PipelineOrchestrator:
             with open(state_file, "w", encoding="utf-8") as f:
                 json.dump(result.to_dict(), f, ensure_ascii=False, indent=2, default=str)
             logger.info("[Pipeline] 审计持久化 | %s", state_file)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("[Pipeline] 审计持久化失败 | %s", e)
 
 

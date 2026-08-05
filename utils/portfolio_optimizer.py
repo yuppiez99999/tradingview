@@ -143,7 +143,7 @@ class PortfolioOptimizer:
             )
             return result
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.warning("[PortfolioOptimizer] 加载因子信号失败: %s", e)
             return {}
 
@@ -273,23 +273,23 @@ class PortfolioOptimizer:
             }
         """
         # 默认参数 (与 shadow_account.RISK_MANAGED_* 常量对齐)
-        TARGET_VOL = 0.15  # 目标年化波动率 15%
-        VOL_LOOKBACK = 20  # 波动率回看窗口 20 日
-        DD_DERISK_THRESHOLD = 0.05  # 回撤 > 5% 触发去杠杆
-        DD_DERISK_FACTOR = 0.5  # 去杠杆至 50% 敞口
-        SCALER_CAP = 2.0  # 缩放因子上限
-        TRADING_DAYS_PER_YEAR = 252
+        TARGET_VOL = 0.15  # 目标年化波动率 15%  # noqa: N806
+        VOL_LOOKBACK = 20  # 波动率回看窗口 20 日  # noqa: N806
+        DD_DERISK_THRESHOLD = 0.05  # 回撤 > 5% 触发去杠杆  # noqa: N806
+        DD_DERISK_FACTOR = 0.5  # 去杠杆至 50% 敞口  # noqa: N806
+        SCALER_CAP = 2.0  # 缩放因子上限  # noqa: N806
+        TRADING_DAYS_PER_YEAR = 252  # noqa: N806
         # P0-Q3 新增: 总敞口硬上限 (默认 1.5x, 可被 config 覆盖)
-        MAX_EXPOSURE = self.MAX_TOTAL_EXPOSURE
+        MAX_EXPOSURE = self.MAX_TOTAL_EXPOSURE  # noqa: N806
 
         # 应用配置覆盖
         if config:
-            TARGET_VOL = float(config.get("target_vol", TARGET_VOL))
-            VOL_LOOKBACK = int(config.get("vol_lookback", VOL_LOOKBACK))
-            DD_DERISK_THRESHOLD = float(config.get("dd_derisk_threshold", DD_DERISK_THRESHOLD))
-            DD_DERISK_FACTOR = float(config.get("dd_derisk_factor", DD_DERISK_FACTOR))
-            SCALER_CAP = float(config.get("scaler_cap", SCALER_CAP))
-            MAX_EXPOSURE = float(config.get("max_total_exposure", MAX_EXPOSURE))
+            TARGET_VOL = float(config.get("target_vol", TARGET_VOL))  # noqa: N806
+            VOL_LOOKBACK = int(config.get("vol_lookback", VOL_LOOKBACK))  # noqa: N806
+            DD_DERISK_THRESHOLD = float(config.get("dd_derisk_threshold", DD_DERISK_THRESHOLD))  # noqa: N806
+            DD_DERISK_FACTOR = float(config.get("dd_derisk_factor", DD_DERISK_FACTOR))  # noqa: N806
+            SCALER_CAP = float(config.get("scaler_cap", SCALER_CAP))  # noqa: N806
+            MAX_EXPOSURE = float(config.get("max_total_exposure", MAX_EXPOSURE))  # noqa: N806
 
         # 边界检查
         if not target_weights:
@@ -549,6 +549,29 @@ class PortfolioOptimizer:
                 len(values_b),
             )
 
+            # Step 4.5 (U1 衔接, 可选): 用时序 IC/ICIR 评估因子有效性
+            # 数据源: research 版 PipelineOrchestrator 已在 run() 中构建 factor_history 并暴露到 result
+            # 价值: 激活 evaluate_factors 时序模式, 让强/有效因子列表基于 IC_IR 而非单点 IC
+            if getattr(result, "factor_history", None):
+                try:
+                    from utils.alpha_factor.library import AlphaFactorLibrary
+                    lib = AlphaFactorLibrary()
+                    lib_result = lib.compute_all(
+                        price_data=price_data,
+                        fundamentals=fundamentals,
+                        factor_history=result.factor_history,
+                        forward_returns_history=result.forward_returns_history,
+                    )
+                    logger.info(
+                        "[PortfolioOptimizer] U1 时序 IC 评估: strong=%d effective=%d (factors=%d)",
+                        len(lib_result.strong_factors),
+                        len(lib_result.effective_factors),
+                        len(lib_result.factors),
+                    )
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    # U1 评估失败不阻断主流程 (Step 5+ 仍正常执行)
+                    logger.warning("[PortfolioOptimizer] U1 时序 IC 评估失败 (非阻断): %s", e)
+
             # Step 5: 计算 IC 加权组合信号
             signals_raw: dict[str, float] = {}
             for symbol in set(values_a) & set(values_b):
@@ -614,7 +637,7 @@ class PortfolioOptimizer:
             )
             return True
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error("[PortfolioOptimizer] run_offline_pipeline 失败: %s", e, exc_info=True)
             return False
 
@@ -676,7 +699,7 @@ class PortfolioOptimizer:
                     with open(path, encoding="utf-8") as f:
                         result[symbol] = json.load(f)
                     n_loaded += 1
-                except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
                     logger.debug(
                         "[PortfolioOptimizer] 加载 %s 历史失败: %s",
                         symbol,
