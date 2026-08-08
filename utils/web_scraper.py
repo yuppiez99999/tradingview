@@ -63,7 +63,55 @@ except ImportError:
     Fetcher = None
 from utils.logger import get_logger  # noqa: E402
 
+try:
+    from urllib.parse import urlparse
+except ImportError:  # pragma: no cover
+    from urllib.parse import urlparse  # type: ignore
+
 logger = get_logger("web_scraper")
+
+# ============================================================
+# P3: 域名白名单 (防止 SSRF / 内网访问)
+# ============================================================
+
+# 允许的金融数据源域名 (含子域通配)
+ALLOWED_DOMAINS = {
+    "eastmoney.com", "np-anotice-stock.eastmoney.com", "np-cnotice-stock.eastmoney.com",
+    "reportapi.eastmoney.com", "data.eastmoney.com", "search-api-web.eastmoney.com",
+    "push2.eastmoney.com", "push2his.eastmoney.com",
+    "sina.com.cn", "search.sina.com.cn", "sinajs.cn",
+    "cninfo.com.cn", "www.cninfo.com.cn", "static.cninfo.com.cn",
+    "10jqka.com.cn", "fund.10jqka.com.cn",
+    "10jqka.com",
+    "cls.cn", "finance.sina.com.cn", "stockstar.com", "10jqka.com.cn",
+}
+
+# 内网/保留地址段 (禁止访问)
+_BLOCKED_NETS = ("127.", "10.", "192.168.", "172.16.", "172.17.", "172.18.",
+                 "172.19.", "172.2", "172.3", "0.", "169.254.", "::1", "localhost")
+
+
+def is_allowed_domain(url: str) -> bool:
+    """校验 URL 是否在白名单域名且非内网地址 (P3 加固)。"""
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        host = (parsed.hostname or "").lower()
+        if not host:
+            return False
+        # 拒绝内网/保留地址
+        if host in ("localhost", "::1") or host.startswith(_BLOCKED_NETS):
+            logger.warning(f"拒绝内网/保留地址: {url}")
+            return False
+        # 域名后缀匹配白名单
+        for allowed in ALLOWED_DOMAINS:
+            if host == allowed or host.endswith("." + allowed):
+                return True
+        logger.warning(f"拒绝非白名单域名: {host}")
+        return False
+    except Exception:  # noqa: BLE001
+        return False
 
 # ============================================================
 # 数据结构
@@ -211,6 +259,10 @@ class WebScraper:
 
     def _fetch_html(self, url: str, params: Optional[Dict] = None) -> Optional[str]:
         """获取 HTML 内容 (降级链: Scrapling → requests)"""
+        # P3: 域名白名单校验 (防止 SSRF)
+        if not is_allowed_domain(url):
+            logger.warning(f"拒绝抓取非白名单 URL: {url}")
+            return None
         # P1: Scrapling (若安装, 用于 Cloudflare/反爬强的网站)
         if HAS_SCRAPLING:
             try:
@@ -237,6 +289,10 @@ class WebScraper:
 
     def _fetch_json(self, url: str, params: Optional[Dict] = None, headers: Optional[Dict] = None) -> Optional[Any]:
         """获取 JSON API 响应"""
+        # P3: 域名白名单校验 (防止 SSRF)
+        if not is_allowed_domain(url):
+            logger.warning(f"拒绝抓取非白名单 URL: {url}")
+            return None
         try:
             req_headers = dict(self.session.headers)
             if headers:

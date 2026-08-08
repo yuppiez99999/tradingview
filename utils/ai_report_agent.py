@@ -744,6 +744,20 @@ class AIReportAgent:
         Returns:
             Markdown 文本, 不可用时返回占位提示
         """
+        # P3: 输入校验 - 路径遍历 + 扩展名白名单
+        _ALLOWED_EXT = {".pdf", ".docx", ".doc", ".xlsx", ".xls",
+                        ".pptx", ".ppt", ".md", ".txt", ".csv"}
+        _ALLOWED_ROOTS = [Path(__file__).resolve().parent.parent]
+        try:
+            p = Path(file_path).resolve()
+            if p.suffix.lower() not in _ALLOWED_EXT:
+                return f"[拒绝: 不支持的文件类型 {p.suffix}]"
+            if not any(str(p).startswith(str(r)) for r in _ALLOWED_ROOTS):
+                logger.warning(f"外部文档导入被拒 (路径越界): {file_path}")
+                return f"[拒绝: 路径越界 {Path(file_path).name}]"
+        except Exception as e:  # noqa: BLE001
+            return f"[路径解析失败: {e}]"
+
         if not _MARKITDOWN_AVAILABLE:
             logger.warning("MarkItDown 适配器不可用, 无法导入外部文档")
             return f"[外部文档导入不可用: {Path(file_path).name}]"
