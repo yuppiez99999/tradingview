@@ -34,7 +34,7 @@ for r in sorted_recs[-5:]:
 # 按 regime 统计
 print()
 print("=== 各 regime 平均收益 ===")
-from collections import defaultdict
+from collections import defaultdict  # noqa: E402
 
 regime_stats = defaultdict(list)
 for r in records:

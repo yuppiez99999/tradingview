@@ -22,7 +22,7 @@ test_symbols = [
 missing = [s for s in test_symbols if s not in _BACKTEST_SECTOR_MAP]
 print("missing:", missing if missing else "NONE (all 23 covered)")
 
-from collections import Counter
+from collections import Counter  # noqa: E402
 
 sectors = Counter([_BACKTEST_SECTOR_MAP[s] for s in test_symbols])
 print("sector distribution:")

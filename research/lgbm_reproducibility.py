@@ -386,7 +386,8 @@ def write_manifest(
         )
         logger.info(f"manifest.json 已落盘: {manifest_path}")
         return manifest_path
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"manifest.json 落盘失败 (训练继续): {e}")
         raise ManifestWriteError(str(e)) from e
 

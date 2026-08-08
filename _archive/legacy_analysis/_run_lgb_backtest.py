@@ -15,7 +15,7 @@ import time
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-from research.backtest_runner import run_backtest
+from research.backtest_runner import run_backtest  # noqa: E402
 
 # 使用全部有 LGB 模型的标的（POSITION_SYMBOLS 的代码部分）
 SYMBOLS = [
@@ -74,9 +74,9 @@ if acceptance:
         print(f"  {c['metric']}: {c['value']} (要求 {c['required']}) {'✅' if c['ok'] else '❌'}")
 
 # 保存结果
-import json
-from datetime import datetime
-from pathlib import Path
+import json  # noqa: E402
+from datetime import datetime  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 output_path = Path("output/validation_reports")
 output_path.mkdir(parents=True, exist_ok=True)

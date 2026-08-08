@@ -15,8 +15,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from cache.symbol_universe import EXISTING_SYMBOLS
-from research.vibe_trading_factor_analysis.scripts.real_data_loader import (
+from cache.symbol_universe import EXISTING_SYMBOLS  # noqa: E402
+from research.vibe_trading_factor_analysis.scripts.real_data_loader import (  # noqa: E402
     list_available_symbols,
     load_price_data,
 )

@@ -46,7 +46,8 @@ def main() -> int:
     t0 = time.time()
     try:
         result = run_backtest(symbols, start=start, end=end, resume=False)
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.error("回测异常崩溃:\n%s", traceback.format_exc())
         return 2
 

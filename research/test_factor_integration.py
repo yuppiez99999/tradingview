@@ -4,8 +4,9 @@
 """
 import sys
 import time
+from pathlib import Path
 
-sys.path.insert(0, r"e:\各种PY程序\28-终极量化交易系统8.4")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
 import pandas as pd

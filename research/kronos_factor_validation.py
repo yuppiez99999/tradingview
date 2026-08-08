@@ -63,7 +63,8 @@ os.environ["no_proxy"] = "*"
 try:
     import requests as _requests
     _requests.adapters.DEFAULT_RETRIES = 2
-except Exception:
+except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     pass
 
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
@@ -72,7 +73,8 @@ os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 try:
     import huggingface_hub
     huggingface_hub.constants.HF_HUB_DISABLE_PROGRESS_BARS = True
-except Exception:
+except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     pass
 
 # ============================================================
@@ -232,7 +234,9 @@ class KronosModelWrapper:
                 f"(耗时 {self._init_time:.0f}ms, 设备: {dev})"
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._available = False
             self._error_msg = str(e)
             LOGGER.warning(f"Kronos-{self.model_size} 不可用: {e}")
@@ -334,7 +338,9 @@ class KronosModelWrapper:
             )
             return pred_df
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             LOGGER.warning(f"预测失败: {e}")
             LOGGER.debug(traceback.format_exc())
             return None
@@ -401,7 +407,9 @@ def extract_kronos_factors(
             pred_mean = float(pred_df["close"].iloc[:5].mean())
             factors["KRONOS_PREMIUM"] = (pred_mean - last_close) / last_close
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         LOGGER.debug(f"提取因子失败: {e}")
 
     return factors
@@ -472,7 +480,8 @@ class KronosValidationEngine:
                     if df is not None and not df.empty:
                         LOGGER.debug(f"  {symbol}: 从本地缓存 {fpath.name} 读取 {len(df)} 条")
                         return df
-                except Exception as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     LOGGER.debug(f"  {symbol}: 读取本地缓存 {fpath.name} 失败: {e}")
         return None
 
@@ -495,7 +504,8 @@ class KronosValidationEngine:
             try:
                 df = self._fetch_from_local_cache(sym)
                 source = "本地缓存"
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 df = None
 
             if df is None:
@@ -504,7 +514,8 @@ class KronosValidationEngine:
                         ds = self._get_data_source()
                     df = ds.get_historical_klines(sym, period="1d", count=1000)
                     source = "远程数据源"
-                except Exception as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     failed.append(f"{sym}: {e}")
                     continue
 
@@ -617,7 +628,9 @@ class KronosValidationEngine:
                     else:
                         error_count += 1
 
-                except Exception as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     error_count += 1
                     LOGGER.debug(f"  {sym}@{rebal_date.date()} 预测异常: {e}")
 
@@ -729,7 +742,8 @@ class KronosValidationEngine:
                                 ic = float(fvals[common].corr(r[common], method="spearman"))
                                 if np.isfinite(ic):
                                     ic_list.append(ic)
-                            except Exception:
+                            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                                 pass
 
             if len(ics) < self.MIN_SAMPLES:
@@ -777,7 +791,9 @@ class KronosValidationEngine:
                 direction=direction,
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             LOGGER.debug(f"验证因子 {factor_name} 失败: {e}")
             return None
 
@@ -1029,7 +1045,9 @@ def main():
         else:
             print("\n⚠️  未发现有效因子 (|IC|≥0.03 且 |IC_IR|≥0.3)")
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         LOGGER.error(f"验证流程异常: {e}")
         LOGGER.error(traceback.format_exc())
         print(f"\n❌ 验证失败: {e}")

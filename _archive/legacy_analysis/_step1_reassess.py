@@ -14,7 +14,7 @@ CACHE_DIR = BASE_DIR / "data_cache"
 VALIDATION_DIR = BASE_DIR / "v8.3_institutional" / "src" / "validation"
 sys.path.insert(0, str(VALIDATION_DIR))
 
-from deflated_sharpe import deflated_sharpe_ratio
+from deflated_sharpe import deflated_sharpe_ratio  # noqa: E402
 
 
 def load_daily_returns() -> pd.Series:

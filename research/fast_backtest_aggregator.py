@@ -29,12 +29,14 @@ def _load_pipeline_results() -> list:
             continue
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             continue
         date_str = data.get("report_date") or folder.name
         try:
             date = pd.Timestamp(date_str)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             continue
         weights = (
             data.get("steps", {})
@@ -53,7 +55,8 @@ def _monthly_returns(symbol: str, start: pd.Timestamp, end: pd.Timestamp, provid
     try:
         from utils.free_stockdb_adapter import get_historical_data_fs
         df = get_historical_data_fs(symbol, period="5y", use_fallback=False)
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         df = None
     if df is None or df.empty:
         df = provider.get_historical_data(symbol, period="5y")
@@ -63,7 +66,8 @@ def _monthly_returns(symbol: str, start: pd.Timestamp, end: pd.Timestamp, provid
     try:
         if hasattr(df.index, "tz") and df.index.tz is not None:
             df.index = df.index.tz_localize(None)
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         pass
     compare_start = pd.Timestamp(start).normalize()
     compare_end = pd.Timestamp(end).normalize()

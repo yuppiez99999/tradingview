@@ -1,11 +1,12 @@
 import os
+from pathlib import Path
 
-QLIB_DATA_DIR = r"E:\各种PY程序\28-终极量化交易系统8.4\qlib_data\cn_data"
-import qlib
+QLIB_DATA_DIR = str(Path(__file__).resolve().parent.parent / "qlib_data" / "cn_data")
+import qlib  # noqa: E402
 
 qlib.init(provider_uri=QLIB_DATA_DIR, region="cn")
 
-from qlib.data import D
+from qlib.data import D  # noqa: E402
 
 print("=== 示例数据 (sh600519):")
 df = D.features(["sh600519"], ["$close", "$volume", "$factor", "$pe", "$pb", "$roeq"], start_time="2024-01-01")

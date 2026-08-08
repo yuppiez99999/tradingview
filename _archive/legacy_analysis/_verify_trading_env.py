@@ -5,7 +5,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from utils.trading_env import get_trading_env, get_trading_env_config
+from utils.trading_env import get_trading_env, get_trading_env_config  # noqa: E402
 
 env = get_trading_env()
 config = get_trading_env_config()
@@ -38,7 +38,7 @@ print("=" * 60)
 
 # 验证 FailFastMonitor
 sys.path.insert(0, str(PROJECT_ROOT / "v8.3_institutional" / "src" / "validation"))
-from shadow_account_system import FailFastMonitor
+from shadow_account_system import FailFastMonitor  # noqa: E402
 
 ffm = FailFastMonitor(daily_drawdown_threshold=0.03, cumulative_3d_drawdown_threshold=0.05)
 status = ffm.get_status()
@@ -55,7 +55,7 @@ print("=" * 60)
 print("影子账户状态")
 print("=" * 60)
 
-import json
+import json  # noqa: E402
 
 state_file = PROJECT_ROOT / "output" / "shadow_account" / "shadow_state.json"
 if state_file.exists():

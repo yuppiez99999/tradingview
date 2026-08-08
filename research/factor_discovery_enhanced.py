@@ -31,7 +31,7 @@ logger = logging.getLogger("factor_discovery_enhanced")
 # QLib 数据加载
 # ============================================================
 
-QLIB_DATA_DIR = r"E:\各种PY程序\28-终极量化交易系统8.4\qlib_data\cn_data"
+QLIB_DATA_DIR = str(Path(__file__).resolve().parent.parent / "qlib_data" / "cn_data")
 
 
 def init_qlib():
@@ -41,7 +41,8 @@ def init_qlib():
         qlib.init(provider_uri=QLIB_DATA_DIR, region="cn")
         logger.info("QLib 初始化成功")
         return True
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"QLib 初始化失败: {e}")
         return False
 
@@ -87,28 +88,9 @@ def load_qlib_data(
 # 扩展因子计算 (50+ 因子)
 # ============================================================
 
-def compute_technical_factors(df_group: pd.DataFrame) -> pd.Series:
-    """对单只股票计算所有技术因子
-
-    Args:
-        df_group: 单只股票的日线数据 (按日期排序)
-
-    Returns:
-        最新时间点的因子值 Series
-    """
+def _compute_momentum_factors(close: pd.Series, ret: pd.Series, n: int) -> dict:
+    """计算动量类与反转类因子"""
     factors = {}
-    close = df_group["close"]
-    volume = df_group["volume"]
-    high = df_group["high"]
-    low = df_group["low"]
-    df_group["open"]
-    n = len(close)
-
-    if n < 20:
-        return pd.Series(factors)
-
-    ret = close.pct_change()
-
     # === 动量类 ===
     for w in [5, 10, 20, 60, 120, 252]:
         if n > w:
@@ -128,7 +110,12 @@ def compute_technical_factors(df_group: pd.DataFrame) -> pd.Series:
         if n > w:
             ret_w = ret.iloc[-w:]
             factors[f"UP_DOWN_RATIO_{w}D"] = (ret_w > 0).sum() / max((ret_w < 0).sum(), 1)
+    return factors
 
+
+def _compute_volatility_factors(ret: pd.Series, n: int) -> dict:
+    """计算波动率类因子 (含下行波动/偏度/峰度)"""
+    factors = {}
     # === 波动率类 ===
     for w in [5, 20, 60, 120, 252]:
         if n > w:
@@ -150,7 +137,12 @@ def compute_technical_factors(df_group: pd.DataFrame) -> pd.Series:
     for w in [60, 120]:
         if n > w:
             factors[f"KURT_{w}D"] = ret.iloc[-w:].kurtosis()
+    return factors
 
+
+def _compute_liquidity_factors(volume: pd.Series, ret: pd.Series, n: int) -> dict:
+    """计算流动性类因子 (换手/Amihud/量变化/Z-Score)"""
+    factors = {}
     # === 流动性类 ===
     for w in [5, 20, 60]:
         if n > w:
@@ -174,7 +166,13 @@ def compute_technical_factors(df_group: pd.DataFrame) -> pd.Series:
         if n > w:
             vol_w = volume.iloc[-w:]
             factors[f"VOLUME_Z_{w}D"] = (volume.iloc[-1] - vol_w.mean()) / max(vol_w.std(), 1e-12)
+    return factors
 
+
+def _compute_technical_indicators(close: pd.Series, high: pd.Series, low: pd.Series,
+                                  ret: pd.Series, n: int) -> dict:
+    """计算技术指标类因子 (MA偏离/MACD/RSI/布林带/ATR)"""
+    factors = {}
     # === 技术指标类 ===
     # MA 均线偏离
     for w in [10, 20, 60, 120]:
@@ -215,7 +213,13 @@ def compute_technical_factors(df_group: pd.DataFrame) -> pd.Series:
                 (low - close.shift(1)).abs(),
             ], axis=1).max(axis=1)
             factors[f"ATR_{w}D"] = tr.iloc[-w:].mean() / max(close.iloc[-1], 1e-12)
+    return factors
 
+
+def _compute_price_volume_factors(close: pd.Series, volume: pd.Series,
+                                  ret: pd.Series, n: int) -> dict:
+    """计算价量关系类因子 (OBV/价量背离)"""
+    factors = {}
     # === 价量关系类 ===
     # OBV 能量潮变化
     if n > 20:
@@ -228,7 +232,12 @@ def compute_technical_factors(df_group: pd.DataFrame) -> pd.Series:
             price_new_high = close.iloc[-1] >= close.iloc[-w:].max()
             vol_new_high = volume.iloc[-1] >= volume.iloc[-w:].max()
             factors[f"PRICE_VOL_DIVERG_{w}D"] = 1.0 if (price_new_high and not vol_new_high) else 0.0
+    return factors
 
+
+def _compute_fundamental_proxy_factors(close: pd.Series, ret: pd.Series, n: int) -> dict:
+    """计算基本面代理因子 (从量价衍生)"""
+    factors = {}
     # === 基本面代理因子 (从量价衍生) ===
     # 市值代理 (价格相对位置)
     factors["SIZE_PROXY"] = close.iloc[-1]
@@ -245,8 +254,96 @@ def compute_technical_factors(df_group: pd.DataFrame) -> pd.Series:
     if n > 120:
         ret_120 = ret.iloc[-120:]
         factors["QUALITY_PROXY"] = ret_120.mean() / max(ret_120.std(), 1e-12)
+    return factors
+
+
+def compute_technical_factors(df_group: pd.DataFrame) -> pd.Series:
+    """对单只股票计算所有技术因子
+
+    Args:
+        df_group: 单只股票的日线数据 (按日期排序)
+
+    Returns:
+        最新时间点的因子值 Series
+    """
+    factors = {}
+    close = df_group["close"]
+    volume = df_group["volume"]
+    high = df_group["high"]
+    low = df_group["low"]
+    df_group["open"]
+    n = len(close)
+
+    if n < 20:
+        return pd.Series(factors)
+
+    ret = close.pct_change()
+
+    factors.update(_compute_momentum_factors(close, ret, n))
+    factors.update(_compute_volatility_factors(ret, n))
+    factors.update(_compute_liquidity_factors(volume, ret, n))
+    factors.update(_compute_technical_indicators(close, high, low, ret, n))
+    factors.update(_compute_price_volume_factors(close, volume, ret, n))
+    factors.update(_compute_fundamental_proxy_factors(close, ret, n))
 
     return pd.Series(factors)
+
+
+def _collect_date_factors(stock_groups: dict, date: pd.Timestamp) -> dict:
+    """遍历股票分组, 计算指定日期的因子值; 返回 {inst: factor_series}"""
+    date_factors = {}
+    for inst, hist in stock_groups.items():
+        # 取截止到 date 的历史数据
+        hist_slice = hist[hist.index <= date]
+        if len(hist_slice) < 60:
+            continue
+        try:
+            fv = compute_technical_factors(hist_slice)
+            if len(fv) > 0:
+                date_factors[inst] = fv
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+            continue
+    return date_factors
+
+
+def _merge_date_factors_into_panel(date_factors: dict, factor_data: dict,
+                                   date: pd.Timestamp, calc_dates: pd.Index,
+                                   instruments: pd.Index) -> None:
+    """将单日因子值合并进 factor_data 面板 (原地修改)"""
+    if not date_factors:
+        return
+    df_f = pd.DataFrame(date_factors).T
+    for fname in df_f.columns:
+        if fname not in factor_data:
+            factor_data[fname] = pd.DataFrame(index=calc_dates, columns=instruments, dtype=float)
+        for inst in df_f.index:
+            if inst in factor_data[fname].columns:
+                factor_data[fname].loc[date, inst] = df_f.loc[inst, fname]
+
+
+def _clean_factor_panels(factor_data: dict) -> dict:
+    """清理空值并剔除样本过少的因子面板"""
+    factor_panels = {}
+    for fname, panel in factor_data.items():
+        panel = panel.dropna(how="all")
+        if len(panel) > 5:
+            factor_panels[fname] = panel
+    return factor_panels
+
+
+def _compute_forward_returns_panel(stock_groups: dict, calc_dates: pd.Index,
+                                   instruments: pd.Index) -> dict:
+    """计算多周期远期收益面板 {fwd_day: DataFrame(date x stock)}"""
+    forward_returns = {}
+    for fwd in [1, 5, 10, 20]:
+        fr = pd.DataFrame(index=calc_dates, columns=instruments, dtype=float)
+        for inst, hist in stock_groups.items():
+            close = hist["close"].reindex(calc_dates)
+            fwd_ret = close.shift(-fwd) / close - 1.0
+            fr[inst] = fwd_ret
+        forward_returns[fwd] = fr.dropna(how="all")
+    return forward_returns
 
 
 def compute_factors_panel_qlib(
@@ -277,50 +374,20 @@ def compute_factors_panel_qlib(
     count = 0
 
     for date in calc_dates:
-        date_factors = {}
-        for inst, hist in stock_groups.items():
-            # 取截止到 date 的历史数据
-            hist_slice = hist[hist.index <= date]
-            if len(hist_slice) < 60:
-                continue
-            try:
-                fv = compute_technical_factors(hist_slice)
-                if len(fv) > 0:
-                    date_factors[inst] = fv
-            except Exception:
-                continue
-
-        if date_factors:
-            df_f = pd.DataFrame(date_factors).T
-            for fname in df_f.columns:
-                if fname not in factor_data:
-                    factor_data[fname] = pd.DataFrame(index=calc_dates, columns=instruments, dtype=float)
-                for inst in df_f.index:
-                    if inst in factor_data[fname].columns:
-                        factor_data[fname].loc[date, inst] = df_f.loc[inst, fname]
+        date_factors = _collect_date_factors(stock_groups, date)
+        _merge_date_factors_into_panel(date_factors, factor_data, date, calc_dates, instruments)
 
         count += 1
         if count % 10 == 0:
             logger.info(f"  进度: {count}/{len(calc_dates)}")
 
     # 清理空值
-    factor_panels = {}
-    for fname, panel in factor_data.items():
-        panel = panel.dropna(how="all")
-        if len(panel) > 5:
-            factor_panels[fname] = panel
+    factor_panels = _clean_factor_panels(factor_data)
 
     logger.info(f"因子面板计算完成: {len(factor_panels)} 个因子")
 
     # 计算远期收益
-    forward_returns = {}
-    for fwd in [1, 5, 10, 20]:
-        fr = pd.DataFrame(index=calc_dates, columns=instruments, dtype=float)
-        for inst, hist in stock_groups.items():
-            close = hist["close"].reindex(calc_dates)
-            fwd_ret = close.shift(-fwd) / close - 1.0
-            fr[inst] = fwd_ret
-        forward_returns[fwd] = fr.dropna(how="all")
+    forward_returns = _compute_forward_returns_panel(stock_groups, calc_dates, instruments)
 
     return factor_panels, forward_returns
 
@@ -345,6 +412,103 @@ class FactorValidationResult:
     effective: bool = False
     direction: str = "positive"
     score: float = 0.0
+
+
+def _compute_ic_for_date(fvals: pd.Series, date: pd.Timestamp,
+                        fwd_1d: pd.DataFrame,
+                        fwd_5d: pd.DataFrame) -> tuple[list, list]:
+    """计算单日 1d/5d IC 值; 返回 (ics_1d_single, ics_5d_single) 各含 0 或 1 个元素"""
+    ics_1d_single = []
+    ics_5d_single = []
+    for _fwd, ic_list, fr_panel in [(1, ics_1d_single, fwd_1d), (5, ics_5d_single, fwd_5d)]:
+        if fr_panel is not None and len(fr_panel) > 0 and date in fr_panel.index:
+            rets = fr_panel.loc[date].reindex(fvals.index).dropna()
+            common = fvals.index.intersection(rets.index)
+            if len(common) >= 5:
+                try:
+                    ic = float(fvals[common].corr(rets[common], method="spearman"))
+                    if not np.isnan(ic):
+                        ic_list.append(ic)
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+                    pass
+    return ics_1d_single, ics_5d_single
+
+
+def _compute_group_returns_for_date(fvals: pd.Series, date: pd.Timestamp,
+                                    fwd_1d: pd.DataFrame,
+                                    n_groups: int) -> list:
+    """计算单日 n_groups 分层回测各组平均收益; 失败返回空列表"""
+    if not (len(fwd_1d) > 0 and date in fwd_1d.index):
+        return []
+    rets_1d = fwd_1d.loc[date].reindex(fvals.index).dropna()
+    common = fvals.index.intersection(rets_1d.index)
+    if len(common) < n_groups * 2:
+        return []
+    try:
+        ranked = fvals[common].rank()
+        group_size = len(ranked) // n_groups
+        group_rets = []
+        for g in range(n_groups):
+            start = g * group_size
+            end = (g + 1) * group_size if g < n_groups - 1 else len(ranked)
+            group_stocks = ranked[(ranked > start) & (ranked <= end)].index
+            group_rets.append(rets_1d[group_stocks].mean())
+        return group_rets
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+        return []
+
+
+def _aggregate_factor_statistics(result: FactorValidationResult, ics_1d: list,
+                                 ics_5d: list, group_rets_by_date: list,
+                                 n_groups: int) -> bool:
+    """汇总单因子 IC 统计、分层回测统计与评分; 返回是否成功聚合"""
+    if len(ics_1d) < 5:
+        return False
+
+    ics_arr = np.array(ics_1d)
+    result.ic_mean = float(np.mean(ics_arr))
+    result.ic_std = float(np.std(ics_arr)) if len(ics_arr) > 1 else 1e-12
+    result.ic_ir = result.ic_mean / result.ic_std if result.ic_std > 1e-12 else 0.0
+    result.ic_positive_ratio = float(np.mean(ics_arr > 0))
+    result.direction = "positive" if result.ic_mean >= 0 else "negative"
+
+    if len(ics_5d) >= 5:
+        result.decay_5d = abs(np.mean(ics_5d)) / max(abs(result.ic_mean), 1e-12)
+
+    # 分层回测统计
+    if group_rets_by_date:
+        gr_arr = np.array(group_rets_by_date)
+        avg_group_rets = gr_arr.mean(axis=0)
+        result.group_returns = avg_group_rets.tolist()
+
+        # 多空收益 (多头最高组 - 空头最低组)
+        if result.ic_mean >= 0:
+            result.long_short_return = float(avg_group_rets[-1] - avg_group_rets[0])
+        else:
+            result.long_short_return = float(avg_group_rets[0] - avg_group_rets[-1])
+
+        # 单调性 (分组收益与组号的相关性)
+        corr = np.corrcoef(range(n_groups), avg_group_rets)[0, 1]
+        result.monotonicity = float(corr) if not np.isnan(corr) else 0.0
+
+    # 有效性判定
+    result.effective = (
+        abs(result.ic_mean) >= 0.02
+        and abs(result.ic_ir) >= 0.3
+    )
+
+    # 综合评分
+    result.score = (
+        abs(result.ic_mean) * 20
+        + min(abs(result.ic_ir), 3.0) * 10
+        + result.ic_positive_ratio * 10
+        + abs(result.monotonicity) * 15
+        + max(result.long_short_return, 0) * 500
+        + result.decay_5d * 5
+    )
+    return True
 
 
 def validate_factors(
@@ -382,83 +546,18 @@ def validate_factors(
                 continue
 
             # IC 计算
-            for _fwd, ic_list, fr_panel in [(1, ics_1d, fwd_1d), (5, ics_5d, fwd_5d)]:
-                if fr_panel is not None and len(fr_panel) > 0 and date in fr_panel.index:
-                    rets = fr_panel.loc[date].reindex(fvals.index).dropna()
-                    common = fvals.index.intersection(rets.index)
-                    if len(common) >= 5:
-                        try:
-                            ic = float(fvals[common].corr(rets[common], method="spearman"))
-                            if not np.isnan(ic):
-                                ic_list.append(ic)
-                        except Exception:
-                            pass
+            ic_1d_single, ic_5d_single = _compute_ic_for_date(fvals, date, fwd_1d, fwd_5d)
+            ics_1d.extend(ic_1d_single)
+            ics_5d.extend(ic_5d_single)
 
             # 分层回测
-            if len(fwd_1d) > 0 and date in fwd_1d.index:
-                rets_1d = fwd_1d.loc[date].reindex(fvals.index).dropna()
-                common = fvals.index.intersection(rets_1d.index)
-                if len(common) >= n_groups * 2:
-                    try:
-                        ranked = fvals[common].rank()
-                        group_size = len(ranked) // n_groups
-                        group_rets = []
-                        for g in range(n_groups):
-                            start = g * group_size
-                            end = (g + 1) * group_size if g < n_groups - 1 else len(ranked)
-                            group_stocks = ranked[(ranked > start) & (ranked <= end)].index
-                            group_rets.append(rets_1d[group_stocks].mean())
-                        group_rets_by_date.append(group_rets)
-                    except Exception:
-                        pass
+            group_rets = _compute_group_returns_for_date(fvals, date, fwd_1d, n_groups)
+            if group_rets:
+                group_rets_by_date.append(group_rets)
 
-        # 统计 IC
-        if len(ics_1d) < 5:
-            continue
-
-        ics_arr = np.array(ics_1d)
-        result.ic_mean = float(np.mean(ics_arr))
-        result.ic_std = float(np.std(ics_arr)) if len(ics_arr) > 1 else 1e-12
-        result.ic_ir = result.ic_mean / result.ic_std if result.ic_std > 1e-12 else 0.0
-        result.ic_positive_ratio = float(np.mean(ics_arr > 0))
-        result.direction = "positive" if result.ic_mean >= 0 else "negative"
-
-        if len(ics_5d) >= 5:
-            result.decay_5d = abs(np.mean(ics_5d)) / max(abs(result.ic_mean), 1e-12)
-
-        # 分层回测统计
-        if group_rets_by_date:
-            gr_arr = np.array(group_rets_by_date)
-            avg_group_rets = gr_arr.mean(axis=0)
-            result.group_returns = avg_group_rets.tolist()
-
-            # 多空收益 (多头最高组 - 空头最低组)
-            if result.ic_mean >= 0:
-                result.long_short_return = float(avg_group_rets[-1] - avg_group_rets[0])
-            else:
-                result.long_short_return = float(avg_group_rets[0] - avg_group_rets[-1])
-
-            # 单调性 (分组收益与组号的相关性)
-            corr = np.corrcoef(range(n_groups), avg_group_rets)[0, 1]
-            result.monotonicity = float(corr) if not np.isnan(corr) else 0.0
-
-        # 有效性判定
-        result.effective = (
-            abs(result.ic_mean) >= 0.02
-            and abs(result.ic_ir) >= 0.3
-        )
-
-        # 综合评分
-        result.score = (
-            abs(result.ic_mean) * 20
-            + min(abs(result.ic_ir), 3.0) * 10
-            + result.ic_positive_ratio * 10
-            + abs(result.monotonicity) * 15
-            + max(result.long_short_return, 0) * 500
-            + result.decay_5d * 5
-        )
-
-        results.append(result)
+        # 统计 IC 与评分
+        if _aggregate_factor_statistics(result, ics_1d, ics_5d, group_rets_by_date, n_groups):
+            results.append(result)
 
     results.sort(key=lambda r: r.score, reverse=True)
 

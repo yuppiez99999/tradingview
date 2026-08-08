@@ -6,7 +6,7 @@ import logging
 
 logging.basicConfig(level=logging.WARNING, format='%(name)s: %(message)s')
 
-from institutional_pipeline_runner import InstitutionalPipelineRunner, PipelineContext
+from institutional_pipeline_runner import InstitutionalPipelineRunner, PipelineContext  # noqa: E402
 
 ctx = PipelineContext(
     mode='backtest',

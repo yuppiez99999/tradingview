@@ -19,7 +19,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-PROJECT_ROOT = Path(r"e:\各种PY程序\28-终极量化交易系统7.1")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # ============================================================
 # 20 标的场景假设 (年化收益率 %)

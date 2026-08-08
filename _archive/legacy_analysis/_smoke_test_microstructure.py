@@ -8,7 +8,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import (
+from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import (  # noqa: E402
     VibeTradingFactorAdapter,
 )
 

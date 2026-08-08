@@ -1,7 +1,8 @@
 """测试系统中所有因子库的可用性"""
 import sys
+from pathlib import Path
 
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4')
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pathlib import Path
 
@@ -29,7 +30,8 @@ try:
     r = calc.compute(df)
     print(f"  ✅ alpha144 = {r['alpha144']:.8f}")
     results['GTJA191'] = {"status": "OK", "implemented": 1, "total": 191}
-except Exception as e:
+except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     print(f"  ❌ 错误: {e}")
     results['GTJA191'] = {"status": f"FAIL: {e}", "implemented": 0, "total": 191}
 
@@ -51,7 +53,8 @@ try:
     print(f"  ✅ 动量: {mom}, 价值: {val}, 质量: {qua}, 低波: {vol}, 规模: {size}, 流动性: {liq}")
     print(f"  ✅ 总计: {total} 个因子")
     results['Alpha主因子库'] = {"status": "OK", "total": total, "categories": 6}
-except Exception as e:
+except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     print(f"  ❌ 错误: {e}")
     results['Alpha主因子库'] = {"status": f"FAIL: {e}", "total": 0}
 
@@ -61,8 +64,8 @@ except Exception as e:
 print("=" * 60)
 print("统计 Vibe-Trading 因子库...")
 try:
-    qlib158_dir = Path(r'e:\各种PY程序\28-终极量化交易系统8.4\research\references\Vibe-Trading\agent\src\factors\zoo\qlib158')
-    academic_dir = Path(r'e:\各种PY程序\28-终极量化交易系统8.4\research\references\Vibe-Trading\agent\src\factors\zoo\academic')
+    qlib158_dir = Path(__file__).resolve().parent / 'references' / 'Vibe-Trading' / 'agent' / 'src' / 'factors' / 'zoo' / 'qlib158'
+    academic_dir = Path(__file__).resolve().parent / 'references' / 'Vibe-Trading' / 'agent' / 'src' / 'factors' / 'zoo' / 'academic'
 
     qlib158_count = len(list(qlib158_dir.glob('*.py'))) - 1  # 减去 __init__.py
     academic_count = len(list(academic_dir.glob('*.py')))
@@ -71,7 +74,8 @@ try:
     print(f"  ✅ Academic 因子 (Fama-French等): {academic_count} 个")
     print("  ✅ Vibe-Trading 总计: 452 个 (来自README)")
     results['Vibe-Trading'] = {"status": "参考资料已就绪", "qlib158": qlib158_count, "academic": academic_count, "total": 452}
-except Exception as e:
+except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     print(f"  ❌ 错误: {e}")
     results['Vibe-Trading'] = {"status": f"FAIL: {e}"}
 
@@ -90,8 +94,8 @@ try:
         print("  ⚠️ QLib 未安装 (已内置 qlib 子目录)")
 
     # 检查集成文件
-    adapter = Path(r'e:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional\src\alpha\qlib_signal_adapter.py')
-    train = Path(r'e:\各种PY程序\28-终极量化交易系统8.4\ms_strategy\training\qlib_improved_train.py')
+    adapter = Path(__file__).resolve().parent.parent / 'v8.3_institutional' / 'src' / 'alpha' / 'qlib_signal_adapter.py'
+    train = Path(__file__).resolve().parent.parent / 'ms_strategy' / 'training' / 'qlib_improved_train.py'
 
     has_adapter = adapter.exists()
     has_train = train.exists()
@@ -99,7 +103,8 @@ try:
     print(f"  {'✅' if has_adapter else '❌'} 信号适配器: {adapter}")
     print(f"  {'✅' if has_train else '❌'} 训练脚本: {train}")
     results['QLib Alpha158'] = {"status": "已集成" if (has_adapter and has_train) else "部分集成", "qlib_installed": qlib_available}
-except Exception as e:
+except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     print(f"  ❌ 错误: {e}")
     results['QLib Alpha158'] = {"status": f"FAIL: {e}"}
 
@@ -125,7 +130,8 @@ try:
     print(f"  ✅ 增强因子库: {len(fv)} 个因子可用")
     print("  ✅ 类别: 动量/波动率/流动性/技术指标/价量关系/基本面代理")
     results['增强因子挖掘'] = {"status": "OK", "total": len(fv)}
-except Exception as e:
+except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     print(f"  ❌ 错误: {e}")
     results['增强因子挖掘'] = {"status": f"FAIL: {e}", "total": 0}
 
@@ -148,9 +154,9 @@ print(f"\n  系统可用因子总数 (不含重叠): ~{total_factors}+")
 print("=" * 60)
 
 # 保存结果
-import json
+import json  # noqa: E402
 
-output_file = Path(r'e:\各种PY程序\28-终极量化交易系统8.4\research\outputs\factor_library_status.json')
+output_file = Path(__file__).resolve().parent / 'outputs' / 'factor_library_status.json'
 output_file.parent.mkdir(parents=True, exist_ok=True)
 output_file.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding='utf-8')
 print(f"\n结果已保存: {output_file}")

@@ -15,9 +15,9 @@ project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-import yaml
+import yaml  # noqa: E402
 
-from utils.ifind_news_analyzer import IFinDNewsAnalyzer, StockInsight
+from utils.ifind_news_analyzer import IFinDNewsAnalyzer, StockInsight  # noqa: E402
 
 
 def _load_portfolio_symbols(portfolio_path: str) -> list[dict[str, Any]]:
@@ -85,7 +85,8 @@ def _calc_technical_alpha(code: str) -> float | None:
 
         score = max(-1.0, min(1.0, 1.0 - float(value) * 1e8))
         return round(float(score), 4)
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return None
 
 
@@ -159,7 +160,8 @@ def main(argv: list[str] | None = None) -> int:
     for item in items:
         try:
             insights.append(analyzer.analyze_symbol(item['code'], name=item['name'], size=args.size, days=args.days))
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
 
     base_dir = os.path.dirname(os.path.abspath(__file__))

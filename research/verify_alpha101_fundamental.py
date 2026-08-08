@@ -1,7 +1,8 @@
 """验证 Fundamental 和 Alpha101 补全效果"""
 import sys
+from pathlib import Path
 
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4')
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
 import pandas as pd
@@ -23,7 +24,7 @@ df = pd.DataFrame({
     'close': close, 'volume': volume, 'amount': amount
 }, index=dates)
 
-from utils.vibe_trading_adapter import get_vibe_adapter
+from utils.vibe_trading_adapter import get_vibe_adapter  # noqa: E402
 
 adapter = get_vibe_adapter()
 

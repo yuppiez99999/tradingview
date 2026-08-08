@@ -11,8 +11,8 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
 )
 
-from cache.data_downloader import download_fundamentals_batch
-from cache.symbol_universe import get_universe
+from cache.data_downloader import download_fundamentals_batch  # noqa: E402
+from cache.symbol_universe import get_universe  # noqa: E402
 
 universe = get_universe()
 print(f"标的池: {len(universe)} 个")

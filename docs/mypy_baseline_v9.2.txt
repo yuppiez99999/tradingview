@@ -1,0 +1,21 @@
+utils\alpha\vix_data_source.py:201: error: Unused "type: ignore" comment 
+[unused-ignore]
+                from wind_mcp_fetcher import wind_get_kline  # type: ignor...
+                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~...
+utils\alpha\vix_data_source.py:312:13: error: Returning Any from function
+declared to return "dict[str, Any] | None"  [no-any-return]
+                return cache_data
+                ^~~~~~~~~~~~~~~~~
+utils\risk\kill_switch_adapter.py:209:21: error: Incompatible types in
+assignment (expression has type "int", variable has type "str")  [assignment]
+                level = int(status.get("level", 0))
+                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+utils\risk\kill_switch_adapter.py:214:23: error: Argument "level" to
+"make_margin_breach_event" has incompatible type "str"; expected "int" 
+[arg-type]
+                    level=level,
+                          ^~~~~
+utils\risk\kill_switch_adapter.py:215:60: error: Unsupported operand types for
+>= ("str" and "int")  [operator]
+    ...      severity=RiskSeverity.CRITICAL if level >= 2 else RiskSeverity.W...
+                                                        ^

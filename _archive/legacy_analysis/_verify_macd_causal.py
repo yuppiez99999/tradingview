@@ -21,7 +21,7 @@ import pandas as pd
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR / "v8.3_institutional"))
 
-from autolearn_trainer import add_technical_features
+from autolearn_trainer import add_technical_features  # noqa: E402
 
 
 def build_synthetic_ohlcv(n: int = 100, seed: int = 42) -> pd.DataFrame:

@@ -11,7 +11,7 @@ if (-not (Test-Path $LogDir)) {
 }
 
 $TaskName = "V84_DailyMorningWorkflow"
-$TaskDesc = "v8.4 每日早7点早报工作流"
+$TaskDesc = "v8.6.14 每日早7点早报工作流"
 
 Write-Host "项目根目录: $ProjectRoot"
 Write-Host "批处理文件: $BatchFile"

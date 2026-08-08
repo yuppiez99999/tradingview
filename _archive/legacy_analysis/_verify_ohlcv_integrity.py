@@ -22,7 +22,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from cache.symbol_universe import get_universe
+from cache.symbol_universe import get_universe  # noqa: E402
 
 # V9 回测实际使用的数据目录
 OHLCV_DIR = PROJECT_ROOT / "data_cache"

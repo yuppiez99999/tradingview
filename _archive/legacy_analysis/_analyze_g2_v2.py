@@ -44,7 +44,7 @@ for d in g2_data:
     print(f"{d['name']:35s} {g1_mark:5s} {g2_mark:5s} {d['ic']:>8.4f} {d['ic_ir']:>8.4f} {d['ic_std']:>8.4f} {d['n_days']:>7d} {d['ic_decay']:>7.3f}")
 
 # 统计 IC 分布
-import numpy as np
+import numpy as np  # noqa: E402
 
 ics = [d["ic"] for d in g2_data]
 ic_irs = [d["ic_ir"] for d in g2_data]

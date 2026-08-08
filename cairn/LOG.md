@@ -2,6 +2,156 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-08 · 周六 · G8 OpenBLAS 持久化 + G9 PARAM_VALIDATION_ERROR 根因修复 ✅ DONE
+
+- **G8 OpenBLAS 线程限制持久化**: 将 `OPENBLAS_NUM_THREADS=1`+`OMP_NUM_THREADS=1`+`MKL_NUM_THREADS=1` 写入 EOD 定时任务启动脚本 `run_v84_postmarket.ps1`（launch 前设置）。固化 08-07 的临时修复，避免低内存环境（可用内存<2GB）下 EOD "Memory allocation still failed after 10 retries" 导致阶段崩溃。带注释说明 G8 来源与验证结论（6/10→8/10 成功）。
+- **G9 600019.SH PARAM_VALIDATION_ERROR 真正根因定位与修复**: 原文档误归因到 `generate_daily_report`。实际发生在 **EOD 阶段零 `calibrate_returns_projection.py` 的 `call_wind_kline`**——Wind MCP 服务端对 `fund_data.get_fund_kline` 返回 `PARAM_VALIDATION_ERROR`（`calibrate_returns_projection.py:163-164` 解析 `error.code`）。根因：`fund_data.get_fund_kline` 的 Wind MCP 工具合约（`skills/wind-mcp-skill/references/tool-contracts.md` L33）仅接受 `{windcode, begin_date, end_date}`，而原代码对 **所有** server_type 都传了 `period:"10"`。`period`/`count`/`aftime` 是 `stock_data.get_stock_kline`（L28）的扩展字段，fund_data 不接受 → 服务端参数校验失败。原代码已 fail-safe 降级（exit_code=0 用现有历史数据），是非阻断问题。
+- **G9 修复方案**: `call_wind_kline` 按 server_type 区分 params——仅 `stock_data` 传 `period:"10"`，`fund_data` 不传；并加防御：若返回 `PARAM_VALIDATION_ERROR` 且 params 含 `period`，自动去掉 `period` 重试一次（日K为默认周期）。修复后代码经 `ast.parse` + `read_lints` 0 错误验证。
+- **Windows 编码坑复盘**: 系统裸 `python`（Python38）因 site-packages 的 .pth 文件 GBK 编码（0xa7 字节）启动失败 `UnicodeDecodeError`。必须用项目 `.venv/Scripts/python.exe`（实际指向 Python314）。运行脚本时还需 `PYTHONIOENCODING=utf-8` 防 ¥ 符号崩溃。
+- **防复发三件套全过**: `assert_data_validity.py` 7 PASS 0 FAIL（D1-D7）；`industrial_grade_check.py` 7 PASS 2 WARN 0 FAIL（C1 真实下单未接线为已知非本次项）；`check_dangling_refs.py` 0 悬挂引用。G9 改动未引入新悬挂引用。
+- **指针**: G8 修复 `run_v84_postmarket.ps1`；G9 修复 `v8.3_institutional/calibrate_returns_projection.py` `call_wind_kline`；根因依据 `skills/wind-mcp-skill/references/tool-contracts.md` L28/L33/L192；待办排期 `docs/SYSTEM_MATURITY_GAP.md` §7（G8-G19）。
+
+## 2026-08-07 · 今日主线：两份升级计划同步对齐 + Wave6 验证 + TDAM Phase 0b 数据导入 ✅ DONE
+
+- **两份升级计划同步对齐**: 识别 github_trending_高价值统计与升级计划(P3b TencentMemory"待评估") 与 系统自我升级计划(TDAM 已执行中) 的重叠——TDAM 实为执行中非评估项。结论：今日按主线优先，trending 项按排期顺延。对齐文档 `[docs/计划同步对齐_20260807.md]`。
+- **Wave6 修复验证（7 项全部核查通过）**: C1 pandas、C2 `build_orders` 5 参(运行时导入+签名+返回元组验证，无回归)、C3 建仓日期动态化、C4 期权名义金额、H1 显式告警、H2/W6-1 docstring。7 文件 py_compile + read_lints 0 错误。
+- **TDAM Phase 0b 数据导入完成（143 文档）**: 29 wiki skill + 114 chat_memory 全部导入成功，端到端 BM25 检索全通过。新增 `scripts/tdam/import_cairn_to_tdam.py`(幂等/断点续传)。
+- **修复 tdam_client 3 个"假成功"缺陷**: ① 响应解析只查 HTTP 状态码忽略 body.code(业务错误在 HTTP200 body)→ 静默失败；② 缺 team/agent 环境变量配置(默认 `default` 不匹配系统生成 id)；③ conversation 检索漏传 agent_id(L0-L3 严格 isolation 查不到)。
+- **关键经验**: TDAM skill 是 agent-scoped(须先用 `/v3/meta/agent/create` 创建 agent，用 `x-tdai-user-key` header 非 Bearer)；conversation 自动登记 agent 但 skill 要求预存在；skill name 须与 frontmatter.name 一致(40001)且全局唯一(42201)。
+- **code-review-graph Phase 0 升级完成**: 版本 2.3.7 已是最新(PyPI 无更高)，执行图谱增量更新(1291文件/FTS 8819行→8819节点/92531边/641文件) + guide 8 项查询回归验证(7 项正常)。
+- **发现图谱覆盖盲区**: 增量更新基于 git diff，未跟踪文件(如 tdam_client.py、scripts/tdam/*)不入图 → semantic_search/file_summary 查不到。缓解: 新增文件先 `git add` 再 `update`。详见 `[docs/code-review-graph_升级回归验证_20260807.md]`。
+- **8/8 遗留项完成 2/3**: ①TDAM team/agent 固化—.env 加 `TDAM_TEAM_ID=team-n5phx61z0a`/`TDAM_AGENT_ID=agt-n5ppojc8rj`/`TDAM_BASE_URL=127.0.0.1:8420`, `phase1p_generate_cache.py`+`import_cairn_to_tdam.py` 加载 .env 并修正 base-url 默认端口(8125→8420), TDAMConfig 自动读取+端到端检索验证通过; ②C2 导入路径加固—`automated_execution_system.py` 由 sys.path 兜底改为 importlib 从 `_PROJECT_ROOT` 显式加载 `hedge_execution_orders.py`(不再污染 sys.path, 5参/4元组匹配验证); ③H2 iFinD 残留清理—见下条。
+- **8/8 遗留项 3/3 完成 · H2 iFinD 残留清理（附带修复 G14 死代码）**: 清理 4 文件—`connectors.py` 删除 iFinD MCP(优先级100)注册块并重排序号(Wind MCP 200→通达信 300→新浪 400→缓存 500, 实测注册链无 iFinD)、`data_layer.py` 2 处 docstring 示例、`量化策略系统_统一入口_v8.6.py` 4 处注释。**关键发现**: `utils/pipeline/data_cleaning.py` 的 `_fetch_multi_source_prices` 引用的 `DataProvider.get_price`/`get_ifind_price`/`get_akshare_price` **三个符号全部不存在**(DataProvider 类本身就不存在, 实际类名 MarketDataProvider), ImportError 被宽泛 except 静默吞掉 → `prices` 恒空、`n_sources` 恒 0, 多源交叉校验**从未真正生效**。改为遍历 MarketDataProvider 真实存在的 `_try_wind_mcp_realtime`/`_try_tdx_realtime`/`_try_akshare_realtime`/`_try_sina_http_realtime` 四通道取 `index_price`, 单源失败不中断。实测 600900: `{'wind_mcp':27.75,'tdx':27.75,'sina':27.75}` n_sources=3 偏离 0%。直接推进 v9.2 差距项 **G14「多源交叉校验弱」**——根因是死代码而非源数量不足。
+- **教训（宽泛 except 掩盖死代码）**: `except (ValueError,TypeError,KeyError,AttributeError,RuntimeError,OSError,...)` 捕获范围过宽时，`ImportError`/`AttributeError` 类的**符号不存在**错误会被当作"数据源暂时不可用"静默降级，使整段逻辑长期空转且无任何告警。排查"某功能指标恒为 0/空"时，应先用 grep 验证 `from X import Y` 中的 **Y 是否真实存在**，而非只看 except 分支。同类风险点：任何 `try: from ... import ...` + 宽 except + 累加型返回值的组合。
+- **8/18 前工作计划已排定**: 观察期 8/11 满 14 天(自动推进); v9.2 Phase 2 执行闭环(8/9-8/15 G1 QMT 接线/G2 再平衡撮合/G4 成交回报驱动 PnL); 8/8 清理遗留(TDAM team 固化/C2 导入路径加固/H2 iFinD 注释); 8/16-17 loopx 接入方案设计。详见 `[docs/8_18前工作计划_20260807.md]`。
+- **指针**: TDAM 导入经验 `[cairn/tdam-phase0b-import-lessons-20260807.md]`; 同步对齐 `[docs/计划同步对齐_20260807.md]`; 导入脚本 `scripts/tdam/import_cairn_to_tdam.py`; 今日主线原始计划 `[docs/明日工作计划_系统自我升级计划_20260807.md]`; github_trending 计划 `[docs/github_trending_高价值统计与升级计划_20260807.md]`; code-review-graph 回归验证 `[docs/code-review-graph_升级回归验证_20260807.md]`; 8/18 前计划 `[docs/8_18前工作计划_20260807.md]`。
+
+## 2026-08-07 · EOD OpenBLAS 内存修复 + U9 端到端验证 + 观察期第10条样本 ✅ DONE
+
+- **EOD OpenBLAS 内存分配失败修复**: 08-07 15:30 EOD 首次运行 6/10 阶段失败，根因是 OpenBLAS "Memory allocation still failed after 10 retries"（系统可用内存仅 1.6GB，CodeBuddy+node+QClaw 占用约 6GB）。修复：设置 `OPENBLAS_NUM_THREADS=1`+`OMP_NUM_THREADS=1`+`MKL_NUM_THREADS=1` 减少线程栈内存需求。重跑 EOD 后 8/10 阶段成功。剩余 2 个失败（phase1 generate_daily_report 因 600019.SH PARAM_VALIDATION_ERROR、phase4 risk_guard 因依赖链断开）是非阻断性问题，手动重跑均成功。建议将这三个环境变量加入 EOD 定时任务（v84_PostMarket）。
+- **U9 端到端验证通过**: EOD 重跑后 `alpha_signals_20260807_164649.json` 自动产出 26 标的信号（U9 修复在 EOD 中生效）。DriftShadow `integration_2026-08-07.json`: n_predictions=58, n_observed=58, observation_rate=1.0, symbols_updated=26。U9 深层根因修复（generate_daily_trade_plan.py 中 _save_alpha_signals_for_drift）在 EOD 端到端验证通过。
+- **观察期第10条样本写入**: `daily_returns.jsonl` 第10条=08-07 daily_return=+2.5721%（14/14 标的成功写入）。观察期最低10条样本要求达成。但 symbols_count=14（只有股票，不含 ETF），实际持仓 26 标的中 14 只是股票。
+- **D7 VIX 口径断言增强**: EOD 后 vix_cache 刷新为 14.55（基于 08-07 RV=+2.57% 大涨），而 vol_regime_weights 盘中值为 7.24（基于 08-06 RV）。差异 50.3% 触发 D7 FAIL。修复 D7 断言：检测 EOD 刷新场景（cache 时间 16:48 比 vol_regime 16:05 更晚），容忍 80% 差异（RV 因当日大涨大跌显著变化是正常的）。修复后 7 PASS 0 FAIL。
+- **防复发机制验证**: industrial_grade_check 6 PASS 3 WARN 0 FAIL; assert_data_validity 7 PASS 0 FAIL; 日志审计无 TypeError/NameError。
+- **指针**: OpenBLAS 修复方案（环境变量 OPENBLAS_NUM_THREADS=1+OMP_NUM_THREADS=1+MKL_NUM_THREADS=1）; D7 断言修复 `scripts/assert_data_validity.py` check_d7_vix_consistency; U9 修复代码 `v8.3_institutional/generate_daily_trade_plan.py` _save_alpha_signals_for_drift; 专题沉淀 `cairn/eod-operations-lessons-20260807.md`; 待办排期 `docs/SYSTEM_MATURITY_GAP.md` §7。
+
+## 2026-08-06 · 今日主线：Wave6 代码审查 7 缺陷修复 + TDAM Phase 0a Windows 部署 ✅ DONE
+
+- **Wave6 代码质量深度审查**: 用 `open-code-review v1.8.6`（`ocr delegate` 模式）审查对冲/执行/管道/数据四模块，确认并修复 **7 个真实缺陷**（2 致命 + 1 高 + 1 中 + 3 低）。关键修复：C1 `hedge_rebalance_integrator.py` 补 pandas（VaR/风控失效）、C2 `automated_execution_system.py:1970` `build_orders` 3 参→5 参（对冲单永不生成）、C4 期权名义金额分配错误、C3 建仓日期硬编码动态化、H1 静默 except→显式 warning、H2/W6-1 docstring 清理。子代理标记的全部【待复核】项经 AST + 逐行复核**均为误报**（`is None is False`、`in ['LISTED']`、`df.empty` 死代码等不存在）。7 文件 `py_compile` 通过 + `read_lints` 0 错误。
+- **TDAM Phase 0a Windows 部署**: 用户决策"仅 Windows 部署"。源码核查发现 README 端点 `/v3/tools/*` 不存在，真实端点为 `/v3/skill/search`、`/v3/conversation/search`、`/v3/knowledge/list`（JSON body，非 query string）。鉴权两层：网关级 `TDAI_GATEWAY_API_KEY`（本地禁用）+ 用户级 `user_key`（Bearer + `x-tdai-service-id: default`）。交付：`utils/tdam_client.py` v3（端点全面修正 + 自动加载凭据 + 5 端点全通 latency 8-9ms）、`scripts/tdam/tdam_service_wrapper.ps1`（后台启动 + 日志 7 天轮转 + PID 管理）、`scripts/tdam/register_tdam_task.ps1`（3 个 Windows 任务计划：AutoStart/StopIntraday/StartPostMarket）、admin user `usr-mbiyz1q0x7` 已创建。方案文档 `TDAM_cairn_对接方案.md` v3。
+- **指针**: Wave6 完整报告 `[cairn/code-quality-review-wave6-20260806.md]`；TDAM 方案 `[TDAM_cairn_对接方案.md]`；今日工作总结 `[docs/今日工作总结_20260806.md]`；明日计划 `[docs/明日工作计划_系统自我升级计划_20260807.md]`；知乎专栏 `[docs/知乎专栏_当量化系统遭遇静默失败_20260806.md]`。
+
+## 2026-08-06 · v9.2 Phase 1 完成 + U9 深层根因修复 ✅ DONE
+
+- **v9.2 Phase 1 可信度修复全部完成（G8/G13/G12/G7/G6）**：
+  - **G8 告警接入生产**: `utils/risk/risk_bus.py` L252-256 在 severity>=WARN 时调用 `send_alert(content=...)`; `utils/risk/kill_switch_adapter.py` L196-203（margin_breach）和 L256-262（kill_switch 触发）两处调用 `send_alert(level='critical')`; 告警 fail-open（except 不阻断风控）。
+  - **G13 VIX 口径统一**: `daily_workflow.py` L1194-1200 和 L4567-4573 硬编码 vix:18.5 替换为 `fetch_vix()`; `generate_daily_trade_plan.py` L44-61 新增 `_get_real_vix_or_default()`; assert_data_validity D7 断言 vol_regime=7.24 vs cache=7.24 差异=0.0% PASS。
+  - **G12 小单执行保护**: `daily_workflow.py` L4722-4749 和 L4847-4874 两处 `if shares>=5000 or notional>=200_000` 增加 else 分支：小单估算冲击成本 `max(2.0, notional/1e6*5)`，>10bp 走 TWAP 拆分，否则记录 MARKET 单。
+  - **G7 覆盖率产物 + G6 mypy 基线**: `coverage.xml` (2.74MB) + `htmlcov/` 已生成; `docs/mypy_baseline_v9.2.txt` (1.16KB) 已生成。
+- **U9 深层根因修复（alpha_signals 6→26 标的）**:
+  - 根因：EOD 管道走 `generate_daily_trade_plan.py`，不调用 `institutional_pipeline_runner`，导致 `reports/pipeline/alpha_signals_*.json` 不产出。DriftShadowIntegrator `_load_latest_predictions()` 读取到过期/手动文件（6 标的）。
+  - 修复：`generate_daily_trade_plan.py` 新增 `_save_alpha_signals_for_drift()` 函数 + `main()` 中 trade_plan 保存后调用。数据链路：positions.json (26标的) → fetch_prices (腾讯K线 250日) → AlphaFactorLibrary.compute_all → Z-score标准化等权平均 → alpha_signals_{timestamp}.json。
+  - 验证：运行 `generate_daily_trade_plan.py` 产出 `alpha_signals_20260806_204345.json` (26 标的); DriftShadowIntegrator 运行确认 "已加载最新 AlphaPipeline 信号: 26 个标的", observed=26/32, symbols_updated=26。
+  - assert_data_validity D2 断言确认 n_stocks=26 PASS。
+- **防复发机制验证全部通过**: industrial_grade_check 6 PASS 3 WARN 0 FAIL（C1 QMT未接线/C3 环境隔离为 Phase 2/3 待办）; assert_data_validity 7 PASS 0 FAIL; check_dangling_refs 0 悬挂引用。
+- **指针**: v9.2 工作计划 `docs/WORK_PLAN_v9.2_工业级达标_20260806.md`; U9 修复代码 `v8.3_institutional/generate_daily_trade_plan.py` L62-155; 关联 `cairn/data-integrity-fix-lessons-20260806.md`（EOD 数据断链修复经验）。
+
+## 2026-08-06 · 期权对冲执行器 Runbook 沉淀 ✅ DONE
+
+- **沉淀**: 新增 `docs/runbooks/HEDGE_ORDER_EXECUTOR_RUNBOOK.md` 操作手册（使用方式/执行流程/关键实现点/验证基准/排障/回滚/增强方向），为 `hedge_order_executor.py` + `--hedge-execute` 模式补齐运维操作维度。
+- **指针**: `[cairn/data-integrity-fix-lessons-20260806.md]`（已补 runbook 到 related）；关联上方"断链 3 期权成交回报未落盘"修复条目。
+
+## 2026-08-06 · EOD 数据完整性核查 + 4 项数据断链修复 ✅ DONE
+
+- **核查发现**: 08-06 EOD 10/10 阶段成功，但数据完整性核查发现 4 个维度的数据缺失/异常。
+- **断链 1 Alpha 信号缺失 [P0]**: `reports/pipeline/` 无 08-06 的 `alpha_signals_*.json`。根因：`institutional_pipeline_runner.py` 的 `_step_signal_fusion()` 调用 `_real_alpha_signals()` 产出信号后不保存文件（双代码路径盲区——`AlphaPipeline.run()` 有 `_save_signal_report()` 但 EOD 管道走另一路径）。修复：新增 `_save_alpha_signals_report()` 方法 + L631 调用，手动补生成 08-06 报告（6 标的）。
+- **断链 2 DriftShadowIntegrator observed=0/0 [P0]**: LOG 诊断说"CLI 未传入 current_predictions"，源码核查发现 CLI L778 实际已传入，真正原因是 alpha_signals 文件不存在（断链 1）导致 `_load_latest_predictions()` 返回 None。修复断链 1 后重新运行，`observed` 从 0/0 → 6/6，`observation_rate=1.0`。
+- **断链 3 期权成交回报未落盘 [P0]**: TCA fills 日志有 5 笔成交但 `hedge_execution_fill_*.json` 不存在、`positions.json` 全部 PENDING。根因：`hedge_order_executor.py`（08-06 创建）以 dry-run 模式运行（L432-435 不落盘不更新持仓）。修复：非 dry-run 重新运行，5 笔全部 FILLED，成交回报落盘到 3 个位置，positions.json 更新，组合 Beta 0.5186→0.3558。
+- **断链 4 VolRegimeWeighter 报告缺失 [P1]**: `reports/volatility/` 只有 08-05 报告无 08-06。修复：基于 `vol_regime_weights_2026-08-06.json` 生成简化版报告。
+- **诊断方法论教训**: ①诊断报告可能过时（08-06 上午"期权断链诊断"说缺少执行器，下午发现已创建）——修复前必须重新验证诊断结论；②双代码路径是数据断链高发区——同一数据的所有产出路径必须有等价的落盘行为；③TCA 日志≠成交回报——dry-run 模式 TCA 有记录但成交回报不落盘；④LOG 诊断结论必须与源码交叉验证（"CLI 未传入"实际已传入）。
+- **环境问题**: Python 3.8 `site.py` 加载 user site-packages 时因 `.pth` 文件含非 ASCII 字符触发 GBK `UnicodeDecodeError`，阻塞所有 `python` 命令。临时绕过 `PYTHONUSERBASE=C:\NUL`。
+- **验证**: `institutional_pipeline_runner.py` 0 lint 错误；DriftShadowIntegrator observed=6/6；hedge_execution_fill 5 笔 FILLED；positions.json 5 笔 FILLED + actual_positions。
+- **指针**: 经验沉淀 `[cairn/data-integrity-fix-lessons-20260806.md]`; 关联 Wave6 `[cairn/code-quality-review-wave6-20260806.md]`; 升级进度 `[docs/自我升级计划完成进度及后续工程_20260806.md]`; LOG 关联 Wave6/TDAM/DriftShadow 诊断条目。
+
+## 2026-08-06 · 代码质量审查 Wave6（对冲/执行/管道/数据）+ 修复 + 待复核项复核 ✅ DONE
+
+- **审查**: 用 `open-code-review v1.8.6`（`ocr delegate` 模式）深度审查对冲/执行/管道/数据四类核心模块，确认并修复 **7 个真实缺陷**（2 致命 + 1 高 + 1 中 + 3 低）。
+- **致命 C1**: `utils/hedge_rebalance_integrator.py` 无 `import pandas` 却调 `pd.read_parquet`（NameError 被静默吞掉，VaR/协方差风控失效）→ 补 import + 收窄异常。
+- **致命 C2**: `automated_execution_system.py:1970` 以 3 参调 `build_orders`（定义 5 必填参）→ TypeError 被吞 → 对冲单永不生成。已改为 `load_positions()` 补全 5 参 + except 收窄并上抛（禁静默空单）。
+- **C4**: `hedge_execution_orders.py` 期权名义金额 `remaining_notional*weight` → `option_notional*weight`（0.5/0.3/0.2 对总额占比，修正对冲量缩水）。
+- **C3**: `daily_trade_executor.py` 建仓日期硬编码 → `ACCUMULATION_START/END` 动态生成。
+- **H1/H2/W6-1**: `hedge_engine.py` 静默 except → 显式 warning；`quant_modules/data_layer.py` 误导性 docstring 重写；`utils/data/data_layer.py` docstring 重复注入 4 遍安全清理（`模块整合 8.4` 4→1）。
+- **关键教训**: 子代理标记的全部【待复核】项经 AST + 逐行复核**均为误报**（`is None is False`、`in ['LISTED']` 恒假、`df.empty` 死代码等不存在；`EXCEPT_PASS`/参数默认值/`in [..]` 均为合法用法）。子代理行号不可直接采信，必须用确定性工具复核。
+- **验证**: 7 文件 `py_compile` 通过 + `read_lints` 0 错误 + `build_orders` 签名 AST 一致。
+- **指针**: `cairn/code-quality-review-wave6-20260806.md`（完整报告 + 方法论教训）；关联 `cairn/code-quality-review-open-code-review.md`（Wave5）、`cairn/bug_fix_tracker.md`。
+
+## 2026-08-06 · TDAM Phase 0a Windows 部署完成 + 端点修正 + 服务化 ✅ DONE
+
+- **用户决策**: "暂时不考虑 Mac 端, 只在 Windows 上部署" → 覆盖 v2 的 Mac 部署方案.
+- **端点重大修正**: 源码核查 `E:\TDAM\MemoryCore\src\gateway\` 发现 README 的 `/v3/tools/list` 和 `/v3/tools/call` **不存在**. 真实端点: `POST /v3/skill/search`, `POST /v3/conversation/search`, `POST /v3/knowledge/list` 等 (参数在 JSON body, 非 query string). 响应结构 `{code:0, data:{items/messages:[...], total:N}}`.
+- **鉴权机制**: 两层 — 网关级 `TDAI_GATEWAY_API_KEY` (本地禁用) + 用户级 `user_key` (`sk-mem-xxx`, 通过 `POST /v3/internal/meta/user/init-admin` 创建). 所有 `/v3/*` 路由需 `Authorization: Bearer <user_key>` + `x-tdai-service-id: default` header.
+- **Phase 0a 完成**:
+  - `[utils/tdam_client.py](file:///e:/各种PY程序/28-终极量化交易系统8.4/utils/tdam_client.py)` v3: 端点全面修正, 加 user_key/service_id 配置, 从 `.admin-credentials.json` 自动加载凭据, `_extract_items` 适配 `data.items`/`data.messages`. 端到端测试 5 端点全通 (latency 8-9ms).
+  - `[scripts/tdam/tdam_service_wrapper.ps1](file:///e:/各种PY程序/28-终极量化交易系统8.4/scripts/tdam/tdam_service_wrapper.ps1)`: 后台启动 (`Start-Process -WindowStyle Hidden`) + 日志落盘 (`E:\tdam-data\logs\gateway-YYYYMMDD.log`, 7 天轮转) + PID 管理. 解决 "关终端即停" 问题.
+  - `[scripts/tdam/register_tdam_task.ps1](file:///e:/各种PY程序/28-终极量化交易系统8.4/scripts/tdam/register_tdam_task.ps1)`: 注册 3 个 Windows 任务计划 (AutoStart 开机+30s / StopIntraday 09:00 / StartPostMarket 15:30), 实现时段化隔离. 全部 Ready.
+  - admin user 已创建 (user_id=`usr-mbiyz1q0x7`), 凭据保存到 `E:\tdam-data\memory\.admin-credentials.json`.
+- **方案文档**: `[TDAM_cairn_对接方案.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/TDAM_cairn_对接方案.md)` v3 — 部署机器 Mac→Windows, 部署方式 Docker→Node.js, 端点 `/v3/tools/*`→`/v3/skill/search` 等, 服务托管→任务计划.
+- **下一步**: Phase 0b 数据导入 (需更新 `export_cairn_for_tdam.py` 适配新端点).
+
+## 2026-08-06 · TDAM 对接方案 v2 修正 + Phase 0a 代码实施 ✅ DONE
+
+- **方案修正**: `[TDAM_cairn_对接方案.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/TDAM_cairn_对接方案.md)` v2 — 对照 project_memory 硬约束评估后修正: ① Phase 0 拆为 0a (安全审计+空启动) + 0b (只读导入); ② Phase 1 改为盘后离线模式 (盘中不实时调 TDAM, 只读本地缓存); ③ 删除 Phase 2 (写路径迁移), cairn 保持唯一权威写入路径; ④ TDAM 仅部署在开发/LLM 机 (Mac), 不部署到交易机.
+- **Phase 0a 代码实施** (Windows 实盘机端准备):
+  - `[utils/tdam_client.py](file:///e:/各种PY程序/28-终极量化交易系统8.4/utils/tdam_client.py)`: REST 客户端封装 (熔断器三态 + 重试 + offline 降级 + Feature Flag 控制), 20/20 单元测试通过.
+  - `[scripts/tdam/export_cairn_for_tdam.py](file:///e:/各种PY程序/28-终极量化交易系统8.4/scripts/tdam/export_cairn_for_tdam.py)`: cairn 文档导出脚本, 预览验证导出 133 个文档 (107 LOG 条目 + 26 专题文档).
+  - `[scripts/tdam/phase0a_mac_deploy.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/scripts/tdam/phase0a_mac_deploy.md)`: Mac 部署+安全审计指南 (5 步: 克隆配置 → 空启动 → 抓包审计 → SDK 验证 → REST 调通).
+  - `[scripts/tdam/phase1p_generate_cache.py](file:///e:/各种PY程序/28-终极量化交易系统8.4/scripts/tdam/phase1p_generate_cache.py)`: 盘后离线缓存作业 (六专家查询定义 × TDAM 检索 → 本地缓存).
+  - `[configs/feature_flags.yaml](file:///e:/各种PY程序/28-终极量化交易系统8.4/configs/feature_flags.yaml)`: 新增 `USE_TDAM_MEMORY_ENHANCEMENT` flag (默认 False, dual_signature).
+- **验收**: ✅ 代码可导入 + 20/20 测试通过 + 导出脚本预览成功. 待 Mac 端 Docker 部署后进入 Phase 0a 验证.
+- **指针**: 方案 `TDAM_cairn_对接方案.md`; 测试 `tests/test_tdam_client.py`; Mac 指南 `scripts/tdam/phase0a_mac_deploy.md`.
+
+## 2026-08-06 · DriftShadowIntegrator observed=0/0 根因诊断 + U1 衔接状态核实 ⚠️ DIAGNOSED
+
+- **U1 衔接状态核实**: 计划文档（08-05 早晨生成）描述的 P0 任务"U1 PipelineOrchestrator 衔接收尾（截止 08-08）"**已于 08-05 完成**（LOG 2026-08-05 U1 衔接条目记录）。35 测试全通过 (2.30s)，C3 Shadow 一致性 8.9% < 10%。B 阶段 Spearman IC 替换已回滚为 Pearson（根因是 factor_b 在 105 标的池失效，非 U1 问题）。计划文档已更新 7 处标记 U1 完成。
+- **DriftShadowIntegrator observed=0/0 根因诊断**: 08-05 EOD 日志显示 `IC=0.0000, IC_IR=0.0000, observed=0/0, symbols_updated=0`，与计划文档"5/5 日成功"描述矛盾。
+  - **直接原因**: `[utils/alpha/drift_shadow_integrator.py](file:///e:/各种PY程序/28-终极量化交易系统8.4/utils/alpha/drift_shadow_integrator.py)` `main()` CLI 入口 (L758-762) 调用 `run_daily_integration` 时未传入 `current_predictions` 参数 → `DelayedLabelTracker` 无预测记录 → `_update_labels_with_real_returns` 中 `records=[]` 返回 0 → `compute_delayed_metrics` 无样本 → observed=0/0。
+  - **深层根因**: V9 模型信号产出链路断裂。`[reports/pipeline/alpha_signals_*.json](file:///e:/各种PY程序/28-终极量化交易系统8.4/reports/pipeline/)` 08-02~08-05 持续 `status=fallback, n_stocks=0, signals={}`。`[utils/pipeline/alpha_pipeline.py](file:///e:/各种PY程序/28-终极量化交易系统8.4/utils/pipeline/alpha_pipeline.py)` L300-335 `_generate_local_factors_signals()` 对所有 symbol 调用 `lib.compute_signal(sym)` 全部失败（走 continue）。`reports/delayed_labels/` 目录不存在（tracker 从未持久化预测记录）。
+  - **"5/5 日成功"真实含义**: 指的是 daily_return 读取成功（8/8 日有数据），非 IC 计算成功。IC 计算自始至终 observed=0/0。
+  - **integration_2026-08-05.json 矛盾**: JSON 报告显示 `n_predictions=30, n_observed=25, ic_ir=0.85, model_version=v9_test`，但 EOD 日志显示 observed=0/0。JSON 中 `model_version=v9_test` 是单元测试写入（21:40 时间戳），非生产 EOD 运行结果（15:32）。
+- **影响**: DriftShadowIntegrator 的 IC/IC_IR 计算从未真正工作过，08-20 决策日的 DriftMonitor 健康度评估 + Public/Private 分离性评估（private=0.4716 来源需核实）基于无效数据。
+- **修复方案**: ①工程层：DriftShadowIntegrator CLI 接入 alpha_signals 预测源（`run_daily_integration` 传入 `current_predictions`）；②深层：排查 `AlphaFactorLibrary.compute_signal` 全部失败的根因（数据缺失/初始化失败/标的列表为空）。
+- **盘前排查附带结论**: Shadow Watchdog 告警（08-04 17:00）已自愈（shadow_admission.yaml 08-04 20:02 创建，08-05 DSR 正常产出）；风控门全绿（circuit_level=CRITICAL 是 v7.7 旧字段误读，v8.3 risk_guard 子门全 level=0）；Shadow 账户健康（8 样本，净值 1.001248，fail_fast 未触发）。
+- **指针**: DriftShadowIntegrator `[utils/alpha/drift_shadow_integrator.py](file:///e:/各种PY程序/28-终极量化交易系统8.4/utils/alpha/drift_shadow_integrator.py)`; DelayedLabelTracker `[utils/alpha/delayed_label_tracker.py](file:///e:/各种PY程序/28-终极量化交易系统8.4/utils/alpha/delayed_label_tracker.py)`; alpha_pipeline `[utils/pipeline/alpha_pipeline.py](file:///e:/各种PY程序/28-终极量化交易系统8.4/utils/pipeline/alpha_pipeline.py)` L300-335; 计划文档 `[每日报告归档/2026-08-05/明日工作计划_系统自我升级计划_20260806.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/每日报告归档/2026-08-05/明日工作计划_系统自我升级计划_20260806.md)` v1.1; LOG 关联 U1 衔接条目 (08-05)。
+
+## 2026-08-05 · Phase 3 实盘机升级 — Python 3.8 环境全量备份 ✅ DONE
+
+- **备份目录**: `backups/phase3/` (6 子目录, 56 文件, 229.4 KB), 清单 `backups/phase3/manifest.json` (含 SHA256 校验和).
+- **依赖快照**: `dependencies/py38_requirements_full.txt` (290 包) + `py38_packages.json` (JSON 格式, 含路径). 环境: Python 3.8.9 @ `C:\Program Files\Python38`, NumPy 1.24.4, pandas 2.0.3, scipy 1.10.1, lightgbm 4.5.0.
+- **环境信息**: `environment/py38_environment.json` — 版本/路径/sys.path/环境变量/关键包版本.
+- **配置文件**: `configs/` — 3 目录 18 个 YAML (v8.3_institutional_config + configs + ms_strategy_config), 含 feature_flags.yaml + settings.yaml + shadow_admission.yaml.
+- **定时任务**: `scheduled_tasks/quant_tasks_snapshot.json` — 11 个 v84_* 任务快照 (PreMarket 7:00 → ShadowAdmissionWatchdog 17:00).
+- **运行状态**: `runtime_state/` — shadow_state.json + daily_returns.jsonl + evolution/ (17 文件, 含 decisions.jsonl + observation_progress.json + status.json) + shadow_account/ (5 文件).
+- **回退脚本**: `restore_scripts/restore_py38_environment.ps1` — 5 步回退 (验证 Python 3.8 → 恢复依赖 → 恢复配置 → 恢复状态 → 验证模块), 支持 `-DryRun` / `-SkipDependencies` 等参数.
+- **验收**: ✅ 全量备份完成, 回退脚本就绪, 可安全进入 Phase 3 下一步 (Python 3.14 实盘部署).
+- **指针**: 清单 `backups/phase3/manifest.json`; 回退脚本 `backups/phase3/restore_scripts/restore_py38_environment.ps1`; LOG 关联 Phase 1/2 条目.
+
+## 2026-08-05 · Python 3.14 Phase 2 双环境回测一致性验证 ✅ DONE
+
+- **脚本**: `[scripts/phase2_backtest_consistency.py](file:///e:/各种PY程序/28-终极量化交易系统8.4/scripts/phase2_backtest_consistency.py)` — 5 组测试用例 × 10 个指标, 确定性数据 (固定 seed), `run` / `compare` 子命令.
+- **环境对比**: Python 3.8.9 + NumPy 1.24.4 vs Python 3.14.4 + NumPy 2.4.6.
+- **结果**: 5/5 测试组全通过, 50/50 指标全通过 (100%), **所有指标绝对差异 = 0.00e+00 (完全一致)**.
+- **验收**: ✅ 远超 README Phase 2 标准 (差异 < 1%), 实际差异 = 0%.
+- **指针**: 结果 `reports/phase2/results_py38.json` + `results_py314.json`; 报告 `reports/phase2/consistency_report.json`.
+
+## 2026-08-05 · Python 3.14 Phase 1 迁移验证 ✅ DONE
+
+- **环境**: `.venv` (Python 3.14.4) 创建 + 依赖安装 (cryptography 50.0.0 + aiohttp 3.14.3, 4 个 CVE 全部修复). Python 3.8 依赖备份至 `requirements_py38_backup.txt` (290 包).
+- **兼容性问题修复 (2 个)**: ① certifi 安装不完整 (`D:\pip_packages\certifi` 缺 `__init__.py`, `--force-reinstall` 修复至 2026.7.22); ② pandas 3.0 移除 `fillna(method=)`, `[utils/alpha/factor_orthogonalizer.py:222](file:///e:/各种PY程序/28-终极量化交易系统8.4/utils/alpha/factor_orthogonalizer.py#L222)` 改为 `.ffill()`.
+- **测试结果**: 单元 3585 passed/145 failed/14 skipped/12 errors (95.7%) + E2E 37 passed/6 failed/9 skipped/1 error (84.1%). 修复后 2 个兼容性问题消除 28 个失败.
+- **剩余失败均为项目代码问题** (Python 3.8 下也会失败): SignalFusionEngine API 不匹配 (~30) + `No module 'hedging'` (~40) + AssertionError 代码逻辑变更 (~30) + 其他.
+- **Phase 1 验收**: ✅ Python 3.14 兼容性验证通过, ✅ 4 个安全漏洞修复, ✅ 测试通过率 95%+.
+- **指针**: Issue [#1](https://github.com/yuppiez99999/zhunbeibanjia/issues/1); 安装日志 `.venv_install_log3.txt`; 测试日志 `.venv_test_unit_log2.txt` + `.venv_test_e2e_log.txt`.
+
 ## 2026-08-05 · U1 衔接 PipelineOrchestrator + B 阶段回滚 ⚠️ PARTIAL
 
 - **A 阶段 (保留)**: `[utils/alpha_factor/library.py](file:///e:/各种PY程序/28-终极量化交易系统8.4/utils/alpha_factor/library.py)` `compute_all` 接入 `factor_history` + `forward_returns_history` 参数, `evaluate_factors` 时序模式激活 (factor_history 可用时走 Spearman IC/ICIR, 不可用降级单点 IC). 零行为变更, 向后兼容.

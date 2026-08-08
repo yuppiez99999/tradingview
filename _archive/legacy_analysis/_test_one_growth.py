@@ -5,11 +5,11 @@ import sys
 sys.path.insert(0, r"e:\各种PY程序\28-终极量化交易系统8.4")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s | %(message)s")
 
-import baostock as bs
+import baostock as bs  # noqa: E402
 
 bs.login()
 
-from cache.data_downloader import download_fundamentals
+from cache.data_downloader import download_fundamentals  # noqa: E402
 
 r = download_fundamentals("600519_SH", skip_if_exists=False, force_refresh=True)
 if r:

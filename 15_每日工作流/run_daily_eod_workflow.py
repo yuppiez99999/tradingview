@@ -78,7 +78,21 @@ GENERATE_REPORT_SCRIPT = PROJECT_ROOT / "generate_daily_report.py"
 GENERATE_TRADE_PLAN_SCRIPT = PROJECT_ROOT / "v8.3_institutional" / "generate_daily_trade_plan.py"
 APPLY_LLM_SCRIPT = PROJECT_ROOT / "tools" / "apply_llm_decisions_to_plan.py"
 RUN_DAILY_EOD_SCRIPT = PROJECT_ROOT / "run_daily_eod.py"
+# 注意: DAILY_WORKFLOW_SCRIPT 指向的 v8.3_institutional/daily_workflow.py 实际不存在,
+# 导致 run_phase4_5_shadow 调用 run_step 时在第 179 行 (script.exists() 检查) 直接返回 (False, ""),
+# 阶段四点五 Shadow 数据收集自始至终失败, daily_returns.jsonl 从未被生产管道产出 — 这是 G1 缺口的根因.
+# 保留此常量仅为向后兼容 (可能被外部脚本引用), 实际 shadow 阶段已改用 SHADOW_FEEDER_SCRIPT.
 DAILY_WORKFLOW_SCRIPT = PROJECT_ROOT / "v8.3_institutional" / "daily_workflow.py"
+# W1.3a Day 3 (2026-08-06): Shadow 真实数据注入器 — 替代不存在的 daily_workflow.py --phase shadow_monitor
+# 转发到 utils.alpha.shadow_real_data_feeder.ShadowRealDataFeeder, 从真实行情计算组合日收益.
+SHADOW_FEEDER_SCRIPT = PROJECT_ROOT / "scripts" / "shadow_real_data_feeder.py"
+# W1.3b Day 4 (2026-08-10): DriftShadowIntegrator — 桥接 DriftMonitor + DelayedLabelTracker + daily_returns.jsonl
+# 在 Shadow 数据注入后执行漂移检测、IC/IC_IR 计算、IC_IR 退化告警 (HC-1: sim_mode=True 不切 Flag)
+SHADOW_DRIFT_INTEGRATOR_SCRIPT = PROJECT_ROOT / "scripts" / "drift_shadow_integrator.py"
+# W1.3a Day 5 (2026-08-04): Shadow 状态同步 — 把 daily_returns.jsonl 同步到 shadow_state.json
+# 修复 G1 缺口延伸: feeder 写入 jsonl 后, shadow_state.json 的 daily_nav 未同步更新 (占位值断层)
+# 在阶段四点五 (feeder) 之后、阶段四点七 (drift) 之前执行, 确保状态文件始终与 jsonl 同步
+SHADOW_STATE_REBUILD_SCRIPT = PROJECT_ROOT / "scripts" / "rebuild_shadow_state_from_returns.py"
 # 阶段零: 年化收益预测校准 (生成 portfolio_return_projection.json, 供阶段一报告引用)
 CALIBRATE_PROJECTION_SCRIPT = PROJECT_ROOT / "v8.3_institutional" / "calibrate_returns_projection.py"
 TRADE_PLANS_DIR = PROJECT_ROOT / "v8.3_institutional" / "trade_plans"
@@ -339,7 +353,9 @@ def parse_eod_args():
     parser.add_argument("--skip-generate-plan", action="store_true",
                         help="跳过阶段二 (生成次日交易计划, 使用已存在的计划)")
     parser.add_argument("--skip-shadow", action="store_true",
-                        help="跳过阶段四点五 (Phase 10 Shadow 数据收集, 观察期专用)")
+                        help="跳过 Shadow 相关阶段 (四点五数据收集 + 四点五B状态同步 + 四点七漂移检测, 观察期专用)")
+    parser.add_argument("--skip-feedback-loop", action="store_true",
+                        help="跳过阶段四点六 (FeedbackLoop 因子权重更新)")
     parser.add_argument("--skip-system-check", action="store_true",
                         help="跳过 P0 启动自检 (仅紧急情况使用,默认每次启动都自检)")
     return parser.parse_args()
@@ -544,24 +560,284 @@ def run_phase4_risk_guard(report_date, eod_summary, skip_phase4, args):
 
 
 def run_phase4_5_shadow(report_date, eod_summary, args):
-    """阶段四点五：Shadow 数据收集"""
+    """阶段四点五：Shadow 真实数据收集 (W1.3a Day 3 修复 G1 缺口)
+
+    修复说明 (2026-08-06):
+        原 DAILY_WORKFLOW_SCRIPT (v8.3_institutional/daily_workflow.py) 不存在,
+        run_step 在 script.exists() 检查处直接返回 (False, ""), 阶段四点五
+        自始至终失败, daily_returns.jsonl 从未被生产管道产出.
+
+    现调用 scripts/shadow_real_data_feeder.py (转发到 ShadowRealDataFeeder):
+        1. 从 MarketDataProvider 拉取真实行情 (TDX 优先 + 多源降级)
+        2. 按当日持仓权重计算组合日收益 (sum(weight * ret))
+        3. 增量写入 reports/shadow/daily_returns.jsonl
+    """
     if args.skip_shadow:
         log("\n>>> 阶段四点五: 跳过 Shadow 数据收集 (--skip-shadow) <<<")
         eod_summary["phases"]["phase4_5_shadow_monitor"] = {"skipped": True}
         return False
 
-    log("\n>>> 阶段四点五: Phase 10 Shadow 数据收集 (观察期) <<<")
+    log("\n>>> 阶段四点五: Shadow 真实数据注入 (W1.3a ShadowRealDataFeeder) <<<")
+    log(f"  日期: {report_date}")
+    log(f"  脚本: {SHADOW_FEEDER_SCRIPT}")
     phase_shadow_success, _ = run_step(
-        "Phase 10 Shadow Monitor",
-        DAILY_WORKFLOW_SCRIPT,
-        ["--phase", "shadow_monitor", "--date", report_date],
+        "Shadow Real Data Feeder",
+        SHADOW_FEEDER_SCRIPT,
+        ["--date", report_date],
         timeout_minutes=5,
     )
+    # 双保险校验: 即使 feeder 返回 success, 也确认 daily_returns.jsonl 实际包含该日期
+    written = _check_daily_returns_has_date(report_date)
     eod_summary["phases"]["phase4_5_shadow_monitor"] = {
         "success": phase_shadow_success,
-        "script": str(DAILY_WORKFLOW_SCRIPT),
+        "written": written,
+        "script": str(SHADOW_FEEDER_SCRIPT),
+        "date": report_date,
+        "w13a_feeder": True,  # 标记使用新 feeder (区别于旧 daily_workflow)
     }
-    return phase_shadow_success
+    if phase_shadow_success and written:
+        log("  ✅ Shadow 数据已写入 reports/shadow/daily_returns.jsonl")
+        return True
+
+    # ===== 观察期数据记录失败 → 及时提示手动记录 =====
+    _alert_observation_missing(report_date, phase_shadow_success, written, eod_summary)
+    return False
+
+
+def _check_daily_returns_has_date(report_date: str) -> bool:
+    """校验 daily_returns.jsonl 是否已包含指定日期的记录.
+
+    观察期数据断档会阻塞自我进化决策, 需双保险确认 (feeder 成功 ≠ 一定写盘).
+    """
+    try:
+        path = PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+        if not path.exists():
+            return False
+        target = report_date
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    import json as _json
+                    rec = _json.loads(line)
+                    if str(rec.get("date", "")) == target:
+                        return True
+                except Exception:
+                    continue
+        return False
+    except Exception:
+        return False
+
+
+def _alert_observation_missing(report_date, feeder_success, written, eod_summary):
+    """观察期数据缺失时, 及时醒目提示手动记录 (避免数据断档静默).
+
+    生成: ① 控制台醒目告警; ② EOD summary 告警字段; ③ 告警文件 (可追溯).
+    """
+    reason = "feeder 运行失败" if not feeder_success else "daily_returns.jsonl 未包含该日期"
+    log("", "WARN")
+    log("=" * 70, "WARN")
+    log("⚠️  ⚠️  观察期数据记录失败 — 需手动记录  ⚠️  ⚠️", "WARN")
+    log("=" * 70, "WARN")
+    log(f"  日期: {report_date}", "WARN")
+    log(f"  原因: {reason} (feeder_success={feeder_success}, written={written})", "WARN")
+    log("  影响: Shadow 样本断档, 阻塞自我进化观察期决策 (目标 ≥20 条)", "WARN")
+    log("  手动记录步骤:", "WARN")
+    log("    1. 排查权重/数据源: 检查 config/positions.json 是否有效 + 行情源可用", "WARN")
+    log("    2. 重跑 feeder:  python -m utils.alpha.shadow_real_data_feeder --date %s" % report_date, "WARN")
+    log("    3. 若仍失败, 手工补录 daily_returns.jsonl (需真实组合日收益)", "WARN")
+    log("    4. 记录后检查: reports/shadow/daily_returns.jsonl 最后一行应含该日期", "WARN")
+    log("=" * 70, "WARN")
+    # 写入 EOD summary, 供下游/告警系统感知
+    eod_summary.setdefault("observation_alerts", []).append({
+        "date": report_date,
+        "type": "observation_data_missing",
+        "reason": reason,
+        "feeder_success": bool(feeder_success),
+        "written": bool(written),
+        "action": "MANUAL_RECORD_REQUIRED",
+    })
+    # 写告警文件 (可追溯)
+    try:
+        alert_dir = PROJECT_ROOT / "reports" / "evolution"
+        alert_dir.mkdir(parents=True, exist_ok=True)
+        alert_file = alert_dir / f"observation_alert_{report_date}.json"
+        alert_file.write_text(
+            json.dumps({
+                "date": report_date,
+                "type": "observation_data_missing",
+                "reason": reason,
+                "feeder_success": bool(feeder_success),
+                "written": bool(written),
+                "action": "MANUAL_RECORD_REQUIRED",
+                "manual_steps": [
+                    "check config/positions.json + data source",
+                    "rerun: python -m utils.alpha.shadow_real_data_feeder --date %s" % report_date,
+                    "manual append daily_returns.jsonl if still failing",
+                ],
+                "created": datetime.now().isoformat(),
+            }, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        log(f"  告警文件: {alert_file}", "WARN")
+    except Exception as exc:
+        log(f"  告警文件写入失败: {exc}", "WARN")
+
+
+def run_phase4_5b_shadow_state_sync(report_date, eod_summary, args):
+    """阶段四点五B: Shadow 状态同步 (W1.3a Day 5 修复状态断层)
+
+    在 Shadow 数据注入 (阶段四点五) 之后、漂移检测 (阶段四点七) 之前执行:
+        1. 读取 daily_returns.jsonl 全部真实收益
+        2. 从 nav=1.0 累乘重建 daily_nav
+        3. 更新 shadow_state.json: daily_nav / current_nav / current_capital
+        4. Fail-Fast 检查 (单日>3% 或 3日累计>5%)
+
+    修复 G1 缺口延伸 (2026-08-04 发现):
+        shadow_real_data_feeder 已成功写入真实日收益到 daily_returns.jsonl,
+        但 shadow_state.json 的 daily_nav 未同步更新 (仍为占位值).
+        根因: launch_shadow_account.py 只负责 init/status/advance,
+        daily_workflow Phase 10 (记录净值) 链路已断, 无脚本把 jsonl 同步回 state.
+        本阶段调用 rebuild_shadow_state_from_returns.py 补齐这一断层.
+
+    HC 合规:
+        - HC-4: 只读 daily_returns.jsonl, 只写 shadow_state.json (不碰 V9 基线)
+        - fail-safe: 失败不中断 EOD 主流程 (仅 WARN)
+    """
+    if args.skip_shadow:
+        log("\n>>> 阶段四点五B: 跳过 Shadow 状态同步 (--skip-shadow) <<<")
+        eod_summary["phases"]["phase4_5b_shadow_state_sync"] = {"skipped": True}
+        return False
+
+    # 前置依赖检查: 阶段四点五必须成功执行
+    phase_4_5_result = eod_summary.get("phases", {}).get("phase4_5_shadow_monitor", {})
+    if not phase_4_5_result.get("success") or not phase_4_5_result.get("written"):
+        log("\n>>> 阶段四点五B: 跳过 Shadow 状态同步 (阶段四点五未成功写入数据) <<<", "WARN")
+        eod_summary["phases"]["phase4_5b_shadow_state_sync"] = {
+            "skipped": True,
+            "reason": "phase4_5_not_successful",
+        }
+        return False
+
+    log("\n>>> 阶段四点五B: Shadow 状态同步 (rebuild_shadow_state_from_returns) <<<")
+    log(f"  日期: {report_date}")
+    log(f"  脚本: {SHADOW_STATE_REBUILD_SCRIPT}")
+    phase_sync_success, _ = run_step(
+        "Shadow State Rebuild",
+        SHADOW_STATE_REBUILD_SCRIPT,
+        [],  # 无参数, 自动读取 daily_returns.jsonl 全部记录重建
+        timeout_minutes=3,
+    )
+    eod_summary["phases"]["phase4_5b_shadow_state_sync"] = {
+        "success": phase_sync_success,
+        "script": str(SHADOW_STATE_REBUILD_SCRIPT),
+        "date": report_date,
+        "w13a_day5_state_sync": True,
+    }
+    if phase_sync_success:
+        log("  ✅ shadow_state.json 已同步 (daily_nav 从 daily_returns.jsonl 重建)")
+    else:
+        log("  ⚠️ 状态同步失败, shadow_state.json 可能未更新 (不影响 EOD 主流程)", "WARN")
+    return phase_sync_success
+
+
+def run_phase4_6_feedback_loop(report_date, eod_summary, args):
+    """阶段四点六：FeedbackLoop 因子权重更新"""
+    if args.skip_feedback_loop:
+        log("\n>>> 阶段四点六: 跳过 FeedbackLoop (--skip-feedback-loop) <<<")
+        eod_summary["phases"]["phase4_6_feedback_loop"] = {"skipped": True}
+        return False
+
+    log("\n>>> 阶段四点六: FeedbackLoop 因子权重更新 <<<")
+    try:
+        from utils.evolution.eod_feedback_integration import run_feedback_loop_graceful
+
+        # 使用优雅降级模式, 确保 FeedbackLoop 不阻塞 EOD 工作流
+        result = run_feedback_loop_graceful(
+            attribution_date=report_date,
+        )
+
+        phase_result = {
+            "success": result.is_success(),
+            "status": result.status,
+            "attribution_found": result.attribution_found,
+            "n_factors": result.n_factors,
+            "total_change_pct": result.total_change_pct,
+            "alarm_triggered": result.alarm_triggered,
+            "guard_passed": result.guard_passed,
+            "proposal_id": result.proposal_id,
+            "weights_path": result.weights_path,
+        }
+
+        if result.is_success():
+            if result.status == "ok":
+                log(
+                    f"[OK] FeedbackLoop: change={result.total_change_pct:.4f}, "
+                    f"alarm={result.alarm_triggered}, factors={result.n_factors}",
+                )
+            else:
+                log(
+                    f"[OK] FeedbackLoop (降级): {result.degraded_reason or '无归因数据'}",
+                )
+        else:
+            log(
+                f"[FAIL] FeedbackLoop: {result.error or '未知错误'}",
+                "ERROR",
+            )
+
+        eod_summary["phases"]["phase4_6_feedback_loop"] = phase_result
+        return result.is_success()
+
+    except Exception as e:
+        log(f"[FAIL] FeedbackLoop 异常: {e}", "ERROR")
+        traceback.print_exc()
+        eod_summary["phases"]["phase4_6_feedback_loop"] = {
+            "success": False,
+            "error": str(e),
+        }
+        return False
+
+
+def run_phase4_7_drift_integration(report_date, eod_summary, args):
+    """阶段四点七: DriftMonitor + DelayedLabelTracker 集成 (W1.3b Day 4)
+
+    在 Shadow 数据注入 (阶段四点五) 之后执行:
+        1. 读取当日 daily_returns.jsonl (W1.3a 产出)
+        2. 桥接 DriftMonitor (特征漂移检测) 与 DelayedLabelTracker (IC/IC_IR 计算)
+        3. 检测 IC_IR 退化, 生成告警
+
+    HC 合规:
+        - HC-1: 不切 Feature Flag (DriftShadowIntegrator 内部用 sim_mode=True)
+        - HC-4: 只读评估, 不修改 V9 基线
+        - fail-safe: 失败不中断 EOD 主流程
+    """
+    if args.skip_shadow:
+        log("\n>>> 阶段四点七: 跳过漂移集成 (--skip-shadow) <<<")
+        eod_summary["phases"]["phase4_7_drift_integration"] = {"skipped": True}
+        return False
+
+    log("\n>>> 阶段四点七: DriftShadowIntegrator 漂移检测 + IC 计算 (W1.3b) <<<")
+    log(f"  日期: {report_date}")
+    log(f"  脚本: {SHADOW_DRIFT_INTEGRATOR_SCRIPT}")
+    phase_drift_success, _ = run_step(
+        "Drift Shadow Integrator",
+        SHADOW_DRIFT_INTEGRATOR_SCRIPT,
+        ["--date", report_date],
+        timeout_minutes=5,
+    )
+    eod_summary["phases"]["phase4_7_drift_integration"] = {
+        "success": phase_drift_success,
+        "script": str(SHADOW_DRIFT_INTEGRATOR_SCRIPT),
+        "date": report_date,
+        "w13b_integrator": True,
+    }
+    if phase_drift_success:
+        log("  ✅ 漂移检测完成, 报告已写入 reports/drift/")
+    else:
+        log("  ⚠️ 漂移集成失败 (数据不足 / 模块异常), 不影响 EOD 主流程", "WARN")
+    return phase_drift_success
 
 
 def run_phase5_archive(report_date, today_dir, eod_summary, args):
@@ -635,7 +911,8 @@ def main():
         log(f"  阶段二: 生成次日计划    {GENERATE_TRADE_PLAN_SCRIPT}")
         log(f"  阶段三: 应用LLM决策     {APPLY_LLM_SCRIPT} {report_date} {next_trade_date}")
         log(f"  阶段四: EOD 风控守卫    {RUN_DAILY_EOD_SCRIPT} --date {report_date}")
-        log(f"  阶段四点五: Shadow 收集 {DAILY_WORKFLOW_SCRIPT} --phase shadow_monitor --date {report_date}")
+        log(f"  阶段四点五: Shadow 收集 {SHADOW_FEEDER_SCRIPT} --date {report_date}")
+        log(f"  阶段四点五B: 状态同步   {SHADOW_STATE_REBUILD_SCRIPT}")
         log(f"  阶段五: 归档目录        {today_dir}")
         return
 
@@ -683,6 +960,21 @@ def main():
     phase_shadow_success = run_phase4_5_shadow(report_date, eod_summary, args)
     success_count += phase_shadow_success
     fail_count += not phase_shadow_success
+
+    # W1.3a Day 5 (2026-08-04): Shadow 状态同步 — 把 daily_returns.jsonl 同步到 shadow_state.json
+    # 修复 G1 缺口延伸: feeder 写入 jsonl 后, shadow_state.json 的 daily_nav 未同步更新
+    phase_state_sync_success = run_phase4_5b_shadow_state_sync(report_date, eod_summary, args)
+    success_count += phase_state_sync_success
+    fail_count += not phase_state_sync_success
+
+    # W1.3b Day 4: 漂移检测 + IC 计算 (在 Shadow 数据注入后执行)
+    phase_drift_success = run_phase4_7_drift_integration(report_date, eod_summary, args)
+    success_count += phase_drift_success
+    fail_count += not phase_drift_success
+
+    phase_feedback_success = run_phase4_6_feedback_loop(report_date, eod_summary, args)
+    success_count += phase_feedback_success
+    fail_count += not phase_feedback_success
 
     phase5_success = run_phase5_archive(report_date, today_dir, eod_summary, args)
     success_count += phase5_success

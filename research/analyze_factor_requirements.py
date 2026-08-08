@@ -1,7 +1,8 @@
 import ast
 from pathlib import Path
 
-zoo = Path(r'e:\各种PY程序\28-终极量化交易系统8.4\research\references\Vibe-Trading\agent\src\factors\zoo')
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+zoo = PROJECT_ROOT / 'research' / 'references' / 'Vibe-Trading' / 'agent' / 'src' / 'factors' / 'zoo'
 
 for zoo_name in ['alpha101', 'fundamental']:
     zoo_dir = zoo / zoo_name
@@ -28,7 +29,8 @@ for zoo_name in ['alpha101', 'fundamental']:
                             if extras:
                                 requires_fund += 1
                                 fund_details.append((py.stem, extras))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             print(f'  ERROR {py.name}: {e}')
     print('需要的数据列组合:')
     for cols, cnt in sorted(col_counts.items(), key=lambda x: -x[1]):

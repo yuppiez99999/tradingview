@@ -15,7 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(BASE_DIR / "utils"))
 
-from lgb_enhanced_trainer import (
+from lgb_enhanced_trainer import (  # noqa: E402
     LGB_ENHANCED_CONFIG,
     add_technical_features,
     compute_regime_series,

@@ -1,7 +1,8 @@
 """验证用户示例代码"""
 import sys
+from pathlib import Path
 
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4')
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
 import pandas as pd
@@ -32,7 +33,7 @@ print('=' * 60)
 print('方式1: GTJA191Factors 测试')
 print('=' * 60)
 
-from utils.gtja191_factors import GTJA191Factors
+from utils.gtja191_factors import GTJA191Factors  # noqa: E402
 
 calc = GTJA191Factors()
 
@@ -69,7 +70,7 @@ print('=' * 60)
 print('方式2: Vibe-Trading 适配器测试')
 print('=' * 60)
 
-from utils.vibe_trading_adapter import get_vibe_adapter
+from utils.vibe_trading_adapter import get_vibe_adapter  # noqa: E402
 
 adapter = get_vibe_adapter()
 

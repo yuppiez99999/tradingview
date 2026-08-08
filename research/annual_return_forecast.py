@@ -124,7 +124,8 @@ def _load_json(path: Path | None) -> dict[str, Any] | None:
     try:
         with open(path, encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return None
 
 
@@ -416,7 +417,8 @@ def write_to_trade_plan(forecast: dict[str, Any], target_date: str | None = None
         with open(plan_path, "w", encoding="utf-8") as f:
             json.dump(plan, f, ensure_ascii=False, indent=2)
         return plan_path
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return None
 
 

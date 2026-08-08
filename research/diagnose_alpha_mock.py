@@ -71,7 +71,8 @@ def main() -> int:
                 cv = info.get("cv_after_selection", {})
                 logger.info("    %s: cv_ic=%s signal=%s",
                             code, cv.get("mean_ic"), info.get("signal"))
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("  LGB 训练异常:\n%s", traceback.format_exc())
 
     # 3) 检查 alpha 评估
@@ -87,7 +88,8 @@ def main() -> int:
         for e in evals[:10]:
             logger.info("    %s: ic=%.4f category=%s",
                         e.get("factor_name"), e.get("ic_1d"), e.get("category"))
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.error("  Alpha 评估异常:\n%s", traceback.format_exc())
 
     # 4) 调用完整 _step_alpha_evaluation (含 provenance 判断)
@@ -102,7 +104,8 @@ def main() -> int:
             logger.info("  report type=%s, attrs=%s",
                         type(report).__name__,
                         {a: getattr(report, a, None) for a in ("category", "active_factors")})
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.error("  _step_alpha_evaluation 异常:\n%s", traceback.format_exc())
 
     logger.info("=" * 80)

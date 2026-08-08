@@ -15,8 +15,8 @@ import time
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-from research.backtest_runner import run_backtest
-from utils.risk_constraints import DEFAULT_MAX_WEIGHT
+from research.backtest_runner import run_backtest  # noqa: E402
+from utils.risk_constraints import DEFAULT_MAX_WEIGHT  # noqa: E402
 
 SYMBOLS = [
     "588000", "688041", "002371", "688981", "300308",
@@ -57,9 +57,9 @@ if acceptance:
         ok = 'PASS' if c['ok'] else 'FAIL'
         print(f"  [{ok}] {c['metric']}: {c['value']} (要求 {c['required']})")
 
-import json
-from datetime import datetime
-from pathlib import Path
+import json  # noqa: E402
+from datetime import datetime  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 output_path = Path("output/validation_reports")
 output_path.mkdir(parents=True, exist_ok=True)

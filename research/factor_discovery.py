@@ -143,7 +143,8 @@ class FactorDataFetcher:
                         symbols.append(f"{code_num}.{market}")
                     elif "index" in fname:
                         pass
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
         return symbols
 
@@ -160,7 +161,8 @@ class FactorDataFetcher:
                 df = pd.read_parquet(cache_path)
                 if len(df) > 60:
                     return df
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
         return None
 
@@ -207,7 +209,8 @@ class FactorDataFetcher:
                 else:
                     failed.append(code)
                     logger.warning(f"  [{i+1}/{len(codes)}] {code}: 数据不足")
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 failed.append(code)
                 logger.warning(f"  [{i+1}/{len(codes)}] {code}: 获取失败 {e}")
 
@@ -236,7 +239,8 @@ class FactorDataFetcher:
                     end_date=end_fmt,
                     adjust="qfq",
                 )
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 df = ak.fund_etf_hist_em(
                     symbol=code,
                     period="daily",
@@ -252,7 +256,9 @@ class FactorDataFetcher:
             df = df.sort_index()
             return df
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"获取 {code} 失败: {e}")
             return None
 
@@ -390,7 +396,8 @@ class FactorValidator:
                 result = self._validate_single(fname, fpanel, returns_panel)
                 if result is not None:
                     results.append(result)
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"验证因子 {fname} 失败: {e}")
 
         results.sort(key=lambda r: r.score, reverse=True)
@@ -454,7 +461,8 @@ class FactorValidator:
                             ic = float(fvals[common].corr(rets[common], method="spearman"))
                             if not np.isnan(ic):
                                 ic_list.append(ic)
-                        except Exception:
+                        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                             pass
 
         if len(ics_1d) < self.MIN_SAMPLES:

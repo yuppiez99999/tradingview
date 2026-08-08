@@ -11,8 +11,8 @@ import traceback
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-import numpy as np
-import pandas as pd
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 
 print("=" * 70)
 print("600276 LGB 训练崩溃重现测试")

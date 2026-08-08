@@ -134,45 +134,55 @@ def call_wind_kline(windcode: str, server_type: str,
         end_date: "YYYYMMDD"
     """
     tool_name = "get_fund_kline" if server_type == "fund_data" else "get_stock_kline"
+    # G9 修复: fund_data.get_fund_kline 合约 (tool-contracts.md) 仅接受
+    # {windcode, begin_date, end_date}, 不含 period; 多传 period 会触发
+    # Wind MCP 服务端 PARAM_VALIDATION_ERROR。stock_data.get_stock_kline
+    # 合约才支持 period/count/aftime 可选扩展字段。
     params = {
         "windcode": windcode,
         "begin_date": begin_date,
         "end_date": end_date,
-        "period": "10",  # 日K
     }
-    params_json = json.dumps(params, ensure_ascii=False)
+    if server_type == "stock_data":
+        params["period"] = "10"  # 日K
 
-    cmd = ["node", "scripts/cli.mjs", "call", server_type, tool_name, params_json]
-    try:
-        result = subprocess.run(
-            cmd,
-            cwd=str(WIND_SKILL_DIR),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=90,
-            env=os.environ,
-        )
-        output = result.stdout.strip()
-        if not output:
-            logger.warning(f"  [FAIL] {windcode}: stdout 为空")
-            return None
-        parsed = json.loads(output)
-        if result.returncode != 0:
+    def _run_once(p: dict) -> tuple[dict | None, str]:
+        pj = json.dumps(p, ensure_ascii=False)
+        cmd = ["node", "scripts/cli.mjs", "call", server_type, tool_name, pj]
+        try:
+            r = subprocess.run(
+                cmd,
+                cwd=str(WIND_SKILL_DIR),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=90,
+                env=os.environ,
+            )
+        except Exception as e:  # pragma: no cover
+            return None, f"exception:{e}"
+        out = r.stdout.strip()
+        if not out:
+            return None, "empty_stdout"
+        try:
+            parsed = json.loads(out)
+        except json.JSONDecodeError as e:
+            return None, f"json_decode:{e}"
+        if r.returncode != 0:
             err = parsed.get("error") or {}
-            err_code = err.get("code", "UNKNOWN")
-            logger.warning(f"  [FAIL] {windcode}: code={err_code}")
-            return None
-        return parsed
-    except subprocess.TimeoutExpired:
-        logger.warning(f"  [FAIL] {windcode}: 超时")
+            return None, err.get("code", "UNKNOWN")
+        return parsed, "OK"
+
+    resp, code = _run_once(params)
+    if resp is None and code == "PARAM_VALIDATION_ERROR" and "period" in params:
+        # 防御: 服务端拒绝扩展字段时, 去掉 period 重试一次 (日K为默认周期)
+        logger.warning(f"  [RETRY] {windcode}: 去掉 period 重试 (原 code={code})")
+        retry = {k: v for k, v in params.items() if k != "period"}
+        resp, code = _run_once(retry)
+    if resp is None:
+        logger.warning(f"  [FAIL] {windcode}: code={code}")
         return None
-    except json.JSONDecodeError as e:
-        logger.warning(f"  [FAIL] {windcode}: JSON 解析失败 {e}")
-        return None
-    except Exception as e:
-        logger.warning(f"  [FAIL] {windcode}: {e}")
-        return None
+    return resp
 
 
 def parse_kline_to_returns(resp: dict) -> tuple[list[str], list[float]]:
@@ -420,8 +430,9 @@ def calc_realized_returns() -> dict[str, Any]:
     # 每标的分析
     per_asset = []
     MIN_VALID_POINTS = 5
-    MAX_ANNUALIZED = 50.0   # 年化上限 +5000%
+    MAX_ANNUALIZED = 2.0    # 年化上限 +200% (原 5000% 过于宽松, 300308 等短期暴涨股会失真)
     MIN_ANNUALIZED = -0.99  # 年化下限 -99%
+    BAYESIAN_PRIOR = 0.15   # 贝叶斯收缩先验: 15% 年化 (A股长期权益收益率中枢)
     for i, code in enumerate(codes):
         returns = data[:, i]
         valid = returns[~np.isnan(returns)]
@@ -437,6 +448,18 @@ def calc_realized_returns() -> dict[str, Any]:
             continue
 
         annualized = float((1 + cum) ** (1 / years) - 1)
+
+        # 短周期贝叶斯收缩: 样本期 < 2 年时, 极端年化向 15% 均值回归
+        # (300308 等短期暴涨股 1 年内 10 倍会导致年化 > 1000%, 不可持续)
+        if years < 2.0 and abs(annualized) > 0.5:
+            shrink_weight = max(0.0, min(0.7, 1.0 - years / 2.0))
+            original_ann = annualized
+            annualized = annualized * (1 - shrink_weight) + BAYESIAN_PRIOR * shrink_weight
+            logger.info(
+                f"  [{code}] 短周期贝叶斯收缩: {original_ann*100:+.1f}% → "
+                f"{annualized*100:+.1f}% (收缩强度 {shrink_weight*100:.0f}%)"
+            )
+
         if not (MIN_ANNUALIZED <= annualized <= MAX_ANNUALIZED):
             logger.warning(f"  [SKIP] {code}: 年化收益率异常 ({annualized*100:+.2f}%)，超出阈值 [{MIN_ANNUALIZED*100:.0f}%, {MAX_ANNUALIZED*100:.0f}%]")
             continue
@@ -521,11 +544,25 @@ def evaluate_candidate_pool() -> dict[str, Any]:
 
     with open(positions_path, encoding="utf-8") as f:
         pos_data = json.load(f)
-    current_positions = pos_data.get("positions", [])
+    # macro_policy_scoring.evaluate_candidate_pool 期望 list[str] (如 ['sz588000', 'sh688041'])
+    # positions.json 的 positions 是 dict, key 格式 "588080.SH" 需转为 "sh588080" 以匹配候选池 code
+    positions_raw = pos_data.get("positions", {})
+    current_positions: list[str] = []
+    if isinstance(positions_raw, dict):
+        for code_key in positions_raw.keys():
+            num, _, market = str(code_key).partition(".")
+            mk = market.lower()
+            current_positions.append(
+                f"{mk}{num}" if mk in ("sh", "sz", "bj") else str(code_key).lower()
+            )
+    elif isinstance(positions_raw, list):
+        current_positions = [str(c) for c in positions_raw]
 
     # 调用 macro_policy_scoring 评估
+    # 修复 (2026-08-04): macro_policy_scoring 实际位于 ms_strategy/src/macro/,
+    # 非 v8.3_institutional/src/macro/ (旧路径 BASE_DIR/"src"/"macro" 不存在).
     try:
-        sys.path.insert(0, str(BASE_DIR / "src" / "macro"))
+        sys.path.insert(0, str(PROJECT_ROOT / "ms_strategy" / "src" / "macro"))
         from macro_policy_scoring import evaluate_candidate_pool as _eval_pool
     except ImportError as e:
         logger.warning(f"无法导入 macro_policy_scoring: {e}")

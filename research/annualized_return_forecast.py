@@ -142,7 +142,8 @@ def load_wind_mcp_data(code: str, days: int = 1200) -> pd.Series:
         df = df.sort_values("日期").drop_duplicates("日期")
         s = df.set_index("日期")["收盘"].sort_index()
         return s[s > 0].dropna()
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.debug(f"  Wind MCP 加载失败 {code}: {exc}")
         return pd.Series()
 
@@ -159,14 +160,16 @@ def load_akshare_data(code: str, start_date: str = "2018-01-01", end_date: str =
             etf_hist_df = pd.DataFrame()
             try:
                 etf_hist_df = ak.fund_etf_hist_sina(symbol=code)
-            except Exception as exc_sina:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc_sina:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.debug(f"  akshare 新浪 ETF 失败 {code}: {exc_sina}")
             if etf_hist_df.empty:
                 try:
                     etf_hist_df = ak.fund_etf_hist_em(
                         symbol=code, period="daily", start_date=start_date, end_date=end_date, adjust="hfq"
                     )
-                except Exception as exc_em:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc_em:
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.debug(f"  akshare 东方财富 ETF 失败 {code}: {exc_em}")
             if etf_hist_df.empty:
                 return pd.Series()
@@ -187,7 +190,8 @@ def load_akshare_data(code: str, start_date: str = "2018-01-01", end_date: str =
 
         s = s[s > 0].dropna()
         return s
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.debug(f"  akshare 加载失败 {code}: {exc}")
         return pd.Series()
 
@@ -212,7 +216,8 @@ def load_ifind_data(code: str, days: int = 800) -> pd.Series:
             df["日期"] = pd.to_datetime(df["日期"])
             s = df.set_index("日期")["收盘"].sort_index()
         return s[s > 0].dropna()
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.debug(f"  iFinD 加载失败 {code}: {exc}")
         return pd.Series()
 
@@ -243,7 +248,8 @@ def load_local_etf_fallback(code: str) -> pd.Series:
                 df["日期"] = pd.to_datetime(df["日期"])
                 s = df.set_index("日期")["收盘"].sort_index()
                 return s[s > 0].dropna()
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"  本地ETF兜底失败 {code}: {exc}")
     return pd.Series()
 
@@ -285,7 +291,8 @@ def compute_historical_stats(prices: pd.Series, window: int = 252) -> dict:
         if not np.isfinite(max_dd):
             logger.warning("  [SKIP] 最大回撤计算失败 (NaN/Inf)")
             return {}
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning("  [SKIP] 最大回撤计算失败: %s", exc)
         return {}
 
@@ -301,7 +308,8 @@ def compute_historical_stats(prices: pd.Series, window: int = 252) -> dict:
     try:
         skew = returns.skew()
         kurtosis = returns.kurtosis()
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         skew = 0.0
         kurtosis = 0.0
 
@@ -415,7 +423,8 @@ def forecast_annualized_return() -> dict:
         # 信号 [-1, 1] × 年化波动率 × 0.3 (信号衰减系数)
         try:
             ml_expected_excess = ml_signal * stats["annual_vol"] * 0.3
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"  {name} ({code}) ML 预期收益计算失败: {exc}, 跳过")
             continue
         ml_expected_return = RF_RATE + ml_expected_excess
@@ -476,7 +485,7 @@ def forecast_annualized_return() -> dict:
     # 组合波动率: 常相关性模型 (ρ=0.55)
     # portfolio_var = (1-ρ) * Σ(w_i² * σ_i²) + ρ * (Σ w_i * σ_i)²
     # 相比 ρ=0 简化版, 此模型可捕捉ETF间和股票间的高相关性
-    DEFAULT_RHO = 0.55
+    DEFAULT_RHO = 0.55  # noqa: N806
     if len(asset_vols) > 1:
         asset_vols_arr = np.array(asset_vols)
         asset_weights_arr = np.array(asset_weights)

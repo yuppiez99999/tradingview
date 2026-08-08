@@ -197,7 +197,8 @@ def build_factor_panel(start_date: str = "2023-01-01", step: int = 10):
                     row = {"code": code, "date": date, "y": fut_ret}
                     row.update(fv.to_dict())
                     rows.append(row)
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
 
     panel = pd.DataFrame(rows)
@@ -304,7 +305,7 @@ def train_and_analyze(
     # 按日期排序
     panel_clean = panel_clean.sort_values("date").reset_index(drop=True)
 
-    X = panel_clean[factor_cols].values
+    X = panel_clean[factor_cols].values  # noqa: N806
     y = panel_clean["y"].values
     panel_clean["date"].values
 
@@ -322,7 +323,7 @@ def train_and_analyze(
     early_stopping_rounds = config.early_stopping_rounds
 
     for fold, (train_idx, test_idx) in enumerate(tscv.split(X)):
-        X_train, X_test = X[train_idx], X[test_idx]
+        X_train, X_test = X[train_idx], X[test_idx]  # noqa: N806
         y_train, y_test = y[train_idx], y[test_idx]
 
         train_data = lgb.Dataset(X_train, label=y_train)
@@ -436,7 +437,8 @@ def main():
             content = alpha_lib_path.read_text(encoding="utf-8")
             for m in re.finditer(r'"([A-Z_0-9]+)"', content):
                 existing_factors.add(m.group(1))
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
 
         new_candidates = []

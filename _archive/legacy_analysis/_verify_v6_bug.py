@@ -55,7 +55,7 @@ for i in bear_months:
     if v62_before > 0:
         v62_ratios.append(v62_after / v62_before)
 
-import statistics
+import statistics  # noqa: E402
 
 print("V6 bear/rebound 月份 exposure_after/before:")
 print(f"  平均: {statistics.mean(v6_ratios):.4f}")

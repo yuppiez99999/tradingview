@@ -99,7 +99,8 @@ class PortfolioBacktester:
             try:
                 self._vibe_adapter = VibeTradingAdapter(force_init=False)
                 logger.info("Vibe-Trading 适配器已启用")
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"Vibe-Trading 适配器初始化失败: {e}")
                 self.use_vibe = False
 
@@ -108,7 +109,8 @@ class PortfolioBacktester:
         try:
             with open(self.positions_file, encoding='utf-8') as f:
                 return json.load(f)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"加载持仓失败: {e}")
             return {}
 
@@ -144,6 +146,98 @@ class PortfolioBacktester:
 
         return portfolio
 
+    def _try_load_cache(self, cache_file: Path, portfolio_count: int):
+        """尝试从 pickle 缓存加载历史数据；命中则返回 DataFrame，否则返回 None"""
+        if not cache_file.exists():
+            return None
+        try:
+            df = pd.read_pickle(str(cache_file))
+            if len(df.columns) >= portfolio_count * 0.7:
+                logger.info(f"从缓存加载回测数据: {len(df)} 行, {len(df.columns)} 列")
+                return df
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+            pass
+        return None
+
+    def _load_vibe_trading_data(self, symbols: list, start_date: str, end_date: str) -> dict:
+        """通过 Vibe-Trading 多源加载器拉取收盘价；返回 {code: close_series}"""
+        price_data = {}
+        if not (self.use_vibe and self._vibe_adapter):
+            return price_data
+        try:
+            logger.info("  [Vibe-Trading] 正在加载数据...")
+            vibe_batch = self._vibe_adapter.get_batch_ohlcv(
+                symbols, start_date, end_date, interval="1D"
+            )
+            for code, df in vibe_batch.items():
+                if isinstance(df, pd.DataFrame) and "close" in df.columns:
+                    price_data[code] = df["close"]
+            logger.info(f"  [Vibe-Trading] 成功加载 {len(price_data)}/{len(symbols)} 只标的")
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+            logger.warning(f"  [Vibe-Trading] 加载失败: {e}, 尝试代理回退")
+        return price_data
+
+    def _load_parquet_cache(self, symbols: list, price_data: dict) -> int:
+        """从本地 parquet 缓存补充缺失标的的收盘价；返回新增标的数量"""
+        ohlcv_dir = CACHE_DIR / "ohlcv"
+        if not ohlcv_dir.exists():
+            return 0
+        loaded = 0
+        for code in symbols:
+            if code in price_data:
+                continue
+            code_num = code.split('.')[0]
+            exchange = code.split('.')[-1] if '.' in code else ''
+            for suffix in ["_2y.parquet", ".parquet"]:
+                parquet_path = ohlcv_dir / f"{code_num}_{exchange}{suffix}"
+                if parquet_path.exists():
+                    try:
+                        df_p = pd.read_parquet(parquet_path)
+                        if 'close' in df_p.columns and len(df_p) > 60:
+                            price_data[code] = df_p['close']
+                            loaded += 1
+                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+                        pass
+                    break
+        if loaded > 0:
+            logger.info(f"  [本地缓存] 补充加载 {loaded} 只标的")
+        return loaded
+
+    @staticmethod
+    def _get_proxy_map() -> dict:
+        """返回 ETF/指数代理映射表（用于缺失标的的降级方案）"""
+        return {
+            "588080.SH": "588000.SH",   # 科创50ETF易方达 → 科创50ETF华夏
+            "510050.SH": "588000.SH",   # 上证50ETF → 科创50(成长风格近似)
+            "510300.SH": "588000.SH",   # 沪深300ETF → 科创50
+            "510500.SH": "588000.SH",   # 中证500ETF → 科创50
+            "512100.SH": "588000.SH",   # 中证1000ETF → 科创50
+            "159915.SZ": "588000.SH",   # 创业板ETF → 科创50
+            "159992.SZ": "588000.SH",   # 创新药ETF → 科创50(成长风格)
+            "512400.SH": "518880.SH",   # 有色金属ETF → 黄金ETF(资源风格)
+            "516160.SH": "588000.SH",   # 高端装备ETF → 科创50(制造风格)
+            "512170.SH": "600276.SH",   # 医疗ETF → 恒瑞医药(医药风格)
+            "512880.SH": "588000.SH",   # 证券ETF → 科创50(牛市联动)
+            "512760.SH": "588000.SH",   # 半导体ETF → 科创50
+            "512800.SH": "588000.SH",   # 银华军工 → 科创50
+            "515030.SH": "588000.SH",   # 新能源车ETF → 科创50
+            "511010.SH": "588000.SH",   # 国债ETF → 用588000近似(低波动)
+        }
+
+    def _apply_proxy_mapping(self, price_data: dict) -> int:
+        """对 price_data 应用代理映射补全缺失标的；返回成功映射数量"""
+        proxy_map = self._get_proxy_map()
+        proxy_applied = 0
+        for code, proxy in proxy_map.items():
+            if code not in price_data and proxy in price_data:
+                price_data[code] = price_data[proxy]
+                proxy_applied += 1
+                logger.info(f"  [代理映射] {code} → {proxy}")
+        return proxy_applied
+
     def fetch_historical_data(self, start_date: str = "2021-01-01",
                               end_date: str = None) -> pd.DataFrame:
         """拉取历史日频数据 (v8.4.1 Vibe-Trading 集成版)
@@ -163,14 +257,9 @@ class PortfolioBacktester:
         cache_file = CACHE_DIR / f"backtest_data_{start_date}_{end_date}.pkl"
 
         # 尝试从 pickle 缓存加载
-        if cache_file.exists():
-            try:
-                df = pd.read_pickle(str(cache_file))
-                if len(df.columns) >= len(portfolio) * 0.7:
-                    logger.info(f"从缓存加载回测数据: {len(df)} 行, {len(df.columns)} 列")
-                    return df
-            except Exception:
-                pass
+        cached = self._try_load_cache(cache_file, len(portfolio))
+        if cached is not None:
+            return cached
 
         logger.info(
             f"开始拉取历史数据: {len(portfolio)} 只标的, {start_date} ~ {end_date}"
@@ -178,70 +267,15 @@ class PortfolioBacktester:
         )
 
         symbols = list(portfolio.keys())
-        price_data = {}
 
         # ===== 数据源1: Vibe-Trading 多源加载器 =====
-        if self.use_vibe and self._vibe_adapter:
-            try:
-                logger.info("  [Vibe-Trading] 正在加载数据...")
-                vibe_batch = self._vibe_adapter.get_batch_ohlcv(
-                    symbols, start_date, end_date, interval="1D"
-                )
-                for code, df in vibe_batch.items():
-                    if isinstance(df, pd.DataFrame) and "close" in df.columns:
-                        price_data[code] = df["close"]
-                logger.info(f"  [Vibe-Trading] 成功加载 {len(price_data)}/{len(symbols)} 只标的")
-            except Exception as e:
-                logger.warning(f"  [Vibe-Trading] 加载失败: {e}, 尝试代理回退")
+        price_data = self._load_vibe_trading_data(symbols, start_date, end_date)
 
         # ===== 数据源2: 本地 parquet 缓存 (补充缺失) =====
-        ohlcv_dir = CACHE_DIR / "ohlcv"
-        if ohlcv_dir.exists():
-            loaded = 0
-            for code in symbols:
-                if code in price_data:
-                    continue
-                code_num = code.split('.')[0]
-                exchange = code.split('.')[-1] if '.' in code else ''
-                for suffix in ["_2y.parquet", ".parquet"]:
-                    parquet_path = ohlcv_dir / f"{code_num}_{exchange}{suffix}"
-                    if parquet_path.exists():
-                        try:
-                            df_p = pd.read_parquet(parquet_path)
-                            if 'close' in df_p.columns and len(df_p) > 60:
-                                price_data[code] = df_p['close']
-                                loaded += 1
-                        except Exception:
-                            pass
-                        break
-            if loaded > 0:
-                logger.info(f"  [本地缓存] 补充加载 {loaded} 只标的")
+        self._load_parquet_cache(symbols, price_data)
 
         # ===== 数据源3: 代理映射补全 =====
-        proxy_map = {
-            "588080.SH": "588000.SH",   # 科创50ETF易方达 → 科创50ETF华夏
-            "510050.SH": "588000.SH",   # 上证50ETF → 科创50(成长风格近似)
-            "510300.SH": "588000.SH",   # 沪深300ETF → 科创50
-            "510500.SH": "588000.SH",   # 中证500ETF → 科创50
-            "512100.SH": "588000.SH",   # 中证1000ETF → 科创50
-            "159915.SZ": "588000.SH",   # 创业板ETF → 科创50
-            "159992.SZ": "588000.SH",   # 创新药ETF → 科创50(成长风格)
-            "512400.SH": "518880.SH",   # 有色金属ETF → 黄金ETF(资源风格)
-            "516160.SH": "588000.SH",   # 高端装备ETF → 科创50(制造风格)
-            "512170.SH": "600276.SH",   # 医疗ETF → 恒瑞医药(医药风格)
-            "512880.SH": "588000.SH",   # 证券ETF → 科创50(牛市联动)
-            "512760.SH": "588000.SH",   # 半导体ETF → 科创50
-            "512800.SH": "588000.SH",   # 银华军工 → 科创50
-            "515030.SH": "588000.SH",   # 新能源车ETF → 科创50
-            "511010.SH": "588000.SH",   # 国债ETF → 用588000近似(低波动)
-        }
-
-        proxy_applied = 0
-        for code, proxy in proxy_map.items():
-            if code not in price_data and proxy in price_data:
-                price_data[code] = price_data[proxy]
-                proxy_applied += 1
-                logger.info(f"  [代理映射] {code} → {proxy}")
+        proxy_applied = self._apply_proxy_mapping(price_data)
 
         if not price_data:
             logger.error("未获取到任何历史数据 (所有源均失败)")
@@ -255,7 +289,8 @@ class PortfolioBacktester:
         # 保存缓存
         try:
             df.to_pickle(str(cache_file))
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
 
         coverage = len(price_data) / len(symbols) * 100

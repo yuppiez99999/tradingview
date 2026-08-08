@@ -56,7 +56,8 @@ def load_daily(code):
                     med_gap = df.index.to_series().diff().dropna().median()
                     if med_gap is not None and med_gap <= pd.Timedelta(days=5):
                         return df
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
     return None
 
@@ -88,7 +89,8 @@ def load_option_excel():
                         "settle": float(settle) if pd.notna(settle) and str(settle) != "待查询" else None,
                         "iv": float(iv_val) if pd.notna(iv_val) and str(iv_val) != "待查询" else None,
                     }
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
     return real_opt
 
@@ -96,7 +98,7 @@ def load_option_excel():
 def norm_cdf(x):
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
 
-def bs_put(S, K, T, r, sigma):
+def bs_put(S, K, T, r, sigma):  # noqa: N803
     """Black-Scholes Put 期权定价"""
     if T <= 0 or sigma <= 0:
         return max(K - S, 0.0)
@@ -155,7 +157,7 @@ def calc_put_pnl(real_opt, trade_date_str):
         s_cur = float(df["close"].iloc[-1]) if df is not None else 0.0
         s_build_mask = df.index <= pd.Timestamp(BUILD_DATE) if df is not None else None
         s_build = float(df.loc[s_build_mask, "close"].iloc[-1]) if df is not None and s_build_mask.any() else s_cur
-        K = s_build * 0.95
+        K = s_build * 0.95  # noqa: N806
 
         rets = df["close"].pct_change().dropna().tail(60) if df is not None else pd.Series()
         vol_60d = float(rets.std() * math.sqrt(252)) if len(rets) > 10 else 0.25
@@ -527,7 +529,8 @@ def convert_pdf(html_path, pdf_path):
             )
             if Path(pdf_path).exists():
                 return True
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             continue
     return False
 

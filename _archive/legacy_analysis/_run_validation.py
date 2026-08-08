@@ -93,14 +93,14 @@ def run_purged_cv_summary(n_months: int) -> dict:
         )
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        PurgedWalkForward = mod.PurgedWalkForward
+        PurgedWalkForward = mod.PurgedWalkForward  # noqa: N806
     except Exception as e:
         logger.error("加载 purged_cv 失败: %s", e)
         return {"error": str(e)}
 
     # 构造模拟索引以验证切分器可用性
     import numpy as np
-    X = np.arange(max(n_months * 21, 300)).reshape(-1, 1)
+    X = np.arange(max(n_months * 21, 300)).reshape(-1, 1)  # noqa: N806
     cv = PurgedWalkForward(n_splits=min(5, max(2, n_months // 4)),
                            embargo_pct=0.01, purge_pct=0.01, min_train_size=100)
     folds = list(cv.split(X))

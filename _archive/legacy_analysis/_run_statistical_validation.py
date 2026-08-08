@@ -35,9 +35,9 @@ CACHE_DIR = BASE_DIR / "data_cache"
 VALIDATION_DIR = BASE_DIR / "v8.3_institutional" / "src" / "validation"
 sys.path.insert(0, str(VALIDATION_DIR))
 
-from deflated_sharpe import deflated_sharpe_ratio
-from purged_cv import PurgedKFold, check_lookahead_bias
-from walk_forward import walk_forward_stability_test
+from deflated_sharpe import deflated_sharpe_ratio  # noqa: E402
+from purged_cv import PurgedKFold, check_lookahead_bias  # noqa: E402
+from walk_forward import walk_forward_stability_test  # noqa: E402
 
 # ============================================================
 # 1. 加载月度权重和日K线数据，计算日度组合收益
@@ -261,12 +261,12 @@ def run_purged_cv_alpha_ic() -> Dict:
         if len(feature_cols) < 3:
             continue
 
-        X = df_feat[feature_cols].values
+        X = df_feat[feature_cols].values  # noqa: N806
         y = df_feat["label"].values
 
         # 移除 NaN
         valid = np.isfinite(X).all(axis=1) & np.isfinite(y)
-        X, y = X[valid], y[valid]
+        X, y = X[valid], y[valid]  # noqa: N806
 
         if len(X) < 200:
             continue
@@ -284,8 +284,8 @@ def run_purged_cv_alpha_ic() -> Dict:
         for train_idx, test_idx in cv.split(X):
             if len(train_idx) < 100 or len(test_idx) < 20:
                 continue
-            X_train, y_train = X[train_idx], y[train_idx]
-            X_test, y_test = X[test_idx], y[test_idx]
+            X_train, y_train = X[train_idx], y[train_idx]  # noqa: N806
+            X_test, y_test = X[test_idx], y[test_idx]  # noqa: N806
 
             # 轻量级 GBDT（加速）
             model = GradientBoostingRegressor(

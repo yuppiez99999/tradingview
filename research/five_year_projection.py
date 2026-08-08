@@ -29,7 +29,8 @@ class PortfolioProjection:
         try:
             with open(path, encoding='utf-8') as f:
                 return json.load(f)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             print(f"加载文件失败: {path}, {e}")
             return {}
 

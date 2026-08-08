@@ -134,12 +134,12 @@ def main() -> None:
     # 同时修改 wait_fill 中的滑点计算
     OLD_WAIT = """        # 模拟滑点
         slip = self.slippage_bps / 10000
-        fill_price = price * (1 + slip) if order.side == 'BUY' else price * (1 - slip)"""
+        fill_price = price * (1 + slip) if order.side == 'BUY' else price * (1 - slip)"""  # noqa: N806
 
     NEW_WAIT = """        # 模拟滑点 (T05: Almgren-Chriss 平方根模型, 随参与率+波动率缩放)
         slip_bps = self._compute_slippage_bps(order.symbol, order.qty)
         slip = slip_bps / 10000
-        fill_price = price * (1 + slip) if order.side == 'BUY' else price * (1 - slip)"""
+        fill_price = price * (1 + slip) if order.side == 'BUY' else price * (1 - slip)"""  # noqa: N806
 
     if OLD_WAIT in new_text:
         new_text = new_text.replace(OLD_WAIT, NEW_WAIT, 1)

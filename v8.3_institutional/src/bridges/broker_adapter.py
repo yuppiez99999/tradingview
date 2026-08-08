@@ -223,7 +223,7 @@ class SimulatedBroker(BrokerAdapter):
                 * count,
                 "source": "WIND",
             }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.error(f"获取行情失败: {e}")
             return {"symbol": symbol, "data": [], "error": str(e)}
 
@@ -309,7 +309,7 @@ class SimulatedBroker(BrokerAdapter):
                 self.log_order(order, "REJECTED")
                 return False
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             order.status = OrderStatus.ERROR
             order.rejection_reason = str(e)
             self.log_order(order, "ERROR")
@@ -508,9 +508,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     # 测试模拟盘
-    print("=" * 80)
-    print("测试模拟盘环境")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("测试模拟盘环境")
+    logger.info("=" * 80)
 
     sim_broker = SimulatedBroker({"initial_balance": 50000000})
     sim_broker.connect()
@@ -521,10 +521,10 @@ if __name__ == "__main__":
     )
 
     result = sim_broker.submit_order(test_order)
-    print(f"\n订单结果: {result}")
-    print(f"订单详情: {json.dumps(test_order.to_dict(), indent=2, ensure_ascii=False)}")
+    logger.info(f"\n订单结果: {result}")
+    logger.info(f"订单详情: {json.dumps(test_order.to_dict(), indent=2, ensure_ascii=False)}")
 
     # 生成模拟报告
     report = sim_broker.generate_simulation_report()
-    print("\n模拟盘报告:")
-    print(json.dumps(report, indent=2, ensure_ascii=False))
+    logger.info("\n模拟盘报告:")
+    logger.info(json.dumps(report, indent=2, ensure_ascii=False))

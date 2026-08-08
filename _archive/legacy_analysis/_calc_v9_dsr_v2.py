@@ -49,7 +49,7 @@ print(f'  偏度 = {skewness:.4f}')
 print(f'  峰度 (Fisher) = {kurtosis:.4f}')
 
 
-def compute_dsr_correct(sharpe_monthly, T, skewness, kurtosis, n_trials):
+def compute_dsr_correct(sharpe_monthly, T, skewness, kurtosis, n_trials):  # noqa: N803
     """计算 DSR (Bailey & Lopez de Prado 2014 标准公式)
 
     DSR = (SR - SR_0 * σ(SR)) / σ(SR) = SR/σ(SR) - sqrt(2*ln(n))
@@ -69,7 +69,7 @@ def compute_dsr_correct(sharpe_monthly, T, skewness, kurtosis, n_trials):
     return dsr
 
 
-def compute_dsr_old(sharpe_monthly, T, skewness, kurtosis, n_trials):
+def compute_dsr_old(sharpe_monthly, T, skewness, kurtosis, n_trials):  # noqa: N803
     """原代码的错误 DSR 公式 (H0/H1 混用, 保留用于对比)"""
     if T <= 1 or n_trials <= 1:
         return 0.0
