@@ -147,7 +147,8 @@ for rel_path, old, new in fixes:
     content = fpath.read_text(encoding="utf-8")
     if old not in content:
         print(f"[SKIP] 未匹配: {rel_path}")
-        print(f"       查找: {old[:80].replace(chr(10), '\\n')}...")
+        nl_esc = '\\n'
+        print(f"       查找: {old[:80].replace(chr(10), nl_esc)}...")
         skipped += 1
         continue
     content = content.replace(old, new)

@@ -14,6 +14,27 @@
 - **G9 修复防御层真实生效**：日志显示 **22 个 `stock_data` 标的首次调用返回 `PARAM_VALIDATION_ERROR`（含 600019.SH）**，但自动去 `period` 重试机制全部救回为 `[OK]`。关键新认知：**真实 Wind MCP 后端对 `stock_data.get_stock_kline` 也不接受 `period` 字段**（与 `tool-contracts.md` L28 文档"支持 period"相反——文档与真实后端存在偏差）。因此 G9 真正起作用的不是"区分 fund/stock 参数"，而是"PARAM 时自动去 period 重试"这层防御。该防御现已固化为标准容错路径。
 - **遗留校准观察（非阻断，不归 G9）**：`300308.SZ` 年化 +262% 触发 `[SKIP]` 异常阈值（[-99%,200%]），权重置 0；`600036`/`600900`/`600019` 年化转负（区间 2025-07→2026-08 银行/电力/钢铁跑输）。属数据正常现象，不阻断校准。
 
+## 2026-08-08 · daily_workflow.py 6226 行拆分 → 知识沉淀（长期架构重构，单独排期）📌 PLAN
+
+- **决策**: `v8.3_institutional/daily_workflow.py` 6226 行超架构门禁（单文件 ≤3000 行），属**长期架构重构**，不纳入紧急 P0 治理，单独排期。
+- **沉淀产出**: `cairn/daily-workflow-split-plan.md` — 含现状基线（WorkflowConfig L315 + DailyWorkflow L416 + main L6118，65+ 方法）、phase 注册表（run() L6067-L6082 的 14 个阶段）、建议目标结构（DailyWorkflow 拆为门面 + `workflow/phases/*.py`，`WorkflowContext` 承载共享状态）、5 轮执行步骤、风险缓解表、验收标准。
+- **核心约束**: ① 零行为变更（拆分前后各 phase 的 I/O/副作用/退出码 bit-for-bit 一致）；② 按 phase 切分而非按行数硬切（phase 方法是天然边界）；③ 仅在周末/非交易时段执行；④ 先抽取 `WorkflowContext` 再逐个 phase 搬移，每轮严格遵循 refactoring-standards.md §6 流程。
+- **排期**: Wave 4 工程化达标期（09-05~10-31）或独立周末窗口；禁止交易时段（周一至周五 9:30-15:00 + 夜盘）结构性改动。
+- **前置已就位**: P0 静默异常日志补齐（daily_workflow.py 3 处 logger.exception）为拆分提供可观测基础。
+- **注意**: `cli/modes/daily_workflow.py` 是**另一个文件**（daily_trading_workflow.py 三阶段薄封装），与 6226 行文件无关，不属拆分范围。
+- **指针**: 计划 `cairn/daily-workflow-split-plan.md`; 规约 `cairn/refactoring-standards.md`; 路线图 `cairn/ROADMAP.md` Wave 4 + 开放问题#6。
+
+## 2026-08-08 · 独立代码审查 + 二次核验纠偏 → 知识沉淀 📌 LESSON
+
+- **两项主交付**: `代码审查标准与流程_v1.0.md`（审查制度化）+ `代码质量与Bug独立审查报告_2026-08-08.md`（独立视角实战样本）。二者配套使用。
+- **二次核验纠偏（核心价值）**: 对报告 P0 逐条代码交叉验证，发现 **3 处误判**并写入报告"§八 复核勘误"小节（E1/E2/E3）：
+  - **E1 B1 降 P1**：`wt_backtest_engine.py:543` 的 `pd.DataFrame` 仅作字符串类型注解，普通运行不求值，**非 P0 资金风险**（虚盈不成立），补 `import pandas as pd` 即可。
+  - **E2 B3 重定性 M4**：`hedge_quantity_calculator.py` 全仓 0 处被 import，是离线快照脚本，"流入实盘"为假设性前提，**非当前 P0**；已落 `OFFLINE_ONLY` 标注。
+  - **E3 B4/B5 撤销**：抽样 `apply_ocr_fixes.py:150` 的 `chr(10)`/`\\n` 为 3.8 合法语法，"3.12 语法崩溃"指控**误报**；整批 F821/语法数字须逐条核验，禁批量清零。
+- **已落地修复**: B2（`institutional_pipeline_runner.py` 的 `logger` 前置到 `try` 前 `:87`、删 `:162` 重复定义，LGB 降级错误不再被二次 NameError 掩盖）+ B3/M4（`hedge_quantity_calculator.py` 头部 `OFFLINE_ONLY` 标注 + 参数"快照值非实时"注释），均 0 lint。
+- **方法论沉淀**: `cairn/code-review-independent-audit-20260808.md` — 独立审查四步法（出标准→出报告→**二次核验**→勘误登记），铁律"审查报告是可错中间产物，P0 进清零配额前必经二次核验，勘误写进同文档不漂移"。
+- **待办→已闭环**: E1 的 `wt_backtest_engine.py` 补 `import pandas as pd`（P1 加固，已修）；B4/B5 经 ruff 全量复扫**自我纠错**——初版核验误判"3.12 语法"为误报，实为真（apply_ocr_fixes:150 / _pip_noproxy:39 的 3.12 语法 + _fix_scipy:41 的 `sys` F821 共 3 真错误已修）；ruff 误报 4 条（daily_workflow:4525 `pd` 有 `from __future__ import annotations` + 3 notebook 跨 cell import）不修。元教训：**ruff 全量扫描是核验权威基准，人工核验仅解释不推翻**。报告 §八 E3 + 知识文档已同步更正。
+
 ## 2026-08-07 · 今日主线：两份升级计划同步对齐 + Wave6 验证 + TDAM Phase 0b 数据导入 ✅ DONE
 
 - **两份升级计划同步对齐**: 识别 github_trending_高价值统计与升级计划(P3b TencentMemory"待评估") 与 系统自我升级计划(TDAM 已执行中) 的重叠——TDAM 实为执行中非评估项。结论：今日按主线优先，trending 项按排期顺延。对齐文档 `[docs/计划同步对齐_20260807.md]`。

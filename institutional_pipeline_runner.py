@@ -82,6 +82,10 @@ except Exception as e:
     )
 
 # LGB Walk-forward 集成（可选依赖，缺失时降级为动量信号）
+# B2 修复: 将 logger 定义提前到 try 之前, 避免 LGB 导入失败进入 except 时
+# 引用尚未绑定的 logger 变量导致二次 NameError, 掩盖原始导入错误。
+logger = logging.getLogger("institutional_pipeline")
+
 try:
     from lgb_enhanced_trainer import (
         LGB_ENHANCED_CONFIG,
@@ -147,6 +151,7 @@ _CROSS_MARKET_PROXY_SYMBOLS = ["518880", "600036", "588000", "515180"]
 # ============================================================================
 # S2修复: 将 logging 配置从模块级别移至函数, 避免 import 时污染测试/子进程环境。
 # 调用方需显式调用 _setup_logging() 或在 main() 中配置。
+# B2 修复: logger 已前置定义 (见文件顶部 try 之前), 此处不再重复定义。
 def _setup_logging() -> None:
     """初始化日志配置 (仅在主进程入口调用, 避免 import 副作用)。"""
     logging.basicConfig(
@@ -159,8 +164,7 @@ def _setup_logging() -> None:
     )
 
 
-logger = logging.getLogger("institutional_pipeline")
-
+# logger 已前置定义 (B2 修复), 此处不再重复。
 BASE_DIR = Path(__file__).resolve().parent
 # 数据存储路径通过集中配置管理 (支持 QUANT_DATA_ROOT 迁移到 D 盘)
 REPORT_DIR = get_institutional_pipeline_report_dir()

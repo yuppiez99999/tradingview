@@ -1,5 +1,5 @@
 """重新安装 scipy"""
-import os, subprocess
+import os, subprocess, sys
 
 os.environ.pop('HTTP_PROXY', None)
 os.environ.pop('HTTPS_PROXY', None)

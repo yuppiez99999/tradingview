@@ -54,6 +54,7 @@ related:
 - [ ] GAP-2 E2E 补齐 — full_pipeline + shadow_account_lifecycle
 
 ### Wave 4：工程化达标 + 战略升级（09-05 ~ 10-31）
+- [ ] **daily_workflow.py 拆分（6226→≤3000 行）** — 长期架构重构，按 phase 切分（`DailyWorkflow` 拆为门面 + `workflow/phases/*.py`），零行为变更，仅周末执行。详见 `cairn/daily-workflow-split-plan.md`
 - [ ] T02/T03 — pylint broad-except 升级 error + 覆盖率基线
 - [ ] T06-T08 — CPCV/DSR/Noise 残差注入（诚实回测三件套）
 - [ ] Phase 2 (T09-T14) — 不崩风控六件套
@@ -97,3 +98,5 @@ related:
 3. C++/Rust 重写的投入产出比 — 硬件采购 + 核心路径重写预算 ¥360K-710K，需评估 vs. 当前 Python 方案的延迟是否已构成实质瓶颈
 4. V9 全量上线时间表 — 影子账户跟踪达标后是否按原计划推进 50%→100% 灰度
 5. 自我进化框架观察期 — 2026-08-13 观察期满日是关键决策点：Phase 0 出口是否达成、Public/Private 分离性是否健康、DriftMonitor 是否误报。若三项均通过则解除 Feature Flag 只读限制并启动 Stage B 渐进启用。Phase 4 收尾两项（T4.2 theta_engine.py 切换到统一期权定价内核、T4.7 fineng 影子验证验收报告）需独立排期
+6. **daily_workflow.py 6226 行拆分** — 超架构门禁（≤3000 行），属长期重构非紧急。排期于 Wave 4 或独立周末窗口，禁止交易时段执行。计划见 `cairn/daily-workflow-split-plan.md`
+7. **独立审查报告须二次核验 + 勘误登记** — 2026-08-08 实战：独立审查报告（B1–B5/M1–M7）经代码交叉核验发现 3 处误判（B1 字符串注解≠运行时错误降 P1、B3 离线脚本≠实盘链路重定性 M4、B4/B5 "3.12 语法崩溃"误报撤销）。**铁律：任何 P0 进清零配额前必经二次核验，勘误写进同文档不漂移**。方法论见 `cairn/code-review-independent-audit-20260808.md`；待办：E1 补 `wt_backtest_engine.py` 的 `import pandas as pd`、B4/B5 的 F821/语法逐条核验后清零。

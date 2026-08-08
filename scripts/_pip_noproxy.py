@@ -36,4 +36,5 @@ r = subprocess.run(
      'import sklearn; print("sklearn OK")'],
     capture_output=True, text=True, env=env, timeout=10
 )
-print(f'\n{'OK' if r.returncode==0 else 'FAIL'}: {r.stdout.strip() or r.stderr.strip()[:200]}')
+status = 'OK' if r.returncode == 0 else 'FAIL'
+print(f'\n{status}: {r.stdout.strip() or r.stderr.strip()[:200]}')

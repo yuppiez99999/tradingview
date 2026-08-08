@@ -1,4 +1,10 @@
 """
+# OFFLINE_ONLY — 离线分析脚本, 禁止被执行链路 import
+# 本脚本为一次性离线对冲数量测算工具, 以下特征表明其非实盘性质:
+#   1. 硬编码组合快照 (portfolio_value=5_000_000 / day_capital=1_722_410)
+#   2. 硬编码期货参考价 (IF=3800 / IC=5500 / IM=5800) 与 vix=25.0 / hwm_drawdown=0.03
+#   3. 全仓 0 处 import 本脚本, 结果不流入任何撮合/下单链路
+# 若需用于实盘前测算, 必须改为读取实时行情源或 config/risk_params.yaml, 见审查报告 M4。
 今日对冲数量计算器
 基于组合结构 + v7.5 引擎
 """
@@ -39,7 +45,7 @@ for _key, item in positions_data.items():
         style_map[code] = item.get("style", "其他")
         risk_map[code] = item.get("risk", "中")
 
-# 组合参数
+# 组合参数 (OFFLINE_ONLY 快照值, 非实时 — 见文件头标注)
 portfolio_value = 5_000_000.0
 day_capital = 1_722_410.0
 deployed_ratio = day_capital / portfolio_value
