@@ -1,4 +1,4 @@
-﻿# v8.4 Pre-Market Launcher (UTF-8 BOM, SYSTEM safe)
+﻿# v8.6.14 Pre-Market Launcher (UTF-8 BOM, SYSTEM safe)
 # Directly calls Python entry, bypasses .bat encoding issues
 Set-Location "E:\各种PY程序\28-终极量化交易系统8.4"
 $logFile = Join-Path "E:\各种PY程序\28-终极量化交易系统8.4\logs" ("premarket_" + (Get-Date -Format "yyyyMMdd") + ".log")

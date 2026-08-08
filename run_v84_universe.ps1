@@ -1,4 +1,4 @@
-﻿# v8.4 Full-Market Auto Stock Selection Launcher (UTF-8 BOM, SYSTEM safe)
+﻿# v8.6.14 Full-Market Auto Stock Selection Launcher (UTF-8 BOM, SYSTEM safe)
 # Python 3.8 required (vibe_trading_adapter)
 Set-Location "E:\各种PY程序\28-终极量化交易系统8.4"
 $logFile = Join-Path "E:\各种PY程序\28-终极量化交易系统8.4\logs" ("universe_scan_" + (Get-Date -Format "yyyyMMdd_HHmmss") + ".log")

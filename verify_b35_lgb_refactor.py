@@ -31,9 +31,10 @@ import pandas as pd
 # 路径设置
 # ============================================================
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "v8.3_institutional"))
-sys.path.insert(0, str(ROOT / "utils"))
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+sys.path.insert(0, str(ROOT))  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 # 确保 cache 目录存在 (lgb_enhanced_trainer 导入时会创建)
 for _d in [
@@ -57,7 +58,7 @@ class MockModel:
     feature_importances_ = np.array([10, 8, 6, 4, 2], dtype=float)
     best_iteration_ = 50
 
-    def predict(self, X):
+    def predict(self, X):  # noqa: N803
         return np.random.RandomState(42).randn(len(X))
 
 
@@ -226,7 +227,7 @@ def test_time_series_cv_uses_purged_kfold():
     import utils.purged_kfold as pk_mod
     from lgb_trainer import metrics
 
-    X = np.random.RandomState(0).randn(240, 6).astype(float)
+    X = np.random.RandomState(0).randn(240, 6).astype(float)  # noqa: N806
     y = np.random.RandomState(1).randn(240).astype(float)
     config = {
         "label_horizon": 5,
@@ -269,9 +270,9 @@ def test_train_lgb_with_fallback_cpu():
     from lgb_trainer import trainer
 
     rng = np.random.RandomState(42)
-    X_train = rng.randn(200, 5).astype(float)
+    X_train = rng.randn(200, 5).astype(float)  # noqa: N806
     y_train = rng.randn(200).astype(float)
-    X_eval = rng.randn(50, 5).astype(float)
+    X_eval = rng.randn(50, 5).astype(float)  # noqa: N806
     y_eval = rng.randn(50).astype(float)
 
     config = {
@@ -303,9 +304,9 @@ def test_train_lgb_with_fallback_gpu_to_cpu():
     from lgb_trainer import trainer
 
     rng = np.random.RandomState(42)
-    X_train = rng.randn(200, 5).astype(float)
+    X_train = rng.randn(200, 5).astype(float)  # noqa: N806
     y_train = rng.randn(200).astype(float)
-    X_eval = rng.randn(50, 5).astype(float)
+    X_eval = rng.randn(50, 5).astype(float)  # noqa: N806
     y_eval = rng.randn(50).astype(float)
 
     # 强制 GPU, 但 GPU 不可用时应回退 CPU

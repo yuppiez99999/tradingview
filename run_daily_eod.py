@@ -27,8 +27,10 @@ from typing import Optional
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(PROJECT_ROOT / "v8.3_institutional"))
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+sys.path.insert(0, str(PROJECT_ROOT))  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 TRADE_PLANS_DIR = PROJECT_ROOT / "v8.3_institutional" / "trade_plans"
 REPORTS_DIR = PROJECT_ROOT / "每日报告归档"
@@ -133,6 +135,104 @@ def _extract_guard_data(guard_key: str, risk_guard: dict, plan: dict) -> Optiona
     return None
 
 
+def _eval_kill_switch_pass(data: dict) -> Optional[bool]:
+    """评估 kill_switch Guard 是否通过
+
+    L2/L3 视为未通过 (禁止开仓/强制平仓)
+    """
+    can_trade = data.get("can_trade")
+    level = data.get("level")
+    if can_trade is None and level is None:
+        return None
+    # L2/L3 视为未通过 (禁止开仓/强制平仓)
+    try:
+        if isinstance(level, str):
+            level_str = level.upper().replace("L", "")
+            if level_str in ("2", "3"):
+                return False
+            if level_str in ("0", "OK", "1"):
+                return bool(can_trade) if can_trade is not None else True
+        elif isinstance(level, int):
+            if level >= 2:
+                return False
+            return bool(can_trade) if can_trade is not None else True
+    except (ValueError, TypeError):
+        pass
+    # 未预期的 level 值（如 L4 / CRITICAL / 畸形字符串）采用 fail-safe 保守策略，禁止交易
+    return False
+
+
+def _eval_drawdown_pass(data: dict) -> Optional[bool]:
+    """评估 drawdown Guard 是否通过 (Level 0/1 通过, 2+ 失败)"""
+    level = data.get("level")
+    if level is None:
+        return None
+    try:
+        return int(level) <= 1  # Level 0/1 通过, Level 2/3/4 失败
+    except (ValueError, TypeError):
+        return None
+
+
+def _eval_vol_target_pass(data: dict) -> Optional[bool]:
+    """评估 vol_target Guard 是否通过
+
+    vol_scale >= 0.80 或 vol_action="NORMAL" 或已响应 SCALE_DOWN (非 ERROR)
+    """
+    vol_scale = data.get("vol_scale")
+    vol_action = data.get("vol_action")
+    if vol_scale is None and vol_action is None:
+        return None
+    if "ERROR" in str(vol_action or ""):
+        return False
+    if vol_action == "NORMAL":
+        return True
+    # vol_scale < 0.80 但已响应 SCALE_DOWN → 仍算通过 (执行了保护动作)
+    if vol_scale is not None:
+        try:
+            return float(vol_scale) >= 0.80 or str(vol_action or "").startswith("SCALE_DOWN")
+        except (ValueError, TypeError):
+            return None
+    return True
+
+
+def _eval_hedge_execution_pass(data: dict) -> Optional[bool]:
+    """评估 hedge_execution Guard 是否通过"""
+    execution_status = data.get("execution_status")
+    hedge_action = data.get("hedge_action")
+    if execution_status is None and hedge_action is None:
+        return None
+    if "ERROR" in str(hedge_action or ""):
+        return False
+    if execution_status == "CANCELLED":
+        return False
+    if execution_status in ("PENDING", "COMPLETED"):
+        return True
+    if hedge_action and ("GENERATED" in str(hedge_action) or "NO_CHANGE_NEEDED" in str(hedge_action)):
+        return True
+    return None
+
+
+def _eval_protective_put_pass(data: dict) -> Optional[bool]:
+    """评估 protective_put Guard 是否通过 (put_action 不含 ERROR 即通过)"""
+    put_action = data.get("put_action")
+    if put_action is None:
+        return None
+    if "ERROR" in str(put_action):
+        return False
+    # BELOW_THRESHOLD / EXISTING_PROTECTION_OK / GENERATED_X_PUTS 都算通过
+    return True
+
+
+# Guard 评估器分发表
+_GUARD_EVALUATORS = {
+    "kill_switch": _eval_kill_switch_pass,
+    "drawdown": _eval_drawdown_pass,
+    "vol_target": _eval_vol_target_pass,
+    "hedge_execution": _eval_hedge_execution_pass,
+    "protective_put": _eval_protective_put_pass,
+}
+
+
 def _evaluate_guard_passed(guard_key: str, data: Optional[dict]) -> Optional[bool]:
     """评估 Guard 是否通过 (Fail-Safe: 字段缺失返回 None)
 
@@ -160,78 +260,9 @@ def _evaluate_guard_passed(guard_key: str, data: Optional[dict]) -> Optional[boo
     if "build_allowed" in data:
         return bool(data["build_allowed"])
 
-    if guard_key == "kill_switch":
-        can_trade = data.get("can_trade")
-        level = data.get("level")
-        if can_trade is None and level is None:
-            return None
-        # L2/L3 视为未通过 (禁止开仓/强制平仓)
-        try:
-            if isinstance(level, str):
-                level_str = level.upper().replace("L", "")
-                if level_str in ("2", "3"):
-                    return False
-                if level_str in ("0", "OK", "1"):
-                    return bool(can_trade) if can_trade is not None else True
-            elif isinstance(level, int):
-                if level >= 2:
-                    return False
-                return bool(can_trade) if can_trade is not None else True
-        except (ValueError, TypeError):
-            pass
-        # 未预期的 level 值（如 L4 / CRITICAL / 畸形字符串）采用 fail-safe 保守策略，禁止交易
-        return False
-
-    if guard_key == "drawdown":
-        level = data.get("level")
-        if level is None:
-            return None
-        try:
-            return int(level) <= 1  # Level 0/1 通过, Level 2/3/4 失败
-        except (ValueError, TypeError):
-            return None
-
-    if guard_key == "vol_target":
-        vol_scale = data.get("vol_scale")
-        vol_action = data.get("vol_action")
-        if vol_scale is None and vol_action is None:
-            return None
-        if "ERROR" in str(vol_action or ""):
-            return False
-        if vol_action == "NORMAL":
-            return True
-        # vol_scale < 0.80 但已响应 SCALE_DOWN → 仍算通过 (执行了保护动作)
-        if vol_scale is not None:
-            try:
-                return float(vol_scale) >= 0.80 or str(vol_action or "").startswith("SCALE_DOWN")
-            except (ValueError, TypeError):
-                return None
-        return True
-
-    if guard_key == "hedge_execution":
-        execution_status = data.get("execution_status")
-        hedge_action = data.get("hedge_action")
-        if execution_status is None and hedge_action is None:
-            return None
-        if "ERROR" in str(hedge_action or ""):
-            return False
-        if execution_status == "CANCELLED":
-            return False
-        if execution_status in ("PENDING", "COMPLETED"):
-            return True
-        if hedge_action and ("GENERATED" in str(hedge_action) or "NO_CHANGE_NEEDED" in str(hedge_action)):
-            return True
-        return None
-
-    if guard_key == "protective_put":
-        put_action = data.get("put_action")
-        if put_action is None:
-            return None
-        if "ERROR" in str(put_action):
-            return False
-        # BELOW_THRESHOLD / EXISTING_PROTECTION_OK / GENERATED_X_PUTS 都算通过
-        return True
-
+    evaluator = _GUARD_EVALUATORS.get(guard_key)
+    if evaluator is not None:
+        return evaluator(data)
     return None
 
 
@@ -426,7 +457,7 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
         if not dry_run:
             # 写入前备份原文件
             if plan_file.exists():
-                backup_path = plan_file.with_suffix(f".bak_{datetime.now().strftime('%H%M%S')}")
+                backup_path = plan_file.with_suffix(f".bak_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}")
                 try:
                     shutil.copy2(plan_file, backup_path)
                     print(f"[EOD] 已备份原交易计划: {backup_path.name}")
@@ -468,7 +499,7 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
         print(f"[EOD][CRITICAL] {error_msg}")
         errors.append(error_msg)
         return {"success": False, "error": error_msg, "errors": errors}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         # 兜底: 生产风控脚本必须永不崩溃, 永远返回结构化结果给上层调度 (cron/Airflow)
         # integrator 内部各 guard 已各自 try-except, 此处捕获的是加载/数据访问/未知异常
         error_msg = f"四 Guard 链执行异常: {type(e).__name__}: {e}"
@@ -497,6 +528,12 @@ def generate_eod_report(
     Returns:
         报告文件路径 (dry-run 时返回 None)
     """
+    # 路径遍历防护: 校验 report_date 格式为 YYYY-MM-DD, 拒绝含 ../ 或 / 的畸形输入
+    import re as _re
+
+    if not _re.match(r"^\d{4}-\d{2}-\d{2}$", report_date):
+        raise ValueError(f"report_date 格式非法 (期望 YYYY-MM-DD): {report_date!r}")
+
     lines = [
         f"# EOD 风控守卫报告 — {report_date}",
         "",
@@ -573,7 +610,7 @@ def main():
     args = parser.parse_args()
 
     # ═══════════════════════════════════════════════════════════════
-    # P0 启动自检 (v8.6.12) — 在任何业务逻辑之前拦截错误
+    # P0 启动自检 (v8.6.14) — 在任何业务逻辑之前拦截错误
     # ═══════════════════════════════════════════════════════════════
     if not args.skip_system_check:
         try:
@@ -581,7 +618,7 @@ def main():
             assert_system_ready()  # 失败时 sys.exit(1)
         except SystemExit:
             raise
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             print(f"[P0 自检] 异常 (容错通过): {e}", file=sys.stderr)
 
     print("=" * 60)

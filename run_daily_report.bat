@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 REM ============================================================
-REM 每日报告生成 - v8.4 入口
+REM 每日报告生成 - v8.6.14 入口
 REM 修复: 原指向 v7.1 旧目录的死链
 REM ============================================================
 cd /d "E:\各种PY程序\28-终极量化交易系统8.4"
@@ -13,7 +13,7 @@ if errorlevel 1 (
     set PYTHON_EXE=python
 )
 
-REM 调用 v8.4 的报告生成器（如有多个备选，按优先级）
+REM 调用 v8.6.14 的报告生成器（如有多个备选，按优先级）
 if exist "generate_daily_report.py" (
     %PYTHON_EXE% "generate_daily_report.py" %*
 ) else if exist "15_每日工作流\run_daily_eod_workflow.py" (

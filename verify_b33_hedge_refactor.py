@@ -12,16 +12,20 @@
 
 import os
 import sys
+from pathlib import Path
 
 # 确保 v8.3_institutional 在 path 中
-V83_DIR = r"e:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional"
-sys.path.insert(0, V83_DIR)
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+PROJECT_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(PROJECT_ROOT))  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
-from src.data.futures_prices import (
+from src.data.futures_prices import (  # noqa: E402
     DEFAULT_FUTURES_PRICES,
     get_live_futures_prices,
 )
-from src.hedging.hedge_engine_v59 import (
+from src.hedging.hedge_engine_v59 import (  # noqa: E402
     INDEX_FUTURES_SPECS,
     HedgeEngine,
     HedgeRecommendation,
@@ -29,16 +33,16 @@ from src.hedging.hedge_engine_v59 import (
     HedgeType,
     PortfolioRisk,
 )
-from src.hedging.hedge_strategy_executor import (
+from src.hedging.hedge_strategy_executor import (  # noqa: E402
     HedgeRecommendation as ExecutorHedgeRecommendation,
 )
-from src.hedging.hedge_strategy_executor import (
+from src.hedging.hedge_strategy_executor import (  # noqa: E402
     HedgeSignalStrength as ExecutorHedgeSignalStrength,
 )
-from src.hedging.hedge_strategy_executor import (
+from src.hedging.hedge_strategy_executor import (  # noqa: E402
     HedgeType as ExecutorHedgeType,
 )
-from src.hedging.hedge_strategy_executor import (
+from src.hedging.hedge_strategy_executor import (  # noqa: E402
     compute_optimal_hedge_ratio,
     determine_hedge_signal_strength,
     generate_futures_hedge,
@@ -46,7 +50,7 @@ from src.hedging.hedge_strategy_executor import (
     generate_hedge_reason,
     generate_options_hedge,
 )
-from src.risk.portfolio_risk_assessor import (
+from src.risk.portfolio_risk_assessor import (  # noqa: E402
     DEFAULT_BETAS,
     FALLBACK_PRICE_MAP,
     HISTORICAL_STRESS_SCENARIOS,
@@ -58,7 +62,7 @@ from src.risk.portfolio_risk_assessor import (
     compute_weighted_beta,
     run_historical_stress_tests,
 )
-from src.risk.portfolio_risk_assessor import (
+from src.risk.portfolio_risk_assessor import (  # noqa: E402
     PortfolioRisk as AssessorPortfolioRisk,
 )
 

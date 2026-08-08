@@ -34,7 +34,10 @@ logger = logging.getLogger("stop_loss_monitor")
 
 # 添加路径
 _BASE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, _BASE)
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+sys.path.insert(0, _BASE)  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 # P0-C1: 原子写 JSON (回退到非原子写以保证模块独立可用)
 try:
@@ -106,9 +109,17 @@ class StopLossMonitor:
         )
 
         # Broker
+        # P2-4 修复: 无真实 broker 时静默降级为 mock, "看似已执行"实则仅模拟。
+        # 现在显式标记 EXECUTION_MODE=MOCK 并告警。
+        self.execution_mode = "LIVE"
         self.broker = broker
         if self.broker is None:
             self.broker = self._create_mock_broker()
+            self.execution_mode = "MOCK"
+            logger.warning(
+                "[WARN] 止损监控器使用 MockBroker (EXECUTION_MODE=MOCK), "
+                "触发止损时仅模拟成交, 真实持仓不会下单。请注入真实 broker。"
+            )
 
         # 最高价记录 (移动止损用)
         self._high_water_mark: Dict[str, float] = {}
@@ -118,12 +129,41 @@ class StopLossMonitor:
 
         logger.info(f"止损监控器初始化: {len(self.rules)} 条规则, broker={self.broker.__class__.__name__}")
 
+    @staticmethod
+    def _sanitize_numpy_tags(text: str) -> str:
+        """预处理 YAML 文本，移除 numpy 标签以确保 safe_load 可用。
+
+        将 ``!!python/object/apply:numpy.<dtype> [value]`` 形式的标签
+        替换为纯标量 ``value``，避免使用 ``yaml.unsafe_load`` 带来的
+        远程代码执行风险。
+
+        安全考量: 此方法仅做正则替换，不执行任何 YAML 标签对应的
+        Python 对象实例化逻辑，因此即使 YAML 文件被篡改也无法触发
+        任意代码执行。
+        """
+        import re
+
+        # 匹配 !!python/object/apply:numpy.<dtype> [value] 或 !!python/object/apply:numpy.<dtype> value
+        # 例: !!python/object/apply:numpy.float64 [1.23] → 1.23
+        pattern = re.compile(
+            r"!!python/object/apply:numpy\.\w+(?:\s*\[(.+?)\]|\s+(.+?))(\s|$)"
+        )
+
+        def _replace(match: re.Match) -> str:
+            val = match.group(1) if match.group(1) is not None else match.group(2)
+            return f"{val}{match.group(3)}"
+
+        return pattern.sub(_replace, text)
+
     def _load_rules(self, rules_file: str) -> Dict[str, dict]:
         """加载止损规则
 
         兼容两种 YAML 格式:
         - 纯文本 (safe_load): 标量已转换好的版本
-        - numpy 标签 (unsafe_load): vol_adjusted_stop_loss.py 生成的版本, 含 !!python/object/apply:numpy.* 标签
+        - numpy 标签: vol_adjusted_stop_loss.py 生成的版本, 含 !!python/object/apply:numpy.* 标签
+          通过 _sanitize_numpy_tags 预处理后用 safe_load 加载 (不再使用 unsafe_load)
+
+        安全: 全程使用 safe_load, 拒绝 unsafe_load 以消除 RCE 风险。
         """
         if not rules_file:
             return {}
@@ -133,15 +173,17 @@ class StopLossMonitor:
 
         data = None
         with open(rules_file, encoding="utf-8") as f:
+            raw_text = f.read()
             try:
-                data = yaml.safe_load(f)
+                data = yaml.safe_load(raw_text)
             except yaml.YAMLError as e:
-                logger.warning(f"safe_load 失败 ({e.problem}), 尝试 unsafe_load 加载 numpy 标签")
-                f.seek(0)
+                # safe_load 失败可能因 numpy 标签; 预处理后再试一次 (不再 unsafe_load)
+                logger.warning(f"safe_load 失败 ({e}), 尝试预处理 numpy 标签后重新加载")
+                sanitized = self._sanitize_numpy_tags(raw_text)
                 try:
-                    data = yaml.unsafe_load(f)
-                except Exception as e2:
-                    logger.error(f"unsafe_load 也失败: {e2}")
+                    data = yaml.safe_load(sanitized)
+                except yaml.YAMLError as e2:
+                    logger.error(f"预处理后 safe_load 仍失败: {e2}")
                     return {}
 
         if not isinstance(data, dict):
@@ -160,7 +202,7 @@ class StopLossMonitor:
                 try:
                     if hasattr(v, "item"):
                         v = v.item()
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                     logger.warning(f"转换 NumPy 类型失败 ({k}={v}): {e}")
                 cleaned[k] = v
             rules[pure_code] = cleaned
@@ -176,7 +218,7 @@ class StopLossMonitor:
             from quant_modules.broker_adapter import BrokerFactory
 
             return BrokerFactory.create("mock")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.error(f"创建 MockBroker 失败: {e}")
             return None
 
@@ -204,7 +246,7 @@ class StopLossMonitor:
                 quote = wind_get_quote(wind_code)
                 if quote and "current" in quote:
                     return float(quote["current"])
-        except Exception:
+        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.exception("[StopLoss] Wind MCP 获取价格失败 code=%s", pure_code)
 
         # 2. 尝试从 positions.json 读取最新价格
@@ -214,10 +256,11 @@ class StopLossMonitor:
                     data = json.load(f)
                 positions = data.get("positions", {})
                 if pure_code in positions:
-                    price = positions[pure_code].get("current_price", 0)
+                    # 用 `or 0` 防 null: JSON 中 "current_price": null 时 get 返回 None 而非默认值
+                    price = positions[pure_code].get("current_price") or 0
                     if price > 0:
                         return float(price)
-        except Exception:
+        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.exception("[StopLoss] 读取 positions.json 价格失败 code=%s", pure_code)
 
         # 3. 尝试从 price_history 读取
@@ -230,7 +273,7 @@ class StopLossMonitor:
                 df = df[df["code"] == pure_code].tail(1)
                 if len(df) > 0:
                     return float(df.iloc[0].get("close") or 0)
-        except Exception:
+        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.exception("[StopLoss] 读取 price_history 失败 code=%s", pure_code)
 
         return None
@@ -258,19 +301,19 @@ class StopLossMonitor:
         if not rule:
             return None
 
-        shares = position.get("shares", 0)
+        shares = position.get("shares") or 0
         if shares <= 0:
             self._high_water_mark.pop(pure_code, None)  # 清仓后重置最高价记录
             return None
 
-        entry_price = position.get("avg_cost", 0)
+        entry_price = position.get("avg_cost") or 0
         if entry_price <= 0:
-            entry_price = rule.get("entry_price", 0)
+            entry_price = rule.get("entry_price") or 0
         if entry_price <= 0:
             return None
 
         # 获取当前价格
-        current_price = position.get("current_price", 0)
+        current_price = position.get("current_price") or 0
         if current_price <= 0:
             current_price = self._get_current_price(code)
         if current_price is None or current_price <= 0:
@@ -279,11 +322,13 @@ class StopLossMonitor:
         name = position.get("name", rule.get("name", code))
 
         # 止损线
-        stop_loss_pct = rule.get("stop_loss_pct", -12.0) / 100  # 转小数
+        # P2-3 修复: rule.get("stop_loss_pct", -12.0) 在 YAML 显式写 null 时返回 None,
+        # None / 100 抛 TypeError。用 `or` 运算符覆盖 None 场景, 加 float() 保护非数值。
+        stop_loss_pct = float(rule.get("stop_loss_pct") or -12.0) / 100  # 转小数
         stop_loss_price = entry_price * (1 + stop_loss_pct)
 
         # 止盈线
-        take_profit_pct = rule.get("take_profit_pct", 25.0) / 100
+        take_profit_pct = float(rule.get("take_profit_pct") or 25.0) / 100
         take_profit_price = entry_price * (1 + take_profit_pct)
 
         # 移动止损 (trailing stop)
@@ -334,7 +379,7 @@ class StopLossMonitor:
             )
 
         # ATR 止损检查
-        atr_stop_price = rule.get("atr_stop_loss_price", 0)
+        atr_stop_price = rule.get("atr_stop_loss_price") or 0
         if atr_stop_price > 0 and current_price <= atr_stop_price:
             return TriggerRecord(
                 timestamp=datetime.now().isoformat(),
@@ -399,8 +444,14 @@ class StopLossMonitor:
 
         try:
             success, order_id = self.broker.send_order(code, "sell", shares, price)
+            # P2-4: mock 模式下显式标记, 避免上游误认为已真实成交
+            if success and self.execution_mode == "MOCK":
+                logger.warning(
+                    "[WARN] SELL %s %d@%.2f 通过 MockBroker 模拟成交 (EXECUTION_MODE=MOCK, 真实持仓未变)",
+                    code, shares, price,
+                )
             return success, order_id
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.error(f"卖出异常: {code} - {e}")
             return False, str(e)
 
@@ -418,7 +469,7 @@ class StopLossMonitor:
                 if not isinstance(existing, list):
                     logger.warning("触发日志文件非数组格式, 重置为空数组: %s", log_path)
                     existing = []
-            except Exception:
+            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
                 logger.exception("[StopLoss] 读取触发日志失败, 将覆盖: %s", log_path)
                 existing = []
 
@@ -443,7 +494,7 @@ class StopLossMonitor:
         try:
             _atomic_write_json(log_path, existing)
             logger.info("触发日志已保存: %s", log_path)
-        except Exception:
+        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.exception("[StopLoss] 触发日志原子写失败: %s", log_path)
 
     def get_monitoring_status(self) -> dict:

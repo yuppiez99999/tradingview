@@ -16,7 +16,7 @@
 $ErrorActionPreference = "Stop"
 
 # ============================================================
-# 路径配置 (v8.6.1: 从 v7.1 更新到 v8.4)
+# 路径配置 (v8.6.14: 从 v7.1 更新到 v8.6.14)
 # ============================================================
 $projectDir = "E:\各种PY程序\28-终极量化交易系统8.4"
 $pythonExe  = "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"

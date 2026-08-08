@@ -39,6 +39,9 @@ akshare>=1.12.0
 #   - .netrc 凭据泄露 via 恶意 URL
 #   - 不安全临时文件复用 (extract_zipped_paths)
 requests>=2.33.0
+# P1-4 修复 (2026-08-07): 锁定 certifi 版本, 防止 where() 接口被移除导致 6 个测试失败
+# certifi 2026.07.22+ 保证 where() 可用; 低于此版本可能移除 where() 导致 requests/certs.py 崩溃
+certifi>=2026.07.22
 
 # === 可视化 ===
 matplotlib>=3.6.0

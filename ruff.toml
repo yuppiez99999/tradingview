@@ -33,15 +33,18 @@ select = [
     "N",    # pep8-naming 命名规范
     "UP",   # pyupgrade 现代语法
     "ANN",  # flake8-annotations 类型注解
+    "T",    # flake8-print (T201 print, T203 pprint) — Wave 3 第四阶段 PRINT 清零门禁
+    "BLE",  # flake8-blind-except (BLE001 except Exception) — 宽泛 except 门禁
 ]
 
 # 忽略规则（项目特定）
 ignore = [
     "E501",   # 行长度由 black 处理
-    "ANN101", # self 参数不需要注解
-    "ANN102", # cls 参数不需要注解
     "ANN204", # 特殊方法 __init__/__str__ 等不需要返回注解
     "B008",   # 函数默认值中的函数调用（如 Depends()）
+    "UP045",  # 保持 Optional[X] 语法 (py38 target, 与项目现有代码一致)
+    "UP037",  # 保持引号注解一致性 (py38 target)
+    "ANN401", # 允许 Any 类型 (DQC 事件 context 等动态字段需要)
 ]
 
 # 修复规则
@@ -61,17 +64,30 @@ known-first-party = ["ai_decision", "utils", "ms_strategy"]
 force-single-line = false
 
 [lint.per-file-ignores]
-# 测试文件允许缺少类型注解
-"tests/**/*.py" = ["ANN"]
+# 测试文件允许缺少类型注解 + print + 宽泛 except (测试断言常用)
+# **/tests/ 匹配所有层级的 tests/ 子目录 (含 utils/evolution/tests/ 等)
+"tests/**/*.py" = ["ANN", "T201", "BLE001"]
+"**/tests/**/*.py" = ["ANN", "T201", "BLE001"]
 # __init__.py 允许未使用导入（re-export 模式）
 "__init__.py" = ["F401"]
-# 脚本目录放宽限制
-"scripts/**/*.py" = ["ANN", "C901"]
+# 脚本目录放宽限制 (用户交互/调试输出合理)
+"scripts/**/*.py" = ["ANN", "C901", "T201", "BLE001"]
+# CLI 工具允许 print (用户交互)
+"cli/**/*.py" = ["T201"]
+# 工具脚本允许 print + 宽泛 except
+"tools/**/*.py" = ["T201", "BLE001"]
+# 研究代码允许 print + 宽泛 except (实验性代码)
+"research/**/*.py" = ["T201", "BLE001", "ANN", "C901"]
+"second-brain/**/*.py" = ["T201", "BLE001", "ANN", "C901"]
 # B3.1 未完成重构的 phases/ 目录 — 死代码, 仅供后续子任务参考, 生产仍用 daily_workflow.py
 # 见 v8.3_institutional/daily_workflow/phases/__init__.py 的警告说明
-"v8.3_institutional/daily_workflow/phases/**/*.py" = ["F821", "F841", "ANN", "C901"]
+"v8.3_institutional/daily_workflow/phases/**/*.py" = ["F821", "F841", "ANN", "C901", "T201", "BLE001"]
 # 一次性重构脚本 (extract_phases*.py / create_correct_phases.py) — 已废弃, 不再维护
-"extract_phases*.py" = ["F821", "F841"]
-"create_correct_phases.py" = ["F821", "F841"]
+"extract_phases*.py" = ["F821", "F841", "T201"]
+"create_correct_phases.py" = ["F821", "F841", "T201"]
 # verify_b33_hedge_refactor.py — 一次性验证脚本, 未使用 import 是断言性导入
 "verify_b33_hedge_refactor.py" = ["F401"]
+# ms_strategy/ 子目录: 训练/脚本/回测代码, print 是合理的进度/结果输出
+"ms_strategy/scripts/**/*.py" = ["T201"]
+"ms_strategy/training/**/*.py" = ["T201"]
+"ms_strategy/wondertrader/**/*.py" = ["T201"]

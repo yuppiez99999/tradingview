@@ -7,14 +7,22 @@ import json
 import os
 import sys
 
+from pathlib import Path
+
 import pandas as pd
 
-sys.path.insert(0, r"e:\各种PY程序\28-终极量化交易系统7.1")
+# S3修复: 用 PROJECT_ROOT 替代硬编码绝对路径
+PROJECT_ROOT = Path(__file__).resolve().parent
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+sys.path.insert(0, str(PROJECT_ROOT))  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 from utils.data_provider import MarketDataProvider
 
 # 读取持仓
-positions_path = r"e:\各种PY程序\28-终极量化交易系统7.1\config\positions.json"
+DATA_DIR = PROJECT_ROOT / "config"
+positions_path = DATA_DIR / "positions.json"
 with open(positions_path, encoding="utf-8") as f:
     positions_data = json.load(f)["positions"]
 
@@ -55,7 +63,7 @@ for symbol in symbols:
         else:
             fail_count += 1
             print(f"[失败] {symbol_map.get(symbol, symbol):12s} - 无数据")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         fail_count += 1
         print(f"[错误] {symbol_map.get(symbol, symbol):12s} - {e}")
 
@@ -85,7 +93,7 @@ if returns_data:
     print()
 
     # 保存到文件
-    output_dir = r"e:\各种PY程序\28-终极量化交易系统7.1\config"
+    output_dir = str(DATA_DIR)
     os.makedirs(output_dir, exist_ok=True)
 
     returns_path = os.path.join(output_dir, "returns_history.json")
