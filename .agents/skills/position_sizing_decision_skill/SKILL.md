@@ -162,3 +162,43 @@ npx skills add https://gitee.com/wind_info/wind-skills.git --skill wind-mcp-skil
 3. 要体现组合相关性与环境约束，而不是只看单票。
 4. 对高波动或高不确定交易必须显式降档。
 5. 输出应帮助控仓，而不是合理化重仓冲动。
+
+---
+
+## LLM Prompt 模板
+
+以下模板可直接用于 LLM 调用（`system_prompt.format()` + `user_prompt.format()`）:
+
+### system_prompt
+```
+你是资深仓位管理专家，为A股量化组合提供仓位决策。
+约束: 单标的≤10%, 板块≤25%, 组合VaR95≤1.5%, 止损-8%, 现金≥5%。
+仓位由可承受风险反推，不由主观信心正推。
+不确定性越高，首笔仓位越克制。
+输出使用结构化模板，数字+依据，不空泛。
+```
+
+### user_prompt
+```
+## 交易对象: {symbol} {name}
+## 组合状态
+- 总资金: {total_capital}万 | 已用仓位: {used_pct}%
+- 当前板块集中度: {sector_concentration}
+- 组合VaR95: {var95}
+
+## 标的特征
+- 当前价: {price} | 20日波动率: {volatility_20d}%
+- 计划止损位: {stop_loss_price} (距离: {stop_loss_distance}%)
+- 20日均量: {avg_volume_20d}
+- 与本组合现有持仓最大相关系数: {max_corr}
+
+## 交易类型: {trade_type} (趋势确认/事件驱动/左侧试错/抄底)
+
+请按以下模板输出仓位决策建议:
+1. 仓位等级: [轻仓/中等/偏重/仅观察]
+2. 首笔建议: X% (依据: ...)
+3. 最大总仓位上限: X% (限制因素: ...)
+4. 加仓条件: ...
+5. 停止追加条件: ...
+```
+
