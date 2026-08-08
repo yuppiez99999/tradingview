@@ -27,7 +27,6 @@ AI 报告代理 (AI Report Agent)
 """
 
 import json
-import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -50,7 +49,7 @@ except ImportError:
     MarkItDownAdapter = None  # type: ignore[assignment]
 
 # ============================================================
-# 导入 LLM 客户端 (15_每日工作流/llm_client.py)
+# 导入 LLM 客户端 (统一层 utils/llm_client.py, P1 收口)
 # ============================================================
 
 _LLM_CLIENT_AVAILABLE = False
@@ -58,23 +57,14 @@ _chat_fn = None
 _generate_analysis_fn = None
 _test_connection_fn = None
 
-# 将 15_每日工作流 加入 sys.path
-_LLM_CLIENT_PATH = Path(__file__).resolve().parent.parent.parent / "15_每日工作流"
-if _LLM_CLIENT_PATH.exists():
-    if str(_LLM_CLIENT_PATH) not in sys.path:
-        sys.path.insert(0, str(_LLM_CLIENT_PATH))
-    try:
-        import llm_client
-
-        _chat_fn = llm_client.chat
-        _generate_analysis_fn = llm_client.generate_analysis
-        _test_connection_fn = llm_client.test_connection
-        _LLM_CLIENT_AVAILABLE = True
-        logger.info("AIReportAgent: llm_client.py 已加载 (豆包→DeepSeek→Ollama)")
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
-        logger.warning(f"AIReportAgent: llm_client 加载失败 ({e}), 启用规则引擎兜底")
-else:
-    logger.warning(f"AIReportAgent: llm_client.py 路径不存在 ({_LLM_CLIENT_PATH}), 启用规则引擎兜底")
+try:
+    from utils.llm_client import chat as _chat_fn
+    from utils.llm_client import generate_analysis as _generate_analysis_fn
+    from utils.llm_client import test_connection as _test_connection_fn
+    _LLM_CLIENT_AVAILABLE = True
+    logger.info("AIReportAgent: 统一 LLM 客户端已加载 (GLM5→三级降级链)")
+except Exception as e:  # P1 模块 fail-safe  # noqa: BLE001
+    logger.warning(f"AIReportAgent: 统一 LLM 客户端加载失败 ({e}), 启用规则引擎兜底")
 
 
 # ============================================================

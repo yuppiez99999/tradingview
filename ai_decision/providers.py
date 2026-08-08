@@ -101,12 +101,16 @@ class LlmClientProvider(BaseProvider):
 
     def generate(self, prompt: str, system: str = "", timeout: int = 30) -> str | None:
         try:
-            import sys
-            from pathlib import Path
-            _wf_dir = str(Path(__file__).resolve().parent.parent / "15_每日工作流")
-            if _wf_dir not in sys.path:
-                sys.path.insert(0, _wf_dir)
-            from llm_client import chat, chat_deep
+            # P1 统一层: 优先从 utils.llm_client 导入 (收口 GLM5 + 三级降级链)
+            try:
+                from utils.llm_client import chat, chat_deep
+            except (ImportError, ModuleNotFoundError):
+                import sys
+                from pathlib import Path
+                _wf_dir = str(Path(__file__).resolve().parent.parent / "15_每日工作流")
+                if _wf_dir not in sys.path:
+                    sys.path.insert(0, _wf_dir)
+                from llm_client import chat, chat_deep
         except (ImportError, ModuleNotFoundError, OSError) as exc:  # pragma: no cover - 导入失败兜底
             logger.warning("llm_client 不可用: %s", exc)
             return None
