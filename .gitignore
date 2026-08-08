@@ -215,6 +215,10 @@ research/vibe_trading_factor_analysis/reports/kill_switch/
 .memory/
 graphify-out/
 
+# === OCR 代码审查工具配置（含 API Key 等敏感信息） ===
+.ocr_home/
+.opencode*/
+
 # === v8.7.2 临时调试/清理脚本不入版本库 (2026-07-27) ===
 # 一次性临时输出文件
 _tmp.txt
@@ -235,4 +239,48 @@ debug_*.txt
 debug_*.log
 tmp_*.txt
 out_*.txt
+
+# === P0 安全网基线补充 (2026-08-08) ===
+# ruff/mypy 缓存大文件（非源码，禁止入版本库）
+.ruff_*.txt
+.ruff_*.json
+.mypy_*.txt
+.mypy_*.json
+# venv 安装/测试日志转储（含本地路径，非源码）
+.venv_install_log*.txt
+.venv_test_*.txt
+tests_unit_log.txt
+tests_*.log
+cov_log*.txt
+pip_error.txt
+scan_*.txt
+# qlib_env 虚拟环境兜底（第29行规则未覆盖 exe 时的双保险）
+qlib_env/**/*.exe
+qlib_env/**/*.dll
+qlib_env/**/*.so
+.tmp_pip/
+.pip_cache/
+.codebuddy/
+.codex/
+.claude/
+.trae-cn/
+.trae/
+.omc/
+.streamlit/
+.github/
+.agents/
+.cairn/
+# 根级临时/备份
+backups/
+temp/
+*.bak
+*_backup.txt
+# P0 会话产生的调试/临时产物
+pre_commit_debug.txt
+pre_commit_py_debug.txt
+temp_tdam_verify.txt
+board_preview.html
+github_weekly_report_*.html
+research_plan_*.md
+research_report_*.md
 
