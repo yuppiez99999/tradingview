@@ -285,3 +285,4 @@ research_plan_*.md
 research_report_*.md
 
 # P0 pre-commit 验证标记
+test
