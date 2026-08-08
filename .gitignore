@@ -134,6 +134,8 @@ configs/
 
 # Allow portfolio template to be tracked
 !v7.5_institutional/config/portfolio.yaml
+# P2: 价格表是无敏感配置, 允许入版本库
+!config/llm_pricing.yaml
 
 # Trade executor generated files
 daily_trade_executor.log
