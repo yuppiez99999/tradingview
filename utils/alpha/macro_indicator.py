@@ -462,7 +462,7 @@ class MacroIndicatorManager:
             if not cfg:
                 logger.warning("配置未找到: %s, 使用默认配置", config_name)
             return cfg
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("配置加载失败: %s (%s), 使用默认配置", config_name, e)
             return {}
 
@@ -472,7 +472,7 @@ class MacroIndicatorManager:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(self._feature_flag_name))
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
     # ===== Regime 分类接口 =====
@@ -583,7 +583,7 @@ class MacroIndicatorManager:
             from utils.data.data_layer import get_macro_indicators
 
             return get_macro_indicators() or {}
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("DataLayer 宏观数据获取失败: %s", e)
             return {}
 
@@ -646,7 +646,7 @@ def is_macro_indicator_enabled() -> bool:
         from utils.infra.feature_flags import is_enabled
 
         return bool(is_enabled(FLAG_NAME))
-    except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         return False
 
 

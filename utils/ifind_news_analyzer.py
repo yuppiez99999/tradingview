@@ -58,7 +58,7 @@ class IFinDNewsAnalyzer:
             from call import call as _call
 
             self._call = _call
-        except Exception as exc:  # pragma: no cover
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # pragma: no cover
             logger.error("iFinD call 模块导入失败: %s", exc)
             self._call = None
 
@@ -89,7 +89,7 @@ class IFinDNewsAnalyzer:
             result = self._call("news", "search_trending_news", params)
             if result.get("ok"):
                 items = self._parse_news_result(result.get("data", {}))
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             logger.error("热点事件查询失败:\n%s", traceback.format_exc())
         return items
 
@@ -122,7 +122,7 @@ class IFinDNewsAnalyzer:
         for symbol in symbols:
             try:
                 results.append(self.analyze_symbol(symbol, name=name_map.get(symbol, ""), size=size, days=days))
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                 logger.error("研判失败: %s", symbol, exc_info=True)
         return results
 
@@ -144,7 +144,7 @@ class IFinDNewsAnalyzer:
             )
             if result.get("ok"):
                 items = self._parse_news_result(result.get("data", {}))
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             logger.error("%s 查询失败:\n%s", tool_name, traceback.format_exc())
         return items
 
@@ -159,7 +159,7 @@ class IFinDNewsAnalyzer:
                 if isinstance(text_content, str):
                     try:
                         parsed = json.loads(text_content)
-                    except Exception:  # P2 模块 fail-safe, 待后续精确化
+                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                         parsed = {}
             results = self._extract_results(parsed)
             for item in results:
@@ -208,7 +208,7 @@ class IFinDNewsAnalyzer:
                         ),
                     )
                 )
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             logger.error("资讯解析失败:\n%s", traceback.format_exc())
         return items
 
@@ -221,7 +221,7 @@ class IFinDNewsAnalyzer:
         if isinstance(inner, str):
             try:
                 inner = json.loads(inner)
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                 inner = None
         if isinstance(inner, dict):
             return self._extract_results(inner)
@@ -285,6 +285,6 @@ class IFinDNewsAnalyzer:
 
             for pattern in [r"\d{6}\.[A-Za-z]{2}", r"[A-Za-z]{2,4}\d{5,6}", r"\d{6}"]:
                 entities.extend(re.findall(pattern, text))
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             pass
         return entities[:10]

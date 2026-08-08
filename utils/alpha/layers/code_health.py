@@ -39,7 +39,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 # 复用 health_metrics 的 LayerScore (health_metrics 模块在 collect() 调用前已完全加载)
-from utils.alpha.health_metrics import LayerScore
+from utils.alpha.health_metrics import LayerScore  # noqa: E402
 
 # ============================================================
 # 常量
@@ -91,7 +91,8 @@ class CodeHealthLayer:
         try:
             from utils.infra.feature_flags import is_enabled
             return bool(is_enabled(flag_name))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Feature Flag 检查失败 (降级 False): %s — %s", flag_name, e)
             return False
 
@@ -105,7 +106,8 @@ class CodeHealthLayer:
             w = (cfg.get("code_health", {}) or {}).get("weights", {})
             if w:
                 return {k: float(w.get(k, DEFAULT_WEIGHTS.get(k, 0.0))) for k in DEFAULT_WEIGHTS}
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("CodeHealth 权重加载失败, 用默认值: %s", e)
         return dict(DEFAULT_WEIGHTS)
 
@@ -162,7 +164,8 @@ class CodeHealthLayer:
             with contextlib.redirect_stdout(io.StringIO()):
                 report = checker.run_all()
             return report
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("SystemChecker 运行失败 (代码层降级): %s", e)
             return None
 
@@ -180,8 +183,7 @@ class CodeHealthLayer:
             passed = sum(1 for r in error_items if getattr(r, "status", "").value == "PASS"
                          or str(getattr(r, "status", "")) == "CheckStatus.PASS")
             return passed / len(error_items)
-        except Exception:
-            # 兜底: 用 all_passed
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # 兜底: 用 all_passed
             return 1.0 if getattr(report, "all_passed", False) else 0.5
 
     @staticmethod
@@ -192,7 +194,8 @@ class CodeHealthLayer:
         try:
             bf = getattr(report, "blocking_failures", 0)
             return max(0.0, 1.0 - bf / MAX_BLOCKING_FAILURES)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.5
 
     def _calc_static_analysis_score(self) -> float:
@@ -206,7 +209,8 @@ class CodeHealthLayer:
             if pylintrc.exists():
                 score += 0.5
             return score
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.0
 
     def _calc_verify_scripts_score(self) -> float:
@@ -217,5 +221,6 @@ class CodeHealthLayer:
                 return 0.0
             verify_count = len(list(scripts_dir.glob("_verify_*.py")))
             return min(1.0, verify_count / EXPECTED_VERIFY_SCRIPTS)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.0

@@ -47,9 +47,9 @@ class SpreadCalculator:
             ratio = leg.get("ratio", 1.0)
             direction = leg.get("direction", "BUY")
             if direction == "BUY":
-                result += prices[code] * ratio  # type: ignore
+                result += prices[code] * ratio  # type: ignore[misc]
             else:  # SELL
-                result -= prices[code] * ratio  # type: ignore
+                result -= prices[code] * ratio  # type: ignore[misc]
         return result
 
     @staticmethod
@@ -63,7 +63,7 @@ class SpreadCalculator:
             code = leg["code"]
             if code not in bars:
                 continue
-            bar = bars[code]  # type: ignore
+            bar = bars[code]  # type: ignore[misc]
             ratio = leg.get("ratio", 1.0)
             direction = leg.get("direction", "BUY")
             sign = 1 if direction == "BUY" else -1
@@ -127,8 +127,8 @@ class SpreadContext:
     def __init__(self, strategy: SpreadStrategy, spread: SpreadDefinition):
         self.strategy = strategy
         self.spread = spread
-        self.leg_positions: dict[str, float] = {leg["code"]: 0.0 for leg in spread.legs}  # type: ignore
-        self.leg_avg_cost: dict[str, float] = {leg["code"]: 0.0 for leg in spread.legs}  # type: ignore
+        self.leg_positions: dict[str, float] = {leg["code"]: 0.0 for leg in spread.legs}  # type: ignore[index]
+        self.leg_avg_cost: dict[str, float] = {leg["code"]: 0.0 for leg in spread.legs}  # type: ignore[index]
         self.trades: list[TradeData] = []
         self.cash = 1_000_000.0
         self.contracts = get_contracts_manager()
@@ -140,14 +140,14 @@ class SpreadContext:
             direction = leg.get("direction", "BUY")
             ratio = leg.get("ratio", 1.0)
             leg_qty = qty * ratio
-            price = leg_prices.get(code, 0)  # type: ignore
+            price = leg_prices.get(code, 0)  # type: ignore[union-attr]
             if price <= 0:
                 return False
 
             # 计算成本
             amount = price * leg_qty
-            commission = self.contracts.calc_commission(code, amount, direction)  # type: ignore
-            self.contracts.calc_margin(code, amount)  # type: ignore
+            commission = self.contracts.calc_commission(code, amount, direction)  # type: ignore[misc]
+            self.contracts.calc_margin(code, amount)  # type: ignore[misc]
 
             if direction == "BUY":
                 self.cash -= amount + commission
@@ -155,23 +155,23 @@ class SpreadContext:
                 self.cash -= commission  # 卖出仅扣手续费
 
             # 更新持仓
-            old_pos = self.leg_positions[code]  # type: ignore
-            old_cost = self.leg_avg_cost[code]  # type: ignore
+            old_pos = self.leg_positions[code]  # type: ignore[misc]
+            old_cost = self.leg_avg_cost[code]  # type: ignore[misc]
             new_pos = old_pos + leg_qty if direction == "BUY" else old_pos - leg_qty
             if new_pos != 0:
-                self.leg_avg_cost[code] = (  # type: ignore
+                self.leg_avg_cost[code] = (  # type: ignore[misc]
                     (old_pos * old_cost + leg_qty * price) / abs(new_pos) if abs(new_pos) > 0 else 0
                 )
-            self.leg_positions[code] = new_pos  # type: ignore
+            self.leg_positions[code] = new_pos  # type: ignore[misc]
 
             self.trades.append(
                 TradeData(
                     trade_id=f"SL_{len(self.trades)}",
                     order_id=f"SO_{len(self.trades)}",
                     code=code,
-                    exchange="SSE",  # type: ignore
+                    exchange="SSE",  # type: ignore[misc]
                     direction=direction,
-                    offset="OPEN",  # type: ignore
+                    offset="OPEN",  # type: ignore[misc]
                     price=price,
                     volume=leg_qty,
                     amount=amount,
@@ -192,28 +192,28 @@ class SpreadContext:
             reverse_dir = "SELL" if original_dir == "BUY" else "BUY"
             ratio = leg.get("ratio", 1.0)
             leg_qty = qty * ratio
-            price = leg_prices.get(code, 0)  # type: ignore
+            price = leg_prices.get(code, 0)  # type: ignore[union-attr]
             if price <= 0:
                 return False
 
             amount = price * leg_qty
-            commission = self.contracts.calc_commission(code, amount, reverse_dir)  # type: ignore
+            commission = self.contracts.calc_commission(code, amount, reverse_dir)  # type: ignore[misc]
 
             if reverse_dir == "BUY":
                 self.cash -= amount + commission
             else:
                 self.cash -= commission
 
-            old_pos = self.leg_positions[code]  # type: ignore
+            old_pos = self.leg_positions[code]  # type: ignore[misc]
             new_pos = old_pos - leg_qty if reverse_dir == "SELL" else old_pos + leg_qty
-            self.leg_positions[code] = new_pos  # type: ignore
+            self.leg_positions[code] = new_pos  # type: ignore[misc]
 
             self.trades.append(
                 TradeData(
                     trade_id=f"SL_{len(self.trades)}",
                     order_id=f"SO_{len(self.trades)}",
                     code=code,
-                    exchange="SSE",  # type: ignore
+                    exchange="SSE",  # type: ignore[misc]
                     direction=reverse_dir,
                     offset="CLOSE",
                     price=price,
@@ -233,7 +233,7 @@ class SpreadContext:
         if not self.spread.legs:
             return 0
         first_code = self.spread.legs[0]["code"]
-        return self.leg_positions.get(first_code, 0)  # type: ignore
+        return self.leg_positions.get(first_code, 0)  # type: ignore[misc]
 
     def get_leg_position(self, code: str) -> float:
         return self.leg_positions.get(code, 0)
@@ -336,8 +336,8 @@ ETF_PAIR_SPREADS = {
     "SPD.300-50": SpreadDefinition(
         name="SPD.300-50",
         legs=[
-            {"code": "510300.SH", "ratio": 1.0, "direction": "BUY"},  # type: ignore
-            {"code": "510050.SH", "ratio": 1.0, "direction": "SELL"},  # type: ignore
+            {"code": "510300.SH", "ratio": 1.0, "direction": "BUY"},  # type: ignore[misc]
+            {"code": "510050.SH", "ratio": 1.0, "direction": "SELL"},  # type: ignore[misc]
         ],
         spread_type="diff",
         description="沪深300ETF - 上证50ETF (大盘风格价差)",
@@ -345,8 +345,8 @@ ETF_PAIR_SPREADS = {
     "SPD.500-1000": SpreadDefinition(
         name="SPD.500-1000",
         legs=[
-            {"code": "510500.SH", "ratio": 1.0, "direction": "BUY"},  # type: ignore
-            {"code": "512100.SH", "ratio": 1.0, "direction": "SELL"},  # type: ignore
+            {"code": "510500.SH", "ratio": 1.0, "direction": "BUY"},  # type: ignore[misc]
+            {"code": "512100.SH", "ratio": 1.0, "direction": "SELL"},  # type: ignore[misc]
         ],
         spread_type="diff",
         description="中证500 - 中证1000 (中小盘价差)",
@@ -354,8 +354,8 @@ ETF_PAIR_SPREADS = {
     "SPD.KECHUANG": SpreadDefinition(
         name="SPD.KECHUANG",
         legs=[
-            {"code": "588080.SH", "ratio": 1.0, "direction": "BUY"},  # type: ignore
-            {"code": "588000.SH", "ratio": 1.0, "direction": "SELL"},  # type: ignore
+            {"code": "588080.SH", "ratio": 1.0, "direction": "BUY"},  # type: ignore[misc]
+            {"code": "588000.SH", "ratio": 1.0, "direction": "SELL"},  # type: ignore[misc]
         ],
         spread_type="diff",
         description="科创50易方达 - 科创50华夏 (同标的ETF价差)",
@@ -364,8 +364,8 @@ ETF_PAIR_SPREADS = {
     "SPD.300-IF": SpreadDefinition(
         name="SPD.300-IF",
         legs=[
-            {"code": "510300.SH", "ratio": 1.0, "direction": "BUY"},  # type: ignore
-            {"code": "IF.CFFEX", "ratio": 1.0, "direction": "SELL"},  # type: ignore
+            {"code": "510300.SH", "ratio": 1.0, "direction": "BUY"},  # type: ignore[misc]
+            {"code": "IF.CFFEX", "ratio": 1.0, "direction": "SELL"},  # type: ignore[misc]
         ],
         spread_type="weighted",
         description="沪深300ETF多+IF期货空 (期现套利)",

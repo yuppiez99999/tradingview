@@ -38,6 +38,9 @@ from typing import Any, Dict, List, Optional
 
 import requests
 import urllib3
+import logging
+
+logger = logging.getLogger(__name__)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -47,7 +50,7 @@ try:
     HAS_BS4 = True
 except ImportError:
     HAS_BS4 = False
-    BeautifulSoup = None  # type: ignore
+    BeautifulSoup = None  # type: ignore[assignment]
 
 # Scrapling (可选, 增强 Cloudflare 等反爬绕过)
 try:
@@ -213,8 +216,8 @@ class WebScraper:
             try:
                 page = Fetcher.get(url, stealthy=True, timeout=self.timeout)
                 if page and page.status == 200:
-                    return page.body  # type: ignore
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+                    return page.body  # type: ignore[misc]
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.debug(f"Scrapling 抓取失败 ({url}): {e}, 回退到 requests")
 
         # P2: requests + bs4
@@ -224,11 +227,11 @@ class WebScraper:
                 # 自动检测编码 (中文网站常用 gbk/utf-8)
                 if resp.encoding and resp.encoding.lower() == "iso-8859-1":
                     resp.encoding = resp.apparent_encoding
-                return resp.text  # type: ignore
+                return resp.text  # type: ignore[misc]
             logger.warning(f"HTTP {resp.status_code}: {url}")
         except requests.exceptions.Timeout:
             logger.warning(f"请求超时 ({self.timeout}s): {url}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"请求失败 ({url}): {e}")
         return None
 
@@ -248,7 +251,7 @@ class WebScraper:
             if resp.status_code == 200:
                 return resp.json()
             logger.warning(f"HTTP {resp.status_code}: {url}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"JSON 请求失败 ({url}): {e}")
         return None
 
@@ -261,7 +264,7 @@ class WebScraper:
             return None
         try:
             return BeautifulSoup(html, "html.parser")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"HTML 解析失败: {e}")
             return None
 
@@ -294,7 +297,7 @@ class WebScraper:
         cached = self.cache.get(cache_key)
         if cached is not None:
             logger.debug(f"公告缓存命中: {symbol}")
-            return cached  # type: ignore
+            return cached  # type: ignore[misc]
 
         # 东方财富公告 API (JSON 接口, 无需 HTML 解析)
         result = self._fetch_eastmoney_announcements(symbol, limit)
@@ -382,7 +385,7 @@ class WebScraper:
             if resp.status_code != 200:
                 return []
             json_data = resp.json()
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"巨潮公告请求失败 ({symbol}): {e}")
             return []
 
@@ -424,7 +427,7 @@ class WebScraper:
         cache_key = f"res_{symbol}_{limit}"
         cached = self.cache.get(cache_key)
         if cached is not None:
-            return cached  # type: ignore
+            return cached  # type: ignore[misc]
 
         result = self._fetch_eastmoney_research(symbol, limit)
         self.cache.set(cache_key, result, ttl=self.CACHE_TTL["research"])
@@ -516,7 +519,7 @@ class WebScraper:
         cache_key = f"news_{keyword}_{limit}"
         cached = self.cache.get(cache_key)
         if cached is not None:
-            return cached  # type: ignore
+            return cached  # type: ignore[misc]
 
         # 优先: 新浪财经搜索 API
         result = self._fetch_sina_news(keyword, limit)
@@ -538,7 +541,7 @@ class WebScraper:
             "ie": "utf-8",
         }
         html = self._fetch_html(url, params=params)
-        soup = self._parse_html(html)  # type: ignore
+        soup = self._parse_html(html)  # type: ignore[union-attr]
         if soup is None:
             return []
 
@@ -557,7 +560,7 @@ class WebScraper:
                 NewsItem(
                     title=title,
                     content=content[:500],
-                    url=link,  # type: ignore
+                    url=link,  # type: ignore[misc]
                     source="sina",
                     category="news",
                     published_at=published,
@@ -685,7 +688,7 @@ class WebScraper:
             try:
                 items = self.fetch_announcements(symbol, limit=limit_per_symbol)
                 result[symbol] = items
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.warning(f"抓取 {symbol} 失败: {e}")
                 result[symbol] = []
         return result
@@ -709,7 +712,7 @@ class WebScraper:
         try:
             with open(cache_file, encoding="utf-8") as f:
                 return json.load(f)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"读取缓存文件失败 ({cache_file}): {e}")
             return None
 
@@ -799,7 +802,7 @@ class WebScraper:
         except ImportError:
             logger.debug("MediaCrawlerAdapter 未安装, 跳过自媒体舆情")
             return []
-        except Exception as e:  # P2 模块 fail-safe
+        except Exception as e:  # P2 模块 fail-safe  # noqa: BLE001
             logger.warning(f"自媒体舆情抓取异常: {e}")
             return []
 
@@ -899,13 +902,13 @@ def self_test() -> bool:
         assert "scrapling_available" in status
         assert "bs4_available" in status
 
-        print("[OK] web_scraper.py 自检通过")
-        print(f"  - Scrapling 可用: {status['scrapling_available']}")
-        print(f"  - BeautifulSoup 可用: {status['bs4_available']}")
-        print(f"  - 超时: {status['timeout']}s")
+        logger.info("[OK] web_scraper.py 自检通过")
+        logger.info(f"  - Scrapling 可用: {status['scrapling_available']}")
+        logger.info(f"  - BeautifulSoup 可用: {status['bs4_available']}")
+        logger.info(f"  - 超时: {status['timeout']}s")
         return True
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-        print(f"[FAIL] web_scraper.py 自检失败: {e}")
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        logger.error(f"[FAIL] web_scraper.py 自检失败: {e}")
         return False
 
 

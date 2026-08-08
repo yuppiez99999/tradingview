@@ -122,8 +122,7 @@ class DailyBuildHedgeSystem:
     def assess_market_state(self) -> dict[str, Any]:
         """评估市场状态 (含ETF资金流 + LLM辅助决策)"""
         try:
-            from utils.etf_flow_monitor import ETFMonitor  # type: ignore
-
+            from utils.etf_flow_monitor import ETFMonitor  # type: ignore[misc]
             etf_monitor = ETFMonitor()
             etf_data = etf_monitor.get_summary()
         except Exception:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
@@ -160,9 +159,19 @@ class DailyBuildHedgeSystem:
         except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
             logger.warning(f"ETF资金流决策引擎不可用: {e}，继续使用规则引擎")
 
+        # G13 修复 (2026-08-06): VIX 从 VixDataSource 获取真实值, 非硬编码
+        _vix_proxy = 18.5
+        try:
+            from utils.alpha.vix_data_source import fetch_vix
+            _vix_fetched = fetch_vix(use_cache=True)
+            if _vix_fetched is not None and 5.0 <= _vix_fetched <= 150.0:
+                _vix_proxy = float(_vix_fetched)
+        except Exception:  # noqa: BLE001  # VIX 获取 fail-open
+            pass
+
         market_state = {
             "date": self.target_date.strftime("%Y-%m-%d"),
-            "vix_proxy": 18.5,
+            "vix_proxy": _vix_proxy,
             "index_return_20d": 0.02,
             "index_return_5d": 0.01,
             "margin_balance_change": 0.005,
@@ -523,12 +532,43 @@ class DailyBuildHedgeSystem:
             self.assess_market_state()
 
         lines = []
+        lines = []
+        lines.extend(self._render_header())
+        lines.extend(self._render_market_state_section())
+        lines.extend(self._render_build_plan_section())
+        lines.extend(self._render_hedge_plan_section())
+        lines.extend(self._render_summary_section())
+        lines.extend(self._render_checklist_section())
+
+        # 六、十五五规划 + 康波周期 合规校验 (提取为 _render_compliance_section)
+        lines.extend(self._render_compliance_section())
+
+        # 七、宽基ETF 社保国家队资金流加减仓 (提取为 _render_etf_flow_adjustment_section)
+        lines.extend(self._render_etf_flow_adjustment_section())
+
+        # 八、实时行情快照 (A股全栈数据 skill: 东财 push2 优先 + 腾讯回退)
+        lines.extend(self._render_realtime_quotes_section())
+
+        # ★ 新增: 九、ETF资金流向盘前/盘中决策 (LLM辅助)
+        lines.extend(self._render_etf_flow_decision_section())
+
+        lines.extend(self._render_footer())
+
+        return "\n".join(lines)
+
+    def _render_header(self) -> list[str]:
+        """报告头: 标题/时间/模式"""
+        lines: list[str] = []
         lines.append(f"# 每日建仓计划 + 对冲联动报告 — {self.target_date.strftime('%Y-%m-%d')}")
         lines.append("")
         lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append(f"**模式**: {'干跑模式' if self.dry_run else '实盘模式'}")
         lines.append("")
+        return lines
 
+    def _render_market_state_section(self) -> list[str]:
+        """第一节: 市场状态评估"""
+        lines: list[str] = []
         lines.append("## 一、市场状态评估")
         lines.append("")
         lines.append(f"- **市场状态**: {self.market_state.get('market_regime', 'N/A')}")
@@ -539,7 +579,11 @@ class DailyBuildHedgeSystem:
         )
         lines.append(f"- **宏观热度**: {self.market_state.get('macro_heat_score', 'N/A')}")
         lines.append("")
+        return lines
 
+    def _render_build_plan_section(self) -> list[str]:
+        """第二节: 建仓计划"""
+        lines: list[str] = []
         lines.append("## 二、建仓计划")
         lines.append("")
         lines.append(f"- **阶段**: {self.build_plan.get('phase', 'N/A')}")
@@ -591,7 +635,11 @@ class DailyBuildHedgeSystem:
             for action in self.build_plan["emergency_actions"]:
                 lines.append(f"- {action}")
             lines.append("")
+        return lines
 
+    def _render_hedge_plan_section(self) -> list[str]:
+        """第三节: 对冲计划"""
+        lines: list[str] = []
         lines.append("## 三、对冲计划")
         lines.append("")
         lines.append(f"- **组合价值**: {self.hedge_plan.get('portfolio_value', 0):,.0f} 元")
@@ -633,7 +681,12 @@ class DailyBuildHedgeSystem:
             status = "需要" if value else "无需"
             lines.append(f"- {key}: {status}")
         lines.append("")
+        return lines
 
+    def _render_summary_section(self) -> list[str]:
+        """第四节: 执行摘要"""
+        lines: list[str] = []
+        futures = self.hedge_plan.get("futures_hedge", {})  # 重新获取(原主函数局部变量)
         lines.append("## 四、执行摘要")
         lines.append("")
         total_orders = len(self.build_plan.get("morning_orders", [])) + len(self.build_plan.get("afternoon_orders", []))
@@ -643,7 +696,11 @@ class DailyBuildHedgeSystem:
         lines.append(f"- 期权对冲项目: {len(self.hedge_plan.get('option_hedge', []))} 项")
         lines.append(f"- 应急级别: {self.build_plan.get('emergency_level', 'NORMAL')}")
         lines.append("")
+        return lines
 
+    def _render_checklist_section(self) -> list[str]:
+        """第五节: 执行检查清单"""
+        lines: list[str] = []
         lines.append("## 五、执行检查清单")
         lines.append("")
         lines.append("- [ ] 确认账户可用资金充足")
@@ -657,8 +714,19 @@ class DailyBuildHedgeSystem:
         lines.append("- [ ] 15:00 检查对冲计划，确认期货/期权对冲执行")
         lines.append("- [ ] 15:30 生成盘后报告，记录当日盈亏")
         lines.append("")
+        return lines
 
-        # 六、十五五规划 + 康波周期 合规校验
+    def _render_footer(self) -> list[str]:
+        """报告尾: 分隔线 + 时间戳"""
+        lines: list[str] = []
+        lines.append("---")
+        lines.append(f"*报告生成: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+        return lines
+
+
+    def _render_compliance_section(self) -> list[str]:
+        """第六节: 十五五规划 + 康波周期 合规校验 (fail-safe)"""
+        lines: list[str] = []
         try:
             from utils.broad_based_etf_policy import validate_portfolio_compliance
 
@@ -690,8 +758,11 @@ class DailyBuildHedgeSystem:
             lines.append("")
             lines.append(f"- 校验暂不可用: {e}")
             lines.append("")
+        return lines
 
-        # 七、宽基ETF 社保国家队资金流加减仓
+    def _render_etf_flow_adjustment_section(self) -> list[str]:
+        """第七节: 宽基ETF 社保国家队资金流加减仓 (fail-safe)"""
+        lines: list[str] = []
         try:
             from utils.broad_based_etf_policy import (
                 fetch_national_team_flow_signals,
@@ -731,8 +802,11 @@ class DailyBuildHedgeSystem:
             lines.append("")
             lines.append(f"- 加减仓展示暂不可用: {e}")
             lines.append("")
+        return lines
 
-        # 八、实时行情快照 (A股全栈数据 skill: 东财 push2 优先 + 腾讯回退)
+    def _render_realtime_quotes_section(self) -> list[str]:
+        """第八节: 实时行情快照 (A股全栈数据 skill, fail-safe)"""
+        lines: list[str] = []
         try:
             quotes = self.fetch_realtime_quotes()
             lines.append("## 八、实时行情快照")
@@ -768,8 +842,11 @@ class DailyBuildHedgeSystem:
             lines.append("")
             lines.append(f"- 实时行情快照暂不可用: {e}")
             lines.append("")
+        return lines
 
-        # ★ 新增: 九、ETF资金流向盘前/盘中决策 (LLM辅助)
+    def _render_etf_flow_decision_section(self) -> list[str]:
+        """第九节: ETF资金流向盘前/盘中决策 (LLM辅助, fail-safe)"""
+        lines: list[str] = []
         try:
             etf_flow_decision = self.market_state.get("etf_flow_decision")
             if etf_flow_decision and etf_flow_decision.get("status") == "success":
@@ -873,11 +950,8 @@ class DailyBuildHedgeSystem:
             lines.append("")
             lines.append(f"- ETF资金流决策暂不可用: {e}")
             lines.append("")
+        return lines
 
-        lines.append("---")
-        lines.append(f"*报告生成: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
-
-        return "\n".join(lines)
 
     def save_report(self, output_dir: str | None = None):
         """保存报告到文件"""

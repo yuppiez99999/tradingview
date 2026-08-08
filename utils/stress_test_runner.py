@@ -259,7 +259,7 @@ class StressTestRunner:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"压力测试报告已保存: {report_path}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存压力测试报告失败: {e}")
         return report_path
 
@@ -273,8 +273,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     parser = argparse.ArgumentParser(description="压力测试自动化")
-    parser.add_argument("--portfolio", type=float, default=5_000_000, help="组合净值")
-    parser.add_argument("--simulate", action="store_true", help="使用模拟持仓测试")
+    parser.add_argument("--portfolio", type=float, default=None, help="组合净值 (默认从 positions.json 读取)")
+    parser.add_argument("--simulate", action="store_true", help="使用模拟持仓测试 (默认使用 positions.json 真实持仓)")
     args = parser.parse_args()
 
     runner = StressTestRunner()
@@ -289,8 +289,52 @@ if __name__ == "__main__":
             {"code": "future", "name": "期货对冲", "amount": 500_000, "strategy": "futures_hedge"},
             {"code": "cash", "name": "现金管理", "amount": 1_300_000, "strategy": "cash"},
         ]
-
-        result = runner.run_all_scenarios(positions, args.portfolio, with_intervention=True)
+        portfolio_value = args.portfolio or 5_000_000
+        result = runner.run_all_scenarios(positions, portfolio_value, with_intervention=True)
+    else:
+        # 真实持仓: 从 config/positions.json 加载并映射为压力测试格式
+        positions_path = BASE_DIR / "config" / "positions.json"
+        try:
+            with open(positions_path, "r", encoding="utf-8") as f:
+                pos_data = json.load(f)
+            raw_positions = pos_data.get("positions", {})
+            meta = pos_data.get("meta", {})
+            portfolio_value = args.portfolio or float(meta.get("total_capital", 5_000_000))
+            positions = []
+            for code, p in raw_positions.items():
+                amount = float(p.get("amount", 0) or 0)
+                if amount <= 0:
+                    continue
+                style = p.get("style") or p.get("sector") or "other"
+                positions.append({
+                    "code": code,
+                    "name": p.get("name", code),
+                    "amount": amount,
+                    "strategy": style,
+                })
+            if not positions:
+                logger.error("positions.json 无有效持仓 (amount<=0), 回退到模拟持仓")
+                positions = [
+                    {"code": "stock", "name": "股票多头", "amount": 1_800_000, "strategy": "stock_long"},
+                    {"code": "etf", "name": "ETF组合", "amount": 500_000, "strategy": "etf"},
+                    {"code": "quant", "name": "量化中性", "amount": 700_000, "strategy": "quant_neutral"},
+                    {"code": "option", "name": "期权尾部", "amount": 200_000, "strategy": "options_tail"},
+                    {"code": "future", "name": "期货对冲", "amount": 500_000, "strategy": "futures_hedge"},
+                    {"code": "cash", "name": "现金管理", "amount": 1_300_000, "strategy": "cash"},
+                ]
+            logger.info(f"已从 positions.json 加载 {len(positions)} 个真实持仓, 组合净值 {portfolio_value:,.0f}")
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            logger.error(f"加载 positions.json 失败 ({e}), 回退到模拟持仓")
+            positions = [
+                {"code": "stock", "name": "股票多头", "amount": 1_800_000, "strategy": "stock_long"},
+                {"code": "etf", "name": "ETF组合", "amount": 500_000, "strategy": "etf"},
+                {"code": "quant", "name": "量化中性", "amount": 700_000, "strategy": "quant_neutral"},
+                {"code": "option", "name": "期权尾部", "amount": 200_000, "strategy": "options_tail"},
+                {"code": "future", "name": "期货对冲", "amount": 500_000, "strategy": "futures_hedge"},
+                {"code": "cash", "name": "现金管理", "amount": 1_300_000, "strategy": "cash"},
+            ]
+            portfolio_value = args.portfolio or 5_000_000
+        result = runner.run_all_scenarios(positions, portfolio_value, with_intervention=True)
 
         logger.info("\n" + "=" * 60)
         logger.info("压力测试结果")

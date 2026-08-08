@@ -467,7 +467,7 @@ class ETFFlowManager:
         """
         try:
             tracker = self._get_tracker()
-            return tracker.get_all_etf_fund_flows()  # type: ignore
+            return tracker.get_all_etf_fund_flows()  # type: ignore[misc]
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             raise ETFFlowError(f"ETF 资金流获取失败: {e}") from e
 
@@ -482,7 +482,7 @@ class ETFFlowManager:
         """
         try:
             tracker = self._get_tracker()
-            return tracker.get_etf_fund_flow(etf_code)  # type: ignore
+            return tracker.get_etf_fund_flow(etf_code)  # type: ignore[misc]
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"[ETFFlowManager] 获取 {etf_code} 资金流失败: {e}")
             return None
@@ -498,7 +498,7 @@ class ETFFlowManager:
         """
         try:
             tracker = self._get_tracker()
-            return tracker.detect_signals(flow_data)  # type: ignore
+            return tracker.detect_signals(flow_data)  # type: ignore[misc]
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"[ETFFlowManager] 信号检测失败: {e}")
             return []
@@ -514,7 +514,7 @@ class ETFFlowManager:
         """
         try:
             tracker = self._get_tracker()
-            return tracker.get_signal_summary(flow_data)  # type: ignore
+            return tracker.get_signal_summary(flow_data)  # type: ignore[misc]
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"[ETFFlowManager] 汇总失败: {e}")
             return {"error": str(e)}

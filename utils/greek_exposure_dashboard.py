@@ -19,6 +19,9 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # 默认路径
@@ -64,7 +67,7 @@ def load_positions(path: str | Path = DEFAULT_POSITIONS_PATH):
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-    except Exception:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
         return {}, {}
 
     positions = {}
@@ -277,48 +280,48 @@ def print_dashboard(positions_path: str | Path = DEFAULT_POSITIONS_PATH) -> None
     """打印 Greeks 监控面板 (兼容旧版接口)"""
     dashboard = compute_dashboard(positions_path)
     if not dashboard.snapshot and not dashboard.recommendations:
-        print("无持仓数据")
+        logger.info("无持仓数据")
         return
 
-    print("=" * 70)
-    print("组合 Greeks 暴露监控面板 (Greek Exposure Dashboard)")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("组合 Greeks 暴露监控面板 (Greek Exposure Dashboard)")
+    logger.info("=" * 70)
 
     snap = dashboard.snapshot
     targets = dashboard.targets
-    print("\n[当前 Greeks 暴露]")
-    print(f"  Delta: {snap.delta:>15,.2f}  (目标: {targets.get('target_delta', 0):,.2f})")
-    print(f"  Gamma: {snap.gamma:>15,.2f}  (目标: {targets.get('target_gamma', 0):,.2f})")
-    print(f"  Theta: {snap.theta:>15,.2f}  (下限: {targets.get('max_theta_burn', 0):,.2f})")
-    print(f"  Vega:  {snap.vega:>15,.2f}  (上限: {targets.get('max_vega', 0):,.2f})")
-    print(f"  Rho:   {snap.rho:>15,.2f}")
+    logger.info("\n[当前 Greeks 暴露]")
+    logger.info(f"  Delta: {snap.delta:>15,.2f}  (目标: {targets.get('target_delta', 0):,.2f})")
+    logger.info(f"  Gamma: {snap.gamma:>15,.2f}  (目标: {targets.get('target_gamma', 0):,.2f})")
+    logger.info(f"  Theta: {snap.theta:>15,.2f}  (下限: {targets.get('max_theta_burn', 0):,.2f})")
+    logger.info(f"  Vega:  {snap.vega:>15,.2f}  (上限: {targets.get('max_vega', 0):,.2f})")
+    logger.info(f"  Rho:   {snap.rho:>15,.2f}")
 
-    print("\n[再平衡信号强度]")
+    logger.info("\n[再平衡信号强度]")
     levels = dashboard.signal_levels
     signals = dashboard.rebalance_signals
     for greek in ("delta", "gamma", "vega", "theta"):
         level = levels.get(greek, "OK")
         signal = signals.get(f"{greek}_rebalance", False)
         icon = {"OK": "✅", "WARN": "⚠️ ", "CRITICAL": "🚨"}.get(level, "?")
-        print(f"  {icon} {greek.upper():<6} {level:<10} 再平衡: {'需要' if signal else '正常'}")
+        logger.info(f"  {icon} {greek.upper():<6} {level:<10} 再平衡: {'需要' if signal else '正常'}")
     overall = signals.get("need_rebalance", False)
-    print(f"  {'🚨' if overall else '✅'} 综合   {'需要再平衡' if overall else '正常'}")
+    logger.info(f"  {'🚨' if overall else '✅'} 综合   {'需要再平衡' if overall else '正常'}")
 
     if dashboard.per_position:
-        print("\n[Top 10 标的 Delta 贡献]")
-        print(f"  {'代码':<12} {'名称':<12} {'名义价值':>14} {'Delta':>14} {'Gamma':>10} {'Theta':>10} {'Vega':>10}")
+        logger.info("\n[Top 10 标的 Delta 贡献]")
+        logger.info(f"  {'代码':<12} {'名称':<12} {'名义价值':>14} {'Delta':>14} {'Gamma':>10} {'Theta':>10} {'Vega':>10}")
         for p in dashboard.per_position:
-            print(
+            logger.info(
                 f"  {p['code']:<12} {p['name'][:10]:<12} "
                 f"{p['notional']:>14,.0f} {p['delta_contrib']:>+14,.0f} "
                 f"{p['gamma_contrib']:>+10,.0f} {p['theta_contrib']:>+10,.0f} {p['vega_contrib']:>+10,.0f}"
             )
 
     if dashboard.recommendations:
-        print("\n[行动建议]")
+        logger.info("\n[行动建议]")
         for i, r in enumerate(dashboard.recommendations, 1):
-            print(f"  {i}. {r}")
-    print("=" * 70)
+            logger.info(f"  {i}. {r}")
+    logger.info("=" * 70)
 
 
 if __name__ == "__main__":

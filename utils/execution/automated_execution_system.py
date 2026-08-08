@@ -28,6 +28,9 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 # schedule 模块为可选依赖 (本文件实际未使用其 API, 仅保留 import 以兼容旧代码)
 try:
@@ -48,10 +51,10 @@ if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 try:
-    from hedging.hedge_coordinator import HedgeCoordinator
+    from ms_strategy.src.hedging.hedge_coordinator import HedgeCoordinator
 
     _HEDGE_AVAILABLE = True
-except Exception:
+except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
     HedgeCoordinator = None
     _HEDGE_AVAILABLE = False
 
@@ -66,15 +69,15 @@ try:
 except ImportError:
     import logging
 
-    logger = logging.getLogger("automated_execution_system")  # type: ignore
-    def safe_float(x, default=None):  # type: ignore
+    logger = logging.getLogger("automated_execution_system")  # type: ignore[union-attr]
+    def safe_float(x, default=None):  # type: ignore[misc]
         return x if x is not None else default
 
 try:
     from wind_mcp_fetcher import wind_get_quote
 
     _WIND_MCP_AVAILABLE = True
-except Exception:
+except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
     wind_get_quote = None
     _WIND_MCP_AVAILABLE = False
 
@@ -201,7 +204,7 @@ class TradingCalendar:
 
         logger.info("交易日历初始化完成")
 
-    def is_trading_day(self, date: Optional[datetime] = None) -> bool:  # type: ignore
+    def is_trading_day(self, date: Optional[datetime] = None) -> bool:  # type: ignore[misc]
         """判断是否为交易日"""
         if date is None:
             date = datetime.now()
@@ -213,7 +216,7 @@ class TradingCalendar:
         # 检查是否为特殊交易日
         date_str = date.strftime("%Y-%m-%d")
         if date_str in self.special_days:
-            return self.special_days[date_str]["is_trading"]  # type: ignore
+            return self.special_days[date_str]["is_trading"]  # type: ignore[index]
 
         # 检查是否为节假日（这里简化处理，实际应该从节假日API获取）
         # 简单判断一些常见节假日
@@ -295,7 +298,7 @@ class TradingCalendar:
                 for execution in self.trading_schedule["executions"]:
                     execution_time = datetime.combine(date, execution["time"])
                     day_schedule["executions"].append(
-                        {  # type: ignore
+                        {  # type: ignore[misc]
                             "name": execution["name"],
                             "time": execution_time.isoformat(),
                             "timestamp": execution_time.timestamp(),
@@ -366,7 +369,7 @@ class TradingCalendar:
             "execution_stats": execution_stats,
             "next_execution_time": self.get_next_execution_time().isoformat()
             if self.get_next_execution_time()
-            else None,  # type: ignore
+            else None,  # type: ignore[misc]
         }
 
 
@@ -1120,7 +1123,7 @@ class OrderRouter:
             active_count = sum(1 for order in self.active_orders.values() if order.get("target_pool") == pool_name)
         # P2-5 修复: 原公式 active_count * max_concurrent * 5.0 反直觉 (并发越大等待越久)
         # 正确公式: 等待时间与并发数成反比, 并发越大吞吐越高等待越短
-        queue_wait = active_count * 5.0 / max(pool["max_concurrent"], 1)  # type: ignore
+        queue_wait = active_count * 5.0 / max(pool["max_concurrent"], 1)  # type: ignore[index]
 
         return base_wait + queue_wait
 
@@ -1187,7 +1190,7 @@ class OrderRouter:
                 if o.get("target_pool") == pool_name and o.get("status") == "pending"
             )
 
-        if active_count >= pool["max_concurrent"]:  # type: ignore
+        if active_count >= pool["max_concurrent"]:  # type: ignore[index]
             return False
 
         return True
@@ -1247,7 +1250,7 @@ class OrderRouter:
                                 "error": f"KillSwitch 熔断中 (level={ks_level}), 禁止实盘下单",
                                 "kill_switch_blocked": True,
                             }
-                    except Exception as ks_err:
+                    except Exception as ks_err:  # noqa: BLE001  # fail-safe, 待后续精确化
                         # KillSwitch 检查异常时 fail-closed: 拒绝下单
                         logger.error("[OrderRouter] KillSwitch 检查异常, fail-closed 拒绝下单: %s", ks_err)
                         return {
@@ -1498,9 +1501,9 @@ class AutomatedExecutionSystem:
             self.is_running = True
 
             # 启动执行线程
-            self.execution_thread = threading.Thread(target=self._execution_loop)  # type: ignore
-            self.execution_thread.daemon = True  # type: ignore
-            self.execution_thread.start()  # type: ignore
+            self.execution_thread = threading.Thread(target=self._execution_loop)  # type: ignore[union-attr]
+            self.execution_thread.daemon = True  # type: ignore[misc]
+            self.execution_thread.start()  # type: ignore[misc]
 
             # 启动性能监控
             if self.config["performance_monitoring"]:
@@ -1619,53 +1622,21 @@ class AutomatedExecutionSystem:
             if self.hedge_enabled and self.hedge_coordinator is not None:
                 hedge_plan = self._run_hedge_decision(market_data, market_state_data)
                 hedge_plan = self._apply_hedge_triggers(market_data, hedge_plan)
-                self.last_hedge_plan = hedge_plan  # type: ignore
+                self.last_hedge_plan = hedge_plan  # type: ignore[assignment]
 
-            # 4. 生成交易计划（这里简化处理）
-            trade_info = {
-                "trade_id": f"TRADE_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                "instrument": "SPY",
-                "direction": "buy",
-                "trade_size": 100000,
-                "urgency": "normal",
-                "asset_type": "equity",
-            }
+            # 4-8. 生成交易计划并路由
+            # P1-1 修复: 原代码硬编码 SPY 假订单 (trade_info={instrument:"SPY",trade_size:100000}),
+            # route_order 消费的永远是这个假 SPY 单, 与真实再平衡/对冲订单完全脱钩。
+            # 现改为由再平衡订单生成真实 execution_plan 并路由 (单一执行点), 删除假 SPY。
+            # 初始占位, 由步骤 11 的再平衡路由结果填充。
+            execution_plan = None
+            routing_result = {"success": False, "routed_orders": [], "error": "rebalance_not_generated"}
 
-            # 5. 选择执行策略
-            strategy_result = self.execution_strategy.select_execution_strategy(self.current_market_state, trade_info)
-            strategy_config = strategy_result["strategy_config"]
-            logger.debug(
-                f"执行策略: {strategy_result.get('strategy_name')}, 切片大小: {strategy_config.get('slice_size')}"
-            )
-
-            # 6. 生成执行计划
-            execution_plan = self.execution_strategy.generate_execution_plan(trade_info, strategy_config)
-
-            if isinstance(execution_plan, dict) and "error" in execution_plan:
-                logger.error(f"执行计划生成失败: {execution_plan['error']}")
-                return
-
-            self.current_execution_plan = execution_plan  # type: ignore
-            logger.info(f"执行计划生成完成: {execution_plan.get('num_slices')}个切片")
-
-            # 7. 订单路由
-            routing_result = self.order_router.route_order(execution_plan, self.current_market_state)
-
-            if not routing_result["success"]:
-                logger.error(f"订单路由失败: {routing_result['error']}")
-                return
-
-            self.current_routed_orders = routing_result["routed_orders"]
-            logger.info(f"订单路由完成: {len(routing_result.get('routed_orders', []))}个订单")
-
-            # 8. 处理执行队列
-            self.order_router.process_execution_queue()
-
-            # 9. 记录执行结果
+            # 9. 记录执行结果 (rebalance_plan 在步骤 11 填充)
             execution_result = {
                 "market_state": self.current_market_state,
                 "execution_plan": execution_plan,
-                "routed_orders": self.current_routed_orders,
+                "routed_orders": [],
                 "routing_result": routing_result,
                 "execution_time": datetime.now().isoformat(),
                 "execution_name": execution_name,
@@ -1681,7 +1652,6 @@ class AutomatedExecutionSystem:
             }
 
             self.system_history.append(system_record)
-            logger.info(f"每日交易执行完成: {execution_name}")
 
             # 10. 生成对冲执行单
             try:
@@ -1689,12 +1659,23 @@ class AutomatedExecutionSystem:
             except Exception as exc:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
                 logger.warning("对冲执行单生成失败: %s", exc)
 
-            # 11. 生成再平衡执行单
+            # 11. 生成再平衡执行单并路由 (执行断链修复: P0-3 已接入 order_router)
             try:
                 rebalance_report = self._generate_rebalance_orders()
                 execution_result["rebalance_plan"] = rebalance_report
+                # 同步当前执行计划/路由结果 (供状态快照与结果记录使用)
+                if rebalance_report is not None:
+                    routing = rebalance_report.get("routing") or {}
+                    if routing.get("success"):
+                        self.current_execution_plan = routing.get("execution_plan")
+                        self.current_routed_orders = routing.get("routed_orders", [])
+                        execution_result["execution_plan"] = routing.get("execution_plan")
+                        execution_result["routed_orders"] = self.current_routed_orders
+                        execution_result["routing_result"] = routing
             except Exception as exc:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
                 logger.warning("再平衡订单生成失败: %s", exc)
+
+            logger.info(f"每日交易执行完成: {execution_name}")
 
         except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
             logger.error(f"每日交易执行失败: {e}", exc_info=True)
@@ -1780,7 +1761,7 @@ class AutomatedExecutionSystem:
             # 4. 调用真实对冲引擎
             plan = cast(
                 Dict,
-                self.hedge_coordinator.coordinate(  # type: ignore
+                self.hedge_coordinator.coordinate(  # type: ignore[misc]
                     positions=positions,
                     prices=prices,
                     returns=returns,
@@ -1960,17 +1941,36 @@ class AutomatedExecutionSystem:
             plan.setdefault("total_hedge_pct", 0.0)
             plan.setdefault("action", "NO_HEDGE")
 
-            sys.path.insert(0, os.path.dirname(__file__))
             try:
-                from hedge_execution_orders import build_orders
+                # C2 修复: build_orders 需要 5 个参数 (plan, positions, prices, hedge_positions, positions_data)
+                # 通过 load_positions() 统一加载, 避免调用参数缺失导致 TypeError 被静默吞掉后生成空单。
+                #
+                # 导入路径加固 (原: sys.path.insert(0, os.path.dirname(__file__))):
+                #   hedge_execution_orders.py 位于项目根目录, 不在 utils/execution/ 下。
+                #   旧实现把 utils/execution/ 插到 sys.path 最前, 依赖根目录已在 sys.path(_PROJECT_ROOT)
+                #   兜底回退才能找到, 属脆弱依赖且每次调用污染 sys.path。
+                #   现改为用 importlib 从 _PROJECT_ROOT 显式加载, 不依赖 sys.path 顺序, 目录调整不失效。
+                import importlib.util  # noqa: F401
 
-                orders = build_orders(plan, positions, prices)  # type: ignore
-            except Exception:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
-                orders = {
-                    "date": datetime.now().strftime("%Y-%m-%d"),
-                    "action": plan.get("action", "NO_HEDGE"),
-                    "orders": [],
-                }
+                _hedge_mod = None
+                _mod_path = os.path.join(_PROJECT_ROOT, "hedge_execution_orders.py")
+                if os.path.exists(_mod_path):
+                    _spec = importlib.util.spec_from_file_location("_hedge_execution_orders_c2", _mod_path)
+                    _hedge_mod = importlib.util.module_from_spec(_spec)
+                    _spec.loader.exec_module(_hedge_mod)
+                else:
+                    # 显式回退到模块导入 (若根目录在 sys.path)
+                    import hedge_execution_orders as _hedge_mod  # type: ignore[assignment]
+
+                build_orders = _hedge_mod.build_orders
+                load_positions = _hedge_mod.load_positions
+
+                positions, prices, hedge_positions, positions_data = load_positions()
+                orders = build_orders(plan, positions, prices, hedge_positions, positions_data)
+            except (ImportError, TypeError, KeyError, ValueError, OSError, AttributeError) as err:
+                # 交易/风控路径不允许静默降级为空单, 必须显式失败并上抛, 避免组合裸露在下行风险中。
+                logger.error("生成对冲执行单失败(不允许静默空单): %s", err)
+                raise
 
             report_dir = os.path.join(os.path.dirname(__file__), "reports")
             os.makedirs(report_dir, exist_ok=True)
@@ -1979,8 +1979,170 @@ class AutomatedExecutionSystem:
                 json.dump(orders, f, ensure_ascii=False, indent=2)
 
             logger.info("对冲执行单已生成: %s", out_path)
+
+            # P1-3 修复: 对冲订单双路径统一。
+            # build_orders() 返回的 orders 使用 action 字段 (BUY_PROTECTION/SELL_SHORT/BUY),
+            # 而 hedge_order_executor._collect_pending_orders 期望 direction 字段
+            # (BUY_PUT/SELL_CALL_COVERED) 且必须 status=="PENDING" 才会收集。
+            # 此前 _generate_hedge_execution_orders 仅写盘 hedge_execution_orders_*.json,
+            # 无下游消费者 (执行断链)。现在把转换后的订单回写进 trade_plan 的
+            # hedge_execution.active_orders 嵌套字典, 由 hedge_order_executor 统一撮合。
+            self._writeback_hedge_orders_to_trade_plan(orders)
         except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
             logger.warning("生成对冲执行单失败: %s", e)
+
+    def _writeback_hedge_orders_to_trade_plan(self, orders_result: Dict) -> None:
+        """将 build_orders 产出的对冲订单回写进 trade_plan, 供 hedge_order_executor 撮合。
+
+        build_orders() 返回 {date, action, portfolio_beta, hedge_pct, orders:[...]}。
+        orders 中期权订单使用 action 字段 (BUY_PROTECTION/SELL_SHORT/BUY),
+        而 hedge_order_executor._collect_pending_orders 期望:
+          - direction = "BUY_PUT" / "SELL_CALL_COVERED"
+          - status = "PENDING"
+          - type = "OPTIONS"
+        本方法做字段转换并写入 trade_plan["hedge_execution"]["active_orders"] 嵌套字典
+        (put_protection / covered_call 子列表), 与 _collect_pending_orders 契约对齐。
+        """
+        if not isinstance(orders_result, dict):
+            return
+        raw_orders = orders_result.get("orders") or []
+        if not raw_orders:
+            logger.info("对冲订单回写: 无订单, 跳过 trade_plan 回写")
+            return
+
+        # --- 字段转换: action → direction, 补 status/type/order_id ---
+        put_orders: list = []
+        call_orders: list = []
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        for idx, o in enumerate(raw_orders):
+            if not isinstance(o, dict):
+                continue
+            otype = str(o.get("type", "")).upper()
+            action = str(o.get("action", "")).upper()
+            instrument = str(o.get("instrument", "")).lower()
+
+            # 仅处理期权订单 (跳过期货/避险资产)
+            is_option = (
+                "OPTION" in otype
+                or "put" in instrument
+                or "call" in instrument
+                or "BUY_PROTECTION" in action
+            )
+            if not is_option:
+                continue
+
+            # action → direction 映射
+            if "BUY_PROTECTION" in action or ("BUY" in action and "put" in instrument):
+                direction = "BUY_PUT"
+                target_list = put_orders
+            elif "SELL" in action and ("call" in instrument or "COVERED" in action):
+                direction = "SELL_CALL_COVERED"
+                target_list = call_orders
+            elif "put" in instrument:
+                direction = "BUY_PUT"
+                target_list = put_orders
+            elif "call" in instrument:
+                direction = "SELL_CALL_COVERED"
+                target_list = call_orders
+            else:
+                continue
+
+            # 从 instrument 提取标的代码 (如 "510050 Put" → "510050")
+            import re as _re
+            m = _re.match(r"\s*(\d{6})", instrument)
+            underlying_code = m.group(1) if m else ""
+            exchange_suffix = ".SH" if underlying_code and underlying_code[0] in "56" else ".SZ"
+            underlying_full = f"{underlying_code}{exchange_suffix}" if underlying_code else ""
+
+            converted = {
+                "order_id": f"HEDGE_{direction}_{underlying_code}_{ts}_{idx}",
+                "type": "OPTIONS",
+                "instrument": o.get("instrument", ""),
+                "exchange": o.get("exchange", ""),
+                "direction": direction,
+                "underlying": underlying_full,
+                "underlying_code": underlying_full,
+                "contracts": o.get("contracts", 0),
+                "strike_rule": f"OTM_{int(float(o.get('otm_pct', 0.05)) * 100)}pct" if o.get("otm_pct") else "OTM_5pct",
+                "est_strike_price": float(o.get("strike", 0.0)),
+                "otm_pct": o.get("otm_pct", 0.05),
+                "premium_budget": o.get("premium_budget", 0.0),
+                "status": "PENDING",
+                "rationale": o.get("reason", ""),
+                "framework": o.get("framework", []),
+                "priority": o.get("priority", "primary"),
+            }
+            target_list.append(converted)
+
+        if not put_orders and not call_orders:
+            logger.info("对冲订单回写: 无期权订单 (仅期货/避险), 跳过")
+            return
+
+        # --- 定位 trade_plan 文件 (与 hedge_order_executor L328-335 搜索逻辑一致) ---
+        date_compact = datetime.now().strftime("%Y%m%d")
+        v83_trade_plans = os.path.join(_PROJECT_ROOT, "v8.3_institutional", "trade_plans")
+        plan_candidates = [
+            os.path.join(v83_trade_plans, f"trade_plan_{date_compact}.json"),
+            os.path.join(_PROJECT_ROOT, f"trade_plan_{date_compact}.json"),
+        ]
+        plan_path = next((p for p in plan_candidates if os.path.exists(p)), None)
+
+        if not plan_path:
+            logger.warning(
+                "对冲订单回写: 未找到 trade_plan_%s.json, 期权订单无法回写撮合。"
+                "请先运行 EOD 管道生成 trade_plan, 或手动运行 hedge_order_executor。",
+                date_compact,
+            )
+            return
+
+        try:
+            with open(plan_path, encoding="utf-8") as f:
+                plan = json.load(f)
+            if not isinstance(plan, dict):
+                logger.warning("对冲订单回写: trade_plan 格式异常 (非 dict), 跳过")
+                return
+
+            # 写入 hedge_execution.active_orders 嵌套字典
+            he = plan.setdefault("hedge_execution", {})
+            if not isinstance(he, dict):
+                he = {}
+                plan["hedge_execution"] = he
+
+            active_orders = he.get("active_orders")
+            if not isinstance(active_orders, dict):
+                active_orders = {
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "status": "PENDING_EXECUTION",
+                    "put_protection": [],
+                    "covered_call": [],
+                }
+                he["active_orders"] = active_orders
+
+            # 追加到已有列表 (不覆盖已有 PENDING 订单)
+            existing_put = active_orders.get("put_protection") or []
+            existing_call = active_orders.get("covered_call") or []
+            active_orders["put_protection"] = existing_put + put_orders
+            active_orders["covered_call"] = existing_call + call_orders
+            active_orders["date"] = datetime.now().strftime("%Y-%m-%d")
+            active_orders["status"] = "PENDING_EXECUTION"
+            active_orders["generated_at"] = datetime.now().isoformat()
+
+            # 同步写入 hedge_execution.options_orders / covered_call_orders (兼容来源 1/2)
+            he["options_orders"] = (he.get("options_orders") or []) + put_orders
+            he["covered_call_orders"] = (he.get("covered_call_orders") or []) + call_orders
+
+            with open(plan_path, "w", encoding="utf-8") as f:
+                json.dump(plan, f, ensure_ascii=False, indent=2)
+
+            logger.info(
+                "对冲订单回写 trade_plan 成功: %s (PUT=%d, CALL=%d)",
+                plan_path,
+                len(put_orders),
+                len(call_orders),
+            )
+        except (OSError, json.JSONDecodeError, TypeError) as e:
+            logger.error("对冲订单回写 trade_plan 失败: %s", e)
 
     def _get_market_data(self) -> Dict:
         """获取市场数据 - 优先 Wind MCP"""
@@ -2083,6 +2245,7 @@ class AutomatedExecutionSystem:
                 logger.debug("历史收益率市场数据计算失败: %s", e)
 
             # 历史收益率计算失败 — 上游数据不可用，不允许静默返回假数据
+            # (此处 raise 在外层 try 中, e 不在作用域, 异常链由外层 except 的 `from e` 保留)
             raise RuntimeError(
                 "市场数据计算失败: 历史收益率文件存在但计算异常。"
                 "拒绝返回硬编码假数据 (volatility=0.15, VaR=0.02 等)。"
@@ -2222,6 +2385,44 @@ class AutomatedExecutionSystem:
             total_count = report["summary"]["total_orders"]
             logger.info(f"再平衡订单生成完成: {valid_count}/{total_count} 有效订单")
 
+            # P0-3 修复: 再平衡订单此前只写盘不执行 (执行断链)。
+            # 将有效订单构建成 execution_plan 接入 OrderRouter, 真正进入撮合/执行队列。
+            valid_orders = [o for o in orders if o.get("validation", {}).get("valid")]
+            if valid_orders:
+                slices = []
+                for o in valid_orders:
+                    slices.append(
+                        {
+                            "slice_id": f"rebal_{o['code']}_{o['action']}_{datetime.now().strftime('%H%M%S')}",
+                            "instrument": o["code"],
+                            "direction": "buy" if o["action"] == "BUY" else "sell",
+                            "shares": o.get("shares", 0),
+                            "est_price": o.get("est_price", 0.0),
+                            "est_amount": o.get("est_amount", 0.0),
+                            "style": o.get("style", ""),
+                        }
+                    )
+                rebalance_plan = {
+                    "trade_id": f"REBAL_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    "instrument": slices[0]["instrument"],
+                    "total_direction": slices[0]["direction"],
+                    "num_slices": len(slices),
+                    "slices": slices,
+                }
+                routing_result = self.order_router.route_order(rebalance_plan, self.current_market_state)
+                # P1-1: 附带 execution_plan, 供 _execute_daily_trading 步骤 11 同步 current_execution_plan
+                routing_result["execution_plan"] = rebalance_plan
+                if routing_result.get("success"):
+                    self.order_router.process_execution_queue()
+                    logger.info(
+                        f"再平衡订单已接入执行: {len(routing_result.get('routed_orders', []))}个订单进入执行队列"
+                    )
+                else:
+                    logger.error(f"再平衡订单路由失败: {routing_result.get('error')}")
+                report["routing"] = routing_result
+            else:
+                logger.info("再平衡订单无有效订单, 无需路由")
+
             return report
         except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
             logger.error(f"生成再平衡订单失败: {e}")
@@ -2287,7 +2488,7 @@ if __name__ == "__main__":
             time.sleep(30)
             # 更新状态
             current_summary = execution_system.get_system_summary()
-            print(
+            logger.info(
                 f"\r当前时间: {datetime.now().strftime('%H:%M:%S')} | "
                 f"系统状态: {current_summary['system_status']} | "
                 f"市场状态: {current_summary['current_market_state']}",

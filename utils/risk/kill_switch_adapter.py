@@ -191,6 +191,18 @@ class KillSwitchAdapter:
                 status.get("level", 0),
                 {k: v for k, v in status.items() if k != "timestamp"},
             )
+            # G8 修复: 即使 Flag 关闭也发告警 (告警独立于总线 Flag)
+            try:
+                from utils.notify import send_alert
+
+                level = "critical" if int(status.get("level", 0)) >= 2 else "warning"
+                send_alert(
+                    title=f"[熔断预警] MARGIN_BREACH level={status.get('level', 0)}",
+                    content=f"保证金占用={margin_usage}, margin_call={status.get('margin_call', False)}",
+                    level=level,
+                )
+            except Exception:  # noqa: BLE001  # 告警 fail-open
+                logger.warning("MARGIN_BREACH 告警发送失败 (fail-open)", exc_info=True)
             return
 
         try:
@@ -205,7 +217,14 @@ class KillSwitchAdapter:
                 extreme_margin_call=status.get("extreme_margin_call", False),
             )
             self.bus.publish(event)
-        except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            # 风险隔离边界: KillSwitch 总线发布异常不得影响核心风控
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # ZeroDivisionError/OverflowError — 数值计算异常
+            # OSError — 文件/网络 IO 异常
             # HC-2: 总线故障不影响 KillSwitch, 仅记录日志
             logger.error(
                 "MARGIN_BREACH 事件发布失败 (总线故障, KillSwitch 仍正常) | error=%s",
@@ -232,6 +251,17 @@ class KillSwitchAdapter:
                 level,
                 result.get("executed", False),
             )
+            # G8 修复: 即使 Flag 关闭也发告警 (熔断是最高优先级事件)
+            try:
+                from utils.notify import send_alert
+
+                send_alert(
+                    title=f"[熔断触发] KILL_SWITCH level={level}",
+                    content=f"executed={result.get('executed', False)}, actions={result.get('actions_taken', [])}",
+                    level="critical",
+                )
+            except Exception:  # noqa: BLE001  # 告警 fail-open
+                logger.warning("KILL_SWITCH 告警发送失败 (fail-open)", exc_info=True)
             return
 
         try:
@@ -250,7 +280,14 @@ class KillSwitchAdapter:
                 actions_taken=action_names,
             )
             self.bus.publish(event)
-        except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            # 风险隔离边界: KillSwitch 总线发布异常不得影响核心风控
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # ZeroDivisionError/OverflowError — 数值计算异常
+            # OSError — 文件/网络 IO 异常
             # HC-2: 总线故障不影响 KillSwitch
             logger.error(
                 "KILL_SWITCH_TRIGGERED 事件发布失败 (总线故障, KillSwitch 仍正常) | error=%s",

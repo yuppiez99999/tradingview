@@ -107,7 +107,7 @@ class LlmClientProvider(BaseProvider):
             if _wf_dir not in sys.path:
                 sys.path.insert(0, _wf_dir)
             from llm_client import chat, chat_deep
-        except Exception as exc:  # pragma: no cover - 导入失败兜底
+        except (ImportError, ModuleNotFoundError, OSError) as exc:  # pragma: no cover - 导入失败兜底
             logger.warning("llm_client 不可用: %s", exc)
             return None
         try:
@@ -121,7 +121,8 @@ class LlmClientProvider(BaseProvider):
             if isinstance(resp, str) and resp.strip():
                 return resp
             return None
-        except Exception as exc:  # 单模型失败不得抛出
+        except (RuntimeError, ValueError, TypeError, OSError, ConnectionError, TimeoutError) as exc:
+            # llm_client 内部多级降级仍可能抛: 网络/超时/JSON 解析/响应格式异常
             logger.warning("LlmClientProvider(%s) 调用失败: %s", self.preferred, exc)
             return None
 
@@ -168,7 +169,10 @@ class MoonshotProvider(BaseProvider):
             data = resp.json()
             text = data["choices"][0]["message"]["content"]
             return text if isinstance(text, str) and text.strip() else None
-        except Exception as exc:  # 单模型失败不得抛出
+        except (ImportError, OSError, ConnectionError, TimeoutError,
+                ValueError, KeyError, TypeError, RuntimeError) as exc:
+            # requests 抛 OSError 子类 (ConnectionError/Timeout/HTTPError);
+            # JSON 解析失败抛 ValueError; data["choices"][0] 解析失败抛 KeyError/TypeError
             logger.warning("MoonshotProvider 调用失败: %s", exc)
             return None
 
@@ -215,7 +219,8 @@ class ClaudeProvider(BaseProvider):
             data = resp.json()
             text = data["choices"][0]["message"]["content"]
             return text if isinstance(text, str) and text.strip() else None
-        except Exception as exc:
+        except (ImportError, OSError, ConnectionError, TimeoutError,
+                ValueError, KeyError, TypeError, RuntimeError) as exc:
             logger.warning("ClaudeProvider 调用失败: %s", exc)
             return None
 
@@ -266,7 +271,8 @@ class GptProvider(BaseProvider):
             data = resp.json()
             text = data["choices"][0]["message"]["content"]
             return text if isinstance(text, str) and text.strip() else None
-        except Exception as exc:
+        except (ImportError, OSError, ConnectionError, TimeoutError,
+                ValueError, KeyError, TypeError, RuntimeError) as exc:
             logger.warning("GptProvider 调用失败: %s", exc)
             return None
 
@@ -296,7 +302,7 @@ class MockProvider(BaseProvider):
     def generate(self, prompt: str, system: str = "", timeout: int = 30) -> str | None:
         try:
             return self._rule_based_response(prompt)
-        except Exception as exc:  # pragma: no cover
+        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError) as exc:  # pragma: no cover
             logger.debug("MockProvider 规则生成异常: %s", exc)
             return None
 
@@ -394,7 +400,8 @@ def get_active_provider(role: str, role_backends: dict[str, str] | None = None) 
                 prov = GptProvider(role=role)
                 if prov.available:
                     return prov
-    except Exception as exc:  # pragma: no cover
+    except (ImportError, AttributeError, TypeError, ValueError, OSError, RuntimeError) as exc:
+        # Provider 构造可能抛: 导入失败/属性缺失/参数错误/环境读取错误
         logger.debug("构造真实 Provider(%s) 失败, 降级 Mock: %s", backend, exc)
 
     # 降级到 Mock; 角色决定 bias

@@ -158,20 +158,24 @@ def get_trading_rule(code: str, product_class: str = "STOCK") -> dict:
     }
 
     if product_class == "FUTURE":
-        rules["price_limit_pct"] = 0.10  # type: ignore[assignment]  # 股指期货 ±10%
+        rules["price_limit_pct"] = 0.10  # type: ignore[assignment]
+        # 股指期货 ±10%
         rules["margin_required"] = True
     elif product_class == "OPTION":
-        rules["price_limit_pct"] = 0.0  # type: ignore[assignment]  # 期权无涨跌停
+        rules["price_limit_pct"] = 0.0  # type: ignore[assignment]
+        # 期权无涨跌停
         rules["margin_required"] = True
     elif code_clean.startswith(("68", "8")):
         # 科创板/北交所
-        rules["price_limit_pct"] = 0.20 if code_clean.startswith("68") else 0.30  # type: ignore
+        rules["price_limit_pct"] = 0.20 if code_clean.startswith("68") else 0.30  # type: ignore[index]
         rules["margin_required"] = False
     elif code_clean.startswith("3"):
-        rules["price_limit_pct"] = 0.20  # type: ignore[assignment]  # 创业板
+        rules["price_limit_pct"] = 0.20  # type: ignore[assignment]
+        # 创业板
         rules["margin_required"] = False
     else:
-        rules["price_limit_pct"] = 0.10  # type: ignore[assignment]  # 主板
+        rules["price_limit_pct"] = 0.10  # type: ignore[assignment]
+        # 主板
         rules["margin_required"] = False
 
     return rules

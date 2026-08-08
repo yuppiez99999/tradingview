@@ -95,7 +95,7 @@ class HedgeExecutionEngine:
             if self._post_trade_attribution is None:
                 from utils.tca_post_trade_attribution import PostTradeAttribution
 
-                self._post_trade_attribution = PostTradeAttribution(save_to_file=True)  # type: ignore
+                self._post_trade_attribution = PostTradeAttribution(save_to_file=True)  # type: ignore[union-attr]
 
             # 字典 → FillRecord 转换 (兼容上层传入的字典)
             from utils.tca_post_trade_attribution import FillRecord as PTAFillRecord
@@ -124,7 +124,7 @@ class HedgeExecutionEngine:
                     order_id=getattr(fill, "order_id", ""),
                 )
 
-            self._post_trade_attribution.record(fill, estimate)  # type: ignore
+            self._post_trade_attribution.record(fill, estimate)  # type: ignore[union-attr]
             logger.info(
                 "[HedgeEngine] on_fill 已记录: %s %s %d@%.4f",
                 fill.symbol,
@@ -132,7 +132,7 @@ class HedgeExecutionEngine:
                 fill.shares,
                 fill.price,
             )
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             # fail-safe: 归因失败不影响对冲主流程
             logger.error("[HedgeEngine] on_fill 归因失败 (fail-safe): %s", e)
         return self._post_trade_attribution
@@ -145,8 +145,8 @@ class HedgeExecutionEngine:
         """加载持仓配置"""
         try:
             with open(self.positions_file, encoding="utf-8") as f:
-                return json.load(f)  # type: ignore
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+                return json.load(f)  # type: ignore[misc]
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"加载持仓失败: {e}")
             return {}
 
@@ -155,7 +155,7 @@ class HedgeExecutionEngine:
         if self._hedge_manager is None:
             from utils.greek_hedge_manager import GreekHedgeManager
 
-            self._hedge_manager = GreekHedgeManager(  # type: ignore
+            self._hedge_manager = GreekHedgeManager(  # type: ignore[union-attr]
                 target_delta=0.0,  # 目标Delta中性
                 target_gamma=0.0,
                 max_vega=100000.0,
@@ -222,9 +222,9 @@ class HedgeExecutionEngine:
 
     def generate_futures_hedge_orders(
         self,
-        portfolio_value: float | None = None,  # type: ignore
-        portfolio_beta: float | None = None,  # type: ignore
-        target_beta: float | None = None,  # type: ignore
+        portfolio_value: float | None = None,  # type: ignore[assignment]
+        portfolio_beta: float | None = None,  # type: ignore[assignment]
+        target_beta: float | None = None,  # type: ignore[assignment]
         drawdown_level: int = 0,
     ) -> list[dict]:
         """生成期货对冲订单
@@ -316,7 +316,7 @@ class HedgeExecutionEngine:
 
     def generate_put_protection_orders(
         self,
-        portfolio_value: float | None = None,  # type: ignore
+        portfolio_value: float | None = None,  # type: ignore[assignment]
         drawdown_level: int = 0,
     ) -> list[dict]:
         """生成认沽期权保护订单
@@ -342,7 +342,15 @@ class HedgeExecutionEngine:
         hedge_positions = self.positions_data.get("hedge_positions", {})
         put_orders = []
 
-        for key, hedge_pos in hedge_positions.items():
+        # v9.0 新结构: Put 配置嵌套在 risk_reversal_collar.put_protection 下
+        # v8.x 旧结构: Put 配置直接放在 hedge_positions 顶层 (如 ETF_put_options)
+        put_protection_cfg = hedge_positions.get("risk_reversal_collar", {}).get("put_protection", {})
+        if put_protection_cfg:
+            put_entries = put_protection_cfg
+        else:
+            put_entries = hedge_positions
+
+        for key, hedge_pos in put_entries.items():
             # P0-E 修复 (2026-07-26 v8.6.5): 跳过 description/hedge_mode/budget_summary 等非字典字段
             # 原始 bug: hedge_positions 包含 "description": "200万纯期权对冲..." 等字符串字段
             # 遍历时 hedge_pos 是字符串, hedge_pos.get("instrument", "") 抛
@@ -384,6 +392,141 @@ class HedgeExecutionEngine:
         logger.info(f"认沽保护订单: {len(put_orders)} 组, 总预算 ¥{sum(o['premium_budget'] for o in put_orders):,.0f}")
         return put_orders
 
+    def generate_covered_call_orders(self) -> list[dict]:
+        """生成 Covered Call 备兑开仓订单
+
+        逻辑:
+            1. 读取 hedge_positions.covered_call_overlay 配置
+            2. 对每个标的, 从 positions 中读取 ETF 持仓数量
+            3. 计算可备兑张数 = 持仓份额 // 10000 (1张=10000份)
+            4. 根据 strike_rule 计算 OTM 行权价
+            5. 估算月度权利金收入 (OTM 5% ≈ 1.0%, OTM 8% ≈ 0.6%)
+
+        前置条件:
+            - 证券账户已开通一级期权权限
+            - ETF 持仓 >= 10000 份 (1张备兑担保)
+            - hedge_positions.covered_call_overlay.enabled = true
+
+        Returns:
+            Covered Call 备兑开仓订单列表
+        """
+        hedge_positions = self.positions_data.get("hedge_positions", {})
+        cc_cfg = hedge_positions.get("covered_call_overlay", {})
+
+        if not cc_cfg.get("enabled", False):
+            logger.info("Covered Call 备兑未启用, 跳过")
+            return []
+
+        underlyings = cc_cfg.get("underlyings", [])
+        positions = self.positions_data.get("positions", {})
+
+        # OTM 程度 → 月度权利金率估算 (基于 ETF 期权隐含波动率经验值)
+        # 经验值: 上交所/深交所 ETF 期权, 30天到期, IV ~20-25%
+        OTM_PREMIUM_RATE = {
+            0.05: 0.010,  # OTM 5%: 月度权利金约 1.0%
+            0.065: 0.008,  # OTM 6.5%: 月度权利金约 0.8%
+            0.08: 0.006,  # OTM 8%: 月度权利金约 0.6%
+            0.10: 0.004,  # OTM 10%: 月度权利金约 0.4%
+        }
+
+        cc_orders: list[dict] = []
+        for u in underlyings:
+            if not isinstance(u, dict):
+                continue
+
+            code = u.get("code", "")
+            direction = u.get("direction", "SELL_CALL")
+            strike_rule = u.get("strike_rule", "OTM_5pct_to_8pct")
+
+            # 从持仓中获取 ETF 数据
+            etf_pos = positions.get(code, {})
+            if not etf_pos:
+                logger.warning(f"Covered Call 标的 {code} 未在持仓中找到, 跳过")
+                continue
+
+            shares = int(etf_pos.get("shares", 0))
+            etf_price = float(etf_pos.get("est_price", 0))
+            etf_name = etf_pos.get("name", code)
+
+            if shares < 10000 or etf_price <= 0:
+                logger.warning(
+                    f"Covered Call 标的 {code} 持仓不足: {shares} 份 < 10000 份 (1张), 跳过"
+                )
+                continue
+
+            # 可备兑张数 (1张 = 10000 份)
+            max_contracts = shares // 10000
+            target_contracts = u.get("target_contracts", max_contracts)
+            contracts = min(target_contracts, max_contracts)
+
+            if contracts <= 0:
+                continue
+
+            # 解析 strike_rule 获取 OTM 百分比
+            otm_pct = 0.05  # 默认 OTM 5%
+            if "5pct" in strike_rule and "8pct" in strike_rule:
+                otm_pct = 0.065  # 取中间值
+            elif "10pct" in strike_rule:
+                otm_pct = 0.10
+            elif "8pct" in strike_rule:
+                otm_pct = 0.08
+            elif "5pct" in strike_rule:
+                otm_pct = 0.05
+
+            # 计算行权价 (OTM Call: 行权价 > 现价)
+            strike_price = round(etf_price * (1 + otm_pct), 3)
+
+            # 估算月度权利金
+            premium_rate = OTM_PREMIUM_RATE.get(otm_pct, 0.008)
+            premium_per_contract = round(etf_price * 10000 * premium_rate, 0)
+            total_premium = premium_per_contract * contracts
+
+            cc_orders.append(
+                {
+                    "order_id": f"HEDGE_CC_{code.replace('.', '_')}_{datetime.now():%Y%m%d}",
+                    "type": "OPTIONS",
+                    "instrument": f"{code.split('.')[0]} Call",
+                    "exchange": "SSE" if code.endswith(".SH") else "SZSE",
+                    "direction": "SELL_CALL_COVERED",
+                    "underlying": code,
+                    "underlying_name": etf_name,
+                    "contracts": contracts,
+                    "strike_rule": strike_rule,
+                    "otm_pct": otm_pct,
+                    "est_strike_price": strike_price,
+                    "est_underlying_price": etf_price,
+                    "est_premium_per_contract": premium_per_contract,
+                    "est_total_premium": total_premium,
+                    "collateral": f"{shares}份 {code} ETF备兑担保",
+                    "execution_window": "09:35-10:05",
+                    "order_type": "LIMIT",
+                    "rationale": {
+                        "underlying_shares": shares,
+                        "max_covered_contracts": max_contracts,
+                        "target_contracts": target_contracts,
+                        "otm_pct": otm_pct,
+                        "monthly_income_estimate": total_premium,
+                        "annual_income_estimate": total_premium * 12,
+                        "permission_level": "LEVEL_1",
+                    },
+                    "status": "PENDING",
+                }
+            )
+
+            logger.info(
+                f"Covered Call: {code} {etf_name} 卖出 {contracts} 张 "
+                f"OTM {otm_pct*100:.1f}% Call (行权价 {strike_price}), "
+                f"月度权利金收入估算 ¥{total_premium:,.0f}"
+            )
+
+        total_income = sum(o["est_total_premium"] for o in cc_orders)
+        logger.info(
+            f"Covered Call 订单: {len(cc_orders)} 组, "
+            f"月度权利金收入估算 ¥{total_income:,.0f}, "
+            f"年化估算 ¥{total_income * 12:,.0f}"
+        )
+        return cc_orders
+
     def generate_hedge_orders(self, drawdown_level: int = 0) -> dict[str, Any]:
         """生成完整对冲执行计划 (期货 + 期权)
 
@@ -411,14 +554,14 @@ class HedgeExecutionEngine:
         #   3. trade_plan.futures_options_hedge.hedge_mode=OPTIONS_ONLY 与 hedge_execution.futures_orders=[IF...] 矛盾
         hedge_positions_cfg = self.positions_data.get("hedge_positions", {}) or {}
         hedge_mode = str(hedge_positions_cfg.get("hedge_mode", "MIXED")).upper()
-        options_only_mode = hedge_mode == "OPTIONS_ONLY"
+        options_only_mode = hedge_mode in ("OPTIONS_ONLY", "COVERED_CALL_PUT_PROTECT", "MULTI_STRATEGY_OPTIONS")
 
         if options_only_mode:
             # 纯期权对冲模式: 不生成期货空头订单, Beta 风险通过 ETF Put 组合管理
             futures_orders = []
             target_beta_after = portfolio_beta  # 维持原 Beta, 由 Put 提供尾部保护
             logger.info(
-                f"[P0-01] hedge_mode=OPTIONS_ONLY, 跳过 IF 期货订单生成, "
+                f"[P0-01] hedge_mode={hedge_mode}, 跳过 IF 期货订单生成, "
                 f"组合 Beta {portfolio_beta:.3f} 由 ETF Put 组合保护"
             )
         else:
@@ -442,10 +585,14 @@ class HedgeExecutionEngine:
             drawdown_level=drawdown_level,
         )
 
-        # 汇总
+        # 生成 Covered Call 备兑开仓订单 (一级权限, 收取权利金抵消 Put 成本)
+        covered_call_orders = self.generate_covered_call_orders()
+
+        # 汇总 (净成本 = 保证金 + Put权利金支出 - Call权利金收入)
         total_margin = sum(o.get("margin_required", 0) for o in futures_orders)
         total_premium = sum(o.get("premium_budget", 0) for o in options_orders)
-        total_cost = total_margin + total_premium
+        total_call_income = sum(o.get("est_total_premium", 0) for o in covered_call_orders)
+        total_cost = total_margin + total_premium - total_call_income
 
         # v8.6.8 P0-01 FIX: 预算阈值与 positions.json budget_summary 设计对齐
         # 原公式 hedge_capital * 0.7 (30% 缓冲) 过于保守, 导致设计内预算 (825K) 也被误判超支
@@ -479,9 +626,11 @@ class HedgeExecutionEngine:
             },
             "futures_orders": futures_orders,
             "options_orders": options_orders,
+            "covered_call_orders": covered_call_orders,
             "cost_summary": {
                 "total_margin_required": round(total_margin, 0),
                 "total_premium_budget": round(total_premium, 0),
+                "total_call_income": round(total_call_income, 0),
                 "total_cost": round(total_cost, 0),
                 "hedge_capital_usage_pct": round(total_cost / hedge_capital, 4) if hedge_capital > 0 else 0,
                 "within_budget": budget_ok,
@@ -492,7 +641,9 @@ class HedgeExecutionEngine:
             "hedge_effectiveness": {
                 "beta_reduction": round(portfolio_beta - target_beta_after, 4),
                 "downside_protection": f"OTM {self.PUT_OTM_PCT * 100:.0f}% Put",
-                "estimated_annual_cost_pct": round((total_premium * 4) / total_capital, 4),
+                "covered_call_income_monthly": round(total_call_income, 0),
+                "covered_call_income_annual": round(total_call_income * 12, 0),
+                "estimated_annual_cost_pct": round((total_premium - total_call_income * 12) / total_capital, 4),
             },
         }
 
@@ -517,7 +668,7 @@ class HedgeExecutionEngine:
             try:
                 with open(plan_path, encoding="utf-8") as f:
                     plan = json.load(f)
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 plan = {}
         else:
             plan = {"trade_date": trade_date}
@@ -553,6 +704,7 @@ class HedgeExecutionEngine:
         # 深拷贝订单并改写 status
         futures_orders_copy = [dict(o, status=order_status) for o in hedge_result.get("futures_orders", [])]
         options_orders_copy = [dict(o, status=order_status) for o in hedge_result.get("options_orders", [])]
+        covered_call_orders_copy = [dict(o, status=order_status) for o in hedge_result.get("covered_call_orders", [])]
 
         # 写入对冲执行字段
         plan["hedge_execution"] = {
@@ -563,6 +715,7 @@ class HedgeExecutionEngine:
             "portfolio_status": hedge_result["portfolio_status"],
             "futures_orders": futures_orders_copy,
             "options_orders": options_orders_copy,
+            "covered_call_orders": covered_call_orders_copy,
             "cost_summary": hedge_result["cost_summary"],
             "hedge_effectiveness": hedge_result["hedge_effectiveness"],
             "execution_status": execution_status,
@@ -574,7 +727,7 @@ class HedgeExecutionEngine:
         # 仍生成 IF 期货订单, 两处字段自相矛盾; 现在 hedge_execution 也已对齐 hedge_mode
         foh = plan.setdefault("futures_options_hedge", {})
         foh["hedge_mode"] = cost_summary.get("hedge_mode", foh.get("hedge_mode", "MIXED"))
-        foh["orders"] = futures_orders_copy + options_orders_copy
+        foh["orders"] = futures_orders_copy + options_orders_copy + covered_call_orders_copy
         foh["orders_count"] = len(foh["orders"])
         foh["loaded"] = True
 
@@ -628,7 +781,7 @@ class HedgeExecutionEngine:
                 fields = content[start:end].split(",")
                 if len(fields) > 3:
                     return float(fields[3])
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             pass
 
         return 4200  # 默认值

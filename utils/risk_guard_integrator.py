@@ -185,14 +185,14 @@ class RiskGuardIntegrator:
 
         codes = re.findall(r"\b(\d{6})\b", name_lower)
         if codes:
-            return codes[0]  # type: ignore
+            return codes[0]  # type: ignore[index]
         # 模糊匹配: 最长优先, 避免 "50etf" 误匹配 "科创50ETF"
         for key in sorted(cls.UNDERLYING_CODE_MAP.keys(), key=len, reverse=True):
             if key in name_lower:
                 return cls.UNDERLYING_CODE_MAP[key]
         return None
 
-    def __init__(self, report_date: str | None = None, total_capital: float = 5_000_000):  # type: ignore
+    def __init__(self, report_date: str | None = None, total_capital: float = 5_000_000):  # type: ignore[misc]
         """初始化风控守卫集成器。
 
         Args:
@@ -201,7 +201,7 @@ class RiskGuardIntegrator:
         """
         self.report_date = report_date or datetime.now().strftime("%Y-%m-%d")
         self.total_capital = total_capital
-        self.log_entries = []  # type: ignore
+        self.log_entries = []  # type: ignore[assignment]
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
     def _log(self, msg: str):
@@ -211,7 +211,7 @@ class RiskGuardIntegrator:
         self.log_entries.append(entry)
         # 安全打印 — Win GBK 兼容
         # P2 修复 (2026-07-30): logger.info 不接受 flush 参数 (会抛 TypeError),
-        # flush 仅属于 print(). 原代码 logger.info(entry, flush=True) 会让整个
+        # flush 仅属于 logger.debug("---"). 原代码 logger.info(entry, flush=True) 会让整个
         # RiskGuardIntegrator 在首次 _log() 调用时崩溃. 改用 encode 安全降级.
         try:
             logger.info(entry)
@@ -244,8 +244,8 @@ class RiskGuardIntegrator:
                 try:
                     with open(json_path, encoding="utf-8") as f:
                         self._log(f"[P0-FIX] 已加载盈亏报告: {json_path.name} (path={json_path.parent})")
-                        return json.load(f)  # type: ignore
-                except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+                        return json.load(f)  # type: ignore[misc]
+                except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                     self._log(f"加载盈亏报告失败 ({json_path}): {e}")
 
         self._log(f"[WARN] 未找到当日盈亏报告, 查找路径: {[str(p) for p in candidates]}")
@@ -253,7 +253,7 @@ class RiskGuardIntegrator:
 
     def _get_pnl_summary(self, pnl_report: dict) -> dict:
         """从盈亏报告中提取汇总数据 (v7.7修正: 适配 portfolio_pnl.summary 嵌套结构)"""
-        return pnl_report.get("portfolio_pnl", {}).get("summary", {})  # type: ignore
+        return pnl_report.get("portfolio_pnl", {}).get("summary", {})  # type: ignore[index]
 
     def _extract_positions(self, pnl_report: dict) -> list:
         """从 pnl_report 提取 positions 列表 (v8.6.6: 兼容三种数据位置)
@@ -299,9 +299,9 @@ class RiskGuardIntegrator:
         # 1. 完整格式
         summary = pnl_report.get("portfolio_pnl", {}).get("summary", {})
         if summary:
-            return summary  # type: ignore
+            return summary  # type: ignore[misc]
         # 2. 简化格式
-        return pnl_report.get("summary", {})  # type: ignore
+        return pnl_report.get("summary", {})  # type: ignore[index]
 
     def _load_next_trade_plan(self, next_date: str) -> dict | None:
         """加载次日交易计划"""
@@ -310,8 +310,8 @@ class RiskGuardIntegrator:
             return None
         try:
             with open(plan_path, encoding="utf-8") as f:
-                return json.load(f)  # type: ignore
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+                return json.load(f)  # type: ignore[misc]
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"加载次日计划失败: {e}")
             return None
 
@@ -496,7 +496,7 @@ class RiskGuardIntegrator:
 
         # 先计算已实现波动率，再计算 vol_scale
         realized_vol = vtc.calc_realized_vol(daily_returns) if daily_returns else None
-        vol_scale = vtc.calc_vol_scale(realized_vol)  # type: ignore
+        vol_scale = vtc.calc_vol_scale(realized_vol)  # type: ignore[union-attr]
 
         if vol_scale is None or vol_scale >= 0.80:
             self._log(f"[波动率] vol_scale={vol_scale or 'N/A'}, 无需缩仓")
@@ -603,7 +603,7 @@ class RiskGuardIntegrator:
                 pnl_pct = pnl_sum.get("total_pnl_pct", 0)
                 returns.append(pnl_pct / 100.0)  # 转为小数
             return returns if len(returns) >= 5 else []
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             return []
 
     # ============================================================
@@ -760,7 +760,7 @@ class RiskGuardIntegrator:
             else:
                 plan.setdefault("risk_guard", {})["hedge_action"] = "NO_CHANGE_NEEDED"
                 self._log("[对冲] 当前对冲比例正常，无需调整")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[对冲] 执行引擎异常: {e}")
             plan.setdefault("risk_guard", {})["hedge_action"] = f"ERROR: {e}"
 
@@ -814,7 +814,7 @@ class RiskGuardIntegrator:
             else:
                 plan.setdefault("risk_guard", {})["put_action"] = "EXISTING_PROTECTION_OK"
                 self._log(f"[认沽] {result.get('reason', '无需新建/滚仓')}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[认沽] 引擎异常: {e}")
             plan.setdefault("risk_guard", {})["put_action"] = f"ERROR: {e}"
 
@@ -844,7 +844,7 @@ class RiskGuardIntegrator:
             self._log("[KillSwitch] 模块导入失败，使用降级检查")
             KillSwitch = None  # type: ignore[assignment,misc]
 
-        ks = KillSwitch() if KillSwitch else None  # type: ignore
+        ks = KillSwitch() if KillSwitch else None  # type: ignore[misc]
         pnl_summary = self._get_pnl_summary(pnl_report)
 
         # 1. 保证金使用率检查
@@ -865,7 +865,7 @@ class RiskGuardIntegrator:
                         f"(margin_used={margin_used}, total_equity={total_equity}), "
                         f"回退到 _estimate_margin_from_positions() = {margin_usage:.1%}"
                     )
-                except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+                except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                     self._log(f"[KillSwitch] [P0-D FIX] 回退失败: {e}, 使用保守值 0.50")
                     margin_usage = 0.50
             else:
@@ -937,7 +937,7 @@ class RiskGuardIntegrator:
                         f"({concentration_status.get('max_concentration', 0):.1%} @ "
                         f"{concentration_status.get('max_concentration_code', '')})"
                     )
-                except Exception as e:  # P2 模块 fail-safe
+                except Exception as e:  # P2 模块 fail-safe  # noqa: BLE001
                     self._log(f"[KillSwitch] 集中度检查异常: {e}")
                     concentration_status = None
 
@@ -1057,7 +1057,7 @@ class RiskGuardIntegrator:
                 self._log(
                     f"[大盘熔断] 正常: 沪深300 跌幅 {status['hs300_change_pct']:.2%} (数据源={status['data_source']})"
                 )
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[大盘熔断] 检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["market_circuit_breaker_error"] = str(e)
             # fail-closed: 大盘熔断崩溃时禁止建仓
@@ -1170,7 +1170,7 @@ class RiskGuardIntegrator:
                     f"[流动性危机] 正常: 涨跌停 {total_limit} < {LIMIT_COUNT_THRESHOLD} "
                     f"(涨停 {limit_up} + 跌停 {limit_down}, 数据源={data_source})"
                 )
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[流动性危机] 检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["liquidity_crisis_error"] = str(e)
             # v8.6.8 P1-LIVE-05: 崩溃时仅禁开仓, 不清空订单 (避免误清仓)
@@ -1188,7 +1188,7 @@ class RiskGuardIntegrator:
 
         return plan
 
-    def _fetch_limit_counts(self, pnl_report: dict | None = None) -> tuple:  # type: ignore
+    def _fetch_limit_counts(self, pnl_report: dict | None = None) -> tuple:  # type: ignore[misc]
         """获取全市场涨跌停家数 (三层 fallback)
 
         Args:
@@ -1217,7 +1217,7 @@ class RiskGuardIntegrator:
                 return limit_up, limit_down, "akshare"
         except ImportError:
             self._log("[流动性危机] akshare 未安装, 尝试 Layer 2")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[流动性危机] akshare 获取失败: {e}, 尝试 Layer 2")
 
         # Layer 2: astock_realtime 持仓样本 (降级, 不准确)
@@ -1256,7 +1256,7 @@ class RiskGuardIntegrator:
                     f"涨停 {limit_up} + 跌停 {limit_down} (data_source=astock_sample, 不触发 CRITICAL)"
                 )
                 return limit_up, limit_down, "astock_sample"
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[流动性危机] astock_realtime 获取失败: {e}")
 
         # Layer 3: 数据源不可用 — 返回 0 + 标记 fail_closed
@@ -1317,7 +1317,7 @@ class RiskGuardIntegrator:
                 )
             else:
                 self._log(f"[隔夜跳空] 正常: S&P500 {sp500_pct:.2%} (数据源={data_src})")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[隔夜跳空] 检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["overnight_gap_error"] = str(e)
             # fail-closed: 隔夜跳空崩溃时禁止建仓
@@ -1411,7 +1411,7 @@ class RiskGuardIntegrator:
 
             # 批量研判 (size=3, days=1: 仅最近1天的最近3条新闻, 控制配额)
             insights = analyzer.batch_analyze(symbols_to_check, size=3, days=1)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[负面新闻] 研判异常, fail-open: {e}")
             plan.setdefault("risk_guard", {})["sentiment_breaking_news"] = {
                 "status": "ERROR",
@@ -1634,7 +1634,7 @@ class RiskGuardIntegrator:
                 )
             else:
                 self._log(f"[相关性对冲] 无需对冲: {hedge_result.get('reason', '条件未满足')}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[相关性对冲] 执行崩溃: {e}")
             plan.setdefault("risk_guard", {})["correlation_hedge_error"] = str(e)
             # 相关性对冲崩溃不阻断主流程 (仅记录错误)
@@ -1676,7 +1676,7 @@ class RiskGuardIntegrator:
                 return None
 
             # 构建收益率序列
-            returns_data = {sym: [] for sym in symbols}  # type: ignore
+            returns_data = {sym: [] for sym in symbols}  # type: ignore[assignment]
             valid_days = 0
             for rf in report_files:
                 try:
@@ -1710,7 +1710,7 @@ class RiskGuardIntegrator:
                     for sym in symbols:
                         returns_data[sym].append(day_returns.get(sym, 0.0))
                     valid_days += 1
-                except Exception:  # P2 模块 fail-safe, 待后续精确化
+                except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                     continue
 
             if valid_days < 10:
@@ -1724,7 +1724,7 @@ class RiskGuardIntegrator:
         except ImportError:
             self._log("[相关性对冲] pandas 未安装, 无法构建收益率矩阵")
             return None
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[相关性对冲] 构建收益率失败: {e}")
             return None
 
@@ -1871,7 +1871,7 @@ class RiskGuardIntegrator:
         self._log("--- [1/8] 重大负面新闻 (P2-增强) ---")
         try:
             plan = self.guard_sentiment_breaking_news(pnl_report, plan)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[WARNING] 重大负面新闻检查崩溃 (fail-open, 不阻塞): {e}")
             plan.setdefault("risk_guard", {})["sentiment_breaking_news_error"] = str(e)
 
@@ -1879,7 +1879,7 @@ class RiskGuardIntegrator:
         self._log("--- [2/8] 保证金熔断 (KillSwitch) ---")
         try:
             plan = self.guard_kill_switch(pnl_report, plan)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[CRITICAL] 保证金熔断检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["kill_switch_error"] = str(e)
             # 风控崩溃时保守处理: 禁止开仓
@@ -1897,7 +1897,7 @@ class RiskGuardIntegrator:
         self._log("--- [3/8] 大盘熔断 (P1-H) ---")
         try:
             plan = self.guard_market_circuit_breaker(pnl_report, plan)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[CRITICAL] 大盘熔断检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["market_circuit_breaker_error"] = str(e)
             # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
@@ -1914,7 +1914,7 @@ class RiskGuardIntegrator:
         self._log("--- [4/8] 流动性危机 (P1-J) ---")
         try:
             plan = self.guard_liquidity_crisis(pnl_report, plan)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[CRITICAL] 流动性危机检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["liquidity_crisis_error"] = str(e)
             # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
@@ -1931,7 +1931,7 @@ class RiskGuardIntegrator:
         self._log("--- [5/8] 隔夜跳空 (P1-I) ---")
         try:
             plan = self.guard_overnight_gap(pnl_report, plan)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[CRITICAL] 隔夜跳空检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["overnight_gap_error"] = str(e)
             # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
@@ -1948,7 +1948,7 @@ class RiskGuardIntegrator:
         self._log("--- [6/8] 回撤检查 ---")
         try:
             plan = self.guard_drawdown(pnl_report, plan)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[CRITICAL] 回撤检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["drawdown_error"] = str(e)
             # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
@@ -1964,7 +1964,7 @@ class RiskGuardIntegrator:
         self._log("--- [7/8] 波动率控制 ---")
         try:
             plan = self.guard_vol_target(pnl_report, plan)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[CRITICAL] 波动率控制崩溃: {e}")
             plan.setdefault("risk_guard", {})["vol_target_error"] = str(e)
             # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
@@ -1979,21 +1979,21 @@ class RiskGuardIntegrator:
         self._log("--- [8/8] 对冲执行 ---")
         try:
             plan = self.guard_hedge_execution(pnl_report, plan, next_trade_date)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[CRITICAL] 对冲执行崩溃: {e}")
             plan.setdefault("risk_guard", {})["hedge_error"] = str(e)
 
         self._log("--- [7/7] 认沽保护 ---")
         try:
             plan = self.guard_protective_put(pnl_report, plan, next_trade_date)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[CRITICAL] 认沽保护崩溃: {e}")
             plan.setdefault("risk_guard", {})["put_error"] = str(e)
 
         self._log("--- [7/7] 相关性对冲 (P1-K) ---")
         try:
             plan = self.guard_correlation_hedge(pnl_report, plan)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[CRITICAL] 相关性对冲崩溃: {e}")
             plan.setdefault("risk_guard", {})["correlation_hedge_error"] = str(e)
 
@@ -2078,7 +2078,7 @@ class RiskGuardIntegrator:
             notes["spot_build_allowed"] = ms.get("spot_build_allowed", True)
             if not ms.get("build_allowed", True) and not notes.get("reason_if_blocked"):
                 notes["reason_if_blocked"] = f"circuit_level={circuit_lvl}"
-        except Exception as _e_consistency:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as _e_consistency:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"[一致性校验] 异常: {_e_consistency}")
 
         # 写入时间戳
@@ -2103,7 +2103,7 @@ class RiskGuardIntegrator:
         try:
             with open(log_file, "w", encoding="utf-8") as f:
                 f.write("\n".join(self.log_entries))
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             pass
 
 

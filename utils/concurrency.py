@@ -91,6 +91,7 @@ def atomic_write_text(path: PathLike, text: str, encoding: str = "utf-8") -> Non
             try:
                 os.unlink(tmp_path)
             except OSError:
+                # 降级语义: 临时文件清理失败无影响, 下次临时文件目录清理时会回收
                 pass
             raise
 
@@ -158,6 +159,7 @@ def process_lock(
                         lock_file.unlink()
                         continue
                 except OSError:
+                    # 降级语义: 锁文件状态读取失败, 视为无法确认是否过期, 走正常等待/超时逻辑
                     pass
                 if time.time() >= deadline:
                     break
@@ -168,6 +170,7 @@ def process_lock(
             try:
                 lock_file.unlink()
             except OSError:
+                # 降级语义: 释放锁时删除失败, 依靠 stale_seconds 机制下次自动清理
                 pass
 
 
@@ -243,7 +246,8 @@ def run_io_batch(
                 logger.warning(f"{tag} 第 {idx + 1}/{total} 项超时 (>{timeout}s), 使用降级值")
                 results[idx] = fallback
                 future.cancel()  # best-effort 取消
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"{tag} 第 {idx + 1}/{total} 项失败: {e}", exc_info=False)
                 results[idx] = fallback
             finally:
@@ -251,8 +255,8 @@ def run_io_batch(
                 if progress_cb is not None:
                     try:
                         progress_cb(completed, total)
-                    except Exception:
-                        pass  # 进度回调失败不影响主流程
+                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # 降级语义: 进度回调异常不阻断任务执行, 仅丢失进度显示, 主流程结果不受影响
+                        pass
 
     return results
 

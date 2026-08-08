@@ -45,7 +45,8 @@ def _get_risk_cfg() -> dict:
         from utils.config_manager import get_risk_params_config
         cfg = get_risk_params_config()
         return cfg if isinstance(cfg, dict) else {}
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning("[risk_params] 加载 risk_params.yaml 失败, 使用兜底常量: %s", exc)
         return {}
 

@@ -35,6 +35,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from utils.logger import get_logger
+import logging
+
+logger = logging.getLogger(__name__)
 
 logger = get_logger("ai_report_agent")
 
@@ -44,7 +47,7 @@ try:
     _MARKITDOWN_AVAILABLE = True
 except ImportError:
     _MARKITDOWN_AVAILABLE = False
-    MarkItDownAdapter = None  # type: ignore
+    MarkItDownAdapter = None  # type: ignore[assignment]
 
 # ============================================================
 # 导入 LLM 客户端 (15_每日工作流/llm_client.py)
@@ -68,7 +71,7 @@ if _LLM_CLIENT_PATH.exists():
         _test_connection_fn = llm_client.test_connection
         _LLM_CLIENT_AVAILABLE = True
         logger.info("AIReportAgent: llm_client.py 已加载 (豆包→DeepSeek→Ollama)")
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
         logger.warning(f"AIReportAgent: llm_client 加载失败 ({e}), 启用规则引擎兜底")
 else:
     logger.warning(f"AIReportAgent: llm_client.py 路径不存在 ({_LLM_CLIENT_PATH}), 启用规则引擎兜底")
@@ -229,8 +232,8 @@ class AIReportAgent:
                 model = result.split("] ", 1)[0][1:]
                 result = result.split("] ", 1)[1]
             self._record_audit("llm_call", model, prompt, result, elapsed_ms, True)
-            return result  # type: ignore
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            return result  # type: ignore[misc]
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"LLM 调用失败: {e}")
             self._record_audit("llm_call", "error", prompt, str(e), 0, False, str(e))
             return None
@@ -763,7 +766,7 @@ class AIReportAgent:
                 return md_text
             logger.warning(f"外部文档转换失败: {file_path}")
             return f"[文档转换失败: {Path(file_path).name}]"
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.error(f"导入外部文档异常: {e}")
             return f"[文档导入异常: {e}]"
 
@@ -794,7 +797,7 @@ class AIReportAgent:
         if self.llm_available and _test_connection_fn is not None:
             try:
                 status["llm_status"] = _test_connection_fn()
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 status["llm_status"] = {"error": str(e)}
         return status
 
@@ -836,7 +839,7 @@ class AIReportAgent:
 
         try:
             sentiments = self.analyze_news_sentiment(news_items, use_llm=True)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning("to_agent_decision: analyze_news_sentiment 异常: %s", e)
             return {
                 "agent_name": "ai_report_adapter",
@@ -1002,16 +1005,16 @@ def self_test() -> bool:
         status = agent.get_status()
         assert "llm_available" in status
 
-        print("[OK] ai_report_agent.py 自检通过")
-        print(f"  - LLM 可用: {status['llm_available']}")
-        print(f"  - 审计记录数: {status['audit_records_count']}")
-        print(f"  - 测试报告模型: {report.model_used}")
-        print(f"  - 风险预警数: {len(report.risk_warnings)}")
+        logger.info("[OK] ai_report_agent.py 自检通过")
+        logger.info(f"  - LLM 可用: {status['llm_available']}")
+        logger.info(f"  - 审计记录数: {status['audit_records_count']}")
+        logger.info(f"  - 测试报告模型: {report.model_used}")
+        logger.info(f"  - 风险预警数: {len(report.risk_warnings)}")
         return True
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
         import traceback
 
-        print(f"[FAIL] ai_report_agent.py 自检失败: {e}")
+        logger.error(f"[FAIL] ai_report_agent.py 自检失败: {e}")
         traceback.print_exc()
         return False
 

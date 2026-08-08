@@ -28,6 +28,11 @@ from pathlib import Path
 
 import yaml
 
+# T4.2 收尾 — 切换到统一 BS 定价内核 (Single Source of Truth)
+# 之前 L206-207 用 `spot * iv_estimate * otm_pct * 0.5` 简化估算, 现统一调用
+# utils/fineng/pricing/black_scholes.py, 与 greek_hedge_manager / protective_put_engine 对齐
+from utils.fineng.pricing.black_scholes import bs_call_price
+
 logger = logging.getLogger("theta_engine")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -62,7 +67,7 @@ class ThetaEngine:
                 if not theta_cfg.get("enabled", False):
                     logger.warning("Theta 引擎未启用 (显式路径)")
                 return theta_cfg
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
                 return {}
 
@@ -75,21 +80,21 @@ class ThetaEngine:
             if theta_cfg:
                 if not theta_cfg.get("enabled", False):
                     logger.warning("Theta 引擎未启用")
-                return theta_cfg  # type: ignore
-            # ConfigManager 全部失败, 回退到旧路径 (保底)
+                return theta_cfg  # type: ignore[misc]
+                # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
             theta_cfg = cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
             if not theta_cfg.get("enabled", False):
                 logger.warning("Theta 引擎未启用 (回退路径)")
             return theta_cfg
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}")
             try:
                 with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
-            except Exception as e2:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e2: # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"加载配置彻底失败: {e2}")
                 return {}
 
@@ -107,9 +112,9 @@ class ThetaEngine:
                     price = wind_get_etf_quote(code)
                     if price and price > 0:
                         spots[code] = float(price)
-                except Exception:  # P2 模块 fail-safe, 待后续精确化
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                     pass
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 回退: 新浪 HTTP
@@ -130,7 +135,7 @@ class ThetaEngine:
                             price = float(parts[3])
                             if price > 0:
                                 spots[code] = price
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"新浪行情获取失败: {e}")
 
         return spots
@@ -203,8 +208,15 @@ class ThetaEngine:
             # 估算权利金 (简化: OTM 越深权利金越低, IV 越高权利金越高)
             # 科技类 ETF IV 约 25-35%, 红利类约 12-18%
             iv_estimate = 0.30 if code in ("588080", "512760", "515030") else 0.20
-            # 简化 Black-Scholes 估算 (实际应调用期权定价接口)
-            est_premium = spot * iv_estimate * otm_pct * 0.5  # 简化估算
+            # T4.2 收尾 — 调用统一 BS 定价内核 (替换简化估算 spot*iv*otm*0.5)
+            # Covered Call 卖出认购, 权利金 = BS Call 价格
+            T_years = target_dte / 365.0  # noqa: N806  # 剩余期限 (年, ACT/365)
+            r = self.config.get("risk_free_rate", 0.02)  # 无风险利率, 默认 2%
+            est_premium = bs_call_price(
+                S=spot, K=strike, T=T_years, r=r, sigma=iv_estimate
+            )
+            # 边界保护: 极端 OTM 时 BS 价格可能趋近 0, 设最低价保底 (与 protective_put_engine 一致)
+            est_premium = max(est_premium, 0.0001)
 
             # 合约数 (ETF 期权合约乘数 10000)
             contracts = int(collateral / (spot * 10000))
@@ -327,7 +339,7 @@ class ThetaEngine:
                     plan = json.load(f)
                 total_premium += plan.get("total_est_premium", 0)
                 monthly_yields.append(plan.get("portfolio_yield_monthly", 0))
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                 continue
 
         avg_monthly = sum(monthly_yields) / len(monthly_yields) if monthly_yields else 0
@@ -382,7 +394,7 @@ if __name__ == "__main__":
         logger.info(f"累计预期权利金: {stats['total_premium_collected']:,.0f}")
         logger.info(f"平均月度收益率: {stats['avg_monthly_yield']:.2%}")
         logger.info(f"年化收益率: {stats['avg_annualized_yield']:.2%}")
-        print(
+        logger.info(
             f"目标区间: {stats['target_range'][0]:.0%}-{stats['target_range'][1]:.0%}, "
             f"达标: {'是' if stats['target_met'] else '否'}"
         )

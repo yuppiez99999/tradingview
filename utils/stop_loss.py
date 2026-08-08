@@ -117,11 +117,10 @@ class StopLossMonitor:
                 "should_alert": False,
             }
 
-        sl_price = safe_sl if safe_sl is not None else (safe_base * (1 + safe_float(stop_loss_pct, default=0.0) / 100))  # type: ignore
+        sl_price = safe_sl if safe_sl is not None else (safe_base * (1 + safe_float(stop_loss_pct, default=0.0) / 100))  # type: ignore[misc]
         tp_price = (
             safe_tp if safe_tp is not None else (safe_base * (1 + safe_float(take_profit_pct, default=0.0) / 100))
-        )  # type: ignore
-
+        )  # type: ignore[misc]
         # 当前收益率
         pnl_pct = (safe_current - safe_base) / safe_base * 100
 

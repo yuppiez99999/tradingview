@@ -180,7 +180,7 @@ class FREDApi:
                 change=change,
             )
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"FRED 获取 {series_id} 失败: {e}")
             return None
 
@@ -255,7 +255,7 @@ class EcondbApi:
                 source="Econdb",
             )
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Econdb 获取 {ticker} 失败: {e}")
             return None
 
@@ -317,7 +317,7 @@ class FedTreasuryApi:
 
             return yields
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Fed Treasury 获取国债收益率失败: {e}")
             return {}
 
@@ -372,7 +372,7 @@ class AlphaVantageApi:
                 "source": "alpha_vantage",
             }
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Alpha Vantage 获取 {symbol} 失败: {e}")
             return None
 
@@ -425,7 +425,7 @@ class FinnhubApi:
                 "source": "finnhub",
             }
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Finnhub 获取 {symbol} 失败: {e}")
             return None
 
@@ -461,7 +461,7 @@ class FinnhubApi:
                 for n in news[:10]  # 最多10条
             ]
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Finnhub 获取新闻失败: {e}")
             return []
 
@@ -511,7 +511,7 @@ class CoinGeckoApi:
                 "source": "coingecko",
             }
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"CoinGecko 获取 {coin_id} 失败: {e}")
             return None
 
@@ -532,7 +532,7 @@ class CoinGeckoApi:
                 "source": "coingecko",
             }
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"CoinGecko 全球市场数据获取失败: {e}")
             return None
 
@@ -601,7 +601,7 @@ class ExternalDataManager:
                 from utils.concurrency import atomic_write_text
 
                 atomic_write_text(cache_file, payload)
-        except Exception as e:  # 缓存失败不阻断主流程
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # 缓存失败不阻断主流程
             logger.warning(f"缓存保存失败: {e}")
 
     def get_macro_snapshot(self) -> Dict[str, Any]:
@@ -617,8 +617,7 @@ class ExternalDataManager:
         # 检查缓存
         cached = self._load_cache("macro", "snapshot")
         if cached:
-            return cached  # type: ignore
-
+            return cached  # type: ignore[misc]
         snapshot = {}
 
         # FRED 宏观指标
@@ -630,8 +629,7 @@ class ExternalDataManager:
         # 国债收益率
         treasury_yields = self.treasury.get_treasury_yields()
         if treasury_yields:
-            snapshot["treasury_yields"] = treasury_yields  # type: ignore
-
+            snapshot["treasury_yields"] = treasury_yields  # type: ignore[index]
         # 加密货币市场情绪 (风险偏好指标)
         crypto_global = self.coingecko.get_global_market()
         if crypto_global:
@@ -653,8 +651,7 @@ class ExternalDataManager:
         # 检查缓存
         cached = self._load_cache("stock", symbol)
         if cached:
-            return cached  # type: ignore
-
+            return cached  # type: ignore[misc]
         quote = None
 
         # 优先级 1: Finnhub
@@ -674,8 +671,7 @@ class ExternalDataManager:
         """获取加密货币价格"""
         cached = self._load_cache("crypto", coin_id)
         if cached:
-            return cached  # type: ignore
-
+            return cached  # type: ignore[misc]
         quote = self.coingecko.get_price(coin_id)
         if quote:
             self._save_cache("crypto", coin_id, quote)
@@ -686,8 +682,7 @@ class ExternalDataManager:
         """获取市场新闻"""
         cached = self._load_cache("news", "market")
         if cached:
-            return cached  # type: ignore
-
+            return cached  # type: ignore[misc]
         news = self.finnhub.get_market_news("general") if self.finnhub.available else []
 
         if news:
@@ -707,8 +702,8 @@ class ExternalDataManager:
         """
         snapshot = self.get_macro_snapshot()
 
-        sentiment = {  # type: ignore
-            "timestamp": datetime.now().isoformat(),
+        sentiment = {  # type: ignore[misc]
+        "timestamp": datetime.now().isoformat(),
             "vix_proxy": None,
             "treasury_yield_curve": {},
             "fed_rate": None,

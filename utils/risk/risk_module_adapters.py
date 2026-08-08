@@ -126,7 +126,14 @@ class CircuitBreakerAdapter:
                 confidence=0.9,
                 source=self.module_name,
             )
-        except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            # 风险隔离边界: 任何风险模块异常不得阻断主链路
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # ZeroDivisionError/OverflowError — 数值计算异常
+            # OSError — 文件/网络 IO 异常
             logger.error("[%s] 决策异常: %s", self.module_name, e, exc_info=True)
             return RiskDecision(
                 action=RiskAction.PASS,
@@ -195,7 +202,14 @@ class VaRMonitorAdapter:
                 confidence=0.5,
                 source=self.module_name,
             )
-        except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            # 风险隔离边界: 任何风险模块异常不得阻断主链路
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # ZeroDivisionError/OverflowError — 数值计算异常
+            # OSError — 文件/网络 IO 异常
             logger.error("[%s] 决策异常: %s", self.module_name, e, exc_info=True)
             return RiskDecision(
                 action=RiskAction.PASS,
@@ -271,7 +285,14 @@ class OvernightGapAdapter:
                 confidence=0.9,
                 source=self.module_name,
             )
-        except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            # 风险隔离边界: 任何风险模块异常不得阻断主链路
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # ZeroDivisionError/OverflowError — 数值计算异常
+            # OSError — 文件/网络 IO 异常
             logger.error("[%s] 决策异常: %s", self.module_name, e, exc_info=True)
             return RiskDecision(
                 action=RiskAction.PASS,
@@ -352,7 +373,14 @@ class RiskGuardAdapter:
                 confidence=0.9,
                 source=self.module_name,
             )
-        except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            # 风险隔离边界: 任何风险模块异常不得阻断主链路
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # ZeroDivisionError/OverflowError — 数值计算异常
+            # OSError — 文件/网络 IO 异常
             logger.error("[%s] 决策异常: %s", self.module_name, e, exc_info=True)
             return RiskDecision(
                 action=RiskAction.PASS,
@@ -423,7 +451,14 @@ class RiskModuleRegistry:
             adapter.register(bus)
             self._adapters[adapter.module_name] = adapter
             results[adapter.module_name] = True
-        except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            # 风险隔离边界: 任何风险模块异常不得阻断主链路
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # ZeroDivisionError/OverflowError — 数值计算异常
+            # OSError — 文件/网络 IO 异常
             logger.error("CircuitBreakerAdapter 注册失败: %s", e, exc_info=True)
             results["CircuitBreakerAdapter"] = False
 
@@ -433,7 +468,14 @@ class RiskModuleRegistry:
             adapter.register(bus)
             self._adapters[adapter.module_name] = adapter
             results[adapter.module_name] = True
-        except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            # 风险隔离边界: 任何风险模块异常不得阻断主链路
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # ZeroDivisionError/OverflowError — 数值计算异常
+            # OSError — 文件/网络 IO 异常
             logger.error("VaRMonitorAdapter 注册失败: %s", e, exc_info=True)
             results["VaRMonitorAdapter"] = False
 
@@ -443,7 +485,14 @@ class RiskModuleRegistry:
             adapter.register(bus)
             self._adapters[adapter.module_name] = adapter
             results[adapter.module_name] = True
-        except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            # 风险隔离边界: 任何风险模块异常不得阻断主链路
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # ZeroDivisionError/OverflowError — 数值计算异常
+            # OSError — 文件/网络 IO 异常
             logger.error("OvernightGapAdapter 注册失败: %s", e, exc_info=True)
             results["OvernightGapAdapter"] = False
 
@@ -453,7 +502,14 @@ class RiskModuleRegistry:
             adapter.register(bus)
             self._adapters[adapter.module_name] = adapter
             results[adapter.module_name] = True
-        except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            # 风险隔离边界: 任何风险模块异常不得阻断主链路
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # ZeroDivisionError/OverflowError — 数值计算异常
+            # OSError — 文件/网络 IO 异常
             logger.error("RiskGuardAdapter 注册失败: %s", e, exc_info=True)
             results["RiskGuardAdapter"] = False
 

@@ -156,7 +156,7 @@ class SmartBetaEngine:
         # 1. 因子权重 (默认等权)
         if factor_weights is None:
             # 收集所有因子
-            all_factors = set()  # type: ignore
+            all_factors = set()  # type: ignore[misc]
             for scores in factor_scores.values():
                 all_factors.update(scores.keys())
             factor_weights = {f: 1.0 / len(all_factors) for f in all_factors} if all_factors else {}

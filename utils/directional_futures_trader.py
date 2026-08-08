@@ -187,8 +187,8 @@ class DirectionalFuturesTrader:
 
             signal = FuturesSignal(
                 symbol=symbol,
-                name=spec["name"],  # type: ignore
-            )
+                name=spec["name"],  # type: ignore[index]
+                )
 
             if len(closes) < 60:
                 signal.direction = "flat"
@@ -337,15 +337,13 @@ class DirectionalFuturesTrader:
         # 保证金 = 名义价值 × 保证金率
         # 按信号强度分配资金
         budget = self.per_symbol_budget * signal.strength
-        one_contract_margin = current_price * multiplier * margin_rate  # type: ignore
-
+        one_contract_margin = current_price * multiplier * margin_rate  # type: ignore[misc]
         if one_contract_margin <= 0:
             return 0, 0.0, 0.0
 
         contracts = max(1, int(budget // one_contract_margin))
-        notional = contracts * current_price * multiplier  # type: ignore
-        margin = notional * margin_rate  # type: ignore
-
+        notional = contracts * current_price * multiplier  # type: ignore[misc]
+        margin = notional * margin_rate  # type: ignore[misc]
         return contracts, notional, margin
 
     # ------------------------------------------------------------
@@ -463,8 +461,8 @@ class DirectionalFuturesTrader:
 
             order = FuturesOrder(
                 symbol=symbol,
-                name=spec["name"],  # type: ignore
-                exchange=spec["exchange"],  # type: ignore
+                name=spec["name"],  # type: ignore[index]
+                exchange=spec["exchange"],  # type: ignore[index]
                 action=action,
                 direction=target_dir,
                 contracts=contracts,
@@ -492,8 +490,8 @@ class DirectionalFuturesTrader:
         spec = CONTRACT_SPECS[symbol]
         return FuturesOrder(
             symbol=symbol,
-            name=spec["name"],  # type: ignore
-            exchange=spec["exchange"],  # type: ignore
+            name=spec["name"],  # type: ignore[index]
+            exchange=spec["exchange"],  # type: ignore[index]
             action="close_long" if position.get("direction") == "long" else "close_short",
             direction="flat",
             contracts=position.get("contracts", 0),
@@ -691,7 +689,7 @@ class DirectionalFuturesTrader:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report_data, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"[DirectionalFutures] 报告已保存: {report_path}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"[DirectionalFutures] 报告保存失败: {e}")
 
 
@@ -712,15 +710,15 @@ if __name__ == "__main__":
         base_price = {"CU": 75000, "AU": 550, "T": 100}[symbol]
         closes = [base_price]
         for _ in range(60):
-            closes.append(closes[-1] * (1 + random.uniform(-0.02, 0.025)))  # type: ignore
-        market_data[symbol] = {"closes": closes}
+            closes.append(closes[-1] * (1 + random.uniform(-0.02, 0.025)))  # type: ignore[index]
+            market_data[symbol] = {"closes": closes}
 
     prices = {symbol: data["closes"][-1] for symbol, data in market_data.items()}
 
     result = trader.run(
         market_data=market_data,
         current_positions={},
-        prices=prices,  # type: ignore
+        prices=prices,  # type: ignore[misc]
         trade_date=date(2026, 7, 14),
     )
 

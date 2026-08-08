@@ -13,6 +13,9 @@ import math
 import time
 from datetime import datetime
 from typing import Dict, List, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _get_adaptive_execution_params(
@@ -194,8 +197,7 @@ class MinImpactExecutor:
             slippage_total += impact * order["amount"]
 
         if total_executed > 0:
-            avg_execution_price = total_amount / total_executed  # type: ignore
-
+            avg_execution_price = total_amount / total_executed  # type: ignore[misc]
         return {
             "total_qty": total_executed,
             "total_amount": round(total_amount, 2),
@@ -425,8 +427,8 @@ class VWAPExecutor:
         if total_qty < target_qty:
             remaining = target_qty - total_qty
             if orders:
-                orders[-1]["qty"] += remaining  # type: ignore
-                orders[-1]["amount"] = round(orders[-1]["qty"] * ref_price, 2)  # type: ignore
+                orders[-1]["qty"] += remaining  # type: ignore[index]
+                orders[-1]["amount"] = round(orders[-1]["qty"] * ref_price, 2)  # type: ignore[index]
                 orders[-1]["cumulative_qty"] = target_qty
                 orders[-1]["cumulative_amount"] = round(target_qty * ref_price, 2)
 
@@ -448,9 +450,8 @@ class OrderExecutor:
             from utils.transaction_cost_model import TransactionCostModel
 
             self.cost_model = TransactionCostModel()
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
-            self.cost_model = None  # type: ignore
-
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            self.cost_model = None  # type: ignore[misc]
     def _create_executor(self, algorithm: str, kwargs: Dict):
         if algorithm == "min_impact":
             return MinImpactExecutor(
@@ -546,7 +547,7 @@ class OrderExecutor:
             if executor.cost_model is not None:
                 try:
                     cost_info = executor.cost_model.estimate_total_cost(simulation["total_amount"], avg_daily_volume)
-                except Exception:  # P2 模块 fail-safe, 待后续精确化
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                     cost_info = {}
 
             results[algo] = {
@@ -599,17 +600,15 @@ if __name__ == "__main__":
     ref_price = 2.26
     avg_daily_volume = 1325044742
 
-    print(f"===== 订单拆分模拟 (¥{target_amount:,.0f}, 参考价 {ref_price}) =====")
-    print()
+    logger.info(f"===== 订单拆分模拟 (¥{target_amount:,.0f}, 参考价 {ref_price}) =====")
 
     results = compare_execution(target_amount, ref_price, avg_daily_volume)
 
     for algo, result in results.items():
-        print(f"【{algo.upper()}】")
-        print(f"  拆单数: {result['num_orders']} 笔")
-        print(f"  总数量: {result['total_qty']:,} 股")
-        print(f"  预计金额: ¥{result['total_amount']:,.0f}")
-        print(f"  预计均价: {result['avg_execution_price']:.4f}")
-        print(f"  预计滑点: {result['slippage_pct']:.4f}%")
-        print(f"  执行时间: {result['execution_time_minutes']} 分钟")
-        print()
+        logger.info(f"【{algo.upper()}】")
+        logger.info(f"  拆单数: {result['num_orders']} 笔")
+        logger.info(f"  总数量: {result['total_qty']:,} 股")
+        logger.info(f"  预计金额: ¥{result['total_amount']:,.0f}")
+        logger.info(f"  预计均价: {result['avg_execution_price']:.4f}")
+        logger.info(f"  预计滑点: {result['slippage_pct']:.4f}%")
+        logger.info(f"  执行时间: {result['execution_time_minutes']} 分钟")

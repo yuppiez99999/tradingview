@@ -65,10 +65,10 @@ class MarketCircuitBreaker:
 
     def __init__(
         self,
-        l2_threshold: float | None = None,  # type: ignore
-        l3_threshold: float | None = None,  # type: ignore
-        fail_closed_pct: float | None = None,  # type: ignore
-    ):
+        l2_threshold: float | None = None,  # type: ignore[misc]
+        l3_threshold: float | None = None,  # type: ignore[misc]
+        fail_closed_pct: float | None = None,  # type: ignore[misc]
+        ):
         """初始化大盘熔断监控器
 
         Args:
@@ -237,13 +237,11 @@ class MarketCircuitBreaker:
         # Layer 1: astock_realtime (沪深300ETF 实时行情)
         change_pct, ok = self._fetch_via_astock()
         if ok:
-            return change_pct, "astock_realtime"  # type: ignore
-
+            return change_pct, "astock_realtime"  # type: ignore[misc]
         # Layer 2: akshare (全市场指数快照)
         change_pct, ok = self._fetch_via_akshare()
         if ok:
-            return change_pct, "akshare"  # type: ignore
-
+            return change_pct, "akshare"  # type: ignore[misc]
         # Layer 3: fail-closed (保守保护)
         logger.error(
             "[MarketCircuitBreaker] 所有数据源不可用, fail-closed 返回 %.2f%%",
@@ -273,7 +271,7 @@ class MarketCircuitBreaker:
                 return (float(price) - float(pre_close)) / float(pre_close), True
 
             return None, False
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.debug("[MarketCircuitBreaker] astock_realtime 获取失败: %s", e)
             return None, False
 
@@ -307,7 +305,7 @@ class MarketCircuitBreaker:
         except ImportError:
             logger.debug("[MarketCircuitBreaker] akshare 未安装, 跳过 Layer 2")
             return None, False
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.debug("[MarketCircuitBreaker] akshare 获取失败: %s", e)
             return None, False
 

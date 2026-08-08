@@ -37,7 +37,7 @@ def _tca_pre_trade_enabled() -> bool:
         from utils.infra.feature_flags import is_enabled
 
         return bool(is_enabled("USE_TCA_PRE_TRADE_ESTIMATE"))
-    except Exception:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
         # Feature Flag 框架不可用时, fail-safe 返回 False
         return False
 
@@ -204,7 +204,7 @@ class ExecutionRouter:
                     estimate.rejection_reason,
                 )
             return plan, estimate
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             # TCA 异常 fail-safe: 不阻断主路径, 仅记录
             logger.error("[ExecutionRouter] TCA 预估异常 (降级为不预估): %s", e)
             plan.meta["tca_error"] = str(e)
@@ -315,5 +315,5 @@ class ExecutionRouter:
         try:
             with open(path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(review.__dict__, ensure_ascii=False) + "\n")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error("[ExecutionRouter] 保存执行复盘失败: %s", e)

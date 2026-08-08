@@ -230,6 +230,7 @@ class RiskBus:
             - HC-2: 此方法不影响 KillSwitch 同步路径
             - 同步调用所有订阅者, 异常被捕获并记录
             - 事件写入审计日志 + 历史缓存
+            - severity >= WARN 时自动发送告警 (G8 修复, 2026-08-06)
         """
         # 写入历史缓存
         with self._lock:
@@ -237,6 +238,22 @@ class RiskBus:
 
         # 写入审计日志
         self._write_audit_log(event)
+
+        # G8 修复: severity >= WARN 时发送告警 (fail-open, 不阻断风控)
+        try:
+            sev = str(event.severity.value).upper() if event.severity else ""
+            if sev in ("WARN", "WARNING", "CRITICAL", "FATAL", "ERROR"):
+                level = "critical" if "CRITICAL" in sev or "FATAL" in sev else "warning"
+                title = f"[风控] {event.event_type.value} ({event.source})"
+                msg_parts = [f"source={event.source}", f"severity={sev}"]
+                if event.payload:
+                    payload_str = ", ".join(f"{k}={v}" for k, v in list(event.payload.items())[:5])
+                    msg_parts.append(payload_str)
+                from utils.notify import send_alert
+
+                send_alert(title=title, content=" | ".join(msg_parts), level=level)
+        except Exception:  # noqa: BLE001  # 告警 fail-open, 不阻断风控
+            logger.warning("告警发送失败 (fail-open, 风控仍正常)", exc_info=True)
 
         # 同步调用订阅者
         with self._lock:
@@ -249,7 +266,14 @@ class RiskBus:
             try:
                 cb(event)
                 invoked += 1
-            except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                    ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+                # 风险隔离边界: 单个订阅者/决策者异常不得影响其他
+                # ValueError/TypeError — 数据格式/类型错误
+                # KeyError/AttributeError — 字段/属性缺失
+                # RuntimeError — 运行时错误
+                # ZeroDivisionError/OverflowError — 数值计算异常
+                # OSError — 文件/网络 IO 异常
                 logger.error(
                     "订阅者异常 | event_type=%s | callback=%s | error=%s",
                     event.event_type.value,
@@ -315,7 +339,14 @@ class RiskBus:
                 d = decider(event)
                 if isinstance(d, RiskDecision):
                     decisions.append(d)
-            except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                    ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+                # 风险隔离边界: 单个订阅者/决策者异常不得影响其他
+                # ValueError/TypeError — 数据格式/类型错误
+                # KeyError/AttributeError — 字段/属性缺失
+                # RuntimeError — 运行时错误
+                # ZeroDivisionError/OverflowError — 数值计算异常
+                # OSError — 文件/网络 IO 异常
                 logger.error(
                     "决策订阅者异常 | event_type=%s | decider=%s | error=%s",
                     event.event_type.value,
@@ -415,7 +446,14 @@ class RiskBus:
             except asyncio.CancelledError:
                 logger.info("异步消费者已停止")
                 break
-            except Exception as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                    ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+                # 风险隔离边界: 单个订阅者/决策者异常不得影响其他
+                # ValueError/TypeError — 数据格式/类型错误
+                # KeyError/AttributeError — 字段/属性缺失
+                # RuntimeError — 运行时错误
+                # ZeroDivisionError/OverflowError — 数值计算异常
+                # OSError — 文件/网络 IO 异常
                 logger.error("异步消费异常: %s", e, exc_info=True)
 
     async def stop_async_consumer(self) -> None:

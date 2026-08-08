@@ -4,7 +4,8 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, ".")
+# Wave 3 第三阶段: 相对路径 "." 改为绝对路径 bootstrap (避免从其他目录运行时失败)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 results = []
 
@@ -41,7 +42,11 @@ try:
     prices = {"600519": 1500.0}
     exp = mgr.calc_portfolio_greeks(positions, prices)
     sig = mgr.rebalance_signal(exp, tolerance=0.05)
-    check("GreekHedgeManager", exp.delta > 0 and isinstance(sig, dict), f"Delta={exp.delta:,.0f}, signals={len(sig)}")
+    check(
+        "GreekHedgeManager",
+        exp is not None and getattr(exp, "delta", 0) > 0 and isinstance(sig, dict),
+        f"Delta={getattr(exp, 'delta', 0):,.0f}, signals={len(sig) if isinstance(sig, dict) else 0}",
+    )
 except Exception as e:
     check("GreekHedgeManager", False, str(e))
 
@@ -56,10 +61,10 @@ try:
     # 实际签名: estimate_total_cost(notional, adv, volatility, days_delayed, hours_delayed)
     notional = 1000 * 1500.0  # 1000 股 × ¥1500 = ¥1,500,000
     cost = tcm.estimate_total_cost(notional=notional, adv=1e8, volatility=0.02, days_delayed=1.0, hours_delayed=0.0)
-    total = cost.get("total", 0) + cost.get("cost_bps", 0)
+    # 分别验证货币总额和基点, 不再将不同单位相加
     check(
         "TransactionCostModel",
-        isinstance(cost, dict) and total > 0,
+        isinstance(cost, dict) and cost.get("total", 0) > 0 and cost.get("cost_bps", 0) >= 0,
         f"total=¥{cost.get('total', 0):,.2f}, bps={cost.get('cost_bps', 0):.2f}",
     )
 except Exception as e:
@@ -97,8 +102,8 @@ try:
     d = attribution_to_dict(attr)
     check(
         "RiskAttribution",
-        attr.total_value > 0 and len(attr.by_sector) > 0,
-        f"total=¥{attr.total_value:,.0f}, sectors={len(attr.by_sector)}, warnings={len(attr.warnings)}",
+        attr is not None and getattr(attr, "total_value", 0) > 0 and len(getattr(attr, "by_sector", []) or []) > 0,
+        f"total=¥{getattr(attr, 'total_value', 0):,.0f}, sectors={len(getattr(attr, 'by_sector', []) or [])}, warnings={len(getattr(attr, 'warnings', []) or [])}",
     )
 except Exception as e:
     check("RiskAttribution", False, str(e))
@@ -111,8 +116,12 @@ try:
     from utils.greek_exposure_dashboard import compute_dashboard
 
     d = compute_dashboard()
-    snap = d.snapshot
-    check("GreekExposureDashboard", len(d.signal_levels) > 0, f"Delta={snap.delta:,.0f}, levels={d.signal_levels}")
+    snap = getattr(d, "snapshot", None) if d is not None else None
+    check(
+        "GreekExposureDashboard",
+        d is not None and len(getattr(d, "signal_levels", []) or []) > 0,
+        f"Delta={getattr(snap, 'delta', 0):,.0f}, levels={getattr(d, 'signal_levels', [])}",
+    )
 except Exception as e:
     check("GreekExposureDashboard", False, str(e))
 
@@ -124,7 +133,8 @@ try:
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
-        "llm_intraday_decision_engine", "v8.3_institutional/llm_intraday_decision_engine.py"
+        "llm_intraday_decision_engine",
+        str(Path(__file__).parent / "v8.3_institutional" / "llm_intraday_decision_engine.py"),
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -148,7 +158,7 @@ try:
     check(
         "AnnualReturnForecast",
         hc.get("all_constraints_met", False),
-        f"保守年化={conservative.get('total_annual_return', 0):+.2%}, 硬约束={hc.get('all_constraints_met')}",
+        f"保守年化={conservative.get('total_annual_return', 0):+.2%}, 硬约束={hc.get('all_constraints_met', False)}",
     )
 except Exception as e:
     check("AnnualReturnForecast", False, str(e))

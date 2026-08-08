@@ -197,7 +197,7 @@ class MultiFactorSignal:
         ...     factor_name="F_A",
         ... )
         >>> if metrics.is_inverted:
-        ...     print(f"反向信号因子: {metrics.factor_name}")
+        ...     logger.info(f"反向信号因子: {metrics.factor_name}")
     """
 
     def __init__(
@@ -247,7 +247,7 @@ class MultiFactorSignal:
                     self.inverted_threshold,
                     self.feature_flag_name,
                 )
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("MultiFactorSignal 配置加载失败, 使用默认值: %s", e)
 
     # ============================================================
@@ -502,7 +502,7 @@ class MultiFactorSignal:
         # 调用正交化 (orthogonalizer 内部检查 USE_VIBE_FACTOR_INJECTION flag, HC-1)
         try:
             selected, report = orthogonalize_factors(factor_series, threshold=threshold)
-        except Exception as e:  # noqa: BLE001  # P2 fail-safe, 不阻断主流程
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 fail-safe, 不阻断主流程
             logger.warning(
                 "[MultiFactorSignal] 正交化异常, 降级为原因子列表: %s",
                 e,

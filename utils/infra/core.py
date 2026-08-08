@@ -295,7 +295,10 @@ class StrategyRegistry:
                 meta = self._metadata[name]
                 try:
                     self._instances[name] = meta.strategy_class()
-                except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                        OSError, ImportError) as e:  # P2 模块 fail-safe, 待后续精确化
+                    # 策略实例化可能抛: 构造函数参数错误/类型不匹配/字段缺失/
+                    # 属性不存在/运行时错误/IO 异常/依赖未安装
                     logger.error(f"策略实例化失败: {name}, error={e}")
                     raise
             return self._instances[name]
@@ -464,7 +467,10 @@ class StrategyRegistry:
                 len(forward_returns),
                 e,
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                ZeroDivisionError, OSError) as e:
+            # scipy.stats 计算或记录过程可能抛: 数据格式/类型错误/
+            # 字段缺失/属性不存在/运行时错误/除零/IO 异常
             logger.error(
                 "Alpha 指标更新失败: strategy=%s, factor_len=%d, return_len=%d, error=%s",
                 name,
@@ -520,7 +526,14 @@ class StrategyRegistry:
             }
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+        OSError, ZeroDivisionError, ImportError) as e:  # P2 模块 fail-safe, 待后续精确化
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # OSError — 文件/网络 IO 异常
+            # ZeroDivisionError — 除零
+            # ImportError — 依赖未安装
             logger.warning(f"审计日志写入失败: {e}")
 
 
@@ -560,12 +573,17 @@ def track_performance(
             ...
     """
     # 装饰时预导入 FeatureFlags (避免热路径每次调用都 import)
-    _FeatureFlags = None
+    _FeatureFlags = None  # noqa: N806
     try:
         from utils.infra.feature_flags import FeatureFlags as _FF
 
-        _FeatureFlags = _FF
-    except Exception:  # P2 模块 fail-safe, 待后续精确化
+        _FeatureFlags = _FF  # noqa: N806
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+        OSError, ImportError):  # P2 模块 fail-safe, 待后续精确化
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # OSError — IO 异常; ImportError — 依赖未安装
         pass
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -577,7 +595,12 @@ def track_performance(
             try:
                 if not _FeatureFlags.get_instance().is_enabled("USE_INTEGRATED_CORE_REGISTRY"):
                     return func(*args, **kwargs)
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+        OSError, ImportError):  # P2 模块 fail-safe, 待后续精确化
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # OSError — IO 异常; ImportError — 依赖未安装
                 return func(*args, **kwargs)
 
             # flag 开启: 记录性能
@@ -587,7 +610,14 @@ def track_performance(
             try:
                 result = func(*args, **kwargs)
                 return result
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+        OSError, ZeroDivisionError, ImportError) as e:  # P2 模块 fail-safe, 待后续精确化
+            # ValueError/TypeError — 数据格式/类型错误
+            # KeyError/AttributeError — 字段/属性缺失
+            # RuntimeError — 运行时错误
+            # OSError — 文件/网络 IO 异常
+            # ZeroDivisionError — 除零
+            # ImportError — 依赖未安装
                 success = False
                 error_msg = f"{type(e).__name__}: {e}"
                 raise
@@ -600,7 +630,9 @@ def track_performance(
                         success=success,
                         error_msg=error_msg,
                     )
-                except Exception as record_err:  # P2 模块 fail-safe, 待后续精确化
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                        OSError) as record_err:  # P2 模块 fail-safe, 待后续精确化
+                    # 性能记录失败不影响业务: 数据/类型/字段/属性/运行时/IO 异常
                     logger.warning(f"性能记录失败 (不影响业务): strategy={strategy_name}, error={record_err}")
 
         return wrapper

@@ -111,7 +111,9 @@ def _auto_start_stockdb() -> bool:
         logger.warning(f"⚠️ stockdb 启动超时 ({_FS_AUTO_START_MAX_WAIT}s), 将使用回退数据源")
         return False
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"⚠️ 自动启动 stockdb 失败: {e}, 将使用回退数据源")
         return False
 
@@ -129,7 +131,8 @@ def _check_http_available() -> bool:
     try:
         r = requests.get(_FS_HTTP_BASE, timeout=2)
         return r.status_code in (200, 400)
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return False
 
 
@@ -168,15 +171,15 @@ def _init_free_stockdb() -> bool:
             pybao_path = str(_FREE_STOCKDB_PYBAO)
             if pybao_path not in sys.path:
                 sys.path.insert(0, pybao_path)
-            from stock_sdk import bk, rd, zb  # type: ignore
-
+            from stock_sdk import bk, rd, zb  # type: ignore[misc]
             global _fs_client
             _fs_client = {"rd": rd, "zb": zb, "bk": bk}
             _fs_sdk_available = True
             _fs_last_check = now
             logger.info("✅ free-stockdb Python SDK 已就绪")
             return True
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             _fs_sdk_available = False
             logger.debug(f"free-stockdb Python SDK 不可用: {e}")
 
@@ -246,14 +249,16 @@ def _normalize_fs_dataframe(df_raw: Any, symbol: str) -> pd.DataFrame:
         # 支持 YYYYMMDD 和 YYYY-MM-DD 两种格式
         try:
             df.index = pd.to_datetime(df[date_col], format="%Y%m%d", errors="coerce")
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             df.index = pd.to_datetime(df[date_col], errors="coerce")
         df = df.drop(columns=[date_col])
     else:
         if not isinstance(df.index, pd.DatetimeIndex):
             try:
                 df.index = pd.to_datetime(df.index, errors="coerce")
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("Unexpected error in free_stockdb_adapter.py", exc_info=True)
 
     if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is not None:
@@ -342,7 +347,9 @@ def _http_get_ohlcv(
                 if data and isinstance(data, list):
                     return data
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.debug(f"HTTP 获取 {code} 异常: {e}")
 
     return None
@@ -396,7 +403,7 @@ def get_historical_data_fs(
             # 通道 B: Python SDK
             if _fs_sdk_available:
                 global _fs_client
-                rd = _fs_client["rd"]  # type: ignore
+                rd = _fs_client["rd"]  # type: ignore[index]
                 df_raw = rd.get_data(
                     code=code,
                     start=start_date,
@@ -412,7 +419,9 @@ def get_historical_data_fs(
 
             logger.debug(f"  {raw_symbol}: free-stockdb 数据不足, 尝试回退...")
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"  {raw_symbol}: free-stockdb 查询异常: {e}")
 
     # 2. 回退到原有数据源
@@ -422,7 +431,8 @@ def get_historical_data_fs(
 
             logger.debug(f"  {raw_symbol}: 回退到 MarketDataProvider")
             return get_historical_data(code, period)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"  {raw_symbol}: 回退也失败: {e}")
 
     return None

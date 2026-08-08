@@ -864,7 +864,7 @@ class DailyAttributionPanel:
         }
         # 残差验证 (total = alpha + execution + risk)
         residual = (
-            normalized["total_pnl"]  # type: ignore
+            normalized["total_pnl"]  # type: ignore[index]
             - normalized["alpha_pnl"]
             - normalized["execution_pnl"]
             - normalized["risk_pnl"]
@@ -1016,7 +1016,7 @@ class DailyAttributionPanel:
         try:
             from utils.infra.feature_flags import FeatureFlags
 
-            return bool(FeatureFlags.is_enabled(self._feature_flag_name))  # type: ignore
+            return bool(FeatureFlags.is_enabled(self._feature_flag_name))  # type: ignore[misc]
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             # FeatureFlags 不可用时默认 False (HC-1 保守降级)
             return False
@@ -1027,7 +1027,7 @@ class DailyAttributionPanel:
             from utils.attribution.brinson_attribution import FLAG_NAME as BRINSON_FLAG
             from utils.infra.feature_flags import FeatureFlags
 
-            return bool(FeatureFlags.is_enabled(BRINSON_FLAG))  # type: ignore
+            return bool(FeatureFlags.is_enabled(BRINSON_FLAG))  # type: ignore[misc]
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
@@ -1037,7 +1037,7 @@ class DailyAttributionPanel:
             from utils.attribution.factor_attribution import FLAG_NAME as FACTOR_FLAG
             from utils.infra.feature_flags import FeatureFlags
 
-            return bool(FeatureFlags.is_enabled(FACTOR_FLAG))  # type: ignore
+            return bool(FeatureFlags.is_enabled(FACTOR_FLAG))  # type: ignore[misc]
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
@@ -1046,7 +1046,7 @@ class DailyAttributionPanel:
         try:
             from utils.infra.feature_flags import FeatureFlags
 
-            return bool(FeatureFlags.is_enabled("USE_TCA_POST_TRADE_ATTRIBUTION"))  # type: ignore
+            return bool(FeatureFlags.is_enabled("USE_TCA_POST_TRADE_ATTRIBUTION"))  # type: ignore[misc]
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
@@ -1158,7 +1158,7 @@ def is_daily_panel_enabled() -> bool:
     try:
         from utils.infra.feature_flags import FeatureFlags
 
-        return bool(FeatureFlags.is_enabled(FLAG_NAME))  # type: ignore
+        return bool(FeatureFlags.is_enabled(FLAG_NAME))  # type: ignore[misc]
     except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         return False
 

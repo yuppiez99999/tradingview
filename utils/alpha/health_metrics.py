@@ -223,7 +223,8 @@ class UnifiedHealthMetrics:
         try:
             from utils.infra.feature_flags import is_enabled
             return bool(is_enabled(flag_name))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Feature Flag 检查失败 (降级为 False): %s — %s", flag_name, e)
             return False
 
@@ -242,7 +243,8 @@ class UnifiedHealthMetrics:
                     "strategy": float(w["strategy"]),
                     "ops": float(w["ops"]),
                 }
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("从 ConfigManager 加载权重失败, 用默认值: %s", e)
         return dict(DEFAULT_WEIGHTS)
 
@@ -267,21 +269,24 @@ class UnifiedHealthMetrics:
         try:
             from utils.alpha.layers.code_health import CodeHealthLayer
             self._code_layer = CodeHealthLayer()
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("CodeHealthLayer 加载失败 (降级): %s", e)
             self._code_layer = None
         # 策略层
         try:
             from utils.alpha.layers.strategy_health import StrategyHealthLayer
             self._strategy_layer = StrategyHealthLayer()
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("StrategyHealthLayer 加载失败 (降级): %s", e)
             self._strategy_layer = None
         # 运维层
         try:
             from utils.alpha.layers.ops_health import OpsHealthLayer
             self._ops_layer = OpsHealthLayer()
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("OpsHealthLayer 加载失败 (降级): %s", e)
             self._ops_layer = None
 
@@ -372,7 +377,8 @@ class UnifiedHealthMetrics:
                     collected_at=now,
                 )
             return result
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("%s 层采集失败 (降级): %s", layer_name, e)
             return LayerScore(
                 layer=layer_name, score=0.0, is_degraded=True,
@@ -434,7 +440,8 @@ class UnifiedHealthMetrics:
             self.history_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.history_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(report.to_dict(), ensure_ascii=False) + "\n")
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("健康度持久化失败 (不影响内存报告): %s", e)
 
     def _read_history(self, days: int) -> list[HealthReport]:
@@ -452,10 +459,12 @@ class UnifiedHealthMetrics:
                     continue
                 try:
                     reports.append(HealthReport.from_dict(json.loads(line)))
-                except Exception:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
             return reports
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("读取历史失败: %s", e)
             return []
 
@@ -469,7 +478,8 @@ class UnifiedHealthMetrics:
         try:
             past = history[target_offset]
             return round(current_score - past.overall_score, 4)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.0
 
     # ============================================================

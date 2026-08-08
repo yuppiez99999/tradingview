@@ -21,6 +21,9 @@ import json
 from datetime import date as _date_cls
 from datetime import datetime, timedelta
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # 路径与缓存
@@ -51,8 +54,8 @@ def _fetch_trade_dates_via_akshare(year: int) -> set[str] | None:
         dates = df[col].astype(str).str[:10].tolist()
         year_dates = {d for d in dates if d.startswith(str(year))}
         return year_dates if year_dates else None
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-        print(f"[trade_calendar] akshare 拉取失败 (year={year}): {e}")
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        logger.error(f"[trade_calendar] akshare 拉取失败 (year={year}): {e}")
         return None
 
 
@@ -63,7 +66,7 @@ def _load_year_dates(year: int, allow_fetch: bool = True) -> set[str]:
         try:
             with open(cache_file, encoding="utf-8") as f:
                 return set(json.load(f))
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             pass
 
     if not allow_fetch:
@@ -75,13 +78,13 @@ def _load_year_dates(year: int, allow_fetch: bool = True) -> set[str]:
         try:
             with open(cache_file, "w", encoding="utf-8") as f:
                 json.dump(sorted(dates), f, ensure_ascii=False, indent=2)
-            print(f"[trade_calendar] 缓存 {year} 年交易日: {len(dates)} 天")
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+            logger.info(f"[trade_calendar] 缓存 {year} 年交易日: {len(dates)} 天")
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             pass
         return dates
 
     # 回退: 周一到周五即交易日 (无法联网时的兜底)
-    print(f"[trade_calendar] 警告: 无法获取 {year} 年交易日历, 回退到周一至周五模式")
+    logger.warning(f"[trade_calendar] 警告: 无法获取 {year} 年交易日历, 回退到周一至周五模式")
     return set()
 
 
@@ -189,7 +192,7 @@ def current_trading_day(date: str | None = None) -> str:
 if __name__ == "__main__":
     # 自测
     today = datetime.now().strftime("%Y-%m-%d")
-    print(f"今天: {today}")
-    print(f"  是交易日: {is_trading_day(today)}")
-    print(f"  下一交易日: {next_trading_day(today)}")
-    print(f"  当前交易日: {current_trading_day(today)}")
+    logger.info(f"今天: {today}")
+    logger.info(f"  是交易日: {is_trading_day(today)}")
+    logger.info(f"  下一交易日: {next_trading_day(today)}")
+    logger.info(f"  当前交易日: {current_trading_day(today)}")

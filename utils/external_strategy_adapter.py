@@ -65,7 +65,8 @@ if _LLM_CLIENT_PATH.exists():
         _chat_fn = llm_client.chat
         _LLM_AVAILABLE = True
         logger.info("ExternalStrategyAdapter: llm_client.py 已加载")
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"ExternalStrategyAdapter: llm_client 加载失败 ({e})")
 
 
@@ -86,7 +87,7 @@ class ExternalStrategyAdapter:
     Usage:
         >>> adapter = ExternalStrategyAdapter()
         >>> signal = adapter.analyze("600519.SH", strategy="chan_theory")
-        >>> print(signal["direction"], signal["confidence"])
+        >>> logger.info(signal["direction"], signal["confidence"])
     """
 
     def __init__(self, strategy_dir: Path | None = None) -> None:
@@ -109,7 +110,8 @@ class ExternalStrategyAdapter:
                     name = data["name"]
                     self._strategies[name] = data
                     logger.debug(f"加载策略: {name} ({data.get('display_name', '')})")
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"加载策略失败 {yaml_file.name}: {e}")
 
         logger.info(f"外部策略加载完成: {len(self._strategies)} 个策略")
@@ -160,14 +162,15 @@ class ExternalStrategyAdapter:
         if not _LLM_AVAILABLE or not instructions:
             return self._neutral_signal(symbol, strategy, "LLM不可用或策略无指令")
 
-        # 构造 LLM 提示词
-        prompt = self._build_prompt(symbol, strat_def, market_data)
+        # 构造 LLM 提示词 (v2.0: system/user 分离)
+        system_prompt, user_prompt = self._build_prompt(symbol, strat_def, market_data)
 
         # 调用 LLM
         try:
-            llm_response = _chat_fn(prompt, temperature=0.3, max_tokens=1500)
+            llm_response = _chat_fn(user_prompt, temperature=0.3, max_tokens=1500, system=system_prompt)
             return self._parse_llm_response(symbol, strategy, llm_response)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"LLM 调用失败 ({strategy}/{symbol}): {e}")
             return self._neutral_signal(symbol, strategy, f"LLM异常: {e}")
 
@@ -237,38 +240,51 @@ class ExternalStrategyAdapter:
     # ============================================================
 
     def _build_prompt(self, symbol: str, strat_def: dict,
-                      market_data: dict | None) -> str:
-        """构造 LLM 提示词."""
+                      market_data: dict | None) -> tuple[str, str]:
+        """构造 LLM system_prompt 和 user_prompt (v2.0: 分离 system/user)
+
+        Returns:
+            (system_prompt, user_prompt)
+        """
         display_name = strat_def.get("display_name", strat_def.get("name", ""))
         instructions = strat_def.get("instructions", "")
 
+        system_prompt = (
+            f"你是精通{display_name}的A股量化分析师。"
+            "你严格基于策略规则和数据做判断，不主观臆断。"
+            "输出必须是严格的 JSON 格式，不要任何额外文字。"
+            "置信度定义: 0.3以下=猜测, 0.3-0.5=弱信号, 0.5-0.7=中等, 0.7-0.9=强信号, 0.9+=极强。"
+        )
+
         data_context = ""
         if market_data:
-            data_context = f"\n## 市场数据\n```json\n{market_data}\n```"
+            # 摘要化: 只取核心字段
+            summary = {}
+            for k in ["close", "volume", "change_pct", "high", "low", "ma5", "ma20"]:
+                if k in market_data:
+                    summary[k] = market_data[k]
+            if summary:
+                data_context = f"\n## 市场数据\n```json\n{summary}\n```"
 
-        prompt = f"""你是一位精通{display_name}的A股分析师。
-
-## 任务
+        user_prompt = f"""## 任务
 分析股票 {symbol} 的{display_name}信号。
 
 ## 策略指南
 {instructions}
 {data_context}
 
-## 输出格式 (严格JSON)
+## 输出格式 (严格 JSON，只输出 JSON)
 ```json
 {{
   "direction": "bullish|bearish|neutral",
   "confidence": 0.0-1.0,
   "score": -100到100,
-  "reasoning": "一句话分析理由",
+  "reasoning": "一句话分析理由 (≤40字)",
   "stop_loss": "止损价位或说明",
   "target": "目标价位或说明"
 }}
-```
-
-只输出JSON,不要其他文字。"""
-        return prompt
+```"""
+        return system_prompt, user_prompt
 
     def _parse_llm_response(self, symbol: str, strategy: str,
                             response: str) -> dict[str, Any]:
@@ -366,33 +382,33 @@ if __name__ == "__main__":
     adapter = ExternalStrategyAdapter()
 
     if args.status:
-        print("外部策略适配器状态:")
+        logger.info("外部策略适配器状态:")
         for k, v in adapter.get_status().items():
-            print(f"  {k}: {v}")
+            logger.info(f"  {k}: {v}")
         sys.exit(0)
 
     if args.list:
-        print(f"可用策略 ({len(adapter.available_strategies)} 个):")
+        logger.info(f"可用策略 ({len(adapter.available_strategies)} 个):")
         for name in adapter.available_strategies:
             strat = adapter._strategies.get(name, {})
-            print(f"  - {name}: {strat.get('display_name', '')} - {strat.get('description', '')[:50]}")
+            logger.info(f"  - {name}: {strat.get('display_name', '')} - {strat.get('description', '')[:50]}")
         sys.exit(0)
 
     if args.all:
         signals = adapter.analyze_all(args.stock)
-        print(f"\n{args.stock} 全策略分析 ({len(signals)} 个):")
+        logger.info(f"\n{args.stock} 全策略分析 ({len(signals)} 个):")
         for s in signals:
-            print(f"  [{s['strategy']}] {s['direction']} (conf={s['confidence']:.2f}, score={s['score']}) - {s['reasoning'][:60]}")
+            logger.info(f"  [{s['strategy']}] {s['direction']} (conf={s['confidence']:.2f}, score={s['score']}) - {s['reasoning'][:60]}")
         consensus = adapter.get_consensus(args.stock)
-        print(f"\n共识: {consensus['direction']} (conf={consensus['confidence']:.2f}) - {consensus['reasoning']}")
+        logger.info(f"\n共识: {consensus['direction']} (conf={consensus['confidence']:.2f}) - {consensus['reasoning']}")
     else:
         signal = adapter.analyze(args.stock, args.strategy)
-        print(f"\n{args.stock} - {args.strategy}:")
-        print(f"  方向: {signal['direction']}")
-        print(f"  置信度: {signal['confidence']}")
-        print(f"  评分: {signal['score']}")
-        print(f"  理由: {signal['reasoning']}")
+        logger.info(f"\n{args.stock} - {args.strategy}:")
+        logger.info(f"  方向: {signal['direction']}")
+        logger.info(f"  置信度: {signal['confidence']}")
+        logger.info(f"  评分: {signal['score']}")
+        logger.info(f"  理由: {signal['reasoning']}")
         if signal['stop_loss']:
-            print(f"  止损: {signal['stop_loss']}")
+            logger.info(f"  止损: {signal['stop_loss']}")
         if signal['target']:
-            print(f"  目标: {signal['target']}")
+            logger.info(f"  目标: {signal['target']}")

@@ -188,7 +188,7 @@ class LLMRouter:
         >>> router = LLMRouter.get_instance()
         >>> reply = router.chat("你好")
         >>> if reply:
-        ...     print(reply)
+        ...     logger.info(reply)
     """
 
     _instance: LLMRouter | None = None
@@ -403,7 +403,7 @@ class LLMRouter:
                 # 没有 chat_deep, 用 chat
                 fn = getattr(mod, self._passthrough_function)
                 return cast(Optional[str], fn(prompt, system))
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
                 logger.error("透传 chat_deep 失败: %s", e)
                 return None
 
@@ -460,7 +460,7 @@ class LLMRouter:
                         result = fn("ping", "", 0.1, 10, self._default_timeout)
                         if result is not None:
                             available = name
-                except Exception:  # P2 模块 fail-safe, 待后续精确化
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                     pass
 
         return {
@@ -563,7 +563,7 @@ class LLMRouter:
                         name,
                         latency_ms,
                     )
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
                 latency_ms = (time.perf_counter() - start_ts) * 1000.0
                 last_error = e
                 self._write_audit_log(
@@ -634,7 +634,7 @@ class LLMRouter:
         except ImportError as e:
             logger.error("透传失败: 无法导入 %s: %s", self._passthrough_module, e)
             return None
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error("透传调用失败: %s", e)
             return None
 
@@ -652,7 +652,7 @@ class LLMRouter:
             log_file = self._audit_log_dir / f"calls_{date_str}.jsonl"
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record.to_dict(), ensure_ascii=False) + "\n")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.warning("审计日志写入失败: %s", e)
 
     # ============================================================
@@ -679,7 +679,7 @@ class LLMRouter:
 
             client = OmniRouteClient.get_instance()
             return client.chat(prompt, system, temperature, max_tokens)
-        except Exception as e:  # P2 模块 fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe
             logger.warning("OmniRoute provider 调用失败 (降级): %s", e)
             return None
 
@@ -777,7 +777,7 @@ class LLMRouter:
                     return f"{content.strip()}\n\n---\n_思考过程：{reasoning.strip()[:500]}_"
                 return content.strip()
             return None
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.warning("DeepSeek reasoner 调用失败: %s", e)
             return None
 
@@ -974,7 +974,7 @@ class LLMRouter:
                     return f"{content.strip()}\n\n---\n_思考过程：{reasoning.strip()[:500]}_"
                 return cast(str, content.strip())
             return None
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.warning("Ollama deep 调用失败: %s", e)
             return None
 
@@ -1051,7 +1051,7 @@ class LLMRouter:
                 if attempt < self._max_retries:
                     time.sleep(self._retry_delay)
                 continue
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
                 last_error = e
                 return None
 

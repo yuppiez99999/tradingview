@@ -34,7 +34,8 @@ try:
             matplotlib.rcParams["font.sans-serif"] = [font]
             matplotlib.rcParams["axes.unicode_minus"] = False
             break
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             continue
     _MPL_OK = True
 except ImportError:

@@ -144,7 +144,7 @@ class _LogisticRegressionNumpy:
         y_pred = np.clip(y_pred, eps, 1.0 - eps)
         return float(-np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred)))
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> tuple[float, list[float]]:
+    def fit(self, X: np.ndarray, y: np.ndarray) -> tuple[float, list[float]]:  # noqa: N803
         """训练模型.
 
         Args:
@@ -181,7 +181,7 @@ class _LogisticRegressionNumpy:
         final_loss = history[-1] if history else 0.0
         return final_loss, history
 
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:  # noqa: N803
         """预测概率.
 
         Args:
@@ -195,7 +195,7 @@ class _LogisticRegressionNumpy:
         linear = X @ self.weights + self.bias
         return self._sigmoid(linear)
 
-    def predict(self, X: np.ndarray, threshold: float = 0.5) -> np.ndarray:
+    def predict(self, X: np.ndarray, threshold: float = 0.5) -> np.ndarray:  # noqa: N803
         """预测类别.
 
         Args:
@@ -265,7 +265,7 @@ class MLEnhancedSelector:
     # ============================================================
     def train(
         self,
-        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],
+        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],  # noqa: N803
         y: np.ndarray | pd.Series | Sequence[float],
         feature_names: list[str] | None = None,
     ) -> TrainingResult:
@@ -280,7 +280,7 @@ class MLEnhancedSelector:
             TrainingResult 训练结果
         """
         # 输入标准化
-        X_arr, y_arr, feature_names = self._normalize_input(X, y, feature_names)
+        X_arr, y_arr, feature_names = self._normalize_input(X, y, feature_names)  # noqa: N806
 
         # 输入验证
         if len(X_arr) < 10:
@@ -328,7 +328,7 @@ class MLEnhancedSelector:
     # ============================================================
     def predict_proba(
         self,
-        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],
+        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],  # noqa: N803
     ) -> np.ndarray:
         """预测概率.
 
@@ -339,12 +339,12 @@ class MLEnhancedSelector:
             概率数组 ∈ [0, 1]
         """
         self._check_trained()
-        X_arr = self._normalize_X(X)
+        X_arr = self._normalize_X(X)  # noqa: N806
         return self._model.predict_proba(X_arr)  # type: ignore[union-attr]
 
     def predict(
         self,
-        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],
+        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],  # noqa: N803
         threshold: float = 0.5,
     ) -> np.ndarray:
         """预测类别.
@@ -357,7 +357,7 @@ class MLEnhancedSelector:
             预测标签 {0, 1}
         """
         self._check_trained()
-        X_arr = self._normalize_X(X)
+        X_arr = self._normalize_X(X)  # noqa: N806
         return self._model.predict(X_arr, threshold)  # type: ignore[union-attr]
 
     # ============================================================
@@ -420,7 +420,7 @@ class MLEnhancedSelector:
                 self._training_result = TrainingResult(**tr_dict)
             self._is_trained = True
             logger.info("[MLEnhancedSelector] 模型已加载: %s", filepath)
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             raise ModelLoadError(f"加载模型失败: {e}") from e
 
     # ============================================================
@@ -458,7 +458,7 @@ class MLEnhancedSelector:
 
     @staticmethod
     def _normalize_input(
-        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],
+        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],  # noqa: N803
         y: np.ndarray | pd.Series | Sequence[float],
         feature_names: list[str] | None = None,
     ) -> tuple[np.ndarray, np.ndarray, list[str]]:
@@ -467,11 +467,11 @@ class MLEnhancedSelector:
         if isinstance(X, pd.DataFrame):
             if feature_names is None:
                 feature_names = X.columns.tolist()
-            X_arr = X.values.astype(float)
+            X_arr = X.values.astype(float)  # noqa: N806
         elif isinstance(X, np.ndarray):
-            X_arr = X.astype(float)
+            X_arr = X.astype(float)  # noqa: N806
         else:
-            X_arr = np.array(X, dtype=float)
+            X_arr = np.array(X, dtype=float)  # noqa: N806
 
         # y
         if isinstance(y, pd.Series):
@@ -496,7 +496,7 @@ class MLEnhancedSelector:
 
     @staticmethod
     def _normalize_X(
-        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],
+        X: np.ndarray | pd.DataFrame | Sequence[Sequence[float]],  # noqa: N803
     ) -> np.ndarray:
         """标准化预测输入 X."""
         if isinstance(X, pd.DataFrame):
@@ -518,7 +518,7 @@ def is_ml_selector_enabled() -> bool:
         from utils.infra.feature_flags import is_enabled
 
         return bool(is_enabled("USE_ML_ENHANCED_SELECTOR"))
-    except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         # Feature Flag 框架不可用时, fail-safe 返回 False
         return False
 

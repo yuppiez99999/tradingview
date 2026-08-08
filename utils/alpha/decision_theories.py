@@ -1375,7 +1375,7 @@ def run_full_theory_analysis(
         reflex_results = reflexivity.compute_reflexivity_score(price_data)
         reflex_decision = reflexivity.generate_decision(reflex_results)
         decisions.append(reflex_decision)
-    except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         logger.warning(f"索罗斯反身性分析失败: {e}")
 
     # 2. 达利奥经济机器
@@ -1399,7 +1399,7 @@ def run_full_theory_analysis(
         debt = dalio.assess_debt_cycle(debt_data)
         dalio_decision = dalio.generate_decision(regime, debt)
         decisions.append(dalio_decision)
-    except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         logger.warning(f"达利奥经济机器分析失败: {e}")
 
     # 3. 第一性原理
@@ -1408,7 +1408,7 @@ def run_full_theory_analysis(
         driver_results = fpa.decompose_value_drivers(financial_data)
         fpa_decision = fpa.generate_decision(driver_results)
         decisions.append(fpa_decision)
-    except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         logger.warning(f"第一性原理分析失败: {e}")
 
     # 4. 巴菲特芒格框架
@@ -1417,7 +1417,7 @@ def run_full_theory_analysis(
         moat_results = bm.evaluate_moat(financial_data)
         bm_decision = bm.generate_decision(moat_results)
         decisions.append(bm_decision)
-    except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         logger.warning(f"巴菲特芒格分析失败: {e}")
 
     # 5. 融合

@@ -63,7 +63,7 @@ class LiquidationScheduler:
                 with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("liquidation_protocol", {}) if isinstance(cfg, dict) else {}
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
                 return {}
 
@@ -74,18 +74,18 @@ class LiquidationScheduler:
             portfolio_cfg = get_config("portfolio")
             cfg = portfolio_cfg.get("liquidation_protocol", {})
             if cfg:
-                return cfg  # type: ignore
+                return cfg  # type: ignore[misc]
             # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
             return fallback_cfg.get("liquidation_protocol", {}) if isinstance(fallback_cfg, dict) else {}
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
             try:
                 with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("liquidation_protocol", {}) if isinstance(cfg, dict) else {}
-            except Exception as e2:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as e2:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.error(f"全部加载路径失败: {e2}")
                 return {}
 
@@ -208,9 +208,9 @@ class LiquidationScheduler:
         """
         current = self.get_current_phase()
 
-        if current["phase"] == 0:  # type: ignore
+        if current["phase"] == 0:  # type: ignore[index]
             # 正常运行期, 检查是否临近 Phase 1
-            days_left = current["days_to_next_phase"]  # type: ignore
+            days_left = current["days_to_next_phase"]  # type: ignore[index]
             if days_left <= days_threshold:
                 return {
                     "alert": True,
@@ -224,15 +224,15 @@ class LiquidationScheduler:
                     ],
                 }
 
-        elif current["phase"] in (1, 2):  # type: ignore
-            days_left = current["days_to_next_phase"]  # type: ignore
+        elif current["phase"] in (1, 2):  # type: ignore[index]
+            days_left = current["days_to_next_phase"]  # type: ignore[index]
             if days_left <= 7:
                 return {
                     "alert": True,
-                    "type": f"phase_{current['phase']}_ending",  # type: ignore
+                    "type": f"phase_{current['phase']}_ending",  # type: ignore[index]
                     "days_left": days_left,
-                    "message": f"Phase {current['phase']} 即将结束, 请准备下一阶段",  # type: ignore
-                    "next_actions": self.get_current_phase()["actions"],  # type: ignore
+                    "message": f"Phase {current['phase']} 即将结束, 请准备下一阶段",  # type: ignore[index]
+                    "next_actions": self.get_current_phase()["actions"],  # type: ignore[index]
                 }
 
         return None
@@ -242,7 +242,7 @@ class LiquidationScheduler:
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"写入清仓日志失败: {e}")
 
 
@@ -274,16 +274,16 @@ if __name__ == "__main__":
     if args.current or (not args.schedule and not args.alert):
         phase = sched.get_current_phase(sim_date)
         logger.info("\n=== 当前清仓阶段 ===")
-        print(f"Phase: {phase['phase']}")  # type: ignore
-        print(f"名称: {phase['name']}")  # type: ignore
-        print(f"周期: {phase['period']}")  # type: ignore
-        print(f"距下一阶段: {phase['days_to_next_phase']} 天")  # type: ignore
-        if phase.get("actions"):  # type: ignore
+        logger.info(f"Phase: {phase['phase']}")  # type: ignore[index]
+        logger.info(f"名称: {phase['name']}")  # type: ignore[index]
+        logger.info(f"周期: {phase['period']}")  # type: ignore[index]
+        logger.info(f"距下一阶段: {phase['days_to_next_phase']} 天")  # type: ignore[index]
+        if phase.get("actions"):  # type: ignore[index]
             logger.info("\n动作:")
-            for a in phase["actions"]:  # type: ignore
+            for a in phase["actions"]:  # type: ignore[index]
                 logger.info(f"  - {a}")
-        if phase.get("target"):  # type: ignore
-            print(f"目标: {phase['target']}")  # type: ignore
+        if phase.get("target"):  # type: ignore[index]
+            logger.info(f"目标: {phase['target']}")  # type: ignore[index]
 
     if args.schedule:
         logger.info("\n=== 完整清仓时间表 ===")

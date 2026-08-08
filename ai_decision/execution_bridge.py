@@ -74,7 +74,7 @@ class GrayscaleState:
                 with open(_GRAYSCALE_STATE_FILE, encoding="utf-8") as fh:
                     data = json.load(fh)
                     return cls(**{k: data.get(k, v) for k, v in cls().__dict__.items()})
-        except Exception as e:
+        except (json.JSONDecodeError, OSError, TypeError, ValueError) as e:
             logger.warning(f"加载 GrayscaleState 失败: {e}", exc_info=True)
         gs = cls()
         # P0 修复: mode (shadow/paper/auto) 与 stage (shadow/paper/auto_10/auto_50/auto_100) 命名不一致
@@ -417,8 +417,10 @@ def _generate_execution_plan(
             "[ExecBridge] %s 价格缺失 (price=%s), auto 模式将被 L2 风控 veto",
             decision.symbol, price,
         )
-    # mypy 类型窄化: price_missing=False 时 price 非 None 且 > 0; =True 时已赋值 10.0
-    assert price is not None
+    # 类型窄化: price_missing=False 时 price 非 None 且 > 0; =True 时已赋值 10.0
+    # 用 cast 替代 assert 以满足 mypy, 避免 python -O 下断言被剥离 (assert 仅静态语义, 无运行时校验需求)
+    from typing import cast
+    price = cast(float, price)
 
     # 仓位计算: 组合净值 * 单笔上限 * 信号强度绝对值 * 置信度
     # P0 修复: 仅当 strength 和 confidence 都有效时才计算仓位, 否则不强制最小仓位
@@ -494,6 +496,34 @@ class ExecutionRiskResult:
     checks: dict[str, Any] = field(default_factory=dict)
 
 
+def _run_l1_checks(
+    execution_plan: dict[str, Any],
+    risk_context: RiskContext,
+    decision: TradingDecision,
+    portfolio_value: float,
+    checks: dict[str, Any],
+    veto_reasons: list[str],
+    result: ExecutionRiskResult,
+) -> None:
+    """Phase 1: 复用 L1 decision_gate.run_hard_risk()
+
+    用执行计划的实际名义金额同步给 L1, 确保 single_pct 检查基于真实下单金额。
+    合并 L1 检查项到 checks (加 l1_ 前缀避免覆盖 L2 同名字段)。
+    提取自 _execution_risk_check, 零行为变更。
+    """
+    risk_context.portfolio_value = portfolio_value
+    risk_context.proposed_notional = float(execution_plan.get("notional", 0.0))
+    if not risk_context.symbol:
+        risk_context.symbol = execution_plan.get("symbol", decision.symbol)
+
+    l1_result = run_hard_risk(decision, risk_context)
+    for k, v in l1_result.risk_checks.items():
+        checks[f"l1_{k}"] = v
+    if l1_result.veto:
+        result.veto = True
+        veto_reasons.append(f"[L1] {l1_result.veto_reason}")
+
+
 def _execution_risk_check(
     execution_plan: dict[str, Any],
     market_state: str = "normal",
@@ -526,19 +556,10 @@ def _execution_risk_check(
 
     # ===== Phase 1: 复用 L1 decision_gate.run_hard_risk() =====
     if risk_context is not None and decision is not None:
-        # 用执行计划的实际名义金额同步给 L1, 确保 single_pct 检查基于真实下单金额
-        risk_context.portfolio_value = portfolio_value
-        risk_context.proposed_notional = float(execution_plan.get("notional", 0.0))
-        if not risk_context.symbol:
-            risk_context.symbol = execution_plan.get("symbol", decision.symbol)
-
-        l1_result = run_hard_risk(decision, risk_context)
-        # 合并 L1 检查项 (加 l1_ 前缀避免覆盖 L2 同名字段)
-        for k, v in l1_result.risk_checks.items():
-            checks[f"l1_{k}"] = v
-        if l1_result.veto:
-            result.veto = True
-            veto_reasons.append(f"[L1] {l1_result.veto_reason}")
+        _run_l1_checks(
+            execution_plan, risk_context, decision, portfolio_value,
+            checks, veto_reasons, result,
+        )
 
     # ===== Phase 2: L2 执行层特有检查 =====
     # 0. 价格缺失检查 (auto 模式硬 veto, 防止以默认价 10.0 灾难性下单)
@@ -622,7 +643,7 @@ def _tca_pre_trade_enabled() -> bool:
     try:
         from utils.infra.feature_flags import is_enabled
         return bool(is_enabled("USE_AI_DECISION_TCA_PRE_TRADE"))
-    except Exception:
+    except (ImportError, AttributeError, TypeError, KeyError):
         return False
 
 
@@ -631,7 +652,7 @@ def _tca_post_trade_enabled() -> bool:
     try:
         from utils.infra.feature_flags import is_enabled
         return bool(is_enabled("USE_AI_DECISION_TCA_POST_TRADE"))
-    except Exception:
+    except (ImportError, AttributeError, TypeError, KeyError):
         return False
 
 
@@ -729,7 +750,8 @@ def _tca_report_to_dict(report: Any) -> dict[str, Any]:
             return report.to_dict()
         from dataclasses import asdict
         return asdict(report)
-    except Exception:
+    except (TypeError, ValueError, AttributeError, ImportError):
+        # to_dict 抛 TypeError/ValueError, asdict 抛 TypeError (非 dataclass), ImportError 防御
         return {
             "symbol": getattr(report, "symbol", ""),
             "quality_grade": getattr(report, "quality_grade", ""),
@@ -868,7 +890,8 @@ def _run_tca_pre_trade(
                     decision.symbol, estimate.estimated_cost_bps,
                     estimate.tier,
                 )
-        except Exception as exc:
+        except (ValueError, KeyError, AttributeError, TypeError, RuntimeError) as exc:
+            # TCA 预筛可能抛出的具体异常: 参数错误/字段缺失/估算失败
             logger.error("[ExecutionBridge] TCA 预筛异常 (降级为不预估): %s", exc)
             tca_error = f"pre_trade: {exc}"
 
@@ -977,7 +1000,8 @@ def _dispatch_execution_mode(
                     )
                     msg = f"[AUTO] {decision.symbol} {decision.action} 下单失败"
                 logger.info(msg)
-            except Exception as exc:
+            except (TimeoutError, ConnectionError, OSError, ValueError, KeyError, RuntimeError) as exc:
+                # 下单路径可能抛出的具体异常: 网络超时/连接错误/参数错误/路由失败
                 logger.error("下单异常: %s", exc)
                 mode_escalation = True
                 mode_escalation_reason = f"下单异常: {exc}"
@@ -1033,7 +1057,8 @@ def _run_tca_post_trade(
                 "[TCA-PostTrade] %s 跳过归因 (fills/benchmark 数据不足)",
                 decision.symbol,
             )
-    except Exception as exc:
+    except (ValueError, KeyError, AttributeError, TypeError, RuntimeError) as exc:
+        # TCA 事后归因可能抛出的具体异常: 参数错误/字段缺失/分析失败
         logger.error("[ExecutionBridge] TCA 事后归因异常: %s", exc)
         tca_error = f"post_trade: {exc}"
 

@@ -145,7 +145,7 @@ def call_ollama_deep(
                 return f"{content.strip()}\n\n---\n_思考过程：{reasoning.strip()[:500]}_"
             return cast(str, content.strip())
         return None
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.warning("Ollama deep 调用失败: %s", e)
         return None
 

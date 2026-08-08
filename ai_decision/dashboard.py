@@ -95,7 +95,10 @@ class BudgetConfig:
                     per_call_latency_p99_ms=float(budget.get("per_call_latency_p99_ms", 5000.0)),
                     daily_cost_limit_usd=float(budget.get("daily_cost_limit_usd", 10.0)),
                 )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError,
+                RuntimeError) as e:
+            # int/float 转换可能抛 ValueError/TypeError;
+            # dict 操作可能抛 KeyError/AttributeError; get_config 可能抛 RuntimeError
             logger.debug("[Dashboard] budget 配置加载失败, 用默认值: %s", e)
         return cls()
 
@@ -240,7 +243,10 @@ class DashboardGenerator:
                 "roles": roles_detail,
                 "config": stats.get("config", {}),
             }
-        except Exception as exc:
+        except (RuntimeError, KeyError, TypeError, AttributeError, ValueError,
+                OSError) as exc:
+            # monitor.get_stats()/get_health_summary() 可能抛: 运行时错误/字段缺失/
+            # 类型不匹配/属性缺失/值错误/IO 错误
             logger.error("[Dashboard] 模型健康收集失败: %s", exc)
             return {"error": str(exc), "total_roles": 0, "roles": {}}
 
@@ -302,7 +308,10 @@ class DashboardGenerator:
                             records.append(json.loads(line))
                         except json.JSONDecodeError:
                             continue
-        except Exception as exc:
+        except (OSError, ValueError, TypeError, AttributeError,
+                RuntimeError) as exc:
+            # open() 失败抛 OSError; line.strip() 对非字符串抛 AttributeError;
+            # 文件编码可能抛 ValueError; 其他运行时异常
             logger.error("[Dashboard] TCA 预估记录加载失败: %s", exc)
         return records
 
@@ -467,7 +476,10 @@ class DashboardGenerator:
                             records.append(json.loads(line))
                         except json.JSONDecodeError:
                             continue
-        except Exception as exc:
+        except (OSError, ValueError, TypeError, AttributeError,
+                RuntimeError) as exc:
+            # open() 失败抛 OSError; line.strip() 对非字符串抛 AttributeError;
+            # 文件编码可能抛 ValueError; 其他运行时异常
             logger.error("[Dashboard] JSONL 加载失败 %s: %s", path, exc)
         return records
 

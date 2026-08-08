@@ -207,7 +207,7 @@ class DailyReportGenerator:
     Usage:
         >>> generator = DailyReportGenerator()
         >>> result = generator.generate(ReportInput(trade_date="2026-07-27"))
-        >>> print(result.report_path)
+        >>> logger.info(result.report_path)
     """
 
     def __init__(
@@ -440,7 +440,7 @@ class DailyReportGenerator:
         try:
             from utils.infra.feature_flags import FeatureFlags
 
-            return bool(FeatureFlags.is_enabled(self._feature_flag_name))  # type: ignore
+            return bool(FeatureFlags.is_enabled(self._feature_flag_name))  # type: ignore[misc]
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.debug(f"[DailyReportGenerator] Feature Flag 查询失败 (默认 False): {e}")
             return False
@@ -502,7 +502,7 @@ def is_daily_report_generator_enabled() -> bool:
     try:
         from utils.infra.feature_flags import FeatureFlags
 
-        return bool(FeatureFlags.is_enabled(FLAG_NAME))  # type: ignore
+        return bool(FeatureFlags.is_enabled(FLAG_NAME))  # type: ignore[misc]
     except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         return False
 

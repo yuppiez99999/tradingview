@@ -181,7 +181,7 @@ class FinanceAgentOrchestrator:
         self.audit_log_dir = audit_log_dir or Path("data/agent_orchestrator_audit")
         try:
             self.audit_log_dir.mkdir(parents=True, exist_ok=True)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.warning("审计日志目录创建失败: %s", e)
 
         logger.info(
@@ -327,7 +327,7 @@ class FinanceAgentOrchestrator:
                         veto_reason,
                     )
                     # 不 break, 继续收集其他 Agent 决策 (用于审计)
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
                 logger.warning(
                     "Agent %s 分析 %s 异常: %s",
                     agent.name,
@@ -466,7 +466,7 @@ class FinanceAgentOrchestrator:
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
             return log_file
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.warning("审计日志写入失败: %s", e)
             return None
 
@@ -489,7 +489,7 @@ class FinanceAgentOrchestrator:
                     line = line.strip()
                     if line:
                         entries.append(json.loads(line))
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.warning("审计日志读取失败: %s", e)
         return entries
 
@@ -578,11 +578,12 @@ class FinanceAgentOrchestrator:
                 from utils.finance_agents.weather_agent import WeatherAgent
                 agents.append(WeatherAgent())
                 logger.info("WeatherAgent 初始化成功")
-            except Exception as weather_err:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as weather_err:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("WeatherAgent 初始化失败 (降级跳过): %s", weather_err)
 
             return agents
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error("默认 Agent 初始化失败: %s", e)
             return []
 

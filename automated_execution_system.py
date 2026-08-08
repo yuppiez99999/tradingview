@@ -43,18 +43,18 @@ except ImportError as _e:
             "utils.execution.automated_execution_system",
             _SRC,
         )
-        _mod = importlib.util.module_from_spec(_spec)  # type: ignore
+        _mod = importlib.util.module_from_spec(_spec)  # type: ignore[misc]
         # 注入 sys.path 以便模块内的相对导入可用
         _project_root = os.path.dirname(os.path.abspath(__file__))
         if _project_root not in sys.path:
             sys.path.insert(0, _project_root)
-        _spec.loader.exec_module(_mod)  # type: ignore
-        AutomatedExecutionSystem = _mod.AutomatedExecutionSystem  # type: ignore
-        ExecutionStrategy = _mod.ExecutionStrategy  # type: ignore
-        MarketStateEvaluator = _mod.MarketStateEvaluator  # type: ignore
-        OrderRouter = _mod.OrderRouter  # type: ignore
-        TradingCalendar = _mod.TradingCalendar  # type: ignore
-        _to_wind_code = _mod._to_wind_code  # type: ignore
+        _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
+        AutomatedExecutionSystem = _mod.AutomatedExecutionSystem  # type: ignore[attr-defined]
+        ExecutionStrategy = _mod.ExecutionStrategy  # type: ignore[attr-defined]
+        MarketStateEvaluator = _mod.MarketStateEvaluator  # type: ignore[attr-defined]
+        OrderRouter = _mod.OrderRouter  # type: ignore[attr-defined]
+        TradingCalendar = _mod.TradingCalendar  # type: ignore[attr-defined]
+        _to_wind_code = _mod._to_wind_code  # type: ignore[attr-defined]
     else:
         raise ImportError(
             f"T3.6 re-export 失败: 找不到 utils/execution/automated_execution_system.py (expected at {_SRC}): {_e}"

@@ -304,7 +304,9 @@ class FeatureFlags:
             with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(override_data, f, ensure_ascii=False, indent=2)
             temp_file.replace(override_file)
-        except Exception:
+        except (OSError, ValueError, TypeError):
+            # OSError: 文件写入/替换失败 (权限/磁盘/占用)
+            # ValueError/TypeError: json.dump 序列化失败 (循环引用/不可序列化类型)
             if temp_file.exists():
                 temp_file.unlink(missing_ok=True)
             raise

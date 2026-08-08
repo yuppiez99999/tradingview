@@ -204,7 +204,7 @@ class VibeBacktestBridge:
             if self.config.audit_enabled and result.status == "success":
                 self._write_audit(result)
             return result
-        except Exception as e:  # noqa: BLE001  # 回测 fail-safe, 不阻断主流程
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 回测 fail-safe, 不阻断主流程
             logger.error("Vibe 回测失败: %s", e)
             logger.debug(traceback.format_exc())
             return VibeBacktestResult(
@@ -297,7 +297,7 @@ class VibeBacktestBridge:
                 for date in df.index:
                     date_str = str(date.date()) if hasattr(date, "date") else str(date)
                     scores.setdefault(date_str, {})[symbol] = composite
-            except Exception as e:  # noqa: BLE001  # 因子计算 fail-safe
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 因子计算 fail-safe
                 logger.warning("[%s] 因子计算失败: %s", symbol, e)
                 continue
 
@@ -528,5 +528,5 @@ class VibeBacktestBridge:
                 "adapter_failed": adapter_health.get("failed", 0),
                 "benchmark": self.config.benchmark,
             }
-        except Exception as e:  # noqa: BLE001  # 健康检查 fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 健康检查 fail-safe
             return {"flag_enabled": is_enabled("USE_VIBE_BACKTEST_BRIDGE"), "error": str(e)}

@@ -100,7 +100,8 @@ DEFAULT_TARGET_BETA = 0.05
 try:
     from utils.risk_params import get_quant_neutral_max_drawdown as _get_qn_max_drawdown
     DEFAULT_MAX_DRAWDOWN = _get_qn_max_drawdown()
-except Exception:
+except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     DEFAULT_MAX_DRAWDOWN = 0.08
 DEFAULT_SHARPE_TARGET = 1.2
 DEFAULT_BASIS_THRESHOLD = 0.015
@@ -188,8 +189,7 @@ class QuantNeutralRunner:
         if ICHedgeCalculator is not None:
             self.ic_calc = ICHedgeCalculator()
         else:
-            self.ic_calc = None  # type: ignore
-
+            self.ic_calc = None  # type: ignore[misc]
         # v10.0 配置覆盖 (若可用)
         if V10ConfigLoader is not None:
             try:
@@ -207,7 +207,7 @@ class QuantNeutralRunner:
                     self.turnover_target = float(cfg.get("turnover_target_monthly", self.turnover_target))
                     if "factors" in cfg:
                         self.factor_weights = cfg["factors"]
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"v10.0 配置加载失败, 使用默认值: {e}")
 
         logger.info(
@@ -397,8 +397,7 @@ class QuantNeutralRunner:
             return 1.0  # 默认 1.0
 
         weighted_beta = sum(p.get("weight", 0) * p.get("beta", 1.0) for p in long_positions)
-        return weighted_beta / total_weight  # type: ignore
-
+        return weighted_beta / total_weight  # type: ignore[misc]
     # ------------------------------------------------------------
     # 月度调仓主流程
     # ------------------------------------------------------------
@@ -684,7 +683,7 @@ class QuantNeutralRunner:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report_data, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"[QuantNeutral] 报告已保存: {report_path}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"[QuantNeutral] 报告保存失败: {e}")
 
     # ------------------------------------------------------------

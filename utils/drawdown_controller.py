@@ -192,7 +192,7 @@ class DrawdownController:
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"写入回撤日志失败: {e}")
 
     def execute_response(self, level: int) -> dict[str, Any]:
@@ -293,9 +293,9 @@ class DrawdownController:
                             dt = datetime.fromisoformat(ts)
                             if dt.timestamp() >= cutoff:
                                 records.append(record)
-                    except Exception:  # P2 模块 fail-safe, 待后续精确化
+                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                         continue
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             pass
 
         return records
@@ -333,7 +333,7 @@ if __name__ == "__main__":
         history = dc.get_event_history(args.history)
         logger.info(f"\n最近 {args.history} 天回撤事件: {len(history)} 次")
         for r in history:
-            print(
+            logger.info(
                 f"  {r.get('timestamp', 'N/A')} - L{r.get('level', 0)} "
                 f"{r.get('level_name', '')} 回撤={r.get('drawdown_pct', 0):.2%}"
             )

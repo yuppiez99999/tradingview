@@ -237,7 +237,7 @@ class PostTradeAttribution:
         if self.save_to_file:
             try:
                 self._save_fill_record(fill, estimate)
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.error("[TCA-PostTrade] 保存成交记录失败: %s", e)
 
         logger.info(
@@ -317,7 +317,7 @@ class PostTradeAttribution:
         if self.save_to_file:
             try:
                 self._save_comparison(comparison)
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.error("[TCA-PostTrade] 保存对比记录失败: %s", e)
 
         # 偏差超容忍度时告警
@@ -429,7 +429,7 @@ class PostTradeAttribution:
         if self.save_to_file:
             try:
                 self._save_pnl_attribution(attribution)
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.error("[TCA-PostTrade] 保存 PnL 归因失败: %s", e)
 
         logger.info(
@@ -516,7 +516,7 @@ class PostTradeAttribution:
                     new_threshold=new_threshold,
                     percentile=percentile,
                 )
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.error("[TCA-PostTrade] 保存校准日志失败: %s", e)
 
         logger.info(
@@ -526,8 +526,7 @@ class PostTradeAttribution:
             len(actual_costs),
             percentile * 100,
         )
-        return new_threshold  # type: ignore
-
+        return new_threshold  # type: ignore[misc]
     # ------------------------------------------------------------
     # 5. 汇总报告
     # ------------------------------------------------------------

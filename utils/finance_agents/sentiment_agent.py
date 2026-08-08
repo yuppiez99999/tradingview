@@ -65,7 +65,7 @@ class SentimentAgent(BaseAgent):
             self._report_agent = AIReportAgent()
             logger.info("SentimentAgent: 已复用 AIReportAgent")
             return self._report_agent
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.warning("SentimentAgent: AIReportAgent 初始化失败: %s", e)
             return None
 
@@ -108,7 +108,7 @@ class SentimentAgent(BaseAgent):
 
         try:
             sentiments = agent.analyze_news_sentiment(analyzed_news, use_llm=True)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.warning("SentimentAgent: AIReportAgent.analyze_news_sentiment 异常: %s", e)
             return self._fallback_keyword_sentiment(symbol, analyzed_news)
 
@@ -188,7 +188,7 @@ class SentimentAgent(BaseAgent):
             pos_words = AIReportAgent.POSITIVE_WORDS
             neg_words = AIReportAgent.NEGATIVE_WORDS
             crit_words = AIReportAgent.CRITICAL_NEGATIVE_WORDS
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             pos_words = ["利好", "增长", "上涨", "突破"]
             neg_words = ["利空", "下降", "下跌", "风险"]
             crit_words = ["立案调查", "退市", "财务造假"]

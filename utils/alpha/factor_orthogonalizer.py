@@ -180,7 +180,9 @@ def orthogonalize_factors(
 
         return selected, report
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         report.status = "error"
         report.error = f"正交化异常: {e}"
         logger.warning("[orthogonalize] 正交化失败: %s", e, exc_info=True)
@@ -218,7 +220,8 @@ def _build_factor_dataframe(factor_series: dict[str, pd.Series]) -> pd.DataFrame
         return None
 
     # 填充 NaN (避免 corr 返回全 NaN)
-    df = df.fillna(method="ffill").fillna(0.0)
+    # pandas 3.0 兼容: fillna(method="ffill") 已移除, 改用 .ffill()
+    df = df.ffill().fillna(0.0)
 
     return df
 

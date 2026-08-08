@@ -615,7 +615,7 @@ class BrinsonAttributionManager:
         ...     benchmark_returns={"finance": 0.01, "tech": 0.03},
         ...     attribution_date="2026-07-27",
         ... )
-        >>> print(result.total_allocation_effect)
+        >>> logger.info(result.total_allocation_effect)
     """
 
     def __init__(
@@ -669,7 +669,7 @@ class BrinsonAttributionManager:
                     config_name,
                 )
             return cfg
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning(
                 "[Brinson] 配置加载失败: %s (%s), 使用默认配置",
                 config_name,
@@ -683,7 +683,7 @@ class BrinsonAttributionManager:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(self._feature_flag_name))
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
     # ============================================================
@@ -694,8 +694,8 @@ class BrinsonAttributionManager:
         self,
         portfolio_weights: dict[str, float],
         benchmark_weights: dict[str, float] | None = None,
-        portfolio_returns: dict[str, float] | None = None,  # type: ignore
-        benchmark_returns: dict[str, float] | None = None,  # type: ignore
+        portfolio_returns: dict[str, float] | None = None,  # type: ignore[misc]
+        benchmark_returns: dict[str, float] | None = None,  # type: ignore[misc]
         attribution_date: str = "",
         benchmark_code: str | None = None,
         validate: bool = True,
@@ -876,7 +876,7 @@ def is_brinson_attribution_enabled() -> bool:
         return bool(is_enabled(FLAG_NAME))
     except ImportError:
         return False
-    except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         return False
 
 

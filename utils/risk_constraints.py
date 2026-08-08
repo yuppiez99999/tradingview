@@ -168,7 +168,7 @@ def _approx_var(
         if series is not None and hasattr(series, "pct_change"):
             try:
                 r = series.pct_change().dropna().values
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                 r = None
         if r is None or len(r) < 5:
             var = default_vol_daily * 1.65 * abs(w)
@@ -185,8 +185,8 @@ def _approx_var(
         return 0.0, single
     min_len = min(len(x) for x in rets)
     aligned = np.column_stack([x[-min_len:] for x in rets])
-    w = np.array(weights, dtype=float)  # type: ignore
-    w = w / (w.sum() if w.sum() > 0 else 1.0)  # type: ignore
+    w = np.array(weights, dtype=float)  # type: ignore[misc]
+    w = w / (w.sum() if w.sum() > 0 else 1.0)  # type: ignore[misc]
     port_ret = aligned @ w
     sorted_pr = np.sort(port_ret)
     idx = max(0, int(0.05 * len(sorted_pr)) - 1)

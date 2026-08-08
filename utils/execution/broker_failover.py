@@ -148,8 +148,7 @@ class BrokerHealthTracker:
         """当前成功率 (0.0-1.0)."""
         if not self._results:
             return 0.0
-        return sum(self._results) / len(self._results)  # type: ignore
-
+        return sum(self._results) / len(self._results)  # type: ignore[misc]
     @property
     def is_healthy(self) -> bool:
         """是否健康 (可下单)."""
@@ -300,7 +299,9 @@ class BrokerFailoverManager:
                 else:
                     info["tracker"].record_failure()
                     logger.warning("broker %s 连接失败, 尝试下一个", name)
-            except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+        OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
                 info["tracker"].record_failure()
                 logger.exception("broker %s 连接异常: %s", name, e)
         raise NoHealthyBrokerError("所有 broker 都无法连接")
@@ -410,7 +411,9 @@ class BrokerFailoverManager:
                         self._failover_count,
                     )
                     return True
-                except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+        OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
                     tracker.record_failure()
                     logger.exception("切换到 %s 失败: %s", name, e)
                     continue
@@ -465,7 +468,9 @@ class BrokerFailoverManager:
                         reason,
                     )
                     return True
-                except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+        OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
                     logger.exception("强制切换失败: %s", e)
                     return False
             else:
@@ -503,7 +508,9 @@ class BrokerFailoverManager:
         while not self._stop_event.is_set():
             try:
                 self._check_all_brokers()
-            except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+        OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
                 logger.exception("健康检查异常: %s", e)
             # 等待下次检查 (支持提前唤醒)
             self._stop_event.wait(timeout=self._recovery_check_interval)
@@ -523,7 +530,9 @@ class BrokerFailoverManager:
                                 tracker.record_success()
                                 logger.info("broker %s 已恢复", name)
                                 self._audit("broker_recovered", {"broker": name})
-                    except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+        OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
                         logger.warning("broker %s 恢复失败: %s", name, e)
 
     def get_status(self) -> dict[str, Any]:

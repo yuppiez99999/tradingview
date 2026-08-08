@@ -78,7 +78,10 @@ def _load_circuit_breaker():
                 if cb_cls is not None:
                     logger.debug("[Health] 复用 v8.3 model_router.CircuitBreaker")
                     return cb_cls
-    except Exception as exc:
+    except (ImportError, OSError, AttributeError, TypeError, ValueError,
+            SyntaxError, RuntimeError) as exc:
+        # importlib 动态加载可能抛: 模块导入失败/文件读取错误/属性缺失/
+        # 类型不匹配/spec 解析错误/目标文件语法错误/运行时错误
         logger.debug("[Health] 加载 model_router.CircuitBreaker 失败, 降级内联版本: %s", exc)
 
     # 降级: 内联兼容版本 (与 model_router.CircuitBreaker 接口完全一致)
@@ -329,7 +332,11 @@ class ModelHealthMonitor:
                     error="", last_check=time.time(),
                     provider_name=provider_name, circuit_open=False,
                 )
-        except Exception as exc:
+        except (RuntimeError, OSError, ConnectionError, TimeoutError,
+                ValueError, TypeError, KeyError, AttributeError) as exc:
+            # provider.generate 可能抛: 网络/超时/JSON 解析/响应格式错误/
+            # 字段缺失/类型不匹配/属性缺失/运行时错误 (各 Provider 内部已做降级,
+            # 此处仅作兜底防御)
             latency_ms = (time.perf_counter() - start) * 1000.0
             self.record_failure(role)
             status = HealthStatus(

@@ -55,12 +55,12 @@ def _check_scrapling() -> bool:
     if _scrapling_available is not None:
         return _scrapling_available
     try:
-        from scrapling import Fetcher, StealthyFetcher  # type: ignore
+        from scrapling import Fetcher, StealthyFetcher  # type: ignore[misc]
         _StealthyFetcher = StealthyFetcher
         _Fetcher = Fetcher
         # PlayWrightFetcher 是可选的 (需要 playwright 依赖)
         try:
-            from scrapling import PlayWrightFetcher  # type: ignore
+            from scrapling import PlayWrightFetcher  # type: ignore[misc]
             _PlayWrightFetcher = PlayWrightFetcher
         except ImportError:
             pass
@@ -139,7 +139,8 @@ class ScraplingAdapter:
             else:
                 self._available = False
                 return None
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"Scrapling fetcher 初始化失败: {e}, 降级到 WebScraper")
             self._available = False
             return None
@@ -197,7 +198,8 @@ class ScraplingAdapter:
                         "source": "scrapling",
                         "error": "",
                     }
-                except Exception as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.debug(f"Scrapling 抓取 {url} 失败: {e}, 降级")
 
         # 降级: 直接 requests
@@ -227,7 +229,8 @@ class ScraplingAdapter:
                 if result and result.success and result.items:
                     items = result.items[:limit]
                     return [item.to_dict() for item in items]
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.debug(f"WebScraper.fetch_news 失败: {e}")
 
         # Scrapling 兜底: 直接抓东方财富搜索页
@@ -257,7 +260,8 @@ class ScraplingAdapter:
                 if result and result.success and result.items:
                     items = result.items[:limit]
                     return [item.to_dict() for item in items]
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.debug(f"WebScraper.fetch_announcements 失败: {e}")
 
         logger.warning(f"公告抓取失败: stock={stock_code}")
@@ -283,7 +287,8 @@ class ScraplingAdapter:
                 if result and result.success and result.items:
                     items = result.items[:limit]
                     return [item.to_dict() for item in items]
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.debug(f"WebScraper.fetch_research_reports 失败: {e}")
 
         logger.warning(f"研报抓取失败: stock={stock_code}")
@@ -313,7 +318,8 @@ class ScraplingAdapter:
             if hasattr(page, "text"):
                 return page.text
             return str(page)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"文本提取失败: {e}")
             return ""
 
@@ -359,7 +365,8 @@ class ScraplingAdapter:
                 "source": "requests",
                 "error": "",
             }
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return self._empty_result(url, f"requests 降级失败: {e}")
 
     def _scrapling_fetch_news(self, keyword: str, limit: int) -> list[dict[str, Any]]:
@@ -405,7 +412,8 @@ class ScraplingAdapter:
             if items:
                 logger.info(f"Scrapling 抓取 {keyword}: {len(items)} 条")
                 return items
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"Scrapling 新闻抓取失败: {e}")
 
         return []

@@ -182,7 +182,8 @@ class StaticParser:
                 err = self._parse_mypy_line(line)
                 if err is not None:
                     errors.append(err)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("mypy 输出解析失败 (降级为空): %s", e)
         return errors
 
@@ -229,7 +230,8 @@ class StaticParser:
                 err = self._parse_pylint_line(line)
                 if err is not None:
                     errors.append(err)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("pylint 输出解析失败 (降级为空): %s", e)
         return errors
 
@@ -309,7 +311,8 @@ class StaticParser:
                     detected_at=now,
                 )
                 causes.append(cause)
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("StaticError 转 RootCause 失败 (跳过): %s", e)
         return causes
 
@@ -339,7 +342,8 @@ class StaticParser:
                     text = f.read_text(encoding="utf-8", errors="ignore")
                     errors = self.parse_mypy(text)
                     causes.extend(self.to_root_causes(errors))
-                except Exception as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.warning("解析 mypy 报告失败 %s: %s", f.name, e)
             # pylint 报告
             for f in sorted(reports_dir.glob("pylint_*.txt")):
@@ -347,8 +351,10 @@ class StaticParser:
                     text = f.read_text(encoding="utf-8", errors="ignore")
                     errors = self.parse_pylint(text)
                     causes.extend(self.to_root_causes(errors))
-                except Exception as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.warning("解析 pylint 报告失败 %s: %s", f.name, e)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("解析报告目录失败 (降级为空): %s", e)
         return causes

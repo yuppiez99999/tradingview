@@ -30,6 +30,10 @@ def safe_float(val: Any, default: Optional[float] = None) -> Optional[float]:
         if val is None:
             return default
 
+        # L4: bool 是 int 子类, 会被 float(True)=1.0 误转。排除 bool, 返回 default。
+        if isinstance(val, bool):
+            return default
+
         if isinstance(val, str):
             val = val.strip()
             if val == "" or val == "-" or val == "--" or val.lower() in ("null", "none", "nan", "inf", "-inf"):
@@ -103,8 +107,14 @@ def normalize_stock_code(code: Optional[str]) -> str:
     if s.startswith(("sh", "sz", "bj", "SH", "SZ", "BJ")):
         return s
 
+    # L2: 港股代码常为 5 位纯数字 (如 00700/00005), A股为 6 位。
+    # 5 位纯数字 (非 9 开头 B 股) 视为港股, 返回原样, 避免误加 A股前缀。
+    if s.isdigit() and len(s) == 5 and not s.startswith("9"):
+        return s
+
     prefix = "sh"
-    if s.startswith(("6", "5", "9")):
+    # L2: 7 开头为沪市新股 (730xxx 新股申购等), 显式归 sh
+    if s.startswith(("6", "5", "7", "9")):
         prefix = "sh"
     elif s.startswith(("0", "3")):
         prefix = "sz"
@@ -130,6 +140,10 @@ def get_market_tag(code: Optional[str]) -> str:
 
     s = str(code).strip().lower()
     if s.startswith(("hk", "hkex", "00700", "09988")):
+        return "hk"
+    # L2: 港股代码常为 5 位纯数字 (如 00700/00005/00941), 而 A股为 6 位。
+    # 5 位纯数字 (无市场前缀) 视为港股, 避免误判为 cn。
+    if s.isdigit() and len(s) == 5 and not s.startswith("9"):
         return "hk"
     if any(ch.isdigit() for ch in s) and not s.startswith(("us", "nas", "nyq")):
         return "cn"

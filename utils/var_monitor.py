@@ -41,7 +41,7 @@ class VaRMonitor:
     VAR_99_LIMIT_PCT = -0.05  # 99% VaR 日限额: -5%
     LOOKBACK_DAYS = 252  # 历史模拟法窗口
 
-    def __init__(self, lookback_days: int | None = None):  # type: ignore
+    def __init__(self, lookback_days: int | None = None):  # type: ignore[misc]
         self.lookback_days = lookback_days or self.LOOKBACK_DAYS
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
@@ -142,7 +142,7 @@ class VaRMonitor:
                 dates = list(range(len(rets)))
 
         portfolio_returns: list[float] = []
-        for i in dates:  # type: ignore
+        for i in dates:  # type: ignore[misc]
             daily_ret = 0.0
             for pos in positions:
                 symbol = pos.get("code", "")
@@ -225,7 +225,7 @@ class VaRMonitor:
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"写入 VaR 日志失败: {e}")
 
     def get_event_history(self, days: int = 30) -> list[dict]:
@@ -246,9 +246,9 @@ class VaRMonitor:
                             dt = datetime.fromisoformat(ts)
                             if dt.timestamp() >= cutoff:
                                 records.append(record)
-                    except Exception:  # P2 模块 fail-safe, 待后续精确化
+                    except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                         continue
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             pass
 
         return records

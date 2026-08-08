@@ -13,6 +13,9 @@ from typing import Any
 from urllib.parse import quote
 
 import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 强制禁用代理，避免系统代理 127.0.0.1:7897 导致外网请求失败
 os.environ["NO_PROXY"] = "*"
@@ -84,7 +87,7 @@ def _to_float(v: Any) -> float | None:
         if v is None:
             return None
         return float(v)
-    except Exception:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
         return None
 
 
@@ -93,7 +96,7 @@ def _to_str(v: Any) -> str | None:
         if v is None:
             return None
         return str(v)
-    except Exception:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
         return None
 
 
@@ -101,7 +104,7 @@ def _normalize_ak_quotes(df) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     try:
         records = df.to_dict(orient="records") if hasattr(df, "to_dict") else []
-    except Exception:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
         records = []
     for row in records:
         sym = row.get("symbol") or row.get("合约代码") or row.get("代码")
@@ -127,7 +130,7 @@ def _normalize_ak_daily(df) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     try:
         records = df.to_dict(orient="records") if hasattr(df, "to_dict") else []
-    except Exception:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
         records = []
     for row in records:
         sym = row.get("symbol") or row.get("合约代码") or row.get("代码")
@@ -171,7 +174,7 @@ def _try_http_futures_quotes(symbols: list[str]) -> dict[str, Any]:
         url = f"https://hq.sinajs.cn/list={','.join(sina_codes)}"
         resp = session.get(url, headers=headers, timeout=10, verify=False)
         text = resp.text
-        print(f"[DEBUG] 新浪HTTP状态: {resp.status_code}, 长度: {len(text)}")
+        logger.info(f"[DEBUG] 新浪HTTP状态: {resp.status_code}, 长度: {len(text)}")
         for line in text.splitlines():
             m = re.search(r'var hq_str_nf_([^=]+)="(.+)"', line)
             if not m:
@@ -194,19 +197,19 @@ def _try_http_futures_quotes(symbols: list[str]) -> dict[str, Any]:
                     "settlement": _to_float(parts[10]),
                     "change_ratio": None,
                 }
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                 continue
         if result:
             return result
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-        print(f"[DEBUG] 新浪HTTP失败: {e}")
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        logger.error(f"[DEBUG] 新浪HTTP失败: {e}")
 
     # 腾讯期货
     try:
         url = f"https://qt.gtimg.cn/q={','.join(tencent_codes)}"
         resp = session.get(url, headers=headers, timeout=10, verify=False)
         text = resp.text
-        print(f"[DEBUG] 腾讯HTTP状态: {resp.status_code}, 长度: {len(text)}")
+        logger.info(f"[DEBUG] 腾讯HTTP状态: {resp.status_code}, 长度: {len(text)}")
         for line in text.splitlines():
             m = re.search(r'v_(.+)="(.+)"', line)
             if not m:
@@ -229,12 +232,12 @@ def _try_http_futures_quotes(symbols: list[str]) -> dict[str, Any]:
                     "settlement": _to_float(parts[4]),
                     "change_ratio": _to_float(parts[32]),
                 }
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                 continue
         if result:
             return result
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-        print(f"[DEBUG] 腾讯HTTP失败: {e}")
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        logger.error(f"[DEBUG] 腾讯HTTP失败: {e}")
 
     return {}
 
@@ -268,14 +271,14 @@ def _try_wind_futures_quotes(symbols: list[str]) -> dict[str, Any]:
                         "settlement": float(inner.get("settlement", 0) or 0),
                         "change_ratio": float(inner.get("change_pct", 0) or inner.get("pct_change", 0)),
                     }
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-                print(f"[DEBUG] Wind MCP 期货 {sym} 失败: {e}")
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+                logger.error(f"[DEBUG] Wind MCP 期货 {sym} 失败: {e}")
                 continue
         if result:
-            print(f"[DEBUG] Wind MCP 期货返回 {len(result)} 个标的")
+            logger.info(f"[DEBUG] Wind MCP 期货返回 {len(result)} 个标的")
             return result
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-        print(f"[DEBUG] Wind MCP 期货接口不可用: {e}")
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        logger.info(f"[DEBUG] Wind MCP 期货接口不可用: {e}")
     return {}
 
 
@@ -286,9 +289,8 @@ def get_futures_realtime(symbols: list[str]) -> dict[str, Any]:
 
     quotes = fetch_futures_quotes(symbols)
     if quotes:
-        return quotes  # type: ignore
-
-    print("[DEBUG] Wind MCP/iFinD 不可用，回退 AKShare 实时行情")
+        return quotes  # type: ignore[misc]
+    logger.info("[DEBUG] Wind MCP/iFinD 不可用，回退 AKShare 实时行情")
     try:
         import akshare as ak
 
@@ -308,16 +310,16 @@ def get_futures_realtime(symbols: list[str]) -> dict[str, Any]:
         for func_name, kwargs in candidates:
             try:
                 df = getattr(ak, func_name)(**kwargs)
-                print(f"[DEBUG] AKShare {func_name} 返回: empty={getattr(df, 'empty', 'n/a')}")
+                logger.info(f"[DEBUG] AKShare {func_name} 返回: empty={getattr(df, 'empty', 'n/a')}")
                 if df is not None and not (hasattr(df, "empty") and df.empty):
                     return _normalize_ak_quotes(df)
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-                print(f"[DEBUG] AKShare {func_name} 失败: {e}")
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+                logger.error(f"[DEBUG] AKShare {func_name} 失败: {e}")
                 continue
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-        print(f"[DEBUG] AKShare 导入失败: {e}")
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        logger.error(f"[DEBUG] AKShare 导入失败: {e}")
 
-    print("[DEBUG] AKShare 实时行情全部失败，回退 HTTP")
+    logger.error("[DEBUG] AKShare 实时行情全部失败，回退 HTTP")
     return _try_http_futures_quotes(symbols)
 
 
@@ -327,24 +329,23 @@ def get_futures_daily(symbol: str, market: str = "CF") -> dict[str, Any]:
 
         # 主力日K
         df = ak.futures_main_sina(symbol=symbol)
-        print(f"[DEBUG] AKShare 日K 返回: empty={getattr(df, 'empty', 'n/a')}")
+        logger.info(f"[DEBUG] AKShare 日K 返回: empty={getattr(df, 'empty', 'n/a')}")
         if df is None or (hasattr(df, "empty") and df.empty):
             return {}
 
         df = df.copy()
         df["symbol"] = symbol
         return _normalize_ak_daily(df)
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-        print(f"[DEBUG] AKShare 日K 失败: {e}")
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        logger.error(f"[DEBUG] AKShare 日K 失败: {e}")
         return {}
 
 
 def get_futures_base_info(symbols: list[str]) -> dict[str, Any]:
     info = fetch_futures_base_info(symbols)
     if info:
-        return info  # type: ignore
-
-    print("[DEBUG] iFinD 基础数据不可用，AKShare 无直接基础数据接口")
+        return info  # type: ignore[misc]
+    logger.info("[DEBUG] iFinD 基础数据不可用，AKShare 无直接基础数据接口")
     return {}
 
 
@@ -366,13 +367,13 @@ if __name__ == "__main__":
         "AZL2.DCE",
     ]
     quotes = get_futures_realtime(demo)
-    print("\n===== 实时行情 =====")
-    print(json.dumps(quotes, ensure_ascii=False, indent=2))
+    logger.info("\n===== 实时行情 =====")
+    logger.info(json.dumps(quotes, ensure_ascii=False, indent=2))
 
     base = get_futures_base_info(demo)
-    print("\n===== 基础数据 =====")
-    print(json.dumps(base, ensure_ascii=False, indent=2))
+    logger.info("\n===== 基础数据 =====")
+    logger.info(json.dumps(base, ensure_ascii=False, indent=2))
 
     daily = get_futures_daily("A2609")
-    print("\n===== 豆一2609日K =====")
-    print(json.dumps(daily, ensure_ascii=False, indent=2))
+    logger.info("\n===== 豆一2609日K =====")
+    logger.info(json.dumps(daily, ensure_ascii=False, indent=2))

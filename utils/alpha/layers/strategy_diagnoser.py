@@ -127,6 +127,59 @@ class StrategyDiagnoser:
         # 诊断阈值 (HC-5: 从 evolution.yaml 读取, 失败用默认)
         self.thresholds = self._load_thresholds()
 
+    # HealthReport strategy 层子指标 → RootCause 的诊断规则表
+    _STRATEGY_HEALTH_RULES: list[dict[str, Any]] = [
+        {
+            "metric_key": "drift_health",
+            "threshold_key": "drift_health_low",
+            "category": "drift_health_low",
+            "cause_id_prefix": "strategy-drift_health_low",
+            "evidence_keys": {"metric": "drift_health"},
+            "severity_hi_threshold": 0.3,
+            "action_type": ACTION_RETRAIN,
+            "description_tpl": "漂移健康度偏低 ({val:.2f} < {threshold}), 需检查模型漂移",
+            "estimated_risk": 0.5,
+            "remediation_commands": [
+                "python scripts/run_drift_check.py",
+            ],
+            "confidence": 0.65,
+        },
+        {
+            "metric_key": "observation_progress",
+            "threshold_key": "observation_insufficient",
+            "category": "observation_insufficient",
+            "cause_id_prefix": "strategy-observation_insufficient",
+            "evidence_keys": {"metric": "observation_progress"},
+            "severity_fixed": SEVERITY_LOW,
+            "action_type": ACTION_MANUAL,
+            "description_tpl": (
+                "观察期进度不足 ({val:.1%} < {threshold:.0%}), "
+                "继续观察, 暂不晋升"
+            ),
+            "estimated_risk": 0.2,
+            "remediation_commands": [
+                "# 继续观察期, 无需动作",
+            ],
+            "confidence": 0.6,
+        },
+        {
+            "metric_key": "anti_cheat",
+            "threshold_key": "anti_cheat_low",
+            "category": "anti_cheat_low",
+            "cause_id_prefix": "strategy-anti_cheat_low",
+            "evidence_keys": {"metric": "anti_cheat"},
+            "severity_fixed": SEVERITY_HIGH,
+            "action_type": ACTION_MANUAL,
+            "description_tpl": "反作弊分数偏低 ({val:.2f} < {threshold}), 需审查 reward hacking",
+            "estimated_risk": 0.6,
+            "remediation_commands": [
+                "python scripts/run_dsr_check.py",
+                "python scripts/run_pit_check.py --strict",
+            ],
+            "confidence": 0.7,
+        },
+    ]
+
     # ============================================================
     # 配置加载 (HC-5)
     # ============================================================
@@ -147,7 +200,8 @@ class StrategyDiagnoser:
                 return {
                     k: float(diag.get(k, defaults[k])) for k in defaults
                 }
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Strategy 诊断阈值加载失败, 用默认值: %s", e)
         return defaults
 
@@ -215,7 +269,8 @@ class StrategyDiagnoser:
                         key = self._alert_dedup_key(alert)
                         if key not in seen_keys:
                             seen_keys[key] = alert
-                except Exception as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.warning("解析漂移告警文件失败 %s: %s", f.name, e)
                     continue
 
@@ -224,7 +279,8 @@ class StrategyDiagnoser:
                 cause = self._build_drift_cause(alert, now)
                 if cause is not None:
                     causes.append(cause)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("漂移告警诊断失败 (降级为空): %s", e)
         return causes
 
@@ -274,7 +330,8 @@ class StrategyDiagnoser:
                 confidence=0.85,
                 detected_at=now,
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("构建漂移根因失败 (跳过): %s", e)
             return None
 
@@ -439,7 +496,8 @@ class StrategyDiagnoser:
                     confidence=0.9,
                     detected_at=now,
                 ))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("决策记录诊断失败 (降级为空): %s", e)
         return causes
 
@@ -457,10 +515,12 @@ class StrategyDiagnoser:
                     d = json.loads(line)
                     if isinstance(d, dict):
                         return d
-                except Exception:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
             return None
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("读取 decisions.jsonl 失败: %s", e)
             return None
 
@@ -468,7 +528,10 @@ class StrategyDiagnoser:
     # 子诊断 3: 从 HealthReport 补充诊断
     # ============================================================
     def _diagnose_from_health(self, health_report: Any, now: str) -> list[RootCause]:
-        """从 HealthReport 的 strategy 层子指标补充诊断 (低分指标 → 根因)."""
+        """从 HealthReport 的 strategy 层子指标补充诊断 (低分指标 → 根因).
+
+        规则定义见 ``_STRATEGY_HEALTH_RULES``, 新增规则只需追加配置项。
+        """
         causes: list[RootCause] = []
         try:
             layer_score = self._get_strategy_layer_score(health_report)
@@ -476,95 +539,46 @@ class StrategyDiagnoser:
                 return causes
             sub_metrics = getattr(layer_score, "sub_metrics", {}) or {}
 
-            # 3a. drift_health 低 → 根因
-            drift_health = float(sub_metrics.get("drift_health", 1.0))
-            if drift_health < self.thresholds["drift_health_low"]:
-                causes.append(RootCause(
-                    cause_id=f"strategy-drift_health_low-{now}",
-                    layer=LAYER_STRATEGY,
-                    category="drift_health_low",
-                    severity=SEVERITY_MEDIUM if drift_health >= 0.3 else SEVERITY_HIGH,
-                    evidence={
-                        "drift_health": drift_health,
-                        "threshold": self.thresholds["drift_health_low"],
-                        "source": "HealthReport.strategy_health",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_RETRAIN,
-                        description=(
-                            f"漂移健康度偏低 ({drift_health:.2f} < "
-                            f"{self.thresholds['drift_health_low']}), 需检查模型漂移"
-                        ),
-                        estimated_risk=0.5,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "python scripts/run_drift_check.py",
-                        ],
-                    ),
-                    confidence=0.65,
-                    detected_at=now,
-                ))
+            for rule in self._STRATEGY_HEALTH_RULES:
+                val = float(sub_metrics.get(rule["metric_key"], 1.0))
+                threshold = self.thresholds[rule["threshold_key"]]
+                if val >= threshold:
+                    continue
 
-            # 3b. observation_progress 低 → 根因 (观察期不足, 非问题而是状态)
-            obs_progress = float(sub_metrics.get("observation_progress", 1.0))
-            if obs_progress < self.thresholds["observation_insufficient"]:
-                causes.append(RootCause(
-                    cause_id=f"strategy-observation_insufficient-{now}",
-                    layer=LAYER_STRATEGY,
-                    category="observation_insufficient",
-                    severity=SEVERITY_LOW,  # 观察期不足是正常状态, 低严重度
-                    evidence={
-                        "observation_progress": obs_progress,
-                        "threshold": self.thresholds["observation_insufficient"],
-                        "source": "HealthReport.strategy_health",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=(
-                            f"观察期进度不足 ({obs_progress:.1%} < "
-                            f"{self.thresholds['observation_insufficient']:.0%}), "
-                            "继续观察, 暂不晋升"
-                        ),
-                        estimated_risk=0.2,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "# 继续观察期, 无需动作",
-                        ],
-                    ),
-                    confidence=0.6,
-                    detected_at=now,
-                ))
+                sev_fixed = rule.get("severity_fixed")
+                if sev_fixed is not None:
+                    severity = sev_fixed
+                else:
+                    sev_hi = rule.get("severity_hi_threshold")
+                    if sev_hi is not None and val < sev_hi:
+                        severity = SEVERITY_HIGH
+                    else:
+                        severity = SEVERITY_MEDIUM
 
-            # 3c. anti_cheat 低 → 根因
-            anti_cheat = float(sub_metrics.get("anti_cheat", 1.0))
-            if anti_cheat < self.thresholds["anti_cheat_low"]:
+                desc = rule["description_tpl"].format(val=val, threshold=threshold)
+
                 causes.append(RootCause(
-                    cause_id=f"strategy-anti_cheat_low-{now}",
+                    cause_id=f"{rule['cause_id_prefix']}-{now}",
                     layer=LAYER_STRATEGY,
-                    category="anti_cheat_low",
-                    severity=SEVERITY_HIGH,
+                    category=rule["category"],
+                    severity=severity,
                     evidence={
-                        "anti_cheat": anti_cheat,
-                        "threshold": self.thresholds["anti_cheat_low"],
+                        rule["evidence_keys"]["metric"]: val,
+                        "threshold": threshold,
                         "source": "HealthReport.strategy_health",
                     },
                     suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=(
-                            f"反作弊分数偏低 ({anti_cheat:.2f} < "
-                            f"{self.thresholds['anti_cheat_low']}), 需审查 reward hacking"
-                        ),
-                        estimated_risk=0.6,
+                        action_type=rule["action_type"],
+                        description=desc,
+                        estimated_risk=rule["estimated_risk"],
                         requires_human_approval=True,
-                        remediation_commands=[
-                            "python scripts/run_dsr_check.py",
-                            "python scripts/run_pit_check.py --strict",
-                        ],
+                        remediation_commands=list(rule["remediation_commands"]),
                     ),
-                    confidence=0.7,
+                    confidence=rule["confidence"],
                     detected_at=now,
                 ))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("从 HealthReport 诊断策略层失败: %s", e)
         return causes
 
@@ -584,6 +598,7 @@ class StrategyDiagnoser:
                         def __init__(self, d: dict[str, Any]) -> None:
                             self.sub_metrics = d.get("sub_metrics", {})
                     return _Wrap(ls)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return None

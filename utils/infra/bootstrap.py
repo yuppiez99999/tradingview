@@ -142,7 +142,12 @@ def _load_env_file() -> dict[str, str]:
         return loaded
     except ImportError:
         pass  # dotenv 未安装, 走手动解析
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (OSError, ValueError, TypeError, KeyError, AttributeError,
+            RuntimeError, SyntaxError) as e:  # P2 模块 fail-safe, 待后续精确化
+        # OSError: .env/配置文件读取失败 (权限/编码/磁盘)
+        # ValueError/TypeError/KeyError: 解析/格式/字段错误
+        # AttributeError: 属性缺失
+        # RuntimeError/SyntaxError: 运行时/语法错误
         raise BootstrapError(
             step="load_env",
             reason=f"python-dotenv 加载失败: {e}",
@@ -192,7 +197,12 @@ def _load_env_file() -> dict[str, str]:
         return loaded
     except BootstrapError:
         raise
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (OSError, ValueError, TypeError, KeyError, AttributeError,
+            RuntimeError, SyntaxError) as e:  # P2 模块 fail-safe, 待后续精确化
+        # OSError: .env/配置文件读取失败 (权限/编码/磁盘)
+        # ValueError/TypeError/KeyError: 解析/格式/字段错误
+        # AttributeError: 属性缺失
+        # RuntimeError/SyntaxError: 运行时/语法错误
         raise BootstrapError(
             step="load_env",
             reason=f".env 手动解析失败: {e}",
@@ -219,7 +229,12 @@ def _init_logger(log_prefix: str, log_dir: str, console_level: int) -> None:
             reason=f"无法导入 utils.logger._init_root_logging: {e}",
             cause=e,
         ) from e
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (OSError, ValueError, TypeError, KeyError, AttributeError,
+            RuntimeError, SyntaxError) as e:  # P2 模块 fail-safe, 待后续精确化
+        # OSError: .env/配置文件读取失败 (权限/编码/磁盘)
+        # ValueError/TypeError/KeyError: 解析/格式/字段错误
+        # AttributeError: 属性缺失
+        # RuntimeError/SyntaxError: 运行时/语法错误
         raise BootstrapError(
             step="init_logger",
             reason=f"根日志器初始化失败: {e}",
@@ -249,7 +264,12 @@ def _init_config_manager() -> Any:
             reason=f"无法导入 ConfigManager: {e}",
             cause=e,
         ) from e
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (OSError, ValueError, TypeError, KeyError, AttributeError,
+            RuntimeError, SyntaxError) as e:  # P2 模块 fail-safe, 待后续精确化
+        # OSError: .env/配置文件读取失败 (权限/编码/磁盘)
+        # ValueError/TypeError/KeyError: 解析/格式/字段错误
+        # AttributeError: 属性缺失
+        # RuntimeError/SyntaxError: 运行时/语法错误
         raise BootstrapError(
             step="init_config_manager",
             reason=f"ConfigManager 单例初始化失败: {e}",
@@ -276,7 +296,10 @@ def _init_trading_env() -> Any:
         # 打印环境状态到日志 (调试用)
         try:
             print_env_status()
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (OSError, ValueError, TypeError, KeyError, AttributeError,
+                RuntimeError, SyntaxError):  # P2 模块 fail-safe, 待后续精确化
+            # OSError: 文件 IO 异常; ValueError/TypeError: 数据/类型异常
+            # KeyError/AttributeError: 字段/属性缺失; RuntimeError/SyntaxError: 运行时/语法错误
             pass  # print_env_status 失败不影响初始化
         return config
     except ImportError as e:
@@ -285,7 +308,12 @@ def _init_trading_env() -> Any:
             reason=f"无法导入 utils.trading_env: {e}",
             cause=e,
         ) from e
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (OSError, ValueError, TypeError, KeyError, AttributeError,
+            RuntimeError, SyntaxError) as e:  # P2 模块 fail-safe, 待后续精确化
+        # OSError: .env/配置文件读取失败 (权限/编码/磁盘)
+        # ValueError/TypeError/KeyError: 解析/格式/字段错误
+        # AttributeError: 属性缺失
+        # RuntimeError/SyntaxError: 运行时/语法错误
         raise BootstrapError(
             step="init_trading_env",
             reason=f"TradingEnv 配置读取失败: {e}",
@@ -317,7 +345,12 @@ def _init_kill_switch() -> Any:
             reason=f"无法导入 utils.kill_switch: {e}",
             cause=e,
         ) from e
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (OSError, ValueError, TypeError, KeyError, AttributeError,
+            RuntimeError, SyntaxError) as e:  # P2 模块 fail-safe, 待后续精确化
+        # OSError: .env/配置文件读取失败 (权限/编码/磁盘)
+        # ValueError/TypeError/KeyError: 解析/格式/字段错误
+        # AttributeError: 属性缺失
+        # RuntimeError/SyntaxError: 运行时/语法错误
         raise BootstrapError(
             step="init_kill_switch",
             reason=f"KillSwitch 初始化失败: {e}",
@@ -343,7 +376,12 @@ def _register_broker_callback(ks: Any, callback: Callable | None) -> None:
 
     try:
         ks.set_broker_callback(callback)
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (OSError, ValueError, TypeError, KeyError, AttributeError,
+            RuntimeError, SyntaxError) as e:  # P2 模块 fail-safe, 待后续精确化
+        # OSError: .env/配置文件读取失败 (权限/编码/磁盘)
+        # ValueError/TypeError/KeyError: 解析/格式/字段错误
+        # AttributeError: 属性缺失
+        # RuntimeError/SyntaxError: 运行时/语法错误
         raise BootstrapError(
             step="register_broker_callback",
             reason=f"broker_callback 注册失败: {e}",
@@ -381,7 +419,12 @@ def _check_feature_flags() -> Any:
             reason=f"无法导入 FeatureFlags: {e}",
             cause=e,
         ) from e
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (OSError, ValueError, TypeError, KeyError, AttributeError,
+            RuntimeError, SyntaxError) as e:  # P2 模块 fail-safe, 待后续精确化
+        # OSError: .env/配置文件读取失败 (权限/编码/磁盘)
+        # ValueError/TypeError/KeyError: 解析/格式/字段错误
+        # AttributeError: 属性缺失
+        # RuntimeError/SyntaxError: 运行时/语法错误
         raise BootstrapError(
             step="check_feature_flags",
             reason=f"FeatureFlags 初始化失败: {e}",
@@ -509,14 +552,20 @@ def reset() -> None:
             from utils.config_manager import ConfigManager
 
             ConfigManager.reset_instance()
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (OSError, ValueError, TypeError, KeyError, AttributeError,
+                RuntimeError, SyntaxError):  # P2 模块 fail-safe, 待后续精确化
+            # OSError: 文件 IO 异常; ValueError/TypeError: 数据/类型异常
+            # KeyError/AttributeError: 字段/属性缺失; RuntimeError/SyntaxError: 运行时/语法错误
             pass
 
         try:
             from utils.infra.feature_flags import FeatureFlags
 
             FeatureFlags.reset_instance()
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (OSError, ValueError, TypeError, KeyError, AttributeError,
+                RuntimeError, SyntaxError):  # P2 模块 fail-safe, 待后续精确化
+            # OSError: 文件 IO 异常; ValueError/TypeError: 数据/类型异常
+            # KeyError/AttributeError: 字段/属性缺失; RuntimeError/SyntaxError: 运行时/语法错误
             pass
 
 

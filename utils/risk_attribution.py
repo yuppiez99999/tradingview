@@ -20,6 +20,9 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # 默认路径
@@ -55,7 +58,7 @@ def load_positions(path: str | Path = DEFAULT_POSITIONS_PATH) -> list[dict[str, 
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-    except Exception:  # P2 模块 fail-safe, 待后续精确化
+    except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
         return []
 
     positions = []
@@ -84,8 +87,8 @@ def load_hedge_positions(path: str | Path = DEFAULT_POSITIONS_PATH) -> dict[str,
         return {}
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f).get("hedge_positions", {})  # type: ignore
-    except Exception:  # P2 模块 fail-safe, 待后续精确化
+            return json.load(f).get("hedge_positions", {})  # type: ignore[index]
+    except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
         return {}
 
 
@@ -282,53 +285,53 @@ def print_attribution(positions_path: str | Path = DEFAULT_POSITIONS_PATH) -> No
     """打印风险归因面板 (兼容旧版接口)"""
     attribution = compute_attribution(positions_path)
     if not attribution.total_value:
-        print("无持仓数据")
+        logger.info("无持仓数据")
         return
 
-    print("=" * 70)
-    print("组合风险归因 (Risk Attribution Panel)")
-    print(f"总持仓金额: ¥{attribution.total_value:,.0f}")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("组合风险归因 (Risk Attribution Panel)")
+    logger.info(f"总持仓金额: ¥{attribution.total_value:,.0f}")
+    logger.info("=" * 70)
 
-    print("\n[行业分布]")
+    logger.info("\n[行业分布]")
     for k, v in sorted(attribution.by_sector.items(), key=lambda x: x[1], reverse=True):
         pct = v / attribution.total_value
-        print(f"  {k:<10} ¥{v:>12,.0f}  {pct:>6.2%}")
+        logger.info(f"  {k:<10} ¥{v:>12,.0f}  {pct:>6.2%}")
 
-    print("\n[风格分布]")
+    logger.info("\n[风格分布]")
     for k, v in sorted(attribution.by_style.items(), key=lambda x: x[1], reverse=True):
         pct = v / attribution.total_value
-        print(f"  {k:<10} ¥{v:>12,.0f}  {pct:>6.2%}")
+        logger.info(f"  {k:<10} ¥{v:>12,.0f}  {pct:>6.2%}")
 
-    print("\n[资产类型分布]")
+    logger.info("\n[资产类型分布]")
     for k, v in sorted(attribution.by_type.items(), key=lambda x: x[1], reverse=True):
         pct = v / attribution.total_value
-        print(f"  {k:<10} ¥{v:>12,.0f}  {pct:>6.2%}")
+        logger.info(f"  {k:<10} ¥{v:>12,.0f}  {pct:>6.2%}")
 
-    print("\n[集中度指标]")
+    logger.info("\n[集中度指标]")
     c = attribution.concentration
-    print(f"  HHI:        {c.get('hhi', 0):.4f}  (越低越分散)")
-    print(f"  Top1 占比:  {c.get('top1', 0):.2%}")
-    print(f"  Top3 占比:  {c.get('top3', 0):.2%}")
-    print(f"  Top5 占比:  {c.get('top5', 0):.2%}")
-    print(f"  有效标的数: {c.get('effective_n', 0):.2f}")
+    logger.info(f"  HHI:        {c.get('hhi', 0):.4f}  (越低越分散)")
+    logger.info(f"  Top1 占比:  {c.get('top1', 0):.2%}")
+    logger.info(f"  Top3 占比:  {c.get('top3', 0):.2%}")
+    logger.info(f"  Top5 占比:  {c.get('top5', 0):.2%}")
+    logger.info(f"  有效标的数: {c.get('effective_n', 0):.2f}")
 
-    print("\n[对冲工具剩余风险]")
+    logger.info("\n[对冲工具剩余风险]")
     h = attribution.hedge_residual
-    print(f"  组合加权 Beta:        {h.get('portfolio_beta', 0):.4f}")
-    print(f"  期货对冲 Beta 减少:   {h.get('futures_beta_reduction', 0):.4f}")
-    print(f"  期货手数:             {h.get('futures_contracts', 0)}")
-    print(f"  期权合约数:           {h.get('options_contracts', 0)}")
-    print(f"  期权权利金预算:       ¥{h.get('options_premium_budget', 0):,.0f}")
-    print(f"  期权名义价值:         ¥{h.get('options_notional', 0):,.0f}")
-    print(f"  剩余 Beta:            {h.get('residual_beta', 0):.4f}")
-    print(f"  尾部风险覆盖率:       {h.get('tail_risk_coverage_pct', 0):.2%}")
+    logger.info(f"  组合加权 Beta:        {h.get('portfolio_beta', 0):.4f}")
+    logger.info(f"  期货对冲 Beta 减少:   {h.get('futures_beta_reduction', 0):.4f}")
+    logger.info(f"  期货手数:             {h.get('futures_contracts', 0)}")
+    logger.info(f"  期权合约数:           {h.get('options_contracts', 0)}")
+    logger.info(f"  期权权利金预算:       ¥{h.get('options_premium_budget', 0):,.0f}")
+    logger.info(f"  期权名义价值:         ¥{h.get('options_notional', 0):,.0f}")
+    logger.info(f"  剩余 Beta:            {h.get('residual_beta', 0):.4f}")
+    logger.info(f"  尾部风险覆盖率:       {h.get('tail_risk_coverage_pct', 0):.2%}")
 
     if attribution.warnings:
-        print("\n[警告]")
+        logger.warning("\n[警告]")
         for w in attribution.warnings:
-            print(f"  ⚠️  {w}")
-    print("=" * 70)
+            logger.info(f"  ⚠️  {w}")
+    logger.info("=" * 70)
 
 
 if __name__ == "__main__":

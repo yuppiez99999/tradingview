@@ -38,6 +38,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 支持直接运行: python utils/etf_flow_decision.py --phase pre_market
 if __package__ is None:
@@ -116,11 +119,11 @@ class ETFFlowDecisionEngine:
                     import importlib.util
 
                     spec = importlib.util.spec_from_file_location("llm_client", llm_path)
-                    mod = importlib.util.module_from_spec(spec)  # type: ignore
-                    spec.loader.exec_module(mod)  # type: ignore
+                    mod = importlib.util.module_from_spec(spec)  # type: ignore[misc]
+                    spec.loader.exec_module(mod)  # type: ignore[union-attr]
                     self._local_llm_client = mod
                     logger.info("LLM客户端已加载 (DeepSeek优先降级链: DeepSeek → Ollama → GLM → 豆包)")
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.warning(f"LLM客户端加载失败: {e}，将使用纯规则引擎")
         return self._local_llm_client
 
@@ -143,11 +146,11 @@ class ETFFlowDecisionEngine:
             )
             if result:
                 logger.info(f"LLM分析成功: {len(result)} 字")
-                return result  # type: ignore
+                return result  # type: ignore[misc]
             else:
                 logger.warning("LLM返回为空，降级到规则引擎")
                 return None
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"LLM调用失败: {e}")
             return None
 
@@ -256,7 +259,7 @@ class ETFFlowDecisionEngine:
                     "signals": [],
                     "recommendations": [],
                 }
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"资金流数据获取失败: {e}")
             return {
                 "status": "error",
@@ -281,7 +284,7 @@ class ETFFlowDecisionEngine:
         try:
             prompt = self._build_llm_prompt(flow_data, realtime_data, timestamp)
             llm_analysis = self._call_llm_analysis(prompt)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"LLM分析失败: {e}，继续使用规则引擎")
 
         # Step 5: 生成交易建议
@@ -316,7 +319,7 @@ class ETFFlowDecisionEngine:
         }
 
         logger.info(
-            f"【盘前决策】完成: {decision_result['summary']['strong_signals']} 强信号, "  # type: ignore
+            f"【盘前决策】完成: {decision_result['summary']['strong_signals']} 强信号, "  # type: ignore[index]
             f"{decision_result['summary']['medium_signals']} 中信号, "
             f"耗时 {elapsed:.1f}秒"
         )
@@ -348,13 +351,13 @@ class ETFFlowDecisionEngine:
             cached = self._decision_cache[cache_key]
             if time.time() - cached["timestamp"] < refresh_interval:
                 logger.info(f"命中盘中决策缓存 (剩余 {refresh_interval - (time.time() - cached['timestamp']):.0f}秒)")
-                return cached["result"]  # type: ignore
+                return cached["result"]  # type: ignore[index]
 
         # Step 1: 获取实时资金流 (东财push2实时数据)
         logger.info("Step 1: 获取实时资金流...")
         try:
             flow_data = self.tracker.get_all_etf_fund_flows()
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"实时资金流获取失败: {e}")
             flow_data = {}
 
@@ -379,7 +382,7 @@ class ETFFlowDecisionEngine:
             try:
                 prompt = self._build_intraday_llm_prompt(flow_data, realtime_data, sudden_changes, timestamp)
                 llm_analysis = self._call_llm_analysis(prompt)
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.warning(f"LLM分析失败: {e}")
 
         # Step 6: 信号融合
@@ -416,7 +419,7 @@ class ETFFlowDecisionEngine:
         }
 
         logger.info(
-            f"【盘中决策】完成: {decision_result['summary']['sudden_changes']} 个突变信号, "  # type: ignore
+            f"【盘中决策】完成: {decision_result['summary']['sudden_changes']} 个突变信号, "  # type: ignore[index]
             f"耗时 {elapsed:.1f}秒"
         )
 
@@ -471,7 +474,7 @@ class ETFFlowDecisionEngine:
         logger.info("Step 1: 获取收盘资金流...")
         try:
             flow_data = self.tracker.get_all_etf_fund_flows()
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"收盘资金流获取失败: {e}")
             flow_data = {}
 
@@ -666,12 +669,12 @@ class ETFFlowDecisionScheduler:
             return
 
         self._running = True
-        self._thread = threading.Thread(  # type: ignore
+        self._thread = threading.Thread(  # type: ignore[union-attr]
             target=self._monitor_loop,
             args=(interval,),
             daemon=True,
         )
-        self._thread.start()  # type: ignore
+        self._thread.start()  # type: ignore[union-attr]
         logger.info(f"盘中监控已启动 (间隔: {interval}秒)")
 
     def _monitor_loop(self, interval: int):
@@ -689,7 +692,7 @@ class ETFFlowDecisionScheduler:
                     continue
 
                 time.sleep(interval)
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.error(f"盘中监控异常: {e}")
                 time.sleep(60)
 
@@ -755,26 +758,26 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # 输出结果摘要
-    print("\n" + "=" * 80)
-    print(f"【{args.phase}】决策结果")
-    print("=" * 80)
-    print(json.dumps(result.get("summary", {}), ensure_ascii=False, indent=2))
+    logger.info("\n" + "=" * 80)
+    logger.info(f"【{args.phase}】决策结果")
+    logger.info("=" * 80)
+    logger.info(json.dumps(result.get("summary", {}), ensure_ascii=False, indent=2))
 
     if result.get("recommendations"):
-        print(f"\n【交易建议 Top {args.top}】")
+        logger.info(f"\n【交易建议 Top {args.top}】")
         for rec in result["recommendations"][: args.top]:
-            print(f"  {rec['code']} {rec['name']}: {rec['action']} ({rec['confidence']:.2f})")
-            print(f"    原因: {rec['reason']}")
+            logger.info(f"  {rec['code']} {rec['name']}: {rec['action']} ({rec['confidence']:.2f})")
+            logger.info(f"    原因: {rec['reason']}")
 
     if result.get("llm_analysis"):
-        print("\n【LLM分析】")
-        print(result["llm_analysis"])
+        logger.info("\n【LLM分析】")
+        logger.info(result["llm_analysis"])
 
     if args.output:
         out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
-        print(f"\n完整结果已保存到: {out_path}")
+        logger.info(f"\n完整结果已保存到: {out_path}")
 
-    print("\n完成。")
+    logger.info("\n完成。")

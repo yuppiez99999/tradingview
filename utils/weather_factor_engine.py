@@ -1,4 +1,4 @@
-"""气象因子计算引擎 — 28 系统集成层 (v8.6.13)
+"""气象因子计算引擎 — 28 系统集成层 (v8.6.14)
 
 核心功能:
     基于 weather_data_adapter 获取的气象数据 + weather_symbols_mapping.yaml
@@ -69,9 +69,11 @@ def _load_yaml(path: str) -> dict | None:
         try:
             # 备选: 简单解析 (不支持嵌套 YAML)
             logger.warning("PyYAML 不可用, 尝试 JSON 解析")
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.error("加载 YAML 配置失败: %s", e)
     return None
 
@@ -441,7 +443,9 @@ class WeatherFactorEngine:
                 alerts = self.adapter.get_alerts(lon, lat)
                 all_alerts.extend(alerts or [])
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("获取 %s 天气异常: %s", loc.get("name"), e)
                 continue
 

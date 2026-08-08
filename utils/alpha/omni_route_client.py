@@ -28,7 +28,7 @@ Usage:
     >>> client = OmniRouteClient.get_instance()
     >>> reply = client.chat("分析一下当前市场趋势")
     >>> if reply:
-    ...     print(reply)
+    ...     logger.info(reply)
 """
 
 from __future__ import annotations
@@ -265,7 +265,7 @@ class OmniRouteClient:
                     result["latency_ms"] = (time.perf_counter() - start_ts) * 1000.0
                 else:
                     result["error"] = f"HTTP {resp.status}"
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
             result["error"] = f"{type(e).__name__}: {str(e)[:200]}"
 
         return result
@@ -285,7 +285,7 @@ class OmniRouteClient:
             with _safe_urlopen(req, timeout=self._timeout) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
             return body.get("data", [])
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
             logger.warning("OmniRoute list_models 失败: %s", e)
             return []
 
@@ -424,7 +424,7 @@ class OmniRouteClient:
             logger.warning("OmniRoute 连接失败: %s", str(e)[:200])
             self._record_failure()
             return None
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
             logger.warning("OmniRoute 调用异常: %s: %s", type(e).__name__, str(e)[:200])
             self._record_failure()
             return None

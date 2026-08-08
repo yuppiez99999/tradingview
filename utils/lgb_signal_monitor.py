@@ -135,7 +135,7 @@ def _append_jsonl(event: dict[str, Any]) -> None:
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(event, ensure_ascii=False) + "\n")
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error("写入LGB监控日志失败: %s", e)
 
 
@@ -172,7 +172,7 @@ def load_history(days: int = 30) -> list[dict[str, Any]]:
                     events.append(event)
                 except json.JSONDecodeError:
                     continue
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error("读取LGB监控日志失败: %s", e)
         return []
 
@@ -209,7 +209,7 @@ def analyze_lgb_history(days: int = 30) -> dict[str, Any]:
     total_orders = sum(e.get("total_orders", 0) for e in summaries)
 
     # 乘数分布
-    multiplier_dist = Counter()  # type: ignore
+    multiplier_dist = Counter()  # type: ignore[misc]
     for o in orders:
         mult = o.get("lgb_multiplier")
         if mult is not None:
@@ -243,7 +243,7 @@ def analyze_lgb_history(days: int = 30) -> dict[str, Any]:
             signal_buckets["strong_bear (<-0.15)"] += 1
 
     # 按标的统计
-    per_symbol_stats = defaultdict(lambda: {"boost": 0, "cut": 0, "neutral": 0, "total": 0})  # type: ignore
+    per_symbol_stats = defaultdict(lambda: {"boost": 0, "cut": 0, "neutral": 0, "total": 0})  # type: ignore[misc]
     for o in orders:
         code = o.get("code", "")
         direction = o.get("direction", "neutral")
@@ -251,7 +251,7 @@ def analyze_lgb_history(days: int = 30) -> dict[str, Any]:
         per_symbol_stats[code]["total"] += 1
 
     # 按日期统计
-    per_date_stats = defaultdict(lambda: {"boost": 0, "cut": 0, "neutral": 0, "total": 0})  # type: ignore
+    per_date_stats = defaultdict(lambda: {"boost": 0, "cut": 0, "neutral": 0, "total": 0})  # type: ignore[misc]
     for s in summaries:
         date = s.get("trade_date", "")
         per_date_stats[date]["boost"] = s.get("boost_count", 0)
@@ -368,7 +368,7 @@ def _generate_threshold_suggestions(
         max_mult_count = max(multiplier_dist.values())
         max_mult_ratio = max_mult_count / sum(multiplier_dist.values())
         if max_mult_ratio > 0.6:
-            max_mult = max(multiplier_dist, key=multiplier_dist.get)  # type: ignore
+            max_mult = max(multiplier_dist, key=multiplier_dist.get)  # type: ignore[misc]
             suggestions.append(
                 f"⚠️ 单一乘数 {max_mult} 占比过高 ({max_mult_ratio:.1%} > 60%): 阈值划分过于集中, 建议重新分配乘数档位"
             )

@@ -216,7 +216,7 @@ class BarraRiskDecomposer:
         # 1. 构建因子暴露矩阵 X (N_stocks × N_factors)
         factors = list(BARRA_STYLE_FACTORS)
         n_factors = len(factors)
-        X = np.zeros((n, n_factors))
+        X = np.zeros((n, n_factors))  # noqa: N806
         for i, sym in enumerate(symbols):
             sym_factors = factor_exposures.get(sym, {})
             for j, f in enumerate(factors):

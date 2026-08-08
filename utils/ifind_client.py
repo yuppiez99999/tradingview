@@ -160,7 +160,7 @@ def _parse_ifind_response(result: Dict) -> Dict[str, Any]:
 
         for d in data.get("datas", []):
             if d.get("success"):
-                out["datas"].append(d.get("data", {}))  # type: ignore
+                out["datas"].append(d.get("data", {}))  # type: ignore[index]
 
         for key in ["answer1", "answer", "text"]:
             val = data.get(key, "")
@@ -169,7 +169,7 @@ def _parse_ifind_response(result: Dict) -> Dict[str, Any]:
             if isinstance(val, str) and "|" in val:
                 table = _parse_markdown_table(val)
                 if table:
-                    out["tables"].extend(table)  # type: ignore
+                    out["tables"].extend(table)  # type: ignore[index]
                     continue
             if isinstance(val, str):
                 val = val.strip()
@@ -177,12 +177,12 @@ def _parse_ifind_response(result: Dict) -> Dict[str, Any]:
                 try:
                     arr = json.loads(val)
                     if isinstance(arr, list):
-                        out["tables"].extend([_normalize_row(r) for r in arr if isinstance(r, dict)])  # type: ignore
+                        out["tables"].extend([_normalize_row(r) for r in arr if isinstance(r, dict)])  # type: ignore[index]
                         continue
                 except json.JSONDecodeError:
                     pass
             if isinstance(val, list):
-                out["tables"].extend([_normalize_row(r) for r in val if isinstance(r, dict)])  # type: ignore
+                out["tables"].extend([_normalize_row(r) for r in val if isinstance(r, dict)])  # type: ignore[index]
 
     return out
 
@@ -246,7 +246,7 @@ class IFindClient:
         self._req_ids[t] = self._req_ids.get(t, 0) + 1
         return self._req_ids[t]
 
-    def _headers(self, t: Optional[str] = None) -> Dict:  # type: ignore
+    def _headers(self, t: Optional[str] = None) -> Dict:  # type: ignore[misc]
         h = {
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
@@ -349,7 +349,7 @@ class IFindClient:
         if resp.text.strip():
             try:
                 data = resp.json()
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 data = resp.text
 
         if isinstance(data, dict) and "error" in data:
@@ -363,13 +363,13 @@ class IFindClient:
             return {"ok": False, "error": str(e), "status_code": resp.status_code}
 
         try:
-            content = data.get("result", {}).get("content", [])  # type: ignore
+            content = data.get("result", {}).get("content", [])  # type: ignore[index]
             for item in content:
                 text = item.get("text", "")
                 if "超限" in text or "quota" in text.lower() or "limit" in text.lower():
                     self._quota_exceeded[server_type] = now
                     return {"ok": False, "error": "用户使用工具已超限", "quota_exceeded": True, "data": data}
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             pass
 
         self.last_success = time.time()
@@ -537,7 +537,7 @@ class IFindClient:
                 break
             time.sleep(0.6)
 
-        all_rows.sort(key=lambda x: x["date"])  # type: ignore
+        all_rows.sort(key=lambda x: x["date"])  # type: ignore[index]
         return all_rows if all_rows else None
 
     def get_index_latest(self, index_name: str) -> Optional[Dict]:
@@ -604,65 +604,65 @@ class IFindClient:
                     "ms": _col(row, "ms", "毫秒") or "",
                     "preClose": float(_col(row, "preClose", "前收盘价", "昨收"))
                     if _col(row, "preClose", "前收盘价", "昨收")
-                    else None,  # type: ignore
-                    "open": float(_col(row, "open", "开盘价", "开盘")) if _col(row, "open", "开盘价", "开盘") else None,  # type: ignore
-                    "high": float(_col(row, "high", "最高价", "最高")) if _col(row, "high", "最高价", "最高") else None,  # type: ignore
-                    "low": float(_col(row, "low", "最低价", "最低")) if _col(row, "low", "最低价", "最低") else None,  # type: ignore
+                    else None,  # type: ignore[misc]
+                    "open": float(_col(row, "open", "开盘价", "开盘")) if _col(row, "open", "开盘价", "开盘") else None,  # type: ignore[misc]
+                    "high": float(_col(row, "high", "最高价", "最高")) if _col(row, "high", "最高价", "最高") else None,  # type: ignore[misc]
+                    "low": float(_col(row, "low", "最低价", "最低")) if _col(row, "low", "最低价", "最低") else None,  # type: ignore[misc]
                     "latest": float(_col(row, "latest", "最新价", "现价"))
                     if _col(row, "latest", "最新价", "现价")
-                    else None,  # type: ignore
+                    else None,  # type: ignore[misc]
                     "latestVolume": int(_col(row, "latestVolume", "现手"))
                     if _col(row, "latestVolume", "现手")
-                    else None,  # type: ignore
-                    "avgPrice": float(_col(row, "avgPrice", "均价")) if _col(row, "avgPrice", "均价") else None,  # type: ignore
-                    "volume": float(_col(row, "volume", "成交量")) if _col(row, "volume", "成交量") else None,  # type: ignore
-                    "change": float(_col(row, "change", "涨跌")) if _col(row, "change", "涨跌") else None,  # type: ignore
+                    else None,  # type: ignore[misc]
+                    "avgPrice": float(_col(row, "avgPrice", "均价")) if _col(row, "avgPrice", "均价") else None,  # type: ignore[misc]
+                    "volume": float(_col(row, "volume", "成交量")) if _col(row, "volume", "成交量") else None,  # type: ignore[misc]
+                    "change": float(_col(row, "change", "涨跌")) if _col(row, "change", "涨跌") else None,  # type: ignore[misc]
                     "changeSettle": float(_col(row, "changeSettle", "涨跌（结算价）"))
                     if _col(row, "changeSettle", "涨跌（结算价）")
-                    else None,  # type: ignore
+                    else None,  # type: ignore[misc]
                     "changeRatio": float(_col(row, "changeRatio", "涨跌幅"))
                     if _col(row, "changeRatio", "涨跌幅")
-                    else None,  # type: ignore
+                    else None,  # type: ignore[misc]
                     "changeRatioSettle": float(_col(row, "changeRatioSettle", "涨跌幅（结算价）"))
                     if _col(row, "changeRatioSettle", "涨跌幅（结算价）")
-                    else None,  # type: ignore
+                    else None,  # type: ignore[misc]
                     "increasePositionVol": float(_col(row, "increasePositionVol", "增仓量"))
                     if _col(row, "increasePositionVol", "增仓量")
-                    else None,  # type: ignore
+                    else None,  # type: ignore[misc]
                     "preSettlement": float(_col(row, "preSettlement", "昨结算价"))
                     if _col(row, "preSettlement", "昨结算价")
-                    else None,  # type: ignore
-                    "sellVolume": float(_col(row, "sellVolume", "内盘")) if _col(row, "sellVolume", "内盘") else None,  # type: ignore
-                    "buyVolume": float(_col(row, "buyVolume", "外盘")) if _col(row, "buyVolume", "外盘") else None,  # type: ignore
+                    else None,  # type: ignore[misc]
+                    "sellVolume": float(_col(row, "sellVolume", "内盘")) if _col(row, "sellVolume", "内盘") else None,  # type: ignore[misc]
+                    "buyVolume": float(_col(row, "buyVolume", "外盘")) if _col(row, "buyVolume", "外盘") else None,  # type: ignore[misc]
                     "dailyIncreasePosition": float(_col(row, "dailyIncreasePosition", "日增仓"))
                     if _col(row, "dailyIncreasePosition", "日增仓")
-                    else None,  # type: ignore
-                    "swing": float(_col(row, "swing", "振幅")) if _col(row, "swing", "振幅") else None,  # type: ignore
+                    else None,  # type: ignore[misc]
+                    "swing": float(_col(row, "swing", "振幅")) if _col(row, "swing", "振幅") else None,  # type: ignore[misc]
                     "latest_price": float(_col(row, "latest_price", "最新成交价"))
                     if _col(row, "latest_price", "最新成交价")
-                    else None,  # type: ignore
+                    else None,  # type: ignore[misc]
                     "settlement": float(_col(row, "settlement", "结算价"))
                     if _col(row, "settlement", "结算价")
-                    else None,  # type: ignore
+                    else None,  # type: ignore[misc]
                     "dealDirection": _col(row, "dealDirection", "成交方向") or "",
                     "dealtype": _col(row, "dealtype", "成交性质") or "",
                     "openInterest": float(_col(row, "openInterest", "持仓量"))
                     if _col(row, "openInterest", "持仓量")
-                    else None,  # type: ignore
+                    else None,  # type: ignore[misc]
                     "positionDiff": float(_col(row, "positionDiff", "仓差"))
                     if _col(row, "positionDiff", "仓差")
-                    else None,  # type: ignore
+                    else None,  # type: ignore[misc]
                     "capitalFlow": float(_col(row, "capitalFlow", "资金流向"))
                     if _col(row, "capitalFlow", "资金流向")
-                    else None,  # type: ignore
+                    else None,  # type: ignore[misc]
                     "capitalDeposition": float(_col(row, "capitalDeposition", "资金沉淀"))
                     if _col(row, "capitalDeposition", "资金沉淀")
-                    else None,  # type: ignore
-                    "amplitude": float(_col(row, "amplitude", "振幅")) if _col(row, "amplitude", "振幅") else None,  # type: ignore
+                    else None,  # type: ignore[misc]
+                    "amplitude": float(_col(row, "amplitude", "振幅")) if _col(row, "amplitude", "振幅") else None,  # type: ignore[misc]
                     "upperLimit": float(_col(row, "upperLimit", "涨停价"))
                     if _col(row, "upperLimit", "涨停价")
-                    else None,  # type: ignore
-                    "downLimit": float(_col(row, "downLimit", "跌停价")) if _col(row, "downLimit", "跌停价") else None,  # type: ignore
+                    else None,  # type: ignore[misc]
+                    "downLimit": float(_col(row, "downLimit", "跌停价")) if _col(row, "downLimit", "跌停价") else None,  # type: ignore[misc]
                     "dealtypecode": _col(row, "dealtypecode", "成交性质编码") or "",
                 }
                 rows.append(row_data)
@@ -722,7 +722,7 @@ class IFindClient:
             query = f"{sym}{date_suffix}{indicator_str}"
             try:
                 resp = self.call("stock", "get_stock_financials", {"query": query})
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.warning("[IFind.fundamentals] %s 调用异常: %s", sym, e)
                 return sym, {}
 
@@ -755,7 +755,7 @@ class IFindClient:
                         for f in futures:
                             f.cancel()
                         break
-                except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+                except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                     logger.warning("[IFind.fundamentals] future 异常: %s", e)
 
         logger.info(

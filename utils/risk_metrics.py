@@ -15,6 +15,9 @@ from typing import Dict, Tuple
 import numpy as np
 
 from utils.logger import get_logger
+import logging
+
+logger = logging.getLogger(__name__)
 
 logger = get_logger("risk_metrics")
 
@@ -74,7 +77,7 @@ def calculate_var(returns: np.ndarray, confidence_level: float = 0.95, method: s
         logger.debug(f"VaR计算完成: 方法={method}, 置信水平={confidence_level}, VaR={var_abs:.4f}")
         return var_abs
 
-    except Exception as e:  # P2 模块 fail-safe
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe
         # BUG-03 修复 (2026-07-31): fail-closed 而非 fail-open
         # 原代码 `return 0.0` 表示"无风险", 会让风险检查通过 (fail-open)
         # 修复: 返回安全的大正值 (日度 3% 损失, 超过常规 max_daily_var_95=3.5% 阈值附近),
@@ -117,9 +120,8 @@ def calculate_es(returns: np.ndarray, confidence_level: float = 0.95) -> float:
             es = var
 
         logger.debug(f"ES计算完成: 置信水平={confidence_level}, ES={es:.4f}")
-        return es  # type: ignore
-
-    except Exception as e:  # P2 模块 fail-safe
+        return es  # type: ignore[misc]
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe
         # BUG-03 修复 (2026-07-31): fail-closed, 返回保守估值
         logger.error(f"ES计算失败 (fail-closed, 返回保守估值 0.04): {e}")
         return 0.04
@@ -160,9 +162,8 @@ def calculate_max_drawdown(prices: np.ndarray) -> Tuple[float, int, int]:
         trough_idx = max_dd_idx
 
         logger.debug(f"最大回撤计算完成: 最大回撤={max_dd:.4f}, 开始={peak_idx}, 结束={trough_idx}")
-        return max_dd, peak_idx, trough_idx  # type: ignore
-
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        return max_dd, peak_idx, trough_idx  # type: ignore[misc]
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"最大回撤计算失败: {e}")
         return 0.0, 0, 0
 
@@ -202,9 +203,8 @@ def calculate_sharpe_ratio(returns: np.ndarray, risk_free_rate: float = 0.02) ->
             sharpe_ratio = 0.0
 
         logger.debug(f"夏普比率计算完成: {sharpe_ratio:.4f}")
-        return sharpe_ratio  # type: ignore
-
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        return sharpe_ratio  # type: ignore[misc]
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"夏普比率计算失败: {e}")
         return 0.0
 
@@ -246,9 +246,8 @@ def calculate_sortino_ratio(returns: np.ndarray, risk_free_rate: float = 0.02) -
             sortino_ratio = 0.0
 
         logger.debug(f"索提诺比率计算完成: {sortino_ratio:.4f}")
-        return sortino_ratio  # type: ignore
-
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        return sortino_ratio  # type: ignore[misc]
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"索提诺比率计算失败: {e}")
         return 0.0
 
@@ -281,9 +280,8 @@ def calculate_calmar_ratio(returns: np.ndarray, prices: np.ndarray) -> float:
             calmar_ratio = float("inf") if annual_return > 0 else 0.0
 
         logger.debug(f"卡玛比率计算完成: {calmar_ratio:.4f}")
-        return calmar_ratio  # type: ignore
-
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        return calmar_ratio  # type: ignore[misc]
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"卡玛比率计算失败: {e}")
         return 0.0
 
@@ -313,9 +311,8 @@ def calculate_volatility(returns: np.ndarray, period: int = 252) -> float:
         volatility = np.std(returns) * np.sqrt(period)
 
         logger.debug(f"波动率计算完成: {volatility:.4f}")
-        return volatility  # type: ignore
-
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        return volatility  # type: ignore[misc]
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"波动率计算失败: {e}")
         return 0.0
 
@@ -358,9 +355,8 @@ def calculate_beta(returns: np.ndarray, market_returns: np.ndarray) -> float:
             beta = 1.0
 
         logger.debug(f"Beta计算完成: {beta:.4f}")
-        return beta  # type: ignore
-
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        return beta  # type: ignore[misc]
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"Beta计算失败: {e}")
         return 1.0
 
@@ -415,9 +411,8 @@ def calculate_alpha(returns: np.ndarray, market_returns: np.ndarray, risk_free_r
         alpha = excess_return - beta * market_excess_return
 
         logger.debug(f"Alpha计算完成: {alpha:.4f}")
-        return alpha  # type: ignore
-
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        return alpha  # type: ignore[misc]
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"Alpha计算失败: {e}")
         return 0.0
 
@@ -442,7 +437,7 @@ def calculate_correlation(matrix: np.ndarray) -> np.ndarray:
         logger.debug("相关系数矩阵计算完成")
         return correlation_matrix
 
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"相关系数矩阵计算失败: {e}")
         return np.eye(matrix.shape[1])
 
@@ -474,9 +469,8 @@ def calculate_tracking_error(returns: np.ndarray, benchmark_returns: np.ndarray)
         tracking_error = np.std(excess_returns) * np.sqrt(252)
 
         logger.debug(f"跟踪误差计算完成: {tracking_error:.4f}")
-        return tracking_error  # type: ignore
-
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        return tracking_error  # type: ignore[misc]
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"跟踪误差计算失败: {e}")
         return 0.0
 
@@ -516,9 +510,8 @@ def calculate_information_ratio(returns: np.ndarray, benchmark_returns: np.ndarr
             information_ratio = 0.0
 
         logger.debug(f"信息比率计算完成: {information_ratio:.4f}")
-        return information_ratio  # type: ignore
-
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        return information_ratio  # type: ignore[misc]
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"信息比率计算失败: {e}")
         return 0.0
 
@@ -547,9 +540,8 @@ def calculate_win_rate(returns: np.ndarray) -> float:
         win_rate = np.mean(returns > 0)
 
         logger.debug(f"胜率计算完成: {win_rate:.4f}")
-        return win_rate  # type: ignore
-
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        return win_rate  # type: ignore[misc]
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"胜率计算失败: {e}")
         return 0.0
 
@@ -589,15 +581,15 @@ def calculate_profit_factor(returns: np.ndarray) -> float:
         logger.debug(f"利润因子计算完成: {profit_factor:.4f}")
         return profit_factor
 
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"利润因子计算失败: {e}")
         return 0.0
 
 
 def calculate_performance_metrics(
     returns: np.ndarray,
-    prices: np.ndarray = None,  # type: ignore
-    benchmark_returns: np.ndarray = None,  # type: ignore
+    prices: np.ndarray = None,  # type: ignore[misc]
+    benchmark_returns: np.ndarray = None,  # type: ignore[misc]
     risk_free_rate: float = 0.02,
 ) -> Dict:
     """
@@ -655,7 +647,7 @@ def calculate_performance_metrics(
         logger.info("绩效指标计算完成")
         return metrics
 
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"绩效指标计算失败: {e}")
         return {}
 
@@ -696,14 +688,14 @@ def calculate_portfolio_weights(positions: Dict[str, Dict]) -> Dict[str, float]:
         logger.debug(f"组合权重计算完成: {len(weights)} 个标的")
         return weights
 
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         logger.error(f"组合权重计算失败: {e}")
         return {}
 
 
 if __name__ == "__main__":
     # 测试风险指标计算
-    print("测试风险指标计算")
+    logger.info("测试风险指标计算")
 
     # 生成测试数据
     np.random.seed(42)
@@ -712,20 +704,20 @@ if __name__ == "__main__":
     benchmark_returns = np.random.normal(0.0005, 0.018, 252)
 
     # 计算各种指标
-    print("VaR (95%):", calculate_var(returns, 0.95))
-    print("ES (95%):", calculate_es(returns, 0.95))
-    print("最大回撤:", calculate_max_drawdown(prices))
-    print("夏普比率:", calculate_sharpe_ratio(returns))
-    print("索提诺比率:", calculate_sortino_ratio(returns))
-    print("Beta:", calculate_beta(returns, benchmark_returns))
-    print("Alpha:", calculate_alpha(returns, benchmark_returns))
-    print("跟踪误差:", calculate_tracking_error(returns, benchmark_returns))
-    print("信息比率:", calculate_information_ratio(returns, benchmark_returns))
-    print("胜率:", calculate_win_rate(returns))
-    print("利润因子:", calculate_profit_factor(returns))
+    logger.info("VaR (95%):", calculate_var(returns, 0.95))
+    logger.info("ES (95%):", calculate_es(returns, 0.95))
+    logger.info("最大回撤:", calculate_max_drawdown(prices))
+    logger.info("夏普比率:", calculate_sharpe_ratio(returns))
+    logger.info("索提诺比率:", calculate_sortino_ratio(returns))
+    logger.info("Beta:", calculate_beta(returns, benchmark_returns))
+    logger.info("Alpha:", calculate_alpha(returns, benchmark_returns))
+    logger.info("跟踪误差:", calculate_tracking_error(returns, benchmark_returns))
+    logger.info("信息比率:", calculate_information_ratio(returns, benchmark_returns))
+    logger.info("胜率:", calculate_win_rate(returns))
+    logger.info("利润因子:", calculate_profit_factor(returns))
 
     # 计算完整绩效指标
     metrics = calculate_performance_metrics(returns, prices, benchmark_returns)
-    print("\n完整绩效指标:")
+    logger.info("\n完整绩效指标:")
     for key, value in metrics.items():
-        print(f"  {key}: {value:.4f}")
+        logger.info(f"  {key}: {value:.4f}")

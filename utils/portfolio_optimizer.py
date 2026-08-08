@@ -455,62 +455,54 @@ class PortfolioOptimizer:
                 len(benchmark_returns),
             )
 
-            # Step 2: 运行 PipelineOrchestrator 验证因子组合
-            logger.info("[PortfolioOptimizer] Step 2: 运行 PipelineOrchestrator...")
-            from research.vibe_trading_factor_analysis.pipeline.pipeline_orchestrator import (
-                PipelineOrchestrator,
-            )
+            # Step 2: 使用生产因子库 (AlphaFactorLibrary) 计算全因子
+            # 说明: 原 vibe_trading_factor_analysis (PipelineOrchestrator + VibeTradingFactorAdapter)
+            # 已于 2026-08-07 隔离下线至 _archive, 此处改用 utils.alpha_factor 生产因子库,
+            # 既消除对环境隔离判据 C3 的 research.* 依赖, 又让离线流水线真正可用。
+            logger.info("[PortfolioOptimizer] Step 2: 计算 Alpha 因子库...")
+            try:
+                from utils.alpha_factor.library import AlphaFactorLibrary
+            except ImportError:
+                logger.error("[PortfolioOptimizer] AlphaFactorLibrary 不可用, 离线流水线中断")
+                return False
 
-            orchestrator = PipelineOrchestrator()
-            result = orchestrator.run(
+            alpha_lib = AlphaFactorLibrary()
+            alpha_result = alpha_lib.compute_all(
                 price_data=price_data,
                 fundamentals=fundamentals,
-                fundamentals_history=fundamentals_history,
                 benchmark_returns=benchmark_returns,
-                portfolio_value=1e8,
-                n_trials=max(len(used_symbols), 13),
-                history_days=120,
-                forward_window=5,
             )
 
-            if not result.factor_combinations:
+            # Step 3: 选取强因子 (|IC|>0.05) 前两名做 IC 加权
+            candidate_factors = (
+                alpha_result.strong_factors
+                if alpha_result.strong_factors
+                else alpha_result.effective_factors
+            )
+            if len(candidate_factors) < 2:
                 logger.error(
-                    "[PortfolioOptimizer] Pipeline 未生成因子组合 (approved=%d, total=%d)",
-                    result.approved,
-                    result.total_candidates,
+                    "[PortfolioOptimizer] 有效因子不足 2 个 (strong=%d, effective=%d), 无法组合",
+                    len(alpha_result.strong_factors),
+                    len(alpha_result.effective_factors),
                 )
                 return False
 
-            combo = result.factor_combinations[0]
-            if not combo.get("passed", False):
-                logger.error(
-                    "[PortfolioOptimizer] 因子组合未通过 Shadow: %s",
-                    combo.get("fail_reason", "unknown"),
-                )
-                return False
-
-            # Step 3: 提取 IC 加权权重
-            ic_metrics = combo.get("ic_metrics", {})
-            ic_ir_a = float(ic_metrics.get("factor_a_ic_ir", 0))
-            ic_ir_b = float(ic_metrics.get("factor_b_ic_ir", 0))
-            factor_a = combo.get("factor_a")
-            factor_b = combo.get("factor_b")
-
-            if not factor_a or not factor_b:
-                logger.error("[PortfolioOptimizer] 因子名缺失: A=%s B=%s", factor_a, factor_b)
-                return False
+            factor_a, factor_b = candidate_factors[0], candidate_factors[1]
+            fv_a = alpha_result.factors[factor_a]
+            fv_b = alpha_result.factors[factor_b]
+            ic_ir_a = float(getattr(fv_a, "ic_ir", 0) or 0)
+            ic_ir_b = float(getattr(fv_b, "ic_ir", 0) or 0)
 
             total_abs = abs(ic_ir_a) + abs(ic_ir_b)
             if total_abs < 1e-6:
-                logger.error(
-                    "[PortfolioOptimizer] IC_IR 总和过小 (a=%.4f, b=%.4f), 无法计算权重",
-                    ic_ir_a,
-                    ic_ir_b,
+                # ICIR 缺失时退化为等权
+                logger.warning(
+                    "[PortfolioOptimizer] IC_IR 为空, 退化为等权 (A=%s B=%s)", factor_a, factor_b
                 )
-                return False
-
-            w_a = ic_ir_a / total_abs
-            w_b = ic_ir_b / total_abs
+                w_a, w_b = 0.5, 0.5
+            else:
+                w_a = ic_ir_a / total_abs
+                w_b = ic_ir_b / total_abs
             logger.info(
                 "[PortfolioOptimizer] IC 权重: A=%s w_a=+%.4f, B=%s w_b=+%.4f",
                 factor_a,
@@ -519,58 +511,32 @@ class PortfolioOptimizer:
                 w_b,
             )
 
-            # Step 4: 使用 VibeTradingFactorAdapter 计算最新因子值
-            logger.info("[PortfolioOptimizer] Step 4: 计算最新因子值...")
-            from research.vibe_trading_factor_analysis.adapters.vibe_trading_factor_adapter import (
-                VibeTradingFactorAdapter,
-            )
-
-            adapter = VibeTradingFactorAdapter()
-            pool = adapter.compute_candidate_factors(
-                price_data=price_data,
-                fundamentals=fundamentals,
-                fundamentals_history=fundamentals_history,
-            )
-
-            if factor_a not in pool.factors or factor_b not in pool.factors:
-                logger.error(
-                    "[PortfolioOptimizer] 因子值缺失: A_in=%s B_in=%s, 可用=%s",
-                    factor_a in pool.factors,
-                    factor_b in pool.factors,
-                    list(pool.factors.keys())[:10],
-                )
-                return False
-
-            values_a = pool.factors[factor_a].values  # {symbol: value}
-            values_b = pool.factors[factor_b].values
+            # Step 4: 提取最新因子值 (来自生产因子库, 非 vibe)
+            logger.info("[PortfolioOptimizer] Step 4: 提取最新因子值...")
+            values_a = fv_a.values  # {symbol: value}
+            values_b = fv_b.values
             logger.info(
                 "[PortfolioOptimizer] 因子值: A=%d 标的, B=%d 标的",
                 len(values_a),
                 len(values_b),
             )
 
-            # Step 4.5 (U1 衔接, 可选): 用时序 IC/ICIR 评估因子有效性
-            # 数据源: research 版 PipelineOrchestrator 已在 run() 中构建 factor_history 并暴露到 result
-            # 价值: 激活 evaluate_factors 时序模式, 让强/有效因子列表基于 IC_IR 而非单点 IC
-            if getattr(result, "factor_history", None):
-                try:
-                    from utils.alpha_factor.library import AlphaFactorLibrary
-                    lib = AlphaFactorLibrary()
-                    lib_result = lib.compute_all(
-                        price_data=price_data,
-                        fundamentals=fundamentals,
-                        factor_history=result.factor_history,
-                        forward_returns_history=result.forward_returns_history,
-                    )
-                    logger.info(
-                        "[PortfolioOptimizer] U1 时序 IC 评估: strong=%d effective=%d (factors=%d)",
-                        len(lib_result.strong_factors),
-                        len(lib_result.effective_factors),
-                        len(lib_result.factors),
-                    )
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
-                    # U1 评估失败不阻断主流程 (Step 5+ 仍正常执行)
-                    logger.warning("[PortfolioOptimizer] U1 时序 IC 评估失败 (非阻断): %s", e)
+            # Step 4.5 (U1 衔接, 非阻断): 记录因子有效性评估状态
+            # 说明: 原 vibe PipelineOrchestrator 的 factor_history/forward_returns_history 已随隔离下线,
+            # 此处直接基于 alpha_result 已评估的强/有效因子记录状态 (evaluate_factors 已在 compute_all 内完成)。
+            try:
+                logger.info(
+                    "[PortfolioOptimizer] U1 因子有效性: strong=%d effective=%d (total_factors=%d), "
+                    "ICIR A=%.4f B=%.4f",
+                    len(alpha_result.strong_factors),
+                    len(alpha_result.effective_factors),
+                    len(alpha_result.factors),
+                    float(getattr(fv_a, "ic_ir", 0) or 0),
+                    float(getattr(fv_b, "ic_ir", 0) or 0),
+                )
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # U1 评估失败不阻断主流程 (Step 5+ 仍正常执行)
+                logger.warning("[PortfolioOptimizer] U1 因子有效性记录失败 (非阻断): %s", e)
 
             # Step 5: 计算 IC 加权组合信号
             signals_raw: dict[str, float] = {}
@@ -599,10 +565,9 @@ class PortfolioOptimizer:
                     "factor_a": factor_a,
                     "factor_b": factor_b,
                     "method": "ic_weighted_rolling",
-                    "lookback": combo.get("lookback", 10),
-                    "combined_ic_ir": float(ic_metrics.get("combined_ic_ir", 0)),
-                    "live_dsr": float(combo.get("shadow", {}).get("live_dsr", 0)),
-                    "max_drawdown": float(combo.get("shadow", {}).get("max_drawdown", 0)),
+                    "lookback": 10,
+                    "ic_ir_a": float(getattr(fv_a, "ic_ir", 0) or 0),
+                    "ic_ir_b": float(getattr(fv_b, "ic_ir", 0) or 0),
                     "w_a": float(w_a),
                     "w_b": float(w_b),
                 },
@@ -616,11 +581,12 @@ class PortfolioOptimizer:
                     "avg_signal": (sum(normalized.values()) / len(normalized) if normalized else 0.0),
                 },
                 "audit_trail": {
-                    "source": "research.vibe_trading_factor_analysis.pipeline.pipeline_orchestrator",
-                    "batch_id": result.batch_id,
-                    "approved": result.approved,
-                    "total_candidates": result.total_candidates,
-                    "fix_reference": "docs/AUDIT_FIX_CHANGELOG_2026-07-26.md (P0-A 深度修复)",
+                    "source": "utils.alpha_factor.library.AlphaFactorLibrary (vibe 分支已隔离下线, 2026-08-08 重构)",
+                    "factor_a_source": fv_a.category if hasattr(fv_a, "category") else "unknown",
+                    "factor_b_source": fv_b.category if hasattr(fv_b, "category") else "unknown",
+                    "n_strong_factors": len(alpha_result.strong_factors),
+                    "n_effective_factors": len(alpha_result.effective_factors),
+                    "fix_reference": "docs/EXEC_PLAN_v9_2_真实状态落地_20260808.md (G5 环境隔离修复)",
                 },
             }
 
@@ -629,11 +595,11 @@ class PortfolioOptimizer:
                 json.dump(output, f, ensure_ascii=False, indent=2, default=str)
 
             logger.info(
-                "[PortfolioOptimizer] 因子信号已保存: %s (%d 个标的, IC_IR=%.4f, live_dsr=%.4f)",
+                "[PortfolioOptimizer] 因子信号已保存: %s (%d 个标的, ICIR A=%.4f B=%.4f)",
                 output_path.name,
                 len(normalized),
-                float(ic_metrics.get("combined_ic_ir", 0)),
-                float(combo.get("shadow", {}).get("live_dsr", 0)),
+                float(getattr(fv_a, "ic_ir", 0) or 0),
+                float(getattr(fv_b, "ic_ir", 0) or 0),
             )
             return True
 

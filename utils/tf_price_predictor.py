@@ -120,14 +120,14 @@ class TimesFMForecaster:
                 infer_is_positive=True,  # 价格 >= 0
                 fix_quantile_crossing=True,
             )
-            self._model.compile(config)  # type: ignore
+            self._model.compile(config)  # type: ignore[union-attr]
 
             self._available = True
             logger.info(f"TimesFM 初始化成功: {self.model_id}")
 
         except ImportError:
             logger.warning("timesfm 未安装, 跳过. 安装: pip install timesfm[torch]")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"TimesFM 初始化失败: {e}")
 
     @property
@@ -165,7 +165,7 @@ class TimesFMForecaster:
 
             return point_forecast, quantile_forecast
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"TimesFM 预测失败: {e}")
             return None
 
@@ -210,11 +210,11 @@ class TensorflowLSTMPredictor:
         except ImportError:
             if not getattr(self.__class__, "_tf_warned", False):
                 logger.warning("tensorflow 未安装, 跳过 LSTM 预测. 安装: pip install tensorflow")
-                self.__class__._tf_warned = True  # type: ignore
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+                self.__class__._tf_warned = True  # type: ignore[union-attr]
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             if not getattr(self.__class__, "_tf_warned", False):
                 logger.warning(f"TensorFlow 初始化失败: {e}")
-                self.__class__._tf_warned = True  # type: ignore
+                self.__class__._tf_warned = True  # type: ignore[union-attr]
 
     @property
     def available(self) -> bool:
@@ -224,17 +224,17 @@ class TensorflowLSTMPredictor:
         """构建 LSTM 模型"""
         tf = self._tf
         model = tf.keras.Sequential(
-            [  # type: ignore
+            [  # type: ignore[misc]
                 tf.keras.layers.LSTM(
                     64,
-                    return_sequences=True,  # type: ignore
+                    return_sequences=True,  # type: ignore[misc]
                     input_shape=(self.sequence_length, n_features),
                 ),
-                tf.keras.layers.Dropout(0.2),  # type: ignore
-                tf.keras.layers.LSTM(32),  # type: ignore
-                tf.keras.layers.Dropout(0.2),  # type: ignore
-                tf.keras.layers.Dense(16, activation="relu"),  # type: ignore
-                tf.keras.layers.Dense(horizon),  # type: ignore
+                tf.keras.layers.Dropout(0.2),  # type: ignore[misc]
+                tf.keras.layers.LSTM(32),  # type: ignore[misc]
+                tf.keras.layers.Dropout(0.2),  # type: ignore[misc]
+                tf.keras.layers.Dense(16, activation="relu"),  # type: ignore[misc]
+                tf.keras.layers.Dense(horizon),  # type: ignore[misc]
             ]
         )
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
@@ -284,7 +284,7 @@ class TensorflowLSTMPredictor:
             self._model = self._build_model(n_features=1, horizon=horizon)
 
             # 训练
-            self._model.fit(  # type: ignore
+            self._model.fit(  # type: ignore[union-attr]
                 X.reshape((*X.shape, 1)),  # (samples, seq_len, 1)
                 y,
                 epochs=epochs,
@@ -300,13 +300,13 @@ class TensorflowLSTMPredictor:
             normalized_input = (last_sequence - mean) / std
             input_3d = normalized_input.reshape(1, self.sequence_length, 1)
 
-            prediction_normalized = self._model.predict(input_3d, verbose=0)[0]  # type: ignore
+            prediction_normalized = self._model.predict(input_3d, verbose=0)[0]  # type: ignore[index]
             # 反归一化
             prediction = prediction_normalized * std + mean
 
-            return prediction  # type: ignore
+            return prediction  # type: ignore[misc]
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"LSTM 训练预测失败: {e}")
             return None
 
@@ -364,7 +364,7 @@ class StatisticalForecaster:
 
             return forecast, quantiles
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"ARIMA 预测失败, 回退到移动平均: {e}")
             return self._ma_momentum_forecast(prices, horizon)
 
@@ -395,16 +395,16 @@ class StatisticalForecaster:
             forecast.append(pred)
             current = pred
 
-        forecast = np.array(forecast)  # type: ignore
+        forecast = np.array(forecast)  # type: ignore[union-attr]
 
         # 简单置信区间 (±5%)
         quantiles = {
-            "q10": (forecast * 0.95).tolist(),  # type: ignore
-            "q50": forecast.tolist(),  # type: ignore
-            "q90": (forecast * 1.05).tolist(),  # type: ignore
+            "q10": (forecast * 0.95).tolist(),  # type: ignore[misc]
+            "q50": forecast.tolist(),  # type: ignore[misc]
+            "q90": (forecast * 1.05).tolist(),  # type: ignore[misc]
         }
 
-        return forecast, quantiles  # type: ignore
+        return forecast, quantiles  # type: ignore[misc]
 
 
 class PricePredictor:
@@ -444,7 +444,7 @@ class PricePredictor:
         """
         prices = np.asarray(prices, dtype=np.float64)
         if len(prices) < 10:
-            logger.warning(f"{symbol} 历史数据不足 ({len(prices)} < 10), 返回中性预测")  # type: ignore
+            logger.warning(f"{symbol} 历史数据不足 ({len(prices)} < 10), 返回中性预测")  # type: ignore[misc]
             return self._fallback_result(symbol, horizon, current_price or prices[-1] if len(prices) else 0)
 
         current = current_price or prices[-1]
@@ -466,15 +466,15 @@ class PricePredictor:
 
         # 优先级 2: TensorFlow LSTM
         if forecast is None and self.lstm.available:
-            result = self.lstm.train_and_predict(prices, horizon)  # type: ignore
+            result = self.lstm.train_and_predict(prices, horizon)  # type: ignore[misc]
             if result is not None:
-                forecast = result  # type: ignore
+                forecast = result  # type: ignore[misc]
                 method = "tensorflow_lstm"
                 # LSTM 不提供分位数, 用 ±5% 近似
                 quantiles = {
-                    "q10": (forecast * 0.95).tolist(),  # type: ignore
-                    "q50": forecast.tolist(),  # type: ignore
-                    "q90": (forecast * 1.05).tolist(),  # type: ignore
+                    "q10": (forecast * 0.95).tolist(),  # type: ignore[misc]
+                    "q50": forecast.tolist(),  # type: ignore[misc]
+                    "q90": (forecast * 1.05).tolist(),  # type: ignore[misc]
                 }
 
         # 优先级 3: 统计模型 (兜底)
@@ -549,7 +549,7 @@ class PricePredictor:
         for symbol, prices in symbols_prices.items():
             try:
                 results[symbol] = self.predict(symbol, prices, horizon)
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.error(f"预测 {symbol} 失败: {e}")
                 results[symbol] = self._fallback_result(symbol, horizon, 0)
         return results
@@ -585,7 +585,7 @@ def load_price_history(symbol: str, days: int = 120) -> Optional[np.ndarray]:
                         if close and close > 0:
                             prices.append(close)
                         break
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 continue
         if prices:
             return np.array(list(reversed(prices)))
@@ -621,8 +621,8 @@ if __name__ == "__main__":
         logger.info(f"置信度: {result.confidence:.2%}")
         logger.info(f"信号强度: {result.signal_strength:.4f}")
         if result.quantiles:
-            q10 = result.quantiles.get("q10", [0])[-1]  # type: ignore
-            q90 = result.quantiles.get("q90", [0])[-1]  # type: ignore
+            q10 = result.quantiles.get("q10", [0])[-1]  # type: ignore[index]
+            q90 = result.quantiles.get("q90", [0])[-1]  # type: ignore[index]
             logger.info(f"区间: [{q10:.2f}, {q90:.2f}]")
 
     logger.info("\n✅ 自检完成")

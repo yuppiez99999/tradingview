@@ -56,13 +56,13 @@ class AKShareDataSource:
             self._ak = ak
             self._connected = True
             self.source_health["akshare"]["ok"] = True
-            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()  # type: ignore
+            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()  # type: ignore[index]
             logger.info("AKShare 数据源初始化成功")
         except ImportError as e:
-            self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"  # type: ignore
+            self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"  # type: ignore[index]
             logger.warning(f"AKShare 数据源模块导入失败: {e}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore[index]
             logger.warning(f"AKShare 数据源初始化失败: {e}")
 
     def _ensure_connected(self):
@@ -114,16 +114,16 @@ class AKShareDataSource:
             return
 
         try:
-            df = self._ak.stock_zh_a_spot_em()  # type: ignore
+            df = self._ak.stock_zh_a_spot_em()  # type: ignore[union-attr]
             if df is not None and not df.empty:
                 self._spot_cache = {}
                 for _, row in df.iterrows():
                     code = str(row.get("代码", "")).strip()
                     if code:
                         self._spot_cache[code] = row.to_dict()
-                self._spot_cache_time = now  # type: ignore
+                self._spot_cache_time = now  # type: ignore[union-attr]
                 logger.debug(f"AKShare 缓存全市场数据: {len(self._spot_cache)} 只股票")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.debug(f"AKShare 缓存全市场数据失败: {e}")
 
     def get_realtime_quote(self, symbol: str) -> Optional[Dict]:
@@ -157,8 +157,7 @@ class AKShareDataSource:
                 return None
 
             self.source_health["akshare"]["ok"] = True
-            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()  # type: ignore
-
+            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()  # type: ignore[index]
             return {
                 "timestamp": datetime.now().isoformat(),
                 "symbol": symbol,
@@ -173,9 +172,9 @@ class AKShareDataSource:
                 "source": "akshare",
             }
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             self.source_health["akshare"]["ok"] = False
-            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore
+            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore[index]
             logger.error(f"AKShare 获取实时行情失败: {e}")
             return None
 
@@ -208,13 +207,17 @@ class AKShareDataSource:
 
             ak_period = period_map.get(period, "daily")
 
+            # P2-1 复权口径统一: 历史 K 线由 qfq(前复权) 改为 hfq(后复权)。
+            # 原因: 前复权历史会随「最新价」整体改写, 历史不可复现; 且与实时未复权价
+            # 在除权日口径不一致。后复权历史固定、适合收益率计算, 且可通过复权因子与
+            # 实时未复权成交价对齐。实时行情 (data_provider) 统一用未复权。
             if period in ("1d", "1w", "1m"):
-                df = self._ak.stock_zh_a_hist(  # type: ignore
-                    symbol=code, period=ak_period, start_date="", end_date="", adjust="qfq"
+                df = self._ak.stock_zh_a_hist(  # type: ignore[union-attr]
+                symbol=code, period=ak_period, start_date="", end_date="", adjust="hfq"
                 )
             else:
-                df = self._ak.stock_zh_a_minute(  # type: ignore
-                    symbol=code, period=ak_period, adjust="qfq"
+                df = self._ak.stock_zh_a_minute(  # type: ignore[union-attr]
+                symbol=code, period=ak_period, adjust="hfq"
                 )
 
             if df is None or df.empty:
@@ -281,13 +284,12 @@ class AKShareDataSource:
                 result_df = result_df.tail(count)
 
             self.source_health["akshare"]["ok"] = True
-            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()  # type: ignore
-
+            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()  # type: ignore[index]
             return result_df
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             self.source_health["akshare"]["ok"] = False
-            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore
+            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore[index]
             logger.error(f"AKShare 获取历史K线失败: {e}")
             return None
 
@@ -302,8 +304,7 @@ class AKShareDataSource:
             if not code:
                 return None
 
-            df = self._ak.stock_financial_report_sina(stock=code)  # type: ignore
-
+            df = self._ak.stock_financial_report_sina(stock=code)  # type: ignore[union-attr]
             if df is None or df.empty:
                 logger.warning(f"AKShare 未找到财务数据: {symbol}")
                 return None
@@ -325,7 +326,7 @@ class AKShareDataSource:
 
             return result
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"AKShare 获取财务数据失败: {e}")
             return None
 

@@ -212,7 +212,7 @@ class GlobalCancelGuard:
                     time.sleep(self.retry_delay_sec)
                     continue
                 return False
-            except Exception as e:  # noqa: BLE001  # broker API 异常类型不可预知
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # broker API 异常类型不可预知
                 logger.debug(
                     "[GlobalCancelGuard] 撤单失败 attempt=%d: %s, error=%s",
                     attempt + 1,

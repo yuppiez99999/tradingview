@@ -48,6 +48,12 @@ class SupplyChainEdge:
     start_date: str = ""
     # 来源
     source_info: str = ""  # "2024年报" / "公告" 等
+    # ===== 非对称传导弹性 (2026-08-03 深化) =====
+    # 上游涨价 → 下游传导弹性 (通常较高: 涨价易传导成本)
+    # 上游降价 → 下游传导弹性 (通常较低: 长协合同限制, 降价红利滞后)
+    # None 时回退到 strength (对称)
+    up_elasticity: float | None = None
+    down_elasticity: float | None = None
 
 
 @dataclass
@@ -184,7 +190,7 @@ class SupplyChainGraph:
             try:
                 self.add_edge(e)
                 count += 1
-            except Exception as exc:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as exc:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.warning("[SupplyChain] 添加边失败: %s", exc)
         return count
 
@@ -264,6 +270,106 @@ class SupplyChainGraph:
                 queue.append((next_node, new_path, new_strength, new_edge_types, [*edge_strengths, edge.strength]))
 
         return paths
+
+    def propagate_asymmetric_impact(
+        self,
+        source: str,
+        impact_strength: float = 1.0,
+        direction: str = "up",
+        max_hops: int | None = None,
+    ) -> list[PropagationPath]:
+        """非对称传导传播 (深化: 区分涨价/降价传导).
+
+        核心: 供应链传导具有非对称性 —
+          - 上游涨价 (direction="up") 易向下游传导成本 (up_elasticity 高)
+          - 上游降价 (direction="down") 下游不一定立即受益 (down_elasticity 低, 长协合同限制)
+
+        边弹性选择:
+          - up 传导  → edge.up_elasticity (回退 strength)
+          - down 传导 → edge.down_elasticity (回退 strength)
+
+        Args:
+            source: 源标的
+            impact_strength: 初始冲击强度 [0,1]
+            direction: "up" (涨价传导) / "down" (降价传导)
+            max_hops: 最大跳数
+
+        Returns:
+            List[PropagationPath] — 非对称传播路径
+        """
+        max_hops = max_hops or self.max_hops
+        if source not in self.all_nodes:
+            return []
+        if direction not in ("up", "down"):
+            raise ValueError("direction 必须是 'up'(涨价传导) 或 'down'(降价传导)")
+
+        def _edge_elasticity(edge: SupplyChainEdge) -> float:
+            """取指定方向的传导弹性 (非对称)."""
+            if direction == "up":
+                e = edge.up_elasticity if edge.up_elasticity is not None else edge.strength
+            else:
+                e = edge.down_elasticity if edge.down_elasticity is not None else edge.strength
+            return max(0.0, float(e))
+
+        paths: list[PropagationPath] = []
+        visited: set[str] = {source}
+        queue: deque = deque([(source, [source], impact_strength, [])])
+
+        while queue:
+            current, path, strength, edge_types = queue.popleft()
+            if len(path) - 1 >= max_hops:
+                continue
+            for edge in self.adjacency.get(current, []):
+                next_node = edge.target
+                if next_node in visited:
+                    continue
+                elasticity = _edge_elasticity(edge)
+                new_strength = strength * self.decay_per_hop * elasticity
+                if new_strength < 0.01:
+                    continue
+                visited.add(next_node)
+                new_path = [*path, next_node]
+                new_edge_types = [*edge_types, edge.relation_type]
+                paths.append(
+                    PropagationPath(
+                        source=source,
+                        target=next_node,
+                        path=new_path,
+                        total_strength=new_strength,
+                        hops=len(new_path) - 1,
+                        edge_types=new_edge_types,
+                    )
+                )
+                queue.append((next_node, new_path, new_strength, new_edge_types))
+        return paths
+
+    def get_asymmetry_ratio(
+        self,
+        source: str,
+        impact_strength: float = 1.0,
+        max_hops: int | None = None,
+    ) -> dict[str, float]:
+        """计算指定源节点的传导不对称度.
+
+        asymmetry_ratio = 涨价传导强度 / 降价传导强度
+        >1 表示涨价传导更强 (符合非对称: 涨价易传导, 降价红利滞后)
+
+        Returns:
+            {asymmetry_ratio, up_total, down_total, affected_up, affected_down}
+        """
+        up_paths = self.propagate_asymmetric_impact(source, impact_strength, "up", max_hops)
+        down_paths = self.propagate_asymmetric_impact(source, impact_strength, "down", max_hops)
+        up_total = sum(p.total_strength for p in up_paths)
+        down_total = sum(p.total_strength for p in down_paths)
+        ratio = (up_total / down_total) if down_total > 0 else float("inf")
+        return {
+            "source": source,
+            "asymmetry_ratio": ratio,
+            "up_total": up_total,
+            "down_total": down_total,
+            "affected_up": len({p.target for p in up_paths}),
+            "affected_down": len({p.target for p in down_paths}),
+        }
 
     def get_affected_symbols(
         self,
@@ -468,7 +574,7 @@ class SupplyChainGraph:
         while queue:
             current, path = queue.popleft()
             if current == target:
-                return path  # type: ignore
+                return path  # type: ignore[misc]
             for edge in self.adjacency.get(current, []):
                 next_node = edge.target
                 if next_node in visited:

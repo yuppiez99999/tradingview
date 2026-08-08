@@ -115,7 +115,8 @@ class CodeDiagnoser:
             checker = SystemChecker(strict=False, skip_datasource=True)
             with contextlib.redirect_stdout(io.StringIO()):
                 return checker.run_all()
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("SystemChecker 运行失败 (代码层诊断降级): %s", e)
             return None
 
@@ -165,7 +166,8 @@ class CodeDiagnoser:
                     detected_at=now,
                 )
                 causes.append(cause)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("从 SystemCheckReport 诊断失败: %s", e)
         return causes
 
@@ -220,7 +222,8 @@ class CodeDiagnoser:
                     confidence=0.7,
                     detected_at=now,
                 ))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("从 HealthReport 诊断代码层失败: %s", e)
         return causes
 
@@ -234,7 +237,8 @@ class CodeDiagnoser:
             if hasattr(enum_or_str, "value"):
                 return str(enum_or_str.value)
             return str(enum_or_str)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return default
 
     @staticmethod
@@ -273,6 +277,7 @@ class CodeDiagnoser:
                         def __init__(self, d: dict[str, Any]) -> None:
                             self.sub_metrics = d.get("sub_metrics", {})
                     return _Wrap(ls)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return None

@@ -55,7 +55,7 @@ try:
 
     HAS_NUMPY = True
 except ImportError:
-    np = None  # type: ignore
+    np = None  # type: ignore[misc]
     HAS_NUMPY = False
 
 try:
@@ -228,7 +228,7 @@ class DataQualityMonitor:
             )
 
         # 字段完整性
-        all_fields = set()  # type: ignore
+        all_fields = set()  # type: ignore[misc]
         for fields in data.values():
             all_fields.update(fields.keys())
         report.checked_fields = len(all_fields)
@@ -315,6 +315,7 @@ class DataQualityMonitor:
                             )
                         )
                 except (TypeError, ValueError):
+                    # 降级语义: high/low 无法转为float, 跳过该标的逻辑检查, 不影响其他字段
                     pass
 
             # close 范围检查 (ETF 0.1-50, 股票 0.5-2000)
@@ -346,14 +347,15 @@ class DataQualityMonitor:
                             )
                         )
                 except (TypeError, ValueError):
+                    # 降级语义: close 无法转为float, 跳过该标的价格范围检查, 不影响其他字段
                     pass
 
             # 日内波动 > 20%
             if all(v is not None for v in [high, low, close]):
                 try:
-                    high_f = float(high)  # type: ignore
-                    low_f = float(low)  # type: ignore
-                    close_f = float(close)  # type: ignore
+                    high_f = float(high)  # type: ignore[misc]
+                    low_f = float(low)  # type: ignore[misc]
+                    close_f = float(close)  # type: ignore[misc]
                     if close_f > 0:
                         intraday_range = (high_f - low_f) / close_f
                         if intraday_range > 0.20:
@@ -369,6 +371,7 @@ class DataQualityMonitor:
                                 )
                             )
                 except (TypeError, ValueError):
+                    # 降级语义: 日内波动计算时类型转换失败, 跳过该标的, 不影响其他标的统计
                     pass
 
             # 成交量异常 (为 0 或负数)
@@ -389,6 +392,7 @@ class DataQualityMonitor:
                             )
                         )
                 except (TypeError, ValueError):
+                    # 降级语义: 成交量无法转为float, 跳过该标的量纲检查, 不影响其他字段
                     pass
 
         # 跨标的统计异常检测 (Z-score / IQR / MAD)
@@ -575,6 +579,7 @@ class DataQualityMonitor:
                     try:
                         values[symbol] = float(val)
                     except (TypeError, ValueError):
+                        # 降级语义: 单字段值无法转为float, 跳过该标的此字段, 不影响其他标的统计
                         pass
 
             if len(values) < 4:
@@ -645,7 +650,7 @@ class DataQualityMonitor:
 
             if all(v is not None for v in [close, high, low]):
                 try:
-                    c, h, lo = float(close), float(high), float(low)  # type: ignore
+                    c, h, lo = float(close), float(high), float(low)  # type: ignore[misc]
                     if c > h:
                         report.issues.append(
                             QualityIssue(
@@ -671,6 +676,7 @@ class DataQualityMonitor:
                             )
                         )
                 except (TypeError, ValueError):
+                    # 降级语义: close/high/low 无法转为float, 跳过该标的范围一致性检查, 不影响其他检查
                     pass
 
             # 时间戳一致性
@@ -831,7 +837,7 @@ class DataQualityMonitor:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(report.to_dict(), f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"数据质量报告已保存: {path}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存数据质量报告失败: {e}")
         return path
 

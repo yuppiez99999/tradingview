@@ -436,7 +436,8 @@ class DataContract:
                 dates = pd.to_datetime(date_col, errors="coerce")
             else:
                 dates = date_col
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return violations
 
         future_rows = (dates > current_date).sum()
@@ -474,7 +475,8 @@ def validate_point_in_time(panel: pd.DataFrame, current_date: datetime) -> bool:
         else:
             dates = panel["date"]
         return int((dates > current_date).sum()) == 0
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"point-in-time 校验异常: {e}")
         return True  # 异常时乐观返回
 

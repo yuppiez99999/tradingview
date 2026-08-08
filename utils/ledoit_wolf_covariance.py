@@ -77,7 +77,7 @@ class LedoitWolfCovariance:
     # 主入口
     # ------------------------------------------------------------
 
-    def fit(self, returns: np.ndarray | pd.DataFrame) -> ShrinkageResult:  # type: ignore
+    def fit(self, returns: np.ndarray | pd.DataFrame) -> ShrinkageResult:  # type: ignore[misc]
         """估计收缩协方差矩阵
 
         Args:
@@ -253,14 +253,14 @@ class LedoitWolfCovariance:
     # 便利方法
     # ------------------------------------------------------------
 
-    def fit_predict(self, returns: np.ndarray | pd.DataFrame) -> np.ndarray:  # type: ignore
+    def fit_predict(self, returns: np.ndarray | pd.DataFrame) -> np.ndarray:  # type: ignore[misc]
         """便利方法: 直接返回收缩后协方差矩阵"""
         result = self.fit(returns)
         return result.cov_shrunk
 
     def fit_with_uncertainty(
         self,
-        returns: np.ndarray | pd.DataFrame,  # type: ignore
+        returns: np.ndarray | pd.DataFrame,  # type: ignore[misc]
         n_bootstrap: int = 100,
     ) -> tuple[np.ndarray, np.ndarray]:
         """带自助法的协方差估计
@@ -287,7 +287,7 @@ class LedoitWolfCovariance:
                 try:
                     rb = self.fit(Rb)
                     bootstraps.append(rb.cov_shrunk)
-                except Exception:  # P2 模块 fail-safe, 待后续精确化
+                except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                     continue
             if bootstraps:
                 stacked = np.stack(bootstraps, axis=0)

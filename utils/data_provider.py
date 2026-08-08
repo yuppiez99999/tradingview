@@ -25,6 +25,9 @@ from utils.http_session import make_no_proxy_session
 
 # P1-2: 移除全局禁用TLS验证，改为默认启用证书校验
 from utils.logger import get_logger
+import logging
+
+logger = logging.getLogger(__name__)
 
 _SINA_SESSION = make_no_proxy_session("sina")
 
@@ -32,8 +35,8 @@ try:
     import numpy as _np
 
     HAS_NUMPY = True
-except Exception:
-    _np = None  # type: ignore
+except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+    _np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 
 logger = get_logger("data_provider")
@@ -85,19 +88,18 @@ def _zeros(size):
 
 
 class MarketDataProvider:
-    """市场数据提供器 - 多数据源优先级: Wind MCP > iFinD MCP > 默认兜底"""
+    """市场数据提供器 - 多数据源优先级: Wind MCP > 通达信 > AKShare > 新浪财经 (已剔除 iFinD)"""
 
     def __init__(self, cache_size: int = 1000, backtest_mode: bool = False):
         self.cache_size = cache_size
         self.backtest_mode = backtest_mode
         self._backtest_date = None
-        self.data_cache = {}  # type: ignore
+        self.data_cache = {}  # type: ignore[assignment]
         self.cache_lock = threading.Lock()
         self.persistent_cache_dir = pathlib.Path(__file__).resolve().parents[1] / "data_cache"
         self.persistent_cache_dir.mkdir(exist_ok=True)
         self.source_health = {
             "wind_mcp": {"ok": False, "last_error": None},
-            "ifind_mcp": {"ok": False, "last_error": None},
             "tdx": {"ok": False, "last_error": None},
             "akshare": {"ok": False, "last_error": None},
             "sina_http": {"ok": False, "last_error": None},
@@ -110,20 +112,18 @@ class MarketDataProvider:
         }
 
         self._wind_mcp_client = None
-        self._ifind_client = None
         self._tdx_source = None
         self._akshare_source = None
         self._init_wind_mcp()
-        self._init_ifind_mcp()
         self._init_tdx()
         self._init_akshare()
         logger.info(
-            "市场数据提供器初始化完成 (多数据源优先级: Wind MCP > iFinD MCP > 通达信 > AKShare > 新浪财经, backtest_mode=%s)",
+            "市场数据提供器初始化完成 (多数据源优先级: Wind MCP > 通达信 > AKShare > 新浪财经, 已剔除 iFinD, backtest_mode=%s)",
             backtest_mode,
         )
 
     def set_backtest_date(self, report_date: str) -> None:
-        self._backtest_date = report_date  # type: ignore
+        self._backtest_date = report_date  # type: ignore[union-attr]
 
     def _cache_suffix(self) -> str:
         if self.backtest_mode and self._backtest_date:
@@ -164,8 +164,8 @@ class MarketDataProvider:
 
         try:
             spec = importlib.util.spec_from_file_location("wind_mcp_fetcher", str(wind_path))
-            mod = importlib.util.module_from_spec(spec)  # type: ignore
-            spec.loader.exec_module(mod)  # type: ignore
+            mod = importlib.util.module_from_spec(spec)  # type: ignore[misc]
+            spec.loader.exec_module(mod)  # type: ignore[union-attr]
 
             # 校验必要函数是否存在
             if not (hasattr(mod, "wind_get_quote") and hasattr(mod, "wind_get_kline")):
@@ -175,69 +175,33 @@ class MarketDataProvider:
                 logger.warning(f"Wind MCP 模块缺少必要函数: {wind_path}")
                 return
 
-            self._wind_mcp_client = {  # type: ignore
+            self._wind_mcp_client = {  # type: ignore[union-attr]
                 "quote": mod.wind_get_quote,
                 "kline": mod.wind_get_kline,
             }
             self.source_health["wind_mcp"]["ok"] = True
             logger.info(f"Wind MCP 客户端已加载 (P1, path={wind_path})")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-            self.source_health["wind_mcp"]["last_error"] = str(e)  # type: ignore
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            self.source_health["wind_mcp"]["last_error"] = str(e)  # type: ignore[index]
             logger.warning(f"Wind MCP 客户端加载失败 ({wind_path}): {e}")
-
-    def _init_ifind_mcp(self):
-        """初始化 iFinD MCP 客户端 (安全版本)
-
-        安全要求:
-            - Token 必须从环境变量 IFIND_TOKEN 读取
-            - 禁止从配置文件或代码中明文获取 Token
-            - IFindClient 构造函数会自动验证环境变量
-        """
-        try:
-            from utils.ifind_client import IFindClient
-
-            # 安全检查: 验证环境变量是否存在
-            ifind_token = os.environ.get("IFIND_TOKEN", "")
-            if not ifind_token:
-                self.source_health["ifind_mcp"]["last_error"] = "IFIND_TOKEN 环境变量未设置"  # type: ignore
-                logger.warning(
-                    "iFinD MCP 未配置: 请设置环境变量 IFIND_TOKEN\n"
-                    "Windows PowerShell: $env:IFIND_TOKEN='your_token_here'\n"
-                    "Linux/Mac: export IFIND_TOKEN='your_token_here'"
-                )
-                return
-
-            # 注意: IFindClient 构造函数已从环境变量自动读取 Token
-            # 不再需要手动传递 auth_token 参数
-            self._ifind_client = IFindClient()  # type: ignore
-            self.source_health["ifind_mcp"]["ok"] = True
-            logger.info("iFinD MCP 客户端已加载 (P2)")
-
-        except RuntimeError as e:
-            # 捕获环境变量缺失的错误
-            self.source_health["ifind_mcp"]["last_error"] = str(e)  # type: ignore
-            logger.warning(f"iFinD MCP 初始化失败: {e}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-            self.source_health["ifind_mcp"]["last_error"] = str(e)  # type: ignore
-            logger.warning(f"iFinD MCP 客户端加载失败: {e}")
 
     def _init_tdx(self):
         """初始化通达信数据源"""
         try:
             from utils.tdx_data_source import get_tdx_source
 
-            self._tdx_source = get_tdx_source()  # type: ignore
+            self._tdx_source = get_tdx_source()  # type: ignore[union-attr]
             if self._tdx_source and self._tdx_source.source_health.get("tdx", {}).get("ok"):
                 self.source_health["tdx"]["ok"] = True
                 logger.info("通达信数据源已加载 (P3)")
             else:
-                self.source_health["tdx"]["last_error"] = "通达信连接初始化失败"  # type: ignore
+                self.source_health["tdx"]["last_error"] = "通达信连接初始化失败"  # type: ignore[index]
                 logger.warning("通达信数据源初始化失败")
         except ImportError as e:
-            self.source_health["tdx"]["last_error"] = f"模块导入失败: {e}"  # type: ignore
+            self.source_health["tdx"]["last_error"] = f"模块导入失败: {e}"  # type: ignore[index]
             logger.warning(f"通达信数据源模块导入失败: {e}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-            self.source_health["tdx"]["last_error"] = str(e)  # type: ignore
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            self.source_health["tdx"]["last_error"] = str(e)  # type: ignore[index]
             logger.warning(f"通达信数据源初始化失败: {e}")
 
     def _init_akshare(self):
@@ -245,18 +209,18 @@ class MarketDataProvider:
         try:
             from utils.akshare_data_source import get_akshare_source
 
-            self._akshare_source = get_akshare_source()  # type: ignore
+            self._akshare_source = get_akshare_source()  # type: ignore[union-attr]
             if self._akshare_source and self._akshare_source.source_health.get("akshare", {}).get("ok"):
                 self.source_health["akshare"]["ok"] = True
                 logger.info("AKShare 数据源已加载 (P4)")
             else:
-                self.source_health["akshare"]["last_error"] = "AKShare 初始化失败"  # type: ignore
+                self.source_health["akshare"]["last_error"] = "AKShare 初始化失败"  # type: ignore[index]
                 logger.warning("AKShare 数据源初始化失败")
         except ImportError as e:
-            self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"  # type: ignore
+            self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"  # type: ignore[index]
             logger.warning(f"AKShare 数据源模块导入失败: {e}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore[index]
             logger.warning(f"AKShare 数据源初始化失败: {e}")
 
     @staticmethod
@@ -333,9 +297,10 @@ class MarketDataProvider:
                 "high": safe_float(quote.get("high")),
                 "low": safe_float(quote.get("low")),
                 "volume": safe_float(quote.get("volume"), default=0),
+                "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "wind_mcp",
             }
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self.source_health["wind_mcp"]["ok"] = False
             self.source_health["wind_mcp"]["last_error"] = str(e)
             logger.error(f"Wind MCP 获取实时数据失败: {e}")
@@ -385,127 +350,8 @@ class MarketDataProvider:
                 return None
             df.set_index("date", inplace=True)
             return df
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"Wind MCP 获取历史数据失败: {e}")
-            return None
-
-    def _try_ifind_mcp_realtime(self, symbol: str) -> Optional[Dict]:
-        if not self._ifind_client:
-            return None
-        try:
-            s = str(symbol).strip()
-            s = s.replace(".SH", "").replace(".SZ", "").replace(".BJ", "")
-
-            if self._is_fund(symbol):
-                quotes = self._ifind_client.get_etf_quotes([s])
-                if s in quotes:
-                    quote = quotes[s]
-                    price = safe_float(quote.get("price"))
-                    prev_close = safe_float(quote.get("prev_close"))
-                    open_ = safe_float(quote.get("open"))
-                    high = safe_float(quote.get("high"))
-                    low = safe_float(quote.get("low"))
-                    # 仅当拥有真实 OHLC 数据时返回；拒绝用 price*0.995/1.005 伪造
-                    if price and prev_close and open_ and high and low:
-                        self.source_health["ifind_mcp"]["ok"] = True
-                        return {
-                            "timestamp": datetime.now().isoformat(),
-                            "symbol": symbol,
-                            "index_price": price,
-                            "prev_close": prev_close,
-                            "open": open_,
-                            "high": high,
-                            "low": low,
-                            "volume": safe_float(quote.get("volume"), default=0),
-                            "source": "ifind_mcp",
-                        }
-                    else:
-                        logger.warning(f"iFinD MCP ETF 行情缺少真实 OHLC 字段，拒绝伪造: {symbol}")
-            else:
-                klines = self._ifind_client.get_historical_klines(s, days=1)
-                if klines:
-                    kline = klines[-1]
-                    close = safe_float(kline.get("收盘价"))
-                    # 不伪造 prev_close；优先使用真实前收盘字段
-                    prev_close = safe_float(kline.get("前收盘")) or safe_float(kline.get("prev_close"))
-                    self.source_health["ifind_mcp"]["ok"] = True
-                    return {
-                        "timestamp": datetime.now().isoformat(),
-                        "symbol": symbol,
-                        "index_price": close,
-                        "prev_close": prev_close,
-                        "open": safe_float(kline.get("开盘价")),
-                        "high": safe_float(kline.get("最高价")),
-                        "low": safe_float(kline.get("最低价")),
-                        "volume": safe_float(kline.get("成交量"), default=0),
-                        "source": "ifind_mcp",
-                    }
-
-            self.source_health["ifind_mcp"]["last_error"] = "empty_data"
-            logger.warning(f"iFinD MCP 返回空数据: {symbol}")
-            return None
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-            self.source_health["ifind_mcp"]["ok"] = False
-            self.source_health["ifind_mcp"]["last_error"] = str(e)
-            logger.error(f"iFinD MCP 获取实时数据失败: {e}")
-            return None
-
-    def _try_ifind_mcp_historical(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
-        if not self._ifind_client:
-            return None
-        try:
-            period_mapping = {
-                "1d": 1,
-                "1w": 5,
-                "1m": 20,
-                "3m": 60,
-                "6m": 120,
-                "1y": 252,
-                "2y": 504,
-                "3y": 756,
-                "5y": 1260,
-            }
-            data_points = period_mapping.get(period, 252)
-
-            s = str(symbol).strip()
-            s = s.replace(".SH", "").replace(".SZ", "").replace(".BJ", "")
-
-            klines = self._ifind_client.get_historical_klines(s, days=data_points)
-            if not klines:
-                # v8.6.11 FIX: 实际调用返回空时, 标记数据源为不可用 (避免下次还尝试)
-                self.source_health["ifind_mcp"]["ok"] = False
-                self.source_health["ifind_mcp"]["last_error"] = "empty_klines_response"
-                logger.warning(f"iFinD MCP get_historical_klines 返回空: {symbol}")
-                return None
-
-            records = []
-            for k in klines:
-                close = safe_float(k.get("收盘价"))
-                if close is None or close <= 0:
-                    continue
-                records.append(
-                    {
-                        "date": pd.to_datetime(k.get("日期") or k.get("date")),
-                        "open": safe_float(k.get("开盘价")) or close,
-                        "high": safe_float(k.get("最高价")) or close,
-                        "low": safe_float(k.get("最低价")) or close,
-                        "close": close,
-                        "volume": safe_float(k.get("成交量"), default=0),
-                    }
-                )
-            df = pd.DataFrame(records)
-            if df.empty:
-                # v8.6.11 FIX: 解析后为空也标记不可用
-                self.source_health["ifind_mcp"]["ok"] = False
-                self.source_health["ifind_mcp"]["last_error"] = "parsed_df_empty"
-                logger.warning("iFinD MCP 返回历史数据但解析后为空，尝试下一数据源")
-                return None
-            df.set_index("date", inplace=True)
-            self.source_health["ifind_mcp"]["ok"] = True
-            self.source_health["ifind_mcp"]["last_error"] = None  # 清除历史错误
-            return df
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-            logger.error(f"iFinD MCP 获取历史数据失败: {e}")
             return None
 
     def _try_tdx_realtime(self, symbol: str) -> Optional[Dict]:
@@ -528,9 +374,10 @@ class MarketDataProvider:
                 "high": safe_float(quote.get("high")),
                 "low": safe_float(quote.get("low")),
                 "volume": safe_float(quote.get("volume"), default=0),
+                "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "tdx",
             }
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self.source_health["tdx"]["ok"] = False
             self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取实时数据失败: {e}")
@@ -573,7 +420,7 @@ class MarketDataProvider:
 
             self.source_health["tdx"]["ok"] = True
             return df
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"通达信获取历史数据失败: {e}")
             return None
 
@@ -597,9 +444,10 @@ class MarketDataProvider:
                 "high": safe_float(quote.get("high")),
                 "low": safe_float(quote.get("low")),
                 "volume": safe_float(quote.get("volume"), default=0),
+                "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "akshare",
             }
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self.source_health["akshare"]["ok"] = False
             self.source_health["akshare"]["last_error"] = str(e)
             logger.error(f"AKShare 获取实时数据失败: {e}")
@@ -642,7 +490,7 @@ class MarketDataProvider:
 
             self.source_health["akshare"]["ok"] = True
             return df
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"AKShare 获取历史数据失败: {e}")
             return None
 
@@ -698,7 +546,7 @@ class MarketDataProvider:
             df.set_index("date", inplace=True)
             self.source_health["sina_http"]["ok"] = True
             return df
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"新浪 HTTP 获取历史数据失败: {e}")
             return None
 
@@ -720,12 +568,12 @@ class MarketDataProvider:
 
             match = re.search(r'"(.*)"', text)
             if not match:
-                self.source_health["sina_http"]["last_error"] = "empty_payload"  # type: ignore
+                self.source_health["sina_http"]["last_error"] = "empty_payload"  # type: ignore[index]
                 logger.warning("新浪实时行情返回空: %s", symbol)
                 return None
             fields = match.group(1).split(",")
             if len(fields) < 10:
-                self.source_health["sina_http"]["last_error"] = "insufficient_fields"  # type: ignore
+                self.source_health["sina_http"]["last_error"] = "insufficient_fields"  # type: ignore[index]
                 logger.warning("新浪实时行情字段不足: %s (got %d)", symbol, len(fields))
                 return None
 
@@ -746,7 +594,7 @@ class MarketDataProvider:
             # 成交额 fields[9]（元），保留但不返回（与 Wind MCP 格式一致）
 
             if price <= 0 and open_price <= 0:
-                self.source_health["sina_http"]["last_error"] = "zero_price"  # type: ignore
+                self.source_health["sina_http"]["last_error"] = "zero_price"  # type: ignore[index]
                 logger.warning("新浪实时行情价格为 0: %s", symbol)
                 return None
 
@@ -762,15 +610,16 @@ class MarketDataProvider:
                 "high": high,
                 "low": low,
                 "volume": volume,
+                "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "sina_http",
             }
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self.source_health["sina_http"]["ok"] = False
-            self.source_health["sina_http"]["last_error"] = str(e)  # type: ignore
+            self.source_health["sina_http"]["last_error"] = str(e)  # type: ignore[index]
             logger.error(f"新浪 HTTP 获取实时行情失败: {e}")
             return None
 
-    def get_market_data(self, symbol: Optional[str] = None) -> Dict:  # type: ignore
+    def get_market_data(self, symbol: Optional[str] = None) -> Dict:  # type: ignore[misc]
         cache_key = f"market_{symbol or 'SPY'}{self._cache_suffix()}"
 
         with self.cache_lock:
@@ -780,7 +629,7 @@ class MarketDataProvider:
 
                 if cache_time and (datetime.now() - cache_time).total_seconds() < 60:
                     logger.debug(f"使用缓存的市场数据: {cache_key}")
-                    return cached_data["data"]  # type: ignore
+                    return cached_data["data"]  # type: ignore[index]
 
         try:
             market_data = self._fetch_real_time_data(symbol)
@@ -797,7 +646,7 @@ class MarketDataProvider:
 
         except RuntimeError:
             raise
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"获取市场数据失败: {e}")
             raise RuntimeError(f"获取市场数据失败 ({symbol}): {e}") from e
 
@@ -815,7 +664,7 @@ class MarketDataProvider:
                 df = pd.read_parquet(cache_file)
                 logger.debug(f"加载持久化缓存: {cache_file.name}")
                 return df
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.debug(f"加载持久化缓存失败: {e}")
         return None
 
@@ -825,7 +674,7 @@ class MarketDataProvider:
                 return
             cache_file = self.persistent_cache_dir / f"{cache_key}.parquet"
             data.to_parquet(cache_file, index=True)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.debug(f"保存持久化缓存失败: {e}")
 
     def get_historical_data(self, symbol: str, period: str = "1y") -> pd.DataFrame:
@@ -855,17 +704,17 @@ class MarketDataProvider:
             logger.info(f"获取历史数据: {cache_key}")
             try:
                 self._save_persistent_cache(cache_key, historical_data)
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.debug(f"写入持久化缓存失败: {e}")
             return historical_data
 
         except RuntimeError:
             raise
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"获取历史数据失败: {e}")
             raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
 
-    def get_sentiment_data(self, symbol: Optional[str] = None) -> Optional[Dict]:  # type: ignore
+    def get_sentiment_data(self, symbol: Optional[str] = None) -> Optional[Dict]:  # type: ignore[misc]
         cache_key = f"sentiment_{symbol or 'SPY'}{self._cache_suffix()}"
 
         with self.cache_lock:
@@ -873,9 +722,9 @@ class MarketDataProvider:
                 cached_data = self.data_cache[cache_key]
                 cache_time = cached_data.get("timestamp")
 
-                if cache_time and (datetime.now() - cache_time).seconds < 300:
+                if cache_time and (datetime.now() - cache_time).total_seconds() < 300:
                     logger.debug(f"使用缓存的情绪数据: {cache_key}")
-                    return cached_data["data"]  # type: ignore
+                    return cached_data["data"]  # type: ignore[index]
 
         try:
             sentiment_data = self._fetch_sentiment_data(symbol)
@@ -889,7 +738,7 @@ class MarketDataProvider:
 
             return sentiment_data
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"获取情绪数据失败: {e}")
             return None
 
@@ -900,7 +749,7 @@ class MarketDataProvider:
             logger.info(f"计算技术指标: {symbol}")
             return technical_indicators
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"获取技术指标失败: {e}")
             return {}
 
@@ -911,30 +760,23 @@ class MarketDataProvider:
             if wind_data:
                 return wind_data
 
-            logger.warning("Wind MCP 实时数据获取失败，尝试 iFinD MCP: %s", symbol)
+            logger.warning("Wind MCP 实时数据获取失败，尝试通达信: %s", symbol)
 
-            # P2: iFinD MCP
-            ifind_data = self._try_ifind_mcp_realtime(symbol)
-            if ifind_data:
-                return ifind_data
-
-            logger.warning("iFinD MCP 实时数据获取失败，尝试通达信: %s", symbol)
-
-            # P3: 通达信
+            # P2: 通达信
             tdx_data = self._try_tdx_realtime(symbol)
             if tdx_data:
                 return tdx_data
 
             logger.warning("通达信实时数据获取失败，尝试 AKShare: %s", symbol)
 
-            # P4: AKShare
+            # P3: AKShare
             akshare_data = self._try_akshare_realtime(symbol)
             if akshare_data:
                 return akshare_data
 
             logger.warning("AKShare 实时数据获取失败，尝试新浪财经: %s", symbol)
 
-            # P5: 新浪财经实时行情（免费 HTTP 兜底）
+            # P4: 新浪财经实时行情（免费 HTTP 兜底）
             sina_data = self._try_sina_http_realtime(symbol)
             if sina_data:
                 return sina_data
@@ -943,14 +785,13 @@ class MarketDataProvider:
             raise RuntimeError(
                 f"所有数据源获取实时数据失败: {symbol} "
                 f"(Wind MCP: {self.source_health['wind_mcp'].get('last_error')}, "
-                f"iFinD MCP: {self.source_health['ifind_mcp'].get('last_error')}, "
                 f"通达信: {self.source_health['tdx'].get('last_error')}, "
                 f"AKShare: {self.source_health['akshare'].get('last_error')}, "
                 f"新浪HTTP: {self.source_health['sina_http'].get('last_error')})"
             )
         except RuntimeError:
             raise
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"获取实时数据失败: {e}")
             raise RuntimeError(f"获取实时数据失败 ({symbol}): {e}") from e
 
@@ -961,30 +802,23 @@ class MarketDataProvider:
             if wind_data is not None and not wind_data.empty:
                 return wind_data
 
-            logger.warning("Wind MCP 历史数据获取失败，尝试 iFinD MCP: %s", symbol)
+            logger.warning("Wind MCP 历史数据获取失败，尝试通达信: %s", symbol)
 
-            # P2: iFinD MCP
-            ifind_data = self._try_ifind_mcp_historical(symbol, period)
-            if ifind_data is not None and not ifind_data.empty:
-                return ifind_data
-
-            logger.warning("iFinD MCP 历史数据获取失败，尝试通达信: %s", symbol)
-
-            # P3: 通达信
+            # P2: 通达信
             tdx_data = self._try_tdx_historical(symbol, period)
             if tdx_data is not None and not tdx_data.empty:
                 return tdx_data
 
             logger.warning("通达信历史数据获取失败，尝试 AKShare: %s", symbol)
 
-            # P4: AKShare
+            # P3: AKShare
             akshare_data = self._try_akshare_historical(symbol, period)
             if akshare_data is not None and not akshare_data.empty:
                 return akshare_data
 
             logger.warning("AKShare 历史数据获取失败，尝试新浪 HTTP: %s", symbol)
 
-            # P5: 新浪 HTTP
+            # P4: 新浪 HTTP
             sina_data = self._try_sina_http_historical(symbol, period)
             if sina_data is not None and not sina_data.empty:
                 return sina_data
@@ -993,14 +827,13 @@ class MarketDataProvider:
             raise RuntimeError(
                 f"所有数据源获取历史数据失败: {symbol} (period={period}) "
                 f"(Wind MCP: {self.source_health['wind_mcp'].get('last_error')}, "
-                f"iFinD MCP: {self.source_health['ifind_mcp'].get('last_error')}, "
                 f"通达信: {self.source_health['tdx'].get('last_error')}, "
                 f"AKShare: {self.source_health['akshare'].get('last_error')}, "
                 f"新浪HTTP: {self.source_health['sina_http'].get('last_error')})"
             )
         except RuntimeError:
             raise
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"获取历史数据失败: {e}")
             raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
 
@@ -1065,13 +898,13 @@ class MarketDataProvider:
 
             return technical_indicators
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"计算技术指标失败: {e}")
             return {}
 
     def _calculate_ema(self, data, period: int) -> float:
         if len(data) < period:
-            return _mean(data)  # type: ignore
+            return _mean(data)  # type: ignore[misc]
 
         alpha = 2 / (period + 1)
         ema = data[0]
@@ -1079,105 +912,41 @@ class MarketDataProvider:
         for value in data[1:]:
             ema = alpha * value + (1 - alpha) * ema
 
-        return ema  # type: ignore
+        return ema  # type: ignore[misc]
 
     def _get_default_market_data(self) -> Dict:
-        """返回硬编码假数据 (index_price=3000 等)，仅供测试/调试使用，不可用于真实交易决策。
+        """返回硬编码假数据 (index_price=3000 等)，仅供测试/调试使用。
 
         .. deprecated:: 此方法已不再被主数据流调用。
-            get_market_data / _fetch_real_time_data 现采用 fail-fast 策略，
-            所有数据源失败时抛出 RuntimeError 而非返回此假数据。
+        L5 修复: 原返回硬编码假数据 (index_price=3000) 会被误用于交易决策。
+        现改为 fail-closed 抛 RuntimeError, 防止任何误调用返回假数据。
         """
-        logger.warning(
-            "_get_default_market_data: 返回硬编码假数据 (index_price=3000)，"
-            "不可用于真实交易决策。主数据流已改为 fail-fast。"
+        raise RuntimeError(
+            "_get_default_market_data 已废弃 (L5): 返回硬编码假数据有误用风险。"
+            "主数据流已 fail-fast, 所有数据源失败时抛 RuntimeError 而非假数据。"
         )
-        return {
-            "timestamp": datetime.now().isoformat(),
-            "symbol": "SPY",
-            "index_price": 3000,
-            "prev_close": 3000,
-            "open": 3000,
-            "high": 3000,
-            "low": 3000,
-            "volume": 10000000,
-            "volatility": 0.15,
-            "var_95": 0.02,
-            "var_99": 0.035,
-            "es_95": 0.03,
-            "beta": 1.0,
-            "liquidity": 1.0,
-            "sentiment_score": 0.0,
-            "correlation_matrix": _eye(3),
-            "tracking_error": 0.03,
-            "market_correlation": 0.7,
-            "returns": _zeros(252),
-            "vix_future_price": 20.0,
-            "kurtosis": 3.0,
-            "skewness": 0.0,
-            "extreme_events": 0,
-            "put_call_ratio": 1.0,
-            "options_skew": 0.0,
-            "news_count": 0,
-            "positive_news": 0,
-            "negative_news": 0,
-            "social_mentions": {"positive": 0, "negative": 0},
-            "analyst_ratings": {"buy": 0, "sell": 0, "hold": 0},
-        }
 
     def _get_default_historical_data(self) -> pd.DataFrame:
-        """返回硬编码假历史数据 (base_price=3000)，仅供测试/调试使用，不可用于真实交易决策。
+        """返回硬编码假历史数据 (base_price=3000)，仅供测试/调试使用。
 
         .. deprecated:: 此方法已不再被主数据流调用。
-            get_historical_data / _fetch_historical_data 现采用 fail-fast 策略，
-            所有数据源失败时抛出 RuntimeError 而非返回此假数据。
+        L5 修复: 原返回硬编码假历史数据有误用风险。现改为 fail-closed 抛 RuntimeError。
         """
-        logger.warning(
-            "_get_default_historical_data: 返回硬编码假历史数据 (base_price=3000)，"
-            "不可用于真实交易决策。主数据流已改为 fail-fast。"
+        raise RuntimeError(
+            "_get_default_historical_data 已废弃 (L5): 返回硬编码假历史数据有误用风险。"
+            "主数据流已 fail-fast。"
         )
-        dates = pd.date_range(end=datetime.now(), periods=252, freq="D")
-        base_price = 3000
-
-        return pd.DataFrame(
-            {
-                "date": dates,
-                "open": [base_price] * 252,
-                "high": [base_price * 1.01] * 252,
-                "low": [base_price * 0.99] * 252,
-                "close": [base_price] * 252,
-                "volume": [10000000] * 252,
-                "returns": [0] * 252,
-            }
-        ).set_index("date")
 
     def _get_default_sentiment_data(self) -> Dict:
-        """返回硬编码假情绪数据，仅供测试/调试使用，不可用于真实交易决策。
+        """返回硬编码假情绪数据，仅供测试/调试使用。
 
         .. deprecated:: 此方法已不再被主数据流调用。
-            get_sentiment_data / _fetch_sentiment_data 现返回 None 并记录 warning，
-            而非返回此假数据。
+        L5 修复: 原返回硬编码假情绪数据有误用风险。现改为 fail-closed 抛 RuntimeError。
         """
-        logger.warning(
-            "_get_default_sentiment_data: 返回硬编码假情绪数据，不可用于真实交易决策。主数据流已改为返回 None。"
+        raise RuntimeError(
+            "_get_default_sentiment_data 已废弃 (L5): 返回硬编码假情绪数据有误用风险。"
+            "主数据流已返回 None 并记录 warning。"
         )
-        return {
-            "timestamp": datetime.now().isoformat(),
-            "symbol": "SPY",
-            "news_sentiment": 0.0,
-            "social_sentiment": 0.0,
-            "analyst_sentiment": 0.0,
-            "options_sentiment": 0.0,
-            "composite_sentiment": 0.0,
-            "news_count": 0,
-            "positive_news": 0,
-            "negative_news": 0,
-            "social_mentions": {"positive": 0, "negative": 0},
-            "analyst_ratings": {"buy": 0, "sell": 0, "hold": 0},
-            "put_call_ratio": 1.0,
-            "options_skew": 0.0,
-            "sentiment_trend": "neutral",
-        }
 
     # ===========================================================
     # 新增模块集成 (v7.5+): 价格预测 + 外部数据源 + 网页抓取 + AI 报告
@@ -1198,7 +967,7 @@ class MarketDataProvider:
                 return {}
             result = predictor.predict(symbol, prices, horizon=horizon)
             return result.to_dict() if hasattr(result, "to_dict") else result.__dict__
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"价格预测失败 ({symbol}): {e}")
             return {}
 
@@ -1213,7 +982,7 @@ class MarketDataProvider:
             col = "close" if "close" in hist.columns else "Close"
             prices = hist[col].tail(days).values
             return np.array(prices, dtype=float)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.debug(f"获取预测价格序列失败 ({symbol}): {e}")
             return None
 
@@ -1224,7 +993,7 @@ class MarketDataProvider:
 
             mgr = ExternalDataManager()
             return mgr.get_macro_snapshot()
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"外部宏观数据获取失败: {e}")
             return {}
 
@@ -1235,7 +1004,7 @@ class MarketDataProvider:
 
             mgr = ExternalDataManager()
             return mgr.get_risk_sentiment()
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"风险情绪指标获取失败: {e}")
             return {}
 
@@ -1258,7 +1027,7 @@ class MarketDataProvider:
             if not sentiments:
                 return []
             return [s.__dict__ for s in sentiments]
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"新闻情感分析失败 ({symbol}): {e}")
             return []
 
@@ -1270,7 +1039,7 @@ class MarketDataProvider:
             agent = AIReportAgent()
             report = agent.generate_daily_report(symbols=symbols)
             return report.__dict__
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"AI 每日报告生成失败: {e}")
             return {"error": str(e)}
 
@@ -1279,7 +1048,6 @@ class MarketDataProvider:
         status = {
             "data_sources": {
                 "wind_mcp": self.source_health.get("wind_mcp", {}).get("ok", False),
-                "ifind_mcp": self.source_health.get("ifind_mcp", {}).get("ok", False),
                 "tdx": self.source_health.get("tdx", {}).get("ok", False),
                 "akshare": self.source_health.get("akshare", {}).get("ok", False),
                 "sina_http": self.source_health.get("sina_http", {}).get("ok", False),
@@ -1290,9 +1058,9 @@ class MarketDataProvider:
         for module_name in ["tf_price_predictor", "external_data_source", "web_scraper", "ai_report_agent"]:
             try:
                 __import__(f"utils.{module_name}")
-                status[f"{module_name}_available"] = True  # type: ignore
+                status[f"{module_name}_available"] = True  # type: ignore[misc]
             except ImportError:
-                status[f"{module_name}_available"] = False  # type: ignore
+                status[f"{module_name}_available"] = False  # type: ignore[misc]
         return status
 
     def clear_cache(self):
@@ -1308,11 +1076,80 @@ class MarketDataProvider:
                 "cached_items": list(self.data_cache.keys()),
             }
 
+    # ===========================================================
+    # U3: 复权因子支持 — hfq 历史价 ↔ 未复权实时价 对齐
+    # ===========================================================
+    def get_hfq_factor(self, symbol: str, date: Optional[str] = None) -> float:
+        """U3: 获取 A股后复权累计因子.
+
+        因子仅在除权日变化, 长缓存 (24h); akshare 不可用时降级返回 1.0.
+
+        Args:
+            symbol: 股票代码
+            date: 日期 (YYYY-MM-DD), None=最新
+
+        Returns:
+            hfq 累计因子; 失败返回 1.0 (等同未复权)
+        """
+        try:
+            from utils.adjust_factor_provider import get_adjust_factor_provider
+
+            return get_adjust_factor_provider().get_hfq_factor(symbol, date=date)
+        except (ImportError, RuntimeError, ValueError, TypeError, OSError) as e:
+            logger.debug("获取 hfq 因子失败 (%s): %s", symbol, e)
+            return 1.0
+
+    def enrich_realtime_with_hfq(self, quote: Dict, symbol: str) -> Dict:
+        """U3: 为实时行情字典注入复权因子 + hfq 对齐价.
+
+        在原有实时行情 (未复权) 基础上新增:
+            - hfq_factor: 当日 hfq 累计因子
+            - hfq_equivalent_price: 未复权实时价 × 因子 = hfq 基准价 (与 hfq 历史价可比)
+            - is_ex_dividend: 是否为除权日 (因子变化)
+
+        用法:
+            quote = provider.get_market_data("600519.SH")
+            quote = provider.enrich_realtime_with_hfq(quote, "600519.SH")
+            # quote["hfq_equivalent_price"] 可直接与 hfq 历史收盘比较
+
+        Args:
+            quote: 实时行情字典 (含 index_price / close 等价格字段)
+            symbol: 股票代码
+
+        Returns:
+            富化后的 quote (同一对象, 原地修改); 因子不可用时 hfq_factor=1.0
+        """
+        try:
+            from utils.adjust_factor_provider import (
+                get_adjust_factor_provider,
+                unadjusted_to_hfq,
+            )
+
+            provider = get_adjust_factor_provider()
+            factor = provider.get_hfq_factor(symbol)
+            quote["hfq_factor"] = factor
+            # 取实时价 (兼容 index_price / close / price 字段)
+            rt_price = float(
+                quote.get("index_price")
+                or quote.get("close")
+                or quote.get("price")
+                or 0.0
+            )
+            quote["hfq_equivalent_price"] = unadjusted_to_hfq(rt_price, factor)
+            quote["is_ex_dividend"] = provider.is_ex_dividend_date(symbol)
+            return quote
+        except (ImportError, RuntimeError, ValueError, TypeError, OSError) as e:
+            logger.debug("富化实时行情 hfq 失败 (%s): %s", symbol, e)
+            quote.setdefault("hfq_factor", 1.0)
+            quote.setdefault("hfq_equivalent_price", quote.get("index_price", 0.0))
+            quote.setdefault("is_ex_dividend", False)
+            return quote
+
 
 _data_provider = None
 
 
-def get_market_data(symbol: Optional[str] = None) -> Dict:  # type: ignore
+def get_market_data(symbol: Optional[str] = None) -> Dict:  # type: ignore[misc]
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
@@ -1326,7 +1163,7 @@ def get_historical_data(symbol: str, period: str = "1y") -> pd.DataFrame:
     return _data_provider.get_historical_data(symbol, period)
 
 
-def get_sentiment_data(symbol: Optional[str] = None) -> Optional[Dict]:  # type: ignore
+def get_sentiment_data(symbol: Optional[str] = None) -> Optional[Dict]:  # type: ignore[misc]
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
@@ -1381,32 +1218,32 @@ def get_ai_daily_report(symbols: List[str]) -> Dict:
 
 
 if __name__ == "__main__":
-    print("测试市场数据提供器 (fail-fast 模式)")
+    logger.info("测试市场数据提供器 (fail-fast 模式)")
 
     try:
         market_data = get_market_data()
-        print("市场数据:", market_data["index_price"])
+        logger.info("市场数据:", market_data["index_price"])
     except RuntimeError as e:
-        print(f"市场数据获取失败 (fail-fast): {e}")
+        logger.error(f"市场数据获取失败 (fail-fast): {e}")
 
     try:
         historical_data = get_historical_data("SPY", "1m")
-        print("历史数据形状:", historical_data.shape)
+        logger.info("历史数据形状:", historical_data.shape)
     except RuntimeError as e:
-        print(f"历史数据获取失败 (fail-fast): {e}")
+        logger.error(f"历史数据获取失败 (fail-fast): {e}")
 
     sentiment_data = get_sentiment_data()
     if sentiment_data is not None:
-        print("情绪数据:", sentiment_data.get("composite_sentiment"))
+        logger.info("情绪数据:", sentiment_data.get("composite_sentiment"))
     else:
-        print("情绪数据: 不可用 (无真实数据源)")
+        logger.info("情绪数据: 不可用 (无真实数据源)")
 
     try:
         tech_indicators = get_technical_indicators("SPY")
-        print("技术指标:", list(tech_indicators.keys()))
+        logger.info("技术指标:", list(tech_indicators.keys()))
     except RuntimeError as e:
-        print(f"技术指标计算失败 (fail-fast): {e}")
+        logger.error(f"技术指标计算失败 (fail-fast): {e}")
 
     if _data_provider:
         cache_info = _data_provider.get_cache_info()
-        print("缓存信息:", cache_info)
+        logger.info("缓存信息:", cache_info)

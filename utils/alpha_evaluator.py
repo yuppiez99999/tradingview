@@ -139,7 +139,7 @@ class AlphaEvaluator:
             self._append_history(
                 factor_name,
                 {
-                    "date": report_date,  # type: ignore
+                    "date": report_date,  # type: ignore[misc]
                     "ic_1d": evaluation.ic_1d,
                     "ic_ir": evaluation.ic_ir,
                 },
@@ -264,7 +264,7 @@ class AlphaEvaluator:
                     if not name:
                         continue
                     self._history.setdefault(name, []).append(item)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.warning("[AlphaEvaluator] 加载历史失败: %s", e)
 
     def _save_report(self, report: AlphaEvaluationReport) -> None:
@@ -274,7 +274,7 @@ class AlphaEvaluator:
             json_path = date_path / "alpha_evaluation.json"
             with open(json_path, "w", encoding="utf-8") as f:
                 json.dump(report.to_dict(), f, ensure_ascii=False, indent=2)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error("[AlphaEvaluator] 保存报告失败: %s", e)
 
     def _build_summary(self, active: int, degraded: int, dead: int) -> str:

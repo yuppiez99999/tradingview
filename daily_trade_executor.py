@@ -50,10 +50,16 @@ import threading
 from datetime import date, datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent
-sys.path.insert(0, str(PROJECT_ROOT))
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+sys.path.insert(0, str(PROJECT_ROOT))  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 from utils.concurrency import atomic_write_json  # noqa: E402  # P0-C1 原子写
 
 # B1.2: 统一使用 utils.trade_calendar 判断交易日 (支持节假日)
@@ -76,7 +82,8 @@ def _parse_date_from_cfg(s, default):
         return default
     try:
         return datetime.strptime(str(s), "%Y-%m-%d").date()
-    except Exception:
+    except (ValueError, TypeError) as e:  # P2-1: 收敛为具体异常类型 + 日志
+        logger.debug("日期解析失败 (返回默认值 %s): %s", default, e)
         return default
 
 
@@ -191,15 +198,15 @@ def init_wt_modules():
         wt_modules["beta_hedge"] = beta_hedge
         wt_modules["tail_hedge"] = tail_hedge
 
-        print("[INFO] WonderTrader 模块初始化完成")
-        print("[INFO]   - 风控模块: RiskControl, StopLossManager, PortfolioRiskAnalyzer")
-        print("[INFO]   - 执行算法: MinImpactExecutor, TWAPExecutor, VWAPExecutor")
-        print("[INFO]   - 对冲策略: BetaHedgeStrategy, TailRiskHedgeStrategy")
-        print("[INFO]   - 合约管理: ContractsManager")
+        logger.info("[INFO] WonderTrader 模块初始化完成")
+        logger.info("[INFO]   - 风控模块: RiskControl, StopLossManager, PortfolioRiskAnalyzer")
+        logger.info("[INFO]   - 执行算法: MinImpactExecutor, TWAPExecutor, VWAPExecutor")
+        logger.info("[INFO]   - 对冲策略: BetaHedgeStrategy, TailRiskHedgeStrategy")
+        logger.info("[INFO]   - 合约管理: ContractsManager")
 
-    except Exception as e:
-        print(f"[WARN] WonderTrader 模块初始化失败: {e}")
-        print("[WARN]   - 系统将使用内置风控规则继续运行")
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        logger.error(f"[WARN] WonderTrader 模块初始化失败: {e}")
+        logger.warning("[WARN]   - 系统将使用内置风控规则继续运行")
 
     return wt_modules
 
@@ -372,8 +379,8 @@ def load_latest_prices() -> Dict[str, float]:
             if close_price and close_price > 0:
                 prices[code_clean] = close_price
         return prices
-    except Exception as e:
-        print(f"读取最新价格失败: {e}")
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        logger.error(f"读取最新价格失败: {e}")
         return {}
 
 
@@ -448,7 +455,7 @@ def fetch_prediction_signals(symbols: List[str], horizon: int = 5) -> Dict[str, 
                     "signal_strength": strength,
                     "expected_return": pred.expected_return,
                 }
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                 # 单标的失败不影响其他标的
                 results[symbol] = {
                     "direction": "NEUTRAL",
@@ -461,8 +468,8 @@ def fetch_prediction_signals(symbols: List[str], horizon: int = 5) -> Dict[str, 
     except ImportError:
         # tf_price_predictor 未安装, 静默降级
         return {}
-    except Exception as e:
-        print(f"[WARN] 预测信号获取失败: {e}")
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        logger.error(f"[WARN] 预测信号获取失败: {e}")
         return {}
 
 
@@ -552,7 +559,7 @@ def _get_prediction_prices_index() -> Dict[str, List[float]]:
                             index.setdefault(code_clean, []).append(float(p))
                         except (ValueError, TypeError):
                             continue
-            except Exception:
+            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
                 logging.getLogger(__name__).exception(
                     "解析PnL报告异常,跳过文件: %s", jf
                 )
@@ -620,7 +627,7 @@ def _precheck_instructions_preconditions(target_date_str: str, target_date: date
     if not is_trading_day(target_date):
         return {"status": "skipped", "reason": f"{target_date_str} 非交易日(周末)"}
     if not is_accumulation_period(target_date):
-        return {"status": "skipped", "reason": f"{target_date_str} 不在建仓期(2026-07-10 ~ 2026-12-31)"}
+        return {"status": "skipped", "reason": f"{target_date_str} 不在建仓期({ACCUMULATION_START} ~ {ACCUMULATION_END})"}
     return None
 
 
@@ -638,38 +645,83 @@ def _refresh_etf_flow(positions_file: Path) -> Dict:
 
         etf_result = refresh_etf_flow_signals(str(positions_file))
         if etf_result.get("status") == "success":
-            print(
+            logger.info(
                 f"[INFO] ETF资金流信号刷新成功: 更新 {etf_result['updated_count']} 个标的, 检测到 {etf_result.get('signal_count', 0)} 条信号"
             )
             return load_positions()
-        print(f"[WARN] ETF资金流信号刷新失败: {etf_result.get('message', 'unknown')}")
-    except Exception as e:
-        print(f"[WARN] ETF资金流信号刷新模块加载失败: {e}")
+        logger.error(f"[WARN] ETF资金流信号刷新失败: {etf_result.get('message', 'unknown')}")
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        logger.error(f"[WARN] ETF资金流信号刷新模块加载失败: {e}")
     return load_positions()
 
 
-def _run_wt_risk_precheck(wt_modules: Dict, positions_data: Dict, progress: Dict) -> None:
-    """WT 风控预检查 (仅打印分析日志, 不阻断执行)。
+def _run_wt_risk_precheck(wt_modules: Dict, positions_data: Dict, progress: Dict) -> Optional[Dict]:
+    """WT 风控预检查 (盘前阻断级)。
+
+    P1-5 修复: 此前仅打印 risk_score 不阻断, 高风险组合仍生成指令。
+    现在当 risk_score 超阈值或集中度超限时返回阻断标记,
+    generate_instructions 据此过滤或标注 HIGH_RISK。
 
     Args:
         wt_modules: WonderTrader 模块 dict
         positions_data: 持仓配置
         progress: 建仓进度
+
+    Returns:
+        None 表示通过; dict 表示阻断 (含 reason/risk_score)
     """
     analyzer = wt_modules.get("portfolio_risk_analyzer")
     if not analyzer:
-        return
+        # P1-5: wt_modules 初始化失败时显式告警, 不静默放行
+        logger.warning("[WARN] WT风控分析器不可用 (wt_modules 未初始化), 盘前风控降级为无检查")
+        try:
+            from utils.notify import send_alert
+            send_alert(
+                "[WARN] WT风控分析器不可用",
+                "portfolio_risk_analyzer 未初始化, 盘前风控降级。请检查 wt_modules 初始化。",
+                severity="WARN",
+            )
+        except Exception:  # noqa: BLE001  # notify fail-open, 不阻断交易
+            pass
+        return None
     try:
         risk_summary = analyzer.analyze_portfolio(
             positions_data,
             progress.get("total_built", 0),
             STOCK_ETF_TARGET,
         )
-        print(f"[INFO] WT风控分析: 组合风险评分 {risk_summary.get('risk_score', 'N/A')}")
-        print(f"[INFO]   - 集中度风险: {risk_summary.get('concentration_risk', 'N/A')}")
-        print(f"[INFO]   - 行业分布: {risk_summary.get('sector_distribution', 'N/A')}")
-    except Exception as e:
-        print(f"[WARN] WT风控分析执行失败: {e}")
+        risk_score = risk_summary.get("risk_score", 0)
+        concentration = risk_summary.get("concentration_risk", 0)
+        logger.info(f"[INFO] WT风控分析: 组合风险评分 {risk_score}")
+        logger.info(f"[INFO]   - 集中度风险: {concentration}")
+        logger.info(f"[INFO]   - 行业分布: {risk_summary.get('sector_distribution', 'N/A')}")
+
+        # P1-5: 盘前阻断级校验 (阈值与 _run_wt_risk_block_check 的集中度逻辑对齐)
+        # risk_score >= 80 或集中度 >= 0.3 (30%) 时阻断
+        try:
+            score_val = float(risk_score) if risk_score is not None else 0.0
+        except (TypeError, ValueError):
+            score_val = 0.0
+        try:
+            conc_val = float(concentration) if concentration is not None else 0.0
+        except (TypeError, ValueError):
+            conc_val = 0.0
+
+        if score_val >= 80 or conc_val >= 0.3:
+            logger.warning(
+                "[BLOCK] WT盘前风控阻断: risk_score=%.1f, concentration=%.3f (超阈值)",
+                score_val,
+                conc_val,
+            )
+            return {
+                "status": "blocked",
+                "reason": f"盘前风控超限: risk_score={score_val:.1f}, concentration={conc_val:.3f}",
+                "risk_score": score_val,
+                "concentration": conc_val,
+            }
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        logger.error(f"[WARN] WT风控分析执行失败: {e}")
+    return None
 
 
 def _compute_progress_ratio(target_date: date) -> float:
@@ -780,8 +832,9 @@ def _allocate_position(
     max_buy_price, min_buy_price = _compute_price_band(ref_price)
     min_lot_cost = 100 * ref_price
 
-    # 按权重分配预算
-    allocated = min(remaining_budget * pos["weight"] / 0.05 * 0.15, remaining_budget, pos["remaining"])
+    # 按权重分配预算 (权重10% → 分配剩余预算的10%)
+    # 注: 旧公式 `* weight / 0.05 * 0.15` 等价于 weight*3, 会过度分配, 已修正为纯权重比例
+    allocated = min(remaining_budget * pos["weight"], remaining_budget, pos["remaining"])
     # 单标的上限: 当日预算的30% (20万预算下单标最多6万)
     allocated = min(allocated, daily_budget * 0.30)
 
@@ -790,7 +843,7 @@ def _allocate_position(
     allocated, signal_tag = adjust_allocation_by_signal(allocated, signal, daily_budget)
     # 强看空 → 跳过该标的
     if signal_tag == "skip" and allocated == 0:
-        print(
+        logger.warning(
             f"[WARN] 预测信号触发跳过: {code_clean} ({pos['name']}) - 强看空 (置信度 {signal.get('confidence', 0):.0%})"
         )
         return None
@@ -935,8 +988,8 @@ def _save_instruction_file(target_date_str: str, instruction_file: dict) -> tupl
     """
     INSTRUCTIONS_DIR.mkdir(parents=True, exist_ok=True)
     output_file = INSTRUCTIONS_DIR / f"{target_date_str}_instructions.json"
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(instruction_file, f, ensure_ascii=False, indent=2)
+    # 原子写入指令文件, 防止进程中断导致文件损坏
+    atomic_write_json(output_file, instruction_file)
 
     # 生成 markdown 版本
     md_file = INSTRUCTIONS_DIR / f"{target_date_str}_instructions.md"
@@ -970,7 +1023,16 @@ def generate_instructions(target_date_str: str) -> Dict:
     latest_prices = load_latest_prices()
 
     # v7.8+: WT风控预检查 (使用 WT PortfolioRiskAnalyzer)
-    _run_wt_risk_precheck(wt_modules, positions_data, progress)
+    # P1-5: 盘前风控超阈值时阻断, 不再仅打印
+    precheck_result = _run_wt_risk_precheck(wt_modules, positions_data, progress)
+    if precheck_result and precheck_result.get("status") == "blocked":
+        logger.warning("[BLOCK] 盘前风控阻断, 停止生成指令: %s", precheck_result.get("reason"))
+        return {
+            "status": "blocked",
+            "reason": precheck_result.get("reason", "WT盘前风控阻断"),
+            "risk_score": precheck_result.get("risk_score"),
+            "budget_info": {"daily_budget": 0},
+        }
 
     # 获取预测信号 (v7.5+ 集成 tf_price_predictor, 失败时静默降级)
     pending_codes = [
@@ -980,7 +1042,7 @@ def generate_instructions(target_date_str: str) -> Dict:
     if prediction_signals:
         up_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "UP")
         down_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "DOWN")
-        print(f"[INFO] 预测信号: {len(prediction_signals)} 个标的, 看多 {up_count}, 看空 {down_count}")
+        logger.info(f"[INFO] 预测信号: {len(prediction_signals)} 个标的, 看多 {up_count}, 看空 {down_count}")
 
     # 计算当日预算
     budget_info = calculate_daily_budget(target_date, progress, positions_data)
@@ -1068,7 +1130,7 @@ def render_instructions_md(data: Dict) -> str:
         f"# 交易指令清单 {meta['instruction_date']}",
         "",
         f"**生成时间**: {meta['generated_at']}",
-        f"**阶段**: {meta['phase']} (建仓期 2026-07-10 ~ 2026-12-31)",
+        f"**阶段**: {meta['phase']} (建仓期 {ACCUMULATION_START} ~ {ACCUMULATION_END})",
         f"**目标总额**: {meta['total_capital']:,}",
         f"**已建仓**: {meta['total_built_before']:,.0f}",
         f"**剩余**: {meta['remaining_total']:,.0f}",
@@ -1167,7 +1229,7 @@ def generate_next_trading_day_plan(today_str: str) -> Dict:
         }
 
     next_day_str = next_day.isoformat()
-    print(f"[INFO] 今日: {today_str}, 下一交易日: {next_day_str}")
+    logger.info(f"[INFO] 今日: {today_str}, 下一交易日: {next_day_str}")
 
     # 生成下一个交易日的计划
     result = generate_instructions(next_day_str)
@@ -1232,12 +1294,12 @@ def _run_wt_risk_block_check(wt_modules: Dict, confirmed: list) -> Optional[Dict
             amount = inst.get("estimated_amount", 0) or 0
             ok, msg = rc.check_single_trade(amount, STOCK_ETF_TARGET)
             if not ok:
-                print(f"[BLOCK] WT风控单笔检查未通过: {msg}")
+                logger.info(f"[BLOCK] WT风控单笔检查未通过: {msg}")
                 risk_blocked = True
         # 日内交易笔数检查
         ok, msg = rc.check_daily_trade_count()
         if not ok:
-            print(f"[BLOCK] WT风控日内笔数检查未通过: {msg}")
+            logger.info(f"[BLOCK] WT风控日内笔数检查未通过: {msg}")
             risk_blocked = True
 
         # IC6 修复: 风控未通过时立即返回, 不继续执行
@@ -1247,8 +1309,8 @@ def _run_wt_risk_block_check(wt_modules: Dict, confirmed: list) -> Optional[Dict
                 "message": "WT风控检查未通过, 执行已被阻断 (风控一票否决)",
                 "blocked_reason": "WT risk control check failed",
             }
-    except Exception as e:
-        print(f"[WARN] WT风控检查执行失败: {e}")
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        logger.error(f"[WARN] WT风控检查执行失败: {e}")
         # 风控检查本身崩溃时保守拒绝 (Fail-Safe)
         return {
             "status": "blocked",
@@ -1283,7 +1345,12 @@ def _sync_positions_idempotent(target_date_str: str, confirmed: list, positions:
     synced_count = 0
     for r in prev_results:
         code = r.get("code", "")
-        full_code = next((i["full_code"] for i in confirmed if i.get("code") == code), f"{code}.SH")
+        # P2-5 修复: 原硬编码 f"{code}.SH" 对 .SZ/.BJ 标的补同步失败。
+        # 改用 _infer_suffix 动态推断交易所后缀。
+        full_code = next(
+            (i["full_code"] for i in confirmed if i.get("code") == code),
+            f"{code}.{_infer_suffix(code)}",
+        )
         qty = r.get("qty", 0)
         fill_price = r.get("fill_price", 0.0)
 
@@ -1319,9 +1386,17 @@ def _execute_single_instruction(inst: dict, wt_modules: Dict, progress: Dict, po
     qty = inst["qty"]
     ref_price = inst["ref_price"]
 
+    # P2-3 交易成本建模 (A股):
+    #   - 买入: 佣金(双边 0.03%) + 过户费(双边 0.001%), 无印花税
+    #   - 滑点: 按 ref_price 上浮 (买入) / 下调 (卖出), 默认 10bp
+    slippage_rate = 0.001        # 滑点 10bp (可配置)
+    commission_rate = 0.0003     # 佣金 0.03%
+    transfer_fee_rate = 0.00001  # 过户费 0.001%
+    # 实际成交价 (含滑点, 买入向上)
+    exec_price = round(ref_price * (1.0 + slippage_rate), 4)
+
     # v7.8+: 使用 WT 执行算法拆分订单 (大金额订单)
     fill_amount = 0.0
-    fill_price = ref_price
 
     # IC2 修复: 字段名 "amount" → "estimated_amount" (与指令字典字段名一致)
     inst_amount = inst.get("estimated_amount", 0) or 0
@@ -1332,41 +1407,88 @@ def _execute_single_instruction(inst: dict, wt_modules: Dict, progress: Dict, po
                 ref_price=ref_price,
                 avg_daily_volume=1000000,
             )
-            fill_amount = sum(s["amount"] for s in splits)
-            fill_price = ref_price
-            print(f"[INFO] WT执行算法: {inst['code']} 拆分为 {len(splits)} 笔, 总金额 {fill_amount:,.0f}")
-        except Exception as e:
-            print(f"[WARN] WT执行算法执行失败: {e}, 使用默认执行")
+            fill_amount = round(sum(s["amount"] for s in splits), 2)
+            logger.info(f"[INFO] WT执行算法: {inst['code']} 拆分为 {len(splits)} 笔, 总金额 {fill_amount:,.0f}")
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+            logger.error(f"[WARN] WT执行算法执行失败: {e}, 使用默认执行")
             fill_amount = round(qty * ref_price, 2)
     else:
         fill_amount = round(qty * ref_price, 2)
 
-    # 更新建仓进度
-    built_before = progress["built_amounts"].get(code, 0)
-    progress["built_amounts"][code] = built_before + fill_amount
-    progress["total_built"] = progress.get("total_built", 0) + fill_amount
+    # P2-3: 以「实际成交金额 + 含滑点成交价」推导实际成交股数, 保证 shares 与 fill_amount 一致。
+    # 若 fill_amount 为 0 (异常) 则回退到目标股数按含滑点价计算。
+    if fill_amount <= 0 or exec_price <= 0:
+        actual_qty = int(qty)
+        actual_amount = round(qty * exec_price, 2)
+    else:
+        # WT 部分成交时 fill_amount < qty*ref_price, 按实际金额/含滑点价取整股
+        actual_qty = int(fill_amount / exec_price)
+        actual_amount = round(actual_qty * exec_price, 2)
+    if actual_qty < 0:
+        actual_qty = 0
 
-    # 同步 positions.json (累加 shares, 加权平均成本)
-    if code in positions:
+    # P1-4 修复: actual_qty == 0 时 (fill_amount < exec_price 取整为 0) 不能标记 FILLED。
+    # 此前 0 股也返回 status:FILLED 并计入 execution_results, 造成静默假成交。
+    # 现在返回 SKIPPED, 不进 execution_results/daily_records, 不更新 positions/progress。
+    if actual_qty <= 0:
+        logger.warning(
+            "[SKIP] %s 成交股数=0 (fill_amount=%.2f < exec_price=%.4f), 标记 SKIPPED 不计假成交",
+            inst.get("code", "?"),
+            fill_amount,
+            exec_price,
+        )
+        return {
+            "code": inst["code"],
+            "name": inst["name"],
+            "action": inst.get("action", "BUY"),
+            "qty": 0,
+            "fill_price": exec_price,
+            "fill_amount": 0.0,
+            "commission": 0.0,
+            "transfer_fee": 0.0,
+            "total_cost": 0.0,
+            "status": "SKIPPED",
+            "reason": "fill_amount_below_min_unit",
+            "built_before": progress["built_amounts"].get(code, 0),
+            "built_after": progress["built_amounts"].get(code, 0),
+        }
+
+    # P2-3: 计入交易成本 (买入: 佣金 + 过户费)
+    commission = round(actual_amount * commission_rate, 2)
+    transfer_fee = round(actual_amount * transfer_fee_rate, 2)
+    total_cost = actual_amount + commission + transfer_fee  # 含成本的买入总支出
+    # 含成本均价 (用于 avg_cost, 真实持仓成本)
+    cost_avg = round(total_cost / actual_qty, 4) if actual_qty > 0 else exec_price
+
+    # 更新建仓进度 (用实际成交金额)
+    built_before = progress["built_amounts"].get(code, 0)
+    progress["built_amounts"][code] = built_before + actual_amount
+    progress["total_built"] = progress.get("total_built", 0) + actual_amount
+
+    # 同步 positions.json (累加实际成交股数, 含成本加权平均)
+    if code in positions and actual_qty > 0:
         pos = positions[code]
         old_shares = pos.get("shares") or 0
         old_cost = pos.get("avg_cost") or 0.0
-        new_shares = old_shares + qty
+        new_shares = old_shares + actual_qty
         if new_shares > 0:
-            new_avg_cost = round((old_shares * old_cost + qty * fill_price) / new_shares, 4)
+            new_avg_cost = round((old_shares * old_cost + actual_qty * cost_avg) / new_shares, 4)
         else:
-            new_avg_cost = fill_price
+            new_avg_cost = cost_avg
         pos["shares"] = new_shares
-        pos["est_price"] = fill_price  # 第一次交易开盘价
+        pos["est_price"] = exec_price  # 第一次交易含滑点成交价
         pos["avg_cost"] = new_avg_cost
 
     return {
         "code": inst["code"],
         "name": inst["name"],
         "action": "BUY",
-        "qty": qty,
-        "fill_price": fill_price,
-        "fill_amount": fill_amount,
+        "qty": actual_qty,
+        "fill_price": exec_price,
+        "fill_amount": actual_amount,
+        "commission": commission,
+        "transfer_fee": transfer_fee,
+        "total_cost": total_cost,
         "status": "FILLED",
         "built_before": built_before,
         "built_after": progress["built_amounts"][code],
@@ -1412,10 +1534,9 @@ def _build_and_save_execution_report(
         "execution_results": execution_results,
     }
 
-    # 保存执行报告
+    # 保存执行报告 (原子写入, 防止进程中断导致文件损坏)
     report_file = INSTRUCTIONS_DIR / f"{target_date_str}_execution.json"
-    with open(report_file, "w", encoding="utf-8") as f:
-        json.dump(execution_report, f, ensure_ascii=False, indent=2)
+    atomic_write_json(report_file, execution_report)
 
     result = {
         "status": "executed",
@@ -1489,11 +1610,16 @@ def execute_instructions(target_date_str: str) -> Dict:
         }
     )
 
+    # 保存顺序: 先 progress (执行日志, 可重放) 后 positions (最终状态)
+    # 若 progress 写失败 → positions 未更新, 可重新执行 (幂等)
+    # 若 positions 写失败 → progress 已记录, 可从 progress 恢复 positions
+    try:
+        save_build_progress(progress)
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        logger.error(f"[ERROR] save_build_progress 失败: {e}, 继续写入 positions 以便后续恢复")
     # 保存 positions.json (P0-C1: 原子写, 防并发/崩溃写坏)
     positions_data["positions"] = positions
     atomic_write_json(POSITIONS_FILE, positions_data)
-
-    save_build_progress(progress)
 
     # 生成并保存执行报告
     result, _ = _build_and_save_execution_report(
@@ -1504,7 +1630,7 @@ def execute_instructions(target_date_str: str) -> Dict:
     try:
         next_plan = generate_next_trading_day_plan(target_date_str)
         result["next_trading_day_plan"] = next_plan
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         result["next_trading_day_plan"] = {
             "status": "error",
             "reason": f"生成下一交易日计划失败: {e}",
@@ -1620,7 +1746,7 @@ def main():
 
         with process_lock("daily_trade_executor", timeout=5.0) as acquired:
             if not acquired:
-                print("[WARN] 另一个 daily_trade_executor 实例正在运行, 本次退出")
+                logger.warning("[WARN] 另一个 daily_trade_executor 实例正在运行, 本次退出")
                 sys.exit(1)
             _run_mode(args, target_date)
         return
@@ -1628,11 +1754,11 @@ def main():
 
 
 def _run_mode(args, target_date):
-    print("=" * 70)
-    print(f"每日自动执行交易计划 - {args.mode} - {target_date}")
+    logger.info("=" * 70)
+    logger.info(f"每日自动执行交易计划 - {args.mode} - {target_date}")
     if args.auto_confirm:
-        print("Auto-confirm mode: all instructions will be confirmed")
-    print("=" * 70)
+        logger.info("Auto-confirm mode: all instructions will be confirmed")
+    logger.info("=" * 70)
 
     if args.mode == "pre-market":
         result = generate_instructions(target_date)
@@ -1642,23 +1768,23 @@ def _run_mode(args, target_date):
             confirm_count = confirm_all_instructions(target_date)
             result["auto_confirmed"] = True
             result["auto_confirm_count"] = confirm_count
-            print(f"[INFO] Auto-confirmed {confirm_count} instructions")
+            logger.info(f"[INFO] Auto-confirmed {confirm_count} instructions")
 
-        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        logger.info(json.dumps(result, ensure_ascii=False, indent=2, default=str))
 
     elif args.mode == "post-market":
         result = execute_instructions(target_date)
-        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        logger.info(json.dumps(result, ensure_ascii=False, indent=2, default=str))
 
     elif args.mode == "post-market-auto":
         execute_result = execute_instructions(target_date)
-        print(json.dumps(execute_result, ensure_ascii=False, indent=2, default=str))
+        logger.info(json.dumps(execute_result, ensure_ascii=False, indent=2, default=str))
 
         # 自动生成下一交易日计划
         if execute_result.get("status") == "executed":
-            print("\n" + "=" * 70)
-            print("Generating next trading day plan")
-            print("=" * 70)
+            logger.info("\n" + "=" * 70)
+            logger.info("Generating next trading day plan")
+            logger.info("=" * 70)
             next_plan = generate_next_trading_day_plan(target_date)
 
             # 自动确认下一交易日计划
@@ -1668,17 +1794,17 @@ def _run_mode(args, target_date):
                     confirm_count = confirm_all_instructions(next_date)
                     next_plan["auto_confirmed"] = True
                     next_plan["auto_confirm_count"] = confirm_count
-                    print(f"[INFO] Auto-confirmed {confirm_count} instructions for next day {next_date}")
+                    logger.info(f"[INFO] Auto-confirmed {confirm_count} instructions for next day {next_date}")
 
-            print(json.dumps(next_plan, ensure_ascii=False, indent=2, default=str))
+            logger.info(json.dumps(next_plan, ensure_ascii=False, indent=2, default=str))
 
     elif args.mode == "progress":
         result = show_progress()
-        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        logger.info(json.dumps(result, ensure_ascii=False, indent=2, default=str))
 
     elif args.mode == "schedule":
         result = generate_accumulation_schedule()
-        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        logger.info(json.dumps(result, ensure_ascii=False, indent=2, default=str))
 
 
 if __name__ == "__main__":

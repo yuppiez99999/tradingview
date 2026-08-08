@@ -37,7 +37,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.alpha.health_metrics import LayerScore
+from utils.alpha.health_metrics import LayerScore  # noqa: E402
 
 # ============================================================
 # 常量
@@ -91,7 +91,8 @@ class StrategyHealthLayer:
         try:
             from utils.infra.feature_flags import is_enabled
             return bool(is_enabled(flag_name))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Feature Flag 检查失败 (降级 False): %s — %s", flag_name, e)
             return False
 
@@ -105,7 +106,8 @@ class StrategyHealthLayer:
             w = (cfg.get("strategy_health", {}) or {}).get("weights", {})
             if w:
                 return {k: float(w.get(k, DEFAULT_WEIGHTS.get(k, 0.0))) for k in DEFAULT_WEIGHTS}
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("StrategyHealth 权重加载失败, 用默认值: %s", e)
         return dict(DEFAULT_WEIGHTS)
 
@@ -183,10 +185,12 @@ class StrategyHealthLayer:
                     continue
                 try:
                     return json.loads(line)
-                except Exception:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
             return None
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("读取 decisions.jsonl 失败: %s", e)
             return None
 
@@ -202,7 +206,8 @@ class StrategyHealthLayer:
             day = getattr(status, "observation_day", 0)
             total = getattr(status, "observation_total", DEFAULT_OBSERVATION_TOTAL)
             return int(day), int(total)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("获取观察期进度失败 (用默认值): %s", e)
             return 0, DEFAULT_OBSERVATION_TOTAL
 

@@ -16,6 +16,9 @@ import math
 import os
 from datetime import datetime, timedelta
 from typing import Callable, Dict, List, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class BacktestEngine:
@@ -34,10 +37,10 @@ class BacktestEngine:
         self.min_commission = min_commission
 
         self.cash = initial_capital
-        self.positions = {}  # type: ignore
-        self.trades = []  # type: ignore
-        self.daily_pnl = []  # type: ignore
-        self.equity_curve = []  # type: ignore
+        self.positions = {}  # type: ignore[assignment]
+        self.trades = []  # type: ignore[assignment]
+        self.daily_pnl = []  # type: ignore[assignment]
+        self.equity_curve = []  # type: ignore[assignment]
         self.current_date = None
 
     def reset(self):
@@ -143,7 +146,7 @@ class BacktestEngine:
     def get_total_equity(self) -> float:
         """计算总权益"""
         position_value = sum(pos["qty"] * pos["current_price"] for pos in self.positions.values())
-        return self.cash + position_value  # type: ignore
+        return self.cash + position_value  # type: ignore[misc]
 
     def record_daily_pnl(self, date: str):
         """记录每日盈亏"""
@@ -170,6 +173,21 @@ class BacktestEngine:
             }
         )
 
+    def _is_suspended(self, day_data: Dict, code: str) -> bool:
+        """P2-2: 判断标的当日是否停牌。
+
+        支持两种来源：
+          1. day_data["suspended"] = {code: bool}
+          2. 价格缺失或为 0（停牌日无行情）
+        停牌标的不可交易，且持仓估值冻结（用上一收盘价）。
+        """
+        suspended = day_data.get("suspended", {})
+        if isinstance(suspended, dict) and code in suspended:
+            return bool(suspended[code])
+        prices = day_data.get("prices", {})
+        p = prices.get(code, 0)
+        return p <= 0
+
     def run(self, data: List[Dict], strategy_func: Callable[[Dict, Dict], List[Dict]], verbose: bool = False) -> Dict:
         """运行回测
 
@@ -177,6 +195,13 @@ class BacktestEngine:
             data: 历史数据列表，每个元素包含 date 和 prices
             strategy_func: 策略函数，接收 (current_data, positions) 返回交易信号列表
             verbose: 是否输出详细日志
+
+        P2-2 涨跌停/停牌约束:
+            若 day_data 提供 limit_up_prices / limit_down_prices / suspended 字段，则启用 A股约束:
+              - 涨停 (price >= limit_up)  不可买入
+              - 跌停 (price <= limit_down) 不可卖出
+              - 停牌 (suspended) 不可交易, 持仓冻结
+            未提供这些字段时向后兼容 (不约束), 与原有行为一致。
 
         Returns:
             回测结果摘要
@@ -189,6 +214,10 @@ class BacktestEngine:
 
             self.update_prices(prices)
 
+            # P2-2: 涨跌停价/停牌信息 (可选)
+            limit_up_prices = day_data.get("limit_up_prices", {}) or {}
+            limit_down_prices = day_data.get("limit_down_prices", {}) or {}
+
             signals = strategy_func(day_data, self.positions)
 
             for signal in signals:
@@ -200,6 +229,26 @@ class BacktestEngine:
                 if price <= 0:
                     continue
 
+                # P2-2: 停牌约束——停牌不可交易
+                if self._is_suspended(day_data, code):
+                    if verbose:
+                        logger.info(f"  {self.current_date} {code} 停牌, 跳过 {action} {qty}")
+                    continue
+
+                # P2-2: 涨跌停约束——涨停不可买, 跌停不可卖
+                if action == "BUY":
+                    lu = limit_up_prices.get(code)
+                    if lu and price >= float(lu):
+                        if verbose:
+                            logger.info(f"  {self.current_date} {code} 涨停, 无法买入 {qty}")
+                        continue
+                elif action == "SELL":
+                    ld = limit_down_prices.get(code)
+                    if ld and price <= float(ld):
+                        if verbose:
+                            logger.info(f"  {self.current_date} {code} 跌停, 无法卖出 {qty}")
+                        continue
+
                 if action == "BUY":
                     success = self.buy(code, price, qty)
                 elif action == "SELL":
@@ -208,9 +257,9 @@ class BacktestEngine:
                     success = False
 
                 if verbose and success:
-                    print(f"  {self.current_date} {action} {code} {qty} @ {price:.4f}")
+                    logger.info(f"  {self.current_date} {action} {code} {qty} @ {price:.4f}")
 
-            self.record_daily_pnl(self.current_date)  # type: ignore
+            self.record_daily_pnl(self.current_date)  # type: ignore[misc]
 
         return self.generate_report()
 
@@ -292,7 +341,7 @@ class ETFSignalStrategy:
     def __init__(
         self,
         signal_thresholds: Optional[Dict] = None,
-        max_position_pct: float = 0.3,  # type: ignore
+        max_position_pct: float = 0.3,  # type: ignore[misc]
         validate_no_lookahead: bool = True,
     ):
         self.signal_thresholds = signal_thresholds or {
@@ -361,7 +410,7 @@ class BacktestDataLoader:
     """
 
     @staticmethod
-    def load_from_positions_history(positions_history_dir: str, tickers: Optional[List[str]] = None) -> List[Dict]:  # type: ignore
+    def load_from_positions_history(positions_history_dir: str, tickers: Optional[List[str]] = None) -> List[Dict]:  # type: ignore[misc]
         """从positions.json历史记录加载数据"""
         data = []
         files = sorted(os.listdir(positions_history_dir))
@@ -398,7 +447,7 @@ class BacktestDataLoader:
                             "⚠️ 回测使用 est_price（估算价格），可能包含事后信息。"
                             "建议使用独立的历史 OHLC 数据源以获得无偏回测结果。"
                         )
-                        BacktestDataLoader._warned_est_price = True  # type: ignore
+                        BacktestDataLoader._warned_est_price = True  # type: ignore[assignment]
                     prices[code] = price
 
                 if prices:
@@ -411,16 +460,22 @@ class BacktestDataLoader:
                         }
                     )
 
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 continue
 
         return data
 
     @staticmethod
     def generate_synthetic_data(
-        start_date: str, end_date: str, tickers: List[str], base_price: float = 2.0, volatility: float = 0.02
+        start_date: str, end_date: str, tickers: List[str], base_price: float = 2.0, volatility: float = 0.02,
+        with_limit_constraints: bool = False,
     ) -> List[Dict]:
-        """生成合成回测数据"""
+        """生成合成回测数据
+
+        Args:
+            with_limit_constraints: U2 新增, 是否注入 limit_up_prices/limit_down_prices/suspended 字段.
+                True 时调用 price_limit_calculator.enrich_day_data_list 富化, 默认 False (向后兼容).
+        """
         data = []
         start = datetime.strptime(start_date, "%Y-%m-%d")
         end = datetime.strptime(end_date, "%Y-%m-%d")
@@ -475,7 +530,41 @@ class BacktestDataLoader:
 
             current += timedelta(days=1)
 
+        # U2: 可选注入涨跌停/停牌约束字段
+        if with_limit_constraints:
+            from utils.price_limit_calculator import enrich_day_data_list
+
+            enrich_day_data_list(data)
+
         return data
+
+    @staticmethod
+    def load_from_ohlcv(
+        price_data: Dict[str, "pd.DataFrame"],
+        st_codes: Optional[set] = None,
+        etf_signals_by_date: Optional[Dict[str, Dict]] = None,
+    ) -> List[Dict]:
+        """U2: 从 OHLCV DataFrame 构建带涨跌停/停牌字段的回测数据.
+
+        使用 price_limit_calculator.build_backtest_data_from_ohlcv,
+        生成的 day_data 含 limit_up_prices/limit_down_prices/suspended 字段,
+        BacktestEngine.run() 会自动启用 A股涨跌停/停牌约束 (P2-2 已实现).
+
+        Args:
+            price_data: {symbol: DataFrame(index=date, columns=[open,high,low,close,volume])}
+            st_codes: ST 股票代码集合 (可选, 用于 ±5% 涨跌停)
+            etf_signals_by_date: 可选 ETF 信号 {date_str: {code: {signal, inflow}}}
+
+        Returns:
+            day_data 列表, 可直接传入 BacktestEngine.run()
+        """
+        from utils.price_limit_calculator import build_backtest_data_from_ohlcv
+
+        return build_backtest_data_from_ohlcv(
+            price_data=price_data,
+            st_codes=st_codes,
+            etf_signals_by_date=etf_signals_by_date,
+        )
 
 
 def run_etf_signal_backtest(data: List[Dict], initial_capital: float = 1000000.0, **kwargs) -> Dict:
@@ -504,20 +593,19 @@ def compare_strategies(data: List[Dict], strategies: Dict[str, Callable], initia
 if __name__ == "__main__":
     tickers = ["588080.SH", "512880.SH", "510050.SH", "512760.SH"]
 
-    print("===== 生成合成回测数据 =====")
+    logger.info("===== 生成合成回测数据 =====")
     data = BacktestDataLoader.generate_synthetic_data("2024-01-01", "2025-12-31", tickers)
-    print(f"生成 {len(data)} 个交易日数据")
-    print()
+    logger.info(f"生成 {len(data)} 个交易日数据")
 
-    print("===== 运行ETF信号策略回测 =====")
+    logger.info("===== 运行ETF信号策略回测 =====")
     result = run_etf_signal_backtest(data, initial_capital=1000000.0)
 
-    print(f"初始资金: ¥{result['initial_capital']:,.0f}")
-    print(f"最终权益: ¥{result['final_equity']:,.0f}")
-    print(f"总收益率: {result['total_return']:.2%}")
-    print(f"年化收益率: {result['annualized_return']:.2%}")
-    print(f"夏普比率: {result['sharpe_ratio']:.2f}")
-    print(f"最大回撤: {result['max_drawdown']:.2%}")
-    print(f"胜率: {result['win_rate']:.2%}")
-    print(f"总交易次数: {result['total_trades']}")
-    print(f"总手续费: ¥{result['total_commission']:,.2f}")
+    logger.info(f"初始资金: ¥{result['initial_capital']:,.0f}")
+    logger.info(f"最终权益: ¥{result['final_equity']:,.0f}")
+    logger.info(f"总收益率: {result['total_return']:.2%}")
+    logger.info(f"年化收益率: {result['annualized_return']:.2%}")
+    logger.info(f"夏普比率: {result['sharpe_ratio']:.2f}")
+    logger.info(f"最大回撤: {result['max_drawdown']:.2%}")
+    logger.info(f"胜率: {result['win_rate']:.2%}")
+    logger.info(f"总交易次数: {result['total_trades']}")
+    logger.info(f"总手续费: ¥{result['total_commission']:,.2f}")

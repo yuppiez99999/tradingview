@@ -26,6 +26,7 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
+from typing import Optional
 
 logger = logging.getLogger("kill_switch")
 
@@ -42,7 +43,7 @@ class KillSwitch:
         2. 集成模式: 外部调用方传入真实 margin_usage 参数
     """
 
-    def __init__(self, config_path: Path | None = None, margin_limit: float = 0.50):
+    def __init__(self, config_path: Optional[Path] = None, margin_limit: float = 0.50):
         """
         Args:
             config_path: 配置文件路径
@@ -235,11 +236,12 @@ class KillSwitch:
             for p in positions.values()
         ) if isinstance(positions, dict) else False
 
-        # OPTIONS_ONLY 模式 或 无真实期货持仓:
+        # 无期货对冲模式 (OPTIONS_ONLY / COVERED_CALL_PUT_PROTECT / MULTI_STRATEGY_OPTIONS) 或 无真实期货持仓:
         # budget_summary.usage_pct 是期权权利金预算消耗进度 (正常 50-90%), 非保证金占用率.
         # 将其当作 margin_usage_ratio 会导致 L2 误触发 (82.5% > 75% 阈值).
-        if hedge_mode == "OPTIONS_ONLY" or not has_real_futures:
-            reason = "OPTIONS_ONLY 模式" if hedge_mode == "OPTIONS_ONLY" else "无真实期货持仓"
+        no_futures_modes = ("OPTIONS_ONLY", "COVERED_CALL_PUT_PROTECT", "MULTI_STRATEGY_OPTIONS")
+        if hedge_mode in no_futures_modes or not has_real_futures:
+            reason = f"{hedge_mode} 模式(无期货)" if hedge_mode in no_futures_modes else "无真实期货持仓"
             logger.info(
                 "[KillSwitch] %s: 预算消耗 %.1f%% (非保证金占用), 跳过预算估算, 落入实际持仓估算",
                 reason,
@@ -669,7 +671,7 @@ class KillSwitch:
                 }
             )
             executed = True
-        except Exception as e:  # broker API 异常类型不可预知, 必须 fail-closed
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # broker API 异常类型不可预知, 必须 fail-closed
             logger.critical(f"Kill Switch L{level} broker callback 执行失败! 熔断协议未真正执行: {e}")
             # P1-1 修复: callback 失败时, 将 pending 状态的 action 改为 failed
             for a in actions_taken:
@@ -726,9 +728,9 @@ class KillSwitch:
                 "action": str,
             }
         """
-        CONCENTRATION_L1 = 0.25
-        CONCENTRATION_L2 = 0.35
-        CONCENTRATION_L3 = 0.50
+        CONCENTRATION_L1 = 0.25  # noqa: N806
+        CONCENTRATION_L2 = 0.35  # noqa: N806
+        CONCENTRATION_L3 = 0.50  # noqa: N806
 
         # 计算总市值 (T01 FIX: 强制 float, 防御 None 导致风控误判)
         total_value = 0.0

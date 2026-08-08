@@ -155,7 +155,8 @@ class TradingAgentsBridge:
                 logger.warning(
                     f"TradingAgents 微服务在线但框架未加载: {resp}"
                 )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._available = False
             self._last_check = now
             logger.debug(f"TradingAgents 健康检查失败: {e}")
@@ -261,7 +262,8 @@ class TradingAgentsBridge:
         except URLError as e:
             logger.warning(f"TradingAgents 微服务请求超时/失败: {e}")
             return self._fallback_to_local(ticker, date)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"TradingAgents 分析异常: {e}", exc_info=True)
             return self._fallback_to_local(ticker, date)
 
@@ -297,7 +299,8 @@ class TradingAgentsBridge:
         except ImportError:
             logger.warning("本地 finance_agent_orchestrator 不可用, 返回中性决策")
             return self._neutral_result(ticker, date, "本地 orchestrator 不可用")
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"本地 orchestrator 降级失败: {e}", exc_info=True)
             return self._neutral_result(ticker, date, f"降级异常: {e}")
 
@@ -347,7 +350,8 @@ class TradingAgentsBridge:
             with urlopen(req, timeout=timeout or self.timeout) as resp:
                 body = resp.read().decode("utf-8")
                 return json.loads(body)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"HTTP GET {path} 失败: {e}")
             return None
 

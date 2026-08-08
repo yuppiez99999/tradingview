@@ -48,8 +48,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # 配置搜索路径优先级 (高 -> 低)
 # 优先级 1: 环境变量 QUANT_CONFIG_DIR (运维/测试快速覆盖)
 # 优先级 2: v8.3_institutional/config/ (生产唯一事实源, P0-1 修复后)
-# 优先级 3: configs/ (历史 v7.7 回退, 兼容旧代码)
-# 优先级 4: ms_strategy/config/ (策略模块独立配置)
+# 优先级 3: config/ (单数, 主业务活跃配置目录)
+# 优先级 4: configs/ (历史 v7.7 回退, 兼容旧代码)
+# 优先级 5: ms_strategy/config/ (策略模块独立配置)
 _CONFIG_SEARCH_PATHS: list[Path] = []
 
 # 已注册的命名配置 (短名 -> 文件名映射)
@@ -102,7 +103,14 @@ def _build_search_paths() -> list[Path]:
     if v83_config.is_dir():
         paths.append(v83_config)
 
-    # 优先级 3: configs/ (历史回退)
+    # 优先级 3: config/ (单数, 主业务活跃配置目录 —— portfolio.yaml/positions.json/risk.yaml)
+    # L1/L3 修复: 此前缺失 config/ 单数目录, 导致 get_portfolio_config() 从 configs/(复数)
+    # 加载, 与主业务实际用的 config/(单数) 漂移。现加入 config/ 且优先于 configs/(历史回退)。
+    active_config = _PROJECT_ROOT / "config"
+    if active_config.is_dir():
+        paths.append(active_config)
+
+    # 优先级 4: configs/ (历史回退, v7.7)
     legacy_config = _PROJECT_ROOT / "configs"
     if legacy_config.is_dir():
         paths.append(legacy_config)
@@ -167,7 +175,13 @@ class ConfigManager:
         if v83_config.is_dir():
             paths.append(v83_config)
 
-        # 优先级 3: configs/
+        # 优先级 3: config/ (单数, 主业务活跃配置目录)
+        # L1/L3 修复: 加入 config/ 单数目录, 消除 get_portfolio_config() 与主业务配置漂移
+        active_config = self._project_root / "config"
+        if active_config.is_dir():
+            paths.append(active_config)
+
+        # 优先级 4: configs/ (历史回退, v7.7)
         legacy_config = self._project_root / "configs"
         if legacy_config.is_dir():
             paths.append(legacy_config)
@@ -233,7 +247,7 @@ class ConfigManager:
         except yaml.YAMLError as e:
             logger.error(f"[ConfigManager] YAML 解析失败: {path}, error={e}")
             return {}
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"[ConfigManager] 加载配置失败: {path}, error={e}", exc_info=True)
             return {}
 

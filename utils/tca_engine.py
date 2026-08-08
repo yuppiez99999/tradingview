@@ -299,7 +299,7 @@ class TCAManager:
                 interval_volume = (volumes or {}).get(symbol)
                 report = self.analyze(fills, benchmarks[symbol], order_shares, interval_volume)
                 reports[symbol] = report
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                 # 单标失败不影响其他
                 continue
         return reports

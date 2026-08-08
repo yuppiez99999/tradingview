@@ -459,14 +459,14 @@ class PhaseManager:
                     "worst_scenario": stress_result.get("worst_scenario", ""),
                 }
                 actions.append(f"压力测试完成: {result.stress_test_result['scenarios_run']} 场景")
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.warning(f"[PhaseManager] 压力测试失败 (降级): {e}")
                 actions.append(f"压力测试降级: {e}")
 
         # 2. 策略有效性检验
         phase = self.get_current_phase(today)
         result.strategy_effectiveness = {
-            "phase": phase.phase_name,  # type: ignore
+            "phase": phase.phase_name,  # type: ignore[misc]
             "target_return": phase.target_return,
             "max_drawdown_limit": phase.max_drawdown,
             "leverage_target": phase.leverage_target,
@@ -625,7 +625,7 @@ class PhaseManager:
                 json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
             logger.info(f"[PhaseManager] 季度评估报告已保存: {file_path}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"[PhaseManager] 保存季度评估报告失败: {e}")
 
     # --------------------------------------------------------
@@ -707,10 +707,10 @@ if __name__ == "__main__":
     if args.liquidation:
         if pm.is_liquidation_phase(sim_date):
             actions = pm.get_liquidation_actions(sim_date)
-            print(f"\n2030 清仓动作 ({actions.get('period', '')}):")  # type: ignore
-            print(f"  名称: {actions.get('name', '')}")  # type: ignore
+            logger.info(f"\n2030 清仓动作 ({actions.get('period', '')}):")  # type: ignore[index]
+            logger.info(f"  名称: {actions.get('name', '')}")  # type: ignore[index]
             logger.info("  动作:")
-            for action in actions.get("actions", []):  # type: ignore
+            for action in actions.get("actions", []):  # type: ignore[index]
                 logger.info(f"    - {action}")
             logger.info("\n清仓顺序:")
             for i, step in enumerate(pm.get_liquidation_order(), 1):

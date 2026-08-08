@@ -194,7 +194,7 @@ class DriftMonitor:
             alerts = self.detector.check_feature_drift(current_features)
             for a in alerts:
                 self._record_alert(a)
-            return alerts  # type: ignore
+            return alerts  # type: ignore[misc]
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.exception("特征漂移检查失败: %s", e)
             return []
@@ -209,7 +209,7 @@ class DriftMonitor:
                 self._record_alert(a)
             # 检查是否需要触发重训练
             self._check_retrain_trigger(alerts)
-            return alerts  # type: ignore
+            return alerts  # type: ignore[misc]
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.exception("全量检查失败: %s", e)
             return []
@@ -257,7 +257,7 @@ class DriftMonitor:
         severity_met = False
         for alert in alerts:
             severity = getattr(alert, "severity", None)
-            severity_val = severity.value if hasattr(severity, "value") else str(severity)  # type: ignore
+            severity_val = severity.value if hasattr(severity, "value") else str(severity)  # type: ignore[misc]
             if severity_val == self.retrain_threshold_severity:
                 severity_met = True
                 break
@@ -363,7 +363,7 @@ class DriftMonitor:
             report["alerts_count"] = len(self._alerts_history)
             report["retrain_triggered"] = self._retrain_triggered
             report["last_retrain_time"] = self._last_retrain_time
-            return report  # type: ignore
+            return report  # type: ignore[misc]
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return {"model_name": self.model_name, "error": str(e)}
 
@@ -414,7 +414,7 @@ try:
     _SCIPY_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _SCIPY_AVAILABLE = False
-    _scipy_stats = None  # type: ignore
+    _scipy_stats = None  # type: ignore[assignment]
 
 # Feature Flag (HC-1: 默认 False, 不破坏 V9 基线)
 _USE_DRIFT_DETECTOR_FLAG = os.environ.get("USE_DRIFT_DETECTOR", "false").lower() in (
@@ -553,7 +553,7 @@ def compute_psi(baseline: pd.Series, current: pd.Series, n_bins: int = 10) -> fl
     # 用 baseline 的分位数作为分箱边界 (point-in-time 正确)
     try:
         bins = np.unique(np.percentile(baseline_clean, np.linspace(0, 100, n_bins + 1)))
-    except Exception:
+    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
         return 0.0
     if len(bins) < 2:
         return 0.0
@@ -621,7 +621,7 @@ def compute_feature_drift(
         try:
             ks_stat, _ = _scipy_stats.ks_2samp(baseline_clean.values, current_clean.values)
             ks_score = float(ks_stat)
-        except Exception:
+        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
             # 降级: 用均值差 / (std + eps)
             std_pool = float(np.std(list(baseline_clean) + list(current_clean))) + 1e-8
             ks_score = float(abs(np.mean(current_clean) - np.mean(baseline_clean)) / std_pool)
@@ -700,7 +700,7 @@ def _load_alert_owners(config_path: str | None = None) -> dict[str, dict[str, st
     except FileNotFoundError:
         logger.warning(f"alert_owners.yaml 不存在: {config_path}")
         return {}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.warning(f"加载 alert_owners.yaml 失败: {e}")
         return {}
 
@@ -904,7 +904,7 @@ class SimModeDriftMonitor:
 
     def set_baseline_predictions(self, predictions: np.ndarray) -> None:
         """设置基线预测分布 (训练集 OOF predictions)."""
-        self._baseline_predictions = np.asarray(predictions)  # type: ignore
+        self._baseline_predictions = np.asarray(predictions)  # type: ignore[union-attr]
 
     def _get_owner_info(self) -> dict[str, str]:
         """获取当前模型的 owner 信息."""

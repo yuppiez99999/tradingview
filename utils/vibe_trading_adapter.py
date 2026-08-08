@@ -186,7 +186,8 @@ class _VibeTradingCore:
             self._init_error = f"Vibe-Trading 导入失败: {e}"
             logger.warning(self._init_error)
             return False
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._init_error = f"Vibe-Trading 初始化异常: {e}"
             logger.warning(self._init_error)
             return False
@@ -203,7 +204,8 @@ class _VibeTradingCore:
                 instance = cls()
                 if instance.is_available():
                     available.append(name)
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
         return available
 
@@ -238,7 +240,9 @@ class _VibeTradingCore:
                 if isinstance(df, pd.DataFrame) and not df.empty:
                     return df
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"Vibe-Trading fetch ({market}/{symbol}) 失败: {e}")
 
         # 备用方案: 尝试直接用可用 source
@@ -257,7 +261,8 @@ class _VibeTradingCore:
                     if isinstance(df, pd.DataFrame) and not df.empty:
                         logger.debug(f"Vibe-Trading 备用源 {source_name} 命中 {symbol}")
                         return df
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
 
         return None
@@ -346,7 +351,8 @@ def _proxy_fallback_fetch(symbols: list[str], start_date: str,
                         df["low"] = df["close"].cummin()
                         df["volume"] = 0
                     results[code] = df
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
 
     # 代理映射补全
@@ -476,7 +482,8 @@ class VibeTradingAdapter:
                     results[symbol] = df
                 else:
                     failed.append(symbol)
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"获取 {symbol} 失败: {e}")
                 failed.append(symbol)
 
@@ -559,7 +566,8 @@ class VibeTradingAdapter:
                     try:
                         df[first_col] = pd.to_datetime(df[first_col])
                         df = df.set_index(first_col)
-                    except Exception:
+                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                         pass
 
         # 确保列名统一 (open/high/low/close/volume)
@@ -627,7 +635,8 @@ class VibeTradingAdapter:
                     if df is not None and not df.empty:
                         logger.debug(f"本地缓存命中: {path.name}")
                         return self._normalize_dataframe(df, symbol)
-                except Exception as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.debug(f"本地缓存读取失败 {path.name}: {e}")
 
         return None

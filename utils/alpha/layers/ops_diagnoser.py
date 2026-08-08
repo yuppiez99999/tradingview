@@ -132,6 +132,87 @@ class OpsDiagnoser:
         # 诊断阈值 (HC-5: 从 evolution.yaml 读取, 失败用默认)
         self.thresholds = self._load_thresholds()
 
+    # HealthReport ops 层子指标 → RootCause 的诊断规则表
+    # 新增规则只需追加一项, 无需复制粘贴 RootCause 构造模板
+    _OPS_HEALTH_RULES: list[dict[str, Any]] = [
+        {
+            "metric_key": "datasource_redundancy",
+            "threshold_key": "datasource_redundancy_low",
+            "category": "datasource_redundancy_low",
+            "cause_id_prefix": "ops-datasource_redundancy_low",
+            "evidence_keys": {"metric": "datasource_redundancy"},
+            "severity_hi_threshold": 0.3,
+            "action_type": ACTION_DATASOURCE_SWITCH,
+            "description_tpl": "数据源冗余度偏低 ({val:.2f} < {threshold}), 需增加备用数据源",
+            "estimated_risk": 0.5,
+            "remediation_commands": [
+                "# 检查数据源连通性并启用备用源",
+                "python scripts/run_p0_startup_check.py --skip-datasource",
+            ],
+            "confidence": 0.7,
+        },
+        {
+            "metric_key": "data_quality",
+            "threshold_key": "data_quality_low",
+            "category": "data_quality_low",
+            "cause_id_prefix": "ops-data_quality_low",
+            "evidence_keys": {"metric": "data_quality_score"},
+            "severity_hi_threshold": None,
+            "action_type": ACTION_MANUAL,
+            "description_tpl": "数据质量分数偏低 ({val:.2f} < {threshold})",
+            "estimated_risk": 0.4,
+            "remediation_commands": [
+                "python scripts/run_data_quality_check.py",
+            ],
+            "confidence": 0.65,
+        },
+        {
+            "metric_key": "drift_alert_recency",
+            "threshold_key": "drift_recency_high",
+            "category": "drift_alert_recency_high",
+            "cause_id_prefix": "ops-drift_alert_recency_high",
+            "evidence_keys": {"metric": "drift_alert_recency_score"},
+            "severity_hi_threshold": None,
+            "action_type": ACTION_MANUAL,
+            "description_tpl": "24h 内有新漂移告警, 需检查模型运维状态",
+            "estimated_risk": 0.5,
+            "remediation_commands": [
+                "python scripts/run_drift_check.py --summary",
+            ],
+            "confidence": 0.7,
+        },
+        {
+            "metric_key": "flag_stability",
+            "threshold_key": "flag_stability_low",
+            "category": "flag_stability_low",
+            "cause_id_prefix": "ops-flag_stability_low",
+            "evidence_keys": {"metric": "flag_stability"},
+            "severity_hi_threshold": None,
+            "action_type": ACTION_MANUAL,
+            "description_tpl": "Flag 稳定性偏低 ({val:.2f} < {threshold}), 频繁变更影响稳定",
+            "estimated_risk": 0.4,
+            "remediation_commands": [
+                "python scripts/run_flag_audit.py --summary --days 7",
+            ],
+            "confidence": 0.65,
+        },
+        {
+            "metric_key": "risk_event_rate",
+            "threshold_key": "risk_event_rate_high",
+            "category": "risk_event_rate_high",
+            "cause_id_prefix": "ops-risk_event_rate_high",
+            "evidence_keys": {"metric": "risk_event_rate"},
+            "severity_hi_threshold": 0.3,
+            "action_type": ACTION_MANUAL,
+            "description_tpl": "风控事件频率偏高 ({val:.2f} < {threshold}), 需审查风控规则",
+            "estimated_risk": 0.7,
+            "remediation_commands": [
+                "python scripts/run_risk_audit.py --summary --days 7",
+            ],
+            "confidence": 0.75,
+        },
+    ]
+
     # ============================================================
     # 配置加载 (HC-5)
     # ============================================================
@@ -152,7 +233,8 @@ class OpsDiagnoser:
                 return {
                     k: float(diag.get(k, defaults[k])) for k in defaults
                 }
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Ops 诊断阈值加载失败, 用默认值: %s", e)
         return defaults
 
@@ -215,7 +297,8 @@ class OpsDiagnoser:
                 return causes
             # 复用 diff 工具的 to_root_causes 转换 (仅回归 + 新失败)
             causes = differ.to_root_causes(diff, now=now)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("自检归档回归诊断失败 (降级为空): %s", e)
         return causes
 
@@ -240,7 +323,8 @@ class OpsDiagnoser:
             latest_file = archive_files[0]
             try:
                 archive = json.loads(latest_file.read_text(encoding="utf-8"))
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("解析 system_check 归档失败 %s: %s", latest_file.name, e)
                 return causes
 
@@ -289,7 +373,8 @@ class OpsDiagnoser:
                     confidence=0.9,
                     detected_at=now,
                 ))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("数据源连通性诊断失败 (降级为空): %s", e)
         return causes
 
@@ -384,7 +469,8 @@ class OpsDiagnoser:
                     confidence=0.75,
                     detected_at=now,
                 ))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("数据质量诊断失败 (降级为空): %s", e)
         return causes
 
@@ -418,7 +504,8 @@ class OpsDiagnoser:
                 try:
                     lines = f.read_text(encoding="utf-8").strip().splitlines()
                     alert_count += sum(1 for line in lines if line.strip())
-                except Exception:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
 
             if alert_count > 0:
@@ -449,7 +536,8 @@ class OpsDiagnoser:
                     confidence=0.8,
                     detected_at=now,
                 ))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("漂移告警新鲜度诊断失败 (降级为空): %s", e)
         return causes
 
@@ -500,7 +588,8 @@ class OpsDiagnoser:
                     confidence=0.75,
                     detected_at=now,
                 ))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Flag 变更稳定性诊断失败 (降级为空): %s", e)
         return causes
 
@@ -550,7 +639,8 @@ class OpsDiagnoser:
                     confidence=0.85,
                     detected_at=now,
                 ))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("风控事件爆发诊断失败 (降级为空): %s", e)
         return causes
 
@@ -558,7 +648,10 @@ class OpsDiagnoser:
     # 子诊断 6: 从 HealthReport 补充诊断
     # ============================================================
     def _diagnose_from_health(self, health_report: Any, now: str) -> list[RootCause]:
-        """从 HealthReport 的 ops 层子指标补充诊断 (低分指标 → 根因)."""
+        """从 HealthReport 的 ops 层子指标补充诊断 (低分指标 → 根因).
+
+        规则定义见 ``_OPS_HEALTH_RULES``, 新增规则只需追加配置项。
+        """
         causes: list[RootCause] = []
         try:
             layer_score = self._get_ops_layer_score(health_report)
@@ -566,149 +659,42 @@ class OpsDiagnoser:
                 return causes
             sub_metrics = getattr(layer_score, "sub_metrics", {}) or {}
 
-            # datasource_redundancy 低 → 根因
-            ds_redundancy = float(sub_metrics.get("datasource_redundancy", 1.0))
-            if ds_redundancy < self.thresholds["datasource_redundancy_low"]:
-                causes.append(RootCause(
-                    cause_id=f"ops-datasource_redundancy_low-{now}",
-                    layer=LAYER_OPS,
-                    category="datasource_redundancy_low",
-                    severity=SEVERITY_HIGH if ds_redundancy < 0.3 else SEVERITY_MEDIUM,
-                    evidence={
-                        "datasource_redundancy": ds_redundancy,
-                        "threshold": self.thresholds["datasource_redundancy_low"],
-                        "source": "HealthReport.ops_health",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_DATASOURCE_SWITCH,
-                        description=(
-                            f"数据源冗余度偏低 ({ds_redundancy:.2f} < "
-                            f"{self.thresholds['datasource_redundancy_low']}), 需增加备用数据源"
-                        ),
-                        estimated_risk=0.5,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "# 检查数据源连通性并启用备用源",
-                            "python scripts/run_p0_startup_check.py --skip-datasource",
-                        ],
-                    ),
-                    confidence=0.7,
-                    detected_at=now,
-                ))
+            for rule in self._OPS_HEALTH_RULES:
+                val = float(sub_metrics.get(rule["metric_key"], 1.0))
+                threshold = self.thresholds[rule["threshold_key"]]
+                if val >= threshold:
+                    continue
 
-            # data_quality 低 → 根因
-            dq_score = float(sub_metrics.get("data_quality", 1.0))
-            if dq_score < self.thresholds["data_quality_low"]:
-                causes.append(RootCause(
-                    cause_id=f"ops-data_quality_low-{now}",
-                    layer=LAYER_OPS,
-                    category="data_quality_low",
-                    severity=SEVERITY_MEDIUM,
-                    evidence={
-                        "data_quality_score": dq_score,
-                        "threshold": self.thresholds["data_quality_low"],
-                        "source": "HealthReport.ops_health",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=(
-                            f"数据质量分数偏低 ({dq_score:.2f} < "
-                            f"{self.thresholds['data_quality_low']})"
-                        ),
-                        estimated_risk=0.4,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "python scripts/run_data_quality_check.py",
-                        ],
-                    ),
-                    confidence=0.65,
-                    detected_at=now,
-                ))
+                sev_hi = rule.get("severity_hi_threshold")
+                if sev_hi is not None and val < sev_hi:
+                    severity = SEVERITY_HIGH
+                else:
+                    severity = SEVERITY_MEDIUM
 
-            # drift_alert_recency 低 → 根因 (24h 内有新告警)
-            drift_recency = float(sub_metrics.get("drift_alert_recency", 1.0))
-            if drift_recency < self.thresholds["drift_recency_high"]:
-                causes.append(RootCause(
-                    cause_id=f"ops-drift_alert_recency_high-{now}",
-                    layer=LAYER_OPS,
-                    category="drift_alert_recency_high",
-                    severity=SEVERITY_MEDIUM,
-                    evidence={
-                        "drift_alert_recency_score": drift_recency,
-                        "threshold": self.thresholds["drift_recency_high"],
-                        "source": "HealthReport.ops_health",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description="24h 内有新漂移告警, 需检查模型运维状态",
-                        estimated_risk=0.5,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "python scripts/run_drift_check.py --summary",
-                        ],
-                    ),
-                    confidence=0.7,
-                    detected_at=now,
-                ))
+                desc = rule["description_tpl"].format(val=val, threshold=threshold)
 
-            # flag_stability 低 → 根因
-            flag_stab = float(sub_metrics.get("flag_stability", 1.0))
-            if flag_stab < self.thresholds["flag_stability_low"]:
                 causes.append(RootCause(
-                    cause_id=f"ops-flag_stability_low-{now}",
+                    cause_id=f"{rule['cause_id_prefix']}-{now}",
                     layer=LAYER_OPS,
-                    category="flag_stability_low",
-                    severity=SEVERITY_MEDIUM,
+                    category=rule["category"],
+                    severity=severity,
                     evidence={
-                        "flag_stability": flag_stab,
-                        "threshold": self.thresholds["flag_stability_low"],
+                        rule["evidence_keys"]["metric"]: val,
+                        "threshold": threshold,
                         "source": "HealthReport.ops_health",
                     },
                     suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=(
-                            f"Flag 稳定性偏低 ({flag_stab:.2f} < "
-                            f"{self.thresholds['flag_stability_low']}), 频繁变更影响稳定"
-                        ),
-                        estimated_risk=0.4,
+                        action_type=rule["action_type"],
+                        description=desc,
+                        estimated_risk=rule["estimated_risk"],
                         requires_human_approval=True,
-                        remediation_commands=[
-                            "python scripts/run_flag_audit.py --summary --days 7",
-                        ],
+                        remediation_commands=list(rule["remediation_commands"]),
                     ),
-                    confidence=0.65,
+                    confidence=rule["confidence"],
                     detected_at=now,
                 ))
-
-            # risk_event_rate 低 → 根因
-            risk_rate = float(sub_metrics.get("risk_event_rate", 1.0))
-            if risk_rate < self.thresholds["risk_event_rate_high"]:
-                causes.append(RootCause(
-                    cause_id=f"ops-risk_event_rate_high-{now}",
-                    layer=LAYER_OPS,
-                    category="risk_event_rate_high",
-                    severity=SEVERITY_HIGH if risk_rate < 0.3 else SEVERITY_MEDIUM,
-                    evidence={
-                        "risk_event_rate": risk_rate,
-                        "threshold": self.thresholds["risk_event_rate_high"],
-                        "source": "HealthReport.ops_health",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=(
-                            f"风控事件频率偏高 ({risk_rate:.2f} < "
-                            f"{self.thresholds['risk_event_rate_high']}), 需审查风控规则"
-                        ),
-                        estimated_risk=0.7,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "python scripts/run_risk_audit.py --summary --days 7",
-                        ],
-                    ),
-                    confidence=0.75,
-                    detected_at=now,
-                ))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("从 HealthReport 诊断运维层失败: %s", e)
         return causes
 
@@ -728,6 +714,7 @@ class OpsDiagnoser:
                         def __init__(self, d: dict[str, Any]) -> None:
                             self.sub_metrics = d.get("sub_metrics", {})
                     return _Wrap(ls)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return None

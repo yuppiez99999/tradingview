@@ -82,7 +82,7 @@ def _load_brier_weights(roles: list[str], window_days: int) -> dict[str, float]:
         exps = [math.exp(v - mx) for v in vals]
         s = sum(exps)
         return {r: e / s for r, e in zip(roles, exps)}
-    except Exception as exc:  # 表不存在/不可用时均匀
+    except (sqlite3.Error, ValueError, TypeError, ZeroDivisionError) as exc:  # 表不存在/不可用时均匀
         logger.debug("Brier 权重加载失败, 用均匀权重: %s", exc)
         return uniform
 

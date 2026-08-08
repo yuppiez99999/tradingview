@@ -117,7 +117,8 @@ class CausalChainBuilder:
                 chain = rule_fn(causes, now)
                 if chain is not None and len(chain.nodes) >= 2:
                     chains.append(chain)
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("因果链规则 %s 执行失败 (跳过): %s", rule_fn.__name__, e)
                 continue
 

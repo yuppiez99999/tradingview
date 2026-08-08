@@ -142,7 +142,7 @@ def _read_env_file() -> str | None:
                 break  # 读取成功, 不再尝试其他编码
             except UnicodeDecodeError:
                 continue  # 尝试下一个编码
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
                 logger.warning("读取 .env 文件失败 %s (encoding=%s): %s", env_file, enc, e)
                 break
 

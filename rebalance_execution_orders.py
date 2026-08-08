@@ -44,23 +44,23 @@ except ImportError as _e:
             "utils.execution.rebalance_execution_orders",
             _SRC,
         )
-        _mod = importlib.util.module_from_spec(_spec)  # type: ignore
+        _mod = importlib.util.module_from_spec(_spec)  # type: ignore[misc]
         _project_root = os.path.dirname(os.path.abspath(__file__))
         if _project_root not in sys.path:
             sys.path.insert(0, _project_root)
-        _spec.loader.exec_module(_mod)  # type: ignore
-        TARGET_ALLOCATION = _mod.TARGET_ALLOCATION  # type: ignore
-        MIN_TRADE_AMOUNT = _mod.MIN_TRADE_AMOUNT  # type: ignore
-        MAX_SINGLE_ORDER_AMOUNT = _mod.MAX_SINGLE_ORDER_AMOUNT  # type: ignore
-        MIN_LOT_SIZE = _mod.MIN_LOT_SIZE  # type: ignore
-        TARGET_TOTAL = _mod.TARGET_TOTAL  # type: ignore
-        load_positions = _mod.load_positions  # type: ignore
-        classify_style = _mod.classify_style  # type: ignore
-        calc_current_allocation = _mod.calc_current_allocation  # type: ignore
-        validate_order = _mod.validate_order  # type: ignore
-        generate_rebalance_orders = _mod.generate_rebalance_orders  # type: ignore
-        build_report = _mod.build_report  # type: ignore
-        main = _mod.main  # type: ignore
+        _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
+        TARGET_ALLOCATION = _mod.TARGET_ALLOCATION  # type: ignore[attr-defined]
+        MIN_TRADE_AMOUNT = _mod.MIN_TRADE_AMOUNT  # type: ignore[attr-defined]
+        MAX_SINGLE_ORDER_AMOUNT = _mod.MAX_SINGLE_ORDER_AMOUNT  # type: ignore[attr-defined]
+        MIN_LOT_SIZE = _mod.MIN_LOT_SIZE  # type: ignore[attr-defined]
+        TARGET_TOTAL = _mod.TARGET_TOTAL  # type: ignore[attr-defined]
+        load_positions = _mod.load_positions  # type: ignore[attr-defined]
+        classify_style = _mod.classify_style  # type: ignore[attr-defined]
+        calc_current_allocation = _mod.calc_current_allocation  # type: ignore[attr-defined]
+        validate_order = _mod.validate_order  # type: ignore[attr-defined]
+        generate_rebalance_orders = _mod.generate_rebalance_orders  # type: ignore[attr-defined]
+        build_report = _mod.build_report  # type: ignore[attr-defined]
+        main = _mod.main  # type: ignore[attr-defined]
     else:
         raise ImportError(
             f"T3.6 re-export 失败: 找不到 utils/execution/rebalance_execution_orders.py (expected at {_SRC}): {_e}"

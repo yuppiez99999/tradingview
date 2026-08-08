@@ -52,7 +52,7 @@ class V10ConfigLoader:
                 self._config = json.load(f)
             logger.info(f"v10.0 配置加载成功: {self.config_path.name}")
             return self._config
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"v10.0 配置加载失败: {e}")
             return {}
 
@@ -60,43 +60,35 @@ class V10ConfigLoader:
         """获取 6 账户资金分配"""
         cfg = self.load()
         meta = cfg.get("meta", {})
-        return meta.get("allocation", {})  # type: ignore
-
+        return meta.get("allocation", {})  # type: ignore[misc]
     def get_hedge_fund_standard(self) -> dict[str, Any]:
         """获取对冲基金标准风控参数"""
         cfg = self.load()
-        return cfg.get("meta", {}).get("hedge_fund_standard", {})  # type: ignore
-
+        return cfg.get("meta", {}).get("hedge_fund_standard", {})  # type: ignore[misc]
     def get_stock_positions(self) -> list[dict]:
         """获取股票多头持仓列表"""
         cfg = self.load()
-        return cfg.get("stock_long_account", {}).get("positions", [])  # type: ignore
-
+        return cfg.get("stock_long_account", {}).get("positions", [])  # type: ignore[misc]
     def get_etf_positions(self) -> list[dict]:
         """获取 ETF 持仓列表"""
         cfg = self.load()
-        return cfg.get("etf_account", {}).get("positions", [])  # type: ignore
-
+        return cfg.get("etf_account", {}).get("positions", [])  # type: ignore[misc]
     def get_futures_config(self) -> dict:
         """获取期货账户配置"""
         cfg = self.load()
-        return cfg.get("macro_hedge_account", {})  # type: ignore
-
+        return cfg.get("macro_hedge_account", {})  # type: ignore[misc]
     def get_quant_neutral_config(self) -> dict:
         """获取量化中性策略配置"""
         cfg = self.load()
-        return cfg.get("quant_neutral_account", {})  # type: ignore
-
+        return cfg.get("quant_neutral_account", {})  # type: ignore[misc]
     def get_options_config(self) -> dict:
         """获取期权策略配置"""
         cfg = self.load()
-        return cfg.get("options_account", {})  # type: ignore
-
+        return cfg.get("options_account", {})  # type: ignore[misc]
     def get_cash_config(self) -> dict:
         """获取现金管理配置"""
         cfg = self.load()
-        return cfg.get("cash_management", {})  # type: ignore
-
+        return cfg.get("cash_management", {})  # type: ignore[misc]
     def get_current_phase(self, today: date | None = None) -> dict[str, Any]:
         """根据日期获取当前年度阶段
 
@@ -139,43 +131,35 @@ class V10ConfigLoader:
     def get_daily_schedule(self) -> dict[str, dict]:
         """获取每日时间表"""
         cfg = self.load()
-        return cfg.get("daily_schedule", {})  # type: ignore
-
+        return cfg.get("daily_schedule", {})  # type: ignore[misc]
     def get_risk_automation(self) -> dict[str, Any]:
         """获取风控自动化配置"""
         cfg = self.load()
-        return cfg.get("risk_automation", {})  # type: ignore
-
+        return cfg.get("risk_automation", {})  # type: ignore[misc]
     def get_rebalance_config(self) -> dict[str, Any]:
         """获取再平衡配置"""
         cfg = self.load()
-        return cfg.get("dynamic_rebalance", {})  # type: ignore
-
+        return cfg.get("dynamic_rebalance", {})  # type: ignore[misc]
     def get_drawdown_config(self) -> dict[str, Any]:
         """获取回撤控制配置"""
         risk = self.get_risk_automation()
-        return risk.get("drawdown_control", {})  # type: ignore
-
+        return risk.get("drawdown_control", {})  # type: ignore[misc]
     def get_var_config(self) -> dict[str, Any]:
         """获取 VaR 监控配置"""
         risk = self.get_risk_automation()
-        return risk.get("var_monitoring", {})  # type: ignore
-
+        return risk.get("var_monitoring", {})  # type: ignore[misc]
     def get_concentration_limits(self) -> dict[str, Any]:
         """获取集中度限制"""
         risk = self.get_risk_automation()
-        return risk.get("concentration_limits", {})  # type: ignore
-
+        return risk.get("concentration_limits", {})  # type: ignore[misc]
     def get_stress_test_scenarios(self) -> dict[str, Any]:
         """获取压力测试场景"""
         risk = self.get_risk_automation()
-        return risk.get("stress_test_scenarios", {})  # type: ignore
-
+        return risk.get("stress_test_scenarios", {})  # type: ignore[misc]
     def get_early_warning_signals(self) -> dict[str, Any]:
         """获取早期预警信号"""
         risk = self.get_risk_automation()
-        return risk.get("early_warning_signals", {})  # type: ignore
-
+        return risk.get("early_warning_signals", {})  # type: ignore[misc]
     def get_total_capital(self) -> float:
         """获取总资金"""
         cfg = self.load()

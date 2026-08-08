@@ -43,8 +43,7 @@ ZZ500_INDEX = "000905"  # 中证500
 def _get_akshare():
     """安全获取 akshare 模块"""
     try:
-        import akshare as ak  # type: ignore
-
+        import akshare as ak  # type: ignore[misc]
         return ak
     except ImportError:
         logger.error("akshare 未安装，请运行: pip install akshare")
@@ -63,7 +62,7 @@ def get_hs300_constituents() -> pd.DataFrame:
 
     for attempt in range(3):
         try:
-            df = ak.index_stock_cons_csindex(symbol=HS300_INDEX)  # type: ignore
+            df = ak.index_stock_cons_csindex(symbol=HS300_INDEX)  # type: ignore[misc]
             if df is None or df.empty:
                 time.sleep(1)
                 continue
@@ -84,7 +83,7 @@ def get_hs300_constituents() -> pd.DataFrame:
             df["index"] = "HS300"
             logger.info(f"沪深300 成分股: {len(df)} 只")
             return df[["code", "name", "index"] + (["weight"] if "weight" in df.columns else [])]
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
             logger.warning(f"获取沪深300成分股失败 (attempt {attempt + 1}/3): {e}")
             time.sleep(2)
 
@@ -99,7 +98,7 @@ def get_zz500_constituents() -> pd.DataFrame:
 
     for attempt in range(3):
         try:
-            df = ak.index_stock_cons_csindex(symbol=ZZ500_INDEX)  # type: ignore
+            df = ak.index_stock_cons_csindex(symbol=ZZ500_INDEX)  # type: ignore[misc]
             if df is None or df.empty:
                 time.sleep(1)
                 continue
@@ -118,7 +117,7 @@ def get_zz500_constituents() -> pd.DataFrame:
             df["index"] = "ZZ500"
             logger.info(f"中证500 成分股: {len(df)} 只")
             return df[["code", "name", "index"] + (["weight"] if "weight" in df.columns else [])]
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
             logger.warning(f"获取中证500成分股失败 (attempt {attempt + 1}/3): {e}")
             time.sleep(2)
 
@@ -235,11 +234,11 @@ def get_full_market_snapshot() -> pd.DataFrame:
     if ak is not None:
         for attempt in range(2):
             try:
-                df = ak.stock_zh_a_spot_em()  # type: ignore
+                df = ak.stock_zh_a_spot_em()  # type: ignore[misc]
                 if df is not None and not df.empty:
                     logger.info(f"[AKShare] 全市场实时快照: {len(df)} 只股票")
                     return df
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
                 logger.debug(f"[AKShare] 快照失败 (attempt {attempt + 1}/2): {e}")
                 time.sleep(1)
 
@@ -247,7 +246,7 @@ def get_full_market_snapshot() -> pd.DataFrame:
     logger.info("AKShare 不可用，尝试通达信数据源...")
     try:
         return _get_tdx_full_snapshot()
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
         logger.warning(f"[TDX] 全市场快照失败: {e}")
         return pd.DataFrame()
 
@@ -307,14 +306,15 @@ def _get_tdx_full_snapshot() -> pd.DataFrame:
                                     "总市值": float(q.get("liaohuan", 0) or 0),  # 流通市值
                                 }
                             )
-                    except Exception:
+                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                         continue
 
                 start += page_size
                 # 如果本页不足 1000 条，说明到底了
                 if len(stocks) < page_size:
                     break
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
                 logger.debug(f"TDX market={market} start={start} 失败: {e}")
                 break
 
@@ -391,7 +391,8 @@ def get_tdx_full_stock_list() -> pd.DataFrame:
                 start += page_size
                 if len(stocks) < page_size:
                     break
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 break
 
     df = pd.DataFrame(rows)
@@ -465,7 +466,7 @@ def get_industry_map(symbols: list[str]) -> dict:
     industry_map: dict = {}
     # 使用全市场行业分类（一次 API 调用）
     try:
-        df = ak.stock_board_industry_name_em()  # type: ignore
+        df = ak.stock_board_industry_name_em()  # type: ignore[misc]
         if df is None or df.empty:
             return {}
 
@@ -475,16 +476,16 @@ def get_industry_map(symbols: list[str]) -> dict:
             if not industry_name:
                 continue
             try:
-                cons_df = ak.stock_board_industry_cons_em(symbol=industry_name)  # type: ignore
+                cons_df = ak.stock_board_industry_cons_em(symbol=industry_name)  # type: ignore[misc]
                 if cons_df is None or cons_df.empty:
                     continue
                 for code in cons_df["代码"].astype(str).str.zfill(6):
                     if code in symbols:
                         industry_map[code] = industry_name
-            except Exception:  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001
                 continue
         logger.info(f"行业映射: {len(industry_map)} / {len(symbols)} 只匹配成功")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
         logger.warning(f"获取行业映射失败: {e}")
 
     return industry_map

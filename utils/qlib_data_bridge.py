@@ -16,7 +16,8 @@ try:
     import pandas as pd
 
     _HAS_PANDAS = True
-except Exception:
+except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     pd = None
     _HAS_PANDAS = False
 
@@ -129,7 +130,7 @@ def qlib_signal_to_system(qlib_signal: Any) -> dict[str, Any]:
     if hasattr(qlib_signal, "item"):
         try:
             score = float(qlib_signal.item())
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             score = 0.0
         return {"score": score, "direction": "buy" if score > 0 else "sell", "confidence": 0.0, "source": "qlib"}
     return {"score": 0.0, "direction": "neutral", "confidence": 0.0, "source": "qlib"}

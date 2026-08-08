@@ -113,9 +113,9 @@ class ProtectivePutEngine:
         },
     ]
 
-    def __init__(self, total_capital: float | None = None):  # type: ignore
+    def __init__(self, total_capital: float | None = None):  # type: ignore[misc]
         if total_capital is not None:
-            self.TOTAL_CAPITAL = total_capital  # type: ignore
+            self.TOTAL_CAPITAL = total_capital  # type: ignore[assignment]
         self._load_state()
 
     def _load_state(self):
@@ -126,7 +126,7 @@ class ProtectivePutEngine:
             try:
                 with open(PUT_STATE_FILE, encoding="utf-8") as f:
                     self.state = json.load(f)
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 self.state = {}
 
     def _save_state(self):
@@ -134,7 +134,7 @@ class ProtectivePutEngine:
         try:
             with open(PUT_STATE_FILE, "w", encoding="utf-8") as f:
                 json.dump(self.state, f, ensure_ascii=False, indent=2)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"保存Put状态失败: {e}")
 
     def _get_portfolio_value(self) -> float:
@@ -142,7 +142,7 @@ class ProtectivePutEngine:
         try:
             with open(CONFIG_DIR / "positions.json", encoding="utf-8") as f:
                 positions = json.load(f)
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             return 0
 
         total = 0.0
@@ -158,13 +158,13 @@ class ProtectivePutEngine:
         try:
             with open(CONFIG_DIR / "positions.json", encoding="utf-8") as f:
                 positions = json.load(f)
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             return 0
 
         # 尝试匹配 code.SH 或 code.SZ
         for key, pos in positions.get("positions", {}).items():
             if key.startswith(code) or pos.get("code", "").startswith(code):
-                return pos.get("est_price", 0)  # type: ignore
+                return pos.get("est_price", 0)  # type: ignore[index]
         return 0
 
     def _estimate_put_premium(self, spot: float, strike: float, dte: int, iv: float = 0.25) -> float:
@@ -216,7 +216,7 @@ class ProtectivePutEngine:
                     if expiry > datetime.now() + timedelta(days=self.ROLL_DTE_THRESHOLD):
                         has_valid_put = True
                         break
-                except Exception:  # P2 模块 fail-safe, 待后续精确化
+                except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                     continue
 
         if has_valid_put:
@@ -279,7 +279,7 @@ class ProtectivePutEngine:
 
         for target in self.PROTECTION_TARGETS:
             code = target["code"]
-            spot = self._get_etf_spot_price(code)  # type: ignore
+            spot = self._get_etf_spot_price(code)  # type: ignore[union-attr]
             if spot <= 0:
                 logger.warning(f"无法获取 {code} 现价, 跳过")
                 continue
@@ -288,7 +288,7 @@ class ProtectivePutEngine:
             strike = round(spot * (1 - self.OTM_PCT), 4)
 
             # 合约数 (回撤加码)
-            contracts = int(target["contracts"] * contract_multiplier)  # type: ignore
+            contracts = int(target["contracts"] * contract_multiplier)  # type: ignore[index]
 
             # 到期日选择: 下月第4个周三 (中国ETF期权到期日)
             expiry_date = self._calc_next_expiry()
@@ -368,7 +368,7 @@ class ProtectivePutEngine:
                 days_left = (expiry - datetime.now()).days
                 if days_left <= self.ROLL_DTE_THRESHOLD:
                     expiring.append(put)
-            except Exception:  # P2 模块 fail-safe, 待后续精确化
+            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 continue
 
         if not expiring:
@@ -396,7 +396,7 @@ class ProtectivePutEngine:
             "new_orders": new_orders.get("orders", []),
         }
 
-    def record_execution(self, orders: list[dict], actual_premium: float | None = None):  # type: ignore
+    def record_execution(self, orders: list[dict], actual_premium: float | None = None):  # type: ignore[misc]
         """记录执行结果, 更新状态"""
         if actual_premium is None:
             actual_premium = sum(o.get("premium_total", 0) for o in orders)

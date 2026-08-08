@@ -196,7 +196,7 @@ class KronosPredictor:
                     if self._init_error is None:
                         self._init_error = "模型加载失败 (原因未记录)"
                     logger.warning("Kronos-%s 不可用: %s", self.config.model_size, self._init_error)
-            except Exception as e:  # noqa: BLE001  # 模块 fail-safe, 任何加载失败都降级
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 模块 fail-safe, 任何加载失败都降级
                 self._available = False
                 self._init_error = f"{type(e).__name__}: {e}"
                 self._init_latency_ms = (time.perf_counter() - t0) * 1000
@@ -297,7 +297,7 @@ class KronosPredictor:
             if self.config.audit_enabled:
                 self._write_audit(symbol, factors, latency_ms)
             return factors
-        except Exception as e:  # noqa: BLE001  # 预测 fail-safe, 不阻断主流程
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 预测 fail-safe, 不阻断主流程
             self._error_count += 1
             logger.warning("[%s] Kronos 预测失败: %s", symbol, e)
             logger.debug(traceback.format_exc())

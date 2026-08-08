@@ -235,7 +235,7 @@ class Last30DaysAdapter:
             logger.warning("last30days CLI 调用失败: %s", e)
             logger.debug(traceback.format_exc())
             return []
-        except Exception as e:  # noqa: BLE001  # 模块 fail-safe, 不阻断主流程
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 模块 fail-safe, 不阻断主流程
             logger.error("last30days 查询异常: %s", e)
             logger.debug(traceback.format_exc())
             return []
@@ -341,7 +341,7 @@ class Last30DaysAdapter:
     def _cache_key(self, topic: str, platforms: list[str], days: int) -> str:
         """生成缓存键 (MD5 哈希)."""
         raw = f"{topic}|{','.join(sorted(platforms))}|{days}"
-        return hashlib.md5(raw.encode("utf-8")).hexdigest()
+        return hashlib.md5(raw.encode("utf-8")).hexdigest()  # nosec B324 — 非安全用途, 仅作缓存键哈希
 
     def _load_cache(self, key: str) -> list[Last30DaysSignal] | None:
         """加载缓存 (过期返回 None)."""

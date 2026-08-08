@@ -100,7 +100,10 @@ class AlertsConfig:
                     normal_veto_rate=float(alerts.get("normal_veto_rate", 0.25)),
                     confidence_floor=float(alerts.get("confidence_floor", 1.0 - brier_th)),
                 )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError,
+                RuntimeError) as e:
+            # float/int 转换可能抛 ValueError/TypeError;
+            # dict 操作可能抛 KeyError/AttributeError; get_config 可能抛 RuntimeError
             logger.debug("[EOD] alerts 配置加载失败, 用默认值: %s", e)
         return cls()
 
@@ -267,7 +270,10 @@ class EODReviewGenerator:
                             records.append(json.loads(line))
                         except json.JSONDecodeError:
                             continue
-        except Exception as exc:
+        except (OSError, ValueError, TypeError, AttributeError,
+                RuntimeError) as exc:
+            # open() 失败抛 OSError (含 FileNotFoundError/PermissionError);
+            # line.strip() 对非字符串抛 AttributeError; 文件编码可能抛 ValueError
             logger.error("[EOD] JSONL 加载失败 %s: %s", path, exc)
         return records
 
@@ -534,7 +540,10 @@ class EODReviewGenerator:
                     model_failures[role] = cf
                 if role_stats.get("is_open", False):
                     open_breakers.append(role)
-        except Exception as exc:
+        except (RuntimeError, KeyError, TypeError, AttributeError, ValueError,
+                OSError) as exc:
+            # monitor.get_stats() 可能抛: 运行时错误/字段缺失/类型不匹配/
+            # 属性缺失/值错误/IO 错误
             logger.error("[EOD] 模型健康状态获取失败: %s", exc)
 
         # auto 模式单日笔数
@@ -689,8 +698,11 @@ class EODReviewGenerator:
                             message=alert.get("message", ""),
                             severity=alert.get("severity", "WARNING"),
                         )
-                    except Exception:
-                        pass  # 单条失败不影响其他
+                    except (RuntimeError, OSError, ConnectionError, TimeoutError,
+                            ValueError, TypeError, KeyError, AttributeError):
+                        # push_fn 可能抛: 网络/超时/参数格式/字段缺失/类型不匹配
+                        # 单条失败不影响其他告警推送
+                        pass  # pragma: no cover
                 logger.info("[EOD] 告警已推送: CRITICAL=%d WARNING=%d", critical_count, warning_count)
             else:
                 logger.info(
@@ -702,7 +714,9 @@ class EODReviewGenerator:
                 "[EOD] 告警未推送 (realtime_monitor 未安装): "
                 "CRITICAL=%d WARNING=%d", critical_count, warning_count,
             )
-        except Exception as exc:
+        except (RuntimeError, OSError, ConnectionError, TimeoutError,
+                ValueError, TypeError, KeyError, AttributeError) as exc:
+            # 告警推送可能抛: 网络/超时/参数格式/字段缺失/类型不匹配/属性缺失
             logger.warning("[EOD] 告警推送异常 (不影响复盘): %s", exc)
 
     # ------------------------------------------------------------

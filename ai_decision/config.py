@@ -92,7 +92,11 @@ def _load() -> dict[str, Any]:
             with open(_CONFIG_PATH, encoding="utf-8") as fh:
                 user = yaml.safe_load(fh) or {}
             cfg = _deep_merge(cfg, user)
-        except Exception as exc:  # 解析失败回退默认
+        except (ImportError, OSError, ValueError, TypeError,
+                AttributeError, RuntimeError) as exc:
+            # ImportError: yaml 未安装; OSError: 文件读取失败 (权限/编码/磁盘);
+            # ValueError/TypeError/AttributeError: 解析失败/格式错误/字段类型不符;
+            # RuntimeError: _deep_merge 合并过程抛出
             import logging
             logging.getLogger("ai_decision.config").warning(
                 "加载 ai_decision.yaml 失败, 用内置默认: %s", exc)

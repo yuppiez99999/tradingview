@@ -30,6 +30,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _load_env_file(env_path: Path) -> None:
@@ -52,8 +55,7 @@ def _load_env_file(env_path: Path) -> None:
             value = value.strip().strip('"').strip("'")
             if key and key not in os.environ:
                 os.environ[key] = value
-    except Exception:
-        # .env 解析失败不影响程序运行 (fail-safe)
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # .env 解析失败不影响程序运行 (fail-safe)
         pass
 
 
@@ -115,6 +117,100 @@ def get_institutional_pipeline_report_dir() -> Path:
     return get_output_dir() / "institutional_pipeline"
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# v8.4+ 统一路径: 所有模块用这些函数获取路径, 禁止硬编码绝对路径
+# ═══════════════════════════════════════════════════════════════════════
+
+def get_config_dir() -> Path:
+    """持仓/策略配置文件目录 (config/)"""
+    return _PROJECT_ROOT / "config"
+
+
+def get_v8_src_dir() -> Path:
+    """v8.3 机构级模块源码目录 (v8.3_institutional/src/)"""
+    return _PROJECT_ROOT / "v8.3_institutional" / "src"
+
+
+def get_v8_root_dir() -> Path:
+    """v8.3 机构级模块根目录"""
+    return _PROJECT_ROOT / "v8.3_institutional"
+
+
+def get_utils_dir() -> Path:
+    """工具模块目录 (utils/)"""
+    return _PROJECT_ROOT / "utils"
+
+
+def get_tools_dir() -> Path:
+    """辅助工具脚本目录 (tools/)"""
+    return _PROJECT_ROOT / "tools"
+
+
+def get_scripts_dir() -> Path:
+    """批量/定时脚本目录 (scripts/)"""
+    return _PROJECT_ROOT / "scripts"
+
+
+def get_tests_dir() -> Path:
+    """测试目录 (tests/)"""
+    return _PROJECT_ROOT / "tests"
+
+
+def get_research_dir() -> Path:
+    """研究/因子挖掘目录 (research/)"""
+    return _PROJECT_ROOT / "research"
+
+
+def get_lgb_trainer_dir() -> Path:
+    """LGB 训练器目录 (lgb_trainer/)"""
+    return _PROJECT_ROOT / "lgb_trainer"
+
+
+def get_ai_decision_dir() -> Path:
+    """AI 决策模块目录 (ai_decision/)"""
+    return _PROJECT_ROOT / "ai_decision"
+
+
+def get_daily_workflow_dir() -> Path:
+    """每日工作流脚本目录 (15_每日工作流/)"""
+    return _PROJECT_ROOT / "15_每日工作流"
+
+
+def setup_sys_path() -> None:
+    """将项目根 + v8.3 根 + v8.3 src + utils 注入 sys.path (替代各处 sys.path.insert 硬编码).
+
+    调用方式: 在模块顶部 import 之后立刻调用:
+        from utils.path_config import setup_sys_path
+        setup_sys_path()
+
+    注入路径 (按优先级, 项目根在最前):
+        1. _PROJECT_ROOT              — 项目根 (utils 包根目录)
+        2. v8.3_institutional/        — 机构级根模块 (autolearn_trainer 等)
+        3. v8.3_institutional/src/    — 机构级 src 子模块 (hedging/signals/risk 等)
+        4. utils/                     — utils 子模块
+
+    等价于旧写法:
+        sys.path.insert(0, r"e:\\各种PY程序\\28-终极量化交易系统8.4")
+        sys.path.insert(0, r"e:\\各种PY程序\\28-终极量化交易系统8.4\\v8.3_institutional")
+        sys.path.insert(0, r"e:\\各种PY程序\\28-终极量化交易系统8.4\\v8.3_institutional\\src")
+        sys.path.insert(0, r"e:\\各种PY程序\\28-终极量化交易系统8.4\\utils")
+    """
+    import sys as _sys
+    _roots = [
+        str(_PROJECT_ROOT),
+        str(get_v8_root_dir()),  # v8.3_institutional/ (autolearn_trainer 等根模块)
+        str(get_v8_src_dir()),   # v8.3_institutional/src/ (hedging/signals/risk 等)
+        str(get_utils_dir()),   # utils/
+    ]
+    # 先 remove 已存在路径再 insert(0), 确保项目根始终在最前.
+    # 修复路径遮蔽 bug: 旧版 "if p not in sys.path" 会让已存在的项目根被推后,
+    # 导致 utils/reporting 等子目录遮蔽项目根的 reporting/ai 等顶层包.
+    for p in reversed(_roots):
+        if p in _sys.path:
+            _sys.path.remove(p)
+        _sys.path.insert(0, p)
+
+
 def get_historical_base_file(symbol: str) -> Path:
     """获取标的 5y 基础缓存文件路径 (historical_{symbol}_5y_base.parquet)
 
@@ -145,4 +241,4 @@ def describe_paths() -> dict:
 # 模块加载时打印路径配置 (方便排查)
 if __name__ == "__main__":
     import json
-    print(json.dumps(describe_paths(), indent=2, ensure_ascii=False))
+    logger.info(json.dumps(describe_paths(), indent=2, ensure_ascii=False))

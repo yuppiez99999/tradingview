@@ -36,7 +36,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.alpha.health_metrics import LayerScore
+from utils.alpha.health_metrics import LayerScore  # noqa: E402
 
 # ============================================================
 # 常量
@@ -102,7 +102,8 @@ class OpsHealthLayer:
         try:
             from utils.infra.feature_flags import is_enabled
             return bool(is_enabled(flag_name))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Feature Flag 检查失败 (降级 False): %s — %s", flag_name, e)
             return False
 
@@ -116,7 +117,8 @@ class OpsHealthLayer:
             w = (cfg.get("ops_health", {}) or {}).get("weights", {})
             if w:
                 return {k: float(w.get(k, DEFAULT_WEIGHTS.get(k, 0.0))) for k in DEFAULT_WEIGHTS}
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("OpsHealth 权重加载失败, 用默认值: %s", e)
         return dict(DEFAULT_WEIGHTS)
 
@@ -129,7 +131,8 @@ class OpsHealthLayer:
             configured = (cfg.get("ops_health", {}) or {}).get("report_dirs", {})
             if configured:
                 dirs_config.update(configured)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         if override:
             dirs_config.update(override)
@@ -206,10 +209,12 @@ class OpsHealthLayer:
                 if c3_items:
                     passed = sum(1 for r in c3_items if r.get("status") == "PASS")
                     return passed / len(c3_items) if c3_items else 0.8
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
             return 0.8  # 有归档但解析失败, 给中高分
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.3
 
     def _calc_data_quality_score(self) -> float:
@@ -223,7 +228,8 @@ class OpsHealthLayer:
                 return 0.4
             # 有报告 = 数据质量监控就绪
             return 0.8
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.5
 
     def _calc_drift_alert_recency(self) -> float:
@@ -244,7 +250,8 @@ class OpsHealthLayer:
                 # age=window(24h) → 0.8 (接近窗口边界, 扣分最少)
                 return max(0.2, 0.2 + (age_seconds / DEFAULT_ALERT_RECENCY_WINDOW) * 0.6)
             return 0.8  # 旧告警 (>24h), 不扣分
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.5
 
     def _calc_flag_stability(self) -> float:
@@ -262,7 +269,8 @@ class OpsHealthLayer:
             )
             # 变更越少越高分 (0 变更=1.0, 10 变更=0.0)
             return max(0.0, 1.0 - recent_changes / 10.0)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.5
 
     def _calc_risk_event_rate(self) -> float:
@@ -279,5 +287,6 @@ class OpsHealthLayer:
             )
             # 事件越少越高分 (0 事件=1.0, 20 事件=0.0)
             return max(0.0, 1.0 - recent_events / 20.0)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.5

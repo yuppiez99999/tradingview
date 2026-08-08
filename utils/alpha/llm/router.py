@@ -71,7 +71,7 @@ class LLMRouter:
         >>> router = LLMRouter.get_instance()
         >>> reply = router.chat("你好")
         >>> if reply:
-        ...     print(reply)
+        ...     logger.info(reply)
     """
 
     _instance: LLMRouter | None = None
@@ -339,7 +339,7 @@ class LLMRouter:
                         result = fn("ping", "", 0.1, 10, self._default_timeout)
                         if result is not None:
                             available = name
-                except Exception:  # P2 模块 fail-safe, 待后续精确化
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                     pass
 
         return {
@@ -446,7 +446,7 @@ class LLMRouter:
                         name,
                         latency_ms,
                     )
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
                 latency_ms = (time.perf_counter() - start_ts) * 1000.0
                 last_error = e
                 write_audit_log(

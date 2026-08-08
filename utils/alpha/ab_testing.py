@@ -155,6 +155,24 @@ class ABTestResult:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> ABTestResult:
+        return cls(
+            test_name=d.get("test_name", ""),
+            status=d.get("status", ""),
+            champion_metrics=d.get("champion_metrics", {}),
+            challenger_metrics=d.get("challenger_metrics", {}),
+            champion_samples=d.get("champion_samples", 0),
+            challenger_samples=d.get("challenger_samples", 0),
+            is_significant=d.get("is_significant", False),
+            challenger_better=d.get("challenger_better", False),
+            p_value=d.get("p_value", 1.0),
+            effect_size=d.get("effect_size", 0.0),
+            recommendation=d.get("recommendation", ""),
+            evaluated_at=d.get("evaluated_at", ""),
+            notes=d.get("notes", ""),
+        )
+
 
 # ============================================================
 # A/B 测试实例
@@ -193,8 +211,8 @@ class ABTest:
             ended_at=d.get("ended_at", ""),
             daily_records=d.get("daily_records", []),
             assignment_log=d.get("assignment_log", []),
-            result=ABTestResult.from_dict(d["result"]) if d.get("result") else None,  # type: ignore
-        )
+            result=ABTestResult.from_dict(d["result"]) if d.get("result") else None,  # type: ignore[index]
+            )
 
 
 # ============================================================
@@ -502,7 +520,7 @@ class ABTestFramework:
         """汇总指标 (取平均值)."""
         if not records:
             return {}
-        all_keys = set()  # type: ignore
+        all_keys = set()  # type: ignore[misc]
         for r in records:
             all_keys.update(r.keys())
         summary = {}

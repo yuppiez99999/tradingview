@@ -70,7 +70,7 @@ class KlinesLoader:
                     logger.info("  K线加载器: 使用通达信数据源 (TCP)")
                 else:
                     self._tdx_source = None
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
                 logger.debug(f"通达信不可用: {e}")
         return self._tdx_source
 
@@ -80,7 +80,7 @@ class KlinesLoader:
                 from utils.akshare_data_source import get_akshare_source
 
                 self._akshare_source = get_akshare_source()
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
                 logger.debug(f"AKShare 不可用: {e}")
         return self._akshare_source
 
@@ -97,7 +97,8 @@ class KlinesLoader:
                 if not df.empty and len(df) >= self.count * 0.5:
                     self._cache[symbol] = df
                     return df
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("Unexpected error in scheduler.py", exc_info=True)
 
         # 2. 通达信（优先，TCP 协议稳定）
@@ -111,7 +112,8 @@ class KlinesLoader:
                 if all(c in df.columns for c in required):
                     try:
                         df.to_parquet(cache_file)
-                    except Exception:
+                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                         logger.warning("Unexpected error in scheduler.py", exc_info=True)
                     self._cache[symbol] = df
                     return df
@@ -137,7 +139,8 @@ class KlinesLoader:
                 if all(c in df.columns for c in required):
                     try:
                         df.to_parquet(cache_file, index=False)
-                    except Exception:
+                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                         logger.warning("Unexpected error in scheduler.py", exc_info=True)
                     self._cache[symbol] = df
                     return df
@@ -405,7 +408,7 @@ def run_daily_scan(
         logger.info(f"  报告目录: {output_dir}")
         logger.info("=" * 70)
 
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
         result.success = False
         result.error = str(e)
         result.elapsed_seconds = time.time() - start_time

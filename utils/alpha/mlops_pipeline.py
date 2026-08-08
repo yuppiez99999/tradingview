@@ -338,24 +338,24 @@ class MLOpsPipeline:
         # 收集子模块状态 (容错)
         try:
             if self._drift_monitor is not None:
-                status["components"]["drift_monitor"] = self._drift_monitor.get_status()  # type: ignore
+                status["components"]["drift_monitor"] = self._drift_monitor.get_status()  # type: ignore[index]
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             pass
         try:
             if self._retrain_scheduler is not None:
-                status["components"]["retrain_scheduler"] = self._retrain_scheduler.get_status()  # type: ignore
+                status["components"]["retrain_scheduler"] = self._retrain_scheduler.get_status()  # type: ignore[index]
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             pass
         try:
             if self._model_registry is not None:
-                status["components"]["model_registry"] = {  # type: ignore
+                status["components"]["model_registry"] = {  # type: ignore[index]
                     "models": self._model_registry.list_models(),
                 }
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             pass
         try:
             if self._ab_framework is not None:
-                status["components"]["ab_framework"] = {  # type: ignore
+                status["components"]["ab_framework"] = {  # type: ignore[index]
                     "tests_count": len(self._ab_framework.list_tests()),
                 }
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化

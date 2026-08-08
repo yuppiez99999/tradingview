@@ -37,7 +37,10 @@ import pandas as pd
 
 # 路径设置
 _BASE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, _BASE)
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+sys.path.insert(0, _BASE)  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 # 优先加载项目根目录 .env，确保 WIND / VOLCENGINE 等密钥在导入业务模块前生效
 _PROJECT_ROOT = os.path.dirname(_BASE)
@@ -54,7 +57,7 @@ if os.path.exists(_ENV_PATH):
                 _value = _value.strip().strip("\"'")
                 if _key and _key not in os.environ:
                     os.environ[_key] = _value
-    except Exception:
+    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
         # logger 在第 73 行才定义, 此处 except 块若在模块加载早期触发会抛 NameError
         # 改用 logging.getLogger 直接获取, 避免模块加载顺序依赖 (同 BUG-08 修复模式)
         logging.getLogger("system_integration").exception(
@@ -63,9 +66,8 @@ if os.path.exists(_ENV_PATH):
 
 # IC1 修复: v7.5_institutional/src 目录为空, P0 模块实际位于 v8.3_institutional/src
 # 原路径导致 SignalFusion/ModelDriftDetector/CostAwareBacktest 全部静默加载失败
+# Wave 3 第三阶段: v8.3 src 路径已由 setup_sys_path() 统一注入, 保留 _V75_SRC 变量供后续模块加载使用
 _V75_SRC = os.path.join(_BASE, "v8.3_institutional", "src")
-if _V75_SRC not in sys.path:
-    sys.path.insert(0, _V75_SRC)
 
 # 配置日志
 logging.basicConfig(
@@ -101,7 +103,7 @@ def _read_retrain_lock(symbol: str) -> Optional[datetime]:
     try:
         with open(lock_path, encoding="utf-8") as f:
             return datetime.fromisoformat(json.load(f).get("last_retrain"))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.debug(f"读取重训锁失败 {symbol}: {e}")
         return None
 
@@ -119,7 +121,7 @@ def _write_retrain_lock(symbol: str, when: datetime) -> None:
     try:
         with open(lock_path, "w", encoding="utf-8") as f:
             json.dump({"last_retrain": when.isoformat()}, f, ensure_ascii=False)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.warning(f"写入重训锁失败 {symbol}: {e}")
 
 
@@ -130,7 +132,7 @@ try:
     from alpha.signal_fusion import SignalFusion
 
     _SIGNAL_FUSION_AVAILABLE = True
-except Exception as e:
+except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
     logger.warning(f"SignalFusion 不可用: {e}")
     SignalFusion = None
     _SIGNAL_FUSION_AVAILABLE = False
@@ -139,7 +141,7 @@ try:
     from ml.drift_detector import ModelDriftDetector
 
     _DRIFT_DETECTOR_AVAILABLE = True
-except Exception as e:
+except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
     logger.warning(f"ModelDriftDetector 不可用: {e}")
     ModelDriftDetector = None
     _DRIFT_DETECTOR_AVAILABLE = False
@@ -149,7 +151,7 @@ try:
     from backtest.cost_aware_backtest import CostAwareBacktest
 
     _COST_AWARE_BACKTEST_AVAILABLE = True
-except Exception as _e1:
+except Exception as _e1:  # noqa: BLE001  # fail-safe, 待后续精确化
     # 回退: 直接 importlib 加载文件 (绕过包结构问题)
     try:
         import importlib.util
@@ -170,7 +172,7 @@ except Exception as _e1:
             _COST_AWARE_BACKTEST_AVAILABLE = True
         else:
             raise FileNotFoundError(f"cost_aware_backtest.py not found at {_bt_path}")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.warning(f"CostAwareBacktest 不可用 (cause: {_e1} | {e})")
         CostAwareBacktest = None
         _COST_AWARE_BACKTEST_AVAILABLE = False
@@ -181,11 +183,11 @@ try:
     try:
         from utils.execution.automated_execution_system import AutomatedExecutionSystem
     except ImportError:
-        from automated_execution_system import AutomatedExecutionSystem  # type: ignore
-    _AUTO_SYSTEM_AVAILABLE = True
-except Exception as e:
+        from automated_execution_system import AutomatedExecutionSystem  # type: ignore[misc]
+        _AUTO_SYSTEM_AVAILABLE = True
+except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
     logger.error(f"AutomatedExecutionSystem 不可用: {e}")
-    AutomatedExecutionSystem = object  # type: ignore
+    AutomatedExecutionSystem = object  # type: ignore[misc]
     _AUTO_SYSTEM_AVAILABLE = False
 
 # 步骤4 止损监控
@@ -193,7 +195,7 @@ try:
     from stop_loss_monitor import StopLossMonitor
 
     _STOP_LOSS_AVAILABLE = True
-except Exception as e:
+except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
     logger.warning(f"StopLossMonitor 不可用: {e}")
     StopLossMonitor = None
     _STOP_LOSS_AVAILABLE = False
@@ -239,13 +241,13 @@ def load_qlib_bin(field: str, qlib_code: str) -> Optional[pd.Series]:
     try:
         with open(cal_path, encoding="utf-8") as f:
             dates = [line.strip() for line in f if line.strip()]
-    except Exception:
+    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.exception("[SysInt] 读取交易日历文件失败: %s", cal_path)
         return None
 
     try:
         arr = np.fromfile(bin_path, dtype=np.float32)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.debug(f"读取 {bin_path} 失败: {e}")
         return None
 
@@ -375,7 +377,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         try:
             with open(local_pos_path, encoding="utf-8") as f:
                 data = json.load(f)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"读取本地 positions.json 失败: {e}")
             return
 
@@ -395,7 +397,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             try:
                 with open(src_pos_path, encoding="utf-8") as f:
                     src_data = json.load(f).get("positions", {})
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                 logger.warning(f"读取 11_量化策略 positions.json 失败: {e}")
 
         # 转换 list → dict
@@ -451,7 +453,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         try:
             with open(backup_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception:
+        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.exception("[SysInt] 写入 positions 备份失败: %s", backup_path)
 
         # 覆盖 positions.json 为 dict 格式 (保留 meta)
@@ -463,7 +465,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 f"本地 positions.json 已规范化: list→dict, "
                 f"{len(normalized)} 个持仓" + (f", 未在 11_量化策略 找到: {missing_in_src}" if missing_in_src else "")
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"写回 positions.json 失败: {e}")
 
     def _init_signal_fusion(self) -> Optional[object]:
@@ -480,7 +482,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             )
             logger.info(f"SignalFusion 已初始化, 权重: {fusion.weights}")
             return fusion
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"SignalFusion 初始化失败: {e}")
             return None
 
@@ -519,7 +521,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 # 归一化
                 total = sum(weights.values())
                 weights = {k: v / total for k, v in weights.items()}
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"读取 QLib 报告失败: {e}")
 
         return weights
@@ -568,7 +570,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                             detector.update_ic(d, initial_ic)
                         logger.info(f"漂移检测器预热: IC={initial_ic:.4f} (5 次注入, 源: QLib 报告)")
                         _preheated = True
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                     logger.warning(f"漂移检测器预热失败: {e}")
 
             # N1-4: QLib 预热未成功时, 回退到历史模型 CV IC 预热
@@ -591,11 +593,11 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                             f"漂移检测器预热: IC={avg_hist_ic:.4f} (5 次注入, "
                             f"源: 历史模型 CV, {len(hist_ic_values)} 个模型均值)"
                         )
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                     logger.debug(f"历史模型 IC 预热失败 (非致命): {e}")
 
             return detector
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"ModelDriftDetector 初始化失败: {e}")
             return None
 
@@ -607,7 +609,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             monitor = StopLossMonitor()
             logger.info(f"止损监控器已初始化: {len(monitor.rules)} 条规则")
             return monitor
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"StopLossMonitor 初始化失败: {e}")
             return None
 
@@ -659,7 +661,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             self.signal_fusion.update_weights(weights)
             self.last_signal_update = datetime.now().isoformat()
             logger.info(f"SignalFusion 权重已更新: {weights}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"SignalFusion 权重更新失败: {e}")
 
     def _hook_drift_and_retrain(self):
@@ -690,7 +692,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             # 同步喂给 ADWIN (用 IC 值检测概念漂移)
             try:
                 self.drift_detector.update_adwin(daily_ic)
-            except Exception as e_adwin:
+            except Exception as e_adwin:  # noqa: BLE001  # fail-safe, 待后续精确化
                 logger.debug(f"ADWIN 更新失败 (非致命): {e_adwin}")
 
             # ---------- 3. 综合检查 (修复 Bug-A: check_all) ----------
@@ -734,7 +736,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 else ("shadow_recorded" if EVOLUTION_CONFIG["shadow_mode"] else "cooldown_skip"),
                 "reason": reason,
             }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"漂移检测失败: {e}")
             logger.debug(traceback.format_exc())
 
@@ -758,7 +760,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 latest = float(ic_data.get("latest_ic", 0) or 0)
                 if abs(latest) >= EVOLUTION_CONFIG["ic_min_abs_threshold"]:
                     return latest
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                 logger.debug(f"读取 daily_ic_scores.json 失败: {e}")
 
         # 源2: QLib 报告 (回退)
@@ -771,7 +773,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 if abs(mean_ic) >= EVOLUTION_CONFIG["ic_min_abs_threshold"]:
                     logger.info(f"IC 来源回退到 QLib 报告: mean_daily_ic={mean_ic:.4f}")
                     return mean_ic
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                 logger.debug(f"读取 QLib 报告 IC 失败: {e}")
 
         return None
@@ -803,7 +805,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 POSITION_SYMBOLS,
                 run_enhanced_training,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"无法导入训练模块, 重训取消: {e}")
             return False
 
@@ -840,7 +842,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
 
             logger.info(f"重训完成: status={result.get('status', 'UNKNOWN')}")
             return True
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.error(f"重训执行失败: {e}")
             logger.debug(traceback.format_exc())
             return False
@@ -863,23 +865,23 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             if hasattr(backtest, "run_backtest"):
                 try:
                     result = backtest.run_backtest(positions_path=positions_path)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                     logger.warning(f"成本回测 run_backtest 失败: {e}")
             elif hasattr(backtest, "evaluate"):
                 try:
                     result = backtest.evaluate()
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                     logger.warning(f"成本回测 evaluate 失败: {e}")
 
             report_path = os.path.join(self.report_dir, f"cost_backtest_{today.isoformat()}.json")
             try:
                 with open(report_path, "w", encoding="utf-8") as f:
                     json.dump(result, f, ensure_ascii=False, indent=2)
-            except Exception:
+            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
                 logger.exception("[SysInt] 成本回测报告写入失败: %s", report_path)
 
             logger.info(f"成本感知回测验证完成, 报告: {report_path}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"成本感知回测失败: {e}")
 
     def _hook_stop_loss_review(self):
@@ -894,7 +896,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 logger.warning(f"止损监控触发 {len(triggers)} 条规则, 已执行 {len(executed)} 笔卖出")
             else:
                 logger.info("止损监控完成: 未触发任何止损/止盈")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"止损监控失败: {e}")
 
     # ---------- 系统控制 ----------

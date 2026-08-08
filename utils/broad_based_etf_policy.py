@@ -103,7 +103,8 @@ def _import_macro():
 
             mod = importlib.import_module(modname)
             return mod
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"导入 {modname} 失败: {e}")
     return None
 
@@ -367,7 +368,8 @@ def fetch_national_team_flow_signals() -> dict:
 
         tracker = ETFRealTimeTracker()
         return tracker.get_all_etf_fund_flows()
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"获取社保国家队资金流失败, 宽基ETF维持基准权重: {e}")
         return {}
 
@@ -382,6 +384,7 @@ def adjust_plan_with_national_team_flow(plan: dict) -> dict:
         if not flow:
             return {"applied": False, "reason": "无资金流数据", "adjustments": []}
         return apply_broad_based_adjustments_to_plan(plan, flow)
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"宽基ETF国家队加减仓执行异常, 维持基准: {e}")
         return {"applied": False, "reason": str(e), "adjustments": []}

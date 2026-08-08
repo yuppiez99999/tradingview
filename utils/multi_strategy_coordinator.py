@@ -429,7 +429,7 @@ class MultiStrategyCoordinator:
             for symbol, signal in signals.items():
                 direction = ""
                 if isinstance(signal, dict):
-                    direction = signal.get("direction", signal.get("action", ""))  # type: ignore
+                    direction = signal.get("direction", signal.get("action", ""))  # type: ignore[index]
                 elif isinstance(signal, str):
                     direction = signal
                 if direction:
@@ -593,7 +593,7 @@ class MultiStrategyCoordinator:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(state, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"策略协调器状态已保存: {path}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"保存策略协调器状态失败: {e}")
         return path
 
@@ -648,7 +648,7 @@ if __name__ == "__main__":
         decision = coord.coordinate(
             target_signals=target_signals,
             current_positions=current_positions,
-            strategy_pnl=pnl,  # type: ignore
+            strategy_pnl=pnl,  # type: ignore[misc]
             strategy_correlations=correlations,
         )
 

@@ -13,6 +13,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
+import logging
+
+logger = logging.getLogger(__name__)
 
 # T3.6 修正: 动态解析项目根目录 (utils/execution/ → 项目根)
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -39,7 +42,8 @@ def load_positions():
     # T3.6 修正: 使用动态解析的项目根目录 (不再硬编码 v7.1 路径)
     path = _PROJECT_ROOT / "config" / "positions.json"
     with open(path, encoding="utf-8") as f:
-        data = json.load(f)["positions"]
+        # P2-2 修复: positions 键可能缺失, 用 .get() 保护避免 KeyError 被外层吞掉静默返回 None
+        data = json.load(f).get("positions", {}) or {}
     positions = {}
     prices = {}
     styles = {}
@@ -189,45 +193,42 @@ def main():
     orders = generate_rebalance_orders(style_allocation, TARGET_ALLOCATION, positions, prices)
     report = build_report(style_allocation, TARGET_ALLOCATION, orders)
 
-    print("=" * 70)
-    print("再平衡执行单")
-    print("=" * 70)
-    print(f"日期: {report['date']}")
-    print(f"组合总市值: {report['total_value']:,.0f}")
-    print()
-    print(f"{'风格':10s} {'当前权重':>10s} {'目标权重':>10s} {'偏差':>10s}")
-    print("-" * 70)
+    logger.info("=" * 70)
+    logger.info("再平衡执行单")
+    logger.info("=" * 70)
+    logger.info(f"日期: {report['date']}")
+    logger.info(f"组合总市值: {report['total_value']:,.0f}")
+    logger.info(f"{'风格':10s} {'当前权重':>10s} {'目标权重':>10s} {'偏差':>10s}")
+    logger.info("-" * 70)
     for style in sorted(set(list(style_allocation.keys()) + list(TARGET_ALLOCATION.keys()))):
         current = style_allocation.get(style, {}).get("weight", 0.0)
         target = TARGET_ALLOCATION.get(style, 0.0)
         deviation = current - target
         status = "✅" if abs(deviation) < 0.02 else "⚠️"
-        print(f"{style:10s} {current:>10.2%} {target:>10.2%} {deviation:>+10.2%} {status}")
-    print("-" * 70)
-    print()
-    print(f"订单数: {report['summary']['total_orders']} (有效 {report['summary']['valid_orders']})")
-    print(f"买入: {report['summary']['buy_orders']} | 卖出: {report['summary']['sell_orders']}")
-    print(f"总交易金额: {report['summary']['total_trade_value']:,.0f}")
-    print(f"单笔限额: {MIN_TRADE_AMOUNT:,} ~ {MAX_SINGLE_ORDER_AMOUNT:,} 元")
-    print()
+        logger.info(f"{style:10s} {current:>10.2%} {target:>10.2%} {deviation:>+10.2%} {status}")
+    logger.info("-" * 70)
+    logger.info(f"订单数: {report['summary']['total_orders']} (有效 {report['summary']['valid_orders']})")
+    logger.info(f"买入: {report['summary']['buy_orders']} | 卖出: {report['summary']['sell_orders']}")
+    logger.info(f"总交易金额: {report['summary']['total_trade_value']:,.0f}")
+    logger.info(f"单笔限额: {MIN_TRADE_AMOUNT:,} ~ {MAX_SINGLE_ORDER_AMOUNT:,} 元")
 
     for i, o in enumerate(orders, 1):
         status = "✅" if o["validation"]["valid"] else "❌"
-        print(f"[{i}] {status} {o['action']} | {o['code']} | {o['style']}")
-        print(f"    数量: {o['shares']} | 预估金额: {o['est_amount']:,.0f}")
-        print(f"    当前权重: {o['current_weight']:.2%} | 目标权重: {o['target_weight']:.2%}")
+        logger.info(f"[{i}] {status} {o['action']} | {o['code']} | {o['style']}")
+        logger.info(f"    数量: {o['shares']} | 预估金额: {o['est_amount']:,.0f}")
+        logger.info(f"    当前权重: {o['current_weight']:.2%} | 目标权重: {o['target_weight']:.2%}")
         if o["validation"]["warnings"]:
-            print(f"    警告: {'; '.join(o['validation']['warnings'])}")
+            logger.warning(f"    警告: {'; '.join(o['validation']['warnings'])}")
         if not o["validation"]["valid"]:
-            print(f"    错误: {'; '.join(o['validation']['errors'])}")
-    print("=" * 70)
+            logger.error(f"    错误: {'; '.join(o['validation']['errors'])}")
+    logger.info("=" * 70)
 
     # T3.6 修正: 输出路径使用项目根目录的 reports/
     out_path = _PROJECT_ROOT / "reports" / f"rebalance_execution_orders_{datetime.now():%Y%m%d}.json"
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
-    print(f"已保存: {out_path}")
+    logger.info(f"已保存: {out_path}")
 
 
 if __name__ == "__main__":

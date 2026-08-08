@@ -286,7 +286,7 @@ class NewsSentimentEngine:
             try:
                 self.add_news(news)
                 count += 1
-            except Exception as exc:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # P2 模块 fail-safe, 待后续精确化
                 logger.warning("[NewsSentiment] 添加新闻失败 %s: %s", news.news_id, exc)
         return count
 
@@ -342,7 +342,7 @@ class NewsSentimentEngine:
         except ImportError:
             logger.warning("[NewsSentiment] scrapling_adapter 不可用, 跳过抓取")
             return 0
-        except Exception as exc:  # P2 模块 fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # P2 模块 fail-safe
             logger.warning("[NewsSentiment] Scrapling 抓取失败: %s", exc)
             return 0
 
@@ -385,7 +385,7 @@ class NewsSentimentEngine:
                 )
                 return count
             return 0
-        except Exception as exc:  # P2 模块 fail-safe
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # P2 模块 fail-safe
             logger.warning("[NewsSentiment] 公告抓取失败: %s", exc)
             return 0
 
@@ -597,7 +597,7 @@ class NewsSentimentEngine:
                 news.event_type = "SOCIAL"
                 news.impact_horizon_hours = 12
                 ingested += 1
-            except Exception as exc:  # noqa: BLE001  # P2 fail-safe, 单条失败不阻断批量
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # noqa: BLE001  # P2 fail-safe, 单条失败不阻断批量
                 logger.warning(
                     "[NewsSentiment] last30days 信号注入失败 (idx=%d, topic=%s): %s",
                     idx,

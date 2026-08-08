@@ -125,7 +125,7 @@ class BlackLittermanOptimizer:
         self,
         assets: list[str],
         market_weights: list[float] | np.ndarray,
-        cov_matrix: np.ndarray | pd.DataFrame,  # type: ignore
+        cov_matrix: np.ndarray | pd.DataFrame,  # type: ignore[misc]
         views: list[View] | None = None,
         risk_free_rate: float = 0.03,
         target_return: float | None = None,  # None=无约束, 数值=目标收益
@@ -343,7 +343,7 @@ class BlackLittermanOptimizer:
         if max_weight is None and min_weight is None and target_return is None:
             # 简单归一化为满仓
             if w_unconstrained.sum() > 0:
-                return w_unconstrained / w_unconstrained.sum()  # type: ignore
+                return w_unconstrained / w_unconstrained.sum()  # type: ignore[misc]
             # 全负则等权
             return np.ones(n) / n
 
@@ -387,7 +387,7 @@ class BlackLittermanOptimizer:
                 # 归一化 (数值误差)
                 if w.sum() > 0:
                     w = w / w.sum()
-                return w  # type: ignore
+                return w  # type: ignore[misc]
         except ImportError:
             pass
 
@@ -398,7 +398,7 @@ class BlackLittermanOptimizer:
         if min_weight is not None:
             w = np.maximum(w, min_weight)
         if w.sum() > 0:
-            return w / w.sum()  # type: ignore
+            return w / w.sum()  # type: ignore[misc]
         return np.ones(n) / n
 
     def _to_numpy_matrix(self, m) -> np.ndarray:
@@ -407,7 +407,7 @@ class BlackLittermanOptimizer:
             return m.astype(float)
         try:
             return np.asarray(m, dtype=float)
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             return np.array(m, dtype=float)
 
     # ------------------------------------------------------------

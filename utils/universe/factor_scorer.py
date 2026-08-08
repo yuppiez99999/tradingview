@@ -88,7 +88,7 @@ def _compute_single_stock_factor(
         adapter = get_vibe_adapter()
         result = adapter.compute_single_stock(kline_df, factor_ids=factor_ids)
         return symbol, dict(result.values)
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
         logger.debug(f"因子计算失败 {symbol}: {e}")
         return symbol, {}
 
@@ -191,7 +191,7 @@ def batch_compute_factors(
                     continue
                 future = executor.submit(_compute_single_stock_factor, symbol, kline_df, all_factor_ids)
                 futures[future] = symbol
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
                 logger.debug(f"K线加载失败 {symbol}: {e}")
                 failed += 1
 
@@ -204,7 +204,7 @@ def batch_compute_factors(
                     completed += 1
                 else:
                     failed += 1
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
                 logger.debug(f"因子计算异常 {symbol}: {e}")
                 failed += 1
 

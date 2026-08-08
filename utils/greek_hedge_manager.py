@@ -128,8 +128,8 @@ class GreekHedgeManager:
         iv = self.iv_env
 
         # 因子1: IV 比率 — 当前 IV 相对历史中位数
-        if iv.long_term_median_iv > 0:  # type: ignore
-            iv_ratio = iv.current_iv / iv.long_term_median_iv  # type: ignore
+        if iv.long_term_median_iv > 0:  # type: ignore[misc]
+            iv_ratio = iv.current_iv / iv.long_term_median_iv  # type: ignore[misc]
         else:
             iv_ratio = 1.0
         # IV 比率越高, 乘数越低 (收紧上限)
@@ -137,8 +137,8 @@ class GreekHedgeManager:
         iv_ratio_mult = 1.0 / max(iv_ratio, 0.5)
 
         # 因子2: 期限结构 — 近月/远月 IV 比值
-        if iv.second_month_iv > 0:  # type: ignore
-            term_ratio = iv.front_month_iv / iv.second_month_iv  # type: ignore
+        if iv.second_month_iv > 0:  # type: ignore[misc]
+            term_ratio = iv.front_month_iv / iv.second_month_iv  # type: ignore[misc]
         else:
             term_ratio = 1.0
         # Contango (近低远高, ratio < 1) → 放松, Backwardation → 收紧
@@ -148,7 +148,7 @@ class GreekHedgeManager:
             term_mult = 1.0 / term_ratio  # 恐慌时收紧
 
         # 因子3: Skew — Put-Call IV 差
-        skew = iv.put_25d_iv - iv.call_25d_iv  # type: ignore
+        skew = iv.put_25d_iv - iv.call_25d_iv  # type: ignore[misc]
         normal_skew = 0.04  # 正常的 Skew 约 4%
         if skew <= normal_skew:
             skew_mult = 1.0
@@ -206,7 +206,13 @@ class GreekHedgeManager:
         return d1, d2
 
     def _bs_delta(self, S: float, K: float, T: float, r: float, sigma: float, call: bool = True) -> float:
-        """计算期权 Delta"""
+        """计算期权 Delta
+
+        与 _bs_gamma/_bs_theta/_bs_vega/_bs_rho 一致: 无效输入 (S<=0/T<=0/sigma<=0)
+        返回 0, 避免 _bs_d1_d2 返回哨兵 (0,0) 后算得 N(0)=0.5 污染组合 Delta.
+        """
+        if T <= 0 or sigma <= 0 or S <= 0 or K <= 0:
+            return 0.0
         d1, _ = self._bs_d1_d2(S, K, T, r, sigma)
         if call:
             return _norm_cdf(d1)

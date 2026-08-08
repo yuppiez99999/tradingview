@@ -1,5 +1,5 @@
 """
-WeatherAgent — 气象因子分析 Agent (v8.6.13)
+WeatherAgent — 气象因子分析 Agent (v8.6.14)
 ============================================
 
 基于 weather_factor_engine 的 7 因子体系, 评估气象条件对标的的影响.
@@ -57,7 +57,8 @@ class WeatherAgent(BaseAgent):
         try:
             engine = self.engine
             return engine is not None
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return True  # 容错: 假设可用, analyze 内部会降级
 
     def analyze(self, symbol: str, context: dict[str, Any]) -> AgentDecision:
@@ -109,7 +110,8 @@ class WeatherAgent(BaseAgent):
                 )
 
             return self._decision_from_result(symbol, result)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return AgentDecision(
                 agent_name=self.name,
                 symbol=symbol,

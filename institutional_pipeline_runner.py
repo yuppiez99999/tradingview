@@ -144,14 +144,20 @@ _CROSS_MARKET_PROXY_SYMBOLS = ["518880", "600036", "588000", "515180"]
 # ============================================================================
 # 日志
 # ============================================================================
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.FileHandler("institutional_pipeline_runner.log", encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
+# S2修复: 将 logging 配置从模块级别移至函数, 避免 import 时污染测试/子进程环境。
+# 调用方需显式调用 _setup_logging() 或在 main() 中配置。
+def _setup_logging() -> None:
+    """初始化日志配置 (仅在主进程入口调用, 避免 import 副作用)。"""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        handlers=[
+            logging.FileHandler("institutional_pipeline_runner.log", encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
+    )
+
+
 logger = logging.getLogger("institutional_pipeline")
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -619,6 +625,9 @@ class InstitutionalPipelineRunner:
                         "strength": 0.7 * old_s + 0.3 * float(sig.get("strength", 0.0)),
                         "confidence": min(1.0, 0.7 * old_c + 0.3 * float(sig.get("confidence", 0.2))),
                     }
+
+        # 保存 alpha 信号报告到 reports/pipeline/ (供 DriftShadowIntegrator 读取)
+        self._save_alpha_signals_report(alpha_signals)
 
         return self.signal_fusion.fuse(alpha_signals, llm_signals, etf_signals, macro_signals)
 
@@ -1845,23 +1854,6 @@ class InstitutionalPipelineRunner:
             "source": "mock",
         }
 
-    def _mock_factor_result(self):
-        symbols = list(self.ctx.symbols)
-
-        class MockFactor:
-            def __init__(self, syms):
-                self.values = {s: float(np.random.randn()) for s in syms}
-                self.category = "mock"
-
-        class MockResult:
-            def __init__(self, syms):
-                self.factors = {f"factor_{i}": MockFactor(syms) for i in range(5)}
-
-        return MockResult(symbols)
-
-    def _mock_forward_returns(self) -> dict[str, float]:
-        return {s: float(np.random.randn() * 0.01) for s in self.ctx.symbols}
-
     def _build_alpha_signals(self, alpha_report: Any) -> dict[str, dict[str, Any]]:
         evaluations = []
         if isinstance(alpha_report, dict):
@@ -1889,15 +1881,6 @@ class InstitutionalPipelineRunner:
             if symbol and symbol in self.ctx.symbols:
                 signals[symbol] = {"strength": strength, "confidence": confidence}
         return signals
-
-    def _mock_llm_signals(self) -> dict[str, dict[str, Any]]:
-        return {s: {"strength": 0.0, "confidence": 0.3} for s in self.ctx.symbols}
-
-    def _mock_etf_signals(self) -> dict[str, dict[str, Any]]:
-        return {s: {"strength": 0.0, "confidence": 0.3} for s in self.ctx.symbols}
-
-    def _mock_macro_signals(self) -> dict[str, dict[str, Any]]:
-        return {"macro_index": {"strength": 0.0, "confidence": 0.2}}
 
     # ------------------------------------------------------------
     # B2.2: 统一历史数据获取 helper (cache 优先 + 回填 + 日期截断)
@@ -2018,6 +2001,40 @@ class InstitutionalPipelineRunner:
             desc="alpha_signals",
         )
         return {s: sig for s, sig in pairs if s is not None}
+
+    def _save_alpha_signals_report(self, alpha_signals: dict[str, dict[str, Any]]) -> None:
+        """保存 alpha 信号报告到 reports/pipeline/alpha_signals_{timestamp}.json
+
+        供 DriftShadowIntegrator._load_latest_predictions() 读取，
+        补齐 EOD 管道不产出 alpha_signals 文件导致 observed=0/0 的数据断链。
+        """
+        try:
+            from datetime import datetime as _dt
+            import json as _json
+            from pathlib import Path as _Path
+
+            report_dir = _Path(self.ctx.output_root).parent / "reports" / "pipeline" if hasattr(self.ctx, "output_root") else _Path("reports") / "pipeline"
+            report_dir.mkdir(parents=True, exist_ok=True)
+
+            timestamp = _dt.now().strftime("%Y%m%d_%H%M%S")
+            signals_flat = {sym: float(sig.get("strength", 0.0)) for sym, sig in alpha_signals.items()}
+            confidence_flat = {sym: float(sig.get("confidence", 0.0)) for sym, sig in alpha_signals.items()}
+
+            report = {
+                "model": "institutional_pipeline_v2",
+                "training_date": _dt.now().strftime("%Y-%m-%d"),
+                "n_stocks": len(signals_flat),
+                "model_metrics": {"status": "ok", "source": "real_alpha_signals"},
+                "signals": signals_flat,
+                "confidence": confidence_flat,
+            }
+
+            path = report_dir / f"alpha_signals_{timestamp}.json"
+            with open(path, "w", encoding="utf-8") as f:
+                _json.dump(report, f, ensure_ascii=False, indent=2)
+            logger.info("[Pipeline] Alpha 信号报告已保存: %s (n=%d)", path, len(signals_flat))
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+            logger.warning("[Pipeline] 保存 alpha 信号报告失败: %s", e)
 
     def _load_symbol_close_volume(self, symbol: str) -> tuple[pd.Series, pd.Series]:
         """加载单个 symbol 的 close / volume 序列 (不足 30 行抛异常)。"""
@@ -2366,7 +2383,8 @@ class InstitutionalPipelineRunner:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Institutional Pipeline Runner")
     parser.add_argument("--institutional-pipeline", action="store_true", help="运行机构级量化闭环")
-    parser.add_argument("--mode", default="smoke", choices=["smoke", "backtest", "live"])
+    parser.add_argument("--pipeline", action="store_true", help="运行金融工程闭环流水线")
+    parser.add_argument("--mode", default="smoke", choices=["smoke", "backtest", "live", "dry_run"])
     parser.add_argument(
         "--symbols", nargs="*", default=["600519", "000858", "601318", "000001", "600036", "601398", "600276", "000063"]
     )
@@ -2375,7 +2393,17 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    _setup_logging()  # S2修复: 仅在主入口初始化日志, 避免导入时污染
     args = parse_args()
+    if args.pipeline:
+        from utils.pipeline import PipelineOrchestrator
+        orchestrator = PipelineOrchestrator()
+        result = orchestrator.run_full_cycle(
+            mode=args.mode,
+            symbols=args.symbols,
+        )
+        logger.info(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
+        return
     if not args.institutional_pipeline:
         return
     ctx = PipelineContext(

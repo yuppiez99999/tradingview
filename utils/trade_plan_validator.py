@@ -168,7 +168,7 @@ class TradePlanValidator:
         try:
             with open(plan_path, encoding="utf-8") as f:
                 plan = json.load(f)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             return {
                 "valid": False,
                 "errors": [f"JSON 解析失败: {e}"],
@@ -447,4 +447,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit_code = main()  # type: ignore
+    sys.exit_code = main()  # type: ignore[misc]

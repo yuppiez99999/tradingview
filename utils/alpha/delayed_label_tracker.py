@@ -477,7 +477,8 @@ class DelayedLabelTracker:
                 ic = float(np.corrcoef(predicted, actual)[0, 1])
             else:
                 ic = 0.0
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             ic = 0.0
 
         # Rank IC (Spearman)
@@ -488,7 +489,7 @@ class DelayedLabelTracker:
                 rank_ic = float(_stats.spearmanr(predicted, actual)[0])
             else:
                 rank_ic = 0.0
-        except (ImportError, Exception):
+        except (ImportError, ValueError, TypeError):  # noqa: BLE001  # scipy.stats 不可用/数据异常时降级, 待后续精确化
             rank_ic = 0.0
 
         # IC IR (按日聚合 IC, 然后计算 IC 均值 / IC 标准差)
@@ -541,7 +542,8 @@ class DelayedLabelTracker:
                     ic_day = float(np.corrcoef(pred, act)[0, 1])
                     if np.isfinite(ic_day):
                         daily_ic.append(ic_day)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.0
 
         if len(daily_ic) < 2:

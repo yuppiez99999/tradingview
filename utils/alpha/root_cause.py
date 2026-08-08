@@ -375,7 +375,8 @@ class UnifiedRootCauseAnalyzer:
         try:
             from utils.infra.feature_flags import is_enabled
             return bool(is_enabled(flag_name))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Feature Flag 检查失败 (降级为 False): %s — %s", flag_name, e)
             return False
 
@@ -395,25 +396,29 @@ class UnifiedRootCauseAnalyzer:
         try:
             from utils.alpha.layers.code_diagnoser import CodeDiagnoser
             self._code_diagnoser = CodeDiagnoser()
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("CodeDiagnoser 加载失败 (降级): %s", e)
             self._code_diagnoser = None
         try:
             from utils.alpha.layers.strategy_diagnoser import StrategyDiagnoser
             self._strategy_diagnoser = StrategyDiagnoser()
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("StrategyDiagnoser 加载失败 (降级): %s", e)
             self._strategy_diagnoser = None
         try:
             from utils.alpha.layers.ops_diagnoser import OpsDiagnoser
             self._ops_diagnoser = OpsDiagnoser()
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("OpsDiagnoser 加载失败 (降级): %s", e)
             self._ops_diagnoser = None
         try:
             from utils.alpha.causal_chain import CausalChainBuilder
             self._chain_builder = CausalChainBuilder()
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("CausalChainBuilder 加载失败 (降级): %s", e)
             self._chain_builder = None
 
@@ -496,7 +501,8 @@ class UnifiedRootCauseAnalyzer:
                 else:
                     logger.warning("%s 诊断器返回非 RootCause 元素 (跳过)", layer)
             return valid
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("%s 层诊断失败 (降级为空): %s", layer, e)
             return []
 
@@ -508,7 +514,8 @@ class UnifiedRootCauseAnalyzer:
             result = self._chain_builder.build(causes)
             if isinstance(result, list):
                 return [c for c in result if isinstance(c, CausalChain)]
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("因果链构建失败 (降级为空): %s", e)
         return []
 
@@ -526,7 +533,8 @@ class UnifiedRootCauseAnalyzer:
                 logger.info("LLM 辅助根因分析完成 (增强 %d 条)", len(causes))
                 # 这里不重写 RootCause (frozen), 仅记录 LLM 输出到日志
                 # 实际增强留给 Stage 3 修复阶段使用
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("LLM 辅助根因分析失败 (降级跳过): %s", e)
         return causes
 
@@ -568,7 +576,8 @@ class UnifiedRootCauseAnalyzer:
                 return str(getattr(health_report, "generated_at", ""))
             if isinstance(health_report, dict):
                 return str(health_report.get("generated_at", ""))
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return ""
 
@@ -581,7 +590,8 @@ class UnifiedRootCauseAnalyzer:
             self.persistence_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.persistence_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(report.to_dict(), ensure_ascii=False) + "\n")
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("根因报告持久化失败 (不影响内存报告): %s", e)
 
     def _read_history(self, days: int) -> list[RootCauseReport]:
@@ -598,10 +608,12 @@ class UnifiedRootCauseAnalyzer:
                     continue
                 try:
                     reports.append(RootCauseReport.from_dict(json.loads(line)))
-                except Exception:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
             return reports
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("读取根因历史失败: %s", e)
             return []
 

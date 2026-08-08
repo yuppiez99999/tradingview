@@ -73,7 +73,8 @@ class GTJA191Factors:
         try:
             meta = self._adapter.get_meta(alpha_id)
             return meta.formula
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return ""
 
     def get_info(self, alpha_id: str) -> dict[str, Any]:
@@ -89,7 +90,8 @@ class GTJA191Factors:
                 "decay_horizon": meta.decay_horizon,
                 "notes": meta.notes,
             }
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return {"error": str(e)}
 
     # ------------------------- 因子计算 -------------------------

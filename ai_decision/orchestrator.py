@@ -71,7 +71,8 @@ def _run_five_agents(symbol: str, ctx) -> dict[str, Any]:
             return result.to_dict()
         if isinstance(result, dict):
             return result
-    except Exception as exc:
+    except (ImportError, AttributeError, TypeError, ValueError, RuntimeError, OSError) as exc:
+        # FinanceAgentOrchestrator 可能抛: 导入失败/构造错误/属性缺失/运行时错误
         logger.warning("五 Agent 协调器不可用, 使用规则兜底: %s", exc)
     # 规则兜底: 基于行情变化生成中性信号
     md = ctx.market_data
@@ -169,7 +170,7 @@ def run_decision(symbol: str,
                                    strength=debate.strength,
                                    confidence=debate.confidence,
                                    reasoning=debate.summary))
-        except Exception as exc:
+        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError, TimeoutError) as exc:
             # 辩论失败反馈到熔断器 (累计触发熔断)
             _mon.record_failure("judge")
             logger.warning(
@@ -252,7 +253,8 @@ def run_batch(symbols: list[str], mode: str | None = None,
                 kwargs.update({k: d.get(k) for k in
                                ("market_data", "fundamentals", "news", "macro")
                                if k in d})
-            except Exception as exc:  # pragma: no cover
+            except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError, ConnectionError, TimeoutError) as exc:  # pragma: no cover
+                # data_provider 可能抛: 网络错误/数据格式错误/字段缺失
                 logger.warning("批量数据获取失败 %s: %s", sym, exc)
         out.append(run_decision(sym, **kwargs))
     return out

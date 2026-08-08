@@ -257,7 +257,8 @@ class EvolutionOrchestrator:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(name))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Feature Flag 检查失败, 默认禁用: %s (%s)", name, e)
             return False
 
@@ -345,7 +346,9 @@ class EvolutionOrchestrator:
                 collected_at=self._now_iso(),
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.exception("collect_metrics 失败: %s", e)
             return MetricsSnapshot(
                 is_degraded=True,
@@ -405,7 +408,8 @@ class EvolutionOrchestrator:
                 from utils.alpha.strategy_evaluator import StrategyEvaluator
 
                 self._evaluator = StrategyEvaluator()
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.exception("StrategyEvaluator 加载失败: %s", e)
             self._status.status = STATUS_DEGRADED
             self._status.degraded_reason = f"evaluator_import_failed: {e}"
@@ -437,7 +441,9 @@ class EvolutionOrchestrator:
 
             return report
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.exception("evaluate_current 失败: %s", e)
             self._status.status = STATUS_DEGRADED
             self._status.degraded_reason = f"evaluate_failed: {e}"
@@ -449,6 +455,7 @@ class EvolutionOrchestrator:
         action: str = ACTION_EVALUATE_ONLY,
         reason: str = "",
         metrics: MetricsSnapshot | None = None,
+        extra_payload: dict[str, Any] | None = None,
     ) -> bool:
         """持久化决策记录到 decisions.jsonl.
 
@@ -456,6 +463,8 @@ class EvolutionOrchestrator:
             report: ScoreReport 对象 (None=无评估, 记录 noop)
             action: 决策动作 (默认 evaluate_only, 观察期内强制)
             metrics: 指标快照 (None=不记录)
+            extra_payload: 额外载荷 (可选, 合并到 evaluator_report 字段)
+                用于其他模块 (如 VolRegimeWeighter) 复用审计链
 
         Returns:
             是否成功写入
@@ -492,6 +501,12 @@ class EvolutionOrchestrator:
             if hasattr(report, "to_dict"):
                 record.evaluator_report = report.to_dict()
 
+        # 额外载荷合并 (HC: 其他模块复用审计链, 如 VolRegimeWeighter)
+        if extra_payload:
+            if not hasattr(record, "evaluator_report") or not record.evaluator_report:
+                record.evaluator_report = {}
+            record.evaluator_report.update(extra_payload)
+
         if metrics is not None:
             record.metrics_snapshot = metrics.to_dict()
 
@@ -512,7 +527,9 @@ class EvolutionOrchestrator:
             )
             return True
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.exception("log_decision 写入失败: %s", e)
             return False
 
@@ -561,6 +578,17 @@ class EvolutionOrchestrator:
             metrics=metrics,
         )
 
+        # ============================================================
+        # VolRegimeWeighter 集成 (Feature Flag 控制, 不阻塞主流程)
+        # ============================================================
+        vol_regime_result: dict[str, Any] | None = None
+        if self._is_vol_regime_enabled():
+            try:
+                vol_regime_result = self._run_vol_regime_weighter(metrics)
+            except Exception as e:  # noqa: BLE001  # 监控循环永不崩溃
+                logger.warning("VolRegimeWeighter 失败, 不阻塞主流程: %s", e)
+                vol_regime_result = {"status": "error", "reason": str(e)}
+
         return {
             "status": self._status.status,
             "observation_day": self._status.observation_day,
@@ -570,7 +598,97 @@ class EvolutionOrchestrator:
             "public_score": getattr(report, "public_score", 0.0) if report else 0.0,
             "private_score": getattr(report, "private_score", 0.0) if report else 0.0,
             "recommendation": getattr(report, "recommendation", "") if report else "",
+            "vol_regime": vol_regime_result,
         }
+
+    # ============================================================
+    # VolRegimeWeighter 集成 helper (新增, Phase 0 只读建议)
+    # ============================================================
+
+    def _is_vol_regime_enabled(self) -> bool:
+        """检查 USE_VOL_REGIME_WEIGHTER Flag."""
+        try:
+            from utils.infra.feature_flags import is_enabled
+            return bool(is_enabled("USE_VOL_REGIME_WEIGHTER"))
+        except Exception:  # noqa: BLE001  # fail-safe
+            return False
+
+    def _run_vol_regime_weighter(self, metrics: Any) -> dict[str, Any]:
+        """运行 VolRegimeWeighter 一次 (Phase 0 只读建议模式).
+
+        Args:
+            metrics: 当前 MetricsSnapshot (从中提取 daily_returns)
+
+        Returns:
+            VolRegimeWeighter.run_cycle 的结果字典
+        """
+        from utils.alpha.vol_regime_weighter import VolRegimeWeighter
+        from utils.alpha.drawdown_reader import DrawdownReader
+
+        weighter = VolRegimeWeighter()
+        portfolio_snapshot = self._read_portfolio_snapshot()
+        daily_returns = self._extract_daily_returns(metrics)
+        vix_value = self._fetch_vix()
+        # 新增: 从 shadow_state.json 读取当前回撤, 用于 sense_regime 的回撤 floor 修正
+        current_drawdown = DrawdownReader().get_current_drawdown()
+
+        return weighter.run_cycle(
+            portfolio_snapshot=portfolio_snapshot,
+            vix_value=vix_value,
+            daily_returns=daily_returns,
+            current_drawdown=current_drawdown,
+            orchestrator=self,
+        )
+
+    def _read_portfolio_snapshot(self) -> dict[str, Any]:
+        """只读 portfolio.yaml 返回 assets 列表 (不修改文件)."""
+        try:
+            import yaml
+            from pathlib import Path
+            portfolio_path = Path("configs/portfolio.yaml")
+            if not portfolio_path.exists():
+                logger.warning("portfolio.yaml 不存在: %s", portfolio_path)
+                return {"assets": []}
+            with portfolio_path.open("r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            logger.debug("portfolio.yaml 快照已读取 (只读)")
+            return data
+        except Exception as e:  # noqa: BLE001
+            logger.warning("读取 portfolio.yaml 失败: %s", e)
+            return {"assets": []}
+
+    def _extract_daily_returns(self, metrics: Any) -> list[float] | None:
+        """从 MetricsSnapshot 提取 daily_returns 列表."""
+        if metrics is None:
+            return None
+        # 尝试多种字段名
+        for attr in ("daily_returns", "returns_history", "returns"):
+            val = getattr(metrics, attr, None)
+            if val and isinstance(val, (list, tuple)) and len(val) > 0:
+                return list(val)
+        return None
+
+    def _fetch_vix(self) -> float | None:
+        """获取 VIX 替代值 (EOD 强制刷新, 不用缓存).
+
+        v8.6.14 重写:
+            - 删除 wind_get_quote("VIX") 错误调用 (Wind 无 "VIX" 代码, iVIX 已停用)
+            - 删除 ak.stock_zh_index_vix() 不可靠调用 (iVIX 数据为空或旧数据)
+            - 改用 VixDataSource 三级降级链:
+                1. shadow_state.json → realized_vol → VIX proxy
+                2. Wind MCP 510050 K 线 → 波动率 → VIX proxy
+                3. 缓存兜底
+
+        Returns:
+            VIX 数值 (如 25.3) 或 None (全失败时, VolRegimeWeighter 降级到 neutral)
+        """
+        try:
+            from utils.alpha.vix_data_source import VixDataSource
+            # EOD 强制刷新: use_cache=False 确保获取当日最新数据
+            return VixDataSource().fetch_vix(use_cache=False)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("VixDataSource 调用失败: %s", e)
+            return None
 
     # ============================================================
     # 观察期管理
@@ -606,7 +724,9 @@ class EvolutionOrchestrator:
             else:
                 self._status.status = STATUS_ENABLED
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("更新观察期状态失败: %s", e)
             self._status.in_observation = True
             self._status.status = STATUS_OBSERVATION
@@ -621,7 +741,8 @@ class EvolutionOrchestrator:
                         continue
                     record = json.loads(line)
                     return record.get("date")
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return None
         return None
 
@@ -660,6 +781,8 @@ class EvolutionOrchestrator:
 
             return records[-limit:][::-1]  # 倒序
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.exception("get_recent_decisions 失败: %s", e)
             return []

@@ -85,10 +85,10 @@
   },
   "data_config": {
     "data_source": "wind_mcp",
-    "secondary_data_source": "ifind_mcp",
+    "secondary_data_source": "tdx",
     "tertiary_data_source": "akshare",
     "api_key": null,
-    "_security_note": "iFinD JWT Token 必须通过环境变量 IFIND_TOKEN 配置,禁止在此文件中存储",
+    "_security_note": "Wind API Key 必须通过环境变量 WIND_API_KEY 配置,禁止在此文件中存储。iFinD 已于 2026-08-03 从核心降级链剔除",
     "data_update_frequency": 300,
     "cache_enabled": true,
     "cache_expiry_hours": 24,
@@ -140,6 +140,60 @@
     "ollama": {
       "base_url": "http://localhost:11434",
       "model": "qwen2.5:14b-instruct-q6_K"
+    }
+  },
+  "evolution": {
+    "_doc": "自我进化框架配置 — 参考 docs/自我进化框架/ARCHITECTURE_自我进化框架.md v2.0",
+    "enabled": true,
+    "levels": {
+      "L1_defense": {
+        "enabled": true,
+        "auto_fix": true,
+        "_doc": "防御层: P0自检 + Kill Switch + AutoFixEngine, 默认开启"
+      },
+      "L2_optimize": {
+        "enabled": true,
+        "shadow_mode": true,
+        "_doc": "优化层: DriftMonitor + AutoRetrain + A/B Test, 灰度模式"
+      },
+      "L3_evolve": {
+        "enabled": false,
+        "requires_approval": true,
+        "_doc": "进化层: AutoFactorFactory + FeedbackLoop, 沙箱模式, 需人工审批"
+      }
+    },
+    "guard": {
+      "daily_evolution_limit": 1,
+      "max_weight_change": 0.10,
+      "shadow_days_required": 5,
+      "_doc": "EvolutionGuard 五道防线参数"
+    },
+    "feedback_loop": {
+      "enabled": false,
+      "learning_rate": 0.1,
+      "max_daily_change": 0.10,
+      "alarm_threshold_7d": 0.30,
+      "_doc": "FeedbackLoop 反馈闭环参数, 默认关闭(P2阶段启用)"
+    },
+    "feature_flags": {
+      "_doc": "Feature Flag 运行时快照 (2026-08-02 观察期). 权威源: configs/feature_flags.yaml",
+      "_note": "观察期内 USE_STRATEGY_EVALUATOR + USE_EVOLUTION_ORCHESTRATOR 已灰度启用; 其余待阶段B渐进开放",
+      "USE_STRATEGY_EVALUATOR": true,
+      "USE_EVOLUTION_ORCHESTRATOR": true,
+      "USE_DRIFT_DETECTOR": false,
+      "USE_AUTO_RETRAIN": false,
+      "USE_MLOPS_PIPELINE": false,
+      "USE_FEEDBACK_LOOP": false,
+      "USE_FINENG_GARCH": false,
+      "USE_FINENG_KALMAN_BETA": false,
+      "USE_FINENG_EVT": false,
+      "USE_FINENG_PATH_SIM": false,
+      "_stage_b_plan": {
+        "B1": {"flag": "USE_DRIFT_DETECTOR", "after_observation": "2026-08-13", "watch_days": 3},
+        "B2": {"flag": "USE_FEEDBACK_LOOP", "after": "B1_OK", "watch_days": 3},
+        "B3": {"flag": "USE_AUTO_RETRAIN", "after": "B2_OK", "watch_days": 3},
+        "B4": {"flag": "USE_MLOPS_PIPELINE", "after": "B3_OK", "watch_days": 7}
+      }
     }
   }
 }

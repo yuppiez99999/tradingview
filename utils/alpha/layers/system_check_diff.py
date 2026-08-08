@@ -210,7 +210,8 @@ class SystemCheckDiff:
                 logger.warning("自检归档非 dict: %s", path)
                 return None
             return data
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("解析自检归档失败 %s: %s", path, e)
             return None
 
@@ -244,9 +245,11 @@ class SystemCheckDiff:
                         detail=str(r.get("detail", "")),
                         remediation=str(r.get("remediation", "")),
                     )
-                except Exception:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("提取检查项失败 (降级为空): %s", e)
         return items
 
@@ -372,7 +375,8 @@ class SystemCheckDiff:
             # 尝试找 N 天前的归档; 若不足则取最早一份
             old_path = archives[-1 - days_ago] if len(archives) > days_ago else archives[0]
             return self.diff_archives(old_path, new_path)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("diff_recent 失败 (降级为空): %s", e)
             return CheckDiff(summary=f"DIFF_FAILED: {e}")
 
@@ -485,7 +489,8 @@ class SystemCheckDiff:
                 confidence=confidence,
                 detected_at=now,
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("CheckItem 转 RootCause 失败 (跳过 %s): %s", item.code, e)
             return None
 

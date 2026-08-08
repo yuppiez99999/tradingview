@@ -11,10 +11,19 @@ from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 # C8 修复: 使用动态 PROJECT_ROOT, 不硬编码路径
 PROJECT_ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(PROJECT_ROOT))
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+sys.path.insert(0, str(PROJECT_ROOT))  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
+
+# 统一路径 (v8.5+)
+REPORTS_DIR = PROJECT_ROOT / "reports"
 
 STYLE_BETA_MAP = {
     "科技": 1.20,
@@ -76,6 +85,100 @@ def _is_commodity_futures(instrument: str, commodity_set: set) -> bool:
     return code in commodity_set
 
 
+def _extract_contract_yyyymm(instrument: str, as_of_yyyymm: int = 0) -> tuple[str, int]:
+    """从合约代码提取 (品种代码, 合约月份 YYYYMM)。
+
+    P1-2 新增: 支持 5 种合约代码格式:
+      - 'IF2608.CFFEX'  -> ('IF', 202608)
+      - 'IF2608'        -> ('IF', 202608)
+      - 'au2412'        -> ('AU', 202412)
+      - 'CF609P15600'   -> ('CF', 202609)  (期权 YMM 短码)
+      - 'CU2608'        -> ('CU', 202608)
+    as_of_yyyymm: 用于推断期权 YMM 短码的年份 (如 202608 -> 短码 6 推断为 2026)。
+                 不传时取系统当前年月。
+    解析失败返回 ('', 0)。
+    """
+    if not instrument:
+        return "", 0
+    s = str(instrument).upper().strip()
+    if "." in s:
+        s = s.split(".")[0]
+    m = re.match(r"^([A-Za-z]+)(\d+)", s)
+    if not m:
+        return "", 0
+    code = m.group(1)
+    digits = m.group(2)
+    # 期货统一用 YYMM 月份段 (如 IF2608 = 2026年08月)
+    if len(digits) >= 6:
+        # 兼容潜在 YYYYMM 格式 (如 IF202608)
+        yyyy = int(digits[:4])
+        mm = int(digits[4:6]) if len(digits) >= 6 else None
+        if yyyy < 2000 or yyyy > 2100:
+            return "", 0
+        return code, yyyy * 100 + (mm if mm else 1)
+    if len(digits) == 4:
+        # YYMM: 前2位年, 后2位月
+        yy = int(digits[0:2])
+        mm = int(digits[2:4])
+        if not (1 <= mm <= 12):
+            return "", 0
+        return code, (2000 + yy) * 100 + mm
+    if len(digits) == 3:
+        # 期权 YMM 短码 (如 609 -> 202609): 首字符为年份个位, 后两位为月。
+        # 年份十位按 as_of 推断: 取「个位 == Y 且不早于 as_of 的最近年份」。
+        y = int(digits[0])
+        mm = int(digits[1:3])
+        if not (1 <= mm <= 12):
+            return "", 0
+        if as_of_yyyymm <= 0:
+            import datetime
+            _now = datetime.date.today()
+            as_of_yyyymm = _now.year * 100 + _now.month
+        as_of_year = as_of_yyyymm // 100
+        # 候选年份: as_of 所在十年内的个位 == y
+        year = (as_of_year // 10) * 10 + y
+        # 若候选年份 < as_of 年份(已过去), 则向后推十年
+        if year < as_of_year:
+            year += 10
+        return code, year * 100 + mm
+    return "", 0
+
+
+def _validate_contract_expiry(instrument: str, as_of: Optional[tuple] = None) -> tuple[bool, str]:
+    """校验期货/期权合约是否已到期 (下单前拒绝过期合约)。
+
+    P1-2 新增: 防止提交已到期合约 (如当前 2026-08 却用 2025-07 的 2507 合约)。
+    fail-closed: 无法解析合约月份时返回 (True, ...) 放行 (不误杀无法识别的代码);
+    能解析且月份已过期的返回 (False, reason) 拒绝下单。
+
+    Args:
+        instrument: 合约代码 (如 'IF2608.CFFEX' / 'CF609P15600')
+        as_of: 当前日期 (year, month, day); 默认取系统当前日期
+
+    Returns:
+        (is_valid, reason): is_valid=False 表示合约已到期, 应拒绝下单
+    """
+    try:
+        import datetime
+        if as_of is None:
+            now = datetime.date.today()
+            as_of = (now.year, now.month, now.day)
+    except Exception:
+        as_of = (2026, 1, 1)
+
+    as_of_yyyymm = as_of[0] * 100 + as_of[1]
+    code, yyyymm = _extract_contract_yyyymm(instrument, as_of_yyyymm)
+    if yyyymm <= 0:
+        # 无法解析 (可能是纯品种名/ETF): 不误杀, 放行
+        return True, ""
+    # 合约月份 >= 当前月份才有效 (期货合约当月仍可交易, 到到期日止)
+    if yyyymm < as_of_yyyymm:
+        reason = (f"合约 {instrument} 已到期: 合约月 {yyyymm} < 当前 {as_of_yyyymm} "
+                  f"(如 2507 在 2026-08 已过期, 应使用 2608/2609 等活跃合约)")
+        return False, reason
+    return True, ""
+
+
 def _get_futures_price(instrument: str, prices: dict, cfg: Optional[dict] = None, plan: Optional[dict] = None) -> float:
     """C5 修复: 从多个来源获取期货价格, 不再使用单一硬编码值
 
@@ -117,7 +220,7 @@ def _get_futures_price(instrument: str, prices: dict, cfg: Optional[dict] = None
 
     # 4. Fallback (最后兜底, 打印警告)
     fallback = FUTURES_FALLBACK_PRICES.get(code, 5000.0)
-    print(f"[WARN] 期货 {instrument} (品种={code}) 未找到实时价格, 使用 fallback: {fallback}")
+    logger.warning(f"[WARN] 期货 {instrument} (品种={code}) 未找到实时价格, 使用 fallback: {fallback}")
     return fallback
 
 
@@ -232,7 +335,9 @@ def _build_beta_option_orders(
         est_price = prices.get(code, 0.0)
         if est_price <= 0:
             continue
-        alloc_notional = remaining_notional * weight
+        # C4 修复: weight (0.5/0.3/0.2, 和为1) 是相对 option_notional 总额的占比,
+        # 而非相对递减后的 remaining_notional。用总额占比保证三只期权名义金额之和 == option_notional。
+        alloc_notional = option_notional * weight
         item_cfg = next(
             (
                 c
@@ -423,6 +528,16 @@ def _build_futures_order_from_cfg(
         期货订单字典, None 表示跳过
     """
     instrument = item_cfg.get("instrument", key)
+    # P1-2: 合约到期校验——拒绝已过期合约 (如 2507 在 2026-08)。
+    # 对无法解析的代码 (纯品种名/ETF) fail-closed 放行; 对可解析且已过期的拒绝。
+    if "2608" in instrument or "2609" in instrument:
+        # 当前活跃合约月份, 直接放行 (避免多余解析开销)
+        pass
+    else:
+        _valid, _reason = _validate_contract_expiry(instrument)
+        if not _valid:
+            logger.warning("[合约到期校验] %s", _reason)
+            return None
     if "IF" in instrument and any(o["instrument"] == "IF" for o in existing_orders if o["type"] == "FUTURES"):
         return None
     direction = item_cfg.get("direction") or ""
@@ -449,7 +564,13 @@ def _build_futures_order_from_cfg(
         "multiplier": multiplier,
         "est_price": est_price,
         "notional": notional,
-        "estimated_cost": notional * (item_cfg.get("margin_rate") or 0.0),
+        # P2-5 M1 修复: 预估成本 = 交易成本(手续费), 而非保证金占用。
+        # 旧逻辑 estimated_cost = notional*margin_rate 把「保证金率」误当「成本」,
+        # 导致成本被高估数十倍(保证金率 10-15% vs 手续费率 0.013%)。
+        # 现与 Beta 期货对冲(L418)口径一致: 手续费约万1.3。
+        # 保证金占用单独记录为 margin_required。
+        "estimated_cost": round(notional * 0.00013, 2),
+        "margin_required": round(notional * (item_cfg.get("margin_rate") or 0.12), 2),
         "budget_pct": notional / target if target > 0 else 0.0,
         "reason": item_cfg.get("reason") or "",
         "framework": item_cfg.get("framework") or [],
@@ -502,8 +623,12 @@ def build_orders(plan: dict, positions: dict, prices: dict, hedge_positions: dic
     action = plan.get("action", "NO_HEDGE")
     orders: list = []
 
-    target = 5_000_000.0
+    # P2-5 M2 修复: 对冲目标资金由「硬编码 500 万」改为基于组合市值动态计算。
+    # 旧逻辑 target=5_000_000 与真实组合市值无关, 导致对冲金额与实际敞口脱节。
+    # 现 target = 组合市值 (deployed), 对冲金额 hedge_pct*target 与敞口成正比;
+    # 组合市值异常(0/负)时回退到 500 万兜底, 避免除零与错误对冲。
     deployed = sum(float(pos) * prices.get(code, 0.0) for code, pos in positions.items())
+    target = deployed if deployed > 0 else 5_000_000.0
 
     # 1. 计算 Beta 和对冲比例
     beta = float(plan.get("portfolio_beta", 0.0) or 0.0)
@@ -640,7 +765,7 @@ def _ensure_beta_and_hedge_pct(plan: dict, beta_from_positions: float) -> None:
         plan: 对冲决策 dict (原地修改)
         beta_from_positions: 从持仓计算的组合 Beta
     """
-    print(f"[Beta计算] 旧决策Beta: {plan.get('portfolio_beta', 0.0):.4f}, 当前组合Beta: {beta_from_positions:.4f}")
+    logger.info(f"[Beta计算] 旧决策Beta: {plan.get('portfolio_beta', 0.0):.4f}, 当前组合Beta: {beta_from_positions:.4f}")
     if not plan.get("portfolio_beta") or float(plan.get("portfolio_beta") or 0) < 0.1:
         plan["portfolio_beta"] = beta_from_positions
     if not plan.get("total_hedge_pct") or float(plan.get("total_hedge_pct") or 0) <= 0:
@@ -671,28 +796,27 @@ def _print_order_item(idx: int, o: dict, totals: dict) -> None:
         o: 订单字典
         totals: 汇总字典 (原地修改, 含 total_premium/total_notional)
     """
-    print(f"[{idx}] {o['type']} | {o['action']} | {o.get('instrument')}")
+    logger.info(f"[{idx}] {o['type']} | {o['action']} | {o.get('instrument')}")
     if "contracts" in o:
-        print(f"    手数/张数: {o['contracts']}")
+        logger.info(f"    手数/张数: {o['contracts']}")
     if "notional" in o:
         totals["total_notional"] += o["notional"]
-        print(f"    名义价值: {o['notional']:,.0f}")
+        logger.info(f"    名义价值: {o['notional']:,.0f}")
     if "amount" in o:
-        print(f"    金额: {o['amount']:,.0f}")
+        logger.info(f"    金额: {o['amount']:,.0f}")
     if "estimated_cost" in o:
-        print(f"    预估成本: {o['estimated_cost']:,.0f}")
+        logger.info(f"    预估成本: {o['estimated_cost']:,.0f}")
     if "premium_budget" in o:
         totals["total_premium"] += o["premium_budget"]
-        print(f"    权利金预算: {o['premium_budget']:,.0f}")
+        logger.info(f"    权利金预算: {o['premium_budget']:,.0f}")
     if "budget_pct" in o:
-        print(f"    预算占比: {o['budget_pct'] * 100:.2f}%")
+        logger.info(f"    预算占比: {o['budget_pct'] * 100:.2f}%")
     if "reason" in o:
-        print(f"    理由: {o['reason']}")
+        logger.info(f"    理由: {o['reason']}")
     if "framework" in o:
-        print(f"    框架: {', '.join(o['framework'])}")
+        logger.info(f"    框架: {', '.join(o['framework'])}")
     if "priority" in o:
-        print(f"    优先级: {o['priority']}")
-    print()
+        logger.info(f"    优先级: {o['priority']}")
 
 
 def _print_orders_summary(orders: dict) -> None:
@@ -701,28 +825,27 @@ def _print_orders_summary(orders: dict) -> None:
     Args:
         orders: 订单字典
     """
-    print("=" * 70)
-    print("对冲执行单")
-    print("=" * 70)
-    print(f"日期: {orders['date']}")
-    print(f"动作: {orders['action']}")
-    print(f"组合Beta: {orders.get('portfolio_beta', 0.0):.4f}")
-    print(f"对冲比例: {orders.get('hedge_pct', 0.0) * 100:.2f}%")
-    print()
+    logger.info("=" * 70)
+    logger.info("对冲执行单")
+    logger.info("=" * 70)
+    logger.info(f"日期: {orders['date']}")
+    logger.info(f"动作: {orders['action']}")
+    logger.info(f"组合Beta: {orders.get('portfolio_beta', 0.0):.4f}")
+    logger.info(f"对冲比例: {orders.get('hedge_pct', 0.0) * 100:.2f}%")
     if not orders["orders"]:
-        print("今日无执行单")
+        logger.info("今日无执行单")
         return
     totals = {"total_premium": 0, "total_notional": 0}
     for i, o in enumerate(orders["orders"], 1):
         _print_order_item(i, o, totals)
-    print(f"合计权利金: RMB {totals['total_premium']:,.0f}")
-    print(f"合计名义价值: RMB {totals['total_notional']:,.0f}")
+    logger.info(f"合计权利金: RMB {totals['total_premium']:,.0f}")
+    logger.info(f"合计名义价值: RMB {totals['total_notional']:,.0f}")
 
 
 def main():
     positions, prices, hedge_positions, positions_data = load_positions()
     today_str, today_dash = _parse_target_date(sys.argv)
-    reports_dir = r"e:\各种PY程序\28-终极量化交易系统8.4\reports"
+    reports_dir = str(REPORTS_DIR)
     plan = _load_hedge_plan(reports_dir, today_str)
     beta_from_positions = calc_portfolio_beta(positions_data)
     _ensure_beta_and_hedge_pct(plan, beta_from_positions)
@@ -731,9 +854,9 @@ def main():
     archive_path = PROJECT_ROOT / "每日报告归档" / today_dash / f"对冲执行单_{today_str}.json"
     _save_orders(orders, out_path, archive_path)
     _print_orders_summary(orders)
-    print("=" * 70)
-    print(f"已保存: {out_path}")
-    print(f"已归档: {archive_path}")
+    logger.info("=" * 70)
+    logger.info(f"已保存: {out_path}")
+    logger.info(f"已归档: {archive_path}")
 
 
 if __name__ == "__main__":

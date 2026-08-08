@@ -185,7 +185,7 @@ class AutoRetrainScheduler:
             from utils.config_manager import get_config
 
             mlops_cfg = get_config("mlops", default={})
-            return mlops_cfg.get("auto_retrain", {})  # type: ignore
+            return mlops_cfg.get("auto_retrain", {})  # type: ignore[index]
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("加载 mlops 配置失败, 使用默认值: %s", e)
             return {"enabled": False}

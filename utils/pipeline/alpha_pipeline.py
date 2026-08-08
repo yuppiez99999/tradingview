@@ -277,18 +277,19 @@ class AlphaPipeline:
             from utils.qlib_data_bridge import from_qlib_symbol
 
             lib = AlphaFactorLibrary()
+            factor_result = lib.compute_all(
+                price_data=self._build_symbol_price_data(train_data.get("symbols", [])),
+            )
+            factor_scores = self._factor_result_to_scores(factor_result)
+
             for qlib_sym in train_data.get("symbols", []):
                 system_sym = from_qlib_symbol(qlib_sym)
-                try:
-                    signal = lib.compute_signal(system_sym)
-                    if signal is not None:
-                        signals[system_sym] = float(np.clip(signal, -1, 1))
-                        confidence[system_sym] = 0.6  # 因子信号默认置信度
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
-                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-                    continue
-        except ImportError:
-            logger.warning("AlphaFactorLibrary 不可用")
+                score = factor_scores.get(system_sym)
+                if score is not None:
+                    signals[system_sym] = float(np.clip(score, -1, 1))
+                    confidence[system_sym] = 0.6  # 因子信号默认置信度
+        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            logger.warning("本地因子信号生成失败", exc_info=True)
 
         return signals, confidence
 
@@ -308,18 +309,19 @@ class AlphaPipeline:
 
         try:
             from utils.alpha_factor.library import AlphaFactorLibrary
+
             lib = AlphaFactorLibrary()
+            factor_result = lib.compute_all(
+                price_data=self._build_symbol_price_data(symbols),
+            )
+            factor_scores = self._factor_result_to_scores(factor_result)
 
             for sym in symbols:
-                try:
-                    signal = lib.compute_signal(sym)
-                    if signal is not None:
-                        signals[sym] = float(np.clip(signal, -1, 1))
-                        confidence[sym] = 0.5
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
-                    # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-                    continue
-        except ImportError:
+                score = factor_scores.get(sym)
+                if score is not None:
+                    signals[sym] = float(np.clip(score, -1, 1))
+                    confidence[sym] = 0.5
+        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
             # 终极回退: 仅输出中性信号
             for sym in symbols:
                 signals[sym] = 0.0
@@ -333,6 +335,57 @@ class AlphaPipeline:
             training_date=datetime.now().strftime("%Y-%m-%d"),
             n_stocks=len(signals),
         )
+
+    def _factor_result_to_scores(self, factor_result: Any) -> dict[str, float]:
+        """将 FactorLibraryResult 聚合为 {symbol: score}"""
+        scores: dict[str, float] = {}
+        factors = getattr(factor_result, "factors", None)
+        if not factors:
+            return scores
+
+        # 先对每个因子做 Z-score 标准化，再取等权平均
+        standardized_factors: list[dict[str, float]] = []
+        for fval in factors.values():
+            vals = getattr(fval, "values", None)
+            if not vals:
+                continue
+            arr = np.array(list(vals.values()), dtype=float)
+            if arr.std() > 1e-12:
+                z = (arr - arr.mean()) / arr.std()
+                standardized_factors.append(dict(zip(vals.keys(), z.tolist())))
+
+        if not standardized_factors:
+            return scores
+
+        n = len(standardized_factors)
+        for fvals in standardized_factors:
+            for sym, val in fvals.items():
+                scores.setdefault(sym, 0.0)
+                scores[sym] += val
+        for sym in scores:
+            scores[sym] /= n
+        return scores
+
+    def _build_symbol_price_data(self, symbols: list[str]) -> dict[str, dict[str, list[float]]]:
+        """将标的列表转换为因子库 price_data 格式"""
+        if not symbols:
+            return {}
+
+        clean_symbols: list[str] = []
+        for sym in symbols:
+            code = str(sym).strip()
+            if "." in code:
+                code = code.split(".", 1)[0]
+            if len(code) > 6:
+                code = code[-6:]
+            clean_symbols.append(code)
+
+        try:
+            from utils.alpha_factor.gate1_validation import fetch_prices
+            return fetch_prices(clean_symbols, days=250, use_cache=True)
+        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            logger.warning("获取价格数据失败", exc_info=True)
+            return {}
 
     # ============================================================
     # 辅助方法
@@ -372,9 +425,10 @@ class AlphaPipeline:
     def _get_training_symbols(self) -> list[str]:
         """获取训练用的标的列表"""
         try:
-            from utils.positions_loader import load_positions
-            positions = load_positions()
-            symbols = [p.get("symbol", "") for p in positions if p.get("symbol")]
+            from utils.positions_loader import get_positions_list
+            positions = get_positions_list()
+            symbols = [p.get("symbol", "") or p.get("code", "") for p in positions if isinstance(p, dict)]
+            symbols = [s for s in symbols if s]
             if symbols:
                 return symbols
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):

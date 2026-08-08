@@ -13,12 +13,15 @@ WonderTrader风格风控模块
 import math
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class RiskControl:
     """多层次风控管理器"""
 
-    def __init__(self, config: Optional[Dict] = None):  # type: ignore
+    def __init__(self, config: Optional[Dict] = None):
         self.config = config or {
             "max_daily_loss_pct": 0.03,
             "max_portfolio_drawdown_pct": 0.05,
@@ -114,7 +117,7 @@ class RiskControl:
     def record_trade(self, amount: float, volume: float, pnl: float = 0.0):
         """记录交易"""
         self.daily_trades += 1
-        self.daily_volume += volume  # type: ignore
+        self.daily_volume += volume  # type: ignore[misc]
         self.daily_pnl += pnl
         if pnl < 0:
             self.daily_loss += abs(pnl)
@@ -186,7 +189,7 @@ class StopLossManager:
     def __init__(self, stop_loss_pct: float = 0.05, take_profit_pct: float = 0.10):
         self.stop_loss_pct = stop_loss_pct
         self.take_profit_pct = take_profit_pct
-        self.stop_loss_orders = {}  # type: ignore
+        self.stop_loss_orders: Dict = {}
 
     def set_stop_loss(self, code: str, avg_cost: float, qty: int):
         """设置止损单"""
@@ -279,19 +282,71 @@ class PortfolioRiskAnalyzer:
         normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
         total_value = sum(pos["qty"] * pos["avg_cost"] for pos in normalized.values())
         z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
-        return total_value * volatility * z_score  # type: ignore
-
+        return total_value * volatility * z_score  # type: ignore[misc]
     @staticmethod
-    def calculate_cvar(positions: Dict, volatility: float = 0.02, confidence_level: float = 0.95) -> float:
-        """计算条件在险价值(CVaR)"""
+    def calculate_cvar(
+        positions: Dict,
+        volatility: float = 0.02,
+        confidence_level: float = 0.95,
+        method: str = "analytic",
+        n_paths: int = 50000,
+        horizon_days: int = 1,
+        seed: int = 42,
+    ) -> float:
+        """计算条件在险价值(CVaR)
+
+        Args:
+            method: "analytic" 解析正态近似 (默认, 轻量); "monte_carlo" 蒙特卡洛模拟
+                    组合日收益路径 (支持肥尾, 工业级 G11 增强).
+            n_paths: 蒙特卡洛路径数 (仅 method="monte_carlo").
+            horizon_days: 持有期(交易日), 组合净值路径模拟长度.
+            seed: 随机种子, 保证可复现.
+        """
         normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
         total_value = sum(pos["qty"] * pos["avg_cost"] for pos in normalized.values())
+        if method == "monte_carlo":
+            return PortfolioRiskAnalyzer._cvar_monte_carlo(
+                total_value, volatility, confidence_level, n_paths, horizon_days, seed
+            )
+        # 默认解析正态 CVaR (对正态假设精确)
         z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
         cvar_factor = volatility * (
             z_score * math.exp(-(z_score**2) / 2) / (math.sqrt(2 * math.pi) * (1 - confidence_level))
         )
-        return total_value * cvar_factor  # type: ignore
+        return total_value * cvar_factor  # type: ignore[misc]
 
+    @staticmethod
+    def _cvar_monte_carlo(
+        total_value: float,
+        volatility: float,
+        confidence_level: float,
+        n_paths: int,
+        horizon_days: int,
+        seed: int,
+    ) -> float:
+        """蒙特卡洛模拟组合收益路径, 取左尾条件均值 (G11 增强)."""
+        try:
+            import numpy as np
+        except ImportError:
+            # numpy 不可用时回退解析 (不阻断主流程)
+            z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
+            cvar_factor = volatility * (
+                z_score * math.exp(-(z_score**2) / 2) / (math.sqrt(2 * math.pi) * (1 - confidence_level))
+            )
+            return total_value * cvar_factor
+        rng = np.random.default_rng(seed)
+        # 日波动率缩放至持有期
+        period_vol = volatility * math.sqrt(horizon_days)
+        # 模拟组合单期收益 (正态); 工业级可扩展为 Student-t 肥尾
+        returns = rng.normal(0.0, period_vol, size=n_paths)
+        # 左尾分位数阈值
+        alpha = 1.0 - confidence_level
+        threshold = np.quantile(returns, alpha)
+        tail = returns[returns <= threshold]
+        if tail.size == 0:
+            return total_value * abs(threshold)
+        cvar_return = float(-tail.mean())  # 条件在险收益(正值)
+        return total_value * cvar_return
     @staticmethod
     def calculate_position_concentration(positions: Dict) -> Dict:
         """计算持仓集中度"""
@@ -333,8 +388,7 @@ class PortfolioRiskAnalyzer:
 
         for sector in sectors:
             if total_value > 0:
-                sectors[sector]["percentage"] = sectors[sector]["value"] / total_value  # type: ignore
-
+                sectors[sector]["percentage"] = sectors[sector]["value"] / total_value  # type: ignore[index]
         return dict(sorted(sectors.items(), key=lambda x: -x[1]["value"]))
 
     def analyze_portfolio(self, positions: Dict, total_built: float, target: float) -> Dict:
@@ -392,7 +446,7 @@ class RiskReportGenerator:
         stop_loss_manager: StopLossManager,
         positions: Dict,
         sector_map: Optional[Dict] = None,
-    ) -> str:  # type: ignore
+    ) -> str:
         """生成风险报告"""
         risk_status = risk_control.get_risk_status()
         analyzer = PortfolioRiskAnalyzer()
@@ -483,7 +537,7 @@ class RiskReportGenerator:
         return "\n".join(lines)
 
 
-def create_risk_control(config: Optional[Dict] = None) -> RiskControl:  # type: ignore
+def create_risk_control(config: Optional[Dict] = None) -> RiskControl:
     """创建风控管理器"""
     return RiskControl(config)
 
@@ -507,7 +561,6 @@ if __name__ == "__main__":
     }
 
     for code, pos in positions.items():
-        stop_loss_manager.set_stop_loss(code, pos["avg_cost"], pos["qty"])  # type: ignore
-
+        stop_loss_manager.set_stop_loss(code, pos["avg_cost"], pos["qty"])  # type: ignore[index]
     report = RiskReportGenerator.generate_risk_report(risk_control, stop_loss_manager, positions)
-    print(report)
+    logger.info(report)

@@ -156,7 +156,7 @@ class CashManager:
                     self.yield_target = float(cash_cfg.get("yield_target", self.yield_target))
                     if "instruments" in cash_cfg:
                         self.instruments = cash_cfg["instruments"]
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"v10.0 现金配置加载失败, 使用默认值: {e}")
 
         logger.info(f"[CashManager] 初始化: 总资金 ¥{self.total_cash:,.0f}, 目标年化 {self.yield_target:.2%}")
@@ -443,7 +443,7 @@ class CashManager:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report_data, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"[CashManager] 报告已保存: {report_path}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"[CashManager] 报告保存失败: {e}")
 
     def summary(self, result: CashAllocation) -> str:

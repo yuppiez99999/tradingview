@@ -222,8 +222,7 @@ class FactorModel:
         sharpe_score = max(-1, min(1, (sharpe - 0) / 1.5))
 
         score = vol_score * 0.4 + dd_score * 0.3 + sharpe_score * 0.3
-        return round(score, 4)  # type: ignore
-
+        return round(score, 4)  # type: ignore[misc]
     # ============================================================
     # 因子6: 技术Alpha因子（GTJA191 Alpha144）
     # ============================================================
@@ -257,7 +256,7 @@ class FactorModel:
             # 经验阈值做截断，避免极端值主导
             score = max(-1.0, min(1.0, 1.0 - float(value) * 1e8))
             return round(float(score), 4)
-        except Exception as exc:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"technical_alpha_factor 计算失败: {exc}")
             return 0.0
 
@@ -351,7 +350,7 @@ class FactorModel:
         avg = np.mean(composites)
 
         # 信号分布
-        dist = {}  # type: ignore
+        dist = {}  # type: ignore[misc]
         for r in results.values():
             dist[r.signal] = dist.get(r.signal, 0) + 1
 
@@ -362,7 +361,7 @@ class FactorModel:
 
         return {
             "avg_composite": round(avg, 4),
-            "signal": self._to_signal(avg),  # type: ignore
+            "signal": self._to_signal(avg),  # type: ignore[misc]
             "distribution": dist,
             "top_3": top_3,
             "bottom_3": bottom_3,

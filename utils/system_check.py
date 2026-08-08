@@ -151,7 +151,7 @@ class SystemChecker:
         checker = SystemChecker()
         report = checker.run_all()
         if not report.all_passed:
-            print(checker.format_report(report))
+            logger.info(checker.format_report(report))
             sys.exit(1)
     """
 
@@ -259,8 +259,8 @@ class SystemChecker:
     def check_critical_files(self) -> None:
         """检查项目必须的关键文件与目录"""
         import time
-        print("\n[C1] 关键文件存在性检查")
-        print("-" * 60)
+        logger.info("\n[C1] 关键文件存在性检查")
+        logger.info("-" * 60)
 
         critical_files = self._get_critical_files()
         for idx, (rel_path, desc) in enumerate(critical_files, 1):
@@ -307,8 +307,8 @@ class SystemChecker:
     # --------------------------------------------------------------------
     def check_env_variables(self) -> None:
         """检查关键环境变量是否已设置"""
-        print("\n[C2] 环境变量与凭证检查")
-        print("-" * 60)
+        logger.info("\n[C2] 环境变量与凭证检查")
+        logger.info("-" * 60)
 
         critical_env, optional_env = self._get_critical_env_vars()
         # 必需变量
@@ -345,8 +345,8 @@ class SystemChecker:
     # --------------------------------------------------------------------
     def check_datasource_connectivity(self) -> None:
         """检查 Wind MCP / iFinD / TDX / AKShare 数据源连通性"""
-        print("\n[C3] 数据源连通性检查")
-        print("-" * 60)
+        logger.info("\n[C3] 数据源连通性检查")
+        logger.info("-" * 60)
 
         if self.skip_datasource:
             self._skip("C3.0", "数据源连通性 (跳过)", CheckLevel.WARN,
@@ -440,7 +440,7 @@ class SystemChecker:
         跳过 Windows 专属数据源 (Wind MCP / iFinD MCP / TDX / QMT),
         这些数据源由 Windows 云实盘服务器负责, Mac 仅做研究。
         """
-        print("  [研究模式] 仅检查跨平台免费数据源 (AKShare/yfinance)")
+        logger.info("  [研究模式] 仅检查跨平台免费数据源 (AKShare/yfinance)")
 
         # C3.1 AKShare (研究模式主数据源)
         try:
@@ -478,8 +478,8 @@ class SystemChecker:
     # --------------------------------------------------------------------
     def check_config_schema(self) -> None:
         """检查关键配置文件的字段完整性"""
-        print("\n[C4] 配置文件 Schema 检查")
-        print("-" * 60)
+        logger.info("\n[C4] 配置文件 Schema 检查")
+        logger.info("-" * 60)
 
         # C4.1 positions.json (适配 28-终极量化交易系统8.4 实际格式:
         #     {meta: {...}, positions: {symbol: {code,name,shares,...}}, hedge_positions: {...}})
@@ -540,8 +540,8 @@ class SystemChecker:
     # --------------------------------------------------------------------
     def check_python_dependencies(self) -> None:
         """检查关键 Python 依赖与模块可导入"""
-        print("\n[C5] Python 依赖与关键模块导入检查")
-        print("-" * 60)
+        logger.info("\n[C5] Python 依赖与关键模块导入检查")
+        logger.info("-" * 60)
 
         critical_modules = [
             ("pandas", "数据分析"),
@@ -586,8 +586,8 @@ class SystemChecker:
     # --------------------------------------------------------------------
     def check_disk_and_permissions(self) -> None:
         """检查关键目录的写权限与磁盘空间"""
-        print("\n[C6] 目录权限与磁盘空间检查")
-        print("-" * 60)
+        logger.info("\n[C6] 目录权限与磁盘空间检查")
+        logger.info("-" * 60)
 
         writable_dirs = [
             ("每日报告归档", "报告归档目录"),
@@ -644,8 +644,8 @@ class SystemChecker:
     # --------------------------------------------------------------------
     def check_subsystem_smoke(self) -> None:
         """关键业务子模块 smoke 测试 (轻量级,不修改数据)"""
-        print("\n[C7] 关键子模块 Smoke 测试")
-        print("-" * 60)
+        logger.info("\n[C7] 关键子模块 Smoke 测试")
+        logger.info("-" * 60)
 
         sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -703,8 +703,8 @@ class SystemChecker:
     # --------------------------------------------------------------------
     def check_historical_data(self) -> None:
         """检查关键历史数据文件完整性"""
-        print("\n[C8] 历史数据完整性检查")
-        print("-" * 60)
+        logger.info("\n[C8] 历史数据完整性检查")
+        logger.info("-" * 60)
 
         # C8.1 daily_returns.jsonl 末尾 N 行可解析
         returns_path = PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
@@ -800,8 +800,8 @@ class SystemChecker:
         import time
         from datetime import datetime
 
-        print("\n[C9] 兜底价格新鲜度检查")
-        print("-" * 60)
+        logger.info("\n[C9] 兜底价格新鲜度检查")
+        logger.info("-" * 60)
 
         t0 = time.time()
         fp_path = PROJECT_ROOT / self.FUTURES_PRICES_REL_PATH
@@ -926,10 +926,10 @@ class SystemChecker:
         from datetime import datetime
         check_time = datetime.now().isoformat()
 
-        print("=" * 70)
-        print("P0 启动自检系统 (System Check) v8.6.14")
-        print(f"项目根目录: {PROJECT_ROOT}")
-        print(f"检查时间: {check_time}")
+        logger.info("=" * 70)
+        logger.info("P0 启动自检系统 (System Check) v8.6.14")
+        logger.info(f"项目根目录: {PROJECT_ROOT}")
+        logger.info(f"检查时间: {check_time}")
         mode_parts = []
         if self.research_mode:
             mode_parts.append("研究模式 (Mac/跨平台)")
@@ -938,8 +938,8 @@ class SystemChecker:
         mode_parts.append("strict (严格)" if self.strict else "normal (常规)")
         if self.skip_datasource:
             mode_parts.append("skip_datasource")
-        print(f"模式: {', '.join(mode_parts)}")
-        print("=" * 70)
+        logger.info(f"模式: {', '.join(mode_parts)}")
+        logger.info("=" * 70)
 
         self._results = []
 
@@ -1117,9 +1117,9 @@ def run_system_check(strict: bool = False,
     checker = SystemChecker(strict=strict, skip_datasource=skip_datasource)
     report = checker.run_all()
     if output_json:
-        print(SystemChecker.report_to_json(report))
+        logger.info(SystemChecker.report_to_json(report))
     else:
-        print(SystemChecker.format_report(report))
+        logger.info(SystemChecker.format_report(report))
     return report
 
 

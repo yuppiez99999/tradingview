@@ -169,8 +169,8 @@ class InstitutionalPortfolioOptimizer:
             weights[i] = value
             total_value += value
         if total_value > 0:
-            weights = weights / total_value  # type: ignore
-        return weights
+            weights = weights / total_value  # type: ignore[misc]
+            return weights
 
     # ------------------------------------------------------------
     # 冲击成本

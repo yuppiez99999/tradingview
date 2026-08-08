@@ -205,7 +205,7 @@ class StrategyEvaluator:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(name))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning("Feature Flag 检查失败, 默认禁用: %s", e)
             return False
 
@@ -512,7 +512,7 @@ class StrategyEvaluator:
             6. 交叉验证时间隔离
         """
         try:
-            from pit_checker import PITChecker  # type: ignore
+            from pit_checker import PITChecker  # type: ignore[misc]
 
             checker = PITChecker()
             violations_count = 0
@@ -564,7 +564,7 @@ class StrategyEvaluator:
                 if timestamps[i] < timestamps[i - 1]:
                     violations += 1
             return violations
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning("PIT 检查异常: %s", e)
             return 0
 
@@ -689,7 +689,7 @@ class StrategyEvaluator:
             return -1.0
 
         try:
-            from walk_forward import purged_walk_forward_split  # type: ignore
+            from walk_forward import purged_walk_forward_split  # type: ignore[misc]
 
             # 参数: 5 折, purge=5, embargo=5
             train_size = max(100, n // 3)
@@ -727,7 +727,7 @@ class StrategyEvaluator:
         except ImportError:
             logger.debug("walk_forward 模块不可用, 降级为简化版")
             return self._compute_wf_sharpe_decay_simple(daily_returns)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning("Purged Walk-Forward 计算异常: %s", e)
             return self._compute_wf_sharpe_decay_simple(daily_returns)
 
@@ -759,7 +759,7 @@ class StrategyEvaluator:
             DSR 结果字典, 失败时返回 None
         """
         try:
-            from deflated_sharpe import deflated_sharpe_ratio  # type: ignore
+            from deflated_sharpe import deflated_sharpe_ratio  # type: ignore[misc]
 
             result = deflated_sharpe_ratio(
                 daily_returns=list(daily_returns),
@@ -787,7 +787,7 @@ class StrategyEvaluator:
         except ImportError:
             logger.debug("deflated_sharpe 模块不可用, 跳过 DSR 计算")
             return None
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning("DSR 计算异常: %s", e)
             return None
 
@@ -849,7 +849,7 @@ class StrategyEvaluator:
                     record = json.loads(line)
                     if "daily_return" in record:
                         daily_returns.append(float(record["daily_return"]))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.exception("读取 daily_returns.jsonl 失败: %s", e)
             return self._build_degraded_report([], reason=f"read_error: {e}")
 

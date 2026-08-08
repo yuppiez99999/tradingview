@@ -30,7 +30,7 @@ VaR 回测模块 (VaR Backtester)
 
     bt = VaRBacktester()
     result = bt.backtest(var_estimates, actual_returns, confidence=0.99)
-    print(result.summary_report)
+    logger.info(result.summary_report)
 """
 
 from __future__ import annotations
@@ -39,6 +39,9 @@ import math
 from dataclasses import dataclass
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------
 # 尝试导入 scipy (有则用, 无则用内置近似)
@@ -630,7 +633,7 @@ if __name__ == "__main__":
         var_data = np.loadtxt(args.var_file)
         ret_data = np.loadtxt(args.returns_file)
     else:
-        print("未指定文件, 使用模拟数据演示...")
+        logger.info("未指定文件, 使用模拟数据演示...")
         np.random.seed(42)
         n_days = 300
         # 模拟: 真实波动率 1%, VaR 设为 2.33% (99% 置信度正态分布)
@@ -644,7 +647,6 @@ if __name__ == "__main__":
         window=args.window,
     )
 
-    print(result.summary_report)
-    print()
-    print("完整 JSON 输出:")
-    print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
+    logger.info(result.summary_report)
+    logger.info("完整 JSON 输出:")
+    logger.info(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))

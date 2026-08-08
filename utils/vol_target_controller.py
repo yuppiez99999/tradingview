@@ -72,12 +72,12 @@ class VolTargetController:
     VOL_SCALE_THRESHOLD = 0.80  # 低于此值开始缩仓
     ANNUALIZATION_FACTOR = math.sqrt(252)  # 年化因子
 
-    def __init__(self, target_vol: float | None = None):  # type: ignore
+    def __init__(self, target_vol: float | None = None):  # type: ignore[misc]
         if target_vol is not None:
             self.TARGET_ANNUAL_VOL = target_vol
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-    def calc_realized_vol(self, daily_returns: list[float] | None = None) -> float:  # type: ignore
+    def calc_realized_vol(self, daily_returns: list[float] | None = None) -> float:  # type: ignore[misc]
         """计算已实现波动率 (EWMA)
 
         Args:
@@ -113,7 +113,7 @@ class VolTargetController:
         logger.info(f"已实现波动率: 日{daily_vol * 100:.2f}% → 年化{annual_vol * 100:.2f}%")
         return annual_vol
 
-    def calc_vol_scale(self, realized_vol: float | None = None) -> float:  # type: ignore
+    def calc_vol_scale(self, realized_vol: float | None = None) -> float:  # type: ignore[misc]
         """计算波动率缩放因子
 
         vol_scale = target_vol / realized_vol
@@ -140,9 +140,9 @@ class VolTargetController:
     def adjust_daily_budget(
         self,
         original_budget: float,
-        realized_vol: float | None = None,  # type: ignore
+        realized_vol: float | None = None,  # type: ignore[assignment]
         force_scale: float | None = None,
-    ) -> dict[str, float]:  # type: ignore
+    ) -> dict[str, float]:  # type: ignore[misc]
         """调整当日建仓预算
 
         Args:
@@ -202,7 +202,7 @@ class VolTargetController:
         # 保存缓存 (供其他模块读取)
         self._save_cache(result)
 
-        return result  # type: ignore
+        return result  # type: ignore[misc]
 
     def _load_portfolio_returns(self) -> list[float]:
         """从盘后报告中加载组合日收益率
@@ -238,7 +238,7 @@ class VolTargetController:
                     if isinstance(daily_return, (int, float)):
                         returns.append(daily_return / 100.0 if abs(daily_return) > 1 else daily_return)
                     break  # 找到一份即可, 跳出候选路径循环
-                except Exception:  # P2 模块 fail-safe, 待后续精确化
+                except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                     continue
 
         # 如果报告数据不足, 尝试从持仓成本与当前价估算
@@ -253,7 +253,7 @@ class VolTargetController:
         try:
             with open(CONFIG_DIR / "positions.json", encoding="utf-8") as f:
                 positions = json.load(f)
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             return [0.01, -0.01, 0.005, -0.008, 0.012]  # 默认值
 
         # 计算各标的的成本→当前价的年化波动率
@@ -274,7 +274,7 @@ class VolTargetController:
         avg_vol = np.mean(vols)
         np.random.seed(42)
         simulated_returns = np.random.normal(0, avg_vol, 20).tolist()
-        return simulated_returns  # type: ignore
+        return simulated_returns  # type: ignore[misc]
 
     def _save_cache(self, result: dict) -> None:
         """缓存结果供其他模块读取"""
@@ -282,7 +282,7 @@ class VolTargetController:
         try:
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(result, f, ensure_ascii=False, indent=2)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"保存vol缓存失败: {e}")
 
     @classmethod
@@ -294,8 +294,8 @@ class VolTargetController:
         try:
             with open(cache_path, encoding="utf-8") as f:
                 data = json.load(f)
-            return data.get("vol_scale")  # type: ignore
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+            return data.get("vol_scale")  # type: ignore[index]
+        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             return None
 
 

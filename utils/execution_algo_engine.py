@@ -399,42 +399,21 @@ class ExecutionAlgoEngine:
 
         plan_id = f"{algo.value}_{symbol}_{side}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-        if algo == AlgoType.TWAP:
-            slices = self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time)
-        elif algo == AlgoType.VWAP:
-            slices = self._plan_vwap(total_shares, duration_minutes, slice_minutes, start_time, volume_curve)
-        elif algo == AlgoType.POV:
-            slices = self._plan_pov(
-                total_shares,
-                duration_minutes,
-                slice_minutes,
-                start_time,
-                avg_daily_volume or 1_000_000,
-            )
-        elif algo == AlgoType.IS:
-            slices = self._plan_implementation_shortfall(
-                total_shares,
-                duration_minutes,
-                slice_minutes,
-                start_time,
-                current_price or 0.0,
-                volatility or 0.25,
-                risk_aversion,
-            )
-        elif algo == AlgoType.AC:
-            slices = self._plan_almgren_chriss(
-                total_shares,
-                duration_minutes,
-                slice_minutes,
-                start_time,
-                current_price or 0.0,
-                volatility or 0.25,
-                risk_aversion,
-            )
-        elif algo == AlgoType.DARK:
-            slices = self._plan_dark_iceberg(total_shares, duration_minutes, slice_minutes, start_time)
-        else:
+        # 算法规划器配置表: algo -> 参数适配 lambda
+        # 新增算法只需在此添加一行, 无需修改分支逻辑(表驱动化重构)
+        algo_planners = {
+            AlgoType.TWAP: lambda: self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time),
+            AlgoType.VWAP: lambda: self._plan_vwap(total_shares, duration_minutes, slice_minutes, start_time, volume_curve),
+            AlgoType.POV: lambda: self._plan_pov(total_shares, duration_minutes, slice_minutes, start_time, avg_daily_volume or 1_000_000),
+            AlgoType.IS: lambda: self._plan_implementation_shortfall(total_shares, duration_minutes, slice_minutes, start_time, current_price or 0.0, volatility or 0.25, risk_aversion),
+            AlgoType.AC: lambda: self._plan_almgren_chriss(total_shares, duration_minutes, slice_minutes, start_time, current_price or 0.0, volatility or 0.25, risk_aversion),
+            AlgoType.DARK: lambda: self._plan_dark_iceberg(total_shares, duration_minutes, slice_minutes, start_time),
+        }
+
+        planner = algo_planners.get(algo)
+        if planner is None:
             raise ValueError(f"不支持的算法: {algo}")
+        slices = planner()
 
         plan = ExecutionPlan(
             plan_id=plan_id,
@@ -566,12 +545,11 @@ class ExecutionAlgoEngine:
         current_start = datetime.combine(date.today(), start_time)
 
         for i, w in enumerate(weights):
-            slice_end = current_start + timedelta(minutes=slice_minutes)  # type: ignore
+            slice_end = current_start + timedelta(minutes=slice_minutes)  # type: ignore[misc]
             # 跳过午休
             if current_start.time() >= MORNING_END and current_start.time() < AFTERNOON_START:
                 current_start = datetime.combine(date.today(), AFTERNOON_START)
-                slice_end = current_start + timedelta(minutes=slice_minutes)  # type: ignore
-
+                slice_end = current_start + timedelta(minutes=slice_minutes)  # type: ignore[misc]
             target = int(total_shares * w / total_weight)
             if i == len(weights) - 1:
                 target = total_shares - accumulated  # 最后一片兜底
@@ -581,15 +559,14 @@ class ExecutionAlgoEngine:
                 ExecutionSlice(
                     slice_idx=i,
                     start_time=current_start.strftime("%H:%M"),
-                    end_time=slice_end.strftime("%H:%M"),  # type: ignore
+                    end_time=slice_end.strftime("%H:%M"),  # type: ignore[misc]
                     target_shares=target,
                     accumulated_shares=accumulated,
                     remaining_shares=total_shares - accumulated - target,
                 )
             )
             accumulated += target
-            current_start = slice_end  # type: ignore
-
+            current_start = slice_end  # type: ignore[misc]
         return slices
 
     def _time_to_minute_idx(self, t: time) -> int:
@@ -682,7 +659,7 @@ class ExecutionAlgoEngine:
         采用简化的 IS: 前面片更重, 后面递减
         weight_i = (1 - i/N) ^ (1 / (1 + λ))
         """
-        N = max(1, duration_minutes // slice_minutes)
+        N = max(1, duration_minutes // slice_minutes)  # noqa: N806
         # 风险厌恶系数映射: λ=0 → 均匀 (TWAP), λ=1 → 强 front-loaded
         lambda_exp = 1.0 / (1.0 + max(0.0, risk_aversion))
 
@@ -752,8 +729,8 @@ class ExecutionAlgoEngine:
 
         高 λ → 趋向线性, 低 λ → 趋向均匀
         """
-        N = max(1, duration_minutes // slice_minutes)
-        T = duration_minutes / (240.0)  # 转换为天
+        N = max(1, duration_minutes // slice_minutes)  # noqa: N806
+        T = duration_minutes / (240.0)  # 转换为天  # noqa: N806
 
         # 简化: σ 日波动率 (从年化波动率换算)
         sigma_daily = volatility / math.sqrt(252)
@@ -767,7 +744,7 @@ class ExecutionAlgoEngine:
             return self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time)
 
         try:
-            sinh_kT = math.sinh(kappa * T)
+            sinh_kT = math.sinh(kappa * T)  # noqa: N806
             if abs(sinh_kT) < 1e-10:
                 return self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time)
         except OverflowError:
@@ -820,7 +797,7 @@ class ExecutionAlgoEngine:
                 )
             )
             accumulated += target
-            prev_x = x_i  # type: ignore
+            prev_x = x_i  # type: ignore[misc]
             current_start = slice_end
 
         return slices
@@ -968,7 +945,7 @@ class ExecutionAlgoEngine:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(asdict(plan), f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"执行计划已保存: {path}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存执行计划失败: {e}")
         return path
 
@@ -1032,7 +1009,7 @@ if __name__ == "__main__":
     logger.info("\n时间片明细 (前 10 片):")
     logger.info(f"{'序号':<6}{'时段':<16}{'目标股数':<12}{'累计':<12}{'剩余':<12}{'参与率':<10}")
     for s in plan.slices[:10]:
-        print(
+        logger.info(
             f"{s.slice_idx:<6}{s.start_time}-{s.end_time:<12}{s.target_shares:<12}{s.accumulated_shares:<12}{s.remaining_shares:<12}{s.participation_rate:<10.2%}"
         )
 

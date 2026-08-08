@@ -14,6 +14,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -45,8 +48,7 @@ class RiskBudgetAllocator:
         returns = returns[~np.isnan(returns)]
         if len(returns) == 0:
             return default_vol
-        return float(np.std(returns, ddof=1)) * np.sqrt(252)  # type: ignore
-
+        return float(np.std(returns, ddof=1)) * np.sqrt(252)  # type: ignore[misc]
     def allocate_daily_budget(
         self,
         pending_positions: list[dict],
@@ -100,13 +102,13 @@ class RiskBudgetAllocator:
                     rp_weights = budgeter.risk_parity_weights(returns_matrix[symbols].dropna())
                     if len(rp_weights) == n:
                         weights = rp_weights
-                        print(f"[RiskBudgetAllocator] Risk Parity 权重计算成功, 目标{len(rp_weights)}个标的")
+                        logger.info(f"[RiskBudgetAllocator] Risk Parity 权重计算成功, 目标{len(rp_weights)}个标的")
                     else:
-                        print("[RiskBudgetAllocator] Risk Parity 权重维度不匹配, 回退到等权")
+                        logger.info("[RiskBudgetAllocator] Risk Parity 权重维度不匹配, 回退到等权")
                 else:
-                    print("[RiskBudgetAllocator] 无法加载 risk_budgeter 模块, 回退到等权")
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化
-                print(f"[RiskBudgetAllocator] Risk Parity 计算失败: {e}, 回退到等权")
+                    logger.info("[RiskBudgetAllocator] 无法加载 risk_budgeter 模块, 回退到等权")
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+                logger.error(f"[RiskBudgetAllocator] Risk Parity 计算失败: {e}, 回退到等权")
 
         results: dict[str, dict] = {}
         for i, pos in enumerate(pending_positions):

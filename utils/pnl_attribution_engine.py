@@ -607,7 +607,7 @@ class PnLAttributionEngine:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(result.to_dict(), f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"归因报告已保存: {path}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存归因报告失败: {e}")
         return path
 

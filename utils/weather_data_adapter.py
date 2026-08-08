@@ -1,4 +1,4 @@
-"""气象数据适配器 — 28 系统集成层 (v8.6.13)
+"""气象数据适配器 — 28 系统集成层 (v8.6.14)
 
 核心功能:
     封装 apizero.cn 天气 API (彩云天气代理), 提供实时天气 / 小时预报 /
@@ -280,7 +280,8 @@ class WeatherDataAdapter:
                     return True
             logger.warning("apizero API 检测失败: HTTP %d", resp.status_code)
             return False
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("apizero API 不可用: %s, 将降级", e)
             return False
 
@@ -325,7 +326,8 @@ class WeatherDataAdapter:
             result = data.get("data", {})
             self._cache[cache_key] = (time.time(), result)
             return result
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("apizero 请求异常: %s", e)
             return None
 
@@ -358,7 +360,8 @@ class WeatherDataAdapter:
                 self._cache[cache_key] = (time.time(), data)
                 return data
             logger.warning("Open-Meteo 请求失败: HTTP %d", resp.status_code)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Open-Meteo 请求异常: %s", e)
         return None
 

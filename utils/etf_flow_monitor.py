@@ -86,15 +86,15 @@ class ETFRealTimeTracker:
                 import importlib.util
 
                 spec = importlib.util.spec_from_file_location("wind_mcp_fetcher", wind_path)
-                mod = importlib.util.module_from_spec(spec)  # type: ignore
-                spec.loader.exec_module(mod)  # type: ignore
+                mod = importlib.util.module_from_spec(spec)  # type: ignore[misc]
+                spec.loader.exec_module(mod)  # type: ignore[union-attr]
                 self._wind_mcp_client = {
                     "quote": mod.wind_get_quote,
                     "batch_quotes": mod.wind_get_batch_quotes,
                 }
                 self.wind_mcp_available = True
                 logger.info("Wind MCP 客户端已加载 (ETF资金流数据源 P0)")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"Wind MCP 客户端加载失败: {e}")
 
         try:
@@ -105,7 +105,7 @@ class ETFRealTimeTracker:
                 self._ifind_client = IFindClient()
                 self.ifind_mcp_available = True
                 logger.info("iFinD MCP 客户端已加载 (ETF资金流数据源 P1)")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"iFinD MCP 客户端加载失败: {e}")
 
     def _to_wind_code(self, etf_code: str) -> str:
@@ -147,7 +147,7 @@ class ETFRealTimeTracker:
                     break
 
             return result
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"Wind MCP 获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
@@ -182,7 +182,7 @@ class ETFRealTimeTracker:
                     break
 
             return result
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"iFinD MCP 获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
@@ -228,7 +228,7 @@ class ETFRealTimeTracker:
                 "trend": "流入" if net_flow > 0 else "流出" if net_flow < 0 else "中性",
                 "source": "eastmoney_push2",
             }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"东财 push2 获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
@@ -263,7 +263,7 @@ class ETFRealTimeTracker:
                 "trend": "流入" if chg > 0 else "流出" if chg < 0 else "中性",
                 "source": "price_momentum",
             }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"价格动量代理资金流失败 ({etf_code}): {e}")
             return None
 
@@ -338,7 +338,7 @@ class ETFRealTimeTracker:
                     break
 
             return result
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"新浪财经获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
@@ -468,7 +468,7 @@ class ETFRealTimeTracker:
         try:
             with open(positions_file, encoding="utf-8") as f:
                 positions_data = json.load(f)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"加载 positions.json 失败: {e}")
             return {"status": "error", "message": str(e)}
 
@@ -535,12 +535,12 @@ class ETFRealTimeTracker:
                 "total_flow_yi": sum(d.get("net_flow_yi", 0) for d in flow_data.values()),
                 "signal_count": len(signals),
             }
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化
+        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"保存 positions.json 失败: {e}")
             return {"status": "error", "message": str(e)}
 
 
-def refresh_etf_flow_signals(positions_file: Optional[str] = None) -> Dict:  # type: ignore
+def refresh_etf_flow_signals(positions_file: Optional[str] = None) -> Dict:  # type: ignore[misc]
     if positions_file is None:
         positions_file = os.path.join(os.path.dirname(__file__), "..", "config", "positions.json")
         positions_file = os.path.normpath(positions_file)

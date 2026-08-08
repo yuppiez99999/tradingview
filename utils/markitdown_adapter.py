@@ -61,7 +61,7 @@ class MarkItDownAdapter:
     Usage:
         >>> adapter = MarkItDownAdapter()
         >>> md = adapter.convert_to_markdown("report.pdf")
-        >>> print(md[:200])
+        >>> logger.info(md[:200])
     """
 
     _instance: MarkItDownAdapter | None = None
@@ -313,27 +313,27 @@ if __name__ == "__main__":
     adapter = MarkItDownAdapter()
 
     if args.status:
-        print("MarkItDown 适配器状态:")
+        logger.info("MarkItDown 适配器状态:")
         for k, v in adapter.get_status().items():
-            print(f"  {k}: {v}")
+            logger.info(f"  {k}: {v}")
         sys.exit(0)
 
     if args.file:
         md = adapter.convert_to_markdown(args.file)
         if md:
-            print(md[:2000])
+            logger.info(md[:2000])
             if len(md) > 2000:
-                print(f"\n... (共 {len(md)} 字符, 仅显示前2000)")
+                logger.info(f"\n... (共 {len(md)} 字符, 仅显示前2000)")
         else:
-            print("转换失败")
+            logger.error("转换失败")
         sys.exit(0 if md else 1)
 
     if args.url:
         md = adapter.convert_url(args.url)
         if md:
-            print(md[:2000])
+            logger.info(md[:2000])
         else:
-            print("URL 转换失败")
+            logger.error("URL 转换失败")
         sys.exit(0 if md else 1)
 
     parser.print_help()

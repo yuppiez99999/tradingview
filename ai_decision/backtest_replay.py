@@ -410,7 +410,8 @@ class BacktestReplay:
             try:
                 result = self.replay_history(bt)
                 baselines[bt.value] = result
-            except Exception as exc:
+            except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError) as exc:
+                # 回放过程可能抛: 数据缺失/字段错误/IO 错误
                 logger.error("[Replay] 基线 %s 回放失败: %s", bt.value, exc)
                 baselines[bt.value] = BaselineResult(baseline=bt.value)
 
@@ -574,7 +575,8 @@ class BacktestReplay:
                 "verdict_type": decision.verdict_type,
                 "debate_triggered": decision.verdict_type == "DEBATE",
             }
-        except Exception as exc:
+        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError, TimeoutError) as exc:
+            # run_decision 可能抛: 数据缺失/字段错误/网络超时/LLM 调用失败
             logger.warning("[Replay] ai_debate %s %s 失败, 降级 hold: %s",
                            symbol, date_str, exc)
             return {"action": "hold", "strength": 0.0, "confidence": 0.0,
@@ -615,7 +617,8 @@ class BacktestReplay:
                 "verdict_type": "FAST",
                 "debate_triggered": False,
             }
-        except Exception as exc:
+        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError, TimeoutError) as exc:
+            # five_agents 调用可能抛: 数据缺失/字段错误/网络超时/Agent 调用失败
             logger.warning("[Replay] five_agents %s %s 失败, 降级 hold: %s",
                            symbol, date_str, exc)
             return {"action": "hold", "strength": 0.0, "confidence": 0.0,
@@ -791,7 +794,10 @@ class BacktestReplay:
                 ic_series=pd.Series(ic_series) if ic_series else None,
             )
             return result.summary()
-        except Exception as exc:
+        except (ValueError, KeyError, TypeError, AttributeError,
+                RuntimeError, OSError) as exc:
+            # FastBacktest.run 可能抛: 数据格式错误/字段缺失/类型不匹配/
+            # 属性缺失/运行时错误/IO 错误; pandas/numpy 操作多为前两类
             logger.warning("[Replay] FastBacktest 计算失败, 返回空指标: %s", exc)
             return self._empty_metrics()
 
@@ -861,7 +867,10 @@ class BacktestReplay:
                 checks["disclosure_date_check"] = "disclosure_date" in fund
             else:
                 checks["disclosure_date_check"] = True  # 无数据视为通过
-        except Exception:
+        except (ValueError, KeyError, TypeError, AttributeError,
+                RuntimeError, OSError):
+            # loader 可能抛: 数据缺失/字段错误/类型不匹配/属性缺失/运行时/IO 错误
+            # fund 非 dict 时 "in" 抛 TypeError
             checks["disclosure_date_check"] = False
 
         # 2. 成分股快照校验: loader 必须支持 get_constituents
@@ -871,7 +880,9 @@ class BacktestReplay:
                 checks["constituent_snapshot_check"] = isinstance(constituents, list)
             else:
                 checks["constituent_snapshot_check"] = True
-        except Exception:
+        except (ValueError, KeyError, TypeError, AttributeError,
+                RuntimeError, OSError):
+            # loader 可能抛: 数据缺失/类型不匹配/属性缺失/运行时/IO 错误
             checks["constituent_snapshot_check"] = False
 
         # 3. 可交易性校验: loader 必须支持 is_tradable
@@ -881,7 +892,9 @@ class BacktestReplay:
                 checks["tradability_check"] = isinstance(tradable, bool)
             else:
                 checks["tradability_check"] = True
-        except Exception:
+        except (ValueError, KeyError, TypeError, AttributeError,
+                RuntimeError, OSError):
+            # loader 可能抛: 数据缺失/类型不匹配/属性缺失/运行时/IO 错误
             checks["tradability_check"] = False
 
         # 4. 信号滞后校验: forward_return_horizon >= 1 (信号在 date 生成, 收益在 date+N)

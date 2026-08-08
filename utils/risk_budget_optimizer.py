@@ -106,7 +106,7 @@ class RiskBudgetOptimizer:
         self,
         symbols: list[str],
         expected_returns: list[float] | np.ndarray,
-        cov_matrix: np.ndarray | pd.DataFrame,  # type: ignore
+        cov_matrix: np.ndarray | pd.DataFrame,  # type: ignore[misc]
         benchmark_weights: list[float] | np.ndarray,
         max_tracking_error: float = 0.05,
         max_weight: float | None = None,
@@ -141,7 +141,7 @@ class RiskBudgetOptimizer:
             raise ValueError("symbols 不能为空")
 
         mu = np.asarray(expected_returns, dtype=float)
-        Sigma = self._to_numpy(cov_matrix)
+        Sigma = self._to_numpy(cov_matrix)  # noqa: N806
         w_bench = np.asarray(benchmark_weights, dtype=float)
         w_bench = w_bench / w_bench.sum() if w_bench.sum() > 0 else np.ones(n) / n
 
@@ -232,7 +232,7 @@ class RiskBudgetOptimizer:
     def _solve_constrained(
         self,
         mu: np.ndarray,
-        Sigma: np.ndarray,
+        Sigma: np.ndarray,  # noqa: N803
         w_bench: np.ndarray,
         max_te: float,
         max_weight: float | None,
@@ -304,7 +304,7 @@ class RiskBudgetOptimizer:
 
             # 因子暴露约束
             if factor_exposures is not None and max_factor_exposure is not None:
-                K = factor_exposures.shape[1]
+                K = factor_exposures.shape[1]  # noqa: N806
                 for k in range(K):
                     constraints.append(
                         {
@@ -335,14 +335,14 @@ class RiskBudgetOptimizer:
                     w = w / w.sum()
                 return w, "SLSQP-OK", int(res.nit)
 
-        except (ImportError, Exception):
+        except (ImportError, ValueError, RuntimeError):  # noqa: BLE001  # scipy.optimize 不可用/求解异常时降级, 待后续精确化
             pass
 
         # 回退 1: 投影梯度法
         try:
             w = self._projected_gradient(mu, Sigma, w_bench, max_te, max_weight, min_weight)
             return w, "ProjectedGradient", 100
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 回退 2: 缩放法 — 将基准权重向预期收益高的方向倾斜, 同时满足 TE 约束
@@ -352,7 +352,7 @@ class RiskBudgetOptimizer:
     def _projected_gradient(
         self,
         mu: np.ndarray,
-        Sigma: np.ndarray,
+        Sigma: np.ndarray,  # noqa: N803
         w_bench: np.ndarray,
         max_te: float,
         max_weight: float | None,
@@ -397,7 +397,7 @@ class RiskBudgetOptimizer:
     def _scaling_method(
         self,
         mu: np.ndarray,
-        Sigma: np.ndarray,
+        Sigma: np.ndarray,  # noqa: N803
         w_bench: np.ndarray,
         max_te: float,
     ) -> np.ndarray:
@@ -423,7 +423,7 @@ class RiskBudgetOptimizer:
             return m.astype(float)
         try:
             return np.asarray(m, dtype=float)
-        except Exception:  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             return np.array(m, dtype=float)
 
     def save_result(self, result: RiskBudgetResult, path: str | Path) -> Path:
@@ -477,7 +477,7 @@ class RiskBudgetOptimizer:
         """
         w_cur = np.asarray(current_weights, dtype=float)
         w_bench = np.asarray(benchmark_weights, dtype=float)
-        Sigma = np.asarray(cov_matrix, dtype=float)
+        Sigma = np.asarray(cov_matrix, dtype=float)  # noqa: N806
         active = w_cur - w_bench
         current_te = math.sqrt(float(active @ Sigma @ active))
 
@@ -485,8 +485,8 @@ class RiskBudgetOptimizer:
             return {
                 "new_weights": w_cur,
                 "adjustments": np.zeros_like(w_cur),
-                "expected_te": 0.0,  # type: ignore
-            }
+                "expected_te": 0.0,  # type: ignore[misc]
+                }
 
         # 计算缩放因子
         scale = target_te / current_te

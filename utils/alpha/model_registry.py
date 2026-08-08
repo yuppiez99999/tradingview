@@ -199,7 +199,7 @@ class ModelRegistry:
             self._mlflow_client = MlflowClient()
             self._mlflow_available = True
             logger.info("MLflow Model Registry 已启用: tracking_uri=%s", tracking_uri or mlflow.get_tracking_uri())
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("MLflow 初始化失败, 降级为本地存储: %s", e)
             self._mlflow_available = False
             self._mlflow_client = None
@@ -286,7 +286,7 @@ class ModelRegistry:
 
             joblib.dump(model, model_file)
             source = str(model_file)
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("模型序列化失败 (joblib): %s, 跳过本地保存", e)
             source = ""
 
@@ -309,7 +309,7 @@ class ModelRegistry:
                     tags=tags,
                 )
                 logger.info("MLflow 已注册模型: %s (run_id=%s)", name, mlflow_run_id)
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("MLflow 注册失败: %s", e)
 
         # 创建版本记录
@@ -405,12 +405,12 @@ class ModelRegistry:
         # MLflow 阶段转换
         if self._mlflow_available and target.mlflow_model_uri:
             try:
-                self._mlflow_client.transition_model_version_stage(  # type: ignore
-                    name=name,
+                self._mlflow_client.transition_model_version_stage(  # type: ignore[misc]
+                name=name,
                     version=str(version),
                     stage=to_stage.value.upper(),
                 )
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("MLflow 阶段转换失败: %s", e)
 
         logger.info(
@@ -527,7 +527,7 @@ class ModelRegistry:
             target = self.get_model_info(name, version)
         else:
             target_stage = stage or ModelStage.PRODUCTION
-            target = self.get_production_version(name) if target_stage == ModelStage.PRODUCTION else None  # type: ignore
+            target = self.get_production_version(name) if target_stage == ModelStage.PRODUCTION else None  # type: ignore[misc]
             if target is None:
                 versions = self.get_model_versions(name, target_stage)
                 target = versions[0] if versions else None
@@ -540,7 +540,7 @@ class ModelRegistry:
                 import mlflow
 
                 return mlflow.pyfunc.load_model(target.mlflow_model_uri)
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("MLflow 加载失败, 回退到本地: %s", e)
 
         # 本地加载
@@ -549,7 +549,7 @@ class ModelRegistry:
                 import joblib
 
                 return joblib.load(target.source)
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.exception("本地模型加载失败: %s", e)
                 raise ModelRegistryError(f"模型加载失败: {e}") from e
         raise ModelRegistryError(f"模型 {name} v{target.version} 无可用 source")
@@ -614,8 +614,8 @@ class ModelRegistry:
             "models": {},
         }
         for name, versions in self._cache.items():
-            result["models"][name] = {  # type: ignore
-                "version_count": len(versions),
+            result["models"][name] = {  # type: ignore[index]
+            "version_count": len(versions),
                 "versions": [v.to_dict() for v in versions],
             }
         return result

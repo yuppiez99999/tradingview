@@ -325,7 +325,7 @@ class FuturesRolloverManager:
 
         # 3. 获取主力合约
         exchange = "CFFEX" if product in ("IF", "IC", "IM", "IH") else None
-        active = self.get_active_contract(product, exchange)  # type: ignore
+        active = self.get_active_contract(product, exchange)  # type: ignore[misc]
         if active is None:
             logger.warning("无法获取 %s 的主力合约", product)
             return None
