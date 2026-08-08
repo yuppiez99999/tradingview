@@ -1,0 +1,144 @@
+{
+  "generated_at": "2026-08-02",
+  "total_entries": 29,
+  "by_category": {
+    "NEEDS_REVIEW": 5,
+    "TRUE_SILENT_EMPTY": 22,
+    "RE_RAISE": 1,
+    "ALREADY_LOGGED": 1
+  },
+  "fixable_entries": [
+    {
+      "file": "utils/execution/automated_execution_system.py",
+      "line": 1494,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/automated_execution_system.py",
+      "line": 1611,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    self.logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/automated_execution_system.py",
+      "line": 1617,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/automated_execution_system.py",
+      "line": 1886,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/automated_execution_system.py",
+      "line": 1930,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/automated_execution_system.py",
+      "line": 1998,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/automated_execution_system.py",
+      "line": 2023,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/broker_adapters.py",
+      "line": 202,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/broker_failover.py",
+      "line": 505,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    self.logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/broker_failover.py",
+      "line": 525,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    self.logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/daily_build_and_hedge.py",
+      "line": 96,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/daily_build_and_hedge.py",
+      "line": 161,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/daily_build_and_hedge.py",
+      "line": 291,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "utils/execution/daily_build_and_hedge.py",
+      "line": 906,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    self.logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "v8.3_institutional/src/execution/algo_engine.py",
+      "line": 98,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "v8.3_institutional/src/execution/ntp_alert_callback.py",
+      "line": 118,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "v8.3_institutional/src/execution/ntp_alert_callback.py",
+      "line": 125,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "v8.3_institutional/src/execution/ntp_alert_callback.py",
+      "line": 132,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "v8.3_institutional/src/execution/ntp_alert_callback.py",
+      "line": 139,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "v8.3_institutional/src/execution/ntp_alert_callback.py",
+      "line": 213,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "v8.3_institutional/src/execution/ntp_alert_callback.py",
+      "line": 264,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    },
+    {
+      "file": "v8.3_institutional/src/execution/ntp_sync.py",
+      "line": 263,
+      "category": "TRUE_SILENT_EMPTY",
+      "fix_suggestion": "    logger.warning(\"静默异常已捕获\", exc_info=True)"
+    }
+  ]
+}

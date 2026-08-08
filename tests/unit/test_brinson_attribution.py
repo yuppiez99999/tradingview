@@ -32,7 +32,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.attribution.brinson_attribution import (
+from utils.attribution.brinson_attribution import (  # noqa: E402
     ABNORMAL_RETURN_THRESHOLD,
     DEFAULT_CONFIG_NAME,
     DEFAULT_MIN_SECTORS,
@@ -463,7 +463,7 @@ class TestValidateWeights:
 
     def test_non_numeric_weight_invalid(self):
         """非数值权重无效."""
-        weights = {"a": "invalid", "b": 0.5}  # type: ignore
+        weights = {"a": "invalid", "b": 0.5}  # type: ignore[assignment]
         is_valid, _, err = validate_weights(weights)
         assert not is_valid
         assert "非数值" in err

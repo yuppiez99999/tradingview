@@ -52,7 +52,8 @@ for code, p in positions.items():
             d = lu[:10]
             if latest_price_date is None or d > latest_price_date:
                 latest_price_date = d
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
 
 # 按盈亏排序 (盈亏金额降序, 亏损在前)

@@ -4,14 +4,14 @@ import sys
 sys.path.insert(0, '.')
 
 print('=== 1. Import finance_agents package ===')
-from utils.finance_agents import (
+from utils.finance_agents import (  # noqa: E402
     AgentDecision,
 )
 
 print('OK: 5 agents + BaseAgent + AgentDecision imported')
 
 print('=== 2. Import orchestrator ===')
-from utils.finance_agent_orchestrator import (
+from utils.finance_agent_orchestrator import (  # noqa: E402
     FinanceAgentOrchestrator,
 )
 

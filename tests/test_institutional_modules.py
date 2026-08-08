@@ -10,12 +10,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import numpy as np
+import numpy as np  # noqa: E402
 
-from utils.barra_risk_decomposer import BarraRiskDecomposer
-from utils.black_litterman_optimizer import BlackLittermanOptimizer
-from utils.black_litterman_optimizer import View as BLView
-from utils.tca_engine import BenchmarkPrices, FillRecord, TCAManager
+from utils.barra_risk_decomposer import BarraRiskDecomposer  # noqa: E402
+from utils.black_litterman_optimizer import BlackLittermanOptimizer  # noqa: E402
+from utils.black_litterman_optimizer import View as BLView  # noqa: E402
+from utils.tca_engine import BenchmarkPrices, FillRecord, TCAManager  # noqa: E402
 
 
 def test_black_litterman_optimizer():

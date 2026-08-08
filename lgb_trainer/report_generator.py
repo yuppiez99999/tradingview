@@ -93,7 +93,7 @@ def _build_report_header(result: dict[str, Any]) -> list[str]:
         f"# LightGBM 增强训练报告 - {datetime.now().strftime('%Y-%m-%d')}",
         "",
         f"**生成时间**: {datetime.now().isoformat()}",
-        "**模型类型**: LightGBM 增强版 (真实OHLCV + 情绪因子 + 放宽早停)",
+        "**模型类型**: LightGBM 增强版 (真实OHLCV + 情绪因子v4.3 + 放宽早停)",
         "**数据源**: Wind MCP > iFinD MCP > 新浪 HTTP (真实价格和成交量)",
         f"**标的数**: {result['total']}",
         f"**训练成功**: {result['trained']}",
@@ -106,16 +106,12 @@ def _build_report_header(result: dict[str, Any]) -> list[str]:
         "   - Wind MCP / iFinD MCP / 新浪 HTTP 多源优先级",
         "   - 502 日真实价格和成交量",
         "   - 技术指标基于真实价格计算, 质量更高",
-        "2. **新闻情绪因子**: 9 个特征 (Wind MCP 优先, iFinD 回退)",
-        "   - sentiment_score: 当日情绪分",
-        "   - sent_ma5 / sent_ma20: 5/20 日情绪均值",
-        "   - sent_mom5: 情绪动量",
-        "   - sent_volatility: 情绪波动率",
-        "   - sent_positive_ratio: 20 日正情绪占比",
-        "   - sent_zscore_20: 情绪标准化分数 (v3 新增)",
-        "   - sent_acceleration: 情绪加速度 (v3 新增)",
-        "   - sent_price_interaction: 情绪-价格交互 (v3 新增)",
-        "3. **特征选择增强**: top_n 20→30, threshold 3→1, 情绪因子保护机制",
+        "2. **新闻情绪/关注度因子 v4.3**: 正常参与特征选择, 无保护机制, 无贡献自动退选",
+        "   - market_sentiment: 全市场聚合情绪指数 (每日有值, ~60%+ 覆盖率)",
+        "   - market_sent_change: 市场情绪5日变化 (捕捉情绪拐点)",
+        "   - has_news: 当日是否有该股新闻 (0/1, 关注度代理变量)",
+        "   - news_sentiment_raw: 新闻日分级加权情绪分 (NaN on 无新闻日, LightGBM native split)",
+        "3. **特征选择增强**: top_n 20→30, threshold 3→1 (情绪因子已移除保护, 正常参与筛选)",
         "4. **放宽早停**: 50 → 200 轮",
         "   - n_estimators 1000 → 2000",
         "   - learning_rate 0.01 → 0.005",
@@ -305,7 +301,7 @@ def _classify_feature_tag(feat: str) -> str:
     Returns:
         分类标签字符串 (如 " [情绪因子]"), 无匹配时为空串
     """
-    if "sent" in feat:
+    if "sent" in feat or "news" in feat:
         return " [情绪因子]"
     if feat.startswith(("industry_", "relative_strength_", "industry_rank_")):
         return " [行业相对强度]"
@@ -350,21 +346,39 @@ def _build_feature_importance_section(result: dict[str, Any]) -> list[str]:
 
 
 def _build_sentiment_stats_section(result: dict[str, Any]) -> list[str]:
-    """构建情绪因子入选统计章节。"""
+    """构建情绪因子入选统计章节。
+    
+    v4.3 (2026-08-02): 移除保护机制, 情绪因子正常参与特征选择,
+    仅统计实际入选 (importance > 0) 的情况。
+    """
     lines = ["", "## 五、情绪因子入选统计", ""]
-    sent_included = 0
+    lines.append("**v4.3**: 情绪因子已移除保护机制, 正常参与特征选择。")
+    lines.append("")
+    sent_effective = 0      # 实际有贡献 (importance > 0)
     sent_total = 0
     for code, r in result["results"].items():
         if r.get("status") != "OK":
             continue
         sent_total += 1
         selected = r.get("selected_features", [])
-        sent_features = [f for f in selected if "sent" in f]
-        if sent_features:
-            sent_included += 1
-            lines.append(f"- {code} ({r.get('name', '')}): {', '.join(sent_features)}")
+        top_feat = r.get("top_features", {})
+        sent_in_selection = [f for f in selected if "sent" in f or "news_" in f or "market_sent" in f or "has_news" in f]
+        # 仅当 importance > 0 才算"有效入选"
+        sent_with_impact = [f for f in sent_in_selection if top_feat.get(f, 0) > 0]
+        if sent_with_impact:
+            sent_effective += 1
+            lines.append(
+                f"- {code} ({r.get('name', '')}): 有效={', '.join(sent_with_impact)}, "
+                f"零贡献={len(sent_in_selection) - len(sent_with_impact)}"
+            )
+        else:
+            lines.append(
+                f"- {code} ({r.get('name', '')}): "
+                f"(入选 {len(sent_in_selection)} 个, 但 importance 全为 0, 未实际分裂)"
+            )
     lines.append("")
-    lines.append(f"**情绪因子入选比例**: {sent_included} / {sent_total}")
+    lines.append(f"**情绪因子入选标的数**: {sent_effective} / {sent_total}")
+    lines.append(f"**情绪因子有效贡献比例 (importance>0)**: {sent_effective} / {sent_total}")
     return lines
 
 
@@ -411,16 +425,86 @@ def _build_adaptive_retrain_section(result: dict[str, Any]) -> list[str]:
     ]
 
 
+def _build_quality_suppress_section(result: dict[str, Any]) -> list[str]:
+    """构建信号质量与抑制统计章节 (P0/P1 修复后新增, 2026-08-02)。"""
+    noise_list: list[str] = []
+    low_quality_list: list[str] = []
+    ic_divergence_list: list[str] = []
+    for code, r in result["results"].items():
+        if r.get("status") not in ("OK", "CACHED"):
+            continue
+        qf = r.get("quality_flag", "OK")
+        cv = r.get("cv_after_selection", {})
+        fm = r.get("final_metrics", {})
+        cv_ic = cv.get("mean_ic", 0)
+        final_ic = fm.get("ic", 0)
+        best_iter = r.get("best_iteration", 0)
+        raw_signal = r.get("signal", 0)
+        if qf == "NOISE":
+            noise_list.append(
+                f"  - {code} ({r.get('name', '')}): best_iter={best_iter}, "
+                f"final_ic={final_ic:.4f}, 原始信号={raw_signal:.4f} → 置零"
+            )
+        elif qf == "LOW_QUALITY":
+            detail = f"  - {code} ({r.get('name', '')}): CV_R²={cv.get('mean_r2', 0):.4f}, "
+            detail += f"CV_IC={cv_ic:.4f}"
+            if abs(cv_ic - final_ic) > 0.3:
+                detail += f", Final_IC={final_ic:.4f} (偏差={abs(cv_ic - final_ic):.2f}, 过拟合)"
+                ic_divergence_list.append(code)
+            detail += f", 原始信号={raw_signal:.4f} → 置零"
+            low_quality_list.append(detail)
+
+    if not noise_list and not low_quality_list:
+        return []
+
+    lines = ["", "## 七、信号质量控制 (P0/P1 修复)", ""]
+    lines.append("以下标的因模型质量不达标, 输出信号 (signal) 已强制置零:  ")
+    lines.append("(raw_signal 字段保留原始信号供调试审查, 未被交易策略使用)  ")
+    lines.append("")
+
+    if noise_list:
+        lines.append("### NOISE (纯噪声, best_iter≤1 且 final_IC<0)")
+        lines.append("")
+        lines.extend(noise_list)
+        lines.append("")
+
+    if low_quality_list:
+        lines.append("### LOW_QUALITY (CV 指标不达标或 IC 过拟合)")
+        lines.append("")
+        lines.extend(low_quality_list)
+        lines.append("")
+
+    if ic_divergence_list:
+        lines.append(
+            f"**IC 过拟合标签** ({len(ic_divergence_list)} 个): "
+            f"CV_IC 与 Final_IC 偏差 > 0.3 — {', '.join(ic_divergence_list)}"
+        )
+        lines.append("")
+
+    active_buy = sum(1 for r in result["results"].values()
+                     if r.get("quality_flag", "") not in ("LOW_QUALITY", "NOISE")
+                     and r.get("signal", 0) > 0.2)
+    active_sell = sum(1 for r in result["results"].values()
+                      if r.get("quality_flag", "") not in ("LOW_QUALITY", "NOISE")
+                      and r.get("signal", 0) < -0.2)
+    lines.append(
+        f"**抑制后有效信号**: 买入 {active_buy} 个, 卖出 {active_sell} 个"
+    )
+    return lines
+
+
 def _build_risk_notes_section(report_path: Path) -> list[str]:
     """构建风险提示章节 (含报告路径和信号文件位置)。"""
     return [
         "",
-        "## 七、风险提示",
+        "## 八、风险提示",
         "",
         "- 真实 OHLCV 通过多数据源拉取, 质量较合成数据显著提升",
         "- 新闻情绪因子: 一次性拉取过去 N 天真实新闻, 按 publish_time 分配到日期",
         "- 自适应重训: 对 best_iter <= 阈值的标的, 使用更小学习率 + 更多估计器重训",
         "- 若 best_iter 接近 n_estimators, 说明模型仍未收敛, 可考虑增加估计器",
+        "- **P0/P1 修复 (2026-08-02)**: LOW_QUALITY/NOISE 信号已自动置零, "
+        "仅 quality_flag=OK 的标的信号可被交易策略使用",
         "",
         "---",
         f"**报告路径**: `{report_path}`",
@@ -464,6 +548,8 @@ def generate_comparison_report(result: dict[str, Any]) -> Path:
     lines.extend(_build_extended_feature_section(result))
     # 自适应重训统计
     lines.extend(_build_adaptive_retrain_section(result))
+    # 信号质量控制 (P0/P1 修复, 2026-08-02)
+    lines.extend(_build_quality_suppress_section(result))
     # 风险提示
     lines.extend(_build_risk_notes_section(report_path))
 

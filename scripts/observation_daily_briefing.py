@@ -50,7 +50,8 @@ def load_json(path: Path) -> dict | None:
     try:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return None
 
 
@@ -105,7 +106,8 @@ def query_task_status(task_name: str) -> dict:
             elif line.startswith("Next Run Time:"):
                 info["next_run"] = line.split(":", 1)[1].strip()
         return info
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {"last_run": "?", "last_result": f"error: {e}", "next_run": "?"}
 
 

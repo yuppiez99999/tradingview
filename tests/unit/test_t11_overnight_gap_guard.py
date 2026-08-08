@@ -17,7 +17,7 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.overnight_gap_guard import OvernightGapGuard
+from utils.overnight_gap_guard import OvernightGapGuard  # noqa: E402
 
 
 # ============================================================

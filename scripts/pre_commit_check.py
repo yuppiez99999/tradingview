@@ -2,7 +2,7 @@
 """
 Pre-commit Check (Python 包装器)
 ================================
-版本: v8.6.12
+版本: v8.6.14
 用途: git pre-commit hook 调用入口,在提交前自动执行 P0 自检。
 
 调用方式 (3 种):
@@ -67,10 +67,94 @@ def main() -> int:
             if doc_only:
                 print(f"[pre-commit] 仅文档/配置变更 ({len(staged_files)} 文件),跳过 P0 自检")
                 return 0
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"[pre-commit] 检查暂存区异常 (容错继续): {e}", file=sys.stderr)
 
-    # 执行 P0 自检 (--skip-datasource 加速)
+    # === 第一道门禁: 硬编码绝对路径扫描 (v8.5+, 轻量快速) ===
+    path_check_script = PROJECT_ROOT / "scripts" / "check_hardcoded_paths.py"
+    if path_check_script.exists():
+        print("[pre-commit] 扫描硬编码绝对路径...")
+        try:
+            path_result = subprocess.run(
+                [sys.executable, str(path_check_script), "--staged", "--quiet"],
+                cwd=str(PROJECT_ROOT),
+                timeout=30,
+            )
+            if path_result.returncode != 0:
+                # 运行非静默版本显示详细信息
+                subprocess.run(
+                    [sys.executable, str(path_check_script), "--staged"],
+                    cwd=str(PROJECT_ROOT),
+                    timeout=30,
+                )
+                print("[pre-commit] ❌ 硬编码路径检查失败,阻止提交", file=sys.stderr)
+                return 1
+            print("[pre-commit] ✅ 硬编码路径检查通过")
+        except subprocess.TimeoutExpired:
+            print("[pre-commit] 路径检查超时,容错通过", file=sys.stderr)
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+            print(f"[pre-commit] 路径检查异常 (容错通过): {e}", file=sys.stderr)
+
+    # === 第二道门禁: 悬挂引用检查 (v9.0+ 防复发机制 #2) ===
+    dangling_script = PROJECT_ROOT / "scripts" / "check_dangling_refs.py"
+    if dangling_script.exists():
+        print("[pre-commit] 扫描悬挂引用 (已删除模块的下游依赖)...")
+        try:
+            dangling_result = subprocess.run(
+                [sys.executable, str(dangling_script)],
+                cwd=str(PROJECT_ROOT),
+                timeout=30,
+            )
+            if dangling_result.returncode != 0:
+                print("[pre-commit] 悬挂引用检查失败,阻止提交", file=sys.stderr)
+                print("[pre-commit] 修复方法: 更新 import 路径或归档陈旧测试", file=sys.stderr)
+                return 1
+            print("[pre-commit] 悬挂引用检查通过")
+        except subprocess.TimeoutExpired:
+            print("[pre-commit] 悬挂引用检查超时,容错通过", file=sys.stderr)
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            print(f"[pre-commit] 悬挂引用检查异常 (容错通过): {e}", file=sys.stderr)
+
+    # === 第二点五道门禁: P0 文件 print 检查 (CODE_REVIEW_PLAN Task 1.1) ===
+    # 仅扫描暂存区中的 P0 根目录文件 (最易发且最敏感的 T201 违规), 毫秒级, 不阻断开发流畅度。
+    # 命中即阻止提交; 紧急可用 SKIP_P0_PRINT=1 跳过; 单文件豁免用 `# allow-print` 注释。
+    # check_no_print_p0.py 仅接受位置参数(文件名, 自动过滤非 P0), 不支持 --staged 开关。
+    if os.environ.get("SKIP_P0_PRINT") == "1":
+        print("[pre-commit] SKIP_P0_PRINT=1,跳过 P0 print 检查")
+    else:
+        p0_print_script = PROJECT_ROOT / "scripts" / "check_no_print_p0.py"
+        if p0_print_script.exists():
+            try:
+                diff_result = subprocess.run(
+                    ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
+                    capture_output=True, text=True, cwd=str(PROJECT_ROOT), timeout=10,
+                )
+                staged = [f for f in diff_result.stdout.strip().split("\n") if f]
+                # 仅取暂存区里的 P0 文件名 (check_no_print_p0 按文件名匹配 P0_FILES)
+                from pathlib import PurePosixPath
+                p0_staged = [Path(f).name for f in staged]
+                if p0_staged:
+                    print("[pre-commit] 扫描 P0 文件裸 print (T201)...")
+                    p0_result = subprocess.run(
+                        [sys.executable, str(p0_print_script), *p0_staged],
+                        cwd=str(PROJECT_ROOT),
+                        timeout=30,
+                    )
+                    if p0_result.returncode != 0:
+                        print("[pre-commit] 裸 print 检查失败,阻止提交", file=sys.stderr)
+                        print("[pre-commit] 修复: 改用 logger; 或加 `# allow-print` 豁免; 或 SKIP_P0_PRINT=1 临时跳过", file=sys.stderr)
+                        return 1
+                    print("[pre-commit] P0 print 检查通过")
+                else:
+                    print("[pre-commit] 暂存区无 P0 文件,跳过 P0 print 检查")
+            except subprocess.TimeoutExpired:
+                print("[pre-commit] P0 print 检查超时,容错通过", file=sys.stderr)
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                print(f"[pre-commit] P0 print 检查异常 (容错通过): {e}", file=sys.stderr)
+
+    # === 第三道门禁: P0 启动自检 (--skip-datasource 加速) ===
     check_script = PROJECT_ROOT / "scripts" / "run_p0_startup_check.py"
     if not check_script.exists():
         print(f"[pre-commit] 自检脚本不存在: {check_script}", file=sys.stderr)
@@ -87,7 +171,8 @@ def main() -> int:
     except subprocess.TimeoutExpired:
         print("[pre-commit] P0 自检超时 (120s),容错通过", file=sys.stderr)
         return 0
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"[pre-commit] P0 自检异常 (容错通过): {e}", file=sys.stderr)
         return 0
 

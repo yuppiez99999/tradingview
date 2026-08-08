@@ -1,7 +1,7 @@
 ﻿# ============================================================
-# 28终极量化交易系统 v8.4 - 统一计划任务注册脚本（唯一权威源）
+# 28终极量化交易系统 v8.6.14 - 统一计划任务注册脚本（唯一权威源）
 # ============================================================
-# 替代 7 套旧注册脚本的混乱，统一管理 9 个 v84_* 任务
+# 替代 7 套旧注册脚本的混乱，统一管理 9 个任务
 #
 # 设计要点：
 #   - COM 对象 Schedule.Service（不用 PowerShell Register-ScheduledTask cmdlet）
@@ -191,7 +191,7 @@ $legacyTaskNames = @(
 # ============================================================
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  28量化交易系统 v8.4 - 统一计划任务注册" -ForegroundColor Cyan
+Write-Host "  28量化交易系统 v8.6.14 - 统一计划任务注册" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "  Project Root : $projectRoot"
 Write-Host "  Python       : $pythonExe"
@@ -248,7 +248,7 @@ function New-TaskDef {
 
     $td = $service.NewTask(0)
     $td.RegistrationInfo.Description = $desc
-    $td.RegistrationInfo.Author = "v8.4-unified"
+    $td.RegistrationInfo.Author = "v8.6.14-unified"
     $td.Settings.Enabled = $true
     $td.Settings.AllowDemandStart = $true
     $td.Settings.StartWhenAvailable = $true       # 错过时间后补跑

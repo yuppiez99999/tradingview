@@ -24,7 +24,7 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.risk.risk_bus import (
+from utils.risk.risk_bus import (  # noqa: E402
     RiskBus,
     RiskDecisionAggregator,
     SubscriptionError,
@@ -33,7 +33,7 @@ from utils.risk.risk_bus import (
     subscribe,
     sync_decide,
 )
-from utils.risk.risk_event import (
+from utils.risk.risk_event import (  # noqa: E402
     RiskAction,
     RiskDecision,
     RiskEvent,

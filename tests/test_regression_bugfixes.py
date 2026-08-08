@@ -1,7 +1,7 @@
 """
 回归测试套件 (Regression Test Suite)
 =====================================
-版本: v8.6.12
+版本: v8.6.14
 创建日期: 2026-07-31
 用途: 为已修过的 bug 各写一个回归测试,防止同类问题复发。
 
@@ -33,7 +33,7 @@
     # 按 bug ID 过滤
     pytest tests/test_regression_bugfixes.py -v -k REG_WIND
 
-分层策略 (v8.6.12):
+分层策略 (v8.6.14):
     快测层 (PR 闸门):
         14 项 regression (非 integration) + 16 项 contract = 30 项 <1s
         命令: pytest tests/test_data_contracts.py tests/test_regression_bugfixes.py -m "not integration"

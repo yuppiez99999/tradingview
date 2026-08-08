@@ -70,7 +70,8 @@ def _check_feature_flag(flag_name: str) -> bool:
     try:
         val = os.getenv(flag_name, "False")
         return val.lower() in ("true", "1", "yes", "on")
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return False
 
 
@@ -296,7 +297,9 @@ def adaptive_optimize(
         else:
             logger.debug(f"[adaptive_optimize] {symbol}: 级别={level} 但无实际参数变化")
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"[adaptive_optimize] {symbol}: 自适应优化失败, 返回原配置: {e}")
         result["_adaptive_meta"]["error"] = str(e)
 

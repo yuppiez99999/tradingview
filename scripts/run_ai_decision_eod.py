@@ -89,7 +89,9 @@ def main() -> int:
             print("✅ 无告警")
             return 0
 
-    except Exception as exc:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"❌ 复盘生成失败: {exc}", file=sys.stderr)
         import traceback
         traceback.print_exc()

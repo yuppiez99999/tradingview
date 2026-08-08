@@ -25,7 +25,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 # 导入被测模块
-from scripts.shadow_admission_launcher import (
+from scripts.shadow_admission_launcher import (  # noqa: E402
     DATETIME_FMT,
     _check_stage_2_blockers,
     _compute_observation_progress,

@@ -105,7 +105,9 @@ def verify_p0_e():
 
         return True
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         import traceback
         print(f"[FAIL] ❌ P0-E 修复未生效: {type(e).__name__}: {e}")
         traceback.print_exc()
@@ -167,7 +169,9 @@ def verify_p0_f():
             if not (is_system and is_background and is_ready):
                 all_pass = False
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             print(f"❌ {task_name}: 查询失败 - {e}")
             all_pass = False
 

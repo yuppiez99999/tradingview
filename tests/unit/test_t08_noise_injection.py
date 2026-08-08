@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "ms_strategy"))
 
-from ms_strategy.src.backtest.noise_injection_test import (
+from ms_strategy.src.backtest.noise_injection_test import (  # noqa: E402
     NoiseInjectionResult,
     noise_injection_summary,
     run_noise_injection_test,

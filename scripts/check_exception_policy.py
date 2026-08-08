@@ -14,9 +14,9 @@ from __future__ import annotations
     python scripts/check_exception_policy.py <file_or_dir> [<file_or_dir> ...]
 退出码 0 = 通过; 1 = 发现违规。
 """
-import ast
-import os
-import sys
+import ast  # noqa: E402
+import os  # noqa: E402
+import sys  # noqa: E402
 
 BROAD_NAMES = {"Exception", "BaseException"}
 

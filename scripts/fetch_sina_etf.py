@@ -94,7 +94,8 @@ def fetch_sina_etf(symbol: str, name: str) -> pd.DataFrame:
                 df["日期"] = pd.to_datetime(df["日期"])
                 df = df.sort_values("日期").drop_duplicates("日期")
                 return df
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             print(f"  {name} {symbol} 请求失败: {exc}")
         time.sleep(0.3)
     return pd.DataFrame()

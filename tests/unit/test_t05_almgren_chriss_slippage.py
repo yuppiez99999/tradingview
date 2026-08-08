@@ -27,7 +27,7 @@ _ms_path = str(PROJECT_ROOT / "ms_strategy")
 if _ms_path not in sys.path:
     sys.path.append(_ms_path)
 
-from ms_strategy.src.execution.broker_api import SimulatedBroker
+from ms_strategy.src.execution.broker_api import SimulatedBroker  # noqa: E402
 
 
 class TestSlippageFallback:

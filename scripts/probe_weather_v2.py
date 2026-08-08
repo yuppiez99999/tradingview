@@ -16,7 +16,9 @@ import requests
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
-API_KEY = "tj_live_F8W4O894RQYp"
+API_KEY = os.environ.get("APIZERO_API_KEY", "")
+if not API_KEY:
+    print("[WARN] 未设置 APIZERO_API_KEY 环境变量, 探测将失败. 请先 export/set APIZERO_API_KEY=<key>")
 
 TEST_LOCATION = "121.47,31.23"  # 上海
 
@@ -74,7 +76,8 @@ def test_url(name, url, params=None, headers=None, verify=True):
         else:
             print(f"    ❌ HTTP {resp.status_code}: {resp.text[:150]}")
             return {"ok": False, "status": resp.status_code}
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         elapsed = (time.time() - t0) * 1000
         err_type = type(e).__name__
         print(f"    ❌ {err_type} ({elapsed:.0f}ms): {str(e)[:120]}")

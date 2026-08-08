@@ -54,14 +54,18 @@ def configure_paths(base_dir: Path, models_dir: Path) -> None:
 # ============================================================
 # v8.7: GPU→CPU 自动回退训练器
 # ============================================================
+import threading
+
 # 全局标志: 一旦 GPU 训练失败, 后续所有训练直接用 CPU, 避免重复失败
+# H4修复: 添加线程锁保护全局可变状态, 防止多线程并发训练时的竞态条件
 _GLOBAL_GPU_DISABLED: bool = False
+_GLOBAL_GPU_DISABLED_LOCK = threading.Lock()
 
 
 def train_lgb_with_fallback(
-    X_train: np.ndarray,
+    X_train: np.ndarray,  # noqa: N803
     y_train: np.ndarray,
-    X_eval: np.ndarray,
+    X_eval: np.ndarray,  # noqa: N803
     y_eval: np.ndarray,
     config: dict[str, Any],
     log_tag: str = "",
@@ -82,8 +86,10 @@ def train_lgb_with_fallback(
     global _GLOBAL_GPU_DISABLED
     params = dict(config["lgb_params"])
 
-    # 若全局已禁用 GPU, 直接 CPU
-    if _GLOBAL_GPU_DISABLED and params.get("device_type") == "gpu":
+    # H4修复: 线程安全读取 GPU 禁用标志
+    with _GLOBAL_GPU_DISABLED_LOCK:
+        gpu_disabled = _GLOBAL_GPU_DISABLED
+    if gpu_disabled and params.get("device_type") == "gpu":
         params["device_type"] = "cpu"
         params.pop("gpu_platform_id", None)
         params.pop("gpu_device_id", None)
@@ -99,8 +105,9 @@ def train_lgb_with_fallback(
         except Exception as e:
             err_msg = str(e)[:150]
             logger.warning(f"  [{log_tag}] GPU 训练失败, 回退 CPU: {err_msg}")
-            # 全局禁用 GPU, 后续直接 CPU
-            _GLOBAL_GPU_DISABLED = True
+            # H4修复: 线程安全设置 GPU 禁用标志
+            with _GLOBAL_GPU_DISABLED_LOCK:
+                _GLOBAL_GPU_DISABLED = True
             params["device_type"] = "cpu"
             params.pop("gpu_platform_id", None)
             params.pop("gpu_device_id", None)
@@ -118,7 +125,8 @@ _train_lgb_with_fallback = train_lgb_with_fallback
 def reset_gpu_disabled_flag() -> None:
     """重置全局 GPU 禁用标志 (用于测试或重启 GPU 子系统)。"""
     global _GLOBAL_GPU_DISABLED
-    _GLOBAL_GPU_DISABLED = False
+    with _GLOBAL_GPU_DISABLED_LOCK:
+        _GLOBAL_GPU_DISABLED = False
 
 
 # ============================================================
@@ -178,11 +186,11 @@ def train_symbol_enhanced(
         }
 
     all_feature_cols = [c for c in df.columns if c not in ["open", "high", "low", "close", "volume", "target"]]
-    X_all = np.asarray(df[all_feature_cols].values, dtype=np.float64)
+    X_all = np.asarray(df[all_feature_cols].values, dtype=np.float64)  # noqa: N806
     y_all = np.asarray(df["target"].values, dtype=np.float64)
 
     # 替换 inf/nan
-    X_all = np.nan_to_num(X_all, nan=0.0, posinf=0.0, neginf=0.0)
+    X_all = np.nan_to_num(X_all, nan=0.0, posinf=0.0, neginf=0.0)  # noqa: N806
 
     # === Step 1: 全特征 CV ===
     cv_result = time_series_cv_evaluate(X_all, y_all, config, n_splits=config["n_splits"], code=symbol)
@@ -193,13 +201,11 @@ def train_symbol_enhanced(
         cv_result["feature_importances"],
         threshold=config["feature_selection_threshold"],
         top_n=config["top_n_features"],
-        protected_patterns=["sent_", "sentiment_"],  # 保护情绪因子
-        min_protected=1,  # 至少 1 个情绪因子入选
     )
 
     # === Step 3: 用筛选后的特征重新 CV ===
-    X_selected = np.asarray(df[selected_features].values, dtype=np.float64)
-    X_selected = np.nan_to_num(X_selected, nan=0.0, posinf=0.0, neginf=0.0)
+    X_selected = np.asarray(df[selected_features].values, dtype=np.float64)  # noqa: N806
+    X_selected = np.nan_to_num(X_selected, nan=0.0, posinf=0.0, neginf=0.0)  # noqa: N806
     cv_after_selection = time_series_cv_evaluate(X_selected, y_all, config, n_splits=config["n_splits"], code=symbol)
 
     # === Step 4: 最终模型 ===
@@ -208,13 +214,13 @@ def train_symbol_enhanced(
     train_df = df.iloc[:n_train]
     test_df = df.iloc[n_train:]
 
-    X_train = np.asarray(train_df[selected_features].values, dtype=np.float64)
+    X_train = np.asarray(train_df[selected_features].values, dtype=np.float64)  # noqa: N806
     y_train = np.asarray(train_df["target"].values, dtype=np.float64)
-    X_test = np.asarray(test_df[selected_features].values, dtype=np.float64)
+    X_test = np.asarray(test_df[selected_features].values, dtype=np.float64)  # noqa: N806
     y_test = np.asarray(test_df["target"].values, dtype=np.float64)
 
-    X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
-    X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)
+    X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)  # noqa: N806
+    X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)  # noqa: N806
 
     final_model, _ = train_lgb_with_fallback(X_train, y_train, X_test, y_test, config, log_tag=f"{symbol}-final")
 
@@ -667,7 +673,7 @@ def _verify_gpu_availability(config: dict[str, Any]) -> None:
             return
         import numpy as _np
 
-        _X = _np.array([[1, 2], [3, 4]], dtype=_np.float32)
+        _X = _np.array([[1, 2], [3, 4]], dtype=_np.float32)  # noqa: N806
         _y = _np.array([1.0, 2.0], dtype=_np.float32)
         _d = _lgb.Dataset(_X, label=_y)
         _m = _lgb.train({"objective": "regression", "device_type": "gpu", "verbose": -1}, _d, num_boost_round=1)
@@ -844,13 +850,42 @@ def _train_single_symbol(
 
 
 def _mark_quality_flag(code: str, result: dict[str, Any], config: dict[str, Any]) -> None:
-    """根据 CV 指标设置 quality_flag。"""
+    """根据 CV 指标 + 过拟合信号设置 quality_flag。
+    
+    P0/P1 修复 (2026-08-02):
+    - best_iter <= 1 且 final_ic < 0 → NOISE (纯噪声, 信号强制置零)
+    - CV IC 与 Final IC 偏差 > 0.3 → 降级 LOW_QUALITY (疑似过拟合)
+    """
     cv_metrics = result["cv_after_selection"]
+    final_metrics = result.get("final_metrics", {})
+    best_iter = result.get("best_iteration", 999)
+    final_ic = final_metrics.get("ic", 0)
+    
+    # P0-1: 检测纯噪声模型 (best_iter=1 且预测方向错误)
+    if best_iter <= 1 and final_ic < 0:
+        logger.warning(
+            f"  [NOISE] {code}: best_iter={best_iter}, final_ic={final_ic:.4f}, "
+            f"模型为纯噪声, 信号强制置零"
+        )
+        result["quality_flag"] = "NOISE"
+        return
+    
     quality_ok = (
         cv_metrics["mean_r2"] >= config["model_quality_threshold"]["min_cv_r2"]
         and cv_metrics["mean_ic"] >= config["model_quality_threshold"]["min_cv_ic"]
         and cv_metrics["mean_sharpe"] >= config["model_quality_threshold"]["min_cv_sharpe"]
     )
+    
+    # P1-2: CV IC 与 Final IC 一致性检查 (过拟合检测)
+    cv_ic = cv_metrics.get("mean_ic", 0)
+    ic_divergence = abs(cv_ic - final_ic)
+    if quality_ok and ic_divergence > 0.3:
+        logger.warning(
+            f"  [IC_DIVERGENCE] {code}: CV_IC={cv_ic:.4f}, Final_IC={final_ic:.4f}, "
+            f"偏差={ic_divergence:.2f} > 0.3, 疑似过拟合, 降级为 LOW_QUALITY"
+        )
+        quality_ok = False
+    
     if not quality_ok:
         logger.warning(
             f"  [LOW_QUALITY] {code}: "
@@ -879,18 +914,36 @@ def _log_saved_symbol(code: str, result: dict[str, Any]) -> None:
 
 
 def _generate_integrated_signals(results: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    """Step 5: 生成集成信号文件。"""
+    """Step 5: 生成集成信号文件。
+    
+    P0 修复 (2026-08-02): LOW_QUALITY / NOISE 信号自动置零, 防止垃圾信号污染交易决策。
+    raw_signal 字段保留原始信号供调试审查。
+    """
     logger.info("Step 5: 生成集成信号")
     signals: dict[str, Any] = {}
+    suppressed: list[str] = []
     for code, res in results.items():
         if res.get("status") in ("OK", "CACHED"):
+            quality = res.get("quality_flag", "CACHED")
+            raw_signal = res.get("signal", res.get("meta", {}).get("signal", 0))
+            # P0 修复: LOW_QUALITY / NOISE 信号强制置零
+            if quality in ("LOW_QUALITY", "NOISE"):
+                signal = 0.0
+                suppressed.append(f"{code}({quality})")
+            else:
+                signal = raw_signal
             signals[code] = {
-                "signal": res.get("signal", res.get("meta", {}).get("signal", 0)),
+                "signal": signal,
+                "raw_signal": raw_signal,
                 "name": res.get("name", ""),
                 "style": res.get("style", ""),
-                "quality_flag": res.get("quality_flag", "CACHED"),
+                "quality_flag": quality,
                 "model_type": "LightGBM_Enhanced_RealOHLCV_Sentiment",
             }
+    if suppressed:
+        logger.warning(
+            f"  [SIGNAL_SUPPRESS] {len(suppressed)} 个低质量信号已置零: {', '.join(suppressed)}"
+        )
 
     signals_path = MODELS_DIR / "lgb_enhanced_signals.json"
     signals_data: dict[str, Any] = {
@@ -947,7 +1000,7 @@ def run_enhanced_training(
                 "feature_selection_threshold": 1,
                 "early_stopping_rounds": 200,
                 "retrain_interval_days": 7,
-                "news_lookback_days": 30,
+                "news_lookback_days": 250,  # v4.1: 30→250天
                 "adaptive_retrain_threshold": 5,
                 "adaptive_retrain_lr": 0.001,
                 "adaptive_retrain_n_estimators": 5000,

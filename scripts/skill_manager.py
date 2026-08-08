@@ -47,7 +47,8 @@ def _check_feature_flag() -> bool:
     try:
         val = os.getenv(_SKILL_CONFIG["feature_flag_name"], "False")
         return val.lower() in ("true", "1", "yes", "on")
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return False
 
 
@@ -89,7 +90,8 @@ class SkillManager:
         try:
             os.makedirs(os.path.dirname(self.skill_path), exist_ok=True)
             os.makedirs(log_dir, exist_ok=True)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"创建目录失败 (非致命): {e}")
 
     # ---------- 读 ----------
@@ -102,7 +104,8 @@ class SkillManager:
                 data = json.load(f)
             if isinstance(data, list):
                 return data
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"读取经验日志失败: {e}")
         return []
 
@@ -203,13 +206,15 @@ class SkillManager:
             with open(self.experience_log_path, "w", encoding="utf-8") as f:
                 json.dump(log, f, ensure_ascii=False, indent=2)
             success = True
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"写入经验日志失败: {e}")
 
         # 2. 追加到 Skill Markdown (独立 try, 日志失败不影响 markdown)
         try:
             self._append_skill_markdown(entry)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"追加 Skill Markdown 失败 (非致命): {e}")
 
         return success
@@ -248,7 +253,8 @@ class SkillManager:
                 if entry.get("timestamp", "")[:16] in existing:
                     logger.debug(f"经验已存在, 跳过追加: {entry.get('timestamp')}")
                     return
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
 
         with open(self.skill_path, "a", encoding="utf-8") as f:
@@ -299,7 +305,8 @@ def record_lesson(
                 "verified": verified,
             },
         )
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.debug(f"记录经验失败 (非致命): {e}")
         return False
 

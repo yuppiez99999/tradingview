@@ -409,7 +409,7 @@ class TestMarketStateEvaluator:
     def test_evaluate_market_state_exception_returns_normal(self):
         # 异常输入 → fail-safe 返回 normal
         evaluator = MarketStateEvaluator()
-        result = evaluator.evaluate_market_state(None)  # type: ignore
+        result = evaluator.evaluate_market_state(None)  # type: ignore[union-attr]
         assert result["market_state"] == "normal"
         assert "error" in result
 
@@ -1035,6 +1035,104 @@ class TestOrderRouter:
         )
         result = router._get_reference_price("600519")
         assert result == 1800.5
+
+    # ============================================================
+    # 批次4: _execute_order 边缘场景补充测试 (重构前补测试)
+    # ============================================================
+
+    def test_execute_order_live_mode_empty_fills(self, monkeypatch):
+        """P1-10 回归: 实盘 fills 为空 → '所有场所均执行失败'"""
+        monkeypatch.setenv("TRADING_ENV", "production")
+        mock_ks = MagicMock()
+        mock_ks.check_margin_status.return_value = {"level": 1}
+        mock_sr = MagicMock()
+        mock_sr.route.return_value = MagicMock(latency_ms=50)
+        mock_sr.execute_route.return_value = []  # fills 为空
+        mock_broker = MagicMock()
+        mock_broker.get_order_book.return_value = {"mid": 100.0, "ask1": 100.2, "bid1": 99.8}
+        router = OrderRouter(smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks)
+        order = {
+            "symbol": "600519.SH",
+            "side": "BUY",
+            "slice_info": {"size": 100, "price": 100.0},
+        }
+        result = router._execute_order(order)
+        assert result["success"] is False
+        assert "执行失败" in result["error"]
+
+    def test_execute_order_live_mode_zero_filled_qty(self, monkeypatch):
+        """P1-10 回归: 实盘 fills 非空但 filled_qty=0 → '所有场所成交量为 0'"""
+        monkeypatch.setenv("TRADING_ENV", "production")
+        mock_ks = MagicMock()
+        mock_ks.check_margin_status.return_value = {"level": 1}
+        mock_sr = MagicMock()
+        mock_sr.route.return_value = MagicMock(latency_ms=50)
+        mock_fill = MagicMock()
+        mock_fill.filled_qty = 0  # 成交量为 0
+        mock_fill.avg_price = 100.0
+        mock_sr.execute_route.return_value = [mock_fill]
+        mock_broker = MagicMock()
+        mock_broker.get_order_book.return_value = {"mid": 100.0, "ask1": 100.2, "bid1": 99.8}
+        router = OrderRouter(smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks)
+        order = {
+            "symbol": "600519.SH",
+            "side": "BUY",
+            "slice_info": {"size": 100, "price": 100.0},
+        }
+        result = router._execute_order(order)
+        assert result["success"] is False
+        assert "成交量为 0" in result["error"]
+
+    def test_execute_order_live_mode_invalid_arrival_price(self, monkeypatch):
+        """P1 回归: arrival_price=0 → 滑点置 0 (除零保护, 不崩溃)"""
+        monkeypatch.setenv("TRADING_ENV", "production")
+        mock_ks = MagicMock()
+        mock_ks.check_margin_status.return_value = {"level": 1}
+        mock_sr = MagicMock()
+        mock_sr.route.return_value = MagicMock(latency_ms=50)
+        mock_fill = MagicMock()
+        mock_fill.filled_qty = 100
+        mock_fill.avg_price = 100.5
+        mock_sr.execute_route.return_value = [mock_fill]
+        mock_broker = MagicMock()
+        # mid/ask1/bid1 全为 0 → arrival_price=0
+        mock_broker.get_order_book.return_value = {"mid": 0, "ask1": 0, "bid1": 0}
+        router = OrderRouter(smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks)
+        order = {
+            "symbol": "600519.SH",
+            "side": "BUY",
+            "slice_info": {"size": 100, "price": 100.0},
+        }
+        result = router._execute_order(order)
+        assert result["success"] is True
+        assert result["slippage"] == 0.0  # arrival_price=0 → slippage=0
+
+    def test_execute_order_simulated_unknown_pool_fallback(self):
+        """P1 回归: target_pool 未知 → 用 'normal' 兜底"""
+        router = OrderRouter()
+        order = {
+            "symbol": "600519.SH",
+            "side": "BUY",
+            "slice_info": {"size": 100, "price": 100.0},
+            "target_pool": "unknown_pool_name",
+        }
+        result = router._execute_order(order)
+        assert result["success"] is True
+        # normal pool 的 broker 为 broker_a (从 execution_pools 配置)
+        assert result["broker"] == "broker_a"
+
+    def test_execute_order_simulated_small_cap_slippage(self):
+        """P1 回归: 中小盘 (非 60/00/30 开头) 滑点 5bp"""
+        router = OrderRouter()
+        order = {
+            "symbol": "688001.SH",  # 科创板, 非 60/00/30 开头
+            "side": "BUY",
+            "slice_info": {"size": 100, "price": 50.0},
+            "target_pool": "normal",
+        }
+        result = router._execute_order(order)
+        assert result["success"] is True
+        assert result["slippage"] == 5 / 10000.0  # 5bp
 
     def test_update_execution_stats_success(self):
         router = OrderRouter()

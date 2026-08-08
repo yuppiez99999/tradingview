@@ -18,7 +18,7 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.kill_switch import KillSwitch
+from utils.kill_switch import KillSwitch  # noqa: E402
 
 
 class BrokerCallbackSimulator:
@@ -138,8 +138,8 @@ class BrokerCallbackSimulator:
                 })
 
         if level >= 3:
-            RED_ETF_CODES = ["512890", "515180"]
-            RED_ETF_SELL_PCT = 0.10
+            RED_ETF_CODES = ["512890", "515180"]  # noqa: N806
+            RED_ETF_SELL_PCT = 0.10  # noqa: N806
             for etf_code in RED_ETF_CODES:
                 for symbol, pos in self.positions.items():
                     if etf_code not in str(symbol):

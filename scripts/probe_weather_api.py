@@ -4,13 +4,16 @@
 仅发送只读请求, 不修改任何状态.
 """
 
+import os
 import sys
 import time
 
 import requests
 
-API_KEY = "tj_live_F8W4O894RQYp"
+API_KEY = os.environ.get("APIZERO_API_KEY", "")
 BASE_URL = "https://api.caiyunapp.com/v2.6"
+if not API_KEY:
+    print("[WARN] 未设置 APIZERO_API_KEY 环境变量, 探测将失败. 请先 export/set APIZERO_API_KEY=<key>")
 
 # 关键标的地理位置 (经度, 纬度)
 LOCATIONS = {
@@ -64,7 +67,8 @@ def probe_realtime(location: str, name: str) -> dict:
         else:
             print(f"  ❌ 失败: {resp.text[:200]}")
             return {"ok": False, "error": resp.text}
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"  ❌ 异常: {e}")
         return {"ok": False, "error": str(e)}
 
@@ -113,7 +117,8 @@ def probe_hourly(location: str, name: str) -> dict:
         else:
             print(f"  ❌ 失败: {resp.status_code}")
             return {"ok": False}
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"  ❌ 异常: {e}")
         return {"ok": False}
 
@@ -163,7 +168,8 @@ def probe_daily(location: str, name: str) -> dict:
             return {"ok": True, "forecast_types": available, "days": len(temp_15) if temp_15 else 0}
         else:
             return {"ok": False}
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {"ok": False, "error": str(e)}
 
 
@@ -196,7 +202,8 @@ def probe_minutely(location: str, name: str) -> dict:
             return {"ok": True, "fields": available}
         else:
             return {"ok": False}
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {"ok": False, "error": str(e)}
 
 

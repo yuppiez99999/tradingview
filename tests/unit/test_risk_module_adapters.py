@@ -20,15 +20,15 @@ from unittest.mock import MagicMock
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.risk.risk_bus import RiskBus
-from utils.risk.risk_event import (
+from utils.risk.risk_bus import RiskBus  # noqa: E402
+from utils.risk.risk_event import (  # noqa: E402
     RiskAction,
     RiskDecision,
     RiskEvent,
     RiskEventType,
     RiskSeverity,
 )
-from utils.risk.risk_module_adapters import (
+from utils.risk.risk_module_adapters import (  # noqa: E402
     CircuitBreakerAdapter,
     OvernightGapAdapter,
     RiskGuardAdapter,

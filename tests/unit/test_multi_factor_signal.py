@@ -29,7 +29,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 # 导入被测模块
-from utils.alpha.multi_factor_signal import (
+from utils.alpha.multi_factor_signal import (  # noqa: E402
     CombinationResult,
     FactorICMetrics,
     InsufficientSamplesError,
@@ -38,7 +38,7 @@ from utils.alpha.multi_factor_signal import (
     combine_factors,
     detect_inverted_factors,
 )
-from utils.infra.feature_flags import FeatureFlags
+from utils.infra.feature_flags import FeatureFlags  # noqa: E402
 
 # ============================================================
 # 测试 fixture

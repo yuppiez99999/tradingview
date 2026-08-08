@@ -26,7 +26,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 # 导入被测模块
-from utils.alpha.llm_router import (
+from utils.alpha.llm_router import (  # noqa: E402
     AllProvidersFailedError,
     CallRecord,
     LLMRouter,
@@ -38,7 +38,7 @@ from utils.alpha.llm_router import (
     reload,
     test_connection,
 )
-from utils.infra.feature_flags import FeatureFlags
+from utils.infra.feature_flags import FeatureFlags  # noqa: E402
 
 # ============================================================
 # Fixtures

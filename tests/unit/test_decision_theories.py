@@ -20,7 +20,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 # 导入被测模块 (新路径)
-from utils.alpha.decision_theories import (
+from utils.alpha.decision_theories import (  # noqa: E402
     BuffettMungerFramework,
     DalioEconomicMachine,
     FirstPrinciplesAnalyzer,

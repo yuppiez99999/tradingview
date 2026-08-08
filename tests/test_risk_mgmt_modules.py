@@ -10,11 +10,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import numpy as np
+import numpy as np  # noqa: E402
 
-from utils.ledoit_wolf_covariance import LedoitWolfCovariance
-from utils.risk_budget_optimizer import RiskBudgetOptimizer
-from utils.stress_test_scenario_library import (
+from utils.ledoit_wolf_covariance import LedoitWolfCovariance  # noqa: E402
+from utils.risk_budget_optimizer import RiskBudgetOptimizer  # noqa: E402
+from utils.stress_test_scenario_library import (  # noqa: E402
     ShockFactors,
     StressTestEngine,
 )

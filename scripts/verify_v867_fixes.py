@@ -97,7 +97,9 @@ def verify_bug1() -> bool:
 
         return s1_pass and s2_pass and s3_pass and s4_pass
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("BUG#1: 验证执行", False, f"异常: {e}")
         import traceback
         traceback.print_exc()
@@ -151,7 +153,9 @@ def verify_bug1b() -> bool:
 
         return s1_pass and s2_pass and s3_pass
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("BUG#1b: 验证执行", False, f"异常: {e}")
         return False
 
@@ -194,7 +198,9 @@ def verify_bug2() -> bool:
 
         return s1_pass and s2_pass and s3_pass
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("BUG#2: 验证执行", False, f"异常: {e}")
         return False
 
@@ -260,7 +266,9 @@ def verify_bug4() -> bool:
 
         return s1_pass and s2_pass and s3_pass and s4_pass
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("BUG#4: 验证执行", False, f"异常: {e}")
         import traceback
         traceback.print_exc()
@@ -396,7 +404,9 @@ def verify_bug5() -> bool:
 
         return all_pass
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("BUG#5: 验证执行", False, f"异常: {e}")
         return False
 

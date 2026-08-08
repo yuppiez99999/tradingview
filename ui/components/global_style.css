@@ -1,0 +1,335 @@
+/* 量化策略系统 — 全局样式规范 */
+/* 暗色主题：深色背景、玻璃态卡片、高对比度文字 */
+
+/* ========== 基础背景与字体 ========== */
+.stApp {
+    background: radial-gradient(100% 100% at top left, #0d1117 0%, #161b22 100%);
+    color: #e6edf3;
+    font-family: 'Outfit', 'Inter', 'Noto Sans SC', sans-serif;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========== 字体与排版 ========== */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #e6edf3;
+}
+.stMarkdown p, .stMarkdown li {
+    line-height: 1.6;
+    font-size: 0.95rem;
+    color: #8b949e;
+}
+.stCaption, .stMarkdown small {
+    color: #6e7681;
+}
+
+/* ========== 玻璃态卡片系统 ========== */
+.qm-card {
+    background: rgba(30, 36, 44, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 10px 15px -3px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.qm-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.qm-card-title {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-align: center;
+    color: #e6edf3;
+}
+.qm-card-body {
+    flex: 1;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #8b949e;
+}
+
+/* ========== 顶部指标卡 ========== */
+[data-testid="stMetric"] {
+    background: rgba(30, 36, 44, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 18px 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 10px 15px -3px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+[data-testid="stMetric"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+}
+[data-testid="stMetric"] [data-testid="stMetricLabel"] {
+    color: #8b949e;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+[data-testid="stMetric"] [data-testid="stMetricValue"] {
+    color: #e6edf3;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+/* ========== 侧边栏 ========== */
+[data-testid="stSidebar"] {
+    background: rgba(22, 27, 34, 0.94);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+[data-testid="stSidebar"] .stMarkdown h3 {
+    font-size: 1rem;
+    margin-top: 0.5rem;
+    color: #e6edf3;
+}
+
+/* ========== 按钮 ========== */
+.stButton>button {
+    border-radius: 12px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    transition: all 0.24s ease;
+    background: rgba(30, 36, 44, 0.72);
+    color: #e6edf3;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.stButton>button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(24, 144, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border-color: rgba(24, 144, 255, 0.3);
+    color: #60a5fa;
+}
+[data-testid="baseButton-primary"] {
+    background: #1890FF;
+    border-color: #1890FF;
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgba(24, 144, 255, 0.2);
+}
+[data-testid="baseButton-primary"]:hover {
+    background: #096dd9;
+    border-color: #096dd9;
+    box-shadow: 0 14px 30px rgba(24, 144, 255, 0.25);
+}
+
+/* ========== 表格增强 ========== */
+[data-testid="stDataFrame"] {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-variant-numeric: tabular-nums;
+    background: rgba(30, 36, 44, 0.72);
+    backdrop-filter: blur(12px) saturate(160%);
+}
+[data-testid="stDataFrame"] .row-even {
+    background-color: rgba(22, 27, 34, 0.6);
+}
+[data-testid="stDataFrame"] .row-odd {
+    background-color: rgba(30, 36, 44, 0.72);
+}
+[data-testid="stDataFrame"] .row-odd:hover,
+[data-testid="stDataFrame"] .row-even:hover {
+    background-color: rgba(24, 144, 255, 0.15);
+}
+[data-testid="stDataFrame"] thead th {
+    background: rgba(22, 27, 34, 0.94);
+    color: #8b949e;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+[data-testid="stDataFrame"] tbody td {
+    font-size: 0.9rem;
+    color: #e6edf3;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ========== Plotly 图表主题 ========== */
+.js-plotly-plot .plotly .modebar {
+    top: 4px !important;
+    right: 4px !important;
+}
+.js-plotly-plot .plotly .modebar-btn {
+    color: #8b949e !important;
+}
+.js-plotly-plot .plotly .modebar-btn:hover {
+    color: #60a5fa !important;
+}
+.js-plotly-plot .plotly .gridline {
+    stroke: rgba(255, 255, 255, 0.1);
+}
+.js-plotly-plot .plotly .bg {
+    fill: #0d1117;
+}
+.js-plotly-plot .plotly .xtitle,
+.js-plotly-plot .plotly .ytitle {
+    color: #8b949e;
+    font-size: 12px;
+}
+
+/* ========== 进度条 ========== */
+[data-testid="stProgressBar"] > div > div {
+    background: #1890FF;
+    border-radius: 6px;
+}
+[data-testid="stProgressBar"] > div {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+}
+
+/* ========== 输入控件聚焦 ========== */
+.stSelectbox:focus-within,
+.stNumberInput:focus-within,
+.stDateInput:focus-within,
+.stTextInput:focus-within,
+.stTextArea:focus-within {
+    border-color: #1890FF !important;
+    box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.15);
+}
+[data-testid="stSlider"] > div > div > div > div {
+    background: #1890FF;
+}
+
+/* ========== 代码块 ========== */
+[data-testid="stCode"] {
+    background: #161b22;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    font-size: 0.85rem;
+}
+
+/* ========== 滚动条美化 ========== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+}
+
+/* ========== 下载按钮 ========== */
+[data-testid="baseButton-secondary"] {
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e6edf3;
+}
+[data-testid="baseButton-secondary"]:hover {
+    border-color: #1890FF;
+    color: #60a5fa;
+}
+
+/* ========== 多选标签 ========== */
+[data-testid="stMultiSelect"] [data-testid="stMultiSelectChip"] {
+    background: rgba(24, 144, 255, 0.15);
+    border: 1px solid rgba(24, 144, 255, 0.3);
+    color: #60a5fa;
+    border-radius: 8px;
+}
+
+/* ========== 日期选择器 ========== */
+[data-testid="stDateInput"] input {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ========== 工具提示 ========== */
+[role="tooltip"] {
+    background: #161b22;
+    color: #e6edf3;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+/* ========== 状态色（红涨绿跌） ========== */
+.text-profit { color: #f87171; }
+.text-loss { color: #4ade80; }
+.text-neutral { color: #8b949e; }
+
+/* ========== 标签页 ========== */
+[data-testid="stTab"] {
+    border-radius: 12px 12px 0 0;
+}
+[data-testid="stTab"][aria-selected="true"] {
+    background: #161b22;
+    border-bottom: 2px solid #1890FF;
+    color: #60a5fa;
+    font-weight: 600;
+}
+
+/* ========== 提示框 ========== */
+[data-testid="stAlert"] {
+    border-radius: 14px;
+    border: 1px solid transparent;
+}
+[data-testid="stAlert-success"] {
+    background: rgba(74, 222, 128, 0.1);
+    border-color: rgba(74, 222, 128, 0.2);
+    color: #4ade80;
+}
+[data-testid="stAlert-warning"] {
+    background: rgba(250, 204, 21, 0.1);
+    border-color: rgba(250, 204, 21, 0.2);
+    color: #facc15;
+}
+[data-testid="stAlert-error"] {
+    background: rgba(248, 113, 113, 0.1);
+    border-color: rgba(248, 113, 113, 0.2);
+    color: #f87171;
+}
+[data-testid="stAlert-info"] {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: rgba(96, 165, 250, 0.2);
+    color: #60a5fa;
+}
+
+/* ========== 展开器 ========== */
+[data-testid="stExpander"] {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    background: rgba(30, 36, 44, 0.72);
+    backdrop-filter: blur(12px) saturate(160%);
+}
+
+/* ========== 加载/进度 ========== */
+[data-testid="stSpinner"] > div {
+    border-top-color: #1890FF;
+}
+
+/* ========== 响应式断点 ========== */
+@media (max-width: 768px) {
+    .stApp {
+        background: #0d1117;
+    }
+    [data-testid="stMetric"] {
+        padding: 12px 14px;
+    }
+    [data-testid="stDataFrame"] {
+        font-size: 0.8rem;
+    }
+}
+@media (max-width: 480px) {
+    [data-testid="stMetric"] [data-testid="stMetricValue"] {
+        font-size: 1rem;
+    }
+    [data-testid="stMetric"] [data-testid="stMetricLabel"] {
+        font-size: 0.75rem;
+    }
+}

@@ -15,7 +15,7 @@ if os.path.exists(env_path):
             key, _, value = line.partition("=")
             os.environ.setdefault(key.strip(), value.strip())
 
-import iFinDPy
+import iFinDPy  # noqa: E402
 
 user = os.getenv("IFIND_USER", "")
 pwd = os.getenv("IFIND_PASS", "")
@@ -35,7 +35,8 @@ for code in ["600276.SH", "000408.SZ", "512170.SH"]:
             print(" data=", str(raw.data)[:300])
         else:
             print(" raw=", str(raw)[:300])
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(code, "EXC", repr(e))
 
 print("\n=== THS_HQ ===")
@@ -47,7 +48,8 @@ for code in ["600276.SH", "000408.SZ", "512170.SH"]:
             print(" data=", str(raw.data)[:300])
         else:
             print(" raw=", str(raw)[:300])
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(code, "EXC", repr(e))
 
 print("\n=== THS_SS ===")
@@ -59,7 +61,8 @@ for code in ["600276.SH", "000408.SZ", "512170.SH"]:
             print(" data=", str(raw.data)[:300])
         else:
             print(" raw=", str(raw)[:300])
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(code, "EXC", repr(e))
 
 print("\n=== THS_RQ ===")

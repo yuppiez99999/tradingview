@@ -18,6 +18,26 @@ from reporting.pnl_calculator import (
 from reporting.price_fetcher import assess_data_source_health
 
 
+def _fetch_vix_or_default(default: float = 18.5) -> float:
+    """G13 修复: 从 VixDataSource 获取真实 VIX 替代值, 消除硬编码 18.5 口径差异.
+
+    Args:
+        default: 获取失败时的降级默认值
+
+    Returns:
+        VIX 数值 (如 7.24 或 18.5)
+    """
+    try:
+        from utils.alpha.vix_data_source import fetch_vix
+
+        vix = fetch_vix(use_cache=True)
+        if vix is not None and 5.0 <= vix <= 150.0:
+            return float(vix)
+    except Exception:  # noqa: BLE001  # VIX 获取 fail-open
+        pass
+    return default
+
+
 def generate_report(
     report_date: str,
     positions_data: Dict[str, Any],
@@ -72,7 +92,7 @@ def generate_report(
         },
         "market_overview": {
             "market_regime": hedge_data.get("regime", "normal"),
-            "vix_estimate": 18.5,
+            "vix_estimate": _fetch_vix_or_default(),
             "market_trend": "震荡上行",
             "key_events": [],
             "data_source_status": data_source_health.get("status", "UNKNOWN"),

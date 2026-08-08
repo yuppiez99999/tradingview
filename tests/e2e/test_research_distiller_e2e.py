@@ -18,8 +18,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.research_distiller import DistilledSignal, ResearchDistiller
-from utils.signal_fusion import SignalFusionEngine
+from utils.research_distiller import DistilledSignal, ResearchDistiller  # noqa: E402
+from utils.signal_fusion import SignalFusionEngine  # noqa: E402
 
 # ============================================================
 # E2E 测试组 1: 真实端到端链路
@@ -232,4 +232,4 @@ class TestResearchDistillerE2EMultiSource:
 
 
 # 导入 math (放在文件末尾避免循环导入问题)
-import math
+import math  # noqa: E402

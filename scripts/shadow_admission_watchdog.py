@@ -168,7 +168,8 @@ def query_task_status(task_name: str) -> dict[str, str]:
             elif line.startswith("Next Run Time:"):
                 info["next_run"] = line.split(":", 1)[1].strip()
         return info
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {"last_run": "?", "last_result": f"error: {e}", "next_run": "?"}
 
 
@@ -246,7 +247,8 @@ def run_retry(python_exe: str, launcher_script: Path, cwd: Path) -> dict[str, An
             "stderr": (e.stderr or "") if isinstance(e.stderr, str) else "",
             "timed_out": True,
         }
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {
             "returncode": -2,
             "stdout": "",

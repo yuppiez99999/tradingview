@@ -1,0 +1,5 @@
+AVAILABLE: False
+2026-08-06 15:08:39,818 - finance_agent_orchestrator - INFO - WeatherAgent 初始化成功
+2026-08-06 15:08:39,820 - finance_agent_orchestrator - INFO - FinanceAgentOrchestrator 初始化完成: agents=['value', 'momentum', 'sentiment', 'risk', 'macro', 'weather'], weights={'value': 0.22, 'momentum': 0.22, 'sentiment': 0.13, 'risk': 0.22, 'macro': 0.1, 'weather': 0.11}
+SOURCE: fallback_local
+ACTION: HOLD

@@ -27,7 +27,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 # 导入被测模块 (会自动将 15_每日工作流 / 11_量化策略 / v8.3/src 加入 sys.path)
-import morning_info_runner as mir
+import morning_info_runner as mir  # noqa: E402
 
 # ============================================================
 # Fixtures

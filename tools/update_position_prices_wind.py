@@ -9,12 +9,15 @@ import json
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统8.4')
+# S3修复: 用 PROJECT_ROOT 替代硬编码绝对路径
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from wind_mcp_fetcher import wind_get_quote
 
-POSITIONS_PATH = r'e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json'
+POSITIONS_PATH = str(PROJECT_ROOT / "config" / "positions.json")
 
 
 def to_wind_code(code: str):
@@ -181,7 +184,7 @@ def update_prices():
         'source': 'wind_mcp'
     }
 
-    report_dir = r'e:\各种PY程序\28-终极量化交易系统7.1\reports'
+    report_dir = str(PROJECT_ROOT / "reports")
     os.makedirs(report_dir, exist_ok=True)
     report_path = os.path.join(report_dir, f'price_update_{datetime.now().strftime("%Y%m%d_%H%M%S")}_wind.json')
     with open(report_path, 'w', encoding='utf-8') as f:

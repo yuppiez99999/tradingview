@@ -29,7 +29,7 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.tca_pre_trade_estimator import (
+from utils.tca_pre_trade_estimator import (  # noqa: E402
     DEFAULT_COST_THRESHOLD_BPS,
     DEFAULT_LATENCY_LIMIT_MS,
     PreTradeEstimate,

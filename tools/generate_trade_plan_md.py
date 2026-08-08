@@ -108,10 +108,8 @@ def generate_trade_plan_md(plan_path: Path, output_path: Path) -> None:
 
 
 if __name__ == '__main__':
-    plan_path = Path(
-        r'e:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional\trade_plans\trade_plan_20260728.json'
-    )
-    output_path = Path(
-        r'e:\各种PY程序\每日报告归档\2026-07-27\trade_plan_20260728.md'
-    )
+    from pathlib import Path
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    plan_path = PROJECT_ROOT / 'v8.3_institutional' / 'trade_plans' / 'trade_plan_20260728.json'
+    output_path = Path.home() / '每日报告归档' / '2026-07-27' / 'trade_plan_20260728.md'
     generate_trade_plan_md(plan_path, output_path)

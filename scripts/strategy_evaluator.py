@@ -6,6 +6,12 @@
   II: 持仓分散度指标 — 风格分布、行业集中度、单标占比
   III: 综合评分 — 加权得分 (权重由 EVOLUTION_CONFIG 驱动)
 
+T1.6 增强 (2026-08-02):
+  - 集成 FeatureFlags 框架 (替代原始 JSON 读取)
+  - 新增 Walk-Forward 样本外评分 (WF Score)
+  - 新增观察期追踪器输出格式兼容
+  - 优化降级路径: 任意组件失败不影响其余计算
+
 设计原则:
   - 只读历史数据, 不修改任何生产状态
   - Feature Flag 开关 (USE_STRATEGY_EVALUATOR = False 时跳过)
@@ -16,19 +22,27 @@
 """
 import json
 import logging
+import math
 import os
+import sys
 from collections import Counter
 from dataclasses import asdict, dataclass, field
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Dict, List, Optional, Sequence, Tuple
 
 # ========== 配置 (复用 Day 1 EVOLUTION_CONFIG) ==========
 EVOLUTION_CONFIG = {
-    "feature_flag_name": "USE_STRATEGY_EVALUATOR",   # HC-1: Feature Flag
-    "public_weight": 0.30,                           # Public Score 权重
-    "private_weight": 0.70,                          # Private Score 权重
-    "min_annual_return": 0.08,                       # 基准年化收益
-    "max_allowed_drawdown": 0.15,                    # 最大允许回撤
-    "benchmark_sharpe": 0.5,                         # 基准 Sharpe
+    "feature_flag_name": "USE_STRATEGY_EVALUATOR",
+    "public_weight": 0.30,
+    "private_weight": 0.70,
+    "min_annual_return": 0.08,
+    "max_allowed_drawdown": 0.15,
+    "benchmark_sharpe": 0.5,
+    # T1.6 新增: Walk-Forward 配置
+    "wf_test_size": 0.30,
+    "wf_min_periods": 30,
+    "overall_score_threshold_promote": 0.60,
+    "overall_score_threshold_rollback": 0.30,
 }
 
 logger = logging.getLogger("strategy_evaluator")
@@ -55,23 +69,38 @@ class DiversificationMetrics:
     num_sectors: int = 0                    # 行业数
     weight_variance: float = 0.0            # 权重方差
 
+
+@dataclass
+class WalkForwardResult:
+    """Walk-Forward 验证结果."""
+    wf_score: float = 0.0
+    train_sharpe: float = 0.0
+    test_sharpe: float = 0.0
+    sharpe_drop_pct: float = 0.0
+    overfit_flag: bool = False
+    overfit_reason: str = ""
+
+
 @dataclass
 class ScoreReport:
-    """策略评分报告."""
-    public_score: float = 0.0                 # 样本内综合得分 (0-1)
-    private_score: float = 0.0                # 样本外稳健性得分 (0-1)
-    overall_score: float = 0.0                # 综合得分 (公共+私有加权)
+    """策略评分报告 (T1.6 增强 — 新增 WF 指标)."""
+    public_score: float = 0.0
+    private_score: float = 0.0
+    overall_score: float = 0.0
     return_metrics: ReturnMetrics = field(default_factory=ReturnMetrics)
     divers_metrics: DiversificationMetrics = field(default_factory=DiversificationMetrics)
-    recommendation: str = "continue"          # promote / rollback / continue
+    wf_result: WalkForwardResult = field(default_factory=WalkForwardResult)
+    recommendation: str = "continue"
     reason: str = ""
     is_degraded: bool = False
     degraded_reason: str = ""
+    evaluated_at: str = ""
 
     def to_dict(self) -> Dict[str, any]:
         d = asdict(self)
         d["return_metrics"] = asdict(self.return_metrics)
         d["divers_metrics"] = asdict(self.divers_metrics)
+        d["wf_result"] = asdict(self.wf_result)
         d["is_degraded"] = self.is_degraded
         return d
 
@@ -233,23 +262,45 @@ def evaluate_diversification(positions: Dict) -> DiversificationMetrics:
 
 
 def _check_feature_flag(flag_name: str) -> bool:
-    """检查 Feature Flag (HC-1). 默认关闭."""
+    """检查 Feature Flag — 双路径解析 (T1.6 增强).
+
+    优先级:
+        1. utils.infra.feature_flags.FeatureFlags 框架 (权威源)
+        2. config/features.json (历史降级)
+        3. 环境变量 (测试/开发用)
+    """
+    # 路径 1: FeatureFlags 框架 (T1.6)
     try:
-        # 尝试从 config 读取
+        _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _PROJECT_ROOT not in sys.path:
+            sys.path.insert(0, _PROJECT_ROOT)
+        from utils.infra.feature_flags import is_enabled as ff_is_enabled
+
+        return ff_is_enabled(flag_name)
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+        pass
+
+    # 路径 2: 历史降级 — config/features.json
+    try:
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         config_path = os.path.join(base, "config", "features.json")
         if os.path.exists(config_path):
             with open(config_path) as f:
                 features = json.load(f)
             return features.get(flag_name, False)
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         pass
-    # 降级: 检查环境变量或硬编码回退
+
+    # 路径 3: 环境变量 (测试/开发用)
     try:
         return bool(os.getenv(flag_name, "False").lower() == "true")
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         pass
-    return False  # 默认关闭 (HC-1: Feature Flag 默认 False)
+
+    return False
 
 
 # ========== 主评分器 ==========
@@ -275,16 +326,19 @@ class StrategyEvaluator:
             use_shadow_data: 如果 auto path 不存在, 尝试 shadow 目录
 
         Returns:
-            ScoreReport
+            ScoreReport (含 Walk-Forward 指标, T1.6)
         """
         # HC-1: Feature Flag 检查
         if not self._enabled:
             return self._build_degraded_report(reason=f"feature_flag_disabled ({self._feature_flag_name})")
 
         # ========== I: 资金回报指标 ==========
-        return_metrics = self._compute_return_metrics(
+        return_metrics, returns_list = self._compute_return_metrics_ext(
             daily_returns_path, pos_path, use_shadow_data
         )
+
+        # ========== Ia: Walk-Forward 验证 (T1.6 新增) ==========
+        wf_result = self._walk_forward_validate(returns_list)
 
         # ========== II: 持仓分散度指标 ==========
         try:
@@ -294,13 +348,18 @@ class StrategyEvaluator:
             pos_data = load_positions(pos_path)
             positions = pos_data.get("positions", {})
             divers_metrics = evaluate_diversification(positions)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"分散度评估失败, 使用降级值: {e}")
             divers_metrics = DiversificationMetrics()
-            divers_metrics.degraded_reason = str(e)
 
         # ========== III: 综合评分 ==========
         public_score, private_score = self._compute_overall_scores(return_metrics, divers_metrics)
+
+        # WF 过拟合惩罚: 如果样本外 Sharpe 显著低于样本内, 降低 private_score
+        if wf_result.overfit_flag:
+            private_score *= 0.5
+            logger.warning("WF 过拟合标记触发, private_score 减半: %.4f", private_score)
 
         # ========== 决策建议 ==========
         recommendation, reason = self._make_recommendation(public_score, private_score, return_metrics, divers_metrics)
@@ -311,20 +370,21 @@ class StrategyEvaluator:
             overall_score=round(public_score * EVOLUTION_CONFIG["public_weight"] + private_score * EVOLUTION_CONFIG["private_weight"], 4),
             return_metrics=return_metrics,
             divers_metrics=divers_metrics,
+            wf_result=wf_result,
             recommendation=recommendation,
             reason=reason,
             is_degraded=False,
+            evaluated_at=datetime.now().isoformat(),
         )
         return report
 
-    def _compute_return_metrics(
+    def _compute_return_metrics_ext(
         self,
         daily_returns_path: Optional[str],
         pos_path: Optional[str],
         use_shadow_data: bool,
-    ) -> ReturnMetrics:
-        """计算资金回报指标 (I)."""
-        # 寻找数据源
+    ) -> Tuple[ReturnMetrics, List[float]]:
+        """计算资金回报指标并返回原始日回报序列 (T1.6 扩展, 供 WF 分析)."""
         paths_to_try = []
         if daily_returns_path:
             paths_to_try.append(daily_returns_path)
@@ -333,8 +393,8 @@ class StrategyEvaluator:
             shadow_path = os.path.join(base, "reports", "shadow", "daily_returns.jsonl")
             if os.path.exists(shadow_path):
                 paths_to_try.append(shadow_path)
-        # 最后 fallback: 尝试从 positions 估算 (如果没回报数据)
-        returns_list = []
+
+        returns_list: List[float] = []
         for p in paths_to_try:
             if os.path.exists(p):
                 records = load_daily_returns(p)
@@ -342,14 +402,12 @@ class StrategyEvaluator:
                 break
 
         if not returns_list:
-            # 无回报数据, 基于当日价格变动粗略估算 (仅作为 fallback)
             logger.info("未找到 daily_returns.jsonl, 尝试从 positions 计算简易回报")
             try:
                 base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 pos_path = pos_path or os.path.join(base, "config", "positions.json")
                 pos_data = load_positions(pos_path)
                 positions = pos_data.get("positions", {})
-                # 简单计算: 今日价 vs 成本价的加权平均变化
                 total_value = 0.0
                 pnl_sum = 0.0
                 for _code, info in positions.items():
@@ -357,25 +415,26 @@ class StrategyEvaluator:
                     cost = float(info.get("avg_cost", 0) or 0)
                     curr = float(info.get("est_price", 0) or 0)
                     if shares > 0 and cost > 0:
-                        value = shares * curr
-                        total_value += value
+                        total_value += shares * curr
                         pnl_sum += shares * (curr - cost)
-                if total_value > 0 and len(positions) > 1:
-                    # 用单一时点无法算出年化回报, 返回零指标并降级
-                    return ReturnMetrics(annual_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0,
-                                       total_return=pnl_sum/total_value if total_value>0 else 0,
-                                       sample_count=len(positions))
-            except Exception as e:
+                if total_value > 0:
+                    # 单一时点, 返回空序列
+                    return ReturnMetrics(
+                        annual_return=0.0, max_drawdown=0.0, sharpe_ratio=0.0,
+                        total_return=pnl_sum / total_value, sample_count=len(positions),
+                    ), []
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.error(f"fallback 计算失败: {e}")
 
         if not returns_list:
-            return ReturnMetrics(sample_count=0)
+            return ReturnMetrics(sample_count=0), []
 
         n = len(returns_list)
-        total_ret = sum(returns_list)  # 简单加总 (实际应为 compounding, 但每日回报很小近似线性)
         ann_return = compute_annual_return(returns_list)
         max_dd = compute_max_drawdown(returns_list)
         sharpe = compute_sharpe(returns_list)
+        total_ret = sum(returns_list)
 
         return ReturnMetrics(
             annual_return=round(ann_return, 4),
@@ -383,6 +442,53 @@ class StrategyEvaluator:
             sharpe_ratio=round(sharpe, 4),
             total_return=round(total_ret, 6),
             sample_count=n,
+        ), returns_list
+
+    # ── T1.6 新增: Walk-Forward 验证 ──
+    def _walk_forward_validate(self, returns_list: List[float]) -> WalkForwardResult:
+        """Walk-Forward 样本外验证 — 检测过拟合.
+
+        将日回报序列按时间拆分:
+          - 前 70% 为"训练期" (样本内)
+          - 后 30% 为"测试期" (样本外)
+
+        若测试期 Sharpe < 训练期 Sharpe * 0.4, 标记为过拟合.
+        """
+        if len(returns_list) < EVOLUTION_CONFIG["wf_min_periods"]:
+            return WalkForwardResult()
+
+        split_idx = int(len(returns_list) * (1 - EVOLUTION_CONFIG["wf_test_size"]))
+        train_rets = returns_list[:split_idx]
+        test_rets = returns_list[split_idx:]
+
+        if len(train_rets) < 10 or len(test_rets) < 5:
+            return WalkForwardResult()
+
+        train_sharpe = compute_sharpe(train_rets)
+        test_sharpe = compute_sharpe(test_rets)
+
+        if train_sharpe <= 0:
+            sharpe_drop = 100.0
+        else:
+            sharpe_drop = (train_sharpe - test_sharpe) / train_sharpe * 100
+
+        overfit = test_sharpe < train_sharpe * 0.4 and train_sharpe > 0.3
+        reason = ""
+        if overfit:
+            reason = f"test_sharpe({test_sharpe:.2f}) << train_sharpe({train_sharpe:.2f}), drop={sharpe_drop:.0f}%"
+
+        logger.info(
+            "Walk-Forward: train_sharpe=%.3f, test_sharpe=%.3f, drop=%.1f%%, overfit=%s",
+            train_sharpe, test_sharpe, sharpe_drop, overfit,
+        )
+
+        return WalkForwardResult(
+            wf_score=max(0.0, min(1.0, test_sharpe / max(train_sharpe, 0.01))),
+            train_sharpe=round(train_sharpe, 4),
+            test_sharpe=round(test_sharpe, 4),
+            sharpe_drop_pct=round(sharpe_drop, 1),
+            overfit_flag=overfit,
+            overfit_reason=reason,
         )
 
     def _compute_overall_scores(
@@ -474,16 +580,14 @@ if __name__ == "__main__":
     shadow_path = os.path.join(base, "reports", "shadow", "daily_returns.jsonl")
     pos_path = os.path.join(base, "config", "positions.json")
 
-    # 临时启用 Feature Flag 用于测试 (正常流程应通过 config/features.json 控制)
-    # 如果真实环境想测试, 可以设置环境变量: set USE_STRATEGY_EVALUATOR=true
-    import os
+    # 临时启用 Feature Flag 用于测试
     os.environ["USE_STRATEGY_EVALUATOR"] = "True"
 
     evaluator = StrategyEvaluator()
     report = evaluator.evaluate(daily_returns_path=shadow_path, pos_path=pos_path)
 
     logger.info("\n" + "=" * 70)
-    logger.info("  N2 策略评分结果")
+    logger.info("  N2 策略评分结果 (T1.6 增强版)")
     logger.info("=" * 70)
     logger.info(f"公共得分 (Public Score):   {report.public_score:.4f}")
     logger.info(f"私有得分 (Private Score):  {report.private_score:.4f}")
@@ -496,5 +600,12 @@ if __name__ == "__main__":
     logger.info(f"  风格多样性: {report.divers_metrics.style_diversity_score:.4f}")
     logger.info(f"  行业集中度: {report.divers_metrics.sector_concentration:.4f}")
     logger.info(f"  前三大占比: {report.divers_metrics.top3_concentration:.4f}")
+    logger.info("\nWalk-Forward 验证 (T1.6):")
+    logger.info(f"  WF Score:     {report.wf_result.wf_score:.4f}")
+    logger.info(f"  Train Sharpe: {report.wf_result.train_sharpe:.4f}")
+    logger.info(f"  Test Sharpe:  {report.wf_result.test_sharpe:.4f}")
+    logger.info(f"  Sharp Drop:   {report.wf_result.sharpe_drop_pct:.1f}%")
+    logger.info(f"  过拟合标记:   {report.wf_result.overfit_flag} {'— ' + report.wf_result.overfit_reason if report.wf_result.overfit_flag else ''}")
     logger.info(f"\n建议: {report.recommendation} — {report.reason}")
+    logger.info(f"评估时间: {report.evaluated_at}")
     logger.info("=" * 70)

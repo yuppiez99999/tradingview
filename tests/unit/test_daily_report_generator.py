@@ -45,7 +45,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.reporting.daily_report_generator import (
+from utils.reporting.daily_report_generator import (  # noqa: E402
     DEFAULT_CONFIG_NAME,
     DEFAULT_JSON_TEMPLATE,
     DEFAULT_MD_TEMPLATE,
@@ -66,7 +66,7 @@ from utils.reporting.daily_report_generator import (
     generate_daily_report,
     is_daily_report_generator_enabled,
 )
-from utils.reporting.report_sections import (
+from utils.reporting.report_sections import (  # noqa: E402
     ALLOW_DEGRADE_PHASES,
     EMPTY_SECTION_PLACEHOLDER,
     NA_PLACEHOLDER,

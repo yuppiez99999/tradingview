@@ -1,0 +1,14 @@
+Fatal Python error: init_import_size: Failed to import the site module
+Python runtime state: initialized
+Traceback (most recent call last):
+  File "C:\Program Files\Python38\lib\site.py", line 580, in <module>
+    main()
+  File "C:\Program Files\Python38\lib\site.py", line 566, in main
+    known_paths = addusersitepackages(known_paths)
+  File "C:\Program Files\Python38\lib\site.py", line 316, in addusersitepackages
+    addsitedir(user_site, known_paths)
+  File "C:\Program Files\Python38\lib\site.py", line 208, in addsitedir
+    addpackage(sitedir, name, known_paths)
+  File "C:\Program Files\Python38\lib\site.py", line 164, in addpackage
+    for n, line in enumerate(f):
+UnicodeDecodeError: 'gbk' codec can't decode byte 0xa7 in position 7: illegal multibyte sequence

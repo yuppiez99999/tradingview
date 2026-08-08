@@ -86,7 +86,8 @@ def check_ntp_sync() -> None:
             "NTP-1a w32time 服务运行中",
             "找到 RUNNING" if is_running else "未找到 RUNNING"
         )
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "NTP-1a w32time 服务查询异常", str(e)[:100])
 
     # 1.2 w32time 启动类型 (使用 sc qc)
@@ -103,7 +104,8 @@ def check_ntp_sync() -> None:
             "NTP-1b w32time 启动类型=AUTO_START",
             "找到 AUTO_START" if is_auto else "未找到 AUTO_START"
         )
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "NTP-1b w32time 启动类型查询异常", str(e)[:100])
 
     # 1.3 NTP 同步状态 (使用 w32tm, 尝试多种编码)
@@ -145,7 +147,8 @@ def check_ntp_sync() -> None:
             "NTP-2c 同步指标存在 (RootDelay/RootDispersion)",
             "找到指标" if has_metrics else "未找到指标"
         )
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "NTP-2 NTP 同步状态查询异常", str(e)[:100])
 
 
@@ -165,7 +168,8 @@ def check_datasources() -> None:
         from ifind_client import IFindClient
         conn = IFindClient()
         check(True, "DS-1 iFinD MCP 连接器初始化", f"type={type(conn).__name__}")
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "DS-1 iFinD MCP 连接器", str(e)[:80])
 
     # 2.2 通达信
@@ -173,7 +177,8 @@ def check_datasources() -> None:
         from tdx_data_source import TDXDataSource
         ds = TDXDataSource()
         check(True, "DS-2 通达信数据源初始化", f"type={type(ds).__name__}")
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "DS-2 通达信数据源", str(e)[:80])
 
     # 2.3 AKShare
@@ -181,7 +186,8 @@ def check_datasources() -> None:
         from akshare_data_source import AKShareDataSource
         ak = AKShareDataSource()
         check(True, "DS-3 AKShare 数据源初始化", f"type={type(ak).__name__}")
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "DS-3 AKShare 数据源", str(e)[:80])
 
     # 2.4 MarketDataProvider 路由
@@ -198,7 +204,8 @@ def check_datasources() -> None:
             )
         else:
             check(True, "DS-4 MarketDataProvider 初始化", "无 source_health 字段")
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "DS-4 MarketDataProvider 路由", str(e)[:80])
 
 
@@ -241,7 +248,8 @@ def check_scheduled_task(task_name: str, expected_time: str, section: str) -> No
             check(True, f"{section}-c {task_name} 上次执行结果", f"last_result={last_result}")
         else:
             warn(f"{section}-c {task_name} 上次执行结果", f"last_result={last_result} (0=成功, 267011=未运行过)")
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, f"{section} {task_name} 查询异常", str(e)[:80])
 
 
@@ -356,7 +364,9 @@ def check_trade_plan(trade_date: str) -> None:
             f"foh={foh_count} vs he={options_count}"
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "TP 读取 trade_plan 异常", str(e)[:80])
 
 
@@ -409,12 +419,12 @@ def check_7guard_and_validation(trade_date: str) -> None:
         else:
             check(False, "VG-2 验证脚本未输出结果", output[-200:])
 
-    except Exception as e:
-        # 恢复原内容
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # 恢复原内容
         try:
             with open(verify_script, "w", encoding="utf-8") as f:
                 f.write(original_content)
-        except Exception:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         check(False, "VG 验证脚本执行异常", str(e)[:80])
 

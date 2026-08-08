@@ -26,7 +26,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 # 导入被测模块 (TDD RED: 模块尚未实现, 此 import 会失败)
-import shadow_admission_watchdog as wd
+import shadow_admission_watchdog as wd  # noqa: E402
 
 
 class TestCheckDsrOutcome(unittest.TestCase):

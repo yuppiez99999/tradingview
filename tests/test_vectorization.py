@@ -209,7 +209,7 @@ print("\n" + "=" * 60)
 print("性能对比测试")
 print("=" * 60)
 
-import time
+import time  # noqa: E402
 
 # 测试 qlib_data_bridge 性能
 large_df = pd.DataFrame({

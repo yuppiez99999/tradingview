@@ -25,7 +25,7 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.alpha.fast_backtest import (
+from utils.alpha.fast_backtest import (  # noqa: E402
     V9_ANNUAL_RETURN_THRESHOLD,
     V9_DSR_THRESHOLD,
     V9_MAX_DRAWDOWN_THRESHOLD,

@@ -20,7 +20,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.concurrency import run_io_batch
+from utils.concurrency import run_io_batch  # noqa: E402
 
 
 class TestRunIoBatchSuccess:

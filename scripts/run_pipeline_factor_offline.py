@@ -129,7 +129,9 @@ def main() -> int:
         logger.info("Pipeline 因子信号生成成功: %s", output_path.name)
         return 0
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.info(f"\n[3/3] ❌ 异常: {e}")
         logger.error("Pipeline 因子信号生成异常: %s", e, exc_info=True)
         return 1

@@ -1002,8 +1002,8 @@ def test_tca_post_trade_skipped_on_execution_failure():
 #   auto_10 → auto_50: 跑满 3 天 + 累计 PnL > 0 + 无回滚
 #   auto_50 → auto_100: 跑满 7 天 + 累计 PnL > 0 + 无回滚
 
-from datetime import datetime
-from datetime import timedelta as _td
+from datetime import datetime  # noqa: E402
+from datetime import timedelta as _td  # noqa: E402
 
 
 def _make_gs_at_stage(stage: str, days_ago: int, **kwargs) -> GrayscaleState:

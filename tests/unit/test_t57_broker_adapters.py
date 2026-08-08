@@ -240,7 +240,8 @@ class TestBrokerFactory(unittest.TestCase):
         brokers = list_supported_brokers()
         self.assertIn("ths", brokers)
         self.assertIn("xueqiu", brokers)
-        self.assertEqual(len(brokers), 2)
+        self.assertIn("ctp", brokers)
+        self.assertEqual(len(brokers), 3)
 
     def test_register_custom_adapter(self) -> None:
         """测试动态注册 adapter."""
@@ -563,7 +564,7 @@ class TestThsLiveModeMocked(unittest.TestCase):
         from utils.execution.broker_adapters import ThsBrokerAdapter
         adapter = ThsBrokerAdapter(self.config)
         # mock _do_connect 返回 True
-        adapter._do_connect = lambda: True  # type: ignore
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
         self.assertTrue(adapter.connect())
         self.assertTrue(adapter._connected)
         self.assertTrue(adapter.is_live)
@@ -572,7 +573,7 @@ class TestThsLiveModeMocked(unittest.TestCase):
         """实盘连接失败."""
         from utils.execution.broker_adapters import ThsBrokerAdapter
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: False  # type: ignore
+        adapter._do_connect = lambda: False  # type: ignore[assignment]
         self.assertFalse(adapter.connect())
         self.assertFalse(adapter._connected)
 
@@ -583,7 +584,7 @@ class TestThsLiveModeMocked(unittest.TestCase):
         def raise_exc() -> bool:
             raise RuntimeError("connect failed")
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = raise_exc  # type: ignore
+        adapter._do_connect = raise_exc  # type: ignore[assignment]
         self.assertFalse(adapter.connect())
         self.assertFalse(adapter._connected)
 
@@ -597,13 +598,13 @@ class TestThsLiveModeMocked(unittest.TestCase):
             ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: True  # type: ignore
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
         adapter.connect()
         # mock _do_submit_order
         def _submit(order):
             order.status = OrderStatus.SUBMITTED
             return True
-        adapter._do_submit_order = _submit  # type: ignore
+        adapter._do_submit_order = _submit  # type: ignore[assignment]
         order = BrokerOrder(
             symbol="000001", side=OrderSide.BUY, order_type=OrderType.LIMIT,
             quantity=100, price=10.5,
@@ -623,12 +624,12 @@ class TestThsLiveModeMocked(unittest.TestCase):
             ThsBrokerAdapter,
         )
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: True  # type: ignore
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
         adapter.connect()
 
         def _submit(order):
             raise RuntimeError("submit failed")
-        adapter._do_submit_order = _submit  # type: ignore
+        adapter._do_submit_order = _submit  # type: ignore[assignment]
         order = BrokerOrder(
             symbol="000001", side=OrderSide.BUY, order_type=OrderType.LIMIT,
             quantity=100, price=10.5,
@@ -641,8 +642,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
         """实盘撤单."""
         from utils.execution.broker_adapters import ThsBrokerAdapter
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: True  # type: ignore
-        adapter._do_cancel_order = lambda oid: True  # type: ignore
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
+        adapter._do_cancel_order = lambda oid: True  # type: ignore[assignment]
         adapter.connect()
         self.assertTrue(adapter.cancel_order("order_001"))
 
@@ -650,11 +651,10 @@ class TestThsLiveModeMocked(unittest.TestCase):
         """实盘撤单异常."""
         from utils.execution.broker_adapters import ThsBrokerAdapter
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: True  # type: ignore
-
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
         def _cancel(oid: str) -> bool:
             raise RuntimeError("cancel failed")
-        adapter._do_cancel_order = _cancel  # type: ignore
+        adapter._do_cancel_order = _cancel  # type: ignore[assignment]
         adapter.connect()
         self.assertFalse(adapter.cancel_order("order_001"))
 
@@ -662,8 +662,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
         """实盘查询持仓."""
         from utils.execution.broker_adapters import ThsBrokerAdapter
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: True  # type: ignore
-        adapter._do_get_positions = lambda: [{"symbol": "000001", "qty": 100}]  # type: ignore
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
+        adapter._do_get_positions = lambda: [{"symbol": "000001", "qty": 100}]  # type: ignore[assignment]
         adapter.connect()
         positions = adapter.get_positions()
         self.assertEqual(len(positions), 1)
@@ -676,8 +676,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
         def _get_positions() -> list:
             raise RuntimeError("query failed")
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: True  # type: ignore
-        adapter._do_get_positions = _get_positions  # type: ignore
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
+        adapter._do_get_positions = _get_positions  # type: ignore[assignment]
         adapter.connect()
         self.assertEqual(adapter.get_positions(), [])
 
@@ -685,8 +685,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
         """实盘查询账户信息."""
         from utils.execution.broker_adapters import ThsBrokerAdapter
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: True  # type: ignore
-        adapter._do_get_account_info = lambda: {"balance": 1000000}  # type: ignore
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
+        adapter._do_get_account_info = lambda: {"balance": 1000000}  # type: ignore[assignment]
         adapter.connect()
         info = adapter.get_account_info()
         self.assertEqual(info["broker"], "ths")
@@ -700,8 +700,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
         def _get_info() -> dict:
             raise RuntimeError("info failed")
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: True  # type: ignore
-        adapter._do_get_account_info = _get_info  # type: ignore
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
+        adapter._do_get_account_info = _get_info  # type: ignore[assignment]
         adapter.connect()
         info = adapter.get_account_info()
         self.assertEqual(info["broker"], "ths")
@@ -711,8 +711,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
         """实盘获取行情."""
         from utils.execution.broker_adapters import ThsBrokerAdapter
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: True  # type: ignore
-        adapter._do_get_market_data = lambda s, p, c: {"symbol": s, "data": [{"close": 10.5}]}  # type: ignore
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
+        adapter._do_get_market_data = lambda s, p, c: {"symbol": s, "data": [{"close": 10.5}]}  # type: ignore[assignment]
         adapter.connect()
         data = adapter.get_market_data("000001")
         self.assertEqual(data["symbol"], "000001")
@@ -725,8 +725,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
         def _get_md(s: str, p: str, c: int) -> dict:
             raise RuntimeError("md failed")
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: True  # type: ignore
-        adapter._do_get_market_data = _get_md  # type: ignore
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
+        adapter._do_get_market_data = _get_md  # type: ignore[assignment]
         adapter.connect()
         data = adapter.get_market_data("000001")
         self.assertIn("error", data)
@@ -776,8 +776,8 @@ class TestThsLiveModeMocked(unittest.TestCase):
         def _disconnect() -> None:
             raise RuntimeError("disconnect failed")
         adapter = ThsBrokerAdapter(self.config)
-        adapter._do_connect = lambda: True  # type: ignore
-        adapter._do_disconnect = _disconnect  # type: ignore
+        adapter._do_connect = lambda: True  # type: ignore[assignment]
+        adapter._do_disconnect = _disconnect  # type: ignore[assignment]
         adapter.connect()
         # 不应抛异常
         adapter.disconnect()
@@ -1306,7 +1306,7 @@ class TestPreTradeCheck(unittest.TestCase):
             "daily_trade_limit": 1_000_000,
         })
         # mock _is_circuit_broken 返回 True
-        adapter._is_circuit_broken = lambda: True  # type: ignore
+        adapter._is_circuit_broken = lambda: True  # type: ignore[assignment]
         order = BrokerOrder(
             symbol="000001", side=OrderSide.BUY, order_type=OrderType.LIMIT,
             quantity=100, price=10.5,
@@ -1370,8 +1370,7 @@ class TestFactoryEdgeCases(unittest.TestCase):
         class NotAnAdapter:
             pass
         with self.assertRaises(TypeError):
-            register_broker_adapter("invalid", NotAnAdapter)  # type: ignore
-
+            register_broker_adapter("invalid", NotAnAdapter)  # type: ignore[misc]
 
 if __name__ == "__main__":
     unittest.main()

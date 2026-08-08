@@ -157,7 +157,8 @@ def collect_progress_snapshot() -> dict:
             "USE_DRIFT_DETECTOR": is_enabled("USE_DRIFT_DETECTOR"),
             "USE_AUTO_RETRAIN": is_enabled("USE_AUTO_RETRAIN"),
         }
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         snapshot["feature_flags"] = {"error": str(e)}
 
     # 4. 自动推断下一步动作
@@ -192,6 +193,122 @@ def collect_progress_snapshot() -> dict:
         snapshot["next_action"] = "进化框架已启用, 监控 decisions.jsonl 的 recommendation 字段"
 
     return snapshot
+
+
+def ensure_today_shadow_data(logger: logging.Logger) -> None:
+    """兜底: 确保当日 Shadow 数据已写入 daily_returns.jsonl (W1.3a Day 3).
+
+    v84_EvolutionEval 在 16:05 运行, 晚于 v84_PostMarket (15:30). 若 PostMarket
+    阶段四点五失败 (数据源不可用 / 权重缺失 / 脚本异常), 当日 daily_returns 可能缺失,
+    此处兜底重试一次, 避免评估在空数据上降级.
+
+    HC 合规:
+        - HC-1: 不切 Feature Flag (始终可运行, 不依赖 USE_EVOLUTION_ORCHESTRATOR)
+        - HC-4: 只读评估前的数据补充, 不修改 V9 基线 / positions.json
+        - fail-safe: 兜底失败不影响 EvolutionEval 主流程 (catch 所有异常)
+    """
+    import json as _json
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    daily_returns_path = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+
+    # 1. 检查当日数据是否已存在 (避免重复注入)
+    if daily_returns_path.exists():
+        try:
+            with daily_returns_path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = _json.loads(line)
+                        if rec.get("date") == today:
+                            logger.debug(
+                                "[兜底] 当日 Shadow 数据已存在 (date=%s, source=%s), 跳过注入",
+                                today,
+                                rec.get("source", "unknown"),
+                            )
+                            return
+                    except _json.JSONDecodeError:
+                        continue
+        except OSError as e:
+            logger.warning("[兜底] 读取 daily_returns.jsonl 失败: %s", e)
+
+    # 2. 当日数据缺失, 兜底调用 ShadowRealDataFeeder 注入
+    logger.info("[兜底] 当日 Shadow 数据缺失 (date=%s), 尝试注入", today)
+    try:
+        from utils.alpha.shadow_real_data_feeder import ShadowRealDataFeeder
+        from utils.data_provider import MarketDataProvider
+
+        provider = MarketDataProvider(backtest_mode=False)
+        feeder = ShadowRealDataFeeder(data_provider=provider)
+        result = feeder.feed_single_date(today)
+
+        if result.is_success:
+            logger.info(
+                "[兜底] 注入成功: daily_return=%.4f%%, coverage=%.2f%%, written=%s",
+                result.daily_return * 100,
+                result.coverage * 100,
+                result.written,
+            )
+        elif result.skipped:
+            logger.info(
+                "[兜底] 注入跳过: %s (周末 / 无权重 / 数据源全失败)",
+                result.error,
+            )
+        else:
+            logger.warning(
+                "[兜底] 注入失败: success=%d/%d, error=%s",
+                result.success_count,
+                result.total_count,
+                result.error,
+            )
+    except (ImportError, RuntimeError, ValueError, OSError, ConnectionError, TimeoutError) as e:
+        # fail-safe: 兜底失败不影响 EvolutionEval 主流程, 评估将在空数据上降级
+        logger.warning("[兜底] ShadowRealDataFeeder 兜底调用失败 (fail-safe): %s", e)
+
+
+def ensure_today_drift_integration(logger: logging.Logger) -> None:
+    """兜底: 确保当日漂移检测已执行 (W1.3b Day 4).
+
+    v84_EvolutionEval 在 16:05 运行, 晚于 v84_PostMarket (15:30). 若 PostMarket
+    阶段四点七 (DriftShadowIntegrator) 失败, 当日漂移报告可能缺失,
+    此处兜底重试一次, 确保评估前漂移数据已更新.
+
+    HC 合规:
+        - HC-1: 不切 Feature Flag (sim_mode=True)
+        - HC-4: 只读评估, 不修改 V9 基线
+        - fail-safe: 兜底失败不影响 EvolutionEval 主流程
+    """
+    import subprocess
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    logger.info("[兜底] 尝试 DriftShadowIntegrator 当日集成 (date=%s)", today)
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(_PROJECT_ROOT / "scripts" / "drift_shadow_integrator.py"),
+                "--date",
+                today,
+            ],
+            cwd=str(_PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=300,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if result.returncode == 0:
+            logger.info("[兜底] DriftShadowIntegrator 集成成功")
+        else:
+            logger.warning(
+                "[兜底] DriftShadowIntegrator 集成失败 (exit=%d): %s",
+                result.returncode,
+                result.stderr[:200] if result.stderr else "",
+            )
+    except (OSError, subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+        logger.warning("[兜底] DriftShadowIntegrator 兜底调用失败 (fail-safe): %s", e)
 
 
 def print_progress_summary(snapshot: dict, logger: logging.Logger) -> None:
@@ -305,6 +422,13 @@ def main() -> int:
     logger.info("项目根: %s", _PROJECT_ROOT)
 
     try:
+        # W1.3a Day 3: 兜底确保当日 Shadow 数据存在 (PostMarket 阶段四点五失败时重试)
+        # 在 collect_progress_snapshot 之前执行, 确保快照能反映当日最新数据
+        ensure_today_shadow_data(logger)
+
+        # W1.3b Day 4: 兜底确保当日漂移检测已执行 (PostMarket 阶段四点七失败时重试)
+        ensure_today_drift_integration(logger)
+
         # 始终输出进度快照 (无论 Flag 是否启用, 让每天的日志都有可读状态)
         snapshot = collect_progress_snapshot()
         print_progress_summary(snapshot, logger)
@@ -380,7 +504,9 @@ def main() -> int:
         logger.error(traceback.format_exc())
         return 1
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.error("[FAIL] v84_EvolutionEval 异常: %s", e)
         logger.error(traceback.format_exc())
         return 1

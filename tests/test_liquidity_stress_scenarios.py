@@ -25,7 +25,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from utils.stress_test_scenario_library import (
+from utils.stress_test_scenario_library import (  # noqa: E402
     ShockFactors,
     StressScenario,
     StressTestEngine,

@@ -27,7 +27,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.signal_fusion import SignalFusionEngine
+from utils.signal_fusion import SignalFusionEngine  # noqa: E402
 
 # ============================================================
 # Fixtures
@@ -223,14 +223,14 @@ class TestResearchDistilledDegradation:
 
     def test_none_injection_no_effect(self, engine, alpha_signal):
         """None 注入不影响融合"""
-        engine.inject_research_distilled_signals(None)  # type: ignore
+        engine.inject_research_distilled_signals(None)  # type: ignore[misc]
         assert engine._research_distilled_signals == {}
 
     def test_non_dict_injection_no_effect(self, engine, alpha_signal):
         """非 dict 类型注入不影响融合"""
-        engine.inject_research_distilled_signals([0.8, 0.6])  # type: ignore
+        engine.inject_research_distilled_signals([0.8, 0.6])  # type: ignore[misc]
         assert engine._research_distilled_signals == {}
-        engine.inject_research_distilled_signals("not_a_dict")  # type: ignore
+        engine.inject_research_distilled_signals("not_a_dict")  # type: ignore[misc]
         assert engine._research_distilled_signals == {}
 
     def test_zero_weight_no_effect(self, alpha_signal):

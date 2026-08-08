@@ -71,8 +71,7 @@ class P1_06_SuperInitFixTest(unittest.TestCase):
             try:
                 # 模拟父类不可用场景
                 si._AUTO_SYSTEM_AVAILABLE = False
-                si.AutomatedExecutionSystem = object  # type: ignore
-
+                si.AutomatedExecutionSystem = object  # type: ignore[assignment]
                 # 验证: __init__ 不应抛 TypeError
                 # 注意: 我们只验证 __init__ 的 super() 调用部分,
                 # 不验证整个初始化流程 (会涉及大量外部依赖)
@@ -126,8 +125,7 @@ class P1_06_SuperInitFixTest(unittest.TestCase):
 
         try:
             si._AUTO_SYSTEM_AVAILABLE = False
-            si.AutomatedExecutionSystem = object  # type: ignore
-
+            si.AutomatedExecutionSystem = object  # type: ignore[assignment]
             # 创建 mock 实例,避免触发完整 __init__
             system = MagicMock(spec=si.IntegratedExecutionSystem)
             # 用真实方法替换 mock 的 _execute_daily_trading

@@ -119,7 +119,9 @@ def verify_p1_g() -> bool:
 
         return p1g_marker_found and getattr_found and not bug_found
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-G: 验证执行", False, f"异常: {e}")
         return False
 
@@ -190,7 +192,9 @@ def verify_p1_l() -> bool:
 
         return s1_pass and s2_pass and s3_pass and s4_pass
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-L: 验证执行", False, f"异常: {e}")
         import traceback
         traceback.print_exc()
@@ -294,7 +298,9 @@ def verify_p1_h() -> bool:
 
         return s1_pass and s2_pass and s3_pass
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-H: 验证执行", False, f"异常: {e}")
         import traceback
         traceback.print_exc()
@@ -367,7 +373,9 @@ def verify_p1_j() -> bool:
 
         return s1_pass and s2_pass
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-J: 验证执行", False, f"异常: {e}")
         import traceback
         traceback.print_exc()
@@ -492,7 +500,9 @@ def verify_p1_i() -> bool:
 
         return s1_pass and s2_pass and s3_pass and s4_pass
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-I: 验证执行", False, f"异常: {e}")
         import traceback
         traceback.print_exc()
@@ -572,7 +582,9 @@ def verify_p1_k() -> bool:
 
         return s1_pass and s1b_pass and s2_pass
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-K: 验证执行", False, f"异常: {e}")
         import traceback
         traceback.print_exc()
@@ -636,7 +648,9 @@ def verify_eod_guard_integration() -> bool:
 
         return all_found
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("EOD 集成: 验证执行", False, f"异常: {e}")
         return False
 

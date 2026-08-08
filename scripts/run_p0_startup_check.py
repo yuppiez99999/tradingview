@@ -21,6 +21,9 @@ P0 启动自检 - 命令行入口
     5. 报告归档 (自动保存到 reports/system_check/):
         python scripts/run_p0_startup_check.py --archive
 
+    6. 自动修复模式 (T1.5 新增, 检测失败时尝试 L0/L1 修复后重检):
+        python scripts/run_p0_startup_check.py --auto-fix
+
 退出码:
     0 = 全部通过,可进入工作流
     1 = 存在阻止性失败,必须人工干预
@@ -47,7 +50,11 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from utils.system_check import SystemChecker, run_system_check
+from utils.system_check import (  # noqa: E402
+    SystemChecker,
+    run_auto_fix_and_recheck,
+    run_system_check,
+)
 
 
 def archive_report(report_json: str, check_time: str) -> Path:
@@ -68,7 +75,8 @@ def archive_report(report_json: str, check_time: str) -> Path:
         for old in archives[:-30]:
             try:
                 old.unlink()
-            except Exception:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
 
     return archive_path
@@ -98,6 +106,10 @@ def main() -> int:
         "--quiet", action="store_true",
         help="安静模式: 只输出失败项与最终结论"
     )
+    parser.add_argument(
+        "--auto-fix", action="store_true",
+        help="自动修复模式: 检测失败时尝试 L0/L1 修复后重检 (T1.5 新增)"
+    )
     args = parser.parse_args()
 
     # 运行自检
@@ -106,6 +118,22 @@ def main() -> int:
         skip_datasource=args.skip_datasource,
         output_json=args.json,
     )
+
+    # 自动修复模式: 有失败项时尝试修复后重检
+    if args.auto_fix and report.exit_code != 0:
+        if not args.quiet:
+            print("\n🔧 AutoFix 模式启动: 尝试 L0/L1 自动修复...")
+        report = run_auto_fix_and_recheck(
+            report=report,
+            strict=args.strict,
+            skip_datasource=args.skip_datasource,
+        )
+        # 修复后打印重检报告 (非 JSON 模式)
+        if not args.json and not args.quiet:
+            print("\n" + "=" * 70)
+            print("AutoFix 后重检报告:")
+            print("=" * 70)
+            print(SystemChecker.format_report(report))
 
     # 归档
     if args.archive and not args.json:

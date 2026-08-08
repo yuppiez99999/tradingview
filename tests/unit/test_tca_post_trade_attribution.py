@@ -29,7 +29,7 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.tca_post_trade_attribution import (
+from utils.tca_post_trade_attribution import (  # noqa: E402
     DEFAULT_ESTIMATE_VS_ACTUAL_TOLERANCE_BPS,
     EstimateVsActual,
     FillRecord,
@@ -156,8 +156,7 @@ class TestRecord:
 
     def test_record_invalid_type_raises(self, attribution_no_save):
         with pytest.raises(PostTradeAttributionError, match="FillRecord"):
-            attribution_no_save.record("not a FillRecord")  # type: ignore
-
+            attribution_no_save.record("not a FillRecord")  # type: ignore[misc]
 
 # ============================================================
 # 测试 3: compare_estimate_vs_actual() 预估 vs 实际对比

@@ -21,9 +21,9 @@ from unittest.mock import MagicMock, patch
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.risk.kill_switch_adapter import KillSwitchAdapter, adapt_kill_switch
-from utils.risk.risk_bus import RiskBus
-from utils.risk.risk_event import (
+from utils.risk.kill_switch_adapter import KillSwitchAdapter, adapt_kill_switch  # noqa: E402
+from utils.risk.risk_bus import RiskBus  # noqa: E402
+from utils.risk.risk_event import (  # noqa: E402
     RiskAction,
     RiskEvent,
     RiskEventType,

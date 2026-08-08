@@ -52,11 +52,11 @@ class MarketCircuitBreakerWithL1(MarketCircuitBreaker):
 
     def __init__(
         self,
-        l1_threshold: float = None,  # type: ignore
-        l2_threshold: float = None,  # type: ignore
-        l3_threshold: float = None,  # type: ignore
-        fail_closed_pct: float = None,  # type: ignore
-    ):
+        l1_threshold: float = None,  # type: ignore[assignment]
+        l2_threshold: float = None,  # type: ignore[assignment]
+        l3_threshold: float = None,  # type: ignore[assignment]
+        fail_closed_pct: float = None,  # type: ignore[assignment]
+        ):
         """初始化带 L1 警戒线的大盘熔断监控器.
 
         Args:

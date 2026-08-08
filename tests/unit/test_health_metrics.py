@@ -473,7 +473,7 @@ class TestSafeCollect:
         """采集器返回非 LayerScore → 降级."""
         m = UnifiedHealthMetrics(history_path=tmp_path / "h.jsonl")
         mock_layer = MagicMock()
-        mock_layer.collect.return_value = {"not": "a LayerScore"}  # type: ignore
+        mock_layer.collect.return_value = {"not": "a LayerScore"}  # type: ignore[assignment]
         now = datetime.now(timezone.utc).isoformat()
         result = m._safe_collect(mock_layer, "code", now)
         assert result.is_degraded is True
@@ -694,7 +694,7 @@ class TestCodeHealthLayer:
         layer = CodeHealthLayer()
         layer._project_root = tmp_path
         # mock _run_system_check 返回 None (容错路径)
-        layer._run_system_check = MagicMock(return_value=None)  # type: ignore
+        layer._run_system_check = MagicMock(return_value=None)  # type: ignore[assignment]
         result = layer.collect()
         assert isinstance(result, LayerScore)
         assert result.layer == "code"
@@ -744,8 +744,7 @@ class TestStrategyHealthLayer:
         layer = StrategyHealthLayer(decisions_path=decisions_path)
 
         # mock 观察期进度 (day=7, total=14)
-        layer._get_observation_progress = MagicMock(return_value=(7, 14))  # type: ignore
-
+        layer._get_observation_progress = MagicMock(return_value=(7, 14))  # type: ignore[assignment]
         result = layer.collect()
         assert result.is_degraded is False
         assert result.sub_metrics["private_score"] == 0.75
@@ -772,7 +771,7 @@ class TestStrategyHealthLayer:
         """observation_progress 限制在 [0, 1]."""
         layer = StrategyHealthLayer(decisions_path=tmp_path / "none.jsonl")
         # day=20 > total=14 → clamped to 1.0
-        layer._get_observation_progress = MagicMock(return_value=(20, 14))  # type: ignore
+        layer._get_observation_progress = MagicMock(return_value=(20, 14))  # type: ignore[assignment]
         result = layer.collect()
         assert result.sub_metrics["observation_progress"] == 1.0
 

@@ -80,7 +80,7 @@ def _normalize_code(code: str) -> str:
     return f"{prefix}{s}"
 
 
-import importlib.util
+import importlib.util  # noqa: E402
 
 _WIND_FETCHER_PATH = os.path.join(os.path.dirname(_BASE_DIR), "wind_mcp_fetcher.py")
 

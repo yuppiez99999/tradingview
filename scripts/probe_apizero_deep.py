@@ -12,8 +12,10 @@ import requests
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
-API_KEY = "tj_live_F8W4O894RQYp"
+API_KEY = os.environ.get("APIZERO_API_KEY", "")
 BASE = "https://v1.apizero.cn/api"
+if not API_KEY:
+    print("[WARN] 未设置 APIZERO_API_KEY 环境变量, 探测将失败. 请先 export/set APIZERO_API_KEY=<key>")
 LOCATION = "121.47,31.23"  # 上海
 
 
@@ -71,7 +73,9 @@ def explore_endpoint(name, params):
 
         return d
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"   ❌ 异常: {type(e).__name__}: {e}")
         return None
 

@@ -34,7 +34,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.attribution.daily_panel import (
+from utils.attribution.daily_panel import (  # noqa: E402
     DEFAULT_BPS_PRECISION,
     DEFAULT_CONFIG_NAME,
     DEFAULT_DECIMAL_PRECISION,

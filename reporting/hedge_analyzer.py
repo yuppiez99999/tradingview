@@ -12,6 +12,81 @@ from typing import Any, Dict, List
 from reporting.price_fetcher import fetch_sina_realtime
 
 
+def _resolve_order_direction(order: Dict[str, Any]) -> str:
+    """兼容 direction / side 字段，统一返回方向 (SELL_SHORT → SELL)"""
+    direction = order.get("direction", "")
+    if not direction:
+        side = order.get("side", "")
+        direction = "SELL" if side in ("SELL_SHORT", "SELL", "SHORT") else side
+    return direction
+
+
+def _resolve_order_futures_price(order: Dict[str, Any]) -> float:
+    """兼容 futures_price / price 字段"""
+    futures_price = order.get("futures_price", 0)
+    if not futures_price:
+        futures_price = order.get("price", 0)
+    return futures_price
+
+
+def _generate_if_contract_codes() -> List[str]:
+    """动态生成当月/下月/季月主力合约代码 (RC2 修复: 替代过期硬编码 IF2407)"""
+    _now = _dt.now()
+    _yy = _now.year % 100
+    _mm = _now.month
+    _cur = f"IF{_yy:02d}{_mm:02d}"
+    _next_mm = _mm + 1 if _mm < 12 else 1
+    _next_yy = _yy if _mm < 12 else _yy + 1
+    _next = f"IF{_next_yy:02d}{_next_mm:02d}"
+    _quarter_months = [3, 6, 9, 12]
+    _next_q = next((m for m in _quarter_months if m > _mm), 3)
+    _next_q_yy = _yy if _next_q > _mm else _yy + 1
+    _quarter = f"IF{_next_q_yy:02d}{_next_q:02d}"
+    return [_cur, _next, _quarter]
+
+
+def _fetch_if_close_from_sina(futures_price: float, if_codes: List[str]) -> float:
+    """从新浪财经获取 IF 期货实时价格，未找到有效价格时返回原 futures_price"""
+    # 新浪期货代码: hf_ 前缀 (小写) + 合约代码 (大写)
+    if_codes_sina = [f"hf_{c}" for c in if_codes]
+    sina_res = fetch_sina_realtime(if_codes_sina)
+    if sina_res:
+        for _, sp in sina_res.items():
+            fc_price = sp.get("close", 0)
+            if fc_price > 0 and futures_price > 0:
+                ratio = fc_price / futures_price
+                if 0.8 <= ratio <= 1.2:
+                    return fc_price
+    return futures_price
+
+
+def _fetch_if_close_from_provider(futures_price: float, if_codes: List[str],
+                                  data_provider) -> float:
+    """从 data_provider 获取 IF 期货收盘价，未找到有效价格时返回原 futures_price"""
+    if not data_provider:
+        return futures_price
+    try:
+        # RC2 修复: 同步使用动态合约代码
+        futures_codes = if_codes + ["IF"]
+        for fc in futures_codes:
+            futures_data = data_provider.get_market_data(fc)
+            if not futures_data:
+                continue
+            fc_price = (
+                futures_data.get("close") or futures_data.get("last") or futures_data.get("price")
+            )
+            if not fc_price or fc_price <= 0:
+                continue
+            if futures_price > 0:
+                ratio = fc_price / futures_price
+                if ratio > 1.2 or ratio < 0.8:
+                    continue
+            return fc_price
+    except Exception as e:
+        print(f"获取IF期货价格失败: {e}")
+    return futures_price
+
+
 def analyze_hedge_position(
     hedge_data: Dict[str, Any], data_provider=None
 ) -> Dict[str, Any]:
@@ -33,16 +108,8 @@ def analyze_hedge_position(
     for order in hedge_orders:
         instrument = order.get("instrument", "")
         contracts = order.get("contracts", 0)
-        # direction 兼容: direction / side (SELL_SHORT → SELL)
-        direction = order.get("direction", "")
-        if not direction:
-            side = order.get("side", "")
-            direction = "SELL" if side in ("SELL_SHORT", "SELL", "SHORT") else side
-
-        # futures_price 兼容: futures_price / price
-        futures_price = order.get("futures_price", 0)
-        if not futures_price:
-            futures_price = order.get("price", 0)
+        direction = _resolve_order_direction(order)
+        futures_price = _resolve_order_futures_price(order)
 
         multiplier = order.get("multiplier", 300)  # IF 合约乘数 300
         notional = order.get("notional", 0)
@@ -54,54 +121,13 @@ def analyze_hedge_position(
         if instrument == "IF":
             # 1. 尝试新浪财经获取 IF 期货实时价格
             try:
-                # RC2 修复: 动态生成当月/下月/季月主力合约代码
-                # 原硬编码 IF2407 是 2024年7月合约, 已过期两年, 实时价格永远拿不到
-                _now = _dt.now()
-                _yy = _now.year % 100
-                _mm = _now.month
-                _cur = f"IF{_yy:02d}{_mm:02d}"
-                _next_mm = _mm + 1 if _mm < 12 else 1
-                _next_yy = _yy if _mm < 12 else _yy + 1
-                _next = f"IF{_next_yy:02d}{_next_mm:02d}"
-                _quarter_months = [3, 6, 9, 12]
-                _next_q = next((m for m in _quarter_months if m > _mm), 3)
-                _next_q_yy = _yy if _next_q > _mm else _yy + 1
-                _quarter = f"IF{_next_q_yy:02d}{_next_q:02d}"
-                # 新浪期货代码: hf_ 前缀 (小写) + 合约代码 (大写)
-                if_codes_sina = [f"hf_{_cur}", f"hf_{_next}", f"hf_{_quarter}"]
-                sina_res = fetch_sina_realtime(if_codes_sina)
-                if sina_res:
-                    for _, sp in sina_res.items():
-                        fc_price = sp.get("close", 0)
-                        if fc_price > 0 and futures_price > 0:
-                            ratio = fc_price / futures_price
-                            if 0.8 <= ratio <= 1.2:
-                                if_close = fc_price
-                                break
+                if_codes = _generate_if_contract_codes()
+                if_close = _fetch_if_close_from_sina(futures_price, if_codes)
             except Exception:
                 raise  # Re-raise unknown exception
             # 2. 尝试 data_provider (close/last/price)
-            if if_close == futures_price and data_provider:
-                try:
-                    # RC2 修复: 同步使用动态合约代码
-                    futures_codes = [_cur, _next, _quarter, "IF"]
-                    for fc in futures_codes:
-                        futures_data = data_provider.get_market_data(fc)
-                        if not futures_data:
-                            continue
-                        fc_price = (
-                            futures_data.get("close") or futures_data.get("last") or futures_data.get("price")
-                        )
-                        if not fc_price or fc_price <= 0:
-                            continue
-                        if futures_price > 0:
-                            ratio = fc_price / futures_price
-                            if ratio > 1.2 or ratio < 0.8:
-                                continue
-                        if_close = fc_price
-                        break
-                except Exception as e:
-                    print(f"获取IF期货价格失败: {e}")
+            if if_close == futures_price:
+                if_close = _fetch_if_close_from_provider(futures_price, if_codes, data_provider)
 
         if_change_pct = (if_close - futures_price) / futures_price if futures_price > 0 else 0
 

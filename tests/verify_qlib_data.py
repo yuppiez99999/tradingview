@@ -1,7 +1,8 @@
 """验证 QLib 数据完整性 — 检查命名格式和标的覆盖"""
 import os
+from pathlib import Path
 
-d = r"E:\各种PY程序\28-终极量化交易系统7.1\qlib_data\cn_data"
+d = str(Path(__file__).resolve().parent.parent / "qlib_data" / "cn_data")
 
 # 查看日历范围
 with open(os.path.join(d, "calendars", "day.txt")) as f:

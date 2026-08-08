@@ -16,7 +16,8 @@ from pathlib import Path
 
 import utils.broad_based_etf_policy as policy
 
-PLAN_FILE = Path(r"e:\各种PY程序\28-终极量化交易系统8.4\500万建仓计划_20260706.json")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PLAN_FILE = PROJECT_ROOT / "500万建仓计划_20260706.json"
 
 SCALE_FACTOR = 0.84          # 现有标的缩放系数 (1 - 0.16)
 BROAD_BASED = policy.BROAD_BASED_ETFS

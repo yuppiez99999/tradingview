@@ -33,7 +33,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.attribution.factor_attribution import (
+from utils.attribution.factor_attribution import (  # noqa: E402
     ABNORMAL_FACTOR_RETURN_THRESHOLD,
     BARRA_STYLE_FACTORS,
     CATEGORY_COUNTRY,

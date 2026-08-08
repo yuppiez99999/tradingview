@@ -42,7 +42,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.config_manager import get_config
+from utils.config_manager import get_config  # noqa: E402
 
 logger = logging.getLogger("shadow_admission_launcher")
 
@@ -449,7 +449,8 @@ def _compute_real_metrics(
             "is_real_data": is_real_data,
             "fail_fast_triggered": True,
         }, None
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.exception("ShadowAccountAdapter 调用失败")
         return None, f"adapter_error: {type(e).__name__}: {e}"
 
@@ -810,14 +811,15 @@ def main() -> int:
         if idx + 1 < len(args):
             config_name = args[idx + 1]
 
-    # P0 启动自检 (v8.6.12) - 默认每次启动都自检,--skip-system-check 可跳过
+    # P0 启动自检 (v8.6.14) - 默认每次启动都自检,--skip-system-check 可跳过
     if "--skip-system-check" not in args:
         try:
             from utils.system_check import assert_system_ready
             assert_system_ready()  # 失败时 sys.exit(1)
         except SystemExit:
             raise
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"[P0 自检] 异常 (容错通过): {e}")
     else:
         logger.info("[P0 自检] 已通过 --skip-system-check 跳过")

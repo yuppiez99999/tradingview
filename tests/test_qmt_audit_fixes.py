@@ -17,7 +17,7 @@ failed = 0
 # ================================================================
 # P0-10: T+0/T+1 交易制度
 # ================================================================
-from utils.trading_rules import get_trading_rule, is_t0_eligible
+from utils.trading_rules import get_trading_rule, is_t0_eligible  # noqa: E402
 
 tests = [
     ("511880.SH 债券ETF", is_t0_eligible("511880.SH"), True),
@@ -53,7 +53,7 @@ print(f"  trading_rules: {passed}/{passed+failed}")
 # P0-2: 合约管理器回退
 # ================================================================
 tp = passed
-from utils.wt_contracts_manager import ContractsManager
+from utils.wt_contracts_manager import ContractsManager  # noqa: E402
 
 cm = ContractsManager()
 
@@ -85,7 +85,7 @@ print(f"  contracts_manager: {passed-tp}/{6}")
 # P0-6: 期货换月
 # ================================================================
 tp = passed
-from utils.futures_rollover_manager import FuturesRolloverManager
+from utils.futures_rollover_manager import FuturesRolloverManager  # noqa: E402
 
 mgr = FuturesRolloverManager()
 
@@ -116,7 +116,7 @@ print(f"  futures_rollover: {passed-tp}/{10}")
 # P0-8: 期权保证金
 # ================================================================
 tp = passed
-from utils.option_margin_monitor import (
+from utils.option_margin_monitor import (  # noqa: E402
     OptionMarginMonitor,
     OptionPosition,
     calc_call_margin,
@@ -158,7 +158,7 @@ print(f"  option_margin: {passed-tp}/{8}")
 # ================================================================
 tp = passed
 # 从 daily_trade_executor 导入 _infer_suffix
-from daily_trade_executor import _infer_suffix
+from daily_trade_executor import _infer_suffix  # noqa: E402
 
 assert _infer_suffix("600519") == "600519.SH", f"600519: {_infer_suffix('600519')}"
 assert _infer_suffix("000001") == "000001.SZ", f"000001: {_infer_suffix('000001')}"
@@ -175,7 +175,7 @@ print(f"  _infer_suffix: {passed-tp}/{7}")
 # P0-5: 对冲合约名解析
 # ================================================================
 tp = passed
-from utils.futures_rollover_manager import FuturesRolloverManager
+from utils.futures_rollover_manager import FuturesRolloverManager  # noqa: E402
 
 mgr2 = FuturesRolloverManager()
 
@@ -208,7 +208,7 @@ print(f"  resolve_hedge_contract: {passed-tp}/{5}")
 # P0-7: 期权行权/指派风险
 # ================================================================
 tp = passed
-from utils.option_exercise_risk import (
+from utils.option_exercise_risk import (  # noqa: E402
     OptionExerciseRiskManager,
     _get_expiry_date,
     _parse_option_code,

@@ -7,7 +7,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-PLAN_FILE = Path(r"e:\各种PY程序\28-终极量化交易系统8.4\500万建仓计划_20260706.json")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PLAN_FILE = PROJECT_ROOT / "500万建仓计划_20260706.json"
 STOCK_CAPITAL = 3_000_000  # 股票部分300万
 
 # 5 新标的定义 (权重合计 0.18)
@@ -122,7 +123,7 @@ def main():
 
     # 5. 添加5个新标的到 position_plan (4阶段)
     print("\n=== 新增 position_plan 5个标的 ===")
-    PHASE_TEMPLATES = [
+    PHASE_TEMPLATES = [  # noqa: N806
         {"phase": 1, "name": "第一阶段-底仓建立", "start": "2026-07-10", "capital_ratio": 0.35},
         {"phase": 2, "name": "第二阶段-配置完善", "start": "2026-07-20", "capital_ratio": 0.30},
         {"phase": 3, "name": "第三阶段-防御补充", "start": "2026-08-10", "capital_ratio": 0.20},

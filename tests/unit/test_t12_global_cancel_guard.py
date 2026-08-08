@@ -18,7 +18,7 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.global_cancel_guard import GlobalCancelGuard
+from utils.global_cancel_guard import GlobalCancelGuard  # noqa: E402
 
 
 # ============================================================

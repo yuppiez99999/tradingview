@@ -24,7 +24,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.alpha.shadow_account_adapter import (
+from utils.alpha.shadow_account_adapter import (  # noqa: E402
     CUMULATIVE_3D_DRAWDOWN_THRESHOLD,
     DAILY_DRAWDOWN_THRESHOLD,
     # 常量

@@ -21,7 +21,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.alpha.sector_rotation import (
+from utils.alpha.sector_rotation import (  # noqa: E402
     DEFAULT_CONFIG_NAME,
     DEFAULT_LOOKBACK_DAYS,
     DEFAULT_REGIME_ADJUSTMENTS,

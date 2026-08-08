@@ -24,7 +24,7 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.alpha.ml_enhanced_selector import (
+from utils.alpha.ml_enhanced_selector import (  # noqa: E402
     MLEnhancedSelector,
     MLEnhancedSelectorError,
     ModelLoadError,
@@ -50,7 +50,7 @@ def make_classification_data(
     线性可分 + 噪声, 用于测试逻辑回归.
     """
     rng = np.random.default_rng(seed)
-    X = rng.normal(0, 1, (n_samples, n_features))
+    X = rng.normal(0, 1, (n_samples, n_features))  # noqa: N806
     # 真实权重: 前 3 个特征有信号, 后 2 个噪声
     true_weights = np.array([1.5, -1.0, 0.8, 0.0, 0.0][:n_features])
     logits = X @ true_weights + noise * rng.normal(0, 1, n_samples)
@@ -98,7 +98,7 @@ class TestBasicInterface:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data()
+        X, y = make_classification_data()  # noqa: N806
         result = selector.train(X, y)
         assert isinstance(result, TrainingResult)
 
@@ -108,7 +108,7 @@ class TestBasicInterface:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data()
+        X, y = make_classification_data()  # noqa: N806
         selector.train(X, y)
         assert selector.is_trained is True
 
@@ -125,7 +125,7 @@ class TestTrainingResult:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_samples=100, n_features=3)
+        X, y = make_classification_data(n_samples=100, n_features=3)  # noqa: N806
         result = selector.train(X, y, feature_names=["f1", "f2", "f3"])
         assert result.n_samples == 100
         assert result.n_features == 3
@@ -142,7 +142,7 @@ class TestTrainingResult:
             config=TrainingConfig(n_iterations=500),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data()
+        X, y = make_classification_data()  # noqa: N806
         result = selector.train(X, y)
         # 最终损失应小于初始损失
         assert len(result.training_history) >= 2
@@ -154,7 +154,7 @@ class TestTrainingResult:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data()
+        X, y = make_classification_data()  # noqa: N806
         selector.train(X, y)
         assert selector.training_result is not None
         assert selector.training_result.n_samples > 0
@@ -165,7 +165,7 @@ class TestTrainingResult:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_features=4)
+        X, y = make_classification_data(n_features=4)  # noqa: N806
         result = selector.train(X, y)
         for _name, imp in result.feature_importance.items():
             assert imp >= 0.0
@@ -177,7 +177,7 @@ class TestTrainingResult:
             model_dir=Path("models/test_ml_selector"),
         )
         # 前 3 个特征有信号, 后 2 个噪声
-        X, y = make_classification_data(n_samples=500, n_features=5, seed=42)
+        X, y = make_classification_data(n_samples=500, n_features=5, seed=42)  # noqa: N806
         result = selector.train(X, y, feature_names=["sig1", "sig2", "sig3", "noise1", "noise2"])
         # 信号特征重要性应 > 噪声特征
         sig_imp = sum(result.feature_importance[f] for f in ["sig1", "sig2", "sig3"])
@@ -197,7 +197,7 @@ class TestPrediction:
             config=TrainingConfig(n_iterations=200),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data()
+        X, y = make_classification_data()  # noqa: N806
         selector.train(X, y)
         probs = selector.predict_proba(X)
         assert probs.shape == (len(X),)
@@ -210,7 +210,7 @@ class TestPrediction:
             config=TrainingConfig(n_iterations=200),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data()
+        X, y = make_classification_data()  # noqa: N806
         selector.train(X, y)
         preds = selector.predict(X)
         unique = set(np.unique(preds).tolist())
@@ -222,7 +222,7 @@ class TestPrediction:
             config=TrainingConfig(n_iterations=1000, learning_rate=0.1),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_samples=500, noise=0.05, seed=42)
+        X, y = make_classification_data(n_samples=500, noise=0.05, seed=42)  # noqa: N806
         selector.train(X, y)
         preds = selector.predict(X)
         accuracy = float(np.mean(preds == y))
@@ -234,7 +234,7 @@ class TestPrediction:
             config=TrainingConfig(n_iterations=200),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data()
+        X, y = make_classification_data()  # noqa: N806
         selector.train(X, y)
         # 高阈值 → 更少预测为 1
         # 注: 使用 np.count_nonzero 替代 .sum() 规避 pytest-cov + numpy 2.x 的 C 级追踪冲突
@@ -247,14 +247,14 @@ class TestPrediction:
     def test_predict_not_trained_raises(self):
         """未训练时 predict 抛 ModelNotTrainedError."""
         selector = MLEnhancedSelector()
-        X = np.array([[1.0, 2.0]])
+        X = np.array([[1.0, 2.0]])  # noqa: N806
         with pytest.raises(ModelNotTrainedError):
             selector.predict(X)
 
     def test_predict_proba_not_trained_raises(self):
         """未训练时 predict_proba 抛异常."""
         selector = MLEnhancedSelector()
-        X = np.array([[1.0, 2.0]])
+        X = np.array([[1.0, 2.0]])  # noqa: N806
         with pytest.raises(ModelNotTrainedError):
             selector.predict_proba(X)
 
@@ -271,7 +271,7 @@ class TestModelPersistence:
             config=TrainingConfig(n_iterations=50),
             model_dir=tmp_path,
         )
-        X, y = make_classification_data()
+        X, y = make_classification_data()  # noqa: N806
         selector.train(X, y)
         path = selector.save("test_model.pkl")
         assert path.exists()
@@ -283,7 +283,7 @@ class TestModelPersistence:
             config=TrainingConfig(n_iterations=200, learning_rate=0.05),
             model_dir=tmp_path,
         )
-        X, y = make_classification_data()
+        X, y = make_classification_data()  # noqa: N806
         selector1.train(X, y)
         preds1 = selector1.predict(X)
 
@@ -304,7 +304,7 @@ class TestModelPersistence:
             config=TrainingConfig(n_iterations=100, learning_rate=0.05, l2_reg=0.1),
             model_dir=tmp_path,
         )
-        X, y = make_classification_data()
+        X, y = make_classification_data()  # noqa: N806
         selector1.train(X, y)
         selector1.save("model.pkl")
 
@@ -347,7 +347,7 @@ class TestFeatureImportance:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_features=3)
+        X, y = make_classification_data(n_features=3)  # noqa: N806
         selector.train(X, y, feature_names=["a", "b", "c"])
         importance = selector.get_feature_importance()
         assert isinstance(importance, dict)
@@ -365,7 +365,7 @@ class TestFeatureImportance:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_features=3)
+        X, y = make_classification_data(n_features=3)  # noqa: N806
         result = selector.train(X, y)  # 不提供 feature_names
         assert "f0" in result.feature_importance
         assert "f1" in result.feature_importance
@@ -384,7 +384,7 @@ class TestExceptionHandling:
             config=TrainingConfig(n_iterations=50),
             model_dir=Path("models/test_ml_selector"),
         )
-        X = np.array([[1.0, 2.0]] * 5)  # 只有 5 个样本
+        X = np.array([[1.0, 2.0]] * 5)  # 只有 5 个样本  # noqa: N806
         y = np.array([0, 1, 0, 1, 0])
         with pytest.raises(MLEnhancedSelectorError) as exc_info:
             selector.train(X, y)
@@ -396,7 +396,7 @@ class TestExceptionHandling:
             config=TrainingConfig(n_iterations=50),
             model_dir=Path("models/test_ml_selector"),
         )
-        X = np.random.default_rng(42).normal(0, 1, (50, 3))
+        X = np.random.default_rng(42).normal(0, 1, (50, 3))  # noqa: N806
         y = np.zeros(50)  # 全 0
         with pytest.raises(MLEnhancedSelectorError) as exc_info:
             selector.train(X, y)
@@ -408,7 +408,7 @@ class TestExceptionHandling:
             config=TrainingConfig(n_iterations=50),
             model_dir=Path("models/test_ml_selector"),
         )
-        X = np.array([]).reshape(50, 0)  # 0 特征
+        X = np.array([]).reshape(50, 0)  # 0 特征  # noqa: N806
         y = np.array([0, 1] * 25)
         with pytest.raises(MLEnhancedSelectorError):
             selector.train(X, y)
@@ -479,7 +479,7 @@ class TestInputTypes:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data()
+        X, y = make_classification_data()  # noqa: N806
         result = selector.train(X, y)
         assert result.n_samples > 0
 
@@ -489,7 +489,7 @@ class TestInputTypes:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_features=3)
+        X, y = make_classification_data(n_features=3)  # noqa: N806
         df = pd.DataFrame(X, columns=["feat_a", "feat_b", "feat_c"])
         series = pd.Series(y)
         result = selector.train(df, series)
@@ -502,8 +502,8 @@ class TestInputTypes:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_features=3, n_samples=50)
-        X_list = X.tolist()
+        X, y = make_classification_data(n_features=3, n_samples=50)  # noqa: N806
+        X_list = X.tolist()  # noqa: N806
         y_list = y.tolist()
         result = selector.train(X_list, y_list)
         assert result.n_samples == 50
@@ -514,7 +514,7 @@ class TestInputTypes:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_features=3)
+        X, y = make_classification_data(n_features=3)  # noqa: N806
         selector.train(X, y)
         df = pd.DataFrame(X, columns=["a", "b", "c"])
         preds = selector.predict(df)
@@ -526,7 +526,7 @@ class TestInputTypes:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_samples=50)
+        X, y = make_classification_data(n_samples=50)  # noqa: N806
         # 将 {0, 1} 映射为 {-1, 1}
         y_alt = np.where(y == 1, 1, -1).astype(float)
         result = selector.train(X, y_alt)
@@ -556,7 +556,7 @@ class TestNumericalStability:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_samples=100)
+        X, y = make_classification_data(n_samples=100)  # noqa: N806
         # 加入异常值
         X[0] = [1e5] * X.shape[1]
         # 不应抛异常
@@ -569,7 +569,7 @@ class TestNumericalStability:
             config=TrainingConfig(n_iterations=100),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_samples=100, n_features=3)
+        X, y = make_classification_data(n_samples=100, n_features=3)  # noqa: N806
         # 第 2 列设为恒定值
         X[:, 1] = 5.0
         result = selector.train(X, y, feature_names=["f0", "const", "f2"])
@@ -581,7 +581,7 @@ class TestNumericalStability:
         config = TrainingConfig(n_iterations=100, random_state=42)
         selector1 = MLEnhancedSelector(config=config, model_dir=Path("models/test_ml_selector"))
         selector2 = MLEnhancedSelector(config=config, model_dir=Path("models/test_ml_selector"))
-        X, y = make_classification_data(seed=42)
+        X, y = make_classification_data(seed=42)  # noqa: N806
         selector1.train(X, y)
         selector2.train(X, y)
         # 权重应一致

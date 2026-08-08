@@ -64,9 +64,10 @@ def main():
     print("-" * 70)
 
     per_asset_results = []
-    MIN_VALID_POINTS = 5
-    MAX_ANNUALIZED = 50.0
-    MIN_ANNUALIZED = -0.99
+    MIN_VALID_POINTS = 5  # noqa: N806
+    MAX_ANNUALIZED = 2.0   # noqa: N806 年化上限 +200% (原 5000% 过于宽松, 300308 等短期暴涨股会失真)
+    MIN_ANNUALIZED = -0.99  # noqa: N806
+    BAYESIAN_PRIOR = 0.15   # noqa: N806 贝叶斯收缩先验: 15% 年化 (A股长期权益收益率中枢)
     for i, code in enumerate(codes):
         returns = data[:, i]
         # 去除 NaN
@@ -81,8 +82,20 @@ def main():
             continue
         # 年化收益 = (1+cum)^(1/years) - 1
         annualized = (1 + cum) ** (1 / years) - 1
+
+        # 短周期贝叶斯收缩: 样本期 < 2 年时, 极端年化向 15% 均值回归
+        # (300308 等短期暴涨股 1 年内 10 倍会导致年化 > 1000%, 不可持续)
+        if years < 2.0 and abs(annualized) > 0.5:
+            shrink_weight = max(0.0, min(0.7, 1.0 - years / 2.0))
+            original_ann = annualized
+            annualized = annualized * (1 - shrink_weight) + BAYESIAN_PRIOR * shrink_weight
+            print(
+                f"  [{code}] 短周期贝叶斯收缩: {original_ann*100:+.1f}% → "
+                f"{annualized*100:+.1f}% (收缩强度 {shrink_weight*100:.0f}%)"
+            )
+
         if not (MIN_ANNUALIZED <= annualized <= MAX_ANNUALIZED):
-            print(f"  [SKIP] {code}: 年化收益异常 ({annualized*100:+.2f}%)")
+            print(f"  [SKIP] {code}: 年化收益异常 ({annualized*100:+.2f}%)，超出阈值 [{MIN_ANNUALIZED*100:.0f}%, {MAX_ANNUALIZED*100:.0f}%]")
             continue
         # 日波动率 → 年化
         daily_vol = np.std(valid)

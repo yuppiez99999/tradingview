@@ -18,7 +18,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from utils.phase_manager import (
+from utils.phase_manager import (  # noqa: E402
     ANNUAL_PHASES,
     LIQUIDATION_QUARTERLY_ACTIONS,
     PhaseManager,

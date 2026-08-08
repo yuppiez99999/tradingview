@@ -294,8 +294,7 @@ class TestDriftReportImmutability:
             current_mean=0.1,
         )
         with pytest.raises(FrozenInstanceError):
-            report.model_name = "modified"  # type: ignore
-
+            report.model_name = "modified"  # type: ignore[assignment]
     def test_drift_report_to_dict(self):
         """DriftReport.to_dict() 返回完整字段."""
         report = DriftReport(
@@ -739,8 +738,7 @@ class TestDataclassImmutability:
             label_date="2026-08-03",
         )
         with pytest.raises(FrozenInstanceError):
-            record.symbol = "modified"  # type: ignore
-
+            record.symbol = "modified"  # type: ignore[assignment]
     def test_delayed_metrics_is_frozen(self):
         """DelayedMetrics 是 frozen dataclass."""
         metrics = DelayedMetrics(
@@ -750,8 +748,7 @@ class TestDataclassImmutability:
             ic=0.05,
         )
         with pytest.raises(FrozenInstanceError):
-            metrics.ic = 0.99  # type: ignore
-
+            metrics.ic = 0.99  # type: ignore[assignment]
     def test_prediction_record_to_dict(self):
         """PredictionRecord.to_dict() 返回完整字段 (property 不在 dict)."""
         record = PredictionRecord(

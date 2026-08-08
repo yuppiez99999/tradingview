@@ -1,0 +1,34 @@
+TradingAgents 分析异常: timed out
+Traceback (most recent call last):
+  File ".\utils\tradingagents_bridge.py", line 241, in analyze
+    resp = self._http_post("/analyze", payload, timeout=self.timeout)
+  File ".\utils\tradingagents_bridge.py", line 380, in _http_post
+    with urlopen(req, timeout=timeout or self.timeout) as resp:  # nosec B310
+  File "C:\Program Files\Python38\lib\urllib\request.py", line 222, in urlopen
+    return opener.open(url, data, timeout)
+  File "C:\Program Files\Python38\lib\urllib\request.py", line 525, in open
+    response = self._open(req, data)
+  File "C:\Program Files\Python38\lib\urllib\request.py", line 542, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+  File "C:\Program Files\Python38\lib\urllib\request.py", line 502, in _call_chain
+    result = func(*args)
+  File "C:\Program Files\Python38\lib\urllib\request.py", line 1383, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+  File "C:\Program Files\Python38\lib\urllib\request.py", line 1358, in do_open
+    r = h.getresponse()
+  File "C:\Program Files\Python38\lib\http\client.py", line 1344, in getresponse
+    response.begin()
+  File "C:\Program Files\Python38\lib\http\client.py", line 307, in begin
+    version, status, reason = self._read_status()
+  File "C:\Program Files\Python38\lib\http\client.py", line 268, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+  File "C:\Program Files\Python38\lib\socket.py", line 669, in readinto
+    return self._sock.recv_into(b)
+socket.timeout: timed out
+2026-08-06 15:14:33,130 - finance_agent_orchestrator - INFO - WeatherAgent 初始化成功
+2026-08-06 15:14:33,130 - finance_agent_orchestrator - INFO - FinanceAgentOrchestrator 初始化完成: agents=['value', 'momentum', 'sentiment', 'risk', 'macro', 'weather'], weights={'value': 0.22, 'momentum': 0.22, 'sentiment': 0.13, 'risk': 0.22, 'macro': 0.1, 'weather': 0.11}
+SOURCE: fallback_local
+ACTION: HOLD
+CONF: 1.0
+SUMMARY_KEYS: empty
+REASONING: 本地 orchestrator 降级决策 (veto=False)

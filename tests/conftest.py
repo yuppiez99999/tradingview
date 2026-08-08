@@ -144,9 +144,9 @@ def pytest_configure(config):
 # v8.6.7 测试金字塔新增 fixtures
 # ============================================================
 
-import json
-from pathlib import Path
-from unittest.mock import MagicMock
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
+from unittest.mock import MagicMock  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -397,3 +397,48 @@ def production_env(monkeypatch):
     """设置 TRADING_ENV=production, 触发 fail-closed 路径"""
     monkeypatch.setenv("TRADING_ENV", "production")
     return "production"
+
+
+# ============================================================
+# Shadow 数据质量闭环共享 fixture (unit + integration)
+# ============================================================
+# 这些 fixture 供 Shadow 门槛测试的两层防护链复用:
+#   - mock_drift_report: 模拟 DriftReport 对象
+#   - mock_compute_prediction_drift: patch compute_prediction_drift
+# 辅助函数见 tests/shadow_helpers.py
+
+import sys as _sys  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
+
+# 添加 tests/ 目录到 sys.path, 使 shadow_helpers 可被 import
+_TESTS_DIR = _Path(__file__).resolve().parent
+if str(_TESTS_DIR) not in _sys.path:
+    _sys.path.insert(0, str(_TESTS_DIR))
+
+from shadow_helpers import make_mock_drift_report as _make_mock_report  # noqa: E402
+
+
+@pytest.fixture
+def mock_drift_report():
+    """模拟 DriftReport 对象 (每个测试独立实例).
+
+    提供 severity.value / drift_score / psi / to_dict() 等接口.
+    默认值: severity=low, drift_score=0.15, psi=0.08.
+    测试可修改返回值自定义行为.
+    """
+    return _make_mock_report()
+
+
+@pytest.fixture
+def mock_compute_prediction_drift(monkeypatch, mock_drift_report):
+    """Patch compute_prediction_drift, 返回 MagicMock.
+
+    默认 return_value=mock_drift_report.
+    测试可修改 return_value 或设置 side_effect 自定义行为.
+
+    不需要此 mock 的测试 (如 n < 5 的 skipped 场景) 不传入此 fixture 参数即可,
+    fixture 不会激活, 不会 patch.
+    """
+    mock = MagicMock(return_value=mock_drift_report)
+    monkeypatch.setattr("utils.alpha.drift_monitor.compute_prediction_drift", mock)
+    return mock

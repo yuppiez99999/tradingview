@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "ms_strategy"))
 
-from ms_strategy.src.backtest.combinatorial_purged_cv import (
+from ms_strategy.src.backtest.combinatorial_purged_cv import (  # noqa: E402
     CombinatorialPurgedCV,
     CPCVConfig,
     CPCVResult,

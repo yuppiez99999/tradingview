@@ -81,7 +81,7 @@ def signal_sharpe(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 # 时间序列交叉验证
 # ============================================================
 def time_series_cv_evaluate(
-    X: np.ndarray,
+    X: np.ndarray,  # noqa: N803
     y: np.ndarray,
     config: dict,
     n_splits: int = 5,
@@ -131,7 +131,7 @@ def time_series_cv_evaluate(
     n_features = X.shape[1]
 
     for fold_idx, (train_idx, test_idx) in enumerate(folds):
-        X_train_fold, X_test_fold = X[train_idx], X[test_idx]
+        X_train_fold, X_test_fold = X[train_idx], X[test_idx]  # noqa: N806
         y_train_fold, y_test_fold = y[train_idx], y[test_idx]
 
         if len(X_train_fold) < 50 or len(X_test_fold) < 10:
