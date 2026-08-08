@@ -1,0 +1,139 @@
+# Shadow 准入流程配置 (T2.4 模块准入)
+# ============================================
+# 创建: 2026-08-04 (P0 日任务 — 修复 watchdog 告警: 配置缺失导致 DSR 计算失败)
+# 数据源: 与 config/shadow_account_config.json + reports/shadow/admission_state.json 对齐
+#
+# ConfigManager 4 级优先级:
+#   QUANT_CONFIG_DIR > v8.3_institutional/config/ (本文件, 生产源) > configs/ > ms_strategy/config/
+#
+# 用法:
+#   python scripts/shadow_admission_launcher.py daily     # 每日 DSR 报告
+#   python scripts/shadow_admission_launcher.py status    # 查看状态
+#   python scripts/shadow_admission_launcher.py evaluate  # 14 天后准入评估
+
+# ============================================================
+# 基础设置
+# ============================================================
+settings:
+  state_file: "reports/shadow/admission_state.json"
+  report_dir: "reports/shadow"
+  observation_days: 21          # 观察期天数 (与 admission_state.json 一致, 原 14 → 21 PM 双管齐下方案)
+  min_observation_days: 21      # 最小观察天数
+  initial_capital: 500000       # 影子资金 (与 shadow_account_config.json 一致)
+
+# ============================================================
+# 待准入模块 (T2.1 / T2.2 / T2.3)
+# ============================================================
+modules:
+  - name: "LLMRouter"
+    task_id: "T2.1"
+    feature_flag: "USE_LLM_REPORT_ANALYZER"
+    fallback: "utils.llm_client.LLMClient"
+    status: "running"
+
+  - name: "DecisionTheoriesFusion"
+    task_id: "T2.2"
+    feature_flag: "USE_DECISION_THEORIES_FUSION"
+    fallback: "v8.3_institutional.src.factors.decision_theories (旧路径)"
+    status: "running"
+
+  - name: "MultiFactorSignal"
+    task_id: "T2.3"
+    feature_flag: "USE_MULTI_FACTOR_SIGNAL"
+    fallback: "等权模式 (weight=1/N)"
+    status: "running"
+
+# ============================================================
+# Fail-Fast 触发器 (用户硬约束, 与 shadow_account_config.json 一致)
+# ============================================================
+fail_fast:
+  daily_drawdown_threshold: 0.03           # 单日回撤 > 3% 立即终止
+  cumulative_3d_drawdown_threshold: 0.05   # 3 日累计回撤 > 5% 立即终止
+  description: "单日回撤>3% 或 3日累计回撤>5% 立即终止"
+  latch: true
+  action_on_trigger: "terminate_and_rollback"
+
+# ============================================================
+# 因子配置 (HC-3: risk_managed=True)
+# ============================================================
+single_factor:
+  config_name: "Config_E"
+  risk_managed: true
+
+factor_combination:
+  config_name: "Config_E_plus1"
+  risk_managed: true
+  # IC 加权组合 (lookback=10 天)
+  ic_weighted:
+    enabled: true
+    lookback_days: 10
+    factor_pairs:
+      - "VT_MICRO_VOL_SKEW_INV+VT_QUALTREND_MARGIN_EXP"
+
+# ============================================================
+# 准入标准 (Bailey 2017 DSR + PBO)
+# ============================================================
+admission_criteria:
+  # DSR (Deflated Sharpe Ratio) 门槛
+  min_dsr: 0.5
+  min_samples_for_dsr: 20       # 最小样本数 (PM 双管齐下: 20 → 15, 此处保留 20 更严格)
+  dsr_max_pass: 5               # DSR 通过次数门槛 (V9 基线 DSR=8)
+
+  # 绩效门槛
+  min_annual_return: 0.15       # 年化 >= 15%
+  max_drawdown: 0.10           # 最大回撤 <= 10% (生产 MAX_DRAWDOWN_LIMIT=15%, 此处更严)
+  min_sharpe: 0.5              # Sharpe >= 0.5
+  max_sharpe_cv: 1.0           # Sharpe CV < 1.0 (稳定性)
+
+  # 绩效偏差 (相对回测基准)
+  performance_deviation_max: 0.30   # 偏差 <= 30%
+  max_drawdown_to_cagr_ratio: 2.0   # 回撤/CAGR <= 2
+
+  # PBO (Probability of Backtest Overfitting)
+  pbo_threshold: 0.5           # PBO < 0.5
+
+  description: "DSR>=0.5 (通过>=5次), 年化>=15%, 回撤<=10%, Sharpe CV<1.0, PBO<0.5"
+
+# ============================================================
+# 回测基准 (V9 Regime-Specific LGB, 与 shadow_account_config.json 一致)
+# ============================================================
+backtest_benchmark:
+  strategy_id: "V9_REGIME_SPECIFIC_LGB"
+  period: "2023-07-01~2025-12-31"
+  n_months: 30
+  annual_return: 0.1962        # 19.62%
+  max_drawdown: 0.0995         # 9.95%
+  win_rate: 0.6667
+  sharpe_annual: 1.315
+  sharpe_cv_rolling: 0.7673
+  dsr_max_pass: 18
+
+# ============================================================
+# 回滚触发器
+# ============================================================
+rollback_triggers:
+  - "fail_fast_terminated"
+  - "performance_deviation_exceeded"
+  - "sharpe_below_threshold"
+  - "drawdown_exceeds_2x_cagr"
+  - "pbo_above_threshold"
+
+# ============================================================
+# 灰度发布阶段 (与 shadow_account_config.json 一致)
+# ============================================================
+gray_release_stages:
+  - name: "stage_1"
+    capital_pct: 0.1
+    capital_amount: 500000
+    duration_days: 14
+    description: "10% 资金影子跟踪, 14 天最小运行周期"
+  - name: "stage_2"
+    capital_pct: 0.5
+    capital_amount: 2500000
+    duration_days: 14
+    description: "50% 资金灰度发布, 14 天验证周期"
+  - name: "stage_3"
+    capital_pct: 1.0
+    capital_amount: 5000000
+    duration_days: 0
+    description: "100% 全量上线"

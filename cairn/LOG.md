@@ -10,6 +10,9 @@
 - **Windows 编码坑复盘**: 系统裸 `python`（Python38）因 site-packages 的 .pth 文件 GBK 编码（0xa7 字节）启动失败 `UnicodeDecodeError`。必须用项目 `.venv/Scripts/python.exe`（实际指向 Python314）。运行脚本时还需 `PYTHONIOENCODING=utf-8` 防 ¥ 符号崩溃。
 - **防复发三件套全过**: `assert_data_validity.py` 7 PASS 0 FAIL（D1-D7）；`industrial_grade_check.py` 7 PASS 2 WARN 0 FAIL（C1 真实下单未接线为已知非本次项）；`check_dangling_refs.py` 0 悬挂引用。G9 改动未引入新悬挂引用。
 - **指针**: G8 修复 `run_v84_postmarket.ps1`；G9 修复 `v8.3_institutional/calibrate_returns_projection.py` `call_wind_kline`；根因依据 `skills/wind-mcp-skill/references/tool-contracts.md` L28/L33/L192；待办排期 `docs/SYSTEM_MATURITY_GAP.md` §7（G8-G19）。
+- **🟢 G9 已彻底关闭 — 真实 phase0 验证通过 (2026-08-08 10:19)**: 用户提供有效 `WIND_API_KEY`（已写入 `.env`）后，直接运行 `calibrate_returns_projection.py`（即 EOD 阶段零实际脚本）。结果 Step 1 **33 成功 / 0 失败**，全部 33 标的拉到真实 Wind 历史数据（266 交易日/标的），写入 `config/returns_history.json` + `config/market_returns.json`，**不再 fail-safe 降级**（对比 08-07 因 key 缺失全部 PARAM 降级）。Step 2/3 校准完成：组合加权年化 +33.68%，基准 510300 +19.12%，`portfolio_return_projection.json` 已更新。
+- **G9 修复防御层真实生效**：日志显示 **22 个 `stock_data` 标的首次调用返回 `PARAM_VALIDATION_ERROR`（含 600019.SH）**，但自动去 `period` 重试机制全部救回为 `[OK]`。关键新认知：**真实 Wind MCP 后端对 `stock_data.get_stock_kline` 也不接受 `period` 字段**（与 `tool-contracts.md` L28 文档"支持 period"相反——文档与真实后端存在偏差）。因此 G9 真正起作用的不是"区分 fund/stock 参数"，而是"PARAM 时自动去 period 重试"这层防御。该防御现已固化为标准容错路径。
+- **遗留校准观察（非阻断，不归 G9）**：`300308.SZ` 年化 +262% 触发 `[SKIP]` 异常阈值（[-99%,200%]），权重置 0；`600036`/`600900`/`600019` 年化转负（区间 2025-07→2026-08 银行/电力/钢铁跑输）。属数据正常现象，不阻断校准。
 
 ## 2026-08-07 · 今日主线：两份升级计划同步对齐 + Wave6 验证 + TDAM Phase 0b 数据导入 ✅ DONE
 
