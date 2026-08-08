@@ -102,6 +102,7 @@ try:
 except Exception as _lgb_import_err:
     _HAS_LGB = False
     _LGB_IMPORT_ERR = str(_lgb_import_err)
+    logger.warning(f"LightGBM 导入失败, 已降级禁用 LGB 模型: {_lgb_import_err}")
 
 # Walk-forward 训练配置（加速版：月度重训无需 2000 轮）
 WALKFORWARD_LGB_CONFIG = (
@@ -709,7 +710,8 @@ class InstitutionalPipelineRunner:
             if self.data_provider is not None:
                 try:
                     df = self.data_provider.get_historical_data(self._MARKET_PROXY_SYMBOL, period="3y")
-                except Exception:
+                except Exception as e:  # noqa: BLE001
+                    logger.exception(f"获取市场代理历史数据失败, 已降级 df=None: {e}")
                     df = None
         if df is None or df.empty:
             return None, 0
@@ -874,7 +876,8 @@ class InstitutionalPipelineRunner:
         try:
             if hasattr(cutoff, "tz") and cutoff.tz is not None:
                 cutoff = cutoff.tz_localize(None)
-        except Exception:
+        except Exception as e:  # noqa: BLE001
+            logger.exception(f"cutoff 时区清理失败, 已降级处理: {e}")
             cutoff = pd.Timestamp(cutoff).tz_localize(None) if pd.Timestamp(cutoff).tzinfo else pd.Timestamp(cutoff)
 
         # 2. 加载大盘代理数据
@@ -1107,7 +1110,8 @@ class InstitutionalPipelineRunner:
                 return None
             daily_rets = df_sym["close"].pct_change().tail(20)
             return float(daily_rets.std())
-        except Exception:
+        except Exception as e:  # noqa: BLE001
+            logger.exception(f"计算日收益率标准差失败, 已降级返回 None: {e}")
             return None
 
     def _apply_max_weight_cap(
@@ -1436,13 +1440,14 @@ class InstitutionalPipelineRunner:
                     pd.Timestamp(d).tz_localize(None) if pd.Timestamp(d).tzinfo else pd.Timestamp(d)
                     for d in idx
                 ])
-            except Exception:
+            except Exception as e:  # noqa: BLE001
+                logger.exception(f"DatetimeIndex 时区规范化失败, 已降级返回原 idx: {e}")
                 return idx
 
         try:
             df.index = _to_naive_idx(df.index)
-        except Exception:
-            pass  # 索引转换失败不阻断, 后续比较仍会处理
+        except Exception as e:  # noqa: BLE001
+            logger.exception(f"索引时区转换失败, 已降级跳过 (后续比较仍处理): {e}")
 
         cutoff_naive = pd.Timestamp(cutoff)
         if hasattr(cutoff_naive, "tz") and cutoff_naive.tz is not None:

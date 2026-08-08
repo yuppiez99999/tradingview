@@ -15,6 +15,7 @@
 """
 
 import json
+import logging
 import os
 import sys
 from dataclasses import asdict, dataclass, field
@@ -22,6 +23,8 @@ from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 from utils.data_types import normalize_stock_code, safe_float, safe_int
+
+logger = logging.getLogger("build_plan_executor")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PLAN_FILE = os.path.join(BASE_DIR, "500万建仓计划_20260706.json")
@@ -378,7 +381,8 @@ class BuildPlanExecutor:
 
             score = max(-1.0, min(1.0, 1.0 - float(value) * 1e8))
             return round(float(score), 4)
-        except Exception:
+        except Exception as e:  # noqa: BLE001
+            logger.exception(f"评分计算失败, 已降级返回 None: {e}")
             return None
 
     # ---------------------------------------------------------------

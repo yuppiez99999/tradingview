@@ -16,6 +16,7 @@
 """
 
 import argparse
+import logging
 import json
 import shutil
 import sys
@@ -334,14 +335,14 @@ def _write_report_with_retry(lines: list, report_path: Path, max_retries: int = 
     for attempt in range(max_retries):
         try:
             report_path.write_text(content, encoding="utf-8")
-            print(f"[EOD] 报告已生成: {report_path}")
+            logger.info(f" 报告已生成: {report_path}")
             return report_path
         except (PermissionError, OSError, UnicodeEncodeError) as e:
             if attempt < max_retries - 1:
-                print(f"[EOD][WARN] 报告写入失败 ({type(e).__name__}: {e}), 重试 {attempt + 1}/{max_retries}...")
+                logger.warning(f" 报告写入失败 ({type(e).__name__}: {e}), 重试 {attempt + 1}/{max_retries}...")
                 time.sleep(1)
             else:
-                print(f"[EOD][ERROR] 报告写入失败 ({max_retries}/{max_retries}): {type(e).__name__}: {e}")
+                logger.error(f" 报告写入失败 ({max_retries}/{max_retries}): {type(e).__name__}: {e}")
 
     # Fallback: 写入 logs 目录
     fallback_dir = PROJECT_ROOT / "logs"
@@ -349,10 +350,10 @@ def _write_report_with_retry(lines: list, report_path: Path, max_retries: int = 
     fallback_path = fallback_dir / report_path.name
     try:
         fallback_path.write_text(content, encoding="utf-8")
-        print(f"[EOD][WARN] 报告写入 fallback: {fallback_path}")
+        logger.warning(f" 报告写入 fallback: {fallback_path}")
         return fallback_path
     except (PermissionError, OSError, UnicodeEncodeError) as e:
-        print(f"[EOD][ERROR] Fallback 写入也失败: {e}")
+        logger.error(f" Fallback 写入也失败: {e}")
         return None
 
 
@@ -384,7 +385,7 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
         执行结果字典 {success, guards, next_trade_date, errors}
     """
     next_trade_date = get_next_trading_day(report_date)
-    print(f"[EOD] 报告日: {report_date} → 次交易日: {next_trade_date}")
+    logger.info(f" 报告日: {report_date} → 次交易日: {next_trade_date}")
 
     # 加载次日 trade_plan
     plan_file = TRADE_PLANS_DIR / f"trade_plan_{next_trade_date.replace('-', '')}.json"
@@ -392,14 +393,14 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
         # 尝试带横杠的文件名格式
         plan_file = TRADE_PLANS_DIR / f"trade_plan_{next_trade_date}.json"
     if not plan_file.exists():
-        print(f"[EOD][ERROR] 次日交易计划不存在: {plan_file}")
+        logger.error(f" 次日交易计划不存在: {plan_file}")
         return {
             "success": False,
             "error": f"trade_plan not found: {plan_file}",
             "next_trade_date": next_trade_date,
         }
 
-    print(f"[EOD] 定位交易计划: {plan_file.name}")
+    logger.info(f" 定位交易计划: {plan_file.name}")
     # trade_plan 由 RiskGuardIntegrator.run_all_guards() 内部 _load_next_trade_plan 加载,
     # 此处仅校验文件存在, 避免重复读取 (旧代码 _plan 加载后从未使用)
 
@@ -410,16 +411,16 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
     try:
         from utils.risk_guard_integrator import RiskGuardIntegrator
 
-        print("[EOD] 初始化 RiskGuardIntegrator...")
+        logger.info(" 初始化 RiskGuardIntegrator...")
         integrator = RiskGuardIntegrator(report_date=report_date)
 
-        print("[EOD] 执行四 Guard 风控链...")
+        logger.info(" 执行四 Guard 风控链...")
         updated_plan = integrator.run_all_guards(next_trade_date)
 
         # M2 修复: None 检查, 防止 integrator 返回 None 时后续 .get() 崩溃
         if updated_plan is None:
             error_msg = "RiskGuardIntegrator.run_all_guards() 返回 None, 风控链异常"
-            print(f"[EOD][CRITICAL] {error_msg}")
+            logger.critical(f" {error_msg}")
             errors.append(error_msg)
             return {
                 "success": False,
@@ -446,12 +447,12 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
             if passed is None:
                 msg = f"[{guard_key}] Guard 数据缺失或字段不完整, 视为未通过"
                 errors.append(msg)
-                print(f"[EOD][ERROR] {msg}")
+                logger.error(f" {msg}")
                 continue
             if not passed:
                 msg = f"[{guard_key}] Guard 未通过: {guard_data}"
                 errors.append(msg)
-                print(f"[EOD][WARN] {msg}")
+                logger.warning(f" {msg}")
 
         # 保存更新后的 trade_plan (C2 修复: 备份 + 原子写入, 防止数据丢失)
         if not dry_run:
@@ -460,9 +461,9 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
                 backup_path = plan_file.with_suffix(f".bak_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}")
                 try:
                     shutil.copy2(plan_file, backup_path)
-                    print(f"[EOD] 已备份原交易计划: {backup_path.name}")
+                    logger.info(f" 已备份原交易计划: {backup_path.name}")
                 except OSError as e:
-                    print(f"[EOD][WARN] 备份失败, 继续写入: {e}")
+                    logger.warning(f" 备份失败, 继续写入: {e}")
 
             # 原子写入: 先写 .tmp 再 replace, 防止中途异常导致文件损坏
             tmp_path = plan_file.with_suffix(".tmp")
@@ -470,9 +471,9 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
                 with open(tmp_path, "w", encoding="utf-8") as f:
                     json.dump(updated_plan, f, ensure_ascii=False, indent=2)
                 tmp_path.replace(plan_file)
-                print(f"[EOD] 已更新交易计划: {plan_file.name}")
+                logger.info(f" 已更新交易计划: {plan_file.name}")
             except (OSError, ValueError) as e:
-                print(f"[EOD][ERROR] 交易计划写入失败: {e}")
+                logger.error(f" 交易计划写入失败: {e}")
                 # 清理临时文件
                 if tmp_path.exists():
                     try:
@@ -481,7 +482,7 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
                         pass
                 errors.append(f"trade_plan 写入失败: {e}")
         else:
-            print("[EOD] dry-run 模式, 不保存交易计划")
+            logger.info(" dry-run 模式, 不保存交易计划")
 
         # 生成 EOD 摘要报告
         report_path = generate_eod_report(report_date, next_trade_date, guards_result, errors, dry_run)
@@ -496,14 +497,14 @@ def run_eod_guards(report_date: str, dry_run: bool = False) -> dict:
 
     except ImportError as e:
         error_msg = f"RiskGuardIntegrator 导入失败: {e}"
-        print(f"[EOD][CRITICAL] {error_msg}")
+        logger.critical(f" {error_msg}")
         errors.append(error_msg)
         return {"success": False, "error": error_msg, "errors": errors}
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         # 兜底: 生产风控脚本必须永不崩溃, 永远返回结构化结果给上层调度 (cron/Airflow)
         # integrator 内部各 guard 已各自 try-except, 此处捕获的是加载/数据访问/未知异常
         error_msg = f"四 Guard 链执行异常: {type(e).__name__}: {e}"
-        print(f"[EOD][CRITICAL] {error_msg}")
+        logger.critical(f" {error_msg}")
         traceback.print_exc()
         errors.append(error_msg)
         return {"success": False, "error": error_msg, "errors": errors}
@@ -581,7 +582,7 @@ def generate_eod_report(
     lines.append("*本报告由 run_daily_eod.py v8.6.1 自动生成*")
 
     if dry_run:
-        print("\n" + "\n".join(lines))
+        logger.info("\n" + "\n".join(lines))
         return None
 
     # 写入报告文件 (重试 + fallback 由 helper 处理)
@@ -619,23 +620,23 @@ def main():
         except SystemExit:
             raise
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
-            print(f"[P0 自检] 异常 (容错通过): {e}", file=sys.stderr)
+            logger.warning(f"[P0 自检] 异常 (容错通过): {e}")
 
-    print("=" * 60)
-    print(f"EOD 风控守卫执行 — {args.date}")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info(f"EOD 风控守卫执行 — {args.date}")
+    logger.info("=" * 60)
 
     result = run_eod_guards(args.date, dry_run=args.dry_run)
 
-    print("\n" + "=" * 60)
+    logger.info("\n" + "=" * 60)
     if result.get("success"):
-        print("[EOD] ✅ 四 Guard 链执行完成, 全部通过")
+        logger.info(" ✅ 四 Guard 链执行完成, 全部通过")
     else:
-        print("[EOD] ❌ 四 Guard 链存在未通过项或异常")
+        logger.info(" ❌ 四 Guard 链存在未通过项或异常")
         if result.get("errors"):
             for err in result["errors"]:
-                print(f"  - {err}")
-    print("=" * 60)
+                logger.error(f"  - {err}")
+    logger.info("=" * 60)
 
     # 退出码: 成功=0, 失败=1
     sys.exit(0 if result.get("success") else 1)
@@ -643,3 +644,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+logger = logging.getLogger("eod_guard")

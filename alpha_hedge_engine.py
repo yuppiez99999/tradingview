@@ -37,7 +37,8 @@ except Exception as e:
 try:
     from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit
     _DEFAULT_MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
-except Exception:
+except Exception as e:  # noqa: BLE001
+    logger.exception(f"读取回撤上限失败, 已降级使用 0.15: {e}")
     _DEFAULT_MAX_DRAWDOWN_LIMIT = 0.15
 
 

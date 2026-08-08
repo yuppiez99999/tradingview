@@ -216,7 +216,7 @@ def collect() -> Dict:
 # 门禁目标, 严格对应 docs/CODE_REVIEW_STANDARD.md §5 阶段1
 GATES = [
     ("未提交变更总数", "worktree_dirty", 100, "le"),
-    ("git 中 venv/二进制", "git_pollution", 0, "le"),
+    ("git 中 qlib_env 文件", "git_pollution", 0, "le"),
     ("P0 区 print()", "p0_print", 60, "le"),
     ("P0 区静默异常", "p0_silent", 6, "le"),
     ("单文件最大行数", "max_lines", 3000, "le"),
@@ -254,7 +254,7 @@ def render(data: Dict) -> None:
         p0["print"], p0["silent_except"], p0["exception"]))
 
     print("\n【其他】")
-    print("  git 中 venv 二进制 : {}".format(data["git_pollution"]))
+    print("  git 中 qlib_env 文件 : {}".format(data["git_pollution"]))
     print("  使用 Decimal 的文件: {}".format(data["decimal_files"]))
     print("  最大文件           : {} ({} 行)".format(
         data["biggest_file"]["path"], data["biggest_file"]["lines"]))

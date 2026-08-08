@@ -4,6 +4,7 @@
 """
 
 import json
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -45,10 +46,10 @@ def get_latest_qlib_report():
 def apply_industry_neutralization():
     report_path = get_latest_qlib_report()
     if not report_path:
-        print("[错误] 未找到 QLib 训练报告")
+        logger.info(" 未找到 QLib 训练报告")
         return
 
-    print(f"[读取] {report_path}")
+    logger.info(f"[读取] {report_path}")
     with open(report_path, encoding="utf-8") as f:
         report = json.load(f)
 
@@ -72,24 +73,24 @@ def apply_industry_neutralization():
                 "name": "",
             }
 
-    print("\n--- 行业中性化处理 ---")
+    logger.info("\n--- 行业中性化处理 ---")
     for industry, stocks in INDUSTRY_GROUPS.items():
         valid_stocks = [s for s in stocks if s in stock_signals]
         if len(valid_stocks) < 2:
-            print(f"  {industry}: 股票数量不足，跳过")
+            logger.info(f"  {industry}: 股票数量不足，跳过")
             continue
 
         signals = [stock_signals[s]["raw_signal"] for s in valid_stocks]
         ranks = np.argsort(np.argsort(signals)) / (len(signals) - 1)
         ranks = ranks * 2 - 1
 
-        print(f"\n  {industry} ({len(valid_stocks)}只):")
+        logger.info(f"\n  {industry} ({len(valid_stocks)}只):")
         for i, stock_code in enumerate(valid_stocks):
             neutral_signal = float(ranks[i])
             stock_signals[stock_code]["neutral_signal"] = neutral_signal
             direction = "看多" if neutral_signal > 0.3 else ("看空" if neutral_signal < -0.3 else "中性")
             stock_signals[stock_code]["neutral_direction"] = direction
-            print(
+            logger.info(
                 f"    {stock_code} {stock_signals[stock_code]['name']:6s} 原始:{stock_signals[stock_code]['raw_signal']:+.4f} → 中性化:{neutral_signal:+.4f} ({direction})"
             )
 
@@ -100,22 +101,24 @@ def apply_industry_neutralization():
             return code[2:] + ".SZ"
         return code
 
-    print("\n--- 更新持仓数据 ---")
+    logger.info("\n--- 更新持仓数据 ---")
     for stock_code, sig_info in stock_signals.items():
         pos_code = convert_code(stock_code)
         if pos_code in positions_data["positions"]:
             pos = positions_data["positions"][pos_code]
             pos["qlib_neutral_signal"] = sig_info.get("neutral_signal")
             pos["qlib_neutral_direction"] = sig_info.get("neutral_direction", pos.get("qlib_direction"))
-            print(f"    {stock_code} → {pos_code} {pos.get('name', '')} 中性化:{sig_info.get('neutral_direction', '')}")
+            logger.info(f"    {stock_code} → {pos_code} {pos.get('name', '')} 中性化:{sig_info.get('neutral_direction', '')}")
 
     positions_data["meta"]["last_qlib_neutral_update"] = report.get("timestamp", "")
 
     with open(POSITIONS_FILE, "w", encoding="utf-8") as f:
         json.dump(positions_data, f, indent=2, ensure_ascii=False)
 
-    print("\n行业中性化完成!")
+    logger.info("\n行业中性化完成!")
 
 
 if __name__ == "__main__":
     apply_industry_neutralization()
+
+logger = logging.getLogger("signal_post_processing")

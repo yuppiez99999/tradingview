@@ -457,6 +457,7 @@ def fetch_prediction_signals(symbols: List[str], horizon: int = 5) -> Dict[str, 
                 }
             except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                 # 单标的失败不影响其他标的
+                logger.exception(f"预测信号生成失败 {symbol}, 已降级 NEUTRAL: {e}")
                 results[symbol] = {
                     "direction": "NEUTRAL",
                     "confidence": 0.0,
@@ -681,8 +682,8 @@ def _run_wt_risk_precheck(wt_modules: Dict, positions_data: Dict, progress: Dict
                 "portfolio_risk_analyzer 未初始化, 盘前风控降级。请检查 wt_modules 初始化。",
                 severity="WARN",
             )
-        except Exception:  # noqa: BLE001  # notify fail-open, 不阻断交易
-            pass
+        except Exception as e:  # noqa: BLE001  # notify fail-open, 不阻断交易
+            logger.exception(f"发送 WT 风控不可用告警失败, 已 fail-open: {e}")
         return None
     try:
         risk_summary = analyzer.analyze_portfolio(
@@ -1631,6 +1632,7 @@ def execute_instructions(target_date_str: str) -> Dict:
         next_plan = generate_next_trading_day_plan(target_date_str)
         result["next_trading_day_plan"] = next_plan
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        logger.exception(f"生成下一交易日计划失败, 已降级记录错误: {e}")
         result["next_trading_day_plan"] = {
             "status": "error",
             "reason": f"生成下一交易日计划失败: {e}",

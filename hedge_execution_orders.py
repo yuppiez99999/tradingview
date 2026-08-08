@@ -163,7 +163,8 @@ def _validate_contract_expiry(instrument: str, as_of: Optional[tuple] = None) ->
         if as_of is None:
             now = datetime.date.today()
             as_of = (now.year, now.month, now.day)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
+        logger.exception(f"解析 as_of 日期失败, 已降级使用 2026-01-01: {e}")
         as_of = (2026, 1, 1)
 
     as_of_yyyymm = as_of[0] * 100 + as_of[1]

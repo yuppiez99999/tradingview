@@ -155,6 +155,10 @@ v7.5_institutional/*/*/*.png
 
 # Qlib binary feature/price data lives under qlib_data/ (dir-ignored) and the
 # ms_strategy/ submodule (its own .gitignore); no extra rule needed here.
+# 2026-08-08: .gitmodules 已丢失, ms_strategy / Vibe-Trading 沦为孤儿 gitlink。
+# 主仓库不再追踪这两个嵌套仓库, 仅保留磁盘内容 (其自身 .git 独立管理)。
+ms_strategy/
+_archive/research_references_quarantine/references/Vibe-Trading/
 
 # Pip download cache
 pip-cache/
