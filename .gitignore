@@ -27,6 +27,7 @@ ENV/
 env/
 .venv
 qlib_env/
+qlib_env/**
 qlib/
 
 # IDE
@@ -129,7 +130,7 @@ qlib_data/
 sim_snapshots/
 
 # Config files (contains live positions and sensitive data)
-config/
+config/*
 configs/
 
 # Allow portfolio template to be tracked
@@ -269,7 +270,6 @@ qlib_env/**/*.so
 .trae/
 .omc/
 .streamlit/
-.github/
 .agents/
 .cairn/
 # 根级临时/备份

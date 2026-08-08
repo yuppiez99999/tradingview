@@ -52,9 +52,10 @@ for _d in [MODELS_DIR, REPORTS_DIR, LOG_DIR, CACHE_DIR]:
     _d.mkdir(parents=True, exist_ok=True)
 
 # sys.path 初始化 (子模块依赖 autolearn_trainer / utils 等)
-sys.path.insert(0, str(BASE_DIR))
-sys.path.insert(0, str(BASE_DIR / "v8.3_institutional"))
-sys.path.insert(0, str(BASE_DIR / "utils"))
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+sys.path.insert(0, str(BASE_DIR))  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 # 复用旧训练器的标的清单和特征工程 (供 institutional_pipeline_runner 等外部模块导入)
 from autolearn_trainer import (  # noqa: E402
@@ -96,7 +97,7 @@ LGB_ENHANCED_CONFIG: dict[str, Any] = {
         "gpu_device_id": 0,  # GPU 设备 ID
     },
     "early_stopping_rounds": 200,  # 放宽 50→200
-    "news_lookback_days": 30,  # 新闻情绪回看天数
+    "news_lookback_days": 250,  # v4.1: 30→250天, 匹配OHLCV回看, 确保滚动特征有统计意义
     "news_cache_hours": 6,  # 新闻缓存有效期 (小时)
     "adaptive_retrain_threshold": 5,  # best_iter <= 5 触发自适应重训
     "adaptive_retrain_lr": 0.001,  # 自适应重训学习率 (0.005→0.001)
@@ -146,12 +147,26 @@ _inject_paths_to_submodules()
 # ── 模型持久化 ──
 
 # ── 训练器核心 ──
-# ── 报告生成 ──
+from autolearn_trainer import (  # noqa: E402
+    POSITION_SYMBOLS,
+    add_cross_sectional_features,
+    add_technical_features,
+)
+from lgb_trainer.feature_engineering import (  # noqa: E402
+    add_capital_flow_features,
+    add_cross_market_features,
+    add_industry_relative_strength_features,
+    add_mean_reversion_features,
+)
+from lgb_trainer.news_sentiment import add_sentiment_features  # noqa: E402
+from lgb_trainer.trainer import (  # noqa: E402
+    compute_regime_series,
+    run_enhanced_training,
+    train_symbol_enhanced,
+    train_symbol_regime_specific,
+)
 from lgb_trainer.report_generator import (  # noqa: E402
     generate_comparison_report,
-)
-from lgb_trainer.trainer import (  # noqa: E402
-    run_enhanced_training,
 )
 
 

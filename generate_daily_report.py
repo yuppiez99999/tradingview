@@ -8,6 +8,7 @@
 import json
 import os
 import sys
+import atexit
 from datetime import datetime
 from pathlib import Path as _Path
 from typing import Any, Dict, List, Optional
@@ -36,7 +37,7 @@ def _load_dotenv() -> None:
                 value = value.strip().strip('"').strip("'")
                 if key and key not in os.environ:
                     os.environ[key] = value
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         print(f"  ⚠️ .env 加载失败: {e}")
 
 
@@ -48,13 +49,25 @@ _SINA_SESSION = _requests.Session()
 _SINA_SESSION.trust_env = False
 _SINA_SESSION.proxies = {"http": None, "https": None}
 
-sys.path.insert(0, ".")
+# C5修复: 注册进程退出时清理 HTTPSession 连接池, 避免资源泄漏
+@atexit.register
+def _cleanup_sina_session() -> None:
+    """进程退出时关闭新浪行情 Session, 避免连接池泄漏"""
+    try:
+        _SINA_SESSION.close()
+    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+        pass
+
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+_PROJECT_ROOT = _Path(__file__).resolve().parent
+sys.path.insert(0, str(_PROJECT_ROOT))  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 # 添加 15_每日工作流 到 sys.path, 支持 LLMRouter flag=False 时透传到旧 llm_client
-_PROJECT_ROOT = _Path(__file__).resolve().parent
 _LLM_WORKFLOW_DIR = _PROJECT_ROOT / "15_每日工作流"
 if _LLM_WORKFLOW_DIR.exists() and str(_LLM_WORKFLOW_DIR) not in sys.path:
-    sys.path.insert(0, str(_LLM_WORKFLOW_DIR))
+    sys.path.insert(0, str(_LLM_WORKFLOW_DIR))  # noqa: E402  # 跨项目目录, setup_sys_path 未涵盖
 
 # Constants
 REPORT_DATE = datetime.now().strftime("%Y-%m-%d")
@@ -68,9 +81,9 @@ IFIND_TOKEN = os.environ.get("IFIND_TOKEN", "")
 try:
     from utils.alpha.llm_router import chat as _llm_chat
     _LLM_ROUTER_AVAILABLE = True
-except Exception as _e:  # P2 模块 fail-safe
+except Exception as _e:  # P2 模块 fail-safe  # noqa: BLE001
     print(f"  ⚠️ LLMRouter 导入失败, 将降级到规则引擎: {_e}")
-    _llm_chat = None  # type: ignore
+    _llm_chat = None  # type: ignore[misc]
     _LLM_ROUTER_AVAILABLE = False
 
 # 保留旧常量名供其他模块引用 (deprecated, 实际调用走 LLMRouter)
@@ -104,7 +117,7 @@ def _call_deepseek(
         if result and result.strip():
             return result.strip()
         return None
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         print(f"  ⚠️ LLM 调用异常: {str(e)[:200]}")
         return None
 
@@ -121,42 +134,42 @@ def _call_deepseek(
 from ai.recommendation_generator import (  # noqa: E402
     generate_ai_recommendations as _ai_generate_recommendations,
 )
-from ai.recommendation_generator import (
+from ai.recommendation_generator import (  # noqa: E402
     generate_deepseek_recommendations as _ai_generate_deepseek_recs,
 )
 from reporting.hedge_analyzer import (  # noqa: E402
     analyze_hedge_position as _hedge_analyze_position,
 )
-from reporting.hedge_analyzer import (
+from reporting.hedge_analyzer import (  # noqa: E402
     analyze_hedge_positions_plan as _hedge_analyze_positions_plan,
 )
-from reporting.hedge_analyzer import (
+from reporting.hedge_analyzer import (  # noqa: E402
     calculate_hedge_effectiveness as _hedge_calculate_effectiveness,
 )
 from reporting.markdown_renderer import generate_report as _md_generate_report  # noqa: E402
 from reporting.next_day_planner import generate_next_day_plan as _plan_generate_next_day  # noqa: E402
-from reporting.pnl_calculator import (
+from reporting.pnl_calculator import (  # noqa: E402
     calculate_max_drawdown as _pnl_calculate_max_drawdown,
 )
 from reporting.pnl_calculator import (  # noqa: E402
     calculate_pnl as _pnl_calc,
 )
-from reporting.pnl_calculator import (
+from reporting.pnl_calculator import (  # noqa: E402
     calculate_volatility as _pnl_calculate_volatility,
 )
-from reporting.pnl_calculator import (
+from reporting.pnl_calculator import (  # noqa: E402
     count_stop_loss_status as _pnl_count_stop_loss_status,
 )
-from reporting.pnl_calculator import (
+from reporting.pnl_calculator import (  # noqa: E402
     get_position_status as _pnl_get_position_status,
 )
-from reporting.price_fetcher import (
+from reporting.price_fetcher import (  # noqa: E402
     assess_data_source_health as _price_assess_data_source_health,
 )
-from reporting.price_fetcher import (
+from reporting.price_fetcher import (  # noqa: E402
     fetch_market_prices as _price_fetch_market_prices,
 )
-from reporting.price_fetcher import (
+from reporting.price_fetcher import (  # noqa: E402
     fetch_sina_realtime as _price_fetch_sina_realtime,
 )
 from reporting.price_fetcher import (  # noqa: E402
@@ -184,7 +197,7 @@ def _load_trade_plan_prices(trade_plan_path):
             if code_num and order.get("est_price") and code_num not in plan_prices:
                 plan_prices[code_num] = order["est_price"]
         print(f"加载 trade_plan: {len(plan_prices)} 个标的的开盘价")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         print(f"加载 trade_plan 失败: {e}")
     return plan_prices
 
@@ -228,7 +241,7 @@ class PortfolioAnalyzer:
         try:
             with open(path, encoding="utf-8") as f:
                 return json.load(f)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             print(f"加载文件失败: {path}, {e}")
             return {}
 
@@ -238,7 +251,7 @@ class PortfolioAnalyzer:
             from utils.data_provider import MarketDataProvider
 
             self._data_provider = MarketDataProvider()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             print(f"数据源初始化失败: {e}")
 
     def _merge_position(self, key, pos, snap, plan_prices):
@@ -246,11 +259,15 @@ class PortfolioAnalyzer:
         code_num = key.split(".")[0]
         snap = snap
         qty = snap.get("qty", 0)
-        avg_price = snap.get("avg_price", pos.get("est_price", 0))
-        if not avg_price:
-            avg_price = pos.get("est_price", 0)
+        avg_price = snap.get("avg_price") or pos.get("est_price") or 0
+        if not avg_price or avg_price <= 0:
+            print(f"⚠️ 标的 {code_num} 成本价无效 (avg_price={avg_price})，跳过")
+            return 0
 
-        first_open_price = plan_prices.get(code_num) or avg_price or pos.get("est_price", 0)
+        first_open_price = plan_prices.get(code_num) or avg_price or pos.get("est_price") or 0
+        if not first_open_price or first_open_price <= 0:
+            print(f"⚠️ 标的 {code_num} 开盘价无效，使用 avg_price={avg_price}")
+            first_open_price = avg_price
 
         pos["actual_shares"] = qty
         pos["actual_avg_cost"] = avg_price
@@ -274,11 +291,23 @@ class PortfolioAnalyzer:
         }
 
     def _apply_positions_snapshot(self, snapshot_path: str, trade_plan_path: Optional[str] = None):
-        """加载 sim_snapshots/positions_{date}.json 并构建实际持仓视图"""
+        """加载 sim_snapshots/positions_{date}.json 并构建实际持仓视图
+
+        注意: 此方法会修改 self.positions_data 中的持仓字段 (actual_shares,
+        actual_avg_cost, est_price), 以便后续 calculate_pnl 等方法使用实际持仓数据。
+        首次调用时会深拷贝备份原始计划数据到 self._original_positions_data,
+        防止 analyzer 实例重用时原始计划数据丢失。
+        """
+        # 首次调用时备份原始计划数据, 防止重用 analyzer 时丢失原始数据
+        import copy as _copy
+
+        if not hasattr(self, "_original_positions_data"):
+            self._original_positions_data = _copy.deepcopy(self.positions_data)
+
         try:
             with open(snapshot_path, encoding="utf-8") as f:
                 snapshot = json.load(f)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             print(f"加载持仓快照失败: {e}")
             return
 
@@ -360,8 +389,14 @@ class PortfolioAnalyzer:
         """
         return _hedge_analyze_positions_plan(self.positions_data)
 
-    def generate_report(self) -> Dict[str, Any]:
-        """[B3.2 委托] 生成完整收盘报告"""
+    def generate_report(self, report_date: Optional[str] = None) -> Dict[str, Any]:
+        """[B3.2 委托] 生成完整收盘报告
+
+        Args:
+            report_date: 报告日期 'YYYY-MM-DD', None 时使用全局 REPORT_DATE (今天)
+        """
+        # 使用传入的 report_date, 修复历史报告生成时日期不一致的问题
+        effective_date = report_date or REPORT_DATE
         self.fetch_market_prices()
 
         pnl_data = self.calculate_pnl()
@@ -376,10 +411,10 @@ class PortfolioAnalyzer:
         net_pnl = portfolio_pnl + hedge_pnl - hedge_cost
 
         ai_recommendations = self._generate_ai_recommendations(pnl_data, hedge_position_data, net_pnl)
-        next_day_plan = self.generate_next_day_plan(REPORT_DATE)
+        next_day_plan = self.generate_next_day_plan(effective_date)
 
         return _md_generate_report(
-            report_date=REPORT_DATE,
+            report_date=effective_date,
             positions_data=self.positions_data,
             hedge_data=self.hedge_data,
             market_prices=self.market_prices,
@@ -434,7 +469,7 @@ class PortfolioAnalyzer:
                 },
                 "risk_disclosure": proj.get("risk_disclosure", {}),
             }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             return {"error": f"projection load failed: {e}"}
 
     def _assess_data_source_health(self, pnl_data: Dict) -> Dict[str, Any]:
@@ -1038,6 +1073,9 @@ def generate_markdown_report(report: Dict) -> str:
 """
 
     total_capital = report.get("next_day_plan", {}).get("total_capital", 5000000)
+    # 除零保护: total_capital=0 或负值时使用默认值
+    if total_capital <= 0:
+        total_capital = 5000000
     futures_margin = (
         report["hedge_position"]["summary"].get("total_hedge_notional", 0) * 0.12
         if report["hedge_position"]["summary"].get("total_hedge_notional", 0) > 0
@@ -1163,7 +1201,8 @@ def main():
             print(f"使用对冲文件: {hedge_file}")
 
     if hedge_file is None:
-        hedge_file = f"v8.3_institutional/reports/hedge_execution_fill_{date_compact}.json"
+        # 不再硬编码回退到可能不存在的文件; 打印警告, 后续逻辑处理 hedge_file=None 的情况
+        print(f"⚠️ 未找到当日 ({date_compact}) 对冲执行文件, 对冲数据将为空")
 
     # 自动查找当日持仓快照
     sim_dir = project_root / "v8.3_institutional" / "sim_snapshots"
@@ -1187,7 +1226,7 @@ def main():
     # 如果有持仓快照, 用它覆盖 positions.json 中的 shares 字段
     if positions_snapshot:
         analyzer._apply_positions_snapshot(positions_snapshot, trade_plan_file)
-    report = analyzer.generate_report()
+    report = analyzer.generate_report(report_date=report_date_arg)
 
     # 打印摘要
     print_report_summary(report)

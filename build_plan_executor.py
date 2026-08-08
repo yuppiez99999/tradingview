@@ -120,41 +120,52 @@ class BuildPlanExecutor:
 
         Returns:
             (phase_summary, phase_index, phase_status)
-            phase_status: "active" | "completed" | "not_started"
+            phase_status: "active" | "completed" | "not_started" | "during_gap" | "unknown"
         """
         if target_date is None:
             target_date = date.today()
 
-        phase_summaries = self.plan_data["phase_summary"]  # type: ignore
-
-        # 检查是否在某个阶段范围内（阶段起始 + 持续天数）
-        build_phases_config = [
-            {"phase": 1, "start": date(2026, 7, 6), "duration": 10},
-            {"phase": 2, "start": date(2026, 7, 20), "duration": 15},
-            {"phase": 3, "start": date(2026, 8, 10), "duration": 15},
-            {"phase": 4, "start": date(2026, 9, 1), "duration": 20},
-        ]
+        phase_summaries = self.plan_data["phase_summary"]  # type: ignore[index]
+        # 从 plan_data metadata 加载阶段配置 (避免硬编码, 支持计划文件更新)
+        metadata_build_phases = self.plan_data.get("metadata", {}).get("build_phases", [])
+        if metadata_build_phases:
+            build_phases_config = [
+                {
+                    "phase": i + 1,
+                    "start": datetime.strptime(p["start"], "%Y-%m-%d").date(),
+                    "duration": p["duration"],
+                }
+                for i, p in enumerate(metadata_build_phases)
+            ]
+        else:
+            # 回退: 硬编码默认配置 (仅当 metadata 缺失时使用)
+            build_phases_config = [
+                {"phase": 1, "start": date(2026, 7, 6), "duration": 10},
+                {"phase": 2, "start": date(2026, 7, 20), "duration": 15},
+                {"phase": 3, "start": date(2026, 8, 10), "duration": 15},
+                {"phase": 4, "start": date(2026, 9, 1), "duration": 20},
+            ]
 
         for i, pc in enumerate(build_phases_config):
-            phase_end = pc["start"] + timedelta(days=pc["duration"])  # type: ignore
-            if pc["start"] <= target_date <= phase_end:  # type: ignore
+            phase_end = pc["start"] + timedelta(days=pc["duration"])  # type: ignore[index]
+            if pc["start"] <= target_date <= phase_end:  # type: ignore[operator]
                 return phase_summaries[i], i, "active"
 
         # 判断是已完成还是未开始
-        if target_date < build_phases_config[0]["start"]:  # type: ignore
+        if target_date < build_phases_config[0]["start"]:  # type: ignore[operator]
             # 还未开始 - 但返回第一阶段信息
             return phase_summaries[0], 0, "not_started"
 
         # 判断是否超过最后阶段
-        last_phase_end = build_phases_config[-1]["start"] + timedelta(  # type: ignore
+        last_phase_end = build_phases_config[-1]["start"] + timedelta(  # type: ignore[index]
             days=build_phases_config[-1]["duration"]
-        )  # type: ignore
-        if target_date > last_phase_end:  # type: ignore
+        )  # type: ignore[misc]
+        if target_date > last_phase_end:  # type: ignore[operator]
             return None, -1, "completed"
 
         # 在阶段间隙中，返回最近的已完成阶段
         for i in range(len(build_phases_config) - 1, -1, -1):
-            if target_date > build_phases_config[i]["start"]:  # type: ignore
+            if target_date > build_phases_config[i]["start"]:  # type: ignore[operator]
                 return phase_summaries[i], i, "during_gap"
 
         return None, -1, "unknown"
@@ -201,6 +212,8 @@ class BuildPlanExecutor:
 
         remaining = total_shares - morning_shares
         afternoon_shares = (remaining // lot_size) * lot_size
+        # 将取整余数并入下午批次, 避免丢失股数 (e.g. 250股/100手 → 上午100+下午150 而非 100+100)
+        afternoon_shares += remaining % lot_size
 
         return morning_shares, afternoon_shares
 
@@ -305,8 +318,8 @@ class BuildPlanExecutor:
         if status != "active":
             return self._build_empty_sheet(target_date, phase_summary, phase_idx, status)
 
-        plan = self.plan_data["position_plan"]  # type: ignore
-        phase_assets = phase_summary["assets"]  # type: ignore
+        plan = self.plan_data["position_plan"]  # type: ignore[index]
+        phase_assets = phase_summary["assets"]  # type: ignore[index]
         sorted_assets = sorted([a for a in phase_assets if a["shares"] > 0], key=lambda x: -x["amount"])
 
         morning_orders = []
@@ -329,9 +342,9 @@ class BuildPlanExecutor:
 
         return DailyTradeSheet(
             trade_date=target_date.strftime("%Y-%m-%d"),
-            phase_name=phase_summary["name"],  # type: ignore
-            phase_number=phase_summary["phase"],  # type: ignore
-            total_capital=self.plan_data["metadata"]["total_capital"],  # type: ignore
+            phase_name=phase_summary["name"],  # type: ignore[index]
+            phase_number=phase_summary["phase"],  # type: ignore[index]
+            total_capital=self.plan_data["metadata"]["total_capital"],  # type: ignore[index]
             day_capital=round(day_total, 2),
             morning_orders=morning_orders,
             afternoon_orders=afternoon_orders,
@@ -504,18 +517,17 @@ class BuildPlanExecutor:
         # 已完成阶段统计
         completed_capital = 0.0
         if status == "completed":
-            phase_range = range(len(self.plan_data["phase_summary"]))  # type: ignore
+            phase_range = range(len(self.plan_data["phase_summary"]))  # type: ignore[index]
         elif status == "during_gap":
             phase_range = range(phase_idx + 1)
         else:  # active / not_started
             phase_range = range(phase_idx)
 
         for i in phase_range:
-            if i < len(self.plan_data["phase_summary"]):  # type: ignore
-                completed_capital += self.plan_data["phase_summary"][i]["capital_amount"]  # type: ignore
-
+            if i < len(self.plan_data["phase_summary"]):  # type: ignore[index]
+                completed_capital += self.plan_data["phase_summary"][i]["capital_amount"]  # type: ignore[index]
         # 整体进度
-        total_capital = self.plan_data["metadata"]["total_capital"]  # type: ignore
+        total_capital = self.plan_data["metadata"]["total_capital"]  # type: ignore[index]
         progress = min(completed_capital / total_capital, 1.0) if total_capital > 0 else 0
 
         status_info = {
@@ -525,11 +537,12 @@ class BuildPlanExecutor:
             "completed_capital": completed_capital,
             "progress": round(progress * 100, 1),
             "current_phase": None,
-            "target_count": self.plan_data["metadata"]["target_count"],  # type: ignore
-            "build_phases": self.plan_data["metadata"]["build_phases"],  # type: ignore
+            "target_count": self.plan_data["metadata"]["target_count"],  # type: ignore[index]
+            "build_phases": self.plan_data["metadata"]["build_phases"],  # type: ignore[index]
         }
 
-        if phase_summary:
+        # current_phase 仅在 active 状态下填充, during_gap 时不填充 (避免误导 API 消费者)
+        if status == "active" and phase_summary:
             status_info["current_phase"] = {
                 "phase": phase_summary["phase"],
                 "name": phase_summary["name"],
@@ -816,11 +829,10 @@ class BuildPlanExecutor:
         Returns:
             对冲输入数据字典
         """
-        positions = {}  # type: ignore
+        positions = {}  # type: ignore[misc]
         prices = {}
-        style_counts = {}  # type: ignore
-        style_amounts = {}  # type: ignore
-
+        style_counts = {}  # type: ignore[misc]
+        style_amounts = {}  # type: ignore[misc]
         all_orders = sheet.morning_orders + sheet.afternoon_orders
         for order in all_orders:
             code = order.code
@@ -835,7 +847,7 @@ class BuildPlanExecutor:
         portfolio_beta = 0.0
         for code, shares in positions.items():
             amt = shares * prices.get(code, 0)
-            order = next((o for o in all_orders if o.code == code), None)  # type: ignore
+            order = next((o for o in all_orders if o.code == code), None)  # type: ignore[misc]
             style = order.style if order else "default"
             beta = self.STYLE_BETA_MAP.get(style, 1.0)
             portfolio_beta += (amt / portfolio_value) * beta if portfolio_value > 0 else 0
@@ -844,7 +856,7 @@ class BuildPlanExecutor:
             style: round(amt / portfolio_value * 100, 1) for style, amt in style_amounts.items() if portfolio_value > 0
         }
 
-        top_style = max(style_weights, key=style_weights.get, default="")  # type: ignore
+        top_style = max(style_weights, key=style_weights.get, default="")  # type: ignore[misc]
         max_style_weight = style_weights.get(top_style, 0)
 
         hedge_input = {

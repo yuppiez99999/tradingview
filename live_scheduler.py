@@ -47,17 +47,16 @@ from datetime import time as dt_time
 from pathlib import Path
 from typing import Any, Callable
 
-# ============================================================
-# 路径初始化
-# ============================================================
-BASE_DIR = Path(__file__).resolve().parent
-V75_DIR = BASE_DIR / "v8.3_institutional"
-V75_SRC = V75_DIR / "src"
-LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(exist_ok=True)
+from utils.path_config import get_project_root, get_v8_src_dir, get_logs_dir, setup_sys_path
 
-sys.path.insert(0, str(BASE_DIR))
-sys.path.insert(0, str(V75_SRC))
+# ============================================================
+# 路径初始化 (v8.5+: 通过 path_config 统一管理)
+# ============================================================
+setup_sys_path()
+BASE_DIR = get_project_root()   # 修复: 此前缺失导致模块级 LOCK_FILE = BASE_DIR/... 立即抛 NameError
+V75_DIR = BASE_DIR / "v7.5_institutional"   # 修复: 此前缺失导致 F821 Undefined name V75_DIR (遗留 v7.5 目录, 不存在时 .exists() 守卫优雅跳过)
+LOG_DIR = get_logs_dir()
+LOG_DIR.mkdir(exist_ok=True)
 
 # ============================================================
 # 日志配置
@@ -234,6 +233,150 @@ def run_auto_rebalance(dry_run: bool = False) -> dict[str, Any]:
     return result
 
 
+def _calc_portfolio_value(positions) -> float:
+    """计算组合市值 (优先用 amount, 其次用 total_shares * est_price 估算)
+
+    v8.6.13 P0 FIX: 原代码用 pos.get("phase1_amount", 0) + ... 计算组合市值,
+    但 positions.json 实际字段是 amount / phase1_shares / total_shares / est_price,
+    根本不存在 phase1_amount / phase2_amount / phase3_amount 字段.
+    """
+    portfolio_value = 0.0
+    for pos in positions.values():
+        if not isinstance(pos, dict):
+            continue
+        # 优先用 amount (已投入金额)
+        amt = pos.get("amount")
+        if amt is not None:
+            try:
+                portfolio_value += float(amt)
+                continue
+            except (TypeError, ValueError):
+                pass
+        # 降级: total_shares * est_price 估算市值
+        shares = pos.get("total_shares") or pos.get("phase1_shares") or 0
+        est_price = pos.get("est_price") or 0
+        try:
+            portfolio_value += float(shares) * float(est_price)
+        except (TypeError, ValueError):
+            continue
+    return portfolio_value
+
+
+def _get_default_futures_config() -> dict:
+    """获取默认期货配置 (硬编码兜底价, 实时价格获取失败时使用)"""
+    # SR1 修复: 期货价格硬编码死值 — 实时获取为主, 硬编码仅作最终兜底
+    # 原硬编码 IF=3800/IM=5800/IC=5500 实盘偏差 10%+ 导致对冲量计算错误
+    return {
+        "IF": {"multiplier": 300, "beta": 1.0, "price": 3800.0, "source": "fallback"},
+        "IM": {"multiplier": 200, "beta": 1.1, "price": 5800.0, "source": "fallback"},
+        "IC": {"multiplier": 200, "beta": 1.2, "price": 5500.0, "source": "fallback"},
+    }
+
+
+def _fetch_live_futures_prices() -> dict:
+    """从 hedge_engine_v59 多源聚合获取实时期货价格 (iFinD→Wind→AKShare→Sina→efinance)"""
+    live_prices = {}
+    try:
+        from hedging.hedge_engine_v59 import get_live_futures_prices
+
+        live_prices = get_live_futures_prices() or {}
+    except Exception as e:
+        logger.warning(f"[hedge_rebalance] hedge_engine 实时期货价格获取失败: {e}")
+    return live_prices
+
+
+def _fetch_futures_from_provider(live_prices: dict) -> None:
+    """从 utils.data_provider 获取期货价格 (作为 hedge_engine 的第二来源)
+
+    IC5 修复: 动态生成主力合约代码, 避免使用过期合约 (IF2501 等 2025年1月合约)
+    """
+    if len(live_prices) >= 3:
+        return
+    try:
+        from utils.data_provider import MarketDataProvider
+
+        provider = MarketDataProvider()
+        from datetime import datetime as _dt
+
+        _now = _dt.now()
+        _yy = _now.year % 100
+        _mm = _now.month
+        # 当月合约代码
+        _cur_code = f"{_yy:02d}{_mm:02d}"
+        # 下月合约代码
+        _next_mm = _mm + 1 if _mm < 12 else 1
+        _next_yy = _yy if _mm < 12 else _yy + 1
+        _next_code = f"{_next_yy:02d}{_next_mm:02d}"
+        # 下季月合约代码 (3/6/9/12 循环)
+        _quarter_months = [3, 6, 9, 12]
+        _next_q = next((m for m in _quarter_months if m > _mm), 3)
+        _next_q_yy = _yy if _next_q > _mm else _yy + 1
+        _quarter_code = f"{_next_q_yy:02d}{_next_q:02d}"
+
+        futures_codes = {
+            "IF": [f"IF{_cur_code}.CFFEX", f"IF{_next_code}.CFFEX", f"IF{_quarter_code}.CFFEX"],
+            "IM": [f"IM{_cur_code}.CFFEX", f"IM{_next_code}.CFFEX", f"IM{_quarter_code}.CFFEX"],
+            "IC": [f"IC{_cur_code}.CFFEX", f"IC{_next_code}.CFFEX", f"IC{_quarter_code}.CFFEX"],
+        }
+        for ft_key, ft_code_list in futures_codes.items():
+            if ft_key in live_prices:
+                continue  # 已获取, 跳过
+            for ft_code in ft_code_list:
+                try:
+                    md = provider.get_market_data(ft_code)
+                    if md:
+                        for px_key in ["price", "last_price", "current_price", "close"]:
+                            if md.get(px_key):
+                                live_prices[ft_key] = float(md[px_key])
+                                break
+                        if ft_key in live_prices:
+                            break  # 获取成功, 不再尝试其他合约
+                except Exception as e_ft:
+                    # SR1 修复: 单标的失败不再静默 pass, 记录 warning
+                    logger.debug(f"[hedge_rebalance] {ft_key} ({ft_code}) 实时价格获取失败: {e_ft}")
+    except Exception as e:
+        logger.warning(f"[hedge_rebalance] MarketDataProvider 不可用: {e}")
+
+
+def _apply_realtime_prices(futures_config: dict, live_prices: dict) -> int:
+    """应用实时价格到 futures_config, 返回实时价格覆盖数量"""
+    n_realtime = 0
+    for ft_key in futures_config:
+        if ft_key in live_prices and live_prices[ft_key] > 0:
+            futures_config[ft_key]["price"] = float(live_prices[ft_key])
+            futures_config[ft_key]["source"] = "realtime"
+            n_realtime += 1
+    return n_realtime
+
+
+def _alert_futures_price_all_failed() -> None:
+    """所有期货实时价格源失效时发送 SR1 告警"""
+    logger.critical(
+        "[hedge_rebalance][SR1] 所有期货实时价格源失效! "
+        "使用硬编码兜底价 (IF=3800/IM=5800/IC=5500), "
+        "实盘偏差可能 >10% 导致对冲量计算错误, 请人工核查行情链路"
+    )
+    try:
+        from utils.notify import send_sms_alert
+
+        send_sms_alert("[量化系统-SR1告警] 期货实时价格源全失效, 对冲计算使用硬编码兜底价, 请立即排查!")
+    except ImportError:
+        logger.warning("[hedge_rebalance][SR1] utils.notify 不可用, 告警未发送")
+    except Exception as e:
+        logger.warning(f"[hedge_rebalance][SR1] 告警发送失败: {e}")
+
+
+def _log_futures_prices(futures_config: dict, n_realtime: int) -> None:
+    """记录期货价格日志"""
+    logger.info(
+        f"[hedge_rebalance] 期货价格: "
+        f"IF={futures_config['IF']['price']:.0f}({futures_config['IF']['source']}), "
+        f"IM={futures_config['IM']['price']:.0f}({futures_config['IM']['source']}), "
+        f"IC={futures_config['IC']['price']:.0f}({futures_config['IC']['source']}), "
+        f"实时覆盖率 {n_realtime}/3"
+    )
+
+
 def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
     """对冲再平衡联动任务"""
     start = datetime.now()
@@ -247,32 +390,7 @@ def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
                 positions_data = json.load(f)
             positions = positions_data.get("positions", {})
 
-            # v8.6.13 P0 FIX (2026-08-01 AI 扫描):
-            # 原代码用 pos.get("phase1_amount", 0) + ... 计算组合市值,
-            # 但 positions.json 实际字段是 amount / phase1_shares / total_shares / est_price,
-            # 根本不存在 phase1_amount / phase2_amount / phase3_amount 字段.
-            # 导致 portfolio_value 恒为 0 → if portfolio_value > 0 恒为 False →
-            # 对冲再平衡任务每 30 分钟"成功执行"但实际什么都不做, 对冲账户 100 万资金风控静默失效.
-            # 修复: 优先用 amount (已投入金额), 其次用 total_shares * est_price 估算市值.
-            portfolio_value = 0.0
-            for pos in positions.values():
-                if not isinstance(pos, dict):
-                    continue
-                # 优先用 amount (已投入金额)
-                amt = pos.get("amount")
-                if amt is not None:
-                    try:
-                        portfolio_value += float(amt)
-                        continue
-                    except (TypeError, ValueError):
-                        pass
-                # 降级: total_shares * est_price 估算市值
-                shares = pos.get("total_shares") or pos.get("phase1_shares") or 0
-                est_price = pos.get("est_price") or 0
-                try:
-                    portfolio_value += float(shares) * float(est_price)
-                except (TypeError, ValueError):
-                    continue
+            portfolio_value = _calc_portfolio_value(positions)
 
             if portfolio_value <= 0:
                 # v8.6.13 P0 FIX: 明确告警, 避免静默跳过
@@ -282,105 +400,15 @@ def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
                 result["data"] = {"portfolio_value": 0, "skipped": "no_positions"}
 
             if portfolio_value > 0:
-                # SR1 修复: 期货价格硬编码死值 — 实时获取为主, 硬编码仅作最终兜底
-                # 原硬编码 IF=3800/IM=5800/IC=5500 实盘偏差 10%+ 导致对冲量计算错误
-                # 现增加: 单标的失败 warning + 全失效 critical 告警 + 时效性标记
-                from hedging.hedge_engine_v59 import get_live_futures_prices
+                futures_config = _get_default_futures_config()
+                live_prices = _fetch_live_futures_prices()
+                _fetch_futures_from_provider(live_prices)
+                n_realtime = _apply_realtime_prices(futures_config, live_prices)
 
-                futures_config = {
-                    "IF": {"multiplier": 300, "beta": 1.0, "price": 3800.0, "source": "fallback"},
-                    "IM": {"multiplier": 200, "beta": 1.1, "price": 5800.0, "source": "fallback"},
-                    "IC": {"multiplier": 200, "beta": 1.2, "price": 5500.0, "source": "fallback"},
-                }
-
-                # 优先: hedge_engine_v59 多源聚合 (iFinD→Wind→AKShare→Sina→efinance)
-                live_prices: dict[str, float] = {}
-                try:
-                    live_prices = get_live_futures_prices() or {}
-                except Exception as e:
-                    logger.warning(f"[hedge_rebalance] hedge_engine 实时期货价格获取失败: {e}")
-
-                # 补充: utils.data_provider (作为第二来源)
-                if len(live_prices) < 3:
-                    try:
-                        from utils.data_provider import MarketDataProvider
-
-                        provider = MarketDataProvider()
-                        # IC5 修复: 动态生成主力合约代码, 避免使用过期合约 (IF2501 等 2025年1月合约)
-                        # 股指期货交割日为交割月第三个周五, 过交割日后需切换到下月合约
-                        # 简单策略: 当月合约 + 下月合约 + 季月合约, 优先用当月
-                        from datetime import datetime as _dt
-
-                        _now = _dt.now()
-                        _yy = _now.year % 100
-                        _mm = _now.month
-                        # 当月合约代码
-                        _cur_code = f"{_yy:02d}{_mm:02d}"
-                        # 下月合约代码
-                        _next_mm = _mm + 1 if _mm < 12 else 1
-                        _next_yy = _yy if _mm < 12 else _yy + 1
-                        _next_code = f"{_next_yy:02d}{_next_mm:02d}"
-                        # 下季月合约代码 (3/6/9/12 循环)
-                        _quarter_months = [3, 6, 9, 12]
-                        _next_q = next((m for m in _quarter_months if m > _mm), 3)
-                        _next_q_yy = _yy if _next_q > _mm else _yy + 1
-                        _quarter_code = f"{_next_q_yy:02d}{_next_q:02d}"
-
-                        futures_codes = {
-                            "IF": [f"IF{_cur_code}.CFFEX", f"IF{_next_code}.CFFEX", f"IF{_quarter_code}.CFFEX"],
-                            "IM": [f"IM{_cur_code}.CFFEX", f"IM{_next_code}.CFFEX", f"IM{_quarter_code}.CFFEX"],
-                            "IC": [f"IC{_cur_code}.CFFEX", f"IC{_next_code}.CFFEX", f"IC{_quarter_code}.CFFEX"],
-                        }
-                        for ft_key, ft_code_list in futures_codes.items():
-                            if ft_key in live_prices:
-                                continue  # 已获取, 跳过
-                            for ft_code in ft_code_list:
-                                try:
-                                    md = provider.get_market_data(ft_code)
-                                    if md:
-                                        for px_key in ["price", "last_price", "current_price", "close"]:
-                                            if md.get(px_key):
-                                                live_prices[ft_key] = float(md[px_key])
-                                                break
-                                        if ft_key in live_prices:
-                                            break  # 获取成功, 不再尝试其他合约
-                                except Exception as e_ft:
-                                    # SR1 修复: 单标的失败不再静默 pass, 记录 warning
-                                    logger.debug(f"[hedge_rebalance] {ft_key} ({ft_code}) 实时价格获取失败: {e_ft}")
-                    except Exception as e:
-                        logger.warning(f"[hedge_rebalance] MarketDataProvider 不可用: {e}")
-
-                # 应用实时价格, 标记来源
-                n_realtime = 0
-                for ft_key in futures_config:
-                    if ft_key in live_prices and live_prices[ft_key] > 0:
-                        futures_config[ft_key]["price"] = float(live_prices[ft_key])
-                        futures_config[ft_key]["source"] = "realtime"
-                        n_realtime += 1
-
-                # SR1 修复: 全失效告警
                 if n_realtime == 0:
-                    logger.critical(
-                        "[hedge_rebalance][SR1] 所有期货实时价格源失效! "
-                        "使用硬编码兜底价 (IF=3800/IM=5800/IC=5500), "
-                        "实盘偏差可能 >10% 导致对冲量计算错误, 请人工核查行情链路"
-                    )
-                    try:
-                        from utils.notify import send_sms_alert
-
-                        send_sms_alert("[量化系统-SR1告警] 期货实时价格源全失效, 对冲计算使用硬编码兜底价, 请立即排查!")
-                    except ImportError:
-                        logger.warning("[hedge_rebalance][SR1] utils.notify 不可用, 告警未发送")
-                    except Exception as e:
-                        logger.warning(f"[hedge_rebalance][SR1] 告警发送失败: {e}")
+                    _alert_futures_price_all_failed()
                 else:
-                    logger.info(
-                        f"[hedge_rebalance] 期货价格: "
-                        f"IF={futures_config['IF']['price']:.0f}({futures_config['IF']['source']}), "
-                        f"IM={futures_config['IM']['price']:.0f}({futures_config['IM']['source']}), "
-                        f"IC={futures_config['IC']['price']:.0f}({futures_config['IC']['source']}), "
-                        f"实时覆盖率 {n_realtime}/3"
-                    )
+                    _log_futures_prices(futures_config, n_realtime)
 
                 beta_hedger = BetaHedger(futures_config=futures_config, beta_trigger=0.7, beta_target=0.3)
                 order = beta_hedger.compute_hedge(portfolio_beta=1.0, portfolio_value=portfolio_value)
@@ -462,7 +490,8 @@ def run_ml_signal_scan(dry_run: bool = False) -> dict[str, Any]:
                         "predicted_return": pred.get("predicted_return", 0),
                         "confidence": pred.get("confidence", 0),
                     }
-            except Exception:
+            except Exception as e:  # P2-1: 收敛为具体异常类型 + 日志
+                logger.debug("单标的预测失败 (跳过 %s): %s", code, e, exc_info=True)
                 continue
 
         # ============================================================
@@ -609,6 +638,190 @@ def run_daily_report(dry_run: bool = False) -> dict[str, Any]:
     return result
 
 
+def _load_signal_trade_history():
+    """加载信号历史和交易历史"""
+    signal_history = []
+    trade_history = []
+    signal_hist_path = BASE_DIR / "reports" / "signal_history.json"
+    trade_hist_path = BASE_DIR / "reports" / "trade_history.json"
+
+    if signal_hist_path.exists():
+        try:
+            with open(signal_hist_path, encoding="utf-8") as f:
+                signal_history = json.load(f)
+        except Exception as e:
+            logger.warning(f"[strategy_eval] 读取信号历史失败: {e}")
+    if trade_hist_path.exists():
+        try:
+            with open(trade_hist_path, encoding="utf-8") as f:
+                trade_history = json.load(f)
+        except Exception as e:
+            logger.warning(f"[strategy_eval] 读取交易历史失败: {e}")
+    return signal_history, trade_history
+
+
+def _record_ic_from_signal_history(
+    signal_history,
+    compute_ic_from_signals,
+    record_daily_ic,
+    record_ic_from_qlib_report,
+) -> None:
+    """计算并记录当日 IC (N3)"""
+    if not signal_history:
+        return
+    ic_value = compute_ic_from_signals(signal_history)
+    if ic_value is not None:
+        record_daily_ic(ic_value, source="signal_history")
+        logger.info(f"[strategy_eval] 当日 IC={ic_value:.4f} 已记录 (signal_history)")
+    else:
+        # 回退: 从 QLib 报告读 IC
+        qlib_reports = list((BASE_DIR / "reports").glob("qlib_*.json"))
+        if qlib_reports:
+            latest_report = max(qlib_reports, key=lambda p: p.stat().st_mtime)
+            record_ic_from_qlib_report(str(latest_report))
+
+
+def _run_strategy_scoring():
+    """运行策略多维评分 (N2), 返回 (eval_result, status) 或 None"""
+    try:
+        try:
+            from scripts.strategy_evaluator import StrategyEvaluator
+        except ImportError:
+            from strategy_evaluator import StrategyEvaluator
+
+        evaluator = StrategyEvaluator()
+        # N2 的 evaluate API: 接受文件路径, 返回 ScoreReport dataclass
+        daily_returns_path = str(BASE_DIR / "reports" / "daily_returns.jsonl")
+        pos_path = str(BASE_DIR / "config" / "positions.json")
+        score_report = evaluator.evaluate(
+            daily_returns_path=daily_returns_path,
+            pos_path=pos_path,
+        )
+        # ScoreReport 是 dataclass, 转为 dict 方便下游使用
+        eval_result = {
+            "composite_score": float(getattr(score_report, "composite_score", 0) or 0),
+            "return_metrics": getattr(score_report, "return_metrics", None),
+            "diversification_metrics": getattr(score_report, "diversification_metrics", None),
+            "degraded": bool(getattr(score_report, "is_degraded", False)),
+            "degraded_reason": str(getattr(score_report, "degraded_reason", "")),
+        }
+        # 构造状态报告 (N2 无 get_status_report, 这里手动生成)
+        status = {
+            "status": (
+                "healthy"
+                if eval_result["composite_score"] > 0.6
+                else ("warning" if eval_result["composite_score"] > 0.4 else "degraded")
+            ),
+            "latest_score": eval_result["composite_score"],
+            "degraded": eval_result["degraded"],
+        }
+        return eval_result, status
+    except ImportError:
+        logger.warning("[strategy_eval] StrategyEvaluator 不可用, 跳过评分")
+        return None
+    except Exception as e:
+        logger.warning(f"[strategy_eval] 评分失败: {e}")
+        return ("error", str(e))
+
+
+def _record_degradation_lesson(eval_result) -> None:
+    """记录策略退化告警到 N5 SkillManager"""
+    try:
+        try:
+            from scripts.skill_manager import record_lesson
+        except ImportError:
+            from skill_manager import record_lesson
+
+        record_lesson(
+            symbol="PORTFOLIO",
+            lesson_type="strategy_degradation",
+            description=(
+                f"策略综合评分={eval_result['composite_score']:.3f}, 原因={eval_result['degraded_reason']}"
+            ),
+            impact="negative",
+            action_taken="alert_only",
+            verified=False,
+        )
+    except Exception as e:
+        logger.debug(f"[strategy_eval] 退化告警记录失败 (非致命): {e}")
+
+
+def _build_drift_signal(ic_store: dict) -> dict:
+    """从 ic_store 构造 drift_signal (与 ModelDriftDetector.generate_report() 格式对齐)"""
+    history = ic_store.get("history", []) or []
+    ic_values = [float(h.get("ic", 0) or 0) for h in history]
+    mean_ic = sum(ic_values) / len(ic_values) if ic_values else 0.0
+    recent_window = ic_values[-10:] if ic_values else []
+    recent_ic = sum(recent_window) / len(recent_window) if recent_window else mean_ic
+
+    return {
+        "ic_stats": {"mean_ic": mean_ic, "ic_10d": recent_ic},
+        "alerts": [{"severity": "critical"}],
+        "ks_detected": False,
+        "psi_value": 0.0,
+        "adwin_drift": False,
+        "should_retrain": True,
+    }
+
+
+def _run_adaptive_optimize(eval_result, ic_store: dict) -> str | None:
+    """N4: 漂移触发的超参自适应搜索, 返回配置文件路径或 None
+
+    Feature Flag: USE_ADAPTIVE_OPTIMIZE (默认关闭)
+    仅在策略退化时触发, 生成新的 LGB 配置供下次训练使用
+    """
+    try:
+        try:
+            from scripts.adaptive_optimize import adaptive_optimize
+        except ImportError:
+            from adaptive_optimize import adaptive_optimize
+
+        # 加载基准训练配置 (与 N1 _trigger_retrain_with_cooldown 对齐)
+        try:
+            from lgb_enhanced_trainer import LGB_ENHANCED_CONFIG
+            base_config = LGB_ENHANCED_CONFIG
+        except ImportError as e:  # P2-1: 收敛为具体异常类型 + 日志
+            logger.debug("LGB_ENHANCED_CONFIG 不可用, 降级为内置配置: %s", e)
+            base_config = {
+                "lgb_params": {
+                    "learning_rate": 0.005,
+                    "n_estimators": 2000,
+                    "max_depth": 6,
+                    "num_leaves": 31,
+                    "reg_alpha": 0.1,
+                    "reg_lambda": 0.5,
+                },
+                "early_stopping_rounds": 200,
+            }
+
+        drift_signal = _build_drift_signal(ic_store)
+
+        # 对组合层面优化 (symbol="PORTFOLIO")
+        optimized = adaptive_optimize(
+            symbol="PORTFOLIO",
+            config=base_config,
+            drift_signal=drift_signal,
+        )
+
+        # 保存到 reports/adaptive_config_{date}.json 供下次训练读取
+        today_str = datetime.now().date().isoformat()
+        adaptive_path = BASE_DIR / "reports" / f"adaptive_config_{today_str}.json"
+        try:
+            with open(adaptive_path, "w", encoding="utf-8") as f:
+                json.dump(optimized, f, ensure_ascii=False, indent=2)
+            logger.info(f"[strategy_eval] N4 自适应配置已保存: {adaptive_path}")
+            return str(adaptive_path)
+        except Exception as e_save:
+            logger.warning(f"[strategy_eval] 保存 N4 自适应配置失败: {e_save}")
+            return None
+    except ImportError:
+        logger.debug("[strategy_eval] N4 adaptive_optimize 不可用, 跳过")
+        return None
+    except Exception as e:
+        logger.warning(f"[strategy_eval] N4 自适应搜索失败 (非致命): {e}")
+        return None
+
+
 def run_strategy_evaluation(dry_run: bool = False) -> dict[str, Any]:
     """N6: 策略健康度评估任务 (每日收盘后运行).
 
@@ -656,74 +869,29 @@ def run_strategy_evaluation(dry_run: bool = False) -> dict[str, Any]:
             )
 
         # 1. 加载信号/交易历史
-        signal_hist_path = BASE_DIR / "reports" / "signal_history.json"
-        trade_hist_path = BASE_DIR / "reports" / "trade_history.json"
-
-        signal_history: list[dict] = []
-        _trade_history: list[dict] = []  # 预留，后续 strategy_eval 扩展用
-        if signal_hist_path.exists():
-            try:
-                with open(signal_hist_path, encoding="utf-8") as f:
-                    signal_history = json.load(f)
-            except Exception as e:
-                logger.warning(f"[strategy_eval] 读取信号历史失败: {e}")
-        if trade_hist_path.exists():
-            try:
-                with open(trade_hist_path, encoding="utf-8") as f:
-                    _trade_history = json.load(f)  # 预留，后续 strategy_eval 扩展用
-            except Exception as e:
-                logger.warning(f"[strategy_eval] 读取交易历史失败: {e}")
+        signal_history, _trade_history = _load_signal_trade_history()
 
         # 2. 计算并记录当日 IC (N3)
-        if signal_history:
-            ic_value = compute_ic_from_signals(signal_history)
-            if ic_value is not None:
-                record_daily_ic(ic_value, source="signal_history")
-                logger.info(f"[strategy_eval] 当日 IC={ic_value:.4f} 已记录 (signal_history)")
-            else:
-                # 回退: 从 QLib 报告读 IC
-                qlib_reports = list((BASE_DIR / "reports").glob("qlib_*.json"))
-                if qlib_reports:
-                    latest_report = max(qlib_reports, key=lambda p: p.stat().st_mtime)
-                    record_ic_from_qlib_report(str(latest_report))
+        _record_ic_from_signal_history(
+            signal_history, compute_ic_from_signals, record_daily_ic, record_ic_from_qlib_report
+        )
 
         # 3. 策略多维评分 (N2)
-        try:
-            try:
-                from scripts.strategy_evaluator import StrategyEvaluator
-            except ImportError:
-                from strategy_evaluator import StrategyEvaluator
-
-            evaluator = StrategyEvaluator()
-            # N2 的 evaluate API: 接受文件路径, 返回 ScoreReport dataclass
-            daily_returns_path = str(BASE_DIR / "reports" / "daily_returns.jsonl")
-            pos_path = str(BASE_DIR / "config" / "positions.json")
-            score_report = evaluator.evaluate(
-                daily_returns_path=daily_returns_path,
-                pos_path=pos_path,
-            )
-            # ScoreReport 是 dataclass, 转为 dict 方便下游使用
-            eval_result = {
-                "composite_score": float(getattr(score_report, "composite_score", 0) or 0),
-                "return_metrics": getattr(score_report, "return_metrics", None),
-                "diversification_metrics": getattr(score_report, "diversification_metrics", None),
-                "degraded": bool(getattr(score_report, "is_degraded", False)),
-                "degraded_reason": str(getattr(score_report, "degraded_reason", "")),
-            }
-            # 构造状态报告 (N2 无 get_status_report, 这里手动生成)
-            status = {
-                "status": (
-                    "healthy"
-                    if eval_result["composite_score"] > 0.6
-                    else ("warning" if eval_result["composite_score"] > 0.4 else "degraded")
-                ),
-                "latest_score": eval_result["composite_score"],
-                "degraded": eval_result["degraded"],
-            }
+        scoring_result = _run_strategy_scoring()
+        if scoring_result is None:
+            # ImportError: StrategyEvaluator 不可用
+            result["data"]["ic_store"] = load_ic_store()
+        elif isinstance(scoring_result, tuple) and scoring_result[0] == "error":
+            # 评分异常
+            result["data"]["ic_store"] = load_ic_store()
+            result["data"]["error"] = scoring_result[1]
+        else:
+            eval_result, status = scoring_result
+            ic_store = load_ic_store()
             result["data"] = {
                 "evaluation": eval_result,
                 "status_report": status,
-                "ic_store": load_ic_store(),
+                "ic_store": ic_store,
             }
             logger.info(
                 f"[strategy_eval] 评分完成: "
@@ -734,97 +902,14 @@ def run_strategy_evaluation(dry_run: bool = False) -> dict[str, Any]:
 
             # 4. 退化告警 (记录到 N5 SkillManager)
             if eval_result["degraded"]:
-                try:
-                    try:
-                        from scripts.skill_manager import record_lesson
-                    except ImportError:
-                        from skill_manager import record_lesson
-
-                    record_lesson(
-                        symbol="PORTFOLIO",
-                        lesson_type="strategy_degradation",
-                        description=(
-                            f"策略综合评分={eval_result['composite_score']:.3f}, 原因={eval_result['degraded_reason']}"
-                        ),
-                        impact="negative",
-                        action_taken="alert_only",
-                        verified=False,
-                    )
-                except Exception as e:
-                    logger.debug(f"[strategy_eval] 退化告警记录失败 (非致命): {e}")
+                _record_degradation_lesson(eval_result)
 
             # 5. N4: 漂移触发的超参自适应搜索 (Feature Flag: USE_ADAPTIVE_OPTIMIZE, 默认关闭)
             # 仅在策略退化时触发, 生成新的 LGB 配置供下次训练使用
             if eval_result["degraded"]:
-                try:
-                    try:
-                        from scripts.adaptive_optimize import adaptive_optimize
-                    except ImportError:
-                        from adaptive_optimize import adaptive_optimize
-
-                    # 加载基准训练配置 (与 N1 _trigger_retrain_with_cooldown 对齐)
-                    try:
-                        from lgb_enhanced_trainer import LGB_ENHANCED_CONFIG
-                        base_config = LGB_ENHANCED_CONFIG
-                    except Exception:
-                        base_config = {
-                            "lgb_params": {
-                                "learning_rate": 0.005,
-                                "n_estimators": 2000,
-                                "max_depth": 6,
-                                "num_leaves": 31,
-                                "reg_alpha": 0.1,
-                                "reg_lambda": 0.5,
-                            },
-                            "early_stopping_rounds": 200,
-                        }
-
-                    # 从 ic_store 构造 drift_signal (与 ModelDriftDetector.generate_report() 格式对齐)
-                    ic_store = result["data"].get("ic_store", {}) or {}
-                    history = ic_store.get("history", []) or []
-                    ic_values = [float(h.get("ic", 0) or 0) for h in history]
-                    mean_ic = sum(ic_values) / len(ic_values) if ic_values else 0.0
-                    recent_window = ic_values[-10:] if ic_values else []
-                    recent_ic = sum(recent_window) / len(recent_window) if recent_window else mean_ic
-
-                    drift_signal = {
-                        "ic_stats": {"mean_ic": mean_ic, "ic_10d": recent_ic},
-                        "alerts": [{"severity": "critical"}],
-                        "ks_detected": False,
-                        "psi_value": 0.0,
-                        "adwin_drift": False,
-                        "should_retrain": True,
-                    }
-
-                    # 对组合层面优化 (symbol="PORTFOLIO")
-                    optimized = adaptive_optimize(
-                        symbol="PORTFOLIO",
-                        config=base_config,
-                        drift_signal=drift_signal,
-                    )
-
-                    # 保存到 reports/adaptive_config_{date}.json 供下次训练读取
-                    today_str = datetime.now().date().isoformat()
-                    adaptive_path = BASE_DIR / "reports" / f"adaptive_config_{today_str}.json"
-                    try:
-                        with open(adaptive_path, "w", encoding="utf-8") as f:
-                            json.dump(optimized, f, ensure_ascii=False, indent=2)
-                        logger.info(f"[strategy_eval] N4 自适应配置已保存: {adaptive_path}")
-                        result["data"]["adaptive_config_path"] = str(adaptive_path)
-                    except Exception as e_save:
-                        logger.warning(f"[strategy_eval] 保存 N4 自适应配置失败: {e_save}")
-
-                except ImportError:
-                    logger.debug("[strategy_eval] N4 adaptive_optimize 不可用, 跳过")
-                except Exception as e:
-                    logger.warning(f"[strategy_eval] N4 自适应搜索失败 (非致命): {e}")
-
-        except ImportError:
-            logger.warning("[strategy_eval] StrategyEvaluator 不可用, 跳过评分")
-            result["data"]["ic_store"] = load_ic_store()
-        except Exception as e:
-            logger.warning(f"[strategy_eval] 评分失败: {e}")
-            result["data"]["error"] = str(e)
+                adaptive_path = _run_adaptive_optimize(eval_result, ic_store)
+                if adaptive_path:
+                    result["data"]["adaptive_config_path"] = adaptive_path
 
     except Exception as e:
         result["status"] = "FAIL"
@@ -1007,7 +1092,8 @@ def _read_lock() -> dict | None:
         try:
             with open(LOCK_FILE, encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
+        except (OSError, json.JSONDecodeError) as e:  # P2-1: 收敛为具体异常类型 + 日志
+            logger.warning("锁文件读取失败: %s", e, exc_info=True)
             return None
     return None
 
@@ -1030,7 +1116,8 @@ def _is_process_alive(pid: int) -> bool:
                 return psutil.pid_exists(pid)
             except ImportError:
                 return False
-    except Exception:
+    except Exception as e:  # P2-1: 收敛为具体异常类型 + 日志
+        logger.debug("PID存活检查失败 (pid=%s): %s", pid, e, exc_info=True)
         return False
 
 

@@ -9,7 +9,8 @@ def analyze_file(filepath: str):
         print(f"File not found: {filepath}")
         return
 
-    lines = open(filepath, encoding='utf-8').readlines()
+    with open(filepath, encoding='utf-8') as f:
+        lines = f.readlines()
     total = len(lines)
 
     # Count type: ignore lines

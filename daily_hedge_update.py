@@ -7,14 +7,22 @@ daily_hedge_update.py
 """
 
 import json
+import logging
 import os
-import sys
 from datetime import datetime
 
 import pandas as pd
 
-sys.path.insert(0, r"e:\各种PY程序\28-终极量化交易系统8.4")
-sys.path.insert(0, r"e:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional\src")
+from utils.path_config import get_config_dir, get_report_dir, setup_sys_path
+
+logger = logging.getLogger(__name__)
+
+# 统一路径初始化: 替代所有硬编码 sys.path.insert / 绝对路径 (v8.5+)
+setup_sys_path()
+
+# 数据目录 (通过 path_config 统一派生)
+DATA_DIR = get_config_dir()
+REPORT_DIR = get_report_dir()
 
 from hedging.hedge_coordinator import HedgeCoordinator
 from wind_mcp_fetcher import wind_get_kline, wind_get_quote
@@ -84,7 +92,7 @@ def update_returns():
     print("1. 更新历史收益率数据")
     print("=" * 60)
 
-    positions_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json"
+    positions_path = DATA_DIR / "positions.json"
     with open(positions_path, encoding="utf-8") as f:
         positions_data = json.load(f)["positions"]
 
@@ -95,14 +103,14 @@ def update_returns():
 
     # B2.4: 并发拉取多 symbol K 线 (替代串行 for 循环)
     def _fetch_kline(symbol):
-        """单 symbol 拉取 + 计算 returns; 失败返回 None"""
+        """单 symbol 拉取 + 计算 returns; 失败返回 None。"""
         try:
             df = _get_historical_kline(symbol, days=252)
             if df is not None and not df.empty:
                 df["return"] = df["close"].pct_change()
                 return (symbol, df["return"].dropna())
-        except Exception:
-            raise  # Re-raise unknown exception
+        except Exception as e:
+            logger.warning("拉取K线失败 %s: %s", symbol, e)
         return (symbol, None)
 
     pairs = run_io_batch(
@@ -124,17 +132,18 @@ def update_returns():
 
     if returns_data:
         returns_df = pd.DataFrame(returns_data)
-        returns_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json"
+        returns_path = DATA_DIR / "returns_history.json"
         returns_df.to_json(returns_path, orient="split", date_format="iso")
 
+        market_returns = None  # H1修复: 显式初始化, 替代脆弱的 dir() 检测
         market_symbol = "510300"
         market_df = _get_historical_kline(market_symbol, days=252)
         if market_df is not None and not market_df.empty:
             market_returns = market_df["close"].pct_change().dropna()
-            market_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json"
+            market_path = DATA_DIR / "market_returns.json"
             market_returns.to_json(market_path, orient="split", date_format="iso")
 
-        return returns_df, market_returns if "market_returns" in dir() else None
+        return returns_df, market_returns
     else:
         return None, None
 
@@ -151,7 +160,7 @@ def run_hedge_decision():
     print("2. 运行对冲决策")
     print("=" * 60)
 
-    positions_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\positions.json"
+    positions_path = DATA_DIR / "positions.json"
     with open(positions_path, encoding="utf-8") as f:
         positions_data = json.load(f)["positions"]
 
@@ -166,7 +175,7 @@ def run_hedge_decision():
 
     # B2.4: 并发拉取多 position 的实时报价
     def _fetch_quote(item_tuple):
-        """单 position 拉取报价; 失败回退 est_price; 返回 (code, price)"""
+        """单 position 拉取报价; 失败回退 est_price; 返回 (code, qty, price)。"""
         code, qty, item = item_tuple
         try:
             wind_code, is_fund = _to_wind_code(code)
@@ -178,8 +187,8 @@ def run_hedge_decision():
                         return (code, qty, price)
                 except (TypeError, ValueError):
                     pass
-        except Exception:
-            raise  # Re-raise unknown exception
+        except Exception as e:
+            logger.warning("获取报价失败 %s: %s", code, e)
         # 回退到 est_price
         fallback_price = float(item.get("est_price", 0.0) or 0.0)
         return (code, qty, fallback_price)
@@ -201,8 +210,8 @@ def run_hedge_decision():
         prices[code] = price
 
     # 加载历史数据
-    returns_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json"
-    market_path = r"e:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json"
+    returns_path = DATA_DIR / "returns_history.json"
+    market_path = DATA_DIR / "market_returns.json"
 
     returns = pd.DataFrame()
     market_returns = pd.Series(dtype=float)
@@ -212,8 +221,10 @@ def run_hedge_decision():
             returns = pd.read_json(returns_path, orient="split")
             market_returns = pd.read_json(market_path, orient="split", typ="series")
             returns.columns = returns.columns.astype(str)
-        except Exception:
-            raise  # Re-raise unknown exception
+        except Exception as e:
+            logger.warning("加载历史收益率数据失败: %s, 使用空数据集继续", e)
+            returns = pd.DataFrame()
+            market_returns = pd.Series(dtype=float)
 
     # 运行对冲引擎
     coordinator = HedgeCoordinator(enable_tail_risk=True)
@@ -244,7 +255,7 @@ def generate_report(plan):
     print("3. 生成对冲报告")
     print("=" * 60)
 
-    report_dir = r"e:\各种PY程序\28-终极量化交易系统8.4\reports"
+    report_dir = str(REPORT_DIR)
     os.makedirs(report_dir, exist_ok=True)
 
     report = {

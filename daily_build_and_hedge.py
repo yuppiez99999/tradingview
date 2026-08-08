@@ -36,15 +36,15 @@ except ImportError as _e:
             "utils.execution.daily_build_and_hedge",
             _SRC,
         )
-        _mod = importlib.util.module_from_spec(_spec)  # type: ignore
+        _mod = importlib.util.module_from_spec(_spec)  # type: ignore[misc]
         _project_root = os.path.dirname(os.path.abspath(__file__))
         if _project_root not in sys.path:
             sys.path.insert(0, _project_root)
-        _spec.loader.exec_module(_mod)  # type: ignore
-        DailyBuildHedgeSystem = _mod.DailyBuildHedgeSystem  # type: ignore
-        BASE_DIR = _mod.BASE_DIR  # type: ignore
-        LOG_DIR = _mod.LOG_DIR  # type: ignore
-        logger = _mod.logger  # type: ignore
+        _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
+        DailyBuildHedgeSystem = _mod.DailyBuildHedgeSystem  # type: ignore[attr-defined]
+        BASE_DIR = _mod.BASE_DIR  # type: ignore[attr-defined]
+        LOG_DIR = _mod.LOG_DIR  # type: ignore[attr-defined]
+        logger = _mod.logger  # type: ignore[attr-defined]
     else:
         raise ImportError(
             f"T3.6 re-export 失败: 找不到 utils/execution/daily_build_and_hedge.py (expected at {_SRC}): {_e}"

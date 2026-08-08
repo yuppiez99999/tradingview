@@ -27,8 +27,12 @@ from pathlib import Path
 
 # 项目根目录
 BASE_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(BASE_DIR))
-sys.path.insert(0, str(BASE_DIR / "v8.3_institutional" / "src" / "validation"))
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+sys.path.insert(0, str(BASE_DIR))  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
+# 保留: validation 子目录 (setup_sys_path 未涵盖)
+sys.path.insert(0, str(BASE_DIR / "v8.3_institutional" / "src" / "validation"))  # noqa: E402
 
 # 日志
 logging.basicConfig(
@@ -63,7 +67,7 @@ def load_state() -> dict | None:
     try:
         with open(STATE_FILE, encoding="utf-8") as f:
             return json.load(f)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.warning("加载状态失败: %s", e)
         return None
 

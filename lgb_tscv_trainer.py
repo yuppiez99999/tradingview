@@ -47,9 +47,10 @@ for d in [MODELS_DIR, REPORTS_DIR, LOG_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 # 复用旧训练器的标的清单和特征工程
-_v7_path = BASE_DIR / "v8.3_institutional"
-if _v7_path.exists():
-    sys.path.insert(0, str(_v7_path))
+# Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
+sys.path.insert(0, str(BASE_DIR))  # bootstrap: 确保 utils 包可导入
+from utils.path_config import setup_sys_path  # noqa: E402
+setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 from autolearn_trainer import (  # noqa: E402
     POSITION_SYMBOLS,
     add_cross_sectional_features,
@@ -98,7 +99,7 @@ logger = logging.getLogger("lgb_tscv")
 # 时间序列交叉验证
 # ============================================================
 def time_series_cv_evaluate(
-    X: np.ndarray,
+    X: np.ndarray,  # noqa: N803
     y: np.ndarray,
     config: dict,
     n_splits: int = 5,
@@ -165,7 +166,7 @@ def time_series_cv_evaluate(
 
     # --- 训练 ---
     for fold_idx, (train_idx, test_idx) in enumerate(folds):
-        X_train_fold, X_test_fold = X[train_idx], X[test_idx]
+        X_train_fold, X_test_fold = X[train_idx], X[test_idx]  # noqa: N806
         y_train_fold, y_test_fold = y[train_idx], y[test_idx]
 
         if len(X_train_fold) < 50 or len(X_test_fold) < 10:
@@ -359,7 +360,7 @@ def train_symbol_with_cv(
 
     # 全部特征列
     all_feature_cols = [c for c in df.columns if c not in ["open", "high", "low", "close", "volume", "target"]]
-    X_all = np.asarray(df[all_feature_cols].values, dtype=np.float64)
+    X_all = np.asarray(df[all_feature_cols].values, dtype=np.float64)  # noqa: N806
     y_all = np.asarray(df["target"].values, dtype=np.float64)
 
     # === Step 1: 全特征 CV 评估 ===
@@ -374,7 +375,7 @@ def train_symbol_with_cv(
     )
 
     # === Step 3: 用筛选后的特征重新 CV (对比) ===
-    X_selected = np.asarray(df[selected_features].values, dtype=np.float64)
+    X_selected = np.asarray(df[selected_features].values, dtype=np.float64)  # noqa: N806
     cv_after_selection = time_series_cv_evaluate(X_selected, y_all, config, n_splits=config["n_splits"])
 
     # === Step 4: 最终模型 (用筛选特征 + 全部数据) ===
@@ -384,9 +385,9 @@ def train_symbol_with_cv(
     train_df = df.iloc[:n_train]
     test_df = df.iloc[n_train:]
 
-    X_train = np.asarray(train_df[selected_features].values, dtype=np.float64)
+    X_train = np.asarray(train_df[selected_features].values, dtype=np.float64)  # noqa: N806
     y_train = np.asarray(train_df["target"].values, dtype=np.float64)
-    X_test = np.asarray(test_df[selected_features].values, dtype=np.float64)
+    X_test = np.asarray(test_df[selected_features].values, dtype=np.float64)  # noqa: N806
     y_test = np.asarray(test_df["target"].values, dtype=np.float64)
 
     final_model = LGBMRegressor(**config["lgb_params"])
@@ -565,7 +566,7 @@ def run_lgb_tscv_training(
     try:
         returns_df = load_returns_history()
         logger.info(f"  历史收益率: {returns_df.shape[0]} 日 × {returns_df.shape[1]} 标的")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.error(f"  加载失败: {e}")
         return {"status": "FAIL", "error": str(e)}
 
@@ -648,7 +649,7 @@ def run_lgb_tscv_training(
             )
             results[code] = {**result, "paths": paths, "name": name, "style": style}
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.error(f"  [FAIL] {code}: {e}", exc_info=True)
             failed += 1
             results[code] = {"status": "FAIL", "symbol": code, "error": str(e)}

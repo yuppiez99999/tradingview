@@ -7,18 +7,44 @@ Date: 2026-07-23
 """
 
 import os
+import subprocess
 import sys
 
 sys.stdout.reconfigure(encoding="utf-8")
 
 
 def test_module(code, cwd=None):
-    """测试模块导入"""
+    """测试模块导入。
+
+    C2修复: 用 subprocess 隔离子进程替代 exec()，彻底消除代码注入风险。
+    子进程有独立的内存空间和 sys.path，崩溃不影响主进程。
+    """
     try:
+        # 构建子进程执行命令: python -X utf8 -c <code>
+        # 兼容旧exec注入的命名空间: 预注入 sys, os (exec时期可用)
+        py_exe = sys.executable
+        env = os.environ.copy()
         if cwd:
-            os.chdir(cwd)
-        exec(code)
-        return True, None
+            env["PYTHONPATH"] = cwd + os.pathsep + env.get("PYTHONPATH", "")
+        # 预注入 import 以兼容 exec 时期命名空间注入
+        inject_header = "import sys, os\n"
+        wrapped_code = inject_header + code
+        result = subprocess.run(
+            [py_exe, "-X", "utf8", "-c", wrapped_code],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=cwd if cwd else None,
+            env=env,
+        )
+        if result.returncode == 0:
+            return True, None
+        else:
+            # 取 stderr 最后一行作为错误简述
+            err_msg = (result.stderr.strip() or "unknown error").split("\n")[-1]
+            return False, err_msg[:80]
+    except subprocess.TimeoutExpired:
+        return False, "timeout(>30s)"
     except Exception as e:
         return False, str(e)[:80]
 

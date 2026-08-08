@@ -752,6 +752,74 @@ docs(readme): 更新 README 至 v8.6.14
 
 ---
 
+## Python 3.10+ 迁移计划（安全升级）
+
+> **背景**：GitHub Dependabot 报告 4 个依赖漏洞（2 high, 2 moderate），修复版本要求 Python 3.9+/3.10+，当前环境 Python 3.8.9 无法直接升级。
+> **Issue**：[#1 — 安全升级: Python 3.8 → 3.10+ 迁移计划](https://github.com/yuppiez99999/zhunbeibanjia/issues/1)
+> **风险评估**：4 个漏洞实际风险均为"极低"到"中低"（3 个功能未使用 + 1 个仅向可信数据源发请求），暂缓修复风险可控。
+
+### 漏洞详情
+
+| CVE | 包 | 严重度 | 当前版本 | 修复版本 | Python 要求 | 漏洞描述 |
+|-----|-----|--------|----------|----------|-------------|----------|
+| CVE-2026-69247 | cryptography | high | 47.0.0 | 50.0.0 | >=3.9 | PKCS#7 EnvelopedData 解密暴露 Bleichenbacher oracle |
+| CVE-2026-69244 | aiohttp | high | 3.10.11 | 3.14.3 | >=3.10 | C HTTP 解析器畸形 chunked response 堆越界读 |
+| CVE-2026-69243 | aiohttp | medium | 3.10.11 | 3.14.2 | >=3.10 | WebSocket upgrade 导致 HTTP 请求走私 |
+| CVE-2026-59881 | aiohttp | medium | 3.10.11 | 3.14.2 | >=3.10 | WebSocket 客户端接受未协商的 permessage-deflate 压缩帧 |
+
+### 为什么不能直接升级
+
+- `cryptography` 从 49.0.0 起要求 Python 3.9+，Python 3.8 最高只能装 44.x（仍在漏洞范围内）
+- `aiohttp` 从 3.11.0 起要求 Python 3.9+，3.14.x 要求 Python 3.10+，Python 3.8 最高只能装 3.10.x（仍在漏洞范围内）
+- **结论**：在 Python 3.8 上无法修复这 4 个漏洞，必须升级 Python 版本
+
+### 代码库使用情况
+
+| 漏洞功能 | 是否使用 | 实际风险 |
+|----------|----------|----------|
+| cryptography PKCS#7 | ❌ 未使用 | 极低 |
+| aiohttp WebSocket 服务端 | ❌ 未使用 | 极低 |
+| aiohttp WebSocket 客户端 | ❌ 未使用 | 极低 |
+| aiohttp HTTP 客户端 | ✅ 广泛使用（12+ 模块） | 中低（仅向可信数据源发请求） |
+
+### 迁移时间表
+
+| 阶段 | 时间 | 任务 | 验收标准 |
+|------|------|------|----------|
+| **Phase 1** | 08-08 ~ 08-15 | 开发机创建 Python 3.10 虚拟环境 + 安装最新依赖 + 运行完整测试套件 | 单元测试 + E2E 测试全通过 |
+| **Phase 2** | 08-15 ~ 08-20 | 双环境验证（Python 3.8 vs 3.10 回测一致性 + 实盘模块 + LLM 集成） | 回测结果差异 < 1% |
+| **Phase 3** | 08-20 后（周末） | 实盘机升级 Python 3.10+ + 重新安装依赖 + 全流程验证 | 盘前/盘中/盘后稳定运行 3 个交易日 |
+
+### 依赖升级策略
+
+| 包 | 当前版本 | 目标版本 | Python 要求 | 升级风险 | 备注 |
+|----|----------|----------|-------------|----------|------|
+| Python | 3.8.9 | 3.10+ | — | 高 | 需全量测试，影响 C 扩展 |
+| cryptography | 47.0.0 | >=50.0.0 | >=3.9 | 低 | API 向后兼容 |
+| aiohttp | 3.10.11 | >=3.14.3 | >=3.10 | 中 | 3.11+ 有 breaking changes |
+| requirements.txt | `cryptography>=48.0.1` | `cryptography>=50.0.0` | — | — | 约束已更新但环境未升级 |
+| requirements.txt | `aiohttp>=3.14.1` | `aiohttp>=3.14.3` | — | — | 约束已更新但环境未升级 |
+
+### 重点验证模块
+
+| 模块 | 依赖 | 风险点 | 验证方法 |
+|------|------|--------|----------|
+| `akshare` | aiohttp | 数据源核心，HTTP 客户端升级 | 运行数据采集 E2E |
+| `lightgbm` | C 扩展 | Python 3.10 C API 变更 | 运行 LGB 训练 + 预测 |
+| `scipy` | C 扩展 | 历史 access violation | 运行因子计算 + IC 评估 |
+| `torch` | GAT 因子 | 版本敏感（2.13） | 运行 GAT 注意力层测试 |
+| `pytdx` | 通达信 | Python 版本兼容性未知 | 连接 TDX 7709 端口测试 |
+| `pandas` / `numpy` | 核心库 | API 变更 | 运行全量单元测试 |
+
+### 回退方案
+
+- **备份**：Phase 3 前备份当前 Python 3.8 环境（`pip freeze > requirements_py38.txt`）
+- **回退条件**：Phase 3 后若 3 个交易日内出现 P0/P1 级故障，立即回退到 Python 3.8
+- **回退步骤**：恢复 Python 3.8 junction `C:\QuantSys` + `pip install -r requirements_py38.txt`
+- **时间窗口**：选择周五盘后开始迁移，周末验证，周一开盘前完成或回退
+
+---
+
 ## 文档索引
 
 | 文档 | 说明 |

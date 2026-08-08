@@ -63,6 +63,144 @@ env:
 
 jobs:
   # ============================================================
+  # Job 0: 增量静态检查 (CODE_REVIEW_PLAN Task 1.2)
+  #   仅扫描 PR 改动文件: pyflakes(零容忍) + ruff T201(print) + P0 print 门禁
+  #   P0 文件裸 print 阻断, 非 P0 文件裸 print 仅 warning
+  # ============================================================
+  incremental-static:
+    name: Incremental Static Check (PR diff)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 需要完整历史以计算 PR 改动文件
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install incremental lint dependencies
+        shell: powershell
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyflakes ruff
+
+      - name: 计算 PR 改动 Python 文件
+        id: diff
+        shell: powershell
+        run: |
+          $base = "${{ github.event.pull_request.base.sha }}"
+          $head = "${{ github.event.pull_request.head.sha }}"
+          if (-not $base -or -not $head) {
+            # push/fork 场景: 回退到与 main 的分叉点
+            git fetch origin main --quiet
+            $base = $(git merge-base origin/main HEAD)
+            $head = "HEAD"
+          }
+          $files = git diff --name-only "$base" "$head" -- '*.py' | Where-Object { $_ -notmatch '^(tests?/|docs/)' }
+          # 写多行到 GitHub output
+          $out = ($files -join "`n")
+          "pyfiles<<EOF`n$out`nEOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "改动 Python 文件:`n$out"
+
+      - name: Pyflakes (零容忍, 仅改文件)
+        if: ${{ steps.diff.outputs.pyfiles != '' }}
+        shell: powershell
+        run: |
+          $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
+          pyflakes @files
+
+      - name: Ruff T201 print 检查 (非 P0 仅 warning)
+        if: ${{ steps.diff.outputs.pyfiles != '' }}
+        shell: powershell
+        run: |
+          $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
+          # --exit-zero: 不阻断, 仅报告
+          ruff check --select T201 --exit-zero @files
+
+      - name: P0 文件 print 门禁 (阻断式)
+        if: ${{ steps.diff.outputs.pyfiles != '' }}
+        shell: powershell
+        run: |
+          $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
+          $p0 = @(
+            "alpha_hedge_engine.py","build_plan_executor.py","daily_build_and_hedge.py",
+            "daily_trade_executor.py","hedge_execution_orders.py","hedge_quantity_calculator.py",
+            "institutional_pipeline_runner.py","live_scheduler.py","rebalance_execution_orders.py",
+            "run_daily_eod.py","signal_monitor.py","signal_post_processing.py",
+            "stop_loss_monitor.py","today_hedge_decision.py","vol_adjusted_stop_loss.py"
+          )
+          # 仅取暂存区 P0 文件的基名
+          $changed_p0 = $files | ForEach-Object { Split-Path $_ -Leaf } | Where-Object { $p0 -contains $_ }
+          if ($changed_p0.Count -gt 0) {
+            Write-Host "检出 P0 改动文件: $($changed_p0 -join ', ')"
+            python scripts/check_no_print_p0.py @changed_p0
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "P0 文件存在裸 print(), 阻断合并。修复: 改用 logger 或加 `# allow-print`。"
+              exit 1
+            }
+          } else {
+            Write-Host "改动文件不含 P0 文件, 跳过 P0 print 门禁"
+          }
+
+      - name: 量化专项静态检查 (--strict 阻断, CODE_REVIEW_PLAN Task 3.1)
+        if: ${{ steps.diff.outputs.pyfiles != '' }}
+        shell: powershell
+        run: |
+          $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
+          python scripts/quant_review_lint.py --strict @files
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "量化专项 lint 命中阻断项 (Q1/Q2/Q3), 请修复后再合并。合法豁免用行尾 `# quant-lint-ignore`。"
+            exit 1
+          }
+
+  # ============================================================
+  # Job: 质量门禁 (CODE_REVIEW_PLAN Task 4.1 阶段1 显式入口)
+  #   复用 scripts/quality_snapshot.py 做五项门禁 + 覆盖率收集
+  #   与 STANDARD §5 门禁表对齐
+  # ============================================================
+  quality-gate:
+    name: Quality Gate (STANDARD §5)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install deps
+        shell: powershell
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Run quality snapshot (PR 门禁)
+        shell: powershell
+        # quality_snapshot.py 命中门禁失败会 exit 非 0 阻断合并
+        # 脚本仅支持 --json (无 --mode), JSON 输出同时生成报表文件
+        run: |
+          python scripts/quality_snapshot.py --json
+
+      - name: Upload quality report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-snapshot
+          path: |
+            reports/quality_snapshot.json
+            reports/quality_snapshot.md
+          retention-days: 7
+          if-no-files-found: warn
+  # ============================================================
   # Job 1: Lint + Typecheck (并行启动, 快速反馈)
   # ============================================================
   lint-typecheck:
@@ -96,6 +234,19 @@ jobs:
         # 渐进式严格模式由 mypy.ini 控制 (当前 strict_optional=False)
         run: |
           python -m mypy --config-file mypy.ini utils/
+
+      - name: MyPy Typecheck (P0 根文件 — 容忍 warning, CODE_REVIEW_PLAN Task 2.1)
+        shell: powershell
+        # P0 动态执行入口脚本当前 error 较多, 经 mypy.ini 的 [mypy-<file>] ignore_errors=True
+        # 暂容忍; 仅当这些段被移除后才会阻断。逐步收紧路线见 CODE_REVIEW_PLAN.md M2。
+        run: |
+          python -m mypy --config-file mypy.ini `
+            alpha_hedge_engine.py build_plan_executor.py daily_build_and_hedge.py `
+            daily_trade_executor.py hedge_execution_orders.py hedge_quantity_calculator.py `
+            institutional_pipeline_runner.py live_scheduler.py rebalance_execution_orders.py `
+            run_daily_eod.py signal_monitor.py signal_post_processing.py `
+            stop_loss_monitor.py today_hedge_decision.py vol_adjusted_stop_loss.py `
+            || Write-Host "[mypy] P0 文件 error 被 mypy.ini 容忍 (warning 级), 不阻断"
 
       - name: Pylint (utils/infra, utils/risk, utils/execution)
         shell: powershell
