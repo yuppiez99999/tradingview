@@ -2,6 +2,62 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-10 · GLM 4.5-air LLM 驱动代码审查方法论沉淀 📌 DONE
+
+- **产出**: `cairn/code-review-glm45-llm-scan.md` — 沉淀「ocr + GLM 4.5-air 全量扫描 + 二次过滤」方法论。配置坑：模型名必须精确匹配资源包（`glm-4.5-air` 非 `glm-4.5`，否则 429 余额不足）；扫描范围需 `--exclude "**/*.json,**/reports/**"` 防扫进报告文件。
+- **核心认知**: LLM 扫描是「探针」非「判官」——GLM 4.5-air 召回复盖 23/23 文件 305 comments，但误报率 ~92%（6 critical 仅 1 真 bug、97 high 中 65 条是单线程 EOD 不触发的线程安全误报）。**严重度 ≠ 真实缺陷，必须二次过滤**: critical 100% 现场验证、high 聚类剔除误报、medium/low 默认跳过。
+- **二次过滤工具链**: 读源码确认行号 + 构造最小用例运行复现（如强制 SELL 路径触发 float.get() AttributeError）+ 门禁兜底（industrial_grade + assert_data_validity + py_compile）。
+- **本轮确认 4 真 bug 已 commit `9a266290`**: rebalance_execution_orders.py:134 float.get()、risk_event.py:125 枚举无校验、risk_bus.py:524 reduce_pct 类型防御、daily_build_and_hedge.py:253 iloc[-21] IndexError、rebalance_order_executor.py:64 date path traversal。
+- **关键发现**: L134 是上一轮 H19/H20 修复漏掉的同文件缺陷 → 印证「单点修复后必须全量重扫验证」。
+- **索引更新**: `KNOWLEDGE_DIGEST.md` 代码质量域文件数 6→7（补 code-review-glm45-llm-scan.md）。
+- **指针**: 扫描产物 `scan_review_glm45.json`、复盘脚本 `analyze_glm45_findings.py`/`analyze_high_bug.py`/`analyze_high_security.py`；关联 `cairn/code-quality-review-open-code-review.md`。
+
+## 2026-08-08 · G2/G4 Phase 2 再平衡撮合闭环 + fills 驱动 TCA 📌 DONE
+
+- **认知纠偏**: 排查发现再平衡链路虽已在 P0-3 接入 `OrderRouter` 队列（非"只生成"），但 `process_execution_queue` **从未真正撮合** —— `_can_execute_order` 把整队 pending 单计为 active，批量路由 15>max_concurrent=10 时首单即判定"池已满"break，整队死锁零执行。加上切片缺 `size`/`price` 契约字段 → `_execute_order` 读 qty=0 被拒。即"已接入≠已执行"。
+- **G2 新增 `rebalance_order_executor.py`**: 独立 CLI 撮合执行器（`python rebalance_order_executor.py --date ...` / 统一入口 `--rebalance-execute`），复用 `AutomatedExecutionSystem._generate_rebalance_orders()` 链路，撮合后从 `FillsStore` 读回成交并驱动 TCA。修复两处执行断链：① `_generate_rebalance_orders` 切片补齐 `size`/`price`；② `_can_execute_order` 改为只统计 in-flight (`executing`) 订单。
+- **G4 `tca_post_trade_attribution.py` 新增 `ingest_fills_from_store(date)`**: 从 FillsStore 读当日成交回报转 `FillRecord` 批量归因（有成交走成交/无成交跳过/前置校验 symbol·qty·price/fail-open）。**顺带修复 FillsStore 双重计数 bug** (`load_day` 把内存 buffer+文件重复合并，15 笔读成 30) → 文件为事实源、buffer 仅兜底落盘失败。
+- **验证**: `--rebalance-execute --dry-run` → 生成 15/有效 15/路由 15/成交落盘 15，TCA 归因 15 笔一致；`fills_2026-08-08.jsonl` 15 条唯一 order_id 含真实滑点；门禁三件套无回归（assert_data_validity 12PASS、industrial_grade 11PASS/1WARN(既有 C1)/0FAIL、pytest 收集 3923 tests 0 errors、TCA 单测 56 passed）。
+- **遗留**: G1（QMT 真实下单）仍后置 Phase 4 保持 dry_run；再平衡撮合暂未在 dry_run 下更新 positions.json（持仓更新逻辑为下一子步）。
+- **指针**: 计划 `docs/WORK_PLAN_v9.2_工业级达标_20260806.md` §八 Phase2 提前修复记录；产出 `rebalance_order_executor.py`。
+
+## 2026-08-08 · T2 双源分裂修复（Phase B 状态 EOD 回写）📌 DONE
+
+- **产出**: `15_每日工作流/run_daily_eod_workflow.py` 新增**阶段四点八 Phase B 状态回写**，注入点选在 Shadow 数据注入(4.5)+状态同步(4.5b)+漂移检测(4.7)之后、归档(5)之前。
+- **根因**: 不是口径分裂——`phase_b_progressive_enabler.py --auto` 与 `observation_tracker.py` 用同一份 `daily_returns.jsonl` 且计数逻辑相同，但 `--auto` **从未被任何 EOD 主流程调用**，导致 `phase_b_status.json` 的 `observation_days_completed` 停在 08-02 的 5/14（陈旧快照），而 tracker 实时算 10/14。08-20 决策若读到 5/14 会误判不达标。
+- **修复**: 新增 `run_phase4_8_phase_b_sync()`（fail-open，失败不中断 EOD）+ 常量 `PHASE_B_ENABLER_SCRIPT` + `main()` 调用 + dry-run 分支说明。`--auto` 会刷新 `observation_days_completed` 为实时天数，观察期满才条件推进（`cmd_advance` 天数不足时保持 `waiting_observation`，不会误推进）。
+- **验证**: ① `py_compile` exit=0；② `--date 2026-08-10 --force --dry-run` 走通 dry-run 分支显示"阶段四点八: PhaseB回写"（qlib 的 torch caffe2_nvrtc.dll OSError 为既有环境噪音，与本次改动无关）；③ 直接跑 `--auto` 确认 `observation_days_completed=10/14`、`stage=waiting_observation`；④ 门禁三件套无回归（industrial_grade 11PASS/1WARN/0FAIL、engineering_debt GREEN、assert_data_validity 12PASS）。
+- **遗留**: G9（600019 PARAM_VALIDATION_ERROR 修复）未在本次核验——`calibrate_returns_projection.py` L139 有 `period` 重试防御但未重跑 EOD phase1，待 08-11 EOD 验证。08-13 观察期满后，下一个 EOD 将自动推进 Phase B Stage1。
+
+## 2026-08-08 · W33 文档纠偏落地（纠正 2 份文档 + 同步计划）📌 DONE
+
+- **产出**: ① `docs/SYSTEM_MATURITY_GAP.md` §7 表格 G8/G10/G12/G13 由「待做」改为「已完成」并补实测证据，底部验证基线改为 `industrial_grade 11PASS/1WARN/0FAIL`、`assert_data_validity 12PASS`、`engineering_debt_gate GREEN(T4 PASS)`，附状态纠偏记录块；② `docs/SNAPSHOT_COMPARE_2026-08-08.md` §2 P0 指标由「零变化」改为实测「print 90→51、静默异常 14→0、qlib_env 13→0」，§4 门禁由「1/5」改为「4/5（仅巨文件 6230 行 FAIL）」；③ `docs/后续计划_20260808.md` G9 措辞由「已完成 33/33」降级为「部分修复待 08-11 EOD 验证」。
+- **核验方法**: 全部门禁脚本现场重跑取数——`quality_snapshot.py`(P0 print=51/静默=0/qlib_env=0)、`industrial_grade_check.py`(C1 唯一 WARN QMT)、`assert_data_validity.py`(D1-D12 全 PASS)、`engineering_debt_gate.py`(T1-T5 GREEN)。G10 经 `search import research` 确认生产路径 0 命中（剩余全在 `_archive/`/`research/` 自身）。G9 查 `calibrate_returns_projection.py` L139 确有 `period` 重试防御，但本轮未重跑 EOD phase1，故不标完成。
+- **纠偏边界**: 只改「已实测确凿」的项，未证实的 G9 保持待做而非夸大。剩余真实缺口仅 **G11/C1（QMT 未接线）** 与 **daily_workflow.py 6230 行巨文件（阶段3 可选）**。
+
+## 2026-08-08 · 后续计划生成（实测取数纠偏 5 项过时状态）📌 PLAN
+
+- **产出**: `docs/后续计划_20260808.md` — 覆盖 08-09~10-31，三条主线（观察期→08-20 决策 / C1 QMT 接线 / daily_workflow 拆分）+ 14 项任务 + 里程碑 + 风险登记。
+- **核心方法**: 不引用既有文档的"已完成"声明，全部现场重跑脚本取数。结果与早间文档大幅背离——`industrial_grade_check` 实测 **11 PASS/1 WARN/0 FAIL**（文档记 7/2/0，C8–C12 已新增全绿）；`assert_data_validity` **12 PASS**（文档记 7 项）；`engineering_debt_gate` **GREEN**（文档记 YELLOW/T4 FAIL）；阶段1 门禁 **4/5**（`SNAPSHOT_COMPARE` 记 1/5，P0 print 90→51、静默异常 14→0、qlib_env 13→0）。
+- **纠偏 5 项过时"待做"**: `SYSTEM_MATURITY_GAP.md` §7 的 G8/G9/G10/G12/G13 实际均已完成。若照旧文档排期将重复劳动 5 项。再次印证铁律：**修复前必须重跑脚本确认当前状态，不能只读诊断报告**。
+- **真实剩余缺口只有两个**: ① C1 唯一 WARN（QMT 真实下单未接线，`broker.enable=false/dry_run=true`，主链路未引用）；② 阶段1 唯一 FAIL（`daily_workflow.py` 6230 行 > 3000）。
+- **QMT 强制三阶段**: S1 影子（`dry_run=true`，5 日逐笔对账）→ S2 灰度（真实下单，资金上限 10%，5 日）→ S3 全量（双签）。回滚触发 PnL 偏离 >2σ 或连续 3 笔异常成交。前置 fills 落盘链路（C8/C10/D8/D9）已全绿，依赖满足。
+- **新发现的双源分裂**: `phase_b_status.json` 停在 `observation_days_completed: 5`（08-02），而 `observation_tracker.py` 实时算 10/14。08-20 决策若读到 5/14 会误判不达标 → 排 T2 收敛为单一事实源（EOD 末尾回写）。
+- **环境风险**: `.venv/Scripts/python.exe` 指向的 Python314 **已不存在**，本次改用系统 python 3.8.9 + `PYTHONUSERBASE=C:\NUL` 绕过 .pth GBK 解码。venv 未修复会导致 CI 与本地行为分裂，已列入 W33。
+- **指针**: 计划 `docs/后续计划_20260808.md`；决策材料 `docs/phase1_wrapup/08-20决策材料_索引.md`；拆分方案 `cairn/daily-workflow-split-plan.md`；待纠偏 `docs/SYSTEM_MATURITY_GAP.md` §7 + `docs/SNAPSHOT_COMPARE_2026-08-08.md`。
+
+## 2026-08-08 · G2/G4 执行闭环补齐（fills 落盘 + PnL 读真实成交价）→ 知识沉淀 ✅ DONE
+
+- **根因认知纠偏**: 排查前假设"缺撮合"，实读代码发现 `OrderRouter.process_execution_queue` **已完成撮合**（`smart_router.execute_route` 返回 `filled_size`/`average_price`），断点在于**成交结果只进内存 return dict 即丢弃、无任何持久化位置**。与 08-06 期权对冲"只生成不撮合"互为镜像——执行链有两个独立断法：**只生成不撮合** / **只撮合不落盘**。
+- **G2 新增 `utils/execution/fills_store.py`**: 进程内单例 + 写锁，按交易日 JSONL 落盘 `reports/fills/fills_{date}.jsonl`。字段含 `is_live`+`source`(live_route/sim_route)，实盘与模拟成交同文件可区分，避免口径分裂。选 JSONL 而非 JSON 数组：追加 O(1)、并发安全、写崩只丢末行。
+- **G4 新增 `utils/execution/fills_pnl_bridge.py`**: `augment_market_prices()` 用真实成交均价覆盖 `market_prices[code]['close']` 并标 `close_source="fill"`；`realized_pnl()` 汇总已实现 PnL。**关键设计：在调用前做边界增强，不改 `pnl_calculator` 内脏**——零契约变更、零回归风险；有成交走成交、无成交走行情，互补不互斥。
+- **单点接入**: 仅在 `automated_execution_system.py` 的 `if execution_result.get("success"):` 分支调 `_record_fill_for_order`，live/sim 两路由天然收敛，保证不漏记。前置校验 `symbol` 非空 + `filled_qty>0` + `avg_price>0`，防"成功但零成交"污染事实源。
+- **fail-open 全链贯彻**: 落盘失败/文件缺失/解析异常一律 warning 降级，绝不阻断执行队列与 EOD 报告。铁律：**决策路径 fail-close，观测路径 fail-open，但都必须留日志**（静默 except 是 08-06 头号坑）。
+- **验证**: 打真实接入点（构造 OrderRouter 走完整队列确认落盘）+ 观察可见数值变化（1700→1680.5 且 `close_source=fill`）+ 回退验证（删 fills 后正常走行情）。临时文件与 node_modules 已清理。
+- **踩坑 8 条**（已沉淀）: `logger` 早于 `import logging` 致模块单例 import 阶段 NameError；`generate_daily_report` 用全局 `REPORT_DATE` 非 `self.report_date`；PowerShell 中文路径需 `cmd /c` 包装；qlib_env 缺 openpyxl 改用系统 python3；python-pptx 缺失改 node+pptxgenjs；pptx 路径重复 `docs/docs`；无 soffice 改用 zipfile 校验 pptx 结构；P0 文件禁裸 print 需补 logging。
+- **遗留**: `realized_pnl` 为简化 FIFO 近似，仅供监控参考非会计级；TCA 尚未改为消费 fills；G1（QMT 真实下单）仍后置 Phase 4 保持 dry_run。
+- **指针**: 沉淀 `cairn/fills-driven-pnl-lessons-20260808.md`; 状态 `docs/phase1_wrapup/真实状态快照_20260808.md`; 索引 `docs/phase1_wrapup/08-20决策材料_索引.md`; 交付物 `docs/统一总计划_排期跟踪_20260808.xlsx` + `docs/统一总计划_演示文稿_20260808.pptx`。
+
 ## 2026-08-08 · 周六 · G8 OpenBLAS 持久化 + G9 PARAM_VALIDATION_ERROR 根因修复 ✅ DONE
 
 - **G8 OpenBLAS 线程限制持久化**: 将 `OPENBLAS_NUM_THREADS=1`+`OMP_NUM_THREADS=1`+`MKL_NUM_THREADS=1` 写入 EOD 定时任务启动脚本 `run_v84_postmarket.ps1`（launch 前设置）。固化 08-07 的临时修复，避免低内存环境（可用内存<2GB）下 EOD "Memory allocation still failed after 10 retries" 导致阶段崩溃。带注释说明 G8 来源与验证结论（6/10→8/10 成功）。
