@@ -176,10 +176,12 @@ class DailyBuildHedgeSystem:
                 logger.warning("[RISK] VIX 取值越界或为空, 使用占位默认值 18.5 (RiskBudget 降级)")
                 _vix_source = "degraded_default"
                 _data_degraded = True
+                _vix_degraded = True
         except Exception:  # noqa: BLE001  # VIX 获取失败 -> 标记降级
             logger.warning("[RISK] VIX 获取失败, 标记 data_degraded (占位值 18.5 仅用于中性判断)", exc_info=True)
             _vix_source = "degraded_default"
             _data_degraded = True
+            _vix_degraded = True
 
         # N-1 修复 (2026-08-09): 指数收益率从真实数据源获取, 缺失时 fail-closed 降级 cautious
         # 原三条收益率触发条件 (ret_20d<=-0.15 / ret_5d<=-0.08 / ret_20d>=0.10) 因硬编码常量
@@ -217,9 +219,10 @@ class DailyBuildHedgeSystem:
         ret_5d = market_state["index_return_5d"]
         ret_20d = market_state["index_return_20d"]
 
-        if market_state_regime_fallback is not None:
-            # 数据缺失: 保守降级, 不依赖任何收益率判据
-            market_state["market_regime"] = market_state_regime_fallback
+        if _data_degraded or market_state_regime_fallback is not None:
+            # H16 修复: VIX 或指数收益率任一缺失即保守降级, 不依赖占位值 18.5 算中性
+            # fail-closed: 数据不可信时宁可少建仓, 不可编造良性 neutral 满仓建仓
+            market_state["market_regime"] = "cautious"
         elif vix >= 40 or (ret_20d is not None and ret_20d <= -0.15):
             market_state["market_regime"] = "bear"
         elif vix >= 30 or (ret_5d is not None and ret_5d <= -0.08):
@@ -257,7 +260,9 @@ class DailyBuildHedgeSystem:
                 ret_20d = float(closes.iloc[-1] / closes.iloc[-21] - 1.0) if len(closes) >= 21 else None
                 if ret_5d is not None and ret_20d is not None:
                     return {5: ret_5d, 20: ret_20d}
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        # P2 模块 fail-safe, 待后续精确化 (异常类型宽泛, 但不吞掉以保留可追溯性)
+        except (ValueError, TypeError, KeyError, AttributeError,
+                RuntimeError, OSError, TimeoutError, ConnectionError):
             pass
 
         # 回退: 新浪仅最新价, 无法计算区间收益 -> 诚实返回 None (不编造)
@@ -595,7 +600,6 @@ class DailyBuildHedgeSystem:
         if not self.market_state.get("etf_flow_decision"):
             self.assess_market_state()
 
-        lines = []
         lines = []
         lines.extend(self._render_header())
         lines.extend(self._render_market_state_section())
@@ -1167,4 +1171,4 @@ if __name__ == "__main__":
 
     if args.save:
         md_path, json_path = system.save_report(args.output_dir)
-        print(f"\n报告已保存:\n  Markdown: {md_path}\n  JSON:     {json_path}", file=sys.stderr)
+        print(f"\n报告已保存:\n  Markdown: {md_path}\n  JSON:     {json_path}", file=sys.stderr)  # allow-print (CLI 交互输出)

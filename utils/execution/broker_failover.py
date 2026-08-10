@@ -37,7 +37,7 @@ import json
 import logging
 import threading
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -148,7 +148,7 @@ class BrokerHealthTracker:
         """当前成功率 (0.0-1.0)."""
         if not self._results:
             return 0.0
-        return sum(self._results) / len(self._results)  # type: ignore[misc]
+        return sum(self._results) / len(self._results)  # type: ignore
     @property
     def is_healthy(self) -> bool:
         """是否健康 (可下单)."""
@@ -357,9 +357,13 @@ class BrokerFailoverManager:
     def _do_failover(self, reason: str = "") -> bool:
         """执行故障切换.
 
+        H17 修复: connect() 网络 I/O 移出锁外，避免切换期间阻塞整个交易主路径。
+        H18 修复: failover_count 在 broker 恢复健康后重置 (见 _check_health 调用点)。
+
         Returns:
             True 切换成功, False 无可用 broker
         """
+        # Phase 1: 锁内 — 检查开关 + 筛选候选 broker
         with self._lock:
             if self._failover_count >= self._max_failover_count:
                 logger.error(
@@ -377,57 +381,67 @@ class BrokerFailoverManager:
             current_name = self._active_broker_name
             # 按 priority 排序, 跳过当前 broker
             sorted_brokers = sorted(self._brokers.items(), key=lambda x: x[1]["priority"])
+            candidates = []
             for name, info in sorted_brokers:
                 if name == current_name:
                     continue
-                tracker = info["tracker"]
-                if not tracker.is_healthy:
-                    continue
-                # 尝试切换到该 broker
-                adapter = info["adapter"]
-                try:
-                    # 如果是新 broker, 需要先连接
-                    if not getattr(adapter, "_connected", False):
-                        ok = adapter.connect()
-                        if not ok:
-                            tracker.record_failure()
-                            continue
-                    self._active_broker_name = name
-                    self._failover_count += 1
-                    self._audit(
-                        "failover",
-                        {
-                            "from": current_name,
-                            "to": name,
-                            "reason": reason,
-                            "failover_count": self._failover_count,
-                        },
-                    )
-                    logger.warning(
-                        "故障切换: %s → %s (reason=%s, count=%d)",
-                        current_name,
-                        name,
-                        reason,
-                        self._failover_count,
-                    )
+                if info["tracker"].is_healthy:
+                    candidates.append((name, info))
+
+        # Phase 2: 锁外 — 逐个尝试 connect (网络 I/O, 可能阻塞数秒)
+        for name, info in candidates:
+            adapter = info["adapter"]
+            tracker = info["tracker"]
+            try:
+                if not getattr(adapter, "_connected", False):
+                    ok = adapter.connect()
+                    if not ok:
+                        tracker.record_failure()
+                        continue
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                    OSError, TimeoutError, ConnectionError) as e:
+                tracker.record_failure()
+                logger.exception("连接到 %s 失败: %s", name, e)
+                continue
+
+            # Phase 3: 锁内 — 原子更新状态
+            with self._lock:
+                # 二次确认: 活跃 broker 可能已被其他线程切换
+                if self._active_broker_name != current_name:
+                    logger.info("failover 中止: 活跃 broker 已被切换为 %s",
+                                self._active_broker_name)
                     return True
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-        OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
-            # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
-                    tracker.record_failure()
-                    logger.exception("切换到 %s 失败: %s", name, e)
-                    continue
-            # 所有备用 broker 都不可用
-            self._audit(
-                "failover_failed",
-                {
-                    "from": current_name,
-                    "reason": "no_healthy_broker",
-                    "trigger_reason": reason,
-                },
-            )
-            logger.error("故障切换失败: 无可用备用 broker")
-            return False
+                self._active_broker_name = name
+                self._failover_count += 1
+                self._audit(
+                    "failover",
+                    {
+                        "from": current_name,
+                        "to": name,
+                        "reason": reason,
+                        "failover_count": self._failover_count,
+                    },
+                )
+                logger.warning(
+                    "故障切换: %s → %s (reason=%s, count=%d)",
+                    current_name,
+                    name,
+                    reason,
+                    self._failover_count,
+                )
+            return True
+
+        # 所有备用 broker 都不可用
+        self._audit(
+            "failover_failed",
+            {
+                "from": current_name,
+                "reason": "no_healthy_broker",
+                "trigger_reason": reason,
+            },
+        )
+        logger.error("故障切换失败: 无可用备用 broker")
+        return False
 
     def force_failover(self, target_broker: str | None = None, reason: str = "manual") -> bool:
         """强制故障切换 (人工触发).
@@ -516,24 +530,56 @@ class BrokerFailoverManager:
             self._stop_event.wait(timeout=self._recovery_check_interval)
 
     def _check_all_brokers(self) -> None:
-        """检查所有 broker 健康状态 (尝试恢复不健康的 broker)."""
+        """检查所有 broker 健康状态 (尝试恢复不健康的 broker).
+
+        H17 修复: connect() 移出锁外避免阻塞交易主路径。
+        H18 修复: 活跃 broker 恢复健康后重置 failover_count。
+        """
+        active_name = None
+        candidates: list[tuple[str, Any, BrokerHealthTracker]] = []
         with self._lock:
+            active_name = self._active_broker_name
             for name, info in self._brokers.items():
                 tracker = info["tracker"]
                 if tracker.state == BrokerHealthState.UNHEALTHY:
-                    # 尝试重新连接
-                    adapter = info["adapter"]
-                    try:
-                        if not getattr(adapter, "_connected", False):
-                            ok = adapter.connect()
-                            if ok:
-                                tracker.record_success()
-                                logger.info("broker %s 已恢复", name)
-                                self._audit("broker_recovered", {"broker": name})
-                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-        OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
-            # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
-                        logger.warning("broker %s 恢复失败: %s", name, e)
+                    candidates.append((name, info["adapter"], tracker))
+
+        for name, adapter, tracker in candidates:
+            try:
+                if not getattr(adapter, "_connected", False):
+                    ok = adapter.connect()
+                    if ok:
+                        tracker.record_success()
+                        logger.info("broker %s 已恢复", name)
+                        self._audit("broker_recovered", {"broker": name})
+                        # H18: broker 恢复后重置故障切换计数，避免永久拒绝切换
+                        with self._lock:
+                            if self._failover_count > 0:
+                                logger.info(
+                                    "故障切换计数已重置 (count was %d, broker %s 已恢复)",
+                                    self._failover_count,
+                                    name,
+                                )
+                                self._failover_count = 0
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                    OSError, TimeoutError, ConnectionError) as e:
+                logger.warning("broker %s 恢复失败: %s", name, e)
+
+    def reset_failover_count(self) -> int:
+        """手动重置切换计数 (broker 恢复后建议调用).
+
+        H18 修复: 避免 failover_count 上限后永久锁定。
+        同时由 _check_all_brokers 自动检测重置。
+
+        Returns:
+            重置前的计数值
+        """
+        with self._lock:
+            old = self._failover_count
+            if old > 0:
+                self._failover_count = 0
+                logger.info("故障切换计数已手动重置 (was %d)", old)
+            return old
 
     def get_status(self) -> dict[str, Any]:
         """获取故障切换管理器状态快照."""
@@ -559,7 +605,7 @@ class BrokerFailoverManager:
                 "auto_failover": self._auto_failover,
                 "is_running": not self._stopped,
                 "brokers": brokers_status,
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
     def _audit(self, event: str, data: dict[str, Any]) -> None:
@@ -569,7 +615,7 @@ class BrokerFailoverManager:
             "event": event,
             **data,
         }
-        audit_file = self._audit_log_dir / f"failover_{datetime.utcnow().strftime('%Y-%m-%d')}.jsonl"
+        audit_file = self._audit_log_dir / f"failover_{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.jsonl"
         try:
             with open(audit_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")

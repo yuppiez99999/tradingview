@@ -41,9 +41,14 @@ TARGET_TOTAL = 5_000_000.0
 def load_positions():
     # T3.6 修正: 使用动态解析的项目根目录 (不再硬编码 v7.1 路径)
     path = _PROJECT_ROOT / "config" / "positions.json"
-    with open(path, encoding="utf-8") as f:
-        # P2-2 修复: positions 键可能缺失, 用 .get() 保护避免 KeyError 被外层吞掉静默返回 None
-        data = json.load(f).get("positions", {}) or {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            # P2-2 修复: positions 键可能缺失, 用 .get() 保护避免 KeyError 被外层吞掉静默返回 None
+            data = json.load(f).get("positions", {}) or {}
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
+        # C7-1 修复: 文件缺失/损坏时降级为空持仓, 避免整个再平衡流程崩溃
+        logger.exception("读取持仓文件失败, 降级为空持仓: %s", e)
+        data = {}
     positions = {}
     prices = {}
     styles = {}
@@ -141,7 +146,9 @@ def generate_rebalance_orders(style_allocation: dict, target_allocation: dict, p
             qty = min(max_shares_for_code, needed_shares)
 
             if action == "SELL":
+                # 持仓可能含零股(非整百), 卖出数量需向下取整到整百手, 避免 validate_order 判"非100倍数"无效
                 qty = min(qty, current_qty)
+                qty = int(qty // MIN_LOT_SIZE) * MIN_LOT_SIZE
 
             if qty == 0:
                 continue

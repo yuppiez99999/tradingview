@@ -37,7 +37,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -215,7 +215,17 @@ class _BaseLiveAdapter(BrokerAdapter):
             )
             if ok:
                 # 累计日交易额 (用于限额控制)
-                amount = float(order.quantity) * float(order.price or 0)
+                # P1-6 修复: 市价单 price=None/0 导致累计为 0，后续市价单限额检查恒通过。
+                # 改为与 _pre_trade_check 一致的价格估算逻辑。
+                order_price = float(order.price or 0)
+                if order_price <= 0:
+                    ref_price = self._get_reference_price(order.symbol)
+                    if ref_price and ref_price > 0:
+                        order_price = float(ref_price)
+                    else:
+                        # 无法估价: 保守按限额上限计入
+                        order_price = self.daily_trade_limit / max(float(order.quantity), 1.0)
+                amount = float(order.quantity) * order_price
                 self._daily_trade_amount += amount
             return bool(ok)
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
@@ -406,13 +416,13 @@ class _BaseLiveAdapter(BrokerAdapter):
     def _audit(self, event: str, data: dict[str, Any]) -> None:
         """写审计日志 (JSONL 格式, 追加)."""
         record = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "broker": self.broker_name,
             "event": event,
             "live_mode": self.is_live,
             **data,
         }
-        audit_file = self._audit_log_dir / f"{self.broker_name}_{datetime.utcnow().strftime('%Y-%m-%d')}.jsonl"
+        audit_file = self._audit_log_dir / f"{self.broker_name}_{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.jsonl"
         try:
             with open(audit_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
@@ -772,7 +782,7 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
     def _import_ctp_tdapi():
         """延迟导入 CTP 交易 API, 未安装时返回 None"""
         try:
-            from openctp_ctp import tdapi  # type: ignore[misc]
+            from openctp_ctp import tdapi  # type: ignore
             return tdapi
         except ImportError:
             return None
@@ -840,7 +850,7 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
             order.rejection_reason = "CTP 交易通道未就绪 (openctp-ctp 未安装或未连接)"
             return False
         try:
-            from openctp_ctp import tdapi  # type: ignore[misc]
+            from openctp_ctp import tdapi  # type: ignore
             offset = self._OFFSET_MAP.get(self.default_offset, "0")
             req = tdapi.CThostFtdcInputOrderField()
             req.BrokerID = self.broker_id
@@ -882,7 +892,7 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
         if self._td_api is None:
             return False
         try:
-            from openctp_ctp import tdapi  # type: ignore[misc]
+            from openctp_ctp import tdapi  # type: ignore
             req = tdapi.CThostFtdcInputOrderActionField()
             req.BrokerID = self.broker_id
             req.InvestorID = self.user_id
