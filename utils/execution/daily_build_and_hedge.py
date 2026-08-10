@@ -122,7 +122,7 @@ class DailyBuildHedgeSystem:
     def assess_market_state(self) -> dict[str, Any]:
         """评估市场状态 (含ETF资金流 + LLM辅助决策)"""
         try:
-            from utils.etf_flow_monitor import ETFMonitor  # type: ignore[misc]
+            from utils.etf_flow_monitor import ETFMonitor  # type: ignore
             etf_monitor = ETFMonitor()
             etf_data = etf_monitor.get_summary()
         except Exception:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
@@ -159,21 +159,51 @@ class DailyBuildHedgeSystem:
         except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
             logger.warning(f"ETF资金流决策引擎不可用: {e}，继续使用规则引擎")
 
+        # M-8 (2026-08-09): VIX / 指数收益率 的失败策略统一为 fail-closed。
+        # 数据不可信时设置 data_degraded=True, 下游熔断协议据此暂停建仓 (而非编造良性值)。
+        _data_degraded = False
+
         # G13 修复 (2026-08-06): VIX 从 VixDataSource 获取真实值, 非硬编码
         _vix_proxy = 18.5
+        _vix_source = "default_placeholder"
         try:
             from utils.alpha.vix_data_source import fetch_vix
             _vix_fetched = fetch_vix(use_cache=True)
             if _vix_fetched is not None and 5.0 <= _vix_fetched <= 150.0:
                 _vix_proxy = float(_vix_fetched)
-        except Exception:  # noqa: BLE001  # VIX 获取 fail-open
-            pass
+                _vix_source = "live"
+            else:
+                logger.warning("[RISK] VIX 取值越界或为空, 使用占位默认值 18.5 (RiskBudget 降级)")
+                _vix_source = "degraded_default"
+                _data_degraded = True
+        except Exception:  # noqa: BLE001  # VIX 获取失败 -> 标记降级
+            logger.warning("[RISK] VIX 获取失败, 标记 data_degraded (占位值 18.5 仅用于中性判断)", exc_info=True)
+            _vix_source = "degraded_default"
+            _data_degraded = True
+
+        # N-1 修复 (2026-08-09): 指数收益率从真实数据源获取, 缺失时 fail-closed 降级 cautious
+        # 原三条收益率触发条件 (ret_20d<=-0.15 / ret_5d<=-0.08 / ret_20d>=0.10) 因硬编码常量
+        # 永远不可能成立, 导致 market_regime 退化为 VIX 单因子且 bull 档位永不可达。
+        # M-1 (2026-08-09): 缺失时不写入伪造收益率(否则下游熔断判据被良性默认值骗过, 满仓建仓),
+        # 改为显式 None + data_degraded 标记, 由下游 get_emergency_protocol fail-closed 暂停建仓。
+        _idx_rets = self._fetch_index_returns("000300.SH")
+        if _idx_rets is None:
+            logger.error(
+                "[RISK] 指数收益率获取失败, 标记 data_degraded (下游熔断协议 fail-closed 暂停建仓)"
+            )
+            _data_degraded = True
+            market_state_regime_fallback = "cautious"
+        else:
+            market_state_regime_fallback = None
 
         market_state = {
             "date": self.target_date.strftime("%Y-%m-%d"),
             "vix_proxy": _vix_proxy,
-            "index_return_20d": 0.02,
-            "index_return_5d": 0.01,
+            # M-1: 数据缺失时写 None 而非伪造值; 下游用 data_degraded 判定, 不依赖 .get(..., 0) 默认值
+            "index_return_20d": _idx_rets[20] if _idx_rets else None,
+            "index_return_5d": _idx_rets[5] if _idx_rets else None,
+            "data_degraded": _data_degraded,
+            "vix_source": _vix_source,
             "margin_balance_change": 0.005,
             "sector_health": {"high_end_manufacturing_20d": 0.03},
             "etf_flows": etf_data,
@@ -187,17 +217,51 @@ class DailyBuildHedgeSystem:
         ret_5d = market_state["index_return_5d"]
         ret_20d = market_state["index_return_20d"]
 
-        if vix >= 40 or ret_20d <= -0.15:
+        if market_state_regime_fallback is not None:
+            # 数据缺失: 保守降级, 不依赖任何收益率判据
+            market_state["market_regime"] = market_state_regime_fallback
+        elif vix >= 40 or (ret_20d is not None and ret_20d <= -0.15):
             market_state["market_regime"] = "bear"
-        elif vix >= 30 or ret_5d <= -0.08:
+        elif vix >= 30 or (ret_5d is not None and ret_5d <= -0.08):
             market_state["market_regime"] = "cautious"
-        elif ret_20d >= 0.10:
+        elif ret_20d is not None and ret_20d >= 0.10:
             market_state["market_regime"] = "bull"
         else:
             market_state["market_regime"] = "neutral"
 
         self.market_state = market_state
         return market_state
+
+    def _fetch_index_returns(self, index_code: str = "000300.SH") -> dict | None:
+        """获取指数真实区间收益率 (5日/20日)
+
+        优先级: Wind MCP (wind_get_index_data) > 新浪 HTTP (仅最新价, 退化为 None)
+        - 返回 {5: float, 20: float} (小数, 如 0.012 = +1.2%)
+        - 数据不足或获取失败时返回 None (调用方 fail-closed 降级 cautious)
+
+        注意: 新浪接口仅返回最新价, 无法计算区间收益率, 故不作为主源;
+        当 Wind MCP 不可用时诚实返回 None, 而非编造常量。
+        """
+        # 主源: Wind MCP 指数历史 (含近 20+ 交易日收盘价序列)
+        try:
+            from wind_mcp_fetcher import wind_get_index_data
+
+            df = wind_get_index_data(index_code, days=70)
+            if df is not None and len(df) >= 21 and "close" in df.columns:
+                closes = df["close"].astype(float).dropna()
+                # GLM 4.5 复核: dropna 后 closes 可能不足 21 行, 防止 iloc[-21] IndexError
+                if len(closes) < 21:
+                    return None
+                closes = closes.reset_index(drop=True)
+                ret_5d = float(closes.iloc[-1] / closes.iloc[-6] - 1.0) if len(closes) >= 6 else None
+                ret_20d = float(closes.iloc[-1] / closes.iloc[-21] - 1.0) if len(closes) >= 21 else None
+                if ret_5d is not None and ret_20d is not None:
+                    return {5: ret_5d, 20: ret_20d}
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            pass
+
+        # 回退: 新浪仅最新价, 无法计算区间收益 -> 诚实返回 None (不编造)
+        return None
 
     def calculate_risk_budget(self, phase: dict) -> dict[str, Any]:
         """计算风险预算"""
@@ -1103,6 +1167,4 @@ if __name__ == "__main__":
 
     if args.save:
         md_path, json_path = system.save_report(args.output_dir)
-        logger.info("\n报告已保存:", file=sys.stderr)
-        logger.info(f"  Markdown: {md_path}", file=sys.stderr)
-        logger.info(f"  JSON:     {json_path}", file=sys.stderr)
+        print(f"\n报告已保存:\n  Markdown: {md_path}\n  JSON:     {json_path}", file=sys.stderr)

@@ -124,11 +124,28 @@ class RiskEvent:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> RiskEvent:
-        """从字典反序列化."""
+        """从字典反序列化.
+
+        防御性枚举解析: 遇到无效值回退到安全默认而非 ValueError.
+        """
+        # GLM 4.5 复核: 原版 RiskEventType(data.get("event_type", "")) 在无效值时
+        # 直接抛 ValueError, 会把整条事件链崩断. 改为 try/except 回退到 KILL_SWITCH_TRIGGERED.
+        raw_event = data.get("event_type", "")
+        try:
+            event_type = RiskEventType(raw_event) if raw_event else RiskEventType.KILL_SWITCH_TRIGGERED
+        except ValueError:
+            logger.warning("from_dict: 未知 event_type=%r, 回退到 KILL_SWITCH_TRIGGERED", raw_event)
+            event_type = RiskEventType.KILL_SWITCH_TRIGGERED
+        raw_severity = data.get("severity", "info")
+        try:
+            severity = RiskSeverity(raw_severity) if raw_severity else RiskSeverity.INFO
+        except ValueError:
+            logger.warning("from_dict: 未知 severity=%r, 回退到 INFO", raw_severity)
+            severity = RiskSeverity.INFO
         return cls(
-            event_type=RiskEventType(data.get("event_type", "")),
+            event_type=event_type,
             source=str(data.get("source", "")),
-            severity=RiskSeverity(data.get("severity", "info")),
+            severity=severity,
             payload=dict(data.get("payload", {}) or {}),
             timestamp=str(data.get("timestamp", "")),
             symbol=data.get("symbol"),

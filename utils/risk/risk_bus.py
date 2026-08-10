@@ -522,13 +522,19 @@ def _aggregate_strictest(decisions: Sequence[RiskDecision]) -> RiskDecision:
     best = sorted_decisions[0]
 
     # 聚合 reduce_pct (取最大值, 最严格)
+    # GLM 4.5 复核: 仅聚合 reduce_pct > 0 的决策, 0% 减仓不应触发聚合.
+    # 防御性 getattr 防止外部构造的 RiskDecision 实例缺 reduce_pct.
     if best.action == RiskAction.REDUCE_POSITION:
-        max_reduce = max(d.reduce_pct for d in decisions if d.action == RiskAction.REDUCE_POSITION)
-        if max_reduce > best.reduce_pct:
-            # 创建新决策 (frozen=True, 用 dataclasses.replace)
-            from dataclasses import replace
+        reduce_pcts = [getattr(d, "reduce_pct", 0.0) for d in decisions
+                       if d.action == RiskAction.REDUCE_POSITION]
+        meaningful = [p for p in reduce_pcts if isinstance(p, (int, float)) and p > 0]
+        if meaningful:
+            max_reduce = max(meaningful)
+            if max_reduce > getattr(best, "reduce_pct", 0.0):
+                # 创建新决策 (frozen=True, 用 dataclasses.replace)
+                from dataclasses import replace
 
-            best = replace(best, reduce_pct=max_reduce, reason=f"aggregated: {best.reason}")
+                best = replace(best, reduce_pct=max_reduce, reason=f"aggregated: {best.reason}")
 
     return best
 

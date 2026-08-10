@@ -129,9 +129,19 @@ def generate_rebalance_orders(style_allocation: dict, target_allocation: dict, p
             if price <= 0:
                 continue
 
+            # H20 修复: SELL qty 需受持仓上限约束，避免批量无效单
+            # GLM 4.5 复核: positions[code] 来自 load_positions() 第56行 float(qty), 不是 dict
+            if action == "SELL":
+                current_qty = positions.get(code, 0)
+                if current_qty <= 0:
+                    continue  # 无持仓，跳过后去下一标的
+
             max_shares_for_code = int(MAX_SINGLE_ORDER_AMOUNT / price / MIN_LOT_SIZE) * MIN_LOT_SIZE
             needed_shares = int(remaining_gap / price / MIN_LOT_SIZE) * MIN_LOT_SIZE
             qty = min(max_shares_for_code, needed_shares)
+
+            if action == "SELL":
+                qty = min(qty, current_qty)
 
             if qty == 0:
                 continue
@@ -154,7 +164,9 @@ def generate_rebalance_orders(style_allocation: dict, target_allocation: dict, p
                 }
             )
 
-            remaining_gap -= validation["est_amount"]
+            # H19 修复: 无效订单不占用 remaining_gap，避免阻断同风格其他有效单
+            if validation.get("valid"):
+                remaining_gap -= validation["est_amount"]
             if remaining_gap < MIN_TRADE_AMOUNT:
                 break
 
