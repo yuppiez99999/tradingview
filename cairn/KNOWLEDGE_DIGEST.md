@@ -18,7 +18,7 @@ cairn 目录是项目的显式知识沉淀库，遵循"结论走 cairn，过程�
 | 回测与数据 | 3 | backtest-standards.md, data-pipeline.md, returns-calibration-standards.md |
 | 风控与交易 | 2 | risk-architecture.md, shadow-data-quality-loop.md |
 | 模型与进化 | 2 | model-training.md, self-evolution-framework.md |
-| 代码质量 | 7 | exception-handling-standards.md, refactoring-standards.md, code-quality-wave3.md, code-quality-review-open-code-review.md, code-review-glm45-llm-scan.md, code-review-lessons-v8.4.md, SYSTEM_QUALITY_SCAN_20260803.md |
+| 代码质量 | 8 | exception-handling-standards.md, refactoring-standards.md, code-quality-wave3.md, code-quality-review-open-code-review.md, code-review-glm45-llm-scan.md, code-review-agent-fallback-20260810.md, code-review-lessons-v8.4.md, SYSTEM_QUALITY_SCAN_20260803.md |
 | 工程实践 | 3 | bug_fix_tracker.md, dev-workflow-automation.md, llm-output-quality-standards.md |
 | 进展日志 | 2 | LOG.md, gnn-supply-chain-factor-wave5-review.md |
 | 其他 | 1 | Cited.md |
@@ -198,7 +198,16 @@ Top 3 教训：
 
 系统扫描结果：P0 安全风险 4 处（1 真实 pickle.load 已三重保护 + 3 误报）、P1 代码质量 551 处、P2 代码风格 1642 处、超长函数 74 处、高复杂度 42 处。总体：无未受控 P0 风险。
 
-### 7.5 open-code-review 审查（code-quality-review-open-code-review.md）
+### 7.5 LLM 驱动审查（code-review-glm45-llm-scan.md）
+- GLM 4.5-air 全量撒网 + 二次过滤方法论；模型名须精确匹配资源包（`glm-4.5-air` 非 `glm-4.5`）；扫描须 `--exclude` 非代码文件；严重度 ≠ 真缺陷，critical 100% 现场验证。
+
+### 7.6 Agent 直接审查兜底（code-review-agent-fallback-20260810.md）
+- **触发**: 所有外部 LLM 凭证额度归零（GLM 429 / DeepSeek 402）时，ocr 整批失败 → 由 Agent 会话内直接读源码审查，零额度依赖。
+- **流程**: 定位批次清单 → 大文件分块读 + search_content 定位核心区 → 静态审查（执行闭环/异常保护/废弃 API/键匹配/原子写）→ 交叉验证（读 positions.json 确认键格式）→ 产出 Markdown 缺陷表。
+- **对比**: LLM 扫描覆盖全、误报高(需二次过滤)；Agent 审查零额度、误报低、需人工定位核心区。两者互补：有额度用 LLM 撒网，无额度用 Agent 兜底。
+- **核心教训**: 额度是 LLM 审查硬阻塞，先 `ocr llm test` 验额度；缺陷严重度须读源码交叉验证；废弃 API（如 `datetime.utcnow()`）跨文件通病应一次性替换 + ruff 规则防回归。
+
+### 7.7 open-code-review 审查（code-quality-review-open-code-review.md）
 
 6 个已确认缺陷：EOD 工作流 log() 参数错误（TypeError 掩盖真实错误）、5 个 _mock_* 死代码、缓存 TTL .seconds 回绕、主营构成缓存类型不匹配、data_layer 降级链重复委托（保留不改）、RLock 包裹网络 IO（已修复锁收窄）。
 

@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-10 · 方案3 Agent 直接审查兜底（外部 LLM 额度耗尽）📌 DONE
+
+- **背景**: 批次 B/C 改用 stepfun / GLM / DeepSeek 全失败——根因是**所有外部 LLM 凭证额度归零**（GLM 429 余额不足、DeepSeek 402 Insufficient Balance）。选「方案3」: Agent 会话内直接读 13 文件做静态审查, 零额度依赖。
+- **产出**: `cairn/code-review-agent-fallback-20260810.md` — 沉淀「外部 LLM 额度耗尽 → Agent 直接审查兜底」方法论（触发条件/执行流程/LLM扫描 vs Agent审查对比/5 条核心教训）。
+- **本次修复 4 真缺陷 (commit `d9dd7beb`)**: C6-1 daily_build_and_hedge 冗余 `lines=[]` 清空持仓快照(真实bug)、C7-1 rebalance_execution_orders.load_positions 无异常保护崩溃、C3-2/C5-1 datetime.utcnow() 废弃 API 替换。
+- **复核结论**: C3-1（原 P1）重读降级为 INFO（锁逻辑是故意保守设计, 不裸实盘）；**未发现新执行断链**, G1/G2/G4/H14 均确认已修复。剩余 P2（加权均价/坏行容错/配置缓存/幂等去重/Path API）非阻断未修。
+- **关键教训**: 额度是 LLM 审查硬阻塞, 先 `ocr llm test` 验额度; 全凭证归零时直接 Agent 审查 > 反复重试 ocr; 缺陷严重度须读源码交叉验证（如 positions 键格式）; 废弃 API 跨文件通病应一次性替换 + ruff 规则防回归。
+- **指针**: 审查报告 `docs/CODE_REVIEW_BATCH_BC_AGENT_20260810.md`、批次计划 `docs/CODE_REVIEW_PLAN_GLM52_20260810.md`、关联 `cairn/code-review-glm45-llm-scan.md`。
+
 ## 2026-08-10 · GLM 4.5-air LLM 驱动代码审查方法论沉淀 📌 DONE
 
 - **产出**: `cairn/code-review-glm45-llm-scan.md` — 沉淀「ocr + GLM 4.5-air 全量扫描 + 二次过滤」方法论。配置坑：模型名必须精确匹配资源包（`glm-4.5-air` 非 `glm-4.5`，否则 429 余额不足）；扫描范围需 `--exclude "**/*.json,**/reports/**"` 防扫进报告文件。
