@@ -19,18 +19,38 @@
 """
 
 import json
+import logging
 import threading
 import time
+import uuid
 from collections import deque
 from datetime import datetime, timedelta
 from datetime import time as datetime_time
-from typing import Any, Dict, List, Optional, Tuple, cast
+from types import ModuleType
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, cast
 
 import numpy as np
 import pandas as pd
-import logging
 
 logger = logging.getLogger(__name__)
+
+
+# W6.3.3 类型安全: 为 special_days / execution_pools 的字面量字典添加 TypedDict,
+# 消除 mypy [index] 错误 (裸 Dict[str, Any] 无法推断嵌套 value 类型)。
+class SpecialDayEntry(TypedDict):
+    """交易日历特殊日条目 (休市/调休)。"""
+
+    is_trading: bool
+    name: str
+
+
+class ExecutionPoolEntry(TypedDict):
+    """订单路由执行池配置条目。"""
+
+    broker: str
+    priority: str
+    max_concurrent: int
+    min_balance: int
 
 # schedule 模块为可选依赖 (本文件实际未使用其 API, 仅保留 import 以兼容旧代码)
 try:
@@ -50,6 +70,15 @@ if _V7_5_SRC not in sys.path:
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
+# G2 补齐: 成交回报统一落盘层 (fail-safe, 导入失败不影响执行链路)
+try:
+    from utils.execution.fills_store import FillsStore
+
+    _FILLS_STORE_AVAILABLE = True
+except Exception:  # noqa: BLE001
+    FillsStore = None
+    _FILLS_STORE_AVAILABLE = False
+
 try:
     from ms_strategy.src.hedging.hedge_coordinator import HedgeCoordinator
 
@@ -57,6 +86,16 @@ try:
 except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
     HedgeCoordinator = None
     _HEDGE_AVAILABLE = False
+
+# G1 QMT 真实下单接线 (2026-08-09): 统一 broker 装配点
+# fail-open 降级: 导入/装配失败 → get_broker() 内部降级 SimulatedBroker, 不阻断主链路
+try:
+    from utils.execution.broker_factory import get_broker
+
+    _GET_BROKER_AVAILABLE = True
+except Exception:  # noqa: BLE001
+    get_broker = None
+    _GET_BROKER_AVAILABLE = False
 
 try:
     from utils.data_provider import MarketDataProvider, get_market_data  # noqa: F401
@@ -67,11 +106,13 @@ try:
 
     logger = get_logger("automated_execution_system")
 except ImportError:
-    import logging
+    # W6.3.3: 移除冗余 `import logging` (已在 L33 导入), 消除 [union-attr];
+    #         fallback safe_float 签名须与 utils.data_types.safe_float 完全一致,
+    #         否则 mypy [misc] "conditional function variants must have identical signatures"。
+    logger = logging.getLogger("automated_execution_system")
 
-    logger = logging.getLogger("automated_execution_system")  # type: ignore[union-attr]
-    def safe_float(x, default=None):  # type: ignore[misc]
-        return x if x is not None else default
+    def safe_float(val: Any, default: Optional[float] = None) -> Optional[float]:
+        return val if val is not None else default
 
 try:
     from wind_mcp_fetcher import wind_get_quote
@@ -124,7 +165,8 @@ class TradingCalendar:
         }
 
         # 特殊交易日处理 (2025-2027 中国A股休市日)
-        self.special_days = {
+        # W6.3.3: 显式标注为 Dict[str, SpecialDayEntry], 消除 is_trading_day 的 [index] ignore。
+        self.special_days: Dict[str, SpecialDayEntry] = {
             # === 2025 ===
             "2025-01-01": {"is_trading": False, "name": "元旦"},
             "2025-01-28": {"is_trading": False, "name": "春节除夕"},
@@ -204,7 +246,7 @@ class TradingCalendar:
 
         logger.info("交易日历初始化完成")
 
-    def is_trading_day(self, date: Optional[datetime] = None) -> bool:  # type: ignore[misc]
+    def is_trading_day(self, date: Optional[datetime] = None) -> bool:
         """判断是否为交易日"""
         if date is None:
             date = datetime.now()
@@ -215,8 +257,10 @@ class TradingCalendar:
 
         # 检查是否为特殊交易日
         date_str = date.strftime("%Y-%m-%d")
-        if date_str in self.special_days:
-            return self.special_days[date_str]["is_trading"]  # type: ignore[index]
+        # W6.3.3: special_days 已标注为 Dict[str, SpecialDayEntry], 无需 [index] ignore。
+        entry = self.special_days.get(date_str)
+        if entry is not None:
+            return entry["is_trading"]
 
         # 检查是否为节假日（这里简化处理，实际应该从节假日API获取）
         # 简单判断一些常见节假日
@@ -293,12 +337,18 @@ class TradingCalendar:
         for i in range(days_ahead):
             date = now + timedelta(days=i)
             if self.is_trading_day(date):
-                day_schedule = {"date": date.strftime("%Y-%m-%d"), "is_trading": True, "executions": []}
+                # W6.3.3: 显式标注为 Dict[str, Any], 否则 mypy 推断值为
+                # str | bool | list 的联合, .append() 触发 [union-attr] 裸 ignore。
+                day_schedule: Dict[str, Any] = {
+                    "date": date.strftime("%Y-%m-%d"),
+                    "is_trading": True,
+                    "executions": [],
+                }
 
                 for execution in self.trading_schedule["executions"]:
                     execution_time = datetime.combine(date, execution["time"])
                     day_schedule["executions"].append(
-                        {  # type: ignore[misc]
+                        {
                             "name": execution["name"],
                             "time": execution_time.isoformat(),
                             "timestamp": execution_time.timestamp(),
@@ -360,6 +410,10 @@ class TradingCalendar:
                     stats["avg_duration"] * (stats["count"] - 1) + record["duration_seconds"]
                 ) / stats["count"]
 
+        # W6.3.3: 原代码两次调用 get_next_execution_time() — 既低效又让 mypy 无法
+        # 收窄 Optional[datetime] (每次调用独立), 导致 else 分支需裸 ignore。
+        # 改为局部变量一次取值, if/else 共享同一 narrowed 类型。
+        next_exec = self.get_next_execution_time()
         return {
             "total_executions": total_executions,
             "latest_execution": latest_execution["execution_name"],
@@ -367,9 +421,7 @@ class TradingCalendar:
             "success_rate": success_rate,
             "average_duration_seconds": avg_duration,
             "execution_stats": execution_stats,
-            "next_execution_time": self.get_next_execution_time().isoformat()
-            if self.get_next_execution_time()
-            else None,  # type: ignore[misc]
+            "next_execution_time": next_exec.isoformat() if next_exec is not None else None,
         }
 
 
@@ -562,7 +614,9 @@ class MarketStateEvaluator:
 
         if len(valid_correlations) > 0:
             correlation_std = np.std(valid_correlations)
-            return min(correlation_std / 0.5, 1.0)  # type: ignore[no-any-return]  # 归一化到0-1
+            # W6.3.3: np.std 返回 np.floating (Any), min(Any, 1.0) 仍是 Any,
+            # 函数签名 -> float 触发 [no-any-return]。显式 float() 包裹收窄类型。
+            return float(min(correlation_std / 0.5, 1.0))  # 归一化到0-1
         return 0.0
 
     def _determine_market_state(
@@ -947,7 +1001,8 @@ class OrderRouter:
         self._kill_switch = kill_switch
 
         # 执行池配置
-        self.execution_pools = {
+        # W6.3.3: 标注为 Dict[str, ExecutionPoolEntry], 消除 pool["max_concurrent"] 的 [index] ignore。
+        self.execution_pools: Dict[str, ExecutionPoolEntry] = {
             "normal": {"broker": "broker_a", "priority": "normal", "max_concurrent": 10, "min_balance": 100000},
             "priority": {"broker": "broker_b", "priority": "high", "max_concurrent": 5, "min_balance": 500000},
             "emergency": {"broker": "broker_c", "priority": "critical", "max_concurrent": 3, "min_balance": 1000000},
@@ -1056,6 +1111,12 @@ class OrderRouter:
             # 更新活跃订单 (P1 修复: 加锁保护多线程写入)
             with self._orders_lock:
                 for order in routed_orders:
+                    # N-3 修复 (2026-08-09): 防御性不变量 — 订单ID唯一性不应被违反。
+                    # M-7 (2026-08-09): 用显式 raise 而非 assert, 避免 -O 优化模式下被剥离。
+                    if order["order_id"] in self.active_orders:
+                        raise RuntimeError(
+                            f"订单ID碰撞: {order['order_id']} 已存在于活跃订单 (应全局唯一)"
+                        )
                     self.active_orders[order["order_id"]] = order
 
             # 加入执行队列 (P1 修复: 加锁保护多线程写入)
@@ -1076,7 +1137,7 @@ class OrderRouter:
             logger.error(f"订单路由失败: {e}")
             return {"success": False, "error": str(e)}
 
-    def _check_pool_availability(self, pool: Dict) -> bool:
+    def _check_pool_availability(self, pool: ExecutionPoolEntry) -> bool:
         """检查执行池可用性"""
         # 修复 BUG-E2: 通过对象身份查找 pool_name, 而非用 index (字符串==整数永远False)
         pool_name = None
@@ -1100,7 +1161,7 @@ class OrderRouter:
         # 实际应该查询真实的账户余额
         return True
 
-    def _find_available_pool(self) -> Optional[Dict]:
+    def _find_available_pool(self) -> Optional[ExecutionPoolEntry]:
         """查找可用的执行池"""
         for pool in self.execution_pools.values():
             if self._check_pool_availability(pool):
@@ -1108,8 +1169,13 @@ class OrderRouter:
         return None
 
     def _generate_order_id(self) -> str:
-        """生成订单ID"""
-        return f"ORD_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{np.random.randint(1000, 9999)}"
+        """生成订单ID
+
+        N-3 修复 (2026-08-09): 原实现用 datetime 秒级 + np.random.randint(1000,9999),
+        同秒生成多个订单时存在碰撞风险。改为 uuid4() 全局唯一 (122-bit 随机熵,
+        碰撞概率可忽略), 并在 __init__ 中加断言防御 (活跃订单不允许 ID 重复)。
+        """
+        return f"ORD_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:12]}"
 
     def _estimate_wait_time(self, pool_name: str) -> float:
         """估算等待时间"""
@@ -1123,7 +1189,9 @@ class OrderRouter:
             active_count = sum(1 for order in self.active_orders.values() if order.get("target_pool") == pool_name)
         # P2-5 修复: 原公式 active_count * max_concurrent * 5.0 反直觉 (并发越大等待越久)
         # 正确公式: 等待时间与并发数成反比, 并发越大吞吐越高等待越短
-        queue_wait = active_count * 5.0 / max(pool["max_concurrent"], 1)  # type: ignore[index]
+        # W6.3.3: execution_pools 已标注为 Dict[str, ExecutionPoolEntry],
+        # pool 类型为 ExecutionPoolEntry, pool["max_concurrent"] 为 int, 无需 [index] ignore。
+        queue_wait = active_count * 5.0 / max(pool["max_concurrent"], 1)
 
         return base_wait + queue_wait
 
@@ -1141,6 +1209,12 @@ class OrderRouter:
                 if not self._can_execute_order(order):
                     break
 
+                # G2 修复 (2026-08-08): 标记为 in-flight, 供 _can_execute_order 计数并发在途单。
+                # 此前 active_count 统计所有 pending 队列单, 导致批量路由 (N > max_concurrent) 时
+                # 首单即被判定为"池已满"而 break, 整队零执行 (再平衡只生成不撮合断链)。
+                with self._orders_lock:
+                    order["status"] = "executing"
+
                 # 执行订单 (不持锁, _execute_order 可能耗时较长)
                 execution_result = self._execute_order(order)
 
@@ -1150,6 +1224,8 @@ class OrderRouter:
                         order["status"] = "completed"
                         order["completed_at"] = datetime.now().isoformat()
                         order["execution_result"] = execution_result
+                        # G2 补齐: 成交回报统一落盘 (fail-open, 不阻断执行链路)
+                        self._record_fill_for_order(order, execution_result)
                     else:
                         order["status"] = "failed"
                         order["error"] = execution_result.get("error", "未知错误")
@@ -1183,14 +1259,19 @@ class OrderRouter:
             return False
 
         # 检查并发限制 (P1 修复: 加锁保护读取)
+        # G2 修复 (2026-08-08): 只统计"in-flight"订单 (status=executing), 不再统计排队中的
+        # pending 单。原逻辑把整个队列的 pending 订单都计为 active, 当批量路由订单数
+        # > max_concurrent 时, 首单即判定"池已满"而 break, 导致队列死锁零执行。
+        # 现在每笔订单在处理前标记 executing, 顺序处理时 in-flight 恒 ≤ 1, 队列可正常排空,
+        # 同时保留 max_concurrent 对并发执行场景 (多线程) 的真实限制语义。
         with self._orders_lock:
             active_count = sum(
                 1
                 for o in self.active_orders.values()
-                if o.get("target_pool") == pool_name and o.get("status") == "pending"
+                if o.get("target_pool") == pool_name and o.get("status") == "executing"
             )
 
-        if active_count >= pool["max_concurrent"]:  # type: ignore[index]
+        if active_count >= pool["max_concurrent"]:
             return False
 
         return True
@@ -1386,8 +1467,42 @@ class OrderRouter:
                         if price and float(price) > 0:
                             return float(price)
             return None
-        except Exception:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (json.JSONDecodeError, OSError, ValueError, TypeError):  # noqa: BLE001
             return None
+
+    def _record_fill_for_order(self, order: Dict, execution_result: Dict) -> None:
+        """G2 补齐: 将成功执行的成交回报统一落盘到 FillsStore。
+
+        fail-open: 任何异常只记日志, 绝不阻断执行链路。
+        """
+        if not _FILLS_STORE_AVAILABLE:
+            return
+        try:
+            symbol = str(order.get("symbol", "") or "").strip()
+            side = str(order.get("side", "BUY") or "BUY").strip().upper()
+            filled_qty = execution_result.get("filled_size", 0) or 0
+            avg_price = execution_result.get("average_price", 0) or 0
+            if not symbol or filled_qty <= 0 or avg_price <= 0:
+                return
+            store = FillsStore()
+            store.record_fill(
+                symbol=symbol,
+                side=side,
+                filled_qty=filled_qty,
+                avg_price=avg_price,
+                broker=execution_result.get("broker", "unknown"),
+                is_live=execution_result.get("is_live", False),
+                strategy=order.get("strategy", "rebalance"),
+                source="live_route" if execution_result.get("is_live") else "sim_route",
+                meta={
+                    "slippage": execution_result.get("slippage"),
+                    "venue_count": execution_result.get("venue_count"),
+                    "execution_time": execution_result.get("execution_time"),
+                    "order_id": order.get("order_id"),
+                },
+            )
+        except Exception as e:  # noqa: BLE001  # fail-open, 交易路径不崩溃
+            logger.warning("[OrderRouter] 成交落盘失败 (已忽略): %s", e)
 
     def _update_execution_stats(self, execution_result: Dict):
         """更新执行统计 (P1 修复: 加锁保护多线程写入)"""
@@ -1456,17 +1571,28 @@ class AutomatedExecutionSystem:
         self.trading_calendar = TradingCalendar()
         self.market_evaluator = MarketStateEvaluator()
         self.execution_strategy = ExecutionStrategy()
-        self.order_router = OrderRouter()
+        # G1 接入: 注入 broker (默认 SimulatedBroker; 仅 enabled+dry_run=false+TRADING_ENV=production 才实盘)
+        _broker = None
+        if _GET_BROKER_AVAILABLE:
+            try:
+                _broker = get_broker()
+            except Exception as exc:  # noqa: BLE001  # 装配失败不阻断主链路
+                logger.warning("[G1] broker 装配失败, OrderRouter 走空 broker 降级模拟: %s", exc)
+        self.order_router = OrderRouter(broker=_broker)
 
         # 系统状态
         self.system_enabled = False
         self.is_running = False
-        self.execution_thread = None
+        # W6.3.3: 显式标注为 Optional[threading.Thread], 消除 start_system() 中
+        # 三处 [union-attr] / 裸 ignore (原 = None 让 mypy 推断为 None 单例类型)。
+        self.execution_thread: Optional[threading.Thread] = None
 
         # 对冲模块
         self.hedge_enabled = False
-        self.hedge_coordinator = None
-        self.last_hedge_plan = None
+        # W6.3.3: 标注为 Optional[HedgeCoordinator], 消除 _run_hedge_decision 中
+        # .coordinate() 的裸 ignore (原 = None 让 mypy 无法收窄实例属性)。
+        self.hedge_coordinator: Optional["HedgeCoordinator"] = None
+        self.last_hedge_plan: Optional[Dict] = None
         if _HEDGE_AVAILABLE:
             try:
                 self.hedge_coordinator = HedgeCoordinator()
@@ -1501,9 +1627,11 @@ class AutomatedExecutionSystem:
             self.is_running = True
 
             # 启动执行线程
-            self.execution_thread = threading.Thread(target=self._execution_loop)  # type: ignore[union-attr]
-            self.execution_thread.daemon = True  # type: ignore[misc]
-            self.execution_thread.start()  # type: ignore[misc]
+            # W6.3.3: execution_thread 已标注为 Optional[threading.Thread],
+            # 赋值后 mypy 正确识别为 Thread, 三处 ignore 全部消除。
+            self.execution_thread = threading.Thread(target=self._execution_loop)
+            self.execution_thread.daemon = True
+            self.execution_thread.start()
 
             # 启动性能监控
             if self.config["performance_monitoring"]:
@@ -1618,11 +1746,13 @@ class AutomatedExecutionSystem:
                     return
 
             # 3. 对冲决策（可选）
-            hedge_plan = None
+            # W6.3.3: 显式标注 hedge_plan: Optional[Dict], 与 last_hedge_plan 类型一致,
+            # 消除 [assignment] ignore (原 hedge_plan = None 让 mypy 推断为 None 单例)。
+            hedge_plan: Optional[Dict] = None
             if self.hedge_enabled and self.hedge_coordinator is not None:
                 hedge_plan = self._run_hedge_decision(market_data, market_state_data)
                 hedge_plan = self._apply_hedge_triggers(market_data, hedge_plan)
-                self.last_hedge_plan = hedge_plan  # type: ignore[assignment]
+                self.last_hedge_plan = hedge_plan
 
             # 4-8. 生成交易计划并路由
             # P1-1 修复: 原代码硬编码 SPY 假订单 (trade_info={instrument:"SPY",trade_size:100000}),
@@ -1633,7 +1763,9 @@ class AutomatedExecutionSystem:
             routing_result = {"success": False, "routed_orders": [], "error": "rebalance_not_generated"}
 
             # 9. 记录执行结果 (rebalance_plan 在步骤 11 填充)
-            execution_result = {
+            # W6.3.3: 显式标注 Dict[str, Any], 消除 [var-annotated]
+            # (execution_plan=None + routing_result 混合类型让 mypy 无法推断)。
+            execution_result: Dict[str, Any] = {
                 "market_state": self.current_market_state,
                 "execution_plan": execution_plan,
                 "routed_orders": [],
@@ -1657,7 +1789,26 @@ class AutomatedExecutionSystem:
             try:
                 self._generate_hedge_execution_orders(hedge_plan)
             except Exception as exc:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
-                logger.warning("对冲执行单生成失败: %s", exc)
+                # B4 修复 (2026-08-08): 静默吞咽 -> 计数+告警+状态标记.
+                # 见 docs/CODE_REVIEW_COMPREHENSIVE_20260808.md B4 + docs/CODE_REVIEW_GAP_AUDIT D-7.
+                # 原: 仅 logger.warning, "对冲实际没生效"与"普通告警"在日志里长得一样.
+                # 现: 告警独立通道 (send_alert) + 失败计数 + execution_result 显式标记.
+                logger.error("[HEDGE_FAIL] 对冲执行单生成失败: %s", exc, exc_info=True)
+                execution_result.setdefault("hedge_failure", {
+                    "error": str(exc),
+                    "timestamp": datetime.now().isoformat(),
+                })
+                self._consecutive_hedge_failures = getattr(self, "_consecutive_hedge_failures", 0) + 1
+                if self._consecutive_hedge_failures >= 3:
+                    try:
+                        from utils.notify import send_alert
+                        send_alert(
+                            title="[CRITICAL] 连续对冲失败",
+                            content=f"连续 {self._consecutive_hedge_failures} 次对冲执行失败, 最近: {exc}",
+                            level="critical",
+                        )
+                    except Exception:
+                        logger.warning("告警 send_alert 调用失败 (fail-open 不阻断)")
 
             # 11. 生成再平衡执行单并路由 (执行断链修复: P0-3 已接入 order_router)
             try:
@@ -1672,8 +1823,30 @@ class AutomatedExecutionSystem:
                         execution_result["execution_plan"] = routing.get("execution_plan")
                         execution_result["routed_orders"] = self.current_routed_orders
                         execution_result["routing_result"] = routing
+                    else:
+                        # B4: 路由失败也要记录, 不能只在 success 分支记.
+                        execution_result.setdefault("rebalance_failure", {
+                            "routing_result": routing,
+                            "timestamp": datetime.now().isoformat(),
+                        })
             except Exception as exc:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
-                logger.warning("再平衡订单生成失败: %s", exc)
+                # B4 修复: 同上, 静默吞咽 -> 计数+告警.
+                logger.error("[REBALANCE_FAIL] 再平衡订单生成失败: %s", exc, exc_info=True)
+                execution_result.setdefault("rebalance_failure", {
+                    "error": str(exc),
+                    "timestamp": datetime.now().isoformat(),
+                })
+                self._consecutive_rebalance_failures = getattr(self, "_consecutive_rebalance_failures", 0) + 1
+                if self._consecutive_rebalance_failures >= 3:
+                    try:
+                        from utils.notify import send_alert
+                        send_alert(
+                            title="[CRITICAL] 连续再平衡失败",
+                            content=f"连续 {self._consecutive_rebalance_failures} 次再平衡失败, 最近: {exc}",
+                            level="critical",
+                        )
+                    except Exception:
+                        logger.warning("告警 send_alert 调用失败 (fail-open 不阻断)")
 
             logger.info(f"每日交易执行完成: {execution_name}")
 
@@ -1759,9 +1932,16 @@ class AutomatedExecutionSystem:
             bs_loss = 0.0
 
             # 4. 调用真实对冲引擎
+            # W6.3.3: mypy 无法跨方法收窄实例属性 self.hedge_coordinator (调用者已做
+            # is not None 检查但 mypy 不信任实例属性在方法调用间不变)。引入局部变量
+            # coordinator 并显式 None 守卫, 使 mypy 在 .coordinate() 处收窄为 HedgeCoordinator。
+            coordinator = self.hedge_coordinator
+            if coordinator is None:
+                logger.warning("对冲协调器未初始化, 跳过对冲决策")
+                return None
             plan = cast(
                 Dict,
-                self.hedge_coordinator.coordinate(  # type: ignore[misc]
+                coordinator.coordinate(
                     positions=positions,
                     prices=prices,
                     returns=returns,
@@ -1952,15 +2132,20 @@ class AutomatedExecutionSystem:
                 #   现改为用 importlib 从 _PROJECT_ROOT 显式加载, 不依赖 sys.path 顺序, 目录调整不失效。
                 import importlib.util  # noqa: F401
 
-                _hedge_mod = None
+                # W6.3.3: 不预声明 Optional[ModuleType] — 在 if/else 两分支各自赋值,
+                # mypy 从两分支的共同类型推断为 ModuleType, 无需 None 收窄。
+                # 消除原 [assignment] ignore + 新引入的 [arg-type] / [union-attr] 错误。
                 _mod_path = os.path.join(_PROJECT_ROOT, "hedge_execution_orders.py")
                 if os.path.exists(_mod_path):
                     _spec = importlib.util.spec_from_file_location("_hedge_execution_orders_c2", _mod_path)
+                    # spec_from_file_location 返回 Optional[ModuleSpec], 需显式 None 守卫。
+                    if _spec is None or _spec.loader is None:
+                        raise ImportError(f"无法创建 importlib spec for {_mod_path}")
                     _hedge_mod = importlib.util.module_from_spec(_spec)
                     _spec.loader.exec_module(_hedge_mod)
                 else:
                     # 显式回退到模块导入 (若根目录在 sys.path)
-                    import hedge_execution_orders as _hedge_mod  # type: ignore[assignment]
+                    import hedge_execution_orders as _hedge_mod
 
                 build_orders = _hedge_mod.build_orders
                 load_positions = _hedge_mod.load_positions
@@ -2167,7 +2352,7 @@ class AutomatedExecutionSystem:
                         if not market_returns.empty:
                             index_price = safe_float(float(market_returns.iloc[-1]) * 1000 + 3000)
                 except Exception:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
-                    pass
+                    logger.warning("读取 market_returns.json 失败, 跳过指数价格推断", exc_info=True)
 
             # 最终兜底 — 生产环境拒绝静默使用3000假指数，抛出异常强制上游处理
             if index_price is None or index_price <= 0:
@@ -2212,6 +2397,7 @@ class AutomatedExecutionSystem:
                                 if var_m > 0 and not np.isnan(cov):
                                     betas.append(float(cov / var_m))
                             except Exception:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                                logger.warning(f"计算 {col} beta 失败, 跳过", exc_info=True)
                                 continue
 
                         # 组合 beta 取有效值的平均
@@ -2397,6 +2583,12 @@ class AutomatedExecutionSystem:
                             "instrument": o["code"],
                             "direction": "buy" if o["action"] == "BUY" else "sell",
                             "shares": o.get("shares", 0),
+                            # G2 修复 (2026-08-08): 补齐 _execute_order 契约字段。
+                            # _execute_order 读 slice_info["size"] 作为成交数量, 读 slice_info["price"]
+                            # 作为限价; 此前仅填 shares/est_price, 导致 qty=0 被"无效数量"拒绝,
+                            # 再平衡订单永远无法撮合成交 (只生成不执行断链)。
+                            "size": o.get("shares", 0),
+                            "price": o.get("est_price", 0.0),
                             "est_price": o.get("est_price", 0.0),
                             "est_amount": o.get("est_amount", 0.0),
                             "style": o.get("style", ""),

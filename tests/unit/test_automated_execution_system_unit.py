@@ -803,8 +803,10 @@ class TestOrderRouter:
     def test_can_execute_order_concurrent_limit(self):
         router = OrderRouter()
         # emergency max_concurrent=3
+        # G2 修复: active_count 只统计 status=="executing" 的在途单 (不再统计 pending),
+        # 故测试需用 "executing" 状态才能正确验证并发上限拦截。
         for i in range(3):
-            router.active_orders[f"e_{i}"] = {"target_pool": "emergency", "status": "pending"}
+            router.active_orders[f"e_{i}"] = {"target_pool": "emergency", "status": "executing"}
         order = {"target_pool": "emergency"}
         assert router._can_execute_order(order) is False
 
