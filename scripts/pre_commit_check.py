@@ -29,6 +29,7 @@ Pre-commit Check (Python 包装器)
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -36,8 +37,35 @@ from pathlib import Path
 # 项目根目录 (此脚本位于 scripts/pre_commit_check.py)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+# Windows 下强制 UTF-8, 避免控制台 GBK 编码错误
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault("PYTHONUTF8", "1")
+
+# 延迟导入门禁子脚本 (避免 pre-commit 阶段不必要的 import 开销)
+def _import_check_nan_pollution():
+    """延迟导入 NaN 守卫检查脚本."""
+    try:
+        from scripts import check_nan_pollution
+        return check_nan_pollution
+    except ImportError:
+        return None
+
+
+def _utf8_env() -> dict[str, str]:
+    """返回带有 UTF-8 编码设置的环境变量副本."""
+    env = os.environ.copy()
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    env.setdefault("PYTHONUTF8", "1")
+    return env
+
 
 def main() -> int:
+    # Windows 控制台默认 GBK, 强制 stdout/stderr 用 UTF-8 以支持 emoji/中文
+    if sys.platform == "win32":
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+
     # 跳过条件 1: 非 pre-commit 阶段 (如 rebase/merge)
     # git 会在 MERGE_HEAD 存在时跳过 hook,但显式检查更稳妥
     git_dir = PROJECT_ROOT / ".git"
@@ -87,6 +115,7 @@ def main() -> int:
                     [sys.executable, str(path_check_script), "--staged"],
                     cwd=str(PROJECT_ROOT),
                     timeout=30,
+                    env=_utf8_env(),
                 )
                 print("[pre-commit] ❌ 硬编码路径检查失败,阻止提交", file=sys.stderr)
                 return 1
@@ -106,6 +135,7 @@ def main() -> int:
                 [sys.executable, str(dangling_script)],
                 cwd=str(PROJECT_ROOT),
                 timeout=30,
+                env=_utf8_env(),
             )
             if dangling_result.returncode != 0:
                 print("[pre-commit] 悬挂引用检查失败,阻止提交", file=sys.stderr)
@@ -130,6 +160,7 @@ def main() -> int:
                 diff_result = subprocess.run(
                     ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
                     capture_output=True, text=True, cwd=str(PROJECT_ROOT), timeout=10,
+                    env=_utf8_env(),
                 )
                 staged = [f for f in diff_result.stdout.strip().split("\n") if f]
                 # 仅取暂存区里的 P0 文件名 (check_no_print_p0 按文件名匹配 P0_FILES)
@@ -141,6 +172,7 @@ def main() -> int:
                         [sys.executable, str(p0_print_script), *p0_staged],
                         cwd=str(PROJECT_ROOT),
                         timeout=30,
+                        env=_utf8_env(),
                     )
                     if p0_result.returncode != 0:
                         print("[pre-commit] 裸 print 检查失败,阻止提交", file=sys.stderr)
@@ -166,6 +198,7 @@ def main() -> int:
             [sys.executable, str(check_script), "--skip-datasource"],
             cwd=str(PROJECT_ROOT),
             timeout=120,  # 2 分钟超时
+            env=_utf8_env(),
         )
         exit_code = result.returncode
     except subprocess.TimeoutExpired:
@@ -177,12 +210,50 @@ def main() -> int:
         return 0
 
     if exit_code == 0:
-        print("[pre-commit] ✅ P0 自检通过,允许提交")
-        return 0
+        print("[pre-commit] ✅ P0 自检通过")
     else:
         print(f"[pre-commit] ❌ P0 自检失败 (exit={exit_code}),阻止提交", file=sys.stderr)
         print("[pre-commit] 修复后重试,或临时用 SKIP_P0_CHECK=1 跳过", file=sys.stderr)
         return 1
+
+    # === 第四道门禁: NaN 污染守卫 (F-4/F-5/F-6) ===
+    nan_script = PROJECT_ROOT / "scripts" / "check_nan_pollution.py"
+    if nan_script.exists():
+        print("[pre-commit] NaN 污染守卫检查...")
+        try:
+            # 只检查暂存区中的 Python 文件, 避免历史代码阻断提交
+            diff_result = subprocess.run(
+                ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
+                capture_output=True, text=True, cwd=str(PROJECT_ROOT), timeout=10,
+                env=_utf8_env(),
+            )
+            staged_files = [
+                PROJECT_ROOT / f for f in diff_result.stdout.splitlines()
+                if f.endswith(".py") and (PROJECT_ROOT / f).exists()
+            ]
+            if staged_files:
+                nan_result = subprocess.run(
+                    [sys.executable, str(nan_script), "--files", *[str(f) for f in staged_files]],
+                    cwd=str(PROJECT_ROOT),
+                    timeout=60,
+                    env=_utf8_env(),
+                )
+                if nan_result.returncode != 0:
+                    print("[pre-commit] ❌ NaN 污染守卫检查失败,阻止提交", file=sys.stderr)
+                    print("[pre-commit] 修复: 为 np.corrcoef / IC 计算添加 nan_to_num / std 检查防护", file=sys.stderr)
+                    return 1
+                print(f"[pre-commit] NaN 污染守卫检查通过 (检查 {len(staged_files)} 个暂存文件)")
+            else:
+                print("[pre-commit] NaN 污染守卫检查跳过 (无暂存 Python 文件)")
+        except subprocess.TimeoutExpired:
+            print("[pre-commit] NaN 守卫检查超时,容错通过", file=sys.stderr)
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            print(f"[pre-commit] NaN 守卫检查异常 (容错通过): {e}", file=sys.stderr)
+    else:
+        print("[pre-commit] ⚠️ NaN 守卫检查脚本未找到,跳过", file=sys.stderr)
+
+    print("[pre-commit] ✅ 全部门禁通过,允许提交")
+    return 0
 
 
 if __name__ == "__main__":

@@ -28,6 +28,10 @@ if [ -z "$REPO_ROOT" ]; then
     exit 0
 fi
 
+# Windows 下强制 UTF-8, 避免控制台 GBK 编码错误 (emoji/中文输出)
+export PYTHONIOENCODING=utf-8
+export PYTHONUTF8=1
+
 # 优先用项目 venv python (避开系统 python 的 GBK 编码坑),
 # 回退到 python / python3 / py
 VENV_PY="$REPO_ROOT/.venv/Scripts/python.exe"
