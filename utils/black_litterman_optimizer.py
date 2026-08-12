@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -111,6 +112,10 @@ class BlackLittermanOptimizer:
             raise ValueError(f"tau 必须在 (0,1] 区间, 实际 {tau}")
         if not (0 <= default_confidence <= 1):
             raise ValueError("default_confidence 必须在 [0,1] 区间")
+        # F-7 修复: risk_aversion(δ) 必须 > 0, 否则 w = cov_inv @ er / δ 会得到 inf/NaN 权重
+        # (numpy 对 数组/0.0 返回 inf 且不抛异常, 下游仓位会被静默污染为 NaN)
+        if risk_aversion <= 0:
+            raise ValueError(f"risk_aversion (δ 风险厌恶系数) 必须 > 0, 收到 {risk_aversion}")
 
         self.delta = float(risk_aversion)
         self.tau = float(tau)
@@ -125,7 +130,7 @@ class BlackLittermanOptimizer:
         self,
         assets: list[str],
         market_weights: list[float] | np.ndarray,
-        cov_matrix: np.ndarray | pd.DataFrame,  # type: ignore[misc]
+        cov_matrix: np.ndarray | pd.DataFrame,
         views: list[View] | None = None,
         risk_free_rate: float = 0.03,
         target_return: float | None = None,  # None=无约束, 数值=目标收益
@@ -343,7 +348,7 @@ class BlackLittermanOptimizer:
         if max_weight is None and min_weight is None and target_return is None:
             # 简单归一化为满仓
             if w_unconstrained.sum() > 0:
-                return w_unconstrained / w_unconstrained.sum()  # type: ignore[misc]
+                return cast(np.ndarray, w_unconstrained / w_unconstrained.sum())
             # 全负则等权
             return np.ones(n) / n
 
@@ -387,7 +392,7 @@ class BlackLittermanOptimizer:
                 # 归一化 (数值误差)
                 if w.sum() > 0:
                     w = w / w.sum()
-                return w  # type: ignore[misc]
+                return cast(np.ndarray, w)
         except ImportError:
             pass
 
@@ -398,7 +403,7 @@ class BlackLittermanOptimizer:
         if min_weight is not None:
             w = np.maximum(w, min_weight)
         if w.sum() > 0:
-            return w / w.sum()  # type: ignore[misc]
+            return cast(np.ndarray, w / w.sum())
         return np.ones(n) / n
 
     def _to_numpy_matrix(self, m) -> np.ndarray:
@@ -413,6 +418,83 @@ class BlackLittermanOptimizer:
     # ------------------------------------------------------------
     # 工具方法
     # ------------------------------------------------------------
+
+    def run_shadow(
+        self,
+        assets: list[str],
+        expected_returns: dict[str, float] | list[float] | np.ndarray,
+        cov_matrix: np.ndarray | pd.DataFrame,
+        market_cap_weights: dict[str, float] | list[float] | np.ndarray | None = None,
+        risk_free_rate: float = 0.03,
+        view_confidence: float = 0.6,
+        max_weight: float | None = None,
+        min_weight: float | None = 0.0,
+    ) -> BLResult:
+        """影子模式便捷入口（供主链路 Feature Flag 调用）。
+
+        将现有信号融合得到的 ``expected_returns`` 作为弱观点注入 BL 框架，
+        计算后验权重用于与现有组合优化器权重做对比观测，不产生任何生产决策。
+
+        设计铁律：本方法只产出对比观测值，调用方负责 fail-open 落盘，
+        本方法不保证观点必然生效（无观点方向时退化为市场均衡权重）。
+
+        Args:
+            assets: 标的代码列表
+            expected_returns: 各标的预期收益（dict 键为 code，或按 assets 顺序的数组）
+            cov_matrix: 协方差矩阵 Σ (N×N)，建议来自 Ledoit-Wolf 收缩估计
+            market_cap_weights: 市场/市值权重（作为 BL 先验），缺省用等权
+            risk_free_rate: 无风险利率
+            view_confidence: 注入观点的默认置信度
+            max_weight/min_weight: 权重约束（与现有组合优化器一致）
+
+        Returns:
+            BLResult（optimal_weights 即影子 BL 权重）
+        """
+        n = len(assets)
+        if n == 0:
+            raise ValueError("assets 不能为空")
+
+        # 归一化 expected_returns → 数组
+        if isinstance(expected_returns, dict):
+            ret_arr = np.array([float(expected_returns.get(a, 0.0)) for a in assets], dtype=float)
+        else:
+            ret_arr = np.asarray(expected_returns, dtype=float)
+
+        # 市场先验权重：缺省等权
+        if market_cap_weights is None:
+            w_mkt = np.ones(n) / n
+        elif isinstance(market_cap_weights, dict):
+            w_mkt = np.array([float(market_cap_weights.get(a, 0.0)) for a in assets], dtype=float)
+        else:
+            w_mkt = np.asarray(market_cap_weights, dtype=float)
+        if w_mkt.sum() <= 0:
+            w_mkt = np.ones(n) / n
+        w_mkt = w_mkt / w_mkt.sum()
+
+        # 将预期收益 > 0 的标的作为"绝对看多"弱观点注入
+        views: list[View] = []
+        for i, a in enumerate(assets):
+            er = ret_arr[i]
+            if abs(er) > 1e-9:
+                views.append(
+                    View(
+                        type="absolute",
+                        assets=[a],
+                        weights=[1.0],
+                        expected_return=float(er),
+                        confidence=view_confidence,
+                    )
+                )
+
+        return self.optimize(
+            assets=assets,
+            market_weights=w_mkt,
+            cov_matrix=cov_matrix,
+            views=views,
+            risk_free_rate=risk_free_rate,
+            max_weight=max_weight,
+            min_weight=min_weight,
+        )
 
     def save_result(self, result: BLResult, path: str | Path) -> Path:
         """保存优化结果到 JSON"""

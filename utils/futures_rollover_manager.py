@@ -15,8 +15,10 @@ QMT 关键规则:
 from __future__ import annotations
 
 import logging
-import re
 from datetime import date, timedelta
+# W6.3.3 Step 1: 统一入口 (保留 FUTURES_CODE_PATTERN 别名兼容 import)
+from utils.contracts.symbols import FUTURES_CODE_PATTERN
+from utils.contracts.symbols import parse_symbol, SymbolParseError
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +65,10 @@ def _get_futures_expiry(product: str, month_str: str, year: int) -> date | None:
 ROLLOVER_DAYS_BEFORE_EXPIRY = 3
 
 # 期货代码格式: {PRODUCT}{YY}{MM}.{EXCHANGE}
-FUTURES_CODE_PATTERN = re.compile(r"^([A-Za-z]+)(\d{2})(\d{2})\.(CFFEX|SHF|DCE|ZCE|GFEX|CZCE)$")
+# W6.3.3 Step 1: 已迁移为统一入口 utils.contracts.symbols.FUTURES_CODE_PATTERN
+# (此处从 symbols 模块 re-export, 保留原有名字以兼容外部 import + 旧行为)
+# 原本地正则 r"^([A-Za-z]+)(\d{2})(\d{2})\.(CFFEX|SHF|DCE|ZCE|GFEX|CZCE)$"
+# 已升级为: 新增 INE/SHFE/CZCE 完整支持 + 仍兼容 SHF/ZCE 旧写法
 
 
 class FuturesRolloverManager:
@@ -231,18 +236,31 @@ class FuturesRolloverManager:
     # ------------------------------------------------------------
 
     def _parse_contract(self, code: str) -> tuple[str, str, str, str] | None:
-        """解析合约代码
+        """解析合约代码 (W6.3.3 Step 1: 迁移为 contracts 统一入口)。
+
+        注意: 为保持 100% 向后兼容, 返回的第 4 项是原始后缀的大写 (如 "SHF" 而非 "SHFE"),
+        与旧本地正则 group(4) 取值行为完全一致。规范化交易所代码请使用
+        parse_symbol(code).exchange (如 SHFE/CZCE/CFFEX 等)。
 
         Args:
-            code: 如 "IF2507.CFFEX"
+            code: 如 "IF2507.CFFEX" / "CU2508.SHF" (旧写法) / "SC2509.INE"
 
         Returns:
-            (product, year_str, month_str, exchange) 或 None
+            (product, year_str, month_str, raw_exchange_suffix) 或 None
         """
-        match = FUTURES_CODE_PATTERN.match(code)
-        if not match:
+        try:
+            info = parse_symbol(code, hint_asset="future", strict=True)
+        except SymbolParseError:
             return None
-        return (match.group(1), match.group(2), match.group(3), match.group(4))
+        # 非期货 (hint_asset mismatch 但 parse 成功的降级情况)
+        if info.futures_year is None or info.futures_month is None:
+            return None
+        product = info.product
+        year_str = f"{info.futures_year % 100:02d}"
+        month_str = f"{info.futures_month:02d}"
+        # 100% 兼容旧行为: 第 4 项取原始输入中的后缀大写, 而非规范化值
+        raw_suffix = code.rsplit(".", 1)[-1].upper() if "." in code else ""
+        return (product, year_str, month_str, raw_suffix)
 
     def is_tradable(self, code: str) -> bool:
         """判断是否为可交易合约 (非 .IDX 或连续合约)"""
@@ -325,7 +343,7 @@ class FuturesRolloverManager:
 
         # 3. 获取主力合约
         exchange = "CFFEX" if product in ("IF", "IC", "IM", "IH") else None
-        active = self.get_active_contract(product, exchange)  # type: ignore[misc]
+        active = self.get_active_contract(product, exchange)  # type: ignore
         if active is None:
             logger.warning("无法获取 %s 的主力合约", product)
             return None

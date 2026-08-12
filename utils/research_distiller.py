@@ -714,7 +714,7 @@ class ResearchDistiller:
         truncated = text[:8000] if len(text) > 8000 else text
         prompt = self._build_distill_prompt(truncated, source_type, forced_symbol)
         self._stats["llm_calls"] += 1
-        result = _chat_fn(  # type: ignore[misc]
+        result = _chat_fn(  # type: ignore
             prompt=prompt,
             system="你是资深A股投研分析师,擅长将研究内容蒸馏为可执行交易信号。",
             temperature=0.1,

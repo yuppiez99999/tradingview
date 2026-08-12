@@ -362,6 +362,7 @@ def build_backtest_data_from_ohlcv(
     st_codes: set[str] | None = None,
     etf_signals_by_date: dict[str, dict[str, dict[str, Any]]] | None = None,
     use_volume_for_suspension: bool = True,
+    limit_pool_provider: Any = None,
 ) -> list[dict[str, Any]]:
     """从 OHLCV DataFrame 字典构建带涨跌停/停牌字段的回测 day_data 列表.
 
@@ -369,6 +370,7 @@ def build_backtest_data_from_ohlcv(
         - 使用真实 prev_close (前一日 close)
         - 停牌检测可用 volume + open + close 三字段
         - limit 价基于 close 而非单一 price
+        - 可选接入涨停池数据源做交叉校验 (W6.6.3 P1-a)
 
     Args:
         price_data: {symbol: DataFrame(index=date, columns=[open,high,low,close,volume,...])}
@@ -376,11 +378,14 @@ def build_backtest_data_from_ohlcv(
         st_codes: ST 股票代码集合
         etf_signals_by_date: 可选 ETF 信号 {date_str: {code: {signal, inflow}}}
         use_volume_for_suspension: 是否用 volume 检测停牌 (默认 True)
+        limit_pool_provider: 可选 LimitPoolProvider 实例, 提供当日涨停池数据.
+            若提供, 则在 day_data 中注入 limit_up_pool / limit_down_pool 字段
+            (来自交易所涨停板数据, 与基于 prev_close 计算的 limit_up_prices 互为双保险).
 
     Returns:
         day_data 列表 (按日期升序), 每个元素:
             {"date", "prices", "limit_up_prices", "limit_down_prices",
-             "suspended", "etf_signals"(可选)}
+             "suspended", "etf_signals"(可选), "limit_up_pool"(可选), "limit_down_pool"(可选)}
     """
     if not price_data:
         return []
@@ -468,6 +473,16 @@ def build_backtest_data_from_ohlcv(
         # 可选: 注入 ETF 信号
         if etf_signals_by_date and date_str in etf_signals_by_date:
             day["etf_signals"] = etf_signals_by_date[date_str]
+
+        # 可选: 注入涨停池数据 (W6.6.3 P1-a, 交易所涨停板双保险)
+        if limit_pool_provider is not None:
+            try:
+                pool = limit_pool_provider.get_pool(date_str)
+                day["limit_up_pool"] = pool.limit_up_codes
+                day["limit_down_pool"] = pool.limit_down_codes
+                day["broken_pool"] = pool.broken_codes
+            except Exception as e:
+                logger.debug("涨停池获取失败 %s: %s", date_str, e)
 
         data.append(day)
 

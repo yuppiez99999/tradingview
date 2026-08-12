@@ -77,7 +77,7 @@ class LedoitWolfCovariance:
     # 主入口
     # ------------------------------------------------------------
 
-    def fit(self, returns: np.ndarray | pd.DataFrame) -> ShrinkageResult:  # type: ignore[misc]
+    def fit(self, returns: np.ndarray | pd.DataFrame) -> ShrinkageResult:
         """估计收缩协方差矩阵
 
         Args:
@@ -137,7 +137,8 @@ class LedoitWolfCovariance:
         if N > 1:
             corr = np.corrcoef(R.T) if T > N else np.eye(N)
             off_diag = corr[~np.eye(N, dtype=bool)]
-            avg_corr = float(np.mean(off_diag)) if len(off_diag) > 0 else 0.0
+            # 防御: 常数列使 corrcoef 产生 NaN, 用 nanmean 忽略而非污染 avg_corr (F-6)
+            avg_corr = float(np.nanmean(off_diag)) if len(off_diag) > 0 else 0.0
         else:
             avg_corr = 0.0
 
@@ -253,14 +254,14 @@ class LedoitWolfCovariance:
     # 便利方法
     # ------------------------------------------------------------
 
-    def fit_predict(self, returns: np.ndarray | pd.DataFrame) -> np.ndarray:  # type: ignore[misc]
+    def fit_predict(self, returns: np.ndarray | pd.DataFrame) -> np.ndarray:
         """便利方法: 直接返回收缩后协方差矩阵"""
         result = self.fit(returns)
         return result.cov_shrunk
 
     def fit_with_uncertainty(
         self,
-        returns: np.ndarray | pd.DataFrame,  # type: ignore[misc]
+        returns: np.ndarray | pd.DataFrame,
         n_bootstrap: int = 100,
     ) -> tuple[np.ndarray, np.ndarray]:
         """带自助法的协方差估计

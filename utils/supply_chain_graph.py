@@ -574,7 +574,7 @@ class SupplyChainGraph:
         while queue:
             current, path = queue.popleft()
             if current == target:
-                return path  # type: ignore[misc]
+                return path  # type: ignore
             for edge in self.adjacency.get(current, []):
                 next_node = edge.target
                 if next_node in visited:

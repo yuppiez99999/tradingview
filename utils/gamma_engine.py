@@ -70,7 +70,7 @@ class GammaEngine:
             portfolio_cfg = get_config("portfolio")
             cfg = portfolio_cfg.get("hedge", {}).get("gamma_vega_engine", {})
             if cfg:
-                return cfg  # type: ignore[misc]
+                return cfg  # type: ignore
                 # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)

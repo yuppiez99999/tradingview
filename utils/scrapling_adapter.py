@@ -55,12 +55,12 @@ def _check_scrapling() -> bool:
     if _scrapling_available is not None:
         return _scrapling_available
     try:
-        from scrapling import Fetcher, StealthyFetcher  # type: ignore[misc]
+        from scrapling import Fetcher, StealthyFetcher  # type: ignore
         _StealthyFetcher = StealthyFetcher
         _Fetcher = Fetcher
         # PlayWrightFetcher 是可选的 (需要 playwright 依赖)
         try:
-            from scrapling import PlayWrightFetcher  # type: ignore[misc]
+            from scrapling import PlayWrightFetcher  # type: ignore
             _PlayWrightFetcher = PlayWrightFetcher
         except ImportError:
             pass

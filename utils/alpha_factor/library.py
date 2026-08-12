@@ -1,6 +1,6 @@
 """Alpha 因子库聚合入口 — 国泰海通因子体系对标
 
-11 大类因子统一调度 (共 98 个) + 第 12 大类图因子:
+13 大类因子统一调度 (Wave 6.4.5 U1 派生升级 · 新增第 13 大类筹码分布):
 1. Momentum 动量 (price_volume.py)       — 10
 2. LowVolatility 低波 (price_volume.py)  — 8
 3. Size 规模 (price_volume.py)           — 7
@@ -12,7 +12,11 @@
 9. Operation 营运效率 (fundamental.py)   — 5
 10. Technical 量价技术 (technical.py)    — 9 (GTJA191精选低相关, 可配全量)
 11. Expectation 预期微观 (expectation.py) — 6
-12. LeadLag 图产业链 (graph.py, 需提供 SupplyChainGraph) — 5 (可选, 对动量因子正交化)
+12. LeadLag 图产业链 (graph.py, 需提供 graph) — 5 (可选, 对动量正交化)
+13. ChipDistribution 筹码分布 (chip_distribution.py, 2026-08-12) — 4 (可选, window=150)
+14. factor-mining 移植因子 (Wave 6 W6.1.1, FM_ 前缀差异补充) — 6+ (Always ON)
+15. EigenAlpha 装饰器注册因子 (Wave 6 W6.1.3) — 动态 (默认 ON)
+16. Expression 表达式因子 (expression_engine.py, W6.6.1) — 动态 (用户 DSL 定义, 默认 OFF)
 
 用法:
     lib = AlphaFactorLibrary()
@@ -25,6 +29,7 @@
 - 国泰君安《多因子选股模型之因子分析与筛选》
 - 国泰海通《量化2025年度复盘系列》
 - GTJA191 (2017) 国泰君安191因子
+- stock(myhhub) CYQ 筹码分布经典算法 (150 档 + 三角分布 + 换手衰减)
 """
 
 from __future__ import annotations
@@ -41,12 +46,16 @@ from utils.alpha_factor.base import (
     evaluate_factors,
     compute_factor_corr_matrix,
     residualize,
+    register_factor,             # Wave 6 W6.1.3 EigenAlpha 风格装饰器
+    compute_registered_factors,   # Wave 6 W6.1.3 装饰器因子计算入口
+    list_registered_factors,      # Wave 6 W6.1.3 装饰器因子清单
 )
 from utils.alpha_factor.price_volume import (
     compute_momentum_factors,
     compute_volatility_factors,
     compute_size_factors,
     compute_liquidity_factors,
+    compute_factor_mining_factors,
 )
 from utils.alpha_factor.fundamental import (
     compute_value_factors,
@@ -60,6 +69,11 @@ from utils.alpha_factor.expectation import compute_expectation_factors
 from utils.alpha_factor.graph import (
     compute_lead_lag_factors,
     orthogonalize_chain_factors,
+)
+from utils.alpha_factor.chip_distribution import compute_chip_factors  # 第 13 大类 ChipDistribution (2026-08-12)
+from utils.alpha_factor.expression_engine import (  # 第 14 大类 Expression (W6.6.1)
+    compute_expression_factors,
+    ExpressionFactorSpec,
 )
 
 
@@ -84,6 +98,11 @@ class AlphaFactorLibrary:
         enable_expectation: bool = True,
         technical_all: bool = False,
         enable_graph: bool = True,
+        enable_decorators: bool = True,   # Wave 6 W6.1.3: 装饰器注册因子总开关
+        enable_chip: bool = True,         # 第 13 大类: CYQ 筹码分布因子总开关 (默认开)
+        chip_window: int = 150,            # 筹码分布滚动窗口 (季线级, 150 天)
+        enable_expression: bool = False,  # 第 16 大类: 表达式因子总开关 (需提供 expressions)
+        expressions: list | None = None,  # 表达式因子规格 [(name, expr_str), ...] 或 [ExpressionFactorSpec]
     ):
         self.neutralize_industry = bool(neutralize_industry)
         self.neutralize_size = bool(neutralize_size)
@@ -91,6 +110,11 @@ class AlphaFactorLibrary:
         self.enable_expectation = bool(enable_expectation)
         self.technical_all = bool(technical_all)
         self.enable_graph = bool(enable_graph)
+        self.enable_decorators = bool(enable_decorators)
+        self.enable_chip = bool(enable_chip)
+        self.chip_window = int(chip_window)
+        self.enable_expression = bool(enable_expression)
+        self.expressions = expressions or []
 
     # ------------------------------------------------------------
     # 主入口
@@ -107,6 +131,7 @@ class AlphaFactorLibrary:
         graph=None,
         factor_history: dict[str, list[dict[str, float]]] | None = None,
         forward_returns_history: list[dict[str, float]] | None = None,
+        free_float_shares: dict[str, float] | None = None,
     ) -> FactorLibraryResult:
         """计算所有因子
 
@@ -121,6 +146,8 @@ class AlphaFactorLibrary:
             factor_history: U1 衔接 — 日频因子值历史 {factor_name: [{symbol: value}, ...]} (可选)
                 提供时 evaluate_factors 走时序 IC/ICIR 模式, 未提供降级为单点 IC
             forward_returns_history: U1 衔接 — 日频 forward returns [{symbol: ret}, ...] (可选)
+            free_float_shares: 第 13 大类筹码分布可选 — {symbol: 自由流通股本数},
+                缺省时用成交量中位数退化换手率, 不影响因子产出数量.
 
         Returns:
             FactorLibraryResult
@@ -162,6 +189,65 @@ class AlphaFactorLibrary:
             if chain_factors:
                 chain_factors = orthogonalize_chain_factors(chain_factors, result.factors)
             result.factors.update(chain_factors)
+
+        # 13. 筹码分布因子 (CYQ, 第 13 大类 · 2026-08-12 派生升级 W6.4.5)
+        #     借鉴 stock(myhhub) 经典通达信算法: 150 档三角分布 + 换手衰减 + 一字板 Dirac-δ 坍缩
+        #     4 因子: CYQ_PROFIT_RATIO / CYQ_CONCENTRATION / CYQ_COST_DEVIATION / CYQ_PEAK_POSITION
+        if self.enable_chip:
+            chip_factors = compute_chip_factors(
+                price_data,
+                window=self.chip_window,
+                free_float_shares=free_float_shares,
+            )
+            if chip_factors:
+                result.debug_info["chip_window"] = self.chip_window
+                result.debug_info["chip_covered_symbols"] = len(
+                    next(iter(chip_factors.values())).values
+                )
+            result.factors.update(chip_factors)
+
+        # 14. factor-mining 移植因子 (Wave 6 W6.1.1, FM_ 前缀 6 个差异因子)
+        fm_factors = compute_factor_mining_factors(
+            price_data, fundamentals, benchmark_returns,
+        )
+        result.factors.update(fm_factors)
+
+        # 15. 装饰器注册因子 (Wave 6 W6.1.3, EigenAlpha 风格)
+        if self.enable_decorators:
+            # 构造参数注入 context (键名与被装饰因子函数的参数名按字符串匹配)
+            context = {
+                "price_data": price_data,
+                "fundamentals": fundamentals,
+                "fundamentals_prev": fundamentals_prev,
+                "industries": industries,
+                "benchmark_returns": benchmark_returns,
+                "graph": graph,
+                "factor_history": factor_history,
+                "forward_returns_history": forward_returns_history,
+            }
+            reg_factors = compute_registered_factors(context)
+            if reg_factors:
+                result.factors.update(reg_factors)
+                # 把装饰器注册的因子名清单写到 debug_info, 便于追溯
+                reg_list = list_registered_factors()
+                if reg_list:
+                    result.debug_info["decorator_factors_loaded"] = [
+                        r["name"] for r in reg_list
+                    ]
+
+        # 16. 表达式因子 (第 16 大类 · Expression, W6.6.1)
+        #     用户用 DSL 字符串自定义因子, 引擎解析为 AST 求值
+        #     可引用已有因子 (如 MOM_20D / CYQ_PROFIT_RATIO) 和原始字段 (close/volume/pe/...)
+        if self.enable_expression and self.expressions:
+            expr_factors = compute_expression_factors(
+                price_data,
+                fundamentals=fundamentals,
+                expressions=self.expressions,
+                existing_factors=result.factors,
+            )
+            if expr_factors:
+                result.factors.update(expr_factors)
+                result.debug_info["expression_factors"] = list(expr_factors.keys())
 
         # 中性化处理
         if self.neutralize_industry and industries:

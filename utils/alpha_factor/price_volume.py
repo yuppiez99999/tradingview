@@ -17,6 +17,7 @@ from utils.alpha_factor.base import (
     neutralize_by_industry,
     orthogonalize,
     residualize,
+    register_factor,   # Wave 6 W6.1.3: EigenAlpha 风格装饰器
 )
 
 
@@ -477,3 +478,257 @@ def compute_liquidity_factors(
     factors["LIQ_VOLUME_ZSCORE"] = FactorValue(name="LIQ_VOLUME_ZSCORE", category="Liquidity", values=values)
 
     return factors
+
+
+# ============================================================
+# 5. factor-mining 移植因子 (Wave 6 W6.1.1 新增)
+#    FM_ 前缀, 与国泰海通体系的 MOM/VOL/SIZE/LIQ 明确区分，便于 A/B 测试
+#    参考: wzx11223344/factor-mining — A股 14 因子实现
+# ============================================================
+
+
+def compute_factor_mining_factors(
+    price_data: dict[str, dict[str, list[float]]],
+    fundamentals: dict[str, dict[str, float]] | None = None,
+    benchmark_returns: list[float] | None = None,
+) -> dict[str, FactorValue]:
+    """factor-mining 移植因子 (14 因子中与现有体系有差异的部分, 共 5 个)
+
+    与现有体系的区别 (为什么不能直接复用):
+    - FM_RET_1D / FM_MOM_5D / FM_MOM_20D: 纯收益率, 不做反转取反或正交化
+    - FM_IDIO_VOL: 对全市场等权收益回归取残差波动 (非基准回归 VOL_IDIO)
+    - FM_AMIHUD_AMT: 成交额 (amount) 版 Amihud = mean(|ret|/成交额), 非成交量版 LIQ_AMIHUD
+    - FM_CIRC_MCAP: 流通市值对数 (fundamentals.negotiable_value), 非总市值 SIZE_LOG_MCAP
+
+    其余 9 个因子与现有体系等价 (直接 alias 不重复计算):
+    - momentum_12m_1m  ≈ MOM_12_1M   (12-1月剔除最近一月)
+    - reversal_5d      ≈ MOM_REVERSAL_5D
+    - reversal_20d     ≈ MOM_REVERSAL_20D
+    - volatility_20d   ≈ VOL_20D
+    - turnover_rate    ≈ LIQ_TURNOVER_20D
+    - log_market_cap   ≈ SIZE_LOG_MCAP
+    - amihud_illiq     ≈ LIQ_AMIHUD
+    - ep               ≈ fundamental.EP
+    - bp               ≈ fundamental.BP
+    """
+    factors: dict[str, FactorValue] = {}
+    fundamentals = fundamentals or {}
+
+    # ---------- 1. 纯动量因子 (factor-mining 风格: 正向, 不反转取反) ----------
+
+    # FM_RET_1D: 纯 1 日收益率 (正向: 高收益=高分)
+    # 区别于 MOM_REVERSAL_5D (反向表示反转信号)
+    values = {}
+    for sym, data in price_data.items():
+        closes = data.get("closes", [])
+        if len(closes) >= 2:
+            values[sym] = float(closes[-1] / closes[-2] - 1.0)
+    factors["FM_RET_1D"] = FactorValue(name="FM_RET_1D", category="Momentum", values=values)
+
+    # FM_MOM_5D: 5 日纯动量 (正向: 涨=高分)
+    # 区别于现有 MOM_20D 体系: 5 日窗口更短, 用于短期动量/反转区分
+    values = {}
+    for sym, data in price_data.items():
+        closes = data.get("closes", [])
+        if len(closes) > 5:
+            values[sym] = float(closes[-1] / closes[-5] - 1.0)
+    factors["FM_MOM_5D"] = FactorValue(name="FM_MOM_5D", category="Momentum", values=values)
+
+    # FM_MOM_20D: 20 日纯动量 (与 MOM_20D 等价但不参与后续正交化, 独立 A/B)
+    values = {}
+    for sym, data in price_data.items():
+        closes = data.get("closes", [])
+        if len(closes) > 20:
+            values[sym] = float(closes[-1] / closes[-20] - 1.0)
+    factors["FM_MOM_20D"] = FactorValue(name="FM_MOM_20D", category="Momentum", values=values)
+
+    # ---------- 2. 特质波动率 (对市场均值回归, factor-mining 原版实现) ----------
+
+    # FM_IDIO_VOL: 对全市场等权收益率做回归取残差波动, 再年化
+    # 区别于 VOL_IDIO (对 benchmark_returns 做回归 + 双重正交化 VOL_20D/VOL_120D)
+    idio_raw: dict[str, float] = {}
+    syms_with_returns = []
+    returns_by_sym: dict[str, list[float]] = {}
+    max_len = 0
+    for sym, data in price_data.items():
+        closes = data.get("closes", [])
+        if len(closes) > 60:
+            rets = list(np.diff(closes[-61:]))
+            returns_by_sym[sym] = rets
+            syms_with_returns.append(sym)
+            max_len = max(max_len, len(rets))
+
+    if syms_with_returns and max_len > 0:
+        # 构造对齐的收益矩阵: [N_syms x T]
+        aligned = np.full((len(syms_with_returns), max_len), np.nan, dtype=float)
+        for i, sym in enumerate(syms_with_returns):
+            rets = returns_by_sym[sym]
+            aligned[i, : len(rets)] = rets
+
+        # 市场等权收益 = 每期横截面上非 NaN 收益的均值
+        market_ret = np.nanmean(aligned, axis=0)  # shape [T]
+
+        for i, sym in enumerate(syms_with_returns):
+            sym_rets = aligned[i]
+            valid = ~np.isnan(sym_rets) & ~np.isnan(market_ret)
+            if np.sum(valid) >= 10:
+                y = sym_rets[valid]
+                x = market_ret[valid]
+                std_x = np.std(x)
+                if std_x > 1e-10:
+                    beta = np.cov(x, y)[0, 1] / max(np.var(x), 1e-10)
+                    intercept = float(np.mean(y) - beta * np.mean(x))
+                    resid = y - (beta * x + intercept)
+                    # 反向: 低特质波动 = 高分 (与 VOL_IDIO 惯例一致)
+                    idio_raw[sym] = -float(np.std(resid) * np.sqrt(252))
+
+    factors["FM_IDIO_VOL"] = FactorValue(name="FM_IDIO_VOL", category="LowVolatility", values=idio_raw)
+
+    # ---------- 3. 成交额版 Amihud (factor-mining 原版) ----------
+
+    # FM_AMIHUD_AMT: Amihud 非流动性 = mean(|ret_t| / amount_t)
+    # 区别于 LIQ_AMIHUD = mean(|ret_t| / volume_t) (成交量作分母)
+    # 成交额版更贴近"单位成交额导致的价格冲击"这一 Amihud 原始定义
+    amihud_amt: dict[str, float] = {}
+    for sym, data in price_data.items():
+        closes = data.get("closes", [])
+        vols = data.get("volumes", [])
+        amounts = data.get("amounts")
+        n = len(closes)
+        if n > 20 and len(vols) >= n:
+            # 优先用真实 amounts, 缺失则用 closes*volumes 近似 (同 technical.py _to_ohlcv_df 惯例)
+            if amounts is None or len(amounts) < n:
+                amounts = [c * v for c, v in zip(closes, vols)]
+            window = min(20, n - 1)
+            illiq_list = []
+            for t in range(n - window, n):
+                if closes[t - 1] > 0 and amounts[t] > 0:
+                    ret = abs(closes[t] / closes[t - 1] - 1.0)
+                    illiq_list.append(ret / amounts[t])
+            if illiq_list:
+                amihud_amt[sym] = float(np.mean(illiq_list))
+
+    factors["FM_AMIHUD_AMT"] = FactorValue(name="FM_AMIHUD_AMT", category="Liquidity", values=amihud_amt)
+
+    # ---------- 4. 流通市值对数 (factor-mining: circulating_market_cap) ----------
+
+    # FM_CIRC_MCAP: log(流通市值) — 用 fundamentals.negotiable_value
+    # 区别于 SIZE_LOG_MCAP (总市值 market_cap)
+    # 用途: 度量"可交易盘"规模, 与全市场规模解耦 (限售股/国有股不参与交易)
+    circ_mcap: dict[str, float] = {}
+    for sym, fund in fundamentals.items():
+        ns = fund.get("negotiable_value", 0)
+        if ns and ns > 0:
+            # 反向: 小盘 = 高分 (与 SIZE_LOG_MCAP 惯例一致)
+            circ_mcap[sym] = -float(np.log(ns))
+
+    factors["FM_CIRC_MCAP"] = FactorValue(name="FM_CIRC_MCAP", category="Size", values=circ_mcap)
+
+    return factors
+
+
+# ============================================================
+# 6. EigenAlpha 装饰器注册示例 (Wave 6 W6.1.3 新增)
+#    通过 @register_factor(category=..., name=...) 声明,
+#    由 compute_registered_factors(context) 按参数名自动注入并调用。
+#    与上方 compute_xxx_factors 函数完全解耦, 可单独 enable/disable。
+# ============================================================
+
+
+@register_factor(
+    category="Momentum",
+    name="FM_DEMO_VOL_WEIGHTED_MOM",
+    description="成交额加权动量 (装饰器示例): 最近5日收益率按成交额加权, 区分放量上涨 vs 缩量上涨",
+    window=5,
+)
+def _fm_demo_volume_weighted_momentum(price_data, window=5) -> dict[str, float]:
+    """成交额加权动量 (演示 @register_factor 参数注入 + 默认值覆盖)
+
+    计算: sum_i(amount_i * ret_i) / sum_i(amount_i)
+    放量日权重更高, 识别"资金推动型"动量
+    """
+    out: dict[str, float] = {}
+    for sym, data in price_data.items():
+        closes = data.get("closes") or []
+        amounts = data.get("amounts") or data.get("volumes") or []
+        if len(closes) <= window or len(amounts) < len(closes) - 1:
+            continue
+        closes_arr = np.asarray(closes, dtype=float)
+        # 最近 window 天的日收益率 (closes[t]/closes[t-1] - 1) 对应窗口 [T-window, T-1]
+        rets = closes_arr[-window:] / closes_arr[-window - 1 : -1] - 1.0
+        amt_window = np.asarray(amounts[-window:], dtype=float)
+        if amt_window.sum() <= 0 or np.isnan(amt_window).any() or np.isnan(rets).any():
+            continue
+        w = amt_window / amt_window.sum()
+        out[sym] = float(np.dot(w, rets))
+    return out
+
+
+@register_factor(
+    category="Liquidity",
+    name="FM_DEMO_ZERO_TRADE_DAYS",
+    description="零成交天数 (装饰器示例): 最近20日成交量为0的天数, 识别停牌/僵尸股风险",
+    window=20,
+)
+def _fm_demo_zero_trade_days(price_data, window=20) -> dict[str, float]:
+    """最近 window 日零成交量天数占比 (0~1)。
+
+    值越高表示停牌/无流动性越严重; 回测时可作为持仓准入过滤信号。
+    """
+    out: dict[str, float] = {}
+    for sym, data in price_data.items():
+        volumes = data.get("volumes") or []
+        if len(volumes) < window:
+            continue
+        vol = np.asarray(volumes[-window:], dtype=float)
+        zero_ratio = float((vol <= 1e-9).sum()) / float(window)
+        # 反向: 流动性越差 → 分数越低 (与 LIQ 类保持一致)
+        out[sym] = -zero_ratio
+    return out
+
+
+@register_factor(
+    category="Quality",
+    name="FM_DEMO_ROE_SMOOTHED",
+    description="ROE 行业内平滑 (装饰器示例): 截面 winsorize + zscore, 展示 fundamentals 参数注入",
+)
+def _fm_demo_roe_smoothed(fundamentals=None, industries=None) -> dict[str, float]:
+    """ROE 行业内中性化 + 3σ winsorize
+
+    演示 fundamentals / industries 参数按名注入 (在 library.py context 中已提供)。
+    """
+    if not fundamentals:
+        return {}
+    raw: dict[str, float] = {}
+    for sym, fund in fundamentals.items():
+        roe = fund.get("roe")
+        if roe is None:
+            continue
+        try:
+            raw[sym] = float(roe)
+        except (TypeError, ValueError):
+            continue
+    if not raw:
+        return {}
+    # 行业中性化 (与 MOM_INDUSTRY_ADJ 同等处理)
+    if industries:
+        # 先 winsorize
+        vals = np.asarray(list(raw.values()), dtype=float)
+        med = float(np.nanmedian(vals))
+        mad = float(np.nanmedian(np.abs(vals - med))) or 1e-9
+        upper = med + 3 * 1.4826 * mad
+        lower = med - 3 * 1.4826 * mad
+        clipped = {s: min(max(v, lower), upper) for s, v in raw.items()}
+        values = neutralize_by_industry(clipped, industries)
+    else:
+        vals = np.asarray(list(raw.values()), dtype=float)
+        med = float(np.nanmedian(vals))
+        mad = float(np.nanmedian(np.abs(vals - med))) or 1e-9
+        upper = med + 3 * 1.4826 * mad
+        lower = med - 3 * 1.4826 * mad
+        values = {s: min(max(v, lower), upper) for s, v in raw.items()}
+    # zscore 标准化 (无基类依赖, 简单实现)
+    arr = np.asarray(list(values.values()), dtype=float)
+    std = float(np.nanstd(arr)) or 1.0
+    mean = float(np.nanmean(arr))
+    return {s: (v - mean) / std for s, v in values.items()}

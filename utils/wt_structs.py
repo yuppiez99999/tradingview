@@ -7,7 +7,135 @@ WonderTrader 风格统一数据结构
 
 from __future__ import annotations
 
+import os
+import warnings as _warnings
+from contextlib import contextmanager
 from dataclasses import dataclass, field
+from typing import Iterator
+
+from utils.contracts.symbols import SymbolParseError, normalize_exchange
+
+# ============================================================
+# W6.3.3 Step 4: code/exchange 一致性校验
+#
+# 动机 (cairn/w633_secid_contract_parsing_challenges.md §4):
+#   每个数据类都有 code + exchange 两个独立字段, 但无运行时校验保证两者一致。
+#   撮合引擎/风控引擎用 order.code == event.code 裸串比较, 若构造事件时一方写裸码
+#   一方写 Wind 码, 会静默不匹配 (订单被跳过) → 组合权益失真。
+#
+# 门禁范式 (与 W6.3.2 NonMonotonicTimestampError / symbols.SymbolParseError 同源):
+#   默认 strict=False 仅 RuntimeWarning, 不阻断 (向后兼容);
+#   strict=True 时抛 CodeExchangeMismatchError 不降级 (防前视偏差硬门禁)。
+# ============================================================
+
+
+class CodeExchangeMismatchWarning(RuntimeWarning):
+    """code 字段 Wind 后缀与 exchange 字段不一致警告 (默认行为, 不阻断)。
+
+    场景: code="600519.SH" 但 exchange="SZSE" → 撮合引擎 order.code == event.code
+    裸串比较虽匹配, 但语义错误 (跨市场代码); 默认仅 warning, strict 模式抛
+    CodeExchangeMismatchError。
+
+    独立 Warning 子类便于上层用 warnings.simplefilter("error", ...) 精准升级。
+    """
+
+
+class CodeExchangeMismatchError(ValueError):
+    """code 字段 Wind 后缀与 exchange 字段不一致 (strict 模式抛出, 不降级)。
+
+    与 utils.contracts.symbols.SymbolParseError 同属"防前视偏差硬门禁"范式:
+    错误的 code/exchange 组合可能导致撮合引擎/风控引擎静默跳过订单。
+
+    Attributes:
+        code: code 字段值
+        exchange: exchange 字段值
+        expected_exchange: 由 code 后缀规范化的预期交易所
+        cls_name: 触发校验的数据类名
+    """
+
+    def __init__(
+        self,
+        code: str,
+        exchange: str,
+        expected_exchange: str,
+        cls_name: str,
+    ) -> None:
+        self.code = code
+        self.exchange = exchange
+        self.expected_exchange = expected_exchange
+        self.cls_name = cls_name
+        super().__init__(
+            f"{cls_name}: code={code!r} 后缀暗示交易所 {expected_exchange!r}, "
+            f"但 exchange={exchange!r}; "
+            f"撮合引擎 order.code == event.code 比较可能不匹配"
+        )
+
+
+# strict 模式开关
+#   默认 False (仅 warning, 向后兼容)
+#   环境变量 WT_STRUCTS_STRICT_SYMBOL=1/true/yes/on 启用 (生产 hot path 临时收紧)
+#   strict_symbol_validation() 上下文管理器用于测试与临时收紧/放宽
+_STRICT_VALIDATION: bool = os.environ.get(
+    "WT_STRUCTS_STRICT_SYMBOL", ""
+).lower() in ("1", "true", "yes", "on")
+
+
+@contextmanager
+def strict_symbol_validation(enabled: bool = True) -> Iterator[None]:
+    """临时启用/禁用 strict 校验 (上下文管理器)。
+
+    用法 1 — 测试中临时启用 strict:
+        with strict_symbol_validation():
+            TickData(code="600519.SH", exchange="SZSE", ...)  # 抛 CodeExchangeMismatchError
+
+    用法 2 — 批量构造历史数据时临时关闭:
+        with strict_symbol_validation(enabled=False):
+            ...
+    """
+    global _STRICT_VALIDATION
+    prev = _STRICT_VALIDATION
+    _STRICT_VALIDATION = enabled
+    try:
+        yield
+    finally:
+        _STRICT_VALIDATION = prev
+
+
+def is_strict_symbol_validation() -> bool:
+    """查询当前 strict 校验开关状态。"""
+    return _STRICT_VALIDATION
+
+
+def _validate_code_exchange(code: str, exchange: str, cls_name: str) -> None:
+    """校验 code 字段的 Wind 后缀与 exchange 字段一致。
+
+    跳过条件 (向后兼容, 不阻断既有调用):
+        - code 为空或不含 "." (裸码 "600519")
+        - exchange 为空或为 "UNKNOWN" (adapters.py 退化场景)
+        - code 后缀不是已知交易所后缀 (".FOO") — 交由 parse_symbol strict 模式负责
+
+    触发条件:
+        - code 后缀规范化的交易所 ≠ exchange 字段 (大小写不敏感)
+        - 默认 RuntimeWarning; strict 模式抛 CodeExchangeMismatchError
+    """
+    if not code or "." not in code:
+        return
+    if not exchange or exchange.upper() == "UNKNOWN":
+        return
+    suffix = code.rsplit(".", 1)[-1].upper()
+    try:
+        expected = normalize_exchange(suffix)
+    except SymbolParseError:
+        return  # 未知后缀, 不校验 (避免误报)
+    if exchange.upper() != expected:
+        msg = (
+            f"{cls_name}: code={code!r} 后缀 {suffix!r} 暗示交易所 {expected!r}, "
+            f"但 exchange={exchange!r}; "
+            f"撮合引擎 order.code == event.code 比较可能不匹配"
+        )
+        if _STRICT_VALIDATION:
+            raise CodeExchangeMismatchError(code, exchange, expected, cls_name)
+        _warnings.warn(msg, CodeExchangeMismatchWarning, stacklevel=3)
 
 
 @dataclass
@@ -27,10 +155,19 @@ class TickData:
     ask_prices: list[float] = field(default_factory=list)  # 卖价队列
     bid_volumes: list[float] = field(default_factory=list)  # 买量队列
     ask_volumes: list[float] = field(default_factory=list)  # 卖量队列
-    timestamp: float = 0.0  # Unix 时间戳
+    timestamp: float = 0.0  # Unix 时间戳 (秒, 浮点)
     datetime_str: str = ""  # "YYYY-MM-DD HH:MM:SS"
     date: int = 0  # YYYYMMDD
     time: int = 0  # HHMMSS
+    # W6.3.2 新增: 确定性事件时钟字段 (nautilus_trader 风格)
+    #   ts_event: 事件发生时间, 纳秒级 UNIX 时间戳 int64, 默认 0 表示未设置 (退化到 MONOTONIC_INDEX)
+    #   ts_init:  系统接收时间, 纳秒级 UNIX 时间戳 int64, 用于延迟监控 (可选, 默认 0)
+    # 向后兼容: 未设置时, EventDrivenEngine 默认用 MONOTONIC_INDEX 模式
+    ts_event: int = 0  # int, 纳秒级 UNIX 时间戳 (uint64 范围, 用 Python int 不会溢出)
+    ts_init: int = 0   # int, 纳秒级 UNIX 时间戳
+
+    def __post_init__(self) -> None:
+        _validate_code_exchange(self.code, self.exchange, "TickData")
 
 
 @dataclass
@@ -50,6 +187,14 @@ class BarData:
     time: int = 0  # HHMMSS (日K为0)
     turnover: float = 0.0  # 换手率
     open_interest: float = 0.0  # 持仓量(期货)
+    # W6.3.2 新增: 确定性事件时钟字段 (nautilus_trader 风格)
+    #   含义同 TickData.ts_event/ts_init, Bar 用 period 结束时刻作为 ts_event
+    #   向后兼容: 默认 0, EventDrivenEngine 自动退化到 MONOTONIC_INDEX
+    ts_event: int = 0  # int, 纳秒级 UNIX 时间戳
+    ts_init: int = 0   # int, 纳秒级 UNIX 时间戳
+
+    def __post_init__(self) -> None:
+        _validate_code_exchange(self.code, self.exchange, "BarData")
 
 
 @dataclass
@@ -69,6 +214,9 @@ class OrderData:
     timestamp: float = 0.0
     datetime_str: str = ""
 
+    def __post_init__(self) -> None:
+        _validate_code_exchange(self.code, self.exchange, "OrderData")
+
 
 @dataclass
 class TradeData:
@@ -86,6 +234,9 @@ class TradeData:
     timestamp: float = 0.0
     datetime_str: str = ""
 
+    def __post_init__(self) -> None:
+        _validate_code_exchange(self.code, self.exchange, "TradeData")
+
 
 @dataclass
 class PositionData:
@@ -101,6 +252,9 @@ class PositionData:
     last_price: float = 0.0  # 最新价
     position_profit: float = 0.0  # 持仓盈亏
     position_cost: float = 0.0  # 持仓成本
+
+    def __post_init__(self) -> None:
+        _validate_code_exchange(self.code, self.exchange, "PositionData")
 
 
 @dataclass
@@ -120,6 +274,9 @@ class ContractData:
     volume_multiple: float = 1.0  # 数量乘数(ETF=100, 股票=1)
     listing_date: str = ""  # 上市日期
     expiry_date: str = ""  # 到期日(期货/期权)
+
+    def __post_init__(self) -> None:
+        _validate_code_exchange(self.code, self.exchange, "ContractData")
 
 
 def tick_to_dict(tick: TickData) -> dict:
@@ -166,11 +323,15 @@ def bar_to_dict(bar: BarData) -> dict:
 
 __all__ = [
     "BarData",
+    "CodeExchangeMismatchError",
+    "CodeExchangeMismatchWarning",
     "ContractData",
     "OrderData",
     "PositionData",
     "TickData",
     "TradeData",
     "bar_to_dict",
+    "is_strict_symbol_validation",
+    "strict_symbol_validation",
     "tick_to_dict",
 ]

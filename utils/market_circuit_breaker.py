@@ -65,9 +65,9 @@ class MarketCircuitBreaker:
 
     def __init__(
         self,
-        l2_threshold: float | None = None,  # type: ignore[misc]
-        l3_threshold: float | None = None,  # type: ignore[misc]
-        fail_closed_pct: float | None = None,  # type: ignore[misc]
+        l2_threshold: float | None = None,
+        l3_threshold: float | None = None,
+        fail_closed_pct: float | None = None,
         ):
         """初始化大盘熔断监控器
 
@@ -237,11 +237,11 @@ class MarketCircuitBreaker:
         # Layer 1: astock_realtime (沪深300ETF 实时行情)
         change_pct, ok = self._fetch_via_astock()
         if ok:
-            return change_pct, "astock_realtime"  # type: ignore[misc]
+            return float(change_pct), "astock_realtime"
         # Layer 2: akshare (全市场指数快照)
         change_pct, ok = self._fetch_via_akshare()
         if ok:
-            return change_pct, "akshare"  # type: ignore[misc]
+            return float(change_pct), "akshare"
         # Layer 3: fail-closed (保守保护)
         logger.error(
             "[MarketCircuitBreaker] 所有数据源不可用, fail-closed 返回 %.2f%%",

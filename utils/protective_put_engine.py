@@ -41,7 +41,7 @@ import logging
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict, cast
 
 logger = logging.getLogger("protective_put_engine")
 
@@ -50,6 +50,17 @@ CONFIG_DIR = BASE_DIR / "config"
 REPORTS_DIR = BASE_DIR / "v8.3_institutional" / "reports"
 TRADE_PLANS_DIR = BASE_DIR / "v8.3_institutional" / "trade_plans"
 PUT_STATE_FILE = BASE_DIR / "cache" / "protective_put_state.json"
+
+
+class ProtectionTarget(TypedDict):
+    """认沽保护目标结构 — 根除 PROTECTION_TARGETS [index] 索引"""
+    code: str
+    name: str
+    exchange: str
+    contracts: int
+    priority: int
+    reason: str
+    budget_pct: float
 
 
 class ProtectivePutEngine:
@@ -74,7 +85,7 @@ class ProtectivePutEngine:
     TOTAL_CAPITAL = 5_000_000  # 总资本
 
     # 保护目标 ETF 配置 (v8.4 OPTIONS_ONLY: 200万纯期权对冲, 无期货)
-    PROTECTION_TARGETS = [
+    PROTECTION_TARGETS: list[ProtectionTarget] = [
         {
             "code": "510050",
             "name": "上证50ETF",
@@ -113,9 +124,9 @@ class ProtectivePutEngine:
         },
     ]
 
-    def __init__(self, total_capital: float | None = None):  # type: ignore[misc]
+    def __init__(self, total_capital: float | None = None):
         if total_capital is not None:
-            self.TOTAL_CAPITAL = total_capital  # type: ignore[assignment]
+            self.TOTAL_CAPITAL = float(total_capital)
         self._load_state()
 
     def _load_state(self):
@@ -164,7 +175,8 @@ class ProtectivePutEngine:
         # 尝试匹配 code.SH 或 code.SZ
         for key, pos in positions.get("positions", {}).items():
             if key.startswith(code) or pos.get("code", "").startswith(code):
-                return pos.get("est_price", 0)  # type: ignore[index]
+                price_val = cast(dict[str, Any], pos).get("est_price", 0)
+                return float(price_val) if isinstance(price_val, (int, float)) else 0.0
         return 0
 
     def _estimate_put_premium(self, spot: float, strike: float, dte: int, iv: float = 0.25) -> float:
@@ -190,7 +202,7 @@ class ProtectivePutEngine:
 
         put_price = strike * math.exp(-r * T) * norm.cdf(-d2) - spot * norm.cdf(-d1)
 
-        return max(put_price, 0.0001)  # type: ignore[no-any-return]  # 最低价
+        return float(max(put_price, 0.0001))  # 最低价
 
     def should_buy_protection(self) -> tuple[bool, str]:
         """判断是否需要买入认沽保护
@@ -279,7 +291,7 @@ class ProtectivePutEngine:
 
         for target in self.PROTECTION_TARGETS:
             code = target["code"]
-            spot = self._get_etf_spot_price(code)  # type: ignore[union-attr]
+            spot = self._get_etf_spot_price(code)
             if spot <= 0:
                 logger.warning(f"无法获取 {code} 现价, 跳过")
                 continue
@@ -288,7 +300,7 @@ class ProtectivePutEngine:
             strike = round(spot * (1 - self.OTM_PCT), 4)
 
             # 合约数 (回撤加码)
-            contracts = int(target["contracts"] * contract_multiplier)  # type: ignore[index]
+            contracts = int(target["contracts"] * contract_multiplier)
 
             # 到期日选择: 下月第4个周三 (中国ETF期权到期日)
             expiry_date = self._calc_next_expiry()
@@ -396,7 +408,7 @@ class ProtectivePutEngine:
             "new_orders": new_orders.get("orders", []),
         }
 
-    def record_execution(self, orders: list[dict], actual_premium: float | None = None):  # type: ignore[misc]
+    def record_execution(self, orders: list[dict], actual_premium: float | None = None):
         """记录执行结果, 更新状态"""
         if actual_premium is None:
             actual_premium = sum(o.get("premium_total", 0) for o in orders)

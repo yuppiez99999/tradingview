@@ -35,6 +35,9 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
+# W6.3.3 Step 3: 统一合约规格注册表入口 (替代 CONTRACT_SPECS dict + ~10 处 type: ignore)
+from utils.contracts.registry import ContractSpec, default_registry
+
 logger = logging.getLogger("directional_futures")
 
 # ============================================================
@@ -53,38 +56,43 @@ WEEKLY_CONSECUTIVE_LOSS_MAX_PCT = 0.25  # 周连续亏损 25%
 LOSS_PAUSE_DAYS = 7  # 连续亏损暂停 7 天
 
 # 合约规格
-CONTRACT_SPECS = {
-    "CU": {
-        "name": "沪铜期货",
-        "exchange": "SHFE",
-        "multiplier": 5,  # 5 吨/手
-        "margin_rate": 0.09,  # 保证金 9%
-        "tick_size": 10,  # 最小变动 10 元/吨
-        "price_unit": "元/吨",
-        "purpose": "new_energy_demand",  # 新能源需求
-        "default_direction": "long",
-    },
-    "AU": {
-        "name": "黄金期货",
-        "exchange": "SHFE",
-        "multiplier": 1000,  # 1000 克/手
-        "margin_rate": 0.06,  # 保证金 6%
-        "tick_size": 0.02,  # 最小变动 0.02 元/克
-        "price_unit": "元/克",
-        "purpose": "safe_haven",  # 避险
-        "default_direction": "long",
-    },
-    "T": {
-        "name": "10年国债期货",
-        "exchange": "CFFEX",
-        "multiplier": 10_000,  # 面值 1万/点 (实际是 100万/手, 但报价是点数)
-        "margin_rate": 0.02,  # 保证金 2%
-        "tick_size": 0.005,  # 最小变动 0.005 元
-        "price_unit": "元",
-        "purpose": "rate_directional",  # 利率方向
-        "default_direction": "short",
-    },
+# W6.3.3 Step 3: 真实来源为 utils.contracts.registry.default_registry
+# (3 来源整合 13 品种, 见 registry.py)。保留 CONTRACT_SPECS 为兼容层 (生成自注册表),
+# 避免外部模块直接 import CONTRACT_SPECS 的引用被破坏。
+# 原硬编码 dict: CU/AU/T 9 字段已与 registry 全对齐验证 (test_registry.py)
+_CONTRACT_SPECS_SOURCES: list[tuple[str, str, str, float, float, float, str, str, str]] = [
+    ("CU", "沪铜期货", "SHFE", 5, 0.09, 10, "元/吨", "new_energy_demand", "long"),
+    ("AU", "黄金期货", "SHFE", 1000, 0.06, 0.02, "元/克", "safe_haven", "long"),
+    ("T", "10年国债期货", "CFFEX", 10_000, 0.02, 0.005, "元", "rate_directional", "short"),
+]
+
+CONTRACT_SPECS: dict[str, dict[str, Any]] = {
+    _prod: {
+        "name": _name,
+        "exchange": _exc,
+        "multiplier": _mult,
+        "margin_rate": _mrg,
+        "tick_size": _tick,
+        "price_unit": _pun,
+        "purpose": _purp,
+        "default_direction": _dir,
+    } for (_prod, _name, _exc, _mult, _mrg, _tick, _pun, _purp, _dir) in _CONTRACT_SPECS_SOURCES
 }
+
+
+def _get_spec(symbol: str) -> ContractSpec:
+    """按品种代码查询合约规格 (类型安全, 替代 CONTRACT_SPECS dict 索引)。
+
+    保证: symbol ∈ CONTRACT_SPECS.keys() 时永不返回 None, 与旧 dict key 范围一致。
+    未注册品种抛出 SymbolParseError 风格错误 (严格门禁)。
+    """
+    spec = default_registry.lookup(symbol)
+    if spec is None:
+        raise KeyError(
+            f"[directional_futures_trader] 未注册期货品种 {symbol!r}: "
+            f"已注册列表 = {default_registry.all_products()}"
+        )
+    return spec
 
 
 # ============================================================
@@ -181,13 +189,13 @@ class DirectionalFuturesTrader:
         """
         signals = []
         for symbol in self.symbols:
-            spec = CONTRACT_SPECS[symbol]
+            spec = _get_spec(symbol)
             data = market_data.get(symbol, {})
             closes = data.get("closes", [])
 
             signal = FuturesSignal(
                 symbol=symbol,
-                name=spec["name"],  # type: ignore[index]
+                name=spec.name,
                 )
 
             if len(closes) < 60:
@@ -213,7 +221,7 @@ class DirectionalFuturesTrader:
             rsi_signal = 1 if rsi > 50 else -1
 
             # 默认方向 (品种属性)
-            default_dir = spec["default_direction"]
+            default_dir = spec.default_direction
             default_factor = 1 if default_dir == "long" else -1
 
             # 综合方向投票 (3 票技术 + 1 票品种属性)
@@ -326,9 +334,9 @@ class DirectionalFuturesTrader:
         Returns:
             (contracts, notional_value, required_margin)
         """
-        spec = CONTRACT_SPECS[symbol]
-        multiplier = spec["multiplier"]
-        margin_rate = spec["margin_rate"]
+        spec = _get_spec(symbol)
+        multiplier = spec.multiplier
+        margin_rate = spec.margin_rate
 
         if signal.direction == "flat" or signal.strength < 0.3:
             return 0, 0.0, 0.0
@@ -337,13 +345,13 @@ class DirectionalFuturesTrader:
         # 保证金 = 名义价值 × 保证金率
         # 按信号强度分配资金
         budget = self.per_symbol_budget * signal.strength
-        one_contract_margin = current_price * multiplier * margin_rate  # type: ignore[misc]
+        one_contract_margin = current_price * multiplier * margin_rate
         if one_contract_margin <= 0:
             return 0, 0.0, 0.0
 
         contracts = max(1, int(budget // one_contract_margin))
-        notional = contracts * current_price * multiplier  # type: ignore[misc]
-        margin = notional * margin_rate  # type: ignore[misc]
+        notional = contracts * current_price * multiplier
+        margin = notional * margin_rate
         return contracts, notional, margin
 
     # ------------------------------------------------------------
@@ -419,7 +427,7 @@ class DirectionalFuturesTrader:
 
         for signal in signals:
             symbol = signal.symbol
-            spec = CONTRACT_SPECS[symbol]
+            spec = _get_spec(symbol)
             price = prices.get(symbol, 0)
             current = current_positions.get(symbol, {})
             current_dir = current.get("direction", "flat")
@@ -461,8 +469,8 @@ class DirectionalFuturesTrader:
 
             order = FuturesOrder(
                 symbol=symbol,
-                name=spec["name"],  # type: ignore[index]
-                exchange=spec["exchange"],  # type: ignore[index]
+                name=spec.name,
+                exchange=spec.exchange,
                 action=action,
                 direction=target_dir,
                 contracts=contracts,
@@ -487,16 +495,16 @@ class DirectionalFuturesTrader:
         reason: str,
     ) -> FuturesOrder:
         """构建平仓指令"""
-        spec = CONTRACT_SPECS[symbol]
+        spec = _get_spec(symbol)
         return FuturesOrder(
             symbol=symbol,
-            name=spec["name"],  # type: ignore[index]
-            exchange=spec["exchange"],  # type: ignore[index]
+            name=spec.name,
+            exchange=spec.exchange,
             action="close_long" if position.get("direction") == "long" else "close_short",
             direction="flat",
             contracts=position.get("contracts", 0),
             price=price,
-            notional_value=position.get("contracts", 0) * price * spec["multiplier"],
+            notional_value=position.get("contracts", 0) * price * spec.multiplier,
             required_margin=0,
             trade_date=trade_date.isoformat(),
             rationale=reason,
@@ -705,20 +713,22 @@ if __name__ == "__main__":
 
     # 模拟市场数据
     random.seed(42)
-    market_data = {}
+    market_data: dict[str, dict[str, list[float]]] = {}
     for symbol in trader.symbols:
-        base_price = {"CU": 75000, "AU": 550, "T": 100}[symbol]
-        closes = [base_price]
+        base_price: float = {"CU": 75000, "AU": 550, "T": 100}[symbol]
+        closes: list[float] = [base_price]
         for _ in range(60):
-            closes.append(closes[-1] * (1 + random.uniform(-0.02, 0.025)))  # type: ignore[index]
+            closes.append(closes[-1] * (1 + random.uniform(-0.02, 0.025)))
             market_data[symbol] = {"closes": closes}
 
-    prices = {symbol: data["closes"][-1] for symbol, data in market_data.items()}
+    prices: dict[str, float] = {
+        symbol: data["closes"][-1] for symbol, data in market_data.items()
+    }
 
     result = trader.run(
         market_data=market_data,
         current_positions={},
-        prices=prices,  # type: ignore[misc]
+        prices=prices,
         trade_date=date(2026, 7, 14),
     )
 

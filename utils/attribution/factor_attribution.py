@@ -431,13 +431,13 @@ class FactorAttributionResult:
         if self.concentrated_factors:
             lines.append(f"## 暴露集中因子 (|exposure| > {CONCENTRATION_THRESHOLD})")
             lines.append("")
-            for f in self.concentrated_factors:  # type: ignore[misc]
+            for f in self.concentrated_factors:
                 lines.append(f"- `{f}`")
             lines.append("")
         if self.missing_factors:
             lines.append(f"## 暴露缺失因子 (exposure < {MISSING_THRESHOLD})")
             lines.append("")
-            for f in self.missing_factors:  # type: ignore[misc]
+            for f in self.missing_factors:
                 lines.append(f"- `{f}`")
             lines.append("")
         return "\n".join(lines)

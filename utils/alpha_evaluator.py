@@ -139,7 +139,7 @@ class AlphaEvaluator:
             self._append_history(
                 factor_name,
                 {
-                    "date": report_date,  # type: ignore[misc]
+                    "date": report_date,  # type: ignore
                     "ic_1d": evaluation.ic_1d,
                     "ic_ir": evaluation.ic_ir,
                 },

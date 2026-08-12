@@ -617,8 +617,8 @@ class ExternalDataManager:
         # 检查缓存
         cached = self._load_cache("macro", "snapshot")
         if cached:
-            return cached  # type: ignore[misc]
-        snapshot = {}
+            return cast(Dict, cached)
+        snapshot: Dict[str, Any] = {}
 
         # FRED 宏观指标
         if self.fred.available:
@@ -629,7 +629,7 @@ class ExternalDataManager:
         # 国债收益率
         treasury_yields = self.treasury.get_treasury_yields()
         if treasury_yields:
-            snapshot["treasury_yields"] = treasury_yields  # type: ignore[index]
+            snapshot["treasury_yields"] = treasury_yields
         # 加密货币市场情绪 (风险偏好指标)
         crypto_global = self.coingecko.get_global_market()
         if crypto_global:
@@ -651,7 +651,7 @@ class ExternalDataManager:
         # 检查缓存
         cached = self._load_cache("stock", symbol)
         if cached:
-            return cached  # type: ignore[misc]
+            return cast(Dict, cached)
         quote = None
 
         # 优先级 1: Finnhub
@@ -671,7 +671,7 @@ class ExternalDataManager:
         """获取加密货币价格"""
         cached = self._load_cache("crypto", coin_id)
         if cached:
-            return cached  # type: ignore[misc]
+            return cast(Dict, cached)
         quote = self.coingecko.get_price(coin_id)
         if quote:
             self._save_cache("crypto", coin_id, quote)
@@ -682,7 +682,7 @@ class ExternalDataManager:
         """获取市场新闻"""
         cached = self._load_cache("news", "market")
         if cached:
-            return cached  # type: ignore[misc]
+            return cast(List[Dict], cached)
         news = self.finnhub.get_market_news("general") if self.finnhub.available else []
 
         if news:
@@ -702,8 +702,8 @@ class ExternalDataManager:
         """
         snapshot = self.get_macro_snapshot()
 
-        sentiment = {  # type: ignore[misc]
-        "timestamp": datetime.now().isoformat(),
+        sentiment: Dict[str, Any] = {
+            "timestamp": datetime.now().isoformat(),
             "vix_proxy": None,
             "treasury_yield_curve": {},
             "fed_rate": None,

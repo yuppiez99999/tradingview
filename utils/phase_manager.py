@@ -466,7 +466,7 @@ class PhaseManager:
         # 2. 策略有效性检验
         phase = self.get_current_phase(today)
         result.strategy_effectiveness = {
-            "phase": phase.phase_name,  # type: ignore[misc]
+            "phase": phase.phase_name,
             "target_return": phase.target_return,
             "max_drawdown_limit": phase.max_drawdown,
             "leverage_target": phase.leverage_target,
@@ -707,11 +707,12 @@ if __name__ == "__main__":
     if args.liquidation:
         if pm.is_liquidation_phase(sim_date):
             actions = pm.get_liquidation_actions(sim_date)
-            logger.info(f"\n2030 清仓动作 ({actions.get('period', '')}):")  # type: ignore[index]
-            logger.info(f"  名称: {actions.get('name', '')}")  # type: ignore[index]
-            logger.info("  动作:")
-            for action in actions.get("actions", []):  # type: ignore[index]
-                logger.info(f"    - {action}")
+            if actions is not None:
+                logger.info(f"\n2030 清仓动作 ({actions.get('period', '')}):")
+                logger.info(f"  名称: {actions.get('name', '')}")
+                logger.info("  动作:")
+                for action in actions.get("actions", []):
+                    logger.info(f"    - {action}")
             logger.info("\n清仓顺序:")
             for i, step in enumerate(pm.get_liquidation_order(), 1):
                 logger.info(f"  {i}. {step}")

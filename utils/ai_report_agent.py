@@ -222,7 +222,7 @@ class AIReportAgent:
                 model = result.split("] ", 1)[0][1:]
                 result = result.split("] ", 1)[1]
             self._record_audit("llm_call", model, prompt, result, elapsed_ms, True)
-            return result  # type: ignore[misc]
+            return result  # type: ignore
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.warning(f"LLM 调用失败: {e}")
             self._record_audit("llm_call", "error", prompt, str(e), 0, False, str(e))

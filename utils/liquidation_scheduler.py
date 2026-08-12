@@ -23,6 +23,7 @@ import json
 import logging
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any, List, Optional, TypedDict, Union, cast
 
 import yaml
 
@@ -31,6 +32,27 @@ logger = logging.getLogger("liquidation")
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = BASE_DIR / "configs" / "portfolio.yaml"
 LOG_FILE = BASE_DIR / "logs" / "liquidation_events.jsonl"
+
+
+class LiquidationPhaseInfo(TypedDict, total=False):
+    """清仓阶段信息 (字段在不同 phase 下可能缺失, 用 total=False)"""
+
+    phase: Union[int, str]  # 0/1/2/3 或 "complete"
+    name: str
+    period: str
+    actions: List[str]
+    target: str
+    days_to_next_phase: int
+
+
+class ScheduleEntry(TypedDict, total=False):
+    """get_schedule 返回项 (无 days_to_next_phase)"""
+
+    phase: int
+    name: str
+    period: str
+    actions: List[str]
+    target: str
 
 
 class LiquidationScheduler:
@@ -74,7 +96,7 @@ class LiquidationScheduler:
             portfolio_cfg = get_config("portfolio")
             cfg = portfolio_cfg.get("liquidation_protocol", {})
             if cfg:
-                return cfg  # type: ignore[misc]
+                return cast(dict, cfg)
             # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
@@ -89,7 +111,7 @@ class LiquidationScheduler:
                 logger.error(f"全部加载路径失败: {e2}")
                 return {}
 
-    def get_current_phase(self, today: date | None = None) -> dict | None:
+    def get_current_phase(self, today: date | None = None) -> Optional[LiquidationPhaseInfo]:
         """获取当前应执行的清仓阶段
 
         Args:
@@ -161,7 +183,7 @@ class LiquidationScheduler:
             "days_to_next_phase": days_to_phase_1,
         }
 
-    def get_schedule(self) -> list[dict]:
+    def get_schedule(self) -> List[ScheduleEntry]:
         """获取完整清仓时间表
 
         Returns:
@@ -197,7 +219,7 @@ class LiquidationScheduler:
             },
         ]
 
-    def check_alert(self, days_threshold: int = 30) -> dict | None:
+    def check_alert(self, days_threshold: int = 30) -> Optional[dict]:
         """检查是否需要清仓预警
 
         Args:
@@ -207,10 +229,14 @@ class LiquidationScheduler:
             预警信息 (None 表示无需预警)
         """
         current = self.get_current_phase()
+        if current is None:
+            return None
 
-        if current["phase"] == 0:  # type: ignore[index]
+        phase_val = current.get("phase")
+        days_left = current.get("days_to_next_phase", 0)
+
+        if phase_val == 0:
             # 正常运行期, 检查是否临近 Phase 1
-            days_left = current["days_to_next_phase"]  # type: ignore[index]
             if days_left <= days_threshold:
                 return {
                     "alert": True,
@@ -224,15 +250,14 @@ class LiquidationScheduler:
                     ],
                 }
 
-        elif current["phase"] in (1, 2):  # type: ignore[index]
-            days_left = current["days_to_next_phase"]  # type: ignore[index]
+        elif phase_val in (1, 2):
             if days_left <= 7:
                 return {
                     "alert": True,
-                    "type": f"phase_{current['phase']}_ending",  # type: ignore[index]
+                    "type": f"phase_{phase_val}_ending",
                     "days_left": days_left,
-                    "message": f"Phase {current['phase']} 即将结束, 请准备下一阶段",  # type: ignore[index]
-                    "next_actions": self.get_current_phase()["actions"],  # type: ignore[index]
+                    "message": f"Phase {phase_val} 即将结束, 请准备下一阶段",
+                    "next_actions": current.get("actions", []),
                 }
 
         return None
@@ -273,17 +298,22 @@ if __name__ == "__main__":
 
     if args.current or (not args.schedule and not args.alert):
         phase = sched.get_current_phase(sim_date)
-        logger.info("\n=== 当前清仓阶段 ===")
-        logger.info(f"Phase: {phase['phase']}")  # type: ignore[index]
-        logger.info(f"名称: {phase['name']}")  # type: ignore[index]
-        logger.info(f"周期: {phase['period']}")  # type: ignore[index]
-        logger.info(f"距下一阶段: {phase['days_to_next_phase']} 天")  # type: ignore[index]
-        if phase.get("actions"):  # type: ignore[index]
-            logger.info("\n动作:")
-            for a in phase["actions"]:  # type: ignore[index]
-                logger.info(f"  - {a}")
-        if phase.get("target"):  # type: ignore[index]
-            logger.info(f"目标: {phase['target']}")  # type: ignore[index]
+        if phase is None:
+            logger.info("无法获取当前阶段")
+        else:
+            logger.info("\n=== 当前清仓阶段 ===")
+            logger.info(f"Phase: {phase.get('phase')}")
+            logger.info(f"名称: {phase.get('name', '')}")
+            logger.info(f"周期: {phase.get('period', '')}")
+            logger.info(f"距下一阶段: {phase.get('days_to_next_phase', 0)} 天")
+            actions = phase.get("actions")
+            if actions:
+                logger.info("\n动作:")
+                for a in actions:
+                    logger.info(f"  - {a}")
+            target = phase.get("target")
+            if target:
+                logger.info(f"目标: {target}")
 
     if args.schedule:
         logger.info("\n=== 完整清仓时间表 ===")

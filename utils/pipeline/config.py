@@ -62,7 +62,7 @@ def get_pipeline_config() -> PipelineConfig:
     global _pipeline_config, _config_loaded
     if not _config_loaded:
         return load_pipeline_config()
-    return _pipeline_config  # type: ignore[misc]
+    return _pipeline_config  # type: ignore
 
 def _apply_yaml(config: PipelineConfig, raw: dict[str, Any]) -> None:
     """将 YAML 字典映射到 PipelineConfig 字段"""

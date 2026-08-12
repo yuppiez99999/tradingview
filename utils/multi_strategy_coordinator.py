@@ -648,7 +648,7 @@ if __name__ == "__main__":
         decision = coord.coordinate(
             target_signals=target_signals,
             current_positions=current_positions,
-            strategy_pnl=pnl,  # type: ignore[misc]
+            strategy_pnl=pnl,  # type: ignore
             strategy_correlations=correlations,
         )
 

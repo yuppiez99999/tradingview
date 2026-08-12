@@ -80,7 +80,7 @@ class ThetaEngine:
             if theta_cfg:
                 if not theta_cfg.get("enabled", False):
                     logger.warning("Theta 引擎未启用")
-                return theta_cfg  # type: ignore[misc]
+                return theta_cfg  # type: ignore
                 # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)

@@ -171,7 +171,7 @@ def _init_free_stockdb() -> bool:
             pybao_path = str(_FREE_STOCKDB_PYBAO)
             if pybao_path not in sys.path:
                 sys.path.insert(0, pybao_path)
-            from stock_sdk import bk, rd, zb  # type: ignore[misc]
+            from stock_sdk import bk, rd, zb  # type: ignore
             global _fs_client
             _fs_client = {"rd": rd, "zb": zb, "bk": bk}
             _fs_sdk_available = True

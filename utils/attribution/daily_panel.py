@@ -44,11 +44,21 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, cast
 
 from utils.config_manager import get_config
 
 logger = logging.getLogger(__name__)
+
+# FeatureFlags 前向声明 (模块级) — 根除 5 处局部 try import ignore
+# is_enabled 是类方法，返回 True/False；缺失/异常一律降级 False (保守 fail-open)
+_FeatureFlags: Optional[type]
+try:
+    from utils.infra.feature_flags import FeatureFlags as _FFClass
+
+    _FeatureFlags = _FFClass
+except Exception:  # noqa: BLE001
+    _FeatureFlags = None
 
 
 # ============================================================
@@ -863,11 +873,12 @@ class DailyAttributionPanel:
             "risk_bps": float(summary.get("risk_bps", 0.0) or 0.0),
         }
         # 残差验证 (total = alpha + execution + risk)
+        normalized_dict = cast(dict[str, Any], normalized)
         residual = (
-            normalized["total_pnl"]  # type: ignore[index]
-            - normalized["alpha_pnl"]
-            - normalized["execution_pnl"]
-            - normalized["risk_pnl"]
+            normalized_dict["total_pnl"]
+            - normalized_dict["alpha_pnl"]
+            - normalized_dict["execution_pnl"]
+            - normalized_dict["risk_pnl"]
         )
         if abs(residual) > self._residual_tolerance:
             logger.warning(f"[DailyAttributionPanel] TCA 残差 {residual:.6f} 超过容差 {self._residual_tolerance}")
@@ -1013,40 +1024,41 @@ class DailyAttributionPanel:
 
     def _is_feature_flag_enabled(self) -> bool:
         """查询本面板的 Feature Flag."""
+        if _FeatureFlags is None:
+            return False
         try:
-            from utils.infra.feature_flags import FeatureFlags
-
-            return bool(FeatureFlags.is_enabled(self._feature_flag_name))  # type: ignore[misc]
+            return bool(_FeatureFlags.is_enabled(self._feature_flag_name))
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
-            # FeatureFlags 不可用时默认 False (HC-1 保守降级)
             return False
 
     def _is_brinson_flag_enabled(self) -> bool:
         """查询 Brinson 子模块 Feature Flag."""
+        if _FeatureFlags is None:
+            return False
         try:
             from utils.attribution.brinson_attribution import FLAG_NAME as BRINSON_FLAG
-            from utils.infra.feature_flags import FeatureFlags
 
-            return bool(FeatureFlags.is_enabled(BRINSON_FLAG))  # type: ignore[misc]
+            return bool(_FeatureFlags.is_enabled(BRINSON_FLAG))
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
     def _is_factor_flag_enabled(self) -> bool:
         """查询 Factor 子模块 Feature Flag."""
+        if _FeatureFlags is None:
+            return False
         try:
             from utils.attribution.factor_attribution import FLAG_NAME as FACTOR_FLAG
-            from utils.infra.feature_flags import FeatureFlags
 
-            return bool(FeatureFlags.is_enabled(FACTOR_FLAG))  # type: ignore[misc]
+            return bool(_FeatureFlags.is_enabled(FACTOR_FLAG))
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
     def _is_tca_flag_enabled(self) -> bool:
         """查询 TCA 子模块 Feature Flag."""
+        if _FeatureFlags is None:
+            return False
         try:
-            from utils.infra.feature_flags import FeatureFlags
-
-            return bool(FeatureFlags.is_enabled("USE_TCA_POST_TRADE_ATTRIBUTION"))  # type: ignore[misc]
+            return bool(_FeatureFlags.is_enabled("USE_TCA_POST_TRADE_ATTRIBUTION"))
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
@@ -1155,10 +1167,10 @@ class DailyAttributionPanel:
 
 def is_daily_panel_enabled() -> bool:
     """查询日级归因面板 Feature Flag 是否启用 (HC-1)."""
+    if _FeatureFlags is None:
+        return False
     try:
-        from utils.infra.feature_flags import FeatureFlags
-
-        return bool(FeatureFlags.is_enabled(FLAG_NAME))  # type: ignore[misc]
+        return bool(_FeatureFlags.is_enabled(FLAG_NAME))
     except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         return False
 

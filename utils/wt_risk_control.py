@@ -10,19 +10,73 @@ WonderTrader风格风控模块
 适用于增强现有系统的风控能力。
 """
 
+import json
 import math
+import os
+import sys
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 import logging
 
 logger = logging.getLogger(__name__)
+
+# scipy.stats 前向声明 (模块级) — 根除 student_t 局部 try import ignore
+scipy_stats: Optional[type]
+try:
+    from scipy import stats as _scipy_stats
+    scipy_stats = _scipy_stats
+except ImportError:
+    scipy_stats = None
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# G11 蒙特卡洛 CVaR 安全默认 (system_config.json risk_management.cvar 缺失时)
+_CVAR_CONFIG_DEFAULT = {
+    "method": "monte_carlo",
+    "distribution": "student_t",
+    "dof": 5,
+    "confidence_level": 0.95,
+    "n_paths": 50000,
+    "horizon_days": 1,
+    "seed": 42,
+}
+
+
+def _load_cvar_config() -> Dict:
+    """读取 system_config.json 的 risk_management.cvar 段 (G11).
+
+    失败 (文件缺失/JSON损坏/段不存在) 一律返回安全默认, fail-open 不阻断主流程.
+    """
+    try:
+        cfg_path = os.path.join(_PROJECT_ROOT, "config", "system_config.json")
+        with open(cfg_path, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+        cvar_cfg = cfg.get("risk_management", {}).get("cvar", {})
+        merged = dict(_CVAR_CONFIG_DEFAULT)
+        merged.update(cvar_cfg)
+        return merged
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[CVaR] 读取 system_config.json risk_management.cvar 失败, 使用默认配置: %s", exc)
+        return dict(_CVAR_CONFIG_DEFAULT)
 
 
 class RiskControl:
     """多层次风控管理器"""
 
+    # 类级可选属性显式注解 — 根除 __init__ 中 =0 / =0.0 单态窄化推断
+    config: Dict[str, Any]
+    daily_trades: int
+    daily_volume: float
+    daily_pnl: float
+    daily_loss: float
+    max_equity: float
+    current_equity: float
+    trading_enabled: bool
+    circuit_breaker_tripped: bool
+    circuit_breaker_reason: str
+
     def __init__(self, config: Optional[Dict] = None):
-        self.config = config or {
+        self.config = cast(Dict[str, Any], config) if config is not None else {
             "max_daily_loss_pct": 0.03,
             "max_portfolio_drawdown_pct": 0.05,
             "max_position_concentration_pct": 0.3,
@@ -35,7 +89,7 @@ class RiskControl:
         }
 
         self.daily_trades = 0
-        self.daily_volume = 0
+        self.daily_volume = 0.0
         self.daily_pnl = 0.0
         self.daily_loss = 0.0
         self.max_equity = 0.0
@@ -47,7 +101,7 @@ class RiskControl:
     def reset_daily(self):
         """重置每日统计"""
         self.daily_trades = 0
-        self.daily_volume = 0
+        self.daily_volume = 0.0
         self.daily_pnl = 0.0
         self.daily_loss = 0.0
 
@@ -117,7 +171,7 @@ class RiskControl:
     def record_trade(self, amount: float, volume: float, pnl: float = 0.0):
         """记录交易"""
         self.daily_trades += 1
-        self.daily_volume += volume  # type: ignore[misc]
+        self.daily_volume += volume
         self.daily_pnl += pnl
         if pnl < 0:
             self.daily_loss += abs(pnl)
@@ -282,7 +336,7 @@ class PortfolioRiskAnalyzer:
         normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
         total_value = sum(pos["qty"] * pos["avg_cost"] for pos in normalized.values())
         z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
-        return total_value * volatility * z_score  # type: ignore[misc]
+        return float(total_value * volatility * z_score)
     @staticmethod
     def calculate_cvar(
         positions: Dict,
@@ -292,6 +346,8 @@ class PortfolioRiskAnalyzer:
         n_paths: int = 50000,
         horizon_days: int = 1,
         seed: int = 42,
+        dist: str = "normal",
+        dof: int = 5,
     ) -> float:
         """计算条件在险价值(CVaR)
 
@@ -300,20 +356,24 @@ class PortfolioRiskAnalyzer:
                     组合日收益路径 (支持肥尾, 工业级 G11 增强).
             n_paths: 蒙特卡洛路径数 (仅 method="monte_carlo").
             horizon_days: 持有期(交易日), 组合净值路径模拟长度.
-            seed: 随机种子, 保证可复现.
+            seed: 随机种子, 保证可复现 (使用 np.random.default_rng, 无全局种子污染).
+            dist: 蒙特卡洛分布 "normal" | "student_t" (仅 method="monte_carlo";
+                  student_t 需做方差缩放校正保持目标 volatility, 交付肥尾风险).
+            dof: Student-t 自由度 (仅 dist="student_t").
         """
         normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
         total_value = sum(pos["qty"] * pos["avg_cost"] for pos in normalized.values())
         if method == "monte_carlo":
             return PortfolioRiskAnalyzer._cvar_monte_carlo(
-                total_value, volatility, confidence_level, n_paths, horizon_days, seed
+                total_value, volatility, confidence_level, n_paths, horizon_days, seed,
+                dist=dist, dof=dof,
             )
         # 默认解析正态 CVaR (对正态假设精确)
         z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
         cvar_factor = volatility * (
             z_score * math.exp(-(z_score**2) / 2) / (math.sqrt(2 * math.pi) * (1 - confidence_level))
         )
-        return total_value * cvar_factor  # type: ignore[misc]
+        return float(total_value * cvar_factor)
 
     @staticmethod
     def _cvar_monte_carlo(
@@ -323,22 +383,50 @@ class PortfolioRiskAnalyzer:
         n_paths: int,
         horizon_days: int,
         seed: int,
+        dist: str = "normal",
+        dof: int = 5,
     ) -> float:
-        """蒙特卡洛模拟组合收益路径, 取左尾条件均值 (G11 增强)."""
+        """蒙特卡洛模拟组合收益路径, 取左尾条件均值 (G11 增强).
+
+        分布说明:
+        - "normal": 标准正态, 与解析正态 CVaR 在大样本下收敛.
+        - "student_t": 肥尾分布, 对极端损失更敏感. 关键校正: Student-t(dof) 的
+          方差为 dof/(dof-2), 直接用会放大目标波动率, 故采样后对样本除以
+          sqrt(dof/(dof-2)) 做方差缩放, 保证 period_vol 与设定 volatility 一致.
+        """
         try:
             import numpy as np
         except ImportError:
             # numpy 不可用时回退解析 (不阻断主流程)
-            z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
-            cvar_factor = volatility * (
-                z_score * math.exp(-(z_score**2) / 2) / (math.sqrt(2 * math.pi) * (1 - confidence_level))
+            return PortfolioRiskAnalyzer._cvar_analytic(
+                total_value, volatility, confidence_level
             )
-            return total_value * cvar_factor
-        rng = np.random.default_rng(seed)
-        # 日波动率缩放至持有期
-        period_vol = volatility * math.sqrt(horizon_days)
-        # 模拟组合单期收益 (正态); 工业级可扩展为 Student-t 肥尾
-        returns = rng.normal(0.0, period_vol, size=n_paths)
+        if dist == "student_t":
+            if scipy_stats is None:
+                # scipy 缺失 → fail-open 降级正态
+                logger.warning("[CVaR] scipy 未安装, student_t 采样降级正态")
+                rng = np.random.default_rng(seed)
+                period_vol = volatility * math.sqrt(horizon_days)
+                returns = rng.normal(0.0, period_vol, size=n_paths)
+            else:
+                try:
+                    rng = np.random.default_rng(seed)
+                    period_vol = volatility * math.sqrt(horizon_days)
+                    # 方差缩放校正: 保持目标 period_vol 一致
+                    scale = math.sqrt(dof / (dof - 2)) if dof > 2 else 1.0
+                    samples = scipy_stats.t.rvs(dof, size=n_paths, random_state=rng) / scale
+                    returns = samples * period_vol
+                except Exception as exc:  # noqa: BLE001
+                    # scipy 采样异常 → fail-open 降级正态
+                    logger.warning("[CVaR] Student-t 采样失败, 降级正态: %s", exc)
+                    rng = np.random.default_rng(seed)
+                    period_vol = volatility * math.sqrt(horizon_days)
+                    returns = rng.normal(0.0, period_vol, size=n_paths)
+        else:
+            rng = np.random.default_rng(seed)
+            # 日波动率缩放至持有期
+            period_vol = volatility * math.sqrt(horizon_days)
+            returns = rng.normal(0.0, period_vol, size=n_paths)
         # 左尾分位数阈值
         alpha = 1.0 - confidence_level
         threshold = np.quantile(returns, alpha)
@@ -347,6 +435,15 @@ class PortfolioRiskAnalyzer:
             return total_value * abs(threshold)
         cvar_return = float(-tail.mean())  # 条件在险收益(正值)
         return total_value * cvar_return
+
+    @staticmethod
+    def _cvar_analytic(total_value: float, volatility: float, confidence_level: float) -> float:
+        """解析正态 CVaR (numpy 不可用时回退)."""
+        z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
+        cvar_factor = volatility * (
+            z_score * math.exp(-(z_score**2) / 2) / (math.sqrt(2 * math.pi) * (1 - confidence_level))
+        )
+        return float(total_value * cvar_factor)
     @staticmethod
     def calculate_position_concentration(positions: Dict) -> Dict:
         """计算持仓集中度"""
@@ -371,7 +468,7 @@ class PortfolioRiskAnalyzer:
     def analyze_sector_distribution(positions: Dict, sector_map: Dict) -> Dict:
         """分析行业分布"""
         normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
-        sectors = {}
+        sectors: Dict[str, Dict[str, Any]] = {}
         total_value = 0
 
         for code, pos in normalized.items():
@@ -388,7 +485,7 @@ class PortfolioRiskAnalyzer:
 
         for sector in sectors:
             if total_value > 0:
-                sectors[sector]["percentage"] = sectors[sector]["value"] / total_value  # type: ignore[index]
+                sectors[sector]["percentage"] = sectors[sector]["value"] / total_value
         return dict(sorted(sectors.items(), key=lambda x: -x[1]["value"]))
 
     def analyze_portfolio(self, positions: Dict, total_built: float, target: float) -> Dict:
@@ -408,7 +505,33 @@ class PortfolioRiskAnalyzer:
         # VaR/CVaR
         var_95 = self.calculate_var(positions, confidence_level=0.95)
         var_99 = self.calculate_var(positions, confidence_level=0.99)
-        cvar_95 = self.calculate_cvar(positions, confidence_level=0.95)
+        # G11: 读取 system_config.json risk_management.cvar, 默认启用蒙特卡洛(肥尾) CVaR
+        # 观测路径 fail-open: 配置读取/计算异常均降级解析正态, 不静默
+        try:
+            cvar_cfg = _load_cvar_config()
+            cvar_method = cvar_cfg.get("method", "monte_carlo")
+            cvar_dist = cvar_cfg.get("distribution", "student_t")
+            cvar_dof = int(cvar_cfg.get("dof", 5))
+            cvar_conf = float(cvar_cfg.get("confidence_level", 0.95))
+            cvar_paths = int(cvar_cfg.get("n_paths", 50000))
+            cvar_horizon = int(cvar_cfg.get("horizon_days", 1))
+            cvar_seed = int(cvar_cfg.get("seed", 42))
+            cvar_95 = self.calculate_cvar(
+                positions,
+                confidence_level=cvar_conf,
+                method=cvar_method,
+                n_paths=cvar_paths,
+                horizon_days=cvar_horizon,
+                seed=cvar_seed,
+                dist=cvar_dist,
+                dof=cvar_dof,
+            )
+            cvar_method_used = cvar_method if cvar_method != "monte_carlo" else f"monte_carlo_{cvar_dist}"
+        except Exception as exc:  # noqa: BLE001
+            # 观测路径 fail-open: 计算异常则降级解析正态, 标注来源, 不静默
+            logger.warning("[CVaR] analyze_portfolio 蒙特卡洛失败, 降级 analytic: %s", exc)
+            cvar_95 = self.calculate_cvar(positions, confidence_level=0.95, method="analytic")
+            cvar_method_used = "analytic_fallback"
 
         # 建仓进度
         build_progress = total_built / target if target > 0 else 0
@@ -431,6 +554,7 @@ class PortfolioRiskAnalyzer:
             "var_95": round(var_95, 2),
             "var_99": round(var_99, 2),
             "cvar_95": round(cvar_95, 2),
+            "cvar_method": cvar_method_used,
             "build_progress": round(build_progress, 4),
             "total_positions": len(positions),
             "sector_distribution": {},
@@ -561,6 +685,6 @@ if __name__ == "__main__":
     }
 
     for code, pos in positions.items():
-        stop_loss_manager.set_stop_loss(code, pos["avg_cost"], pos["qty"])  # type: ignore[index]
+        stop_loss_manager.set_stop_loss(code, pos["avg_cost"], pos["qty"])
     report = RiskReportGenerator.generate_risk_report(risk_control, stop_loss_manager, positions)
     logger.info(report)

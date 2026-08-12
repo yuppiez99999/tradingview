@@ -18,43 +18,65 @@ import logging
 import time
 import threading
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 logger = logging.getLogger(__name__)
 
 # ============================================================
 # 复用 AutomatedExecutionSystem 的基础设施
+# (模块级前向声明 + try/except fallback 类，根除 5 处 no-redef ignore)
 # ============================================================
+
+# 前向声明 — try 分支来自 utils.execution.automated_execution_system，
+# except 分支为本地兜底占位 stub。导入顺序决定了类型，类型声明统一 type
+AutomatedExecutionSystem: type
+ExecutionStrategy: type
+MarketStateEvaluator: type
+OrderRouter: type
+TradingCalendar: type
+
 try:
     from utils.execution.automated_execution_system import (
-        AutomatedExecutionSystem,
-        ExecutionStrategy,
-        MarketStateEvaluator,
-        OrderRouter,
-        TradingCalendar,
+        AutomatedExecutionSystem as _AES,
+        ExecutionStrategy as _ES,
+        MarketStateEvaluator as _MSE,
+        OrderRouter as _OR,
+        TradingCalendar as _TC,
     )
+
+    AutomatedExecutionSystem = _AES
+    ExecutionStrategy = _ES
+    MarketStateEvaluator = _MSE
+    OrderRouter = _OR
+    TradingCalendar = _TC
     _AUTOMATED_AVAILABLE = True
 except ImportError as e:
     _AUTOMATED_AVAILABLE = False
     logger.warning("AutomatedExecutionSystem 不可用: %s，将使用精简模式", e)
 
-    # 兜底占位类，确保导入不崩溃
-    class AutomatedExecutionSystem:  # type: ignore[no-redef]
+    # 兜底占位类，确保导入不崩溃 (类型声明已前置，不会触发 no-redef)
+    class _StubAutomatedExecutionSystem:
         def __init__(self, *args, **kwargs):
             pass
 
-    class ExecutionStrategy:  # type: ignore[no-redef]
+    class _StubExecutionStrategy:
         pass
 
-    class MarketStateEvaluator:  # type: ignore[no-redef]
+    class _StubMarketStateEvaluator:
         pass
 
-    class OrderRouter:  # type: ignore[no-redef]
+    class _StubOrderRouter:
         pass
 
-    class TradingCalendar:  # type: ignore[no-redef]
+    class _StubTradingCalendar:
         def get_next_execution_time(self):
             return None
+
+    AutomatedExecutionSystem = _StubAutomatedExecutionSystem
+    ExecutionStrategy = _StubExecutionStrategy
+    MarketStateEvaluator = _StubMarketStateEvaluator
+    OrderRouter = _StubOrderRouter
+    TradingCalendar = _StubTradingCalendar
 
 
 # ============================================================

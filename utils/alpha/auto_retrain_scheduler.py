@@ -239,7 +239,7 @@ class AutoRetrainScheduler:
                         data = json.loads(line)
                         self._tasks.append(RetrainTask(**data))
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
-            logger.warning("加载历史任务失败: %s", e)
+            logger.warning("加载历史任务失败: %s", e, exc_info=True)
 
     def _save_task(self, task: RetrainTask) -> None:
         """保存任务到 JSONL."""

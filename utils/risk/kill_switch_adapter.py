@@ -206,7 +206,7 @@ class KillSwitchAdapter:
             return
 
         try:
-            level = int(status.get("level", 0))
+            level: int = int(status.get("level", 0))
             usage = float(margin_usage if margin_usage is not None else status.get("margin_usage_ratio", 0.0))
             event = make_margin_breach_event(
                 source="kill_switch",

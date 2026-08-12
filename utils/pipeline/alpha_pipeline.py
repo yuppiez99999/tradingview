@@ -33,10 +33,15 @@ QLIB_ROOT = Path(__file__).resolve().parent.parent.parent / "qlib"
 _QLIB_AVAILABLE = False
 try:
     import sys
-    if str(QLIB_ROOT) not in sys.path:
-        sys.path.insert(0, str(QLIB_ROOT))
-    from qlib.contrib.model import LGBModel  # type: ignore[misc]  # G2 FIX: 从包顶层 re-export (实际定义在 gbdt.py, 无 lightgbm.py 子模块)
-    import qlib  # type: ignore[misc]
+    # G-20260812: 仅当项目根与 qlib 目录都不在 sys.path 时才追加(append 而非 insert(0))。
+    # 此前 insert(0) 把 qlib 目录置于 sys.path 最前, 劫持与 qlib 子目录同名的顶层包
+    # (如 tests → qlib/tests), 使 pytest 全量收集 tests/unit/backtest 时
+    # qlib/tests/__init__.py 的 "from .. import init" 报 beyond top-level。
+    _root = str(QLIB_ROOT.parent)
+    if _root not in sys.path and str(QLIB_ROOT) not in sys.path:
+        sys.path.append(str(QLIB_ROOT))
+    from qlib.contrib.model import LGBModel  # type: ignore  # G2 FIX: 从包顶层 re-export (实际定义在 gbdt.py, 无 lightgbm.py 子模块)
+    import qlib  # type: ignore
     _QLIB_AVAILABLE = True
     logger.info("Qlib 导入成功")
 except (ModuleNotFoundError, ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
@@ -200,12 +205,15 @@ class AlphaPipeline:
                 symbols = self._get_training_symbols()
 
             # 获取历史数据
-            from utils.data_provider import DataProvider
-            provider = DataProvider()
+            from utils.data_provider import MarketDataProvider
+            provider = MarketDataProvider()
 
             train_data = {}
             for sym in symbols:
-                df = provider.get_history(sym, days=750)  # ~3 年数据
+                try:
+                    df = provider.get_historical_data(sym, period="3y")  # ~3 年数据
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    df = None
                 if df is not None and not df.empty:
                     qlib_records = dataframe_to_qlib_record(df)
                     if qlib_records:
@@ -472,7 +480,18 @@ class AlphaPipeline:
             logger.warning(f"[Alpha流水线] 注入 SignalFusionEngine 失败: {e}")
 
     def _save_signal_report(self, signal_result: AlphaSignalResult) -> str | None:
-        """保存信号报告"""
+        """保存信号报告
+
+        fail-closed: 当 n_stocks==0 (因子计算/行情源瞬态失败导致空信号) 时
+        不落盘空文件，避免污染 DriftShadowIntegrator 数据链路使其读到 observed=0。
+        下游会自然回退到 U9 修复路径产出的完整 alpha_signals 文件。
+        """
+        if not signal_result.signals or signal_result.n_stocks == 0:
+            logger.warning(
+                "[Alpha流水线] 信号为空 (n_stocks=0, model=%s), 跳过落盘以避免污染数据链路",
+                signal_result.model_name,
+            )
+            return None
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         path = self._report_dir / f"alpha_signals_{timestamp}.json"
         try:

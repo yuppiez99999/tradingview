@@ -197,7 +197,7 @@ class MinImpactExecutor:
             slippage_total += impact * order["amount"]
 
         if total_executed > 0:
-            avg_execution_price = total_amount / total_executed  # type: ignore[misc]
+            avg_execution_price = float(total_amount) / float(total_executed)
         return {
             "total_qty": total_executed,
             "total_amount": round(total_amount, 2),
@@ -427,8 +427,8 @@ class VWAPExecutor:
         if total_qty < target_qty:
             remaining = target_qty - total_qty
             if orders:
-                orders[-1]["qty"] += remaining  # type: ignore[index]
-                orders[-1]["amount"] = round(orders[-1]["qty"] * ref_price, 2)  # type: ignore[index]
+                orders[-1]["qty"] += float(remaining)
+                orders[-1]["amount"] = float(round(orders[-1]["qty"] * ref_price, 2))
                 orders[-1]["cumulative_qty"] = target_qty
                 orders[-1]["cumulative_amount"] = round(target_qty * ref_price, 2)
 
@@ -451,7 +451,7 @@ class OrderExecutor:
 
             self.cost_model = TransactionCostModel()
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
-            self.cost_model = None  # type: ignore[misc]
+            self.cost_model = None
     def _create_executor(self, algorithm: str, kwargs: Dict):
         if algorithm == "min_impact":
             return MinImpactExecutor(

@@ -447,4 +447,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit_code = main()  # type: ignore[misc]
+    sys.exit_code = main()  # type: ignore

@@ -448,7 +448,10 @@ class StrategyRegistry:
             # Pearson IC
             if len(factor_arr) == len(return_arr) and len(factor_arr) > 1:
                 ic = float(np.corrcoef(factor_arr, return_arr)[0, 1])
+                # 防御: 常数因子/收益使 corrcoef 返回 NaN, 不可写入 IC 指标 (F-4)
+                ic = 0.0 if not np.isfinite(ic) else ic
                 ic_rank = float(spearmanr(factor_arr, return_arr).correlation)
+                ic_rank = 0.0 if not np.isfinite(ic_rank) else ic_rank
                 self.update_metrics(
                     name,
                     {

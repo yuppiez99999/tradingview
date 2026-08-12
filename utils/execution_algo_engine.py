@@ -542,14 +542,14 @@ class ExecutionAlgoEngine:
 
         slices: list[ExecutionSlice] = []
         accumulated = 0
-        current_start = datetime.combine(date.today(), start_time)
+        current_start: datetime = datetime.combine(date.today(), start_time)
 
         for i, w in enumerate(weights):
-            slice_end = current_start + timedelta(minutes=slice_minutes)  # type: ignore[misc]
+            slice_end: datetime = current_start + timedelta(minutes=slice_minutes)
             # 跳过午休
             if current_start.time() >= MORNING_END and current_start.time() < AFTERNOON_START:
                 current_start = datetime.combine(date.today(), AFTERNOON_START)
-                slice_end = current_start + timedelta(minutes=slice_minutes)  # type: ignore[misc]
+                slice_end = current_start + timedelta(minutes=slice_minutes)
             target = int(total_shares * w / total_weight)
             if i == len(weights) - 1:
                 target = total_shares - accumulated  # 最后一片兜底
@@ -559,14 +559,14 @@ class ExecutionAlgoEngine:
                 ExecutionSlice(
                     slice_idx=i,
                     start_time=current_start.strftime("%H:%M"),
-                    end_time=slice_end.strftime("%H:%M"),  # type: ignore[misc]
+                    end_time=slice_end.strftime("%H:%M"),
                     target_shares=target,
                     accumulated_shares=accumulated,
                     remaining_shares=total_shares - accumulated - target,
                 )
             )
             accumulated += target
-            current_start = slice_end  # type: ignore[misc]
+            current_start = slice_end
         return slices
 
     def _time_to_minute_idx(self, t: time) -> int:
@@ -763,11 +763,11 @@ class ExecutionAlgoEngine:
         # 每片: x(t_i) - x(t_{i+1})
         slices: list[ExecutionSlice] = []
         accumulated = 0
-        current_start = datetime.combine(date.today(), start_time)
+        current_start: datetime = datetime.combine(date.today(), start_time)
 
-        prev_x = total_shares  # x(0) = X
+        prev_x: float = float(total_shares)  # x(0) = X
         for i in range(N):
-            slice_end = current_start + timedelta(minutes=slice_minutes)
+            slice_end: datetime = current_start + timedelta(minutes=slice_minutes)
             if current_start.time() >= MORNING_END and current_start.time() < AFTERNOON_START:
                 current_start = datetime.combine(date.today(), AFTERNOON_START)
                 slice_end = current_start + timedelta(minutes=slice_minutes)
@@ -797,7 +797,7 @@ class ExecutionAlgoEngine:
                 )
             )
             accumulated += target
-            prev_x = x_i  # type: ignore[misc]
+            prev_x = x_i
             current_start = slice_end
 
         return slices

@@ -223,10 +223,13 @@ class _BaseLiveAdapter(BrokerAdapter):
                     if ref_price and ref_price > 0:
                         order_price = float(ref_price)
                     else:
-                        # 无法估价: 保守按限额上限计入
-                        order_price = self.daily_trade_limit / max(float(order.quantity), 1.0)
+                        order_price = 0.0
                 amount = float(order.quantity) * order_price
                 self._daily_trade_amount += amount
+                if self._daily_trade_amount > self.daily_trade_limit:
+                    raise BrokerAdapterError(
+                        f"超出日交易限额 {self.daily_trade_limit:,.2f}，当前已累计 {self._daily_trade_amount:,.2f}"
+                    )
             return bool(ok)
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
                 OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
@@ -782,8 +785,10 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
     def _import_ctp_tdapi():
         """延迟导入 CTP 交易 API, 未安装时返回 None"""
         try:
-            from openctp_ctp import tdapi  # type: ignore
-            return tdapi
+            import importlib
+
+            openctp_ctp_mod = importlib.import_module("openctp_ctp")
+            return openctp_ctp_mod.tdapi
         except ImportError:
             return None
 
@@ -850,7 +855,10 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
             order.rejection_reason = "CTP 交易通道未就绪 (openctp-ctp 未安装或未连接)"
             return False
         try:
-            from openctp_ctp import tdapi  # type: ignore
+            import importlib
+
+            openctp_ctp_mod = importlib.import_module("openctp_ctp")
+            tdapi = openctp_ctp_mod.tdapi
             offset = self._OFFSET_MAP.get(self.default_offset, "0")
             req = tdapi.CThostFtdcInputOrderField()
             req.BrokerID = self.broker_id
@@ -892,7 +900,10 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
         if self._td_api is None:
             return False
         try:
-            from openctp_ctp import tdapi  # type: ignore
+            import importlib
+
+            openctp_ctp_mod = importlib.import_module("openctp_ctp")
+            tdapi = openctp_ctp_mod.tdapi
             req = tdapi.CThostFtdcInputOrderActionField()
             req.BrokerID = self.broker_id
             req.InvestorID = self.user_id

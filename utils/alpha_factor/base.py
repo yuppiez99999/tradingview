@@ -22,15 +22,23 @@ import pandas as pd
 
 @dataclass
 class FactorValue:
-    """单个因子值 (国泰海通因子库标准结构)"""
+    """单个因子值 (国泰海通因子库标准结构)
+
+    字段 ic_1d / ic_5d / ic_20d / ic_ir: U1 升级后, 优先用时序 IC/ICIR 填充
+    (提供 factor_history + forward_returns_history 时); 缺省时用单点 IC 近似
+    (evaluate_factors 自动兼容双模式).
+    """
 
     name: str  # 因子名 (研报式: EP/BP/ROE_TTM/SUE/GTJA_001 等)
     category: str  # 因子类别 (Value/Growth/Quality/Leverage/Operation/Momentum/...)
     values: dict[str, float]  # {symbol: factor_value}
-    ic_1d: float = 0.0  # 1 日 IC
-    ic_5d: float = 0.0  # 5 日 IC
-    ic_20d: float = 0.0  # 20 日 IC
-    ic_ir: float = 0.0  # IC 信息比率
+    ic_1d: float = 0.0  # 最近 1 日 IC (时序模式=最新一天; 单点模式=单点 1 日未来收益)
+    ic_5d: float = 0.0  # 最近 5 日 IC 均值 / 单点 5 日窗口 IC
+    ic_20d: float = 0.0  # 最近 20 日 IC 均值 / 单点 20 日窗口 IC
+    ic_ir: float = 0.0  # IC 信息比率 (时序模式=完整序列均值/std; 单点模式=近似退化值 0)
+    ic_mean_raw: float = 0.0  # U1 新增: 时序 IC 原始均值 (未取 abs, 保留方向)
+    ic_n_samples: int = 0  # U1 新增: 有效 IC 样本数 (诊断用, 最少 20 天)
+    ic_mode: str = "none"  # U1 新增: "timeseries" / "single_point" / "none", 便于下游区分
     factor_return: float = 0.0  # 因子收益率 (年化)
     turnover: float = 0.0  # 因子换手率
 
@@ -46,6 +54,8 @@ class FactorLibraryResult:
     effective_factors: list[str] = field(default_factory=list)
     # 强因子 (|IC| > 0.05)
     strong_factors: list[str] = field(default_factory=list)
+    # 调试/审计信息 (Wave 6 新增: 装饰器因子清单、处理统计等可扩展)
+    debug_info: dict[str, object] = field(default_factory=dict)
 
 
 # ============================================================
@@ -328,9 +338,12 @@ def evaluate_factors(
             # U1: 时序 IC/ICIR 模式 (Spearman, 与 gate1_validation 一致)
             fh = factor_history[name]
             ic_series = calc_ic_series_from_history(fh, forward_returns_history)
-            ic_ir, ic_mean, _ = calc_ic_ir(ic_series, min_periods=20)
+            ic_ir, ic_mean, ic_std = calc_ic_ir(ic_series, min_periods=20)
 
             fval.ic_ir = ic_ir
+            fval.ic_mean_raw = ic_mean
+            fval.ic_n_samples = len([x for x in ic_series if x != 0.0 and np.isfinite(x)])
+            fval.ic_mode = "timeseries"
             # ic_5d: 最近 5 日 IC 均值; ic_1d: 最近 1 日 IC; ic_20d: 最近 20 日 IC 均值
             if ic_series:
                 fval.ic_1d = float(ic_series[-1])
@@ -338,13 +351,25 @@ def evaluate_factors(
                 fval.ic_20d = float(np.mean(ic_series[-20:])) if len(ic_series) >= 20 else float(np.mean(ic_series))
             else:
                 fval.ic_5d = 0.0
+                fval.ic_20d = 0.0
+                fval.ic_1d = 0.0
 
             # 强因子/有效因子判定基于时序 IC 均值 (|ic_mean| 阈值不变)
             effective_ic = abs(ic_mean) if ic_series else 0.0
         else:
             # 降级: 单点 IC 模式 (P0-C2 修复的未来收益版, 向后兼容)
+            # 对 1/5/20 三个窗口都计算单点 IC, 保证 fval 字段非空诊断可用;
+            # 单点无序列 → ic_ir = 0 (退化值, 无意义), ic_n_samples=1, ic_mean_raw=ic_5d
+            ic_1d = calc_ic(fval.values, price_data, 1)
             ic_5d = calc_ic(fval.values, price_data, 5)
+            ic_20d = calc_ic(fval.values, price_data, 20)
+            fval.ic_1d = ic_1d
             fval.ic_5d = ic_5d
+            fval.ic_20d = ic_20d
+            fval.ic_ir = 0.0
+            fval.ic_mean_raw = ic_5d
+            fval.ic_n_samples = 1
+            fval.ic_mode = "single_point"
             effective_ic = abs(ic_5d)
 
         if effective_ic > 0.05:
@@ -364,3 +389,296 @@ def compute_factor_corr_matrix(
         return df.corr()
     except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # 数据为空或形状不一致时降级返回 None
         return None
+
+
+# ============================================================
+# 因子装饰器系统 (Wave 6 W6.1.3, EigenAlpha 风格)
+#
+# 设计要点:
+#   1. 装饰器注册 + 自动参数注入 (EigenAlpha @register_factor 思路)
+#   2. 双模式兼容: 装饰器注册的新因子 + 旧的 compute_xxx_factors 函数, 互不干扰
+#   3. 零运行时开销: 注册时 inspect 签名, 执行时直接查表
+# ============================================================
+
+
+_FACTOR_REGISTRY: dict[str, dict] = {}
+
+
+def register_factor(
+    category: str,
+    name: str | None = None,
+    description: str = "",
+    **defaults,
+):
+    """因子函数装饰器 (EigenAlpha strategy.py 风格, Wave 6 W6.1.3)
+
+    用法:
+        @register_factor(category="Momentum", name="MY_MOM", window=20)
+        def my_momentum(price_data, window=20):
+            ...
+            return FactorValue(name="MY_MOM", category="Momentum", values={...})
+
+    设计:
+        - 装饰时 inspect(fn) 保存签名, 以便执行时从上下文中按参数名注入
+        - 返回 dict[str, FactorValue] 或单个 FactorValue 均可, 统一聚合为 dict
+        - 旧的 compute_xxx_factors 函数无需修改 (向后兼容: 可以但不强制用装饰器注册)
+
+    Args:
+        category: 因子类别 (Momentum / LowVolatility / Size / Liquidity / Value / Growth /
+                  Quality / Leverage / Operation / Technical / Expectation / Graph)
+        name: 可选, 强制覆盖因子名前缀 (默认用函数名作为 id)
+        description: 因子中文说明 (用于报告展示)
+        **defaults: 传给装饰函数的默认参数 (会在注入前被 context 中同名字段覆盖)
+    """
+    import inspect
+    def deco(fn):
+        fn_id = name or fn.__name__
+        sig = inspect.signature(fn)
+        _FACTOR_REGISTRY[fn_id] = {
+            "fn": fn,
+            "category": category,
+            "description": description or fn.__doc__ or "",
+            "params": list(sig.parameters.keys()),
+            "defaults": dict(defaults),
+        }
+        # 原函数透传, 保持直接调用可用
+        return fn
+    return deco
+
+
+def list_registered_factors() -> list[dict]:
+    """列出所有装饰器注册的因子 (元信息列表)"""
+    return [
+        {
+            "name": fn_id,
+            "category": meta["category"],
+            "description": meta["description"],
+            "params": meta["params"],
+        }
+        for fn_id, meta in _FACTOR_REGISTRY.items()
+    ]
+
+
+def compute_registered_factors(
+    context: dict,
+    select: list[str] | None = None,
+) -> dict[str, FactorValue]:
+    """根据注册中心 + 上下文参数自动计算所有装饰器注册的因子
+
+    参数注入规则:
+        - 遍历每个注册因子的 params 列表, 在 context 中按名称查找
+        - context 中没有 → 使用装饰器默认值 (**defaults) → 再用函数签名默认值
+        - 完全缺失的必填参数 (函数签名无默认值) → 跳过该因子, 不抛异常 (fail-open)
+
+    Args:
+        context: 参数字典, 常见键:
+            - price_data: {symbol: {"closes": [...], ...}}
+            - fundamentals: {symbol: {"pe": ...}}
+            - fundamentals_prev: {symbol: {"pe": ...}} (上期)
+            - industries: {symbol: industry_name}
+            - benchmark_returns: list[float] (基准收益序列)
+            - graph: SupplyChainGraph 实例 (可选)
+            - plus: 任何被装饰因子函数参数名匹配的字段
+        select: 白名单 (None 表示全部)
+
+    Returns:
+        {factor_name: FactorValue} — 所有成功计算的因子 (与 compute_xxx_factors 返回格式一致)
+    """
+    import inspect
+    out: dict[str, FactorValue] = {}
+    for fn_id, meta in _FACTOR_REGISTRY.items():
+        if select is not None and fn_id not in select:
+            continue
+        fn = meta["fn"]
+        sig_params = inspect.signature(fn).parameters
+        kwargs: dict = {}
+        skip = False
+        for pname, param in sig_params.items():
+            # 优先级: context > 装饰器 defaults > 函数签名默认值
+            if pname in context and context[pname] is not None:
+                kwargs[pname] = context[pname]
+            elif pname in meta["defaults"]:
+                kwargs[pname] = meta["defaults"][pname]
+            elif param.default is not inspect.Parameter.empty:
+                kwargs[pname] = param.default
+            else:
+                # 必填参数缺失 → 跳过该因子
+                skip = True
+                break
+        if skip:
+            continue
+        try:
+            result = fn(**kwargs)
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+            logging.getLogger("alpha_factor.registry").debug(
+                "装饰器因子 %s 计算失败: %r; 已跳过", fn_id, exc
+            )
+            continue
+        # 兼容返回值: FactorValue 或 dict[str, FactorValue]
+        if isinstance(result, FactorValue):
+            out[result.name or fn_id] = result
+        elif isinstance(result, dict):
+            # 纯 {symbol: value} dict → 包装成 FactorValue
+            if result and all(isinstance(k, str) and isinstance(v, (int, float, type(None)))
+                               for k, v in result.items()):
+                out[fn_id] = FactorValue(
+                    name=fn_id, category=meta["category"], values=result,
+                )
+            else:
+                # 预期是 {factor_name: FactorValue}
+                for k, v in result.items():
+                    if isinstance(v, FactorValue):
+                        out[k] = v
+    return out
+
+
+# ============================================================
+# U1 升级 · 便捷构造器: 从 OHLCV 列表格式 price_data 直接生成
+#   forward_returns_history + factor_history (时序 IC/ICIR 模式入参)
+# 消除「单点 forward return 近似」, 让 evaluate_factors 走完整时序路径.
+# ============================================================
+
+
+def build_forward_returns_history(
+    price_data: dict[str, dict[str, list[float]]],
+    forward_window: int = 5,
+    symbols: list[str] | None = None,
+) -> list[dict[str, float]]:
+    """从 OHLCV 列表格式 price_data 构造日频 forward_returns_history
+
+    U1 升级新增: 替代单点未来收益近似, 输出长度为 T 的日频前瞻收益字典序列,
+    其中 list[t] = {symbol: forward_return} 表示 t 时点横截面 → t→t+forward_window 的收益.
+
+    语义: 第 t 天收盘价 closes[t] 作为因子基准价, 目标收益为 closes[t+forward_window]/closes[t] - 1.
+    对于 t > len - forward_window - 1 的末尾几天, 未来价格不足 → 直接省略 (不产出伪样本).
+    因此列表实际长度 = max(0, min_len - forward_window), 索引与 closes 的 0..min_len-forward_window-1
+    一一对应, 便于后续与 factor_history 对齐.
+
+    Args:
+        price_data: {symbol: {"closes": list[float], ...}} (OHLCV 列表格式, 与 compute_all 一致)
+        forward_window: 前瞻收益窗口天数 (默认 5, 与 Gate1/GTJA 惯例对齐; 常用 1/5/20)
+        symbols: 可选白名单 (仅包含这些 symbol); None 则取 price_data 全量
+
+    Returns:
+        list[dict[str, float]]: 长度 = T = min_len - forward_window (不足则空)
+    """
+    if forward_window <= 0:
+        raise ValueError(f"forward_window 必须为正整数, 得到 {forward_window}")
+
+    active_syms: list[str] = []
+    if symbols is None:
+        active_syms = list(price_data.keys())
+    else:
+        active_syms = [s for s in symbols if s in price_data]
+
+    if not active_syms:
+        return []
+
+    # 取所有标的 closes 最短长度作为公共时间轴 (对齐各标的数据长度差异)
+    closes_map: dict[str, list[float]] = {}
+    min_len: int | None = None
+    for sym in active_syms:
+        closes = price_data.get(sym, {}).get("closes", [])
+        closes_map[sym] = closes
+        L = len(closes)
+        min_len = L if min_len is None else min(min_len, L)
+    if min_len is None or min_len <= forward_window:
+        return []
+
+    T = min_len - forward_window  # 0..T-1 对应 t=0..T-1, t+forward_window < min_len
+    history: list[dict[str, float]] = []
+    for t in range(T):
+        cross: dict[str, float] = {}
+        for sym in active_syms:
+            closes = closes_map[sym]
+            base = closes[t]
+            fwd = closes[t + forward_window]
+            if base and base > 0 and fwd is not None and np.isfinite(base) and np.isfinite(fwd):
+                cross[sym] = float(fwd / base - 1.0)
+        history.append(cross)
+    return history
+
+
+def build_factor_history_from_prices(
+    price_data: dict[str, dict[str, list[float]]],
+    factor_fn,
+    symbols: list[str] | None = None,
+    warmup_window: int = 20,
+) -> dict[str, list[dict[str, float]]]:
+    """用「滚动窗口 replay」方式从 OHLCV price_data 构造 factor_history
+
+    U1 升级新增: 给定一个单横截面因子计算函数 factor_fn(price_data_slice)->{sym: value},
+    对每个 t = warmup_window..min_len-1 切出 closes[:t+1] 的价格切片, 调用 factor_fn
+    产出该时点因子值 → 组装为 {factor_name: [{sym: value}, ...]} 的 factor_history 格式
+    (可直接传入 AlphaFactorLibrary.compute_all + evaluate_factors 走时序 IC/ICIR 模式).
+
+    注意:
+      - 本函数提供的是通用 replay 方案. 对 100+ 因子的 factor_history 全量构建建议使用
+        专门的 factor_history_builder (如 `utils.evolution.auto_factor_factory` 中的管道),
+        避免重复运行全因子库 N 次的 O(N) 开销.
+      - 单因子 POC / 单点 IC 与时序 IC 的对比诊断场景用本函数足够.
+
+    Args:
+        price_data: {symbol: {"closes": list[float], "highs":..., "lows":..., "volumes":...}}
+        factor_fn: callable(price_data_slice) -> {sym: value} 或 FactorValue
+            price_data_slice 与 price_data 同构但 closes/volumes/highs/lows 长度=t+1
+        symbols: 可选白名单
+        warmup_window: 最小预热窗口 (默认 20, 因子通常需要 ≥20 根 bar 才能产出有效值)
+
+    Returns:
+        {factor_name: [{sym: value}, ...]} — 每个因子序列长度 = min_len - warmup_window
+        (对应 t=warmup_window..min_len-1 的横截面, 与 build_forward_returns_history 对齐时
+        需注意 forward_window 窗口; 推荐 forward_window=5 + warmup_window=25 得到同长度.)
+    """
+    import copy
+
+    active_syms: list[str] = list(price_data.keys()) if symbols is None else [s for s in symbols if s in price_data]
+    if not active_syms:
+        return {}
+
+    # 公共时间轴长度
+    min_len: int | None = None
+    for sym in active_syms:
+        for key in ("closes", "volumes", "highs", "lows"):
+            arr = price_data.get(sym, {}).get(key) or []
+            min_len = len(arr) if min_len is None else min(min_len, len(arr))
+    if min_len is None or min_len <= warmup_window:
+        return {}
+
+    # 准备切片模板 (不破坏原始 price_data)
+    def _slice_price(t_end: int) -> dict[str, dict[str, list[float]]]:
+        out: dict[str, dict[str, list[float]]] = {}
+        for sym in active_syms:
+            sym_entry: dict[str, list[float]] = {}
+            for key in ("closes", "volumes", "highs", "lows"):
+                arr = price_data.get(sym, {}).get(key) or []
+                sym_entry[key] = list(arr[: t_end + 1]) if arr else []
+            out[sym] = sym_entry
+        return out
+
+    # 收集每个 t 的因子值
+    history_per_factor: dict[str, list[dict[str, float]]] = {}
+    for t in range(warmup_window, min_len):
+        slice_pd = _slice_price(t)
+        try:
+            raw = factor_fn(slice_pd)
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            raw = {}
+        # 规范化: FactorValue → {name: values dict}
+        factor_map: dict[str, dict[str, float]] = {}
+        if isinstance(raw, FactorValue):
+            factor_map[raw.name] = raw.values
+        elif isinstance(raw, dict):
+            # {factor_name: FactorValue} / {sym: value}
+            if raw and all(isinstance(k, str) and isinstance(v, FactorValue) for k, v in raw.items()):
+                for fname, fv in raw.items():
+                    factor_map[fname] = fv.values
+            elif raw and all(isinstance(k, str) and isinstance(v, (int, float, type(None)))
+                             for k, v in raw.items()):
+                factor_map["factor"] = {k: float(v) for k, v in raw.items() if isinstance(v, (int, float))}
+        # 追加到每因子序列
+        for fname, fv_dict in factor_map.items():
+            if fname not in history_per_factor:
+                history_per_factor[fname] = []
+            history_per_factor[fname].append({s: float(v) for s, v in fv_dict.items()})
+    return history_per_factor

@@ -23,6 +23,12 @@ from enum import Enum
 
 logger = logging.getLogger('hedge_engine')
 
+# G11: 统一 CVaR 双代码路径口径 — 无历史数据分支复用主风险流程的蒙特卡洛 CVaR
+try:
+    from utils.wt_risk_control import PortfolioRiskAnalyzer as _WTPortfolioRiskAnalyzer
+except Exception:  # noqa: BLE001
+    _WTPortfolioRiskAnalyzer = None  # 降级: 保留原 var*2.0 近似
+
 # ── 指数成分股权重(简化版) ──
 INDEX_WEIGHTS_CSI300 = {
     "300750": 0.042, "600519": 0.055, "000858": 0.038, "601318": 0.032,
@@ -537,10 +543,21 @@ class HedgeEngine:
                 else 0.02
             )
             risk.var_95_daily = risk.total_value * risk.volatility_30d * z_95
-            # v5.10: ES不再简单乘以1.3, 改用2.0作为无数据时的保守上限
-            risk.cvar_95_daily = risk.var_95_daily * 2.0
+            # G11 统一口径: 无历史数据时不再用 var*2.0 粗暴近似,
+            # 复用主风险流程的蒙特卡洛 CVaR (肥尾), 与 wt_risk_control 路径一致.
+            if _WTPortfolioRiskAnalyzer is not None:
+                try:
+                    risk.cvar_95_daily = _WTPortfolioRiskAnalyzer._cvar_monte_carlo(
+                        risk.total_value, risk.volatility_30d, 0.95, 50000, 1, 42,
+                        dist="student_t", dof=5,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("[VaR] 蒙特卡洛 CVaR 失败, 降级 var*2.0: %s", exc)
+                    risk.cvar_95_daily = risk.var_95_daily * 2.0
+            else:
+                risk.cvar_95_daily = risk.var_95_daily * 2.0
             logger.warning(
-                "[VaR] 无历史收益率数据, 使用独立假设VaR (可能低估真实风险50%+), "
+                "[VaR] 无历史收益率数据, 使用蒙特卡洛CVaR近似 (可能仍低估真实风险), "
                 "建议提供historical_returns参数以获得准确值"
             )
 

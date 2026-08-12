@@ -185,8 +185,8 @@ def _approx_var(
         return 0.0, single
     min_len = min(len(x) for x in rets)
     aligned = np.column_stack([x[-min_len:] for x in rets])
-    w = np.array(weights, dtype=float)  # type: ignore[misc]
-    w = w / (w.sum() if w.sum() > 0 else 1.0)  # type: ignore[misc]
+    w = np.array(weights, dtype=float)  # type: ignore
+    w = w / (w.sum() if w.sum() > 0 else 1.0)  # type: ignore
     port_ret = aligned @ w
     sorted_pr = np.sort(port_ret)
     idx = max(0, int(0.05 * len(sorted_pr)) - 1)

@@ -50,20 +50,29 @@ import logging
 from dataclasses import asdict, dataclass, field
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, cast
 
 logger = logging.getLogger("quant_neutral")
 
-try:
-    from utils.ic_hedge_calculator import ICHedgeCalculator, ICHedgeResult
-    from utils.v10_config_loader import V10ConfigLoader
+# 模块级前向声明 — 根除 ImportError fallback assignment+misc ignore
+ICHedgeCalculator: Optional[type]
+ICHedgeResult: Optional[type]
+V10ConfigLoader: Optional[type]
 
+try:
+    from utils.ic_hedge_calculator import ICHedgeCalculator as _ICHC
+    from utils.ic_hedge_calculator import ICHedgeResult as _ICHR
+    from utils.v10_config_loader import V10ConfigLoader as _V10CL
+
+    ICHedgeCalculator = _ICHC
+    ICHedgeResult = _ICHR
+    V10ConfigLoader = _V10CL
     _HAS_DEPS = True
 except ImportError as e:
     logger.warning(f"量化中性依赖缺失 (降级模式): {e}")
-    ICHedgeCalculator = None  # type: ignore[assignment,misc]
-    ICHedgeResult = None  # type: ignore[assignment,misc]
-    V10ConfigLoader = None  # type: ignore[assignment,misc]
+    ICHedgeCalculator = None
+    ICHedgeResult = None
+    V10ConfigLoader = None
     _HAS_DEPS = False
 
 try:
@@ -189,7 +198,7 @@ class QuantNeutralRunner:
         if ICHedgeCalculator is not None:
             self.ic_calc = ICHedgeCalculator()
         else:
-            self.ic_calc = None  # type: ignore[misc]
+            self.ic_calc = None
         # v10.0 配置覆盖 (若可用)
         if V10ConfigLoader is not None:
             try:
@@ -397,7 +406,7 @@ class QuantNeutralRunner:
             return 1.0  # 默认 1.0
 
         weighted_beta = sum(p.get("weight", 0) * p.get("beta", 1.0) for p in long_positions)
-        return weighted_beta / total_weight  # type: ignore[misc]
+        return float(weighted_beta) / float(total_weight)
     # ------------------------------------------------------------
     # 月度调仓主流程
     # ------------------------------------------------------------

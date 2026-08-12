@@ -403,10 +403,10 @@ class ModelRegistry:
         self._save_metadata(name)
 
         # MLflow 阶段转换
-        if self._mlflow_available and target.mlflow_model_uri:
+        if self._mlflow_available and target.mlflow_model_uri and self._mlflow_client is not None:
             try:
-                self._mlflow_client.transition_model_version_stage(  # type: ignore[misc]
-                name=name,
+                self._mlflow_client.transition_model_version_stage(
+                    name=name,
                     version=str(version),
                     stage=to_stage.value.upper(),
                 )
@@ -527,7 +527,7 @@ class ModelRegistry:
             target = self.get_model_info(name, version)
         else:
             target_stage = stage or ModelStage.PRODUCTION
-            target = self.get_production_version(name) if target_stage == ModelStage.PRODUCTION else None  # type: ignore[misc]
+            target = self.get_production_version(name) if target_stage == ModelStage.PRODUCTION else None
             if target is None:
                 versions = self.get_model_versions(name, target_stage)
                 target = versions[0] if versions else None
@@ -606,7 +606,7 @@ class ModelRegistry:
     # ============================================================
     def export_registry(self) -> dict[str, Any]:
         """导出整个注册表 (审计用)."""
-        result = {
+        result: dict[str, Any] = {
             "exported_at": datetime.utcnow().isoformat() + "Z",
             "registry_dir": str(self.registry_dir),
             "mlflow_available": self._mlflow_available,
@@ -614,8 +614,8 @@ class ModelRegistry:
             "models": {},
         }
         for name, versions in self._cache.items():
-            result["models"][name] = {  # type: ignore[index]
-            "version_count": len(versions),
+            result["models"][name] = {
+                "version_count": len(versions),
                 "versions": [v.to_dict() for v in versions],
             }
         return result

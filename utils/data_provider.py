@@ -10,11 +10,11 @@
 
 import importlib.util
 import json
-import os
+import logging
 import pathlib
 import threading
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict, cast
 
 import pandas as pd
 
@@ -25,21 +25,40 @@ from utils.http_session import make_no_proxy_session
 
 # P1-2: 移除全局禁用TLS验证，改为默认启用证书校验
 from utils.logger import get_logger
-import logging
 
-logger = logging.getLogger(__name__)
+logger: Any = logging.getLogger(__name__)
 
 _SINA_SESSION = make_no_proxy_session("sina")
 
+_np: Optional[Any] = None
 try:
-    import numpy as _np
+    import numpy as _np_module
 
+    _np = _np_module
     HAS_NUMPY = True
 except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
-    _np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 
 logger = get_logger("data_provider")
+
+
+# ===========================================================
+# 类型声明 (TypedDict) — 消除 source_health 嵌套字典的 type:ignore
+# ===========================================================
+class SourceHealthEntry(TypedDict):
+    """单数据源健康状态条目"""
+
+    ok: bool
+    last_error: Optional[str]
+
+
+class SourceHealth(TypedDict):
+    """四数据源健康状态汇总 (wind_mcp / tdx / akshare / sina_http)"""
+
+    wind_mcp: SourceHealthEntry
+    tdx: SourceHealthEntry
+    akshare: SourceHealthEntry
+    sina_http: SourceHealthEntry
 
 
 def _parse_markdown_table(text: str) -> List[Dict[str, str]]:
@@ -58,24 +77,29 @@ def _parse_markdown_table(text: str) -> List[Dict[str, str]]:
     return rows
 
 
-def _mean(values):
+def _mean(values: List[float]) -> float:
     if not values:
         return 0.0
     return sum(values) / len(values)
 
 
-def _std(values):
+def _std(values: List[float]) -> float:
     if len(values) < 2:
         return 0.0
     mean = _mean(values)
-    return (sum((x - mean) ** 2 for x in values) / (len(values) - 1)) ** 0.5
+    return float((sum((x - mean) ** 2 for x in values) / (len(values) - 1)) ** 0.5)
 
 
-def _diff(values):
+def _diff(values: List[float]) -> List[float]:
     return [values[i] - values[i - 1] for i in range(1, len(values))]
 
 
 def _where(condition, x, y):
+    """条件选择器 (元素级)
+
+    注: x/y 既支持标量也支持列表, 保持无类型注解以兼容现有调用模式
+    (L886-887 传入 List[float] 作为 x, 需后续重构为 element-wise 实现)
+    """
     return [x if c else y for c in condition]
 
 
@@ -93,27 +117,27 @@ class MarketDataProvider:
     def __init__(self, cache_size: int = 1000, backtest_mode: bool = False):
         self.cache_size = cache_size
         self.backtest_mode = backtest_mode
-        self._backtest_date = None
-        self.data_cache = {}  # type: ignore[assignment]
+        self._backtest_date: Optional[str] = None
+        self.data_cache: Dict[str, Dict[str, Any]] = {}
         self.cache_lock = threading.Lock()
         self.persistent_cache_dir = pathlib.Path(__file__).resolve().parents[1] / "data_cache"
         self.persistent_cache_dir.mkdir(exist_ok=True)
-        self.source_health = {
+        self.source_health: SourceHealth = {
             "wind_mcp": {"ok": False, "last_error": None},
             "tdx": {"ok": False, "last_error": None},
             "akshare": {"ok": False, "last_error": None},
             "sina_http": {"ok": False, "last_error": None},
         }
 
-        self.data_sources = {
+        self.data_sources: Dict[str, Any] = {
             "real_time": {"enabled": True, "refresh_interval": 60, "last_update": None},
             "historical": {"enabled": True, "cache_days": 365, "update_frequency": "daily"},
             "sentiment": {"enabled": True, "refresh_interval": 300, "last_update": None},
         }
 
-        self._wind_mcp_client = None
-        self._tdx_source = None
-        self._akshare_source = None
+        self._wind_mcp_client: Optional[Dict[str, Any]] = None
+        self._tdx_source: Optional[Any] = None
+        self._akshare_source: Optional[Any] = None
         self._init_wind_mcp()
         self._init_tdx()
         self._init_akshare()
@@ -123,7 +147,7 @@ class MarketDataProvider:
         )
 
     def set_backtest_date(self, report_date: str) -> None:
-        self._backtest_date = report_date  # type: ignore[union-attr]
+        self._backtest_date = report_date
 
     def _cache_suffix(self) -> str:
         if self.backtest_mode and self._backtest_date:
@@ -164,8 +188,12 @@ class MarketDataProvider:
 
         try:
             spec = importlib.util.spec_from_file_location("wind_mcp_fetcher", str(wind_path))
-            mod = importlib.util.module_from_spec(spec)  # type: ignore[misc]
-            spec.loader.exec_module(mod)  # type: ignore[union-attr]
+            if spec is None or spec.loader is None:
+                self.source_health["wind_mcp"]["last_error"] = f"无法创建 importlib spec: {wind_path}"
+                logger.warning(f"Wind MCP importlib spec 创建失败: {wind_path}")
+                return
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
 
             # 校验必要函数是否存在
             if not (hasattr(mod, "wind_get_quote") and hasattr(mod, "wind_get_kline")):
@@ -175,14 +203,14 @@ class MarketDataProvider:
                 logger.warning(f"Wind MCP 模块缺少必要函数: {wind_path}")
                 return
 
-            self._wind_mcp_client = {  # type: ignore[union-attr]
+            self._wind_mcp_client = {
                 "quote": mod.wind_get_quote,
                 "kline": mod.wind_get_kline,
             }
             self.source_health["wind_mcp"]["ok"] = True
             logger.info(f"Wind MCP 客户端已加载 (P1, path={wind_path})")
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
-            self.source_health["wind_mcp"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["wind_mcp"]["last_error"] = str(e)
             logger.warning(f"Wind MCP 客户端加载失败 ({wind_path}): {e}")
 
     def _init_tdx(self):
@@ -190,18 +218,18 @@ class MarketDataProvider:
         try:
             from utils.tdx_data_source import get_tdx_source
 
-            self._tdx_source = get_tdx_source()  # type: ignore[union-attr]
+            self._tdx_source = get_tdx_source()
             if self._tdx_source and self._tdx_source.source_health.get("tdx", {}).get("ok"):
                 self.source_health["tdx"]["ok"] = True
                 logger.info("通达信数据源已加载 (P3)")
             else:
-                self.source_health["tdx"]["last_error"] = "通达信连接初始化失败"  # type: ignore[index]
+                self.source_health["tdx"]["last_error"] = "通达信连接初始化失败"
                 logger.warning("通达信数据源初始化失败")
         except ImportError as e:
-            self.source_health["tdx"]["last_error"] = f"模块导入失败: {e}"  # type: ignore[index]
+            self.source_health["tdx"]["last_error"] = f"模块导入失败: {e}"
             logger.warning(f"通达信数据源模块导入失败: {e}")
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
-            self.source_health["tdx"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["tdx"]["last_error"] = str(e)
             logger.warning(f"通达信数据源初始化失败: {e}")
 
     def _init_akshare(self):
@@ -209,18 +237,18 @@ class MarketDataProvider:
         try:
             from utils.akshare_data_source import get_akshare_source
 
-            self._akshare_source = get_akshare_source()  # type: ignore[union-attr]
+            self._akshare_source = get_akshare_source()
             if self._akshare_source and self._akshare_source.source_health.get("akshare", {}).get("ok"):
                 self.source_health["akshare"]["ok"] = True
                 logger.info("AKShare 数据源已加载 (P4)")
             else:
-                self.source_health["akshare"]["last_error"] = "AKShare 初始化失败"  # type: ignore[index]
+                self.source_health["akshare"]["last_error"] = "AKShare 初始化失败"
                 logger.warning("AKShare 数据源初始化失败")
         except ImportError as e:
-            self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"  # type: ignore[index]
+            self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"
             logger.warning(f"AKShare 数据源模块导入失败: {e}")
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
-            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["akshare"]["last_error"] = str(e)
             logger.warning(f"AKShare 数据源初始化失败: {e}")
 
     @staticmethod
@@ -568,12 +596,12 @@ class MarketDataProvider:
 
             match = re.search(r'"(.*)"', text)
             if not match:
-                self.source_health["sina_http"]["last_error"] = "empty_payload"  # type: ignore[index]
+                self.source_health["sina_http"]["last_error"] = "empty_payload"
                 logger.warning("新浪实时行情返回空: %s", symbol)
                 return None
             fields = match.group(1).split(",")
             if len(fields) < 10:
-                self.source_health["sina_http"]["last_error"] = "insufficient_fields"  # type: ignore[index]
+                self.source_health["sina_http"]["last_error"] = "insufficient_fields"
                 logger.warning("新浪实时行情字段不足: %s (got %d)", symbol, len(fields))
                 return None
 
@@ -594,7 +622,7 @@ class MarketDataProvider:
             # 成交额 fields[9]（元），保留但不返回（与 Wind MCP 格式一致）
 
             if price <= 0 and open_price <= 0:
-                self.source_health["sina_http"]["last_error"] = "zero_price"  # type: ignore[index]
+                self.source_health["sina_http"]["last_error"] = "zero_price"
                 logger.warning("新浪实时行情价格为 0: %s", symbol)
                 return None
 
@@ -615,11 +643,11 @@ class MarketDataProvider:
             }
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self.source_health["sina_http"]["ok"] = False
-            self.source_health["sina_http"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["sina_http"]["last_error"] = str(e)
             logger.error(f"新浪 HTTP 获取实时行情失败: {e}")
             return None
 
-    def get_market_data(self, symbol: Optional[str] = None) -> Dict:  # type: ignore[misc]
+    def get_market_data(self, symbol: Optional[str] = None) -> Dict:
         cache_key = f"market_{symbol or 'SPY'}{self._cache_suffix()}"
 
         with self.cache_lock:
@@ -629,10 +657,10 @@ class MarketDataProvider:
 
                 if cache_time and (datetime.now() - cache_time).total_seconds() < 60:
                     logger.debug(f"使用缓存的市场数据: {cache_key}")
-                    return cached_data["data"]  # type: ignore[index]
+                    return cast(Dict, cached_data["data"])
 
         try:
-            market_data = self._fetch_real_time_data(symbol)
+            market_data = self._fetch_real_time_data(symbol or "SPY")
 
             with self.cache_lock:
                 self.data_cache[cache_key] = {"data": market_data, "timestamp": datetime.now()}
@@ -714,7 +742,7 @@ class MarketDataProvider:
             logger.error(f"获取历史数据失败: {e}")
             raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
 
-    def get_sentiment_data(self, symbol: Optional[str] = None) -> Optional[Dict]:  # type: ignore[misc]
+    def get_sentiment_data(self, symbol: Optional[str] = None) -> Optional[Dict]:
         cache_key = f"sentiment_{symbol or 'SPY'}{self._cache_suffix()}"
 
         with self.cache_lock:
@@ -724,10 +752,10 @@ class MarketDataProvider:
 
                 if cache_time and (datetime.now() - cache_time).total_seconds() < 300:
                     logger.debug(f"使用缓存的情绪数据: {cache_key}")
-                    return cached_data["data"]  # type: ignore[index]
+                    return cast(Optional[Dict], cached_data["data"])
 
         try:
-            sentiment_data = self._fetch_sentiment_data(symbol)
+            sentiment_data = self._fetch_sentiment_data(symbol or "SPY")
 
             if sentiment_data is not None:
                 with self.cache_lock:
@@ -867,7 +895,7 @@ class MarketDataProvider:
             avg_loss = _mean(loss[-14:])
 
             if avg_loss == 0:
-                rsi = 50
+                rsi: float = 50.0
             else:
                 rs = avg_gain / avg_loss
                 rsi = 100 - (100 / (1 + rs))
@@ -902,17 +930,17 @@ class MarketDataProvider:
             logger.error(f"计算技术指标失败: {e}")
             return {}
 
-    def _calculate_ema(self, data, period: int) -> float:
+    def _calculate_ema(self, data: List[float], period: int) -> float:
         if len(data) < period:
-            return _mean(data)  # type: ignore[misc]
+            return _mean(data)
 
         alpha = 2 / (period + 1)
-        ema = data[0]
+        ema: float = data[0]
 
         for value in data[1:]:
             ema = alpha * value + (1 - alpha) * ema
 
-        return ema  # type: ignore[misc]
+        return ema
 
     def _get_default_market_data(self) -> Dict:
         """返回硬编码假数据 (index_price=3000 等)，仅供测试/调试使用。
@@ -1045,7 +1073,7 @@ class MarketDataProvider:
 
     def get_extended_status(self) -> Dict:
         """获取扩展状态 (含新模块健康检查)"""
-        status = {
+        status: Dict[str, Any] = {
             "data_sources": {
                 "wind_mcp": self.source_health.get("wind_mcp", {}).get("ok", False),
                 "tdx": self.source_health.get("tdx", {}).get("ok", False),
@@ -1058,9 +1086,9 @@ class MarketDataProvider:
         for module_name in ["tf_price_predictor", "external_data_source", "web_scraper", "ai_report_agent"]:
             try:
                 __import__(f"utils.{module_name}")
-                status[f"{module_name}_available"] = True  # type: ignore[misc]
+                status[f"{module_name}_available"] = True
             except ImportError:
-                status[f"{module_name}_available"] = False  # type: ignore[misc]
+                status[f"{module_name}_available"] = False
         return status
 
     def clear_cache(self):
@@ -1146,10 +1174,10 @@ class MarketDataProvider:
             return quote
 
 
-_data_provider = None
+_data_provider: Optional["MarketDataProvider"] = None
 
 
-def get_market_data(symbol: Optional[str] = None) -> Dict:  # type: ignore[misc]
+def get_market_data(symbol: Optional[str] = None) -> Dict:
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
@@ -1163,7 +1191,7 @@ def get_historical_data(symbol: str, period: str = "1y") -> pd.DataFrame:
     return _data_provider.get_historical_data(symbol, period)
 
 
-def get_sentiment_data(symbol: Optional[str] = None) -> Optional[Dict]:  # type: ignore[misc]
+def get_sentiment_data(symbol: Optional[str] = None) -> Optional[Dict]:
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()

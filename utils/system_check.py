@@ -414,10 +414,17 @@ class SystemChecker:
                            remediation="pip install akshare; 检查 NO_PROXY 环境变量")
 
             # C3.5 数据源冗余度评估
+            # 精准判据: 主源(Wind MCP)健康但备源不足 → 降级 WARN(不阻断, 环境装配缺陷);
+            #           主源也不可用 → ERROR(阻断, 真实不可达风险).
             if ok_count < 2:
-                self._fail("C3.5", "数据源冗余度", CheckLevel.ERROR,
-                           detail=f"仅 {ok_count} 个数据源可用, 风险高",
-                           remediation="至少需要 Wind MCP + 一个备选 (iFinD/TDX/AKShare)")
+                if wind_ok:
+                    self._fail("C3.5", "数据源冗余度", CheckLevel.WARN,
+                               detail=f"仅 {ok_count} 个数据源可用 (主源健康, 备源未装), 降级运行",
+                               remediation="建议 pip install pytdx2 提升冗余度 (非阻断)")
+                else:
+                    self._fail("C3.5", "数据源冗余度", CheckLevel.ERROR,
+                               detail=f"仅 {ok_count} 个数据源可用且主源不可用, 风险高",
+                               remediation="至少恢复 Wind MCP 主源")
             else:
                 self._pass("C3.5", "数据源冗余度", CheckLevel.INFO,
                            detail=f"{ok_count}/{total} 数据源可用")
@@ -1286,9 +1293,19 @@ if __name__ == "__main__":
                         help="输出 JSON 格式报告")
     args = parser.parse_args()
 
+    # 修复: 默认 logger 无 handler, INFO 报告会被静默丢弃;
+    # 这里把 logging 调到 ERROR 避免刷屏, 并由本块直接打印汇总报告。
+    import logging as _logging
+
+    _logging.basicConfig(level=_logging.ERROR, format="%(message)s")
+
     report = run_system_check(
         strict=args.strict,
         skip_datasource=args.skip_datasource,
-        output_json=args.json,
+        output_json=False,
     )
+    if args.json:
+        print(SystemChecker.report_to_json(report))
+    else:
+        print(SystemChecker.format_report(report))
     sys.exit(report.exit_code)

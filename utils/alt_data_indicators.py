@@ -389,8 +389,22 @@ class AltDataIndicators:
         return result.signals.get(symbol)
 
     def load_demo_data(self, symbols: list[str]) -> int:
-        """加载演示数据 (用于测试)"""
-        np.random.seed(42)
+        """加载演示数据 (用于测试)
+
+        M-3 (2026-08-09): 改用局部 Generator (np.random.default_rng),
+        不再调用 np.random.seed() 污染进程级全局 RNG, 避免影响调用链上其他随机逻辑。
+
+        M-4 (2026-08-09): 演示数据进入信号管道的风险护栏。
+        默认显式告警——虚构的卫星/港口/搜索活跃度指标不可用于实盘决策。
+        """
+        import os
+
+        if not os.environ.get("ALT_DATA_DEMO"):
+            logger.warning(
+                "[ALT_DATA] 使用虚构演示数据 (load_demo_data), 不可用于实盘决策; "
+                "如需运行演示请设置环境变量 ALT_DATA_DEMO=1"
+            )
+        rng = np.random.default_rng(42)
         count = 0
         for sym in symbols:
             # 卫星数据
@@ -398,11 +412,11 @@ class AltDataIndicators:
                 SatelliteIndicator(
                     region=f"港口_{sym[:3]}",
                     indicator_type="PORT_ACTIVITY",
-                    value=float(np.random.uniform(60, 100)),
-                    yoy_change=float(np.random.uniform(-15, 25)),
-                    mom_change=float(np.random.uniform(-5, 8)),
+                    value=float(rng.uniform(60, 100)),
+                    yoy_change=float(rng.uniform(-15, 25)),
+                    mom_change=float(rng.uniform(-5, 8)),
                     related_symbols=[sym],
-                    confidence=float(np.random.uniform(0.7, 0.95)),
+                    confidence=float(rng.uniform(0.7, 0.95)),
                 )
             )
             # 搜索数据
@@ -410,10 +424,10 @@ class AltDataIndicators:
                 SearchIndexIndicator(
                     keyword=f"{sym}",
                     platform="BAIDU",
-                    index_value=float(np.random.uniform(500, 5000)),
-                    trend_7d=float(np.random.uniform(-30, 50)),
-                    trend_30d=float(np.random.uniform(-15, 30)),
-                    is_breakout=bool(np.random.random() > 0.85),
+                    index_value=float(rng.uniform(500, 5000)),
+                    trend_7d=float(rng.uniform(-30, 50)),
+                    trend_30d=float(rng.uniform(-15, 30)),
+                    is_breakout=bool(rng.random() > 0.85),
                     related_symbols=[sym],
                 )
             )
@@ -421,10 +435,10 @@ class AltDataIndicators:
             self.add_recruitment(
                 RecruitmentIndicator(
                     company=f"公司_{sym}",
-                    job_count=int(np.random.randint(50, 500)),
-                    avg_salary=float(np.random.uniform(15, 45)),
-                    job_count_yoy=float(np.random.uniform(-20, 40)),
-                    salary_change=float(np.random.uniform(-10, 15)),
+                    job_count=int(rng.integers(50, 500)),
+                    avg_salary=float(rng.uniform(15, 45)),
+                    job_count_yoy=float(rng.uniform(-20, 40)),
+                    salary_change=float(rng.uniform(-10, 15)),
                     related_symbol=sym,
                 )
             )
@@ -432,11 +446,11 @@ class AltDataIndicators:
             self.add_patent(
                 PatentIndicator(
                     company=f"公司_{sym}",
-                    patent_count=int(np.random.randint(10, 200)),
-                    citation_count=int(np.random.randint(50, 1000)),
-                    patent_count_yoy=float(np.random.uniform(-10, 30)),
-                    citation_growth=float(np.random.uniform(-15, 40)),
-                    tech_distribution={"AI": np.random.randint(5, 50), "芯片": np.random.randint(5, 50)},
+                    patent_count=int(rng.integers(10, 200)),
+                    citation_count=int(rng.integers(50, 1000)),
+                    patent_count_yoy=float(rng.uniform(-10, 30)),
+                    citation_growth=float(rng.uniform(-15, 40)),
+                    tech_distribution={"AI": int(rng.integers(5, 50)), "芯片": int(rng.integers(5, 50))},
                     related_symbol=sym,
                 )
             )

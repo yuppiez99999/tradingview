@@ -44,6 +44,20 @@ class SignalResult:
 
 
 @dataclass
+class FusionSignal:
+    """融合信号 (轻量版, 供 institutional_pipeline_runner 使用).
+
+    注: 早期命名 FusionSignal 在重构时被 FusedSignal 取代, 但 institutional_pipeline_runner
+    仍引用此名 (list[FusionSignal] 类型注解 + FusionSignal(symbol=, strength=, confidence=) 实例化).
+    此处补齐兼容性定义以解锁模块 import (GLM-5.2 C2 修复的前置依赖).
+    """
+    symbol: str = ""
+    strength: float = 0.0
+    confidence: float = 0.0
+    source: str = ""
+
+
+@dataclass
 class FusedSignal:
     """融合后的综合信号"""
     code: str

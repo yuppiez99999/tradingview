@@ -198,7 +198,7 @@ class VixDataSource:
             if tools_dir not in sys.path:
                 sys.path.insert(0, tools_dir)
 
-            from wind_mcp_fetcher import wind_get_kline  # type: ignore[import-not-found]
+            from wind_mcp_fetcher import wind_get_kline  # type: ignore
 
             kline_data = wind_get_kline(_WIND_UNDERLYING_CODE, days=30)
             if not kline_data or len(kline_data) < 5:
@@ -309,7 +309,7 @@ class VixDataSource:
             if vix is None or not isinstance(vix, (int, float)):
                 return None
 
-            return cache_data
+            return cache_data  # type: ignore[no-any-return]
 
         except (OSError, json.JSONDecodeError, ValueError, TypeError) as e:
             logger.debug("读取 VIX 缓存失败: %s", e)

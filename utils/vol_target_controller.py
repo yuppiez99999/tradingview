@@ -33,6 +33,7 @@ import logging
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, Optional, TypedDict, cast
 
 import numpy as np
 
@@ -49,6 +50,19 @@ CONFIG_DIR = BASE_DIR / "config"
 REPORTS_DIR = BASE_DIR / "v7.5_institutional" / "reports"
 DAILY_REPORT_DIR = BASE_DIR / "每日报告归档"
 CACHE_DIR = BASE_DIR / "cache"
+
+
+class VolBudgetResult(TypedDict, total=False):
+    """波动率预算调整结果 (混合类型字段: 数值/布尔/时间)"""
+    original_budget: float
+    vol_scale: float
+    threshold_active: bool
+    adjusted_budget: float
+    reduction_pct: float
+    realized_vol: float
+    target_vol: float
+    recommendation: str
+    timestamp: str
 
 
 class VolTargetController:
@@ -72,12 +86,12 @@ class VolTargetController:
     VOL_SCALE_THRESHOLD = 0.80  # 低于此值开始缩仓
     ANNUALIZATION_FACTOR = math.sqrt(252)  # 年化因子
 
-    def __init__(self, target_vol: float | None = None):  # type: ignore[misc]
+    def __init__(self, target_vol: float | None = None):
         if target_vol is not None:
             self.TARGET_ANNUAL_VOL = target_vol
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-    def calc_realized_vol(self, daily_returns: list[float] | None = None) -> float:  # type: ignore[misc]
+    def calc_realized_vol(self, daily_returns: list[float] | None = None) -> float:
         """计算已实现波动率 (EWMA)
 
         Args:
@@ -113,7 +127,7 @@ class VolTargetController:
         logger.info(f"已实现波动率: 日{daily_vol * 100:.2f}% → 年化{annual_vol * 100:.2f}%")
         return annual_vol
 
-    def calc_vol_scale(self, realized_vol: float | None = None) -> float:  # type: ignore[misc]
+    def calc_vol_scale(self, realized_vol: float | None = None) -> float:
         """计算波动率缩放因子
 
         vol_scale = target_vol / realized_vol
@@ -140,9 +154,9 @@ class VolTargetController:
     def adjust_daily_budget(
         self,
         original_budget: float,
-        realized_vol: float | None = None,  # type: ignore[assignment]
+        realized_vol: float | None = None,
         force_scale: float | None = None,
-    ) -> dict[str, float]:  # type: ignore[misc]
+    ) -> VolBudgetResult:
         """调整当日建仓预算
 
         Args:
@@ -202,7 +216,7 @@ class VolTargetController:
         # 保存缓存 (供其他模块读取)
         self._save_cache(result)
 
-        return result  # type: ignore[misc]
+        return cast(VolBudgetResult, result)
 
     def _load_portfolio_returns(self) -> list[float]:
         """从盘后报告中加载组合日收益率
@@ -271,10 +285,12 @@ class VolTargetController:
             return [0.01, -0.01, 0.005, -0.008, 0.012]
 
         # 用组合波动率模拟日收益序列
+        # N-2 修复 (2026-08-09): 移除全局 np.random.seed (污染进程级 RNG, 影响下游随机性);
+        # 改用局部 np.random.default_rng(seed) 隔离, 不影响全局状态。
         avg_vol = np.mean(vols)
-        np.random.seed(42)
-        simulated_returns = np.random.normal(0, avg_vol, 20).tolist()
-        return simulated_returns  # type: ignore[misc]
+        rng = np.random.default_rng(42)
+        simulated_returns = rng.normal(0, avg_vol, 20).tolist()
+        return cast(list[float], simulated_returns)
 
     def _save_cache(self, result: dict) -> None:
         """缓存结果供其他模块读取"""
@@ -294,7 +310,8 @@ class VolTargetController:
         try:
             with open(cache_path, encoding="utf-8") as f:
                 data = json.load(f)
-            return data.get("vol_scale")  # type: ignore[index]
+            vol_scale_val = cast(dict[str, Any], data).get("vol_scale")
+            return float(vol_scale_val) if isinstance(vol_scale_val, (int, float)) else None
         except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             return None
 

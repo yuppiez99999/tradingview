@@ -81,11 +81,11 @@ class OvernightGapMonitor:
 
     def __init__(
         self,
-        sp500_l2_threshold: float | None = None,  # type: ignore[misc]
-        sp500_l3_threshold: float | None = None,  # type: ignore[misc]
-        adr_l2_threshold: float | None = None,  # type: ignore[misc]
-        adr_l3_threshold: float | None = None,  # type: ignore[misc]
-        fail_closed_pct: float | None = None,  # type: ignore[misc]
+        sp500_l2_threshold: float | None = None,
+        sp500_l3_threshold: float | None = None,
+        adr_l2_threshold: float | None = None,
+        adr_l3_threshold: float | None = None,
+        fail_closed_pct: float | None = None,
         ):
         """初始化隔夜跳空监控器
 
@@ -327,17 +327,17 @@ class OvernightGapMonitor:
         # Layer 1: ExternalDataSource (实时)
         sp500, adr, ok = self._fetch_via_external_source()
         if ok:
-            return sp500, adr, "external_data"  # type: ignore[misc]
+            return float(sp500), float(adr), "external_data"
         # Layer 1.5: 通达信 A 股指数代理 (v8.6.8 新增)
         # 当 ExternalDataSource (Finnhub/AlphaVantage) 不可用时,
         # 用沪深300ETF 当日涨跌幅作为隔夜风险代理
         sp500, adr, ok = self._fetch_via_tdx_proxy()
         if ok:
-            return sp500, adr, "tdx_proxy"  # type: ignore[misc]
+            return float(sp500), float(adr), "tdx_proxy"
         # Layer 2: 本地缓存
         sp500, adr, ok = self._fetch_via_cache()
         if ok:
-            return sp500, adr, "cache"  # type: ignore[misc]
+            return float(sp500), float(adr), "cache"
         # Layer 3: fail-closed
         logger.error(
             "[OvernightGapMonitor] 所有数据源不可用, fail-closed 返回 S&P500 %.2f%%",

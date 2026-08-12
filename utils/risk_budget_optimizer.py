@@ -106,7 +106,7 @@ class RiskBudgetOptimizer:
         self,
         symbols: list[str],
         expected_returns: list[float] | np.ndarray,
-        cov_matrix: np.ndarray | pd.DataFrame,  # type: ignore[misc]
+        cov_matrix: np.ndarray | pd.DataFrame,  # type: ignore
         benchmark_weights: list[float] | np.ndarray,
         max_tracking_error: float = 0.05,
         max_weight: float | None = None,
@@ -485,7 +485,7 @@ class RiskBudgetOptimizer:
             return {
                 "new_weights": w_cur,
                 "adjustments": np.zeros_like(w_cur),
-                "expected_te": 0.0,  # type: ignore[misc]
+                "expected_te": 0.0,  # type: ignore
                 }
 
         # 计算缩放因子

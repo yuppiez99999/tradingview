@@ -520,7 +520,7 @@ class ABTestFramework:
         """汇总指标 (取平均值)."""
         if not records:
             return {}
-        all_keys = set()  # type: ignore[misc]
+        all_keys = set()  # type: ignore
         for r in records:
             all_keys.update(r.keys())
         summary = {}

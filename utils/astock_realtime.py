@@ -18,6 +18,8 @@ import time
 import urllib.request
 
 from utils.logger import get_logger
+# W6.3.3 Step 1: 统一合约代码解析入口 (替代本地 _secid 前缀判定)
+from utils.contracts.symbols import to_eastmoney_secid
 
 logger = get_logger("astock_realtime")
 
@@ -28,16 +30,25 @@ _eastmoney_blocked = False
 
 
 def _secid(code: str) -> str:
-    """6位代码 -> 东财 secid (市场.代码). 51/58=沪(1), 15/16=深(0)."""
-    s = str(code).strip()
-    if s.startswith(("51", "58", "60", "68", "9", "11", "113", "110")):
-        return f"1.{s}"
-    if s.startswith(("15", "16", "00", "30", "12", "123", "127", "128")):
-        return f"0.{s}"
-    return f"1.{s}"
+    """6位代码 -> 东财 secid (市场.代码).
+
+    W6.3.3 Step 1: 内部委托给 utils.contracts.symbols.to_eastmoney_secid()
+    (统一入口)，保留函数签名与返回值格式以保持向后兼容。
+
+    行为对齐 (与旧前缀判定 100% 一致):
+        - 51/58/60/68/9/11 开头 -> 1.xxx
+        - 15/16/00/30/12 开头 -> 0.xxx
+        - 未知前缀 -> 1.xxx (与旧 fallback 一致)
+    """
+    # to_eastmoney_secid 内部对裸码走前缀推断，行为 100% 对齐
+    return to_eastmoney_secid(code)
 
 
 def _tx_prefix(code: str) -> str:
+    """6位代码 -> 腾讯/新浪行情前缀 (sh / sz + 裸码).
+
+    W6.3.3 Step 1: 继续委托 _secid -> 统一入口判断市场前缀。
+    """
     sid = _secid(code)
     return ("sh" if sid.startswith("1.") else "sz") + str(code).strip()
 
@@ -54,7 +65,7 @@ def _http_get(url: str, ref: str | None = None, timeout: int = 10) -> bytes:
     req.add_header("User-Agent", "Mozilla/5.0")
     if ref:
         req.add_header("Referer", ref)
-    return _opener.open(req, timeout=timeout).read()  # type: ignore[misc]
+    return _opener.open(req, timeout=timeout).read()  # type: ignore
 
 def get_eastmoney_quotes(codes: list[str]) -> dict[str, dict]:
     """东财 push2 批量行情 (主源). 返回 {code: {price, pre_close, change_pct, pe, pb, mktcap_yi, ...}}."""

@@ -328,7 +328,7 @@ class MLOpsPipeline:
     # ============================================================
     def get_status(self) -> dict[str, Any]:
         """获取 pipeline 状态快照."""
-        status = {
+        status: dict[str, Any] = {
             "enabled": self._enabled,
             "started": self._started,
             "feature_flag": self.feature_flag_name,
@@ -338,24 +338,24 @@ class MLOpsPipeline:
         # 收集子模块状态 (容错)
         try:
             if self._drift_monitor is not None:
-                status["components"]["drift_monitor"] = self._drift_monitor.get_status()  # type: ignore[index]
+                status["components"]["drift_monitor"] = self._drift_monitor.get_status()
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             pass
         try:
             if self._retrain_scheduler is not None:
-                status["components"]["retrain_scheduler"] = self._retrain_scheduler.get_status()  # type: ignore[index]
+                status["components"]["retrain_scheduler"] = self._retrain_scheduler.get_status()
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             pass
         try:
             if self._model_registry is not None:
-                status["components"]["model_registry"] = {  # type: ignore[index]
+                status["components"]["model_registry"] = {
                     "models": self._model_registry.list_models(),
                 }
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             pass
         try:
             if self._ab_framework is not None:
-                status["components"]["ab_framework"] = {  # type: ignore[index]
+                status["components"]["ab_framework"] = {
                     "tests_count": len(self._ab_framework.list_tests()),
                 }
         except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化

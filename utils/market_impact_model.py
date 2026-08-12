@@ -266,20 +266,22 @@ class MarketImpactModel:
         # x(t) = X × sinh(κ(T-t)) / sinh(κT)
         # 边界: x(0) = X, x(T) = 0
         sin_kT = math.sinh(kappa * T)
+        # holdings: 双分支都返回 ndarray，但 mypy 从字面分支无法证明；PEP 526 变量注解收窄
+        holdings: np.ndarray
         if abs(sin_kT) < 1e-10:
             # 退化: 匀速
-            holdings = total_shares * (1 - t_array / T)  # type: ignore[misc]
+            holdings = total_shares * (1 - t_array / T)
         else:
             holdings = total_shares * np.sinh(kappa * (T - t_array)) / sin_kT
 
         # 交易 = -Δx
-        trades = np.diff(-holdings)  # type: ignore[union-attr]
+        trades = np.diff(-holdings)
         # 第一个交易把持仓从 0 拉到 x(0)? 实际 AC 模型: 初始持仓 = X, 逐步卖到 0
         # 所以 holdings[0] = X (初始), holdings[-1] = 0 (终止)
         trades_full = np.concatenate([[total_shares - holdings[0]], trades])
         # 修正: holdings[0] = total_shares
         # 这里 holdings[0] 已经 = X * sinh(kT)/sinh(kT) = X, OK
-        trades_full = np.diff(np.concatenate([[total_shares], -holdings]))  # type: ignore[misc]
+        trades_full = np.diff(np.concatenate([[total_shares], -holdings]))
         # 简化: trades[i] = holdings[i-1] - holdings[i]
         trades_full = np.concatenate(
             [
@@ -297,7 +299,7 @@ class MarketImpactModel:
         total_cost = perm_cost + temp_cost
 
         # 风险 = σ² × Σ x_i² × Δt
-        cost_var = sigma * sigma * np.sum(holdings[:-1] ** 2) * dt  # type: ignore[misc]
+        cost_var = sigma * sigma * np.sum(holdings[:-1] ** 2) * dt
 
         # 半衰期: x(t) 减半的时间
         # X/2 = X × sinh(κ(T-t_h)) / sinh(κT)
@@ -311,7 +313,7 @@ class MarketImpactModel:
 
         return OptimalTrajectory(
             times=t_array.tolist(),
-            holdings=holdings.tolist(),  # type: ignore[union-attr]
+            holdings=holdings.tolist(),
             trades=trades_full.tolist(),
             speeds=speeds.tolist(),
             expected_cost=float(total_cost),

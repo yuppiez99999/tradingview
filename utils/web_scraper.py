@@ -34,7 +34,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import requests
 import urllib3
@@ -44,13 +44,17 @@ logger = logging.getLogger(__name__)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# BeautifulSoup 前向声明(模块级) — 根除 ImportError fallback 时 =None 触发 [assignment]
+# 此声明与 try/except 的成功/失败分支独立，保证 mypy 看到的类型永远是 Optional[type]
+BeautifulSoup: Optional[type]
+
 try:
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup  # noqa: F811
 
     HAS_BS4 = True
 except ImportError:
     HAS_BS4 = False
-    BeautifulSoup = None  # type: ignore[assignment]
+    BeautifulSoup = None
 
 # Scrapling (可选, 增强 Cloudflare 等反爬绕过)
 try:
@@ -63,10 +67,8 @@ except ImportError:
     Fetcher = None
 from utils.logger import get_logger  # noqa: E402
 
-try:
-    from urllib.parse import urlparse
-except ImportError:  # pragma: no cover
-    from urllib.parse import urlparse  # type: ignore
+# Python 3 标准库始终包含 urllib.parse，移除无意义的 ImportError fallback
+from urllib.parse import urlparse
 
 logger = get_logger("web_scraper")
 
@@ -268,7 +270,7 @@ class WebScraper:
             try:
                 page = Fetcher.get(url, stealthy=True, timeout=self.timeout)
                 if page and page.status == 200:
-                    return page.body  # type: ignore[misc]
+                    return cast(str, page.body)
             except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                 logger.debug(f"Scrapling 抓取失败 ({url}): {e}, 回退到 requests")
 
@@ -279,7 +281,7 @@ class WebScraper:
                 # 自动检测编码 (中文网站常用 gbk/utf-8)
                 if resp.encoding and resp.encoding.lower() == "iso-8859-1":
                     resp.encoding = resp.apparent_encoding
-                return resp.text  # type: ignore[misc]
+                return resp.text
             logger.warning(f"HTTP {resp.status_code}: {url}")
         except requests.exceptions.Timeout:
             logger.warning(f"请求超时 ({self.timeout}s): {url}")
@@ -353,7 +355,7 @@ class WebScraper:
         cached = self.cache.get(cache_key)
         if cached is not None:
             logger.debug(f"公告缓存命中: {symbol}")
-            return cached  # type: ignore[misc]
+            return cast(List[NewsItem], cached)
 
         # 东方财富公告 API (JSON 接口, 无需 HTML 解析)
         result = self._fetch_eastmoney_announcements(symbol, limit)
@@ -483,7 +485,7 @@ class WebScraper:
         cache_key = f"res_{symbol}_{limit}"
         cached = self.cache.get(cache_key)
         if cached is not None:
-            return cached  # type: ignore[misc]
+            return cast(List[NewsItem], cached)
 
         result = self._fetch_eastmoney_research(symbol, limit)
         self.cache.set(cache_key, result, ttl=self.CACHE_TTL["research"])
@@ -575,7 +577,7 @@ class WebScraper:
         cache_key = f"news_{keyword}_{limit}"
         cached = self.cache.get(cache_key)
         if cached is not None:
-            return cached  # type: ignore[misc]
+            return cast(List[NewsItem], cached)
 
         # 优先: 新浪财经搜索 API
         result = self._fetch_sina_news(keyword, limit)
@@ -597,7 +599,9 @@ class WebScraper:
             "ie": "utf-8",
         }
         html = self._fetch_html(url, params=params)
-        soup = self._parse_html(html)  # type: ignore[union-attr]
+        if html is None:
+            return []
+        soup = self._parse_html(html)
         if soup is None:
             return []
 
@@ -616,7 +620,7 @@ class WebScraper:
                 NewsItem(
                     title=title,
                     content=content[:500],
-                    url=link,  # type: ignore[misc]
+                    url=cast(str, link),
                     source="sina",
                     category="news",
                     published_at=published,

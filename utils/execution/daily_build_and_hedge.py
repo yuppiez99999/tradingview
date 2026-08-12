@@ -1171,4 +1171,4 @@ if __name__ == "__main__":
 
     if args.save:
         md_path, json_path = system.save_report(args.output_dir)
-        print(f"\n报告已保存:\n  Markdown: {md_path}\n  JSON:     {json_path}", file=sys.stderr)  # allow-print (CLI 交互输出)
+        logger.warning("报告已保存: Markdown=%s JSON=%s", md_path, json_path)

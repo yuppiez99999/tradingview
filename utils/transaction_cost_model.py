@@ -182,7 +182,7 @@ class TransactionCostModel:
         participation = min(notional / avg_daily_volume, self.params.participation_rate)
         base_impact = notional * coeff * (participation**self.params.impact_exponent)
         volatility_adj = 1.0 + self.params.impact_volatility_adj * max(volatility - 0.02, 0.0) / 0.02
-        return base_impact * volatility_adj  # type: ignore[misc]
+        return base_impact * volatility_adj  # type: ignore
     def estimate_opportunity_cost(self, notional: float, days_delayed: float = 1.0) -> float:
         """机会成本 (v8.1: 建仓延迟导致的预期收益损失)"""
         return notional * self.params.opportunity_cost_rate * days_delayed
@@ -292,7 +292,7 @@ class TransactionCostModel:
         total = slippage + commission + impact + opportunity + delay
         return {
             "notional": float(notional),
-            "tier": tier.value,  # type: ignore[misc]
+            "tier": tier.value,  # type: ignore
             "tier_slippage_bps": self.get_slippage_bps(tier),
             "slippage": float(slippage),
             "commission": float(commission),

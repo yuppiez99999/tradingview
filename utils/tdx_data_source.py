@@ -7,15 +7,34 @@ import logging
 import threading
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 
+# ===========================================================
+# 类型声明 (TypedDict) — 消除 source_health 嵌套字典的 type:ignore
+# ===========================================================
+class SourceHealthEntry(TypedDict):
+    """单数据源健康状态条目"""
+    ok: bool
+    last_error: Optional[str]
+    last_success: Optional[str]
+
+
 class TDXDataSource:
     """通达信数据源适配器，提供实时行情和历史K线数据"""
+
+    # 显式类型声明 — 消除 __init__ 赋值 [assignment] + 跨方法 [union-attr]
+    _api: Optional[Any]
+    _api_cls: Optional[Any]
+    _ex_api_cls: Optional[Any]
+    _connected: bool
+    _last_connect_time: Optional[float]
+    _reconnect_interval: int
+    source_health: Dict[str, SourceHealthEntry]
 
     def __init__(self):
         self._api = None
@@ -24,7 +43,7 @@ class TDXDataSource:
         self._connected = False
         self._last_connect_time = None
         self._reconnect_interval = 300
-        self.source_health = {"tdx": {"ok": False, "last_error": None, "last_success": None}}
+        self.source_health = {"tdx": SourceHealthEntry(ok=False, last_error=None, last_success=None)}
         self._init_connection()
 
     def _init_connection(self):
@@ -53,7 +72,7 @@ class TDXDataSource:
             self._connect()
 
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
-            self.source_health["tdx"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["tdx"]["last_error"] = str(e)
             logger.warning(f"通达信数据源初始化失败: {e}")
 
     def _connect(self):
@@ -86,7 +105,7 @@ class TDXDataSource:
                         self._connected = True
                         self._last_connect_time = time.time()
                         self.source_health["tdx"]["ok"] = True
-                        self.source_health["tdx"]["last_success"] = datetime.now().isoformat()  # type: ignore[index]
+                        self.source_health["tdx"]["last_success"] = datetime.now().isoformat()
                         self.source_health["tdx"]["last_error"] = None
                         logger.info(f"通达信连接成功: {ip}:{port}")
                         return
@@ -99,7 +118,7 @@ class TDXDataSource:
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             self._connected = False
             self.source_health["tdx"]["ok"] = False
-            self.source_health["tdx"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信连接失败: {e}")
 
     def _ensure_connected(self):
@@ -171,8 +190,13 @@ class TDXDataSource:
             if not code or market not in (0, 1, 2):
                 return None
 
+            # 局部变量化 + None 守卫 — 消除 [union-attr]
+            api = self._api
+            if api is None:
+                return None
+
             # 获取实时行情
-            quotes = self._api.get_security_quotes([(market, code)])  # type: ignore[union-attr]
+            quotes = api.get_security_quotes([(market, code)])
             if not quotes:
                 return None
 
@@ -180,7 +204,7 @@ class TDXDataSource:
 
             # 获取前收盘价
             try:
-                stock_info = self._api.get_security_info(market, code)  # type: ignore[union-attr]
+                stock_info = api.get_security_info(market, code)
                 prev_close = stock_info.get("last_close", 0) if stock_info else 0
             except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
                 prev_close = 0
@@ -199,12 +223,12 @@ class TDXDataSource:
             }
 
             self.source_health["tdx"]["ok"] = True
-            self.source_health["tdx"]["last_success"] = datetime.now().isoformat()  # type: ignore[index]
+            self.source_health["tdx"]["last_success"] = datetime.now().isoformat()
             return result
 
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             self.source_health["tdx"]["ok"] = False
-            self.source_health["tdx"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取实时行情失败: {e}")
             return None
 
@@ -238,8 +262,13 @@ class TDXDataSource:
             }
             tdx_period = period_map.get(period, 9)
 
+            # 局部变量化 + None 守卫 — 消除 [union-attr]
+            api = self._api
+            if api is None:
+                return None
+
             # 获取K线数据
-            klines = self._api.get_security_bars(tdx_period, market, code, 0, count)  # type: ignore[union-attr]
+            klines = api.get_security_bars(tdx_period, market, code, 0, count)
             if not klines:
                 return None
 
@@ -265,12 +294,12 @@ class TDXDataSource:
             df.sort_index(inplace=True)
 
             self.source_health["tdx"]["ok"] = True
-            self.source_health["tdx"]["last_success"] = datetime.now().isoformat()  # type: ignore[index]
+            self.source_health["tdx"]["last_success"] = datetime.now().isoformat()
             return df
 
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             self.source_health["tdx"]["ok"] = False
-            self.source_health["tdx"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取历史K线失败: {e}")
             return None
 
@@ -286,8 +315,13 @@ class TDXDataSource:
             if not code or market not in (0, 1, 2):
                 return None
 
+            # 局部变量化 + None 守卫 — 消除 [union-attr]
+            api = self._api
+            if api is None:
+                return None
+
             # 获取财务数据
-            finance = self._api.get_finance_info(market, code)  # type: ignore[union-attr]
+            finance = api.get_finance_info(market, code)
             if not finance:
                 return None
 
@@ -303,7 +337,7 @@ class TDXDataSource:
 
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             self.source_health["tdx"]["ok"] = False
-            self.source_health["tdx"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取财务数据失败: {e}")
             return None
 

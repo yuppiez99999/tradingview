@@ -14,7 +14,9 @@ import json
 import os
 import urllib.request
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+# W6.3.3 Step 1: 统一合约代码解析入口 (替代 _to_wind_code + 行内 secid 拼接)
+from utils.contracts.symbols import to_eastmoney_secid, to_wind_code
 
 from utils.logger import get_logger
 
@@ -86,8 +88,10 @@ class ETFRealTimeTracker:
                 import importlib.util
 
                 spec = importlib.util.spec_from_file_location("wind_mcp_fetcher", wind_path)
-                mod = importlib.util.module_from_spec(spec)  # type: ignore[misc]
-                spec.loader.exec_module(mod)  # type: ignore[union-attr]
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"无法加载 wind_mcp_fetcher 模块规格: {wind_path}")
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
                 self._wind_mcp_client = {
                     "quote": mod.wind_get_quote,
                     "batch_quotes": mod.wind_get_batch_quotes,
@@ -109,12 +113,12 @@ class ETFRealTimeTracker:
             logger.warning(f"iFinD MCP 客户端加载失败: {e}")
 
     def _to_wind_code(self, etf_code: str) -> str:
-        s = str(etf_code).strip()
-        if s.startswith(("51", "58")):
-            return f"{s}.SH"
-        if s.startswith(("15", "16")):
-            return f"{s}.SZ"
-        return f"{s}.SH"
+        """裸码 -> Wind 风格 ETF 代码 (510300 -> 510300.SH)。
+
+        W6.3.3 Step 1: 内部委托给 contracts 统一入口, 保持向后兼容签名。
+        行为 100% 对齐旧实现: 51/58->.SH, 15/16->.SZ, 其余默认 .SH
+        """
+        return to_wind_code(etf_code)
 
     def _fetch_wind_fund_flow(self, etf_code: str) -> Optional[Dict]:
         if not self._wind_mcp_client or not self.wind_mcp_available:
@@ -191,11 +195,12 @@ class ETFRealTimeTracker:
 
         来自 A股全栈数据 skill 验证过的 fflow/kline 接口, 比新浪成交额近似更准,
         作为 Wind MCP / iFinD 不可用时的免费真实资金流源 (优先级高于新浪)。
+
+        W6.3.3 Step 1: 原行内 wc + split + if-else secid 拼接替换为统一入口
+        to_eastmoney_secid()，避免与 astock_realtime 的前缀判定分裂。
         """
         try:
-            wc = self._to_wind_code(etf_code)  # '510300.SH' / '510300.SZ'
-            num, mkt = wc.split(".")
-            secid = f"1.{num}" if mkt == "SH" else f"0.{num}"
+            secid = to_eastmoney_secid(etf_code)  # '1.510300' / '0.159915' (自动识别后缀/裸码前缀)
             url = (
                 "https://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=1&klt=101"
                 f"&secid={secid}&fields1=f1,f2,f3,f7"
@@ -540,7 +545,7 @@ class ETFRealTimeTracker:
             return {"status": "error", "message": str(e)}
 
 
-def refresh_etf_flow_signals(positions_file: Optional[str] = None) -> Dict:  # type: ignore[misc]
+def refresh_etf_flow_signals(positions_file: Optional[str] = None) -> Dict[str, Any]:
     if positions_file is None:
         positions_file = os.path.join(os.path.dirname(__file__), "..", "config", "positions.json")
         positions_file = os.path.normpath(positions_file)

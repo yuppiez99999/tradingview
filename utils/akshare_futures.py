@@ -289,7 +289,7 @@ def get_futures_realtime(symbols: list[str]) -> dict[str, Any]:
 
     quotes = fetch_futures_quotes(symbols)
     if quotes:
-        return quotes  # type: ignore[misc]
+        return quotes  # type: ignore
     logger.info("[DEBUG] Wind MCP/iFinD 不可用，回退 AKShare 实时行情")
     try:
         import akshare as ak
@@ -344,7 +344,7 @@ def get_futures_daily(symbol: str, market: str = "CF") -> dict[str, Any]:
 def get_futures_base_info(symbols: list[str]) -> dict[str, Any]:
     info = fetch_futures_base_info(symbols)
     if info:
-        return info  # type: ignore[misc]
+        return info  # type: ignore
     logger.info("[DEBUG] iFinD 基础数据不可用，AKShare 无直接基础数据接口")
     return {}
 

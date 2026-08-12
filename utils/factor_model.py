@@ -29,12 +29,14 @@ from typing import Dict, Optional
 import numpy as np
 import pandas as pd
 
+GTJA191Factors: Optional[type]
 try:
-    from utils.gtja191_factors import GTJA191Factors
+    from utils.gtja191_factors import GTJA191Factors as _GTJA191Factors_impl
 
+    GTJA191Factors = _GTJA191Factors_impl
     _HAS_GTJA191 = True
 except ImportError:
-    GTJA191Factors = None  # type: ignore[assignment,misc]
+    GTJA191Factors = None
     _HAS_GTJA191 = False
 
 logger = logging.getLogger("factor_model")
@@ -222,7 +224,7 @@ class FactorModel:
         sharpe_score = max(-1, min(1, (sharpe - 0) / 1.5))
 
         score = vol_score * 0.4 + dd_score * 0.3 + sharpe_score * 0.3
-        return round(score, 4)  # type: ignore[misc]
+        return float(round(score, 4))
     # ============================================================
     # 因子6: 技术Alpha因子（GTJA191 Alpha144）
     # ============================================================
@@ -350,7 +352,7 @@ class FactorModel:
         avg = np.mean(composites)
 
         # 信号分布
-        dist = {}  # type: ignore[misc]
+        dist: dict[str, int] = {}
         for r in results.values():
             dist[r.signal] = dist.get(r.signal, 0) + 1
 
@@ -360,8 +362,8 @@ class FactorModel:
         bottom_3 = [r.code for r in sorted_r[-3:]]
 
         return {
-            "avg_composite": round(avg, 4),
-            "signal": self._to_signal(avg),  # type: ignore[misc]
+            "avg_composite": round(float(avg), 4),
+            "signal": self._to_signal(float(avg)),
             "distribution": dist,
             "top_3": top_3,
             "bottom_3": bottom_3,

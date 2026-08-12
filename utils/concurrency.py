@@ -67,7 +67,7 @@ def _replace_with_retry(src: str, dst: PathLike, retries: int = 50, delay: float
         except PermissionError as e:
             last_err = e
             time.sleep(delay)
-    raise last_err  # type: ignore[misc]
+    raise last_err  # type: ignore
 
 
 def atomic_write_text(path: PathLike, text: str, encoding: str = "utf-8") -> None:

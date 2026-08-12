@@ -258,7 +258,7 @@ class SmartOrderRouter:
 
         # 2) 选择策略
         if strategy == "DARK_FIRST":
-            scores = [s for s in scores if self.venues.get(s.venue_name).venue_type in ("DARK_POOL", "BLOCK_TRADE")]  # type: ignore[misc]
+            scores = [s for s in scores if self.venues.get(s.venue_name).venue_type in ("DARK_POOL", "BLOCK_TRADE")]  # type: ignore
             if not scores:
                 strategy = "SMART"
                 scores = self._score_venues(side, total_shares, order_books)

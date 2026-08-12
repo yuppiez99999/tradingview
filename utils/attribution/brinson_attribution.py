@@ -694,8 +694,8 @@ class BrinsonAttributionManager:
         self,
         portfolio_weights: dict[str, float],
         benchmark_weights: dict[str, float] | None = None,
-        portfolio_returns: dict[str, float] | None = None,  # type: ignore[misc]
-        benchmark_returns: dict[str, float] | None = None,  # type: ignore[misc]
+        portfolio_returns: dict[str, float] | None = None,
+        benchmark_returns: dict[str, float] | None = None,
         attribution_date: str = "",
         benchmark_code: str | None = None,
         validate: bool = True,

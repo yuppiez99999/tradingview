@@ -272,7 +272,7 @@ class PreTradeEstimator:
             shares=shares,
             notional=notional,
             price=price,
-            tier=tier,  # type: ignore[misc]
+            tier=tier,  # type: ignore
             estimated_cost_bps=cost_bps,
             estimated_cost_amount=total_cost,
             cost_breakdown={

@@ -512,7 +512,10 @@ class StrategyEvaluator:
             6. 交叉验证时间隔离
         """
         try:
-            from pit_checker import PITChecker  # type: ignore[misc]
+            import importlib
+
+            pit_checker_mod = importlib.import_module("pit_checker")
+            PITChecker = pit_checker_mod.PITChecker
 
             checker = PITChecker()
             violations_count = 0
@@ -689,7 +692,10 @@ class StrategyEvaluator:
             return -1.0
 
         try:
-            from walk_forward import purged_walk_forward_split  # type: ignore[misc]
+            import importlib
+
+            walk_forward_mod = importlib.import_module("walk_forward")
+            purged_walk_forward_split = walk_forward_mod.purged_walk_forward_split
 
             # 参数: 5 折, purge=5, embargo=5
             train_size = max(100, n // 3)
@@ -759,7 +765,10 @@ class StrategyEvaluator:
             DSR 结果字典, 失败时返回 None
         """
         try:
-            from deflated_sharpe import deflated_sharpe_ratio  # type: ignore[misc]
+            import importlib
+
+            deflated_sharpe_mod = importlib.import_module("deflated_sharpe")
+            deflated_sharpe_ratio = deflated_sharpe_mod.deflated_sharpe_ratio
 
             result = deflated_sharpe_ratio(
                 daily_returns=list(daily_returns),

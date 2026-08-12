@@ -16,7 +16,7 @@ import logging
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
@@ -26,19 +26,27 @@ from utils.pipeline.config import get_pipeline_config
 logger = logging.getLogger("pipeline.data_cleaning")
 
 # 尝试导入现有模块（优雅降级）
+DataQualityMonitor: Optional[type]
 try:
-    from utils.data_quality_monitor import DataQualityMonitor
+    from utils.data_quality_monitor import DataQualityMonitor as _DQM_impl
+
+    DataQualityMonitor = _DQM_impl
     _HAS_QUALITY_MONITOR = True
 except ImportError:
-    DataQualityMonitor = None  # type: ignore[misc]
+    DataQualityMonitor = None
     _HAS_QUALITY_MONITOR = False
 
+DataGate: Optional[type]
+DataGateResult: Optional[type]
 try:
-    from utils.data_gate import DataGate, DataGateResult
+    from utils.data_gate import DataGate as _DG_impl, DataGateResult as _DGR_impl
+
+    DataGate = _DG_impl
+    DataGateResult = _DGR_impl
     _HAS_DATA_GATE = True
 except ImportError:
-    DataGate = None  # type: ignore[misc]
-    DataGateResult = None  # type: ignore[misc]
+    DataGate = None
+    DataGateResult = None
     _HAS_DATA_GATE = False
 
 

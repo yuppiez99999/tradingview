@@ -13,7 +13,7 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, TypedDict
 
 import pandas as pd
 
@@ -27,6 +27,16 @@ os.environ["https_proxy"] = ""
 logger = logging.getLogger(__name__)
 
 
+# ===========================================================
+# 类型声明 (TypedDict) — 消除 source_health 嵌套字典的 type:ignore
+# ===========================================================
+class SourceHealthEntry(TypedDict):
+    """单数据源健康状态条目"""
+    ok: bool
+    last_error: Optional[str]
+    last_success: Optional[str]
+
+
 def _safe_float(val, default=0.0):
     try:
         v = float(val or 0)
@@ -38,6 +48,15 @@ def _safe_float(val, default=0.0):
 class AKShareDataSource:
     """AKShare 数据源适配器，提供实时行情和历史K线数据"""
 
+    # 显式类型声明 — 消除 __init__ 赋值 [assignment] + 跨方法 [union-attr]
+    _ak: Optional[Any]
+    _connected: bool
+    _last_connect_time: Optional[float]
+    _spot_cache: Dict[str, Any]
+    _spot_cache_time: float
+    _spot_cache_ttl: int
+    source_health: Dict[str, SourceHealthEntry]
+
     def __init__(self):
         self._ak = None
         self._connected = False
@@ -45,7 +64,7 @@ class AKShareDataSource:
         self._spot_cache = {}
         self._spot_cache_time = 0
         self._spot_cache_ttl = 60
-        self.source_health = {"akshare": {"ok": False, "last_error": None, "last_success": None}}
+        self.source_health = {"akshare": SourceHealthEntry(ok=False, last_error=None, last_success=None)}
         self._init_connection()
 
     def _init_connection(self):
@@ -56,13 +75,13 @@ class AKShareDataSource:
             self._ak = ak
             self._connected = True
             self.source_health["akshare"]["ok"] = True
-            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()  # type: ignore[index]
+            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()
             logger.info("AKShare 数据源初始化成功")
         except ImportError as e:
-            self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"  # type: ignore[index]
+            self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"
             logger.warning(f"AKShare 数据源模块导入失败: {e}")
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
-            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["akshare"]["last_error"] = str(e)
             logger.warning(f"AKShare 数据源初始化失败: {e}")
 
     def _ensure_connected(self):
@@ -114,14 +133,18 @@ class AKShareDataSource:
             return
 
         try:
-            df = self._ak.stock_zh_a_spot_em()  # type: ignore[union-attr]
+            # 局部变量化 + None 守卫 — 消除 [union-attr]
+            ak = self._ak
+            if ak is None:
+                return
+            df = ak.stock_zh_a_spot_em()
             if df is not None and not df.empty:
                 self._spot_cache = {}
                 for _, row in df.iterrows():
                     code = str(row.get("代码", "")).strip()
                     if code:
                         self._spot_cache[code] = row.to_dict()
-                self._spot_cache_time = now  # type: ignore[union-attr]
+                self._spot_cache_time = now
                 logger.debug(f"AKShare 缓存全市场数据: {len(self._spot_cache)} 只股票")
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.debug(f"AKShare 缓存全市场数据失败: {e}")
@@ -157,7 +180,7 @@ class AKShareDataSource:
                 return None
 
             self.source_health["akshare"]["ok"] = True
-            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()  # type: ignore[index]
+            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()
             return {
                 "timestamp": datetime.now().isoformat(),
                 "symbol": symbol,
@@ -174,7 +197,7 @@ class AKShareDataSource:
 
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             self.source_health["akshare"]["ok"] = False
-            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["akshare"]["last_error"] = str(e)
             logger.error(f"AKShare 获取实时行情失败: {e}")
             return None
 
@@ -207,16 +230,21 @@ class AKShareDataSource:
 
             ak_period = period_map.get(period, "daily")
 
+            # 局部变量化 + None 守卫 — 消除 [union-attr]
+            ak = self._ak
+            if ak is None:
+                return None
+
             # P2-1 复权口径统一: 历史 K 线由 qfq(前复权) 改为 hfq(后复权)。
             # 原因: 前复权历史会随「最新价」整体改写, 历史不可复现; 且与实时未复权价
             # 在除权日口径不一致。后复权历史固定、适合收益率计算, 且可通过复权因子与
             # 实时未复权成交价对齐。实时行情 (data_provider) 统一用未复权。
             if period in ("1d", "1w", "1m"):
-                df = self._ak.stock_zh_a_hist(  # type: ignore[union-attr]
+                df = ak.stock_zh_a_hist(
                 symbol=code, period=ak_period, start_date="", end_date="", adjust="hfq"
                 )
             else:
-                df = self._ak.stock_zh_a_minute(  # type: ignore[union-attr]
+                df = ak.stock_zh_a_minute(
                 symbol=code, period=ak_period, adjust="hfq"
                 )
 
@@ -284,12 +312,12 @@ class AKShareDataSource:
                 result_df = result_df.tail(count)
 
             self.source_health["akshare"]["ok"] = True
-            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()  # type: ignore[index]
+            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()
             return result_df
 
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             self.source_health["akshare"]["ok"] = False
-            self.source_health["akshare"]["last_error"] = str(e)  # type: ignore[index]
+            self.source_health["akshare"]["last_error"] = str(e)
             logger.error(f"AKShare 获取历史K线失败: {e}")
             return None
 
@@ -304,7 +332,12 @@ class AKShareDataSource:
             if not code:
                 return None
 
-            df = self._ak.stock_financial_report_sina(stock=code)  # type: ignore[union-attr]
+            # 局部变量化 + None 守卫 — 消除 [union-attr]
+            ak = self._ak
+            if ak is None:
+                return None
+
+            df = ak.stock_financial_report_sina(stock=code)
             if df is None or df.empty:
                 logger.warning(f"AKShare 未找到财务数据: {symbol}")
                 return None
@@ -329,6 +362,66 @@ class AKShareDataSource:
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.error(f"AKShare 获取财务数据失败: {e}")
             return None
+
+    def get_suspend_list(self, date: str | None = None) -> dict[str, dict[str, Any]]:
+        """获取当日停牌股票列表 (W6.6.3 P1-b)
+
+        从 stock_zh_a_spot_em() 提取停牌标记字段, 或从交易所公告接口获取.
+        当前实现: 从全市场快照中筛选停牌股票 (volume=0 且 open=0).
+
+        Args:
+            date: 可选日期 (YYYYMMDD), 默认今天. 历史停牌需付费数据源.
+
+        Returns:
+            {code: {"name": str, "reason": str, "suspend_type": str}}
+            数据不可用时返回空 dict.
+        """
+        try:
+            ak = self._ak
+            if ak is None:
+                return {}
+
+            # 方案 1: 尝试 akshare 停牌接口 (可能不存在于所有版本)
+            try:
+                df = ak.stock_suspend_em()
+                if df is not None and not df.empty:
+                    result: dict[str, dict[str, Any]] = {}
+                    code_col = "代码" if "代码" in df.columns else df.columns[0]
+                    name_col = "名称" if "名称" in df.columns else None
+                    for _, row in df.iterrows():
+                        code = str(row[code_col]).strip().zfill(6)
+                        result[code] = {
+                            "name": str(row.get(name_col, "")) if name_col else "",
+                            "reason": str(row.get("停牌原因", "")),
+                            "suspend_type": str(row.get("停牌类型", "")),
+                        }
+                    logger.info("[AKShare] 停牌接口获取 %d 只", len(result))
+                    return result
+            except (AttributeError, KeyError, TypeError):
+                pass  # 接口不存在, 降级到方案 2
+
+            # 方案 2: 从全市场快照筛选 (volume=0 且 open<=0)
+            self._fetch_spot_cache()
+            if not self._spot_cache:
+                return {}
+
+            result = {}
+            for code, row in self._spot_cache.items():
+                volume = _safe_float(row.get("成交量", 0))
+                open_price = _safe_float(row.get("开盘", 0))
+                # 停牌标志: 成交量=0 且 开盘价=0 或 不可用
+                if volume <= 0 and open_price <= 0:
+                    result[code] = {
+                        "name": str(row.get("名称", "")),
+                        "reason": "盘中停牌 (volume=0)",
+                        "suspend_type": "intraday",
+                    }
+            logger.info("[AKShare] 快照筛选停牌 %d 只", len(result))
+            return result
+
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            logger.error(f"AKShare 获取停牌列表失败: {e}")
+            return {}
 
 
 _akshare_source = None

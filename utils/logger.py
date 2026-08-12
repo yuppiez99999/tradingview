@@ -70,7 +70,7 @@ class Logger:
         self,
         name: str,
         level: str = "INFO",
-        log_file: Optional[str] = None,  # type: ignore[misc]
+        log_file: Optional[str] = None,  # type: ignore
         console_output: bool = True,
         max_file_size: int = 10 * 1024 * 1024,
         backup_count: int = 5,

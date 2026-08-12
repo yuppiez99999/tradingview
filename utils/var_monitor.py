@@ -41,7 +41,7 @@ class VaRMonitor:
     VAR_99_LIMIT_PCT = -0.05  # 99% VaR 日限额: -5%
     LOOKBACK_DAYS = 252  # 历史模拟法窗口
 
-    def __init__(self, lookback_days: int | None = None):  # type: ignore[misc]
+    def __init__(self, lookback_days: int | None = None):  # type: ignore
         self.lookback_days = lookback_days or self.LOOKBACK_DAYS
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
@@ -142,7 +142,7 @@ class VaRMonitor:
                 dates = list(range(len(rets)))
 
         portfolio_returns: list[float] = []
-        for i in dates:  # type: ignore[misc]
+        for i in dates:  # type: ignore
             daily_ret = 0.0
             for pos in positions:
                 symbol = pos.get("code", "")

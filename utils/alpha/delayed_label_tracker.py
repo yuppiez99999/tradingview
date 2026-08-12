@@ -487,6 +487,9 @@ class DelayedLabelTracker:
 
             if len(predicted) >= 2:
                 rank_ic = float(_stats.spearmanr(predicted, actual)[0])
+                # 防御: 常数序列使 spearmanr 返回 NaN, 不可写入 Rank IC (F-4 同族)
+                if not np.isfinite(rank_ic):
+                    rank_ic = 0.0
             else:
                 rank_ic = 0.0
         except (ImportError, ValueError, TypeError):  # noqa: BLE001  # scipy.stats 不可用/数据异常时降级, 待后续精确化

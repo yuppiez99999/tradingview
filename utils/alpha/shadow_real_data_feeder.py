@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
 import threading
 from collections import OrderedDict
@@ -63,7 +64,11 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_OUTPUT_PATH = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
 DEFAULT_SOURCE_TAG = "w13a_real_market_feed"
-DEFAULT_HISTORICAL_PERIOD = "1m"  # 拉取近 1 月数据以查找指定日期收盘价
+# 修复 (2026-08-11 v8.6.14): "1m" 在 MarketDataProvider 中被解释为月线/年度数据
+# (仅 7 行, 2020-2026 每年一行), 导致 _fetch_symbol_prices 精确匹配历史日期失败,
+# 回退到 iloc[-1] (当日收盘价), 多个历史日期的 daily_return 完全相同 (bug).
+# 改用 "1d" 日K线 (252 行, 过去1年交易日), 可精确匹配任意历史日期.
+DEFAULT_HISTORICAL_PERIOD = "1d"
 
 # 最小有效权重 (绝对值小于此值忽略, 避免噪音)
 MIN_SIGNIFICANT_WEIGHT = 0.001  # 0.1%
@@ -76,6 +81,14 @@ CROSS_SOURCE_DIFF_THRESHOLD = 0.01
 
 # 标的覆盖率阈值 (80%)
 COVERAGE_THRESHOLD = 0.8
+
+# 20cm 板阈值与识别逻辑统一迁移到 utils.market_rules (单一事实源)
+# 这里保留导入以兼容现有调用方 (向后兼容)
+from utils.market_rules import (  # noqa: E402
+    ABNORMAL_RETURN_THRESHOLD_20CM,
+    ABNORMAL_RETURN_THRESHOLD_INTERNAL,
+    is_20cm_symbol,
+)
 
 # 日期格式
 DATE_FMT = "%Y-%m-%d"
@@ -897,6 +910,34 @@ class ShadowRealDataFeeder:
             notes=note,
         )
 
+    @staticmethod
+    def _is_20cm_symbol(symbol: str) -> bool:
+        """判断 symbol 是否属于 20% 涨跌停板 (科创板/创业板注册制).
+
+        A 股官方规则 (2020-08-24 起创业板注册制改革):
+            - 科创板股票/ETF:           20% 涨跌停
+            - 创业板注册制股票:         20% 涨跌停
+            - 主板/中小板股票 (含 600/601/603/605/000/002): 10% 涨跌停
+            - 主板 ETF (含 510/511/512/515/159 等):         10% 涨跌停
+
+        Args:
+            symbol: 标的代码, 支持两种格式:
+                - "600276" (不带交易所后缀, trade_plans 文件常用)
+                - "600276.SH" / "300308.SZ" (带后缀, positions.json 常用)
+
+        Returns:
+            True 表示该标的属于 20cm 板, 内部一致性校验阈值应放宽至 ±30%;
+            False 表示属于 10cm 板, 保持 ±20% 阈值.
+
+        修复 (2026-08-11 v8.6.14): 原实现引用未导入的 `_20CM_CODE_PATTERNS`
+        导致 cross_validate 全部失败 (NameError). 改用从 utils.market_rules
+        导入的 `is_20cm_symbol` 函数 (单一事实源), 消除重复定义.
+        """
+        if not symbol:
+            return False
+        # 复用 utils.market_rules.is_20cm_symbol (L83 已导入)
+        return is_20cm_symbol(symbol)
+
     def _cross_validate_internal(
         self,
         date: str,
@@ -908,8 +949,17 @@ class ShadowRealDataFeeder:
         检查每个 symbol 的价格是否存在异常:
             - prev_close <= 0
             - target_close <= 0
-            - 单股 ret 超过 ±20% (异常波动)
+            - 单股 ret 超过异常波动阈值:
+                * 主板/常规 ETF: ±20% (ABNORMAL_RETURN_THRESHOLD_INTERNAL)
+                * 科创板/创业板注册制 (20cm 板): ±30% (ABNORMAL_RETURN_THRESHOLD_20CM)
             - prev_close == target_close (停牌可能)
+
+        20cm 板识别规则 (A 股官方, 2020-08-24 创业板注册制改革后):
+            - 科创板股票 (688xxx/689xxx) + ETF (588xxx/562xxx): 20% 涨跌停
+            - 创业板注册制股票 (300xxx/301xxx): 20% 涨跌停
+            - 主板股票 (600/601/603/605/000/002) 与主板 ETF: 10% 涨跌停
+            对 20cm 板阈值放宽 10 个百分点 (含涨停缓冲), 避免把正常的涨停
+            误判为数据异常.
 
         Args:
             date: 日期
@@ -939,11 +989,16 @@ class ShadowRealDataFeeder:
                     abnormal_symbols.append(f"{symbol}(non_positive_price)")
                     continue
                 ret = target_close / prev_close - 1.0
-                # ±20% 为异常波动阈值
-                if abs(ret) > 0.20:
+                # 按 A 股板别差异化阈值: 20cm 板 ±30%, 主板 ±20%
+                threshold = (
+                    ABNORMAL_RETURN_THRESHOLD_20CM
+                    if self._is_20cm_symbol(symbol)
+                    else ABNORMAL_RETURN_THRESHOLD_INTERNAL
+                )
+                if abs(ret) > threshold:
                     abnormal_count += 1
                     abnormal_symbols.append(
-                        f"{symbol}(ret={ret:+.2%})"
+                        f"{symbol}(ret={ret:+.2%},thr={threshold:.0%})"
                     )
             except (RuntimeError, OSError, ConnectionError, TimeoutError) as e:
                 abnormal_count += 1
@@ -1386,17 +1441,25 @@ class ShadowRealDataFeeder:
     ) -> list[tuple[Path, Any]]:
         """获取权重文件候选列表 (按优先级).
 
+        修复 (2026-08-11 v8.6.14): positions.json 提到首位作为"持仓快照"权威源.
+        原顺序 trade_plan > strategy_plan > positions.json 会导致:
+            - trade_plan 非空时 (如 08-07) 取当日交易标的 14 个作为"持仓权重"
+            - trade_plan 为空时 (如 08-06) fallback 到 positions.json 26 个全持仓
+            - 结果 symbols_count 在 14/26 间剧烈波动, daily_return 口径不一致
+        trade_plan 语义是"当日交易指令", 仅含当日要交易的标的, 不是持仓组合.
+        positions.json 是"持仓状态快照", 含完整持仓权重, 符合 shadow 系统语义.
+
         Args:
             date: 日期 (YYYY-MM-DD)
 
         Returns:
-            [(path, loader), ...] 列表
+            [(path, loader), ...] 列表, positions.json 优先
         """
         date_compact = date.replace("-", "")  # YYYYMMDD
         return [
+            (_POSITIONS_JSON, self._load_positions_json_file),
             (_TRADE_PLAN_DIR / f"trade_plan_{date_compact}.json", self._load_trade_plan),
             (_STRATEGY_PLAN_DIR / f"plan_{date}.json", self._load_strategy_plan),
-            (_POSITIONS_JSON, self._load_positions_json_file),
         ]
 
     def _load_weights_from_file(self, path: Path, date: str) -> dict[str, float]:

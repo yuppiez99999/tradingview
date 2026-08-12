@@ -526,7 +526,7 @@ class PostTradeAttribution:
             len(actual_costs),
             percentile * 100,
         )
-        return new_threshold  # type: ignore[misc]
+        return new_threshold  # type: ignore
     # ------------------------------------------------------------
     # 5. 汇总报告
     # ------------------------------------------------------------
@@ -573,6 +573,65 @@ class PostTradeAttribution:
             "per_symbol": per_symbol,
             "timestamp": datetime.now().isoformat(timespec="seconds"),
         }
+
+    # ------------------------------------------------------------
+    # 5.5 G4: 从 FillsStore 成交回报事实源批量归因
+    # ------------------------------------------------------------
+    def ingest_fills_from_store(self, date: str | None = None) -> int:
+        """G4 补齐: 从 `FillsStore` 读当日成交回报, 作为单一事实源批量归因。
+
+        设计铁律:
+            - 有成交走成交 (读 fills_store), 无成交走行情/跳过, 互补不互斥
+            - 观测路径 fail-open: 读取或归因失败只记日志, 不阻断
+            - 前置校验: symbol 非空 / filled_qty>0 / avg_price>0, 防"成功但零成交"污染
+
+        Args:
+            date: 交易日 YYYY-MM-DD, None 用今日
+
+        Returns:
+            实际 ingest 进入归因的成交笔数
+        """
+        try:
+            from utils.execution.fills_store import FillsStore
+
+            fills = FillsStore().load_day(date)
+        except Exception as e:  # noqa: BLE001  # fail-open
+            logger.warning("[TCA-PostTrade] 读取 FillsStore 失败, 跳过归因: %s", e)
+            return 0
+
+        ingested = 0
+        for rec in fills:
+            symbol = str(rec.get("symbol", "") or "").strip()
+            side = str(rec.get("side", "") or "").strip().upper()
+            try:
+                filled_qty = float(rec.get("filled_qty", 0) or 0)
+                avg_price = float(rec.get("avg_price", 0) or 0)
+            except (TypeError, ValueError):
+                continue
+            if not symbol or filled_qty <= 0 or avg_price <= 0:
+                continue
+            meta = rec.get("meta") or {}
+            fill = FillRecord(
+                symbol=symbol,
+                side=side,
+                shares=int(filled_qty),
+                price=avg_price,
+                timestamp=str(rec.get("ts", "") or ""),
+                broker=str(rec.get("broker", "") or ""),
+                order_id=str(meta.get("order_id", "") or ""),
+            )
+            try:
+                self.record(fill=fill, estimate=None)
+                ingested += 1
+            except Exception as e:  # noqa: BLE001  # fail-open
+                logger.warning("[TCA-PostTrade] 归因单笔成交失败 %s: %s", symbol, e)
+
+        logger.info(
+            "[TCA-PostTrade] 从 FillsStore 归因 %d 笔成交 (date=%s)",
+            ingested,
+            date or datetime.now().strftime("%Y-%m-%d"),
+        )
+        return ingested
 
     # ------------------------------------------------------------
     # 6. 历史查询

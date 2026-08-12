@@ -34,7 +34,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 
@@ -61,7 +61,7 @@ class PredictionResult:
     expected_return: float = 0.0  # 预期收益率
     signal_strength: float = 0.0  # 信号强度 [-1, 1]
     method: str = "unknown"  # timesfm/tensorflow/arima/fallback
-    quantiles: Dict[str, float] = field(default_factory=dict)  # 分位数预测
+    quantiles: Dict[str, List[float]] = field(default_factory=dict)  # 分位数预测 (每个 key → horizon 长度的 list)
     forecast_timestamp: str = ""
 
     def to_dict(self) -> Dict:
@@ -94,8 +94,8 @@ class TimesFMForecaster:
 
     def __init__(self, model_id: str = "google/timesfm-2.5-200m-pytorch"):
         self.model_id = model_id
-        self._model = None
-        self._available = False
+        self._model: Optional[Any] = None
+        self._available: bool = False
         self._initialize()
 
     def _initialize(self):
@@ -109,6 +109,9 @@ class TimesFMForecaster:
 
             # 加载预训练模型
             self._model = timesfm.TimesFM_2p5_200M_torch.from_pretrained(self.model_id)
+            if self._model is None:
+                logger.warning("TimesFM 模型加载返回 None")
+                return
 
             # 编译配置
             config = timesfm.ForecastConfig(
@@ -120,7 +123,7 @@ class TimesFMForecaster:
                 infer_is_positive=True,  # 价格 >= 0
                 fix_quantile_crossing=True,
             )
-            self._model.compile(config)  # type: ignore[union-attr]
+            self._model.compile(config)
 
             self._available = True
             logger.info(f"TimesFM 初始化成功: {self.model_id}")
@@ -188,11 +191,13 @@ class TensorflowLSTMPredictor:
       - 特征: 收盘价归一化 + 技术指标 (RSI/MACD/MA)
     """
 
+    _tf_warned: ClassVar[bool] = False
+
     def __init__(self, sequence_length: int = 60):
-        self.sequence_length = sequence_length
-        self._tf = None
-        self._model = None
-        self._available = False
+        self.sequence_length: int = sequence_length
+        self._tf: Optional[Any] = None
+        self._model: Optional[Any] = None
+        self._available: bool = False
         self._initialize()
 
     def _initialize(self):
@@ -208,13 +213,13 @@ class TensorflowLSTMPredictor:
             self._available = True
             logger.info(f"TensorFlow {tf.__version__} 初始化成功 (GPU: {len(gpus)})")
         except ImportError:
-            if not getattr(self.__class__, "_tf_warned", False):
+            if not self.__class__._tf_warned:
                 logger.warning("tensorflow 未安装, 跳过 LSTM 预测. 安装: pip install tensorflow")
-                self.__class__._tf_warned = True  # type: ignore[union-attr]
+                self.__class__._tf_warned = True
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
-            if not getattr(self.__class__, "_tf_warned", False):
+            if not self.__class__._tf_warned:
                 logger.warning(f"TensorFlow 初始化失败: {e}")
-                self.__class__._tf_warned = True  # type: ignore[union-attr]
+                self.__class__._tf_warned = True
 
     @property
     def available(self) -> bool:
@@ -223,18 +228,20 @@ class TensorflowLSTMPredictor:
     def _build_model(self, n_features: int, horizon: int):
         """构建 LSTM 模型"""
         tf = self._tf
+        if tf is None:
+            raise RuntimeError("TensorFlow 未初始化, 无法构建模型")
         model = tf.keras.Sequential(
-            [  # type: ignore[misc]
+            [
                 tf.keras.layers.LSTM(
                     64,
-                    return_sequences=True,  # type: ignore[misc]
+                    return_sequences=True,
                     input_shape=(self.sequence_length, n_features),
                 ),
-                tf.keras.layers.Dropout(0.2),  # type: ignore[misc]
-                tf.keras.layers.LSTM(32),  # type: ignore[misc]
-                tf.keras.layers.Dropout(0.2),  # type: ignore[misc]
-                tf.keras.layers.Dense(16, activation="relu"),  # type: ignore[misc]
-                tf.keras.layers.Dense(horizon),  # type: ignore[misc]
+                tf.keras.layers.Dropout(0.2),
+                tf.keras.layers.LSTM(32),
+                tf.keras.layers.Dropout(0.2),
+                tf.keras.layers.Dense(16, activation="relu"),
+                tf.keras.layers.Dense(horizon),
             ]
         )
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
@@ -282,9 +289,13 @@ class TensorflowLSTMPredictor:
 
             # 构建模型
             self._model = self._build_model(n_features=1, horizon=horizon)
+            model = self._model
+            if model is None:
+                logger.warning("LSTM 模型构建失败")
+                return None
 
             # 训练
-            self._model.fit(  # type: ignore[union-attr]
+            model.fit(
                 X.reshape((*X.shape, 1)),  # (samples, seq_len, 1)
                 y,
                 epochs=epochs,
@@ -300,11 +311,11 @@ class TensorflowLSTMPredictor:
             normalized_input = (last_sequence - mean) / std
             input_3d = normalized_input.reshape(1, self.sequence_length, 1)
 
-            prediction_normalized = self._model.predict(input_3d, verbose=0)[0]  # type: ignore[index]
+            prediction_normalized = model.predict(input_3d, verbose=0)[0]
             # 反归一化
             prediction = prediction_normalized * std + mean
 
-            return prediction  # type: ignore[misc]
+            return cast(np.ndarray, prediction)
 
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"LSTM 训练预测失败: {e}")
@@ -331,7 +342,7 @@ class StatisticalForecaster:
     def available(self) -> bool:
         return True  # 始终可用
 
-    def forecast(self, prices: np.ndarray, horizon: int = 5) -> Tuple[np.ndarray, Dict]:
+    def forecast(self, prices: np.ndarray, horizon: int = 5) -> Tuple[np.ndarray, Dict[str, List[float]]]:
         """统计模型预测
 
         Returns:
@@ -341,7 +352,7 @@ class StatisticalForecaster:
             return self._arima_forecast(prices, horizon)
         return self._ma_momentum_forecast(prices, horizon)
 
-    def _arima_forecast(self, prices: np.ndarray, horizon: int) -> Tuple[np.ndarray, Dict]:
+    def _arima_forecast(self, prices: np.ndarray, horizon: int) -> Tuple[np.ndarray, Dict[str, List[float]]]:
         """ARIMA 预测"""
         try:
             from statsmodels.tsa.arima.model import ARIMA
@@ -368,7 +379,7 @@ class StatisticalForecaster:
             logger.warning(f"ARIMA 预测失败, 回退到移动平均: {e}")
             return self._ma_momentum_forecast(prices, horizon)
 
-    def _ma_momentum_forecast(self, prices: np.ndarray, horizon: int) -> Tuple[np.ndarray, Dict]:
+    def _ma_momentum_forecast(self, prices: np.ndarray, horizon: int) -> Tuple[np.ndarray, Dict[str, List[float]]]:
         """移动平均 + 动量外推 (最终兜底)"""
         # 5日均线
         ma5 = np.mean(prices[-5:]) if len(prices) >= 5 else np.mean(prices)
@@ -385,26 +396,26 @@ class StatisticalForecaster:
         trend = (ma5 - ma20) / ma20 if ma20 > 0 else 0
 
         # 外推: 均线 + 动量*衰减
-        current = prices[-1]
-        forecast = []
+        current = float(prices[-1])
+        forecast_list: List[float] = []
         for i in range(horizon):
             # 衰减因子
             decay = 0.8 ** (i + 1)
             # 预测 = 当前价 + 趋势*衰减 + 动量*衰减
             pred = current * (1 + trend * 0.3 * decay + momentum * 0.5 * decay)
-            forecast.append(pred)
+            forecast_list.append(float(pred))
             current = pred
 
-        forecast = np.array(forecast)  # type: ignore[union-attr]
+        forecast_arr = np.array(forecast_list, dtype=np.float64)
 
         # 简单置信区间 (±5%)
-        quantiles = {
-            "q10": (forecast * 0.95).tolist(),  # type: ignore[misc]
-            "q50": forecast.tolist(),  # type: ignore[misc]
-            "q90": (forecast * 1.05).tolist(),  # type: ignore[misc]
+        quantiles: Dict[str, List[float]] = {
+            "q10": (forecast_arr * 0.95).tolist(),
+            "q50": forecast_arr.tolist(),
+            "q90": (forecast_arr * 1.05).tolist(),
         }
 
-        return forecast, quantiles  # type: ignore[misc]
+        return forecast_arr, quantiles
 
 
 class PricePredictor:
@@ -444,19 +455,19 @@ class PricePredictor:
         """
         prices = np.asarray(prices, dtype=np.float64)
         if len(prices) < 10:
-            logger.warning(f"{symbol} 历史数据不足 ({len(prices)} < 10), 返回中性预测")  # type: ignore[misc]
+            logger.warning(f"{symbol} 历史数据不足 ({len(prices)} < 10), 返回中性预测")
             return self._fallback_result(symbol, horizon, current_price or prices[-1] if len(prices) else 0)
 
-        current = current_price or prices[-1]
-        forecast = None
-        quantiles = {}
+        current = float(current_price or prices[-1])
+        forecast: Optional[np.ndarray] = None
+        quantiles: Dict[str, List[float]] = {}
         method = "fallback"
 
         # 优先级 1: TimesFM
         if self.timesfm.available:
-            result = self.timesfm.forecast(prices, horizon)
-            if result is not None:
-                forecast, q_array = result
+            tfm_result = self.timesfm.forecast(prices, horizon)
+            if tfm_result is not None:
+                forecast, q_array = tfm_result
                 quantiles = {
                     "q10": q_array[:, 1].tolist(),
                     "q50": q_array[:, 5].tolist(),
@@ -466,15 +477,15 @@ class PricePredictor:
 
         # 优先级 2: TensorFlow LSTM
         if forecast is None and self.lstm.available:
-            result = self.lstm.train_and_predict(prices, horizon)  # type: ignore[misc]
-            if result is not None:
-                forecast = result  # type: ignore[misc]
+            lstm_result = self.lstm.train_and_predict(prices, horizon)
+            if lstm_result is not None:
+                forecast = lstm_result
                 method = "tensorflow_lstm"
                 # LSTM 不提供分位数, 用 ±5% 近似
                 quantiles = {
-                    "q10": (forecast * 0.95).tolist(),  # type: ignore[misc]
-                    "q50": forecast.tolist(),  # type: ignore[misc]
-                    "q90": (forecast * 1.05).tolist(),  # type: ignore[misc]
+                    "q10": (forecast * 0.95).tolist(),
+                    "q50": forecast.tolist(),
+                    "q90": (forecast * 1.05).tolist(),
                 }
 
         # 优先级 3: 统计模型 (兜底)
@@ -621,8 +632,10 @@ if __name__ == "__main__":
         logger.info(f"置信度: {result.confidence:.2%}")
         logger.info(f"信号强度: {result.signal_strength:.4f}")
         if result.quantiles:
-            q10 = result.quantiles.get("q10", [0])[-1]  # type: ignore[index]
-            q90 = result.quantiles.get("q90", [0])[-1]  # type: ignore[index]
+            q10_list = result.quantiles.get("q10", [0.0])
+            q90_list = result.quantiles.get("q90", [0.0])
+            q10 = q10_list[-1]
+            q90 = q90_list[-1]
             logger.info(f"区间: [{q10:.2f}, {q90:.2f}]")
 
     logger.info("\n✅ 自检完成")

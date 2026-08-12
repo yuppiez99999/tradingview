@@ -32,6 +32,8 @@ from utils.alpha_factor.base import (
     calc_ic_ir,
     evaluate_factors,
     compute_factor_corr_matrix,
+    build_forward_returns_history,   # U1 新增 · 便捷构造器: price_data → forward_returns_history
+    build_factor_history_from_prices,  # U1 新增 · 便捷构造器: price_data + factor_fn → factor_history
 )
 from utils.alpha_factor.library import AlphaFactorLibrary
 
@@ -49,4 +51,6 @@ __all__ = [
     "calc_ic_ir",
     "evaluate_factors",
     "compute_factor_corr_matrix",
+    "build_forward_returns_history",
+    "build_factor_history_from_prices",
 ]

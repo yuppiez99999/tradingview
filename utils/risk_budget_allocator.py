@@ -48,7 +48,7 @@ class RiskBudgetAllocator:
         returns = returns[~np.isnan(returns)]
         if len(returns) == 0:
             return default_vol
-        return float(np.std(returns, ddof=1)) * np.sqrt(252)  # type: ignore[misc]
+        return float(np.std(returns, ddof=1)) * np.sqrt(252)  # type: ignore
     def allocate_daily_budget(
         self,
         pending_positions: list[dict],

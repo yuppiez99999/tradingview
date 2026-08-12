@@ -31,7 +31,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, cast
 
 logger = logging.getLogger("hedge_execution_engine")
 
@@ -66,6 +66,12 @@ class HedgeExecutionEngine:
     MAX_ANNUAL_OPTION_COST_PCT = 0.025  # 最大年化期权成本 2.5%
     PUT_ROLL_DTE = 5  # 到期前5天滚仓
 
+    # 懒加载可选实例属性 — 根除 __init__ 中 = None 触发的 None 单例推断
+    _hedge_manager: Optional[Any]
+    _post_trade_attribution: Optional[Any]
+    positions_data: dict
+    positions_file: Path
+
     def __init__(self, positions_file: str | None = None):
         self.positions_file = Path(positions_file) if positions_file else CONFIG_DIR / "positions.json"
         self.positions_data = self._load_positions()
@@ -95,7 +101,7 @@ class HedgeExecutionEngine:
             if self._post_trade_attribution is None:
                 from utils.tca_post_trade_attribution import PostTradeAttribution
 
-                self._post_trade_attribution = PostTradeAttribution(save_to_file=True)  # type: ignore[union-attr]
+                self._post_trade_attribution = PostTradeAttribution(save_to_file=True)
 
             # 字典 → FillRecord 转换 (兼容上层传入的字典)
             from utils.tca_post_trade_attribution import FillRecord as PTAFillRecord
@@ -124,7 +130,10 @@ class HedgeExecutionEngine:
                     order_id=getattr(fill, "order_id", ""),
                 )
 
-            self._post_trade_attribution.record(fill, estimate)  # type: ignore[union-attr]
+            # 局部变量化 + None 守卫 — mypy 不收窄 self._post_trade_attribution 跨方法
+            pta = self._post_trade_attribution
+            if pta is not None:
+                pta.record(fill, estimate)
             logger.info(
                 "[HedgeEngine] on_fill 已记录: %s %s %d@%.4f",
                 fill.symbol,
@@ -145,7 +154,7 @@ class HedgeExecutionEngine:
         """加载持仓配置"""
         try:
             with open(self.positions_file, encoding="utf-8") as f:
-                return json.load(f)  # type: ignore[misc]
+                return cast(dict, json.load(f))
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             logger.error(f"加载持仓失败: {e}")
             return {}
@@ -155,12 +164,14 @@ class HedgeExecutionEngine:
         if self._hedge_manager is None:
             from utils.greek_hedge_manager import GreekHedgeManager
 
-            self._hedge_manager = GreekHedgeManager(  # type: ignore[union-attr]
+            hm = GreekHedgeManager(
                 target_delta=0.0,  # 目标Delta中性
                 target_gamma=0.0,
                 max_vega=100000.0,
                 max_theta_burn=-10000.0,
             )
+            self._hedge_manager = hm
+            return hm
         return self._hedge_manager
 
     def calc_portfolio_beta(self) -> float:
@@ -222,9 +233,9 @@ class HedgeExecutionEngine:
 
     def generate_futures_hedge_orders(
         self,
-        portfolio_value: float | None = None,  # type: ignore[assignment]
-        portfolio_beta: float | None = None,  # type: ignore[assignment]
-        target_beta: float | None = None,  # type: ignore[assignment]
+        portfolio_value: float | None = None,
+        portfolio_beta: float | None = None,
+        target_beta: float | None = None,
         drawdown_level: int = 0,
     ) -> list[dict]:
         """生成期货对冲订单
@@ -316,7 +327,7 @@ class HedgeExecutionEngine:
 
     def generate_put_protection_orders(
         self,
-        portfolio_value: float | None = None,  # type: ignore[assignment]
+        portfolio_value: float | None = None,
         drawdown_level: int = 0,
     ) -> list[dict]:
         """生成认沽期权保护订单
@@ -761,7 +772,7 @@ class HedgeExecutionEngine:
             etf_price = hs300_pos.get("est_price", 0)
             if etf_price > 0:
                 # 510300 ETF ≈ 沪深300指数 / 1000
-                return etf_price * 1000  # type: ignore[no-any-return]  # e.g. 4.65 → 4650
+                return float(etf_price) * 1000  # e.g. 4.65 → 4650
 
         # 尝试新浪接口
         try:

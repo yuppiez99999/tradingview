@@ -46,21 +46,26 @@ import math
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, cast
 
 logger = logging.getLogger("data_quality")
 
+# numpy/pandas 前向声明 (模块级) — 根除 ImportError fallback assignment ignore
+np: Optional[type]
 try:
-    import numpy as np
+    import numpy as np_impl
 
+    np = np_impl
     HAS_NUMPY = True
 except ImportError:
-    np = None  # type: ignore[misc]
+    np = None
     HAS_NUMPY = False
 
+pd: Optional[type]
 try:
-    import pandas as pd
+    import pandas as pd_impl
 
+    pd = pd_impl
     HAS_PANDAS = True
 except ImportError:
     pd = None
@@ -228,7 +233,7 @@ class DataQualityMonitor:
             )
 
         # 字段完整性
-        all_fields = set()  # type: ignore[misc]
+        all_fields: set[Any] = set()
         for fields in data.values():
             all_fields.update(fields.keys())
         report.checked_fields = len(all_fields)
@@ -353,9 +358,9 @@ class DataQualityMonitor:
             # 日内波动 > 20%
             if all(v is not None for v in [high, low, close]):
                 try:
-                    high_f = float(high)  # type: ignore[misc]
-                    low_f = float(low)  # type: ignore[misc]
-                    close_f = float(close)  # type: ignore[misc]
+                    high_f = float(cast(Any, high))
+                    low_f = float(cast(Any, low))
+                    close_f = float(cast(Any, close))
                     if close_f > 0:
                         intraday_range = (high_f - low_f) / close_f
                         if intraday_range > 0.20:
@@ -650,7 +655,11 @@ class DataQualityMonitor:
 
             if all(v is not None for v in [close, high, low]):
                 try:
-                    c, h, lo = float(close), float(high), float(low)  # type: ignore[misc]
+                    c, h, lo = (
+                        float(cast(Any, close)),
+                        float(cast(Any, high)),
+                        float(cast(Any, low)),
+                    )
                     if c > h:
                         report.issues.append(
                             QualityIssue(

@@ -339,8 +339,9 @@ class MLEnhancedSelector:
             概率数组 ∈ [0, 1]
         """
         self._check_trained()
-        X_arr = self._normalize_X(X)  # noqa: N806
-        return self._model.predict_proba(X_arr)  # type: ignore[union-attr]
+        assert self._model is not None  # mypy narrow: _check_trained guarantees non-None
+        X_arr = self._normalize_X(X)  # noqa: N803
+        return self._model.predict_proba(X_arr)
 
     def predict(
         self,
@@ -357,8 +358,9 @@ class MLEnhancedSelector:
             预测标签 {0, 1}
         """
         self._check_trained()
-        X_arr = self._normalize_X(X)  # noqa: N806
-        return self._model.predict(X_arr, threshold)  # type: ignore[union-attr]
+        assert self._model is not None  # mypy narrow
+        X_arr = self._normalize_X(X)  # noqa: N803
+        return self._model.predict(X_arr, threshold)
 
     # ============================================================
     # 模型保存/加载
@@ -373,13 +375,14 @@ class MLEnhancedSelector:
             保存的文件路径
         """
         self._check_trained()
+        assert self._model is not None  # mypy narrow
         import joblib
 
         filepath = self.model_dir / filename
         # 保存模型权重 + 配置 + 特征名
         state = {
-            "weights": self._model.weights,  # type: ignore[union-attr]
-            "bias": self._model.bias,  # type: ignore[union-attr]
+            "weights": self._model.weights,
+            "bias": self._model.bias,
             "config": self.config.__dict__,
             "feature_names": self._feature_names,
             "training_result": self._training_result.__dict__ if self._training_result else None,
@@ -433,7 +436,8 @@ class MLEnhancedSelector:
             {feature_name: importance}
         """
         self._check_trained()
-        return self._model.get_feature_importance(self._feature_names)  # type: ignore[union-attr]
+        assert self._model is not None  # mypy narrow
+        return self._model.get_feature_importance(self._feature_names)
 
     # ============================================================
     # 属性

@@ -35,9 +35,10 @@ import json
 import sys
 import threading
 import time
+import types
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict, cast
 import logging
 
 logger = logging.getLogger(__name__)
@@ -89,12 +90,44 @@ SIGNAL_CONFIG = {
 }
 
 # ============================================================
+# 决策结果 TypedDict (根除 logger 内 decision_result["summary"]["xxx"] [index] 报错)
+# ============================================================
+
+class DecisionSummary(TypedDict, total=False):
+    total_etfs: int
+    strong_signals: int
+    medium_signals: int
+    total_inflow: float
+    sudden_changes: int
+
+class DecisionResult(TypedDict, total=False):
+    status: str
+    phase: str
+    timestamp: str
+    elapsed_seconds: float
+    summary: DecisionSummary
+    signals: Dict[str, Dict]
+    sudden_changes: List[Dict]
+    fused_signals: List[Dict[str, Any]]
+    recommendations: List[Dict]
+    llm_analysis: Optional[str]
+    realtime_snapshot: Dict[str, Any]
+
+
+# ============================================================
 # ETF资金流决策引擎
 # ============================================================
 
 
 class ETFFlowDecisionEngine:
     """ETF资金流向盘前/盘中/盘后决策引擎"""
+
+    # 可选懒加载属性 — 根除 None 单例推断触发的 [union-attr]
+    _local_llm_client: Optional[Any]
+    _decision_cache: Dict[str, Dict[str, Any]]
+    _cache_ttl: int
+    tracker: Any
+    fusion_engine: Any
 
     def __init__(self):
         self.tracker = ETFRealTimeTracker()
@@ -106,7 +139,7 @@ class ETFFlowDecisionEngine:
             min_confidence=SIGNAL_CONFIG["min_confidence"],
         )
         self._local_llm_client = None
-        self._decision_cache = {}
+        self._decision_cache: Dict[str, Dict[str, Any]] = {}
         self._cache_ttl = 300  # 5分钟缓存
 
     def _get_llm_client(self):
@@ -119,8 +152,11 @@ class ETFFlowDecisionEngine:
                     import importlib.util
 
                     spec = importlib.util.spec_from_file_location("llm_client", llm_path)
-                    mod = importlib.util.module_from_spec(spec)  # type: ignore[misc]
-                    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+                    # None 守卫: spec / spec.loader 都可能为 None(importlib 官方签名)
+                    if spec is None or spec.loader is None:
+                        raise RuntimeError(f"无法构造 LLM 客户端 ModuleSpec: {llm_path}")
+                    mod = cast(types.ModuleType, importlib.util.module_from_spec(spec))
+                    spec.loader.exec_module(mod)
                     self._local_llm_client = mod
                     logger.info("LLM客户端已加载 (DeepSeek优先降级链: DeepSeek → Ollama → GLM → 豆包)")
             except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
@@ -146,7 +182,7 @@ class ETFFlowDecisionEngine:
             )
             if result:
                 logger.info(f"LLM分析成功: {len(result)} 字")
-                return result  # type: ignore[misc]
+                return cast(Optional[str], result)
             else:
                 logger.warning("LLM返回为空，降级到规则引擎")
                 return None
@@ -318,9 +354,12 @@ class ETFFlowDecisionEngine:
             "realtime_snapshot": realtime_data,
         }
 
+        # 用显式 TypedDict 收窄 summary，根除 [index] 错误
+        summary = cast(DecisionSummary, decision_result.get("summary", {}))
+
         logger.info(
-            f"【盘前决策】完成: {decision_result['summary']['strong_signals']} 强信号, "  # type: ignore[index]
-            f"{decision_result['summary']['medium_signals']} 中信号, "
+            f"【盘前决策】完成: {summary.get('strong_signals', 0)} 强信号, "
+            f"{summary.get('medium_signals', 0)} 中信号, "
             f"耗时 {elapsed:.1f}秒"
         )
 
@@ -349,9 +388,10 @@ class ETFFlowDecisionEngine:
         cache_key = "intraday_latest"
         if cache_key in self._decision_cache:
             cached = self._decision_cache[cache_key]
-            if time.time() - cached["timestamp"] < refresh_interval:
-                logger.info(f"命中盘中决策缓存 (剩余 {refresh_interval - (time.time() - cached['timestamp']):.0f}秒)")
-                return cached["result"]  # type: ignore[index]
+            ts = cached.get("timestamp", 0.0)
+            if time.time() - ts < refresh_interval:
+                logger.info(f"命中盘中决策缓存 (剩余 {refresh_interval - (time.time() - ts):.0f}秒)")
+                return cast(Dict[str, Any], cached.get("result"))
 
         # Step 1: 获取实时资金流 (东财push2实时数据)
         logger.info("Step 1: 获取实时资金流...")
@@ -418,8 +458,10 @@ class ETFFlowDecisionEngine:
             "timestamp": time.time(),
         }
 
+        # 用显式 TypedDict 收窄 summary，根除 [index] 错误
+        summary_intra = cast(DecisionSummary, decision_result.get("summary", {}))
         logger.info(
-            f"【盘中决策】完成: {decision_result['summary']['sudden_changes']} 个突变信号, "  # type: ignore[index]
+            f"【盘中决策】完成: {summary_intra.get('sudden_changes', 0)} 个突变信号, "
             f"耗时 {elapsed:.1f}秒"
         )
 
@@ -653,6 +695,11 @@ class ETFFlowDecisionEngine:
 class ETFFlowDecisionScheduler:
     """ETF资金流决策定时调度器"""
 
+    # 可选线程属性 — 根除 __init__ 中 = None 的 None 单例推断
+    _thread: Optional[threading.Thread]
+    _running: bool
+    engine: ETFFlowDecisionEngine
+
     def __init__(self, engine: ETFFlowDecisionEngine):
         self.engine = engine
         self._running = False
@@ -669,12 +716,14 @@ class ETFFlowDecisionScheduler:
             return
 
         self._running = True
-        self._thread = threading.Thread(  # type: ignore[union-attr]
+        self._thread = threading.Thread(
             target=self._monitor_loop,
             args=(interval,),
             daemon=True,
         )
-        self._thread.start()  # type: ignore[union-attr]
+        t = self._thread
+        if t is not None:
+            t.start()
         logger.info(f"盘中监控已启动 (间隔: {interval}秒)")
 
     def _monitor_loop(self, interval: int):

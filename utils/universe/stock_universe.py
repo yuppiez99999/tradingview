@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from typing import Any
 
 import pandas as pd
 
@@ -40,11 +41,12 @@ HS300_INDEX = "000300"  # 沪深300
 ZZ500_INDEX = "000905"  # 中证500
 
 
-def _get_akshare():
-    """安全获取 akshare 模块"""
+def _get_akshare() -> Any:
+    """安全获取 akshare 模块 (Any 收窄, 根除下游 5 处 stub-less attr ignore)."""
     try:
-        import akshare as ak  # type: ignore[misc]
-        return ak
+        import akshare as ak_impl
+
+        return ak_impl
     except ImportError:
         logger.error("akshare 未安装，请运行: pip install akshare")
         return None
@@ -62,7 +64,7 @@ def get_hs300_constituents() -> pd.DataFrame:
 
     for attempt in range(3):
         try:
-            df = ak.index_stock_cons_csindex(symbol=HS300_INDEX)  # type: ignore[misc]
+            df = ak.index_stock_cons_csindex(symbol=HS300_INDEX)
             if df is None or df.empty:
                 time.sleep(1)
                 continue
@@ -98,7 +100,7 @@ def get_zz500_constituents() -> pd.DataFrame:
 
     for attempt in range(3):
         try:
-            df = ak.index_stock_cons_csindex(symbol=ZZ500_INDEX)  # type: ignore[misc]
+            df = ak.index_stock_cons_csindex(symbol=ZZ500_INDEX)
             if df is None or df.empty:
                 time.sleep(1)
                 continue
@@ -234,7 +236,7 @@ def get_full_market_snapshot() -> pd.DataFrame:
     if ak is not None:
         for attempt in range(2):
             try:
-                df = ak.stock_zh_a_spot_em()  # type: ignore[misc]
+                df = ak.stock_zh_a_spot_em()
                 if df is not None and not df.empty:
                     logger.info(f"[AKShare] 全市场实时快照: {len(df)} 只股票")
                     return df
@@ -466,7 +468,7 @@ def get_industry_map(symbols: list[str]) -> dict:
     industry_map: dict = {}
     # 使用全市场行业分类（一次 API 调用）
     try:
-        df = ak.stock_board_industry_name_em()  # type: ignore[misc]
+        df = ak.stock_board_industry_name_em()
         if df is None or df.empty:
             return {}
 
@@ -476,7 +478,7 @@ def get_industry_map(symbols: list[str]) -> dict:
             if not industry_name:
                 continue
             try:
-                cons_df = ak.stock_board_industry_cons_em(symbol=industry_name)  # type: ignore[misc]
+                cons_df = ak.stock_board_industry_cons_em(symbol=industry_name)
                 if cons_df is None or cons_df.empty:
                     continue
                 for code in cons_df["代码"].astype(str).str.zfill(6):

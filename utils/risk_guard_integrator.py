@@ -32,7 +32,7 @@ import logging
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, Tuple, Type, cast
 
 logger = logging.getLogger("risk_guard_integrator")
 
@@ -185,14 +185,14 @@ class RiskGuardIntegrator:
 
         codes = re.findall(r"\b(\d{6})\b", name_lower)
         if codes:
-            return codes[0]  # type: ignore[index]
+            return str(codes[0])
         # 模糊匹配: 最长优先, 避免 "50etf" 误匹配 "科创50ETF"
         for key in sorted(cls.UNDERLYING_CODE_MAP.keys(), key=len, reverse=True):
             if key in name_lower:
                 return cls.UNDERLYING_CODE_MAP[key]
         return None
 
-    def __init__(self, report_date: str | None = None, total_capital: float = 5_000_000):  # type: ignore[misc]
+    def __init__(self, report_date: Optional[str] = None, total_capital: float = 5_000_000):
         """初始化风控守卫集成器。
 
         Args:
@@ -201,7 +201,7 @@ class RiskGuardIntegrator:
         """
         self.report_date = report_date or datetime.now().strftime("%Y-%m-%d")
         self.total_capital = total_capital
-        self.log_entries = []  # type: ignore[assignment]
+        self.log_entries: List[str] = []
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
     def _log(self, msg: str):
@@ -244,7 +244,8 @@ class RiskGuardIntegrator:
                 try:
                     with open(json_path, encoding="utf-8") as f:
                         self._log(f"[P0-FIX] 已加载盈亏报告: {json_path.name} (path={json_path.parent})")
-                        return json.load(f)  # type: ignore[misc]
+                        data = json.load(f)
+                        return data
                 except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
                     self._log(f"加载盈亏报告失败 ({json_path}): {e}")
 
@@ -253,7 +254,8 @@ class RiskGuardIntegrator:
 
     def _get_pnl_summary(self, pnl_report: dict) -> dict:
         """从盈亏报告中提取汇总数据 (v7.7修正: 适配 portfolio_pnl.summary 嵌套结构)"""
-        return pnl_report.get("portfolio_pnl", {}).get("summary", {})  # type: ignore[index]
+        portfolio_pnl = pnl_report.get("portfolio_pnl", {})
+        return portfolio_pnl.get("summary", {})
 
     def _extract_positions(self, pnl_report: dict) -> list:
         """从 pnl_report 提取 positions 列表 (v8.6.6: 兼容三种数据位置)
@@ -297,11 +299,12 @@ class RiskGuardIntegrator:
         简化格式: pnl_report['summary'] (顶层)
         """
         # 1. 完整格式
-        summary = pnl_report.get("portfolio_pnl", {}).get("summary", {})
+        portfolio_pnl = pnl_report.get("portfolio_pnl", {})
+        summary = portfolio_pnl.get("summary", {})
         if summary:
-            return summary  # type: ignore[misc]
+            return summary
         # 2. 简化格式
-        return pnl_report.get("summary", {})  # type: ignore[index]
+        return pnl_report.get("summary", {})
 
     def _load_next_trade_plan(self, next_date: str) -> dict | None:
         """加载次日交易计划"""
@@ -310,7 +313,7 @@ class RiskGuardIntegrator:
             return None
         try:
             with open(plan_path, encoding="utf-8") as f:
-                return json.load(f)  # type: ignore[misc]
+                return cast(dict, json.load(f))
         except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
             self._log(f"加载次日计划失败: {e}")
             return None
@@ -496,7 +499,11 @@ class RiskGuardIntegrator:
 
         # 先计算已实现波动率，再计算 vol_scale
         realized_vol = vtc.calc_realized_vol(daily_returns) if daily_returns else None
-        vol_scale = vtc.calc_vol_scale(realized_vol)  # type: ignore[union-attr]
+        # None 守卫 — 消除 [union-attr]
+        if realized_vol is None:
+            vol_scale = None
+        else:
+            vol_scale = vtc.calc_vol_scale(realized_vol)
 
         if vol_scale is None or vol_scale >= 0.80:
             self._log(f"[波动率] vol_scale={vol_scale or 'N/A'}, 无需缩仓")
@@ -838,13 +845,15 @@ class RiskGuardIntegrator:
             3. positions 提取用 _extract_positions (处理 list/dict), 转 dict 给 check_concentration
                原代码 pnl_summary.get("positions", ...) 可能返回 list, check_concentration 用 .items() 会 AttributeError
         """
+        # 前置 Optional[Type] 注解 — 消除 import 失败分支 None 赋值 [assignment]
+        _KillSwitchCls: Optional[Type[Any]]
         try:
-            from utils.kill_switch import KillSwitch
+            from utils.kill_switch import KillSwitch as _KillSwitchCls
         except ImportError:
             self._log("[KillSwitch] 模块导入失败，使用降级检查")
-            KillSwitch = None  # type: ignore[assignment,misc]
+            _KillSwitchCls = None
 
-        ks = KillSwitch() if KillSwitch else None  # type: ignore[misc]
+        ks = _KillSwitchCls() if _KillSwitchCls is not None else None
         pnl_summary = self._get_pnl_summary(pnl_report)
 
         # 1. 保证金使用率检查
@@ -1188,7 +1197,7 @@ class RiskGuardIntegrator:
 
         return plan
 
-    def _fetch_limit_counts(self, pnl_report: dict | None = None) -> tuple:  # type: ignore[misc]
+    def _fetch_limit_counts(self, pnl_report: dict | None = None) -> tuple[int, int, str]:
         """获取全市场涨跌停家数 (三层 fallback)
 
         Args:
@@ -1675,8 +1684,8 @@ class RiskGuardIntegrator:
                 self._log(f"[相关性对冲] 历史报告不足 10 份 (实际 {len(report_files)}), 跳过")
                 return None
 
-            # 构建收益率序列
-            returns_data = {sym: [] for sym in symbols}  # type: ignore[assignment]
+            # 构建收益率序列 — 显式注解消除 dict comprehension 的 [assignment] 漂移
+            returns_data: dict[str, list[float]] = {sym: [] for sym in symbols}
             valid_days = 0
             for rf in report_files:
                 try:

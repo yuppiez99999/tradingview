@@ -30,7 +30,7 @@ import logging
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional, cast
 
 logger = logging.getLogger("drift_monitor")
 
@@ -194,7 +194,7 @@ class DriftMonitor:
             alerts = self.detector.check_feature_drift(current_features)
             for a in alerts:
                 self._record_alert(a)
-            return alerts  # type: ignore[misc]
+            return alerts  # type: ignore[return-value]  # 上游返回类型可能为 Any, 此处已是 list
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.exception("特征漂移检查失败: %s", e)
             return []
@@ -209,7 +209,7 @@ class DriftMonitor:
                 self._record_alert(a)
             # 检查是否需要触发重训练
             self._check_retrain_trigger(alerts)
-            return alerts  # type: ignore[misc]
+            return alerts  # type: ignore[return-value]
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.exception("全量检查失败: %s", e)
             return []
@@ -239,7 +239,7 @@ class DriftMonitor:
             with open(alert_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(alert_dict, ensure_ascii=False, default=str) + "\n")
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
-            logger.warning("告警持久化失败: %s", e)
+            logger.warning("告警持久化失败: %s", e, exc_info=True)
 
     # ============================================================
     # 重训练触发
@@ -257,7 +257,9 @@ class DriftMonitor:
         severity_met = False
         for alert in alerts:
             severity = getattr(alert, "severity", None)
-            severity_val = severity.value if hasattr(severity, "value") else str(severity)  # type: ignore[misc]
+            severity_val = (
+                cast(Any, severity).value if hasattr(severity, "value") else str(severity)
+            )
             if severity_val == self.retrain_threshold_severity:
                 severity_met = True
                 break
@@ -363,7 +365,7 @@ class DriftMonitor:
             report["alerts_count"] = len(self._alerts_history)
             report["retrain_triggered"] = self._retrain_triggered
             report["last_retrain_time"] = self._last_retrain_time
-            return report  # type: ignore[misc]
+            return report  # type: ignore[return-value]
         except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return {"model_name": self.model_name, "error": str(e)}
 
@@ -407,14 +409,16 @@ from typing import Sequence  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-# scipy.stats 用于 KS 检验 (可选, 降级为均值差)
+# scipy.stats 前向声明 (模块级) — 根除 ImportError fallback 时 assignment ignore
+_scipy_stats: Optional[type]
 try:
-    from scipy import stats as _scipy_stats
+    from scipy import stats as _scipy_stats_impl
 
+    _scipy_stats = _scipy_stats_impl
     _SCIPY_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _SCIPY_AVAILABLE = False
-    _scipy_stats = None  # type: ignore[assignment]
+    _scipy_stats = None
 
 # Feature Flag (HC-1: 默认 False, 不破坏 V9 基线)
 _USE_DRIFT_DETECTOR_FLAG = os.environ.get("USE_DRIFT_DETECTOR", "false").lower() in (
@@ -729,6 +733,13 @@ class SimModeDriftMonitor:
                     # 触发告警...
     """
 
+    # 类级可选属性显式注解 — 根除 __init__ 中 =None 触发的 None 单例推断/窄化
+    _baseline_panel: Optional[pd.DataFrame]
+    _baseline_predictions: Optional[np.ndarray]
+    _feature_columns: list[str]
+    _alert_owners: dict[str, Any]
+    _history: list[DriftReport]
+
     def __init__(
         self,
         model_name: str,
@@ -904,7 +915,7 @@ class SimModeDriftMonitor:
 
     def set_baseline_predictions(self, predictions: np.ndarray) -> None:
         """设置基线预测分布 (训练集 OOF predictions)."""
-        self._baseline_predictions = np.asarray(predictions)  # type: ignore[union-attr]
+        self._baseline_predictions = np.asarray(predictions)
 
     def _get_owner_info(self) -> dict[str, str]:
         """获取当前模型的 owner 信息."""
