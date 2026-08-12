@@ -5,7 +5,7 @@
 **作者**：yuppiez99999
 **实盘状态**：✅ 已部署（2026-07-28）
 **生产基线**：Python 3.14.4（junction `C:\QuantSys`），兼容 Python 3.9+
-**最近更新**：2026-08-05 — U1-U5 升级计划全部完成（时序 IC/ICIR + 涨跌停/停牌 + 复权因子 + E2E 测试 + U1 衔接 PipelineOrchestrator）+ VolRegimeWeighter 波动率 Regime 权重建议器实盘集成（Phase 0 观察期，双链路架构）+ 自我进化框架 + 38 个陈旧文档清理 + GitHub Issue #1（Python 3.10+ 迁移计划）
+**最近更新**：2026-08-12 — 删除陈旧版本（TOKEN_SECURITY_GUIDE.md 已移除、早期版本历史 v8.1/v8.3/v8.4 归档）+ 全局删除陈旧 Dead Code 模块（archive_dead_code 批清理）+ 强化 CI 质量门禁
 
 ---
 
@@ -125,8 +125,6 @@ LOG_LEVEL=INFO
 ### 3. 系统自检
 
 ```bash
-python system_health_check.py
-
 # P0 严格自检（盘前最终核查）
 python scripts/run_p0_startup_check.py --strict
 ```
@@ -163,9 +161,9 @@ python institutional_pipeline_runner.py --mode live                             
 盘后自动闭环：收盘报告 → 风控守卫 → 次日计划 → 预生成盘中决策。
 
 ```bash
-python run_daily_eod.py                    # 完整盘后工作流
-python run_daily_eod.py --phase report     # 仅生成报告
-python run_daily_eod.py --phase plan       # 仅生成次日计划
+python 15_每日工作流/run_daily_eod_workflow.py                    # 完整盘后工作流
+python 15_每日工作流/run_daily_eod_workflow.py --phase report     # 仅生成报告
+python 15_每日工作流/run_daily_eod_workflow.py --phase plan       # 仅生成次日计划
 ```
 
 ### 实时监控：`live_scheduler.py`
@@ -180,7 +178,6 @@ python live_scheduler.py --once            # 单次执行
 ### 其他常用命令
 
 ```bash
-python system_health_check.py              # 系统健康检查
 python daily_trade_executor.py             # 交易计划执行
 python stop_loss_monitor.py                # 止损监控
 python signal_monitor.py                   # 信号监控
@@ -259,12 +256,43 @@ result = library.compute(data, factor_names=DEFAULT_GTJA)
 
 ---
 
+## 系统自我升级
+
+系统内置「自我进化 + 统一升级计划」双机制，让工程迭代与量化能力升级可追踪、可验收、可灰度回退。
+
+### 1. 自我进化框架（EvolutionOrchestrator）
+
+核心实现：`utils/alpha/evolution_orchestrator.py`。它在观察期内持续评估策略/因子表现，并自动产出升级决策与进度快照。
+
+- **观察期**：14 天 + 最小评估样本 20 天，未达样本前不触发自动变更。
+- **双链路架构**：盘中 `AutoTradingSystem` 每 30s 只读 `VolRegimeWeighter` 建议（不写）；EOD `EvolutionOrchestrator` 产出完整进化报告。
+- **产物落盘**：决策日志与进度快照自动持久化至 `reports/evolution/`。
+- **定时运行**：`v84_EvolutionEval` 任务每天 16:05 自动执行。
+
+### 2. 统一升级计划（UNIFIED_UPGRADE_PLAN）
+
+计划文档：`docs/UNIFIED_UPGRADE_PLAN_20260810.md`（取代 5+ 份分散且状态不同步的旧计划）。
+
+- **周期**：2026-08-11 ~ 2026-12-31（8 个 Sprint + 实盘准入）。
+- **里程碑**：08-22 中期工业级达标 → 09-30 全面达标 → 10-31 工程基础层就位 → 12-31 实盘准入。
+- **门禁驱动**：所有「已完成/待做」状态以门禁三件套实测值为准（industrial_grade_check / assert_data_validity / engineering_debt_gate）。
+- **常态化工具**：open-code-review（ocr）固化为 CI PR 审查 + 夜间全量扫描；ECC skills 选择性安装增强 Agent 工作流。
+
+### 3. 升级状态同步
+
+- `scripts/sync_upgrade_status.py`：扫描 git log 的 `[Ux]/[Gx]/[Px]` 标记，对比计划文档状态表，保证 commit 与计划一致。
+- 升级计划项均带阶段编号（如 `G1` 真实券商下单、`G9` FeatureStore 物理分层），可在 `docs/` 中按编号检索当前进度。
+
+> **纪律**：任何升级变更须满足 DoD（修复类变更附「修复前会失败」的回归测试，门禁类变更附 CI 同格式负向验证），否则禁止合入主链路。
+
+---
+
 ## 项目结构
 
 ```
 28-终极量化交易系统8.4/
 ├── institutional_pipeline_runner.py     # 主入口 — 机构级闭环运行器
-├── run_daily_eod.py                     # 盘后工作流入口
+├── 15_每日工作流/run_daily_eod_workflow.py # 盘后工作流入口
 ├── live_scheduler.py                    # 实时调度器
 ├── daily_trade_executor.py              # 交易计划执行（v8.6.14 Bug 修复）
 ├── generate_daily_report.py             # 日报生成
@@ -826,9 +854,7 @@ docs(readme): 更新 README 至 v8.6.14
 |------|------|
 | [CHANGELOG.md](CHANGELOG.md) | 版本更新日志 |
 | [USER_GUIDE.md](USER_GUIDE.md) | 用户指南 |
-| [docs/POST_UPGRADE_ROADMAP_2026-08-05.md](docs/POST_UPGRADE_ROADMAP_2026-08-05.md) | ★v8.6.15 U1-U5 升级路线图 |
 | [cairn/self-evolution-framework.md](cairn/self-evolution-framework.md) | ★v8.6.15 自我进化框架设计文档 |
-| [TOKEN_SECURITY_GUIDE.md](TOKEN_SECURITY_GUIDE.md) | Token 安全指南 |
 | [.env.example](.env.example) | ★v8.6.14 环境变量模板（含 APIZERO_API_KEY） |
 | [utils/alpha_factor/library.py](utils/alpha_factor/library.py) | ★v8.6.14 因子库聚合入口（12 大类） |
 | [utils/alpha_factor/technical.py](utils/alpha_factor/technical.py) | ★v8.6.14 GTJA191 因子集成 |
@@ -839,7 +865,6 @@ docs(readme): 更新 README 至 v8.6.14
 | [scripts/test_weather_e2e_minimal.py](scripts/test_weather_e2e_minimal.py) | ★v8.6.13 气象因子 E2E 验证脚本 |
 | [docs/](docs/) | 文档目录（含归档） |
 | [ms_strategy/cloud_train/README_云端部署.md](ms_strategy/cloud_train/README_云端部署.md) | QLib 云端训练部署指南 |
-| [research/vibe_trading_factor_analysis/README.md](research/vibe_trading_factor_analysis/README.md) | Vibe-Trading 因子分析项目 |
 | [tools/code-review-graph/README.md](tools/code-review-graph/README.md) | code-review-graph 集成说明 |
 | [second-brain/README.md](second-brain/README.md) | 第二大脑知识管理系统 |
 
@@ -868,10 +893,7 @@ docs(readme): 更新 README 至 v8.6.14
 | v8.6.13 | 2026-08-01 | 气象因子引擎（7 因子体系 + apizero→Open-Meteo 降级链 + WeatherAgent 第 6 位专家 + 信号融合第 9 层）+ Scrapling 反爬爬虫适配器 + TradingAgents-CN HTTP 桥接 + E2E 验证 17/17 通过 |
 | v8.6.12 | 2026-07-31 | P0 启动自检系统 + 数据契约测试 + 回归测试套件 + 两层测试策略 + pre-commit 钩子 |
 | v8.5 | 2026-07-24 | P0 Bug 修复 + v8.5 模块真实集成（9 个核心模块） |
-| v8.4 | 2026-07-22 | 代码质量 P0/P1/P2 修复 + 配置漂移修复 |
-| v8.3.1 | 2026-07-21 | PUT 引擎去重保护 |
-| v8.3.0 | 2026-07-21 | 风控守卫强制执行系统 |
-| v8.1 | 2026-07-17 | 全自动交易闭环 + LLM 盘中决策 |
+| v8.4 及更早 | 2026-07-22 之前 | （已归档，详见历史提交记录） |
 
 ### 2026-08-04 增量更新详细变更（v8.6.14+）
 

@@ -114,6 +114,41 @@ jobs:
           $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
           pyflakes @files
 
+      - name: G-3 py_compile 语法检查 (阻断式, 仅改文件)
+        # G-3 修复 (2026-08-08): 阻断 D-4 类语法错误 (f-string 反斜杠 / docstring 重复粘贴).
+        # 见 docs/CODE_REVIEW_GAP_AUDIT_2026-08-08.md D-4 + docs/CODE_REVIEW_COMPREHENSIVE_20260808.md G-3.
+        if: ${{ steps.diff.outputs.pyfiles != '' }}
+        shell: powershell
+        run: |
+          $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
+          $failed = @()
+          foreach ($f in $files) {
+            $result = python -m py_compile $f 2>&1
+            if ($LASTEXITCODE -ne 0) {
+              $failed += $f
+              Write-Error "py_compile FAIL: $f`n$result"
+            }
+          }
+          if ($failed.Count -gt 0) {
+            Write-Error "语法错误文件: $($failed -join ', ')"
+            exit 1
+          }
+          Write-Host "py_compile 全部通过 ($($files.Count) 文件)"
+
+      - name: G-4 F821 未定义名检查 (阻断式, 仅改文件)
+        # G-4 修复 (2026-08-08): 增量门禁加 F821, 阻断新未定义名入库.
+        # 见 docs/CODE_REVIEW_GAP_AUDIT_2026-08-08.md G-1 + docs/CODE_REVIEW_COMPREHENSIVE_20260808.md G-4.
+        if: ${{ steps.diff.outputs.pyfiles != '' }}
+        shell: powershell
+        run: |
+          $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
+          $result = ruff check --select F821 --no-cache @files 2>&1
+          Write-Host $result
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "F821 未定义名命中, 阻断合并。修复: 补 import 或加 `# noqa: F821` 豁免。"
+            exit 1
+          }
+
       - name: Ruff T201 print 检查 (非 P0 仅 warning)
         if: ${{ steps.diff.outputs.pyfiles != '' }}
         shell: powershell
@@ -127,12 +162,14 @@ jobs:
         shell: powershell
         run: |
           $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
+          # G-2 修复 (2026-08-08): P0 列表与 scripts/check_no_print_p0.py 同步, 补 automated_execution_system + wt_backtest_engine.
           $p0 = @(
-            "alpha_hedge_engine.py","build_plan_executor.py","daily_build_and_hedge.py",
-            "daily_trade_executor.py","hedge_execution_orders.py","hedge_quantity_calculator.py",
-            "institutional_pipeline_runner.py","live_scheduler.py","rebalance_execution_orders.py",
-            "run_daily_eod.py","signal_monitor.py","signal_post_processing.py",
-            "stop_loss_monitor.py","today_hedge_decision.py","vol_adjusted_stop_loss.py"
+            "alpha_hedge_engine.py","automated_execution_system.py","build_plan_executor.py",
+            "daily_build_and_hedge.py","daily_trade_executor.py","hedge_execution_orders.py",
+            "hedge_quantity_calculator.py","institutional_pipeline_runner.py","live_scheduler.py",
+            "rebalance_execution_orders.py","run_daily_eod.py","signal_monitor.py",
+            "signal_post_processing.py","stop_loss_monitor.py","today_hedge_decision.py",
+            "vol_adjusted_stop_loss.py","wt_backtest_engine.py"
           )
           # 仅取暂存区 P0 文件的基名
           $changed_p0 = $files | ForEach-Object { Split-Path $_ -Leaf } | Where-Object { $p0 -contains $_ }
@@ -155,6 +192,19 @@ jobs:
           python scripts/quant_review_lint.py --strict @files
           if ($LASTEXITCODE -ne 0) {
             Write-Error "量化专项 lint 命中阻断项 (Q1/Q2/Q3), 请修复后再合并。合法豁免用行尾 `# quant-lint-ignore`。"
+            exit 1
+          }
+
+      - name: G-1 ruff 增量零新增门禁 (CODE_REVIEW_AUDIT 2026-08-09)
+        if: ${{ steps.diff.outputs.pyfiles != '' }}
+        shell: powershell
+        run: |
+          $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
+          # 受控规则集 E,F,W,B,C90,I,N,UP,T,BLE 增量零新增; 阻断子集 F,B,N,BLE,T 任何新增即失败。
+          # 基线 reports/ruff_baseline.json 由 scripts/ruff_baseline_gen.py 生成 (仓库内冻结)。
+          python scripts/ruff_incremental_gate.py @files
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "ruff 增量门禁失败: 改动文件引入了新违规。运行 `python scripts/ruff_baseline_gen.py` 仅在你已清理存量后更新基线。"
             exit 1
           }
 

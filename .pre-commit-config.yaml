@@ -7,6 +7,16 @@ repos:
   # 本地钩子: 复用现有门禁脚本, 与 CI 等价
   - repo: local
     hooks:
+      # G-3 修复 (2026-08-08): 新增 py_compile 语法检查门禁.
+      # 见 docs/CODE_REVIEW_GAP_AUDIT_2026-08-08.md D-4 + docs/CODE_REVIEW_COMPREHENSIVE_20260808.md G-3.
+      # 防止 D-4 类 (f-string 反斜杠 / docstring 重复粘贴) 语法错误入库.
+      # 成本: ~1s/文件; 收益: 阻断所有 SyntaxError 入库 (D-4 三例均会被拦截).
+      - id: py_compile_check
+        name: py_compile 语法检查 (G-3)
+        entry: python -m py_compile
+        language: system
+        files: \.py$
+        pass_filenames: true
       - id: pre_commit_check
         name: P0 三道门禁+P0 print 检查
         entry: python scripts/pre_commit_check.py
