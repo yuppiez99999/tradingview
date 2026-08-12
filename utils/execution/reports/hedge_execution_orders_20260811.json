@@ -1,0 +1,90 @@
+{
+  "date": "2026-08-11",
+  "action": "BETA_HEDGE",
+  "portfolio_beta": 1.2,
+  "hedge_pct": 0.3,
+  "orders": [
+    {
+      "type": "OPTIONS",
+      "action": "BUY_PROTECTION",
+      "instrument": "510050 Put",
+      "exchange": "SSE",
+      "contracts": 9,
+      "strike": 2.88,
+      "otm_pct": 0.95,
+      "premium_budget": 42143.6,
+      "budget_pct": 0.0157,
+      "reason": "Beta对冲(1.20)优先期权保护",
+      "framework": [
+        "优先期权",
+        "Beta对冲",
+        "尾部保护"
+      ],
+      "beta_hedge_pct": 0.35,
+      "priority": "primary"
+    },
+    {
+      "type": "OPTIONS",
+      "action": "BUY_PROTECTION",
+      "instrument": "沪深300ETF Put",
+      "exchange": "SSE",
+      "contracts": 3,
+      "strike": 4.48,
+      "otm_pct": 0.95,
+      "premium_budget": 25286.16,
+      "budget_pct": 0.0094,
+      "reason": "Beta对冲(1.20)优先期权保护",
+      "framework": [
+        "优先期权",
+        "Beta对冲",
+        "尾部保护"
+      ],
+      "beta_hedge_pct": 0.21,
+      "priority": "primary"
+    },
+    {
+      "type": "OPTIONS",
+      "action": "BUY_PROTECTION",
+      "instrument": "创业板ETF Put",
+      "exchange": "SZSE",
+      "contracts": 3,
+      "strike": 3.38,
+      "otm_pct": 0.95,
+      "premium_budget": 16857.44,
+      "budget_pct": 0.0063,
+      "reason": "Beta对冲(1.20)优先期权保护",
+      "framework": [
+        "优先期权",
+        "Beta对冲",
+        "尾部保护"
+      ],
+      "beta_hedge_pct": 0.14,
+      "priority": "primary"
+    },
+    {
+      "type": "FUTURES",
+      "action": "SELL_SHORT",
+      "instrument": "IF",
+      "exchange": "CFFEX",
+      "contracts": 1,
+      "multiplier": 300,
+      "est_price": 3800.0,
+      "notional": 1140000.0,
+      "estimated_cost": 148.2,
+      "budget_pct": 0.426,
+      "reason": "Beta期货对冲(1.20)",
+      "framework": [
+        "Beta对冲"
+      ],
+      "priority": "primary"
+    },
+    {
+      "type": "SAFE_HAVEN",
+      "action": "BUY",
+      "instrument": "518880",
+      "name": "黄金ETF华安",
+      "amount": 204618.0,
+      "budget_pct": 0.07647014856206628
+    }
+  ]
+}
