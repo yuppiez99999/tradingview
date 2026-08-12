@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-12 · 代码审查复审 R10/R11/R12 落地 · 完成 ✅
+
+- **源报告**: `docs/代码审查复审报告_20260812_二次.md` (R1/R2/R3 已修复校验 + 新模块抽样)
+- **R12 校准**: 报告假设的"99 未跟踪含临时垃圾"经实测**全为有效新增代码**, 已 5 批提交收敛至 0 (见上条); 仅补 `.gitignore` 的 `~$*.xlsx` 锁文件 + CI 转储产物 (`_*.out.txt`/`_ms_*.txt`/`_tmp_*.py`) 未覆盖项
+- **R10 落地**: `scripts/engineering_debt_gate.py` 新增 **T6 fail-safe 宽捕获指标** (扫描 `except Exception`+`# fail-safe`/`# noqa: BLE001`, 阈值 30, 超则 YELLOW 不阻断); 首跑 **400 处** 判 YELLOW, 与报告"已承认未治理"一致; 登记治理排期(短期记告警日志/中期精确化 32 处/长期 CI 评论门槛), 参照 `cairn/exception-handling-standards.md` §2.3/§3.3
+- **R11 落地**: 补 `tests/unit/test_llm_rate_limiter.py` (**12 passed**), 覆盖令牌桶数学/枯竭超时/TTL 过期/LRU 淘汰/退避封顶/单例双检/CallStats 除零/集成缓存命中
+- **门禁验证**: T6 YELLOW / pytest 12 passed / ruff F 类 All passed (顺手清 2 F401+1 F841 预存) / py_compile OK
+- **指针**: `cairn/code-review-reaudit-20260812.md` (专题) · `.gitignore` · `scripts/engineering_debt_gate.py::T6`
+
 ## 2026-08-12 · G7 ms_strategy 覆盖补齐: 0% → 显著覆盖 + 2 个真实 bug 修复 · 完成 ✅
 
 - **背景**: G7 定向基线 39.58% (ms_strategy 因无任何测试 0% 纳入); 本次为轻量纯逻辑模块补单元测试, 把 ms_strategy 从 0% 拉起

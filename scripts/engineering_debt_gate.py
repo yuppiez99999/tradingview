@@ -13,6 +13,7 @@
     T3 utils/notify 是否存在 (告警能力)
     T4 生产模块是否有 research.* import (环境隔离)
     T5 陈旧测试数量 (引用已删除模块的测试)
+    T6 fail-safe 宽捕获泛滥 (except Exception + # fail-safe 注释, 技术债 R10)
 
 债务等级:
     GREEN  — 全部通过, 可推进功能升级
@@ -29,10 +30,8 @@
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
-from typing import Any
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -112,6 +111,49 @@ def _check_stale_test_count() -> tuple[bool, str]:
     return False, msg
 
 
+# T6 阈值: fail-safe 宽捕获站点数超过此值即判 YELLOW (技术债 R10)
+_FAIL_SAFE_WARN_THRESHOLD = 30
+
+
+def _check_fail_safe_broad_except() -> tuple[bool, str]:
+    """T6 fail-safe 宽捕获泛滥检测 (技术债 R10).
+
+    扫描源码中 `except Exception` 配合 `# fail-safe` / `# noqa: BLE001` 注释的
+    站点, 统计数量。这类站点会静默吞掉真实错误 (数据源失败/LLM 解析异常),
+    属已承认但未治理的技术债。超过阈值 (默认 30) 即 YELLOW, 提示需要排期精确化。
+
+    不阻断 (never RED): 属可维护性债, 非功能性阻断。只做告警级别提示。
+    """
+    import re
+
+    patterns = [
+        re.compile(r"except\s+Exception\b.*#.*(?:fail-safe|noqa:\s*BLE001)", re.IGNORECASE),
+        re.compile(r"except\s+Exception\b\s*:\s*#\s*fail-safe", re.IGNORECASE),
+    ]
+    count = 0
+    scanned_dirs = [
+        _PROJECT_ROOT / "utils",
+        _PROJECT_ROOT / "scripts",
+        _PROJECT_ROOT / "quant_modules",
+        _PROJECT_ROOT / "ai_decision",
+    ]
+    hits: list[str] = []
+    for base in scanned_dirs:
+        if not base.exists():
+            continue
+        for py_file in base.rglob("*.py"):
+            try:
+                for ln in py_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                    if any(p.search(ln) for p in patterns):
+                        count += 1
+                        hits.append(f"{py_file.name}:{ln.strip()[:80]}")
+            except OSError:
+                continue
+    if count > _FAIL_SAFE_WARN_THRESHOLD:
+        return False, f"fail-safe 宽捕获 {count} 处 (> {_FAIL_SAFE_WARN_THRESHOLD}, 需排期精确化)"
+    return True, f"fail-safe 宽捕获 {count} 处 (<= {_FAIL_SAFE_WARN_THRESHOLD})"
+
+
 def main() -> int:
     checks = [
         ("T1", "测试collection", _check_test_collection_errors()),
@@ -119,9 +161,9 @@ def main() -> int:
         ("T3", "告警模块", _check_notify_exists()),
         ("T4", "环境隔离", _check_env_isolation()),
         ("T5", "陈旧测试", _check_stale_test_count()),
+        ("T6", "fail-safe宽捕获", _check_fail_safe_broad_except()),
     ]
 
-    pass_count = sum(1 for _, _, (ok, _) in checks if ok)
     fail_count = sum(1 for _, _, (ok, _) in checks if not ok)
 
     if fail_count == 0:

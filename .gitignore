@@ -290,6 +290,22 @@ github_weekly_report_*.html
 research_plan_*.md
 research_report_*.md
 
+# === v8.6.14 复审 R12 临时产物补充 (2026-08-12) ===
+# Excel / Office 临时锁文件 (如 ~$高价值GitHub项目清单.xlsx)
+~$*.xlsx
+~$*.xls
+~$*.docx
+~$*.pptx
+# 根级 / 临时输出转储 (CI 调试产物)
+_*.out.txt
+_*.out.json
+_ms_*.txt
+# 临时 Python 调试脚本
+_tmp_*.py
+_tmp_*.pyc
+# 临时 pip 下载缓存兜底 (已被 .tmp_pip/ 覆盖, 双保险)
+.tmp_*.pip/
+
 # P0 pre-commit 验证标记
 test
 test3
