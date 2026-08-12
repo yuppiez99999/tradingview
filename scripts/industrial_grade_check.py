@@ -15,8 +15,17 @@
     C5 测试可运行性     — pytest --collect-only 是否 0 errors
     C6 CI 可运行性      — ci.yml 引用的脚本是否存在
     C7 监控告警实现     — utils/notify 是否存在且可 import
-    C8 券商接入状态     — system_config broker 是否 dry_run
-    C9 陈旧测试堆积     — 是否有测试引用已删除的模块
+    C8 成交回报落盘     — FillsStore 是否存在且被执行链 + PnL 双向接入 (G2/G4)
+    C9 期权对冲执行链   — hedge_order_executor 是否存在撮合+落盘+持仓更新闭环
+    C10 fills 文件新鲜度 — 当日/最近 fills 文件是否存在且非空
+    C11 PnL 桥接数据流   — fills_pnl_bridge.augment_market_prices 是否可消费 fills
+    C12 期权执行链集成   — hedge_order_executor 是否被 daily_trading_workflow/统一入口调用
+
+更新历史:
+    2026-08-06 创建 (C1-C9 初版, C8/C9 复用 C1/C5)
+    2026-08-08 重构 C8/C9 为独立判据:
+        - C8 改为成交回报落盘检查 (G2 fills_store + G4 fills_pnl_bridge 接入点)
+        - C9 改为期权对冲执行链检查 (hedge_order_executor 撮合闭环)
 
 用法:
     python scripts/industrial_grade_check.py           # 全量检查
@@ -37,6 +46,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import subprocess
@@ -244,14 +254,255 @@ def check_c7_notify_exists() -> CheckResult:
     return CheckResult("C7", "监控告警实现", "WARN", "notify.py 存在但接口不完整")
 
 
-def check_c8_broker_status() -> CheckResult:
-    """C8 券商接入状态 — system_config broker 配置."""
-    return check_c1_execution_loop()  # 复用 C1 的检查逻辑, 但改 code
+def check_c8_fills_persistence() -> CheckResult:
+    """C8 成交回报落盘 — FillsStore 是否被执行链 + PnL 双向接入 (G2/G4).
+
+    G2 (2026-08-08 修复): automated_execution_system 成交后调用 FillsStore.record_fill
+        落盘到 reports/fills/fills_{date}.jsonl, 解决"只撮合不落盘"断链.
+    G4 (2026-08-08 修复): generate_daily_report 通过 fills_pnl_bridge.augment_market_prices
+        用真实成交价覆盖行情估算 close, 使 PnL 以 fills 为单一事实源.
+
+    本判据验证:
+        1. utils/execution/fills_store.py 存在且定义 FillsStore + record_fill
+        2. utils/execution/fills_pnl_bridge.py 存在且定义 augment_market_prices
+        3. automated_execution_system.py 接入 record_fill (执行链落盘点)
+        4. generate_daily_report.py 接入 augment_market_prices (PnL 桥接点)
+    """
+    fills_store_path = _PROJECT_ROOT / "utils" / "execution" / "fills_store.py"
+    bridge_path = _PROJECT_ROOT / "utils" / "execution" / "fills_pnl_bridge.py"
+    exec_system_path = _PROJECT_ROOT / "utils" / "execution" / "automated_execution_system.py"
+    daily_report_path = _PROJECT_ROOT / "generate_daily_report.py"
+
+    missing = []
+    if not fills_store_path.exists():
+        missing.append("utils/execution/fills_store.py")
+    if not bridge_path.exists():
+        missing.append("utils/execution/fills_pnl_bridge.py")
+    if not exec_system_path.exists():
+        missing.append("utils/execution/automated_execution_system.py")
+    if not daily_report_path.exists():
+        missing.append("generate_daily_report.py")
+
+    if missing:
+        return CheckResult(
+            "C8", "成交回报落盘", "FAIL",
+            f"关键文件缺失: {', '.join(missing)}",
+        )
+
+    # 检查接口定义
+    store_content = fills_store_path.read_text(encoding="utf-8")
+    bridge_content = bridge_path.read_text(encoding="utf-8")
+    has_store_class = "class FillsStore" in store_content
+    has_record_fill = "def record_fill" in store_content
+    has_augment = "def augment_market_prices" in bridge_content
+
+    if not (has_store_class and has_record_fill):
+        return CheckResult(
+            "C8", "成交回报落盘", "FAIL",
+            "fills_store.py 缺少 FillsStore 类或 record_fill 方法",
+            str(fills_store_path),
+        )
+    if not has_augment:
+        return CheckResult(
+            "C8", "成交回报落盘", "FAIL",
+            "fills_pnl_bridge.py 缺少 augment_market_prices 函数",
+            str(bridge_path),
+        )
+
+    # 检查接入点 (G2: 执行链落盘, G4: PnL 桥接)
+    exec_content = exec_system_path.read_text(encoding="utf-8")
+    report_content = daily_report_path.read_text(encoding="utf-8")
+    g2_wired = "record_fill" in exec_content or "FillsStore" in exec_content
+    g4_wired = "augment_market_prices" in report_content
+
+    evidence_parts = []
+    if not g2_wired:
+        evidence_parts.append("G2: automated_execution_system 未接入 record_fill")
+    if not g4_wired:
+        evidence_parts.append("G4: generate_daily_report 未接入 augment_market_prices")
+
+    if evidence_parts:
+        return CheckResult(
+            "C8", "成交回报落盘", "WARN",
+            f"fills 模块存在但接入不完整: {'; '.join(evidence_parts)}",
+        )
+    return CheckResult(
+        "C8", "成交回报落盘", "PASS",
+        "FillsStore + fills_pnl_bridge 均已接入执行链(G2)和 PnL(G4)",
+    )
 
 
-def check_c9_stale_tests() -> CheckResult:
-    """C9 陈旧测试堆积 — 是否有测试引用已删除的模块."""
-    return check_c5_test_collectable()  # 复用 C5
+def check_c9_options_hedge_execution() -> CheckResult:
+    """C9 期权对冲执行链 — hedge_order_executor 是否存在撮合+落盘+持仓更新闭环.
+
+    2026-08-06 修复: 此前 HedgeExecutionEngine.generate_hedge_orders 只生成 PENDING
+    期权订单写入 trade_plan, 但系统从未有执行器把订单送入撮合引擎, 导致期权订单
+    永远停留在 PENDING、组合 Delta 从不因期权对冲下降.
+
+    本判据验证:
+        1. hedge_order_executor.py 存在
+        2. 包含 OptionsSimBroker 撮合类
+        3. 包含 execute_hedge_orders 执行入口
+        4. 落盘 hedge_execution_fill_{date}.json (兼容 daily_pnl 数据契约)
+        5. 集成到 daily_trading_workflow.py 和统一入口
+    """
+    executor_path = _PROJECT_ROOT / "hedge_order_executor.py"
+    if not executor_path.exists():
+        return CheckResult(
+            "C9", "期权对冲执行链", "FAIL",
+            "hedge_order_executor.py 不存在 (期权对冲只生成不执行)",
+            str(executor_path),
+        )
+
+    content = executor_path.read_text(encoding="utf-8")
+    has_broker = "class OptionsSimBroker" in content
+    has_execute = "def execute_hedge_orders" in content
+    has_fill_output = "hedge_execution_fill_" in content
+    has_positions_update = "active_orders" in content or "actual_positions" in content
+    has_on_fill = "on_fill" in content  # TCA 归因回调
+
+    missing = []
+    if not has_broker:
+        missing.append("OptionsSimBroker 撮合类")
+    if not has_execute:
+        missing.append("execute_hedge_orders 入口")
+    if not has_fill_output:
+        missing.append("hedge_execution_fill 落盘")
+    if not has_positions_update:
+        missing.append("positions.json 更新")
+    if not has_on_fill:
+        missing.append("on_fill TCA 归因")
+
+    if missing:
+        return CheckResult(
+            "C9", "期权对冲执行链", "WARN",
+            f"hedge_order_executor.py 存在但闭环不完整: 缺少 {', '.join(missing)}",
+            str(executor_path),
+        )
+
+    # 检查集成点 (daily_trading_workflow + 统一入口)
+    workflow_path = _PROJECT_ROOT / "daily_trading_workflow.py"
+    entry_path = _PROJECT_ROOT / "量化策略系统_统一入口_v8.6.py"
+    integrated = False
+    if workflow_path.exists() and "hedge_order_executor" in workflow_path.read_text(encoding="utf-8"):
+        integrated = True
+    if entry_path.exists() and "hedge_order_executor" in entry_path.read_text(encoding="utf-8"):
+        integrated = True
+
+    if not integrated:
+        return CheckResult(
+            "C9", "期权对冲执行链", "WARN",
+            "hedge_order_executor 未集成到 daily_trading_workflow 或统一入口",
+        )
+    return CheckResult(
+        "C9", "期权对冲执行链", "PASS",
+        "OptionsSimBroker 撮合 + fills 落盘 + positions 更新 + TCA 归因 + 工作流集成 均完整",
+    )
+
+
+def check_c10_fills_freshness() -> CheckResult:
+    """C10 fills 文件新鲜度 — 当日/最近 fills 文件是否存在且非空."""
+    fills_dir = _PROJECT_ROOT / "reports" / "fills"
+    if not fills_dir.exists():
+        return CheckResult("C10", "fills文件新鲜度", "WARN", "reports/fills/ 目录不存在(未运行执行链?)")
+
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today_fill = fills_dir / f"fills_{today}.jsonl"
+    if today_fill.exists():
+        try:
+            lines = today_fill.read_text(encoding="utf-8").strip().splitlines()
+            if len(lines) == 0:
+                return CheckResult("C10", "fills文件新鲜度", "WARN", f"当日 fills_{today}.jsonl 为空")
+            return CheckResult("C10", "fills文件新鲜度", "PASS", f"当日 fills 文件有 {len(lines)} 条记录")
+        except OSError as e:
+            return CheckResult("C10", "fills文件新鲜度", "FAIL", f"读取 fills 文件失败: {e}")
+
+    # 查找最近的 fills 文件
+    all_fills = sorted(fills_dir.glob("fills_*.jsonl"), reverse=True)
+    if not all_fills:
+        return CheckResult("C10", "fills文件新鲜度", "WARN", "无任何 fills 文件(未运行执行链)")
+
+    recent = all_fills[0]
+    try:
+        lines = recent.read_text(encoding="utf-8").strip().splitlines()
+        recency = "今日" if recent.name == f"fills_{today}.jsonl" else "非今日"
+        return CheckResult(
+            "C10", "fills文件新鲜度", "PASS" if recency == "今日" else "WARN",
+            f"最近 fills 文件: {recent.name} ({len(lines)} 条, {recency})"
+        )
+    except OSError as e:
+        return CheckResult("C10", "fills文件新鲜度", "FAIL", f"读取 fills 文件失败: {e}")
+
+
+def check_c11_pnl_bridge_dataflow() -> CheckResult:
+    """C11 PnL 桥接数据流 — fills_pnl_bridge.augment_market_prices 是否可消费 fills."""
+    bridge_path = _PROJECT_ROOT / "utils" / "execution" / "fills_pnl_bridge.py"
+    if not bridge_path.exists():
+        return CheckResult("C11", "PnL桥接数据流", "FAIL", "fills_pnl_bridge.py 不存在", str(bridge_path))
+
+    content = bridge_path.read_text(encoding="utf-8")
+    has_augment = "def augment_market_prices" in content
+    has_realized_pnl = "def realized_pnl" in content
+    has_fills_import = "from utils.execution.fills_store import FillsStore" in content or "FillsStore" in content
+
+    if not (has_augment and has_realized_pnl and has_fills_import):
+        missing = []
+        if not has_augment:
+            missing.append("augment_market_prices")
+        if not has_realized_pnl:
+            missing.append("realized_pnl")
+        if not has_fills_import:
+            missing.append("FillsStore 导入")
+        return CheckResult(
+            "C11", "PnL桥接数据流", "FAIL",
+            f"fills_pnl_bridge.py 功能不完整: 缺少 {', '.join(missing)}",
+            str(bridge_path),
+        )
+
+    # 验证 augment_market_prices 调用链: 读取 fills -> 覆盖 close -> 标记 close_source
+    calls_latest = "latest_avg_price_by_symbol" in content
+    calls_close_source = "close_source" in content
+    if not (calls_latest and calls_close_source):
+        return CheckResult(
+            "C11", "PnL桥接数据流", "WARN",
+            "fills_pnl_bridge 存在但数据流可能不完整 (缺 fills 读取或 close 标记)",
+            str(bridge_path),
+        )
+    return CheckResult(
+        "C11", "PnL桥接数据流", "PASS",
+        "fills_pnl_bridge.augment_market_prices 可消费 fills 并覆盖行情 close",
+    )
+
+
+def check_c12_hedge_executor_integration() -> CheckResult:
+    """C12 期权执行链集成 — hedge_order_executor 是否被 daily_trading_workflow/统一入口调用."""
+    executor_path = _PROJECT_ROOT / "hedge_order_executor.py"
+    if not executor_path.exists():
+        return CheckResult("C12", "期权执行链集成", "FAIL", "hedge_order_executor.py 不存在", str(executor_path))
+
+    # 检查集成点 (daily_trading_workflow + 统一入口 + 其他调用方)
+    workflow_path = _PROJECT_ROOT / "daily_trading_workflow.py"
+    entry_path = _PROJECT_ROOT / "量化策略系统_统一入口_v8.6.py"
+    daily_runner_path = _PROJECT_ROOT / "daily_runner.py"
+
+    integrated = False
+    integration_points = []
+    for p in (workflow_path, entry_path, daily_runner_path):
+        if p.exists():
+            content = p.read_text(encoding="utf-8")
+            if "hedge_order_executor" in content:
+                integrated = True
+                integration_points.append(p.name)
+
+    if not integrated:
+        return CheckResult(
+            "C12", "期权执行链集成", "WARN",
+            "hedge_order_executor 未被 daily_trading_workflow / 统一入口 / daily_runner 调用",
+        )
+    return CheckResult(
+        "C12", "期权执行链集成", "PASS",
+        f"hedge_order_executor 已集成到: {', '.join(integration_points)}",
+    )
 
 
 # ============================================================
@@ -260,7 +511,7 @@ def check_c9_stale_tests() -> CheckResult:
 
 
 def run_all_checks() -> list[CheckResult]:
-    """运行全部 9 项判据检查."""
+    """运行全部 12 项判据检查."""
     return [
         check_c1_execution_loop(),
         check_c2_data_pipeline(),
@@ -269,8 +520,11 @@ def run_all_checks() -> list[CheckResult]:
         check_c5_test_collectable(),
         check_c6_ci_runnable(),
         check_c7_notify_exists(),
-        check_c8_broker_status(),
-        check_c9_stale_tests(),
+        check_c8_fills_persistence(),
+        check_c9_options_hedge_execution(),
+        check_c10_fills_freshness(),
+        check_c11_pnl_bridge_dataflow(),
+        check_c12_hedge_executor_integration(),
     ]
 
 

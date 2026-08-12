@@ -84,8 +84,8 @@ CLEANED_FILE = _PROJ / "reports" / "shadow" / "daily_returns_cleaned.jsonl"
 RAW_SHADOW_FILE = _PROJ / "reports" / "shadow" / "daily_returns.jsonl"
 WATCHDOG_LOG_FILE = EVOLUTION_DIR / "observation_watchdog.jsonl"
 
-# 默认观察期达标天数 (与 observation_tracker.OBSERVATION_DAYS 一致)
-DEFAULT_REQUIRED_DAYS = 14
+# 默认观察期达标天数 (与 observation_tracker.OBSERVATION_DAYS / yaml settings.observation_days=21 一致)
+DEFAULT_REQUIRED_DAYS = 21
 
 # 断档告警阈值: 连续 N 个交易日无新数据则告警
 DATA_STALL_THRESHOLD_DAYS = 2

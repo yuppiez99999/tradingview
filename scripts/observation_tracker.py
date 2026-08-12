@@ -27,6 +27,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import yaml  # noqa: E402
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -37,9 +39,34 @@ PHASE_B_STATUS = REPORTS_DIR / "phase_b_status.json"
 EVAL_STATUS = REPORTS_DIR / "status.json"
 OBS_DELTA = PROJECT_ROOT / "reports" / "evolution" / "observation_progress.json"
 
+# 单事实源: shadow_admission.yaml (PM 决策后 observation_days=21, min_samples_for_dsr=20)
+# 代码不得再硬编码观察天数, 否则 yaml 升级后观察期永不生效.
+SHADOW_ADMISSION_YAML = (
+    PROJECT_ROOT / "v8.3_institutional" / "config" / "shadow_admission.yaml"
+)
+
+
+def _load_shadow_admission() -> dict:
+    """读取 shadow_admission.yaml, 失败安全降级到默认 14 天/20 样本."""
+    try:
+        with open(SHADOW_ADMISSION_YAML, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        return cfg
+    except (OSError, yaml.YAMLError):
+        return {}
+
+
+_CFG = _load_shadow_admission()
 OBSERVATION_START = "2026-07-23"
-OBSERVATION_DAYS = 14
-MIN_SAMPLES = 20
+# yaml 优先, 回退默认 14 (兼容离线 / yaml 缺失)
+# 注意: 观察天数字段在 settings.observation_days 嵌套层 (非顶层)
+_SETTINGS = _CFG.get("settings", {})
+OBSERVATION_DAYS = int(_SETTINGS.get("observation_days", _SETTINGS.get("min_observation_days", 14)))
+MIN_SAMPLES = int(
+    _CFG.get("admission_criteria", {}).get(
+        "min_samples_for_dsr", _CFG.get("min_samples", 20)
+    )
+)
 
 
 def load_jsonl(path: Path) -> list[dict]:

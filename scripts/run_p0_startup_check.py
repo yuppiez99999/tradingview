@@ -83,6 +83,14 @@ def archive_report(report_json: str, check_time: str) -> Path:
 
 
 def main() -> int:
+    # 修复: 默认 system_check logger 无 handler, INFO 级日志会被静默丢弃,
+    # 导致 --json / 文本报告输出为空, 运维无法看到失败原因。
+    # 这里把 logging 调到 ERROR, 避免 run_system_check 内部逐条 INFO 刷屏,
+    # 由本函数在末尾统一打印汇总报告 (直接 print, 不依赖 logger)。
+    import logging as _logging
+
+    _logging.basicConfig(level=_logging.ERROR, format="%(message)s")
+
     parser = argparse.ArgumentParser(
         description="P0 启动自检 - 在工作流启动前拦截错误"
     )
@@ -112,11 +120,11 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    # 运行自检
+    # 运行自检 (output_json=False: 汇总报告改由本函数末尾统一打印, 避免被 logger 吞掉)
     report = run_system_check(
         strict=args.strict,
         skip_datasource=args.skip_datasource,
-        output_json=args.json,
+        output_json=False,
     )
 
     # 自动修复模式: 有失败项时尝试修复后重检
@@ -128,12 +136,6 @@ def main() -> int:
             strict=args.strict,
             skip_datasource=args.skip_datasource,
         )
-        # 修复后打印重检报告 (非 JSON 模式)
-        if not args.json and not args.quiet:
-            print("\n" + "=" * 70)
-            print("AutoFix 后重检报告:")
-            print("=" * 70)
-            print(SystemChecker.format_report(report))
 
     # 归档
     if args.archive and not args.json:
@@ -141,6 +143,12 @@ def main() -> int:
         archive_path = archive_report(report_json, report.check_time)
         if not args.quiet:
             print(f"\n📁 报告已归档: {archive_path}")
+
+    # 统一输出报告 (文本或 JSON) — 直接 print, 不依赖 logger
+    if args.json:
+        print(SystemChecker.report_to_json(report))
+    elif not args.quiet:
+        print(SystemChecker.format_report(report))
 
     return report.exit_code
 

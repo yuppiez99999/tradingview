@@ -44,6 +44,29 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+# 单事实源: shadow_admission.yaml (settings.observation_days, PM 决策=21).
+# 不得硬编码 14, 否则 yaml 升级后观察期口径永不生效 (见 2026-08-09 配置脱节修复).
+_SHADOW_ADMISSION_YAML = (
+    _PROJECT_ROOT / "v8.3_institutional" / "config" / "shadow_admission.yaml"
+)
+
+
+def _load_observation_days() -> int:
+    try:
+        import yaml
+
+        with open(_SHADOW_ADMISSION_YAML, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        settings = cfg.get("settings", {})
+        return int(settings.get("observation_days", settings.get("min_observation_days", 14)))
+    except (OSError, Exception):
+        return 14
+
+
+OBSERVATION_DAYS = _load_observation_days()
+
+logger = logging.getLogger("run_evolution_eval")
+
 
 def setup_logging(verbose: bool = False) -> logging.Logger:
     """配置日志, 同时输出到 stdout 和文件.
@@ -126,9 +149,9 @@ def collect_progress_snapshot() -> dict:
             "first_date": records[0].get("date", "") if records else "",
             "last_date": records[-1].get("date", "") if records else "",
             "min_required": 20,  # MIN_SAMPLES_FOR_EVALUATION
-            "observation_total": 14,
-            "observation_progress": f"{len(records)}/14",
-            "observation_complete": len(records) >= 14,
+            "observation_total": OBSERVATION_DAYS,
+            "observation_progress": f"{len(records)}/{OBSERVATION_DAYS}",
+            "observation_complete": len(records) >= OBSERVATION_DAYS,
             "data_sufficient": len(records) >= 20,
         }
     else:
@@ -232,10 +255,10 @@ def ensure_today_shadow_data(logger: logging.Logger) -> None:
                     except _json.JSONDecodeError:
                         continue
         except OSError as e:
-            logger.warning("[兜底] 读取 daily_returns.jsonl 失败: %s", e)
+            logging.getLogger("run_evolution_eval").warning("[兜底] 读取 daily_returns.jsonl 失败: %s", e)
 
     # 2. 当日数据缺失, 兜底调用 ShadowRealDataFeeder 注入
-    logger.info("[兜底] 当日 Shadow 数据缺失 (date=%s), 尝试注入", today)
+    logging.getLogger("run_evolution_eval").info("[兜底] 当日 Shadow 数据缺失 (date=%s), 尝试注入", today)
     try:
         from utils.alpha.shadow_real_data_feeder import ShadowRealDataFeeder
         from utils.data_provider import MarketDataProvider
@@ -329,8 +352,8 @@ def print_progress_summary(snapshot: dict, logger: logging.Logger) -> None:
         days = sd.get("total_days", 0)
         obs_progress = sd.get("observation_progress", "?")
         logger.info(
-            "[Shadow 数据] %s/14 天 (观察期) | %s/20 条 (最小评估样本) | %s ~ %s",
-            days, days, sd.get("first_date", ""), sd.get("last_date", ""),
+            "[Shadow 数据] %s/%s 天 (观察期) | %s/20 条 (最小评估样本) | %s ~ %s",
+            days, OBSERVATION_DAYS, days, sd.get("first_date", ""), sd.get("last_date", ""),
         )
         # 进度条
         bar_len = 20
@@ -407,7 +430,7 @@ def main() -> int:
         退出码 (0=成功, 1=异常)
     """
     args = parse_args()
-    logger = setup_logging(verbose=args.verbose)
+    setup_logging(verbose=args.verbose)
 
     # --status 快捷模式: 只输出进度, 不跑评估
     if args.status:

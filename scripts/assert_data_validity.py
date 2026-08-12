@@ -15,6 +15,16 @@
     D5 hedge_execution_fill orders 不能为空 (对冲未执行)
     D6 daily_returns.jsonl 不能连续缺失 (观察期数据断档)
     D7 VIX 值不能出现两个数据源口径差异 >50%
+    D8 fills 落盘格式一致性 (G2/G4 成交回报事实源完整性)
+    D9 FillsStore 可实例化且 record_fill 可调用 (G2 落盘能力)
+    D10 hedge_execution_fill 数据契约完整性 (对冲执行文件格式)
+    D11 positions.json hedge_positions actual_positions 存在 (持仓更新验证)
+    D12 FillsPnLBridge augment_market_prices 功能可运行 (G4 桥接验证)
+
+更新历史:
+    2026-08-06 创建 (D1-D7)
+    2026-08-08 新增 D8: 验证 reports/fills/fills_{date}.jsonl 格式正确、
+        字段完整 (symbol/side/filled_qty/avg_price), 且 FillsPnLBridge 可消费
 
 用法:
     python scripts/assert_data_validity.py              # 全量检查
@@ -240,9 +250,15 @@ def check_d7_vix_consistency(date_str: str) -> AssertionResult:
     """
     try:
         # 1. 从 vol_regime_weights_{date}.json 读 VIX
-        vol_regime_path = _PROJECT_ROOT / "reports" / "evolution" / f"vol_regime_weights_{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}.json"
+        # 修复 (2026-08-08): 改为查找最新的 vol_regime_weights 报告, 而非严格匹配今天日期.
+        # 原因: VolRegimeWeighter 不一定每日运行, 报告可能滞后; 若严格按今天找,
+        # 报告不存在时 vol_regime_vix=None -> "仅一源跳过" 假 PASS, 永远无法验证 G13 口径.
         vol_regime_vix = None
-        if vol_regime_path.exists():
+        data = None
+        evolution_dir = _PROJECT_ROOT / "reports" / "evolution"
+        candidates = sorted(evolution_dir.glob("vol_regime_weights_*.json")) if evolution_dir.exists() else []
+        vol_regime_path = candidates[-1] if candidates else None
+        if vol_regime_path is not None and vol_regime_path.exists():
             with open(vol_regime_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             # VIX 存储在 regime.indicators.vix 路径下 (非顶层 indicators)
@@ -306,6 +322,246 @@ def check_d7_vix_consistency(date_str: str) -> AssertionResult:
         return AssertionResult("D7", "VIX口径一致", True, f"检查异常 (容错通过): {e}")
 
 
+def check_d8_fills_format_consistency(date_str: str) -> AssertionResult:
+    """D8 fills 落盘格式一致性 (G2/G4 成交回报事实源完整性).
+
+    2026-08-08 新增: G2 修复后 automated_execution_system 把成交落盘到
+    reports/fills/fills_{date}.jsonl (JSONL 格式, 每行一条记录).
+    G4 的 fills_pnl_bridge 消费此文件做 PnL 增强.
+
+    此断言验证:
+        1. 若 fills 文件存在, 每条记录必须包含必填字段
+           (symbol/side/filled_qty/avg_price), 缺字段会导致 PnL 桥接失败
+        2. filled_qty 和 avg_price 必须 > 0 (零值成交是数据污染)
+        3. side 必须是 BUY/SELL (其他值会导致 realized_pnl 计算错误)
+    若当日无 fills 文件 (未运行执行链), 跳过 (不视为失败).
+    """
+    fills_dir = _PROJECT_ROOT / "reports" / "fills"
+    if not fills_dir.exists():
+        return AssertionResult("D8", "fills格式一致", True, "无 fills 目录(未运行执行链, 跳过)")
+
+    # 搜索当日的 fills 文件 (支持 date_str 带横线或不带横线)
+    date_dashed = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}" if len(date_str) == 8 else date_str
+    candidates = [
+        fills_dir / f"fills_{date_dashed}.jsonl",
+        fills_dir / f"fills_{date_str}.jsonl",
+    ]
+    # 也搜索最近的 fills 文件
+    all_fills = sorted(fills_dir.glob("fills_*.jsonl"), reverse=True)
+    for f in all_fills:
+        if f not in candidates:
+            candidates.append(f)
+
+    fill_path = None
+    for p in candidates:
+        if p.exists():
+            fill_path = p
+            break
+
+    if fill_path is None:
+        return AssertionResult("D8", "fills格式一致", True, "无 fills 文件(当日未运行执行链, 跳过)")
+
+    required_fields = {"symbol", "side", "filled_qty", "avg_price"}
+    valid_sides = {"BUY", "SELL"}
+    total_records = 0
+    invalid_records = 0
+    issues: list[str] = []
+
+    try:
+        with open(fill_path, encoding="utf-8") as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                total_records += 1
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    invalid_records += 1
+                    if len(issues) < 3:
+                        issues.append(f"行{line_num}: JSON解析失败")
+                    continue
+
+                # 检查必填字段
+                missing_fields = required_fields - set(record.keys())
+                if missing_fields:
+                    invalid_records += 1
+                    if len(issues) < 3:
+                        issues.append(f"行{line_num}: 缺字段 {missing_fields}")
+                    continue
+
+                # 检查值有效性
+                qty = record.get("filled_qty", 0)
+                price = record.get("avg_price", 0)
+                side = str(record.get("side", "")).upper()
+
+                if not isinstance(qty, (int, float)) or qty <= 0:
+                    invalid_records += 1
+                    if len(issues) < 3:
+                        issues.append(f"行{line_num}: filled_qty={qty} 非正数")
+                if not isinstance(price, (int, float)) or price <= 0:
+                    invalid_records += 1
+                    if len(issues) < 3:
+                        issues.append(f"行{line_num}: avg_price={price} 非正数")
+                if side not in valid_sides:
+                    invalid_records += 1
+                    if len(issues) < 3:
+                        issues.append(f"行{line_num}: side={side} 非BUY/SELL")
+    except OSError as e:
+        return AssertionResult("D8", "fills格式一致", False, f"读取 fills 文件失败: {e}")
+
+    if total_records == 0:
+        return AssertionResult("D8", "fills格式一致", True, f"{fill_path.name} 为空(无成交, 跳过)")
+
+    if invalid_records > 0:
+        detail = f"{invalid_records}/{total_records} 条记录无效"
+        if issues:
+            detail += f" — {'; '.join(issues)}"
+        return AssertionResult("D8", "fills格式一致", False, detail, str(fill_path.name))
+
+    return AssertionResult(
+        "D8", "fills格式一致", True,
+        f"{total_records} 条成交记录全部有效 (字段完整+数值非零+side合法)",
+    )
+
+
+def check_d9_fills_store_instantiable(date_str: str) -> AssertionResult:
+    """D9 FillsStore 可实例化且 record_fill 可调用 (G2 落盘能力)."""
+    try:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+        from utils.execution.fills_store import FillsStore  # noqa: F401
+        store = FillsStore()
+        # 尝试写入一条测试记录 (不落盘到正式目录)
+        test_rec = store.record_fill(
+            "000001", "BUY", 100, 10.0,
+            is_live=False, strategy="assertion_test"
+        )
+        if not isinstance(test_rec, dict):
+            return AssertionResult("D9", "FillsStore可实例化", False, "record_fill 返回值不是 dict")
+        # 验证关键字段
+        required = {"symbol", "side", "filled_qty", "avg_price", "ts", "date"}
+        missing = required - set(test_rec.keys())
+        if missing:
+            return AssertionResult("D9", "FillsStore可实例化", False, f"record_fill 返回值缺字段: {missing}")
+        return AssertionResult("D9", "FillsStore可实例化", True, "FillsStore 实例化成功, record_fill 返回完整字段")
+    except ImportError as e:
+        return AssertionResult("D9", "FillsStore可实例化", False, f"无法导入 FillsStore: {e}")
+    except Exception as e:
+        return AssertionResult("D9", "FillsStore可实例化", False, f"FillsStore 运行异常: {e}")
+
+
+def check_d10_hedge_fill_schema(date_str: str) -> AssertionResult:
+    """D10 hedge_execution_fill 数据契约完整性 (对冲执行文件格式)."""
+    # date_str 可能是 "20260806" (无横线) 或 "2026-08-06" (带横线)
+    date_dashed = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}" if len(date_str) == 8 else date_str
+    candidates = [
+        _PROJECT_ROOT / "reports" / f"hedge_execution_fill_{date_dashed}.json",
+        _PROJECT_ROOT / "reports" / f"hedge_execution_fill_{date_str}.json",
+        _PROJECT_ROOT / f"hedge_execution_fill_{date_dashed}.json",
+        _PROJECT_ROOT / f"hedge_execution_fill_{date_str}.json",
+        _PROJECT_ROOT / "data" / f"hedge_execution_fill_{date_dashed}.json",
+        _PROJECT_ROOT / "data" / f"hedge_execution_fill_{date_str}.json",
+    ]
+    fill_path = None
+    for p in candidates:
+        if p.exists():
+            fill_path = p
+            break
+
+    if fill_path is None:
+        return AssertionResult("D10", "hedge_fill数据契约", True, "无 hedge_execution_fill 文件(当日未对冲, 跳过)")
+
+    data = _load_json(fill_path)
+    if not data:
+        return AssertionResult("D10", "hedge_fill数据契约", False, f"无法解析: {fill_path.name}")
+
+    # 必填顶层字段 (兼容 daily_pnl 数据契约)
+    required_top = {"trade_date", "portfolio_beta", "beta_after_hedge", "total_cost", "hedge_enabled", "orders"}
+    missing_top = required_top - set(data.keys())
+    if missing_top:
+        return AssertionResult("D10", "hedge_fill数据契约", False, f"顶层缺字段: {missing_top}", str(fill_path.name))
+
+    orders = data.get("orders", [])
+    if not isinstance(orders, list):
+        return AssertionResult("D10", "hedge_fill数据契约", False, "orders 不是列表", str(fill_path.name))
+
+    if len(orders) == 0:
+        return AssertionResult("D10", "hedge_fill数据契约", True, "orders 为空(当日无成交, 跳过)")
+
+    # 检查单笔订单字段
+    required_order = {"instrument", "direction", "contracts", "premium_total", "status", "fill_time"}
+    invalid = 0
+    for i, o in enumerate(orders[:5]):
+        if not isinstance(o, dict):
+            invalid += 1
+            continue
+        miss = required_order - set(o.keys())
+        if miss:
+            invalid += 1
+
+    if invalid > 0:
+        return AssertionResult("D10", "hedge_fill数据契约", False, f"{invalid}/{min(len(orders),5)} 笔订单字段不完整", str(fill_path.name))
+    return AssertionResult("D10", "hedge_fill数据契约", True, f"数据契约完整, orders={len(orders)} 笔")
+
+
+def check_d11_hedge_positions_updated(date_str: str) -> AssertionResult:
+    """D11 positions.json hedge_positions actual_positions 存在 (持仓更新验证)."""
+    positions_path = _PROJECT_ROOT / "config" / "positions.json"
+    data = _load_json(positions_path)
+    if not data:
+        return AssertionResult("D11", "hedge_positions更新", False, "positions.json 不存在或无法解析")
+
+    hedge = data.get("hedge_positions", {})
+    if not isinstance(hedge, dict):
+        return AssertionResult("D11", "hedge_positions更新", False, "hedge_positions 不是字典")
+
+    actual = hedge.get("actual_positions", [])
+    if not isinstance(actual, list):
+        return AssertionResult("D11", "hedge_positions更新", False, "actual_positions 不是列表")
+
+    last_exec = hedge.get("last_hedge_execution", {})
+    if not isinstance(last_exec, dict):
+        return AssertionResult("D11", "hedge_positions更新", True, "actual_positions 存在但无 last_hedge_execution")
+
+    if len(actual) == 0:
+        return AssertionResult("D11", "hedge_positions更新", True, "actual_positions 为空(当日无成交, 跳过)")
+
+    return AssertionResult(
+        "D11", "hedge_positions更新", True,
+        f"actual_positions={len(actual)} 笔, last_exec={last_exec.get('date', 'N/A')}"
+    )
+
+
+def check_d12_fills_pnl_bridge_functional(date_str: str) -> AssertionResult:
+    """D12 FillsPnLBridge augment_market_prices 功能可运行 (G4 桥接验证)."""
+    try:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+        from utils.execution.fills_pnl_bridge import augment_market_prices, realized_pnl  # noqa: F401
+
+        # 构造测试 market_prices
+        test_mp = {
+            "600519": {"close": 1700.0, "prev_close": 1680.0},
+            "000001": {"close": 12.5, "prev_close": 12.3},
+        }
+        # 当日无 fills 时应返回原字典浅拷贝
+        result = augment_market_prices(test_mp, date_str)
+        if not isinstance(result, dict):
+            return AssertionResult("D12", "PnL桥接功能", False, "augment_market_prices 返回值不是 dict")
+        if len(result) != len(test_mp):
+            return AssertionResult("D12", "PnL桥接功能", False, "augment_market_prices 改变了字典结构")
+
+        # 验证 realized_pnl 可调用
+        rpnl = realized_pnl(date_str)
+        if not isinstance(rpnl, dict):
+            return AssertionResult("D12", "PnL桥接功能", False, "realized_pnl 返回值不是 dict")
+
+        return AssertionResult("D12", "PnL桥接功能", True, "augment_market_prices + realized_pnl 均可正常运行")
+    except ImportError as e:
+        return AssertionResult("D12", "PnL桥接功能", False, f"无法导入 fills_pnl_bridge: {e}")
+    except Exception as e:
+        return AssertionResult("D12", "PnL桥接功能", False, f"fills_pnl_bridge 运行异常: {e}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="沉默失败主动探测")
     parser.add_argument("--date", default=datetime.now().strftime("%Y-%m-%d"), help="检查日期 YYYY-MM-DD")
@@ -321,6 +577,11 @@ def main(argv: list[str] | None = None) -> int:
         check_d5_hedge_fill_nonempty(date_str),
         check_d6_daily_returns_continuous(date_str),
         check_d7_vix_consistency(date_str),
+        check_d8_fills_format_consistency(date_str),
+        check_d9_fills_store_instantiable(date_str),
+        check_d10_hedge_fill_schema(date_str),
+        check_d11_hedge_positions_updated(date_str),
+        check_d12_fills_pnl_bridge_functional(date_str),
     ]
 
     pass_count = sum(1 for r in results if r.passed)

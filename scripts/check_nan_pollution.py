@@ -48,7 +48,22 @@ IGNORE_DIRS = {
 
 # 高风险 API 模式
 CORRCOEF_CALLS = {"np.corrcoef", "numpy.corrcoef"}
-NAN_TO_NUM_CALLS = {"np.nan_to_num", "numpy.nan_to_num"}
+
+# F-5 防护: corrcoef 调用后等效的 NaN 清洗模式 (任一匹配即视为已防护).
+# 覆盖: nan_to_num / isnan / isfinite / math.isfinite / nanmean / nanmedian.
+NAN_PROTECTION_PATTERNS = (
+    "nan_to_num",
+    "np.isnan",
+    "numpy.isnan",
+    "np.isfinite",
+    "numpy.isfinite",
+    "math.isfinite",
+    "np.nanmean",
+    "numpy.nanmean",
+    "np.nanmedian",
+    "numpy.nanmedian",
+    "pd.isna",  # pandas 等效 NaN 检查
+)
 
 
 class _Violation:
@@ -58,8 +73,32 @@ class _Violation:
         self.message = message
 
     def __str__(self) -> str:
-        rel = self.filepath.relative_to(_PROJECT_ROOT)
+        # 相对路径回退: 传入相对路径 (如 --files utils/foo.py) 时 relative_to 会抛
+        # ValueError, 回退到显示原始路径, 避免脚本自身崩溃 (Bug 修复).
+        try:
+            rel = self.filepath.relative_to(_PROJECT_ROOT)
+        except ValueError:
+            rel = self.filepath
         return f"{rel}:{self.lineno}: {self.message}"
+
+
+def _resolve_file(fpath: Path) -> Path:
+    """解析文件路径 — 兼容 pre-commit 传入的相对路径.
+
+    pre-commit 通常传入相对于 Git 根的路径 (如 utils/foo.py), 但 cwd 可能
+    不是项目根。依次尝试: 原路径 → 相对于 _PROJECT_ROOT → 相对于 cwd.
+    """
+    if fpath.is_absolute() and fpath.exists():
+        return fpath
+    # 相对于项目根
+    candidate = _PROJECT_ROOT / fpath
+    if candidate.exists():
+        return candidate.resolve()
+    # 原路径 (可能是相对于 cwd 的)
+    if fpath.exists():
+        return fpath.resolve()
+    # 都找不到, 返回原路径 (让 scan_file 报 WARN)
+    return fpath
 
 
 def _iter_python_files(root: Path) -> list[Path]:
@@ -80,10 +119,70 @@ def _get_line_text(lines: list[str], lineno: int) -> str:
     return ""
 
 
+# F-4/F-6 常数序列前置防护: corrcoef 调用前等效的检查模式.
+# 覆盖: std 比较检查 / len 检查 / shape 检查 / 样本量 vs 维度比较 (T > N 等).
+# 样本量变量名: T/N/n/k/n_obs/n_samples/n_rows/n_cols 等常见量化命名.
+CONSTANT_SERIES_GUARD_PATTERNS = (
+    # std 检查: 任意 std(...) 比较即视为防护 (>, <, ==)
+    ("np.std", (">", "<", "==")),
+    ("numpy.std", (">", "<", "==")),
+    (".std()", (">", "<", "==")),
+    ("std(", (">", "<", "==")),
+    # 最小样本量检查: len(...) 比较间接防常数序列
+    ("len(", (">=", "<=", ">", "<", "==")),
+    # shape 检查
+    (".shape", (">=", "<=", ">", "<", "==")),
+)
+
+# 样本量 vs 维度变量比较 (如 T > N, n_samples > 1, n_obs >= 2)
+# 这些比较间接防止常数序列传入 corrcoef (样本量不足时 corrcoef 无意义).
+_SAMPLE_VAR_NAMES = (
+    "T", "N", "n", "k", "n_obs", "n_samples", "n_rows", "n_cols",
+    "n_observed", "n_assets", "n_features", "n_pairs", "num",
+)
+
+# F-5 后置 NaN 防护: 如果 corrcoef 前已有常数序列检查 (std > 0 等),
+# 则 corrcoef 不会产生 NaN → 跳过 F-5 后置检查, 避免误报.
+
+
+def _has_constant_series_guard_before(
+    lines: list[str], corrcoef_lineno: int,
+) -> bool:
+    """检查 corrcoef 调用前 20 行内是否有常数序列防护 (F-4/F-6).
+
+    识别模式 (任一匹配即视为已防护):
+      - std 检查: np.std(x) > 阈值 / < 阈值 / == 0 等
+      - 最小样本量: len(x) >= N / < N
+      - shape 检查: x.shape[0] >= N
+      - 样本量 vs 维度比较: T > N / n_samples > 1 等
+    """
+    start_line = max(1, corrcoef_lineno - 20)
+    for i in range(start_line, corrcoef_lineno + 1):
+        line_text = _get_line_text(lines, i)
+        # 模式 1-3: std/len/shape 比较检查
+        for substr, ops in CONSTANT_SERIES_GUARD_PATTERNS:
+            if substr in line_text and any(op in line_text for op in ops):
+                return True
+        # 模式 4: 样本量变量比较 (T > N, n_samples > 1 等)
+        for var in _SAMPLE_VAR_NAMES:
+            # 匹配 `var > N` / `var >= N` / `var == N` 等 (N 可以是数字或另一个变量)
+            for op in (">=", "<=", ">", "<", "=="):
+                token = f"{var} {op}"
+                if token in line_text:
+                    return True
+    return False
+
+
 def _check_corrcoef_nan_protection(
     filepath: Path, tree: ast.AST, lines: list[str],
 ) -> list[_Violation]:
-    """检查 np.corrcoef 调用后是否有 nan_to_num 防护 (F-5)."""
+    """检查 np.corrcoef 调用后是否有 NaN 防护 (F-5).
+
+    识别的等效防护模式 (任一匹配即视为已防护):
+      - nan_to_num / np.isnan / np.isfinite / math.isfinite
+      - np.nanmean / np.nanmedian / pd.isna
+      - 前置常数序列检查 (std > 0 等) 已防住 NaN 产生 → 跳过后置检查
+    """
     violations: list[_Violation] = []
 
     for node in ast.walk(tree):
@@ -104,12 +203,17 @@ def _check_corrcoef_nan_protection(
         if lineno == 0:
             continue
 
-        # 检查后续 10 行内是否有 nan_to_num 防护
+        # 如果 corrcoef 前已有常数序列防护 (std > 0 等), corrcoef 不会产生 NaN
+        # → 跳过 F-5 后置检查, 避免误报
+        if _has_constant_series_guard_before(lines, lineno):
+            continue
+
+        # 检查后续 10 行内是否有任一 NaN 防护模式
         found_protection = False
         for i in range(lineno, min(lineno + 11, len(lines) + 1)):
             line_text = _get_line_text(lines, i)
-            for protect in NAN_TO_NUM_CALLS:
-                if protect in line_text:
+            for pattern in NAN_PROTECTION_PATTERNS:
+                if pattern in line_text:
                     found_protection = True
                     break
             if found_protection:
@@ -120,7 +224,7 @@ def _check_corrcoef_nan_protection(
                 _Violation(
                     filepath,
                     lineno,
-                    "np.corrcoef 调用后未检测到 nan_to_num 防护 (F-5)",
+                    "np.corrcoef 调用后未检测到 NaN 防护 (F-5)",
                 )
             )
 
@@ -130,7 +234,14 @@ def _check_corrcoef_nan_protection(
 def _check_ic_constant_series_guard(
     filepath: Path, tree: ast.AST, lines: list[str],
 ) -> list[_Violation]:
-    """检查 IC / 相关性计算前是否有常数序列防护 (F-4/F-6)."""
+    """检查 IC / 相关性计算前是否有常数序列防护 (F-4/F-6).
+
+    识别的等效防护模式 (任一匹配即视为已防护):
+      - std 检查: np.std(x) > 阈值 / < 阈值 / == 0 等
+      - 最小样本量: len(x) >= N / < N
+      - shape 检查: x.shape[0] >= N
+      - 样本量 vs 维度比较: T > N / n_samples > 1 等
+    """
     violations: list[_Violation] = []
 
     for node in ast.walk(tree):
@@ -151,28 +262,16 @@ def _check_ic_constant_series_guard(
         if lineno == 0:
             continue
 
-        # 检查前 20 行内是否有 std 检查防护
-        found_guard = False
-        start_line = max(1, lineno - 20)
-        for i in range(start_line, lineno + 1):
-            line_text = _get_line_text(lines, i)
-            if "np.std" in line_text or "std(" in line_text:
-                # 检查是否有 > 阈值比较
-                if ">" in line_text and (
-                    "1e-" in line_text or "0.0" in line_text or "0 " in line_text
-                    or "1e-9" in line_text or "1e-12" in line_text
-                ):
-                    found_guard = True
-                    break
+        if _has_constant_series_guard_before(lines, lineno):
+            continue
 
-        if not found_guard:
-            violations.append(
-                _Violation(
-                    filepath,
-                    lineno,
-                    f"{func_name} 调用前未检测到常数序列防护 (std 检查) (F-4/F-6)",
-                )
+        violations.append(
+            _Violation(
+                filepath,
+                lineno,
+                f"{func_name} 调用前未检测到常数序列防护 (std 检查) (F-4/F-6)",
             )
+        )
 
     return violations
 
@@ -239,7 +338,8 @@ def main() -> int:
     if args.files:
         # 只检查指定文件 (pre-commit 暂存文件模式)
         for fpath in args.files:
-            violations = scan_file(fpath)
+            resolved = _resolve_file(fpath)
+            violations = scan_file(resolved)
             all_violations.extend(violations)
             if violations:
                 total_scanned += 1

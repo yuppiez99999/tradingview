@@ -43,6 +43,8 @@ for _stream in (sys.stdout, sys.stderr):
         except (OSError, ValueError):
             pass
 
+logger = logging.getLogger("w13c_verify_real_scoring")
+
 
 def setup_logging(verbose: bool = False) -> logging.Logger:
     """配置日志."""
@@ -252,7 +254,7 @@ def verify_feature_flag_passthrough(logger: logging.Logger) -> dict:
             "override_timestamp": override_data.get("timestamp", ""),
             "report_is_degraded": report.is_degraded,
         }
-        logger.info(
+        logging.getLogger("w13c_verify_real_scoring").info(
             "Feature Flag 透传验证 PASS: enabled=%s, override=%s (signer=%s, co_signer=%s)",
             flag_enabled, override_exists,
             override_data.get("signer", "N/A"),
@@ -261,7 +263,7 @@ def verify_feature_flag_passthrough(logger: logging.Logger) -> dict:
     except AssertionError as e:
         result["passed"] = False
         result["details"]["error"] = f"assertion_failed: {e}"
-        logger.error("Feature Flag 透传验证 FAIL: %s", e)
+        logging.getLogger("w13c_verify_real_scoring").error("Feature Flag 透传验证 FAIL: %s", e)
     except (ImportError, RuntimeError, ValueError, OSError) as e:
         result["passed"] = False
         result["details"]["error"] = f"{type(e).__name__}: {e}"
@@ -342,7 +344,7 @@ def main() -> int:
     parser.add_argument("--verbose", action="store_true", help="详细日志")
     args = parser.parse_args()
 
-    logger = setup_logging(args.verbose)
+    setup_logging(args.verbose)
     logger.info("=" * 60)
     logger.info("W1.3c StrategyEvaluator 真实评分验证 启动")
     logger.info("=" * 60)

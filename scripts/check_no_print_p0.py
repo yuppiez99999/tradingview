@@ -30,8 +30,11 @@ from pathlib import Path
 from typing import List, Tuple
 
 # P0 生产交易路径文件, 与 docs/CODE_REVIEW_STANDARD.md §4 保持一致
+# G-2 修复 (2026-08-08): 补充重构后的真正下单引擎 + 回测引擎, 关闭门禁盲区.
+# 见 docs/CODE_REVIEW_GAP_AUDIT_2026-08-08.md G-2 + docs/CODE_REVIEW_COMPREHENSIVE_20260808.md B6.
 P0_FILES = frozenset({
     "alpha_hedge_engine.py",
+    "automated_execution_system.py",  # G-2: basename 匹配, 同时覆盖根薄包装 + utils/execution/ 真实现
     "build_plan_executor.py",
     "daily_build_and_hedge.py",
     "daily_trade_executor.py",
@@ -46,6 +49,7 @@ P0_FILES = frozenset({
     "stop_loss_monitor.py",
     "today_hedge_decision.py",
     "vol_adjusted_stop_loss.py",
+    "wt_backtest_engine.py",  # G-2: 回测引擎原在双重门禁盲区 (P0 名单外 + pylint 四目录外)
 })
 
 # 允许豁免的标记: 行尾加 # allow-print 表示有意为之 (如 CLI 交互输出)

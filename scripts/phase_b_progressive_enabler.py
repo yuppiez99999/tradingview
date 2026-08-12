@@ -41,8 +41,30 @@ STATUS_PATH = PROJECT_ROOT / "reports" / "evolution" / "phase_b_status.json"
 DECISIONS_PATH = PROJECT_ROOT / "reports" / "evolution" / "decisions.jsonl"
 OBSERVATION_DATA = PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
 FEATURE_FLAGS_PATH = PROJECT_ROOT / "configs" / "feature_flags.yaml"
+SHADOW_ADMISSION_YAML = (
+    PROJECT_ROOT / "v8.3_institutional" / "config" / "shadow_admission.yaml"
+)
 
 logger = logging.getLogger(__name__)
+
+# 单事实源: shadow_admission.yaml (PM 决策 observation_days=21).
+# 不得硬编码 14, 否则 yaml 升级后观察期永不生效 (见 2026-08-09 配置脱节修复).
+OBSERVATION_DAYS_REQUIRED = 14  # 回退默认 (兼容离线 / yaml 缺失)
+
+
+def _load_observation_days_required() -> int:
+    try:
+        import yaml
+
+        with open(SHADOW_ADMISSION_YAML, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        settings = cfg.get("settings", {})
+        return int(settings.get("observation_days", settings.get("min_observation_days", OBSERVATION_DAYS_REQUIRED)))
+    except (OSError, Exception):
+        return OBSERVATION_DAYS_REQUIRED
+
+
+OBSERVATION_DAYS_REQUIRED = _load_observation_days_required()
 
 
 # ============================================================
@@ -67,7 +89,7 @@ class PhaseBStatus:
     stage: str = "waiting_observation"
     observation_start: str = "2026-07-23"
     observation_days_completed: int = 0
-    observation_days_required: int = 14
+    observation_days_required: int = OBSERVATION_DAYS_REQUIRED
     current_stage_start: str = ""
     current_stage_days: int = 0
     current_stage_required_days: int = 3

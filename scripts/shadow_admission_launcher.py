@@ -63,7 +63,7 @@ def set_config_name(name: str | None) -> None:
     """
     global _OVERRIDE_CONFIG_NAME
     _OVERRIDE_CONFIG_NAME = name
-DEFAULT_OBSERVATION_DAYS = 14
+DEFAULT_OBSERVATION_DAYS = 21  # 与 shadow_admission.yaml settings.observation_days 对齐 (PM 决策 21 天)
 DATETIME_FMT = "%Y-%m-%dT%H:%M:%S"
 DATE_FMT = "%Y-%m-%d"
 
