@@ -137,7 +137,7 @@ class ProtectivePutEngine:
             try:
                 with open(PUT_STATE_FILE, encoding="utf-8") as f:
                     self.state = json.load(f)
-            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 self.state = {}
 
     def _save_state(self):
@@ -145,7 +145,7 @@ class ProtectivePutEngine:
         try:
             with open(PUT_STATE_FILE, "w", encoding="utf-8") as f:
                 json.dump(self.state, f, ensure_ascii=False, indent=2)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"保存Put状态失败: {e}")
 
     def _get_portfolio_value(self) -> float:
@@ -153,7 +153,7 @@ class ProtectivePutEngine:
         try:
             with open(CONFIG_DIR / "positions.json", encoding="utf-8") as f:
                 positions = json.load(f)
-        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             return 0
 
         total = 0.0
@@ -169,7 +169,7 @@ class ProtectivePutEngine:
         try:
             with open(CONFIG_DIR / "positions.json", encoding="utf-8") as f:
                 positions = json.load(f)
-        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             return 0
 
         # 尝试匹配 code.SH 或 code.SZ
@@ -228,7 +228,7 @@ class ProtectivePutEngine:
                     if expiry > datetime.now() + timedelta(days=self.ROLL_DTE_THRESHOLD):
                         has_valid_put = True
                         break
-                except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+                except (ValueError, TypeError, KeyError, AttributeError, OSError):
                     continue
 
         if has_valid_put:
@@ -380,7 +380,7 @@ class ProtectivePutEngine:
                 days_left = (expiry - datetime.now()).days
                 if days_left <= self.ROLL_DTE_THRESHOLD:
                     expiring.append(put)
-            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, OSError):
                 continue
 
         if not expiring:

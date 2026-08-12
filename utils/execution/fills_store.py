@@ -98,7 +98,7 @@ class FillsStore:
         with self._write_lock:
             try:
                 self._append_to_file(rec_date, record)
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 # 落盘失败时保留在内存缓冲区, 供 load_day 作为兜底合并, 不丢记录。
                 logger.warning("[FillsStore] 落盘失败 (内存保留): %s", e)
                 self._buffer.setdefault(rec_date, []).append(record)
@@ -122,7 +122,7 @@ class FillsStore:
                         line = line.strip()
                         if line:
                             records.append(json.loads(line))
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning("[FillsStore] 读取 %s 失败: %s", path, e)
         # 仅补充落盘失败而保留在内存兜底的记录 (避免与已落盘记录重复)
         for rec in self._buffer.get(rec_date, []):

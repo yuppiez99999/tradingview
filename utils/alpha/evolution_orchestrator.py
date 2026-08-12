@@ -585,7 +585,7 @@ class EvolutionOrchestrator:
         if self._is_vol_regime_enabled():
             try:
                 vol_regime_result = self._run_vol_regime_weighter(metrics)
-            except Exception as e:  # noqa: BLE001  # 监控循环永不崩溃
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.warning("VolRegimeWeighter 失败, 不阻塞主流程: %s", e)
                 vol_regime_result = {"status": "error", "reason": str(e)}
 
@@ -610,7 +610,7 @@ class EvolutionOrchestrator:
         try:
             from utils.infra.feature_flags import is_enabled
             return bool(is_enabled("USE_VOL_REGIME_WEIGHTER"))
-        except Exception:  # noqa: BLE001  # fail-safe
+        except (ImportError, AttributeError):
             return False
 
     def _run_vol_regime_weighter(self, metrics: Any) -> dict[str, Any]:
@@ -653,7 +653,7 @@ class EvolutionOrchestrator:
                 data = yaml.safe_load(f) or {}
             logger.debug("portfolio.yaml 快照已读取 (只读)")
             return data
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("读取 portfolio.yaml 失败: %s", e)
             return {"assets": []}
 
@@ -686,7 +686,7 @@ class EvolutionOrchestrator:
             from utils.alpha.vix_data_source import VixDataSource
             # EOD 强制刷新: use_cache=False 确保获取当日最新数据
             return VixDataSource().fetch_vix(use_cache=False)
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("VixDataSource 调用失败: %s", e)
             return None
 

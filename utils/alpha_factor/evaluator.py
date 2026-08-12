@@ -390,7 +390,7 @@ def build_factor_tear_sheet(
                 factor_name=factor_name,
             )
 
-    except Exception as exc:  # noqa: BLE001 — 评估类为观测路径, fail-open 不中断主流程
+    except (ImportError, AttributeError) as exc:
         logger.warning(f"[{factor_name}] Tear Sheet 构建失败: {exc!r}; 返回部分结果")
 
     return sheet

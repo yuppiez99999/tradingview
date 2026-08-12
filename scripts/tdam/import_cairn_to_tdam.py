@@ -122,7 +122,7 @@ def import_documents(client: TDAMClient, docs: list[dict], dry_run: bool) -> dic
                 stats["failed"] += 1
                 stats["errors"].append(f"[{i}] 导入失败 ({asset_type}:{title}): {result.get('error', 'unknown')}")
                 logger.warning("导入失败 (%s:%s): %s", asset_type, title, result.get("error"))
-        except Exception as e:  # noqa: BLE001  # 单条失败不中断批量
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             stats["failed"] += 1
             stats["errors"].append(f"[{i}] 异常 ({asset_type}:{title}): {e}")
             logger.error("导入异常 (%s:%s): %s", asset_type, title, e)

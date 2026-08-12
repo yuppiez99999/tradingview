@@ -90,7 +90,7 @@ class DailyBuildHedgeSystem:
                         self.plan_data = json.load(f)
                     logger.info(f"已加载交易计划: {path.name}")
                     return
-                except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                     logger.error(f"加载计划失败 {path}: {e}")
 
         logger.error("未找到交易计划文件")
@@ -114,7 +114,7 @@ class DailyBuildHedgeSystem:
                 end_date = datetime.strptime(end, "%Y-%m-%d").date()
                 if start_date <= self.target_date <= end_date:
                     return phase, phase_key
-            except Exception:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            except (ValueError, TypeError, KeyError, AttributeError, OSError):
                 continue
 
         return None, "completed"
@@ -125,7 +125,7 @@ class DailyBuildHedgeSystem:
             from utils.etf_flow_monitor import ETFMonitor  # type: ignore
             etf_monitor = ETFMonitor()
             etf_data = etf_monitor.get_summary()
-        except Exception:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ImportError, AttributeError):
             etf_data = {}
 
         # ★ 新增: ETF资金流向盘前/盘中决策 (LLM辅助)
@@ -156,7 +156,7 @@ class DailyBuildHedgeSystem:
                 # 非交易时段: 默认使用盘前决策模式 (基于最新收盘数据)
                 logger.info(f"当前非交易时段 ({current_time_str})，使用盘前决策模式生成最新资金流分析...")
                 llm_decision = decision_engine.pre_market_decision()
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ImportError, AttributeError) as e:
             logger.warning(f"ETF资金流决策引擎不可用: {e}，继续使用规则引擎")
 
         # M-8 (2026-08-09): VIX / 指数收益率 的失败策略统一为 fail-closed。
@@ -177,7 +177,7 @@ class DailyBuildHedgeSystem:
                 _vix_source = "degraded_default"
                 _data_degraded = True
                 _vix_degraded = True
-        except Exception:  # noqa: BLE001  # VIX 获取失败 -> 标记降级
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             logger.warning("[RISK] VIX 获取失败, 标记 data_degraded (占位值 18.5 仅用于中性判断)", exc_info=True)
             _vix_source = "degraded_default"
             _data_degraded = True
@@ -369,7 +369,7 @@ class DailyBuildHedgeSystem:
                     logger.info(f"宽基ETF国家队加减仓已应用: {adj_result.get('summary')}")
                 else:
                     logger.info(f"宽基ETF国家队加减仓未应用: {adj_result.get('reason')}")
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning(f"宽基ETF加减仓集成失败, 维持基准权重: {e}")
 
         sheet = executor.generate_daily_orders(
@@ -563,7 +563,7 @@ class DailyBuildHedgeSystem:
             try:
                 with open(BASE_DIR / "500万建仓计划_20260706.json", encoding="utf-8") as f:
                     self._target_plan_cache = cast(Dict[str, Any], json.load(f))
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning(f"加载目标建仓计划失败: {e}")
                 self._target_plan_cache = {}
         return self._target_plan_cache
@@ -589,7 +589,7 @@ class DailyBuildHedgeSystem:
             self.realtime_quotes = quotes
             logger.info(f"实时行情已获取: {len(quotes)} 只标的 (源: 东财/腾讯)")
             return quotes
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"实时行情获取失败: {e}")
             self.realtime_quotes = {}
             return {}
@@ -820,7 +820,7 @@ class DailyBuildHedgeSystem:
                     f"{h['level']} | {h['action']} |"
                 )
             lines.append("")
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"合规校验展示失败: {e}")
             lines.append("## 六、十五五规划 + 康波周期 合规校验")
             lines.append("")
@@ -864,7 +864,7 @@ class DailyBuildHedgeSystem:
                         f"{target_w:.2%} | {scale:.2f}x |"
                     )
                 lines.append("")
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"宽基ETF加减仓展示失败: {e}")
             lines.append("## 七、宽基ETF 社保国家队资金流加减仓")
             lines.append("")
@@ -904,7 +904,7 @@ class DailyBuildHedgeSystem:
                         f"{mc:.1f} | {q.get('source', '?')} |"
                     )
                 lines.append("")
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"实时行情快照展示失败: {e}")
             lines.append("## 八、实时行情快照")
             lines.append("")
@@ -1012,7 +1012,7 @@ class DailyBuildHedgeSystem:
                 lines.append("- ETF资金流决策引擎暂不可用 (数据获取失败或LLM未配置)")
                 lines.append("- 继续使用规则引擎进行宽基ETF加减仓 (第七节)")
                 lines.append("")
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"ETF资金流决策展示失败: {e}")
             lines.append("## 九、ETF资金流向盘前/盘中决策")
             lines.append("")
@@ -1061,7 +1061,7 @@ class DailyBuildHedgeSystem:
                     for c in get_broad_based_codes(target_plan)
                 ],
             }
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"报告JSON合规/加减仓数据收集失败: {e}")
 
         with open(json_path, "w", encoding="utf-8") as f:

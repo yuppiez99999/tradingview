@@ -328,7 +328,7 @@ class BacktestDataLoader:
                     logger.info(f"  [{i+1}/{n}] OK {name} ({code}): {len(df)} 条")
                 else:
                     logger.info(f"  [{i+1}/{n}] -- {name} ({code}): 无数据")
-            except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.info(f"  [{i+1}/{n}] XX {name} ({code}): {e}")
         bs.logout()
 

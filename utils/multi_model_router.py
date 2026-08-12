@@ -320,7 +320,7 @@ class ModelRouter:
                                     if not f.done():
                                         f.cancel()
                                 break
-                    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+                    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                         errors.append(f"{model_path}: {e}")
             except FuturesTimeoutError:
                 errors.append("所有模型调用超时")
@@ -400,7 +400,7 @@ class ModelRouter:
                     call_result = future.result(timeout=timeout_val + 10)
                     if call_result and call_result.success:
                         results[key] = call_result
-                except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+                except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                     logger.warning(f"交叉验证 {key} 失败: {e}")
         
         # 合成结果
@@ -527,7 +527,7 @@ class ModelRouter:
                     success=False, error="API 返回空"
                 )
                 
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             latency_ms = (time.time() - start_time) * 1000
             self.circuit_breakers[provider].record_failure()
             self._update_stats(provider, False, latency_ms)

@@ -205,7 +205,7 @@ class StrategyEvaluator:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(name))
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as e:
             logger.warning("Feature Flag 检查失败, 默认禁用: %s", e)
             return False
 
@@ -567,7 +567,7 @@ class StrategyEvaluator:
                 if timestamps[i] < timestamps[i - 1]:
                     violations += 1
             return violations
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("PIT 检查异常: %s", e)
             return 0
 
@@ -733,7 +733,7 @@ class StrategyEvaluator:
         except ImportError:
             logger.debug("walk_forward 模块不可用, 降级为简化版")
             return self._compute_wf_sharpe_decay_simple(daily_returns)
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as e:
             logger.warning("Purged Walk-Forward 计算异常: %s", e)
             return self._compute_wf_sharpe_decay_simple(daily_returns)
 
@@ -796,7 +796,7 @@ class StrategyEvaluator:
         except ImportError:
             logger.debug("deflated_sharpe 模块不可用, 跳过 DSR 计算")
             return None
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (AttributeError, TypeError, ValueError, OSError) as e:
             logger.warning("DSR 计算异常: %s", e)
             return None
 
@@ -858,7 +858,7 @@ class StrategyEvaluator:
                     record = json.loads(line)
                     if "daily_return" in record:
                         daily_returns.append(float(record["daily_return"]))
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.exception("读取 daily_returns.jsonl 失败: %s", e)
             return self._build_degraded_report([], reason=f"read_error: {e}")
 

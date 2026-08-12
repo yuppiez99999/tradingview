@@ -63,7 +63,7 @@ try:
     from utils.llm_client import test_connection as _test_connection_fn
     _LLM_CLIENT_AVAILABLE = True
     logger.info("AIReportAgent: 统一 LLM 客户端已加载 (GLM5→三级降级链)")
-except Exception as e:  # P1 模块 fail-safe  # noqa: BLE001
+except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
     logger.warning(f"AIReportAgent: 统一 LLM 客户端加载失败 ({e}), 启用规则引擎兜底")
 
 
@@ -223,7 +223,7 @@ class AIReportAgent:
                 result = result.split("] ", 1)[1]
             self._record_audit("llm_call", model, prompt, result, elapsed_ms, True)
             return result  # type: ignore
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"LLM 调用失败: {e}")
             self._record_audit("llm_call", "error", prompt, str(e), 0, False, str(e))
             return None
@@ -755,7 +755,7 @@ class AIReportAgent:
             if not any(str(p).startswith(str(r)) for r in _ALLOWED_ROOTS):
                 logger.warning(f"外部文档导入被拒 (路径越界): {file_path}")
                 return f"[拒绝: 路径越界 {Path(file_path).name}]"
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             return f"[路径解析失败: {e}]"
 
         if not _MARKITDOWN_AVAILABLE:
@@ -770,7 +770,7 @@ class AIReportAgent:
                 return md_text
             logger.warning(f"外部文档转换失败: {file_path}")
             return f"[文档转换失败: {Path(file_path).name}]"
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.error(f"导入外部文档异常: {e}")
             return f"[文档导入异常: {e}]"
 
@@ -801,7 +801,7 @@ class AIReportAgent:
         if self.llm_available and _test_connection_fn is not None:
             try:
                 status["llm_status"] = _test_connection_fn()
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 status["llm_status"] = {"error": str(e)}
         return status
 
@@ -843,7 +843,7 @@ class AIReportAgent:
 
         try:
             sentiments = self.analyze_news_sentiment(news_items, use_llm=True)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning("to_agent_decision: analyze_news_sentiment 异常: %s", e)
             return {
                 "agent_name": "ai_report_adapter",
@@ -1015,7 +1015,7 @@ def self_test() -> bool:
         logger.info(f"  - 测试报告模型: {report.model_used}")
         logger.info(f"  - 风险预警数: {len(report.risk_warnings)}")
         return True
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         import traceback
 
         logger.error(f"[FAIL] ai_report_agent.py 自检失败: {e}")

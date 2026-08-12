@@ -111,7 +111,7 @@ class AICoordinator:
                     return data
             except FileNotFoundError:
                 continue
-            except Exception:  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 continue
         # 回退: 内置默认价格表 (与 MODEL_CONFIG 保持一致)
         return {
@@ -256,7 +256,7 @@ class AICoordinator:
                   input_tokens, output_tokens, cost))
             conn.commit()
             conn.close()
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.debug(f"记录Token用量失败: {e}")
 
     # ── AI决策持久化 ──
@@ -276,7 +276,7 @@ class AICoordinator:
                   confidence, reasoning[:2000], model_used, tokens, task_type))
             conn.commit()
             conn.close()
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.debug(f"记录AI决策失败: {e}")
 
     # ── 冲突检测 ──
@@ -446,7 +446,7 @@ class AICoordinator:
                   pnl_if_followed, datetime.now().isoformat()))
             conn.commit()
             conn.close()
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.debug(f"记录AI决策准确率失败: {e}")
 
     def get_source_accuracy(self, days: int = 30) -> Dict[str, Any]:

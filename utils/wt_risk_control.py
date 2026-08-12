@@ -55,7 +55,7 @@ def _load_cvar_config() -> Dict:
         merged = dict(_CVAR_CONFIG_DEFAULT)
         merged.update(cvar_cfg)
         return merged
-    except Exception as exc:  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
         logger.warning("[CVaR] 读取 system_config.json risk_management.cvar 失败, 使用默认配置: %s", exc)
         return dict(_CVAR_CONFIG_DEFAULT)
 
@@ -416,7 +416,7 @@ class PortfolioRiskAnalyzer:
                     scale = math.sqrt(dof / (dof - 2)) if dof > 2 else 1.0
                     samples = scipy_stats.t.rvs(dof, size=n_paths, random_state=rng) / scale
                     returns = samples * period_vol
-                except Exception as exc:  # noqa: BLE001
+                except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                     # scipy 采样异常 → fail-open 降级正态
                     logger.warning("[CVaR] Student-t 采样失败, 降级正态: %s", exc)
                     rng = np.random.default_rng(seed)
@@ -527,7 +527,7 @@ class PortfolioRiskAnalyzer:
                 dof=cvar_dof,
             )
             cvar_method_used = cvar_method if cvar_method != "monte_carlo" else f"monte_carlo_{cvar_dist}"
-        except Exception as exc:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
             # 观测路径 fail-open: 计算异常则降级解析正态, 标注来源, 不静默
             logger.warning("[CVaR] analyze_portfolio 蒙特卡洛失败, 降级 analytic: %s", exc)
             cvar_95 = self.calculate_cvar(positions, confidence_level=0.95, method="analytic")

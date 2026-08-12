@@ -83,7 +83,7 @@ def main() -> int:
     try:
         from utils.alpha.shadow_real_data_feeder import ShadowRealDataFeeder
         from utils.data_provider import MarketDataProvider
-    except Exception as e:  # noqa: BLE001
+    except (ImportError, AttributeError) as e:
         logger.error("导入模块失败: %s", e)
         return 1
 
@@ -144,7 +144,7 @@ def main() -> int:
                 getattr(result, "source_consistency", "unknown"),
                 (getattr(result, "notes", "") or "")[:80],
             )
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             failed += 1
             logger.error("[%s] 校验失败: %s", date, e)
             summary["results"].append(

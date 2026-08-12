@@ -81,7 +81,7 @@ def load_portfolio_config() -> dict:
         cfg = _get_portfolio_config()
         if cfg:
             return cfg
-    except Exception as e:  # noqa: BLE001  # fail-safe
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning('load_portfolio_config 失败: %s', e)
     return {}
 
@@ -154,7 +154,7 @@ class ModuleLoader:
             logger.debug('ModuleLoader 加载 %s: %d/%d 方法', module_name, len(result), len(method_map))
         except ImportError as e:
             logger.debug('ModuleLoader 模块 %s 不可用: %s', module_name, e)
-        except Exception as e:  # noqa: BLE001  # fail-safe
+        except (ImportError, AttributeError) as e:
             logger.warning('ModuleLoader 加载 %s 异常: %s', module_name, e)
         return result
 

@@ -150,7 +150,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                 cycle_start = time.perf_counter()
                 try:
                     self._run_monitor_cycle()
-                except Exception as e:  # noqa: BLE001  # 监控循环永不崩溃
+                except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                     self.stats["errors"] += 1
                     logger.error("监控周期异常: %s", e)
 
@@ -254,7 +254,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
             logger.info("  有效行情: %d/%d", valid_count, len(self.DEFAULT_ETF_CODES))
         except ImportError:
             logger.warning("  ⚠️ 实时行情模块不可用")
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("  ⚠️ 行情监控异常: %s", e)
 
     # --------------------------------------------------------
@@ -282,7 +282,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                     logger.info("  ⚠️ %s: 暂无资金流数据", code)
         except ImportError:
             logger.warning("  ⚠️ 资金流监控模块不可用")
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("  ⚠️ 资金流监控异常: %s", e)
 
     # --------------------------------------------------------
@@ -308,7 +308,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                                 model_name, buy_n, sell_n, hold_n)
                     return
             logger.info("  ℹ️  暂无 ML 信号")
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.info("  ℹ️  ML信号检查跳过: %s", e)
 
     # --------------------------------------------------------
@@ -325,7 +325,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                 logger.info("  ✅ 风控系统运行正常")
             else:
                 logger.warning("  ⚠️ 部分风控模块需要关注")
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.info("  ℹ️  风控检查跳过: %s", e)
 
     def _check_shadow_account(self) -> bool:
@@ -422,7 +422,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
 
         except ImportError as e:
             logger.info("  ℹ️  VolRegimeWeighter 模块未加载: %s", e)
-        except Exception as e:  # noqa: BLE001  # 监控循环永不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("  ⚠️  波动率Regime检查异常: %s", e)
 
     # --------------------------------------------------------
@@ -467,7 +467,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         try:
             from utils.astock_realtime import get_realtime_quotes
             result["quotes"] = get_realtime_quotes(self.DEFAULT_ETF_CODES, use_cache=False)
-        except Exception:  # noqa: BLE001  # snapshot 容错
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             pass
 
         # 资金流
@@ -478,7 +478,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                 flow = tracker._fetch_price_based_flow(code)
                 if flow:
                     result["etf_flow"][code] = flow
-        except Exception:  # noqa: BLE001  # snapshot 容错
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             pass
 
         # 波动率 Regime 快照 (v8.6.14 新增)
@@ -496,7 +496,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                 }
             else:
                 result["vol_regime"] = {"enabled": False}
-        except Exception as e:  # noqa: BLE001  # snapshot 容错
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             result["vol_regime"] = {"error": str(e)}
 
         return result

@@ -43,6 +43,6 @@ def apply_killswitch_l1_filter(decision, ks_result: Dict[str, Any], result: Dict
                 result.setdefault("steps", {}).setdefault("killswitch_l1_filter", {
                     "filtered_buy": before - after, "remaining": after,
                 })
-    except Exception as e:  # noqa: BLE001  # fail-safe, 不阻断主链路
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.error("[KillSwitchGuard] L1 过滤异常: %s", e, exc_info=True)
     return result

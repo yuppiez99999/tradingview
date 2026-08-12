@@ -102,7 +102,7 @@ class MLOpsPipeline:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(name))
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as e:
             logger.warning("Feature Flag 检查失败, 默认禁用: %s", e)
             return False
 
@@ -112,7 +112,7 @@ class MLOpsPipeline:
             from utils.config_manager import get_config
 
             return get_config("mlops", default={})
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as e:
             logger.warning("加载 mlops 配置失败: %s", e)
             return {}
 
@@ -193,7 +193,7 @@ class MLOpsPipeline:
             self._started = True
             self._log_event("pipeline_started", {})
             logger.info("MLops pipeline 已启动")
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.exception("MLops pipeline 启动失败: %s", e)
             raise MLOpsPipelineError(f"启动失败: {e}") from e
 
@@ -208,7 +208,7 @@ class MLOpsPipeline:
                 self._retrain_scheduler.stop()
             self._log_event("pipeline_stopped", {})
             logger.info("MLops pipeline 已停止")
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.exception("MLops pipeline 停止异常: %s", e)
         finally:
             # 无论是否异常, 都标记为已停止
@@ -260,7 +260,7 @@ class MLOpsPipeline:
                     "metrics": metrics,
                 },
             )
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.exception("模型注册失败: %s", e)
             result["register_error"] = str(e)
             return result
@@ -293,7 +293,7 @@ class MLOpsPipeline:
                     "version": version.version,
                 },
             )
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as e:
             logger.exception("A/B 测试启动失败: %s", e)
             result["ab_test_error"] = str(e)
         return result
@@ -319,7 +319,7 @@ class MLOpsPipeline:
                 },
             )
             return True
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as e:
             logger.exception("drift 触发重训练失败: %s", e)
             return False
 
@@ -339,26 +339,26 @@ class MLOpsPipeline:
         try:
             if self._drift_monitor is not None:
                 status["components"]["drift_monitor"] = self._drift_monitor.get_status()
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
             pass
         try:
             if self._retrain_scheduler is not None:
                 status["components"]["retrain_scheduler"] = self._retrain_scheduler.get_status()
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
             pass
         try:
             if self._model_registry is not None:
                 status["components"]["model_registry"] = {
                     "models": self._model_registry.list_models(),
                 }
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
             pass
         try:
             if self._ab_framework is not None:
                 status["components"]["ab_framework"] = {
                     "tests_count": len(self._ab_framework.list_tests()),
                 }
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
             pass
         return status
 

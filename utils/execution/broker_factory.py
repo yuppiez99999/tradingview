@@ -32,7 +32,7 @@ def _safe_send_alert(message: str, level: str = "WARNING") -> None:
     try:
         from utils.notify import send_alert
         send_alert(content=message, level=level)
-    except Exception:  # noqa: BLE001
+    except (ImportError, AttributeError):
         logger.warning("[broker_factory] %s: %s", level, message)
 
 
@@ -47,7 +47,7 @@ def _load_broker_config() -> dict:
             cfg = json.load(f)
         broker_cfg = cfg.get("broker", {})
         default.update(broker_cfg)
-    except Exception as exc:  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
         _safe_send_alert(f"broker 配置读取失败, 使用安全默认: {exc}", "WARNING")
     return default
 
@@ -88,7 +88,7 @@ def _build_simulated(cfg: dict, shadow: bool = False) -> Any:
         mode = "shadow" if shadow else "sim"
         logger.info("[broker_factory] 使用 SimulatedBroker (%s 模式)", mode)
         return broker
-    except Exception as exc:  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
         _safe_send_alert(f"SimulatedBroker 构造失败: {exc}", "CRITICAL")
         raise
 
@@ -111,7 +111,7 @@ def _build_qmt(cfg: dict) -> Any:
             return _build_simulated(cfg)
         logger.info("[broker_factory] QmtBrokerAPI 已连接 (实盘模式)")
         return broker
-    except Exception as exc:  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
         _safe_send_alert(f"QmtBrokerAPI 构造失败, 降级模拟: {exc}", "CRITICAL")
         return _build_simulated(cfg)
 

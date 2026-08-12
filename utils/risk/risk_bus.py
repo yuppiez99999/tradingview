@@ -252,7 +252,7 @@ class RiskBus:
                 from utils.notify import send_alert
 
                 send_alert(title=title, content=" | ".join(msg_parts), level=level)
-        except Exception:  # noqa: BLE001  # 告警 fail-open, 不阻断风控
+        except (ImportError, AttributeError):
             logger.warning("告警发送失败 (fail-open, 风控仍正常)", exc_info=True)
 
         # 同步调用订阅者

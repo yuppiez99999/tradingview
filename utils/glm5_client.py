@@ -148,7 +148,7 @@ class GLM5Client:
             }
             logger.info(f"✓ 模型已缓存: {cache_key}")
             
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"GLM-5 初始化失败: {e}")
             raise
     
@@ -186,7 +186,7 @@ class GLM5Client:
         except ImportError:
             logger.warning("本地依赖缺失, 请安装: pip install modelscope transformers torch")
             raise
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"本地模型加载失败: {e}")
             raise
     
@@ -218,7 +218,7 @@ class GLM5Client:
         except ImportError:
             logger.warning("llama-cpp-python 未安装, 请安装: pip install llama-cpp-python")
             raise
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as e:
             logger.error(f"本地 GGUF 模型加载失败: {e}")
             raise
     
@@ -516,7 +516,7 @@ class GLM5Client:
                     "finish_reason": "done",
                     "created_at": datetime.now().isoformat(),
                 }
-            except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning(f"模型 {model_name} 调用失败: {e}")
                 last_error = str(e)
                 continue
@@ -572,7 +572,7 @@ class GLM5Client:
                 },
                 "created_at": datetime.now().isoformat(),
             }
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"Ollama 调用失败: {e}")
             raise
     
@@ -812,7 +812,7 @@ if __name__ == "__main__":
         logger.info("\n" + "=" * 60)
         logger.info("测试完成!")
         
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.error(f"\n❌ 错误: {e}")
         logger.info("\n可能的原因:")
         logger.info("  [API 模式]   需要设置 ZHIPUAI_API_KEY 环境变量或传入 --api-key")

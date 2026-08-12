@@ -287,7 +287,7 @@ class VolRegimeWeighter:
         try:
             from utils.infra.feature_flags import is_enabled
             return bool(is_enabled(name))
-        except Exception as e:  # noqa: BLE001  # fail-safe, 不阻塞
+        except (ImportError, AttributeError) as e:
             logger.warning("Feature Flag 检查失败, 默认禁用: %s (%s)", name, e)
             return False
 
@@ -296,7 +296,7 @@ class VolRegimeWeighter:
         try:
             from utils.vol_target_controller import VolTargetController
             return VolTargetController()
-        except Exception as e:  # noqa: BLE001  # fail-safe
+        except (ImportError, AttributeError) as e:
             logger.warning("VolTargetController 初始化失败, 将降级: %s", e)
             return None
 
@@ -308,7 +308,7 @@ class VolRegimeWeighter:
                     cfg = yaml.safe_load(f) or {}
                 logger.debug("配置加载成功: %s", self.config_path)
                 return cfg
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("配置加载失败, 使用默认值: %s (%s)", self.config_path, e)
         return {}
 
@@ -374,7 +374,7 @@ class VolRegimeWeighter:
                     rv_classification = self._classify_by_rv(realized_vol)
                     if source == "fallback":
                         source = "realized_vol"
-                except Exception as e:  # noqa: BLE001
+                except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                     logger.warning("calc_realized_vol 失败: %s", e)
 
         # 辅助指标
@@ -769,7 +769,7 @@ class VolRegimeWeighter:
                     reason=f"vol_regime_suggestion: regime={suggestion.regime.label}",
                     metrics=None,
                 )
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.warning("log_decision 失败, 不阻塞: %s", e)
 
         return {

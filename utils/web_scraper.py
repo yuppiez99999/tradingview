@@ -112,7 +112,7 @@ def is_allowed_domain(url: str) -> bool:
                 return True
         logger.warning(f"拒绝非白名单域名: {host}")
         return False
-    except Exception:  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         return False
 
 # ============================================================
@@ -271,7 +271,7 @@ class WebScraper:
                 page = Fetcher.get(url, stealthy=True, timeout=self.timeout)
                 if page and page.status == 200:
                     return cast(str, page.body)
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.debug(f"Scrapling 抓取失败 ({url}): {e}, 回退到 requests")
 
         # P2: requests + bs4
@@ -285,7 +285,7 @@ class WebScraper:
             logger.warning(f"HTTP {resp.status_code}: {url}")
         except requests.exceptions.Timeout:
             logger.warning(f"请求超时 ({self.timeout}s): {url}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"请求失败 ({url}): {e}")
         return None
 
@@ -309,7 +309,7 @@ class WebScraper:
             if resp.status_code == 200:
                 return resp.json()
             logger.warning(f"HTTP {resp.status_code}: {url}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"JSON 请求失败 ({url}): {e}")
         return None
 
@@ -322,7 +322,7 @@ class WebScraper:
             return None
         try:
             return BeautifulSoup(html, "html.parser")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"HTML 解析失败: {e}")
             return None
 
@@ -443,7 +443,7 @@ class WebScraper:
             if resp.status_code != 200:
                 return []
             json_data = resp.json()
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"巨潮公告请求失败 ({symbol}): {e}")
             return []
 
@@ -748,7 +748,7 @@ class WebScraper:
             try:
                 items = self.fetch_announcements(symbol, limit=limit_per_symbol)
                 result[symbol] = items
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning(f"抓取 {symbol} 失败: {e}")
                 result[symbol] = []
         return result
@@ -772,7 +772,7 @@ class WebScraper:
         try:
             with open(cache_file, encoding="utf-8") as f:
                 return json.load(f)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"读取缓存文件失败 ({cache_file}): {e}")
             return None
 
@@ -862,7 +862,7 @@ class WebScraper:
         except ImportError:
             logger.debug("MediaCrawlerAdapter 未安装, 跳过自媒体舆情")
             return []
-        except Exception as e:  # P2 模块 fail-safe  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"自媒体舆情抓取异常: {e}")
             return []
 
@@ -967,7 +967,7 @@ def self_test() -> bool:
         logger.info(f"  - BeautifulSoup 可用: {status['bs4_available']}")
         logger.info(f"  - 超时: {status['timeout']}s")
         return True
-    except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.error(f"[FAIL] web_scraper.py 自检失败: {e}")
         return False
 

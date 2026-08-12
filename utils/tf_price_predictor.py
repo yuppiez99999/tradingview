@@ -130,7 +130,7 @@ class TimesFMForecaster:
 
         except ImportError:
             logger.warning("timesfm 未安装, 跳过. 安装: pip install timesfm[torch]")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ImportError, AttributeError) as e:
             logger.warning(f"TimesFM 初始化失败: {e}")
 
     @property
@@ -168,7 +168,7 @@ class TimesFMForecaster:
 
             return point_forecast, quantile_forecast
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.error(f"TimesFM 预测失败: {e}")
             return None
 
@@ -216,7 +216,7 @@ class TensorflowLSTMPredictor:
             if not self.__class__._tf_warned:
                 logger.warning("tensorflow 未安装, 跳过 LSTM 预测. 安装: pip install tensorflow")
                 self.__class__._tf_warned = True
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ImportError, AttributeError) as e:
             if not self.__class__._tf_warned:
                 logger.warning(f"TensorFlow 初始化失败: {e}")
                 self.__class__._tf_warned = True
@@ -317,7 +317,7 @@ class TensorflowLSTMPredictor:
 
             return cast(np.ndarray, prediction)
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (AttributeError, TypeError, ValueError, OSError) as e:
             logger.error(f"LSTM 训练预测失败: {e}")
             return None
 
@@ -375,7 +375,7 @@ class StatisticalForecaster:
 
             return forecast, quantiles
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ImportError, AttributeError) as e:
             logger.warning(f"ARIMA 预测失败, 回退到移动平均: {e}")
             return self._ma_momentum_forecast(prices, horizon)
 
@@ -560,7 +560,7 @@ class PricePredictor:
         for symbol, prices in symbols_prices.items():
             try:
                 results[symbol] = self.predict(symbol, prices, horizon)
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.error(f"预测 {symbol} 失败: {e}")
                 results[symbol] = self._fallback_result(symbol, horizon, 0)
         return results
@@ -596,7 +596,7 @@ def load_price_history(symbol: str, days: int = 120) -> Optional[np.ndarray]:
                         if close and close > 0:
                             prices.append(close)
                         break
-            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 continue
         if prices:
             return np.array(list(reversed(prices)))

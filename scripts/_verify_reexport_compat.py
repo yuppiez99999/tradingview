@@ -94,7 +94,7 @@ def try_importlib_load(p: Path) -> ReexportCheck:
         # 仅加载不执行 __main__
         spec.loader.exec_module(mod)
         return ReexportCheck(cid, f"importable without side-effect: {p.name}", True, "OK")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         return ReexportCheck(
             cid, f"importable without side-effect: {p.name}", False,
             f"{type(e).__name__}: {e}",

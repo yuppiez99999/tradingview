@@ -92,7 +92,7 @@ def generate_stress_report(portfolio: dict[str, Any] | None = None,
         lines.append(f'- **99% VaR**: {var_99:.1%}')
         lines.append(f'- **最差情景**: {max_loss:.1%}')
         lines.append(f'- **触发硬止损概率**: {sum(1 for r in returns if r < -HARD_STOP_MAX_DRAWDOWN) / monte_carlo_runs:.1%}')
-    except Exception as e:  # noqa: BLE001  # fail-safe
+    except (ImportError, AttributeError) as e:
         lines.append(f'- 蒙特卡洛模拟失败: {e}')
     lines.append('')
 

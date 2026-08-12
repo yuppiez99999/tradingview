@@ -459,7 +459,7 @@ class PhaseManager:
                     "worst_scenario": stress_result.get("worst_scenario", ""),
                 }
                 actions.append(f"压力测试完成: {result.stress_test_result['scenarios_run']} 场景")
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning(f"[PhaseManager] 压力测试失败 (降级): {e}")
                 actions.append(f"压力测试降级: {e}")
 
@@ -625,7 +625,7 @@ class PhaseManager:
                 json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
             logger.info(f"[PhaseManager] 季度评估报告已保存: {file_path}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"[PhaseManager] 保存季度评估报告失败: {e}")
 
     # --------------------------------------------------------

@@ -141,7 +141,7 @@ class HedgeExecutionEngine:
                 fill.shares,
                 fill.price,
             )
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             # fail-safe: 归因失败不影响对冲主流程
             logger.error("[HedgeEngine] on_fill 归因失败 (fail-safe): %s", e)
         return self._post_trade_attribution
@@ -155,7 +155,7 @@ class HedgeExecutionEngine:
         try:
             with open(self.positions_file, encoding="utf-8") as f:
                 return cast(dict, json.load(f))
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"加载持仓失败: {e}")
             return {}
 
@@ -679,7 +679,7 @@ class HedgeExecutionEngine:
             try:
                 with open(plan_path, encoding="utf-8") as f:
                     plan = json.load(f)
-            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 plan = {}
         else:
             plan = {"trade_date": trade_date}
@@ -792,7 +792,7 @@ class HedgeExecutionEngine:
                 fields = content[start:end].split(",")
                 if len(fields) > 3:
                     return float(fields[3])
-        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             pass
 
         return 4200  # 默认值

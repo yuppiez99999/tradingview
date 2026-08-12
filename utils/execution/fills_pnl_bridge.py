@@ -45,7 +45,7 @@ def augment_market_prices(
     try:
         store = FillsStore()
         latest = store.latest_avg_price_by_symbol(date)
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning("[FillsPnLBridge] 读取 fills 失败, 回退行情估算: %s", e)
         return dict(market_prices)
 
@@ -81,7 +81,7 @@ def realized_pnl(date: Optional[str] = None) -> Dict[str, float]:
     """返回当日已实现 PnL 汇总 (fail-open)。"""
     try:
         return FillsStore().realized_pnl(date)
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning("[FillsPnLBridge] 计算已实现 PnL 失败: %s", e)
         return {}
 

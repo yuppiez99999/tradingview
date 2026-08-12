@@ -186,7 +186,7 @@ class AutoRetrainScheduler:
 
             mlops_cfg = get_config("mlops", default={})
             return mlops_cfg.get("auto_retrain", {})  # type: ignore[index]
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("加载 mlops 配置失败, 使用默认值: %s", e)
             return {"enabled": False}
 
@@ -238,7 +238,7 @@ class AutoRetrainScheduler:
                     if line:
                         data = json.loads(line)
                         self._tasks.append(RetrainTask(**data))
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("加载历史任务失败: %s", e, exc_info=True)
 
     def _save_task(self, task: RetrainTask) -> None:
@@ -358,7 +358,7 @@ class AutoRetrainScheduler:
                 task.task_id,
                 metrics,
             )
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             task.status = RetrainStatus.FAILED.value
             task.error = str(e)
             logger.exception("训练异常: %s", e)
@@ -407,7 +407,7 @@ class AutoRetrainScheduler:
             }
         except subprocess.TimeoutExpired:
             return {"success": False, "error": f"训练超时 ({self.training_timeout_sec}s)"}
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             return {"success": False, "error": str(e)}
 
     def _load_trained_model(self, training_result: dict[str, Any]) -> tuple:
@@ -461,7 +461,7 @@ class AutoRetrainScheduler:
                 version.version,
             )
             return version
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as e:
             logger.exception("模型注册失败: %s", e)
             return None
 
@@ -495,7 +495,7 @@ class AutoRetrainScheduler:
                 new_version.version,
             )
             return test_name
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as e:
             logger.exception("A/B 测试启动失败: %s", e)
             return None
 
@@ -548,7 +548,7 @@ class AutoRetrainScheduler:
         while not self._stop_event.is_set():
             try:
                 self._scheduled_check()
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.exception("定时检查异常: %s", e)
             self._stop_event.wait(timeout=check_interval_sec)
 

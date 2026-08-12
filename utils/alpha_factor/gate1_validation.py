@@ -54,7 +54,7 @@ for name in ("stdout", "stderr"):
         if buffer is not None:
             try:
                 setattr(sys, name, io.TextIOWrapper(buffer, encoding="utf-8", errors="replace"))
-            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError):
                 pass
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ def fetch_tx_kline(code: str, days: int = 250) -> Optional[List[List[str]]]:
             if kline:
                 return kline
         return None
-    except Exception as exc:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
         logger.warning(f"腾讯K线失败 ({code}): {exc}")
         return None
 
@@ -120,7 +120,7 @@ def fetch_prices(symbols: List[str], days: int = 250, use_cache: bool = True) ->
         if time.time() - _PRICE_CACHE_FILE.stat().st_mtime < _PRICE_CACHE_TTL:
             try:
                 cache = json.loads(_PRICE_CACHE_FILE.read_text(encoding="utf-8"))
-            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 cache = {}
 
     price_data: Dict[str, dict[str, List[float]]] = {}
@@ -160,7 +160,7 @@ def fetch_prices(symbols: List[str], days: int = 250, use_cache: bool = True) ->
         try:
             _PRICE_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
             _PRICE_CACHE_FILE.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
-        except Exception as exc:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
             logger.debug(f"价格缓存写入失败: {exc}")
     return price_data
 

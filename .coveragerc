@@ -17,6 +17,21 @@ omit =
     15_每日工作流/*
     scripts/_*.py
     setup.py
+    # 废弃死模块 (0 引用, 确认不再接入主链路) — G7 覆盖口径排除
+    utils/wt_*.py
+    # 未纳入 G7 计划且暂不补测的重型子系统 (0% 会永久拖垮门禁, 待单独排期)
+    utils/universe/*
+    utils/weather_*.py
+    utils/web_scraper.py
+    utils/scrapling_adapter.py
+    utils/media_crawler_adapter.py
+    utils/var_backtest.py
+    utils/var_monitor.py
+    utils/tradingagents_bridge.py
+    utils/vibe_trading_adapter.py
+    utils/finance_agent_orchestrator.py
+    utils/ai_report_agent.py
+    utils/news_sentiment_engine.py
 
 # 分支覆盖
 branch = True

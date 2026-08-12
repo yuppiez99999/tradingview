@@ -326,7 +326,7 @@ class DailyReportGenerator:
                 start_time=start_time,
             )
             return result
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             elapsed_ms = (time.perf_counter() - start_time) * 1000
             logger.error(f"[DailyReportGenerator] 报告生成失败: {e}", exc_info=True)
             return ReportResult(
@@ -441,7 +441,7 @@ class DailyReportGenerator:
             from utils.infra.feature_flags import FeatureFlags
 
             return bool(FeatureFlags.is_enabled(self._feature_flag_name))  # type: ignore
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as e:
             logger.debug(f"[DailyReportGenerator] Feature Flag 查询失败 (默认 False): {e}")
             return False
 
@@ -477,7 +477,7 @@ class DailyReportGenerator:
             cfg = get_config(config_name)
             if cfg:
                 return cfg
-        except Exception as exc:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as exc:
             logger.warning(f"[DailyReportGenerator] 加载配置失败 (name={config_name}): {exc}")
         return {}
 
@@ -488,7 +488,7 @@ class DailyReportGenerator:
 
             source = get_config_source(config_name)
             return str(source) if source else "config_manager_miss"
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError):
             return "config_manager_unavailable"
 
 
@@ -503,7 +503,7 @@ def is_daily_report_generator_enabled() -> bool:
         from utils.infra.feature_flags import FeatureFlags
 
         return bool(FeatureFlags.is_enabled(FLAG_NAME))  # type: ignore
-    except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (ImportError, AttributeError):
         return False
 
 

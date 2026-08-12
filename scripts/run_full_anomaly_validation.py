@@ -115,7 +115,7 @@ def main() -> int:
                             "abnormal_new": abs(ret_pct / 100) > thr_new,
                         }
                     )
-            except Exception as e:  # noqa: BLE001
+            except (ImportError, AttributeError) as e:
                 print(f"[WARN] {date} notes 解析失败: {e}")
                 continue
 

@@ -353,7 +353,7 @@ class IFindClient:
         if resp.text.strip():
             try:
                 data = resp.json()
-            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, OSError):
                 data = resp.text
 
         if isinstance(data, dict) and "error" in data:
@@ -374,7 +374,7 @@ class IFindClient:
                 if "超限" in text or "quota" in text.lower() or "limit" in text.lower():
                     self._quota_exceeded[server_type] = now
                     return {"ok": False, "error": "用户使用工具已超限", "quota_exceeded": True, "data": data}
-        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             pass
 
         self.last_success = time.time()
@@ -696,7 +696,7 @@ class IFindClient:
             query = f"{sym}{date_suffix}{indicator_str}"
             try:
                 resp = self.call("stock", "get_stock_financials", {"query": query})
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.warning("[IFind.fundamentals] %s 调用异常: %s", sym, e)
                 return sym, {}
 
@@ -729,7 +729,7 @@ class IFindClient:
                         for f in futures:
                             f.cancel()
                         break
-                except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+                except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                     logger.warning("[IFind.fundamentals] future 异常: %s", e)
 
         logger.info(

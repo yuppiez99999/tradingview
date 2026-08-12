@@ -132,7 +132,7 @@ class DriftMonitor:
         if detector is None and _DRIFT_DETECTOR_AVAILABLE:
             try:
                 detector = ModelDriftDetector()
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.warning("ModelDriftDetector 创建失败: %s", e)
                 detector = None
         self.detector = detector
@@ -169,7 +169,7 @@ class DriftMonitor:
             if alert is not None:
                 self._record_alert(alert)
             return alert
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.exception("IC 更新失败: %s", e)
             return None
 
@@ -182,7 +182,7 @@ class DriftMonitor:
             if alert is not None:
                 self._record_alert(alert)
             return alert
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.exception("ADWIN 更新失败: %s", e)
             return None
 
@@ -195,7 +195,7 @@ class DriftMonitor:
             for a in alerts:
                 self._record_alert(a)
             return alerts  # type: ignore[return-value]  # 上游返回类型可能为 Any, 此处已是 list
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.exception("特征漂移检查失败: %s", e)
             return []
 
@@ -210,7 +210,7 @@ class DriftMonitor:
             # 检查是否需要触发重训练
             self._check_retrain_trigger(alerts)
             return alerts  # type: ignore[return-value]
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.exception("全量检查失败: %s", e)
             return []
 
@@ -238,7 +238,7 @@ class DriftMonitor:
             alert_file = self.alerts_dir / f"{self.model_name}_{datetime.utcnow().strftime('%Y-%m-%d')}.jsonl"
             with open(alert_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(alert_dict, ensure_ascii=False, default=str) + "\n")
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("告警持久化失败: %s", e, exc_info=True)
 
     # ============================================================
@@ -278,7 +278,7 @@ class DriftMonitor:
                     self.retrain_threshold_severity,
                 )
             return triggered
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.exception("重训练回调异常: %s", e)
             return False
 
@@ -289,7 +289,7 @@ class DriftMonitor:
         try:
             should, reason = self.detector.should_retrain()
             return bool(should), str(reason)
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             return False, f"判断异常: {e}"
 
     # ============================================================
@@ -329,7 +329,7 @@ class DriftMonitor:
         while not self._stop_event.is_set():
             try:
                 self.check_all()
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.exception("监控循环异常: %s", e)
             self._stop_event.wait(timeout=self._monitoring_interval)
 
@@ -366,7 +366,7 @@ class DriftMonitor:
             report["retrain_triggered"] = self._retrain_triggered
             report["last_retrain_time"] = self._last_retrain_time
             return report  # type: ignore[return-value]
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             return {"model_name": self.model_name, "error": str(e)}
 
     def reset_retrain_state(self) -> None:
@@ -557,7 +557,7 @@ def compute_psi(baseline: pd.Series, current: pd.Series, n_bins: int = 10) -> fl
     # 用 baseline 的分位数作为分箱边界 (point-in-time 正确)
     try:
         bins = np.unique(np.percentile(baseline_clean, np.linspace(0, 100, n_bins + 1)))
-    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, OSError):
         return 0.0
     if len(bins) < 2:
         return 0.0
@@ -625,7 +625,7 @@ def compute_feature_drift(
         try:
             ks_stat, _ = _scipy_stats.ks_2samp(baseline_clean.values, current_clean.values)
             ks_score = float(ks_stat)
-        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
             # 降级: 用均值差 / (std + eps)
             std_pool = float(np.std(list(baseline_clean) + list(current_clean))) + 1e-8
             ks_score = float(abs(np.mean(current_clean) - np.mean(baseline_clean)) / std_pool)
@@ -704,7 +704,7 @@ def _load_alert_owners(config_path: str | None = None) -> dict[str, dict[str, st
     except FileNotFoundError:
         logger.warning(f"alert_owners.yaml 不存在: {config_path}")
         return {}
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.warning(f"加载 alert_owners.yaml 失败: {e}")
         return {}
 
@@ -945,7 +945,7 @@ class SimModeDriftMonitor:
                 report_file,
                 len(reports),
             )
-        except Exception as e:  # noqa: BLE001  # 持久化失败不阻断
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("漂移报告持久化失败: %s", e)
 
     def get_history(self, limit: int = 100) -> list[DriftReport]:

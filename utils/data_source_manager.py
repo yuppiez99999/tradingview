@@ -177,7 +177,7 @@ class PriorityDataSourceManager:
                 else:
                     self._registry.mark_degraded(name, "返回无效数据")
                     self._logger.warning(f"⚠️ 数据源 {name} 返回无效数据{target_str}，尝试下一个")
-            except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 self._registry.mark_unavailable(name, str(e))
                 self._logger.warning(f"⚠️ 数据源 {name} 异常{target_str}: {e}")
                 continue

@@ -223,7 +223,7 @@ class PortfolioManager:
                 f"effective_n={result.effective_n:.2f}"
             )
             return result
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             raise PortfolioOptimizationError(f"Black-Litterman 优化失败: {e}") from e
 
     def save_result(self, result: Any, path: str | Any) -> Any:
@@ -468,7 +468,7 @@ class ETFFlowManager:
         try:
             tracker = self._get_tracker()
             return cast(dict[str, dict], tracker.get_all_etf_fund_flows())
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             raise ETFFlowError(f"ETF 资金流获取失败: {e}") from e
 
     def get_flow(self, etf_code: str) -> dict | None:
@@ -483,7 +483,7 @@ class ETFFlowManager:
         try:
             tracker = self._get_tracker()
             return cast(dict, tracker.get_etf_fund_flow(etf_code))
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"[ETFFlowManager] 获取 {etf_code} 资金流失败: {e}")
             return None
 
@@ -499,7 +499,7 @@ class ETFFlowManager:
         try:
             tracker = self._get_tracker()
             return cast(list[dict], tracker.detect_signals(flow_data))
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"[ETFFlowManager] 信号检测失败: {e}")
             return []
 
@@ -515,7 +515,7 @@ class ETFFlowManager:
         try:
             tracker = self._get_tracker()
             return cast(dict, tracker.get_signal_summary(flow_data))
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"[ETFFlowManager] 汇总失败: {e}")
             return {"error": str(e)}
 
@@ -700,21 +700,21 @@ class AttributionManagersFacade:
                     "effective_n": float(getattr(result, "effective_n", 0.0)),
                     "diversification_ratio": float(getattr(result, "diversification_ratio", 0.0)),
                 }
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 errors.append(f"portfolio_optimization: {e}")
 
         # 2. 大宗商品
         if self._commodity is not None:
             try:
                 report.commodity_summary = self.commodity.get_summary(commodity_snapshots)
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 errors.append(f"commodity_summary: {e}")
 
         # 3. ETF 资金流
         if self._etf_flow is not None:
             try:
                 report.etf_flow_summary = self.etf_flow.get_summary()
-            except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 errors.append(f"etf_flow_summary: {e}")
 
         report.errors = errors
@@ -738,7 +738,7 @@ def is_attribution_managers_enabled() -> bool:
         return bool(is_enabled("USE_ATTRIBUTION_MANAGERS"))
     except ImportError:
         return False
-    except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (AttributeError, TypeError, ValueError, OSError):
         return False
 
 

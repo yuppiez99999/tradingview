@@ -915,7 +915,7 @@ class FactorAttributionManager:
                     config_name,
                 )
             return cfg
-        except Exception as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(
                 "[FactorAttribution] 配置加载失败: %s (%s), 使用默认配置",
                 config_name,
@@ -929,7 +929,7 @@ class FactorAttributionManager:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(self._feature_flag_name))
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError):
             return False
 
     # ============================================================
@@ -1150,7 +1150,7 @@ def is_factor_attribution_enabled() -> bool:
         return bool(is_enabled(FLAG_NAME))
     except ImportError:
         return False
-    except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (AttributeError, TypeError, ValueError, OSError):
         return False
 
 

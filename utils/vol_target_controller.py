@@ -252,7 +252,7 @@ class VolTargetController:
                     if isinstance(daily_return, (int, float)):
                         returns.append(daily_return / 100.0 if abs(daily_return) > 1 else daily_return)
                     break  # 找到一份即可, 跳出候选路径循环
-                except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                     continue
 
         # 如果报告数据不足, 尝试从持仓成本与当前价估算
@@ -267,7 +267,7 @@ class VolTargetController:
         try:
             with open(CONFIG_DIR / "positions.json", encoding="utf-8") as f:
                 positions = json.load(f)
-        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             return [0.01, -0.01, 0.005, -0.008, 0.012]  # 默认值
 
         # 计算各标的的成本→当前价的年化波动率
@@ -298,7 +298,7 @@ class VolTargetController:
         try:
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(result, f, ensure_ascii=False, indent=2)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"保存vol缓存失败: {e}")
 
     @classmethod
@@ -312,7 +312,7 @@ class VolTargetController:
                 data = json.load(f)
             vol_scale_val = cast(dict[str, Any], data).get("vol_scale")
             return float(vol_scale_val) if isinstance(vol_scale_val, (int, float)) else None
-        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             return None
 
 

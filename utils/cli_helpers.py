@@ -88,7 +88,7 @@ def get_stock_name(code: str) -> str:
             name = pos.get("name", "")
             if name:
                 return name
-    except Exception:  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         pass
 
     return str(code)

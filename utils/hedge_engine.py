@@ -26,7 +26,7 @@ logger = logging.getLogger('hedge_engine')
 # G11: 统一 CVaR 双代码路径口径 — 无历史数据分支复用主风险流程的蒙特卡洛 CVaR
 try:
     from utils.wt_risk_control import PortfolioRiskAnalyzer as _WTPortfolioRiskAnalyzer
-except Exception:  # noqa: BLE001
+except (ImportError, AttributeError):
     _WTPortfolioRiskAnalyzer = None  # 降级: 保留原 var*2.0 近似
 
 # ── 指数成分股权重(简化版) ──
@@ -207,7 +207,7 @@ if os.path.isfile(_IFIND_CONFIG_PATH):
         with open(_IFIND_CONFIG_PATH, 'r', encoding='utf-8') as _f:
             _cfg = json.load(_f)
             _IFIND_TOKEN = (_cfg.get("auth_token") or "").strip()
-    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         pass
 IFIND_AVAILABLE = bool(_IFIND_TOKEN)
 IFIND_CLIENT = None
@@ -229,7 +229,7 @@ if IFIND_AVAILABLE:
             _spec.loader.exec_module(_mod)
             IFIND_CLIENT = _mod
             logger.info("[hedge] iFinD MCP 连接器加载成功")
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ImportError, AttributeError) as e:
         IFIND_CLIENT = None
         logger.warning(f"[hedge] iFinD MCP 连接器不可用: {e}")
 
@@ -245,7 +245,7 @@ def _exec_ifind(server_type: str, tool_name: str, params: dict) -> dict:
         if isinstance(result, dict) and result.get("data"):
             return {"data": result["data"], "source": "iFinD MCP"}
         return result
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         return {"error": str(e)}
 
 
@@ -275,7 +275,7 @@ def fetch_futures_prices_from_ifind() -> Dict[str, float]:
                 if price > 0:
                     results[name] = price
                     logger.info("[hedge][ifind] %s=%.2f", name, price)
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.debug("[hedge][ifind] %s err: %s", name, e)
     return results
 
@@ -309,11 +309,11 @@ def fetch_futures_prices_from_wind() -> Dict[str, float]:
                         if price > 0:
                             # 期货约等于指数+基差(简化为指数价)
                             results[name] = price
-            except Exception as e:  # noqa: BLE001  # 显式记录, 不静默
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning("[wind] 单条期货行情解析失败 (%s): %s", name, e)
     except ImportError:
         logger.debug("[wind] quant_modules.wind_mcp 导入失败")
-    except Exception as e:  # noqa: BLE001  # 显式记录, 不静默
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.warning("[wind] 期货价格获取失败: %s", e)
     return results
 
@@ -336,7 +336,7 @@ def fetch_futures_prices_from_sina() -> Dict[str, float]:
                     price = float(parts[3]) if parts[3] and parts[3] != "0.000" else 0.0
                     if price > 0:
                         results[name] = price
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.debug(f"[sina] {name} 失败: {e}")
     return results
 
@@ -352,11 +352,11 @@ def fetch_futures_prices_from_akshare() -> Dict[str, float]:
                     price = float(df.iloc[-1]['close']) if 'close' in df.columns else float(df.iloc[-1].iloc[-2])
                     if price > 0:
                         results[name] = price
-            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError):
                 pass
     except ImportError:
         logger.debug("[akshare] 未安装")
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ImportError, AttributeError) as e:
         logger.debug(f"[akshare] 批量获取失败: {e}")
     return results
 
@@ -375,11 +375,11 @@ def fetch_futures_prices_from_efinance() -> Dict[str, float]:
                         price = float(quote.get('price', 0) or quote.get('最新价', 0))
                     if price > 0:
                         results[name] = price
-            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 pass
     except ImportError:
         logger.debug("[efinance] 未安装")
-    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         pass
     return results
 
@@ -551,7 +551,7 @@ class HedgeEngine:
                         risk.total_value, risk.volatility_30d, 0.95, 50000, 1, 42,
                         dist="student_t", dof=5,
                     )
-                except Exception as exc:  # noqa: BLE001
+                except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                     logger.warning("[VaR] 蒙特卡洛 CVaR 失败, 降级 var*2.0: %s", exc)
                     risk.cvar_95_daily = risk.var_95_daily * 2.0
             else:

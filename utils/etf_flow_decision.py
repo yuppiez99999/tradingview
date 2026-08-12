@@ -159,7 +159,7 @@ class ETFFlowDecisionEngine:
                     spec.loader.exec_module(mod)
                     self._local_llm_client = mod
                     logger.info("LLM客户端已加载 (DeepSeek优先降级链: DeepSeek → Ollama → GLM → 豆包)")
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning(f"LLM客户端加载失败: {e}，将使用纯规则引擎")
         return self._local_llm_client
 
@@ -186,7 +186,7 @@ class ETFFlowDecisionEngine:
             else:
                 logger.warning("LLM返回为空，降级到规则引擎")
                 return None
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (AttributeError, TypeError, ValueError, OSError) as e:
             logger.error(f"LLM调用失败: {e}")
             return None
 
@@ -295,7 +295,7 @@ class ETFFlowDecisionEngine:
                     "signals": [],
                     "recommendations": [],
                 }
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.error(f"资金流数据获取失败: {e}")
             return {
                 "status": "error",
@@ -320,7 +320,7 @@ class ETFFlowDecisionEngine:
         try:
             prompt = self._build_llm_prompt(flow_data, realtime_data, timestamp)
             llm_analysis = self._call_llm_analysis(prompt)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"LLM分析失败: {e}，继续使用规则引擎")
 
         # Step 5: 生成交易建议
@@ -397,7 +397,7 @@ class ETFFlowDecisionEngine:
         logger.info("Step 1: 获取实时资金流...")
         try:
             flow_data = self.tracker.get_all_etf_fund_flows()
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.error(f"实时资金流获取失败: {e}")
             flow_data = {}
 
@@ -422,7 +422,7 @@ class ETFFlowDecisionEngine:
             try:
                 prompt = self._build_intraday_llm_prompt(flow_data, realtime_data, sudden_changes, timestamp)
                 llm_analysis = self._call_llm_analysis(prompt)
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.warning(f"LLM分析失败: {e}")
 
         # Step 6: 信号融合
@@ -516,7 +516,7 @@ class ETFFlowDecisionEngine:
         logger.info("Step 1: 获取收盘资金流...")
         try:
             flow_data = self.tracker.get_all_etf_fund_flows()
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.error(f"收盘资金流获取失败: {e}")
             flow_data = {}
 
@@ -741,7 +741,7 @@ class ETFFlowDecisionScheduler:
                     continue
 
                 time.sleep(interval)
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.error(f"盘中监控异常: {e}")
                 time.sleep(60)
 

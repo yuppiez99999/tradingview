@@ -85,7 +85,7 @@ class LiquidationScheduler:
                 with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("liquidation_protocol", {}) if isinstance(cfg, dict) else {}
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
                 return {}
 
@@ -101,13 +101,13 @@ class LiquidationScheduler:
             with open(self.config_path, encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
             return fallback_cfg.get("liquidation_protocol", {}) if isinstance(fallback_cfg, dict) else {}
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
             try:
                 with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
                 return cfg.get("liquidation_protocol", {}) if isinstance(cfg, dict) else {}
-            except Exception as e2:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e2:
                 logger.error(f"全部加载路径失败: {e2}")
                 return {}
 
@@ -267,7 +267,7 @@ class LiquidationScheduler:
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"写入清仓日志失败: {e}")
 
 

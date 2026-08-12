@@ -225,7 +225,7 @@ class VaRMonitor:
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"写入 VaR 日志失败: {e}")
 
     def get_event_history(self, days: int = 30) -> list[dict]:
@@ -246,9 +246,9 @@ class VaRMonitor:
                             dt = datetime.fromisoformat(ts)
                             if dt.timestamp() >= cutoff:
                                 records.append(record)
-                    except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+                    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                         continue
-        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             pass
 
         return records

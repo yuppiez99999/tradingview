@@ -57,7 +57,7 @@ try:
     from utils.infra.feature_flags import FeatureFlags as _FFClass
 
     _FeatureFlags = _FFClass
-except Exception:  # noqa: BLE001
+except (ImportError, AttributeError):
     _FeatureFlags = None
 
 
@@ -720,7 +720,7 @@ class DailyAttributionPanel:
 
             return result.to_dict(), result.to_markdown(), status
 
-        except Exception as exc:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (AttributeError, TypeError, ValueError, OSError) as exc:
             logger.exception(f"[DailyAttributionPanel] Brinson 归因失败: {exc}")
             status.status = MODULE_STATUS_ERROR
             status.reason = f"Brinson 异常: {type(exc).__name__}: {exc}"
@@ -787,7 +787,7 @@ class DailyAttributionPanel:
 
             return result.to_dict(), result.to_markdown(), status
 
-        except Exception as exc:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (AttributeError, TypeError, ValueError, OSError) as exc:
             logger.exception(f"[DailyAttributionPanel] Factor 归因失败: {exc}")
             status.status = MODULE_STATUS_ERROR
             status.reason = f"Factor 异常: {type(exc).__name__}: {exc}"
@@ -825,7 +825,7 @@ class DailyAttributionPanel:
 
             return tca_summary, tca_md, status
 
-        except Exception as exc:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
             logger.exception(f"[DailyAttributionPanel] TCA 归因失败: {exc}")
             status.status = MODULE_STATUS_ERROR
             status.reason = f"TCA 异常: {type(exc).__name__}: {exc}"
@@ -1004,7 +1004,7 @@ class DailyAttributionPanel:
             from utils.attribution.brinson_attribution import BrinsonAttributionManager
 
             return BrinsonAttributionManager()
-        except Exception as exc:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as exc:
             logger.warning(f"[DailyAttributionPanel] Brinson Manager 初始化失败: {exc}")
             return None
 
@@ -1014,7 +1014,7 @@ class DailyAttributionPanel:
             from utils.attribution.factor_attribution import FactorAttributionManager
 
             return FactorAttributionManager()
-        except Exception as exc:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError) as exc:
             logger.warning(f"[DailyAttributionPanel] Factor Manager 初始化失败: {exc}")
             return None
 
@@ -1028,7 +1028,7 @@ class DailyAttributionPanel:
             return False
         try:
             return bool(_FeatureFlags.is_enabled(self._feature_flag_name))
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
             return False
 
     def _is_brinson_flag_enabled(self) -> bool:
@@ -1039,7 +1039,7 @@ class DailyAttributionPanel:
             from utils.attribution.brinson_attribution import FLAG_NAME as BRINSON_FLAG
 
             return bool(_FeatureFlags.is_enabled(BRINSON_FLAG))
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError):
             return False
 
     def _is_factor_flag_enabled(self) -> bool:
@@ -1050,7 +1050,7 @@ class DailyAttributionPanel:
             from utils.attribution.factor_attribution import FLAG_NAME as FACTOR_FLAG
 
             return bool(_FeatureFlags.is_enabled(FACTOR_FLAG))
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError):
             return False
 
     def _is_tca_flag_enabled(self) -> bool:
@@ -1059,7 +1059,7 @@ class DailyAttributionPanel:
             return False
         try:
             return bool(_FeatureFlags.is_enabled("USE_TCA_POST_TRADE_ATTRIBUTION"))
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
             return False
 
     # ------------------------------------------------------------
@@ -1145,7 +1145,7 @@ class DailyAttributionPanel:
             cfg = get_config(config_name)
             if cfg:
                 return cfg
-        except Exception as exc:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
             logger.warning(f"[DailyAttributionPanel] 加载配置失败 (name={config_name}): {exc}")
         return {}
 
@@ -1156,7 +1156,7 @@ class DailyAttributionPanel:
 
             source = get_config_source(config_name)
             return str(source) if source else "config_manager_miss"
-        except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, AttributeError):
             return "config_manager_unavailable"
 
 
@@ -1171,7 +1171,7 @@ def is_daily_panel_enabled() -> bool:
         return False
     try:
         return bool(_FeatureFlags.is_enabled(FLAG_NAME))
-    except Exception:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, OSError):
         return False
 
 

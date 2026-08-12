@@ -186,7 +186,7 @@ class SignalFusionEngine:
             conn.close()
             if row and row[0] >= 5:  # 至少5条才有统计意义
                 return row[1] / row[0]
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.debug(f"读取 {source} 准确率失败: {e}")
         return None
 
@@ -372,7 +372,7 @@ class SignalFusionEngine:
                 result = getter(code)
                 if result is not None:
                     individual[source_name] = result
-            except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.warning(f"信号源 {source_name} 获取 {code} 失败: {e}")
 
         if not individual:
@@ -707,7 +707,7 @@ class SignalFusionEngine:
             ))
             conn.commit()
             conn.close()
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"持久化信号失败: {e}")
 
     def record_audit(self, code: str, source: str, timestamp: str,
@@ -722,7 +722,7 @@ class SignalFusionEngine:
             """, (code, source, timestamp, predicted_action, predicted_score))
             conn.commit()
             conn.close()
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"记录审计失败: {e}")
 
     def evaluate_past_signals(self, days_ago: int = 5,
@@ -790,7 +790,7 @@ class SignalFusionEngine:
                 prices = price_getter(code, date)
                 if prices and 'change_pct' in prices:
                     return 'UP' if prices['change_pct'] > 0 else 'DOWN'
-            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError):
                 pass
         return None
 
@@ -904,7 +904,7 @@ def _get_fast_signal_source(code: str) -> SignalResult:
             # 快速信号不满足条件，返回空
             return None
             
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (AttributeError, TypeError, ValueError, OSError) as e:
         logger.warning(f"获取快速技术指标信号失败: {e}")
         return None
 
@@ -915,7 +915,7 @@ def register_fast_signal_source(initial_weight: float = 0.2):
         engine = get_fusion_engine()
         engine.register_source('fast_technical', _get_fast_signal_source, initial_weight)
         logger.info("快速技术指标信号源已注册")
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.error(f"注册快速技术指标信号源失败: {e}")
 
 
@@ -924,7 +924,7 @@ def get_fast_signal_integration_enabled() -> bool:
     try:
         engine = get_fusion_engine()
         return 'fast_technical' in engine._sources
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning(f"检查快速信号源失败: {e}")
         return False
 
@@ -935,7 +935,7 @@ if get_fast_signal_integration_enabled():
 else:
     try:
         register_fast_signal_source()
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning(f"自动注册快速信号源失败: {e}")
 
 
@@ -1023,7 +1023,7 @@ def _get_hedge_signal_source(code: str) -> SignalResult:
             timestamp=datetime.now().isoformat()
         )
         
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.warning(f"对冲信号获取失败: {e}")
         return None
 
@@ -1034,7 +1034,7 @@ def register_hedge_signal_source(initial_weight: float = 0.15):
         engine = get_fusion_engine()
         engine.register_source('hedge_engine', _get_hedge_signal_source, initial_weight)
         logger.info(f"对冲引擎信号源已注册 (权重={initial_weight:.3f})")
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.error(f"注册对冲引擎信号源失败: {e}")
 
 
@@ -1043,7 +1043,7 @@ def is_hedge_signal_enabled() -> bool:
     try:
         engine = get_fusion_engine()
         return 'hedge_engine' in engine._sources
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning(f"检查对冲信号源失败: {e}")
         return False
 
@@ -1087,7 +1087,7 @@ def _get_gtja191_signal_source(code: str) -> Optional[SignalResult]:
             reason=f"GTJA191 Alpha144={float(value):.6e}",
             timestamp=datetime.now().isoformat(),
         )
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.warning(f"GTJA191 信号获取失败: {e}")
         return None
 
@@ -1098,7 +1098,7 @@ def register_gtja191_signal_source(initial_weight: float = 0.1):
         engine = get_fusion_engine()
         engine.register_source('gtja191', _get_gtja191_signal_source, initial_weight)
         logger.info(f"GTJA191 信号源已注册 (权重={initial_weight:.3f})")
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.error(f"注册 GTJA191 信号源失败: {e}")
 
 
@@ -1107,6 +1107,6 @@ def is_gtja191_signal_enabled() -> bool:
     try:
         engine = get_fusion_engine()
         return 'gtja191' in engine._sources
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning(f"检查 GTJA191 信号源失败: {e}")
         return False

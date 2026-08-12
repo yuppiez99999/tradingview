@@ -51,6 +51,7 @@ from src.backtest.scenario_lib import (  # noqa: E402
 )
 from src.alpha.signal_generator import SignalGenerator  # noqa: E402
 from src.alpha.signal_fusion import SignalFusion  # noqa: E402
+import src.alpha.qlib_signal_adapter as qsa  # noqa: E402
 from src.backtest.cost_aware_backtest import CostAwareBacktest  # noqa: E402
 from src.backtest.combinatorial_purged_cv import CombinatorialPurgedCV  # noqa: E402
 from src.backtest.walk_forward import WalkForward  # noqa: E402
@@ -762,3 +763,183 @@ class TestDriftDetector:
         d = ModelDriftDetector(ic_threshold=0.02)
         a = d.update_ic("2024-01-01", 0.04)
         assert a is None or hasattr(a, "drift_type")
+
+
+# ============================================================
+# alpha/qlib_signal_adapter (重型模块: qlib/lightgbm 已优雅降级)
+# ============================================================
+class TestQlibSignalAdapter:
+    """ms_strategy/src/alpha/qlib_signal_adapter.py 重型模块覆盖。
+
+    环境中 qlib 顶层可导入但 qlib.contrib.model.lightgbm 子模块缺失,
+    故 _QLIB_AVAILABLE=False, 系统走本地 LightGBM 回退路径。
+    本测试类覆盖纯逻辑 + 回退路径 (不依赖 qlib 在线服务)。
+    """
+
+    @staticmethod
+    def _make_ohlcv(periods=200, seed=0):
+        idx = pd.date_range("2023-01-01", periods=periods, freq="B")
+        rng = np.random.default_rng(seed)
+        close = 100 + np.cumsum(rng.normal(0, 1, periods))
+        return pd.DataFrame(
+            {
+                "open": close + 0.1,
+                "high": close + 1.0,
+                "low": close - 1.0,
+                "close": close,
+                "volume": 1000 + rng.integers(0, 500, periods),
+            },
+            index=idx,
+        )
+
+    def test_constants_and_availability(self):
+        assert qsa.DEFAULT_MODEL == "lightgbm"
+        assert "lstm" in qsa.MODEL_MAP and "lightgbm" in qsa.MODEL_MAP and "transformer" in qsa.MODEL_MAP
+        # 环境中 qlib.contrib.model.lightgbm 缺失 -> _QLIB_AVAILABLE=False
+        assert qsa._QLIB_AVAILABLE is False
+        assert qsa.is_qlib_available() is False
+        assert qsa.init_qlib() is False
+
+    def test_select_period_by_days(self):
+        assert qsa._select_period_by_days(10) == "1m"
+        assert qsa._select_period_by_days(40) == "3m"
+        assert qsa._select_period_by_days(90) == "6m"
+        assert qsa._select_period_by_days(200) == "1y"
+        assert qsa._select_period_by_days(400) == "2y"
+        assert qsa._select_period_by_days(700) == "3y"
+        assert qsa._select_period_by_days(1000) == "5y"
+
+    def test_v75_to_qlib_features(self):
+        idx = pd.date_range("2024-01-01", periods=20, freq="B")
+        df = pd.DataFrame(
+            {
+                "Open": np.arange(20) + 10.0,
+                "High": np.arange(20) + 12.0,
+                "Low": np.arange(20) + 9.0,
+                "Close": np.arange(20) + 11.0,
+                "Volume": np.arange(20) + 100.0,
+            },
+            index=idx,
+        )
+        qdf = qsa.v75_to_qlib_features(df, "600000")
+        assert list(qdf.columns) == ["open", "high", "low", "close", "volume", "instrument"]
+        assert (qdf["instrument"] == "600000").all()
+        assert isinstance(qdf.index, pd.DatetimeIndex)
+
+    def test_standardize_df_columns(self):
+        idx = pd.date_range("2024-01-01", periods=10, freq="B")
+        df = pd.DataFrame(
+            {
+                "日期": idx,
+                "open": np.arange(10) + 1.0,
+                "high": np.arange(10) + 2.0,
+                "low": np.arange(10) + 0.5,
+                "close": np.arange(10) + 1.5,
+                "volume": np.arange(10) + 100.0,
+            }
+        )
+        sdf = qsa._standardize_df_columns(df)
+        assert list(sdf.columns) == ["open", "high", "low", "close", "volume"]
+        assert isinstance(sdf.index, pd.DatetimeIndex)
+
+    def test_validate_and_clean_ohlcv_too_short(self):
+        # 少于 60 行 -> 返回 None
+        df = self._make_ohlcv(periods=30)
+        assert qsa._validate_and_clean_ohlcv(df, "TEST", days=100) is None
+
+    def test_validate_and_clean_ohlcv_ok(self):
+        df = self._make_ohlcv(periods=120)
+        clean = qsa._validate_and_clean_ohlcv(df, "TEST", days=150)
+        assert clean is not None
+        assert isinstance(clean.index, pd.DatetimeIndex)
+
+    def test_add_technical_features(self):
+        df = self._make_ohlcv(periods=120)
+        tf = qsa._add_technical_features(df.copy())
+        assert len(tf.columns) >= 30  # 原始 5 + 技术 29
+        for c in ["ma5", "macd", "rsi6", "boll_upper", "atr"]:
+            assert c in tf.columns
+
+    def test_add_technical_features_missing_columns(self):
+        with pytest.raises(KeyError):
+            qsa._add_technical_features(pd.DataFrame({"close": [1.0, 2.0, 3.0]}))
+
+    def test_local_lightgbm_signal(self):
+        df = self._make_ohlcv(periods=200)
+        res = qsa._local_lightgbm_signal(df, "TEST", save_model=False)
+        assert res["signal"] is not None
+        assert len(res["signal"]) == 28  # ~ 200 - 162 + 1 (shift) 片段
+        assert "train_r2" in res["metrics"]
+        assert "feature_cols" in res["metrics"]
+
+    def test_generate_signal_fallback(self):
+        df = self._make_ohlcv(periods=200)
+        sig = qsa.generate_signal(df, "TEST", use_cache=False, save_model=False)
+        assert sig is not None
+        assert len(sig) > 0
+
+    def test_generate_qlib_signal_unavailable(self):
+        df = self._make_ohlcv(periods=200)
+        assert qsa.generate_qlib_signal(df, "TEST") is None
+
+    def test_prepare_qlib_dataset_unavailable(self):
+        df = self._make_ohlcv(periods=200)
+        assert qsa.prepare_qlib_dataset(
+            df, "TEST", "2023-01-01", "2023-06-01", "2023-06-02",
+            "2023-09-01", "2023-09-02", "2023-12-31",
+        ) is None
+
+    def test_v75_to_qlib_features_datetime_index_fallback(self):
+        # index 非 DatetimeIndex, 但有 'datetime' 列 -> 应转为 DatetimeIndex
+        idx = pd.RangeIndex(10)
+        df = pd.DataFrame(
+            {
+                "datetime": pd.date_range("2024-01-01", periods=10, freq="B"),
+                "Open": np.arange(10) + 10.0,
+                "High": np.arange(10) + 12.0,
+                "Low": np.arange(10) + 9.0,
+                "Close": np.arange(10) + 11.0,
+                "Volume": np.arange(10) + 100.0,
+            },
+            index=idx,
+        )
+        qdf = qsa.v75_to_qlib_features(df, "600000")
+        assert isinstance(qdf.index, pd.DatetimeIndex)
+        assert "instrument" in qdf.columns
+
+    def test_v75_to_qlib_features_date_column_fallback(self):
+        # index 非 DatetimeIndex, 有 'date' 列 -> 应转为 DatetimeIndex
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range("2024-01-01", periods=8, freq="B"),
+                "open": np.arange(8) + 1.0,
+                "high": np.arange(8) + 2.0,
+                "low": np.arange(8) + 0.5,
+                "close": np.arange(8) + 1.5,
+                "volume": np.arange(8) + 100.0,
+            }
+        )
+        qdf = qsa.v75_to_qlib_features(df, "TEST")
+        assert isinstance(qdf.index, pd.DatetimeIndex)
+
+    def test_standardize_df_columns_with_date_col(self):
+        df = pd.DataFrame(
+            {
+                "日期": pd.date_range("2024-01-01", periods=6, freq="B"),
+                "open": np.arange(6) + 1.0,
+                "high": np.arange(6) + 2.0,
+                "low": np.arange(6) + 0.5,
+                "close": np.arange(6) + 1.5,
+                "volume": np.arange(6) + 100.0,
+            }
+        )
+        sdf = qsa._standardize_df_columns(df)
+        assert isinstance(sdf.index, pd.DatetimeIndex)
+
+    def test_local_lightgbm_signal_dataframe_input(self):
+        # _local_lightgbm_signal 接受 DataFrame, 内部转 numpy
+        df = self._make_ohlcv(periods=200)
+        res = qsa._local_lightgbm_signal(df, "TEST", save_model=False)
+        assert res["signal"] is not None
+        # 信号均为有效浮点
+        assert res["signal"].notna().all()

@@ -48,7 +48,7 @@ def _ensure_utf8_stream() -> None:
             continue
         try:
             setattr(sys, name, io.TextIOWrapper(buffer, encoding="utf-8", errors="replace"))
-        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
             pass
 
 
@@ -143,7 +143,7 @@ class SupplyChainBuilder:
                     strength=float(e.get("strength", 0.5)),
                     source_info=str(e.get("source_info", "")),
                 ))
-            except Exception as exc:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
                 logger.warning("[Builder] 边转换失败: %s — %s", exc, e)
         return edges
 
@@ -245,7 +245,7 @@ def load_positions_symbols() -> List[str]:
                 if base:
                     clean.append(base)
             return list(dict.fromkeys(clean))
-        except Exception as exc:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
             logger.warning(f"[Builder] positions.json 解析失败: {exc}")
     # portfolio.yaml 兜底
     return DEFAULT_SYMBOLS

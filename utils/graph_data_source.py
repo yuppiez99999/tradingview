@@ -45,7 +45,7 @@ def _ensure_utf8_stream() -> None:
             continue
         try:
             setattr(sys, name, io.TextIOWrapper(buffer, encoding="utf-8", errors="replace"))
-        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
             pass
 
 
@@ -157,12 +157,12 @@ class GraphDataSource:
                 logger.debug(f"{source} 连接重置(第{attempt + 1}次): {exc}, 重建Session")
                 try:
                     self._session.close()
-                except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+                except (ValueError, TypeError, KeyError, AttributeError, OSError):
                     pass
                 self._session = requests.Session()
                 self._session.headers.update(_EM_HEADERS)
                 time.sleep(_EM_INTERVAL * (attempt + 2))
-            except Exception as exc:  # 其他网络/解析异常, fail-safe  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
                 last_exc = exc
                 logger.debug(f"{source} 请求失败(第{attempt + 1}次): {exc}")
                 time.sleep(_EM_INTERVAL * (attempt + 1))
@@ -390,7 +390,7 @@ class GraphDataSource:
             data = _json.loads(path.read_text(encoding="utf-8"))
             rows = data.get(key, [])
             return rows if isinstance(rows, list) else []
-        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             return []
 
     def _save_board_cache(self, key: str, rows: List[Dict[str, str]]) -> None:
@@ -402,12 +402,12 @@ class GraphDataSource:
             if path.exists():
                 try:
                     data = _json.loads(path.read_text(encoding="utf-8"))
-                except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                     data = {}
             data[key] = rows
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(_json.dumps(data, ensure_ascii=False), encoding="utf-8")
-        except Exception as exc:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
             logger.debug(f"板块缓存写入失败: {exc}")
 
     # ----------------------------------------------------------
@@ -503,7 +503,7 @@ class GraphDataSource:
             import json as _json
             data = _json.loads(path.read_text(encoding="utf-8"))
             return data.get(key)
-        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             return None
 
     # ----------------------------------------------------------

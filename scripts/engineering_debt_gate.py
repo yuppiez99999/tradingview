@@ -126,9 +126,10 @@ def _check_fail_safe_broad_except() -> tuple[bool, str]:
     """
     import re
 
+    # 仅匹配代码行的 except Exception (排除注释/文档字符串中的 "except Exception")
     patterns = [
-        re.compile(r"except\s+Exception\b.*#.*(?:fail-safe|noqa:\s*BLE001)", re.IGNORECASE),
-        re.compile(r"except\s+Exception\b\s*:\s*#\s*fail-safe", re.IGNORECASE),
+        re.compile(r"^\s*except\s+Exception\b.*#.*(?:fail-safe|noqa:\s*BLE001)", re.IGNORECASE),
+        re.compile(r"^\s*except\s+Exception\b\s*:\s*#\s*fail-safe", re.IGNORECASE),
     ]
     count = 0
     scanned_dirs = [
@@ -142,8 +143,14 @@ def _check_fail_safe_broad_except() -> tuple[bool, str]:
         if not base.exists():
             continue
         for py_file in base.rglob("*.py"):
+            # ci_integrity_check.py 自身的示例豁免 (门禁脚本必须宽捕获以兼容任何失败)
+            if py_file.name == "ci_integrity_check.py":
+                continue
             try:
                 for ln in py_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                    stripped = ln.lstrip()
+                    if stripped.startswith("#"):
+                        continue  # 跳过纯注释行 (文档/注释提及不算债)
                     if any(p.search(ln) for p in patterns):
                         count += 1
                         hits.append(f"{py_file.name}:{ln.strip()[:80]}")

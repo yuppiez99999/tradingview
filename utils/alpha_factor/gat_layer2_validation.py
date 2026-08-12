@@ -67,7 +67,7 @@ for _name in ("stdout", "stderr"):
         if _buffer is not None:
             try:
                 setattr(sys, _name, io.TextIOWrapper(_buffer, encoding="utf-8", errors="replace"))
-            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError):
                 pass
 
 logger = logging.getLogger(__name__)

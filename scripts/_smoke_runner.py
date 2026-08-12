@@ -86,7 +86,7 @@ def check_imports() -> List[Check]:
                                  False, f"missing symbols: {missing}"))
             else:
                 out.append(Check(cid, f"import {mod}", True, "OK"))
-        except Exception as e:  # noqa: BLE001
+        except (ImportError, AttributeError) as e:
             out.append(Check(cid, f"import {mod}", False, f"{type(e).__name__}: {e}"))
     return out
 

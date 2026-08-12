@@ -595,7 +595,7 @@ class PostTradeAttribution:
             from utils.execution.fills_store import FillsStore
 
             fills = FillsStore().load_day(date)
-        except Exception as e:  # noqa: BLE001  # fail-open
+        except (ImportError, AttributeError) as e:
             logger.warning("[TCA-PostTrade] 读取 FillsStore 失败, 跳过归因: %s", e)
             return 0
 
@@ -623,7 +623,7 @@ class PostTradeAttribution:
             try:
                 self.record(fill=fill, estimate=None)
                 ingested += 1
-            except Exception as e:  # noqa: BLE001  # fail-open
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.warning("[TCA-PostTrade] 归因单笔成交失败 %s: %s", symbol, e)
 
         logger.info(

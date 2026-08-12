@@ -137,7 +137,7 @@ class GLM5DecisionEngine:
         try:
             self.router = get_model_router()
             logger.info("✓ 多模型路由器初始化成功")
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"多模型路由器初始化失败: {e}, 降级到 GLM5Client")
             self.router = None
         
@@ -145,7 +145,7 @@ class GLM5DecisionEngine:
         try:
             self.wind_provider = get_wind_provider()
             logger.info(f"✓ Wind 数据供应器初始化成功 (Wind MCP: {'可用' if self.wind_provider._wind_available else '不可用'})")
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"Wind 数据供应器初始化失败: {e}")
             self.wind_provider = None
         
@@ -158,7 +158,7 @@ class GLM5DecisionEngine:
                 max_new_tokens=self.config.get("max_tokens", 3000),
             )
             logger.info("✓ GLM-5 客户端 (降级方案) 初始化成功")
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"GLM-5 客户端初始化失败: {e}")
             self.client = None
         
@@ -350,7 +350,7 @@ class GLM5DecisionEngine:
                         logger.info(f"[Wind MCP] 已加载 {len(wind_market.get('基本面数据', {}))} 只标的基本面数据")
                     
                     logger.info(f"[Wind MCP] 指数行情已更新: {list(wind_market.get('指数行情', {}).keys())}")
-            except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning(f"[Wind MCP] 数据增强失败: {e}, 使用原始 market_data")
         
         # 构建决策提示词
@@ -445,7 +445,7 @@ class GLM5DecisionEngine:
             
             return decision
             
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.error(f"[v5.8路由] 调用失败: {e}, 降级到旧版模式")
             return self._make_decision_legacy(prompt, market_data, portfolio_data, risk_rules)
     
@@ -478,7 +478,7 @@ class GLM5DecisionEngine:
                 risk_rules=risk_rules,
             )
             
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"旧版模式分析失败: {e}")
             return self._create_error_result(str(e))
     
@@ -1000,7 +1000,7 @@ if __name__ == "__main__":
         logger.info("\n" + "=" * 60)
         logger.info("✅ 决策引擎测试完成!")
         
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.error(f"\n❌ 决策引擎测试失败: {e}")
         import traceback
         traceback.print_exc()

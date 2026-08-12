@@ -56,7 +56,7 @@ def _run_g15_single_day(
         from utils.backtest.event_driven_engine import EventDrivenEngine
         from utils.wt_structs import BarData
         import pandas as pd
-    except Exception as e:  # noqa: BLE001
+    except (ImportError, AttributeError) as e:
         print(f"  [SKIP] 模块导入失败: {e}")
         return None
 
@@ -86,7 +86,7 @@ def _run_g15_single_day(
             else:
                 continue
             bars.append(bar)
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             print(f"  [SKIP] {symbol} 拉取失败: {e}")
             continue
 
@@ -151,7 +151,7 @@ def main() -> int:
             continue
         try:
             weights = feeder._load_target_weights(date)  # noqa: SLF001
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             print(f"[WARN] {date} 权重加载失败: {e}")
             continue
 

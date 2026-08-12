@@ -551,7 +551,7 @@ class BacktestDataLoader:
                     }
                     data.append(day)
 
-            except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 continue
 
         return data

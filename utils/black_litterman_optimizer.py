@@ -412,7 +412,7 @@ class BlackLittermanOptimizer:
             return m.astype(float)
         try:
             return np.asarray(m, dtype=float)
-        except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
             return np.array(m, dtype=float)
 
     # ------------------------------------------------------------

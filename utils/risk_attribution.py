@@ -58,7 +58,7 @@ def load_positions(path: str | Path = DEFAULT_POSITIONS_PATH) -> list[dict[str, 
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-    except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         return []
 
     positions = []
@@ -88,7 +88,7 @@ def load_hedge_positions(path: str | Path = DEFAULT_POSITIONS_PATH) -> dict[str,
     try:
         with open(path, encoding="utf-8") as f:
             return json.load(f).get("hedge_positions", {})  # type: ignore[index]
-    except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         return {}
 
 

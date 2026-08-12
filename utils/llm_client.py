@@ -36,7 +36,7 @@ logger = None
 try:
     from utils.logger import get_logger
     logger = get_logger("llm_client")
-except Exception:  # noqa: BLE001
+except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
     import logging
     logger = logging.getLogger("llm_client")
 
@@ -62,7 +62,7 @@ def _load_glm5():
     try:
         from utils.glm5_client import GLM5Client, get_glm5_client
         return get_glm5_client()
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.warning(f"统一LLM: glm5_client 加载失败 ({e})")
         return None
 
@@ -77,7 +77,7 @@ def _load_legacy():
             sys.path.insert(0, str(_path))
         import llm_client as _legacy
         return _legacy
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.warning(f"统一LLM: 15_每日工作流/llm_client 加载失败 ({e})")
         return None
 
@@ -119,7 +119,7 @@ def _record_usage(model: str, prompt_tokens: int, completion_tokens: int,
         _USAGE_LOG.parent.mkdir(parents=True, exist_ok=True)
         with open(_USAGE_LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    except Exception:  # noqa: BLE001
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         pass  # 用量记录失败不影响主流程
 
 
@@ -154,7 +154,7 @@ def chat(prompt: str, system: str = "", temperature: float = 0.3,
                               int((time.time() - start) * 1000), "glm5")
                 if content:
                     return content
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"统一LLM: GLM5 chat 失败 ({e}), 降级")
 
     # 2. 降级路径: 15_每日工作流 三级链
@@ -166,7 +166,7 @@ def chat(prompt: str, system: str = "", temperature: float = 0.3,
                           int((time.time() - start) * 1000), "legacy")
             if result:
                 return result
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"统一LLM: legacy chat 失败 ({e})")
 
     return None
@@ -187,13 +187,13 @@ def test_connection() -> Dict[str, Any]:
     if _glm5_client is not None:
         try:
             result["glm5"] = bool(_glm5_client.is_ready())
-        except Exception:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             result["glm5"] = False
     if _legacy_client is not None and hasattr(_legacy_client, "test_connection"):
         try:
             legacy_res = _legacy_client.test_connection()
             result["legacy"] = bool(legacy_res.get("success")) if isinstance(legacy_res, dict) else bool(legacy_res)
-        except Exception:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             result["legacy"] = False
     result["available"] = result["glm5"] or result["legacy"]
     return result

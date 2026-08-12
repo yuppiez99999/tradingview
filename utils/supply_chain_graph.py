@@ -190,7 +190,7 @@ class SupplyChainGraph:
             try:
                 self.add_edge(e)
                 count += 1
-            except Exception as exc:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                 logger.warning("[SupplyChain] 添加边失败: %s", exc)
         return count
 

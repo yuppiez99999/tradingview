@@ -156,7 +156,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             self._initialized = True
             logger.info("增强版信号融合引擎数据库初始化完成")
             
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"初始化增强版数据库失败: {e}")
             self._initialized = False
 
@@ -194,7 +194,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             # 内存中记录
             self._weight_history[source_name].append((datetime.now().isoformat(), new_weight))
             
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"记录权重变化失败: {e}")
 
     def _compute_enhanced_dynamic_weights(self) -> Dict[str, float]:
@@ -333,7 +333,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             # 保存到数据库
             self._save_correlation_matrix()
             
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"更新相关性矩阵失败: {e}")
             # 如果失败，使用默认零相关性
             for source1 in sources:
@@ -360,7 +360,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             conn.commit()
             conn.close()
             
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"保存相关性矩阵失败: {e}")
 
     def _apply_weight_constraints(self, performance_scores: Dict[str, float], 
@@ -509,7 +509,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             conn.commit()
             conn.close()
             
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"保存性能指标失败: {e}")
 
     def _adaptive_weight_adjustment(self):
@@ -618,7 +618,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                 "weight_history": records
             }
             
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"获取权重变化分析失败: {e}")
             return {"error": str(e)}
 
@@ -698,7 +698,7 @@ def register_enhanced_fast_signal_source(initial_weight: float = 0.2):
             {"type": "technical", "latency": "ultra_low"}
         )
         logger.info("增强版快速技术指标信号源已注册")
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.error(f"注册增强版快速技术指标信号源失败: {e}")
 
 
@@ -735,7 +735,7 @@ def _get_enhanced_fast_signal_source(code: str) -> SignalResult:
         else:
             return None
             
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (AttributeError, TypeError, ValueError, OSError) as e:
         logger.warning(f"获取增强版快速技术指标信号失败: {e}")
         return None
 
@@ -746,5 +746,5 @@ try:
     if 'fast_technical' not in enhanced_engine._sources:
         register_enhanced_fast_signal_source()
         logger.info("自动注册增强版快速技术指标信号源成功")
-except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
     logger.warning(f"自动注册增强版快速信号源失败: {e}")

@@ -288,7 +288,7 @@ class LedoitWolfCovariance:
                 try:
                     rb = self.fit(Rb)
                     bootstraps.append(rb.cov_shrunk)
-                except Exception:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+                except (ValueError, TypeError, KeyError, AttributeError, OSError):
                     continue
             if bootstraps:
                 stacked = np.stack(bootstraps, axis=0)

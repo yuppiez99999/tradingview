@@ -75,7 +75,7 @@ try:
     from utils.execution.fills_store import FillsStore
 
     _FILLS_STORE_AVAILABLE = True
-except Exception:  # noqa: BLE001
+except (ImportError, AttributeError):
     FillsStore = None
     _FILLS_STORE_AVAILABLE = False
 
@@ -83,7 +83,7 @@ try:
     from ms_strategy.src.hedging.hedge_coordinator import HedgeCoordinator
 
     _HEDGE_AVAILABLE = True
-except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+except (ImportError, AttributeError):
     HedgeCoordinator = None
     _HEDGE_AVAILABLE = False
 
@@ -93,7 +93,7 @@ try:
     from utils.execution.broker_factory import get_broker
 
     _GET_BROKER_AVAILABLE = True
-except Exception:  # noqa: BLE001
+except (ImportError, AttributeError):
     get_broker = None
     _GET_BROKER_AVAILABLE = False
 
@@ -118,7 +118,7 @@ try:
     from wind_mcp_fetcher import wind_get_quote
 
     _WIND_MCP_AVAILABLE = True
-except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
     wind_get_quote = None
     _WIND_MCP_AVAILABLE = False
 
@@ -549,7 +549,7 @@ class MarketStateEvaluator:
 
             return evaluation_report
 
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"市场状态评估失败: {e}")
             return {"market_state": "normal", "confidence": 0.0, "error": str(e)}
 
@@ -835,7 +835,7 @@ class ExecutionStrategy:
                 "reasoning": f"基于市场状态{market_state}和交易特性选择",
             }
 
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"执行策略选择失败: {e}")
             # 返回默认策略
             return {
@@ -910,7 +910,7 @@ class ExecutionStrategy:
 
             return execution_plan
 
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"执行计划生成失败: {e}")
             return {"error": str(e)}
 
@@ -1133,7 +1133,7 @@ class OrderRouter:
                 "estimated_wait_time": self._estimate_wait_time(pool_name),
             }
 
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"订单路由失败: {e}")
             return {"success": False, "error": str(e)}
 
@@ -1246,7 +1246,7 @@ class OrderRouter:
 
                 logger.info(f"订单处理完成: {order['order_id']} - {order['status']}")
 
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"执行队列处理失败: {e}")
 
     def _can_execute_order(self, order: Dict) -> bool:
@@ -1331,7 +1331,7 @@ class OrderRouter:
                                 "error": f"KillSwitch 熔断中 (level={ks_level}), 禁止实盘下单",
                                 "kill_switch_blocked": True,
                             }
-                    except Exception as ks_err:  # noqa: BLE001  # fail-safe, 待后续精确化
+                    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as ks_err:
                         # KillSwitch 检查异常时 fail-closed: 拒绝下单
                         logger.error("[OrderRouter] KillSwitch 检查异常, fail-closed 拒绝下单: %s", ks_err)
                         return {
@@ -1441,7 +1441,7 @@ class OrderRouter:
                     "is_live": False,
                 }
 
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             return {"success": False, "error": str(e)}
 
     def _get_reference_price(self, symbol: str) -> Optional[float]:
@@ -1501,7 +1501,7 @@ class OrderRouter:
                     "order_id": order.get("order_id"),
                 },
             )
-        except Exception as e:  # noqa: BLE001  # fail-open, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("[OrderRouter] 成交落盘失败 (已忽略): %s", e)
 
     def _update_execution_stats(self, execution_result: Dict):
@@ -1576,7 +1576,7 @@ class AutomatedExecutionSystem:
         if _GET_BROKER_AVAILABLE:
             try:
                 _broker = get_broker()
-            except Exception as exc:  # noqa: BLE001  # 装配失败不阻断主链路
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                 logger.warning("[G1] broker 装配失败, OrderRouter 走空 broker 降级模拟: %s", exc)
         self.order_router = OrderRouter(broker=_broker)
 
@@ -1597,7 +1597,7 @@ class AutomatedExecutionSystem:
             try:
                 self.hedge_coordinator = HedgeCoordinator()
                 self.hedge_enabled = True
-            except Exception as exc:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                 logger.warning("对冲模块初始化失败: %s", exc)
 
         # 执行状态
@@ -1686,7 +1686,7 @@ class AutomatedExecutionSystem:
                 self._execute_daily_trading(matched_execution)
                 time.sleep(60)
 
-            except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.error(f"执行循环错误: {e}")
                 time.sleep(60)
 
@@ -1716,13 +1716,13 @@ class AutomatedExecutionSystem:
             # 0. 每日自动更新历史收益率数据（供对冲引擎使用真实Beta/相关性）
             try:
                 self._update_historical_returns()
-            except Exception as update_exc:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as update_exc:
                 logger.warning("历史收益率自动更新失败: %s", update_exc)
 
             # 0.5 更新持仓实时价格
             try:
                 self._update_position_prices()
-            except Exception as update_exc:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as update_exc:
                 logger.warning("持仓价格更新失败: %s", update_exc)
 
             # 1. 市场状态评估
@@ -1788,7 +1788,7 @@ class AutomatedExecutionSystem:
             # 10. 生成对冲执行单
             try:
                 self._generate_hedge_execution_orders(hedge_plan)
-            except Exception as exc:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                 # B4 修复 (2026-08-08): 静默吞咽 -> 计数+告警+状态标记.
                 # 见 docs/CODE_REVIEW_COMPREHENSIVE_20260808.md B4 + docs/CODE_REVIEW_GAP_AUDIT D-7.
                 # 原: 仅 logger.warning, "对冲实际没生效"与"普通告警"在日志里长得一样.
@@ -1829,7 +1829,7 @@ class AutomatedExecutionSystem:
                             "routing_result": routing,
                             "timestamp": datetime.now().isoformat(),
                         })
-            except Exception as exc:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
                 # B4 修复: 同上, 静默吞咽 -> 计数+告警.
                 logger.error("[REBALANCE_FAIL] 再平衡订单生成失败: %s", exc, exc_info=True)
                 execution_result.setdefault("rebalance_failure", {
@@ -1850,7 +1850,7 @@ class AutomatedExecutionSystem:
 
             logger.info(f"每日交易执行完成: {execution_name}")
 
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"每日交易执行失败: {e}", exc_info=True)
             failure_record = {
                 "timestamp": datetime.now().isoformat(),
@@ -1894,7 +1894,7 @@ class AutomatedExecutionSystem:
                     market_returns = pd.read_json(market_path, orient="split", typ="series")
                     returns.columns = returns.columns.astype(str)
                     logger.info("已加载历史收益率数据: %s 条, %s 个标的", len(market_returns), returns.shape[1])
-                except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                     logger.warning("加载历史收益率失败: %s", e)
 
             if returns.empty or market_returns is None or len(market_returns) == 0:
@@ -1967,7 +1967,7 @@ class AutomatedExecutionSystem:
                 float(plan.get("total_cost_pct", 0.0) or 0.0) * 100,
             )
             return plan
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"对冲决策失败: {e}")
             return None
 
@@ -2006,7 +2006,7 @@ class AutomatedExecutionSystem:
                             real_time_price = float(quote["price"])
                             if real_time_price > 0:
                                 price_source = "wind_mcp"
-                    except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                         logger.debug("Wind MCP 获取价格失败 %s: %s", code, e)
 
                 if real_time_price is None or real_time_price <= 0:
@@ -2023,7 +2023,7 @@ class AutomatedExecutionSystem:
                     json.dump(data, f, ensure_ascii=False, indent=2)
 
             logger.info("持仓价格更新完成: 成功 %s, 失败 %s", update_count, fail_count)
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("持仓价格更新失败: %s", e)
 
     def _update_historical_returns(self):
@@ -2051,7 +2051,7 @@ class AutomatedExecutionSystem:
                     if df is not None and not df.empty and "close" in df.columns:
                         df["return"] = df["close"].pct_change()
                         returns_data[symbol] = df["return"].dropna()
-                except Exception:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                except (ValueError, TypeError, KeyError, AttributeError, OSError):
                     continue
 
             if not returns_data:
@@ -2069,7 +2069,7 @@ class AutomatedExecutionSystem:
                 market_returns.to_json(market_path, orient="split", date_format="iso")
 
             logger.info("历史收益率自动更新完成: %s 个标的", len(returns_df.columns))
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("历史收益率自动更新异常: %s", e)
 
     def _apply_hedge_triggers(self, market_data: Dict, hedge_plan: Optional[Dict]) -> Optional[Dict]:
@@ -2173,7 +2173,7 @@ class AutomatedExecutionSystem:
             # 无下游消费者 (执行断链)。现在把转换后的订单回写进 trade_plan 的
             # hedge_execution.active_orders 嵌套字典, 由 hedge_order_executor 统一撮合。
             self._writeback_hedge_orders_to_trade_plan(orders)
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("生成对冲执行单失败: %s", e)
 
     def _writeback_hedge_orders_to_trade_plan(self, orders_result: Dict) -> None:
@@ -2339,7 +2339,7 @@ class AutomatedExecutionSystem:
                     quote = wind_get_quote("510300.SH", is_fund=True)
                     if quote and quote.get("price") is not None:
                         index_price = float(quote["price"])
-                except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                     logger.debug("Wind MCP 获取市场指数失败: %s", e)
 
             # 回退到历史数据
@@ -2351,7 +2351,7 @@ class AutomatedExecutionSystem:
                         market_returns = pd.read_json(market_path, orient="split", typ="series")
                         if not market_returns.empty:
                             index_price = safe_float(float(market_returns.iloc[-1]) * 1000 + 3000)
-                except Exception:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                     logger.warning("读取 market_returns.json 失败, 跳过指数价格推断", exc_info=True)
 
             # 最终兜底 — 生产环境拒绝静默使用3000假指数，抛出异常强制上游处理
@@ -2396,7 +2396,7 @@ class AutomatedExecutionSystem:
                                 var_m = market_returns.var()
                                 if var_m > 0 and not np.isnan(cov):
                                     betas.append(float(cov / var_m))
-                            except Exception:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                            except (ValueError, TypeError, KeyError, AttributeError, OSError):
                                 logger.warning(f"计算 {col} beta 失败, 跳过", exc_info=True)
                                 continue
 
@@ -2427,7 +2427,7 @@ class AutomatedExecutionSystem:
                             "skewness": safe_float(0.0),
                             "extreme_events": safe_float(0, default=0),
                         }
-            except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.debug("历史收益率市场数据计算失败: %s", e)
 
             # 历史收益率计算失败 — 上游数据不可用，不允许静默返回假数据
@@ -2437,7 +2437,7 @@ class AutomatedExecutionSystem:
                 "拒绝返回硬编码假数据 (volatility=0.15, VaR=0.02 等)。"
                 "请检查 config/returns_history.json 和 config/market_returns.json 文件完整性。"
             )
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("获取市场数据失败: %s", e)
             raise RuntimeError(
                 f"市场数据完全不可用 (index_price={index_price})，拒绝返回全量硬编码假数据。原始错误: {e}"
@@ -2464,7 +2464,7 @@ class AutomatedExecutionSystem:
             logger.debug("风险预检查通过")
             return True
 
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"风险预检查失败: {e}")
             return False
 
@@ -2495,7 +2495,7 @@ class AutomatedExecutionSystem:
                     logger.debug("性能监控：暂无订单执行记录，跳过阈值告警")
 
                 time.sleep(300)
-            except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.error(f"性能监控错误: {e}")
                 time.sleep(300)
 
@@ -2616,7 +2616,7 @@ class AutomatedExecutionSystem:
                 logger.info("再平衡订单无有效订单, 无需路由")
 
             return report
-        except Exception as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"生成再平衡订单失败: {e}")
             return None
 

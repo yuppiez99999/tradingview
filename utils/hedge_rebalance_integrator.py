@@ -47,7 +47,7 @@ if os.path.isfile(_IFIND_CONFIG_PATH):
         with open(_IFIND_CONFIG_PATH, 'r', encoding='utf-8') as _f:
             _cfg = json.load(_f)
             _IFIND_TOKEN = (_cfg.get("auth_token") or "").strip()
-    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         pass
 IFIND_AVAILABLE = bool(_IFIND_TOKEN)
 IFIND_CLIENT = None
@@ -61,7 +61,7 @@ if IFIND_AVAILABLE:
         spec.loader.exec_module(mod)
         IFIND_CLIENT = mod
         logger.info("[HedgeRebalance] iFinD MCP 连接器加载成功")
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ImportError, AttributeError) as e:
         IFIND_CLIENT = None
         logger.warning(f"[HedgeRebalance] iFinD MCP 连接器不可用: {e}")
 
@@ -77,7 +77,7 @@ def _exec_ifind(server_type: str, tool_name: str, params: dict) -> dict:
         if isinstance(result, dict) and result.get("data"):
             return {"data": result["data"], "source": "iFinD MCP"}
         return result
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         return {"error": str(e)}
 
 
@@ -100,7 +100,7 @@ def _get_ifind_prices_batch(codes: List[str]) -> Dict[str, float]:
                 if px > 0:
                     prices[c] = px
                     logger.info("[HedgeRebalance][ifind] %s=%.2f", c, px)
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.debug(f"[HedgeRebalance][ifind] batch err: {e}")
     return prices
 
@@ -277,7 +277,7 @@ def _load_yaml(filepath: str) -> Optional[Dict]:
         import yaml
         with open(filepath, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f)
-    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         return None
 
 
@@ -285,7 +285,7 @@ def _load_json(filepath: str) -> Optional[Dict]:
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         return None
 
 
@@ -379,7 +379,7 @@ class HedgeRebalanceIntegrator:
                     pure = code.split('.')[0] if '.' in code else code
                     if pure in ifind_prices and ifind_prices[pure] > 0:
                         self._prices[code] = ifind_prices[pure]
-            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, OSError):
                 pass
 
         missing = [c for c in codes if c not in self._prices]
@@ -395,7 +395,7 @@ class HedgeRebalanceIntegrator:
                         pure = code.split('.')[0] if '.' in code else code
                         if pure in wind_prices and wind_prices[pure] > 0:
                             self._prices[code] = wind_prices[pure]
-            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 pass
 
         missing = [c for c in codes if c not in self._prices]
@@ -412,9 +412,9 @@ class HedgeRebalanceIntegrator:
                         if df is not None and not df.empty:
                             close_col = '收盘' if '收盘' in df.columns else ('close' if 'close' in df.columns else df.columns[-1])
                             self._prices[code] = float(df.iloc[-1][close_col])
-                    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+                    except (ValueError, TypeError, KeyError, AttributeError, OSError):
                         pass
-            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ImportError, AttributeError):
                 pass
 
         missing = [c for c in codes if c not in self._prices]
@@ -432,9 +432,9 @@ class HedgeRebalanceIntegrator:
                                 px = float(quote.get('price', 0) or quote.get('latest', 0))
                             if px > 0:
                                 self._prices[code] = px
-                    except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+                    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                         pass
-            except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 pass
 
         # P4: 兜底价格
@@ -563,7 +563,7 @@ class HedgeRebalanceIntegrator:
             except (OSError, ValueError, KeyError) as err:  # 仅捕获数据读取类异常
                 logger.warning("加载 %s 历史收益率失败: %s", filepath, err)
                 continue
-            except Exception as err:  # noqa: BLE001  # 未知异常也要显式记录, 不允许静默
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as err:
                 logger.error("加载 %s 历史收益率出现未知错误: %s", filepath, err)
                 continue
         return returns
@@ -740,7 +740,7 @@ class HedgeRebalanceIntegrator:
             analyzer = KondratievCycleAnalyzer()
             phase_info = analyzer.get_current_phase()
             kondratiev_phase = phase_info.get('phase', None)
-        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             pass
 
         rotation_config = None
@@ -1024,7 +1024,7 @@ class HedgeRebalanceIntegrator:
                     if stress_tests:
                         breach_count = sum(1 for r in stress_tests.values() if r['breaches_limit'])
                         logger.info(f"[P0-8] 压力测试完成: {breach_count}/6 情景突破15%回撤上限")
-            except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning(f"[P0-8] 压力测试跳过: {e}")
 
         logger.info("[Phase 5/5] 生成执行计划...")

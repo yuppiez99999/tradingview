@@ -201,7 +201,7 @@ class KillSwitchAdapter:
                     content=f"保证金占用={margin_usage}, margin_call={status.get('margin_call', False)}",
                     level=level,
                 )
-            except Exception:  # noqa: BLE001  # 告警 fail-open
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 logger.warning("MARGIN_BREACH 告警发送失败 (fail-open)", exc_info=True)
             return
 
@@ -260,7 +260,7 @@ class KillSwitchAdapter:
                     content=f"executed={result.get('executed', False)}, actions={result.get('actions_taken', [])}",
                     level="critical",
                 )
-            except Exception:  # noqa: BLE001  # 告警 fail-open
+            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 logger.warning("KILL_SWITCH 告警发送失败 (fail-open)", exc_info=True)
             return
 

@@ -67,7 +67,7 @@ class LocalLLMClient:
             logger.warning('llama-cpp-python 未安装，本地模型不可用')
             self._available = False
             return False
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except (AttributeError, TypeError, ValueError, OSError) as e:
             logger.warning(f'本地模型检查失败: {e}')
             self._available = False
             return False

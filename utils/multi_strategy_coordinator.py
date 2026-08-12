@@ -593,7 +593,7 @@ class MultiStrategyCoordinator:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(state, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"策略协调器状态已保存: {path}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"保存策略协调器状态失败: {e}")
         return path
 
