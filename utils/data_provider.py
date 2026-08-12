@@ -36,7 +36,7 @@ try:
 
     _np = _np_module
     HAS_NUMPY = True
-except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+except (ImportError, AttributeError):
     HAS_NUMPY = False
 
 logger = get_logger("data_provider")
@@ -209,7 +209,7 @@ class MarketDataProvider:
             }
             self.source_health["wind_mcp"]["ok"] = True
             logger.info(f"Wind MCP 客户端已加载 (P1, path={wind_path})")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             self.source_health["wind_mcp"]["last_error"] = str(e)
             logger.warning(f"Wind MCP 客户端加载失败 ({wind_path}): {e}")
 
@@ -228,7 +228,7 @@ class MarketDataProvider:
         except ImportError as e:
             self.source_health["tdx"]["last_error"] = f"模块导入失败: {e}"
             logger.warning(f"通达信数据源模块导入失败: {e}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             self.source_health["tdx"]["last_error"] = str(e)
             logger.warning(f"通达信数据源初始化失败: {e}")
 
@@ -247,7 +247,7 @@ class MarketDataProvider:
         except ImportError as e:
             self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"
             logger.warning(f"AKShare 数据源模块导入失败: {e}")
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             self.source_health["akshare"]["last_error"] = str(e)
             logger.warning(f"AKShare 数据源初始化失败: {e}")
 
@@ -328,7 +328,7 @@ class MarketDataProvider:
                 "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "wind_mcp",
             }
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             self.source_health["wind_mcp"]["ok"] = False
             self.source_health["wind_mcp"]["last_error"] = str(e)
             logger.error(f"Wind MCP 获取实时数据失败: {e}")
@@ -378,7 +378,7 @@ class MarketDataProvider:
                 return None
             df.set_index("date", inplace=True)
             return df
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"Wind MCP 获取历史数据失败: {e}")
             return None
 
@@ -405,7 +405,7 @@ class MarketDataProvider:
                 "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "tdx",
             }
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             self.source_health["tdx"]["ok"] = False
             self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取实时数据失败: {e}")
@@ -448,7 +448,7 @@ class MarketDataProvider:
 
             self.source_health["tdx"]["ok"] = True
             return df
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"通达信获取历史数据失败: {e}")
             return None
 
@@ -475,7 +475,7 @@ class MarketDataProvider:
                 "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "akshare",
             }
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             self.source_health["akshare"]["ok"] = False
             self.source_health["akshare"]["last_error"] = str(e)
             logger.error(f"AKShare 获取实时数据失败: {e}")
@@ -518,7 +518,7 @@ class MarketDataProvider:
 
             self.source_health["akshare"]["ok"] = True
             return df
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"AKShare 获取历史数据失败: {e}")
             return None
 
@@ -574,7 +574,7 @@ class MarketDataProvider:
             df.set_index("date", inplace=True)
             self.source_health["sina_http"]["ok"] = True
             return df
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"新浪 HTTP 获取历史数据失败: {e}")
             return None
 
@@ -641,7 +641,7 @@ class MarketDataProvider:
                 "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "sina_http",
             }
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             self.source_health["sina_http"]["ok"] = False
             self.source_health["sina_http"]["last_error"] = str(e)
             logger.error(f"新浪 HTTP 获取实时行情失败: {e}")
@@ -674,7 +674,7 @@ class MarketDataProvider:
 
         except RuntimeError:
             raise
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"获取市场数据失败: {e}")
             raise RuntimeError(f"获取市场数据失败 ({symbol}): {e}") from e
 
@@ -692,7 +692,7 @@ class MarketDataProvider:
                 df = pd.read_parquet(cache_file)
                 logger.debug(f"加载持久化缓存: {cache_file.name}")
                 return df
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.debug(f"加载持久化缓存失败: {e}")
         return None
 
@@ -702,7 +702,7 @@ class MarketDataProvider:
                 return
             cache_file = self.persistent_cache_dir / f"{cache_key}.parquet"
             data.to_parquet(cache_file, index=True)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.debug(f"保存持久化缓存失败: {e}")
 
     def get_historical_data(self, symbol: str, period: str = "1y") -> pd.DataFrame:
@@ -732,13 +732,13 @@ class MarketDataProvider:
             logger.info(f"获取历史数据: {cache_key}")
             try:
                 self._save_persistent_cache(cache_key, historical_data)
-            except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.debug(f"写入持久化缓存失败: {e}")
             return historical_data
 
         except RuntimeError:
             raise
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"获取历史数据失败: {e}")
             raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
 
@@ -766,7 +766,7 @@ class MarketDataProvider:
 
             return sentiment_data
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"获取情绪数据失败: {e}")
             return None
 
@@ -777,7 +777,7 @@ class MarketDataProvider:
             logger.info(f"计算技术指标: {symbol}")
             return technical_indicators
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.error(f"获取技术指标失败: {e}")
             return {}
 
@@ -819,7 +819,7 @@ class MarketDataProvider:
             )
         except RuntimeError:
             raise
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"获取实时数据失败: {e}")
             raise RuntimeError(f"获取实时数据失败 ({symbol}): {e}") from e
 
@@ -861,7 +861,7 @@ class MarketDataProvider:
             )
         except RuntimeError:
             raise
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"获取历史数据失败: {e}")
             raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
 
@@ -926,7 +926,7 @@ class MarketDataProvider:
 
             return technical_indicators
 
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (AttributeError, TypeError, ValueError, OSError) as e:
             logger.error(f"计算技术指标失败: {e}")
             return {}
 
@@ -995,7 +995,7 @@ class MarketDataProvider:
                 return {}
             result = predictor.predict(symbol, prices, horizon=horizon)
             return result.to_dict() if hasattr(result, "to_dict") else result.__dict__
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (AttributeError, TypeError, ValueError, OSError) as e:
             logger.warning(f"价格预测失败 ({symbol}): {e}")
             return {}
 
@@ -1010,7 +1010,7 @@ class MarketDataProvider:
             col = "close" if "close" in hist.columns else "Close"
             prices = hist[col].tail(days).values
             return np.array(prices, dtype=float)
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (AttributeError, TypeError, ValueError, OSError) as e:
             logger.debug(f"获取预测价格序列失败 ({symbol}): {e}")
             return None
 
@@ -1021,7 +1021,7 @@ class MarketDataProvider:
 
             mgr = ExternalDataManager()
             return mgr.get_macro_snapshot()
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"外部宏观数据获取失败: {e}")
             return {}
 
@@ -1032,7 +1032,7 @@ class MarketDataProvider:
 
             mgr = ExternalDataManager()
             return mgr.get_risk_sentiment()
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"风险情绪指标获取失败: {e}")
             return {}
 
@@ -1055,7 +1055,7 @@ class MarketDataProvider:
             if not sentiments:
                 return []
             return [s.__dict__ for s in sentiments]
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"新闻情感分析失败 ({symbol}): {e}")
             return []
 
@@ -1067,7 +1067,7 @@ class MarketDataProvider:
             agent = AIReportAgent()
             report = agent.generate_daily_report(symbols=symbols)
             return report.__dict__
-        except Exception as e:  # P2 模块 fail-safe, 待后续精确化  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"AI 每日报告生成失败: {e}")
             return {"error": str(e)}
 
