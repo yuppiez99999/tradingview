@@ -1,0 +1,9 @@
+{
+  "futures_prices": {
+    "IF": 3800.0,
+    "IC": 5500.0,
+    "IM": 5800.0
+  },
+  "vix": 25.0,
+  "hwm_drawdown": 0.03
+}
