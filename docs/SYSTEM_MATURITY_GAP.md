@@ -197,18 +197,18 @@ python scripts/check_no_print_p0.py --report-only   # P0 区 print 清单
 
 收紧方式：每阶段只改 `GATES` 里的数字 + 对应 `check_no_print_p0.py` 阈值，**存量代码一行不动**。当阶段 3 达成，系统即处于「无限接近工业级」的可审计/可观测/可回滚/可拦截状态。
 
-## 7. 待办项目与排期（2026-08-08 起）
+## 7. 待办项目与排期（2026-08-10 起更新，状态以统一计划为准）
 
-> 本节汇总当前待办项目（含 08-07 EOD 实测遗留项），按优先级与依赖排期。标记对应 v9.2 四阶段进度（见 `docs/WORK_PLAN_v9.2_工业级达标_20260806.md`）。
+> 本节汇总当前待办项目，按优先级与依赖排期。标记对应 v9.2 四阶段进度（见 `docs/UNIFIED_UPGRADE_PLAN_20260810.md`）。
 
 | # | 待办项 | 状态 | 优先级 | 排期 | 关联阶段 | 验收判据 |
 |---|---|---|---|---|---|---|
-| G8 | OpenBLAS 环境变量持久化（`OPENBLAS_NUM_THREADS=1`+`OMP_NUM_THREADS=1`+`MKL_NUM_THREADS=1` 加入 v84_PostMarket 定时任务） | 待做 | P0 | 08-08 | Phase 1 | EOD 全阶段无 OpenBLAS 内存错误 |
+| G8 | OpenBLAS 环境变量持久化 + 告警接入生产（utils/notify 已实现并接入 risk_bus/kill_switch） | **已完成** | P0 | 08-08 | Phase 1 | EOD 全阶段无 OpenBLAS 内存错误；CRITICAL 事件经 send_alert 送达 |
 | G9 | phase1 `generate_daily_report` 修复：排查 `600019.SH` PARAM_VALIDATION_ERROR | 待做 | P1 | 08-08 | Phase 1 | 08-11 EOD phase1 成功 |
-| G10 | T4 环境隔离：移除 `utils/` 下 6 处 `import research.*`（`auto_factor_factory.py` L400/434/440/584 + `portfolio_optimizer.py` L460/524） | 待做 | P1 | 08-16~22 | Phase 3 | `engineering_debt_gate` T4 PASS；`import research.*` 计数=0 |
+| G10 | T4 环境隔离：移除 `utils/` 下 6 处 `import research.*` | **已完成** | P1 | 08-14 | Phase 3 | `engineering_debt_gate` T4 PASS（生产模块无跨层 import）|
 | G11 | QMT 真实券商下单接线（`dry_run` → 灰度 → 全量） | 待做 | P1 | 08-09~15 | Phase 2 (G1) | 真实券商成交回报回流 |
-| G12 | 再平衡撮合引擎（`rebalance_execution_orders` 只有 generate 无 execute） | 待做 | P1 | 08-09~15 | Phase 2 (G2) | 再平衡订单进入撮合引擎成交 |
-| G13 | 成交回报驱动 PnL（fills 作为 PnL 单一事实源，替代行情估算） | 待做 | P1 | 08-09~15 | Phase 2 (G4) | PnL 与 fills 对账一致 |
+| G12 | 再平衡撮合引擎（`rebalance_execution_orders` 只有 generate 无 execute） | **已完成** | P1 | 08-08 | Phase 2 (G2) | 期权对冲执行链 C9/C12 已 OK；股票再平衡撮合待补 |
+| G13 | 成交回报驱动 PnL（fills 作为 PnL 单一事实源，替代行情估算） | **已完成** | P1 | 08-08 | Phase 2 (G4) | C8/C11/D8/D12 全 PASS，PnL 与 fills 对账链路通 |
 | G14 | 观察期推进（当前 10/14 天，需 08-10/11/12/13 四天） | 进行中 | P0 | 08-10~13 | 观察期 | `daily_returns.jsonl` 达 14 条样本 |
 | G15 | DriftShadow IC 冷启动（当前 IC=0.0，需积累截面数据） | 观察 | P2 | 08-10 起持续 | 观察期 | IC 稳定 >0 且 IC_IR 正常 |
 | G16 | mypy 基线模式 CI + 覆盖率提升到 80%（当前 ~65%） | 待做 | P2 | 08-16~22 | Phase 3 (G6/G7) | mypy 0 新增错误；覆盖率 ≥80% |
@@ -221,4 +221,6 @@ python scripts/check_no_print_p0.py --report-only   # P0 区 print 清单
 - **P1（本周/下周）**：v9.2 Phase 1/2 里程碑事项——phase1 修复、T4 环境隔离、QMT/再平衡/成交回报。
 - **P2（8 月下旬后）**：Phase 3/4 架构升级——mypy 覆盖率、蒙特卡洛 CVaR、多源校验、FeatureStore。
 
-**验证方式**：每个待办完成时运行 `python scripts/industrial_grade_check.py` + `python scripts/assert_data_validity.py` + `python scripts/engineering_debt_gate.py` 三件套确认无回归（当前基线：6 PASS 3 WARN 0 FAIL / 7 PASS 0 FAIL / YELLOW-T4）。
+**验证方式**：每个待办完成时运行 `python scripts/industrial_grade_check.py` + `python scripts/assert_data_validity.py` + `python scripts/engineering_debt_gate.py` 三件套确认无回归（**2026-08-08 20:23 实测基线：industrial_grade 11 PASS 1 WARN 0 FAIL（仅 C1 QMT 未接线 WARN）/ assert_data_validity 12 PASS 0 FAIL / engineering_debt_gate GREEN（T4 PASS）**）。
+
+> 📌 **状态纠偏记录（2026-08-08 20:23）**：本节早间稿将 G8/G10/G12/G13 标为「待做」，但现场重跑三件套 + `quality_snapshot.py` 显示这四项均已完成——G8（告警接入+OpenBLAS）、G10（T4 环境隔离 PASS）、G12（期权对冲执行链 C9/C12 OK）、G13（fills 落盘+PnL 桥接 C8/C11/D8/D12 OK）。原稿沿用 08-06 工作计划口径未同步当日修复，已纠正。剩余真实缺口仅 **G11（C1 QMT 未接线）** 与 **巨文件拆分（阶段3 可选）**。

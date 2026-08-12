@@ -46,7 +46,7 @@
 | ✅ 已完成 | G5 研究/生产隔离 | （已交付）utils/ 下零 `import research.*` | engineering_debt_gate T4 GREEN（实跑通过） | 0 天 |
 | ✅ 已完成 | G6 mypy CI 接入 | （已交付）ci.yml L281-286 阻断式 mypy | PR 含类型错误时 CI 红（已生效） | 0 天 |
 | P0 | G6+ mypy --strict 收紧 | mypy.ini → --strict 模式 | mypy --strict 0 错误 | 1 天 |
-| 🔧 W6.3.3 进展 | type:ignore 合约盲区清零 | directional_futures_trader(12) + wt_spread_strategy(28) + wt_backtest_engine(9) + automated_execution_system(15) = **64 处 → 0** | 全文件 0 type:ignore + 141 测试全绿 | 已完成 |
+| 🔧 W6.3.3 进展 | type:ignore 合约盲区清零 | directional_futures_trader(12) + wt_spread_strategy(28) + wt_backtest_engine(9) + automated_execution_system(15) + data_provider(29) = **93 处 → 0** | 全文件 0 type:ignore + mypy 0 错误 + 106 测试全绿 | 已完成 |
 | P0 | G7 覆盖率提升 | 覆盖率从当前 ~50% → 80% | htmlcov 显示 ≥80% | 3 天 |
 | P0 | G15 事件驱动回测（从零） | 新建 EventDrivenBacktest 类（订单队列/撮合/延迟/事件循环） | 与向量化回测结果偏差 < 5%，且不污染向量化路径 | 7-10 天 |
 | P1 | AutoResearch Skill | ai_decision/auto_research_skill.py（从零创建） | 因子迭代闭环可运行（依赖 G15 完成） | 4 天 |
