@@ -51,8 +51,8 @@ def compute_expectation_factors(
     ]
     for name, fld, sign in micro_fields:
         values = {}
-        # 优先从 price_data[sym] 读取
-        if price_data:
+        # 优先从 price_data[sym] 读取 (类型检查避免 DataFrame 误传)
+        if isinstance(price_data, dict) and price_data:
             for sym, data in price_data.items():
                 raw = data.get(fld, None)
                 if raw is not None and raw != 0:

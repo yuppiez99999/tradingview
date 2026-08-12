@@ -29,19 +29,11 @@ from __future__ import annotations
 import os
 import sys
 import json
-import math
 import logging
 import argparse
-import re
-import requests
-# B7 修复 (2026-08-08): 移除 L4525 pd.DataFrame 类型注解的 F821 警告.
-# 见 docs/CODE_REVIEW_COMPREHENSIVE_20260808.md B7. 原代码在函数体内 import pandas as pd,
-# 但模块级类型注解先求值 → F821 (运行时因 __future__.annotations 不崩, 但 mypy/ruff 报告).
-import pandas as pd  # noqa: E402  # 模块级类型注解需要
-from datetime import datetime, timedelta, date
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import asdict
 
 # ============================================================
 # 路径初始化 (兼容 Python 3.8)
@@ -893,66 +885,15 @@ class DailyWorkflow:
             logger.error("iFinD 批量研判失败", exc_info=True)
             return {}
 
-    def _get_edb_futures_data(self, names: Optional[List[str]] = None) -> Dict[str, Dict[str, Any]]:
-        """获取 EDB 期货/商品数据 (带当日缓存)
-
-        同一天内多次调用只请求一次 API，后续从缓存读取。
-
-        Args:
-            names: 品种名称列表，默认读取 AI 算力核心 6 品种
-
-        Returns:
-            {name: edb_result} 字典
-        """
-        if not EDB_READY:
-            return {}
-
-        today = self.trade_date
-        if self._edb_cache_date == today and self._edb_cache:
-            return self._edb_cache
-
-        if names is None:
-            names = ["锡", "铜", "铝", "银", "碳酸锂", "多晶硅"]
-
-        try:
-            results = EDBFuturesData.fetch_all()
-            self._edb_cache = {name: results.get(name, {}) for name in names if name in results}
-            self._edb_cache_date = today
-            logger.info("EDB 期货数据获取完成 (已缓存): %d 个品种", len(self._edb_cache))
-            return self._edb_cache
-        except Exception:
-            logger.error("EDB 期货数据获取失败", exc_info=True)
-            return {}
+    def _get_edb_futures_data(self, names=None) -> Dict[str, Dict[str, Any]]:
+        """获取 EDB 期货/商品数据 (委托至 workflow.phases.hedge)"""
+        from workflow.phases.hedge import _get_edb_futures_data as _impl
+        return _impl(self._build_context(), names)
 
     def _get_futures_scanner_summary(self) -> Dict[str, Dict[str, Any]]:
-        """运行期货期权扫描器，并转换为与 edb_summary 兼容的结构
-
-        Returns:
-            {name: {latest, latest_date, ret20, score, opportunity, reasons}} 字典
-        """
-        if not SCANNER_READY:
-            return {}
-        try:
-            scanner = FuturesOptionsScanner()
-            result = scanner.run()
-            summary: Dict[str, Dict[str, Any]] = {}
-            for item in result.get("all", []):
-                name = item.get("name")
-                if not name:
-                    continue
-                summary[name] = {
-                    "latest": item.get("latest"),
-                    "latest_date": item.get("latest_date"),
-                    "ret20": item.get("ret20"),
-                    "score": item.get("score"),
-                    "opportunity": item.get("opportunity"),
-                    "reasons": item.get("reasons"),
-                    "scanner_category": item.get("category"),
-                }
-            return summary
-        except Exception:
-            logger.error("期货期权扫描器执行失败", exc_info=True)
-            return {}
+        """期货期权扫描器汇总 (委托至 workflow.phases.hedge)"""
+        from workflow.phases.hedge import _get_futures_scanner_summary as _impl
+        return _impl()
 
     def _load_trade_plan(self) -> Dict[str, Any]:
         """加载交易计划文件
@@ -1049,883 +990,53 @@ class DailyWorkflow:
     # Phase 3: 风险预算计算 (组合级别 — 500万 4阶段)
     # --------------------------------------------------------
     def phase_risk(self) -> Dict[str, Any]:
-        """风险预算计算 — 2026 年交易计划组合级别
-
-        基于 `2026年交易计划.md` 的资金配置:
-        - 总资金 500 万 = 股票/ETF 300 万 (60%) + 对冲 200 万 (40%)
-        - 4 阶段建仓: P1 35% / P2 30% / P3 20% / P4 15%
-        - 三层风控: 黄色 6% / 橙色 8% / 红色 12%
-        - VaR 预算: 95% < 5%, 99% < 8%
-        """
-        # 懒初始化（支持单独运行该 phase）
-        if not hasattr(self, "rm"):
-            try:
-                from risk.risk_manager import RiskManager
-                self.rm = RiskManager(total_capital=self.capital)
-            except Exception as e:
-                logger.warning(f"RiskManager 初始化失败，使用模拟模式: {e}")
-                self.rm = None
-        logger.info("=" * 60)
-        logger.info("Phase 3: 风险预算计算 (组合级别 — 500万 4阶段)")
-        logger.info("=" * 60)
-
-        # 当前组合净值 (建仓前为现金状态)
-        current_equity = self.capital
-        dd_status = self.rm.update_drawdown(current_equity)
-
-        # === 从交易计划读取当日资金配置 ===
-        plan_phase = self.trade_plan.get("phase", {})
-        plan_exec = self.trade_plan.get("execution_plan", {})
-        day_capital = float(plan_phase.get("day_capital", 0))
-        morning_total = float(plan_exec.get("morning_total", 0))
-        afternoon_total = float(plan_exec.get("afternoon_total", 0))
-        grand_total = float(plan_exec.get("grand_total", 0))
-
-        # === 资金配置明细 ===
-        stock_capital = self.config.STOCK_CAPITAL
-        hedge_capital = self.config.HEDGE_CAPITAL
-
-        # === 风险预算计算 (简化版, 实盘应从 RiskManager 获取) ===
-        # 单日建仓资金占股票组合的比例
-        build_ratio = day_capital / stock_capital if stock_capital > 0 else 0
-
-        # 个股止损 (取中风险 -12% 作为组合止损参考)
-        portfolio_stop = self.config.STOP_LOSS_RULES["科技股"]
-
-        # VaR 预算 (使用配置上限)
-        var_95_limit = 0.05
-        var_99_limit = 0.08
-
-        logger.info(f"组合净值: {current_equity:,.0f}")
-        logger.info(f"回撤状态: {dd_status} (模式: {self.rm.mode})")
-        logger.info(f"股票组合资金: {stock_capital:,.0f} (60%)")
-        logger.info(f"期权对冲资金: {hedge_capital:,.0f} (40%)")
-        logger.info(f"当日建仓资金: {day_capital:,.0f} (占股票组合 {build_ratio:.2%})")
-        logger.info(f"  上午批次: {morning_total:,.0f}")
-        logger.info(f"  下午批次: {afternoon_total:,.0f}")
-        logger.info(f"  合计: {grand_total:,.0f}")
-        logger.info(f"组合止损: {portfolio_stop:.2%}, VaR95<{var_95_limit:.0%}, VaR99<{var_99_limit:.0%}")
-
-        risk_status = {
-            "equity": current_equity,
-            "drawdown_status": dd_status,
-            "mode": self.rm.mode,
-            "position_factor": self.rm.position_size_factor,
-            "stock_capital": stock_capital,
-            "hedge_capital": hedge_capital,
-            "day_capital": day_capital,
-            "morning_total": morning_total,
-            "afternoon_total": afternoon_total,
-            "grand_total": grand_total,
-            "build_ratio": build_ratio,
-            "portfolio_stop": portfolio_stop,
-            "var_95_limit": var_95_limit,
-            "var_99_limit": var_99_limit,
-            "yellow_warning": self.config.YELLOW_WARNING,
-            "orange_warning": self.config.ORANGE_WARNING,
-            "red_warning": self.config.RED_WARNING,
-            "full_stop": self.config.FULL_STOP,
-        }
-        self.state["phases"]["risk"] = {"status": "PASS", **risk_status}
-        self.state["risk_status"] = risk_status
-
-        # === 顶级风险管理: 压力测试情景库 ===
-        if self.stress_test_engine is not None:
-            try:
-                positions_list = (self._get_portfolio_positions_for_stress_test()
-                                  if hasattr(self, "_get_portfolio_positions_for_stress_test") else [])
-                if positions_list:
-                    portfolio_value = sum(float(p.get("amount", 0)) for p in positions_list)
-                    if portfolio_value > 0:
-                        stress_results = self.stress_test_engine.run_all_scenarios(
-                            positions=positions_list,
-                            total_portfolio_value=portfolio_value,
-                        )
-                        stress_summary = self.stress_test_engine.summarize(stress_results)
-                        self.state["phases"]["risk_stress_test"] = {
-                            "n_scenarios": stress_summary.get("n_scenarios", 0),
-                            "worst_scenario": stress_summary.get("worst_scenario", ""),
-                            "worst_return": stress_summary.get("worst_return", 0.0),
-                            "worst_pnl": stress_summary.get("worst_pnl", 0.0),
-                            "best_return": stress_summary.get("best_return", 0.0),
-                            "avg_return": stress_summary.get("avg_return", 0.0),
-                            "n_breaches": stress_summary.get("n_breaches", 0),
-                            "breach_scenarios": stress_summary.get("breach_scenarios", []),
-                            "avg_var_change": stress_summary.get("avg_var_change", 0.0),
-                        }
-                        worst = self.stress_test_engine.get_worst_scenario(stress_results)
-                        if worst:
-                            logger.info(
-                                "[StressTest] %d 场景: 最严重='%s' return=%.2f%% pnl=¥%.0f, breaches=%d",
-                                stress_summary.get("n_scenarios", 0),
-                                worst.scenario_name,
-                                worst.portfolio_return * 100,
-                                worst.portfolio_pnl,
-                                stress_summary.get("n_breaches", 0),
-                            )
-                            if worst.is_breach:
-                                logger.warning(
-                                    "[StressTest] ⚠️ 风险突破: %s 收益 %.2f%% 低于阈值 %.0f%%",
-                                    worst.scenario_name,
-                                    worst.portfolio_return * 100,
-                                    self.stress_test_engine.risk_threshold * 100,
-                                )
-            except Exception as exc:
-                logger.error("[StressTest] 压力测试失败: %s", exc, exc_info=True)
-
-        # === 顶级风险管理: 风险预算约束优化 (自动 TE 再平衡建议) ===
-        if self.risk_budget_opt is not None and self.barra_decomposer is not None:
-            try:
-                barra_state = self.state.get("phases", {}).get("report_barra")
-                if barra_state and barra_state.get("active_risk", 0) > 0.05:
-                    logger.warning(
-                        "[RiskBudget] Barra 显示 TE=%.2f%% 超过 5%% 预算, 生成再平衡建议",
-                        barra_state["active_risk"] * 100,
-                    )
-                    self.state["phases"]["risk_budget_rebalance_needed"] = True
-                    self.state["phases"]["risk_budget_target_te"] = 0.05
-                    self.state["phases"]["risk_budget_current_te"] = barra_state["active_risk"]
-            except Exception as exc:
-                logger.error("[RiskBudget] 再平衡建议生成失败: %s", exc, exc_info=True)
-
-        return risk_status
+        """风险预算计算 (委托至 workflow.phases.risk)"""
+        from workflow.phases.risk import phase_risk as _phase_risk
+        ctx = self._build_context()
+        return _phase_risk(ctx)
 
     # --------------------------------------------------------
     # Phase 4: 对冲评估 + 自动执行
     # --------------------------------------------------------
     def _infer_style_from_code(self, code: str) -> str:
-        """基于代码前缀粗略推断持仓风格（建仓计划缺失时的回退）"""
-        c = str(code).lstrip("shszbjSHBJ").lower()
-        if c.startswith("588"):
-            return "高端制造"
-        if c.startswith("515"):
-            return "红利"
-        if c.startswith("518"):
-            return "避险"
-        if c.startswith("688") or c.startswith("300"):
-            return "科技"
-        if c.startswith("002"):
-            return "制造"
-        if c == "600276":
-            return "医药"
-        if c == "600900":
-            return "防御"
-        if c == "600036":
-            return "银行"
-        if c == "000425":
-            return "制造"
-        if c == "601088":
-            return "顺周期"
-        # 2026-07-09 新增 6 标的
-        if c == "300274":
-            return "新能源"
-        if c == "603019":
-            return "科技"
-        if c == "600089":
-            return "制造"
-        if c == "688017":
-            return "制造"
-        if c == "600219":
-            return "资源"
-        if c == "600019":
-            return "资源"
-        return "科技"
+        """基于代码前缀推断持仓风格 (委托至 workflow.phases.risk)"""
+        from workflow.phases.risk import _infer_style_from_code as _impl
+        return _impl(code)
 
-    # --------------------------------------------------------
     def _style_beta_proxy(self,
                           positions: Dict[str, float],
                           prices: Dict[str, float]) -> float:
-        """风格 Beta 代理：当真实历史收益率失效时，基于持仓风格权重估算组合 Beta
-
-        Args:
-            positions: 持仓 {symbol: quantity}
-            prices: 当前价格
-
-        Returns:
-            估算的组合 Beta
-        """
-        # 风格 Beta 映射（来源：AGENTS.md 配置风格）
-        # 2026-07-09 新增 6 标的: "新能源" + "资源" 风格 Beta 已校准
-        style_beta_map = {
-            "宽基": 0.95,
-            "高端制造": 1.15,
-            "科技": 1.20,
-            "制造": 1.05,
-            "新能源": 1.15,   # 阳光电源: 光伏储能, Beta 略高于制造
-            "医药": 0.85,
-            "银行": 0.75,
-            "防御": 0.60,
-            "顺周期": 1.10,
-            "避险": -0.10,
-            "红利": 0.70,
-            "成长": 1.25,
-            "资源": 1.10,    # 南山铝业/宝钢股份: 周期性大宗, Beta 与顺周期相当
-        }
-
-        # 优先从 500万建仓计划读取 style 和 weight，回退到 v7.6 主计划
-        build_plan_path = BASE_DIR.parent / "500万建仓计划_20260706.json"
-        style_weights: Dict[str, float] = {}
-        if build_plan_path.exists():
-            try:
-                with open(build_plan_path, "r", encoding="utf-8") as _f:
-                    _plan = json.load(_f)
-                _target = _plan.get("target_portfolio", _plan.get("stock_etf_account", {}).get("positions", {}))
-                for _code, _info in _target.items():
-                    if _code in positions and _code in prices:
-                        _style = _info.get("style")
-                        _weight = float(_info.get("weight", 0.0))
-                        if _style and _weight > 0:
-                            style_weights[_style] = style_weights.get(_style, 0.0) + _weight
-            except Exception as _exc:
-                logger.warning("读取 500万建仓计划失败，回退代码前缀推断: %s", _exc)
-
-        # 若仍未获取到风格权重，尝试 v7.6 主计划
-        if not style_weights:
-            master_plan_path = BASE_DIR / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
-            if master_plan_path.exists():
-                try:
-                    with open(master_plan_path, "r", encoding="utf-8") as _f:
-                        _plan = json.load(_f)
-                    _target = _plan.get("stock_etf_account", {}).get("positions", {})
-                    for _info in _target.values():
-                        _code = _info.get("code")
-                        if _code and _code in positions and _code in prices:
-                            _style = _info.get("style")
-                            _weight = float(_info.get("target_weight", 0.0))
-                            if _style and _weight > 0:
-                                style_weights[_style] = style_weights.get(_style, 0.0) + _weight
-                except Exception as _exc:
-                    logger.warning("读取 v7.6 主计划失败，回退代码前缀推断: %s", _exc)
-
-        # 若仍无法获取风格权重，基于代码前缀推断
-        if not style_weights:
-            logger.warning("风格权重为空，基于代码前缀推断风格权重")
-            for _code in positions:
-                if _code in prices:
-                    _style = self._infer_style_from_code(_code)
-                    style_weights[_style] = style_weights.get(_style, 0.0) + 1.0
-
-        # 若仍无法获取风格权重，使用市场中性默认值
-        if not style_weights:
-            logger.warning("风格权重仍为空，使用市场中性 Beta=1.00")
-            return 1.00
-
-        beta_port = 0.0
-        total_weight = sum(style_weights.values())
-        if total_weight <= 0:
-            return 1.00
-        for style, weight in style_weights.items():
-            beta_port += (weight / total_weight) * style_beta_map.get(style, 1.0)
-        return float(beta_port)
+        """风格 Beta 代理 (委托至 workflow.phases.risk)"""
+        from workflow.phases.risk import _style_beta_proxy as _impl
+        return _impl(positions, prices)
 
     def _get_if_realtime(self) -> dict:
-        """获取 IF 期货实时价（新浪/腾讯 HTTP 回退）"""
-        session = requests.Session()
-        session.trust_env = False
-        session.proxies = {"http": None, "https": None}
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Referer": "https://stock.finance.sina.com.cn/",
-        }
-
-        def _first_positive(parts, indices):
-            for idx in indices:
-                try:
-                    v = float(parts[idx])
-                    if v > 0:
-                        return v
-                except (ValueError, TypeError, IndexError):
-                    continue
-            return None
-
-        sina_candidates = ["IF0", "IF2506", "IF"]
-        for sym in sina_candidates:
-            try:
-                url = f"https://hq.sinajs.cn/list=nf_{sym}"
-                resp = session.get(url, headers=headers, timeout=10, verify=False)
-                text = resp.text
-                m = re.search(r'var hq_str_nf_' + re.escape(sym) + r'="(.+)"', text)
-                if not m:
-                    continue
-                parts = m.group(1).split(",")
-                if len(parts) < 15:
-                    continue
-                latest = _first_positive(parts, [8, 7, 3, 2])
-                if latest is None:
-                    continue
-                return {
-                    "symbol": sym,
-                    "source": "sina_http",
-                    "price": latest,
-                }
-            except Exception:
-                continue
-
-        try:
-            url = "https://qt.gtimg.cn/q=IF"
-            resp = session.get(url, headers=headers, timeout=10, verify=False)
-            text = resp.text
-            m = re.search(r'v_(.+)="(.+)"', text)
-            if m:
-                parts = m.group(2).split("~")
-                if len(parts) >= 5:
-                    latest = _first_positive(parts, [3, 5])
-                    if latest:
-                        return {
-                            "symbol": "IF",
-                            "source": "tencent_http",
-                            "price": latest,
-                        }
-        except Exception:
-            pass
-
-        return {}
+        """获取 IF 期货实时价 (委托至 workflow.phases.risk)"""
+        from workflow.phases.risk import _get_if_realtime as _impl
+        return _impl()
 
     def _compute_beta_hedge_order(self, portfolio_beta: float, portfolio_value: float, degraded: bool = False) -> Dict[str, object]:
-        """基于 BetaHedger 计算对冲指令（降级路径）
+        """基于 BetaHedger 计算对冲指令 (委托至 workflow.phases.hedge)"""
+        from workflow.phases.hedge import _compute_beta_hedge_order as _impl
+        return _impl(portfolio_beta, portfolio_value, degraded)
 
-        Args:
-            portfolio_beta: 组合 Beta
-            portfolio_value: 组合市值
-            degraded: 是否为降级模式（降低触发阈值 + 兜底保护）
-        """
-        try:
-            from hedging.beta_hedger import BetaHedger
-            futures_config = {
-                "IF": {"multiplier": 300, "beta": 1.0, "price": 3800.0},
-                "IC": {"multiplier": 200, "beta": 1.2, "price": 5500.0},
-                "IM": {"multiplier": 200, "beta": 1.1, "price": 5800.0},
-            }
-            if_realtime = self._get_if_realtime()
-            if if_realtime and if_realtime.get("price"):
-                futures_config["IF"]["price"] = float(if_realtime["price"])
-                logger.info(f"注入 IF 实时价: {if_realtime['price']} (来源: {if_realtime.get('source', 'unknown')})")
-
-            beta_trigger = 0.35 if degraded else 0.7
-            # 2026-07-09 方案C: beta_target 0.3→0.25, 提升对冲比率至 75% (目标: 回撤<15%)
-            beta_target = 0.25
-            beta_hedger = BetaHedger(futures_config=futures_config, beta_trigger=beta_trigger, beta_target=beta_target)
-            order = beta_hedger.compute_hedge(portfolio_beta, portfolio_value)
-
-            # 降级兜底：如果 BetaHedger 仍返回 NO_HEDGE，强制生成最小对冲指令
-            if degraded and order.get("action") == "NO_HEDGE":
-                fut = futures_config.get("IF", futures_config["IF"])
-                live_price = float(fut.get("price", 3800.0))
-                notional_per_contract = float(fut.get("multiplier", 300)) * live_price
-                n_contracts = max(1, int(round((portfolio_beta - beta_target) * portfolio_value / notional_per_contract)))
-                if n_contracts <= 0:
-                    n_contracts = 1
-                commission_rate = 0.000023
-                slippage_rate = 0.0001
-                margin_rate = 0.12
-                estimated_cost = n_contracts * notional_per_contract * (commission_rate + slippage_rate)
-                estimated_margin = n_contracts * notional_per_contract * margin_rate
-                order = {
-                    "action": "SHORT_FUTURES",
-                    "instrument": "IF",
-                    "contracts": n_contracts,
-                    "direction": "SELL",
-                    "multiplier": int(fut.get("multiplier", 300)),
-                    "futures_price": live_price,
-                    "futures_beta": float(fut.get("beta", 1.0)),
-                    "notional": float(n_contracts * notional_per_contract),
-                    "estimated_cost": float(estimated_cost),
-                    "cost_ratio": float(estimated_cost / portfolio_value) if portfolio_value > 0 else 0.0,
-                    "current_beta": float(portfolio_beta),
-                    "target_beta": float(beta_target),
-                    "beta_reduced": float(portfolio_beta - beta_target),
-                    "reason": "降级兜底强制对冲",
-                    "cost_breakdown": {
-                        "commission_rate": commission_rate,
-                        "slippage_rate": slippage_rate,
-                        "margin_rate": margin_rate,
-                        "estimated_commission": float(n_contracts * notional_per_contract * commission_rate),
-                        "estimated_slippage": float(n_contracts * notional_per_contract * slippage_rate),
-                        "estimated_margin": float(estimated_margin),
-                        "cost_note": "仅含佣金+滑点估算，不含保证金利息/冲击成本",
-                    },
-                }
-                logger.warning(f"降级兜底: Beta {portfolio_beta:.3f} 仍触发 NO_HEDGE，强制 {n_contracts} 手 IF 空头")
-            return order
-        except Exception as exc:
-            logger.error("风格 Beta 代理计算对冲指令失败: %s", exc)
-            return {"action": "ERROR", "reason": str(exc)}
 
     def phase_hedge(self) -> Dict[str, Any]:
-        """三联对冲评估 + 自动执行（与 7.4 AutoHedgeExecutor 行为对齐）
+        """三联对冲评估 + 自动执行 (委托至 workflow.phases.hedge)"""
+        from workflow.phases.hedge import phase_hedge as _phase_hedge
+        ctx = self._build_context()
+        return _phase_hedge(ctx)
 
-        修复点:
-            1. 协调器 coordinate() 传正确签名 (positions/prices/returns/market_returns/vix)
-            2. 对冲指令自动送 MockBroker 执行
-            3. VIX 从 phase_market 读取，不再硬编码
-            4. EDB 期货数据接入，补充 AI 算力商品价格信号
+    def _execute_sim_hedge_orders(self, orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """模拟盘对冲订单路由 (委托至 workflow.phases.hedge)
+
+        新增方法 (第 3 轮拆分): 符合 test_phase_hedge_sim_branch.py 规约,
+        将对冲订单按 action 路由到 sim_engine 的 futures/options/stock broker。
         """
-        logger.info("=" * 60)
-        logger.info("Phase 4: 三联对冲评估 + 自动执行")
-        logger.info("=" * 60)
+        from workflow.phases.hedge import _execute_sim_hedge_orders as _impl
+        mock_prices = getattr(self.config, "MOCK_PRICES", {}) if self.config is not None else {}
+        return _impl(getattr(self, "sim_engine", None), mock_prices, orders)
 
-        # 从 phase_market 读取 VIX (不再硬编码)
-        market_phase = self.state.get("phases", {}).get("market", {})
-        vix_level = float(market_phase.get("vix", 18.5))
-        circuit_level = market_phase.get("circuit_level", "NORMAL")
-
-        # === EDB 期货数据接入 (AI 算力核心品种) ===
-        edb_futures = self._get_edb_futures_data()
-        edb_summary = {}
-        if edb_futures:
-            for name, data in edb_futures.items():
-                latest = data.get("latest")
-                latest_date = data.get("latest_date")
-                rows = data.get("series", [])
-                ret20 = None
-                if len(rows) >= 21:
-                    ret20 = (rows[-1][1] - rows[-21][1]) / rows[-21][1]
-                edb_summary[name] = {
-                    "latest": latest,
-                    "latest_date": latest_date,
-                    "ret20": ret20,
-                    "query": data.get("query"),
-                }
-            logger.info("EDB 期货摘要: %s", json.dumps(edb_summary, ensure_ascii=False, default=str))
-
-        # === 期货期权扫描器补充 (EDB + AKShare 回退) ===
-        scanner_summary = self._get_futures_scanner_summary()
-        if scanner_summary:
-            merged = dict(edb_summary)
-            for name, data in scanner_summary.items():
-                if name in merged:
-                    merged[name].update({k: v for k, v in data.items() if v is not None})
-                else:
-                    merged[name] = data
-            edb_summary = merged
-            logger.info("期货扫描器已合并: %d 个品种", len(edb_summary))
-
-        # 真实行情回退：优先 MarketDataProvider，失败回退 MOCK_PRICES
-        # 使用线程池+超时防止单个 Wind MCP 调用卡死整个 phase
-        prices = dict(self.config.MOCK_PRICES)
-        if self.market_data_provider is not None:
-            from concurrent.futures import ThreadPoolExecutor, as_completed
-            _fetched = 0
-            _skipped = 0
-            def _fetch_one(code):
-                try:
-                    return code, self.market_data_provider.get_market_data(code)
-                except Exception:
-                    return code, None
-            try:
-                with ThreadPoolExecutor(max_workers=4) as pool:
-                    futures = {pool.submit(_fetch_one, code): code for code in list(prices.keys())}
-                    for fut in as_completed(futures, timeout=30):
-                        try:
-                            code, quote = fut.result(timeout=5)
-                            if quote and quote.get("index_price"):
-                                prices[code] = float(quote["index_price"])
-                                _fetched += 1
-                            else:
-                                _skipped += 1
-                        except Exception:
-                            _skipped += 1
-            except Exception as exc:
-                logger.warning("获取实时价格失败 (超时/异常)，回退 MOCK_PRICES: %s", exc)
-            logger.info("实时价格获取: %d 成功, %d 回退 MOCK", _fetched, _skipped)
-
-        # 当前持仓：优先读取 config/positions.json，失败则回退 MOCK_PRICES 等权假设
-        _positions_json = BASE_DIR.parent / "config" / "positions.json"
-        _codes = list(self.config.MOCK_PRICES.keys())
-        if _positions_json.exists():
-            try:
-                with open(_positions_json, "r", encoding="utf-8") as _f:
-                    _pos_data = json.load(_f)
-                _codes = [c for c in _pos_data.get("positions", []) if c in self.config.MOCK_PRICES]
-                if _codes:
-                    logger.info("phase_hedge 加载真实持仓代码: %d 只", len(_codes))
-            except Exception as _exc:
-                logger.warning("读取 config/positions.json 失败，回退 MOCK_PRICES: %s", _exc)
-
-        _n = len(_codes)
-        if _n > 0:
-            _target_value = float(self.capital)
-            _value_per_asset = _target_value / _n
-            positions = {}
-            for _code in _codes:
-                _price = prices.get(_code, 0)
-                if _price and _price > 0:
-                    _shares = int(_value_per_asset / _price / 100) * 100
-                    # 2026-07-09 新增: 对 18 标的全覆盖日志 (含 6 个新标的)
-                    if _code in ("sz300274", "sh603019", "sh600089", "sh688017", "sh600219", "sh600019"):
-                        logger.info(f"[18标的覆盖] {_code} 价格={_price} 股数={_shares} 金额={_shares*_price:.0f}")
-                    positions[_code] = max(_shares, 100)
-                else:
-                    positions[_code] = 100
-            logger.info("phase_hedge 等权假设持仓: %d 只, 单只约 %.0f 元", _n, _value_per_asset)
-        else:
-            positions = {code: 0 for code in self.config.MOCK_PRICES}
-
-        # 历史收益率：优先真实 OHLCV，失败回退模拟收益率
-        n_days = 60
-        try:
-            import numpy as np
-            import pandas as pd
-            price_frames = []
-            def _fetch_hist(code):
-                try:
-                    if self.market_data_provider is not None:
-                        return code, self.market_data_provider.get_historical_data(code, period="3m")
-                except Exception:
-                    pass
-                return code, None
-            with ThreadPoolExecutor(max_workers=4) as pool:
-                hist_futures = {pool.submit(_fetch_hist, code): code for code in prices}
-                for fut in as_completed(hist_futures, timeout=60):
-                    try:
-                        code, hist = fut.result(timeout=10)
-                    except Exception:
-                        continue
-                    if hist is None or (hasattr(hist, "empty") and hist.empty):
-                        continue
-                    if "close" in hist.columns:
-                        rets = hist["close"].astype(float).pct_change().dropna()
-                        if len(rets) >= n_days:
-                            rets = rets.tail(n_days)
-                        price_frames.append(rets.rename(code))
-            if price_frames:
-                returns = pd.concat(price_frames, axis=1).fillna(0.0)
-                if returns.shape[0] < n_days:
-                    returns = returns.reindex(range(n_days)).fillna(0.0)
-                returns = returns.tail(n_days).reset_index(drop=True)
-            else:
-                raise RuntimeError("no_price_frames")
-            market_series = None
-            for idx_code in ["sh000001", "sz399001", "sz399006", "sh000016"]:
-                mkt = None
-                if self.market_data_provider is not None:
-                    try:
-                        mkt = self.market_data_provider.get_historical_data(idx_code, period="3m")
-                    except Exception:
-                        mkt = None
-                if mkt is not None and "close" in mkt.columns and not mkt.empty:
-                    market_series = mkt["close"].astype(float).pct_change().dropna()
-                    if len(market_series) >= n_days:
-                        market_series = market_series.tail(n_days)
-                    break
-            if market_series is None:
-                raise RuntimeError("no_market_series")
-            market_returns = market_series.reset_index(drop=True)
-            logger.info("对冲评估已使用真实价格与历史收益率")
-        except Exception as exc:
-            logger.warning("真实收益率获取失败，回退模拟数据: %s", exc)
-            import numpy as np
-            import pandas as pd
-            np.random.seed(42)
-            # 用更稳的默认序列：轻微正漂移 + 低波动，减少极端模拟收益
-            drift = 0.0003
-            vol = 0.012
-            market_drift = 0.0002
-            market_vol = 0.010
-            returns = pd.DataFrame({
-                code: np.random.normal(drift, vol, n_days) for code in prices
-            })
-            market_returns = pd.Series(np.random.normal(market_drift, market_vol, n_days))
-
-        # === 三联对冲协调器 (正确签名调用) ===
-        try:
-            hc = HedgeCoordinator()
-            coordinated = hc.coordinate(
-                positions=positions,
-                prices=prices,
-                returns=returns,
-                market_returns=market_returns,
-                vix=vix_level,
-                portfolio_value=self.capital,
-            )
-            logger.info(f"对冲协调: action={coordinated.get('action')}, "
-                        f"总对冲比例={coordinated.get('total_hedge_pct', 0):.2%}, "
-                        f"组合Beta={coordinated.get('portfolio_beta', 0):.3f}")
-        except Exception as e:
-            logger.error(f"对冲协调器执行失败: {e}")
-            coordinated = {
-                "action": "ERROR", "reason": str(e),
-                "orders": [], "total_hedge_pct": 0,
-                "summary": {"beta_hedger": "ERROR", "vol_hedger": "ERROR", "corr_hedger": "ERROR"},
-            }
-
-        # === 降级：风格 Beta 代理 (真实数据失效时，或主协调器判定 NO_HEDGE 但需验证价格链路) ===
-        portfolio_beta = coordinated.get("portfolio_beta", 0.0)
-        coordinated_action = coordinated.get("action", "")
-        beta_invalid = False
-        if portfolio_beta is None:
-            beta_invalid = True
-        elif isinstance(portfolio_beta, float):
-            beta_invalid = math.isnan(portfolio_beta) or math.isinf(portfolio_beta)
-        elif not isinstance(portfolio_beta, (int, float)):
-            beta_invalid = True
-
-        if beta_invalid or portfolio_beta <= 0.0 or coordinated_action in ("NO_HEDGE", "SKIP", "ERROR"):
-            if beta_invalid:
-                logger.warning("组合 Beta 异常 (%s)，回退到风格 Beta 代理", portfolio_beta)
-            elif portfolio_beta <= 0.0:
-                logger.warning("组合 Beta 计算为 0，回退到风格 Beta 代理")
-            elif coordinated_action == "NO_HEDGE":
-                logger.info("主协调器判定 NO_HEDGE，使用风格 Beta 代理验证价格链路")
-            else:
-                logger.warning("主协调器返回 %s，回退到风格 Beta 代理", coordinated_action)
-
-            style_beta = self._style_beta_proxy(positions, prices)
-            coordinated["portfolio_beta"] = style_beta
-            beta_order = self._compute_beta_hedge_order(style_beta, self.capital, degraded=True)
-            coordinated.setdefault("summary", {})["beta_hedge"] = beta_order.get("action")
-            if beta_order.get("action") not in ("NO_HEDGE", "SKIP", "ERROR"):
-                coordinated.setdefault("orders", [])
-                coordinated["orders"].append({**beta_order, "hedge_type": "BETA"})
-            logger.info(f"风格 Beta 代理: {style_beta:.3f}, action={beta_order.get('action')}, reason={beta_order.get('reason', '')}")
-
-            # 回退后重算汇总指标，避免总对冲比例/成本仍为 0
-            try:
-                _orders = coordinated.get("orders", [])
-                _pv = float(self.capital)
-                _total_hedge_value = 0.0
-                _total_cost = 0.0
-                for _o in _orders:
-                    _total_hedge_value += float(_o.get("notional", 0.0) or 0.0)
-                    _total_cost += float(_o.get("estimated_cost", 0.0) or _o.get("cost", 0.0) or 0.0)
-                coordinated["total_hedge_pct"] = _total_hedge_value / _pv if _pv > 0 else 0.0
-                coordinated["total_cost"] = _total_cost
-            except Exception as _exc:
-                logger.warning("回退后重算对冲汇总失败: %s", _exc)
-
-        # === 自动执行对冲指令 (与 7.4 AutoHedgeExecutor 对齐) ===
-        hedge_orders = coordinated.get("orders", [])
-        executed_orders = []
-
-        if hedge_orders and not self.dry_run:
-            try:
-                broker = MockBroker(price_dict={
-                    str(k): v for k, v in self.config.MOCK_PRICES.items()
-                })
-                from execution.smart_order_router import AlgoType
-
-                for order in hedge_orders:
-                    hedge_type = order.get("hedge_type", "UNKNOWN")
-                    action = order.get("action", "")
-
-                    # 期货空头下单 (Beta 对冲)
-                    if action == "SHORT_FUTURES":
-                        fut_code = order.get("instrument", "IF")
-                        contracts = int(order.get("contracts", 0))
-                        fut_price = float(order.get("futures_price", 0))
-                        if contracts > 0 and fut_price > 0:
-                            logger.info(f"[对冲执行] {hedge_type}: {fut_code} 空头 {contracts} 手 @ {fut_price}")
-                            try:
-                                oid = broker.place(
-                                    symbol=fut_code,
-                                    qty=contracts,
-                                    side="SELL_SHORT",
-                                    order_type="LIMIT",
-                                    price=fut_price,
-                                )
-                                fill = broker.wait_fill(oid)
-                                executed_orders.append({
-                                    "type": hedge_type,
-                                    "action": action,
-                                    "instrument": fut_code,
-                                    "side": "SELL_SHORT",
-                                    "contracts": contracts,
-                                    "price": fill["price"] if fill else fut_price,
-                                    "notional": order.get("notional", 0),
-                                    "cost": order.get("estimated_cost", 0),
-                                    "status": fill["order_type"] if fill else "FILLED",
-                                    "reason": "Beta 对冲自动执行",
-                                    "order_id": oid,
-                                    "cost_breakdown": order.get("cost_breakdown"),
-                                })
-                            except Exception as exc:
-                                logger.error(f"Beta 对冲执行失败: {exc}")
-                                executed_orders.append({
-                                    "type": hedge_type,
-                                    "action": action,
-                                    "instrument": fut_code,
-                                    "side": "SELL_SHORT",
-                                    "contracts": contracts,
-                                    "price": fut_price,
-                                    "notional": order.get("notional", 0),
-                                    "cost": order.get("estimated_cost", 0),
-                                    "status": "FAILED",
-                                    "reason": f"Beta 对冲执行失败: {exc}",
-                                    "cost_breakdown": order.get("cost_breakdown"),
-                                })
-
-                    # 期权买入 (Vol 对冲)
-                    elif action in ("BUY_PUT_SPREAD", "BUY_BARE_PUT", "BUY_EMERGENCY_PUT"):
-                        budget = float(order.get("budget", 0))
-                        if budget > 0:
-                            logger.info(f"[对冲执行] {hedge_type}: {action} 预算 {budget:.0f}")
-                            try:
-                                opt_symbol = order.get("instrument", "50ETF_OPTIONS")
-                                opt_price = budget / 10000.0 if budget > 0 else 0.0
-                                oid = broker.place(
-                                    symbol=opt_symbol,
-                                    qty=1,
-                                    side="BUY",
-                                    order_type="LIMIT",
-                                    price=opt_price,
-                                    option_type="PUT",
-                                    strike=0.0,
-                                )
-                                fill = broker.wait_fill(oid)
-                                executed_orders.append({
-                                    "type": hedge_type,
-                                    "action": action,
-                                    "instrument": opt_symbol,
-                                    "side": "BUY",
-                                    "option_type": "PUT",
-                                    "strike": 0.0,
-                                    "budget": budget,
-                                    "delta_target": order.get("delta_target", -0.2),
-                                    "coverage": order.get("actual_coverage", 0),
-                                    "price": fill["price"] if fill else opt_price,
-                                    "status": "FILLED",
-                                    "reason": f"Vol 对冲自动执行 (VIX={vix_level})",
-                                    "order_id": oid,
-                                })
-                            except Exception as exc:
-                                logger.error(f"Vol 对冲执行失败: {exc}")
-                                executed_orders.append({
-                                    "type": hedge_type,
-                                    "action": action,
-                                    "instrument": order.get("instrument", "50ETF_OPTIONS"),
-                                    "side": "BUY",
-                                    "option_type": "PUT",
-                                    "strike": 0.0,
-                                    "budget": budget,
-                                    "delta_target": order.get("delta_target", -0.2),
-                                    "coverage": order.get("actual_coverage", 0),
-                                    "status": "FAILED",
-                                    "reason": f"Vol 对冲执行失败: {exc}",
-                                })
-
-                    # 避险资产配置 (Correlation 对冲)
-                    elif action == "SAFE_HAVEN_ALLOC":
-                        gold_value = float(order.get("gold_value", 0))
-                        repo_value = float(order.get("repo_value", 0))
-                        logger.info(f"[对冲执行] {hedge_type}: 黄金ETF {gold_value:.0f} + 逆回购 {repo_value:.0f}")
-                        try:
-                            gold_symbol = order.get("gold_etf", "518880")
-                            est_gold_price = self.config.MOCK_PRICES.get(gold_symbol, 5.85)
-                            gold_qty = int(gold_value / est_gold_price / 100) * 100
-                            if gold_qty > 0:
-                                oid = broker.place(
-                                    symbol=gold_symbol,
-                                    qty=gold_qty,
-                                    side="BUY",
-                                    order_type="LIMIT",
-                                    price=est_gold_price,
-                                )
-                                fill = broker.wait_fill(oid)
-                                executed_orders.append({
-                                    "type": hedge_type,
-                                    "action": action,
-                                    "gold_etf": gold_symbol,
-                                    "gold_qty": gold_qty,
-                                    "gold_value": gold_value,
-                                    "gold_price": fill["price"] if fill else est_gold_price,
-                                    "repo_symbol": order.get("repo_symbol", "GC001"),
-                                    "repo_value": repo_value,
-                                    "status": "FILLED",
-                                    "reason": f"Correlation 对冲自动执行 (ρ̄={order.get('avg_corr', 0):.3f})",
-                                    "order_id": oid,
-                                })
-                        except Exception as exc:
-                            logger.error(f"Correlation 对冲执行失败: {exc}")
-                            executed_orders.append({
-                                "type": hedge_type,
-                                "action": action,
-                                "gold_etf": order.get("gold_etf", "518880"),
-                                "gold_value": gold_value,
-                                "repo_symbol": order.get("repo_symbol", "GC001"),
-                                "repo_value": repo_value,
-                                "status": "FAILED",
-                                "reason": f"Correlation 对冲执行失败: {exc}",
-                            })
-
-                    # 降级为 Put Spread
-                    elif action == "DOWNGRADE_TO_PUT_SPREAD":
-                        logger.info(f"[对冲执行] {hedge_type}: 降级至 Put Spread (成本超限)")
-                        executed_orders.append({
-                            "type": hedge_type,
-                            "action": action,
-                            "reason": order.get("reason", "成本超限降级"),
-                            "status": "DOWNGRADED",
-                        })
-
-                logger.info(f"对冲执行完成: {len(executed_orders)} 笔指令已成交")
-
-            except Exception as e:
-                logger.error(f"对冲执行通道异常: {e}")
-                executed_orders.append({
-                    "type": "EXECUTION_ERROR",
-                    "status": "FAILED",
-                    "error": str(e),
-                })
-        elif hedge_orders and self.dry_run:
-            logger.info(f"DRY-RUN 模式: {len(hedge_orders)} 笔对冲指令未执行")
-            for order in hedge_orders:
-                executed_orders.append({**order, "status": "DRY_RUN"})
-
-        # === 熔断级别强制加对冲 (LEVEL_3+) ===
-        if circuit_level in ("LEVEL_3", "LEVEL_4"):
-            logger.warning(f"[{circuit_level}] 熔断触发, 强制加对冲")
-            force_action = {
-                "type": "CIRCUIT_BREAKER_HEDGE",
-                "circuit_level": circuit_level,
-                "force_reduce_pct": 0.50 if circuit_level == "LEVEL_3" else 1.0,
-                "status": "TRIGGERED",
-                "reason": f"熔断 {circuit_level} 强制对冲",
-            }
-            executed_orders.append(force_action)
-            self.state["phases"]["market"]["build_allowed"] = False
-
-        hedge_status = {
-            "vix": vix_level,
-            "circuit_level": circuit_level,
-            "portfolio_beta": coordinated.get("portfolio_beta", 0),
-            "actions": coordinated.get("summary", {}),
-            "orders": executed_orders,
-            "coordinated": coordinated,
-            "total_hedge_pct": coordinated.get("total_hedge_pct", 0),
-            "total_cost": coordinated.get("total_cost", 0),
-            "hedge_enabled": len(executed_orders) > 0,
-            "edb_futures": edb_summary,
-        }
-
-        logger.info(f"对冲汇总: 启用={hedge_status['hedge_enabled']}, "
-                    f"指令数={len(executed_orders)}, "
-                    f"总对冲比例={hedge_status['total_hedge_pct']:.2%}")
-
-        self.state["phases"]["hedge"] = {"status": "PASS", **hedge_status}
-        self.state["hedge_status"] = hedge_status
-
-        # === 持久化对冲执行记录 ===
-        try:
-            trade_date = getattr(self, "trade_date", None) or datetime.now().strftime("%Y-%m-%d")
-            reports_dir = BASE_DIR / "reports"
-            reports_dir.mkdir(parents=True, exist_ok=True)
-            hedge_fill_path = reports_dir / f"hedge_execution_fill_{trade_date}.json"
-            fill_payload = {
-                "trade_date": trade_date,
-                "generated_at": datetime.now().isoformat(),
-                "portfolio_beta": coordinated.get("portfolio_beta", 0),
-                "total_hedge_pct": coordinated.get("total_hedge_pct", 0),
-                "total_cost": coordinated.get("total_cost", 0),
-                "hedge_enabled": len(executed_orders) > 0,
-                "orders": executed_orders,
-            }
-            with open(hedge_fill_path, "w", encoding="utf-8") as f:
-                json.dump(fill_payload, f, ensure_ascii=False, indent=2)
-            logger.info(f"对冲成交记录已落盘: {hedge_fill_path}")
-        except Exception as exc:
-            logger.error(f"对冲成交记录落盘失败: {exc}")
-
-        return hedge_status
 
     # --------------------------------------------------------
     # Phase 4.5: 对冲基金视角融合 (v7.7)
@@ -1935,2390 +1046,160 @@ class DailyWorkflow:
     #   - 2030清仓协议: 阶段切换 + 预警
     # --------------------------------------------------------
     def phase_hedge_fund(self) -> Dict[str, Any]:
-        """对冲基金视角融合阶段 — Theta/Gamma/KillSwitch/LiquidationScheduler"""
-        logger.info("=" * 60)
-        logger.info("Phase 4.5: 对冲基金视角融合 (Theta/Gamma/KillSwitch/Liquidation)")
-        logger.info("=" * 60)
+        """对冲基金视角融合 (委托至 workflow.phases.hedge_fund)"""
+        from workflow.phases.hedge_fund import phase_hedge_fund as _phase_hedge_fund
+        ctx = self._build_context()
+        return _phase_hedge_fund(ctx)
 
-        result: Dict[str, Any] = {
-            "status": "PASS",
-            "modules_loaded": HEDGE_FUND_MODULES_READY,
-            "theta": {},
-            "gamma": {},
-            "kill_switch": {},
-            "liquidation": {},
-        }
-
-        if not HEDGE_FUND_MODULES_READY:
-            logger.warning("对冲基金模块未加载, 跳过本阶段")
-            result["status"] = "SKIP"
-            result["reason"] = "modules_not_loaded"
-            self.state["phases"]["hedge_fund"] = result
-            return result
-
-        # === 1. Theta引擎 — 月度Covered Call计划 + 滚仓检查 ===
-        try:
-            theta = ThetaEngine()
-            theta_cfg = getattr(theta, "config", {}) or {}
-            if not theta_cfg.get("enabled", False):
-                logger.info("[Theta] 引擎未启用, 跳过")
-                result["theta"] = {"enabled": False}
-            else:
-                # 滚仓检查 (到期前5个交易日)
-                rollover_plan = theta.check_rollover()
-                if rollover_plan:
-                    logger.info("[Theta] 检测到需滚仓头寸: %d 个", len(rollover_plan.get("positions", [])))
-                    result["theta"]["rollover"] = rollover_plan
-                else:
-                    # 生成/刷新月度计划
-                    monthly_plan = theta.generate_monthly_plan()
-                    logger.info("[Theta] 月度Covered Call计划: %d 个头寸, 预期权利金 %.0f",
-                                len(monthly_plan.get("positions", [])),
-                                monthly_plan.get("total_est_premium", 0))
-                    result["theta"] = {
-                        "enabled": True,
-                        "plan_date": monthly_plan.get("plan_date"),
-                        "positions_count": len(monthly_plan.get("positions", [])),
-                        "total_premium": monthly_plan.get("total_est_premium", 0),
-                        "monthly_return_pct": monthly_plan.get("portfolio_yield_monthly", 0),
-                        "annualized_pct": monthly_plan.get("portfolio_yield_annualized", 0),
-                        "plan_path": monthly_plan.get("plan_path", ""),
-                    }
-        except Exception as e:
-            logger.error(f"[Theta] 引擎执行失败: {e}", exc_info=True)
-            result["theta"] = {"status": "ERROR", "error": str(e)}
-
-        # === 2. Gamma/Vega引擎 — 尾部危机监控 ===
-        try:
-            gamma = GammaEngine()
-            monitor_result = gamma.monitor()
-            logger.info("[Gamma] 监控完成: MA60=%s, IV分位=%s, 触发=%s",
-                        monitor_result.get("ma60_status"),
-                        monitor_result.get("iv_percentile"),
-                        monitor_result.get("triggered"))
-            result["gamma"] = monitor_result
-            # 若触发, 记录但不在此自动执行 (由 phase_execute 接管)
-            if monitor_result.get("triggered"):
-                logger.warning("[Gamma] 尾部对冲触发! 类型=%s, 预算=%.0f",
-                               monitor_result.get("trigger_type"),
-                               monitor_result.get("budget", 0))
-        except Exception as e:
-            logger.error(f"[Gamma] 引擎执行失败: {e}", exc_info=True)
-            result["gamma"] = {"status": "ERROR", "error": str(e)}
-
-        # === 3. 三级熔断协议 — 保证金占用率检查 ===
-        try:
-            ks = KillSwitch()
-            ks_status = ks.check_margin_status()
-            ks_level = int(ks_status.get("level", 0)) if isinstance(ks_status, dict) else 0
-            logger.info("[KillSwitch] 当前熔断级别: L%d (%s), 保证金占用率: %.1f%%",
-                        ks_level,
-                        ks_status.get("level_name", "正常") if isinstance(ks_status, dict) else "未知",
-                        (ks_status.get("margin_usage_ratio", 0) if isinstance(ks_status, dict) else 0) * 100)
-            result["kill_switch"] = {
-                "level": ks_level,
-                "level_name": ks_status.get("level_name", "正常") if isinstance(ks_status, dict) else "未知",
-                "margin_usage_ratio": ks_status.get("margin_usage_ratio", 0) if isinstance(ks_status, dict) else 0,
-                "triggered": ks_level > 0,
-            }
-            if ks_level >= 1:
-                logger.warning("[KillSwitch] L1触发: 停止新开仓, 进入防守模式")
-            if ks_level >= 2:
-                logger.error("[KillSwitch] L2触发: 强平深虚值期权空头!")
-            if ks_level >= 3:
-                logger.critical("[KillSwitch] L3触发: 变现红利ETF跨品种注入!")
-                # 执行L3紧急协议
-                try:
-                    ks.execute_kill_switch(3)
-                except Exception as e3:
-                    logger.error(f"[KillSwitch] L3执行失败: {e3}")
-        except Exception as e:
-            logger.error(f"[KillSwitch] 检查失败: {e}", exc_info=True)
-            result["kill_switch"] = {"status": "ERROR", "error": str(e)}
-
-        # === 4. 2030清仓协议 — 阶段切换 + 预警 ===
-        try:
-            ls = LiquidationScheduler()
-            current_phase = ls.get_current_phase()
-            phase_num = current_phase.get("phase", 0) if current_phase else 0
-            phase_name = current_phase.get("name", "未知") if current_phase else "未知"
-            days_to_next = current_phase.get("days_to_next_phase") if current_phase else None
-            logger.info("[Liquidation] 当前阶段: Phase %d (%s), 距下一阶段: %s 天",
-                        phase_num, phase_name,
-                        days_to_next if days_to_next is not None else "N/A")
-            alert = ls.check_alert(days_threshold=30)
-            result["liquidation"] = {
-                "phase": phase_num,
-                "phase_name": phase_name,
-                "days_to_next": days_to_next,
-                "alert": alert or {"alert": False},
-            }
-            if alert and alert.get("alert"):
-                logger.warning("[Liquidation] 清仓预警: %s", alert.get("message", ""))
-        except Exception as e:
-            logger.error(f"[Liquidation] 调度器检查失败: {e}", exc_info=True)
-            result["liquidation"] = {"status": "ERROR", "error": str(e)}
-
-        # === 写入 state ===
-        self.state["phases"]["hedge_fund"] = result
-        logger.info("-" * 60)
-        logger.info("Phase 4.5 完成: Theta=%s, Gamma触发=%s, 熔断级别=L%d, 清仓阶段=Phase %s",
-                    "OK" if result["theta"] else "SKIP",
-                    result["gamma"].get("triggered", False),
-                    result["kill_switch"].get("level", 0),
-                    result["liquidation"].get("phase", "UNKNOWN"))
-        logger.info("=" * 60)
-        return result
 
     # --------------------------------------------------------
     # Phase 4.6: v10.0 风控 (回撤控制 + VaR 监控 + 压力测试)
     # --------------------------------------------------------
     def phase_v10_risk(self) -> Dict[str, Any]:
-        """v10.0 风控阶段 — 回撤控制 + VaR 监控 + 压力测试 + 配置加载"""
-        logger.info("=" * 60)
-        logger.info("Phase 4.6: v10.0 风控 (回撤控制 + VaR 监控 + 压力测试)")
-        logger.info("=" * 60)
-
-        result: Dict[str, Any] = {
-            "status": "PASS",
-            "modules_loaded": V10_RISK_READY,
-            "drawdown": {},
-            "var": {},
-            "stress_test": {},
-            "v10_config": {},
-        }
-
-        if not V10_RISK_READY:
-            logger.warning("v10.0 风控模块未加载, 跳过本阶段")
-            result["status"] = "SKIP"
-            result["reason"] = "modules_not_loaded"
-            self.state["phases"]["v10_risk"] = result
-            return result
-
-        # === 1. 加载 v10.0 配置 ===
-        try:
-            v10_loader = V10ConfigLoader()
-            phase = v10_loader.get_current_phase()
-            allocation = v10_loader.get_allocation()
-            daily_build_limit = v10_loader.get_daily_build_limit()
-            logger.info("[V10Config] 当前阶段: %s - %s, 每日建仓限额: ¥%.0f",
-                        phase.get("phase_key", "N/A"),
-                        phase.get("name", "N/A"),
-                        daily_build_limit)
-            result["v10_config"] = {
-                "phase_key": phase.get("phase_key"),
-                "phase_name": phase.get("name"),
-                "daily_build_limit": daily_build_limit,
-                "allocation": allocation,
-            }
-        except Exception as e:
-            logger.error(f"[V10Config] 加载失败: {e}", exc_info=True)
-            result["v10_config"] = {"status": "ERROR", "error": str(e)}
-
-        # === 2. 回撤控制 ===
-        try:
-            dc = DrawdownController()
-            # 使用当前组合净值 (从 state 读取或用默认值)
-            portfolio_value = float(self.state.get("portfolio_value", self.capital))
-            peak_value = float(self.state.get("peak_value", self.capital))
-            dd_result = dc.check_drawdown(peak_value, portfolio_value)
-            dd_level = dd_result.get("level", 0)
-            logger.info("[Drawdown] 回撤级别: L%d (%s), 回撤: %.2f%%",
-                        dd_level,
-                        dd_result.get("level_name", "正常"),
-                        abs(dd_result.get("drawdown_pct", 0)) * 100)
-            result["drawdown"] = {
-                "level": dd_level,
-                "level_name": dd_result.get("level_name"),
-                "drawdown_pct": dd_result.get("drawdown_pct"),
-                "build_allowed": dd_result.get("build_allowed"),
-                "spot_reduce_pct": dd_result.get("spot_reduce_pct"),
-                "hedge_ratio_target": dd_result.get("hedge_ratio_target"),
-                "actions": dd_result.get("actions", []),
-            }
-            if dd_level >= 2:
-                logger.warning("[Drawdown] L%d 触发! 禁止新开仓, 建议减仓 %.0f%%",
-                              dd_level, dd_result.get("spot_reduce_pct", 0) * 100)
-        except Exception as e:
-            logger.error(f"[Drawdown] 检查失败: {e}", exc_info=True)
-            result["drawdown"] = {"status": "ERROR", "error": str(e)}
-
-        # === 3. VaR 监控 ===
-        try:
-            vm = VaRMonitor()
-            # 尝试从 returns_history.json 加载历史收益率
-            returns_history = self._load_returns_history()
-            portfolio_value = float(self.state.get("portfolio_value", self.capital))
-            if returns_history and len(returns_history) >= 30:
-                var_result = vm.calculate_var(returns_history, portfolio_value)
-                logger.info("[VaR] 95%%=%.2f%% (限 %.2f%%), 99%%=%.2f%% (限 %.2f%%), 超限=%s",
-                            var_result.get("var_95_pct", 0) * 100,
-                            vm.VAR_95_LIMIT_PCT * 100,
-                            var_result.get("var_99_pct", 0) * 100,
-                            vm.VAR_99_LIMIT_PCT * 100,
-                            var_result.get("any_breach", False))
-                result["var"] = {
-                    "var_95_pct": var_result.get("var_95_pct"),
-                    "var_99_pct": var_result.get("var_99_pct"),
-                    "var_95_breach": var_result.get("var_95_breach"),
-                    "var_99_breach": var_result.get("var_99_breach"),
-                    "any_breach": var_result.get("any_breach"),
-                    "actions": var_result.get("actions", []),
-                }
-            else:
-                logger.info("[VaR] 历史数据不足 (%d 日), 跳过 VaR 计算", len(returns_history) if returns_history else 0)
-                result["var"] = {"status": "SKIP", "reason": "insufficient_data"}
-        except Exception as e:
-            logger.error(f"[VaR] 监控失败: {e}", exc_info=True)
-            result["var"] = {"status": "ERROR", "error": str(e)}
-
-        # === 4. 压力测试 (季度执行, 其他时间跳过) ===
-        try:
-            today = datetime.now()
-            # 季度末 (3/6/9/12月最后一周) 执行
-            is_quarter_end = today.month in (3, 6, 9, 12) and today.day >= 25
-            if is_quarter_end:
-                logger.info("[StressTest] 季度末, 执行压力测试")
-                runner = StressTestRunner()
-                positions = self._get_portfolio_positions_for_stress_test()
-                portfolio_value = float(self.state.get("portfolio_value", self.capital))
-                stress_result = runner.run_all_scenarios(positions, portfolio_value)
-                logger.info("[StressTest] 结果: %s, 最差场景: %s (%.1f%%)",
-                            "全部通过" if stress_result.get("all_pass") else "有超限",
-                            stress_result.get("worst_scenario"),
-                            stress_result.get("worst_dd", 0) * 100)
-                result["stress_test"] = {
-                    "executed": True,
-                    "all_pass": stress_result.get("all_pass"),
-                    "worst_scenario": stress_result.get("worst_scenario"),
-                    "worst_dd": stress_result.get("worst_dd"),
-                    "report_path": stress_result.get("report_path"),
-                }
-            else:
-                logger.info("[StressTest] 非季度末, 跳过压力测试")
-                result["stress_test"] = {"executed": False, "reason": "not_quarter_end"}
-        except Exception as e:
-            logger.error(f"[StressTest] 执行失败: {e}", exc_info=True)
-            result["stress_test"] = {"status": "ERROR", "error": str(e)}
-
-        # === 5. 十五五阶段季度评估 (PhaseManager 季度末触发) ===
-        try:
-            if self.phase_manager is not None:
-                sim_date = datetime.strptime(self.trade_date, "%Y-%m-%d").date() if self.trade_date else None
-                is_pm_quarter_end = self.phase_manager.is_quarter_end(sim_date)
-                if is_pm_quarter_end:
-                    logger.info("[PhaseManager] 季度末, 触发十五五季度评估")
-                    positions_for_review = self._get_portfolio_positions_for_stress_test()
-                    portfolio_value = float(self.state.get("portfolio_value", self.capital))
-                    review = self.phase_manager.trigger_quarterly_review(
-                        positions=positions_for_review,
-                        portfolio_value=portfolio_value,
-                        today=sim_date,
-                    )
-                    logger.info(
-                        "[PhaseManager] 季度评估完成: Q%s, 压测=%s, 调仓=%s, 动作数=%d",
-                        review.quarter,
-                        review.stress_test_triggered,
-                        review.rebalance_needed,
-                        len(review.actions),
-                    )
-                    for action in review.actions:
-                        logger.info(f"  - {action}")
-                    result["quarterly_review"] = {
-                        "executed": True,
-                        "quarter": review.quarter,
-                        "is_quarter_end": review.is_quarter_end,
-                        "stress_test_triggered": review.stress_test_triggered,
-                        "stress_test_result": review.stress_test_result,
-                        "rebalance_needed": review.rebalance_needed,
-                        "actions": review.actions,
-                        "strategy_effectiveness": review.strategy_effectiveness,
-                    }
-                    # 2030 清仓年: 输出清仓动作
-                    if self.current_phase_info and self.current_phase_info.is_liquidation_year:
-                        liq_actions = self.phase_manager.get_liquidation_actions(sim_date)
-                        if liq_actions:
-                            logger.warning(
-                                "[PhaseManager] 2030 清仓 %s - %s",
-                                self.current_phase_info.current_quarter,
-                                liq_actions.get("name", "")
-                            )
-                            result["liquidation_actions"] = liq_actions
-                else:
-                    logger.info("[PhaseManager] 非季度末, 季度评估跳过")
-                    result["quarterly_review"] = {"executed": False, "reason": "not_quarter_end"}
-            else:
-                result["quarterly_review"] = {"status": "SKIP", "reason": "phase_manager_not_loaded"}
-        except Exception as e:
-            logger.error(f"[PhaseManager] 季度评估失败: {e}", exc_info=True)
-            result["quarterly_review"] = {"status": "ERROR", "error": str(e)}
-
-        # === 写入 state ===
-        self.state["phases"]["v10_risk"] = result
-        logger.info("-" * 60)
-        logger.info("Phase 4.6 完成: 回撤=L%d, VaR超限=%s, 压测=%s, 季度评估=%s",
-                    result["drawdown"].get("level", 0),
-                    result["var"].get("any_breach", False),
-                    "执行" if result["stress_test"].get("executed") else "跳过",
-                    "执行" if result.get("quarterly_review", {}).get("executed") else "跳过")
-        logger.info("=" * 60)
-        return result
-
-    def _load_returns_history(self) -> List[float]:
-        """加载历史收益率序列 (用于 VaR 计算)"""
-        try:
-            returns_path = BASE_DIR.parent / "config" / "returns_history.json"
-            if returns_path.exists():
-                with open(returns_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                # 支持多种格式: {"returns": [...]} 或 {"daily_returns": [...]} 或 [...]
-                if isinstance(data, list):
-                    return data
-                elif isinstance(data, dict):
-                    for key in ("returns", "daily_returns", "portfolio_returns"):
-                        if key in data:
-                            return data[key]
-            return []
-        except Exception:
-            return []
+        """v10.0 风控 (委托至 workflow.phases.v10_risk)"""
+        from workflow.phases.v10_risk import phase_v10_risk as _phase_v10_risk
+        ctx = self._build_context()
+        return _phase_v10_risk(ctx)
 
     def _get_portfolio_positions_for_stress_test(self) -> List[Dict]:
-        """获取用于压力测试的持仓列表"""
-        positions: List[Dict] = []
-        try:
-            v10_loader = V10ConfigLoader()
-            for pos in v10_loader.get_stock_positions():
-                positions.append({
-                    "code": pos.get("code"),
-                    "name": pos.get("name"),
-                    "amount": pos.get("amount", 0),
-                    "strategy": "stock_long",
-                    "style": pos.get("style", ""),
-                })
-            for pos in v10_loader.get_etf_positions():
-                positions.append({
-                    "code": pos.get("code"),
-                    "name": pos.get("name"),
-                    "amount": pos.get("amount", 0),
-                    "strategy": "etf",
-                    "style": pos.get("style", ""),
-                })
-            # 期货和期权账户
-            futures_cfg = v10_loader.get_futures_config()
-            if futures_cfg:
-                positions.append({
-                    "code": "futures",
-                    "name": "期货账户",
-                    "amount": futures_cfg.get("margin_capital", 0),
-                    "strategy": "futures_hedge",
-                })
-            options_cfg = v10_loader.get_options_config()
-            if options_cfg:
-                positions.append({
-                    "code": "options",
-                    "name": "期权账户",
-                    "amount": options_cfg.get("capital", 0),
-                    "strategy": "options_tail",
-                })
-            cash_cfg = v10_loader.get_cash_config()
-            if cash_cfg:
-                positions.append({
-                    "code": "cash",
-                    "name": "现金管理",
-                    "amount": cash_cfg.get("capital", 0),
-                    "strategy": "cash",
-                })
-        except Exception as e:
-            logger.warning(f"获取压力测试持仓失败: {e}")
-        return positions
+        """获取压力测试持仓 (委托至 workflow.phases.v10_risk)"""
+        from workflow.phases.v10_risk import _get_portfolio_positions_for_stress_test as _impl
+        return _impl()
 
     # --------------------------------------------------------
     # Phase 4.7: 量化市场中性策略 (月度调仓 + IC 对冲)
     # --------------------------------------------------------
     def phase_quant_neutral(self) -> Dict[str, Any]:
-        """量化市场中性策略 — 7 因子选股 + IC 期货对冲
-
-        v10.0 投资计划 quant_neutral_account (70 万资金, 140 万名义敞口):
-            - 做多 25 只因子 top 20% 股票
-            - 做空 IC 期货对冲, 目标 beta 0.05
-            - 月度调仓, 换手率 150%
-
-        触发条件:
-            - 每月最后一个交易日执行 (默认)
-            - 或 IC 基差 > 1.5% 时触发减仓评估
-
-        Returns:
-            量化中性调仓结果
-        """
-        logger.info("=" * 60)
-        logger.info("Phase 4.7: 量化市场中性策略 (月度调仓 + IC 对冲)")
-        logger.info("=" * 60)
-
-        result: Dict[str, Any] = {
-            "status": "PASS",
-            "action": "skip",
-            "reason": "",
-            "long_count": 0,
-            "long_market_value": 0.0,
-            "portfolio_beta": 0.0,
-            "net_exposure": 0.0,
-            "ic_hedge": {},
-            "drawdown_action": "normal",
-        }
-
-        if not V10_STRATEGY_READY:
-            result["status"] = "SKIP"
-            result["reason"] = "v10.0 策略模块未加载"
-            logger.warning("[QuantNeutral] v10.0 策略模块未加载, 跳过")
-            self.state["phases"]["quant_neutral"] = result
-            return result
-
-        try:
-            # 1. 检查是否调仓日 (每月最后一个交易日)
-            today = date.today()
-            is_month_end = today.day >= 25  # 简化: 25 日后视为月末窗口
-            if not is_month_end:
-                result["action"] = "skip"
-                result["reason"] = f"非月末调仓窗口 (今日 {today.day} 日 < 25)"
-                logger.info(f"[QuantNeutral] {result['reason']}, 跳过月度调仓")
-                self.state["phases"]["quant_neutral"] = result
-                return result
-
-            # 2. 加载候选股票池 (从 v10.0 配置)
-            v10_loader = V10ConfigLoader()
-            stock_positions = v10_loader.get_stock_positions()
-
-            # 构建候选池 (使用配置中的股票作为简化示例)
-            # 实际生产环境应从 Wind/AKShare 获取全市场前 20% 股票
-            candidate_universe = []
-            for pos in stock_positions:
-                candidate_universe.append({
-                    "code": pos.get("code", ""),
-                    "name": pos.get("name", ""),
-                    "returns_20d": 0.05,            # 占位, 实际应从行情接口获取
-                    "returns_5d": -0.02,
-                    "volatility_60d": 0.25,
-                    "avg_turnover_amount": 50_000_000,
-                    "roe": 0.15,
-                    "cashflow_ratio": 0.85,
-                    "revenue_growth": 0.20,
-                    "profit_growth": 0.18,
-                    "pe_percentile": 0.45,
-                    "pb_percentile": 0.30,
-                    "beta": 1.0,
-                })
-
-            # 3. 加载当前持仓
-            current_holdings = self._load_quant_neutral_holdings()
-
-            # 4. 获取 IC 期货价格 (从 positions.json 或实时行情)
-            ic_price = self._get_ic_price()
-
-            # 5. 获取 IC 基差
-            basis = self._get_ic_basis()
-
-            # 6. 获取策略历史回撤
-            strategy_dd_pct, history_95pct_dd, consecutive_months = self._load_strategy_drawdown_state("quant_neutral")
-
-            # 7. 执行月度调仓
-            runner = QuantNeutralRunner()
-            qn_result = runner.run_monthly_rebalance(
-                candidate_universe=candidate_universe,
-                current_holdings=current_holdings,
-                current_ic_contracts=self._get_current_ic_contracts(),
-                ic_price=ic_price,
-                basis=basis,
-                strategy_drawdown_pct=strategy_dd_pct,
-                strategy_history_95pct_drawdown=history_95pct_dd,
-                consecutive_overdrawdown_months=consecutive_months,
-                trade_date=today,
-            )
-
-            # 8. 输出摘要
-            summary = runner.summary(qn_result)
-            logger.info("\n" + summary)
-
-            # 9. 更新结果
-            result.update({
-                "status": "PASS",
-                "action": qn_result.action,
-                "reason": qn_result.reason,
-                "long_count": qn_result.long_count,
-                "long_market_value": qn_result.long_market_value,
-                "portfolio_beta": qn_result.portfolio_beta,
-                "target_beta": qn_result.target_beta,
-                "net_exposure": qn_result.net_exposure,
-                "ic_hedge": qn_result.ic_hedge,
-                "drawdown_action": qn_result.drawdown_action,
-                "basis_warning": qn_result.basis_warning,
-                "turnover_achieved": qn_result.turnover_achieved,
-                "candidate_count": qn_result.candidate_count,
-                "factors_used": qn_result.factors_used,
-            })
-
-            # 10. 紧急风控: 暂停策略 → 触发清仓
-            if qn_result.action == "pause":
-                logger.warning(f"[QuantNeutral] 策略暂停: {qn_result.reason}")
-                result["status"] = "ALERT"
-
-        except Exception as e:
-            logger.error(f"[QuantNeutral] 月度调仓失败: {e}", exc_info=True)
-            result["status"] = "ERROR"
-            result["reason"] = str(e)
-
-        # === 写入 state ===
-        self.state["phases"]["quant_neutral"] = result
-        logger.info("-" * 60)
-        logger.info("Phase 4.7 完成: 动作=%s, 做多=%d 只, 净敞口=%.3f",
-                    result.get("action", ""),
-                    result.get("long_count", 0),
-                    result.get("net_exposure", 0))
-        logger.info("=" * 60)
-        return result
+        """量化市场中性策略 (委托至 workflow.phases.quant_neutral)"""
+        from workflow.phases.quant_neutral import phase_quant_neutral as _phase_quant_neutral
+        ctx = self._build_context()
+        return _phase_quant_neutral(ctx)
 
     def _load_quant_neutral_holdings(self) -> List[Dict]:
-        """加载量化中性策略的当前多头持仓"""
-        try:
-            positions_path = BASE_DIR.parent / "config" / "quant_neutral_positions.json"
-            if positions_path.exists():
-                with open(positions_path, "r", encoding="utf-8") as f:
-                    return json.load(f).get("long_positions", [])
-        except Exception:
-            pass
-        return []
+        """加载量化中性多头持仓 (委托至 workflow.phases.quant_neutral)"""
+        from workflow.phases.quant_neutral import _load_quant_neutral_holdings as _impl
+        return _impl()
 
     def _get_ic_price(self) -> float:
-        """获取 IC 期货价格"""
-        try:
-            positions_path = BASE_DIR.parent / "config" / "positions.json"
-            if positions_path.exists():
-                with open(positions_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                # 从 positions.json 中查找 IC 期货价格
-                for pos in data.get("positions", []):
-                    if pos.get("code") == "IC" or pos.get("symbol", "").startswith("IC"):
-                        return float(pos.get("price", 5500.0))
-        except Exception:
-            pass
-        return 5500.0  # 默认 IC 价格
+        """获取 IC 期货价格 (委托至 workflow.phases.quant_neutral)"""
+        from workflow.phases.quant_neutral import _get_ic_price as _impl
+        return _impl()
 
     def _get_ic_basis(self) -> Optional[float]:
-        """获取 IC 基差 (正=贴水, 负=升水)"""
-        try:
-            # 从市场数据中获取 IC 基差
-            # 简化: 默认无基差警告
-            return 0.0
-        except Exception:
-            return None
+        """获取 IC 基差 (委托至 workflow.phases.quant_neutral)"""
+        from workflow.phases.quant_neutral import _get_ic_basis as _impl
+        return _impl()
 
     def _get_current_ic_contracts(self) -> int:
-        """获取当前持有的 IC 空头合约数"""
-        try:
-            positions_path = BASE_DIR.parent / "config" / "quant_neutral_positions.json"
-            if positions_path.exists():
-                with open(positions_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                return int(data.get("ic_short_contracts", 0))
-        except Exception:
-            pass
-        return 0
+        """获取 IC 空头合约数 (委托至 workflow.phases.quant_neutral)"""
+        from workflow.phases.quant_neutral import _get_current_ic_contracts as _impl
+        return _impl()
 
     def _load_strategy_drawdown_state(self, strategy_name: str) -> Tuple[float, float, int]:
-        """加载策略回撤状态
+        """加载策略回撤状态 (委托至 workflow.phases.quant_neutral)"""
+        from workflow.phases.quant_neutral import _load_strategy_drawdown_state as _impl
+        return _impl(strategy_name)
 
-        Returns:
-            (当前回撤百分比, 历史 95% 分位回撤, 连续回撤超限月数)
-        """
-        try:
-            state_path = BASE_DIR.parent / "config" / f"{strategy_name}_state.json"
-            if state_path.exists():
-                with open(state_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                return (
-                    float(data.get("current_drawdown_pct", 0.0)),
-                    float(data.get("history_95pct_drawdown", 0.05)),
-                    int(data.get("consecutive_overdrawdown_months", 0)),
-                )
-        except Exception:
-            pass
-        return (0.0, 0.05, 0)
 
     # --------------------------------------------------------
     # Phase 4.8: 现金管理 (逆回购 + 货基 + 应急金监控)
     # --------------------------------------------------------
     def phase_cash_management(self) -> Dict[str, Any]:
-        """现金管理 — 逆回购自动下单 + 应急金监控 + 保证金追加检查
-
-        v10.0 投资计划 cash_management (130 万资金, 占总资本 26%):
-            - 期货保证金 50 万 (维持率 ≥ 60%)
-            - 期权抵押金 10 万
-            - 应急保证金 30 万 (2 日内补足)
-            - 逆回购 / 货基 40 万 (RCO001, 每日自动)
-
-        自动化:
-            - 每日 14:30 评估闲置资金
-            - 闲置资金 > 1 万 → 自动下单 RCO001
-            - 月末季末高利率期 → 加大投放 20%
-            - 应急金动用 → 2 日内补足
-
-        Returns:
-            现金管理结果
-        """
-        logger.info("=" * 60)
-        logger.info("Phase 4.8: 现金管理 (逆回购 + 货基 + 应急金)")
-        logger.info("=" * 60)
-
-        result: Dict[str, Any] = {
-            "status": "PASS",
-            "action": "skip",
-            "total_cash": 0.0,
-            "reverse_repo_amount": 0.0,
-            "estimated_daily_income": 0.0,
-            "repo_order": {},
-            "margin_call": {},
-            "emergency_replenish": {},
-        }
-
-        if not V10_STRATEGY_READY:
-            result["status"] = "SKIP"
-            result["reason"] = "v10.0 现金管理模块未加载"
-            logger.warning("[CashManager] v10.0 模块未加载, 跳过")
-            self.state["phases"]["cash_management"] = result
-            return result
-
-        try:
-            # 1. 加载当前现金状态
-            total_cash, futures_margin_used, options_collateral_used, emergency_used = self._load_cash_state()
-
-            # 2. 获取当前逆回购利率
-            repo_rate = self._get_current_repo_rate()
-
-            # 3. 执行闲置资金分配
-            cm = CashManager()
-            cm_result = cm.allocate_idle_cash(
-                total_cash=total_cash,
-                futures_margin_used=futures_margin_used,
-                options_collateral_used=options_collateral_used,
-                emergency_used=emergency_used,
-                current_repo_rate=repo_rate,
-                trade_date=date.today(),
-            )
-
-            # 4. 输出摘要
-            summary = cm.summary(cm_result)
-            logger.info("\n" + summary)
-
-            # 5. 检查应急金补足
-            if emergency_used > 0:
-                replenish = cm.check_emergency_replenish(emergency_used)
-                result["emergency_replenish"] = replenish
-                if replenish.get("action") == "replenish_now":
-                    logger.warning(f"[CashManager] {replenish['reason']}")
-
-            # 6. 检查期货保证金追加
-            futures_account_value, futures_margin_used_actual = self._load_futures_account_state()
-            if futures_account_value > 0:
-                margin_check = cm.check_margin_call(futures_account_value, futures_margin_used_actual)
-                result["margin_call"] = margin_check
-                if margin_check.get("action") != "no_action":
-                    logger.warning(f"[CashManager] {margin_check['reason']}")
-
-            # 7. 更新结果
-            result.update({
-                "status": "PASS",
-                "action": cm_result.action,
-                "total_cash": cm_result.total_cash,
-                "reverse_repo_amount": cm_result.reverse_repo,
-                "estimated_daily_income": cm_result.estimated_daily_income,
-                "estimated_annual_yield": cm_result.estimated_annual_yield,
-                "repo_order": cm_result.repo_order,
-                "is_month_end": cm_result.is_month_end,
-                "is_quarter_end": cm_result.is_quarter_end,
-                "futures_margin_ratio": cm_result.futures_margin_ratio,
-                "emergency_replenish_needed": cm_result.emergency_replenish_needed,
-            })
-
-        except Exception as e:
-            logger.error(f"[CashManager] 现金管理失败: {e}", exc_info=True)
-            result["status"] = "ERROR"
-            result["reason"] = str(e)
-
-        # === 写入 state ===
-        self.state["phases"]["cash_management"] = result
-        logger.info("-" * 60)
-        logger.info("Phase 4.8 完成: 动作=%s, 逆回购=¥%.0f, 日收益=¥%.2f",
-                    result.get("action", ""),
-                    result.get("reverse_repo_amount", 0),
-                    result.get("estimated_daily_income", 0))
-        logger.info("=" * 60)
-        return result
-
-    def _load_cash_state(self) -> Tuple[float, float, float, float]:
-        """加载当前现金状态
-
-        Returns:
-            (总现金, 期货已用保证金, 期权已用抵押金, 应急金已动用)
-        """
-        try:
-            cash_path = BASE_DIR.parent / "config" / "cash_state.json"
-            if cash_path.exists():
-                with open(cash_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                return (
-                    float(data.get("total_cash", 1_300_000)),
-                    float(data.get("futures_margin_used", 480_000)),
-                    float(data.get("options_collateral_used", 10_000)),
-                    float(data.get("emergency_used", 0)),
-                )
-        except Exception:
-            pass
-        # 默认值
-        return (1_300_000, 480_000, 10_000, 0.0)
-
-    def _get_current_repo_rate(self) -> float:
-        """获取当前逆回购利率 (RCO001)"""
-        try:
-            # 从市场数据获取
-            # 简化: 默认 2.5%
-            return 0.025
-        except Exception:
-            return 0.025
-
-    def _load_futures_account_state(self) -> Tuple[float, float]:
-        """加载期货账户状态
-
-        Returns:
-            (期货账户权益, 已用保证金)
-        """
-        try:
-            futures_path = BASE_DIR.parent / "config" / "futures_account.json"
-            if futures_path.exists():
-                with open(futures_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                return (
-                    float(data.get("account_value", 500_000)),
-                    float(data.get("margin_used", 0)),
-                )
-        except Exception:
-            pass
-        return (500_000, 0.0)
+        """现金管理 (委托至 workflow.phases.cash_management)"""
+        from workflow.phases.cash_management import phase_cash_management as _phase_cash_management
+        ctx = self._build_context()
+        return _phase_cash_management(ctx)
 
     # --------------------------------------------------------
     # Phase 4.9: 方向性期货交易 (CU/AU/T 三品种方向性交易)
     # --------------------------------------------------------
     def phase_directional_futures(self) -> Dict[str, Any]:
-        """方向性期货交易 — CU(沪铜)/AU(黄金)/T(10年国债) 三品种
-
-        v10.0 macro_hedge_account 中的方向性子模块:
-            - CU 沪铜:    新能源需求方向, 默认做多
-            - AU 黄金:    避险+通胀对冲, 默认做多
-            - T  10年国债: 利率方向, 默认做空 (十五五财政发力推升利率)
-
-        信号源:
-            - MA20/MA60 趋势 + RSI 超买超卖 + MACD 动量 + 品种默认方向 0.5 票
-            - 三重确认: ≥2 票做多, ≤-2 票做空, 否则空仓
-
-        风控:
-            - 单笔最大亏损 20% (保证金视角)
-            - 日最大亏损 15% (账户视角)
-            - 周连续亏损 25% → 暂停 7 天
-
-        Returns:
-            方向性期货交易结果
-        """
-        logger.info("=" * 60)
-        logger.info("Phase 4.9: 方向性期货交易 (CU/AU/T)")
-        logger.info("=" * 60)
-
-        result: Dict[str, Any] = {
-            "status": "PASS",
-            "action": "skip",
-            "signals": [],
-            "orders": [],
-            "risk_status": "normal",
-            "total_margin_used": 0.0,
-            "total_notional": 0.0,
-            "pause_until": None,
-        }
-
-        if not V10_STRATEGY_READY:
-            result["status"] = "SKIP"
-            result["reason"] = "v10.0 方向性期货模块未加载"
-            logger.warning("[DirectionalFutures] v10.0 模块未加载, 跳过")
-            self.state["phases"]["directional_futures"] = result
-            return result
-
-        try:
-            # 1. 加载市场数据 (CU/AU/T 的 OHLCV)
-            market_data = self._load_directional_futures_market_data()
-
-            # 2. 加载当前持仓
-            current_positions = self._load_directional_futures_positions()
-
-            # 3. 获取当前价格
-            prices = self._get_futures_prices(market_data)
-
-            # 4. 加载风控状态
-            daily_pnl_pct, weekly_loss_pct, last_pause_date = self._load_directional_futures_risk_state()
-
-            # 5. 调用 DirectionalFuturesTrader.run()
-            trader = DirectionalFuturesTrader()
-            df_result = trader.run(
-                market_data=market_data,
-                current_positions=current_positions,
-                prices=prices,
-                trade_date=date.today(),
-                daily_pnl_pct=daily_pnl_pct,
-                weekly_consecutive_loss_pct=weekly_loss_pct,
-                last_loss_pause_date=last_pause_date,
-            )
-
-            # 6. 输出摘要
-            summary = trader.summary(df_result)
-            logger.info("\n" + summary)
-
-            # 7. 保存指令到文件
-            orders_saved = self._save_directional_futures_orders(df_result.orders)
-
-            # 8. 更新结果
-            result.update({
-                "status": "PASS",
-                "action": df_result.action,
-                "signals": [asdict(s) if hasattr(s, '__dataclass_fields__') else dict(s)
-                            for s in df_result.signals],
-                "orders": [asdict(o) if hasattr(o, '__dataclass_fields__') else dict(o)
-                           for o in df_result.orders],
-                "risk_status": df_result.risk_status,
-                "total_margin_used": df_result.total_margin_used,
-                "total_notional": df_result.total_notional,
-                "pause_until": df_result.pause_until.isoformat() if df_result.pause_until else None,
-                "orders_file": orders_saved,
-            })
-
-            # 9. 风控告警
-            if df_result.risk_status == "warning":
-                logger.warning(f"[DirectionalFutures] 风控告警: 日亏损 {daily_pnl_pct:.2%}")
-            elif df_result.risk_status == "paused":
-                logger.error(f"[DirectionalFutures] 已暂停交易至 {df_result.pause_until}")
-
-        except Exception as e:
-            logger.error(f"[DirectionalFutures] 方向性期货交易失败: {e}", exc_info=True)
-            result["status"] = "ERROR"
-            result["reason"] = str(e)
-
-        # === 写入 state ===
-        self.state["phases"]["directional_futures"] = result
-        logger.info("-" * 60)
-        logger.info("Phase 4.9 完成: 动作=%s, 风控=%s, 保证金=¥%.0f, 名义=¥%.0f",
-                    result.get("action", ""),
-                    result.get("risk_status", ""),
-                    result.get("total_margin_used", 0),
-                    result.get("total_notional", 0))
-        logger.info("=" * 60)
-        return result
-
-    def _load_directional_futures_market_data(self) -> Dict[str, Dict[str, Any]]:
-        """加载方向性期货市场数据 (CU/AU/T 的 OHLCV)
-
-        数据源优先级:
-            1. config/futures_market_data.json (本地缓存)
-            2. Wind MCP / iFinD MCP (实时获取, 待实现)
-            3. 模拟数据 (60 日 OHLCV, 用于模块自测)
-
-        Returns:
-            {symbol: {"closes": [...], "volumes": [...], "opens": [...], "highs": [...], "lows": [...]}}
-        """
-        market_data: Dict[str, Dict[str, Any]] = {}
-
-        # 1. 尝试从本地缓存加载
-        try:
-            cache_path = BASE_DIR.parent / "config" / "futures_market_data.json"
-            if cache_path.exists():
-                with open(cache_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                for symbol in ("CU", "AU", "T"):
-                    if symbol in data:
-                        market_data[symbol] = data[symbol]
-                if len(market_data) == 3:
-                    logger.info("[DirectionalFutures] 从缓存加载 CU/AU/T 行情数据")
-                    return market_data
-        except Exception as e:
-            logger.debug(f"[DirectionalFutures] 缓存加载失败: {e}")
-
-        # 2. 实时数据源 (TODO: Wind MCP / iFinD MCP 集成)
-        # 当前版本: 使用模拟数据 (60 日) 触发模块逻辑
-        logger.warning("[DirectionalFutures] 实时期货行情未集成, 使用模拟数据 (60 日)")
-        import random
-        random.seed(42)  # 可复现
-
-        base_prices = {"CU": 75000.0, "AU": 550.0, "T": 102.5}
-        for symbol, base in base_prices.items():
-            closes = []
-            volumes = []
-            price = base
-            for i in range(60):
-                # 模拟价格波动 (±2%)
-                change = random.uniform(-0.02, 0.02)
-                price = price * (1 + change)
-                closes.append(round(price, 4))
-                volumes.append(random.randint(10000, 100000))
-            market_data[symbol] = {
-                "closes": closes,
-                "volumes": volumes,
-                "opens": [c * (1 + random.uniform(-0.01, 0.01)) for c in closes],
-                "highs": [c * (1 + random.uniform(0, 0.015)) for c in closes],
-                "lows": [c * (1 - random.uniform(0, 0.015)) for c in closes],
-            }
-
-        return market_data
-
-    def _load_directional_futures_positions(self) -> Dict[str, Dict]:
-        """加载当前方向性期货持仓
-
-        Returns:
-            {symbol: {"direction": "long"/"short"/"flat", "contracts": int, "entry_price": float}}
-        """
-        positions: Dict[str, Dict] = {}
-        try:
-            pos_path = BASE_DIR.parent / "config" / "directional_futures_positions.json"
-            if pos_path.exists():
-                with open(pos_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                for symbol in ("CU", "AU", "T"):
-                    if symbol in data:
-                        positions[symbol] = data[symbol]
-        except Exception as e:
-            logger.debug(f"[DirectionalFutures] 持仓加载失败: {e}")
-
-        # 默认空仓
-        for symbol in ("CU", "AU", "T"):
-            if symbol not in positions:
-                positions[symbol] = {
-                    "direction": "flat",
-                    "contracts": 0,
-                    "entry_price": 0.0,
-                }
-
-        return positions
-
-    def _get_futures_prices(self, market_data: Dict[str, Dict[str, Any]]) -> Dict[str, float]:
-        """从市场数据中提取最新价格
-
-        Args:
-            market_data: {symbol: {"closes": [...]}}
-
-        Returns:
-            {symbol: 最新收盘价}
-        """
-        prices = {}
-        for symbol in ("CU", "AU", "T"):
-            closes = market_data.get(symbol, {}).get("closes", [])
-            if closes:
-                prices[symbol] = float(closes[-1])
-            else:
-                # 兜底默认值
-                defaults = {"CU": 75000.0, "AU": 550.0, "T": 102.5}
-                prices[symbol] = defaults[symbol]
-        return prices
-
-    def _load_directional_futures_risk_state(self) -> Tuple[float, float, Optional[date]]:
-        """加载方向性期货风控状态
-
-        Returns:
-            (当日盈亏百分比, 周连续亏损百分比, 上次暂停日期)
-        """
-        try:
-            risk_path = BASE_DIR.parent / "config" / "directional_futures_risk.json"
-            if risk_path.exists():
-                with open(risk_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                daily_pnl = float(data.get("daily_pnl_pct", 0.0))
-                weekly_loss = float(data.get("weekly_consecutive_loss_pct", 0.0))
-                pause_str = data.get("last_loss_pause_date")
-                pause_date = date.fromisoformat(pause_str) if pause_str else None
-                return (daily_pnl, weekly_loss, pause_date)
-        except Exception as e:
-            logger.debug(f"[DirectionalFutures] 风控状态加载失败: {e}")
-        return (0.0, 0.0, None)
-
-    def _save_directional_futures_orders(self, orders: List[Any]) -> Optional[str]:
-        """保存方向性期货交易指令到文件
-
-        Args:
-            orders: 指令列表 (FuturesOrder 对象或字典)
-
-        Returns:
-            保存的文件路径, 失败返回 None
-        """
-        if not orders:
-            return None
-
-        try:
-            orders_dir = BASE_DIR.parent / "trade_instructions"
-            orders_dir.mkdir(parents=True, exist_ok=True)
-            today = date.today().isoformat()
-            file_path = orders_dir / f"directional_futures_orders_{today}.json"
-
-            orders_data = []
-            for o in orders:
-                if hasattr(o, '__dataclass_fields__'):
-                    orders_data.append(asdict(o))
-                elif isinstance(o, dict):
-                    orders_data.append(o)
-                else:
-                    orders_data.append(str(o))
-
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(orders_data, f, ensure_ascii=False, indent=2, default=str)
-
-            logger.info(f"[DirectionalFutures] 指令已保存: {file_path}")
-            return str(file_path)
-        except Exception as e:
-            logger.error(f"[DirectionalFutures] 指令保存失败: {e}")
-            return None
+        """方向性期货交易 (委托至 workflow.phases.directional_futures)"""
+        from workflow.phases.directional_futures import phase_directional_futures as _phase_directional_futures
+        ctx = self._build_context()
+        return _phase_directional_futures(ctx)
 
     # --------------------------------------------------------
-    # Phase 5: 信号生成 (2026 交易计划订单)
+    # Phase 5: 信号生成 (2026 交易计划订单) -- 拆分至 workflow/phases/signal*.py
     # --------------------------------------------------------
     def phase_signal(self) -> Dict[str, Any]:
-        """信号生成 — 从 trade_plan 加载订单
-
-        读取 `trade_plans/trade_plan_{date}.json` 中的:
-        - morning_orders: 上午批次
-        - afternoon_orders: 下午批次
-
-        Returns:
-            信号字典, 含 action/morning_orders/afternoon_orders/summary 等。
-            若交易计划未加载, 返回 {"action": "NO_PLAN"}。
-        """
-        logger.info("=" * 60)
-        logger.info("Phase 5: 信号生成")
-        logger.info("=" * 60)
-
-        if not self.trade_plan:
-            logger.warning("交易计划未加载, 无信号生成")
-            self.state["phases"]["signal"] = {"status": "PASS", "action": "NO_PLAN"}
-            return {"action": "NO_PLAN"}
-
-        # === 从交易计划读取订单 ===
-        plan_phase = self.trade_plan.get("phase", {})
-        plan_exec = self.trade_plan.get("execution_plan", {})
-        morning_orders = plan_exec.get("morning_orders", [])
-        afternoon_orders = plan_exec.get("afternoon_orders", [])
-
-        # === 计算外部报告调整系数 ===
-        external_reports = self._load_external_reports()
-        self.state["external_reports"] = external_reports
-        if external_reports.get("loaded"):
-            logger.info("外部报告加载完成: %d/%d 项",
-                        external_reports.get("loaded_count", 0),
-                        external_reports.get("total_count", 0))
-            logger.info("外部情绪评分: %+.2f", external_reports.get("sentiment_score", 0.0))
-            if external_reports.get("risk_events"):
-                logger.info("外部风险事件: %d 项", len(external_reports["risk_events"]))
-        else:
-            logger.warning("外部报告加载失败: %s", external_reports.get("reason", "unknown"))
-
-        external_factor = self._calculate_external_factor(external_reports)
-        if external_factor != 1.0:
-            logger.info("外部报告调整系数: %.2f", external_factor)
-
-        # === 检测市场状态并获取动态融合权重 ===
-        market_regime = self._detect_market_regime()
-        regime_weights = self._get_regime_weights(market_regime)
-        logger.info("市场状态: %s, 融合权重: Qlib=%.2f iFinD=%.2f External=%.2f",
-                    market_regime,
-                    regime_weights.get("qlib", 0.5),
-                    regime_weights.get("ifind", 0.3),
-                    regime_weights.get("external", 0.2))
-
-        logger.info(f"阶段: {plan_phase.get('name', 'N/A')} "
-                    f"(第 {plan_phase.get('day_index', 0)}/{plan_phase.get('duration_days', 0)} 日)")
-        logger.info(f"上午批次: {len(morning_orders)} 笔, "
-                    f"金额 {float(plan_exec.get('morning_total', 0)):,.0f}")
-        logger.info(f"下午批次: {len(afternoon_orders)} 笔, "
-                    f"金额 {float(plan_exec.get('afternoon_total', 0)):,.0f}")
-        logger.info(f"单日合计: {float(plan_exec.get('grand_total', 0)):,.0f} "
-                    f"({plan_exec.get('total_orders', 0)} 笔订单)")
-
-        # === 检查市场状态是否允许建仓 ===
-        market_phase = self.state.get("phases", {}).get("market", {})
-        build_allowed = market_phase.get("build_allowed", True)
-        if not build_allowed:
-            logger.warning("市场熔断 LEVEL_3+, 暂停建仓")
-            self.state["phases"]["signal"] = {
-                "status": "PASS", "action": "PAUSED",
-                "reason": "市场熔断暂停建仓",
-            }
-            return {"action": "PAUSED", "reason": "市场熔断暂停建仓"}
-
-        # === 检查 iFinD 重大负面新闻熔断 ===
-        cb_cfg = self.fusion_config.get("ifind_circuit_breaker", {})
-        if cb_cfg.get("enabled", True) and self.ifind_analyzer is not None:
-            planned_symbols = [str(o.get("code", "")) for o in morning_orders + afternoon_orders if o.get("code")]
-            name_map = {str(o.get("code", "")): str(o.get("name", "")) for o in morning_orders + afternoon_orders if o.get("code")}
-            insight_map = self._get_ifind_insights(planned_symbols, name_map)
-            cb_dir = cb_cfg.get("direction", "negative")
-            cb_min_conf = float(cb_cfg.get("min_confidence", 0.9))
-            for symbol, insight in insight_map.items():
-                if insight.direction == cb_dir and float(insight.confidence) >= cb_min_conf:
-                    logger.warning("iFinD 重大负面新闻熔断: [%s] %s confidence=%.2f reasons=%s",
-                                   insight.symbol, insight.direction, insight.confidence, insight.reasons)
-                    self.state["phases"]["signal"] = {
-                        "status": "PASS", "action": "PAUSED",
-                        "reason": f"重大负面新闻暂停建仓: {insight.symbol} {insight.direction} confidence={insight.confidence:.2f}",
-                    }
-                    return {"action": "PAUSED", "reason": "重大负面新闻暂停建仓"}
-
-        # === 检查 DEFENSE 模式仓位系数 ===
-        position_factor = getattr(self, 'rm', None)
-        if position_factor is not None and hasattr(position_factor, 'position_size_factor'):
-            position_factor = position_factor.position_size_factor
-        else:
-            position_factor = 1.0
-            logger.debug("RiskManager 未初始化，使用默认仓位系数 1.0")
-
-        # === 应用仓位系数到订单股数 (DEFENSE 模式减仓) ===
-        adjusted_morning = self._apply_position_factor(morning_orders, position_factor)
-        adjusted_afternoon = self._apply_position_factor(afternoon_orders, position_factor)
-
-        # === 十五五/康波宏观政策评分（可选增强） ===
-        macro_scores = {}
-        try:
-            from src.macro.macro_policy_scoring import score_macro_policy
-            planned_symbols = [str(o.get("code", "")) for o in adjusted_morning + adjusted_afternoon if o.get("code")]
-            macro_scores = score_macro_policy(planned_symbols)
-            logger.info("十五五/康波宏观评分完成: %d 个标的", len(macro_scores))
-        except Exception as exc:
-            logger.warning("十五五/康波宏观评分跳过: %s", exc)
-
-        # === 计算调整后的金额 ===
-        morning_amount = sum(o.get("est_amount", 0) for o in adjusted_morning)
-        afternoon_amount = sum(o.get("est_amount", 0) for o in adjusted_afternoon)
-        grand_amount = morning_amount + afternoon_amount
-
-        signal = {
-            "action": "BUILD_PLAN",
-            "phase_name": plan_phase.get("name", ""),
-            "phase_number": plan_phase.get("phase_number", 0),
-            "day_index": plan_phase.get("day_index", 0),
-            "morning_orders": adjusted_morning,
-            "afternoon_orders": adjusted_afternoon,
-            "morning_window": self.config.MORNING_WINDOW,
-            "afternoon_window": self.config.AFTERNOON_WINDOW,
-            "morning_count": len(adjusted_morning),
-            "afternoon_count": len(adjusted_afternoon),
-            "morning_amount": morning_amount,
-            "afternoon_amount": afternoon_amount,
-            "grand_amount": grand_amount,
-            "total_orders": len(adjusted_morning) + len(adjusted_afternoon),
-            "position_factor": position_factor,
-        }
-
-        logger.info(f"信号生成完成: {signal['total_orders']} 笔订单, "
-                    f"总金额 {grand_amount:,.0f}")
-
-        # === v7.5 + Qlib 集成：生成 Qlib 深度学习信号 ===
-        qlib_signals = self._generate_qlib_signals()
-        if qlib_signals:
-            signal["qlib_signals"] = qlib_signals
-            logger.info(f"Qlib 信号生成完成: {len(qlib_signals)} 个标的")
-
-        # === 获取 iFinD 新闻研判 (带当日缓存) ===
-        ifind_insights = {}
-        if self.ifind_analyzer is not None:
-            symbols = [str(o.get("code", "")) for o in adjusted_morning + adjusted_afternoon if o.get("code")]
-            name_map = {str(o.get("code", "")): str(o.get("name", "")) for o in adjusted_morning + adjusted_afternoon if o.get("code")}
-            ifind_insights = self._get_ifind_insights(symbols, name_map)
-
-        # === 加载 lgb_enhanced 增强模型信号 (第四信号源) ===
-        lgb_signals = self._load_lgb_enhanced_signals()
-        if lgb_signals:
-            signal["lgb_enhanced_signals"] = lgb_signals
-            logger.info(f"LGB增强信号加载完成: {len(lgb_signals)} 个标的")
-
-        # === 融合 Qlib + iFinD + 外部报告 + LGB增强 信号统一调整订单 ===
-        if qlib_signals or ifind_insights or lgb_signals:
-            fused_adjustments = self._apply_fused_qlib_ifind_adjustments(
-                morning_orders=adjusted_morning,
-                afternoon_orders=adjusted_afternoon,
-                qlib_signals=qlib_signals,
-                ifind_insights=ifind_insights,
-                external_factor=external_factor,
-                regime_weights=regime_weights,
-                lgb_signals=lgb_signals,
-            )
-            if fused_adjustments:
-                signal["qlib_adjusted"] = True
-                signal["ifind_adjusted"] = True
-                signal["morning_orders"] = fused_adjustments.get("morning_orders", adjusted_morning)
-                signal["afternoon_orders"] = fused_adjustments.get("afternoon_orders", adjusted_afternoon)
-                signal["qlib_skip_count"] = fused_adjustments.get("skip_count", 0)
-                signal["qlib_boost_count"] = fused_adjustments.get("boost_count", 0)
-                signal["qlib_cut_count"] = fused_adjustments.get("cut_count", 0)
-                signal["ifind_skip_count"] = fused_adjustments.get("skip_count", 0)
-                signal["ifind_boost_count"] = fused_adjustments.get("boost_count", 0)
-                signal["ifind_cut_count"] = fused_adjustments.get("cut_count", 0)
-                signal["lgb_boost_count"] = fused_adjustments.get("lgb_boost_count", 0)
-                signal["lgb_cut_count"] = fused_adjustments.get("lgb_cut_count", 0)
-                logger.info(
-                    "融合调整完成: 加仓=%d, 减仓=%d, 跳过=%d | LGB: 加仓=%d, 减仓=%d",
-                    signal["qlib_boost_count"],
-                    signal["qlib_cut_count"],
-                    signal["qlib_skip_count"],
-                    signal["lgb_boost_count"],
-                    signal["lgb_cut_count"],
-                )
-                # 记录 LGB 信号应用详情到监控日志 (供阈值优化分析)
-                try:
-                    from utils.lgb_signal_monitor import record_lgb_application
-                    record_lgb_application(
-                        trade_date=datetime.now().strftime("%Y-%m-%d"),
-                        orders=signal["morning_orders"] + signal["afternoon_orders"],
-                        lgb_signals=lgb_signals or {},
-                        boost_count=signal["lgb_boost_count"],
-                        cut_count=signal["lgb_cut_count"],
-                    )
-                except Exception:
-                    logger.debug("LGB 监控记录失败 (非关键)", exc_info=True)
-            else:
-                signal["qlib_adjusted"] = False
-                signal["ifind_adjusted"] = False
-        else:
-            signal["qlib_adjusted"] = False
-            signal["ifind_adjusted"] = False
-
-        # === 十五五/康波宏观政策评分实际调整订单 ===
-        if macro_scores:
-            macro_adjustments = self._apply_macro_policy_adjustments(
-                morning_orders=signal.get("morning_orders", adjusted_morning),
-                afternoon_orders=signal.get("afternoon_orders", adjusted_afternoon),
-                macro_scores=macro_scores,
-            )
-            if macro_adjustments:
-                signal["morning_orders"] = macro_adjustments.get("morning_orders", signal.get("morning_orders", adjusted_morning))
-                signal["afternoon_orders"] = macro_adjustments.get("afternoon_orders", signal.get("afternoon_orders", adjusted_afternoon))
-                signal["macro_skip_count"] = macro_adjustments.get("skip_count", 0)
-                signal["macro_boost_count"] = macro_adjustments.get("boost_count", 0)
-                signal["macro_cut_count"] = macro_adjustments.get("cut_count", 0)
-                logger.info(
-                    "宏观调整完成: 加仓=%d, 减仓=%d, 跳过=%d",
-                    signal["macro_boost_count"],
-                    signal["macro_cut_count"],
-                    signal["macro_skip_count"],
-                )
-
-        # === 机构级配置: Black-Litterman 组合优化 ===
-        if self.bl_optimizer is not None:
-            try:
-                positions = (self._get_portfolio_positions_for_stress_test()
-                             if hasattr(self, "_get_portfolio_positions_for_stress_test") else [])
-                if positions:
-                    bl_assets = [p.get("code", "") for p in positions if p.get("code")]
-                    bl_market_weights = [
-                        float(p.get("amount", 0)) for p in positions if p.get("code")
-                    ]
-                    total_mv = sum(bl_market_weights)
-                    if total_mv > 0:
-                        bl_market_weights = [w / total_mv for w in bl_market_weights]
-                        # 简化协方差: 单位对角矩阵 × 0.04 (4% 日波动)
-                        import numpy as _np
-                        n_assets = len(bl_assets)
-                        bl_cov = _np.eye(n_assets) * 0.04 ** 2
-                        # 观点: 从 morning_orders/afternoon_orders 中提取信号
-                        # 仅纳入已在持仓中的标的 (避免 BL 维度不匹配)
-                        bl_views = []
-                        asset_set = set(bl_assets)
-                        for order in signal.get("morning_orders", []) + signal.get("afternoon_orders", []):
-                            code = str(order.get("code", ""))
-                            if code not in asset_set:
-                                continue
-                            side = str(order.get("side", "BUY")).upper()
-                            if side in ("BUY", "OPEN_LONG"):
-                                bl_views.append(BLView(
-                                    type="absolute", assets=[code], weights=[1.0],
-                                    expected_return=0.02, confidence=0.6,
-                                ))
-                            elif side in ("SELL", "CLOSE_LONG"):
-                                bl_views.append(BLView(
-                                    type="absolute", assets=[code], weights=[1.0],
-                                    expected_return=-0.02, confidence=0.5,
-                                ))
-                        bl_result = self.bl_optimizer.optimize(
-                            assets=bl_assets,
-                            market_weights=bl_market_weights,
-                            cov_matrix=bl_cov,
-                            views=bl_views or None,
-                            risk_free_rate=0.03,
-                        )
-                        signal["bl_optimization"] = {
-                            "optimal_weights": bl_result.optimal_weights.tolist(),
-                            "weight_change_vs_market": bl_result.weight_change_vs_market.tolist(),
-                            "sharpe_ratio": bl_result.sharpe_ratio,
-                            "diversification_ratio": bl_result.diversification_ratio,
-                            "effective_n": bl_result.effective_n,
-                            "expected_portfolio_return": bl_result.expected_portfolio_return,
-                            "expected_portfolio_vol": bl_result.expected_portfolio_vol,
-                        }
-                        logger.info(
-                            "[BlackLitterman] 优化完成: Sharpe=%.3f, DivRatio=%.2f, EffN=%.1f",
-                            bl_result.sharpe_ratio,
-                            bl_result.diversification_ratio,
-                            bl_result.effective_n,
-                        )
-            except Exception as exc:
-                logger.error("[BlackLitterman] 优化失败: %s", exc, exc_info=True)
-
-        # === Alpha 生成: Alpha 因子库 + 动量反转引擎 + Smart Beta 优化 ===
-        if ALPHA_MODULES_READY and self.alpha_factor_lib is not None:
-            try:
-                import numpy as _np_alpha
-                positions = (self._get_portfolio_positions_for_stress_test()
-                             if hasattr(self, "_get_portfolio_positions_for_stress_test") else [])
-                if positions:
-                    # 构造简化价格数据 (用持仓成本/市值代理) — 真实场景应从 data_layer 加载
-                    alpha_symbols = [str(p.get("code", "")) for p in positions if p.get("code")]
-                    n_alpha = len(alpha_symbols)
-                    if n_alpha > 0:
-                        # 用持仓 amount 作为 market_cap 代理
-                        alpha_mcap_dict = {
-                            str(p.get("code", "")): max(float(p.get("amount", 1.0)), 1.0)
-                            for p in positions if p.get("code")
-                        }
-                        # 构造合成价格数据 (100日, 用于因子计算)
-                        _np_alpha.random.seed(42)
-                        alpha_prices = _np_alpha.cumprod(
-                            1.0 + _np_alpha.random.randn(100, n_alpha) * 0.02, axis=0
-                        ) * 100.0
-                        import pandas as _pd_alpha
-                        alpha_price_df = _pd_alpha.DataFrame(alpha_prices, columns=alpha_symbols)
-                        # 行业映射简化
-                        alpha_industries = {s: "Unknown" for s in alpha_symbols}
-
-                        # 1) Alpha 因子库计算
-                        alpha_result = self.alpha_factor_lib.compute_all(
-                            price_data=alpha_price_df,
-                            fundamentals=None,
-                            industries=alpha_industries,
-                            benchmark_returns=None,
-                        )
-                        # 实际字段: factors (Dict), effective_factors (List), strong_factors (List)
-                        signal["alpha_factors"] = {
-                            "total_factors": len(alpha_result.factors),
-                            "effective_factors": list(alpha_result.effective_factors),
-                            "strong_factors": list(alpha_result.strong_factors),
-                            "factor_names": list(alpha_result.factors.keys())[:20],
-                        }
-                        logger.info(
-                            "[AlphaFactorLib] 因子计算完成: 总数=%d, 有效=%d, 强=%d",
-                            len(alpha_result.factors),
-                            len(alpha_result.effective_factors),
-                            len(alpha_result.strong_factors),
-                        )
-
-                        # 2) 动量反转信号生成
-                        if self.momentum_engine is not None:
-                            mom_result = self.momentum_engine.generate_signals(alpha_price_df)
-                            # 实际字段: signals (Dict), avg_signal_strength, bullish_count, bearish_count
-                            signal["momentum_signals"] = {
-                                "total_signals": len(mom_result.signals),
-                                "bullish_count": mom_result.bullish_count,
-                                "bearish_count": mom_result.bearish_count,
-                                "avg_signal_strength": mom_result.avg_signal_strength,
-                                "strategy_state": mom_result.strategy_state,
-                                "top_long_candidates": mom_result.top_long_candidates[:5],
-                                "top_short_candidates": mom_result.top_short_candidates[:5],
-                            }
-                            logger.info(
-                                "[MomentumReversal] 信号生成: 总数=%d, 看多=%d, 看空=%d, 状态=%s",
-                                len(mom_result.signals),
-                                mom_result.bullish_count,
-                                mom_result.bearish_count,
-                                mom_result.strategy_state,
-                            )
-
-                        # 3) Smart Beta 多因子加权优化
-                        if self.smart_beta_engine is not None:
-                            # 构造 factor_scores: {symbol: {factor: value}}
-                            # 从 alpha_result.factors (Dict[str, FactorValue]) 中提取
-                            sb_factor_scores = {}
-                            for fname, fvalue_obj in alpha_result.factors.items():
-                                # FactorValue.values 是 Dict[str, float] = {symbol: value}
-                                values_dict = getattr(fvalue_obj, "values", {}) or {}
-                                for sym, val in values_dict.items():
-                                    sb_factor_scores.setdefault(sym, {})[fname] = float(val)
-                            # 仅纳入有因子值的标的
-                            sb_symbols = [s for s in alpha_symbols if s in sb_factor_scores]
-                            if sb_symbols:
-                                # 因子等权
-                                first_sym = sb_symbols[0]
-                                sb_factor_weights = {k: 1.0 / len(sb_factor_scores[first_sym])
-                                                     for k in sb_factor_scores[first_sym]}
-                                sb_market_caps = {s: alpha_mcap_dict.get(s, 1.0) for s in sb_symbols}
-                                sb_cov = _np_alpha.cov(alpha_prices[:, :len(sb_symbols)].T)
-                                sb_result = self.smart_beta_engine.optimize(
-                                    symbols=sb_symbols,
-                                    factor_scores=sb_factor_scores,
-                                    market_caps=sb_market_caps,
-                                    factor_weights=sb_factor_weights,
-                                    cov_matrix=sb_cov,
-                                )
-                                # 实际字段: smart_beta_weights, weight_concentration, effective_n, sharpe_ratio
-                                signal["smart_beta"] = {
-                                    "weights": sb_result.smart_beta_weights.tolist(),
-                                    "weight_concentration": float(sb_result.weight_concentration),
-                                    "effective_n": float(sb_result.effective_n),
-                                    "sharpe_ratio": float(sb_result.sharpe_ratio),
-                                    "tracking_error": float(sb_result.tracking_error),
-                                    "information_ratio": float(sb_result.information_ratio),
-                                }
-                                logger.info(
-                                    "[SmartBeta] 优化完成: HHI=%.3f, 有效持仓=%.1f, Sharpe=%.3f, TE=%.4f",
-                                    sb_result.weight_concentration,
-                                    sb_result.effective_n,
-                                    sb_result.sharpe_ratio,
-                                    sb_result.tracking_error,
-                                )
-            except Exception as exc:
-                logger.error("[AlphaModules] 信号生成失败: %s", exc, exc_info=True)
-
-        # === 另类数据视角: 新闻情感 + 供应链 + 卫星/搜索/招聘/专利 ===
-        if ALT_DATA_MODULES_READY:
-            try:
-                # 收集当前持仓标的列表
-                alt_symbols: List[str] = []
-                for pos in (self._get_portfolio_positions_for_stress_test()
-                            if hasattr(self, "_get_portfolio_positions_for_stress_test") else []):
-                    code = str(pos.get("code", ""))
-                    if code and code not in alt_symbols:
-                        alt_symbols.append(code)
-
-                # 1) 新闻情感分析 (若有引擎且添加过新闻)
-                if self.news_sentiment_engine is not None:
-                    try:
-                        # 构建 supply_chain_map (从供应链图引擎)
-                        supply_map: Dict[str, List[str]] = {}
-                        if self.supply_chain_graph is not None:
-                            for src, edges in getattr(self.supply_chain_graph, "adjacency", {}).items():
-                                for e in edges:
-                                    supply_map.setdefault(src, []).append(e.target)
-
-                        ns_result = self.news_sentiment_engine.analyze(
-                            symbols=alt_symbols or [],
-                            supply_chain_map=supply_map,
-                        )
-                        # 实际字段: signals (Dict), market_sentiment, anomalies, hot_events, total_news_processed
-                        ns_signals = getattr(ns_result, "signals", {}) or {}
-                        ns_positive = sum(1 for s in ns_signals.values() if s.composite_sentiment > 0)
-                        ns_negative = sum(1 for s in ns_signals.values() if s.composite_sentiment < 0)
-                        ns_neutral = sum(1 for s in ns_signals.values() if s.composite_sentiment == 0)
-                        ns_event_counts = {ev: cnt for ev, cnt in (getattr(ns_result, "hot_events", []) or [])}
-                        signal["news_sentiment"] = {
-                            "avg_sentiment": float(getattr(ns_result, "market_sentiment", 0.0)),
-                            "positive_count": int(ns_positive),
-                            "negative_count": int(ns_negative),
-                            "neutral_count": int(ns_neutral),
-                            "event_counts": dict(ns_event_counts),
-                            "total_news": int(getattr(ns_result, "total_news_processed", 0)),
-                            "top_positive": [
-                                {"symbol": s.symbol, "score": float(s.composite_sentiment), "confidence": float(s.confidence)}
-                                for s in sorted(ns_signals.values(),
-                                                key=lambda x: float(x.composite_sentiment),
-                                                reverse=True)
-                                if s.composite_sentiment > 0
-                            ][:3],
-                            "top_negative": [
-                                {"symbol": s.symbol, "score": float(s.composite_sentiment), "confidence": float(s.confidence)}
-                                for s in sorted(ns_signals.values(),
-                                                key=lambda x: float(x.composite_sentiment))
-                                if s.composite_sentiment < 0
-                            ][:3],
-                        }
-                        logger.info(
-                            "[NewsSentiment] 分析完成: 总新闻=%d, 平均情感=%.3f, 正面=%d, 负面=%d",
-                            int(getattr(ns_result, "total_news_processed", 0)),
-                            float(getattr(ns_result, "market_sentiment", 0.0)),
-                            int(ns_positive),
-                            int(ns_negative),
-                        )
-                    except Exception as exc_ns:
-                        logger.error("[NewsSentiment] 信号生成失败: %s", exc_ns, exc_info=True)
-
-                # 2) 供应链关系图谱分析
-                if self.supply_chain_graph is not None:
-                    try:
-                        sc_result = self.supply_chain_graph.analyze()
-                        # 实际字段: nodes (List[str]), edges (List), metrics (Dict[str, NodeMetrics]),
-                        # hubs, bottlenecks, risk_contagion, network_density, avg_path_length, num_components
-                        sc_metrics = getattr(sc_result, "metrics", {}) or {}
-                        sc_risk = getattr(sc_result, "risk_contagion", {}) or {}
-                        sc_nodes = getattr(sc_result, "nodes", []) or []
-                        sc_edges = getattr(sc_result, "edges", []) or []
-                        signal["supply_chain"] = {
-                            "total_nodes": int(len(sc_nodes)),
-                            "total_edges": int(len(sc_edges)),
-                            "top_central": [
-                                {"symbol": s, "betweenness": float(getattr(m, "betweenness_centrality", 0.0)),
-                                 "pagerank": float(getattr(m, "pagerank", 0.0))}
-                                for s, m in sorted(sc_metrics.items(),
-                                                    key=lambda x: float(getattr(x[1], "pagerank", 0.0)),
-                                                    reverse=True)[:5]
-                            ],
-                            "hubs": list(getattr(sc_result, "hubs", []))[:5],
-                            "bottlenecks": list(getattr(sc_result, "bottlenecks", []))[:5],
-                            "risk_contagion": {
-                                s: float(v) for s, v in list(sc_risk.items())[:5]
-                            },
-                            "network_density": float(getattr(sc_result, "network_density", 0.0)),
-                            "avg_path_length": float(getattr(sc_result, "avg_path_length", 0.0)),
-                        }
-                        logger.info(
-                            "[SupplyChain] 分析完成: 节点=%d, 边=%d, 中心节点=%d, 网络密度=%.3f",
-                            len(sc_nodes),
-                            len(sc_edges),
-                            len(sc_metrics),
-                            float(getattr(sc_result, "network_density", 0.0)),
-                        )
-                    except Exception as exc_sc:
-                        logger.error("[SupplyChain] 信号生成失败: %s", exc_sc, exc_info=True)
-
-                # 3) 另类数据综合指标
-                if self.alt_data_indicators is not None and alt_symbols:
-                    try:
-                        import numpy as _np_alt  # 局部导入, 避免依赖外部 np
-                        # 加载演示数据 (实盘接入前)
-                        self.alt_data_indicators.load_demo_data(alt_symbols[:10])
-                        ad_result = self.alt_data_indicators.analyze(alt_symbols[:10])
-                        # 实际字段: signals (Dict), market_alt_score, anomalies, total_indicators, coverage_summary
-                        ad_signals = getattr(ad_result, "signals", {}) or {}
-                        ad_coverage = getattr(ad_result, "coverage_summary", {}) or {}
-                        # 平均覆盖率
-                        ad_avg_cov = float(_np_alt.mean(list(ad_coverage.values()))) if ad_coverage else 0.0
-                        signal["alt_data"] = {
-                            "total_symbols": int(len(ad_signals)),
-                            "avg_composite_score": float(getattr(ad_result, "market_alt_score", 0.0)),
-                            "coverage_rate": float(ad_avg_cov),
-                            "top_scores": [
-                                {
-                                    "symbol": s.symbol,
-                                    "composite_score": float(s.composite_score),
-                                    "satellite_score": float(getattr(s, "satellite_score", 0.0)),
-                                    "search_score": float(getattr(s, "search_score", 0.0)),
-                                    "recruitment_score": float(getattr(s, "recruitment_score", 0.0)),
-                                    "patent_score": float(getattr(s, "patent_score", 0.0)),
-                                    "confidence": float(getattr(s, "confidence", 0.0)),
-                                }
-                                for s in sorted(ad_signals.values(),
-                                                key=lambda x: float(x.composite_score),
-                                                reverse=True)[:5]
-                            ],
-                            "anomalies": list(getattr(ad_result, "anomalies", []))[:3],
-                        }
-                        logger.info(
-                            "[AltData] 分析完成: 标的=%d, 平均综合评分=%.3f, 平均覆盖率=%.1f%%",
-                            int(len(ad_signals)),
-                            float(getattr(ad_result, "market_alt_score", 0.0)),
-                            float(ad_avg_cov) * 100,
-                        )
-                    except Exception as exc_ad:
-                        logger.error("[AltData] 信号生成失败: %s", exc_ad, exc_info=True)
-            except Exception as exc_outer:
-                logger.error("[AltDataModules] 信号生成失败: %s", exc_outer, exc_info=True)
-
-        # === 对冲基金视角: 多策略协调器 (冲突检测 + 风险预算审计) ===
-        if self.strategy_coordinator is not None:
-            try:
-                # 构造目标信号: 把订单按策略账户归类
-                target_signals: Dict[str, Dict[str, str]] = {
-                    "stock_long": {},
-                    "etf_allocation": {},
-                }
-                for order in signal.get("morning_orders", []) + signal.get("afternoon_orders", []):
-                    code = str(order.get("code", ""))
-                    side = str(order.get("side", "BUY")).upper()
-                    asset_type = str(order.get("type", "STOCK")).upper()
-                    direction = "BUY" if side in ("BUY", "OPEN_LONG") else "SELL"
-                    if asset_type == "ETF":
-                        target_signals["etf_allocation"][code] = direction
-                    else:
-                        target_signals["stock_long"][code] = direction
-
-                # 期权/期货信号 (从 hedge_plan 与 options_plan)
-                hedge_plan = self.state.get("phases", {}).get("hedge", {}).get("hedge_plan", {})
-                if hedge_plan:
-                    target_signals["macro_hedge"] = {
-                        str(item.get("symbol", "")): "SELL"
-                        for item in hedge_plan.get("futures", [])
-                        if str(item.get("direction", "")).upper() in ("SHORT", "SELL")
-                    }
-                options_modules = self.trade_plan.get("hedge_account", {}).get("modules", []) if self.trade_plan else []
-                if options_modules:
-                    target_signals["options_tail"] = {"OPTIONS": "BUY"}
-
-                # 当前持仓 (用于冲突检测) — 转换为 {code: {weight, strategy}} 格式
-                current_positions: Dict[str, Dict[str, Any]] = {}
-                portfolio_value = float(getattr(self, "capital", 5_000_000))
-                for pos in (self._get_portfolio_positions_for_stress_test()
-                            if hasattr(self, "_get_portfolio_positions_for_stress_test") else []):
-                    code = pos.get("code", "")
-                    amount = float(pos.get("amount", 0))
-                    if code and portfolio_value > 0:
-                        current_positions[code] = {
-                            "weight": amount / portfolio_value,
-                            "strategy": "stock_long" if str(pos.get("type", "STOCK")).upper() == "STOCK" else "etf_allocation",
-                            "amount": amount,
-                        }
-
-                coord_decision = self.strategy_coordinator.coordinate(
-                    target_signals=target_signals,
-                    current_positions=current_positions,
-                    strategy_pnl={},  # 实盘接入后填充
-                    strategy_correlations=None,
-                )
-
-                signal["strategy_coordination"] = {
-                    "is_approved": coord_decision.is_approved,
-                    "total_allocated": coord_decision.total_allocated,
-                    "cash_buffer": coord_decision.cash_buffer,
-                    "risk_budget_used": coord_decision.risk_budget_used,
-                    "risk_budget_limit": coord_decision.risk_budget_limit,
-                    "conflicts": [
-                        {
-                            "strategies": c.strategies,
-                            "symbol": c.symbol,
-                            "conflict_type": c.conflict_type,
-                            "severity": c.severity,
-                            "message": c.description,
-                            "suggested_action": c.suggested_action,
-                        } for c in coord_decision.conflicts
-                    ],
-                    "adjusted_weights": coord_decision.strategy_weights,
-                }
-
-                if not coord_decision.is_approved:
-                    err_conflicts = [c for c in coord_decision.conflicts if c.severity == "error"]
-                    logger.warning(
-                        "[MultiStrategy] 协调未通过: %d 个 error 级冲突, %d 个 warning",
-                        len(err_conflicts),
-                        len([c for c in coord_decision.conflicts if c.severity == "warning"]),
-                    )
-                    for c in err_conflicts:
-                        logger.warning("  - [%s/%s] %s: %s",
-                                       ",".join(c.strategies), c.symbol, c.conflict_type, c.description)
-                else:
-                    logger.info(
-                        "[MultiStrategy] 协调通过: cash_buffer=%.0f, risk_used=%.0f/%.0f, conflicts=%d",
-                        coord_decision.cash_buffer,
-                        coord_decision.risk_budget_used,
-                        coord_decision.risk_budget_limit,
-                        len(coord_decision.conflicts),
-                    )
-            except Exception as exc:
-                logger.error("[MultiStrategy] 协调失败: %s", exc, exc_info=True)
-
-        self.state["phases"]["signal"] = {"status": "PASS", **signal}
-        if macro_scores:
-            signal["macro_policy"] = {k: {
-                "fifteen_five_score": v.fifteen_five_score,
-                "kondratiev_score": v.kondratiev_score,
-                "combined_score": v.combined_score,
-                "fifteen_five_note": v.fifteen_five_note,
-                "kondratiev_note": v.kondratiev_note,
-            } for k, v in macro_scores.items()}
-            self.state["phases"]["signal"]["macro_policy"] = signal["macro_policy"]
-        return signal
+        """信号生成 -- 从 trade_plan 加载订单 (委托至 workflow.phases.signal)"""
+        from workflow.phases.signal import phase_signal as _phase_signal
+        ctx = self._build_context()
+        return _phase_signal(ctx)
 
     @staticmethod
     def _qlib_signal_to_factor(signal_value: float) -> float:
-        """将 Qlib 信号映射到订单调整系数
+        """Qlib 信号 -> 订单调整系数 (委托至 workflow.phases.signal_qlib)"""
+        from workflow.phases.signal_qlib import qlib_signal_to_factor
+        return qlib_signal_to_factor(signal_value)
 
-        Args:
-            signal_value: [-1, 1] 标准化信号
-
-        Returns:
-            订单调整系数，例如 1.3 表示加仓 30%，0 表示跳过
-        """
-        if signal_value >= 0.5:
-            return 1.3
-        if signal_value >= 0.15:
-            return 1.0
-        if signal_value > -0.15:
-            return 0.8
-        if signal_value > -0.5:
-            return 0.5
-        return 0.0
-
-    def _qlib_signals_to_adjustments(self,
-                                     qlib_signals: Dict[str, float],
-                                     *,
-                                     morning_orders: List[Dict[str, Any]],
-                                     afternoon_orders: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """按 Qlib 信号调整订单：强看多加仓、中性维持、看空减仓或跳过
-
-        Returns:
-            {
-                "morning_orders": [...],
-                "afternoon_orders": [...],
-                "skip_count": int,
-                "boost_count": int,
-                "cut_count": int,
-            }
-        """
-        if not qlib_signals:
-            return {}
-
-        def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-            adjusted: List[Dict[str, Any]] = []
-            for order in orders:
-                code = str(order.get("code", ""))
-                signal_value = qlib_signals.get(code)
-                if signal_value is None:
-                    adjusted.append(dict(order))
-                    continue
-
-                factor = self._qlib_signal_to_factor(float(signal_value))
-                if factor <= 0.0:
-                    logger.info("Qlib 跳过订单 [%s] signal=%+.4f", code, signal_value)
-                    continue
-
-                new_order = dict(order)
-                original_shares = int(order.get("shares", 0))
-                original_amount = float(order.get("est_amount", 0))
-                new_shares = max(100, int(original_shares * factor / 100) * 100)
-                new_order["shares"] = new_shares
-                new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
-                new_order["original_shares"] = original_shares
-                new_order["qlib_signal"] = round(float(signal_value), 4)
-                new_order["qlib_factor"] = round(factor, 2)
-                adjusted.append(new_order)
-
-                if factor >= 1.3:
-                    logger.info("Qlib 加仓 [%s] signal=%+.4f -> factor=%.2f, %d 股", code, signal_value, factor, new_shares)
-                elif factor <= 0.5:
-                    logger.info("Qlib 减仓 [%s] signal=%+.4f -> factor=%.2f, %d 股", code, signal_value, factor, new_shares)
-            return adjusted
-
-        new_morning = _apply(morning_orders)
-        new_afternoon = _apply(afternoon_orders)
-
-        def _count(orders, threshold):
-            return sum(1 for o in orders if o.get("qlib_factor", 1.0) >= threshold)
-
-        return {
-            "morning_orders": new_morning,
-            "afternoon_orders": new_afternoon,
-            "skip_count": (len(morning_orders) - len(new_morning)) + (len(afternoon_orders) - len(new_afternoon)),
-            "boost_count": _count(new_morning, 1.3) + _count(new_afternoon, 1.3),
-            "cut_count": _count(new_morning, 0.5) + _count(new_afternoon, 0.5),
-        }
+    def _qlib_signals_to_adjustments(self, qlib_signals, *, morning_orders, afternoon_orders):
+        """按 Qlib 信号调整订单 (委托至 workflow.phases.signal_qlib)"""
+        from workflow.phases.signal_qlib import qlib_signals_to_adjustments
+        return qlib_signals_to_adjustments(qlib_signals, morning_orders=morning_orders, afternoon_orders=afternoon_orders)
 
     @staticmethod
     def _ifind_signal_to_factor(direction: str, confidence: float) -> float:
-        """将 iFinD 新闻研判映射到订单调整系数
-
-        Args:
-            direction: positive / negative / neutral
-            confidence: 0.0-1.0 研判置信度
-
-        Returns:
-            订单调整系数，例如 1.2 表示加仓 20%，0 表示跳过
-        """
-        if direction == "positive" and confidence >= 0.7:
-            return 1.2
-        if direction == "positive" and confidence >= 0.5:
-            return 1.0
-        if direction == "neutral":
-            return 1.0
-        if direction == "negative" and confidence >= 0.85:
-            return 0.0
-        if direction == "negative" and confidence >= 0.7:
-            return 0.5
-        return 1.0
+        """iFinD 研判 -> 订单调整系数 (委托至 workflow.phases.signal_ifind)"""
+        from workflow.phases.signal_ifind import ifind_signal_to_factor
+        return ifind_signal_to_factor(direction, confidence)
 
     @staticmethod
-    def _fuse_qlib_ifind_factor(qlib_factor: float, ifind_factor: float,
-                                *, qlib_weight: float = 0.6, ifind_weight: float = 0.4,
-                                clamp_min: float = 0.5, clamp_max: float = 1.3) -> float:
-        """融合 Qlib 和 iFinD 调整系数
-
-        Args:
-            qlib_factor: Qlib 信号因子
-            ifind_factor: iFinD 新闻因子
-            qlib_weight: Qlib 权重 (默认 0.6)
-            ifind_weight: iFinD 权重 (默认 0.4)
-            clamp_min: 融合因子下限
-            clamp_max: 融合因子上限
-
-        Returns:
-            融合后的调整系数
-        """
-        # 如果 iFinD 要求跳过，保留跳过
-        if ifind_factor <= 0.0:
-            return 0.0
-        # 归一化权重
-        total_w = qlib_weight + ifind_weight
-        if total_w <= 0:
-            return 1.0
-        w_q = qlib_weight / total_w
-        w_i = ifind_weight / total_w
-        fused = qlib_factor * w_q + ifind_factor * w_i
-        return max(clamp_min, min(clamp_max, fused))
+    def _fuse_qlib_ifind_factor(qlib_factor, ifind_factor, *, qlib_weight=0.6, ifind_weight=0.4, clamp_min=0.5, clamp_max=1.3):
+        """融合 Qlib + iFinD 因子 (委托至 workflow.phases.signal)"""
+        from workflow.phases.signal import fuse_qlib_ifind_factor
+        return fuse_qlib_ifind_factor(qlib_factor, ifind_factor, qlib_weight=qlib_weight, ifind_weight=ifind_weight, clamp_min=clamp_min, clamp_max=clamp_max)
 
     def _load_lgb_enhanced_signals(self) -> Dict[str, Dict[str, Any]]:
-        """加载 lgb_enhanced 增强模型信号文件
-
-        从 models/lgb_enhanced/lgb_enhanced_signals.json 读取当日信号。
-        若文件不存在或 trade_date 非今日, 返回空字典 (安全降级)。
-
-        Returns:
-            {code: {"signal": float, "quality_flag": str, "name": str}} 或 {}
-        """
-        try:
-            signals_path = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)),
-                "models", "lgb_enhanced", "lgb_enhanced_signals.json",
-            )
-            if not os.path.exists(signals_path):
-                logger.debug("LGB增强信号文件不存在: %s", signals_path)
-                return {}
-
-            with open(signals_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            # 新鲜度检查: trade_date 必须是今日 (防止使用过期信号)
-            file_date = data.get("trade_date", "")
-            today_str = datetime.now().strftime("%Y-%m-%d")
-            if file_date != today_str:
-                logger.info("LGB增强信号非今日 (文件: %s, 今日: %s), 跳过", file_date, today_str)
-                return {}
-
-            signals = data.get("signals", {})
-            if not signals:
-                return {}
-
-            result = {}
-            for code, info in signals.items():
-                if not isinstance(info, dict):
-                    continue
-                sig = info.get("signal")
-                if sig is None:
-                    continue
-                result[code] = {
-                    "signal": float(sig),
-                    "quality_flag": info.get("quality_flag", "OK"),
-                    "name": info.get("name", code),
-                }
-            logger.info("LGB增强信号加载: %d 个标的 (trade_date=%s)", len(result), file_date)
-            return result
-
-        except Exception as e:
-            logger.warning("LGB增强信号加载失败: %s", e)
-            return {}
+        """加载 LGB 增强信号 (委托至 workflow.phases.signal_lgb)"""
+        from workflow.phases.signal_lgb import load_lgb_enhanced_signals
+        return load_lgb_enhanced_signals()
 
     @staticmethod
-    def _lgb_confidence_multiplier(signal_value: Optional[float],
-                                    quality_flag: str = "OK") -> float:
-        """将 lgb_enhanced 信号映射到置信度乘数
+    def _lgb_confidence_multiplier(signal_value, quality_flag="OK"):
+        """LGB 信号 -> 置信度乘数 (委托至 workflow.phases.signal_lgb)"""
+        from workflow.phases.signal_lgb import lgb_confidence_multiplier
+        return lgb_confidence_multiplier(signal_value, quality_flag)
 
-        信号为 tanh(pred*100), 范围 [-1, 1]:
-        - 正值 = 看涨 (预测正收益)
-        - 负值 = 看跌 (预测负收益)
-        - |值| = 置信强度
+    def _apply_fused_qlib_ifind_adjustments(self, *, morning_orders, afternoon_orders, qlib_signals, ifind_insights, external_factor=1.0, regime_weights=None, lgb_signals=None):
+        """四源融合调整订单 (委托至 workflow.phases.signal)"""
+        from workflow.phases.signal import apply_fused_qlib_ifind_adjustments
+        ctx = self._build_context()
+        return apply_fused_qlib_ifind_adjustments(ctx, morning_orders=morning_orders, afternoon_orders=afternoon_orders, qlib_signals=qlib_signals, ifind_insights=ifind_insights, external_factor=external_factor, regime_weights=regime_weights, lgb_signals=lgb_signals)
 
-        乘数设计 (保守, 因 R² 普遍接近 0):
-        - 强看涨 (>=0.3) + OK → 1.08 (+8%)
-        - 中看涨 (>=0.15) + OK → 1.04 (+4%)
-        - 弱看涨 (>=0.05) + OK → 1.00 (中性)
-        - 中性 (>=-0.05) → 0.98 (-2%)
-        - 弱看跌 (>=-0.15) → 0.92 (-8%)
-        - 强看跌 (<-0.15) → 0.85 (-15%, 风控)
-        - LOW_QUALITY → 1.0 (忽略, 不影响)
-        - None → 1.0 (无信号)
+    def _apply_ifind_news_adjustments(self, *, morning_orders, afternoon_orders):
+        """iFinD 新闻调整订单 (委托至 workflow.phases.signal_ifind)"""
+        from workflow.phases.signal_ifind import apply_ifind_news_adjustments
+        ctx = self._build_context()
+        return apply_ifind_news_adjustments(ctx, morning_orders=morning_orders, afternoon_orders=afternoon_orders)
 
-        Args:
-            signal_value: 信号值 [-1, 1] 或 None
-            quality_flag: OK / LOW_QUALITY
+    def _apply_macro_policy_adjustments(self, *, morning_orders, afternoon_orders, macro_scores):
+        """宏观政策评分调整 (委托至 workflow.phases.signal_ifind)"""
+        from workflow.phases.signal_ifind import apply_macro_policy_adjustments
+        return apply_macro_policy_adjustments(morning_orders=morning_orders, afternoon_orders=afternoon_orders, macro_scores=macro_scores)
 
-        Returns:
-            置信度乘数 [0.85, 1.08]
-        """
-        if signal_value is None:
-            return 1.0
-        if quality_flag == "LOW_QUALITY":
-            return 1.0
-        try:
-            sig = float(signal_value)
-        except (TypeError, ValueError):
-            return 1.0
+    def _apply_position_factor(self, orders, factor):
+        """DEFENSE 模式仓位系数调整 (委托至 workflow.phases.signal)"""
+        from workflow.phases.signal import apply_position_factor
+        return apply_position_factor(orders, factor)
 
-        if sig >= 0.3:
-            return 1.08
-        if sig >= 0.15:
-            return 1.04
-        if sig >= 0.05:
-            return 1.0
-        if sig >= -0.05:
-            return 0.98
-        if sig >= -0.15:
-            return 0.92
-        return 0.85
-
-    def _apply_fused_qlib_ifind_adjustments(self,
-                                            *,
-                                            morning_orders: List[Dict[str, Any]],
-                                            afternoon_orders: List[Dict[str, Any]],
-                                            qlib_signals: Dict[str, float],
-                                            ifind_insights: Dict[str, Any],
-                                            external_factor: float = 1.0,
-                                            regime_weights: Optional[Dict[str, float]] = None,
-                                            lgb_signals: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
-        """融合 Qlib 信号、iFinD 新闻研判与外部报告，统一调整订单
-
-        Args:
-            external_factor: 外部报告调整系数 [0.5, 1.3]，默认 1.0
-            regime_weights: 市场状态动态权重 {"qlib": x, "ifind": y, "external": z}
-
-        Returns:
-            {
-                "morning_orders": [...],
-                "afternoon_orders": [...],
-                "skip_count": int,
-                "boost_count": int,
-                "cut_count": int,
-            }
-        """
-        if not qlib_signals and not ifind_insights:
-            return {}
-
-        # 从配置读取融合参数
-        fc = self.fusion_config
-        qlib_w = float(fc.get("qlib_weight", 0.5))
-        ifind_w = float(fc.get("ifind_weight", 0.3))
-        external_w = float(fc.get("external_weight", 0.2))
-        clamp_min = float(fc.get("fused_factor_min", 0.5))
-        clamp_max = float(fc.get("fused_factor_max", 1.3))
-        lgb_confidence_gate = bool(fc.get("lgb_confidence_gate", True))
-
-        # 若传入动态权重，覆盖默认值
-        if regime_weights:
-            qlib_w = float(regime_weights.get("qlib", qlib_w))
-            ifind_w = float(regime_weights.get("ifind", ifind_w))
-            external_w = float(regime_weights.get("external", external_w))
-
-        def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-            adjusted: List[Dict[str, Any]] = []
-            for order in orders:
-                code = str(order.get("code", ""))
-                qlib_signal = qlib_signals.get(code)
-                insight = ifind_insights.get(code)
-
-                # 计算 Qlib factor
-                qlib_factor = self._qlib_signal_to_factor(float(qlib_signal)) if qlib_signal is not None else 1.0
-
-                # 计算 iFinD factor
-                ifind_factor = 1.0
-                if insight:
-                    ifind_factor = self._ifind_signal_to_factor(insight.direction, float(insight.confidence))
-
-                # 三因子融合: Qlib + iFinD + 外部报告（权重可动态调整）
-                if qlib_signal is not None and insight:
-                    base_factor = self._fuse_qlib_ifind_factor(
-                        qlib_factor, ifind_factor,
-                        qlib_weight=qlib_w, ifind_weight=ifind_w,
-                        clamp_min=clamp_min, clamp_max=clamp_max,
-                    )
-                    fused_factor = base_factor * (1 - external_w) + external_factor * external_w
-                    fused_factor = max(clamp_min, min(clamp_max, fused_factor))
-                elif qlib_signal is not None:
-                    fused_factor = qlib_factor * (1 - external_w) + external_factor * external_w
-                    fused_factor = max(clamp_min, min(clamp_max, fused_factor))
-                elif insight:
-                    fused_factor = ifind_factor * (1 - external_w) + external_factor * external_w
-                    fused_factor = max(clamp_min, min(clamp_max, fused_factor))
-                else:
-                    adjusted.append(dict(order))
-                    continue
-
-                # 应用 lgb_enhanced 置信度乘数 (第四信号源, 保守调制)
-                lgb_mult = 1.0
-                lgb_sig_value = None
-                if lgb_signals and lgb_confidence_gate:
-                    lgb_info = lgb_signals.get(code)
-                    if lgb_info:
-                        lgb_sig_value = lgb_info.get("signal")
-                        lgb_mult = self._lgb_confidence_multiplier(
-                            lgb_sig_value, lgb_info.get("quality_flag", "OK"),
-                        )
-                        if lgb_mult != 1.0:
-                            fused_factor = max(clamp_min, min(clamp_max, fused_factor * lgb_mult))
-
-                # 应用 fused_factor
-                if fused_factor <= 0.0:
-                    logger.info("融合信号跳过订单 [%s] qlib_factor=%.2f ifind_factor=%.2f lgb_mult=%.2f",
-                                code, qlib_factor, ifind_factor, lgb_mult)
-                    continue
-
-                new_order = dict(order)
-                original_shares = int(order.get("shares", 0))
-                original_amount = float(order.get("est_amount", 0))
-                new_shares = max(100, int(original_shares * fused_factor / 100) * 100)
-                new_order["shares"] = new_shares
-                new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
-                new_order["original_shares"] = original_shares
-                new_order["qlib_signal"] = round(float(qlib_signal), 4) if qlib_signal is not None else None
-                new_order["qlib_factor"] = round(qlib_factor, 2) if qlib_signal is not None else None
-                new_order["ifind_direction"] = insight.direction if insight else None
-                new_order["ifind_confidence"] = round(float(insight.confidence), 2) if insight else None
-                new_order["ifind_factor"] = round(ifind_factor, 2) if insight else None
-                new_order["fused_factor"] = round(fused_factor, 2)
-                new_order["ifind_reasons"] = insight.reasons[:3] if insight else []
-                new_order["lgb_signal"] = round(float(lgb_sig_value), 4) if lgb_sig_value is not None else None
-                new_order["lgb_multiplier"] = round(lgb_mult, 2) if lgb_mult != 1.0 else None
-                adjusted.append(new_order)
-
-                if fused_factor >= 1.2:
-                    logger.info("融合加仓 [%s] qlib=%s ifind=%s -> fused=%.2f, %d 股",
-                                code,
-                                f"{qlib_signal:+.4f}" if qlib_signal is not None else "N/A",
-                                f"{insight.direction}/{insight.confidence:.2f}" if insight else "N/A",
-                                fused_factor, new_shares)
-                elif fused_factor <= 0.5:
-                    logger.info("融合减仓 [%s] qlib=%s ifind=%s -> fused=%.2f, %d 股",
-                                code,
-                                f"{qlib_signal:+.4f}" if qlib_signal is not None else "N/A",
-                                f"{insight.direction}/{insight.confidence:.2f}" if insight else "N/A",
-                                fused_factor, new_shares)
-            return adjusted
-
-        new_morning = _apply(morning_orders)
-        new_afternoon = _apply(afternoon_orders)
-
-        def _count(orders, threshold):
-            return sum(1 for o in orders if o.get("fused_factor", 1.0) >= threshold)
-
-        def _count_lgb(orders, op):
-            return sum(1 for o in orders if o.get("lgb_multiplier") is not None and op(o.get("lgb_multiplier", 1.0)))
-
-        return {
-            "morning_orders": new_morning,
-            "afternoon_orders": new_afternoon,
-            "skip_count": (len(morning_orders) - len(new_morning)) + (len(afternoon_orders) - len(new_afternoon)),
-            "boost_count": _count(new_morning, 1.2) + _count(new_afternoon, 1.2),
-            "cut_count": _count(new_morning, 0.5) + _count(new_afternoon, 0.5),
-            "lgb_boost_count": _count_lgb(new_morning + new_afternoon, lambda x: x > 1.0),
-            "lgb_cut_count": _count_lgb(new_morning + new_afternoon, lambda x: x < 1.0),
-        }
-
-    def _apply_ifind_news_adjustments(self,
-                                      *,
-                                      morning_orders: List[Dict[str, Any]],
-                                      afternoon_orders: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """根据 iFinD 新闻/公告研判结果调整订单
-
-        Returns:
-            {
-                "morning_orders": [...],
-                "afternoon_orders": [...],
-                "skip_count": int,
-                "boost_count": int,
-                "cut_count": int,
-            }
-        """
-        if self.ifind_analyzer is None:
-            return {}
-
-        symbols = []
-        name_map = {}
-        for order in morning_orders + afternoon_orders:
-            code = str(order.get("code", ""))
-            name = str(order.get("name", ""))
-            if code and code not in name_map:
-                symbols.append(code)
-                name_map[code] = name
-
-        if not symbols:
-            return {}
-
-        try:
-            insights = self.ifind_analyzer.batch_analyze(symbols, name_map=name_map, size=4, days=3)
-        except Exception:
-            logger.error("iFinD 批量研判失败", exc_info=True)
-            return {}
-
-        insight_map = {item.symbol: item for item in insights}
-
-        def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-            adjusted: List[Dict[str, Any]] = []
-            for order in orders:
-                code = str(order.get("code", ""))
-                insight = insight_map.get(code)
-                if insight is None:
-                    adjusted.append(dict(order))
-                    continue
-
-                factor = self._ifind_signal_to_factor(insight.direction, float(insight.confidence))
-                if factor <= 0.0:
-                    logger.info("iFinD 跳过订单 [%s] %s confidence=%.2f", code, insight.direction, insight.confidence)
-                    continue
-
-                new_order = dict(order)
-                original_shares = int(order.get("shares", 0))
-                original_amount = float(order.get("est_amount", 0))
-                new_shares = max(100, int(original_shares * factor / 100) * 100)
-                new_order["shares"] = new_shares
-                new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
-                new_order["original_shares"] = original_shares
-                new_order["ifind_direction"] = insight.direction
-                new_order["ifind_confidence"] = round(float(insight.confidence), 2)
-                new_order["ifind_factor"] = round(factor, 2)
-                new_order["ifind_reasons"] = insight.reasons[:3]
-                adjusted.append(new_order)
-
-                if factor >= 1.2:
-                    logger.info("iFinD 加仓 [%s] %s confidence=%.2f -> factor=%.2f, %d 股", code, insight.direction, insight.confidence, factor, new_shares)
-                elif factor <= 0.5:
-                    logger.info("iFinD 减仓 [%s] %s confidence=%.2f -> factor=%.2f, %d 股", code, insight.direction, insight.confidence, factor, new_shares)
-            return adjusted
-
-        new_morning = _apply(morning_orders)
-        new_afternoon = _apply(afternoon_orders)
-
-        def _count(orders, threshold):
-            return sum(1 for o in orders if o.get("ifind_factor", 1.0) >= threshold)
-
-        return {
-            "morning_orders": new_morning,
-            "afternoon_orders": new_afternoon,
-            "skip_count": (len(morning_orders) - len(new_morning)) + (len(afternoon_orders) - len(new_afternoon)),
-            "boost_count": _count(new_morning, 1.2) + _count(new_afternoon, 1.2),
-            "cut_count": _count(new_morning, 0.5) + _count(new_afternoon, 0.5),
-        }
-
-    def _apply_macro_policy_adjustments(self,
-                                         *,
-                                         morning_orders: List[Dict[str, Any]],
-                                         afternoon_orders: List[Dict[str, Any]],
-                                         macro_scores: Dict[str, Any]) -> Dict[str, Any]:
-        """根据十五五/康波宏观评分调整订单
-
-        Args:
-            morning_orders: 上午订单
-            afternoon_orders: 下午订单
-            macro_scores: phase_signal 中计算的宏观评分
-
-        Returns:
-            {
-                "morning_orders": [...],
-                "afternoon_orders": [...],
-                "skip_count": int,
-                "boost_count": int,
-                "cut_count": int,
-            }
-        """
-        if not macro_scores:
-            return {}
-
-        try:
-            from src.macro.macro_policy_scoring import macro_score_to_factor
-        except Exception:
-            return {}
-
-        def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-            adjusted: List[Dict[str, Any]] = []
-            for order in orders:
-                code = str(order.get("code", ""))
-                score_info = macro_scores.get(code)
-                if not score_info:
-                    adjusted.append(dict(order))
-                    continue
-
-                combined = float(getattr(score_info, "combined_score", 1.0))
-                factor = macro_score_to_factor(combined)
-                if factor <= 0.0:
-                    logger.info("宏观评分跳过订单 [%s] combined=%.4f", code, combined)
-                    continue
-
-                new_order = dict(order)
-                original_shares = int(order.get("shares", 0))
-                original_amount = float(order.get("est_amount", 0))
-                new_shares = max(100, int(original_shares * factor / 100) * 100)
-                new_order["shares"] = new_shares
-                new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
-                new_order["original_shares"] = original_shares
-                new_order["macro_combined_score"] = round(combined, 4)
-                new_order["macro_factor"] = round(factor, 2)
-                new_order["fifteen_five_score"] = round(float(getattr(score_info, "fifteen_five_score", 1.0)), 4)
-                new_order["kondratiev_score"] = round(float(getattr(score_info, "kondratiev_score", 1.0)), 4)
-                adjusted.append(new_order)
-
-                if factor >= 1.2:
-                    logger.info("宏观加仓 [%s] combined=%.4f -> factor=%.2f, %d 股", code, combined, factor, new_shares)
-                elif factor <= 0.8:
-                    logger.info("宏观减仓 [%s] combined=%.4f -> factor=%.2f, %d 股", code, combined, factor, new_shares)
-            return adjusted
-
-        new_morning = _apply(morning_orders)
-        new_afternoon = _apply(afternoon_orders)
-
-        def _count(orders, threshold):
-            return sum(1 for o in orders if o.get("macro_factor", 1.0) >= threshold)
-
-        return {
-            "morning_orders": new_morning,
-            "afternoon_orders": new_afternoon,
-            "skip_count": (len(morning_orders) - len(new_morning)) + (len(afternoon_orders) - len(new_afternoon)),
-            "boost_count": _count(new_morning, 1.2) + _count(new_afternoon, 1.2),
-            "cut_count": _count(new_morning, 0.8) + _count(new_afternoon, 0.8),
-        }
-
-    def _apply_position_factor(self,
-                               orders: List[Dict[str, Any]],
-                               factor: float) -> List[Dict[str, Any]]:
-        """应用仓位系数到订单列表 (DEFENSE 模式减仓)
-
-        Args:
-            orders: 原始订单列表
-            factor: 仓位系数 (1.0 = 全仓, 0.5 = 半仓)
-
-        Returns:
-            调整后的订单列表 (新建对象, 不修改原订单)
-        """
-        if factor >= 1.0:
-            return list(orders)
-
-        adjusted = []
-        for order in orders:
-            new_order = dict(order)
-            original_shares = int(order.get("shares", 0))
-            original_amount = float(order.get("est_amount", 0))
-            # 按 factor 缩减股数, 并对齐到 100 股整数倍
-            new_shares = max(100, (int(original_shares * factor) // 100) * 100)
-            new_order["shares"] = new_shares
-            new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
-            new_order["original_shares"] = original_shares
-            new_order["position_factor"] = factor
-            adjusted.append(new_order)
-        return adjusted
-
-    # --------------------------------------------------------
-    # Qlib 信号生成 (v7.5 + Qlib 集成)
-    # --------------------------------------------------------
     def _generate_qlib_signals(self) -> Dict[str, float]:
-        """为交易计划中的标的生成 Qlib 深度学习信号
+        """生成 Qlib 深度学习信号 (委托至 workflow.phases.signal_qlib)"""
+        from workflow.phases.signal_qlib import generate_qlib_signals
+        ctx = self._build_context()
+        return generate_qlib_signals(ctx)
 
-        Returns:
-            {symbol: signal_value} 信号值在 [-1, 1] 区间
-        """
-        try:
-            from alpha.qlib_signal_adapter import (
-                generate_signal,
-                is_qlib_available,
-                fetch_ifind_ohlcv,
-            )
-        except ImportError:
-            logger.warning("Qlib 信号适配器不可用")
-            return {}
-
-        if not is_qlib_available():
-            logger.info("Qlib 不可用，使用本地 LightGBM 信号")
-
-        signals = {}
-        # 从交易计划中提取标的
-        plan_exec = self.trade_plan.get("execution_plan", {}) if self.trade_plan else {}
-        all_orders = plan_exec.get("morning_orders", []) + plan_exec.get("afternoon_orders", [])
-
-        # 去重标的
-        symbols = list(dict.fromkeys(o.get("code", "") for o in all_orders if o.get("code")))
-
-        for symbol in symbols:  # 处理全部标的
-            try:
-                # 优先 iFinD 真实数据，失败则回退模拟数据
-                df = fetch_ifind_ohlcv(symbol, days=500)
-                if df is None or len(df) < 60:
-                    logger.debug(f"iFinD 数据不足，使用模拟数据 [{symbol}]")
-                    df = self._generate_mock_ohlcv(symbol, days=500)
-
-                if df is None or len(df) < 60:
-                    continue
-
-                signal = generate_signal(df, symbol, model_type="lightgbm")
-                if signal is not None and len(signal) > 0:
-                    # 取最新信号值
-                    latest_signal = float(signal.iloc[-1])
-                    signals[symbol] = round(latest_signal, 4)
-                    logger.info(f"Qlib 信号 [{symbol}]: {latest_signal:+.4f}")
-            except Exception as e:
-                logger.warning(f"Qlib 信号生成失败 [{symbol}]: {e}")
-
-        # === 将 Qlib 信号注入 SignalFusion ===
-        if signals and hasattr(self, 'signal_fusion'):
-            try:
-                from alpha.qlib_signal_adapter import pd as qlib_pd
-                # 构造等权信号序列（用于融合）
-                signal_series = qlib_pd.Series(list(signals.values()), index=list(signals.keys()))
-                self.signal_fusion.inject_qlib_signal(signal_series)
-                logger.info(f"Qlib 信号已注入 SignalFusion: {len(signals)} 个标的")
-            except Exception as e:
-                logger.warning(f"Qlib 信号注入 SignalFusion 失败: {e}")
-
-        return signals
-
-    def _generate_mock_ohlcv(self, symbol: str, days: int = 120) -> Optional[pd.DataFrame]:
-        """生成模拟 OHLCV 数据 (用于 Qlib 演示)
-
-        Args:
-            symbol: 标的代码
-            days: 数据天数
-
-        Returns:
-            DataFrame 或 None
-        """
-        try:
-            import numpy as np
-            import pandas as pd
-            np.random.seed(hash(symbol) % (2**32))
-
-            dates = pd.date_range(end=datetime.now(), periods=days, freq="B")
-            base_price = 50 + np.random.random() * 100
-
-            # 几何布朗运动模拟
-            returns = np.random.normal(0.0005, 0.02, days)
-            prices = base_price * np.exp(np.cumsum(returns))
-
-            df = pd.DataFrame({
-                "open": prices * (1 + np.random.normal(0, 0.005, days)),
-                "high": prices * (1 + np.abs(np.random.normal(0, 0.01, days))),
-                "low": prices * (1 - np.abs(np.random.normal(0, 0.01, days))),
-                "close": prices,
-                "volume": np.random.randint(1000000, 10000000, days),
-            }, index=dates)
-
-            return df
-        except Exception as e:
-            logger.warning(f"模拟数据生成失败 [{symbol}]: {e}")
-            return None
+    def _generate_mock_ohlcv(self, symbol: str, days: int = 120):
+        """生成模拟 OHLCV 数据 (委托至 workflow.phases.signal_qlib)"""
+        from workflow.phases.signal_qlib import generate_mock_ohlcv
+        return generate_mock_ohlcv(symbol, days)
 
     def _options_market_snapshot(self) -> Dict[str, Any]:
-        """期权市场快照（最小可用版本）
+        """期权市场快照 (委托至 workflow.phases.signal_ifind)"""
+        from workflow.phases.signal_ifind import options_market_snapshot
+        return options_market_snapshot()
 
-        实盘应接入期权行情/IV/Greek；当前仅返回占位结构，
-        保证 OptionsRunner 可正常执行计划生成流程。
-        G13 修复 (2026-08-06): VIX 从 VixDataSource 获取真实值, 非硬编码。
-        """
-        _vix_default = 18.5
-        try:
-            from utils.alpha.vix_data_source import fetch_vix
-            _vix_fetched = fetch_vix(use_cache=True)
-            if _vix_fetched is not None and 5.0 <= _vix_fetched <= 150.0:
-                _vix_default = float(_vix_fetched)
-        except Exception:  # noqa: BLE001
-            pass
-        return {
-            "vix": _vix_default,
-            "market_status": "NORMAL",
-            "underlyings": [],
-            "note": "最小快照, 实盘应接入期权行情",
-        }
 
     # --------------------------------------------------------
     # Phase 6: 智能执行 (MockBroker / SimExecutionEngine)
@@ -4418,6 +1299,8 @@ class DailyWorkflow:
 
             # === 对冲基金视角: 执行算法引擎 (大单拆单计划) ===
             execution_plans: List[Dict[str, Any]] = []
+            _split_total = 0
+            _split_fail = 0
             if self.exec_algo_engine is not None:
                 try:
                     for order in morning_orders + afternoon_orders:
@@ -4427,6 +1310,7 @@ class DailyWorkflow:
                         notional = shares * est_price
                         if shares >= 5000 or notional >= 200_000:
                             try:
+                                _split_total += 1
                                 algo_type = self.exec_algo_engine.select_algo(
                                     total_shares=shares,
                                     avg_daily_volume=shares * 20,
@@ -4447,19 +1331,20 @@ class DailyWorkflow:
                                     "symbol": code,
                                     "algo": algo_type.value,
                                     "slices": len(plan.slices),
-                                    "first_slice_shares": plan.slices[0].shares if plan.slices else 0,
-                                    "last_slice_shares": plan.slices[-1].shares if plan.slices else 0,
-                                    "est_total_cost": plan.estimated_total_cost,
-                                    "est_slippage_bps": plan.estimated_slippage_bps,
+                                    "first_slice_shares": plan.slices[0].target_shares if plan.slices else 0,
+                                    "last_slice_shares": plan.slices[-1].target_shares if plan.slices else 0,
+                                    "est_total_cost": plan.expected_cost,
+                                    "est_slippage_bps": plan.expected_slippage_bps,
                                     "plan_path": str(saved_path),
                                 })
                                 logger.info(
                                     "[ExecAlgo] %s 拆单: %s -> %d slices (slippage=%.1fbps, cost=%.0f)",
                                     code, algo_type.value, len(plan.slices),
-                                    plan.estimated_slippage_bps, plan.estimated_total_cost,
+                                    plan.expected_slippage_bps, plan.expected_cost,
                                 )
                             except Exception as exc:
-                                logger.warning("[ExecAlgo] %s 拆单失败: %s", code, exc)
+                                _split_fail += 1
+                                logger.error("[ExecAlgo] %s 拆单失败: %s", code, exc, exc_info=True)
                         else:
                             # G12 修复 (2026-08-06): 小单也估算冲击成本, 裸市价仅限极小单
                             _small_notional = notional
@@ -4467,6 +1352,7 @@ class DailyWorkflow:
                             if _est_slippage_bps > 10.0:
                                 # 冲击成本 > 10bp 的小单也走 TWAP 拆分
                                 try:
+                                    _split_total += 1
                                     _plan = self.exec_algo_engine.plan_order(
                                         algo="TWAP",
                                         symbol=code,
@@ -4481,19 +1367,20 @@ class DailyWorkflow:
                                         "symbol": code,
                                         "algo": "TWAP",
                                         "slices": len(_plan.slices),
-                                        "first_slice_shares": _plan.slices[0].shares if _plan.slices else 0,
-                                        "last_slice_shares": _plan.slices[-1].shares if _plan.slices else 0,
-                                        "est_total_cost": _plan.estimated_total_cost,
-                                        "est_slippage_bps": _plan.estimated_slippage_bps,
+                                        "first_slice_shares": _plan.slices[0].target_shares if _plan.slices else 0,
+                                        "last_slice_shares": _plan.slices[-1].target_shares if _plan.slices else 0,
+                                        "est_total_cost": _plan.expected_cost,
+                                        "est_slippage_bps": _plan.expected_slippage_bps,
                                         "plan_path": str(_saved),
                                         "small_order_twap": True,
                                     })
                                     logger.info(
                                         "[ExecAlgo] %s 小单TWAP: %d slices (slippage=%.1fbps)",
-                                        code, len(_plan.slices), _plan.estimated_slippage_bps,
+                                        code, len(_plan.slices), _plan.expected_slippage_bps,
                                     )
                                 except Exception as exc:
-                                    logger.warning("[ExecAlgo] %s 小单TWAP失败: %s", code, exc)
+                                    _split_fail += 1
+                                    logger.error("[ExecAlgo] %s 小单TWAP失败: %s", code, exc, exc_info=True)
                             else:
                                 execution_plans.append({
                                     "symbol": code,
@@ -4510,6 +1397,17 @@ class DailyWorkflow:
                                     "[ExecAlgo] %s 小单市价 (notional=%.0f, slippage=%.1fbps)",
                                     code, _small_notional, _est_slippage_bps,
                                 )
+                    if _split_total > 0:
+                        _fail_rate = _split_fail / _split_total
+                        logger.info(
+                            "[ExecAlgo] 拆单统计: 成功 %d/%d, 失败 %d (%.1f%%)",
+                            _split_total - _split_fail, _split_total, _split_fail, _fail_rate * 100,
+                        )
+                        if _fail_rate > 0.5:
+                            logger.error(
+                                "[ExecAlgo] 拆单失败率 %.1f%% > 50%% 阈值, 执行质量降级",
+                                _fail_rate * 100,
+                            )
                     if execution_plans:
                         logger.info("[ExecAlgo] 共生成 %d 个拆单计划", len(execution_plans))
                 except Exception as exc:
@@ -4537,11 +1435,16 @@ class DailyWorkflow:
                 "options_count": len(options_fills),
                 "execution_plans": execution_plans,
                 "execution_plans_count": len(execution_plans),
+                "split_total": _split_total,
+                "split_fail": _split_fail,
+                "split_failure_rate": (_split_fail / _split_total) if _split_total > 0 else 0.0,
             }
             return dry_orders
 
         # === 对冲基金视角: 执行算法引擎 (大单拆单计划) ===
         execution_plans: List[Dict[str, Any]] = []
+        _split_total = 0
+        _split_fail = 0
         if self.exec_algo_engine is not None:
             try:
                 for order in morning_orders + afternoon_orders:
@@ -4552,6 +1455,7 @@ class DailyWorkflow:
                     notional = shares * est_price
                     if shares >= 5000 or notional >= 200_000:
                         try:
+                            _split_total += 1
                             algo_type = self.exec_algo_engine.select_algo(
                                 total_shares=shares,
                                 avg_daily_volume=shares * 20,  # 估计 ADV
@@ -4572,25 +1476,27 @@ class DailyWorkflow:
                                 "symbol": code,
                                 "algo": algo_type.value,
                                 "slices": len(plan.slices),
-                                "first_slice_shares": plan.slices[0].shares if plan.slices else 0,
-                                "last_slice_shares": plan.slices[-1].shares if plan.slices else 0,
-                                "est_total_cost": plan.estimated_total_cost,
-                                "est_slippage_bps": plan.estimated_slippage_bps,
+                                "first_slice_shares": plan.slices[0].target_shares if plan.slices else 0,
+                                "last_slice_shares": plan.slices[-1].target_shares if plan.slices else 0,
+                                "est_total_cost": plan.expected_cost,
+                                "est_slippage_bps": plan.expected_slippage_bps,
                                 "plan_path": str(saved_path),
                             })
                             logger.info(
                                 "[ExecAlgo] %s 拆单: %s -> %d slices (slippage=%.1fbps, cost=%.0f)",
                                 code, algo_type.value, len(plan.slices),
-                                plan.estimated_slippage_bps, plan.estimated_total_cost,
+                                plan.expected_slippage_bps, plan.expected_cost,
                             )
                         except Exception as exc:
-                            logger.warning("[ExecAlgo] %s 拆单失败: %s", code, exc)
+                            _split_fail += 1
+                            logger.error("[ExecAlgo] %s 拆单失败: %s", code, exc, exc_info=True)
                     else:
                         # G12 修复 (2026-08-06): 小单也估算冲击成本, 裸市价仅限极小单
                         _small_notional = notional
                         _est_slippage_bps = max(2.0, _small_notional / 1_000_000 * 5.0)
                         if _est_slippage_bps > 10.0:
                             try:
+                                _split_total += 1
                                 _plan = self.exec_algo_engine.plan_order(
                                     algo="TWAP",
                                     symbol=code,
@@ -4605,19 +1511,20 @@ class DailyWorkflow:
                                     "symbol": code,
                                     "algo": "TWAP",
                                     "slices": len(_plan.slices),
-                                    "first_slice_shares": _plan.slices[0].shares if _plan.slices else 0,
-                                    "last_slice_shares": _plan.slices[-1].shares if _plan.slices else 0,
-                                    "est_total_cost": _plan.estimated_total_cost,
-                                    "est_slippage_bps": _plan.estimated_slippage_bps,
+                                    "first_slice_shares": _plan.slices[0].target_shares if _plan.slices else 0,
+                                    "last_slice_shares": _plan.slices[-1].target_shares if _plan.slices else 0,
+                                    "est_total_cost": _plan.expected_cost,
+                                    "est_slippage_bps": _plan.expected_slippage_bps,
                                     "plan_path": str(_saved),
                                     "small_order_twap": True,
                                 })
                                 logger.info(
                                     "[ExecAlgo] %s 小单TWAP: %d slices (slippage=%.1fbps)",
-                                    code, len(_plan.slices), _plan.estimated_slippage_bps,
+                                    code, len(_plan.slices), _plan.expected_slippage_bps,
                                 )
                             except Exception as exc:
-                                logger.warning("[ExecAlgo] %s 小单TWAP失败: %s", code, exc)
+                                _split_fail += 1
+                                logger.error("[ExecAlgo] %s 小单TWAP失败: %s", code, exc, exc_info=True)
                         else:
                             execution_plans.append({
                                 "symbol": code,
@@ -4634,6 +1541,17 @@ class DailyWorkflow:
                                 "[ExecAlgo] %s 小单市价 (notional=%.0f, slippage=%.1fbps)",
                                 code, _small_notional, _est_slippage_bps,
                             )
+                if _split_total > 0:
+                    _fail_rate = _split_fail / _split_total
+                    logger.info(
+                        "[ExecAlgo] 拆单统计: 成功 %d/%d, 失败 %d (%.1f%%)",
+                        _split_total - _split_fail, _split_total, _split_fail, _fail_rate * 100,
+                    )
+                    if _fail_rate > 0.5:
+                        logger.error(
+                            "[ExecAlgo] 拆单失败率 %.1f%% > 50%% 阈值, 执行质量降级",
+                            _fail_rate * 100,
+                        )
                 if execution_plans:
                     logger.info("[ExecAlgo] 共生成 %d 个拆单计划", len(execution_plans))
             except Exception as exc:
@@ -4692,6 +1610,9 @@ class DailyWorkflow:
                 "options_count": len(options_fills),
                 "execution_plans": execution_plans,
                 "execution_plans_count": len(execution_plans),
+                "split_total": _split_total,
+                "split_fail": _split_fail,
+                "split_failure_rate": (_split_fail / _split_total) if _split_total > 0 else 0.0,
             }
 
             # === 机构级: TCA 交易后成本分析 ===
@@ -4884,6 +1805,9 @@ class DailyWorkflow:
                 "options_count": len(options_fills),
                 "execution_plans": execution_plans,
                 "execution_plans_count": len(execution_plans),
+                "split_total": _split_total,
+                "split_fail": _split_fail,
+                "split_failure_rate": (_split_fail / _split_total) if _split_total > 0 else 0.0,
             }
             return []
 

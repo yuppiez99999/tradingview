@@ -9,6 +9,8 @@ AKShare 股票数据源适配器
 - 免费数据，无额度限制
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import time
