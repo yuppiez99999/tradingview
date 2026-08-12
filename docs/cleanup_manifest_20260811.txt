@@ -1,0 +1,156 @@
+=== 清理清单 - 2026-08-11 ===
+=== [1] scripts/_* 临时脚本与输出文件 ===
+
+FullName                                                                        Length
+--------                                                                        ------
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_bridge_analyze_test.txt             2112
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_bridge_avail_test.txt                 17
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_bridge_e2e_test.txt                   18
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_bridge_e2e_test2.txt                 430
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_bug_scan_results.json             932392
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_build_autolearn.py                   992
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_check_coverage_trend.py             1575
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_check_output.txt                    1952
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_check_w13a_coverage.py              5349
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_classify_print.py                   2769
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_claude_hook_cairn_check.py          8405
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_claude_hook_quality_check.py       11918
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_div_zero_fix_report.json            3751
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_div_zero_precise_results.json     356815
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_dl_lightgbm.py                      4117
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_dl_scipy_fast.py                    2410
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_dl_scipy_v2.py                      2786
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_dl_scipy.py                         3273
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_final_check.txt                      789
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_final_check3.txt                    1018
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_final_quality_scan.py               8418
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_final_scan_results.json           969103
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_fix_div_zero_output.txt             1269
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_fix_evolution_except.py             2360
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_fix_except_batch.py                 2290
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_fix_import_fallback_except.py       3871
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_fix_pipeline_task_v2.ps1            2084
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_fix_pipeline_task.ps1               1938
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_fix_scipy.py                        1882
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_generate_snapshot.ps1               3451
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_install_all_ml.py                   4447
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_install_ml_pkgs.py                   980
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_install_scipy.py                    2627
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_phase0_output.txt                   1842
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_pip_install_scipy.py                1293
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_pip_noproxy.py                      1383
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_print_by_dir.ps1                    1184
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_print_stats.py                      2029
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_prod_bug_scan_results.json        185557
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_run_lgb_train.py                     860
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_run_v9_regression.py                1557
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_scan_div_zero_precise.py           11692
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_scan_except_remaining.py            1924
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_scan_func_quality.py               26158
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_scan_print_all.ps1                  1302
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_scan_print_utils.ps1                1035
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_scan_system_quality.py             14490
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_scan_utils_by_subdir.py             2107
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_select_tests_by_diff.py             1575
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_show_except_ctx.py                  1031
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_silent_except_fix_report.json       5235
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_smoke_runner.py                     1831
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_tdd_guard.py                        1509
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_tmp_export.py                        520
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_tmp_export2.py                       515
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_tmp_find2.py                         590
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_tmp_hedge_pnl_0810.py               4024
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_tmp_verify_hedge.py                 1298
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_verify_div_zero_fixes.py            4039
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_verify_phase3b_static_analysis.py   1635
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_verify_reexport_compat.py           1587
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_verify_safe_math.py                  947
+E:\各种PY程序\28-终极量化交易系统8.4\scripts\_verify_utils_syntax.py               474
+
+
+[小计] 文件数: 63  大小: 2567.22 KB
+
+=== [2] qlib_env_py38_bak 备份虚拟环境 ===
+路径: e:\各种PY程序\28-终极量化交易系统8.4\qlib_env_py38_bak
+[小计] 文件数: 13824  大小: 497.91 MB
+
+=== [3] config/*.bak_* 备份文件 ===
+
+FullName                                                                             Length
+--------                                                                             ------
+E:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json.bak_20260804_104019   10111
+E:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json.bak_20260804_104233   13499
+E:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json.bak_20260804_111943   13498
+E:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json.bak_20260804_114155   13498
+E:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json.bak_20260804_114426   13498
+E:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json.bak_20260804_114837   13498
+E:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json.bak_20260804_153102   13498
+E:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json.bak_20260805_075912   13498
+E:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json.bak_20260805_153112   13447
+E:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json.bak_20260806_085913   13497
+E:\各种PY程序\28-终极量化交易系统8.4\config\market_returns.json.bak_20260808_101914   13446
+E:\各种PY程序\28-终极量化交易系统8.4\config\positions.json.bak_20260806               35744
+E:\各种PY程序\28-终极量化交易系统8.4\config\positions.json.bak_20260806_pre_exec      38694
+E:\各种PY程序\28-终极量化交易系统8.4\config\positions.json.bak_full_20260805          35748
+E:\各种PY程序\28-终极量化交易系统8.4\config\positions.json.bak_wind_20260805          35707
+E:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json.bak_20260804_104019 203069
+E:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json.bak_20260804_104233 203071
+E:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json.bak_20260804_111943 203058
+E:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json.bak_20260804_114155 203077
+E:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json.bak_20260804_114426 203057
+E:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json.bak_20260804_114837 203057
+E:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json.bak_20260804_153102 203057
+E:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json.bak_20260805_075912 203047
+E:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json.bak_20260805_153112 202270
+E:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json.bak_20260806_085913 203024
+E:\各种PY程序\28-终极量化交易系统8.4\config\returns_history.json.bak_20260808_101914 202243
+
+
+[小计] 文件数: 26  大小: 2463.78 KB
+
+=== [4] 每日报告归档/**/*.bak_* 备份文件 ===
+
+FullName                                                                                                          Length
+--------                                                                                                          ------
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-04\portfolio_return_projection.json.bak_20260804_104233   6864
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-04\portfolio_return_projection.json.bak_20260804_111943   7284
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-04\portfolio_return_projection.json.bak_20260804_114155   7287
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-04\portfolio_return_projection.json.bak_20260804_114426   7288
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-04\portfolio_return_projection.json.bak_20260804_114837   7288
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-04\portfolio_return_projection.json.bak_20260804_153102   7288
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-04\trade_plan_20260805.bak_20260804_153326_359403        17496
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-05\portfolio_return_projection.json.bak_20260805_075912   7288
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-05\portfolio_return_projection.json.bak_20260805_153112   7286
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-05\trade_plan_20260805.bak_20260804_153326_359403        17496
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-05\trade_plan_20260805.json.bak_153326                   29305
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-05\trade_plan_20260806.bak_20260805_153213_055050        17652
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-06\portfolio_return_projection.json.bak_20260806_085916   7288
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-06\portfolio_return_projection.json.bak_20260806_153538   7288
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-06\trade_plan_20260806.bak_20260805_153213_055050        17652
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-06\trade_plan_20260806.json.bak_153213                   30081
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-06\trade_plan_20260807.bak_20260806_153637_301945        18811
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-07\portfolio_return_projection.json.bak_20260807_082009   7288
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-07\portfolio_return_projection.json.bak_20260807_164552   7288
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-07\portfolio_return_projection.json.bak_20260807_164732   7288
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-07\portfolio_return_projection.json.bak_20260807_164804   7288
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-07\trade_plan_20260807.bak_20260806_153637_301945        18811
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-07\trade_plan_20260807.json.bak_153637                   31245
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-07\trade_plan_20260810.bak_20260807_164514_961064        18219
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-10\portfolio_return_projection.json.bak_20260810_152258   7287
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-10\portfolio_return_projection.json.bak_20260810_152547   7287
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-10\portfolio_return_projection.json.bak_20260810_153255   7287
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-10\portfolio_return_projection.json.bak_20260810_153633   7287
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-10\trade_plan_20260810.bak_20260807_164514_961064        18219
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-10\trade_plan_20260810.json.bak_164514                   30658
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-10\trade_plan_20260811.bak_20260810_153348_076305        28367
+E:\各种PY程序\28-终极量化交易系统8.4\每日报告归档\2026-08-10\trade_plan_20260811.bak_20260810_153657_355491        19797
+
+
+[小计] 文件数: 32  大小: 434.14 KB
+
+=== [5] _archive 归档目录 ===
+路径: e:\各种PY程序\28-终极量化交易系统8.4\_archive
+[小计] 文件数: 3368  大小: 106.01 MB
+
+=== 总计 ===
+总文件数: 17313  总大小: 609.26 MB
