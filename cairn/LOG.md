@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-12 · G7 ms_strategy 覆盖补齐: 0% → 显著覆盖 + 2 个真实 bug 修复 · 完成 ✅
+
+- **背景**: G7 定向基线 39.58% (ms_strategy 因无任何测试 0% 纳入); 本次为轻量纯逻辑模块补单元测试, 把 ms_strategy 从 0% 拉起
+- **新增测试**: `tests/unit/test_ms_strategy_coverage.py` (100 passed), 覆盖 src.{backtest,risk,hedging,alpha,execution,ml} 共 14 个轻量模块 (无重型依赖: qlib/lightgbm/torch/xtquant 跳过)
+- **覆盖率提升**: 整体 39.58% → **41.22%**; ms_strategy 子包行率: backtest 82.73% / risk 71.79% / execution 62.32% / ml 60.65% / hedging 55.78% / alpha 23.46% (alpha 低因 qlib_signal_adapter 等重型模块未测)
+- **真实代码缺陷修复 #1 · `src/alpha/signal_generator.py` L194-195**: `generate()` 返回一维组合信号 Series (index=X.index 即 T 维), 但原代码 `self.latest_signals = {col: signal[col].iloc[-1] ...}` 用因子列名 `col` 索引一维 signal, 在 RangeIndex 下 KeyError('momentum'); 改为取 `signal.iloc[-1]` 按 `selected_factors` 映射。验证 test_generate 由 KeyError → passed
+- **真实代码缺陷修复 #2 (前序)**: `utils/alpha/drift_monitor.py` L197/L212/L368 三处 `cast(list[Any]/dict[str,Any], x)` Python 3.8 运行时泛型下标失败 (`from __future__ import annotations` 无法豁免 cast 实参运行时求值); 改为直接 return
+- **测试签名教训 (高密度)**: ms_strategy 模块 API 与测试期望严重错位 (14 模块中 ~12 个需逐方法校正: `CostAwareBacktest(initial_capital=)` / `run_strategy(prices,target_weights)` / `RiskBudgeter.allow_new_positions` 是 @property 且 DEFENSE 模式即 False / `StressScenario` 字段差异 / `CPCV.run(data,strategy_fn)` / `WalkForward.run(data,strategy_fn)` / `SignalFusion.fuse(method=)` 接受 strategy_fn 非 target_col); 凡写新测试务必先读真实签名
+- **产物**: `reports/coverage.xml` + `reports/htmlcov/` 已重生成; `.coveragerc` fail_under=35 (阶段1)/ 70 (阶段2)/ 80 (阶段3 目标)
+- **指针**: `tests/unit/test_ms_strategy_coverage.py` (顶部 sys.path.insert ms_strategy 根), `src/alpha/signal_generator.py` L191-196
+- **待办**: alpha 重型模块 (qlib_signal_adapter) 与 data/monitoring/governance 子包仍 0% 覆盖, 需 mock 或集成测试补齐到 70%/80%; 临时文件 `_ms_test_out.txt`/`_ms_cov_out.txt` 用户保留未删
+
 ## 2026-08-12 · CI 三项修复（R1 真实 6 脚本 / R2 分批提交 / R4 PR 增量门禁）· C6 转 PASS ✅
 
 - **背景**: `ci.yml` 的 `python scripts/xxx.py` 引用 6 个从未真实实现的脚本, 致 `industrial_grade_check.check_c6_ci_runnable` FAIL
@@ -15,6 +27,14 @@
   - `cairn/ci-repair-and-gate-lessons-20260812.md` (专题文档)
   - `scripts/ci_integrity_check.py` / `_verify_phase3b_static_analysis.py` / `_smoke_runner.py` / `_select_tests_by_diff.py`
   - `.github/workflows/quality-gate.yml`
+
+## 2026-08-12 · 工作区未跟踪 99 → 0 收敛闭环 · 完成 ✅
+
+- **背景**: R2 当时为收敛到 ≤100 跳过了 99 个未跟踪文件; 用户要求彻底清理
+- **甄别结论**: 99 个文件绝大多数是**有效新增代码/测试** (Wave6 因子 / contracts / execution 闭环 / fineng 系列测试 / AI hedge fund 模块 / workflow 拆分), **非垃圾**; safe-delete 也 fail-closed 拦截删除, 进一步确认删除方向错误
+- **方案纠偏**: 改用**分批提交收敛** (非删除) — 5 批共 129 文件全部 pre-commit 门禁 0 阻止性通过: utils(37) / tests(45) / scripts+quant_modules+v8.3(39) / 根文件+cairn(3) / docs+xlsx+cairn同步(5)
+- **结果**: 工作区未跟踪文件 **99 → 0**; 零有效工作丢失
+- **指针**: `cairn/ROADMAP.md` 开放问题 8 (已标已完成) · `cairn/ci-repair-and-gate-lessons-20260812.md`
 
 ## 2026-08-12 · W6.6.4 daily_workflow.py 拆分第 1 轮 · 4 leaf phase 提取完成 ✅
 
