@@ -444,12 +444,12 @@ class TestTaskIfindAnalysis:
 
     @pytest.mark.unit
     def test_copies_source_file_when_exists(self, archive_dir, target_date, date_short, tmp_path, monkeypatch):
-        """源文件存在时必须复制到归档目录"""
+        """源文件存在时 (且非强制) 必须复制到归档目录"""
         src = tmp_path / "ifind_auto_analysis_report.md"
         src.write_text("# iFinD 源报告\n\n" + "x" * 600)
         monkeypatch.setattr(mir, "BASE_ROOT", tmp_path)
 
-        result = mir.task_ifind_analysis(archive_dir, target_date, force=True)
+        result = mir.task_ifind_analysis(archive_dir, target_date, force=False)
 
         assert result is True
         dst = archive_dir / f"iFinD自动标的研判报告_{date_short}.md"
@@ -690,7 +690,7 @@ class TestRunDailyMorningPhaseRouting:
         """info 阶段代码块必须在交易日检查之前 (源码顺序验证)"""
         src = (SCRIPT_DIR / "run_daily_morning.py").read_text(encoding="utf-8")
         info_phase_pos = src.find("阶段零: 晨间信息采集")
-        trading_check_pos = src.find("交易日检查 (仅决策类阶段需要")
+        trading_check_pos = src.find("not is_trading_day()")
 
         assert info_phase_pos > 0, "缺少 info 阶段代码块"
         assert trading_check_pos > 0, "缺少交易日检查代码块"

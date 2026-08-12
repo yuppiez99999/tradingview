@@ -42,6 +42,6 @@ def test_data_contract_exports_v9_contract():
 
 def test_reproducibility_exports_training_config():
     """lgbm_reproducibility 导出 TrainingConfig 数据类."""
-    from research.lgbm_reproducibility import TrainingConfig
+    from utils.lgbm_reproducibility import TrainingConfig
     config = TrainingConfig(model_name="test", seed=42)
     assert config.model_name == "test"

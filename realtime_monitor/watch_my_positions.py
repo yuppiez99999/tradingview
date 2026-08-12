@@ -138,7 +138,16 @@ def _fetch_sina_realtime(codes):
     url = f"https://hq.sinajs.cn/list={','.join(codes)}"
     print("sina_url=", url)
     try:
-        resp = requests.get(url, timeout=10, headers=headers, verify=False, proxies={"http": None, "https": None})
+        # B2 修复 (2026-08-08): 关闭 verify=False (B501), 改用 certifi 可信证书包.
+        # 原 verify=False 允许 MITM 篡改行情数据 → 持仓监控误判风险.
+        # 回归见 docs/CODE_REVIEW_COMPREHENSIVE_20260808.md B2.
+        try:
+            import certifi
+            _verify = certifi.where()
+        except ImportError:
+            _verify = True  # 回退到系统证书, 仍优于 verify=False
+        resp = requests.get(url, timeout=10, headers=headers, verify=_verify,
+                             proxies={"http": None, "https": None})
         text = resp.text.strip()
         print("sina_status=", resp.status_code, "text_head=", repr(text[:400]))
     except Exception as e:

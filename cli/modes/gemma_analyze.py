@@ -85,7 +85,8 @@ def run_gemma_analyze(args):
                 error_detail = resp.json().get('error', '')
                 if error_detail:
                     print(f"   错误详情: {error_detail}")
-            except:
+            except (ValueError, AttributeError):
+                # F-9 修复: 错误响应体非 JSON 时, 仅跳过详情解析, 不吞掉其他异常
                 pass
             print(f"   可能原因: ollama 服务未启动或模型未导入")
             print(f"   启动命令: ollama serve")

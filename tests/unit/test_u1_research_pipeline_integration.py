@@ -23,7 +23,17 @@ import pytest
 
 logger = logging.getLogger(__name__)
 
-pytestmark = [pytest.mark.unit]
+# G5 物理隔离 (2026-08-09): 本测试对比 research.vibe_trading_factor_analysis (Pearson IC)
+# 与 U1 版 (utils.alpha_factor.base, Spearman IC) 的一致性。research 版 pipeline 已被 U1 版
+# utils.alpha_factor.base 完全替代并删除, 原对比对象不存在; 引用的 PipelineResult 是已隔离废弃的
+# research 实验版 (_archive/research_references_quarantine/), 与生产 utils.pipeline.types.PipelineResult
+# 语义不同。对比失去意义, 跳过待 U1 版对应测试成熟后重写。
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.skip(
+        reason="research.vibe_trading_factor_analysis 已废弃删除, U1 版 utils.alpha_factor.base 为唯一实现; PipelineResult 引用的是已隔离的 research 实验版"
+    ),
+]
 
 
 # ============================================================

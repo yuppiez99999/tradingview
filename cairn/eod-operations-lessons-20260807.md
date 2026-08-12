@@ -10,6 +10,7 @@ related:
   - cairn/data-integrity-fix-lessons-20260806.md
   - cairn/industrial-grade-anti-regression-framework.md
   - cairn/tdam-phase0b-import-lessons-20260807.md
+  - cairn/fills-driven-pnl-lessons-20260808.md
   - docs/SYSTEM_MATURITY_GAP.md
 ---
 

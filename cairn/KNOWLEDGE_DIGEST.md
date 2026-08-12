@@ -18,8 +18,8 @@ cairn 目录是项目的显式知识沉淀库，遵循"结论走 cairn，过程�
 | 回测与数据 | 3 | backtest-standards.md, data-pipeline.md, returns-calibration-standards.md |
 | 风控与交易 | 2 | risk-architecture.md, shadow-data-quality-loop.md |
 | 模型与进化 | 2 | model-training.md, self-evolution-framework.md |
-| 代码质量 | 8 | exception-handling-standards.md, refactoring-standards.md, code-quality-wave3.md, code-quality-review-open-code-review.md, code-review-glm45-llm-scan.md, code-review-agent-fallback-20260810.md, code-review-lessons-v8.4.md, SYSTEM_QUALITY_SCAN_20260803.md |
-| 工程实践 | 3 | bug_fix_tracker.md, dev-workflow-automation.md, llm-output-quality-standards.md |
+| 代码质量 | 9 | exception-handling-standards.md, refactoring-standards.md, code-quality-wave3.md, code-quality-review-open-code-review.md, code-review-glm45-llm-scan.md, code-review-agent-fallback-20260810.md, code-review-lessons-v8.4.md, SYSTEM_QUALITY_SCAN_20260803.md, code-review-quality-gate-lessons-20260811.md |
+| 工程实践 | 4 | bug_fix_tracker.md, dev-workflow-automation.md, llm-output-quality-standards.md, live-trading-admission-criteria-20260811.md |
 | 进展日志 | 2 | LOG.md, gnn-supply-chain-factor-wave5-review.md |
 | 其他 | 1 | Cited.md |
 

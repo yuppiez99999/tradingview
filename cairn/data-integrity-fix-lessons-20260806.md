@@ -12,6 +12,7 @@ related:
   - cairn/bug_fix_tracker.md
   - docs/自我升级计划完成进度及后续工程_20260806.md
   - docs/runbooks/HEDGE_ORDER_EXECUTOR_RUNBOOK.md
+  - cairn/fills-driven-pnl-lessons-20260808.md
 ---
 
 # 数据修复经验沉淀：EOD 管道数据断链诊断与修复（2026-08-06）
@@ -88,6 +89,55 @@ EOD 管道有两个 alpha 信号产出路径：`AlphaPipeline.run()`（保存 `a
 **修复**: 以非 dry-run 模式重新运行 `hedge_order_executor.py --date 2026-08-06`。
 
 **验证**: 5 笔订单全部 FILLED，成交回报落盘到 3 个位置（`reports/` + `v8.3_institutional/reports/` + `每日报告归档/`），`positions.json` 的 5 笔订单 status 更新为 FILLED，`actual_positions` 记录 5 笔成交明细。组合 Beta 从 0.5186 降至 0.3558。
+
+### 断链 5：压力测试报告 actual_pnl=0 — 异常报告 vs 代码缺陷的快速判别（2026-08-10 新增）
+
+**现象**: `assert_data_validity.py` 的 **D1 断言 FAIL**——`reports/stress_test_20260810.json` 中 4 个场景的 `actual_pnl` 全为 0，`asset_class_pnl={}`（空字典），`portfolio_value=5000000`（默认值）。
+
+**排查流程图（D1 FAIL 时的标准动作）**:
+```text
+D1 FAIL (actual_pnl 全 0)
+    │
+    ▼
+[1] 读取 reports/stress_test_*.json 最新文件
+    │
+    ├─ asset_class_pnl={} 且 portfolio_value=5000000？
+    │   └─ 是 → 异常报告特征，跳到 [3]
+    │
+    ├─ asset_class_pnl 有 key 但值全 0？
+    │   └─ 是 → 检查 strategy 字段是否匹配 if/elif 链（L194-205）
+    │       └─ 不匹配 → 修复字段映射（非本次场景）
+    │
+    └─ asset_class_pnl 有 key 且值非 0？
+        └─ 是 → 代码健康，检查 D1 断言逻辑本身
+:[3] 用当前 config/positions.json 直接调用 run_all_scenarios(positions, total_capital)
+    │
+    ├─ 输出非 0 → 代码健康，重跑生成报告即可
+    └─ 输出仍为 0 → 检查 positions 加载与 strategy 映射
+:**快速判别三特征**:
+| 特征 | 异常报告 | 代码缺陷 |
+|------|----------|----------|
+| `asset_class_pnl` | 空字典 `{}` | 有 key 但值全 0 / 值非 0 |
+| `portfolio_value` | 等于默认 5000000 | 等于真实净值（如 5000000+） |
+| `positions` 来源 | 空列表未回退 | 有真实持仓但处理有误 |
+
+:**第一反应误区**: 误判为"压力测试代码有缺陷（持仓加载失败/strategy 字段不匹配 → impact_pct=0）"。但仔细核对报告特征，发现矛盾点：
+- 若 `positions` 为空列表且触发 `stress_test_runner.py` 的回退逻辑（L315-324 / L328-336），会填充 6 个模拟持仓且 `amount>0`，`asset_class_pnl` 应非空前 6 类；
+- 若真实持仓加载成功但 `strategy` 字段不匹配 `if/elif` 链（L194-205），`asset_class_pnl` 仍会有 key（因为 `cat = strategy` 会加 key）只是值为 0；
+- **报告里 `asset_class_pnl={}` 说明循环根本没执行 → positions 是空列表且未回退**。
+
+**根因（非代码缺陷，是异常过期报告）**: 21:14 生成的那份 `stress_test_20260810.json` 是 positions 为空状态下的产物（当时 `config/positions.json` 暂不可读/为空，或某次中途异常），并非代码逻辑出错。验证：直接用当前 `config/positions.json`（26 有效持仓，style 为"科技/金融/宽基"等中文行业名）跑 `StressTestRunner.run_all_scenarios()`，**4 个场景 actual_pnl 全部非 0（-779780 / -258441 / -267353 / -501287），asset_class_pnl 有 11 个真实行业类**——与 08-06 G3 修复后应有的正确状态完全一致。
+
+**影响链**: 异常报告保留在 `reports/` 目录 → D1 读取最新报告判定 actual_pnl 全 0 → FAIL → 门禁告警，但代码本身健康。
+
+**修复（按"验证过而非改过了"原则，零代码改动）**: 用真实持仓**重新生成**压力测试报告（`python -m utils.stress_test_runner`），覆盖异常报告。重跑 `assert_data_validity.py` → **D1 转 PASS，12 PASS / 0 FAIL**。
+
+**铁律（D1 专项）**:
+- **D1 FAIL 先查"报告是否异常"再查"代码是否缺陷"**：D1 读的是 `reports/stress_test_*.json` 最新文件，若报告是空持仓/异常运行时生成的，D1 必 FAIL，但代码未必坏。
+- **快速判别法**：看报告 `asset_class_pnl` 是否为空 + `portfolio_value` 是否等于默认 5000000——两者都满足即"异常报告"特征，直接重跑 runner 复现即可，无需改代码。
+- **复现优先于改代码**：用当前 `config/positions.json` 直接调用 `run_all_scenarios(positions, total_capital)` 复现，输出非 0 即可判定代码健康、问题在报告数据。
+- **真实持仓的 style 字段是中文行业名**（科技/金融/宽基/...），`stress_test_runner.py` 的 `if/elif` 链已覆盖（"科技"在前 5 项元组里），不会因字段名不匹配而全 0——这是 08-06 G3 修复时已验证的，无需再改。
+- **附带观察（非缺陷）**：真实持仓下 `crash_2015` 场景回撤 -15.6% 略超 -15% 限额，是组合无对冲敞口的实情，属投资策略范畴，不在 D1 数据有效性范围。
 
 ### 断链 4：VolRegimeWeighter 每日报告缺失
 

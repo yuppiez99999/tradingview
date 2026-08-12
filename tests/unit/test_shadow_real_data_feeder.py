@@ -432,8 +432,19 @@ class TestFeedSingleDate:
         assert dates == sorted(dates)
         assert "2026-07-24" in dates
 
-    def test_weights_load_failure_skipped(self, tmp_path):
-        """weights_source 加载失败时应跳过."""
+    def test_weights_load_failure_skipped(self, tmp_path, monkeypatch):
+        """weights_source 加载失败时应跳过.
+
+        2026-08-11 v8.6.14: 需显式 monkeypatch _POSITIONS_JSON 到不存在路径,
+        否则会 fallback 到项目实际 config/positions.json (含 26 个 symbol).
+        """
+        import utils.alpha.shadow_real_data_feeder as mod
+
+        # 让所有权重源都不可用
+        monkeypatch.setattr(mod, "_TRADE_PLAN_DIR", tmp_path / "nonexistent_trade_plans")
+        monkeypatch.setattr(mod, "_STRATEGY_PLAN_DIR", tmp_path / "nonexistent_strategy")
+        monkeypatch.setattr(mod, "_POSITIONS_JSON", tmp_path / "nonexistent_positions.json")
+
         provider = MockMarketDataProvider()
         feeder = ShadowRealDataFeeder(
             data_provider=provider,
@@ -792,7 +803,14 @@ class TestWeightsLoading:
         assert weights == {"600276": 0.05}
 
     def test_auto_mode_prefers_trade_plan(self, tmp_path, monkeypatch):
-        """auto 模式下 trade_plan 优先于 positions.json."""
+        """auto 模式下 positions.json 优先于 trade_plan (2026-08-11 v8.6.14 修复).
+
+        原优先级 trade_plan > strategy_plan > positions.json 会导致:
+            - trade_plan 非空时取当日交易标的 (14个) 作为"持仓权重"
+            - trade_plan 为空时 fallback 到 positions.json (26个全持仓)
+            - symbols_count 在 14/26 间剧烈波动
+        修复后: positions.json (持仓快照权威源) 提到首位.
+        """
         import utils.alpha.shadow_real_data_feeder as mod
 
         trade_plans_dir = tmp_path / "trade_plans"
@@ -827,11 +845,11 @@ class TestWeightsLoading:
             output_path=tmp_path / "out.jsonl",
         )
         weights = feeder._load_target_weights("2026-07-28")
-        # trade_plan 优先: 600276 权重 = 5000/100000 = 0.05
-        assert "600276" in weights
-        assert weights["600276"] == pytest.approx(0.05, abs=1e-6)
-        # 不应包含 positions.json 中的 588000
-        assert "588000" not in weights
+        # positions.json 优先: 取 588000 (持仓快照)
+        assert "588000" in weights
+        assert weights["588000"] == pytest.approx(0.03, abs=1e-6)
+        # 不应包含 trade_plan 中的 600276 (当日交易标的, 非持仓)
+        assert "600276" not in weights
 
 
 # ============================================================
@@ -1067,11 +1085,18 @@ class TestCrossValidate:
         assert result.is_valid is True
         assert "normal" in result.notes
 
-    def test_no_weights_load_returns_unknown(self, feeder_with_mock):
+    def test_no_weights_load_returns_unknown(self, feeder_with_mock, tmp_path, monkeypatch):
         """Day 2: 无 target_weights 且 weights 加载失败 → unknown + is_valid=False.
 
-        feeder_with_mock fixture 未配置 weights 文件, auto 模式应加载失败.
+        2026-08-11 v8.6.14: 需显式 monkeypatch _POSITIONS_JSON 到不存在路径,
+        否则会 fallback 到项目实际 config/positions.json (含 26 个 symbol),
+        导致 cross_validate 处理 26 个 symbol (全 no_price) 返回 inconsistent 而非 unknown.
         """
+        import utils.alpha.shadow_real_data_feeder as mod
+        monkeypatch.setattr(mod, "_TRADE_PLAN_DIR", tmp_path / "nonexistent_trade_plans")
+        monkeypatch.setattr(mod, "_STRATEGY_PLAN_DIR", tmp_path / "nonexistent_strategy")
+        monkeypatch.setattr(mod, "_POSITIONS_JSON", tmp_path / "nonexistent_positions.json")
+
         result = feeder_with_mock.cross_validate("2026-07-28", 0.025)
         assert isinstance(result, ValidationResult)
         assert result.date == "2026-07-28"
@@ -1288,7 +1313,9 @@ class TestConstants:
         assert MAX_MAX_WORKERS == 16
         assert DEFAULT_CACHE_MAX_SYMBOLS == 2000
         assert CACHE_TTL_DEFAULT_SEC == 3600
-        assert DEFAULT_HISTORICAL_PERIOD == "1m"
+        # 2026-08-11 v8.6.14: "1m" 被 provider 误解为月线/年度数据,
+        # 改为 "1d" 日K线以精确匹配历史日期
+        assert DEFAULT_HISTORICAL_PERIOD == "1d"
 
 
 # ============================================================

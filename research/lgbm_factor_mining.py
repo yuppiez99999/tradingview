@@ -20,12 +20,13 @@ logger = logging.getLogger("lgbm_factor_mining")
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-# ECC GAP-7: 训练管道可复现性 (延迟导入避免循环依赖)
-from research.lgbm_reproducibility import (  # noqa: E402
+# ECC GAP-7: 训练管道可复现性 (G5 物理隔离: 2026-08-09 改指 utils 命名空间)
+from utils.lgbm_reproducibility import (  # noqa: E402
     ManifestWriteError,
     TrainingConfig,
     artifact_name,
     write_manifest,
+    construct_default_config,
 )
 
 
@@ -206,49 +207,9 @@ def build_factor_panel(start_date: str = "2023-01-01", step: int = 10):
     return panel
 
 
-def construct_default_config(panel: pd.DataFrame) -> TrainingConfig:
-    """构造默认 TrainingConfig (向后兼容: 不传 config 时使用).
-
-    保留原硬编码参数 (num_leaves=31, learning_rate=0.05, seed=42 等),
-    并注入 panel 的 dataset_uri + lgbm_factor_mining.py 的 code_sha.
-
-    Args:
-        panel: 因子面板
-
-    Returns:
-        填充完整的 TrainingConfig (已 with_dataset / with_code_sha / with_environment / with_config_hash)
-    """
-    # 原硬编码 LGB 超参 (HC-1: 不修改 V9 基线参数)
-    default_lgb_params = {
-        "objective": "regression",
-        "metric": "mse",
-        "boosting_type": "gbdt",
-        "num_leaves": 31,
-        "learning_rate": 0.05,
-        "feature_fraction": 0.8,
-        "bagging_fraction": 0.8,
-        "bagging_freq": 5,
-        "verbose": -1,
-        "seed": 42,
-    }
-    factor_cols = [c for c in panel.columns if c not in ("code", "date", "y")]
-    config = TrainingConfig(
-        model_name="lgbm_factor_mining",
-        seed=42,
-        lgb_params=default_lgb_params,
-        num_boost_round=200,
-        early_stopping_rounds=20,
-        n_splits=5,
-        feature_list=tuple(factor_cols),
-        label_def="forward_return_5d",
-        label_horizon=5,
-    )
-    # 链式填充: dataset → code_sha → environment → config_hash
-    config = config.with_dataset(panel)
-    config = config.with_code_sha([Path(__file__)])
-    config = config.with_environment()
-    config = config.with_config_hash()
-    return config
+# NOTE (2026-08-09 G5): construct_default_config 已迁移至 utils.lgbm_reproducibility,
+# 本模块通过上方 `from utils.lgbm_reproducibility import construct_default_config` 引用,
+# 保持 HC-1 V9 基线参数 (num_leaves=31, learning_rate=0.05, seed=42) 完全不变.
 
 
 def train_and_analyze(

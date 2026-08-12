@@ -163,6 +163,37 @@ refactor(data): [G5] 移除 portfolio_optimizer 对 research.* 的 import
 
 ---
 
+### 机制 #6: ruff 增量门禁对"新文件不在基线"的阻断陷阱
+
+**防什么**: 专项新增/改动模块若不在 ruff 基线文件中，任何 BLOCKING 类规则（含 N803/N806 命名规范）命中都会零容忍阻断 CI，即使该文件是本次专项新增的合法模块。
+
+**脚本**: `scripts/ruff_incremental_gate.py` + `scripts/ruff_baseline_gen.py`
+
+**原理**:
+- `ruff` 的增量门禁通过 `--baseline` 只扫描**基线外**的代码。新文件不在基线中，因此所有 BLOCKING 规则都会生效。
+- `per-file-ignores` 对**新文件不生效**——ruff 的 per-file-ignores 只对已存在于基线中的文件路径匹配生效，新文件路径未在基线中登记，豁免规则不覆盖。
+- 结果：专项新增的合法模块（如 `hedge_order_executor.py`）若触发 N803（函数名应为小写）或 N806（变量名应为小写），CI 直接 FAIL，即使代码逻辑完全正确。
+
+**铁律**:
+- 新增 Python 文件后，**必须**重跑 `ruff_baseline_gen.py` 重新冻结基线，否则 CI 增量门禁会零容忍阻断。
+- 专项收尾阶段新增的模块，应在合并前完成基线重冻结，避免"最后一步被门禁卡住"。
+- 若新增文件需要豁免特定规则（如 T201 print），应在 `ruff.toml` 的 `[lint.per-file-ignores]` 中预先配置，而非依赖基线豁免。
+
+**用法**:
+```bash
+# 重冻结 ruff 基线（新增/改动文件后必须执行）
+python scripts/ruff_baseline_gen.py
+
+# 验证增量门禁
+python scripts/ruff_incremental_gate.py
+```
+
+**集成建议**:
+- 在 CI 的 `incremental-static` job 中，若检测到新增文件（`git diff --name-only ${{ github.event.before }} ${{ github.sha }}` 中有未在基线中的 `.py` 文件），自动触发基线重冻结或至少 WARN 提示。
+- 专项合并前检查清单新增一项："新增文件是否已纳入 ruff 基线"。
+
+---
+
 ## 集成架构
 
 ```

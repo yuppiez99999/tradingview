@@ -49,14 +49,14 @@ def test_compute_feature_drift_callable():
 
 def test_training_config_constructable():
     """TrainingConfig 可构造."""
-    from research.lgbm_reproducibility import TrainingConfig
+    from utils.lgbm_reproducibility import TrainingConfig
     config = TrainingConfig(model_name="smoke", seed=42)
     assert config.model_name == "smoke"
 
 
 def test_artifact_name_callable():
     """artifact_name 可计算."""
-    from research.lgbm_reproducibility import TrainingConfig, artifact_name
+    from utils.lgbm_reproducibility import TrainingConfig, artifact_name
     config = TrainingConfig(model_name="smoke", seed=42).with_config_hash()
     name = artifact_name(config)
     assert "smoke" in name

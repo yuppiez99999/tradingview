@@ -6,10 +6,109 @@
   - analyze_hedge_positions_plan: 分析期货期权计划头寸
 """
 
+import math
 from datetime import datetime as _dt
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from reporting.price_fetcher import fetch_sina_realtime
+
+
+def _norm_cdf(x: float) -> float:
+    """标准正态分布累积分布函数 (math.erf 实现, 无第三方依赖)"""
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+def _bs_option_price(
+    S: float, K: float, T: float, r: float, sigma: float, option_type: str
+) -> float:
+    """Black-Scholes 欧式期权定价 (T 为年化到期时间, option_type='put'/'call')
+
+    用于估算期权对冲头寸的当前市值。当 T<=0 或 sigma<=0 时退化为内在价值。
+    """
+    if S <= 0 or K <= 0:
+        return 0.0
+    if T <= 0 or sigma <= 0:
+        if option_type == "put":
+            return max(K - S, 0.0)
+        return max(S - K, 0.0)
+    d1 = (math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * math.sqrt(T))
+    d2 = d1 - sigma * math.sqrt(T)
+    if option_type == "put":
+        return K * math.exp(-r * T) * _norm_cdf(-d2) - S * _norm_cdf(-d1)
+    return S * _norm_cdf(d1) - K * math.exp(-r * T) * _norm_cdf(d2)
+
+
+def _estimate_option_expiry() -> str:
+    """估算期权次月主力到期日 (格式 YYYY-MM-DD)。
+
+    A股ETF期权为月度合约, 取下月第四个周三。简化: 取下月15日附近。
+    返回 ISO 日期字符串。
+    """
+    now = _dt.now()
+    year, month = now.year, now.month
+    # 下月
+    if month == 12:
+        year, month = year + 1, 1
+    else:
+        month += 1
+    # 取该月第 4 个周三 (A股ETF期权到期规则)
+    import calendar
+    c = calendar.monthcalendar(year, month)
+    wednesdays = [wk[calendar.WEDNESDAY] for wk in c if wk[calendar.WEDNESDAY] != 0]
+    day = wednesdays[3] if len(wednesdays) > 3 else wednesdays[-1]
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
+def _resolve_option_underlying_price(underlying: str, market_prices: Optional[Dict]) -> Optional[float]:
+    """从 market_prices 解析期权标的今日收盘价。
+
+    fill 文件中 underlying 可能为 '510300' / '510300.SH' / '510050'，
+    market_prices 的 key 可能为 '510300.SH' 或 '510300'，兼容两类。
+    """
+    if not market_prices or not underlying:
+        return None
+    candidates = [underlying, underlying + ".SH", underlying + ".SZ"]
+    # 去掉后缀再试
+    base = underlying.split(".")[0]
+    candidates += [base, base + ".SH", base + ".SZ"]
+    for key in candidates:
+        pd = market_prices.get(key)
+        if pd:
+            close = pd.get("close")
+            if close and close > 0:
+                return float(close)
+    return None
+
+
+def _parse_option_strike(strike_raw, spot: float, is_put: bool) -> float:
+    """解析期权行权价。
+
+    fill 文件中 strike 常为规则字符串 (如 'OTM_5pct_to_8pct'),
+    无真实数字行权价时按 OTM 规则从当前标的价推算:
+      - 认沽(Put):  行权价 = spot * (1 - pct)
+      - 认购(Call):  行权价 = spot * (1 + pct)
+    pct 取区间中值 (5%~8% -> 6.5%)。若已有真实数字行权价直接返回。
+    """
+    if strike_raw is None:
+        return 0.0
+    if isinstance(strike_raw, (int, float)):
+        return float(strike_raw)
+    s = str(strike_raw)
+    if s.replace(".", "", 1).isdigit():
+        return float(s)
+    # 解析 OTM_xpct_to_ypct
+    import re
+    m = re.search(r"(\d+(?:\.\d+)?)\s*pct\s*to\s*(\d+(?:\.\d+)?)\s*pct", s)
+    if m:
+        lo, hi = float(m.group(1)), float(m.group(2))
+        pct = (lo + hi) / 200.0  # /100 转小数, /2 取中值
+    elif "otm" in s.lower():
+        pct = 0.065  # 默认 OTM 6.5%
+    else:
+        pct = 0.05
+    if is_put:
+        return spot * (1.0 - pct)
+    return spot * (1.0 + pct)
 
 
 def _resolve_order_direction(order: Dict[str, Any]) -> str:
@@ -88,7 +187,7 @@ def _fetch_if_close_from_provider(futures_price: float, if_codes: List[str],
 
 
 def analyze_hedge_position(
-    hedge_data: Dict[str, Any], data_provider=None
+    hedge_data: Dict[str, Any], data_provider=None, market_prices: Optional[Dict] = None
 ) -> Dict[str, Any]:
     """分析对冲头寸
 
@@ -105,10 +204,78 @@ def analyze_hedge_position(
     total_hedge_notional = 0.0
 
     # 兼容 hedge_execution_fill 格式 (side=SELL_SHORT) 与 hedge_decision 格式 (direction=SELL)
+    # 同时支持 OPTIONS 期权类型 (BUY_PUT / SELL_COVERED_CALL), 读取真实成交字段并估算当前市值
     for order in hedge_orders:
         instrument = order.get("instrument", "")
         contracts = order.get("contracts", 0)
         direction = _resolve_order_direction(order)
+        order_type = order.get("type", order.get("order_type", "FUTURES"))  # FUTURES / OPTIONS / FUTURES_OPTIONS
+
+        # ---- 期权分支: 正确计算期权对冲盈亏 (修复原 bug: 期权 hedge_pnl 恒为 0) ----
+        if order_type == "OPTIONS":
+            underlying = order.get("underlying", "")
+            # 当前标的价格: 优先 market_prices, 其次开仓时标的参考价
+            spot = _resolve_option_underlying_price(underlying, market_prices)
+            if spot is None:
+                spot = float(order.get("index_price", order.get("underlying_price", 0)) or 0)
+
+            # 期权类型: BUY_PUT -> 买入认沽; SELL_COVERED_CALL -> 备兑卖出认购
+            is_put = (direction == "BUY_PUT")
+            opt_kind = "put" if is_put else "call"
+
+            # 行权价: fill 文件为 OTM 规则字符串, 无真实数字时按 OTM 规则从当前标的价推算
+            strike = _parse_option_strike(order.get("strike"), spot, is_put)
+
+            premium_total = float(order.get("premium_total", 0) or 0)
+            delta = order.get("delta", 0)
+            beta_reduced_raw = order.get("beta_reduction", order.get("beta_reduced", 0))
+
+            # 估算当前期权市值 (BS 模型, 剩余到期约 44 天, IV 15%, 无风险利率 2%)
+            now_price = 0.0
+            if spot > 0 and strike > 0:
+                expiry = _estimate_option_expiry()
+                from datetime import datetime
+                T = max((datetime.strptime(expiry, "%Y-%m-%d") - datetime.now()).days / 365.0, 0.0)
+                now_price = _bs_option_price(spot, strike, T, 0.02, 0.15, opt_kind)
+
+            multiplier = order.get("multiplier", 10000)
+            # 当前市值: 多头为正(持有的权利), 空头为负(负债)
+            current_market_value = now_price * contracts * multiplier
+            # hedge_pnl 含义: 当前期权市值 (多头正/空头负), 配合 net_pnl 公式 = 现货 + 期权市值 - 建仓支出
+            hedge_pnl = current_market_value
+
+            if_change_pct = ((now_price / (premium_total / contracts / multiplier)) - 1) * 100 if (premium_total > 0 and contracts > 0) else 0
+
+            total_hedge_notional += abs(premium_total)
+
+            hedge_details.append(
+                {
+                    "instrument": instrument,
+                    "contracts": contracts,
+                    "direction": direction,
+                    "entry_price": round(premium_total / contracts if contracts else premium_total, 2),
+                    "close_price": round(now_price, 4),
+                    "multiplier": multiplier,
+                    "notional": round(abs(premium_total), 2),
+                    "cost": round(premium_total, 2),
+                    "hedge_pnl": round(hedge_pnl, 2),
+                    "hedge_pnl_pct": round(if_change_pct, 2),
+                    "hedge_type": order.get("hedge_type", order.get("type", "OPTIONS")),
+                    # Beta 降低取绝对值 (fill 文件记录为负值, 真实降低量)
+                    "beta_reduced": round(abs(beta_reduced_raw), 4),
+                    "cost_breakdown": order.get("cost_breakdown"),
+                    "option_meta": {
+                        "underlying": underlying,
+                        "strike": strike,
+                        "spot": round(spot, 2) if spot else None,
+                        "delta": delta,
+                        "current_market_value": round(current_market_value, 2),
+                    },
+                }
+            )
+            continue
+
+        # ---- 期货分支 (原逻辑保持不变) ----
         futures_price = _resolve_order_futures_price(order)
 
         multiplier = order.get("multiplier", 300)  # IF 合约乘数 300
@@ -168,6 +335,11 @@ def analyze_hedge_position(
         "summary": {
             "total_hedge_notional": round(total_hedge_notional, 2),
             "current_portfolio_beta": round(hedge_data.get("portfolio_beta", 1.0), 3),
+            # 优先使用 fill 文件顶层的真实 Beta 降低 (对冲后 Beta), 避免从 order 累加的误差
+            "beta_after_hedge": round(hedge_data.get("beta_after_hedge", target_beta), 3),
+            "total_beta_reduction": round(
+                hedge_data.get("portfolio_beta", 1.0) - hedge_data.get("beta_after_hedge", target_beta), 4
+            ),
             "target_beta": round(target_beta, 3),
             "hedge_effectiveness": calculate_hedge_effectiveness(hedge_details, hedge_data),
         },

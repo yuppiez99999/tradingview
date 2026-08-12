@@ -40,6 +40,7 @@ from quant_modules.ai_hedge_fund.agents.risk_manager import risk_management_agen
 from quant_modules.ai_hedge_fund.agents.portfolio_manager import portfolio_management_agent
 from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
 from quant_modules.ai_hedge_fund.data_adapter import clear_cache
+from quant_modules.ai_hedge_fund.debate_layer import debate_node  # Wave 6 W6.2.1 多空辩论层
 
 
 def parse_hedge_fund_response(response) -> Optional[dict]:
@@ -78,7 +79,10 @@ def create_workflow(selected_analysts: list[str] = None):
     # 风控 + 组合管理 + 对冲分析
     workflow.add_node("risk_management_agent", risk_management_agent)
     workflow.add_node("portfolio_manager", portfolio_management_agent)
-    
+
+    # Wave 6 W6.2.1: 多空辩论层 (在分析师之后、风控之前)
+    workflow.add_node("debate_layer", debate_node)
+
     # 对冲分析师 — 在组合决策之后进行对冲覆盖
     hedge_key = "hedge_analyst"
     hedge_node_name = None
@@ -91,8 +95,11 @@ def create_workflow(selected_analysts: list[str] = None):
             node_name = analyst_nodes[analyst_key][0]
             if analyst_key == hedge_key:
                 continue  # 对冲分析师单独连接
-            workflow.add_edge(node_name, "risk_management_agent")
+            # 分析师 → 辩论层 (Wave 6: 原来直接连 risk_management, 现在中间插入 debate_layer)
+            workflow.add_edge(node_name, "debate_layer")
 
+    # 辩论层 → 风控 → 组合管理
+    workflow.add_edge("debate_layer", "risk_management_agent")
     workflow.add_edge("risk_management_agent", "portfolio_manager")
     
     if hedge_node_name:

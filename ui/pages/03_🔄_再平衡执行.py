@@ -96,7 +96,7 @@ prices = {}
 try:
     from quant_modules.wind_mcp import get_realtime_prices_batch
     prices = get_realtime_prices_batch(codes)
-except:
+except (ImportError, ConnectionError, TimeoutError, ValueError, RuntimeError):
     pass
 
 for code in codes:

@@ -1597,6 +1597,37 @@ def run_hedge_execute_mode(args):
         )
 
 
+def run_rebalance_execute_mode(args):
+    """再平衡撮合执行模式 — 撮合执行再平衡订单并落盘成交回报 (G2/G4 修复, 2026-08-08)
+
+    复用 AutomatedExecutionSystem._generate_rebalance_orders() 已验证链路:
+    生成 -> 路由 -> 撮合 -> 成交回报落盘 FillsStore -> TCA 归因 (G4 读 fills).
+    用法:
+        python "量化策略系统_统一入口_v8.6.py" --rebalance-execute [--date YYYY-MM-DD] [--dry-run]
+    """
+    logger.info("\n🔄 再平衡撮合执行器 (Rebalance Order Executor)")
+    logger.info("=" * 70)
+
+    from rebalance_order_executor import execute_rebalance_orders, print_result
+
+    trade_date = getattr(args, 'date', None) or datetime.now().strftime('%Y-%m-%d')
+    dry_run = bool(getattr(args, 'dry_run', False))
+
+    logger.info(f"目标日期: {trade_date} | dry_run={dry_run}")
+    result = execute_rebalance_orders(
+        date=trade_date,
+        dry_run=dry_run,
+    )
+    print_result(result)
+
+    filled = result.get('filled', 0)
+    if not dry_run and result.get('error') is None:
+        logger.info(
+            f"✅ 再平衡撮合执行完成: {filled} 笔成交已落盘 FillsStore"
+        )
+    return result
+
+
 def main():
     # ── 模式注册表：flag / dest / 帮助文本 / handler ──
     MODES = [
@@ -1635,6 +1666,7 @@ def main():
         ('--dcf',              'dcf',             'DCF 估值模型 — WACC + 收入预测 + 敏感性分析 (Excel)',   run_dcf_mode),
         ('--comps',            'comps',           '可比公司分析 — 运营指标 + 估值倍数 + 统计分位 (Excel)', run_comps_mode),
         ('--hedge-execute',    'hedge_execute',   '期权对冲订单执行器 — 撮合执行 PENDING 期权订单 (P0修复)', run_hedge_execute_mode),
+        ('--rebalance-execute', 'rebalance_execute', '再平衡撮合执行器 — 撮合再平衡订单并落盘成交回报 (G2/G4修复)', run_rebalance_execute_mode),
     ]
 
     # 由 MODES 动态生成 epilog 中的运行模式清单

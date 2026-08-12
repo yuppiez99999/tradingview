@@ -273,8 +273,8 @@ class TestAdapterInit:
             cumulative_3d_threshold=0.08,
         )
         ff_monitor = adapter.shadow_account.fail_fast_monitor
-        assert ff_monitor.daily_dd_threshold == 0.05
-        assert ff_monitor.cumulative_3d_threshold == 0.08
+        assert ff_monitor.daily_drawdown_threshold == 0.05
+        assert ff_monitor.cumulative_3d_drawdown_threshold == 0.08
 
 
 # ============================================================
@@ -338,7 +338,7 @@ class TestRunShadow:
         """单日回撤 > 3% 应触发 fail-fast."""
         result = adapter.run_shadow(daily_returns=high_volatility_returns)
         assert result.fail_fast_triggered is True
-        assert "daily_drawdown" in (result.fail_fast_reason or "")
+        assert "单日回撤" in (result.fail_fast_reason or "")
 
     def test_run_shadow_fail_fast_cumulative(self, adapter, cumulative_drawdown_returns):
         """3 日累计回撤 > 5% 应触发 fail-fast."""

@@ -216,7 +216,7 @@ with tab1:
         net_str = row.get('净流入(亿)', '0')
         try:
             net = float(net_str)
-        except:
+        except (ValueError, TypeError):
             return [''] * len(row)
         if net >= SIGNAL_THRESHOLD['high']:
             return ['background-color: #fff1f0'] * len(row)

@@ -45,6 +45,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -93,6 +94,12 @@ SHADOW_DRIFT_INTEGRATOR_SCRIPT = PROJECT_ROOT / "scripts" / "drift_shadow_integr
 # 修复 G1 缺口延伸: feeder 写入 jsonl 后, shadow_state.json 的 daily_nav 未同步更新 (占位值断层)
 # 在阶段四点五 (feeder) 之后、阶段四点七 (drift) 之前执行, 确保状态文件始终与 jsonl 同步
 SHADOW_STATE_REBUILD_SCRIPT = PROJECT_ROOT / "scripts" / "rebuild_shadow_state_from_returns.py"
+# 阶段四点八: Phase B 状态回写 (T2 单事实源收敛, 2026-08-08)
+# 在 Shadow 数据注入 (4.5) + 状态同步 (4.5b) + 漂移检测 (4.7) 之后执行:
+#   调用 phase_b_progressive_enabler.py --auto, 把 observation_days_completed 刷新为
+#   daily_returns.jsonl 实时天数, 并在观察期满时条件推进阶段 B.
+# 修复决策日 (08-24, 2026-08-11 从 08-20 延期) 读到陈旧 5/14 的双源分裂: phase_b_status.json 从未被 EOD 自动回写.
+PHASE_B_ENABLER_SCRIPT = PROJECT_ROOT / "scripts" / "phase_b_progressive_enabler.py"
 # 阶段零: 年化收益预测校准 (生成 portfolio_return_projection.json, 供阶段一报告引用)
 CALIBRATE_PROJECTION_SCRIPT = PROJECT_ROOT / "v8.3_institutional" / "calibrate_returns_projection.py"
 TRADE_PLANS_DIR = PROJECT_ROOT / "v8.3_institutional" / "trade_plans"
@@ -177,11 +184,18 @@ def is_trading_day(date_str: str) -> bool:
             return False
 
 
-def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30) -> tuple:
+def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30,
+             allowed_exit_codes: list = None) -> tuple:
     """
     运行一个工作流步骤
     返回 (success: bool, stdout: str)
+
+    allowed_exit_codes: 业务性非 0 退出码白名单 (默认仅 [0]).
+        用于区分 "脚本崩溃 (异常)" 与 "业务状态返回 (如观察期 WAIT / 风控数据缺失)".
+        例: phase4_8 观察期未满返回 1 (WAIT), phase4 风控数据缺失返回 1, 均为预期状态.
     """
+    if allowed_exit_codes is None:
+        allowed_exit_codes = [0]
     python = get_python()
     cmd = [python, str(script)] + args
 
@@ -198,7 +212,8 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30) -> 
         # 清理可能干扰子进程的环境变量
         env = os.environ.copy()
         env.pop('PYTHONHOME', None)
-        env.pop('PYTHONPATH', None)
+        # W3 修复: 不再 pop PYTHONPATH — 子脚本依赖项目模块 (utils 等) 的解析路径,
+        # 清空会导致 ModuleNotFoundError (如 phase_b_progressive_enabler 在 EOD 内失败).
         env['PYTHONIOENCODING'] = 'utf-8'
         env['PYTHONUTF8'] = '1'
 
@@ -232,11 +247,11 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30) -> 
                 stderr_preview += f"\n... [截断, 共{len(result.stderr)}字符]"
             log(f"STDERR:\n{stderr_preview}", "WARN")
 
-        if result.returncode == 0:
-            log(f"[OK] {name} 执行成功 (exit_code=0)")
+        if result.returncode in allowed_exit_codes:
+            log(f"[OK] {name} 执行成功 (exit_code={result.returncode})")
             return True, result.stdout or ""
         else:
-            log(f"[FAIL] {name} 执行失败 (exit_code={result.returncode})", "ERROR")
+            log(f"[FAIL] {name} 执行失败 (exit_code={result.returncode}, 允许码={allowed_exit_codes})", "ERROR")
             return False, result.stdout or ""
 
     except subprocess.TimeoutExpired:
@@ -379,6 +394,9 @@ def run_p0_system_check(args):
 def setup_eod_context(args):
     """初始化 EOD 工作流上下文 (日期/目录/banner)"""
     report_date = args.date or datetime.now().strftime("%Y-%m-%d")
+    # 路径安全: 拒绝路径遍历与非法日期格式
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", report_date) or ".." in report_date or "/" in report_date or "\\" in report_date:
+        raise ValueError(f"非法报告日期: {report_date}")
     next_trade_date = get_next_trading_day(report_date)
     today_dir = ARCHIVE_DIR / report_date
 
@@ -546,11 +564,15 @@ def run_phase4_risk_guard(report_date, eod_summary, skip_phase4, args):
         return False
 
     log("\n>>> 阶段四: 执行 EOD 四 Guard 风控链 <<<")
+    # W3 修复: 观察期/Shadow 环境下风控数据字段缺失属预期状态, run_daily_eod.py
+    # 返回非 0 (如 drawdown 数据缺失视为未通过). 该阶段 EOD 已做 fail-open 处理,
+    # 故允许业务性非 0 退出码 [0,1], 仅真崩溃 (异常/超时) 才判失败.
     phase4_success, _ = run_step(
         "EOD 四 Guard 风控守卫",
         RUN_DAILY_EOD_SCRIPT,
         ["--date", report_date],
         timeout_minutes=10,
+        allowed_exit_codes=[0, 1],
     )
     eod_summary["phases"]["phase4_risk_guard"] = {
         "success": phase4_success,
@@ -840,6 +862,62 @@ def run_phase4_7_drift_integration(report_date, eod_summary, args):
     return phase_drift_success
 
 
+def run_phase4_8_phase_b_sync(report_date, eod_summary, args):
+    """阶段四点八: Phase B 状态回写 (T2 单事实源收敛)
+
+    在 Shadow 数据注入 (4.5) + 状态同步 (4.5b) + 漂移检测 (4.7) 之后执行:
+        1. 调用 scripts/phase_b_progressive_enabler.py --auto
+        2. --auto 会刷新 phase_b_status.json 的 observation_days_completed 为
+           daily_returns.jsonl 实时唯一天数, 并在观察期满时条件推进阶段 B.
+        3. 收敛决策日 (08-24, 2026-08-11 从 08-20 延期) 的单事实源: phase_b_status.json 不再停留在陈旧值.
+
+    修复背景 (2026-08-08):
+        phase_b_progressive_enabler.py 已存在 --auto 命令, 但从未被任何 EOD
+        主流程调用. 导致 phase_b_status.json 的 observation_days_completed
+        停在 08-02 的 5/14, 而 observation_tracker.py 实时算 10/14.
+        决策日 (08-24) 若读到 5/14 会误判观察期不达标. 本阶段在 EOD 末尾回写消除分裂.
+
+    HC 合规:
+        - HC-4: 只读 daily_returns.jsonl, 只写 phase_b_status.json
+        - fail-safe: 失败不中断 EOD 主流程 (仅 WARN + summary 记录)
+    """
+    if args.skip_shadow:
+        log("\n>>> 阶段四点八: 跳过 Phase B 状态回写 (--skip-shadow) <<<")
+        eod_summary["phases"]["phase4_8_phase_b_sync"] = {"skipped": True}
+        return False
+
+    if not PHASE_B_ENABLER_SCRIPT.exists():
+        log(f"\n>>> 阶段四点八: 跳过 Phase B 状态回写 (脚本不存在: {PHASE_B_ENABLER_SCRIPT}) <<<", "WARN")
+        eod_summary["phases"]["phase4_8_phase_b_sync"] = {
+            "skipped": True,
+            "reason": "script not found",
+        }
+        return False
+
+    log("\n>>> 阶段四点八: Phase B 状态回写 (单事实源收敛, T2) <<<")
+    log(f"  日期: {report_date}")
+    log(f"  脚本: {PHASE_B_ENABLER_SCRIPT}")
+    phase_sync_success, _ = run_step(
+        "Phase B Status Sync",
+        PHASE_B_ENABLER_SCRIPT,
+        ["--auto"],
+        timeout_minutes=3,
+        # 观察期未满时 --auto 返回 1 (WAIT 状态), 属预期业务返回码, 非失败
+        allowed_exit_codes=[0, 1],
+    )
+    eod_summary["phases"]["phase4_8_phase_b_sync"] = {
+        "success": phase_sync_success,
+        "script": str(PHASE_B_ENABLER_SCRIPT),
+        "date": report_date,
+        "t2_single_fact_source": True,
+    }
+    if phase_sync_success:
+        log("  ✅ phase_b_status.json 已刷新观察期天数")
+    else:
+        log("  ⚠️ Phase B 状态回写失败, 不影响 EOD 主流程 (fail-open)", "WARN")
+    return phase_sync_success
+
+
 def run_phase5_archive(report_date, today_dir, eod_summary, args):
     """阶段五：归档报告"""
     if args.skip_archive:
@@ -913,6 +991,7 @@ def main():
         log(f"  阶段四: EOD 风控守卫    {RUN_DAILY_EOD_SCRIPT} --date {report_date}")
         log(f"  阶段四点五: Shadow 收集 {SHADOW_FEEDER_SCRIPT} --date {report_date}")
         log(f"  阶段四点五B: 状态同步   {SHADOW_STATE_REBUILD_SCRIPT}")
+        log(f"  阶段四点八: PhaseB回写  {PHASE_B_ENABLER_SCRIPT} --auto")
         log(f"  阶段五: 归档目录        {today_dir}")
         return
 
@@ -971,6 +1050,12 @@ def main():
     phase_drift_success = run_phase4_7_drift_integration(report_date, eod_summary, args)
     success_count += phase_drift_success
     fail_count += not phase_drift_success
+
+    # T2 (2026-08-08): Phase B 状态回写 — 收敛 phase_b_status.json 单事实源,
+    # 在 Shadow 数据 + 漂移检测后刷新观察期天数, 供 08-24 决策读实时值
+    phase_phaseb_success = run_phase4_8_phase_b_sync(report_date, eod_summary, args)
+    success_count += phase_phaseb_success
+    fail_count += not phase_phaseb_success
 
     phase_feedback_success = run_phase4_6_feedback_loop(report_date, eod_summary, args)
     success_count += phase_feedback_success

@@ -454,10 +454,10 @@ class TestTwoLayerInteraction:
 
     @pytest.mark.unit
     def test_two_layer_threshold_values(self):
-        """验证两层门槛常量: 集成器 5 天 + 看门狗 14 天"""
+        """验证两层门槛常量: 集成器 5 天 + 看门狗 21 天 (2026-08-09 由 14 上调)"""
         assert MIN_REAL_SAMPLES_FOR_DRIFT == 5  # 集成器层
         from scripts.observation_watchdog import DEFAULT_REQUIRED_DAYS
-        assert DEFAULT_REQUIRED_DAYS == 14  # 看门狗层
+        assert DEFAULT_REQUIRED_DAYS == 21  # 看门狗层
 
 
 # ============================================================

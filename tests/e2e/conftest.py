@@ -11,6 +11,7 @@ pytest 自动加载规则: 仅识别名为 conftest.py 的文件
 """
 import json
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -25,10 +26,17 @@ import pytest
 #       → Windows access violation (不可被 try/except 捕获, 进程崩溃).
 # 解决: 在 conftest 加载阶段 (早于 test 文件 import) 注入 ImportBlocker,
 #       让 alpha_pipeline.py 的 try/except 走 ImportError 降级分支 (_QLIB_AVAILABLE=False).
-class _ImportBlocker:
-    """拦截指定模块的属性访问, 让 try/except 走 ImportError 分支."""
+class _ImportBlocker(types.ModuleType):
+    """拦截指定模块的属性访问, 让 try/except 走 ImportError 分支.
+
+    必须继承 types.ModuleType: 注入 sys.modules 的对象若为普通 object,
+    Python 包导入机制访问其 __spec__/__file__/__path__ 等模块属性时会
+    触发 __getattr__ 抛 ImportError, 污染包层级计算 (qlib.tests 的
+    `from .. import init` 报 beyond top-level), 误伤 tests/unit/backtest 收集.
+    """
 
     def __init__(self, name: str):
+        super().__init__(name)
         self._name = name
 
     def __getattr__(self, attr: str):
@@ -38,8 +46,10 @@ class _ImportBlocker:
         return f"<ImportBlocker:{self._name}>"
 
 
-# 注入拦截器 (仅当模块未加载时)
-for _mod_name in ("qlib", "qlib.contrib", "qlib.contrib.model", "lightgbm"):
+# 注入拦截器 (仅当模块未加载时).
+# 只拦崩溃链末端 qlib.contrib.model (LGBModel), 不拦 qlib 顶层:
+# 若拦截 "qlib", 会连带 qlib.tests 导入链断裂, 误伤 tests/unit/backtest 收集.
+for _mod_name in ("qlib.contrib.model", "lightgbm"):
     if _mod_name not in sys.modules:
         sys.modules[_mod_name] = _ImportBlocker(_mod_name)
 

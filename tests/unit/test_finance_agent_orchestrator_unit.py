@@ -195,10 +195,10 @@ class TestFinanceAgentOrchestratorInit:
     """协调器初始化测试"""
 
     @pytest.mark.unit
-    def test_init_creates_5_default_agents(self, orchestrator):
-        """默认初始化创建 5 个 Agent"""
+    def test_init_creates_core_default_agents(self, orchestrator):
+        """默认初始化创建核心 5 个 Agent (v8.6.13 起额外懒加载 weather, 不可用则降级)"""
         agent_names = [a.name for a in orchestrator.agents]
-        assert set(agent_names) == {"value", "momentum", "sentiment", "risk", "macro"}
+        assert {"value", "momentum", "sentiment", "risk", "macro"} <= set(agent_names)
 
     @pytest.mark.unit
     def test_init_weights_normalized(self, orchestrator):
@@ -208,12 +208,13 @@ class TestFinanceAgentOrchestratorInit:
 
     @pytest.mark.unit
     def test_init_default_weights(self, orchestrator):
-        """默认权重符合设计"""
-        assert orchestrator.weights["value"] == 0.25
-        assert orchestrator.weights["momentum"] == 0.25
-        assert orchestrator.weights["risk"] == 0.25
-        assert orchestrator.weights["sentiment"] == 0.15
-        assert orchestrator.weights["macro"] == 0.10
+        """默认权重符合设计 (v8.6.13: 7 因子体系, 新增 weather=0.11)"""
+        assert orchestrator.weights["value"] == pytest.approx(0.22)
+        assert orchestrator.weights["momentum"] == pytest.approx(0.22)
+        assert orchestrator.weights["risk"] == pytest.approx(0.22)
+        assert orchestrator.weights["sentiment"] == pytest.approx(0.13)
+        assert orchestrator.weights["macro"] == pytest.approx(0.10)
+        assert orchestrator.weights["weather"] == pytest.approx(0.11)
 
 
 class TestOrchestrate:

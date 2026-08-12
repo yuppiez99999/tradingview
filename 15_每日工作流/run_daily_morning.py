@@ -203,6 +203,9 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30) -> 
     except subprocess.TimeoutExpired:
         log(f"[FAIL] {name} 执行超时 (>{timeout_minutes}分钟)", "ERROR")
         return False
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        log(f"[FAIL] {name} 执行失败: {e}", "ERROR")
+        return False
     except Exception as e:
         log(f"[FAIL] {name} 执行异常: {e}", "ERROR")
         traceback.print_exc()
@@ -269,6 +272,12 @@ def archive_reports(today_dir: Path) -> int:
 
                 if is_today_report:
                     dest = today_dir / fname
+                    # 路径安全: 防止路径遍历攻击
+                    try:
+                        dest.resolve().relative_to(today_dir.resolve())
+                    except ValueError:
+                        log(f"  跳过路径遍历风险文件: {fname}", "WARN")
+                        continue
                     if not dest.exists() or file_path.stat().st_mtime > dest.stat().st_mtime:
                         shutil.copy2(file_path, dest)
                         archived_count += 1

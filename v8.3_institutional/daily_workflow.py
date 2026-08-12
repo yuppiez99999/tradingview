@@ -34,6 +34,10 @@ import logging
 import argparse
 import re
 import requests
+# B7 修复 (2026-08-08): 移除 L4525 pd.DataFrame 类型注解的 F821 警告.
+# 见 docs/CODE_REVIEW_COMPREHENSIVE_20260808.md B7. 原代码在函数体内 import pandas as pd,
+# 但模块级类型注解先求值 → F821 (运行时因 __future__.annotations 不崩, 但 mypy/ruff 报告).
+import pandas as pd  # noqa: E402  # 模块级类型注解需要
 from datetime import datetime, timedelta, date
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
@@ -47,6 +51,7 @@ SRC_DIR = BASE_DIR / "src"
 sys.path.insert(0, str(SRC_DIR))
 sys.path.insert(0, str(BASE_DIR.parent))  # 兼容 v7.4 模块
 sys.path.insert(0, str(BASE_DIR / "data"))  # EDB 期货数据模块
+sys.path.insert(0, str(BASE_DIR))  # workflow 子包 (拆分后 phase 模块导入)
 
 # ============================================================
 # 日志配置
@@ -1008,83 +1013,16 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 1: 系统自检
     # --------------------------------------------------------
+    def _build_context(self):
+        """构造 WorkflowContext, 供拆分出的 phase 子模块使用"""
+        from workflow.context import WorkflowContext
+        return WorkflowContext(self)
+
     def phase_check(self) -> bool:
-        """系统自检"""
-        logger.info("=" * 60)
-        logger.info(f"Phase 1: 系统自检 @ {self.trade_date}")
-        logger.info("=" * 60)
-
-        # 十五五年度阶段提示
-        if self.current_phase_info is not None:
-            pi = self.current_phase_info
-            logger.info(
-                f"[十五五阶段] {pi.year} {pi.phase_name} | 目标 {pi.target_return:.0%} | "
-                f"回撤限 {pi.max_drawdown:.0%} | 杠杆 {pi.leverage_target}x | "
-                f"季度 {pi.current_quarter}"
-            )
-            if pi.is_liquidation_year:
-                logger.warning(
-                    f"[2030清仓] {pi.current_quarter} 阶段 - "
-                    f"{pi.liquidation_actions.get('name', '') if pi.liquidation_actions else ''}"
-                )
-            if self.phase_manager and self.phase_manager.is_quarter_end(
-                datetime.strptime(self.trade_date, "%Y-%m-%d").date()
-                if self.trade_date else None
-            ):
-                logger.info("[十五五阶段] 季度末 - 将在 v10_risk 阶段触发季度评估")
-
-        checks = {
-            "v75_modules": V75_READY,
-            "shenhua_plan": SHENHUA_READY,
-            "ntp_sync": False,
-            "risk_manager": False,
-            "circuit_breaker": False,
-            "phase_manager": PHASE_MANAGER_READY,
-            "hedge_fund_modules": HEDGE_FUND_MODULES_READY,
-            "institutional_modules": INSTITUTIONAL_MODULES_READY,
-            "risk_mgmt_modules": RISK_MGT_MODULES_READY,
-            "alpha_modules": ALPHA_MODULES_READY,
-            "execution_modules": EXECUTION_MODULES_READY,
-            "alt_data_modules": ALT_DATA_MODULES_READY,
-        }
-
-        self.ntp = NTPSync()
-
-        if not V75_READY:
-            logger.warning("v7.5 模块未就绪，进入降级模式继续执行")
-            checks["v75_modules"] = False
-            self.state["phases"]["check"] = {"status": "PASS", "checks": checks, "degraded": True}
-            return True
-
-        # NTP 同步
-        try:
-            ntp = NTPSync()
-            offset = ntp.get_offset()
-            checks["ntp_sync"] = abs(offset) < 0.05
-            logger.info(f"NTP 同步: offset={offset:.3f}s {'OK' if checks['ntp_sync'] else 'DRIFT'}")
-        except Exception as e:
-            logger.warning(f"NTP 同步失败 (使用本地时间): {e}")
-            checks["ntp_sync"] = True  # 降级允许
-
-        # 风控初始化
-        try:
-            self.rm = RiskManager(total_capital=self.capital)
-            self.cb = CircuitBreaker()
-            checks["risk_manager"] = True
-            checks["circuit_breaker"] = True
-            logger.info(f"风险模式: {self.rm.mode}, 仓位系数: {self.rm.position_size_factor}")
-        except Exception as e:
-            logger.error(f"风控初始化失败: {e}")
-            checks["risk_manager"] = False
-            checks["circuit_breaker"] = False
-            self.state["phases"]["check"] = {"status": "PASS", "checks": checks, "degraded": True}
-            logger.warning("风控初始化失败，进入降级模式继续执行")
-            return True
-
-        self.ntp = ntp if checks["ntp_sync"] else NTPSync()
-        self.state["phases"]["check"] = {"status": "PASS", "checks": checks}
-        logger.info("Phase 1 完成: 全部自检通过")
-        return True
+        """系统自检 (委托至 workflow.phases.check)"""
+        from workflow.phases.check import phase_check as _phase_check
+        ctx = self._build_context()
+        return _phase_check(ctx)
 
     # --------------------------------------------------------
     # Phase 1.5: 收益预测动态校准 (新增)
@@ -1093,216 +1031,19 @@ class DailyWorkflow:
     #   - Step 3: 校准 portfolio_return_projection.json 概率权重
     # --------------------------------------------------------
     def phase_calibrate(self) -> bool:
-        """收益预测动态校准"""
-        logger.info("=" * 60)
-        logger.info(f"Phase 1.5: 收益预测动态校准 @ {self.trade_date}")
-        logger.info("=" * 60)
-
-        if not CALIBRATE_READY:
-            logger.warning("calibrate_returns_projection 模块未就绪, 跳过校准")
-            self.state["phases"]["calibrate"] = {
-                "status": "SKIP",
-                "reason": "calibrate_returns_projection 模块未导入",
-            }
-            return True  # 不阻断后续流程
-
-        try:
-            # 执行三步校准: Wind 拉取 → 计算已实现 → 校准 projection
-            result = _run_calibration()
-
-            status = result.get("status", "FAIL")
-            if status not in ("OK", "DEGRADED"):
-                logger.error(f"收益预测校准失败: {result}")
-                self.state["phases"]["calibrate"] = {
-                    "status": "FAIL",
-                    "error": str(result)[:500],
-                }
-                # 校准失败不阻断后续阶段
-                return True
-
-            step1 = result.get("step1_update", {})
-            step2 = result.get("step2_realized", {})
-            step3 = result.get("step3_calibration", {})
-
-            self.state["phases"]["calibrate"] = {
-                "status": "PASS" if status == "OK" else "DEGRADED",
-                "wind_fetch": {
-                    "success": step1.get("success", 0),
-                    "fail": step1.get("fail", 0),
-                    "total_days": step1.get("total_days", 0),
-                    "total_symbols": step1.get("total_symbols", 0),
-                    "degraded_reason": step1.get("degraded_reason"),
-                },
-                "realized": {
-                    "start_date": step2.get("start_date"),
-                    "end_date": step2.get("end_date"),
-                    "years": step2.get("years"),
-                    "portfolio_weighted_annualized": step2.get(
-                        "portfolio_weighted_annualized", 0
-                    ),
-                    "market_annualized": step2.get("market_annualized", 0),
-                    "market_sharpe": step2.get("market_sharpe", 0),
-                    "portfolio_weight_total": step2.get(
-                        "portfolio_weight_total", 0
-                    ),
-                },
-                "calibration": {
-                    "original_weights": step3.get("original_weights"),
-                    "calibrated_weights": step3.get("calibrated_weights"),
-                    "calibration_reason": step3.get("calibration_reason"),
-                    "calibrated_expected_annualized": step3.get(
-                        "calibrated_expected_annualized"
-                    ),
-                    "calibrated_expected_final": step3.get(
-                        "calibrated_expected_final"
-                    ),
-                },
-            }
-            if status == "DEGRADED":
-                logger.warning("Phase 1.5 完成 (降级模式): Wind 拉取失败, 使用现有历史数据校准")
-            else:
-                logger.info("Phase 1.5 完成: 收益预测校准成功")
-            return True
-
-        except Exception as e:
-            logger.error(f"Phase 1.5 异常: {e}", exc_info=True)
-            self.state["phases"]["calibrate"] = {
-                "status": "FAIL",
-                "error": str(e),
-            }
-            return True  # 不阻断后续流程
+        """收益预测动态校准 (委托至 workflow.phases.calibrate)"""
+        from workflow.phases.calibrate import phase_calibrate as _phase_calibrate
+        ctx = self._build_context()
+        return _phase_calibrate(ctx)
 
     # --------------------------------------------------------
     # Phase 2: 市场状态评估
     # --------------------------------------------------------
     def phase_market(self) -> CircuitLevel:
-        """市场状态评估"""
-        logger.info("=" * 60)
-        logger.info("Phase 2: 市场状态评估")
-        logger.info("=" * 60)
-
-        # 懒初始化（支持单独运行该 phase）
-        if not hasattr(self, "cb"):
-            try:
-                from risk.circuit_breaker import CircuitBreaker
-                self.cb = CircuitBreaker()
-            except Exception as e:
-                logger.warning(f"CircuitBreaker 初始化失败，使用模拟模式: {e}")
-                self.cb = None
-
-        # G13 修复 (2026-08-06): VIX 从 VixDataSource 获取真实值, 非硬编码
-        _vix_value = 18.5  # 默认值 (正常偏低), 实盘应从数据源获取
-        try:
-            from utils.alpha.vix_data_source import fetch_vix
-            _vix_fetched = fetch_vix(use_cache=True)
-            if _vix_fetched is not None and 5.0 <= _vix_fetched <= 150.0:
-                _vix_value = float(_vix_fetched)
-        except Exception:  # noqa: BLE001  # VIX 获取 fail-open, 用默认值
-            pass
-
-        # 模拟市场数据 (实盘应从 Wind 获取)
-        market_data = {
-            "vix": _vix_value,
-            "portfolio_drop": 0.0,          # 当日无跌
-            "index_return_20d": 0.02,       # 20日 +2%
-            "index_return_60d": 0.05,       # 60日 +5%
-        }
-
-        # 熔断级别判定
-        level = self.cb.check(
-            portfolio_drop=market_data["portfolio_drop"],
-            vix=market_data["vix"],
-        )
-        actions = self.cb.allowed_actions()
-
-        logger.info(f"VIX: {market_data['vix']}, 跌幅: {market_data['portfolio_drop']:.2%}")
-        logger.info(f"熔断级别: {level.name}")
-        logger.info(f"允许操作: open_new={actions['open_new']}, "
-                    f"force_reduce={actions['force_reduce_pct']}")
-
-        self.state["phases"]["market"] = {
-            "status": "PASS",
-            "vix": market_data["vix"],
-            "circuit_level": level.name,
-            "actions": actions,
-        }
-
-        if level >= CircuitLevel.LEVEL_3:
-            logger.warning("市场熔断 LEVEL_3+, 暂停建仓")
-            self.state["phases"]["market"]["build_allowed"] = False
-        else:
-            self.state["phases"]["market"]["build_allowed"] = True
-
-        # === 对冲基金视角: 数据质量监控 ===
-        if self.data_quality_monitor is not None:
-            try:
-                # 检查持仓数据质量
-                positions = self._get_portfolio_positions_for_stress_test() if hasattr(self, "_get_portfolio_positions_for_stress_test") else []
-                data_for_check = {}
-                for pos in positions:
-                    code = pos.get("code", "")
-                    if code:
-                        data_for_check[code] = {
-                            "close": pos.get("price", pos.get("amount", 0)),
-                            "volume": pos.get("volume", 0),
-                            "timestamp": self.trade_date,
-                        }
-                if data_for_check:
-                    expected_symbols = [p.get("code") for p in positions if p.get("code")]
-                    dq_report = self.data_quality_monitor.check_market_data(
-                        data_for_check, expected_symbols=expected_symbols
-                    )
-                    self.state["phases"]["market"]["data_quality"] = {
-                        "score": dq_report.overall_score,
-                        "critical": dq_report.critical_count,
-                        "error": dq_report.error_count,
-                        "warning": dq_report.warning_count,
-                        "passed": dq_report.passed,
-                    }
-                    if not dq_report.passed:
-                        logger.warning(
-                            "[DataQuality] 数据质量未通过: %.1f/100 (critical=%d, error=%d)",
-                            dq_report.overall_score,
-                            dq_report.critical_count,
-                            dq_report.error_count,
-                        )
-                    else:
-                        logger.info(
-                            "[DataQuality] 数据质量通过: %.1f/100",
-                            dq_report.overall_score,
-                        )
-            except Exception as e:
-                logger.error(f"[DataQuality] 数据质量检查失败: {e}", exc_info=True)
-
-        # === AnySearch 实时新闻扫描 (v7.8: 作为 iFinD 的 fallback) ===
-        self._scan_anysearch_news()
-
-        return level
-
-    def _scan_anysearch_news(self):
-        """使用 AnySearch 扫描实时财经新闻，作为 iFinD 的补充数据源"""
-        try:
-            from utils.anysearch_connector import AnySearchConnector
-            conn = AnySearchConnector()
-            if conn.available:
-                conn.connect()
-                news = conn.get_finance_news()
-                if news:
-                    logger.info(f"[AnySearch] 获取到 {len(news)} 条财经新闻")
-                    for i, item in enumerate(news[:3], 1):
-                        title = item.get('title', '')[:40]
-                        url = item.get('url', '')
-                        logger.info(f"  [{i}] {title} -> {url}")
-                    self.state["phases"]["market"]["anysearch_news_count"] = len(news)
-                    self.state["phases"]["market"]["anysearch_news"] = news[:3]
-                else:
-                    logger.info("[AnySearch] 未获取到新闻")
-            else:
-                logger.info("[AnySearch] 不可用，跳过")
-        except ImportError:
-            logger.info("[AnySearch] 模块未安装，跳过")
-        except Exception as e:
-            logger.warning(f"[AnySearch] 新闻扫描失败: {e}")
+        """市场状态评估 (委托至 workflow.phases.market)"""
+        from workflow.phases.market import phase_market as _phase_market
+        ctx = self._build_context()
+        return _phase_market(ctx)
 
     # --------------------------------------------------------
     # Phase 3: 风险预算计算 (组合级别 — 500万 4阶段)
@@ -5980,73 +5721,10 @@ class DailyWorkflow:
     #   - 生成 lgb_enhanced_signals.json 供次日交易使用
     # --------------------------------------------------------
     def phase_autolearn(self) -> bool:
-        """自主学习量化训练 (优先使用增强训练器)"""
-        logger.info("=" * 60)
-        logger.info(f"Phase 8: 自主学习量化训练 @ {self.trade_date}")
-        logger.info(f"  引擎: {AUTOLEARN_ENGINE}")
-        logger.info("=" * 60)
-
-        if not AUTOLEARN_READY:
-            logger.warning("自主学习训练模块未就绪, 跳过训练")
-            self.state["phases"]["autolearn"] = {
-                "status": "SKIP",
-                "reason": "训练模块未导入",
-            }
-            return True
-
-        try:
-            # 执行训练 (7 天内不重训)
-            # 增强训练器: 真实OHLCV + 情绪因子 + 自适应重训
-            # 旧训练器: 合成OHLCV + LGB+XGB 集成
-            result = _run_autolearn(force_retrain=False)
-
-            if result.get("status") != "OK":
-                logger.error(f"自主学习训练失败: {result}")
-                self.state["phases"]["autolearn"] = {
-                    "status": "FAIL",
-                    "error": str(result)[:500],
-                }
-                return True
-
-            # 生成日报
-            try:
-                report_path = _generate_autolearn_report(result)
-                logger.info(f"自主学习日报: {report_path}")
-            except Exception as e:
-                logger.warning(f"日报生成失败: {e}")
-                report_path = None
-
-            # 保存状态
-            signals = result.get("signals", {})
-            summary = signals.get("summary", {})
-            self.state["phases"]["autolearn"] = {
-                "status": "PASS",
-                "engine": AUTOLEARN_ENGINE,
-                "total": result.get("total", 0),
-                "trained": result.get("trained", 0),
-                "skipped": result.get("skipped", 0),
-                "failed": result.get("failed", 0),
-                "signals_summary": summary,
-                "top_signals": sorted(
-                    [(k, v.get("signal", 0)) for k, v in signals.get("signals", {}).items()],
-                    key=lambda x: abs(x[1]),
-                    reverse=True,
-                )[:5],
-                "report_path": str(report_path) if report_path else None,
-            }
-            logger.info(f"Phase 8 完成: 训练 {result.get('trained', 0)} 标的, "
-                        f"信号 {summary.get('total', 0)} 个 "
-                        f"(多 {summary.get('bullish', 0)}/空 {summary.get('bearish', 0)}/"
-                        f"中性 {summary.get('neutral', 0)})")
-            return True
-
-        except Exception as e:
-            logger.error(f"Phase 8 异常: {e}", exc_info=True)
-            self.state["phases"]["autolearn"] = {
-                "status": "FAIL",
-                "error": str(e),
-            }
-            return True
+        """自主学习量化训练 (委托至 workflow.phases.autolearn)"""
+        from workflow.phases.autolearn import phase_autolearn as _phase_autolearn
+        ctx = self._build_context()
+        return _phase_autolearn(ctx)
 
     # --------------------------------------------------------
     # 主流程
