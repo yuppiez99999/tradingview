@@ -9,6 +9,8 @@ from pathlib import Path
 
 import numpy as np
 
+logger = logging.getLogger("signal_post_processing")
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 POSITIONS_FILE = PROJECT_ROOT / "config" / "positions.json"
 REPORTS_DIR = PROJECT_ROOT / "reports"
@@ -120,5 +122,3 @@ def apply_industry_neutralization():
 
 if __name__ == "__main__":
     apply_industry_neutralization()
-
-logger = logging.getLogger("signal_post_processing")

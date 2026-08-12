@@ -14,6 +14,9 @@ from pathlib import Path as _Path
 from typing import Any, Dict, List, Optional
 
 import requests as _requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _load_dotenv() -> None:
@@ -364,16 +367,40 @@ class PortfolioAnalyzer:
         return prices
 
     def calculate_pnl(self) -> Dict[str, Any]:
-        """[B3.2 委托] 计算持仓盈亏明细"""
-        return _pnl_calc(self.positions_data, self.market_prices)
+        """[B3.2 委托] 计算持仓盈亏明细
+
+        G4 补齐: 若当日有真实成交回报落盘, 用 fills 成交均价覆盖行情估算的
+        close, 使 PnL 以成交为单一事实源 (fail-open, 无 fills 时回退行情估算)。
+        """
+        try:
+            from utils.execution.fills_pnl_bridge import augment_market_prices
+
+            market_prices = augment_market_prices(self.market_prices, REPORT_DATE)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[DailyReport] fills 桥接失败, 回退行情估算: %s", e)
+            market_prices = self.market_prices
+        result = _pnl_calc(self.positions_data, market_prices)
+        # 附加当日已实现 PnL (来自 fills), 便于报告区分
+        try:
+            from utils.execution.fills_pnl_bridge import realized_pnl
+
+            result["realized_pnl_from_fills"] = realized_pnl(REPORT_DATE)
+        except Exception:  # noqa: BLE001
+            pass
+        return result
 
     def _get_position_status(self, pnl_pct: float, stop_loss: float) -> str:
         """[B3.2 委托] 判断持仓状态 — 止损线由调用方保证为负值（如 -0.15）"""
         return _pnl_get_position_status(pnl_pct, stop_loss)
 
-    def analyze_hedge_position(self) -> Dict[str, Any]:
-        """[B3.2 委托] 分析对冲头寸"""
-        return _hedge_analyze_position(self.hedge_data, data_provider=self._data_provider)
+    def analyze_hedge_position(self, market_prices=None) -> Dict[str, Any]:
+        """[B3.2 委托] 分析对冲头寸
+
+        Args:
+            market_prices: 今日行情字典 (用于估算期权对冲当前市值), 默认用 self.market_prices
+        """
+        mp = market_prices if market_prices is not None else getattr(self, "market_prices", None)
+        return _hedge_analyze_position(self.hedge_data, data_provider=self._data_provider, market_prices=mp)
 
     def _calculate_hedge_effectiveness(self, hedge_details: List) -> float:
         """[B3.2 委托] 计算对冲有效性"""

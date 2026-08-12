@@ -604,6 +604,25 @@ class BuildPlanExecutor:
         margin_chg = market_state.get("margin_balance_change", 0)
         mfg_dd = market_state.get("sector_health", {}).get("high_end_manufacturing_20d", 0)
 
+        # M-1 (2026-08-09): 指数收益率/VIX 数据不可信时, fail-closed 暂停建仓。
+        # 关键: 不能依赖 .get("index_return_20d", 0) 的良性默认值——0 会落到 NORMAL 档导致满仓。
+        # 必须读取显式 data_degraded 标记 (由 daily_build_and_hedge 在数据缺失时置位)。
+        if market_state.get("data_degraded"):
+            return {
+                "level": 2,
+                "level_name": "HIGH_DEGRADED",
+                "day_capital_multiplier": 0.0,
+                "actions": [
+                    "1. 指数收益率/VIX 数据源中断, fail-closed 暂停建仓",
+                    "2. 人工确认数据恢复后, 重启建仓流程",
+                    "3. 已建仓位保持, 不新增敞口",
+                ],
+                "hedge_suggestions": [],
+                "etf_signal": "unknown",
+                "macro_heat_score": 50,
+                "macro_regime": "未知",
+            }
+
         # ---- v7.1 新增维度 ----
         # ETF资金流向信号
         etf_flows = market_state.get("etf_flows", {})

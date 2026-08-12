@@ -19,6 +19,9 @@ extend-exclude = [
     "build",
     "dist",
     "*.egg-info",
+    # B7 修复 (2026-08-08): 排除第三方 vendored 代码 (F821 噪声).
+    # 见 docs/CODE_REVIEW_COMPREHENSIVE_20260808.md B7.
+    "external/airllm_src",
 ]
 
 [lint]
@@ -91,3 +94,6 @@ force-single-line = false
 "ms_strategy/scripts/**/*.py" = ["T201"]
 "ms_strategy/training/**/*.py" = ["T201"]
 "ms_strategy/wondertrader/**/*.py" = ["T201"]
+# 资产集成专项 (2026-08-10): Ledoit-Wolf 协方差 — 量化矩阵变量(R/T/N/S/F/Rb)大写是
+# 金融数学惯例, 豁免 N803/N806 命名规范; 其余 F/B/T/BLE 仍受增量门禁阻断。
+"utils/ledoit_wolf_covariance.py" = ["N803", "N806"]

@@ -19,6 +19,7 @@ import gc
 import json
 import logging
 import math
+import os
 import threading
 import time
 from dataclasses import dataclass, field
@@ -51,6 +52,7 @@ from utils.risk_constraints import (
     enforce_hard_constraints,
 )
 from utils.signal_fusion import FusionSignal, SignalFusionEngine
+from utils.killswitch_guard import apply_killswitch_l1_filter  # GLM-5.2 C2(#22) 修复
 
 # === P0-13: KillSwitch 集成 (2026-07-25 顶级对冲基金审计) ===
 # 审计问题: 生产 pipeline 未集成 KillSwitch, L1/L2/L3 熔断对 pipeline 无效
@@ -85,6 +87,24 @@ except Exception as e:
 # B2 修复: 将 logger 定义提前到 try 之前, 避免 LGB 导入失败进入 except 时
 # 引用尚未绑定的 logger 变量导致二次 NameError, 掩盖原始导入错误。
 logger = logging.getLogger("institutional_pipeline")
+
+# === 高价值资产集成 (2026-08-10): Ledoit-Wolf 收缩协方差 + Black-Litterman 影子 ===
+# LW 收敛为唯一收缩协方差真相源（替代硬编码对角协方差），BL 以 Feature Flag 影子模式接入
+try:
+    from utils.ledoit_wolf_covariance import LedoitWolfCovariance
+
+    _HAS_LW = True
+except Exception as e:  # noqa: BLE001
+    _HAS_LW = False
+    logger.debug("LedoitWolfCovariance 加载失败, 协方差降级为对角矩阵: %s", e)
+
+try:
+    from utils.black_litterman_optimizer import BlackLittermanOptimizer
+
+    _HAS_BL = True
+except Exception as e:  # noqa: BLE001
+    _HAS_BL = False
+    logger.debug("BlackLittermanOptimizer 加载失败, BL 影子模式不可用: %s", e)
 
 try:
     from lgb_enhanced_trainer import (
@@ -342,8 +362,8 @@ class InstitutionalPipelineRunner:
         try:
             ks_result = self._step_kill_switch_check(portfolio_decision)
             result["steps"]["kill_switch"] = ks_result
-            # L2+ 或 fail_closed: 阻止执行路由
-            if (ks_result.get("level", 0) >= 2 or ks_result.get("fail_closed", False)) and self.ctx.mode not in (
+            # L1+ 或 fail_closed: 阻止执行路由
+            if (ks_result.get("level", 0) >= 1 or ks_result.get("fail_closed", False)) and self.ctx.mode not in (
                 "smoke",
                 "backtest",
             ):
@@ -373,6 +393,10 @@ class InstitutionalPipelineRunner:
         except Exception as e:
             logger.error("[Pipeline] trades 重建异常: %s", e, exc_info=True)
             result["steps"]["trades_sync"] = {"error": str(e)}
+
+        # GLM-5.2 C2(#22) 修复: 重建 trades 后须重新应用 KillSwitch L1 约束
+        # 提取至 utils.killswitch_guard.apply_killswitch_l1_filter (独立模块, 可单测)
+        result = apply_killswitch_l1_filter(portfolio_decision, ks_result, result)
 
         # Step 6: 执行路由
         execution_plans = self._step_execution_routing(portfolio_decision, fusion_signals)
@@ -657,7 +681,9 @@ class InstitutionalPipelineRunner:
 
         symbols = list(expected_returns.keys())
         n = len(symbols)
-        cov = pd.DataFrame(np.diag(np.full(n, 0.04 / 252)), index=symbols, columns=symbols)
+        # 高价值资产集成 (2026-08-10): Ledoit-Wolf 收缩协方差替代硬编码对角协方差
+        # USE_LW_COV 默认开启（确定性改进），失败时 fail-open 回退对角矩阵（与现状一致）
+        cov = self._build_covariance(symbols)
         decision = self.optimizer.optimize(
             expected_returns=expected_returns,
             covariance_matrix=cov,
@@ -677,7 +703,168 @@ class InstitutionalPipelineRunner:
             decision.target_weights = clamped_w
             decision.meta["hard_constraint_violations"] = violations
             decision.meta["post_clamp"] = True
+
+        # 高价值资产集成 (2026-08-10): Black-Litterman 影子模式（Feature Flag, 默认关闭）
+        # 仅观测对比 BL 权重 vs 现有权重, 不下达任何生产决策; 异常时 fail-open 静默跳过
+        if os.environ.get("USE_BL_SHADOW", "0") == "1" and _HAS_BL and _HAS_LW:
+            self._run_bl_shadow(symbols, expected_returns, cov, decision.target_weights)
+
         return decision
+
+    # ------------------------------------------------------------
+    # 高价值资产集成辅助方法 (2026-08-10)
+    # ------------------------------------------------------------
+
+    def _build_covariance(self, symbols: list[str]) -> "pd.DataFrame":
+        """构建组合协方差矩阵。
+
+        优先使用 Ledoit-Wolf 收缩估计（基于 price_history 收益率），
+        ``USE_LW_COV`` 关闭或不可用时 fail-open 回退到硬编码对角矩阵（与历史行为一致）。
+        """
+        n = len(symbols)
+        diag_cov = pd.DataFrame(np.diag(np.full(n, 0.04 / 252)), index=symbols, columns=symbols)
+        if not _HAS_LW or os.environ.get("USE_LW_COV", "1") == "0":
+            return diag_cov
+        try:
+            returns = self._load_returns_matrix(symbols)
+            if returns is None or returns.shape[1] < 2:
+                logger.debug("[LW] 收益率数据不足, 回退对角协方差")
+                return diag_cov
+            est = LedoitWolfCovariance()
+            cov = est.fit(returns).cov_shrunk
+            # 对齐到 symbols 顺序（LW 内部已按列对齐，此处防御性校验）
+            if cov.shape == (n, n):
+                # 数值正定性校验: 对角线必须全 > 0, 否则优化器不稳定, fail-open 回退
+                if np.all(np.diag(cov) > 0):
+                    return pd.DataFrame(cov, index=symbols, columns=symbols)
+                logger.debug("[LW] 协方差对角含非正元素, 回退对角协方差")
+            else:
+                logger.debug("[LW] 协方差维度不匹配 (%s vs %s), 回退对角协方差", cov.shape, (n, n))
+            return diag_cov
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[LW] 收缩协方差估计失败, fail-open 回退对角矩阵: %s", e)
+            return diag_cov
+
+    def _load_returns_matrix(self, symbols: list[str]) -> "np.ndarray | None":
+        """从 config/price_history.jsonl 构造收益率矩阵（按 symbols 顺序对齐）。
+
+        与 signal_fusion 共用同一历史缓存文件。数据缺失的标的用 0 收益率填充，
+        确保矩阵维度与 symbols 一致（LW 要求完整 N×T 矩阵）。
+        """
+        # 优先项目内 config (与 signal_fusion 共用历史缓存), 回退 output_path 派生路径
+        candidates = [
+            BASE_DIR / "config" / "price_history.jsonl",
+            Path(self.ctx.output_path).parent.parent / "config" / "price_history.jsonl",
+        ]
+        hist_path = next((p for p in candidates if p.exists()), None)
+        if hist_path is None:
+            return None
+        try:
+            import json as _json
+
+            price_map: dict[str, list[float]] = {}
+            with open(hist_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    rec = _json.loads(line)
+                    code = rec.get("code") or rec.get("symbol")
+                    prices = rec.get("prices") or rec.get("close")
+                    if code and prices:
+                        price_map[str(code)] = list(prices)
+            if not price_map:
+                return None
+            series: list[np.ndarray] = []
+            for s in symbols:
+                prices = price_map.get(s, price_map.get(s[2:] if len(s) > 2 else s))
+                if not prices or len(prices) < 3:
+                    # 缺失标的: 填极小噪声收益率 (避免方差=0 导致 LW 对角线非正)
+                    # 噪声标准差 1e-4 << 正常标的 ~1e-2, 保证缺失标的权重被自然压低
+                    series.append(np.random.default_rng(hash(s) & 0xFFFFFFFF).normal(0.0, 1e-4, 30))
+                else:
+                    arr = np.asarray(prices, dtype=float)
+                    rets = arr[1:] / arr[:-1] - 1.0
+                    series.append(rets)
+            # 统一长度到最短序列（截断尾部，避免前视）
+            min_len = min(len(s) for s in series)
+            if min_len < 2:
+                return None
+            aligned = np.column_stack([s[-min_len:] for s in series])
+            return aligned
+        except Exception as e:  # noqa: BLE001
+            logger.debug("[LW] 读取 price_history 失败: %s", e)
+            return None
+
+    def _run_bl_shadow(
+        self,
+        symbols: list[str],
+        expected_returns: dict[str, float],
+        cov: "pd.DataFrame",
+        base_weights: dict[str, float],
+    ) -> None:
+        """运行 BL 影子对比（观测路径 fail-open）。
+
+        计算 BL 后验权重并与现有组合优化器权重做偏差对比，落盘影子报告。
+        不修改任何生产决策；任何异常均静默跳过，不阻断主链路。
+        """
+        try:
+            bl = BlackLittermanOptimizer(risk_aversion=2.5, tau=0.05)
+            cov_np = cov.to_numpy() if hasattr(cov, "to_numpy") else np.asarray(cov)
+            result = bl.run_shadow(
+                assets=symbols,
+                expected_returns=expected_returns,
+                cov_matrix=cov_np,
+                max_weight=DEFAULT_MAX_WEIGHT,
+                min_weight=0.0,
+            )
+            bl_w = dict(zip(symbols, (float(x) for x in result.optimal_weights)))
+            self._write_shadow_report(symbols, base_weights, bl_w, result)
+            logger.info(
+                "[BL-Shadow] 影子对比完成, 平均权重偏差=%.4f",
+                float(np.mean([abs(bl_w.get(s, 0.0) - base_weights.get(s, 0.0)) for s in symbols])),
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[BL-Shadow] 影子模式计算失败, fail-open 跳过: %s", e)
+
+    def _write_shadow_report(
+        self,
+        symbols: list[str],
+        base_weights: dict[str, float],
+        bl_weights: dict[str, float],
+        bl_result: "object",
+    ) -> None:
+        """落盘 BL 影子对比报告（不污染主报告）。
+
+        报告路径: 每日报告归档/<date>/shadow_bl_report.md
+        注意: 日志/内容避免 ¥ 符号, 用 CNY/RMB 替代 (Windows GBK 编码坑)。
+        """
+        out_dir = self.ctx.output_path
+        out_dir.mkdir(parents=True, exist_ok=True)
+        report_path = out_dir / "shadow_bl_report.md"
+        lines = ["# Black-Litterman 影子对比报告", "", f"- 日期: {self.ctx.report_date}", f"- 标的数: {len(symbols)}", ""]
+        lines.append("| 标的 | 现有权重 | BL权重 | 偏差 |")
+        lines.append("|------|---------|--------|------|")
+        for s in symbols:
+            bw = base_weights.get(s, 0.0)
+            blw = bl_weights.get(s, 0.0)
+            lines.append(f"| {s} | {bw:.4f} | {blw:.4f} | {blw - bw:+.4f} |")
+        lines.append("")
+        try:
+            lines.append(f"- BL 预期组合收益: {bl_result.expected_portfolio_return:.4f}")
+            lines.append(f"- BL 预期组合波动: {bl_result.expected_portfolio_vol:.4f}")
+            lines.append(f"- BL 夏普比率: {bl_result.sharpe_ratio:.4f}")
+            lines.append(f"- BL 有效持仓数: {bl_result.effective_n:.2f}")
+        except Exception:  # noqa: BLE001
+            pass
+        lines.append("")
+        lines.append("> 本报告仅为 BL 影子观测, 不下达任何生产决策。切换需经观察期 (建议 20 交易日) 达标后由 USE_BL_SHADOW 常开。")
+        try:
+            with open(report_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
+            logger.info("[BL-Shadow] 影子报告已落盘: %s", report_path)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[BL-Shadow] 影子报告落盘失败: %s", e)
 
     # ------------------------------------------------------------
     # Step 4.5: 市场状态调节 (大盘趋势过滤)
@@ -1285,6 +1472,7 @@ class InstitutionalPipelineRunner:
 
         return result
 
+
     # ------------------------------------------------------------
     # Step 6: 执行路由
     # ------------------------------------------------------------
@@ -1384,10 +1572,13 @@ class InstitutionalPipelineRunner:
     # ------------------------------------------------------------
 
     def _save(self, result: dict[str, Any]) -> None:
+        """原子写 pipeline 报告（临时文件+rename，防崩溃导致文件损坏）。"""
         path = self.ctx.output_path / f"pipeline_{self.ctx.mode}.json"
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
         try:
-            with open(path, "w", encoding="utf-8") as f:
+            with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(result, f, ensure_ascii=False, indent=2)
+            tmp_path.replace(path)  # atomic on same fs
             logger.info("[Pipeline] 报告已保存: %s", path)
         except Exception as e:
             logger.error("[Pipeline] 保存报告失败: %s", e)

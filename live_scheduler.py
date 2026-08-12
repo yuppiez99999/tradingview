@@ -1112,9 +1112,9 @@ def _is_process_alive(pid: int) -> bool:
             return str(pid) in result.stdout
         else:
             try:
-                import psutil
-                return psutil.pid_exists(pid)
-            except ImportError:
+                os.kill(pid, 0)
+                return True
+            except OSError:
                 return False
     except Exception as e:  # P2-1: 收敛为具体异常类型 + 日志
         logger.debug("PID存活检查失败 (pid=%s): %s", pid, e, exc_info=True)

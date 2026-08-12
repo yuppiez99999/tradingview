@@ -1,9 +1,13 @@
 """
 # OFFLINE_ONLY — 离线分析脚本, 禁止被执行链路 import
+# B1 修复 (2026-08-08): 强化 OFFLINE_ONLY 标注 + 添加运行时硬护栏.
+# 见 docs/CODE_REVIEW_COMPREHENSIVE_20260808.md B1 + docs/CODE_REVIEW_GAP_AUDIT_2026-08-08.md D-3.
+#
 # 本脚本为一次性离线对冲数量测算工具, 以下特征表明其非实盘性质:
 #   1. 硬编码组合快照 (portfolio_value=5_000_000 / day_capital=1_722_410)
 #   2. 硬编码期货参考价 (IF=3800 / IC=5500 / IM=5800) 与 vix=25.0 / hwm_drawdown=0.03
 #   3. 全仓 0 处 import 本脚本, 结果不流入任何撮合/下单链路
+#   4. 运行时硬护栏: 若检测到被其他模块 import, 立即抛 RuntimeError 阻断误用
 # 若需用于实盘前测算, 必须改为读取实时行情源或 config/risk_params.yaml, 见审查报告 M4。
 今日对冲数量计算器
 基于组合结构 + v7.5 引擎
@@ -15,6 +19,16 @@ from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
+
+# R-1 修复 (2026-08-09): 原 OFFLINE_ONLY 护栏仅为软日志 (logger.debug), 无法真正阻止误用。
+# 现改为运行时硬护栏 — 若被其他模块 import 即抛 RuntimeError 阻断, 防止混入实盘执行链。
+# 允许场景: (1) 作为 __main__ 直接运行 (离线测算); (2) 测试场景 (sys._called_from_test 标记)。
+if __name__ != "__main__" and not hasattr(sys, "_called_from_test"):
+    raise RuntimeError(
+        "hedge_quantity_calculator.py 为 OFFLINE_ONLY 离线脚本, 禁止被其他模块 import。"
+        "其模块级代码含硬编码组合快照/期货参考价 (IF=3800/IC=5500/IM=5800), 不得进入实盘链路。"
+        "若需离线测算请直接运行 `python hedge_quantity_calculator.py`。"
+    )
 
 # C8 修复: 使用动态 PROJECT_ROOT
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -85,11 +99,27 @@ logger.info(f"超额Beta: {excess_beta:.2f}")
 logger.info(f"需要对冲金额: {value_to_hedge:,.0f} 元")
 
 # 期货合约参数
+# D-3 修复 (2026-08-11): 优先从配置文件读取离线行情, 避免硬编码.
+_config = {}
+_config_path = PROJECT_ROOT / "hedge_quantity_calculator_config.json"
+if _config_path.exists():
+    try:
+        _config = json.loads(_config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        _config = {}
+
+_futures_prices = _config.get("futures_prices", {})
 futures = {
-    "IF": {"multiplier": 300, "beta": 1.0, "price": 3800.0, "name": "沪深300"},
-    "IC": {"multiplier": 200, "beta": 1.2, "price": 5500.0, "name": "中证500"},
-    "IM": {"multiplier": 200, "beta": 1.1, "price": 5800.0, "name": "中证1000"},
+    "IF": {"multiplier": 300, "beta": 1.0, "price": float(_futures_prices.get("IF", 3800.0)), "name": "沪深300"},
+    "IC": {"multiplier": 200, "beta": 1.2, "price": float(_futures_prices.get("IC", 5500.0)), "name": "中证500"},
+    "IM": {"multiplier": 200, "beta": 1.1, "price": float(_futures_prices.get("IM", 5800.0)), "name": "中证1000"},
 }
+
+if not _config_path.exists():
+    logger.warning("[OFFLINE_ONLY] 未找到配置文件 %s, 使用硬编码期货行情 IF=3800/IC=5500/IM=5800, "
+                    "实盘前必须替换为实时数据源", _config_path)
+else:
+    logger.info("[OFFLINE_CONFIG] 已从 %s 读取期货行情", _config_path)
 
 # 选择期货合约
 if portfolio_beta_est > 1.1:
@@ -133,7 +163,7 @@ logger.info("-" * 70)
 logger.info("2. 波动率对冲 (期权保护)")
 logger.info("-" * 70)
 
-vix = 25.0
+vix = float(_config.get("vix", 25.0))
 vix_trigger = 30.0
 vix_emergency = 60.0
 
@@ -215,7 +245,7 @@ logger.info("-" * 70)
 logger.info("4. 尾部风险对冲 (OTM Put 阶梯)")
 logger.info("-" * 70)
 
-hwm_drawdown = 0.03
+hwm_drawdown = float(_config.get("hwm_drawdown", 0.03))
 bs_loss = 0.0
 
 logger.info(f"当前回撤: {hwm_drawdown * 100:.1f}%")

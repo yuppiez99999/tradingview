@@ -381,6 +381,15 @@ def execute_hedge_orders(
         multiplier = float(order.get("multiplier") or OPTION_MULTIPLIER)
         notional_per_contract = underlying_price * multiplier if underlying_price > 0 else 0
 
+        # H14 修复: 标的价缺失时 notional=0 → beta_impact 静默记为 0，对冲 Beta 下降被误报为 0
+        if underlying_price <= 0:
+            logger.warning(
+                "[Hedge] 标的价缺失 instrument=%s underlying=%s — Beta影响无法计算，跳过",
+                order.get("instrument", "?"),
+                _extract_underlying_code(order),
+            )
+            continue
+
         # Delta 影响 (张数 × 单张Delta × 标的市值折算到组合Beta)
         delta_per_contract = _compute_option_delta(order)
         order_delta = delta_per_contract * contracts

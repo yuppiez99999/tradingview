@@ -120,6 +120,120 @@ def _read_fills(date: str) -> List[Dict[str, Any]]:
         return []
 
 
+# positions.json 路径 (与 hedge_order_executor 对齐)
+_POSITIONS_FILE = _PROJECT_ROOT / "config" / "positions.json"
+
+
+def _load_positions() -> Dict[str, Any]:
+    """安全加载 positions.json (fail-open)。"""
+    try:
+        if _POSITIONS_FILE.exists():
+            with open(_POSITIONS_FILE, encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("读取 positions.json 失败: %s", e)
+    return {}
+
+
+def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
+    """原子写入 JSON (先写临时文件再替换), 遵循不可变性."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+
+def apply_fills_to_positions(fills: List[Dict[str, Any]], date: str) -> int:
+    """G2 补齐: 将再平衡撮合成交回报回写 positions.json 真实持仓口径。
+
+    设计铁律 (对齐 hedge_order_executor._update_positions_state):
+        - 遵循不可变性: 深拷贝 positions_data, 不原地修改
+        - 原子写回: _atomic_write_json 先写 .tmp 再 replace
+        - fail-open: 任何异常只记日志, 不阻断执行链路
+        - symbol 精确匹配: 带/不带后缀均尝试归一化 (6位代码)
+
+    Args:
+        fills: FillsStore 读回的当日成交回报列表
+        date: 交易日 YYYY-MM-DD
+
+    Returns:
+        实际更新持仓的标的数 (0 表示无更新)
+    """
+    if not fills:
+        logger.info("apply_fills_to_positions: 无成交回报, 跳过持仓回写")
+        return 0
+
+    positions_data = _load_positions()
+    if not positions_data:
+        logger.warning("apply_fills_to_positions: positions.json 为空/读取失败, 跳过")
+        return 0
+
+    new_data = json.loads(json.dumps(positions_data))  # 深拷贝, 不可变
+    positions = new_data.setdefault("positions", {})
+
+    updated = 0
+    for rec in fills:
+        symbol = str(rec.get("symbol", "") or "").strip()
+        side = str(rec.get("side", "") or "").strip().upper()
+        try:
+            qty = float(rec.get("filled_qty", 0) or 0)
+            price = float(rec.get("avg_price", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        if not symbol or qty <= 0 or price <= 0:
+            continue
+
+        # symbol 归一化: 提取 6 位纯数字代码 (忽略 .SH/.SZ 后缀)
+        sym_num = symbol.split(".")[0]
+        # 双向匹配: 直接 key 命中, 或 positions key 的数字前缀命中
+        target_key = None
+        if symbol in positions:
+            target_key = symbol
+        elif sym_num in positions:
+            target_key = sym_num
+        else:
+            for k in positions:
+                if k.split(".")[0] == sym_num:
+                    target_key = k
+                    break
+        if target_key is None:
+            logger.debug("apply_fills_to_positions: 标的 %s 不在 positions, 跳过", symbol)
+            continue
+        target = positions[target_key]
+
+        old_shares = float(target.get("shares", 0) or 0)
+        if side == "BUY":
+            new_shares = old_shares + qty
+        elif side == "SELL":
+            new_shares = old_shares - qty
+        else:
+            continue
+
+        # 不可变更新: 新建内层 dict
+        updated_target = dict(target)
+        updated_target["shares"] = new_shares
+        updated_target["amount"] = round(new_shares * price, 2)
+        updated_target["last_rebalance_update"] = date
+        updated_target["last_rebalance_price"] = price
+        positions[target_key] = updated_target
+        updated += 1
+        logger.info(
+            "持仓回写 %s: %s %.0f 股 @ %.4f -> shares %.0f -> %.0f",
+            target_key, side, qty, price, old_shares, new_shares,
+        )
+
+    if updated:
+        # 更新 meta 时间戳
+        meta = new_data.setdefault("meta", {})
+        meta["last_rebalance_execution"] = date
+        meta["last_modified"] = datetime.now().isoformat()
+        _atomic_write_json(_POSITIONS_FILE, new_data)
+        logger.info("positions.json 已更新 %d 个标的持仓 (再平衡撮合)", updated)
+
+    return updated
+
+
 def _run_tca_on_fills(fills: List[Dict[str, Any]], date: str) -> Dict[str, Any]:
     """G4: 用成交回报事实源驱动 TCA 执行后归因 (复用模块级 ingest_fills_from_store)。
 
@@ -189,7 +303,11 @@ def execute_rebalance_orders(date: Optional[str] = None, dry_run: bool = False) 
         result["tca"] = _run_tca_on_fills(fills, trade_date)
 
         if not dry_run:
-            logger.info("再平衡撮合闭环完成, 成交 %d 笔已落盘 FillsStore", result["filled"])
+            # G2 补齐: 非 dry-run 模式, 将成交回报回写 positions.json 真实持仓
+            updated = apply_fills_to_positions(fills, trade_date)
+            result["positions_updated"] = updated
+            logger.info("再平衡撮合闭环完成, 成交 %d 笔已落盘 FillsStore, 持仓回写 %d 个标的",
+                        result["filled"], updated)
         else:
             logger.info("DRY-RUN: 已完成生成+撮合评估, 未更新持仓")
     except Exception as e:  # noqa: BLE001  # fail-close, 记录但不下断言崩溃

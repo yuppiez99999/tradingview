@@ -1350,7 +1350,7 @@ def _sync_positions_idempotent(target_date_str: str, confirmed: list, positions:
         # 改用 _infer_suffix 动态推断交易所后缀。
         full_code = next(
             (i["full_code"] for i in confirmed if i.get("code") == code),
-            f"{code}.{_infer_suffix(code)}",
+            _infer_suffix(code),
         )
         qty = r.get("qty", 0)
         fill_price = r.get("fill_price", 0.0)
@@ -1595,10 +1595,21 @@ def execute_instructions(target_date_str: str) -> Dict:
         return result
 
     # 首次执行: 累加 build_progress + 同步 positions.json
+    # GLM-5.2 C1(#16) 修复: 幂等去重, 防进程在 progress 写成功后/positions 写前崩溃导致重跑双重建仓
+    # 幂等键 = (full_code, qty), 已在 progress["executed_instruction_keys"] 持久化的指令直接跳过
+    executed_keys = set(progress.get("executed_instruction_keys", []))
     execution_results = []
     for inst in confirmed:
+        ide_key = f"{inst['full_code']}:{inst.get('qty', 0)}"
+        if ide_key in executed_keys:
+            logger.warning(f"[C1幂等] 指令 {ide_key} 已执行过, 跳过 (防双重建仓)")
+            continue
         result = _execute_single_instruction(inst, wt_modules, progress, positions)
-        execution_results.append(result)
+        if result.get("status") == "SKIPPED":
+            logger.warning("[SKIP] 指令 %s 被跳过，不计入执行结果，允许后续重试", ide_key)
+        else:
+            execution_results.append(result)
+            executed_keys.add(ide_key)
 
     # 记录每日执行
     progress.setdefault("daily_records", []).append(
@@ -1606,18 +1617,29 @@ def execute_instructions(target_date_str: str) -> Dict:
             "date": target_date_str,
             "executed_count": len(execution_results),
             "total_amount": sum(r["fill_amount"] for r in execution_results),
-            "total_built_after": progress["total_built"],
+            "total_built_after": progress.get("total_built", 0) + sum(r.get("fill_amount", 0) for r in execution_results),
             "executed_at": datetime.now().isoformat(),
         }
     )
+    # 持久化已执行指令键 (必须在 save_build_progress 前写入, 使 progress 写成功即代表已执行)
+    progress["executed_instruction_keys"] = list(executed_keys)
 
-    # 保存顺序: 先 progress (执行日志, 可重放) 后 positions (最终状态)
-    # 若 progress 写失败 → positions 未更新, 可重新执行 (幂等)
-    # 若 positions 写失败 → progress 已记录, 可从 progress 恢复 positions
+    # GLM-5.2 C1(#16) 修复: fail-closed 语义
+    # 保存顺序: 先 progress (执行日志+幂等键, 可重放) 后 positions (最终状态)
+    # 若 progress 写失败 → 必须 fail-closed 中断, 禁止继续写 positions.
+    #   原因: progress 未记录 executed_instruction_keys, 若此时更新 positions 会导致重跑时
+    #         progress 判 already_executed=False → 重新执行全部指令 → 双重建仓 (致命).
+    #   正确行为: progress 写失败则本次执行整体回滚, 留出人工/自动恢复窗口, 而非带病前进.
+    # 若 positions 写失败 → progress 已记录 executed_instruction_keys, 重跑跳过已执行指令 (C1修复)
     try:
         save_build_progress(progress)
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
-        logger.error(f"[ERROR] save_build_progress 失败: {e}, 继续写入 positions 以便后续恢复")
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"[CRITICAL][C1] save_build_progress 失败: {e}, 中止写入 positions 以防双重建仓")
+        return {
+            "status": "error",
+            "reason": f"build_progress 持久化失败: {e}",
+            "executed_keys": list(executed_keys),
+        }
     # 保存 positions.json (P0-C1: 原子写, 防并发/崩溃写坏)
     positions_data["positions"] = positions
     atomic_write_json(POSITIONS_FILE, positions_data)

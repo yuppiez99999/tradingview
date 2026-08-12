@@ -20,7 +20,7 @@ import random
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional, TypedDict
 
 logger = logging.getLogger("daily_trading_workflow")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -29,12 +29,131 @@ BASE_DIR = Path(__file__).resolve().parent
 CONFIG_DIR = BASE_DIR / "config"
 TRADE_PLANS_DIR = BASE_DIR / "trade_plans"
 REPORTS_DIR = BASE_DIR / "reports"
+STATE_DIR = BASE_DIR / "reports" / "workflow_state"
 
 # 确保输出目录存在
 TRADE_PLANS_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)
+STATE_DIR.mkdir(parents=True, exist_ok=True)
 
 TODAY = datetime.now().strftime("%Y%m%d")
+
+# 模拟行情数据来源标识 (避免硬编码散落)
+MOCK_SOURCE = "模拟数据 (random seed=42)"
+
+# ============================================================
+# 类型定义 (类型契约)
+# ============================================================
+class PositionDict(TypedDict, total=False):
+    """持仓字典类型契约"""
+    code: str
+    name: str
+    shares: int
+    avg_cost: float
+    est_price: float
+    strategy: str  # H-4 预防: 持仓归属策略
+
+
+class MarketDataDict(TypedDict):
+    """行情数据字典类型契约"""
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+    change_pct: float
+
+
+class SignalDict(TypedDict):
+    """信号字典类型契约"""
+    code: str
+    name: str
+    shares: int
+    cost: float
+    close: float
+    market_value: float
+    pnl: float
+    pnl_pct: float
+    change_pct: float
+    signal: str
+
+
+class PortfolioSummaryDict(TypedDict):
+    """组合摘要类型契约"""
+    total_capital: float
+    total_market_value: float
+    total_cost: float
+    total_pnl: float
+    total_pnl_pct: float
+    position_count: int
+
+
+# ============================================================
+# 状态持久化 (预防 H-3/H-5: 风控/回撤状态丢失)
+# ============================================================
+def _save_workflow_state(state: Dict[str, Any], state_name: str) -> Path:
+    """保存工作流状态到磁盘
+
+    Args:
+        state: 状态字典
+        state_name: 状态名称 (如 'risk_state', 'drawdown_state')
+
+    Returns:
+        保存的文件路径
+    """
+    state_file = STATE_DIR / f"{state_name}_{TODAY}.json"
+    try:
+        with open(state_file, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+        logger.debug("状态已保存: %s (%d 键)", state_file.name, len(state))
+    except Exception as e:
+        logger.warning("保存状态失败 %s: %s", state_file, e)
+    return state_file
+
+
+def _load_workflow_state(state_name: str) -> Dict[str, Any]:
+    """从磁盘加载工作流状态
+
+    Args:
+        state_name: 状态名称
+
+    Returns:
+        状态字典, 不存在则返回空字典
+    """
+    state_file = STATE_DIR / f"{state_name}_{TODAY}.json"
+    if not state_file.exists():
+        return {}
+    try:
+        with open(state_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning("加载状态失败 %s: %s", state_file, e)
+        return {}
+
+
+def _load_positions() -> Dict[str, Any]:
+    """读取 positions.json"""
+    positions_file = _resolve_path("config/positions.json")
+    with open(positions_file, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _resolve_path(relative_path: str) -> Path:
+    """解析相对路径为绝对路径 (预防路径配置化问题)
+
+    Args:
+        relative_path: 相对于项目根目录的路径
+
+    Returns:
+        绝对 Path 对象
+    """
+    # 支持正斜杠/反斜杠混用
+    normalized = relative_path.replace("/", os.sep).replace("\\", os.sep)
+    path = BASE_DIR / normalized
+    if not path.exists():
+        # 尝试直接解析 (如果已经是绝对路径)
+        path = Path(relative_path)
+    return path
 
 
 # ============================================================
@@ -75,8 +194,9 @@ def _generate_mock_market_data(positions: Dict[str, Any]) -> Dict[str, Dict[str,
             logger.warning("读取外部行情文件失败, 降级为内部生成: %s", e)
 
     # 降级: 内部随机生成 (seed=42, 可复现)
+    # 修复: 使用局部 Random 实例, 避免污染进程全局 random 状态 (影响其他模块)
     logger.info("使用内部模拟行情 (seed=42)")
-    random.seed(42)  # 可复现
+    _rng = random.Random(42)
     market_data = {}
 
     for code, pos in positions.items():
@@ -87,12 +207,12 @@ def _generate_mock_market_data(positions: Dict[str, Any]) -> Dict[str, Dict[str,
             continue
 
         # 模拟日内波动: -3% ~ +3%
-        change_pct = random.uniform(-0.03, 0.03)
+        change_pct = _rng.uniform(-0.03, 0.03)
         open_price = base_price
         close_price = round(base_price * (1 + change_pct), 3)
-        high_price = round(max(open_price, close_price) * (1 + random.uniform(0, 0.015)), 3)
-        low_price = round(min(open_price, close_price) * (1 - random.uniform(0, 0.015)), 3)
-        volume = random.randint(1000, 50000)
+        high_price = round(max(open_price, close_price) * (1 + _rng.uniform(0, 0.015)), 3)
+        low_price = round(min(open_price, close_price) * (1 - _rng.uniform(0, 0.015)), 3)
+        volume = _rng.randint(1000, 50000)
 
         market_data[code] = {
             "open": open_price,
@@ -108,7 +228,7 @@ def _generate_mock_market_data(positions: Dict[str, Any]) -> Dict[str, Dict[str,
 
 def _load_positions() -> Dict[str, Any]:
     """读取 positions.json"""
-    positions_file = CONFIG_DIR / "positions.json"
+    positions_file = _resolve_path("config/positions.json")
     with open(positions_file, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -251,12 +371,10 @@ def run_intraday() -> Dict[str, Any]:
 
         # 模拟信号: 基于涨跌幅
         change = md.get("change_pct", 0)
-        if change > 2:
-            signal = "HOLD"  # 涨幅较大, 持有
-        elif change < -2:
+        if change < -2:
             signal = "WATCH"  # 跌幅较大, 关注
         else:
-            signal = "HOLD"
+            signal = "HOLD"  # 涨幅较大或平稳, 持有
 
         signals.append({
             "code": code,
@@ -275,7 +393,7 @@ def run_intraday() -> Dict[str, Any]:
         "date": TODAY,
         "phase": "intraday",
         "generated_at": datetime.now().isoformat(),
-        "market_data_source": "模拟数据 (random seed=42)",
+        "market_data_source": MOCK_SOURCE,
         "summary": {
             "total_positions": len(signals),
             "winners": winners,
@@ -413,13 +531,27 @@ def run_postmarket() -> Dict[str, Any]:
               f"{hedge_execution_result.get('beta_after_hedge', 0):.4f})")
     except Exception as e:
         print(f"  ⚠️ 期权对冲执行器调用失败: {e}")
+        hedge_execution_result = {"error": str(e)}
+
+    # ★ 再平衡撮合执行器 (G2/G4 修复: 补齐"订单→撮合→成交回报→持仓回写"闭环)
+    # 在 hedge_orders 生成后执行再平衡 PENDING 订单, 产出 FillsStore + 回写 positions.json
+    rebalance_execution_result: Dict[str, Any] = {}
+    try:
+        from rebalance_order_executor import execute_rebalance_orders
+        rebalance_execution_result = execute_rebalance_orders(date=TODAY)
+        n_filled = rebalance_execution_result.get("filled", 0)
+        n_updated = rebalance_execution_result.get("positions_updated", 0)
+        print(f"  ✅ 再平衡撮合执行器: 成交 {n_filled} 笔 | 持仓回写 {n_updated} 个标的")
+    except Exception as e:
+        print(f"  ⚠️ 再平衡撮合执行器调用失败: {e}")
+        rebalance_execution_result = {"error": str(e)}
 
     # 生成报告
     report = {
         "date": TODAY,
         "phase": "postmarket",
         "generated_at": datetime.now().isoformat(),
-        "market_data_source": "模拟数据 (random seed=42)",
+        "market_data_source": MOCK_SOURCE,
         "portfolio_summary": {
             "total_capital": meta.get("total_capital", 0),
             "total_market_value": round(total_market_value, 2),
