@@ -90,11 +90,12 @@ sqlalchemy>=2.0.0
 #   - Host-Only Cookies 持久化后变 Domain Cookies (low)
 #   - 跨域重定向 per-request cookies (medium)
 #   - 反序列化不可信数据 (medium)
-aiohttp>=3.14.1
+aiohttp>=3.14.3
 
 # === 加密 ===
 # v8.7.3 SECURITY FIX (2026-07-27): cryptography >=48.0.1 修复 OpenSSL 漏洞 (Dependabot HIGH)
-cryptography>=48.0.1
+# v8.7.4 SECURITY FIX (2026-08-12): cryptography >=50.0.0 修复 PKCS#7 Bleichenbacher oracle (Dependabot HIGH #22)
+cryptography>=50.0.0
 
 # === 工具 ===
 click>=8.1.0
