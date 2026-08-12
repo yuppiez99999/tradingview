@@ -22,6 +22,13 @@ py-version = 3.11
 # 作业数 (并行检查)
 jobs = 2
 
+# T02 (2026-08-12): broad-exception-caught 升级为 error 级阻断
+# pylint 3.x 把 broad-except 重命名为 broad-exception-caught (W0718)
+# 任何 except Exception / except BaseException 命中即让 pylint 退出码非零
+# 三重门禁: ruff BLE001 增量零新增 + pylint --fail-on 全量阻断 + engineering_debt_gate T7 监控
+# 注意: pylint 3.2.7 对 except Exception as e 的检测不稳定, 实际阻断依赖 ruff BLE001 + T7
+fail-on = broad-exception-caught
+
 [MESSAGES CONTROL]
 # 启用所有检查 + 显式禁用部分噪音
 enable = all
@@ -56,7 +63,8 @@ disable =
     wrong-import-position,     # 函数内动态导入是合法模式
     wrong-import-order,        # 项目允许标准库与第三方混合导入
     ungrouped-imports,
-    # broad-except 已启用 (T02, 2026-07-27): 风控路径禁止 broad exception
+    # broad-except (W0718) 未在 disable 列表, 默认启用为 warning
+    # T02 升级 (2026-08-12): 通过 [MAIN] fail-on 固化为 error 级阻断, 详见 ci.yml + engineering_debt_gate T7
     duplicate-code,            # 多 Broker 适配器有重复
     protected-access,          # 内部协调器需要访问 _ 私有方法
     unused-argument,           # 接口预留参数 (如 price_limit)

@@ -51,13 +51,14 @@ exclude_lines =
     if TYPE_CHECKING:
     @abstractmethod
 
-# 最低覆盖率阈值 (G7 渐进式提升计划, 2026-08-12 冻结基线)
-# 冻结基线真实值 = 39.58% (定向跑: tests/unit + 核心根测试, ms_strategy 因无触发测试未纳入)
-# 阶段 1 门禁 = 35% (留 4.5pp 安全边际, 不误杀 CI)
+# 最低覆盖率阈值 (T03 升级 2026-08-12: 配套 engineering_debt_gate T8 退化检测)
+# 冻结基线真实值 = 42.00% (reports/ci/coverage_baseline.json, 2026-08-12 12:43:45 冻结)
+# 当前实测 = 43.07% (delta=+0.0107, 未退化)
+# 阶段 1 门禁 = 38% (留 4pp 安全边际, T03 升级从 35% 提升)
 # 阶段 2 目标 = 70% (补 ms_strategy 测试 + 核心模块增量)
 # 阶段 3 目标 = 80% (计划 L50 最终目标)
-# 注意: 65.20% 为过时注释, 实际定向基线下修至 39.58%
-fail_under = 35
+# 退化检测: engineering_debt_gate T8 同步检查 coverage.xml vs baseline.json, 退化 >2pp 即 YELLOW
+fail_under = 38
 
 [html]
 directory = htmlcov
