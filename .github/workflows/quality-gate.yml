@@ -1,0 +1,91 @@
+name: Quality Gate (PR Incremental)
+
+# R4 修复项：PR 增量质量门禁。
+# 在每次 Pull Request 时运行，对变更文件执行增量检查：
+#   1. ruff 增量零新增门禁 (scripts/ruff_incremental_gate.py)
+#   2. P0 生产文件 print() 门禁 (scripts/check_no_print_p0.py)
+#   3. 工作区变更数上限门禁 (<=100 未提交文件)
+#   4. CI 引用完整性门禁 (scripts/ci_integrity_check.py)
+# 任何一项失败都会阻断合并。
+
+on:
+  pull_request:
+    branches: [main, master, "1"]
+  push:
+    branches: [main, master, "1"]
+
+jobs:
+  quality-gate:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 需要完整 git 历史以计算 PR 增量
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+
+      - name: Get changed files
+        id: changed-files
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_EVENT_NAME -eq "pull_request") {
+            $base = "origin/${{ github.base_ref }}"
+            git fetch origin ${{ github.base_ref }} --depth=1
+          } else {
+            $base = "HEAD~1"
+          }
+          $files = git diff --name-only --diff-filter=ACMR $base HEAD | Where-Object { $_ -match '\.py$' }
+          $fileList = $files -join ' '
+          Write-Output "changed_files=$fileList" >> $env:GITHUB_OUTPUT
+          Write-Output "Changed Python files: $fileList"
+
+      - name: Ruff incremental gate
+        shell: pwsh
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          $files = "${{ steps.changed-files.outputs.changed_files }}"
+          if ([string]::IsNullOrWhiteSpace($files)) {
+            Write-Output "[RUFF-GATE] No Python files changed, skip."
+            exit 0
+          }
+          python scripts/ruff_incremental_gate.py $files
+
+      - name: P0 print guard
+        shell: pwsh
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          $files = "${{ steps.changed-files.outputs.changed_files }}"
+          if ([string]::IsNullOrWhiteSpace($files)) {
+            Write-Output "[PRINT-GATE] No Python files changed, skip."
+            exit 0
+          }
+          python scripts/check_no_print_p0.py $files
+
+      - name: Workspace change count guard
+        shell: pwsh
+        run: |
+          $max = 100
+          $changed = (git status --short).Length
+          Write-Output "[WORKSPACE-GATE] changed/untracked files: $changed (max $max)"
+          if ($changed -gt $max) {
+            Write-Output "[WORKSPACE-GATE][FAIL] too many uncommitted changes ($changed > $max)"
+            exit 1
+          }
+
+      - name: CI integrity check
+        shell: pwsh
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          python scripts/ci_integrity_check.py --strict

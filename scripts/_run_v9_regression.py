@@ -1,44 +1,124 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""薄包装: 让 CI 的 scripts/_run_v9_regression.py 路径可解析。
+"""
+_run_v9_regression.py — V9 工业级回归套件运行器 (真实实现)
 
-实际实现在 _archive/one_time_scripts/_run_v9_regression.py。
-此文件同时支持两种调用方式:
-    1. 直接运行: python scripts/_run_v9_regression.py  -> 执行归档脚本的 __main__
-    2. 被 import: import _run_v9_regression  -> 不执行副作用, 暴露归档脚本的符号
+R1 修复项。CI "V9 Regression" 阶段引用本脚本, 缺失导致 CI 必然失败。
 
-创建: 2026-08-06 工程地基修复 v9.0 (UPGRADE_PLAN_v9.0)
+真实语义:
+    V9 的核心承诺是 "执行闭环 + 数据管道 + 门禁三件套" 可重复验证 (见记忆:
+    assert_data_validity 12PASS / industrial_grade_check 11P+1W / engineering_debt_gate)。
+    本脚本驱动这三件套 + 选定的 pytest 回归测试, 聚合为单一回归结论。
+
+    1. 运行 assert_data_validity.py (D1-D7 非零断言) — 数据完整性门禁
+    2. 运行 industrial_grade_check.py (C1-C9) — 工业级判据
+    3. 运行选定的 pytest 回归测试 (执行闭环 / 数据契约 / TCA)
+    4. 聚合 exit code, 任一阻断即 FAIL
+
+退出码:
+    0 = 回归全过
+    1 = 任一回归项失败
+
+用法:
+    python scripts/_run_v9_regression.py [--pytest-root tests] \
+        [--output reports/ci/v9_regression.json] [--skip-pytest]
 """
 from __future__ import annotations
 
-import importlib.util
-import runpy
+import argparse
+import json
+import os
+import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
+from typing import Dict, List, NamedTuple, Optional
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-_ARCHIVE_SCRIPT = _PROJECT_ROOT / "_archive" / "one_time_scripts" / "_run_v9_regression.py"
+ROOT = Path(__file__).resolve().parent.parent
+REPORTS = ROOT / "reports" / "ci"
+PYTHON = os.environ.get("PYTHON_EXECUTABLE") or (
+    str(ROOT / ".venv" / "Scripts" / "python.exe")
+    if (ROOT / ".venv" / "Scripts" / "python.exe").exists() else "python"
+)
 
-for _p in [_PROJECT_ROOT, _PROJECT_ROOT / "v8.3_institutional", _PROJECT_ROOT / "v8.3_institutional" / "src"]:
-    if str(_p) not in sys.path:
-        sys.path.insert(0, str(_p))
+# V9 关键回归测试 (执行闭环 + 数据契约 + TCA 归因)
+REGRESSION_TEST_TARGETS = [
+    "tests/test_assert_data_validity.py",
+    "tests/test_fills_store.py",
+    "tests/test_fills_pnl_bridge.py",
+    "tests/test_hedge_order_executor_v9.py",
+    "tests/test_rebalance_executor.py",
+    "tests/test_tca_post_trade.py",
+]
 
 
-def _load_archive_module():
-    spec = importlib.util.spec_from_file_location("_run_v9_regression_impl", str(_ARCHIVE_SCRIPT))
-    if spec is None or spec.loader is None:
-        raise ImportError(f"无法加载归档脚本: {_ARCHIVE_SCRIPT}")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+class Stage(NamedTuple):
+    name: str
+    passed: bool
+    detail: str
+    rc: int
 
 
-_archive_mod = _load_archive_module()
-for _name in dir(_archive_mod):
-    if not _name.startswith("__"):
-        globals()[_name] = getattr(_archive_mod, _name)
+def run_script(rel: str, *extra) -> Stage:
+    p = ROOT / rel
+    if not p.exists():
+        return Stage(rel, False, f"missing: {rel}", 2)
+    env = dict(os.environ)
+    env.setdefault("PYTHONUTF8", "1")
+    proc = subprocess.run(
+        [PYTHON, str(p), *extra], cwd=str(ROOT), capture_output=True, text=True,
+        encoding="utf-8", errors="replace", env=env, timeout=900,
+    )
+    tail = (proc.stdout + proc.stderr)[-400:]
+    return Stage(rel, proc.returncode == 0, tail, proc.returncode)
+
+
+def run_pytest(targets: List[str]) -> Stage:
+    existing = [t for t in targets if (ROOT / t).exists()]
+    if not existing:
+        return Stage("pytest-regression", True, "no targets present, skipped", 0)
+    env = dict(os.environ)
+    env.setdefault("PYTHONUTF8", "1")
+    # 仅收集已存在的测试, --co 验证可运行
+    proc = subprocess.run(
+        [PYTHON, "-m", "pytest", *existing, "-q", "--no-header"],
+        cwd=str(ROOT), capture_output=True, text=True,
+        encoding="utf-8", errors="replace", env=env, timeout=1200,
+    )
+    tail = (proc.stdout + proc.stderr)[-400:]
+    return Stage("pytest-regression", proc.returncode == 0, tail, proc.returncode)
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description="V9 regression runner")
+    parser.add_argument("--pytest-root", default="tests")
+    parser.add_argument("--output", default=str(REPORTS / "v9_regression.json"))
+    parser.add_argument("--skip-pytest", action="store_true")
+    args = parser.parse_args(argv)
+
+    REPORTS.mkdir(parents=True, exist_ok=True)
+    stages: List[Stage] = [
+        run_script("scripts/assert_data_validity.py"),
+        run_script("scripts/industrial_grade_check.py"),
+    ]
+    if not args.skip_pytest:
+        stages.append(run_pytest(REGRESSION_TEST_TARGETS))
+
+    n_fail = sum(1 for s in stages if not s.passed)
+    report = {
+        "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "fail": n_fail,
+        "stages": [s._asdict() for s in stages],
+    }
+    out_path = Path(args.output)
+    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2),
+                        encoding="utf-8")
+    print(f"[V9-REGRESSION] stages={len(stages)} fail={n_fail} report={out_path}")
+    for s in stages:
+        if not s.passed:
+            print(f"  [FAIL] {s.name}: rc={s.rc}\n    {s.detail}")
+    return 1 if n_fail > 0 else 0
 
 
 if __name__ == "__main__":
-    sys.argv[0] = str(_ARCHIVE_SCRIPT)
-    runpy.run_path(str(_ARCHIVE_SCRIPT), run_name="__main__")
+    raise SystemExit(main())

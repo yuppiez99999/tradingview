@@ -1,44 +1,213 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""薄包装: 让 CI 的 scripts/_select_tests_by_diff.py 路径可解析。
+"""
+_select_tests_by_diff.py — 基于 git diff 的 AST 智能选测 (真实实现)
 
-实际实现在 _archive/one_time_scripts/_select_tests_by_diff.py。
-此文件同时支持两种调用方式:
-    1. 直接运行: python scripts/_select_tests_by_diff.py  -> 执行归档脚本的 __main__
-    2. 被 import: import _select_tests_by_diff  -> 不执行副作用, 暴露归档脚本的符号
+R1 修复项。CI "Smart Test Selection" 阶段引用本脚本, 缺失导致 CI 必然失败。
 
-创建: 2026-08-06 工程地基修复 v9.0 (UPGRADE_PLAN_v9.0)
+真实语义:
+    利用 git diff (PR 分支 vs 目标分支) 确定本次变更的生产代码文件,
+    通过 AST 解析构建模块级 import 依赖图, 反向推断 (reverse BFS) 哪些
+    测试文件会受这些变更影响, 输出一个 pytest 可消费的选择集。
+
+输出约定 (stdout, 供 CI 管道消费):
+    ALL               -> 变更影响面过大 / 无法判定, 运行全量测试
+    NONE              -> 无生产代码变更, 跳过测试
+    tests/foo.py tests/bar.py ...   -> 受影响测试文件列表 (空格分隔)
+
+退出码:
+    0 = 正常输出选择集 (无论 ALL/NONE/列表)
+    2 = 入参错误或 git 不可用 (由调用方决定是否 fail-close)
+
+用法:
+    python scripts/_select_tests_by_diff.py \
+        --base origin/main --head HEAD \
+        [--tests-root tests] [--max-diff-files 40] [--output-file reports/ci/selected_tests.txt]
 """
 from __future__ import annotations
 
-import importlib.util
-import runpy
+import argparse
+import ast
+import json
+import os
+import subprocess
 import sys
+from collections import defaultdict, deque
 from pathlib import Path
+from typing import Dict, List, Optional, Set
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-_ARCHIVE_SCRIPT = _PROJECT_ROOT / "_archive" / "one_time_scripts" / "_select_tests_by_diff.py"
-
-for _p in [_PROJECT_ROOT, _PROJECT_ROOT / "v8.3_institutional", _PROJECT_ROOT / "v8.3_institutional" / "src"]:
-    if str(_p) not in sys.path:
-        sys.path.insert(0, str(_p))
+ROOT = Path(__file__).resolve().parent.parent
 
 
-def _load_archive_module():
-    spec = importlib.util.spec_from_file_location("_select_tests_by_diff_impl", str(_ARCHIVE_SCRIPT))
-    if spec is None or spec.loader is None:
-        raise ImportError(f"无法加载归档脚本: {_ARCHIVE_SCRIPT}")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+def run_git(args: List[str]) -> str:
+    env = dict(os.environ)
+    env.setdefault("PYTHONUTF8", "1")
+    proc = subprocess.run(
+        ["git"] + args, cwd=str(ROOT), capture_output=True, text=True,
+        encoding="utf-8", errors="replace", env=env, timeout=120,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
+    return proc.stdout
 
 
-_archive_mod = _load_archive_module()
-for _name in dir(_archive_mod):
-    if not _name.startswith("__"):
-        globals()[_name] = getattr(_archive_mod, _name)
+def get_changed_files(base: str, head: str) -> List[str]:
+    # 优先 merge-base (准确反映 PR 增量)
+    try:
+        mb = run_git(["merge-base", base, head]).strip()
+        range_spec = f"{mb}...{head}"
+    except RuntimeError:
+        range_spec = f"{base}...{head}"
+    out = run_git(["diff", "--name-only", "--diff-filter=ACMR", range_spec])
+    return [ln.strip() for ln in out.splitlines() if ln.strip()]
+
+
+def module_name_of(py_path: Path) -> str:
+    """将仓库内 .py 路径映射为可 import 的模块名 (点分)."""
+    rel = py_path.resolve().relative_to(ROOT)
+    parts = list(rel.with_suffix("").parts)
+    return ".".join(parts)
+
+
+def build_import_graph(py_files: List[Path]) -> Dict[str, Set[str]]:
+    """解析每个生产模块 import 的其它仓库内模块, 返回 模块->被依赖模块集合.
+
+    同时返回 反向图 (被依赖 -> 依赖者), 用于反向 BFS。
+    """
+    graph: Dict[str, Set[str]] = {}
+    for p in py_files:
+        mod = module_name_of(p)
+        imports: Set[str] = set()
+        try:
+            tree = ast.parse(p.read_text(encoding="utf-8", errors="replace"))
+        except Exception:
+            graph[mod] = imports
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imports.add(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    imports.add(node.module)
+        graph[mod] = imports
+    return graph
+
+
+def reverse_graph(graph: Dict[str, Set[str]]) -> Dict[str, Set[str]]:
+    rev: Dict[str, Set[str]] = defaultdict(set)
+    for mod, deps in graph.items():
+        for d in deps:
+            rev[d].add(mod)
+    return rev
+
+
+def collect_py_roots(roots: List[str]) -> List[Path]:
+    out: List[Path] = []
+    for r in roots:
+        rp = ROOT / r
+        if rp.is_file() and rp.suffix == ".py":
+            out.append(rp)
+        elif rp.is_dir():
+            out.extend(rp.rglob("*.py"))
+    return out
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description="AST-based smart test selection")
+    parser.add_argument("--base", default="origin/main")
+    parser.add_argument("--head", default="HEAD")
+    parser.add_argument("--tests-root", default="tests")
+    parser.add_argument("--max-diff-files", type=int, default=40)
+    parser.add_argument("--output-file", default=str(ROOT / "reports" / "ci" / "selected_tests.txt"))
+    parser.add_argument("--diff-file-list", default=None,
+                        help="可选: 直接传入变更文件列表 (逗号分隔), 跳过 git diff")
+    args = parser.parse_args(argv)
+
+    out_path = Path(args.output_file)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1. 变更文件
+    if args.diff_file_list:
+        changed = [c for c in args.diff_file_list.split(",") if c.strip()]
+    else:
+        try:
+            changed = get_changed_files(args.base, args.head)
+        except RuntimeError as e:
+            # git 不可用 / 无远端 -> fail-open 返回 ALL (运行全量)
+            print("ALL", file=sys.stderr)
+            print(f"[SELECT-TESTS][WARN] {e}; defaulting to ALL", file=sys.stderr)
+            out_path.write_text("ALL\n", encoding="utf-8")
+            return 0
+
+    # 仅看仓库内的 .py 变更
+    changed_py = [c for c in changed if c.endswith(".py") and (ROOT / c).exists()]
+    changed_prod = [c for c in changed_py
+                    if not c.startswith(args.tests_root + "/") and c != "tests"]
+
+    if not changed:
+        out_path.write_text("NONE\n", encoding="utf-8")
+        print("NONE")
+        return 0
+
+    # 变更面过大 -> ALL
+    if len(changed_prod) > args.max_diff_files:
+        out_path.write_text("ALL\n", encoding="utf-8")
+        print("ALL")
+        return 0
+
+    # 2. 构建依赖图
+    prod_roots = ["scripts", "utils", "ai_decision", "cli", "core",
+                  "quant_modules", "lgb_trainer", "v8.3_institutional",
+                  "15_每日工作流", "."]
+    prod_files = collect_py_roots(prod_roots)
+    # 仅保留仓库内的非测试文件
+    prod_files = [p for p in prod_files
+                  if not str(p).replace("\\", "/").startswith(args.tests_root + "/")]
+    graph = build_import_graph(prod_files)
+    rev = reverse_graph(graph)
+
+    # 3. 反向 BFS: 从变更的模块名找出所有 (间接) 依赖它的模块
+    changed_mods = {module_name_of(ROOT / c) for c in changed_prod}
+    affected: Set[str] = set()
+    queue = deque(changed_mods)
+    while queue:
+        m = queue.popleft()
+        affected.add(m)
+        for dependent in rev.get(m, ()):
+            if dependent not in affected:
+                queue.append(dependent)
+
+    # 4. 映射到测试文件: 测试文件若 import 了 affected 模块, 则选中
+    test_files = collect_py_roots([args.tests_root])
+    selected: List[str] = []
+    for tf in test_files:
+        tmod = module_name_of(tf)
+        try:
+            tree = ast.parse(tf.read_text(encoding="utf-8", errors="replace"))
+        except Exception:
+            continue
+        tf_imports: Set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    tf_imports.add(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    tf_imports.add(node.module)
+        if tf_imports & affected:
+            selected.append(str(tf.resolve().relative_to(ROOT)).replace("\\", "/"))
+
+    if not selected:
+        out_path.write_text("NONE\n", encoding="utf-8")
+        print("NONE")
+        return 0
+
+    result_line = " ".join(selected)
+    out_path.write_text(result_line + "\n", encoding="utf-8")
+    print(result_line)
+    return 0
 
 
 if __name__ == "__main__":
-    sys.argv[0] = str(_ARCHIVE_SCRIPT)
-    runpy.run_path(str(_ARCHIVE_SCRIPT), run_name="__main__")
+    raise SystemExit(main())
