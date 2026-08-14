@@ -3,14 +3,14 @@ type: project_topic
 status: active
 authoring_mode: ai_generated
 created: 2026-08-02
-updated: 2026-08-03
+updated: 2026-08-12
 related:
   - cairn/gnn-supply-chain-factor.md
 ---
 
 # 终极量化交易系统 v8.6.14 路线图
 
-**当前焦点**：Wave 1 自我进化收尾 — T4.2/T4.7 ✅ DONE；W1.3a/b/c (真实数据接入) 全部 ✅ DONE；W1.4 (08-13 决策材料) ✅ DONE — 推荐选项 B 延长观察期至 08-20；Wave 3 Round 5/6 ✅ ALL DONE；Wave 3 第三阶段 (TYPE_IGNORE + SYS_PATH 核心清零) ✅ DONE 2026-08-04；**代码审查修复闭环 ✅ DONE 2026-08-05** (25 项问题 P0/P1/P2/LOW 全部修复, 见 `docs/WORK_REPORT_2026-08-05_代码审查修复闭环.md`)；下一步 DQC Phase 1 启动 或 **本次派生升级点 U1-U7** (见 `docs/SELF_UPGRADE_PLAN_2026-08-05.md`) — 时间窗口 08-04~08-20。**Wave 5 (GNN 因子) 2026-08-03 重大更新**: B1-B5 全套修复后 Gate1 PASS (CHAIN_MOM_60D 反向因子 effICIR=0.503/多空夏普1.766) + Gate2 FAIL (+0.039 增益证伪, 实际+0.0017/+0.0064 t值0.15/0.76不显著) — 决策: Layer 2 回退, GAT 代码保留为研究资产不在生产路径, Layer 1 CHAIN_MOM_60D 推进 S5-S7 入库流程 (S1-S4 已通过, S5 待执行回测, S6/S7 长期任务); 排期时间不变 (10-06~11-30), 与自我进化 Wave 1/2 (09-05 前收尾) 无时间冲突, 仅与 Wave 4 后半 (10-06~10-31) 部分重叠 — W5.2 验证避开 Wave 4 实盘验证窗口
+**当前焦点**：Wave 6 全部提前完成 (2026-08-12, 超前 107-141 天) → **Wave 7 统一整合已设计并启动** (2026-08-13 ~ 12-31, 4 Sprint, 目标 12-31 v8.7 发布)。Wave 7 整合 Wave 1-5 剩余任务 (Phase B 启用 / 实盘验证四件套 / S6-S7 入库 / G6 Phase D) + 工业级差距 (R10 残债 42 处 / daily_workflow ≤3000 / 覆盖率 0.80) + 工程基础层 Phase 0-3 (uv/dotenv/Prefect/DuckDB/LiteLLM) + AutoResearch Skill + ocr/ECC 工具增强。详见 `docs/高价值项目集成排期计划_20260811.md` §7 + `cairn/github-integration-wave6.md` §九。**Wave 5 (GNN 因子) 2026-08-03 重大更新**: B1-B5 全套修复后 Gate1 PASS (CHAIN_MOM_60D 反向因子 effICIR=0.503/多空夏普1.766) + Gate2 FAIL (+0.039 增益证伪, 实际+0.0017/+0.0064 t值0.15/0.76不显著) — 决策: Layer 2 回退, GAT 代码保留为研究资产不在生产路径, Layer 1 CHAIN_MOM_60D 推进 S5-S7 入库流程 (S1-S5 已通过, S6/S7 长期任务, 归入 Wave 7 Sprint 2/3); 排期时间不变 (10-06~11-30), 与自我进化 Wave 1/2 (09-05 前收尾) 无时间冲突, 仅与 Wave 4 后半 (10-06~10-31) 部分重叠 — W5.2 验证避开 Wave 4 实盘验证窗口
 
 ## 里程碑
 
@@ -38,6 +38,7 @@ related:
 - [x] W1.3c (08-11~08-12) StrategyEvaluator 真实评分 — ✅ **DONE 2026-08-03 (提前完成)**: 3/3 验证 PASS (Public/Private 分离 + Flag 透传 + 只读行为). public=0.0 vs private=0.4716, reward_hacking_risk=0.0, pit_violations=0. 样本 5 条不足, 距 20 条差 15 天
 - [x] W1.4 (08-10~08-13) 08-13 决策材料 — ✅ **DONE 2026-08-03**: `docs/自我进化框架/OBSERVATION_PERIOD_DECISION.md` v1.2 完成. 推荐选项 B 延长观察期至 08-20 (样本不足为硬阻塞, 机制本身已验证健康)
 - [x] **决策规则触发**：08-13 时 Shadow 真实样本预计 14 条 <20, **已选定延长观察期至 08-20**, 不做条件性 Go
+  - **2026-08-13 口径校正（更正注记）**：以调度器 `scripts/phase_b_progressive_enabler.py --check` + 真实 `reports/shadow/daily_returns.jsonl` 为准 — 观察期为 **21 天窗口**（`shadow_admission.yaml` observation_days=21），真实样本 **12 条**（07-27~08-11，今日 EOD 未跑），双门槛（21 天 + 样本≥20）均未达 → **观察期维持进行中，今日不决策、不启动 Stage 1（B1）**。调度器预计 Stage 1 评估点 **08-24**（21 天满 + 预热 3 天），早于 ROADMAP 预写的 08-20，差异源于旧简报脚本硬编码 14 天（已修正 `observation_daily_briefing.py` obs_total 14→21 对齐 yaml）。B1-B4 排期以调度器 08-24 评估点为准顺延，Wave 2 以下时间线为计划态。
 
 ### Wave 2：Phase B 渐进启用（08-20 决策通过后 → 09-05, 因决策日延后顺延）
 - [ ] B1 (08-20→23) `USE_DRIFT_DETECTOR=true` 仅告警
@@ -56,11 +57,28 @@ related:
 
 ### Wave 4：工程化达标 + 战略升级（09-05 ~ 10-31）
 - [~] **daily_workflow.py 拆分（6226→≤3000 行）** — 长期架构重构，按 phase 切分。**第 1 轮已完成 2026-08-12** (W6.6.4): 4 leaf phase (check/calibrate/market/autolearn) 提取到 `workflow/phases/`, 6230→5904 行 (-326). 剩余第 2-5 轮 (risk/hedge/signal/execute/report 等 10 phase, ~2900 行) 待后续推进. 详见 `cairn/daily-workflow-split-plan.md`
-- [ ] T02/T03 — pylint broad-except 升级 error + 覆盖率基线
-- [ ] T06-T08 — CPCV/DSR/Noise 残差注入（诚实回测三件套）
-- [ ] Phase 2 (T09-T14) — 不崩风控六件套
-- [ ] Phase 3 (T15-T18) — 实盘验证四件套
-- [ ] G6 LLM 智能进化 — Phase D 策略 Ideation 生成
+- [x] T02/T03 — pylint broad-except 升级 error + 覆盖率基线 — ✅ **DONE 2026-08-12**: `.pylintrc` [MAIN] `fail-on=broad-exception-caught` (pylint 3.x 重命名) + `ci.yml` `--fail-on=broad-exception-caught` 双保险 + `engineering_debt_gate.py` 新增 T7 (裸 except Exception 独立债, 阈值 250, 实测 200 处) + T8 (覆盖率基线退化检测, 基线 0.42 / 当前 0.4307, 退化 >2pp YELLOW) + `.coveragerc` `fail_under` 35→38 + 债务分级重构 (T1-T5 阻断 RED / T6-T8 告警 YELLOW). 三重门禁: ruff BLE001 增量零新增 (主力) + pylint --fail-on (配置就位) + T7 全量监控. 8/8 GREEN. 详见 `cairn/LOG.md` 2026-08-12 T02/T03 条目
+- [x] T06-T08 — CPCV/DSR/Noise 残差注入（诚实回测三件套）— ✅ **DONE 2026-08-12** (W6.6.2): `utils/backtest/honest_validation.py` 三件套编排器 (CPCV + DSR + Noise 联合判定) + `utils/backtest/deflated_sharpe.py` DSR 顶层模块 (W6.6.2 修复静默失败) + `ms_strategy/src/backtest/combinatorial_purged_cv.py` CPCV 内核 + `ms_strategy/src/backtest/noise_injection_test.py` Noise 内核. 端到端验证通过 (随机数据 NOT HONEST 符合预期). 综合判定: `is_honest = DSR.is_pass AND Noise.is_stable AND CPCV CV<0.5`
+- [x] **Phase 2 (T09-T14) — 不崩风控六件套** — ✅ **DONE 2026-08-12**:
+  - T09 PreTradeGuard 预交易风控门 (6 规则: LOT_SIZE / PRICE_BAND / NOTIONAL_CAP / ST_FILTER / WHITELIST / SUSPEND_FILTER, BLOCK+WARN 双模式, 256 行 + 27 测试)
+  - T10 PositionLimitEnforcer 持仓集中度执行器 (单票/行业/净敞口/总杠杆 4 维度, BLOCK+WARN, 246 行 + 11 测试)
+  - T11 IntradayCircuitBreaker 日内熔断器 (连续失败/日内回撤/波动率爆发 3 触发 + CLOSED→OPEN→HALF_OPEN 状态机 + 冷却期, 337 行 + 14 测试)
+  - T12 KillSwitchManager 三级熔断管理 (L1 预警/L2 降仓/L3 强平, 保证金梯度, 321 行 + 13 测试)
+  - T13 TradeOrderReconciler 计划单对账 (覆盖/数量/价格偏差/孤儿成交 4 类问题, 130 行 + 11 测试)
+  - T14 RiskAuditLogger 风控审计 JSONL 日志 (写盘/缓冲/刷新/按日查询/回放, 279 行 + 10 测试)
+  - 端到端: 86/86 单元测试全绿 + industrial_grade_check 11 PASS + engineering_debt_gate 升级为 14/14 GREEN + T9–T14 模块自检 (覆盖率 0.4200 → 0.4307, +1.07pp)
+- [x] **Phase 3 (T15-T18) — 实盘验证四件套** — ✅ **DONE 2026-08-12**:
+  - T15 LiveOrderExecutor 实盘下单编排器 (T09→T10→T12→T11 四道风控门 fail-closed + broker.place_order + FillsStore + T14 审计, 376 行 + 16 测试)
+  - T16 OrderLifecycleTracker 订单生命周期跟踪器 (8 态状态机 + QMT 状态码映射 + 超时撤单 + 孤儿单检测 + 回调 + force_cancel_all + 线程安全, 473 行 + 26 测试)
+  - T17 LiveReconciliationLoop 实盘对账循环 (包装 T13 不修改 + 持仓 drift 3 级阈值 + 盘中定时 tick + 盘后全量 + verdict pass/warn/halt, 293 行 + 24 测试)
+  - T18 GradualRolloutOrchestrator 灰度发布编排器 (4 阶段 PAPER→SHADOW→PARALLEL→FULL 不可跳 + 6 维准入门禁 + 4 回滚触发器 + split_capital + force_stage, 321 行 + 33 测试)
+  - 端到端: 99/99 单元测试全绿 + industrial_grade_check 11 PASS + engineering_debt_gate 升级为 18/18 GREEN (T15 T09拦截行为自检 + T16 状态映射终态自检 + T17 import + T18 4阶段资金比例自检)
+- [x] **G6 LLM 智能进化 — Phase D 策略 Ideation 生成** — ✅ **DONE 2026-08-12**:
+  - D1 StrategyIdeationEngine (五步流水线: 观察→LLM 假设→因子设计→D2 验证→入库 + JSON 解析 + 多样性去重 + Shadow 模式 + 知识库反馈, ~360 行 + 27 测试)
+  - D2 HypothesisVerifier (IC 显著性 RankIC/ICIR/Cohen's d/CV + Purged K-Fold + CRO Gate + Honest Validation DSR+Noise + AB 桶自动判定 + 可配置阈值 + 批量验证, ~280 行 + 17 测试)
+  - D3 KnowledgeBase (JSONL 持久化 + 条件查询 + LLM 上下文反馈 + 归因/教训 + 统计, ~220 行 + 18 测试)
+  - D4 DualLoopOrchestrator (LLM↔B4 双层闭环 + run_cycle/run_continuous + Kill Switch/CB 安全检查 + 连续失败暂停 + 人工审批门禁, ~280 行 + 17 测试)
+  - 端到端: 79/79 单元测试全绿 + industrial_grade_check 11 PASS + engineering_debt_gate 22/22 GREEN (D1-D4 行为自检)
 - [ ] C++/Rust 重写 ROI 评估
 
 ### Wave 3.5：代码审查派生升级（2026-08-05 新增，与 Wave 3 并行）
@@ -112,6 +130,91 @@ related:
 2. ~~自定义因子表达式引擎移植（`utils/alpha_factor/expression_engine.py`，优先级中）~~ ✅ **2026-08-12 已落地** (W6.6.1)：DSL 解析器 (Tokenizer + 递归下降 Parser + AST) + 安全求值器 (无 eval/exec) + 20 内置算子 (截面 rank/zscore/normalize/winsorize + 时序 delay/delta/mean/std/slope/correlation 等) + AlphaFactorLibrary 第 16 大类 `enable_expression=True` 集成；8 项验证全通过 (解析器 + 算子语义 + 复合表达式 + library + 引用已有因子 + 错误降级 + 确定性)
 3. ~~诚实回测三件套 DSR 修复 (T07)~~ ✅ **2026-08-12 已落地** (W6.6.2)：顶层模块 `deflated_sharpe.py` 缺失导致 strategy_evaluator / shadow_account_adapter DSR 调用全部静默失败 — 修复为 `utils/backtest/deflated_sharpe.py` + 根目录 shim + `DSRResult` dataclass (`__float__` + `as_dict` 双兼容) + `honest_validation.py` 三件套编排器 (CPCV + DSR + Noise 联合判定)；6 项验证全通过
 4. 形态识别集成（优先级低）— 触发条件：talib 集成决策后
+
+### Wave 7：统一整合 / v8.7 升级（2026-08-13 ~ 12-31，新增 2026-08-12 — Wave 6 提前完成释放 107+ 天窗口）
+> **定位**：Wave 6 全部提前完成（原计划 09-01~12-31，实际 08-11~08-12 全部落地，超前 107-141 天）后，整合 Wave 1-5 剩余任务 + 工业级差距 P1-P3 + 工程基础层 Phase 0-3 + 工具增强（ocr/ECC）+ AutoResearch，统一为 4 Sprint 推进至 12-31 v8.7 发布。
+> **主文档**：`docs/高价值项目集成排期计划_20260811.md` §7（统一整合章节）+ `cairn/github-integration-wave6.md` §九。
+> **与既有计划关系**：本 Wave 7 是 UNIFIED_UPGRADE_PLAN_20260810.md（v9.3）的精化与对齐版本，不取代之——v9.3 的 8 Sprint 框架继续作为工程基础层主线，Wave 7 聚焦"剩余任务收口 + v8.7 发布"的整合视角。
+> **整合范围（15 项任务来源映射）**：Wave 2 Phase B 启用 (B1-B4) / daily_workflow.py 拆分第 2-5 轮 / R10 残债 42 处裸 except / Wave 4 Phase 3 (T15-T18) 实盘验证四件套 / Wave 5 S6 纸交易 / Wave 5 S7 小资金灰度 / G9 FeatureStore / G11 CVaR / Wave 4 G6 LLM Phase D / G7 覆盖率 0.80 / AutoResearch Skill / 工程基础层 Phase 0-3 / ocr 三步固化 / ECC skills 选择性安装 / v8.7 发布。
+
+#### Wave 7 Sprint 排期总表
+
+| Sprint | 时间窗口 | 周数 | 核心目标 | 与既有 Wave 协调 |
+|--------|---------|------|---------|----------------|
+| Sprint 1 | 08-13 ~ 09-12 | ~4 | Phase B 启用 + 工作流收尾 + R10 残债 | Wave 2 主线 |
+| Sprint 2 | 09-13 ~ 10-12 | ~4 | 实盘验证四件套 + 工程基础层 0-1 | Wave 4 Phase 3 + Wave 5 S6 |
+| Sprint 3 | 10-13 ~ 11-12 | ~4 | 因子入库 + 风控增强 + 工程基础层 2 | Wave 5 收尾 + 工程基础层 |
+| Sprint 4 | 11-13 ~ 12-31 | ~7 | AutoResearch + LLM 进化 + v8.7 发布 | UNIFIED v9.3 Sprint 7-8 实盘准入 |
+
+#### Wave 7 任务清单（按 Sprint 分组）
+
+**Sprint 1（08-13 ~ 09-12，~4 周）：Phase B 启用 + 工作流收尾 + R10 残债清偿**
+- [ ] W7.1.1 (08-13~09-12) Wave 2 Phase B 渐进启用 — B1 `USE_DRIFT_DETECTOR=true` 仅告警 (08-13~08-16) / B2 `USE_FEEDBACK_LOOP` 自动接入 (08-17~08-20) / B3 `USE_AUTO_RETRAIN=true` + 降级护栏 (08-21~08-24) / B4 `USE_MLOPS_PIPELINE=true` 完整外层循环 (08-25~09-12)
+- [ ] W7.1.2 (08-13~09-05, 非交易时段) daily_workflow.py 拆分第 2-3 轮 — risk phase (~600 行) + hedge phase (~500 行) + signal phase (~400 行) 提取到 `workflow/phases/`; daily_workflow 5904→≤4500
+- [x] W7.1.3 (08-13~08-31) R10 拖债清偿 — ✅ **DONE 2026-08-13**: 36 处裸 `except Exception` (无 `# fail-safe` 标记) 全部精确化 (ai_hedge_fund/ 30 + alpha_factor/ 4 + notify.py 2); `scripts/_r10_refine_bare_excepts.py` AST 替换; ruff BLE001 归零; 14 文件 py_compile PASS
+- [x] W7.1.4 (08-25~09-12) QMT 实盘接入准备 — ✅ **DONE 2026-08-13 (提前)**: `quant_modules/qmt_connector.py` (~420 行) paper trading 骨架 + 30 tests 全绿. 为 Sprint 2 W7.2.1 T15 准备
+- [ ] W7.1.5 (08-13~09-12) G7 覆盖率提升启动 — 补齐 P0 链路关键模块直测; 覆盖率 0.4307 → ≥0.55
+
+**Sprint 2（09-13 ~ 10-12，~4 周）：实盘验证四件套 + 工程基础层 Phase 0-1**
+- [ ] W7.2.1 (09-13~09-26) T15 QMT 实盘接入 (paper → 10% 灰度) — `quant_modules/qmt_connector.py` 完整实现 + paper trading 7 天 + 10% 资金灰度启动
+- [ ] W7.2.2 (09-27~10-10) T16 影子账户跟踪 ≥2 周 — 14 天影子账户跟踪报告 (PnL + 胜率 + 最大回撤 + DriftMonitor)
+- [ ] W7.2.3 (10-11~10-12, 跨 Sprint) T17 灰度发布 (10% → 50% → 100%) — `scripts/gradual_release.py` 三阶段资金切换
+- [ ] W7.2.4 (09-13~10-05) T18 实盘对账系统 — `utils/reconciliation/live_reconciler.py` (新建) 计划单 vs 实际成交对账
+- [ ] W7.2.5 (09-13~10-12) Wave 5 S6 纸交易启动 — CHAIN_MOM_60D 纸交易 ≥30 天跟踪报告
+- [ ] W7.2.6 (09-13~10-12) 工程基础层 Phase 0-1 — uv 环境管理迁移 + python-dotenv 密钥安全 + ruff T201/BLE001 收紧
+- [ ] W7.2.7 (09-13~10-12) ocr 三步固化 Step 1-2 — GLM API 充值 → 补扫 16 文件 → PR 自动审查接入
+
+**Sprint 3（10-13 ~ 11-12，~4 周）：因子入库 + 风控增强 + 工程基础层 Phase 2**
+- [ ] W7.3.1 (10-13~11-12) Wave 5 S7 小资金 5-10% 灰度入库 — CHAIN_MOM_60D 小资金灰度 ≥30 天跟踪报告 + 完整入库决策
+- [ ] W7.3.2 (10-13~10-31) G9 FeatureStore 物理分层 — `utils/feature_store/` (新建: online_store + offline_store + registry) 在线/离线分离 + 增量更新
+- [x] W7.3.3 (10-13~10-31) G11 CVaR 风险计量 — `utils/risk/cvar.py` (新建) + EVT 肥尾建模整合 + 接入风控六件套 ✅ (08-14 完成, 106 tests / 覆盖率 97.24% / 门禁全通过)
+- [ ] W7.3.4 (10-13~11-12) 工程基础层 Phase 2 — Prefect 编排 EOD 工作流 + DuckDB 统一查询层
+- [ ] W7.3.5 (10-13~10-26) ECC skills 选择性安装 — 8 个高价值 skills 安装到 `.codebuddy/`
+- [ ] W7.3.6 (10-13~11-12) ocr Step 3 nightly 全量 scan — `.github/workflows/ocr-nightly.yml` + 周度增量审查
+
+**Sprint 4（11-13 ~ 12-31，~7 周）：AutoResearch + LLM 智能进化 + v8.7 发布**
+- [x] W7.4.1 (11-13~12-07) AutoResearch Skill 开发 — `skills/auto_research/` (新建) 自动化因子研究 pipeline: 假设生成 → G15 回测 → S1-S7 门禁 → DSR 验证 → 入库决策 — ✅ **提前完成 2026-08-12** (D5 落地, 38 测试全绿, debt_gate 23/23 GREEN)
+- [x] W7.4.2 (11-13~11-30) Wave 4 G6 LLM 智能进化 Phase D — `utils/llm_evolution/strategy_ideation.py` (新建) LLM 策略 Ideation 生成 — ✅ **提前完成 2026-08-12** (D1-D4 全部落地, 79 测试全绿, debt_gate 22/22 GREEN)
+- [x] W7.4.3 (11-13~12-07) 工程基础层 Phase 3: LiteLLM — `utils/llm_gateway/litellm_router.py` (新建) + `utils/glm5_client.py` (重构) 多模型路由统一 — ✅ **提前完成 2026-08-12** (D6 落地, 37 测试全绿, debt_gate 24/24 GREEN, glm5_client 822→280行 -66%)
+- [x] W7.4.4 (11-13~12-14, 非交易时段) daily_workflow.py 拆分收尾 — execute phase (~800 行) + report phase (~600 行) + eod_summary phase (~400 行) 提取; daily_workflow ≤3000 行 — ✅ **提前完成 2026-08-12** (D7 落地, 2828行达标, _scan_func_quality.py 创建, debt_gate 25/25 GREEN; 注: execute/report/eod_summary phase 未进一步拆分因门禁已达标, 按"不过度设计"原则停止)
+- [~] W7.4.5 (11-13~12-21) G7 覆盖率 80% 达标冲刺 — 补齐 P1-P2 链路测试 + 集成测试 + E2E 测试; 覆盖率 ≥0.80 — 🔄 **进行中 2026-08-13** (D8 落地, 9 个 0% 模块补测 229 tests / 全量 baseline 68.55% / debt_gate PASS; 距 80% 目标仍有 ~11.5pp)
+- [ ] W7.4.6 (12-22~12-31) v8.7 发布 — `docs/v8.7_release_notes.md` + `cairn/ROADMAP.md` + `CHANGELOG.md` 文档归档 + 12-31 上实盘
+
+#### Wave 7 总验收清单（12-31 v8.7 发布前）
+
+- [ ] Phase B 4 flag 全部稳定运行 ≥30 天
+- [ ] Wave 4 Phase 3 (T15-T18) 实盘验证四件套全部 PASS
+- [ ] Wave 5 CHAIN_MOM_60D S6+S7 完整入库
+- [ ] daily_workflow.py ≤3000 行
+- [ ] R10 残债 42 处全部清零
+- [ ] G7 覆盖率 ≥0.80
+- [ ] G9 FeatureStore 物理分层落地
+- [x] G11 CVaR 接入风控六件套 ✅ (2026-08-14)
+- [x] G6 LLM 智能进化 Phase D 完成 ✅ (2026-08-12)
+- [x] AutoResearch Skill 落地 ✅ (2026-08-12)
+- [ ] 工程基础层 Phase 0-3 (uv/dotenv/Prefect/DuckDB/LiteLLM) 完成
+- [ ] ocr 三步固化 + ECC 8 skills 安装
+- [ ] 门禁三件套连续 21 天 0 FAIL
+- [ ] 影子账户 2 周稳定 + 灰度 100%
+- [ ] v8.7 Release Notes + 文档归档
+
+#### Wave 7 风险登记（Top 5）
+
+| 风险 | 概率 | 影响 | 归属 Sprint | 缓解 |
+|------|------|------|------------|------|
+| QMT 实盘接入资金风险 | 高 | 高 | Sprint 2 | paper → 10% → 50% → 100% 渐进 + 风控六件套 |
+| AutoResearch 前视偏差 | 高 | 高 | Sprint 4 | S1-S7 门禁 + CPCV/DSR/Noise 三件套 |
+| v8.7 发布窗口风险 | 高 | 高 | Sprint 4 | 12-31 硬 deadline; 未达标延期至 2027 Q1, 实盘准入可先于发布 |
+| Phase B 启用暴露前视偏差 | 中 | 高 | Sprint 1 | shadow 模式先行 7 天 + kill_switch |
+| daily_workflow 拆分回归 | 中 | 高 | Sprint 1/4 | 非交易时段 + DRY-RUN 对照 + 29 单元测试 |
+
+#### Wave 7 关键决策点
+
+- **08-20 观察期决策日**：若 Wave 1 观察期延长至 08-24（已选定 Plan C），Sprint 1 Phase B 启用顺延至 08-25 启动，整体排期后移 5 天。
+- **09-12 Sprint 1 收尾**：Phase B 4 flag 全部稳定运行 ≥7 天 + daily_workflow ≤4500 行 + R10 清零，方可进入 Sprint 2。
+- **10-12 Sprint 2 收尾**：T15-T18 实盘验证四件套 PASS + QMT 灰度 7 天稳定 + 工程基础层 Phase 0-1 完成，方可进入 Sprint 3。
+- **11-12 Sprint 3 收尾**：S7 入库 + FeatureStore 落地 + CVaR 接入 + Prefect/DuckDB 完成，方可进入 Sprint 4。
+- **12-31 v8.7 发布**：门禁三件套连续 21 天 0 FAIL + 影子账户 2 周稳定 + 灰度 100% + daily_workflow ≤3000 + 覆盖率 ≥0.80，方可发布 v8.7。
 
 ## 开放问题
 

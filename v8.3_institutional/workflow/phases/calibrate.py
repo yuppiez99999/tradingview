@@ -16,13 +16,11 @@ from workflow.context import WorkflowContext, get_dw_module
 logger = logging.getLogger("v75.daily_workflow")
 
 # === 从 daily_workflow 模块获取模块级符号 ===
+# 注: _dw 在 import 时获取一次 (是模块对象引用, 不变);
+#     CALIBRATE_READY / _run_calibration 必须在 phase 函数内动态查找,
+#     与拆分前 daily_workflow.py 中 phase_calibrate 内联调用 CALIBRATE_READY
+#     的语义一致 (测试通过 monkeypatch.setattr(dw, "CALIBRATE_READY", ...) patch).
 _dw = get_dw_module()
-
-CALIBRATE_READY = getattr(_dw, "CALIBRATE_READY", False) if _dw else False
-
-# 函数 — 仅当 daily_workflow 模块中已定义时才引入
-if _dw is not None and hasattr(_dw, "_run_calibration"):
-    _run_calibration = _dw._run_calibration
 
 
 def phase_calibrate(ctx: WorkflowContext) -> bool:
@@ -31,7 +29,11 @@ def phase_calibrate(ctx: WorkflowContext) -> bool:
     logger.info(f"Phase 1.5: 收益预测动态校准 @ {ctx.trade_date}")
     logger.info("=" * 60)
 
-    if not CALIBRATE_READY:
+    # 动态查找模块级符号 (兼容 monkeypatch 对 daily_workflow 模块的 patch)
+    calibrate_ready = getattr(_dw, "CALIBRATE_READY", False) if _dw else False
+    run_calibration = getattr(_dw, "_run_calibration", None) if _dw else None
+
+    if not calibrate_ready or run_calibration is None:
         logger.warning("calibrate_returns_projection 模块未就绪, 跳过校准")
         ctx.state["phases"]["calibrate"] = {
             "status": "SKIP",
@@ -41,7 +43,7 @@ def phase_calibrate(ctx: WorkflowContext) -> bool:
 
     try:
         # 执行三步校准: Wind 拉取 → 计算已实现 → 校准 projection
-        result = _run_calibration()
+        result = run_calibration()
 
         status = result.get("status", "FAIL")
         if status not in ("OK", "DEGRADED"):

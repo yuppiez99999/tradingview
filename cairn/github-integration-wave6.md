@@ -3,13 +3,15 @@ type: project_topic
 status: active
 authoring_mode: ai_generated
 created: 2026-08-11
-updated: 2026-08-11
-contains: github-integration-strategy, wave6-schedule, sprint-breakdown, wave-coordination
+updated: 2026-08-12
+contains: github-integration-strategy, wave6-schedule, sprint-breakdown, wave-coordination, wave7-unified-integration
 related:
   - cairn/ROADMAP.md
   - cairn/alpha-factor-system.md
   - cairn/backtest-standards.md
   - cairn/architecture-map.md
+  - docs/高价值项目集成排期计划_20260811.md
+  - docs/UNIFIED_UPGRADE_PLAN_20260810.md
 ---
 
 # GitHub 高价值项目集成策略（Wave 6）
@@ -176,6 +178,82 @@ Wave 6  │        │        ├──Sprint1─┤──Sprint2─┤──Spr
 
 ## 八、后续方向
 
-- **Wave 7（2027 Q1，规划中）**：基于 Wave 6 收尾报告，评估是否需要新一轮 GitHub 项目调研（重点：Rust 生态成熟项目、AI Agent 新框架、A 股市场特有项目）。
-- **v8.7 发布**：Wave 6 全部收尾后（2026-12-31），系统从 v8.6.14 升级到 v8.7，发布说明涵盖 Wave 4/5/6 的所有增强。
-- **持续跟踪**：awesome-quant 和 awesome-backtesting-python 作为必备书签，每月扫描一次新项目，符合 v8.7 方向的纳入 Wave 7 候选清单。
+> **2026-08-12 更新**：Wave 6 全部提前完成后（原计划 09-01~12-31，实际 08-11~08-12 全部落地，超前 107-141 天），Wave 7 已从"规划中"转为"已设计并启动"，详见 §九。
+
+- **Wave 7（2026-08-13 ~ 12-31，已设计）**：基于 Wave 6 提前完成释放的 107+ 天窗口，整合 Wave 1-5 剩余任务 + 工业级差距 + 工程基础层 + AutoResearch，目标 12-31 v8.7 发布。详见 §九 + `docs/高价值项目集成排期计划_20260811.md` §7。
+- **v8.7 发布**：Wave 7 Sprint 4 收尾（12-22~12-31），系统从 v8.6.14 升级到 v8.7，发布说明涵盖 Wave 4/5/6/7 的所有增强。前置条件：门禁三件套连续 21 天 0 FAIL + 影子账户 2 周稳定 + 灰度 100%。
+- **Wave 8（2027 Q1，远期）**：C++/Rust 核心路径重写 ROI 评估 + 多策略组合优化 + 十五五规划对齐 + 新一轮 GitHub 项目调研（重点：Rust 生态成熟项目、AI Agent 新框架、A 股市场特有项目）。
+- **持续跟踪**：awesome-quant 和 awesome-backtesting-python 作为必备书签，每月扫描一次新项目，符合 v8.7 方向的纳入 Wave 8 候选清单。
+
+---
+
+## 九、Wave 7 统一整合（2026-08-12 新增）
+
+> **定位**：Wave 6 提前完成后，整合 Wave 1-5 剩余任务 + 工业级差距 P1-P3 + 工程基础层 Phase 0-3 + 工具增强（ocr/ECC）+ AutoResearch，统一为 4 Sprint 推进至 12-31 v8.7 发布。
+> **主文档**：`docs/高价值项目集成排期计划_20260811.md` §7（统一整合章节）。
+> **与既有计划关系**：本 Wave 7 是 UNIFIED_UPGRADE_PLAN_20260810.md（v9.3）的精化与对齐版本，不取代之——v9.3 的 8 Sprint 框架继续作为工程基础层主线，Wave 7 聚焦"剩余任务收口 + v8.7 发布"的整合视角。
+
+### 9.1 Wave 7 整合范围（来源映射）
+
+| 任务 | 来源 | 当前状态 | Wave 7 归属 |
+|------|------|---------|------------|
+| Wave 2 Phase B 启用 (B1-B4) | ROADMAP Wave 2 | 4 flag 全部待启用 | Sprint 1 |
+| daily_workflow.py 拆分第 2-5 轮 | ROADMAP Wave 4 / 工业级差距 P3 | 第 1 轮已完成 (6230→5904), 剩余 4 轮 | Sprint 1/4 |
+| R10 残债: 42 处裸 except Exception | 代码审查复审 R10 | 已精确化 (T6 GREEN), 42 处独立债待治 | Sprint 1 |
+| Wave 4 Phase 3 (T15-T18) 实盘验证四件套 | ROADMAP Wave 4 | 全部待启动 | Sprint 2 |
+| Wave 5 S6 纸交易 | ROADMAP Wave 5 | S5 PASS, S6 待启动 | Sprint 2 |
+| Wave 5 S7 小资金 5-10% 灰度 | ROADMAP Wave 5 | 待 S6 通过 | Sprint 3 |
+| G9 FeatureStore 物理分层 | OPTIMAL_PLAN G9 | 待启动 | Sprint 3 |
+| G11 CVaR 风险计量 | OPTIMAL_PLAN G11 | 待启动 | Sprint 3 |
+| Wave 4 G6 LLM 智能进化 Phase D | ROADMAP Wave 4 | 待启动 | Sprint 4 |
+| G7 测试覆盖率 80% | OPTIMAL_PLAN G7 | 0.4307, 待提升 | Sprint 1/4 |
+| AutoResearch Skill | OPTIMAL_PLAN | 待启动 | Sprint 4 |
+| 工程基础层 Phase 0-3 | UNIFIED_UPGRADE_PLAN v9.3 | 待启动 | Sprint 1-4 (穿插) |
+| ocr 三步固化 | UNIFIED_UPGRADE_PLAN v9.3 | Step 0 (已用), Step 1-3 待落地 | Sprint 1-3 |
+| ECC skills 选择性安装 | UNIFIED_UPGRADE_PLAN v9.3 | 待启动 | Sprint 3 |
+| v8.7 发布 | ROADMAP 后续方向 | 待 12-31 | Sprint 4 收尾 |
+
+### 9.2 Wave 7 Sprint 排期总表
+
+| Sprint | 时间窗口 | 周数 | 核心目标 | 与既有 Wave 协调 |
+|--------|---------|------|---------|----------------|
+| Sprint 1 | 08-13 ~ 09-12 | ~4 | Phase B 启用 + 工作流收尾 + R10 残债 | Wave 2 主线 |
+| Sprint 2 | 09-13 ~ 10-12 | ~4 | 实盘验证四件套 + 工程基础层 0-1 | Wave 4 Phase 3 + Wave 5 S6 |
+| Sprint 3 | 10-13 ~ 11-12 | ~4 | 因子入库 + 风控增强 + 工程基础层 2 | Wave 5 收尾 + 工程基础层 |
+| Sprint 4 | 11-13 ~ 12-31 | ~7 | AutoResearch + LLM 进化 + v8.7 发布 | UNIFIED v9.3 Sprint 7-8 实盘准入 |
+
+### 9.3 Wave 7 关键决策点
+
+- **08-20 观察期决策日**：若 Wave 1 观察期延长至 08-24（已选定 Plan C），Sprint 1 Phase B 启用顺延至 08-25 启动，整体排期后移 5 天。
+- **09-12 Sprint 1 收尾**：Phase B 4 flag 全部稳定运行 ≥7 天 + daily_workflow ≤4500 行 + R10 清零，方可进入 Sprint 2。
+- **10-12 Sprint 2 收尾**：T15-T18 实盘验证四件套 PASS + QMT 灰度 7 天稳定 + 工程基础层 Phase 0-1 完成，方可进入 Sprint 3。
+- **11-12 Sprint 3 收尾**：S7 入库 + FeatureStore 落地 + CVaR 接入 + Prefect/DuckDB 完成，方可进入 Sprint 4。
+- **12-31 v8.7 发布**：门禁三件套连续 21 天 0 FAIL + 影子账户 2 周稳定 + 灰度 100% + daily_workflow ≤3000 + 覆盖率 ≥0.80，方可发布 v8.7。
+
+### 9.4 Wave 7 总验收清单（12-31 v8.7 发布前）
+
+- [ ] Phase B 4 flag 全部稳定运行 ≥30 天
+- [ ] Wave 4 Phase 3 (T15-T18) 实盘验证四件套全部 PASS
+- [ ] Wave 5 CHAIN_MOM_60D S6+S7 完整入库
+- [ ] daily_workflow.py ≤3000 行
+- [ ] R10 残债 42 处全部清零
+- [ ] G7 覆盖率 ≥0.80
+- [ ] G9 FeatureStore 物理分层落地
+- [ ] G11 CVaR 接入风控六件套
+- [ ] G6 LLM 智能进化 Phase D 完成
+- [ ] AutoResearch Skill 落地
+- [ ] 工程基础层 Phase 0-3 (uv/dotenv/Prefect/DuckDB/LiteLLM) 完成
+- [ ] ocr 三步固化 + ECC 8 skills 安装
+- [ ] 门禁三件套连续 21 天 0 FAIL
+- [ ] 影子账户 2 周稳定 + 灰度 100%
+- [ ] v8.7 Release Notes + 文档归档
+
+### 9.5 Wave 7 风险登记（Top 5）
+
+| 风险 | 概率 | 影响 | 归属 Sprint | 缓解 |
+|------|------|------|------------|------|
+| QMT 实盘接入资金风险 | 高 | 高 | Sprint 2 | paper → 10% → 50% → 100% 渐进 + 风控六件套 |
+| AutoResearch 前视偏差 | 高 | 高 | Sprint 4 | S1-S7 门禁 + CPCV/DSR/Noise 三件套 |
+| v8.7 发布窗口风险 | 高 | 高 | Sprint 4 | 12-31 硬 deadline; 未达标延期至 2027 Q1, 实盘准入可先于发布 |
+| Phase B 启用暴露前视偏差 | 中 | 高 | Sprint 1 | shadow 模式先行 7 天 + kill_switch |
+| daily_workflow 拆分回归 | 中 | 高 | Sprint 1/4 | 非交易时段 + DRY-RUN 对照 + 29 单元测试 |

@@ -4,7 +4,19 @@ const https = require('https');
 const http = require('http');
 
 const CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname, 'mcp_config.json'), 'utf-8'));
-const AUTH_TOKEN = CONFIG.auth_token;
+// 支持 ${IFIND_TOKEN} 占位符 -> 从环境变量解析, 避免明文 token 落盘 (项目安全约定)
+function resolveToken(raw) {
+    if (typeof raw === 'string' && raw.trim().startsWith('${') && raw.trim().endsWith('}')) {
+        const envName = raw.trim().slice(2, -1);
+        const fromEnv = process.env[envName];
+        if (!fromEnv) {
+            throw new Error(`mcp_config.json 使用占位符 ${raw}, 但环境变量 ${envName} 未设置。请在环境中 export IFIND_TOKEN=<your key> 后再调用。`);
+        }
+        return fromEnv;
+    }
+    return raw;
+}
+const AUTH_TOKEN = resolveToken(CONFIG.auth_token || CONFIG.auth_token_placeholder);
 
 const BASE = "https://api-mcp.51ifind.com:8643/ds-mcp-servers";
 const SERVERS = {
@@ -15,6 +27,7 @@ const SERVERS = {
     bond: `${BASE}/hexin-ifind-ds-bond-mcp`,
     global_stock: `${BASE}/hexin-ifind-ds-global-stock-mcp`,
     index: `${BASE}/hexin-ifind-ds-index-mcp`,
+    future: `${BASE}/hexin-ifind-ds-futures-mcp`,
 };
 
 const _sessions = {};

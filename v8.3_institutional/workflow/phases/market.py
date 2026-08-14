@@ -12,15 +12,33 @@ from workflow.context import WorkflowContext, get_dw_module
 logger = logging.getLogger("v75.daily_workflow")
 
 # === 从 daily_workflow 模块获取模块级符号 ===
+# 注: _dw 在 import 时获取一次 (是模块对象引用, 不变);
+#     CircuitLevel 必须在 phase 函数内动态查找, 与拆分前 daily_workflow.py 中
+#     phase_market 内联调用的语义一致 (测试通过 monkeypatch.setattr(dw, ...) patch).
 _dw = get_dw_module()
 
-# 类 — 仅当 daily_workflow 模块中已定义时才引入
-if _dw is not None and hasattr(_dw, "CircuitLevel"):
-    CircuitLevel = _dw.CircuitLevel
+
+class _SafeLevel:
+    """CircuitBreaker.check 抛异常时的降级 level (fail-open, 不阻断建仓)。
+
+    name=NORMAL, value=0 → level < LEVEL_3 → build_allowed=True
+    """
+    name = "NORMAL"
+    value = 0
+
+    def __ge__(self, other):
+        # 比较时视为低于 LEVEL_3 (LEVEL_3.value=3)
+        try:
+            return 0 >= int(getattr(other, "value", 0))
+        except Exception:
+            return False
 
 
 def phase_market(ctx: WorkflowContext):
     """市场状态评估"""
+    # 动态查找模块级符号 (兼容 monkeypatch 对 daily_workflow 模块的 patch)
+    CircuitLevel = getattr(_dw, "CircuitLevel", None) if _dw else None
+
     logger.info("=" * 60)
     logger.info("Phase 2: 市场状态评估")
     logger.info("=" * 60)
@@ -52,11 +70,16 @@ def phase_market(ctx: WorkflowContext):
         "index_return_60d": 0.05,       # 60日 +5%
     }
 
-    # 熔断级别判定
-    level = ctx.cb.check(
-        portfolio_drop=market_data["portfolio_drop"],
-        vix=market_data["vix"],
-    )
+    # 熔断级别判定 (cb.check 抛异常时降级到 _SafeLevel, 不崩溃)
+    try:
+        level = ctx.cb.check(
+            portfolio_drop=market_data["portfolio_drop"],
+            vix=market_data["vix"],
+        )
+    except Exception as e:
+        logger.warning(f"CircuitBreaker.check 异常, 降级到 SAFE_LEVEL: {e}")
+        level = _SafeLevel()
+
     actions = ctx.cb.allowed_actions()
 
     logger.info(f"VIX: {market_data['vix']}, 跌幅: {market_data['portfolio_drop']:.2%}")
@@ -71,7 +94,21 @@ def phase_market(ctx: WorkflowContext):
         "actions": actions,
     }
 
-    if level >= CircuitLevel.LEVEL_3:
+    # LEVEL_3+ 暂停建仓; CircuitLevel 不可用时 (拆分环境降级) 用 level.value >= 3 判断
+    _level_value = getattr(level, "value", 0)
+    try:
+        _level_value = int(_level_value)
+    except Exception:
+        _level_value = 0
+    _is_level3_plus = False
+    if CircuitLevel is not None:
+        try:
+            _is_level3_plus = level >= CircuitLevel.LEVEL_3
+        except Exception:
+            _is_level3_plus = _level_value >= 3
+    else:
+        _is_level3_plus = _level_value >= 3
+    if _is_level3_plus:
         logger.warning("市场熔断 LEVEL_3+, 暂停建仓")
         ctx.state["phases"]["market"]["build_allowed"] = False
     else:

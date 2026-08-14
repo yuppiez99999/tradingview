@@ -13,31 +13,29 @@ from workflow.context import WorkflowContext, get_dw_module
 logger = logging.getLogger("v75.daily_workflow")
 
 # === 从 daily_workflow 模块获取模块级符号 (兼容 __main__/模块导入) ===
+# 注: _dw 在 import 时获取一次 (是模块对象引用, 不变);
+#     V75_READY / NTPSync / RiskManager / CircuitBreaker 等必须在 phase 函数内
+#     动态查找, 与拆分前 daily_workflow.py 中 phase_check 内联调用的语义一致
+#     (测试通过 monkeypatch.setattr(dw, "NTPSync", ...) patch).
 _dw = get_dw_module()
-
-# 常量 — 始终定义 (daily_workflow.py 中 True/False)
-V75_READY = getattr(_dw, "V75_READY", False) if _dw else False
-SHENHUA_READY = getattr(_dw, "SHENHUA_READY", False) if _dw else False
-PHASE_MANAGER_READY = getattr(_dw, "PHASE_MANAGER_READY", False) if _dw else False
-HEDGE_FUND_MODULES_READY = getattr(_dw, "HEDGE_FUND_MODULES_READY", False) if _dw else False
-INSTITUTIONAL_MODULES_READY = getattr(_dw, "INSTITUTIONAL_MODULES_READY", False) if _dw else False
-RISK_MGT_MODULES_READY = getattr(_dw, "RISK_MGT_MODULES_READY", False) if _dw else False
-ALPHA_MODULES_READY = getattr(_dw, "ALPHA_MODULES_READY", False) if _dw else False
-EXECUTION_MODULES_READY = getattr(_dw, "EXECUTION_MODULES_READY", False) if _dw else False
-ALT_DATA_MODULES_READY = getattr(_dw, "ALT_DATA_MODULES_READY", False) if _dw else False
-
-# 类 — 仅当 daily_workflow 模块中已定义时才引入
-# (未导入时保持未定义, 与原 daily_workflow.py 中 NameError 语义一致)
-if _dw is not None and hasattr(_dw, "NTPSync"):
-    NTPSync = _dw.NTPSync
-if _dw is not None and hasattr(_dw, "RiskManager"):
-    RiskManager = _dw.RiskManager
-if _dw is not None and hasattr(_dw, "CircuitBreaker"):
-    CircuitBreaker = _dw.CircuitBreaker
 
 
 def phase_check(ctx: WorkflowContext) -> bool:
     """系统自检"""
+    # 动态查找模块级符号 (兼容 monkeypatch 对 daily_workflow 模块的 patch)
+    V75_READY = getattr(_dw, "V75_READY", False) if _dw else False
+    SHENHUA_READY = getattr(_dw, "SHENHUA_READY", False) if _dw else False
+    PHASE_MANAGER_READY = getattr(_dw, "PHASE_MANAGER_READY", False) if _dw else False
+    HEDGE_FUND_MODULES_READY = getattr(_dw, "HEDGE_FUND_MODULES_READY", False) if _dw else False
+    INSTITUTIONAL_MODULES_READY = getattr(_dw, "INSTITUTIONAL_MODULES_READY", False) if _dw else False
+    RISK_MGT_MODULES_READY = getattr(_dw, "RISK_MGT_MODULES_READY", False) if _dw else False
+    ALPHA_MODULES_READY = getattr(_dw, "ALPHA_MODULES_READY", False) if _dw else False
+    EXECUTION_MODULES_READY = getattr(_dw, "EXECUTION_MODULES_READY", False) if _dw else False
+    ALT_DATA_MODULES_READY = getattr(_dw, "ALT_DATA_MODULES_READY", False) if _dw else False
+    NTPSync = getattr(_dw, "NTPSync", None) if _dw else None
+    RiskManager = getattr(_dw, "RiskManager", None) if _dw else None
+    CircuitBreaker = getattr(_dw, "CircuitBreaker", None) if _dw else None
+
     logger.info("=" * 60)
     logger.info(f"Phase 1: 系统自检 @ {ctx.trade_date}")
     logger.info("=" * 60)

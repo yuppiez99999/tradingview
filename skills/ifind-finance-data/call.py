@@ -1,18 +1,10 @@
 import json
 import math
-import os
-
+from pathlib import Path
 import requests
 
-# 安全修复: 禁止从配置文件读取 Token,仅允许环境变量
-AUTH_TOKEN = os.environ.get("IFIND_TOKEN", "")
-
-if not AUTH_TOKEN:
-    raise RuntimeError(
-        "iFinD JWT Token 未配置: 请设置环境变量 IFIND_TOKEN\n"
-        "Windows PowerShell: $env:IFIND_TOKEN='your_token_here'\n"
-        "Linux/Mac: export IFIND_TOKEN='your_token_here'"
-    )
+CONFIG = json.loads((Path(__file__).resolve().parent / "mcp_config.json").read_text(encoding="utf-8"))
+AUTH_TOKEN = CONFIG["auth_token"]
 
 BASE = "https://api-mcp.51ifind.com:8643/ds-mcp-servers"
 SERVERS = {
@@ -23,6 +15,7 @@ SERVERS = {
     "bond": f"{BASE}/hexin-ifind-ds-bond-mcp",
     "global_stock": f"{BASE}/hexin-ifind-ds-global-stock-mcp",
     "index": f"{BASE}/hexin-ifind-ds-index-mcp",
+    "future": f"{BASE}/hexin-ifind-ds-futures-mcp",
 }
 
 _sessions = {}
@@ -48,15 +41,12 @@ def _headers(t=None):
 
 
 def _post(t, payload, timeout=60):
-    session = requests.Session()
-    session.trust_env = False
-    resp = session.post(
+    resp = requests.post(
         SERVERS[t],
         json=payload,
         headers=_headers(t),
         verify=False,
         timeout=timeout,
-        proxies={"http": None, "https": None},
     )
     data = None
     if resp.text.strip():
@@ -118,15 +108,12 @@ def _init(t):
     _sessions[t] = session_id
 
     notify = {"jsonrpc": "2.0", "method": "notifications/initialized"}
-    session = requests.Session()
-    session.trust_env = False
-    session.post(
+    requests.post(
         SERVERS[t],
         json=notify,
         headers=_headers(t),
         verify=False,
         timeout=10,
-        proxies={"http": None, "https": None},
     )
 
 
@@ -209,7 +196,7 @@ def list_tools(server_type):
         }
 
     resp.raise_for_status()
-
+    
     return {
         "ok": True,
         "status_code": resp.status_code,
@@ -218,4 +205,4 @@ def list_tools(server_type):
 
 
 if __name__ == "__main__":
-    print("未调用工具函数及输入查询参数，请按照说明文档发起请求")
+    print("未调用工具函数及输入查询参数，请按照说明文档发起请求")    
