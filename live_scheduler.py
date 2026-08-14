@@ -170,7 +170,7 @@ def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
                         if market_data.get(key):
                             prices[code] = float(market_data[key])
                             break
-            except Exception as e:
+            except (KeyError, ValueError, TypeError, AttributeError) as e:
                 logger.warning(f"获取 {code} 行情失败: {e}")
                 continue
 
@@ -181,7 +181,7 @@ def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
         }
         logger.info(f"[market_monitor] 获取 {len(prices)} 个标的行情")
 
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         result["status"] = "FAIL"
         result["error"] = str(e)
         logger.error(f"[market_monitor] 执行失败: {e}")
@@ -227,7 +227,7 @@ def run_auto_rebalance(dry_run: bool = False) -> dict[str, Any]:
                 logger.info(
                     f"[auto_rebalance] 权重偏差检查完成, {len(result['data']['exceeds_threshold'])} 个标的偏差>5%"
                 )
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         result["status"] = "FAIL"
         result["error"] = str(e)
         logger.error(f"[auto_rebalance] 执行失败: {e}")
@@ -283,7 +283,7 @@ def _fetch_live_futures_prices() -> dict:
         from hedging.hedge_engine_v59 import get_live_futures_prices
 
         live_prices = get_live_futures_prices() or {}
-    except Exception as e:
+    except (ImportError, KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         logger.warning(f"[hedge_rebalance] hedge_engine 实时期货价格获取失败: {e}")
     return live_prices
 
@@ -334,10 +334,10 @@ def _fetch_futures_from_provider(live_prices: dict) -> None:
                                 break
                         if ft_key in live_prices:
                             break  # 获取成功, 不再尝试其他合约
-                except Exception as e_ft:
+                except (KeyError, ValueError, TypeError, AttributeError) as e_ft:
                     # SR1 修复: 单标的失败不再静默 pass, 记录 warning
                     logger.debug(f"[hedge_rebalance] {ft_key} ({ft_code}) 实时价格获取失败: {e_ft}")
-    except Exception as e:
+    except (ImportError, AttributeError, RuntimeError) as e:
         logger.warning(f"[hedge_rebalance] MarketDataProvider 不可用: {e}")
 
 
@@ -365,7 +365,7 @@ def _alert_futures_price_all_failed() -> None:
         send_sms_alert("[量化系统-SR1告警] 期货实时价格源全失效, 对冲计算使用硬编码兜底价, 请立即排查!")
     except ImportError:
         logger.warning("[hedge_rebalance][SR1] utils.notify 不可用, 告警未发送")
-    except Exception as e:
+    except (RuntimeError, ValueError, TypeError, AttributeError) as e:
         logger.warning(f"[hedge_rebalance][SR1] 告警发送失败: {e}")
 
 
@@ -423,7 +423,7 @@ def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
                 logger.info(
                     f"[hedge_rebalance] 对冲计算完成: action={order.get('action')}, contracts={order.get('contracts', 0)}"
                 )
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         result["status"] = "FAIL"
         result["error"] = str(e)
         logger.error(f"[hedge_rebalance] 执行失败: {e}")
@@ -445,7 +445,7 @@ def run_etf_flow_monitor(dry_run: bool = False) -> dict[str, Any]:
             try:
                 refresh_etf_flow_signals()
                 summary = get_etf_flow_summary()
-            except Exception as e:
+            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError) as e:
                 logger.warning(f"[etf_flow_monitor] 刷新失败, 使用缓存数据: {e}")
 
         flow_data = summary.get("flow_data", {})
@@ -459,7 +459,7 @@ def run_etf_flow_monitor(dry_run: bool = False) -> dict[str, Any]:
         logger.info(
             f"[etf_flow_monitor] 监控完成: {len(flow_data)} 只ETF, 净流入={result['data']['total_inflow']:.2f}亿, 趋势={result['data']['overall_trend']}"
         )
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         result["status"] = "FAIL"
         result["error"] = str(e)
         logger.error(f"[etf_flow_monitor] 执行失败: {e}")
@@ -493,7 +493,7 @@ def run_ml_signal_scan(dry_run: bool = False) -> dict[str, Any]:
                         "predicted_return": pred.get("predicted_return", 0),
                         "confidence": pred.get("confidence", 0),
                     }
-            except Exception as e:  # P2-1: 收敛为具体异常类型 + 日志
+            except Exception as e:  # P2-1: ML推理框架异常难穷举  # noqa: BLE001
                 logger.debug("单标的预测失败 (跳过 %s): %s", code, e, exc_info=True)
                 continue
 
@@ -511,7 +511,7 @@ def run_ml_signal_scan(dry_run: bool = False) -> dict[str, Any]:
             f"[ml_signal_scan] 预测完成: {len(predictions)} 个标的 "
             f"(kronos_enriched={kronos_meta.get('enriched_count', 0)})"
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         result["status"] = "FAIL"
         result["error"] = str(e)
         logger.error(f"[ml_signal_scan] 执行失败: {e}")
@@ -578,7 +578,7 @@ def _enrich_with_kronos(predictions: dict[str, Any], codes: list[str]) -> dict[s
                             predictions[code][factor_key] = v
                             all_factor_keys.add(factor_key)
                     enriched += 1
-            except Exception as e:
+            except (KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
                 logger.debug(f"[ml_signal_scan] Kronos 预测 {code} 失败: {e}")
                 continue
 
@@ -592,7 +592,7 @@ def _enrich_with_kronos(predictions: dict[str, Any], codes: list[str]) -> dict[s
         meta["status"] = "error"
         meta["error"] = f"Kronos 模块导入失败: {e}"
         logger.debug(f"[ml_signal_scan] Kronos 导入失败: {e}")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         meta["status"] = "error"
         meta["error"] = f"Kronos 集成异常: {e}"
         logger.warning(f"[ml_signal_scan] Kronos 集成异常: {e}")
@@ -632,7 +632,7 @@ def run_daily_report(dry_run: bool = False) -> dict[str, Any]:
         else:
             result["status"] = "FAIL"
             result["error"] = "generate_daily_report.py 不存在"
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError, RuntimeError) as e:
         result["status"] = "FAIL"
         result["error"] = str(e)
         logger.error(f"[daily_report] 执行失败: {e}")
@@ -652,13 +652,13 @@ def _load_signal_trade_history():
         try:
             with open(signal_hist_path, encoding="utf-8") as f:
                 signal_history = json.load(f)
-        except Exception as e:
+        except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"[strategy_eval] 读取信号历史失败: {e}")
     if trade_hist_path.exists():
         try:
             with open(trade_hist_path, encoding="utf-8") as f:
                 trade_history = json.load(f)
-        except Exception as e:
+        except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"[strategy_eval] 读取交易历史失败: {e}")
     return signal_history, trade_history
 
@@ -722,7 +722,7 @@ def _run_strategy_scoring():
     except ImportError:
         logger.warning("[strategy_eval] StrategyEvaluator 不可用, 跳过评分")
         return None
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         logger.warning(f"[strategy_eval] 评分失败: {e}")
         return ("error", str(e))
 
@@ -745,7 +745,7 @@ def _record_degradation_lesson(eval_result) -> None:
             action_taken="alert_only",
             verified=False,
         )
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         logger.warning(f"[strategy_eval] 退化告警记录失败 (非致命): {e}")
 
 
@@ -814,13 +814,13 @@ def _run_adaptive_optimize(eval_result, ic_store: dict) -> str | None:
                 json.dump(optimized, f, ensure_ascii=False, indent=2)
             logger.info(f"[strategy_eval] N4 自适应配置已保存: {adaptive_path}")
             return str(adaptive_path)
-        except Exception as e_save:
+        except (OSError, ValueError, TypeError) as e_save:
             logger.warning(f"[strategy_eval] 保存 N4 自适应配置失败: {e_save}")
             return None
     except ImportError:
         logger.debug("[strategy_eval] N4 adaptive_optimize 不可用, 跳过")
         return None
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         logger.warning(f"[strategy_eval] N4 自适应搜索失败 (非致命): {e}")
         return None
 
@@ -914,7 +914,7 @@ def run_strategy_evaluation(dry_run: bool = False) -> dict[str, Any]:
                 if adaptive_path:
                     result["data"]["adaptive_config_path"] = adaptive_path
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         result["status"] = "FAIL"
         result["error"] = str(e)
         logger.error(f"[strategy_eval] 执行失败: {e}")
@@ -961,7 +961,7 @@ class LiveScheduler:
                 "last_run": datetime.now().isoformat(),
                 "duration": result["duration"],
             }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"[{module_name}] 任务异常: {e}")
             MODULE_STATUS[module_name] = {
                 "status": "ERROR",
@@ -1121,7 +1121,7 @@ def _is_process_alive(pid: int) -> bool:
                 return True
             except OSError:
                 return False
-    except Exception as e:  # P2-1: 收敛为具体异常类型 + 日志
+    except (subprocess.SubprocessError, OSError, RuntimeError) as e:  # P2-1: 收敛为具体异常类型 + 日志
         logger.debug("PID存活检查失败 (pid=%s): %s", pid, e, exc_info=True)
         return False
 
@@ -1215,7 +1215,7 @@ def main():
                             f"锁文件已保留, 请手动处理后重试."
                         )
                         return 1
-            except Exception as e:
+            except (subprocess.SubprocessError, OSError, RuntimeError) as e:
                 logger.error(f"停止失败: {e}. 锁文件已保留, 请手动处理.")
                 return 1
         else:

@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-14 · live_scheduler.py BLE001 精确化 + W7.1.2 标记完成 · 完成 ✅
+
+- **BLE001 精确化**: `live_scheduler.py` 25 处 `except Exception` → 20 处精确异常 tuple + 5 处 `# noqa: BLE001` (ML 推理框架/任意可调用入口)
+  - 精确化: KeyError/ValueError/TypeError/AttributeError/RuntimeError/ImportError/OSError/json.JSONDecodeError/subprocess.SubprocessError 按上下文组合
+  - 保留: 行 496 (ML predict) / 514 (ml_signal_scan 外层) / 595 (Kronos 集成) / 917 (strategy_eval 外层) / 964 (任务执行入口)
+  - **门禁**: `ruff check --select BLE001` All checks passed
+- **W7.1.2 标记完成**: ROADMAP.md 已标记 `[x]` — `workflow/phases/` 16 个 phase 文件 + daily_workflow.py 2828 行 (目标 ≤4500)
+- **指针**: `live_scheduler.py` · `cairn/ROADMAP.md:153`
+
 ## 2026-08-14 · 代码质量审查深度复核 + Q-1~Q-5/F401 修复闭环 · 完成 ✅
 
 - **背景**: 08-13 主报告 6 项修复 (B1/B2/S1/S2/S3/S4/S5/N1) 已落地, 深度复核发现 S2 为半截修复 + 3 Medium + 2 Low Bug + 5 质量问题. 本轮验证 Bug-1~6 全部已在工作区修复, 并完成 Q-1~Q-5 + F401 回归清理.
