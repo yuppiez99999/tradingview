@@ -195,6 +195,24 @@ class VaRMonitorAdapter:
                     source=self.module_name,
                     reduce_pct=0.10,
                 )
+            elif var_type == "cvar_99":
+                # 99% CVaR 超限 → 减仓 20% (与 var_99 一致)
+                return RiskDecision(
+                    action=RiskAction.REDUCE_POSITION,
+                    reason=f"cvar_99_breach_{breach_pct:.2%}",
+                    confidence=0.95,
+                    source=self.module_name,
+                    reduce_pct=0.20,
+                )
+            elif var_type == "cvar_95":
+                # 95% CVaR 超限 → 减仓 10% (与 var_95 一致)
+                return RiskDecision(
+                    action=RiskAction.REDUCE_POSITION,
+                    reason=f"cvar_95_breach_{breach_pct:.2%}",
+                    confidence=0.9,
+                    source=self.module_name,
+                    reduce_pct=0.10,
+                )
 
             return RiskDecision(
                 action=RiskAction.PASS,

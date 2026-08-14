@@ -39,3 +39,5 @@ from __future__ import annotations
 #       RiskModuleAdapter, CircuitBreakerAdapter, VaRMonitorAdapter,
 #       OvernightGapAdapter, RiskGuardAdapter, RiskModuleRegistry,
 #   )
+# W7.3.3 G11:
+#   from utils.risk.cvar import CVaRCalculator, CVaRConfig, CVaRResult
