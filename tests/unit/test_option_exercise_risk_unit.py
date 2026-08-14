@@ -123,20 +123,25 @@ class TestBuyerRiskCall:
         assert r.assignment_probability == "EXPIRED"
         assert r.is_itm is False
 
-    def test_certain_branch_raises_nameerror(self):
+    def test_certain_branch(self):
         mgr = _manager(1)
-        with pytest.raises(NameError):
-            mgr.assess_risk(_CALL, "BUY", 10, 3.3, 0.05)
+        r = mgr.assess_risk(_CALL, "BUY", 10, 3.3, 0.05)
+        assert r.assignment_probability == "CERTAIN"
+        assert r.is_itm is True
+        assert r.potential_loss == pytest.approx(0.05 * 10 * 10000)
 
-    def test_certain_branch_day_zero_raises_nameerror(self):
+    def test_certain_branch_day_zero(self):
         mgr = _manager(0)
-        with pytest.raises(NameError):
-            mgr.assess_risk(_CALL, "BUY", 10, 3.3, 0.05)
+        r = mgr.assess_risk(_CALL, "BUY", 10, 3.3, 0.05)
+        assert r.assignment_probability == "CERTAIN"
+        assert r.potential_loss == pytest.approx(0.05 * 10 * 10000)
 
-    def test_itm_low_branch_raises_nameerror(self):
+    def test_itm_low_branch(self):
         mgr = _manager(5)
-        with pytest.raises(NameError):
-            mgr.assess_risk(_CALL, "BUY", 10, 3.3, 0.05)
+        r = mgr.assess_risk(_CALL, "BUY", 10, 3.3, 0.05)
+        assert r.assignment_probability == "LOW"
+        assert r.is_itm is True
+        assert r.potential_loss == pytest.approx(0.05 * 10 * 10000)
 
     def test_otm_medium_near_expiry(self):
         mgr = _manager(2)
@@ -161,15 +166,19 @@ class TestBuyerRiskPut:
         assert r.assignment_probability == "EXPIRED"
         assert r.option_type == "PUT"
 
-    def test_certain_branch_raises_nameerror(self):
+    def test_certain_branch(self):
         mgr = _manager(1, _PUT)
-        with pytest.raises(NameError):
-            mgr.assess_risk(_PUT, "BUY", 10, 2.7, 0.05)
+        r = mgr.assess_risk(_PUT, "BUY", 10, 2.7, 0.05)
+        assert r.assignment_probability == "CERTAIN"
+        assert r.is_itm is True
+        assert r.potential_loss == pytest.approx(0.05 * 10 * 10000)
 
-    def test_itm_low_branch_raises_nameerror(self):
+    def test_itm_low_branch(self):
         mgr = _manager(5, _PUT)
-        with pytest.raises(NameError):
-            mgr.assess_risk(_PUT, "BUY", 10, 2.7, 0.05)
+        r = mgr.assess_risk(_PUT, "BUY", 10, 2.7, 0.05)
+        assert r.assignment_probability == "LOW"
+        assert r.is_itm is True
+        assert r.potential_loss == pytest.approx(0.05 * 10 * 10000)
 
     def test_otm_medium_near_expiry(self):
         mgr = _manager(2, _PUT)

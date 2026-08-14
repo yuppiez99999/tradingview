@@ -207,10 +207,12 @@ class OptionExerciseRiskManager:
             prob = "CERTAIN"
             action = "实值期权将自动行权, 准备资金/标的"
             msg = f"距到期{days_to_expiry}天, 实值期权, 将自动行权"
+            loss = premium * quantity * 10000
         elif is_itm:
             prob = "LOW"
             action = "实值期权, 到期将自动行权, 无需操作"
             msg = f"距到期{days_to_expiry}天, 买方持有实值期权"
+            loss = premium * quantity * 10000
         elif days_to_expiry <= self.WARNING_DAYS:
             prob = "MEDIUM"
             action = "虚值期权即将到期作废, 建议平仓止损"
