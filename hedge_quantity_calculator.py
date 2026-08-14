@@ -210,12 +210,8 @@ logger.info("  - 持仓涵盖 ETF + 个股 + 商品，分散度一般")
 logger.info("  - 科技+制造占 65.5%，同涨同跌风险较高")
 logger.info("  - 建议: 增加避险资产配置")
 
-# 当前避险资产
-defense_assets = {
-    "sh600900": ("长江电力", 58_800),
-    "sz518880": ("黄金ETF华安", 99_450),
-    "sh601088": ("中国神华", 38_500),
-}
+# 当前避险资产 — Q-1 修复: 从 utils.hedge_constants 统一读取 (与 hedge_execution_orders.py 同源)
+from utils.hedge_constants import DEFENSE_ASSETS as defense_assets
 defense_total = sum(v for _, v in defense_assets.values())
 defense_pct = defense_total / day_capital * 100
 

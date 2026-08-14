@@ -384,7 +384,9 @@ def load_latest_prices() -> Dict[str, float]:
         return {}
 
 
-# 默认参考价 (当无法获取真实价格时使用)
+# 默认参考价 (二级兜底: 仅当 load_latest_prices() 收盘报告也无该代码时使用)
+# Q-5 标注: 个股价格为历史快照会 stale, 正常路径走 load_latest_prices() 动态读取;
+# ETF 价格相对稳定。未来可改为仅保留 ETF 兜底 + 个股无价时跳过 (需同步更新测试)。
 DEFAULT_PRICES = {
     "588080": 2.26,
     "512880": 1.13,
@@ -1374,27 +1376,38 @@ def _sync_positions_idempotent(target_date_str: str, confirmed: list, positions:
 def _execute_single_instruction(inst: dict, wt_modules: Dict, progress: Dict, positions: Dict) -> dict:
     """执行单条已确认指令 (WT 拆分 + 更新建仓进度 + 同步 positions)。
 
+    根据 inst["action"] (默认 BUY) 区分买卖:
+      - BUY:  滑点上浮成交价, 持仓股数累加 + 加权均价, 建仓进度累加; 无印花税。
+      - SELL: 滑点下调成交价, 持仓股数减少且成本基础不变, 建仓进度减少;
+              total_cost 仅含费用 (佣金+过户费+印花税 0.05%), fill_amount 为成交毛额。
+
     Args:
-        inst: 已确认指令
+        inst: 已确认指令 (含 action/full_code/qty/ref_price/estimated_amount)
         wt_modules: WonderTrader 模块 dict
         progress: 建仓进度 (原地修改 built_amounts/total_built)
         positions: 持仓字典 (原地修改 shares/avg_cost/est_price)
 
     Returns:
-        execution_result dict (含 fill_price/fill_amount/built_before/built_after)
+        execution_result dict (含 action/fill_price/fill_amount/stamp_duty/
+        total_cost/built_before/built_after)
     """
     code = inst["full_code"]
     qty = inst["qty"]
     ref_price = inst["ref_price"]
+    action = str(inst.get("action", "BUY")).upper()
+    is_sell = action == "SELL"
 
     # P2-3 交易成本建模 (A股):
     #   - 买入: 佣金(双边 0.03%) + 过户费(双边 0.001%), 无印花税
+    #   - 卖出: 佣金 + 过户费 + 印花税(单边 0.05%, 2023起)
     #   - 滑点: 按 ref_price 上浮 (买入) / 下调 (卖出), 默认 10bp
-    slippage_rate = 0.001        # 滑点 10bp (可配置)
-    commission_rate = 0.0003     # 佣金 0.03%
-    transfer_fee_rate = 0.00001  # 过户费 0.001%
-    # 实际成交价 (含滑点, 买入向上)
-    exec_price = round(ref_price * (1.0 + slippage_rate), 4)
+    slippage_rate = 0.001         # 滑点 10bp (可配置)
+    commission_rate = 0.0003      # 佣金 0.03%
+    transfer_fee_rate = 0.00001   # 过户费 0.001%
+    stamp_duty_rate = 0.0005      # 印花税 0.05% (仅卖出单边)
+    # 实际成交价 (含滑点): 买入向上, 卖出向下 (B2/S1 修复 — 卖单原错误地恒为加仓+滑点上浮)
+    slippage_sign = -1.0 if is_sell else 1.0
+    exec_price = round(ref_price * (1.0 + slippage_sign * slippage_rate), 4)
 
     # v7.8+: 使用 WT 执行算法拆分订单 (大金额订单)
     fill_amount = 0.0
@@ -1441,12 +1454,13 @@ def _execute_single_instruction(inst: dict, wt_modules: Dict, progress: Dict, po
         return {
             "code": inst["code"],
             "name": inst["name"],
-            "action": inst.get("action", "BUY"),
+            "action": action,
             "qty": 0,
             "fill_price": exec_price,
             "fill_amount": 0.0,
             "commission": 0.0,
             "transfer_fee": 0.0,
+            "stamp_duty": 0.0,
             "total_cost": 0.0,
             "status": "SKIPPED",
             "reason": "fill_amount_below_min_unit",
@@ -1454,41 +1468,59 @@ def _execute_single_instruction(inst: dict, wt_modules: Dict, progress: Dict, po
             "built_after": progress["built_amounts"].get(code, 0),
         }
 
-    # P2-3: 计入交易成本 (买入: 佣金 + 过户费)
+    # P2-3: 计入交易成本
     commission = round(actual_amount * commission_rate, 2)
     transfer_fee = round(actual_amount * transfer_fee_rate, 2)
-    total_cost = actual_amount + commission + transfer_fee  # 含成本的买入总支出
-    # 含成本均价 (用于 avg_cost, 真实持仓成本)
-    cost_avg = round(total_cost / actual_qty, 4) if actual_qty > 0 else exec_price
+    # 印花税仅卖出单边 (B2/S1 修复: 卖出成本建模)
+    stamp_duty = round(actual_amount * stamp_duty_rate, 2) if is_sell else 0.0
+    if is_sell:
+        # 卖出: total_cost 仅记录费用支出 (佣金+过户费+印花税);
+        # fill_amount 为成交毛额, 净收入 = fill_amount - total_cost.
+        total_cost = round(commission + transfer_fee + stamp_duty, 2)
+        cost_avg = exec_price  # 卖出不重算剩余持仓均价 (见下方持仓同步)
+    else:
+        total_cost = actual_amount + commission + transfer_fee  # 含成本的买入总支出
+        # 含成本均价 (用于 avg_cost, 真实持仓成本)
+        cost_avg = round(total_cost / actual_qty, 4) if actual_qty > 0 else exec_price
 
-    # 更新建仓进度 (用实际成交金额)
+    # 更新建仓进度 (用实际成交金额): 买入累加, 卖出减少 (B2 修复 — 卖单原恒为加)
     built_before = progress["built_amounts"].get(code, 0)
-    progress["built_amounts"][code] = built_before + actual_amount
-    progress["total_built"] = progress.get("total_built", 0) + actual_amount
+    if is_sell:
+        progress["built_amounts"][code] = max(0.0, built_before - actual_amount)
+        progress["total_built"] = max(0.0, progress.get("total_built", 0) - actual_amount)
+    else:
+        progress["built_amounts"][code] = built_before + actual_amount
+        progress["total_built"] = progress.get("total_built", 0) + actual_amount
 
-    # 同步 positions.json (累加实际成交股数, 含成本加权平均)
+    # 同步 positions.json: 买入累加股数+加权均价, 卖出减少股数且成本基础不变 (B2 修复)
     if code in positions and actual_qty > 0:
         pos = positions[code]
         old_shares = pos.get("shares") or 0
         old_cost = pos.get("avg_cost") or 0.0
-        new_shares = old_shares + actual_qty
-        if new_shares > 0:
-            new_avg_cost = round((old_shares * old_cost + actual_qty * cost_avg) / new_shares, 4)
+        if is_sell:
+            new_shares = old_shares - actual_qty
+            # 卖出后剩余持仓的成本基础不变 (已实现盈亏另计), 仅清仓时归零
+            new_avg_cost = old_cost if new_shares > 0 else 0.0
         else:
-            new_avg_cost = cost_avg
+            new_shares = old_shares + actual_qty
+            if new_shares > 0:
+                new_avg_cost = round((old_shares * old_cost + actual_qty * cost_avg) / new_shares, 4)
+            else:
+                new_avg_cost = cost_avg
         pos["shares"] = new_shares
-        pos["est_price"] = exec_price  # 第一次交易含滑点成交价
+        pos["est_price"] = exec_price  # 含滑点成交价
         pos["avg_cost"] = new_avg_cost
 
     return {
         "code": inst["code"],
         "name": inst["name"],
-        "action": "BUY",
+        "action": action,  # B2 修复: 透传指令 action (原硬编码 "BUY")
         "qty": actual_qty,
         "fill_price": exec_price,
         "fill_amount": actual_amount,
         "commission": commission,
         "transfer_fee": transfer_fee,
+        "stamp_duty": stamp_duty,  # B2/S1: 卖出单边印花税 (买入为 0.0)
         "total_cost": total_cost,
         "status": "FILLED",
         "built_before": built_before,
@@ -1596,11 +1628,12 @@ def execute_instructions(target_date_str: str) -> Dict:
 
     # 首次执行: 累加 build_progress + 同步 positions.json
     # GLM-5.2 C1(#16) 修复: 幂等去重, 防进程在 progress 写成功后/positions 写前崩溃导致重跑双重建仓
-    # 幂等键 = (full_code, qty), 已在 progress["executed_instruction_keys"] 持久化的指令直接跳过
+    # 幂等键 = (full_code, action, qty), 已在 progress["executed_instruction_keys"] 持久化的指令直接跳过
+    # Bug-5 修复: 幂等键加入 action, 避免同标的同 qty 的买卖指令被误判重复
     executed_keys = set(progress.get("executed_instruction_keys", []))
     execution_results = []
     for inst in confirmed:
-        ide_key = f"{inst['full_code']}:{inst.get('qty', 0)}"
+        ide_key = f"{inst['full_code']}:{inst.get('action', 'BUY')}:{inst.get('qty', 0)}"
         if ide_key in executed_keys:
             logger.warning(f"[C1幂等] 指令 {ide_key} 已执行过, 跳过 (防双重建仓)")
             continue

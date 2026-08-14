@@ -8,9 +8,9 @@ import os
 import re
 import sys
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 import logging
 
 logger = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ def _is_commodity_futures(instrument: str, commodity_set: set) -> bool:
     return code in commodity_set
 
 
-def _extract_contract_yyyymm(instrument: str, as_of_yyyymm: int = 0) -> tuple[str, int]:
+def _extract_contract_yyyymm(instrument: str, as_of_yyyymm: int = 0) -> Tuple[str, int]:
     """从合约代码提取 (品种代码, 合约月份 YYYYMM)。
 
     P1-2 新增: 支持 5 种合约代码格式:
@@ -144,7 +144,7 @@ def _extract_contract_yyyymm(instrument: str, as_of_yyyymm: int = 0) -> tuple[st
     return "", 0
 
 
-def _validate_contract_expiry(instrument: str, as_of: Optional[tuple] = None) -> tuple[bool, str]:
+def _validate_contract_expiry(instrument: str, as_of: Optional[tuple] = None) -> Tuple[bool, str]:
     """校验期货/期权合约是否已到期 (下单前拒绝过期合约)。
 
     P1-2 新增: 防止提交已到期合约 (如当前 2026-08 却用 2025-07 的 2507 合约)。
@@ -298,12 +298,8 @@ _OPTION_HEDGE_CODES = [
 
 _OPTION_MULTIPLIER = 10000
 
-# 防御资产配置 (代码, 名称, 持仓金额)
-_DEFENSE_ASSETS = {
-    "sh600900": ("长江电力", 58_800),
-    "sz518880": ("黄金ETF华安", 99_450),
-    "sh601088": ("中国神华", 38_500),
-}
+# 防御资产配置 (代码, 名称, 持仓金额) — Q-1 修复: 提取到 utils.hedge_constants 单一事实源
+from utils.hedge_constants import DEFENSE_ASSETS as _DEFENSE_ASSETS
 
 
 def _build_beta_option_orders(
@@ -349,7 +345,18 @@ def _build_beta_option_orders(
         )
         # M18 修复: cfg.get 返回 None 时用 or 兜底
         premium_budget = (item_cfg.get("premium_budget") if item_cfg else None) or alloc_notional * 0.15
-        contracts = max(1, int(alloc_notional / (est_price * _OPTION_MULTIPLIER)))
+        one_contract_notional = est_price * _OPTION_MULTIPLIER
+        # S4 修复: 名义金额不足以覆盖最小阈值时跳过该期权, 避免极小 alloc 被 max(1,..) 强制开 1 张导致过度对冲
+        min_notional = (item_cfg.get("min_notional") if item_cfg else None) or one_contract_notional
+        if alloc_notional < min_notional:
+            logger.info(
+                "[SKIP] %s 期权分配名义 %.2f < 最小阈值 %.2f, 跳过 (避免过度对冲)",
+                code,
+                alloc_notional,
+                min_notional,
+            )
+            continue
+        contracts = max(1, int(alloc_notional / one_contract_notional))
         strike = round(est_price * otm_pct, 2)
 
         orders.append(
@@ -402,8 +409,10 @@ def _build_beta_futures_order(
     if target_contracts <= 0:
         return []
 
-    instrument = "IF"
-    multiplier = 300
+    # S5 修复: instrument/multiplier 从配置读取 (默认 IF/300, 兼容 IC/IH/IM);
+    # 与文件内既有 cfg.get("multiplier") 模式 (L546/L658) 一致, 不再硬编码。
+    instrument = futures_cfg.get("instrument", "IF")
+    multiplier = int(futures_cfg.get("multiplier", 300) or 300)
     # C5 修复: 从配置/plan 获取期货价格, 不再硬编码 3800.0
     fut_price = _get_futures_price(instrument, prices, futures_cfg, plan)
     notional = multiplier * fut_price
@@ -531,7 +540,10 @@ def _build_futures_order_from_cfg(
     instrument = item_cfg.get("instrument", key)
     # P1-2: 合约到期校验——拒绝已过期合约 (如 2507 在 2026-08)。
     # 对无法解析的代码 (纯品种名/ETF) fail-closed 放行; 对可解析且已过期的拒绝。
-    if "2608" in instrument or "2609" in instrument:
+    # Bug-2 修复: 动态计算当前活跃合约月份 (当月 + 下月), 替代硬编码 "2608"/"2609"
+    _now = datetime.now()
+    _active_months = {_now.strftime("%y%m"), (_now.replace(day=28) + timedelta(days=4)).replace(day=1).strftime("%y%m")}
+    if any(m in instrument for m in _active_months):
         # 当前活跃合约月份, 直接放行 (避免多余解析开销)
         pass
     else:

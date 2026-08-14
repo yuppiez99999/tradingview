@@ -58,9 +58,10 @@ import argparse
 import json
 import logging
 import os
-import sys
+import re
+
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -81,7 +82,62 @@ ARCHIVE_DIR = PROJECT_ROOT / "每日报告归档"
 logger = logging.getLogger("hedge_order_executor")
 
 # 期权合约乘数: 上交所/深交所 ETF 期权 1张 = 10000份
+# N1 修复: 股指期权 (IO/MO/HO) 乘数为 100, 需按 instrument 前缀动态切换
 OPTION_MULTIPLIER = 10000
+
+
+def _parse_expiry_from_instrument(instrument: str) -> str:
+    """P3-4 修复: 从期权合约代码解析近似到期日 (该月最后一个工作日).
+
+    支持 '510050P2609' / 'IF2608.CFFEX' / 'CF609P15600' 等格式.
+    解析失败回退到描述性字符串 '每月首个交易日次月到期'.
+    """
+    fallback = "每月首个交易日次月到期"
+    if not instrument:
+        return fallback
+    s = str(instrument).upper().strip().split(".")[0]
+    m = re.search(r"(\d{4})$", s) or re.search(r"(\d{3})", s)
+    if not m:
+        return fallback
+    digits = m.group(1)
+    try:
+        if len(digits) == 4:
+            yy, mm = int(digits[:2]), int(digits[2:4])
+            year = 2000 + yy
+        elif len(digits) == 3:
+            now = datetime.now()
+            y, mm = int(digits[0]), int(digits[1:3])
+            year = (now.year // 10) * 10 + y
+            if year < now.year:
+                year += 10
+        else:
+            return fallback
+        if not (1 <= mm <= 12):
+            return fallback
+        # 近似到期日: 次月最后一个工作日 (期权行权通常在到期月第四个周三, 这里用月末近似)
+        if mm == 12:
+            exp_year, exp_month = year + 1, 1
+        else:
+            exp_year, exp_month = year, mm + 1
+        # 该月最后一个工作日
+        d = datetime(exp_year, exp_month, 1) + timedelta(days=32)
+        d = d.replace(day=1) - timedelta(days=1)
+        while d.weekday() > 4:  # 周六=5, 周日=6
+            d -= timedelta(days=1)
+        return d.strftime("%Y-%m-%d")
+    except Exception:  # noqa: BLE001
+        return fallback
+
+
+def _default_option_multiplier(instrument: str) -> int:
+    """根据期权合约 instrument 前缀返回默认乘数 (N1 修复).
+
+    ETF 期权 (510xxx/159xxx/588xxx) → 10000; 股指期权 (IO/MO/HO) → 100.
+    """
+    prefix = str(instrument).strip().split()[0][:2] if instrument else ""
+    if prefix in ("IO", "MO", "HO"):
+        return 100
+    return 10000
 
 # 期权 Delta 估算 (OTM 程度近似):
 #  - 认沽 OTM 5% 的 Delta ≈ -0.25 (每张覆盖 10000 份标的)
@@ -144,7 +200,7 @@ class OptionsSimBroker:
                         "订单 %s 权利金记为 0", order.get("order_id", "?"))
             premium = base_premium * (1.0 - self.MOCK_SLIPPAGE)
 
-        multiplier = float(order.get("multiplier") or OPTION_MULTIPLIER)
+        multiplier = float(order.get("multiplier") or _default_option_multiplier(order.get("instrument")))
         contracts = int(order.get("contracts", 0))
 
         fill = {
@@ -378,7 +434,7 @@ def execute_hedge_orders(
 
         # 计算标的市值与 Delta 影响
         underlying_price = _load_underlying_price(positions_data, order)
-        multiplier = float(order.get("multiplier") or OPTION_MULTIPLIER)
+        multiplier = float(order.get("multiplier") or _default_option_multiplier(order.get("instrument")))
         notional_per_contract = underlying_price * multiplier if underlying_price > 0 else 0
 
         # H14 修复: 标的价缺失时 notional=0 → beta_impact 静默记为 0，对冲 Beta 下降被误报为 0
@@ -528,9 +584,12 @@ def _update_positions_state(positions_data: dict, fills: List[Dict[str, Any]], t
                     fill_dir = str(fill.get("direction", "")).upper()
                     # 精确匹配: order_id 相同, 或 instrument 完全一致(含Call/Put区分),
                     # 且方向一致 (BUY_PUT<->BUY_PUT, SELL_CALL<->SELL_CALL)
+                    # Bug-4 修复: order_id 缺失时仅当 fill 也无 order_id 才回退到 inst+dir 匹配,
+                    # 避免多笔同 inst 同 dir PENDING 订单被一笔成交误标为 FILLED
                     same_inst = (fill_inst == inst and inst != "")
                     same_dir = (direction == fill_dir)
-                    if (oid and fill.get("order_id") == oid) or (same_inst and same_dir):
+                    fill_oid = fill.get("order_id")
+                    if (oid and fill_oid == oid) or (same_inst and same_dir and not oid and not fill_oid):
                         o["status"] = "FILLED"
                         o["fill_time"] = fill.get("fill_time", "")
                         o["premium_total"] = fill.get("premium_total", 0)
@@ -553,7 +612,7 @@ def _update_positions_state(positions_data: dict, fills: List[Dict[str, Any]], t
             "delta": fill.get("delta", 0),
             "beta_reduction": fill.get("beta_reduction", 0),
             "fill_time": fill.get("fill_time", ""),
-            "expiry": "每月首个交易日次月到期",
+            "expiry": _parse_expiry_from_instrument(fill.get("instrument", "")),
         })
     if actual:
         hedge_positions["actual_positions"] = actual

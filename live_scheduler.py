@@ -44,10 +44,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from datetime import time as dt_time
-from pathlib import Path
 from typing import Any, Callable
 
-from utils.path_config import get_project_root, get_v8_src_dir, get_logs_dir, setup_sys_path
+from utils.path_config import get_project_root, get_logs_dir, setup_sys_path
 
 # ============================================================
 # 路径初始化 (v8.5+: 通过 path_config 统一管理)
@@ -73,7 +72,11 @@ logger.addHandler(file_handler)
 # ============================================================
 # 全局状态
 # ============================================================
-RUNNING = True
+RUNNING = True  # 向后兼容: 保留布尔标志, 实际检查用 RUNNING_EVENT
+# Bug-6 修复: 用 threading.Event 替代裸布尔标志, 消除 TOCTOU 窗口
+RUNNING_EVENT = threading.Event()
+RUNNING_EVENT.set()  # 初始为运行状态
+_results_lock = threading.Lock()  # 保护 module_results 并发读写
 MODULE_STATUS: dict[str, dict] = {}
 PYTHON = sys.executable
 LOCK_FILE = BASE_DIR / ".live_scheduler.lock"
@@ -168,7 +171,7 @@ def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
                             prices[code] = float(market_data[key])
                             break
             except Exception as e:
-                logger.debug(f"获取 {code} 行情失败: {e}")
+                logger.warning(f"获取 {code} 行情失败: {e}")
                 continue
 
         result["data"] = {
@@ -743,7 +746,7 @@ def _record_degradation_lesson(eval_result) -> None:
             verified=False,
         )
     except Exception as e:
-        logger.debug(f"[strategy_eval] 退化告警记录失败 (非致命): {e}")
+        logger.warning(f"[strategy_eval] 退化告警记录失败 (非致命): {e}")
 
 
 def _build_drift_signal(ic_store: dict) -> dict:
@@ -942,14 +945,16 @@ class LiveScheduler:
         try:
             result = task_func(dry_run=self.dry_run)
             self.module_last_run[module_name] = datetime.now()
-            self.module_results[module_name].append(
-                {
-                    "timestamp": datetime.now().isoformat(),
-                    **result,
-                }
-            )
-            if len(self.module_results[module_name]) > 100:
-                self.module_results[module_name] = self.module_results[module_name][-50:]
+            # Bug-6 修复: module_results 读写加锁, 防并发 append + slice 非原子丢记录
+            with _results_lock:
+                self.module_results[module_name].append(
+                    {
+                        "timestamp": datetime.now().isoformat(),
+                        **result,
+                    }
+                )
+                if len(self.module_results[module_name]) > 100:
+                    self.module_results[module_name] = self.module_results[module_name][-50:]
 
             MODULE_STATUS[module_name] = {
                 "status": result["status"],
@@ -971,12 +976,12 @@ class LiveScheduler:
         task_func = globals()[module_def["task_func"]]
 
         def run_and_reschedule():
-            if not RUNNING:
+            if not RUNNING_EVENT.is_set():
                 return
 
             self._run_task(name, task_func)
 
-            if RUNNING and interval:
+            if RUNNING_EVENT.is_set() and interval:
                 timer = threading.Timer(interval, run_and_reschedule)
                 timer.daemon = True
                 self.timers[name] = timer
@@ -1009,7 +1014,7 @@ class LiveScheduler:
                 return
 
         def check_and_run():
-            if not RUNNING:
+            if not RUNNING_EVENT.is_set():
                 return
 
             now = datetime.now()
@@ -1069,7 +1074,7 @@ class LiveScheduler:
     def get_status(self) -> dict[str, Any]:
         """获取当前状态"""
         return {
-            "running": RUNNING,
+            "running": RUNNING_EVENT.is_set(),
             "dry_run": self.dry_run,
             "modules": MODULE_STATUS,
             "last_runs": {k: v.isoformat() if isinstance(v, datetime) else v for k, v in self.module_last_run.items()},
@@ -1144,7 +1149,8 @@ def signal_handler(signum, frame):
     """处理中断信号"""
     global RUNNING
     logger.info(f"收到信号 {signum}, 正在停止...")
-    RUNNING = False
+    RUNNING_EVENT.clear()  # Bug-6 修复: 用 Event 通知所有线程退出
+    RUNNING = False  # 向后兼容
 
 
 # ============================================================
@@ -1227,7 +1233,7 @@ def main():
     scheduler.start()
 
     try:
-        while RUNNING:
+        while RUNNING_EVENT.is_set():
             time.sleep(1)
     except KeyboardInterrupt:
         pass

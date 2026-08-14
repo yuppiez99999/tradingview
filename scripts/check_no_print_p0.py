@@ -44,7 +44,8 @@ P0_FILES = frozenset({
     "live_scheduler.py",
     "rebalance_execution_orders.py",
     "run_daily_eod.py",
-    "signal_monitor.py",
+    # signal_monitor.py 已从 P0 移除: 纯 CLI 工具 (if __name__=="__main__" 触发),
+    # 不被任何模块 import, 不由 live_scheduler 定时驱动。print 为 CLI 报告输出 (合法)。
     "signal_post_processing.py",
     "stop_loss_monitor.py",
     "today_hedge_decision.py",

@@ -5,6 +5,7 @@
 
 import json
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -129,6 +130,12 @@ def _determine_quality_rating(ic_ir):
 
 
 def analyze_signal_effectiveness():
+    # Q-2 修复: Windows GBK 控制台对 ✓/✗/─/🟢 等符号抛 UnicodeEncodeError, 兜底切 UTF-8
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except (AttributeError, OSError):  # 重定向/管道场景无 reconfigure 或不支持
+        pass
+
     report_path = get_latest_qlib_report()
     if not report_path:
         print("[错误] 未找到 QLib 训练报告")
@@ -231,10 +238,10 @@ def analyze_signal_effectiveness():
         },
         "signal_distribution": dist,
         "signal_stats": {
-            "mean": float(np.mean(signals)) if signals else 0,
-            "std": float(np.std(signals)) if signals else 0,
-            "max": float(max(signals)) if signals else 0,
-            "min": float(min(signals)) if signals else 0,
+            "mean": float(np.mean(numeric_signals)) if numeric_signals else 0,
+            "std": float(np.std(numeric_signals)) if numeric_signals else 0,
+            "max": float(max(numeric_signals)) if numeric_signals else 0,
+            "min": float(min(numeric_signals)) if numeric_signals else 0,
         },
         "latest_signals": stock_signals,
     }

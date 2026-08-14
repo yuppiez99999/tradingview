@@ -86,23 +86,20 @@ class StopLossMonitor:
             positions_file: 持仓 JSON 文件路径
             broker: BrokerAdapter 实例 (MockBrokerAdapter 或 QMT)
         """
-        # 规则文件: 优先本项目 config/, 其次回退 11_量化策略 (历史兼容)
+        # 规则文件: 本项目 config/ (P3-3: 移除已删除的 11_量化策略 历史回退路径)
         if rules_file is None:
             candidates = [
                 os.path.join(_BASE, "config", "stop_loss_vol_adjusted.yaml"),
-                os.path.join(_BASE, "..", "11_量化策略", "config", "stop_loss_vol_adjusted.yaml"),
                 os.path.join(_BASE, "config", "stop_loss_rules_auto.yaml"),
-                os.path.join(_BASE, "..", "11_量化策略", "config", "stop_loss_rules_auto.yaml"),
             ]
             rules_file = next((p for p in candidates if os.path.exists(p)), None)
 
         self.rules_file = rules_file
         self.rules = self._load_rules(rules_file)
 
-        # 持仓文件: 优先本项目 config/, 回退 11_量化策略
+        # 持仓文件: 本项目 config/
         _pos_candidates = [
             os.path.join(_BASE, "config", "positions.json"),
-            os.path.join(_BASE, "..", "11_量化策略", "config", "positions.json"),
         ]
         self.positions_file = positions_file or next(
             (p for p in _pos_candidates if os.path.exists(p)), _pos_candidates[0]
@@ -121,8 +118,10 @@ class StopLossMonitor:
                 "触发止损时仅模拟成交, 真实持仓不会下单。请注入真实 broker。"
             )
 
-        # 最高价记录 (移动止损用)
+        # 最高价记录 (多头移动止损用)
         self._high_water_mark: Dict[str, float] = {}
+        # 最低价记录 (空头移动止损用, S2 修复)
+        self._low_water_mark: Dict[str, float] = {}
 
         # 触发历史
         self.trigger_history: List[TriggerRecord] = []
@@ -213,9 +212,7 @@ class StopLossMonitor:
     def _create_mock_broker(self):
         """创建 MockBroker"""
         try:
-            quant_dir = os.path.join(_BASE, "..", "11_量化策略")
-            sys.path.insert(0, quant_dir)
-            from quant_modules.broker_adapter import BrokerFactory
+            from bridges.broker_adapter import BrokerFactory
 
             return BrokerFactory.create("mock")
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
@@ -263,9 +260,9 @@ class StopLossMonitor:
         except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.exception("[StopLoss] 读取 positions.json 价格失败 code=%s", pure_code)
 
-        # 3. 尝试从 price_history 读取
+        # 3. 尝试从 price_history 读取 (P3-3: 移除已删除的 11_量化策略 历史回退路径)
         try:
-            history_path = os.path.join(_BASE, "..", "11_量化策略", "config", "price_history.jsonl")
+            history_path = os.path.join(_BASE, "config", "price_history.jsonl")
             if os.path.exists(history_path):
                 import pandas as pd
 
@@ -286,6 +283,82 @@ class StopLossMonitor:
             return f"{code}.SZ"
         return f"{code}.SH"
 
+    def _evaluate_short(
+        self,
+        pure_code: str,
+        name: str,
+        shares: int,
+        entry_price: float,
+        current_price: float,
+        rule: dict,
+    ) -> Optional[TriggerRecord]:
+        """评估空头持仓的止损/止盈 (S2 修复).
+
+        空头语义与多头镜像: 价格上涨=亏损 (止损线在上方), 价格下跌=盈利 (止盈线在下方)。
+        触发平仓时 action=BUY (买回平仓), shares 取绝对值。
+        移动止损跟踪最低价 (利好方向), 并随价格下跌收紧上方止损线。
+
+        Returns:
+            TriggerRecord 如果触发, 否则 None
+        """
+        stop_loss_pct = float(rule.get("stop_loss_pct") or -12.0) / 100
+        # 空头止损线 = entry × (1 - stop_loss_pct); stop_loss_pct 为负(如-12%) → ×1.12 (上方)
+        stop_loss_price = entry_price * (1 - stop_loss_pct)
+
+        take_profit_pct = float(rule.get("take_profit_pct") or 25.0) / 100
+        # 空头止盈线 = entry × (1 - take_profit_pct) (下方)
+        take_profit_price = entry_price * (1 - take_profit_pct)
+
+        trailing_stop = rule.get("trailing_stop", True)
+        if trailing_stop:
+            low_mark = self._low_water_mark.get(pure_code)
+            if low_mark is None:
+                low_mark = entry_price
+            low_mark = min(low_mark, current_price)
+            self._low_water_mark[pure_code] = low_mark
+            # 移动止损线 = 最低价 × (1 - stop_loss_pct) (上方且随下跌收紧)
+            trailing_stop_price = low_mark * (1 - stop_loss_pct)
+            # 空头取更低 (更紧) 的上方止损线
+            stop_loss_price = min(stop_loss_price, trailing_stop_price)
+
+        pnl_pct = (current_price - entry_price) / entry_price  # 价格上涨为正 (空头亏损)
+        abs_shares = abs(shares)
+
+        # 止损: 价格上涨触及上方止损线
+        if current_price >= stop_loss_price:
+            trigger_type = (
+                TriggerType.TRAILING_STOP if trailing_stop and current_price < entry_price else TriggerType.STOP_LOSS
+            )
+            return TriggerRecord(
+                timestamp=datetime.now().isoformat(),
+                code=pure_code,
+                name=name,
+                trigger_type=trigger_type,
+                entry_price=entry_price,
+                current_price=current_price,
+                trigger_price=stop_loss_price,
+                shares=abs_shares,
+                action="BUY",
+                pnl_pct=pnl_pct,
+            )
+
+        # 止盈: 价格下跌触及下方止盈线
+        if current_price <= take_profit_price:
+            return TriggerRecord(
+                timestamp=datetime.now().isoformat(),
+                code=pure_code,
+                name=name,
+                trigger_type=TriggerType.TAKE_PROFIT,
+                entry_price=entry_price,
+                current_price=current_price,
+                trigger_price=take_profit_price,
+                shares=abs_shares,
+                action="BUY",
+                pnl_pct=pnl_pct,
+            )
+
+        return None
+
     def check_position(self, code: str, position: dict) -> Optional[TriggerRecord]:
         """检查单个持仓是否触发止损/止盈
 
@@ -302,9 +375,11 @@ class StopLossMonitor:
             return None
 
         shares = position.get("shares") or 0
-        if shares <= 0:
+        if shares == 0:
             self._high_water_mark.pop(pure_code, None)  # 清仓后重置最高价记录
+            self._low_water_mark.pop(pure_code, None)
             return None
+        is_short = shares < 0  # S2 修复: 空头持仓 (shares<0) 需反向止损/止盈
 
         entry_price = position.get("avg_cost") or 0
         if entry_price <= 0:
@@ -320,6 +395,10 @@ class StopLossMonitor:
             return None
 
         name = position.get("name", rule.get("name", code))
+
+        # S2 修复: 空头持仓反向逻辑 (价格上涨止损, 价格下跌止盈, 平仓=BUY 买回)
+        if is_short:
+            return self._evaluate_short(pure_code, name, shares, entry_price, current_price, rule)
 
         # 止损线
         # P2-3 修复: rule.get("stop_loss_pct", -12.0) 在 YAML 显式写 null 时返回 None,
@@ -413,10 +492,11 @@ class StopLossMonitor:
             if record:
                 triggered.append(record)
 
-        # 执行卖出
+        # 执行平仓 (支持多头卖出 SELL 和空头买回 BUY)
         for record in triggered:
-            if record.action == "SELL":
-                success, order_id = self._execute_sell(record.code, record.shares, record.current_price)
+            if record.action in ("SELL", "BUY"):
+                side = "sell" if record.action == "SELL" else "buy"
+                success, order_id = self._execute_close(record.code, side, record.shares, record.current_price)
                 record.executed = success
                 record.order_id = order_id
 
@@ -424,10 +504,10 @@ class StopLossMonitor:
                     logger.warning(
                         f"止损止盈触发: {record.name} ({record.code}) "
                         f"{record.trigger_type.value} @ ¥{record.current_price:.2f} "
-                        f"(入场 ¥{record.entry_price:.2f}, P&L {record.pnl_pct:+.1%})"
+                        f"(入场 ¥{record.entry_price:.2f}, P&L {record.pnl_pct:+.1%}, 方向 {record.action})"
                     )
                 else:
-                    logger.error(f"执行卖出失败: {record.code} - {order_id}")
+                    logger.error(f"执行平仓失败: {record.code} - {order_id}")
 
         self.trigger_history.extend(triggered)
 
@@ -436,23 +516,23 @@ class StopLossMonitor:
 
         return triggered
 
-    def _execute_sell(self, code: str, shares: int, price: float) -> Tuple[bool, str]:
-        """通过 broker 执行卖出"""
+    def _execute_close(self, code: str, side: str, shares: int, price: float) -> Tuple[bool, str]:
+        """通过 broker 执行平仓 (side='sell' 多头卖出 / 'buy' 空头买回)"""
         if not self.broker:
-            logger.warning(f"无 broker, 仅记录: SELL {code} {shares}@{price:.2f}")
+            logger.warning(f"无 broker, 仅记录: {side.upper()} {code} {shares}@{price:.2f}")
             return False, "no_broker"
 
         try:
-            success, order_id = self.broker.send_order(code, "sell", shares, price)
+            success, order_id = self.broker.send_order(code, side, shares, price)
             # P2-4: mock 模式下显式标记, 避免上游误认为已真实成交
             if success and self.execution_mode == "MOCK":
                 logger.warning(
-                    "[WARN] SELL %s %d@%.2f 通过 MockBroker 模拟成交 (EXECUTION_MODE=MOCK, 真实持仓未变)",
-                    code, shares, price,
+                    "[WARN] %s %s %d@%.2f 通过 MockBroker 模拟成交 (EXECUTION_MODE=MOCK, 真实持仓未变)",
+                    side.upper(), code, shares, price,
                 )
             return success, order_id
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
-            logger.error(f"卖出异常: {code} - {e}")
+            logger.error(f"平仓异常: {code} - {e}")
             return False, str(e)
 
     def _save_trigger_log(self, records: List[TriggerRecord]):
@@ -509,6 +589,7 @@ class StopLossMonitor:
                 [t for t in self.trigger_history if t.timestamp.startswith(datetime.now().strftime("%Y-%m-%d"))]
             ),
             "high_water_marks": dict(self._high_water_mark),
+            "low_water_marks": dict(self._low_water_mark),
         }
 
 
