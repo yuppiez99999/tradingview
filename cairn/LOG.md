@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-14 · G7 W7.4.5 覆盖率冲刺第 1 批 · 完成 ✅
+
+- **基线**: unit tests 覆盖率 72.83% (53195 stmts, 14 个 0% 模块)
+- **补测 3 个 0% 模块 → 100%** (46 tests, 1.24s):
+  - `utils/console_encoding.py` (30 stmts, 18 tests): reconfigure/TextIOWrapper 兜底/Windows chcp/非 Windows/PYTHONIOENCODING
+  - `utils/env_loader.py` (44 stmts, 17 tests): 自动查找/引号剥离/注释跳过/override/OSError
+  - `utils/report_archiver.py` (21 stmts, 11 tests): 路径构造/文件写入/嵌套目录/Unicode/幂等/OSError
+- **门禁**: 46 passed + pre-commit 全绿
+- **指针**: `tests/unit/test_console_encoding_unit.py` · `tests/unit/test_env_loader_unit.py` · `tests/unit/test_report_archiver_unit.py`
+
 ## 2026-08-14 · live_scheduler.py BLE001 精确化 + W7.1.2 标记完成 · 完成 ✅
 
 - **BLE001 精确化**: `live_scheduler.py` 25 处 `except Exception` → 20 处精确异常 tuple + 5 处 `# noqa: BLE001` (ML 推理框架/任意可调用入口)
