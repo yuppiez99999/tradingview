@@ -8,6 +8,12 @@
     5. DOWNGRADE_TO_PUT_SPREAD → 仅记录跳过
     6. 未知 action → SKIP_UNKNOWN_ACTION
     7. 返回结构与原 executed_orders 对齐
+
+状态 (2026-08-12, daily_workflow 拆分第 3 轮):
+    第 3 轮 phase_hedge 拆分至 workflow/phases/hedge.py 时, _execute_sim_hedge_orders
+    作为新增辅助方法实现 (符合本测试规约), daily_workflow.py 保留门面转发.
+    phase_hedge 主流程仍使用 MockBroker (零行为变更), _execute_sim_hedge_orders
+    供 sim_mode 模式调用 (未来 phase_hedge 集成 sim_engine 时启用).
 """
 from __future__ import annotations
 

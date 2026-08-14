@@ -1,0 +1,1078 @@
+{
+  "trade_date": "2026-08-12",
+  "capital": 5000000,
+  "dry_run": true,
+  "sim_mode": true,
+  "phases": {
+    "calibrate": {
+      "status": "PASS",
+      "wind_fetch": {
+        "success": 0,
+        "fail": 33,
+        "total_days": 0,
+        "total_symbols": 0,
+        "degraded_reason": "Wind MCP 拉取失败, 使用现有 returns_history.json"
+      },
+      "realized": {
+        "start_date": "2025-07-07",
+        "end_date": "2026-08-07",
+        "years": 1.0841889117043122,
+        "portfolio_weighted_annualized": 0.33682244649029053,
+        "market_annualized": 0.191227139023745,
+        "market_sharpe": 1.0988210207042797,
+        "portfolio_weight_total": 1.0001
+      },
+      "calibration": {
+        "original_weights": {
+          "bull": 0.25,
+          "base": 0.45,
+          "bear": 0.25,
+          "black_swan": 0.05
+        },
+        "calibrated_weights": {
+          "bull": 0.25,
+          "base": 0.45,
+          "bear": 0.25,
+          "black_swan": 0.05
+        },
+        "calibration_reason": "realized > base*1.2, bull 概率上调",
+        "calibrated_expected_annualized": 9.33,
+        "calibrated_expected_final": 5715866.0
+      }
+    },
+    "hedge": {
+      "status": "PASS",
+      "vix": 18.5,
+      "circuit_level": "NORMAL",
+      "portfolio_beta": 1.0518518518518518,
+      "actions": {
+        "beta_hedger": "ERROR",
+        "vol_hedger": "ERROR",
+        "corr_hedger": "ERROR",
+        "beta_hedge": "ERROR"
+      },
+      "orders": [],
+      "coordinated": {
+        "action": "ERROR",
+        "reason": "HedgeCoordinator 模块未加载",
+        "orders": [],
+        "total_hedge_pct": 0.0,
+        "summary": {
+          "beta_hedger": "ERROR",
+          "vol_hedger": "ERROR",
+          "corr_hedger": "ERROR",
+          "beta_hedge": "ERROR"
+        },
+        "portfolio_beta": 1.0518518518518518,
+        "total_cost": 0.0
+      },
+      "total_hedge_pct": 0.0,
+      "total_cost": 0.0,
+      "hedge_enabled": false,
+      "edb_futures": {}
+    },
+    "hedge_fund": {
+      "status": "PASS",
+      "modules_loaded": true,
+      "theta": {
+        "status": "ERROR",
+        "error": "No module named 'wind_mcp_fetcher'"
+      },
+      "gamma": {
+        "status": "ERROR",
+        "error": "No module named 'wind_mcp_fetcher'"
+      },
+      "kill_switch": {
+        "level": 0,
+        "level_name": "正常",
+        "margin_usage_ratio": 0.0,
+        "triggered": false
+      },
+      "liquidation": {
+        "phase": 0,
+        "phase_name": "正常运行期",
+        "days_to_next": 1419,
+        "alert": {
+          "alert": false
+        }
+      }
+    },
+    "v10_risk": {
+      "status": "PASS",
+      "modules_loaded": true,
+      "drawdown": {
+        "level": 0,
+        "level_name": "正常",
+        "drawdown_pct": 0.0,
+        "build_allowed": true,
+        "spot_reduce_pct": 0.0,
+        "hedge_ratio_target": 0.4,
+        "actions": []
+      },
+      "var": {
+        "status": "SKIP",
+        "reason": "insufficient_data"
+      },
+      "stress_test": {
+        "executed": false,
+        "reason": "not_quarter_end"
+      },
+      "v10_config": {
+        "phase_key": "phase_2026",
+        "phase_name": "建仓期",
+        "daily_build_limit": 200000.0,
+        "allocation": {
+          "stock_long": 1800000.0,
+          "etf": 500000.0,
+          "futures_margin": 500000.0,
+          "quant_neutral": 700000.0,
+          "options": 200000.0,
+          "cash_reserve": 1300000.0
+        }
+      },
+      "quarterly_review": {
+        "executed": false,
+        "reason": "not_quarter_end"
+      }
+    },
+    "quant_neutral": {
+      "status": "PASS",
+      "action": "skip",
+      "reason": "非月末调仓窗口 (今日 12 日 < 25)",
+      "long_count": 0,
+      "long_market_value": 0.0,
+      "portfolio_beta": 0.0,
+      "net_exposure": 0.0,
+      "ic_hedge": {},
+      "drawdown_action": "normal"
+    },
+    "cash_management": {
+      "status": "PASS",
+      "action": "allocate",
+      "total_cash": 1300000,
+      "reverse_repo_amount": 300000.0,
+      "estimated_daily_income": 20.54794520547945,
+      "repo_order": {
+        "action": "place_repo_order",
+        "instrument": "RCO001",
+        "direction": "lend",
+        "amount": 300000.0,
+        "rate": 0.025,
+        "term_days": 1,
+        "trade_date": "2026-08-12",
+        "settlement_date": "2026-08-13",
+        "expected_income": 20.54794520547945,
+        "is_month_end": false,
+        "is_quarter_end": false,
+        "strategy_note": "常规投放"
+      },
+      "margin_call": {
+        "action": "no_action",
+        "margin_ratio": 0.0,
+        "reason": "保证金维持率 0.0% 正常"
+      },
+      "emergency_replenish": {},
+      "estimated_annual_yield": 0.003951527924130663,
+      "is_month_end": false,
+      "is_quarter_end": false,
+      "futures_margin_ratio": 0.8,
+      "emergency_replenish_needed": false
+    },
+    "directional_futures": {
+      "status": "PASS",
+      "action": "trade",
+      "signals": [
+        {
+          "symbol": "CU",
+          "name": "沪铜期货",
+          "direction": "flat",
+          "strength": 0.429,
+          "ma20": 74953.10453,
+          "ma60": 73077.16178166667,
+          "rsi": 51.32,
+          "macd_hist": -262.338343,
+          "rationale": "MA20 74953.10 vs MA60 73077.16 (trend +1), RSI 51.3 (中性), MACD hist -262.3383 (momentum -1).",
+          "confidence": 0.333
+        },
+        {
+          "symbol": "AU",
+          "name": "黄金期货",
+          "direction": "flat",
+          "strength": 0.429,
+          "ma20": 515.7609500000001,
+          "ma60": 539.8543783333332,
+          "rsi": 53.39,
+          "macd_hist": 6.279353,
+          "rationale": "MA20 515.76 vs MA60 539.85 (trend -1), RSI 53.4 (中性), MACD hist +6.2794 (momentum +1).",
+          "confidence": 0.333
+        },
+        {
+          "symbol": "T",
+          "name": "10年国债期货",
+          "direction": "short",
+          "strength": 1.0,
+          "ma20": 98.625035,
+          "ma60": 102.15532000000005,
+          "rsi": 14.32,
+          "macd_hist": -0.550459,
+          "rationale": "MA20 98.63 vs MA60 102.16 (trend -1), RSI 14.3 (超卖), MACD hist -0.5505 (momentum -1).",
+          "confidence": 1.0
+        }
+      ],
+      "orders": [
+        {
+          "symbol": "CU",
+          "name": "沪铜期货",
+          "exchange": "SHFE",
+          "action": "hold",
+          "direction": "flat",
+          "contracts": 0,
+          "price": 75682.5865,
+          "notional_value": 0.0,
+          "required_margin": 0.0,
+          "stop_loss": 0.0,
+          "take_profit": 0.0,
+          "trade_date": "2026-08-12",
+          "rationale": "MA20 74953.10 vs MA60 73077.16 (trend +1), RSI 51.3 (中性), MACD hist -262.3383 (momentum -1)."
+        },
+        {
+          "symbol": "AU",
+          "name": "黄金期货",
+          "exchange": "SHFE",
+          "action": "hold",
+          "direction": "flat",
+          "contracts": 0,
+          "price": 514.5598,
+          "notional_value": 0.0,
+          "required_margin": 0.0,
+          "stop_loss": 0.0,
+          "take_profit": 0.0,
+          "trade_date": "2026-08-12",
+          "rationale": "MA20 515.76 vs MA60 539.85 (trend -1), RSI 53.4 (中性), MACD hist +6.2794 (momentum +1)."
+        },
+        {
+          "symbol": "T",
+          "name": "10年国债期货",
+          "exchange": "CFFEX",
+          "action": "open_short",
+          "direction": "short",
+          "contracts": 8,
+          "price": 92.6764,
+          "notional_value": 7414112.0,
+          "required_margin": 148282.24,
+          "stop_loss": 98.237,
+          "take_profit": 81.5552,
+          "trade_date": "2026-08-12",
+          "rationale": "MA20 98.63 vs MA60 102.16 (trend -1), RSI 14.3 (超卖), MACD hist -0.5505 (momentum -1)."
+        }
+      ],
+      "risk_status": "normal",
+      "total_margin_used": 148282.24,
+      "total_notional": 7414112.0,
+      "pause_until": null,
+      "orders_file": "E:\\各种PY程序\\28-终极量化交易系统8.4\\trade_instructions\\directional_futures_orders_2026-08-12.json"
+    },
+    "signal": {
+      "status": "PASS",
+      "action": "BUILD_PLAN",
+      "phase_name": "P1 核心建仓",
+      "phase_number": 1,
+      "day_index": 1,
+      "morning_orders": [
+        {
+          "code": "sh510300",
+          "name": "沪深300ETF",
+          "side": "BUY",
+          "type": "ETF",
+          "shares": 50000,
+          "est_price": 4.0,
+          "est_amount": 200000.0,
+          "original_shares": 50000,
+          "qlib_signal": null,
+          "qlib_factor": null,
+          "ifind_direction": "neutral",
+          "ifind_confidence": 0.0,
+          "ifind_factor": 1.0,
+          "fused_factor": 1.0,
+          "ifind_reasons": [
+            "未检索到相关资讯"
+          ],
+          "lgb_signal": null,
+          "lgb_multiplier": null,
+          "macro_combined_score": 1.0,
+          "macro_factor": 1.0,
+          "fifteen_five_score": 1.0,
+          "kondratiev_score": 1.0
+        },
+        {
+          "code": "sh510500",
+          "name": "中证500ETF",
+          "side": "BUY",
+          "type": "ETF",
+          "shares": 15000,
+          "est_price": 6.5,
+          "est_amount": 97500.0,
+          "original_shares": 15000,
+          "qlib_signal": null,
+          "qlib_factor": null,
+          "ifind_direction": "neutral",
+          "ifind_confidence": 0.0,
+          "ifind_factor": 1.0,
+          "fused_factor": 1.0,
+          "ifind_reasons": [
+            "未检索到相关资讯"
+          ],
+          "lgb_signal": null,
+          "lgb_multiplier": null,
+          "macro_combined_score": 1.0,
+          "macro_factor": 1.0,
+          "fifteen_five_score": 1.0,
+          "kondratiev_score": 1.0
+        },
+        {
+          "code": "sh688041",
+          "name": "海光信息",
+          "side": "BUY",
+          "type": "STOCK",
+          "shares": 1300,
+          "est_price": 85.0,
+          "est_amount": 110500.0,
+          "original_shares": 1000,
+          "qlib_signal": null,
+          "qlib_factor": null,
+          "ifind_direction": "neutral",
+          "ifind_confidence": 0.0,
+          "ifind_factor": 1.0,
+          "fused_factor": 1.0,
+          "ifind_reasons": [
+            "未检索到相关资讯"
+          ],
+          "lgb_signal": null,
+          "lgb_multiplier": null,
+          "macro_combined_score": 1.15,
+          "macro_factor": 1.3,
+          "fifteen_five_score": 1.15,
+          "kondratiev_score": 1.15
+        },
+        {
+          "code": "sz300308",
+          "name": "中际旭创",
+          "side": "BUY",
+          "type": "STOCK",
+          "shares": 300,
+          "est_price": 120.0,
+          "est_amount": 36000.0,
+          "original_shares": 300,
+          "qlib_signal": null,
+          "qlib_factor": null,
+          "ifind_direction": "neutral",
+          "ifind_confidence": 0.0,
+          "ifind_factor": 1.0,
+          "fused_factor": 1.0,
+          "ifind_reasons": [
+            "未检索到相关资讯"
+          ],
+          "lgb_signal": null,
+          "lgb_multiplier": null,
+          "macro_combined_score": 1.15,
+          "macro_factor": 1.3,
+          "fifteen_five_score": 1.15,
+          "kondratiev_score": 1.15
+        }
+      ],
+      "afternoon_orders": [
+        {
+          "code": "sh600276",
+          "name": "恒瑞医药",
+          "side": "BUY",
+          "type": "STOCK",
+          "shares": 1000,
+          "est_price": 50.0,
+          "est_amount": 50000.0,
+          "original_shares": 1000,
+          "qlib_signal": null,
+          "qlib_factor": null,
+          "ifind_direction": "neutral",
+          "ifind_confidence": 0.0,
+          "ifind_factor": 1.0,
+          "fused_factor": 1.0,
+          "ifind_reasons": [
+            "未检索到相关资讯"
+          ],
+          "lgb_signal": null,
+          "lgb_multiplier": null,
+          "macro_combined_score": 1.05,
+          "macro_factor": 1.0,
+          "fifteen_five_score": 1.05,
+          "kondratiev_score": 1.05
+        },
+        {
+          "code": "sz518880",
+          "name": "黄金ETF",
+          "side": "BUY",
+          "type": "ETF",
+          "shares": 10000,
+          "est_price": 5.85,
+          "est_amount": 58500.0,
+          "original_shares": 10000,
+          "qlib_signal": null,
+          "qlib_factor": null,
+          "ifind_direction": "neutral",
+          "ifind_confidence": 0.0,
+          "ifind_factor": 1.0,
+          "fused_factor": 1.0,
+          "ifind_reasons": [
+            "未检索到相关资讯"
+          ],
+          "lgb_signal": null,
+          "lgb_multiplier": null,
+          "macro_combined_score": 1.05,
+          "macro_factor": 1.0,
+          "fifteen_five_score": 1.05,
+          "kondratiev_score": 1.05
+        }
+      ],
+      "morning_window": "09:30-10:30",
+      "afternoon_window": "14:00-14:30",
+      "morning_count": 4,
+      "afternoon_count": 2,
+      "morning_amount": 418500,
+      "afternoon_amount": 108500,
+      "grand_amount": 527000,
+      "total_orders": 6,
+      "position_factor": 1.0,
+      "qlib_adjusted": true,
+      "ifind_adjusted": true,
+      "qlib_skip_count": 0,
+      "qlib_boost_count": 0,
+      "qlib_cut_count": 6,
+      "ifind_skip_count": 0,
+      "ifind_boost_count": 0,
+      "ifind_cut_count": 6,
+      "lgb_boost_count": 0,
+      "lgb_cut_count": 0,
+      "macro_skip_count": 0,
+      "macro_boost_count": 2,
+      "macro_cut_count": 6,
+      "bl_optimization": {
+        "optimal_weights": [
+          4.6143644460975346e-15,
+          0.0,
+          7.21644966006231e-16,
+          3.420874694625691e-15,
+          1.9220736113819804e-15,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.4462042674521025e-13,
+          1.2150003225739523e-14,
+          0.9999999999998326
+        ],
+        "weight_change_vs_market": [
+          -0.041860465116274455,
+          -0.04186046511627907,
+          -0.04186046511627835,
+          -0.04186046511627565,
+          -0.04186046511627715,
+          -0.02930232558139535,
+          -0.02930232558139535,
+          -0.02930232558139535,
+          -0.02930232558139535,
+          -0.02930232558139535,
+          -0.012558139534883722,
+          -0.012558139534883722,
+          -0.012558139534883722,
+          -0.012558139534883722,
+          -0.012558139534883722,
+          -0.027906976744186046,
+          -0.018604651162790697,
+          -0.018604651162790697,
+          -0.013953488372093023,
+          -0.013953488372093023,
+          -0.023255813953488372,
+          -0.11627906976729724,
+          -0.046511627906964594,
+          0.6976744186044838
+        ],
+        "sharpe_ratio": -0.7197674418605888,
+        "diversification_ratio": 1.0000000000001674,
+        "effective_n": 1.0000000000003348,
+        "expected_portfolio_return": 0.0012093023255812642,
+        "expected_portfolio_vol": 0.039999999999993305
+      },
+      "alpha_factors": {
+        "total_factors": 99,
+        "effective_factors": [],
+        "strong_factors": [
+          "MOM_20D",
+          "MOM_60D",
+          "MOM_REVERSAL_5D",
+          "MOM_UP_DOWN",
+          "MOM_INDUSTRY_ADJ",
+          "VOL_20D",
+          "VOL_DOWNSIDE",
+          "VOL_SKEW",
+          "FM_RET_1D",
+          "FM_MOM_5D",
+          "FM_MOM_20D",
+          "FM_IDIO_VOL"
+        ],
+        "factor_names": [
+          "MOM_20D",
+          "MOM_60D",
+          "MOM_120D",
+          "MOM_252D",
+          "MOM_12_1M",
+          "MOM_REVERSAL_5D",
+          "MOM_REVERSAL_20D",
+          "MOM_VOLUME_ADJ",
+          "MOM_UP_DOWN",
+          "MOM_INDUSTRY_ADJ",
+          "VOL_20D",
+          "VOL_120D",
+          "VOL_60D",
+          "VOL_252D",
+          "VOL_BETA",
+          "VOL_DOWNSIDE",
+          "VOL_IDIO",
+          "VOL_SKEW",
+          "SIZE_LOG_MCAP",
+          "SIZE_LOG_NS"
+        ]
+      },
+      "momentum_signals": {
+        "total_signals": 24,
+        "bullish_count": 0,
+        "bearish_count": 0,
+        "avg_signal_strength": 0.0,
+        "strategy_state": "REVERSING",
+        "top_long_candidates": [],
+        "top_short_candidates": []
+      },
+      "smart_beta": {
+        "weights": [
+          0.014117953143814225,
+          0.015461894407170976,
+          0.019278533709702905,
+          0.0009813955896866863,
+          0.02726769579014349,
+          0.0035671803288571283,
+          0.00014773395525012487,
+          0.09693599147400381,
+          0.006704537362664728,
+          0.0020599901054551687,
+          0.04109232439429156,
+          0.015836008750951435,
+          0.01673680320164346,
+          0.022717552533090095,
+          0.0352125550710383,
+          0.0012855447001835622,
+          0.061301568158286114,
+          0.001564258672082256,
+          0.00244793595019513,
+          0.0010222873824383522,
+          0.15582487799117853,
+          0.15582487799117853,
+          0.14678562134551484,
+          0.15582487799117853
+        ],
+        "weight_concentration": 0.1131477722310329,
+        "effective_n": 8.837999902977597,
+        "sharpe_ratio": -0.20805933031199608,
+        "tracking_error": 1.6959194022303306,
+        "information_ratio": -0.1356178354403926
+      },
+      "news_sentiment": {
+        "avg_sentiment": 0.0,
+        "positive_count": 0,
+        "negative_count": 0,
+        "neutral_count": 0,
+        "event_counts": {},
+        "total_news": 0,
+        "top_positive": [],
+        "top_negative": []
+      },
+      "supply_chain": {
+        "total_nodes": 10,
+        "total_edges": 9,
+        "top_central": [
+          {
+            "symbol": "002594",
+            "betweenness": 0.13333333333333333,
+            "pagerank": 0.130777360513058
+          },
+          {
+            "symbol": "002126",
+            "betweenness": 0.0,
+            "pagerank": 0.11657953073791708
+          },
+          {
+            "symbol": "300750",
+            "betweenness": 0.13333333333333333,
+            "pagerank": 0.11502378892074638
+          },
+          {
+            "symbol": "300142",
+            "betweenness": 0.0,
+            "pagerank": 0.11497270730079726
+          },
+          {
+            "symbol": "000977",
+            "betweenness": 0.13333333333333333,
+            "pagerank": 0.10797452536776649
+          }
+        ],
+        "hubs": [],
+        "bottlenecks": [],
+        "risk_contagion": {
+          "002126": 0.13264,
+          "300142": 0.14800000000000002,
+          "600519": 0.12340000000000001,
+          "000977": 0.1408,
+          "300308": 0.136
+        },
+        "network_density": 0.1,
+        "avg_path_length": 0.0
+      },
+      "alt_data": {
+        "total_symbols": 10,
+        "avg_composite_score": 0.12274088689033898,
+        "coverage_rate": 10.0,
+        "top_scores": [
+          {
+            "symbol": "688012.SH",
+            "composite_score": 0.31052999069503406,
+            "satellite_score": 0.04468128258700452,
+            "search_score": 0.4804978813094047,
+            "recruitment_score": 0.2903570718717594,
+            "patent_score": 0.47571888486891867,
+            "confidence": 1.0
+          },
+          {
+            "symbol": "300750.SZ",
+            "composite_score": 0.21346811672398286,
+            "satellite_score": -0.03215584721336237,
+            "search_score": -0.1960627957316227,
+            "recruitment_score": 0.5096608521627675,
+            "patent_score": 0.680793597553375,
+            "confidence": 1.0
+          },
+          {
+            "symbol": "002594.SZ",
+            "composite_score": 0.20451745001801488,
+            "satellite_score": 0.18449165691974923,
+            "search_score": 0.3295395020017107,
+            "recruitment_score": 0.1747899563640516,
+            "patent_score": 0.12730834467540839,
+            "confidence": 1.0
+          },
+          {
+            "symbol": "688981.SH",
+            "composite_score": 0.1930312034981135,
+            "satellite_score": 0.07007426910369471,
+            "search_score": 0.2551734866132544,
+            "recruitment_score": -0.0031389106185311655,
+            "patent_score": 0.4353733329495909,
+            "confidence": 1.0
+          },
+          {
+            "symbol": "600900.SH",
+            "composite_score": 0.13064732918355645,
+            "satellite_score": 0.2615784269021076,
+            "search_score": -0.056839921549910244,
+            "recruitment_score": 0.2914199556857499,
+            "patent_score": 0.032399161453007044,
+            "confidence": 1.0
+          }
+        ],
+        "anomalies": []
+      },
+      "strategy_coordination": {
+        "is_approved": true,
+        "total_allocated": 3700000.0,
+        "cash_buffer": 1300000.0,
+        "risk_budget_used": 150000.0,
+        "risk_budget_limit": 750000.0,
+        "conflicts": [
+          {
+            "strategies": [
+              "stock_long"
+            ],
+            "symbol": "futures",
+            "conflict_type": "over_position",
+            "severity": "warning",
+            "message": "标的 futures 持仓 10.0% 超过 5% 上限",
+            "suggested_action": "减仓 futures 至 5% 以内"
+          },
+          {
+            "strategies": [
+              "stock_long"
+            ],
+            "symbol": "cash",
+            "conflict_type": "over_position",
+            "severity": "warning",
+            "message": "标的 cash 持仓 26.0% 超过 5% 上限",
+            "suggested_action": "减仓 cash 至 5% 以内"
+          }
+        ],
+        "adjusted_weights": {
+          "stock_long": 0.36,
+          "etf_allocation": 0.1,
+          "macro_hedge": 0.1,
+          "quant_neutral": 0.14,
+          "options_tail": 0.04,
+          "cash_management": 0.26
+        }
+      },
+      "macro_policy": {
+        "sh510300": {
+          "fifteen_five_score": 1.0,
+          "kondratiev_score": 1.0,
+          "combined_score": 1.0,
+          "fifteen_five_note": "未命中十五五核心映射",
+          "kondratiev_note": "康波中性/防御"
+        },
+        "sh510500": {
+          "fifteen_five_score": 1.0,
+          "kondratiev_score": 1.0,
+          "combined_score": 1.0,
+          "fifteen_five_note": "未命中十五五核心映射",
+          "kondratiev_note": "康波中性/防御"
+        },
+        "sh688041": {
+          "fifteen_five_score": 1.15,
+          "kondratiev_score": 1.15,
+          "combined_score": 1.15,
+          "fifteen_five_note": "命中战略方向",
+          "kondratiev_note": "康波复苏/繁荣受益"
+        },
+        "sz300308": {
+          "fifteen_five_score": 1.15,
+          "kondratiev_score": 1.15,
+          "combined_score": 1.15,
+          "fifteen_five_note": "命中战略方向",
+          "kondratiev_note": "康波复苏/繁荣受益"
+        },
+        "sh600276": {
+          "fifteen_five_score": 1.05,
+          "kondratiev_score": 1.05,
+          "combined_score": 1.05,
+          "fifteen_five_note": "命中战略方向",
+          "kondratiev_note": "康波中性/防御"
+        },
+        "sz518880": {
+          "fifteen_five_score": 1.05,
+          "kondratiev_score": 1.05,
+          "combined_score": 1.05,
+          "fifteen_five_note": "命中战略方向",
+          "kondratiev_note": "康波中性/防御"
+        }
+      }
+    },
+    "execute": {
+      "status": "PASS",
+      "fills": [
+        {
+          "symbol": "sh510300",
+          "name": "沪深300ETF",
+          "session": "",
+          "side": "BUY",
+          "qty": 50000,
+          "price": 4.0,
+          "limit_price": 0.0,
+          "amount": 200000.0,
+          "algo": "LIMIT",
+          "status": "DRY_RUN"
+        },
+        {
+          "symbol": "sh510500",
+          "name": "中证500ETF",
+          "session": "",
+          "side": "BUY",
+          "qty": 15000,
+          "price": 6.5,
+          "limit_price": 0.0,
+          "amount": 97500.0,
+          "algo": "LIMIT",
+          "status": "DRY_RUN"
+        },
+        {
+          "symbol": "sh688041",
+          "name": "海光信息",
+          "session": "",
+          "side": "BUY",
+          "qty": 1300,
+          "price": 85.0,
+          "limit_price": 0.0,
+          "amount": 110500.0,
+          "algo": "LIMIT",
+          "status": "DRY_RUN"
+        },
+        {
+          "symbol": "sz300308",
+          "name": "中际旭创",
+          "session": "",
+          "side": "BUY",
+          "qty": 300,
+          "price": 120.0,
+          "limit_price": 0.0,
+          "amount": 36000.0,
+          "algo": "LIMIT",
+          "status": "DRY_RUN"
+        },
+        {
+          "symbol": "sh600276",
+          "name": "恒瑞医药",
+          "session": "",
+          "side": "BUY",
+          "qty": 1000,
+          "price": 50.0,
+          "limit_price": 0.0,
+          "amount": 50000.0,
+          "algo": "LIMIT",
+          "status": "DRY_RUN"
+        },
+        {
+          "symbol": "sz518880",
+          "name": "黄金ETF",
+          "session": "",
+          "side": "BUY",
+          "qty": 10000,
+          "price": 5.85,
+          "limit_price": 0.0,
+          "amount": 58500.0,
+          "algo": "LIMIT",
+          "status": "DRY_RUN"
+        }
+      ],
+      "options_fills": [],
+      "options_count": 0,
+      "execution_plans": [
+        {
+          "symbol": "sh510300",
+          "algo": "VWAP",
+          "slices": 8,
+          "first_slice_shares": 9800,
+          "last_slice_shares": 10602,
+          "est_total_cost": 44.800000000000004,
+          "est_slippage_bps": 2.24,
+          "plan_path": "E:\\各种PY程序\\28-终极量化交易系统8.4\\trade_instructions\\execution_plans\\VWAP_sh510300_BUY_20260812191806.json"
+        },
+        {
+          "symbol": "sh510500",
+          "algo": "VWAP",
+          "slices": 8,
+          "first_slice_shares": 2940,
+          "last_slice_shares": 3180,
+          "est_total_cost": 11.895,
+          "est_slippage_bps": 1.22,
+          "plan_path": "E:\\各种PY程序\\28-终极量化交易系统8.4\\trade_instructions\\execution_plans\\VWAP_sh510500_BUY_20260812191806.json"
+        },
+        {
+          "symbol": "sh688041",
+          "algo": "MARKET",
+          "slices": 1,
+          "first_slice_shares": 1300,
+          "last_slice_shares": 1300,
+          "est_total_cost": 110500.0,
+          "est_slippage_bps": 2.0,
+          "plan_path": null,
+          "small_order_market": true
+        },
+        {
+          "symbol": "sz300308",
+          "algo": "MARKET",
+          "slices": 1,
+          "first_slice_shares": 300,
+          "last_slice_shares": 300,
+          "est_total_cost": 36000.0,
+          "est_slippage_bps": 2.0,
+          "plan_path": null,
+          "small_order_market": true
+        },
+        {
+          "symbol": "sh600276",
+          "algo": "MARKET",
+          "slices": 1,
+          "first_slice_shares": 1000,
+          "last_slice_shares": 1000,
+          "est_total_cost": 50000.0,
+          "est_slippage_bps": 2.0,
+          "plan_path": null,
+          "small_order_market": true
+        },
+        {
+          "symbol": "sz518880",
+          "algo": "VWAP",
+          "slices": 8,
+          "first_slice_shares": 1960,
+          "last_slice_shares": 2121,
+          "est_total_cost": 5.85,
+          "est_slippage_bps": 1.0,
+          "plan_path": "E:\\各种PY程序\\28-终极量化交易系统8.4\\trade_instructions\\execution_plans\\VWAP_sz518880_BUY_20260812191806.json"
+        }
+      ],
+      "execution_plans_count": 6,
+      "split_total": 3,
+      "split_fail": 0,
+      "split_failure_rate": 0.0
+    },
+    "report_pnl_attribution": {
+      "total_pnl": 15480.000000000206,
+      "total_return_pct": 0.0036000000000000476,
+      "alpha_pnl": 15480.000000000206,
+      "beta_pnl": -426.58730158730157,
+      "style_pnl": 0.0,
+      "sector_pnl": 0.0,
+      "timing_pnl": 979.0873015873021,
+      "hedge_pnl": 0.0,
+      "trading_cost": -552.5,
+      "funding_cost": 0.0,
+      "sharpe_ratio": 0.0,
+      "information_ratio": 0.0,
+      "tracking_error": 0.0,
+      "anomalies": []
+    },
+    "report_barra": {
+      "active_risk": 0.08673321107879829,
+      "factor_risk": 0.013153206975560099,
+      "specific_risk": 0.08573005919919487,
+      "factor_risk_pct": 0.022998126451295398,
+      "active_return": -1.3877787807814457e-20,
+      "information_ratio": -1.6000546544052543e-19,
+      "risk_budget_used": 0.08673321107879829,
+      "risk_budget_remaining": 0.0,
+      "risk_budget_utilization": 1.7346642215759658,
+      "concentrated_factors": [],
+      "missing_factors": [],
+      "industry_exposures": {
+        "未知": 5.551115123125783e-17
+      }
+    }
+  },
+  "orders": [
+    {
+      "symbol": "sh510300",
+      "name": "沪深300ETF",
+      "session": "",
+      "side": "BUY",
+      "qty": 50000,
+      "price": 4.0,
+      "limit_price": 0.0,
+      "amount": 200000.0,
+      "algo": "LIMIT",
+      "status": "DRY_RUN"
+    },
+    {
+      "symbol": "sh510500",
+      "name": "中证500ETF",
+      "session": "",
+      "side": "BUY",
+      "qty": 15000,
+      "price": 6.5,
+      "limit_price": 0.0,
+      "amount": 97500.0,
+      "algo": "LIMIT",
+      "status": "DRY_RUN"
+    },
+    {
+      "symbol": "sh688041",
+      "name": "海光信息",
+      "session": "",
+      "side": "BUY",
+      "qty": 1300,
+      "price": 85.0,
+      "limit_price": 0.0,
+      "amount": 110500.0,
+      "algo": "LIMIT",
+      "status": "DRY_RUN"
+    },
+    {
+      "symbol": "sz300308",
+      "name": "中际旭创",
+      "session": "",
+      "side": "BUY",
+      "qty": 300,
+      "price": 120.0,
+      "limit_price": 0.0,
+      "amount": 36000.0,
+      "algo": "LIMIT",
+      "status": "DRY_RUN"
+    },
+    {
+      "symbol": "sh600276",
+      "name": "恒瑞医药",
+      "session": "",
+      "side": "BUY",
+      "qty": 1000,
+      "price": 50.0,
+      "limit_price": 0.0,
+      "amount": 50000.0,
+      "algo": "LIMIT",
+      "status": "DRY_RUN"
+    },
+    {
+      "symbol": "sz518880",
+      "name": "黄金ETF",
+      "session": "",
+      "side": "BUY",
+      "qty": 10000,
+      "price": 5.85,
+      "limit_price": 0.0,
+      "amount": 58500.0,
+      "algo": "LIMIT",
+      "status": "DRY_RUN"
+    }
+  ],
+  "risk_status": {},
+  "hedge_status": {
+    "vix": 18.5,
+    "circuit_level": "NORMAL",
+    "portfolio_beta": 1.0518518518518518,
+    "actions": {
+      "beta_hedger": "ERROR",
+      "vol_hedger": "ERROR",
+      "corr_hedger": "ERROR",
+      "beta_hedge": "ERROR"
+    },
+    "orders": [],
+    "coordinated": {
+      "action": "ERROR",
+      "reason": "HedgeCoordinator 模块未加载",
+      "orders": [],
+      "total_hedge_pct": 0.0,
+      "summary": {
+        "beta_hedger": "ERROR",
+        "vol_hedger": "ERROR",
+        "corr_hedger": "ERROR",
+        "beta_hedge": "ERROR"
+      },
+      "portfolio_beta": 1.0518518518518518,
+      "total_cost": 0.0
+    },
+    "total_hedge_pct": 0.0,
+    "total_cost": 0.0,
+    "hedge_enabled": false,
+    "edb_futures": {}
+  },
+  "trade_plan_loaded": true,
+  "external_reports": {
+    "loaded": false,
+    "reason": "ExternalReportLoader not initialized",
+    "loaded_count": 0,
+    "total_count": 0
+  }
+}

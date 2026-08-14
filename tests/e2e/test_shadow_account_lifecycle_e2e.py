@@ -1,10 +1,10 @@
 """U5 GAP-2 E2E: ShadowAccountAdapter 生命周期端到端测试.
 
 测试目标 (对齐 docs/GAP-2_E2E测试方案.md §四):
-    场景 1: 正常生命周期 (14 天观察期)
+    场景 1: 正常生命周期 (20 天观察期)
     场景 2: Fail-Fast 触发 (单日 -4% > 3% 阈值)
     场景 3: Fail-Fast 触发 (3 日累计 -6% > 5% 阈值)
-    场景 4: 样本不足降级 (< MIN_SAMPLES_FOR_DSR=15)
+    场景 4: 样本不足降级 (< MIN_SAMPLES_FOR_DSR=20)
     场景 5: risk_managed 模式 (跳过: 当前版本无 risk_managed 参数)
     场景 6: 与 PipelineOrchestrator 集成
 
@@ -14,7 +14,7 @@
     - get_metrics() -> ShadowMetrics (dataclass; 样本不足抛 InsufficientReturnsError)
     - RunShadowResult: success / days_processed / final_nav / fail_fast_triggered / fail_fast_reason / termination_date / error
     - Fail-Fast 阈值: 单日 >3%, 3 日累计 >5%
-    - MIN_SAMPLES_FOR_DSR = 15
+    - MIN_SAMPLES_FOR_DSR = 20 (yaml 单事实源, cairn/observation-period-config-drift-20260809.md)
 """
 
 from __future__ import annotations
@@ -90,7 +90,7 @@ class TestNormalLifecycle:
         )
         result = adapter.run_shadow(daily_returns=sample_daily_returns_14d)
 
-        # RunShadowResult 断言 (fixture 实际 15 天, 满足 MIN_SAMPLES_FOR_DSR=15)
+        # RunShadowResult 断言 (fixture 实际 20 天, 满足 MIN_SAMPLES_FOR_DSR=20)
         n_days = len(sample_daily_returns_14d)
         assert result.success is True
         assert result.days_processed == n_days
@@ -195,10 +195,10 @@ class TestFailFast3dCumulativeBreach:
 # ============================================================
 
 class TestInsufficientSamples:
-    """样本数 < MIN_SAMPLES_FOR_DSR(15) 时降级."""
+    """样本数 < MIN_SAMPLES_FOR_DSR(20) 时降级."""
 
     def test_insufficient_samples_raises_error(self):
-        """5 天样本 (< 15): get_metrics 抛 InsufficientReturnsError.
+        """5 天样本 (< 20): get_metrics 抛 InsufficientReturnsError.
 
         验收标准:
             - run_shadow 仍可成功 (记录净值)
@@ -218,17 +218,17 @@ class TestInsufficientSamples:
         # get_metrics 抛 InsufficientReturnsError
         with pytest.raises(InsufficientReturnsError) as exc_info:
             adapter.get_metrics()
-        assert "15" in str(exc_info.value) or "样本不足" in str(exc_info.value)
+        assert "20" in str(exc_info.value) or "样本不足" in str(exc_info.value)
 
-    def test_boundary_14_samples_still_insufficient(self):
-        """14 天样本仍 < 15: 仍抛 InsufficientReturnsError (边界测试)."""
+    def test_boundary_19_samples_still_insufficient(self):
+        """19 天样本仍 < 20: 仍抛 InsufficientReturnsError (边界测试)."""
         adapter = ShadowAccountAdapter(
-            account_id="e2e_test_boundary_14",
+            account_id="e2e_test_boundary_19",
             initial_capital=1_000_000,
         )
-        # 14 天样本, 刚好 < 15
-        returns_14 = [0.001] * 14
-        adapter.run_shadow(daily_returns=returns_14)
+        # 19 天样本, 刚好 < 20
+        returns_19 = [0.001] * 19
+        adapter.run_shadow(daily_returns=returns_19)
 
         with pytest.raises(InsufficientReturnsError):
             adapter.get_metrics()

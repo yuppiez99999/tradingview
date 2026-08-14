@@ -259,6 +259,67 @@ class TestVaRMonitorAdapter:
         assert bus.get_decision_subscriber_count(RiskEventType.VAR_BREACH) == 1
         RiskBus.reset_instance()
 
+    # --------------------------------------------------------
+    # G11 CVaR 扩展: cvar_95 / cvar_99 分支
+    # --------------------------------------------------------
+    def test_decision_cvar_95_breach(self):
+        """95% CVaR 超限 → REDUCE_POSITION 10% (与 var_95 一致)."""
+        adapter = VaRMonitorAdapter(MockVaRMonitor())
+
+        event = make_event(RiskEventType.VAR_BREACH, {
+            "var_type": "cvar_95",
+            "breach_pct": -0.045,  # -4.5%
+        })
+        decision = adapter.make_decision(event)
+
+        assert decision.action == RiskAction.REDUCE_POSITION
+        assert decision.reduce_pct == 0.10
+        assert decision.confidence == 0.9
+        assert "cvar_95_breach" in decision.reason
+
+    def test_decision_cvar_99_breach(self):
+        """99% CVaR 超限 → REDUCE_POSITION 20% (与 var_99 一致)."""
+        adapter = VaRMonitorAdapter(MockVaRMonitor())
+
+        event = make_event(RiskEventType.VAR_BREACH, {
+            "var_type": "cvar_99",
+            "breach_pct": -0.065,  # -6.5%
+        })
+        decision = adapter.make_decision(event)
+
+        assert decision.action == RiskAction.REDUCE_POSITION
+        assert decision.reduce_pct == 0.20
+        assert decision.confidence == 0.95
+        assert "cvar_99_breach" in decision.reason
+
+    def test_decision_cvar_95_regression_var_95_still_works(self):
+        """回归保护: 既有 var_95 分支不受 cvar 扩展影响."""
+        adapter = VaRMonitorAdapter(MockVaRMonitor())
+
+        event = make_event(RiskEventType.VAR_BREACH, {
+            "var_type": "var_95",
+            "breach_pct": -0.035,
+        })
+        decision = adapter.make_decision(event)
+
+        assert decision.action == RiskAction.REDUCE_POSITION
+        assert decision.reduce_pct == 0.10
+        assert "var_95_breach" in decision.reason
+
+    def test_decision_cvar_99_regression_var_99_still_works(self):
+        """回归保护: 既有 var_99 分支不受 cvar 扩展影响."""
+        adapter = VaRMonitorAdapter(MockVaRMonitor())
+
+        event = make_event(RiskEventType.VAR_BREACH, {
+            "var_type": "var_99",
+            "breach_pct": -0.055,
+        })
+        decision = adapter.make_decision(event)
+
+        assert decision.action == RiskAction.REDUCE_POSITION
+        assert decision.reduce_pct == 0.20
+        assert "var_99_breach" in decision.reason
+
 
 # ============================================================
 # 3. OvernightGapAdapter 测试

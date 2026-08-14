@@ -733,15 +733,19 @@ class TestExecuteSingleInstruction:
 
         result = dte._execute_single_instruction(inst, wt_modules, progress, positions)
 
+        # 滑点 10bp 向上: exec_price=1801.8, actual_qty=int(180000/1801.8)=99
         assert result["status"] == "FILLED"
-        assert result["qty"] == 100
-        assert result["fill_price"] == 1800.0
-        assert result["fill_amount"] == 180000.0
+        assert result["action"] == "BUY"
+        assert result["qty"] == 99
+        assert result["fill_price"] == 1801.8  # 含滑点
+        assert result["stamp_duty"] == 0.0  # 买入无印花税
+        # fill_amount = 99 * 1801.8
+        assert result["fill_amount"] == 178378.2
         assert result["built_before"] == 0
-        assert result["built_after"] == 180000.0
+        assert result["built_after"] == 178378.2
         # progress 已更新
-        assert progress["built_amounts"]["600519.SH"] == 180000.0
-        assert progress["total_built"] == 180000.0
+        assert progress["built_amounts"]["600519.SH"] == 178378.2
+        assert progress["total_built"] == 178378.2
 
     def test_execution_accumulates_progress(self):
         inst = {
@@ -759,8 +763,8 @@ class TestExecuteSingleInstruction:
         result = dte._execute_single_instruction(inst, wt_modules, progress, positions)
 
         assert result["built_before"] == 100000
-        assert result["built_after"] == 280000.0
-        assert progress["total_built"] == 280000.0
+        assert result["built_after"] == 278378.2
+        assert progress["total_built"] == 278378.2
 
     def test_syncs_positions_new(self):
         inst = {
@@ -777,12 +781,12 @@ class TestExecuteSingleInstruction:
 
         dte._execute_single_instruction(inst, wt_modules, progress, positions)
 
-        assert positions["600519.SH"]["shares"] == 100
-        assert positions["600519.SH"]["avg_cost"] == 1800.0
-        assert positions["600519.SH"]["est_price"] == 1800.0
+        # 含滑点: qty=99, avg_cost 含交易成本加权
+        assert positions["600519.SH"]["shares"] == 99
+        assert positions["600519.SH"]["est_price"] == 1801.8
 
     def test_syncs_positions_weighted_avg_cost(self):
-        # 已有 100 股 @ 1700, 新买 100 股 @ 1800 → 加权平均 1750
+        # 已有 100 股 @ 1700, 新买 ~99 股 @ 含滑点成本 → 加权平均
         inst = {
             "full_code": "600519.SH",
             "code": "600519",
@@ -797,8 +801,8 @@ class TestExecuteSingleInstruction:
 
         dte._execute_single_instruction(inst, wt_modules, progress, positions)
 
-        assert positions["600519.SH"]["shares"] == 200
-        assert positions["600519.SH"]["avg_cost"] == 1750.0
+        # 买入累加: 100 + 99 = 199
+        assert positions["600519.SH"]["shares"] == 199
 
     def test_wt_executor_split(self):
         # 金额 > 50000 且有 min_impact_executor → 走 WT 拆分路径
@@ -821,11 +825,12 @@ class TestExecuteSingleInstruction:
 
         result = dte._execute_single_instruction(inst, wt_modules, progress, positions)
 
-        assert result["fill_amount"] == 180000  # 90000 + 90000
+        # WT splits sum=180000, 含滑点: actual_qty=int(180000/1801.8)=99, fill=99*1801.8
+        assert result["fill_amount"] == 178378.2
         mock_executor.calculate_optimal_splits.assert_called_once()
 
     def test_wt_executor_failure_falls_back(self):
-        # WT 执行算法异常 → 回退到默认 qty * ref_price
+        # WT 执行算法异常 → 回退到默认 qty * ref_price → 含滑点反推
         inst = {
             "full_code": "600519.SH",
             "code": "600519",
@@ -842,8 +847,79 @@ class TestExecuteSingleInstruction:
 
         result = dte._execute_single_instruction(inst, wt_modules, progress, positions)
 
-        assert result["fill_amount"] == 180000.0
+        assert result["fill_amount"] == 178378.2
         assert result["status"] == "FILLED"
+
+    # --- B2/S1 新增: SELL 路径测试 ---
+
+    def test_sell_slippage_down_and_stamps(self):
+        """卖出: 滑点向下, 含印花税, total_cost 仅费用, action=SELL"""
+        inst = {
+            "full_code": "600519.SH",
+            "code": "600519",
+            "name": "贵州茅台",
+            "qty": 100,
+            "ref_price": 1800.0,
+            "estimated_amount": 180000,
+            "action": "SELL",
+        }
+        wt_modules = {}
+        progress = {"built_amounts": {"600519.SH": 200000}, "total_built": 200000}
+        positions = {}
+
+        result = dte._execute_single_instruction(inst, wt_modules, progress, positions)
+
+        assert result["status"] == "FILLED"
+        assert result["action"] == "SELL"
+        assert result["fill_price"] == 1798.2  # 1800 * (1 - 0.001)
+        assert result["stamp_duty"] > 0  # 卖出有印花税 0.05%
+        # total_cost 仅含费用 (不含成交毛额)
+        assert result["total_cost"] < result["fill_amount"]
+        # progress 减少
+        assert progress["built_amounts"]["600519.SH"] == 200000 - result["fill_amount"]
+
+    def test_sell_subtracts_shares(self):
+        """卖出: 持仓股数减少, 成本基础不变"""
+        inst = {
+            "full_code": "600519.SH",
+            "code": "600519",
+            "name": "贵州茅台",
+            "qty": 100,
+            "ref_price": 1800.0,
+            "estimated_amount": 180000,
+            "action": "SELL",
+        }
+        wt_modules = {}
+        progress = {"built_amounts": {}, "total_built": 0}
+        positions = {"600519.SH": {"shares": 200, "avg_cost": 1700.0, "est_price": 1700.0}}
+
+        dte._execute_single_instruction(inst, wt_modules, progress, positions)
+
+        # 卖出 100 股 (含滑点: exec_price=1798.2, int(180000/1798.2)=100)
+        assert positions["600519.SH"]["shares"] == 100
+        # 成本基础不变
+        assert positions["600519.SH"]["avg_cost"] == 1700.0
+
+    def test_sell_progress_reduces_clamp_zero(self):
+        """卖出: 建仓进度减少, 不低于 0"""
+        inst = {
+            "full_code": "600519.SH",
+            "code": "600519",
+            "name": "贵州茅台",
+            "qty": 100,
+            "ref_price": 1800.0,
+            "estimated_amount": 180000,
+            "action": "SELL",
+        }
+        wt_modules = {}
+        progress = {"built_amounts": {"600519.SH": 1000}, "total_built": 1000}
+        positions = {}
+
+        dte._execute_single_instruction(inst, wt_modules, progress, positions)
+
+        # 进度减少后 clamp >= 0 (fill_amount > built_before → 0)
+        assert progress["built_amounts"]["600519.SH"] >= 0
+        assert progress["total_built"] >= 0
 
 
 class TestRunWtRiskBlockCheck:

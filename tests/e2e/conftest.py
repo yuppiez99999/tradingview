@@ -152,14 +152,16 @@ def pipeline_config_overrides():
 
 @pytest.fixture
 def sample_daily_returns_14d():
-    """15 天观察期收益率序列 (模拟真实波动, 年化约 8-12%).
+    """20 天观察期收益率序列 (模拟真实波动, 年化约 8-12%).
 
     用于 ShadowAccountAdapter 正常生命周期测试. 单日波动 ±0.8%, 无 Fail-Fast 触发.
-    注: 命名保留 14d (对齐观察期术语), 实际 15 天以满足 MIN_SAMPLES_FOR_DSR=15.
+    注: 命名保留 14d (历史术语), 实际 20 天以满足 MIN_SAMPLES_FOR_DSR=20 (yaml 单事实源).
+    历史: PM 决策 20→15, yaml 后续推翻为 20 "保留更严格" (cairn/observation-period-config-drift-20260809.md).
     """
     return [0.005, -0.003, 0.008, -0.002, 0.004,
             -0.006, 0.003, 0.001, -0.004, 0.007,
-            -0.005, 0.002, 0.006, -0.003, 0.004]
+            -0.005, 0.002, 0.006, -0.003, 0.004,
+            0.002, -0.001, 0.005, 0.003, -0.002]
 
 
 @pytest.fixture
