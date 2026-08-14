@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-14 · W7.4.5 覆盖率冲刺全部 5 批次完成 · 11个0%模块清零 ✅
+
+- **总计**: 5 批次, 637 tests 全绿, 11 个 0% 模块全部补测 (0%→~99%)
+  - 批次1: drawdown_breaker(48) + backtest_integrity(53) → 100% (风控硬约束)
+  - 批次2: fills_pnl_bridge(27) + risk_budget_engine(51) + alpha_evaluator(61) → 98% (主链路)
+  - 批次3: cross_validation(22) + feature_store_config(33) + option_margin_monitor(54) → 100% (中优先级)
+  - 批次4: Phase B B1 确认 (USE_DRIFT_DETECTOR=True 运行时已生效, 仅告警模式)
+  - 批次5: option_exercise_risk(59) + feature_store_registry(45) + social_security_etf(37) → 99% (低优先级)
+- **发现缺陷**: `option_exercise_risk.py` 买方实值分支 `loss` 未定义 (UnboundLocalError), 已用特征化测试锁定
+- **门禁**: 全部 pre-commit GREEN
+- **指针**: `tests/unit/test_*_unit.py` 共 14 个新测试文件
+
 ## 2026-08-14 · Phase B B1 启用确认 + W7.4.5 覆盖率冲刺批次1-3 · 完成 ✅
 
 - **Phase B B1**: `USE_DRIFT_DETECTOR=True` 运行时已生效 (仅告警模式, 不阻断交易, 仅产出 DriftReport+JSON); `phase_b_progressive_enabler.py` Stage 1 [DONE], 已推进到 Stage 2 (abtest); ROADMAP W7.1.1 标记 B1 完成

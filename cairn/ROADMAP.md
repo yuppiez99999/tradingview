@@ -177,7 +177,7 @@ related:
 - [x] W7.4.2 (11-13~11-30) Wave 4 G6 LLM 智能进化 Phase D — `utils/llm_evolution/strategy_ideation.py` (新建) LLM 策略 Ideation 生成 — ✅ **提前完成 2026-08-12** (D1-D4 全部落地, 79 测试全绿, debt_gate 22/22 GREEN)
 - [x] W7.4.3 (11-13~12-07) 工程基础层 Phase 3: LiteLLM — `utils/llm_gateway/litellm_router.py` (新建) + `utils/glm5_client.py` (重构) 多模型路由统一 — ✅ **提前完成 2026-08-12** (D6 落地, 37 测试全绿, debt_gate 24/24 GREEN, glm5_client 822→280行 -66%)
 - [x] W7.4.4 (11-13~12-14, 非交易时段) daily_workflow.py 拆分收尾 — execute phase (~800 行) + report phase (~600 行) + eod_summary phase (~400 行) 提取; daily_workflow ≤3000 行 — ✅ **提前完成 2026-08-12** (D7 落地, 2828行达标, _scan_func_quality.py 创建, debt_gate 25/25 GREEN; 注: execute/report/eod_summary phase 未进一步拆分因门禁已达标, 按"不过度设计"原则停止)
-- [~] W7.4.5 (11-13~12-21) G7 覆盖率 80% 达标冲刺 — 补齐 P1-P2 链路测试 + 集成测试 + E2E 测试; 覆盖率 ≥0.80 — 🔄 **进行中 2026-08-13** (D8 落地, 9 个 0% 模块补测 229 tests / 全量 baseline 68.55% / debt_gate PASS; 距 80% 目标仍有 ~11.5pp)
+- [~] W7.4.5 (11-13~12-21) G7 覆盖率 80% 达标冲刺 — 补齐 P1-P2 链路测试 + 集成测试 + E2E 测试; 覆盖率 ≥0.80 — 🔄 **进行中 2026-08-14** (D8 落地 + 11个0%模块全部补测 637 tests / 0%模块清零 / 距 80% 目标仍需补测低覆盖模块)
 - [ ] W7.4.6 (12-22~12-31) v8.7 发布 — `docs/v8.7_release_notes.md` + `cairn/ROADMAP.md` + `CHANGELOG.md` 文档归档 + 12-31 上实盘
 
 #### Wave 7 总验收清单（12-31 v8.7 发布前）
