@@ -98,8 +98,9 @@ def _where(condition, x, y):
     """条件选择器 (元素级)
 
     注: x/y 既支持标量也支持列表, 保持无类型注解以兼容现有调用模式
-    (L886-887 传入 List[float] 作为 x, 需后续重构为 element-wise 实现)
     """
+    if hasattr(x, '__iter__') and not isinstance(x, (str, bytes)):
+        return [x_i if c else y for c, x_i in zip(condition, x)]
     return [x if c else y for c in condition]
 
 

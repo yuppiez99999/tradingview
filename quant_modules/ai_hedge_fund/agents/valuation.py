@@ -392,7 +392,7 @@ def calculate_fcf_volatility(fcf_history: list[float]) -> float:
         mean_fcf = statistics.mean(positive_fcf)
         std_fcf = statistics.stdev(positive_fcf)
         return min(std_fcf / mean_fcf, 1.0) if mean_fcf > 0 else 0.8
-    except Exception as e:
+    except (TypeError, ValueError, ZeroDivisionError) as e:
         logger.warning(f"FCF波动率计算失败，使用默认值: {e}")
         return 0.5
 

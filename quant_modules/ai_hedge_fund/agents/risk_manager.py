@@ -81,7 +81,7 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
             returns_df = pd.DataFrame(returns_by_ticker).dropna(how="any")
             if returns_df.shape[1] >= 2 and returns_df.shape[0] >= 5:
                 correlation_matrix = returns_df.corr()
-        except Exception:
+        except (ValueError, TypeError, KeyError):
             correlation_matrix = None
 
     # Determine which tickers currently have exposure (non-zero absolute position)

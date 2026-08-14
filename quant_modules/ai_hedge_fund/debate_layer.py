@@ -132,7 +132,7 @@ def _make_json_safe(obj: Any) -> Any:
         return [_make_json_safe(v) for v in obj]
     try:
         return str(obj)
-    except Exception:
+    except (TypeError, ValueError, AttributeError):
         return "<unserializable>"
 
 
@@ -212,7 +212,7 @@ class DebateLayer:
             try:
                 result = self._debate_single_ticker(ticker, analyst_signals, state)
                 session.debate_results[ticker] = result
-            except Exception as exc:
+            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError, ImportError) as exc:
                 err_msg = f"{ticker}: {exc!r}"
                 session.errors.append(err_msg)
                 logger.warning("辩论失败 %s: %r", ticker, exc)
@@ -301,7 +301,7 @@ class DebateLayer:
                 return self._llm_generate_stance(
                     ticker, ticker_signals, side, round_num, opponent_stance, state,
                 )
-            except Exception as exc:
+            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError, ImportError) as exc:
                 logger.warning("LLM 辩论失败 %s/%s R%d, 降级规则: %r", ticker, side, round_num, exc)
 
         return self._rule_generate_stance(ticker, ticker_signals, side, round_num, opponent_stance)
@@ -408,7 +408,7 @@ class DebateLayer:
                     cache_key=cache_key,
                     timeout=30.0,
                 )
-            except Exception as exc:
+            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as exc:
                 logger.warning("RateLimitedLLMCaller 调用失败 %s/%s R%d, 降级规则: %r",
                                ticker, side, round_num, exc)
                 return default_fn()
@@ -609,7 +609,7 @@ class DebateLayer:
                 json.dump(payload, f, ensure_ascii=False, indent=2, default=str)
 
             logger.info("辩论审计日志已写入: %s", filepath)
-        except Exception as exc:
+        except (OSError, TypeError, ValueError) as exc:
             logger.warning("写审计日志失败: %r", exc)
 
     # ------------------------------------------------------------
@@ -724,7 +724,7 @@ def debate_node(state: Any) -> Any:
         state["messages"].append(
             HumanMessage(content=f"[Debate Layer] 辩论完成:\n{summary_text}")
         )
-    except Exception:
+    except (ImportError, TypeError, ValueError, KeyError, AttributeError):
         pass  # messages 不存在时不影响主流程
 
     return state

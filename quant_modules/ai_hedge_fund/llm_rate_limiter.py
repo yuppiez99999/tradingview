@@ -387,7 +387,7 @@ class RateLimitedLLMCaller:
                 if cache_key is not None:
                     self.cache.set(cache_key, result)
                 return result
-            except Exception as exc:
+            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as exc:
                 last_exc = exc
                 if attempt < self.max_retries - 1:
                     delay = min(self.retry_base_delay * (2 ** attempt), 30.0)

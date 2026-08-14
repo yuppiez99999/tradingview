@@ -70,8 +70,26 @@ TRADING_DAYS_PER_YEAR = 252
 DAILY_DRAWDOWN_THRESHOLD = 0.03  # 单日回撤 > 3%
 CUMULATIVE_3D_DRAWDOWN_THRESHOLD = 0.05  # 3 日累计回撤 > 5%
 
-# 最小样本数 (2026-07-30 PM 决策: 20→15, 配合 21 天观察期; 详见 admission_state.json)
-MIN_SAMPLES_FOR_DSR = 15
+# 最小样本数: 从 shadow_admission.yaml 单事实源读取 (cairn/observation-period-config-drift-20260809.md §4 教训 2)
+# yaml 路径: v8.3_institutional/config/shadow_admission.yaml → admission_criteria.min_samples_for_dsr
+
+
+def _load_min_samples_for_dsr(default: int = 20) -> int:
+    """从 yaml 读取 min_samples_for_dsr, 失败安全降级到 default.
+
+    yaml 实际值=20 (注释: "保留 20 更严格"); 历史 PM 决策 20→15 已被 yaml 推翻为 20.
+    """
+    try:
+        import yaml  # noqa: PLC0415
+        yaml_path = _PROJECT_ROOT / "v8.3_institutional" / "config" / "shadow_admission.yaml"
+        with open(yaml_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        return int(cfg.get("admission_criteria", {}).get("min_samples_for_dsr", default))
+    except (OSError, ValueError, TypeError, ImportError):
+        return default
+
+
+MIN_SAMPLES_FOR_DSR = _load_min_samples_for_dsr(default=20)
 MIN_SAMPLES_FOR_SHARPE_CV = 10
 
 

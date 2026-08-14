@@ -247,7 +247,7 @@ class MemoryReflection:
                                     rec[corr_field] = ret < 0
                                 else:
                                     rec[corr_field] = abs(ret) < 0.02
-                except Exception as exc:
+                except (ValueError, TypeError, KeyError, AttributeError) as exc:
                     logger.warning("评估 %s/%s 失败: %r", ticker, decision_date, exc)
 
             rec["evaluated"] = True
@@ -383,7 +383,7 @@ class MemoryReflection:
             if isinstance(data, dict):
                 close = data.get("close") or data.get("close_price")
                 return float(close) if close is not None else None
-        except Exception:
+        except (TypeError, ValueError, KeyError, AttributeError):
             return None
         return None
 
@@ -450,7 +450,7 @@ def make_market_price_provider(
         try:
             from utils.data_provider import MarketDataProvider
             provider = MarketDataProvider()
-        except Exception as exc:
+        except (ImportError, OSError, TypeError, ValueError, AttributeError) as exc:
             logger.warning("无法初始化 MarketDataProvider: %r", exc)
             def _empty_provider(ticker: str, date_str: str) -> None:
                 return None
@@ -510,7 +510,7 @@ def make_market_price_provider(
             if best_date is not None:
                 return {"close": _price_cache[ticker][best_date]}
 
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as exc:
             logger.debug("获取 %s/%s 价格失败: %r", ticker, date_str, exc)
 
         return None

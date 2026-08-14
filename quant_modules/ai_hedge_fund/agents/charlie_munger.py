@@ -721,7 +721,7 @@ def analyze_news_sentiment(news_items: list) -> str:
 def _r(x, n=3):
     try:
         return round(float(x), n)
-    except Exception:
+    except (TypeError, ValueError):
         return None
 
 def make_munger_facts_bundle(analysis: dict[str, any]) -> dict[str, any]:

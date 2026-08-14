@@ -301,8 +301,11 @@ jobs:
       - name: Pylint (utils/infra, utils/risk, utils/execution)
         shell: powershell
         # P0-4 FIX: 移除 continue-on-error, pylint 错误现在阻断 PR 合并
+        # T02 (2026-08-12): 显式 --fail-on=broad-exception-caught 双保险, 与 .pylintrc [MAIN] fail-on 配置一致
+        # pylint 3.x 把 broad-except 重命名为 broad-exception-caught (W0718)
+        # 三重门禁: ruff BLE001 增量零新增 + pylint --fail-on 全量阻断 + engineering_debt_gate T7 监控
         run: |
-          python -m pylint --rcfile=.pylintrc utils/infra/ utils/risk/ utils/execution/ utils/data/
+          python -m pylint --rcfile=.pylintrc --fail-on=broad-exception-caught utils/infra/ utils/risk/ utils/execution/ utils/data/
 
       - name: Phase 3-B 静态分析验证 (72/72 断言, 阻断)
         shell: powershell

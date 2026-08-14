@@ -104,7 +104,7 @@ def _send_dingtalk(title: str, content: str, level: str = "warning") -> bool:
                 return True
             logger.warning("钉钉告警响应异常: %s", body[:200])
             return False
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         logger.warning("钉钉告警发送失败 (fail-open): %s", e)
         return False
 
@@ -153,7 +153,7 @@ def _send_feishu(title: str, content: str, level: str = "warning") -> bool:
                 return True
             logger.warning("飞书告警响应异常: %s", body[:200])
             return False
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         logger.warning("飞书告警发送失败 (fail-open): %s", e)
         return False
 

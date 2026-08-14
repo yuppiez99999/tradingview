@@ -27,7 +27,7 @@ $ErrorActionPreference = "Stop"
 # 路径配置（统一使用 Python 3.11 绝对路径）
 # ============================================================
 $projectRoot = "e:\各种PY程序\28-终极量化交易系统8.4"
-$pythonExe   = "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
+$pythonExe   = "e:\各种PY程序\28-终极量化交易系统8.4\.venv\Scripts\python.exe"
 $logDir      = Join-Path $projectRoot "logs"
 
 # 验证 Python 解释器存在
@@ -285,29 +285,35 @@ if ($Uninstall) {
 }
 
 # ============================================================
-# 注册模式：预检查所有脚本是否存在
+# 注册模式：预检查所有脚本是否存在（缺失则跳过，不阻断）
 # ============================================================
 Write-Host "[CHECK] 预检查脚本文件存在性..." -ForegroundColor Cyan
 $missingScripts = @()
+$validTasks = @()
 foreach ($t in $tasks) {
     $scriptPath = Join-Path $projectRoot $t.Script
     if (-not (Test-Path $scriptPath)) {
         $missingScripts += "$($t.Name) -> $scriptPath"
+    } else {
+        $validTasks += $t
     }
 }
 
 if ($missingScripts.Count -gt 0) {
     Write-Host ""
-    Write-Host "[ERROR] 以下脚本文件不存在，无法注册：" -ForegroundColor Red
+    Write-Host "[WARN] 以下脚本文件不存在，将跳过注册：" -ForegroundColor Yellow
     foreach ($missing in $missingScripts) {
-        Write-Host "  - $missing" -ForegroundColor Red
+        Write-Host "  - $missing" -ForegroundColor Yellow
     }
     Write-Host ""
-    Write-Host "请检查脚本路径或创建缺失的脚本后再运行此注册脚本。" -ForegroundColor Yellow
+}
+
+if ($validTasks.Count -eq 0) {
+    Write-Host "[ERROR] 没有可注册的有效任务，请检查脚本路径。" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "  所有脚本文件检查通过" -ForegroundColor Green
+Write-Host "  有效任务 $($validTasks.Count) 个，跳过缺失 $($missingScripts.Count) 个" -ForegroundColor Green
 Write-Host ""
 
 # ============================================================

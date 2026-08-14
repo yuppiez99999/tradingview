@@ -761,7 +761,7 @@ def compute_expression_factors(
                 category=spec.category,
                 values=values,
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, ZeroDivisionError) as e:
             logger.error("表达式因子 %s 求值失败: %s (表达式: %s)", spec.name, e, spec.expression)
 
     logger.info(

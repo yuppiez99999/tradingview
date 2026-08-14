@@ -36,7 +36,7 @@ try:  # pragma: no cover - 依赖环境差异
     torch = _torch_impl
     nn = _torch_nn_impl
     _TORCH_AVAILABLE = True
-except Exception:  # pragma: no cover - torch 不装也不影响主流程
+except ImportError:  # pragma: no cover - torch 不装也不影响主流程
     torch = None
     nn = None
 
@@ -256,7 +256,7 @@ def factors_to_matrix(
         else:
             try:
                 sym_map = dict(container)
-            except Exception:
+            except (TypeError, ValueError):
                 per_factor_syms[fname] = set()
                 continue
         s_set = {str(s) for s, v in sym_map.items()
@@ -283,7 +283,7 @@ def factors_to_matrix(
         else:
             try:
                 sym_map = dict(container)
-            except Exception:
+            except (TypeError, ValueError):
                 sym_map = {}
         for i, s in enumerate(stocks_list):
             v = sym_map.get(s)

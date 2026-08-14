@@ -84,7 +84,7 @@ def start_ollama_server() -> bool:
 
         print(f"{Fore.RED}Failed to start Ollama server. Timed out waiting for server to become available.{Style.RESET_ALL}")
         return False
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         print(f"{Fore.RED}Error starting Ollama server: {e}{Style.RESET_ALL}")
         return False
 

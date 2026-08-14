@@ -58,7 +58,7 @@ class IFinDNewsAnalyzer:
             from call import call as _call
 
             self._call = _call
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # pragma: no cover
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError, ImportError) as exc: # pragma: no cover
             logger.error("iFinD call 模块导入失败: %s", exc)
             self._call = None
 

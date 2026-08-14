@@ -138,7 +138,7 @@ def verify_public_private_separation(logger: logging.Logger) -> dict:
             assert hasattr(report, "public_score"), "缺少 public_score 字段"
             assert hasattr(report, "private_score"), "缺少 private_score 字段"
 
-            # 验证 3: 样本不足时的行为 (n=5 < MIN_SAMPLES_FOR_DSR=15)
+            # 验证 3: 样本不足时的行为 (n=5 < MIN_SAMPLES_FOR_DSR=20)
             # 注意: StrategyEvaluator 不会整体降级, 而是 DSR/WF 等子指标在 private_metrics 中降级
             # 顶层 is_degraded 仅在 Flag 关闭或 n=0 时为 True
             # 这里验证: sample_count 正确 + 各字段值范围合法

@@ -47,7 +47,8 @@ KNOWN_DELETED_MODULES = {
 # 仅列入"确实已从所有模块移除"的符号。FLAG_NAME 仍存在于 utils.attribution.*,
 # 故不列入, 避免对有效 import 产生假阳性。
 KNOWN_RENAMED_SYMBOLS = {
-    "FusionSignal": "FusionSignal 已重命名, 请检查 utils/signal_fusion.py 当前导出的类名",
+    # 注意: FusionSignal 仍存在于 utils/signal_fusion.py (L47 class FusionSignal),
+    #   与 FLAG_NAME 同理 (utils.attribution.* 仍定义), 故不列入, 避免对有效 import 假阳性。
     "get_report_dir": "get_report_dir 已删除, 请检查 utils/path_config.py 当前导出的函数",
     "get_log_dir": "get_log_dir 已删除, 请检查 utils/path_config.py",
 }

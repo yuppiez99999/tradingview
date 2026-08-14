@@ -169,7 +169,7 @@ def hedge_analyst_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             "reasoning": response.reasoning,
         }
         
-    except Exception as e:
+    except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError, ImportError) as e:
         logger.warning(f"Hedge Analyst LLM调用失败: {e}，使用规则引擎回退")
         analyst_signals["hedge_analyst_agent"] = _rule_based_hedge_fallback(analyst_signals)
 

@@ -421,12 +421,18 @@ except ImportError:  # pragma: no cover
     _scipy_stats = None
 
 # Feature Flag (HC-1: 默认 False, 不破坏 V9 基线)
-_USE_DRIFT_DETECTOR_FLAG = os.environ.get("USE_DRIFT_DETECTOR", "false").lower() in (
-    "1",
-    "true",
-    "yes",
-    "on",
-)
+# 优先走 feature_flags 注册表, 回退到环境变量, 保证两套机制一致
+try:
+    from utils.infra.feature_flags import is_enabled as _is_drift_flag_enabled
+
+    _USE_DRIFT_DETECTOR_FLAG = _is_drift_flag_enabled("USE_DRIFT_DETECTOR")
+except (ImportError, Exception):
+    _USE_DRIFT_DETECTOR_FLAG = os.environ.get("USE_DRIFT_DETECTOR", "false").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 class DriftSeverity(str, Enum):

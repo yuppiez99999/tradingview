@@ -69,7 +69,7 @@ def call_llm(
             else:
                 return result
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as e:
             if agent_name:
                 progress.update_status(agent_name, None, f"Error - retry {attempt + 1}/{max_retries}")
 
@@ -154,7 +154,7 @@ def extract_json_from_response(content: str) -> dict | None:
                         except json.JSONDecodeError:
                             break
 
-    except Exception as e:
+    except (TypeError, AttributeError, ValueError) as e:
         print(f"Error extracting JSON from response: {e}")
     return None
 

@@ -82,7 +82,31 @@ WEIGHT_COMPLEXITY_PENALTY = 0.10  # Private
 BASELINE_ANNUAL_RETURN = 0.08  # 基准年化 8%
 BASELINE_SHARPE = 0.5  # 基准 Sharpe 0.5
 MAX_ALLOWED_DRAWDOWN = 0.15  # 最大允许回撤 15% (对齐 MAX_DRAWDOWN_LIMIT)
-MIN_SAMPLES_FOR_DSR = 15  # DSR 最小样本 (2026-07-30 PM 决策: 20→15, 配合 21 天观察期)
+
+
+def _load_min_samples_for_dsr(default: int = 20) -> int:
+    """从 shadow_admission.yaml 单事实源读取 min_samples_for_dsr.
+
+    yaml 路径: v8.3_institutional/config/shadow_admission.yaml
+    字段路径: admission_criteria.min_samples_for_dsr (yaml 实际值=20, "保留 20 更严格")
+
+    回退策略:
+        yaml 缺失 / 解析失败 / 字段缺失 → 返回 default (默认 20)
+
+    单事实源铁律 (cairn/observation-period-config-drift-20260809.md §4 教训 2):
+        不得硬编码, 必须读 yaml.
+    """
+    try:
+        import yaml  # noqa: PLC0415
+        yaml_path = _PROJECT_ROOT / "v8.3_institutional" / "config" / "shadow_admission.yaml"
+        with open(yaml_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        return int(cfg.get("admission_criteria", {}).get("min_samples_for_dsr", default))
+    except (OSError, ValueError, TypeError, ImportError):
+        return default
+
+
+MIN_SAMPLES_FOR_DSR = _load_min_samples_for_dsr(default=20)
 MIN_SAMPLES_FOR_WF = 100  # Walk-Forward 最小样本
 
 # Reward Hacking 风险阈值

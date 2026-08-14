@@ -183,8 +183,10 @@ def main() -> int:
             )
 
     # 进度计算
+    # 观察期 21 天 (与 v8.3_institutional/config/shadow_admission.yaml observation_days=21 对齐,
+    # 原 14 → 21 由 PM 双管齐下方案调整; 注意勿改回 14, 否则播报与 admission_state.json 脱节)
     obs_days = len(daily_returns)
-    obs_total = 14
+    obs_total = 21
     obs_remaining = max(0, obs_total - obs_days)
     obs_progress_pct = min(100.0, round(obs_days / obs_total * 100, 1))
 
@@ -221,7 +223,7 @@ def main() -> int:
     lines.append("| 指标 | 当前 | 阈值 | 进度 |")
     lines.append("|---|---|---|---|")
     lines.append(
-        f"| 观察期天数 | {obs_days} / {obs_total} 天 | 14 天 | {obs_progress_pct}% |"
+        f"| 观察期天数 | {obs_days} / {obs_total} 天 | 21 天 | {obs_progress_pct}% |"
     )
     lines.append(
         f"| 数据样本数 | {obs_days} / {min_samples} 条 | 20 条 | "

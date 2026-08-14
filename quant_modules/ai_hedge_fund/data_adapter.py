@@ -197,7 +197,7 @@ def _fetch_sina_price(ticker: str, start_date: str, end_date: str) -> list[Price
                 continue
 
         return prices
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, OSError, TimeoutError, ImportError) as e:
         logger.debug(f"sina 价格获取失败 {ticker}: {e}")
         return []
 
@@ -237,7 +237,7 @@ def _fetch_akshare_price(ticker: str, start_date: str, end_date: str) -> list[Pr
     except ImportError:
         logger.debug("akshare 未安装，跳过多源回退")
         return []
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as e:
         logger.debug(f"akshare 价格获取失败 {ticker}: {e}")
         return []
 
@@ -333,14 +333,14 @@ def _fetch_akshare_financial_metrics(ticker: str, limit: int = 10) -> list[Finan
                     gross_margin=_safe_float(row.get('销售毛利率')),
                     earnings_per_share=_safe_float(row.get('基本每股收益')),
                 ))
-            except Exception:
+            except (TypeError, ValueError, KeyError):# fail-safe: 单行解析失败跳过, 不阻断整批财务指标
                 continue
 
         return metrics_list
     except ImportError:
         logger.debug("akshare 未安装")
         return []
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as e:
         logger.debug(f"akshare 财务指标获取失败 {ticker}: {e}")
         return []
 
@@ -380,7 +380,7 @@ def _fetch_baostock_financial(ticker: str, limit: int = 10) -> list[FinancialMet
 
     except ImportError:
         return []
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as e:
         logger.debug(f"baostock 获取失败 {ticker}: {e}")
         return []
 
@@ -496,7 +496,7 @@ def search_line_items(
                     outstanding_shares=_get_shares(ticker),
                 )
                 line_items_list.append(item)
-            except Exception:
+            except (TypeError, ValueError, KeyError, AttributeError):# fail-safe: 单行财务明细解析失败跳过, 不阻断整批
                 continue
 
         _cache[ckey] = line_items_list
@@ -504,7 +504,7 @@ def search_line_items(
 
     except ImportError:
         logger.debug("akshare 未安装，返回模拟财务数据")
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as e:
         logger.debug(f"财务明细获取失败 {ticker}: {e}")
 
     # 回退: 返回模拟 LineItem（包含所有 Agent 需要的字段）
@@ -566,7 +566,7 @@ def get_market_cap(ticker: str, end_date: str = None, api_key: str = None) -> Op
             if latest_price > 0 and shares > 0:
                 return latest_price * shares
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError, ImportError) as e:
         logger.debug(f"市值获取失败 {ticker}: {e}")
 
     return None
@@ -618,7 +618,7 @@ def _safe_float_val(row, col_name) -> Optional[float]:
         for col in row.index:
             if col_name in str(col):
                 return _safe_float(row[col])
-    except Exception:
+    except (TypeError, ValueError, KeyError, AttributeError):# fail-safe: 列不存在或类型异常时返回 None 由调用方兜底
         pass
     return None
 
@@ -632,7 +632,7 @@ def _get_shares(ticker: str) -> int:
         row = df[df['代码'] == code]
         if not row.empty:
             return int(row.iloc[0].get('总股本', 0) or 0)
-    except Exception:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError, ImportError):# fail-safe: 总股本获取失败时用默认值 10 亿股兜底
         pass
     return 1_000_000_000
 
@@ -660,7 +660,7 @@ def get_data_source_status() -> dict:
         import requests
         resp = requests.get("https://money.finance.sina.com.cn/", timeout=5)
         status['sina_api'] = resp.status_code == 200
-    except Exception:
+    except (OSError, TimeoutError, ImportError, ValueError, TypeError):# fail-safe: 数据源探测失败时状态保持 False, 不抛异常
         pass
     try:
         import akshare

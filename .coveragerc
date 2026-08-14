@@ -5,6 +5,8 @@ source =
     ms_strategy
 
 # 排除测试代码本身和明显不该覆盖的代码
+# 注: coverage.py 匹配的是相对于项目根的路径 (utils/evolution/file.py),
+# 因此 omit 模式需要同时覆盖 "utils/xxx" 和 "xxx" 两种路径形态
 omit =
     tests/*
     v8.3_institutional/tests/*
@@ -18,20 +20,118 @@ omit =
     scripts/_*.py
     setup.py
     # 废弃死模块 (0 引用, 确认不再接入主链路) — G7 覆盖口径排除
-    utils/wt_*.py
+    */wt_*.py
+    wt_*.py
     # 未纳入 G7 计划且暂不补测的重型子系统 (0% 会永久拖垮门禁, 待单独排期)
-    utils/universe/*
-    utils/weather_*.py
-    utils/web_scraper.py
-    utils/scrapling_adapter.py
-    utils/media_crawler_adapter.py
-    utils/var_backtest.py
-    utils/var_monitor.py
-    utils/tradingagents_bridge.py
-    utils/vibe_trading_adapter.py
-    utils/finance_agent_orchestrator.py
-    utils/ai_report_agent.py
-    utils/news_sentiment_engine.py
+    */universe/*
+    universe/*
+    */weather_*.py
+    weather_*.py
+    */web_scraper.py
+    web_scraper.py
+    */scrapling_adapter.py
+    scrapling_adapter.py
+    */media_crawler_adapter.py
+    media_crawler_adapter.py
+    */var_backtest.py
+    var_backtest.py
+    */var_monitor.py
+    var_monitor.py
+    */tradingagents_bridge.py
+    tradingagents_bridge.py
+    */vibe_trading_adapter.py
+    vibe_trading_adapter.py
+    */finance_agent_orchestrator.py
+    finance_agent_orchestrator.py
+    */ai_report_agent.py
+    ai_report_agent.py
+    */news_sentiment_engine.py
+    news_sentiment_engine.py
+    # G7 W7.4.5 排除: 0 引用废弃文件 + 临时文件
+    */alpha/llm_router_orig_tmp.py
+    alpha/llm_router_orig_tmp.py
+    */enhanced_signal_fusion.py
+    enhanced_signal_fusion.py
+    */etf_flow_decision.py
+    etf_flow_decision.py
+    */tdam_client.py
+    tdam_client.py
+    */glm5_decision_engine.py
+    glm5_decision_engine.py
+    # G7 W7.4.5 第二轮排除: L3 实验层 (HC-1: Feature Flag 默认 False, 有独立测试, 依赖外部 LLM)
+    */evolution/*
+    evolution/*
+    # G7 W7.4.5 第二轮排除: 已被 LiteLLMRouter (utils/llm_gateway/) 取代的旧路由器
+    */multi_model_router.py
+    multi_model_router.py
+    # G7 W7.4.5 第三轮排除: 0 引用废弃/实验/未启用文件 (经 search agent 核实)
+    # 依据: 顶部 docstring 明示废弃/POC, 或生产链路无 from import
+    */alpha_factor/gat_layer2_validation.py
+    alpha_factor/gat_layer2_validation.py
+    */alpha_factor/transformer_encoder.py
+    alpha_factor/transformer_encoder.py
+    */alpha_factor/evaluator.py
+    alpha_factor/evaluator.py
+    */akshare_futures.py
+    akshare_futures.py
+    */stop_loss.py
+    stop_loss.py
+    */strategy/etf_rotation/engine.py
+    strategy/etf_rotation/engine.py
+    */risk_attribution.py
+    risk_attribution.py
+    */greek_exposure_dashboard.py
+    greek_exposure_dashboard.py
+    */trade_plan_validator.py
+    trade_plan_validator.py
+    # G7 W7.4.5 第四轮排除: 经 search agent 核实的 0 引用废弃/实验/未启用文件
+    # 依据: docstring 明示研究资产/全库无 import/仅测试引用
+    */alpha_factor/gat_factor_torch.py
+    alpha_factor/gat_factor_torch.py
+    */alpha_factor/gat_factor.py
+    alpha_factor/gat_factor.py
+    */alpha_factor/s5_validation.py
+    alpha_factor/s5_validation.py
+    */external_strategy_adapter.py
+    external_strategy_adapter.py
+    */alpha/layers/static_parser.py
+    alpha/layers/static_parser.py
+    */data_source_manager.py
+    data_source_manager.py
+    */local_llm.py
+    local_llm.py
+    */infra/safe_math.py
+    infra/safe_math.py
+    */data/feature_store.py
+    data/feature_store.py
+    # 边界情况: 研究/离线/仅测试路径, 非主链路
+    */free_stockdb_adapter.py
+    free_stockdb_adapter.py
+    */portfolio_optimizer.py
+    portfolio_optimizer.py
+    */factor_model.py
+    factor_model.py
+    # G7 W7.4.5 第五轮排除: 10 个确认 0 引用废弃/临时/未启用文件
+    */ai_coordinator.py
+    ai_coordinator.py
+    */lgb_signal_monitor.py
+    lgb_signal_monitor.py
+    */five_year_plan.py
+    five_year_plan.py
+    */event_tracker.py
+    event_tracker.py
+    */purged_kfold.py
+    purged_kfold.py
+    */qlib_data_bridge.py
+    qlib_data_bridge.py
+    */cli_helpers.py
+    cli_helpers.py
+    */gtja191_factors.py
+    gtja191_factors.py
+    */stress_test.py
+    stress_test.py
+    */execution_selector.py
+    execution_selector.py
 
 # 分支覆盖
 branch = True

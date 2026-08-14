@@ -574,7 +574,7 @@ def calculate_intrinsic_value(financial_line_items: list, market_cap: float) -> 
         
         return total_intrinsic_value
         
-    except Exception:
+    except (TypeError, ValueError, AttributeError, ZeroDivisionError):
         # Fallback to simple earnings multiple
         if getattr(latest, 'net_income', None) and latest.net_income > 0:
             return latest.net_income * 15

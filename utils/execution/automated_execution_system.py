@@ -118,7 +118,7 @@ try:
     from wind_mcp_fetcher import wind_get_quote
 
     _WIND_MCP_AVAILABLE = True
-except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+except (ImportError, ModuleNotFoundError, ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
     wind_get_quote = None
     _WIND_MCP_AVAILABLE = False
 
