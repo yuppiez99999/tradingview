@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-14 · Phase B B1 启用确认 + W7.4.5 覆盖率冲刺批次1-3 · 完成 ✅
+
+- **Phase B B1**: `USE_DRIFT_DETECTOR=True` 运行时已生效 (仅告警模式, 不阻断交易, 仅产出 DriftReport+JSON); `phase_b_progressive_enabler.py` Stage 1 [DONE], 已推进到 Stage 2 (abtest); ROADMAP W7.1.1 标记 B1 完成
+- **W7.4.5 覆盖率批次1-3**: 11个0%模块中8个已补测, 共 349 tests 全绿
+  - 批次1: drawdown_breaker(48) + backtest_integrity(53) → 100% — 风控硬约束 (15%回撤上限 + 前视偏差防线)
+  - 批次2: fills_pnl_bridge(27) + risk_budget_engine(51) + alpha_evaluator(61) → ~98% — 主链路 (EOD PnL + 事前风控 + Alpha验证)
+  - 批次3: cross_validation(22) + feature_store_config(33) + option_margin_monitor(54) → 100% —- 中优先级 (数据质量 + 基础设施 + 期权保证金)
+- **门禁**: 全部 pre-commit GREEN + ruff BLE001 归零
+- **指针**: `scripts/phase_b_progressive_enabler.py` · `tests/unit/test_drawdown_breaker_unit.py` 等 8 个测试文件
+
 ## 2026-08-14 · G7 W7.4.5 覆盖率冲刺第 1 批 · 完成 ✅
 
 - **基线**: unit tests 覆盖率 72.83% (53195 stmts, 14 个 0% 模块)

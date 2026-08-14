@@ -149,7 +149,7 @@ related:
 #### Wave 7 任务清单（按 Sprint 分组）
 
 **Sprint 1（08-13 ~ 09-12，~4 周）：Phase B 启用 + 工作流收尾 + R10 残债清偿**
-- [ ] W7.1.1 (08-13~09-12) Wave 2 Phase B 渐进启用 — B1 `USE_DRIFT_DETECTOR=true` 仅告警 (08-13~08-16) / B2 `USE_FEEDBACK_LOOP` 自动接入 (08-17~08-20) / B3 `USE_AUTO_RETRAIN=true` + 降级护栏 (08-21~08-24) / B4 `USE_MLOPS_PIPELINE=true` 完整外层循环 (08-25~09-12)
+- [~] W7.1.1 (08-13~09-12) Wave 2 Phase B 渐进启用 — B1 `USE_DRIFT_DETECTOR=true` 仅告警 (08-13~08-16) ✅ **DONE 2026-08-14** / B2 `USE_FEEDBACK_LOOP` 自动接入 (08-17~08-20) 🔄 进行中 / B3 `USE_AUTO_RETRAIN=true` + 降级护栏 (08-21~08-24) / B4 `USE_MLOPS_PIPELINE=true` 完整外层循环 (08-25~09-12) — phase_b_progressive_enabler.py Stage 1 [DONE], 运行时 USE_DRIFT_DETECTOR=True 已生效, 仅告警模式 (不阻断交易, 仅产出 DriftReport+JSON)
 - [x] W7.1.2 (08-13~09-05, 非交易时段) daily_workflow.py 拆分第 2-3 轮 — risk phase (~600 行) + hedge phase (~500 行) + signal phase (~400 行) 提取到 `workflow/phases/`; daily_workflow 5904→≤4500 — ✅ **DONE 2026-08-14 (提前)**: `workflow/phases/` 已含 16 个 phase 文件 (含 risk.py/hedge.py/signal.py); daily_workflow.py 2828 行 (目标 ≤4500)
 - [x] W7.1.3 (08-13~08-31) R10 拖债清偿 — ✅ **DONE 2026-08-13**: 36 处裸 `except Exception` (无 `# fail-safe` 标记) 全部精确化 (ai_hedge_fund/ 30 + alpha_factor/ 4 + notify.py 2); `scripts/_r10_refine_bare_excepts.py` AST 替换; ruff BLE001 归零; 14 文件 py_compile PASS
 - [x] W7.1.4 (08-25~09-12) QMT 实盘接入准备 — ✅ **DONE 2026-08-13 (提前)**: `quant_modules/qmt_connector.py` (~420 行) paper trading 骨架 + 30 tests 全绿. 为 Sprint 2 W7.2.1 T15 准备
