@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-15 · W7.4.5 第 12 批 + T8 S6 纸交易环境准备 ✅
+
+- **第 12 批** (95 tests 全绿, 1.03s): barra_risk_decomposer 29.6%→99.54% (31) + risk_budget_optimizer 20.3%→97.89% (31) + smart_beta_engine 25.4%→98.97% (33)
+- **T8 S6 纸交易环境**: config/gnn_factor/s6_paper_trading.yaml + scripts/s6_paper_trading_runner.py 骨架就位
+  - 因子: CHAIN_MOM_60D (LeadLag, direction=-1), 跟踪 ≥30 天
+  - 门槛: Sharpe≥1.0 / 多空一致性≥80% / 无前视偏差
+  - 灰度: paper_trading (0%) -> live_shadow (S7 5-10%)
+  - TODO: 09-13 正式启动后接入 utils/alpha_factor/graph.py 因子计算
+- **门禁**: 95 passed + 脚本 run/status/check 全工作, pre-commit GREEN
+- **指针**: `tests/unit/test_barra_risk_decomposer_unit.py` · `test_risk_budget_optimizer_unit.py` · `test_smart_beta_engine_unit.py` · `config/gnn_factor/s6_paper_trading.yaml` · `scripts/s6_paper_trading_runner.py`
+
 ## 2026-08-15 · W7.4.5 覆盖率冲刺第 11 批 · 3 模块 147 tests + 2 bug 修复 ✅
 
 - **3 模块补测** (147 tests 全绿, 2.22s): data_gate 26.9%→100% (57) + supply_chain_builder 19.2%→91.19% (40) + futures_rollover_manager 17.8%→98.69% (50)
