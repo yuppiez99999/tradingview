@@ -15,6 +15,7 @@ QMT 关键规则:
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, timedelta
 
 # W6.3.3 Step 1: 统一入口 (保留 FUTURES_CODE_PATTERN 别名兼容 import)
@@ -267,10 +268,12 @@ class FuturesRolloverManager:
         # 拦截常见的不可交易代码
         if code.endswith(".IDX"):
             return False
-        if code.endswith("00"):
-            # 连续合约 (如 IF00.CFFEX)
+        # 去掉交易所后缀后检查连续合约/指数合约 (修复: 原 endswith 对带后缀代码如 IF00.CFFEX 失效)
+        base_code = code.split(".")[0]
+        if base_code.endswith("00"):
+            # 连续合约 (如 IF2 IF00.CFFEX)
             return False
-        if code.endswith("0001"):
+        if base_code.endswith("0001"):
             # 指数合约
             return False
         return self._parse_contract(code) is not None
