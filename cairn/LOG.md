@@ -2,6 +2,21 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-15 · 08-14 未提交工作整理 · 8 commits 全 GREEN ✅
+
+- **背景**: 08-14 晚间工作（LOG 顶部 5 项全完成）全部未 commit，工作区有 186 M + 44 ?? 文件，最新 commit 12c699be 在 08-14 14:57
+- **commit 1** `0929de5d` chore(gitignore): 添加 .loopx_handoffs/ 运行时目录忽略（含误带 staged 的 500万结论计划_20260706.json）
+- **commit 2** `efe039fc` refactor(quality): ruff T201/BLE001 收紧自动修复 183 文件 + risk_budget_allocator L148 死代码修复 + daily_trade_executor/stop_loss_monitor 功能增强 + feature_store 导出更新
+- **commit 3** `8414d4ca` feat(engineering): T6 工程基础 Phase 0-1 (pyproject.toml + uv.lock 201 packages + ruff_violations.txt)
+- **commit 4** `60b1afb4` feat(wave7): T4 Phase B B2 shadow runner 350行 + T5 FeatureStore online/offline store + 127 因子全注册脚本 + 38 tests
+- **commit 5** `26c22bf6` test(wave7): T2 W7.4.5 覆盖率冲刺第 6-9 批 13 个新测试（覆盖率 79.67%→80.20%）
+- **commit 6** `70d34dae` feat(ocr+eod): T7 ocr PR审查+nightly 工作流 + T1 EOD 入口脚本
+- **commit 7** `c8ab24ec` docs: T3 决策材料 + 0824 方案 + 云端部署 5 文档 + LOG 08-14 多条目
+- **commit 8** `19f38eed` chore: 辅助脚本 3 个 + 交易报告 3 个 + 代码质量审查报告
+- **门禁**: 全部 pre-commit GREEN（硬编码路径/悬挂引用/T201/P0 自检/NaN 守卫全通过）
+- **状态**: 工作区干净，分支领先 origin/1 8 commits，未 push
+- **指针**: `git log --oneline -8` · `.loopx_handoffs/` 已 gitignore
+
 ## 2026-08-14 · 08-24 前最优方案执行 · 5 项全完成 ✅
 
 - **T1 死代码修复**: risk_budget_allocator.py L148 `elif combined<0.7` 条件顺序调整 (被 L145 `<0.85` 遮蔽), 29 tests passed
