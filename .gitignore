@@ -137,6 +137,9 @@ configs/
 !v7.5_institutional/config/portfolio.yaml
 # P2: 价格表是无敏感配置, 允许入版本库
 !config/llm_pricing.yaml
+# S6 纸交易配置 (无敏感数据, 因子跟踪配置)
+!config/gnn_factor/
+!config/gnn_factor/s6_paper_trading.yaml
 
 # Trade executor generated files
 daily_trade_executor.log

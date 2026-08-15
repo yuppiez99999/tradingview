@@ -1,0 +1,42 @@
+# S6 纸交易配置 — Wave 5 CHAIN_MOM_60D GNN 因子
+# W7.2.5 Wave 5 S6 纸交易启动 (排期 09-13~10-12)
+# 前置: S1-S5 全通过 (Gate1 PASS / Gate2 FAIL 回退 Layer1 / S5 边际夏普改善 PASS)
+
+factor:
+  name: "CHAIN_MOM_60D"
+  category: "LeadLag"
+  description: "邻居 60 日动量 strength 加权均值 (对 MOM_60D 正交化)"
+  direction: -1  # B3 修复后确定反向
+  enhanced_formula: "MOM_60D + direction * CHAIN_MOM_60D (等权 Z-score 合成)"
+
+tracking:
+  min_running_days: 30          # 纸交易最短跟踪天数
+  output_path: "reports/gnn_factor/s6_paper_trading.jsonl"
+  rollout_stage: "paper_trading"  # 0% 实盘 (GradualRolloutOrchestrator)
+  capital_ratio: 0.0
+
+admission_criteria:
+  # S6 -> S7 升级门槛
+  min_sharpe: 1.0
+  min_long_short_consistency: 0.80  # 多空收益一致性
+  no_lookahead_bias: true           # 无前视偏差
+  max_drawdown_pct: 0.05            # 5%
+  min_running_days: 30
+
+universe:
+  # Top20%/Bottom20% 多空组合
+  top_pct: 0.20
+  bottom_pct: 0.20
+  rebalance_freq: "weekly"  # 每周调仓
+
+rollout_orchestrator:
+  # 复用 utils/risk/gradual_rollout_orchestrator.py
+  initial_stage: "paper_trading"
+  next_stage: "live_shadow"  # S7 小资金 5-10% 灰度
+  stage_transition_criteria:
+    min_running_days: 30
+    max_drawdown_pct: 0.05
+    max_drift_pct: 0.02
+    max_kill_switch_triggers: 0
+    max_reconcile_issues: 0
+    min_fill_rate: 0.95
