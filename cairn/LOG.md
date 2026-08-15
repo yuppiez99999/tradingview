@@ -2,6 +2,92 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-14 · 08-24 前最优方案执行 · 5 项全完成 ✅
+
+- **T1 死代码修复**: risk_budget_allocator.py L148 `elif combined<0.7` 条件顺序调整 (被 L145 `<0.85` 遮蔽), 29 tests passed
+- **T3 决策材料**: OBSERVATION_PERIOD_DECISION.md §0.1 追加 08-14 数据更新 (15/21天 + 15/20样本 + Wind MCP统一 + B1已启用), §9 转换条件 1 标记完成
+- **T4 Phase B B2 shadow**: phase_b_b2_shadow_runner.py 350行已就位 (flag不变式+预热3天+shadow比对) + ab_testing.py ABTestFramework 完整, 08-24 Go 后可立即启用
+- **T5 G9 FeatureStore 127因子全注册**: scripts/register_factors_to_feature_store.py + Registry 127/127 全成功 (15类别: Momentum10/LowVol8/Size7/Liq8/Value11/Growth15/Quality13/Lev6/Op5/Tech20/Expect6/LeadLag5/Chip4/FM6/Eigen3), Technical 实际20非注释9
+- **T6 工程基础 Phase 0-1**: pyproject.toml requires-python 修复 >=3.10 + uv.lock 生成 (201 packages) + .env 确认 git ignored (安全)
+- **T1 EOD Shadow**: 今日 EOD 已跑 (daily_returns.jsonl 含 08-14), 15条连续, 自动化就位 (setup_eod_scheduled_task.ps1 + run_eod_workflow.bat)
+- **门禁**: 全部 pre-commit GREEN
+- **指针**: `scripts/register_factors_to_feature_store.py` · `docs/自我进化框架/OBSERVATION_PERIOD_DECISION.md` §0.1/§9 · `scripts/phase_b_b2_shadow_runner.py` · `uv.lock` · `pyproject.toml`
+
+## 2026-08-14 · W7.4.5 覆盖率冲刺第9批 · 突破80%目标 ✅
+
+- **3 模块补测** (78 tests 全绿): ledoit_wolf_covariance 20.51%→97.96% (25) + risk_budget_allocator 13.10%→95.08% (27) + gamma_engine 12.58%→85.34% (26)
+- **总体覆盖率**: 79.67% → **80.20%** (42932/53524), 突破 v8.7 发布 80% 硬条件 ✓
+- **发现缺陷**: risk_budget_allocator.py L148 `elif combined < 0.7` 死代码 (被 L145 `combined < 0.85` 遮蔽), 已用测试标注
+- **门禁**: 78 passed + 0 新失败 (整体仍为已知 112 failed)
+- **意义**: W7.4.5 覆盖率冲刺主线基本完成, 扫描报告"差5.5pp"严重过时
+- **指针**: `tests/unit/test_ledoit_wolf_covariance_unit.py` · `test_risk_budget_allocator_unit.py` · `test_gamma_engine_unit.py`
+
+## 2026-08-14 · 08-24 决策前最优方案落档 · 10 天窗口规划 ✅
+
+- **方案文档**: `docs/0824前最优方案_20260814.md` — 08-14~08-23 共 10 天窗口最优任务排布
+- **三主线**: T1 每日 EOD Shadow (生命线) + T2 覆盖率冲刺第 9-13 批 (0.7477→0.78+) + T3 08-24 决策材料准备 (08-22~23 周末)
+- **辅线**: T4 Phase B B2 shadow 准备 + T5 G9 FeatureStore 117 因子全注册 + T6/T7 工程基础收尾
+- **校正**: 扫描报告 08-14 早间版本部分过时 (W7.1.2 已完成/Phase B B1 已启用/W7.3.2 原型已完成/W7.2.6-7 已完成), 以 LOG 08-14 为准
+- **预期**: 08-24 决策条件全就绪 + 覆盖率差 2pp 内 + FeatureStore 推进 60%+
+- **指针**: `docs/0824前最优方案_20260814.md`
+
+## 2026-08-14 · 观察期数据 Wind MCP 补录 · 15 条完整 ✅
+
+- **Wind MCP 补录**: 25 标的 100% 覆盖, 08-11~14 用 wind_get_kline 重新计算并覆盖
+  - 08-11: -0.1990% / 08-12: -0.0337% / 08-13: -0.1116% / 08-14: -0.2435%
+- **08-01/02 确认为周末**: 非交易日, 无需补录, 观察期数据连续无断档
+- **最终状态**: 15 条记录 (07-27~08-14), 全部交易日覆盖, 数据源统一 Wind MCP
+- **双门槛**: GATE-A 15/21 天 (71.4%) + GATE-B 15/20 样本 (75.0%), 预计达标 08-22
+- **指针**: `reports/shadow/daily_returns.jsonl` · `reports/evolution/observation_progress.json`
+- **进度更新**: observation_progress.json 12→15 条, 57.1%→71.4%, 预计达标日 08-25→08-22
+- **仍缺失**: 08-01/08-02 (EOD 断档, 已无法补录真实数据)
+- **双门槛**: GATE-A 15/21 天 (71.4%) + GATE-B 15/20 样本 (75.0%), 均未达但接近
+- **指针**: `reports/shadow/daily_returns.jsonl` · `reports/evolution/observation_progress.json`
+
+## 2026-08-14 · W7.3.2 G9 FeatureStore 物理分层原型 ✅
+
+- **OnlineStore**: `utils/feature_store/online_store.py` — memory/redis 后端, TTL �惰性淘汰, <10ms 查询, 线程安全
+- **OfflineStore**: `utils/feature_store/offline_store.py` — parquet/duckdb 后端, 分区写入, 增量更新, 回测对齐
+- **测试**: 38 tests 全绿 (OnlineStore 22 + OfflineStore 16), ruff 全绿
+- **__init__.py**: 导出 FeatureStoreConfig/Registry/OnlineStore/OfflineStore 公开 API
+- **待办**: 117 因子全注册 + 双写并行 + 影子验证 + 30 天回退窗口 (W7.3.2 正式落地 10-13~10-31)
+- **指针**: `utils/feature_store/online_store.py` · `offline_store.py` · `tests/unit/test_online_store_unit.py` · `test_offline_store_unit.py`
+
+## 2026-08-14 · W7.2.6 工程基础 Phase 0-1 + W7.2.7 ocr Step 2-3 工作流 ✅
+
+- **pyproject.toml**: 创建项目元数据 + 依赖声明 (从 requirements.txt 迁移), uv sync 入口
+- **ruff T201/BLE001 收紧**: 132 个违规 → 0 (精确豁免自检/CLI/fail-safe + 自动修复 1004 个其他违规)
+- **ocr Step 2**: 创建 `.github/workflows/ocr-review.yml` — PR 自动审查 (GLM-4.5-air, 评论摘要, artifact 上传)
+- **ocr Step 3**: 创建 `.github/workflows/ocr-nightly.yml` — nightly 全量 scan (500 文件上限, 结果归档 reports/ocr_reviews/)
+- **待办**: GitHub Secrets 配置 (OCR_LLM_URL/AUTH_TOKEN/MODEL) + GLM API 充值后全量 443 文件补扫
+- **指针**: `pyproject.toml` · `ruff.toml` · `.github/workflows/ocr-review.yml` · `.github/workflows/ocr-nightly.yml`
+
+## 2026-08-14 · W7.4.5 覆盖率冲刺第8批 · 195 tests ✅
+
+- **第8批补测** (195 tests, 3 模块):
+  - `supply_chain_graph.py`: 24.3% → **97.04%** (35 tests) — 供应链图构建/路径/聚类
+  - `directional_futures_trader.py`: 25.6% → **98.45%** (78 tests) — CU/AU/T 方向性期货信号/仓位/风控/指令
+  - `hedge_rebalance_backtest.py`: 77.4% → 纯函数全覆盖 (82 tests) — 8个模块级纯函数 + _px/_rets/_metrics/_compute_turnover
+- **发现**: `HEDGE_EXPOSURE_CAP=0.40` 会 cap 动态对冲比率, 0.50/0.75 实际返回 0.40
+- **发现**: pytest assertion rewriting + scipy → Windows access violation, 需 `--assert=plain` 绕过
+- **门禁**: ruff 全绿
+- **指针**: `tests/unit/test_supply_chain_graph_unit.py` · `test_directional_futures_trader_unit.py` · `test_hedge_rebalance_backtest_unit.py`
+
+## 2026-08-14 · W7.4.5 覆盖率冲刺第6-7批 + 工作区清理 · 263 tests ✅
+
+- **工作区清理**: 删除 42 个临时调试脚本 (check_*/fix_*/debug_*/test_* 根目录), `game/`/`games/`/`.arts/`/`.zcode/` 加入 .gitignore, 未提交文件 49→4
+- **第6批补测** (176 tests, 4 模块):
+  - `pnl_attribution_engine.py`: 23.2% → **98.64%** (62 tests) — 纯计算归因引擎全覆盖
+  - `data_quality_monitor.py`: 23.3% → **79.76%** (66 tests) — Z-score/IQR/MAD 异常检测 + 质量评分
+  - `theta_engine.py`: 10.8% → **81.31%** (19 tests) — Covered Call 生成/滚仓/统计
+  - `data_cleaning.py`: 42.1% → **50.14%** (29 tests) — 纯逻辑方法 + mock 外部依赖
+- **第7批补测** (87 tests, 3 模块):
+  - `quant_neutral_runner.py`: 24.8% → **68.69%** (26 tests) — 7因子打分/组合beta/调仓指令
+  - `backtest_gate.py`: 38.5% → **47.60%** (24 tests) — _final_judgment/_extract_close_series/_signal_date
+  - `akshare_data_source.py`: 15.3% → **31.96%** (37 tests) — _safe_float/_to_akshare_code/_get_market/_clean_name
+- **门禁**: ruff 全绿 (6 F401/W292 自动修复)
+- **指针**: `tests/unit/test_pnl_attribution_engine_unit.py` · `test_data_quality_monitor_unit.py` · `test_theta_engine_unit.py` · `test_data_cleaning_unit.py` · `test_quant_neutral_runner_unit.py` · `test_backtest_gate_unit.py` · `test_akshare_data_source_unit.py`
+
 ## 2026-08-14 · W7.4.5 覆盖率冲刺全部 5 批次完成 · 11个0%模块清零 ✅
 
 - **总计**: 5 批次, 637 tests 全绿, 11 个 0% 模块全部补测 (0%→~99%)
