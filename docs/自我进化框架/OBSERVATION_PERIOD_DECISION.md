@@ -52,6 +52,8 @@
 - 双门槛预计 08-22 达标 (GATE-B 20 样本), 08-24 达标 (GATE-A 21 天 + 预热 3 天)
 - v1.3-draft 骨架已就位 (§1.4/§4.1-4.5/§9), 占位符待 08-22~23 周末窗口填充真实数据
 
+> **08-15 更正注记**：上表"数据源 Wind MCP 统一"表述不准确。经核实 `daily_returns.jsonl` 全部 15 条记录 source = `w13a_real_market_feed`（14/15 交叉验证通过，08-14 未交叉验证）。Wind MCP 补录仅写入 `observation_progress.json`（18:30 生成），之后 19:26 EOD 跑盘用 w13a_real_market_feed 覆盖了 `daily_returns.jsonl` 但未同步刷新 `observation_progress.json`，导致两文件 08-11（符号错误 0.001776 vs -0.00199）+ 08-14（-0.002435 vs -0.003176）不一致。08-15 已重新运行 `observation_tracker.py` 修复，`observation_progress.json` 已从 `daily_returns.jsonl` 重新聚合生成，两文件现已一致。`daily_returns.jsonl`（w13a_real_market_feed）为底层真相源。
+
 ---
 
 ## 1. 三个核心问题（08-13 必须回答）
@@ -383,7 +385,13 @@
 
 **v1.3-draft → v1.3 转换条件**:
 1. T1 死代码修复完成 ✅（2026-08-14 已完成, risk_budget_allocator.py L148 条件顺序调整 + 29 tests passed）
-2. T2 117 因子全注册完成（08-16 EOD）
-3. T3 B2 shadow 预热 ≥ 3 天（08-23 EOD, phase_b_b2_shadow_runner.py 350 行已就位）
+2. T2 117 因子全注册完成 ✅（2026-08-14 已完成, **127 因子全注册**超目标, 15 类别全绿）
+3. T3 B2 shadow 预热 ≥ 3 天（08-23 EOD, phase_b_b2_shadow_runner.py 350 行已就位 ✅）
 4. 08-22~23 周末窗口填充真实数据
 5. 全部占位符消除，无伪造数值
+
+> **08-15 进展追加**：
+> - 08-14 未提交工作整理完成（9 commits 全 GREEN，含 T4+T5+T6+T7+T2 测试+文档）
+> - 数据一致性修复完成（observation_progress.json 重新生成，修正 08-11 符号错误 + 08-14 值不同步）
+> - 0824 前最优方案文档已标记 08-14~15 已超前完成部分
+> - 转换条件 1/2 已达标，3 的 shadow runner 已就位（预热待 08-23），4/5 待 08-22~23 周末
