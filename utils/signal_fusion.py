@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 多源信号融合引擎 — v5.7 Phase 1 优化
 
@@ -12,14 +11,13 @@
 - 信号持久化（SQLite 存储，支持事后验证）
 """
 
-import os
 import json
 import math
+import os
 import sqlite3
-import time
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Tuple, Union
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from .logging_manager import get_logger
@@ -885,10 +883,10 @@ def _get_fast_signal_source(code: str) -> SignalResult:
         # 模拟市场数据 - 实际应用中应从实时数据源获取
         # 这里简化处理，实际应用中需要接入真实数据
         from .hybrid_fusion import get_hybrid_fusion_engine
-        
+
         engine = get_hybrid_fusion_engine()
         hybrid_signal = engine.get_hybrid_signal(code, "", force_hybrid=False)
-        
+
         if hybrid_signal.source == 'fast' and hybrid_signal.fast_signal:
             fast_signal = hybrid_signal.fast_signal
             return SignalResult(
@@ -903,7 +901,7 @@ def _get_fast_signal_source(code: str) -> SignalResult:
         else:
             # 快速信号不满足条件，返回空
             return None
-            
+
     except (AttributeError, TypeError, ValueError, OSError) as e:
         logger.warning(f"获取快速技术指标信号失败: {e}")
         return None
@@ -949,37 +947,37 @@ def _get_hedge_signal_source(code: str) -> SignalResult:
     - 当推荐对冲时: SELL 信号 (代表做空指数期货/买Put)
     """
     try:
-        from .hedge_engine import HedgeEngine, get_hedge_engine
-        
+        from .hedge_engine import get_hedge_engine
+
         # 获取持仓和价格数据
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         positions_path = os.path.join(base_dir, 'config', 'positions.json')
         pricing_path = os.path.join(base_dir, 'config', 'price_history.jsonl')
-        
+
         positions = {}
         prices = {}
-        
+
         if os.path.exists(positions_path):
-            with open(positions_path, 'r', encoding='utf-8') as f:
+            with open(positions_path, encoding='utf-8') as f:
                 pos_data = json.load(f)
                 for code, p in pos_data.get('positions', {}).items():
                     positions[code] = {'shares': p.get('shares', 0), 'cost': p.get('cost', 0)}
-        
+
         # 从价格历史获取最新价格
         if os.path.exists(pricing_path):
-            with open(pricing_path, 'r', encoding='utf-8') as f:
+            with open(pricing_path, encoding='utf-8') as f:
                 for line in f:
                     try:
                         entry = json.loads(line.strip())
                         prices[entry['code']] = entry.get('price', 0)
                     except (json.JSONDecodeError, KeyError):
                         continue
-        
+
         # 计算估值
         stock_value = sum(v.get('shares', 0) * prices.get(k, 0) for k, v in positions.items())
         cash = pos_data.get('cash', 0) if os.path.exists(positions_path) else 1000000
         total_value = stock_value + cash
-        
+
         if stock_value <= 0:
             return SignalResult(
                 code=code, source='hedge_engine',
@@ -987,12 +985,12 @@ def _get_hedge_signal_source(code: str) -> SignalResult:
                 reason='空仓或无效持仓，无需对冲',
                 timestamp=datetime.now().isoformat()
             )
-        
+
         engine = get_hedge_engine(portfolio_value=total_value)
         risk = engine.assess_portfolio_risk(positions, prices)
-        
+
         strength, score = engine.determine_hedge_signal_strength(risk)
-        
+
         # 映射为信号融合格式
         if strength.value >= 3:  # STRONG 或 FULL
             action = 'SELL'      # 强烈建议对冲 → 卖出信号
@@ -1010,9 +1008,9 @@ def _get_hedge_signal_source(code: str) -> SignalResult:
             action = 'HOLD'
             sig_score = 0.5
             confidence = 0.1
-        
+
         strength_names = {4: '完全对冲', 3: '强力对冲', 2: '中度对冲', 1: '轻度对冲', 0: '无需'}
-        
+
         return SignalResult(
             code=code,
             source='hedge_engine',
@@ -1022,7 +1020,7 @@ def _get_hedge_signal_source(code: str) -> SignalResult:
             reason=f"对冲信号: {strength_names[strength.value]} (Beta={risk.beta_csi300:.2f}, VaR={risk.var_95_daily:,.0f})",
             timestamp=datetime.now().isoformat()
         )
-        
+
     except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.warning(f"对冲信号获取失败: {e}")
         return None
@@ -1056,8 +1054,9 @@ def _get_gtja191_signal_source(code: str) -> Optional[SignalResult]:
     基于短周期价量特征，只统计下跌日“收益率绝对值/成交额”的效率。
     """
     try:
-        from .gtja191_factors import GTJA191Factors
         from utils.kronos_predictor import fetch_a_stock_data
+
+        from .gtja191_factors import GTJA191Factors
 
         df = fetch_a_stock_data(code, days=60, verbose=False)
         if df is None or len(df) < 21:

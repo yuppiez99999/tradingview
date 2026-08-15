@@ -35,7 +35,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
 from utils.backtest.adapters import OrderSubmitter, StrategyAdapter, _EngineBackedHedgeContext
@@ -44,7 +43,6 @@ from utils.backtest.latency_model import FixedLatency
 from utils.backtest.matching_engine import MatchingEngine
 from utils.wt_hedge_strategy import HedgeContext, HedgeStrategy
 from utils.wt_structs import BarData, OrderData
-
 
 # ============================================================
 # 1. 扩展上下文: 增加普通多空订单提交能力
@@ -103,8 +101,8 @@ class _LongShortContext(_EngineBackedHedgeContext):
         code: str, direction: str, offset: str, volume: float, price: float
     ) -> OrderData:
         """创建 MARKET 订单 (复用 adapters._create_hedge_order 的结构)。"""
-        from datetime import datetime
         import uuid
+        from datetime import datetime
 
         exchange = code.split(".")[-1] if "." in code else "UNKNOWN"
         return OrderData(

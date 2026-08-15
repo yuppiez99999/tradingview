@@ -17,9 +17,9 @@ import threading
 import time
 import urllib.request
 
-from utils.logger import get_logger
 # W6.3.3 Step 1: 统一合约代码解析入口 (替代本地 _secid 前缀判定)
 from utils.contracts.symbols import to_eastmoney_secid
+from utils.logger import get_logger
 
 logger = get_logger("astock_realtime")
 
@@ -169,7 +169,7 @@ def get_realtime_quotes(codes: list[str], use_cache: bool = True) -> dict[str, d
     res = get_eastmoney_quotes(codes)
     missing_or_bad = [
         c for c in codes
-        if c not in res or float((res[c].get("price") or 0)) == 0
+        if c not in res or float(res[c].get("price") or 0) == 0
     ]
     if missing_or_bad:
         res.update(get_tencent_quotes(missing_or_bad))

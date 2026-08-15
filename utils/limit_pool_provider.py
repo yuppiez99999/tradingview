@@ -36,8 +36,6 @@ import threading
 from datetime import datetime
 from typing import Any
 
-import pandas as pd
-
 logger = logging.getLogger(__name__)
 
 
@@ -327,7 +325,7 @@ class LimitPoolProvider:
         Returns:
             {code: {"calc_limit_up": bool, "pool_limit_up": bool, "match": bool}}
         """
-        from utils.price_limit_calculator import calc_limit_prices, is_at_limit_up, normalize_code
+        from utils.price_limit_calculator import calc_limit_prices, normalize_code
 
         pool = self.get_pool(date)
         st_set = {normalize_code(c) for c in (st_codes or set())}

@@ -46,7 +46,7 @@ import json
 import logging
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -398,9 +398,9 @@ class AutoFactorFactory:
         """通过 QLib 发现因子 — 复用 factor_discovery_enhanced 的 50+ 技术因子."""
         try:
             from utils.factor_research.factor_discovery_enhanced import (
+                compute_factors_panel_qlib,
                 init_qlib,
                 load_qlib_data,
-                compute_factors_panel_qlib,
             )
         except ImportError:
             logger.warning("utils.factor_research.factor_discovery_enhanced 不可用, 降级到基础技术因子")
@@ -431,7 +431,7 @@ class AutoFactorFactory:
     ) -> dict[str, pd.DataFrame]:
         """通过 AKShare 发现因子 — 复用 factor_discovery.py 的 ETF 发现能力."""
         try:
-            from utils.factor_research.factor_discovery import FactorDataFetcher, FactorCalculator
+            from utils.factor_research.factor_discovery import FactorCalculator, FactorDataFetcher
         except ImportError:
             logger.warning("utils.factor_research.factor_discovery 不可用, 降级到基础技术因子")
             return self._discover_basic_technical()
@@ -582,9 +582,9 @@ class AutoFactorFactory:
         # Step 1: 计算因子面板和远期收益 (复用 enhanced 的验证能力)
         try:
             from utils.factor_research.factor_discovery_enhanced import (
+                compute_factors_panel_qlib,
                 init_qlib,
                 load_qlib_data,
-                compute_factors_panel_qlib,
                 validate_factors,
             )
         except ImportError:
@@ -997,7 +997,6 @@ def compute_{safe_name}(
             是否成功
         """
         try:
-            from utils.alpha_factor.library import AlphaFactorLibrary
 
             # 注册方式: 将因子信息写入注册表, 供后续集成
             registry_path = self.data_dir / "factor_registry.json"

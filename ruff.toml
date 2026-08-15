@@ -97,3 +97,35 @@ force-single-line = false
 # 资产集成专项 (2026-08-10): Ledoit-Wolf 协方差 — 量化矩阵变量(R/T/N/S/F/Rb)大写是
 # 金融数学惯例, 豁免 N803/N806 命名规范; 其余 F/B/T/BLE 仍受增量门禁阻断。
 "utils/ledoit_wolf_covariance.py" = ["N803", "N806"]
+# W7.2.6 工程基础 Phase 1 (2026-08-14): 自检/CLI/终端输出函数中的 print 是合理的
+# annual_return_forecast.py: print_forecast() 终端表格输出函数
+# vol_regime_weighter.py: __main__ 自检入口
+# notify.py: _self_check() 自检函数
+"utils/annual_return_forecast.py" = ["T201"]
+"utils/alpha/vol_regime_weighter.py" = ["T201"]
+"utils/notify.py" = ["T201"]
+# W7.2.6 工程基础 Phase 1 (2026-08-14): fail-safe 模块的 blind except 是有意设计
+# LLM/外部 API 调用: 任何异常都不应崩溃主流程, 降级为日志
+"utils/llm_evolution/**/*.py" = ["BLE001"]
+"utils/llm_gateway/**/*.py" = ["BLE001"]
+# 风控/执行模块: 实盘下单 fail-safe, 异常不能导致重复下单或漏单
+"utils/risk/**/*.py" = ["BLE001"]
+"utils/execution/automated_execution_system.py" = ["BLE001"]
+# limit_pool_provider: 涨跌停价计算 fail-safe, 异常时返回保守估计
+"utils/limit_pool_provider.py" = ["BLE001"]
+# drift_monitor / price_limit_calculator / feature_store config: fail-safe
+"utils/alpha/drift_monitor.py" = ["BLE001"]
+"utils/price_limit_calculator.py" = ["BLE001"]
+"utils/feature_store/config.py" = ["BLE001"]
+# FeatureStore online/offline store: redis/duckdb/parquet fail-closed
+"utils/feature_store/online_store.py" = ["BLE001"]
+"utils/feature_store/offline_store.py" = ["BLE001"]
+# CLI 辅助/系统检查/自检入口: print 是合理的用户交互
+"utils/cli_helpers.py" = ["T201"]
+"utils/system_check.py" = ["T201"]
+"utils/execution/fills_store.py" = ["T201"]
+"utils/execution/fills_pnl_bridge.py" = ["T201"]
+"utils/execution/broker_factory.py" = ["T201"]
+# AI 决策 CLI + 云训练脚本: print 是合理的用户交互/进度输出
+"ai_decision/cli.py" = ["T201"]
+"ms_strategy/cloud_train/**/*.py" = ["T201"]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """utils.cli_helpers — CLI 辅助函数 (降级版)
 
 修复日期: 2026-08-04
@@ -16,7 +15,7 @@ from __future__ import annotations
 import logging
 import shutil
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 logger = logging.getLogger("cli_helpers")
 
@@ -81,7 +80,7 @@ def get_stock_name(code: str) -> str:
 
         positions_file = _BASE_DIR / "config" / "positions.json"
         if positions_file.exists():
-            with open(positions_file, "r", encoding="utf-8") as f:
+            with open(positions_file, encoding="utf-8") as f:
                 data = json.load(f)
             positions = data.get("positions", {})
             pos = positions.get(code, {})
@@ -101,9 +100,9 @@ def log_execution_summary(mode_name: str, summary_dict: dict) -> None:
         mode_name: 模式名称
         summary_dict: 摘要字典
     """
-    print("\n📋 {} 执行摘要:".format(mode_name))
+    print(f"\n📋 {mode_name} 执行摘要:")
     for key, value in summary_dict.items():
-        print("  {}: {}".format(key, value))
+        print(f"  {key}: {value}")
 
 
 def get_ml_signal_section(code: str = None, return_raw: bool = False) -> Optional[str]:

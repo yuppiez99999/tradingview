@@ -16,9 +16,6 @@
 
 from __future__ import annotations
 
-import json
-import math
-import random
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -27,28 +24,25 @@ from typing import Any
 import pytest
 
 from utils.evolution.guard import (
-    DEFENSE_KILL_SWITCH,
-    EvolutionGuard,
-    EvolutionProposal,
     LEVEL_L1,
     LEVEL_L2,
     LEVEL_L3,
+    EvolutionGuard,
+    EvolutionProposal,
 )
 from utils.evolution.memory import (
-    EvolutionMemory,
     STATUS_EXECUTED,
     STATUS_PENDING,
     STATUS_REJECTED,
+    EvolutionMemory,
 )
 from utils.evolution.orchestrator import (
     CYCLE_STATUS_DISABLED,
     CYCLE_STATUS_FROZEN,
     CYCLE_STATUS_NO_ACTION,
     CYCLE_STATUS_SUCCESS,
-    CycleResult,
     EvolutionOrchestratorV2,
 )
-
 
 # ============================================================
 # Mock 组件

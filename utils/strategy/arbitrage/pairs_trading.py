@@ -26,13 +26,11 @@ StatisticalArbitrageEngine 核心借鉴点:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 import pandas as pd
 
 from utils.strategy_lib.pairs_trading import PairsTrading
-
 
 # ============================================================
 # 1. Walk-Forward 验证报告

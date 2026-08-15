@@ -15,10 +15,10 @@
 from __future__ import annotations
 
 import logging
-import time
 import threading
+import time
 from datetime import datetime
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,17 @@ TradingCalendar: type
 try:
     from utils.execution.automated_execution_system import (
         AutomatedExecutionSystem as _AES,
+    )
+    from utils.execution.automated_execution_system import (
         ExecutionStrategy as _ES,
+    )
+    from utils.execution.automated_execution_system import (
         MarketStateEvaluator as _MSE,
+    )
+    from utils.execution.automated_execution_system import (
         OrderRouter as _OR,
+    )
+    from utils.execution.automated_execution_system import (
         TradingCalendar as _TC,
     )
 
@@ -124,7 +132,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
             "last_update": None,
         }
 
-        logger.info("AutoTradingSystem 初始化完成 (资金: {:,.0f}元)".format(total_capital))
+        logger.info(f"AutoTradingSystem 初始化完成 (资金: {total_capital:,.0f}元)")
 
     # --------------------------------------------------------
     # 主循环 — 主入口调用 system.run()
@@ -370,11 +378,13 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                 logger.info("  ℹ️  VolRegimeWeighter 未启用 (USE_VOL_REGIME_WEIGHTER=False)")
                 return
 
-            from utils.alpha.vol_regime_weighter import VolRegimeWeighter
-            from utils.alpha.vix_data_source import VixDataSource
-            from utils.alpha.drawdown_reader import DrawdownReader
             from pathlib import Path
+
             import yaml
+
+            from utils.alpha.drawdown_reader import DrawdownReader
+            from utils.alpha.vix_data_source import VixDataSource
+            from utils.alpha.vol_regime_weighter import VolRegimeWeighter
 
             # 读取 portfolio 快照 (只读, 不修改)
             portfolio_path = Path("configs/portfolio.yaml")
@@ -485,8 +495,8 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         try:
             from utils.infra.feature_flags import is_enabled
             if is_enabled("USE_VOL_REGIME_WEIGHTER"):
-                from utils.alpha.vix_data_source import VixDataSource
                 from utils.alpha.drawdown_reader import DrawdownReader
+                from utils.alpha.vix_data_source import VixDataSource
                 vix = VixDataSource().fetch_vix(use_cache=True)
                 dd = DrawdownReader().get_current_drawdown()
                 result["vol_regime"] = {

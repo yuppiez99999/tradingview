@@ -32,6 +32,7 @@ LLM降级链: DeepSeek (V3/R1, 主 LLM) → Ollama本地 → GLM-5 → 豆包 �
 
 import argparse
 import json
+import logging
 import sys
 import threading
 import time
@@ -39,7 +40,6 @@ import types
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict, cast
-import logging
 
 logger = logging.getLogger(__name__)
 

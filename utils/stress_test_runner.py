@@ -295,7 +295,7 @@ if __name__ == "__main__":
         # 真实持仓: 从 config/positions.json 加载并映射为压力测试格式
         positions_path = BASE_DIR / "config" / "positions.json"
         try:
-            with open(positions_path, "r", encoding="utf-8") as f:
+            with open(positions_path, encoding="utf-8") as f:
                 pos_data = json.load(f)
             raw_positions = pos_data.get("positions", {})
             meta = pos_data.get("meta", {})

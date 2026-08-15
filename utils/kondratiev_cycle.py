@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 康波周期分析增强模块 v2.0
 借鉴：TradingAgents-AShare macro_analyst + Vibe-Trading macro_strategy_forum + FinClaw akshare-macro
@@ -13,11 +12,10 @@
 数据源优先级：iFinD MCP > Wind MCP > akshare > 本地估算
 """
 
-import os
-import json
-from datetime import datetime
-from typing import Dict, List, Tuple, Optional
 import logging
+import os
+from datetime import datetime
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -268,7 +266,7 @@ class KondratievCycleAnalyzer:
         lines.append("# 康波周期 + 十五五规划交叠分析报告")
         lines.append("")
         lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        lines.append(f"**分析引擎**: KondratievCycleAnalyzer v2.0")
+        lines.append("**分析引擎**: KondratievCycleAnalyzer v2.0")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -276,8 +274,8 @@ class KondratievCycleAnalyzer:
         # 一、康波周期当前阶段
         lines.append("## 一、康波周期当前阶段")
         lines.append("")
-        lines.append(f"| 维度 | 内容 |")
-        lines.append(f"|------|------|")
+        lines.append("| 维度 | 内容 |")
+        lines.append("|------|------|")
         lines.append(f"| 周期 | {phase['wave']} |")
         lines.append(f"| 当前阶段 | **{phase['phase']}** |")
         lines.append(f"| 阶段进度 | {phase['progress_pct']}% |")
@@ -326,13 +324,13 @@ class KondratievCycleAnalyzer:
         for s in overlay["synergy_sectors"]:
             lines.append(f"| {s['sector']} | {s['fifteen_weight']:.0%} | {s['kondratiev_score']} | {s['rationale']} |")
         lines.append("")
-        lines.append(f"### 投资建议")
+        lines.append("### 投资建议")
         lines.append(f"> {overlay['investment_implication']}")
         lines.append("")
 
         lines.append("---")
-        lines.append(f"*本报告由康波周期分析引擎 v2.0 自动生成*")
-        lines.append(f"*数据参考: TradingAgents-AShare / Vibe-Trading / FinClaw*")
+        lines.append("*本报告由康波周期分析引擎 v2.0 自动生成*")
+        lines.append("*数据参考: TradingAgents-AShare / Vibe-Trading / FinClaw*")
 
         report = "\n".join(lines)
 

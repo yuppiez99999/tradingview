@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 对冲引擎 v5.9 — 多指数Beta加权 + 组合自触发 + 成本意识优化
 
@@ -11,15 +10,14 @@ v5.9 核心改进（基于2021-2026回测发现）:
 数据源: iFinD MCP → Wind MCP → Sina/AKShare (免费回退)
 """
 
-import os
-import sys
 import json
-import math
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
+import math
+import os
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger('hedge_engine')
 
@@ -130,7 +128,7 @@ class PortfolioRisk:
     max_single_mrc: float = 0.0
 
 
-@dataclass  
+@dataclass
 class HedgeRecommendation:
     """对冲建议"""
     hedge_type: HedgeType = HedgeType.NONE
@@ -204,7 +202,7 @@ _IFIND_CONFIG_PATH = os.path.join(_IFIND_CONFIG_DIR, "mcp_config.json")
 _IFIND_TOKEN = ""
 if os.path.isfile(_IFIND_CONFIG_PATH):
     try:
-        with open(_IFIND_CONFIG_PATH, 'r', encoding='utf-8') as _f:
+        with open(_IFIND_CONFIG_PATH, encoding='utf-8') as _f:
             _cfg = json.load(_f)
             _IFIND_TOKEN = (_cfg.get("auth_token") or "").strip()
     except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
@@ -216,7 +214,7 @@ if IFIND_AVAILABLE:
         import importlib.util
         _skill_dir = os.path.join(os.path.expanduser("~"), ".trae", "skills", "ifind-finance-data")
         _call_path = os.path.join(_skill_dir, "call.py")
-        
+
         # 安全检查：验证文件路径不在受保护目录外
         _real_skill_dir = os.path.realpath(_skill_dir)
         _real_call_path = os.path.realpath(_call_path)
@@ -319,8 +317,8 @@ def fetch_futures_prices_from_wind() -> Dict[str, float]:
 
 
 def fetch_futures_prices_from_sina() -> Dict[str, float]:
-    import urllib.request
     import re
+    import urllib.request
     sina_codes = {"IF": "nf_IF0", "IC": "nf_IC0", "IM": "nf_IM0", "IH": "nf_IH0"}
     results = {}
     for name, code in sina_codes.items():
@@ -717,7 +715,6 @@ class HedgeEngine:
         - surviving_value: 压力后组合剩余价值
         - sector_detail: 各板块受损明细
         """
-        from dataclasses import dataclass
 
         # 计算各标的对每个指数的加权beta暴露
         stock_codes = list(positions.keys())
@@ -1518,7 +1515,7 @@ class HedgeEngine:
             if breach_count > 0:
                 lines.append(f"\n  ⚠️  {breach_count}/6 个历史情景突破15%回撤上限，强烈建议启用尾部保护")
             else:
-                lines.append(f"\n  全部历史情景均未突破15%回撤上限，尾部保护可选")
+                lines.append("\n  全部历史情景均未突破15%回撤上限，尾部保护可选")
 
         lines.append("\n" + "=" * 70)
         lines.append("  以上分析仅供参考，不构成投资建议。")

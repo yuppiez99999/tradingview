@@ -27,9 +27,10 @@ Layer 1 用静态边权重 (strength) 聚合邻居信息, 跨窗稳定性不足�
 
 from __future__ import annotations
 
-import numpy as np
-from typing import Any, Dict, List, Optional, Tuple
 import logging
+from typing import List, Optional, Tuple
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 

@@ -18,41 +18,34 @@
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 from pathlib import Path
 
 import pytest
 
 from utils.evolution.strategy_generator import (
-    StrategyGenerator,
-    StrategyTemplate,
-    StrategyInstance,
-    GenerationReport,
-    GenerationReport,
-    TemplateNotFoundError,
-    ValidationFailedError,
     FLAG_STRATEGY_GENERATOR,
-    STYLE_MOMENTUM,
-    STYLE_REVERSAL,
-    STYLE_LOW_RISK,
-    STYLE_VALUE,
-    STYLE_GROWTH,
-    STYLE_QUALITY,
-    STYLE_BALANCED,
-    STYLE_VOLATILITY,
-    WEIGHT_EQUAL,
-    WEIGHT_MOMENTUM_SKEWED,
-    WEIGHT_VALUE_SKEWED,
-    WEIGHT_RISK_PARITY,
-    WEIGHT_VOL_MIN,
     REBALANCE_DAILY,
-    REBALANCE_WEEKLY,
     REBALANCE_MONTHLY,
-    REBALANCE_QUARTERLY,
+    REBALANCE_WEEKLY,
+    STYLE_BALANCED,
+    STYLE_GROWTH,
+    STYLE_LOW_RISK,
+    STYLE_MOMENTUM,
+    STYLE_QUALITY,
+    STYLE_REVERSAL,
+    STYLE_VALUE,
+    STYLE_VOLATILITY,
     UNIVERSE_CSI300,
     UNIVERSE_CSI500,
-    UNIVERSE_CSI800,
+    WEIGHT_EQUAL,
+    WEIGHT_MOMENTUM_SKEWED,
+    GenerationReport,
+    StrategyGenerator,
+    StrategyInstance,
+    StrategyTemplate,
+    TemplateNotFoundError,
+    ValidationFailedError,
     _build_default_templates,
 )
 
@@ -202,7 +195,7 @@ class TestFactoryInitialization:
 
     def test_import_from_package(self):
         """从包导入应正常工作."""
-        from utils.evolution import StrategyGenerator, StrategyTemplate, StrategyInstance
+        from utils.evolution import StrategyGenerator
         gen = StrategyGenerator()
         assert gen.get_template_count() == 8
 
@@ -520,7 +513,7 @@ class TestDeployment:
         deployed = generator.deploy_to_weights(validated[0], weights_path)
         assert deployed.status == "deployed"
         assert weights_path.exists()
-        with open(weights_path, "r") as f:
+        with open(weights_path) as f:
             saved = json.load(f)
         assert saved == deployed.factor_weights
 
@@ -778,7 +771,7 @@ class TestLifecycle:
 
         # Step 4: 验证文件
         assert weights_path.exists()
-        with open(weights_path, "r") as f:
+        with open(weights_path) as f:
             saved = json.load(f)
         assert saved == deployed.factor_weights
 

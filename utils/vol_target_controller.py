@@ -33,7 +33,7 @@ import logging
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional, TypedDict, cast
+from typing import Any, TypedDict, cast
 
 import numpy as np
 

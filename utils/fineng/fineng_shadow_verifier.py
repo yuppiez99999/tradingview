@@ -37,11 +37,10 @@ from __future__ import annotations
 import json
 import logging
 import math
-import random
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +192,7 @@ class FinengShadowVerifier:
     def _import_modules(self) -> None:
         """导入四模块 (fail-soft)."""
         try:
-            from utils.fineng.vol_forecast import fit_garch, ewma_vol
+            from utils.fineng.vol_forecast import ewma_vol, fit_garch
             self._fit_garch = fit_garch
             self._ewma_vol = ewma_vol
         except (ImportError, ModuleNotFoundError, OSError, AttributeError, SyntaxError) as e:
@@ -204,7 +203,7 @@ class FinengShadowVerifier:
             logger.warning("GARCH: %s", e); self._garch_ok = False
 
         try:
-            from utils.fineng.kalman_beta import fit_kalman_beta, backtest_hedge_comparison
+            from utils.fineng.kalman_beta import backtest_hedge_comparison, fit_kalman_beta
             self._fit_kalman = fit_kalman_beta
             self._backtest_hedge = backtest_hedge_comparison
         except (ImportError, ModuleNotFoundError, OSError, AttributeError, SyntaxError) as e:
@@ -500,7 +499,7 @@ class FinengShadowVerifier:
             if not mr.passed:
                 reasons = []
                 if not full_ok:
-                    reasons.append(f"全量未收敛")
+                    reasons.append("全量未收敛")
                 if mr.cross_window_cv >= CV_ACCEPTANCE:
                     reasons.append(f"CV={mr.cross_window_cv:.1%} >= {CV_ACCEPTANCE:.0%}")
                 if mr.direction_consistency <= DIR_CONSISTENCY_ACCEPTANCE:

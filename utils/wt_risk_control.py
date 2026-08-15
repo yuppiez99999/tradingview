@@ -11,12 +11,11 @@ WonderTrader风格风控模块
 """
 
 import json
+import logging
 import math
 import os
-import sys
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, cast
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,7 @@ def _load_cvar_config() -> Dict:
     """
     try:
         cfg_path = os.path.join(_PROJECT_ROOT, "config", "system_config.json")
-        with open(cfg_path, "r", encoding="utf-8") as f:
+        with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
         cvar_cfg = cfg.get("risk_management", {}).get("cvar", {})
         merged = dict(_CVAR_CONFIG_DEFAULT)

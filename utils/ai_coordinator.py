@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AI 协调器 — v5.7 Phase 1 优化
 
@@ -13,12 +12,10 @@ AI 协调器 — v5.7 Phase 1 优化
 """
 
 import os
-import json
-import time
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Tuple
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from .logging_manager import get_logger
@@ -105,7 +102,7 @@ class AICoordinator:
         for path in candidates:
             try:
                 import yaml  # type: ignore
-                with open(path, 'r', encoding='utf-8') as f:
+                with open(path, encoding='utf-8') as f:
                     data = yaml.safe_load(f) or {}
                 if 'models' in data:
                     return data

@@ -23,16 +23,16 @@ from __future__ import annotations
 import logging
 
 from utils.alpha_factor.base import (
-    FactorValue,
     FactorLibraryResult,
-    winsorize,
-    standardize,
+    FactorValue,
+    calc_ic,
+    compute_factor_corr_matrix,
+    evaluate_factors,
     neutralize_by_industry,
     neutralize_by_size,
     orthogonalize,
-    calc_ic,
-    evaluate_factors,
-    compute_factor_corr_matrix,
+    standardize,
+    winsorize,
 )
 from utils.alpha_factor.library import AlphaFactorLibrary
 from utils.alpha_factor.technical import DEFAULT_GTJA, DEFAULT_GTJA_30, list_available_factors

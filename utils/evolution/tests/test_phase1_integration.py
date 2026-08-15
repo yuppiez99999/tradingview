@@ -15,30 +15,28 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
-from utils.evolution.auto_fix_engine import AutoFixEngine, FixResult
+from utils.evolution.auto_fix_engine import AutoFixEngine
 from utils.evolution.guard import (
     DEFENSE_FREQUENCY,
     DEFENSE_KILL_SWITCH,
-    EvolutionGuard,
-    EvolutionProposal,
     LEVEL_L1,
     LEVEL_L2,
     LEVEL_L3,
+    EvolutionGuard,
+    EvolutionProposal,
 )
 from utils.evolution.memory import (
-    EvolutionMemory,
     STATUS_EXECUTED,
     STATUS_LEARNED,
     STATUS_PENDING,
     STATUS_REJECTED,
+    EvolutionMemory,
 )
-
 
 # ============================================================
 # Mock KillSwitch (复用 test_guard.py 的设计)

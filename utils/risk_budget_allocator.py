@@ -10,11 +10,11 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -141,12 +141,14 @@ class RiskBudgetAllocator:
             # 宏观强对齐加码
             elif combined >= 1.15:
                 base_allocated = min(base_allocated * 1.2, remaining)
+            # 宏观跳过（combined < 0.7 判断前移至 combined < 0.85 之前，
+            # 消除原死代码遮蔽：combined < 0.7 是 combined < 0.85 的子集，
+            # 若置于其后则永不可达。对齐 spec §5.1.1.3 条件优先级规则）
+            elif combined < 0.7:
+                base_allocated = 0.0
             # 宏观偏弱缩减
             elif combined < 0.85:
                 base_allocated *= 0.8
-            # 宏观跳过
-            elif combined < 0.7:
-                base_allocated = 0.0
 
             # ETF资金流弱信号缩减
             if etf and "关注" in etf and combined < 1.0:

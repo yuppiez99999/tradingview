@@ -23,86 +23,6 @@ fineng — 金融工程内核 (Financial Engineering Kernel)
     from utils.fineng.greeks import PortfolioGreeksAggregator
 """
 
-from utils.fineng.instruments.option_spec import (
-    OptionSpec,
-    OptionType,
-    OptionSide,
-    ExerciseStyle,
-)
-
-from utils.fineng.pricing.black_scholes import (
-    # 核心辅助
-    norm_cdf,
-    norm_pdf,
-    bs_d1_d2,
-    # 定价
-    bs_call_price,
-    bs_put_price,
-    bs_price,
-    # Greeks
-    bs_delta,
-    bs_gamma,
-    bs_theta,
-    bs_vega,
-    bs_rho,
-    # 批量 Greeks
-    bs_all_greeks,
-    GreeksResult,
-)
-
-from utils.fineng.pricing.implied_vol import (
-    implied_vol,
-    implied_vol_bisection,
-    ImpliedVolResult,
-)
-
-from utils.fineng.pricing.binomial import (
-    BinomialTree,
-    binomial_price,
-)
-
-from utils.fineng.pricing.monte_carlo import (
-    MonteCarloEngine,
-    MCPricingResult,
-)
-
-from utils.fineng.greeks.aggregator import (
-    PortfolioGreeksAggregator,
-    PortfolioGreeks,
-)
-
-# ---- Phase 4 新增: 高级金融工程 ----
-from utils.fineng.vol_forecast import (
-    fit_garch,
-    forecast_vol,
-    ewma_vol,
-    generate_comparison,
-    GARCHResult,
-    VolComparisonReport,
-)
-
-from utils.fineng.kalman_beta import (
-    fit_kalman_beta,
-    rolling_ols_beta,
-    backtest_hedge_comparison,
-    KalmanBetaResult,
-    BetaHedgeComparison,
-)
-
-from utils.fineng.tail_risk_evt import (
-    fit_evt,
-    evt_var_es,
-    EVTResult,
-)
-
-from utils.fineng.path_simulator import (
-    PathSimulator,
-    simulate,
-    generate_stress_report,
-    PathSimResult,
-    StressTestReport,
-)
-
 # ---- Phase 4 T4.7: 影子验证器 ----
 from utils.fineng.fineng_shadow_verifier import (
     FinengShadowVerifier,
@@ -110,6 +30,77 @@ from utils.fineng.fineng_shadow_verifier import (
     ModuleFullResult,
     ModuleWindowResult,
     run_fineng_shadow_verification,
+)
+from utils.fineng.greeks.aggregator import (
+    PortfolioGreeks,
+    PortfolioGreeksAggregator,
+)
+from utils.fineng.instruments.option_spec import (
+    ExerciseStyle,
+    OptionSide,
+    OptionSpec,
+    OptionType,
+)
+from utils.fineng.kalman_beta import (
+    BetaHedgeComparison,
+    KalmanBetaResult,
+    backtest_hedge_comparison,
+    fit_kalman_beta,
+    rolling_ols_beta,
+)
+from utils.fineng.path_simulator import (
+    PathSimResult,
+    PathSimulator,
+    StressTestReport,
+    generate_stress_report,
+    simulate,
+)
+from utils.fineng.pricing.binomial import (
+    BinomialTree,
+    binomial_price,
+)
+from utils.fineng.pricing.black_scholes import (
+    GreeksResult,
+    # 批量 Greeks
+    bs_all_greeks,
+    # 定价
+    bs_call_price,
+    bs_d1_d2,
+    # Greeks
+    bs_delta,
+    bs_gamma,
+    bs_price,
+    bs_put_price,
+    bs_rho,
+    bs_theta,
+    bs_vega,
+    # 核心辅助
+    norm_cdf,
+    norm_pdf,
+)
+from utils.fineng.pricing.implied_vol import (
+    ImpliedVolResult,
+    implied_vol,
+    implied_vol_bisection,
+)
+from utils.fineng.pricing.monte_carlo import (
+    MCPricingResult,
+    MonteCarloEngine,
+)
+from utils.fineng.tail_risk_evt import (
+    EVTResult,
+    evt_var_es,
+    fit_evt,
+)
+
+# ---- Phase 4 新增: 高级金融工程 ----
+from utils.fineng.vol_forecast import (
+    GARCHResult,
+    VolComparisonReport,
+    ewma_vol,
+    fit_garch,
+    forecast_vol,
+    generate_comparison,
 )
 
 __all__ = [

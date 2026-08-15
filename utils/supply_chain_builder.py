@@ -21,10 +21,9 @@ from __future__ import annotations
 import io
 import json
 import logging
-import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # 兼容直接运行时路径 (python utils/supply_chain_builder.py)
 _DIR = Path(__file__).resolve().parent
@@ -33,6 +32,7 @@ if str(_DIR) not in sys.path:
 
 from graph_data_source import get_graph_data_source  # noqa: E402
 from supply_chain_graph import SupplyChainEdge, SupplyChainGraph  # noqa: E402
+
 
 # Windows 控制台 UTF-8 输出 (幂等 — 已由 graph_data_source 包装则跳过)
 def _ensure_utf8_stream() -> None:
@@ -213,7 +213,7 @@ def load_positions_symbols() -> List[str]:
     pos_file = config_dir / "positions.json"
     if pos_file.exists():
         try:
-            with io.open(pos_file, "r", encoding="utf-8") as f:
+            with open(pos_file, encoding="utf-8") as f:
                 data = json.load(f)
             # 支持两种结构:
             #   {positions: {code: {...}, ...}}   — positions 为字典, key=代码

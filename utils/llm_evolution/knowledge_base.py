@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -142,7 +142,7 @@ class KnowledgeBase:
         if not self.path.exists():
             return []
         entries: list[KnowledgeEntry] = []
-        with open(self.path, "r", encoding="utf-8") as f:
+        with open(self.path, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     entry = KnowledgeEntry.from_jsonl(line)

@@ -51,7 +51,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence
@@ -746,8 +746,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
 
     # 延迟导入 (避免循环依赖)
-    from utils.alpha.drift_monitor import SimModeDriftMonitor
     from utils.alpha.delayed_label_tracker import DelayedLabelTracker
+    from utils.alpha.drift_monitor import SimModeDriftMonitor
 
     # 初始化模块
     monitor = SimModeDriftMonitor(
@@ -796,7 +796,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             logger.info(f"  IC_IR:           {m.ic_ir:.4f}")
             logger.info(f"  observed:        {m.n_observed}/{m.n_predictions}")
         if result.alerts:
-            logger.info(f"  --- 告警 ---")
+            logger.info("  --- 告警 ---")
             for a in result.alerts:
                 logger.info(f"    ! {a}")
         return 0 if result.is_success else 1
@@ -808,7 +808,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             model_version=args.model_version,
         )
         summary = integrator.get_summary()
-        logger.info(f"\n=== 历史回填汇总 ===")
+        logger.info("\n=== 历史回填汇总 ===")
         logger.info(f"  总交易日:       {summary['total_days']}")
         logger.info(f"  成功:           {summary['success_days']}")
         logger.info(f"  跳过:           {summary['skipped_days']}")

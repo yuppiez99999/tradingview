@@ -29,11 +29,10 @@ import time
 from typing import Any, Optional
 
 from utils.llm_gateway.types import (
+    SCENE_TEMPERATURE_MAP,
     ChatRequest,
     ChatResponse,
     ProviderInfo,
-    SCENE_PROVIDER_MAP,
-    SCENE_TEMPERATURE_MAP,
     Usage,
 )
 

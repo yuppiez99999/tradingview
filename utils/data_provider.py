@@ -340,7 +340,7 @@ class MarketDataProvider:
             return None
         try:
             period_mapping = {
-                "1d": 1,
+                "1d": 252,
                 "1w": 5,
                 "1m": 20,
                 "3m": 60,
@@ -527,7 +527,7 @@ class MarketDataProvider:
         """新浪 HTTP 历史 KLine 数据（P3，绕过系统代理）"""
         try:
             period_mapping = {
-                "1d": 1,
+                "1d": 252,
                 "1w": 5,
                 "1m": 20,
                 "3m": 60,

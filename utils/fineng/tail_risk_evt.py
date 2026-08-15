@@ -34,9 +34,9 @@ Usage:
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
 import logging
+import math
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 

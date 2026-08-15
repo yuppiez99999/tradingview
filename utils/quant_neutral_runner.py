@@ -50,7 +50,7 @@ import logging
 from dataclasses import asdict, dataclass, field
 from datetime import date
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 logger = logging.getLogger("quant_neutral")
 

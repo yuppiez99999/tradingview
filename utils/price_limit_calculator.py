@@ -48,7 +48,7 @@ from __future__ import annotations
 import logging
 from decimal import ROUND_HALF_UP, Decimal
 from enum import Enum
-from typing import Any, Iterable
+from typing import Any
 
 import pandas as pd
 

@@ -32,7 +32,7 @@ import logging
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
-from typing import Any, Optional, Tuple, Type, cast
+from typing import Any, Optional, Type, cast
 
 logger = logging.getLogger("risk_guard_integrator")
 

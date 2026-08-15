@@ -20,20 +20,20 @@
 """
 
 from utils.alpha_factor.base import (
-    FactorValue,
     FactorLibraryResult,
-    winsorize,
-    standardize,
+    FactorValue,
+    build_factor_history_from_prices,  # U1 新增 · 便捷构造器: price_data + factor_fn → factor_history
+    build_forward_returns_history,  # U1 新增 · 便捷构造器: price_data → forward_returns_history
+    calc_ic,
+    calc_ic_ir,
+    calc_ic_series_from_history,
+    compute_factor_corr_matrix,
+    evaluate_factors,
     neutralize_by_industry,
     neutralize_by_size,
     orthogonalize,
-    calc_ic,
-    calc_ic_series_from_history,
-    calc_ic_ir,
-    evaluate_factors,
-    compute_factor_corr_matrix,
-    build_forward_returns_history,   # U1 新增 · 便捷构造器: price_data → forward_returns_history
-    build_factor_history_from_prices,  # U1 新增 · 便捷构造器: price_data + factor_fn → factor_history
+    standardize,
+    winsorize,
 )
 from utils.alpha_factor.library import AlphaFactorLibrary
 

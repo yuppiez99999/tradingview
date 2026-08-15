@@ -36,7 +36,7 @@ from __future__ import annotations
 import dataclasses
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Union
 
 from utils.backtest.adapters import StrategyAdapter
 from utils.backtest.latency_model import FixedLatency, LatencyModel

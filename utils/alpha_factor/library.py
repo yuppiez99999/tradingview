@@ -37,44 +37,42 @@ from __future__ import annotations
 import pandas as pd
 
 from utils.alpha_factor.base import (
-    FactorValue,
     FactorLibraryResult,
-    winsorize,
-    standardize,
+    FactorValue,
+    compute_factor_corr_matrix,
+    compute_registered_factors,  # Wave 6 W6.1.3 装饰器因子计算入口
+    evaluate_factors,
+    list_registered_factors,  # Wave 6 W6.1.3 装饰器因子清单
     neutralize_by_industry,
     neutralize_by_size,
-    evaluate_factors,
-    compute_factor_corr_matrix,
     residualize,
-    register_factor,             # Wave 6 W6.1.3 EigenAlpha 风格装饰器
-    compute_registered_factors,   # Wave 6 W6.1.3 装饰器因子计算入口
-    list_registered_factors,      # Wave 6 W6.1.3 装饰器因子清单
+    standardize,
+    winsorize,
 )
-from utils.alpha_factor.price_volume import (
-    compute_momentum_factors,
-    compute_volatility_factors,
-    compute_size_factors,
-    compute_liquidity_factors,
-    compute_factor_mining_factors,
+from utils.alpha_factor.chip_distribution import compute_chip_factors  # 第 13 大类 ChipDistribution (2026-08-12)
+from utils.alpha_factor.expectation import compute_expectation_factors
+from utils.alpha_factor.expression_engine import (  # 第 14 大类 Expression (W6.6.1)
+    compute_expression_factors,
 )
 from utils.alpha_factor.fundamental import (
-    compute_value_factors,
     compute_growth_factors,
-    compute_quality_factors,
     compute_leverage_factors,
     compute_operation_factors,
+    compute_quality_factors,
+    compute_value_factors,
 )
-from utils.alpha_factor.technical import compute_technical_factors
-from utils.alpha_factor.expectation import compute_expectation_factors
 from utils.alpha_factor.graph import (
     compute_lead_lag_factors,
     orthogonalize_chain_factors,
 )
-from utils.alpha_factor.chip_distribution import compute_chip_factors  # 第 13 大类 ChipDistribution (2026-08-12)
-from utils.alpha_factor.expression_engine import (  # 第 14 大类 Expression (W6.6.1)
-    compute_expression_factors,
-    ExpressionFactorSpec,
+from utils.alpha_factor.price_volume import (
+    compute_factor_mining_factors,
+    compute_liquidity_factors,
+    compute_momentum_factors,
+    compute_size_factors,
+    compute_volatility_factors,
 )
+from utils.alpha_factor.technical import compute_technical_factors
 
 
 class AlphaFactorLibrary:

@@ -470,7 +470,7 @@ class SurvivorshipBiasFreeUniverse:
             return None
 
         try:
-            with open(snapshot_path, "r", encoding="utf-8") as f:
+            with open(snapshot_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             if not data:
@@ -514,7 +514,7 @@ class SurvivorshipBiasFreeUniverse:
             return
 
         try:
-            with open(self._delisted_db_path, "r", encoding="utf-8") as f:
+            with open(self._delisted_db_path, encoding="utf-8") as f:
                 data = json.load(f)
             self._delisted_db = [DelistedStockRecord.from_dict(d) for d in data]
             logger.info("加载退市股数据库: %d 只", len(self._delisted_db))

@@ -53,9 +53,9 @@ if str(_UTILS) not in sys.path:
 
 from utils.alpha_factor.gat_factor_torch import GATFactorTorch, build_adjacency  # noqa: E402
 from utils.alpha_factor.gate1_validation import (  # noqa: E402
-    load_expanded_universe,
-    fetch_prices,
     calc_icir,
+    fetch_prices,
+    load_expanded_universe,
 )
 from utils.supply_chain_builder import SupplyChainBuilder  # noqa: E402
 

@@ -20,43 +20,35 @@
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from utils.evolution.auto_fix_engine import AutoFixEngine, FixResult
+from utils.evolution.auto_fix_engine import AutoFixEngine
 from utils.evolution.guard import (
-    DEFENSE_FREQUENCY,
     DEFENSE_KILL_SWITCH,
     DEFENSE_ROLLBACK,
     DEFENSE_SHADOW,
-    EvolutionGuard,
-    EvolutionProposal,
     LEVEL_L1,
     LEVEL_L2,
     LEVEL_L3,
+    EvolutionGuard,
+    EvolutionProposal,
 )
 from utils.evolution.memory import (
-    EvolutionMemory,
-    MemoryRecord,
     STATUS_EXECUTED,
-    STATUS_LEARNED,
     STATUS_PENDING,
     STATUS_REJECTED,
+    EvolutionMemory,
 )
 from utils.evolution.orchestrator import (
-    CYCLE_STATUS_DISABLED,
     CYCLE_STATUS_FROZEN,
     CYCLE_STATUS_NO_ACTION,
-    CYCLE_STATUS_SUCCESS,
-    CycleResult,
     EvolutionOrchestratorV2,
 )
-
 
 # ============================================================
 # Mock 组件
@@ -241,7 +233,6 @@ class TestScenario1DriftABTestPromote:
         self, orchestrator: EvolutionOrchestratorV2, memory: EvolutionMemory,
     ):
         """ABTest 应支持 promote 流程: 充足样本 + challenger 更优 → promote 提案."""
-        from utils.alpha.ab_testing import ABTestFramework, ABTestConfig
         ab = orchestrator._get_ab_test_framework()
 
         # 使用唯一测试名避免遗留数据冲突
@@ -330,7 +321,7 @@ class TestScenario2FactorRetirement:
     ):
         """因子失效 AutoFactorFactory 下线并记录到 Memory."""
         from utils.evolution.auto_factor_factory import (
-            AutoFactorFactory, ValidatedFactor,
+            AutoFactorFactory,
         )
 
         factory = AutoFactorFactory(memory=memory, data_dir=tmp_project / "data")
@@ -368,7 +359,8 @@ class TestScenario2FactorRetirement:
     ):
         """健康因子不受失效因子下线影响."""
         from utils.evolution.auto_factor_factory import (
-            AutoFactorFactory, DeployedFactor,
+            AutoFactorFactory,
+            DeployedFactor,
         )
 
         factory = AutoFactorFactory(memory=memory, data_dir=tmp_project / "data")
@@ -395,7 +387,8 @@ class TestScenario2FactorRetirement:
     ):
         """因子下线记录应包含回滚方案 (HC-3)."""
         from utils.evolution.auto_factor_factory import (
-            AutoFactorFactory, DeployedFactor,
+            AutoFactorFactory,
+            DeployedFactor,
         )
 
         factory = AutoFactorFactory(memory=memory, data_dir=tmp_project / "data")
@@ -650,7 +643,6 @@ class TestScenario6AuditTrail:
         self, memory: EvolutionMemory, tmp_project: Path,
     ):
         """所有动作类型 (fix/evaluate/retrain/promote/factor_retire/ab_test) 都应在 Memory 可查."""
-        from utils.evolution.auto_factor_factory import AutoFactorFactory
 
         # 1. fix 动作
         memory.record({

@@ -16,11 +16,11 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from utils.pipeline.config import get_pipeline_config
 from utils.pipeline.types import (
     AlphaSignalResult,
     BacktestGateResult,
@@ -28,7 +28,6 @@ from utils.pipeline.types import (
     PipelineResult,
     PipelineStage,
 )
-from utils.pipeline.config import get_pipeline_config
 
 logger = logging.getLogger("pipeline.backtest_gate")
 

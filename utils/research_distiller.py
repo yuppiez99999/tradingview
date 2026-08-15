@@ -33,6 +33,7 @@ RIA--TV++ 方法论 (借鉴 cangjie-skill, 原生实现, 不依赖源码):
 from __future__ import annotations
 
 import json
+import logging
 import math
 import re
 import sys
@@ -42,7 +43,6 @@ from pathlib import Path
 from typing import Any
 
 from utils.logger import get_logger
-import logging
 
 logger = logging.getLogger(__name__)
 

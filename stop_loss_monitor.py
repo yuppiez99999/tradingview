@@ -97,6 +97,10 @@ class StopLossMonitor:
         self.rules_file = rules_file
         self.rules = self._load_rules(rules_file)
 
+        # P1-2 修复: 加载 risk.yaml 的 default_stop_pct 作为兜底止损比例
+        # 此前 risk.yaml 的 default_stop_pct=0.08 是死配置, 从未被任何代码引用
+        self.default_stop_pct = self._load_default_stop_pct()
+
         # 持仓文件: 本项目 config/
         _pos_candidates = [
             os.path.join(_BASE, "config", "positions.json"),
@@ -208,6 +212,25 @@ class StopLossMonitor:
 
         logger.info(f"加载止损规则: {rules_file} ({len(rules)} 条)")
         return rules
+
+    def _load_default_stop_pct(self) -> float:
+        """从 risk.yaml 加载 default_stop_pct 作为兜底止损比例
+
+        P1-2 修复: risk.yaml 的 stop_loss.default_stop_pct=0.08 此前是死配置,
+        从未被任何代码引用。现在加载它作为 per-asset 规则缺失时的兜底。
+        """
+        try:
+            risk_path = os.path.join(_BASE, "config", "risk.yaml")
+            if not os.path.exists(risk_path):
+                return 0.08
+            with open(risk_path, encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+            pct = cfg.get("stop_loss", {}).get("default_stop_pct", 0.08)
+            logger.info(f"加载 risk.yaml default_stop_pct={pct}")
+            return float(pct)
+        except Exception as e:
+            logger.warning(f"加载 risk.yaml default_stop_pct 失败, 使用默认 0.08: {e}")
+            return 0.08
 
     def _create_mock_broker(self):
         """创建 MockBroker"""
@@ -401,9 +424,13 @@ class StopLossMonitor:
             return self._evaluate_short(pure_code, name, shares, entry_price, current_price, rule)
 
         # 止损线
-        # P2-3 修复: rule.get("stop_loss_pct", -12.0) 在 YAML 显式写 null 时返回 None,
-        # None / 100 抛 TypeError。用 `or` 运算符覆盖 None 场景, 加 float() 保护非数值。
-        stop_loss_pct = float(rule.get("stop_loss_pct") or -12.0) / 100  # 转小数
+        # P1-2 修复: 优先用 per-asset 规则的 stop_loss_pct, 缺失时用 risk.yaml 的 default_stop_pct
+        # 此前 risk.yaml 的 default_stop_pct=0.08 是死配置, 从未被引用
+        rule_stop_pct = rule.get("stop_loss_pct")
+        if rule_stop_pct is not None:
+            stop_loss_pct = float(rule_stop_pct) / 100
+        else:
+            stop_loss_pct = -self.default_stop_pct  # default_stop_pct=0.08 → -0.08
         stop_loss_price = entry_price * (1 + stop_loss_pct)
 
         # 止盈线

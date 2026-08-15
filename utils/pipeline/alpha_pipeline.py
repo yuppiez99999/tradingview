@@ -15,16 +15,14 @@ from __future__ import annotations
 
 import json
 import logging
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
-import pandas as pd
 
-from utils.pipeline.types import AlphaSignalResult, PipelineConfig, PipelineResult, PipelineStage
 from utils.pipeline.config import get_pipeline_config
+from utils.pipeline.types import AlphaSignalResult, PipelineConfig, PipelineResult, PipelineStage
 
 logger = logging.getLogger("pipeline.alpha")
 
@@ -40,8 +38,10 @@ try:
     _root = str(QLIB_ROOT.parent)
     if _root not in sys.path and str(QLIB_ROOT) not in sys.path:
         sys.path.append(str(QLIB_ROOT))
-    from qlib.contrib.model import LGBModel  # type: ignore  # G2 FIX: 从包顶层 re-export (实际定义在 gbdt.py, 无 lightgbm.py 子模块)
     import qlib  # type: ignore
+    from qlib.contrib.model import (
+        LGBModel,  # type: ignore  # G2 FIX: 从包顶层 re-export (实际定义在 gbdt.py, 无 lightgbm.py 子模块)
+    )
     _QLIB_AVAILABLE = True
     logger.info("Qlib 导入成功")
 except (ModuleNotFoundError, ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
@@ -461,7 +461,7 @@ class AlphaPipeline:
     def _inject_to_fusion(self, signal_result: AlphaSignalResult) -> None:
         """注入信号到 SignalFusionEngine"""
         try:
-            from utils.signal_fusion import SignalFusionEngine, PostMixLayer
+            from utils.signal_fusion import PostMixLayer, SignalFusionEngine
             engine = SignalFusionEngine()
 
             # 创建第 10 层 (pipeline_alpha 层)

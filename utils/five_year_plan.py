@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 十五五规划适配分析模块 v1.0
 借鉴：TradingAgents-AShare macro_analyst + QuantDinger policy 矩阵 + FinceptTerminal policy_analysis
@@ -10,11 +9,10 @@
   4. 生成十五五适配报告
 """
 
-import os
-import json
-from datetime import datetime
-from typing import Dict, List, Tuple, Optional
 import logging
+import os
+from datetime import datetime
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -498,8 +496,8 @@ class FifteenFivePlanAnalyzer:
         lines.append("# 十五五规划适配分析报告")
         lines.append("")
         lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        lines.append(f"**分析引擎**: FifteenFivePlanAnalyzer v1.0")
-        lines.append(f"**规划周期**: 2026-2030（十五五规划）")
+        lines.append("**分析引擎**: FifteenFivePlanAnalyzer v1.0")
+        lines.append("**规划周期**: 2026-2030（十五五规划）")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -558,8 +556,8 @@ class FifteenFivePlanAnalyzer:
             lines.append("")
 
         lines.append("---")
-        lines.append(f"*本报告由十五五规划适配分析引擎 v1.0 自动生成*")
-        lines.append(f"*数据参考: TradingAgents-AShare / QuantDinger / FinceptTerminal*")
+        lines.append("*本报告由十五五规划适配分析引擎 v1.0 自动生成*")
+        lines.append("*数据参考: TradingAgents-AShare / QuantDinger / FinceptTerminal*")
 
         report = "\n".join(lines)
 

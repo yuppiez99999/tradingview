@@ -22,16 +22,15 @@ S5 门禁标准 (cairn/alpha-factor-system.md §五):
 from __future__ import annotations
 
 import argparse
-import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 
 from utils.alpha_factor.gate1_validation import (
+    _compute_momentum_factors,
     fetch_prices,
     load_expanded_universe,
-    _compute_momentum_factors,
 )
 from utils.alpha_factor.graph import compute_lead_lag_factors, orthogonalize_chain_factors
 from utils.supply_chain_builder import SupplyChainBuilder

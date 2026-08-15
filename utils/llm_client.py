@@ -60,7 +60,7 @@ _USAGE_LOG = Path(__file__).resolve().parent.parent / "reports" / "llm_usage.jso
 def _load_glm5():
     """加载主系统 GLM5 客户端, 失败返回 None。"""
     try:
-        from utils.glm5_client import GLM5Client, get_glm5_client
+        from utils.glm5_client import get_glm5_client
         return get_glm5_client()
     except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
         logger.warning(f"统一LLM: glm5_client 加载失败 ({e})")

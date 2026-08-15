@@ -622,8 +622,8 @@ class EvolutionOrchestrator:
         Returns:
             VolRegimeWeighter.run_cycle 的结果字典
         """
-        from utils.alpha.vol_regime_weighter import VolRegimeWeighter
         from utils.alpha.drawdown_reader import DrawdownReader
+        from utils.alpha.vol_regime_weighter import VolRegimeWeighter
 
         weighter = VolRegimeWeighter()
         portfolio_snapshot = self._read_portfolio_snapshot()
@@ -643,8 +643,9 @@ class EvolutionOrchestrator:
     def _read_portfolio_snapshot(self) -> dict[str, Any]:
         """只读 portfolio.yaml 返回 assets 列表 (不修改文件)."""
         try:
-            import yaml
             from pathlib import Path
+
+            import yaml
             portfolio_path = Path("configs/portfolio.yaml")
             if not portfolio_path.exists():
                 logger.warning("portfolio.yaml 不存在: %s", portfolio_path)

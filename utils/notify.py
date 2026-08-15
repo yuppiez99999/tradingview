@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 统一监控告警模块 (Unified Notification Module)
 ================================================
@@ -78,8 +77,8 @@ def _send_dingtalk(title: str, content: str, level: str = "warning") -> bool:
         return False
 
     try:
-        import urllib.request
         import urllib.error
+        import urllib.request
 
         marker = _LEVEL_MARKER.get(level, "[WARN]")
         text = f"{marker} {title}\n\n{content}"
@@ -124,8 +123,8 @@ def _send_feishu(title: str, content: str, level: str = "warning") -> bool:
         return False
 
     try:
-        import urllib.request
         import urllib.error
+        import urllib.request
 
         marker = _LEVEL_MARKER.get(level, "[WARN]")
         text = f"{marker} {title}\n{content}"

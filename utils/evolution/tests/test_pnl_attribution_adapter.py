@@ -17,17 +17,16 @@ from typing import Any
 import pytest
 
 from utils.evolution.pnl_attribution_adapter import (
-    PnLAttributionAdapter,
     STATUS_DEGRADED,
     STATUS_EMPTY,
     STATUS_OK,
     AttributionConversionResult,
+    PnLAttributionAdapter,
     convert_to_feedback_loop_format,
     from_attribution_result,
     from_factor_attribution_result,
     from_report_file,
 )
-
 
 # ============================================================
 # Mock 归因结果对象

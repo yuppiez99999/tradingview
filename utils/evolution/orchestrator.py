@@ -593,7 +593,7 @@ class EvolutionOrchestratorV2:
         Returns:
             EvolutionProposal 实例
         """
-        from utils.evolution.guard import EvolutionProposal, LEVEL_L2
+        from utils.evolution.guard import LEVEL_L2, EvolutionProposal
 
         result_dict = result.to_dict() if hasattr(result, "to_dict") else {}
         p_value = result_dict.get("p_value", 1.0)
@@ -634,7 +634,7 @@ class EvolutionOrchestratorV2:
         if not self._enabled:
             return CycleResult(
                 status=CYCLE_STATUS_DISABLED,
-                reason=f"feature_flag_disabled",
+                reason="feature_flag_disabled",
                 timestamp=timestamp,
             )
 
@@ -924,7 +924,7 @@ class EvolutionOrchestratorV2:
             )
 
         # promote/rollback: 生成 L2 提案路由
-        from utils.evolution.guard import EvolutionProposal, LEVEL_L2
+        from utils.evolution.guard import LEVEL_L2, EvolutionProposal
 
         action_type = "promote" if recommendation == "promote" else "rollback"
         proposal = EvolutionProposal(

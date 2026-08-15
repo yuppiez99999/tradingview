@@ -43,7 +43,7 @@ def _load_broker_config() -> dict:
                "qmt_path": "", "connect_timeout": 10}
     try:
         cfg_path = os.path.join(_PROJECT_ROOT, "config", "system_config.json")
-        with open(cfg_path, "r", encoding="utf-8") as f:
+        with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
         broker_cfg = cfg.get("broker", {})
         default.update(broker_cfg)
@@ -96,7 +96,7 @@ def _build_simulated(cfg: dict, shadow: bool = False) -> Any:
 def _build_qmt(cfg: dict) -> Any:
     """构造 QMT 实盘 broker, connect 失败则降级模拟 + 告警."""
     try:
-        from ms_strategy.src.execution.qmt_broker import QmtBrokerAPI, XTQUANT_AVAILABLE
+        from ms_strategy.src.execution.qmt_broker import XTQUANT_AVAILABLE, QmtBrokerAPI
         if not XTQUANT_AVAILABLE:
             _safe_send_alert("xtquant 未安装, QMT 不可用, 降级 SimulatedBroker", "WARNING")
             return _build_simulated(cfg)

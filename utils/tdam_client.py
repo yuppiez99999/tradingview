@@ -822,8 +822,8 @@ class TDAMClient:
         Returns:
             缓存文件路径
         """
-        from datetime import datetime
         import hashlib
+        from datetime import datetime
         date = date_str or datetime.now().strftime("%Y-%m-%d")
         query_hash = hashlib.md5(query.encode("utf-8")).hexdigest()[:8]  # nosec B324 — 非安全用途, 仅作查询缓存键
 

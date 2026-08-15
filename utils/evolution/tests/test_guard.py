@@ -20,24 +20,21 @@ from pathlib import Path
 import pytest
 
 from utils.evolution.guard import (
-    DEFAULT_DAILY_EVOLUTION_LIMIT,
     DEFAULT_MAX_WEIGHT_CHANGE,
     DEFAULT_SHADOW_DAYS_REQUIRED,
     DEFENSE_FREQUENCY,
     DEFENSE_KILL_SWITCH,
-    DEFENSE_MAGNITUDE,
     DEFENSE_ROLLBACK,
     DEFENSE_SHADOW,
+    LEVEL_L1,
+    LEVEL_L2,
+    LEVEL_L3,
     EvolutionGuard,
     EvolutionProposal,
     GuardDecision,
     GuardValidationError,
-    LEVEL_L1,
-    LEVEL_L2,
-    LEVEL_L3,
 )
-from utils.evolution.memory import EvolutionMemory, STATUS_REJECTED
-
+from utils.evolution.memory import STATUS_REJECTED, EvolutionMemory
 
 # ============================================================
 # Mock KillSwitch

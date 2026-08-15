@@ -24,9 +24,9 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import yaml
-from typing import Optional
 
 logger = logging.getLogger("kill_switch")
 

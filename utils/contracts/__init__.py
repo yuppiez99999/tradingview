@@ -9,12 +9,12 @@
 """
 from utils.contracts.registry import ContractRegistry, ContractSpec, default_registry
 from utils.contracts.symbols import (
+    EXCHANGES,
+    FUTURES_CODE_PATTERN,
     AShareCode6,
     EastMoneySecId,
     ExchangeCode,
-    EXCHANGES,
     FuturesContractCode,
-    FUTURES_CODE_PATTERN,
     ProductCode,
     SymbolInfo,
     SymbolParseError,

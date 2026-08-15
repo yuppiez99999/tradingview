@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 对冲-再平衡联动引擎 v5.9 — 组合自触发 + 多指数对冲 + 成本过滤
 
@@ -19,15 +18,14 @@ v5.9 核心改进（基于v2.0回测验证）：
 数据源: iFinD MCP → Wind MCP → AKShare → Sina → efinance → 默认回退
 """
 
+import json
+import logging
 import os
 import sys
-import json
-import math
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -44,7 +42,7 @@ _IFIND_CONFIG_PATH = os.path.join(_IFIND_CONFIG_DIR, "mcp_config.json")
 _IFIND_TOKEN = ""
 if os.path.isfile(_IFIND_CONFIG_PATH):
     try:
-        with open(_IFIND_CONFIG_PATH, 'r', encoding='utf-8') as _f:
+        with open(_IFIND_CONFIG_PATH, encoding='utf-8') as _f:
             _cfg = json.load(_f)
             _IFIND_TOKEN = (_cfg.get("auth_token") or "").strip()
     except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
@@ -107,9 +105,15 @@ def _get_ifind_prices_batch(codes: List[str]) -> Dict[str, float]:
 
 try:
     from utils.hedge_engine import (
-        HedgeEngine, HedgeSignalStrength, HedgeType, HedgeRecommendation,
-        PortfolioRisk, INDEX_FUTURES_SPECS, ETF_OPTIONS_SPECS,
-        get_live_futures_prices, DEFAULT_FUTURES_PRICES,
+        DEFAULT_FUTURES_PRICES,
+        ETF_OPTIONS_SPECS,
+        INDEX_FUTURES_SPECS,
+        HedgeEngine,
+        HedgeRecommendation,
+        HedgeSignalStrength,
+        HedgeType,
+        PortfolioRisk,
+        get_live_futures_prices,
     )
     _HEDGE_OK = True
 except ImportError as e:
@@ -275,7 +279,7 @@ DEFAULT_SECTOR_WEIGHTS = {
 def _load_yaml(filepath: str) -> Optional[Dict]:
     try:
         import yaml
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, encoding='utf-8') as f:
             return yaml.safe_load(f)
     except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         return None
@@ -283,7 +287,7 @@ def _load_yaml(filepath: str) -> Optional[Dict]:
 
 def _load_json(filepath: str) -> Optional[Dict]:
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, encoding='utf-8') as f:
             return json.load(f)
     except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         return None
@@ -951,7 +955,7 @@ class HedgeRebalanceIntegrator:
                 f"期货{instruments_str}, 保证金{hedge.total_margin:,.0f}元"
             )
         else:
-            summary_parts.append(f"对冲: 无需(组合波动率/回撤均安全)")
+            summary_parts.append("对冲: 无需(组合波动率/回撤均安全)")
 
         if rebalance.needed:
             summary_parts.append(
@@ -1137,7 +1141,7 @@ class HedgeRebalanceIntegrator:
             if breach_count > 0:
                 lines.append(f"  ⚠️  {breach_count}/6 个历史情景突破15%上限，强烈建议启用尾部保护")
             else:
-                lines.append(f"  全部6个历史情景均未突破15%上限")
+                lines.append("  全部6个历史情景均未突破15%上限")
 
         lines.append("")
         lines.append("  [!] 以上分析仅供参考，不构成投资建议。")

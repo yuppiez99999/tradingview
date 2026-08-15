@@ -19,8 +19,6 @@ import math
 from dataclasses import dataclass
 from enum import Enum
 
-from utils.fineng.pricing.black_scholes import bs_price
-
 
 class ExerciseStyle(Enum):
     EUROPEAN = "EUROPEAN"

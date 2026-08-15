@@ -215,7 +215,7 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30,
         # W3 修复: 不再 pop PYTHONPATH — 子脚本依赖项目模块 (utils 等) 的解析路径,
         # 清空会导致 ModuleNotFoundError (如 phase_b_progressive_enabler 在 EOD 内失败).
         env['PYTHONIOENCODING'] = 'utf-8'
-        env['PYTHONUTF8'] = '1'
+        env.pop('PYTHONUTF8', None)
 
         # M3 修复: 使用 CREATE_NEW_PROCESS_GROUP 创建独立进程组, 便于超时后 taskkill /T 彻底清理孙进程
         creationflags = 0

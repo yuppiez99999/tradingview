@@ -20,7 +20,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Mapping, Sequence
+from typing import Iterable
 
 logger = logging.getLogger("trade_reconciler")
 

@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 事件追踪器 — 借鉴 TradingAgents-CN 结构化事件日志模式
 提供操作开始/完成/错误的统一追踪，支持性能计时和Token用量记录
 """
 
 import time
-import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
 from functools import wraps
+from typing import Any, Dict, Optional
 
 from .logging_manager import get_logger
 

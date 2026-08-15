@@ -34,11 +34,10 @@
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
-from utils.contracts.symbols import parse_symbol, SymbolParseError
-
+from utils.contracts.symbols import SymbolParseError, parse_symbol
 
 # ============================================================
 # ContractSpec 数据类 (不可变)

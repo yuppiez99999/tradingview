@@ -630,7 +630,6 @@ def build_factor_history_from_prices(
         (对应 t=warmup_window..min_len-1 的横截面, 与 build_forward_returns_history 对齐时
         需注意 forward_window 窗口; 推荐 forward_window=5 + warmup_window=25 得到同长度.)
     """
-    import copy
 
     active_syms: list[str] = list(price_data.keys()) if symbols is None else [s for s in symbols if s in price_data]
     if not active_syms:

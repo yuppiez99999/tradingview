@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import math
 import random
@@ -24,7 +23,6 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -514,7 +512,7 @@ def generate_report(result: BacktestResult) -> str:
         f"> **生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
     lines.append(f"> **回测天数**: {result.n_days} 个交易日 (~{result.n_days / 252:.1f} 年)")
-    lines.append(f"> **任务编号**: T2.4 (Phase 2 反馈闭环)")
+    lines.append("> **任务编号**: T2.4 (Phase 2 反馈闭环)")
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -783,7 +781,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # 验收标准判定
     print("\n验收标准判定:")
-    print(f"  1. 提升年化收益 0.5-1.5%: ", end="")
+    print("  1. 提升年化收益 0.5-1.5%: ", end="")
     if 0.005 <= result.improvement_annual_return <= 0.015:
         print("✅ PASS")
     elif result.improvement_annual_return > 0:
@@ -791,13 +789,13 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print("❌ FAIL")
 
-    print(f"  2. 最大回撤 < 15%: ", end="")
+    print("  2. 最大回撤 < 15%: ", end="")
     if result.feedback_max_drawdown < 0.15:
         print("✅ PASS")
     else:
         print("❌ FAIL")
 
-    print(f"  3. 权重调整无震荡: ", end="")
+    print("  3. 权重调整无震荡: ", end="")
     if result.oscillation_count == 0:
         print("✅ PASS")
     else:
@@ -805,7 +803,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # 生成报告
     report = generate_report(result)
-    print(f"\n完整报告已生成")
+    print("\n完整报告已生成")
 
     return 0
 

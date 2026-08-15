@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """控制台 UTF-8 编码设置 — Windows 环境中文输出兼容
 
 解决 Windows PowerShell/cmd 默认 GBK 编码导致的中文乱码问题。

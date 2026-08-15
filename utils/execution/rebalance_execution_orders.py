@@ -8,12 +8,12 @@ T3.6 迁移: 2026-07-27 从项目根目录迁移到 utils/execution/
 """
 
 import json
+import logging
 import os
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +22,17 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 TARGET_ALLOCATION = {
-    "宽基": 0.25,
-    "科技": 0.20,
-    "制造": 0.20,
-    "新能源": 0.10,
-    "医药": 0.10,
-    "银行": 0.05,
-    "防御": 0.05,
-    "避险": 0.05,
+    "宽基": 0.15,
+    "科技": 0.15,
+    "制造": 0.08,
+    "新能源": 0.08,
+    "医药": 0.08,
+    "金融": 0.08,
+    "资源": 0.05,
+    "防御": 0.04,
+    "成长": 0.04,
+    "顺周期": 0.03,
+    "国债": 0.22,
 }
 
 MIN_TRADE_AMOUNT = 10000
@@ -178,6 +181,55 @@ def generate_rebalance_orders(style_allocation: dict, target_allocation: dict, p
                 break
 
     orders.sort(key=lambda o: abs(o["gap"]), reverse=True)
+    return orders
+
+
+def generate_max_weight_reduction_orders(
+    positions: dict, prices: dict, styles: dict, max_weight: float = 0.15
+) -> list:
+    """生成 max_single_weight 违规减仓订单
+
+    对每个权重超 max_weight 的标的, 生成 SELL 单将其降至 max_weight 上限。
+    返回的订单列表会合并到再平衡订单中优先执行。
+    """
+    total = sum(positions.get(s, 0) * prices.get(s, 0.0) for s in positions)
+    if total <= 0:
+        return []
+
+    orders = []
+    for code, qty in positions.items():
+        price = prices.get(code, 0.0)
+        if price <= 0 or qty <= 0:
+            continue
+        current_value = qty * price
+        current_weight = current_value / total
+        if current_weight <= max_weight:
+            continue
+        target_value = total * max_weight
+        excess_value = current_value - target_value
+        excess_shares = int(excess_value / price / MIN_LOT_SIZE) * MIN_LOT_SIZE
+        if excess_shares < MIN_LOT_SIZE:
+            continue
+        style = styles.get(code, "其他")
+        validation = validate_order(code, "SELL", excess_shares, price, positions)
+        orders.append({
+            "style": style,
+            "code": code,
+            "action": "SELL",
+            "order_type": "LIMIT",
+            "shares": excess_shares,
+            "est_price": price,
+            "est_amount": excess_shares * price,
+            "target_weight": max_weight,
+            "current_weight": current_weight,
+            "gap": excess_value,
+            "validation": validation,
+            "reason": "max_single_weight_violation",
+        })
+        logger.warning(
+            "max_single_weight 违规: %s (%s) 当前 %.1f%% > %.1f%%, 强制减仓 %d 股",
+            code, style, current_weight * 100, max_weight * 100, excess_shares,
+        )
     return orders
 
 

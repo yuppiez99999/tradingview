@@ -99,7 +99,7 @@ def _load_min_samples_for_dsr(default: int = 20) -> int:
     try:
         import yaml  # noqa: PLC0415
         yaml_path = _PROJECT_ROOT / "v8.3_institutional" / "config" / "shadow_admission.yaml"
-        with open(yaml_path, "r", encoding="utf-8") as f:
+        with open(yaml_path, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
         return int(cfg.get("admission_criteria", {}).get("min_samples_for_dsr", default))
     except (OSError, ValueError, TypeError, ImportError):

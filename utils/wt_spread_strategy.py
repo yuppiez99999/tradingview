@@ -10,11 +10,11 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, TypedDict
 
+from .contracts import parse_symbol
 from .wt_contracts_manager import ContractsManager, get_contracts_manager
 from .wt_structs import BarData, TickData, TradeData
-from .contracts import parse_symbol
 
 logger = logging.getLogger(__name__)
 

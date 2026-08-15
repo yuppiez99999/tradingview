@@ -22,19 +22,17 @@ from pathlib import Path
 import pytest
 
 from utils.evolution.auto_fix_engine import (
-    ACTION_AUTO_FIXED,
     ACTION_SKIPPED,
     ACTION_SUGGESTED,
     ACTION_WARNED,
-    AutoFixEngine,
-    AutoFixError,
-    CheckResultLike,
-    FixContext,
-    FixResult,
     RISK_HIGH,
     RISK_L0,
     RISK_L1,
     RISK_L2,
+    AutoFixEngine,
+    CheckResultLike,
+    FixContext,
+    FixResult,
     _fix_config_schema,
     _fix_datasource_fallback,
     _fix_heartbeat_field,
@@ -45,7 +43,6 @@ from utils.evolution.auto_fix_engine import (
     _warn_high_risk,
 )
 from utils.evolution.memory import EvolutionMemory
-
 
 # ============================================================
 # 辅助

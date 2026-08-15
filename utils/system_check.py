@@ -46,13 +46,13 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import shutil
 import sys
 import traceback
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-import platform
 
 # 项目根目录 (此模块位于 utils/system_check.py, 父目录即项目根)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -696,7 +696,6 @@ class SystemChecker:
 
         # C7.4 pipeline 闭环模块可导入
         try:
-            from utils.pipeline import PipelineOrchestrator, PipelineConfig
             self._pass("C7.4", "PipelineOrchestrator 闭环模块", CheckLevel.WARN,
                        detail="可导入")
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:

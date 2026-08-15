@@ -37,7 +37,7 @@ import sys
 import tempfile
 import traceback
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -142,12 +142,12 @@ def load_current_weights(weights_path: str | Path | None = None) -> dict[str, fl
 
     if path.exists():
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
                 # 过滤无效值
                 return {k: float(v) for k, v in data.items() if isinstance(v, (int, float)) and v > 0}
-        except (json.JSONDecodeError, IOError, ValueError) as e:
+        except (OSError, json.JSONDecodeError, ValueError) as e:
             logger.warning("读取权重文件失败, 使用默认权重: %s", e)
             return dict(DEFAULT_FACTOR_WEIGHTS)
 

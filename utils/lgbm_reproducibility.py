@@ -33,7 +33,7 @@ import sys
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, Sequence, Tuple
+from typing import Any, Sequence
 
 import pandas as pd
 

@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from utils.alpha_factor.base import FactorValue, neutralize_by_industry
 
-
 # ============================================================
 # 1. 估值因子 (Value) — 11 个
 # ============================================================

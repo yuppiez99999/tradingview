@@ -1,8 +1,6 @@
-import os
-import sys
 import logging
-from typing import Optional, Dict, Any, List, Generator
-from pathlib import Path
+import os
+from typing import Any, Dict, Generator, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +10,7 @@ class LocalLLMClient:
     
     支持 GGUF 格式模型，CPU/GPU 混合推理
     """
-    
+
     def __init__(
         self,
         model_path: Optional[str] = None,
@@ -48,18 +46,18 @@ class LocalLLMClient:
         self.max_tokens = max_tokens
         self._model = None
         self._available = None
-    
+
     def is_available(self) -> bool:
         """检查本地模型是否可用"""
         if self._available is not None:
             return self._available
-        
+
         try:
             if not os.path.exists(self.model_path):
                 logger.warning(f'本地模型文件不存在: {self.model_path}')
                 self._available = False
                 return False
-            
+
             from llama_cpp import Llama
             self._available = True
             return True
@@ -71,22 +69,22 @@ class LocalLLMClient:
             logger.warning(f'本地模型检查失败: {e}')
             self._available = False
             return False
-    
+
     def _load_model(self):
         """加载模型（懒加载）"""
         if self._model is not None:
             return self._model
-        
+
         if not self.is_available():
             raise RuntimeError('本地模型不可用')
-        
+
         from llama_cpp import Llama
-        
+
         logger.info(f'加载本地模型: {self.model_path}')
         logger.info(f'  上下文窗口: {self.n_ctx}')
         logger.info(f'  GPU 层数: {self.n_gpu_layers}')
         logger.info(f'  CPU 线程: {self.n_threads}')
-        
+
         self._model = Llama(
             model_path=self.model_path,
             n_ctx=self.n_ctx,
@@ -94,10 +92,10 @@ class LocalLLMClient:
             n_threads=self.n_threads,
             verbose=False,
         )
-        
+
         logger.info('✅ 本地模型加载完成')
         return self._model
-    
+
     def _format_prompt(self, messages: List[Dict[str, str]]) -> str:
         """格式化消息为 Qwen2.5 chat template
         
@@ -111,17 +109,17 @@ class LocalLLMClient:
         for msg in messages:
             role = msg.get('role', '')
             content = msg.get('content', '')
-            
+
             if role == 'system':
                 prompt += f'<|im_start|>system\n{content}<|im_end|>\n'
             elif role == 'user':
                 prompt += f'<|im_start|>user\n{content}<|im_end|>\n'
             elif role == 'assistant':
                 prompt += f'<|im_start|>assistant\n{content}<|im_end|>\n'
-        
+
         prompt += '<|im_start|>assistant\n'
         return prompt
-    
+
     def chat(
         self,
         messages: List[Dict[str, str]],
@@ -141,9 +139,9 @@ class LocalLLMClient:
             响应字典，格式兼容 OpenAI API
         """
         model = self._load_model()
-        
+
         prompt = self._format_prompt(messages)
-        
+
         output = model(
             prompt=prompt,
             temperature=temperature or self.temperature,
@@ -151,12 +149,12 @@ class LocalLLMClient:
             stop=['<|im_end|>'],
             stream=stream,
         )
-        
+
         if stream:
             return self._stream_response(output)
-        
+
         content = output.get('choices', [{}])[0].get('text', '')
-        
+
         return {
             'choices': [
                 {
@@ -173,14 +171,14 @@ class LocalLLMClient:
             },
             'model': 'local-qwen2.5-72b',
         }
-    
+
     def _stream_response(self, output_generator) -> Generator[str, None, None]:
         """流式响应生成器"""
         for chunk in output_generator:
             text = chunk.get('choices', [{}])[0].get('text', '')
             if text:
                 yield text
-    
+
     def generate(
         self,
         prompt: str,
@@ -203,13 +201,13 @@ class LocalLLMClient:
         if system_prompt:
             messages.append({'role': 'system', 'content': system_prompt})
         messages.append({'role': 'user', 'content': prompt})
-        
+
         response = self.chat(
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
         )
-        
+
         return response['choices'][0]['message']['content']
 
 
@@ -219,13 +217,13 @@ _default_client = None
 def get_local_llm() -> Optional[LocalLLMClient]:
     """获取默认的本地 LLM 客户端（单例）"""
     global _default_client
-    
+
     if _default_client is None:
         _default_client = LocalLLMClient()
-    
+
     if not _default_client.is_available():
         return None
-    
+
     return _default_client
 
 

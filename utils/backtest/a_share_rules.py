@@ -25,7 +25,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Optional
 
 from utils.market_rules import is_20cm_symbol
 from utils.trading_rules import is_t0_eligible

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 对冲+再平衡联动 — 回测引擎 v2.0 (优化版)
 
@@ -16,16 +15,15 @@ v2.0 改进（基于v1.0 2021-2026回测发现）:
   S5: S2动态再平衡 + 组合自触发尾部对冲 (v2.0新增)
 """
 
+import logging
 import os
-import json
-import math
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass, field
-from collections import defaultdict
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -1349,11 +1347,11 @@ def format_comparison_report(multi: MultiStrategyResult) -> str:
     lines.append("")
     lines.append("  [6] 结论与建议")
     lines.append("  " + "-" * 60)
-    lines.append(f"  v2.0 核心发现:")
-    lines.append(f"    1. S5(再平衡+尾保) 对比v1.0 S4, 对冲触发从被动改为组合自驱动")
-    lines.append(f"    2. 多指数对冲改善了对冲工具与组合的匹配度")
-    lines.append(f"    3. 尾部保护仅在极端行情激活, 大幅降低日常对冲成本侵蚀")
-    lines.append(f"  推荐方案: S5 (动态再平衡 + 组合自触发尾部对冲)")
+    lines.append("  v2.0 核心发现:")
+    lines.append("    1. S5(再平衡+尾保) 对比v1.0 S4, 对冲触发从被动改为组合自驱动")
+    lines.append("    2. 多指数对冲改善了对冲工具与组合的匹配度")
+    lines.append("    3. 尾部保护仅在极端行情激活, 大幅降低日常对冲成本侵蚀")
+    lines.append("  推荐方案: S5 (动态再平衡 + 组合自触发尾部对冲)")
 
     lines.append("")
     lines.append("  以上回测结果基于历史数据模拟，不构成投资建议。")
@@ -1397,7 +1395,7 @@ def run_backtest(start=START_DATE, end=END_DATE, output_dir=None, force_dl=False
     price_df, csi300_ret, index_rets = loader.build_unified_dataframe(start, end)
     logger.info(f"  交易日: {len(price_df)} | 日期: {price_df.index[0].date()} ~ {price_df.index[-1].date()}")
 
-    logger.info(f"\n[3/3] 五策略回测...")
+    logger.info("\n[3/3] 五策略回测...")
     bt = HedgeRebalanceBacktest(price_df, csi300_ret, index_rets)
     multi = bt.run_all()
 

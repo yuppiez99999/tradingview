@@ -658,6 +658,61 @@ def _refresh_etf_flow(positions_file: Path) -> Dict:
     return load_positions()
 
 
+def _run_stop_loss_check(wt_modules: Dict, positions: Dict) -> list:
+    """盘后止损止盈检查 — 对每个持仓调用 StopLossManager.check_stop_loss
+
+    P1-1 修复 (2026-08-14): 此前 StopLossManager 被实例化但 check_stop_loss 从未被调用,
+    导致止损止盈完全失效。现在在 execute_instructions 执行前对全部持仓检查,
+    触发的标的记入返回列表供后续处理。
+
+    Args:
+        wt_modules: WonderTrader 模块 dict (含 stop_loss_manager)
+        positions: 当前持仓 dict
+
+    Returns:
+        触发列表 [{code, action, order_info}, ...]
+    """
+    sl_manager = wt_modules.get("stop_loss_manager")
+    if not sl_manager:
+        logger.warning("[StopLoss] stop_loss_manager 不可用, 跳过止损检查")
+        return []
+
+    triggered = []
+    for code, item in positions.items():
+        avg_cost = item.get("avg_cost", 0)
+        qty = item.get("phase1_shares") or item.get("total_shares") or item.get("shares", 0)
+        current_price = item.get("est_price", 0)
+        if avg_cost <= 0 or qty == 0 or current_price <= 0:
+            continue
+
+        pure_code = code.split(".")[0]
+        if pure_code not in sl_manager.stop_loss_orders:
+            sl_manager.set_stop_loss(pure_code, avg_cost, abs(qty))
+
+        action, order_info = sl_manager.check_stop_loss(pure_code, current_price)
+        if action != "none" and order_info:
+            triggered.append({
+                "code": code,
+                "name": item.get("name", code),
+                "action": action,
+                "current_price": current_price,
+                "stop_price": order_info.get("stop_price", 0),
+                "take_profit_price": order_info.get("take_profit_price", 0),
+                "pnl_pct": round((current_price - avg_cost) / avg_cost, 4),
+            })
+            logger.warning(
+                "[StopLoss] %s (%s) 触发 %s @ ¥%.3f (P&L %+.1%%)",
+                item.get("name", code), code, action, current_price,
+                ((current_price - avg_cost) / avg_cost) * 100,
+            )
+
+    if not triggered:
+        logger.info("[StopLoss] 全部持仓在安全范围内, 无触发")
+    else:
+        logger.warning("[StopLoss] 共 %d 个标的触发止损/止盈", len(triggered))
+    return triggered
+
+
 def _run_wt_risk_precheck(wt_modules: Dict, positions_data: Dict, progress: Dict) -> Optional[Dict]:
     """WT 风控预检查 (盘前阻断级)。
 
@@ -1617,6 +1672,14 @@ def execute_instructions(target_date_str: str) -> Dict:
     # 加载持仓文件用于同步
     positions_data = load_positions()
     positions = positions_data.get("positions", {})
+
+    # P1-1: 盘后止损止盈检查 (此前 StopLossManager 从未被调用)
+    stop_loss_triggered = _run_stop_loss_check(wt_modules, positions)
+    if stop_loss_triggered:
+        logger.warning(
+            "[StopLoss] %d 个标的触发止损/止盈, 需人工确认平仓操作",
+            len(stop_loss_triggered),
+        )
 
     if already_executed:
         # 幂等模式: 不重复累加 build_progress, 只补同步 positions.json

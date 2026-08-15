@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """GLM-5 客户端 — LiteLLM Gateway 薄包装 (W7.4.3 重构).
 
 本模块原为 822 行独立客户端 (local/api/ollama/local_gguf 4 模式),

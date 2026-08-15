@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 统一数据源管理器 — 借鉴 TradingAgents-CN 多层回退模式
 支持：优先级回退、连接健康检查、缓存统计、自动降级通知
 """
 
 import time
-import sys
-from enum import Enum
-from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
 
 from .logging_manager import get_logger
 

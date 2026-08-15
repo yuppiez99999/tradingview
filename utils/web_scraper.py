@@ -29,6 +29,7 @@
 """
 
 import json
+import logging
 import re
 import time
 from dataclasses import asdict, dataclass, field
@@ -38,7 +39,6 @@ from typing import Any, Dict, List, Optional, cast
 
 import requests
 import urllib3
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +65,10 @@ except ImportError:
     HAS_SCRAPLING = False
     StealthyFetcher = None
     Fetcher = None
-from utils.logger import get_logger  # noqa: E402
-
 # Python 3 标准库始终包含 urllib.parse，移除无意义的 ImportError fallback
 from urllib.parse import urlparse
+
+from utils.logger import get_logger  # noqa: E402
 
 logger = get_logger("web_scraper")
 

@@ -41,7 +41,7 @@ def load_pipeline_config(config_path: str | Path | None = None) -> PipelineConfi
     if path.exists():
         try:
             import yaml
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 raw = yaml.safe_load(f)
             if raw:
                 _apply_yaml(config, raw)

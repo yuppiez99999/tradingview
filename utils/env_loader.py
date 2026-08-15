@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """环境变量加载器 — 从 .env 文件加载配置到 os.environ
 
 简易实现, 不依赖 python-dotenv 第三方库。

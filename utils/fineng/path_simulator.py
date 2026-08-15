@@ -43,7 +43,6 @@ import math
 import random
 from dataclasses import dataclass, field
 
-
 # ============================================================
 # 结果数据结构
 # ============================================================
@@ -403,7 +402,7 @@ class PathSimulator:
         # ---- Cholesky 分解 ----
         try:
             L = self._cholesky(historical_cov)
-        except ValueError as e:
+        except ValueError:
             # 非正定: 添加小量对角线扰动 (简化版 Ledoit-Wolf)
             perturbed = [row[:] for row in historical_cov]
             for i in range(n_assets):

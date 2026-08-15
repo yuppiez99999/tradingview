@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 统一日志管理器 — 借鉴 TradingAgents-CN 架构模式
 支持：彩色控制台输出、JSON结构化文件日志、RotatingFileHandler、多级别配置、性能追踪
@@ -10,7 +9,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 
 class ColoredFormatter(logging.Formatter):

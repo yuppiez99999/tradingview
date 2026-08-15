@@ -24,7 +24,6 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import numpy as np
-import pandas as pd
 
 logger = logging.getLogger("alpha_factor.evaluator")
 
@@ -276,7 +275,7 @@ def compute_factor_decay(
     icir_map: dict[int, float] = {}
 
     # 内联避免循环 import
-    from utils.alpha_factor.base import calc_ic_series_from_history, calc_ic_ir
+    from utils.alpha_factor.base import calc_ic_ir, calc_ic_series_from_history
 
     for w in windows:
         fr = forward_returns_by_window.get(w)
@@ -355,7 +354,7 @@ def build_factor_tear_sheet(
     try:
         # ---- IC/ICIR 时序 ----
         if factor_history is not None and forward_returns_history is not None:
-            from utils.alpha_factor.base import calc_ic_series_from_history, calc_ic_ir
+            from utils.alpha_factor.base import calc_ic_ir, calc_ic_series_from_history
             ic_series = calc_ic_series_from_history(factor_history, forward_returns_history)
             ic_ir, ic_mean, ic_std = calc_ic_ir(ic_series, min_periods=10)
             sheet.ic_series = [float(x) for x in ic_series]

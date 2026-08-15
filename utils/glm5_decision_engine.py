@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AI 自动决策引擎 v5.8 — 量化交易系统 AI 决策模块 (多模型场景路由升级)
 根据调研推荐方案，实现场景路由 + 并行对冲 + 交叉验证
@@ -22,21 +21,20 @@ AI 自动决策引擎 v5.8 — 量化交易系统 AI 决策模块 (多模型场�
     decisions = engine.make_decisions(market_data, portfolio_data, scene="rebalancing_analysis")
 """
 
-import os
-import sys
 import json
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # 添加当前目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.glm5_client import GLM5Client
-from utils.multi_model_router import ModelRouter, RoutingResult, get_model_router
-from utils.wind_data_provider import WindDataProvider, get_wind_provider
+from utils.multi_model_router import get_model_router
+from utils.wind_data_provider import get_wind_provider
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +96,7 @@ class GLM5DecisionEngine:
     - Wind MCP 动态指数数据代替硬编码
     - 再平衡场景自动加载基本面 RAG
     """
-    
+
     # 支持的决策场景
     SCENES = {
         "intraday_decision": "盘中实时决策 (低延迟优先)",
@@ -107,7 +105,7 @@ class GLM5DecisionEngine:
         "report_generation": "报告生成 (结构化输出)",
         "light_analysis": "轻量分析 (情感/分类)",
     }
-    
+
     def __init__(self, config: Optional[Dict] = None, **kwargs):
         """
         初始化决策引擎
@@ -128,11 +126,11 @@ class GLM5DecisionEngine:
             "use_wind_mcp": True,          # v5.8: 使用 Wind MCP 动态数据
             "use_fundamental_rag": True,    # v5.8: 再平衡时启用基本面 RAG
         }
-        
+
         # 合并用户配置
         if kwargs:
             self.config.update(kwargs)
-        
+
         # v5.8: 初始化多模型路由器 (替代旧的 GLM5Client 优先模式)
         try:
             self.router = get_model_router()
@@ -140,7 +138,7 @@ class GLM5DecisionEngine:
         except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"多模型路由器初始化失败: {e}, 降级到 GLM5Client")
             self.router = None
-        
+
         # v5.8: 初始化 Wind 数据供应器
         try:
             self.wind_provider = get_wind_provider()
@@ -148,7 +146,7 @@ class GLM5DecisionEngine:
         except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"Wind 数据供应器初始化失败: {e}")
             self.wind_provider = None
-        
+
         # 保留 GLM5Client 作为降级方案 (向后兼容)
         try:
             self.client = GLM5Client(
@@ -161,7 +159,7 @@ class GLM5DecisionEngine:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"GLM-5 客户端初始化失败: {e}")
             self.client = None
-        
+
         # v5.8 场景专用系统提示词 (2026-08-07 升级: 注入系统约束 + few-shot + 温度/Token 建议)
         self._scene_prompts = {
             "intraday_decision": """你是资深量化交易决策官，负责A股盘中实时决策。
@@ -311,11 +309,11 @@ class GLM5DecisionEngine:
             DecisionResult 对象，包含所有交易信号和风险预警
         """
         logger.info(f"[决策引擎] 开始生成交易决策, 场景={scene}")
-        
+
         # v5.8: 自动决定是否包含基本面 RAG
         if include_fundamentals is None:
             include_fundamentals = scene in ("rebalancing_analysis", "macro_analysis")
-        
+
         # v5.8: 尝试用 Wind MCP 增强市场数据 (替代硬编码)
         if self.config.get("use_wind_mcp", True) and self.wind_provider:
             try:
@@ -327,14 +325,14 @@ class GLM5DecisionEngine:
                     if code:
                         holdings_codes.append(code)
                         positions_dict[code] = holding
-                
+
                 if holdings_codes:
                     # 用 Wind MCP 动态获取指数行情
                     wind_market = self.wind_provider.build_market_data(
                         positions=positions_dict,
                         include_fundamentals=include_fundamentals,
                     )
-                    
+
                     # 合并到 market_data (Wind 数据优先)
                     if '指数行情' in wind_market:
                         existing_indices = market_data.get('指数行情', {})
@@ -343,16 +341,16 @@ class GLM5DecisionEngine:
                                 existing_indices[k] = v
                         market_data['指数行情'] = existing_indices
                         market_data['数据来源'] = wind_market.get('数据来源', 'Wind MCP')
-                    
+
                     # 如果有基本面数据，注入 RAG
                     if '基本面数据' in wind_market and include_fundamentals:
                         market_data['基本面数据'] = wind_market['基本面数据']
                         logger.info(f"[Wind MCP] 已加载 {len(wind_market.get('基本面数据', {}))} 只标的基本面数据")
-                    
+
                     logger.info(f"[Wind MCP] 指数行情已更新: {list(wind_market.get('指数行情', {}).keys())}")
             except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning(f"[Wind MCP] 数据增强失败: {e}, 使用原始 market_data")
-        
+
         # 构建决策提示词
         prompt = self._build_decision_prompt(
             market_data=market_data,
@@ -360,14 +358,14 @@ class GLM5DecisionEngine:
             risk_rules=risk_rules,
             macro_indicators=macro_indicators,
         )
-        
+
         # v5.8: 使用多模型路由器 (替代旧的单模型调用)
         if self.router:
             return self._make_decision_v58(prompt, scene, market_data, portfolio_data, risk_rules)
         else:
             # 降级到旧版 GLM5Client 模式 (向后兼容)
             return self._make_decision_legacy(prompt, market_data, portfolio_data, risk_rules)
-    
+
     def _make_decision_v58(
         self,
         prompt: str,
@@ -378,7 +376,7 @@ class GLM5DecisionEngine:
     ) -> DecisionResult:
         """v5.8 多模型场景路由决策"""
         system_prompt_template = self._scene_prompts.get(scene, self.system_prompt)
-        
+
         # 构建 RAG 上下文
         rag_context = ""
         if scene in ("rebalancing_analysis", "macro_analysis"):
@@ -395,19 +393,19 @@ class GLM5DecisionEngine:
                         f"市值={info.get('总市值(亿)', 'N/A')}亿, "
                         f"股息率={info.get('股息率(%)', 'N/A')}%\n"
                     )
-        
+
         system_prompt = system_prompt_template.format(
             rag_context=rag_context,
             report_type="综合"  # 用于 report_generation
         )
-        
+
         # 构建额外上下文给路由器
         extra_context = {
             "fundamental_data": market_data.get('基本面数据', {}),
             "index_data": market_data.get('指数行情', {}),
             "macro_indicators": {},
         }
-        
+
         try:
             routing_result = self.router.route(
                 scene=scene,
@@ -415,9 +413,9 @@ class GLM5DecisionEngine:
                 system_prompt=system_prompt,
                 extra_context=extra_context,
             )
-            
+
             raw_analysis = routing_result.merged_content
-            
+
             logger.info(
                 f"[v5.8路由] 场景={scene}, 模型路径={routing_result.model_path}, "
                 f"延迟={routing_result.latency_ms:.0f}ms, "
@@ -425,13 +423,13 @@ class GLM5DecisionEngine:
                 f"一致性={routing_result.agreement}, "
                 f"成本≈${routing_result.cost_estimate:.6f}"
             )
-            
+
             # 如果有分歧点，追加到原始分析
             if routing_result.divergent_points:
                 raw_analysis += "\n\n## ⚠️ AI 分歧警告\n"
                 for point in routing_result.divergent_points:
                     raw_analysis += f"- {point}\n"
-            
+
             # 解析决策结果
             decision = self._parse_decision_result(
                 raw_analysis=raw_analysis,
@@ -439,16 +437,16 @@ class GLM5DecisionEngine:
                 portfolio_data=portfolio_data,
                 risk_rules=risk_rules,
             )
-            
+
             # 补充路由元数据
             decision.ai_confidence = max(decision.ai_confidence, routing_result.confidence)
-            
+
             return decision
-            
+
         except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.error(f"[v5.8路由] 调用失败: {e}, 降级到旧版模式")
             return self._make_decision_legacy(prompt, market_data, portfolio_data, risk_rules)
-    
+
     def _make_decision_legacy(
         self,
         prompt: str,
@@ -459,7 +457,7 @@ class GLM5DecisionEngine:
         """v5.7 旧版决策模式 (向后兼容降级)"""
         if not self.client:
             return self._create_error_result("无可用模型客户端")
-        
+
         try:
             result = self.client.chat(
                 message=prompt,
@@ -467,21 +465,21 @@ class GLM5DecisionEngine:
                 temperature=self.config.get("temperature", 0.3),
                 max_tokens=self.config.get("max_tokens", 3000),
             )
-            
+
             raw_analysis = result.get("content", "")
             logger.info(f"旧版模式分析完成，输出 {len(raw_analysis)} 字")
-            
+
             return self._parse_decision_result(
                 raw_analysis=raw_analysis,
                 market_data=market_data,
                 portfolio_data=portfolio_data,
                 risk_rules=risk_rules,
             )
-            
+
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"旧版模式分析失败: {e}")
             return self._create_error_result(str(e))
-    
+
     def _build_decision_prompt(
         self,
         market_data: Dict,
@@ -560,7 +558,7 @@ class GLM5DecisionEngine:
 {json.dumps(macro_indicators, ensure_ascii=False, indent=2)}
 """
         return prompt
-    
+
     def _parse_decision_result(
         self,
         raw_analysis: str,
@@ -569,28 +567,28 @@ class GLM5DecisionEngine:
         risk_rules: Optional[Dict],
     ) -> DecisionResult:
         """解析 GLM-5 的输出结果"""
-        
+
         # 提取交易信号（从 Markdown 表格中解析）
         trading_signals = self._extract_trading_signals(raw_analysis)
-        
+
         # 提取风险预警
         risk_alerts = self._extract_risk_alerts(raw_analysis)
-        
+
         # 提取组合建议
         portfolio_advice = self._extract_section(raw_analysis, "组合调整建议")
-        
+
         # 提取宏观展望
         macro_outlook = self._extract_section(raw_analysis, "宏观展望")
-        
+
         # 提取市场概况
         market_summary = self._extract_section(raw_analysis, "AI 决策总结") or "AI 分析完成"
-        
+
         # 计算整体置信度
         if trading_signals:
             avg_confidence = sum(s.confidence for s in trading_signals) / len(trading_signals)
         else:
             avg_confidence = 0.0
-        
+
         return DecisionResult(
             timestamp=datetime.now().isoformat(),
             market_summary=market_summary,
@@ -601,7 +599,7 @@ class GLM5DecisionEngine:
             ai_confidence=avg_confidence,
             raw_analysis=raw_analysis,
         )
-    
+
     def _extract_trading_signals(self, text: str) -> List[TradingSignal]:
         """从文本中提取交易信号 (v5.8+ 兼容简表格式)"""
         signals = []
@@ -686,17 +684,17 @@ class GLM5DecisionEngine:
             signals = self._extract_signals_from_text(text)
 
         return signals
-    
+
     def _extract_signals_from_text(self, text: str) -> List[TradingSignal]:
         """从纯文本中提取交易信号（备用方案）"""
         signals = []
-        
+
         # 简单正则匹配
         import re
         patterns = [
             r'(BUY|SELL|HOLD|REDUCE)\s+([A-Z0-9]+)\s+([^\s,]+)',
         ]
-        
+
         for pattern in patterns:
             matches = re.finditer(pattern, text, re.IGNORECASE)
             for match in matches:
@@ -713,26 +711,26 @@ class GLM5DecisionEngine:
                     reason="AI 自动判断",
                     urgency="MEDIUM",
                 ))
-        
+
         return signals
-    
+
     def _extract_risk_alerts(self, text: str) -> List[RiskAlert]:
         """从文本中提取风险预警"""
         alerts = []
-        
+
         import re
         # 匹配 [CRITICAL]/[HIGH]/[MEDIUM]/[LOW] 格式
         pattern = r'\[(CRITICAL|HIGH|MEDIUM|LOW)\]\s+(.+?)(?=\n\[-|\n##|$)'
         matches = re.finditer(pattern, text, re.DOTALL)
-        
+
         for match in matches:
             severity = match.group(1)
             message = match.group(2).strip()
-            
+
             # 简单提取股票代码
             code_match = re.search(r'([A-Z0-9]{6})', message)
             code = code_match.group(1) if code_match else "UNKNOWN"
-            
+
             alerts.append(RiskAlert(
                 alert_type="RISK_WARNING",
                 severity=severity,
@@ -740,9 +738,9 @@ class GLM5DecisionEngine:
                 message=message,
                 action_required="请人工审核"
             ))
-        
+
         return alerts
-    
+
     def _extract_section(self, text: str, section_name: str) -> str:
         """提取指定章节内容"""
         import re
@@ -751,7 +749,7 @@ class GLM5DecisionEngine:
         if match:
             return match.group(1).strip()
         return ""
-    
+
     def _create_error_result(self, error_msg: str) -> DecisionResult:
         """创建错误结果"""
         return DecisionResult(
@@ -767,7 +765,7 @@ class GLM5DecisionEngine:
             )],
             ai_confidence=0.0,
         )
-    
+
     def quick_check(self, portfolio_data: Dict) -> DecisionResult:
         """
         快速检查（简化版，仅检查持仓风险）
@@ -785,7 +783,7 @@ class GLM5DecisionEngine:
             "资金流向": {},
             "技术指标": [],
         }
-        
+
         return self.make_decisions(
             market_data=market_data,
             portfolio_data=portfolio_data,
@@ -795,7 +793,7 @@ class GLM5DecisionEngine:
                 "take_profit_pct": 0.15,
             }
         )
-    
+
     def export_decisions(self, decision: DecisionResult, output_dir: str = None) -> str:
         """
         导出决策结果为 Markdown 文件
@@ -813,23 +811,23 @@ class GLM5DecisionEngine:
             output_dir = base_dir / date_str
         else:
             output_dir = Path(output_dir)
-        
+
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file = output_dir / f"AI决策_{timestamp}.md"
-        
+
         with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(f"# AI 交易决策报告\n\n")
+            f.write("# AI 交易决策报告\n\n")
             f.write(f"**生成时间**: {decision.timestamp}\n")
             f.write(f"**AI 置信度**: {decision.ai_confidence:.2%}\n\n")
-            
+
             # 市场概况
             f.write(f"## 市场概况\n\n{decision.market_summary}\n\n")
-            
+
             # 交易信号
             if decision.trading_signals:
-                f.write(f"## 交易信号\n\n")
+                f.write("## 交易信号\n\n")
                 f.write("| 代码 | 名称 | 动作 | 当前仓位 | 目标仓位 | 数量 | 置信度 | 紧急程度 |\n")
                 f.write("|------|------|------|---------|---------|------|--------|----------|\n")
                 for sig in decision.trading_signals:
@@ -837,26 +835,26 @@ class GLM5DecisionEngine:
                            f"{sig.current_weight:.1%} | {sig.target_weight:.1%} | "
                            f"{sig.quantity} | {sig.confidence:.2f} | {sig.urgency} |\n")
                 f.write("\n")
-            
+
             # 风险预警
             if decision.risk_alerts:
-                f.write(f"## 风险预警\n\n")
+                f.write("## 风险预警\n\n")
                 for alert in decision.risk_alerts:
                     f.write(f"- **[{alert.severity}]** {alert.message}\n")
                 f.write("\n")
-            
+
             # 组合建议
             if decision.portfolio_advice:
                 f.write(f"## 组合调整建议\n\n{decision.portfolio_advice}\n\n")
-            
+
             # 宏观展望
             if decision.macro_outlook:
                 f.write(f"## 宏观展望\n\n{decision.macro_outlook}\n\n")
-            
+
             # 原始分析
-            f.write(f"---\n\n*以上决策由 GLM-5 AI 自动生成，仅供参考，不构成投资建议*\n")
+            f.write("---\n\n*以上决策由 GLM-5 AI 自动生成，仅供参考，不构成投资建议*\n")
             f.write("*请人工审核后再执行交易*\n")
-        
+
         logger.info(f"决策报告已保存: {output_file}")
         return str(output_file)
 
@@ -888,7 +886,7 @@ if __name__ == "__main__":
     logger.info("=" * 60)
     logger.info("GLM-5 自动决策引擎测试")
     logger.info("=" * 60)
-    
+
     # 模拟市场数据
     market_data = {
         "日期": "2026-06-23",
@@ -912,7 +910,7 @@ if __name__ == "__main__":
             "RSI处于中性区域",
         ],
     }
-    
+
     # 模拟持仓数据
     portfolio_data = {
         "账户总值": "1,052,340元",
@@ -950,14 +948,14 @@ if __name__ == "__main__":
             "华安黄金ETF": "4%",
         },
     }
-    
+
     # 风控规则
     risk_rules = {
         "max_single_position": 0.10,
         "stop_loss_pct": -0.08,
         "take_profit_pct": 0.15,
     }
-    
+
     try:
         # 生成决策
         logger.info("\n正在生成交易决策...\n")
@@ -966,13 +964,13 @@ if __name__ == "__main__":
             portfolio_data=portfolio_data,
             risk_rules=risk_rules,
         )
-        
+
         # 打印结果
         logger.info("=" * 60)
         logger.info("决策结果")
         logger.info("=" * 60)
         logger.info(f"\n市场概况: {decision.market_summary}")
-        
+
         if decision.trading_signals:
             logger.info(f"\n交易信号 ({len(decision.trading_signals)} 条):")
             for sig in decision.trading_signals:
@@ -980,26 +978,26 @@ if __name__ == "__main__":
                       f"(仓位: {sig.current_weight:.1%} → {sig.target_weight:.1%}, "
                       f"置信度: {sig.confidence:.2f})")
                 logger.info(f"    理由: {sig.reason}")
-        
+
         if decision.risk_alerts:
             logger.info(f"\n风险预警 ({len(decision.risk_alerts)} 条):")
             for alert in decision.risk_alerts:
                 logger.info(f"  [{alert.severity}] {alert.message}")
-        
+
         if decision.portfolio_advice:
             logger.info(f"\n组合建议: {decision.portfolio_advice[:200]}...")
-        
+
         logger.info(f"\nAI 整体置信度: {decision.ai_confidence:.2%}")
-        
+
         # 导出报告
         output_file = auto_trade_decision.__globals__['GLM5DecisionEngine']().__class__.__module__
         engine = GLM5DecisionEngine()
         file_path = engine.export_decisions(decision)
         logger.info(f"\n报告已保存: {file_path}")
-        
+
         logger.info("\n" + "=" * 60)
         logger.info("✅ 决策引擎测试完成!")
-        
+
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.error(f"\n❌ 决策引擎测试失败: {e}")
         import traceback

@@ -35,7 +35,6 @@ import warnings as _warnings
 from dataclasses import dataclass, field
 from typing import Literal, NewType, Optional
 
-
 # ============================================================
 # NewType 定义 (运行时 = str, mypy 静态可区分)
 # ============================================================

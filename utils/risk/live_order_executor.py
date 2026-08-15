@@ -40,14 +40,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Protocol
 
-from utils.risk.pretrade_guard import PreTradeGuard, GuardOrderRequest
-from utils.risk.position_limit_enforcer import (
-    PositionLimitEnforcer,
-    PositionSnapshot,
-    OrderImpact,
-)
 from utils.risk.intraday_circuit_breaker import IntradayCircuitBreaker
 from utils.risk.kill_switch_manager import KillSwitchManager
+from utils.risk.position_limit_enforcer import (
+    OrderImpact,
+    PositionLimitEnforcer,
+    PositionSnapshot,
+)
+from utils.risk.pretrade_guard import GuardOrderRequest, PreTradeGuard
 from utils.risk.risk_audit_logger import RiskAuditLogger
 
 logger = logging.getLogger("live_order_executor")

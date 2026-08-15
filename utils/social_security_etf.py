@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 社保基金ETF追踪增强模块 v2.0
 借鉴：社保基金追踪 social_security_tracker + ETF追踪程序 etf_tracker
@@ -11,11 +10,10 @@
   4. 生成社保基金ETF风格追踪报告
 """
 
-import os
-import json
-from datetime import datetime
-from typing import Dict, List, Tuple, Optional
 import logging
+import os
+from datetime import datetime
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -326,8 +324,8 @@ class SocialSecurityETFTracker:
         lines.append("# 社保基金ETF风格追踪报告")
         lines.append("")
         lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        lines.append(f"**分析引擎**: SocialSecurityETFTracker v2.0")
-        lines.append(f"**参考数据源**: 社保基金2025年报持仓 + ETF资金流向")
+        lines.append("**分析引擎**: SocialSecurityETFTracker v2.0")
+        lines.append("**参考数据源**: 社保基金2025年报持仓 + ETF资金流向")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -376,8 +374,8 @@ class SocialSecurityETFTracker:
             lines.append("")
 
         lines.append("---")
-        lines.append(f"*本报告由社保基金ETF追踪引擎 v2.0 自动生成*")
-        lines.append(f"*数据参考: 社保基金2025年报 / ETF追踪程序 / Vibe-Trading*")
+        lines.append("*本报告由社保基金ETF追踪引擎 v2.0 自动生成*")
+        lines.append("*数据参考: 社保基金2025年报 / ETF追踪程序 / Vibe-Trading*")
 
         report = "\n".join(lines)
 

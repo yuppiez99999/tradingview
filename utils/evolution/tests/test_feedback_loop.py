@@ -44,11 +44,10 @@ from utils.evolution.feedback_loop import (
     WeightUpdate,
 )
 from utils.evolution.memory import (
-    EvolutionMemory,
     LEVEL_L3,
     STATUS_EXECUTED,
+    EvolutionMemory,
 )
-
 
 # ============================================================
 # Mock 组件

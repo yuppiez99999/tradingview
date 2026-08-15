@@ -16,9 +16,9 @@ from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
+
 # W6.3.3 Step 1: 统一入口 (保留 FUTURES_CODE_PATTERN 别名兼容 import)
-from utils.contracts.symbols import FUTURES_CODE_PATTERN
-from utils.contracts.symbols import parse_symbol, SymbolParseError
+from utils.contracts.symbols import SymbolParseError, parse_symbol
 
 logger = logging.getLogger(__name__)
 

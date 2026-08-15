@@ -37,12 +37,21 @@ from utils.backtest.constraints import (
     is_at_limit,
     is_suspended,
 )
+from utils.backtest.deflated_sharpe import (  # W6.6.2 T07 修复
+    DSRResult,
+    deflated_sharpe_ratio,
+)
 from utils.backtest.event_driven_engine import (
     EngineSnapshot,
     EngineSummary,
     EventDrivenEngine,
     PendingOrder,
     Position,
+)
+from utils.backtest.honest_validation import (  # W6.6.2 三件套编排器
+    CPCVSummary,
+    HonestValidationResult,
+    run_honest_validation,
 )
 from utils.backtest.latency_model import (
     FixedLatency,
@@ -64,15 +73,6 @@ from utils.backtest.vectorbt_bridge import (
     ComparisonReport,
     VectorBtBridge,
     generate_ma_cross_signals,
-)
-from utils.backtest.deflated_sharpe import (  # W6.6.2 T07 修复
-    DSRResult,
-    deflated_sharpe_ratio,
-)
-from utils.backtest.honest_validation import (  # W6.6.2 三件套编排器
-    CPCVSummary,
-    HonestValidationResult,
-    run_honest_validation,
 )
 
 __all__ = [

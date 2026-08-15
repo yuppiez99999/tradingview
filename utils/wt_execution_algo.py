@@ -9,11 +9,11 @@ WonderTrader风格执行算法模块
 适用于300万ETF建仓计划的大单拆分执行，降低市场冲击成本。
 """
 
+import logging
 import math
 import time
 from datetime import datetime
 from typing import Dict, List, Tuple
-import logging
 
 logger = logging.getLogger(__name__)
 

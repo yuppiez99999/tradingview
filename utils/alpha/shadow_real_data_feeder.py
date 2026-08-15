@@ -41,7 +41,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import sys
 import threading
 from collections import OrderedDict
@@ -1724,7 +1723,7 @@ class ShadowRealDataFeeder:
                     f.write(json.dumps(records[d], ensure_ascii=False) + "\n")
             # 原子替换
             tmp_path.replace(self._output_path)
-        except OSError as e:
+        except OSError:
             # 清理临时文件
             if tmp_path.exists():
                 try:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """KillSwitch L1 守卫工具.
 
 GLM-5.2 C2(#22) 修复: trades 重建 (_regenerate_trades_from_weights) 后需重新应用

@@ -35,16 +35,14 @@ if str(_PROJ) not in sys.path:
 if str(_UTILS) not in sys.path:
     sys.path.insert(0, str(_UTILS))
 
-from utils.supply_chain_builder import SupplyChainBuilder  # noqa: E402
+from utils.alpha_factor.base import (  # noqa: E402
+    FactorValue,
+)
 from utils.alpha_factor.graph import (  # noqa: E402
     compute_lead_lag_factors,
     orthogonalize_chain_factors,
 )
-from utils.alpha_factor.base import (  # noqa: E402
-    FactorValue,
-    winsorize,
-    standardize,
-)
+from utils.supply_chain_builder import SupplyChainBuilder  # noqa: E402
 
 # Windows 控制台 UTF-8 输出 (幂等)
 for name in ("stdout", "stderr"):
@@ -190,8 +188,8 @@ def load_expanded_universe(per_board: int = 40) -> Tuple[List[str], Dict[str, st
     Returns:
         (symbols, industries) — industries 用于行业中性化
     """
-    from utils.supply_chain_builder import load_positions_symbols
     from utils.graph_data_source import get_graph_data_source
+    from utils.supply_chain_builder import load_positions_symbols
 
     ds = get_graph_data_source()
     symbols: List[str] = []

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 增强信号融合引擎 - 动态权重升级版 v5.8
 
@@ -21,34 +20,32 @@
 
 """
 
-import os
-import json
 import sqlite3
-import time
-import numpy as np
-import pandas as pd
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Tuple, Union
-from dataclasses import dataclass, field
-from collections import deque, defaultdict
 import threading
-from concurrent.futures import ThreadPoolExecutor
+import time
 import warnings
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+
 warnings.filterwarnings('ignore')
 
 try:
     from .logging_manager import get_logger
     logger = get_logger('enhanced_signal_fusion')
-    from .signal_fusion import SignalResult, FusedSignal, SignalFusionEngine
     from .fast_signal_processor import FastSignal, generate_fast_signals
     from .rule_engine import evaluate_trading_decision
+    from .signal_fusion import FusedSignal, SignalFusionEngine, SignalResult
 except ImportError:
     try:
         from logging_manager import get_logger
         logger = get_logger('enhanced_signal_fusion')
-        from signal_fusion import SignalResult, FusedSignal, SignalFusionEngine
         from fast_signal_processor import FastSignal, generate_fast_signals
         from rule_engine import evaluate_trading_decision
+        from signal_fusion import FusedSignal, SignalFusionEngine, SignalResult
     except ImportError:
         import logging
         logger = logging.getLogger('enhanced_signal_fusion')
@@ -97,7 +94,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         self._last_weight_update: str = ""
         self._weight_lock = threading.RLock()
         self._initialized = False
-        
+
         # 初始化数据库表
         self._init_enhanced_db()
 
@@ -106,7 +103,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             # 性能指标表
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS source_performance (
@@ -124,7 +121,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                     UNIQUE(source_name, date)
                 )
             """)
-            
+
             # 权重历史表
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS weight_history (
@@ -137,7 +134,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                     UNIQUE(source_name, date)
                 )
             """)
-            
+
             # 相关性矩阵表
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS source_correlations (
@@ -149,13 +146,13 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                     UNIQUE(source1, source2, date)
                 )
             """)
-            
+
             conn.commit()
             conn.close()
-            
+
             self._initialized = True
             logger.info("增强版信号融合引擎数据库初始化完成")
-            
+
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"初始化增强版数据库失败: {e}")
             self._initialized = False
@@ -164,17 +161,17 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                                metadata: Dict[str, Any] = None):
         """注册增强版信号源"""
         super().register_source(name, getter, initial_weight)
-        
+
         # 初始化性能指标
         if name not in self._performance_metrics:
             self._performance_metrics[name] = SourcePerformanceMetrics(
                 source_name=name,
                 last_updated=datetime.now().isoformat()
             )
-        
+
         # 记录初始权重
         self._record_weight_change(name, self._source_weights[name], "initial_registration", 0.0)
-        
+
         logger.info(f"注册增强版信号源: {name} (初始权重={self._source_weights.get(name, 'auto'):.3f})")
 
     def _record_weight_change(self, source_name: str, new_weight: float, reason: str, performance_score: float = 0.0):
@@ -182,18 +179,18 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             cursor.execute("""
                 INSERT INTO weight_history (source_name, date, weight, reason, performance_score)
                 VALUES (?, ?, ?, ?, ?)
             """, (source_name, datetime.now().isoformat(), new_weight, reason, performance_score))
-            
+
             conn.commit()
             conn.close()
-            
+
             # 内存中记录
             self._weight_history[source_name].append((datetime.now().isoformat(), new_weight))
-            
+
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"记录权重变化失败: {e}")
 
@@ -201,52 +198,52 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         """计算增强版动态权重"""
         if not self._initialized:
             return super()._compute_dynamic_weights()
-        
+
         with self._weight_lock:
             # 获取所有可用信号源
             available_sources = list(self._sources.keys())
-            
+
             if not available_sources:
                 return {}
-            
+
             # 1. 收集多维度性能指标
             performance_scores = self._compute_multi_dimensional_scores(available_sources)
-            
+
             # 2. 计算相关性惩罚
             correlation_penalty = self._compute_correlation_penalty(available_sources)
-            
+
             # 3. 应用权重约束和优化
             optimized_weights = self._apply_weight_constraints(
                 performance_scores, correlation_penalty, available_sources
             )
-            
+
             # 4. 记录权重变化
             self._update_weight_history(optimized_weights)
-            
+
             return optimized_weights
 
     def _compute_multi_dimensional_scores(self, sources: List[str]) -> Dict[str, float]:
         """计算多维度性能分数"""
         performance_scores = {}
-        
+
         for source in sources:
             metrics = self._performance_metrics.get(source)
             if not metrics:
                 performance_scores[source] = 0.5  # 默认分数
                 continue
-            
+
             # 1. 胜率分数 (40%)
             accuracy_score = metrics.recent_accuracy if metrics.recent_accuracy > 0 else 0.5
-            
+
             # 2. 稳定性分数 (30%) - 波动性越低分数越高
             volatility_score = max(0, 1 - metrics.volatility) if metrics.volatility > 0 else 1.0
-            
+
             # 3. 时效性分数 (20%) - 响应时间越快分数越高
             response_score = max(0, 1 - (metrics.response_time_avg / 1000))  # 假设1000ms为基准
-            
+
             # 4. 多样性分数 (10%) - 避免过度依赖单一信号源
             diversity_score = metrics.diversity_score
-            
+
             # 综合分数
             total_score = (
                 accuracy_score * 0.4 +
@@ -254,44 +251,44 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                 response_score * 0.2 +
                 diversity_score * 0.1
             )
-            
+
             performance_scores[source] = max(0.1, min(1.0, total_score))
-        
+
         return performance_scores
 
     def _compute_correlation_penalty(self, sources: List[str]) -> Dict[str, float]:
         """计算相关性惩罚"""
         correlation_penalty = {}
-        
+
         # 获取最新相关性矩阵
         self._update_correlation_matrix()
-        
+
         for source in sources:
             penalty_score = 0.0
-            
+
             # 计算该源与其他源的平均相关性
             for other_source in sources:
                 if source != other_source:
                     correlation = self._correlation_matrix.get(source, {}).get(other_source, 0)
                     if abs(correlation) > 0.7:  # 高相关性阈值
                         penalty_score += abs(correlation) * self.config.correlation_penalty_factor
-            
+
             correlation_penalty[source] = min(0.5, penalty_score)  # 最大惩罚50%
-        
+
         return correlation_penalty
 
     def _update_correlation_matrix(self):
         """更新信号源相关性矩阵"""
         sources = list(self._sources.keys())
-        
+
         if len(sources) < 2:
             return
-        
+
         try:
             # 从数据库获取各源的历史预测结果
             conn = sqlite3.connect(self.db_path)
             correlation_data = {}
-            
+
             for source in sources:
                 cursor = conn.execute("""
                     SELECT predicted_action, date 
@@ -300,39 +297,39 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                     ORDER BY date DESC
                     LIMIT 100
                 """, (source, (datetime.now() - timedelta(days=60)).strftime('%Y-%m-%d')))
-                
+
                 results = cursor.fetchall()
                 correlation_data[source] = [1 if r[0] == 'BUY' else -1 if r[0] == 'SELL' else 0 for r in results]
-            
+
             conn.close()
-            
+
             # 计算相关性矩阵
             for i, source1 in enumerate(sources):
                 self._correlation_matrix[source1] = {}
                 data1 = correlation_data[source1]
-                
+
                 if len(data1) < 10:  # 数据不足跳过
                     for source2 in sources:
                         self._correlation_matrix[source1][source2] = 0.0
                     continue
-                
+
                 for j, source2 in enumerate(sources):
                     if i == j:
                         self._correlation_matrix[source1][source2] = 1.0
                         continue
-                    
+
                     data2 = correlation_data[source2]
                     min_len = min(len(data1), len(data2))
-                    
+
                     if min_len >= 10:
                         correlation = np.corrcoef(data1[:min_len], data2[:min_len])[0, 1]
                         self._correlation_matrix[source1][source2] = correlation if not np.isnan(correlation) else 0.0
                     else:
                         self._correlation_matrix[source1][source2] = 0.0
-            
+
             # 保存到数据库
             self._save_correlation_matrix()
-            
+
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"更新相关性矩阵失败: {e}")
             # 如果失败，使用默认零相关性
@@ -344,10 +341,10 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             # 清除旧数据
             cursor.execute("DELETE FROM source_correlations")
-            
+
             # 保存新数据
             date_str = datetime.now().strftime('%Y-%m-%d')
             for source1 in self._correlation_matrix:
@@ -356,61 +353,61 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                         INSERT INTO source_correlations (source1, source2, correlation, date)
                         VALUES (?, ?, ?, ?)
                     """, (source1, source2, self._correlation_matrix[source1][source2], date_str))
-            
+
             conn.commit()
             conn.close()
-            
+
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"保存相关性矩阵失败: {e}")
 
-    def _apply_weight_constraints(self, performance_scores: Dict[str, float], 
-                                 correlation_penalty: Dict[str, float], 
+    def _apply_weight_constraints(self, performance_scores: Dict[str, float],
+                                 correlation_penalty: Dict[str, float],
                                  sources: List[str]) -> Dict[str, float]:
         """应用权重约束和优化"""
         # 应用相关性惩罚
         adjusted_scores = {}
         for source in sources:
             adjusted_scores[source] = performance_scores[source] * (1 - correlation_penalty[source])
-        
+
         # 计算原始权重（Softmax）
         exp_scores = np.exp([adjusted_scores[s] * 10 for s in sources])  # 乘以10增加差异度
         softmax_weights = exp_scores / np.sum(exp_scores)
-        
+
         # 转换为字典
         weights = {sources[i]: softmax_weights[i] for i in range(len(sources))}
-        
+
         # 应用权重约束
         for source in sources:
             # 最大权重限制
             weights[source] = min(weights[source], self.config.max_weight_per_source)
-            
+
             # 最小权重保证
             weights[source] = max(weights[source], self.config.min_weight_per_source)
-        
+
         # 归一化
         total_weight = sum(weights.values())
         if total_weight > 0:
             for source in sources:
                 weights[source] /= total_weight
-        
+
         return weights
 
     def _update_weight_history(self, new_weights: Dict[str, float]):
         """更新权重历史并记录变化"""
         for source_name, new_weight in new_weights.items():
             old_weight = self._source_weights.get(source_name, 0.0)
-            
+
             # 如果权重发生显著变化，记录变化
             if abs(new_weight - old_weight) > 0.05:  # 5%阈值
                 # 计算该源当前性能分数
                 performance_score = self._get_source_performance_score(source_name)
-                
+
                 # 记录权重变化
                 self._record_weight_change(
-                    source_name, new_weight, 
+                    source_name, new_weight,
                     "significant_change", performance_score
                 )
-                
+
                 logger.info(f"信号源 {source_name} 权重调整: {old_weight:.3f} -> {new_weight:.3f}")
 
     def _get_source_performance_score(self, source_name: str) -> float:
@@ -418,17 +415,17 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         metrics = self._performance_metrics.get(source_name)
         return metrics.recent_accuracy if metrics else 0.5
 
-    def update_performance_metrics(self, source_name: str, actual_outcome: str, 
+    def update_performance_metrics(self, source_name: str, actual_outcome: str,
                                  predicted_action: str, response_time: float = None):
         """更新信号源性能指标"""
         if source_name not in self._performance_metrics:
             return
-        
+
         metrics = self._performance_metrics[source_name]
-        
+
         # 更新基础统计
         metrics.total_signals += 1
-        
+
         if actual_outcome == predicted_action:
             metrics.correct_predictions += 1
             metrics.consecutive_wins += 1
@@ -436,11 +433,11 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         else:
             metrics.consecutive_losses += 1
             metrics.consecutive_wins = 0
-        
+
         # 更新胜率
         if metrics.total_signals > 0:
             metrics.recent_accuracy = metrics.correct_predictions / metrics.total_signals
-        
+
         # 更新响应时间
         if response_time is not None:
             if metrics.response_time_avg == 0:
@@ -450,23 +447,23 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                 # 移动平均
                 old_avg = metrics.response_time_avg
                 metrics.response_time_avg = old_avg * 0.9 + response_time * 0.1
-                
+
                 # 标准差
                 metrics.response_time_std = np.sqrt(
-                    metrics.response_time_std**2 * 0.9 + 
+                    metrics.response_time_std**2 * 0.9 +
                     (response_time - old_avg)**2 * 0.1
                 )
-        
+
         # 更新多样性分数（基于与其他源的相关性）
         diversity_score = self._compute_diversity_score(source_name)
         metrics.diversity_score = diversity_score
-        
+
         # 更新时间戳
         metrics.last_updated = datetime.now().isoformat()
-        
+
         # 保存到数据库
         self._save_performance_metrics(source_name, metrics)
-        
+
         # 定期重新计算权重
         if metrics.total_signals % 10 == 0:  # 每10次信号重新计算权重
             self._adaptive_weight_adjustment()
@@ -475,17 +472,17 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         """计算信号源多样性分数"""
         if source_name not in self._correlation_matrix:
             return 0.5
-        
+
         correlations = self._correlation_matrix[source_name]
         abs_correlations = [abs(c) for c in correlations.values() if c != 1.0]  # 排除自己
-        
+
         if not abs_correlations:
             return 0.5
-        
+
         # 平均绝对相关性越低，多样性分数越高
         avg_abs_correlation = np.mean(abs_correlations)
         diversity_score = 1 - min(avg_abs_correlation, 1.0)
-        
+
         return diversity_score
 
     def _save_performance_metrics(self, source_name: str, metrics: SourcePerformanceMetrics):
@@ -493,7 +490,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             cursor.execute("""
                 INSERT OR REPLACE INTO source_performance 
                 (source_name, date, total_signals, correct_predictions, accuracy, 
@@ -502,13 +499,13 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             """, (
                 source_name, metrics.last_updated, metrics.total_signals,
                 metrics.correct_predictions, metrics.recent_accuracy, metrics.volatility,
-                metrics.response_time_avg, metrics.consecutive_losses, 
+                metrics.response_time_avg, metrics.consecutive_losses,
                 metrics.consecutive_wins, metrics.diversity_score
             ))
-            
+
             conn.commit()
             conn.close()
-            
+
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"保存性能指标失败: {e}")
 
@@ -516,18 +513,18 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         """自适应权重调整"""
         if not self._initialized:
             return
-        
+
         # 检查是否需要紧急重新平衡
         max_weight = max(self._source_weights.values())
         min_weight = min(self._source_weights.values())
-        
+
         if max_weight - min_weight > self.config.emergency_rebalance_threshold:
             logger.warning("检测到权重分布不均，执行紧急重新平衡")
             self._emergency_rebalance()
-        
+
         # 正常的权重调整
         new_weights = self._compute_enhanced_dynamic_weights()
-        
+
         # 应用新权重
         for source_name, new_weight in new_weights.items():
             old_weight = self._source_weights.get(source_name, 0.0)
@@ -539,19 +536,19 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         sources = list(self._sources.keys())
         if len(sources) <= 1:
             return
-        
+
         # 均匀分配权重
         uniform_weight = 1.0 / len(sources)
-        
+
         for source in sources:
             self._source_weights[source] = uniform_weight
-        
+
         logger.info(f"执行紧急重新平衡: {len(sources)}个信号源，均匀权重{uniform_weight:.3f}")
 
     def get_enhanced_stats(self) -> Dict[str, Any]:
         """获取增强版统计信息"""
         stats = super().get_stats()
-        
+
         # 添加性能指标
         performance_data = {}
         for source_name, metrics in self._performance_metrics.items():
@@ -565,7 +562,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                 "diversity_score": metrics.diversity_score,
                 "last_updated": metrics.last_updated
             }
-        
+
         stats["performance_metrics"] = performance_data
         stats["weight_history"] = dict(self._weight_history)
         stats["correlation_matrix"] = self._correlation_matrix
@@ -576,7 +573,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             "min_weight_per_source": self.config.min_weight_per_source,
             "adaptive_learning_rate": self.config.adaptive_learning_rate
         }
-        
+
         return stats
 
     def get_weight_change_analysis(self, source_name: str, days: int = 30) -> Dict[str, Any]:
@@ -584,7 +581,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             cutoff_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
             cursor.execute("""
                 SELECT date, weight, reason, performance_score
@@ -592,21 +589,21 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                 WHERE source_name = ? AND date >= ?
                 ORDER BY date DESC
             """, (source_name, cutoff_date))
-            
+
             records = cursor.fetchall()
             conn.close()
-            
+
             if not records:
                 return {"message": f"{days}天内无权重变化记录"}
-            
+
             # 计算变化趋势
             weights = [r[1] for r in records]
             trend_direction = "increasing" if weights[-1] > weights[0] else "decreasing"
             total_change = weights[0] - weights[-1]
-            
+
             # 计算波动性
             weight_volatility = np.std(weights) if len(weights) > 1 else 0
-            
+
             return {
                 "source_name": source_name,
                 "period_days": days,
@@ -617,7 +614,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                 "current_weight": weights[0],
                 "weight_history": records
             }
-            
+
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"获取权重变化分析失败: {e}")
             return {"error": str(e)}
@@ -626,7 +623,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         """基于市场条件优化权重"""
         if not self._initialized:
             return
-        
+
         # 根据市场条件调整权重偏好
         weight_adjustments = {
             "bullish": {
@@ -654,10 +651,10 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                 "kondratiev": 0.10     # 保持康波周期权重
             }
         }
-        
+
         if market_condition in weight_adjustments:
             new_weights = weight_adjustments[market_condition]
-            
+
             # 平滑过渡到新权重
             for source_name, target_weight in new_weights.items():
                 if source_name in self._source_weights:
@@ -668,7 +665,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                         target_weight * self.config.adaptive_learning_rate
                     )
                     self._source_weights[source_name] = adjusted_weight
-            
+
             logger.info(f"基于市场条件 {market_condition} 调整权重配置")
             self._last_weight_update = datetime.now().isoformat()
 
@@ -692,8 +689,8 @@ def register_enhanced_fast_signal_source(initial_weight: float = 0.2):
     try:
         engine = get_enhanced_fusion_engine()
         engine.register_enhanced_source(
-            'fast_technical', 
-            _get_enhanced_fast_signal_source, 
+            'fast_technical',
+            _get_enhanced_fast_signal_source,
             initial_weight,
             {"type": "technical", "latency": "ultra_low"}
         )
@@ -706,13 +703,13 @@ def _get_enhanced_fast_signal_source(code: str) -> SignalResult:
     """增强版快速技术指标信号源"""
     try:
         from .hybrid_fusion import get_hybrid_fusion_engine
-        
+
         start_time = time.time()
         engine = get_hybrid_fusion_engine()
         hybrid_signal = engine.get_hybrid_signal(code, "", force_hybrid=False)
-        
+
         response_time = (time.time() - start_time) * 1000  # 转换为毫秒
-        
+
         if hybrid_signal.source == 'fast' and hybrid_signal.fast_signal:
             fast_signal = hybrid_signal.fast_signal
             signal_result = SignalResult(
@@ -724,17 +721,17 @@ def _get_enhanced_fast_signal_source(code: str) -> SignalResult:
                 reason=f"增强版快速技术指标信号: {fast_signal.action} (RSI={fast_signal.rsi:.2f}, MACD={fast_signal.macd_signal:.4f})",
                 timestamp=datetime.now().isoformat()
             )
-            
+
             # 更新性能指标
             if _enhanced_fusion_engine:
                 _enhanced_fusion_engine.update_performance_metrics(
                     'fast_technical', 'UNKNOWN', fast_signal.action, response_time
                 )
-            
+
             return signal_result
         else:
             return None
-            
+
     except (AttributeError, TypeError, ValueError, OSError) as e:
         logger.warning(f"获取增强版快速技术指标信号失败: {e}")
         return None

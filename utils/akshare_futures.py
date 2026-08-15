@@ -7,13 +7,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from typing import Any
 from urllib.parse import quote
 
 import requests
-import logging
 
 logger = logging.getLogger(__name__)
 

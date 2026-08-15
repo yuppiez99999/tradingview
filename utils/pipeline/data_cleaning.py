@@ -13,15 +13,14 @@
 from __future__ import annotations
 
 import logging
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
 
-from utils.pipeline.types import DataQualityReport, PipelineConfig, PipelineResult, PipelineStage
 from utils.pipeline.config import get_pipeline_config
+from utils.pipeline.types import DataQualityReport, PipelineConfig, PipelineResult, PipelineStage
 
 logger = logging.getLogger("pipeline.data_cleaning")
 
@@ -39,7 +38,8 @@ except ImportError:
 DataGate: Optional[type]
 DataGateResult: Optional[type]
 try:
-    from utils.data_gate import DataGate as _DG_impl, DataGateResult as _DGR_impl
+    from utils.data_gate import DataGate as _DG_impl
+    from utils.data_gate import DataGateResult as _DGR_impl
 
     DataGate = _DG_impl
     DataGateResult = _DGR_impl
@@ -297,7 +297,7 @@ class DataCleaningPipeline:
             q1, q3 = np.percentile(prices, [25, 75])
             iqr = q3 - q1
             if price < q1 - 1.5 * iqr or price > q3 + 1.5 * iqr:
-                symbol_flags.append(f"iqr_outlier")
+                symbol_flags.append("iqr_outlier")
 
             # MAD 检测
             median = np.median(prices)

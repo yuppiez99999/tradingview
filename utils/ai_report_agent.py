@@ -27,6 +27,7 @@ AI 报告代理 (AI Report Agent)
 """
 
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -34,7 +35,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from utils.logger import get_logger
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,6 @@ _test_connection_fn = None
 
 try:
     from utils.llm_client import chat as _chat_fn
-    from utils.llm_client import generate_analysis as _generate_analysis_fn
     from utils.llm_client import test_connection as _test_connection_fn
     _LLM_CLIENT_AVAILABLE = True
     logger.info("AIReportAgent: 统一 LLM 客户端已加载 (GLM5→三级降级链)")

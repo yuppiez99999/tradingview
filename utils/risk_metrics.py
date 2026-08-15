@@ -10,12 +10,12 @@
 - 相关性分析
 """
 
-from typing import Dict, Tuple, Optional
+import logging
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 
 from utils.logger import get_logger
-import logging
 
 logger = logging.getLogger(__name__)
 

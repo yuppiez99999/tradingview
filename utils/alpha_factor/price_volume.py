@@ -16,8 +16,8 @@ from utils.alpha_factor.base import (
     FactorValue,
     neutralize_by_industry,
     orthogonalize,
+    register_factor,  # Wave 6 W6.1.3: EigenAlpha 风格装饰器
     residualize,
-    register_factor,   # Wave 6 W6.1.3: EigenAlpha 风格装饰器
 )
 
 

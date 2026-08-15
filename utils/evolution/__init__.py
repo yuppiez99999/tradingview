@@ -36,62 +36,61 @@
 
 from __future__ import annotations
 
+# T3.3 已完成: 自动因子工厂
+from utils.evolution.auto_factor_factory import (
+    AutoFactorFactory,
+    CandidateFactor,
+    DeployedFactor,
+    FactoryPipelineReport,
+    RetireSuggestion,
+    ValidatedFactor,
+)
+
+# T1.4 已完成: 智能修复引擎
+from utils.evolution.auto_fix_engine import AutoFixEngine, FixResult
+
+# T2.3 已完成: EOD FeedbackLoop 集成
+from utils.evolution.eod_feedback_integration import (
+    FeedbackLoopResult,
+    load_current_weights,
+    run_feedback_loop,
+    run_feedback_loop_graceful,
+)
+
+# T2.1 已完成: 实时反馈闭环
+from utils.evolution.feedback_loop import FeedbackLoop, WeightUpdate
+
+# T1.3 已完成: 进化守卫
+from utils.evolution.guard import EvolutionGuard, EvolutionProposal, GuardDecision
+
 # Re-export API (按需显式导入, 避免循环依赖)
 # T1.2: from utils.evolution.memory import EvolutionMemory, MemoryRecord
 # T1.3: from utils.evolution.guard import EvolutionGuard, GuardDecision, GuardViolation
 # T1.4: from utils.evolution.auto_fix_engine import AutoFixEngine, FixResult, FixAction
 # T3.1: from utils.evolution.orchestrator import EvolutionOrchestrator as NewEvolutionOrchestrator
 # T3.3: from utils.evolution.auto_factor_factory import AutoFactorFactory
-
 # T1.2 已完成: 进化记忆
 from utils.evolution.memory import EvolutionMemory, MemoryRecord
-
-# T1.3 已完成: 进化守卫
-from utils.evolution.guard import EvolutionGuard, GuardDecision, EvolutionProposal
-
-# T1.4 已完成: 智能修复引擎
-from utils.evolution.auto_fix_engine import AutoFixEngine, FixResult
-
-# T2.1 已完成: 实时反馈闭环
-from utils.evolution.feedback_loop import FeedbackLoop, WeightUpdate
-
-# T2.2 已完成: P&L 归因适配器
-from utils.evolution.pnl_attribution_adapter import (
-    PnLAttributionAdapter,
-    AttributionConversionResult,
-    convert_to_feedback_loop_format,
-    from_factor_attribution_result,
-    from_attribution_result,
-    from_report_file,
-)
-
-# T2.3 已完成: EOD FeedbackLoop 集成
-from utils.evolution.eod_feedback_integration import (
-    run_feedback_loop,
-    run_feedback_loop_graceful,
-    load_current_weights,
-    FeedbackLoopResult,
-)
 
 # T3.1 已完成: V2 编排器
 from utils.evolution.orchestrator import CycleResult, EvolutionOrchestratorV2
 
-# T3.3 已完成: 自动因子工厂
-from utils.evolution.auto_factor_factory import (
-    AutoFactorFactory,
-    CandidateFactor,
-    ValidatedFactor,
-    DeployedFactor,
-    RetireSuggestion,
-    FactoryPipelineReport,
+# T2.2 已完成: P&L 归因适配器
+from utils.evolution.pnl_attribution_adapter import (
+    AttributionConversionResult,
+    PnLAttributionAdapter,
+    convert_to_feedback_loop_format,
+    from_attribution_result,
+    from_factor_attribution_result,
+    from_report_file,
 )
 
 # T3.4 已完成: 策略自动生成器
 from utils.evolution.strategy_generator import (
-    StrategyGenerator,
-    StrategyTemplate,
-    StrategyInstance,
     GenerationReport,
+    StrategyGenerator,
+    StrategyInstance,
+    StrategyTemplate,
 )
 
 __version__ = "0.7.0"
