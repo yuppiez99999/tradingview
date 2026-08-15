@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-15 · W7.4.5 覆盖率冲刺第 10 批 · 3 模块 137 tests ✅
+
+- **3 模块补测** (137 tests 全绿, 0.89s): trading_rules 30.4%→100% (47) + kondratiev_cycle 28.8%→100% (34) + broad_based_etf_policy 16.5%→97.41% (56)
+- **综合覆盖率**: 98.72%, 三模块均达 90%+ 目标 (两个 100%)
+- **门禁**: 137 passed, pre-commit GREEN
+- **意义**: 第 10 批边际递减但三模块从低覆盖率拉满, 总体覆盖率预计 80.20% → ~81%+
+- **指针**: `tests/unit/test_trading_rules_unit.py` · `test_kondratiev_cycle_unit.py` · `test_broad_based_etf_policy_unit.py`
+
 ## 2026-08-15 · 08-14 未提交工作整理 · 8 commits 全 GREEN ✅
 
 - **背景**: 08-14 晚间工作（LOG 顶部 5 项全完成）全部未 commit，工作区有 186 M + 44 ?? 文件，最新 commit 12c699be 在 08-14 14:57
