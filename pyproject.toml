@@ -1,0 +1,88 @@
+# ============================================================
+# 终极量化交易系统 v8.6.14 — pyproject.toml
+# ============================================================
+# Phase 0: 项目元数据 + 依赖声明 (从 requirements.txt 迁移)
+# 兼容: pip install -e . 仍可用; uv sync 可用; requirements.txt 保留为 pip 回退
+# ============================================================
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "ultimate-quant-trading"
+version = "8.6.14"
+description = "A股量化交易系统 — 多因子选股、LightGBM增强训练、策略回测、风控管理"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [{ name = "yuppiefree2025" }]
+
+# ── 生产依赖 (从 requirements.txt 迁移) ──
+dependencies = [
+    "numpy>=1.24.0",
+    "pandas>=1.5.0",
+    "scipy>=1.10.0",
+    "scikit-learn>=1.5.0",
+    "xgboost>=1.5.0",
+    "lightgbm>=4.6.0",
+    "optuna>=3.0.0",
+    "joblib>=1.2.0",
+    "statsmodels>=0.13.0",
+    "yfinance>=0.2.0",
+    "akshare>=1.12.0",
+    "requests>=2.33.0",
+    "certifi>=2026.07.22",
+    "matplotlib>=3.6.0",
+    "seaborn>=0.12.0",
+    "plotly>=5.15.0",
+    "dash>=2.11.0",
+    "python-dateutil>=2.8.0",
+    "pytz>=2023.3",
+    "PyYAML>=6.0",
+    "python-dotenv>=1.2.2",
+    "schedule>=1.2.0",
+    "ntplib>=0.4.0",
+    "pyautogui>=0.9.53",
+    "pywinauto>=0.6.8",
+    "PyPortfolioOpt>=1.5.0",
+    "quantstats>=0.0.59",
+    "sqlalchemy>=2.0.0",
+    "aiohttp>=3.14.3",
+    "cryptography>=50.0.0",
+    "click>=8.1.0",
+    "tqdm>=4.65.0",
+    "numba>=0.57.0",
+    "loguru>=0.7.0",
+]
+
+[project.optional-dependencies]
+# ── 开发依赖 (从 requirements_dev.txt 迁移) ──
+dev = [
+    "pytest>=7.3.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.10.0",
+    "ruff>=0.6.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+    "isort>=5.12.0",
+    "sphinx>=5.3.0",
+    "sphinx-rtd-theme>=1.2.0",
+    "pip-audit>=2.6.0",
+    "bandit>=1.7.5",
+    "memory-profiler>=0.61.0",
+]
+
+[tool.setuptools]
+# 非包项目: 不安装任何包, 仅用于依赖管理
+py-modules = []
+
+[tool.ruff]
+# ruff 配置指向 ruff.toml (保持单一事实源)
+# 实际配置在 ruff.toml 中, 此处不重复
+
+# ============================================================
+# 安装命令:
+#   pip:  pip install -e .[dev]  (或 pip install -r requirements.txt)
+#   uv:   uv sync --extra dev    (需先生成 uv.lock)
+# ============================================================

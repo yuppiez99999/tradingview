@@ -1,0 +1,102 @@
+﻿utils\alpha\drift_monitor.py:429:22: BLE001 Do not catch blind exception: `Exception`
+utils\alpha\vol_regime_weighter.py:933:9: T201 `print` found
+utils\alpha\vol_regime_weighter.py:934:9: T201 `print` found
+utils\alpha\vol_regime_weighter.py:935:9: T201 `print` found
+utils\alpha\vol_regime_weighter.py:941:9: T201 `print` found
+utils\alpha\vol_regime_weighter.py:952:5: T201 `print` found
+utils\alpha\vol_regime_weighter.py:953:5: T201 `print` found
+utils\alpha\vol_regime_weighter.py:954:5: T201 `print` found
+utils\alpha\vol_regime_weighter.py:955:5: T201 `print` found
+utils\alpha\vol_regime_weighter.py:957:9: T201 `print` found
+utils\alpha\vol_regime_weighter.py:958:9: T201 `print` found
+utils\alpha\vol_regime_weighter.py:959:9: T201 `print` found
+utils\alpha\vol_regime_weighter.py:960:9: T201 `print` found
+utils\alpha\vol_regime_weighter.py:961:9: T201 `print` found
+utils\alpha\vol_regime_weighter.py:963:13: T201 `print` found
+utils\alpha\vol_regime_weighter.py:965:9: T201 `print` found
+utils\annual_return_forecast.py:435:5: T201 `print` found
+utils\annual_return_forecast.py:436:5: T201 `print` found
+utils\annual_return_forecast.py:437:5: T201 `print` found
+utils\annual_return_forecast.py:438:5: T201 `print` found
+utils\annual_return_forecast.py:439:5: T201 `print` found
+utils\annual_return_forecast.py:440:5: T201 `print` found
+utils\annual_return_forecast.py:443:5: T201 `print` found
+utils\annual_return_forecast.py:444:5: T201 `print` found
+utils\annual_return_forecast.py:447:5: T201 `print` found
+utils\annual_return_forecast.py:448:5: T201 `print` found
+utils\annual_return_forecast.py:449:5: T201 `print` found
+utils\annual_return_forecast.py:450:5: T201 `print` found
+utils\annual_return_forecast.py:451:5: T201 `print` found
+utils\annual_return_forecast.py:452:5: T201 `print` found
+utils\annual_return_forecast.py:453:5: T201 `print` found
+utils\annual_return_forecast.py:454:5: T201 `print` found
+utils\annual_return_forecast.py:456:5: T201 `print` found
+utils\annual_return_forecast.py:457:5: T201 `print` found
+utils\annual_return_forecast.py:458:5: T201 `print` found
+utils\annual_return_forecast.py:460:9: T201 `print` found
+utils\annual_return_forecast.py:473:5: T201 `print` found
+utils\annual_return_forecast.py:477:9: T201 `print` found
+utils\annual_return_forecast.py:478:9: T201 `print` found
+utils\annual_return_forecast.py:479:9: T201 `print` found
+utils\annual_return_forecast.py:480:9: T201 `print` found
+utils\annual_return_forecast.py:481:9: T201 `print` found
+utils\annual_return_forecast.py:484:9: T201 `print` found
+utils\annual_return_forecast.py:485:9: T201 `print` found
+utils\annual_return_forecast.py:486:9: T201 `print` found
+utils\annual_return_forecast.py:487:9: T201 `print` found
+utils\annual_return_forecast.py:488:9: T201 `print` found
+utils\annual_return_forecast.py:489:5: T201 `print` found
+utils\annual_return_forecast.py:493:9: T201 `print` found
+utils\annual_return_forecast.py:495:13: T201 `print` found
+utils\annual_return_forecast.py:496:5: T201 `print` found
+utils\annual_return_forecast.py:512:9: T201 `print` found
+utils\annual_return_forecast.py:519:13: T201 `print` found
+utils\annual_return_forecast.py:521:13: T201 `print` found
+utils\cli_helpers.py:104:5: T201 `print` found
+utils\cli_helpers.py:106:9: T201 `print` found
+utils\execution\automated_execution_system.py:1810:28: BLE001 Do not catch blind exception: `Exception`
+utils\execution\automated_execution_system.py:1848:28: BLE001 Do not catch blind exception: `Exception`
+utils\execution\broker_factory.py:123:5: T201 `print` found
+utils\execution\fills_pnl_bridge.py:91:5: T201 `print` found
+utils\execution\fills_pnl_bridge.py:92:5: T201 `print` found
+utils\execution\fills_store.py:190:5: T201 `print` found
+utils\execution\fills_store.py:192:5: T201 `print` found
+utils\execution\fills_store.py:193:5: T201 `print` found
+utils\feature_store\config.py:110:16: BLE001 Do not catch blind exception: `Exception`
+utils\limit_pool_provider.py:248:16: BLE001 Do not catch blind exception: `Exception`
+utils\limit_pool_provider.py:261:16: BLE001 Do not catch blind exception: `Exception`
+utils\limit_pool_provider.py:273:16: BLE001 Do not catch blind exception: `Exception`
+utils\llm_evolution\dual_loop_orchestrator.py:189:28: BLE001 Do not catch blind exception: `Exception`
+utils\llm_evolution\dual_loop_orchestrator.py:202:16: BLE001 Do not catch blind exception: `Exception`
+utils\llm_evolution\dual_loop_orchestrator.py:280:20: BLE001 Do not catch blind exception: `Exception`
+utils\llm_evolution\dual_loop_orchestrator.py:287:20: BLE001 Do not catch blind exception: `Exception`
+utils\llm_evolution\hypothesis_verifier.py:291:20: BLE001 Do not catch blind exception: `Exception`
+utils\llm_evolution\strategy_ideation.py:251:16: BLE001 Do not catch blind exception: `Exception`
+utils\llm_evolution\strategy_ideation.py:309:20: BLE001 Do not catch blind exception: `Exception`
+utils\llm_evolution\strategy_ideation.py:373:16: BLE001 Do not catch blind exception: `Exception`
+utils\llm_evolution\strategy_ideation.py:450:16: BLE001 Do not catch blind exception: `Exception`
+utils\llm_evolution\strategy_ideation.py:464:20: BLE001 Do not catch blind exception: `Exception`
+utils\llm_gateway\litellm_router.py:144:16: BLE001 Do not catch blind exception: `Exception`
+utils\llm_gateway\litellm_router.py:215:16: BLE001 Do not catch blind exception: `Exception`
+utils\notify.py:278:5: T201 `print` found
+utils\notify.py:279:5: T201 `print` found
+utils\notify.py:280:5: T201 `print` found
+utils\notify.py:281:5: T201 `print` found
+utils\notify.py:282:5: T201 `print` found
+utils\notify.py:283:5: T201 `print` found
+utils\notify.py:284:5: T201 `print` found
+utils\notify.py:286:5: T201 `print` found
+utils\notify.py:287:5: T201 `print` found
+utils\notify.py:288:5: T201 `print` found
+utils\price_limit_calculator.py:484:20: BLE001 Do not catch blind exception: `Exception`
+utils\risk\live_order_executor.py:298:16: BLE001 Do not catch blind exception: `Exception`
+utils\risk\live_order_executor.py:355:16: BLE001 Do not catch blind exception: `Exception`
+utils\risk\live_order_executor.py:387:16: BLE001 Do not catch blind exception: `Exception`
+utils\risk\live_reconciliation_loop.py:263:16: BLE001 Do not catch blind exception: `Exception`
+utils\risk\order_lifecycle_tracker.py:293:20: BLE001 Do not catch blind exception: `Exception`
+utils\risk\order_lifecycle_tracker.py:381:20: BLE001 Do not catch blind exception: `Exception`
+utils\risk\order_lifecycle_tracker.py:427:16: BLE001 Do not catch blind exception: `Exception`
+utils\system_check.py:1308:9: T201 `print` found
+utils\system_check.py:1310:9: T201 `print` found
+Found 100 errors.
+No fixes available (73 hidden fixes can be enabled with the `--unsafe-fixes` option).
