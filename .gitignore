@@ -309,3 +309,27 @@ _tmp_*.pyc
 # P0 pre-commit 验证标记
 test
 test3
+
+# === 工作区清理 (2026-08-14) ===
+# 非量化项目目录 (游戏项目, 保留本地不纳入 git)
+game/
+games/
+# IDE/Agent 工具目录
+.arts/
+.zcode/
+# 临时调试脚本 (brace 修复等一次性脚本)
+check_*.py
+fix_*.py
+debug_*.py
+print_*.py
+replace_*.py
+count_*.py
+find_*.py
+# 临时截图
+screenshot_*.png
+# 临时覆盖率输出
+coverage_output.txt
+
+# === 工作区清理 (2026-08-15) ===
+# loopx agent 运行时 handoff 目录
+.loopx_handoffs/
