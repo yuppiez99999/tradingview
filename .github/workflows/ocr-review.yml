@@ -1,0 +1,116 @@
+name: OCR Code Review (PR)
+
+# W7.2.7 ocr 三步固化 Step 2: PR 自动审查
+# 使用 open-code-review (GLM-4.5-air) 对 PR 变更文件进行 LLM 代码审查
+# Secrets 需配置: OCR_LLM_URL, OCR_LLM_AUTH_TOKEN, OCR_LLM_MODEL
+
+on:
+  pull_request:
+    branches: [main, master, "1"]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ocr-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install open-code-review
+        run: npm install -g open-code-review
+
+      - name: Configure OCR
+        run: |
+          mkdir -p ~/.opencodereview
+          cat > ~/.opencodereview/config.json << 'EOF'
+          {
+            "glm": {
+              "api_key": "${{ secrets.OCR_LLM_AUTH_TOKEN }}",
+              "url": "${{ secrets.OCR_LLM_URL }}",
+              "protocol": "openai",
+              "model": "${{ secrets.OCR_LLM_MODEL }}"
+            }
+          }
+          EOF
+
+      - name: Get PR changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            **/*.py
+          files_ignore: |
+            tests/**
+            **/tests/**
+            external/**
+            temp/**
+
+      - name: Run OCR review
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          echo "Changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
+          open-code-review scan \
+            --files ${{ steps.changed-files.outputs.all_changed_files }} \
+            --provider glm \
+            --concurrency 2 \
+            --output-format json \
+            --output-file ocr_pr_review.json || true
+
+      - name: Upload review results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocr-pr-review-${{ github.event.pull_request.number }}
+          path: ocr_pr_review.json
+          retention-days: 30
+
+      - name: Comment PR with review summary
+        if: always() && steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const review = JSON.parse(fs.readFileSync('ocr_pr_review.json', 'utf8'));
+              const comments = review.comments || review || [];
+              const critical = comments.filter(c => c.severity === 'critical').length;
+              const high = comments.filter(c => c.severity === 'high').length;
+              const medium = comments.filter(c => c.severity === 'medium').length;
+              const low = comments.filter(c => c.severity === 'low').length;
+
+              const body = [
+                '## OCR Code Review Summary',
+                '',
+                `| Severity | Count |`,
+                `|----------|-------|`,
+                `| Critical | ${critical} |`,
+                `| High     | ${high} |`,
+                `| Medium   | ${medium} |`,
+                `| Low      | ${low} |`,
+                `| **Total**| **${comments.length}** |`,
+                '',
+                'Full review details uploaded as artifact.',
+                '',
+                `Powered by GLM-4.5-air via open-code-review`
+              ].join('\n');
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            } catch (error) {
+              console.log('No review file or parse error:', error.message);
+            }

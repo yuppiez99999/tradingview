@@ -1,0 +1,85 @@
+name: OCR Nightly Full Scan
+
+# W7.3.6 ocr 三步固化 Step 3: nightly 全量 scan
+# 每日凌晨对全量 Python 源码执行 LLM 代码审查, 结果归档到 reports/ocr_reviews/
+# Secrets 需配置: OCR_LLM_URL, OCR_LLM_AUTH_TOKEN, OCR_LLM_MODEL
+
+on:
+  schedule:
+    - cron: "0 18 * * *"  # UTC 18:00 = 北京时间 02:00
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  ocr-nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install open-code-review
+        run: npm install -g open-code-review
+
+      - name: Configure OCR
+        run: |
+          mkdir -p ~/.opencodereview
+          cat > ~/.opencodereview/config.json << 'EOF'
+          {
+            "glm": {
+              "api_key": "${{ secrets.OCR_LLM_AUTH_TOKEN }}",
+              "url": "${{ secrets.OCR_LLM_URL }}",
+              "protocol": "openai",
+              "model": "${{ secrets.OCR_LLM_MODEL }}"
+            }
+          }
+          EOF
+
+      - name: Collect Python source files
+        id: collect
+        run: |
+          files=$(find . -name "*.py" \
+            -not -path "./tests/*" \
+            -not -path "*/tests/*" \
+            -not -path "./external/*" \
+            -not -path "./temp/*" \
+            -not -path "./.git/*" \
+            -not -path "*/__pycache__/*" \
+            -not -path "./qlib_env/*" \
+            | head -500)
+          echo "files=$files" >> $GITHUB_OUTPUT
+          echo "count=$(echo $files | wc -w)" >> $GITHUB_OUTPUT
+
+      - name: Run full scan
+        run: |
+          mkdir -p reports/ocr_reviews/nightly
+          open-code-review scan \
+            --files "${{ steps.collect.outputs.files }}" \
+            --provider glm \
+            --concurrency 4 \
+            --output-format json \
+            --output-file reports/ocr_reviews/nightly/scan_$(date -u +%Y-%m-%d).json || true
+
+      - name: Commit and push results
+        run: |
+          git config user.name "ocr-nightly-bot"
+          git config user.email "bot@ocr-nightly"
+          git add reports/ocr_reviews/nightly/*.json || true
+          git commit -m "ocr nightly scan $(date -u +%Y-%m-%d)" || true
+          git push
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocr-nightly-$(date -u +%Y-%m-%d)
+          path: reports/ocr_reviews/nightly/*.json
+          retention-days: 90
