@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-15 · W7.4.5 覆盖率冲刺第 11 批 · 3 模块 147 tests + 2 bug 修复 ✅
+
+- **3 模块补测** (147 tests 全绿, 2.22s): data_gate 26.9%→100% (57) + supply_chain_builder 19.2%→91.19% (40) + futures_rollover_manager 17.8%→98.69% (50)
+- **综合覆盖率**: ~96.6%, 三模块均达 90%+ 目标
+- **发现并修复 2 处源 bug** (futures_rollover_manager.py):
+  - Bug 1: 缺失 `import re` (L337 `re.match` 会 NameError) → 已添加 import re
+  - Bug 2: `is_tradable` 后缀检查对带交易所代码无效 (`IF00.CFFEX` 不匹配 `endswith("00")`) → 改为 `code.split(".")[0].endswith`
+- **门禁**: 147 passed + bug 修复后 50 passed, pre-commit GREEN
+- **指针**: `tests/unit/test_data_gate_unit.py` · `test_supply_chain_builder_unit.py` · `test_futures_rollover_manager_unit.py` · `utils/futures_rollover_manager.py`
+
 ## 2026-08-15 · W7.4.5 覆盖率冲刺第 10 批 · 3 模块 137 tests ✅
 
 - **3 模块补测** (137 tests 全绿, 0.89s): trading_rules 30.4%→100% (47) + kondratiev_cycle 28.8%→100% (34) + broad_based_etf_policy 16.5%→97.41% (56)
