@@ -2,6 +2,39 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-16 · NB-7 测试债清零 · 5 文件 26 失败→0 ✅
+
+- **test_decision_theories** (2→2 skipped): v8.3_institutional/src/factors/ 已移除, 标记 skip
+- **test_feature_flags** (5→0): 配置补 critical_path + USE_AUTOMATED_EXECUTION_ROUTER flag + rollback_seconds=0 + requires "Shadow 14天"; 测试容忍 USE_VOL_REGIME_WEIGHTER default=true (已授权 Phase 0)
+- **test_llm_router** (6→0): omniroute 新增为 P0 provider, 更新 fixture + 8 处 fallback chain 断言 (5→6 provider, deepseek P0→P1)
+- **test_shadow_admission_launcher** (6→0): 配置漂移同步 — observation_days 14→21, min_dsr 5→0.5, ic_weighted 改嵌套, target_vol/dd_derisk 移除
+- **test_daily_panel** (7→0): **真实 bug** — `_FeatureFlags.is_enabled()` 类级别调用缺 self → 改 `get_instance().is_enabled()`; Brinson/Factor 异常元组 + init 方法补 RuntimeError
+- **指针**: `configs/feature_flags.yaml` · `utils/attribution/daily_panel.py` · `tests/unit/test_llm_router.py` · `tests/unit/test_shadow_admission_launcher.py`
+
+## 2026-08-16 · NB-1~NB-6 全部 6 个代码 Bug 修复闭环 ✅
+
+- **NB-1~NB-4** (High×2 + Med×2): 会话前已落地 — broker_factory 补 title+TypeError / alpha_pipeline 改 register_source+ImportError / external_data_source 补 cast 导入 / alpha_factor 补 logging; 单测 413 passed 验证
+- **NB-5** [Med] py38 兼容: 6 处 `cast(dict[...])` → `cast(Dict[...])` (typing 别名), 涉及 vol_target_controller / protective_put_engine / daily_panel / managers; ruff F821/UP006 全清
+- **NB-6** [Med] mlops 异常元组: mlops_pipeline 7 处 + auto_retrain_scheduler 2 处补 RuntimeError; test_t58_mlops 134 passed (修复前 7 failed)
+- **验证**: ruff 6 文件 All checks passed; py38 导入 OK; 相关单测全绿
+- **剩余**: NB-7 测试债 (108 失败, 含 daily_panel FeatureFlags 签名漂移 7 个) + NB-8 环境 (Python38 损坏)
+- **指针**: `代码质量与缺陷审查报告_20260816.md` · `utils/alpha/mlops_pipeline.py` · `utils/alpha/auto_retrain_scheduler.py` · `utils/vol_target_controller.py` · `utils/protective_put_engine.py` · `utils/attribution/daily_panel.py` · `utils/attribution/managers.py`
+
+## 2026-08-16 · 全量代码质量审查 · 上轮11项闭环 + 新发现2H/4M Bug
+
+- **上轮闭环验证**: 08-13 深度复核 Bug-1~6 + Q-1~Q-5 + option_exercise_risk loss 未定义, 11/11 全部确认落地 (逐行验证)
+- **全量单测**: 10144 用例 → 9997 passed / **108 failed** / 39 skipped — 此前"全绿"均为分批子集运行, 全量门禁未绿
+- **新发现 Bug** (共性: 错误处理/降级路径自身带病):
+  - NB-1 [High] `broker_factory.py:34` `_safe_send_alert` 缺 title → TypeError 穿透, get_broker 告警路径全崩
+  - NB-2 [High] `alpha_pipeline.py:464` 导入不存在的 PostMixLayer, except 元组不含 ImportError → Alpha 注入链失效
+  - NB-3 [Med] `external_data_source.py` cast 未导入, 缓存命中 4 方法 NameError (已复现)
+  - NB-4 [Med] `alpha_factor/base.py:513` logging 未导入, 因子容错路径 NameError
+  - NB-5 [Med] `build_plan_executor.py:180` 缺 future-annotations, py38 不可导入 (生产 py3.11 不受影响)
+  - NB-6 [Med] mlops 异常元组精确化不含 RuntimeError, 11 测试失败
+- **模式结论**: BLE001 精确化收窄 except 元组时未核对 try 块 raise 面 (TypeError/ImportError/RuntimeError 被误删)
+- **前视偏差专项**: 0 新增 (shift(-N) 均为合法标签构造); 系统 Python38 解释器损坏 (.pth 编码)
+- **指针**: `代码质量与缺陷审查报告_20260816.md`
+
 ## 2026-08-15 · W7.4.5 第 12 批 + T8 S6 纸交易环境准备 ✅
 
 - **第 12 批** (95 tests 全绿, 1.03s): barra_risk_decomposer 29.6%→99.54% (31) + risk_budget_optimizer 20.3%→97.89% (31) + smart_beta_engine 25.4%→98.97% (33)
