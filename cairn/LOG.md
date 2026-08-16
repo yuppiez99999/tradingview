@@ -2,6 +2,28 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-16 · 全量测试 108→0 failed 闭环 + Docker 封装计划 ✅ DONE
+
+- **全量测试**: 10124 passed / 0 failed / 20 skipped (7分) — 从 108 failed 修复 106 个
+- **22 commit 全部 push**: NB-1~NB-7 (26) + 异常元组精确化 (17) + FeatureFlags 签名 (3) + 归因配置 (5) + 测试断言同步 (10) + hedge 模块冲突 (6) + 环境依赖 (32) + Docker 计划
+- **关键修复模式**:
+  1. BLE001 精确化副作用 — except 元组收窄时漏删 RuntimeError/SyntaxError/ImportError (11 处)
+  2. FeatureFlags.is_enabled() 类级别调用 → get_instance().is_enabled() (3 处)
+  3. 同名模块 sys.modules 缓存污染 — hedge_execution_orders 根目录 vs ms_strategy/scripts
+  4. 归因配置缺失 — brinson_attribution.yaml + factor_attribution.yaml 创建
+  5. 测试异常类型精确化 — Exception → 具体异常 (11 处)
+- **环境修复**: ntplib/pyarrow/markupsafe/torch 安装 + C 盘清理 1.4GB
+- **3 处 TODO 待产品确认**: P3 永久剔除 / 宽基配比 0.15 / 文件不存在 WARN 降级
+- **Docker 计划**: `docs/Docker封装前置计划_20260816.md` — v8.7 发布后启动 (2027-01-31)
+- **指针**: `cairn/test-debt-clearance-20260816.md` · `docs/Docker封装前置计划_20260816.md`
+
+## 2026-08-16 · 知乎专栏发表 · 08-16 NB-1~NB-7 修复闭环工作记录
+
+- **文章**: `docs/知乎专栏_量化系统v8.6.14今日工作_20260816.md` — 全量审查 + 6 Bug 修复闭环 + 测试债清零
+- **三主线**: 全量单测 10144 用例首次跑通 (9997/108/39) + NB-1~NB-6 修复闭环 (2H+4M) + NB-7 测试债清零 (5 文件 26→0)
+- **模式结论**: BLE001 精确化副作用 — 收窄 except 元组时未核对 try 块 raise 面, 降级路径自身带病
+- **指针**: `docs/知乎专栏_量化系统v8.6.14今日工作_20260816.md` · `代码质量与缺陷审查报告_20260816.md`
+
 ## 2026-08-16 · NB-7 测试债清零 · 5 文件 26 失败→0 ✅
 
 - **test_decision_theories** (2→2 skipped): v8.3_institutional/src/factors/ 已移除, 标记 skip
