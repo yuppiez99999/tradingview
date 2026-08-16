@@ -700,7 +700,7 @@ class AttributionManagersFacade:
                     "effective_n": float(getattr(result, "effective_n", 0.0)),
                     "diversification_ratio": float(getattr(result, "diversification_ratio", 0.0)),
                 }
-            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            except (PortfolioOptimizationError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 errors.append(f"portfolio_optimization: {e}")
 
         # 2. 大宗商品

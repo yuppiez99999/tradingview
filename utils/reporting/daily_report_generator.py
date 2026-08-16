@@ -326,7 +326,7 @@ class DailyReportGenerator:
                 start_time=start_time,
             )
             return result
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             elapsed_ms = (time.perf_counter() - start_time) * 1000
             logger.error(f"[DailyReportGenerator] 报告生成失败: {e}", exc_info=True)
             return ReportResult(
@@ -440,7 +440,7 @@ class DailyReportGenerator:
         try:
             from utils.infra.feature_flags import FeatureFlags
 
-            return bool(FeatureFlags.is_enabled(self._feature_flag_name))  # type: ignore
+            return bool(FeatureFlags.get_instance().is_enabled(self._feature_flag_name))  # type: ignore
         except (ImportError, AttributeError) as e:
             logger.debug(f"[DailyReportGenerator] Feature Flag 查询失败 (默认 False): {e}")
             return False
@@ -502,7 +502,7 @@ def is_daily_report_generator_enabled() -> bool:
     try:
         from utils.infra.feature_flags import FeatureFlags
 
-        return bool(FeatureFlags.is_enabled(FLAG_NAME))  # type: ignore
+        return bool(FeatureFlags.get_instance().is_enabled(FLAG_NAME))  # type: ignore
     except (ImportError, AttributeError):
         return False
 
