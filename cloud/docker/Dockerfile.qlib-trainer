@@ -1,0 +1,31 @@
+FROM python:3.11-slim
+
+RUN useradd -m -u 1000 ma-user && \
+    mkdir -p /home/ma-user/modelarts/lib && \
+    chown -R ma-user:ma-user /home/ma-user
+
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY ms_strategy/cloud_train/requirements.txt ./requirements_cloud.txt
+RUN pip install --no-cache-dir -r requirements_cloud.txt -i https://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com
+
+COPY ms_strategy/cloud_train/ ./ms_strategy/cloud_train/
+COPY ms_strategy/training/ ./ms_strategy/training/
+COPY qlib/ ./qlib/
+COPY utils/ ./utils/
+COPY config/ ./config/
+COPY configs/ ./configs/
+COPY lgb_trainer/ ./lgb_trainer/
+COPY lgb_enhanced_trainer.py lgb_tscv_trainer.py autolearn_trainer.py ./
+
+COPY qlib_data/cn_data/ /app/qlib_data/cn_data/
+COPY data_cache/ /app/data_cache/
+
+ENV QT_PLATFORM=cloud
+ENV QLIB_DATA_DIR=/app/qlib_data/cn_data
+ENV QUANT_DATA_ROOT=/app
+
+CMD ["python", "ms_strategy/cloud_train/modelscope_train.py"]

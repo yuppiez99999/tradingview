@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 
 import requests as _requests
 
-SKILL_DIR = os.path.join(os.path.dirname(__file__), ".agents", "skills", "wind-mcp-skill")
+SKILL_DIR = os.path.join(os.path.dirname(__file__), "..", ".agents", "skills", "wind-mcp-skill")
 CLI_PATH = os.path.join(SKILL_DIR, "scripts", "cli.mjs")
 WIND_STOCK_ENDPOINT = "https://mcp.wind.com.cn/vserver_stock_data/mcp/"
 WIND_FUND_ENDPOINT = "https://mcp.wind.com.cn/vserver_fund_data/mcp/"

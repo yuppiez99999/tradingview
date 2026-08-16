@@ -1,0 +1,13 @@
+data/
+
+models/
+logs/
+reports/
+output/
+.venv/
+__pycache__/
+.pytest_cache/
+game/
+games/
+*.ps1
+cache/
