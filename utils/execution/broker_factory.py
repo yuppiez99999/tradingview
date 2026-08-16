@@ -31,8 +31,8 @@ def _safe_send_alert(message: str, level: str = "WARNING") -> None:
     """观测路径 fail-open: 告警通道缺失则降级 logger, 绝不静默."""
     try:
         from utils.notify import send_alert
-        send_alert(content=message, level=level)
-    except (ImportError, AttributeError):
+        send_alert(title=f"[broker] {level}", content=message, level=level.lower())
+    except (ImportError, AttributeError, TypeError):
         logger.warning("[broker_factory] %s: %s", level, message)
 
 
