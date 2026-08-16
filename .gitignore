@@ -135,6 +135,8 @@ configs/
 
 # Allow portfolio template to be tracked
 !v7.5_institutional/config/portfolio.yaml
+!config/brinson_attribution.yaml
+!config/factor_attribution.yaml
 # P2: 价格表是无敏感配置, 允许入版本库
 !config/llm_pricing.yaml
 # S6 纸交易配置 (无敏感数据, 因子跟踪配置)

@@ -1,0 +1,31 @@
+# Brinson 归因配置 — 基准行业权重
+# 默认值对标沪深300行业分布(近似), 待产品/量化侧确认精确数值
+# 8 个行业权重和为 1.0
+
+benchmark_sector_weights:
+  tech: 0.15
+  manufacturing: 0.15
+  cyclical: 0.10
+  resources: 0.08
+  defensive: 0.12
+  finance: 0.18
+  consumer: 0.12
+  healthcare: 0.10
+
+sectors:
+  - code: tech
+    name: 科技
+  - code: manufacturing
+    name: 制造
+  - code: cyclical
+    name: 周期
+  - code: resources
+    name: 资源
+  - code: defensive
+    name: 防御
+  - code: finance
+    name: 金融
+  - code: consumer
+    name: 消费
+  - code: healthcare
+    name: 医药
