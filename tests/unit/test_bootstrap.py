@@ -157,7 +157,7 @@ class TestBootstrapError(unittest.TestCase):
 
     def test_init_logger_failure_raises_bootstrap_error(self) -> None:
         """测试: _init_logger 失败抛 BootstrapError."""
-        with patch("utils.logger._init_root_logging", side_effect=Exception("logger fail")):
+        with patch("utils.logger._init_root_logging", side_effect=RuntimeError("logger fail")):
             with self.assertRaises(BootstrapError) as ctx:
                 _init_logger(log_prefix="test", log_dir="logs", console_level=logging.INFO)
             self.assertEqual(ctx.exception.step, "init_logger")
@@ -172,14 +172,14 @@ class TestBootstrapError(unittest.TestCase):
 
     def test_init_kill_switch_failure(self) -> None:
         """测试: KillSwitch 初始化失败抛 BootstrapError."""
-        with patch("utils.kill_switch.KillSwitch", side_effect=Exception("ks fail")):
+        with patch("utils.kill_switch.KillSwitch", side_effect=RuntimeError("ks fail")):
             with self.assertRaises(BootstrapError) as ctx:
                 _init_kill_switch()
             self.assertEqual(ctx.exception.step, "init_kill_switch")
 
     def test_init_trading_env_failure(self) -> None:
         """测试: TradingEnv 配置读取失败抛 BootstrapError."""
-        with patch("utils.trading_env.get_trading_env_config", side_effect=Exception("env fail")):
+        with patch("utils.trading_env.get_trading_env_config", side_effect=RuntimeError("env fail")):
             with self.assertRaises(BootstrapError) as ctx:
                 _init_trading_env()
             self.assertEqual(ctx.exception.step, "init_trading_env")
@@ -187,14 +187,14 @@ class TestBootstrapError(unittest.TestCase):
     def test_register_broker_callback_failure(self) -> None:
         """测试: broker_callback 注册失败抛 BootstrapError."""
         ks_mock = MagicMock()
-        ks_mock.set_broker_callback.side_effect = Exception("callback fail")
+        ks_mock.set_broker_callback.side_effect = RuntimeError("callback fail")
         with self.assertRaises(BootstrapError) as ctx:
             _register_broker_callback(ks_mock, lambda: None)
         self.assertEqual(ctx.exception.step, "register_broker_callback")
 
     def test_check_feature_flags_failure(self) -> None:
         """测试: FeatureFlags 初始化失败抛 BootstrapError."""
-        with patch("utils.infra.feature_flags.FeatureFlags.get_instance", side_effect=Exception("flags fail")):
+        with patch("utils.infra.feature_flags.FeatureFlags.get_instance", side_effect=RuntimeError("flags fail")):
             with self.assertRaises(BootstrapError) as ctx:
                 _check_feature_flags()
             self.assertEqual(ctx.exception.step, "check_feature_flags")

@@ -1149,7 +1149,7 @@ class TestFactorAttributionManager:
         """_load_config 异常时返回空字典."""
         mgr = FactorAttributionManager()
         with patch('utils.attribution.factor_attribution.get_config',
-                   side_effect=Exception("test")):
+                   side_effect=OSError("test")):
             cfg = mgr._load_config("non_existent")
         assert cfg == {}
 
@@ -1163,7 +1163,7 @@ class TestFactorAttributionManager:
         """_is_enabled 异常时返回 False."""
         mgr = FactorAttributionManager()
         with patch('utils.infra.feature_flags.is_enabled',
-                   side_effect=Exception("test")):
+                   side_effect=AttributeError("test")):
             result = mgr._is_enabled()
         assert result is False
 

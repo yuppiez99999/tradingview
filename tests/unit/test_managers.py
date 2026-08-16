@@ -436,7 +436,7 @@ class TestETFFlowManager:
         # mock tracker 抛异常
         with patch.object(em, "_get_tracker") as mock_get:
             mock_tracker = MagicMock()
-            mock_tracker.get_etf_fund_flow.side_effect = Exception("network error")
+            mock_tracker.get_etf_fund_flow.side_effect = OSError("network error")
             mock_get.return_value = mock_tracker
             result = em.get_flow("510050")
             assert result is None
@@ -446,7 +446,7 @@ class TestETFFlowManager:
         em = ETFFlowManager()
         with patch.object(em, "_get_tracker") as mock_get:
             mock_tracker = MagicMock()
-            mock_tracker.detect_signals.side_effect = Exception("error")
+            mock_tracker.detect_signals.side_effect = OSError("error")
             mock_get.return_value = mock_tracker
             result = em.detect_signals({})
             assert result == []
@@ -456,7 +456,7 @@ class TestETFFlowManager:
         em = ETFFlowManager()
         with patch.object(em, "_get_tracker") as mock_get:
             mock_tracker = MagicMock()
-            mock_tracker.get_signal_summary.side_effect = Exception("error")
+            mock_tracker.get_signal_summary.side_effect = OSError("error")
             mock_get.return_value = mock_tracker
             result = em.get_signal_summary({})
             assert "error" in result

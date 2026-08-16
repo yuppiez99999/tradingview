@@ -910,7 +910,7 @@ class TestFeatureFlag:
 
     def test_is_brinson_attribution_enabled_returns_false_on_exception(self):
         """Feature Flag 异常时返回 False."""
-        with patch("utils.infra.feature_flags.is_enabled", side_effect=Exception("test")):
+        with patch("utils.infra.feature_flags.is_enabled", side_effect=RuntimeError("test")):
             assert is_brinson_attribution_enabled() is False
 
     def test_manager_is_enabled_returns_false_on_import_error(self):
