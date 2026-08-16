@@ -44,7 +44,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, Dict, Optional, cast
 
 from utils.config_manager import get_config
 
@@ -720,7 +720,7 @@ class DailyAttributionPanel:
 
             return result.to_dict(), result.to_markdown(), status
 
-        except (AttributeError, TypeError, ValueError, OSError) as exc:
+        except (AttributeError, TypeError, ValueError, OSError, RuntimeError) as exc:
             logger.exception(f"[DailyAttributionPanel] Brinson 归因失败: {exc}")
             status.status = MODULE_STATUS_ERROR
             status.reason = f"Brinson 异常: {type(exc).__name__}: {exc}"
@@ -787,7 +787,7 @@ class DailyAttributionPanel:
 
             return result.to_dict(), result.to_markdown(), status
 
-        except (AttributeError, TypeError, ValueError, OSError) as exc:
+        except (AttributeError, TypeError, ValueError, OSError, RuntimeError) as exc:
             logger.exception(f"[DailyAttributionPanel] Factor 归因失败: {exc}")
             status.status = MODULE_STATUS_ERROR
             status.reason = f"Factor 异常: {type(exc).__name__}: {exc}"
@@ -873,7 +873,7 @@ class DailyAttributionPanel:
             "risk_bps": float(summary.get("risk_bps", 0.0) or 0.0),
         }
         # 残差验证 (total = alpha + execution + risk)
-        normalized_dict = cast(dict[str, Any], normalized)
+        normalized_dict = cast(Dict[str, Any], normalized)
         residual = (
             normalized_dict["total_pnl"]
             - normalized_dict["alpha_pnl"]
@@ -1004,7 +1004,7 @@ class DailyAttributionPanel:
             from utils.attribution.brinson_attribution import BrinsonAttributionManager
 
             return BrinsonAttributionManager()
-        except (ImportError, AttributeError) as exc:
+        except (ImportError, AttributeError, RuntimeError) as exc:
             logger.warning(f"[DailyAttributionPanel] Brinson Manager 初始化失败: {exc}")
             return None
 
@@ -1014,7 +1014,7 @@ class DailyAttributionPanel:
             from utils.attribution.factor_attribution import FactorAttributionManager
 
             return FactorAttributionManager()
-        except (ImportError, AttributeError) as exc:
+        except (ImportError, AttributeError, RuntimeError) as exc:
             logger.warning(f"[DailyAttributionPanel] Factor Manager 初始化失败: {exc}")
             return None
 
@@ -1027,7 +1027,7 @@ class DailyAttributionPanel:
         if _FeatureFlags is None:
             return False
         try:
-            return bool(_FeatureFlags.is_enabled(self._feature_flag_name))
+            return bool(_FeatureFlags.get_instance().is_enabled(self._feature_flag_name))
         except (ValueError, TypeError, KeyError, AttributeError, OSError):
             return False
 
@@ -1038,7 +1038,7 @@ class DailyAttributionPanel:
         try:
             from utils.attribution.brinson_attribution import FLAG_NAME as BRINSON_FLAG
 
-            return bool(_FeatureFlags.is_enabled(BRINSON_FLAG))
+            return bool(_FeatureFlags.get_instance().is_enabled(BRINSON_FLAG))
         except (ImportError, AttributeError):
             return False
 
@@ -1049,7 +1049,7 @@ class DailyAttributionPanel:
         try:
             from utils.attribution.factor_attribution import FLAG_NAME as FACTOR_FLAG
 
-            return bool(_FeatureFlags.is_enabled(FACTOR_FLAG))
+            return bool(_FeatureFlags.get_instance().is_enabled(FACTOR_FLAG))
         except (ImportError, AttributeError):
             return False
 
@@ -1058,7 +1058,7 @@ class DailyAttributionPanel:
         if _FeatureFlags is None:
             return False
         try:
-            return bool(_FeatureFlags.is_enabled("USE_TCA_POST_TRADE_ATTRIBUTION"))
+            return bool(_FeatureFlags.get_instance().is_enabled("USE_TCA_POST_TRADE_ATTRIBUTION"))
         except (ValueError, TypeError, KeyError, AttributeError, OSError):
             return False
 
@@ -1170,7 +1170,7 @@ def is_daily_panel_enabled() -> bool:
     if _FeatureFlags is None:
         return False
     try:
-        return bool(_FeatureFlags.is_enabled(FLAG_NAME))
+        return bool(_FeatureFlags.get_instance().is_enabled(FLAG_NAME))
     except (ValueError, TypeError, KeyError, AttributeError, OSError):
         return False
 
