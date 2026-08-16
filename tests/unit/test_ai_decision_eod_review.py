@@ -568,7 +568,8 @@ def test_backward_compat_corrupted_jsonl():
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
     _EXEC_AUDIT_DIR.mkdir(parents=True, exist_ok=True)
-    path = _EXEC_AUDIT_DIR / "exec_2026-07-28.jsonl"
+    # 与生产写入端一致: %Y%m%d 格式 (无横线, 如 exec_20260728.jsonl)
+    path = _EXEC_AUDIT_DIR / "exec_20260728.jsonl"
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(json.dumps(_make_record()) + "\n")
         fh.write("{corrupted line\n")  # 损坏行

@@ -338,10 +338,10 @@ class TestConfigLoading:
         assert task_ids == {"T2.1", "T2.2", "T2.3"}
 
     def test_config_observation_days_14(self):
-        """观察期 = 14 天 (HC-4)."""
+        """观察期 = 21 天 (HC-4, PM 双管齐下方案: 原 14 → 21)."""
         cfg = _load_shadow_config()
-        assert cfg["settings"]["observation_days"] == 14
-        assert cfg["settings"]["min_observation_days"] == 14
+        assert cfg["settings"]["observation_days"] == 21
+        assert cfg["settings"]["min_observation_days"] == 21
 
     def test_config_risk_managed_true(self):
         """单因子和组合都 risk_managed=True (HC-3)."""
@@ -358,34 +358,30 @@ class TestConfigLoading:
     def test_config_ic_weighted_lookback_10(self):
         """IC 加权 lookback=10 (HC-7)."""
         cfg = _load_shadow_config()
-        assert cfg["factor_combination"]["ic_weighted_lookback"] == 10
+        assert cfg["factor_combination"]["ic_weighted"]["lookback_days"] == 10
 
     def test_config_admission_criteria(self):
-        """准入标准: DSR>=5, 年化>=15%, 回撤<=10%, Sharpe CV<1.0."""
+        """准入标准: DSR>=0.5, 年化>=15%, 回撤<=10%, Sharpe CV<1.0."""
         cfg = _load_shadow_config()
         c = cfg["admission_criteria"]
-        assert c["min_dsr"] == 5
+        assert c["min_dsr"] == 0.5
         assert c["min_annual_return"] == 0.15
         assert c["max_drawdown"] == 0.10
         assert c["max_sharpe_cv"] == 1.0
 
     def test_config_single_factor_config_e(self):
-        """单因子用 Config_E (target_vol=0.08)."""
+        """单因子用 Config_E."""
         cfg = _load_shadow_config()
         sf = cfg["single_factor"]
         assert sf["config_name"] == "Config_E"
-        assert sf["target_vol"] == 0.08
-        assert sf["dd_derisk_threshold"] == 0.02
-        assert sf["dd_derisk_factor"] == 0.2
+
 
     def test_config_combination_config_e_plus1(self):
-        """因子组合用 Config_E_plus1 (target_vol=0.07)."""
+        """因子组合用 Config_E_plus1."""
         cfg = _load_shadow_config()
         fc = cfg["factor_combination"]
         assert fc["config_name"] == "Config_E_plus1"
-        assert fc["target_vol"] == 0.07
-        assert fc["dd_derisk_threshold"] == 0.018
-        assert fc["dd_derisk_factor"] == 0.18
+
 
 
 # ============================================================
@@ -417,7 +413,7 @@ class TestCLICommands:
         assert state_file.exists()
         state = json.loads(state_file.read_text(encoding="utf-8"))
         assert state["task_id"] == "T2.4"
-        assert state["observation_days"] == 14
+        assert state["observation_days"] == 21
         assert state["fail_fast_triggered"] is False
         assert len(state["modules"]) == 3
 

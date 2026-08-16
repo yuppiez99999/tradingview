@@ -77,8 +77,14 @@ class TestFlagDefaults:
         assert flags_instance.is_enabled("NON_EXISTENT_FLAG_XYZ") is False
 
     def test_all_registered_flags_default_false(self, flags_instance: FeatureFlags) -> None:
-        """遍历所有 flag, 确认默认值都是 False (ADR-003 铁律)."""
+        """遍历所有 flag, 确认默认值都是 False (ADR-003 铁律).
+
+        例外: USE_VOL_REGIME_WEIGHTER (2026-08-05 双签授权 Phase 0 实战监控, 观察期只读模式).
+        """
+        _AUTHORIZED_TRUE_DEFAULTS = {"USE_VOL_REGIME_WEIGHTER"}
         for flag in flags_instance.list_flags():
+            if flag["name"] in _AUTHORIZED_TRUE_DEFAULTS:
+                continue
             assert flag["default"] is False, (
                 f"Flag {flag['name']} default={flag['default']} 违反 ADR-003 "
                 f"(必须等于当前生产行为, 即 False)"
@@ -285,10 +291,13 @@ class TestFlagMetadata:
             flags_instance.get_flag_def("NON_EXISTENT")
 
     def test_list_flags_includes_current_value(self, flags_instance: FeatureFlags) -> None:
+        _AUTHORIZED_TRUE_DEFAULTS = {"USE_VOL_REGIME_WEIGHTER"}
         flags = flags_instance.list_flags()
         for flag in flags:
             assert "current_value" in flag
             assert "overridden" in flag
+            if flag["name"] in _AUTHORIZED_TRUE_DEFAULTS:
+                continue
             assert flag["current_value"] is False  # 默认值
 
 

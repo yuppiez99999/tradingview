@@ -15,6 +15,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
@@ -658,6 +660,7 @@ class TestRunFullTheoryAnalysis:
 class TestReexportCompat:
     """v8.3 旧路径 re-export 兼容测试 (HC-1)."""
 
+    @pytest.mark.skip(reason="v8.3_institutional/src/factors/ 目录已移除, v8.4 统一到 utils/alpha/decision_theories.py (2026-08-16)")
     def test_v83_path_import(self):
         """v8.3 旧路径可正常导入.
 
@@ -694,6 +697,7 @@ class TestReexportCompat:
                 if mod_name == "decision_theories":
                     del sys.modules[mod_name]
 
+    @pytest.mark.skip(reason="v8.3_institutional/src/factors/ 目录已移除, v8.4 统一到 utils/alpha/decision_theories.py (2026-08-16)")
     def test_v83_path_functional(self):
         """v8.3 旧路径功能正常."""
         for mod_name in list(sys.modules.keys()):
