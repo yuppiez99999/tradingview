@@ -407,7 +407,7 @@ class AutoRetrainScheduler:
             }
         except subprocess.TimeoutExpired:
             return {"success": False, "error": f"训练超时 ({self.training_timeout_sec}s)"}
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             return {"success": False, "error": str(e)}
 
     def _load_trained_model(self, training_result: dict[str, Any]) -> tuple:
@@ -461,7 +461,7 @@ class AutoRetrainScheduler:
                 version.version,
             )
             return version
-        except (ImportError, AttributeError) as e:
+        except (ImportError, AttributeError, RuntimeError) as e:
             logger.exception("模型注册失败: %s", e)
             return None
 
@@ -495,7 +495,7 @@ class AutoRetrainScheduler:
                 new_version.version,
             )
             return test_name
-        except (ImportError, AttributeError) as e:
+        except (ImportError, AttributeError, RuntimeError) as e:
             logger.exception("A/B 测试启动失败: %s", e)
             return None
 
@@ -548,7 +548,7 @@ class AutoRetrainScheduler:
         while not self._stop_event.is_set():
             try:
                 self._scheduled_check()
-            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
                 logger.exception("定时检查异常: %s", e)
             self._stop_event.wait(timeout=check_interval_sec)
 

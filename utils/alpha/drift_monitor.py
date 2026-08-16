@@ -169,7 +169,7 @@ class DriftMonitor:
             if alert is not None:
                 self._record_alert(alert)
             return alert
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.exception("IC 更新失败: %s", e)
             return None
 
@@ -182,7 +182,7 @@ class DriftMonitor:
             if alert is not None:
                 self._record_alert(alert)
             return alert
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.exception("ADWIN 更新失败: %s", e)
             return None
 
@@ -195,7 +195,7 @@ class DriftMonitor:
             for a in alerts:
                 self._record_alert(a)
             return alerts  # type: ignore[return-value]  # 上游返回类型可能为 Any, 此处已是 list
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.exception("特征漂移检查失败: %s", e)
             return []
 
@@ -210,7 +210,7 @@ class DriftMonitor:
             # 检查是否需要触发重训练
             self._check_retrain_trigger(alerts)
             return alerts  # type: ignore[return-value]
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.exception("全量检查失败: %s", e)
             return []
 
@@ -278,7 +278,7 @@ class DriftMonitor:
                     self.retrain_threshold_severity,
                 )
             return triggered
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.exception("重训练回调异常: %s", e)
             return False
 
@@ -289,7 +289,7 @@ class DriftMonitor:
         try:
             should, reason = self.detector.should_retrain()
             return bool(should), str(reason)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             return False, f"判断异常: {e}"
 
     # ============================================================
@@ -366,7 +366,7 @@ class DriftMonitor:
             report["retrain_triggered"] = self._retrain_triggered
             report["last_retrain_time"] = self._last_retrain_time
             return report  # type: ignore[return-value]
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             return {"model_name": self.model_name, "error": str(e)}
 
     def reset_retrain_state(self) -> None:

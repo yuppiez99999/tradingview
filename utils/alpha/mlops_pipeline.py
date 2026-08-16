@@ -208,7 +208,7 @@ class MLOpsPipeline:
                 self._retrain_scheduler.stop()
             self._log_event("pipeline_stopped", {})
             logger.info("MLops pipeline 已停止")
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.exception("MLops pipeline 停止异常: %s", e)
         finally:
             # 无论是否异常, 都标记为已停止
@@ -260,7 +260,7 @@ class MLOpsPipeline:
                     "metrics": metrics,
                 },
             )
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.exception("模型注册失败: %s", e)
             result["register_error"] = str(e)
             return result
@@ -293,7 +293,7 @@ class MLOpsPipeline:
                     "version": version.version,
                 },
             )
-        except (ImportError, AttributeError) as e:
+        except (ImportError, AttributeError, RuntimeError) as e:
             logger.exception("A/B 测试启动失败: %s", e)
             result["ab_test_error"] = str(e)
         return result
@@ -319,7 +319,7 @@ class MLOpsPipeline:
                 },
             )
             return True
-        except (ImportError, AttributeError) as e:
+        except (ImportError, AttributeError, RuntimeError) as e:
             logger.exception("drift 触发重训练失败: %s", e)
             return False
 
@@ -339,26 +339,26 @@ class MLOpsPipeline:
         try:
             if self._drift_monitor is not None:
                 status["components"]["drift_monitor"] = self._drift_monitor.get_status()
-        except (ValueError, TypeError, KeyError, AttributeError, OSError):
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError):
             pass
         try:
             if self._retrain_scheduler is not None:
                 status["components"]["retrain_scheduler"] = self._retrain_scheduler.get_status()
-        except (ValueError, TypeError, KeyError, AttributeError, OSError):
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError):
             pass
         try:
             if self._model_registry is not None:
                 status["components"]["model_registry"] = {
                     "models": self._model_registry.list_models(),
                 }
-        except (ValueError, TypeError, KeyError, AttributeError, OSError):
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError):
             pass
         try:
             if self._ab_framework is not None:
                 status["components"]["ab_framework"] = {
                     "tests_count": len(self._ab_framework.list_tests()),
                 }
-        except (ValueError, TypeError, KeyError, AttributeError, OSError):
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError):
             pass
         return status
 
