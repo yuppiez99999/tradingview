@@ -229,7 +229,7 @@ class StrategyEvaluator:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(name))
-        except (ImportError, AttributeError) as e:
+        except (ImportError, AttributeError, RuntimeError) as e:
             logger.warning("Feature Flag 检查失败, 默认禁用: %s", e)
             return False
 

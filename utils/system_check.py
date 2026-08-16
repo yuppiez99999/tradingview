@@ -833,7 +833,7 @@ class SystemChecker:
                 raise ImportError(f"无法创建模块 spec: {fp_path}")
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError, SyntaxError) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             elapsed = (time.time() - t0) * 1000
             self._fail(code_prefix, "兜底价格模块加载", CheckLevel.ERROR,

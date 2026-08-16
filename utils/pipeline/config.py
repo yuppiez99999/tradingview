@@ -45,10 +45,8 @@ def load_pipeline_config(config_path: str | Path | None = None) -> PipelineConfi
                 raw = yaml.safe_load(f)
             if raw:
                 _apply_yaml(config, raw)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
-            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-            pass  # 文件加载失败使用默认值
-
+        except Exception:  # noqa: BLE001  # 配置加载 fail-safe: 任何异常都用默认值
+            pass
     # 环境变量覆盖
     _apply_env_overrides(config)
 

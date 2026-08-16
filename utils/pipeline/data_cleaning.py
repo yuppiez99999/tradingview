@@ -430,7 +430,7 @@ class DataCleaningPipeline:
                 col = "close" if "close" in df.columns else (df.columns[-1] if len(df.columns) > 0 else None)
                 if col:
                     return df[col].dropna().tolist()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return []

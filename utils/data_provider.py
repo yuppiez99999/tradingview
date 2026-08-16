@@ -693,7 +693,7 @@ class MarketDataProvider:
                 df = pd.read_parquet(cache_file)
                 logger.debug(f"加载持久化缓存: {cache_file.name}")
                 return df
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except Exception as e:  # noqa: BLE001  # 缓存加载 fail-safe
             logger.debug(f"加载持久化缓存失败: {e}")
         return None
 
