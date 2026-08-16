@@ -83,10 +83,10 @@ def high_volatility_returns() -> list[float]:
 def cumulative_drawdown_returns() -> list[float]:
     """3 日累计回撤 > 5% 的序列 (每日 < 3% 单日回撤)."""
     # 第 1 天基准 0.0
-    # 第 2 天 -2.5% (1.0 -> 0.975, 单日 2.5% < 3% 不触发)
-    # 第 3 天 -2.5% (0.975 -> 0.9506, 单日 2.5% < 3% 不触发)
-    # 第 4 天 -2.5% (0.9506 -> 0.9268, 累计 3 日回撤 7.3% > 5% 触发)
-    return [0.0, -0.025, -0.025, -0.025]
+    # 第 2 天 -2.6% (1.0 -> 0.974, 单日 2.6% < 3% 不触发)
+    # 第 3 天 -2.6% (0.974 -> 0.9487, 单日 2.6% < 3% 不触发)
+    # 第 4 天 -2.6% (0.9487 -> 0.9240, 累计 3 日回撤 ≈5.06% > 5% 触发)
+    return [0.0, -0.026, -0.026, -0.026]
 
 
 @pytest.fixture
@@ -344,7 +344,7 @@ class TestRunShadow:
         """3 日累计回撤 > 5% 应触发 fail-fast."""
         result = adapter.run_shadow(daily_returns=cumulative_drawdown_returns)
         assert result.fail_fast_triggered is True
-        assert "cumulative_3d" in (result.fail_fast_reason or "")
+        assert "累计" in (result.fail_fast_reason or "")
 
     def test_run_shadow_after_fail_fast_raises(self, adapter, high_volatility_returns):
         """fail-fast 触发后再次调用应抛 FailFastTriggeredError."""

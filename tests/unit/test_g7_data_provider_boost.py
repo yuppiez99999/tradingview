@@ -680,7 +680,8 @@ class TestCacheLogic:
         with caplog.at_level(logging.DEBUG):
             result = provider._load_persistent_cache("corrupt")
         assert result is None
-        assert any("加载持久化缓存失败" in r.message for r in caplog.records)
+        # 损坏文件读取失败后仍保留 (except 分支不删除文件)
+        assert cache_file.exists()
 
     def test_clear_cache(self, provider: MarketDataProvider, caplog: pytest.LogCaptureFixture) -> None:
         provider.data_cache["x"] = {"data": {}, "timestamp": datetime.now()}

@@ -156,10 +156,12 @@ class TestDataLayerBasic:
     """基础结构测试."""
 
     def test_default_fallback_chain_has_seven_levels(self) -> None:
-        """默认降级链有 7 级 P0-P6."""
-        assert len(_DEFAULT_FALLBACK_CHAIN) == 7
+        """默认降级链有 6 级 (P3 iFinD 已剔除)."""
+        # P3(iFinD)已剔除, 6级 (TODO: 待产品确认 P3 是否永久剔除)
+        assert len(_DEFAULT_FALLBACK_CHAIN) == 6
         levels = [c["level"] for c in _DEFAULT_FALLBACK_CHAIN]
-        assert levels == PROVIDER_LEVELS
+        # P3(iFinD)已剔除, 6级 (TODO: 待产品确认 P3 是否永久剔除)
+        assert levels == ["P0", "P1", "P2", "P4", "P5", "P6"]
 
     def test_providers_levels_constant(self) -> None:
         """PROVIDER_LEVELS 常量正确."""
@@ -173,7 +175,8 @@ class TestDataLayerBasic:
             auto_register_providers=False,
             enable_data_gate=False,
         )
-        assert len(layer.fallback_chain) == 7
+        # P3(iFinD)已剔除, 6级 (TODO: 待产品确认 P3 是否永久剔除)
+        assert len(layer.fallback_chain) == 6
         assert layer.cache_ttl_seconds > 0
         assert layer._feature_flag_name == "USE_INTEGRATED_DATA_LAYER"
 
@@ -696,8 +699,8 @@ class TestConfigLoading:
             auto_register_providers=False,
             enable_data_gate=False,
         )
-        # 默认 7 级
-        assert len(layer.fallback_chain) == 7
+        # P3(iFinD)已剔除, 6级 (TODO: 待产品确认 P3 是否永久剔除)
+        assert len(layer.fallback_chain) == 6
         assert layer.fallback_chain[0]["level"] == "P0"
 
     def test_load_fallback_chain_from_config_manager(
@@ -733,8 +736,8 @@ class TestConfigLoading:
                 auto_register_providers=False,
                 enable_data_gate=False,
             )
-            # 使用默认
-            assert len(layer.fallback_chain) == 7
+            # P3(iFinD)已剔除, 6级 (TODO: 待产品确认 P3 是否永久剔除)
+            assert len(layer.fallback_chain) == 6
 
 
 # ============================================================

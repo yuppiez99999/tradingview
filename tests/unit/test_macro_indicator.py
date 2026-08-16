@@ -580,7 +580,7 @@ class TestMacroSnapshot:
             "cpi": 2.3,
             "pmi": 51.5,
             "m2": 9.5,
-            "treasury_10y": 2.8,
+            "rate": 2.8,
         }
         snapshot = mgr.get_macro_snapshot()
         assert snapshot.cpi == 2.3

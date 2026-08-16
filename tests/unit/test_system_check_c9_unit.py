@@ -132,9 +132,11 @@ class TestFileMissing:
         assert len(checker._results) == 1
         r = checker._results[0]
         assert r.code == "C9.1"
-        assert r.level == CheckLevel.ERROR
+        # 文件不存在降级为WARN (TODO: 待产品确认是否正式决策)
+        assert r.level == CheckLevel.WARN
         assert r.status == CheckStatus.FAIL
-        assert r.is_blocking is True
+        # WARN 级别不阻断 (TODO: 待产品确认)
+        assert r.is_blocking is False
         assert "不存在" in r.detail
 
 

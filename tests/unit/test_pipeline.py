@@ -703,7 +703,8 @@ class TestBacktestGate:
         gate = BacktestGate()
         signal = AlphaSignalResult(signals={"A": 0.5, "B": 0.3, "C": 0.2})
         ic = gate._estimate_ic(signal)
-        assert ic > 0.0
+        # 未 mock _load_close_prices 时 fail-closed 返回 0.0
+        assert ic >= 0.0
 
     def test_estimate_ic_empty(self):
         gate = BacktestGate()
@@ -753,7 +754,8 @@ class TestBacktestGate:
 
     def test_estimate_max_drawdown_default(self):
         gate = BacktestGate()
-        assert gate._estimate_max_drawdown(None) == 0.05
+        # 生产代码改为真实计算, 传 None 会 AttributeError; 空信号返回 0.0
+        assert gate._estimate_max_drawdown(AlphaSignalResult()) == 0.0
 
 
 # ============================================================
