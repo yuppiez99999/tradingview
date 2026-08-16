@@ -874,7 +874,7 @@ class RiskGuardIntegrator:
                         f"(margin_used={margin_used}, total_equity={total_equity}), "
                         f"回退到 _estimate_margin_from_positions() = {margin_usage:.1%}"
                     )
-                except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+                except Exception as e:  # noqa: BLE001  # 风控 fail-safe: 任何异常都降级为保守值, 不崩溃
                     self._log(f"[KillSwitch] [P0-D FIX] 回退失败: {e}, 使用保守值 0.50")
                     margin_usage = 0.50
             else:
