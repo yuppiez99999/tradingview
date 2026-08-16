@@ -1150,7 +1150,7 @@ def is_factor_attribution_enabled() -> bool:
         return bool(is_enabled(FLAG_NAME))
     except ImportError:
         return False
-    except (AttributeError, TypeError, ValueError, OSError):
+    except (AttributeError, TypeError, ValueError, OSError, RuntimeError):
         return False
 
 

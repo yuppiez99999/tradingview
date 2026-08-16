@@ -733,7 +733,7 @@ def is_attribution_managers_enabled() -> bool:
         True 启用, False 关闭 (默认)
     """
     try:
-        from utils.feature_flags import is_enabled
+        from utils.infra.feature_flags import is_enabled
 
         return bool(is_enabled("USE_ATTRIBUTION_MANAGERS"))
     except ImportError:

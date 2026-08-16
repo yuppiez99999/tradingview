@@ -665,7 +665,7 @@ class TestFeatureFlag:
         import builtins
         original_import = builtins.__import__
         def mock_import(name, *args, **kwargs):
-            if name == "utils.feature_flags":
+            if name == "utils.infra.feature_flags":
                 raise ImportError("mocked")
             return original_import(name, *args, **kwargs)
         with patch.object(builtins, "__import__", side_effect=mock_import):
@@ -676,7 +676,7 @@ class TestFeatureFlag:
         """Flag 启用时返回 True (mock 实际函数实现)."""
         # patch 模块内对 utils.feature_flags.is_enabled 的调用
         try:
-            with patch("utils.feature_flags.is_enabled", return_value=True):
+            with patch("utils.infra.feature_flags.is_enabled", return_value=True):
                 result = is_attribution_managers_enabled()
                 # 由于实现细节, 若 utils.feature_flags 存在则应返回 True, 否则返回 False
                 assert isinstance(result, bool)

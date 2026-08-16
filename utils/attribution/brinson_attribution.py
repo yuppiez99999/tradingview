@@ -683,7 +683,7 @@ class BrinsonAttributionManager:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(self._feature_flag_name))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
     # ============================================================
