@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, Dict, List, cast
 
 import numpy as np
 
@@ -467,7 +467,7 @@ class ETFFlowManager:
         """
         try:
             tracker = self._get_tracker()
-            return cast(dict[str, dict], tracker.get_all_etf_fund_flows())
+            return cast(Dict[str, dict], tracker.get_all_etf_fund_flows())
         except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             raise ETFFlowError(f"ETF 资金流获取失败: {e}") from e
 
@@ -498,7 +498,7 @@ class ETFFlowManager:
         """
         try:
             tracker = self._get_tracker()
-            return cast(list[dict], tracker.detect_signals(flow_data))
+            return cast(List[dict], tracker.detect_signals(flow_data))
         except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.warning(f"[ETFFlowManager] 信号检测失败: {e}")
             return []

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 建仓计划执行器 - Build Plan Executor
 =====================================
@@ -999,7 +1001,7 @@ if __name__ == "__main__":
     # 建仓状态查询
     if args.check_status:
         status = executor.get_build_status()
-        print(json.dumps(status, ensure_ascii=False, indent=2))
+        print(json.dumps(status, ensure_ascii=False, indent=2))  # allow-print: CLI --check-status 输出
         sys.exit(0)
 
     # 解析目标日期
@@ -1016,10 +1018,10 @@ if __name__ == "__main__":
 
     # 输出
     if args.json:
-        print(executor.format_trade_sheet_json(sheet))
+        print(executor.format_trade_sheet_json(sheet))  # allow-print: CLI --json 输出
     else:
-        print(executor.format_trade_sheet_markdown(sheet))
+        print(executor.format_trade_sheet_markdown(sheet))  # allow-print: CLI Markdown 输出
 
-    print("\n文件已保存:", file=sys.stderr)
-    print(f"  Markdown: {md_path}", file=sys.stderr)
-    print(f"  JSON:     {json_path}", file=sys.stderr)
+    print("\n文件已保存:", file=sys.stderr)  # allow-print: CLI 文件保存提示
+    print(f"  Markdown: {md_path}", file=sys.stderr)  # allow-print: CLI 路径输出
+    print(f"  JSON:     {json_path}", file=sys.stderr)  # allow-print: CLI 路径输出
