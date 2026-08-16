@@ -459,24 +459,26 @@ class AlphaPipeline:
         return dict(zip(signals.keys(), [round(float(v), 6) for v in normalized]))
 
     def _inject_to_fusion(self, signal_result: AlphaSignalResult) -> None:
-        """注入信号到 SignalFusionEngine"""
+        """注入信号到 SignalFusionEngine (通过 register_source 注册 pipeline_alpha 源)."""
         try:
-            from utils.signal_fusion import PostMixLayer, SignalFusionEngine
+            from utils.signal_fusion import SignalFusionEngine, SignalResult
+
             engine = SignalFusionEngine()
 
-            # 创建第 10 层 (pipeline_alpha 层)
-            pipeline_layer = PostMixLayer(
-                name="pipeline_alpha",
-                weight=0.10,  # 保守权重 10%
-                signals=signal_result.signals,
-            )
-            pipeline_layer.enabled = self.config.alpha_enabled
+            def _pipeline_getter(code: str) -> "SignalResult":
+                sig = signal_result.signals.get(code)
+                if sig is not None:
+                    return SignalResult(code=code, source="pipeline_alpha",
+                                       score=sig.get("score", 0.5),
+                                       action=sig.get("action", "HOLD"),
+                                       confidence=sig.get("confidence", 0.5))
+                return SignalResult(code=code, source="pipeline_alpha",
+                                   score=0.0, action="HOLD", confidence=0.0)
 
-            # 注入到引擎
-            engine.add_layer("pipeline_alpha", pipeline_layer)
-            logger.info("[Alpha流水线] 信号已注入 SignalFusionEngine")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
-            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+            engine.register_source("pipeline_alpha", _pipeline_getter, initial_weight=0.10)
+            logger.info("[Alpha流水线] 信号已注入 SignalFusionEngine (register_source pipeline_alpha)")
+        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+            # 含 ImportError: signal_fusion 不可用时不阻断; 其余为数据处理/计算/IO 异常
             logger.warning(f"[Alpha流水线] 注入 SignalFusionEngine 失败: {e}")
 
     def _save_signal_report(self, signal_result: AlphaSignalResult) -> str | None:
