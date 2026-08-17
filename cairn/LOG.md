@@ -2,6 +2,23 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 27 批覆盖率：glm5_client + llm_client + execution_router ✅ 86 tests GREEN
+
+- **glm5_client** 0%→83.74% (15 tests): GLM-5 客户端 LiteLLMRouter 薄包装 — GLM5Config(默认/环境变量覆盖/显式优先)/chat 输入验证(空/超长/temperature/max_tokens 越界)/router 不可用空响应/router 可用 mock/is_ready/test_connection/get_stats/单例/quick_chat
+- **llm_client** 0%→76.92% (24 tests): 统一 LLM 客户端 — chat(GLM5 主路径剥 content/空 content 降级/异常降级 legacy/legacy 返回 str/legacy 异常返回 None/两者不可用 None)/generate_analysis(注入金融分析 system)/test_connection(glm5/legacy/available 三态+异常容错)/quick_chat(None→"")/chat_deep(max_tokens=4000)/_record_usage(落盘 jsonl+成本计算+未知模型 default 价+IO 异常静默)
+- **execution_router** 0%→94.32% (47 tests): 执行路由引擎 — ExecutionPlan(to_dict round 4 位/meta 独立)/ExecutionReview(__post_init__ 自动 timestamp)/_urgency(high/medium/low 边界)/_select_algorithm(IS/VWAP/TWAP 边界)/_estimate_slippage(IS 1.2x/VWAP 1x/TWAP 0.6x/base 下限 0.1)/_duration/_slices/route(完整流程/signal=None/market_state=None)/review(within/超限/零价格/负 shortfall/BUG-E1 actual_slippage 从 executed 读取/落盘)/route_with_tca(flag 关闭/启用 approved/启用 rejected/启用异常 fail-safe/market_state=None)
+- **三模块合计**: 86 passed, 总覆盖率 86.30%
+- **指针**: `tests/unit/test_glm5_client_unit.py` + `tests/unit/test_llm_client_unit.py` + `tests/unit/test_execution_router_unit.py`
+
+## 2026-08-17 · ocr 委托模式审查新代码：17 bug 发现+修复 ✅ 184 tests GREEN
+
+- **审查**: ocr v1.9.0 delegate 模式（绕过 LLM 429 限流）+ ruff + bandit + 逐行精读，覆盖 54 个未提交文件（+15973 行），聚焦 6 个核心生产模块
+- **发现**: 1 High + 8 Medium + 8 Low = 17 个新 bug（NEW-1~17）；同时确认 08-16 报告 NB-1~NB-4 全部已修复
+- **修复**: 全部 17 项已修复 — SentimentPredictor 重构（模型复用+批量推理+GPU管理）、evaluate 长度校验、标签均衡采样、try/finally 资源管理、json.dumps 防 JS 注入、eps 数值阈值、has_source 封装、幂等保护等
+- **根因**: 7 大模式（错误处理路径未覆盖 30% / 研究代码上生产 25% / except 元组收窄不核对 15% / 数值安全规范缺失 15% / 封装妥协 10% / 类型检查绕过 5%）
+- **验证**: py_compile 全通过 + pytest 184 passed + NEW-8 注入验证 OK
+- **指针**: `代码质量修复计划_20260817.md` + `cairn/code-review-newcode-bug-patterns-20260817.md`
+
 ## 2026-08-17 · T2 第 26 批覆盖率：notify + v10_config_loader + concurrency ✅ 54 tests GREEN (1 xfail)
 
 - **notify** 0%→80.62% (16 tests): 统一监控告警 — _send_dingtalk/_send_feishu(mock urllib)/_log_alert(各级别)/send_alert(无配置/有配置/DISABLED)/send_sms_alert/send_async_alert
