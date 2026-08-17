@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-17 · T2 第 21 批覆盖率：liquidation_scheduler ✅ 34 tests GREEN (gamma_engine + market_impact_model 已有测试确认)
+
+- **liquidation_scheduler** 0%→98.31% (34 tests): 2030 清仓协议 — 五阶段切换(phase 0/1/2/3/complete)/days_to_next_phase 边界/完整时间表/预警(phase 0 临近+phase 1-2 即将结束)/ConfigManager 路径+回退+异常容错/_log_event 容错
+- **已有测试确认**: gamma_engine 85.34% / market_impact_model 97.44% (之前会话已覆盖)
+- **三模块合计**: 93 tests GREEN, 总覆盖率 92.69%
+- **指针**: `tests/unit/test_liquidation_scheduler_unit.py` + `tests/unit/test_gamma_engine_unit.py` + `tests/unit/test_market_impact_model_unit.py`
+
 ## 2026-08-17 · T2 第 20 批覆盖率：param_adjustment_governor ✅ 24 tests GREEN
 
 - **param_adjustment_governor** 0%→95.28% (24 tests): 参数调整治理器 — 防止 chasing 的频率限制/冷却期/理由白名单/证据要求/月度次数上限/回滚机制/持久化
