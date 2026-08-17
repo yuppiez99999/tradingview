@@ -2,6 +2,12 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-17 · T2 第 20 批覆盖率：param_adjustment_governor ✅ 24 tests GREEN
+
+- **param_adjustment_governor** 0%→95.28% (24 tests): 参数调整治理器 — 防止 chasing 的频率限制/冷却期/理由白名单/证据要求/月度次数上限/回滚机制/持久化
+- **已有测试确认**: option_margin_monitor 100% / futures_rollover_manager 98.71% (之前会话已覆盖)
+- **指针**: `tests/unit/test_param_adjustment_governor_unit.py`
+
 ## 2026-08-17 · T2 第 19 批覆盖率：kill_switch + market_circuit_breaker + overnight_gap_guard ✅ 88 tests GREEN
 
 - **kill_switch** 43.88%→81.53% (48 tests): 三级熔断协议 — L1/L2/L3 阈值/fail-closed/环境变量模拟/集中度检测/事件历史/broker callback
