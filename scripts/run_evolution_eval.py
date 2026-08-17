@@ -190,12 +190,12 @@ def collect_progress_snapshot() -> dict:
 
     if shadow_days == 0:
         snapshot["next_action"] = "等待 v84_PostMarket 写入首条 Shadow 数据"
-    elif shadow_days < 14:
+    elif shadow_days < OBSERVATION_DAYS:
         snapshot["next_action"] = (
-            f"观察期进行中 ({shadow_days}/14 天), 等待数据积累. "
-            f"当前 {shadow_days} 天, 还需 {14 - shadow_days} 天"
+            f"观察期进行中 ({shadow_days}/{OBSERVATION_DAYS} 天), 等待数据积累. "
+            f"当前 {shadow_days} 天, 还需 {OBSERVATION_DAYS - shadow_days} 天"
         )
-        snapshot["blockers"].append(f"观察期未满: {shadow_days}/14 天")
+        snapshot["blockers"].append(f"观察期未满: {shadow_days}/{OBSERVATION_DAYS} 天")
     elif shadow_days < 20:
         snapshot["next_action"] = (
             f"观察期已满 14 天, 但样本不足 ({shadow_days}/20). "

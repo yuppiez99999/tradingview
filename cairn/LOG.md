@@ -2,6 +2,29 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-17 · T2 第13批覆盖率 + eval_status 修复 ✅ DONE
+
+- **T2 第13批**: 4 模块 164 tests 全 GREEN
+  - `market_impact_model` 0%→97.44% (Almgren-Chriss + Square-Root)
+  - `risk_metrics` 0%→87.14% (VaR/ES/Sharpe/Sortino/Calmar/Beta/Alpha 等 16 函数)
+  - `var_backtest` 0%→91.20% (Kupiec POF + Christoffersen + Basel 交通灯)
+  - `portfolio_optimizer` 0%→61.00% (load_factor_signals + adjust_target_weights + apply_risk_management; run_offline_pipeline 需外部数据不可单测)
+- **bug 修复**: `run_evolution_eval.py` 硬编码 14 → OBSERVATION_DAYS (21)，eval_status.next_action 从 "11/21 天" 修正为 "15/21 天"
+- **一致性调查**: USE_DRIFT_DETECTOR 在 system_config.json=false 但 status.json=true → flag_overrides 机制正常工作，非 bug
+- **.coveragerc 更新**: 移除 var_backtest.py + portfolio_optimizer.py 的 omit 排除（已有测试）
+- **临时文件清理**: `scripts/_coverage_batch10_candidates.py` 已删除
+- **指针**: `tests/unit/test_{market_impact_model,risk_metrics,var_backtest,portfolio_optimizer}_unit.py`
+
+## 2026-08-16 · ModelArts 云端训练首次跑通 ✅ DONE
+
+- **成果**: LightGBM 模型在华为云 ModelArts 训练成功（日均IC=0.0236, RankIC=0.0448, ICIR=0.1613）
+- **镜像**: `qt-qlib-trainer:v7`（python:3.11-slim + libgomp1 + pyqlib + 数据打包进镜像）
+- **推送工具**: `crane`（绕过 Docker Desktop 代理 broken pipe 问题）
+- **8 个踩坑全部解决**: WSL2磁盘损坏 / crane推送 / ModelArts覆盖/cache / qlib数据结构 / /app权限 / libgomp / 镜像缓存 / OOM
+- **关键配置**: 数据放 `/app/`（非`/cache/`）+ `chmod 777 /app` + 8核32G + `--data-dir /app/qlib_data/cn_data`
+- **报告**: `reports/cloud_train_20260816_232033.json`
+- **指针**: `docs/云端部署小白教程_Windows版_从零到第一个训练作业_20260815.md`（末尾"实战踩坑记录"章节）
+
 ## 2026-08-16 · 全量测试 108→0 failed 闭环 + Docker 封装计划 ✅ DONE
 
 - **全量测试**: 10124 passed / 0 failed / 20 skipped (7分) — 从 108 failed 修复 106 个

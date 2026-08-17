@@ -33,8 +33,7 @@ omit =
     scrapling_adapter.py
     */media_crawler_adapter.py
     media_crawler_adapter.py
-    */var_backtest.py
-    var_backtest.py
+
     */var_monitor.py
     var_monitor.py
     */tradingagents_bridge.py
@@ -107,8 +106,7 @@ omit =
     # 边界情况: 研究/离线/仅测试路径, 非主链路
     */free_stockdb_adapter.py
     free_stockdb_adapter.py
-    */portfolio_optimizer.py
-    portfolio_optimizer.py
+
     */factor_model.py
     factor_model.py
     # G7 W7.4.5 第五轮排除: 10 个确认 0 引用废弃/临时/未启用文件
