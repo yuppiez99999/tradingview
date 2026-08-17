@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-17 · T2 第 24 批覆盖率：risk_params + positions_loader + killswitch_guard ✅ 42 tests GREEN
+
+- **risk_params** 0%→91.04% (18 tests): 风险参数统一访问层 — get_max_drawdown_limit(越界/解析失败/fail-safe)/get_quant_neutral_max_drawdown/ConfigManager 异常容错(ConnectionError/RuntimeError/非 dict)
+- **positions_loader** 0%→84.38% (13 tests): 持仓配置加载器 — load_positions(文件不存在/正常/解析失败/自定义默认值)/get_positions_list(dict+list 格式)/get_positions_dict(code 提取/无 code 用 key)
+- **killswitch_guard** 0%→100.00% (11 tests): KillSwitch L1 守卫 — can_open=False 过滤 BUY/can_open=True 不过滤/ks_result=None/无 trades 属性容错/异常容错
+- **三模块合计**: 42 tests GREEN, 总覆盖率 89.61%
+- **指针**: `tests/unit/test_risk_params_unit.py` + `tests/unit/test_positions_loader_unit.py` + `tests/unit/test_killswitch_guard_unit.py`
+
 ## 2026-08-17 · T2 第 23 批覆盖率：market_rules + order_generator + price_limit_calculator ✅ 146 tests GREEN
 
 - **market_rules** 0%→97.01% (32 tests): 市场规则单一事实源 — normalize_symbol_code 多格式归一化/is_20cm_symbol(白名单+正则)/get_abnormal_threshold 差异化阈值/classify_board/batch_classify/register_20cm_etf 运行时注册
