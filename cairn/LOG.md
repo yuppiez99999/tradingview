@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-17 · T2 第 17 批覆盖率：cash_manager + greek_hedge_manager ✅ 52 tests GREEN
+
+- **cash_manager** 0%→90.31% (21 tests): 闲置资金分配/逆回购自动下单/月末季末加大投放/应急保证金动用+2日补足/追加保证金通知/分配摘要
+- **greek_hedge_manager** 0%→90.38% (31 tests): 动态 Vega 上限(IV比率×期限结构×Skew)/BS Greeks/组合 Greeks(兼容数值型+dict持仓)/期货 Delta 对冲/期权 Greeks 对冲/再平衡信号
+- **修复 3 处测试断言**: ① CashManager 构造参数被 v10 配置覆盖(设计行为) ② 多空对冲组合 delta=0(非>0) ③ HedgeInstrument 需 direction 参数
+- **指针**: `tests/unit/test_cash_manager_unit.py` + `tests/unit/test_greek_hedge_manager_unit.py`
+
 ## 2026-08-17 · ModelArts 训练参数升级 ✅ 2026年数据
 
 - **升级**: 数据范围 2020→2026-07-08，参数 num_leaves 64→128, boost_round 200→500, lr 0.05→0.02, depth 6→8
