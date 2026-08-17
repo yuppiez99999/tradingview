@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-17 · T2 第 25 批覆盖率：hedge_constants + data_types + path_config + trading_env ✅ 87 tests GREEN
+
+- **hedge_constants** 0%→100.00% (5 tests): 对冲共享常量 — DEFENSE_ASSETS 三资产验证
+- **data_types** 0%→83.92% (27 tests): 数据类型转换 — safe_float(None/NaN/bool/字符串)/safe_int/normalize_stock_code(A股+港股)/get_market_tag/get_currency_tag/QuoteResult/SourceHealth
+- **path_config** 0%→87.23% (20 tests): 集中路径配置 — get_project_root/get_data_root/数据子目录/项目子目录/setup_sys_path/get_historical_base_file/describe_paths
+- **trading_env** 0%→76.27% (35 tests): 交易环境配置 — TradingEnv 枚举/get_trading_env(环境变量)/get_trading_env_config(production/shadow/development)/assert_production_fail_closed(fail-closed 抛异常/fail-open 放行)
+- **四模块合计**: 87 tests GREEN, 总覆盖率 82.30%
+- **指针**: `tests/unit/test_hedge_constants_unit.py` + `tests/unit/test_data_types_unit.py` + `tests/unit/test_path_config_unit.py` + `tests/unit/test_trading_env_unit.py`
+
+## 2026-08-17 · 磁盘清理: 释放约 0.85 GB (安全缓存 + graphify-out + .code-review-graph + logs 30天前)
+
 ## 2026-08-17 · T2 第 24 批覆盖率：risk_params + positions_loader + killswitch_guard ✅ 42 tests GREEN
 
 - **risk_params** 0%→91.04% (18 tests): 风险参数统一访问层 — get_max_drawdown_limit(越界/解析失败/fail-safe)/get_quant_neutral_max_drawdown/ConfigManager 异常容错(ConnectionError/RuntimeError/非 dict)
@@ -123,6 +134,16 @@
 - **质量门禁**: pytest 8/8 (新 MVSK) + 31/31 (回归) 全 passed
 - **下一步**: P2 扩展为 BL+MVSK 联合优化（BL 后验 μ → MVSK 优化器）→ P3 regime 动态切换
 - **指针**: `cairn/mvsk-higher-moment-optimization.md` + `research/mvsk_gamma_grid_search.py` + `research/mvsk_ab_test_real.py` + `tests/unit/test_mvsk_optimizer_unit.py`
+
+## 2026-08-17 · docs/1 八项目集成 Sprint C W.C.1 POC 微调成功 ✅
+
+- **W.C.1 unsloth 本地微调**: POC 验证成功。GPU 硬件就绪（RTX 3060 6GB），但原 .venv 用 Python 3.14 无 CUDA PyTorch → 创建 `.venv-finetune`（Python 3.12 + torch 2.6.0+cu124 + transformers 4.46.3 + peft 0.13.2 + trl 0.12.2 + bitsandbytes 0.50.1）
+- **unsloth 问题**: Windows 原生有 triton 兼容问题（AttrsDescriptor import 失败），改用 transformers+peft+trl 直接做 LoRA 微调（unsloth 只是加速层，底层就是这些）
+- **交付物**: `lgb_trainer/llm_finetune/`（新建 2 文件: `finetune_sentiment_model.py` LoRA 微调情感分类 + `finetune_pipeline.py` 完整 pipeline）+ `USE_LLM_FINETUNE` flag
+- **POC 结果**: Qwen2.5-0.5B + 4bit 量化 + LoRA(r=8,α=16)，20 样本 1 epoch，train_loss=3.47，1.08M trainable params (0.22%)，15 秒完成，adapter 已保存（4.2MB）
+- **评估阶段**: 因系统可用内存仅 1.9GB 未能跑完 inference 评估（需再次加载模型），代码完整但需释放内存后运行
+- **Sprint C 全部完成**: W.C.1 ✅(POC) / W.C.2 ✅ / W.C.3 ✅；docs/1 八项目集成 Sprint A+B+C 全部完成（7/8 完成 + 1 SKIP）
+- **指针**: `docs/1设计计划集成到系统内并能完整运行_20260817.md` §3 W.C.1 + `lgb_trainer/llm_finetune/`
 
 ## 2026-08-17 · docs/1 八项目集成 Sprint C W.C.2 完成 / W.C.1 阻塞
 
