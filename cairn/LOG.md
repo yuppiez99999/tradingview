@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-17 · T2 第 19 批覆盖率：kill_switch + market_circuit_breaker + overnight_gap_guard ✅ 88 tests GREEN
+
+- **kill_switch** 43.88%→81.53% (48 tests): 三级熔断协议 — L1/L2/L3 阈值/fail-closed/环境变量模拟/集中度检测/事件历史/broker callback
+- **market_circuit_breaker** 0%→74.51% (22 tests): 大盘熔断 — L2/L3 阈值/三层 fallback/apply_to_plan BUY 过滤/L3 清仓
+- **overnight_gap_guard** 0%→96.43% (24 tests): 隔夜跳空 — L1/L2/L3 降仓/不利方向判断/lot 取整/plan 应用
+- **指针**: `tests/unit/test_kill_switch_unit.py` + `tests/unit/test_market_circuit_breaker_unit.py` + `tests/unit/test_overnight_gap_guard_unit.py`
+
 ## 2026-08-17 · T2 第 18 批覆盖率：evaluator + multi_strategy_coordinator ✅ 80 tests GREEN
 
 - **evaluator** 0%→89.72% (38 tests): alphalens 风格因子评估器 — 分层收益/换手率/因子衰减/Tear Sheet/批量评估/序列化

@@ -289,3 +289,276 @@ class TestKillSwitchConfigLoading:
         result = ks.execute_kill_switch(level=4)
         assert result["executed"] is False
         assert result["reason"] == "invalid_level"
+
+
+# ============================================================
+# 补充覆盖率: _get_margin_status / _compute_position_margin / check_concentration 等
+# ============================================================
+
+import os as _os
+from pathlib import Path as _Path
+
+
+class TestGetMarginStatusEnv:
+    """_get_margin_status 环境变量/模拟模式"""
+
+    @pytest.mark.unit
+    def test_sim_l1(self, clean_env):
+        _os.environ["KILL_SWITCH_SIM_MODE"] = "l1"
+        ks = KillSwitch()
+        status = ks._get_margin_status()
+        assert status["margin_usage_ratio"] == pytest.approx(0.55)
+
+    @pytest.mark.unit
+    def test_sim_l2(self, clean_env):
+        _os.environ["KILL_SWITCH_SIM_MODE"] = "l2"
+        ks = KillSwitch()
+        status = ks._get_margin_status()
+        assert status["margin_usage_ratio"] == pytest.approx(0.78)
+
+    @pytest.mark.unit
+    def test_sim_l3(self, clean_env):
+        _os.environ["KILL_SWITCH_SIM_MODE"] = "l3"
+        ks = KillSwitch()
+        status = ks._get_margin_status()
+        assert status["margin_usage_ratio"] == pytest.approx(0.95)
+        assert status["extreme_margin_call"] is True
+
+    @pytest.mark.unit
+    def test_env_ratio(self, clean_env):
+        _os.environ["KILL_SWITCH_MARGIN_RATIO"] = "0.60"
+        ks = KillSwitch()
+        status = ks._get_margin_status()
+        assert status["margin_usage_ratio"] == pytest.approx(0.60)
+
+    @pytest.mark.unit
+    def test_env_ratio_invalid(self, clean_env):
+        _os.environ["KILL_SWITCH_MARGIN_RATIO"] = "not_a_number"
+        ks = KillSwitch()
+        status = ks._get_margin_status()
+        assert status["margin_usage_ratio"] == pytest.approx(0.20)
+
+    @pytest.mark.unit
+    def test_margin_call_flag(self, clean_env):
+        _os.environ["KILL_SWITCH_MARGIN_RATIO"] = "0.92"
+        ks = KillSwitch()
+        status = ks._get_margin_status()
+        assert status["margin_call"] is True
+
+
+class TestComputePositionMargin:
+    """_compute_position_margin 静态方法"""
+
+    @pytest.mark.unit
+    def test_stock_only(self):
+        positions = {"A": {"amount": 100_000, "type": "STOCK"}}
+        total, margin = KillSwitch._compute_position_margin(positions)
+        assert total == 100_000
+        assert margin == 0.0
+
+    @pytest.mark.unit
+    def test_future(self):
+        positions = {"IF": {"amount": 500_000, "type": "FUTURE"}}
+        total, margin = KillSwitch._compute_position_margin(positions)
+        assert margin == pytest.approx(500_000 * 0.12)
+
+    @pytest.mark.unit
+    def test_option(self):
+        positions = {"OPT": {"amount": 50_000, "type": "OPTION"}}
+        total, margin = KillSwitch._compute_position_margin(positions)
+        assert margin == pytest.approx(50_000)
+
+    @pytest.mark.unit
+    def test_mixed(self):
+        positions = {
+            "A": {"amount": 100_000, "type": "STOCK"},
+            "IF": {"amount": 500_000, "type": "FUTURE"},
+            "OPT": {"amount": 50_000, "type": "OPTION"},
+        }
+        total, margin = KillSwitch._compute_position_margin(positions)
+        assert total == 650_000
+        assert margin == pytest.approx(500_000 * 0.12 + 50_000)
+
+    @pytest.mark.unit
+    def test_empty(self):
+        total, margin = KillSwitch._compute_position_margin({})
+        assert total == 0.0 and margin == 0.0
+
+    @pytest.mark.unit
+    def test_non_dict(self):
+        total, margin = KillSwitch._compute_position_margin({"A": 100_000})
+        assert total == 0.0 and margin == 0.0
+
+
+class TestEstimateMargin:
+    """_estimate_margin_from_positions / _load_positions_data"""
+
+    @pytest.mark.unit
+    def test_no_positions_file(self, clean_env, monkeypatch):
+        ks = KillSwitch()
+        monkeypatch.setattr(ks, "_load_positions_data", lambda: None)
+        ratio = ks._estimate_margin_from_positions()
+        assert ratio == 0.50
+
+    @pytest.mark.unit
+    def test_budget_summary_options_only(self, clean_env, monkeypatch):
+        ks = KillSwitch()
+        data = {"meta": {"hedge_mode": "OPTIONS_ONLY"}, "hedge_positions": {"budget_summary": {"usage_pct": 82.5}}}
+        monkeypatch.setattr(ks, "_load_positions_data", lambda: data)
+        monkeypatch.setattr(ks, "_estimate_from_real_positions", lambda d: 0.30)
+        ratio = ks._estimate_margin_from_positions()
+        assert ratio == 0.30
+
+    @pytest.mark.unit
+    def test_budget_summary_with_futures(self, clean_env, monkeypatch):
+        ks = KillSwitch()
+        data = {
+            "meta": {"hedge_mode": "FUTURE_HEDGE"},
+            "hedge_positions": {"budget_summary": {"usage_pct": 60.0}},
+            "positions": {"IF": {"type": "FUTURE"}},
+        }
+        monkeypatch.setattr(ks, "_load_positions_data", lambda: data)
+        ratio = ks._estimate_margin_from_positions()
+        assert ratio == pytest.approx(0.60)
+
+
+class TestFailClosedResponse:
+    """_fail_closed_response"""
+
+    @pytest.mark.unit
+    def test_response(self, clean_env):
+        ks = KillSwitch()
+        resp = ks._fail_closed_response("TEST_REASON")
+        assert resp["level"] == 3
+        assert resp["can_trade"] is False
+        assert resp["can_open"] is False
+        assert resp["margin_usage_ratio"] == 1.0
+        assert "TEST_REASON" in resp["fail_closed_reason"]
+
+
+class TestGetTotalMargin:
+    """_get_total_margin"""
+
+    @pytest.mark.unit
+    def test_env_override(self, clean_env):
+        _os.environ["KILL_SWITCH_TOTAL_MARGIN"] = "8000000"
+        ks = KillSwitch()
+        assert ks._get_total_margin() == 8_000_000
+
+    @pytest.mark.unit
+    def test_env_invalid(self, clean_env):
+        _os.environ["KILL_SWITCH_TOTAL_MARGIN"] = "invalid"
+        ks = KillSwitch()
+        assert ks._get_total_margin() == 5_000_000
+
+    @pytest.mark.unit
+    def test_default(self, clean_env):
+        ks = KillSwitch()
+        assert ks._get_total_margin() == 5_000_000
+
+    @pytest.mark.unit
+    def test_config_margin(self, clean_env):
+        ks = KillSwitch()
+        ks.config = {"total_margin": 7_000_000}
+        assert ks._get_total_margin() == 7_000_000
+
+
+class TestCheckMarginStatusExtra:
+    """check_margin_status 补充路径"""
+
+    @pytest.mark.unit
+    def test_invalid_type(self, clean_env, tmp_kill_switch_log):
+        ks = KillSwitch()
+        status = ks.check_margin_status(margin_usage="not_a_number")
+        assert status["level"] == 3
+
+    @pytest.mark.unit
+    def test_production_low_margin(self, production_env, tmp_kill_switch_log):
+        ks = KillSwitch()
+        status = ks.check_margin_status(margin_usage=0.005)
+        assert status["level"] == 3
+
+    @pytest.mark.unit
+    def test_dev_sim_mode(self, clean_env, tmp_kill_switch_log):
+        _os.environ["KILL_SWITCH_SIM_MODE"] = "l2"
+        ks = KillSwitch()
+        status = ks.check_margin_status()
+        assert status["level"] == 2
+
+
+class TestExecuteKillSwitchExtra:
+    """execute_kill_switch L3 + callback 失败"""
+
+    @pytest.mark.unit
+    def test_l3_with_callback(self, clean_env, broker_callback_mock):
+        ks = KillSwitch()
+        ks.set_broker_callback(broker_callback_mock)
+        result = ks.execute_kill_switch(3)
+        assert result["executed"] is True
+        assert result["level"] == 3
+
+
+class TestCheckConcentration:
+    """check_concentration 集中度检测"""
+
+    @pytest.mark.unit
+    def test_normal(self, clean_env):
+        ks = KillSwitch()
+        result = ks.check_concentration({"A": 20_000, "B": 20_000, "C": 20_000, "D": 20_000, "E": 20_000})
+        assert result["level"] == "OK"
+
+    @pytest.mark.unit
+    def test_l1(self, clean_env):
+        ks = KillSwitch()
+        result = ks.check_concentration({"A": 30_000, "B": 30_000, "C": 30_000, "D": 10_000})
+        assert result["level"] == "L1"
+
+    @pytest.mark.unit
+    def test_l2(self, clean_env):
+        ks = KillSwitch()
+        result = ks.check_concentration({"A": 40_000, "B": 30_000, "C": 30_000})
+        assert result["level"] == "L2"
+
+    @pytest.mark.unit
+    def test_l3(self, clean_env):
+        ks = KillSwitch()
+        result = ks.check_concentration({"A": 55_000, "B": 45_000})
+        assert result["level"] == "L3"
+
+    @pytest.mark.unit
+    def test_empty(self, clean_env):
+        ks = KillSwitch()
+        result = ks.check_concentration({})
+        assert result["level"] == "OK"
+
+    @pytest.mark.unit
+    def test_dict_positions(self, clean_env):
+        ks = KillSwitch()
+        result = ks.check_concentration({"A": {"market_value": 80_000}, "B": {"market_value": 20_000}})
+        assert result["level"] == "L3"
+
+    @pytest.mark.unit
+    def test_none_market_value(self, clean_env):
+        ks = KillSwitch()
+        result = ks.check_concentration({"A": {"market_value": None}, "B": {"market_value": 10_000}, "C": {"market_value": 10_000}, "D": {"market_value": 10_000}, "E": {"market_value": 10_000}, "F": {"market_value": 10_000}})
+        assert result["level"] == "OK"
+
+
+class TestEventHistory:
+    """get_event_history"""
+
+    @pytest.mark.unit
+    def test_no_log_file(self, clean_env):
+        from utils.kill_switch import KILL_SWITCH_LOG
+        if KILL_SWITCH_LOG.exists():
+            KILL_SWITCH_LOG.unlink()
+        ks = KillSwitch()
+        history = ks.get_event_history(30)
+        assert history == []
+
+    @pytest.mark.unit
+    def test_with_events(self, clean_env, tmp_kill_switch_log):
+        ks = KillSwitch()
+        ks._log_event({"timestamp": "2026-08-17T12:00:00", "level": 1, "level_name": "test"})
+        history = ks.get_event_history(30)
+        assert len(history) >= 1
