@@ -2,6 +2,20 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-17 · T2 第 23 批覆盖率：market_rules + order_generator + price_limit_calculator ✅ 146 tests GREEN
+
+- **market_rules** 0%→97.01% (32 tests): 市场规则单一事实源 — normalize_symbol_code 多格式归一化/is_20cm_symbol(白名单+正则)/get_abnormal_threshold 差异化阈值/classify_board/batch_classify/register_20cm_etf 运行时注册
+- **order_generator** 0%→100.00% (24 tests): 订单生成器 — buy/sell 方向/零权重跳过/无效价格跳过/单笔上限截断/lot_size 取整/调仓(增减/无交易)/多标的混合
+- **price_limit_calculator** 0%→86.28% (90 tests): A股涨跌停价计算器 — 板块识别(主板/创业板/科创板/北交所/ETF/可转债)/ST ±5%/四舍五入到分(ROUND_HALF_UP)/停牌检测(volume+open)/enrich_day_data_list 富化/build_backtest_data_from_ohlcv/fetch_st_codes akshare 容错
+- **三模块合计**: 146 tests GREEN, 总覆盖率 89.85%
+- **指针**: `tests/unit/test_market_rules_unit.py` + `tests/unit/test_order_generator_unit.py` + `tests/unit/test_price_limit_calculator_unit.py`
+
+## 2026-08-17 · T2 第 22 批覆盖率：option_exercise_risk + kondratiev_cycle + lgbm_reproducibility 已有测试确认 ✅ 129 tests GREEN
+
+- **已有测试确认**: option_exercise_risk 99.53% / kondratiev_cycle 100.00% / lgbm_reproducibility 89.57% (之前会话已覆盖)
+- **leloit_wolf_covariance**: 模块不存在, 跳过
+- **三模块合计**: 129 tests GREEN, 总覆盖率 96.56%
+
 ## 2026-08-17 · T2 第 21 批覆盖率：liquidation_scheduler ✅ 34 tests GREEN (gamma_engine + market_impact_model 已有测试确认)
 
 - **liquidation_scheduler** 0%→98.31% (34 tests): 2030 清仓协议 — 五阶段切换(phase 0/1/2/3/complete)/days_to_next_phase 边界/完整时间表/预警(phase 0 临近+phase 1-2 即将结束)/ConfigManager 路径+回退+异常容错/_log_event 容错
