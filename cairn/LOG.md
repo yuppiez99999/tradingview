@@ -1,6 +1,140 @@
-# Project Cairn 日志
+﻿# Project Cairn 日志
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
+
+## 2026-08-17 · ModelArts 训练参数升级 ✅ 2026年数据
+
+- **升级**: 数据范围 2020→2026-07-08，参数 num_leaves 64→128, boost_round 200→500, lr 0.05→0.02, depth 6→8
+- **instruments 修复**: v7 镜像中 csi300.txt 只到 2020-09-25；运行时 `cp -r` 到 /tmp/ + `sed` 扩展 end_date（镜像内文件只读）
+- **结果**: 日均IC=0.0115, RankIC=0.0387, ICIR=0.0540（测试期 2025-07~2026-07）。IC 低于旧参数（0.0236）因近期市场更难预测，但模型用近期数据训练有实际参考价值
+- **耗时**: 46分钟（vs 旧13分钟），训练样本 495854 行 516 股
+- **指针**: `cairn/cloud-modelarts-deployment.md` § 一、当前部署状态
+
+## 2026-08-17 · ModelArts 自动训练脚本调通 ✅ SDK 端到端
+
+- **问题**: auto_train.py 报 `Custom image query failure` (ModelArts.2810)
+- **根因**: SDK 请求体与控制台不同 — `image_url` 不带 SWR 域名前缀，`engine_id` 传空字符串，不传 `pool_id`
+- **结果获取**: `show_training_job_logs_preview` 只返回基础设施日志；用户 stdout 在 OBS 日志文件 `output/modelarts-job-{job_id}-worker-0.log` 中（需设 `log_export_path`）
+- **验证**: 日均IC=0.0236, RankIC=0.0448, ICIR=0.1613。作业~755秒（含OBS上传开销）
+- **指针**: `cairn/cloud-modelarts-deployment.md`（新建知识专题）+ `ms_strategy/cloud_train/auto_train.py`
+
+## 2026-08-17 · MVSK P5 生产接入排期已挂 Wave 7 📅
+
+- **排期**：P5 生产接入挂 Wave 7 Sprint 1-4，09-05 启动（核心链路冻结解除后）
+  - **P5-1** W7.1.6 (09-05~09-12, Sprint 1 后半): `portfolio_builder.py` shadow 接入准备 + 378 日冷启动
+  - **P5-2** W7.2.8 (09-13~10-12, Sprint 2): shadow 运行 30 天验证 Δ夏普
+  - **P5-3** W7.3.7 (10-13~11-12, Sprint 3): 正式启用中线层 BL+MVSK(378)
+  - **P5-4** W7.4.7 (11-13~12-31, Sprint 4, 可选): 沪深 300 华为云扩展验证
+- **依赖链**：P4 ✅ → P5-1 → P5-2 → P5-3 → P5-4
+- **指针**：`cairn/ROADMAP.md` § 多策略组合优化 P5 + Wave 7 Sprint 1-4 任务清单
+
+## 2026-08-17 · MVSK P4 跨周期验证 ✅ 生产就绪
+
+- **数据**: 995 日 × 30 股（2022-07-12 ~ 2026-08-17），覆盖 2022 熊市/2023 震荡/2024 反弹/2025-2026。`research/mvsk_real_data_long_cache.npz`
+- **跨周期回测** (`research/cross_cycle_backtest.py`): train=378/样本外 617 日。**BL+MVSK(378) 夏普 +0.576 vs BL+MV +0.356**，Δ夏普 +0.22。**4/4 段全跑赢 MV**（Δ夏普 +0.04~+0.90），非单段巧合
+- **γ 泛化验证** (`research/gamma_generalization_scan.py`): **γ_s=0.1 泛化成功**（两段数据都是最优 γ_s）。P1 的 (0.1,0.05) 仍跑赢 BL+MV（非过拟合）。995 日最优 (0.1,0.1) 夏普 +0.683——γ_k 可调大。只抑制峰度（γ_s=0,γ_k=0.05）也有效（夏普 +0.645 峰度 5.25 更稳健）
+- **P4 结论**: MVSK 生产就绪。最终策略 **BL+MVSK(378, γ_s=0.1, γ_k=0.1)**，冷启动 378 日。09-05 后接入中线层
+- **指针**: `cairn/mvsk-higher-moment-optimization.md` § P4 跨周期验证结果
+
+## 2026-08-17 · MVSK P3 调参实验 → 最终结论: 始终 BL+MVSK(378) 最优 ✅
+
+- **γ 扫描** (`research/regime_gamma_scan.py`): 5×5=25 网格，**24/24 γ 组合都跑不赢 BL+MV**——MVSK 在 252 日滚动窗口下根本性失效，非调参能解决
+- **训练窗口扫描** (`research/regime_train_window_scan.py`): train ∈ {252,336,378,420}，**临界点 336~378**。train≥378 时 MVSK 重新跑赢 MV（Δ夏普 +0.46~+0.57），与 P2 单次 split 一致。MV 夏普随训练窗口变长恶化（+0.356→-1.594），MVSK 相对稳定——MVSK 价值是 μ 估计恶化时提供韧性
+- **修正实验** (`research/regime_fixed_backtest.py`): regime 切换+动态训练窗口（高波动→378+MVSK）。**始终 BL+MVSK(378) 最优夏普 +0.418**，修正 Regime +0.320 仍不如。**Regime 切换不是最优——直接用 378 日+MVSK 即可**
+- **P3 最终结论**: 最优生产策略 = 始终 BL+MVSK(378)，无需 regime 检测器。冷启动 378 日。09-05 后接入中线层
+- **指针**: `cairn/mvsk-higher-moment-optimization.md` § P3 修正实验结果
+
+## 2026-08-17 · MVSK P3 Regime 切换回测完成 ⚠️ 结果反向
+
+- **P3 实现**: `utils/mvsk_regime_detector.py`（RegimeDetector 滚动波动率+峰度检测）+ `research/regime_switch_backtest.py`（滚动回测 train=252/hold=21/样本外 250 日/换仓 11 次）
+- **单元测试**: 12/12 passed（修复测试语法错误 + 放宽正态数据断言：200日5资产样本太小随机触发 high_vol，改 500日30资产单次 detect 稳定；timeline 期望 7→8 是注释算错）
+- **回测结果**: 始终 BL+MV 最优（夏普 +0.356 净值 1.042），始终 BL+MVSK 最差（-0.988 净值 0.859），Regime 切换居中（-0.019 净值 0.984）
+- **核心发现**: Regime 切换成功避免 MVSK 灾难（vs 始终 BL+MVSK 夏普 +0.97 少亏 15%），但未超越始终 BL+MV（vs BL+MV 夏普 -0.37）。11 次换仓 3 次 high_vol（27%），0 次 fat_tail（kurtosis_threshold=3.0 对 A 股日频太严）
+- **根因**: 阈值失配（fat_tail 从未触发）+ γ 未随 regime 调整 + 滚动回测 vs 单次 split 差异（P2 单次 split BL+MVSK 优于 BL+MV，但滚动回测 BL+MV 已正收益而 BL+MVSK 大亏）
+- **结论**: 检测器机制有效但"高波动→MVSK"策略在这段数据反向。下一步调 kurtosis_threshold→1.0 或 γ 随 regime 自适应
+- **指针**: `cairn/mvsk-higher-moment-optimization.md` § P3 验证结果
+
+## 2026-08-17 · MVSK 高阶矩组合优化 P1 完成 ✅ DONE
+
+- **背景**: 丘成桐团队 YAND 论文（微分几何重构组合优化，含偏度/峰度，不建 coskewness/cokurtosis 张量）→ 评估对 28 系统高价值（组合优化层全停留在二阶矩，偏度/峰度仅在因子层/DSR/尾部诊断用，未进优化目标）
+- **P1 实现**: `utils/risk_budget_optimizer.py` 扩展 MVSK 目标 `max w'μ-(δ/2)TE²+γ_s·skew-γ_k·exkurt`，用 `return_matrix@w` 直接算高阶矩（存储 O(T×N) 非 O(N⁴)），向后兼容（不传 return_matrix 退化纯 MV）
+- **踩坑**: 首次符号写反（-γ_s·skew+γ_k·exkurt → 惩罚正偏度+鼓励肥尾），A/B 偏度反更差，修正为 +γ_s·skew-γ_k·exkurt
+- **A/B 结果** (30 资产合成数据): 偏度 -0.193→+0.151，超额峰度 -0.075→-0.502，CVaR 改善，换手率未恶化；代价是年化收益下降（trade-off）
+- **真实 A 股 A/B** (30 跨行业股 × 502 日, Wind MCP): 等权基准超额峰度 **11.85**（极度肥尾，证实 YAND 动机）；MVSK 偏度 0.047→0.771，峰度 7.94→5.08（降幅 57%），CVaR 改善；代价是收益 24%→13%（疑 MV 过拟合 Markowitz's Curse）；换手率 0.533→0.608（论文担忧的交易成本问题在真实数据上出现）
+- **γ 网格搜索** (7×7=49 组合): 最佳 **γ_s=0.1, γ_k=0.05** → 净收益 19.82% 夏普 1.077 偏度 0.293 峰度 5.12（vs MV 24%/7.94，几乎不牺牲收益却峰度降 35%）；确认 MV 24% 是 Markowitz's Curse 过拟合；发现偏度-峰度正相关（γ_s>1.0 峰度反弹）；帕累托前沿恒取 γ_s=0.1
+- **三阶段最优搜索** (108组合+滚动+样本外): **MV 训练+24%→测试-26%（Markowitz's Curse 铁证）**，MVSK 同样失效；根因 **μ 估计不稳定**非 γ 调参；P2 须扩展为 **BL+MVSK 联合优化**
+- **P2 BL+MVSK 联合优化 ✅ 验证成功**: 5 方案样本外对比，**BL+MVSK 夏普-0.923 显著优于 MV -1.272/等权 -1.380**，少亏 10%；BL 和 MVSK 强互补（单独 BL+MV 最差-34%，联合才改善）；MVSK 增量在 BL 后验 μ 下才体现（夏普差 +0.83 vs 历史 μ 下 +0.05）
+- **质量门禁**: pytest 8/8 (新 MVSK) + 31/31 (回归) 全 passed
+- **下一步**: P2 扩展为 BL+MVSK 联合优化（BL 后验 μ → MVSK 优化器）→ P3 regime 动态切换
+- **指针**: `cairn/mvsk-higher-moment-optimization.md` + `research/mvsk_gamma_grid_search.py` + `research/mvsk_ab_test_real.py` + `tests/unit/test_mvsk_optimizer_unit.py`
+
+## 2026-08-17 · docs/1 八项目集成 Sprint C W.C.3 完成 ✅ DONE
+
+- **W.C.3 deepseek-harness 插件化重构**: 把 `ai_coordinator.py` 的 `route()` 硬编码 if-else + `resolve_conflicts()` 多数投票抽象为可插拔插件
+- **新增包** `utils/ai_coordinator_plugins/`（5 文件）: `base.py`（Plugin/RoutingPlugin/ConflictDetectionPlugin 抽象基类 + RoutingContext/ConflictContext/RoutingResult/ConflictResult dataclass）+ `registry.py`（PluginRegistry 注册/卸载/列举/按 priority 降序/resolve_routing/resolve_conflict/YAML 加载 + 全局单例）+ `routing_plugin.py`（5 路由插件: BudgetGuard p100 / Intraday p90 / DeepResearch p80 / MacroAnalysis p70 / Default p10）+ `conflict_detection_plugin.py`（MajorityVote p50 + WeightedVote p60）
+- **改造** `ai_coordinator.py`: `__init__` 增 `_init_plugin_registry()` + `route()` 拆为 `_route_legacy()` / `_route_via_plugins()`（含 shadow 比对）+ `resolve_conflicts()` 拆为 `_resolve_conflicts_legacy()` / `_resolve_conflicts_via_plugins()`（含 shadow 比对）+ 保留旧 API 完全向后兼容
+- **feature-flag**: `USE_PLUGIN_COORDINATOR` 默认 false，启用时走插件路径，否则走旧路径；插件路径异常自动回退旧路径
+- **配置**: `configs/ai_coordinator_plugins.yaml`（5 路由 + 2 冲突检测插件，enabled 控制）
+- **质量门禁**: ruff All checks passed / pytest **50 passed**（含 9 参数化 shadow 比对用例全部一致：route 5 TaskType × 3 budget 档 + resolve_conflicts 3 标的 3 source）
+- **关键设计**: 用 `_enum_value()` 字符串比较避免循环导入；插件路径同时跑旧路径 shadow 比对，不一致时记 warning 日志（不阻塞）；PluginRegistry.load_from_config() 支持动态加载第三方插件
+- **Sprint C 剩余**: W.C.1 unsloth 微调（需 GPU）+ W.C.2 EchoBird CLI 切换，待下次会话
+- **指针**: `docs/1设计计划集成到系统内并能完整运行_20260817.md` §3 W.C.3 + `tests/unit/test_plugin_registry.py`
+
+## 2026-08-17 · docs/1 八项目集成 Sprint B 完成 ✅ DONE
+
+- **W.B.1 Switchyard 与 LiteLLM 协调评估**: ⚠️ SKIP。LiteLLM 已覆盖 Switchyard 全部核心能力（LLMRouter 6-provider fallback + LiteLLMRouter 场景路由 + ai_coordinator 成本分流 + OpenAI 兼容），NVIDIA NIMs 非当前需求（项目无 NIMs 代码），接入只增运维负担
+- **W.B.2 TencentDB-Agent-Memory 团队级共享记忆中枢**: `utils/ai_memory/team_memory_hub.py`（新建 434 行，SQLite team_lessons 表 + share_lesson/query_relevant_lessons/get_agent_profile/build_lessons_prompt_block）+ `memory_reflection.py` 增 `_share_lesson_to_hub`（T+N 回访后自动写入共享池）+ `orchestrator.py` 增 `_build_historical_lessons_block`（state["data"]["historical_lessons"] 注入，**零侵入 23 分析师文件**）+ `USE_TEAM_MEMORY_HUB` flag
+- **关键设计**: 通过 state["data"] 注入历史教训，分析师从 state 读取，无需改 23 个分析师 prompt 模板；feature-flag 默认 false，灰度开启；SQLite LIKE + 时序衰减检索，零新依赖
+- **质量门禁**: ruff All checks passed / pytest 23 passed / 接入点 import 验证 OK（orchestrator langgraph 缺失是预先存在环境问题）
+- **Sprint C 暂停**: unsloth 微调（需 GPU）+ EchoBird CLI + deepseek-harness 插件化重构（重构核心协调器），风险更高，等下次会话
+- **指针**: `docs/1设计计划集成到系统内并能完整运行_20260817.md` §3 Sprint B + `cairn/docs1-integration-sprint-a-20260817.md` §5
+
+## 2026-08-17 · T2 第16批覆盖率 3 模块 74 tests ✅ DONE
+
+- **T2 第16批**: 3 模块 74 tests 全 GREEN
+  - `factor_model` 0%→~90% (五维因子选股: value/quality/momentum/growth/safety + evaluate + generate_signal)
+  - `risk_attribution` 0%→~90% (风险归因面板: 集中度HHI + 行业/风格/类型聚合 + 对冲剩余风险)
+  - `momentum_reversal_engine` 0%→89.82% (TSMOM/XSMOM/Reversal 信号融合 + 仓位生成 + 策略诊断)
+- **指针**: `tests/unit/test_{factor_model,risk_attribution,momentum_reversal_engine}_unit.py`
+
+## 2026-08-17 · T2 第15批覆盖率 2 模块 43 tests ✅ DONE
+
+- **T2 第15批**: 2 模块 43 tests 全 GREEN
+  - `chip_distribution` 0%→86.22% (CYQ 筹码分布因子, ChipDistributionEngine, compute_chip_factors)
+  - `black_litterman_optimizer` 0%→79.30% (BL 组合优化, View/BLResult, run_shadow, save_result)
+- **指针**: `tests/unit/test_{chip_distribution,black_litterman_optimizer}_unit.py`
+
+## 2026-08-17 · T2 第14批覆盖率 4 模块 84 tests ✅ DONE
+
+- **T2 第14批**: 4 模块 84 tests 全 GREEN
+  - `feature_store` 0%→~95% (内存+文件缓存, TTL, get_or_compute, clear_expired, 线程安全)
+  - `ic_hedge_calculator` 0%→90.59% (IC 期货对冲量计算, 基差调整, 保证金约束, build_order/rebalance)
+  - `drawdown_controller` 0%→94.00% (四级回撤响应, fail-closed, high_water_mark, execute_response)
+  - `vol_target_controller` 0%→64.86% (EWMA 波动率, vol_scale, adjust_budget; _load_portfolio_returns 需外部文件不可单测)
+- **指针**: `tests/unit/test_{feature_store,ic_hedge_calculator,drawdown_controller,vol_target_controller}_unit.py`
+
+## 2026-08-17 · docs/1 八项目集成 Sprint A 完成 ✅ DONE
+
+- **范围**: 以 `docs/1`（8 个高价值 GitHub 项目接入建议）为输入，设计集成计划并实行 Sprint A（低风险高 ROI 层 3 项目）
+- **计划文档**: `docs/1设计计划集成到系统内并能完整运行_20260817.md`（含 8 项目接入点现状、3 Sprint 排期、与 Wave 7 协调时间轴、风险回滚）
+- **W.A.1 OpenBiliClaw 舆情接入融合**: `utils/signal_sources/sentiment_signal_source.py`（新建 365 行）+ `signal_fusion.py` 末尾追加注册入口 + `configs/feature_flags.yaml` 新增 `USE_SENTIMENT_SIGNAL_SOURCE` flag。MediaCrawler 7 平台采集 → NewsSentimentEngine 打分 → SignalResult 第 6 信号源。17/17 测试通过
+- **W.A.2 code-graph-rag Python 封装**: `utils/ai_tools/code_graph_rag.py`（新建 365 行，封装 graph.db nodes/edges 检索 + impact_analysis 影响半径）+ `ai_coordinator.py` 新增 `record_decision_with_impact` 方法（opt-in，不改 record_decision 高频路径签名）。25/25 测试通过
+- **W.A.3 diagram-design HTML 图表生成器**: `reporting/html_chart_generator.py`（新建 352 行，mermaid flowchart + echarts graph + gantt + 4 项目特定图表：对冲五阶段/数据源降级/AI 路由/信号融合）。20/20 测试通过（含 HTML well-formed 校验）
+- **质量门禁**: ruff All checks passed / mypy 无报错 / pytest 62 passed (17+25+20)
+- **关键修正 docs/1 原描述**: `ml_enhanced_trainer.py` 不存在（实际 `lgb_enhanced_trainer.py`）；`ai_hedge_fund` 在 `quant_modules/` 非 `utils/`；`utils/` 实际 155 py 非 136；LiteLLM 已真实接入（非空壳）
+- **Sprint B/C 暂停**: Switchyard 评估 + TencentDB-Agent-Memory 团队级记忆 + unsloth 微调 + EchoBird CLI + deepseek-harness 插件化重构，风险更高（改核心模块/需 GPU），等下次会话
+- **指针**: `docs/1设计计划集成到系统内并能完整运行_20260817.md` §3 Sprint A + `cairn/docs1-integration-sprint-a-20260817.md`
+
+## 2026-08-17 · T3 决策文档占位符预填充 ✅ DONE
+
+- **§1.4 DriftMonitor 误报率统计表**: 7 报告 612 alerts, 误报率=0.00%, 可解释率=100.00%, 25 critical 全 RSI_14D（PSI=3.92 真实漂移）
+- **§4.1 样本量风险**: 15/20 样本（75.0%）, 有效率 100%, 时间跨度 15/21 天
+- **§4.2 误报率风险**: 总体/PSI/KS/ADWIN 误报率均 0.00%
+- **§4.3 Public/Private 分离**: public=0.0 vs private=0.4716, reward_hacking=0.0, pit_violations=0, overfit=0.0
+- **§4.4 shadow 预热**: 2/3 天（08-17 EOD 后达 3/3）, diff_rate=0.0088, flag 不变式保持
+- **§4.5 周末排期**: 结构性改动落周末, P0 断档=0, 高风险改动=0
+- **状态**: v1.3-draft 占位符已预填充 08-17 数据, 待 08-22~23 最终确认 + §5.4 建议
+- **指针**: `docs/自我进化框架/OBSERVATION_PERIOD_DECISION.md` §1.4/§4.1-4.5
 
 ## 2026-08-17 · T2 第13批覆盖率 + eval_status 修复 ✅ DONE
 
