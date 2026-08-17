@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-17 · T2 第 26 批覆盖率：notify + v10_config_loader + concurrency ✅ 54 tests GREEN (1 xfail)
+
+- **notify** 0%→80.62% (16 tests): 统一监控告警 — _send_dingtalk/_send_feishu(mock urllib)/_log_alert(各级别)/send_alert(无配置/有配置/DISABLED)/send_sms_alert/send_async_alert
+- **v10_config_loader** 0%→85.27% (18 tests): v10.0 投资计划配置加载器 — load(缓存/不存在/解析失败)/get_allocation/get_current_phase(2026/2027/越界)/get_total_capital/risk/rebalance/summary
+- **concurrency** 0%→81.53% (20 tests, 1 xfail): 并发安全工具 — get_path_lock/atomic_write_text+json/read_json_locked/process_lock(获取/重入阻塞/释放)/run_io_batch(正常/异常降级/进度回调); xfail: concurrent.futures.TimeoutError 非 Py3.8 内置 TimeoutError 子类
+- **三模块合计**: 54 passed + 1 xfailed, 总覆盖率 82.41%
+- **指针**: `tests/unit/test_notify_unit.py` + `tests/unit/test_v10_config_loader_unit.py` + `tests/unit/test_concurrency_unit.py`
+
 ## 2026-08-17 · T2 第 25 批覆盖率：hedge_constants + data_types + path_config + trading_env ✅ 87 tests GREEN
 
 - **hedge_constants** 0%→100.00% (5 tests): 对冲共享常量 — DEFENSE_ASSETS 三资产验证
