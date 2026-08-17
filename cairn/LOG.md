@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-17 · T2 第 18 批覆盖率：evaluator + multi_strategy_coordinator ✅ 80 tests GREEN
+
+- **evaluator** 0%→89.72% (38 tests): alphalens 风格因子评估器 — 分层收益/换手率/因子衰减/Tear Sheet/批量评估/序列化
+- **multi_strategy_coordinator** 0%→95.31% (42 tests): 多策略协调器 — 6 策略注册/权重动态调整/冲突检测(相反信号+超限)/风险预算/现金缓冲/失效检测/状态保存
+- **.coveragerc 修复**: 移除 evaluator.py 的 omit 排除（G7 W7.4.5 旧排除，现已有测试）
+- **指针**: `tests/unit/test_evaluator_unit.py` + `tests/unit/test_multi_strategy_coordinator_unit.py`
+
 ## 2026-08-17 · T2 第 17 批覆盖率：cash_manager + greek_hedge_manager ✅ 52 tests GREEN
 
 - **cash_manager** 0%→90.31% (21 tests): 闲置资金分配/逆回购自动下单/月末季末加大投放/应急保证金动用+2日补足/追加保证金通知/分配摘要
@@ -74,6 +81,16 @@
 - **质量门禁**: pytest 8/8 (新 MVSK) + 31/31 (回归) 全 passed
 - **下一步**: P2 扩展为 BL+MVSK 联合优化（BL 后验 μ → MVSK 优化器）→ P3 regime 动态切换
 - **指针**: `cairn/mvsk-higher-moment-optimization.md` + `research/mvsk_gamma_grid_search.py` + `research/mvsk_ab_test_real.py` + `tests/unit/test_mvsk_optimizer_unit.py`
+
+## 2026-08-17 · docs/1 八项目集成 Sprint C W.C.2 完成 / W.C.1 阻塞
+
+- **W.C.2 EchoBird 多 CLI 模型切换**: `scripts/cli_model_switcher.py`（新建 250 行，list_profiles/get_profile/current/switch/backup_env + IDE 配置同步 + CLI argparse 入口）+ `configs/cli_profiles/`（4 profile: deepseek/glm/doubao/ollama.yaml，含 env_vars + fallback_chain + ide_configs）+ 23 测试
+- **关键设计**: 切换前自动备份 .env 到 .env.bak.{timestamp}；只改 model/base_url 等非敏感配置，不碰 API Key；--dry-run 只显示不写入；IDE 配置同步 best-effort（.codebuddy/.trae 不存在时跳过）；`_ENV_FILE` 用 None 默认参数 + 函数内引用，支持 patch 测试
+- **CLI 用法**: `python scripts/cli_model_switcher.py list` / `current` / `switch glm --dry-run` / `switch ollama --no-backup`
+- **质量门禁**: ruff All checks passed / pytest 23 passed
+- **W.C.1 unsloth 本地微调**: ❌ 阻塞（需 GPU，M5Max MacBook Pro 可能不支持 unsloth；已有 `docs/云端训练方案_华为云ModelArts_20260815.md` 备选方案，等 GPU 环境就绪再做）
+- **Sprint C 状态**: W.C.2 ✅ / W.C.3 ✅ / W.C.1 ❌ 阻塞(GPU)；docs/1 八项目集成 Sprint A+B+C 实质完成（7/8 完成 + 1 SKIP + 1 GPU 阻塞）
+- **指针**: `docs/1设计计划集成到系统内并能完整运行_20260817.md` §3 W.C.2 + `tests/unit/test_cli_model_switcher.py`
 
 ## 2026-08-17 · docs/1 八项目集成 Sprint C W.C.3 完成 ✅ DONE
 
