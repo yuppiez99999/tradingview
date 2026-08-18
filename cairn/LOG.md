@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 28 批覆盖率：protective_put_engine + markitdown_adapter + stress_test_runner ✅ 85 tests GREEN
+
+- **protective_put_engine** 0%→77.94% (30 tests): 认沽期权保护引擎 — 类常量(4 ETF/budget_pct=1.0)/_estimate_put_premium(BS 公式/边界/ITM>OTM/最低价)/_calc_next_expiry(第4个周三/跨月)/should_buy_protection(市值不足/有有效put/过期put/预算用完/应买)/generate_put_orders(回撤加码 1.0/1.2/1.5/2.0/现价0跳过/订单结构)/check_and_roll(无到期/有到期滚仓)/record_execution(FILLED/PENDING)/get_protection_status(覆盖率/needs_action)
+- **markitdown_adapter** 0%→92.81% (24 tests): MarkItDown 文档转换适配器 — SUPPORTED_EXTENSIONS/单例/_find_python310(subprocess mock)/_check_installed(缓存/无Python/已安装/未安装)/_ensure_installed(已安装/安装成功/失败)/convert_to_markdown(不存在/不支持/不可用/成功/失败/超时)/convert_url(不可用/成功/失败/超时)/batch_convert/get_status
+- **stress_test_runner** 0%→96.67% (31 tests): 压力测试自动化 — STRESS_SCENARIOS 4 场景/_run_scenario(6 资产类别识别/style 字段)/干预措施(slow_bear/liquidity_crisis 收益/crash 无)/run_all_scenarios(worst_dd/report_path/with_intervention/零市值)/_save_report
+- **三模块合计**: 85 passed, 总覆盖率 86.27%
+- **指针**: `tests/unit/test_protective_put_engine_unit.py` + `tests/unit/test_markitdown_adapter_unit.py` + `tests/unit/test_stress_test_runner_unit.py`
+
 ## 2026-08-18 · T2 第 27 批覆盖率：glm5_client + llm_client + execution_router ✅ 86 tests GREEN
 
 - **glm5_client** 0%→83.74% (15 tests): GLM-5 客户端 LiteLLMRouter 薄包装 — GLM5Config(默认/环境变量覆盖/显式优先)/chat 输入验证(空/超长/temperature/max_tokens 越界)/router 不可用空响应/router 可用 mock/is_ready/test_connection/get_stats/单例/quick_chat
