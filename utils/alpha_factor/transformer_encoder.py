@@ -36,7 +36,7 @@ try:  # pragma: no cover - 依赖环境差异
     torch = _torch_impl
     nn = _torch_nn_impl
     _TORCH_AVAILABLE = True
-except ImportError:  # pragma: no cover - torch 不装也不影响主流程
+except (ImportError, OSError):  # pragma: no cover - torch 不装或 DLL 加载失败也不影响主流程
     torch = None
     nn = None
 

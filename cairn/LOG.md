@@ -2,6 +2,25 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 30 批覆盖率：transformer_encoder + factor_discovery + gat_layer2_validation(跳过) ✅ 33 tests GREEN (6 skipped)
+
+- **transformer_encoder** 0%→85.94% (21 tests): 因子 Transformer 编码器 — FactorEncodingResult/NumpyFactorEncoder(构造/_layernorm/_gelu/_self_attn_shadow/encode 形状/维度不匹配/NaN/确定性)/build_factor_encoder(numpy/force_torch)/factors_to_matrix(dict/FactorValue/stocks/None 过滤)/encode_factor_frame(端到端/空输入/维度重建); **修复 torch OSError 降级** (try/except 添加 OSError 捕获)
+- **factor_discovery** 0%→20.78% (12 tests): 因子挖掘工具 — UNIVERSE_PRESETS(3 预设/包含关系)/FactorValidationResult/DiscoveryReport dataclass/FactorDataFetcher._normalize_columns(中文列名/数值转换)/get_available_cached_symbols(缓存不存在)/FactorValidator 常量
+- **gat_layer2_validation** 6 skipped: 依赖 gat_factor_torch (torch DLL 加载失败), 纯函数测试就位待 torch 环境恢复
+- **.coveragerc 更新**: 移除 transformer_encoder 排除 (已有测试 + torch 降级修复), 保留 gat_layer2_validation 排除 (torch 依赖)
+- **两模块合计**: 33 passed + 6 skipped, 总覆盖率 39.23%
+- **指针**: `tests/unit/test_transformer_encoder_unit.py` + `tests/unit/test_factor_discovery_unit.py` + `tests/unit/test_gat_layer2_validation_unit.py`
+
+## 2026-08-18 · qlib选股回测验证完成：两时段均跑赢沪深300，策略稳健有效
+
+- **模型**: LightGBM + Alpha158因子, 1天标签, leaves=128/rounds=500/lr=0.02/depth=8, Top10等权每日换仓
+- **回测1 (2024-06~2025-06, 样本外)**: 年化63.98% vs 基准13.87%, 超额+50.10%, 夏普2.44, 回撤-14.07%
+- **回测2 (2025-06~2026-07, 样本外)**: 年化34.73% vs 基准22.98%, 超额+11.75%, 夏普1.86, 回撤-13.97%
+- **迭代对比**: 5天标签IC高(0.0354)但回测差(-15.71%超额, 频率不匹配); 强超参≈弱超参(early stopping 215轮, 超参非瓶颈)
+- **结论**: 1天标签+弱超参为最优配置, 两时段夏普>1.8, 超额均正, 策略非运气
+- **与系统关系**: qlib选股=上游"买什么"(日频), 现有盘中决策=下游"怎么买"(分钟级), 通过SignalFusionEngine(alpha_weight=0.4)串联, 完全可共存
+- **指针**: `ms_strategy/cloud_train/simple_backtest.py` + `reports/backtest_summary_202608*.json` + 模型 `reports/qlib_model_20260817_145851.pkl`(时段2) / `reports/qlib_model_20260818_002409.pkl`(时段1)
+
 ## 2026-08-18 · T2 第 29 批覆盖率：gat_factor + s5_validation + gat_factor_torch(跳过) ✅ 37 tests GREEN (3 skipped)
 
 - **gat_factor** 0%→94.74% (22 tests): 纯 numpy 图注意力因子 — GATFactor 构造/_init_params(确定性种子)/_attention(形状/非负/行和≈1/孤立节点/无边)/compute(形状/自动初始化/无边零)/_rank_loss(完全正反相关/样本不足/NaN)/train(losses)/build_adjacency(无向对称/缺失节点/weight_key)/gat_factor_values 端到端
