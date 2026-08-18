@@ -2,6 +2,12 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 37 批覆盖率：logging_manager ✅ 26 tests GREEN
+
+- **logging_manager** 0%→98.37% (26 tests): 统一日志管理器 — ColoredFormatter(彩色输出/未知级别)/StructuredFormatter(JSON输出/额外属性duration_ms等)/QuantSystemLogger(默认init/自定义config/console禁用/file禁用/structured启用/specific_loggers配置)/_parse_size(KB/MB/GB/小写/纯数字)/_load_default_config(环境变量QUANT_LOG_LEVEL/QUANT_LOG_DIR)/get_logger(返回+缓存)/全局单例(get_logger_manager单例/get_logger/setup_logging替换单例)
+- **注**: 原计划 3 模块，institutional_optimizer (88.58%) 和 ifind_news_analyzer (82.98%) 已有 G7 boost 测试达标，仅 logging_manager 需新建
+- **指针**: `tests/unit/test_logging_manager_unit.py`
+
 ## 2026-08-18 · T2 第 36 批覆盖率：risk_constraints + global_cancel_guard + limit_pool_provider ✅ 57 tests GREEN
 
 - **risk_constraints** 0%→81.72% (14 tests): 硬性风险约束执行器 — enforce_hard_constraints(单标的截断/非负/板块压缩/归一化/循环收敛/无sector/空权重)/validate_risk_budget(集中度/板块/VaR/价格数据)/_approx_var(有价格/无价格/短历史)
