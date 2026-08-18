@@ -2,6 +2,22 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 31 批覆盖率：config_manager + logger + cost_model ✅ 90 tests GREEN
+
+- **config_manager** 0%→90.57% (50 tests): 统一配置管理器 — _NAMED_CONFIGS注册表/_build_search_paths(环境变量)/构造(project_root/extra_search_paths)/单例(get_instance/reset_instance)/_resolve_config_path(短名/全名/.yml)/_load_yaml(正常/空/非dict/损坏)/_get_cached(命中/mtime失效/文件删除)/get(加载/缓存/default/未找到)/类型化访问器(kill_switch回退/portfolio/settings/backtest/risk_budget/risk_params/stop_loss)/list_available/get_config_source/clear_cache/reload/模块级快捷函数; **隔离测试**: project_root=tmp_path 避免搜索到真实项目配置
+- **logger** 0%→99.24% (25 tests): 日志工具 — RelativePathFormatter(相对路径/ValueError回退)/Logger(构造/各级别方法/无效级别/不重复handler/嵌套目录自动创建)/_resolve_log_level(None/有效/无效/小写/自定义default)/get_logger(返回Logger/创建目录)/_apply_litellm_log_level(环境变量/默认WARNING)/_apply_quiet_loggers/_init_root_logging(创建文件/handler)/setup_loggers(返回system+modules)
+- **cost_model** 0%→100.00% (15 tests): 统一成本模型 — CostAssumption默认值/annual property(commission/stamp/impact/total)/breakdown(键/值/求和)/net_return(正/负/零)/DEFAULT_COST_MODEL/get_cost_model
+- **三模块合计**: 90 passed, 总覆盖率 93.98%
+- **指针**: `tests/unit/test_config_manager_unit.py` + `tests/unit/test_logger_unit.py` + `tests/unit/test_cost_model_unit.py`
+
+## 2026-08-18 · qlib选股模型知识沉淀 + shadow接入排期写入ROADMAP
+
+- **知识专题文档**: `cairn/qlib-backtest-validation.md` 创建 — 沉淀回测验证结论、V9对比、盘中决策共存分析、最佳方案、shadow排期
+- **排期写入**: ROADMAP.md Wave 7 新增3任务 — W7.1.7 (Sprint1, 09-05~09-12, shadow接入准备) / W7.2.9 (Sprint2, 09-13~10-12, shadow运行30天对比V9) / W7.3.8 (Sprint3, 10-13~11-12, 评估决策是否替换V9)
+- **核心结论**: 选股能力 qlib(夏普1.86-2.44) > V9(1.315); 实盘生存能力 盘中决策 >> 纯选股; 最佳方案=两者结合(qlib替换V9作alpha源, 接入现有风控+执行链路)
+- **接入点**: `utils/signal_fusion.py` `register_source('qlib_lgb_v2', getter)`, alpha_weight=0.4
+- **指针**: `cairn/qlib-backtest-validation.md` + `cairn/ROADMAP.md` Wave 7 Sprint 1-3
+
 ## 2026-08-18 · T2 第 30 批覆盖率：transformer_encoder + factor_discovery + gat_layer2_validation(跳过) ✅ 33 tests GREEN (6 skipped)
 
 - **transformer_encoder** 0%→85.94% (21 tests): 因子 Transformer 编码器 — FactorEncodingResult/NumpyFactorEncoder(构造/_layernorm/_gelu/_self_attn_shadow/encode 形状/维度不匹配/NaN/确定性)/build_factor_encoder(numpy/force_torch)/factors_to_matrix(dict/FactorValue/stocks/None 过滤)/encode_factor_frame(端到端/空输入/维度重建); **修复 torch OSError 降级** (try/except 添加 OSError 捕获)
