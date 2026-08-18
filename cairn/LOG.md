@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · 3 个源码 bug 修复 (T2 覆盖率冲刺副产物) ✅ 97 tests GREEN
+
+- **bug 1**: `wt_execution_algo.simulate_execution([])` ZeroDivisionError → 空订单时 `sum(o["amount"])` 为 0, 加 `if total_amount_sum > 0 else 0.0` 防护
+- **bug 2**: `vibe_trading_adapter._infer_market("0700.HK")` 误判 `us_equity` → HK/KR 判断移到 US 判断之前 (原 US 条件 `len<=5` 太宽泛, 匹配了 `0700` 这种 4 字符港股代码)
+- **bug 3**: `enhanced_signal_fusion` 导入失败 `NameError: SignalFusionEngine` → 拆分导入: `signal_fusion` 单独 try (可用), `fast_signal_processor`/`rule_engine` 各自 try+fallback=None, 最终 fallback 定义占位 `SignalFusionEngine` 基类
+- **新增测试**: `test_enhanced_signal_fusion_unit.py` (12 tests, 29.92% coverage) — SourcePerformanceMetrics/WeightAdjustmentConfig dataclass + EnhancedSignalFusionEngine 基础初始化
+- **验证**: 97 passed (wt_execution_algo 46 + vibe_trading_adapter 39 + enhanced_signal_fusion 12)
+- **指针**: `utils/wt_execution_algo.py` + `utils/vibe_trading_adapter.py` + `utils/enhanced_signal_fusion.py` + `tests/unit/test_enhanced_signal_fusion_unit.py`
+
 ## 2026-08-18 · 观察期数据完整性恢复 + EOD 防护部署 + IDE 配置归档
 
 - **08-17 断档补录**: Wind MCP 补录 08-17（+0.7571%，26 标的 100% 覆盖），修正初判误（08-15 是周六非周五，真正断档是 08-17 周一）

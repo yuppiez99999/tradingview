@@ -82,12 +82,12 @@ def _infer_market(symbol: str) -> str:
     upper = symbol.upper()
     if upper.endswith((".SH", ".SZ", ".BJ")):
         return "a_share"
-    if upper.endswith(".US") or (len(upper.split(".")[0]) <= 5 and "." not in upper.split(".")[0]):
-        return "us_equity"
     if upper.endswith(".HK"):
         return "hk_equity"
     if upper.endswith(".KS") or upper.endswith(".KQ"):
         return "kr_equity"
+    if upper.endswith(".US") or (len(upper.split(".")[0]) <= 5 and "." not in upper.split(".")[0]):
+        return "us_equity"
     # 期货/期权
     if len(upper.split(".")[0]) <= 6 and any(c.isalpha() for c in upper.split(".")[0]):
         return "futures"

@@ -36,19 +36,67 @@ warnings.filterwarnings('ignore')
 try:
     from .logging_manager import get_logger
     logger = get_logger('enhanced_signal_fusion')
-    from .fast_signal_processor import FastSignal, generate_fast_signals
-    from .rule_engine import evaluate_trading_decision
-    from .signal_fusion import FusedSignal, SignalFusionEngine, SignalResult
 except ImportError:
     try:
         from logging_manager import get_logger
         logger = get_logger('enhanced_signal_fusion')
-        from fast_signal_processor import FastSignal, generate_fast_signals
-        from rule_engine import evaluate_trading_decision
-        from signal_fusion import FusedSignal, SignalFusionEngine, SignalResult
     except ImportError:
         import logging
         logger = logging.getLogger('enhanced_signal_fusion')
+
+try:
+    from .signal_fusion import FusedSignal, SignalFusionEngine, SignalResult
+except ImportError:
+    try:
+        from signal_fusion import FusedSignal, SignalFusionEngine, SignalResult
+    except ImportError:
+        import logging as _logging
+        _logging.getLogger('enhanced_signal_fusion').warning(
+            "signal_fusion 不可用, EnhancedSignalFusionEngine 将使用基础占位类"
+        )
+
+        class SignalResult:
+            def __init__(self, **kwargs):
+                for k, v in kwargs.items():
+                    setattr(self, k, v)
+
+        class FusedSignal:
+            def __init__(self, **kwargs):
+                for k, v in kwargs.items():
+                    setattr(self, k, v)
+
+        class SignalFusionEngine:
+            def __init__(self, db_path=None):
+                self.db_path = db_path or ":memory:"
+                self._sources = {}
+                self._source_weights = {}
+
+            def register_source(self, name, getter, initial_weight=None):
+                self._sources[name] = getter
+                self._source_weights[name] = initial_weight or 1.0 / max(len(self._sources), 1)
+
+            def _compute_dynamic_weights(self):
+                if not self._source_weights:
+                    return {}
+                total = sum(self._source_weights.values())
+                return {k: v / total for k, v in self._source_weights.items()} if total > 0 else {}
+
+try:
+    from .fast_signal_processor import FastSignal, generate_fast_signals
+except ImportError:
+    try:
+        from fast_signal_processor import FastSignal, generate_fast_signals
+    except ImportError:
+        FastSignal = None
+        generate_fast_signals = None
+
+try:
+    from .rule_engine import evaluate_trading_decision
+except ImportError:
+    try:
+        from rule_engine import evaluate_trading_decision
+    except ImportError:
+        evaluate_trading_decision = None
 
 
 @dataclass

@@ -170,6 +170,15 @@ class TestMinImpactExecutor:
         assert "slippage_total" in result
         assert "num_orders" in result
 
+    def test_simulate_empty_orders(self):
+        """空订单 → 不崩溃 (bug 已修复)"""
+        e = MinImpactExecutor()
+        with patch("utils.wt_execution_algo.time.sleep"):
+            result = e.simulate_execution([])
+        assert result["total_qty"] == 0
+        assert result["num_orders"] == 0
+        assert result["slippage_pct"] == 0.0
+
 
 
 # ============================================================

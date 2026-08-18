@@ -47,9 +47,7 @@ class TestInferMarket:
         assert _infer_market("AAPL") == "us_equity"
 
     def test_hk_equity(self):
-        # 注意: 0700.HK 被源码 US 判断 (len<=5) 先命中, 返回 us_equity
-        # 这是源码 bug, 测试匹配实际行为
-        assert _infer_market("0700.HK") in ("hk_equity", "us_equity")
+        assert _infer_market("0700.HK") == "hk_equity"
 
     def test_hk_equity_long_code(self):
         assert _infer_market("000700.HK") == "hk_equity"

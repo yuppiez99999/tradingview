@@ -198,12 +198,13 @@ class MinImpactExecutor:
 
         if total_executed > 0:
             avg_execution_price = float(total_amount) / float(total_executed)
+        total_amount_sum = sum(o["amount"] for o in orders)
         return {
             "total_qty": total_executed,
             "total_amount": round(total_amount, 2),
             "avg_execution_price": round(avg_execution_price, 4),
             "slippage_total": round(slippage_total, 2),
-            "slippage_pct": round(slippage_total / sum(o["amount"] for o in orders) * 100, 4),
+            "slippage_pct": round(slippage_total / total_amount_sum * 100, 4) if total_amount_sum > 0 else 0.0,
             "num_orders": len(orders),
             "execution_time_minutes": sum(o["delay_minutes"] for o in orders),
             "start_time": start_time.isoformat(),
