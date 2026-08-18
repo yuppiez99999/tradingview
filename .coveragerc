@@ -29,8 +29,7 @@ omit =
     # wt_structs 已有测试 (T2 第41批)
     */wt_tick_engine.py
     wt_tick_engine.py
-    */wt_hedge_strategy.py
-    wt_hedge_strategy.py
+    # wt_hedge_strategy 已有测试 (T2 第48批)
     # wt_contracts_manager 已有测试 (T2 第46批)
     # 未纳入 G7 计划且暂不补测的重型子系统 (0% 会永久拖垮门禁, 待单独排期)
     */universe/*
@@ -102,8 +101,7 @@ omit =
     # gat_factor_torch: torch DLL 加载失败, 保留排除
     */alpha_factor/gat_factor_torch.py
     alpha_factor/gat_factor_torch.py
-    */external_strategy_adapter.py
-    external_strategy_adapter.py
+    # external_strategy_adapter 已有测试 (T2 第48批)
     */alpha/layers/static_parser.py
     alpha/layers/static_parser.py
 
@@ -113,8 +111,7 @@ omit =
     */data/feature_store.py
     data/feature_store.py
     # 边界情况: 研究/离线/仅测试路径, 非主链路
-    */free_stockdb_adapter.py
-    free_stockdb_adapter.py
+    # free_stockdb_adapter 已有测试 (T2 第48批)
 
     */factor_model.py
     factor_model.py

@@ -2,6 +2,24 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 48 批覆盖率：wt_hedge_strategy + external_strategy_adapter + free_stockdb_adapter ✅ 66 tests GREEN
+
+- **wt_hedge_strategy** 0%→83.63% (tests): HedgePosition/PortfolioMetrics dataclass/BetaHedgeStrategy(构造/计算beta/对冲手数/无持仓)/TailRiskHedgeStrategy(VaR/ES/触发/不触发)/DynamicHedgeStrategy(选择/降级)/HedgeStrategy基类
+- **external_strategy_adapter** 0%→85.54% (tests): ExternalStrategyAdapter(__init__/load/validate/normalize/extract_signals/回测接口)/get_adapter单例/analyze/analyze_all(批量/空)
+- **free_stockdb_adapter** 0%→38.77% (tests): _strip_suffix(沪/深/北/无后缀/大小写)/_period_to_date_range(1d/5d/1y/3y/5y/无效)/_normalize_fs_dataframe(空/单行/多行/列名映射/缺失列) — DLL 依赖函数(is_available/get_historical_data)用 mock 跳过
+- **三模块合计**: 66 passed
+- **`.coveragerc`**: 移除 wt_hedge_strategy + external_strategy_adapter + free_stockdb_adapter 的 omit 排除规则
+- **指针**: `tests/unit/test_wt_hedge_strategy_unit.py` + `tests/unit/test_external_strategy_adapter_unit.py` + `tests/unit/test_free_stockdb_adapter_unit.py`
+
+## 2026-08-18 · 观察期数据完整性恢复 + EOD 防护部署 + IDE 配置归档
+
+- **08-17 断档补录**: Wind MCP 补录 08-17（+0.7571%，26 标的 100% 覆盖），修正初判误（08-15 是周六非周五，真正断档是 08-17 周一）
+- **13:04 清空事件**: `reports/shadow/` + `reports/evolution/` 在 08-18 13:04:21 被清空（mtime 证据），10 条路径排查全部排除（计划任务/VSCode/PowerShell/git/pre-commit/pytest/.claude hooks/Defender/scheduler/clean脚本），元凶未定位，最可能是 6 个 IDE 文件监视器冲突或 cmd 手动操作
+- **全量恢复**: `backfill_shadow_history.py --start 07-27 --end 08-17` 从 Wind MCP 回填 16 天，08-18 EOD 12 阶段全成功（+0.2003%），观察期 17/21 天 (81.0%)，预计 08-24 达标
+- **P1+P2 防护落地**: `run_daily_eod_workflow.py` 加入 `run_shadow_data_guard()`（前置检查+自动恢复）+ `backup_shadow_data()`（末尾带时间戳备份），三测试通过
+- **IDE 配置归档**: 5 个多余目录（.arts/.codebuddy/.trae-cn/.trae/.zcode）→ `_archive/ide_configs_20260818_154410/`，28 个方案文档 → `docs/ide_docs_archive/`
+- **指针**: `15_每日工作流/run_daily_eod_workflow.py` + `reports/shadow/daily_returns.jsonl` + `reports/evolution/observation_progress.json`
+
 ## 2026-08-18 · T2 第 47 批覆盖率：ifind_news_analyzer + institutional_optimizer + akshare_futures ✅ 85 tests GREEN
 
 - **ifind_news_analyzer** 0%→89.36% (tests): NewsItem/StockInsight dataclass/IFinDNewsAnalyzer(__init__/available/search_news/search_notice/search_trending/analyze_symbol/batch_analyze)/_parse_news_result(dict/MCP包装/中文键)/_extract_results(list/dict/嵌套)/_derive_insight(利好/利空/中性/无信号)/_extract_entities(代码/交易所/上限10)
