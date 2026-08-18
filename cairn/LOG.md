@@ -2,6 +2,61 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 36 批覆盖率：risk_constraints + global_cancel_guard + limit_pool_provider ✅ 57 tests GREEN
+
+- **risk_constraints** 0%→81.72% (14 tests): 硬性风险约束执行器 — enforce_hard_constraints(单标的截断/非负/板块压缩/归一化/循环收敛/无sector/空权重)/validate_risk_budget(集中度/板块/VaR/价格数据)/_approx_var(有价格/无价格/短历史)
+- **global_cancel_guard** 0%→88.72% (19 tests): 全局撤单Guard — CancelResult dataclass/GlobalCancelGuard构造/cancel_all_orders(broker未连接/无订单/正常撤单/symbols过滤/全部跳过/撤单失败/dict订单/dict orders属性/trigger_reason)/_cancel_with_retry/_get_order_id/_get_order_status/_get_order_symbol(dict+对象)
+- **limit_pool_provider** 0%→72.22% (24 tests): 涨停池/跌停池数据提供器 — LimitPoolData(构造/属性/is_limit_up/down/broken/__repr__)/LimitPoolProvider(单例/构造/_normalize_date(YYYYMMDD/YYYY-MM-DD/YYYY/MM/DD/datetime)/_is_today/_get_ttl(今天/历史))/get_pool(akshare不可用→空池)/get_limit_up/down/broken_pool/get_pools_batch(字符串+datetime)/clear_cache/get_cache_info/便捷函数
+- **三模块合计**: 57 passed, 总覆盖率 79.88%
+- **指针**: `tests/unit/test_risk_constraints_unit.py` + `tests/unit/test_global_cancel_guard_unit.py` + `tests/unit/test_limit_pool_provider_unit.py`
+
+## 2026-08-18 · 实时监控脚本重构：剔除 iFinD MCP，降级链 Wind MCP → akshare → 新浪 ✅ 语法验证通过
+
+- **范围**: `realtime_monitor/watch_my_positions.py` + `realtime_monitor/watch_my_universe.py` 从 iFinD 为主源重构为 Wind MCP + akshare 降级链
+- **watch_my_positions.py**: 删除 iFindClient import + fetch_stock/fund_snapshot iFinD 调用 + main() IFIND_TOKEN 检查；新增 `fetch_akshare_stock_snapshot` (AKShareDataSource.get_realtime_quote)；股票 Wind→akshare→sina，ETF Wind→sina
+- **watch_my_universe.py**: 删除 iFindClient import + _normalize_stock/fund_results iFinD 解析 + main() IFIND_TOKEN 检查；新增 `fetch_akshare_stock_snapshot`；fetch_stock/fund_snapshot 删 client 参数，降级链同上
+- **akshare 优雅降级**: import 失败时 `_akshare_source = None`，不阻断脚本运行
+- **验证**: `py_compile` 通过
+
+## 2026-08-18 · Wind MCP 重生成 7 项晨报 + iFinD 研判用 Wind 新闻搜索替代 ✅ 7/7 完成
+
+- **触发**: 用户指定"用 wind mcp 数据源重新生成报告，如果没有数据则自行查询可用的数据补充"
+- **范围**: 全部 7 项晨报（morning_info_runner.py --force --date 2026-08-18），覆盖现有归档
+- **LLM 降级链调整** (`15_每日工作流/llm_client.py:449-455`): DeepSeek → GLM → Ollama（剔除豆包/HY3/千帆）
+- **iFinD 研判替代** (`15_每日工作流/morning_info_runner.py:task_ifind_analysis`): 重写为 Wind MCP 路径
+  - 读 `configs/portfolio.yaml` 提取 20 个持仓标的
+  - 对每个标的调用 `wind_get_quote()` + `wind_search_news(top_k=5)` 抓取行情与新闻
+  - LLM 生成研判报告，失败降级到 `_fallback_ifind_report` 规则引擎模板
+- **执行结果**:
+  - 晨间行情摘要 6.1 KB（Wind MCP 21 项数据，iFinD 全失败 Wind 兜底）
+  - **标的研判 6.4 KB**（20/20 行情 + 100 条新闻，LLM 超时降级模板）— 从占位 0.4 KB → 完整报告
+  - 大宗商品扫描 2.2 KB（11 商品价格 + 6 康波信号，LLM 超时降级模板）
+  - ETF 资金流向 1.7 KB（13 只，盘中实时，证券 -10.1亿流出最多）
+  - CNEMC 20 城市平均 AQI 36.0
+- **已知问题**: Ollama qwen2.5:3b 180s read timeout（3500-4000 tokens 任务）；大宗商品 WTI/布油/LME铜 字段疑似串值（99.60 = 美元指数），需排查 `_first_price` 提取逻辑
+- **备份**: `每日报告归档/2026-08-18_bak_20260818_100754/`
+- **指针**: `每日报告归档/2026-08-18/今日报告索引_20260818.md`
+
+## 2026-08-18 · iFinD MCP 从核心数据降级链剔除 ✅ 语法验证通过
+
+- **范围**: 将 iFinD MCP 从核心数据降级链彻底剔除，保留 `ifind_client.py` 供独立功能（新闻分析/研究）引用
+- **B 类（核心调用代码删除）**:
+  - `utils/etf_flow_monitor.py`: 删除 iFinD 加载块 + `_fetch_ifind_fund_flow` + `get_etf_fund_flow` P0 分支
+  - `utils/hedge_engine.py`: 删除 iFinD 配置/加载/`_exec_ifind`/`fetch_futures_prices_from_ifind`(L196-282) + `get_live_futures_prices` P0 分支，Wind MCP 提升为 P0
+  - `utils/hedge_rebalance_integrator.py`: 删除 iFinD 配置/加载/`_exec_ifind`/`_get_ifind_prices_batch`(L39-103) + `load_prices` P0 分支
+  - `utils/akshare_futures.py`: 删除 `ifind_futures_quotes` import + `_IFIND_QUOTE/BASE_INDICATORS` + `get_futures_realtime`/`get_futures_base_info` iFinD 调用
+  - `utils/etf_flow_decision.py`: 删除 `"ifind_mcp": 0.85` 置信度映射
+  - `reporting/html_chart_generator.py`: 删除 iFinD 图表节点，重排 ds2-ds4
+- **A 类（docstring/字符串替换）**: 18 处批量替换 — hedge_engine/kondratiev_cycle/data_adapter/lgb_enhanced_trainer/stop_loss_monitor/live_scheduler/external_data_source/backtest_gate/auto_fix_engine/generate_daily_report/morning_info_runner/sentiment_hub/500万建仓计划JSON
+- **C 类（配置/死代码清理）**:
+  - `utils/system_check.py`: 删除 C3.2 iFinD 死代码块 + CRITICAL_ENV_VARS IFIND_TOKEN + 研究模式 C3.4 iFinD 跳过项 + 9 处 docstring
+  - `.env`: 注释 IFIND_USER/IFIND_PASS/IFIND_TOKEN
+  - `generate_daily_report.py`: IFIND_TOKEN 改空字符串常量
+  - `scripts/deploy/windows_setup.ps1`: 删除 IFIND_TOKEN 部署配置 3 处
+- **保留不动**: `utils/ifind_client.py`(独立功能) / `utils/risk_guard_integrator.py`(iFinD 新闻 Guard) / `realtime_monitor/watch_my_positions.py`+`watch_my_universe.py`(需重构，本次标注不处理)
+- **验证**: `py_compile` 全部 19 个文件通过
+- **待办**: 实时监控脚本 `watch_my_positions.py` / `watch_my_universe.py` 仍以 iFinD 为主源，需后续重构
+
 ## 2026-08-18 · T2 第 35 批覆盖率：smart_order_router + transaction_cost_model + annual_return_forecast ✅ 81 tests GREEN
 
 - **smart_order_router** 0%→89.89% (27 tests): 智能订单路由器 — Venue/OrderBookSnapshot/VenueScore/RoutingDecision dataclass/SmartOrderRouter构造(默认4场所/自定义/权重归一化)/register_venue/update_venue_status/route(SMART/LIQUIDITY_FIRST/ICEBERG/DARK_FIRST/max_venues限制/盘口数据/不可用场所排除/总量守恒)/_detect_gaming(无盘口/平衡/不平衡+小价差)/summarize_decision
