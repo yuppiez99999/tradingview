@@ -82,8 +82,7 @@ omit =
 
     */akshare_futures.py
     akshare_futures.py
-    */stop_loss.py
-    stop_loss.py
+    # stop_loss 已有测试 (T2 第43批)
     */strategy/etf_rotation/engine.py
     strategy/etf_rotation/engine.py
     */risk_attribution.py
@@ -98,8 +97,7 @@ omit =
 
     */akshare_futures.py
     akshare_futures.py
-    */stop_loss.py
-    stop_loss.py
+    # stop_loss 已有测试 (T2 第43批)
     */strategy/etf_rotation/engine.py
     strategy/etf_rotation/engine.py
     */risk_attribution.py

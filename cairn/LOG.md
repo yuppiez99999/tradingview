@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 43 批覆盖率：stop_loss + tdx_data_source + etf_flow_monitor ✅ 70 tests GREEN
+
+- **stop_loss** 0%→97.33% (35 tests): 止损止盈监控 — AlertLevel/RiskType枚举/StopLossMonitor(_determine_level 4级/_generate_action 7种建议/_calculate_risk_score PnL+距离+风险乘数)/check_single(正常/触发/无效价格/显式价格/移动止盈/历史记录)/check_all(批量/缺失行情/零价)/generate_risk_report(空/有告警/综合评估)
+- **tdx_data_source** 0%→49.10% (25 tests): 通达信数据源 — safe_float(None/字符串/非法)/_to_tdx_code(裸码/SH/SZ/BJ前缀/后缀/空白)/_get_market(前缀/后缀/代码推断)/_init_connection(优雅失败)/_ensure_connected/disconnect/get_tdx_source单例 — **修复 bug**: _init_connection except 缺少 ImportError 导致 pytdx 未安装时崩溃
+- **etf_flow_monitor** 0%→20.56% (10 tests): ETF资金流向 — SIGNAL_THRESHOLDS/NATIONAL_TEAM_ETFS/ETF_TO_STOCKS常量/detect_signals(无信号/高/中/低/流出/排序)/get_signal_summary(空/净流入/净流出)/_to_wind_code(SH/SZ ETF)
+- **三模块合计**: 70 passed, 总覆盖率 48.69%
+- **`.coveragerc`**: 移除 stop_loss 的 omit 排除规则 (出现两次, 均移除)
+- **指针**: `tests/unit/test_stop_loss_unit.py` + `tests/unit/test_tdx_data_source_unit.py` + `tests/unit/test_etf_flow_monitor_unit.py`
+
 ## 2026-08-18 · T2 第 42 批覆盖率：lgbm_reproducibility + last30days_adapter + tca_post_trade_attribution ✅ 104 tests GREEN
 
 - **lgbm_reproducibility** 0%→95.71% (30 tests): LightGBM 训练可复现性 — TrainingConfig(frozen dataclass + with_dataset/with_code_sha/with_environment/with_config_hash 链式构造)/compute_dataset_uri(排序稳定 sha256)/compute_code_sha(空列表/多文件/不存在文件)/artifact_name(config_hash 优先/退化为 code_sha)/write_manifest(JSONL 落盘 + contract_validation)/verify_reproducibility(配置/数据/代码匹配 + top_k overlap/consistency)/construct_default_config(默认 LGB 超参 + 链式填充)/异常类层级
