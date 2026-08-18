@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 45 批覆盖率：graph_data_source + greek_exposure_dashboard + wt_spread_strategy ✅ 98 tests GREEN
+
+- **graph_data_source** 0%→41.67% (tests): _safe_float/_market_of/GraphDataSource.__init__/_cached(miss/hit/TTL/None不缓存)/build_concept_edges(共享/无共享/min_share/三标的)/build_industry_edges(同行业/不同/空)/build_thematic_edges/build_main_business_edges/build_graph_edges(组合/排除)/get_graph_data_source单例
+- **greek_exposure_dashboard** 0%→58.64% (tests): GreekSnapshot/GreekDashboard/load_positions(不存在/有效/shares回退/非法JSON/无code/零qty/默认beta)/_signal_level(OK/WARN/CRITICAL/零目标/负值)/_build_recommendations(无需/Delta/Gamma/Vega/Theta/负Delta买入)/compute_dashboard(无持仓/ImportError)/dashboard_to_dict
+- **wt_spread_strategy** 0%→94.78% (tests): SpreadDefinition/_leg访问器/SpreadCalculator.calc_spread_price(BUY-SELL/ratio/缺失/空)/calc_spread_bars/SpreadContext(enter_long/enter_short/exit_long/zero_price/positions/equity)/SpreadBacktester(运行/空)/ETF_PAIR_SPREADS(4个预定义)
+- **三模块合计**: 98 passed
+- **`.coveragerc`**: 移除 wt_spread_strategy + greek_exposure_dashboard (出现两次) 的 omit 排除规则
+- **指针**: `tests/unit/test_graph_data_source_unit.py` + `tests/unit/test_greek_exposure_dashboard_unit.py` + `tests/unit/test_wt_spread_strategy_unit.py`
+
 ## 2026-08-18 · T2 第 44 批覆盖率：tf_price_predictor + auto_trading_system + etf_flow_decision ✅ 41 tests GREEN
 
 - **tf_price_predictor** 0%→56.27% (29 tests): PredictionResult dataclass/TimesFMForecaster(加载/预测/维度不匹配)/TensorflowLSTMPredictor(构建/训练/预测/序列)/StatisticalForecaster(ARIMA/线性外推)/PricePredictor(集成/降级链/批量)

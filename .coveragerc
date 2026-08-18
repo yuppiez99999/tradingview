@@ -21,8 +21,7 @@ omit =
     setup.py
     # 废弃死模块 (0 引用, 确认不再接入主链路) — G7 覆盖口径排除
     # wt_risk_control 已有测试 (T2 第33批), 其余 wt_* 暂排除
-    */wt_spread_strategy.py
-    wt_spread_strategy.py
+    # wt_spread_strategy 已有测试 (T2 第45批)
     */wt_execution_algo.py
     wt_execution_algo.py
     */wt_backtest_engine.py
@@ -86,8 +85,7 @@ omit =
     strategy/etf_rotation/engine.py
     */risk_attribution.py
     risk_attribution.py
-    */greek_exposure_dashboard.py
-    greek_exposure_dashboard.py
+    # greek_exposure_dashboard 已有测试 (T2 第45批)
     # G7 W7.4.5 第四轮排除: 经 search agent 核实的 0 引用废弃/实验/未启用文件
     # 依据: docstring 明示研究资产/全库无 import/仅测试引用
     # gat_layer2_validation: 依赖 gat_factor_torch (torch 不可用), 保留排除
@@ -101,8 +99,7 @@ omit =
     strategy/etf_rotation/engine.py
     */risk_attribution.py
     risk_attribution.py
-    */greek_exposure_dashboard.py
-    greek_exposure_dashboard.py
+    # greek_exposure_dashboard 已有测试 (T2 第45批, 重复条目)
     # G7 W7.4.5 第四轮排除: 经 search agent 核实的 0 引用废弃/实验/未启用文件
     # 依据: docstring 明示研究资产/全库无 import/仅测试引用
     # gat_factor_torch: torch DLL 加载失败, 保留排除
