@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 39 批覆盖率：adjust_factor_provider + astock_realtime ✅ 74 tests GREEN
+
+- **adjust_factor_provider** 0%→74.01% (50 tests): A股后复权因子提供器 — 纯函数(unadjusted_to_hfq/hfq_to_unadjusted/compute_adjusted_return: 正常转换/因子=1/零因子/负因子/None价格/负价格)/_to_daily_symbol(SH/SZ/BJ后缀/已带前缀/纯数字SH/纯数字SZ/纯数字BJ/非法码/小写后缀)/_normalize_factor_df(hfq_factor列/qfq_factor列/无日期列/无因子列/负因子替换/日期排序)/AdjustFactorProvider(单例/自定义TTL/默认TTL)/get_hfq_factor(空序列/最新因子/历史日期/早于记录/非法日期)/is_ex_dividend_date(因子变化/无变化/数据不足/空序列)/get_aligned_prev_close(非除权/除权/无效prev_close)/缓存管理(clear/get_info)/get_factors_batch/模块函数(get_adjust_factor_provider单例/align_realtime_to_hfq/compute_aligned_return/align_prev_close_to_today)
+- **astock_realtime** 0%→95.38% (24 tests): A股实时行情接入层 — _secid(SH/SZ/带后缀)/_tx_prefix(SH/SZ/带后缀)/get_eastmoney_quotes(空码/被封禁/成功响应/HTTP失败设blocked/change_pct计算)/get_tencent_quotes(空码/成功响应/HTTP失败)/get_realtime_quotes(空码/东财成功/回退腾讯/缓存命中/零价回退/去空白码)
+- **两模块合计**: 74 passed, 总覆盖率 80.09%
+- **指针**: `tests/unit/test_adjust_factor_provider_unit.py` + `tests/unit/test_astock_realtime_unit.py`
+
 ## 2026-08-18 · T2 第 38 批覆盖率：trade_plan_validator + event_tracker + purged_kfold ✅ 80 tests GREEN
 
 - **trade_plan_validator** 0%→73.37% (30 tests): 交易计划字段完整性校验器 — validate(有效plan/非dict/空dict/strict模式/非strict模式/类型检查/负capital/capital不一致/订单校验/非dict订单/零shares/market_state非法circuit/risk_guard非法drawdown/kill_switch非dict/一致性CRITICAL+spot_build/CRITICAL+disabled/WARNING+build_allowed)/validate_file(不存在/非法JSON/有效文件)/auto_fix(空plan/保留已有/非dict) — **修复 bug**: auto_fix 非 dict 输入时 `{**plan}` TypeError
