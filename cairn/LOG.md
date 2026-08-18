@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 34 批覆盖率：stress_test_scenario_library + tca_pre_trade_estimator + execution_algorithm_engine ✅ 89 tests GREEN
+
+- **stress_test_scenario_library** 0%→86.27% (33 tests): 压力测试场景库 — ShockFactors/StressScenario/StressTestResult dataclass/_build_default_scenarios(10场景)/StressTestEngine构造/run_scenario(股票/ETF/债券/黄金/期货/风格/行业/流动性)/run_all_scenarios/add_custom_scenario/create_custom_shock/get_worst_scenario/get_breached_scenarios/summarize
+- **tca_pre_trade_estimator** 0%→74.74% (29 tests): TCA执行前预估器 — PreTradeEstimate dataclass/to_dict/to_jsonl/PreTradeEstimator构造/estimate(正常/参数校验/否决/通过/auto_notional)/estimate_batch/filter_approved/calibrate_threshold/工厂函数
+- **execution_algorithm_engine** 0%→92.88% (27 tests): 执行算法引擎 — Order/ChildOrder/ExecutionPlan dataclass/ExecutionAlgorithmEngine构造/_default_u_shape_curve(24槽U型)/_generate_trading_slots(跳午休/跨午休/短窗口)/vwap(默认+自定义曲线/adv/切片类型OPEN-CLOSE-NORMAL/总量守恒)/twap(均匀/adv/空槽退化)/pov(参与度/剩余扫尾/空槽)/is_algo(urgency→λ/adv/sigma2=0退化/总量守恒)/_clamp_to_trading_hours(早于开盘/午休/晚于收盘/正常)/_apply_randomization(长度保持/无非负/时间钳制)/select_algorithm(大单POV/中单VWAP-IS/小单VWAP-TWAP/零adv安全)/summarize_plan
+- **三模块合计**: 89 passed, 总覆盖率 86.26%
+- **指针**: `tests/unit/test_stress_test_scenario_library_unit.py` + `tests/unit/test_tca_pre_trade_estimator_unit.py` + `tests/unit/test_execution_algorithm_engine_unit.py`
+
 ## 2026-08-18 · T2 第 33 批覆盖率：five_year_plan + lgb_signal_monitor + wt_risk_control ✅ 72 tests GREEN
 
 - **five_year_plan** 0%→99.41% (20 tests): 十五五规划适配分析 — FIFTEEN_FIVE_POLICIES(7方向/权重和=1)/STOCK_POLICY_ALIGNMENT/FifteenFivePlanAnalyzer构造/get_policy_overview(7方向/按权重排序)/analyze_holdings(无持仓/有持仓/分级A-D/按评分排序)/get_weight_adjustments(超配/低配/维持)/generate_report(无保存/保存到目录)
