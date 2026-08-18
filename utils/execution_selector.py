@@ -119,7 +119,7 @@ def choose_execution_algorithm(
         from utils.wt_execution_algo import compare_execution
 
         comparison = compare_execution(target_amount, ref_price, avg_daily_volume)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
         return _make_result("immediate", f"执行算法比较失败，回退 immediate: {e}")
 
     if not comparison:

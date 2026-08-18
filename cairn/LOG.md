@@ -2,6 +2,26 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 40 批覆盖率：cli_helpers + execution_selector + data_source_manager ✅ 65 tests GREEN
+
+- **cli_helpers** 0%→100.00% (14 tests): CLI 辅助函数 — write_report_file(基本写入/自定义子目录/覆盖)/archive_report(归档/不存在/自定义子目录)/get_stock_name(无positions/有positions/不在positions/非法JSON)/log_execution_summary(基本输出/空dict)/get_ml_signal_section(默认/带code/return_raw)/get_etf_flow_data/get_portfolio_quotes/get_archive_dir
+- **execution_selector** 0%→97.33% (17 tests): 智能执行算法选择器 — _estimate_depth_ratio(基本/零volume/负volume/零price/负price/小ratio)/_compute_adaptive_weights(正常/浅市场/高波动/浅+高波动/深市场低ratio/零volume/reason字符串)/_make_result(基本/全参数/无adaptive_params)/choose_execution_algorithm(import失败/空comparison/选最优/时间过滤/全超时) — **修复 bug**: except 缺少 ImportError 导致 wt_execution_algo 不可用时崩溃
+- **data_source_manager** 0%→98.54% (34 tests): 统一数据源管理器 — DataSourceStatus枚举/CacheStats(默认/hit_rate/全miss/to_dict)/DataSourceInfo(默认/自定义)/DataSourceRegistry(注册/mark_healthy/degraded/unavailable/不存在源/get_available排序/排除unavailable/状态报告)/PriorityDataSourceManager(注册/成功/回退/全失败/无源/异常回退/无效字符串回退/状态/last_successful)/get_data_source_manager单例
+- **三模块合计**: 65 passed, 总覆盖率 98.57%
+- **`.coveragerc`**: 移除 cli_helpers / execution_selector / data_source_manager 的 omit 排除规则
+- **指针**: `tests/unit/test_cli_helpers_unit.py` + `tests/unit/test_execution_selector_unit.py` + `tests/unit/test_data_source_manager_unit.py`
+
+## 2026-08-18 · 集成 prime-agent + diagram-design 到量化系统
+
+- **prime-agent v0.7.3** (PrimeIntellect-ai): 自我进化的 RLM 编码 agent，支持长任务自治、后台 daemon、agent 间通信
+  - 源码: `E:\各种PY程序\10_第三方项目\prime-agent\` (npm install --ignore-scripts + tsgo→tsc wrapper + ES2024 target + models.ts 类型修复)
+  - 启动: `tools\prime-agent.ps1` / `tools\prime-agent.bat` (在量化系统根目录运行，首次 /login 选 provider)
+  - skill 发现: `.agents/skills/` (prime-agent 自动加载)
+- **diagram-design v2.4.3** (cathrynlavery): 27 种编辑级 HTML+SVG 图表，用于报告可视化
+  - skill 复制到 `.claude/skills/diagram-design/` (Claude Code) + `.agents/skills/diagram-design/` (prime-agent)
+- **新增 skill**: `.agents/skills/quant-system/SKILL.md` — 量化系统导航 skill (入口点/模块/命令/数据/规则)
+- **指针**: `tools/prime-agent.ps1` + `.agents/skills/quant-system/SKILL.md` + `.claude/skills/diagram-design/SKILL.md`
+
 ## 2026-08-18 · T2 第 39 批覆盖率：adjust_factor_provider + astock_realtime ✅ 74 tests GREEN
 
 - **adjust_factor_provider** 0%→74.01% (50 tests): A股后复权因子提供器 — 纯函数(unadjusted_to_hfq/hfq_to_unadjusted/compute_adjusted_return: 正常转换/因子=1/零因子/负因子/None价格/负价格)/_to_daily_symbol(SH/SZ/BJ后缀/已带前缀/纯数字SH/纯数字SZ/纯数字BJ/非法码/小写后缀)/_normalize_factor_df(hfq_factor列/qfq_factor列/无日期列/无因子列/负因子替换/日期排序)/AdjustFactorProvider(单例/自定义TTL/默认TTL)/get_hfq_factor(空序列/最新因子/历史日期/早于记录/非法日期)/is_ex_dividend_date(因子变化/无变化/数据不足/空序列)/get_aligned_prev_close(非除权/除权/无效prev_close)/缓存管理(clear/get_info)/get_factors_batch/模块函数(get_adjust_factor_provider单例/align_realtime_to_hfq/compute_aligned_return/align_prev_close_to_today)

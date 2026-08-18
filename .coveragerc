@@ -117,8 +117,7 @@ omit =
     external_strategy_adapter.py
     */alpha/layers/static_parser.py
     alpha/layers/static_parser.py
-    */data_source_manager.py
-    data_source_manager.py
+
     */local_llm.py
     local_llm.py
     */infra/safe_math.py
@@ -138,14 +137,10 @@ omit =
 
     */qlib_data_bridge.py
     qlib_data_bridge.py
-    */cli_helpers.py
-    cli_helpers.py
     */gtja191_factors.py
     gtja191_factors.py
     */stress_test.py
     stress_test.py
-    */execution_selector.py
-    execution_selector.py
 
 # 分支覆盖
 branch = True
