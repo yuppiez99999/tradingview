@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 35 批覆盖率：smart_order_router + transaction_cost_model + annual_return_forecast ✅ 81 tests GREEN
+
+- **smart_order_router** 0%→89.89% (27 tests): 智能订单路由器 — Venue/OrderBookSnapshot/VenueScore/RoutingDecision dataclass/SmartOrderRouter构造(默认4场所/自定义/权重归一化)/register_venue/update_venue_status/route(SMART/LIQUIDITY_FIRST/ICEBERG/DARK_FIRST/max_venues限制/盘口数据/不可用场所排除/总量守恒)/_detect_gaming(无盘口/平衡/不平衡+小价差)/summarize_decision
+- **transaction_cost_model** 0%→95.83% (30 tests): 交易成本模型 — MarketCapTier枚举/classify_market_cap_tier(大/中/小/微/None/边界)/CostParameters(默认/独立dict)/get_slippage_bps/get_impact_coeff/estimate_slippage(分层/波动率调整/market_cap自动)/estimate_commission(买/卖/最低佣金)/estimate_impact(正常/零ADV/负notional/参与率截断)/estimate_opportunity_cost/estimate_delay_cost/estimate_capacity/estimate_strategy_capacity(正常/空)/capacity_usage_pct/estimate_total_cost(买/卖/market_cap自动)/cost_penalty
+- **annual_return_forecast** 0%→60.06% (24 tests): 年化收益测算器 — _safe_float(正常/None/NaN/异常)/_extract_date_str/_extract_baseline(空/plan/pnl/月度权利金回退)/_calc_scenario(中性/回撤突破/仓位cap)/_extract_key_risks(CC/IF/回撤/建仓期)/_build_summary(空/三情景)/forecast_annual_return(集成/情景名)/常量验证
+- **三模块合计**: 81 passed, 总覆盖率 78.30%
+- **指针**: `tests/unit/test_smart_order_router_unit.py` + `tests/unit/test_transaction_cost_model_unit.py` + `tests/unit/test_annual_return_forecast_unit.py`
+
 ## 2026-08-18 · T2 第 34 批覆盖率：stress_test_scenario_library + tca_pre_trade_estimator + execution_algorithm_engine ✅ 89 tests GREEN
 
 - **stress_test_scenario_library** 0%→86.27% (33 tests): 压力测试场景库 — ShockFactors/StressScenario/StressTestResult dataclass/_build_default_scenarios(10场景)/StressTestEngine构造/run_scenario(股票/ETF/债券/黄金/期货/风格/行业/流动性)/run_all_scenarios/add_custom_scenario/create_custom_shock/get_worst_scenario/get_breached_scenarios/summarize
