@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 42 批覆盖率：lgbm_reproducibility + last30days_adapter + tca_post_trade_attribution ✅ 104 tests GREEN
+
+- **lgbm_reproducibility** 0%→95.71% (30 tests): LightGBM 训练可复现性 — TrainingConfig(frozen dataclass + with_dataset/with_code_sha/with_environment/with_config_hash 链式构造)/compute_dataset_uri(排序稳定 sha256)/compute_code_sha(空列表/多文件/不存在文件)/artifact_name(config_hash 优先/退化为 code_sha)/write_manifest(JSONL 落盘 + contract_validation)/verify_reproducibility(配置/数据/代码匹配 + top_k overlap/consistency)/construct_default_config(默认 LGB 超参 + 链式填充)/异常类层级
+- **last30days_adapter** 0%→87.35% (44 tests): 全球社交舆情适配器 — Last30DaysSignal(to_dict)/SUPPORTED_PLATFORMS/aggregate_sentiment(空/有engagement加权/无engagement简单平均/正负比)/_cache_key(MD5/平台顺序无关)/_parse_cli_output(list/dict results/非法JSON/不支持平台过滤)/search_topic(flag关闭/空topic/无效平台/CLI不可用/CLI返回数据/非零返回/超时)/_check_cli(可用/不可用/FileNotFound/Timeout/OSError)/缓存 round-trip + 过期/_write_audit/get_health/get_adapter单例
+- **tca_post_trade_attribution** 0%→78.39% (30 tests): TCA 执行后归因 — FillRecord/EstimateVsActual/PnLAttribution(dataclass + to_dict)/PostTradeAttribution(record + 验证/compare_estimate_vs_actual(无记录/无预估/BUY/SELL/容忍度)/attribute_pnl(BUY/SELL/预估入市价/风险PnL/bps/无效参数校验)/calibrate(无数据/无estimator/有estimator/缺方法)/summarize/历史查询/工厂函数)
+- **三模块合计**: 104 passed, 总覆盖率 85.06%
+- **`.coveragerc`**: 无需修改 (3 个模块均不在 omit 列表)
+- **指针**: `tests/unit/test_lgbm_reproducibility_unit.py` + `tests/unit/test_last30days_adapter_unit.py` + `tests/unit/test_tca_post_trade_attribution_unit.py`
+
 ## 2026-08-18 · T2 第 41 批覆盖率：qlib_data_bridge + var_monitor + wt_structs ✅ 64 tests GREEN
 
 - **qlib_data_bridge** 0%→92.74% (18 tests): qlib 数据桥接纯函数 — to_qlib_symbol(SH/SZ/BJ/已带前缀/非法)/from_qlib_symbol(反向/非法)/dataframe_to_qlib_record(正常/空df/缺列)/qlib_signal_to_system(正常/空/缺字段)/get_qlib_cache_root(默认/自定义env)
