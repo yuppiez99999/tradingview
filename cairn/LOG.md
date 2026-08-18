@@ -2,6 +2,24 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 32 批覆盖率：tca_engine + alt_data_indicators + phase_manager ✅ 116 tests GREEN
+
+- **tca_engine** 0%→91.76% (45 tests): 交易后成本分析引擎 — FillRecord/BenchmarkPrices/TCAReport dataclass/TCAManager构造/_signed_return(买/卖/零基准)/_grade(A+/A/B/C/D/F)/_diagnose(IS/VWAP/冲击/时机/成交率/参与率)/analyze(买入/卖出/多笔/空/零量/VWAP偏离/收盘偏离/机会成本/成交率/参与率/择时能力/佣金最小值/卖出印花税)/analyze_batch(多标的/空跳过/缺基准)/summarize(空/多/评级分布)/save_report
+- **alt_data_indicators** 0%→98.33% (35 tests): 另类数据指标引擎 — 6个dataclass/AltDataIndicators构造/add_*方法/analyze(空/卫星/搜索/招聘/专利/综合评分/异常/覆盖率/过期数据过滤)/4个评分函数(卫星/搜索突增/招聘/专利)/get_signal/load_demo_data/summarize
+- **phase_manager** 0%→94.61% (36 tests): 十五五规划阶段管理器 — ANNUAL_PHASES/LIQUIDATION_QUARTERLY_ACTIONS常量/PhaseInfo/QuarterlyReviewResult/get_current_phase(pre/post/2026-2030/未定义)/is_quarter_end(季度末/非/倒数)/get_current_quarter(Q1-Q4)/trigger_quarterly_review(季度末/非/持仓超限/2030清仓)/is_liquidation_phase/get_liquidation_actions(Q1-Q4)/get_liquidation_order/check_early_exit_trigger(15%/12%/8%/5%/<5%)/summary
+- **三模块合计**: 116 passed, 总覆盖率 94.79%
+- **指针**: `tests/unit/test_tca_engine_unit.py` + `tests/unit/test_alt_data_indicators_unit.py` + `tests/unit/test_phase_manager_unit.py`
+
+## 2026-08-18 · 晨报任务替换：棉花加仓方案 → 大宗商品基本面扫描
+
+- **变更**: `15_每日工作流/morning_info_runner.py` 任务 7 由 `task_cotton_archive`（复制棉花加仓方案源文件）替换为 `task_commodity_fundamental_scan`（大宗商品交易机会扫描 - 基本面研报, LLM 驱动）
+- **触发**: 用户要求从 2026-08-19 起将棉花加仓方案换成大宗商品交易机会扫描（从基本面出发的研报）
+- **新任务逻辑**: 读取 `morning_market_data_{date}.json` 提取 11 个商品价格（美元指数/美债/WTI/布油/LME铜/动力煤/沪铜库存/碳市场等）+ `KondratievCycleAnalyzer.get_commodity_signals()` 6 个康波信号 + 舆情日报摘要 → 构造 LLM prompt → `llm_client.chat` 降级链（DeepSeek→豆包→GLM→Ollama）生成 7 板块 20+ 品种基本面研报 → LLM 失败时降级到规则引擎模板
+- **覆盖板块**: 工业金属(铜/铝/锌)/贵金属(金/银)/黑色系(螺纹/铁矿/焦煤)/能源化工(原油/动力煤/PTA/甲醇)/农产品(豆粕/豆油/棉花/玉米)/化工建材(玻璃/纯碱/PVC)/碳市场(CEA)
+- **同步修改**: `run_daily_morning.py` REPORT_PATTERNS 中 `棉花的加仓方案与期权保护策略_*.md` → `大宗商品交易机会扫描_*.md`
+- **验证**: 2026-08-18 试运行成功 — LLM 可用时生成 9.8 KB 完整研报（Ollama qwen2.5:3b），LLM 超时时降级 1.2 KB 模板；旧棉花占位报告已删除
+- **指针**: `15_每日工作流/morning_info_runner.py:task_commodity_fundamental_scan` + `15_每日工作流/run_daily_morning.py:REPORT_PATTERNS`
+
 ## 2026-08-18 · T2 第 31 批覆盖率：config_manager + logger + cost_model ✅ 90 tests GREEN
 
 - **config_manager** 0%→90.57% (50 tests): 统一配置管理器 — _NAMED_CONFIGS注册表/_build_search_paths(环境变量)/构造(project_root/extra_search_paths)/单例(get_instance/reset_instance)/_resolve_config_path(短名/全名/.yml)/_load_yaml(正常/空/非dict/损坏)/_get_cached(命中/mtime失效/文件删除)/get(加载/缓存/default/未找到)/类型化访问器(kill_switch回退/portfolio/settings/backtest/risk_budget/risk_params/stop_loss)/list_available/get_config_source/clear_cache/reload/模块级快捷函数; **隔离测试**: project_root=tmp_path 避免搜索到真实项目配置
