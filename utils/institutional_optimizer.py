@@ -171,6 +171,7 @@ class InstitutionalPortfolioOptimizer:
         if total_value > 0:
             weights = weights / total_value  # type: ignore
             return weights
+        return weights
 
     # ------------------------------------------------------------
     # 冲击成本

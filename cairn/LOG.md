@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 47 批覆盖率：ifind_news_analyzer + institutional_optimizer + akshare_futures ✅ 85 tests GREEN
+
+- **ifind_news_analyzer** 0%→89.36% (tests): NewsItem/StockInsight dataclass/IFinDNewsAnalyzer(__init__/available/search_news/search_notice/search_trending/analyze_symbol/batch_analyze)/_parse_news_result(dict/MCP包装/中文键)/_extract_results(list/dict/嵌套)/_derive_insight(利好/利空/中性/无信号)/_extract_entities(代码/交易所/上限10)
+- **institutional_optimizer** 0%→90.00% (tests): PortfolioDecision.to_dict/InstitutionalPortfolioOptimizer.__init__/optimize(空/仅收益/持仓/协方差)/_build_covariance_matrix(DataFrame/默认/不匹配)/_current_weights/_risk_parity_with_signal(空/等波动/负mu)/_apply_constraints(max_weight/负值/行业集中)/_pypfopt_available — **修复 bug**: _current_weights 在 total_value==0 时不返回值(返回None)导致 _build_decision 中 weights-None 崩溃
+- **akshare_futures** 0%→29.44% (tests): _to_float/_to_str/_normalize_ak_quotes(空/单行/多行/无symbol/英文键/异常)/_normalize_ak_daily(空/单行/无symbol/英文键/异常)
+- **三模块合计**: 85 passed
+- **`.coveragerc`**: 移除 akshare_futures (出现两次) 的 omit 排除规则
+- **指针**: `tests/unit/test_ifind_news_analyzer_unit.py` + `tests/unit/test_institutional_optimizer_unit.py` + `tests/unit/test_akshare_futures_unit.py`
+
 ## 2026-08-18 · T2 第 46 批覆盖率：wt_contracts_manager + local_llm + stress_test ✅ 75 tests GREEN
 
 - **wt_contracts_manager** 0%→89.72% (tests): DEFAULT_CONTRACTS/ContractsManager.__init__/load_from_file(不存在/有效/init带文件)/get_contract(精确/期货回退/期货默认/股票默认/ETF/未知)/register_contract(新/带点code)/list_contracts(全部/交易所/品种/双过滤/无匹配)/calc_commission(买入/卖出印花税/最小手续费/期货)/calc_margin/calc_contract_value/get_contracts_manager单例
