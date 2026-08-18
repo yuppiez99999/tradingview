@@ -20,8 +20,21 @@ omit =
     scripts/_*.py
     setup.py
     # 废弃死模块 (0 引用, 确认不再接入主链路) — G7 覆盖口径排除
-    */wt_*.py
-    wt_*.py
+    # wt_risk_control 已有测试 (T2 第33批), 其余 wt_* 暂排除
+    */wt_spread_strategy.py
+    wt_spread_strategy.py
+    */wt_execution_algo.py
+    wt_execution_algo.py
+    */wt_backtest_engine.py
+    wt_backtest_engine.py
+    */wt_structs.py
+    wt_structs.py
+    */wt_tick_engine.py
+    wt_tick_engine.py
+    */wt_hedge_strategy.py
+    wt_hedge_strategy.py
+    */wt_contracts_manager.py
+    wt_contracts_manager.py
     # 未纳入 G7 计划且暂不补测的重型子系统 (0% 会永久拖垮门禁, 待单独排期)
     */universe/*
     universe/*
@@ -125,10 +138,7 @@ omit =
     # G7 W7.4.5 第五轮排除: 10 个确认 0 引用废弃/临时/未启用文件
     */ai_coordinator.py
     ai_coordinator.py
-    */lgb_signal_monitor.py
-    lgb_signal_monitor.py
-    */five_year_plan.py
-    five_year_plan.py
+
     */event_tracker.py
     event_tracker.py
     */purged_kfold.py

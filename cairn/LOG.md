@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 33 批覆盖率：five_year_plan + lgb_signal_monitor + wt_risk_control ✅ 72 tests GREEN
+
+- **five_year_plan** 0%→99.41% (20 tests): 十五五规划适配分析 — FIFTEEN_FIVE_POLICIES(7方向/权重和=1)/STOCK_POLICY_ALIGNMENT/FifteenFivePlanAnalyzer构造/get_policy_overview(7方向/按权重排序)/analyze_holdings(无持仓/有持仓/分级A-D/按评分排序)/get_weight_adjustments(超配/低配/维持)/generate_report(无保存/保存到目录)
+- **lgb_signal_monitor** 0%→82.51% (22 tests): LGB信号监控 — record_lgb_application(boost/cut/neutral/无信号跳过)/_append_jsonl/load_history(无文件/有数据)/analyze_lgb_history(空/有数据)/_generate_threshold_suggestions(boost过高/cut过高/中性过高/样本少/合理)/generate_analysis_report(空/有数据)
+- **wt_risk_control** 0%→85.32% (30 tests): WonderTrader风控 — _load_cvar_config/RiskControl(构造/reset_daily/update_equity/熔断正常+回撤+已触发/集中度/单笔/交易次数/成交量/record_trade/get_risk_status/pre_trade_check)/StopLossManager(set/check止损+止盈/update/remove)/PortfolioRiskAnalyzer(标准化/VaR/CVaR解析+蒙特卡洛正态+Student-t/集中度/行业分布/组合分析)/RiskReportGenerator/工厂函数
+- **.coveragerc 更新**: 移除 five_year_plan + lgb_signal_monitor 排除; wt_*.py 通配符拆分为 7 个具体文件排除 (wt_risk_control 解除排除)
+- **三模块合计**: 72 passed, 总覆盖率 87.07%
+- **指针**: `tests/unit/test_five_year_plan_unit.py` + `tests/unit/test_lgb_signal_monitor_unit.py` + `tests/unit/test_wt_risk_control_unit.py`
+
 ## 2026-08-18 · T2 第 32 批覆盖率：tca_engine + alt_data_indicators + phase_manager ✅ 116 tests GREEN
 
 - **tca_engine** 0%→91.76% (45 tests): 交易后成本分析引擎 — FillRecord/BenchmarkPrices/TCAReport dataclass/TCAManager构造/_signed_return(买/卖/零基准)/_grade(A+/A/B/C/D/F)/_diagnose(IS/VWAP/冲击/时机/成交率/参与率)/analyze(买入/卖出/多笔/空/零量/VWAP偏离/收盘偏离/机会成本/成交率/参与率/择时能力/佣金最小值/卖出印花税)/analyze_batch(多标的/空跳过/缺基准)/summarize(空/多/评级分布)/save_report
