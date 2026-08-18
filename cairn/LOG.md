@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 38 批覆盖率：trade_plan_validator + event_tracker + purged_kfold ✅ 80 tests GREEN
+
+- **trade_plan_validator** 0%→73.37% (30 tests): 交易计划字段完整性校验器 — validate(有效plan/非dict/空dict/strict模式/非strict模式/类型检查/负capital/capital不一致/订单校验/非dict订单/零shares/market_state非法circuit/risk_guard非法drawdown/kill_switch非dict/一致性CRITICAL+spot_build/CRITICAL+disabled/WARNING+build_allowed)/validate_file(不存在/非法JSON/有效文件)/auto_fix(空plan/保留已有/非dict) — **修复 bug**: auto_fix 非 dict 输入时 `{**plan}` TypeError
+- **event_tracker** 0%→93.55% (20 tests): 事件追踪器 — EventTracker(init/start_session/log_operation_start/complete/error/log_token_usage/log_price_check/finish_session/track)/get_event_tracker单例/track_event装饰器(成功/默认名/异常)/track_operation上下文管理器(成功/异常)
+- **purged_kfold** 0%→89.84% (30 tests): Purged K-Fold 时序交叉验证 — purged_timeseries_split(基本分割/训练在测试前/无重叠/非法n_splits/小样本回退/embargo间隔/自定义参数/numpy数组)/purged_kfold_generator(返回list/无重叠/训练在测试前/自定义purge/小测试集)/validate_embargo(有效间隔/不足/空train/空test/精确min_gap)/overfitting_diagnosis(数据不足/稳定通过/信号衰减/高CV/极值偏离/多指标/issue计数)
+- **三模块合计**: 80 passed, 总覆盖率 81.39%
+- **`.coveragerc`**: 移除 trade_plan_validator / event_tracker / purged_kfold 的 omit 排除规则
+- **指针**: `tests/unit/test_trade_plan_validator_unit.py` + `tests/unit/test_event_tracker_unit.py` + `tests/unit/test_purged_kfold_unit.py`
+
 ## 2026-08-18 · T2 第 37 批覆盖率：logging_manager ✅ 26 tests GREEN
 
 - **logging_manager** 0%→98.37% (26 tests): 统一日志管理器 — ColoredFormatter(彩色输出/未知级别)/StructuredFormatter(JSON输出/额外属性duration_ms等)/QuantSystemLogger(默认init/自定义config/console禁用/file禁用/structured启用/specific_loggers配置)/_parse_size(KB/MB/GB/小写/纯数字)/_load_default_config(环境变量QUANT_LOG_LEVEL/QUANT_LOG_DIR)/get_logger(返回+缓存)/全局单例(get_logger_manager单例/get_logger/setup_logging替换单例)

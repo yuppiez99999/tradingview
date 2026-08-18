@@ -194,7 +194,7 @@ class TradePlanValidator:
         fixes_applied: list[str] = []
 
         if not isinstance(plan, dict):
-            return {**plan, "_fixes_applied": fixes_applied}
+            return {"_fixes_applied": fixes_applied}
 
         # 补全 phase
         plan.setdefault("phase", {})

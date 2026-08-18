@@ -92,8 +92,6 @@ omit =
     risk_attribution.py
     */greek_exposure_dashboard.py
     greek_exposure_dashboard.py
-    */trade_plan_validator.py
-    trade_plan_validator.py
     # G7 W7.4.5 第四轮排除: 经 search agent 核实的 0 引用废弃/实验/未启用文件
     # 依据: docstring 明示研究资产/全库无 import/仅测试引用
     # gat_layer2_validation: 依赖 gat_factor_torch (torch 不可用), 保留排除
@@ -110,8 +108,6 @@ omit =
     risk_attribution.py
     */greek_exposure_dashboard.py
     greek_exposure_dashboard.py
-    */trade_plan_validator.py
-    trade_plan_validator.py
     # G7 W7.4.5 第四轮排除: 经 search agent 核实的 0 引用废弃/实验/未启用文件
     # 依据: docstring 明示研究资产/全库无 import/仅测试引用
     # gat_factor_torch: torch DLL 加载失败, 保留排除
@@ -139,10 +135,7 @@ omit =
     */ai_coordinator.py
     ai_coordinator.py
 
-    */event_tracker.py
-    event_tracker.py
-    */purged_kfold.py
-    purged_kfold.py
+
     */qlib_data_bridge.py
     qlib_data_bridge.py
     */cli_helpers.py
