@@ -31,8 +31,7 @@ omit =
     wt_tick_engine.py
     */wt_hedge_strategy.py
     wt_hedge_strategy.py
-    */wt_contracts_manager.py
-    wt_contracts_manager.py
+    # wt_contracts_manager 已有测试 (T2 第46批)
     # 未纳入 G7 计划且暂不补测的重型子系统 (0% 会永久拖垮门禁, 待单独排期)
     */universe/*
     universe/*
@@ -110,8 +109,7 @@ omit =
     */alpha/layers/static_parser.py
     alpha/layers/static_parser.py
 
-    */local_llm.py
-    local_llm.py
+    # local_llm 已有测试 (T2 第46批)
     */infra/safe_math.py
     infra/safe_math.py
     */data/feature_store.py
@@ -130,8 +128,7 @@ omit =
     # qlib_data_bridge 已有测试 (T2 第41批)
     */gtja191_factors.py
     gtja191_factors.py
-    */stress_test.py
-    stress_test.py
+    # stress_test 已有测试 (T2 第46批)
 
 # 分支覆盖
 branch = True

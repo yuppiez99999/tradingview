@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 46 批覆盖率：wt_contracts_manager + local_llm + stress_test ✅ 75 tests GREEN
+
+- **wt_contracts_manager** 0%→89.72% (tests): DEFAULT_CONTRACTS/ContractsManager.__init__/load_from_file(不存在/有效/init带文件)/get_contract(精确/期货回退/期货默认/股票默认/ETF/未知)/register_contract(新/带点code)/list_contracts(全部/交易所/品种/双过滤/无匹配)/calc_commission(买入/卖出印花税/最小手续费/期货)/calc_margin/calc_contract_value/get_contracts_manager单例
+- **local_llm** 0%→79.03% (tests): LocalLLMClient.__init__(默认/自定义/环境变量)/is_available(模型不存在/缓存/llama_cpp未装)/_format_prompt(user/system/assistant/空/未知角色)/chat(响应/自定义参数)/_stream_response/generate(带/不带system)/get_local_llm(不可用None/可用)/local_llm_available
+- **stress_test** 0%→96.77% (tests): 常量/STRESS_SCENARIOS(6个/字段/负冲击)/generate_stress_report(默认/时间戳/硬止损/尾部对冲/自定义情景/蒙特卡洛/自定义组合/空组合/VaR/表格/触发/不触发)
+- **三模块合计**: 75 passed
+- **`.coveragerc`**: 移除 wt_contracts_manager + local_llm + stress_test 的 omit 排除规则
+- **指针**: `tests/unit/test_wt_contracts_manager_unit.py` + `tests/unit/test_local_llm_unit.py` + `tests/unit/test_stress_test_unit.py`
+
 ## 2026-08-18 · T2 第 45 批覆盖率：graph_data_source + greek_exposure_dashboard + wt_spread_strategy ✅ 98 tests GREEN
 
 - **graph_data_source** 0%→41.67% (tests): _safe_float/_market_of/GraphDataSource.__init__/_cached(miss/hit/TTL/None不缓存)/build_concept_edges(共享/无共享/min_share/三标的)/build_industry_edges(同行业/不同/空)/build_thematic_edges/build_main_business_edges/build_graph_edges(组合/排除)/get_graph_data_source单例
