@@ -84,12 +84,28 @@ omit =
     trade_plan_validator.py
     # G7 W7.4.5 第四轮排除: 经 search agent 核实的 0 引用废弃/实验/未启用文件
     # 依据: docstring 明示研究资产/全库无 import/仅测试引用
+    */alpha_factor/gat_layer2_validation.py
+    alpha_factor/gat_layer2_validation.py
+    */alpha_factor/transformer_encoder.py
+    alpha_factor/transformer_encoder.py
+
+    */akshare_futures.py
+    akshare_futures.py
+    */stop_loss.py
+    stop_loss.py
+    */strategy/etf_rotation/engine.py
+    strategy/etf_rotation/engine.py
+    */risk_attribution.py
+    risk_attribution.py
+    */greek_exposure_dashboard.py
+    greek_exposure_dashboard.py
+    */trade_plan_validator.py
+    trade_plan_validator.py
+    # G7 W7.4.5 第四轮排除: 经 search agent 核实的 0 引用废弃/实验/未启用文件
+    # 依据: docstring 明示研究资产/全库无 import/仅测试引用
+    # gat_factor_torch: torch DLL 加载失败, 保留排除
     */alpha_factor/gat_factor_torch.py
     alpha_factor/gat_factor_torch.py
-    */alpha_factor/gat_factor.py
-    alpha_factor/gat_factor.py
-    */alpha_factor/s5_validation.py
-    alpha_factor/s5_validation.py
     */external_strategy_adapter.py
     external_strategy_adapter.py
     */alpha/layers/static_parser.py

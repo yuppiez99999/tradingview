@@ -2,6 +2,31 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 29 批覆盖率：gat_factor + s5_validation + gat_factor_torch(跳过) ✅ 37 tests GREEN (3 skipped)
+
+- **gat_factor** 0%→94.74% (22 tests): 纯 numpy 图注意力因子 — GATFactor 构造/_init_params(确定性种子)/_attention(形状/非负/行和≈1/孤立节点/无边)/compute(形状/自动初始化/无边零)/_rank_loss(完全正反相关/样本不足/NaN)/train(losses)/build_adjacency(无向对称/缺失节点/weight_key)/gat_factor_values 端到端
+- **s5_validation** 0%→63.74% (15 tests): S5 组合层面检验 — _zscore(正常/零标准差/单元素)/_top_bottom_ls(正常/default/min_top_n/负收益)/_calc_annualized_sharpe(正常/样本不足/零标准差/正负)/run_s5_validation(mock _build_universe 不足10只FAIL/结构验证)
+- **gat_factor_torch** 3 skipped: torch 2.4.1 DLL 加载失败 (caffe2_nvrtc.dll), 测试文件就位待 torch 环境恢复
+- **.coveragerc 更新**: 移除 gat_factor/s5_validation 排除 (已有测试), 保留 gat_factor_torch 排除 (torch 不可用)
+- **两模块合计**: 37 passed + 3 skipped, 总覆盖率 77.30%
+- **指针**: `tests/unit/test_gat_factor_unit.py` + `tests/unit/test_s5_validation_unit.py` + `tests/unit/test_gat_factor_torch_unit.py`
+
+## 2026-08-18 · except 元组收窄规约强化：PR 检查清单沉淀
+
+- **沉淀**: `cairn/exception-handling-standards.md` §11.2.1 新增 PR 提交前检查清单（7 项逐项勾选），将 §11.2 规约转化为可操作 checklist
+- **背景**: 0816 NB-1/NB-2/NB-6 均因收窄 except 元组时跳过 raise 面核对导致生产崩溃；0818 ruff 修复批次进一步证实"异常路径未被执行"是潜伏根因
+- **清单覆盖**: import→ImportError / 函数调用→TypeError / 属性访问→AttributeError+KeyError / 委托方法→业务异常 / close()→try/finally / ruff BLE001 无新增 / 测试全绿
+- **指针**: `cairn/exception-handling-standards.md` §11.2.1
+
+## 2026-08-18 · ruff 高危规则清零：F821/F811/B904 28 处修复 ✅ 全仓 F821+B904 归零
+
+- **修复**: 6 文件 28 处 — F821 ×18（test_g7_coverage_boost `Any` 未导入 17 处 + risk_guard_integrator `List` 未导入 1 处）+ F811 ×1（lgb_enhanced_trainer POSITION_SYMBOLS 重复导入）+ B904 ×9（input.py 2 + qmt_rpc_server 6 + tdam_client 1，raise 缺 from exc）
+- **验证**: ruff F821/B904 全仓清零 + py_compile 6 文件 OK + test_g7_coverage_boost 54 passed 无回归
+- **确认已闭环**: NB-5（build_plan_executor future-annotations 已有）+ NB-6（drift_monitor 异常元组已含 RuntimeError）本轮验证确认 0817 已修复
+- **根因**: F821 源于 future-annotations 掩盖漏导入（运行时潜伏、静态可检）；B904 源于异常链最佳实践债务
+- **剩余债务**: F811 5 处（参数遮蔽导入名，低风险）+ ruff 全仓 ~5400 条（W293/F401/I001 可 `ruff fix` 自动修约 2000）
+- **指针**: `cairn/code-review-ruff-fix-batch-20260818.md`
+
 ## 2026-08-18 · T2 第 28 批覆盖率：protective_put_engine + markitdown_adapter + stress_test_runner ✅ 85 tests GREEN
 
 - **protective_put_engine** 0%→77.94% (30 tests): 认沽期权保护引擎 — 类常量(4 ETF/budget_pct=1.0)/_estimate_put_premium(BS 公式/边界/ITM>OTM/最低价)/_calc_next_expiry(第4个周三/跨月)/should_buy_protection(市值不足/有有效put/过期put/预算用完/应买)/generate_put_orders(回撤加码 1.0/1.2/1.5/2.0/现价0跳过/订单结构)/check_and_roll(无到期/有到期滚仓)/record_execution(FILLED/PENDING)/get_protection_status(覆盖率/needs_action)
