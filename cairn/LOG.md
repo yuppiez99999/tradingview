@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 49 批覆盖率：wt_tick_engine + wt_execution_algo + scrapling_adapter ✅ 125 tests GREEN
+
+- **wt_tick_engine** 0%→92.41% (tests): TickMatcher(限价/市价/滑点/手续费/印花税/代码不匹配/Tick量限制)/TickBacktestEngine(初始化/重置/策略/数据加载/下单/撮合/持仓/权益/回测/报告)/ticks_from_csv/bars_from_csv/run_tick_backtest
+- **wt_execution_algo** 0%→91.80% (tests): _get_adaptive_execution_params(正常/浅市场/高波动/两者)/MinImpactExecutor(拆单/模拟)/TWAPExecutor/VWAPExecutor(日盘/夜盘)/OrderExecutor(4算法/比较)/split_order/compare_execution/execute_order_with_algorithm — **发现 bug**: simulate_execution([]) 触发 ZeroDivisionError (空订单未防护)
+- **scrapling_adapter** 0%→46.69% (tests): _check_scrapling(缓存)/ScraplingAdapter(初始化/可用性/fetcher/fallback/fetch_url/fetch_news/fetch_announcements/fetch_research_reports/_extract_text/_empty_result)/get_adapter单例/fetch_news/fetch_url/is_available — 网络依赖函数用 mock
+- **三模块合计**: 125 passed
+- **`.coveragerc`**: 移除 wt_tick_engine + wt_execution_algo + scrapling_adapter 的 omit 排除规则
+- **指针**: `tests/unit/test_wt_tick_engine_unit.py` + `tests/unit/test_wt_execution_algo_unit.py` + `tests/unit/test_scrapling_adapter_unit.py`
+
 ## 2026-08-18 · T2 第 48 批覆盖率：wt_hedge_strategy + external_strategy_adapter + free_stockdb_adapter ✅ 66 tests GREEN
 
 - **wt_hedge_strategy** 0%→83.63% (tests): HedgePosition/PortfolioMetrics dataclass/BetaHedgeStrategy(构造/计算beta/对冲手数/无持仓)/TailRiskHedgeStrategy(VaR/ES/触发/不触发)/DynamicHedgeStrategy(选择/降级)/HedgeStrategy基类

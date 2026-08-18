@@ -22,13 +22,11 @@ omit =
     # 废弃死模块 (0 引用, 确认不再接入主链路) — G7 覆盖口径排除
     # wt_risk_control 已有测试 (T2 第33批), 其余 wt_* 暂排除
     # wt_spread_strategy 已有测试 (T2 第45批)
-    */wt_execution_algo.py
-    wt_execution_algo.py
+    # wt_execution_algo 已有测试 (T2 第49批)
     */wt_backtest_engine.py
     wt_backtest_engine.py
     # wt_structs 已有测试 (T2 第41批)
-    */wt_tick_engine.py
-    wt_tick_engine.py
+    # wt_tick_engine 已有测试 (T2 第49批)
     # wt_hedge_strategy 已有测试 (T2 第48批)
     # wt_contracts_manager 已有测试 (T2 第46批)
     # 未纳入 G7 计划且暂不补测的重型子系统 (0% 会永久拖垮门禁, 待单独排期)
@@ -38,8 +36,7 @@ omit =
     weather_*.py
     */web_scraper.py
     web_scraper.py
-    */scrapling_adapter.py
-    scrapling_adapter.py
+    # scrapling_adapter 已有测试 (T2 第49批)
     */media_crawler_adapter.py
     media_crawler_adapter.py
 
