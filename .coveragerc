@@ -23,8 +23,7 @@ omit =
     # wt_risk_control 已有测试 (T2 第33批), 其余 wt_* 暂排除
     # wt_spread_strategy 已有测试 (T2 第45批)
     # wt_execution_algo 已有测试 (T2 第49批)
-    */wt_backtest_engine.py
-    wt_backtest_engine.py
+    # wt_backtest_engine 已有测试 (T2 第50批)
     # wt_structs 已有测试 (T2 第41批)
     # wt_tick_engine 已有测试 (T2 第49批)
     # wt_hedge_strategy 已有测试 (T2 第48批)
@@ -37,12 +36,10 @@ omit =
     */web_scraper.py
     web_scraper.py
     # scrapling_adapter 已有测试 (T2 第49批)
-    */media_crawler_adapter.py
-    media_crawler_adapter.py
+    # media_crawler_adapter 已有测试 (T2 第50批)
 
     # var_monitor 已有测试 (T2 第41批)
-    */tradingagents_bridge.py
-    tradingagents_bridge.py
+    # tradingagents_bridge 已有测试 (T2 第50批)
     */vibe_trading_adapter.py
     vibe_trading_adapter.py
     */finance_agent_orchestrator.py

@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 50 批覆盖率：tradingagents_bridge + wt_backtest_engine + media_crawler_adapter ✅ 118 tests GREEN
+
+- **tradingagents_bridge** 0%→88.12% (tests): TradingAgentsBridge(__init__/base_url/is_available缓存/_check_port/get_analysts/analyze/_fallback_to_local/_neutral_result/_http_get/_http_post)/get_bridge单例/analyze/is_available — HTTP 依赖用 mock
+- **wt_backtest_engine** 0%→91.43% (tests): BacktestEngine(初始化/重置/手续费/滑点/买入/卖出/权益/回测/涨跌停/停牌/报告)/ETFSignalStrategy(强加仓/强减仓/无信号/零价)/BacktestDataLoader(合成数据/历史加载/ticker过滤)/run_etf_signal_backtest/compare_strategies
+- **media_crawler_adapter** 0%→80.07% (tests): MediaCrawlerNewsItem/MediaCrawlerResult dataclass/normalize_platform(直接/别名/未知/大小写)/get_platform_display/_TTLCache(get/set/expire/clear/info)/MediaCrawlerAdapter(初始化/健康检查/搜索/多平台/解析/缓存)/fetch_social_news — 网络依赖用 mock
+- **三模块合计**: 118 passed
+- **`.coveragerc`**: 移除 tradingagents_bridge + wt_backtest_engine + media_crawler_adapter 的 omit 排除规则
+- **指针**: `tests/unit/test_tradingagents_bridge_unit.py` + `tests/unit/test_wt_backtest_engine_unit.py` + `tests/unit/test_media_crawler_adapter_unit.py`
+
 ## 2026-08-18 · T2 第 49 批覆盖率：wt_tick_engine + wt_execution_algo + scrapling_adapter ✅ 125 tests GREEN
 
 - **wt_tick_engine** 0%→92.41% (tests): TickMatcher(限价/市价/滑点/手续费/印花税/代码不匹配/Tick量限制)/TickBacktestEngine(初始化/重置/策略/数据加载/下单/撮合/持仓/权益/回测/报告)/ticks_from_csv/bars_from_csv/run_tick_backtest
