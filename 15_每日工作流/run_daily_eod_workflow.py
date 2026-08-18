@@ -480,7 +480,7 @@ def run_phase2_generate_plan(report_date, next_trade_date, eod_summary, args):
     phase2_success, _ = run_step(
         "次日交易计划生成",
         GENERATE_TRADE_PLAN_SCRIPT,
-        [],
+        [next_trade_date],
         timeout_minutes=10,
     )
     eod_summary["phases"]["phase2_generate_plan"] = {
@@ -765,6 +765,196 @@ def run_phase4_5b_shadow_state_sync(report_date, eod_summary, args):
     return phase_sync_success
 
 
+def _load_positions_for_attribution() -> list[dict]:
+    """从 config/positions.json 加载持仓并转换为归因引擎所需格式.
+
+    Returns:
+        [{"code", "name", "weight", "sector", "amount", "style_exposures": {...}}]
+    """
+    positions_path = PROJECT_ROOT / "config" / "positions.json"
+    if not positions_path.exists():
+        return []
+    with open(positions_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    raw = data.get("positions", {})
+    if not raw:
+        return []
+
+    items = list(raw.values())
+    total_amount = sum(float(p.get("amount", 0)) for p in items) or 1.0
+
+    STYLE_MAP = {
+        "科技": {"momentum": 0.6, "growth": 0.5, "valuation": -0.2},
+        "高端制造": {"momentum": 0.4, "growth": 0.4, "valuation": 0.0},
+        "顺周期": {"momentum": 0.2, "growth": 0.1, "valuation": 0.3},
+        "资源": {"momentum": 0.1, "growth": 0.0, "valuation": 0.6, "earnings_quality": 0.4},
+        "防御": {"momentum": 0.0, "growth": 0.0, "valuation": 0.4, "earnings_quality": 0.6},
+        "消费": {"momentum": 0.2, "growth": 0.2, "valuation": 0.3, "earnings_quality": 0.5},
+    }
+
+    result = []
+    for p in items:
+        amount = float(p.get("amount", 0))
+        if amount <= 0:
+            continue
+        sector = p.get("sector") or p.get("style") or "other"
+        result.append({
+            "code": p.get("code", ""),
+            "name": p.get("name", ""),
+            "weight": amount / total_amount,
+            "sector": sector,
+            "amount": amount,
+            "market_value": amount,
+            "style_exposures": STYLE_MAP.get(sector, {"momentum": 0.1, "valuation": 0.1}),
+        })
+    return result
+
+
+def _load_daily_return_for_date(report_date: str) -> float | None:
+    """从 reports/shadow/daily_returns.jsonl 读取指定日期的组合日收益."""
+    path = PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+    if not path.exists():
+        return None
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+                if str(rec.get("date", "")) == report_date:
+                    return float(rec.get("daily_return", 0.0))
+            except (ValueError, TypeError, KeyError):
+                continue
+    return None
+
+
+def _load_hedge_pnl_from_eod_report(report_date: str) -> float:
+    """从 EOD 报告 daily_pnl_report_{date}.json 读取对冲盈亏."""
+    candidates = [
+        PROJECT_ROOT / "每日报告归档" / report_date / f"daily_pnl_report_{report_date}.json",
+        PROJECT_ROOT / "reports" / report_date / f"daily_pnl_report_{report_date}.json",
+    ]
+    for path in candidates:
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return float(data.get("net_performance", {}).get("hedge_pnl", 0.0))
+            except (ValueError, TypeError, KeyError, OSError):
+                continue
+    return 0.0
+
+
+def run_phase4_55_attribution(report_date, eod_summary, args):
+    """阶段四点五五: PnL 归因报告生成 (FeedbackLoop 前置依赖)
+
+    在 Shadow 数据注入 (4.5) + 状态同步 (4.5b) + 漂移检测 (4.7) + Phase B 回写 (4.8) 之后、
+    FeedbackLoop (4.6) 之前执行, 生成 reports/pnl_attribution/pnl_attribution_{date}.json.
+
+    数据来源:
+        - 持仓: config/positions.json
+        - 组合日收益: reports/shadow/daily_returns.jsonl (ShadowRealDataFeeder 产出)
+        - 对冲盈亏: 每日报告归档/{date}/daily_pnl_report_{date}.json
+        - 基准/市场/因子/行业收益: 简化估算 (复用 v8.3_institutional/daily_workflow.py:2428-2443 逻辑)
+
+    HC 合规:
+        - HC-1: 不切 Feature Flag
+        - HC-4: 只读评估, 不修改 V9 基线
+        - fail-safe: 失败不中断 EOD 主流程 (FeedbackLoop 会优雅降级)
+    """
+    if args.skip_feedback_loop:
+        log("\n>>> 阶段四点五五: 跳过 PnL 归因生成 (--skip-feedback-loop) <<<")
+        eod_summary["phases"]["phase4_55_attribution"] = {"skipped": True}
+        return False
+
+    log("\n>>> 阶段四点五五: PnL 归因报告生成 (FeedbackLoop 前置) <<<")
+    log(f"  日期: {report_date}")
+    try:
+        from utils.pnl_attribution_engine import PnLAttributionEngine
+
+        positions = _load_positions_for_attribution()
+        if not positions:
+            log("  ⚠️ 无持仓数据 (config/positions.json), 跳过归因生成", "WARN")
+            eod_summary["phases"]["phase4_55_attribution"] = {
+                "success": False, "reason": "no_positions",
+            }
+            return False
+
+        portfolio_ret = _load_daily_return_for_date(report_date)
+        if portfolio_ret is None:
+            log(f"  ⚠️ daily_returns.jsonl 未含 {report_date}, 使用 0 估算", "WARN")
+            portfolio_ret = 0.0
+
+        hedge_pnl = _load_hedge_pnl_from_eod_report(report_date)
+
+        portfolio_returns = [portfolio_ret]
+        benchmark_returns = [portfolio_ret * 0.8]
+        market_returns = benchmark_returns
+
+        factor_returns = {
+            "momentum": [portfolio_ret * 0.3],
+            "reversal": [-portfolio_ret * 0.1],
+            "volatility": [portfolio_ret * 0.1],
+            "liquidity": [portfolio_ret * 0.05],
+            "earnings_quality": [portfolio_ret * 0.2],
+            "growth": [portfolio_ret * 0.15],
+            "valuation": [portfolio_ret * 0.1],
+        }
+        sector_returns = {
+            "科技": [portfolio_ret * 0.4],
+            "高端制造": [portfolio_ret * 0.3],
+            "顺周期": [portfolio_ret * 0.2],
+            "资源": [portfolio_ret * 0.2],
+            "防御": [portfolio_ret * 0.1],
+            "消费": [portfolio_ret * 0.2],
+        }
+
+        engine = PnLAttributionEngine()
+        attribution = engine.attribute(
+            positions=positions,
+            portfolio_returns=portfolio_returns,
+            benchmark_returns=benchmark_returns,
+            market_returns=market_returns,
+            factor_returns=factor_returns,
+            sector_returns=sector_returns,
+            trading_costs=0.0,
+            funding_cost=0.0,
+            hedge_pnl=hedge_pnl,
+            attribution_date=report_date,
+        )
+        report_path = engine.save_report(attribution)
+
+        phase_result = {
+            "success": True,
+            "report_path": str(report_path),
+            "total_pnl": attribution.total_pnl,
+            "total_return_pct": attribution.total_return_pct,
+            "alpha_pnl": attribution.alpha_pnl,
+            "beta_pnl": attribution.beta_pnl,
+            "style_pnl": attribution.style_pnl,
+            "sector_pnl": attribution.sector_pnl,
+            "hedge_pnl": attribution.hedge_pnl,
+            "n_positions": len(positions),
+            "portfolio_ret": portfolio_ret,
+        }
+        log(
+            f"  ✅ 归因报告已生成: {report_path.name} "
+            f"(total_pnl={attribution.total_pnl:,.0f}, alpha={attribution.alpha_pnl:,.0f}, "
+            f"beta={attribution.beta_pnl:,.0f}, n={len(positions)})"
+        )
+        eod_summary["phases"]["phase4_55_attribution"] = phase_result
+        return True
+
+    except Exception as e:
+        log(f"  [FAIL] PnL 归因生成异常: {e}", "ERROR")
+        traceback.print_exc()
+        eod_summary["phases"]["phase4_55_attribution"] = {
+            "success": False, "error": str(e),
+        }
+        return False
+
+
 def run_phase4_6_feedback_loop(report_date, eod_summary, args):
     """阶段四点六：FeedbackLoop 因子权重更新"""
     if args.skip_feedback_loop:
@@ -971,6 +1161,62 @@ def print_eod_summary(success_count, fail_count, report_date, next_trade_date, t
 
 
 # ═══════════════════════════════════════════════════════════════
+# Shadow 数据完整性守卫 (2026-08-18 防异常清空)
+# ═══════════════════════════════════════════════════════════════
+
+def run_shadow_data_guard() -> bool:
+    """阶段零之前: Shadow 数据完整性守卫.
+
+    检查 reports/shadow/daily_returns.jsonl 是否存在且非空.
+    若被异常清空, 从最新备份恢复; 无备份则告警但不中止 EOD.
+
+    Returns:
+        True = 数据正常或已恢复; False = 被清空且无备份
+    """
+    shadow_file = PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+
+    if shadow_file.exists() and shadow_file.stat().st_size > 0:
+        return True
+
+    log(">>> 阶段零之前: Shadow 数据完整性守卫 <<<", "WARN")
+    log(f"  ⚠️ {shadow_file.name} 不存在或为空 (可能被异常清空)", "WARN")
+
+    backups = sorted(shadow_file.parent.glob("daily_returns.jsonl.bak_*"))
+    if not backups:
+        log("  ❌ 无可用备份, EOD 将基于空历史运行 (Shadow 收集会创建新文件)", "WARN")
+        return False
+
+    latest_backup = backups[-1]
+    try:
+        shutil.copy2(latest_backup, shadow_file)
+        log(f"  ✅ 已从备份恢复: {latest_backup.name} -> {shadow_file.name}")
+        return True
+    except Exception as e:
+        log(f"  ❌ 从备份恢复失败: {e}", "WARN")
+        return False
+
+
+def backup_shadow_data() -> None:
+    """阶段五之后: Shadow 数据自动备份.
+
+    EOD 末尾把 daily_returns.jsonl 复制到带时间戳的备份文件,
+    供下次 EOD 前置守卫恢复使用.
+    """
+    shadow_file = PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+    if not shadow_file.exists() or shadow_file.stat().st_size == 0:
+        log("  ⚠️ Shadow 备份跳过: daily_returns.jsonl 不存在或为空", "WARN")
+        return
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = shadow_file.parent / f"daily_returns.jsonl.bak_{ts}"
+    try:
+        shutil.copy2(shadow_file, backup_path)
+        log(f"  ✅ Shadow 数据已备份: {backup_path.name}")
+    except Exception as e:
+        log(f"  ⚠️ Shadow 备份失败: {e}", "WARN")
+
+
+# ═══════════════════════════════════════════════════════════════
 # 主流程
 # ═══════════════════════════════════════════════════════════════
 
@@ -994,6 +1240,8 @@ def main():
         log(f"  阶段四点八: PhaseB回写  {PHASE_B_ENABLER_SCRIPT} --auto")
         log(f"  阶段五: 归档目录        {today_dir}")
         return
+
+    run_shadow_data_guard()
 
     today_dir.mkdir(parents=True, exist_ok=True)
     eod_summary = {
@@ -1057,6 +1305,13 @@ def main():
     success_count += phase_phaseb_success
     fail_count += not phase_phaseb_success
 
+    # 阶段四点五五: PnL 归因报告生成 (FeedbackLoop 前置依赖, 2026-08-18)
+    # 在 Shadow 数据 + 漂移检测 + Phase B 回写之后、FeedbackLoop 之前执行,
+    # 生成 reports/pnl_attribution/pnl_attribution_{date}.json, 供 FeedbackLoop 消费.
+    phase_attribution_success = run_phase4_55_attribution(report_date, eod_summary, args)
+    success_count += phase_attribution_success
+    fail_count += not phase_attribution_success
+
     phase_feedback_success = run_phase4_6_feedback_loop(report_date, eod_summary, args)
     success_count += phase_feedback_success
     fail_count += not phase_feedback_success
@@ -1064,6 +1319,8 @@ def main():
     phase5_success = run_phase5_archive(report_date, today_dir, eod_summary, args)
     success_count += phase5_success
     fail_count += not phase5_success
+
+    backup_shadow_data()
 
     save_eod_summary(eod_summary, today_dir, report_date, success_count, fail_count)
     print_eod_summary(success_count, fail_count, report_date, next_trade_date, today_dir)

@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · 观察期数据完整性恢复 + EOD 防护部署 + IDE 配置归档
+
+- **08-17 断档补录**: Wind MCP 补录 08-17（+0.7571%，26 标的 100% 覆盖），修正初判误（08-15 是周六非周五，真正断档是 08-17 周一）
+- **13:04 清空事件**: `reports/shadow/` + `reports/evolution/` 在 08-18 13:04:21 被清空，10 条路径排查全部排除，元凶未定位，最可能是 IDE 文件监视器冲突或 cmd 手动操作
+- **全量恢复**: `backfill_shadow_history.py` 从 Wind MCP 回填 16 天，08-18 EOD 12 阶段全成功（+0.2003%），观察期 17/21 天 (81.0%)，预计 08-24 达标
+- **P1+P2 防护落地**: `run_daily_eod_workflow.py` 加入 `run_shadow_data_guard()` + `backup_shadow_data()`，三测试通过
+- **IDE 配置归档**: 5 个多余目录 → `_archive/ide_configs_20260818_154410/`，28 个方案文档 → `docs/ide_docs_archive/`
+- **指针**: `15_每日工作流/run_daily_eod_workflow.py` + `reports/shadow/daily_returns.jsonl` + `reports/evolution/observation_progress.json`
+
 ## 2026-08-18 · T2 第 51 批覆盖率：vibe_trading_adapter + external_data_source ✅ 79 tests GREEN
 
 - **vibe_trading_adapter** 0%→52.42% (tests): _infer_market(A股/US/HK/韩股/空/大小写)/_normalize_symbol(别名/透传)/VibeTradingAdapter(初始化/get_ohlcv/get_batch_ohlcv/get_price_dataframe/_normalize_dataframe/_try_local_cache)/_proxy_fallback_fetch/get_adapter单例/get_ohlcv/get_price_matrix — Vibe-Trading 核心用 mock — **发现 bug**: _infer_market("0700.HK") 误判为 us_equity (US 判断 len<=5 在 HK 判断之前)
