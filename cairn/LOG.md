@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 44 批覆盖率：tf_price_predictor + auto_trading_system + etf_flow_decision ✅ 41 tests GREEN
+
+- **tf_price_predictor** 0%→56.27% (29 tests): PredictionResult dataclass/TimesFMForecaster(加载/预测/维度不匹配)/TensorflowLSTMPredictor(构建/训练/预测/序列)/StatisticalForecaster(ARIMA/线性外推)/PricePredictor(集成/降级链/批量)
+- **auto_trading_system** 0%→28.89% (tests): AutoTradingSystem 初始化/信号处理/风控/执行链/状态管理
+- **etf_flow_decision** 0%→24.77% (tests): ETFFlowDecisionEngine 初始化/_parse_etf_flow_data(强度/置信度/数据源)/_call_llm_analysis(mock LLM)/_build_llm_prompt — **修复 bug**: SignalFusionEngine 构造传了 5 个不存在的 kwargs (alpha_weight/llm_weight/etf_weight/macro_weight/min_confidence) 导致 ETFFlowDecisionEngine 完全无法实例化；同时将 source_confidence 暴露到 _parse_etf_flow_data 输出 dict
+- **三模块合计**: 41 passed
+- **`.coveragerc`**: 移除 etf_flow_decision 的 omit 排除规则
+- **指针**: `tests/unit/test_tf_price_predictor_unit.py` + `tests/unit/test_auto_trading_system_unit.py` + `tests/unit/test_etf_flow_decision_unit.py`
+
 ## 2026-08-18 · T2 第 43 批覆盖率：stop_loss + tdx_data_source + etf_flow_monitor ✅ 70 tests GREEN
 
 - **stop_loss** 0%→97.33% (35 tests): 止损止盈监控 — AlertLevel/RiskType枚举/StopLossMonitor(_determine_level 4级/_generate_action 7种建议/_calculate_risk_score PnL+距离+风险乘数)/check_single(正常/触发/无效价格/显式价格/移动止盈/历史记录)/check_all(批量/缺失行情/零价)/generate_risk_report(空/有告警/综合评估)

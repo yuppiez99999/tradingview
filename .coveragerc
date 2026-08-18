@@ -62,8 +62,7 @@ omit =
     alpha/llm_router_orig_tmp.py
     */enhanced_signal_fusion.py
     enhanced_signal_fusion.py
-    */etf_flow_decision.py
-    etf_flow_decision.py
+    # etf_flow_decision 已有测试 (T2 第44批)
     */tdam_client.py
     tdam_client.py
     */glm5_decision_engine.py

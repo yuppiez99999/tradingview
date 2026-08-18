@@ -7,7 +7,7 @@ ETF资金流向盘前/盘中决策模块 v1.0
 - 盘中(09:30-15:00): 实时资金流监控 + LLM辅助决策
 - 盘后(15:00-15:30): 资金流复盘 + 信号归档
 
-数据源优先级: Wind MCP > iFinD MCP > 东财push2 > 新浪 > 价格动量代理
+数据源优先级: Wind MCP > 东财push2 > 新浪 > 价格动量代理
 LLM降级链: DeepSeek (V3/R1, 主 LLM) → Ollama本地 → GLM-5 → 豆包 → 规则引擎
 
 集成点:
@@ -131,13 +131,7 @@ class ETFFlowDecisionEngine:
 
     def __init__(self):
         self.tracker = ETFRealTimeTracker()
-        self.fusion_engine = SignalFusionEngine(
-            alpha_weight=0.4,
-            llm_weight=SIGNAL_CONFIG["llm_weight"],
-            etf_weight=SIGNAL_CONFIG["flow_weight"],
-            macro_weight=SIGNAL_CONFIG["price_weight"],
-            min_confidence=SIGNAL_CONFIG["min_confidence"],
-        )
+        self.fusion_engine = SignalFusionEngine()
         self._local_llm_client = None
         self._decision_cache: Dict[str, Dict[str, Any]] = {}
         self._cache_ttl = 300  # 5分钟缓存
@@ -210,7 +204,7 @@ class ETFFlowDecisionEngine:
             source = data.get("source", "unknown")
             source_confidence = {
                 "wind_mcp": 0.9,
-                "ifind_mcp": 0.85,
+
                 "eastmoney_push2": 0.8,
                 "sina_http": 0.7,
                 "price_momentum": 0.5,
@@ -222,6 +216,7 @@ class ETFFlowDecisionEngine:
             standardized[code] = {
                 "strength": strength,
                 "confidence": confidence,
+                "source_confidence": source_confidence,
                 "net_flow_yi": net_flow,
                 "trend": data.get("trend", "中性"),
                 "source": source,
