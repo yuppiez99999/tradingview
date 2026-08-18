@@ -141,6 +141,9 @@ class VaRMonitor:
             if dates is None or len(rets) < len(dates):
                 dates = list(range(len(rets)))
 
+        if dates is None:
+            return self._empty_result(portfolio_value)
+
         portfolio_returns: list[float] = []
         for i in dates:  # type: ignore
             daily_ret = 0.0

@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 41 批覆盖率：qlib_data_bridge + var_monitor + wt_structs ✅ 64 tests GREEN
+
+- **qlib_data_bridge** 0%→92.74% (18 tests): qlib 数据桥接纯函数 — to_qlib_symbol(SH/SZ/BJ/已带前缀/非法)/from_qlib_symbol(反向/非法)/dataframe_to_qlib_record(正常/空df/缺列)/qlib_signal_to_system(正常/空/缺字段)/get_qlib_cache_root(默认/自定义env)
+- **var_monitor** 0%→93.66% (28 tests): VaR 风险监控 — calculate_var(正常/空数据/不足30日/超lookback/NaN)/calculate_var_from_positions(正常/空positions/单标的/权重和>1)/execute_breach_response(var_95/var_99/无效)/get_event_history — **修复 bug**: 空 returns_matrix 时 dates=None 导致 TypeError, 增加守卫返回 _empty_result
+- **wt_structs** 0%→98.82% (18 tests): WonderTrade 结构体 — TickData/BarData/OrderData/TradeData/PositionData/ContractData 数据类(tick_to_dict/bar_to_dict/strict_symbol_validation 上下文管理器/CodeExchangeMismatchWarning/Error)
+- **三模块合计**: 64 passed, 总覆盖率 95.40%
+- **`.coveragerc`**: 移除 qlib_data_bridge / var_monitor / wt_structs 的 omit 排除规则
+- **指针**: `tests/unit/test_qlib_data_bridge_unit.py` + `tests/unit/test_var_monitor_unit.py` + `tests/unit/test_wt_structs_unit.py`
+
 ## 2026-08-18 · T2 第 40 批覆盖率：cli_helpers + execution_selector + data_source_manager ✅ 65 tests GREEN
 
 - **cli_helpers** 0%→100.00% (14 tests): CLI 辅助函数 — write_report_file(基本写入/自定义子目录/覆盖)/archive_report(归档/不存在/自定义子目录)/get_stock_name(无positions/有positions/不在positions/非法JSON)/log_execution_summary(基本输出/空dict)/get_ml_signal_section(默认/带code/return_raw)/get_etf_flow_data/get_portfolio_quotes/get_archive_dir

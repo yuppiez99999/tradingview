@@ -27,8 +27,7 @@ omit =
     wt_execution_algo.py
     */wt_backtest_engine.py
     wt_backtest_engine.py
-    */wt_structs.py
-    wt_structs.py
+    # wt_structs 已有测试 (T2 第41批)
     */wt_tick_engine.py
     wt_tick_engine.py
     */wt_hedge_strategy.py
@@ -47,8 +46,7 @@ omit =
     */media_crawler_adapter.py
     media_crawler_adapter.py
 
-    */var_monitor.py
-    var_monitor.py
+    # var_monitor 已有测试 (T2 第41批)
     */tradingagents_bridge.py
     tradingagents_bridge.py
     */vibe_trading_adapter.py
@@ -135,8 +133,7 @@ omit =
     ai_coordinator.py
 
 
-    */qlib_data_bridge.py
-    qlib_data_bridge.py
+    # qlib_data_bridge 已有测试 (T2 第41批)
     */gtja191_factors.py
     gtja191_factors.py
     */stress_test.py
