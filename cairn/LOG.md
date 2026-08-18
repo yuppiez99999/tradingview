@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-18 · T2 第 51 批覆盖率：vibe_trading_adapter + external_data_source ✅ 79 tests GREEN
+
+- **vibe_trading_adapter** 0%→52.42% (tests): _infer_market(A股/US/HK/韩股/空/大小写)/_normalize_symbol(别名/透传)/VibeTradingAdapter(初始化/get_ohlcv/get_batch_ohlcv/get_price_dataframe/_normalize_dataframe/_try_local_cache)/_proxy_fallback_fetch/get_adapter单例/get_ohlcv/get_price_matrix — Vibe-Trading 核心用 mock — **发现 bug**: _infer_market("0700.HK") 误判为 us_equity (US 判断 len<=5 在 HK 判断之前)
+- **external_data_source** 0%→71.98% (tests): _parse_api_float(正常/None/FRED缺失值/N-A/空串/NaN/非法)/MacroIndicator/FREDApi(可用/成功/缺失值/HTTP错误)/EcondbApi/FedTreasuryApi/AlphaVantageApi/FinnhubApi/CoinGeckoApi/ExternalDataManager(缓存/快照/股票/加密/新闻/风险情绪) — 网络依赖用 mock
+- **enhanced_signal_fusion 跳过**: 导入失败 (NameError: SignalFusionEngine 未定义 — 依赖链 signal_fusion/fast_signal_processor/rule_engine 断裂)
+- **两模块合计**: 79 passed
+- **`.coveragerc`**: 移除 vibe_trading_adapter + enhanced_signal_fusion 的 omit 排除规则
+- **指针**: `tests/unit/test_vibe_trading_adapter_unit.py` + `tests/unit/test_external_data_source_unit.py`
+
 ## 2026-08-18 · T2 第 50 批覆盖率：tradingagents_bridge + wt_backtest_engine + media_crawler_adapter ✅ 118 tests GREEN
 
 - **tradingagents_bridge** 0%→88.12% (tests): TradingAgentsBridge(__init__/base_url/is_available缓存/_check_port/get_analysts/analyze/_fallback_to_local/_neutral_result/_http_get/_http_post)/get_bridge单例/analyze/is_available — HTTP 依赖用 mock

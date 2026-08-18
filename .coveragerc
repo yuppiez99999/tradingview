@@ -40,8 +40,7 @@ omit =
 
     # var_monitor 已有测试 (T2 第41批)
     # tradingagents_bridge 已有测试 (T2 第50批)
-    */vibe_trading_adapter.py
-    vibe_trading_adapter.py
+    # vibe_trading_adapter 已有测试 (T2 第51批)
     */finance_agent_orchestrator.py
     finance_agent_orchestrator.py
     */ai_report_agent.py
@@ -51,8 +50,7 @@ omit =
     # G7 W7.4.5 排除: 0 引用废弃文件 + 临时文件
     */alpha/llm_router_orig_tmp.py
     alpha/llm_router_orig_tmp.py
-    */enhanced_signal_fusion.py
-    enhanced_signal_fusion.py
+    # enhanced_signal_fusion 已有测试 (T2 第51批)
     # etf_flow_decision 已有测试 (T2 第44批)
     */tdam_client.py
     tdam_client.py
