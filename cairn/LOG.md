@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-19 · Phase A3: 核心模块类型注解批量补齐 (ANN 908→397)
+
+- **范围**: 35 个核心模块批量补齐函数参数/返回值类型注解 (3 批子代理并行处理)
+- **自动修复**: 136 UP006 (List→list 现代语法) + 19 F401 (unused-import) + 1 F821 (TYPE_CHECKING 导入)
+- **手动修复**: stop_loss_monitor.py 7 个 ANN + 3 处硬编码绝对路径
+- **达标**: ANN 908→397 (< 400 目标 ✅), 总 ruff 1139→628 (45% 降幅)
+- **commit**: `3474cc00`（637文件, 7552增/9627删, pre-commit全通过）
+- **指针**: `cairn/code-quality-industrial-gap-20260819.md` §五 Phase A3
+
 ## 2026-08-19 · Phase A3+A4: ruff 风格问题分类豁免 (1381→1139)
 
 - **豁免**: tests/scripts/research/v8.3_institutional 添加 E402+N806 (sys.path 前置 + 金融数学大写变量名 S/K/T/N/L/H/W)
