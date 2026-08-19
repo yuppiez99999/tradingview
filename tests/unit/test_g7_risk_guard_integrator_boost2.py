@@ -1573,7 +1573,7 @@ class TestHedgeIntegrationInterfaces:
             _make_plan_full(), "2026-07-22"
         )
         assert len(plan["put_protection_orders"]) == 2
-        assert "GENERATED_2_PUTS" == plan["risk_guard"]["put_action"]
+        assert plan["risk_guard"]["put_action"] == "GENERATED_2_PUTS"
 
     def test_put_existing_protection_ok(self, integrator, monkeypatch):
         mock_inst = MagicMock()

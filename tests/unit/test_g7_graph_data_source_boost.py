@@ -684,9 +684,8 @@ class TestGetThemes:
 
     def test_error_code_returns_empty(self, fresh_ds, caplog):
         mock_resp = {"errocode": 1, "errormsg": "系统错误"}
-        with patch.object(fresh_ds, "_get", return_value=mock_resp):
-            with caplog.at_level("WARNING"):
-                result = fresh_ds.get_themes("2026-01-15")
+        with patch.object(fresh_ds, "_get", return_value=mock_resp), caplog.at_level("WARNING"):
+            result = fresh_ds.get_themes("2026-01-15")
         assert result == []
         assert any("同花顺热点错误" in r.message for r in caplog.records)
 

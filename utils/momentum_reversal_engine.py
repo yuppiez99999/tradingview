@@ -155,7 +155,7 @@ class MomentumReversalEngine:
         reversal_signals = self._calc_reversal(price_data)
 
         # 4. 融合信号
-        for sym in price_data.keys():
+        for sym in price_data:
             sig = MomentumSignal(symbol=sym)
 
             # TSMOM 融合
@@ -266,7 +266,7 @@ class MomentumReversalEngine:
                     returns[sym] = closes[-1] / closes[-window] - 1
 
             if len(returns) < 2:
-                for sym in price_data.keys():
+                for sym in price_data:
                     signals[f"{sym}_{window}"] = 0.0
                 continue
 
@@ -283,7 +283,7 @@ class MomentumReversalEngine:
                     signals[key] = 0.0
 
             # 没有数据的标的设为 0
-            for sym in price_data.keys():
+            for sym in price_data:
                 key = f"{sym}_{window}"
                 if key not in signals:
                     signals[key] = 0.0

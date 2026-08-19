@@ -574,9 +574,8 @@ class ExternalDataManager:
             return None
 
         try:
-            with _CACHE_LOCK:
-                with open(cache_file, encoding="utf-8") as _f:
-                    cache = json.load(_f)
+            with _CACHE_LOCK, open(cache_file, encoding="utf-8") as _f:
+                cache = json.load(_f)
             cache_time = cache.get("_cache_time", 0)
             ttl = CACHE_TTL.get(category, 300)
             if time.time() - cache_time < ttl:

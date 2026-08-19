@@ -73,7 +73,7 @@ class IntradayCircuitBreaker:
             raise ValueError("consecutive_fail_threshold ≥ 1")
         if not (0 < intraday_dd_pct <= 1.0):
             raise ValueError("intraday_dd_pct ∈ (0, 1]")
-        if not (0 < realized_vol_annual_pct):
+        if not (realized_vol_annual_pct > 0):
             raise ValueError("realized_vol_annual_pct > 0")
         if vol_window < 2:
             raise ValueError("vol_window ≥ 2")

@@ -79,11 +79,15 @@ class KillSwitchManager:
         enable_audit_logging: bool = True,
     ) -> None:
         self.thresholds: dict[KillLevel, float] = dict(thresholds or self.DEFAULT_THRESHOLDS)
-        # 阈值合法性校验
-        assert self.thresholds[KillLevel.CAUTION] < self.thresholds[KillLevel.REDUCTION]
-        assert self.thresholds[KillLevel.REDUCTION] < self.thresholds[KillLevel.LIQUIDATE]
-        assert 0 < self.thresholds[KillLevel.CAUTION] < 1.0
-        assert self.thresholds[KillLevel.LIQUIDATE] <= 1.0
+        # 阈值合法性校验 (显式 raise 而非 assert, 防止 -O 优化移除风控校验)
+        if not self.thresholds[KillLevel.CAUTION] < self.thresholds[KillLevel.REDUCTION]:
+            raise ValueError("CAUTION 阈值必须 < REDUCTION 阈值")
+        if not self.thresholds[KillLevel.REDUCTION] < self.thresholds[KillLevel.LIQUIDATE]:
+            raise ValueError("REDUCTION 阈值必须 < LIQUIDATE 阈值")
+        if not 0 < self.thresholds[KillLevel.CAUTION] < 1.0:
+            raise ValueError("CAUTION 阈值必须在 (0, 1) 区间")
+        if not self.thresholds[KillLevel.LIQUIDATE] <= 1.0:
+            raise ValueError("LIQUIDATE 阈值必须 <= 1.0")
 
         self._audit = KillSwitchAudit()
         self.enable_audit_logging = enable_audit_logging

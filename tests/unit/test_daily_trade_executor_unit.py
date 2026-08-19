@@ -1203,16 +1203,16 @@ class TestRiskParamsFromConfig:
         assert dte.PORTFOLIO_DRAWDOWN_STOP_PCT == 0.05
 
     def test_accumulation_start_date(self):
-        assert dte.ACCUMULATION_START == date(2026, 7, 10)
+        assert date(2026, 7, 10) == dte.ACCUMULATION_START
 
     def test_accumulation_end_date(self):
-        assert dte.ACCUMULATION_END == date(2026, 12, 31)
+        assert date(2026, 12, 31) == dte.ACCUMULATION_END
 
     def test_stock_etf_target(self):
         assert dte.STOCK_ETF_TARGET == 3_000_000
 
     def test_fixed_budget_start(self):
-        assert dte.FIXED_BUDGET_START == date(2026, 7, 13)
+        assert date(2026, 7, 13) == dte.FIXED_BUDGET_START
 
     def test_signal_amounts_complete(self):
         assert dte.SIGNAL_AMOUNTS["strong"] == 50_000

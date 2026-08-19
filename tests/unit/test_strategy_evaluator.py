@@ -494,7 +494,7 @@ class TestDegradedReport:
         """空数据降级报告 reason 含 'empty_returns'."""
         report = enabled_evaluator.evaluate(daily_returns=[])
         assert "empty_returns" in report.degraded_reason
-        assert "degraded: empty_returns" == report.reason
+        assert report.reason == "degraded: empty_returns"
 
 
 # ============================================================

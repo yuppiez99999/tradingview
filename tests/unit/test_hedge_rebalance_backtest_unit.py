@@ -555,10 +555,9 @@ class TestFormatComparisonReport:
 # ============================================================
 class TestSaveReport:
     def test_save_default_dir(self, tmp_path):
-        with patch("os.makedirs"):
-            with patch("builtins.open", create=True):
-                fpath = save_report("test report", output_dir=str(tmp_path))
-                assert "backtest_hedge_rebalance_v2_" in os.path.basename(fpath)
+        with patch("os.makedirs"), patch("builtins.open", create=True):
+            fpath = save_report("test report", output_dir=str(tmp_path))
+            assert "backtest_hedge_rebalance_v2_" in os.path.basename(fpath)
 
     def test_save_custom_dir(self, tmp_path):
         fpath = save_report("test content", output_dir=str(tmp_path))

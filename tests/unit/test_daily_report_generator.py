@@ -599,11 +599,10 @@ class TestWriteReportWithRetry:
         def always_fail(self, data, *args, **kwargs):
             raise PermissionError("always fail")
 
-        with patch.object(Path, "write_text", always_fail):
-            with pytest.raises(OSError):
-                write_report_with_retry(
-                    path, ["test"], max_retries=2, retry_delay_seconds=0.01
-                )
+        with patch.object(Path, "write_text", always_fail), pytest.raises(OSError):
+            write_report_with_retry(
+                path, ["test"], max_retries=2, retry_delay_seconds=0.01
+            )
 
 
 # ============================================================
@@ -824,14 +823,13 @@ class TestDailyReportGenerator:
         """异常处理."""
         gen = DailyReportGenerator(config={})
         # mock 内部方法抛异常
-        with patch.object(gen, "_is_feature_flag_enabled", return_value=True):
-            with patch.object(
-                gen, "_generate_internal", side_effect=RuntimeError("mock error")
-            ):
-                result = gen.generate(
-                    trade_date="2026-07-27",
-                    phases_state={"check": {"status": "ok"}},
-                )
+        with patch.object(gen, "_is_feature_flag_enabled", return_value=True), patch.object(
+            gen, "_generate_internal", side_effect=RuntimeError("mock error")
+        ):
+            result = gen.generate(
+                trade_date="2026-07-27",
+                phases_state={"check": {"status": "ok"}},
+            )
         assert result.status == STATUS_ERROR
         assert "mock error" in result.reason
 

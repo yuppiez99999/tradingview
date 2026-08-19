@@ -1011,11 +1011,7 @@ def main():
             o.get("action", "")
             o.get("instrument", "")
             o.get("execution_window", "")
-            if o_type == "OPTIONS":
-                pass
-            elif o_type == "FUTURES":
-                pass
-            elif o_type == "SAFE_HAVEN":
+            if o_type == "OPTIONS" or o_type == "FUTURES" or o_type == "SAFE_HAVEN":
                 pass
 
 

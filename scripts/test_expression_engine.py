@@ -111,7 +111,7 @@ def test_cross_section_ops():
     # rank: 10 只股票排名 [0, 1]
     result = evaluator.evaluate(parse_expression("rank(close)"))
     vals = list(result.values())
-    assert 0 <= min(vals) and max(vals) <= 1.0, f"rank 超出 [0,1]: {min(vals)}~{max(vals)}"
+    assert min(vals) >= 0 and max(vals) <= 1.0, f"rank 超出 [0,1]: {min(vals)}~{max(vals)}"
     assert len(set(vals)) > 5, f"rank 值不够分散: {len(set(vals))} 个唯一值"
     print(f"  rank(close): 范围 [{min(vals):.3f}, {max(vals):.3f}], {len(set(vals))} 唯一值 ✓")
 

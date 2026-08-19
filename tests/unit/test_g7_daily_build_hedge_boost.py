@@ -1250,12 +1250,11 @@ class TestRenderComplianceSection:
             configured_system,
             "_load_target_portfolio_plan",
             return_value={"target_portfolio": {}},
+        ), patch(
+            "utils.broad_based_etf_policy.validate_portfolio_compliance",
+            return_value=mock_compliance,
         ):
-            with patch(
-                "utils.broad_based_etf_policy.validate_portfolio_compliance",
-                return_value=mock_compliance,
-            ):
-                lines = configured_system._render_compliance_section()
+            lines = configured_system._render_compliance_section()
         assert any("合规校验" in line for line in lines)
         assert any("8/10" in line for line in lines)
         assert any("588080.SH" in line for line in lines)
@@ -1290,20 +1289,17 @@ class TestRenderEtfFlowAdjustmentSection:
             configured_system,
             "_load_target_portfolio_plan",
             return_value=target_plan,
+        ), patch(
+            "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+            return_value=flow,
+        ), patch(
+            "utils.broad_based_etf_policy.get_broad_based_codes",
+            return_value=["510050.SH"],
+        ), patch(
+            "utils.broad_based_etf_policy.flow_to_adjustment",
+            return_value={"signal": "加仓", "action": "增配", "factor": 0.1},
         ):
-            with patch(
-                "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-                return_value=flow,
-            ):
-                with patch(
-                    "utils.broad_based_etf_policy.get_broad_based_codes",
-                    return_value=["510050.SH"],
-                ):
-                    with patch(
-                        "utils.broad_based_etf_policy.flow_to_adjustment",
-                        return_value={"signal": "加仓", "action": "增配", "factor": 0.1},
-                    ):
-                        lines = configured_system._render_etf_flow_adjustment_section()
+            lines = configured_system._render_etf_flow_adjustment_section()
         assert any("宽基ETF" in line for line in lines)
         assert any("510050.SH" in line for line in lines)
         assert any("加仓" in line for line in lines)
@@ -1315,16 +1311,14 @@ class TestRenderEtfFlowAdjustmentSection:
             configured_system,
             "_load_target_portfolio_plan",
             return_value={"target_portfolio": {}},
+        ), patch(
+            "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+            return_value={},
+        ), patch(
+            "utils.broad_based_etf_policy.get_broad_based_codes",
+            return_value=[],
         ):
-            with patch(
-                "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-                return_value={},
-            ):
-                with patch(
-                    "utils.broad_based_etf_policy.get_broad_based_codes",
-                    return_value=[],
-                ):
-                    lines = configured_system._render_etf_flow_adjustment_section()
+            lines = configured_system._render_etf_flow_adjustment_section()
         assert any("宽基ETF" in line for line in lines)
         assert any("暂不可用" in line for line in lines)
 
@@ -1540,23 +1534,19 @@ class TestGenerateReport:
             configured_system,
             "_load_target_portfolio_plan",
             return_value={"target_portfolio": {}},
+        ), patch.object(
+            configured_system, "fetch_realtime_quotes", return_value={}
+        ), patch(
+            "utils.broad_based_etf_policy.validate_portfolio_compliance",
+            return_value={"summary": {}, "holdings": []},
+        ), patch(
+            "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+            return_value={},
+        ), patch(
+            "utils.broad_based_etf_policy.get_broad_based_codes",
+            return_value=[],
         ):
-            with patch.object(
-                configured_system, "fetch_realtime_quotes", return_value={}
-            ):
-                with patch(
-                    "utils.broad_based_etf_policy.validate_portfolio_compliance",
-                    return_value={"summary": {}, "holdings": []},
-                ):
-                    with patch(
-                        "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-                        return_value={},
-                    ):
-                        with patch(
-                            "utils.broad_based_etf_policy.get_broad_based_codes",
-                            return_value=[],
-                        ):
-                            report = configured_system.generate_report()
+            report = configured_system.generate_report()
 
         assert isinstance(report, str)
         assert "每日建仓计划" in report
@@ -1589,25 +1579,21 @@ class TestGenerateReport:
                 configured_system,
                 "_load_target_portfolio_plan",
                 return_value={"target_portfolio": {}},
+            ), patch.object(
+                configured_system,
+                "fetch_realtime_quotes",
+                return_value={},
+            ), patch(
+                "utils.broad_based_etf_policy.validate_portfolio_compliance",
+                return_value={"summary": {}, "holdings": []},
+            ), patch(
+                "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+                return_value={},
+            ), patch(
+                "utils.broad_based_etf_policy.get_broad_based_codes",
+                return_value=[],
             ):
-                with patch.object(
-                    configured_system,
-                    "fetch_realtime_quotes",
-                    return_value={},
-                ):
-                    with patch(
-                        "utils.broad_based_etf_policy.validate_portfolio_compliance",
-                        return_value={"summary": {}, "holdings": []},
-                    ):
-                        with patch(
-                            "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-                            return_value={},
-                        ):
-                            with patch(
-                                "utils.broad_based_etf_policy.get_broad_based_codes",
-                                return_value=[],
-                            ):
-                                configured_system.generate_report()
+                configured_system.generate_report()
         mock_assess.assert_called_once()
 
 
@@ -1626,27 +1612,23 @@ class TestSaveReport:
     ) -> None:
         with patch.object(
             configured_system, "generate_report", return_value="# Test Report"
+        ), patch.object(
+            configured_system,
+            "_load_target_portfolio_plan",
+            return_value={"target_portfolio": {}},
+        ), patch(
+            "utils.broad_based_etf_policy.validate_portfolio_compliance",
+            return_value={"summary": {}, "holdings": []},
+        ), patch(
+            "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+            return_value={},
+        ), patch(
+            "utils.broad_based_etf_policy.get_broad_based_codes",
+            return_value=[],
         ):
-            with patch.object(
-                configured_system,
-                "_load_target_portfolio_plan",
-                return_value={"target_portfolio": {}},
-            ):
-                with patch(
-                    "utils.broad_based_etf_policy.validate_portfolio_compliance",
-                    return_value={"summary": {}, "holdings": []},
-                ):
-                    with patch(
-                        "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-                        return_value={},
-                    ):
-                        with patch(
-                            "utils.broad_based_etf_policy.get_broad_based_codes",
-                            return_value=[],
-                        ):
-                            md_path, json_path = configured_system.save_report(
-                                str(tmp_path)
-                            )
+            md_path, json_path = configured_system.save_report(
+                str(tmp_path)
+            )
 
         assert Path(md_path).exists()
         assert Path(json_path).exists()
@@ -1669,29 +1651,24 @@ class TestSaveReport:
         """无 output_dir 时使用默认路径 (BASE_DIR/每日报告归档/...)."""
         with patch.object(
             configured_system, "generate_report", return_value="# Test"
+        ), patch.object(
+            configured_system,
+            "_load_target_portfolio_plan",
+            return_value={"target_portfolio": {}},
+        ), patch(
+            "utils.broad_based_etf_policy.validate_portfolio_compliance",
+            return_value={"summary": {}, "holdings": []},
+        ), patch(
+            "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+            return_value={},
+        ), patch(
+            "utils.broad_based_etf_policy.get_broad_based_codes",
+            return_value=[],
+        ), patch(
+            "utils.execution.daily_build_and_hedge.BASE_DIR",
+            tmp_path,
         ):
-            with patch.object(
-                configured_system,
-                "_load_target_portfolio_plan",
-                return_value={"target_portfolio": {}},
-            ):
-                with patch(
-                    "utils.broad_based_etf_policy.validate_portfolio_compliance",
-                    return_value={"summary": {}, "holdings": []},
-                ):
-                    with patch(
-                        "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-                        return_value={},
-                    ):
-                        with patch(
-                            "utils.broad_based_etf_policy.get_broad_based_codes",
-                            return_value=[],
-                        ):
-                            with patch(
-                                "utils.execution.daily_build_and_hedge.BASE_DIR",
-                                tmp_path,
-                            ):
-                                md_path, json_path = configured_system.save_report()
+            md_path, json_path = configured_system.save_report()
 
         assert Path(md_path).exists()
         assert Path(json_path).exists()
@@ -1719,27 +1696,23 @@ class TestRun:
             system,
             "get_active_phase",
             return_value=(SAMPLE_PLAN_DATA["execution_plan"]["phase1"], "phase1"),
+        ), patch.object(
+            system, "assess_market_state", side_effect=fake_assess
+        ), patch.object(
+            system, "calculate_risk_budget", return_value={}
+        ), patch.object(
+            system,
+            "generate_build_instructions",
+            return_value={"morning_orders": [], "afternoon_orders": []},
+        ), patch.object(
+            system,
+            "calculate_hedge_plan",
+            return_value={
+                "futures_hedge": {"contracts": 0},
+                "option_hedge": [],
+            },
         ):
-            with patch.object(
-                system, "assess_market_state", side_effect=fake_assess
-            ):
-                with patch.object(
-                    system, "calculate_risk_budget", return_value={}
-                ):
-                    with patch.object(
-                        system,
-                        "generate_build_instructions",
-                        return_value={"morning_orders": [], "afternoon_orders": []},
-                    ):
-                        with patch.object(
-                            system,
-                            "calculate_hedge_plan",
-                            return_value={
-                                "futures_hedge": {"contracts": 0},
-                                "option_hedge": [],
-                            },
-                        ):
-                            result = system.run()
+            result = system.run()
 
         assert result["status"] == "success"
         assert result["phase_key"] == "phase1"

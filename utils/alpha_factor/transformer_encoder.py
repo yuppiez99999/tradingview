@@ -129,7 +129,7 @@ class NumpyFactorEncoder:
     def encode(self, factor_matrix: np.ndarray) -> tuple[np.ndarray, Optional[np.ndarray]]:
         """前向编码: X ∈ R^{N×F} → Z ∈ R^{N×D}"""
         N, F = factor_matrix.shape
-        if F != self.n_factors:
+        if self.n_factors != F:
             raise ValueError(
                 f"输入因子维度 {F} 与编码器 n_factors={self.n_factors} 不匹配"
             )

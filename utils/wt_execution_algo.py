@@ -499,9 +499,7 @@ class OrderExecutor:
 
         if isinstance(self._executor, MinImpactExecutor):
             return self._executor.calculate_optimal_splits(target_amount, ref_price, avg_daily_volume, volatility)
-        elif isinstance(self._executor, TWAPExecutor):
-            return self._executor.calculate_splits(target_amount, ref_price)
-        elif isinstance(self._executor, VWAPExecutor):
+        elif isinstance(self._executor, TWAPExecutor) or isinstance(self._executor, VWAPExecutor):
             return self._executor.calculate_splits(target_amount, ref_price)
         else:
             return []

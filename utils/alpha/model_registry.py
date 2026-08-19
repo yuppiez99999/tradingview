@@ -648,19 +648,7 @@ class ModelRegistry:
                     matched = True
                     for metric_name, (op, threshold) in metric_filter.items():
                         val = v.metrics.get(metric_name, 0.0)
-                        if op == ">=" and not val >= threshold:
-                            matched = False
-                            break
-                        elif op == ">" and not val > threshold:
-                            matched = False
-                            break
-                        elif op == "<=" and not val <= threshold:
-                            matched = False
-                            break
-                        elif op == "<" and not val < threshold:
-                            matched = False
-                            break
-                        elif op == "==" and not val == threshold:
+                        if op == ">=" and not val >= threshold or op == ">" and not val > threshold or op == "<=" and not val <= threshold or op == "<" and not val < threshold or op == "==" and not val == threshold:
                             matched = False
                             break
                     if not matched:

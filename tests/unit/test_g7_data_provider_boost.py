@@ -815,9 +815,8 @@ class TestModuleHelpers:
 
     def test_get_price_prediction_short_history(self, provider: MarketDataProvider, caplog: pytest.LogCaptureFixture) -> None:
         hist = pd.DataFrame({"close": [100.0, 101.0]})
-        with patch.object(provider, "get_historical_data", return_value=hist):
-            with caplog.at_level(logging.WARNING):
-                result = provider.get_price_prediction("600519", horizon=5)
+        with patch.object(provider, "get_historical_data", return_value=hist), caplog.at_level(logging.WARNING):
+            result = provider.get_price_prediction("600519", horizon=5)
         assert result == {}
 
     def test_get_price_prediction_failure(self, provider: MarketDataProvider, caplog: pytest.LogCaptureFixture) -> None:

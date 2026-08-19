@@ -220,7 +220,7 @@ class ChipDistributionEngine:
                 否则用 vol / rolling_median_vol 作为退化换手率.
         """
         T = len(closes)
-        if T < self.window:
+        if self.window > T:
             return None
         # 窗口内数据 (用于计算换手中位数 / delta 价格区间)
         cs = closes[-self.window:]
@@ -358,7 +358,7 @@ def compute_chip_factors(
         lows = pd.get("lows", []) or closes
         volumes = pd.get("volumes", []) or [1.0] * len(closes)
         T = len(closes)
-        if T < window:
+        if window > T:
             n_skipped += 1
             continue
         # 筹码分布是滚动累积过程: 必须从 window 天起逐日重放到最后

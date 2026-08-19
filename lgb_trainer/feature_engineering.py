@@ -340,7 +340,7 @@ def add_industry_relative_strength_features(
 
     # 按行业分组构建行业基准 (等权平均)
     sector_codes: dict[str, list[str]] = {}
-    for code in ohlcv_dict.keys():
+    for code in ohlcv_dict:
         sector = sector_map.get(code, "其他")
         sector_codes.setdefault(sector, []).append(code)
 

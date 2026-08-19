@@ -321,9 +321,7 @@ class WalkForwardPairsValidator:
                     elif z > self._pt.entry_z:
                         position = -1  # 做空价差 (卖 A 买 B)
                         n_trades += 1
-                elif position == 1 and z > -self._pt.exit_z:
-                    position = 0  # 平仓
-                elif position == -1 and z < self._pt.exit_z:
+                elif position == 1 and z > -self._pt.exit_z or position == -1 and z < self._pt.exit_z:
                     position = 0  # 平仓
 
                 # 日 PnL: position=+1 → ret_A - hedge_ratio * ret_B

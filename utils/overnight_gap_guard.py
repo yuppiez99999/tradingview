@@ -249,9 +249,7 @@ class OvernightGapGuard:
             # 跳空上涨 (UP): 不利方向 = 空头 (SELL/SHORT)
             # 跳空下跌 (DOWN): 不利方向 = 多头 (BUY/LONG)
             is_adverse = False
-            if status.gap_direction == "UP" and side in ("SELL", "SHORT"):
-                is_adverse = True
-            elif status.gap_direction == "DOWN" and side in ("BUY", "LONG"):
+            if status.gap_direction == "UP" and side in ("SELL", "SHORT") or status.gap_direction == "DOWN" and side in ("BUY", "LONG"):
                 is_adverse = True
 
             if not is_adverse:

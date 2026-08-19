@@ -123,9 +123,8 @@ class TestTradingAgentsBridge:
 
     def test_get_analysts_no_field(self):
         b = TradingAgentsBridge()
-        with patch.object(b, "is_available", return_value=True):
-            with patch.object(b, "_http_get", return_value={}):
-                assert b.get_analysts() == []
+        with patch.object(b, "is_available", return_value=True), patch.object(b, "_http_get", return_value={}):
+            assert b.get_analysts() == []
 
     def test_analyze_empty_ticker(self):
         b = TradingAgentsBridge()

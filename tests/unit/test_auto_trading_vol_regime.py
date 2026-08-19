@@ -53,9 +53,8 @@ class TestFeatureFlagControl:
 
     def test_check_vol_regime_disabled(self, auto_trading_system, caplog):
         """Feature Flag=False 时直接跳过, 不调用 VolRegimeWeighter."""
-        with patch("utils.infra.feature_flags.is_enabled", return_value=False):
-            with caplog.at_level(logging.INFO):
-                auto_trading_system._check_vol_regime()
+        with patch("utils.infra.feature_flags.is_enabled", return_value=False), caplog.at_level(logging.INFO):
+            auto_trading_system._check_vol_regime()
 
         # 验证日志包含"未启用"
         assert any("未启用" in record.message for record in caplog.records)
@@ -205,10 +204,9 @@ class TestExceptionHandling:
         """任何异常都不阻塞主监控循环."""
         with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
              patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter",
-                   side_effect=RuntimeError("模拟异常")):
-            with caplog.at_level(logging.WARNING):
-                # 不应该抛出异常
-                auto_trading_system._check_vol_regime()
+                   side_effect=RuntimeError("模拟异常")), caplog.at_level(logging.WARNING):
+            # 不应该抛出异常
+            auto_trading_system._check_vol_regime()
 
         # 验证异常被捕获并输出 warning
         assert any("异常" in record.message for record in caplog.records)
@@ -216,9 +214,8 @@ class TestExceptionHandling:
     def test_check_vol_regime_portfolio_missing(self, auto_trading_system, caplog):
         """portfolio.yaml 不存在时正常跳过."""
         with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
-             patch("pathlib.Path.exists", return_value=False):
-            with caplog.at_level(logging.WARNING):
-                auto_trading_system._check_vol_regime()
+             patch("pathlib.Path.exists", return_value=False), caplog.at_level(logging.WARNING):
+            auto_trading_system._check_vol_regime()
 
         # 验证日志包含"不存在"
         assert any("不存在" in record.message for record in caplog.records)
@@ -226,9 +223,8 @@ class TestExceptionHandling:
     def test_check_vol_regime_import_error(self, auto_trading_system, caplog):
         """模块导入失败时正常跳过."""
         with patch("utils.infra.feature_flags.is_enabled",
-                   side_effect=ImportError("模块未安装")):
-            with caplog.at_level(logging.INFO):
-                auto_trading_system._check_vol_regime()
+                   side_effect=ImportError("模块未安装")), caplog.at_level(logging.INFO):
+            auto_trading_system._check_vol_regime()
 
         # ImportError 被 catch, 输出 info 日志
         assert any("未加载" in record.message or "异常" in record.message

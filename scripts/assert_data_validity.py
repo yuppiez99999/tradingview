@@ -154,9 +154,7 @@ def check_d4_positions_nonempty(date_str: str) -> AssertionResult:
         return AssertionResult("D4", "持仓非空", False, "positions.json 不存在或无法解析")
 
     positions = data.get("positions", data.get("holdings", []))
-    if isinstance(positions, dict):
-        count = len(positions)
-    elif isinstance(positions, list):
+    if isinstance(positions, dict) or isinstance(positions, list):
         count = len(positions)
     else:
         count = 0

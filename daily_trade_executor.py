@@ -131,9 +131,7 @@ def _infer_suffix(code: str) -> str:
     code = str(code).split(".")[0].zfill(6)
     if code.startswith(('6', '5', '9')):
         return f"{code}.SH"
-    elif code.startswith(('0', '2', '3')):
-        return f"{code}.SZ"
-    elif code.startswith(('159', '16')):
+    elif code.startswith(('0', '2', '3')) or code.startswith(('159', '16')):
         return f"{code}.SZ"
     elif code.startswith('8'):
         return f"{code}.BJ"

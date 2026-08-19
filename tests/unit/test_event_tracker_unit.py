@@ -181,6 +181,5 @@ class TestTrackOperation:
             assert tracker is not None
 
     def test_exception_in_context(self):
-        with pytest.raises(RuntimeError):
-            with track_operation("ctx_op"):
-                raise RuntimeError("ctx error")
+        with pytest.raises(RuntimeError), track_operation("ctx_op"):
+            raise RuntimeError("ctx error")

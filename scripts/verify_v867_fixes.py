@@ -130,9 +130,9 @@ def verify_bug1b() -> bool:
 
         # 验证 -0.05 触发 L2, 不是 L3
         level_at_fail_closed = 0
-        if mcb.FAIL_CLOSED_PCT <= mcb.l3_threshold:
+        if mcb.l3_threshold >= mcb.FAIL_CLOSED_PCT:
             level_at_fail_closed = 3
-        elif mcb.FAIL_CLOSED_PCT <= mcb.l2_threshold:
+        elif mcb.l2_threshold >= mcb.FAIL_CLOSED_PCT:
             level_at_fail_closed = 2
 
         s2_pass = level_at_fail_closed == 2

@@ -28,7 +28,7 @@ class _SafeLevel:
     def __ge__(self, other):
         # 比较时视为低于 LEVEL_3 (LEVEL_3.value=3)
         try:
-            return 0 >= int(getattr(other, "value", 0))
+            return int(getattr(other, "value", 0)) <= 0
         except Exception:
             return False
 

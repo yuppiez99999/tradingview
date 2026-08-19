@@ -55,13 +55,12 @@ class TestTickData:
             assert any(issubclass(x.category, CodeExchangeMismatchWarning) for x in w)
 
     def test_mismatch_strict_raises(self):
-        with strict_symbol_validation():
-            with pytest.raises(CodeExchangeMismatchError):
-                TickData(
-                    code="600519.SH", exchange="SZSE", price=1800.0,
-                    open=1750.0, high=1810.0, low=1740.0, pre_close=1750.0,
-                    volume=10000, amount=18000000,
-                )
+        with strict_symbol_validation(), pytest.raises(CodeExchangeMismatchError):
+            TickData(
+                code="600519.SH", exchange="SZSE", price=1800.0,
+                open=1750.0, high=1810.0, low=1740.0, pre_close=1750.0,
+                volume=10000, amount=18000000,
+            )
 
     def test_bare_code_no_validation(self):
         tick = TickData(
@@ -110,9 +109,8 @@ class TestOrderData:
         assert order.status == "NOT_REPORTED"
 
     def test_mismatch_strict(self):
-        with strict_symbol_validation():
-            with pytest.raises(CodeExchangeMismatchError):
-                OrderData(order_id="001", code="600519.SH", exchange="SZSE", direction="BUY")
+        with strict_symbol_validation(), pytest.raises(CodeExchangeMismatchError):
+            OrderData(order_id="001", code="600519.SH", exchange="SZSE", direction="BUY")
 
 
 class TestTradeData:

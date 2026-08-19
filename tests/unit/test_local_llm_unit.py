@@ -54,10 +54,9 @@ class TestIsAvailable:
 
     def test_llama_cpp_not_installed(self):
         client = LocalLLMClient(model_path="/fake/path.gguf")
-        with patch("os.path.exists", return_value=True):
-            with patch.dict("sys.modules", {"llama_cpp": None}):
-                with patch("builtins.__import__", side_effect=ImportError):
-                    assert client.is_available() is False
+        with patch("os.path.exists", return_value=True), patch.dict("sys.modules", {"llama_cpp": None}):
+            with patch("builtins.__import__", side_effect=ImportError):
+                assert client.is_available() is False
 
 
 class TestFormatPrompt:

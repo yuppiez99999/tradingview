@@ -214,7 +214,7 @@ def main():
     overall_recommend_poc = elapsed_b_full >= rust_threshold_b
     print("  前置评估结论: 跳过 (分钟级预估 40min)")
     print(f"  实测分钟级: {elapsed_b_full/60:.2f}min")
-    print(f"  修正幅度: {abs(elapsed_b_full/60 - 40) / 40 * 100:.1f}% {'高估' if 40 > elapsed_b_full/60 else '低估'}")
+    print(f"  修正幅度: {abs(elapsed_b_full/60 - 40) / 40 * 100:.1f}% {'高估' if elapsed_b_full/60 < 40 else '低估'}")
     print(f"  最终建议: {'✅ 推荐 Rust POC (分钟级达标)' if overall_recommend_poc else '⚠️ 维持跳过 (分钟级未达标, FFI 回调开销会进一步抵消收益)'}")
     print()
     print("  详细报告: tests/perf_matching_engine_benchmark.py")

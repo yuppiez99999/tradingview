@@ -64,7 +64,7 @@ class RiskSeverity(str, Enum):
 class RiskAction(str, Enum):
     """风控决策动作."""
 
-    PASS = "pass"  # 通过 (无动作)
+    PASS = "pass"  # nosec B105 # 风控动作枚举值, 非密码  # 通过 (无动作)
     REDUCE_POSITION = "reduce"  # 减仓
     DISABLE_NEW_ORDERS = "disable_new"  # 禁止开新仓
     FORCE_LIQUIDATE = "force_liquidate"  # 强制平仓

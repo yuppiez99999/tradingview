@@ -45,7 +45,7 @@ def load_pipeline_config(config_path: str | Path | None = None) -> PipelineConfi
                 raw = yaml.safe_load(f)
             if raw:
                 _apply_yaml(config, raw)
-        except Exception:  # noqa: BLE001  # 配置加载 fail-safe: 任何异常都用默认值
+        except Exception:  # noqa: BLE001  # nosec B110 # 配置加载 fail-safe: 任何异常都用默认值
             pass
     # 环境变量覆盖
     _apply_env_overrides(config)

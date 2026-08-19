@@ -103,7 +103,7 @@ class BinomialTree:
 
         gamma = (price_up - 2.0 * option_price + price_down) / (ds * ds) if ds > 0 else 0.0
 
-        price_later = self._tree_price(S, K, max(T - dt_shift, 0), r, sigma, is_call, exercise) if T > dt_shift else option_price
+        price_later = self._tree_price(S, K, max(T - dt_shift, 0), r, sigma, is_call, exercise) if dt_shift < T else option_price
         theta = (price_later - option_price) / dt_shift if dt_shift > 0 else 0.0
 
         return BinomialResult(

@@ -151,7 +151,7 @@ def run_s5_validation(
     for w in range(windows):
         T = max_len - 1 - w * step
         entry_idx = T - horizon
-        if entry_idx < 60 or T >= max_len:
+        if entry_idx < 60 or max_len <= T:
             continue
 
         factors = _compute_factors_at_entry(closes_map, graph, industries, entry_idx)

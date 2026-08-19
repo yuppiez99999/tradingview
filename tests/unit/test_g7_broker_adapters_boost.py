@@ -3,7 +3,7 @@
 目标: 将 utils/execution/broker_adapters.py 覆盖率从约 69% 提升到 85%+
 测试重点:
     - _load_base_adapter_classes / 基类加载分支
-    - BrokerAdapterError / BrokerNotConnectedError / BrokerLiveModeDisabled
+    - BrokerAdapterError / BrokerNotConnectedError / BrokerLiveModeDisabledError
     - _BaseLiveAdapter 初始化 / connect / disconnect / submit_order / cancel_order
     - _pre_trade_check 风控 (限额/熔断)
     - _audit 审计日志
@@ -29,7 +29,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from utils.execution.broker_adapters import (  # noqa: E402
     BrokerAdapterError,
-    BrokerLiveModeDisabled,
+    BrokerLiveModeDisabledError,
     BrokerNotConnectedError,
     CtpFuturesAdapter,
     ThsBrokerAdapter,
@@ -117,7 +117,7 @@ class TestExceptions:
         assert isinstance(exc, BrokerAdapterError)
 
     def test_broker_live_mode_disabled(self):
-        exc = BrokerLiveModeDisabled("live disabled")
+        exc = BrokerLiveModeDisabledError("live disabled")
         assert isinstance(exc, BrokerAdapterError)
 
 

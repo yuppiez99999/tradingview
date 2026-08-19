@@ -381,9 +381,7 @@ def determine_regime_from_csi300(csi300_ret: pd.Series, idx: int) -> str:
         return "recovery"
     elif cum_ret < -0.15 and vol > 0.25:
         return "recession"
-    elif cum_ret < -0.05:
-        return "stagflation"
-    elif vol > 0.25:
+    elif cum_ret < -0.05 or vol > 0.25:
         return "stagflation"
     return "recovery"
 

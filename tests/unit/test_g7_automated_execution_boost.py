@@ -912,10 +912,8 @@ class TestPositionSync:
         with patch(
             "utils.execution.automated_execution_system.MarketDataProvider",
             mock_provider_cls,
-        ):
-            with patch("pandas.DataFrame.to_json"):
-                with patch("pandas.Series.to_json"):
-                    fresh_system._update_historical_returns()
+        ), patch("pandas.DataFrame.to_json"), patch("pandas.Series.to_json"):
+            fresh_system._update_historical_returns()
 
     def test_update_historical_returns_provider_exception_noop(self, fresh_system, monkeypatch, tmp_path):
         """provider.get_historical_data 抛异常 → continue, 不中断."""
@@ -966,12 +964,11 @@ class TestPositionSync:
         with patch(
             "utils.execution.automated_execution_system.os.path.exists",
             return_value=True,
+        ), patch(
+            "utils.execution.automated_execution_system.json.load",
+            side_effect=OSError("read fail"),
         ):
-            with patch(
-                "utils.execution.automated_execution_system.json.load",
-                side_effect=OSError("read fail"),
-            ):
-                fresh_system._update_historical_returns()
+            fresh_system._update_historical_returns()
 
     def test_get_reference_price_json_decode_error(self, fresh_router, monkeypatch, tmp_path):
         """positions.json 格式非法 → return None."""
@@ -1050,12 +1047,11 @@ class TestExceptionFallback:
         with patch(
             "utils.execution.automated_execution_system.os.path.exists",
             return_value=False,
+        ), patch(
+            "importlib.util.find_spec",
+            side_effect=ImportError("no hedge module"),
         ):
-            with patch(
-                "importlib.util.find_spec",
-                side_effect=ImportError("no hedge module"),
-            ):
-                fresh_system._generate_hedge_execution_orders({"action": "HEDGE"})
+            fresh_system._generate_hedge_execution_orders({"action": "HEDGE"})
         # 异常被外层捕获, _consecutive_hedge_failures 未被设置 (非 B4 路径)
 
     def test_consecutive_hedge_failures_3_triggers_alert(self, fresh_system, monkeypatch):
@@ -1545,9 +1541,8 @@ class TestGetMarketDataPaths:
         with patch(
             "utils.execution.automated_execution_system.os.path.exists",
             return_value=False,
-        ):
-            with pytest.raises(RuntimeError) as exc_info:
-                fresh_system._get_market_data()
+        ), pytest.raises(RuntimeError) as exc_info:
+            fresh_system._get_market_data()
         # 外层异常消息含 "市场数据完全不可用"
         assert "市场数据完全不可用" in str(exc_info.value)
         # 异常链 (from e)
@@ -1563,13 +1558,11 @@ class TestGetMarketDataPaths:
         with patch(
             "utils.execution.automated_execution_system.os.path.exists",
             return_value=True,
-        ):
-            with patch(
-                "utils.execution.automated_execution_system.pd.read_json",
-                side_effect=ValueError("corrupt file"),
-            ):
-                with pytest.raises(RuntimeError):
-                    fresh_system._get_market_data()
+        ), patch(
+            "utils.execution.automated_execution_system.pd.read_json",
+            side_effect=ValueError("corrupt file"),
+        ), pytest.raises(RuntimeError):
+            fresh_system._get_market_data()
 
     def test_evaluator_history_confidence_boost(self):
         """连续4个相同状态 → 置信度 +0.2 (evaluate_market_state 取最小3次后追加到 history)."""

@@ -1085,15 +1085,14 @@ class TestMockedExternalDeps:
         """mock parse_expression 抛异常, 验证 try/except 路径"""
         import logging
 
-        with caplog.at_level(logging.ERROR):
-            with patch(
-                "utils.alpha_factor.expression_engine.parse_expression",
-                side_effect=RuntimeError("mock parse error"),
-            ):
-                r = compute_expression_factors(
-                    sample_price_data,
-                    expressions=[("X", "rank(close)")],
-                )
+        with caplog.at_level(logging.ERROR), patch(
+            "utils.alpha_factor.expression_engine.parse_expression",
+            side_effect=RuntimeError("mock parse error"),
+        ):
+            r = compute_expression_factors(
+                sample_price_data,
+                expressions=[("X", "rank(close)")],
+            )
         assert r == {}
         assert any("求值失败" in rec.message for rec in caplog.records)
 

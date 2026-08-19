@@ -107,7 +107,7 @@ def test_risk_budget_optimizer():
     assert abs(result.optimal_weights.sum() - 1.0) < 1e-3, "权重应满仓"
     assert result.tracking_error <= 0.05 + 0.001, "TE 应满足约束"
     assert not result.weight_bounds_violated, "权重不应违反上下限"
-    assert 0 <= result.optimal_weights.min() and result.optimal_weights.max() <= 0.40
+    assert result.optimal_weights.min() >= 0 and result.optimal_weights.max() <= 0.40
 
     # 测试 2b: 紧约束 TE = 2%
     result_tight = optimizer.optimize(

@@ -98,9 +98,7 @@ class FuncMetricsVisitor(ast.NodeVisitor):
 
         for child in ast.walk(node):
             if isinstance(child, (ast.If, ast.For, ast.While, ast.ExceptHandler,
-                                  ast.With, ast.Assert)):
-                complexity += 1
-            elif isinstance(child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+                                  ast.With, ast.Assert)) or isinstance(child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
                 complexity += 1
             elif isinstance(child, ast.BoolOp):
                 complexity += len(child.values) - 1

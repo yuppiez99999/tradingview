@@ -238,9 +238,8 @@ class TestStrictContextManager:
 
     def test_restore_on_exception(self) -> None:
         original = is_strict_symbol_validation()
-        with pytest.raises(ValueError):
-            with strict_symbol_validation(True):
-                raise ValueError("boom")
+        with pytest.raises(ValueError), strict_symbol_validation(True):
+            raise ValueError("boom")
         assert is_strict_symbol_validation() == original
 
 

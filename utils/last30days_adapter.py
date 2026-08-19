@@ -352,9 +352,8 @@ class Last30DaysAdapter:
             mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
             if datetime.now() - mtime > timedelta(seconds=self.cache_ttl):
                 return None
-            with _CACHE_LOCK:
-                with open(cache_file, encoding="utf-8") as f:
-                    data = json.load(f)
+            with _CACHE_LOCK, open(cache_file, encoding="utf-8") as f:
+                data = json.load(f)
             return [Last30DaysSignal(**item) for item in data]
         except (OSError, json.JSONDecodeError, TypeError) as e:
             logger.debug("加载缓存失败: %s", e)

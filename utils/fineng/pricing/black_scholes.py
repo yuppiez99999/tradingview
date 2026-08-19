@@ -214,9 +214,9 @@ def bs_delta(
     if sigma <= 0.0:
         fwd = K * math.exp(-r * T)
         if is_call:
-            return 1.0 if S >= fwd else 0.0
+            return 1.0 if fwd <= S else 0.0
         else:
-            return -1.0 if S <= fwd else 0.0
+            return -1.0 if fwd >= S else 0.0
 
     d1, _d2 = bs_d1_d2(S, K, T, r, sigma)
     if is_call:

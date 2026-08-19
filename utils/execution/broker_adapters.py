@@ -117,7 +117,7 @@ class BrokerNotConnectedError(BrokerAdapterError):
     """adapter 未连接就调用下单接口."""
 
 
-class BrokerLiveModeDisabled(BrokerAdapterError):
+class BrokerLiveModeDisabledError(BrokerAdapterError):
     """实盘模式未启用 (HC-1 Feature Flag 关闭)."""
 
 

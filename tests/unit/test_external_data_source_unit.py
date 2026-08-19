@@ -396,10 +396,9 @@ class TestExternalDataManager:
 
     def test_get_global_stock_no_api(self):
         m = ExternalDataManager()
-        with patch.object(m.finnhub, "available", False):
-            with patch.object(m.alpha_vantage, "available", False):
-                with patch.object(m, "_load_cache", return_value=None):
-                    assert m.get_global_stock("AAPL") is None
+        with patch.object(m.finnhub, "available", False), patch.object(m.alpha_vantage, "available", False):
+            with patch.object(m, "_load_cache", return_value=None):
+                assert m.get_global_stock("AAPL") is None
 
     def test_get_crypto_price_no_api(self):
         m = ExternalDataManager()
@@ -409,9 +408,8 @@ class TestExternalDataManager:
 
     def test_get_market_news_no_api(self):
         m = ExternalDataManager()
-        with patch.object(m.finnhub, "available", False):
-            with patch.object(m, "_load_cache", return_value=None):
-                assert m.get_market_news() == []
+        with patch.object(m.finnhub, "available", False), patch.object(m, "_load_cache", return_value=None):
+            assert m.get_market_news() == []
 
     def test_get_risk_sentiment(self):
         m = ExternalDataManager()

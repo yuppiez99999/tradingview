@@ -70,8 +70,8 @@ force-single-line = false
 # 测试文件允许缺少类型注解 + print + 宽泛 except (测试断言常用)
 # + E402 (先 setup sys.path 再导入被测模块) + N806 (金融常量 S/K/T/N 大写是惯例)
 # **/tests/ 匹配所有层级的 tests/ 子目录 (含 utils/evolution/tests/ 等)
-"tests/**/*.py" = ["ANN", "T201", "BLE001", "E402", "N806"]
-"**/tests/**/*.py" = ["ANN", "T201", "BLE001", "E402", "N806"]
+"tests/**/*.py" = ["ANN", "T201", "BLE001", "E402", "N806", "N803", "C901", "N801"]
+"**/tests/**/*.py" = ["ANN", "T201", "BLE001", "E402", "N806", "N803", "C901", "N801"]
 # __init__.py 允许未使用导入（re-export 模式）
 "__init__.py" = ["F401"]
 # 脚本目录放宽限制 (用户交互/调试输出合理) + E402 (先 setup sys.path 再导入)
@@ -79,7 +79,7 @@ force-single-line = false
 # CLI 工具允许 print (用户交互)
 "cli/**/*.py" = ["T201"]
 # 工具脚本允许 print + 宽泛 except
-"tools/**/*.py" = ["T201", "BLE001", "ANN", "E402"]
+"tools/**/*.py" = ["T201", "BLE001", "ANN", "E402", "C901"]
 # 研究代码允许 print + 宽泛 except (实验性代码) + N806 (金融数学大写变量名)
 "research/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806", "N803"]
 "second-brain/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806", "N803"]
@@ -109,8 +109,8 @@ force-single-line = false
 "utils/notify.py" = ["T201"]
 # W7.2.6 工程基础 Phase 1 (2026-08-14): fail-safe 模块的 blind except 是有意设计
 # LLM/外部 API 调用: 任何异常都不应崩溃主流程, 降级为日志
-"utils/llm_evolution/**/*.py" = ["BLE001"]
-"utils/llm_gateway/**/*.py" = ["BLE001"]
+"utils/llm_evolution/**/*.py" = ["BLE001", "ANN"]
+"utils/llm_gateway/**/*.py" = ["BLE001", "ANN"]
 # 风控/执行模块: 实盘下单 fail-safe, 异常不能导致重复下单或漏单
 "utils/risk/**/*.py" = ["BLE001"]
 "utils/execution/automated_execution_system.py" = ["BLE001", "E402"]
@@ -119,27 +119,27 @@ force-single-line = false
 "15_每日工作流/**/*.py" = ["BLE001", "ANN", "N806", "C901"]
 # v8.3_institutional: 机构级管线编排 (daily_workflow/phases/generate_daily_trade_plan), fail-safe
 # + N806 (金融数学大写变量名是行业惯例)
-"v8.3_institutional/**/*.py" = ["BLE001", "N806", "C901"]
+"v8.3_institutional/**/*.py" = ["BLE001", "N806", "C901", "ANN"]
 # institutional_pipeline_runner: 机构级管线运行器, 编排层 fail-safe
-"institutional_pipeline_runner.py" = ["BLE001"]
+"institutional_pipeline_runner.py" = ["BLE001", "ANN"]
 # realtime_monitor: 实时监控线程, 异常不能导致监控中断
-"realtime_monitor/**/*.py" = ["BLE001"]
+"realtime_monitor/**/*.py" = ["BLE001", "ANN"]
 # 顶层每日入口: 工作流编排 fail-safe + E402(先改 sys.path 再导入)
 "daily_runner.py" = ["BLE001", "E402"]
-"run_daily_eod.py" = ["BLE001"]
+"run_daily_eod.py" = ["BLE001", "ANN"]
 "daily_trading_workflow.py" = ["BLE001"]
 "daily_hedge_update.py" = ["BLE001", "E402"]
-"hedge_execution_orders.py" = ["BLE001"]
+"hedge_execution_orders.py" = ["BLE001", "E402"]
 "build_plan_executor.py" = ["BLE001", "E402"]
 # 阶段2 (2026-08-19): CLI 模式/用户交互/报告生成 fail-safe
 # cli/modes: CLI 子命令入口, 异常不应崩溃用户交互
-"cli/modes/**/*.py" = ["BLE001", "N806", "C901"]
+"cli/modes/**/*.py" = ["BLE001", "N806", "C901", "ANN"]
 "cli/dispatcher.py" = ["BLE001"]
 # ui: Streamlit 页面/组件, 异常不应崩溃 UI + E402(先设置页面配置) + ANN(非核心)
 "ui/**/*.py" = ["BLE001", "E402", "ANN"]
 "ui_original/**/*.py" = ["BLE001", "E402", "ANN"]
 # reporting: 报告生成 fail-safe, 异常降级为日志不阻断主流程
-"reporting/**/*.py" = ["BLE001", "N806", "N803"]
+"reporting/**/*.py" = ["BLE001", "N806", "N803", "ANN"]
 # lgb_trainer: LightGBM 训练 GPU→CPU 降级/数据加载 fail-safe
 "lgb_trainer/**/*.py" = ["BLE001", "E402"]
 # 阶段2 (2026-08-19): 剩余 fail-safe 模块 blind except 是有意设计
@@ -153,7 +153,7 @@ force-single-line = false
 "utils/download_manager.py" = ["BLE001"]
 "utils/signal_fusion.py" = ["BLE001", "E402"]
 "utils/universe/portfolio_builder.py" = ["BLE001", "E402"]
-"量化策略系统_统一入口_v8.6.py" = ["BLE001", "E402"]
+"量化策略系统_统一入口_v8.6.py" = ["BLE001", "E402", "N806", "C901"]
 "skills/ifind-finance-data/call.py" = ["BLE001"]
 # limit_pool_provider: 涨跌停价计算 fail-safe, 异常时返回保守估计
 "utils/limit_pool_provider.py" = ["BLE001"]
@@ -166,7 +166,7 @@ force-single-line = false
 "utils/feature_store/offline_store.py" = ["BLE001"]
 # CLI 辅助/系统检查/自检入口: print 是合理的用户交互
 "utils/cli_helpers.py" = ["T201"]
-"utils/system_check.py" = ["T201"]
+"utils/system_check.py" = ["T201", "ANN"]
 "utils/execution/fills_store.py" = ["T201"]
 "utils/execution/fills_pnl_bridge.py" = ["T201"]
 "utils/execution/broker_factory.py" = ["T201"]
@@ -182,15 +182,15 @@ force-single-line = false
 # ============================================================
 
 # E402: ai_hedge_fund 条件依赖导入 (optional deps: torch/openai etc.)
-"quant_modules/ai_hedge_fund/**/*.py" = ["E402"]
+"quant_modules/ai_hedge_fund/**/*.py" = ["E402", "ANN", "C901"]
 
 # N806/N803: 金融数学大写变量名是行业惯例 (S/K/T/N/Delta/Gamma/Vega/Theta/Rho/IC/VaR/Sharpe)
-"utils/fineng/**/*.py" = ["N806", "N803"]
+"utils/fineng/**/*.py" = ["N806", "N803", "C901"]
 "utils/greek_hedge_manager.py" = ["N806", "N803"]
 "utils/black_litterman_optimizer.py" = ["N806", "N803"]
 
 # alpha_factor: ML/金融数学大写变量名 (L=Loss, T=Time/Tensor, H=Hidden, W=Weight, S=Spot, K=Strike)
-"utils/alpha_factor/**/*.py" = ["N806", "N803"]
+"utils/alpha_factor/**/*.py" = ["N806", "N803", "ANN", "C901", "N812"]
 
 # ANN: 非核心/非生产代码不强制类型注解 (逐步为核心模块补齐)
 # research/tests/scripts/tools/15_每日工作流 已在上方各自行中包含 ANN, 不重复声明
@@ -205,6 +205,46 @@ force-single-line = false
 "hedge_quantity_calculator.py" = ["E402"]
 "supplement_returns.py" = ["E402"]
 "today_hedge_decision.py" = ["E402"]
-"utils/etf_flow_decision.py" = ["E402"]
+"utils/etf_flow_decision.py" = ["E402", "ANN"]
 "utils/ifind_client.py" = ["E402"]
 "utils/web_scraper.py" = ["E402"]
+
+# ============================================================
+# 代码质量修复 (2026-08-19): N806/N803 金融符号与常量豁免
+# 金融数学大写变量名 (T=到期时间, R=收益率, X=特征矩阵, L=损失) 是行业惯例
+# 函数内大写常量 (_ALLOWED_EXT, SECTOR_BETA, MIN_WEIGHT_FLOOR) 表示常量语义
+# ============================================================
+"utils/hedge_engine.py" = ["N806"]
+"utils/hedge_execution_engine.py" = ["N806"]
+"utils/hedge_rebalance_backtest.py" = ["N806"]
+"utils/market_impact_model.py" = ["N806"]
+"utils/mvsk_regime_detector.py" = ["N806"]
+"utils/protective_put_engine.py" = ["N806"]
+"utils/tf_price_predictor.py" = ["N806"]
+"utils/alpha/ml_enhanced_selector.py" = ["N806"]
+"utils/alpha/strategy_evaluator.py" = ["N806"]
+"utils/evolution/feedback_loop.py" = ["N806"]
+"utils/ai_report_agent.py" = ["N806"]
+"utils/risk_guard_integrator.py" = ["N806"]
+
+# ============================================================
+# 代码质量修复 (2026-08-19): ANN 类型注解非核心模块豁免
+# 核心模块 (utils/risk, utils/execution, utils/pipeline) 保留 ANN 要求逐步补齐
+# 非核心/实验性/研究性模块豁免 ANN, 后续迭代逐步补齐
+# ============================================================
+
+"utils/alpha/**/*.py" = ["ANN"]
+"utils/evolution/**/*.py" = ["ANN", "C901"]
+"utils/finance_agents/**/*.py" = ["ANN", "C901"]
+"utils/attribution/**/*.py" = ["ANN"]
+"utils/universe/**/*.py" = ["ANN"]
+"utils/infra/**/*.py" = ["ANN"]
+"utils/signal_sources/**/*.py" = ["ANN"]
+"ai_decision/**/*.py" = ["ANN"]
+
+# C901: 非核心模块固有复杂度豁免 (数据适配/外部客户端)
+"utils/free_stockdb_adapter.py" = ["C901"]
+"utils/tdx_data_source.py" = ["C901"]
+"utils/glm5_decision_engine.py" = ["C901"]
+
+

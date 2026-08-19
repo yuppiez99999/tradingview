@@ -340,7 +340,7 @@ def run_long_short_ic(
     for w in range(windows):
         T = max_len - 1 - w * step
         entry_idx = T - horizon  # 期初: 因子计算时点
-        if entry_idx < 25 or T >= max_len:
+        if entry_idx < 25 or max_len <= T:
             continue
         # 在 entry_idx 时点重算因子 (期初因子, 消除前视)
         truncated = {

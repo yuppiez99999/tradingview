@@ -259,10 +259,9 @@ class TestLoadEnvFile(unittest.TestCase):
     def test_load_env_no_file_returns_empty_dict(self) -> None:
         """测试: 无 .env 文件时返回空字典 (不抛异常)."""
         # 临时改变查找路径, 指向不存在的目录
-        with patch.object(Path, "is_file", return_value=False):
-            with patch.dict("os.environ", {}, clear=False):
-                result = _load_env_file()
-                self.assertIsInstance(result, dict)
+        with patch.object(Path, "is_file", return_value=False), patch.dict("os.environ", {}, clear=False):
+            result = _load_env_file()
+            self.assertIsInstance(result, dict)
 
 
 class TestBootstrapIntegration(unittest.TestCase):
