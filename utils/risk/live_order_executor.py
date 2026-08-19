@@ -164,6 +164,27 @@ class LiveOrderExecutor:
         self.ksm = kill_switch
         self.audit = audit_logger
         self.fills_store = fills_store
+        # 缓存真实总资产 (从 positions.json 读取, 避免 T10 风控门用硬编码导致形同虚设)
+        self._total_equity = self._load_total_equity()
+
+    def _load_total_equity(self) -> float:
+        """从 config/positions.json 读取真实总资产 (与 kill_switch.py 等一致).
+
+        Returns:
+            total_equity: 总权益 (元), 读取失败时 fallback 5_000_000.
+        """
+        try:
+            import json
+            from pathlib import Path
+
+            positions_path = Path(__file__).resolve().parent.parent.parent / "config" / "positions.json"
+            if positions_path.exists():
+                with open(positions_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                return float(data.get("meta", {}).get("total_capital", 5_000_000))
+        except (ValueError, TypeError, KeyError, OSError) as e:
+            logger.warning(f"读取总权益失败, 使用 fallback 5_000_000: {e}")
+        return 5_000_000.0
 
     # ------------------------------------------------------------
     # 公开接口
@@ -270,9 +291,10 @@ class LiveOrderExecutor:
         # ---- 风控门 2: T10 PositionLimitEnforcer (简化: 只做静态检查) ----
         # 实际使用时传入 PositionSnapshot + OrderImpact
         # 这里做空 snap 检查 (enforcer 内部会 skip 无数据维度)
+        # total_equity 从 positions.json 读取真实总资产 (__init__ 时缓存), 避免 T10 形同虚设
         try:
             snap = PositionSnapshot(
-                total_equity=1_000_000.0,
+                total_equity=self._total_equity,
                 positions={},
                 sectors={},
             )

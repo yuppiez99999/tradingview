@@ -73,7 +73,7 @@ def load_ic_store() -> Dict:
     try:
         with open(IC_STORE_PATH, encoding="utf-8") as f:
             return json.load(f)
-    except Exception as e:
+    except (json.JSONDecodeError, OSError, ValueError) as e:
         logger.warning(f"读取 IC 存储失败, 返回空: {e}")
         return {"latest_ic": 0.0, "history": []}
 
@@ -116,7 +116,7 @@ def record_daily_ic(
         with open(IC_STORE_PATH, "w", encoding="utf-8") as f:
             json.dump(store, f, ensure_ascii=False, indent=2)
         logger.info(f"IC 已记录: {ic_value:.4f} (date={trade_date}, source={source})")
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         # 不用 except: pass, 记录日志 (符合项目硬约束)
         logger.warning(f"写入 IC 存储失败: {e}")
 
@@ -138,7 +138,7 @@ def record_ic_from_qlib_report(report_path: str) -> Optional[float]:
         mean_ic = float(report.get("mean_daily_ic", 0) or 0)
         record_daily_ic(mean_ic, source="qlib_report")
         return mean_ic
-    except Exception as e:
+    except (json.JSONDecodeError, OSError, KeyError, TypeError, ValueError) as e:
         logger.warning(f"从 QLib 报告提取 IC 失败: {e}")
         return None
 

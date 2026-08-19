@@ -37,13 +37,13 @@ logger = logging.getLogger("pipeline.risk_monitor")
 class RiskMonitor:
     """
     独立风控监控器
-    
+
     在独立线程中运行，持续监控:
     - 保证金使用率 (触发 KillSwitch)
     - 日内回撤
     - 总回撤
     - 隔夜跳空风险
-    
+
     使用示例:
         monitor = RiskMonitor(config)
         monitor.start()
@@ -195,8 +195,8 @@ class RiskMonitor:
                 for p in positions.get("stocks", [])
             )
 
-            # TODO: 从 config/portfolio.yaml 读取总资金
-            total_capital = 10_000_000  # 1000 万
+            # 从 positions.json meta.total_capital 读取真实总资金 (与 kill_switch.py 等一致)
+            total_capital = float(positions.get("meta", {}).get("total_capital", 5_000_000))
             margin_ratio = total_value / total_capital if total_capital > 0 else 0
 
             if margin_ratio >= self.config.kill_switch_l3_margin:

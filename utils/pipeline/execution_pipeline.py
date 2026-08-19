@@ -38,9 +38,9 @@ logger = logging.getLogger("pipeline.execution")
 class ExecutionPipeline:
     """
     执行流水线
-    
+
     将 Alpha 信号转化为实际订单，通过系统的执行引擎执行。
-    
+
     使用示例:
         pipeline = ExecutionPipeline(config)
         result, meta = pipeline.run(signal_result, dry_run=True)
@@ -95,13 +95,13 @@ class ExecutionPipeline:
     ) -> Tuple[ExecutionResult, PipelineResult]:
         """
         执行交易流水线
-        
+
         Args:
             signal_result: Alpha 信号结果
             current_positions: 当前持仓 {symbol: weight}
             dry_run: 是否模拟执行 (默认取配置值)
             confirmation_token: 实盘确认令牌
-        
+
         Returns:
             (ExecutionResult, PipelineResult)
         """
@@ -229,6 +229,25 @@ class ExecutionPipeline:
 
         return target_positions
 
+    def _load_total_capital(self) -> float:
+        """从 config/positions.json 读取真实总资产 (与 kill_switch.py / hedge_execution_engine.py 一致).
+
+        Returns:
+            total_capital: 总资产 (元), 读取失败时 fallback 5_000_000 (与项目惯例一致).
+        """
+        try:
+            import json
+            from pathlib import Path
+
+            positions_path = Path(__file__).resolve().parent.parent.parent / "config" / "positions.json"
+            if positions_path.exists():
+                with open(positions_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                return float(data.get("meta", {}).get("total_capital", 5_000_000))
+        except (ValueError, TypeError, KeyError, OSError) as e:
+            logger.warning(f"读取总资产失败, 使用 fallback 5_000_000: {e}")
+        return 5_000_000.0
+
     def _generate_orders(
         self,
         target_positions: Dict[str, float],
@@ -236,6 +255,9 @@ class ExecutionPipeline:
     ) -> List[Dict]:
         """生成订单列表"""
         orders = []
+
+        # 读取真实总资产 (避免硬编码导致订单金额与实际资产不匹配)
+        total_value = self._load_total_capital()
 
         # 计算调仓
         all_symbols = set(target_positions.keys()) | set(current_positions.keys())
@@ -248,8 +270,6 @@ class ExecutionPipeline:
             if abs(diff) < 0.01:  # 忽略小于 1% 的调整
                 continue
 
-            # 估算金额 (假设总资产 100 万)
-            total_value = 1_000_000  # TODO: 从 positions.json 读取
             amount = abs(diff) * total_value
 
             # 二次校验
@@ -312,7 +332,7 @@ class ExecutionPipeline:
                 if dry_run:
                     # 模拟执行
                     fill_price = 100.0  # 模拟价格
-                    fill_qty = order["amount"] / fill_price
+                    order["amount"] / fill_price
                     result.filled_orders += 1
                     result.filled_amount += order["amount"]
                     fill_prices.append(fill_price)

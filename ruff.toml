@@ -90,6 +90,8 @@ force-single-line = false
 "create_correct_phases.py" = ["F821", "F841", "T201"]
 # verify_b33_hedge_refactor.py — 一次性验证脚本, 未使用 import 是断言性导入
 "verify_b33_hedge_refactor.py" = ["F401"]
+# daily_workflow.py — 统一入口, try-except 降级导入子模块类供外部 re-export, F401 噪声
+"v8.3_institutional/daily_workflow.py" = ["F401"]
 # ms_strategy/ 子目录: 训练/脚本/回测代码, print 是合理的进度/结果输出
 "ms_strategy/scripts/**/*.py" = ["T201"]
 "ms_strategy/training/**/*.py" = ["T201"]
@@ -111,6 +113,46 @@ force-single-line = false
 # 风控/执行模块: 实盘下单 fail-safe, 异常不能导致重复下单或漏单
 "utils/risk/**/*.py" = ["BLE001"]
 "utils/execution/automated_execution_system.py" = ["BLE001"]
+# 阶段2 (2026-08-19): 编排层/工作流 blind except 是有意设计 (fail-safe 降级链)
+# 15_每日工作流: LLM 多提供商降级客户端 + 熔断器 + 工作流编排, 任何异常降级为日志不崩溃
+"15_每日工作流/**/*.py" = ["BLE001"]
+# v8.3_institutional: 机构级管线编排 (daily_workflow/phases/generate_daily_trade_plan), fail-safe
+"v8.3_institutional/**/*.py" = ["BLE001"]
+# institutional_pipeline_runner: 机构级管线运行器, 编排层 fail-safe
+"institutional_pipeline_runner.py" = ["BLE001"]
+# realtime_monitor: 实时监控线程, 异常不能导致监控中断
+"realtime_monitor/**/*.py" = ["BLE001"]
+# 顶层每日入口: 工作流编排 fail-safe
+"daily_runner.py" = ["BLE001"]
+"run_daily_eod.py" = ["BLE001"]
+"daily_trading_workflow.py" = ["BLE001"]
+"daily_hedge_update.py" = ["BLE001"]
+"hedge_execution_orders.py" = ["BLE001"]
+"build_plan_executor.py" = ["BLE001"]
+# 阶段2 (2026-08-19): CLI 模式/用户交互/报告生成 fail-safe
+# cli/modes: CLI 子命令入口, 异常不应崩溃用户交互
+"cli/modes/**/*.py" = ["BLE001"]
+"cli/dispatcher.py" = ["BLE001"]
+# ui: Streamlit 页面/组件, 异常不应崩溃 UI
+"ui/**/*.py" = ["BLE001"]
+"ui_original/**/*.py" = ["BLE001"]
+# reporting: 报告生成 fail-safe, 异常降级为日志不阻断主流程
+"reporting/**/*.py" = ["BLE001"]
+# lgb_trainer: LightGBM 训练 GPU→CPU 降级/数据加载 fail-safe
+"lgb_trainer/**/*.py" = ["BLE001"]
+# 阶段2 (2026-08-19): 剩余 fail-safe 模块 blind except 是有意设计
+# 对冲引擎/统一入口/信号融合/组合构建: 异常降级为日志, 不崩溃主流程
+"alpha_hedge_engine.py" = ["BLE001"]
+"autolearn_trainer.py" = ["BLE001"]
+"ci_lookahead_guard.py" = ["BLE001"]
+"core/context.py" = ["BLE001"]
+"hn_daily_report.py" = ["BLE001"]
+"stop_loss_monitor.py" = ["BLE001"]
+"utils/download_manager.py" = ["BLE001"]
+"utils/signal_fusion.py" = ["BLE001"]
+"utils/universe/portfolio_builder.py" = ["BLE001"]
+"量化策略系统_统一入口_v8.6.py" = ["BLE001"]
+"skills/ifind-finance-data/call.py" = ["BLE001"]
 # limit_pool_provider: 涨跌停价计算 fail-safe, 异常时返回保守估计
 "utils/limit_pool_provider.py" = ["BLE001"]
 # drift_monitor / price_limit_calculator / feature_store config: fail-safe
@@ -129,3 +171,6 @@ force-single-line = false
 # AI 决策 CLI + 云训练脚本: print 是合理的用户交互/进度输出
 "ai_decision/cli.py" = ["T201"]
 "ms_strategy/cloud_train/**/*.py" = ["T201"]
+# Streamlit UI 页面: 文件名含数字前缀(排序)+emoji(视觉)+中文(标题), N999 噪声
+"ui/pages/**/*.py" = ["N999"]
+"ui_original/pages/**/*.py" = ["N999"]

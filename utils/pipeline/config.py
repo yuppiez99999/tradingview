@@ -70,8 +70,16 @@ def _apply_yaml(config: PipelineConfig, raw: dict[str, Any]) -> None:
     if "interval_minutes" in raw:
         config.interval_minutes = int(raw["interval_minutes"])
 
-    # 数据清洗
-    dc = raw.get("data_cleaning", {})
+    _apply_data_cleaning(config, raw.get("data_cleaning", {}))
+    _apply_alpha(config, raw.get("alpha", {}))
+    _apply_backtest_gate(config, raw.get("backtest_gate", {}))
+    _apply_execution(config, raw.get("execution", {}))
+    _apply_risk_monitor(config, raw.get("risk_monitor", {}))
+    _apply_logging(config, raw.get("logging", {}))
+
+
+def _apply_data_cleaning(config: PipelineConfig, dc: dict[str, Any]) -> None:
+    """映射 data_cleaning 段"""
     if "enabled" in dc:
         config.data_cleaning_enabled = bool(dc["enabled"])
     if "min_quality_score" in dc:
@@ -83,8 +91,9 @@ def _apply_yaml(config: PipelineConfig, raw: dict[str, Any]) -> None:
     if "gap_fill_max_days" in dc:
         config.gap_fill_max_days = int(dc["gap_fill_max_days"])
 
-    # Alpha 信号
-    ap = raw.get("alpha", {})
+
+def _apply_alpha(config: PipelineConfig, ap: dict[str, Any]) -> None:
+    """映射 alpha 段"""
     if "enabled" in ap:
         config.alpha_enabled = bool(ap["enabled"])
     if "model" in ap:
@@ -96,8 +105,9 @@ def _apply_yaml(config: PipelineConfig, raw: dict[str, Any]) -> None:
     if "horizon" in ap:
         config.horizon = int(ap["horizon"])
 
-    # 回测验证
-    bg = raw.get("backtest_gate", {})
+
+def _apply_backtest_gate(config: PipelineConfig, bg: dict[str, Any]) -> None:
+    """映射 backtest_gate 段"""
     if "enabled" in bg:
         config.backtest_gate_enabled = bool(bg["enabled"])
     if "min_ic" in bg:
@@ -109,8 +119,9 @@ def _apply_yaml(config: PipelineConfig, raw: dict[str, Any]) -> None:
     if "walk_forward_windows" in bg:
         config.walk_forward_windows = int(bg["walk_forward_windows"])
 
-    # 执行
-    ex = raw.get("execution", {})
+
+def _apply_execution(config: PipelineConfig, ex: dict[str, Any]) -> None:
+    """映射 execution 段"""
     if "enabled" in ex:
         config.execution_enabled = bool(ex["enabled"])
     if "algo" in ex:
@@ -128,8 +139,9 @@ def _apply_yaml(config: PipelineConfig, raw: dict[str, Any]) -> None:
     if "default_algo" in ex:
         config.execution_default_algo = str(ex["default_algo"])
 
-    # 风控
-    rm = raw.get("risk_monitor", {})
+
+def _apply_risk_monitor(config: PipelineConfig, rm: dict[str, Any]) -> None:
+    """映射 risk_monitor 段"""
     if "enabled" in rm:
         config.risk_monitor_enabled = bool(rm["enabled"])
     if "check_interval_seconds" in rm:
@@ -145,8 +157,9 @@ def _apply_yaml(config: PipelineConfig, raw: dict[str, Any]) -> None:
     if "max_total_drawdown" in rm:
         config.max_total_drawdown = float(rm["max_total_drawdown"])
 
-    # 日志
-    lg = raw.get("logging", {})
+
+def _apply_logging(config: PipelineConfig, lg: dict[str, Any]) -> None:
+    """映射 logging 段"""
     if "level" in lg:
         config.log_level = str(lg["level"])
     if "report_dir" in lg:
