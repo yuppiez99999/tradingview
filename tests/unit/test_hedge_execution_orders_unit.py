@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """hedge_execution_orders 纯函数单元测试 — S4/S5 修复验证
 
 覆盖:
@@ -10,13 +9,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 sys.modules.pop("hedge_execution_orders", None)  # 清理缓存避免 ms_strategy/scripts 同名模块污染
-import hedge_execution_orders as heo  # noqa: E402; note: module uses `tuple[str, int]` which requires __future__ or 3.9+
+import hedge_execution_orders as heo  # noqa: E402  -- module uses `tuple[str, int]` which requires __future__ or 3.9+
 
 
 class TestBuildBetaOptionOrders:

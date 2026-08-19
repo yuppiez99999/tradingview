@@ -68,19 +68,20 @@ force-single-line = false
 
 [lint.per-file-ignores]
 # 测试文件允许缺少类型注解 + print + 宽泛 except (测试断言常用)
+# + E402 (先 setup sys.path 再导入被测模块) + N806 (金融常量 S/K/T/N 大写是惯例)
 # **/tests/ 匹配所有层级的 tests/ 子目录 (含 utils/evolution/tests/ 等)
-"tests/**/*.py" = ["ANN", "T201", "BLE001"]
-"**/tests/**/*.py" = ["ANN", "T201", "BLE001"]
+"tests/**/*.py" = ["ANN", "T201", "BLE001", "E402", "N806"]
+"**/tests/**/*.py" = ["ANN", "T201", "BLE001", "E402", "N806"]
 # __init__.py 允许未使用导入（re-export 模式）
 "__init__.py" = ["F401"]
-# 脚本目录放宽限制 (用户交互/调试输出合理)
-"scripts/**/*.py" = ["ANN", "C901", "T201", "BLE001"]
+# 脚本目录放宽限制 (用户交互/调试输出合理) + E402 (先 setup sys.path 再导入)
+"scripts/**/*.py" = ["ANN", "C901", "T201", "BLE001", "E402"]
 # CLI 工具允许 print (用户交互)
 "cli/**/*.py" = ["T201"]
 # 工具脚本允许 print + 宽泛 except
-"tools/**/*.py" = ["T201", "BLE001"]
-# 研究代码允许 print + 宽泛 except (实验性代码)
-"research/**/*.py" = ["T201", "BLE001", "ANN", "C901"]
+"tools/**/*.py" = ["T201", "BLE001", "ANN"]
+# 研究代码允许 print + 宽泛 except (实验性代码) + N806 (金融数学大写变量名)
+"research/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806"]
 "second-brain/**/*.py" = ["T201", "BLE001", "ANN", "C901"]
 # B3.1 未完成重构的 phases/ 目录 — 死代码, 仅供后续子任务参考, 生产仍用 daily_workflow.py
 # 见 v8.3_institutional/daily_workflow/phases/__init__.py 的警告说明
@@ -115,27 +116,28 @@ force-single-line = false
 "utils/execution/automated_execution_system.py" = ["BLE001"]
 # 阶段2 (2026-08-19): 编排层/工作流 blind except 是有意设计 (fail-safe 降级链)
 # 15_每日工作流: LLM 多提供商降级客户端 + 熔断器 + 工作流编排, 任何异常降级为日志不崩溃
-"15_每日工作流/**/*.py" = ["BLE001"]
+"15_每日工作流/**/*.py" = ["BLE001", "ANN"]
 # v8.3_institutional: 机构级管线编排 (daily_workflow/phases/generate_daily_trade_plan), fail-safe
-"v8.3_institutional/**/*.py" = ["BLE001"]
+# + N806 (金融数学大写变量名是行业惯例)
+"v8.3_institutional/**/*.py" = ["BLE001", "N806"]
 # institutional_pipeline_runner: 机构级管线运行器, 编排层 fail-safe
 "institutional_pipeline_runner.py" = ["BLE001"]
 # realtime_monitor: 实时监控线程, 异常不能导致监控中断
 "realtime_monitor/**/*.py" = ["BLE001"]
-# 顶层每日入口: 工作流编排 fail-safe
-"daily_runner.py" = ["BLE001"]
+# 顶层每日入口: 工作流编排 fail-safe + E402(先改 sys.path 再导入)
+"daily_runner.py" = ["BLE001", "E402"]
 "run_daily_eod.py" = ["BLE001"]
 "daily_trading_workflow.py" = ["BLE001"]
 "daily_hedge_update.py" = ["BLE001"]
 "hedge_execution_orders.py" = ["BLE001"]
-"build_plan_executor.py" = ["BLE001"]
+"build_plan_executor.py" = ["BLE001", "E402"]
 # 阶段2 (2026-08-19): CLI 模式/用户交互/报告生成 fail-safe
 # cli/modes: CLI 子命令入口, 异常不应崩溃用户交互
 "cli/modes/**/*.py" = ["BLE001"]
 "cli/dispatcher.py" = ["BLE001"]
-# ui: Streamlit 页面/组件, 异常不应崩溃 UI
-"ui/**/*.py" = ["BLE001"]
-"ui_original/**/*.py" = ["BLE001"]
+# ui: Streamlit 页面/组件, 异常不应崩溃 UI + E402(先设置页面配置) + ANN(非核心)
+"ui/**/*.py" = ["BLE001", "E402", "ANN"]
+"ui_original/**/*.py" = ["BLE001", "E402", "ANN"]
 # reporting: 报告生成 fail-safe, 异常降级为日志不阻断主流程
 "reporting/**/*.py" = ["BLE001"]
 # lgb_trainer: LightGBM 训练 GPU→CPU 降级/数据加载 fail-safe
@@ -151,7 +153,7 @@ force-single-line = false
 "utils/download_manager.py" = ["BLE001"]
 "utils/signal_fusion.py" = ["BLE001"]
 "utils/universe/portfolio_builder.py" = ["BLE001"]
-"量化策略系统_统一入口_v8.6.py" = ["BLE001"]
+"量化策略系统_统一入口_v8.6.py" = ["BLE001", "E402"]
 "skills/ifind-finance-data/call.py" = ["BLE001"]
 # limit_pool_provider: 涨跌停价计算 fail-safe, 异常时返回保守估计
 "utils/limit_pool_provider.py" = ["BLE001"]
@@ -174,3 +176,23 @@ force-single-line = false
 # Streamlit UI 页面: 文件名含数字前缀(排序)+emoji(视觉)+中文(标题), N999 噪声
 "ui/pages/**/*.py" = ["N999"]
 "ui_original/pages/**/*.py" = ["N999"]
+
+# ============================================================
+# Phase A3+A4 (2026-08-19): 风格问题分类豁免
+# ============================================================
+
+# E402: ai_hedge_fund 条件依赖导入 (optional deps: torch/openai etc.)
+"quant_modules/ai_hedge_fund/**/*.py" = ["E402"]
+
+# N806/N803: 金融数学大写变量名是行业惯例 (S/K/T/N/Delta/Gamma/Vega/Theta/Rho/IC/VaR/Sharpe)
+"utils/fineng/**/*.py" = ["N806", "N803"]
+"utils/greek_hedge_manager.py" = ["N806", "N803"]
+"utils/black_litterman_optimizer.py" = ["N806", "N803"]
+
+# alpha_factor: ML/金融数学大写变量名 (L=Loss, T=Time/Tensor, H=Hidden, W=Weight, S=Spot, K=Strike)
+"utils/alpha_factor/**/*.py" = ["N806", "N803"]
+
+# ANN: 非核心/非生产代码不强制类型注解 (逐步为核心模块补齐)
+# research/tests/scripts/tools/15_每日工作流 已在上方各自行中包含 ANN, 不重复声明
+"docs/**/*.py" = ["ANN"]
+"skills/**/*.py" = ["ANN"]
