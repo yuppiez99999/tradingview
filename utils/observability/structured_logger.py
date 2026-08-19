@@ -1,7 +1,6 @@
 """Phase B 结构化日志配置.
 
-当前基于标准 logging 实现 JSON 结构化输出,
-后续 structlog 安装后可无缝切换.
+基于 structlog 实现 JSON 结构化输出, 带 structlog 回退到标准 logging.
 
 用法:
     from utils.observability.structured_logger import get_structured_logger
@@ -12,20 +11,55 @@
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
+
+try:
+    import structlog
+
+    _HAS_STRUCTLOG = True
+except ImportError:
+    _HAS_STRUCTLOG = False
+
+_STRUCTLOG_CONFIGURED = False
+
+
+def _configure_structlog() -> None:
+    """配置 structlog 全局处理器链."""
+    global _STRUCTLOG_CONFIGURED
+    if _STRUCTLOG_CONFIGURED or not _HAS_STRUCTLOG:
+        return
+    structlog.configure(
+        processors=[
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.JSONRenderer(ensure_ascii=False),
+        ],
+        wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+        logger_factory=structlog.PrintLoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
+    _STRUCTLOG_CONFIGURED = True
 
 
 class StructuredLogger:
     """结构化日志包装器.
 
-    将 key-value 参数序列化为 JSON, 输出到标准 logging.
-    后续 structlog 安装后可直接替换.
+    structlog 可用时使用 structlog 后端, 否则回退到标准 logging JSON 输出.
     """
 
     def __init__(self, name: str) -> None:
+        self._name = name
+        if _HAS_STRUCTLOG:
+            _configure_structlog()
+            self._structlog = structlog.get_logger(name)
+        else:
+            self._structlog = None
         self._logger = logging.getLogger(name)
 
-    def _log(self, level: int, event: str, **kwargs: Any) -> None:
+    def _log_fallback(self, level: int, event: str, **kwargs: Any) -> None:
         record = {
             "timestamp": datetime.now().isoformat(),
             "event": event,
@@ -34,19 +68,43 @@ class StructuredLogger:
         self._logger.log(level, json.dumps(record, ensure_ascii=False, default=str))
 
     def debug(self, event: str, **kwargs: Any) -> None:
-        self._log(logging.DEBUG, event, **kwargs)
+        if self._structlog:
+            self._structlog.debug(event, **kwargs)
+        else:
+            self._log_fallback(logging.DEBUG, event, **kwargs)
 
     def info(self, event: str, **kwargs: Any) -> None:
-        self._log(logging.INFO, event, **kwargs)
+        if self._structlog:
+            self._structlog.info(event, **kwargs)
+        else:
+            self._log_fallback(logging.INFO, event, **kwargs)
 
     def warning(self, event: str, **kwargs: Any) -> None:
-        self._log(logging.WARNING, event, **kwargs)
+        if self._structlog:
+            self._structlog.warning(event, **kwargs)
+        else:
+            self._log_fallback(logging.WARNING, event, **kwargs)
 
     def error(self, event: str, **kwargs: Any) -> None:
-        self._log(logging.ERROR, event, **kwargs)
+        if self._structlog:
+            self._structlog.error(event, **kwargs)
+        else:
+            self._log_fallback(logging.ERROR, event, **kwargs)
 
     def critical(self, event: str, **kwargs: Any) -> None:
-        self._log(logging.CRITICAL, event, **kwargs)
+        if self._structlog:
+            self._structlog.critical(event, **kwargs)
+        else:
+            self._log_fallback(logging.CRITICAL, event, **kwargs)
+
+    def bind(self, **kwargs: Any) -> "StructuredLogger":
+        """绑定上下文变量 (structlog contextvars)."""
+        if self._structlog:
+            bound = self._structlog.bind(**kwargs)
+            wrapper = StructuredLogger(self._name)
+            wrapper._structlog = bound
+            return wrapper
+        return self
 
 
 def get_structured_logger(name: str) -> StructuredLogger:
