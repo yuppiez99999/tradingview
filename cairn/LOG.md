@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-20 · Phase B 可观测性闭环: structlog + pytest-benchmark
+
+- **structlog 接入**: StructuredLogger 升级为 structlog JSON 后端 + 标准logging回退 + bind() 上下文绑定
+- **pytest-benchmark**: 6 个关键路径性能基准全部通过
+  - KillSwitch 风控检查: 2,327 Kops/s
+  - OrderEvent/RiskEvent Schema 序列化: 268-308 Kops/s
+  - TradingCalendar 交易日判断: 174 Kops/s
+  - StructuredLogger info 输出: 25 Kops/s
+- **commit**: `11b3dbe4`
+- **指针**: `utils/observability/` + `tests/perf/test_phase_b_benchmark.py`
+
 ## 2026-08-20 · Phase B 可观测性 + CI 门禁 + 覆盖率确认
 
 - **3.3c bandit CI**: quality-gate.yml 添加 bandit 安全门禁步骤 (中危即 FAIL)
