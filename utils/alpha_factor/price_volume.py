@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 from utils.alpha_factor.base import (
@@ -641,7 +643,7 @@ def compute_factor_mining_factors(
     description="成交额加权动量 (装饰器示例): 最近5日收益率按成交额加权, 区分放量上涨 vs 缩量上涨",
     window=5,
 )
-def _fm_demo_volume_weighted_momentum(price_data, window=5) -> dict[str, float]:
+def _fm_demo_volume_weighted_momentum(price_data: dict[str, Any], window: int = 5) -> dict[str, float]:
     """成交额加权动量 (演示 @register_factor 参数注入 + 默认值覆盖)
 
     计算: sum_i(amount_i * ret_i) / sum_i(amount_i)
@@ -670,7 +672,7 @@ def _fm_demo_volume_weighted_momentum(price_data, window=5) -> dict[str, float]:
     description="零成交天数 (装饰器示例): 最近20日成交量为0的天数, 识别停牌/僵尸股风险",
     window=20,
 )
-def _fm_demo_zero_trade_days(price_data, window=20) -> dict[str, float]:
+def _fm_demo_zero_trade_days(price_data: dict[str, Any], window: int = 20) -> dict[str, float]:
     """最近 window 日零成交量天数占比 (0~1)。
 
     值越高表示停牌/无流动性越严重; 回测时可作为持仓准入过滤信号。
@@ -692,7 +694,7 @@ def _fm_demo_zero_trade_days(price_data, window=20) -> dict[str, float]:
     name="FM_DEMO_ROE_SMOOTHED",
     description="ROE 行业内平滑 (装饰器示例): 截面 winsorize + zscore, 展示 fundamentals 参数注入",
 )
-def _fm_demo_roe_smoothed(fundamentals=None, industries=None) -> dict[str, float]:
+def _fm_demo_roe_smoothed(fundamentals: dict[str, Any] | None = None, industries: dict[str, str] | None = None) -> dict[str, float]:
     """ROE 行业内中性化 + 3σ winsorize
 
     演示 fundamentals / industries 参数按名注入 (在 library.py context 中已提供)。

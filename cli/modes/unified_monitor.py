@@ -155,7 +155,7 @@ def _hedge_rebalance_func(get_logger: LoggerFactory, args: Any) -> None:
         module_logger.error(f"[对冲再平衡] 错误: {e}", exc_info=True)
 
 
-def run_unified_monitor(args):
+def run_unified_monitor(args: Any) -> None:
     """统一监控模式 - 一键启动所有模块 (v5.10 增强版: 8模块并行 + 自动对冲)"""
     # Windows 控制台 UTF-8 兼容
     if sys.platform == 'win32':
@@ -194,7 +194,7 @@ def run_unified_monitor(args):
             module_logger.propagate = False
         return module_logger
 
-    def run_module_loop(name, func, interval=300):
+    def run_module_loop(name: str, func: Callable[[], None], interval: int = 300) -> None:
         """模块循环执行"""
         module_logger = get_module_logger(name)
         module_logger.info(f"🚀 启动模块: {name}")

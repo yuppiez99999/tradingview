@@ -147,7 +147,7 @@ class AICoordinator:
         models = self.pricing.get('models', {})
         return models.get(model) or models.get('default') or {'cost_per_1k_input': 0.01, 'cost_per_1k_output': 0.03}
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         """初始化数据库"""
         conn = sqlite3.connect(self.db_path)
         conn.execute("""
@@ -290,7 +290,7 @@ class AICoordinator:
 
         return result.model
 
-    def _refresh_daily_budget(self):
+    def _refresh_daily_budget(self) -> None:
         """刷新每日预算（跨天重置）"""
         today = datetime.now().strftime('%Y-%m-%d')
         if today != self._today:
@@ -313,7 +313,7 @@ class AICoordinator:
     # ── Token 用量追踪 ──
 
     def record_usage(self, model: str, task_type: str,
-                     input_tokens: int, output_tokens: int):
+                     input_tokens: int, output_tokens: int) -> None:
         """记录Token用量 (P2: 价格取自外置价格表)"""
         config = self._price_for(model)
         cost = (input_tokens * config.get('cost_per_1k_input', 0) +
@@ -339,7 +339,7 @@ class AICoordinator:
     def record_decision(self, source: str, ticker: str, action: str,
                         confidence: float = 0.0, reasoning: str = "",
                         model_used: str = "", tokens: int = 0,
-                        task_type: str = ""):
+                        task_type: str = "") -> None:
         """记录AI决策"""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -601,7 +601,7 @@ class AICoordinator:
     # ── v5.7 Phase 2: AI决策准确率评估 ──
 
     def record_accuracy(self, decision_id: int, predicted_action: str,
-                        actual_outcome: str = "", pnl_if_followed: float = 0.0):
+                        actual_outcome: str = "", pnl_if_followed: float = 0.0) -> None:
         """记录AI决策的5日验证结果。"""
         try:
             conn = sqlite3.connect(self.db_path)

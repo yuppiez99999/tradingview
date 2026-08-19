@@ -132,7 +132,7 @@ def apply_ifind_news_adjustments(
     new_morning = _apply(morning_orders)
     new_afternoon = _apply(afternoon_orders)
 
-    def _count(orders, threshold):
+    def _count(orders: list[dict[str, Any]], threshold: float) -> int:
         return sum(1 for o in orders if o.get("ifind_factor", 1.0) >= threshold)
 
     return {
@@ -211,7 +211,7 @@ def apply_macro_policy_adjustments(
     new_morning = _apply(morning_orders)
     new_afternoon = _apply(afternoon_orders)
 
-    def _count(orders, threshold):
+    def _count(orders: list[dict[str, Any]], threshold: float) -> int:
         return sum(1 for o in orders if o.get("macro_factor", 1.0) >= threshold)
 
     return {

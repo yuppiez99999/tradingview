@@ -76,14 +76,14 @@ class CircuitBreaker:
     last_failure_time: float = 0.0
     is_open: bool = False
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         self.consecutive_failures += 1
         self.last_failure_time = time.time()
         if self.consecutive_failures >= self.max_failures:
             self.is_open = True
             logger.warning(f"熔断器触发: {self.provider} (连续失败 {self.consecutive_failures} 次)")
 
-    def record_success(self):
+    def record_success(self) -> None:
         self.consecutive_failures = 0
         self.is_open = False
 
@@ -769,7 +769,7 @@ class ModelRouter:
             self._sessions[provider] = session
         return self._sessions[provider]
 
-    def _update_stats(self, provider: str, success: bool, latency_ms: float):
+    def _update_stats(self, provider: str, success: bool, latency_ms: float) -> None:
         """更新性能统计"""
         if provider in self.stats:
             self.stats[provider]['calls'] += 1
@@ -777,7 +777,7 @@ class ModelRouter:
                 self.stats[provider]['successes'] += 1
             self.stats[provider]['total_latency_ms'] += latency_ms
 
-    def _log_audit(self, result: RoutingResult):
+    def _log_audit(self, result: RoutingResult) -> None:
         """记录审计日志"""
         entry = {
             "timestamp": result.timestamp,

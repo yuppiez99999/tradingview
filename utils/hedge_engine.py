@@ -680,7 +680,7 @@ class HedgeEngine:
 
         return results
 
-    def _compute_portfolio_vol(self, weights, returns) -> float:
+    def _compute_portfolio_vol(self, weights: Any, returns: Any) -> float:
         """旧版单资产波动率估算 — 保留向后兼容"""
         return 0.015
 
@@ -1335,7 +1335,7 @@ class HedgeEngine:
 
         return recommendation
 
-    def _generate_hedge_reason(self, risk, hedge_ratio, contracts) -> str:
+    def _generate_hedge_reason(self, risk: float, hedge_ratio: float, contracts: Dict[str, Any]) -> str:
         parts = []
         for code, detail in contracts.items():
             spec = detail.get("spec", {})

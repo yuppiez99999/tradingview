@@ -1,4 +1,5 @@
 import json
+from typing import Any, Optional
 
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -24,7 +25,7 @@ class CharlieMungerSignal(BaseModel):
     reasoning: str
 
 
-def charlie_munger_agent(state: AgentState, agent_id: str = "charlie_munger_agent"):
+def charlie_munger_agent(state: AgentState, agent_id: str = "charlie_munger_agent") -> Any:
     """
     Analyzes stocks using Charlie Munger's investing principles and mental models.
     Focuses on moat strength, management quality, predictability, and valuation.
@@ -727,7 +728,7 @@ def analyze_news_sentiment(news_items: list) -> str:
     # Just return a simple count for now - in a real implementation, this would use NLP
     return f"Qualitative review of {len(news_items)} recent news items would be needed"
 
-def _r(x, n=3):
+def _r(x: Any, n: int = 3) -> Optional[float]:
     try:
         return round(float(x), n)
     except (TypeError, ValueError):
@@ -853,7 +854,7 @@ def generate_munger_output(
         "confidence": confidence_hint,
     })
 
-    def _default():
+    def _default() -> CharlieMungerSignal:
         return CharlieMungerSignal(signal="neutral", confidence=confidence_hint, reasoning="Insufficient data")
 
     return call_llm(

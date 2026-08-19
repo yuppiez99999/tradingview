@@ -204,7 +204,7 @@ class RiskGuardIntegrator:
         self.log_entries: list[str] = []
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
-    def _log(self, msg: str):
+    def _log(self, msg: str) -> None:
         """记录日志"""
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         entry = f"[{ts}] [RiskGuard] {msg}"
@@ -318,7 +318,7 @@ class RiskGuardIntegrator:
             self._log(f"加载次日计划失败: {e}")
             return None
 
-    def _save_trade_plan(self, plan: dict, next_date: str):
+    def _save_trade_plan(self, plan: dict, next_date: str) -> None:
         """保存修改后的交易计划"""
         plan_path = TRADE_PLANS_DIR / f"trade_plan_{next_date.replace('-', '')}.json"
         # 先备份
@@ -1651,7 +1651,7 @@ class RiskGuardIntegrator:
 
         return plan
 
-    def _build_position_returns(self, pnl_report: dict, lookback_days: int = 60):
+    def _build_position_returns(self, pnl_report: dict, lookback_days: int = 60) -> Any:
         """从历史 daily_pnl_report 构建持仓标的收益率 DataFrame
 
         适配实际报告结构 (v8.6.6 修复):
@@ -1784,7 +1784,7 @@ class RiskGuardIntegrator:
     # ============================================================
     # v7.7: 对冲引擎 & 认沽保护引擎去重
     # ============================================================
-    def _deduplicate_put_orders(self, plan: dict):
+    def _deduplicate_put_orders(self, plan: dict) -> None:
         """去重: 避免 HedgeExecutionEngine 与 ProtectivePutEngine 对同一底层重复生成 PUT 订单
 
         策略:
@@ -2107,7 +2107,7 @@ class RiskGuardIntegrator:
 
         return plan
 
-    def _write_guard_log(self, next_date: str):
+    def _write_guard_log(self, next_date: str) -> None:
         """写入风控日志"""
         try:
             log_file = LOGS_DIR / f"risk_guard_{next_date.replace('-', '')}.log"
@@ -2120,7 +2120,7 @@ class RiskGuardIntegrator:
 # ============================================================
 # CLI 入口
 # ============================================================
-def main():
+def main() -> None:
     """命令行入口: python -m utils.risk_guard_integrator [report_date] [next_date]"""
     import sys
     from datetime import timedelta

@@ -122,7 +122,7 @@ class BacktestEngine:
         self.equity_curve: list[EquityPointDict] = []
         self.current_date: Optional[str] = None
 
-    def reset(self):
+    def reset(self) -> None:
         """重置回测状态"""
         self.cash = self.initial_capital
         self.positions = {}
@@ -658,12 +658,12 @@ class BacktestDataLoader:
         )
 
 
-def run_etf_signal_backtest(data: list[dict], initial_capital: float = 1000000.0, **kwargs) -> dict:
+def run_etf_signal_backtest(data: list[dict], initial_capital: float = 1000000.0, **kwargs: Any) -> dict:
     """便捷函数：运行ETF信号策略回测"""
     strategy = ETFSignalStrategy(**kwargs)
     engine = BacktestEngine(initial_capital=initial_capital)
 
-    def strategy_func(day_data, positions):
+    def strategy_func(day_data: Any, positions: Any) -> Any:
         return strategy.generate_signals(day_data, positions)
 
     return engine.run(data, strategy_func)

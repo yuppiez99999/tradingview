@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from workflow.context import WorkflowContext, get_dw_module
 from workflow.phases.signal_ifind import (
@@ -214,10 +214,10 @@ def apply_fused_qlib_ifind_adjustments(
     new_morning = _apply(morning_orders)
     new_afternoon = _apply(afternoon_orders)
 
-    def _count(orders, threshold):
+    def _count(orders: list[dict[str, Any]], threshold: float) -> int:
         return sum(1 for o in orders if o.get("fused_factor", 1.0) >= threshold)
 
-    def _count_lgb(orders, op):
+    def _count_lgb(orders: list[dict[str, Any]], op: Callable[[float], bool]) -> int:
         return sum(1 for o in orders if o.get("lgb_multiplier") is not None and op(o.get("lgb_multiplier", 1.0)))
 
     return {

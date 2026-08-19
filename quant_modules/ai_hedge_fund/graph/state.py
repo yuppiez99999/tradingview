@@ -1,6 +1,6 @@
 import json
 import operator
-from typing import Sequence
+from typing import Any, Sequence
 
 from langchain_core.messages import BaseMessage
 from typing_extensions import Annotated, TypedDict
@@ -17,9 +17,9 @@ class AgentState(TypedDict):
     metadata: Annotated[dict[str, any], merge_dicts]
 
 
-def show_agent_reasoning(output, agent_name):
+def show_agent_reasoning(output: Any, agent_name: str) -> None:
 
-    def convert_to_serializable(obj):
+    def convert_to_serializable(obj: Any) -> Any:
         if hasattr(obj, "to_dict"):  # Handle Pandas Series/DataFrame
             return obj.to_dict()
         elif hasattr(obj, "__dict__"):  # Handle custom objects

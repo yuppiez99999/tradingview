@@ -10,7 +10,7 @@
 绕过系统代理以避免国内金融 API 被代理拦截。
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # B-4.1: 统一无代理 Session 工厂 (绕过系统代理, 避免新浪 API 被拦截)
 from utils.http_session import make_no_proxy_session
@@ -121,7 +121,7 @@ def _build_code_to_cost_map(positions: Dict[str, Any]) -> Dict[str, float]:
     return code_to_cost
 
 
-def _validate_price_range(code: str, close, cost_price: float) -> bool:
+def _validate_price_range(code: str, close: Any, cost_price: float) -> bool:
     """验证价格绝对范围和相对成本价比例, 返回 True 表示价格有效"""
     # 绝对范围验证
     code_num = code.split(".")[0]
@@ -142,7 +142,7 @@ def _validate_price_range(code: str, close, cost_price: float) -> bool:
     return True
 
 
-def _fetch_price_from_provider(code: str, cost_price: float, data_provider):
+def _fetch_price_from_provider(code: str, cost_price: float, data_provider: Any) -> Optional[Dict]:
     """从 data_provider 获取单个标的的价格数据, 验证后返回价格字典或 None"""
     if not data_provider:
         return None
@@ -246,8 +246,8 @@ def _correct_price_anomalies(
 
 def fetch_market_prices(
     positions_data: Dict[str, Any],
-    data_provider=None,
-    init_data_provider_fn=None,
+    data_provider: Optional[Any] = None,
+    init_data_provider_fn: Optional[Any] = None,
 ) -> Dict[str, Dict]:
     """获取所有持仓标的的收盘价格
 

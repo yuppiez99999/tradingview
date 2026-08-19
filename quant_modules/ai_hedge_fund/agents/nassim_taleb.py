@@ -1,6 +1,7 @@
 import json
 import math
 from datetime import datetime, timedelta
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -30,7 +31,7 @@ class NassimTalebSignal(BaseModel):
     reasoning: str = Field(description="Reasoning for the decision")
 
 
-def nassim_taleb_agent(state: AgentState, agent_id: str = "nassim_taleb_agent"):
+def nassim_taleb_agent(state: AgentState, agent_id: str = "nassim_taleb_agent") -> Any:
     """Analyzes stocks using Taleb's antifragility, tail risk, and convexity principles."""
     data = state["data"]
     end_date = data["end_date"]
@@ -174,7 +175,7 @@ def nassim_taleb_agent(state: AgentState, agent_id: str = "nassim_taleb_agent"):
 ###############################################################################
 
 
-def safe_float(value, default=0.0):
+def safe_float(value: Any, default: float = 0.0) -> float:
     """Safely convert a value to float, handling NaN cases."""
     try:
         if pd.isna(value) or np.isnan(value):
@@ -750,7 +751,7 @@ def generate_taleb_output(
         "ticker": ticker,
     })
 
-    def create_default_nassim_taleb_signal():
+    def create_default_nassim_taleb_signal() -> NassimTalebSignal:
         return NassimTalebSignal(signal="neutral", confidence=50, reasoning="Insufficient data")
 
     return call_llm(

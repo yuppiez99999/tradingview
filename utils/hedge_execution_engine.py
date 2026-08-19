@@ -82,7 +82,7 @@ class HedgeExecutionEngine:
     # ============================================================
     # T3.5: 执行后归因接口
     # ============================================================
-    def on_fill(self, fill, estimate=None):
+    def on_fill(self, fill: Any, estimate: Any = None) -> Any:
         """成交后回调: 将成交记录传给 TCA 归因引擎 (T3.5)
 
         设计原则:
@@ -146,7 +146,7 @@ class HedgeExecutionEngine:
             logger.error("[HedgeEngine] on_fill 归因失败 (fail-safe): %s", e)
         return self._post_trade_attribution
 
-    def get_post_trade_attribution(self):
+    def get_post_trade_attribution(self) -> Any:
         """获取 PostTradeAttribution 实例 (用于归因查询)"""
         return self._post_trade_attribution
 
@@ -159,7 +159,7 @@ class HedgeExecutionEngine:
             logger.error(f"加载持仓失败: {e}")
             return {}
 
-    def _get_hedge_manager(self):
+    def _get_hedge_manager(self) -> Any:
         """懒加载 GreekHedgeManager"""
         if self._hedge_manager is None:
             from utils.greek_hedge_manager import GreekHedgeManager

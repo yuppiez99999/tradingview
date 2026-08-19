@@ -430,7 +430,7 @@ class DataQualityMonitor:
         return float(sorted_values[f])
 
     @staticmethod
-    def detect_zscore_outliers(data, threshold: float = 3.0):
+    def detect_zscore_outliers(data: Any, threshold: float = 3.0) -> Any:
         """Z-score 异常检测
 
         计算 (value - mean) / std，绝对值超过阈值标记为异常。
@@ -471,7 +471,7 @@ class DataQualityMonitor:
         return mask
 
     @staticmethod
-    def detect_iqr_outliers(data, multiplier: float = 1.5):
+    def detect_iqr_outliers(data: Any, multiplier: float = 1.5) -> Any:
         """IQR (四分位距) 异常检测
 
         Q1 - multiplier*IQR 以下或 Q3 + multiplier*IQR 以上标记为异常。
@@ -513,7 +513,7 @@ class DataQualityMonitor:
         return mask
 
     @staticmethod
-    def detect_mad_outliers(data, threshold: float = 3.5):
+    def detect_mad_outliers(data: Any, threshold: float = 3.5) -> Any:
         """MAD (中位数绝对偏差) 异常检测
 
         计算 |value - median| / (1.4826 * MAD)，超过阈值标记为异常。

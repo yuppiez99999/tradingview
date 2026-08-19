@@ -97,14 +97,14 @@ class RiskControl:
         self.circuit_breaker_tripped = False
         self.circuit_breaker_reason = ""
 
-    def reset_daily(self):
+    def reset_daily(self) -> None:
         """重置每日统计"""
         self.daily_trades = 0
         self.daily_volume = 0.0
         self.daily_pnl = 0.0
         self.daily_loss = 0.0
 
-    def update_equity(self, equity: float):
+    def update_equity(self, equity: float) -> None:
         """更新权益并计算回撤"""
         self.current_equity = equity
         if equity > self.max_equity:
@@ -167,7 +167,7 @@ class RiskControl:
 
         return True, ""
 
-    def record_trade(self, amount: float, volume: float, pnl: float = 0.0):
+    def record_trade(self, amount: float, volume: float, pnl: float = 0.0) -> None:
         """记录交易"""
         self.daily_trades += 1
         self.daily_volume += volume
@@ -244,7 +244,7 @@ class StopLossManager:
         self.take_profit_pct = take_profit_pct
         self.stop_loss_orders: Dict = {}
 
-    def set_stop_loss(self, code: str, avg_cost: float, qty: int):
+    def set_stop_loss(self, code: str, avg_cost: float, qty: int) -> None:
         """设置止损单"""
         stop_price = avg_cost * (1 - self.stop_loss_pct)
         take_profit_price = avg_cost * (1 + self.take_profit_pct)
@@ -285,7 +285,7 @@ class StopLossManager:
 
         return "none", None
 
-    def update_stop_loss(self, code: str, new_avg_cost: float):
+    def update_stop_loss(self, code: str, new_avg_cost: float) -> None:
         """更新止损价格（加仓后）"""
         if code in self.stop_loss_orders:
             order = self.stop_loss_orders[code]
@@ -293,7 +293,7 @@ class StopLossManager:
             order["stop_price"] = new_avg_cost * (1 - self.stop_loss_pct)
             order["take_profit_price"] = new_avg_cost * (1 + self.take_profit_pct)
 
-    def remove_stop_loss(self, code: str):
+    def remove_stop_loss(self, code: str) -> None:
         """移除止损单"""
         if code in self.stop_loss_orders:
             del self.stop_loss_orders[code]

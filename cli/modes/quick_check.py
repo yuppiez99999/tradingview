@@ -4,6 +4,7 @@
 
 import os
 import sys
+from typing import Any
 
 from core.context import (
     BASE_DIR,
@@ -19,7 +20,7 @@ from core.context import (
 )
 
 
-def _check_commodity_module():
+def _check_commodity_module() -> bool:
     """检查大宗商品基本面模块是否可用"""
     try:
         sys.path.insert(0, os.path.join(BASE_DIR, '..', '03_投研与策略生成'))
@@ -29,13 +30,13 @@ def _check_commodity_module():
         return False
 
 
-def run_quick_check(args):
+def run_quick_check(args: Any) -> None:
     """快速检查模式 - 检查系统状态"""
     print("\n🔍 系统状态快速检查")
     print("=" * 70)
 
     # 检查模块可用性
-    def _package_available(pkg_name):
+    def _package_available(pkg_name: str) -> bool:
         try:
             import importlib.util
             return importlib.util.find_spec(pkg_name) is not None

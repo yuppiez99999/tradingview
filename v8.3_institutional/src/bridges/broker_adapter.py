@@ -119,7 +119,7 @@ class BrokerAdapter(ABC):
         pass
 
     @abstractmethod
-    def disconnect(self):
+    def disconnect(self) -> None:
         """断开API连接"""
         pass
 
@@ -148,7 +148,7 @@ class BrokerAdapter(ABC):
         """查询账户信息"""
         pass
 
-    def log_order(self, order: BrokerOrder, event: str):
+    def log_order(self, order: BrokerOrder, event: str) -> None:
         """记录订单事件"""
         event_record = {
             "timestamp": datetime.now().isoformat(),
@@ -196,7 +196,7 @@ class SimulatedBroker(BrokerAdapter):
         logger.info(f"  成交率: {self.simulation_settings['fill_probability'] * 100:.0f}%")
         return True
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         logger.info("[SIMULATED] 模拟盘环境已断开")
 
     def get_market_data(self, symbol: str, period: str = "1d", count: int = 100) -> Dict:
@@ -446,7 +446,7 @@ class LiveBrokerAdapter(BrokerAdapter):
         # 4. 检查资金充足性
         return True  # TODO: 实际检查逻辑
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         if self.api_client:
             self.api_client.close()
         logger.warning("[LIVE] 断开实盘连接")
@@ -475,7 +475,7 @@ class BrokerFactory:
 broker_instance: Optional[BrokerAdapter] = None
 
 
-def initialize_broker(mode: str = "simulated", config: Optional[Dict] = None):
+def initialize_broker(mode: str = "simulated", config: Optional[Dict] = None) -> BrokerAdapter:
     """
     初始化券商适配器
 

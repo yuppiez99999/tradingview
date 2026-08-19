@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -446,8 +447,8 @@ def register_factor(
     category: str,
     name: str | None = None,
     description: str = "",
-    **defaults,
-):
+    **defaults: Any,
+) -> Callable[..., Any]:
     """因子函数装饰器 (EigenAlpha strategy.py 风格, Wave 6 W6.1.3)
 
     用法:
@@ -469,7 +470,7 @@ def register_factor(
         **defaults: 传给装饰函数的默认参数 (会在注入前被 context 中同名字段覆盖)
     """
     import inspect
-    def deco(fn):
+    def deco(fn: Callable[..., Any]) -> Callable[..., Any]:
         fn_id = name or fn.__name__
         sig = inspect.signature(fn)
         _FACTOR_REGISTRY[fn_id] = {
@@ -639,7 +640,7 @@ def build_forward_returns_history(
 
 def build_factor_history_from_prices(
     price_data: dict[str, dict[str, list[float]]],
-    factor_fn,
+    factor_fn: Callable[..., dict[str, float]],
     symbols: list[str] | None = None,
     warmup_window: int = 20,
 ) -> dict[str, list[dict[str, float]]]:

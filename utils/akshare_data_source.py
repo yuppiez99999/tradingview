@@ -39,7 +39,7 @@ class SourceHealthEntry(TypedDict):
     last_success: Optional[str]
 
 
-def _safe_float(val, default=0.0):
+def _safe_float(val: Any, default: float = 0.0) -> float:
     try:
         v = float(val or 0)
         return v if v == v else default
@@ -69,7 +69,7 @@ class AKShareDataSource:
         self.source_health = {"akshare": SourceHealthEntry(ok=False, last_error=None, last_success=None)}
         self._init_connection()
 
-    def _init_connection(self):
+    def _init_connection(self) -> None:
         """初始化 AKShare"""
         try:
             import akshare as ak
@@ -86,7 +86,7 @@ class AKShareDataSource:
             self.source_health["akshare"]["last_error"] = str(e)
             logger.warning(f"AKShare 数据源初始化失败: {e}")
 
-    def _ensure_connected(self):
+    def _ensure_connected(self) -> bool:
         """确保 AKShare 可用"""
         if self._ak is None:
             self._init_connection()
@@ -128,7 +128,7 @@ class AKShareDataSource:
                 break
         return result
 
-    def _fetch_spot_cache(self):
+    def _fetch_spot_cache(self) -> None:
         """获取全市场实时数据并缓存（TTL 60秒）"""
         now = time.time()
         if now - self._spot_cache_time < self._spot_cache_ttl and self._spot_cache:
