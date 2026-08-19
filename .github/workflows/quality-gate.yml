@@ -6,6 +6,7 @@ name: Quality Gate (PR Incremental)
 #   2. P0 生产文件 print() 门禁 (scripts/check_no_print_p0.py)
 #   3. 工作区变更数上限门禁 (<=100 未提交文件)
 #   4. CI 引用完整性门禁 (scripts/ci_integrity_check.py)
+#   5. bandit 安全扫描门禁 (中危即 FAIL)
 # 任何一项失败都会阻断合并。
 
 on:
@@ -31,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest
+          pip install ruff pytest bandit
 
       - name: Get changed files
         id: changed-files
@@ -89,3 +90,21 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           python scripts/ci_integrity_check.py --strict
+
+      - name: Bandit security gate
+        shell: pwsh
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          $files = "${{ steps.changed-files.outputs.changed_files }}"
+          if ([string]::IsNullOrWhiteSpace($files)) {
+            Write-Output "[BANDIT-GATE] No Python files changed, skip."
+            exit 0
+          }
+          Write-Output "[BANDIT-GATE] Scanning changed files for security issues..."
+          bandit -c bandit.yaml -r $files.split(' ') -ll -ii
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "[BANDIT-GATE][FAIL] Medium+ severity security issues detected"
+            exit 1
+          }
+          Write-Output "[BANDIT-GATE] PASS - No medium+ severity issues"
