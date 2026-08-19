@@ -1,0 +1,68 @@
+# ============================================================
+# config.yaml — Secret (敏感) + ConfigMap (非敏感)
+# Secret 占位用 base64 空串; 生产用 scripts/cloud/env_to_secret.py 从 .env 生成
+#   kubectl apply -f <(python scripts/cloud/env_to_secret.py .env)
+# ============================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: quant-secret
+  namespace: quant
+type: Opaque
+stringData:
+  # ---------- AI 模型 API Key ----------
+  DEEPSEEK_API_KEY: ""
+  GLM_API_KEY: ""
+  MOONSHOT_API_KEY: ""
+  CLAUDE_API_KEY: ""
+  OPENAI_API_KEY: ""
+  APIZERO_API_KEY: ""
+  # ---------- 数据源 ----------
+  WIND_API_KEY: ""
+  IFIND_TOKEN: ""
+  IFIND_USER: ""
+  IFIND_PASS: ""
+  TDAM_AGENT_ID: ""
+  TDAM_BASE_URL: ""
+  TDAM_TEAM_ID: ""
+  # ---------- QMT 实盘桥接 (云→Win 网关) ----------
+  QMT_RPC_URL: ""              # 如 http://10.0.0.2:8765 或 https://qmt-gw.tail-xxx.ts.net
+  QMT_RPC_TOKEN: ""            # 强 token, 与 Win 侧 QMT_RPC_TOKEN 一致
+  QMT_RPC_TIMEOUT: "10"
+  # ---------- Win 侧 QMT 账户 (仅 Win 机用, 云端不需要) ----------
+  QMT_ACCOUNT_ID: ""
+  QMT_TRADE_PASSWORD: ""
+  QMT_PATH: ""
+  QMT_SESSION_ID: "0"
+  QMT_ACCOUNT_TYPE: "STOCK"
+  # ---------- 告警 webhook ----------
+  DINGTALK_WEBHOOK_URL: ""
+  FEISHU_WEBHOOK_URL: ""
+  # ---------- 华为云 SDK (ModelArts 训练 + OBS) ----------
+  HUAWEICLOUD_AK: ""
+  HUAWEICLOUD_SK: ""
+  HUAWEICLOUD_PROJECT_ID: ""
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quant-config
+  namespace: quant
+data:
+  # ---------- 运行模式 ----------
+  TRADING_ENV: "production"       # production=真实下单(走 RPC), sim=模拟
+  QT_PLATFORM: "cloud"
+  TOTAL_CAPITAL: "5000000"
+  SHADOW_CAPITAL_PCT: "0.1"
+  # ---------- AI 决策 ----------
+  AI_DECISION_MODE: "auto"
+  OLLAMA_MODEL: ""
+  OLLAMA_NUM_GPUS: "0"
+  # ---------- 数据根 ----------
+  QUANT_DATA_ROOT: "/app"
+  QLIB_DATA_DIR: "/app/qlib_data/cn_data"
+  # ---------- 渲染 ----------
+  MPLBACKEND: "Agg"
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  PYTHONUNBUFFERED: "1"

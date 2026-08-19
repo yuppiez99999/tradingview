@@ -1,0 +1,12 @@
+| 项目 | 匹配点 | 对接方式 |
+| --- | --- | --- |
+| Switchyard(NVIDIA,表一) | 你的 utils/glm5_client.py 就是自建的多模型路由(豆包→GLM-5→DeepSeek→Ollama),ai_coordinator.py 还要做成本管控——这正是 Switchyard 的本职：跨模型/厂商路由 LLM 流量、按成本性能分流，且兼容 OpenAI/Anthropic 原生 API | 部署为本地路由网关，glm5_client.py 只需把 baseURL 指向它，降级链和成本统计交给 Switchyard,自己不用再维护路由逻辑 |
+| unsloth(表一) | 你的 AI 兜底链末端是 Ollama 本地模型；ml_enhanced_trainer.py 目前只训 LightGBM。unsloth 支持本地运行/微调 DeepSeek-V4、Qwen 等 | 用它微调一个金融新闻情感小模型(替代外部 LLM 做舆情打分)，或加速本地 DeepSeek-V4 推理，降低豆包/GLM API 成本 |
+| TencentDB-Agent-Memory(表一) | 你有 20 位 AI 分析师 + GLM-5 决策引擎，但各模块的决策记忆是零散的;ai_coordinator.py 的“决策审计”目前只有单次记录 | 把历史交易决策、回测教训、市场状态识别做成跨会话记忆资产，让分析师们“记得”上次为什么止损——这正是它的团队级记忆中枢定位 |
+| OpenBiliClaw(表二，支持 dsh 插件) | 你的舆情面现在只有 TrendRadar MCP(大宗商品)和 sina 行情；A 股散户情绪(B站/微博/小红书/知乎的财经内容)是缺口，而 signal_fusion.py 本来就是多源加权融合 | 本地跑起来作为舆情采集 agent,产出各平台财经热度/情绪信号，作为一个新信号源接入 enhanced_signal_fusion.py |
+| 项目 | 匹配点 | 用法 |
+| --- | --- | --- |
+| code-graph-rag(表一) | 你的 utils/ 有 136 个 py 文件 + ms_strategy 多模块，Codex/ZCode 每次都要靠 AGENTS.md 定位上下文 | 给代码库建知识图谱 RAG,提升 AI 编码代理在大仓库里找对代码的准确率，减少改错文件 |
+| diagram-design / archify(表一/表二) | 你每天产 Markdown 报告归档，还有 44 个 docs,但缺漂亮的架构图/流程图 | 作为技能生成自包含 HTML 图表，嵌入每日报告(如对冲五阶段流程图、数据源降级链路图) |
+| EchoBird(表二) | 你同时用 Codex、ZCode 等多个编码 CLI,还要配置 DeepSeek/GLM 的模型切换 | 一键安装和切换各 CLI 的模型配置，省去手工改环境变量 |
+| deepseek-harness (dsh)(表二) | 你的 AI 优先级里本来就有 DeepSeek;dsh“万物皆插件”的架构和你 ai_coordinator.py 的任务路由/冲突检测思路同源 | 两个选择：① 作为轻量编码 harness 备选(你已有 FinClaw 1000+ 技能可移植成 dsh 插件)；② 不换工具，只借鉴它的插件化设计重构 AI 协调器 |

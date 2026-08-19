@@ -1,0 +1,410 @@
+# ============================================================
+# cronjobs.yaml — K8s CronJob 调度 (替代 Windows 任务计划 register_all_tasks_unified.ps1)
+# 时区: Asia/Shanghai (K8s >=1.25 支持 timeZone 字段; 不支持时改 UTC 减8)
+# 交易日: 周一至周五 (1-5); 实盘下单通过 RemoteQmtBroker → Win 网关桥接
+# 镜像: qt-system:v1 (cloud/docker/Dockerfile.system)
+# ============================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: quant
+---
+# ---------- 1. 盘前工作流 07:00 ----------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pre-market
+  namespace: quant
+spec:
+  schedule: "0 7 * * 1-5"
+  timeZone: "Asia/Shanghai"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 7200
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worker
+              image: qt-system:v1
+              imagePullPolicy: IfNotPresent
+              command: ["python", "15_每日工作流/run_daily_morning.py", "--phase", "all"]
+              envFrom:
+                - secretRef: { name: quant-secret }
+                - configMapRef: { name: quant-config }
+              volumeMounts:
+                - { name: data, mountPath: /app/data_cache }
+                - { name: qlib-data, mountPath: /app/qlib_data }
+                - { name: logs, mountPath: /app/logs }
+                - { name: reports, mountPath: /app/reports }
+              resources:
+                requests: { cpu: "1", memory: "2Gi" }
+                limits: { cpu: "4", memory: "8Gi" }
+          volumes:
+            - { name: data, persistentVolumeClaim: { claimName: data-pvc } }
+            - { name: qlib-data, persistentVolumeClaim: { claimName: qlib-pvc } }
+            - { name: logs, emptyDir: {} }
+            - { name: reports, persistentVolumeClaim: { claimName: reports-pvc } }
+---
+# ---------- 2. 盘前生成交易指令 09:00 ----------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pre-market-instructions
+  namespace: quant
+spec:
+  schedule: "0 9 * * 1-5"
+  timeZone: "Asia/Shanghai"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 1800
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worker
+              image: qt-system:v1
+              command: ["python", "daily_trade_executor.py", "pre-market"]
+              envFrom:
+                - secretRef: { name: quant-secret }
+                - configMapRef: { name: quant-config }
+              volumeMounts:
+                - { name: data, mountPath: /app/data_cache }
+                - { name: logs, mountPath: /app/logs }
+                - { name: trade-plans, mountPath: /app/trade_plans }
+                - { name: trade-instr, mountPath: /app/trade_instructions }
+              resources:
+                requests: { cpu: "1", memory: "2Gi" }
+                limits: { cpu: "2", memory: "4Gi" }
+          volumes:
+            - { name: data, persistentVolumeClaim: { claimName: data-pvc } }
+            - { name: logs, emptyDir: {} }
+            - { name: trade-plans, persistentVolumeClaim: { claimName: trade-plans-pvc } }
+            - { name: trade-instr, persistentVolumeClaim: { claimName: trade-instr-pvc } }
+---
+# ---------- 3. 盘中 LLM 决策 09:30-15:30 每30分钟 ----------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: intraday-llm-decision
+  namespace: quant
+spec:
+  schedule: "*/30 9-15 * * 1-5"
+  timeZone: "Asia/Shanghai"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 1200
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worker
+              image: qt-system:v1
+              command: ["python", "v8.3_institutional/llm_intraday_decision_engine.py", "--mode", "live"]
+              envFrom:
+                - secretRef: { name: quant-secret }
+                - configMapRef: { name: quant-config }
+              volumeMounts:
+                - { name: data, mountPath: /app/data_cache }
+                - { name: logs, mountPath: /app/logs }
+              resources:
+                requests: { cpu: "1", memory: "2Gi" }
+                limits: { cpu: "2", memory: "4Gi" }
+          volumes:
+            - { name: data, persistentVolumeClaim: { claimName: data-pvc } }
+            - { name: logs, emptyDir: {} }
+---
+# ---------- 4. 盘后工作流 15:30 ----------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: post-market
+  namespace: quant
+spec:
+  schedule: "30 15 * * 1-5"
+  timeZone: "Asia/Shanghai"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 7200
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worker
+              image: qt-system:v1
+              command: ["python", "15_每日工作流/run_daily_eod_workflow.py"]
+              envFrom:
+                - secretRef: { name: quant-secret }
+                - configMapRef: { name: quant-config }
+              volumeMounts:
+                - { name: data, mountPath: /app/data_cache }
+                - { name: logs, mountPath: /app/logs }
+                - { name: reports, mountPath: /app/reports }
+              resources:
+                requests: { cpu: "2", memory: "4Gi" }
+                limits: { cpu: "4", memory: "8Gi" }
+          volumes:
+            - { name: data, persistentVolumeClaim: { claimName: data-pvc } }
+            - { name: logs, emptyDir: {} }
+            - { name: reports, persistentVolumeClaim: { claimName: reports-pvc } }
+---
+# ---------- 5. 盘后执行已确认指令 15:35 ----------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: post-market-execute
+  namespace: quant
+spec:
+  schedule: "35 15 * * 1-5"
+  timeZone: "Asia/Shanghai"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 1800
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worker
+              image: qt-system:v1
+              command: ["python", "daily_trade_executor.py", "post-market"]
+              envFrom:
+                - secretRef: { name: quant-secret }
+                - configMapRef: { name: quant-config }
+              volumeMounts:
+                - { name: data, mountPath: /app/data_cache }
+                - { name: logs, mountPath: /app/logs }
+                - { name: trade-instr, mountPath: /app/trade_instructions }
+              resources:
+                requests: { cpu: "1", memory: "2Gi" }
+                limits: { cpu: "2", memory: "4Gi" }
+          volumes:
+            - { name: data, persistentVolumeClaim: { claimName: data-pvc } }
+            - { name: logs, emptyDir: {} }
+            - { name: trade-instr, persistentVolumeClaim: { claimName: trade-instr-pvc } }
+---
+# ---------- 6. 收盘 PnL 报告 16:00 ----------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-pnl-report
+  namespace: quant
+spec:
+  schedule: "0 16 * * 1-5"
+  timeZone: "Asia/Shanghai"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 1800
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worker
+              image: qt-system:v1
+              command: ["python", "generate_daily_report.py"]
+              envFrom:
+                - secretRef: { name: quant-secret }
+                - configMapRef: { name: quant-config }
+              volumeMounts:
+                - { name: data, mountPath: /app/data_cache }
+                - { name: logs, mountPath: /app/logs }
+                - { name: reports, mountPath: /app/reports }
+              resources:
+                requests: { cpu: "1", memory: "2Gi" }
+                limits: { cpu: "2", memory: "4Gi" }
+          volumes:
+            - { name: data, persistentVolumeClaim: { claimName: data-pvc } }
+            - { name: logs, emptyDir: {} }
+            - { name: reports, persistentVolumeClaim: { claimName: reports-pvc } }
+---
+# ---------- 7. 策略进化评估 16:05 ----------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: evolution-eval
+  namespace: quant
+spec:
+  schedule: "5 16 * * 1-5"
+  timeZone: "Asia/Shanghai"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 2
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 1800
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worker
+              image: qt-system:v1
+              command: ["python", "scripts/run_evolution_eval.py"]
+              envFrom:
+                - secretRef: { name: quant-secret }
+                - configMapRef: { name: quant-config }
+              volumeMounts:
+                - { name: logs, mountPath: /app/logs }
+                - { name: reports, mountPath: /app/reports }
+              resources:
+                requests: { cpu: "1", memory: "2Gi" }
+                limits: { cpu: "2", memory: "4Gi" }
+          volumes:
+            - { name: logs, emptyDir: {} }
+            - { name: reports, persistentVolumeClaim: { claimName: reports-pvc } }
+---
+# ---------- 8. 观察简报 16:10 ----------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: observation-briefing
+  namespace: quant
+spec:
+  schedule: "10 16 * * 1-5"
+  timeZone: "Asia/Shanghai"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 2
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 900
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worker
+              image: qt-system:v1
+              command: ["python", "scripts/observation_daily_briefing.py"]
+              envFrom:
+                - secretRef: { name: quant-secret }
+                - configMapRef: { name: quant-config }
+              volumeMounts:
+                - { name: logs, mountPath: /app/logs }
+                - { name: reports, mountPath: /app/reports }
+              resources:
+                requests: { cpu: "0.5", memory: "1Gi" }
+                limits: { cpu: "1", memory: "2Gi" }
+          volumes:
+            - { name: logs, emptyDir: {} }
+            - { name: reports, persistentVolumeClaim: { claimName: reports-pvc } }
+---
+# ---------- 9. Shadow 准入 DSR 16:15 ----------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: shadow-admission-daily
+  namespace: quant
+spec:
+  schedule: "15 16 * * 1-5"
+  timeZone: "Asia/Shanghai"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 2
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 900
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worker
+              image: qt-system:v1
+              command: ["python", "scripts/shadow_admission_launcher.py", "daily"]
+              envFrom:
+                - secretRef: { name: quant-secret }
+                - configMapRef: { name: quant-config }
+              volumeMounts:
+                - { name: data, mountPath: /app/data_cache }
+                - { name: logs, mountPath: /app/logs }
+                - { name: reports, mountPath: /app/reports }
+              resources:
+                requests: { cpu: "0.5", memory: "1Gi" }
+                limits: { cpu: "1", memory: "2Gi" }
+          volumes:
+            - { name: data, persistentVolumeClaim: { claimName: data-pvc } }
+            - { name: logs, emptyDir: {} }
+            - { name: reports, persistentVolumeClaim: { claimName: reports-pvc } }
+---
+# ---------- 10. 标的池扫描 16:30 ----------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: universe-scan
+  namespace: quant
+spec:
+  schedule: "30 16 * * 1-5"
+  timeZone: "Asia/Shanghai"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 2
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 3600
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worker
+              image: qt-system:v1
+              command: ["python", "research/run_universe_scan.py", "--pool", "hs300_zz500"]
+              envFrom:
+                - secretRef: { name: quant-secret }
+                - configMapRef: { name: quant-config }
+              volumeMounts:
+                - { name: data, mountPath: /app/data_cache }
+                - { name: logs, mountPath: /app/logs }
+              resources:
+                requests: { cpu: "1", memory: "2Gi" }
+                limits: { cpu: "2", memory: "4Gi" }
+          volumes:
+            - { name: data, persistentVolumeClaim: { claimName: data-pvc } }
+            - { name: logs, emptyDir: {} }
+---
+# ---------- 11. Shadow Watchdog 17:00 ----------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: shadow-admission-watchdog
+  namespace: quant
+spec:
+  schedule: "0 17 * * 1-5"
+  timeZone: "Asia/Shanghai"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 2
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worker
+              image: qt-system:v1
+              command: ["python", "scripts/shadow_admission_watchdog.py"]
+              envFrom:
+                - secretRef: { name: quant-secret }
+                - configMapRef: { name: quant-config }
+              volumeMounts:
+                - { name: logs, mountPath: /app/logs }
+              resources:
+                requests: { cpu: "0.25", memory: "512Mi" }
+                limits: { cpu: "0.5", memory: "1Gi" }
+          volumes:
+            - { name: logs, emptyDir: {} }

@@ -1,0 +1,70 @@
+# ============================================================
+# requirements-core.txt — 跨平台核心依赖 (云 Linux + Windows 共用)
+# 从 requirements.txt 拆出, 去除 Windows 专属 (pyautogui/pywinauto)
+# 云端镜像 Dockerfile.system 基于此文件 + requirements-cloud.txt
+# 生产基线: Python 3.11 (云) / 3.14.4 (Win 本地)
+# ============================================================
+
+# === 核心数据处理 ===
+numpy>=1.24.0
+pandas>=1.5.0
+scipy>=1.10.0
+
+# === 机器学习 ===
+scikit-learn>=1.5.0
+xgboost>=1.5.0
+lightgbm>=4.6.0
+optuna>=3.0.0
+joblib>=1.2.0
+statsmodels>=0.13.0
+
+# === 数据获取 ===
+yfinance>=0.2.0
+akshare>=1.12.0
+requests>=2.33.0
+certifi>=2026.07.22
+
+# === 可视化 ===
+matplotlib>=3.6.0
+seaborn>=0.12.0
+plotly>=5.15.0
+dash>=2.11.0
+
+# === 时间处理 ===
+python-dateutil>=2.8.0
+pytz>=2023.3
+
+# === 配置与网络 ===
+PyYAML>=6.0
+python-dotenv>=1.2.2
+
+# === 任务调度 ===
+schedule>=1.2.0
+
+# === 网络时间 ===
+ntplib>=0.4.0
+
+# === 组合优化 ===
+PyPortfolioOpt>=1.5.0
+
+# === 业绩分析 ===
+quantstats>=0.0.59
+
+# === 数据库 ===
+sqlalchemy>=2.0.0
+
+# === 异步 ===
+aiohttp>=3.14.3
+
+# === 加密 ===
+cryptography>=50.0.0
+
+# === 工具 ===
+click>=8.1.0
+tqdm>=4.65.0
+
+# === 性能优化 ===
+numba>=0.57.0
+
+# === 日志 ===
+loguru>=0.7.0

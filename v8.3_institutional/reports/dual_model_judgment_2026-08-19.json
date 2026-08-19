@@ -1,0 +1,27 @@
+{
+  "trade_date": "2026-08-19",
+  "generated_at": "2026-08-19T20:04:59.181240",
+  "module": "dual_model_judge",
+  "deepseek_judgment": null,
+  "glm_judgment": null,
+  "deepseek_raw": null,
+  "glm_raw": null,
+  "cross_validation": {
+    "consensus": {},
+    "agreement": false,
+    "mode": "none",
+    "divergence_reason": "双模型均不可用"
+  },
+  "final_decision": {
+    "action": "HOLD",
+    "confidence": 0.5,
+    "risk_level": "MEDIUM",
+    "position_adjustment": "不变",
+    "hedge_adjustment": "维持",
+    "reason": "规则兜底: 双模型不可用,基于风险评分决策",
+    "key_concerns": [
+      "风险评分=0.38"
+    ]
+  },
+  "mode": "rule_fallback"
+}

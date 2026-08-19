@@ -1,0 +1,91 @@
+# ============================================================
+# Dockerfile.system — 终极量化交易系统 完整生产镜像 (云 Linux)
+# 用途: 跑 live_scheduler / Streamlit UI / K8s CronJob (策略+因子+回测+采集)
+# 不含: xtquant / pywinauto / pyautogui (Win 实盘机专属, 走 RPC 桥接)
+# 数据: 不 COPY 进镜像, 由 K8s volume 挂载 /app/data_cache 等
+# ============================================================
+# 构建:
+#   docker build -f cloud/docker/Dockerfile.system -t qt-system:v1 .
+# 多平台 (Mac 构建推云):
+#   docker build --platform linux/amd64 -f cloud/docker/Dockerfile.system -t qt-system:v1 .
+# ============================================================
+
+# ---------- Stage 1: base (依赖层, 变化少, 缓存友好) ----------
+FROM python:3.11-slim AS base
+
+# 系统依赖: libgomp1(LightGBM/XGBoost) + libgl1(matplotlib headless) + fonts-noto-cjk(中文图表) + tzdata
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libgomp1 \
+        libgl1 \
+        fonts-noto-cjk \
+        tzdata \
+        ca-certificates \
+        curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
+# ma-user (UID 1000) — 与 ModelArts 运行用户一致, 便于复用 SWR 镜像
+RUN useradd -m -u 1000 ma-user
+
+WORKDIR /app
+
+# 先装依赖 (利用 Docker 层缓存, 代码变更不重装)
+COPY requirements-core.txt requirements-cloud.txt ./
+RUN pip install --no-cache-dir \
+        -r requirements-core.txt \
+        -r requirements-cloud.txt \
+        -i https://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com
+
+# ---------- Stage 2: runtime (代码层) ----------
+FROM base AS runtime
+
+WORKDIR /app
+
+# COPY 代码 (受 .dockerignore 控制, 排除 venv/logs/models/data_cache/qlib_data/tests/research)
+COPY utils/ ./utils/
+COPY ms_strategy/ ./ms_strategy/
+COPY ui/ ./ui/
+COPY .streamlit/ ./.streamlit/
+COPY config/ ./config/
+COPY configs/ ./configs/
+COPY lgb_trainer/ ./lgb_trainer/
+COPY v8.3_institutional/ ./v8.3_institutional/
+COPY ai_decision/ ./ai_decision/
+COPY qlib/ ./qlib/
+COPY 15_每日工作流/ ./15_每日工作流/
+COPY external/airllm_src/ ./external/airllm_src/
+
+# 顶层入口脚本
+COPY institutional_pipeline_runner.py 量化策略系统_统一入口_v8.6.py ./
+COPY daily_runner.py daily_trade_executor.py live_scheduler.py ./
+COPY lgb_enhanced_trainer.py lgb_tscv_trainer.py autolearn_trainer.py ./
+COPY alpha_hedge_engine.py hedge_order_executor.py ./
+COPY generate_daily_report.py hn_daily_report.py ./
+COPY stop_loss_monitor.py signal_monitor.py ./
+COPY shadow_account_system.py launch_shadow_account.py ./
+COPY system_config.json ./
+
+# 小体积数据 (SQLite 业务库, 总计 <1MB); 大数据由 volume 挂载
+COPY data/ ./data/
+
+# 写权限 (ma-user 需写 mlruns/reports/logs/cache)
+RUN chmod -R 777 /app
+
+# ---------- 环境变量 ----------
+ENV QT_PLATFORM=cloud \
+    MPLBACKEND=Agg \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    QLIB_DATA_DIR=/app/qlib_data/cn_data \
+    QUANT_DATA_ROOT=/app
+
+# 数据目录占位 (实际由 K8s volume 覆盖挂载)
+RUN mkdir -p /app/data_cache /app/qlib_data /app/logs /app/models /app/mlruns /app/reports /app/cache /app/trade_plans /app/trade_instructions && \
+    chown -R ma-user:ma-user /app
+
+USER ma-user
+
+# 默认常驻 live_scheduler; K8s CronJob/Deployment 用 command 覆盖
+CMD ["python", "live_scheduler.py", "--live"]

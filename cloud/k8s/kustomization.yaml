@@ -1,0 +1,24 @@
+# ============================================================
+# kustomization.yaml — 统一 apply 入口
+# 用法:
+#   kubectl apply -k cloud/k8s/
+# 或生成完整清单查看:
+#   kubectl kustomize cloud/k8s/
+# 镜像更新:
+#   cd cloud/k8s && kustomize edit set image qt-system=swr.cn-east-3.myhuaweicloud.com/qt1/qt-system:v2
+# ============================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: quant
+
+resources:
+  - config.yaml
+  - deployments.yaml
+  - cronjobs.yaml
+  - ingress.yaml
+
+# 镜像名 (构建后用 kustomize edit set image 更新 tag)
+images:
+  - name: qt-system
+    newTag: v1

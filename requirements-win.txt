@@ -1,0 +1,19 @@
+# ============================================================
+# requirements-win.txt — Windows 实盘机专属依赖
+# 仅在 Windows 实盘机安装 (QMT 下单 + GUI 自动化备用)
+# 云端 Linux 镜像不安装此文件
+# ============================================================
+
+# === GUI 自动化 (同花顺订单操作备用) ===
+pyautogui>=0.9.53
+pywinauto>=0.6.8
+
+# === QMT/xtquant (迅投 MiniQMT) ===
+# xtquant 不在 PyPI, 由 QMT 客户端安装目录提供:
+#   pip install <QMT安装路径>/xtquant  或  将 xtquant 拷到 site-packages
+# 此处仅声明 (无版本号), 实际通过 QMT 客户端分发
+# xtquant
+
+# === FastAPI 网关 (Win 侧 qmt_rpc_server.py 用) ===
+fastapi>=0.110.0
+uvicorn>=0.27.0

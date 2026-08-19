@@ -1,0 +1,159 @@
+name: MMR Judge (ocr 候选二次验证)
+
+# L3 级联评审: ocr-review.yml 完成后触发, 对 high/critical 候选做三模型 judge 投票
+# 2/3+ confirmed -> 入 CODE_REVIEW_BACKLOG 看板
+# 0-1/3 dismissed -> 标记 false_positive (降低 ocr 单模型误报)
+# Secrets: OCR_LLM_AUTH_TOKEN (GLM, 复用), DEEPSEEK_API_KEY (新增)
+
+on:
+  workflow_run:
+    workflows: ["OCR Code Review (PR)"]
+    types: [completed]
+    branches: [main, master, "1"]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  mmr-judge:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Get PR number from workflow_run
+        id: pr-info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pulls = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${{ github.event.workflow_run.head_repository.owner.login }}:${{ github.event.workflow_run.head_branch }}`
+            });
+            if (pulls.data.length === 0) {
+              core.setOutput('found', 'false');
+              return;
+            }
+            core.setOutput('found', 'true');
+            core.setOutput('number', pulls.data[0].number);
+            core.setOutput('head_sha', '${{ github.event.workflow_run.head_sha }}');
+
+      - name: Download ocr artifact
+        if: steps.pr-info.outputs.found == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ocr-pr-review-${{ steps.pr-info.outputs.number }}
+          path: ocr_results/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Filter high/critical candidates
+        if: steps.pr-info.outputs.found == 'true'
+        run: |
+          pip install -q $(ls ocr_results/*.json 2>/dev/null | head -1 | xargs echo "needs json only")
+          find ocr_results/ -name "*.json" -exec python scripts/mmr_filter_candidates.py \
+            --input {} \
+            --severity high,critical \
+            --output ocr_high_critical.json \
+            --format consensus \; 2>/dev/null || true
+          if [ ! -f ocr_high_critical.json ] || [ "$(cat ocr_high_critical.json)" = "[]" ]; then
+            echo "[MMR-JUDGE] No high/critical candidates, skip."
+            echo "skip=true" >> $GITHUB_ENV
+          else
+            echo "[MMR-JUDGE] Candidates found, proceeding to judge voting."
+            echo "skip=false" >> $GITHUB_ENV
+          fi
+
+      - name: Run mmr judge voting via consensus.py
+        if: steps.pr-info.outputs.found == 'true' && env.skip != 'true'
+        env:
+          PYTHONUTF8: "1"
+          BIGMODEL_API_KEY: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          pip install -q openai
+          mkdir -p reports/mmr_reviews/judge
+          python -c "
+          import json, sys
+          sys.path.insert(0, '.')
+          from utils.alpha.llm.consensus import MultiModelConsensus, Finding, run_consensus
+
+          with open('ocr_high_critical.json', encoding='utf-8') as f:
+              cands_raw = json.load(f)
+
+          candidates = [Finding(**c) for c in cands_raw]
+          artifact_text = 'ocr L2 high/critical candidates (PR #${{ steps.pr-info.outputs.number }})'
+
+          result = run_consensus(
+              artifact=artifact_text,
+              lens='judge',
+              models=['deepseek', 'glm'],
+              judge_mode='vote',
+              candidates=candidates,
+              output_path='reports/mmr_reviews/judge/pr_${{ steps.pr-info.outputs.number }}.json',
+          )
+          print(f'[MMR-JUDGE] mode={result.mode} confirmed={len(result.confirmed_findings)}/{len(candidates)}')
+          "
+
+      - name: Update CODE_REVIEW_BACKLOG
+        if: steps.pr-info.outputs.found == 'true' && env.skip != 'true'
+        run: |
+          python scripts/mmr_update_backlog.py \
+            --input reports/mmr_reviews/judge/pr_${{ steps.pr-info.outputs.number }}.json \
+            --backlog docs/CODE_REVIEW_BACKLOG.md \
+            --pr-number ${{ steps.pr-info.outputs.number }}
+
+      - name: Upload mmr judge artifacts
+        if: always() && steps.pr-info.outputs.found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mmr-judge-${{ steps.pr-info.outputs.number }}
+          path: reports/mmr_reviews/judge/*.json
+          retention-days: 30
+
+      - name: Comment PR with mmr judge summary
+        if: steps.pr-info.outputs.found == 'true' && env.skip != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'reports/mmr_reviews/judge/pr_${{ steps.pr-info.outputs.number }}.json';
+            try {
+              const r = JSON.parse(fs.readFileSync(path, 'utf8'));
+              const confirmed = r.findings || [];
+              const verdicts = r.verdicts || [];
+              const dismissed = verdicts.filter(v => v.verdict === 'dismissed').length;
+              const body = [
+                '## MMR Judge Summary (L3 ocr候选二次验证)',
+                '',
+                `| Metric | Count |`,
+                `|--------|-------|`,
+                `| ocr high/critical 候选 | ${verdicts.length} |`,
+                `| **Confirmed (judge投票通过)** | **${confirmed.length}** |`,
+                `| Dismissed (误报过滤) | ${dismissed} |`,
+                `| 共识模式 | ${r.mode} |`,
+                '',
+                confirmed.length > 0
+                  ? '**Confirmed 结论已写入 `CODE_REVIEW_BACKLOG.md` 看板, 需关注。**'
+                  : '**所有候选被 judge 投票过滤, 无 confirmed 结论。**',
+                '',
+                `Powered by DeepSeek + GLM 双模型投票 (consensus.py)`
+              ].join('\n');
+              github.rest.issues.createComment({
+                issue_number: ${{ steps.pr-info.outputs.number }},
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            } catch (error) {
+              console.log('No judge result or parse error:', error.message);
+            }

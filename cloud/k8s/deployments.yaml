@@ -1,0 +1,175 @@
+# ============================================================
+# deployments.yaml — 常驻工作负载 + PVC + Service
+# 含: live_scheduler(盘中常驻) + streamlit(Web UI) + 数据卷声明
+# ============================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: quant
+---
+# ---------- PVC: 行情数据 ----------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-pvc
+  namespace: quant
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: { requests: { storage: 50Gi } }
+  # storageClassName: "csi-disk"  # 华为云 EVS SSD; 按云厂商填
+---
+# ---------- PVC: QLib 数据 ----------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qlib-pvc
+  namespace: quant
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: { requests: { storage: 20Gi } }
+---
+# ---------- PVC: 报告 ----------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: reports-pvc
+  namespace: quant
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: { requests: { storage: 20Gi } }
+---
+# ---------- PVC: 交易计划 ----------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trade-plans-pvc
+  namespace: quant
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: { requests: { storage: 5Gi } }
+---
+# ---------- PVC: 交易指令 ----------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trade-instr-pvc
+  namespace: quant
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: { requests: { storage: 5Gi } }
+---
+# ============================================================
+# Deployment: live_scheduler (盘中常驻, 6 模块并发)
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: live-scheduler
+  namespace: quant
+  labels: { app: live-scheduler }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }  # 单实例, 不滚动
+  selector:
+    matchLabels: { app: live-scheduler }
+  template:
+    metadata:
+      labels: { app: live-scheduler }
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: scheduler
+          image: qt-system:v1
+          imagePullPolicy: IfNotPresent
+          command: ["python", "live_scheduler.py", "--live"]
+          envFrom:
+            - secretRef: { name: quant-secret }
+            - configMapRef: { name: quant-config }
+          volumeMounts:
+            - { name: data, mountPath: /app/data_cache }
+            - { name: qlib-data, mountPath: /app/qlib_data }
+            - { name: logs, mountPath: /app/logs }
+            - { name: reports, mountPath: /app/reports }
+            - { name: trade-plans, mountPath: /app/trade_plans }
+            - { name: trade-instr, mountPath: /app/trade_instructions }
+          resources:
+            requests: { cpu: "2", memory: "4Gi" }
+            limits: { cpu: "4", memory: "8Gi" }
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import sys; sys.exit(0)"]
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["python", "-c", "import os; sys.exit(0 if os.path.exists('/app/data_cache') else 1)"]
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      volumes:
+        - { name: data, persistentVolumeClaim: { claimName: data-pvc } }
+        - { name: qlib-data, persistentVolumeClaim: { claimName: qlib-pvc } }
+        - { name: logs, emptyDir: {} }
+        - { name: reports, persistentVolumeClaim: { claimName: reports-pvc } }
+        - { name: trade-plans, persistentVolumeClaim: { claimName: trade-plans-pvc } }
+        - { name: trade-instr, persistentVolumeClaim: { claimName: trade-instr-pvc } }
+---
+# ============================================================
+# Deployment: streamlit Web UI (16+ 页面, 浏览器访问)
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit-ui
+  namespace: quant
+  labels: { app: streamlit-ui }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: streamlit-ui }
+  template:
+    metadata:
+      labels: { app: streamlit-ui }
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: ui
+          image: qt-system:v1
+          imagePullPolicy: IfNotPresent
+          command: ["streamlit", "run", "ui/app.py", "--server.port", "8501", "--server.address", "0.0.0.0", "--server.headless", "true"]
+          envFrom:
+            - secretRef: { name: quant-secret }
+            - configMapRef: { name: quant-config }
+          ports:
+            - { containerPort: 8501, name: http }
+          volumeMounts:
+            - { name: data, mountPath: /app/data_cache }
+            - { name: reports, mountPath: /app/reports }
+            - { name: logs, mountPath: /app/logs }
+          resources:
+            requests: { cpu: "1", memory: "2Gi" }
+            limits: { cpu: "2", memory: "4Gi" }
+          readinessProbe:
+            httpGet: { path: "/_stcore/health", port: 8501 }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: "/_stcore/health", port: 8501 }
+            initialDelaySeconds: 30
+            periodSeconds: 60
+      volumes:
+        - { name: data, persistentVolumeClaim: { claimName: data-pvc } }
+        - { name: reports, persistentVolumeClaim: { claimName: reports-pvc } }
+        - { name: logs, emptyDir: {} }
+---
+# ---------- Service: Streamlit ----------
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamlit-svc
+  namespace: quant
+spec:
+  selector: { app: streamlit-ui }
+  ports:
+    - { port: 80, targetPort: 8501, name: http }

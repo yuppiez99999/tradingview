@@ -1,0 +1,33 @@
+# ============================================================
+# ingress.yaml — Streamlit Web UI 对外暴露
+# 域名 + HTTPS + (可选) basic-auth
+# 部署前改 host 为你的域名, tls secretName 指向有效证书
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: streamlit-ingress
+  namespace: quant
+  annotations:
+    # 华为云 ELB 注解 (按云厂商调整)
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    # 可选: basic-auth (先 htpasswd 生成 secret)
+    # nginx.ingress.kubernetes.io/auth-type: basic
+    # nginx.ingress.kubernetes.io/auth-secret: basic-auth
+    # nginx.ingress.kubernetes.io/auth-realm: "Quant System"
+spec:
+  tls:
+    - hosts: ["quant.example.com"]   # ← 改成你的域名
+      secretName: quant-tls          # ← Let's Encrypt 或云厂商证书
+  rules:
+    - host: "quant.example.com"      # ← 改成你的域名
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: streamlit-svc
+                port: { number: 80 }

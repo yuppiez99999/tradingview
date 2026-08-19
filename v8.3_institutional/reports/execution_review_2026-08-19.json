@@ -1,0 +1,94 @@
+{
+  "trade_date": "2026-08-19",
+  "generated_at": "2026-08-19T19:50:13.599291",
+  "module": "execution_reviewer",
+  "auto_closed_loop": true,
+  "pnl_summary": {
+    "total_pnl": 27167.4,
+    "total_pnl_pct": 1.02,
+    "net_pnl": 27167.4,
+    "net_pnl_pct": 1.02,
+    "hedge_pnl": 0.0,
+    "hedge_cost": 0.0
+  },
+  "hedge_review": {
+    "hedge_enabled": true,
+    "portfolio_beta": 1.1076923076923078,
+    "planned_tools": 5,
+    "executed_tools": 3,
+    "execution_gaps": 2,
+    "orders": [
+      {
+        "type": "TAIL",
+        "action": "PUT_SPREAD",
+        "instrument": "510300 Put",
+        "side": "BUY",
+        "option_type": "PUT",
+        "strike": 4.1886,
+        "otm_pct": 0.1,
+        "budget": 7292.0,
+        "protection_ratio": 0.5,
+        "price": 0.7296,
+        "status": "FILLED",
+        "reason": "Tail 对冲自动执行 (regime=normal, OTM=10%)",
+        "order_id": "ORD-510300P-1787139305944-1"
+      },
+      {
+        "type": "TAIL",
+        "action": "PUT_SPREAD",
+        "instrument": "588000 Put",
+        "side": "BUY",
+        "option_type": "PUT",
+        "strike": 1.5849,
+        "otm_pct": 0.1,
+        "budget": 3125.0,
+        "protection_ratio": 0.5,
+        "price": 0.3127,
+        "status": "FILLED",
+        "reason": "Tail 对冲自动执行 (regime=normal, OTM=10%)",
+        "order_id": "ORD-588000P-1787139305944-1"
+      },
+      {
+        "type": "BETA",
+        "action": "SHORT_FUTURES",
+        "instrument": "IF",
+        "side": "SELL_SHORT",
+        "contracts": 3,
+        "price": 4551.9229,
+        "notional": 4098780.0,
+        "cost": 504.14994,
+        "status": "LIMIT",
+        "reason": "Beta 对冲自动执行",
+        "order_id": "ORD-IF-1787139305944-3",
+        "cost_breakdown": null
+      }
+    ]
+  },
+  "ai_review": {
+    "ai_total_count": 0,
+    "ai_hit_count": 0,
+    "ai_hit_rate": 0.0,
+    "approved_count": 0,
+    "rejected_count": 0
+  },
+  "risk_assessment": {
+    "risk_level": "MEDIUM",
+    "risk_score": 0.38,
+    "risk_events": [
+      {
+        "level": "HIGH",
+        "event": "最大回撤 -2270.0% 超过 -15%"
+      },
+      {
+        "level": "MEDIUM",
+        "event": "Beta 暴露 1.05 > 1.0"
+      }
+    ],
+    "scores": {
+      "pnl_score": 0.0,
+      "dd_score": 1.0,
+      "gap_score": 0.4,
+      "ai_miss_score": 0.0
+    }
+  }
+}

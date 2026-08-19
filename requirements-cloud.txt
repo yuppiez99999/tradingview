@@ -1,0 +1,22 @@
+# ============================================================
+# requirements-cloud.txt — 云端额外依赖 (在 requirements-core.txt 之上)
+# 仅云 Linux 镜像安装, Win 实盘机不需要
+# ============================================================
+
+# === Web UI ===
+streamlit>=1.30.0
+
+# === 实盘桥接客户端 (调 Win 侧 qmt_rpc_server) ===
+httpx>=0.27.0
+
+# === 监控指标 ===
+prometheus-client>=0.20.0
+
+# === 华为云 SDK (ModelArts 训练 + OBS, 已有 auto_train.py 用) ===
+huaweicloudsdkmodelarts>=3.1.0
+esdk-obs-python>=3.20.0
+
+# === 生产 ASGI 服务器 (Streamlit 多并发时可选) ===
+# uvicorn 已在 requirements-win.txt, 云端也需, 此处显式声明
+uvicorn>=0.27.0
+fastapi>=0.110.0

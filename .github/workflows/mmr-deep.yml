@@ -1,0 +1,159 @@
+name: MMR Deep Review (文档 + 数据结论)
+
+# L4 全评审: 对 docs/ cairn/ reports/*.json 变更做三模型全评审
+# 量化特化: reports/*.json 走 data-claim lens (回测/压力测试/季度复盘结论审查)
+# 触发: PR 中 .md 或 reports/*.json 变更 + 周度手动 dispatch
+# Secrets: OCR_LLM_AUTH_TOKEN (GLM), DEEPSEEK_API_KEY
+
+on:
+  pull_request:
+    branches: [main, master, "1"]
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'docs/**/*.md'
+      - 'cairn/**/*.md'
+      - 'reports/eod_guard_report_*.json'
+      - 'reports/quarterly_review_*.json'
+      - 'reports/stress_test_*.json'
+      - 'reports/rebalance_execution_orders_*.json'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '审查目标 (docs|data|all)'
+        required: false
+        default: 'all'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  mmr-deep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Get changed files
+        id: changed
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            docs/**/*.md
+            cairn/**/*.md
+            reports/eod_guard_report_*.json
+            reports/quarterly_review_*.json
+            reports/stress_test_*.json
+            reports/rebalance_execution_orders_*.json
+          files_ignore: |
+            cairn/Reference/**
+
+      - name: Classify and run mmr deep review
+        if: steps.changed.outputs.any_changed == 'true'
+        env:
+          PYTHONUTF8: "1"
+          BIGMODEL_API_KEY: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          pip install -q openai
+          mkdir -p reports/mmr_reviews/docs reports/mmr_reviews/data
+
+          python -c "
+          import json, sys, os
+          from pathlib import Path
+          sys.path.insert(0, '.')
+          from utils.alpha.llm.consensus import run_consensus
+
+          changed = '${{ steps.changed.outputs.all_changed_files }}'.split()
+          pr_num = '${{ github.event.pull_request.number || \"manual\" }}'
+
+          doc_files = [f for f in changed if f.endswith('.md')]
+          data_files = [f for f in changed if f.endswith('.json')]
+
+          results = []
+
+          for fpath in doc_files:
+              p = Path(fpath)
+              if not p.exists():
+                  continue
+              artifact = p.read_text(encoding='utf-8')[:8000]
+              lens = 'architecture' if 'design' in fpath or 'plan' in fpath else 'product'
+              out = f'reports/mmr_reviews/docs/{p.stem}_pr{pr_num}.json'
+              r = run_consensus(artifact=artifact, lens=lens,
+                                models=['deepseek', 'glm'], judge_mode='vote',
+                                output_path=out)
+              results.append((fpath, lens, len(r.confirmed_findings), r.mode))
+
+          for fpath in data_files:
+              p = Path(fpath)
+              if not p.exists():
+                  continue
+              artifact = p.read_text(encoding='utf-8')[:8000]
+              out = f'reports/mmr_reviews/data/{p.stem}_pr{pr_num}.json'
+              r = run_consensus(artifact=artifact, lens='data-claim',
+                                models=['deepseek', 'glm'], judge_mode='vote',
+                                output_path=out)
+              results.append((fpath, 'data-claim', len(r.confirmed_findings), r.mode))
+
+          print('=== MMR Deep Review Summary ===')
+          for fpath, lens, confirmed, mode in results:
+              print(f'  {fpath} | lens={lens} | confirmed={confirmed} | mode={mode}')
+          print(f'Total: {len(results)} artifacts reviewed')
+          "
+
+      - name: Upload mmr deep artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mmr-deep-${{ github.event.pull_request.number || 'manual' }}
+          path: |
+            reports/mmr_reviews/docs/*.json
+            reports/mmr_reviews/data/*.json
+          retention-days: 30
+
+      - name: Comment PR with mmr deep summary
+        if: always() && github.event_name == 'pull_request' && steps.changed.outputs.any_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const dirs = ['reports/mmr_reviews/docs', 'reports/mmr_reviews/data'];
+            let total = 0, confirmed = 0;
+            const details = [];
+            for (const dir of dirs) {
+              if (!fs.existsSync(dir)) continue;
+              for (const f of fs.readdirSync(dir)) {
+                if (!f.endsWith('.json')) continue;
+                const r = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+                const c = (r.findings || []).length;
+                total += (r.discoveries_count || 0);
+                confirmed += c;
+                if (c > 0) details.push(`- ${f}: ${c} confirmed (${r.lens})`);
+              }
+            }
+            const body = [
+              '## MMR Deep Review Summary (L4 文档+数据结论)',
+              '',
+              `| Metric | Count |`,
+              `|--------|-------|`,
+              `| 审查制品数 | ${total} |`,
+              `| **Confirmed 发现** | **${confirmed}** |`,
+              '',
+              details.length > 0 ? '**Confirmed 详情:**\n' + details.join('\n') : '无 confirmed 发现。',
+              '',
+              `Powered by DeepSeek + GLM 双模型投票 (data-claim lens for reports/*.json)`
+            ].join('\n');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
