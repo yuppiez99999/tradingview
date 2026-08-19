@@ -1,19 +1,21 @@
-# -*- coding: utf-8 -*-
 """大宗商品监控 — 康波周期大宗商品 + 宏观指标 + 基本面"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
-import pandas as pd
 from datetime import datetime
+
+import pandas as pd
+import streamlit as st
 
 st.title("💎 大宗商品监控")
 st.caption("康波周期大宗商品全维度监控 — 价格/趋势/预警 + 宏观指标")
 
-from ui.components.module_loader import get_system_module
 from ui.components.common import inject_global_style
+from ui.components.module_loader import get_system_module
 from ui.components.system_status import render_alert_card, render_status_card
 
 inject_global_style()

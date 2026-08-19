@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """系统状态组件 — 统一卡片/徽章/KPI，对齐 QuantMind 前台风格"""
 import streamlit as st
 

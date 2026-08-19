@@ -67,7 +67,7 @@ def load_returns(path: Path) -> list[dict]:
     if not path.exists():
         raise FileNotFoundError(f"收益文件不存在: {path}")
     records: list[dict] = []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -148,7 +148,7 @@ def rebuild(dry_run: bool = False) -> dict:
     # 2. 加载原 state
     if not STATE_FILE.exists():
         raise FileNotFoundError(f"状态文件不存在: {STATE_FILE}")
-    with open(STATE_FILE, "r", encoding="utf-8") as f:
+    with open(STATE_FILE, encoding="utf-8") as f:
         state = json.load(f)
 
     initial_capital = float(state.get("initial_capital", 500000))
@@ -310,14 +310,14 @@ def _build_log(records, daily_nav, final_nav, final_capital,
         "",
         "## 四、Fail-Fast 检查",
         "",
-        f"- 单日回撤阈值: 3%",
-        f"- 3日累计回撤阈值: 5%",
+        "- 单日回撤阈值: 3%",
+        "- 3日累计回撤阈值: 5%",
         f"- 检查结果: {'⚠️ 触发 — ' + ff_reason if ff_triggered else '✅ 未触发 (所有交易日均在安全范围内)'}",
         "",
         "## 五、数据可信度",
         "",
         f"- 真实市场数据天数: {len(records)} / {len(records)} (100%)",
-        f"- 数据来源: w13a_real_market_feed (Wind MCP + TDX + AKShare 多源)",
+        "- 数据来源: w13a_real_market_feed (Wind MCP + TDX + AKShare 多源)",
         f"- 样本充足性: {len(records)} < 20 (不足以计算 DSR, 观察期继续)",
         "",
         "## 六、后续动作",

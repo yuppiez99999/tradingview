@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -18,7 +17,6 @@ from utils.positions_loader import (
     get_positions_list,
     load_positions,
 )
-
 
 # ============================================================
 # load_positions

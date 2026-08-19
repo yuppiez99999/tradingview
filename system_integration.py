@@ -40,6 +40,7 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 # Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
 sys.path.insert(0, _BASE)  # bootstrap: 确保 utils 包可导入
 from utils.path_config import setup_sys_path  # noqa: E402
+
 setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 # 优先加载项目根目录 .env，确保 WIND / VOLCENGINE 等密钥在导入业务模块前生效
@@ -615,7 +616,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
 
     # ---------- 主执行钩子 ----------
 
-    def _execute_daily_trading(self, execution_name: str = "daily_execution", force_step5c: bool = False):
+    def _execute_daily_trading(self, execution_name: str = "daily_execution", force_step5c: bool = False) -> None:
         """覆盖父类方法, 注入 P0 钩子
 
         执行顺序:
@@ -652,7 +653,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             self._hook_cost_aware_backtest(force=force_step5c)
             self._hook_stop_loss_review()
 
-    def _hook_update_signal_fusion(self):
+    def _hook_update_signal_fusion(self) -> None:
         """步骤5a: 更新 SignalFusion 权重"""
         if not self.signal_fusion:
             return
@@ -664,7 +665,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"SignalFusion 权重更新失败: {e}")
 
-    def _hook_drift_and_retrain(self):
+    def _hook_drift_and_retrain(self) -> bool:
         """步骤5b: 漂移检测 + 自动重训练触发 (N1 重写)
 
         修复 Bug-A: check_drift() → check_all() (旧代码 hasattr 兜底让告警永远空)
@@ -847,7 +848,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             logger.debug(traceback.format_exc())
             return False
 
-    def _hook_cost_aware_backtest(self, force: bool = False):
+    def _hook_cost_aware_backtest(self, force: bool = False) -> None:
         """步骤5c: 成本感知回测验证"""
         if not _COST_AWARE_BACKTEST_AVAILABLE or CostAwareBacktest is None:
             return
@@ -884,7 +885,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"成本感知回测失败: {e}")
 
-    def _hook_stop_loss_review(self):
+    def _hook_stop_loss_review(self) -> None:
         """步骤4: 止损止盈自动触发"""
         if not self.stop_loss_monitor:
             return
@@ -901,14 +902,14 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
 
     # ---------- 系统控制 ----------
 
-    def start_system(self):
+    def start_system(self) -> None:
         """启动系统"""
         logger.info("集成执行系统启动")
         # 这里可以启动监控线程/定时任务
         # 当前为简化实现, 仅执行一次日度流程
         self._execute_daily_trading()
 
-    def stop_system(self):
+    def stop_system(self) -> None:
         """停止系统"""
         logger.info("集成执行系统停止")
 

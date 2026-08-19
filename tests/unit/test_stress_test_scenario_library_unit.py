@@ -17,10 +17,8 @@ from utils.stress_test_scenario_library import (
     ShockFactors,
     StressScenario,
     StressTestEngine,
-    StressTestResult,
     _build_default_scenarios,
 )
-
 
 # ============================================================
 # Dataclass

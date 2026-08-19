@@ -1,18 +1,19 @@
-# -*- coding: utf-8 -*-
 """投资组合优化 — 多策略资产配置对比"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 st.title("📈 投资组合优化")
 st.caption("多策略资产配置对比 — 等权重 / 风险平价 / 风险配比 / 因子配比 / 自定义配置")
 
-from ui.components.module_loader import get_system_module
 from ui.components.common import inject_global_style
+from ui.components.module_loader import get_system_module
 from ui.components.system_status import render_alert_card, render_status_card
 
 inject_global_style()

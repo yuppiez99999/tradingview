@@ -13,9 +13,6 @@
 """
 from __future__ import annotations
 
-from datetime import date
-from unittest.mock import MagicMock
-
 import pandas as pd
 import pytest
 
@@ -34,7 +31,6 @@ from utils.price_limit_calculator import (
     is_at_limit_up,
     normalize_code,
 )
-
 
 # ============================================================
 # normalize_code

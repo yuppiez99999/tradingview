@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AI Hedge Fund 模块 — 集成到量化策略 v5.6+
 19 个 AI 分析师 Agent + LangGraph 工作流编排
@@ -23,8 +22,8 @@ __all__ = [
 def is_available() -> bool:
     """检查 AI Hedge Fund 是否可用 (langchain/langgraph 已安装)"""
     try:
-        import langgraph
         import langchain_core
+        import langgraph
         return True
     except ImportError:
         return False

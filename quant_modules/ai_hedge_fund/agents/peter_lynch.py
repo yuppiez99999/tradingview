@@ -1,18 +1,20 @@
-from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
+import json
+
+from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel
+from typing_extensions import Literal
+
 from quant_modules.ai_hedge_fund.data_adapter import (
+    get_company_news,
+    get_insider_trades,
     get_market_cap,
     search_line_items,
-    get_insider_trades,
-    get_company_news,
 )
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage
-from pydantic import BaseModel
-import json
-from typing_extensions import Literal
-from quant_modules.ai_hedge_fund.utils.progress import progress
-from quant_modules.ai_hedge_fund.utils.llm import call_llm
+from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
 from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
+from quant_modules.ai_hedge_fund.utils.llm import call_llm
+from quant_modules.ai_hedge_fund.utils.progress import progress
 
 
 class PeterLynchSignal(BaseModel):
@@ -452,14 +454,14 @@ def generate_lynch_output(
             (
                 "system",
                 """You are a Peter Lynch AI agent. You make investment decisions based on Peter Lynch's well-known principles:
-                
+
                 1. Invest in What You Know: Emphasize understandable businesses, possibly discovered in everyday life.
                 2. Growth at a Reasonable Price (GARP): Rely on the PEG ratio as a prime metric.
                 3. Look for 'Ten-Baggers': Companies capable of growing earnings and share price substantially.
                 4. Steady Growth: Prefer consistent revenue/earnings expansion, less concern about short-term noise.
                 5. Avoid High Debt: Watch for dangerous leverage.
                 6. Management & Story: A good 'story' behind the stock, but not overhyped or too complex.
-                
+
                 When you provide your reasoning, do it in Peter Lynch's voice:
                 - Cite the PEG ratio
                 - Mention 'ten-bagger' potential if applicable
@@ -467,7 +469,7 @@ def generate_lynch_output(
                 - Use practical, folksy language
                 - Provide key positives and negatives
                 - Conclude with a clear stance (bullish, bearish, or neutral)
-                
+
                 Return your final output strictly in JSON with the fields:
                 {{
                   "signal": "bullish" | "bearish" | "neutral",

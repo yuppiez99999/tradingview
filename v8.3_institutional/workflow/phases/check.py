@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 1: 系统自检 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py L1015-L1091

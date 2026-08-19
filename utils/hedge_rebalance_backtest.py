@@ -197,7 +197,7 @@ STOCK_BETAS = {
 
 class BacktestDataLoader:
 
-    def __init__(self, cache_dir: str = None):
+    def __init__(self, cache_dir: Optional[str] = None) -> None:
         if cache_dir is None:
             base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             self.cache_dir = os.path.join(base, '..', 'data', 'cache')
@@ -208,7 +208,7 @@ class BacktestDataLoader:
         self._csi300: Optional[pd.DataFrame] = None
         self._index_data: Dict[str, pd.Series] = {}  # v2.0 多指数数据
 
-    def load_or_download(self, codes, start, end, retry=False):
+    def load_or_download(self, codes: List[str], start: str, end: str, retry: bool = False) -> Dict[str, pd.DataFrame]:
         result = {}
         missing = []
         for code in codes:
@@ -234,7 +234,7 @@ class BacktestDataLoader:
         self._price_data = result
         return result
 
-    def load_csi300(self, start, end):
+    def load_csi300(self, start: str, end: str) -> pd.DataFrame:
         """加载沪深300指数 (保留向后兼容, 优先复用multi_index结果)"""
         if self._csi300 is not None and len(self._csi300) > 50:
             return self._csi300
@@ -247,7 +247,7 @@ class BacktestDataLoader:
             self._csi300 = df
         return df or pd.DataFrame()
 
-    def load_multi_index(self, start, end) -> Dict[str, pd.Series]:
+    def load_multi_index(self, start: str, end: str) -> Dict[str, pd.Series]:
         """v2.0: 加载多指数数据 (CSI300/500/1000)"""
         indices = {
             "IF": ("sh.000300", "000300"),
@@ -268,7 +268,7 @@ class BacktestDataLoader:
 
         return self._index_data
 
-    def _load_index_data(self, bs_code, cache_name, start, end):
+    def _load_index_data(self, bs_code: str, cache_name: str, start: str, end: str) -> Optional[pd.DataFrame]:
         cpath = os.path.join(self.cache_dir, f'kline_{cache_name}_daily.parquet')
         if os.path.exists(cpath):
             df = pd.read_parquet(cpath)
@@ -299,7 +299,7 @@ class BacktestDataLoader:
             return df
         return None
 
-    def _bs_download(self, codes, start, end):
+    def _bs_download(self, codes: List[str], start: str, end: str) -> None:
         import baostock as bs
         bs.login()
         n = len(codes)
@@ -330,7 +330,7 @@ class BacktestDataLoader:
                 logger.info(f"  [{i+1}/{n}] XX {name} ({code}): {e}")
         bs.logout()
 
-    def build_unified_dataframe(self, start, end):
+    def build_unified_dataframe(self, start: str, end: str) -> Tuple[pd.DataFrame, pd.Series, Dict[str, pd.Series]]:
         """构建统一价格矩阵"""
         all_dates = set()
         for df in self._price_data.values():
@@ -489,7 +489,7 @@ def get_dynamic_rebalance_threshold(vol_30d: float) -> float:
 
 class HedgeRebalanceBacktest:
 
-    def __init__(self, price_df, csi300_ret, index_rets=None):
+    def __init__(self, price_df: pd.DataFrame, csi300_ret: pd.Series, index_rets: Optional[Dict[str, pd.Series]] = None) -> None:
         self.price_df = price_df
         self.csi300_ret = csi300_ret
         self.index_rets = index_rets or {}
@@ -499,7 +499,7 @@ class HedgeRebalanceBacktest:
         self.multi_betas, self.total_beta = compute_multi_index_beta_weights()
 
     @staticmethod
-    def _compute_turnover(prev_pos, pos, px):
+    def _compute_turnover(prev_pos: Dict[str, int], pos: Dict[str, int], px: Dict[str, float]) -> float:
         if prev_pos is None:
             return 0.0
         turnover = 0.0
@@ -514,7 +514,7 @@ class HedgeRebalanceBacktest:
             turnover += traded_value
         return turnover
 
-    def run_all(self):
+    def run_all(self) -> MultiStrategyResult:
         logger.info("  [1/5] 策略1: 静态基准 ...")
         s1 = self._run_s1()
         self._metrics(s1)
@@ -538,7 +538,7 @@ class HedgeRebalanceBacktest:
         return MultiStrategyResult(strategies=[s1, s2, s3, s4, s5])
 
     # ---- 策略1: 静态基准 ----
-    def _run_s1(self):
+    def _run_s1(self) -> BacktestResult:
         eq = [INITIAL_CAPITAL]
         trades = 0
         hc, tc = [0.0], [0.0]
@@ -609,7 +609,7 @@ class HedgeRebalanceBacktest:
             hedge_costs=hc, transaction_costs=tc, n_days=self.n_days)
 
     # ---- 策略2: 仅动态再平衡 ----
-    def _run_s2(self):
+    def _run_s2(self) -> BacktestResult:
         eq = [INITIAL_CAPITAL]
         trades = 0
         hc, tc = [0.0], [0.0]
@@ -700,7 +700,7 @@ class HedgeRebalanceBacktest:
             turnover_daily=turnover_daily)
 
     # ---- 策略3: 仅固定对冲(CSI300) ----
-    def _run_s3(self):
+    def _run_s3(self) -> BacktestResult:
         eq = [INITIAL_CAPITAL]
         trades = 0
         hc, tc = [0.0], [0.0]
@@ -779,7 +779,7 @@ class HedgeRebalanceBacktest:
             hedge_costs=hc, transaction_costs=tc, n_days=self.n_days)
 
     # ---- 策略4 v2.0: 多指数Beta加权联动 ----
-    def _run_s4_v2(self):
+    def _run_s4_v2(self) -> BacktestResult:
         """v2.0: 多指数Beta加权对冲 + 动态再平衡 + 板块轮动
 
         与v1.0核心区别:
@@ -956,7 +956,7 @@ class HedgeRebalanceBacktest:
             roll_cost=sum(roll_costs), margin_cost=sum(margin_costs), slippage_cost=sum(slip_costs))
 
     # ---- 策略5 v2.0: S2+组合自触发尾部对冲 ----
-    def _run_s5(self):
+    def _run_s5(self) -> BacktestResult:
         """v2.0 新增: S2动态再平衡 + 组合自触发尾部对冲
 
         核心理念:
@@ -1133,19 +1133,19 @@ class HedgeRebalanceBacktest:
         return result
 
     # ---- 辅助 ----
-    def _px(self, code, idx):
+    def _px(self, code: str, idx: int) -> float:
         if code in self.price_df.columns:
             v = self.price_df.iloc[idx][code]
             return float(v) if pd.notna(v) and v > 0 else 0.0
         return 0.0
 
-    def _rets(self, eq):
+    def _rets(self, eq: List[float]) -> List[float]:
         rets = [0.0]
         for i in range(1, len(eq)):
             rets.append((eq[i] - eq[i-1]) / max(1, eq[i-1]) if eq[i-1] > 0 else 0)
         return rets
 
-    def _metrics(self, r: BacktestResult):
+    def _metrics(self, r: BacktestResult) -> None:
         eq = np.array(r.equity_curve)
         rets = np.array(r.daily_returns)
 
@@ -1226,7 +1226,7 @@ def format_comparison_report(multi: MultiStrategyResult) -> str:
     lines.append("")
 
     ss = multi.strategies
-    n_cols = len(ss)
+    len(ss)
 
     # 核心指标对比
     lines.append("  [1] 核心绩效指标")
@@ -1360,7 +1360,7 @@ def format_comparison_report(multi: MultiStrategyResult) -> str:
     return "\n".join(lines)
 
 
-def save_report(report, output_dir=None):
+def save_report(report: str, output_dir: Optional[str] = None) -> str:
     if output_dir is None:
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         output_dir = os.path.join(base, '..', 'reports')
@@ -1372,7 +1372,7 @@ def save_report(report, output_dir=None):
     return fpath
 
 
-def run_backtest(start=START_DATE, end=END_DATE, output_dir=None, force_dl=False):
+def run_backtest(start: str = START_DATE, end: str = END_DATE, output_dir: Optional[str] = None, force_dl: bool = False) -> Tuple[MultiStrategyResult, str]:
     import time
     t0 = time.time()
 

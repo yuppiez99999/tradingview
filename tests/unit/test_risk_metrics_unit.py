@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """risk_metrics 单元测试 — 风险指标计算工具全分支覆盖.
 
 被测模块: utils/risk_metrics.py
@@ -35,7 +34,6 @@ from utils.risk_metrics import (  # noqa: E402
     calculate_volatility,
     calculate_win_rate,
 )
-
 
 # ============================================================
 # calculate_var

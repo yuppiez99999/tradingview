@@ -4,7 +4,6 @@ from __future__ import annotations
 import pytest
 
 from utils.risk.position_limit_enforcer import (
-    EnforcementResult,
     OrderImpact,
     PositionLimitEnforcer,
     PositionSnapshot,
@@ -112,7 +111,7 @@ class TestGrossLeverageCap:
     def test_high_gross_reject(self):
         # 多空合计 3000 万 / 1000 万 = 3x > 2x 阈值
         enf = PositionLimitEnforcer(gross_leverage_cap=2.00)
-        snap = PositionSnapshot(
+        PositionSnapshot(
             total_equity=10_000_000,
             positions={
                 "long": (10_000, 100.0),   # 多头 100 万

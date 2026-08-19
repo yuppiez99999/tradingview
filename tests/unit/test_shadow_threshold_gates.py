@@ -29,14 +29,14 @@ _PROJ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 if _PROJ not in sys.path:
     sys.path.insert(0, _PROJ)
 
-from shadow_helpers import make_real_records, make_progress_dict
-from scripts.observation_watchdog import check_gates, run_watchdog
-from scripts.integrate_cleaned_to_drift import (
-    run_drift_detection,
-    MIN_REAL_SAMPLES_FOR_DRIFT,
-    BASELINE_RATIO,
-)
+from shadow_helpers import make_progress_dict, make_real_records
 
+from scripts.integrate_cleaned_to_drift import (
+    BASELINE_RATIO,
+    MIN_REAL_SAMPLES_FOR_DRIFT,
+    run_drift_detection,
+)
+from scripts.observation_watchdog import check_gates, run_watchdog
 
 # ============================================================
 # 1. check_gates() 双重门槛判定 (纯函数, 无需 mock)
@@ -317,7 +317,7 @@ class TestWatchdogTriggerDecision:
         """14/14 天达标 + dry_run → 不触发 (试运行)"""
         mock_progress.return_value = make_progress_dict(14)
         mock_records.return_value = (make_real_records(14), {"real": 14})
-        result = run_watchdog(required_days=14, dry_run=True, force_trigger=False)
+        run_watchdog(required_days=14, dry_run=True, force_trigger=False)
         assert mock_trigger.call_count == 0
         assert mock_log.call_count == 0  # dry_run 不写日志
 
@@ -332,7 +332,7 @@ class TestWatchdogTriggerDecision:
         """6/14 天 + force_trigger + dry_run → 不触发 (dry_run 优先级最高)"""
         mock_progress.return_value = make_progress_dict(6)
         mock_records.return_value = (make_real_records(6), {"real": 6})
-        result = run_watchdog(required_days=14, dry_run=True, force_trigger=True)
+        run_watchdog(required_days=14, dry_run=True, force_trigger=True)
         assert mock_trigger.call_count == 0
 
     @pytest.mark.unit

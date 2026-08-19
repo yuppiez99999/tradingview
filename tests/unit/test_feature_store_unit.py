@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """feature_store 单元测试 — 特征缓存层全覆盖.
 
 被测模块: utils/data/feature_store.py
@@ -6,19 +5,15 @@
 """
 from __future__ import annotations
 
-import json
 import sys
 import time
 from pathlib import Path
-
-import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.data.feature_store import FeatureStore  # noqa: E402
-
 
 # ============================================================
 # make_key
@@ -119,7 +114,8 @@ class TestGetOrCompute:
     def test_cached_no_recompute(self, tmp_path):
         store = FeatureStore(cache_dir=tmp_path, ttl_seconds=3600)
         calls = []
-        fn = lambda: (calls.append(1), 99)[1]
+        def fn():
+            return (calls.append(1), 99)[1]
         store.get_or_compute("k", fn)
         store.get_or_compute("k", fn)
         assert len(calls) == 1

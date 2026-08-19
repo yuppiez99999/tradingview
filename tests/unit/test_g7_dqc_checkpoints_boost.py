@@ -12,9 +12,9 @@
 from __future__ import annotations
 
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -366,7 +366,7 @@ class TestP2CacheQualityGateExternalDeps:
 class TestP2CacheQualityGatePublishing:
     def test_publish_appends_event(self, good_cache_df):
         from utils.dqc.checkpoints.p2_cache_quality import P2CacheQualityGate
-        from utils.dqc.event_types import DQCEvent, DQCLevel, DQCCheckpoint
+        from utils.dqc.event_types import DQCCheckpoint, DQCEvent, DQCLevel
         gate = P2CacheQualityGate()
         event = DQCEvent(
             metric_id="C-01",
@@ -382,7 +382,7 @@ class TestP2CacheQualityGatePublishing:
 
     def test_publish_critical_logs_critical(self, good_cache_df):
         from utils.dqc.checkpoints.p2_cache_quality import P2CacheQualityGate
-        from utils.dqc.event_types import DQCEvent, DQCLevel, DQCCheckpoint
+        from utils.dqc.event_types import DQCCheckpoint, DQCEvent, DQCLevel
         gate = P2CacheQualityGate()
         event = DQCEvent(
             metric_id="C-01",
@@ -398,7 +398,7 @@ class TestP2CacheQualityGatePublishing:
 
     def test_publish_error_logs_error(self, good_cache_df):
         from utils.dqc.checkpoints.p2_cache_quality import P2CacheQualityGate
-        from utils.dqc.event_types import DQCEvent, DQCLevel, DQCCheckpoint
+        from utils.dqc.event_types import DQCCheckpoint, DQCEvent, DQCLevel
         gate = P2CacheQualityGate()
         event = DQCEvent(
             metric_id="A-01",
@@ -414,7 +414,7 @@ class TestP2CacheQualityGatePublishing:
 
     def test_publish_warn_logs_warning(self, good_cache_df):
         from utils.dqc.checkpoints.p2_cache_quality import P2CacheQualityGate
-        from utils.dqc.event_types import DQCEvent, DQCLevel, DQCCheckpoint
+        from utils.dqc.event_types import DQCCheckpoint, DQCEvent, DQCLevel
         gate = P2CacheQualityGate()
         event = DQCEvent(
             metric_id="T-01",
@@ -432,7 +432,7 @@ class TestP2CacheQualityGatePublishing:
 
     def test_publish_info_logs_info(self, good_cache_df):
         from utils.dqc.checkpoints.p2_cache_quality import P2CacheQualityGate
-        from utils.dqc.event_types import DQCEvent, DQCLevel, DQCCheckpoint
+        from utils.dqc.event_types import DQCCheckpoint, DQCEvent, DQCLevel
         gate = P2CacheQualityGate()
         event = DQCEvent(
             metric_id="C-01",

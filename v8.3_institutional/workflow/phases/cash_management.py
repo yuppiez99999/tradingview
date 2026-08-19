@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 4.8: 现金管理 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py L1994-L2149
@@ -18,7 +17,7 @@ import json
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from workflow.context import WorkflowContext, get_dw_module
 
@@ -34,7 +33,7 @@ if _dw is not None and hasattr(_dw, "CashManager"):
     CashManager = _dw.CashManager
 
 
-def phase_cash_management(ctx: WorkflowContext) -> Dict[str, Any]:
+def phase_cash_management(ctx: WorkflowContext) -> dict[str, Any]:
     """现金管理 — 逆回购自动下单 + 应急金监控 + 保证金追加检查
 
     v10.0 投资计划 cash_management (130 万资金, 占总资本 26%):
@@ -56,7 +55,7 @@ def phase_cash_management(ctx: WorkflowContext) -> Dict[str, Any]:
     logger.info("Phase 4.8: 现金管理 (逆回购 + 货基 + 应急金)")
     logger.info("=" * 60)
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "status": "PASS",
         "action": "skip",
         "total_cash": 0.0,
@@ -142,7 +141,7 @@ def phase_cash_management(ctx: WorkflowContext) -> Dict[str, Any]:
     return result
 
 
-def _load_cash_state() -> Tuple[float, float, float, float]:
+def _load_cash_state() -> tuple[float, float, float, float]:
     """加载当前现金状态
 
     Returns:
@@ -151,7 +150,7 @@ def _load_cash_state() -> Tuple[float, float, float, float]:
     try:
         cash_path = BASE_DIR.parent / "config" / "cash_state.json"
         if cash_path.exists():
-            with open(cash_path, "r", encoding="utf-8") as f:
+            with open(cash_path, encoding="utf-8") as f:
                 data = json.load(f)
             return (
                 float(data.get("total_cash", 1_300_000)),
@@ -175,7 +174,7 @@ def _get_current_repo_rate() -> float:
         return 0.025
 
 
-def _load_futures_account_state() -> Tuple[float, float]:
+def _load_futures_account_state() -> tuple[float, float]:
     """加载期货账户状态
 
     Returns:
@@ -184,7 +183,7 @@ def _load_futures_account_state() -> Tuple[float, float]:
     try:
         futures_path = BASE_DIR.parent / "config" / "futures_account.json"
         if futures_path.exists():
-            with open(futures_path, "r", encoding="utf-8") as f:
+            with open(futures_path, encoding="utf-8") as f:
                 data = json.load(f)
             return (
                 float(data.get("account_value", 500_000)),

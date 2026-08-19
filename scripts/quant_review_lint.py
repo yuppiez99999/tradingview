@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """量化专项静态检查 (CODE_REVIEW_PLAN Task 3.1).
 
 对应 docs/CODE_REVIEW_STANDARD.md §6 量化专项清单中可机检的部分。

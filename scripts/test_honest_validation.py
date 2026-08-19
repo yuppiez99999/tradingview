@@ -12,22 +12,22 @@
 seed=20260812 确定性
 """
 
-import sys
 import os
+import sys
+
 import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from utils.backtest.deflated_sharpe import (
-    deflated_sharpe_ratio,
     DSRResult,
+    deflated_sharpe_ratio,
 )
 from utils.backtest.honest_validation import (
-    run_honest_validation,
     HonestValidationResult,
+    run_honest_validation,
 )
-
 
 # ============================================================
 # 合成数据

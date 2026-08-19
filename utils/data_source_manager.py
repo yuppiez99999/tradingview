@@ -3,10 +3,12 @@
 支持：优先级回退、连接健康检查、缓存统计、自动降级通知
 """
 
+from __future__ import annotations
+
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 from .logging_manager import get_logger
 
@@ -58,33 +60,33 @@ class DataSourceRegistry:
     """数据源注册表 — 统一管理所有数据源及其优先级"""
 
     def __init__(self):
-        self._sources: Dict[str, DataSourceInfo] = {}
+        self._sources: dict[str, DataSourceInfo] = {}
         self._logger = get_logger('data_source')
 
-    def register(self, name: str, priority: int):
+    def register(self, name: str, priority: int) -> None:
         """注册数据源"""
         self._sources[name] = DataSourceInfo(name=name, priority=priority)
         self._logger.info(f"📋 注册数据源: {name} (优先级: {priority})")
 
-    def mark_healthy(self, name: str):
+    def mark_healthy(self, name: str) -> None:
         if name in self._sources:
             self._sources[name].status = DataSourceStatus.HEALTHY
             self._sources[name].last_check_time = time.time()
             self._sources[name].success_count += 1
 
-    def mark_degraded(self, name: str, reason: str = ""):
+    def mark_degraded(self, name: str, reason: str = "") -> None:
         if name in self._sources:
             self._sources[name].status = DataSourceStatus.DEGRADED
             self._sources[name].error_count += 1
             self._logger.warning(f"⚠️ 数据源降级: {name}" + (f" ({reason})" if reason else ""))
 
-    def mark_unavailable(self, name: str, reason: str = ""):
+    def mark_unavailable(self, name: str, reason: str = "") -> None:
         if name in self._sources:
             self._sources[name].status = DataSourceStatus.UNAVAILABLE
             self._sources[name].error_count += 1
             self._logger.error(f"❌ 数据源不可用: {name}" + (f" ({reason})" if reason else ""))
 
-    def get_available_sources(self) -> List[str]:
+    def get_available_sources(self) -> list[str]:
         """获取当前可用的数据源列表（按优先级排序）"""
         available = [
             name for name, info in self._sources.items()
@@ -128,20 +130,20 @@ class PriorityDataSourceManager:
     """
 
     def __init__(self, registry: DataSourceRegistry = None):
-        self._sources: Dict[str, Callable] = {}  # name -> fetch function
-        self._priorities: Dict[str, int] = {}
+        self._sources: dict[str, Callable] = {}  # name -> fetch function
+        self._priorities: dict[str, int] = {}
         self._registry = registry or DataSourceRegistry()
         self._last_successful_source: Optional[str] = None
         self._logger = get_logger('data_source')
 
-    def register_source(self, name: str, fetch_func: Callable, priority: int = 0):
+    def register_source(self, name: str, fetch_func: Callable, priority: int = 0) -> None:
         """注册数据源及其获取函数"""
         self._sources[name] = fetch_func
         self._priorities[name] = priority
         self._registry.register(name, priority)
 
-    def fetch_with_fallback(self, *args, default=None, log_target: str = None,
-                            **kwargs) -> Any:
+    def fetch_with_fallback(self, *args: Any, default: Any = None, log_target: str = None,
+                            **kwargs: Any) -> Any:
         """按优先级尝试所有数据源，失败自动回退 — 借鉴 TradingAgents-CN 模式
 
         Args:

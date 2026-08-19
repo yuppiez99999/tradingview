@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """EOD 干跑测试 — 验证 daily_workflow.py 拆分后完整 14 phase 链路正确性.
 
 构造模拟数据环境, 执行完整 run() 流程, 收集各 phase 状态和产物.
@@ -16,7 +15,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 import traceback
@@ -57,13 +55,13 @@ def separator(title: str = ""):
 def main():
     separator("EOD 干跑测试 — daily_workflow.py 拆分后集成验证")
     print(f"  交易日期: {TRADE_DATE}")
-    print(f"  模式: DRY-RUN + SIMULATION")
-    print(f"  基线: daily_workflow.py 2785 行 (5 轮拆分后)")
+    print("  模式: DRY-RUN + SIMULATION")
+    print("  基线: daily_workflow.py 2785 行 (5 轮拆分后)")
 
     # === 1. 构造 DailyWorkflow 实例 ===
     separator("Step 1: 构造 DailyWorkflow 实例")
     try:
-        from daily_workflow import DailyWorkflow, V75_READY
+        from daily_workflow import V75_READY, DailyWorkflow
         wf = DailyWorkflow(
             trade_date=TRADE_DATE,
             capital=5_000_000,
@@ -72,7 +70,7 @@ def main():
         )
         # 重定向报告目录到项目内 (避免沙箱权限问题)
         wf.config.REPORT_DIR = EOD_REPORT_DIR
-        print(f"  [OK] DailyWorkflow 实例化成功")
+        print("  [OK] DailyWorkflow 实例化成功")
         print(f"  V75_READY: {V75_READY} (核心模块 {'已加载' if V75_READY else '未加载 — check/market/risk 将降级'})")
         print(f"  交易计划加载: {'是' if wf.trade_plan else '否 (空计划降级)'}")
         if wf.trade_plan:
@@ -227,7 +225,7 @@ def main():
     state_json_path = report_dir / f"workflow_state_{TRADE_DATE.replace('-', '')}.json"
     if state_json_path.exists():
         try:
-            with open(state_json_path, "r", encoding="utf-8") as f:
+            with open(state_json_path, encoding="utf-8") as f:
                 state = json.load(f)
             phase_keys = list(state.get("phases", {}).keys())
             print(f"  [OK] 状态 JSON 存在: {state_json_path.name}")
@@ -236,7 +234,7 @@ def main():
         except Exception as exc:
             print(f"  [WARN] 状态 JSON 解析失败: {exc}")
     else:
-        print(f"  [INFO] 状态 JSON 不存在 (phase_report 可能 SKIP)")
+        print("  [INFO] 状态 JSON 不存在 (phase_report 可能 SKIP)")
 
     # === 6. 验证拆分后门面转发正确性 ===
     separator("Step 6: 验证拆分后门面转发正确性")
@@ -292,7 +290,7 @@ def main():
         if split_failure_rate > 0.5:
             print(f"  [FAIL] 拆单失败率 {split_failure_rate * 100:.1f}% > 50% 阈值")
     else:
-        print(f"  拆单断言: 跳过 (split_total=0, 无拆单操作)")
+        print("  拆单断言: 跳过 (split_total=0, 无拆单操作)")
 
     # 判定标准: ERROR 数 = 0 (FAIL/SKIP/ENV_SKIP 可接受, ERROR=崩溃)
     # + 拆单失败率 ≤ 50% (避免 try/except 吞没问题)
@@ -300,7 +298,7 @@ def main():
     split_degraded = split_failure_rate > 0.5
     exit_code = 0 if (error_count == 0 and not split_degraded) else 1
     verdict = "PASS" if exit_code == 0 else "FAIL"
-    print(f"  判定标准: ERROR 数 = 0 + 拆单失败率 ≤ 50%")
+    print("  判定标准: ERROR 数 = 0 + 拆单失败率 ≤ 50%")
     print(f"  ERROR 数:    {error_count}")
     print(f"  ENV_SKIP 数: {env_skip_count} (环境依赖, 非拆分问题)")
     print(f"  拆单降级:    {split_degraded}")

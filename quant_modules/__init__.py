@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """quant_modules — 量化交易核心模块包
 
 子模块:

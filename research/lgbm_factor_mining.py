@@ -25,8 +25,8 @@ from utils.lgbm_reproducibility import (  # noqa: E402
     ManifestWriteError,
     TrainingConfig,
     artifact_name,
-    write_manifest,
     construct_default_config,
+    write_manifest,
 )
 
 
@@ -268,7 +268,7 @@ def train_and_analyze(
 
     X = panel_clean[factor_cols].values  # noqa: N806
     y = panel_clean["y"].values
-    panel_clean["date"].values
+
 
     logger.info(f"训练数据: {len(X)} 样本, {len(factor_cols)} 因子")
     logger.info(f"ECC GAP-7: artifact_name={artifact_name(config)}")

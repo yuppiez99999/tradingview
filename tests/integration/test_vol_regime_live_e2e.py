@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 VolRegimeWeighter 实盘集成端到端测试
 =====================================
@@ -20,9 +19,8 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -86,8 +84,8 @@ class TestLiveMonitoringChain:
             }
 
             # 使用真实 VixDataSource 和 DrawdownReader
-            from utils.alpha.vix_data_source import VixDataSource
             from utils.alpha.drawdown_reader import DrawdownReader
+            from utils.alpha.vix_data_source import VixDataSource
 
             vix = VixDataSource().fetch_vix(use_cache=False)
             dd = DrawdownReader().get_current_drawdown()
@@ -165,8 +163,8 @@ class TestEodChain:
 
     def test_eod_chain_orchestrator_call(self, real_shadow_state, real_portfolio, temp_reports_dir):
         """EOD 链路: orchestrator → _fetch_vix → DrawdownReader → run_cycle."""
-        from utils.alpha.vix_data_source import VixDataSource
         from utils.alpha.drawdown_reader import DrawdownReader
+        from utils.alpha.vix_data_source import VixDataSource
         from utils.alpha.vol_regime_weighter import VolRegimeWeighter
 
         # 使用真实数据源
@@ -201,7 +199,7 @@ class TestEodChain:
     def test_eod_chain_fetch_vix_method(self, real_shadow_state):
         """EOD 链路: EvolutionOrchestrator._fetch_vix 方法重写后正常工作."""
         # 创建 mock orchestrator
-        mock_orchestrator = MagicMock()
+        MagicMock()
 
         # 调用 _fetch_vix 方法 (使用真实 VixDataSource)
         from utils.alpha.evolution_orchestrator import EvolutionOrchestrator
@@ -362,7 +360,6 @@ class TestConfigIntegrity:
 
     def test_feature_flag_registered(self):
         """USE_VOL_REGIME_WEIGHTER 已在 feature_flags.yaml 注册."""
-        import yaml
         ff_path = _PROJECT_ROOT / "configs" / "feature_flags.yaml"
         if not ff_path.exists():
             pytest.skip("feature_flags.yaml 不存在")

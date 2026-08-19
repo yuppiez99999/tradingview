@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 import json
-from typing_extensions import Literal
-from pydantic import BaseModel
 
-from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel
+from typing_extensions import Literal
 
 from quant_modules.ai_hedge_fund.data_adapter import (
     get_financial_metrics,
     get_market_cap,
     search_line_items,
 )
+from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
 from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
 from quant_modules.ai_hedge_fund.utils.llm import call_llm
 from quant_modules.ai_hedge_fund.utils.progress import progress
@@ -274,7 +274,7 @@ def analyze_relative_valuation(metrics: list) -> dict[str, any]:
     elif ttm_pe > 1.3 * median_pe:
         score, desc = -1, f"P/E {ttm_pe:.1f} vs. median {median_pe:.1f} (expensive)"
     else:
-        score, desc = 0, f"P/E inline with history"
+        score, desc = 0, "P/E inline with history"
 
     return {"score": score, "max_score": max_score, "details": desc}
 

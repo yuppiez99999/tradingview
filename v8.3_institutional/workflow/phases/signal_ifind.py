@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 5 子模块: iFinD 新闻研判 + 宏观政策评分 + 期权市场快照 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py
@@ -24,7 +23,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from workflow.context import WorkflowContext
 
@@ -57,9 +56,9 @@ def ifind_signal_to_factor(direction: str, confidence: float) -> float:
 def apply_ifind_news_adjustments(
     ctx: WorkflowContext,
     *,
-    morning_orders: List[Dict[str, Any]],
-    afternoon_orders: List[Dict[str, Any]],
-) -> Dict[str, Any]:
+    morning_orders: list[dict[str, Any]],
+    afternoon_orders: list[dict[str, Any]],
+) -> dict[str, Any]:
     """根据 iFinD 新闻/公告研判结果调整订单
 
     Args:
@@ -97,8 +96,8 @@ def apply_ifind_news_adjustments(
 
     insight_map = {item.symbol: item for item in insights}
 
-    def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        adjusted: List[Dict[str, Any]] = []
+    def _apply(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        adjusted: list[dict[str, Any]] = []
         for order in orders:
             code = str(order.get("code", ""))
             insight = insight_map.get(code)
@@ -113,7 +112,7 @@ def apply_ifind_news_adjustments(
 
             new_order = dict(order)
             original_shares = int(order.get("shares", 0))
-            original_amount = float(order.get("est_amount", 0))
+            float(order.get("est_amount", 0))
             new_shares = max(100, int(original_shares * factor / 100) * 100)
             new_order["shares"] = new_shares
             new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
@@ -147,10 +146,10 @@ def apply_ifind_news_adjustments(
 
 def apply_macro_policy_adjustments(
     *,
-    morning_orders: List[Dict[str, Any]],
-    afternoon_orders: List[Dict[str, Any]],
-    macro_scores: Dict[str, Any],
-) -> Dict[str, Any]:
+    morning_orders: list[dict[str, Any]],
+    afternoon_orders: list[dict[str, Any]],
+    macro_scores: dict[str, Any],
+) -> dict[str, Any]:
     """根据十五五/康波宏观评分调整订单
 
     Args:
@@ -175,8 +174,8 @@ def apply_macro_policy_adjustments(
     except Exception:
         return {}
 
-    def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        adjusted: List[Dict[str, Any]] = []
+    def _apply(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        adjusted: list[dict[str, Any]] = []
         for order in orders:
             code = str(order.get("code", ""))
             score_info = macro_scores.get(code)
@@ -192,7 +191,7 @@ def apply_macro_policy_adjustments(
 
             new_order = dict(order)
             original_shares = int(order.get("shares", 0))
-            original_amount = float(order.get("est_amount", 0))
+            float(order.get("est_amount", 0))
             new_shares = max(100, int(original_shares * factor / 100) * 100)
             new_order["shares"] = new_shares
             new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
@@ -224,7 +223,7 @@ def apply_macro_policy_adjustments(
     }
 
 
-def options_market_snapshot() -> Dict[str, Any]:
+def options_market_snapshot() -> dict[str, Any]:
     """期权市场快照（最小可用版本）
 
     实盘应接入期权行情/IV/Greek；当前仅返回占位结构，

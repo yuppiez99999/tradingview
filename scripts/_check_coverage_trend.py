@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 _check_coverage_trend.py — 覆盖率趋势监控 (真实实现)
 
@@ -27,10 +26,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -54,7 +52,7 @@ class CovResult(NamedTuple):
     detail: str
 
 
-def parse_coverage_xml(path: Path) -> Optional[Dict]:
+def parse_coverage_xml(path: Path) -> Optional[dict]:
     """最小 Cobertura 解析, 避免额外依赖 lxml。"""
     if not path.exists():
         return None
@@ -74,7 +72,7 @@ def parse_coverage_xml(path: Path) -> Optional[Dict]:
         return None
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Coverage trend checker")
     parser.add_argument("--coverage-xml", default=str(ROOT / "reports" / "coverage.xml"))
     parser.add_argument("--min-line-rate", type=float, default=0.05)
@@ -88,7 +86,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     cov_path = Path(args.coverage_xml)
     cov = parse_coverage_xml(cov_path)
 
-    results: List[CovResult] = []
+    results: list[CovResult] = []
 
     if cov is None:
         results.append(CovResult(
@@ -153,7 +151,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     return 1 if n_fail > 0 else 0
 
 
-def _write(out_path: Path, results: List[CovResult], cov_path: Path) -> None:
+def _write(out_path: Path, results: list[CovResult], cov_path: Path) -> None:
     report = {
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "coverage_xml": str(cov_path),

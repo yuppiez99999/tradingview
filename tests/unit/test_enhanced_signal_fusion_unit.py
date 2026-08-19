@@ -10,16 +10,12 @@ from __future__ import annotations
 
 import os
 import tempfile
-from unittest.mock import patch
-
-import pytest
 
 from utils.enhanced_signal_fusion import (
     EnhancedSignalFusionEngine,
     SourcePerformanceMetrics,
     WeightAdjustmentConfig,
 )
-
 
 # ============================================================
 # SourcePerformanceMetrics

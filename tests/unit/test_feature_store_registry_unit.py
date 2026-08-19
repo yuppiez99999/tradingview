@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """feature_store registry 单元测试 — 因子注册表/状态流转/JSON 原子写入全分支覆盖
 
 被测模块: utils/feature_store/registry.py

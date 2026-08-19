@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """risk_budget_optimizer 单元测试 — 风险预算约束优化器全分支覆盖.
 
 被测模块: utils/risk_budget_optimizer.py
@@ -15,7 +14,6 @@
 from __future__ import annotations
 
 import json
-import math
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -32,7 +30,6 @@ from utils.risk_budget_optimizer import (  # noqa: E402
     RiskBudgetOptimizer,
     RiskBudgetResult,
 )
-
 
 # ============================================================
 # 辅助构造
@@ -51,7 +48,6 @@ def _make_cov(n, seed=0):
 
 class RiskBudgetResultTest:
     def test_construct(self):
-        n = 3
         r = RiskBudgetResult(
             optimal_weights=np.array([0.4, 0.3, 0.3]),
             benchmark_weights=np.array([0.34, 0.33, 0.33]),
@@ -505,7 +501,7 @@ class SaveResultTest:
         ret = self.opt.save_result(res, out)
         assert ret == out
         assert out.exists()
-        with open(out, "r", encoding="utf-8") as f:
+        with open(out, encoding="utf-8") as f:
             data = json.load(f)
         assert data["symbols"] == ["a", "b"]
         assert len(data["optimal_weights"]) == n

@@ -57,6 +57,5 @@ for _stream in (sys.stdout, sys.stderr):
 # 转发到 feeder 主模块的 main()
 from utils.alpha.shadow_real_data_feeder import main  # noqa: E402
 
-
 if __name__ == "__main__":
     raise SystemExit(main())

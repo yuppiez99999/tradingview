@@ -50,7 +50,7 @@ import io
 import json
 import logging
 import sys
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -116,7 +116,7 @@ def load_cleaned_records(file_path: Path) -> list[dict[str, Any]]:
         raise FileNotFoundError(f"清洗文件不存在: {file_path}")
 
     records: list[dict[str, Any]] = []
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         for line_no, line in enumerate(f, start=1):
             line = line.strip()
             if not line:
@@ -226,6 +226,7 @@ def run_drift_detection(real_records: list[dict[str, Any]]) -> dict[str, Any]:
 
     try:
         import numpy as np
+
         from utils.alpha.drift_monitor import compute_prediction_drift
     except ImportError as exc:
         base_entry["status"] = "import_error"
@@ -328,7 +329,7 @@ def upsert_alert(alert_entry: dict[str, Any], output_file: Path, force: bool) ->
     existing_lines: list[str] = []
     replaced_count = 0
     if output_file.exists():
-        with open(output_file, "r", encoding="utf-8") as f:
+        with open(output_file, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -503,7 +504,7 @@ def print_summary(
         severity_emoji = {
             "low": "🟢", "medium": "🟡", "high": "🟠", "critical": "🔴",
         }.get(severity, "❓")
-        print(f"  状态: COMPLETED")
+        print("  状态: COMPLETED")
         print(f"  {severity_emoji} 严重等级: {severity}")
         print(f"  KS Score: {alert.get('drift_score', 0):.4f}")
         print(f"  PSI:      {alert.get('psi', 0):.4f}")
@@ -541,7 +542,7 @@ def print_summary(
     print("四、输出文件")
     print("─" * 60)
     if dry_run:
-        print(f"  (试运行, 无文件写入)")
+        print("  (试运行, 无文件写入)")
     else:
         print(f"  ✓ {DRIFT_ALERTS_FILE.name}      (漂移告警)")
         print(f"  ✓ {OBSERVATION_PROGRESS_FILE.name} (观察期进度)")

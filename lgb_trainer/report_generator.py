@@ -347,7 +347,7 @@ def _build_feature_importance_section(result: dict[str, Any]) -> list[str]:
 
 def _build_sentiment_stats_section(result: dict[str, Any]) -> list[str]:
     """构建情绪因子入选统计章节。
-    
+
     v4.3 (2026-08-02): 移除保护机制, 情绪因子正常参与特征选择,
     仅统计实际入选 (importance > 0) 的情况。
     """

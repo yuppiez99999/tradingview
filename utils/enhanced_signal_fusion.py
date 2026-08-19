@@ -56,26 +56,31 @@ except ImportError:
         )
 
         class SignalResult:
-            def __init__(self, **kwargs):
+            def __init__(self, **kwargs: Any) -> None:
                 for k, v in kwargs.items():
                     setattr(self, k, v)
 
         class FusedSignal:
-            def __init__(self, **kwargs):
+            def __init__(self, **kwargs: Any) -> None:
                 for k, v in kwargs.items():
                     setattr(self, k, v)
 
         class SignalFusionEngine:
-            def __init__(self, db_path=None):
+            def __init__(self, db_path: Optional[str] = None) -> None:
                 self.db_path = db_path or ":memory:"
                 self._sources = {}
                 self._source_weights = {}
 
-            def register_source(self, name, getter, initial_weight=None):
+            def register_source(
+                self,
+                name: str,
+                getter: callable,
+                initial_weight: Optional[float] = None,
+            ) -> None:
                 self._sources[name] = getter
                 self._source_weights[name] = initial_weight or 1.0 / max(len(self._sources), 1)
 
-            def _compute_dynamic_weights(self):
+            def _compute_dynamic_weights(self) -> Dict[str, float]:
                 if not self._source_weights:
                     return {}
                 total = sum(self._source_weights.values())
@@ -146,7 +151,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         # 初始化数据库表
         self._init_enhanced_db()
 
-    def _init_enhanced_db(self):
+    def _init_enhanced_db(self) -> None:
         """初始化增强版数据库表"""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -205,8 +210,13 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             logger.error(f"初始化增强版数据库失败: {e}")
             self._initialized = False
 
-    def register_enhanced_source(self, name: str, getter: callable, initial_weight: float = None,
-                               metadata: Dict[str, Any] = None):
+    def register_enhanced_source(
+        self,
+        name: str,
+        getter: callable,
+        initial_weight: Optional[float] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """注册增强版信号源"""
         super().register_source(name, getter, initial_weight)
 
@@ -222,7 +232,13 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
         logger.info(f"注册增强版信号源: {name} (初始权重={self._source_weights.get(name, 'auto'):.3f})")
 
-    def _record_weight_change(self, source_name: str, new_weight: float, reason: str, performance_score: float = 0.0):
+    def _record_weight_change(
+        self,
+        source_name: str,
+        new_weight: float,
+        reason: str,
+        performance_score: float = 0.0,
+    ) -> None:
         """记录权重变化历史"""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -325,7 +341,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
         return correlation_penalty
 
-    def _update_correlation_matrix(self):
+    def _update_correlation_matrix(self) -> None:
         """更新信号源相关性矩阵"""
         sources = list(self._sources.keys())
 
@@ -339,8 +355,8 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
             for source in sources:
                 cursor = conn.execute("""
-                    SELECT predicted_action, date 
-                    FROM signal_audit 
+                    SELECT predicted_action, date
+                    FROM signal_audit
                     WHERE source = ? AND date >= ?
                     ORDER BY date DESC
                     LIMIT 100
@@ -384,7 +400,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             for source1 in sources:
                 self._correlation_matrix[source1] = {source2: 0.0 for source2 in sources}
 
-    def _save_correlation_matrix(self):
+    def _save_correlation_matrix(self) -> None:
         """保存相关性矩阵到数据库"""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -440,7 +456,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
         return weights
 
-    def _update_weight_history(self, new_weights: Dict[str, float]):
+    def _update_weight_history(self, new_weights: Dict[str, float]) -> None:
         """更新权重历史并记录变化"""
         for source_name, new_weight in new_weights.items():
             old_weight = self._source_weights.get(source_name, 0.0)
@@ -463,8 +479,13 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         metrics = self._performance_metrics.get(source_name)
         return metrics.recent_accuracy if metrics else 0.5
 
-    def update_performance_metrics(self, source_name: str, actual_outcome: str,
-                                 predicted_action: str, response_time: float = None):
+    def update_performance_metrics(
+        self,
+        source_name: str,
+        actual_outcome: str,
+        predicted_action: str,
+        response_time: Optional[float] = None,
+    ) -> None:
         """更新信号源性能指标"""
         if source_name not in self._performance_metrics:
             return
@@ -533,15 +554,19 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
         return diversity_score
 
-    def _save_performance_metrics(self, source_name: str, metrics: SourcePerformanceMetrics):
+    def _save_performance_metrics(
+        self,
+        source_name: str,
+        metrics: SourcePerformanceMetrics,
+    ) -> None:
         """保存性能指标到数据库"""
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
             cursor.execute("""
-                INSERT OR REPLACE INTO source_performance 
-                (source_name, date, total_signals, correct_predictions, accuracy, 
+                INSERT OR REPLACE INTO source_performance
+                (source_name, date, total_signals, correct_predictions, accuracy,
                  volatility, avg_response_time, consecutive_losses, consecutive_wins, diversity_score)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
@@ -557,7 +582,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"保存性能指标失败: {e}")
 
-    def _adaptive_weight_adjustment(self):
+    def _adaptive_weight_adjustment(self) -> None:
         """自适应权重调整"""
         if not self._initialized:
             return
@@ -579,7 +604,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             if abs(new_weight - old_weight) > 0.01:  # 1%阈值
                 self._source_weights[source_name] = new_weight
 
-    def _emergency_rebalance(self):
+    def _emergency_rebalance(self) -> None:
         """紧急重新平衡权重"""
         sources = list(self._sources.keys())
         if len(sources) <= 1:
@@ -667,7 +692,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             logger.warning(f"获取权重变化分析失败: {e}")
             return {"error": str(e)}
 
-    def optimize_weights_based_on_market_conditions(self, market_condition: str):
+    def optimize_weights_based_on_market_conditions(self, market_condition: str) -> None:
         """基于市场条件优化权重"""
         if not self._initialized:
             return
@@ -732,7 +757,7 @@ def get_enhanced_fusion_engine() -> EnhancedSignalFusionEngine:
     return _enhanced_fusion_engine
 
 
-def register_enhanced_fast_signal_source(initial_weight: float = 0.2):
+def register_enhanced_fast_signal_source(initial_weight: float = 0.2) -> None:
     """注册增强版快速技术指标信号源"""
     try:
         engine = get_enhanced_fusion_engine()

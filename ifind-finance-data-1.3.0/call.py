@@ -3,6 +3,12 @@ import math
 from pathlib import Path
 import requests
 
+try:
+    import certifi
+    _SSL_VERIFY = certifi.where()
+except ImportError:
+    _SSL_VERIFY = True
+
 CONFIG = json.loads((Path(__file__).resolve().parent / "mcp_config.json").read_text(encoding="utf-8"))
 AUTH_TOKEN = CONFIG["auth_token"]
 
@@ -44,7 +50,7 @@ def _post(t, payload, timeout=60):
         SERVERS[t],
         json=payload,
         headers=_headers(t),
-        verify=False,
+        verify=_SSL_VERIFY,
         timeout=timeout,
     )
     data = None
@@ -111,7 +117,7 @@ def _init(t):
         SERVERS[t],
         json=notify,
         headers=_headers(t),
-        verify=False,
+        verify=_SSL_VERIFY,
         timeout=10,
     )
 

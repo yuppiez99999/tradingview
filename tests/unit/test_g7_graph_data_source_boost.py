@@ -50,11 +50,11 @@ if PROJECT_ROOT not in sys.path:
 
 from utils import graph_data_source as gds_module  # noqa: E402
 from utils.graph_data_source import (  # noqa: E402
+    _BOARD_CACHE_FILE,
     _EM_HEADERS,
     _EM_INTERVAL,
     _EM_RETRIES,
     _NO_PROXY_DOMAINS,
-    _BOARD_CACHE_FILE,
     _THS_HEADERS,
     _UA,
     GraphDataSource,
@@ -63,7 +63,6 @@ from utils.graph_data_source import (  # noqa: E402
     _safe_float,
     get_graph_data_source,
 )
-
 
 # ============================================================
 # 公共 fixtures

@@ -345,7 +345,8 @@ def mock_all_external_sources_unavailable(monkeypatch):
     """mock ExternalDataManager + cache 文件, 强制走 fail-closed 路径
 
     1. ExternalDataManager.get_global_stock → 返回 None
-    2. cache/external_data/overnight_gap_latest.json → 不存在
+    2. _fetch_via_tdx_proxy → 返回不可用 (v8.6.8 新增层, 必须一并 mock)
+    3. cache/external_data/overnight_gap_latest.json → 不存在
     """
     # Layer 1: ExternalDataManager 不可用
     def _raise_or_none(*args, **kwargs):
@@ -354,6 +355,15 @@ def mock_all_external_sources_unavailable(monkeypatch):
     try:
         monkeypatch.setattr(
             "utils.overnight_gap_monitor.OvernightGapMonitor._fetch_via_external_source",
+            lambda self: (None, None, False),
+        )
+    except (AttributeError, ImportError):
+        pass
+
+    # Layer 1.5: 通达信 A 股指数代理不可用 (v8.6.8 新增层)
+    try:
+        monkeypatch.setattr(
+            "utils.overnight_gap_monitor.OvernightGapMonitor._fetch_via_tdx_proxy",
             lambda self: (None, None, False),
         )
     except (AttributeError, ImportError):

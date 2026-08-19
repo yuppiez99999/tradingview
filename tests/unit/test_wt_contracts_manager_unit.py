@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """wt_contracts_manager 单元测试 — WonderTrader 合约管理器"""
 import json
 

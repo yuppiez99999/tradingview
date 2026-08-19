@@ -7,13 +7,14 @@ from __future__ import annotations
 import json
 import sys
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Optional, Sequence
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 import sys as _sys
+
 if str(PROJECT_ROOT) not in _sys.path:
     _sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -70,7 +71,7 @@ class BoostPrioritizer:
     def prioritize(
         records: Optional[Sequence[ModuleCoverageRecord]] = None,
         chain_order: Optional[Sequence[str]] = None,
-    ) -> List[BoostTask]:
+    ) -> list[BoostTask]:
         if records is None:
             records = CoverageInventory.scan()
         order = list(chain_order) if chain_order else CHAIN_ORDER
@@ -82,7 +83,7 @@ class BoostPrioritizer:
                 r.module_path,
             ),
         )
-        tasks: List[BoostTask] = []
+        tasks: list[BoostTask] = []
         for r in sorted_records:
             if r.priority_bucket == "P4_covered":
                 continue

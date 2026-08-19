@@ -42,6 +42,7 @@ logging.basicConfig(
         logging.FileHandler(
             LOG_DIR / f"daily_build_hedge_{datetime.now():%Y%m%d}.log",
             encoding="utf-8",
+            delay=True,
         ),
         logging.StreamHandler(sys.stdout),
     ],
@@ -1145,6 +1146,9 @@ if __name__ == "__main__":
         target_date = datetime.strptime(args.date, "%Y-%m-%d").date()
     else:
         target_date = date.today()
+
+    logger.info("daily_build_and_hedge 启动: date=%s dry_run=%s hedge_only=%s save=%s",
+                target_date, args.dry_run, args.hedge_only, args.save)
 
     system = DailyBuildHedgeSystem(
         target_date=target_date,

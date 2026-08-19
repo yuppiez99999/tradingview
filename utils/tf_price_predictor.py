@@ -130,7 +130,7 @@ class TimesFMForecaster:
 
         except ImportError:
             logger.warning("timesfm 未安装, 跳过. 安装: pip install timesfm[torch]")
-        except (ImportError, AttributeError) as e:
+        except AttributeError as e:
             logger.warning(f"TimesFM 初始化失败: {e}")
 
     @property
@@ -216,7 +216,7 @@ class TensorflowLSTMPredictor:
             if not self.__class__._tf_warned:
                 logger.warning("tensorflow 未安装, 跳过 LSTM 预测. 安装: pip install tensorflow")
                 self.__class__._tf_warned = True
-        except (ImportError, AttributeError) as e:
+        except AttributeError as e:
             if not self.__class__._tf_warned:
                 logger.warning(f"TensorFlow 初始化失败: {e}")
                 self.__class__._tf_warned = True

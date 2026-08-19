@@ -23,9 +23,25 @@ related:
 - [x] LightGBM 增强训练器（真实OHLCV + 自适应重训 + 放宽早停）
 - [x] V9 Regime-Specific LGB 双模型（年化 19.62% / 最大回撤 9.95% / Sharpe 1.315，影子账户 10%→50%→100% 灰度发布）
 - [x] 自我进化框架（24/29 任务，83% 完成率；Phase 0-4 推进；T0.4/T0.5/T4.2 观察期或收尾中；T4.7 验收报告待补；观察期 2026-07-23 → 08-13）
+- [x] **执行层自动闭环 (2026-08-19)** — 盈亏→风控→改计划→对冲增减→再平衡 全自动闭环
+  - **断链修复**: hedging 模块路径 + Put Spread action 匹配 + strike 各标的独立计算 + positions.json key 格式转换
+  - **方案A**: run_daily_eod.py 串联 RiskGuardIntegrator 8-Guard 链 (自动识别国债集中度 52.7%>15% 触发 L3 减仓 7100 股 + 再平衡 19 单)
+  - **方案B**: execution_reviewer.py (执行复盘) + dynamic_risk_adjuster.py (动态风控调整)
+  - **方案C**: daily_workflow.py phase_hedge 后自动串联 RiskGuardIntegrator
+  - **DeepSeek+GLM 双模型自我判断**: dual_model_judge.py — 双模型独立判断→交叉验证→共识决策, 优雅降级 (双失败→规则兜底)
+  - **指针**: `cairn/LOG.md` 2026-08-19 执行层自动闭环条目
 - [ ] C++/Rust 核心路径重写（超低延迟行情解码、订单生成、风控检查）
 - [ ] PTP 硬件时钟采购与部署（¥360K-710K 预算）
 - [ ] 多策略组合优化（跨信号协方差矩阵 + 动态风险预算分配）
+  - [x] **MVSK 高阶矩优化 P1**（YAND 启发，2026-08-17）— `risk_budget_optimizer.py` 扩展偏度/峰度目标，8/8+31/31 测试 passed，A/B 机制验证成功 → `cairn/mvsk-higher-moment-optimization.md`
+  - [x] **MVSK P2 BL+MVSK 联合优化**（2026-08-17）— BL 后验 μ + MVSK 样本外夏普 -0.923 显著优于 MV -1.272，BL 与 MVSK 强互补验证成功
+  - [x] **MVSK P3 Regime 动态切换**（2026-08-17）— 原 regime 切换失败→γ 扫描证 252 日 MVSK 根本性失效→训练窗口扫描发现临界点 336~378→修正实验确认**始终 BL+MVSK(378) 最优夏普 +0.418**，无需 regime 切换。最优生产策略：378 日训练 + BL + MVSK(γ_s=0.1, γ_k=0.05)
+  - [x] **MVSK P4 跨周期验证**（2026-08-17）— 995 日（2022-07~2026-08）跨周期回测：BL+MVSK(378) **4/4 段跑赢 BL+MV**（Δ夏普 +0.22），γ_s=0.1 泛化成功，γ_k 可调到 0.1（夏普 +0.683）。**MVSK 生产就绪**，最终策略 BL+MVSK(378, γ_s=0.1, γ_k=0.1)
+  - [ ] **MVSK P5 生产接入**（09-05 ~ 11-12，挂 Wave 7 Sprint 1-3）
+    - [ ] P5-1 (09-05~09-12, Sprint 1 后半) scheduler.py 中线层 shadow 接入准备 — 代码改造 `utils/universe/portfolio_builder.py` 支持 BL+MVSK(378) + shadow 模式（不产出真实订单，仅记录 vs 当前 BL+MV 差异）；冷启动 378 日历史数据预加载
+    - [ ] P5-2 (09-13~10-12, Sprint 2) shadow 运行 30 天验证 — 实盘 shadow 对比 BL+MVSK(378, γ_s=0.1, γ_k=0.1) vs 当前中线层 BL+MV(252)，每日记录权重差异/收益差异/换仓成本，30 天后评估 Δ夏普
+    - [ ] P5-3 (10-13~11-12, Sprint 3) 正式启用中线层 BL+MVSK(378) — shadow 通过后（Δ夏普 > 0 且无异常换仓）切换中线层优化器；短线层保持 BL+MV(252) 不变；接入风控六件套监控
+    - [ ] P5-4 (11-13~12-31, Sprint 4, 可选) 沪深 300 股票池扩展验证 — 华为云上用 5~10 年数据 + 沪深 300 验证 γ 参数泛化；若 γ_s=0.1/γ_k=0.1 仍最优则全市场推广
 - [ ] 十五五规划对齐（2026-2030 五年分阶段管理，2030-12-31 强制清仓）
 
 ## 后续升级计划（2026-08-04 制定，四波推进）
@@ -154,6 +170,8 @@ related:
 - [x] W7.1.3 (08-13~08-31) R10 拖债清偿 — ✅ **DONE 2026-08-13**: 36 处裸 `except Exception` (无 `# fail-safe` 标记) 全部精确化 (ai_hedge_fund/ 30 + alpha_factor/ 4 + notify.py 2); `scripts/_r10_refine_bare_excepts.py` AST 替换; ruff BLE001 归零; 14 文件 py_compile PASS
 - [x] W7.1.4 (08-25~09-12) QMT 实盘接入准备 — ✅ **DONE 2026-08-13 (提前)**: `quant_modules/qmt_connector.py` (~420 行) paper trading 骨架 + 30 tests 全绿. 为 Sprint 2 W7.2.1 T15 准备
 - [ ] W7.1.5 (08-13~09-12) G7 覆盖率提升启动 — 补齐 P0 链路关键模块直测; 覆盖率 0.4307 → ≥0.55
+- [ ] W7.1.6 (09-05~09-12) **MVSK P5-1 中线层 shadow 接入准备** — `utils/universe/portfolio_builder.py` 改造支持 BL+MVSK(378, γ_s=0.1, γ_k=0.1) + shadow 模式（不产真实订单，仅记录 vs BL+MV 差异）；378 日历史数据预加载（冷启动）；依赖 P4 ✅
+- [ ] W7.1.7 (09-05~09-12) **qlib新选股模型 shadow 接入准备** — `utils/signal_fusion.py` 注册新信号源 `register_source('qlib_lgb_v2', getter)` (模型 `reports/qlib_model_20260817_145851.pkl`, Alpha158+1天标签+Top10); shadow 模式不产真实订单, 仅记录 vs 现有 V9 信号差异; 依赖回测验证 ✅ (2026-08-18 两时段样本外夏普 1.86/2.44, 超额 +11.52%/+47.25%); 详见 `cairn/qlib-backtest-validation.md`
 
 **Sprint 2（09-13 ~ 10-12，~4 周）：实盘验证四件套 + 工程基础层 Phase 0-1**
 - [ ] W7.2.1 (09-13~09-26) T15 QMT 实盘接入 (paper → 10% 灰度) — `quant_modules/qmt_connector.py` 完整实现 + paper trading 7 天 + 10% 资金灰度启动
@@ -163,6 +181,8 @@ related:
 - [ ] W7.2.5 (09-13~10-12) Wave 5 S6 纸交易启动 — CHAIN_MOM_60D 纸交易 ≥30 天跟踪报告
 - [ ] W7.2.6 (09-13~10-12) 工程基础层 Phase 0-1 — uv 环境管理迁移 + python-dotenv 密钥安全 + ruff T201/BLE001 收紧
 - [ ] W7.2.7 (09-13~10-12) ocr 三步固化 Step 1-2 — GLM API 充值 → 补扫 16 文件 → PR 自动审查接入
+- [ ] W7.2.8 (09-13~10-12) **MVSK P5-2 shadow 运行 30 天验证** — 实盘 shadow 对比 BL+MVSK(378) vs BL+MV(252)，每日记录权重/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.6 P5-1
+- [ ] W7.2.9 (09-13~10-12) **qlib新选股模型 shadow 运行 30 天对比 V9** — 实盘 shadow 对比 qlib_lgb_v2 vs V9 Regime-Specific，每日记录信号/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.7；详见 `cairn/qlib-backtest-validation.md`
 
 **Sprint 3（10-13 ~ 11-12，~4 周）：因子入库 + 风控增强 + 工程基础层 Phase 2**
 - [ ] W7.3.1 (10-13~11-12) Wave 5 S7 小资金 5-10% 灰度入库 — CHAIN_MOM_60D 小资金灰度 ≥30 天跟踪报告 + 完整入库决策
@@ -171,6 +191,8 @@ related:
 - [ ] W7.3.4 (10-13~11-12) 工程基础层 Phase 2 — Prefect 编排 EOD 工作流 + DuckDB 统一查询层
 - [ ] W7.3.5 (10-13~10-26) ECC skills 选择性安装 — 8 个高价值 skills 安装到 `.codebuddy/`
 - [ ] W7.3.6 (10-13~11-12) ocr Step 3 nightly 全量 scan — `.github/workflows/ocr-nightly.yml` + 周度增量审查
+- [ ] W7.3.7 (10-13~11-12) **MVSK P5-3 正式启用中线层 BL+MVSK(378)** — shadow 通过后（Δ夏普 > 0 且无异常换仓）切换中线层优化器；短线层保持 BL+MV(252)；接入风控六件套监控；依赖 W7.2.8 P5-2
+- [ ] W7.3.8 (10-13~11-12) **qlib新选股模型评估决策** — shadow 30天通过后（Δ夏普 > 0 且无异常换仓）切换 `SignalFusionEngine` 的 `ml` 信号源 V9 → qlib_lgb_v2，alpha_weight=0.4 不变，接入风控六件套监控；依赖 W7.2.9；详见 `cairn/qlib-backtest-validation.md`
 
 **Sprint 4（11-13 ~ 12-31，~7 周）：AutoResearch + LLM 智能进化 + v8.7 发布**
 - [x] W7.4.1 (11-13~12-07) AutoResearch Skill 开发 — `skills/auto_research/` (新建) 自动化因子研究 pipeline: 假设生成 → G15 回测 → S1-S7 门禁 → DSR 验证 → 入库决策 — ✅ **提前完成 2026-08-12** (D5 落地, 38 测试全绿, debt_gate 23/23 GREEN)
@@ -179,6 +201,7 @@ related:
 - [x] W7.4.4 (11-13~12-14, 非交易时段) daily_workflow.py 拆分收尾 — execute phase (~800 行) + report phase (~600 行) + eod_summary phase (~400 行) 提取; daily_workflow ≤3000 行 — ✅ **提前完成 2026-08-12** (D7 落地, 2828行达标, _scan_func_quality.py 创建, debt_gate 25/25 GREEN; 注: execute/report/eod_summary phase 未进一步拆分因门禁已达标, 按"不过度设计"原则停止)
 - [~] W7.4.5 (11-13~12-21) G7 覆盖率 80% 达标冲刺 — 补齐 P1-P2 链路测试 + 集成测试 + E2E 测试; 覆盖率 ≥0.80 — 🔄 **进行中 2026-08-14** (D8 落地 + 11个0%模块全部补测 637 tests / 0%模块清零 / 距 80% 目标仍需补测低覆盖模块)
 - [ ] W7.4.6 (12-22~12-31) v8.7 发布 — `docs/v8.7_release_notes.md` + `cairn/ROADMAP.md` + `CHANGELOG.md` 文档归档 + 12-31 上实盘
+- [ ] W7.4.7 (11-13~12-31, 可选) **MVSK P5-4 沪深 300 扩展验证** — 华为云上用 5~10 年数据 + 沪深 300 验证 γ_s=0.1/γ_k=0.1 泛化；若仍最优则全市场推广；依赖 W7.3.7 P5-3
 
 #### Wave 7 总验收清单（12-31 v8.7 发布前）
 

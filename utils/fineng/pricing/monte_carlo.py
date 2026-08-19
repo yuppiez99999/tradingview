@@ -117,7 +117,7 @@ class MonteCarloEngine:
 
         # 控制变量: BS 解析解
         if self.use_control_variate:
-            bs_ref = bs_price(S, K, T, r, sigma, is_call)
+            bs_price(S, K, T, r, sigma, is_call)
             # 注: 完整控制变量需要计算 cov(payoff, ST), 此处简化为 bias correction
             # 实际使用中, 路径数足够大时 MC 自然收敛到 BS
             cv_price = discount * mean

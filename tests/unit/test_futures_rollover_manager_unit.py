@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re as _re
 import sys
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -32,7 +32,6 @@ from utils.futures_rollover_manager import (  # noqa: E402
     _get_futures_expiry,
     _get_third_friday,
 )
-
 
 # ============================================================
 # 时间 mock 基础设施

@@ -21,7 +21,6 @@ import pandas as pd
 import pytest
 
 from utils.backtest import EngineSummary, ResultConverter
-from utils.hedge_rebalance_backtest import BacktestResult
 
 # ============================================================
 # 1. 构造模拟权益曲线 (确定性, 可复现)
@@ -83,7 +82,7 @@ for i in range(5):
 N_FILLED = sum(1 for r in trade_records if r.get("status") == "ALL_TRADED")
 N_REJECTED = sum(1 for r in trade_records if r.get("status") == "REJECTED")
 
-print(f"\n【交易记录概览】")
+print("\n【交易记录概览】")
 print(f"  成交订单数 (ALL_TRADED): {N_FILLED}")
 print(f"  拒单数量 (REJECTED):     {N_REJECTED}")
 print(f"  交易记录总数:            {len(trade_records)}")
@@ -103,7 +102,7 @@ summary = EngineSummary(
     trade_records=trade_records,
 )
 
-print(f"\n【EngineSummary 已构造】")
+print("\n【EngineSummary 已构造】")
 print(f"  summary.initial_capital   = {summary.initial_capital:,.2f}")
 print(f"  summary.final_equity      = {summary.final_equity:,.2f}")
 print(f"  summary.total_return      = {summary.total_return:.6%}")
@@ -274,7 +273,7 @@ print(f"  交易笔数:              {result.trade_count} 笔")
 print()
 print(f"  初始资金:              ¥{result.equity_curve[0]:>14,.2f}")
 print(f"  最终权益:              ¥{result.equity_curve[-1]:>14,.2f}")
-print(f"  ─────────────────────────────────────────────")
+print("  ─────────────────────────────────────────────")
 print(f"  总收益率:              {result.total_return:>12.4%}")
 print(f"  年化收益率:            {result.annual_return:>12.4%}")
 print(f"  年化波动率:            {result.annual_volatility:>12.4%}")

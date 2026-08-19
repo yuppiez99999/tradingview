@@ -15,8 +15,8 @@
 from __future__ import annotations
 
 import cProfile
-import pstats
 import io
+import pstats
 import sys
 import time
 from pathlib import Path
@@ -24,7 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from utils.backtest.matching_engine import MatchingEngine, FillEvent
+from utils.backtest.matching_engine import MatchingEngine
 from utils.wt_structs import BarData, OrderData, TickData
 
 
@@ -108,7 +108,7 @@ def run_scenario(name: str, n_events: int, n_orders_per_event: int, mode: str = 
     # 实测
     start = time.perf_counter()
     total_calls = 0
-    for code, event, orders in events_data:
+    for _code, event, orders in events_data:
         engine.match(orders, event)
         total_calls += 1
     elapsed = time.perf_counter() - start
@@ -132,7 +132,7 @@ def run_cprofile_scenario(n_events: int, n_orders_per_event: int, mode: str = "B
 
     profiler = cProfile.Profile()
     profiler.enable()
-    for code, event, orders in events_data:
+    for _code, event, orders in events_data:
         engine.match(orders, event)
     profiler.disable()
 
@@ -188,19 +188,19 @@ def main():
     print("ROI 判定")
     print("=" * 80)
     print()
-    print(f"  日线级 (2,500 事件):")
+    print("  日线级 (2,500 事件):")
     print(f"    实测总耗时: {elapsed_a:.3f}s")
     print(f"    Rust 预估节省: {elapsed_a*0.9:.3f}s")
     rust_threshold_a = 5.0  # 5s 阈值
     print(f"    阈值 (≥5s 才推荐): {'✅ 达标' if elapsed_a >= rust_threshold_a else '❌ 未达标'} → {'⚠️ 跳过' if elapsed_a < rust_threshold_a else '✅ POC'}")
     print()
-    print(f"  分钟级 (600,000 事件):")
+    print("  分钟级 (600,000 事件):")
     print(f"    实测总耗时: {elapsed_b_full:.3f}s ({elapsed_b_full/60:.2f}min)")
     print(f"    Rust 预估节省: {elapsed_b_full*0.9:.3f}s ({elapsed_b_full*0.9/60:.2f}min)")
     rust_threshold_b = 300.0  # 5min 阈值
     print(f"    阈值 (≥5min 才推荐): {'✅ 达标' if elapsed_b_full >= rust_threshold_b else '❌ 未达标'} → {'✅ POC' if elapsed_b_full >= rust_threshold_b else '⚠️ 跳过'}")
     print()
-    print(f"  TICK 级 (240 事件):")
+    print("  TICK 级 (240 事件):")
     print(f"    实测总耗时: {elapsed_c:.6f}s")
     print(f"    Rust 预估节省: {elapsed_c*0.9:.6f}s")
     rust_threshold_c = 1.0  # 1s 阈值
@@ -212,13 +212,13 @@ def main():
     print("总结")
     print("=" * 80)
     overall_recommend_poc = elapsed_b_full >= rust_threshold_b
-    print(f"  前置评估结论: 跳过 (分钟级预估 40min)")
+    print("  前置评估结论: 跳过 (分钟级预估 40min)")
     print(f"  实测分钟级: {elapsed_b_full/60:.2f}min")
     print(f"  修正幅度: {abs(elapsed_b_full/60 - 40) / 40 * 100:.1f}% {'高估' if 40 > elapsed_b_full/60 else '低估'}")
     print(f"  最终建议: {'✅ 推荐 Rust POC (分钟级达标)' if overall_recommend_poc else '⚠️ 维持跳过 (分钟级未达标, FFI 回调开销会进一步抵消收益)'}")
     print()
-    print(f"  详细报告: tests/perf_matching_engine_benchmark.py")
-    print(f"  决策记录: cairn/nautilus-trader-study.md §4.3")
+    print("  详细报告: tests/perf_matching_engine_benchmark.py")
+    print("  决策记录: cairn/nautilus-trader-study.md §4.3")
 
 
 if __name__ == "__main__":

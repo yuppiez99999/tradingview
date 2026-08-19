@@ -1,18 +1,20 @@
-# -*- coding: utf-8 -*-
 """AI Hedge Fund — 19位大师级AI分析师联合决策模式"""
 import os
 from datetime import datetime
+
 from core.context import (
-    BASE_DIR, logger, get_ai_coordinator,
-    ML_PREDICTOR_AVAILABLE, load_portfolio_config,
-    _AI_HEDGE_IMPORTED, _AI_HEDGE_MODULE,
+    _AI_HEDGE_IMPORTED,
+    ML_PREDICTOR_AVAILABLE,
+    get_ai_coordinator,
     get_archive_dir,
+    load_portfolio_config,
+    logger,
 )
 
 
 def run_ai_hedge_mode(args):
     """AI Hedge Fund — 19位大师级AI分析师联合决策模式
-    
+
     v5.9 优化：
     - 先跑ML信号扫描筛选高置信度标的，避免对所有标的无差别做AI深度分析
     - 集成AI协调器记录决策到统一数据库
@@ -22,7 +24,9 @@ def run_ai_hedge_mode(args):
     if not _AI_HEDGE_IMPORTED:
         try:
             from quant_modules.ai_hedge_fund.orchestrator import (
-                run_ai_hedge_fund, print_trading_output, get_available_analysts
+                get_available_analysts,
+                print_trading_output,
+                run_ai_hedge_fund,
             )
             _AI_HEDGE_MODULE = {
                 'run': run_ai_hedge_fund,
@@ -76,8 +80,8 @@ def run_ai_hedge_mode(args):
                 if ml_high_confidence:
                     tickers = list(ml_high_confidence)
                 else:
-                    print(f"  ⚠️ 无高置信度标的，取置信度最高的前5只")
-                    sorted_results = sorted(r.get('probability', 0.5) for r in ml_results if 'probability' in r)
+                    print("  ⚠️ 无高置信度标的，取置信度最高的前5只")
+                    sorted(r.get('probability', 0.5) for r in ml_results if 'probability' in r)
         except Exception as e:
             print(f"  ⚠️ ML预筛选跳过: {e}")
 

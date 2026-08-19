@@ -1,12 +1,12 @@
-import os
 import json
+import os
 from enum import Enum
-from pydantic import BaseModel
-from typing import Tuple, List, Optional
 from pathlib import Path
+from typing import Any, List, Tuple
 
-from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_ollama import ChatOllama
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
+from pydantic import BaseModel
 
 # ── 以下 provider 按需延迟导入，避免 pydantic 版本冲突 ──
 _ChatDeepSeek = None
@@ -16,42 +16,42 @@ _ChatAnthropic = None
 _ChatGoogleGenerativeAI = None
 _GigaChat = None
 
-def _get_deepseek():
+def _get_deepseek() -> Any:
     global _ChatDeepSeek
     if _ChatDeepSeek is None:
         from langchain_deepseek import ChatDeepSeek as _cls
         _ChatDeepSeek = _cls
     return _ChatDeepSeek
 
-def _get_groq():
+def _get_groq() -> Any:
     global _ChatGroq
     if _ChatGroq is None:
         from langchain_groq import ChatGroq as _cls
         _ChatGroq = _cls
     return _ChatGroq
 
-def _get_xai():
+def _get_xai() -> Any:
     global _ChatXAI
     if _ChatXAI is None:
         from langchain_xai import ChatXAI as _cls
         _ChatXAI = _cls
     return _ChatXAI
 
-def _get_anthropic():
+def _get_anthropic() -> Any:
     global _ChatAnthropic
     if _ChatAnthropic is None:
         from langchain_anthropic import ChatAnthropic as _cls
         _ChatAnthropic = _cls
     return _ChatAnthropic
 
-def _get_google_genai():
+def _get_google_genai() -> Any:
     global _ChatGoogleGenerativeAI
     if _ChatGoogleGenerativeAI is None:
         from langchain_google_genai import ChatGoogleGenerativeAI as _cls
         _ChatGoogleGenerativeAI = _cls
     return _ChatGoogleGenerativeAI
 
-def _get_gigachat():
+def _get_gigachat() -> Any:
     global _GigaChat
     if _GigaChat is None:
         from langchain_gigachat import GigaChat as _cls
@@ -125,9 +125,9 @@ class LLMModel(BaseModel):
 # Load models from JSON file
 def load_models_from_json(json_path: str) -> List[LLMModel]:
     """Load models from a JSON file"""
-    with open(json_path, 'r') as f:
+    with open(json_path) as f:
         models_data = json.load(f)
-    
+
     models = []
     for model_data in models_data:
         # Convert string provider to ModelProvider enum
@@ -172,7 +172,7 @@ def find_model_by_name(model_name: str) -> LLMModel | None:
     return next((model for model in all_models if model.model_name == model_name), None)
 
 
-def get_models_list():
+def get_models_list() -> list[dict[str, str]]:
     """Get the list of models for API responses."""
     return [
         {
@@ -184,36 +184,31 @@ def get_models_list():
     ]
 
 
-def get_model(model_name: str, model_provider: ModelProvider, api_keys: dict = None):
+def get_model(model_name: str, model_provider: ModelProvider, api_keys: dict = None) -> Any:
     if model_provider == ModelProvider.GROQ:
         api_key = (api_keys or {}).get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
         if not api_key:
-            print(f"API Key Error: Please make sure GROQ_API_KEY is set in your .env file or provided via API keys.")
             raise ValueError("Groq API key not found.  Please make sure GROQ_API_KEY is set in your .env file or provided via API keys.")
         return _get_groq()(model=model_name, api_key=api_key)
     elif model_provider == ModelProvider.OPENAI:
         api_key = (api_keys or {}).get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_API_BASE")
         if not api_key:
-            print(f"API Key Error: Please make sure OPENAI_API_KEY is set in your .env file or provided via API keys.")
             raise ValueError("OpenAI API key not found.  Please make sure OPENAI_API_KEY is set in your .env file or provided via API keys.")
         return ChatOpenAI(model=model_name, api_key=api_key, base_url=base_url)
     elif model_provider == ModelProvider.ANTHROPIC:
         api_key = (api_keys or {}).get("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
-            print(f"API Key Error: Please make sure ANTHROPIC_API_KEY is set in your .env file or provided via API keys.")
             raise ValueError("Anthropic API key not found.  Please make sure ANTHROPIC_API_KEY is set in your .env file or provided via API keys.")
         return _get_anthropic()(model=model_name, api_key=api_key)
     elif model_provider == ModelProvider.DEEPSEEK:
         api_key = (api_keys or {}).get("DEEPSEEK_API_KEY") or os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
-            print(f"API Key Error: Please make sure DEEPSEEK_API_KEY is set in your .env file or provided via API keys.")
             raise ValueError("DeepSeek API key not found.  Please make sure DEEPSEEK_API_KEY is set in your .env file or provided via API keys.")
         return _get_deepseek()(model=model_name, api_key=api_key)
     elif model_provider == ModelProvider.GOOGLE:
         api_key = (api_keys or {}).get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if not api_key:
-            print(f"API Key Error: Please make sure GOOGLE_API_KEY is set in your .env file or provided via API keys.")
             raise ValueError("Google API key not found.  Please make sure GOOGLE_API_KEY is set in your .env file or provided via API keys.")
         return _get_google_genai()(model=model_name, api_key=api_key)
     elif model_provider == ModelProvider.OLLAMA:
@@ -226,12 +221,11 @@ def get_model(model_name: str, model_provider: ModelProvider, api_keys: dict = N
     elif model_provider == ModelProvider.OPENROUTER:
         api_key = (api_keys or {}).get("OPENROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY")
         if not api_key:
-            print(f"API Key Error: Please make sure OPENROUTER_API_KEY is set in your .env file or provided via API keys.")
             raise ValueError("OpenRouter API key not found. Please make sure OPENROUTER_API_KEY is set in your .env file or provided via API keys.")
-        
+
         site_url = os.getenv("YOUR_SITE_URL", "https://github.com/virattt/ai-hedge-fund")
         site_name = os.getenv("YOUR_SITE_NAME", "AI Hedge Fund")
-        
+
         return ChatOpenAI(
             model=model_name,
             openai_api_key=api_key,
@@ -247,23 +241,20 @@ def get_model(model_name: str, model_provider: ModelProvider, api_keys: dict = N
         api_key = (api_keys or {}).get("MOONSHOT_API_KEY") or os.getenv("MOONSHOT_API_KEY") \
             or (api_keys or {}).get("KIMI_API_KEY") or os.getenv("KIMI_API_KEY")
         if not api_key:
-            print(f"API Key Error: Please make sure MOONSHOT_API_KEY (or KIMI_API_KEY) is set in your .env file or provided via API keys.")
             raise ValueError("Kimi API key not found. Please make sure MOONSHOT_API_KEY (or KIMI_API_KEY) is set in your .env file or provided via API keys.")
         base_url = os.getenv("MOONSHOT_BASE_URL") or os.getenv("KIMI_BASE_URL") or "https://api.moonshot.ai/v1"
         return ChatOpenAI(model=model_name, api_key=api_key, base_url=base_url)
     elif model_provider == ModelProvider.XAI:
         api_key = (api_keys or {}).get("XAI_API_KEY") or os.getenv("XAI_API_KEY")
         if not api_key:
-            print(f"API Key Error: Please make sure XAI_API_KEY is set in your .env file or provided via API keys.")
             raise ValueError("xAI API key not found. Please make sure XAI_API_KEY is set in your .env file or provided via API keys.")
         return _get_xai()(model=model_name, api_key=api_key)
     elif model_provider == ModelProvider.GIGACHAT:
         if os.getenv("GIGACHAT_USER") or os.getenv("GIGACHAT_PASSWORD"):
             return _get_gigachat()(model=model_name)
-        else: 
+        else:
             api_key = (api_keys or {}).get("GIGACHAT_API_KEY") or os.getenv("GIGACHAT_API_KEY") or os.getenv("GIGACHAT_CREDENTIALS")
             if not api_key:
-                print("API Key Error: Please make sure api_keys is set in your .env file or provided via API keys.")
                 raise ValueError("GigaChat API key not found. Please make sure GIGACHAT_API_KEY is set in your .env file or provided via API keys.")
             return _get_gigachat()(credentials=api_key, model=model_name)
     elif model_provider == ModelProvider.AZURE_OPENAI:
@@ -271,19 +262,16 @@ def get_model(model_name: str, model_provider: ModelProvider, api_keys: dict = N
         api_key = os.getenv("AZURE_OPENAI_API_KEY")
         if not api_key:
             # Print error to console
-            print(f"API Key Error: Please make sure AZURE_OPENAI_API_KEY is set in your .env file.")
             raise ValueError("Azure OpenAI API key not found.  Please make sure AZURE_OPENAI_API_KEY is set in your .env file.")
         # Get and validate Azure Endpoint
         azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         if not azure_endpoint:
             # Print error to console
-            print(f"Azure Endpoint Error: Please make sure AZURE_OPENAI_ENDPOINT is set in your .env file.")
             raise ValueError("Azure OpenAI endpoint not found.  Please make sure AZURE_OPENAI_ENDPOINT is set in your .env file.")
         # get and validate deployment name
         azure_deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
         if not azure_deployment_name:
             # Print error to console
-            print(f"Azure Deployment Name Error: Please make sure AZURE_OPENAI_DEPLOYMENT_NAME is set in your .env file.")
             raise ValueError("Azure OpenAI deployment name not found.  Please make sure AZURE_OPENAI_DEPLOYMENT_NAME is set in your .env file.")
         return AzureChatOpenAI(azure_endpoint=azure_endpoint, azure_deployment=azure_deployment_name, api_key=api_key, api_version="2024-10-21")
     else:

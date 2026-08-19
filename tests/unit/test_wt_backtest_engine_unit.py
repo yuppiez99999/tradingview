@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from unittest.mock import patch
 
 import pytest
 
@@ -23,7 +22,6 @@ from utils.wt_backtest_engine import (
     compare_strategies,
     run_etf_signal_backtest,
 )
-
 
 # ============================================================
 # BacktestEngine

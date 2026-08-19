@@ -32,7 +32,7 @@ import logging
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 # 路径处理 (兼容直接运行 / -m 运行)
 _DIR = Path(__file__).resolve().parent
@@ -66,7 +66,7 @@ HOLIDAYS_2026: set[str] = set()
 # 数据加载
 # ---------------------------------------------------------------------------
 
-def load_records(file_path: Path) -> List[Dict[str, Any]]:
+def load_records(file_path: Path) -> list[dict[str, Any]]:
     """加载 jsonl 文件, 每行一个 JSON 记录.
 
     Args:
@@ -82,8 +82,8 @@ def load_records(file_path: Path) -> List[Dict[str, Any]]:
     if not file_path.exists():
         raise FileNotFoundError(f"输入文件不存在: {file_path}")
 
-    records: List[Dict[str, Any]] = []
-    with open(file_path, "r", encoding="utf-8") as f:
+    records: list[dict[str, Any]] = []
+    with open(file_path, encoding="utf-8") as f:
         for line_no, line in enumerate(f, start=1):
             line = line.strip()
             if not line:
@@ -100,7 +100,7 @@ def load_records(file_path: Path) -> List[Dict[str, Any]]:
 # 数据质量分类
 # ---------------------------------------------------------------------------
 
-def classify_quality(record: Dict[str, Any]) -> Tuple[str, List[str]]:
+def classify_quality(record: dict[str, Any]) -> tuple[str, list[str]]:
     """分类单条记录的数据质量.
 
     分类优先级: real > fixed > backtest > unknown
@@ -116,7 +116,7 @@ def classify_quality(record: Dict[str, Any]) -> Tuple[str, List[str]]:
     """
     source = str(record.get("source", "")).lower()
     daily_return = record.get("daily_return")
-    flags: List[str] = []
+    flags: list[str] = []
 
     # 额外标记: 零收益
     if daily_return is not None and float(daily_return) == 0.0:
@@ -161,10 +161,10 @@ def is_trading_day(d: date) -> bool:
 
 
 def detect_missing_dates(
-    records: List[Dict[str, Any]],
+    records: list[dict[str, Any]],
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-) -> List[date]:
+) -> list[date]:
     """检测观察期内缺失的交易日.
 
     Args:
@@ -198,7 +198,7 @@ def detect_missing_dates(
             end_date = today  # 观察期延伸到今天
 
     # 遍历范围内的每个交易日, 找出缺失
-    missing: List[date] = []
+    missing: list[date] = []
     current = start_date
     while current <= end_date:
         if is_trading_day(current) and current not in existing_dates:
@@ -231,9 +231,9 @@ def _parse_date(value: Any) -> Optional[date]:
 # ---------------------------------------------------------------------------
 
 def build_cleaned_records(
-    records: List[Dict[str, Any]],
-    missing_dates: List[date],
-) -> List[Dict[str, Any]]:
+    records: list[dict[str, Any]],
+    missing_dates: list[date],
+) -> list[dict[str, Any]]:
     """构建清洗后的完整记录列表 (含缺失占位, 按日期排序).
 
     Args:
@@ -243,7 +243,7 @@ def build_cleaned_records(
     Returns:
         清洗后的记录列表, 每条带 quality 和 quality_flags 字段
     """
-    cleaned: List[Dict[str, Any]] = []
+    cleaned: list[dict[str, Any]] = []
 
     # 处理已有记录
     for r in records:
@@ -273,7 +273,7 @@ def build_cleaned_records(
 # 输出
 # ---------------------------------------------------------------------------
 
-def write_cleaned_jsonl(records: List[Dict[str, Any]], output_path: Path) -> None:
+def write_cleaned_jsonl(records: list[dict[str, Any]], output_path: Path) -> None:
     """写清洗后的 jsonl 文件.
 
     Args:
@@ -291,8 +291,8 @@ def write_cleaned_jsonl(records: List[Dict[str, Any]], output_path: Path) -> Non
 
 
 def write_report(
-    records: List[Dict[str, Any]],
-    missing_dates: List[date],
+    records: list[dict[str, Any]],
+    missing_dates: list[date],
     output_path: Path,
     input_file: Path,
 ) -> None:
@@ -305,7 +305,7 @@ def write_report(
         input_file: 原始输入文件路径 (用于报告中引用)
     """
     # 统计各质量类型
-    stats: Dict[str, int] = {}
+    stats: dict[str, int] = {}
     zero_count = 0
     fixed_count = 0
     for r in records:
@@ -324,14 +324,14 @@ def write_report(
     dates = [_parse_date(r.get("date")) for r in records if _parse_date(r.get("date"))]
     date_range = f"{min(dates)} ~ {max(dates)}" if dates else "N/A"
 
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("# Shadow 账户 daily_returns.jsonl 数据清洗报告\n")
     lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append(f"> 输入文件: `{input_file}`\n")
 
     lines.append("## 一、数据概览\n")
-    lines.append(f"| 维度 | 值 |")
-    lines.append(f"|------|-----|")
+    lines.append("| 维度 | 值 |")
+    lines.append("|------|-----|")
     lines.append(f"| 日期范围 | {date_range} |")
     lines.append(f"| 总记录数 (含缺失占位) | {total} |")
     lines.append(f"| 原始记录数 | {total - len(missing_dates)} |")
@@ -357,8 +357,8 @@ def write_report(
     lines.append("")
 
     lines.append("## 三、额外标记统计\n")
-    lines.append(f"| 标记 | 含义 | 记录数 |")
-    lines.append(f"|------|------|--------|")
+    lines.append("| 标记 | 含义 | 记录数 |")
+    lines.append("|------|------|--------|")
     lines.append(f"| `zero_return` | 日收益为 0 (可能占位或数据问题) | {zero_count} |")
     lines.append(f"| `fixed_value` | 带 updated_at (非原始写入, 经过修正) | {fixed_count} |")
     lines.append("")
@@ -436,7 +436,7 @@ def run_cleaning(
     output_dir: Path,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-) -> Tuple[List[Dict[str, Any]], List[date]]:
+) -> tuple[list[dict[str, Any]], list[date]]:
     """执行完整清洗流程.
 
     Args:
@@ -526,7 +526,7 @@ def main() -> None:
         sys.exit(1)
 
     # 控制台摘要
-    stats: Dict[str, int] = {}
+    stats: dict[str, int] = {}
     for r in cleaned:
         q = r.get("quality", "unknown")
         stats[q] = stats.get(q, 0) + 1

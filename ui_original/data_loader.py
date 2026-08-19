@@ -496,7 +496,8 @@ def streamlit_autorefresh(interval_sec: int = 60, key: str = "ui_autorefresh") -
         是否触发了刷新
     """
     try:
-        import streamlit as st  # type: ignore[import-not-found]
+        import streamlit as st  # type: ignore[import-not-found]  # noqa: F401
+
         # noqa: F401
         from streamlit_autorefresh import st_autorefresh  # type: ignore[import-not-found]
         st_autorefresh(interval=interval_sec * 1000, key=key)

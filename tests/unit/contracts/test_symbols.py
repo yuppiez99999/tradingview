@@ -16,14 +16,10 @@ from __future__ import annotations
 import pytest
 
 from utils.contracts.symbols import (
+    EXCHANGES,
+    FUTURES_CODE_PATTERN,
     AShareCode6,
     EastMoneySecId,
-    ExchangeCode,
-    EXCHANGES,
-    FuturesContractCode,
-    FUTURES_CODE_PATTERN,
-    ProductCode,
-    SymbolInfo,
     SymbolParseError,
     WindCode,
     normalize_exchange,
@@ -31,7 +27,6 @@ from utils.contracts.symbols import (
     to_eastmoney_secid,
     to_wind_code,
 )
-
 
 # ============================================================
 # 1. 股票: SH 主板 / 科创板 / B 股

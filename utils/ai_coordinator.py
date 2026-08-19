@@ -24,6 +24,22 @@ except ImportError:
     import logging
     logger = logging.getLogger('ai_coordinator')
 
+# W.C.3 插件化: feature-flag + PluginRegistry (可选依赖, 缺失时走旧路径)
+try:
+    from .infra.feature_flags import is_enabled as _is_flag_enabled
+except ImportError:
+    def _is_flag_enabled(_name: str) -> bool:
+        return False
+
+try:
+    from .ai_coordinator_plugins.base import ConflictContext, RoutingContext
+    from .ai_coordinator_plugins.conflict_detection_plugin import create_default_conflict_plugins
+    from .ai_coordinator_plugins.registry import PluginRegistry
+    from .ai_coordinator_plugins.routing_plugin import create_default_routing_plugins
+    _PLUGINS_AVAILABLE = True
+except ImportError:
+    _PLUGINS_AVAILABLE = False
+
 
 class TaskType(Enum):
     """AI任务类型"""
@@ -90,6 +106,11 @@ class AICoordinator:
         self._token_used_today = 0
         self._today = datetime.now().strftime('%Y-%m-%d')
         self._init_db()
+        # W.C.3 插件化: 初始化 PluginRegistry (feature-flag 控制是否启用)
+        self._plugin_registry: Optional[Any] = None
+        self._use_plugin_coordinator = _PLUGINS_AVAILABLE and _is_flag_enabled("USE_PLUGIN_COORDINATOR")
+        if self._use_plugin_coordinator:
+            self._init_plugin_registry()
 
     @staticmethod
     def _load_pricing(pricing_path: str = None) -> dict:
@@ -182,6 +203,26 @@ class AICoordinator:
         conn.commit()
         conn.close()
 
+    # ── W.C.3 插件化 ──
+
+    def _init_plugin_registry(self) -> None:
+        """初始化 PluginRegistry: 先从 YAML 加载, 失败则用默认插件集"""
+        try:
+            self._plugin_registry = PluginRegistry()
+            loaded = self._plugin_registry.load_from_config()
+            if loaded == 0:
+                for p in create_default_routing_plugins():
+                    self._plugin_registry.register(p)
+                for p in create_default_conflict_plugins():
+                    self._plugin_registry.register(p)
+                logger.info("插件化协调器: 已加载默认插件集 (%d 个)", len(self._plugin_registry))
+            else:
+                logger.info("插件化协调器: 从 YAML 加载 %d 个插件", loaded)
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+            logger.warning("插件化协调器初始化失败, 回退旧路径: %s", e)
+            self._plugin_registry = None
+            self._use_plugin_coordinator = False
+
     # ── 任务路由 ──
 
     def route(self, task_type: TaskType, priority: Priority = Priority.MEDIUM) -> str:
@@ -194,6 +235,13 @@ class AICoordinator:
         self._refresh_daily_budget()
         budget_ratio = self._token_used_today / self.daily_token_budget if self.daily_token_budget > 0 else 0
 
+        # W.C.3 插件化: feature-flag 启用时走 PluginRegistry, 否则走旧路径
+        if self._use_plugin_coordinator and self._plugin_registry is not None:
+            return self._route_via_plugins(task_type, priority, budget_ratio)
+        return self._route_legacy(task_type, priority, budget_ratio)
+
+    def _route_legacy(self, task_type: TaskType, priority: Priority, budget_ratio: float) -> str:
+        """旧路径路由 — 原硬编码 if-else (保留向后兼容)"""
         # 预算快用完 (>80%) → 强制切换便宜模型
         if budget_ratio > 0.8 and priority != Priority.CRITICAL:
             logger.warning(f"Token预算已使用 {budget_ratio:.0%}，强制切换到 doubao_speed")
@@ -211,6 +259,36 @@ class AICoordinator:
 
         # 默认：日报/情绪分析用便宜模型
         return 'doubao_speed'
+
+    def _route_via_plugins(self, task_type: TaskType, priority: Priority, budget_ratio: float) -> str:
+        """插件路径路由 — 委托 PluginRegistry.resolve_routing
+
+        含 shadow 比对: 同时跑旧路径, 比较决策一致性, 不一致时记日志 (不影响插件路径结果).
+        """
+        ctx = RoutingContext(
+            task_type=task_type,
+            priority=priority,
+            budget_ratio=budget_ratio,
+            token_used_today=self._token_used_today,
+            daily_token_budget=self.daily_token_budget,
+        )
+        result = self._plugin_registry.resolve_routing(ctx)
+        if result is None:
+            logger.warning("插件路径无插件可处理, 回退旧路径")
+            return self._route_legacy(task_type, priority, budget_ratio)
+
+        # shadow 比对 (不阻塞, 仅日志)
+        try:
+            legacy_model = self._route_legacy(task_type, priority, budget_ratio)
+            if legacy_model != result.model:
+                logger.warning(
+                    "shadow 比对不一致: task=%s priority=%s plugin=%s legacy=%s (plugin=%s)",
+                    task_type, priority, result.model, legacy_model, result.plugin_name,
+                )
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
+            logger.warning("shadow 比对异常: %s", e)
+
+        return result.model
 
     def _refresh_daily_budget(self):
         """刷新每日预算（跨天重置）"""
@@ -276,6 +354,61 @@ class AICoordinator:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.debug(f"记录AI决策失败: {e}")
 
+    def record_decision_with_impact(
+        self,
+        source: str,
+        ticker: str,
+        action: str,
+        change_path: str = "",
+        confidence: float = 0.0,
+        reasoning: str = "",
+        model_used: str = "",
+        tokens: int = 0,
+        task_type: str = "",
+    ) -> Dict[str, Any]:
+        """记录 AI 决策 + 代码影响半径 (W.A.2 code-graph-rag 接入)
+
+        当 change_path 非空时, 调用 CodeGraphRAG.impact_analysis 计算影响半径,
+        附加到 reasoning 并返回影响信息. 不传 change_path 时退化为 record_decision.
+
+        Returns:
+            {"impact_radius": int, "impacted_files": list} 或空字典 (无 change_path / 失败)
+        """
+        impact_info: Dict[str, Any] = {}
+        enriched_reasoning = reasoning
+
+        if change_path:
+            rag = None
+            try:
+                from .ai_tools.code_graph_rag import CodeGraphRAG
+                rag = CodeGraphRAG()
+                impact = rag.impact_analysis(change_path)
+                impact_info = {
+                    "impact_radius": impact.impact_radius,
+                    "impacted_files_count": len(impact.impacted_files),
+                    "impacted_files": impact.impacted_files[:20],
+                }
+                enriched_reasoning = (
+                    f"{reasoning}\n[影响半径] radius={impact.impact_radius}, "
+                    f"impacted_files={len(impact.impacted_files)}"
+                )
+            except (ImportError, ValueError, TypeError, KeyError,
+                    AttributeError, RuntimeError, OSError) as e:
+                logger.debug(f"影响半径计算失败 change_path={change_path}: {e}")
+            finally:
+                if rag is not None:
+                    try:
+                        rag.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+
+        self.record_decision(
+            source=source, ticker=ticker, action=action,
+            confidence=confidence, reasoning=enriched_reasoning,
+            model_used=model_used, tokens=tokens, task_type=task_type,
+        )
+        return impact_info
+
     # ── 冲突检测 ──
 
     def resolve_conflicts(self, decisions_by_source: Dict[str, Dict[str, str]]
@@ -299,6 +432,14 @@ class AICoordinator:
                 },
             }
         """
+        # W.C.3 插件化: feature-flag 启用时走 PluginRegistry, 否则走旧路径
+        if self._use_plugin_coordinator and self._plugin_registry is not None:
+            return self._resolve_conflicts_via_plugins(decisions_by_source)
+        return self._resolve_conflicts_legacy(decisions_by_source)
+
+    def _resolve_conflicts_legacy(self, decisions_by_source: Dict[str, Dict[str, str]]
+                                  ) -> Dict[str, Dict[str, Any]]:
+        """旧路径冲突检测 — 原多数投票 (保留向后兼容)"""
         # 收集所有标的
         all_tickers = set()
         for decisions in decisions_by_source.values():
@@ -340,6 +481,35 @@ class AICoordinator:
             }
 
         return resolved
+
+    def _resolve_conflicts_via_plugins(self, decisions_by_source: Dict[str, Dict[str, str]]
+                                       ) -> Dict[str, Dict[str, Any]]:
+        """插件路径冲突检测 — 委托 PluginRegistry.resolve_conflict
+
+        含 shadow 比对: 同时跑旧路径, 比较结果一致性, 不一致时记日志.
+        """
+        ctx = ConflictContext(decisions_by_source=decisions_by_source)
+        result = self._plugin_registry.resolve_conflict(ctx)
+        if result is None:
+            logger.warning("插件路径无冲突检测插件可处理, 回退旧路径")
+            return self._resolve_conflicts_legacy(decisions_by_source)
+
+        # shadow 比对 (不阻塞, 仅日志)
+        try:
+            legacy_resolved = self._resolve_conflicts_legacy(decisions_by_source)
+            if legacy_resolved != result.resolved:
+                diff_tickers = [
+                    t for t in legacy_resolved
+                    if t not in result.resolved or legacy_resolved[t] != result.resolved[t]
+                ]
+                logger.warning(
+                    "shadow 比对不一致: %d/%d 标的决策不同 (plugin=%s, tickers=%s)",
+                    len(diff_tickers), len(legacy_resolved), result.plugin_name, diff_tickers[:10],
+                )
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
+            logger.warning("shadow 比对异常: %s", e)
+
+        return result.resolved
 
     # ── 统计与查询 ──
 

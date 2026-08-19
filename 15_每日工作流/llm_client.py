@@ -146,7 +146,8 @@ def _start_ollama_server() -> bool:
         if num_gpus:
             env["OLLAMA_NUM_GPUS"] = num_gpus
 
-        ollama_exe = Path(os.environ.get("OLLAMA_PATH", "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Ollama\\ollama.exe"))
+        _ollama_default = os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ollama\ollama.exe")
+        ollama_exe = Path(os.environ.get("OLLAMA_PATH", _ollama_default))
         if not ollama_exe.exists():
             ollama_exe = Path("ollama")
 
@@ -442,18 +443,15 @@ def chat(prompt: str, system: str = "",
 
     MC2 修复:
       1. 添加 Provider 熔断器: 失败 provider 5 分钟内不再重试, 避免每次 60s 超时
-      2. 降级链对齐 AGENTS.md: DeepSeek (主) → 豆包 → GLM → Ollama → 其他
+      2. 降级链对齐 AGENTS.md: DeepSeek (主) → GLM → Ollama (2026-08-18 剔除豆包/HY3/千帆)
       3. 无 Key 的 provider 直接跳过, 不触发超时
     """
-    # MC2 修复: 按文档降级链顺序, 配合熔断器避免重复超时
+    # 2026-08-18 调整: 用户指定降级链 DeepSeek → GLM → Ollama (剔除豆包/HY3/千帆)
     providers = [
         ("deepseek", _chat_deepseek, bool(DEEPSEEK_API_KEY)),
-        ("doubao", _chat_doubao, bool(VOLCENGINE_API_KEY)),
         ("glm", _chat_glm, bool(GLM_API_KEY)),
         ("ollama_api", _chat_ollama_api, True),  # 本地服务始终尝试
         ("ollama_cli", _chat_ollama, True),
-        ("hy3", _chat_hy3, bool(HY3_API_KEY)),
-        ("qianfan", _chat_qianfan, bool(QIANFAN_API_KEY)),
     ]
 
     for name, chat_fn, has_key in providers:

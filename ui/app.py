@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """
 量化策略系统 v5.10 — Streamlit 多页面 UI 主入口
 """
 
-import sys
 import os
+import sys
 
 # 确保主项目目录在 path 中
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

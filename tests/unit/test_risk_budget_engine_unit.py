@@ -1,11 +1,8 @@
-# -*- coding: utf-8 -*-
 """risk_budget_engine 单元测试 — 事前风险预算引擎全分支覆盖"""
 from __future__ import annotations
 
-import math
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 import numpy as np
 import pandas as pd

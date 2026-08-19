@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 v7.5 机构级每日交易工作流
 ================================
@@ -26,14 +25,17 @@ v7.5 机构级每日交易工作流
 
 from __future__ import annotations
 
-import os
-import sys
+import argparse
 import json
 import logging
-import argparse
+import os
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from workflow.context import WorkflowContext
 
 # ============================================================
 # 路径初始化 (兼容 Python 3.8)
@@ -44,6 +46,10 @@ sys.path.insert(0, str(SRC_DIR))
 sys.path.insert(0, str(BASE_DIR.parent))  # 兼容 v7.4 模块
 sys.path.insert(0, str(BASE_DIR / "data"))  # EDB 期货数据模块
 sys.path.insert(0, str(BASE_DIR))  # workflow 子包 (拆分后 phase 模块导入)
+# v8.6: 对冲模块 hedging 位于 ms_strategy/src/hedging, 需将其加入 sys.path
+_MS_STRATEGY_SRC = BASE_DIR.parent / "ms_strategy" / "src"
+if _MS_STRATEGY_SRC.exists():
+    sys.path.insert(0, str(_MS_STRATEGY_SRC))
 
 # ============================================================
 # 日志配置
@@ -68,17 +74,17 @@ logger = logging.getLogger("v75.daily_workflow")
 # 导入 v7.5 模块
 # ============================================================
 try:
-    from risk.risk_manager import RiskManager
-    from risk.circuit_breaker import CircuitBreaker, CircuitLevel
-    from hedging.beta_hedger import BetaHedger
-    from hedging.vol_hedger import VolHedger
-    from hedging.correlation_hedger import CorrelationHedger
-    from hedging.hedge_coordinator import HedgeCoordinator
-    from execution.smart_order_router import SmartOrderRouter, MockBroker
+    from backtest.cost_model import CostModel
+    from backtest.metrics import compute_all_metrics
     from execution.algo_engine import AlgoEngine, AlgoType
     from execution.ntp_sync import NTPSync
-    from backtest.metrics import compute_all_metrics
-    from backtest.cost_model import CostModel
+    from execution.smart_order_router import MockBroker, SmartOrderRouter
+    from hedging.beta_hedger import BetaHedger
+    from hedging.correlation_hedger import CorrelationHedger
+    from hedging.hedge_coordinator import HedgeCoordinator
+    from hedging.vol_hedger import VolHedger
+    from risk.circuit_breaker import CircuitBreaker, CircuitLevel
+    from risk.risk_manager import RiskManager
     V75_READY = True
 except ImportError as e:
     logger.warning(f"v7.5 模块导入失败, 降级模式: {e}")
@@ -112,16 +118,16 @@ except ImportError as e:
 # 优先使用 lgb_enhanced_trainer (真实OHLCV + 情绪因子 + 自适应重训)
 # 不可用时回退到旧 autolearn_trainer
 try:
-    from lgb_enhanced_trainer import run_enhanced_training as _run_autolearn
     from lgb_enhanced_trainer import generate_comparison_report as _generate_autolearn_report
+    from lgb_enhanced_trainer import run_enhanced_training as _run_autolearn
     AUTOLEARN_READY = True
     AUTOLEARN_ENGINE = "lgb_enhanced"
     logger.info("使用增强训练器: lgb_enhanced_trainer (真实OHLCV + 情绪因子 + 自适应重训)")
 except ImportError as e:
     logger.warning(f"增强训练器导入失败: {e}, 尝试旧训练器")
     try:
-        from autolearn_trainer import run_autolearn as _run_autolearn
         from autolearn_trainer import generate_report as _generate_autolearn_report
+        from autolearn_trainer import run_autolearn as _run_autolearn
         AUTOLEARN_READY = True
         AUTOLEARN_ENGINE = "autolearn_legacy"
     except ImportError as e2:
@@ -133,10 +139,10 @@ except ImportError as e:
 # 对冲基金视角模块 (v7.7: Theta引擎 + Gamma尾部防御 + 三级熔断 + 2030清仓)
 # ============================================================
 try:
-    from utils.theta_engine import ThetaEngine
     from utils.gamma_engine import GammaEngine
     from utils.kill_switch import KillSwitch
     from utils.liquidation_scheduler import LiquidationScheduler
+    from utils.theta_engine import ThetaEngine
     HEDGE_FUND_MODULES_READY = True
     logger.info("对冲基金模块加载成功: Theta/Gamma/KillSwitch/LiquidationScheduler")
 except ImportError as e:
@@ -149,9 +155,9 @@ except ImportError as e:
 V10_RISK_READY = False
 try:
     from utils.drawdown_controller import DrawdownController
-    from utils.var_monitor import VaRMonitor
     from utils.stress_test_runner import StressTestRunner
     from utils.v10_config_loader import V10ConfigLoader
+    from utils.var_monitor import VaRMonitor
     V10_RISK_READY = True
     logger.info("v10.0 风控模块加载成功: DrawdownController/VaRMonitor/StressTestRunner/V10ConfigLoader")
 except ImportError as e:
@@ -162,10 +168,10 @@ except ImportError as e:
 # ============================================================
 V10_STRATEGY_READY = False
 try:
-    from utils.quant_neutral_runner import QuantNeutralRunner
-    from utils.ic_hedge_calculator import ICHedgeCalculator
     from utils.cash_manager import CashManager
     from utils.directional_futures_trader import DirectionalFuturesTrader
+    from utils.ic_hedge_calculator import ICHedgeCalculator
+    from utils.quant_neutral_runner import QuantNeutralRunner
     V10_STRATEGY_READY = True
     logger.info("v10.0 策略模块加载成功: QuantNeutralRunner/ICHedgeCalculator/CashManager/DirectionalFuturesTrader")
 except ImportError as e:
@@ -176,7 +182,7 @@ except ImportError as e:
 # ============================================================
 PHASE_MANAGER_READY = False
 try:
-    from utils.phase_manager import PhaseManager, PhaseInfo, QuarterlyReviewResult
+    from utils.phase_manager import PhaseInfo, PhaseManager, QuarterlyReviewResult
     PHASE_MANAGER_READY = True
     logger.info("十五五阶段管理器加载成功: PhaseManager (5年度/季度评估/2030清仓)")
 except ImportError as e:
@@ -188,10 +194,11 @@ except ImportError as e:
 # ============================================================
 HEDGE_FUND_MODULES_READY = False
 try:
-    from utils.execution_algo_engine import ExecutionAlgoEngine, AlgoType as ExecAlgoType
-    from utils.pnl_attribution_engine import PnLAttributionEngine
     from utils.data_quality_monitor import DataQualityMonitor
+    from utils.execution_algo_engine import AlgoType as ExecAlgoType
+    from utils.execution_algo_engine import ExecutionAlgoEngine
     from utils.multi_strategy_coordinator import MultiStrategyCoordinator
+    from utils.pnl_attribution_engine import PnLAttributionEngine
     HEDGE_FUND_MODULES_READY = True
     logger.info("对冲基金模块加载成功: ExecutionAlgo/PnLAttribution/DataQuality/MultiStrategyCoord")
 except ImportError as e:
@@ -200,9 +207,10 @@ except ImportError as e:
 # 顶级配置模块 (Black-Litterman / TCA / Barra)
 INSTITUTIONAL_MODULES_READY = False
 try:
-    from utils.black_litterman_optimizer import BlackLittermanOptimizer, View as BLView, BLResult
-    from utils.tca_engine import TCAManager, FillRecord, BenchmarkPrices, TCAReport
-    from utils.barra_risk_decomposer import BarraRiskDecomposer, BarraDecomposition, BARRA_STYLE_FACTORS
+    from utils.barra_risk_decomposer import BARRA_STYLE_FACTORS, BarraDecomposition, BarraRiskDecomposer
+    from utils.black_litterman_optimizer import BlackLittermanOptimizer, BLResult
+    from utils.black_litterman_optimizer import View as BLView
+    from utils.tca_engine import BenchmarkPrices, FillRecord, TCAManager, TCAReport
     INSTITUTIONAL_MODULES_READY = True
     logger.info("机构级模块加载成功: BlackLitterman/TCA/Barra")
 except ImportError as e:
@@ -214,7 +222,10 @@ try:
     from utils.ledoit_wolf_covariance import LedoitWolfCovariance, ShrinkageResult
     from utils.risk_budget_optimizer import RiskBudgetOptimizer, RiskBudgetResult
     from utils.stress_test_scenario_library import (
-        StressTestEngine, StressScenario, ShockFactors, StressTestResult,
+        ShockFactors,
+        StressScenario,
+        StressTestEngine,
+        StressTestResult,
     )
     RISK_MGT_MODULES_READY = True
     logger.info("风险管理模块加载成功: LedoitWolf/RiskBudgetOpt/StressTest")
@@ -225,7 +236,7 @@ except ImportError as e:
 ALPHA_MODULES_READY = False
 try:
     from utils.alpha_factor_library import AlphaFactorLibrary, FactorLibraryResult
-    from utils.momentum_reversal_engine import MomentumReversalEngine, MomentumResult
+    from utils.momentum_reversal_engine import MomentumResult, MomentumReversalEngine
     from utils.smart_beta_engine import SmartBetaEngine, SmartBetaResult
     ALPHA_MODULES_READY = True
     logger.info("Alpha 生成模块加载成功: AlphaFactorLib/MomentumReversal/SmartBeta")
@@ -237,10 +248,16 @@ EXECUTION_MODULES_READY = False
 try:
     from utils.execution_algorithm_engine import (
         ExecutionAlgorithmEngine as InstitutionExecAlgoEngine,
-        Order as ExecOrder, ExecutionPlan,
     )
-    from utils.market_impact_model import MarketImpactModel, ImpactParams
-    from utils.smart_order_router import SmartOrderRouter as InstitutionSmartRouter, Venue as RoutingVenue
+    from utils.execution_algorithm_engine import (
+        ExecutionPlan,
+    )
+    from utils.execution_algorithm_engine import (
+        Order as ExecOrder,
+    )
+    from utils.market_impact_model import ImpactParams, MarketImpactModel
+    from utils.smart_order_router import SmartOrderRouter as InstitutionSmartRouter
+    from utils.smart_order_router import Venue as RoutingVenue
     EXECUTION_MODULES_READY = True
     logger.info("执行层模块加载成功: ExecAlgo/MarketImpact/SmartRouter")
 except ImportError as e:
@@ -249,9 +266,9 @@ except ImportError as e:
 # 顶级另类数据模块 (新闻情感 / 供应链 / 另类数据) — Renaissance/Two Sigma 标准
 ALT_DATA_MODULES_READY = False
 try:
-    from utils.news_sentiment_engine import NewsSentimentEngine, NewsItem
-    from utils.supply_chain_graph import SupplyChainGraph, SupplyChainEdge
     from utils.alt_data_indicators import AltDataIndicators
+    from utils.news_sentiment_engine import NewsItem, NewsSentimentEngine
+    from utils.supply_chain_graph import SupplyChainEdge, SupplyChainGraph
     ALT_DATA_MODULES_READY = True
     logger.info("另类数据模块加载成功: NewsSentiment/SupplyChain/AltData")
 except ImportError as e:
@@ -262,9 +279,15 @@ try:
     # 优先尝试 v7.4 模块
     sys.path.insert(0, str(BASE_DIR.parent / "_archive_dead_code"))
     from generate_shenhua_build_plan import (
-        SHENHUA_CODE, SHENHUA_NAME, BUILD_TIERS, BUILD_PHASES,
-        RISK_PARAMS, EXECUTION_RULES, VALUATION_SNAPSHOT,
-        calc_lots, build_position_plan,
+        BUILD_PHASES,
+        BUILD_TIERS,
+        EXECUTION_RULES,
+        RISK_PARAMS,
+        SHENHUA_CODE,
+        SHENHUA_NAME,
+        VALUATION_SNAPSHOT,
+        build_position_plan,
+        calc_lots,
     )
     SHENHUA_READY = True
 except ImportError:
@@ -428,7 +451,7 @@ class DailyWorkflow:
                  capital: float = WorkflowConfig.TOTAL_CAPITAL,
                  dry_run: bool = False,
                  sim_mode: bool = False,
-                 external_reports_dir: Optional[str] = None):
+                 external_reports_dir: Optional[str] = None) -> None:
         self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
         self.capital = capital
         self.dry_run = dry_run
@@ -439,10 +462,10 @@ class DailyWorkflow:
         self.config.REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
         # 加载 2026 年交易计划
-        self.trade_plan: Dict[str, Any] = self._load_trade_plan()
+        self.trade_plan: dict[str, Any] = self._load_trade_plan()
 
         # 状态记录
-        self.state: Dict[str, Any] = {
+        self.state: dict[str, Any] = {
             "trade_date": self.trade_date,
             "capital": capital,
             "dry_run": dry_run,
@@ -480,12 +503,12 @@ class DailyWorkflow:
         self.fusion_config = self._load_fusion_config()
 
         # iFinD 新闻缓存 (同一天避免重复调用)
-        self._ifind_cache: Dict[str, Any] = {}
+        self._ifind_cache: dict[str, Any] = {}
         self._ifind_cache_date: str = ""
-        self._ifind_planned_symbols: List[str] = []
+        self._ifind_planned_symbols: list[str] = []
 
         # EDB 期货数据缓存 (同一天避免重复调用)
-        self._edb_cache: Dict[str, Dict[str, Any]] = {}
+        self._edb_cache: dict[str, dict[str, Any]] = {}
         self._edb_cache_date: str = ""
 
         # 十五五阶段管理器 (5 年度阶段 + 季度评估 + 2030 清仓)
@@ -628,14 +651,13 @@ class DailyWorkflow:
         if self.sim_mode:
             try:
                 from sim_broker_integration import (
+                    PositionSync,
+                    SimAccount,
                     SimExecutionEngine,
                     SimStockBroker,
-                    SimFuturesBroker,
-                    SimAccount,
-                    PositionSync,
                     TradingSessionCalendar,
                 )
-                from ths_sim_broker import THSQuoteProvider, SimOptionsBroker, THSSimFuturesBroker
+                from ths_sim_broker import SimOptionsBroker, THSQuoteProvider, THSSimFuturesBroker
                 calendar = TradingSessionCalendar()
                 stock_account = SimAccount(
                     account_id="SIM-STOCK",
@@ -678,13 +700,12 @@ class DailyWorkflow:
                 self.sim_engine = None
                 self.sim_mode = False
 
-    def _load_fusion_config(self) -> Dict[str, Any]:
+    def _load_fusion_config(self) -> dict[str, Any]:
         """从 settings.yaml 加载信号融合配置
 
         Returns:
             融合配置字典，加载失败时返回默认值
         """
-        import os
         import yaml as _yaml
         defaults = {
             "qlib_weight": 0.50,
@@ -716,7 +737,7 @@ class DailyWorkflow:
         }
         try:
             cfg_path = os.path.join(os.path.dirname(__file__), "config", "settings.yaml")
-            with open(cfg_path, "r", encoding="utf-8") as f:
+            with open(cfg_path, encoding="utf-8") as f:
                 full = _yaml.safe_load(f)
             sf = full.get("signal_fusion", {})
             if sf:
@@ -730,7 +751,7 @@ class DailyWorkflow:
             logger.warning("加载 signal_fusion 配置失败，使用默认值: %s", exc)
         return defaults
 
-    def _load_external_reports(self) -> Dict[str, Any]:
+    def _load_external_reports(self) -> dict[str, Any]:
         """加载 15_每日工作流报告，作为信号生成的外部输入
 
         Returns:
@@ -785,7 +806,7 @@ class DailyWorkflow:
         except Exception:
             return "bull"
 
-    def _get_regime_weights(self, regime: str) -> Dict[str, float]:
+    def _get_regime_weights(self, regime: str) -> dict[str, float]:
         """根据市场状态获取信号融合权重
 
         Args:
@@ -817,7 +838,7 @@ class DailyWorkflow:
             "external": float(weights.get("external", 0.2)),
         }
 
-    def _calculate_external_factor(self, external_reports: Dict[str, Any]) -> float:
+    def _calculate_external_factor(self, external_reports: dict[str, Any]) -> float:
         """根据外部报告计算订单调整系数
 
         Args:
@@ -853,7 +874,7 @@ class DailyWorkflow:
 
         return max(0.5, min(1.3, round(factor, 2)))
 
-    def _get_ifind_insights(self, symbols: list, name_map: dict) -> Dict[str, Any]:
+    def _get_ifind_insights(self, symbols: list, name_map: dict) -> dict[str, Any]:
         """获取 iFinD 新闻研判 (带当日缓存)
 
         同一天内多次调用只请求一次 API，后续从缓存读取。
@@ -885,17 +906,17 @@ class DailyWorkflow:
             logger.error("iFinD 批量研判失败", exc_info=True)
             return {}
 
-    def _get_edb_futures_data(self, names=None) -> Dict[str, Dict[str, Any]]:
+    def _get_edb_futures_data(self, names: Optional[list[str]] = None) -> dict[str, dict[str, Any]]:
         """获取 EDB 期货/商品数据 (委托至 workflow.phases.hedge)"""
         from workflow.phases.hedge import _get_edb_futures_data as _impl
         return _impl(self._build_context(), names)
 
-    def _get_futures_scanner_summary(self) -> Dict[str, Dict[str, Any]]:
+    def _get_futures_scanner_summary(self) -> dict[str, dict[str, Any]]:
         """期货期权扫描器汇总 (委托至 workflow.phases.hedge)"""
         from workflow.phases.hedge import _get_futures_scanner_summary as _impl
         return _impl()
 
-    def _load_trade_plan(self) -> Dict[str, Any]:
+    def _load_trade_plan(self) -> dict[str, Any]:
         """加载交易计划文件
 
         优先加载 `trade_plans/trade_plan_{YYYYMMDD}.json`,
@@ -914,7 +935,7 @@ class DailyWorkflow:
         for path in candidates:
             if path.exists():
                 try:
-                    with open(path, "r", encoding="utf-8") as f:
+                    with open(path, encoding="utf-8") as f:
                         plan = json.load(f)
                     logger.info(f"已加载交易计划: {path.name} "
                                 f"(阶段: {plan.get('phase', {}).get('name', 'N/A')}, "
@@ -938,7 +959,7 @@ class DailyWorkflow:
         master_plan = self.config.PLAN_DIR / "auto_trade_plan_500w_2026-2030.json"
         if master_plan.exists():
             try:
-                with open(master_plan, "r", encoding="utf-8") as f:
+                with open(master_plan, encoding="utf-8") as f:
                     plan = json.load(f)
                 logger.info(f"已回退加载主计划: {master_plan.name}")
                 self._ifind_planned_symbols = []
@@ -954,7 +975,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 1: 系统自检
     # --------------------------------------------------------
-    def _build_context(self):
+    def _build_context(self) -> WorkflowContext:
         """构造 WorkflowContext, 供拆分出的 phase 子模块使用"""
         from workflow.context import WorkflowContext
         return WorkflowContext(self)
@@ -989,7 +1010,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 3: 风险预算计算 (组合级别 — 500万 4阶段)
     # --------------------------------------------------------
-    def phase_risk(self) -> Dict[str, Any]:
+    def phase_risk(self) -> dict[str, Any]:
         """风险预算计算 (委托至 workflow.phases.risk)"""
         from workflow.phases.risk import phase_risk as _phase_risk
         ctx = self._build_context()
@@ -1004,8 +1025,8 @@ class DailyWorkflow:
         return _impl(code)
 
     def _style_beta_proxy(self,
-                          positions: Dict[str, float],
-                          prices: Dict[str, float]) -> float:
+                          positions: dict[str, float],
+                          prices: dict[str, float]) -> float:
         """风格 Beta 代理 (委托至 workflow.phases.risk)"""
         from workflow.phases.risk import _style_beta_proxy as _impl
         return _impl(positions, prices)
@@ -1015,19 +1036,19 @@ class DailyWorkflow:
         from workflow.phases.risk import _get_if_realtime as _impl
         return _impl()
 
-    def _compute_beta_hedge_order(self, portfolio_beta: float, portfolio_value: float, degraded: bool = False) -> Dict[str, object]:
+    def _compute_beta_hedge_order(self, portfolio_beta: float, portfolio_value: float, degraded: bool = False) -> dict[str, object]:
         """基于 BetaHedger 计算对冲指令 (委托至 workflow.phases.hedge)"""
         from workflow.phases.hedge import _compute_beta_hedge_order as _impl
         return _impl(portfolio_beta, portfolio_value, degraded)
 
 
-    def phase_hedge(self) -> Dict[str, Any]:
+    def phase_hedge(self) -> dict[str, Any]:
         """三联对冲评估 + 自动执行 (委托至 workflow.phases.hedge)"""
         from workflow.phases.hedge import phase_hedge as _phase_hedge
         ctx = self._build_context()
         return _phase_hedge(ctx)
 
-    def _execute_sim_hedge_orders(self, orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _execute_sim_hedge_orders(self, orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """模拟盘对冲订单路由 (委托至 workflow.phases.hedge)
 
         新增方法 (第 3 轮拆分): 符合 test_phase_hedge_sim_branch.py 规约,
@@ -1045,7 +1066,7 @@ class DailyWorkflow:
     #   - 三级熔断: 保证金占用率检查 + 自动执行
     #   - 2030清仓协议: 阶段切换 + 预警
     # --------------------------------------------------------
-    def phase_hedge_fund(self) -> Dict[str, Any]:
+    def phase_hedge_fund(self) -> dict[str, Any]:
         """对冲基金视角融合 (委托至 workflow.phases.hedge_fund)"""
         from workflow.phases.hedge_fund import phase_hedge_fund as _phase_hedge_fund
         ctx = self._build_context()
@@ -1055,13 +1076,13 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 4.6: v10.0 风控 (回撤控制 + VaR 监控 + 压力测试)
     # --------------------------------------------------------
-    def phase_v10_risk(self) -> Dict[str, Any]:
+    def phase_v10_risk(self) -> dict[str, Any]:
         """v10.0 风控 (委托至 workflow.phases.v10_risk)"""
         from workflow.phases.v10_risk import phase_v10_risk as _phase_v10_risk
         ctx = self._build_context()
         return _phase_v10_risk(ctx)
 
-    def _get_portfolio_positions_for_stress_test(self) -> List[Dict]:
+    def _get_portfolio_positions_for_stress_test(self) -> list[dict]:
         """获取压力测试持仓 (委托至 workflow.phases.v10_risk)"""
         from workflow.phases.v10_risk import _get_portfolio_positions_for_stress_test as _impl
         return _impl()
@@ -1069,13 +1090,13 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 4.7: 量化市场中性策略 (月度调仓 + IC 对冲)
     # --------------------------------------------------------
-    def phase_quant_neutral(self) -> Dict[str, Any]:
+    def phase_quant_neutral(self) -> dict[str, Any]:
         """量化市场中性策略 (委托至 workflow.phases.quant_neutral)"""
         from workflow.phases.quant_neutral import phase_quant_neutral as _phase_quant_neutral
         ctx = self._build_context()
         return _phase_quant_neutral(ctx)
 
-    def _load_quant_neutral_holdings(self) -> List[Dict]:
+    def _load_quant_neutral_holdings(self) -> list[dict]:
         """加载量化中性多头持仓 (委托至 workflow.phases.quant_neutral)"""
         from workflow.phases.quant_neutral import _load_quant_neutral_holdings as _impl
         return _impl()
@@ -1095,7 +1116,7 @@ class DailyWorkflow:
         from workflow.phases.quant_neutral import _get_current_ic_contracts as _impl
         return _impl()
 
-    def _load_strategy_drawdown_state(self, strategy_name: str) -> Tuple[float, float, int]:
+    def _load_strategy_drawdown_state(self, strategy_name: str) -> tuple[float, float, int]:
         """加载策略回撤状态 (委托至 workflow.phases.quant_neutral)"""
         from workflow.phases.quant_neutral import _load_strategy_drawdown_state as _impl
         return _impl(strategy_name)
@@ -1104,7 +1125,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 4.8: 现金管理 (逆回购 + 货基 + 应急金监控)
     # --------------------------------------------------------
-    def phase_cash_management(self) -> Dict[str, Any]:
+    def phase_cash_management(self) -> dict[str, Any]:
         """现金管理 (委托至 workflow.phases.cash_management)"""
         from workflow.phases.cash_management import phase_cash_management as _phase_cash_management
         ctx = self._build_context()
@@ -1113,7 +1134,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 4.9: 方向性期货交易 (CU/AU/T 三品种方向性交易)
     # --------------------------------------------------------
-    def phase_directional_futures(self) -> Dict[str, Any]:
+    def phase_directional_futures(self) -> dict[str, Any]:
         """方向性期货交易 (委托至 workflow.phases.directional_futures)"""
         from workflow.phases.directional_futures import phase_directional_futures as _phase_directional_futures
         ctx = self._build_context()
@@ -1122,7 +1143,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 5: 信号生成 (2026 交易计划订单) -- 拆分至 workflow/phases/signal*.py
     # --------------------------------------------------------
-    def phase_signal(self) -> Dict[str, Any]:
+    def phase_signal(self) -> dict[str, Any]:
         """信号生成 -- 从 trade_plan 加载订单 (委托至 workflow.phases.signal)"""
         from workflow.phases.signal import phase_signal as _phase_signal
         ctx = self._build_context()
@@ -1134,7 +1155,7 @@ class DailyWorkflow:
         from workflow.phases.signal_qlib import qlib_signal_to_factor
         return qlib_signal_to_factor(signal_value)
 
-    def _qlib_signals_to_adjustments(self, qlib_signals, *, morning_orders, afternoon_orders):
+    def _qlib_signals_to_adjustments(self, qlib_signals: dict[str, Any], *, morning_orders: dict[str, Any], afternoon_orders: dict[str, Any]) -> dict[str, Any]:
         """按 Qlib 信号调整订单 (委托至 workflow.phases.signal_qlib)"""
         from workflow.phases.signal_qlib import qlib_signals_to_adjustments
         return qlib_signals_to_adjustments(qlib_signals, morning_orders=morning_orders, afternoon_orders=afternoon_orders)
@@ -1146,56 +1167,56 @@ class DailyWorkflow:
         return ifind_signal_to_factor(direction, confidence)
 
     @staticmethod
-    def _fuse_qlib_ifind_factor(qlib_factor, ifind_factor, *, qlib_weight=0.6, ifind_weight=0.4, clamp_min=0.5, clamp_max=1.3):
+    def _fuse_qlib_ifind_factor(qlib_factor: float, ifind_factor: float, *, qlib_weight: float = 0.6, ifind_weight: float = 0.4, clamp_min: float = 0.5, clamp_max: float = 1.3) -> float:
         """融合 Qlib + iFinD 因子 (委托至 workflow.phases.signal)"""
         from workflow.phases.signal import fuse_qlib_ifind_factor
         return fuse_qlib_ifind_factor(qlib_factor, ifind_factor, qlib_weight=qlib_weight, ifind_weight=ifind_weight, clamp_min=clamp_min, clamp_max=clamp_max)
 
-    def _load_lgb_enhanced_signals(self) -> Dict[str, Dict[str, Any]]:
+    def _load_lgb_enhanced_signals(self) -> dict[str, dict[str, Any]]:
         """加载 LGB 增强信号 (委托至 workflow.phases.signal_lgb)"""
         from workflow.phases.signal_lgb import load_lgb_enhanced_signals
         return load_lgb_enhanced_signals()
 
     @staticmethod
-    def _lgb_confidence_multiplier(signal_value, quality_flag="OK"):
+    def _lgb_confidence_multiplier(signal_value: float, quality_flag: str = "OK") -> float:
         """LGB 信号 -> 置信度乘数 (委托至 workflow.phases.signal_lgb)"""
         from workflow.phases.signal_lgb import lgb_confidence_multiplier
         return lgb_confidence_multiplier(signal_value, quality_flag)
 
-    def _apply_fused_qlib_ifind_adjustments(self, *, morning_orders, afternoon_orders, qlib_signals, ifind_insights, external_factor=1.0, regime_weights=None, lgb_signals=None):
+    def _apply_fused_qlib_ifind_adjustments(self, *, morning_orders: dict[str, Any], afternoon_orders: dict[str, Any], qlib_signals: dict[str, Any], ifind_insights: dict[str, Any], external_factor: float = 1.0, regime_weights: Optional[dict[str, Any]] = None, lgb_signals: Optional[dict[str, Any]] = None) -> dict[str, Any]:
         """四源融合调整订单 (委托至 workflow.phases.signal)"""
         from workflow.phases.signal import apply_fused_qlib_ifind_adjustments
         ctx = self._build_context()
         return apply_fused_qlib_ifind_adjustments(ctx, morning_orders=morning_orders, afternoon_orders=afternoon_orders, qlib_signals=qlib_signals, ifind_insights=ifind_insights, external_factor=external_factor, regime_weights=regime_weights, lgb_signals=lgb_signals)
 
-    def _apply_ifind_news_adjustments(self, *, morning_orders, afternoon_orders):
+    def _apply_ifind_news_adjustments(self, *, morning_orders: dict[str, Any], afternoon_orders: dict[str, Any]) -> dict[str, Any]:
         """iFinD 新闻调整订单 (委托至 workflow.phases.signal_ifind)"""
         from workflow.phases.signal_ifind import apply_ifind_news_adjustments
         ctx = self._build_context()
         return apply_ifind_news_adjustments(ctx, morning_orders=morning_orders, afternoon_orders=afternoon_orders)
 
-    def _apply_macro_policy_adjustments(self, *, morning_orders, afternoon_orders, macro_scores):
+    def _apply_macro_policy_adjustments(self, *, morning_orders: dict[str, Any], afternoon_orders: dict[str, Any], macro_scores: dict[str, Any]) -> dict[str, Any]:
         """宏观政策评分调整 (委托至 workflow.phases.signal_ifind)"""
         from workflow.phases.signal_ifind import apply_macro_policy_adjustments
         return apply_macro_policy_adjustments(morning_orders=morning_orders, afternoon_orders=afternoon_orders, macro_scores=macro_scores)
 
-    def _apply_position_factor(self, orders, factor):
+    def _apply_position_factor(self, orders: dict[str, Any], factor: float) -> dict[str, Any]:
         """DEFENSE 模式仓位系数调整 (委托至 workflow.phases.signal)"""
         from workflow.phases.signal import apply_position_factor
         return apply_position_factor(orders, factor)
 
-    def _generate_qlib_signals(self) -> Dict[str, float]:
+    def _generate_qlib_signals(self) -> dict[str, float]:
         """生成 Qlib 深度学习信号 (委托至 workflow.phases.signal_qlib)"""
         from workflow.phases.signal_qlib import generate_qlib_signals
         ctx = self._build_context()
         return generate_qlib_signals(ctx)
 
-    def _generate_mock_ohlcv(self, symbol: str, days: int = 120):
+    def _generate_mock_ohlcv(self, symbol: str, days: int = 120) -> dict[str, Any]:
         """生成模拟 OHLCV 数据 (委托至 workflow.phases.signal_qlib)"""
         from workflow.phases.signal_qlib import generate_mock_ohlcv
         return generate_mock_ohlcv(symbol, days)
 
-    def _options_market_snapshot(self) -> Dict[str, Any]:
+    def _options_market_snapshot(self) -> dict[str, Any]:
         """期权市场快照 (委托至 workflow.phases.signal_ifind)"""
         from workflow.phases.signal_ifind import options_market_snapshot
         return options_market_snapshot()
@@ -1204,7 +1225,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # Phase 6: 智能执行 (MockBroker / SimExecutionEngine)
     # --------------------------------------------------------
-    def phase_execute(self, signal: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def phase_execute(self, signal: dict[str, Any]) -> list[dict[str, Any]]:
         """智能执行 — 2026 年交易计划订单
 
         支持两种执行模式:
@@ -1226,7 +1247,7 @@ class DailyWorkflow:
         # === 期权策略执行（v9.0 多策略期权覆盖层，优先于现货订单检查） ===
         options_plan = self.trade_plan.get("options_execution", {}) if self.trade_plan else {}
         options_modules = self.trade_plan.get("hedge_account", {}).get("modules", []) if self.trade_plan else []
-        options_fills: List[Dict[str, Any]] = []
+        options_fills: list[dict[str, Any]] = []
         if options_plan and options_modules:
             try:
                 from execution.options_runner import OptionsRunner
@@ -1298,7 +1319,7 @@ class DailyWorkflow:
             logger.info("DRY-RUN 模式, 仅生成指令不执行")
 
             # === 对冲基金视角: 执行算法引擎 (大单拆单计划) ===
-            execution_plans: List[Dict[str, Any]] = []
+            execution_plans: list[dict[str, Any]] = []
             _split_total = 0
             _split_fail = 0
             if self.exec_algo_engine is not None:
@@ -1442,7 +1463,7 @@ class DailyWorkflow:
             return dry_orders
 
         # === 对冲基金视角: 执行算法引擎 (大单拆单计划) ===
-        execution_plans: List[Dict[str, Any]] = []
+        execution_plans: list[dict[str, Any]] = []
         _split_total = 0
         _split_fail = 0
         if self.exec_algo_engine is not None:
@@ -1563,7 +1584,7 @@ class DailyWorkflow:
             ntp = getattr(self, 'ntp', None) or NTPSync()
             sor = SmartOrderRouter(broker, ntp)
 
-            all_fills: List[Dict[str, Any]] = []
+            all_fills: list[dict[str, Any]] = []
 
             # === 上午批次执行 ===
             logger.info(f"--- 上午批次 {self.config.MORNING_WINDOW} ---")
@@ -1618,8 +1639,8 @@ class DailyWorkflow:
             # === 机构级: TCA 交易后成本分析 ===
             if self.tca_manager is not None and all_fills:
                 try:
-                    fills_by_symbol: Dict[str, List[FillRecord]] = {}
-                    benchmarks: Dict[str, BenchmarkPrices] = {}
+                    fills_by_symbol: dict[str, list[FillRecord]] = {}
+                    benchmarks: dict[str, BenchmarkPrices] = {}
                     for fill in all_fills:
                         sym = str(fill.get("symbol", fill.get("code", "")))
                         if not sym:
@@ -1668,12 +1689,12 @@ class DailyWorkflow:
             # === 执行层: 执行算法 + 市场冲击 + 智能路由 ===
             if EXECUTION_MODULES_READY and self.execution_algo_engine is not None:
                 try:
-                    import pandas as _pd_exec
                     import numpy as _np_exec
+                    import pandas as _pd_exec
                     # 为每笔成交生成执行计划与冲击估计
-                    exec_plans_summary: List[Dict[str, Any]] = []
-                    impact_estimates: List[Dict[str, Any]] = []
-                    routing_decisions: List[Dict[str, Any]] = []
+                    exec_plans_summary: list[dict[str, Any]] = []
+                    impact_estimates: list[dict[str, Any]] = []
+                    routing_decisions: list[dict[str, Any]] = []
 
                     for fill in all_fills:
                         sym = str(fill.get("symbol", fill.get("code", "")))
@@ -1812,9 +1833,9 @@ class DailyWorkflow:
             return []
 
     def _execute_sim_mode(self,
-                          signal: Dict[str, Any],
-                          morning_orders: List[Dict[str, Any]],
-                          afternoon_orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+                          signal: dict[str, Any],
+                          morning_orders: list[dict[str, Any]],
+                          afternoon_orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """模拟盘模式执行：股票日盘 + 期货（日盘+夜盘）"""
         calendar = self.sim_engine.calendar
         if not calendar.is_trading_day():
@@ -1822,7 +1843,7 @@ class DailyWorkflow:
             self.state["phases"]["execute"] = {"status": "PASS", "fills": [], "action": "SKIP_NON_TRADING_DAY"}
             return []
 
-        all_fills: List[Dict[str, Any]] = []
+        all_fills: list[dict[str, Any]] = []
 
         # === 上午批次（股票+期货日盘） ===
         logger.info("--- 模拟盘上午批次 (股票日盘 + 期货日盘) ---")
@@ -1891,8 +1912,8 @@ class DailyWorkflow:
         return all_fills
 
     def _execute_sim_batch(self,
-                           orders: List[Dict[str, Any]],
-                           session: str) -> List[Dict[str, Any]]:
+                           orders: list[dict[str, Any]],
+                           session: str) -> list[dict[str, Any]]:
         """执行一批模拟盘订单（按股票/期货/期权拆分）"""
         if not orders:
             return []
@@ -1910,7 +1931,7 @@ class DailyWorkflow:
             else:
                 futures_orders.append(self._normalize_sim_order(order, session=session))
 
-        fills: List[Dict[str, Any]] = []
+        fills: list[dict[str, Any]] = []
         if stock_orders:
             logger.info("[模拟盘] 股票订单 %d 笔 @ %s", len(stock_orders), session)
             fills.extend(self.sim_engine.execute_stock_orders(stock_orders, session=session))
@@ -1922,7 +1943,7 @@ class DailyWorkflow:
             fills.extend(self.sim_engine.execute_options_orders(options_orders, session=session))
         return fills
 
-    def _normalize_sim_order(self, order: Dict[str, Any], session: str) -> Dict[str, Any]:
+    def _normalize_sim_order(self, order: dict[str, Any], session: str) -> dict[str, Any]:
         """将交易计划订单规范化为模拟盘订单"""
         symbol = str(order.get("code", order.get("symbol", "")))
         side = str(order.get("side", "BUY"))
@@ -1937,7 +1958,7 @@ class DailyWorkflow:
             "session": session,
         }
 
-    def _extract_futures_night_orders(self, orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _extract_futures_night_orders(self, orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """从订单中提取支持夜盘的期货订单"""
         night_codes = set(self.sim_engine.router.futures_broker._night_session_info.keys())
         result = []
@@ -1951,8 +1972,8 @@ class DailyWorkflow:
     def _execute_order_batch(self,
                              sor: SmartOrderRouter,
                              broker: MockBroker,
-                             orders: List[Dict[str, Any]],
-                             session: str) -> List[Dict[str, Any]]:
+                             orders: list[dict[str, Any]],
+                             session: str) -> list[dict[str, Any]]:
         """执行一批订单 (上午或下午)
 
         Args:
@@ -1964,7 +1985,7 @@ class DailyWorkflow:
         Returns:
             成交记录列表
         """
-        fills: List[Dict[str, Any]] = []
+        fills: list[dict[str, Any]] = []
         for order in orders:
             symbol = order.get("code", "")
             name = order.get("name", "")
@@ -2036,17 +2057,17 @@ class DailyWorkflow:
         return fills
 
     def _aggregate_order_summary(self,
-                                 orders: List[Dict[str, Any]],
-                                 fills: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+                                 orders: list[dict[str, Any]],
+                                 fills: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """按订单汇总成交明细，统一报告与状态 JSON 的执行口径"""
         # 建立 symbol -> session 映射，订单本身可能不含 session
-        symbol_session_map: Dict[str, str] = {}
+        symbol_session_map: dict[str, str] = {}
         for f in fills:
             sym = f.get("symbol", "")
             if sym and sym not in symbol_session_map:
                 symbol_session_map[sym] = f.get("session", "")
 
-        order_map: Dict[str, Dict[str, Any]] = {}
+        order_map: dict[str, dict[str, Any]] = {}
         for order in orders:
             symbol = order.get("code", "")
             if not symbol:
@@ -2124,7 +2145,7 @@ class DailyWorkflow:
             f"**生成时间**: {datetime.now():%Y-%m-%d %H:%M:%S}",
             f"**资金规模**: {self.capital:,.0f}",
             f"**执行模式**: {'DRY-RUN' if self.dry_run else ('模拟盘' if getattr(self, '_sim_mode_requested', getattr(self, 'sim_mode', False)) else 'MOCK_EXECUTION')}",
-            f"**策略**: 康波第六轮周期 × 十五五规划 × v7.0期货期权双层对冲",
+            "**策略**: 康波第六轮周期 × 十五五规划 × v7.0期货期权双层对冲",
             "",
             "## 阶段执行摘要",
             "",
@@ -2653,7 +2674,7 @@ class DailyWorkflow:
     # --------------------------------------------------------
     # 主流程
     # --------------------------------------------------------
-    def run(self, only_phase: Optional[str] = None, phase_start: Optional[str] = None, phase_end: Optional[str] = None) -> Dict[str, Any]:
+    def run(self, only_phase: Optional[str] = None, phase_start: Optional[str] = None, phase_end: Optional[str] = None) -> dict[str, Any]:
         """执行完整工作流
 
         Args:
@@ -2717,7 +2738,7 @@ class DailyWorkflow:
 # ============================================================
 # CLI 入口
 # ============================================================
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="v7.5 每日交易工作流",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -2762,43 +2783,33 @@ def main():
     if args.ai_sandbox:
         from ai_decision_sandbox import run_ai_sandbox
         result = run_ai_sandbox(trade_date=args.date)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
         sys.exit(0 if result.get("status") == "PASS" else 1)
 
     if args.ai_auto_approve:
         from ai_auto_approver import run_ai_auto_approver
         result = run_ai_auto_approver(trade_date=args.date, auto_mode=bool(getattr(args, "ai_auto_approve", False)))
-        print(json.dumps(result, ensure_ascii=False, indent=2))
         sys.exit(0 if result.get("status") == "PASS" else 1)
 
     if args.execution_review:
         from execution_reviewer import run_execution_review
         result = run_execution_review(trade_date=args.date, auto_closed_loop=args.auto_closed_loop)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
         sys.exit(0)
 
     if args.dynamic_risk:
         from dynamic_risk_adjuster import run_dynamic_risk_adjuster
         result = run_dynamic_risk_adjuster(trade_date=args.date, write_gate_limits=args.write_gate_limits or args.auto_closed_loop)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
         sys.exit(0)
 
     if args.auto_closed_loop and not args.execution_review and not args.dynamic_risk:
-        from execution_reviewer import run_execution_review
         from dynamic_risk_adjuster import run_dynamic_risk_adjuster
-        review_result = run_execution_review(trade_date=args.date, auto_closed_loop=True)
-        risk_result = run_dynamic_risk_adjuster(trade_date=args.date, write_gate_limits=True)
-        print(json.dumps({
-            "execution_review": review_result,
-            "dynamic_risk": risk_result,
-            "status": "PASS",
-        }, ensure_ascii=False, indent=2))
+        from execution_reviewer import run_execution_review
+        run_execution_review(trade_date=args.date, auto_closed_loop=True)
+        run_dynamic_risk_adjuster(trade_date=args.date, write_gate_limits=True)
         sys.exit(0)
 
     if args.intraday_monitor:
         from intraday_monitor import run_intraday_monitor
         result = run_intraday_monitor(trade_date=args.date)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
         sys.exit(0 if result.get("status") == "PASS" else 1)
 
     workflow = DailyWorkflow(
@@ -2810,9 +2821,29 @@ def main():
     )
     state = workflow.run(only_phase=args.phase, phase_start=args.phase_start, phase_end=args.phase_end)
 
+    # v8.6: 对冲阶段完成后自动串联 RiskGuardIntegrator (盈亏→风控→改写 trade_plan→对冲增减)
+    # 触发条件: 完整 workflow 或 --phase hedge, 且非 dry_run
+    _hedge_done = "hedge" in state.get("phases", {}) and state["phases"]["hedge"].get("status") == "PASS"
+    if _hedge_done and not args.dry_run:
+        try:
+            from datetime import timedelta as _td
+
+            from utils.risk_guard_integrator import RiskGuardIntegrator
+            _today = datetime.strptime(args.date, "%Y-%m-%d")
+            _next = _today + _td(days=1)
+            while _next.weekday() >= 5:
+                _next += _td(days=1)
+            _next_date = _next.strftime("%Y-%m-%d")
+            logger.info(f"[AutoClosedLoop] 对冲完成, 自动串联 8-Guard 链: {args.date} → {_next_date}")
+            _integrator = RiskGuardIntegrator(report_date=args.date)
+            _integrator.run_all_guards(next_trade_date=_next_date)
+            logger.info("[AutoClosedLoop] 8-Guard 链执行完成, trade_plan 已自动改写")
+        except Exception as _e:
+            logger.warning(f"[AutoClosedLoop] 8-Guard 链失败 (fail-open): {_e}")
+
     # 退出码：check 阶段单独允许降级通过，避免计划文件缺失导致整条自动任务失败
     all_pass = True
-    for name, phase in state.get("phases", {}).items():
+    for _name, phase in state.get("phases", {}).items():
         status = phase.get("status")
         if status == "FAIL":
             all_pass = False

@@ -851,7 +851,7 @@ def _train_single_symbol(
 
 def _mark_quality_flag(code: str, result: dict[str, Any], config: dict[str, Any]) -> None:
     """根据 CV 指标 + 过拟合信号设置 quality_flag。
-    
+
     P0/P1 修复 (2026-08-02):
     - best_iter <= 1 且 final_ic < 0 → NOISE (纯噪声, 信号强制置零)
     - CV IC 与 Final IC 偏差 > 0.3 → 降级 LOW_QUALITY (疑似过拟合)
@@ -860,7 +860,7 @@ def _mark_quality_flag(code: str, result: dict[str, Any], config: dict[str, Any]
     final_metrics = result.get("final_metrics", {})
     best_iter = result.get("best_iteration", 999)
     final_ic = final_metrics.get("ic", 0)
-    
+
     # P0-1: 检测纯噪声模型 (best_iter=1 且预测方向错误)
     if best_iter <= 1 and final_ic < 0:
         logger.warning(
@@ -869,13 +869,13 @@ def _mark_quality_flag(code: str, result: dict[str, Any], config: dict[str, Any]
         )
         result["quality_flag"] = "NOISE"
         return
-    
+
     quality_ok = (
         cv_metrics["mean_r2"] >= config["model_quality_threshold"]["min_cv_r2"]
         and cv_metrics["mean_ic"] >= config["model_quality_threshold"]["min_cv_ic"]
         and cv_metrics["mean_sharpe"] >= config["model_quality_threshold"]["min_cv_sharpe"]
     )
-    
+
     # P1-2: CV IC 与 Final IC 一致性检查 (过拟合检测)
     cv_ic = cv_metrics.get("mean_ic", 0)
     ic_divergence = abs(cv_ic - final_ic)
@@ -885,7 +885,7 @@ def _mark_quality_flag(code: str, result: dict[str, Any], config: dict[str, Any]
             f"偏差={ic_divergence:.2f} > 0.3, 疑似过拟合, 降级为 LOW_QUALITY"
         )
         quality_ok = False
-    
+
     if not quality_ok:
         logger.warning(
             f"  [LOW_QUALITY] {code}: "
@@ -915,7 +915,7 @@ def _log_saved_symbol(code: str, result: dict[str, Any]) -> None:
 
 def _generate_integrated_signals(results: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Step 5: 生成集成信号文件。
-    
+
     P0 修复 (2026-08-02): LOW_QUALITY / NOISE 信号自动置零, 防止垃圾信号污染交易决策。
     raw_signal 字段保留原始信号供调试审查。
     """

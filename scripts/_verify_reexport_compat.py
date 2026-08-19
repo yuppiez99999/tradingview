@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 _verify_reexport_compat.py — re-export 兼容性校验 (真实实现)
 
@@ -35,10 +34,9 @@ import argparse
 import ast
 import importlib.util
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -50,7 +48,7 @@ class ReexportCheck(NamedTuple):
     detail: str
 
 
-def scan_thin_wrappers(scripts_dir: Path) -> List[Path]:
+def scan_thin_wrappers(scripts_dir: Path) -> list[Path]:
     return sorted(scripts_dir.glob("_*.py"))
 
 
@@ -64,7 +62,7 @@ def analyze_wrapper(p: Path) -> ReexportCheck:
     src = p.read_text(encoding="utf-8", errors="replace")
     uses_runpy = "runpy" in src or "run_path" in src
     uses_importlib = "importlib.util" in src or "spec_from_file_location" in src
-    uses_sys_exit = any(
+    any(
         isinstance(n, ast.Call) and getattr(n.func, "id", "") == "sys" and
         any(getattr(a, "attr", "") == "exit" for a in [])
         for n in ast.walk(tree)
@@ -101,7 +99,7 @@ def try_importlib_load(p: Path) -> ReexportCheck:
         )
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Re-export compatibility verifier")
     parser.add_argument("--scripts-dir", default=str(ROOT / "scripts"))
     parser.add_argument("--output", default=str(ROOT / "reports" / "ci" / "reexport_compat.json"))
@@ -111,7 +109,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    results: List[ReexportCheck] = []
+    results: list[ReexportCheck] = []
     wrappers = scan_thin_wrappers(scripts_dir)
     for w in wrappers:
         results.append(analyze_wrapper(w))

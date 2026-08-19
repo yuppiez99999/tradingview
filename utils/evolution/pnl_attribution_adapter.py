@@ -313,16 +313,16 @@ def _from_factor_attribution_dict(
     """从字典格式的 FactorAttributionResult 转换."""
     try:
         style_contributions: dict[str, float] = {}
-        for fa in data.get("style_factor_attributions", []):
+        for fa in data.get("style_factor_attributions") or data.get("style_factors") or []:
             name = fa.get("factor_name", "")
-            contrib = fa.get("contribution_to_pnl", 0.0)
+            contrib = fa.get("contribution_to_pnl", fa.get("contribution", 0.0))
             if name:
                 style_contributions[name] = float(contrib)
 
         sector_contributions: dict[str, float] = {}
-        for fa in data.get("sector_factor_attributions", []):
+        for fa in data.get("sector_factor_attributions") or data.get("sector_factors") or []:
             name = fa.get("factor_name", "")
-            contrib = fa.get("contribution_to_pnl", 0.0)
+            contrib = fa.get("contribution_to_pnl", fa.get("contribution", 0.0))
             if name:
                 sector_contributions[name] = float(contrib)
 
@@ -603,11 +603,15 @@ class PnLAttributionAdapter:
         Returns:
             AttributionConversionResult 转换结果
         """
-        # 尝试多个文件路径
+        # 尝试多个文件路径 (含 pnl_attribution 实际输出目录)
+        _pnl_dir = _PROJECT_ROOT / "reports" / "pnl_attribution"
         candidates = [
             self._report_dir / f"daily_{attribution_date}.json",
             self._report_dir / f"factor_attribution_{attribution_date}.json",
             self._report_dir / f"{attribution_date}.json",
+            _pnl_dir / f"pnl_attribution_{attribution_date}.json",
+            _pnl_dir / f"daily_{attribution_date}.json",
+            _pnl_dir / f"{attribution_date}.json",
         ]
 
         for path in candidates:

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """函数质量扫描器 (Function Quality Scanner).
 
 实现 refactoring-standards.md §8 三轴问题阈值扫描:
@@ -35,9 +34,8 @@ import argparse
 import ast
 import json
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional
 
 # ============================================================
 # 阈值常量 (与 refactoring-standards.md §8 对齐)

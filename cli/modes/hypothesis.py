@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 假设验证模式 — v5.10 P0-9 重构迁移
 ================================================
 从主文件迁移的 run_hypothesis_test 函数
 """
 
-from core.context import logger, strategy_registry
+from core.context import strategy_registry
 
 
 def run_hypothesis_test(args):

@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import importlib
 import sys
-from datetime import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -141,13 +140,12 @@ except Exception as e:  # noqa: BLE001
 print("\n=== Smoke Test 5: AttributionManagers cast ===")
 try:
     # Verify cast import works and managers module loads
-    from typing import cast
 
     assert hasattr(modules["mgr"], "ETFFlowManager"), "ETFFlowManager missing"
     # Instantiate (won't actually fetch - tracker is lazy)
     mgr_cls = modules["mgr"].ETFFlowManager
     mgr = mgr_cls()
-    _ok(f"ETFFlowManager instantiated, tracker lazy load OK")
+    _ok("ETFFlowManager instantiated, tracker lazy load OK")
 except Exception as e:  # noqa: BLE001
     _fail("AttributionManagers", e)
 
@@ -239,7 +237,7 @@ try:
     # export_registry uses dict[str, Any] result
     manifest = registry.export_registry()
     assert "models" in manifest, f"manifest missing models: {manifest}"
-    assert "mlflow_available" in manifest, f"manifest missing mlflow_available"
+    assert "mlflow_available" in manifest, "manifest missing mlflow_available"
     _ok(f"export keys={list(manifest.keys())}, mlflow={manifest['mlflow_available']}")
 except Exception as e:  # noqa: BLE001
     _fail("ModelRegistry", e)

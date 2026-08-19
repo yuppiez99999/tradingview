@@ -18,15 +18,8 @@
 """
 from __future__ import annotations
 
-import json
-import os
-import tempfile
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
-
-import pytest
-
+from unittest.mock import patch
 
 # ============================================================
 # 1. hedge_engine 枚举与数据类
@@ -92,7 +85,7 @@ class TestHedgeEngineDataClasses:
         assert risk.beta_csi300 == 1.2
 
     def test_hedge_recommendation_defaults(self) -> None:
-        from utils.hedge_engine import HedgeRecommendation, HedgeType, HedgeSignalStrength
+        from utils.hedge_engine import HedgeRecommendation, HedgeSignalStrength, HedgeType
         rec = HedgeRecommendation()
         assert rec.hedge_type == HedgeType.NONE
         assert rec.strength == HedgeSignalStrength.NO_HEDGE
@@ -103,7 +96,7 @@ class TestHedgeEngineDataClasses:
         assert rec.reasoning == ""
 
     def test_hedge_recommendation_with_values(self) -> None:
-        from utils.hedge_engine import HedgeRecommendation, HedgeType, HedgeSignalStrength
+        from utils.hedge_engine import HedgeRecommendation, HedgeSignalStrength, HedgeType
         rec = HedgeRecommendation(
             hedge_type=HedgeType.FUTURES_SHORT,
             strength=HedgeSignalStrength.MODERATE,
@@ -226,7 +219,7 @@ class TestHedgeEngine:
         assert result == 0.0
 
     def test_compute_weighted_beta_csi300(self) -> None:
-        from utils.hedge_engine import HedgeEngine, INDEX_WEIGHTS_CSI300
+        from utils.hedge_engine import HedgeEngine
         engine = HedgeEngine()
         weights = {"600519": 0.1, "000858": 0.05}
         result = engine._compute_weighted_beta(weights, "CSI300")
@@ -290,14 +283,14 @@ class TestHedgeEngine:
         assert score >= 0.0
 
     def test_determine_hedge_signal_strength_high_beta(self) -> None:
-        from utils.hedge_engine import HedgeEngine, HedgeSignalStrength, PortfolioRisk
+        from utils.hedge_engine import HedgeEngine, PortfolioRisk
         engine = HedgeEngine()
         risk = PortfolioRisk(beta_csi300=1.6)
         strength, score = engine.determine_hedge_signal_strength(risk)
         assert score > 0  # 高 beta 应有得分
 
     def test_determine_hedge_signal_strength_high_vol(self) -> None:
-        from utils.hedge_engine import HedgeEngine, HedgeSignalStrength, PortfolioRisk
+        from utils.hedge_engine import HedgeEngine, PortfolioRisk
         engine = HedgeEngine()
         risk = PortfolioRisk(volatility_30d=0.03)  # 高波动
         strength, score = engine.determine_hedge_signal_strength(
@@ -315,7 +308,7 @@ class TestHedgeEngine:
         assert score > 0.1  # 回撤超标应有得分
 
     def test_compute_optimal_hedge_ratio(self) -> None:
-        from utils.hedge_engine import HedgeEngine, PortfolioRisk, HedgeSignalStrength
+        from utils.hedge_engine import HedgeEngine, HedgeSignalStrength, PortfolioRisk
         engine = HedgeEngine()
         risk = PortfolioRisk(
             total_value=1_000_000,
@@ -337,10 +330,10 @@ class TestHedgeEngine:
         assert "score" in result or len(result) >= 0  # 不崩溃即可
 
     def test_generate_hedge_reason(self) -> None:
-        from utils.hedge_engine import HedgeEngine, PortfolioRisk, HedgeRecommendation
+        from utils.hedge_engine import HedgeEngine, HedgeRecommendation, PortfolioRisk
         engine = HedgeEngine()
         risk = PortfolioRisk()
-        rec = HedgeRecommendation()
+        HedgeRecommendation()
         # contracts 格式: {code: {"contracts": n, "spec": {...}}}
         contracts = {"IF": {"contracts": 2, "spec": {"name": "沪深300"}}}
         reason = engine._generate_hedge_reason(risk, 0.3, contracts)
@@ -359,13 +352,13 @@ class TestHedgeEngineModuleFunctions:
     """hedge_engine 模块级函数测试."""
 
     def test_get_hedge_engine_default(self) -> None:
-        from utils.hedge_engine import get_hedge_engine, HedgeEngine
+        from utils.hedge_engine import HedgeEngine, get_hedge_engine
         engine = get_hedge_engine()
         assert isinstance(engine, HedgeEngine)
         assert engine.portfolio_value == 1_000_000
 
     def test_get_hedge_engine_custom(self) -> None:
-        from utils.hedge_engine import get_hedge_engine, HedgeEngine
+        from utils.hedge_engine import HedgeEngine, get_hedge_engine
         engine = get_hedge_engine(portfolio_value=3_000_000)
         assert isinstance(engine, HedgeEngine)
         assert engine.portfolio_value == 3_000_000
@@ -479,7 +472,8 @@ class TestHedgeRebalanceIntegrator:
 
     def test_init_default(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeMode,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
         )
         integrator = HedgeRebalanceIntegrator()
         assert integrator.hedge_mode == HedgeMode.TAIL_ONLY
@@ -489,7 +483,8 @@ class TestHedgeRebalanceIntegrator:
 
     def test_init_custom(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeMode,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
         )
         integrator = HedgeRebalanceIntegrator(
             portfolio_value=2_000_000,
@@ -549,6 +544,7 @@ class TestHedgeRebalanceIntegrator:
         from utils.hedge_rebalance_integrator import HedgeRebalanceIntegrator
         integrator = HedgeRebalanceIntegrator()
         # Mock 外部数据源以避免 import ifind_client / quant_modules.wind_mcp / efinance 失败
+        # API 重构: 源码已移除 iFinD 数据源 (无 _get_ifind_prices_batch), 改用 Wind/AKShare/efinance 回退
         import sys
         from unittest.mock import MagicMock as _MagicMock
         mock_modules = {
@@ -559,14 +555,15 @@ class TestHedgeRebalanceIntegrator:
             "akshare": _MagicMock(),
         }
         with patch.dict(sys.modules, mock_modules), \
-             patch("utils.hedge_rebalance_integrator._get_ifind_prices_batch", return_value={}), \
              patch("utils.hedge_rebalance_integrator.get_live_futures_prices", return_value={"IF": 3900.0}):
             prices = integrator.load_prices()
             assert isinstance(prices, dict)
 
     def test_determine_market_regime_calm(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, MarketRegime, PortfolioRisk,
+            HedgeRebalanceIntegrator,
+            MarketRegime,
+            PortfolioRisk,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = PortfolioRisk()
@@ -578,7 +575,9 @@ class TestHedgeRebalanceIntegrator:
 
     def test_determine_market_regime_tail(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, MarketRegime, PortfolioRisk,
+            HedgeRebalanceIntegrator,
+            MarketRegime,
+            PortfolioRisk,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = PortfolioRisk()
@@ -598,7 +597,8 @@ class TestHedgeRebalanceIntegrator:
 
     def test_format_report(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, JointPlan,
+            HedgeRebalanceIntegrator,
+            JointPlan,
         )
         integrator = HedgeRebalanceIntegrator()
         plan = JointPlan()
@@ -613,7 +613,8 @@ class TestHedgeRebalanceIntegrator:
 
     def test_save_report(self, tmp_path: Path) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, JointPlan,
+            HedgeRebalanceIntegrator,
+            JointPlan,
         )
         integrator = HedgeRebalanceIntegrator()
         plan = JointPlan()
@@ -670,7 +671,8 @@ class TestHedgeRebalanceModuleFunctions:
 
     def test_get_integrator(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            get_integrator, HedgeRebalanceIntegrator,
+            HedgeRebalanceIntegrator,
+            get_integrator,
         )
         integrator = get_integrator(portfolio_value=1_000_000)
         assert isinstance(integrator, HedgeRebalanceIntegrator)

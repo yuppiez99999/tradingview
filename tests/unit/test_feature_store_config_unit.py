@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """feature_store config 单元测试 — fail-closed 配置加载全分支覆盖
 
 被测模块: utils/feature_store/config.py

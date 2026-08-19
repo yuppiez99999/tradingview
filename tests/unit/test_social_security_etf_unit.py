@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
 """social_security_etf 单元测试 — 社保基金ETF风格追踪全分支覆盖
 
 被测模块: utils/social_security_etf.py
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -16,7 +14,6 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.social_security_etf import (  # noqa: E402
-    NATIONAL_TEAM_SIGNAL_CONFIG,
     SOCIAL_SECURITY_STYLES,
     NationalTeamSignalDetector,
     SocialSecurityETFTracker,

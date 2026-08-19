@@ -478,8 +478,10 @@ class DriftShadowIntegrator:
         self,
         reference_panel: Optional[Any] = None,
         target_false_positive_rate: float = 0.05,
+        rolling_window: int = 20,
+        factor_frequency: str = "daily",
     ) -> list[PSICalibrationResult]:
-        """PSI 阈值校准 (Day 3 任务骨架).
+        """PSI 阈值校准 (P0 改进 — 2026-08-19 实现).
 
         用参考期特征分布作为基准, 计算各特征的 PSI 分布,
         校准阈值使得误报率 ≈ target_false_positive_rate.
@@ -490,46 +492,153 @@ class DriftShadowIntegrator:
             3. 取 PSI 分布的 (1 - fpr) percentile 作为 HIGH 阈值
             4. 取更高 percentile 作为 CRITICAL 阈值
             5. 校准值不得超过工业标准 2x (防过拟合)
+            6. 按因子频率分组校准 (日频/周频/月频不同窗口)
 
         Args:
             reference_panel: 参考期特征 panel (None 时用 DriftMonitor 的 baseline)
             target_false_positive_rate: 目标误报率 (默认 5%)
+            rolling_window: rolling window 大小 (默认 20)
+            factor_frequency: 因子频率 ("daily"/"weekly"/"monthly")
 
         Returns:
             list[PSICalibrationResult]: 各特征的校准结果
         """
-        # Day 3 任务骨架, Day 1 仅提供接口
-        # 实际校准逻辑在 Day 3 实现
         logger.info(
-            "PSI 阈值校准 (骨架): target_fpr=%.2f, reference=%s",
+            "PSI 阈值校准: target_fpr=%.2f, window=%d, freq=%s",
             target_false_positive_rate,
-            "provided" if reference_panel is not None else "drift_monitor_baseline",
+            rolling_window,
+            factor_frequency,
         )
 
-        # 获取特征列表
-        baseline = reference_panel or getattr(self._monitor, "_baseline_panel", None)
+        freq_window_map = {"daily": 20, "weekly": 8, "monthly": 3}
+        effective_window = freq_window_map.get(factor_frequency, rolling_window)
+
+        baseline = reference_panel if reference_panel is not None else getattr(self._monitor, "_baseline_panel", None)
         if baseline is None:
             logger.warning("无基线 panel, 无法校准 PSI 阈值")
+            return []
+
+        try:
+            import pandas as pd
+        except ImportError:
+            logger.warning("pandas 不可用, 无法校准")
             return []
 
         feature_columns = getattr(self._monitor, "_feature_columns", []) or [
             c for c in baseline.columns if c not in ("code", "date", "y", "symbol")
         ]
 
-        # 骨架: 返回工业标准 (Day 3 实现真实校准)
-        # 用 hasattr 兼容 mock 对象无 __len__ 的情况
         sample_size = len(baseline) if hasattr(baseline, "__len__") else 0
-        results: list[PSICalibrationResult] = []
-        for feature in feature_columns:
-            results.append(
+        if sample_size < effective_window * 2:
+            logger.warning(
+                "样本不足 (%d < %d), 返回工业标准阈值",
+                sample_size,
+                effective_window * 2,
+            )
+            return [
                 PSICalibrationResult(
                     feature_name=feature,
                     sample_size=sample_size,
-                    is_calibrated=False,  # Day 3 改为 True
+                    is_calibrated=False,
                 )
-            )
+                for feature in feature_columns
+            ]
 
-        logger.info("PSI 校准骨架: %d 个特征 (待 Day 3 实现真实校准)", len(results))
+        from utils.alpha.drift_monitor import compute_psi
+
+        high_percentile = (1.0 - target_false_positive_rate) * 100.0
+        critical_percentile = (1.0 - target_false_positive_rate / 5.0) * 100.0
+
+        results: list[PSICalibrationResult] = []
+        for feature in feature_columns:
+            if feature not in baseline.columns:
+                results.append(
+                    PSICalibrationResult(
+                        feature_name=feature,
+                        sample_size=sample_size,
+                        is_calibrated=False,
+                    )
+                )
+                continue
+
+            feature_series = pd.Series(baseline[feature]).dropna()
+            if len(feature_series) < effective_window * 2:
+                results.append(
+                    PSICalibrationResult(
+                        feature_name=feature,
+                        sample_size=len(feature_series),
+                        is_calibrated=False,
+                    )
+                )
+                continue
+
+            psi_values: list[float] = []
+            for i in range(effective_window, len(feature_series)):
+                window_baseline = feature_series.iloc[: i - effective_window + 1]
+                window_current = feature_series.iloc[i - effective_window + 1 : i + 1]
+                if len(window_baseline) < 2 or len(window_current) < 2:
+                    continue
+                psi_val = compute_psi(window_baseline, window_current)
+                if psi_val > 0:
+                    psi_values.append(psi_val)
+
+            if len(psi_values) < 10:
+                results.append(
+                    PSICalibrationResult(
+                        feature_name=feature,
+                        sample_size=len(psi_values),
+                        is_calibrated=False,
+                    )
+                )
+                continue
+
+            import numpy as np
+
+            psi_array = np.array(psi_values)
+            calibrated_high = float(np.percentile(psi_array, high_percentile))
+            calibrated_critical = float(np.percentile(psi_array, critical_percentile))
+
+            industrial_high = 0.25
+            industrial_critical = 0.5
+            max_high = industrial_high * 2.0
+            max_critical = industrial_critical * 2.0
+
+            calibrated_high = min(max(calibrated_high, 0.05), max_high)
+            calibrated_critical = min(max(calibrated_critical, 0.10), max_critical)
+            if calibrated_critical <= calibrated_high:
+                calibrated_critical = calibrated_high + 0.05
+
+            result = PSICalibrationResult(
+                feature_name=feature,
+                low_threshold=0.1,
+                medium_threshold=0.25,
+                high_threshold=calibrated_high,
+                critical_threshold=calibrated_critical,
+                industrial_low=0.1,
+                industrial_medium=0.25,
+                industrial_high=industrial_high,
+                industrial_critical=industrial_critical,
+                sample_size=len(psi_values),
+                is_calibrated=True,
+            )
+            results.append(result)
+
+            if result.exceeds_industrial_2x:
+                logger.warning(
+                    "PSI 校准: %s 阈值超过工业标准 2x (过拟合风险), high=%.4f, critical=%.4f",
+                    feature,
+                    calibrated_high,
+                    calibrated_critical,
+                )
+
+        calibrated_count = sum(1 for r in results if r.is_calibrated)
+        logger.info(
+            "PSI 校准完成: %d/%d 特征成功校准 (freq=%s, window=%d)",
+            calibrated_count,
+            len(results),
+            factor_frequency,
+            effective_window,
+        )
         return results
 
     # ------------------------------------------------------------

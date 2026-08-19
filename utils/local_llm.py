@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class LocalLLMClient:
     """本地 LLM 推理客户端 — 基于 llama-cpp-python
-    
+
     支持 GGUF 格式模型，CPU/GPU 混合推理
     """
 
@@ -21,7 +21,7 @@ class LocalLLMClient:
         max_tokens: int = 2048,
     ):
         """初始化本地 LLM 客户端
-        
+
         Args:
             model_path: GGUF 模型文件路径
             n_ctx: 上下文窗口大小
@@ -58,7 +58,7 @@ class LocalLLMClient:
                 self._available = False
                 return False
 
-            from llama_cpp import Llama
+            from llama_cpp import Llama  # noqa: F401
             self._available = True
             return True
         except ImportError:
@@ -98,10 +98,10 @@ class LocalLLMClient:
 
     def _format_prompt(self, messages: List[Dict[str, str]]) -> str:
         """格式化消息为 Qwen2.5 chat template
-        
+
         Args:
             messages: 消息列表，格式为 [{"role": "user"/"system"/"assistant", "content": "..."}]
-        
+
         Returns:
             格式化后的 prompt 字符串
         """
@@ -128,13 +128,13 @@ class LocalLLMClient:
         stream: bool = False,
     ) -> Dict[str, Any]:
         """对话接口（兼容 OpenAI 格式）
-        
+
         Args:
             messages: 消息列表
             temperature: 温度参数
             max_tokens: 最大生成 token 数
             stream: 是否流式输出
-        
+
         Returns:
             响应字典，格式兼容 OpenAI API
         """
@@ -187,13 +187,13 @@ class LocalLLMClient:
         max_tokens: Optional[int] = None,
     ) -> str:
         """简化的生成接口
-        
+
         Args:
             prompt: 用户提示
             system_prompt: 系统提示
             temperature: 温度参数
             max_tokens: 最大生成 token 数
-        
+
         Returns:
             生成的文本
         """

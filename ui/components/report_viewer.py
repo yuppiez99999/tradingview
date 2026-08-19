@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
 """报告预览组件"""
 import os
+
 import streamlit as st
 
 
@@ -30,7 +30,7 @@ def _browse_cached(dir_path: str, pattern: str = None):
     if not os.path.exists(dir_path):
         return []
     files = []
-    for root, dirs, filenames in os.walk(dir_path):
+    for root, _dirs, filenames in os.walk(dir_path):
         for f in filenames:
             if pattern and pattern not in f:
                 continue
@@ -51,11 +51,11 @@ def _browse_cached(dir_path: str, pattern: str = None):
 def read_report_file(filepath: str) -> str:
     """安全读取报告文件内容"""
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, encoding='utf-8') as f:
             return f.read()
     except UnicodeDecodeError:
         try:
-            with open(filepath, 'r', encoding='gbk') as f:
+            with open(filepath, encoding='gbk') as f:
                 return f.read()
         except Exception:
             return "⚠️ 无法读取此文件（编码不支持）"

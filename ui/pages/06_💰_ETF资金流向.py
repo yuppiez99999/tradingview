@@ -1,23 +1,24 @@
-# -*- coding: utf-8 -*-
 """ETF资金流向 v2.0 — 国家队ETF资金监控 + 自动刷新 + 历史累计流图 + 实时告警"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
+from datetime import datetime
+
+import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 import streamlit.components.v1 as components
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime
 
 st.set_page_config(page_title="ETF资金流向", page_icon="💰", layout="wide")
 st.title("💰 ETF资金流向监控 v2.0")
 st.caption("监测宽基/行业ETF资金流向，检测国家队加仓/减仓信号 | 支持自动刷新与历史追踪")
 
-from ui.components.module_loader import get_system_module
 from ui.components.common import inject_global_style
+from ui.components.module_loader import get_system_module
 from ui.components.system_status import render_alert_card, render_status_card
 
 inject_global_style()

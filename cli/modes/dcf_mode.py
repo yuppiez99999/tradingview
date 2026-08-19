@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 DCF 估值模式 — v5.10 新增
 基于 financial-services DCF 方法论，对接现有数据层与报告归档
@@ -6,10 +5,7 @@ DCF 估值模式 — v5.10 新增
 
 from __future__ import annotations
 
-import os
-from typing import Any, Dict, Optional
-
-from utils.cli_helpers import write_report_file, archive_report
+from typing import Any, Optional
 
 
 def run_dcf_mode(args) -> Optional[str]:
@@ -41,7 +37,7 @@ def run_dcf_mode(args) -> Optional[str]:
         return None
 
     # 尝试从现有数据层获取最新价格与 Shares Outstanding（若可用）
-    market_data: Dict[str, Any] = {}
+    market_data: dict[str, Any] = {}
     try:
         from quant_modules.data_layer import DataConnectorManager
         connector_manager = DataConnectorManager()

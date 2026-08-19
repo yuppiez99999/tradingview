@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 VolRegimeWeighter Phase 0 端到端集成测试
 验证完整链路: portfolio.yaml 快照 → VIX → regime 识别 → 权重计算 → 报告输出 → decisions.jsonl
@@ -6,15 +5,11 @@ VolRegimeWeighter Phase 0 端到端集成测试
 from __future__ import annotations
 
 import json
-import os
 import sys
-import tempfile
-from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-import yaml
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -22,12 +17,10 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from utils.alpha.vol_regime_weighter import (
     REGIME_BEAR,
-    REGIME_NEUTRAL,
     REGIME_BULL,
+    REGIME_NEUTRAL,
     VolRegimeWeighter,
-    WeightSuggestion,
 )
-
 
 # ============================================================
 # 测试 fixtures

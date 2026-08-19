@@ -1,21 +1,20 @@
-# -*- coding: utf-8 -*-
 """
 极端压力测试模式 — v5.10 P0-9 重构
 ========================================
 6历史情景 + 蒙特卡洛模拟 + 硬止损检查
 """
 import os
-import numpy as np
-import yaml
-import pandas as pd
 from datetime import datetime
 
-from core.context import BASE_DIR, logger, ProgressIndicator
+import numpy as np
+import pandas as pd
+import yaml
+
+from core.context import BASE_DIR
 from utils.stress_test import (
-    generate_stress_report,
-    HISTORICAL_SCENARIOS,
-    TAIL_HEDGE_THRESHOLD,
     HARD_STOP_MAX_DRAWDOWN,
+    TAIL_HEDGE_THRESHOLD,
+    generate_stress_report,
 )
 
 
@@ -49,7 +48,7 @@ def run_stress_test_mode(args):
         }
         positions = default_positions
     else:
-        with open(portfolio_path, 'r', encoding='utf-8') as f:
+        with open(portfolio_path, encoding='utf-8') as f:
             config = yaml.safe_load(f)
         positions = config.get('positions', {})
 

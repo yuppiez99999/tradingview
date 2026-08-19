@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """N1 smoke test: _default_option_multiplier 按 instrument 前缀返回正确乘数.
 
 验证: N1 修复 — hedge_order_executor.py ETF 期权 10000, 股指期权 100

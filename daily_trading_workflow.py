@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """每日三阶段交易工作流 — 模拟数据版
 
 用于完整运行 daily_workflow.py 的端到端验证。
@@ -16,12 +15,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import random
-import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Optional, TypedDict
+from typing import Any, TypedDict
 
 logger = logging.getLogger("daily_trading_workflow")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -92,7 +91,7 @@ class PortfolioSummaryDict(TypedDict):
 # ============================================================
 # 状态持久化 (预防 H-3/H-5: 风控/回撤状态丢失)
 # ============================================================
-def _save_workflow_state(state: Dict[str, Any], state_name: str) -> Path:
+def _save_workflow_state(state: dict[str, Any], state_name: str) -> Path:
     """保存工作流状态到磁盘
 
     Args:
@@ -112,7 +111,7 @@ def _save_workflow_state(state: Dict[str, Any], state_name: str) -> Path:
     return state_file
 
 
-def _load_workflow_state(state_name: str) -> Dict[str, Any]:
+def _load_workflow_state(state_name: str) -> dict[str, Any]:
     """从磁盘加载工作流状态
 
     Args:
@@ -125,17 +124,17 @@ def _load_workflow_state(state_name: str) -> Dict[str, Any]:
     if not state_file.exists():
         return {}
     try:
-        with open(state_file, "r", encoding="utf-8") as f:
+        with open(state_file, encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         logger.warning("加载状态失败 %s: %s", state_file, e)
         return {}
 
 
-def _load_positions() -> Dict[str, Any]:
+def _load_positions() -> dict[str, Any]:
     """读取 positions.json"""
     positions_file = _resolve_path("config/positions.json")
-    with open(positions_file, "r", encoding="utf-8") as f:
+    with open(positions_file, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -160,7 +159,7 @@ def _resolve_path(relative_path: str) -> Path:
 # ============================================================
 # 模拟行情数据加载
 # ============================================================
-def _generate_mock_market_data(positions: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+def _generate_mock_market_data(positions: dict[str, Any]) -> dict[str, dict[str, float]]:
     """读取模拟行情数据文件，若不存在则内部生成
 
     优先读取 config/mock_market_data_{TODAY}.json 外部文件,
@@ -173,13 +172,13 @@ def _generate_mock_market_data(positions: Dict[str, Any]) -> Dict[str, Dict[str,
         {code: {open, high, low, close, volume, change_pct}}
     """
     # 优先读取外部行情数据文件
-    mock_file = CONFIG_DIR / "mock_market_data_{}.json".format(TODAY)
+    mock_file = CONFIG_DIR / f"mock_market_data_{TODAY}.json"
     if mock_file.exists():
         try:
-            with open(mock_file, "r", encoding="utf-8") as f:
+            with open(mock_file, encoding="utf-8") as f:
                 mock = json.load(f)
             quotes = mock.get("quotes", {})
-            market_data: Dict[str, Dict[str, float]] = {}
+            market_data: dict[str, dict[str, float]] = {}
             for code, q in quotes.items():
                 market_data[code] = {
                     "open": float(q.get("open", 0)),
@@ -227,24 +226,22 @@ def _generate_mock_market_data(positions: Dict[str, Any]) -> Dict[str, Dict[str,
     return market_data
 
 
-def _load_positions() -> Dict[str, Any]:
+def _load_positions() -> dict[str, Any]:
     """读取 positions.json"""
     positions_file = _resolve_path("config/positions.json")
-    with open(positions_file, "r", encoding="utf-8") as f:
+    with open(positions_file, encoding="utf-8") as f:
         return json.load(f)
 
 
 # ============================================================
 # 阶段一: 盘前计划生成
 # ============================================================
-def run_premarket() -> Dict[str, Any]:
+def run_premarket() -> dict[str, Any]:
     """盘前计划生成 — 读取配置, 输出交易计划 JSON
 
     Returns:
         盘前计划字典
     """
-    print("\n📋 [阶段1/3] 盘前计划生成")
-    print("-" * 60)
 
     data = _load_positions()
     meta = data.get("meta", {})
@@ -318,12 +315,6 @@ def run_premarket() -> Dict[str, Any]:
     with open(plan_file, "w", encoding="utf-8") as f:
         json.dump(plan, f, ensure_ascii=False, indent=2)
 
-    print(f"  📊 持仓: {position_count} 只, 市值 {total_market_value:,.0f} 元")
-    print(f"  🛡️ 对冲模式: {hedge_mode}")
-    print(f"  📝 Covered Call标的: {len(cc_underlyings)} 个")
-    print(f"  📝 Put保护: {len(put_list)} 组, 预算 {put_premium:,} 元")
-    print(f"  💰 年化净成本: {net_cost:,} 元")
-    print(f"  📄 计划文件: {plan_file}")
 
     return plan
 
@@ -331,21 +322,19 @@ def run_premarket() -> Dict[str, Any]:
 # ============================================================
 # 阶段二: 盘中策略扫描
 # ============================================================
-def run_intraday() -> Dict[str, Any]:
+def run_intraday() -> dict[str, Any]:
     """盘中策略扫描 — 模拟行情, 扫描持仓信号
 
     Returns:
         盘中扫描结果字典
     """
-    print("\n📊 [阶段2/3] 盘中策略扫描 (模拟行情)")
-    print("-" * 60)
 
     data = _load_positions()
     positions = data.get("positions", {})
     market_data = _generate_mock_market_data(positions)
 
     # 扫描每个持仓的信号
-    signals: List[Dict[str, Any]] = []
+    signals: list[dict[str, Any]] = []
     total_pnl = 0.0
     winners = 0
     losers = 0
@@ -404,13 +393,9 @@ def run_intraday() -> Dict[str, Any]:
         "signals": signals,
     }
 
-    print(f"  📈 扫描持仓: {len(signals)} 只")
-    print(f"  ✅ 盈利: {winners} 只 | ❌ 亏损: {losers} 只")
-    print(f"  💰 模拟总盈亏: {total_pnl:,.2f} 元")
-    print(f"  📊 涨幅TOP3:")
     sorted_signals = sorted(signals, key=lambda x: x["change_pct"], reverse=True)
-    for s in sorted_signals[:3]:
-        print(f"     {s['name']}: {s['change_pct']:+.2f}% (盈亏 {s['pnl']:+,.0f} 元)")
+    for _s in sorted_signals[:3]:
+        pass
 
     return result
 
@@ -418,14 +403,12 @@ def run_intraday() -> Dict[str, Any]:
 # ============================================================
 # 阶段三: 盘后报告生成
 # ============================================================
-def run_postmarket() -> Dict[str, Any]:
+def run_postmarket() -> dict[str, Any]:
     """盘后报告生成 — 计算盈亏, 调用对冲执行引擎
 
     Returns:
         盘后报告字典
     """
-    print("\n📑 [阶段3/3] 盘后报告生成")
-    print("-" * 60)
 
     data = _load_positions()
     positions = data.get("positions", {})
@@ -435,7 +418,7 @@ def run_postmarket() -> Dict[str, Any]:
     # 计算组合盈亏
     total_market_value = 0.0
     total_cost = 0.0
-    position_details: List[Dict[str, Any]] = []
+    position_details: list[dict[str, Any]] = []
 
     for code, pos in positions.items():
         if not isinstance(pos, dict):
@@ -464,7 +447,7 @@ def run_postmarket() -> Dict[str, Any]:
     total_pnl_pct = (total_pnl / total_cost * 100) if total_cost > 0 else 0
 
     # 调用对冲执行引擎
-    hedge_orders: Dict[str, Any] = {}
+    hedge_orders: dict[str, Any] = {}
     try:
         from utils.hedge_execution_engine import HedgeExecutionEngine
         engine = HedgeExecutionEngine()
@@ -489,62 +472,45 @@ def run_postmarket() -> Dict[str, Any]:
             "hedge_mode": data.get("hedge_positions", {}).get("hedge_mode", ""),
         }
 
-        print(f"  🛡️ 对冲执行引擎调用成功")
-        print(f"     期货订单: {len(futures_orders)} 笔 {'✅ (无期货, 符合预期)' if len(futures_orders) == 0 else '⚠️'}")
-        print(f"     Put保护: {len(options_orders)} 组")
         for oo in options_orders:
-            inst = oo.get("instrument", "?")
-            contracts = oo.get("contracts", 0)
-            strike = oo.get("strike_rule", "?")
-            budget = oo.get("premium_budget", 0)
-            print(f"       - {inst}: {contracts}张, {strike}, 预算{budget:,}元")
-        print(f"     Covered Call: {len(covered_call_orders)} 组")
+            oo.get("instrument", "?")
+            oo.get("contracts", 0)
+            oo.get("strike_rule", "?")
+            oo.get("premium_budget", 0)
         for cc in covered_call_orders:
-            inst = cc.get("instrument", "?")
-            contracts = cc.get("contracts", 0)
-            otm = cc.get("otm_pct", 0)
-            strike = cc.get("est_strike_price", 0)
-            income = cc.get("est_total_premium", 0)
-            print(f"       - {inst}: {contracts}张, OTM{otm*100:.1f}%, 行权价{strike}, 月度收入{income:,.0f}元")
-        call_income = cost_summary.get("total_call_income", 0)
-        put_cost = cost_summary.get("total_premium_budget", 0)
-        net_cost = cost_summary.get("total_cost", 0)
-        print(f"     期货保证金: {cost_summary.get('total_margin_required', 0):,.0f} 元")
-        print(f"     Put权利金支出: {put_cost:,.0f} 元/月")
-        print(f"     Call权利金收入: {call_income:,.0f} 元/月")
-        print(f"     净月度成本: {net_cost:,.0f} 元 (Put支出 - Call收入)")
+            cc.get("instrument", "?")
+            cc.get("contracts", 0)
+            cc.get("otm_pct", 0)
+            cc.get("est_strike_price", 0)
+            cc.get("est_total_premium", 0)
+        cost_summary.get("total_call_income", 0)
+        cost_summary.get("total_premium_budget", 0)
+        cost_summary.get("total_cost", 0)
 
     except Exception as e:
-        print(f"  ⚠️ 对冲执行引擎调用失败: {e}")
         import traceback
         traceback.print_exc()
         hedge_orders = {"error": str(e)}
 
     # ★ 期权对冲订单执行器 (2026-08-06 P0 修复: 补齐"订单→撮合"闭环)
     # 在 hedge_orders 生成后执行 PENDING 期权订单, 产生 hedge_execution_fill_*.json
-    hedge_execution_result: Dict[str, Any] = {}
+    hedge_execution_result: dict[str, Any] = {}
     try:
         from hedge_order_executor import execute_hedge_orders
         hedge_execution_result = execute_hedge_orders(trade_date=TODAY)
-        n_filled = hedge_execution_result.get("filled_count", 0)
-        print(f"  ✅ 期权对冲执行器: 成交 {n_filled} 笔"
-              f" (Beta {hedge_execution_result.get('portfolio_beta', 0):.4f} → "
-              f"{hedge_execution_result.get('beta_after_hedge', 0):.4f})")
+        hedge_execution_result.get("filled_count", 0)
     except Exception as e:
-        print(f"  ⚠️ 期权对冲执行器调用失败: {e}")
         hedge_execution_result = {"error": str(e)}
 
     # ★ 再平衡撮合执行器 (G2/G4 修复: 补齐"订单→撮合→成交回报→持仓回写"闭环)
     # 在 hedge_orders 生成后执行再平衡 PENDING 订单, 产出 FillsStore + 回写 positions.json
-    rebalance_execution_result: Dict[str, Any] = {}
+    rebalance_execution_result: dict[str, Any] = {}
     try:
         from rebalance_order_executor import execute_rebalance_orders
         rebalance_execution_result = execute_rebalance_orders(date=TODAY)
-        n_filled = rebalance_execution_result.get("filled", 0)
-        n_updated = rebalance_execution_result.get("positions_updated", 0)
-        print(f"  ✅ 再平衡撮合执行器: 成交 {n_filled} 笔 | 持仓回写 {n_updated} 个标的")
+        rebalance_execution_result.get("filled", 0)
+        rebalance_execution_result.get("positions_updated", 0)
     except Exception as e:
-        print(f"  ⚠️ 再平衡撮合执行器调用失败: {e}")
         rebalance_execution_result = {"error": str(e)}
 
     # 生成报告
@@ -575,55 +541,52 @@ def run_postmarket() -> Dict[str, Any]:
     md_file = REPORTS_DIR / f"daily_report_{TODAY}.md"
     _generate_markdown_report(report, md_file)
 
-    print(f"\n  📊 组合盈亏: {total_pnl:+,.2f} 元 ({total_pnl_pct:+.2f}%)")
-    print(f"  📄 JSON报告: {report_file}")
-    print(f"  📄 MD报告:   {md_file}")
 
     return report
 
 
-def _generate_markdown_report(report: Dict[str, Any], md_file: Path) -> None:
+def _generate_markdown_report(report: dict[str, Any], md_file: Path) -> None:
     """生成 Markdown 格式的盘后报告"""
     ps = report.get("portfolio_summary", {})
     ho = report.get("hedge_orders", {})
     positions = report.get("positions", [])
 
-    lines: List[str] = [
+    lines: list[str] = [
         f"# 每日交易报告 {TODAY}",
-        f"",
+        "",
         f"> 生成时间: {report.get('generated_at', '')}",
         f"> 数据来源: {report.get('market_data_source', '模拟数据')}",
-        f"",
-        f"## 一、组合概览",
-        f"",
-        f"| 指标 | 数值 |",
-        f"|---|---:|",
+        "",
+        "## 一、组合概览",
+        "",
+        "| 指标 | 数值 |",
+        "|---|---:|",
         f"| 总资金 | {ps.get('total_capital', 0):,.0f} 元 |",
         f"| 持仓市值 | {ps.get('total_market_value', 0):,.0f} 元 |",
         f"| 持仓成本 | {ps.get('total_cost', 0):,.0f} 元 |",
         f"| **总盈亏** | **{ps.get('total_pnl', 0):+,.0f} 元 ({ps.get('total_pnl_pct', 0):+.2f}%)** |",
         f"| 持仓数量 | {ps.get('position_count', 0)} 只 |",
-        f"",
-        f"## 二、对冲执行结果",
-        f"",
-        f"| 项目 | 结果 |",
-        f"|---|---|",
+        "",
+        "## 二、对冲执行结果",
+        "",
+        "| 项目 | 结果 |",
+        "|---|---|",
         f"| 对冲模式 | {ho.get('hedge_mode', 'N/A')} |",
         f"| 期货订单 | {ho.get('futures_orders_count', 0)} 笔 {'✅ 无期货' if ho.get('futures_orders_count', 0) == 0 else '⚠️'} |",
         f"| 期权订单 | {ho.get('options_orders_count', 0)} 组 |",
         f"| 期货保证金 | {ho.get('total_margin', 0):,.0f} 元 |",
         f"| 期权权利金 | {ho.get('total_premium', 0):,.0f} 元 |",
-        f"",
+        "",
     ]
 
     # 期权订单明细
     options = ho.get("options_orders", [])
     if options:
         lines.extend([
-            f"### 期权保护订单明细",
-            f"",
-            f"| 标的 | 张数 | 行权价 | 预算 |",
-            f"|---|---:|---|---:|",
+            "### 期权保护订单明细",
+            "",
+            "| 标的 | 张数 | 行权价 | 预算 |",
+            "|---|---:|---|---:|",
         ])
         for oo in options:
             lines.append(
@@ -636,10 +599,10 @@ def _generate_markdown_report(report: Dict[str, Any], md_file: Path) -> None:
     if positions:
         sorted_pos = sorted(positions, key=lambda x: abs(x.get("pnl", 0)), reverse=True)
         lines.extend([
-            f"## 三、持仓明细 (按|盈亏|排序 TOP 10)",
-            f"",
-            f"| 代码 | 名称 | 持仓 | 成本 | 收盘 | 盈亏 | 盈亏% |",
-            f"|---|---|---:|---:|---:|---:|---:|",
+            "## 三、持仓明细 (按|盈亏|排序 TOP 10)",
+            "",
+            "| 代码 | 名称 | 持仓 | 成本 | 收盘 | 盈亏 | 盈亏% |",
+            "|---|---|---:|---:|---:|---:|---:|",
         ])
         for p in sorted_pos[:10]:
             lines.append(
@@ -649,7 +612,7 @@ def _generate_markdown_report(report: Dict[str, Any], md_file: Path) -> None:
         lines.append("")
 
     lines.append("---")
-    lines.append(f"> 本报告由 daily_trading_workflow.py (模拟数据版) 自动生成")
+    lines.append("> 本报告由 daily_trading_workflow.py (模拟数据版) 自动生成")
 
     with open(md_file, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
@@ -660,18 +623,11 @@ def _generate_markdown_report(report: Dict[str, Any], md_file: Path) -> None:
 # ============================================================
 def run_all() -> None:
     """全流程执行: 盘前 → 盘中 → 盘后"""
-    print("\n🚀 每日交易工作流 (模拟数据版)")
-    print("=" * 70)
-    print(f"📅 日期: {TODAY}")
-    print(f"📊 数据: positions.json 真实配置 + 模拟行情 (seed=42)")
 
     run_premarket()
     run_intraday()
     run_postmarket()
 
-    print("\n" + "=" * 70)
-    print("✅ 全流程执行完成")
-    print("=" * 70)
 
 
 # ============================================================

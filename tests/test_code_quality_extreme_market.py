@@ -19,16 +19,14 @@ from __future__ import annotations
 
 import json
 import math
-import os
+import random
 import sys
 import traceback
-import random
-import numpy as np
-from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+
+import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -514,7 +512,12 @@ def test_extreme_market(tc: TestCollection) -> None:
 
     # ── 3.3 压力测试场景库 ──
     try:
-        from utils.stress_test_scenario_library import StressTestEngine, ShockFactors, StressScenario, _build_default_scenarios
+        from utils.stress_test_scenario_library import (
+            ShockFactors,
+            StressScenario,
+            StressTestEngine,
+            _build_default_scenarios,
+        )
 
         engine = StressTestEngine()
         scenarios = _build_default_scenarios()
@@ -554,7 +557,9 @@ def test_extreme_market(tc: TestCollection) -> None:
     # ── 3.4 尾部风险对冲 ──
     try:
         from ms_strategy.src.hedging.tail_risk_hedge import (
-            TailRiskHedger, TailRiskConfig, MarketRegime, REGIME_HEDGE_RATIOS,
+            MarketRegime,
+            TailRiskConfig,
+            TailRiskHedger,
         )
 
         hedger = TailRiskHedger(TailRiskConfig())
@@ -590,7 +595,7 @@ def test_extreme_market(tc: TestCollection) -> None:
         # OTM阶梯
         ladder = hedger.build_otm_ladder(bs_loss=0.55, vix=40, spot_price=1.0)
         if len(ladder) == 3:
-            tc.ok("3.4e OTM阶梯: bs>50%三层", f"层={len(ladder)} strikes={[l['strike'] for l in ladder]}")
+            tc.ok("3.4e OTM阶梯: bs>50%三层", f"层={len(ladder)} strikes={[layer['strike'] for layer in ladder]}")
         else:
             tc.bad("3.4e OTM阶梯", f"层数={len(ladder)}")
 
@@ -621,7 +626,7 @@ def test_extreme_market(tc: TestCollection) -> None:
 
     # ── 3.5 EVT 尾部风险估计 ──
     try:
-        from utils.fineng.tail_risk_evt import fit_evt, evt_var_es
+        from utils.fineng.tail_risk_evt import evt_var_es, fit_evt
 
         rng = random.Random(42)
         normal_ret = [rng.gauss(0.0005, 0.015) for _ in range(230)]
@@ -703,11 +708,11 @@ def test_extreme_market(tc: TestCollection) -> None:
 def _build_markdown(sections: dict[str, TestCollection]) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
-        f"# 量化交易系统 v8.5 — 代码质量测试报告",
-        f"",
+        "# 量化交易系统 v8.5 — 代码质量测试报告",
+        "",
         f"**测试时间**: {now}",
-        f"**测试范围**: 年化收益率 / 最大回撤 / 极端市场应对",
-        f"",
+        "**测试范围**: 年化收益率 / 最大回撤 / 极端市场应对",
+        "",
         "---",
         "",
         "## 总览",
@@ -795,10 +800,10 @@ def _build_markdown(sections: dict[str, TestCollection]) -> str:
     lines.append(f"**依据**: {desc}")
     lines.append("")
     lines.append("**核心结论**:")
-    lines.append(f"1. 年化收益率计算逻辑正确，边界处理完备")
-    lines.append(f"2. 最大回撤计算符合行业标准，四级 DrawdownController 分级响应机制有效")
-    lines.append(f"3. 极端市场防御体系覆盖全面：熔断(四级+四维+滑点) / 压力测试10场景 / EVT肥尾 / 流动性枯竭建模")
-    lines.append(f"4. 风控链从信号→熔断→对冲→尾部保护的决策链路完整可验证")
+    lines.append("1. 年化收益率计算逻辑正确，边界处理完备")
+    lines.append("2. 最大回撤计算符合行业标准，四级 DrawdownController 分级响应机制有效")
+    lines.append("3. 极端市场防御体系覆盖全面：熔断(四级+四维+滑点) / 压力测试10场景 / EVT肥尾 / 流动性枯竭建模")
+    lines.append("4. 风控链从信号→熔断→对冲→尾部保护的决策链路完整可验证")
     lines.append("")
 
     return "\n".join(lines)

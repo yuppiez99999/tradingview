@@ -1,16 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 社保基金ETF风格追踪模式 — v5.10 P0-9 重构
 """
 
 from core.context import (
-    BASE_DIR,
-    logger,
-    ProgressIndicator,
     SOCIAL_SECURITY_ETF_AVAILABLE,
+    ProgressIndicator,
     SocialSecurityETFTracker,
 )
-from utils.cli_helpers import write_report_file, archive_report, get_etf_flow_data
+from utils.cli_helpers import archive_report, get_etf_flow_data, write_report_file
 
 
 def run_social_security_analysis(args):
@@ -29,14 +26,14 @@ def run_social_security_analysis(args):
 
     progress.update(2, "分析社保基金投资风格...")
     summary = tracker.classifier.get_style_summary()
-    print(f"\n  📊 社保基金四大风格配置:")
+    print("\n  📊 社保基金四大风格配置:")
     for style, info in summary.items():
         print(f"    {style}: 权重={info['weight']:.0%}, 建议={info['recommended_action']}")
         print(f"      ETF: {', '.join(info['top_etfs'][:2])}")
 
     progress.update(3, "获取ETF风格映射...")
     etf_classifications = tracker.classifier.get_all_etf_classifications()
-    print(f"\n  🔗 ETF风格映射 (前10):")
+    print("\n  🔗 ETF风格映射 (前10):")
     for etf in etf_classifications[:10]:
         print(f"    {etf['name']} → {etf['social_style']} (匹配度={etf['match_score']})")
 

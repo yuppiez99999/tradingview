@@ -1,20 +1,23 @@
-# -*- coding: utf-8 -*-
 """实时持仓监控 — 增强版量化监控面板（完整标的名称映射 + 仪表盘风格）"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
+import json
+from datetime import datetime
+
+import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
-import json, time
-import pandas as pd
-from datetime import datetime
 
 st.title("📊 实时持仓监控")
 st.caption("持仓明细 · 权重分布 · 净值走势 · 风格分布 · 再平衡偏差")
 
-from ui.components.names import STOCK_NAME_MAP, resolve_name, get_style as get_asset_style
+from ui.components.names import STOCK_NAME_MAP, resolve_name
+from ui.components.names import get_style as get_asset_style
 from ui.components.sidebar import render_sidebar
 
 render_sidebar()
@@ -32,12 +35,12 @@ PORTFOLIO_YAML = os.path.join(CONFIG_DIR, 'portfolio.yaml')
 def load_data():
     positions = {}
     if os.path.exists(POSITIONS_FILE):
-        with open(POSITIONS_FILE, 'r', encoding='utf-8') as f:
+        with open(POSITIONS_FILE, encoding='utf-8') as f:
             positions = json.load(f)
 
     history = []
     if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+        with open(HISTORY_FILE, encoding='utf-8') as f:
             for line in f:
                 try:
                     history.append(json.loads(line.strip()))
@@ -48,7 +51,7 @@ def load_data():
     if os.path.exists(PORTFOLIO_YAML):
         try:
             import yaml
-            with open(PORTFOLIO_YAML, 'r', encoding='utf-8') as f:
+            with open(PORTFOLIO_YAML, encoding='utf-8') as f:
                 cfg = yaml.safe_load(f) or {}
             for asset in cfg.get('assets', []):
                 code = str(asset.get('code', ''))

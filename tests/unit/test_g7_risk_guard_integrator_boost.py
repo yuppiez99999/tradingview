@@ -34,7 +34,6 @@ import json
 import os
 import sys
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -57,7 +56,6 @@ from utils.risk_guard_integrator import (  # noqa: E402
     main,
     parse_kill_switch_level,
 )
-
 
 # ============================================================
 # 辅助函数与 Fixtures
@@ -494,7 +492,7 @@ class TestGuardDrawdown:
         )
         report = _make_pnl_report(total_cost=0)
         plan = _make_plan()
-        result = integrator.guard_drawdown(report, plan)
+        integrator.guard_drawdown(report, plan)
         # 无成本 → 直接返回, 不调用 check_drawdown
         mock_inst.check_drawdown.assert_not_called()
 

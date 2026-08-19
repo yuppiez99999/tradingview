@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """drawdown_breaker 单元测试 — 回撤分级熔断全分支覆盖"""
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 

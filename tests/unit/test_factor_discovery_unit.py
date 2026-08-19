@@ -11,18 +11,16 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pandas as pd
 import pytest
 
 from utils.factor_research.factor_discovery import (
+    UNIVERSE_PRESETS,
     DiscoveryReport,
     FactorDataFetcher,
     FactorValidationResult,
     FactorValidator,
-    UNIVERSE_PRESETS,
 )
-
 
 # ============================================================
 # 常量

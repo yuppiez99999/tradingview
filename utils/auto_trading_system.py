@@ -18,7 +18,7 @@ import logging
 import threading
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +125,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         self._monitor_thread: Optional[threading.Thread] = None
 
         # 统计
-        self.stats: Dict[str, Any] = {
+        self.stats: dict[str, Any] = {
             "start_time": None,
             "cycles_completed": 0,
             "errors": 0,
@@ -232,7 +232,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         # 5. 波动率 Regime 监控 (v8.6.14 新增, Phase 0 只读建议)
         self._check_vol_regime()
 
-        cycle_time = time.perf_counter()
+        time.perf_counter()
         logger.info("✅ 周期 #%d 完成", self.stats["cycles_completed"] + 1)
 
     # --------------------------------------------------------
@@ -339,7 +339,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
     def _check_shadow_account(self) -> bool:
         """检查影子账户状态（简化版）。"""
         try:
-            from utils.shadow_account import ShadowAccount
+            from utils.shadow_account import ShadowAccount  # noqa: F401
             # 简单检查模块可导入即可
             return True
         except ImportError:
@@ -349,7 +349,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
     def _check_kill_switch(self) -> bool:
         """检查 KillSwitch 状态（简化版）。"""
         try:
-            from utils.kill_switch import KillSwitch
+            from utils.kill_switch import KillSwitch  # noqa: F401
             return True
         except ImportError:
             logger.info("  ℹ️  KillSwitch 模块未加载 (可选)")
@@ -458,13 +458,13 @@ class AutoTradingSystem(AutomatedExecutionSystem):
     # --------------------------------------------------------
     # 便捷方法：一次性快照（不启动循环）
     # --------------------------------------------------------
-    def snapshot(self) -> Dict[str, Any]:
+    def snapshot(self) -> dict[str, Any]:
         """获取一次完整的监控快照（不启动循环）。
 
         Returns:
             包含行情、资金流、ML信号、波动率Regime等的快照字典
         """
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "quotes": {},
             "etf_flow": {},

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AutoTradingSystem._check_vol_regime 单元测试
 ==============================================
@@ -18,7 +17,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """smart_beta_engine 单元测试 — Smart Beta 多因子加权引擎全分支覆盖.
 
 被测模块: utils/smart_beta_engine.py
@@ -30,7 +29,6 @@ from utils.smart_beta_engine import (  # noqa: E402
     SmartBetaEngine,
     SmartBetaResult,
 )
-
 
 # ============================================================
 # 辅助构造
@@ -74,7 +72,6 @@ class FactorTimingInfoTest:
 
 class SmartBetaResultTest:
     def test_construct(self):
-        n = 3
         r = SmartBetaResult(
             symbols=["a", "b", "c"],
             smart_beta_weights=np.array([0.4, 0.3, 0.3]),
@@ -439,7 +436,7 @@ class ApplyFactorTimingTest:
         base = {"MOM": 0.5, "VAL": 0.5}
         history = {"MOM": [0.01] * 5}  # VAL 缺失
         info: list[FactorTimingInfo] = []
-        adjusted = eng._apply_factor_timing(base, history, info)
+        eng._apply_factor_timing(base, history, info)
         # VAL 无历史 → signal=0
         val_info = next(i for i in info if i.factor_name == "VAL")
         assert val_info.timing_signal == 0.0

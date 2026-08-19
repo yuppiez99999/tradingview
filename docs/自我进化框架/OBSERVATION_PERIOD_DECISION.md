@@ -1,8 +1,8 @@
 # 观察期决策材料 — Phase 0 出口评估（OBSERVATION_PERIOD_DECISION）
 
-> **状态**: 🔄 v1.3-draft — 占位符已预填充 08-17 数据, 待 08-22~23 周末最终确认 + §5.4 建议
+> **状态**: 🔄 v1.3-draft — 08-18 数据已更新 (w13c 重新验证 PASS), 待 08-22~23 周末最终确认 + §5.4 建议
 > **创建日期**: 2026-08-03
-> **最后更新**: 2026-08-17 (§1.4/§4.1-4.5 占位符已填充 08-17 真实数据, 待 08-22 确认)
+> **最后更新**: 2026-08-18 (§0.1/§1.4/§4.1/§4.3 已填充 08-18 真实数据, DriftMonitor 报告丢失待重新积累)
 > **决策日**: 2026-08-24（08-24 观察期决策硬节点）
 > **决策者**: 用户（单签 Phase B 启用,双签高风险动作）
 > **关联文档**:
@@ -32,18 +32,19 @@
 
 ---
 
-## 0.1 08-14 数据更新（v1.3-draft 阶段）
+## 0.1 08-18 数据更新（v1.3-draft 阶段）
 
-> **更新日期**: 2026-08-14
-> **数据来源**: `reports/evolution/observation_progress.json` (generated_at 2026-08-14 18:30)
+> **更新日期**: 2026-08-18
+> **数据来源**: `reports/evolution/observation_progress.json` (generated_at 2026-08-18 15:16) + `reports/evolution/w13c_verification_20260818.json`
 
-| 维度 | v1.2 (08-03) | v1.3-draft (08-14) | 目标 | 预计达标 |
+| 维度 | v1.2 (08-03) | v1.3-draft (08-18) | 目标 | 预计达标 |
 |------|-------------|---------------------|------|---------|
-| 观察期天数 | 5/14 | **15/21** (71.4%) | 21 天 | 08-24 |
-| Shadow 真实样本 | 5/20 | **15/20** (75.0%) | ≥20 条 | 08-22 |
-| 数据源 | Mock + 真实混合 | **Wind MCP 统一** (25 标的 100% 覆盖) | — | ✅ |
-| Phase B B1 | 未启动 | **已启用** (USE_DRIFT_DETECTOR=True 告警模式, Stage 2 abtest) | — | ✅ |
-| DriftMonitor 误报率 | sim_mode 无法统计 | **0.00%**（08-17 统计, 7 报告 612 alerts, 待 08-22 确认） | <5% | ✅ 已达标 |
+| 观察期天数 | 5/14 | **17/21** (81.0%) | 21 天 | 08-24 |
+| Shadow 真实样本 | 5/20 | **17/20** (85.0%) | ≥20 条 | 08-21 |
+| 数据源 | Mock + 真实混合 | **Wind MCP 统一** (26 标的 100% 覆盖) | — | ✅ |
+| Phase B B1 | 未启动 | **waiting_observation** (13:04 清空后状态重置, 待 08-24 决策) | — | 🔄 |
+| DriftMonitor 误报率 | sim_mode 无法统计 | **0.00%**（08-17 文档记录, reports/drift/ 已被 13:04 清空, 待 08-19 起重新积累） | <5% | 🔄 待重新积累 |
+| Public/Private 分离 | 未验证 | **PASS** (public=0.3 vs private=0.4907, reward_hacking=0.0, pit=0) | — | ✅ 08-18 验证 |
 | ready_for_phase_b | false | **false** (双门槛未达) | true | 08-24 |
 
 **关键进展**:
@@ -137,6 +138,13 @@
 
 **填充说明**: 08-17 从 `reports/drift/` 7 个 JSON 报告统计。critical 告警全部为 RSI_14D 特征（PSI=3.9188, baseline_mean=50.0 vs current_mean=69.6），为真实漂移非误报。low 告警 PSI<0.1 为正常波动。08-22 确认是否有新增 drift 报告。
 
+> **08-18 数据丢失注记**: 08-18 13:04 清空事件导致 `reports/drift/` 下 7 份历史报告全部丢失，当前仅剩 08-18 当天 integration 文件（0 个 drift_report）。上述统计结果仅存于本文档记录，git 未跟踪该目录无法恢复。08-19 起需重新积累 drift 报告，08-22~23 周末重新统计误报率。B1 DriftDetector 状态因清空事件重置为 waiting_observation，待 08-24 决策后重新启用。
+
+> **08-18 技术债务与 08-24 决策可行路径**:
+> - **现状**: EOD phase4_7 每日自动产出 `reports/drift/integration_{date}.json`（含 IC/IC_IR + alerts），但 `drift_report_{date}.json`（含 PSI/KS 特征漂移）未产出，原因是 `SimModeDriftMonitor._baseline_panel=None`（CLI 未加载训练集特征 panel）+ `run_daily_integration` 未传 `current_panel`。
+> - **08-22~23 周末技术任务**: 在 `drift_shadow_integrator.py` CLI 添加 baseline_panel 加载（从 qlib 特征数据或 parquet 缓存），调用 `monitor.set_baseline(panel)` + 传入 `current_panel`，使 `drift_report_*.json` 恢复产出。
+> - **08-24 决策替代方案**: 若 `drift_report_*.json` 增强未完成，可暂用 `integration_*.json` 的 `alerts` 字段统计误报率（含 `ic_ir_degradation` 告警），08-19~23 共 5 份 integration 报告可提供替代数据。DriftMonitor 误报率 <5% 的门槛验证不阻塞样本达标（GATE-B 20 样本 08-21 自动达标）。
+
 ---
 
 ## 2. Wave 1 已完成项回顾
@@ -202,16 +210,16 @@
 | AutoRetrain 加载失败 | ~~G3 未补全~~ ✅ 已完成 | B3 启用无阻塞, _load_trained_model 三态处理 + SHA256 + 版本校验已就绪 | ✅ 已解除 |
 | 真实数据接入引入偏差 | G1 dry-run 未通过 | W1.3a 强制离线 dry-run 通过后才允许 | 🔄 待 W1.3a 验证 |
 
-### 4.1 样本量风险（v1.3-draft, 08-17 填充, 待 08-22 最终确认）
+### 4.1 样本量风险（v1.3-draft, 08-18 填充, 待 08-22 最终确认）
 
-> **数据来源**: `reports/evolution/observation_progress.json`（generated_at 2026-08-17 08:37）+ `reports/shadow/daily_returns.jsonl`
-> **数据日期**: 2026-08-17, 待 08-22 最终确认（样本将持续积累至 08-22 达 20 条）
+> **数据来源**: `reports/evolution/observation_progress.json`（generated_at 2026-08-18 15:16）+ `reports/shadow/daily_returns.jsonl`
+> **数据日期**: 2026-08-18, 待 08-22 最终确认（样本将持续积累至 08-21 达 20 条）
 
 | 维度 | 当前值 | 目标值 | 风险等级 | 缓解措施 |
 |------|--------|--------|----------|----------|
-| Shadow 真实样本数 | **15/20**（75.0%） | ≥ 20 | 🟡 中 | T1 EOD 每日自动补录, 预计 08-22 达标 |
-| 有效样本占比 | **100.0%**（15/15 有效, 0 零收益） | > 80% | 🟢 低 | 无停牌/数据问题, 不影响决策 |
-| 样本时间跨度 | **15/21 天**（07-27 ~ 08-14） | ≥ 14 天 | 🟢 低 | 已超 14 天门槛 |
+| Shadow 真实样本数 | **17/20**（85.0%） | ≥ 20 | 🟡 中 | T1 EOD 每日自动补录, 预计 08-21 达标 |
+| 有效样本占比 | **100.0%**（17/17 有效, 0 零收益） | > 80% | 🟢 低 | 无停牌/数据问题, 不影响决策 |
+| 样本时间跨度 | **17/21 天**（07-27 ~ 08-18） | ≥ 14 天 | 🟢 低 | 已超 14 天门槛 |
 
 ### 4.2 误报率风险（v1.3-draft, 08-17 填充, 待 08-22 最终确认）
 
@@ -225,14 +233,14 @@
 | KS 维度误报率 | **0.00%** | < 5% | 🟢 低 | KS 作为辅助维度, 510 alerts 均可解释 |
 | ADWIN 维度误报率 | **0.00%** | < 5% | 🟢 低 | ADWIN 未触发（当前以 PSI 检测为主） |
 
-### 4.3 Public/Private 分离风险（v1.3-draft, 08-17 填充）
+### 4.3 Public/Private 分离风险（v1.3-draft, 08-18 重新验证）
 
-> **数据来源**: `reports/evolution/w13c_verification_20260803.json`（W1.3c 验证, 2026-08-03）
-> **注**: W1.3c 验证数据为 08-03 快照, 分离机制不变, 无需 08-22 更新
+> **数据来源**: `reports/evolution/w13c_verification_20260818.json`（W1.3c 验证, 2026-08-18 18:44 重新生成）
+> **注**: 08-03 原验证文件被 13:04 清空事件删除, 08-18 重新运行 w13c_verify_real_scoring.py 生成
 
 | 维度 | 当前值 | 阈值 | 风险等级 | 缓解措施 |
 |------|--------|------|----------|----------|
-| public/private score 差距 | **0.4716**（public=0.0, private=0.4716） | 差距 > 5% 为健康 | 🟢 低 | 分离机制正常, public 低因样本内年化未达基准 8% |
+| public/private score 差距 | **0.1907**（public=0.3, private=0.4907） | 差距 > 5% 为健康 | 🟢 低 | 分离机制正常, public 提升至 0.3（样本增至 17 条, 年化接近基准） |
 | reward_hacking_risk | **0.0** | < 0.3 | 🟢 低 | 无作弊风险 |
 | pit_violations | **0** | = 0 | 🟢 低 | 无未来函数违规 |
 | overfit_score | **0.0** | < 0.3 | 🟢 低 | 无过拟合 |
@@ -291,13 +299,24 @@
 - 推迟 Wave 2 至 09 月
 - 列出根本原因 + 修复方案
 
-### 5.4 我的建议（2026-08-03 预填, 待 08-13 用户确认）
+### 5.4 我的建议（v1.3-draft, 08-18 更新, 待 08-22~23 周末最终确认）
 
-> **v1.3-draft 骨架阶段标注（2026-08-14 追加）**:
-> 以下"推荐选项 B"为 v1.2 历史决策建议（基于 08-03 样本不足 5/20 的判定）。
-> v1.3-draft 骨架阶段**不预设倾向性结论**，待 08-22~23 周末窗口填充真实数据后，
-> 基于 §1.4 误报率 + §4.1-§4.5 风险评估五维重新判定，08-24 决策日产出最终建议。
-> **骨架阶段 §5.4 状态: 待决策（中性化）**
+> **08-18 数据基础**: 观察期 17/21 天 (81.0%) + 样本 17/20 (85.0%) + Public/Private PASS + DriftMonitor 误报率待重新积累
+
+**推荐**: **08-24 条件性 Go** — 08-21 样本达标 + 08-22~23 DriftMonitor 误报率重新统计 <5% → 选项 A 启动 Phase B
+
+**理由**:
+1. **样本即将达标**: 当前 17/20 (85.0%)，08-19/20/21 三个交易日 EOD 后达 20 样本 + 20 天，08-24 EOD 后达 21 天。无需延长观察期（选项 B 不必要）。
+2. **机制已验证健康**: W1.3c 08-18 重新验证 3/3 PASS — public=0.3 vs private=0.4907 (is_separated=True), reward_hacking=0.0, pit_violations=0, overfit=0.0。public_score 从 08-03 的 0.0 提升至 0.3，随样本增长趋势正确。
+3. **DriftMonitor 误报率待重新确认**: 08-17 文档记录 0.00%（612 alerts 全可解释），但 13:04 清空事件导致 `reports/drift/` 数据丢失。08-19 起 EOD 自动积累 `integration_*.json`，08-22~23 周末重新统计。若 <5% 则 Go 条件满足。
+4. **P1+P2 数据防护已上线**: EOD 前置检查 + 末尾备份，13:04 清空事件不再重演。
+
+**08-24 决策日行动清单**:
+- [ ] 08-21: 确认 EOD 后样本达 20/20 + 天数达 20/21
+- [ ] 08-22~23: 重新统计 DriftMonitor 误报率（从 08-19~23 integration 报告聚合）
+- [ ] 08-24 上午: `phase_b_progressive_enabler.py --check` 评估三门槛（天数≥21 + 阶段运行≥3天 + 决策日志无严重错误）
+- [ ] 若全部门槛达标: 用户单签 Go → `phase_b_progressive_enabler.py --auto` 启动 B1→B2→B3→B4
+- [ ] 若 DriftMonitor 误报率 ≥5%: 选项 B 延长至误报率达标，校准 PSI 阈值
 
 <details>
 <summary>v1.2 历史决策建议（2026-08-03 预填，点击展开）</summary>

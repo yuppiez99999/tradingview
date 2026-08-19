@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 1.5: 收益预测动态校准 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py L1099-L1177

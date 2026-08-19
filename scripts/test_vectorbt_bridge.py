@@ -19,8 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from utils.backtest.event_driven_engine import EngineSummary
-from utils.backtest.vectorbt_bridge import ComparisonReport, VectorBtBridge, generate_ma_cross_signals
+from utils.backtest.vectorbt_bridge import VectorBtBridge, generate_ma_cross_signals
 from utils.wt_structs import BarData
 
 
@@ -52,14 +51,14 @@ def generate_synthetic_bars(n_bars: int = 100, seed: int = 42) -> tuple[list[Bar
         o = float(opens_arr[i])
         c = float(closes_arr[i])
         h = max(o, c) + abs(rng.normal(0, 0.2))
-        l = min(o, c) - abs(rng.normal(0, 0.2))
+        low = min(o, c) - abs(rng.normal(0, 0.2))
         bars.append(BarData(
             code="TEST.SH",
             exchange="SSE",
             period="1d",
             open=o,
             high=h,
-            low=l,
+            low=low,
             close=c,
             volume=100_000.0,  # 足够大, 确保 max_participation_rate=1.0 下全量成交
             amount=o * 100_000.0,
@@ -94,7 +93,7 @@ def main() -> int:
         position_size=1000.0,
     )
 
-    print(f"\n[3] 运行 G15 事件驱动引擎 + vectorbt 向量化回测...")
+    print("\n[3] 运行 G15 事件驱动引擎 + vectorbt 向量化回测...")
     report = bridge.run_ma_cross_comparison(
         bars=bars,
         closes=closes,
@@ -105,11 +104,11 @@ def main() -> int:
     )
 
     # 4. 输出结果
-    print(f"\n[4] 对照结果:")
+    print("\n[4] 对照结果:")
     print(f"  {report.summary()}")
 
     if report.notes:
-        print(f"\n  备注:")
+        print("\n  备注:")
         for note in report.notes:
             print(f"    - {note}")
 
@@ -121,7 +120,7 @@ def main() -> int:
         return 0
     else:
         print(f"  ❌ FAIL — 偏差 {report.equity_deviation_pct:.4f}% ≥ {report.threshold_pct:.1f}%")
-        print(f"  需排查: 信号对齐 / 手续费口径 / 成交价时点")
+        print("  需排查: 信号对齐 / 手续费口径 / 成交价时点")
         return 1
 
 

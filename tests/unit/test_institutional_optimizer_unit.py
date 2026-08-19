@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 """institutional_optimizer 单元测试 — 机构级组合优化器"""
-from unittest.mock import patch, MagicMock
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from utils.institutional_optimizer import (
-    PortfolioDecision,
     InstitutionalPortfolioOptimizer,
+    PortfolioDecision,
 )
 
 

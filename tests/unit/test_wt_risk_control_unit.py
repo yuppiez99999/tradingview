@@ -15,16 +15,15 @@ from __future__ import annotations
 import pytest
 
 from utils.wt_risk_control import (
+    _CVAR_CONFIG_DEFAULT,
     PortfolioRiskAnalyzer,
     RiskControl,
     RiskReportGenerator,
     StopLossManager,
-    _CVAR_CONFIG_DEFAULT,
     _load_cvar_config,
     create_risk_control,
     create_stop_loss_manager,
 )
-
 
 # ============================================================
 # _load_cvar_config

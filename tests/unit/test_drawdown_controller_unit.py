@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """drawdown_controller 单元测试 — 组合回撤四级响应控制器全覆盖.
 
 被测模块: utils/drawdown_controller.py
@@ -16,7 +15,6 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.drawdown_controller import DrawdownController  # noqa: E402
-
 
 # ============================================================
 # check_drawdown — 各级别

@@ -390,7 +390,7 @@ class TestDailyChangeLimit:
         )
         # 原始变化 = 0.1 * (10/20) = 0.05, 不会超限
         # 但 clamped_changes 应严格 <= 0.10
-        for k, change in update.clamped_changes.items():
+        for _k, change in update.clamped_changes.items():
             assert abs(change) <= 0.10 + 1e-10
 
     def test_small_contribution_not_clamped(
@@ -620,7 +620,7 @@ class TestMemoryAudit:
 
     def test_recorded_to_memory(self, loop: FeedbackLoop, tmp_memory: EvolutionMemory):
         """权重调整写入 Memory (level=L3, action_type=weight_adjust)."""
-        update = loop.update_weights(
+        loop.update_weights(
             daily_pnl=0.002,
             factor_contributions={"m": 0.001, "v": -0.001},
         )
@@ -647,7 +647,7 @@ class TestMemoryAudit:
 
     def test_score_report_contains_full_update(self, loop: FeedbackLoop):
         """score_report 包含完整 update 信息 (审计完整性)."""
-        update = loop.update_weights(
+        loop.update_weights(
             daily_pnl=0.002,
             factor_contributions={"m": 0.001, "v": -0.001},
         )
@@ -764,7 +764,7 @@ class TestImmutability:
     def test_update_old_weights_not_mutated(self, loop_with_initial_weights):
         """修改 update.old_weights 不影响下次调用."""
         fl = loop_with_initial_weights
-        original = dict(fl._weights)
+        dict(fl._weights)
         update = fl.update_weights(
             daily_pnl=0.001,
             factor_contributions={"momentum": 0.001, "value": -0.001, "quality": 0.0},

@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
 """local_llm 单元测试 — 本地 LLM 推理客户端"""
-from unittest.mock import patch, MagicMock, PropertyMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from utils.local_llm import (
     LocalLLMClient,

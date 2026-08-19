@@ -22,17 +22,15 @@ import importlib.util
 import json
 import logging
 import sys
-import tempfile
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 
 from utils.data_provider import MarketDataProvider, _data_provider, get_market_data
-
 
 # ============================================================
 # Fixtures

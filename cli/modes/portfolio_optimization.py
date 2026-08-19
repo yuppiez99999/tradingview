@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 投资组合优化模式
 多策略资产配置对比
@@ -6,14 +5,12 @@
 
 from __future__ import annotations
 
+from engine.managers import PortfolioOptimizationEngine
+
 from core.context import (
-    BASE_DIR,
-    logger,
     ProgressIndicator,
 )
-
-from utils.cli_helpers import write_report_file, archive_report
-from engine.managers import PortfolioOptimizationEngine
+from utils.cli_helpers import archive_report, write_report_file
 
 
 def run_portfolio_optimization(args):

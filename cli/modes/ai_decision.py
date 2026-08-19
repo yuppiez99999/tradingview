@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
 """AI 盘中实时决策模式"""
 from datetime import datetime
-from core.context import BASE_DIR, logger, get_ai_coordinator
+
+from core.context import get_ai_coordinator, logger
 
 
 def run_ai_decision(args):
@@ -41,9 +41,9 @@ def run_ai_decision(args):
             'intraday_decision': 'GLM-4.7-Flash + 豆包Speed (并行对冲)',
             'rebalancing_analysis': 'DeepSeek V4 Pro + 豆包Pro (交叉验证)',
         }
-        print(f"\n📊 正在调用 AI 生成交易决策...")
+        print("\n📊 正在调用 AI 生成交易决策...")
         print(f"   场景路由: {model_info.get(scene, '默认')}")
-        print(f"   (这需要10-30秒,请耐心等待)")
+        print("   (这需要10-30秒,请耐心等待)")
         print("-" * 70)
 
         decision = monitor.generate_decision()
@@ -57,7 +57,7 @@ def run_ai_decision(args):
         print("📈 决策结果")
         print("=" * 70)
 
-        print(f"\n📋 市场概况:")
+        print("\n📋 市场概况:")
         print(f"   {decision.market_summary}")
 
         print(f"\n📊 交易信号: {len(decision.trading_signals)} 条")
@@ -104,11 +104,11 @@ def run_ai_decision(args):
             print("   暂无风险预警")
 
         if decision.portfolio_advice:
-            print(f"\n💡 组合调整建议:")
+            print("\n💡 组合调整建议:")
             print(f"   {decision.portfolio_advice}")
 
         if decision.macro_outlook:
-            print(f"\n🔮 宏观展望:")
+            print("\n🔮 宏观展望:")
             print(f"   {decision.macro_outlook}")
 
         print(f"\n📈 AI置信度: {decision.ai_confidence:.2%}")

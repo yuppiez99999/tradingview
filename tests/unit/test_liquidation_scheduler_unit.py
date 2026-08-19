@@ -15,9 +15,8 @@
 """
 from __future__ import annotations
 
-import json
 import sys
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -29,7 +28,6 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.liquidation_scheduler import LiquidationScheduler  # noqa: E402
-
 
 # ============================================================
 # 辅助
@@ -434,7 +432,6 @@ class TestCLI:
         )
         # 重新导入会执行 CLI, 但 __main__ 块只在直接运行时执行
         # 这里用 runpy 模拟
-        import runpy
         # mock ConfigManager 路径, 使显式 config_path 生效
         # 实际 CLI 用默认 CONFIG_PATH, 这里只验证不崩溃
         # 跳过: CLI 用默认路径, 测试环境无 configs/portfolio.yaml

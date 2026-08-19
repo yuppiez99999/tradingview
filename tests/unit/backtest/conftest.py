@@ -7,8 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from utils.wt_structs import OrderData, BarData, TickData, PositionData, ContractData
-
+from utils.wt_structs import BarData, ContractData, OrderData, TickData
 
 # ============================================================
 # OrderData fixtures

@@ -557,8 +557,8 @@ class TestPnLAttributionAdapter:
 
     def test_get_latest(self, adapter: PnLAttributionAdapter):
         """get_latest 返回最近一次转换."""
-        conv1 = adapter.load_dict({"a": 0.001}, attribution_date="2026-08-01")
-        conv2 = adapter.load_dict({"b": 0.002}, attribution_date="2026-08-02")
+        adapter.load_dict({"a": 0.001}, attribution_date="2026-08-01")
+        adapter.load_dict({"b": 0.002}, attribution_date="2026-08-02")
         latest = adapter.get_latest()
         assert latest is not None
         assert latest.attribution_date == "2026-08-02"

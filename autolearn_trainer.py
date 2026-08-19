@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -130,7 +129,7 @@ def add_technical_features(df: pd.DataFrame) -> pd.DataFrame:
 
     严格无前视偏差: 所有滚动窗口/移动平均仅用历史数据,
     不含当期收盘价 (若当期用于决策, 则信号需滞后一期使用)。
-    
+
     NaN 值保留 (训练时由 trainer 的 nan_to_num 处理),
     避免填充默认值掩盖数据缺失信号。
     """
@@ -266,7 +265,7 @@ def add_cross_sectional_features(featured_dict: dict[str, pd.DataFrame]) -> dict
 
     Returns:
         {symbol: DataFrame} (追加截面因子)
-    
+
     注意: 仅使用当期截面数据, 不跨期 — 无前视偏差风险。
     """
     if not featured_dict:
@@ -341,7 +340,7 @@ def load_returns_history(lookback_years: int = 2) -> pd.DataFrame:
     ret_dict: dict[str, pd.Series] = {}
     failed = 0
 
-    for code, name, *__ in POSITION_SYMBOLS:
+    for code, _name, *__ in POSITION_SYMBOLS:
         clean = code.replace(".SZ", "").replace(".SH", "").replace(".BJ", "")
         try:
             from tools.wind_mcp_fetcher import wind_get_kline

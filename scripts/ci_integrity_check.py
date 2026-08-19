@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 ci_integrity_check.py — CI 完整性自检 (R1 / C6 机检落点)
 
@@ -27,10 +26,9 @@ import json
 import os
 import re
 import subprocess
-import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 CI_YML = ROOT / ".github" / "workflows" / "ci.yml"
@@ -47,7 +45,7 @@ class ScriptRef(NamedTuple):
     detail: str
 
 
-def extract_refs() -> List[str]:
+def extract_refs() -> list[str]:
     if not CI_YML.exists():
         return []
     content = CI_YML.read_text(encoding="utf-8", errors="replace")
@@ -81,7 +79,7 @@ def smoke(ref: str) -> (bool, str):
         return False, f"{type(e).__name__}: {e}"
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="CI integrity check")
     parser.add_argument("--strict", action="store_true",
                         help="额外对每个脚本做 --help 烟测 (可运行性)")
@@ -92,7 +90,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     refs = extract_refs()
-    results: List[ScriptRef] = []
+    results: list[ScriptRef] = []
     for ref in refs:
         p = ROOT / ref
         exists = p.exists()

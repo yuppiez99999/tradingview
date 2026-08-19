@@ -8,7 +8,6 @@ import json
 import logging
 import logging.handlers
 import os
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest

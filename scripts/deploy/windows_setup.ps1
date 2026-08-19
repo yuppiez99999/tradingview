@@ -198,7 +198,7 @@ Write-Host ""
 Write-Info "配置环境变量..."
 $envVars = @(
     @{Name="WIND_API_KEY"; Value=""; Desc="Wind MCP 认证密钥"},
-    @{Name="IFIND_TOKEN"; Value=""; Desc="iFinD MCP 认证令牌"},
+
     @{Name="TS_TOKEN"; Value=""; Desc="Tushare 令牌"},
     @{Name="VOLCENGINE_API_KEY"; Value=""; Desc="豆包 LLM"},
     @{Name="REPORT_OUTPUT_DIR"; Value="$ProjectDir\每日报告归档"},
@@ -218,7 +218,7 @@ foreach ($v in $envVars) {
 
 Write-Warn "请手动填写以下环境变量 (系统属性→环境变量):"
 Write-Host "    WIND_API_KEY = <你的 Wind API 密钥>"
-Write-Host "    IFIND_TOKEN  = <你的 iFinD 令牌>"
+
 Write-Host "    TS_TOKEN     = <你的 Tushare 令牌> (可选)"
 Write-Host ""
 
@@ -255,7 +255,7 @@ Write-Host "  3. 安装 Wind/QMT/同花顺 客户端并登录"
 Write-Host "  4. 联系券商营业部绑定公网 IP 白名单"
 Write-Host "  5. 配置 syncthing 共享文件夹 (http://127.0.0.1:8384)"
 Write-Host "  6. 克隆项目到 $ProjectDir"
-Write-Host "  7. 填写环境变量 WIND_API_KEY / IFIND_TOKEN"
+Write-Host "  7. 填写环境变量 WIND_API_KEY"
 Write-Host "  8. 运行 P0 自检: python scripts\run_p0_startup_check.py --strict"
 Write-Host ""
 Write-Warn "重要: 实盘启动前必须运行 --strict 自检通过"

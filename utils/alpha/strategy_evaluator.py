@@ -757,7 +757,7 @@ class StrategyEvaluator:
         except ImportError:
             logger.debug("walk_forward 模块不可用, 降级为简化版")
             return self._compute_wf_sharpe_decay_simple(daily_returns)
-        except (ImportError, AttributeError) as e:
+        except AttributeError as e:
             logger.warning("Purged Walk-Forward 计算异常: %s", e)
             return self._compute_wf_sharpe_decay_simple(daily_returns)
 

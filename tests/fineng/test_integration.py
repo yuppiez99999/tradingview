@@ -11,16 +11,16 @@ fineng 包集成测试
 from __future__ import annotations
 
 import sys
-import math
 import unittest
 
 sys.path.insert(0, ".")
 
+from utils.fineng.greeks.aggregator import PortfolioGreeksAggregator
+from utils.fineng.pricing.binomial import BinomialTree, binomial_price
+from utils.fineng.pricing.binomial import ExerciseStyle as BinomialExerciseStyle
 from utils.fineng.pricing.black_scholes import bs_call_price, bs_put_price
 from utils.fineng.pricing.implied_vol import implied_vol, implied_vol_bisection
-from utils.fineng.pricing.binomial import BinomialTree, binomial_price, ExerciseStyle as BinomialExerciseStyle
 from utils.fineng.pricing.monte_carlo import MonteCarloEngine
-from utils.fineng.greeks.aggregator import PortfolioGreeksAggregator
 
 
 class TestIVRoundTrip(unittest.TestCase):

@@ -3,11 +3,13 @@
 基于 pytdx/pytdx2 实现，接入现有数据提供者架构
 """
 
+from __future__ import annotations
+
 import logging
 import threading
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Optional, TypedDict
 
 import pandas as pd
 
@@ -34,7 +36,7 @@ class TDXDataSource:
     _connected: bool
     _last_connect_time: Optional[float]
     _reconnect_interval: int
-    source_health: Dict[str, SourceHealthEntry]
+    source_health: dict[str, SourceHealthEntry]
 
     def __init__(self):
         self._api = None
@@ -46,7 +48,7 @@ class TDXDataSource:
         self.source_health = {"tdx": SourceHealthEntry(ok=False, last_error=None, last_success=None)}
         self._init_connection()
 
-    def _init_connection(self):
+    def _init_connection(self) -> None:
         """初始化通达信连接"""
         try:
             # 尝试导入 pytdx 或 pytdx2
@@ -75,7 +77,7 @@ class TDXDataSource:
             self.source_health["tdx"]["last_error"] = str(e)
             logger.warning(f"通达信数据源初始化失败: {e}")
 
-    def _connect(self):
+    def _connect(self) -> None:
         """连接到通达信服务器"""
         try:
             if self._api_cls is None:
@@ -121,7 +123,7 @@ class TDXDataSource:
             self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信连接失败: {e}")
 
-    def _ensure_connected(self):
+    def _ensure_connected(self) -> None:
         """确保连接有效，必要时重连"""
         if self._api_cls is None:
             return False
@@ -178,7 +180,7 @@ class TDXDataSource:
             return 2  # 北京
         return 0
 
-    def get_realtime_quote(self, symbol: str) -> Optional[Dict]:
+    def get_realtime_quote(self, symbol: str) -> Optional[dict]:
         """获取实时行情"""
         if not self._ensure_connected():
             return None
@@ -303,7 +305,7 @@ class TDXDataSource:
             logger.error(f"通达信获取历史K线失败: {e}")
             return None
 
-    def get_financial_data(self, symbol: str) -> Optional[Dict]:
+    def get_financial_data(self, symbol: str) -> Optional[dict]:
         """获取财务数据（如需要）"""
         if not self._ensure_connected():
             return None
@@ -341,7 +343,7 @@ class TDXDataSource:
             logger.error(f"通达信获取财务数据失败: {e}")
             return None
 
-    def get_sector_stocks(self, sector_name: str) -> List[Dict]:
+    def get_sector_stocks(self, sector_name: str) -> list[dict]:
         """获取板块成分股（如需要）"""
         if not self._ensure_connected():
             return []
@@ -354,7 +356,7 @@ class TDXDataSource:
             logger.error(f"通达信获取板块数据失败: {e}")
             return []
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """断开连接"""
         try:
             if self._api:
@@ -366,7 +368,7 @@ class TDXDataSource:
             self._api = None
 
 
-def safe_float(value, default=None):
+def safe_float(value: Any, default: Optional[float] = None) -> Optional[float]:
     """安全转换为float"""
     if value is None:
         return default

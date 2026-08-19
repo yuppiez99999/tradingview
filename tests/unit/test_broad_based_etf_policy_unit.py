@@ -9,10 +9,8 @@
 from __future__ import annotations
 
 import sys
-from types import SimpleNamespace
 from pathlib import Path
-
-import pytest
+from types import SimpleNamespace
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -24,8 +22,8 @@ from utils.broad_based_etf_policy import (  # noqa: E402
     BROAD_BASED_ETFS,
     MAX_SCALE,
     MIN_SCALE,
-    apply_broad_based_adjustments_to_plan,
     adjust_plan_with_national_team_flow,
+    apply_broad_based_adjustments_to_plan,
     compute_broad_based_adjustments,
     fetch_national_team_flow_signals,
     flow_to_adjustment,

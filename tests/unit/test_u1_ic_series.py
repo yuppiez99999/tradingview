@@ -4,11 +4,8 @@
 """
 from __future__ import annotations
 
-import math
-from pathlib import Path
-
 import sys
-import os
+from pathlib import Path
 
 # 确保项目根目录在 sys.path
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -16,17 +13,14 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 import numpy as np
-import pytest
 
 from utils.alpha_factor.base import (
-    FactorValue,
     FactorLibraryResult,
-    calc_ic,
-    calc_ic_series_from_history,
+    FactorValue,
     calc_ic_ir,
+    calc_ic_series_from_history,
     evaluate_factors,
 )
-
 
 # ============================================================
 # calc_ic_series_from_history 测试

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """core.context — 统一上下文聚合层
 
 为 cli/modes/ 下的所有模式提供统一的导入入口。
@@ -44,10 +43,9 @@ except (ImportError, ModuleNotFoundError):
 
         def update(self, step: int, message: str) -> None:
             self.current = step
-            print("  [{}/{}] {}".format(step, self.total, message))
 
         def complete(self, message: str = "完成") -> None:
-            print("  ✅ {} {}".format(self.title, message))
+            pass
 
 
 # ============================================================

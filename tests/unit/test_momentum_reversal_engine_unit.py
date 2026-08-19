@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """momentum_reversal_engine 单元测试 — 动量反转引擎全覆盖.
 
 被测模块: utils/momentum_reversal_engine.py
@@ -10,7 +9,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -18,8 +16,6 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from utils.momentum_reversal_engine import (  # noqa: E402
     MomentumReversalEngine,
-    MomentumResult,
-    MomentumSignal,
 )
 
 

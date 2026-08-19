@@ -1,14 +1,11 @@
-# -*- coding: utf-8 -*-
 """akshare_futures 单元测试 — 期货数据统一接口"""
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import MagicMock
 
 from utils.akshare_futures import (
+    _normalize_ak_daily,
+    _normalize_ak_quotes,
     _to_float,
     _to_str,
-    _normalize_ak_quotes,
-    _normalize_ak_daily,
 )
 
 

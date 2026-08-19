@@ -13,12 +13,9 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -30,10 +27,8 @@ from utils.research_distiller import (  # noqa: E402
     DistilledSignal,
     ResearchDistiller,
     _safe_float,
-    get_distiller,
     self_test,
 )
-
 
 # ============================================================
 # Fixtures

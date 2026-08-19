@@ -22,7 +22,6 @@ from utils.tca_pre_trade_estimator import (
     create_no_save_estimator,
 )
 
-
 # ============================================================
 # PreTradeEstimate dataclass
 # ============================================================

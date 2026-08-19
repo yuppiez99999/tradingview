@@ -11,7 +11,6 @@ import sys
 from pathlib import Path
 from typing import get_type_hints
 
-import numpy as np
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -205,7 +204,6 @@ class TestPy38TypeAnnotationCompatibility:
 
     def test_hedge_analyzer_uses_typing_list_not_pep585(self):
         """hedge_analyzer.py 应使用 typing.List 而非 PEP 585 list[str]"""
-        import inspect
         from reporting import hedge_analyzer
 
         # 检查函数签名的类型注解

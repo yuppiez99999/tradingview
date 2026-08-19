@@ -1,7 +1,6 @@
 """T16 单元测试 — OrderLifecycleTracker 订单生命周期跟踪器."""
 from __future__ import annotations
 
-import time
 from datetime import datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock
@@ -11,11 +10,9 @@ import pytest
 from utils.risk.order_lifecycle_tracker import (
     OrderLifecycleTracker,
     OrderState,
-    TrackedOrder,
     map_broker_state,
 )
 from utils.risk.risk_audit_logger import RiskAuditLogger
-
 
 # ============================================================
 # 测试夹具

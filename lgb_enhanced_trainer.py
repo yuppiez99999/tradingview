@@ -6,8 +6,8 @@ LightGBM 增强训练器 — Thin Coordinator (B3.5 重构)
 
     lgb_trainer/
     ├── __init__.py             # 包入口, 统一导出
-    ├── data_loader.py          # 真实 OHLCV 数据加载 (Wind MCP > iFinD MCP > 新浪 HTTP)
-    ├── news_sentiment.py       # 新闻情绪因子 (Wind MCP 优先, iFinD 回退)
+    ├── data_loader.py          # 真实 OHLCV 数据加载 (Wind MCP > 新浪 HTTP)
+    ├── news_sentiment.py       # 新闻情绪因子 (Wind MCP 优先, 新浪回退)
     ├── feature_engineering.py  # 扩展特征工程 (均值回归/Regime/行业/资金/跨市场)
     ├── metrics.py              # 评估指标 + 时间序列交叉验证 (Purged K-Fold)
     ├── persistence.py          # 模型持久化 (save/load/retrain 判定)
@@ -55,6 +55,7 @@ for _d in [MODELS_DIR, REPORTS_DIR, LOG_DIR, CACHE_DIR]:
 # Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
 sys.path.insert(0, str(BASE_DIR))  # bootstrap: 确保 utils 包可导入
 from utils.path_config import setup_sys_path  # noqa: E402
+
 setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 # 复用旧训练器的标的清单和特征工程 (供 institutional_pipeline_runner 等外部模块导入)
@@ -147,26 +148,11 @@ _inject_paths_to_submodules()
 # ── 模型持久化 ──
 
 # ── 训练器核心 ──
-from autolearn_trainer import (  # noqa: E402
-    POSITION_SYMBOLS,
-    add_cross_sectional_features,
-    add_technical_features,
-)
-from lgb_trainer.feature_engineering import (  # noqa: E402
-    add_capital_flow_features,
-    add_cross_market_features,
-    add_industry_relative_strength_features,
-    add_mean_reversion_features,
-)
-from lgb_trainer.news_sentiment import add_sentiment_features  # noqa: E402
-from lgb_trainer.trainer import (  # noqa: E402
-    compute_regime_series,
-    run_enhanced_training,
-    train_symbol_enhanced,
-    train_symbol_regime_specific,
-)
 from lgb_trainer.report_generator import (  # noqa: E402
     generate_comparison_report,
+)
+from lgb_trainer.trainer import (  # noqa: E402
+    run_enhanced_training,
 )
 
 

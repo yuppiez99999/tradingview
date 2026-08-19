@@ -1,13 +1,15 @@
-from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
-from quant_modules.ai_hedge_fund.data_adapter import get_financial_metrics, get_market_cap, search_line_items
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage
-from pydantic import BaseModel
 import json
+
+from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel
 from typing_extensions import Literal
-from quant_modules.ai_hedge_fund.utils.progress import progress
-from quant_modules.ai_hedge_fund.utils.llm import call_llm
+
+from quant_modules.ai_hedge_fund.data_adapter import get_financial_metrics, get_market_cap, search_line_items
+from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
 from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
+from quant_modules.ai_hedge_fund.utils.llm import call_llm
+from quant_modules.ai_hedge_fund.utils.progress import progress
 
 
 class MohnishPabraiSignal(BaseModel):
@@ -30,7 +32,7 @@ def mohnish_pabrai_agent(state: AgentState, agent_id: str = "mohnish_pabrai_agen
     # and potential for doubling in 2-3 years at low risk.
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "Fetching financial metrics")
-        metrics = get_financial_metrics(ticker, end_date, period="annual", limit=8, api_key=api_key)
+        get_financial_metrics(ticker, end_date, period="annual", limit=8, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Gathering financial line items")
         line_items = search_line_items(
@@ -229,9 +231,9 @@ def analyze_pabrai_valuation(financial_line_items: list, market_cap: float | Non
 
     # Asset-light tilt: lower capex intensity preferred
     if capex_vals and len(financial_line_items) >= 3:
-        revenue_vals = [getattr(li, "revenue", None) for li in financial_line_items]
+        [getattr(li, "revenue", None) for li in financial_line_items]
         capex_to_revenue = []
-        for i, li in enumerate(financial_line_items):
+        for _i, li in enumerate(financial_line_items):
             revenue = getattr(li, "revenue", None)
             capex = abs(getattr(li, "capital_expenditure", 0) or 0)
             if revenue and revenue > 0:
@@ -357,4 +359,4 @@ def generate_pabrai_output(
         pydantic_model=MohnishPabraiSignal,
         agent_name=agent_id,
         default_factory=create_default_pabrai_signal,
-    ) 
+    )

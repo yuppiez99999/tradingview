@@ -7,6 +7,12 @@
       "skillPath": "skills/position_sizing_decision_skill/SKILL.md",
       "computedHash": "38dbfd22e06c5517c7d2330dfc91c3b36e14834b2dc3646d470f85885401e123"
     },
+    "wind-find-finance-skill": {
+      "source": "Wind-Information-Co-Ltd/wind-skills",
+      "sourceType": "github",
+      "skillPath": "skills/wind-find-finance-skill/SKILL.md",
+      "computedHash": "7383fe90987f43240a27d93e8dc275f29887506938d3e5219894cb3f690d7781"
+    },
     "wind-mcp-skill": {
       "source": "Wind-Information-Co-Ltd/wind-skills",
       "sourceType": "github",

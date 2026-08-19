@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 # ============================================================
 # 数据结构
@@ -454,7 +455,7 @@ class TCAManager:
         order: dict,
         market_data: dict | None = None,
         cost_threshold_bps: float = 30.0,
-    ):
+    ) -> Any:
         """执行前成本预估 (T3.4)
 
         facade 方法: 委托给 PreTradeEstimator 实现.
@@ -490,9 +491,9 @@ class TCAManager:
     # ============================================================
     def record(
         self,
-        fill,
-        estimate=None,
-    ):
+        fill: Any,
+        estimate: Any = None,
+    ) -> Any:
         """记录成交 + 预估对比 (T3.5)
 
         facade 方法: 委托给 PostTradeAttribution 实现.
@@ -527,7 +528,7 @@ class TCAManager:
             )
         return self._post_trade_attribution.record(fill, estimate)
 
-    def calibrate(self, pre_trade_estimator=None, **kwargs):
+    def calibrate(self, pre_trade_estimator: Any = None, **kwargs: Any) -> float | None:
         """EOD 触发校准 (T3.5)
 
         facade 方法: 委托给 PostTradeAttribution.calibrate()

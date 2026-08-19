@@ -27,8 +27,6 @@ test_system_check_mac.py — Mac 研究模式 (跨平台) 自检逻辑单元测�
 """
 from __future__ import annotations
 
-import os
-import platform
 from unittest.mock import patch
 
 import pytest
@@ -37,13 +35,12 @@ import pytest
 # 导入被测模块 (conftest.py 已设置 sys.path)
 # ============================================================
 from utils.system_check import (
+    CheckLevel,
+    CheckStatus,
     SystemChecker,
     _is_macos,
     _is_research_mode,
-    CheckLevel,
-    CheckStatus,
 )
-
 
 # ============================================================
 # Fixture: 清理环境变量
@@ -359,7 +356,7 @@ class TestRunAllOutput:
                             lambda self: None)
 
         checker = SystemChecker(skip_datasource=True)
-        report = checker.run_all()
+        checker.run_all()
         captured = capsys.readouterr()
 
         assert "研究模式" in captured.out, \
@@ -373,7 +370,7 @@ class TestRunAllOutput:
                             lambda self: None)
 
         checker = SystemChecker(skip_datasource=True)
-        report = checker.run_all()
+        checker.run_all()
         captured = capsys.readouterr()
 
         assert "实盘模式" in captured.out, \
@@ -401,7 +398,7 @@ class TestWindowsModeRegression:
         critical, _ = checker._get_critical_env_vars()
         assert len(critical) == 2  # WIND_API_KEY + IFIND_TOKEN
         # 这两个都应是必需
-        for var, desc in critical:
+        for var, _desc in critical:
             assert var in ("WIND_API_KEY", "IFIND_TOKEN")
 
 

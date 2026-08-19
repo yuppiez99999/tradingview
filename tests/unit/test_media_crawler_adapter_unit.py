@@ -13,8 +13,6 @@ from __future__ import annotations
 import time
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from utils.media_crawler_adapter import (
     API_PLATFORM_VALUES,
     PLATFORM_MAP,
@@ -25,7 +23,6 @@ from utils.media_crawler_adapter import (
     get_platform_display,
     normalize_platform,
 )
-
 
 # ============================================================
 # MediaCrawlerNewsItem

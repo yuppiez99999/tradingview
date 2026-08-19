@@ -1,10 +1,7 @@
 """style_beta 单测 (G17 风控因子)。"""
 from __future__ import annotations
 
-import pytest
-
 from utils.risk.style_beta import DEFAULT_STYLE_BETA, STYLE_BETA_PROXY, get_style_beta
-
 
 # ============================================================
 # 1. STYLE_BETA_PROXY 字典

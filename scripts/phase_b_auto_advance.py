@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import subprocess
 import sys
-from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]

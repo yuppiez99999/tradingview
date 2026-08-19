@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 计划文档代码驱动更新 (Upgrade Status Sync from Git)
 =====================================================

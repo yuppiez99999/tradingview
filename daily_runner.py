@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 每日自动运行主程序 - 量化策略 v4.1
 
@@ -16,21 +15,23 @@
   python daily_runner.py --report-only      # 仅生成报告
 """
 
+from __future__ import annotations
+
 # === 清除代理设置（必须最早执行） ===
 import os
+
 for k in list(os.environ.keys()):
     if 'proxy' in k.lower():
         del os.environ[k]
 os.environ['NO_PROXY'] = '*'
 
-import json
-import sys
-import time
-import logging
 import argparse
+import json
+import logging
+import sys
 import traceback
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
+from typing import Any, Callable, Optional
 
 # Windows编码修复
 if sys.platform == 'win32':
@@ -41,6 +42,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
 sys.path.insert(0, BASE_DIR)  # bootstrap: 确保 utils 包可导入
 from utils.path_config import setup_sys_path  # noqa: E402
+
 setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
@@ -86,7 +88,7 @@ class StepResult:
         return 'OK' if self.success else 'FAIL'
 
 
-def run_step(name: str, func, *args, **kwargs) -> StepResult:
+def run_step(name: str, func: Callable[..., Any], *args: Any, **kwargs: Any) -> StepResult:
     """执行单个步骤，捕获异常"""
     result = StepResult(name)
     logger.info(f'>>> 开始执行: {name}')
@@ -133,7 +135,7 @@ def step_update_data() -> str:
         )
         if r.returncode == 0:
             logger.info(f'[数据更新] data_download.py 执行成功\n{r.stdout[-500:] if len(r.stdout) > 500 else r.stdout}')
-            return f'iFinD数据更新完成'
+            return 'iFinD数据更新完成'
         else:
             logger.warning(f'[数据更新] data_download.py 返回非零: {r.returncode}, stderr={r.stderr[:200]}')
     except FileNotFoundError:
@@ -159,7 +161,7 @@ def step_update_data() -> str:
             if age_days <= 2:
                 logger.info(f'[数据更新] 缓存较新 ({age_days}天前)，跳过下载')
                 return f'使用本地缓存 ({age_days}天前)'
-    
+
     # 方案C: 尝试从新浪API补充最新数据
     try:
         from sina_api_helper import update_latest_quotes
@@ -167,7 +169,7 @@ def step_update_data() -> str:
         return f'新浪API更新了{count}只标的的数据'
     except ImportError:
         pass
-    
+
     logger.info('[数据更新] 数据源均不可用，使用现有缓存继续')
     return '使用现有缓存'
 
@@ -188,11 +190,11 @@ def step_fast_backtest() -> str:
     )
 
     output = r.stdout + ('\n[STDERR]' + r.stderr if r.stderr else '')
-    
+
     if r.returncode == 0:
         # 提取关键指标
         lines = output.strip().split('\n')
-        summary_lines = [l for l in lines if any(kw in l for kw in 
+        summary_lines = [line for line in lines if any(kw in line for kw in
             ['年化', '回撤', '胜率', '夏普', '收益'])]
         key_info = '\n'.join(summary_lines[-10:]) if summary_lines else output[-300:]
         logger.info(f'[快速回测] 成功\n{key_info}')
@@ -213,7 +215,7 @@ def step_daily_report(enable_ai: bool = True) -> str:
     try:
         from daily_report import generate_daily_report
         report_date = datetime.now().strftime('%Y-%m-%d')
-        
+
         # 保存到日期子目录
         date_dir = os.path.join(REPORTS_DIR, report_date)
         os.makedirs(date_dir, exist_ok=True)
@@ -253,8 +255,8 @@ def step_trendcast_predict() -> str:
 
     lines = []
     try:
-        from trendcast_client import TrendCastClient, CORE_PORTFOLIO
         from trendcast_audit import TrendCastAudit
+        from trendcast_client import TrendCastClient
 
         client = TrendCastClient()
         audit = TrendCastAudit()
@@ -294,7 +296,7 @@ def step_trendcast_predict() -> str:
                 audit_count += 1
 
         # 4. 回溯验证已到期预测
-        verified = audit.verify_predictions()
+        audit.verify_predictions()
         stats = audit.get_stats()
 
         # 5. 组装摘要
@@ -332,7 +334,7 @@ def step_start_trading() -> str:
     """
     now = datetime.now()
     weekday = now.weekday()
-    
+
     # 周末不启动
     if weekday >= 5:
         logger.info('[模拟交易] 周末，跳过启动')
@@ -342,7 +344,7 @@ def step_start_trading() -> str:
     current_time = now.time()
     morning_start = __import__('datetime').time(9, 15)
     afternoon_end = __import__('datetime').time(15, 5)
-    
+
     if current_time < morning_start:
         logger.info(f'[模拟交易] 未到开盘时间({now.strftime("%H:%M")})，跳过')
         return f'未到开盘时间({now.strftime("%H:%M")})'
@@ -369,9 +371,9 @@ def step_start_trading() -> str:
 # 主流程
 # ============================================================
 
-def run_daily_pipeline(skip_download=False, skip_backtest=False,
-                        enable_trading=False, enable_ai=True,
-                        enable_trendcast=True, report_only=False):
+def run_daily_pipeline(skip_download: bool = False, skip_backtest: bool = False,
+                        enable_trading: bool = False, enable_ai: bool = True,
+                        enable_trendcast: bool = True, report_only: bool = False) -> bool:
     """运行完整的每日流程"""
 
     total_start = datetime.now()
@@ -387,7 +389,7 @@ def run_daily_pipeline(skip_download=False, skip_backtest=False,
         results.append(r)
     else:
         # 完整模式
-        
+
         # 步骤1: 数据更新
         if not skip_download:
             r = run_step('数据更新', step_update_data)
@@ -466,7 +468,7 @@ def run_daily_pipeline(skip_download=False, skip_backtest=False,
 # 入口
 # ============================================================
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description='量化策略 v4.1 每日自动运行主程序',
         formatter_class=argparse.RawDescriptionHelpFormatter,

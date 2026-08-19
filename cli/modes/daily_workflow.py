@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 """每日三阶段交易工作流 - 盘前计划/盘中策略/盘后报告"""
-import os
-from core.context import BASE_DIR, logger
+from core.context import BASE_DIR
 
 
 def run_daily_workflow(args):
     """每日三阶段交易工作流 - 盘前计划/盘中策略/盘后报告"""
     print("\n📅 每日交易工作流")
     print("=" * 70)
-    
+
     # 直接调用 daily_trading_workflow.py 模块
     try:
         import daily_trading_workflow as dtw
@@ -16,15 +14,15 @@ def run_daily_workflow(args):
         print(f"\n❌ 无法导入 daily_trading_workflow 模块: {e}")
         print("💡 请确保 daily_trading_workflow.py 存在于当前目录")
         return
-    
+
     # 执行指定阶段
     phase = getattr(args, 'phase', 'all')
     if phase is None:
         phase = 'all'
-    
+
     print(f"\n🎯 执行阶段: {phase}")
     print("-" * 70)
-    
+
     try:
         # 阶段注册表：函数名 / 完成提示
         PHASE_MAP = {
@@ -60,7 +58,7 @@ def run_daily_workflow(args):
             print("\n  🔗 盘后联动分析 (对冲+再平衡 v5.9)...")
             print("  " + "-" * 60)
             try:
-                from utils.hedge_rebalance_integrator import HedgeRebalanceIntegrator, HedgeMode
+                from utils.hedge_rebalance_integrator import HedgeMode, HedgeRebalanceIntegrator
                 integrator = HedgeRebalanceIntegrator(base_dir=BASE_DIR, hedge_mode=HedgeMode.TAIL_ONLY)
                 plan = integrator.run_full_workflow()
                 report_path = integrator.save_report(plan)
@@ -75,7 +73,7 @@ def run_daily_workflow(args):
         else:
             print(f"\n❌ 未知阶段: {phase}")
             print("💡 可用阶段: premarket, intraday, postmarket, all")
-    
+
     except Exception as e:
         print(f"\n❌ 工作流执行失败: {e}")
         import traceback

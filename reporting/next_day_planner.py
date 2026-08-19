@@ -318,8 +318,8 @@ def _build_hedge_positions_detail(
                     "reason": hp.get("reason", ""),
                 }
             )
-    except Exception as e:
-        print(f"读取 hedge_positions 失败: {e}")
+    except Exception:
+        pass
     return hedge_positions_detail
 
 

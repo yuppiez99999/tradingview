@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ML增强训练模式 — v5.10 P0-9 重构
 """
@@ -7,9 +6,8 @@ import os
 
 from core.context import (
     BASE_DIR,
-    logger,
-    ProgressIndicator,
     ML_ENHANCED_TRAINER_AVAILABLE,
+    ProgressIndicator,
     run_enhanced_training,
 )
 
@@ -17,7 +15,8 @@ from core.context import (
 def run_enhanced_training_mode(args):
     """ML增强训练 v2.0 — 四维优化管线"""
     if not ML_ENHANCED_TRAINER_AVAILABLE:
-        print("\n❌ 增强训练引擎未安装"); return None
+        print("\n❌ 增强训练引擎未安装")
+        return None
 
     horizon = getattr(args, 'horizon', 1)
     filter_osc = getattr(args, 'filter_oscillation', True)
@@ -31,7 +30,7 @@ def run_enhanced_training_mode(args):
     print("=" * 70)
     print(f"  预测窗口: T+{horizon} | 过滤震荡: {filter_osc} | Optuna: {use_optuna}")
     print(f"  特征数: {n_features} | 样本加权: 时间衰减+波动率")
-    print(f"  增强特征: 行业RS+市场宽度+北向+PE/PB/ROE")
+    print("  增强特征: 行业RS+市场宽度+北向+PE/PB/ROE")
     print("-" * 70)
 
     progress = ProgressIndicator("增强训练", 5)
@@ -47,15 +46,18 @@ def run_enhanced_training_mode(args):
     )
 
     if 'error' in result:
-        print(f"\n❌ 训练失败: {result['error']}"); return None
+        print(f"\n❌ 训练失败: {result['error']}")
+        return None
 
-    progress.update(3, "训练..."); progress.update(4, "保存..."); progress.update(5, "完成")
+    progress.update(3, "训练...")
+    progress.update(4, "保存...")
+    progress.update(5, "完成")
     progress.complete("✅ 增强训练完成")
 
     print(f"\n📊 最佳: {result['best_model']} | F1={result['best_f1']:.4f} "
           f"| AUC={result['best_auc']:.4f} | 样本={result['n_samples']}")
     for name, m in result['results'].items():
         print(f"  {name:<25} F1={m['f1']:.4f}  AUC={m['auc']:.4f}")
-    print(f"\n💡 python v5.9.py --ml-enhanced  # 使用新模型预测")
+    print("\n💡 python v5.9.py --ml-enhanced  # 使用新模型预测")
     print("=" * 70)
     return result

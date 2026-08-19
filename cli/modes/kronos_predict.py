@@ -1,15 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 Kronos 金融 K 线预测模式 — v5.10 集成
 """
 
-import os
-import sys
 import json
-import argparse
-from typing import Optional, List, Dict
+import os
 
-from core.context import BASE_DIR, logger
+from core.context import BASE_DIR
 
 
 def run_kronos_predict_mode(args):
@@ -115,7 +111,7 @@ def run_kronos_predict_mode(args):
                       f"信号={r.get('signal', 'hold').upper()}")
 
     if hold_signals:
-        print(f"\n🟡 持有信号:")
+        print("\n🟡 持有信号:")
         for r in sorted(hold_signals, key=lambda x: x.get('return_pct', 0), reverse=True)[:5]:
             print(f"  {r.get('code')} {r.get('name', ''):<8} "
                   f"收益={r.get('return_pct', 0)*100:+.2f}%")

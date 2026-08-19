@@ -63,10 +63,11 @@ class TestICSeriesConsistency:
 
     def test_ic_series_length_consistent(self):
         """两版本 IC 序列长度一致 (取 min(len(factor_history), len(forward_returns)))."""
-        from utils.alpha_factor.base import calc_ic_series_from_history
         from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (
             compute_rolling_ic_series,
         )
+
+        from utils.alpha_factor.base import calc_ic_series_from_history
 
         factor_history = _build_factor_history_seq(n_days=25)
         fwd_returns = _build_forward_returns_history(n_days=25)
@@ -80,10 +81,11 @@ class TestICSeriesConsistency:
 
     def test_ic_series_sign_consistency(self):
         """两版本 IC 符号一致率 >= 80% (Spearman vs Pearson 在非极端数据下高度相关)."""
-        from utils.alpha_factor.base import calc_ic_series_from_history
         from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (
             compute_rolling_ic_series,
         )
+
+        from utils.alpha_factor.base import calc_ic_series_from_history
 
         factor_history = _build_factor_history_seq(n_days=25)
         fwd_returns = _build_forward_returns_history(n_days=25)
@@ -118,10 +120,11 @@ class TestICIRConsistency:
 
     def test_ic_ir_same_input_same_output(self):
         """同输入 IC 序列: 两版本 IC_IR 结果一致 (算法 1:1, ddof=1)."""
-        from utils.alpha_factor.base import calc_ic_ir
         from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (
             compute_ic_ir,
         )
+
+        from utils.alpha_factor.base import calc_ic_ir
 
         # 构造固定 IC 序列
         np.random.seed(456)
@@ -147,10 +150,11 @@ class TestICIRConsistency:
 
     def test_ic_ir_insufficient_samples_returns_zero(self):
         """样本不足 (<20): 两版本都返回 (0.0, 0.0, 0.0)."""
-        from utils.alpha_factor.base import calc_ic_ir
         from research.vibe_trading_factor_analysis.adapters.factor_history_builder import (
             compute_ic_ir,
         )
+
+        from utils.alpha_factor.base import calc_ic_ir
 
         short_series = [0.1, 0.05, -0.02]  # 仅 3 个样本
 

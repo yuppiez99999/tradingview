@@ -11,16 +11,14 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-import pytest
-
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.trading_rules import (  # noqa: E402
-    T0_EXACT_CODES,
     T0_ETF_SH_PREFIXES,
     T0_ETF_SZ_PREFIXES,
+    T0_EXACT_CODES,
     _next_trade_day,
     can_sell_today,
     get_trading_rule,

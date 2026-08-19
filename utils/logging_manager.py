@@ -3,13 +3,15 @@
 支持：彩色控制台输出、JSON结构化文件日志、RotatingFileHandler、多级别配置、性能追踪
 """
 
+from __future__ import annotations
+
 import logging
 import logging.handlers
 import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 class ColoredFormatter(logging.Formatter):
@@ -24,7 +26,7 @@ class ColoredFormatter(logging.Formatter):
         'RESET': '\033[0m',
     }
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         if record.levelname in self.COLORS:
             record.levelname = f"{self.COLORS[record.levelname]}{record.levelname}{self.COLORS['RESET']}"
         return super().format(record)
@@ -33,7 +35,7 @@ class ColoredFormatter(logging.Formatter):
 class StructuredFormatter(logging.Formatter):
     """JSON结构化日志格式化器 — 借鉴 TradingAgents-CN StructuredFormatter"""
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         import json
         log_entry = {
             'timestamp': datetime.fromtimestamp(record.created).isoformat(),
@@ -55,12 +57,12 @@ class StructuredFormatter(logging.Formatter):
 class QuantSystemLogger:
     """量化系统统一日志管理器 — 借鉴 TradingAgents-CN TradingAgentsLogger"""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[dict[str, Any]] = None):
         self.config = config or self._load_default_config()
-        self._loggers: Dict[str, logging.Logger] = {}
+        self._loggers: dict[str, logging.Logger] = {}
         self._setup_logging()
 
-    def _load_default_config(self) -> Dict[str, Any]:
+    def _load_default_config(self) -> dict[str, Any]:
         log_level = os.getenv('QUANT_LOG_LEVEL', 'INFO').upper()
         log_dir = os.getenv('QUANT_LOG_DIR', './logs')
 
@@ -85,7 +87,7 @@ class QuantSystemLogger:
             },
         }
 
-    def _setup_logging(self):
+    def _setup_logging(self) -> None:
         log_dir = Path(self.config['handlers']['file']['directory'])
         log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -101,7 +103,7 @@ class QuantSystemLogger:
 
         self._configure_specific_loggers()
 
-    def _add_console_handler(self, logger: logging.Logger):
+    def _add_console_handler(self, logger: logging.Logger) -> None:
         if not self.config['handlers']['console']['enabled']:
             return
         stream = sys.stderr
@@ -116,7 +118,7 @@ class QuantSystemLogger:
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-    def _add_file_handler(self, logger: logging.Logger):
+    def _add_file_handler(self, logger: logging.Logger) -> None:
         if not self.config['handlers']['file']['enabled']:
             return
         log_dir = Path(self.config['handlers']['file']['directory'])
@@ -131,7 +133,7 @@ class QuantSystemLogger:
         handler.setFormatter(logging.Formatter(self.config['format']['file']))
         logger.addHandler(handler)
 
-    def _add_structured_handler(self, logger: logging.Logger):
+    def _add_structured_handler(self, logger: logging.Logger) -> None:
         log_dir = Path(self.config['handlers']['structured']['directory'])
         log_file = log_dir / 'quant_structured.log'
         handler = logging.handlers.RotatingFileHandler(
@@ -140,7 +142,7 @@ class QuantSystemLogger:
         handler.setFormatter(StructuredFormatter())
         logger.addHandler(handler)
 
-    def _configure_specific_loggers(self):
+    def _configure_specific_loggers(self) -> None:
         for logger_name, logger_config in self.config['loggers'].items():
             lg = logging.getLogger(logger_name)
             lg.setLevel(getattr(logging, logger_config['level']))
@@ -176,7 +178,7 @@ def get_logger(name: str) -> logging.Logger:
     return get_logger_manager().get_logger(name)
 
 
-def setup_logging(config: Optional[Dict[str, Any]] = None):
+def setup_logging(config: Optional[dict[str, Any]] = None) -> QuantSystemLogger:
     global _logger_manager
     _logger_manager = QuantSystemLogger(config)
     return _logger_manager

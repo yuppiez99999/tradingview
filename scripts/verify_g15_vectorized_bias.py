@@ -53,9 +53,9 @@ def _run_g15_single_day(
 ) -> float | None:
     """用 G15 EventDrivenEngine 重算单日组合收益 (TICK 级别)."""
     try:
-        from utils.backtest.event_driven_engine import EventDrivenEngine
-        from utils.wt_structs import BarData
         import pandas as pd
+
+        from utils.wt_structs import BarData
     except (ImportError, AttributeError) as e:
         print(f"  [SKIP] 模块导入失败: {e}")
         return None

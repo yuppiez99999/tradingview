@@ -190,7 +190,7 @@ def deflated_sharpe_ratio(
 
 def _safe_skew(x: np.ndarray) -> float:
     """安全偏度 (防溢出)"""
-    n = len(x)
+    len(x)
     mean = np.mean(x)
     std = np.std(x, ddof=1)
     if std < 1e-12:
@@ -200,7 +200,7 @@ def _safe_skew(x: np.ndarray) -> float:
 
 def _safe_kurt(x: np.ndarray) -> float:
     """安全峰度 (正态=3)"""
-    n = len(x)
+    len(x)
     mean = np.mean(x)
     std = np.std(x, ddof=1)
     if std < 1e-12:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 4.5: 对冲基金视角融合 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py L1085-L1219 (phase_hedge_fund)
@@ -12,7 +11,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from workflow.context import WorkflowContext, get_dw_module
 
@@ -22,7 +21,7 @@ logger = logging.getLogger("v75.daily_workflow")
 _dw = get_dw_module()
 
 
-def phase_hedge_fund(ctx: WorkflowContext) -> Dict[str, Any]:
+def phase_hedge_fund(ctx: WorkflowContext) -> dict[str, Any]:
     """对冲基金视角融合阶段 — Theta/Gamma/KillSwitch/LiquidationScheduler"""
     # 动态查找模块级符号 (兼容 monkeypatch 对 daily_workflow 模块的 patch)
     HEDGE_FUND_MODULES_READY = bool(getattr(_dw, "HEDGE_FUND_MODULES_READY", False)) if _dw else False
@@ -35,7 +34,7 @@ def phase_hedge_fund(ctx: WorkflowContext) -> Dict[str, Any]:
     logger.info("Phase 4.5: 对冲基金视角融合 (Theta/Gamma/KillSwitch/Liquidation)")
     logger.info("=" * 60)
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "status": "PASS",
         "modules_loaded": HEDGE_FUND_MODULES_READY,
         "theta": {},

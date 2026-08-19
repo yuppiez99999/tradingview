@@ -15,8 +15,6 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.supply_chain_graph import (  # noqa: E402
-    NodeMetrics,
-    PropagationPath,
     SupplyChainEdge,
     SupplyChainGraph,
     SupplyChainResult,

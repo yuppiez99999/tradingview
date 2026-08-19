@@ -18,7 +18,6 @@ import pytest
 
 from utils.alpha_factor.gat_factor import GATFactor, build_adjacency, gat_factor_values
 
-
 # ============================================================
 # GATFactor 构造与参数初始化
 # ============================================================
@@ -212,8 +211,8 @@ class TestTrain:
         adj = np.ones((10, 10)) - np.eye(10)
         labels = np.random.randn(10)
         losses = gat.train(features, adj, labels, epochs=2, lr=0.01)
-        for l in losses:
-            assert isinstance(l, float)
+        for loss in losses:
+            assert isinstance(loss, float)
 
 
 # ============================================================

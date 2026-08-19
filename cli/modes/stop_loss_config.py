@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 止损配置模式 — v5.10 P0-9 重构
 ========================================
 查看/更新止损止盈规则，含ATR动态止损
 """
 import os
+
 import yaml
 
-from core.context import BASE_DIR, logger
+from core.context import BASE_DIR
 
 
 def run_stop_loss_config_mode(args):
@@ -21,14 +21,14 @@ def run_stop_loss_config_mode(args):
         print("  python scripts/generate_stop_loss_rules.py --regenerate")
         return
 
-    with open(config_path, 'r', encoding='utf-8') as f:
+    with open(config_path, encoding='utf-8') as f:
         data = yaml.safe_load(f)
 
     # 显示全局设置
     gs = data.get('global_settings', {})
     print(f"版本: {data.get('version', 'N/A')}")
     print(f"更新时间: {data.get('updated', 'N/A')}")
-    print(f"\n全局设置:")
+    print("\n全局设置:")
     print(f"  ATR动态止损: {'启用' if gs.get('atr_enabled') else '禁用'}")
     print(f"  ATR周期: {gs.get('atr_period', 14)}")
     print(f"  预警阈值: {gs.get('warning_threshold_pct', 5.0):.1f}%")
@@ -59,5 +59,5 @@ def run_stop_loss_config_mode(args):
           f"| 中风险 {risk_summary.get('medium', 0)} "
           f"| 低风险 {risk_summary.get('low', 0)}")
     print(f"\n配置位置: {config_path}")
-    print(f"\n更新命令: python scripts/generate_stop_loss_rules.py --regenerate")
+    print("\n更新命令: python scripts/generate_stop_loss_rules.py --regenerate")
     print("=" * 70)

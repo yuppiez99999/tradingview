@@ -40,6 +40,7 @@ from utils.data_gate import DataGate
 from utils.drawdown_breaker import DrawdownCircuitBreaker
 from utils.execution_router import ExecutionPlan, ExecutionRouter
 from utils.institutional_optimizer import InstitutionalPortfolioOptimizer, PortfolioDecision
+from utils.killswitch_guard import apply_killswitch_l1_filter  # GLM-5.2 C2(#22) 修复
 from utils.path_config import get_historical_base_file, get_institutional_pipeline_report_dir
 from utils.risk_budget_engine import RiskBudgetEngine, RiskCheckResult
 
@@ -52,7 +53,6 @@ from utils.risk_constraints import (
     enforce_hard_constraints,
 )
 from utils.signal_fusion import FusionSignal, SignalFusionEngine
-from utils.killswitch_guard import apply_killswitch_l1_filter  # GLM-5.2 C2(#22) 修复
 
 # === P0-13: KillSwitch 集成 (2026-07-25 顶级对冲基金审计) ===
 # 审计问题: 生产 pipeline 未集成 KillSwitch, L1/L2/L3 熔断对 pipeline 无效
@@ -680,7 +680,7 @@ class InstitutionalPipelineRunner:
             expected_returns[symbol] = float(s.strength) * 0.50 * confidence_boost
 
         symbols = list(expected_returns.keys())
-        n = len(symbols)
+        len(symbols)
         # 高价值资产集成 (2026-08-10): Ledoit-Wolf 收缩协方差替代硬编码对角协方差
         # USE_LW_COV 默认开启（确定性改进），失败时 fail-open 回退对角矩阵（与现状一致）
         cov = self._build_covariance(symbols)
@@ -763,7 +763,7 @@ class InstitutionalPipelineRunner:
             import json as _json
 
             price_map: dict[str, list[float]] = {}
-            with open(hist_path, "r", encoding="utf-8") as f:
+            with open(hist_path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -886,7 +886,7 @@ class InstitutionalPipelineRunner:
     _MOM_SEVERE_CRASH = -0.10  # 20日收益<-10%视为严重崩盘
     _MIN_FACTOR_FLOOR = 0.4  # factor最低下限 (V2: 0.3→0.4, 避免过度减仓)
 
-    def _load_market_proxy_data(self, cutoff: pd.Timestamp):
+    def _load_market_proxy_data(self, cutoff: pd.Timestamp) -> tuple:
         """加载大盘代理数据并截断到回测日 (杜绝前视偏差)。
 
         Args:
@@ -936,7 +936,7 @@ class InstitutionalPipelineRunner:
             return "rebound", 0.6
         return "bear", 0.5
 
-    def _compute_vol_override(self, close) -> tuple:
+    def _compute_vol_override(self, close: pd.Series) -> tuple:
         """第二层: 波动率过滤。
 
         Args:
@@ -951,7 +951,7 @@ class InstitutionalPipelineRunner:
         vol_flag = "high" if vol_override < 1.0 else "normal"
         return vol_override, recent_vol, vol_flag
 
-    def _compute_mom_override(self, close) -> tuple:
+    def _compute_mom_override(self, close: pd.Series) -> tuple:
         """第三层: 短期动量过滤 (最快层, 急跌保护)。
 
         Args:
@@ -970,7 +970,7 @@ class InstitutionalPipelineRunner:
             return 0.6, mom_20d, "crash"
         return 1.0, mom_20d, "normal"
 
-    def _apply_momentum_reversal(self, decision, regime: str) -> dict:
+    def _apply_momentum_reversal(self, decision: dict, regime: str) -> dict:
         """V5优化: 动量反转调整 (bear/rebound regime下, 超跌加仓, 超涨减仓)。
 
         方案: bear/rebound regime下, 根据20日收益率调整权重
@@ -1039,7 +1039,7 @@ class InstitutionalPipelineRunner:
             "symbol_rets_20d": {s: round(r, 4) for s, r in symbol_rets.items()},
         }
 
-    def _step_market_regime_scaling(self, decision) -> tuple:
+    def _step_market_regime_scaling(self, decision: dict) -> tuple:
         """根据大盘趋势状态缩减/恢复仓位 (三层过滤)。
 
         第一层 - 中期趋势 (MA60, 滞后但稳定):
@@ -1195,7 +1195,7 @@ class InstitutionalPipelineRunner:
             price_data=price_data,  # P0-10: 真实价格数据, 启用 VaR 1.5% 检查
         )
 
-    def _apply_v72_bull_regime_cap(self, decision, regime_info: dict[str, Any]) -> dict[str, Any]:
+    def _apply_v72_bull_regime_cap(self, decision: dict, regime_info: dict[str, Any]) -> dict[str, Any]:
         """P0-8: V7.2 bull regime 5% 上限 + V7.1 高波动惩罚 (生产路径复制)
 
         回测验证结论 (V7.1/V7.2/V8 三轮优化):
@@ -1340,7 +1340,7 @@ class InstitutionalPipelineRunner:
             if symbol not in capped_symbol_set:
                 capped_weights[symbol] += excess_weight * (capped_weights[symbol] / non_capped_total)
 
-    def _step_kill_switch_check(self, decision) -> dict[str, Any]:
+    def _step_kill_switch_check(self, decision: dict) -> dict[str, Any]:
         """P0-13: KillSwitch 熔断检查 (生产 pipeline 集成)
 
         审计问题: 生产 pipeline 未集成 KillSwitch, L1/L2/L3 熔断对 pipeline 无效。
@@ -1625,7 +1625,7 @@ class InstitutionalPipelineRunner:
         # DatetimeIndex.tz_localize(None) 不改元素 tz, 仍抛
         # "Cannot compare tz-naive and tz-aware timestamps"。
         # V2 修复: 元素级强制 tz-naive (与 backtest_runner._to_naive_idx 一致)。
-        def _to_naive_idx(idx):
+        def _to_naive_idx(idx: pd.DatetimeIndex) -> pd.DatetimeIndex:
             """将 DatetimeIndex 强制转为 tz-naive, 元素也 tz-naive。"""
             try:
                 if hasattr(idx, "tz") and idx.tz is not None:
@@ -2209,8 +2209,8 @@ class InstitutionalPipelineRunner:
         补齐 EOD 管道不产出 alpha_signals 文件导致 observed=0/0 的数据断链。
         """
         try:
-            from datetime import datetime as _dt
             import json as _json
+            from datetime import datetime as _dt
             from pathlib import Path as _Path
 
             report_dir = _Path(self.ctx.output_root).parent / "reports" / "pipeline" if hasattr(self.ctx, "output_root") else _Path("reports") / "pipeline"

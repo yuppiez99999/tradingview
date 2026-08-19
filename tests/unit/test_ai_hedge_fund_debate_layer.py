@@ -32,8 +32,8 @@ import os
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch
+from typing import Any, Optional
+from unittest.mock import patch
 
 import pytest
 
@@ -55,14 +55,14 @@ except ImportError:
 # ============================================================
 
 
-def make_analyst_signals_bull_dominant() -> Dict[str, Dict[str, Any]]:
+def make_analyst_signals_bull_dominant() -> dict[str, dict[str, Any]]:
     """构造看多占优的分析师信号 (8 看多 / 3 看空 / 2 中性)"""
     bull_agents = ["warren_buffett", "ben_graham", "peter_lynch", "bill_ackman",
                    "charlie_munger", "phil_fisher", "cathie_wood", "aswath_damodaran"]
     bear_agents = ["michael_burry", "nassim_taleb", "mohnish_pabrai"]
     neutral_agents = ["sentiment", "news_sentiment"]
 
-    signals: Dict[str, Dict[str, Any]] = {}
+    signals: dict[str, dict[str, Any]] = {}
     for agent in bull_agents:
         signals[agent] = {
             "AAPL": {"signal": "bullish", "confidence": 75, "reasoning": f"{agent} 看好 AAPL 的护城河与现金流"},
@@ -81,14 +81,14 @@ def make_analyst_signals_bull_dominant() -> Dict[str, Dict[str, Any]]:
     return signals
 
 
-def make_analyst_signals_bear_dominant() -> Dict[str, Dict[str, Any]]:
+def make_analyst_signals_bear_dominant() -> dict[str, dict[str, Any]]:
     """构造看空占优的分析师信号 (3 看多 / 9 看空)"""
     bull_agents = ["warren_buffett", "ben_graham", "peter_lynch"]
     bear_agents = ["michael_burry", "nassim_taleb", "mohnish_pabrai", "bill_ackman",
                    "charlie_munger", "phil_fisher", "cathie_wood", "aswath_damodaran",
                    "stanley_druckenmiller"]
 
-    signals: Dict[str, Dict[str, Any]] = {}
+    signals: dict[str, dict[str, Any]] = {}
     for agent in bull_agents:
         signals[agent] = {
             "TSLA": {"signal": "bullish", "confidence": 65, "reasoning": f"{agent} 看 Tesla 长期创新"},
@@ -100,9 +100,9 @@ def make_analyst_signals_bear_dominant() -> Dict[str, Dict[str, Any]]:
     return signals
 
 
-def make_analyst_signals_balanced() -> Dict[str, Dict[str, Any]]:
+def make_analyst_signals_balanced() -> dict[str, dict[str, Any]]:
     """构造多空均衡的信号 (5 看多 / 5 看空)"""
-    signals: Dict[str, Dict[str, Any]] = {}
+    signals: dict[str, dict[str, Any]] = {}
     for i, agent in enumerate(["warren_buffett", "ben_graham", "peter_lynch", "bill_ackman", "cathie_wood"]):
         signals[agent] = {
             "NVDA": {"signal": "bullish", "confidence": 65 + i, "reasoning": f"{agent} 看好 AI 算力需求"},
@@ -254,7 +254,7 @@ class TestLLMAvailability:
 # ============================================================
 
 
-def _get_llm_config() -> Optional[Dict[str, str]]:
+def _get_llm_config() -> Optional[dict[str, str]]:
     """从环境变量获取 LLM 配置
 
     支持的 provider:
@@ -294,7 +294,7 @@ llm_test = pytest.mark.skipif(
 class TestRealLLMDebate:
     """真实 LLM 集成测试 — 验证辩论层接真实 LLM 的端到端流程"""
 
-    def _make_state(self) -> Dict[str, Any]:
+    def _make_state(self) -> dict[str, Any]:
         """构造包含 LLM 配置的 AgentState"""
         config = _LLM_CONFIG
         # 简化的 request mock (含 api_keys, 不含 get_agent_model_config → fallback 到 metadata)
@@ -302,7 +302,7 @@ class TestRealLLMDebate:
 
         @dataclass
         class SimpleRequest:
-            api_keys: Dict[str, str] = field(default_factory=lambda: api_keys)
+            api_keys: dict[str, str] = field(default_factory=lambda: api_keys)
 
         return {
             "messages": [],
@@ -439,7 +439,7 @@ class TestAuditLog:
         assert len(log_files) == 1
 
         # 验证 JSON 结构
-        with open(log_files[0], "r", encoding="utf-8") as f:
+        with open(log_files[0], encoding="utf-8") as f:
             payload = json.load(f)
 
         assert payload["session_id"] == session.session_id
@@ -488,7 +488,7 @@ class TestAuditLog:
         layer.run_full_debate(["AAPL"], signals)
 
         log_files = list(tmp_path.glob("*.json"))
-        with open(log_files[0], "r", encoding="utf-8") as f:
+        with open(log_files[0], encoding="utf-8") as f:
             payload = json.load(f)
 
         snapshot = payload["analyst_signals_snapshot"]
@@ -568,7 +568,7 @@ class TestFallbackPath:
 
     def test_llm_exception_falls_back_to_rule(self, tmp_path):
         """LLM 调用抛异常时, 应降级到规则模式不崩溃"""
-        from quant_modules.ai_hedge_fund.debate_layer import DebateLayer, DebateStance
+        from quant_modules.ai_hedge_fund.debate_layer import DebateLayer
 
         layer = DebateLayer(use_llm=True, log_dir=str(tmp_path))
         signals = make_analyst_signals_bull_dominant()
@@ -612,7 +612,7 @@ class TestSessionToSignals:
 
     def test_signals_format(self, tmp_path):
         """验证转换后的信号格式正确"""
-        from quant_modules.ai_hedge_fund.debate_layer import DebateLayer, DebateSession
+        from quant_modules.ai_hedge_fund.debate_layer import DebateLayer
 
         layer = DebateLayer(use_llm=False, log_dir=str(tmp_path))
         signals = make_analyst_signals_bull_dominant()
@@ -682,7 +682,7 @@ class TestRuleVsLLMComparison:
         # LLM 模式
         @dataclass
         class SimpleRequest:
-            api_keys: Dict[str, str] = field(
+            api_keys: dict[str, str] = field(
                 default_factory=lambda: {_LLM_CONFIG["api_key_env"]: os.getenv(_LLM_CONFIG["api_key_env"])}
             )
 

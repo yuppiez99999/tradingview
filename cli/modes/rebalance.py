@@ -1,15 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 再平衡模式 — v5.10 P0-9 重构
 """
 
 import os
+
 from core.context import (
     BASE_DIR,
-    logger,
+    ExcelDrivenRebalancingEngineV4,
     ProgressIndicator,
     StrategyRegistry,
-    ExcelDrivenRebalancingEngineV4,
+    logger,
 )
 from utils.cli_helpers import write_report_file
 
@@ -36,7 +36,7 @@ def run_rebalance(args):
             import yaml
             yaml_path = os.path.join(BASE_DIR, 'config', 'portfolio.yaml')
             if os.path.exists(yaml_path):
-                with open(yaml_path, 'r', encoding='utf-8') as f:
+                with open(yaml_path, encoding='utf-8') as f:
                     config = yaml.safe_load(f)
                 # v5.10+: normalize positions dict → assets list
                 if 'assets' not in config and 'positions' in config:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """共享模块加载器 — 避免10个页面重复 importlib 加载主系统模块
 
 用法:
@@ -7,9 +6,10 @@
 """
 from __future__ import annotations
 
+import importlib.util
 import os
 import sys
-import importlib.util
+
 import streamlit as st
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

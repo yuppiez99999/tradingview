@@ -12,10 +12,7 @@
   - format_comparison_report / save_report
 """
 import sys
-import os
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -26,18 +23,12 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from utils.hedge_rebalance_backtest import (  # noqa: E402
+    HEDGE_EXPOSURE_CAP,
+    TAIL_MIN_HEDGE,
     BacktestDataLoader,
     BacktestResult,
     HedgeRebalanceBacktest,
     MultiStrategyResult,
-    PORTFOLIO_CODES,
-    TARGET_WEIGHTS,
-    STOCK_BETAS,
-    HEDGE_EXPOSURE_CAP,
-    TAIL_VOL_TRIGGER,
-    TAIL_DD_TRIGGER,
-    TAIL_MIN_HEDGE,
-    INITIAL_CAPITAL,
     compute_multi_index_beta_weights,
     compute_portfolio_dd_60d,
     compute_portfolio_vol_30d,
@@ -176,7 +167,7 @@ class TestComputeMultiIndexBetaWeights:
 
     def test_betas_positive(self):
         betas, _ = compute_multi_index_beta_weights()
-        for k, v in betas.items():
+        for _k, v in betas.items():
             assert v > 0
 
 

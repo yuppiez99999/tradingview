@@ -802,7 +802,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"⚠️ 检测到 {result.oscillation_count} 次震荡")
 
     # 生成报告
-    report = generate_report(result)
+    generate_report(result)
     print("\n完整报告已生成")
 
     return 0

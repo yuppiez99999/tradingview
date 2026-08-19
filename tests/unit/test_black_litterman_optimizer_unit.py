@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """black_litterman_optimizer 单元测试 — BL 组合优化器全覆盖.
 
 被测模块: utils/black_litterman_optimizer.py
@@ -18,11 +17,10 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.black_litterman_optimizer import (  # noqa: E402
-    BLResult,
     BlackLittermanOptimizer,
+    BLResult,
     View,
 )
-
 
 # ============================================================
 # 辅助: 合成协方差矩阵

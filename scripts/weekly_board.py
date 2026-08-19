@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """质量看板渲染器 — 把 quality_snapshot.py --json 的输出变成可打开的 HTML 看板.
 
 配套文档: docs/CODE_REVIEW_PROCESS.md §7.1
@@ -18,7 +17,6 @@
 import argparse
 import json
 import sys
-from datetime import datetime
 from html import escape
 
 # 门禁目标, 必须与 scripts/quality_snapshot.py 的 GATES 保持一致
@@ -86,16 +84,16 @@ def render(data: dict) -> str:
     if dirty > 100:
         hygiene = (
             '<div class="alert alert-red">'
-            '⚠️ <b>工作区与版本控制脱节：{d} 个变更未提交</b><br>'
+            f'⚠️ <b>工作区与版本控制脱节：{dirty} 个变更未提交</b><br>'
             'PR 无法反映真实改动，审查已失效。请按 docs/CODE_REVIEW_PROCESS.md §0 收敛。'
             '</div>'
-        ).format(d=dirty)
+        )
     else:
         hygiene = (
             '<div class="alert alert-green">'
-            '✅ 工作区已收敛（未提交变更 {d} ≤ 100），审查前提成立。'
+            f'✅ 工作区已收敛（未提交变更 {dirty} ≤ 100），审查前提成立。'
             '</div>'
-        ).format(d=dirty)
+        )
 
     # 门禁 chips
     gate_html = []
@@ -103,10 +101,9 @@ def render(data: dict) -> str:
         cls = "pass" if ok else "fail"
         op_txt = "&le;" if op == "le" else "&ge;"
         gate_html.append(
-            '<div class="chip {c}"><div class="chip-label">{l}</div>'
-            '<div class="chip-val">{v}</div>'
-            '<div class="chip-target">目标 {op} {t}</div></div>'.format(
-                c=cls, l=escape(label), v=val, op=op_txt, t=target)
+            f'<div class="chip {cls}"><div class="chip-label">{escape(label)}</div>'
+            f'<div class="chip-val">{val}</div>'
+            f'<div class="chip-target">目标 {op_txt} {target}</div></div>'
         )
     gate_html = "".join(gate_html)
     gate_summary = (
@@ -123,14 +120,12 @@ def render(data: dict) -> str:
     for name, files, pr, density, exc, err, silent in zone_rows:
         width = int(min(density / max_density, 1.0) * 100)
         zone_html.append(
-            '<tr><td class="mono">{n}</td><td class="num">{f}</td>'
-            '<td class="num">{p}</td>'
-            '<td><div class="bar"><div class="bar-fill" style="width:{w}%"></div>'
-            '</div><span class="num">{d:.1f}</span></td>'
-            '<td class="num">{e}</td><td class="num">{er}</td>'
-            '<td class="num">{s}</td></tr>'.format(
-                n=escape(name), f=files, p=pr, w=width, d=density,
-                e=exc, er=err, s=silent)
+            f'<tr><td class="mono">{escape(name)}</td><td class="num">{files}</td>'
+            f'<td class="num">{pr}</td>'
+            f'<td><div class="bar"><div class="bar-fill" style="width:{width}%"></div>'
+            f'</div><span class="num">{density:.1f}</span></td>'
+            f'<td class="num">{exc}</td><td class="num">{err}</td>'
+            f'<td class="num">{silent}</td></tr>'
         )
     zone_html = "".join(zone_html)
 
@@ -244,20 +239,20 @@ def main() -> int:
             import quality_snapshot as qs  # type: ignore
             raw = json.dumps(qs.collect(), ensure_ascii=False)
         except Exception as exc:  # pragma: no cover
-            print("[error] 无法获取快照数据: {}".format(exc), file=sys.stderr)
+            print(f"[error] 无法获取快照数据: {exc}", file=sys.stderr)
             return 1
 
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
-        print("[error] JSON 解析失败: {}".format(exc), file=sys.stderr)
+        print(f"[error] JSON 解析失败: {exc}", file=sys.stderr)
         return 1
 
     html = render(data)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as fh:
             fh.write(html)
-        print("[OK] 看板已写入 {}".format(args.out), file=sys.stderr)
+        print(f"[OK] 看板已写入 {args.out}", file=sys.stderr)
     else:
         sys.stdout.write(html)
     return 0

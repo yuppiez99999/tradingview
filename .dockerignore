@@ -1,13 +1,100 @@
-data/
+# ============================================================
+# .dockerignore — Dockerfile.system 构建上下文排除
+# 目标: 减小上下文体积 + 避免敏感/大文件入镜像
+# ============================================================
 
+# === Python 运行时产物 ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+.pytest_cache/
+
+# === 虚拟环境 ===
+.venv/
+.venv-*/
+venv/
+env/
+.venv-finetune/
+
+# === 大数据目录 (由 K8s volume 挂载, 不进镜像) ===
+data_cache/
+qlib_data/
+data/feature_store/
+data/cache/
+cache/
+sim_snapshots/
+mlruns/
 models/
+output/
+
+# === 日志/报告 (运行时产物) ===
 logs/
 reports/
-output/
-.venv/
-__pycache__/
-.pytest_cache/
+每日报告归档/
+monitor_reports/
+*.log
+*.log.*
+
+# === 测试/研究/游戏 (生产镜像不需要) ===
+tests/
+research/
+second-brain/
+cairn/
+docs/
 game/
 games/
-*.ps1
-cache/
+
+# === Git / IDE / 工具 ===
+.git/
+.gitignore
+.github/
+.codeartsdoer/
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === 敏感文件 ===
+.env
+.env.local
+*.pem
+*.key
+net_backup_*.txt
+
+# === OS 杂项 ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === 临时/备份 ===
+*.tmp
+*.bak
+*.orig
+*~
+
+# === Docker 自身 (避免递归) ===
+cloud/docker/
+
+# === Node/前端构建产物 ===
+node_modules/
+npm-debug.log*
+
+# === 大型二进制 (数据文件走挂载) ===
+*.xlsx
+*.xls
+*.docx
+*.pptx
+*.pdf
+*.zip
+*.tar
+*.gz
+*.7z
+high价值GitHub项目清单.xlsx

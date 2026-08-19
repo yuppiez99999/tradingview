@@ -11,20 +11,16 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from utils.lgb_signal_monitor import (
-    _append_jsonl,
     _generate_threshold_suggestions,
     analyze_lgb_history,
     generate_analysis_report,
     load_history,
     record_lgb_application,
 )
-
 
 # ============================================================
 # record_lgb_application

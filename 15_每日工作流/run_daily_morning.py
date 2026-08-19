@@ -80,7 +80,7 @@ REPORT_PATTERNS = [
     "动力煤舆情日报_*.md",
     "空气质量CNEMC日报_*.md",
     "iFinD自动标的研判报告_*.md",
-    "棉花的加仓方案与期权保护策略_*.md",
+    "大宗商品交易机会扫描_*.md",
     "sentiment_summary_*.json",
     "morning_market_data_*.json",
     "air_quality_cnemc_*.json",
@@ -109,7 +109,6 @@ def log(msg: str, level: str = "INFO"):
     """写日志到文件并打印"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{timestamp}] [{level}] {msg}"
-    print(line)
     try:
         log_file = get_log_file()
         with open(log_file, "a", encoding="utf-8") as f:
@@ -319,8 +318,8 @@ def run_p0_system_check_morning(args):
         assert_system_ready()  # 失败时 sys.exit(1)
     except SystemExit:
         raise
-    except Exception as e:
-        print(f"[P0 自检] 异常 (容错通过): {e}", file=sys.stderr)
+    except Exception:
+        pass
 
 
 def setup_morning_context(args):

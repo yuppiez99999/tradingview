@@ -17,11 +17,9 @@
 import json
 import os
 import sys
-import tempfile
 import types
 from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch, PropertyMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -43,7 +41,6 @@ from utils.risk_guard_integrator import (  # noqa: E402
     main,
     parse_kill_switch_level,
 )
-
 
 # ============================================================
 # Fixtures
@@ -1227,7 +1224,7 @@ class TestGuardFailClosedPaths:
     def test_market_circuit_crash_fail_closed(self, integrator, monkeypatch):
         mock_mcb_cls = MagicMock(side_effect=RuntimeError("boom"))
         mock_mod = MagicMock()
-        setattr(mock_mod, "MarketCircuitBreaker", mock_mcb_cls)
+        mock_mod.MarketCircuitBreaker = mock_mcb_cls
         monkeypatch.setitem(sys.modules, "utils.market_circuit_breaker", mock_mod)
         plan = integrator.guard_market_circuit_breaker({}, _make_empty_plan())
         assert plan["market_state"]["spot_build_allowed"] is False
@@ -1239,7 +1236,7 @@ class TestGuardFailClosedPaths:
         """circuit_level=CRITICAL 时崩溃不降级"""
         mock_mcb_cls = MagicMock(side_effect=RuntimeError("boom"))
         mock_mod = MagicMock()
-        setattr(mock_mod, "MarketCircuitBreaker", mock_mcb_cls)
+        mock_mod.MarketCircuitBreaker = mock_mcb_cls
         monkeypatch.setitem(sys.modules, "utils.market_circuit_breaker", mock_mod)
         plan = _make_plan_full(circuit_level="CRITICAL")
         result = integrator.guard_market_circuit_breaker({}, plan)
@@ -1302,7 +1299,7 @@ class TestGuardFailClosedPaths:
     def test_overnight_crash_fail_closed(self, integrator, monkeypatch):
         mock_cls = MagicMock(side_effect=RuntimeError("api down"))
         mock_mod = MagicMock()
-        setattr(mock_mod, "OvernightGapMonitor", mock_cls)
+        mock_mod.OvernightGapMonitor = mock_cls
         monkeypatch.setitem(sys.modules, "utils.overnight_gap_monitor", mock_mod)
         plan = integrator.guard_overnight_gap({}, _make_empty_plan())
         assert plan["market_state"]["spot_build_allowed"] is False
@@ -1314,7 +1311,7 @@ class TestGuardFailClosedPaths:
         mock_inst.evaluate_overnight_risk.return_value = ["not_a_dict"]
         mock_cls = MagicMock(return_value=mock_inst)
         mock_mod = MagicMock()
-        setattr(mock_mod, "OvernightGapMonitor", mock_cls)
+        mock_mod.OvernightGapMonitor = mock_cls
         monkeypatch.setitem(sys.modules, "utils.overnight_gap_monitor", mock_mod)
         plan = integrator.guard_overnight_gap({}, _make_plan_full())
         assert "overnight_gap_error" not in plan.get("risk_guard", {})
@@ -1612,7 +1609,7 @@ class TestHedgeIntegrationInterfaces:
         }
         mock_mod_cls = MagicMock(return_value=mock_inst)
         mock_mod = MagicMock()
-        setattr(mock_mod, "CorrelationHedger", mock_mod_cls)
+        mock_mod.CorrelationHedger = mock_mod_cls
         hedging_mod = types.ModuleType("hedging")
         hedging_mod.correlation_hedger = mock_mod
         monkeypatch.setitem(sys.modules, "hedging", hedging_mod)
@@ -2183,7 +2180,7 @@ class TestUncoveredBranches:
             "utils.risk_guard_integrator.RiskGuardIntegrator.guard_kill_switch",
             lambda self, pnl_report, plan: (_ for _ in ()).throw(RuntimeError("boom")),
         )
-        plan = _make_plan_full()
+        _make_plan_full()
         result = integrator.run_all_guards("2026-07-22")
         assert result.get("risk_guard", {}).get("kill_switch_error") is not None
         assert result["market_state"].get("spot_build_allowed") is False
@@ -2195,7 +2192,7 @@ class TestUncoveredBranches:
             "utils.risk_guard_integrator.RiskGuardIntegrator.guard_liquidity_crisis",
             lambda self, pnl_report, plan: (_ for _ in ()).throw(RuntimeError("boom")),
         )
-        plan = _make_plan_full()
+        _make_plan_full()
         result = integrator.run_all_guards("2026-07-22")
         assert result.get("risk_guard", {}).get("liquidity_crisis_error") is not None
         assert result["market_state"].get("spot_build_allowed") is False
@@ -2207,7 +2204,7 @@ class TestUncoveredBranches:
             "utils.risk_guard_integrator.RiskGuardIntegrator.guard_drawdown",
             lambda self, pnl_report, plan: (_ for _ in ()).throw(RuntimeError("boom")),
         )
-        plan = _make_plan_full()
+        _make_plan_full()
         result = integrator.run_all_guards("2026-07-22")
         assert result.get("risk_guard", {}).get("drawdown_error") is not None
         assert result["market_state"].get("spot_build_allowed") is False
@@ -2219,7 +2216,7 @@ class TestUncoveredBranches:
             "utils.risk_guard_integrator.RiskGuardIntegrator.guard_vol_target",
             lambda self, pnl_report, plan: (_ for _ in ()).throw(RuntimeError("boom")),
         )
-        plan = _make_plan_full()
+        _make_plan_full()
         result = integrator.run_all_guards("2026-07-22")
         assert result.get("risk_guard", {}).get("vol_target_error") is not None
         assert result["market_state"].get("spot_build_allowed") is False

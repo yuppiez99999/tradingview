@@ -13,8 +13,9 @@
 seed=20260812 确定性
 """
 
-import sys
 import os
+import sys
+
 import numpy as np
 
 # 项目根目录
@@ -22,19 +23,16 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from utils.alpha_factor.expression_engine import (
-    parse_expression,
-    tokenize,
-    ExpressionEvaluator,
-    compute_expression_factors,
-    ExpressionFactorSpec,
-    NumberNode,
-    FieldNode,
     BinaryOpNode,
-    UnaryOpNode,
+    ExpressionEvaluator,
+    FieldNode,
     FuncCallNode,
+    NumberNode,
+    UnaryOpNode,
+    compute_expression_factors,
+    parse_expression,
 )
 from utils.alpha_factor.library import AlphaFactorLibrary
-
 
 # ============================================================
 # 合成数据
@@ -98,7 +96,7 @@ def test_tokenizer_parser():
     # 错误处理: 非法字符
     try:
         parse_expression("close @ open")
-        assert False, "应抛 SyntaxError"
+        raise AssertionError("应抛 SyntaxError")
     except SyntaxError:
         pass
     print("  非法字符安全拦截 ✓")
@@ -242,7 +240,7 @@ def test_library_integration():
         fval = result.factors[name]
         assert fval.category == "Expression", f"{name} 类别={fval.category} != Expression"
         assert len(fval.values) == 10, f"{name} 标的数={len(fval.values)} != 10"
-    print(f"  4 个表达式因子全部产出, category=Expression ✓")
+    print("  4 个表达式因子全部产出, category=Expression ✓")
 
     # debug_info 中记录了表达式因子清单
     assert "expression_factors" in result.debug_info

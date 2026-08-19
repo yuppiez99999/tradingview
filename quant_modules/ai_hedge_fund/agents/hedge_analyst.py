@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AI Hedge Fund — 对冲分析师 Agent (v5.8)
 
@@ -12,14 +11,15 @@ AI Hedge Fund — 对冲分析师 Agent (v5.8)
 4. 输出结构化对冲信号供信号融合引擎使用
 
 工作流程:
-  组合数据 → 风险指标计算 → Taleb尾部风险分析 → 
-  Burry做空信号验证 → Druckenmiller宏观确认 → 
+  组合数据 → 风险指标计算 → Taleb尾部风险分析 →
+  Burry做空信号验证 → Druckenmiller宏观确认 →
   综合对冲建议 → 输出结构化JSON
 """
 
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict
+
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger('ai_hedge_fund.hedge_analyst')
@@ -98,7 +98,7 @@ reasoning: "分析推理过程"
 def hedge_analyst_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     对冲分析师 Agent — 三位一体对冲决策
-    
+
     Args:
         state: LangGraph AgentState, 包含:
             - state["data"]["tickers"]: 分析标的列表
@@ -107,13 +107,13 @@ def hedge_analyst_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             - state["data"]["market_data"]: 市场数据 (可选)
             - state["metadata"]["model_name"]: LLM模型名
             - state["metadata"]["model_provider"]: LLM提供商
-            
+
     Returns:
         更新的 state, 包含 hedge_analyst_agent 的分析结果
     """
+
     from quant_modules.ai_hedge_fund.graph.state import show_agent_reasoning
-    from langchain_core.messages import HumanMessage
-    
+
     # 提取数据
     data = state.get("data", {})
     metadata = state.get("metadata", {})
@@ -121,16 +121,16 @@ def hedge_analyst_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     portfolio = data.get("portfolio", {})
     analyst_signals = data.get("analyst_signals", {})
     market_data = data.get("market_data", {})
-    
+
     # 收集关键信号用于分析
     taleb_signal = analyst_signals.get("nassim_taleb_agent", {})
     burry_signal = analyst_signals.get("michael_burry_agent", {})
     druckenmiller_signal = analyst_signals.get("stanley_druckenmiller_agent", {})
-    risk_mgr_signal = analyst_signals.get("risk_management_agent", {})
-    
+    analyst_signals.get("risk_management_agent", {})
+
     # 构建分析上下文
     context = _build_hedge_context(tickers, portfolio, market_data, taleb_signal, burry_signal, druckenmiller_signal)
-    
+
     # 构建消息
     message_content = f"""{HEDGE_ANALYST_PROMPT}
 
@@ -140,13 +140,13 @@ def hedge_analyst_agent(state: Dict[str, Any]) -> Dict[str, Any]:
 
 请基于以上数据，从 Taleb/Burry/Druckenmiller 三个维度进行对冲分析，输出JSON。
 """
-    
+
     # 调用LLM
     try:
         from quant_modules.ai_hedge_fund.utils.llm import call_llm
-        
+
         agent_id = "hedge_analyst_agent"
-        
+
         response = call_llm(
             prompt=message_content,
             pydantic_model=HedgeAnalystSignal,
@@ -154,11 +154,11 @@ def hedge_analyst_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             state=state,
             default_factory=_create_default_hedge_signal,
         )
-        
+
         # 显示推理过程
         if metadata.get("show_reasoning"):
             show_agent_reasoning(response, "Hedge Analyst (Taleb+Burry+Druckenmiller)")
-        
+
         # 保存到状态
         analyst_signals["hedge_analyst_agent"] = {
             "ticker": "PORTFOLIO",
@@ -168,7 +168,7 @@ def hedge_analyst_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             "urgency_score": response.hedge_urgency_score,
             "reasoning": response.reasoning,
         }
-        
+
     except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError, ImportError) as e:
         logger.warning(f"Hedge Analyst LLM调用失败: {e}，使用规则引擎回退")
         analyst_signals["hedge_analyst_agent"] = _rule_based_hedge_fallback(analyst_signals)
@@ -190,40 +190,40 @@ def _build_hedge_context(
 ) -> str:
     """构建对冲分析上下文"""
     lines = []
-    
-    lines.append(f"### 组合概况")
+
+    lines.append("### 组合概况")
     lines.append(f"分析标的: {', '.join(tickers) if tickers else 'N/A'}")
     lines.append(f"组合现金: {portfolio.get('cash', 'N/A')}")
     lines.append(f"持仓市值: {portfolio.get('positions', {})}")
-    
+
     # Taleb信号摘要
     if taleb_signal:
-        lines.append(f"\n### Taleb 尾部风险分析 (已有)")
+        lines.append("\n### Taleb 尾部风险分析 (已有)")
         for ticker, sig in taleb_signal.items():
             if isinstance(sig, dict):
                 lines.append(f"  {ticker}: {sig.get('signal', '?')} (confidence={sig.get('confidence', 0)})")
-    
+
     # Burry信号摘要
     if burry_signal:
-        lines.append(f"\n### Burry 做空/逆势分析 (已有)")
+        lines.append("\n### Burry 做空/逆势分析 (已有)")
         for ticker, sig in burry_signal.items():
             if isinstance(sig, dict):
                 lines.append(f"  {ticker}: {sig.get('signal', '?')} (confidence={sig.get('confidence', 0)})")
-    
+
     # Druckenmiller信号摘要
     if druckenmiller_signal:
-        lines.append(f"\n### Druckenmiller 宏观分析 (已有)")
+        lines.append("\n### Druckenmiller 宏观分析 (已有)")
         for ticker, sig in druckenmiller_signal.items():
             if isinstance(sig, dict):
                 lines.append(f"  {ticker}: {sig.get('signal', '?')} (confidence={sig.get('confidence', 0)})")
-    
+
     # 市场数据
     if market_data:
-        lines.append(f"\n### 市场数据")
+        lines.append("\n### 市场数据")
         for k, v in market_data.items():
             if isinstance(v, (int, float, str)):
                 lines.append(f"  {k}: {v}")
-    
+
     return "\n".join(lines)
 
 
@@ -260,30 +260,30 @@ def _rule_based_hedge_fallback(analyst_signals: dict) -> dict:
     bullish_count = 0
     taleb_concern = 0
     burry_concern = 0
-    
+
     for agent_key, signals in analyst_signals.items():
         if agent_key == "nassim_taleb_agent":
-            for ticker, sig in signals.items():
+            for _ticker, sig in signals.items():
                 if isinstance(sig, dict) and sig.get('signal') == 'bearish':
                     taleb_concern += 1
         elif agent_key == "michael_burry_agent":
-            for ticker, sig in signals.items():
+            for _ticker, sig in signals.items():
                 if isinstance(sig, dict) and sig.get('signal') == 'bearish':
                     burry_concern += 1
                     bearish_count += 1
         elif agent_key in ("stanley_druckenmiller_agent", "warren_buffett_agent"):
-            for ticker, sig in signals.items():
+            for _ticker, sig in signals.items():
                 if isinstance(sig, dict):
                     if sig.get('signal') == 'bearish':
                         bearish_count += 1
                     elif sig.get('signal') == 'bullish':
                         bullish_count += 1
-    
+
     # 简单规则: Taleb+Burry都悲观 → 对冲
     tail_concerning = taleb_concern >= 1
     burry_concerning = burry_concern >= 1
     overall_bearish = bearish_count >= bullish_count + 1
-    
+
     if tail_concerning and burry_concerning:
         hedge_decision = "STRONG_HEDGE"
         urgency = 0.8
@@ -300,7 +300,7 @@ def _rule_based_hedge_fallback(analyst_signals: dict) -> dict:
         hedge_decision = "NO_HEDGE"
         urgency = 0.1
         ratio = 0.0
-    
+
     return {
         "ticker": "PORTFOLIO",
         "signal": _map_hedge_to_signal(hedge_decision),

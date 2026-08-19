@@ -176,15 +176,15 @@ class OptionExerciseRiskManager:
 
     def _assess_buyer_risk(
         self,
-        symbol,
-        opt_type,
-        strike,
-        underlying_price,
-        days_to_expiry,
-        is_itm,
-        moneyness,
-        quantity,
-        premium,
+        symbol: str,
+        opt_type: str,
+        strike: float,
+        underlying_price: float,
+        days_to_expiry: int,
+        is_itm: bool,
+        moneyness: float,
+        quantity: int,
+        premium: float,
     ) -> ExerciseRiskResult:
         """买方风险评估"""
         if days_to_expiry < 0:
@@ -241,16 +241,16 @@ class OptionExerciseRiskManager:
 
     def _assess_seller_risk(
         self,
-        symbol,
-        opt_type,
-        strike,
-        underlying_price,
-        days_to_expiry,
-        is_itm,
-        moneyness,
-        quantity,
-        premium,
-        parsed,
+        symbol: str,
+        opt_type: str,
+        strike: float,
+        underlying_price: float,
+        days_to_expiry: int,
+        is_itm: bool,
+        moneyness: float,
+        quantity: int,
+        premium: float,
+        parsed: dict,
     ) -> ExerciseRiskResult:
         """卖方风险评估 (关键! 卖方有被指派风险)"""
         multiplier = 10000  # ETF 期权合约单位

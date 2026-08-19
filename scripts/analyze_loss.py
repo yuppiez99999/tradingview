@@ -5,7 +5,7 @@ from pathlib import Path
 PROJ = Path(__file__).resolve().parent.parent
 
 # 1. 观察期收益分析
-records = [json.loads(l) for l in (PROJ / "reports/shadow/daily_returns.jsonl").read_text(encoding="utf-8").strip().split("\n") if l.strip()]
+records = [json.loads(line) for line in (PROJ / "reports/shadow/daily_returns.jsonl").read_text(encoding="utf-8").strip().split("\n") if line.strip()]
 returns = [r["daily_return"] for r in records]
 neg_days = [r for r in records if r["daily_return"] < 0]
 pos_days = [r for r in records if r["daily_return"] > 0]
@@ -51,8 +51,9 @@ print()
 
 # 3. 检查是否有风控配置
 import os
+
 risk_files = []
-for root, dirs, files in os.walk(PROJ / "config"):
+for root, _dirs, files in os.walk(PROJ / "config"):
     for f in files:
         if any(k in f.lower() for k in ["risk", "stop", "loss", "hedge"]):
             risk_files.append(os.path.join(root, f))

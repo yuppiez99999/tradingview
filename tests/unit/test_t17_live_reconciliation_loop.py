@@ -1,23 +1,18 @@
 """T17 单元测试 — LiveReconciliationLoop 实盘对账循环."""
 from __future__ import annotations
 
-from typing import Any
-from unittest.mock import MagicMock
-
 import pytest
 
 from utils.risk.live_reconciliation_loop import (
     LiveReconciliationLoop,
-    LiveReconciliationReport,
     PositionDrift,
 )
-from utils.risk.trade_order_reconciler import (
-    TradeOrderReconciler,
-    PlannedOrder,
-    FillRecord,
-)
 from utils.risk.risk_audit_logger import RiskAuditLogger
-
+from utils.risk.trade_order_reconciler import (
+    FillRecord,
+    PlannedOrder,
+    TradeOrderReconciler,
+)
 
 # ============================================================
 # 测试夹具

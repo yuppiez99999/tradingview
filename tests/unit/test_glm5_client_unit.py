@@ -17,7 +17,6 @@ import pytest
 
 from utils.glm5_client import GLM5Client, GLM5Config, get_glm5_client, quick_chat
 
-
 # ============================================================
 # GLM5Config
 # ============================================================

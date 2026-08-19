@@ -245,7 +245,7 @@ class TradePlanValidator:
     # 私有: 各字段校验
     # ============================================================
 
-    def _check_top_level(self, plan: dict, errors: list[str], warnings: list[str], fixes: list[str]):
+    def _check_top_level(self, plan: dict, errors: list[str], warnings: list[str], fixes: list[str]) -> None:
         """校验顶层字段"""
         for field, expected_type in self.REQUIRED_TOP_LEVEL_FIELDS.items():
             if field not in plan:
@@ -260,7 +260,7 @@ class TradePlanValidator:
                 errors.append(f"字段 {field} 类型错误: 期望 {expected_type.__name__}, 实际 {actual}")
                 fixes.append(f"建议: plan['{field}'] 应为 {expected_type.__name__}")
 
-    def _check_phase(self, phase: dict, errors: list[str], warnings: list[str], fixes: list[str]):
+    def _check_phase(self, phase: dict, errors: list[str], warnings: list[str], fixes: list[str]) -> None:
         """校验 phase 字段"""
         for field, expected_types in self.REQUIRED_PHASE_FIELDS.items():
             if field not in phase:
@@ -290,7 +290,7 @@ class TradePlanValidator:
         errors: list[str],
         warnings: list[str],
         fixes: list[str],
-    ):
+    ) -> None:
         """校验 execution_plan 字段"""
         for field, expected_type in self.REQUIRED_EXECUTION_PLAN_FIELDS.items():
             if field not in exec_plan:
@@ -323,7 +323,7 @@ class TradePlanValidator:
         errors: list[str],
         warnings: list[str],
         fixes: list[str],
-    ):
+    ) -> None:
         """校验 market_state 字段"""
         for field, expected_type in self.REQUIRED_MARKET_STATE_FIELDS.items():
             if field not in market_state:
@@ -349,7 +349,7 @@ class TradePlanValidator:
         errors: list[str],
         warnings: list[str],
         fixes: list[str],
-    ):
+    ) -> None:
         """校验 risk_guard 字段"""
         if "drawdown_level" in risk_guard:
             dd_level = risk_guard["drawdown_level"]
@@ -361,7 +361,7 @@ class TradePlanValidator:
             if not isinstance(ks, dict):
                 errors.append(f"risk_guard.kill_switch 必须是 dict, 实际 {type(ks).__name__}")
 
-    def _check_consistency(self, plan: dict, errors: list[str], warnings: list[str], fixes: list[str]):
+    def _check_consistency(self, plan: dict, errors: list[str], warnings: list[str], fixes: list[str]) -> None:
         """校验字段间一致性"""
         market_state = plan.get("market_state", {})
         risk_guard = plan.get("risk_guard", {})
@@ -396,7 +396,7 @@ class TradePlanValidator:
 # ============================================================
 
 
-def main():
+def main() -> None:
     """命令行入口: python -m utils.trade_plan_validator [plan_path]"""
     import sys
 

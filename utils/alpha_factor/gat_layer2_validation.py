@@ -38,7 +38,7 @@ import io
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -74,11 +74,11 @@ logger = logging.getLogger(__name__)
 
 
 def compute_features_at_time(
-    price_data: Dict[str, dict[str, list[float]]],
-    symbols: List[str],
+    price_data: dict[str, dict[str, list[float]]],
+    symbols: list[str],
     T: int,
     horizon: int,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """在时间点 T 用 closes[:T+1] 就地重算特征 + 未来收益 (B1/B2 无前视).
 
     Args:
@@ -157,8 +157,8 @@ def calc_ic(factor: np.ndarray, future_ret: np.ndarray) -> float:
 
 
 def calc_long_short_sharpe(
-    factor_series: List[np.ndarray],
-    ret_series: List[np.ndarray],
+    factor_series: list[np.ndarray],
+    ret_series: list[np.ndarray],
     horizon: int,
     direction: int,
 ) -> float:
@@ -166,7 +166,7 @@ def calc_long_short_sharpe(
 
     每个测试时点按因子排序 Top20%-Bottom20%, 得多空收益序列, 年化夏普。
     """
-    ls_returns: List[float] = []
+    ls_returns: list[float] = []
     for factor, ret in zip(factor_series, ret_series):
         valid = ~np.isnan(factor) & ~np.isnan(ret)
         if valid.sum() < 10:
@@ -197,7 +197,7 @@ def run_gat_layer2_validation(
     n_heads: int = 4,
     lr: float = 0.005,
     use_cache: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """执行 GAT Layer 2 无偏验证.
 
     Args:
@@ -270,8 +270,8 @@ def run_gat_layer2_validation(
     logger.info(f"     训练时点数: {len(train_times)} (严格 < 测试时点 {earliest_test})")
 
     logger.info("[3/6] 多时间点训练样本构建 (B1/B2 无前视)...")
-    features_list: List[np.ndarray] = []
-    labels_list: List[np.ndarray] = []
+    features_list: list[np.ndarray] = []
+    labels_list: list[np.ndarray] = []
     for T in train_times:
         feat, ret = compute_features_at_time(price_data, symbols, T, horizon)
         features_list.append(feat)
@@ -300,11 +300,11 @@ def run_gat_layer2_validation(
     logger.info(f"     loss: {losses[0]:.6f} → {losses[-1]:.6f} ({epochs} epochs)")
 
     logger.info("[5/6] 测试时点评估 (GAT vs 静态)...")
-    gat_ics: List[float] = []
-    static_ics: List[float] = []
-    gat_factor_series: List[np.ndarray] = []
-    static_factor_series: List[np.ndarray] = []
-    ret_series: List[np.ndarray] = []
+    gat_ics: list[float] = []
+    static_ics: list[float] = []
+    gat_factor_series: list[np.ndarray] = []
+    static_factor_series: list[np.ndarray] = []
+    ret_series: list[np.ndarray] = []
     for T in test_times:
         feat, ret = compute_features_at_time(price_data, symbols, T, horizon)
         # 标准化 (用训练集统计量)

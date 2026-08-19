@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """option_exercise_risk 单元测试 — 期权行权/指派风险管理全分支覆盖
 
 被测模块: utils/option_exercise_risk.py

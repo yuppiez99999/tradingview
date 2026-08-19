@@ -27,13 +27,12 @@ if _PROJ not in sys.path:
     sys.path.insert(0, _PROJ)
 
 from shadow_helpers import (
-    make_real_records,
     make_mixed_records,
+    make_real_records,
+    read_jsonl,
     write_cleaned_jsonl,
     write_progress_json,
-    read_jsonl,
 )
-
 
 # ============================================================
 # 集成测试: 完整数据流联动
@@ -353,7 +352,7 @@ class TestTwoLayerIntegration:
         run_watchdog(required_days=14, dry_run=False, force_trigger=False)
 
         # progress.json 应被刷新 (由 refresh_observation_progress 写入)
-        with open(env["progress_file"], "r", encoding="utf-8") as f:
+        with open(env["progress_file"], encoding="utf-8") as f:
             refreshed = json.load(f)
 
         # mock generate_snapshot 从 cleaned.jsonl 读取 real_count=14

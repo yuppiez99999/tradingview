@@ -12,11 +12,10 @@
 import math
 
 import numpy as np
-import pytest
 
-from utils.risk_metrics import calculate_correlation
-from utils.ledoit_wolf_covariance import LedoitWolfCovariance
 from utils.infra.core import StrategyRegistry
+from utils.ledoit_wolf_covariance import LedoitWolfCovariance
+from utils.risk_metrics import calculate_correlation
 
 
 def _matrix_with_constant_column(t: int = 30, n: int = 4) -> np.ndarray:

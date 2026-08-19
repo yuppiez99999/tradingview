@@ -62,11 +62,9 @@ def fetch_sina_realtime(codes: List[str]) -> Dict[str, Dict]:
             timeout=15,
         )
         if resp.status_code != 200:
-            print(f"新浪实时行情 HTTP {resp.status_code}")
             return {}
         text = resp.text
-    except Exception as e:
-        print(f"新浪实时行情获取失败: {e}")
+    except Exception:
         return {}
 
     result = {}
@@ -133,7 +131,6 @@ def _validate_price_range(code: str, close, cost_price: float) -> bool:
     if close is None or close <= 0:
         return False
     if close > max_price or close < min_price:
-        print(f"价格异常 {code}: close={close} (超出范围 {min_price}-{max_price}), 跳过")
         return False
 
     # 相对成本价比例验证 (防止指数点位冒充股价)
@@ -141,9 +138,6 @@ def _validate_price_range(code: str, close, cost_price: float) -> bool:
     if cost_price > 0:
         ratio = close / cost_price
         if ratio > 3.0 or ratio < 0.3:
-            print(
-                f"价格可疑 {code}: close={close} vs cost={cost_price} (比例 {ratio:.2f}x 超出 0.3-3.0), 跳过"
-            )
             return False
     return True
 
@@ -248,7 +242,6 @@ def _correct_price_anomalies(
                     "change_pct": fb.get("change_pct", pd.get("change_pct")),
                     "source": "fallback_corrected",
                 }
-                print(f"价格异常修正 {code}: 使用 fallback 价格 close={fb.get('close')}")
 
 
 def fetch_market_prices(
@@ -276,8 +269,8 @@ def fetch_market_prices(
     if data_provider is None and init_data_provider_fn is not None:
         try:
             init_data_provider_fn()
-        except Exception as e:
-            print(f"数据源初始化失败: {e}")
+        except Exception:
+            pass
 
     prices = {}
     positions = positions_data.get("positions", {})
@@ -285,7 +278,6 @@ def fetch_market_prices(
     # 构建代码 -> 成本价 (est_price) 映射, 用于比例验证
     code_to_cost = _build_code_to_cost_map(positions)
 
-    print(f"获取 {len(code_to_cost)} 个标的的收盘价格...")
 
     # 使用 data_provider 获取实时价格
     for code, cost_price in code_to_cost.items():
@@ -293,8 +285,8 @@ def fetch_market_prices(
             price_data = _fetch_price_from_provider(code, cost_price, data_provider)
             if price_data:
                 prices[code] = price_data
-        except Exception as e:
-            print(f"获取 {code} 价格失败: {e}")
+        except Exception:
+            pass
 
     # 新浪实时行情补充 (当 Wind MCP / iFinD MCP 都失败时)
     # 批量获取所有未拿到价格的标的
@@ -304,7 +296,7 @@ def fetch_market_prices(
         for code, sp in sina_prices.items():
             prices[code] = sp
         if sina_prices:
-            print(f"新浪实时行情获取成功: {len(sina_prices)} / {len(missing_codes)} 个标的")
+            pass
 
     # 使用预定义的兜底价格（当Wind MCP不可用时的最后防线）
     fallback_prices = _get_fallback_prices()

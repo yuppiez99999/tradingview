@@ -11,10 +11,6 @@ from __future__ import annotations
 import csv
 import os
 import tempfile
-from datetime import datetime
-from unittest.mock import patch
-
-import pytest
 
 from utils.wt_structs import BarData, OrderData, PositionData, TickData, TradeData
 from utils.wt_tick_engine import (
@@ -24,7 +20,6 @@ from utils.wt_tick_engine import (
     run_tick_backtest,
     ticks_from_csv,
 )
-
 
 # ============================================================
 # 测试辅助

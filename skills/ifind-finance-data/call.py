@@ -1,7 +1,14 @@
 import json
 import math
 from pathlib import Path
+
 import requests
+
+try:
+    import certifi
+    _SSL_VERIFY = certifi.where()
+except ImportError:
+    _SSL_VERIFY = True
 
 CONFIG = json.loads((Path(__file__).resolve().parent / "mcp_config.json").read_text(encoding="utf-8"))
 AUTH_TOKEN = CONFIG["auth_token"]
@@ -45,7 +52,7 @@ def _post(t, payload, timeout=60):
         SERVERS[t],
         json=payload,
         headers=_headers(t),
-        verify=False,
+        verify=_SSL_VERIFY,
         timeout=timeout,
     )
     data = None
@@ -112,7 +119,7 @@ def _init(t):
         SERVERS[t],
         json=notify,
         headers=_headers(t),
-        verify=False,
+        verify=_SSL_VERIFY,
         timeout=10,
     )
 
@@ -196,7 +203,7 @@ def list_tools(server_type):
         }
 
     resp.raise_for_status()
-    
+
     return {
         "ok": True,
         "status_code": resp.status_code,
@@ -205,4 +212,4 @@ def list_tools(server_type):
 
 
 if __name__ == "__main__":
-    print("未调用工具函数及输入查询参数，请按照说明文档发起请求")    
+    pass

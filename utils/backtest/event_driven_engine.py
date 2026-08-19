@@ -36,7 +36,7 @@ from __future__ import annotations
 import dataclasses
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, Optional, Union
 
 from utils.backtest.adapters import StrategyAdapter
 from utils.backtest.latency_model import FixedLatency, LatencyModel
@@ -425,12 +425,12 @@ class EventDrivenEngine:
         if self.event_clock_mode == EventClockMode.MONOTONIC_INDEX:
             # 兼容旧语义: equity_curve = list[float], timestamps = []
             curve = list(self._equity_curve)
-            timestamps: List[int] = []
+            timestamps: list[int] = []
         else:  # WALL_CLOCK_NS
             # 拆分为: equity_curve = list[float], timestamps = list[int]
             # 注意: 首元素是初始标量 (initial_capital), 之后为 (ts, equity) 元组
-            curve: List[float] = []
-            timestamps: List[int] = []
+            curve: list[float] = []
+            timestamps: list[int] = []
             for i, item in enumerate(self._equity_curve):
                 if i == 0 and isinstance(item, (int, float)):
                     curve.append(float(item))

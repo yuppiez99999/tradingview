@@ -4,14 +4,11 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
-
 from utils.llm_evolution.hypothesis_verifier import (
-    HypothesisVerifier,
     HypothesisVerdict,
+    HypothesisVerifier,
     VerificationThresholds,
 )
-
 
 # ============================================================
 # 测试夹具

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """quant_modules.core — 量化系统核心基础设施
 
 提供 8 个核心类/函数:
@@ -154,7 +153,7 @@ class ModuleLoader:
             logger.debug('ModuleLoader 加载 %s: %d/%d 方法', module_name, len(result), len(method_map))
         except ImportError as e:
             logger.debug('ModuleLoader 模块 %s 不可用: %s', module_name, e)
-        except (ImportError, AttributeError) as e:
+        except AttributeError as e:
             logger.warning('ModuleLoader 加载 %s 异常: %s', module_name, e)
         return result
 

@@ -32,7 +32,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -56,7 +55,7 @@ def _load_observation_days_required() -> int:
     try:
         import yaml
 
-        with open(SHADOW_ADMISSION_YAML, "r", encoding="utf-8") as f:
+        with open(SHADOW_ADMISSION_YAML, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
         settings = cfg.get("settings", {})
         return int(settings.get("observation_days", settings.get("min_observation_days", OBSERVATION_DAYS_REQUIRED)))
@@ -439,7 +438,7 @@ def cmd_auto() -> int:
         next_stage = _next_stage(status.stage)
         if next_stage is not None:
             print(f"[AUTO] 阶段 {status.stage} 健康, 可推进到 {next_stage}")
-            print(f"    执行: py scripts/phase_b_progressive_enabler.py --advance")
+            print("    执行: py scripts/phase_b_progressive_enabler.py --advance")
             return 0
         else:
             print(f"[AUTO] 已在最终阶段 ({status.stage}), 无需推进")

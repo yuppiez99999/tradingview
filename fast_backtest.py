@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """fast_backtest — 快速回测 shim
 
 re-export utils/alpha/fast_backtest.py 的 run_fast_backtest,

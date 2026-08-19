@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import importlib
-import types
 from pathlib import Path
 
 import pytest
@@ -133,6 +132,7 @@ def test_n2_no_global_seed_pollution():
     通过对比调用前后的 np.random 内部状态 (MT19937 状态向量) 实现。
     """
     import numpy as np
+
     import utils.alt_data_indicators as adi
 
     before_key = np.random.get_state()[1].tobytes()

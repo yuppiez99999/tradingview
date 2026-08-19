@@ -22,7 +22,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.feature_store import FeatureStoreConfig, FactorMeta, Registry
+from utils.feature_store import FactorMeta, FeatureStoreConfig, Registry
 
 FACTOR_VERSION = "1.0"
 
@@ -168,13 +168,13 @@ def register_all_factors(dry_run: bool = False) -> dict[str, int]:
 
 def print_stats(stats: dict[str, int]) -> None:
     print(f"\n{'='*60}")
-    print(f"G9 FeatureStore 因子注册统计")
+    print("G9 FeatureStore 因子注册统计")
     print(f"{'='*60}")
     print(f"总因子数:   {stats['total']}")
     print(f"成功注册:   {stats['registered']}")
     print(f"重复跳过:   {stats['duplicate']}")
     print(f"失败:       {stats['failed']}")
-    print(f"\n按类别分布:")
+    print("\n按类别分布:")
     for cat, cnt in stats["by_category"].items():
         print(f"  {cat:20s} {cnt:3d}")
 

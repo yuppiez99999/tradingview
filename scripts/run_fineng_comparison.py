@@ -19,9 +19,9 @@ ARCHITECTURE_金融工程闭环 — T-NEXT-3.3
 from __future__ import annotations
 
 import json
+import logging
 import math
 import sys
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -214,7 +214,7 @@ def run_evt_comparison(daily_returns: list[float], date_str: str) -> dict[str, A
         }
 
     try:
-        from utils.fineng.tail_risk_evt import fit_evt, evt_var_es
+        from utils.fineng.tail_risk_evt import evt_var_es, fit_evt
 
         evt = fit_evt(daily_returns, threshold_percentile=0.95, min_history=120)
         var_es = evt_var_es(evt, confidence_level=0.99)

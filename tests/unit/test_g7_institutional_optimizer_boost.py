@@ -3,11 +3,10 @@ G7 Coverage Boost: utils/institutional_optimizer.py (371 lines, 0% -> target ~80
 """
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from utils.institutional_optimizer import InstitutionalPortfolioOptimizer, PortfolioDecision
 
@@ -186,7 +185,9 @@ class TestCurrentWeights:
     def test_empty_positions(self):
         optimizer = InstitutionalPortfolioOptimizer()
         weights = optimizer._current_weights(["000001.SZ"], {})
-        assert weights is None
+        # 源码行为: 空持仓时返回全 0 权重数组 (而非 None), 表示无持仓的零权重
+        assert weights is not None
+        np.testing.assert_allclose(weights, [0.0])
 
 
 class TestSolveWeights:
@@ -194,8 +195,8 @@ class TestSolveWeights:
         optimizer = InstitutionalPortfolioOptimizer(min_position_weight=0.05, max_weight=0.5)
         cov = np.array([[0.04, 0.01], [0.01, 0.09]])
         mu = np.array([0.1, 0.05])
-        current_weights = np.zeros(2)
-        impact_costs = np.zeros(2)
+        np.zeros(2)
+        np.zeros(2)
         weights = optimizer._risk_parity_with_signal(mu, cov)
         assert weights.shape == (2,)
         assert abs(weights.sum() - 1.0) < 1e-6

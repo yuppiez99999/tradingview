@@ -24,6 +24,8 @@ COPY lgb_enhanced_trainer.py lgb_tscv_trainer.py autolearn_trainer.py ./
 COPY qlib_data/cn_data/ /app/qlib_data/cn_data/
 COPY data_cache/ /app/data_cache/
 
+RUN chmod 777 /app
+
 ENV QT_PLATFORM=cloud
 ENV QLIB_DATA_DIR=/app/qlib_data/cn_data
 ENV QUANT_DATA_ROOT=/app

@@ -3,13 +3,13 @@ G7 Coverage Boost: utils/strategy_lib/pairs_trading.py (186 lines, 0% -> target 
 """
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from utils.strategy_lib.pairs_trading import PairSignal, PairsTrading, _HAS_STATSMODELS
+from utils.strategy_lib.pairs_trading import _HAS_STATSMODELS, PairSignal, PairsTrading
 
 
 @pytest.mark.skipif(not _HAS_STATSMODELS, reason="statsmodels not installed")

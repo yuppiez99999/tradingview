@@ -24,7 +24,7 @@ from datetime import datetime
 
 import pytest
 
-from utils.pipeline.orchestrator import PipelineOrchestrator, PipelineStatus
+from utils.pipeline.orchestrator import PipelineOrchestrator
 from utils.pipeline.types import PipelineConfig, PipelineResult, PipelineStage
 
 logger = logging.getLogger(__name__)

@@ -16,7 +16,6 @@ import pytest
 
 from utils.order_generator import Order, OrderBatch, OrderGenerator
 
-
 # ============================================================
 # Dataclass
 # ============================================================

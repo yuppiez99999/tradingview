@@ -13,12 +13,10 @@ import pytest
 
 from utils.trading_env import (
     TradingEnv,
-    TradingEnvConfig,
     assert_production_fail_closed,
     get_trading_env,
     get_trading_env_config,
 )
-
 
 # ============================================================
 # TradingEnv 枚举

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 5: 信号生成主模块 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py
@@ -31,15 +30,15 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from workflow.context import WorkflowContext, get_dw_module
-from workflow.phases.signal_qlib import generate_qlib_signals, qlib_signal_to_factor
 from workflow.phases.signal_ifind import (
     apply_macro_policy_adjustments,
     ifind_signal_to_factor,
 )
 from workflow.phases.signal_lgb import lgb_confidence_multiplier, load_lgb_enhanced_signals
+from workflow.phases.signal_qlib import generate_qlib_signals, qlib_signal_to_factor
 
 logger = logging.getLogger("v75.daily_workflow")
 
@@ -85,14 +84,14 @@ def fuse_qlib_ifind_factor(
 def apply_fused_qlib_ifind_adjustments(
     ctx: WorkflowContext,
     *,
-    morning_orders: List[Dict[str, Any]],
-    afternoon_orders: List[Dict[str, Any]],
-    qlib_signals: Dict[str, float],
-    ifind_insights: Dict[str, Any],
+    morning_orders: list[dict[str, Any]],
+    afternoon_orders: list[dict[str, Any]],
+    qlib_signals: dict[str, float],
+    ifind_insights: dict[str, Any],
     external_factor: float = 1.0,
-    regime_weights: Optional[Dict[str, float]] = None,
-    lgb_signals: Optional[Dict[str, Dict[str, Any]]] = None,
-) -> Dict[str, Any]:
+    regime_weights: Optional[dict[str, float]] = None,
+    lgb_signals: Optional[dict[str, dict[str, Any]]] = None,
+) -> dict[str, Any]:
     """融合 Qlib 信号、iFinD 新闻研判与外部报告，统一调整订单
 
     Args:
@@ -127,8 +126,8 @@ def apply_fused_qlib_ifind_adjustments(
         ifind_w = float(regime_weights.get("ifind", ifind_w))
         external_w = float(regime_weights.get("external", external_w))
 
-    def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        adjusted: List[Dict[str, Any]] = []
+    def _apply(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        adjusted: list[dict[str, Any]] = []
         for order in orders:
             code = str(order.get("code", ""))
             qlib_signal = qlib_signals.get(code)
@@ -182,7 +181,7 @@ def apply_fused_qlib_ifind_adjustments(
 
             new_order = dict(order)
             original_shares = int(order.get("shares", 0))
-            original_amount = float(order.get("est_amount", 0))
+            float(order.get("est_amount", 0))
             new_shares = max(100, int(original_shares * fused_factor / 100) * 100)
             new_order["shares"] = new_shares
             new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
@@ -233,9 +232,9 @@ def apply_fused_qlib_ifind_adjustments(
 
 
 def apply_position_factor(
-    orders: List[Dict[str, Any]],
+    orders: list[dict[str, Any]],
     factor: float,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """应用仓位系数到订单列表 (DEFENSE 模式减仓)
 
     Args:
@@ -252,7 +251,7 @@ def apply_position_factor(
     for order in orders:
         new_order = dict(order)
         original_shares = int(order.get("shares", 0))
-        original_amount = float(order.get("est_amount", 0))
+        float(order.get("est_amount", 0))
         # 按 factor 缩减股数, 并对齐到 100 股整数倍
         new_shares = max(100, (int(original_shares * factor) // 100) * 100)
         new_order["shares"] = new_shares
@@ -263,7 +262,7 @@ def apply_position_factor(
     return adjusted
 
 
-def phase_signal(ctx: WorkflowContext) -> Dict[str, Any]:
+def phase_signal(ctx: WorkflowContext) -> dict[str, Any]:
     """信号生成 — 从 trade_plan 加载订单
 
     读取 `trade_plans/trade_plan_{date}.json` 中的:
@@ -348,7 +347,7 @@ def phase_signal(ctx: WorkflowContext) -> Dict[str, Any]:
         insight_map = ctx._get_ifind_insights(planned_symbols, name_map)
         cb_dir = cb_cfg.get("direction", "negative")
         cb_min_conf = float(cb_cfg.get("min_confidence", 0.9))
-        for symbol, insight in insight_map.items():
+        for _symbol, insight in insight_map.items():
             if insight.direction == cb_dir and float(insight.confidence) >= cb_min_conf:
                 logger.warning("iFinD 重大负面新闻熔断: [%s] %s confidence=%.2f reasons=%s",
                                insight.symbol, insight.direction, insight.confidence, insight.reasons)
@@ -385,7 +384,7 @@ def phase_signal(ctx: WorkflowContext) -> Dict[str, Any]:
     afternoon_amount = sum(o.get("est_amount", 0) for o in adjusted_afternoon)
     grand_amount = morning_amount + afternoon_amount
 
-    signal: Dict[str, Any] = {
+    signal: dict[str, Any] = {
         "action": "BUILD_PLAN",
         "phase_name": plan_phase.get("name", ""),
         "phase_number": plan_phase.get("phase_number", 0),
@@ -689,7 +688,7 @@ def phase_signal(ctx: WorkflowContext) -> Dict[str, Any]:
     if ALT_DATA_MODULES_READY:
         try:
             # 收集当前持仓标的列表
-            alt_symbols: List[str] = []
+            alt_symbols: list[str] = []
             for pos in (ctx._get_portfolio_positions_for_stress_test()
                         if hasattr(ctx, "_get_portfolio_positions_for_stress_test") else []):
                 code = str(pos.get("code", ""))
@@ -701,7 +700,7 @@ def phase_signal(ctx: WorkflowContext) -> Dict[str, Any]:
             if news_sentiment_engine is not None:
                 try:
                     # 构建 supply_chain_map (从供应链图引擎)
-                    supply_map: Dict[str, List[str]] = {}
+                    supply_map: dict[str, list[str]] = {}
                     supply_chain_graph = getattr(ctx, "supply_chain_graph", None)
                     if supply_chain_graph is not None:
                         for src, edges in getattr(supply_chain_graph, "adjacency", {}).items():
@@ -837,7 +836,7 @@ def phase_signal(ctx: WorkflowContext) -> Dict[str, Any]:
     if strategy_coordinator is not None:
         try:
             # 构造目标信号: 把订单按策略账户归类
-            target_signals: Dict[str, Dict[str, str]] = {
+            target_signals: dict[str, dict[str, str]] = {
                 "stock_long": {},
                 "etf_allocation": {},
             }
@@ -864,7 +863,7 @@ def phase_signal(ctx: WorkflowContext) -> Dict[str, Any]:
                 target_signals["options_tail"] = {"OPTIONS": "BUY"}
 
             # 当前持仓 (用于冲突检测) — 转换为 {code: {weight, strategy}} 格式
-            current_positions: Dict[str, Dict[str, Any]] = {}
+            current_positions: dict[str, dict[str, Any]] = {}
             portfolio_value = float(getattr(ctx, "capital", 5_000_000))
             for pos in (ctx._get_portfolio_positions_for_stress_test()
                         if hasattr(ctx, "_get_portfolio_positions_for_stress_test") else []):

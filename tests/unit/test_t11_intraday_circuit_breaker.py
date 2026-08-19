@@ -6,7 +6,6 @@ import time
 import pytest
 
 from utils.risk.intraday_circuit_breaker import (
-    CBMetrics,
     CBState,
     IntradayCircuitBreaker,
 )

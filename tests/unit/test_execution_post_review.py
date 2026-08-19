@@ -1,8 +1,6 @@
 """ms_strategy.src.execution.post_execution_review 单元测试 — ExecutionReviewer.review/save/markdown"""
 from __future__ import annotations
 
-from datetime import datetime
-
 import pytest
 
 from ms_strategy.src.execution.post_execution_review import (

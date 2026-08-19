@@ -200,26 +200,30 @@ class FinengShadowVerifier:
             # OSError: .py 文件读取失败 (权限/磁盘)
             # AttributeError: 模块缺少预期函数/类
             # SyntaxError: 目标文件语法错误
-            logger.warning("GARCH: %s", e); self._garch_ok = False
+            logger.warning("GARCH: %s", e)
+            self._garch_ok = False
 
         try:
             from utils.fineng.kalman_beta import backtest_hedge_comparison, fit_kalman_beta
             self._fit_kalman = fit_kalman_beta
             self._backtest_hedge = backtest_hedge_comparison
         except (ImportError, ModuleNotFoundError, OSError, AttributeError, SyntaxError) as e:
-            logger.warning("Kalman: %s", e); self._kalman_ok = False
+            logger.warning("Kalman: %s", e)
+            self._kalman_ok = False
 
         try:
             from utils.fineng.tail_risk_evt import fit_evt
             self._fit_evt = fit_evt
         except (ImportError, ModuleNotFoundError, OSError, AttributeError, SyntaxError) as e:
-            logger.warning("EVT: %s", e); self._evt_ok = False
+            logger.warning("EVT: %s", e)
+            self._evt_ok = False
 
         try:
             from utils.fineng.path_simulator import PathSimulator
             self._PathSimulator = PathSimulator
         except (ImportError, ModuleNotFoundError, OSError, AttributeError, SyntaxError) as e:
-            logger.warning("PathSim: %s", e); self._pathsim_ok = False
+            logger.warning("PathSim: %s", e)
+            self._pathsim_ok = False
 
     # ------------------------------------------------------------------
     # 生成滑动窗口

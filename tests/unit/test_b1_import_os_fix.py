@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """B1 smoke test: daily_trading_workflow._resolve_path 不再 NameError (缺 import os).
 
 验证: B1 修复 — daily_trading_workflow.py L19 新增 import os

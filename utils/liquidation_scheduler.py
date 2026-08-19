@@ -23,7 +23,7 @@ import json
 import logging
 from datetime import date, datetime
 from pathlib import Path
-from typing import List, Optional, TypedDict, Union, cast
+from typing import Optional, TypedDict, cast
 
 import yaml
 
@@ -37,10 +37,10 @@ LOG_FILE = BASE_DIR / "logs" / "liquidation_events.jsonl"
 class LiquidationPhaseInfo(TypedDict, total=False):
     """清仓阶段信息 (字段在不同 phase 下可能缺失, 用 total=False)"""
 
-    phase: Union[int, str]  # 0/1/2/3 或 "complete"
+    phase: int | str  # 0/1/2/3 或 "complete"
     name: str
     period: str
-    actions: List[str]
+    actions: list[str]
     target: str
     days_to_next_phase: int
 
@@ -51,7 +51,7 @@ class ScheduleEntry(TypedDict, total=False):
     phase: int
     name: str
     period: str
-    actions: List[str]
+    actions: list[str]
     target: str
 
 
@@ -183,7 +183,7 @@ class LiquidationScheduler:
             "days_to_next_phase": days_to_phase_1,
         }
 
-    def get_schedule(self) -> List[ScheduleEntry]:
+    def get_schedule(self) -> list[ScheduleEntry]:
         """获取完整清仓时间表
 
         Returns:

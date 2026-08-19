@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """quant_modules.data_layer — 数据连接器管理器
 
 DataConnectorManager 仅负责按优先级注册并选择"最高优先级连接器实例",

@@ -1,15 +1,13 @@
-# -*- coding: utf-8 -*-
 """free_stockdb_adapter 单元测试 — free-stockdb 数据适配器"""
-from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from datetime import datetime
+from unittest.mock import patch
 
 import pandas as pd
-import pytest
 
 from utils.free_stockdb_adapter import (
-    _strip_suffix,
-    _period_to_date_range,
     _normalize_fs_dataframe,
+    _period_to_date_range,
+    _strip_suffix,
     is_available,
 )
 

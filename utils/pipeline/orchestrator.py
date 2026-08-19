@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from .alpha_pipeline import AlphaPipeline
 from .backtest_gate import BacktestGate
@@ -56,7 +56,7 @@ class PipelineStatus:
         self.run_count: int = 0
         self.error_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "current_stage": self.current_stage.value,
             "last_run_at": self.last_run_at,
@@ -69,10 +69,10 @@ class PipelineStatus:
 class PipelineOrchestrator:
     """
     闭环流水线编排器
-    
+
     状态机: IDLE → DATA_READY → ALPHA_READY → BACKTEST_PASSED → EXECUTING → MONITORING
     失败回退到上一安全状态。
-    
+
     使用示例:
         orchestrator = PipelineOrchestrator()
         result = orchestrator.run_full_cycle(mode="dry_run")
@@ -100,19 +100,19 @@ class PipelineOrchestrator:
     def run_full_cycle(
         self,
         mode: str = "auto",
-        market_data: Optional[Dict[str, Any]] = None,
+        market_data: Optional[dict[str, Any]] = None,
         symbols: Optional[list[str]] = None,
-        current_positions: Optional[Dict[str, float]] = None,
+        current_positions: Optional[dict[str, float]] = None,
     ) -> PipelineResult:
         """
         执行完整闭环周期
-        
+
         Args:
             mode: 运行模式 (auto / manual / dry_run)
             market_data: 市场数据 (可选)
             symbols: 标的列表 (可选)
             current_positions: 当前持仓 (可选)
-        
+
         Returns:
             PipelineResult: 完整周期执行结果
         """
@@ -172,7 +172,7 @@ class PipelineOrchestrator:
 
     def _run_stage_data_cleaning(
         self,
-        market_data: Optional[Dict[str, Any]],
+        market_data: Optional[dict[str, Any]],
         symbols: Optional[list[str]],
     ) -> bool:
         """执行数据清洗阶段"""
@@ -246,7 +246,7 @@ class PipelineOrchestrator:
 
     def _run_stage_execution(
         self,
-        current_positions: Optional[Dict[str, float]],
+        current_positions: Optional[dict[str, float]],
     ) -> bool:
         """执行交易阶段"""
         self._status.current_stage = PipelineStage.EXECUTION
@@ -307,9 +307,9 @@ class PipelineOrchestrator:
             reports=self._collect_reports(),
         )
 
-    def _collect_metrics(self) -> Dict[str, Any]:
+    def _collect_metrics(self) -> dict[str, Any]:
         """收集各阶段指标"""
-        metrics: Dict[str, Any] = {
+        metrics: dict[str, Any] = {
             "data_cleaning": {
                 "reports_count": len(self._data_reports),
                 "avg_quality": np_mean([r.quality_score for r in self._data_reports]) if self._data_reports else 0,
@@ -339,13 +339,13 @@ class PipelineOrchestrator:
             reports.append(f"backtest_gate_{datetime.now().strftime('%Y%m%d')}.json")
         return reports
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取当前状态"""
         return self._status.to_dict()
 
     def run_data_cleaning_only(
         self,
-        market_data: Optional[Dict[str, Any]] = None,
+        market_data: Optional[dict[str, Any]] = None,
         symbols: Optional[list[str]] = None,
     ) -> tuple[list[DataQualityReport], PipelineResult]:
         """仅执行数据清洗"""
@@ -362,7 +362,7 @@ class PipelineOrchestrator:
     def run_execution_only(
         self,
         signal_result: Optional[AlphaSignalResult] = None,
-        current_positions: Optional[Dict[str, float]] = None,
+        current_positions: Optional[dict[str, float]] = None,
         dry_run: bool = True,
     ) -> tuple[ExecutionResult, PipelineResult]:
         """仅执行交易"""

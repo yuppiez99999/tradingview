@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 VolRegimeWeighter 单元测试
 覆盖: 常量、数据类、Regime 分类、权重矩阵、约束执行、主类流程、降级路径
@@ -6,7 +5,6 @@ VolRegimeWeighter 单元测试
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -20,19 +18,18 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.alpha.vol_regime_weighter import (
-    DEFAULT_WEIGHT_MATRIX,
-    STYLE_CATEGORIES,
-    REGIME_BULL,
-    REGIME_NEUTRAL,
-    REGIME_BEAR,
-    REGIME_CRISIS,
     ALIGNED_HEDGE_RATIOS,
+    DEFAULT_WEIGHT_MATRIX,
+    REGIME_BEAR,
+    REGIME_BULL,
+    REGIME_CRISIS,
+    REGIME_NEUTRAL,
+    STYLE_CATEGORIES,
     VolRegime,
     VolRegimeWeighter,
     WeightSuggestion,
     classify_regime_by_vol,
 )
-
 
 # ============================================================
 # 常量定义测试

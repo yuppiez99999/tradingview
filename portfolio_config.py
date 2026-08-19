@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """portfolio_config — 组合配置 shim
 
 re-export utils/universe/portfolio_builder.py 的 PortfolioConfig,

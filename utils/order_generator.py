@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("pipeline.order_generator")
 
@@ -35,7 +35,7 @@ class Order:
     price: float = 0.0  # 限价，0 表示市价
     order_type: str = "market"  # market / limit
     reason: str = ""
-    tags: Dict[str, Any] = field(default_factory=dict)
+    tags: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -51,7 +51,7 @@ class OrderBatch:
 class OrderGenerator:
     """
     最小可用订单生成器
-    
+
     输入: Alpha 信号 / 目标权重
     输出: 订单批次
     """
@@ -69,20 +69,20 @@ class OrderGenerator:
 
     def generate(
         self,
-        signals: Dict[str, float],
-        current_positions: Optional[Dict[str, float]] = None,
+        signals: dict[str, float],
+        current_positions: Optional[dict[str, float]] = None,
         total_capital: float = 1_000_000,
-        prices: Optional[Dict[str, float]] = None,
+        prices: Optional[dict[str, float]] = None,
     ) -> OrderBatch:
         """
         生成订单批次
-        
+
         Args:
             signals: 目标权重 {symbol: weight}，权重范围 [-1, 1]
             current_positions: 当前持仓市值 {symbol: market_value}
             total_capital: 总资金
             prices: 当前价格 {symbol: price}
-        
+
         Returns:
             OrderBatch
         """

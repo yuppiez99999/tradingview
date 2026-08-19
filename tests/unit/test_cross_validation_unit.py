@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """cross_validation 单元测试 — 多源交叉校验全分支覆盖
 
 被测模块: utils/data/cross_validation.py

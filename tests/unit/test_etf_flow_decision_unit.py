@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from utils.etf_flow_decision import (
-    ETFFlowDecisionEngine,
     INTRADAY_END,
     INTRADAY_START,
     POST_MARKET_END,
@@ -11,6 +10,7 @@ from utils.etf_flow_decision import (
     PRE_MARKET_END,
     PRE_MARKET_START,
     SIGNAL_CONFIG,
+    ETFFlowDecisionEngine,
 )
 
 

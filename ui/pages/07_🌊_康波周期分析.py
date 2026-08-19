@@ -1,20 +1,22 @@
-# -*- coding: utf-8 -*-
 """康波周期分析 — 周期阶段判定 + 行业轮动 + 大宗商品信号"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
-import pandas as pd
 from datetime import datetime
+
+import pandas as pd
+import streamlit as st
 
 st.title("🌊 康波周期分析")
 st.caption("第六轮康波（AI/算力驱动）周期阶段判定 + 行业配置建议 + 大宗商品信号")
 
-from ui.components.module_loader import get_system_module
 from ui.components.common import inject_global_style
-from ui.components.system_status import render_alert_card, render_status_card
+from ui.components.module_loader import get_system_module
+from ui.components.system_status import render_alert_card
 
 inject_global_style()
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ic_hedge_calculator 单元测试 — IC 期货对冲量计算器全覆盖.
 
 被测模块: utils/ic_hedge_calculator.py
@@ -10,23 +9,14 @@ import sys
 from datetime import date
 from pathlib import Path
 
-import pytest
-
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.ic_hedge_calculator import (  # noqa: E402
-    DEFAULT_TARGET_BETA,
-    IC_BASIS_REDUCE_PCT,
-    IC_BASIS_THRESHOLD,
-    IC_MARGIN_RATE,
     IC_MAX_CONTRACTS,
-    IC_MULTIPLIER,
     ICHedgeCalculator,
-    ICHedgeResult,
 )
-
 
 # ============================================================
 # calculate — 正常场景

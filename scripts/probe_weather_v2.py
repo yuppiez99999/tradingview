@@ -14,6 +14,12 @@ os.environ["no_proxy"] = os.environ["NO_PROXY"]
 
 import requests
 
+try:
+    import certifi
+    _SSL_VERIFY = certifi.where()
+except ImportError:
+    _SSL_VERIFY = True
+
 warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
 API_KEY = os.environ.get("APIZERO_API_KEY", "")
@@ -97,13 +103,13 @@ def main():
     print("\n--- 组1: 彩云天气 v2.6 标准端点 ---")
     for ep_name in ["caiyun_v2.6_rt", "caiyun_v2.6_hr", "caiyun_v2.6_dy", "caiyun_v2.6_wt"]:
         url = URL_TEMPLATES[ep_name].format(key=API_KEY, loc=TEST_LOCATION)
-        results[ep_name] = test_url(ep_name, url, verify=False)
+        results[ep_name] = test_url(ep_name, url, verify=_SSL_VERIFY)
         time.sleep(0.8)
 
     # ---------- 组2: 彩云天气 query 参数方式 ----------
     print("\n--- 组2: 彩云天气 query 参数 ---")
     url = URL_TEMPLATES["caiyun_query"].format(key=API_KEY, lng="121.47", lat="31.23")
-    results["caiyun_query"] = test_url("caiyun_query", url, verify=False)
+    results["caiyun_query"] = test_url("caiyun_query", url, verify=_SSL_VERIFY)
     time.sleep(0.8)
 
     # ---------- 组3: apizero 代理 ----------
@@ -112,7 +118,7 @@ def main():
     results["apizero"] = test_url(
         "apizero", url,
         params={"type": "weather", "location": TEST_LOCATION, "key": API_KEY},
-        verify=False,
+        verify=_SSL_VERIFY,
     )
     time.sleep(0.8)
 
@@ -122,7 +128,7 @@ def main():
     results["qweather_rt"] = test_url(
         "qweather_rt", url,
         params={"location": "10102001", "key": API_KEY},
-        verify=False,
+        verify=_SSL_VERIFY,
     )
     time.sleep(0.8)
 

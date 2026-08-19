@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class GLM5Config:
     api_key: str = ""
     api_base: str = ""
     api_model: str = "doubao-seed-1-6-251015"
-    api_model_fallbacks: List[str] = field(default_factory=list)
+    api_model_fallbacks: list[str] = field(default_factory=list)
 
     # Ollama 模式配置 (deprecated)
     ollama_url: str = "http://localhost:11434"
@@ -133,12 +133,12 @@ class GLM5Client:
     def chat(
         self,
         message: str,
-        history: Optional[List[Dict[str, str]]] = None,
+        history: Optional[list[dict[str, str]]] = None,
         system_prompt: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """对话接口 (向后兼容旧 API).
 
         Args:
@@ -212,7 +212,7 @@ class GLM5Client:
         router = self._get_router()
         return router is not None
 
-    def test_connection(self) -> Dict[str, Any]:
+    def test_connection(self) -> dict[str, Any]:
         """测试连接 (向后兼容).
 
         Returns:
@@ -234,7 +234,7 @@ class GLM5Client:
         except (ValueError, RuntimeError, OSError) as exc:
             return {"success": False, "error": str(exc)}
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取调用统计 (新增 API).
 
         Returns:

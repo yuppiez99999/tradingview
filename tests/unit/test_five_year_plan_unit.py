@@ -18,7 +18,6 @@ from utils.five_year_plan import (
     FifteenFivePlanAnalyzer,
 )
 
-
 # ============================================================
 # 常量
 # ============================================================
@@ -188,6 +187,6 @@ class TestGenerateReport:
     @pytest.mark.unit
     def test_report_save(self, tmp_path):
         a = FifteenFivePlanAnalyzer()
-        report = a.generate_report(save_dir=str(tmp_path))
+        a.generate_report(save_dir=str(tmp_path))
         files = list(tmp_path.glob("*.md"))
         assert len(files) == 1

@@ -1,32 +1,34 @@
-# -*- coding: utf-8 -*-
 """AI Hedge Fund — 19位大师级AI分析师联合决策面板"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
-import pandas as pd
 import json
 from datetime import datetime, timedelta
+
+import pandas as pd
+import streamlit as st
 
 st.set_page_config(page_title="AI分析师", page_icon="🤖", layout="wide")
 st.title("🤖 AI Hedge Fund — 大师级AI分析师")
 st.caption("19位顶级投资大师风格AI分析师 + 风控 + 组合管理 → 联合交易决策")
 
 from ui.components.common import inject_global_style
-from ui.components.system_status import render_alert_card, render_status_card
+from ui.components.system_status import render_alert_card
 
 inject_global_style()
 
 # ── 检查依赖 ──
 try:
-    from quant_modules.ai_hedge_fund.orchestrator import (
-        run_ai_hedge_fund,
-        get_available_analysts,
-        print_trading_output,
-    )
     from quant_modules.ai_hedge_fund.data_adapter import get_data_source_status
+    from quant_modules.ai_hedge_fund.orchestrator import (
+        get_available_analysts,
+        print_trading_output,  # noqa: F401
+        run_ai_hedge_fund,
+    )
     _AVAILABLE = True
 except ImportError as e:
     render_alert_card("模块加载失败", f"❌ AI Hedge Fund 模块加载失败: {e}", level="error")
@@ -271,4 +273,4 @@ st.caption(
     "所有交易决策均由 AI 模型基于历史数据生成，过往表现不代表未来结果。"
     "请咨询专业金融顾问做出投资决策。"
 )
-st.caption(f"© 2026 AI Hedge Fund | 集成于量化策略系统 v5.6")
+st.caption("© 2026 AI Hedge Fund | 集成于量化策略系统 v5.6")

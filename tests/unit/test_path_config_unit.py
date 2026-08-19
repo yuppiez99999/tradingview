@@ -16,7 +16,6 @@ from pathlib import Path
 import pytest
 
 from utils.path_config import (
-    DATA_ROOT,
     describe_paths,
     get_config_dir,
     get_data_cache_dir,
@@ -36,7 +35,6 @@ from utils.path_config import (
     get_v8_src_dir,
     setup_sys_path,
 )
-
 
 # ============================================================
 # 基本路径

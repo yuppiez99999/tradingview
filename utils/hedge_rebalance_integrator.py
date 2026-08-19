@@ -15,8 +15,10 @@ v5.9 核心改进（基于v2.0回测验证）：
   Phase 4: 联合优化 → 对冲后敞口 + 再平衡后分布一致性
   Phase 5: 生成执行计划 → 对冲指令 + 买卖清单 + 成本估算
 
-数据源: iFinD MCP → Wind MCP → AKShare → Sina → efinance → 默认回退
+数据源: Wind MCP → AKShare → Sina → efinance → 默认回退
 """
+
+from __future__ import annotations
 
 import json
 import logging
@@ -25,7 +27,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -36,84 +38,18 @@ if _project_dir not in sys.path:
 
 logger = logging.getLogger('hedge_rebalance_integrator')
 
-# ============ 数据源：iFinD MCP ============
-_IFIND_CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".trae", "skills", "ifind-finance-data")
-_IFIND_CONFIG_PATH = os.path.join(_IFIND_CONFIG_DIR, "mcp_config.json")
-_IFIND_TOKEN = ""
-if os.path.isfile(_IFIND_CONFIG_PATH):
-    try:
-        with open(_IFIND_CONFIG_PATH, encoding='utf-8') as _f:
-            _cfg = json.load(_f)
-            _IFIND_TOKEN = (_cfg.get("auth_token") or "").strip()
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
-        pass
-IFIND_AVAILABLE = bool(_IFIND_TOKEN)
-IFIND_CLIENT = None
-if IFIND_AVAILABLE:
-    try:
-        import importlib.util
-        skill_dir = os.path.join(os.path.expanduser("~"), ".trae", "skills", "ifind-finance-data")
-        call_path = os.path.join(skill_dir, "call.py")
-        spec = importlib.util.spec_from_file_location("ifind_call", call_path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        IFIND_CLIENT = mod
-        logger.info("[HedgeRebalance] iFinD MCP 连接器加载成功")
-    except (ImportError, AttributeError) as e:
-        IFIND_CLIENT = None
-        logger.warning(f"[HedgeRebalance] iFinD MCP 连接器不可用: {e}")
-
-
-def _exec_ifind(server_type: str, tool_name: str, params: dict) -> dict:
-    """调用 iFinD MCP API"""
-    if not IFIND_CLIENT:
-        return {"error": "iFinD MCP 不可用"}
-    try:
-        result = IFIND_CLIENT.call(server_type, tool_name, params)
-        if isinstance(result, dict) and result.get("error"):
-            return {"error": result["error"].get("message", str(result["error"])[:200])}
-        if isinstance(result, dict) and result.get("data"):
-            return {"data": result["data"], "source": "iFinD MCP"}
-        return result
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
-        return {"error": str(e)}
-
-
-def _get_ifind_prices_batch(codes: List[str]) -> Dict[str, float]:
-    """iFinD MCP 批量获取价格 (P0)"""
-    prices = {}
-    if not IFIND_AVAILABLE or IFIND_CLIENT is None:
-        return prices
-    pure_codes = [c.split('.')[0] for c in codes if '.' in c]
-    if not pure_codes:
-        return prices
-    try:
-        from ifind_client import IFindClient
-        client = IFindClient(auth_token=_IFIND_TOKEN, max_concurrency=4)
-        quotes = client.get_etf_quotes(pure_codes)
-        for c in pure_codes:
-            if c in quotes:
-                q = quotes[c]
-                px = float(q.get('price', 0) or 0)
-                if px > 0:
-                    prices[c] = px
-                    logger.info("[HedgeRebalance][ifind] %s=%.2f", c, px)
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
-        logger.debug(f"[HedgeRebalance][ifind] batch err: {e}")
-    return prices
-
 
 try:
     from utils.hedge_engine import (
-        DEFAULT_FUTURES_PRICES,
-        ETF_OPTIONS_SPECS,
+        DEFAULT_FUTURES_PRICES,  # noqa: F401
+        ETF_OPTIONS_SPECS,  # noqa: F401
         INDEX_FUTURES_SPECS,
         HedgeEngine,
-        HedgeRecommendation,
-        HedgeSignalStrength,
-        HedgeType,
+        HedgeRecommendation,  # noqa: F401
+        HedgeSignalStrength,  # noqa: F401
+        HedgeType,  # noqa: F401
         PortfolioRisk,
-        get_live_futures_prices,
+        get_live_futures_prices,  # noqa: F401
     )
     _HEDGE_OK = True
 except ImportError as e:
@@ -167,14 +103,14 @@ class HedgeDecision:
     regime: MarketRegime = MarketRegime.CALM
     hedge_ratio: float = 0.0
     strength_name: str = ""
-    futures_instruments: List[str] = field(default_factory=list)
-    futures_contracts: Dict[str, int] = field(default_factory=dict)
-    futures_notional: Dict[str, float] = field(default_factory=dict)
-    futures_margin: Dict[str, float] = field(default_factory=dict)
+    futures_instruments: list[str] = field(default_factory=list)
+    futures_contracts: dict[str, int] = field(default_factory=dict)
+    futures_notional: dict[str, float] = field(default_factory=dict)
+    futures_margin: dict[str, float] = field(default_factory=dict)
     total_notional: float = 0.0
     total_margin: float = 0.0
     price_source: str = ""
-    fallback_used: List[str] = field(default_factory=list)
+    fallback_used: list[str] = field(default_factory=list)
     expected_beta_after: float = 0.0
     reasoning: str = ""
 
@@ -184,7 +120,7 @@ class RebalanceDecision:
     needed: bool
     rebalance_type: str = "none"
     threshold: float = 0.05
-    positions_to_adjust: List[PositionWeight] = field(default_factory=list)
+    positions_to_adjust: list[PositionWeight] = field(default_factory=list)
     total_buy_amount: float = 0.0
     total_sell_amount: float = 0.0
     net_cash_flow: float = 0.0
@@ -204,7 +140,7 @@ class JointPlan:
 
     execution_window: str = ""
     execution_priority: str = ""
-    warning_flags: List[str] = field(default_factory=list)
+    warning_flags: list[str] = field(default_factory=list)
 
     estimated_annual_return: float = 0.0
     estimated_max_drawdown: float = 0.0
@@ -212,7 +148,7 @@ class JointPlan:
     estimated_volatility: float = 0.0
 
     summary: str = ""
-    stress_tests: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # v5.10 P0-8
+    stress_tests: dict[str, dict[str, Any]] = field(default_factory=dict)  # v5.10 P0-8
 
 
 # ============================================================
@@ -276,7 +212,7 @@ DEFAULT_SECTOR_WEIGHTS = {
 # 辅助函数
 # ============================================================
 
-def _load_yaml(filepath: str) -> Optional[Dict]:
+def _load_yaml(filepath: str) -> Optional[dict]:
     try:
         import yaml
         with open(filepath, encoding='utf-8') as f:
@@ -285,7 +221,7 @@ def _load_yaml(filepath: str) -> Optional[Dict]:
         return None
 
 
-def _load_json(filepath: str) -> Optional[Dict]:
+def _load_json(filepath: str) -> Optional[dict]:
     try:
         with open(filepath, encoding='utf-8') as f:
             return json.load(f)
@@ -360,35 +296,24 @@ class HedgeRebalanceIntegrator:
         else:
             self.hedge_engine = None
 
-        self._prices: Dict[str, float] = {}
+        self._prices: dict[str, float] = {}
         self._prices_loaded = False
 
     # ================================================================
     # Phase 1: 风险评估 + v5.9 组合自触发
     # ================================================================
 
-    def load_prices(self) -> Dict[str, float]:
-        """加载持仓标的价格 — v5.10: iFinD MCP (P0) → Wind MCP (P1) → AKShare (P2) → efinance (P3) → 兜底"""
+    def load_prices(self) -> dict[str, float]:
+        """加载持仓标的价格 — v5.10: Wind MCP (P0) → AKShare (P1) → efinance (P2) → 兜底"""
         if self._prices_loaded:
             return self._prices
 
         assets = self.portfolio_config.get('assets', [])
         codes = [a['code'] for a in assets]
 
-        # P0: iFinD MCP 实时行情
-        if IFIND_AVAILABLE:
-            try:
-                ifind_prices = _get_ifind_prices_batch(codes)
-                for code in codes:
-                    pure = code.split('.')[0] if '.' in code else code
-                    if pure in ifind_prices and ifind_prices[pure] > 0:
-                        self._prices[code] = ifind_prices[pure]
-            except (ValueError, TypeError, KeyError, AttributeError, OSError):
-                pass
-
         missing = [c for c in codes if c not in self._prices]
 
-        # P1: Wind MCP 实时行情快照
+        # P0: Wind MCP 实时行情快照
         if missing:
             try:
                 from quant_modules.wind_mcp import get_realtime_prices_batch
@@ -543,9 +468,9 @@ class HedgeRebalanceIntegrator:
             )
         return risk
 
-    def _load_historical_returns(self) -> Dict[str, List[float]]:
+    def _load_historical_returns(self) -> dict[str, list[float]]:
         """v5.10 P0-5: 加载标的近252日历史收益率用于协方差矩阵VaR"""
-        returns: Dict[str, List[float]] = {}
+        returns: dict[str, list[float]] = {}
         cache_dir = os.path.join(self.base_dir, 'data', 'cache')
         if not os.path.isdir(cache_dir):
             return returns
@@ -567,7 +492,7 @@ class HedgeRebalanceIntegrator:
             except (OSError, ValueError, KeyError) as err:  # 仅捕获数据读取类异常
                 logger.warning("加载 %s 历史收益率失败: %s", filepath, err)
                 continue
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as err:
+            except (TypeError, AttributeError, RuntimeError) as err:
                 logger.error("加载 %s 历史收益率出现未知错误: %s", filepath, err)
                 continue
         return returns
@@ -728,7 +653,7 @@ class HedgeRebalanceIntegrator:
     # Phase 3: 再平衡检查
     # ================================================================
 
-    def _get_dynamic_rebalance_threshold(self, portfolio_vol: float) -> Tuple[float, str, int]:
+    def _get_dynamic_rebalance_threshold(self, portfolio_vol: float) -> tuple[float, str, int]:
         if portfolio_vol < 0.15:
             config = REBALANCE_THRESHOLDS["low"]
         elif portfolio_vol > 0.25:
@@ -737,7 +662,7 @@ class HedgeRebalanceIntegrator:
             config = REBALANCE_THRESHOLDS["normal"]
         return config["threshold"], config["check_freq"], config["max_adjust"]
 
-    def _get_sector_adjusted_weights(self) -> Dict[str, float]:
+    def _get_sector_adjusted_weights(self) -> dict[str, float]:
         kondratiev_phase = None
         try:
             from utils.kondratiev_cycle import KondratievCycleAnalyzer
@@ -870,7 +795,7 @@ class HedgeRebalanceIntegrator:
 
     def joint_optimize(
         self, risk: PortfolioRisk, hedge: HedgeDecision, rebalance: RebalanceDecision
-    ) -> Tuple[HedgeDecision, RebalanceDecision, List[str]]:
+    ) -> tuple[HedgeDecision, RebalanceDecision, list[str]]:
         """Phase 4: 联合优化"""
         warnings = []
         adj_hedge = hedge
@@ -907,8 +832,8 @@ class HedgeRebalanceIntegrator:
     # ================================================================
 
     def _estimate_performance(
-        self, risk, hedge: HedgeDecision, rebalance: RebalanceDecision
-    ) -> Tuple[float, float, float, float]:
+        self, risk: PortfolioRisk, hedge: HedgeDecision, rebalance: RebalanceDecision
+    ) -> tuple[float, float, float, float]:
         base_return = 0.12
         base_drawdown = 0.18
         base_vol = 0.20
@@ -927,9 +852,9 @@ class HedgeRebalanceIntegrator:
         return est_return, est_drawdown, est_sharpe, est_vol
 
     def generate_execution_plan(
-        self, risk, hedge: HedgeDecision, rebalance: RebalanceDecision,
-        warnings: List[str] = None,
-        stress_tests: Dict[str, Dict[str, Any]] = None,
+        self, risk: PortfolioRisk, hedge: HedgeDecision, rebalance: RebalanceDecision,
+        warnings: list[str] = None,
+        stress_tests: dict[str, dict[str, Any]] = None,
     ) -> JointPlan:
         """Phase 5: 生成联合执行计划"""
         now = datetime.now()
@@ -1063,7 +988,7 @@ class HedgeRebalanceIntegrator:
             lines.append(f"  期货品种: {', '.join(h.futures_instruments) if h.futures_instruments else '无'} (多指数Beta加权)")
             if h.futures_contracts:
                 for code, n in h.futures_contracts.items():
-                    spec = INDEX_FUTURES_SPECS.get(code, {})
+                    INDEX_FUTURES_SPECS.get(code, {})
                     notional = h.futures_notional.get(code, 0)
                     margin = h.futures_margin.get(code, 0)
                     lines.append(f"    {code}: 做空 {n} 手 | 名义{notional:,.0f} | 保证金{margin:,.0f}")
@@ -1169,7 +1094,7 @@ class HedgeRebalanceIntegrator:
 # 便捷函数
 # ============================================================
 
-def get_integrator(base_dir=None, portfolio_value=None, mode: str = "tail_only") -> HedgeRebalanceIntegrator:
+def get_integrator(base_dir: str | None = None, portfolio_value: float | None = None, mode: str = "tail_only") -> HedgeRebalanceIntegrator:
     mode_map = {
         "tail_only": HedgeMode.TAIL_ONLY,
         "dynamic": HedgeMode.DYNAMIC,
@@ -1183,9 +1108,9 @@ def get_integrator(base_dir=None, portfolio_value=None, mode: str = "tail_only")
 
 
 def run_joint_analysis(
-    base_dir=None, portfolio_volatility=None, portfolio_drawdown_60d=None,
-    mode="tail_only", save=True,
-) -> Tuple[JointPlan, str]:
+    base_dir: str | None = None, portfolio_volatility: float | None = None, portfolio_drawdown_60d: float | None = None,
+    mode: str = "tail_only", save: bool = True,
+) -> tuple[JointPlan, str]:
     """v5.9 一键运行对冲-再平衡联动分析
 
     Args:

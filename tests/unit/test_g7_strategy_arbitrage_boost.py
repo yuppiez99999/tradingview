@@ -3,14 +3,10 @@ G7 Coverage Boost: utils/strategy/arbitrage/pairs_trading.py (369 lines, 0% -> t
 """
 from __future__ import annotations
 
-from datetime import datetime
-from unittest.mock import MagicMock, patch
-
 import numpy as np
 import pandas as pd
-import pytest
 
-from utils.strategy.arbitrage.pairs_trading import WFValidationReport, WFWindowResult, WalkForwardPairsValidator
+from utils.strategy.arbitrage.pairs_trading import WalkForwardPairsValidator, WFValidationReport, WFWindowResult
 
 
 class TestWFWindowResult:

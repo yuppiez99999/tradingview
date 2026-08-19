@@ -24,7 +24,6 @@
 from __future__ import annotations
 
 import json
-import math
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -50,7 +49,6 @@ from utils.ifind_client import (  # noqa: E402
     _parse_ifind_response,
     _parse_markdown_table,
 )
-
 
 # ============================================================
 # 1. _parse_markdown_table 纯函数测试
@@ -576,7 +574,7 @@ class TestIFindClientCall:
         """响应文本含 '超限' 时设置配额超限标记."""
         client = IFindClient()
         client._sessions["stock"] = "sess"
-        inner = json.dumps({"code": 1, "data": {"answer": "用户使用工具已超限"}})
+        json.dumps({"code": 1, "data": {"answer": "用户使用工具已超限"}})
         mock_resp = MagicMock()
         mock_resp.text = json.dumps({"result": {"content": [{"type": "text", "text": "超限提示"}]}})
         mock_resp.json.return_value = {"result": {"content": [{"type": "text", "text": "超限提示"}]}}

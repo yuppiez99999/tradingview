@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """factor_model 单元测试 — 五维因子选股模型全覆盖.
 
 被测模块: utils/factor_model.py
@@ -11,7 +10,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:

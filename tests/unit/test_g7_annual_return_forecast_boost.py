@@ -4,10 +4,8 @@ G7 Coverage Boost: utils/annual_return_forecast.py (224 lines, 0% -> target ~80%
 from __future__ import annotations
 
 import json
-import math
-from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -17,7 +15,6 @@ from utils.annual_return_forecast import (
     MAX_DRAWDOWN_LIMIT,
     RF_RATE,
     TARGET_ANNUAL_RETURN,
-    TARGET_SHARPE,
     _build_summary,
     _calc_scenario,
     _extract_baseline,

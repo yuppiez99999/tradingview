@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 """
 ML模型预测信号模式 — v5.10 P0-9 重构
 """
-from core.context import BASE_DIR, logger, ProgressIndicator
+from core.context import ProgressIndicator
 from utils.cli_helpers import get_ml_signal_section, get_stock_name
 
 
@@ -29,7 +28,7 @@ def run_ml_signal_mode(args):
         buy_n = len(sig.get('buy', []))
         sell_n = len(sig.get('sell', []))
         hold_n = len(sig.get('hold', []))
-        model_info = result.get('model_info', {})
+        result.get('model_info', {})
         print(f"\n📊 信号摘要: 买入 {buy_n} | 卖出 {sell_n} | 持有/震荡 {hold_n}")
         if buy_n:
             print("  🟢 买入TOP3:")

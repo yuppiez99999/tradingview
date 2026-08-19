@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """GLM-5.2 审查 C1(#16)/C2(#22) critical 缺陷回归测试.
 
 C1 (#16): daily_trade_executor.execute_instructions 双重建仓风险
@@ -8,15 +7,11 @@ C1 (#16): daily_trade_executor.execute_instructions 双重建仓风险
 C2 (#22): institutional_pipeline_runner KillSwitch L1 被 _regenerate_trades_from_weights 绕过
   - 修复: _apply_killswitch_l1_filter 在 trades 重建后重新过滤 BUY
 """
-import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import pytest
-
 import daily_trade_executor as dte
 from utils.killswitch_guard import apply_killswitch_l1_filter
-
 
 # ============================================================
 # C1 (#16) 双重建仓风险
@@ -30,7 +25,7 @@ class TestC1DoubleExecution:
         return [
             {
                 "full_code": f"600000.SH_{i}",
-                "code": f"600000.SH",
+                "code": "600000.SH",
                 "qty": 1000 + i,
                 "ref_price": 10.0,
                 "estimated_amount": 10000.0 + i,
@@ -89,7 +84,7 @@ class TestC1DoubleExecution:
 
         # save_build_progress 抛异常 → fail-closed
         def _boom(p):
-            raise IOError("disk full")
+            raise OSError("disk full")
         monkeypatch.setattr(dte, "save_build_progress", _boom)
 
         result = dte.execute_instructions("2026-08-10")

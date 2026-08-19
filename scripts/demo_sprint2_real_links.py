@@ -19,8 +19,7 @@ import os
 import sys
 import tempfile
 import time
-from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 # ============================================================
@@ -190,7 +189,7 @@ def demo_a_memory_reflection_with_mock_prices(tmp_dir: str) -> None:
 
     # 2. 构造 mock 价格数据 (AAPL 涨 / TSLA 涨 / MSFT 平)
     _print_sub("步骤 2: 构造 mock 价格数据")
-    price_data: Dict[str, Dict[str, Dict[str, float]]] = {
+    price_data: dict[str, dict[str, dict[str, float]]] = {
         "AAPL": {  # bullish 预测, 价格上涨 → 方向正确
             "2026-08-01": {"close": 100.0},
             "2026-08-02": {"close": 101.5},   # +1.5% (1d)
@@ -226,7 +225,7 @@ def demo_a_memory_reflection_with_mock_prices(tmp_dir: str) -> None:
 
     # 4. 打印评估结果
     _print_sub("步骤 4: 评估结果 (含反思文本)")
-    with open(mem.memory_file, "r", encoding="utf-8") as f:
+    with open(mem.memory_file, encoding="utf-8") as f:
         for line in f:
             rec = json.loads(line.strip())
             print(f"\n  [{rec['ticker']}] signal={rec['final_signal']}, conf={rec['final_confidence']}")
@@ -249,7 +248,7 @@ def demo_a_memory_reflection_with_mock_prices(tmp_dir: str) -> None:
         print(f"    {ticker}:")
         print(f"      total={stats['total']}, evaluated={stats['evaluated']}, correct_5d={stats['correct_5d']}")
         print(f"      win_rate={stats['win_rate']:.1%}")
-        print(f"      recent_reflections:")
+        print("      recent_reflections:")
         for r in stats["recent_reflections"]:
             print(f"        - {r}")
 
@@ -352,7 +351,7 @@ def demo_b_debate_layer_with_rate_limiter(tmp_dir: str) -> None:
     _print_sub("步骤 3: 辩论结果 (DebateResult)")
     result = session.debate_results["AAPL"]
     print(f"\n  Ticker: {result.ticker}")
-    print(f"\n  Round 1 (初版论点):")
+    print("\n  Round 1 (初版论点):")
     print(f"    Bull (置信度={result.bull_round1.confidence}):")
     for arg in result.bull_round1.key_arguments:
         print(f"      • {arg}")
@@ -360,23 +359,23 @@ def demo_b_debate_layer_with_rate_limiter(tmp_dir: str) -> None:
     for arg in result.bear_round1.key_arguments:
         print(f"      • {arg}")
 
-    print(f"\n  Round 2 (反驳后最终立场):")
+    print("\n  Round 2 (反驳后最终立场):")
     print(f"    Bull (置信度={result.bull_final.confidence}):")
     for arg in result.bull_final.key_arguments:
         print(f"      • {arg}")
     if result.bull_final.rebuttals:
-        print(f"    Bull 反驳:")
+        print("    Bull 反驳:")
         for r in result.bull_final.rebuttals:
             print(f"      ↳ {r}")
     print(f"    Bear (置信度={result.bear_final.confidence}):")
     for arg in result.bear_final.key_arguments:
         print(f"      • {arg}")
     if result.bear_final.rebuttals:
-        print(f"    Bear 反驳:")
+        print("    Bear 反驳:")
         for r in result.bear_final.rebuttals:
             print(f"      ↳ {r}")
 
-    print(f"\n  裁决结果:")
+    print("\n  裁决结果:")
     print(f"    胜方: {result.winner}")
     print(f"    净置信度: {result.net_confidence} (Bull {result.bull_final.confidence} - Bear {result.bear_final.confidence})")
     print(f"    最终信号: {result.final_signal} (置信度={result.final_confidence})")
@@ -415,7 +414,7 @@ def demo_b_debate_layer_with_rate_limiter(tmp_dir: str) -> None:
     print(f"  第二次 LLM 实际调用次数 (透传到 call_llm): {second_call_count}")
     print(f"  累计 stats: total_calls={total_calls2} (第一次4 + 第二次4=8), cache_hits={total_cache_hits}")
     print(f"  缓存命中率: {total_cache_hits / max(1, total_calls2):.1%}")
-    print(f"  说明: 第二次的 4 次调用 prompt 与第一次相同, 全部命中 TTL 缓存, 未实际调用 call_llm")
+    print("  说明: 第二次的 4 次调用 prompt 与第一次相同, 全部命中 TTL 缓存, 未实际调用 call_llm")
 
 
 # ============================================================
@@ -429,8 +428,8 @@ def demo_c_end_to_end_loop(tmp_dir: str) -> None:
     日志文件: logs/demo_sprint2_real_links.log
     """
     from quant_modules.ai_hedge_fund.debate_layer import DebateLayer, DebateStance
-    from quant_modules.ai_hedge_fund.memory_reflection import MemoryReflection
     from quant_modules.ai_hedge_fund.llm_rate_limiter import get_global_llm_caller
+    from quant_modules.ai_hedge_fund.memory_reflection import MemoryReflection
 
     _print_section("C. 端到端闭环: 辩论 → 记录 → 评估 → 反思注入")
     logger.info("=" * 50)
@@ -548,8 +547,8 @@ def demo_c_end_to_end_loop(tmp_dir: str) -> None:
     # 修改决策日期为 08-01 (匹配 mock 价格数据)
     logger.info("步骤 2b: 修改决策日期为 2026-08-01 (匹配 mock 价格数据)")
     try:
-        with open(mem.memory_file, "r", encoding="utf-8") as f:
-            records = [json.loads(l) for l in f if l.strip()]
+        with open(mem.memory_file, encoding="utf-8") as f:
+            records = [json.loads(line) for line in f if line.strip()]
         logger.debug("读取记录数=%d", len(records))
         for rec in records:
             rec["date"] = "2026-08-01"
@@ -562,7 +561,7 @@ def demo_c_end_to_end_loop(tmp_dir: str) -> None:
         logger.exception("步骤 2b 失败: 修改决策日期异常 | %r", exc)
         raise
 
-    print(f"  决策日期统一设为 2026-08-01 (便于评估)")
+    print("  决策日期统一设为 2026-08-01 (便于评估)")
 
     # ============================================================
     # 步骤 3: T+N 评估
@@ -615,8 +614,8 @@ def demo_c_end_to_end_loop(tmp_dir: str) -> None:
     _print_sub("步骤 4: 评估结果 + 反思文本")
     logger.info("步骤 4 开始: 读取评估结果并打印")
     try:
-        with open(mem.memory_file, "r", encoding="utf-8") as f:
-            eval_records = [json.loads(l.strip()) for l in f if l.strip()]
+        with open(mem.memory_file, encoding="utf-8") as f:
+            eval_records = [json.loads(line.strip()) for line in f if line.strip()]
         logger.debug("读取评估后记录数=%d", len(eval_records))
 
         for rec in eval_records:
@@ -667,7 +666,7 @@ def demo_c_end_to_end_loop(tmp_dir: str) -> None:
     print(f"  摘要: {ctx['summary']}")
     logger.info("反思上下文摘要 | summary=%s", ctx["summary"])
 
-    print(f"\n  按 ticker 明细:")
+    print("\n  按 ticker 明细:")
     for ticker, stats in ctx["by_ticker"].items():
         logger.info("  反思明细 [%s] | total=%d, evaluated=%d, correct_5d=%d, win_rate=%.4f",
                     ticker, stats["total"], stats["evaluated"],

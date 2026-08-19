@@ -31,7 +31,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 from typing_extensions import Literal
@@ -54,8 +54,8 @@ class DebateStance(BaseModel):
     """单轮辩论立场"""
     stance: Literal["bullish", "bearish", "neutral"]
     confidence: int = Field(description="置信度 0-100")
-    key_arguments: List[str] = Field(description="核心论点列表 (3~5 条)")
-    rebuttals: List[str] = Field(default_factory=list, description="对对方论点的反驳")
+    key_arguments: list[str] = Field(description="核心论点列表 (3~5 条)")
+    rebuttals: list[str] = Field(default_factory=list, description="对对方论点的反驳")
     evidence_summary: str = Field(default="", description="证据链摘要")
 
 
@@ -309,8 +309,9 @@ class DebateLayer:
     def _llm_available(self) -> bool:
         """检测 LLM 依赖是否可用"""
         try:
-            from quant_modules.ai_hedge_fund.utils.llm import call_llm  # noqa: F401
             from langchain_core.prompts import ChatPromptTemplate  # noqa: F401
+
+            from quant_modules.ai_hedge_fund.utils.llm import call_llm  # noqa: F401
             return True
         except ImportError:
             return False
@@ -325,8 +326,9 @@ class DebateLayer:
         state: Any,
     ) -> DebateStance:
         """LLM 驱动生成立场 (TradingAgents 风格 prompt)"""
-        from quant_modules.ai_hedge_fund.utils.llm import call_llm
         from langchain_core.prompts import ChatPromptTemplate
+
+        from quant_modules.ai_hedge_fund.utils.llm import call_llm
 
         # 构造分析师信号摘要
         signal_lines = []
@@ -344,7 +346,6 @@ class DebateLayer:
             opponent_text = f"\n对方({('bear' if side=='bull' else 'bull')})论点: {opp_args}"
 
         side_label = "看多(Bull)" if side == "bull" else "看空(Bear)"
-        side_filter = "bullish" if side == "bull" else "bearish"
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", (
@@ -366,7 +367,7 @@ class DebateLayer:
         # Rebuttal 指令 (仅 Round 2)
         if round_num >= 2 and opponent_stance:
             rebuttal_instr = (
-                f"并针对对方论点做反驳 (rebuttals 字段填入 2~3 条反驳)。"
+                "并针对对方论点做反驳 (rebuttals 字段填入 2~3 条反驳)。"
             )
         else:
             rebuttal_instr = ""
@@ -381,9 +382,10 @@ class DebateLayer:
         )
 
         agent_name = f"{'bull' if side=='bull' else 'bear'}_researcher"
-        default_fn = lambda: self._rule_generate_stance(
-            ticker, ticker_signals, side, round_num, opponent_stance,
-        )
+        def default_fn():
+            return self._rule_generate_stance(
+                    ticker, ticker_signals, side, round_num, opponent_stance,
+                )
 
         # W6.2.4: 可选通过 RateLimitedLLMCaller 调用 (令牌桶限流 + TTL 缓存 + 重试 + 统计)
         if self._rate_limited_caller is not None:

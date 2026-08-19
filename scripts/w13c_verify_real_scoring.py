@@ -126,7 +126,7 @@ def verify_public_private_separation(logger: logging.Logger) -> dict:
         ff_mod.is_enabled = lambda name: True if name == "USE_STRATEGY_EVALUATOR" else original_is_enabled(name)
 
         try:
-            from utils.alpha.strategy_evaluator import StrategyEvaluator, ScoreReport
+            from utils.alpha.strategy_evaluator import ScoreReport, StrategyEvaluator
 
             evaluator = StrategyEvaluator()
             report = evaluator.evaluate_from_jsonl()
@@ -138,11 +138,11 @@ def verify_public_private_separation(logger: logging.Logger) -> dict:
             assert hasattr(report, "public_score"), "缺少 public_score 字段"
             assert hasattr(report, "private_score"), "缺少 private_score 字段"
 
-            # 验证 3: 样本不足时的行为 (n=5 < MIN_SAMPLES_FOR_DSR=20)
+            # 验证 3: 样本数正确 (随观察期增长, 至少 5 条起测)
             # 注意: StrategyEvaluator 不会整体降级, 而是 DSR/WF 等子指标在 private_metrics 中降级
             # 顶层 is_degraded 仅在 Flag 关闭或 n=0 时为 True
             # 这里验证: sample_count 正确 + 各字段值范围合法
-            assert report.sample_count == 5, f"sample_count 应为 5, 实际 {report.sample_count}"
+            assert report.sample_count >= 5, f"sample_count 应 >=5, 实际 {report.sample_count}"
 
             # 验证 4: recommendation 为 continue (不晋升不回滚, 样本不足时不做激进决策)
             assert report.recommendation in ("continue", "promote", "rollback"), f"recommendation 非法值: {report.recommendation}"

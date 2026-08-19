@@ -35,7 +35,7 @@ def _no_20cm(symbol: str) -> bool:
 # 测试模式: 覆盖
 def run_with_logic(use_new_logic: bool) -> list[dict[str, Any]]:
     """运行一次校验, 返回异常明细列表."""
-    
+
     if use_new_logic:
         # 使用新逻辑 (恢复)
         mr.is_20cm_symbol = _original_is_20cm
@@ -44,10 +44,10 @@ def run_with_logic(use_new_logic: bool) -> list[dict[str, Any]]:
         # 使用旧逻辑 (强制 20%)
         mr.is_20cm_symbol = _no_20cm
         mr.get_abnormal_threshold = _force_old_threshold
-        
+
     from utils.alpha.shadow_real_data_feeder import ShadowRealDataFeeder
     from utils.data_provider import MarketDataProvider
-    
+
     input_path = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
     provider = MarketDataProvider(backtest_mode=False)
     feeder = ShadowRealDataFeeder(
@@ -55,15 +55,15 @@ def run_with_logic(use_new_logic: bool) -> list[dict[str, Any]]:
         output_path=input_path,
         skip_weekend=False,
     )
-    
+
     records = []
     for line in input_path.read_text(encoding="utf-8").splitlines():
         if line.strip():
             try:
                 records.append(json.loads(line))
-            except:
+            except Exception:
                 pass
-                
+
     all_details = []
     for rec in records:
         date = rec.get("date", "")
@@ -71,24 +71,24 @@ def run_with_logic(use_new_logic: bool) -> list[dict[str, Any]]:
             continue
         try:
             weights = feeder._load_target_weights(date)
-        except:
+        except Exception:
             continue
-            
+
         day_details = []
         for symbol in weights:
             try:
                 prev_close, target_close = feeder._fetch_symbol_prices(symbol, date)
-            except:
+            except Exception:
                 continue
-                
+
             if prev_close is None or target_close is None or prev_close <= 0 or target_close <= 0:
                 continue
-                
+
             ret = target_close / prev_close - 1.0
             ret_pct = ret * 100
             threshold = mr.get_abnormal_threshold(symbol)
             is_abnormal = abs(ret) > threshold
-            
+
             day_details.append({
                 "symbol": symbol,
                 "ret_pct": round(ret_pct, 2),
@@ -96,20 +96,20 @@ def run_with_logic(use_new_logic: bool) -> list[dict[str, Any]]:
                 "is_abnormal": is_abnormal,
                 "is_20cm": _original_is_20cm(symbol),
             })
-            
+
         all_details.append({
             "date": date,
             "details": day_details,
             "abnormal_count": sum(1 for d in day_details if d["is_abnormal"])
         })
-        
+
     return all_details
 
 def main():
     print("=" * 70)
     print("双轨逻辑强制对比测试")
     print("=" * 70)
-    
+
     # 运行旧逻辑
     print("\n[1/2] 运行旧逻辑 (统一 ±20%)...")
     old_results = run_with_logic(use_new_logic=False)
@@ -120,26 +120,26 @@ def main():
             for d in r["details"]:
                 if d["is_abnormal"]:
                     print(f"    {r['date']}: {d['symbol']} ({d['ret_pct']:+.2f}%)")
-    
+
     # 运行新逻辑
     print("\n[2/2] 运行新逻辑 (20cm ±30%, 10cm ±20%)...")
     new_results = run_with_logic(use_new_logic=True)
     new_total = sum(d["abnormal_count"] for d in new_results)
     print(f"  新逻辑总异常数: {new_total}")
-    
+
     # 恢复 (保险起见)
     mr.is_20cm_symbol = _original_is_20cm
     mr.get_abnormal_threshold = _original_get_threshold
-    
+
     # 对比分析
     comparison_data = []
     reclassified_count = 0
-    
+
     for old, new in zip(old_results, new_results):
         date = old["date"]
         old_details = {d["symbol"]: d for d in old["details"]}
         new_details = {d["symbol"]: d for d in new["details"]}
-        
+
         day_comparison = []
         for symbol in set(list(old_details.keys()) + list(new_details.keys())):
             o = old_details.get(symbol)
@@ -166,13 +166,13 @@ def main():
                         "new_flagged": True,
                         "exempted": False,
                     })
-        
+
         if day_comparison:
             comparison_data.append({
                 "date": date,
                 "comparisons": day_comparison,
             })
-            
+
     print()
     print("=" * 70)
     print("对比结果汇总")
@@ -181,7 +181,7 @@ def main():
     print(f"  新逻辑 (差异化) 异常数: {new_total}")
     print(f"  被豁免 (旧→新): {reclassified_count} 个")
     print(f"  新增 (旧←新): {old_total - new_total - reclassified_count} 个 (应≈0)")
-    
+
     # 生成报告
     report = {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -193,11 +193,11 @@ def main():
         },
         "daily_comparison": comparison_data,
     }
-    
+
     out_json = _PROJECT_ROOT / "reports" / "evolution" / "logic_comparison_report.json"
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    
+
     # 生成 MD
     md_lines = []
     md_lines.append("# 双轨逻辑强制对比报告\n")
@@ -210,13 +210,13 @@ def main():
     md_lines.append(f"| 20cm 合理涨停豁免数 | **{report['summary']['reclassified']}** |")
     md_lines.append(f"| 净改善 | {report['summary']['net_improvement']} |")
     md_lines.append("")
-    
+
     exempted_details = []
     for day in comparison_data:
         for item in day["comparisons"]:
             if item.get("exempted"):
                 exempted_details.append({"date": day["date"], **item})
-                
+
     if exempted_details:
         md_lines.append("## 被豁免标的详情 (旧逻辑异常 → 新逻辑正常)\n")
         md_lines.append("| 日期 | 标的 | 涨跌幅 | 板别 | 旧逻辑 (20%) | 新逻辑 (30%) |")
@@ -227,7 +227,7 @@ def main():
                 f"| {d['date']} | {d['symbol']} | {d['ret_pct']:+.2f}% | {board} | **异常** | 正常 |"
             )
         md_lines.append("")
-    
+
     md_lines.append("## 结论\n")
     md_lines.append(
         f"通过强制对比测试, 差异化阈值逻辑成功将 **{report['summary']['reclassified']}** 个 "
@@ -236,14 +236,14 @@ def main():
         f"净异常告警数量从 {report['summary']['old_logic_total']} 降至 {report['summary']['new_logic_total']}, "
         f"改善 **{report['summary']['net_improvement']}** 个告警."
     )
-    
+
     out_md = _PROJECT_ROOT / "reports" / "evolution" / "logic_comparison_report.md"
     out_md.write_text("\n".join(md_lines), encoding="utf-8")
-    
-    print(f"\n报告已生成:")
+
+    print("\n报告已生成:")
     print(f"  JSON: {out_json}")
     print(f"  MD:   {out_md}")
-    
+
     return 0
 
 if __name__ == "__main__":

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 3: 风险预算计算 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py L1051-L1382
@@ -18,9 +17,15 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import requests
+
+try:
+    import certifi
+    _SSL_VERIFY = certifi.where()
+except ImportError:
+    _SSL_VERIFY = True
 
 from workflow.context import WorkflowContext, get_dw_module
 
@@ -31,7 +36,7 @@ _dw = get_dw_module()
 BASE_DIR: Path = getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent) if _dw else Path(__file__).resolve().parent.parent
 
 
-def phase_risk(ctx: WorkflowContext) -> Dict[str, Any]:
+def phase_risk(ctx: WorkflowContext) -> dict[str, Any]:
     """风险预算计算 — 2026 年交易计划组合级别
 
     基于 `2026年交易计划.md` 的资金配置:
@@ -178,7 +183,7 @@ def phase_risk(ctx: WorkflowContext) -> Dict[str, Any]:
 
 def _infer_style_from_code(code: str) -> str:
     """基于代码前缀粗略推断持仓风格（建仓计划缺失时的回退）"""
-    c = str(code).lstrip("shszbjSHBJ").lower()
+    c = re.sub(r'^(?:sh|sz|bj|SH|SZ|BJ)', '', str(code)).lower()
     if c.startswith("588"):
         return "高端制造"
     if c.startswith("515"):
@@ -215,8 +220,8 @@ def _infer_style_from_code(code: str) -> str:
     return "科技"
 
 
-def _style_beta_proxy(positions: Dict[str, float],
-                      prices: Dict[str, float]) -> float:
+def _style_beta_proxy(positions: dict[str, float],
+                      prices: dict[str, float]) -> float:
     """风格 Beta 代理：当真实历史收益率失效时，基于持仓风格权重估算组合 Beta
 
     Args:
@@ -246,10 +251,10 @@ def _style_beta_proxy(positions: Dict[str, float],
 
     # 优先从 500万建仓计划读取 style 和 weight，回退到 v7.6 主计划
     build_plan_path = BASE_DIR.parent / "500万建仓计划_20260706.json"
-    style_weights: Dict[str, float] = {}
+    style_weights: dict[str, float] = {}
     if build_plan_path.exists():
         try:
-            with open(build_plan_path, "r", encoding="utf-8") as _f:
+            with open(build_plan_path, encoding="utf-8") as _f:
                 _plan = json.load(_f)
             _target = _plan.get("target_portfolio", _plan.get("stock_etf_account", {}).get("positions", {}))
             for _code, _info in _target.items():
@@ -266,7 +271,7 @@ def _style_beta_proxy(positions: Dict[str, float],
         master_plan_path = BASE_DIR / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
         if master_plan_path.exists():
             try:
-                with open(master_plan_path, "r", encoding="utf-8") as _f:
+                with open(master_plan_path, encoding="utf-8") as _f:
                     _plan = json.load(_f)
                 _target = _plan.get("stock_etf_account", {}).get("positions", {})
                 for _info in _target.values():
@@ -325,7 +330,7 @@ def _get_if_realtime() -> dict:
     for sym in sina_candidates:
         try:
             url = f"https://hq.sinajs.cn/list=nf_{sym}"
-            resp = session.get(url, headers=headers, timeout=10, verify=False)
+            resp = session.get(url, headers=headers, timeout=10, verify=_SSL_VERIFY)
             text = resp.text
             m = re.search(r'var hq_str_nf_' + re.escape(sym) + r'="(.+)"', text)
             if not m:
@@ -346,7 +351,7 @@ def _get_if_realtime() -> dict:
 
     try:
         url = "https://qt.gtimg.cn/q=IF"
-        resp = session.get(url, headers=headers, timeout=10, verify=False)
+        resp = session.get(url, headers=headers, timeout=10, verify=_SSL_VERIFY)
         text = resp.text
         m = re.search(r'v_(.+)="(.+)"', text)
         if m:

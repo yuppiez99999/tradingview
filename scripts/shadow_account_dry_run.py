@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 影子账户 5 日 dry_run 验证脚本
 ==============================
@@ -29,14 +28,14 @@ import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 确保项目根目录在 sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from utils.pipeline import PipelineOrchestrator, PipelineConfig, PipelineStage
+from utils.pipeline import PipelineOrchestrator
 
 
 def setup_logging(level: str = "INFO") -> None:
@@ -55,7 +54,7 @@ def run_single_day(
     total_days: int,
     orchestrator: PipelineOrchestrator,
     verbose: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     执行单日 dry_run 验证
 
@@ -83,7 +82,7 @@ def run_single_day(
     elapsed = time.time() - start_time
 
     # 收集指标
-    day_metrics: Dict[str, Any] = {
+    day_metrics: dict[str, Any] = {
         "day": day,
         "sim_date": sim_date,
         "status": "PASS" if result.success else "FAIL",
@@ -103,17 +102,17 @@ def run_single_day(
     print(f"  📊 执行: {result.metrics.get('execution', {}).get('total_orders', 0)} 订单")
 
     if verbose and result.metrics:
-        print(f"\n  📋 详细指标:")
+        print("\n  📋 详细指标:")
         print(f"    {json.dumps(result.metrics, ensure_ascii=False, indent=4)}")
 
     return day_metrics
 
 
 def generate_summary_report(
-    all_days: List[Dict[str, Any]],
+    all_days: list[dict[str, Any]],
     report_dir: Path,
     timestamp: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     生成 5 日汇总报告
 
@@ -133,7 +132,7 @@ def generate_summary_report(
     total_duration = sum(d["duration_seconds"] for d in all_days)
 
     # 阶段通过率
-    stage_counts: Dict[str, int] = {}
+    stage_counts: dict[str, int] = {}
     for d in all_days:
         stage = d["stage"]
         stage_counts[stage] = stage_counts.get(stage, 0) + 1
@@ -146,7 +145,7 @@ def generate_summary_report(
         avg_signals.append(m.get("alpha", {}).get("signals_count", 0))
         avg_orders.append(m.get("execution", {}).get("total_orders", 0))
 
-    summary: Dict[str, Any] = {
+    summary: dict[str, Any] = {
         "report_title": "影子账户 5 日 dry_run 验证报告",
         "generated_at": datetime.now().isoformat(),
         "total_days": total,
@@ -184,7 +183,7 @@ def main() -> int:
     report_dir = PROJECT_ROOT / "reports" / "pipeline"
 
     print(f"\n{'='*60}")
-    print(f"  影子账户 dry_run 验证")
+    print("  影子账户 dry_run 验证")
     print(f"  天数: {args.days} 日 | 模式: dry_run")
     print(f"  开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}")
@@ -193,7 +192,7 @@ def main() -> int:
     orchestrator = PipelineOrchestrator()
 
     # 执行每日验证
-    all_days: List[Dict[str, Any]] = []
+    all_days: list[dict[str, Any]] = []
     for day in range(1, args.days + 1):
         day_metrics = run_single_day(
             day=day,
@@ -212,7 +211,7 @@ def main() -> int:
 
         # 日间间隔 (模拟不同交易日)
         if day < args.days:
-            print(f"  ⏳ 等待 1 秒进入下一日...")
+            print("  ⏳ 等待 1 秒进入下一日...")
             time.sleep(1)
 
     # 生成汇总报告
@@ -220,7 +219,7 @@ def main() -> int:
 
     # 输出最终结果
     print(f"\n{'='*60}")
-    print(f"  验证完成")
+    print("  验证完成")
     print(f"  通过: {summary['passed_days']}/{summary['total_days']} 天")
     print(f"  平均耗时: {summary['avg_duration_seconds']}s")
     print(f"  总耗时: {summary['total_duration_seconds']}s")

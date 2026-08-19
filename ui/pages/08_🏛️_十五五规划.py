@@ -1,20 +1,22 @@
-# -*- coding: utf-8 -*-
 """十五五规划分析 — 持仓对标 + 政策对齐度评分 + 权重调整建议"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
-import pandas as pd
 from datetime import datetime
+
+import pandas as pd
+import streamlit as st
 
 st.title("🏛️ 十五五规划适配分析")
 st.caption("持仓对标十五五规划七大战略方向 — 政策对齐度评分 + 权重调整建议")
 
-from ui.components.module_loader import get_system_module
 from ui.components.common import inject_global_style
-from ui.components.system_status import render_alert_card, render_status_card
+from ui.components.module_loader import get_system_module
+from ui.components.system_status import render_alert_card
 
 inject_global_style()
 
@@ -53,10 +55,14 @@ if st.button("🚀 运行十五五规划分析", type="primary"):
         hold_df = pd.DataFrame(hold_data)
 
         def color_grade(val):
-            if val == 'A': return 'background-color: #f6ffed; color: #52c41a; font-weight: bold'
-            elif val == 'B': return 'background-color: #e6f7ff; color: #1890ff'
-            elif val == 'C': return 'background-color: #fffbe6; color: #faad14'
-            elif val == 'D': return 'background-color: #fff2f0; color: #ff4d4f'
+            if val == 'A':
+                return 'background-color: #f6ffed; color: #52c41a; font-weight: bold'
+            elif val == 'B':
+                return 'background-color: #e6f7ff; color: #1890ff'
+            elif val == 'C':
+                return 'background-color: #fffbe6; color: #faad14'
+            elif val == 'D':
+                return 'background-color: #fff2f0; color: #ff4d4f'
             return ''
 
         st.dataframe(hold_df.style.map(color_grade, subset=['等级']),
@@ -71,8 +77,10 @@ if st.button("🚀 运行十五五规划分析", type="primary"):
         adj_df = pd.DataFrame(adj_data)
 
         def highlight_adjust(val):
-            if val.startswith('+'): return 'color: #52c41a; font-weight: bold'
-            elif val.startswith('-'): return 'color: #ff4d4f; font-weight: bold'
+            if val.startswith('+'):
+                return 'color: #52c41a; font-weight: bold'
+            elif val.startswith('-'):
+                return 'color: #ff4d4f; font-weight: bold'
             return ''
 
         st.dataframe(adj_df.style.map(highlight_adjust, subset=['调整幅度']),

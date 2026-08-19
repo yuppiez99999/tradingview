@@ -6,13 +6,15 @@
 核心目标: 严格控制最大回撤 < 15%，自动化收取 Theta 时间价值
 """
 
+from __future__ import annotations
+
 import logging
 import math
 import os
 import threading
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("alpha_hedge_engine")
 
@@ -45,7 +47,7 @@ except Exception as e:  # noqa: BLE001
 class RiskControl:
     """统一风控检查器，集成 DrawdownCircuitBreaker + KillSwitch 两套熔断协议"""
 
-    def __init__(self, margin_limit=0.50, max_drawdown_limit=None, fat_finger_limit=500000):
+    def __init__(self, margin_limit: float = 0.50, max_drawdown_limit: float | None = None, fat_finger_limit: float = 500000) -> None:
         # B1.3: 默认值从 config/risk_params.yaml 读取
         if max_drawdown_limit is None:
             max_drawdown_limit = _DEFAULT_MAX_DRAWDOWN_LIMIT
@@ -58,7 +60,7 @@ class RiskControl:
         # 集成 utils/kill_switch 的三级保证金熔断协议 (L1=50%, L2=65%, L3=75%)
         self.kill_switch = KillSwitch(margin_limit=margin_limit) if KillSwitch else None
 
-    def check_drawdown(self, current_drawdown: float):
+    def check_drawdown(self, current_drawdown: float) -> DrawdownDecision | None:
         """组合层面回撤分级熔断检查（current_drawdown 为负值，如 -0.10）。
 
         Returns:
@@ -159,8 +161,8 @@ class OptionContractFinder:
 
 
 class AlphaHedgeEngine:
-    def __init__(self, account_id: str, broker=None, mode: str = "sim",
-                 total_aum: float = None):
+    def __init__(self, account_id: str, broker: Any = None, mode: str = "sim",
+                 total_aum: float = None) -> None:
         self.account_id = account_id
         self.mode = mode
         self.broker = broker
@@ -184,10 +186,10 @@ class AlphaHedgeEngine:
             "tech_etf": "588000.SH",
         }
 
-        self._fills: List[Dict] = []
+        self._fills: list[dict] = []
         self._lock = threading.RLock()
 
-    def _execute_order(self, symbol: str, qty: int, side: str, price: float) -> Dict:
+    def _execute_order(self, symbol: str, qty: int, side: str, price: float) -> dict:
         if self.mode == "sim":
             fill = {
                 "order_id": f"SIM-{int(time.time() * 1000)}",
@@ -207,7 +209,7 @@ class AlphaHedgeEngine:
 
         return {"status": "FAILED", "reason": "无可用经纪商"}
 
-    def execute_covered_call(self):
+    def execute_covered_call(self) -> None:
         logger.info("\n>>> 启动 Theta 引擎：备兑收租模块扫描中...")
 
         for _name, etf_code in self.spot_pool.items():
@@ -251,7 +253,7 @@ class AlphaHedgeEngine:
             result = self._execute_order(target_option, order_volume, "SELL_OPEN", ask_price)
             logger.info("下单结果: %s", result.get('status', 'UNKNOWN'))
 
-    def tail_risk_monitor(self):
+    def tail_risk_monitor(self) -> None:
         logger.info("\n>>> 启动 Gamma 引擎：尾部风险监控中...")
 
         tech_etf = self.spot_pool["tech_etf"]
@@ -302,7 +304,7 @@ class AlphaHedgeEngine:
             result = self._execute_order(target_put, volume, "BUY_OPEN", ask_price)
             logger.info("下单结果: %s", result.get('status', 'UNKNOWN'))
 
-    def execute_options_order(self, symbol: str, qty: int, side: str, price: float) -> Dict:
+    def execute_options_order(self, symbol: str, qty: int, side: str, price: float) -> dict:
         """执行期权订单，包含流动性/风控检查"""
         logger.info("\n>>> 执行期权订单: %s %s手 %s @ %s", side, qty, symbol, price)
 
@@ -321,7 +323,7 @@ class AlphaHedgeEngine:
 
         return self._execute_order(symbol, qty, side, price)
 
-    def monitor_drawdown(self, current_drawdown: float):
+    def monitor_drawdown(self, current_drawdown: float) -> dict[str, Any] | None:
         """回撤分级熔断监控：超过强制对冲阈值时真正买入尾部保险。
 
         P0-C3 修复: 原实现仅在 FORCE_HEDGE/HALT 时记录日志 (fail-open 熔断,
@@ -516,7 +518,7 @@ class AlphaHedgeEngine:
         logger.warning("[期权乘数] 无法识别合约品种 %s, 使用默认乘数 10000", symbol)
         return 10000
 
-    def run_daily_routine(self, current_drawdown: Optional[float] = None):
+    def run_daily_routine(self, current_drawdown: Optional[float] = None) -> None:
         logger.info("[%s] 启动宏观对冲专户执行引擎...", time.strftime('%Y-%m-%d %H:%M:%S'))
         # M17 修复: 区分可恢复异常 (log 并继续) 和致命异常 (log 后 re-raise)
         # 原逻辑捕获所有异常后继续执行, 调用者无法感知失败
@@ -561,7 +563,7 @@ class AlphaHedgeEngine:
             raise
 
 
-def main():
+def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
     # C6 修复: mode 独立于 broker 是否加载, 通过显式参数控制

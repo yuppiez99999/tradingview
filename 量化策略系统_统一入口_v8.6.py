@@ -96,7 +96,7 @@ import os
 import sys
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -362,7 +362,7 @@ except ImportError:
 # run_hypothesis_test / run_ai_hedge_mode / run_stress_test_mode /
 # run_stop_loss_config_mode / run_ml_signal_mode) 保持可用.
 # cli/modes 目录保留以备后续重建, 但不再被主入口 import.
-def _deprecated_mode_stub(mode_name: str, flag: str, alt_entry: str = '') -> Any:
+def _deprecated_mode_stub(mode_name: str, flag: str, alt_entry: str = '') -> Callable[..., dict]:
     """生成已废弃模式的占位 handler (方案A: cli/modes 废弃回退)。
 
     Args:
@@ -370,13 +370,13 @@ def _deprecated_mode_stub(mode_name: str, flag: str, alt_entry: str = '') -> Any
         flag: 对应的命令行 flag (如 '--daily')
         alt_entry: 替代入口命令 (无则提示参考 v8.3_institutional/)
     """
-    def _stub(args: Any) -> dict:
+    def _stub(args: argparse.Namespace) -> dict:
         logger.warning(f"⚠️ {flag} {mode_name} 模式已废弃 (cli/modes 模块化重构回退, 方案A)。")
         if alt_entry:
             logger.info(f"💡 替代入口: {alt_entry}")
         else:
-            logger.info(f"💡 该模式暂未迁移到独立入口, 请参考 v8.3_institutional/ 目录相关脚本。")
-        logger.info(f"   生产入口: py -3.8 v8.3_institutional/daily_workflow.py --phase all")
+            logger.info("💡 该模式暂未迁移到独立入口, 请参考 v8.3_institutional/ 目录相关脚本。")
+        logger.info("   生产入口: py -3.8 v8.3_institutional/daily_workflow.py --phase all")
         return {'deprecated': True, 'mode': mode_name, 'flag': flag}
     _stub.__name__ = f'run_deprecated_{flag.strip("-")}'
     _stub.__doc__ = f'[已废弃·方案A] {mode_name} — cli/modes 已废弃, 见 v8.3_institutional/'
@@ -441,7 +441,7 @@ def get_stock_name(code: str) -> str:
         return code
 
 
-def get_ml_signal_section(external_signals: dict = None, return_raw=False,
+def get_ml_signal_section(external_signals: dict = None, return_raw: bool = False,
                            use_enhanced: bool = True) -> Optional[str]:
     """
     运行 ML 模型信号扫描，返回 Markdown 格式的信号报告段落。
@@ -468,8 +468,10 @@ def get_ml_signal_section(external_signals: dict = None, return_raw=False,
                     kline_dict = {}
                     for f in glob.glob(os.path.join(data_dir, 'kline_*.parquet')):
                         code = os.path.basename(f).replace('kline_', '').replace('_daily.parquet', '')
-                        try: kline_dict[code] = pd.read_parquet(f)
-                        except Exception: continue  # noqa: BLE001  # fail-safe, 待后续精确化
+                        try:
+                            kline_dict[code] = pd.read_parquet(f)
+                        except Exception:
+                            continue  # noqa: BLE001  # fail-safe, 待后续精确化
                     if kline_dict:
                         signals = ep.generate_trading_signals(kline_dict)
                         info = ep.get_model_info()
@@ -721,7 +723,7 @@ def _get_portfolio_quotes() -> Dict[str, Dict[str, float]]:
     return result
 
 
-def _build_etf_flow_data(flow_monitor) -> Optional[dict]:
+def _build_etf_flow_data(flow_monitor: object) -> Optional[dict]:
     """将 ETFFundFlowMonitor.flow_data 转为 SocialSecurityETFTracker 需要的格式（无数据返回 None）。"""
     if not flow_monitor.flow_data:
         return None
@@ -736,7 +738,7 @@ def _build_etf_flow_data(flow_monitor) -> Optional[dict]:
     }
 
 
-def get_etf_flow_data(connector_manager=None) -> Optional[dict]:
+def get_etf_flow_data(connector_manager: object = None) -> Optional[dict]:
     """获取ETF资金流数据（带错误处理和降级）。"""
     if connector_manager is None:
         connector_manager = globals().get('connector_manager')
@@ -749,7 +751,7 @@ def get_etf_flow_data(connector_manager=None) -> Optional[dict]:
         return None
 
 
-def run_ml_signal_mode(args):
+def run_ml_signal_mode(args: argparse.Namespace) -> None:
     """ML模型预测信号模式 - 基于训练好的模型生成涨跌信号
 
     P2-4: 函数体此前为空 (假成功)。未实现时显式抛错避免静默成功。
@@ -759,7 +761,7 @@ def run_ml_signal_mode(args):
         "--ml-enhanced (ML增强预测) 或 v8.3_institutional/ 独立入口"
     )
 
-def run_live_monitoring(args):
+def run_live_monitoring(args: argparse.Namespace) -> None:
     """实时监控模式 - 盘中实时行情监控 + 自动再平衡 + ML信号"""
     logger.info("\n🚀 启动实时监控模式")
     logger.info("=" * 70)
@@ -800,7 +802,7 @@ def run_live_monitoring(args):
     else:
         progress.complete("❌ 自动交易系统模块不可用")
 
-def run_report_generation(args):
+def run_report_generation(args: argparse.Namespace) -> None:
     """报告生成模式 - 生成每日持仓报告 + ML信号 (v5.7 Phase 3: ConfigHub集成)"""
     logger.info("\n📝 生成每日报告")
     logger.info("=" * 70)
@@ -855,7 +857,7 @@ def run_report_generation(args):
     else:
         progress.complete("❌ 每日报告模块不可用")
 
-def run_rebalance(args):
+def run_rebalance(args: argparse.Namespace) -> None:
     """再平衡模式 - 执行再平衡计划 (支持Excel和portfolio.yaml两种方式)"""
     logger.info("\n🔄 执行再平衡计划")
     logger.info("=" * 70)
@@ -932,7 +934,7 @@ def run_rebalance(args):
         logger.info("  1. config/portfolio.yaml (必需)")
         logger.info("  2. data_extraction_*.xlsx (可选,用于详细再平衡计划)")
 
-def run_backtest(args):
+def run_backtest(args: argparse.Namespace) -> None:
     """回测模式 - 历史数据回测验证"""
     logger.info("\n📊 运行回测")
     logger.info("=" * 70)
@@ -976,7 +978,7 @@ def run_backtest(args):
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             progress.complete(f"❌ 回测模块不可用: {e}")
 
-def _check_commodity_module():
+def _check_commodity_module() -> bool:
     """检查大宗商品基本面模块是否可用"""
     try:
         sys.path.insert(0, os.path.join(BASE_DIR, '..', '03_投研与策略生成'))
@@ -986,13 +988,13 @@ def _check_commodity_module():
         return False
 
 
-def run_quick_check(args):
+def run_quick_check(args: argparse.Namespace) -> None:
     """快速检查模式 - 检查系统状态"""
     logger.info("\n🔍 系统状态快速检查")
     logger.info("=" * 70)
 
     # 检查模块可用性
-    def _package_available(pkg_name):
+    def _package_available(pkg_name: str) -> bool:
         try:
             import importlib.util
             return importlib.util.find_spec(pkg_name) is not None
@@ -1081,8 +1083,10 @@ def run_quick_check(args):
             hedged = scene_cfg.get('parallel_hedge', {}).get('enabled', False)
             cv = scene_cfg.get('cross_validation', {}).get('enabled', False)
             extra = ""
-            if hedged: extra = " (并行对冲)"
-            elif cv: extra = " (交叉验证)"
+            if hedged:
+                extra = " (并行对冲)"
+            elif cv:
+                extra = " (交叉验证)"
             logger.info(f"    {scene_name}: {primary.get('provider')}/{primary.get('model')}{extra}")
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.error(f"  ❌ 多模型路由器: {e}")
@@ -1149,7 +1153,7 @@ def run_quick_check(args):
 
     logger.info("\n" + "=" * 70)
 
-def run_model_training(args):
+def run_model_training(args: argparse.Namespace) -> None:
     """统一模型训练入口 (v5.7 Phase 2 增强)
 
     整合所有训练管线:
@@ -1165,10 +1169,11 @@ def run_model_training(args):
         "--train-enhanced (ML增强训练) 或 v8.3_institutional/ 独立入口"
     )
 
-def run_enhanced_training_mode(args):
+def run_enhanced_training_mode(args: argparse.Namespace) -> Optional[dict]:
     """ML增强训练 v2.0 — 四维优化管线"""
     if not ML_ENHANCED_TRAINER_AVAILABLE:
-        logger.error("\n❌ 增强训练引擎未安装"); return None
+        logger.error("\n❌ 增强训练引擎未安装")
+        return None
 
     horizon = getattr(args, 'horizon', 1)
     filter_osc = getattr(args, 'filter_oscillation', True)
@@ -1204,9 +1209,12 @@ def run_enhanced_training_mode(args):
         return None
 
     if 'error' in result:
-        logger.error(f"\n❌ 训练失败: {result['error']}"); return None
+        logger.error(f"\n❌ 训练失败: {result['error']}")
+        return None
 
-    progress.update(3, "训练..."); progress.update(4, "保存..."); progress.update(5, "完成")
+    progress.update(3, "训练...")
+    progress.update(4, "保存...")
+    progress.update(5, "完成")
     progress.complete("✅ 增强训练完成")
 
     logger.info(f"\n📊 最佳: {result['best_model']} | F1={result['best_f1']:.4f} "
@@ -1222,10 +1230,11 @@ def run_enhanced_training_mode(args):
 # ML 增强预测模式 — 四维优化模型预测
 # ============================================================
 
-def run_enhanced_prediction_mode(args):
+def run_enhanced_prediction_mode(args: argparse.Namespace) -> Optional[dict]:
     """ML增强预测 v2.0"""
     if not ML_ENHANCED_PREDICTOR_AVAILABLE:
-        logger.error("\n❌ 增强预测器不可用"); return None
+        logger.error("\n❌ 增强预测器不可用")
+        return None
 
     logger.info("\n" + "=" * 70)
     logger.info("  📈 ML 增强预测 v2.0")
@@ -1251,10 +1260,14 @@ def run_enhanced_prediction_mode(args):
     kline_dict = {}
     for f in glob.glob(os.path.join(data_dir, 'kline_*.parquet')):
         code = os.path.basename(f).replace('kline_', '').replace('_daily.parquet', '')
-        try: kline_dict[code] = pd.read_parquet(f)
-        except Exception: continue  # noqa: BLE001  # fail-safe, 待后续精确化
+        try:
+            kline_dict[code] = pd.read_parquet(f)
+        except Exception:
+            continue  # noqa: BLE001  # fail-safe, 待后续精确化
 
-    if not kline_dict: logger.warning("  ⚠️ 无K线数据"); return None
+    if not kline_dict:
+        logger.warning("  ⚠️ 无K线数据")
+        return None
 
     progress.update(3, "预测...")
     signals = predictor.generate_trading_signals(kline_dict, threshold=threshold)
@@ -1288,7 +1301,7 @@ def run_enhanced_prediction_mode(args):
 # v5.1 新增：康波周期 + 十五五规划 + 社保基金ETF 综合分析
 # ============================================================
 
-def run_hypothesis_test(args):
+def run_hypothesis_test(args: argparse.Namespace) -> None:
     """假设验证模式 - 验证交易假设"""
     logger.info("\n🧪 假设验证模式")
     logger.info("=" * 70)
@@ -1336,7 +1349,7 @@ def run_hypothesis_test(args):
 # 统一执行日志 (v5.7 Phase 1 新增)
 # ============================================================
 
-def _log_execution_summary(mode_name: str, duration_sec: float, success: bool, result: Any = None):
+def _log_execution_summary(mode_name: str, duration_sec: float, success: bool, result: Optional[dict] = None) -> None:
     """记录每个CLI模式执行的统一结构化日志。
 
     v5.7 Phase 1: 为所有22个CLI模式提供一致的可观测性。
@@ -1385,7 +1398,7 @@ def _log_execution_summary(mode_name: str, duration_sec: float, success: bool, r
 # AI Hedge Fund — 19位大师级AI分析师联合决策模式
 # ============================================================
 
-def run_ai_hedge_mode(args):
+def run_ai_hedge_mode(args: argparse.Namespace) -> None:
     """AI Hedge Fund — 19位大师级AI分析师联合决策模式
 
     P2-4: 函数体此前为空 (假成功)。未实现时显式抛错避免静默成功。
@@ -1395,7 +1408,7 @@ def run_ai_hedge_mode(args):
         "请使用 v8.3_institutional/ 或独立 ai_hedge 入口"
     )
 
-def run_stress_test_mode(args):
+def run_stress_test_mode(args: argparse.Namespace) -> None:
     """极端压力测试模式 v5.10 — 6历史情景+蒙特卡洛+硬止损检查"""
     import numpy as np
     import yaml
@@ -1510,7 +1523,7 @@ def run_stress_test_mode(args):
     logger.info("=" * 70)
 
 
-def run_stop_loss_config_mode(args):
+def run_stop_loss_config_mode(args: argparse.Namespace) -> None:
     """止损配置模式 v5.10 — 查看/更新止损止盈规则"""
     import yaml
 
@@ -1563,7 +1576,7 @@ def run_stop_loss_config_mode(args):
     logger.info("=" * 70)
 
 
-def run_hedge_execute_mode(args):
+def run_hedge_execute_mode(args: argparse.Namespace) -> None:
     """期权对冲订单执行模式 — 撮合执行 trade_plan 中 PENDING 期权订单 (P0 修复, 2026-08-06)
 
     补齐"订单→撮合→成交→持仓/Delta 更新"闭环. 用法:
@@ -1597,7 +1610,7 @@ def run_hedge_execute_mode(args):
         )
 
 
-def run_rebalance_execute_mode(args):
+def run_rebalance_execute_mode(args: argparse.Namespace) -> dict:
     """再平衡撮合执行模式 — 撮合执行再平衡订单并落盘成交回报 (G2/G4 修复, 2026-08-08)
 
     复用 AutomatedExecutionSystem._generate_rebalance_orders() 已验证链路:
@@ -1628,7 +1641,7 @@ def run_rebalance_execute_mode(args):
     return result
 
 
-def main():
+def main() -> None:
     # ── 模式注册表：flag / dest / 帮助文本 / handler ──
     MODES = [
         ('--daily',           'daily',           '三阶段交易工作流 (盘前计划/盘中策略/盘后报告)', run_daily_workflow),
@@ -1816,7 +1829,7 @@ def main():
 
     # ── 数据驱动分发（v5.7 Phase 1 增强：统一执行时长追踪）──
     # P2-4: 已废弃模式不再记为假成功——stub 返回 {'deprecated': True} 时 success=False 且退出码非 0
-    for flag, dest, _, handler in MODES:
+    for _flag, dest, _, handler in MODES:
         if getattr(args, dest):
             start_time = time.time()
             try:

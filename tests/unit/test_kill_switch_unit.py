@@ -296,7 +296,6 @@ class TestKillSwitchConfigLoading:
 # ============================================================
 
 import os as _os
-from pathlib import Path as _Path
 
 
 class TestGetMarginStatusEnv:

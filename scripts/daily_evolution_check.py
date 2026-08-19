@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """每日演化检查器 — 观察期内仅监控+评估, 不触发任何进化动作.
-    
+
 ARCHITECTURE_自我进化框架 §7 — 观察期 (T-NEXT-1.1 + T-NEXT-1.2)
 创建: 2026-08-02
 
@@ -22,8 +22,8 @@ ARCHITECTURE_自我进化框架 §7 — 观察期 (T-NEXT-1.1 + T-NEXT-1.2)
 from __future__ import annotations
 
 import json
-import sys
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -74,7 +74,7 @@ def load_shadow_returns() -> tuple[list[float], list[str]]:
 
 def run_drift_monitor_check() -> dict[str, Any]:
     """T-NEXT-1.1: DriftMonitor 仅监控模式.
-    
+
     sim_mode=True: 绕过 Feature Flag 直接激活
     retrain_callback=None: 不触发任何重训练 (监控模式)
     """
@@ -83,13 +83,12 @@ def run_drift_monitor_check() -> dict[str, Any]:
     logger.info("=" * 50)
 
     try:
+        import numpy as np
+
         from utils.alpha.drift_monitor import (
             SimModeDriftMonitor,
-            DriftSeverity,
             compute_prediction_drift,
         )
-        import numpy as np
-        import pandas as pd
     except ImportError as e:
         logger.exception("DriftMonitor 导入失败: %s", e)
         return {"status": "import_error", "error": str(e)}
@@ -175,7 +174,7 @@ def run_drift_monitor_check() -> dict[str, Any]:
 
 def run_strategy_evaluation() -> dict[str, Any]:
     """T-NEXT-1.2: StrategyEvaluator 只读评估模式.
-    
+
     使用 evaluate_from_jsonl() 读取 Shadow 数据
     产出 Public/Private 分离的评分报告
     """
@@ -364,9 +363,9 @@ def generate_daily_briefing(drift: dict, eval_result: dict, obs: dict) -> str:
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
         f"# 每日演化简报 — {datetime.now().strftime('%Y-%m-%d')}",
-        f"",
+        "",
         f"**生成时间**: {now_str} | **阶段**: 观察期",
-        f"",
+        "",
         "---",
         "",
         "## 1. Drift 监控 (T-NEXT-1.1)",

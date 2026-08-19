@@ -1,6 +1,5 @@
 """覆盖率分析临时脚本 — 解析 coverage.xml 识别低覆盖模块."""
 import xml.etree.ElementTree as ET
-import sys
 from pathlib import Path
 
 tree = ET.parse(Path("reports/coverage.xml"))
@@ -67,18 +66,18 @@ for fname, lr, lines in file_rates[:30]:
     print(f"  {short:<60} {lr:>7.2%} {lines:>6}")
 
 # 统计 0% 覆盖的高行数文件
-zero_high = [(f, l) for f, r, l in file_rates if r == 0.0 and l > 50]
+zero_high = [(f, ln) for f, r, ln in file_rates if r == 0.0 and ln > 50]
 print(f"\n=== 0% 覆盖且行数>50 的文件 ({len(zero_high)} 个) ===")
 for fname, lines in zero_high[:20]:
     short = fname if len(fname) <= 60 else "..." + fname[-57:]
     print(f"  {short:<60} {lines:>6} 行")
 
 # 计算要达到 80% 需要补多少行
-total_lines = sum(l for _, _, l in file_rates)
-covered_lines = sum(int(l * r) for _, r, l in file_rates)
+total_lines = sum(ln for _, _, ln in file_rates)
+covered_lines = sum(int(ln * r) for _, r, ln in file_rates)
 target_lines = int(total_lines * 0.80)
 need_lines = target_lines - covered_lines
-print(f"\n=== 达标 80% 需求 ===")
+print("\n=== 达标 80% 需求 ===")
 print(f"总行数: {total_lines}")
 print(f"已覆盖: {covered_lines} ({covered_lines/total_lines:.2%})")
 print(f"目标80%: {target_lines}")

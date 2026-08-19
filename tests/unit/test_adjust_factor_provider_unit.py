@@ -4,17 +4,15 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pandas as pd
 import pytest
 
 from utils.adjust_factor_provider import (
     AdjustFactorProvider,
-    align_realtime_to_hfq,
     align_prev_close_to_today,
+    align_realtime_to_hfq,
     compute_adjusted_return,
     compute_aligned_return,
     get_adjust_factor_provider,

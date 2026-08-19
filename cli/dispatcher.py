@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 CLI 命令调度器 — v5.10 P0-9 重构第二步
 ================================================
@@ -56,7 +55,7 @@ class Dispatcher:
         Returns:
             handler 的返回值
         """
-        for flag, dest, _, handler in self._modes:
+        for _flag, dest, _, handler in self._modes:
             if getattr(args, dest, False):
                 start_time = time.time()
                 try:

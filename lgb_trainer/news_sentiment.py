@@ -573,7 +573,7 @@ def add_sentiment_features(
             scores_df = pd.DataFrame(all_scores)
             news_df = pd.DataFrame(all_news)
             # 每日有新闻的标的数
-            daily_stocks_with_news = (news_df > 0).sum(axis=1)
+            (news_df > 0).sum(axis=1)
             # 市场情绪 = 当日所有有新闻标的的情绪均值 (仅用真实新闻日)
             market_raw = scores_df.where(news_df > 0)  # 无新闻日 NaN
             market_sent_series = market_raw.mean(axis=1, skipna=True)

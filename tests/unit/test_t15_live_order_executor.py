@@ -7,19 +7,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from utils.risk.live_order_executor import (
-    LiveOrderExecutor,
-    LiveExecutionResult,
-    SliceExecutionResult,
-    BrokerProtocol,
-    FillsStoreProtocol,
-)
-from utils.risk.pretrade_guard import PreTradeGuard
-from utils.risk.position_limit_enforcer import PositionLimitEnforcer
 from utils.risk.intraday_circuit_breaker import IntradayCircuitBreaker
 from utils.risk.kill_switch_manager import KillSwitchManager
+from utils.risk.live_order_executor import (
+    LiveExecutionResult,
+    LiveOrderExecutor,
+)
+from utils.risk.position_limit_enforcer import PositionLimitEnforcer
+from utils.risk.pretrade_guard import PreTradeGuard
 from utils.risk.risk_audit_logger import RiskAuditLogger
-
 
 # ============================================================
 # 测试夹具
@@ -195,7 +191,6 @@ class TestT09GuardRejection:
         original_check = ex.guard.check
 
         def st_check(req):
-            from utils.risk.pretrade_guard import GuardResult
             req.symbol_name = "ST 某某"
             return original_check(req)
 

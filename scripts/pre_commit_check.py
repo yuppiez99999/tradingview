@@ -164,7 +164,6 @@ def main() -> int:
                 )
                 staged = [f for f in diff_result.stdout.strip().split("\n") if f]
                 # 仅取暂存区里的 P0 文件名 (check_no_print_p0 按文件名匹配 P0_FILES)
-                from pathlib import PurePosixPath
                 p0_staged = [Path(f).name for f in staged]
                 if p0_staged:
                     print("[pre-commit] 扫描 P0 文件裸 print (T201)...")

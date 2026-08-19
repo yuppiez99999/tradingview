@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 _run_v9_regression.py — V9 工业级回归套件运行器 (真实实现)
 
@@ -29,10 +28,9 @@ import argparse
 import json
 import os
 import subprocess
-import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORTS = ROOT / "reports" / "ci"
@@ -73,7 +71,7 @@ def run_script(rel: str, *extra) -> Stage:
     return Stage(rel, proc.returncode == 0, tail, proc.returncode)
 
 
-def run_pytest(targets: List[str]) -> Stage:
+def run_pytest(targets: list[str]) -> Stage:
     existing = [t for t in targets if (ROOT / t).exists()]
     if not existing:
         return Stage("pytest-regression", True, "no targets present, skipped", 0)
@@ -89,7 +87,7 @@ def run_pytest(targets: List[str]) -> Stage:
     return Stage("pytest-regression", proc.returncode == 0, tail, proc.returncode)
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="V9 regression runner")
     parser.add_argument("--pytest-root", default="tests")
     parser.add_argument("--output", default=str(REPORTS / "v9_regression.json"))
@@ -97,7 +95,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     REPORTS.mkdir(parents=True, exist_ok=True)
-    stages: List[Stage] = [
+    stages: list[Stage] = [
         run_script("scripts/assert_data_validity.py"),
         run_script("scripts/industrial_grade_check.py"),
     ]

@@ -74,7 +74,7 @@ class TestStockInsight:
 
 class TestIFinDNewsAnalyzerInit:
     def test_call_available(self):
-        with patch("utils.ifind_news_analyzer.sys") as mock_sys:
+        with patch("utils.ifind_news_analyzer.sys"):
             mock_call = MagicMock()
             with patch.dict("sys.modules", {"call": MagicMock(call=mock_call)}):
                 analyzer = IFinDNewsAnalyzer()
@@ -204,7 +204,7 @@ class TestBatchAnalyze:
 
     def test_batch_failure_skips(self):
         analyzer = IFinDNewsAnalyzer.__new__(IFinDNewsAnalyzer)
-        with patch.object(analyzer, "analyze_symbol", side_effect=RuntimeError("fail")) as mock_analyze:
+        with patch.object(analyzer, "analyze_symbol", side_effect=RuntimeError("fail")):
             with patch("utils.ifind_news_analyzer.logger") as mock_logger:
                 results = analyzer.batch_analyze(["000001.SZ"])
         assert results == []

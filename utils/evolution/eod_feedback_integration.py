@@ -308,7 +308,7 @@ def run_feedback_loop(
         from utils.evolution.memory import EvolutionMemory
 
         memory = EvolutionMemory(
-            file_path=Path(memory_path) if memory_path else DEFAULT_MEMORY_PATH,
+            memory_path=Path(memory_path) if memory_path else DEFAULT_MEMORY_PATH,
         )
 
         # 6. 初始化 FeedbackLoop

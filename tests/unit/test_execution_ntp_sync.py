@@ -67,8 +67,8 @@ def test_ntp_sync_server_ts_local_ts(ntp):
     """server_ts = local_ts + offset, 差值接近 |offset|"""
     ntp.offset_seconds = -0.009
     s = ntp.server_ts()
-    l = ntp.local_ts()
-    diff = abs((s - l).total_seconds())
+    local = ntp.local_ts()
+    diff = abs((s - local).total_seconds())
     assert diff == pytest.approx(0.009, abs=1e-2)
 
 

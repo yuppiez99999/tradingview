@@ -172,7 +172,7 @@ def load_observation_progress() -> dict[str, Any]:
         logger.warning("observation_progress.json 不存在: %s", OBSERVATION_PROGRESS_FILE)
         return {}
     try:
-        with open(OBSERVATION_PROGRESS_FILE, "r", encoding="utf-8") as f:
+        with open(OBSERVATION_PROGRESS_FILE, encoding="utf-8") as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError) as exc:
         logger.exception("读取 observation_progress.json 失败: %s", exc)
@@ -197,7 +197,7 @@ def load_cleaned_real_records() -> tuple[list[dict[str, Any]], dict[str, int]]:
         return real_records, quality_stats
 
     try:
-        with open(CLEANED_FILE, "r", encoding="utf-8") as f:
+        with open(CLEANED_FILE, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -343,7 +343,7 @@ def estimate_completion_date(
         return datetime.now().strftime("%Y-%m-%d")
 
     try:
-        start_date = date.fromisoformat(start_date_str)
+        date.fromisoformat(start_date_str)
     except (ValueError, TypeError):
         return "unknown"
 
@@ -381,8 +381,8 @@ def trigger_drift_evaluation(force: bool) -> dict[str, Any]:
     """
     try:
         from scripts.integrate_cleaned_to_drift import (
-            run_integration,
             DEFAULT_CLEANED_INPUT,
+            run_integration,
         )
     except ImportError as exc:
         logger.exception("导入 run_integration 失败: %s", exc)
@@ -520,7 +520,7 @@ def print_summary(
         print(f"  ⚠️  断档告警: {stalled_days} 个交易日无新数据 (阈值 {stall['threshold']})")
         print(f"  最新数据日期: {last}")
         print(f"  原因: {stall.get('reason', 'unknown')}")
-        print(f"  建议: 检查 v84_PostMarket 是否正常运行, 数据源是否可用")
+        print("  建议: 检查 v84_PostMarket 是否正常运行, 数据源是否可用")
     else:
         last = stall.get("last_data_date", "N/A")
         print(f"  ✓ 数据正常: 最新日期 {last}, 断档天数 {stall.get('stalled_trading_days', 0)}")
@@ -530,10 +530,10 @@ def print_summary(
     print("五、漂移判定触发")
     print("─" * 60)
     if force_trigger:
-        print(f"  ⚡ 强制触发模式: 跳过门槛检查")
+        print("  ⚡ 强制触发模式: 跳过门槛检查")
     if dry_run:
         if gates["all_passed"] or force_trigger:
-            print(f"  (试运行) 本应触发漂移判定, 但 dry-run 模式未执行")
+            print("  (试运行) 本应触发漂移判定, 但 dry-run 模式未执行")
         else:
             print(f"  未达标, 未触发漂移判定 (剩余 {gates['days_remaining']} 天)")
     else:
@@ -545,7 +545,7 @@ def print_summary(
             severity_emoji = {
                 "low": "🟢", "medium": "🟡", "high": "🟠", "critical": "🔴",
             }.get(severity, "❓")
-            print(f"  ✓ 已触发漂移判定")
+            print("  ✓ 已触发漂移判定")
             print(f"    告警状态: {status}")
             print(f"    {severity_emoji} 严重等级: {severity}")
             print(f"    PSI: {psi:.4f}")
@@ -554,7 +554,7 @@ def print_summary(
         elif trigger_result.get("error"):
             print(f"  ✗ 触发失败: {trigger_result['error']}")
         else:
-            print(f"  ⏸  未触发漂移判定 (门槛未达标)")
+            print("  ⏸  未触发漂移判定 (门槛未达标)")
             print(f"     原因: 还需 {gates['days_remaining']} 天 + {gates['samples_remaining']} 条样本")
     print()
 
@@ -562,12 +562,12 @@ def print_summary(
     print("六、输出文件")
     print("─" * 60)
     if dry_run:
-        print(f"  (试运行, 无文件写入)")
+        print("  (试运行, 无文件写入)")
     else:
         print(f"  ✓ {WATCHDOG_LOG_FILE.name}  (看门狗监控日志)")
         if trigger_result.get("triggered"):
-            print(f"  ✓ drift_alerts.jsonl       (漂移告警, 由 run_integration 产出)")
-            print(f"  ✓ observation_progress.json (观察期进度, 由 run_integration 刷新)")
+            print("  ✓ drift_alerts.jsonl       (漂移告警, 由 run_integration 产出)")
+            print("  ✓ observation_progress.json (观察期进度, 由 run_integration 刷新)")
     print("=" * 60 + "\n")
 
 

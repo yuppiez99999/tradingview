@@ -22,12 +22,11 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
-import time
 import threading
-from collections import defaultdict, OrderedDict
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Optional
+import time
+from collections import OrderedDict, defaultdict
+from dataclasses import dataclass
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger("ai_hedge_fund.rate_limiter")
 
@@ -250,7 +249,7 @@ class LLMCallTracker:
     """
 
     def __init__(self) -> None:
-        self._stats: Dict[str, CallStats] = defaultdict(CallStats)
+        self._stats: dict[str, CallStats] = defaultdict(CallStats)
         self._lock = threading.Lock()
 
     def record(
@@ -276,7 +275,7 @@ class LLMCallTracker:
             else:
                 stats.failed += 1
 
-    def get_stats(self, agent_name: str = "") -> Dict[str, dict]:
+    def get_stats(self, agent_name: str = "") -> dict[str, dict]:
         with self._lock:
             if agent_name:
                 key_prefix = agent_name
@@ -337,7 +336,7 @@ class RateLimitedLLMCaller:
         self,
         fn: Callable,
         args: tuple = (),
-        kwargs: Optional[Dict[str, Any]] = None,
+        kwargs: Optional[dict[str, Any]] = None,
         agent_name: str = "",
         model_name: str = "",
         cache_key: Optional[str] = None,
@@ -402,7 +401,7 @@ class RateLimitedLLMCaller:
         raise last_exc  # type: ignore[misc]
 
     @property
-    def stats(self) -> Dict[str, dict]:
+    def stats(self) -> dict[str, dict]:
         return self.tracker.get_stats()
 
     def reset(self) -> None:

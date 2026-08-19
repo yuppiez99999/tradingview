@@ -14,13 +14,10 @@
 
 from __future__ import annotations
 
-import json
-import os
 import sys
-import types
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -32,12 +29,11 @@ from utils.system_check import (  # noqa: E402
     CheckLevel,
     CheckResult,
     CheckStatus,
-    SystemCheckReport,
     SystemChecker,
+    SystemCheckReport,
     _is_macos,
     _is_research_mode,
 )
-
 
 # ============================================================
 # Fixtures
@@ -177,7 +173,7 @@ class TestSystemCheckerInit:
         critical, optional = checker._get_critical_env_vars()
         var_names = [v for v, _ in critical]
         assert "WIND_API_KEY" in var_names
-        assert "IFIND_TOKEN" in var_names
+        # API 重构: iFinD 数据源已移除, IFIND_TOKEN 不再是关键环境变量
 
     def test_critical_env_vars_research_mode(self, monkeypatch):
         monkeypatch.setattr("utils.system_check._is_research_mode", lambda: True)

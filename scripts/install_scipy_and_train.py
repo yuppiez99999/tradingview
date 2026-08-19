@@ -6,7 +6,9 @@
 用时估算: 下载 2-3 分钟(scipy 32MB) + 训练 5-15 分钟(26 个标的)
 """
 
-import os, sys, subprocess, time
+import os
+import subprocess
+import sys
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = os.path.join(BASE_DIR, 'qlib_env', 'Scripts', 'python.exe')
@@ -31,14 +33,14 @@ else:
     print("(如果卡住超过 5 分钟, 请 Ctrl+C 后手动执行: ")
     print(" pip install --no-cache-dir scipy==1.10.1 --only-binary scipy)")
     print()
-    
+
     # 方法 1: pip 清华镜像
     print(">>> 尝试方法1: pip 清华镜像...")
     env = os.environ.copy()
     for k in list(env.keys()):
         if 'proxy' in k.lower():
             del env[k]
-    
+
     r = subprocess.run(
         [PY, '-X', 'utf8', '-m', 'pip', 'install', 'scipy==1.10.1',
          '--no-cache-dir', '--force-reinstall', '--only-binary', 'scipy',
@@ -47,7 +49,7 @@ else:
          '--proxy='],
         capture_output=False, env=env, timeout=600
     )
-    
+
     if r.returncode != 0:
         print("\n>>> 尝试方法2: pip 官方 PyPI...")
         r = subprocess.run(
@@ -57,14 +59,14 @@ else:
              '--proxy='],
             capture_output=False, env=env, timeout=600
         )
-    
+
     if r.returncode != 0:
         print("\n>>> 尝试方法3: requests 直连下载...")
         try:
             import requests
             s = requests.Session()
             s.trust_env = False
-            
+
             resp = s.get('https://pypi.org/pypi/scipy/1.10.1/json')
             data = resp.json()
             url = None
@@ -80,7 +82,7 @@ else:
                     for chunk in dl.iter_content(65536):
                         fh.write(chunk)
                 print(f"  {os.path.getsize(whl)//1024//1024}MB 已完成")
-                
+
                 r = subprocess.run(
                     [PY, '-X', 'utf8', '-m', 'pip', 'install', whl,
                      '--no-deps', '--force-reinstall'],
@@ -94,7 +96,7 @@ else:
 
 # 最终验证
 r = subprocess.run(
-    [PY, '-X', 'utf8', '-c', 
+    [PY, '-X', 'utf8', '-c',
      'import scipy.sparse; print("scipy.sparse OK"); '
      'from lightgbm import LGBMRegressor; print("LGBM OK"); '
      'import sklearn; print(f"sklearn {sklearn.__version__} OK")'],

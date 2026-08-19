@@ -171,6 +171,9 @@ class FuncCallNode:
     args: list[Any]
 
 
+ASTNode = NumberNode | FieldNode | BinaryOpNode | UnaryOpNode | FuncCallNode
+
+
 # ============================================================
 # 3. Parser (递归下降)
 # ============================================================
@@ -179,7 +182,7 @@ class FuncCallNode:
 class _Parser:
     """递归下降解析器: tokens → AST"""
 
-    def __init__(self, tokens: list[Token]):
+    def __init__(self, tokens: list[Token]) -> None:
         self.tokens = tokens
         self.pos = 0
 
@@ -200,11 +203,11 @@ class _Parser:
         return self.advance()
 
     # expr := add_expr
-    def parse_expr(self) -> Any:
+    def parse_expr(self) -> ASTNode:
         return self._parse_add()
 
     # add_expr := mul_expr (('+' | '-') mul_expr)*
-    def _parse_add(self) -> Any:
+    def _parse_add(self) -> ASTNode:
         node = self._parse_mul()
         while self.peek().type == TT_OP and self.peek().value in ("+", "-"):
             op = self.advance().value
@@ -213,7 +216,7 @@ class _Parser:
         return node
 
     # mul_expr := pow_expr (('*' | '/') pow_expr)*
-    def _parse_mul(self) -> Any:
+    def _parse_mul(self) -> ASTNode:
         node = self._parse_pow()
         while self.peek().type == TT_OP and self.peek().value in ("*", "/"):
             op = self.advance().value
@@ -222,7 +225,7 @@ class _Parser:
         return node
 
     # pow_expr := unary ('**' pow_expr)?  -- 右结合
-    def _parse_pow(self) -> Any:
+    def _parse_pow(self) -> ASTNode:
         base = self._parse_unary()
         if self.peek().type == TT_OP and self.peek().value == "**":
             self.advance()
@@ -231,7 +234,7 @@ class _Parser:
         return base
 
     # unary := ('-' | '+') unary | primary
-    def _parse_unary(self) -> Any:
+    def _parse_unary(self) -> ASTNode:
         if self.peek().type == TT_OP and self.peek().value in ("-", "+"):
             op = self.advance().value
             operand = self._parse_unary()
@@ -239,7 +242,7 @@ class _Parser:
         return self._parse_primary()
 
     # primary := NUMBER | IDENT '(' args ')' | IDENT | '(' expr ')'
-    def _parse_primary(self) -> Any:
+    def _parse_primary(self) -> ASTNode:
         t = self.peek()
         if t.type == TT_NUMBER:
             self.advance()
@@ -273,7 +276,7 @@ class _Parser:
         return args
 
 
-def parse_expression(expr: str) -> Any:
+def parse_expression(expr: str) -> ASTNode:
     """解析表达式字符串 → AST 根节点"""
     tokens = tokenize(expr)
     parser = _Parser(tokens)
@@ -303,7 +306,7 @@ def _op_rank(x: dict[str, float]) -> dict[str, float]:
     # 处理并列: 同值取平均秩
     unique_vals, inverse, counts = np.unique(vals, return_inverse=True, return_counts=True)
     rank_sums = np.zeros(len(unique_vals))
-    for i, v in enumerate(vals):
+    for i, _v in enumerate(vals):
         rank_sums[inverse[i]] += ranks[i]
     avg_ranks = rank_sums / counts
     final_ranks = avg_ranks[inverse]
@@ -407,23 +410,23 @@ def _ts_delta(series_dict: dict[str, list[float]], n: int) -> dict[str, float]:
     return result
 
 
-def _ts_mean(series_dict, window):
+def _ts_mean(series_dict: dict[str, list[float]], window: int) -> dict[str, float]:
     return _ts_op_single(series_dict, window, np.mean)
 
 
-def _ts_std(series_dict, window):
+def _ts_std(series_dict: dict[str, list[float]], window: int) -> dict[str, float]:
     return _ts_op_single(series_dict, window, np.std)
 
 
-def _ts_max(series_dict, window):
+def _ts_max(series_dict: dict[str, list[float]], window: int) -> dict[str, float]:
     return _ts_op_single(series_dict, window, np.max)
 
 
-def _ts_min(series_dict, window):
+def _ts_min(series_dict: dict[str, list[float]], window: int) -> dict[str, float]:
     return _ts_op_single(series_dict, window, np.min)
 
 
-def _ts_sum(series_dict, window):
+def _ts_sum(series_dict: dict[str, list[float]], window: int) -> dict[str, float]:
     return _ts_op_single(series_dict, window, np.sum)
 
 
@@ -534,7 +537,7 @@ class ExpressionEvaluator:
         price_data: dict[str, dict[str, list[float]]],
         fundamentals: dict[str, dict[str, float]] | None = None,
         existing_factors: dict[str, FactorValue] | None = None,
-    ):
+    ) -> None:
         self.price_data = price_data
         self.fundamentals = fundamentals or {}
         self.existing_factors = existing_factors or {}
@@ -573,7 +576,7 @@ class ExpressionEvaluator:
             return dict(fval.values)
         raise KeyError(f"未知字段引用: '{field_name}'")
 
-    def evaluate(self, node: Any) -> dict[str, float]:
+    def evaluate(self, node: ASTNode) -> dict[str, float]:
         """求值入口"""
         if isinstance(node, NumberNode):
             return {s: node.value for s in self.symbols}
@@ -684,7 +687,7 @@ class ExpressionEvaluator:
 
         raise NameError(f"未知函数: {name}")
 
-    def _const(self, node: Any, default: float | None = None) -> float:
+    def _const(self, node: ASTNode, default: float | None = None) -> float:
         """从 AST 节点提取常量值"""
         if isinstance(node, NumberNode):
             return node.value
@@ -692,7 +695,7 @@ class ExpressionEvaluator:
             return default
         raise SyntaxError(f"期望常量参数, 实际 {type(node).__name__}")
 
-    def _require_field(self, node: Any, func_name: str) -> str:
+    def _require_field(self, node: ASTNode, func_name: str) -> str:
         """从 AST 节点提取字段名 (时序算子要求 FieldNode 参数)"""
         if isinstance(node, FieldNode):
             return node.name

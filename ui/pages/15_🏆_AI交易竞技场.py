@@ -1,15 +1,17 @@
-# -*- coding: utf-8 -*-
 """AI交易竞技场 — v5.10 多策略实时对抗面板 · 中文版"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
+from datetime import datetime, timezone
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timezone
 import plotly.graph_objects as go
+import streamlit as st
 from plotly.subplots import make_subplots
 
 st.set_page_config(page_title="AI交易竞技场", page_icon="🏆", layout="wide")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ML模型统计显著性验证模式 — v5.10 P0-9 重构
 ============================================
@@ -6,7 +5,7 @@ Bootstrap + 置换检验 + Rank IC (Renaissance标准: t > 2.0)
 """
 import os
 
-from core.context import BASE_DIR, logger
+from core.context import BASE_DIR
 from utils.statistical_significance import run_significance_validation
 
 

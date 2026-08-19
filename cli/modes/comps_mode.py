@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Comps 可比公司分析模式 — v5.10 新增
 基于 financial-services 可比分析方法论
@@ -6,8 +5,7 @@ Comps 可比公司分析模式 — v5.10 新增
 
 from __future__ import annotations
 
-import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 def run_comps_mode(args) -> Optional[str]:
@@ -32,7 +30,7 @@ def run_comps_mode(args) -> Optional[str]:
         return None
 
     # 最小示例数据（演示用，实际应从数据层/配置文件获取）
-    companies: List[Dict[str, Any]] = [
+    companies: list[dict[str, Any]] = [
         {
             "name": "Company A",
             "ticker": "A",

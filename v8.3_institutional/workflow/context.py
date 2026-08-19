@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """WorkflowContext — Phase 共享上下文。
 
 承载 DailyWorkflow 实例的共享状态, 供拆分出的 phase 子模块使用。
@@ -14,12 +13,13 @@
 """
 from __future__ import annotations
 
-import sys
 import logging
-from typing import Any, Dict, Optional
+import sys
+from types import ModuleType
+from typing import Any
 
 
-def get_dw_module():
+def get_dw_module() -> ModuleType | None:
     """定位 daily_workflow 模块 (兼容 __main__/模块导入两种运行方式)。
 
     phase 子模块在 import 时调用 (此时 daily_workflow 已完整加载),
@@ -50,7 +50,7 @@ class WorkflowContext:
     - 方法 (phase_market 通过 hasattr 调用): _get_portfolio_positions_for_stress_test
     """
 
-    def __init__(self, wf):
+    def __init__(self, wf: Any) -> None:
         # 用 object.__setattr__ 绕过 property setter, 存储 wf 引用
         object.__setattr__(self, "_wf", wf)
         # 稳定属性 — 从 wf 复制/引用
@@ -75,33 +75,33 @@ class WorkflowContext:
     #   (phase_market 的 `if not hasattr(self, "cb")` 懒初始化逻辑依赖此语义)
 
     @property
-    def rm(self):
+    def rm(self) -> Any:
         if not hasattr(self._wf, "rm"):
             raise AttributeError("rm")
         return self._wf.rm
 
     @rm.setter
-    def rm(self, value):
+    def rm(self, value: Any) -> None:
         self._wf.rm = value
 
     @property
-    def cb(self):
+    def cb(self) -> Any:
         if not hasattr(self._wf, "cb"):
             raise AttributeError("cb")
         return self._wf.cb
 
     @cb.setter
-    def cb(self, value):
+    def cb(self, value: Any) -> None:
         self._wf.cb = value
 
     @property
-    def ntp(self):
+    def ntp(self) -> Any:
         if not hasattr(self._wf, "ntp"):
             raise AttributeError("ntp")
         return self._wf.ntp
 
     @ntp.setter
-    def ntp(self, value):
+    def ntp(self, value: Any) -> None:
         self._wf.ntp = value
 
     @property
@@ -109,7 +109,7 @@ class WorkflowContext:
         """模块级 logger (与 daily_workflow.py L72 一致)"""
         return logging.getLogger("v75.daily_workflow")
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """未在 ctx 显式定义的属性 — 代理到 wf。
 
         覆盖场景:

@@ -446,7 +446,7 @@ class HedgeExecutionEngine:
                 continue
 
             code = u.get("code", "")
-            direction = u.get("direction", "SELL_CALL")
+            u.get("direction", "SELL_CALL")
             strike_rule = u.get("strike_rule", "OTM_5pct_to_8pct")
 
             # 从持仓中获取 ETF 数据

@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import json
-import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -22,11 +21,8 @@ from utils.market_rules import (  # noqa: E402
     ABNORMAL_RETURN_THRESHOLD_20CM,
     ABNORMAL_RETURN_THRESHOLD_INTERNAL,
     classify_board,
-    get_abnormal_threshold,
     is_20cm_symbol,
 )
-from utils.alpha.shadow_real_data_feeder import ShadowRealDataFeeder  # noqa: E402
-from utils.data_provider import MarketDataProvider  # noqa: E402
 
 
 def _load_shadow(path: Path) -> list[dict[str, Any]]:
@@ -79,9 +75,9 @@ def main() -> int:
     for item in cv_results:
         date = item.get("date", "")
         notes = item.get("notes", "") or ""
-        
+
         day_details: list[dict[str, Any]] = []
-        
+
         # notes 格式: "4/26 abnormal: ['512760.SH(ret=-29.54%,thr=20%)', ...]"
         if "abnormal:" in notes:
             abnormal_part = notes.split("abnormal:", 1)[1].strip()
@@ -95,7 +91,7 @@ def main() -> int:
                 is_20cm = is_20cm_symbol(symbol)
                 old_flag, new_flag = _classify_return(ret_pct, is_20cm)
                 board = classify_board(symbol)
-                
+
                 day_details.append(
                     {
                         "symbol": symbol,
@@ -171,8 +167,8 @@ def main() -> int:
     md.append(f"- **来源**: {report['thresholds']['source']}\n")
 
     md.append("## 效果总览\n")
-    md.append(f"| 指标 | 值 |")
-    md.append(f"|------|------|")
+    md.append("| 指标 | 值 |")
+    md.append("|------|------|")
     md.append(f"| 覆盖天数 | {report['summary']['days']} |")
     md.append(f"| 旧逻辑累计异常 (±20%) | {report['summary']['old_flagged']} |")
     md.append(f"| 新逻辑累计异常 (差异化) | {report['summary']['new_flagged']} |")
@@ -223,13 +219,13 @@ def main() -> int:
 
     print(f"JSON 报告: {out_json}")
     print(f"Markdown 报告: {out_md}")
-    
+
     # 额外输出被豁免的明细
     if exempt_rows:
         print("\n[被豁免的 20cm 标的]:")
         for date, d in exempt_rows:
             print(f"  {date}: {d['symbol']} ({d['ret_pct']:+.2f}%)")
-            
+
     return 0
 
 

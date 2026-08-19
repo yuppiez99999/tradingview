@@ -23,7 +23,7 @@ def main() -> int:
         print(f"ERROR: {STATUS_PATH} not found")
         return 1
 
-    with open(STATUS_PATH, "r", encoding="utf-8") as f:
+    with open(STATUS_PATH, encoding="utf-8") as f:
         data = json.load(f)
 
     old_value = data.get("observation_days_completed", 0)
@@ -39,7 +39,7 @@ def main() -> int:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
     print(f"OK: observation_days_completed = {data['observation_days_completed']}")
-    print(f"    notes appended with TEST ONLY marker")
+    print("    notes appended with TEST ONLY marker")
     return 0
 
 

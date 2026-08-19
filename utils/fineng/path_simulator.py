@@ -284,7 +284,7 @@ class PathSimulator:
         peak = 1.0
         max_dd = 0.0
 
-        for day in range(self.n_days):
+        for _day in range(self.n_days):
             # 生成相关随机数 Z = L·ε (ε 为独立随机向量)
             eps = [0.0] * n_assets
             if historical_residuals and n_hist > 0 and self.residual_method == "bootstrap":
@@ -304,7 +304,7 @@ class PathSimulator:
 
             # GBM 步进
             for i in range(n_assets):
-                drift = (annual_returns[i] - 0.5 * annual_returns[i] * 0) * dt
+                (annual_returns[i] - 0.5 * annual_returns[i] * 0) * dt
                 # 简化: 使用日波动率 (annual_returns 实际是年化收益率+波动率组合)
                 # 这里 annual_returns 应为向量: [μ_i - 0.5σ²_i] · dt 的等效日值
                 # 实际上更清晰的做法是直接用日收益率均值

@@ -1,14 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 LLM 分析增强模式 — v5.10 集成
 独立运行，不依赖主程序的重型模块
 """
 
-import os
-import sys
-import json
 import argparse
-from typing import Optional, List, Dict
+import json
+import os
 
 
 def run_gemma_analyze(args):
@@ -61,7 +58,7 @@ def run_gemma_analyze(args):
         print("\n❌ 请提供 --news、--stock 或 --prompt")
         return None
 
-    print(f"\n📝 生成分析中...")
+    print("\n📝 生成分析中...")
 
     try:
         import requests
@@ -88,8 +85,8 @@ def run_gemma_analyze(args):
             except (ValueError, AttributeError):
                 # F-9 修复: 错误响应体非 JSON 时, 仅跳过详情解析, 不吞掉其他异常
                 pass
-            print(f"   可能原因: ollama 服务未启动或模型未导入")
-            print(f"   启动命令: ollama serve")
+            print("   可能原因: ollama 服务未启动或模型未导入")
+            print("   启动命令: ollama serve")
             return None
 
         result = resp.json()
@@ -104,7 +101,7 @@ def run_gemma_analyze(args):
         return None
     except Exception as e:
         print(f"\n❌ 生成失败: {e}")
-        print(f"   提示: 请确保 ollama 服务已启动 (ollama serve)")
+        print("   提示: 请确保 ollama 服务已启动 (ollama serve)")
         return None
 
     print("\n" + "=" * 70)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """U1 升级 · 时序 IC/ICIR 验证脚本 (2026-08-12)
 
 目标:
@@ -16,14 +15,13 @@
 
 from __future__ import annotations
 
+import logging
 import math
+import os
 import random
 import sys
-import os
-import logging
 
 import numpy as np
-import pandas as pd
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger("u1_test")
@@ -36,16 +34,15 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from utils.alpha_factor.base import (
-    FactorValue,
-    build_forward_returns_history,
-    build_factor_history_from_prices,
-    calc_ic_series_from_history,
-    calc_ic_ir,
-    evaluate_factors,
     FactorLibraryResult,
+    FactorValue,
+    build_factor_history_from_prices,
+    build_forward_returns_history,
+    calc_ic_ir,
+    calc_ic_series_from_history,
+    evaluate_factors,
 )
 from utils.alpha_factor.library import AlphaFactorLibrary
-
 
 # ---------------------------------------------------------------------------
 # 1. 合成价格序列（已知因子-收益关系 → 验证 IC 数值区间）
@@ -66,7 +63,7 @@ def make_synthetic_price_data(
       - volumes = 1e7 * exp(N(0, 0.5))  (均匀放量)
       - highs / lows = closes * (1 ± |N(0,1.2%)|)
     """
-    rng = random.Random(seed)
+    random.Random(seed)
     nr = np.random.default_rng(seed)
 
     price_data: dict[str, dict[str, list[float]]] = {}
@@ -125,7 +122,7 @@ def main() -> int:
     # ---------- 2.2 build_forward_returns_history 基础检查 ----------
     fw_5 = build_forward_returns_history(price_data, forward_window=5)
     fw_1 = build_forward_returns_history(price_data, forward_window=1)
-    print(f"[构造器1] build_forward_returns_history:")
+    print("[构造器1] build_forward_returns_history:")
     print(f"  forward=1d  len = {len(fw_1):>3}  (期望 {min_len - 1})")
     print(f"  forward=5d  len = {len(fw_5):>3}  (期望 {min_len - 5})")
     assert len(fw_1) == min_len - 1, "fw_1 长度不对"
@@ -153,7 +150,7 @@ def main() -> int:
         synthetic_mom20_factor,
         warmup_window=20,
     )
-    print(f"\n[构造器2] build_factor_history_from_prices (MOM_20D replay):")
+    print("\n[构造器2] build_factor_history_from_prices (MOM_20D replay):")
     for k, v in factor_hist.items():
         print(f"  因子名 = {k}  序列长度 = {len(v)}  (期望 {min_len - 20})")
         assert len(v) == min_len - 20, "因子序列长度不对"
@@ -192,14 +189,14 @@ def main() -> int:
     # ---------- 2.5 时序 IC 序列诊断 ----------
     ic_series = calc_ic_series_from_history(factor_hist_25, fw_5_aligned)
     ic_ir, ic_mean, ic_std = calc_ic_ir(ic_series, min_periods=20)
-    print(f"\n[时序 IC/ICIR] MOM_20D × forward=5d:")
+    print("\n[时序 IC/ICIR] MOM_20D × forward=5d:")
     n_valid = sum(1 for x in ic_series if np.isfinite(x) and x != 0.0)
     print(f"  T_aligned = {len(ic_series)}  非零有效 IC = {n_valid}")
     print(f"  IC 均值 = {ic_mean:+.4f}  IC std = {ic_std:.4f}  ICIR = {ic_ir:+.3f}")
     assert n_valid >= 20, f"有效 IC 样本不足 ({n_valid} < 20)"
     # 合成数据的 MOM 方向: beta 偶数股=正, 奇数股=负; MOM_20D 值越高=越涨
     # forward 5 日收益也由 beta 决定 → 理论上应为正相关 IC
-    print(f"  → 合成数据 beta 的方向性验证: IC 均值应>0 (预期动量有效)")
+    print("  → 合成数据 beta 的方向性验证: IC 均值应>0 (预期动量有效)")
     print(f"    实际 = {ic_mean:+.4f} {'✓ 方向符合' if ic_mean > 0 else '⚠ 方向异常 (合成数据噪声导致属正常)'}")
 
     # ---------- 2.6 evaluate_factors 双模式对比 ----------
@@ -225,7 +222,7 @@ def main() -> int:
         factor_history=factor_history_map,
         forward_returns_history=forward_history_aligned,
     )
-    print(f"\n[evaluate_factors 双模式对比]")
+    print("\n[evaluate_factors 双模式对比]")
     for name in ("MOM_20D_ts", "MOM_20D_sp"):
         fv = result.factors[name]
         print(f"  {name} (mode={fv.ic_mode}):")
@@ -239,7 +236,7 @@ def main() -> int:
     print("  ic_mode 标识 ✓  样本数 ✓")
 
     # ---------- 2.7 AlphaFactorLibrary.compute_all 端到端时序模式 ----------
-    print(f"\n[AlphaFactorLibrary.compute_all · 端到端]")
+    print("\n[AlphaFactorLibrary.compute_all · 端到端]")
     lib = AlphaFactorLibrary(enable_technical=False, enable_expectation=False)
     # 对齐规则同 §2.4: t ∈ [warmup, min_len-forward-1]
     warmup_lib = 25
@@ -284,10 +281,10 @@ def main() -> int:
     print("\n" + "=" * 72)
     print("U1 · 时序 IC/ICIR 验证 · 全部断言通过 ✓")
     print("=" * 72)
-    print(f"  构造器: build_forward_returns_history / build_factor_history_from_prices 长度对齐 ✓")
-    print(f"  语义: closes[t+5]/closes[t]-1 精确匹配 ✓")
+    print("  构造器: build_forward_returns_history / build_factor_history_from_prices 长度对齐 ✓")
+    print("  语义: closes[t+5]/closes[t]-1 精确匹配 ✓")
     print(f"  时序 IC: MOM_20D × forward=5d  样本 {n_valid}≥20  IC 均值 {ic_mean:+.4f} ✓")
-    print(f"  evaluate_factors 双模式: timeseries / single_point 标识正确 ✓")
+    print("  evaluate_factors 双模式: timeseries / single_point 标识正确 ✓")
     print(f"  library.compute_all 端到端: {ts_count} 因子走时序, {sp_count} 因子降级单点 ✓")
     return 0
 

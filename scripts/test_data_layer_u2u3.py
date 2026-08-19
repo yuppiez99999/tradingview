@@ -14,29 +14,28 @@
 注意: akshare 实际 API 调用在无网络/非交易时段可能返回空, 验证聚焦接口完整性和降级安全性.
 """
 
-import sys
 import os
+import sys
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
-from datetime import datetime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+from utils.akshare_data_source import AKShareDataSource
 from utils.limit_pool_provider import (
-    LimitPoolProvider,
     LimitPoolData,
+    LimitPoolProvider,
+    get_limit_down_pool,
     get_limit_pool_provider,
     get_limit_up_pool,
-    get_limit_down_pool,
 )
 from utils.price_limit_calculator import (
     build_backtest_data_from_ohlcv,
     calc_limit_prices,
-    normalize_code,
 )
-from utils.akshare_data_source import AKShareDataSource
-
 
 # ============================================================
 # 合成数据
@@ -238,7 +237,7 @@ def test_cross_validate():
         st_codes=set(),
     )
     assert len(result) == 4
-    for code, vals in result.items():
+    for _code, vals in result.items():
         assert "calc_limit_up" in vals
         assert "pool_limit_up" in vals
         assert "match" in vals

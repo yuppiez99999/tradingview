@@ -8,7 +8,6 @@
   - call_deepseek_fn: 由调用方传入的 LLM 调用函数 (原 generate_daily_report._call_deepseek)
 """
 
-import json
 from typing import Callable, Dict, List, Optional
 
 
@@ -41,7 +40,6 @@ def generate_ai_recommendations(
         return deepseek_recs
 
     # ── 2) 降级: 规则引擎 (兜底) ──
-    print("  ⚠️ DeepSeek 不可用, 降级到规则引擎生成建议")
     recommendations = []
 
     # 基于盈亏情况
@@ -190,7 +188,6 @@ def generate_deepseek_recommendations(
         f"请基于以上数据, 输出 4-6 条结构化交易决策建议, 每行一条:"
     )
 
-    print(f"  🟢 调用 DeepSeek ({deepseek_model}) 生成AI决策建议...")
     result = call_deepseek_fn(system_prompt, user_prompt, temperature=0.2, max_tokens=1200)
     if not result:
         return None
@@ -260,7 +257,7 @@ def generate_deepseek_recommendations(
                 return True
         return False
 
-    filtered = [l for l in lines if not _is_descriptive(l)]
+    filtered = [line for line in lines if not _is_descriptive(line)]
     if not filtered:
         filtered = lines  # 若全部被过滤, 回退到原始结果
 
@@ -278,13 +275,11 @@ def generate_deepseek_recommendations(
         return any(kw.lower() in low for kw in action_keywords)
 
     # 智能截断: 优先保留含操作关键词的建议, 不足 6 条再补其他
-    action_lines = [l for l in filtered if _has_action_keyword(l)]
-    non_action_lines = [l for l in filtered if not _has_action_keyword(l)]
+    action_lines = [line for line in filtered if _has_action_keyword(line)]
+    non_action_lines = [line for line in filtered if not _has_action_keyword(line)]
     result_lines = (action_lines + non_action_lines)[:6]
 
     if not result_lines:
-        print(f"  ⚠️ DeepSeek 返回内容无法解析为建议列表: {result[:200]}")
         return None
 
-    print(f"  ✅ DeepSeek 生成 {len(lines)} 条, 过滤描述性 {len(lines)-len(filtered)} 条, 保留 {len(result_lines)} 条操作建议 (含关键词 {len(action_lines)} 条)")
     return result_lines

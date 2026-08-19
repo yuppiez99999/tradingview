@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 5 子模块: LightGBM 增强信号加载与置信度乘数 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py
@@ -22,12 +21,12 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("v75.daily_workflow")
 
 
-def load_lgb_enhanced_signals() -> Dict[str, Dict[str, Any]]:
+def load_lgb_enhanced_signals() -> dict[str, dict[str, Any]]:
     """加载 lgb_enhanced 增强模型信号文件
 
     从 models/lgb_enhanced/lgb_enhanced_signals.json 读取当日信号。
@@ -47,7 +46,7 @@ def load_lgb_enhanced_signals() -> Dict[str, Dict[str, Any]]:
             logger.debug("LGB增强信号文件不存在: %s", signals_path)
             return {}
 
-        with open(signals_path, "r", encoding="utf-8") as f:
+        with open(signals_path, encoding="utf-8") as f:
             data = json.load(f)
 
         # 新鲜度检查: trade_date 必须是今日 (防止使用过期信号)

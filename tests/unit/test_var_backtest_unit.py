@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """var_backtest 单元测试 — VaR 回测框架 (Kupiec POF + Christoffersen + Basel 交通灯) 全分支覆盖.
 
 被测模块: utils/var_backtest.py
@@ -6,7 +5,6 @@
 """
 from __future__ import annotations
 
-import math
 import sys
 from pathlib import Path
 
@@ -21,12 +19,11 @@ from utils.var_backtest import (  # noqa: E402
     TRAFFIC_LIGHT_GREEN,
     TRAFFIC_LIGHT_RED,
     TRAFFIC_LIGHT_YELLOW,
-    VarBacktestResult,
     VaRBacktester,
+    VarBacktestResult,
     _chi2_sf,
     backtest,
 )
-
 
 # ============================================================
 # _chi2_sf

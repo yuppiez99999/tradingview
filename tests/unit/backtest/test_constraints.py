@@ -8,16 +8,13 @@
 """
 from __future__ import annotations
 
-import pytest
-
 from utils.backtest.constraints import (
-    is_suspended,
-    is_at_limit,
-    check_tradable,
     _get_current_price,
+    check_tradable,
+    is_at_limit,
+    is_suspended,
 )
-from utils.wt_structs import TickData, BarData
-
+from utils.wt_structs import BarData, TickData
 
 # ============================================================
 # 用例 1: 停牌判断 — volume=0 且 amount=0
@@ -41,7 +38,7 @@ def test_is_suspended_by_zero_volume_and_amount() -> None:
         timestamp=1700000000.0, datetime_str="2023-11-14 10:00:00",
         date=20231114, time=100000,
     )
-    
+
     # Act + Assert
     assert is_suspended(suspended_bar, "600519.SH") is True
     assert is_suspended(suspended_tick, "600519.SH") is True
@@ -61,13 +58,13 @@ def test_is_at_limit_buy_at_limit_up(sample_tick: TickData) -> None:
     """买入时当前价 >= 涨停价 → 涨停限制。"""
     # Arrange: sample_tick.price = 1800.0
     limit_up_prices = {"600519.SH": 1800.0}  # 恰好等于当前价
-    
+
     # Act
     result = is_at_limit(
         sample_tick, "600519.SH", "BUY",
         limit_up_prices=limit_up_prices,
     )
-    
+
     # Assert
     assert result is True  # price >= limit_up → 涨停不可买
 
@@ -76,13 +73,13 @@ def test_is_at_limit_buy_below_limit_up(sample_tick: TickData) -> None:
     """买入时当前价 < 涨停价 → 可交易。"""
     # Arrange: sample_tick.price = 1800.0
     limit_up_prices = {"600519.SH": 1900.0}  # 涨停价更高
-    
+
     # Act
     result = is_at_limit(
         sample_tick, "600519.SH", "BUY",
         limit_up_prices=limit_up_prices,
     )
-    
+
     # Assert
     assert result is False
 
@@ -95,13 +92,13 @@ def test_is_at_limit_sell_at_limit_down(sample_tick: TickData) -> None:
     """卖出时当前价 <= 跌停价 → 跌停限制。"""
     # Arrange: sample_tick.price = 1800.0
     limit_down_prices = {"600519.SH": 1800.0}  # 恰好等于当前价
-    
+
     # Act
     result = is_at_limit(
         sample_tick, "600519.SH", "SELL",
         limit_down_prices=limit_down_prices,
     )
-    
+
     # Assert
     assert result is True  # price <= limit_down → 跌停不可卖
 
@@ -110,13 +107,13 @@ def test_is_at_limit_sell_above_limit_down(sample_tick: TickData) -> None:
     """卖出时当前价 > 跌停价 → 可交易。"""
     # Arrange: sample_tick.price = 1800.0
     limit_down_prices = {"600519.SH": 1700.0}  # 跌停价更低
-    
+
     # Act
     result = is_at_limit(
         sample_tick, "600519.SH", "SELL",
         limit_down_prices=limit_down_prices,
     )
-    
+
     # Assert
     assert result is False
 

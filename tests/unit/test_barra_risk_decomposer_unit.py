@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """barra_risk_decomposer 单元测试 — Barra 风险因子暴露分解全分支覆盖.
 
 被测模块: utils/barra_risk_decomposer.py
@@ -216,7 +215,7 @@ class DecomposeTest:
         assert res.specific_return == 0.0
         assert res.active_return == pytest.approx(res.factor_return)
         # 国家因子暴露 = Beta 主动暴露
-        beta_idx = BARRA_STYLE_FACTORS.index("Beta")
+        BARRA_STYLE_FACTORS.index("Beta")
         expected_country = (fe["600519"]["Beta"] - fe["000858"]["Beta"]) * 0.1 * -1 + (
             fe["600519"]["Beta"] * 0.1 + fe["000858"]["Beta"] * -0.1
         )
@@ -510,7 +509,7 @@ class SaveResultTest:
         ret = self.dec.save_result(res, out)
         assert ret == out
         assert out.exists()
-        with open(out, "r", encoding="utf-8") as f:
+        with open(out, encoding="utf-8") as f:
             data = json.load(f)
         # save_result 不保存 symbols/weights, 只保存风险分解字段
         assert data["active_risk"] == pytest.approx(res.active_risk)

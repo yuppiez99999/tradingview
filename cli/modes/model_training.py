@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 统一模型训练入口 — v5.10 P0-9 重构
 ========================================
@@ -9,7 +8,6 @@
   - DL时序: 16_金融市场预测模型/patchtst_trainer.py (PatchTST, 需GPU)
 """
 
-from core.context import BASE_DIR, logger
 
 
 def run_model_training(args):

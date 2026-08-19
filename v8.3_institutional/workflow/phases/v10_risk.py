@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 4.6: v10.0 风控 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py L1769-L2026
@@ -18,7 +17,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from workflow.context import WorkflowContext, get_dw_module
 
@@ -40,13 +39,13 @@ if _dw is not None and hasattr(_dw, "StressTestRunner"):
     StressTestRunner = _dw.StressTestRunner
 
 
-def phase_v10_risk(ctx: WorkflowContext) -> Dict[str, Any]:
+def phase_v10_risk(ctx: WorkflowContext) -> dict[str, Any]:
     """v10.0 风控阶段 — 回撤控制 + VaR 监控 + 压力测试 + 配置加载"""
     logger.info("=" * 60)
     logger.info("Phase 4.6: v10.0 风控 (回撤控制 + VaR 监控 + 压力测试)")
     logger.info("=" * 60)
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "status": "PASS",
         "modules_loaded": V10_RISK_READY,
         "drawdown": {},
@@ -232,12 +231,12 @@ def phase_v10_risk(ctx: WorkflowContext) -> Dict[str, Any]:
     return result
 
 
-def _load_returns_history() -> List[float]:
+def _load_returns_history() -> list[float]:
     """加载历史收益率序列 (用于 VaR 计算)"""
     try:
         returns_path = BASE_DIR.parent / "config" / "returns_history.json"
         if returns_path.exists():
-            with open(returns_path, "r", encoding="utf-8") as f:
+            with open(returns_path, encoding="utf-8") as f:
                 data = json.load(f)
             # 支持多种格式: {"returns": [...]} 或 {"daily_returns": [...]} 或 [...]
             if isinstance(data, list):
@@ -251,9 +250,9 @@ def _load_returns_history() -> List[float]:
         return []
 
 
-def _get_portfolio_positions_for_stress_test() -> List[Dict]:
+def _get_portfolio_positions_for_stress_test() -> list[dict]:
     """获取用于压力测试的持仓列表"""
-    positions: List[Dict] = []
+    positions: list[dict] = []
     try:
         v10_loader = V10ConfigLoader()
         for pos in v10_loader.get_stock_positions():

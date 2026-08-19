@@ -1,19 +1,15 @@
-# -*- coding: utf-8 -*-
 """greek_exposure_dashboard 单元测试 — Greeks 暴露监控面板"""
 import json
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import patch
 
 from utils.greek_exposure_dashboard import (
-    GreekSnapshot,
     GreekDashboard,
-    load_positions,
-    _signal_level,
+    GreekSnapshot,
     _build_recommendations,
+    _signal_level,
     compute_dashboard,
     dashboard_to_dict,
+    load_positions,
 )
 
 
@@ -186,7 +182,7 @@ class TestComputeDashboard:
         assert "无持仓数据" in dashboard.recommendations[0]
 
     def test_import_error(self):
-        with patch("utils.greek_hedge_manager.GreekHedgeManager", create=True) as mock:
+        with patch("utils.greek_hedge_manager.GreekHedgeManager", create=True):
             with patch("builtins.__import__", side_effect=ImportError):
                 dashboard = compute_dashboard()
         assert any("不可用" in r for r in dashboard.recommendations)

@@ -204,12 +204,10 @@ def _profile_likelihood_ci(
     for xi_test in _linspace(xi_hat - 0.5, xi_hat + 0.5, 40):
         # 对每个 ξ, 优化 σ (简化: 在 sigma_hat 附近搜索)
         best_ll = -float("inf")
-        best_s = sigma_hat
         for s in _linspace(sigma_hat * 0.3, sigma_hat * 3.0, 20):
             ll = _gpd_loglik(excesses, s, xi_test)
             if ll > best_ll:
                 best_ll = ll
-                best_s = s
         if best_ll >= threshold and xi_test < xi_lo:
             xi_lo = min(xi_test, xi_lo)
         if best_ll >= threshold and xi_test > xi_hi:

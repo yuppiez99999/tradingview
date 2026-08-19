@@ -13,7 +13,7 @@
 
 使用方式:
     from utils.multi_model_router import ModelRouter
-    
+
     router = ModelRouter()
     result = router.route("intraday_decision", prompt, system_prompt)
 """
@@ -109,7 +109,7 @@ class CircuitBreaker:
 class ModelRouter:
     """
     多模型场景路由器
-    
+
     核心功能:
     1. 按场景自动选择最优模型 (盘中/再平衡/宏观/报告/轻量)
     2. 并行对冲: 主备模型同时调用，取先返回
@@ -121,7 +121,7 @@ class ModelRouter:
     def __init__(self, config_path: Optional[str] = None):
         """
         初始化路由器
-        
+
         Args:
             config_path: 配置文件路径，默认 config/model_routing.yaml
         """
@@ -178,14 +178,14 @@ class ModelRouter:
     ) -> RoutingResult:
         """
         根据场景路由到最优模型
-        
+
         Args:
             scene: 场景名称 (intraday_decision / rebalancing_analysis / macro_analysis / report_generation / light_analysis)
             prompt: 用户提示词
             system_prompt: 系统提示词
             extra_context: 额外上下文 (如基本面 RAG 数据)
             timeout: 超时秒数 (覆盖配置)
-        
+
         Returns:
             RoutingResult 包含决策内容和元数据
         """
@@ -457,7 +457,7 @@ class ModelRouter:
     ) -> Optional[ModelCallResult]:
         """
         调用指定模型 API
-        
+
         Args:
             provider: 提供商 (deepseek / zhipuai / volcengine)
             model: 模型名称
@@ -466,7 +466,7 @@ class ModelRouter:
             temperature: 温度
             max_tokens: 最大输出 token
             timeout: 超时
-        
+
         Returns:
             ModelCallResult 或 None
         """
@@ -681,7 +681,7 @@ class ModelRouter:
     def _check_agreement(self, content1: str, content2: str) -> bool:
         """
         检查两个模型输出是否一致 (简化版)
-        
+
         未来可替换为更精确的 NLP 语义一致性检测
         """
         if not content1 or not content2:

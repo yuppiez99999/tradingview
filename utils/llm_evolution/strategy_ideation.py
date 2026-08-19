@@ -114,7 +114,7 @@ class Hypothesis:
     def compute_diversity_hash(self) -> str:
         """计算多样性 hash (基于描述+因子方向+风格)."""
         key = f"{self.description[:100]}|{self.factor_direction}|{self.strategy_style}"
-        self.diversity_hash = hashlib.md5(key.encode()).hexdigest()[:12]
+        self.diversity_hash = hashlib.md5(key.encode(), usedforsecurity=False).hexdigest()[:12]
         return self.diversity_hash
 
 

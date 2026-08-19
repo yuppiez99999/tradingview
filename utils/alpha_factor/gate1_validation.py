@@ -22,7 +22,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import requests
 
@@ -73,7 +73,7 @@ def to_tx_code(code: str) -> str:
     return f"sz{c}"
 
 
-def fetch_tx_kline(code: str, days: int = 250) -> Optional[List[List[str]]]:
+def fetch_tx_kline(code: str, days: int = 250) -> Optional[list[list[str]]]:
     """腾讯历史 K 线 (前复权日线).
 
     Returns:
@@ -107,7 +107,7 @@ _PRICE_CACHE_FILE = _PROJ / "cache" / "gate1_price.json"
 _PRICE_CACHE_TTL = 3600  # 1h
 
 
-def fetch_prices(symbols: List[str], days: int = 250, use_cache: bool = True) -> Dict[str, dict[str, List[float]]]:
+def fetch_prices(symbols: list[str], days: int = 250, use_cache: bool = True) -> dict[str, dict[str, list[float]]]:
     """批量拉取腾讯 K 线, 转为因子库 price_data 格式 (带本地缓存).
 
     Returns:
@@ -121,8 +121,8 @@ def fetch_prices(symbols: List[str], days: int = 250, use_cache: bool = True) ->
             except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
                 cache = {}
 
-    price_data: Dict[str, dict[str, List[float]]] = {}
-    missing: List[str] = []
+    price_data: dict[str, dict[str, list[float]]] = {}
+    missing: list[str] = []
     for sym in symbols:
         if sym in cache and cache[sym]:
             price_data[sym] = cache[sym]
@@ -163,7 +163,7 @@ def fetch_prices(symbols: List[str], days: int = 250, use_cache: bool = True) ->
     return price_data
 
 
-def load_universe() -> List[str]:
+def load_universe() -> list[str]:
     """构建 universe: positions 持仓 + 供应链 2 阶邻居 (基准版本)."""
     from utils.supply_chain_builder import load_positions_symbols
     core = load_positions_symbols()
@@ -179,7 +179,7 @@ CORE_BOARDS = [
 ]
 
 
-def load_expanded_universe(per_board: int = 40) -> Tuple[List[str], Dict[str, str]]:
+def load_expanded_universe(per_board: int = 40) -> tuple[list[str], dict[str, str]]:
     """构建扩展 universe: 核心板块成分股 + 持仓 (扩大截面样本).
 
     东财 push2 实测对快速连续请求限流 (RemoteDisconnected), 故板块请求间隔拉长.
@@ -192,11 +192,11 @@ def load_expanded_universe(per_board: int = 40) -> Tuple[List[str], Dict[str, st
     from utils.supply_chain_builder import load_positions_symbols
 
     ds = get_graph_data_source()
-    symbols: List[str] = []
-    industries: Dict[str, str] = {}
+    symbols: list[str] = []
+    industries: dict[str, str] = {}
 
     # 1) 板块成分股 (东财, 带行业标签), 间隔 1.5s 防限流
-    for board_code, board_name in CORE_BOARDS:
+    for board_code, _board_name in CORE_BOARDS:
         rows = ds.fetch_board_stocks(board_code, limit=per_board)
         for r in rows:
             code = r["code"]
@@ -217,15 +217,15 @@ def load_expanded_universe(per_board: int = 40) -> Tuple[List[str], Dict[str, st
 
 
 def calc_ic_series(
-    price_data: Dict[str, dict[str, List[float]]],
+    price_data: dict[str, dict[str, list[float]]],
     graph,
     factor_name: str,
-    industries: Optional[Dict[str, str]] = None,
+    industries: Optional[dict[str, str]] = None,
     horizon: int = 5,
     windows: int = 12,
     window_len: int = 30,
     min_neighbors: int = 1,
-) -> List[float]:
+) -> list[float]:
     """跨时间窗 IC 序列 (滚动重算因子, 消除前视偏差).
 
     在每个滚动窗口的 end_idx 时点, 用 closes[:end_idx+1] 重新计算因子值
@@ -294,7 +294,7 @@ def calc_ic_series(
     return ic_series
 
 
-def calc_icir(ic_series: List[float]) -> float:
+def calc_icir(ic_series: list[float]) -> float:
     """ICIR = mean(IC)/std(IC)."""
     if len(ic_series) < 2:
         return 0.0
@@ -305,10 +305,10 @@ def calc_icir(ic_series: List[float]) -> float:
 
 
 def run_long_short_ic(
-    price_data: Dict[str, dict[str, List[float]]],
+    price_data: dict[str, dict[str, list[float]]],
     graph,
     factor_name: str,
-    industries: Optional[Dict[str, str]] = None,
+    industries: Optional[dict[str, str]] = None,
     horizon: int = 20,
     min_neighbors: int = 1,
     windows: int = 6,
@@ -336,7 +336,7 @@ def run_long_short_ic(
     max_len = int(el[max(0, int(len(el) * 0.2) - 1)])
     step = horizon  # 非重叠窗口, 减少多空收益序列自相关
 
-    ls_returns: List[float] = []
+    ls_returns: list[float] = []
     for w in range(windows):
         T = max_len - 1 - w * step
         entry_idx = T - horizon  # 期初: 因子计算时点
@@ -384,7 +384,7 @@ def run_long_short_ic(
     return float(arr.mean() / std * (252.0 / horizon) ** 0.5)
 
 
-def run_gate1_validation(days: int = 250, min_neighbors: int = 1, expanded: bool = True) -> Dict[str, Any]:
+def run_gate1_validation(days: int = 250, min_neighbors: int = 1, expanded: bool = True) -> dict[str, Any]:
     """执行 Gate 1 门禁验证.
 
     Args:
@@ -490,7 +490,7 @@ def run_gate1_validation(days: int = 250, min_neighbors: int = 1, expanded: bool
     }
 
 
-def _compute_momentum_factors(price_data: Dict[str, dict[str, List[float]]]) -> Dict[str, FactorValue]:
+def _compute_momentum_factors(price_data: dict[str, dict[str, list[float]]]) -> dict[str, FactorValue]:
     """计算基准动量因子 (作正交化对照).
 
     必须补全 MOM_20D / MOM_60D / MOM_REVERSAL_5D 三个锚因子, 与
@@ -498,9 +498,9 @@ def _compute_momentum_factors(price_data: Dict[str, dict[str, List[float]]]) -> 
     导致 CHAIN_MOM_60D / CHAIN_REVERSAL_5D 跳过正交化, 保留动量暴露,
     验证的不是「邻居信息增量」而是「动量本身」.
     """
-    mom20: Dict[str, float] = {}
-    mom60: Dict[str, float] = {}
-    rev5: Dict[str, float] = {}
+    mom20: dict[str, float] = {}
+    mom60: dict[str, float] = {}
+    rev5: dict[str, float] = {}
     for sym, data in price_data.items():
         closes = data.get("closes", [])
         if len(closes) > 21 and closes[-21] > 0:

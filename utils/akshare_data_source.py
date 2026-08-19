@@ -15,7 +15,7 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional, TypedDict
+from typing import Any, Optional, TypedDict
 
 import pandas as pd
 
@@ -54,10 +54,10 @@ class AKShareDataSource:
     _ak: Optional[Any]
     _connected: bool
     _last_connect_time: Optional[float]
-    _spot_cache: Dict[str, Any]
+    _spot_cache: dict[str, Any]
     _spot_cache_time: float
     _spot_cache_ttl: int
-    source_health: Dict[str, SourceHealthEntry]
+    source_health: dict[str, SourceHealthEntry]
 
     def __init__(self):
         self._ak = None
@@ -151,7 +151,7 @@ class AKShareDataSource:
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
             logger.debug(f"AKShare 缓存全市场数据失败: {e}")
 
-    def get_realtime_quote(self, symbol: str) -> Optional[Dict]:
+    def get_realtime_quote(self, symbol: str) -> Optional[dict]:
         """获取实时行情"""
         if not self._ensure_connected():
             return None
@@ -323,7 +323,7 @@ class AKShareDataSource:
             logger.error(f"AKShare 获取历史K线失败: {e}")
             return None
 
-    def get_financial_report(self, symbol: str) -> Optional[Dict]:
+    def get_financial_report(self, symbol: str) -> Optional[dict]:
         """获取财务报表数据"""
         if not self._ensure_connected():
             return None

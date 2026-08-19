@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """vol_target_controller 单元测试 — 波动率目标控制器全覆盖.
 
 被测模块: utils/vol_target_controller.py
@@ -6,11 +5,9 @@
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -18,7 +15,6 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.vol_target_controller import VolTargetController  # noqa: E402
-
 
 # ============================================================
 # calc_realized_vol

@@ -96,15 +96,15 @@ def main() -> int:
     print(f"[2] Walk-Forward 配置: train={validator.train_window}d / "
           f"test={validator.test_window}d / step={validator.step}d")
 
-    print(f"\n[3] 运行验证...")
+    print("\n[3] 运行验证...")
     report = validator.validate(price_data)
 
     # 3. 输出结果
-    print(f"\n[4] 验证结果:")
+    print("\n[4] 验证结果:")
     print(f"  {report.summary()}")
 
     if report.windows:
-        print(f"\n  各窗口详情:")
+        print("\n  各窗口详情:")
         print(f"  {'ID':>3} {'Train':>12} → {'Test':>12} "
               f"{'Pairs':>6} {'Sharpe':>8} {'Return':>8} {'Trades':>7}")
         for w in report.windows:
@@ -116,12 +116,12 @@ def main() -> int:
     # 4. 验收
     print(f"\n[5] 验收 (OOS Sharpe ≥{report.target_sharpe}):")
     if report.passed:
-        print(f"  ✅ PASS — Walk-Forward 验证通过")
+        print("  ✅ PASS — Walk-Forward 验证通过")
         return 0
     else:
         print(f"  ⚠️  未达 Sharpe ≥{report.target_sharpe} 目标 "
               f"(平均 {report.avg_oos_sharpe:.4f})")
-        print(f"  注意: 合成数据可能不充分; 实盘 A 股需更长的历史数据")
+        print("  注意: 合成数据可能不充分; 实盘 A 股需更长的历史数据")
         print(f"  StatisticalArbitrageEngine 基线 OOS Sharpe = {report.baseline_sharpe}")
         return 0  # 合成数据不强制通过, 仅验证流程跑通
 

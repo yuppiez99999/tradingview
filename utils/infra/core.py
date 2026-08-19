@@ -470,7 +470,7 @@ class StrategyRegistry:
                 len(forward_returns),
                 e,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+        except (KeyError, AttributeError, RuntimeError,
                 ZeroDivisionError, OSError) as e:
             # scipy.stats 计算或记录过程可能抛: 数据格式/类型错误/
             # 字段缺失/属性不存在/运行时错误/除零/IO 异常

@@ -20,7 +20,7 @@ import logging
 import numpy as np
 import pytest
 
-from utils.alpha_factor.base import evaluate_factors, FactorLibraryResult, FactorValue
+from utils.alpha_factor.base import FactorLibraryResult, FactorValue, evaluate_factors
 from utils.alpha_factor.library import AlphaFactorLibrary
 
 logger = logging.getLogger(__name__)
@@ -152,7 +152,7 @@ class TestBackwardCompatibility:
 
         # 降级模式: ic_ir 保持默认值 (0.0 或 None, 取决于 FactorValue 定义)
         # 关键: 不应有时序 ic_1d 填充
-        for name, fval in result.factors.items():
+        for _name, fval in result.factors.items():
             # ic_5d 在单点模式下被填充 (calc_ic with forward_window=5)
             assert fval.ic_5d is not None
             # ic_ir 在单点模式下不被填充 (保持默认 0.0)

@@ -1,17 +1,16 @@
-# -*- coding: utf-8 -*-
 """wt_spread_strategy 单元测试 — WonderTrader 价差策略框架"""
 import pytest
 
 from utils.wt_spread_strategy import (
-    SpreadDefinition,
+    ETF_PAIR_SPREADS,
+    SpreadBacktester,
     SpreadCalculator,
     SpreadContext,
-    SpreadBacktester,
+    SpreadDefinition,
     SpreadStrategy,
-    ETF_PAIR_SPREADS,
     _leg_code,
-    _leg_ratio,
     _leg_direction,
+    _leg_ratio,
 )
 from utils.wt_structs import BarData, TickData
 

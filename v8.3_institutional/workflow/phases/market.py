@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 2: 市场状态评估 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py L1182-L1284 (phase_market) + L1286-L1309 (_scan_anysearch_news)

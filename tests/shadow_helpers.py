@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
-
 # ============================================================
 # 数据生成
 # ============================================================
@@ -180,7 +179,7 @@ def read_jsonl(file_path: Path) -> list[dict[str, Any]]:
     if not file_path.exists():
         return []
     records: list[dict[str, Any]] = []
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:

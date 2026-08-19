@@ -9,7 +9,7 @@
   4. 十五五规划（2026-2030）与康波周期交叠分析
   5. 大宗商品周期信号生成
 
-数据源优先级：iFinD MCP > Wind MCP > akshare > 本地估算
+数据源优先级：Wind MCP > akshare > 本地估算
 """
 
 import logging

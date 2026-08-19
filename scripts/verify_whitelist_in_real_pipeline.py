@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """反向验证: 用真实 ShadowRealDataFeeder._cross_validate_internal 路径验证白名单修复.
 
 构造 Mock 价格数据 (含 159915 涨 22% / 159919 涨 22% / 600519 涨 22% 等),

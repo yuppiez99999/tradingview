@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 5 子模块: Qlib 深度学习信号生成与转换 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py
@@ -21,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from workflow.context import WorkflowContext
 
@@ -49,11 +48,11 @@ def qlib_signal_to_factor(signal_value: float) -> float:
 
 
 def qlib_signals_to_adjustments(
-    qlib_signals: Dict[str, float],
+    qlib_signals: dict[str, float],
     *,
-    morning_orders: List[Dict[str, Any]],
-    afternoon_orders: List[Dict[str, Any]],
-) -> Dict[str, Any]:
+    morning_orders: list[dict[str, Any]],
+    afternoon_orders: list[dict[str, Any]],
+) -> dict[str, Any]:
     """按 Qlib 信号调整订单：强看多加仓、中性维持、看空减仓或跳过
 
     Returns:
@@ -68,8 +67,8 @@ def qlib_signals_to_adjustments(
     if not qlib_signals:
         return {}
 
-    def _apply(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        adjusted: List[Dict[str, Any]] = []
+    def _apply(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        adjusted: list[dict[str, Any]] = []
         for order in orders:
             code = str(order.get("code", ""))
             signal_value = qlib_signals.get(code)
@@ -84,7 +83,7 @@ def qlib_signals_to_adjustments(
 
             new_order = dict(order)
             original_shares = int(order.get("shares", 0))
-            original_amount = float(order.get("est_amount", 0))
+            float(order.get("est_amount", 0))
             new_shares = max(100, int(original_shares * factor / 100) * 100)
             new_order["shares"] = new_shares
             new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
@@ -114,7 +113,7 @@ def qlib_signals_to_adjustments(
     }
 
 
-def generate_qlib_signals(ctx: WorkflowContext) -> Dict[str, float]:
+def generate_qlib_signals(ctx: WorkflowContext) -> dict[str, float]:
     """为交易计划中的标的生成 Qlib 深度学习信号
 
     Args:
@@ -125,9 +124,9 @@ def generate_qlib_signals(ctx: WorkflowContext) -> Dict[str, float]:
     """
     try:
         from alpha.qlib_signal_adapter import (
+            fetch_ifind_ohlcv,
             generate_signal,
             is_qlib_available,
-            fetch_ifind_ohlcv,
         )
     except ImportError:
         logger.warning("Qlib 信号适配器不可用")

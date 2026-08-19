@@ -109,7 +109,7 @@ def compute_lead_lag_factors(
 
     # 1. CHAIN_MOM_20D: 邻居 20 日动量加权
     values = {}
-    for sym, data in price_data.items():
+    for sym, _data in price_data.items():
         neigh = neighbors_map.get(sym, {})
         # 只保留在 price_data 中的邻居
         valid = {n: w for n, w in neigh.items() if n in mom_20d}
@@ -146,7 +146,7 @@ def compute_lead_lag_factors(
 
     # 4. CHAIN_NEIGHBOR_DIFF: 个股 20 日动量 - 邻居 20 日动量 (脱钩度)
     values = {}
-    for sym, data in price_data.items():
+    for sym, _data in price_data.items():
         if sym not in mom_20d:
             continue
         neigh = neighbors_map.get(sym, {})

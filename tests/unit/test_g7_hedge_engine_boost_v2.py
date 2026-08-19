@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """G7 覆盖率冲刺 v2 — hedge_engine + hedge_rebalance_integrator 未覆盖路径补测试.
 
 补充 test_g7_hedge_engine_boost.py 未覆盖的方法:
@@ -25,10 +24,8 @@ hedge_rebalance_integrator.py 未覆盖:
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -46,8 +43,8 @@ if str(PROJECT_ROOT) not in sys.path:
 # ============================================================
 
 def _make_synthetic_returns(
-    codes: List[str], n_days: int = 70, seed: int = 42
-) -> Dict[str, List[float]]:
+    codes: list[str], n_days: int = 70, seed: int = 42
+) -> dict[str, list[float]]:
     """生成合成的历史日收益率数据 (用于协方差矩阵/VaR/ES/MRC测试)"""
     import random
     rng = random.Random(seed)
@@ -80,56 +77,28 @@ class TestHedgeEngineFuturesPrices:
     """期货价格多源回退链路测试"""
 
     def test_exec_ifind_no_client(self) -> None:
-        """iFinD 客户端不可用时返回错误"""
-        from utils.hedge_engine import _exec_ifind
-        with patch("utils.hedge_engine.IFIND_CLIENT", None):
-            result = _exec_ifind("stock", "get_stock_summary", {"query": "test"})
-        assert "error" in result
+        """iFinD 客户端不可用时返回错误 (已废弃: 源码重构移除 iFinD 数据源)"""
+        pytest.skip("utils/hedge_engine.py 已移除 _exec_ifind (iFinD 数据源不再使用)")
 
     def test_exec_ifind_with_mock_client_data(self) -> None:
-        """iFinD 客户端返回 data 时正常透传"""
-        from utils.hedge_engine import _exec_ifind
-        mock_client = MagicMock()
-        mock_client.call.return_value = {"data": {"price": 3900.0}}
-        with patch("utils.hedge_engine.IFIND_CLIENT", mock_client):
-            result = _exec_ifind("stock", "get_stock_summary", {"query": "test"})
-        assert "data" in result
-        assert result["data"]["price"] == 3900.0
+        """iFinD 客户端返回 data 时正常透传 (已废弃: 源码重构移除 iFinD 数据源)"""
+        pytest.skip("utils/hedge_engine.py 已移除 _exec_ifind (iFinD 数据源不再使用)")
 
     def test_exec_ifind_error_response(self) -> None:
-        """iFinD 返回 error 字段时透传错误"""
-        from utils.hedge_engine import _exec_ifind
-        mock_client = MagicMock()
-        mock_client.call.return_value = {"error": {"message": "rate limit"}}
-        with patch("utils.hedge_engine.IFIND_CLIENT", mock_client):
-            result = _exec_ifind("stock", "get_stock_summary", {"query": "test"})
-        assert "error" in result
-        assert "rate limit" in result["error"]
+        """iFinD 返回 error 字段时透传错误 (已废弃: 源码重构移除 iFinD 数据源)"""
+        pytest.skip("utils/hedge_engine.py 已移除 _exec_ifind (iFinD 数据源不再使用)")
 
     def test_exec_ifind_exception(self) -> None:
-        """iFinD 调用异常时返回错误"""
-        from utils.hedge_engine import _exec_ifind
-        mock_client = MagicMock()
-        mock_client.call.side_effect = ValueError("connection error")
-        with patch("utils.hedge_engine.IFIND_CLIENT", mock_client):
-            result = _exec_ifind("stock", "get_stock_summary", {"query": "test"})
-        assert "error" in result
+        """iFinD 调用异常时返回错误 (已废弃: 源码重构移除 iFinD 数据源)"""
+        pytest.skip("utils/hedge_engine.py 已移除 _exec_ifind (iFinD 数据源不再使用)")
 
     def test_exec_ifind_non_dict_result(self) -> None:
-        """iFinD 返回非字典结果时直接返回"""
-        from utils.hedge_engine import _exec_ifind
-        mock_client = MagicMock()
-        mock_client.call.return_value = "raw_string"
-        with patch("utils.hedge_engine.IFIND_CLIENT", mock_client):
-            result = _exec_ifind("stock", "get_stock_summary", {"query": "test"})
-        assert result == "raw_string"
+        """iFinD 返回非字典结果时直接返回 (已废弃: 源码重构移除 iFinD 数据源)"""
+        pytest.skip("utils/hedge_engine.py 已移除 _exec_ifind (iFinD 数据源不再使用)")
 
     def test_fetch_futures_prices_from_ifind_unavailable(self) -> None:
-        """iFinD 不可用时返回空字典"""
-        from utils.hedge_engine import fetch_futures_prices_from_ifind
-        with patch("utils.hedge_engine.IFIND_AVAILABLE", False):
-            result = fetch_futures_prices_from_ifind()
-        assert result == {}
+        """iFinD 不可用时返回空字典 (已废弃: 源码重构移除 iFinD 数据源)"""
+        pytest.skip("utils/hedge_engine.py 已移除 fetch_futures_prices_from_ifind (iFinD 数据源不再使用)")
 
     def test_fetch_futures_prices_from_wind_no_module(self) -> None:
         """Wind MCP 模块不可用时返回空字典"""
@@ -175,9 +144,9 @@ class TestHedgeEngineFuturesPrices:
 
     def test_get_live_futures_prices_all_fallback(self) -> None:
         """所有数据源失败时使用默认回退价格"""
-        from utils.hedge_engine import get_live_futures_prices, DEFAULT_FUTURES_PRICES
-        with patch("utils.hedge_engine.fetch_futures_prices_from_ifind", return_value={}), \
-             patch("utils.hedge_engine.fetch_futures_prices_from_wind", return_value={}), \
+        from utils.hedge_engine import DEFAULT_FUTURES_PRICES, get_live_futures_prices
+        # API 重构: 源码已移除 iFinD, 回退链为 Wind → AKShare → Sina → efinance → 默认
+        with patch("utils.hedge_engine.fetch_futures_prices_from_wind", return_value={}), \
              patch("utils.hedge_engine.fetch_futures_prices_from_akshare", return_value={}), \
              patch("utils.hedge_engine.fetch_futures_prices_from_sina", return_value={}), \
              patch("utils.hedge_engine.fetch_futures_prices_from_efinance", return_value={}):
@@ -190,11 +159,10 @@ class TestHedgeEngineFuturesPrices:
         assert prices["IC"] == DEFAULT_FUTURES_PRICES["IC"]
 
     def test_get_live_futures_prices_with_ifind(self) -> None:
-        """iFinD 提供完整价格时直接使用"""
+        """Wind 提供完整价格时直接使用 (API 重构: iFinD 已移除, 改用 Wind)"""
         from utils.hedge_engine import get_live_futures_prices
-        ifind_prices = {"IF": 3900.0, "IC": 6200.0, "IM": 6800.0, "IH": 2700.0}
-        with patch("utils.hedge_engine.fetch_futures_prices_from_ifind", return_value=ifind_prices), \
-             patch("utils.hedge_engine.fetch_futures_prices_from_wind", return_value={}), \
+        wind_prices = {"IF": 3900.0, "IC": 6200.0, "IM": 6800.0, "IH": 2700.0}
+        with patch("utils.hedge_engine.fetch_futures_prices_from_wind", return_value=wind_prices), \
              patch("utils.hedge_engine.fetch_futures_prices_from_akshare", return_value={}), \
              patch("utils.hedge_engine.fetch_futures_prices_from_sina", return_value={}), \
              patch("utils.hedge_engine.fetch_futures_prices_from_efinance", return_value={}):
@@ -205,8 +173,8 @@ class TestHedgeEngineFuturesPrices:
     def test_get_live_futures_prices_partial_from_wind(self) -> None:
         """Wind 部分补充价格"""
         from utils.hedge_engine import get_live_futures_prices
-        with patch("utils.hedge_engine.fetch_futures_prices_from_ifind", return_value={}), \
-             patch("utils.hedge_engine.fetch_futures_prices_from_wind",
+        # API 重构: 源码已移除 iFinD, 回退链为 Wind → AKShare → Sina → efinance → 默认
+        with patch("utils.hedge_engine.fetch_futures_prices_from_wind",
                    return_value={"IF": 3900.0, "IC": 6200.0}), \
              patch("utils.hedge_engine.fetch_futures_prices_from_akshare",
                    return_value={"IM": 6800.0}), \
@@ -262,7 +230,7 @@ class TestHedgeEngineExtraConstants:
         scenarios = HedgeEngine.HISTORICAL_STRESS_SCENARIOS
         assert len(scenarios) == 6
         assert "2015股灾 (沪深300 -45%)" in scenarios
-        for name, shock in scenarios.items():
+        for _name, shock in scenarios.items():
             assert "csi300" in shock
             assert "csi500" in shock
             assert "sector" in shock
@@ -311,7 +279,7 @@ class TestHedgeEngineStressTests:
         prices = {"300750": 230.0, "601088": 38.0}
         result = engine.run_historical_stress_tests(positions, prices)
         assert len(result) == 6  # 6 个历史情景
-        for scenario_name, scenario_result in result.items():
+        for _scenario_name, scenario_result in result.items():
             assert "estimated_loss" in scenario_result
             assert "drawdown_pct" in scenario_result
             assert "breaches_limit" in scenario_result
@@ -558,7 +526,7 @@ class TestHedgeEngineFuturesHedge:
 
     def test_generate_futures_hedge_zero_ratio(self) -> None:
         """对冲比率为0时返回空方案"""
-        from utils.hedge_engine import HedgeEngine, PortfolioRisk
+        from utils.hedge_engine import HedgeEngine
         engine = HedgeEngine()
         risk = _make_portfolio_risk()
         result = engine.generate_futures_hedge(risk, 0.0)
@@ -615,7 +583,7 @@ class TestHedgeEngineFuturesHedge:
 
     def test_generate_futures_hedge_fallback_detection(self) -> None:
         """检测使用回退价格的品种"""
-        from utils.hedge_engine import HedgeEngine, DEFAULT_FUTURES_PRICES
+        from utils.hedge_engine import DEFAULT_FUTURES_PRICES, HedgeEngine
         engine = HedgeEngine()
         risk = _make_portfolio_risk()
         # 传入与默认价格相同的值 → 标记为 fallback
@@ -702,7 +670,7 @@ class TestHedgeEngineHedgePlan:
 
     def test_hedge_plan_no_hedge(self) -> None:
         """风险可控时无需对冲"""
-        from utils.hedge_engine import HedgeEngine, HedgeType, HedgeSignalStrength, PortfolioRisk
+        from utils.hedge_engine import HedgeEngine, HedgeSignalStrength, HedgeType, PortfolioRisk
         engine = HedgeEngine()
         risk = PortfolioRisk()  # 所有字段为0
         rec = engine.generate_hedge_plan(risk)
@@ -713,7 +681,7 @@ class TestHedgeEngineHedgePlan:
     def test_hedge_plan_futures(self) -> None:
         """期货对冲方案"""
         from utils.hedge_engine import (
-            HedgeEngine, HedgeType, HedgeSignalStrength,
+            HedgeEngine,
         )
         engine = HedgeEngine()
         risk = _make_portfolio_risk(beta_csi300=1.6, beta_csi500=1.5)
@@ -727,7 +695,7 @@ class TestHedgeEngineHedgePlan:
 
     def test_hedge_plan_options(self) -> None:
         """期权对冲方案"""
-        from utils.hedge_engine import HedgeEngine, HedgeType
+        from utils.hedge_engine import HedgeEngine
         engine = HedgeEngine()
         risk = _make_portfolio_risk(beta_csi300=1.6, beta_csi500=1.5)
         rec = engine.generate_hedge_plan(
@@ -755,7 +723,7 @@ class TestHedgeEngineHedgePlan:
     def test_hedge_plan_cost_benefit_filtered(self) -> None:
         """成本效益过滤 — 对冲经分析后不划算返回0"""
         from utils.hedge_engine import (
-            HedgeEngine, HedgeType, HedgeSignalStrength,
+            HedgeEngine,
         )
         engine = HedgeEngine()
         # 低波动率 + 低回撤 → tail_ratio=0 → 可能被成本过滤
@@ -890,7 +858,9 @@ class TestIntegratorExtraConstants:
 
     def test_portfolio_hedge_thresholds(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            PORTFOLIO_HEDGE_THRESHOLDS, MarketRegime, HedgeMode,
+            PORTFOLIO_HEDGE_THRESHOLDS,
+            HedgeMode,
+            MarketRegime,
         )
         calm = PORTFOLIO_HEDGE_THRESHOLDS[MarketRegime.CALM]
         assert calm["hedge_ratio"] == 0.0
@@ -901,7 +871,10 @@ class TestIntegratorExtraConstants:
 
     def test_tail_trigger_constants(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            TAIL_VOL_TRIGGER, TAIL_DD_TRIGGER, TAIL_MIN_HEDGE, TAIL_MAX_HEDGE,
+            TAIL_DD_TRIGGER,
+            TAIL_MAX_HEDGE,
+            TAIL_MIN_HEDGE,
+            TAIL_VOL_TRIGGER,
         )
         assert TAIL_VOL_TRIGGER == 0.28
         assert TAIL_DD_TRIGGER == 0.12
@@ -918,7 +891,9 @@ class TestIntegratorMarketRegime:
 
     def test_regime_mild_volatile(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, MarketRegime, PortfolioRisk,
+            HedgeRebalanceIntegrator,
+            MarketRegime,
+            PortfolioRisk,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = PortfolioRisk()
@@ -929,7 +904,9 @@ class TestIntegratorMarketRegime:
 
     def test_regime_high_volatile(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, MarketRegime, PortfolioRisk,
+            HedgeRebalanceIntegrator,
+            MarketRegime,
+            PortfolioRisk,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = PortfolioRisk()
@@ -941,7 +918,9 @@ class TestIntegratorMarketRegime:
     def test_regime_mild_by_vol_only(self) -> None:
         """仅波动率超标触发MILD"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, MarketRegime, PortfolioRisk,
+            HedgeRebalanceIntegrator,
+            MarketRegime,
+            PortfolioRisk,
         )
         integrator = HedgeRebalanceIntegrator()
         regime = integrator._determine_market_regime(
@@ -952,7 +931,9 @@ class TestIntegratorMarketRegime:
     def test_regime_mild_by_dd_only(self) -> None:
         """仅回撤超标触发MILD"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, MarketRegime, PortfolioRisk,
+            HedgeRebalanceIntegrator,
+            MarketRegime,
+            PortfolioRisk,
         )
         integrator = HedgeRebalanceIntegrator()
         regime = integrator._determine_market_regime(
@@ -962,7 +943,9 @@ class TestIntegratorMarketRegime:
 
     def test_regime_high_by_vol_only(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, MarketRegime, PortfolioRisk,
+            HedgeRebalanceIntegrator,
+            MarketRegime,
+            PortfolioRisk,
         )
         integrator = HedgeRebalanceIntegrator()
         regime = integrator._determine_market_regime(
@@ -973,7 +956,9 @@ class TestIntegratorMarketRegime:
     def test_regime_uses_defaults(self) -> None:
         """不传参数时使用默认估算值"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, MarketRegime, PortfolioRisk,
+            HedgeRebalanceIntegrator,
+            MarketRegime,
+            PortfolioRisk,
         )
         integrator = HedgeRebalanceIntegrator()
         regime = integrator._determine_market_regime(PortfolioRisk())
@@ -990,7 +975,8 @@ class TestIntegratorTailHedgeRatio:
 
     def test_tail_ratio_none_mode(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeMode,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
         )
         integrator = HedgeRebalanceIntegrator(hedge_mode=HedgeMode.NONE)
         ratio = integrator._compute_tail_hedge_ratio(
@@ -1065,7 +1051,8 @@ class TestIntegratorDecideHedge:
     def test_decide_hedge_no_hedge_needed(self) -> None:
         """安全范围无需对冲"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeMode, PortfolioRisk,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
         )
         integrator = HedgeRebalanceIntegrator(hedge_mode=HedgeMode.TAIL_ONLY)
         risk = _make_portfolio_risk()
@@ -1079,7 +1066,9 @@ class TestIntegratorDecideHedge:
     def test_decide_hedge_tail_triggered(self) -> None:
         """尾部事件触发对冲"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeMode, MarketRegime,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
+            MarketRegime,
         )
         integrator = HedgeRebalanceIntegrator(hedge_mode=HedgeMode.TAIL_ONLY)
         risk = _make_portfolio_risk()
@@ -1102,7 +1091,8 @@ class TestIntegratorDecideHedge:
     def test_decide_hedge_no_engine(self) -> None:
         """hedge_engine 不可用时的降级路径"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeMode,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
         )
         integrator = HedgeRebalanceIntegrator(hedge_mode=HedgeMode.TAIL_ONLY)
         integrator.hedge_engine = None  # 模拟不可用
@@ -1117,7 +1107,9 @@ class TestIntegratorDecideHedge:
     def test_decide_hedge_fixed_mode(self) -> None:
         """FIXED 模式 — 使用 regime 配置的对冲比率"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeMode, MarketRegime,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
+            MarketRegime,
         )
         integrator = HedgeRebalanceIntegrator(hedge_mode=HedgeMode.FIXED)
         risk = _make_portfolio_risk()
@@ -1137,7 +1129,8 @@ class TestIntegratorDecideHedge:
     def test_decide_hedge_dynamic_mode(self) -> None:
         """DYNAMIC 模式 — 取 tail 和 regime 的最大值"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeMode,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
         )
         integrator = HedgeRebalanceIntegrator(hedge_mode=HedgeMode.DYNAMIC)
         risk = _make_portfolio_risk()
@@ -1155,7 +1148,8 @@ class TestIntegratorDecideHedge:
     def test_decide_hedge_vol_correction(self) -> None:
         """波动率目标修正 — portfolio_vol > target*1.3"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeMode,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
         )
         integrator = HedgeRebalanceIntegrator(hedge_mode=HedgeMode.TAIL_ONLY)
         risk = _make_portfolio_risk()
@@ -1193,7 +1187,6 @@ class TestIntegratorCheckRebalance:
 
     def test_check_rebalance_no_assets(self, tmp_path) -> None:
         """无 assets 配置时返回无需再平衡"""
-        from utils.hedge_rebalance_integrator import HedgeRebalanceIntegrator
         integrator = self._make_integrator_with_config(tmp_path)
         integrator.portfolio_config = {}  # 空 config
         risk = _make_portfolio_risk()
@@ -1204,7 +1197,6 @@ class TestIntegratorCheckRebalance:
 
     def test_check_rebalance_within_threshold(self, tmp_path) -> None:
         """偏离度在阈值内 — 无需调整"""
-        from utils.hedge_rebalance_integrator import HedgeRebalanceIntegrator
         integrator = self._make_integrator_with_config(tmp_path)
         integrator.portfolio_config = {
             "assets": [
@@ -1222,7 +1214,6 @@ class TestIntegratorCheckRebalance:
 
     def test_check_rebalance_strategic(self, tmp_path) -> None:
         """严重偏离触发战略再平衡"""
-        from utils.hedge_rebalance_integrator import HedgeRebalanceIntegrator
         integrator = self._make_integrator_with_config(tmp_path)
         integrator.portfolio_config = {
             "assets": [
@@ -1247,7 +1238,6 @@ class TestIntegratorCheckRebalance:
 
     def test_check_rebalance_low_vol_threshold(self, tmp_path) -> None:
         """低波动率使用更严格阈值"""
-        from utils.hedge_rebalance_integrator import HedgeRebalanceIntegrator
         integrator = self._make_integrator_with_config(tmp_path)
         integrator.portfolio_config = {
             "assets": [
@@ -1265,7 +1255,6 @@ class TestIntegratorCheckRebalance:
 
     def test_check_rebalance_high_vol_threshold(self, tmp_path) -> None:
         """高波动率使用更宽松阈值"""
-        from utils.hedge_rebalance_integrator import HedgeRebalanceIntegrator
         integrator = self._make_integrator_with_config(tmp_path)
         integrator.portfolio_config = {
             "assets": [
@@ -1291,7 +1280,9 @@ class TestIntegratorJointOptimize:
     def test_joint_optimize_not_needed(self) -> None:
         """对冲或再平衡不需要时直接返回"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1305,7 +1296,9 @@ class TestIntegratorJointOptimize:
     def test_joint_optimize_hedge_only(self) -> None:
         """仅对冲需要 — 直接返回"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1317,7 +1310,9 @@ class TestIntegratorJointOptimize:
     def test_joint_optimize_minor_discrepancy(self) -> None:
         """轻微不一致 — 在可接受范围"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk(stock_exposure=800_000)
@@ -1333,7 +1328,9 @@ class TestIntegratorJointOptimize:
     def test_joint_optimize_major_discrepancy(self) -> None:
         """严重不一致 — 调整对冲比率"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk(stock_exposure=800_000)
@@ -1350,7 +1347,9 @@ class TestIntegratorJointOptimize:
     def test_joint_optimize_margin_warning(self) -> None:
         """保证金需求过高预警"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk(stock_exposure=800_000, cash=100_000)
@@ -1371,7 +1370,9 @@ class TestIntegratorEstimatePerformance:
 
     def test_estimate_no_hedge_no_rebalance(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1388,7 +1389,9 @@ class TestIntegratorEstimatePerformance:
 
     def test_estimate_with_hedge(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1401,7 +1404,9 @@ class TestIntegratorEstimatePerformance:
 
     def test_estimate_strategic_rebalance(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1413,7 +1418,9 @@ class TestIntegratorEstimatePerformance:
 
     def test_estimate_tactical_rebalance(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1434,7 +1441,9 @@ class TestIntegratorExecutionPlan:
     def test_plan_high_priority(self) -> None:
         """高对冲比率 → HIGH 优先级"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1447,7 +1456,9 @@ class TestIntegratorExecutionPlan:
     def test_plan_high_priority_strategic(self) -> None:
         """战略再平衡 → HIGH 优先级"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1462,7 +1473,9 @@ class TestIntegratorExecutionPlan:
     def test_plan_medium_priority(self) -> None:
         """中等对冲 → MEDIUM 优先级"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1475,7 +1488,9 @@ class TestIntegratorExecutionPlan:
     def test_plan_low_priority(self) -> None:
         """低对冲 → LOW 优先级"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1488,7 +1503,9 @@ class TestIntegratorExecutionPlan:
     def test_plan_with_warnings(self) -> None:
         """带预警标志的执行计划"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1501,7 +1518,9 @@ class TestIntegratorExecutionPlan:
     def test_plan_with_stress_tests(self) -> None:
         """带压力测试结果的执行计划"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1517,7 +1536,10 @@ class TestIntegratorExecutionPlan:
     def test_plan_summary_hedge_needed(self) -> None:
         """对冲需要时 summary 包含对冲信息"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, HedgeMode, RebalanceDecision,
+            HedgeDecision,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1532,7 +1554,9 @@ class TestIntegratorExecutionPlan:
     def test_plan_summary_rebalance_needed(self) -> None:
         """再平衡需要时 summary 包含再平衡信息"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, HedgeDecision, RebalanceDecision,
+            HedgeDecision,
+            HedgeRebalanceIntegrator,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         risk = _make_portfolio_risk()
@@ -1556,7 +1580,7 @@ class TestIntegratorFullWorkflow:
     def test_full_workflow_mocked(self, tmp_path) -> None:
         """mock 内部方法后完整工作流应正常执行"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, PortfolioRisk,
+            HedgeRebalanceIntegrator,
         )
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -1645,7 +1669,9 @@ class TestIntegratorModuleFunctions:
 
     def test_get_integrator_all_modes(self) -> None:
         from utils.hedge_rebalance_integrator import (
-            get_integrator, HedgeRebalanceIntegrator, HedgeMode,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
+            get_integrator,
         )
         for mode_name, expected_mode in [
             ("tail_only", HedgeMode.TAIL_ONLY),
@@ -1660,14 +1686,15 @@ class TestIntegratorModuleFunctions:
     def test_get_integrator_unknown_mode_defaults(self) -> None:
         """未知模式默认为 TAIL_ONLY"""
         from utils.hedge_rebalance_integrator import (
-            get_integrator, HedgeMode,
+            HedgeMode,
+            get_integrator,
         )
         integrator = get_integrator(mode="unknown_mode")
         assert integrator.hedge_mode == HedgeMode.TAIL_ONLY
 
     def test_run_joint_analysis_no_save(self, tmp_path) -> None:
         """run_joint_analysis with save=False"""
-        from utils.hedge_rebalance_integrator import run_joint_analysis, JointPlan
+        from utils.hedge_rebalance_integrator import JointPlan, run_joint_analysis
         with patch("utils.hedge_rebalance_integrator.get_integrator") as mock_get:
             integrator = MagicMock()
             plan = JointPlan(portfolio_value=1_000_000, stock_exposure=800_000)
@@ -1681,7 +1708,7 @@ class TestIntegratorModuleFunctions:
 
     def test_run_joint_analysis_with_save(self, tmp_path) -> None:
         """run_joint_analysis with save=True"""
-        from utils.hedge_rebalance_integrator import run_joint_analysis, JointPlan
+        from utils.hedge_rebalance_integrator import JointPlan, run_joint_analysis
         with patch("utils.hedge_rebalance_integrator.get_integrator") as mock_get:
             integrator = MagicMock()
             plan = JointPlan(portfolio_value=1_000_000, stock_exposure=800_000)
@@ -1695,31 +1722,20 @@ class TestIntegratorModuleFunctions:
         assert fpath != ""
 
     def test_get_ifind_prices_batch_unavailable(self) -> None:
-        """iFinD 不可用时返回空字典"""
-        from utils.hedge_rebalance_integrator import _get_ifind_prices_batch
-        with patch("utils.hedge_rebalance_integrator.IFIND_AVAILABLE", False):
-            result = _get_ifind_prices_batch(["600519.SH"])
-        assert result == {}
+        """iFinD 不可用时返回空字典 (已废弃: 源码重构移除 iFinD 数据源)"""
+        pytest.skip("utils/hedge_rebalance_integrator.py 已移除 _get_ifind_prices_batch (iFinD 数据源不再使用)")
 
     def test_get_ifind_prices_batch_no_codes(self) -> None:
-        """无有效代码时返回空字典"""
-        from utils.hedge_rebalance_integrator import _get_ifind_prices_batch
-        result = _get_ifind_prices_batch(["600519"])  # 无后缀
-        assert result == {}
+        """无有效代码时返回空字典 (已废弃: 源码重构移除 iFinD 数据源)"""
+        pytest.skip("utils/hedge_rebalance_integrator.py 已移除 _get_ifind_prices_batch (iFinD 数据源不再使用)")
 
     def test_exec_ifind_no_client(self) -> None:
-        from utils.hedge_rebalance_integrator import _exec_ifind
-        with patch("utils.hedge_rebalance_integrator.IFIND_CLIENT", None):
-            result = _exec_ifind("stock", "get", {})
-        assert "error" in result
+        """(已废弃: 源码重构移除 iFinD 数据源)"""
+        pytest.skip("utils/hedge_rebalance_integrator.py 已移除 _exec_ifind (iFinD 数据源不再使用)")
 
     def test_exec_ifind_with_mock(self) -> None:
-        from utils.hedge_rebalance_integrator import _exec_ifind
-        mock_client = MagicMock()
-        mock_client.call.return_value = {"data": {"price": 100}}
-        with patch("utils.hedge_rebalance_integrator.IFIND_CLIENT", mock_client):
-            result = _exec_ifind("stock", "get", {})
-        assert "data" in result
+        """(已废弃: 源码重构移除 iFinD 数据源)"""
+        pytest.skip("utils/hedge_rebalance_integrator.py 已移除 _exec_ifind (iFinD 数据源不再使用)")
 
 
 # ============================================================
@@ -1732,7 +1748,10 @@ class TestIntegratorFormatReportExtra:
     def test_format_report_with_hedge(self) -> None:
         """带对冲决策的报告"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, JointPlan, HedgeDecision, HedgeMode,
+            HedgeDecision,
+            HedgeMode,
+            HedgeRebalanceIntegrator,
+            JointPlan,
             MarketRegime,
         )
         integrator = HedgeRebalanceIntegrator()
@@ -1758,7 +1777,10 @@ class TestIntegratorFormatReportExtra:
     def test_format_report_with_rebalance(self) -> None:
         """带再平衡决策的报告"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, JointPlan, RebalanceDecision, PositionWeight,
+            HedgeRebalanceIntegrator,
+            JointPlan,
+            PositionWeight,
+            RebalanceDecision,
         )
         integrator = HedgeRebalanceIntegrator()
         plan = JointPlan(
@@ -1786,7 +1808,8 @@ class TestIntegratorFormatReportExtra:
     def test_format_report_with_stress_tests(self) -> None:
         """带压力测试的报告"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, JointPlan,
+            HedgeRebalanceIntegrator,
+            JointPlan,
         )
         integrator = HedgeRebalanceIntegrator()
         plan = JointPlan(
@@ -1806,7 +1829,8 @@ class TestIntegratorFormatReportExtra:
     def test_format_report_with_warnings(self) -> None:
         """带预警的报告"""
         from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, JointPlan,
+            HedgeRebalanceIntegrator,
+            JointPlan,
         )
         integrator = HedgeRebalanceIntegrator()
         plan = JointPlan(

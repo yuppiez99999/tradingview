@@ -6,8 +6,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from utils.execution_selector import (
     _compute_adaptive_weights,
     _estimate_depth_ratio,

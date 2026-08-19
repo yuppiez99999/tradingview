@@ -183,7 +183,7 @@ def temp_shadow_env(
     def _mock_generate_snapshot():
         real_count = 0
         if cleaned_file.exists():
-            with open(cleaned_file, "r", encoding="utf-8") as f:
+            with open(cleaned_file, encoding="utf-8") as f:
                 for line in f:
                     try:
                         rec = _json.loads(line.strip())

@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
 """stress_test 单元测试 — 压力测试报告生成"""
-import pytest
 
 from utils.stress_test import (
     HARD_STOP_MAX_DRAWDOWN,
-    TAIL_HEDGE_THRESHOLD,
     STRESS_SCENARIOS,
+    TAIL_HEDGE_THRESHOLD,
     generate_stress_report,
 )
 
@@ -29,13 +27,13 @@ class TestStressScenarios:
         assert "2020疫情" in STRESS_SCENARIOS
 
     def test_scenario_fields(self):
-        for name, params in STRESS_SCENARIOS.items():
+        for _name, params in STRESS_SCENARIOS.items():
             assert "equity_shock" in params
             assert "volatility_spike" in params
             assert "correlation_increase" in params
 
     def test_equity_shock_negative(self):
-        for name, params in STRESS_SCENARIOS.items():
+        for _name, params in STRESS_SCENARIOS.items():
             assert params["equity_shock"] < 0
 
     def test_count(self):

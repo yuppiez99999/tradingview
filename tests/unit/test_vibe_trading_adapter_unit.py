@@ -12,7 +12,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
 from utils import vibe_trading_adapter
 from utils.vibe_trading_adapter import (
@@ -21,7 +20,6 @@ from utils.vibe_trading_adapter import (
     _normalize_symbol,
     _proxy_fallback_fetch,
 )
-
 
 # ============================================================
 # _infer_market

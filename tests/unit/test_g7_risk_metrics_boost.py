@@ -15,7 +15,6 @@
 """
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -63,7 +62,7 @@ class TestCalculateVar:
 
     def test_historical_method_confidence_99(self):
         rets = np.array([-0.05, -0.02, 0.0, 0.01, 0.02, 0.03])
-        var95 = calculate_var(rets, 0.95, "historical")
+        calculate_var(rets, 0.95, "historical")
         var99 = calculate_var(rets, 0.99, "historical")
         # 99% 应至少不小于 95% 的损失幅度 (绝对值)
         assert var99 >= 0

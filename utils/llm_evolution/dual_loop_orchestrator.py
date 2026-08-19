@@ -230,7 +230,7 @@ class DualLoopOrchestrator:
             started_at=datetime.now().isoformat(timespec="seconds"),
         )
 
-        for i in range(max_cycles):
+        for _i in range(max_cycles):
             # 安全检查
             should_pause, reason = self._check_safety()
             if should_pause:

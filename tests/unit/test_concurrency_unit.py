@@ -10,9 +10,6 @@
 from __future__ import annotations
 
 import json
-import os
-import threading
-from pathlib import Path
 
 import pytest
 
@@ -24,7 +21,6 @@ from utils.concurrency import (
     read_json_locked,
     run_io_batch,
 )
-
 
 # ============================================================
 # get_path_lock

@@ -1,24 +1,31 @@
-# -*- coding: utf-8 -*-
 """风险监控 v2.0 — 止损止盈 + VaR + 相关性矩阵 + 最大回撤曲线 + 集中度风险"""
-import sys, os, json
+import json
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
-import pandas as pd
+from datetime import datetime
+
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+import streamlit as st
 
 st.set_page_config(page_title="风险监控", page_icon="🛡️", layout="wide")
 st.title("🛡️ 风险监控 v2.0")
 st.caption("止损止盈状态 + VaR风险度量 + 相关性矩阵 + 最大回撤 — 全方位动态风控")
 
-from ui.components.module_loader import get_system_module
 from ui.components.common import inject_global_style
-from ui.components.system_status import render_module_grid, render_connector_status, render_alert_card, render_status_card, render_kpi_row
+from ui.components.module_loader import get_system_module
+from ui.components.system_status import (
+    render_alert_card,
+    render_kpi_row,
+    render_status_card,
+)
 
 inject_global_style()
 
@@ -32,14 +39,14 @@ POSITIONS_FILE = os.path.join(_BASE_DIR, 'config', 'positions.json')
 def load_stop_loss_rules():
     if not os.path.exists(STOP_LOSS_CONFIG):
         return []
-    with open(STOP_LOSS_CONFIG, 'r', encoding='utf-8') as f:
+    with open(STOP_LOSS_CONFIG, encoding='utf-8') as f:
         return json.load(f)
 
 @st.cache_data(ttl=30)
 def load_positions():
     if not os.path.exists(POSITIONS_FILE):
         return {}
-    with open(POSITIONS_FILE, 'r', encoding='utf-8') as f:
+    with open(POSITIONS_FILE, encoding='utf-8') as f:
         return json.load(f)
 
 rules = load_stop_loss_rules()
@@ -324,9 +331,11 @@ with tab3:
         }
 
         def est_corr(i1, i2):
-            if i1 == i2: return 1.0
+            if i1 == i2:
+                return 1.0
             for grp in industry_groups.values():
-                if i1 in grp and i2 in grp: return 0.75
+                if i1 in grp and i2 in grp:
+                    return 0.75
             return 0.25
 
         names_list_unique = []
@@ -394,7 +403,7 @@ with tab4:
         base_price = 1.0
         np.random.seed(42)
         nav = [base_price]
-        for i in range(1, 60):
+        for _i in range(1, 60):
             ret = np.random.normal(0.0005, 0.015)  # 日收益 N(0.05%, 1.5%)
             nav.append(nav[-1] * (1 + ret))
 

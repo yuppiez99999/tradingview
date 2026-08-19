@@ -1,9 +1,6 @@
 """T14 单元测试 — RiskAuditLogger 风控审计回放."""
 from __future__ import annotations
 
-import json
-import os
-import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -64,7 +61,7 @@ class TestLogWriteAndFlush:
         # 进一步保证: 自动 flush 后, buffer 内剩余的是后续追加, 因此文件总行数应为 6 (flush 2 次或合并)
         if len(persisted) < 6:
             # 如非自动+手动恰好合并, 也至少得 >=5 且包含第 1 条 s0 的 ID
-            ids = [r.audit_id for r in persisted]
+            [r.audit_id for r in persisted]
             first_symbol = next((r.symbol for r in persisted if r.symbol == "s0"), None)
             assert first_symbol is not None, "未检测到自动刷盘的首批记录"
 
@@ -116,7 +113,7 @@ class TestReplayApis:
 
     def test_replay_stream_sorted_by_timestamp(self, tmp_path):
         logger = _make_logger(tmp_path)
-        ids = [
+        [
             logger.log("T09_PRETRADE", "ALLOW", symbol="a"),
             logger.log("T09_PRETRADE", "BLOCK", symbol="b"),
         ]

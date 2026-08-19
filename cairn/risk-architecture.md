@@ -143,3 +143,4 @@ related:
 - Shadow Account 14 天观测期届满后激活 Kill Switch callback 注册
 - EVT/GARCH/Kalman 从只读对照升级为生产接入
 - 风控参数的贝叶斯自适应调整替代静态阈值
+- **MVSK 高阶矩组合优化**（YAND 启发）：P1 已在 `risk_budget_optimizer.py` 落地（偏度/峰度进优化目标，不建张量），P2/P3 待启动 → `cairn/mvsk-higher-moment-optimization.md`

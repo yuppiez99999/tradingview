@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import sys
 from contextlib import contextmanager
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -62,7 +62,18 @@ PROJECT_ROOT = os.path.dirname(
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from utils.alpha_factor.expression_engine import (  # noqa: E402
+from utils.alpha_factor.base import FactorValue  # noqa: E402
+from utils.alpha_factor.expression_engine import (  # noqa: E402  # noqa: E402
+    _FIELD_NORMALIZE,
+    _OP_RE,
+    _PRICE_FIELDS,
+    TT_COMMA,
+    TT_EOF,
+    TT_IDENT,
+    TT_LPAREN,
+    TT_NUMBER,
+    TT_OP,
+    TT_RPAREN,
     BinaryOpNode,
     ExpressionEvaluator,
     ExpressionFactorSpec,
@@ -71,10 +82,6 @@ from utils.alpha_factor.expression_engine import (  # noqa: E402
     NumberNode,
     Token,
     UnaryOpNode,
-    _FIELD_NORMALIZE,
-    _OP_RE,
-    _PRICE_FIELDS,
-    _Parser,
     _op_abs,
     _op_log,
     _op_max,
@@ -84,6 +91,7 @@ from utils.alpha_factor.expression_engine import (  # noqa: E402
     _op_rank,
     _op_winsorize,
     _op_zscore,
+    _Parser,
     _ts_correlation,
     _ts_covariance,
     _ts_delay,
@@ -100,17 +108,6 @@ from utils.alpha_factor.expression_engine import (  # noqa: E402
     parse_expression,
     tokenize,
 )
-from utils.alpha_factor.expression_engine import (  # noqa: E402
-    TT_COMMA,
-    TT_EOF,
-    TT_IDENT,
-    TT_LPAREN,
-    TT_NUMBER,
-    TT_OP,
-    TT_RPAREN,
-)
-from utils.alpha_factor.base import FactorValue  # noqa: E402
-
 
 # ============================================================
 # 1. Tokenizer

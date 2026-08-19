@@ -1,18 +1,17 @@
-# -*- coding: utf-8 -*-
 """
 报告生成模式 — v5.10 P0-9 重构
 """
 
 import os
+
 from core.context import (
     BASE_DIR,
-    logger,
     ProgressIndicator,
     config_hub,
     daily_report,
+    logger,
 )
 from utils.cli_helpers import (
-    write_report_file,
     archive_report,
     get_ml_signal_section,
 )
@@ -66,8 +65,8 @@ def run_report_generation(args):
             if getattr(args, 'include_valuation', False):
                 progress.update(5, "生成估值分析...")
                 try:
-                    from utils.dcf_model import summarize_dcf
                     from utils.comps_analyzer import summarize_comps
+                    from utils.dcf_model import summarize_dcf
                     dcf_summary = summarize_dcf({
                         "ticker": "EXAMPLE",
                         "wacc": 0.09,

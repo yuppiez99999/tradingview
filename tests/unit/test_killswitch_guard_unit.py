@@ -72,7 +72,7 @@ class TestL1Filter:
     def test_empty_trades(self):
         decision = _FakeDecision([])
         ks_result = {"can_open": False}
-        result = apply_killswitch_l1_filter(decision, ks_result, {})
+        apply_killswitch_l1_filter(decision, ks_result, {})
         assert len(decision.trades) == 0
 
 
@@ -89,7 +89,7 @@ class TestNoFilter:
             {"side": "SELL", "symbol": "300750"},
         ])
         ks_result = {"can_open": True}
-        result = apply_killswitch_l1_filter(decision, ks_result, {})
+        apply_killswitch_l1_filter(decision, ks_result, {})
 
         assert len(decision.trades) == 2  # 不变
 
@@ -98,7 +98,7 @@ class TestNoFilter:
         decision = _FakeDecision([
             {"side": "BUY", "symbol": "600519"},
         ])
-        result = apply_killswitch_l1_filter(decision, None, {})
+        apply_killswitch_l1_filter(decision, None, {})
 
         assert len(decision.trades) == 1
 
@@ -109,7 +109,7 @@ class TestNoFilter:
             {"side": "BUY", "symbol": "600519"},
         ])
         ks_result = {}
-        result = apply_killswitch_l1_filter(decision, ks_result, {})
+        apply_killswitch_l1_filter(decision, ks_result, {})
 
         assert len(decision.trades) == 1
 
@@ -146,6 +146,6 @@ class TestErrorHandling:
         ks_result = {"can_open": False}
         # result=None 会导致 result.setdefault 抛 AttributeError
         # 但被 except 捕获
-        r = apply_killswitch_l1_filter(decision, ks_result, None)  # type: ignore[arg-type]
+        apply_killswitch_l1_filter(decision, ks_result, None)  # type: ignore[arg-type]
         # trades 仍被过滤 (在 setdefault 之前)
         assert len(decision.trades) == 0

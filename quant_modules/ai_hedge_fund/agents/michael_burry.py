@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import json
-from typing_extensions import Literal
+from datetime import datetime, timedelta
+from typing import Any
 
-from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
+from typing_extensions import Literal
 
 from quant_modules.ai_hedge_fund.data_adapter import (
     get_company_news,
@@ -16,9 +16,10 @@ from quant_modules.ai_hedge_fund.data_adapter import (
     get_market_cap,
     search_line_items,
 )
+from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
+from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
 from quant_modules.ai_hedge_fund.utils.llm import call_llm
 from quant_modules.ai_hedge_fund.utils.progress import progress
-from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
 
 
 class MichaelBurrySignal(BaseModel):
@@ -29,7 +30,7 @@ class MichaelBurrySignal(BaseModel):
     reasoning: str
 
 
-def michael_burry_agent(state: AgentState, agent_id: str = "michael_burry_agent"):
+def michael_burry_agent(state: AgentState, agent_id: str = "michael_burry_agent") -> dict[str, Any]:
     """Analyse stocks using Michael Burry's deep‑value, contrarian framework."""
     api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
     data = state["data"]
@@ -163,14 +164,14 @@ def michael_burry_agent(state: AgentState, agent_id: str = "michael_burry_agent"
 ###############################################################################
 
 
-def _latest_line_item(line_items: list):
+def _latest_line_item(line_items: list[Any]) -> Any:
     """Return the most recent line‑item object or *None*."""
     return line_items[0] if line_items else None
 
 
 # ----- Value ----------------------------------------------------------------
 
-def _analyze_value(metrics, line_items, market_cap):
+def _analyze_value(metrics: list[Any], line_items: list[Any], market_cap: Any) -> dict[str, Any]:
     """Free cash‑flow yield, EV/EBIT, other classic deep‑value metrics."""
 
     max_score = 6  # 4 pts for FCF‑yield, 2 pts for EV/EBIT
@@ -218,7 +219,7 @@ def _analyze_value(metrics, line_items, market_cap):
 
 # ----- Balance sheet --------------------------------------------------------
 
-def _analyze_balance_sheet(metrics, line_items):
+def _analyze_balance_sheet(metrics: list[Any], line_items: list[Any]) -> dict[str, Any]:
     """Leverage and liquidity checks."""
 
     max_score = 3
@@ -259,7 +260,7 @@ def _analyze_balance_sheet(metrics, line_items):
 
 # ----- Insider activity -----------------------------------------------------
 
-def _analyze_insider_activity(insider_trades):
+def _analyze_insider_activity(insider_trades: list[Any]) -> dict[str, Any]:
     """Net insider buying over the last 12 months acts as a hard catalyst."""
 
     max_score = 2
@@ -284,7 +285,7 @@ def _analyze_insider_activity(insider_trades):
 
 # ----- Contrarian sentiment -------------------------------------------------
 
-def _analyze_contrarian_sentiment(news):
+def _analyze_contrarian_sentiment(news: list[Any]) -> dict[str, Any]:
     """Very rough gauge: a wall of recent negative headlines can be a *positive* for a contrarian."""
 
     max_score = 1
@@ -299,7 +300,7 @@ def _analyze_contrarian_sentiment(news):
     sentiment_negative_count = sum(
         1 for n in news if n.sentiment and n.sentiment.lower() in ["negative", "bearish"]
     )
-    
+
     if sentiment_negative_count >= 5:
         score += 1  # The more hated, the better (assuming fundamentals hold up)
         details.append(f"{sentiment_negative_count} negative headlines (contrarian opportunity)")
@@ -338,7 +339,7 @@ def _generate_burry_output(
                 3. Highlight risk factors and why they are acceptable (or not)
                 4. Mention relevant insider activity or contrarian opportunities
                 5. Use Burry's direct, number-focused communication style with minimal words
-                
+
                 For example, if bullish: "FCF yield 12.8%. EV/EBIT 6.2. Debt-to-equity 0.4. Net insider buying 25k shares. Market missing value due to overreaction to recent litigation. Strong buy."
                 For example, if bearish: "FCF yield only 2.1%. Debt-to-equity concerning at 2.3. Management diluting shareholders. Pass."
                 """,
@@ -364,7 +365,7 @@ def _generate_burry_output(
     prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
 
     # Default fallback signal in case parsing fails
-    def create_default_michael_burry_signal():
+    def create_default_michael_burry_signal() -> MichaelBurrySignal:
         return MichaelBurrySignal(signal="neutral", confidence=0.0, reasoning="Parsing error – defaulting to neutral")
 
     return call_llm(

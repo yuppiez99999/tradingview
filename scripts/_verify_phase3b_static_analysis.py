@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 _verify_phase3b_static_analysis.py — Phase 3-B 严格静态分析断言校验器
 
@@ -38,14 +37,12 @@ _verify_phase3b_static_analysis.py — Phase 3-B 严格静态分析断言校验�
 from __future__ import annotations
 
 import argparse
-import ast
 import json
 import os
 import subprocess
-import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 # ---- 路径锚定 -------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
@@ -69,14 +66,14 @@ class Assertion(NamedTuple):
     detail: str        # 失败详情或观测值
 
 
-def discover_py_files(root: Path) -> List[Path]:
+def discover_py_files(root: Path) -> list[Path]:
     excluded = {
         ".git", ".venv", "node_modules", "__pycache__", "mlruns",
         "external", "_archive", "ifind-finance-data-1.3.0",
         "research", "qlib",  # 研究/外部代码不纳入 Phase 3-B 生产严格模式
         ".tmp_pip",  # pytest 临时文件
     }
-    out: List[Path] = []
+    out: list[Path] = []
     for p in root.rglob("*.py"):
         # 跳过以 . 开头的隐藏/临时目录
         if any(part.startswith(".") or part in excluded for part in p.parts):
@@ -85,7 +82,7 @@ def discover_py_files(root: Path) -> List[Path]:
     return out
 
 
-def run_subprocess(args: List[str], cwd: Path) -> subprocess.CompletedProcess:
+def run_subprocess(args: list[str], cwd: Path) -> subprocess.CompletedProcess:
     env = dict(os.environ)
     env.setdefault("PYTHONUTF8", "1")
     try:
@@ -98,19 +95,19 @@ def run_subprocess(args: List[str], cwd: Path) -> subprocess.CompletedProcess:
 
 
 # ---- 断言簇 A: py_compile (语法可编译) ------------------------------------
-def cluster_a_compile(py_files: List[Path]) -> List[Assertion]:
-    results: List[Assertion] = []
+def cluster_a_compile(py_files: list[Path]) -> list[Assertion]:
+    results: list[Assertion] = []
     n = len(py_files)
     # A000: 文件发现非空
     results.append(Assertion(
         "A000", "A", f"discover .py files (found={n})", "FAIL",
         n > 0, f"found {n} python files",
     ))
-    failed: List[str] = []
+    failed: list[str] = []
     for i, f in enumerate(py_files):
         ok = True
         try:
-            with open(f, "r", encoding="utf-8", errors="replace") as fh:
+            with open(f, encoding="utf-8", errors="replace") as fh:
                 src = fh.read()
             compile(src, str(f), "exec")
         except (SyntaxError, ValueError) as e:
@@ -136,11 +133,11 @@ def cluster_a_compile(py_files: List[Path]) -> List[Assertion]:
 
 
 # ---- 断言簇 B: ruff 基线阻断式错误不退化 ---------------------------------
-def load_ruff_baseline() -> Dict:
+def load_ruff_baseline() -> dict:
     if not RUFF_BASELINE.exists():
         return {}
     try:
-        with open(RUFF_BASELINE, "r", encoding="utf-8", errors="replace") as fh:
+        with open(RUFF_BASELINE, encoding="utf-8", errors="replace") as fh:
             return json.load(fh)
     except Exception:
         return {}
@@ -150,8 +147,8 @@ def _norm(p: str) -> str:
     return p.replace("\\", "/").lower()
 
 
-def cluster_b_ruff(py_files: List[Path]) -> List[Assertion]:
-    results: List[Assertion] = []
+def cluster_b_ruff(py_files: list[Path]) -> list[Assertion]:
+    results: list[Assertion] = []
     baseline = load_ruff_baseline()
     has_baseline = isinstance(baseline, dict) and "per_file_blocking" in baseline
     per_file = baseline.get("per_file_blocking", {}) if has_baseline else {}
@@ -163,9 +160,9 @@ def cluster_b_ruff(py_files: List[Path]) -> List[Assertion]:
          "--output-format", "concise", "."],
         cwd=ROOT,
     )
-    cur_errors: List[str] = [ln for ln in cur.stdout.splitlines() if ln.strip()]
+    cur_errors: list[str] = [ln for ln in cur.stdout.splitlines() if ln.strip()]
 
-    cur_by_file: Dict[str, int] = {}
+    cur_by_file: dict[str, int] = {}
     for ln in cur_errors:
         head = ln.split(":")
         if head:
@@ -234,13 +231,13 @@ def count_mypy_errors(text: str) -> int:
     return n
 
 
-def cluster_c_mypy() -> List[Assertion]:
-    results: List[Assertion] = []
+def cluster_c_mypy() -> list[Assertion]:
+    results: list[Assertion] = []
     has_baseline = MYPY_BASELINE.exists()
     baseline_err = 0
     if has_baseline:
         try:
-            with open(MYPY_BASELINE, "r", encoding="utf-8", errors="replace") as fh:
+            with open(MYPY_BASELINE, encoding="utf-8", errors="replace") as fh:
                 baseline_err = count_mypy_errors(fh.read())
         except Exception:
             baseline_err = 0
@@ -280,7 +277,7 @@ def cluster_c_mypy() -> List[Assertion]:
     return results
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Phase 3-B static analysis verifier")
     parser.add_argument("--report-dir", default=str(REPORTS / "ci"))
     args = parser.parse_args(argv)
@@ -289,7 +286,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     report_dir.mkdir(parents=True, exist_ok=True)
 
     py_files = discover_py_files(ROOT)
-    all_assertions: List[Assertion] = []
+    all_assertions: list[Assertion] = []
     # 簇 A 提供文件级粒度 (每 100 文件一条, 通常 ~6-8 条 + A000/A999)
     all_assertions += cluster_a_compile(py_files)
     # 簇 B 提供 per_file 粒度 (基线通常 100+ 文件, 远超 72)

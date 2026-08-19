@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """market_impact_model 单元测试 — Almgren-Chriss + Square-Root 市场冲击模型全分支覆盖.
 
 被测模块: utils/market_impact_model.py
@@ -6,11 +5,9 @@
 """
 from __future__ import annotations
 
-import math
 import sys
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -24,7 +21,6 @@ from utils.market_impact_model import (  # noqa: E402
     OptimalTrajectory,
     classify_order_urgency,
 )
-
 
 # ============================================================
 # 数据结构测试
@@ -168,7 +164,7 @@ class TestEstimate:
 # MarketImpactModel.optimal_trajectory
 # ============================================================
 
-class TestOptimalTrajectory:
+class TestOptimalTrajectoryMethod:
     def test_basic_trajectory(self):
         model = MarketImpactModel()
         traj = model.optimal_trajectory(total_shares=10000, time_horizon=1.0, n_steps=10)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3.8
-# -*- coding: utf-8 -*-
 """
 TradingAgents 桥激活校验脚本 (Phase 0)
 ========================================
@@ -59,8 +58,8 @@ os.environ.setdefault("NO_PROXY", "localhost,127.0.0.1")
 BRIDGE_HOST = os.environ.get("TRADINGAGENTS_BRIDGE_HOST", "127.0.0.1")
 BRIDGE_PORT = int(os.environ.get("TRADINGAGENTS_BRIDGE_PORT", "8490"))
 BRIDGE_URL = f"http://{BRIDGE_HOST}:{BRIDGE_PORT}"
-BRIDGE_SCRIPT = Path(r"E:\各种PY程序\TradingAgents\28_bridge.py")
-TA_DIR = Path(r"E:\各种PY程序\TradingAgents")
+BRIDGE_SCRIPT = Path(os.environ.get("TRADINGAGENTS_BRIDGE_SCRIPT", "28_bridge.py"))
+TA_DIR = Path(os.environ.get("TRADINGAGENTS_DIR", "."))
 TA_ENV_FILE = TA_DIR / ".env"
 
 # 测试标的 (先用美股验证链路, A 股数据在 Phase 3 适配)

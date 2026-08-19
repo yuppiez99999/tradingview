@@ -11,7 +11,6 @@ G11 蒙特卡洛 CVaR 贯通 — 回归测试
 DoD: 回滚必红 / 修复必绿. 固定 seed=42 保证可复现.
 """
 
-import json
 import os
 import sys
 

@@ -8,9 +8,14 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
-from utils.limit_pool_provider import LimitPoolData, LimitPoolProvider, get_limit_down_pool, get_limit_pool_provider, get_limit_up_pool
+from utils.limit_pool_provider import (
+    LimitPoolData,
+    LimitPoolProvider,
+    get_limit_down_pool,
+    get_limit_pool_provider,
+    get_limit_up_pool,
+)
 
 
 class TestLimitPoolData:
@@ -288,14 +293,14 @@ class TestModuleFunctions:
 
     def test_get_limit_up_pool(self):
         LimitPoolProvider._instance = None
-        with patch.object(LimitPoolProvider, "get_limit_up_pool", return_value={"000001.SZ"}) as mock_method:
+        with patch.object(LimitPoolProvider, "get_limit_up_pool", return_value={"000001.SZ"}):
             result = get_limit_up_pool("20260812")
         assert result == {"000001.SZ"}
         LimitPoolProvider._instance = None
 
     def test_get_limit_down_pool(self):
         LimitPoolProvider._instance = None
-        with patch.object(LimitPoolProvider, "get_limit_down_pool", return_value={"000002.SZ"}) as mock_method:
+        with patch.object(LimitPoolProvider, "get_limit_down_pool", return_value={"000002.SZ"}):
             result = get_limit_down_pool("20260812")
         assert result == {"000002.SZ"}
         LimitPoolProvider._instance = None
@@ -337,7 +342,15 @@ class TestGetAkModule:
     def test_akshare_not_installed(self):
         provider = LimitPoolProvider.__new__(LimitPoolProvider)
         provider._initialized = True
-        with patch("utils.limit_pool_provider.logger") as mock_logger:
+        # 环境变化: akshare 现已安装, 通过模拟 import 抛出 ImportError 来测试未安装分支
+        import builtins
+        real_import = builtins.__import__
+        def _fake_import(name, *args, **kwargs):
+            if name == "akshare":
+                raise ImportError("No module named 'akshare'")
+            return real_import(name, *args, **kwargs)
+        with patch("builtins.__import__", side_effect=_fake_import), \
+             patch("utils.limit_pool_provider.logger") as mock_logger:
             module = provider._get_ak_module()
         assert module is None
         mock_logger.warning.assert_called()

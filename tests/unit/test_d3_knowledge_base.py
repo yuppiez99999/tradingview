@@ -3,12 +3,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
 from utils.llm_evolution.knowledge_base import KnowledgeBase, KnowledgeEntry
-
 
 # ============================================================
 # 测试夹具
@@ -190,7 +188,7 @@ class TestLoadContext:
             kb.persist(_make_hypothesis(f"假设{i}"), _make_verdict(True))
         ctx = kb.load_context_for_ideation()
         # 最多 3 条已验证
-        lines = [l for l in ctx.splitlines() if l.startswith("  -")]
+        lines = [line for line in ctx.splitlines() if line.startswith("  -")]
         assert len(lines) <= 3
 
 

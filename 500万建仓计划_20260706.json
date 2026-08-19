@@ -1958,6 +1958,6 @@
       0.5,
       1.5
     ],
-    "data_source": "utils.etf_flow_monitor.ETFRealTimeTracker (Wind MCP > iFinD > 新浪)"
+    "data_source": "utils.etf_flow_monitor.ETFRealTimeTracker (Wind MCP > 东财push2 > 新浪)"
   }
 }

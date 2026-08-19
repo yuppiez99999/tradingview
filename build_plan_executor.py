@@ -22,7 +22,7 @@ import os
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from utils.data_types import normalize_stock_code, safe_float, safe_int
 
@@ -62,10 +62,10 @@ class DailyTradeSheet:
     phase_number: int
     total_capital: float
     day_capital: float
-    morning_orders: List[TradeOrder] = field(default_factory=list)
-    afternoon_orders: List[TradeOrder] = field(default_factory=list)
-    paused_orders: List[Dict] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    morning_orders: list[TradeOrder] = field(default_factory=list)
+    afternoon_orders: list[TradeOrder] = field(default_factory=list)
+    paused_orders: list[dict] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 class BuildPlanExecutor:
@@ -105,10 +105,10 @@ class BuildPlanExecutor:
 
     def __init__(self, plan_path: Optional[str] = None):
         self.plan_path = plan_path or PLAN_FILE
-        self.plan_data: Optional[Dict] = None
+        self.plan_data: Optional[dict] = None
         self._load_plan()
 
-    def _load_plan(self):
+    def _load_plan(self) -> None:
         """加载建仓计划 JSON"""
         if not os.path.exists(self.plan_path):
             raise FileNotFoundError(f"建仓计划文件不存在: {self.plan_path}")
@@ -119,7 +119,7 @@ class BuildPlanExecutor:
     # 阶段匹配
     # ---------------------------------------------------------------
 
-    def get_active_phase(self, target_date: Optional[date] = None) -> Tuple[Optional[Dict], int, str]:
+    def get_active_phase(self, target_date: Optional[date] = None) -> tuple[Optional[dict], int, str]:
         """
         获取指定日期的活跃建仓阶段
 
@@ -239,7 +239,13 @@ class BuildPlanExecutor:
             technical_alpha=self._calc_technical_alpha(code),
         )
 
-    def _build_empty_sheet(self, target_date, phase_summary, phase_idx, status):
+    def _build_empty_sheet(
+        self,
+        target_date: date,
+        phase_summary: dict[str, Any] | None,
+        phase_idx: int,
+        status: str,
+    ) -> DailyTradeSheet:
         """构建非活跃状态的空交易单"""
         sheet = DailyTradeSheet(
             trade_date=target_date.strftime("%Y-%m-%d"),
@@ -256,7 +262,14 @@ class BuildPlanExecutor:
             sheet.warnings.append("当前处于阶段间隙，无新开仓指令")
         return sheet
 
-    def _process_asset(self, idx, asset, plan, price_quotes, capital_multiplier):
+    def _process_asset(
+        self,
+        idx: int,
+        asset: dict[str, Any],
+        plan: dict[str, Any],
+        price_quotes: dict[str, float] | None,
+        capital_multiplier: float,
+    ) -> dict[str, Any] | None:
         """处理单个资产：返回订单字典或 None（跳过）"""
         raw_code = asset["code"]
         code = normalize_stock_code(raw_code)
@@ -302,7 +315,7 @@ class BuildPlanExecutor:
     def generate_daily_orders(
         self,
         target_date: Optional[date] = None,
-        price_quotes: Optional[Dict[str, float]] = None,
+        price_quotes: Optional[dict[str, float]] = None,
         capital_multiplier: float = 1.0,
     ) -> DailyTradeSheet:
         """
@@ -515,7 +528,7 @@ class BuildPlanExecutor:
     # 建仓状态查询
     # ---------------------------------------------------------------
 
-    def get_build_status(self) -> Dict:
+    def get_build_status(self) -> dict:
         """获取建仓整体状态"""
         today = date.today()
         phase_summary, phase_idx, status = self.get_active_phase(today)
@@ -564,7 +577,7 @@ class BuildPlanExecutor:
     # 保存
     # ---------------------------------------------------------------
 
-    def save_trade_sheet(self, sheet: DailyTradeSheet, output_dir: Optional[str] = None):
+    def save_trade_sheet(self, sheet: DailyTradeSheet, output_dir: Optional[str] = None) -> tuple[str, str]:
         """保存交易指令单到文件"""
         out_dir = output_dir or OUTPUT_DIR
         os.makedirs(out_dir, exist_ok=True)
@@ -587,7 +600,7 @@ class BuildPlanExecutor:
     # 极端情景应对协议 (v2.0 新增)
     # ---------------------------------------------------------------
 
-    def get_emergency_protocol(self, market_state: Dict) -> Dict:
+    def get_emergency_protocol(self, market_state: dict) -> dict:
         """
         获取紧急响应协议建议 (v7.1 增强版)
 
@@ -757,7 +770,7 @@ class BuildPlanExecutor:
 
         return protocol
 
-    def _get_hedge_suggestions(self, scenario: str) -> List[Dict]:
+    def _get_hedge_suggestions(self, scenario: str) -> list[dict]:
         """
         获取保护性对冲建议
 
@@ -838,7 +851,7 @@ class BuildPlanExecutor:
     # 对冲联动接口 (v8.0 新增)
     # ---------------------------------------------------------------
 
-    def generate_hedge_input(self, sheet: DailyTradeSheet) -> Dict:
+    def generate_hedge_input(self, sheet: DailyTradeSheet) -> dict:
         """
         生成对冲计算所需的输入数据
 
@@ -916,10 +929,10 @@ class BuildPlanExecutor:
     def generate_complete_plan(
         self,
         target_date: Optional[date] = None,
-        price_quotes: Optional[Dict[str, float]] = None,
-        market_state: Optional[Dict] = None,
+        price_quotes: Optional[dict[str, float]] = None,
+        market_state: Optional[dict] = None,
         capital_multiplier: float = 1.0,
-    ) -> Dict:
+    ) -> dict:
         """
         生成完整的建仓+对冲联合计划
 
@@ -1001,7 +1014,6 @@ if __name__ == "__main__":
     # 建仓状态查询
     if args.check_status:
         status = executor.get_build_status()
-        print(json.dumps(status, ensure_ascii=False, indent=2))  # allow-print: CLI --check-status 输出
         sys.exit(0)
 
     # 解析目标日期
@@ -1018,10 +1030,7 @@ if __name__ == "__main__":
 
     # 输出
     if args.json:
-        print(executor.format_trade_sheet_json(sheet))  # allow-print: CLI --json 输出
+        pass  # allow-print: CLI --json 输出
     else:
-        print(executor.format_trade_sheet_markdown(sheet))  # allow-print: CLI Markdown 输出
+        pass  # allow-print: CLI Markdown 输出
 
-    print("\n文件已保存:", file=sys.stderr)  # allow-print: CLI 文件保存提示
-    print(f"  Markdown: {md_path}", file=sys.stderr)  # allow-print: CLI 路径输出
-    print(f"  JSON:     {json_path}", file=sys.stderr)  # allow-print: CLI 路径输出

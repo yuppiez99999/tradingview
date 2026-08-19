@@ -1,12 +1,14 @@
-# -*- coding: utf-8 -*-
 """报告管理 — 浏览/搜索/下载历史报告"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
 from datetime import datetime
+
+import streamlit as st
 
 from ui.components.report_viewer import browse_report_directory, read_report_file
 

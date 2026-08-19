@@ -33,7 +33,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 # ============================================================
 def test_import_dqc_module():
     """验证 DQC 模块可正常 import."""
-    from utils.dqc import DQCEvent, DQCLevel, AlertAggregator, P2CacheQualityGate, run_p2_gate
+    from utils.dqc import DQCLevel
     from utils.dqc.event_types import DQCCheckpoint, DQCMetric
     assert DQCLevel.ERROR.value == "error"
     assert DQCCheckpoint.P2_CACHE.value == "P2"
@@ -45,7 +45,7 @@ def test_import_dqc_module():
 # ============================================================
 def test_dqc_event_construction():
     """验证 DQCEvent 可正确构造."""
-    from utils.dqc import DQCEvent, DQCLevel, DQCCheckpoint
+    from utils.dqc import DQCCheckpoint, DQCEvent, DQCLevel
 
     event = DQCEvent(
         metric_id="C-01",
@@ -76,7 +76,7 @@ def test_dqc_event_construction():
 
 def test_dqc_event_frozen():
     """验证 DQCEvent 不可变."""
-    from utils.dqc import DQCEvent, DQCLevel, DQCCheckpoint
+    from utils.dqc import DQCCheckpoint, DQCEvent, DQCLevel
 
     event = DQCEvent(
         metric_id="A-01",
@@ -136,7 +136,6 @@ def sample_bad_df():
 def test_completeness_check_good(sample_good_df):
     """完整性检查: 合规数据应无 ERROR."""
     from utils.dqc.metrics.completeness import check_completeness
-    from utils.dqc.event_types import DQCLevel
 
     symbols = ["600519.SH", "000858.SZ"]
     events = check_completeness(
@@ -266,8 +265,8 @@ def test_aggregator_first_emit():
 
 def test_aggregator_suppress_same_level():
     """聚合器: 同级 5 分钟内应抑制."""
-    from utils.dqc.aggregator import AlertAggregator
     from utils.dqc import DQCLevel
+    from utils.dqc.aggregator import AlertAggregator
 
     agg = AlertAggregator()
     # 首次发送
@@ -283,8 +282,8 @@ def test_aggregator_suppress_same_level():
 
 def test_aggregator_escalate_on_upgrade():
     """聚合器: 级别升级应立即发送."""
-    from utils.dqc.aggregator import AlertAggregator
     from utils.dqc import DQCLevel
+    from utils.dqc.aggregator import AlertAggregator
 
     agg = AlertAggregator()
     # 首次 WARN
@@ -300,8 +299,8 @@ def test_aggregator_escalate_on_upgrade():
 
 def test_aggregator_per_symbol_isolation():
     """聚合器: 不同标的的同一指标应独立计数."""
-    from utils.dqc.aggregator import AlertAggregator
     from utils.dqc import DQCLevel
+    from utils.dqc.aggregator import AlertAggregator
 
     agg = AlertAggregator()
     # 600519 首次
@@ -316,9 +315,8 @@ def test_aggregator_per_symbol_isolation():
 
 def test_aggregator_cleanup_stale():
     """聚合器: 清理过期状态."""
-    from utils.dqc.aggregator import AlertAggregator
     from utils.dqc import DQCLevel
-    from datetime import timedelta
+    from utils.dqc.aggregator import AlertAggregator
 
     agg = AlertAggregator()
     agg.should_emit("C-01", DQCLevel.WARN)

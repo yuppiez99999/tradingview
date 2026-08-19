@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """quant_modules.connectors — 数据源连接器注册
 
 register_all_connectors 尝试注册所有可用数据源连接器到 DataConnectorManager:
@@ -42,7 +41,7 @@ def register_all_connectors(manager: 'DataConnectorManager') -> int:
         logger.info('Wind MCP 连接器注册成功 (优先级 200)')
     except ImportError:
         logger.debug('Wind MCP 连接器不可用 (模块未安装)')
-    except (ImportError, AttributeError) as e:
+    except AttributeError as e:
         logger.debug('Wind MCP 连接器注册失败: %s', e)
 
     # 2. 通达信 (优先级 300)
@@ -54,7 +53,7 @@ def register_all_connectors(manager: 'DataConnectorManager') -> int:
         logger.info('通达信连接器注册成功 (优先级 300)')
     except ImportError:
         logger.debug('通达信连接器不可用 (pytdx 未安装)')
-    except (ImportError, AttributeError) as e:
+    except AttributeError as e:
         logger.debug('通达信连接器注册失败: %s', e)
 
     # 3. 新浪 (优先级 400)
@@ -65,7 +64,7 @@ def register_all_connectors(manager: 'DataConnectorManager') -> int:
         logger.info('新浪连接器注册成功 (优先级 400)')
     except ImportError:
         logger.debug('新浪连接器不可用 (模块未安装)')
-    except (ImportError, AttributeError) as e:
+    except AttributeError as e:
         logger.debug('新浪连接器注册失败: %s', e)
 
     # 4. 本地缓存 (优先级 500, 兜底)
@@ -76,7 +75,7 @@ def register_all_connectors(manager: 'DataConnectorManager') -> int:
         logger.info('本地缓存连接器注册成功 (优先级 500)')
     except ImportError:
         logger.debug('本地缓存连接器不可用 (模块未安装)')
-    except (ImportError, AttributeError) as e:
+    except AttributeError as e:
         logger.debug('本地缓存连接器注册失败: %s', e)
 
     return n_registered

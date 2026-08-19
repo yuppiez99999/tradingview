@@ -40,6 +40,12 @@ from typing import Any, Dict, List, Optional, cast
 import requests
 import urllib3
 
+try:
+    import certifi
+    _SSL_VERIFY = certifi.where()
+except ImportError:
+    _SSL_VERIFY = True
+
 logger = logging.getLogger(__name__)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -85,7 +91,7 @@ ALLOWED_DOMAINS = {
     "cninfo.com.cn", "www.cninfo.com.cn", "static.cninfo.com.cn",
     "10jqka.com.cn", "fund.10jqka.com.cn",
     "10jqka.com",
-    "cls.cn", "finance.sina.com.cn", "stockstar.com", "10jqka.com.cn",
+    "cls.cn", "finance.sina.com.cn", "stockstar.com",
 }
 
 # 内网/保留地址段 (禁止访问)
@@ -276,7 +282,7 @@ class WebScraper:
 
         # P2: requests + bs4
         try:
-            resp = self.session.get(url, params=params, timeout=self.timeout, verify=False)
+            resp = self.session.get(url, params=params, timeout=self.timeout, verify=_SSL_VERIFY)
             if resp.status_code == 200:
                 # 自动检测编码 (中文网站常用 gbk/utf-8)
                 if resp.encoding and resp.encoding.lower() == "iso-8859-1":
@@ -304,7 +310,7 @@ class WebScraper:
                 params=params,
                 headers=req_headers,
                 timeout=self.timeout,
-                verify=False,
+                verify=_SSL_VERIFY,
             )
             if resp.status_code == 200:
                 return resp.json()
@@ -416,7 +422,7 @@ class WebScraper:
 
     def _fetch_cninfo_announcements(self, symbol: str, limit: int) -> List[NewsItem]:
         """巨潮资讯公告 (证监会指定披露平台)"""
-        url = "http://www.cninfo.com.cn/new/hisAnnouncement/query"
+        url = "https://www.cninfo.com.cn/new/hisAnnouncement/query"
         # 判断板块
         if symbol.startswith("6") or symbol.startswith("9"):
             plate = "shmb"
@@ -439,7 +445,7 @@ class WebScraper:
             "searchkey": "",
         }
         try:
-            resp = self.session.post(url, data=data, timeout=self.timeout, verify=False)
+            resp = self.session.post(url, data=data, timeout=self.timeout, verify=_SSL_VERIFY)
             if resp.status_code != 200:
                 return []
             json_data = resp.json()
@@ -451,7 +457,7 @@ class WebScraper:
         for row in json_data.get("announcements", [])[:limit]:
             title = row.get("announcementTitle", "")
             adjunct_url = row.get("adjunctUrl", "")
-            content_url = f"http://static.cninfo.com.cn/{adjunct_url}" if adjunct_url else ""
+            content_url = f"https://static.cninfo.com.cn/{adjunct_url}" if adjunct_url else ""
             published = row.get("announcementTime", "")
             # 时间戳转日期
             if isinstance(published, int):

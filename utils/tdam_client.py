@@ -743,12 +743,12 @@ class TDAMClient:
                 # 若不检查, 会造成"假成功"——调用方误以为写入成功, 实际数据未持久化。
                 try:
                     body_json = resp.json()
-                except ValueError:
+                except ValueError as exc:
                     raise TDAMAPIError(
                         f"TDAM 响应非 JSON: {resp.status_code}",
                         status_code=resp.status_code,
                         body=resp.text[:500],
-                    )
+                    ) from exc
                 biz_code = body_json.get("code", 0) if isinstance(body_json, dict) else 0
                 if biz_code not in (0, "0", None):
                     raise TDAMAPIError(

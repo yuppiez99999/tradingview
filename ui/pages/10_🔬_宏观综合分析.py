@@ -1,20 +1,22 @@
-# -*- coding: utf-8 -*-
 """宏观综合分析 — 一键运行康波周期 + 十五五规划 + 社保基金ETF"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
-import pandas as pd
 from datetime import datetime
+
+import pandas as pd
+import streamlit as st
 
 st.title("🔬 宏观综合分析")
 st.caption("一键运行三大 v5.2 宏观分析模块 — 康波周期 + 十五五规划 + 社保基金ETF")
 
-from ui.components.module_loader import get_system_module
 from ui.components.common import inject_global_style
-from ui.components.system_status import render_alert_card, render_status_card, render_kpi_row
+from ui.components.module_loader import get_system_module
+from ui.components.system_status import render_alert_card, render_status_card
 
 inject_global_style()
 

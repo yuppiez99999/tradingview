@@ -46,21 +46,8 @@ if PROJECT_ROOT not in sys.path:
 
 from utils.fineng import fineng_shadow_verifier as fsv  # noqa: E402
 from utils.fineng.fineng_shadow_verifier import (  # noqa: E402
-    CV_ACCEPTANCE,
-    DIR_CONSISTENCY_ACCEPTANCE,
-    EVT_MIN_EXCESS,
-    EVT_XI_MAX,
-    EVT_XI_MIN,
-    GARCH_PERSISTENCE_MAX,
-    GARCH_PERSISTENCE_MIN,
-    GARCH_RATIO_MAX,
-    GARCH_RATIO_MIN,
-    KALMAN_BETA_MAX,
-    KALMAN_BETA_MIN,
     MIN_DATA_LENGTH,
     MIN_WINDOWS,
-    PATHSIM_DD_P99_MAX,
-    PATHSIM_DD_P99_MIN,
     FinengShadowVerifier,
     FinengVerificationReport,
     ModuleFullResult,
@@ -72,7 +59,6 @@ from utils.fineng.fineng_shadow_verifier import (  # noqa: E402
     _serialize,
     run_fineng_shadow_verification,
 )
-
 
 # ============================================================
 # 工厂辅助
@@ -603,7 +589,7 @@ class TestRunStageA:
         idx = _synthetic_returns(260, seed=7)
         results = v._run_stage_a(pf, idx, len(pf))
         assert set(results.keys()) == {"garch", "kalman", "evt", "pathsim"}
-        for name, mr in results.items():
+        for _name, mr in results.items():
             assert mr.available is True
             assert mr.blocked is False
             assert mr.full_converged is True

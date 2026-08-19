@@ -12,16 +12,16 @@ LightGBM 训练管道可复现性模块 — 兼容转发层
 """
 from utils.lgbm_reproducibility import *  # noqa: F401,F403 — 向后兼容转发
 from utils.lgbm_reproducibility import (
-    ReproducibilityError,
-    ManifestWriteError,
-    TrainingConfig,
-    compute_dataset_uri,
-    compute_code_sha,
-    artifact_name,
     MANIFEST_REQUIRED_FIELDS,
-    write_manifest,
-    verify_reproducibility,
+    ManifestWriteError,
+    ReproducibilityError,
+    TrainingConfig,
+    artifact_name,
+    compute_code_sha,
+    compute_dataset_uri,
     construct_default_config,
+    verify_reproducibility,
+    write_manifest,
 )
 
 __all__ = [

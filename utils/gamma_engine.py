@@ -104,7 +104,7 @@ class GammaEngine:
         try:
             import requests
 
-            url = "http://hq.sinajs.cn/list=sh000300"
+            url = "https://hq.sinajs.cn/list=sh000300"
             headers = {"Referer": "https://finance.sina.com.cn"}
             r = requests.get(url, headers=headers, timeout=5)
             if r.status_code == 200:

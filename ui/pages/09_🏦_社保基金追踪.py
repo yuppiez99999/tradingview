@@ -1,19 +1,21 @@
-# -*- coding: utf-8 -*-
 """社保基金ETF风格追踪 — 风格分类 + 国家队信号 + 配置建议"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
-import pandas as pd
 from datetime import datetime
+
+import pandas as pd
+import streamlit as st
 
 st.title("🏦 社保基金ETF风格追踪")
 st.caption("社保基金四大投资风格配置 + ETF风格映射 + 国家队信号检测")
 
-from ui.components.module_loader import get_system_module
 from ui.components.common import inject_global_style
+from ui.components.module_loader import get_system_module
 from ui.components.system_status import render_alert_card, render_status_card
 
 inject_global_style()
@@ -67,8 +69,10 @@ if st.button("🚀 运行社保基金ETF分析", type="primary"):
         etf_df = pd.DataFrame(etf_data)
 
         def color_match(val):
-            if val >= 85: return 'background-color: #f6ffed; color: #52c41a'
-            elif val >= 70: return 'background-color: #fffbe6; color: #faad14'
+            if val >= 85:
+                return 'background-color: #f6ffed; color: #52c41a'
+            elif val >= 70:
+                return 'background-color: #fffbe6; color: #faad14'
             return ''
 
         st.dataframe(etf_df.style.map(color_match, subset=['匹配度']),

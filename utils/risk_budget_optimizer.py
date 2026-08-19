@@ -30,6 +30,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+# NEW-4 修复: 二阶中心矩下限, 防止 std**3/std**4 放大数值误差
+_M2_EPS = 1e-12
+
 # ============================================================
 # 数据结构
 # ============================================================
@@ -65,6 +68,11 @@ class RiskBudgetResult:
     solver_status: str  # 求解器状态
     iterations: int  # 迭代次数
     objective_value: float  # 目标函数值
+
+    # MVSK 高阶矩诊断 (P1: YAND 启发的偏度/峰度优化, 2026-08-17)
+    portfolio_skewness: float = 0.0  # 最优组合收益偏度
+    portfolio_excess_kurtosis: float = 0.0  # 最优组合超额峰度
+    mvsk_enabled: bool = False  # 是否启用高阶矩优化
 
 
 # ============================================================
@@ -116,6 +124,9 @@ class RiskBudgetOptimizer:
         factor_exposures: np.ndarray | None = None,
         max_factor_exposure: float | None = None,
         target_return: float | None = None,
+        return_matrix: np.ndarray | pd.DataFrame | None = None,
+        skew_aversion: float = 0.0,
+        kurtosis_aversion: float = 0.0,
     ) -> RiskBudgetResult:
         """在风险预算约束下优化权重
 
@@ -132,6 +143,13 @@ class RiskBudgetOptimizer:
             factor_exposures: 因子暴露矩阵 (N × K), K=因子数
             max_factor_exposure: 单因子主动暴露上限
             target_return: 可选, 目标组合收益
+            return_matrix: T×N 收益矩阵 (日频/周频), 用于直接计算组合高阶矩.
+                不传则退化为纯均值-方差. 传入时不显式构建 coskewness/cokurtosis
+                张量, 存储复杂度 O(T×N) 而非 O(N⁴) (YAND 核心思想).
+            skew_aversion: γ_s 偏度厌恶系数. >0 时鼓励正偏度 (右尾),
+                惩罚负偏度 (左尾). 典型 0.5-2.0. 0=不纳入偏度.
+            kurtosis_aversion: γ_k 峰度厌恶系数. >0 时惩罚超额峰度 (肥尾).
+                典型 0.1-1.0. 0=不纳入峰度.
 
         Returns:
             RiskBudgetResult
@@ -150,6 +168,15 @@ class RiskBudgetOptimizer:
         if len(mu) != n or len(w_bench) != n:
             raise ValueError(f"维度不匹配: mu={len(mu)}, w_bench={len(w_bench)}, n={n}")
 
+        # P1: 高阶矩收益矩阵预处理 — 不建 coskewness/cokurtosis 张量, 直接用 R@w 算
+        R = None  # noqa: N806
+        mvsk_on = False
+        if return_matrix is not None and (skew_aversion != 0.0 or kurtosis_aversion != 0.0):
+            R = self._to_numpy(return_matrix)  # noqa: N806
+            if R.shape[1] != n:
+                raise ValueError(f"return_matrix 列数 {R.shape[1]} != 资产数 {n}")
+            mvsk_on = True
+
         # 1. 求解约束优化
         w_opt, solver_status, iterations = self._solve_constrained(
             mu=mu,
@@ -163,6 +190,9 @@ class RiskBudgetOptimizer:
             factor_exposures=factor_exposures,
             max_factor_exposure=max_factor_exposure,
             target_return=target_return,
+            return_matrix=R,
+            skew_aversion=skew_aversion,
+            kurtosis_aversion=kurtosis_aversion,
         )
 
         # 2. 计算风险指标
@@ -204,6 +234,19 @@ class RiskBudgetOptimizer:
         # 目标函数值 (效用): U = w'μ - (δ/2) w'Σw
         utility = port_ret - 0.5 * self.delta * float(w_opt @ Sigma @ w_opt)
 
+        # P1: 最优组合高阶矩诊断 (用收益矩阵直接算, 不建张量)
+        port_skew = 0.0
+        port_exkurt = 0.0
+        if R is not None:
+            rp = R @ w_opt
+            m1 = float(rp.mean())
+            centered = rp - m1
+            m2 = float((centered**2).mean())
+            if m2 > _M2_EPS:
+                std = math.sqrt(m2)
+                port_skew = float((centered**3).mean() / std**3)
+                port_exkurt = float((centered**4).mean() / std**4 - 3.0)
+
         return RiskBudgetResult(
             optimal_weights=w_opt,
             benchmark_weights=w_bench,
@@ -223,6 +266,9 @@ class RiskBudgetOptimizer:
             solver_status=solver_status,
             iterations=iterations,
             objective_value=utility,
+            portfolio_skewness=port_skew,
+            portfolio_excess_kurtosis=port_exkurt,
+            mvsk_enabled=mvsk_on,
         )
 
     # ------------------------------------------------------------
@@ -242,6 +288,9 @@ class RiskBudgetOptimizer:
         factor_exposures: np.ndarray | None,
         max_factor_exposure: float | None,
         target_return: float | None,
+        return_matrix: np.ndarray | None = None,
+        skew_aversion: float = 0.0,
+        kurtosis_aversion: float = 0.0,
     ) -> tuple[np.ndarray, str, int]:
         """约束优化求解
 
@@ -249,8 +298,14 @@ class RiskBudgetOptimizer:
         1. 优先用 scipy SLSQP (支持多种约束)
         2. 回退到投影梯度法
         3. 最终回退到缩放法
+
+        P1: 当 return_matrix 非空且 (γ_s, γ_k) 非零时, 目标函数扩展为 MVSK:
+            max  w'μ - (δ/2) TE² + γ_s · skew(w'r) - γ_k · exkurt(w'r)
+            其中 skew/exkurt 由收益矩阵直接算 (R@w), 不建 coskewness/cokurtosis 张量.
+            符号: +γ_s·skew 鼓励正偏度 (右尾), -γ_k·exkurt 惩罚超额峰度 (肥尾).
         """
         n = len(mu)
+        mvsk = return_matrix is not None and (skew_aversion != 0.0 or kurtosis_aversion != 0.0)
 
         # 尝试 scipy
         try:
@@ -258,12 +313,24 @@ class RiskBudgetOptimizer:
 
             w0 = w_bench.copy()
 
-            # 目标: 最大化 w'μ - (δ/2) TE²
+            # 目标: 最大化 w'μ - (δ/2) TE² [ + γ_s·skew - γ_k·exkurt ]
             def neg_utility(w):
                 active = w - w_bench
                 te2 = float(active @ Sigma @ active)
                 ret = float(w @ mu)
-                return -(ret - 0.5 * self.delta * te2)
+                util = ret - 0.5 * self.delta * te2
+                if mvsk:
+                    rp = return_matrix @ w
+                    m1 = float(rp.mean())
+                    centered = rp - m1
+                    m2 = float((centered**2).mean())
+                    if m2 > _M2_EPS:
+                        std = math.sqrt(m2)
+                        skew = float((centered**3).mean() / std**3)
+                        exkurt = float((centered**4).mean() / std**4 - 3.0)
+                        # +γ_s·skew 惩罚左偏 (skew<0 减小目标); -γ_k·exkurt 惩罚超额峰度
+                        util = util + skew_aversion * skew - kurtosis_aversion * exkurt
+                return -util
 
             # 约束列表
             constraints = [

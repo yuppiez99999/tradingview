@@ -1,11 +1,8 @@
-# -*- coding: utf-8 -*-
 """
 实时监控模式 — v5.10 P0-9 重构
 """
 
 from core.context import (
-    BASE_DIR,
-    logger,
     ProgressIndicator,
     auto_trading,
 )

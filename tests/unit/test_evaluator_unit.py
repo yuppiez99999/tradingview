@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """evaluator 单元测试 — Alpha 因子标准化评估器全覆盖.
 
 被测模块: utils/alpha_factor/evaluator.py
@@ -8,9 +7,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-
-import numpy as np
-import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -30,7 +26,6 @@ from utils.alpha_factor.evaluator import (  # noqa: E402
     evaluate_all_factors_tear_sheets,
     tear_sheet_to_dict,
 )
-
 
 # ============================================================
 # _rank_corr

@@ -41,8 +41,8 @@ if PROJECT_ROOT not in sys.path:
 
 from utils import external_data_source  # noqa: E402
 from utils.external_data_source import (  # noqa: E402
-    AlphaVantageApi,
     CACHE_TTL,
+    AlphaVantageApi,
     CoinGeckoApi,
     EcondbApi,
     ExternalDataManager,
@@ -888,7 +888,7 @@ class TestGetGlobalStock:
         mgr.finnhub = FinnhubApi(api_key="key")
         mgr.alpha_vantage = AlphaVantageApi(api_key="key")
         with patch.object(mgr.finnhub, "get_quote",
-                          return_value={"symbol": "AAPL", "source": "finnhub"}) as mock_fh, \
+                          return_value={"symbol": "AAPL", "source": "finnhub"}), \
              patch.object(mgr.alpha_vantage, "get_global_quote") as mock_av, \
              patch.object(mgr, "_save_cache"):
             result = mgr.get_global_stock("AAPL")

@@ -4,9 +4,7 @@ from __future__ import annotations
 import pytest
 
 from utils.risk.kill_switch_manager import (
-    KillDecision,
     KillLevel,
-    KillSwitchAudit,
     KillSwitchManager,
 )
 

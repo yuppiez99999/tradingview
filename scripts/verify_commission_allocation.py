@@ -18,8 +18,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
-import pandas as pd
-import pytest
 
 from utils.backtest import EngineSummary, ResultConverter
 from utils.backtest.result_converter import DEFAULT_COMMISSION_RATE
@@ -135,7 +133,7 @@ print(f"  总收益率:          {ENGINE_RETURN:.6%}")
 print(f"  ALL_TRADED 笔数:   {sum(1 for t in trade_records if t['status'] == 'ALL_TRADED')} (含 5 笔旧格式)")
 print(f"  REJECTED 笔数:     {sum(1 for t in trade_records if t['status'] == 'REJECTED')}")
 print(f"  总交易记录数:       {len(trade_records)}")
-print(f"\n  按日分配手续费预期 (event_index → commission):")
+print("\n  按日分配手续费预期 (event_index → commission):")
 for idx in sorted(EXPECTED_COSTS.keys()):
     print(f"    Day {idx:>3d}:  ¥{EXPECTED_COSTS[idx]:>12.6f}")
 print(f"  {'':>3s} 合计:  ¥{sum(EXPECTED_COSTS.values()):>12.6f}")
@@ -180,7 +178,7 @@ for day in sorted(set(list(EXPECTED_COSTS.keys()) + [i for i in range(N_POINTS)]
             note = f"(含 {old_format_commission:.4f} 旧格式)"
         print(f"  {day:>4d}  ¥{expected:>14.6f}  ¥{actual:>14.6f}  {match:>6s}  {note}")
 
-print(f"\n  未在列表中的日期 (手续费为 0): ", end="")
+print("\n  未在列表中的日期 (手续费为 0): ", end="")
 zero_days = [i for i in range(N_POINTS) if EXPECTED_COSTS.get(i, 0.0) == 0.0 and result.transaction_costs[i] != 0.0]
 if zero_days:
     print(f"⚠️  异常: Day {zero_days}")
@@ -216,7 +214,7 @@ for t in trade_records:
         rejected_costs.append((t["order_id"], ei))
 
 # 验证: 每个有拒单的日期, 当天手续费仅来自 ALL_TRADED (不含 REJECTED)
-for oid, ei in rejected_costs:
+for _oid, ei in rejected_costs:
     manual_at_day = sum(
         t["price"] * t["volume"] * DEFAULT_COMMISSION_RATE
         for t in trade_records
@@ -224,12 +222,12 @@ for oid, ei in rejected_costs:
     )
     assert abs(result.transaction_costs[ei] - manual_at_day) < 1e-9, \
         f"Day {ei} 手续费不符 (含拒单): {result.transaction_costs[ei]} vs {manual_at_day}"
-print(f"  拒单排除验证:  ✅ PASS (8 笔 REJECTED 未计入手续费)")
+print("  拒单排除验证:  ✅ PASS (8 笔 REJECTED 未计入手续费)")
 
 # 旧格式兼容性
 assert abs(result.transaction_costs[0] - (EXPECTED_COSTS.get(0, 0.0))) < 1e-9, \
-    f"Day 0 手续费不符 (旧格式归入失败)"
-print(f"  旧格式兼容:   ✅ PASS (5 笔无 event_index 归入 Day 0)")
+    "Day 0 手续费不符 (旧格式归入失败)"
+print("  旧格式兼容:   ✅ PASS (5 笔无 event_index 归入 Day 0)")
 
 # trade_count 验证
 n_filled = sum(1 for t in trade_records if t["status"] == "ALL_TRADED")
@@ -278,10 +276,10 @@ print("\n" + "=" * 76)
 if all_ok:
     print("✅ 全部验证通过! 手续费分配逻辑正确:")
     print(f"    - {n_filled} 笔 ALL_TRADED 按 event_index 精确分配到对应日期")
-    print(f"    - 8 笔 REJECTED 拒单未计入手续费")
-    print(f"    - 5 笔旧格式成交正确归入 Day 0")
+    print("    - 8 笔 REJECTED 拒单未计入手续费")
+    print("    - 5 笔旧格式成交正确归入 Day 0")
     print(f"    - 总手续费 ¥{total_actual:.4f} 与手动计算完全一致")
-    print(f"    - 核心指标 (return/vol/sharpe) 不受手续费影响")
+    print("    - 核心指标 (return/vol/sharpe) 不受手续费影响")
 else:
     print("❌ 验证失败, 手续费分配存在偏差")
     sys.exit(1)

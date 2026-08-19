@@ -835,7 +835,7 @@ def test_yearly_stats_basic() -> None:
     """逐年统计: 一年 252 天数据, 产出 1 条 yearly_stats。"""
     converter = ResultConverter()
     eq = [1_000_000.0]
-    for i in range(252):
+    for _i in range(252):
         eq.append(eq[-1] * (1 + 0.001))  # 每日 ~0.1% 收益
 
     summary = EngineSummary(
@@ -908,7 +908,7 @@ def test_yearly_stats_with_csi300() -> None:
     """含 CSI300 数据时正确计算 csi300_return 和 market_type。"""
     converter = ResultConverter()
     eq = [1_000_000.0]
-    for i in range(252):
+    for _i in range(252):
         eq.append(eq[-1] * (1 + 0.001))
 
     summary = EngineSummary(
@@ -986,7 +986,7 @@ def test_yearly_stats_no_csi300_defaults() -> None:
     """无 CSI300 数据时, csi300_return=0, market_type="震荡市"。"""
     converter = ResultConverter()
     eq = [1_000_000.0]
-    for i in range(252):
+    for _i in range(252):
         eq.append(eq[-1] * (1 + 0.0005))
 
     summary = EngineSummary(
@@ -1235,7 +1235,7 @@ def test_yearly_stats_turnover_field() -> None:
     """yearly_stats 每条记录含 turnover 字段。"""
     converter = ResultConverter()
     eq = [1_000_000.0]
-    for i in range(252):
+    for _i in range(252):
         eq.append(eq[-1] * (1 + 0.001))
 
     summary = EngineSummary(

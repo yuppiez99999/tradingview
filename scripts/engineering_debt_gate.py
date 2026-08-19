@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 工程债务门槛检查 (Engineering Debt Gate)
 ==========================================
@@ -344,7 +343,7 @@ def _check_t09_pretrade_guard() -> tuple[bool, str]:
     if not ok:
         return ok, info
     # 行为自检 1: 150 股 (非 100 整数倍) 应被拦截
-    from utils.risk.pretrade_guard import PreTradeGuard, GuardOrderRequest
+    from utils.risk.pretrade_guard import GuardOrderRequest, PreTradeGuard
     try:
         g = PreTradeGuard()
         r1 = g.check(GuardOrderRequest("sh600000", "buy", 150, 10.0))
@@ -406,6 +405,7 @@ def _check_t14_risk_audit_logger() -> tuple[bool, str]:
     # 行为自检: 写 1 条 → flush → query_by_date 能读回
     import tempfile
     from datetime import datetime
+
     from utils.risk.risk_audit_logger import RiskAuditLogger
     try:
         with tempfile.TemporaryDirectory() as td:
@@ -432,16 +432,17 @@ def _check_t15_live_order_executor() -> tuple[bool, str]:
     if not ok:
         return ok, info
     # 行为自检: T09 拦截 150 股 (非 100 整数倍), broker 不应被调用
+    import tempfile
+    from dataclasses import dataclass
+    from pathlib import Path
     from unittest.mock import MagicMock
-    from utils.risk.live_order_executor import LiveOrderExecutor
-    from utils.risk.pretrade_guard import PreTradeGuard
-    from utils.risk.position_limit_enforcer import PositionLimitEnforcer
+
     from utils.risk.intraday_circuit_breaker import IntradayCircuitBreaker
     from utils.risk.kill_switch_manager import KillSwitchManager
+    from utils.risk.live_order_executor import LiveOrderExecutor
+    from utils.risk.position_limit_enforcer import PositionLimitEnforcer
+    from utils.risk.pretrade_guard import PreTradeGuard
     from utils.risk.risk_audit_logger import RiskAuditLogger
-    import tempfile
-    from pathlib import Path
-    from dataclasses import dataclass
 
     @dataclass
     class _Slice:
@@ -489,7 +490,7 @@ def _check_t16_order_lifecycle_tracker() -> tuple[bool, str]:
     if not ok:
         return ok, info
     # 行为自检: map_broker_state 映射 + OrderState 终态
-    from utils.risk.order_lifecycle_tracker import map_broker_state, OrderState
+    from utils.risk.order_lifecycle_tracker import OrderState, map_broker_state
     try:
         assert map_broker_state("53") == OrderState.FILLED
         assert map_broker_state("CANCELLED") == OrderState.CANCELLED
@@ -555,7 +556,7 @@ def _check_d1_strategy_ideation() -> tuple[bool, str]:
     if not ok:
         return ok, info
     # 行为自检: MockLLM 生成假设 + 多样性去重
-    from utils.llm_evolution.strategy_ideation import StrategyIdeationEngine, MarketObservation
+    from utils.llm_evolution.strategy_ideation import MarketObservation, StrategyIdeationEngine
     try:
         class _MockLLM:
             name = "smoke"
@@ -614,6 +615,7 @@ def _check_d3_knowledge_base() -> tuple[bool, str]:
     # 行为自检: 临时目录写读 JSONL
     import tempfile
     from pathlib import Path
+
     from utils.llm_evolution.knowledge_base import KnowledgeBase, KnowledgeEntry
     try:
         with tempfile.TemporaryDirectory() as td:
@@ -640,15 +642,16 @@ def _check_d4_dual_loop_orchestrator() -> tuple[bool, str]:
     if not ok:
         return ok, info
     # 行为自检: kill_switch 拦截 → 暂停
-    from unittest.mock import MagicMock
-    from utils.llm_evolution.dual_loop_orchestrator import (
-        DualLoopOrchestrator, DualLoopSafetyConfig,
-    )
-    from utils.llm_evolution.strategy_ideation import StrategyIdeationEngine
-    from utils.llm_evolution.hypothesis_verifier import HypothesisVerifier
-    from utils.llm_evolution.knowledge_base import KnowledgeBase
     import tempfile
     from pathlib import Path
+    from unittest.mock import MagicMock
+
+    from utils.llm_evolution.dual_loop_orchestrator import (
+        DualLoopOrchestrator,
+    )
+    from utils.llm_evolution.hypothesis_verifier import HypothesisVerifier
+    from utils.llm_evolution.knowledge_base import KnowledgeBase
+    from utils.llm_evolution.strategy_ideation import StrategyIdeationEngine
     try:
         class _MockLLM:
             name = "smoke"
@@ -676,13 +679,6 @@ def _check_d5_auto_research_skill() -> tuple[bool, str]:
     """D5 AutoResearch Skill: 因子自动迭代闭环 (生成→评估→S1-S5门禁→入库→退役)."""
     # 1. import 检查: 骨架 + 默认实现
     try:
-        from ai_decision.auto_research_skill import (  # noqa: F401
-            AutoResearchSkill,
-            FactorCandidate,
-            GateStage,
-            InMemoryFactorRegistry,
-            ResearchContext,
-        )
         from ai_decision.auto_research_defaults import (  # noqa: F401
             ExpressionFactorGenerator,
             S1EffectiveICGate,
@@ -692,6 +688,13 @@ def _check_d5_auto_research_skill() -> tuple[bool, str]:
             S5BacktestIncrementGate,
             StandardFactorEvaluator,
             create_default_skill,
+        )
+        from ai_decision.auto_research_skill import (  # noqa: F401
+            AutoResearchSkill,
+            FactorCandidate,
+            GateStage,
+            InMemoryFactorRegistry,
+            ResearchContext,
         )
     except ImportError as exc:
         return False, f"D5 import 失败: {exc}"
@@ -779,7 +782,7 @@ def _check_d6_litellm_router() -> tuple[bool, str]:
             return False, f"D6 统计失败: calls={stats['total_calls']} success={stats['success_calls']}"
 
         # glm5_client 兼容检查
-        from utils.glm5_client import GLM5Client, GLM5Config, get_glm5_client, quick_chat
+        from utils.glm5_client import GLM5Client
         client = GLM5Client()
         # is_ready 应返回 bool
         assert isinstance(client.is_ready(), bool)
@@ -929,7 +932,7 @@ def main() -> int:
         ("D8", "D8 G7 覆盖率冲刺", _check_d8_g7_coverage_sprint()),
     ]
 
-    fail_count = sum(1 for _, _, (ok, _) in checks if not ok)
+    sum(1 for _, _, (ok, _) in checks if not ok)
 
     # 债务分级 (T02/T03 升级 2026-08-12, Wave4 Phase2/3 + G6 Phase D 扩展):
     #   - T1–T5   阻断性 (测试/CI/告警/隔离/陈旧): 任何失败 → RED

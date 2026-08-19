@@ -1,16 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 十五五规划适配分析模式 — v5.10 P0-9 重构
 """
 
 from core.context import (
-    BASE_DIR,
-    logger,
-    ProgressIndicator,
     FIFTEEN_FIVE_AVAILABLE,
     FifteenFivePlanAnalyzer,
+    ProgressIndicator,
 )
-from utils.cli_helpers import write_report_file, archive_report
+from utils.cli_helpers import archive_report, write_report_file
 
 
 def run_fifteen_five_analysis(args):
@@ -29,17 +26,17 @@ def run_fifteen_five_analysis(args):
 
     progress.update(2, "分析持仓适配度...")
     overview = analyzer.get_policy_overview()
-    print(f"\n  📋 十五五规划七大战略方向:")
+    print("\n  📋 十五五规划七大战略方向:")
     for o in overview:
         print(f"    {o['direction']}: 权重={o['weight']:.0%}, 优先级={o['relevance_score']}")
 
     progress.update(3, "生成权重调整建议...")
     holdings = analyzer.analyze_holdings()
     adjustments = analyzer.get_weight_adjustments()
-    print(f"\n  📊 持仓适配评级:")
+    print("\n  📊 持仓适配评级:")
     for h in holdings:
         print(f"    {h['name']}: 评分={h['overall_score']}, 等级={h['grade']}")
-    print(f"\n  ⚖️ 权重调整建议:")
+    print("\n  ⚖️ 权重调整建议:")
     for adj in adjustments:
         direction = "+" if adj['weight_adjust_pct'] > 0 else ""
         print(f"    {adj['name']}: {adj['suggestion']} ({direction}{adj['weight_adjust_pct']:.1f}%)")

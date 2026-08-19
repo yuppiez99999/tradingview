@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 康波周期+十五五交叠分析模式
 周期阶段判定 + 行业轮动 + 大宗商品信号
@@ -7,14 +6,11 @@
 from __future__ import annotations
 
 from core.context import (
-    BASE_DIR,
-    logger,
-    ProgressIndicator,
     KONDRATIEV_AVAILABLE,
     KondratievCycleAnalyzer,
+    ProgressIndicator,
 )
-
-from utils.cli_helpers import write_report_file, archive_report
+from utils.cli_helpers import archive_report, write_report_file
 
 
 def run_kondratiev_analysis(args):
@@ -40,7 +36,7 @@ def run_kondratiev_analysis(args):
 
     progress.update(3, "生成行业配置+商品信号...")
     sectors = analyzer.get_sector_allocation()
-    print(f"\n  📈 行业配置建议:")
+    print("\n  📈 行业配置建议:")
     for s in sectors[:5]:
         print(f"    {s['sector']}: 综合得分={s['combined_score']}, 建议={s['recommendation']}")
 

@@ -6,12 +6,12 @@ import json
 from subprocess import TimeoutExpired
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from utils.last30days_adapter import (
     Last30DaysAdapter,
     Last30DaysSignal,
     get_adapter,
+)
+from utils.last30days_adapter import (
     search_topic as module_search_topic,
 )
 

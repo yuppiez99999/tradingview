@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """overnight_gap_guard 单元测试 — 隔夜跳空 Guard 全覆盖.
 
 被测模块: utils/overnight_gap_guard.py
@@ -9,14 +8,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.overnight_gap_guard import GapStatus, OvernightGapGuard  # noqa: E402
-
+from utils.overnight_gap_guard import OvernightGapGuard  # noqa: E402
 
 # ============================================================
 # __init__

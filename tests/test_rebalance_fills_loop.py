@@ -14,7 +14,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -24,8 +23,8 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.execution.fills_store import FillsStore  # noqa: E402
 from utils.execution.fills_pnl_bridge import augment_market_prices  # noqa: E402
+from utils.execution.fills_store import FillsStore  # noqa: E402
 from utils.tca_post_trade_attribution import PostTradeAttribution  # noqa: E402
 
 

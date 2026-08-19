@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import argparse
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -38,7 +38,7 @@ from utils.supply_chain_builder import SupplyChainBuilder
 logger = logging.getLogger(__name__)
 
 
-def _build_universe(days: int) -> Tuple[Dict[str, dict], List[str], Any, Dict[str, str]]:
+def _build_universe(days: int) -> tuple[dict[str, dict], list[str], Any, dict[str, str]]:
     """构建 universe + 价格 + 图 + 行业标签 (复用 gate1 数据管线)."""
     symbols, industries = load_expanded_universe()
     logger.info(f"[1/4] universe: {len(symbols)} 只, 行业标签 {len(industries)} 个")
@@ -52,11 +52,11 @@ def _build_universe(days: int) -> Tuple[Dict[str, dict], List[str], Any, Dict[st
 
 
 def _compute_factors_at_entry(
-    closes_map: Dict[str, List[float]],
+    closes_map: dict[str, list[float]],
     graph: Any,
-    industries: Dict[str, str],
+    industries: dict[str, str],
     entry_idx: int,
-) -> Dict[str, Dict[str, float]]:
+) -> dict[str, dict[str, float]]:
     """在 entry_idx 时点重算因子 (B1/B2 无前视).
 
     Returns:
@@ -71,7 +71,7 @@ def _compute_factors_at_entry(
     mom_t = _compute_momentum_factors(truncated)
     chain_t = orthogonalize_chain_factors(chain_t, mom_t)
 
-    result: Dict[str, Dict[str, float]] = {}
+    result: dict[str, dict[str, float]] = {}
     mom_60d = mom_t.get("MOM_60D")
     chain_60d = chain_t.get("CHAIN_MOM_60D")
     for sym in truncated:
@@ -82,7 +82,7 @@ def _compute_factors_at_entry(
     return result
 
 
-def _zscore(values: List[float]) -> np.ndarray:
+def _zscore(values: list[float]) -> np.ndarray:
     """Z-score 标准化 (消除量纲差异, 使等权合成有意义)."""
     arr = np.array(values, dtype=float)
     mean = float(arr.mean())
@@ -93,8 +93,8 @@ def _zscore(values: List[float]) -> np.ndarray:
 
 
 def _top_bottom_ls(
-    factor_values: List[float],
-    returns: List[float],
+    factor_values: list[float],
+    returns: list[float],
     top_pct: float = 0.2,
 ) -> float:
     """按因子值排序, 计算 Top/Bottom 多空收益."""
@@ -106,7 +106,7 @@ def _top_bottom_ls(
     return long_ret - short_ret
 
 
-def _calc_annualized_sharpe(ls_returns: List[float], horizon: int) -> float:
+def _calc_annualized_sharpe(ls_returns: list[float], horizon: int) -> float:
     """年化夏普 = mean/std × sqrt(252/horizon)."""
     if len(ls_returns) < 3:
         return 0.0
@@ -122,7 +122,7 @@ def run_s5_validation(
     horizon: int = 20,
     windows: int = 8,
     direction: int = -1,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """S5 组合层面检验: CHAIN_MOM_60D 边际夏普改善.
 
     Args:
@@ -144,9 +144,9 @@ def run_s5_validation(
     max_len = int(el[max(0, int(len(el) * 0.2) - 1)])
     step = horizon
 
-    benchmark_ls: List[float] = []
-    enhanced_ls: List[float] = []
-    window_details: List[Dict[str, Any]] = []
+    benchmark_ls: list[float] = []
+    enhanced_ls: list[float] = []
+    window_details: list[dict[str, Any]] = []
 
     for w in range(windows):
         T = max_len - 1 - w * step
@@ -156,7 +156,7 @@ def run_s5_validation(
 
         factors = _compute_factors_at_entry(closes_map, graph, industries, entry_idx)
 
-        rows_data: List[Tuple[str, float, float, float]] = []
+        rows_data: list[tuple[str, float, float, float]] = []
         for sym, fv in factors.items():
             closes = closes_map.get(sym, [])
             if len(closes) <= T or closes[entry_idx] <= 0:
@@ -167,7 +167,7 @@ def run_s5_validation(
         if len(rows_data) < 10:
             continue
 
-        syms = [r[0] for r in rows_data]
+        [r[0] for r in rows_data]
         mom_vals = [r[1] for r in rows_data]
         chain_vals = [r[2] for r in rows_data]
         rets = [r[3] for r in rows_data]

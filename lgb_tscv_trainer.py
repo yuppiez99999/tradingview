@@ -50,6 +50,7 @@ for d in [MODELS_DIR, REPORTS_DIR, LOG_DIR]:
 # Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
 sys.path.insert(0, str(BASE_DIR))  # bootstrap: 确保 utils 包可导入
 from utils.path_config import setup_sys_path  # noqa: E402
+
 setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 from autolearn_trainer import (  # noqa: E402
     POSITION_SYMBOLS,
@@ -265,13 +266,13 @@ def time_series_cv_evaluate(
 # ============================================================
 # 指标函数
 # ============================================================
-def _r2_score(y_true, y_pred):
+def _r2_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     ss_res = np.sum((y_true - y_pred) ** 2)
     ss_tot = np.sum((y_true - y_true.mean()) ** 2) + 1e-9
     return 1 - ss_res / ss_tot
 
 
-def _ic_score(y_true, y_pred):
+def _ic_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     if len(y_true) < 5:
         return 0.0
     if np.std(y_pred) < 1e-9:
@@ -279,7 +280,7 @@ def _ic_score(y_true, y_pred):
     return float(np.corrcoef(y_true, y_pred)[0, 1])
 
 
-def _signal_sharpe(y_true, y_pred):
+def _signal_sharpe(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     signal = np.sign(y_pred)
     returns = signal * y_true
     if returns.std() < 1e-9:
@@ -923,7 +924,7 @@ def generate_comparison_report(result: dict) -> Path:
 # ============================================================
 # CLI
 # ============================================================
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="LightGBM + 时间序列交叉验证训练",
         formatter_class=argparse.RawDescriptionHelpFormatter,

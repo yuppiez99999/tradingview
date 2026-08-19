@@ -1,22 +1,21 @@
-# -*- coding: utf-8 -*-
 """
 快速检查模式 — v5.10 P0-9 重构
 """
 
 import os
 import sys
+
 from core.context import (
     BASE_DIR,
-    logger,
-    data_provider,
+    ETFFundFlowMonitor,
     auto_trading,
-    rebalance_engine,
+    config_manager,
+    connector_manager,
     daily_report,
+    data_provider,
+    rebalance_engine,
     stop_loss,
     strategy_registry,
-    connector_manager,
-    config_manager,
-    ETFFundFlowMonitor,
 )
 
 
@@ -111,8 +110,10 @@ def run_quick_check(args):
             hedged = scene_cfg.get('parallel_hedge', {}).get('enabled', False)
             cv = scene_cfg.get('cross_validation', {}).get('enabled', False)
             extra = ""
-            if hedged: extra = " (并行对冲)"
-            elif cv: extra = " (交叉验证)"
+            if hedged:
+                extra = " (并行对冲)"
+            elif cv:
+                extra = " (交叉验证)"
             print(f"    {scene_name}: {primary.get('provider')}/{primary.get('model')}{extra}")
     except Exception as e:
         print(f"  ❌ 多模型路由器: {e}")

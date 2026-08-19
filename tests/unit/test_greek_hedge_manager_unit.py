@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """greek_hedge_manager 单元测试 — Greeks 动态对冲管理器全覆盖.
 
 被测模块: utils/greek_hedge_manager.py
@@ -6,11 +5,8 @@
 """
 from __future__ import annotations
 
-import math
 import sys
 from pathlib import Path
-
-import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -22,7 +18,6 @@ from utils.greek_hedge_manager import (  # noqa: E402
     HedgeInstrument,
     IVEnvironment,
 )
-
 
 # ============================================================
 # __init__ + max_vega

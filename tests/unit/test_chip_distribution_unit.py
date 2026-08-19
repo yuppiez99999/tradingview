@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """chip_distribution 单元测试 — CYQ 筹码分布因子全覆盖.
 
 被测模块: utils/alpha_factor/chip_distribution.py
@@ -21,7 +20,6 @@ from utils.alpha_factor.chip_distribution import (  # noqa: E402
     ChipSnapshot,
     compute_chip_factors,
 )
-
 
 # ============================================================
 # 辅助: 合成 OHLCV 数据
@@ -151,8 +149,8 @@ class TestStaticMethods:
 
 class TestComputeChipFactors:
     def test_basic(self):
-        c, h, l, v = _make_ohlcv(160)
-        price_data = {"600519": {"closes": c, "highs": h, "lows": l, "volumes": v}}
+        c, h, lows, v = _make_ohlcv(160)
+        price_data = {"600519": {"closes": c, "highs": h, "lows": lows, "volumes": v}}
         factors = compute_chip_factors(price_data, window=150)
         assert "CYQ_PROFIT_RATIO" in factors
         assert "CYQ_CONCENTRATION" in factors
@@ -161,8 +159,8 @@ class TestComputeChipFactors:
         assert "600519" in factors["CYQ_PROFIT_RATIO"].values
 
     def test_skip_short_window(self):
-        c, h, l, v = _make_ohlcv(100)
-        price_data = {"600519": {"closes": c, "highs": h, "lows": l, "volumes": v}}
+        c, h, lows, v = _make_ohlcv(100)
+        price_data = {"600519": {"closes": c, "highs": h, "lows": lows, "volumes": v}}
         factors = compute_chip_factors(price_data, window=150)
         assert len(factors["CYQ_PROFIT_RATIO"].values) == 0
 
@@ -183,8 +181,8 @@ class TestComputeChipFactors:
         assert "600519" in factors["CYQ_PROFIT_RATIO"].values
 
     def test_free_float_shares(self):
-        c, h, l, v = _make_ohlcv(160)
-        price_data = {"600519": {"closes": c, "highs": h, "lows": l, "volumes": v}}
+        c, h, lows, v = _make_ohlcv(160)
+        price_data = {"600519": {"closes": c, "highs": h, "lows": lows, "volumes": v}}
         ffs = {"600519": 1e8}
         factors = compute_chip_factors(price_data, window=150, free_float_shares=ffs)
         assert "600519" in factors["CYQ_PROFIT_RATIO"].values

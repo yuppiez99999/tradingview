@@ -11,8 +11,6 @@
 """
 from __future__ import annotations
 
-import math
-
 import pytest
 
 from utils.data_types import (
@@ -24,7 +22,6 @@ from utils.data_types import (
     safe_float,
     safe_int,
 )
-
 
 # ============================================================
 # safe_float

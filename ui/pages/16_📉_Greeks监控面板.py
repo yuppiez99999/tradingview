@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Greeks 监控面板 v1.0
 
@@ -9,27 +8,26 @@ Greeks 监控面板 v1.0
   - 数据源: options_positions.json / futures_options_scanner / 演示数据
 """
 
-import sys
 import os
+import sys
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
 
 st.set_page_config(page_title="Greeks 监控面板", page_icon="📉", layout="wide")
 st.title("📉 Greeks 监控面板")
 st.caption("期权组合敏感性监控 — Delta / Gamma / Theta / Vega / Rho")
 
 from ui.components.common import inject_global_style
-from ui.components.system_status import render_alert_card, render_status_card, render_kpi_row
+from ui.components.system_status import render_alert_card, render_status_card
 
 inject_global_style()
 
@@ -40,7 +38,7 @@ inject_global_style()
 @st.cache_data(ttl=30)
 def _load_option_contracts() -> List:
     try:
-        from quant_modules.greeks_calculator import load_positions_for_greeks, build_demo_contracts
+        from quant_modules.greeks_calculator import build_demo_contracts, load_positions_for_greeks
         contracts = load_positions_for_greeks()
         if not contracts:
             contracts = build_demo_contracts({
@@ -57,7 +55,10 @@ def _load_option_contracts() -> List:
 @st.cache_data(ttl=30)
 def _compute_portfolio(contracts):
     try:
-        from quant_modules.greeks_calculator import aggregate_portfolio_greeks, greeks_to_dataframe, expiry_bucket_to_dataframe
+        from quant_modules.greeks_calculator import (
+            aggregate_portfolio_greeks,
+            greeks_to_dataframe,
+        )
         portfolio = aggregate_portfolio_greeks(contracts)
         summary_df = greeks_to_dataframe(portfolio)
         return portfolio, summary_df

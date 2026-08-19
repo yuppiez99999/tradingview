@@ -19,9 +19,7 @@ from utils.smart_order_router import (
     RoutingDecision,
     SmartOrderRouter,
     Venue,
-    VenueScore,
 )
-
 
 # ============================================================
 # dataclass

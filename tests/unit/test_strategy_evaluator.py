@@ -28,18 +28,14 @@
 from __future__ import annotations
 
 import json
-import math
 import random
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from utils.alpha.evolution_orchestrator import (
     ACTION_EVALUATE_ONLY,
     ACTION_NOOP,
-    DEFAULT_DECISIONS_LOG_PATH,
     OBSERVATION_PERIOD_DAYS,
     STATUS_DISABLED,
     STATUS_ENABLED,
@@ -52,31 +48,19 @@ from utils.alpha.evolution_orchestrator import (
 from utils.alpha.strategy_evaluator import (
     BASELINE_ANNUAL_RETURN,
     BASELINE_SHARPE,
-    DEFAULT_N_TRIALS,
-    DEFAULT_REQUIRED_DSR,
-    DEFAULT_RISK_FREE_RATE,
     MAX_ALLOWED_DRAWDOWN,
     MIN_SAMPLES_FOR_DSR,
     MIN_SAMPLES_FOR_WF,
     PROMOTE_PRIVATE_SCORE,
     PROMOTE_RH_RISK_MAX,
-    RH_RISK_DSR_FAIL,
-    RH_RISK_OVERFIT,
     RH_RISK_PIT_VIOLATION,
     ROLLBACK_PRIVATE_SCORE,
     TRADING_DAYS_PER_YEAR,
-    WEIGHT_ABSOLUTE_RETURN,
-    WEIGHT_ANTI_CHEAT,
-    WEIGHT_COMPLEXITY_PENALTY,
-    WEIGHT_RISK_ADJUSTED,
-    WEIGHT_ROBUSTNESS,
-    WEIGHT_STABILITY,
     ScoreReport,
     StrategyEvaluator,
     evaluate_from_shadow,
     evaluate_strategy,
 )
-
 
 # ============================================================
 # Fixtures

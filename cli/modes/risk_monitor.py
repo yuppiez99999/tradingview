@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 风险监控模式
 检查止损止盈状态 + 组合内相关性监控 (P0-7)
@@ -8,22 +7,20 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
 
 from core.context import (
     BASE_DIR,
-    logger,
     ProgressIndicator,
+    logger,
     stop_loss,
 )
-
+from utils.alert_notifier import AlertLevel, AlertNotifier
 from utils.cli_helpers import (
     get_portfolio_quotes,
     get_stock_name,
     load_historical_returns_from_cache,
 )
 from utils.hedge_engine import HedgeEngine
-from utils.alert_notifier import AlertNotifier, AlertLevel
 
 
 def run_risk_monitor(args):
@@ -79,7 +76,7 @@ def run_risk_monitor(args):
             positions_path = os.path.join(BASE_DIR, 'config', 'positions.json')
             positions = {}
             if os.path.exists(positions_path):
-                with open(positions_path, 'r', encoding='utf-8') as f:
+                with open(positions_path, encoding='utf-8') as f:
                     pos_data = json.load(f)
                     for code, p in pos_data.get('positions', {}).items():
                         positions[code] = {'shares': p.get('shares', 0), 'cost': p.get('cost', 0)}
@@ -113,7 +110,7 @@ def run_risk_monitor(args):
 
                     high_pairs = corr_result.get('high_correlation_pairs', [])
                     if high_pairs:
-                        print(f"\n  ⚠️  高相关标的对 (相关系数 > 0.7):")
+                        print("\n  ⚠️  高相关标的对 (相关系数 > 0.7):")
                         for ci, cj, corr in high_pairs:
                             name_i = get_stock_name(ci)
                             name_j = get_stock_name(cj)
@@ -129,7 +126,7 @@ def run_risk_monitor(args):
                             source="risk_monitor",
                         )
                     else:
-                        print(f"\n  ✅ 组合内相关性正常，无共振风险")
+                        print("\n  ✅ 组合内相关性正常，无共振风险")
                 else:
                     print("  ⚠️ 历史收益率数据不足，跳过相关性监控")
         except Exception as e:

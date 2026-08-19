@@ -1,5 +1,6 @@
 """
 broker_factory — 统一券商接口装配点 (G1 QMT 真实下单接线, 2026-08-09)
+                (云上桥接扩展, 2026-08-17: 新增 RemoteQmtBroker 分支)
 
 设计原则 (遵循项目铁律):
 - fail-open 降级: 任何异常/环境缺失 → 降级 SimulatedBroker, 不阻断执行链路
@@ -11,7 +12,9 @@ broker_factory — 统一券商接口装配点 (G1 QMT 真实下单接线, 2026-
 2. xtquant 未安装                     → SimulatedBroker (降级, 告警)
 3. enabled=true 但 dry_run=true       → SimulatedBroker (影子/演练, 不真实下单)
 4. enabled=true 且 dry_run=false 且
-   TRADING_ENV=production 且 QMT connect 成功 → QmtBrokerAPI (真实下单)
+   TRADING_ENV=production 且 QMT_RPC_URL 配置 → RemoteQmtBroker (云端 RPC 桥接, 调 Win 实盘机)
+5. enabled=true 且 dry_run=false 且
+   TRADING_ENV=production 且 QMT connect 成功 → QmtBrokerAPI (本地直连, Win 实盘机自跑)
 """
 
 import json
@@ -57,7 +60,7 @@ def get_broker(config: Optional[dict] = None) -> Any:
     统一 broker 装配入口.
 
     Returns:
-        BrokerAPI 实例 (QmtBrokerAPI 或 SimulatedBroker)
+        BrokerAPI 实例 (RemoteQmtBroker / QmtBrokerAPI / SimulatedBroker)
     """
     cfg = config or _load_broker_config()
 
@@ -75,7 +78,9 @@ def get_broker(config: Optional[dict] = None) -> Any:
         _safe_send_alert("broker enabled 但 TRADING_ENV≠production, 降级模拟", "WARNING")
         return _build_simulated(cfg)
 
-    # 4. 真实下单: 尝试 QMT
+    # 4. 真实下单: 优先云端 RPC 桥接 (QMT_RPC_URL 配置时), 否则本地 QMT 直连
+    if os.environ.get("QMT_RPC_URL", "").strip():
+        return _build_remote_qmt(cfg)
     return _build_qmt(cfg)
 
 
@@ -93,8 +98,41 @@ def _build_simulated(cfg: dict, shadow: bool = False) -> Any:
         raise
 
 
+def _build_remote_qmt(cfg: dict) -> Any:
+    """构造远程 QMT broker (云端 → Win 实盘机 RPC 网关), 连接失败降级模拟 + 告警.
+
+    环境变量:
+        QMT_RPC_URL     — Win 网关地址
+        QMT_RPC_TOKEN   — 鉴权 token
+        QMT_RPC_TIMEOUT — HTTP 超时 (默认 10s)
+    """
+    try:
+        from utils.execution.remote_qmt_broker import HTTPX_AVAILABLE, RemoteQmtBroker
+        if not HTTPX_AVAILABLE:
+            _safe_send_alert("httpx 未安装, RemoteQmtBroker 不可用, 降级 SimulatedBroker", "WARNING")
+            return _build_simulated(cfg)
+
+        rpc_url = os.environ.get("QMT_RPC_URL", "").strip()
+        token = os.environ.get("QMT_RPC_TOKEN", "").strip()
+        timeout = float(os.environ.get("QMT_RPC_TIMEOUT", "10"))
+
+        if not rpc_url or not token:
+            _safe_send_alert("QMT_RPC_URL/QMT_RPC_TOKEN 未配置, 降级 SimulatedBroker", "WARNING")
+            return _build_simulated(cfg)
+
+        broker = RemoteQmtBroker(rpc_url=rpc_url, token=token, timeout=timeout)
+        if not broker.connect():
+            _safe_send_alert(f"RemoteQmtBroker connect() 失败 ({rpc_url}), 降级 SimulatedBroker", "CRITICAL")
+            return _build_simulated(cfg)
+        logger.info("[broker_factory] RemoteQmtBroker 已连接 (云端桥接模式): %s", rpc_url)
+        return broker
+    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError, ImportError) as exc:
+        _safe_send_alert(f"RemoteQmtBroker 构造失败, 降级模拟: {exc}", "CRITICAL")
+        return _build_simulated(cfg)
+
+
 def _build_qmt(cfg: dict) -> Any:
-    """构造 QMT 实盘 broker, connect 失败则降级模拟 + 告警."""
+    """构造 QMT 实盘 broker (本地直连), connect 失败则降级模拟 + 告警."""
     try:
         from ms_strategy.src.execution.qmt_broker import XTQUANT_AVAILABLE, QmtBrokerAPI
         if not XTQUANT_AVAILABLE:

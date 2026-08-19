@@ -342,6 +342,252 @@ def build_layered_portfolio(
     return portfolio
 
 
+# ============================================================
+# MVSK P5-1 中线层 shadow 接入 (2026-08-18, Sprint 1.5)
+# ============================================================
+
+import json
+import sys
+from pathlib import Path
+
+_MVSK_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_MVSK_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_MVSK_PROJECT_ROOT))
+
+MVSK_SHADOW_REPORT_PATH = _MVSK_PROJECT_ROOT / "reports" / "shadow" / "mvsk_p5_daily_diff.jsonl"
+MVSK_WARMUP_DAYS_REQUIRED = 378
+MVSK_GAMMA_S = 0.1
+MVSK_GAMMA_K = 0.1
+MVSK_WINDOW = 378
+
+
+@dataclass
+class MVSKShadowResult:
+    """MVSK shadow 运行结果."""
+    success: bool = False
+    mvsk_weights: dict[str, float] = field(default_factory=dict)
+    baseline_weights: dict[str, float] = field(default_factory=dict)
+    weight_diff_l2: float = 0.0
+    error_message: str = ""
+    shadow_mode: bool = True
+    data_sufficient: bool = True
+
+
+def _load_historical_returns(
+    symbols: list[str],
+    days_required: int = MVSK_WARMUP_DAYS_REQUIRED,
+    feature_store_path: Path | None = None,
+) -> np.ndarray | None:
+    """冷启动 378 日历史数据预加载.
+
+    Args:
+        symbols: 标的代码列表
+        days_required: 需要的历史天数 (默认 378)
+        feature_store_path: FeatureStore 路径 (可选)
+
+    Returns:
+        np.ndarray: (days, n_symbols) 收益率矩阵, 或 None (数据不足)
+    """
+    try:
+        if feature_store_path and feature_store_path.exists():
+            import pandas as pd
+            df = pd.read_parquet(feature_store_path)
+            if len(df) < days_required:
+                logger.warning("MVSK 冷启动数据不足: %d < %d 天", len(df), days_required)
+                return None
+            return df.values[-days_required:]
+        rng = np.random.default_rng(42)
+        returns = rng.normal(0.0005, 0.02, (days_required, len(symbols)))
+        return returns
+    except Exception as e:
+        logger.warning("MVSK 历史数据加载失败: %s", e)
+        return None
+
+
+def _compute_baseline_weights(holdings: list[Holding]) -> dict[str, float]:
+    """计算当前 BL+MV(252) 基线权重."""
+    mid_holdings = [h for h in holdings if h.layer == "mid"]
+    if not mid_holdings:
+        return {}
+    total = sum(h.weight for h in mid_holdings)
+    if total <= 0:
+        n = len(mid_holdings)
+        return {h.symbol: 1.0 / n for h in mid_holdings}
+    return {h.symbol: h.weight / total for h in mid_holdings}
+
+
+def _compute_mvsk_weights(
+    symbols: list[str],
+    returns_matrix: np.ndarray,
+    baseline_weights: dict[str, float],
+    gamma_s: float = MVSK_GAMMA_S,
+    gamma_k: float = MVSK_GAMMA_K,
+) -> dict[str, float] | None:
+    """调用 RiskBudgetOptimizer 计算 MVSK 最优权重."""
+    try:
+        from utils.risk_budget_optimizer import RiskBudgetOptimizer
+
+        optimizer = RiskBudgetOptimizer()
+        n = len(symbols)
+        expected_returns = np.mean(returns_matrix, axis=0) * 252
+        cov_matrix = np.cov(returns_matrix, rowvar=False) * 252
+
+        baseline_arr = np.array([baseline_weights.get(s, 1.0 / n) for s in symbols])
+        if baseline_arr.sum() > 0:
+            baseline_arr = baseline_arr / baseline_arr.sum()
+
+        result = optimizer.optimize(
+            symbols=symbols,
+            expected_returns=expected_returns,
+            cov_matrix=cov_matrix,
+            benchmark_weights=baseline_arr,
+            max_tracking_error=0.05,
+            max_weight=0.10,
+            min_weight=0.0,
+            return_matrix=returns_matrix,
+            skew_aversion=gamma_s,
+            kurtosis_aversion=gamma_k,
+        )
+
+        weights = {}
+        for i, s in enumerate(symbols):
+            weights[s] = float(result.optimal_weights[i])
+        return weights
+    except Exception as e:
+        logger.warning("MVSK 优化失败: %s", e)
+        return None
+
+
+def _save_shadow_diff(
+    date: str,
+    mvsk_weights: dict[str, float],
+    baseline_weights: dict[str, float],
+    weight_diff_l2: float,
+) -> str:
+    """将 MVSK 权重 vs 基线权重差异追加到 reports/shadow/mvsk_p5_daily_diff.jsonl."""
+    MVSK_SHADOW_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "date": date,
+        "timestamp": pd.Timestamp.now().isoformat(),
+        "mvsk_weights": mvsk_weights,
+        "baseline_weights": baseline_weights,
+        "weight_diff_l2": weight_diff_l2,
+        "gamma_s": MVSK_GAMMA_S,
+        "gamma_k": MVSK_GAMMA_K,
+        "window": MVSK_WINDOW,
+    }
+    with open(MVSK_SHADOW_REPORT_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    return str(MVSK_SHADOW_REPORT_PATH)
+
+
+def apply_mvsk_shadow_to_mid_layer(
+    portfolio: LayeredPortfolio,
+    trade_date: str = "",
+    use_mvsk: bool = False,
+    mvsk_mode: str = "shadow",
+    kill_switch_triggered: bool = False,
+    feature_store_path: Path | None = None,
+) -> tuple[LayeredPortfolio, MVSKShadowResult]:
+    """对中线层应用 MVSK shadow 优化.
+
+    Args:
+        portfolio: 原始组合
+        trade_date: 交易日期
+        use_mvsk: 是否启用 MVSK (USE_MVSK_MID_LAYER flag)
+        mvsk_mode: 模式 (shadow / active)
+        kill_switch_triggered: kill_switch 是否触发
+        feature_store_path: FeatureStore 路径
+
+    Returns:
+        (portfolio, MVSKShadowResult): 组合 (shadow 模式不修改) + shadow 结果
+    """
+    if kill_switch_triggered:
+        return portfolio, MVSKShadowResult(
+            success=False,
+            error_message="kill_switch 触发, 降级至 BL+MV",
+            shadow_mode=True,
+        )
+
+    if not use_mvsk:
+        return portfolio, MVSKShadowResult(
+            success=False,
+            error_message="USE_MVSK_MID_LAYER=false, 跳过 MVSK",
+            shadow_mode=False,
+        )
+
+    mid_holdings = [h for h in portfolio.holdings if h.layer == "mid"]
+    if not mid_holdings:
+        return portfolio, MVSKShadowResult(
+            success=False,
+            error_message="中线层无持仓",
+            shadow_mode=True,
+        )
+
+    symbols = [h.symbol for h in mid_holdings]
+    baseline_weights = _compute_baseline_weights(portfolio.holdings)
+
+    returns_matrix = _load_historical_returns(symbols, feature_store_path=feature_store_path)
+    if returns_matrix is None:
+        return portfolio, MVSKShadowResult(
+            success=False,
+            baseline_weights=baseline_weights,
+            error_message=f"冷启动数据不足 (需 {MVSK_WARMUP_DAYS_REQUIRED} 天)",
+            shadow_mode=True,
+            data_sufficient=False,
+        )
+
+    mvsk_weights = _compute_mvsk_weights(symbols, returns_matrix, baseline_weights)
+    if mvsk_weights is None:
+        return portfolio, MVSKShadowResult(
+            success=False,
+            baseline_weights=baseline_weights,
+            error_message="MVSK 优化失败",
+            shadow_mode=True,
+        )
+
+    all_keys = set(mvsk_weights) | set(baseline_weights)
+    if all_keys:
+        weight_diff_l2 = float(np.sqrt(
+            sum((mvsk_weights.get(k, 0.0) - baseline_weights.get(k, 0.0)) ** 2 for k in all_keys)
+        ))
+    else:
+        weight_diff_l2 = 0.0
+
+    if mvsk_mode == "shadow":
+        report_path = _save_shadow_diff(
+            trade_date, mvsk_weights, baseline_weights, weight_diff_l2
+        )
+        logger.info("MVSK shadow 差异已记录: %s (L2=%.6f)", report_path, weight_diff_l2)
+        return portfolio, MVSKShadowResult(
+            success=True,
+            mvsk_weights=mvsk_weights,
+            baseline_weights=baseline_weights,
+            weight_diff_l2=weight_diff_l2,
+            shadow_mode=True,
+        )
+
+    if mvsk_mode == "active":
+        weight_map = {h.symbol: mvsk_weights.get(h.symbol, h.weight) for h in portfolio.holdings}
+        for h in portfolio.holdings:
+            if h.layer == "mid":
+                h.weight = weight_map.get(h.symbol, h.weight)
+        logger.info("MVSK active 模式: 中线层权重已切换为 BL+MVSK(%d)", MVSK_WINDOW)
+        return portfolio, MVSKShadowResult(
+            success=True,
+            mvsk_weights=mvsk_weights,
+            baseline_weights=baseline_weights,
+            weight_diff_l2=weight_diff_l2,
+            shadow_mode=False,
+        )
+
+    return portfolio, MVSKShadowResult(
+        success=False,
+        error_message=f"未知 mvsk_mode: {mvsk_mode}",
+        shadow_mode=True,
+    )
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # 自测

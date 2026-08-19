@@ -10,9 +10,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
 import logging
+from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
@@ -246,7 +245,7 @@ def calc_ic_series_from_history(
     try:
         from scipy.stats import spearmanr
     except ImportError:
-        return []
+        spearmanr = None  # 降级: 用 numpy 实现 Spearman (rank IC)
 
     ic_series: list[float] = []
     n = min(len(factor_history), len(forward_returns_history))
@@ -264,9 +263,46 @@ def calc_ic_series_from_history(
         if np.std(x) < 1e-12 or np.std(y) < 1e-12:
             ic_series.append(0.0)
             continue
-        corr, _ = spearmanr(x, y)
+        if spearmanr is not None:
+            corr, _ = spearmanr(x, y)
+        else:
+            corr = _spearman_numpy(x, y)
         ic_series.append(float(corr) if not np.isnan(corr) else 0.0)
     return ic_series
+
+
+def _spearman_numpy(x: list[float], y: list[float]) -> float:
+    """Spearman rank correlation 的纯 numpy 实现 (scipy 缺失时降级)
+
+    Spearman = Pearson of ranks. 处理 ties 用 average rank.
+    """
+    xa = np.array(x, dtype=float)
+    ya = np.array(y, dtype=float)
+    rx = _average_rank(xa)
+    ry = _average_rank(ya)
+    rx_c = rx - rx.mean()
+    ry_c = ry - ry.mean()
+    den = np.sqrt(np.sum(rx_c ** 2) * np.sum(ry_c ** 2))
+    if den < 1e-12:
+        return 0.0
+    return float(np.sum(rx_c * ry_c) / den)
+
+
+def _average_rank(a: np.ndarray) -> np.ndarray:
+    """计算 average rank (处理 ties, scipy.stats.rankdata 的 default 方法)"""
+    order = a.argsort()
+    ranks = np.empty(len(a), dtype=float)
+    sorted_a = a[order]
+    i = 0
+    n = len(a)
+    while i < n:
+        j = i
+        while j < n and sorted_a[j] == sorted_a[i]:
+            j += 1
+        avg = (i + j - 1) / 2.0  # 0-based average rank
+        ranks[order[i:j]] = avg
+        i = j
+    return ranks
 
 
 def calc_ic_ir(

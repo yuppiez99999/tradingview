@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 4.9: 方向性期货交易 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py L2003-L2272
@@ -22,7 +21,7 @@ import random
 from dataclasses import asdict
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from workflow.context import WorkflowContext, get_dw_module
 
@@ -38,7 +37,7 @@ if _dw is not None and hasattr(_dw, "DirectionalFuturesTrader"):
     DirectionalFuturesTrader = _dw.DirectionalFuturesTrader
 
 
-def phase_directional_futures(ctx: WorkflowContext) -> Dict[str, Any]:
+def phase_directional_futures(ctx: WorkflowContext) -> dict[str, Any]:
     """方向性期货交易 — CU(沪铜)/AU(黄金)/T(10年国债) 三品种
 
     v10.0 macro_hedge_account 中的方向性子模块:
@@ -62,7 +61,7 @@ def phase_directional_futures(ctx: WorkflowContext) -> Dict[str, Any]:
     logger.info("Phase 4.9: 方向性期货交易 (CU/AU/T)")
     logger.info("=" * 60)
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "status": "PASS",
         "action": "skip",
         "signals": [],
@@ -150,7 +149,7 @@ def phase_directional_futures(ctx: WorkflowContext) -> Dict[str, Any]:
     return result
 
 
-def _load_directional_futures_market_data() -> Dict[str, Dict[str, Any]]:
+def _load_directional_futures_market_data() -> dict[str, dict[str, Any]]:
     """加载方向性期货市场数据 (CU/AU/T 的 OHLCV)
 
     数据源优先级:
@@ -161,13 +160,13 @@ def _load_directional_futures_market_data() -> Dict[str, Dict[str, Any]]:
     Returns:
         {symbol: {"closes": [...], "volumes": [...], "opens": [...], "highs": [...], "lows": [...]}}
     """
-    market_data: Dict[str, Dict[str, Any]] = {}
+    market_data: dict[str, dict[str, Any]] = {}
 
     # 1. 尝试从本地缓存加载
     try:
         cache_path = BASE_DIR.parent / "config" / "futures_market_data.json"
         if cache_path.exists():
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(cache_path, encoding="utf-8") as f:
                 data = json.load(f)
             for symbol in ("CU", "AU", "T"):
                 if symbol in data:
@@ -188,7 +187,7 @@ def _load_directional_futures_market_data() -> Dict[str, Dict[str, Any]]:
         closes = []
         volumes = []
         price = base
-        for i in range(60):
+        for _i in range(60):
             # 模拟价格波动 (±2%)
             change = random.uniform(-0.02, 0.02)
             price = price * (1 + change)
@@ -205,17 +204,17 @@ def _load_directional_futures_market_data() -> Dict[str, Dict[str, Any]]:
     return market_data
 
 
-def _load_directional_futures_positions() -> Dict[str, Dict]:
+def _load_directional_futures_positions() -> dict[str, dict]:
     """加载当前方向性期货持仓
 
     Returns:
         {symbol: {"direction": "long"/"short"/"flat", "contracts": int, "entry_price": float}}
     """
-    positions: Dict[str, Dict] = {}
+    positions: dict[str, dict] = {}
     try:
         pos_path = BASE_DIR.parent / "config" / "directional_futures_positions.json"
         if pos_path.exists():
-            with open(pos_path, "r", encoding="utf-8") as f:
+            with open(pos_path, encoding="utf-8") as f:
                 data = json.load(f)
             for symbol in ("CU", "AU", "T"):
                 if symbol in data:
@@ -235,7 +234,7 @@ def _load_directional_futures_positions() -> Dict[str, Dict]:
     return positions
 
 
-def _get_futures_prices(market_data: Dict[str, Dict[str, Any]]) -> Dict[str, float]:
+def _get_futures_prices(market_data: dict[str, dict[str, Any]]) -> dict[str, float]:
     """从市场数据中提取最新价格
 
     Args:
@@ -256,7 +255,7 @@ def _get_futures_prices(market_data: Dict[str, Dict[str, Any]]) -> Dict[str, flo
     return prices
 
 
-def _load_directional_futures_risk_state() -> Tuple[float, float, Optional[date]]:
+def _load_directional_futures_risk_state() -> tuple[float, float, Optional[date]]:
     """加载方向性期货风控状态
 
     Returns:
@@ -265,7 +264,7 @@ def _load_directional_futures_risk_state() -> Tuple[float, float, Optional[date]
     try:
         risk_path = BASE_DIR.parent / "config" / "directional_futures_risk.json"
         if risk_path.exists():
-            with open(risk_path, "r", encoding="utf-8") as f:
+            with open(risk_path, encoding="utf-8") as f:
                 data = json.load(f)
             daily_pnl = float(data.get("daily_pnl_pct", 0.0))
             weekly_loss = float(data.get("weekly_consecutive_loss_pct", 0.0))
@@ -277,7 +276,7 @@ def _load_directional_futures_risk_state() -> Tuple[float, float, Optional[date]
     return (0.0, 0.0, None)
 
 
-def _save_directional_futures_orders(orders: List[Any]) -> Optional[str]:
+def _save_directional_futures_orders(orders: list[Any]) -> Optional[str]:
     """保存方向性期货交易指令到文件
 
     Args:

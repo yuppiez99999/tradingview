@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 大宗商品基本面分析模式
 Wind数据综合分析
@@ -12,11 +11,10 @@ from datetime import datetime
 
 from core.context import (
     BASE_DIR,
-    logger,
     ProgressIndicator,
+    logger,
 )
-
-from utils.cli_helpers import write_report_file, archive_report
+from utils.cli_helpers import archive_report, write_report_file
 
 
 def run_commodity_fundamentals(args):

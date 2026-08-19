@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
 """进度显示组件 — 适配 Streamlit"""
 import time
+
 import streamlit as st
 
 

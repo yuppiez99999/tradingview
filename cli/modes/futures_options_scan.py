@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 期货期权扫描模式
 期货/期权/套利全扫描
@@ -6,14 +5,9 @@
 
 from __future__ import annotations
 
-from core.context import (
-    BASE_DIR,
-    logger,
-    ProgressIndicator,
-)
+import time
 
 from utils.cli_helpers import log_execution_summary
-import time
 
 
 def run_futures_options_scan(args):
@@ -33,7 +27,7 @@ def run_futures_options_scan(args):
         num_futures = len(result.get('futures', {}))
         num_options = len(result.get('options', {}))
 
-        print(f"\n[OK] 扫描完成!")
+        print("\n[OK] 扫描完成!")
         print(f"  - 期货品种: {num_futures} 个")
         print(f"  - 期权品种: {num_options} 个")
         print(f"  - 套利机会: {num_arb} 个")

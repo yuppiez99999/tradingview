@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 工业级判据常驻检查 (Industrial Grade Criteria Check)
 ======================================================
@@ -48,8 +47,6 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
-import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any

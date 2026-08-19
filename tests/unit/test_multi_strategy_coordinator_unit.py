@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """multi_strategy_coordinator 单元测试 — 多策略协调器全覆盖.
 
 被测模块: utils/multi_strategy_coordinator.py
@@ -21,7 +20,6 @@ from utils.multi_strategy_coordinator import (  # noqa: E402
     StrategyConflict,
     StrategyState,
 )
-
 
 # ============================================================
 # __init__ + 默认策略
@@ -85,14 +83,14 @@ class TestCoordinate:
     def test_with_pnl(self):
         coord = MultiStrategyCoordinator()
         pnl = {"stock_long": 10000, "etf_allocation": 2000}
-        decision = coord.coordinate(strategy_pnl=pnl)
+        coord.coordinate(strategy_pnl=pnl)
         assert coord.strategies["stock_long"].current_pnl == 10000
         assert coord.strategies["stock_long"].cumulative_pnl == 10000
 
     def test_with_correlations(self):
         coord = MultiStrategyCoordinator()
         corr = {"stock_long": 0.8, "macro_hedge": -0.3}
-        decision = coord.coordinate(strategy_correlations=corr)
+        coord.coordinate(strategy_correlations=corr)
         assert coord.strategies["stock_long"].correlation_to_portfolio == 0.8
 
     def test_opposite_signal_conflict(self):

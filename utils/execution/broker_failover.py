@@ -535,10 +535,8 @@ class BrokerFailoverManager:
         H17 修复: connect() 移出锁外避免阻塞交易主路径。
         H18 修复: 活跃 broker 恢复健康后重置 failover_count。
         """
-        active_name = None
         candidates: list[tuple[str, Any, BrokerHealthTracker]] = []
         with self._lock:
-            active_name = self._active_broker_name
             for name, info in self._brokers.items():
                 tracker = info["tracker"]
                 if tracker.state == BrokerHealthState.UNHEALTHY:

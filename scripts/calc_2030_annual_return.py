@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-data = json.load(open('config/positions.json', 'r', encoding='utf-8'))
+data = json.load(open('config/positions.json', encoding='utf-8'))
 meta = data.get('meta', {})
 positions = data.get('positions', {})
 

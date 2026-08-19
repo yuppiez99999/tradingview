@@ -22,13 +22,12 @@ T1.6 增强 (2026-08-02):
 """
 import json
 import logging
-import math
 import os
 import sys
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
 
 # ========== 配置 (复用 Day 1 EVOLUTION_CONFIG) ==========
 EVOLUTION_CONFIG = {

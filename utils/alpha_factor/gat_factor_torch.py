@@ -27,7 +27,7 @@ B1-B5 全套无偏验证后 +0.039 增益被证伪 (实际 +0.0017/+0.0064, 不�
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 import torch
@@ -127,7 +127,7 @@ class GATFactorTorch:
         params = list(self.gat.parameters()) + list(self.head.parameters())
         self.optimizer = torch.optim.Adam(params, lr=self.lr, weight_decay=1e-4)
 
-    def _tensors(self, features: np.ndarray, adj: np.ndarray) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _tensors(self, features: np.ndarray, adj: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
         return (
             torch.tensor(features, dtype=torch.float32, device=self.device),
             torch.tensor(adj, dtype=torch.float32, device=self.device),
@@ -155,7 +155,6 @@ class GATFactorTorch:
 
     def _attention_alpha(self, h: torch.Tensor, adj: torch.Tensor) -> torch.Tensor:
         """计算注意力系数 alpha [n,n] (多头均值)."""
-        H = self.n_heads
         proj = torch.einsum("nd,fmd->nfm", h, self.gat.W)  # [n,H,nh]
         left = torch.einsum("nfm,fm->nf", proj, self.gat.a[:, :self.n_hidden])
         right = torch.einsum("nfm,fm->nf", proj, self.gat.a[:, self.n_hidden:])
@@ -168,7 +167,7 @@ class GATFactorTorch:
         return alpha.mean(dim=2)
 
     def train(self, features: np.ndarray, adj: np.ndarray, labels: np.ndarray,
-              epochs: int = 300, verbose: bool = False) -> List[float]:
+              epochs: int = 300, verbose: bool = False) -> list[float]:
         """监督训练 GAT (MSE 损失, Adam 优化器)."""
         if self.gat is None:
             self._init(features.shape[1])
@@ -191,7 +190,7 @@ class GATFactorTorch:
         return losses
 
 
-def build_adjacency(graph, symbols: List[str], weight_key: str = "strength") -> Tuple[np.ndarray, List[str]]:
+def build_adjacency(graph, symbols: list[str], weight_key: str = "strength") -> tuple[np.ndarray, list[str]]:
     """从 SupplyChainGraph 构建邻接矩阵 (无向)."""
     idx = {s: i for i, s in enumerate(symbols)}
     n = len(symbols)

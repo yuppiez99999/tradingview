@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 _smoke_runner.py — GAP-1 烟雾测试运行器 (真实实现, 非占位)
 
@@ -35,7 +34,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORTS = ROOT / "reports" / "ci"
@@ -71,8 +70,8 @@ CONTRACT_FILES = [
 ]
 
 
-def check_imports() -> List[Check]:
-    out: List[Check] = []
+def check_imports() -> list[Check]:
+    out: list[Check] = []
     # 确保 ROOT 在 sys.path 最前 (与 pytest 全量收集修复一致: 条件追加)
     if ROOT not in sys.path:
         sys.path.insert(0, str(ROOT))
@@ -91,8 +90,8 @@ def check_imports() -> List[Check]:
     return out
 
 
-def check_contract_files() -> List[Check]:
-    out: List[Check] = []
+def check_contract_files() -> list[Check]:
+    out: list[Check] = []
     for rel in CONTRACT_FILES:
         p = ROOT / rel
         ok = p.exists() and p.stat().st_size > 0
@@ -104,8 +103,8 @@ def check_contract_files() -> List[Check]:
     return out
 
 
-def run_pytest_smoke(smoke_dir: Path) -> List[Check]:
-    out: List[Check] = []
+def run_pytest_smoke(smoke_dir: Path) -> list[Check]:
+    out: list[Check] = []
     if not smoke_dir.exists():
         out.append(Check(
             "PT-absent", "tests/smoke directory present",
@@ -127,14 +126,14 @@ def run_pytest_smoke(smoke_dir: Path) -> List[Check]:
     return out
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="GAP-1 smoke test runner")
     parser.add_argument("--smoke-dir", default=str(ROOT / "tests" / "smoke"))
     parser.add_argument("--skip-pytest", action="store_true")
     args = parser.parse_args(argv)
 
     REPORTS.mkdir(parents=True, exist_ok=True)
-    checks: List[Check] = []
+    checks: list[Check] = []
     checks += check_imports()
     checks += check_contract_files()
     if not args.skip_pytest:

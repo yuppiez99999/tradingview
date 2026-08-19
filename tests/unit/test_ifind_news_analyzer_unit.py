@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 """ifind_news_analyzer 单元测试 — iFinD 资讯读取 + 标的研判"""
-from unittest.mock import patch, MagicMock, PropertyMock
-from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from utils.ifind_news_analyzer import (
+    IFinDNewsAnalyzer,
     NewsItem,
     StockInsight,
-    IFinDNewsAnalyzer,
 )
 
 
@@ -152,7 +150,7 @@ class TestBatchAnalyze:
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
         mock_insight = StockInsight(symbol="A", name="X", direction="neutral", confidence=0.5)
         with patch.object(analyzer, "analyze_symbol", return_value=mock_insight) as mock_fn:
-            result = analyzer.batch_analyze(["A"], name_map={"A": "茅台"})
+            analyzer.batch_analyze(["A"], name_map={"A": "茅台"})
         mock_fn.assert_called_with("A", name="茅台", size=4, days=3)
 
 

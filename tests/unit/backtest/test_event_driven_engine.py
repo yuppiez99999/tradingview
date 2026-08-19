@@ -18,7 +18,7 @@ import pytest
 from utils.backtest.event_driven_engine import (
     EngineSnapshot,
     EngineSummary,
-    EventClockMode,        # W6.3.2 新增
+    EventClockMode,  # W6.3.2 新增
     EventDrivenEngine,
     NonMonotonicTimestampError,  # W6.3.2 新增
     PendingOrder,

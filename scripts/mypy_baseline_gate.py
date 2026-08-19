@@ -82,7 +82,7 @@ def main() -> int:
     if delta < 0:
         print(f"[mypy-baseline] PASS: 类型 error 较基线减少 {-delta} 个 (存量收敛中).")
     else:
-        print(f"[mypy-baseline] PASS: error 数与基线持平, 无新增退化.")
+        print("[mypy-baseline] PASS: error 数与基线持平, 无新增退化.")
     return 0
 
 

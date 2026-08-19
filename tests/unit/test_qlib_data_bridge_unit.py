@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from utils.qlib_data_bridge import (
     dataframe_to_qlib_record,

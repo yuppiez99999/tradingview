@@ -12,15 +12,10 @@ import pandas as pd
 import pytest
 
 from utils.risk_constraints import (
-    DEFAULT_MAX_DAILY_VAR,
-    DEFAULT_MAX_SECTOR,
-    DEFAULT_MAX_SINGLE_VAR,
-    DEFAULT_MAX_WEIGHT,
     _approx_var,
     enforce_hard_constraints,
     validate_risk_budget,
 )
-
 
 # ============================================================
 # enforce_hard_constraints

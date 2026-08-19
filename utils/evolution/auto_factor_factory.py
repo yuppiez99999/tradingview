@@ -1124,7 +1124,7 @@ def compute_{safe_name}(
         """收集活跃因子的近期 IC 表现 (从 DriftMonitor 或模拟)."""
         # 尝试从 DriftMonitor 获取
         try:
-            from utils.alpha.drift_monitor import ModelDriftDetector
+            from utils.alpha.drift_monitor import ModelDriftDetector  # noqa: F401
 
             for name in self._deployed:
                 if name not in self._ic_history:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """portfolio_optimizer 单元测试 — 组合优化器全分支覆盖.
 
 被测模块: utils/portfolio_optimizer.py
@@ -7,12 +6,9 @@
 from __future__ import annotations
 
 import json
-import math
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
-import numpy as np
 import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -20,7 +16,6 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.portfolio_optimizer import PortfolioOptimizer  # noqa: E402
-
 
 # ============================================================
 # __init__

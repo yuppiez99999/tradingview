@@ -1,19 +1,26 @@
-# -*- coding: utf-8 -*-
 """系统概览 — 参考 QuantMind Dashboard 设计的系统首页"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
 from datetime import datetime
+
+import streamlit as st
 
 st.title("🏠 系统概览")
 st.caption("量化策略系统 v5.10 — 康波周期 + 十五五规划 + 社保基金ETF追踪 + AI交易竞技场")
 
-from ui.components.module_loader import get_system_module
-from ui.components.system_status import render_module_grid, render_connector_status, render_alert_card, render_status_card
 from ui.components.common import inject_global_style
+from ui.components.module_loader import get_system_module
+from ui.components.system_status import (
+    render_alert_card,
+    render_connector_status,
+    render_module_grid,
+    render_status_card,
+)
 
 inject_global_style()
 
@@ -38,7 +45,7 @@ try:
         import json
         positions_path = os.path.join(_BASE_DIR, 'config', 'positions.json')
         if os.path.exists(positions_path):
-            with open(positions_path, 'r', encoding='utf-8') as f:
+            with open(positions_path, encoding='utf-8') as f:
                 pos_data = json.load(f)
             positions_count = len(pos_data.get('positions', {}))
     except Exception:

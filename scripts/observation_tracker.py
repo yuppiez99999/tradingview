@@ -49,7 +49,7 @@ SHADOW_ADMISSION_YAML = (
 def _load_shadow_admission() -> dict:
     """读取 shadow_admission.yaml, 失败安全降级到默认 14 天/20 样本."""
     try:
-        with open(SHADOW_ADMISSION_YAML, "r", encoding="utf-8") as f:
+        with open(SHADOW_ADMISSION_YAML, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
         return cfg
     except (OSError, yaml.YAMLError):
@@ -238,7 +238,7 @@ def print_summary(snapshot: dict) -> None:
     print(f"    累计收益: {shadow['cumulative_return']}%")
     print(f"    数据记录: {shadow['total_records']} 条 / {shadow['unique_dates']} 天")
     if shadow["recent_5d_returns"]:
-        print(f"    最近 5 日收益: ", end="")
+        print("    最近 5 日收益: ", end="")
         for rr in shadow["recent_5d_returns"]:
             sign = "+" if rr["daily_return"] > 0 else ""
             print(f"[{rr['date']}: {sign}{rr['daily_return']*100:.2f}%] ", end="")

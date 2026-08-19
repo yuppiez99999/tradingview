@@ -13,12 +13,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-import time
-from datetime import datetime, timedelta
-from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _PROJECT_ROOT not in sys.path:
@@ -29,6 +24,7 @@ if _PROJECT_ROOT not in sys.path:
 # langchain_core.prompts.ChatPromptTemplate and utils.llm imports llm.models
 # which imports langchain_openai/langchain_ollama) without a real langchain installation.
 from unittest.mock import MagicMock as _MagicMock
+
 for _mod_name in ('langchain_openai', 'langchain_ollama', 'langchain_core',
                   'langchain_core.prompts', 'langchain_core.messages'):
     if _mod_name not in sys.modules:
@@ -89,8 +85,9 @@ class TestMemoryReflectionPriceProvider:
 
     def test_market_price_provider_with_mock(self):
         """验证 make_market_price_provider 用 mock MarketDataProvider"""
-        from quant_modules.ai_hedge_fund.memory_reflection import make_market_price_provider
         import pandas as pd
+
+        from quant_modules.ai_hedge_fund.memory_reflection import make_market_price_provider
 
         # 构造 mock provider 返回 DataFrame
         dates = pd.date_range("2026-08-01", periods=10, freq="D")
@@ -114,8 +111,9 @@ class TestMemoryReflectionPriceProvider:
 
     def test_market_price_provider_empty_df(self):
         """空 DataFrame 返回 None"""
-        from quant_modules.ai_hedge_fund.memory_reflection import make_market_price_provider
         import pandas as pd
+
+        from quant_modules.ai_hedge_fund.memory_reflection import make_market_price_provider
 
         mock_provider = MagicMock()
         mock_provider.get_historical_data = MagicMock(return_value=pd.DataFrame())
@@ -126,8 +124,9 @@ class TestMemoryReflectionPriceProvider:
 
     def test_market_price_provider_nearest_date(self):
         """非交易日日期应取最近交易日"""
-        from quant_modules.ai_hedge_fund.memory_reflection import make_market_price_provider
         import pandas as pd
+
+        from quant_modules.ai_hedge_fund.memory_reflection import make_market_price_provider
 
         # 只有 08-05 和 08-06 的数据
         dates = pd.to_datetime(["2026-08-05", "2026-08-06"])
@@ -149,7 +148,8 @@ class TestMemoryReflectionEvaluateWithRealData:
     def test_evaluate_with_shadow_returns(self, tmp_path):
         """用 shadow_returns_provider 评估历史决策"""
         from quant_modules.ai_hedge_fund.memory_reflection import (
-            MemoryReflection, make_shadow_returns_provider,
+            MemoryReflection,
+            make_shadow_returns_provider,
         )
 
         # 1. 写入测试决策记录 (2026-08-01, bullish)
@@ -194,7 +194,7 @@ class TestMemoryReflectionEvaluateWithRealData:
         assert updated >= 1
 
         # 3. 验证评估结果
-        with open(mem_file, "r", encoding="utf-8") as f:
+        with open(mem_file, encoding="utf-8") as f:
             evaluated = json.loads(f.read().strip())
 
         assert evaluated["evaluated"] is True
@@ -254,7 +254,7 @@ class TestMemoryReflectionEvaluateWithRealData:
 
         assert updated == 1
 
-        with open(mem.memory_file, "r", encoding="utf-8") as f:
+        with open(mem.memory_file, encoding="utf-8") as f:
             evaluated = json.loads(f.read().strip())
 
         # 5 日收益: (105-100)/100 = 0.05 = +5%
@@ -309,7 +309,7 @@ class TestMemoryReflectionEvaluateWithRealData:
             eval_date="2026-08-11",
         )
 
-        with open(mem.memory_file, "r", encoding="utf-8") as f:
+        with open(mem.memory_file, encoding="utf-8") as f:
             evaluated = json.loads(f.read().strip())
 
         # 5 日收益: (220-200)/200 = 0.10 = +10%
@@ -485,13 +485,12 @@ class TestDebateLayerRateLimiter:
         )
 
         with patch.object(DebateLayer, "_llm_available", return_value=True):
-            with patch("quant_modules.ai_hedge_fund.utils.llm.call_llm", return_value=mock_stance) as mock_call:
+            with patch("quant_modules.ai_hedge_fund.utils.llm.call_llm", return_value=mock_stance):
                 signals = {
                     "warren_buffett": {"AAPL": {"signal": "bullish", "confidence": 80, "reasoning": "test"}},
                 }
                 # 第一次调用
                 layer.run_full_debate(["AAPL"], signals)
-                first_call_count = mock_call.call_count
 
                 # 第二次调用 (相同 prompt, 应命中缓存)
                 layer2 = DebateLayer(
@@ -594,9 +593,9 @@ class TestEndToEndDebateMemoryLoop:
         }
 
         # 修改决策记录的日期为 08-11 (匹配价格数据)
-        with open(mem.memory_file, "r", encoding="utf-8") as f:
+        with open(mem.memory_file, encoding="utf-8") as f:
             lines = f.readlines()
-        records = [json.loads(l) for l in lines if l.strip()]
+        records = [json.loads(line) for line in lines if line.strip()]
         records[0]["date"] = "2026-08-11"
         records[0]["timestamp"] = "2026-08-11T10:00:00"
         with open(mem.memory_file, "w", encoding="utf-8") as f:

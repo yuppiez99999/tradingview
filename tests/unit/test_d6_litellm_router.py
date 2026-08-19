@@ -30,7 +30,6 @@ from utils.llm_gateway.types import (
     SCENE_TEMPERATURE_MAP,
 )
 
-
 # ============================================================
 # Fixtures
 # ============================================================
@@ -268,7 +267,7 @@ class TestLiteLLMRouterError:
 
 class TestModuleFunctions:
     def test_chat_function(self, mock_inner_router: MagicMock) -> None:
-        from utils.llm_gateway.litellm_router import chat, chat_with_response
+        from utils.llm_gateway.litellm_router import chat
         LiteLLMRouter.reset_instance()
         # 创建实例并设为单例
         r = LiteLLMRouter(inner_router=mock_inner_router)
@@ -395,9 +394,8 @@ class TestGLM5ClientCompat:
 
     def test_quick_chat(self) -> None:
         """quick_chat 返回字符串."""
-        from utils.glm5_client import GLM5Client
-        from utils.llm_gateway import ChatResponse, ProviderInfo
         import utils.glm5_client as mod
+        from utils.llm_gateway import ChatResponse, ProviderInfo
 
         mock_router = MagicMock()
         mock_router.chat.return_value = ChatResponse(

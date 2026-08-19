@@ -10,10 +10,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from utils import scrapling_adapter
-
 
 # ============================================================
 # _check_scrapling

@@ -24,6 +24,13 @@ from utils.limit_pool_provider import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _reset_limit_pool_singleton():
+    """每个测试前重置 LimitPoolProvider 单例, 避免跨测试文件污染"""
+    LimitPoolProvider._instance = None
+    yield
+    LimitPoolProvider._instance = None
+
 # ============================================================
 # LimitPoolData
 # ============================================================

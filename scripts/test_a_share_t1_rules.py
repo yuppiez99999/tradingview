@@ -22,7 +22,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from utils.backtest.a_share_rules import (
     AShareTradingRules,
-    PositionLot,
     T1PositionTracker,
     bar_to_date,
     filter_order_t1,

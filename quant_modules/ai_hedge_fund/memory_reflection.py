@@ -23,9 +23,9 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger("ai_hedge_fund.memory")
 
@@ -128,14 +128,14 @@ class MemoryReflection:
         analyst_snapshot = session_dict.get("analyst_signals_snapshot", {})
 
         count = 0
-        records: List[str] = []
+        records: list[str] = []
 
         for ticker, result in debate_results.items():
             # 聚合该 ticker 的分析师信号统计
             bull_count = 0
             bear_count = 0
             neutral_count = 0
-            for agent_id, sigs in analyst_snapshot.items():
+            for _agent_id, sigs in analyst_snapshot.items():
                 if not isinstance(sigs, dict):
                     continue
                 sig = sigs.get(ticker, {})
@@ -203,8 +203,8 @@ class MemoryReflection:
         cutoff_date = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
 
         # 读取所有记录
-        records: List[Dict[str, Any]] = []
-        with open(self.memory_file, "r", encoding="utf-8") as f:
+        records: list[dict[str, Any]] = []
+        with open(self.memory_file, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -255,6 +255,10 @@ class MemoryReflection:
 
             # 生成反思文本
             rec["reflection"] = self._generate_reflection_text(rec)
+
+            # W.B.2 团队级共享记忆: 把反思写入 TeamMemoryHub (feature-flag 控制)
+            self._share_lesson_to_hub(rec)
+
             updated += 1
 
         # 重写文件
@@ -267,14 +271,58 @@ class MemoryReflection:
         return updated
 
     # ------------------------------------------------------------
+    # W.B.2 团队级共享记忆: 把反思写入 TeamMemoryHub
+    # ------------------------------------------------------------
+
+    def _share_lesson_to_hub(self, rec: dict[str, Any]) -> None:
+        """把单条决策反思写入 TeamMemoryHub (feature-flag 控制, 异常不阻断)
+
+        在 evaluate_past_decisions 内部调用, 不抛异常.
+        """
+        try:
+            from utils.ai_memory.team_memory_hub import get_team_memory_hub
+            hub = get_team_memory_hub()
+            ticker = rec.get("ticker", "")
+            reflection = rec.get("reflection", "")
+            if not ticker or not reflection:
+                return
+
+            final_signal = rec.get("final_signal", "")
+            confidence = float(rec.get("final_confidence", 0)) / 100.0
+            context = f"{final_signal} conf={rec.get('final_confidence', 0)}"
+
+            outcome = "unknown"
+            if rec.get("correct_5d") is True:
+                outcome = "correct5d"
+            elif rec.get("correct_1d") is True:
+                outcome = "correct1d"
+            elif rec.get("correct_5d") is False:
+                outcome = "wrong5d"
+            elif rec.get("correct_1d") is False:
+                outcome = "wrong1d"
+
+            hub.share_lesson(
+                agent_name="debate_team",
+                ticker=ticker,
+                lesson_text=reflection,
+                context=context,
+                decision=final_signal,
+                outcome=outcome,
+                confidence=confidence,
+            )
+        except (ImportError, ValueError, TypeError, KeyError,
+                AttributeError, RuntimeError, OSError) as e:
+            logger.debug("share_lesson_to_hub 失败: %s", e)
+
+    # ------------------------------------------------------------
     # 3. 提取反思上下文 (注入下次分析)
     # ------------------------------------------------------------
 
     def get_reflection_context(
         self,
-        tickers: List[str] | None = None,
+        tickers: list[str] | None = None,
         days: int = 30,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """提取近期反思上下文, 供下次分析的 prompt 或 metadata 使用
 
         Args:
@@ -293,8 +341,8 @@ class MemoryReflection:
             return {"summary": "", "by_ticker": {}, "overall_win_rate": 0.0, "total_evaluated": 0}
 
         cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-        records: List[Dict[str, Any]] = []
-        with open(self.memory_file, "r", encoding="utf-8") as f:
+        records: list[dict[str, Any]] = []
+        with open(self.memory_file, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -311,7 +359,7 @@ class MemoryReflection:
             return {"summary": "", "by_ticker": {}, "overall_win_rate": 0.0, "total_evaluated": 0}
 
         # 按 ticker 聚合
-        by_ticker: Dict[str, Dict[str, Any]] = {}
+        by_ticker: dict[str, dict[str, Any]] = {}
         total_correct = 0
         total_evaluated = 0
 
@@ -338,7 +386,7 @@ class MemoryReflection:
                     by_ticker[t]["recent_reflections"].append(reflection)
 
         # 计算胜率
-        for t, stats in by_ticker.items():
+        for _t, stats in by_ticker.items():
             eval_count = max(1, stats["evaluated"])
             stats["win_rate"] = round(stats["correct_5d"] / eval_count, 4)
             stats["recent_reflections"] = stats["recent_reflections"][-3:]  # 最近 3 条
@@ -388,7 +436,7 @@ class MemoryReflection:
         return None
 
     @staticmethod
-    def _generate_reflection_text(rec: Dict[str, Any]) -> str:
+    def _generate_reflection_text(rec: dict[str, Any]) -> str:
         """根据评估结果生成反思文本"""
         ticker = rec.get("ticker", "")
         signal = rec.get("final_signal", "neutral")
@@ -426,7 +474,7 @@ def make_market_price_provider(
     provider: Any = None,
     period: str = "1y",
     field: str = "close",
-) -> Callable[[str, str], Optional[Dict[str, float]]]:
+) -> Callable[[str, str], Optional[dict[str, float]]]:
     """构造 price_data_provider callable, 对接 MarketDataProvider
 
     把 MarketDataProvider.get_historical_data(symbol, period) 返回的 DataFrame
@@ -457,9 +505,9 @@ def make_market_price_provider(
             return _empty_provider
 
     # 内部缓存: {symbol: {date_str: close_price}} 避免重复拉取
-    _price_cache: Dict[str, Dict[str, float]] = {}
+    _price_cache: dict[str, dict[str, float]] = {}
 
-    def _provider_fn(ticker: str, date_str: str) -> Optional[Dict[str, float]]:
+    def _provider_fn(ticker: str, date_str: str) -> Optional[dict[str, float]]:
         """从 MarketDataProvider 获取指定 ticker 在 date_str 的收盘价"""
         # 检查缓存
         if ticker in _price_cache:
@@ -520,7 +568,7 @@ def make_market_price_provider(
 
 def make_shadow_returns_provider(
     jsonl_path: Optional[str] = None,
-) -> Callable[[str, str], Optional[Dict[str, float]]]:
+) -> Callable[[str, str], Optional[dict[str, float]]]:
     """构造基于 reports/shadow/daily_returns.jsonl 的组合收益 provider
 
     注意: daily_returns.jsonl 存储的是组合层面日度收益 (非个股),
@@ -540,9 +588,9 @@ def make_shadow_returns_provider(
         jsonl_path = os.path.join(base, "reports", "shadow", "daily_returns.jsonl")
 
     # 加载并构建累计净值序列
-    daily_returns: Dict[str, float] = {}
+    daily_returns: dict[str, float] = {}
     try:
-        with open(jsonl_path, "r", encoding="utf-8") as f:
+        with open(jsonl_path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -563,13 +611,13 @@ def make_shadow_returns_provider(
 
     # 构建累计净值 (从最早日期开始, 初始净值=1.0)
     sorted_dates = sorted(daily_returns.keys())
-    nav_by_date: Dict[str, float] = {}
+    nav_by_date: dict[str, float] = {}
     nav = 1.0
     for d in sorted_dates:
         nav *= (1.0 + daily_returns[d])
         nav_by_date[d] = nav
 
-    def _provider_fn(ticker: str, date_str: str) -> Optional[Dict[str, float]]:
+    def _provider_fn(ticker: str, date_str: str) -> Optional[dict[str, float]]:
         """返回组合在 date_str 的累计净值 (作为 'close')"""
         # 精确匹配
         if date_str in nav_by_date:

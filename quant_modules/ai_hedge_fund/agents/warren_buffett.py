@@ -1,13 +1,15 @@
-from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage
-from pydantic import BaseModel, Field
 import json
+
+from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 from typing_extensions import Literal
+
 from quant_modules.ai_hedge_fund.data_adapter import get_financial_metrics, get_market_cap, search_line_items
+from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
+from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
 from quant_modules.ai_hedge_fund.utils.llm import call_llm
 from quant_modules.ai_hedge_fund.utils.progress import progress
-from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
 
 
 class WarrenBuffettSignal(BaseModel):
@@ -254,7 +256,7 @@ def analyze_moat(metrics: list) -> dict[str, any]:
 
     # 1. Return on Capital Consistency (Buffett's favorite moat indicator)
     historical_roes = [m.return_on_equity for m in metrics if m.return_on_equity is not None]
-    historical_roics = [m.return_on_invested_capital for m in metrics if
+    [m.return_on_invested_capital for m in metrics if
                         hasattr(m, 'return_on_invested_capital') and m.return_on_invested_capital is not None]
 
     if len(historical_roes) >= 5:
@@ -396,9 +398,12 @@ def calculate_owner_earnings(financial_line_items: list) -> dict[str, any]:
 
     if not all([net_income is not None, depreciation is not None, capex is not None]):
         missing = []
-        if net_income is None: missing.append("net income")
-        if depreciation is None: missing.append("depreciation")
-        if capex is None: missing.append("capital expenditure")
+        if net_income is None:
+            missing.append("net income")
+        if depreciation is None:
+            missing.append("depreciation")
+        if capex is None:
+            missing.append("capital expenditure")
         return {"owner_earnings": None, "details": [f"Missing components: {', '.join(missing)}"]}
 
     # Enhanced maintenance capex estimation using historical analysis

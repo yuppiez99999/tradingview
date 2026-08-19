@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 沉默失败主动探测 (Silent Failure Detection via Non-Zero Assertions)
 =====================================================================
@@ -39,9 +38,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -259,7 +257,7 @@ def check_d7_vix_consistency(date_str: str) -> AssertionResult:
         candidates = sorted(evolution_dir.glob("vol_regime_weights_*.json")) if evolution_dir.exists() else []
         vol_regime_path = candidates[-1] if candidates else None
         if vol_regime_path is not None and vol_regime_path.exists():
-            with open(vol_regime_path, "r", encoding="utf-8") as f:
+            with open(vol_regime_path, encoding="utf-8") as f:
                 data = json.load(f)
             # VIX 存储在 regime.indicators.vix 路径下 (非顶层 indicators)
             regime_obj = data.get("regime", {})
@@ -273,7 +271,7 @@ def check_d7_vix_consistency(date_str: str) -> AssertionResult:
         vix_cache_path = _PROJECT_ROOT / "reports" / "volatility" / "vix_cache.json"
         cache_vix = None
         if vix_cache_path.exists():
-            with open(vix_cache_path, "r", encoding="utf-8") as f:
+            with open(vix_cache_path, encoding="utf-8") as f:
                 cache_data = json.load(f)
             cache_vix = cache_data.get("vix")
 
@@ -491,7 +489,7 @@ def check_d10_hedge_fill_schema(date_str: str) -> AssertionResult:
     # 检查单笔订单字段
     required_order = {"instrument", "direction", "contracts", "premium_total", "status", "fill_time"}
     invalid = 0
-    for i, o in enumerate(orders[:5]):
+    for _i, o in enumerate(orders[:5]):
         if not isinstance(o, dict):
             invalid += 1
             continue

@@ -16,10 +16,10 @@ import pytest
 from utils.market_rules import (
     ABNORMAL_RETURN_THRESHOLD_20CM,
     ABNORMAL_RETURN_THRESHOLD_INTERNAL,
-    CROSS_VALIDATION_THRESHOLD,
     COVERAGE_THRESHOLD,
-    MIN_SIGNIFICANT_WEIGHT,
+    CROSS_VALIDATION_THRESHOLD,
     MIN_POSITIVE_PRICE,
+    MIN_SIGNIFICANT_WEIGHT,
     batch_classify,
     classify_board,
     get_abnormal_threshold,
@@ -28,7 +28,6 @@ from utils.market_rules import (
     normalize_symbol_code,
     register_20cm_etf,
 )
-
 
 # ============================================================
 # 常量

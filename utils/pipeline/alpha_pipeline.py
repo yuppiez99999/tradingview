@@ -38,7 +38,7 @@ try:
     _root = str(QLIB_ROOT.parent)
     if _root not in sys.path and str(QLIB_ROOT) not in sys.path:
         sys.path.append(str(QLIB_ROOT))
-    import qlib  # type: ignore
+    import qlib  # type: ignore  # noqa: F401
     from qlib.contrib.model import (
         LGBModel,  # type: ignore  # G2 FIX: 从包顶层 re-export (实际定义在 gbdt.py, 无 lightgbm.py 子模块)
     )
@@ -236,7 +236,6 @@ class AlphaPipeline:
 
         # 自动选择: 优先 LGBM（轻量），数据量足够时尝试 Transformer
         try:
-            train_ratio = 0.7
             # 如果有 GPU 且数据量 > 2000 条，用 Transformer
             import torch
             if torch.cuda.is_available() and hasattr(self, '_get_training_data_size'):
@@ -252,7 +251,7 @@ class AlphaPipeline:
 
         if model_name == "lightgbm":
             try:
-                model = LGBModel(
+                LGBModel(
                     loss="mse",
                     colsample_bytree=0.8,
                     learning_rate=0.05,

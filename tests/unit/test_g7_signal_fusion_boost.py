@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """G7 覆盖率冲刺 — utils/signal_fusion.py 补充测试.
 
 目标: 将 signal_fusion.py 覆盖率从 35.44% 提升至 70%+.
@@ -32,7 +31,6 @@ import sys
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -50,7 +48,6 @@ from utils.signal_fusion import (  # noqa: E402
     FusionSignal,
     SignalFusionEngine,
     SignalResult,
-    _fusion_engine,
     _get_fast_signal_source,
     _get_gtja191_signal_source,
     _get_hedge_signal_source,
@@ -63,7 +60,6 @@ from utils.signal_fusion import (  # noqa: E402
     register_gtja191_signal_source,
     register_hedge_signal_source,
 )
-
 
 # ============================================================
 # Fixtures
@@ -198,11 +194,11 @@ class TestEngineInit:
 
     def test_init_creates_db_directory(self, tmp_path):
         db_path = str(tmp_path / "deep" / "nested" / "signals.db")
-        eng = SignalFusionEngine(db_path=db_path)
+        SignalFusionEngine(db_path=db_path)
         assert os.path.exists(os.path.dirname(db_path))
 
     def test_init_creates_tables(self, tmp_db):
-        eng = SignalFusionEngine(db_path=tmp_db)
+        SignalFusionEngine(db_path=tmp_db)
         conn = sqlite3.connect(tmp_db)
         # signal_store 表存在
         cols = conn.execute("PRAGMA table_info(signal_store)").fetchall()
@@ -316,7 +312,7 @@ class TestDynamicWeights:
 
     def test_get_source_accuracy_insufficient_samples(self, engine):
         # 插入 4 条 (<5), 仍返回 None
-        for i in range(4):
+        for _i in range(4):
             engine.record_audit('600519.SH', 'ml', '2026-08-01 10:00:00',
                               'BUY', 0.7)
         acc = engine._get_source_accuracy('ml', '2026-01-01')
@@ -324,7 +320,7 @@ class TestDynamicWeights:
 
     def test_get_source_accuracy_with_enough_samples(self, engine):
         # 插入 5 条, 全部 correct (actual_outcome == predicted_action)
-        for i in range(5):
+        for _i in range(5):
             engine.record_audit('600519.SH', 'ml', '2026-08-01 10:00:00',
                               'BUY', 0.7)
         # 手动 update actual_outcome (SQL 比较 actual_outcome = predicted_action)
@@ -384,7 +380,7 @@ class TestDynamicWeights:
         engine.register_source('ml', MagicMock())
         engine.register_source('ai_hedge', MagicMock())
         # 给 ml 高准确率, ai_hedge 低准确率
-        for i in range(5):
+        for _i in range(5):
             engine.record_audit('X', 'ml', '2026-08-01 10:00:00', 'BUY', 0.7)
             engine.record_audit('X', 'ai_hedge', '2026-08-01 10:00:00',
                               'SELL', 0.3)
@@ -411,7 +407,7 @@ class TestDynamicWeights:
         """所有源准确率为 0 时, 均分."""
         engine.register_source('ml', MagicMock())
         engine.register_source('ai_hedge', MagicMock())
-        for i in range(5):
+        for _i in range(5):
             engine.record_audit('X', 'ml', '2026-08-01 10:00:00', 'BUY', 0.7)
             engine.record_audit('X', 'ai_hedge', '2026-08-01 10:00:00',
                               'BUY', 0.7)
@@ -449,7 +445,7 @@ class TestSourceCorrelation:
         engine.register_source('ml', MagicMock())
         engine.register_source('ai_hedge', MagicMock())
         # 只插 5 条 (<10), 应返回 {}
-        for i in range(5):
+        for _i in range(5):
             engine.record_audit('X', 'ml', '2026-08-01 10:00:00', 'BUY', 0.7)
             engine.record_audit('X', 'ai_hedge', '2026-08-01 10:00:00', 'BUY', 0.6)
         result = engine.compute_source_correlation(lookback_days=60)
@@ -491,7 +487,7 @@ class TestSourceCorrelation:
         engine.register_source('ml', MagicMock())
         engine.register_source('ai_hedge', MagicMock())
         # 全部相同分数 (方差=0)
-        for i in range(15):
+        for _i in range(15):
             engine.record_audit('X', 'ml', '2026-08-01 10:00:00', 'BUY', 0.5)
             engine.record_audit('X', 'ai_hedge', '2026-08-01 10:00:00',
                               'BUY', 0.5)

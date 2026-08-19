@@ -1,28 +1,27 @@
-# -*- coding: utf-8 -*-
 """
 ML增强预测模式 — v5.10 P0-9 重构
 """
 
-import os
 import glob
+import os
 
 import pandas as pd
 
+from cli.modes.ml_signal import run_ml_signal_mode
 from core.context import (
     BASE_DIR,
-    logger,
-    ProgressIndicator,
     ML_ENHANCED_PREDICTOR_AVAILABLE,
     EnhancedPredictor,
+    ProgressIndicator,
 )
-from cli.modes.ml_signal import run_ml_signal_mode
 from utils.cli_helpers import get_stock_name
 
 
 def run_enhanced_prediction_mode(args):
     """ML增强预测 v2.0"""
     if not ML_ENHANCED_PREDICTOR_AVAILABLE:
-        print("\n❌ 增强预测器不可用"); return None
+        print("\n❌ 增强预测器不可用")
+        return None
 
     print("\n" + "=" * 70)
     print("  📈 ML 增强预测 v2.0")
@@ -48,10 +47,14 @@ def run_enhanced_prediction_mode(args):
     kline_dict = {}
     for f in glob.glob(os.path.join(data_dir, 'kline_*.parquet')):
         code = os.path.basename(f).replace('kline_', '').replace('_daily.parquet', '')
-        try: kline_dict[code] = pd.read_parquet(f)
-        except Exception: continue
+        try:
+            kline_dict[code] = pd.read_parquet(f)
+        except Exception:
+            continue
 
-    if not kline_dict: print("  ⚠️ 无K线数据"); return None
+    if not kline_dict:
+        print("  ⚠️ 无K线数据")
+        return None
 
     progress.update(3, "预测...")
     signals = predictor.generate_trading_signals(kline_dict, threshold=threshold)
@@ -71,7 +74,7 @@ def run_enhanced_prediction_mode(args):
                       f"置信={s['confidence']:.2%} 强度={s['strength']}")
 
     if signals['hold']:
-        print(f"\n🟡 震荡/持有 (建议观望):")
+        print("\n🟡 震荡/持有 (建议观望):")
         for s in sorted(signals['hold'], key=lambda x: x['probability'], reverse=True)[:5]:
             name = get_stock_name(s['code'])
             print(f"  {s['code']} {name:<8} 概率={s['probability']:.2%}")

@@ -7,11 +7,8 @@
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
-
-import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -285,7 +282,7 @@ class KondratievCycleTest:
         a = KondratievCycleAnalyzer()
         phase = a.get_current_phase()
         sectors = a.get_sector_allocation()
-        commodities = a.get_commodity_signals()
+        a.get_commodity_signals()
         overlay = a.get_fifteen_five_overlay()
         report = a.generate_report()
         # 各环节产出一致: 当前阶段贯穿

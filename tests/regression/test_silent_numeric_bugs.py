@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """回归测试: 第三轮扫描发现的静默数值 bug (F-7 / F-8).
 
 这些 bug 的共同特征: 静态工具(lint/bandit/mypy)全部绿, 但会在运行时
@@ -7,11 +6,12 @@
 from __future__ import annotations
 
 import logging
+
 import pandas as pd
 import pytest
 
 from utils.black_litterman_optimizer import BlackLittermanOptimizer
-from utils.data.data_layer import DataLayer, STALE_QUALITY_SCORE
+from utils.data.data_layer import STALE_QUALITY_SCORE, DataLayer
 
 
 # ============================================================

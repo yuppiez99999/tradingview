@@ -8,7 +8,6 @@
 """
 from __future__ import annotations
 
-import math
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path

@@ -110,7 +110,7 @@ except ImportError:
     #         否则 mypy [misc] "conditional function variants must have identical signatures"。
     logger = logging.getLogger("automated_execution_system")
 
-    def safe_float(val: Any, default: Optional[float] = None) -> Optional[float]:
+    def safe_float(val: object, default: Optional[float] = None) -> Optional[float]:
         return val if val is not None else default
 
 try:
@@ -122,7 +122,7 @@ except (ImportError, ModuleNotFoundError, ValueError, KeyError, TypeError, Attri
     _WIND_MCP_AVAILABLE = False
 
 
-def _to_wind_code(symbol: str):
+def _to_wind_code(symbol: str) -> Tuple[str, bool]:
     s = str(symbol).strip()
     for prefix in ("sh", "sz", "bj", "SH", "SZ", "BJ"):
         if s.startswith(prefix):
@@ -150,7 +150,7 @@ class TradingCalendar:
     交易日历管理器
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.trading_schedule: Dict[str, Any] = {
             "morning_open": datetime_time(7, 0),  # 7:00 AM
             "morning_close": datetime_time(11, 30),  # 11:30 AM
@@ -360,7 +360,7 @@ class TradingCalendar:
 
     def record_execution(
         self, execution_name: str, start_time: datetime, end_time: datetime, success: bool, details: Dict
-    ):
+    ) -> None:
         """记录执行历史"""
         record = {
             "timestamp": datetime.now().isoformat(),
@@ -429,7 +429,7 @@ class MarketStateEvaluator:
     市场状态评估器
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # 市场状态定义
         self.market_states = {
             "normal": {
@@ -723,7 +723,7 @@ class ExecutionStrategy:
     执行策略控制器
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # 执行策略定义
         self.execution_strategies: Dict[str, Dict[str, Any]] = {
             "aggressive": {
@@ -913,7 +913,7 @@ class ExecutionStrategy:
             logger.error(f"执行计划生成失败: {e}")
             return {"error": str(e)}
 
-    def record_execution_result(self, execution_plan: Dict, execution_result: Dict):
+    def record_execution_result(self, execution_plan: Dict, execution_result: Dict) -> None:
         """记录执行结果"""
         record = {
             "timestamp": datetime.now().isoformat(),
@@ -982,7 +982,7 @@ class OrderRouter:
     订单路由器 — 生产级: 对接 SmartOrderRouter 进行实盘执行
     """
 
-    def __init__(self, smart_router=None, broker=None, kill_switch=None):
+    def __init__(self, smart_router: object = None, broker: object = None, kill_switch: object = None) -> None:
         # ---------- 实盘执行组件 (传入则为实盘; None 则 fallback 模拟) ----------
         self.smart_router = smart_router
         self.broker = broker
@@ -1194,7 +1194,7 @@ class OrderRouter:
 
         return base_wait + queue_wait
 
-    def process_execution_queue(self):
+    def process_execution_queue(self) -> None:
         """处理执行队列 (P1 修复: 加锁保护队列与订单状态变更)"""
         try:
             while True:
@@ -1503,7 +1503,7 @@ class OrderRouter:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("[OrderRouter] 成交落盘失败 (已忽略): %s", e)
 
-    def _update_execution_stats(self, execution_result: Dict):
+    def _update_execution_stats(self, execution_result: Dict) -> None:
         """更新执行统计 (P1 修复: 加锁保护多线程写入)"""
         # P1 修复: 用 .get() 保护字段访问, 避免 KeyError
         success = execution_result.get("success", False)
@@ -1563,7 +1563,7 @@ class AutomatedExecutionSystem:
     自动化执行系统 - 主控制器
     """
 
-    def __init__(self, total_capital: float = 1000000):
+    def __init__(self, total_capital: float = 1000000) -> None:
         self.total_capital = total_capital
 
         # 初始化组件
@@ -1619,7 +1619,7 @@ class AutomatedExecutionSystem:
 
         logger.info(f"自动化执行系统初始化完成，总资本: {total_capital:,.0f}元")
 
-    def start_system(self):
+    def start_system(self) -> None:
         """启动系统"""
         if not self.system_enabled:
             self.system_enabled = True
@@ -1638,7 +1638,7 @@ class AutomatedExecutionSystem:
 
             logger.info("自动化执行系统启动")
 
-    def enable_hedge(self, enabled: bool = True):
+    def enable_hedge(self, enabled: bool = True) -> bool:
         """开启或关闭对冲模块"""
         if not _HEDGE_AVAILABLE or self.hedge_coordinator is None:
             logger.warning("对冲模块不可用，无法开启")
@@ -1647,11 +1647,11 @@ class AutomatedExecutionSystem:
         logger.info("对冲模块已%s", "开启" if self.hedge_enabled else "关闭")
         return self.hedge_enabled
 
-    def disable_hedge(self):
+    def disable_hedge(self) -> bool:
         """关闭对冲模块"""
         return self.enable_hedge(False)
 
-    def stop_system(self):
+    def stop_system(self) -> None:
         """停止系统"""
         self.is_running = False
         self.system_enabled = False
@@ -1661,7 +1661,7 @@ class AutomatedExecutionSystem:
 
         logger.info("自动化执行系统停止")
 
-    def _execution_loop(self):
+    def _execution_loop(self) -> None:
         """执行循环"""
         while self.is_running:
             try:
@@ -1706,7 +1706,7 @@ class AutomatedExecutionSystem:
                 return name
         return None
 
-    def _execute_daily_trading(self, execution_name: str = "daily_execution"):
+    def _execute_daily_trading(self, execution_name: str = "daily_execution") -> Optional[Dict]:
         """执行每日交易"""
         try:
             logger.info(f"开始每日交易执行: {execution_name}")
@@ -1970,7 +1970,7 @@ class AutomatedExecutionSystem:
             logger.error(f"对冲决策失败: {e}")
             return None
 
-    def _update_position_prices(self):
+    def _update_position_prices(self) -> None:
         """更新持仓实时价格 - 优先 Wind MCP"""
         try:
             positions_path = os.path.join(
@@ -2025,7 +2025,7 @@ class AutomatedExecutionSystem:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("持仓价格更新失败: %s", e)
 
-    def _update_historical_returns(self):
+    def _update_historical_returns(self) -> None:
         """更新历史收益率数据并写入 config/"""
         try:
             positions_path = os.path.join(
@@ -2096,7 +2096,7 @@ class AutomatedExecutionSystem:
 
         return plan
 
-    def _generate_hedge_execution_orders(self, hedge_plan: Optional[Dict]):
+    def _generate_hedge_execution_orders(self, hedge_plan: Optional[Dict]) -> Optional[Dict]:
         """根据对冲决策生成可执行订单文件"""
         try:
             positions_path = os.path.join(
@@ -2467,13 +2467,13 @@ class AutomatedExecutionSystem:
             logger.error(f"风险预检查失败: {e}")
             return False
 
-    def _start_performance_monitoring(self):
+    def _start_performance_monitoring(self) -> None:
         """启动性能监控"""
         monitoring_thread = threading.Thread(target=self._performance_monitoring_loop)
         monitoring_thread.daemon = True
         monitoring_thread.start()
 
-    def _performance_monitoring_loop(self):
+    def _performance_monitoring_loop(self) -> None:
         """性能监控循环"""
         while self.is_running:
             try:
@@ -2542,7 +2542,7 @@ class AutomatedExecutionSystem:
         """获取执行计划"""
         return self.trading_calendar.get_execution_schedule(days_ahead)
 
-    def _generate_rebalance_orders(self):
+    def _generate_rebalance_orders(self) -> Optional[Dict]:
         """生成再平衡执行订单"""
         try:
             # T3.6 迁移修正: 使用绝对路径导入, 不再 sys.path.insert

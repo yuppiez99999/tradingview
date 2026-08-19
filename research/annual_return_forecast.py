@@ -13,9 +13,9 @@
 from utils.annual_return_forecast import *  # noqa: F401,F403 — 向后兼容转发
 from utils.annual_return_forecast import (
     forecast_annual_return,
-    write_to_trade_plan,
-    print_forecast,
     main,
+    print_forecast,
+    write_to_trade_plan,
 )
 
 __all__ = [

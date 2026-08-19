@@ -28,7 +28,6 @@ from utils.risk_params import (
     get_quant_neutral_max_drawdown,
 )
 
-
 # ============================================================
 # fail-safe: ConfigManager 不可用
 # ============================================================

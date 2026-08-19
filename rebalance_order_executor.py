@@ -37,7 +37,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from utils.path_config import setup_sys_path
 
@@ -78,7 +78,7 @@ def _validate_date(date: str) -> bool:
     return True
 
 
-def _load_rebalance_report(date: str) -> Optional[Dict[str, Any]]:
+def _load_rebalance_report(date: str) -> Optional[dict[str, Any]]:
     """读取当日再平衡执行单报告 (已生成产物)。
 
     无报告时返回 None, 供调用方决定是否现场生成。
@@ -109,7 +109,7 @@ def _load_rebalance_report(date: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _read_fills(date: str) -> List[Dict[str, Any]]:
+def _read_fills(date: str) -> list[dict[str, Any]]:
     """从 FillsStore 读回当日全部成交回报 (单一事实源)。"""
     try:
         from utils.execution.fills_store import FillsStore
@@ -124,7 +124,7 @@ def _read_fills(date: str) -> List[Dict[str, Any]]:
 _POSITIONS_FILE = _PROJECT_ROOT / "config" / "positions.json"
 
 
-def _load_positions() -> Dict[str, Any]:
+def _load_positions() -> dict[str, Any]:
     """安全加载 positions.json (fail-open)。"""
     try:
         if _POSITIONS_FILE.exists():
@@ -135,7 +135,7 @@ def _load_positions() -> Dict[str, Any]:
     return {}
 
 
-def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
+def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
     """原子写入 JSON (先写临时文件再替换), 遵循不可变性."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
@@ -144,7 +144,7 @@ def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
     os.replace(tmp, path)
 
 
-def apply_fills_to_positions(fills: List[Dict[str, Any]], date: str) -> int:
+def apply_fills_to_positions(fills: list[dict[str, Any]], date: str) -> int:
     """G2 补齐: 将再平衡撮合成交回报回写 positions.json 真实持仓口径。
 
     设计铁律 (对齐 hedge_order_executor._update_positions_state):
@@ -234,7 +234,7 @@ def apply_fills_to_positions(fills: List[Dict[str, Any]], date: str) -> int:
     return updated
 
 
-def _run_tca_on_fills(fills: List[Dict[str, Any]], date: str) -> Dict[str, Any]:
+def _run_tca_on_fills(fills: list[dict[str, Any]], date: str) -> dict[str, Any]:
     """G4: 用成交回报事实源驱动 TCA 执行后归因 (复用模块级 ingest_fills_from_store)。
 
     有成交走成交 (读 fills), 无成交则跳过归因 (不捏造行情)。
@@ -253,7 +253,7 @@ def _run_tca_on_fills(fills: List[Dict[str, Any]], date: str) -> Dict[str, Any]:
         return {"ingested": 0, "error": str(e)}
 
 
-def execute_rebalance_orders(date: Optional[str] = None, dry_run: bool = False) -> Dict[str, Any]:
+def execute_rebalance_orders(date: Optional[str] = None, dry_run: bool = False) -> dict[str, Any]:
     """执行再平衡撮合闭环。返回汇总 dict。
 
     Args:
@@ -264,7 +264,7 @@ def execute_rebalance_orders(date: Optional[str] = None, dry_run: bool = False) 
         summary: {generated, valid, routed, filled, fills, tca, report}
     """
     trade_date = date or datetime.now().strftime("%Y-%m-%d")
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "date": trade_date,
         "dry_run": dry_run,
         "generated": 0,
@@ -317,7 +317,7 @@ def execute_rebalance_orders(date: Optional[str] = None, dry_run: bool = False) 
     return result
 
 
-def print_result(result: Dict[str, Any]) -> None:
+def print_result(result: dict[str, Any]) -> None:
     """控制台友好输出汇总 (金额用 RMB 避免 GBK 编码问题)。"""
     logger.info("=" * 70)
     logger.info("再平衡撮合执行器结果")

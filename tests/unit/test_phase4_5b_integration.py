@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """验证 run_phase4_5b_shadow_state_sync 集成正确性.
 
 测试 3 个场景:
@@ -9,7 +8,6 @@
 from __future__ import annotations
 
 import importlib.util
-import sys
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -35,7 +33,7 @@ def test_skip_shadow_true():
     summary = {"phases": {}}
     result = eod.run_phase4_5b_shadow_state_sync("2026-08-04", summary, args)
     phase_result = summary["phases"]["phase4_5b_shadow_state_sync"]
-    print("  result={}, phase={}".format(result, phase_result))
+    print(f"  result={result}, phase={phase_result}")
     assert result is False, "skip_shadow=True 应返回 False"
     assert phase_result.get("skipped") is True, "应标记 skipped"
     print("  PASSED")
@@ -49,7 +47,7 @@ def test_phase4_5_not_successful():
     summary = {"phases": {"phase4_5_shadow_monitor": {"success": False, "written": False}}}
     result = eod.run_phase4_5b_shadow_state_sync("2026-08-04", summary, args)
     phase_result = summary["phases"]["phase4_5b_shadow_state_sync"]
-    print("  result={}, phase={}".format(result, phase_result))
+    print(f"  result={result}, phase={phase_result}")
     assert result is False, "phase4_5 未成功应返回 False"
     assert phase_result.get("reason") == "phase4_5_not_successful"
     print("  PASSED")
@@ -63,7 +61,7 @@ def test_phase4_5_successful():
     summary = {"phases": {"phase4_5_shadow_monitor": {"success": True, "written": True}}}
     result = eod.run_phase4_5b_shadow_state_sync("2026-08-04", summary, args)
     phase_result = summary["phases"]["phase4_5b_shadow_state_sync"]
-    print("  result={}, phase={}".format(result, phase_result))
+    print(f"  result={result}, phase={phase_result}")
     assert result is True, "phase4_5 成功时 rebuild 应返回 True"
     assert phase_result.get("w13a_day5_state_sync") is True
     print("  PASSED")

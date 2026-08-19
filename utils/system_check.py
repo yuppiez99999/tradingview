@@ -20,8 +20,8 @@ P0 启动自检系统 (System Check)
 
 检查维度 (9 大类):
     C1. 关键文件存在性 (positions.json / trade_plan / portfolio.yaml)
-    C2. 环境变量与凭证 (WIND_API_KEY / IFIND_TOKEN / TS_TOKEN)
-    C3. 数据源连通性 (Wind MCP / iFinD / TDX / AKShare)
+    C2. 环境变量与凭证 (WIND_API_KEY / TS_TOKEN)
+    C3. 数据源连通性 (Wind MCP / TDX / AKShare)
     C4. 配置文件 Schema (positions.json 字段完整性)
     C5. Python 依赖与关键模块导入
     C6. 目录权限与磁盘空间
@@ -76,7 +76,7 @@ def _is_research_mode() -> bool:
     """检测是否为研究模式
 
     Mac 自动启用研究模式; Windows/Linux 可通过 QUANT_RESEARCH_MODE=1 手动启用。
-    研究模式下跳过 Windows 专属数据源 (Wind/iFinD/QMT) 和实盘执行模块检查,
+    研究模式下跳过 Windows 专属数据源 (Wind/QMT) 和实盘执行模块检查,
     仅保留研究/训练/回测所需的跨平台检查项。
     """
     if _is_macos():
@@ -172,7 +172,6 @@ class SystemChecker:
     # 关键环境变量
     CRITICAL_ENV_VARS = [
         ("WIND_API_KEY", "Wind MCP 认证密钥 (P1 数据源)"),
-        ("IFIND_TOKEN", "iFinD MCP 认证令牌 (P2 数据源)"),
     ]
     OPTIONAL_ENV_VARS = [
         ("TS_TOKEN", "Tushare 令牌 (国内期货/CPI)"),
@@ -205,12 +204,12 @@ class SystemChecker:
     def _get_critical_env_vars(self) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
         """根据当前平台返回环境变量清单
 
-        - Windows 实盘模式: WIND_API_KEY/IFIND_TOKEN 为 ERROR 级
-        - Mac 研究模式: WIND_API_KEY/IFIND_TOKEN 降级为 WARN 级 (可选)
+        - Windows 实盘模式: WIND_API_KEY 为 ERROR 级
+        - Mac 研究模式: WIND_API_KEY 降级为 WARN 级 (可选)
         """
         if not self.research_mode:
             return self.CRITICAL_ENV_VARS, self.OPTIONAL_ENV_VARS
-        # 研究模式: Wind/iFinD 凭证降级为可选
+        # 研究模式: Wind 凭证降级为可选
         optional = list(self.OPTIONAL_ENV_VARS)
         for var, desc in self.CRITICAL_ENV_VARS:
             optional.append((var, f"{desc} (Mac 研究模式可选)"))
@@ -344,7 +343,7 @@ class SystemChecker:
     # C3. 数据源连通性检查
     # --------------------------------------------------------------------
     def check_datasource_connectivity(self) -> None:
-        """检查 Wind MCP / iFinD / TDX / AKShare 数据源连通性"""
+        """检查 Wind MCP / TDX / AKShare 数据源连通性"""
         logger.info("\n[C3] 数据源连通性检查")
         logger.info("-" * 60)
 
@@ -380,18 +379,7 @@ class SystemChecker:
                            remediation="检查 WIND_API_KEY 环境变量; "
                                        "运行 python scripts/_diag_three_sources.py 排查")
 
-            # C3.2 iFinD MCP
-            ifind_ok = health.get("ifind_mcp", {}).get("ok", False)
-            if ifind_ok:
-                self._pass("C3.2", "iFinD MCP (P2)", CheckLevel.WARN,
-                           detail="已加载")
-            else:
-                ifind_err = health.get("ifind_mcp", {}).get("last_error", "未配置")
-                self._fail("C3.2", "iFinD MCP (P2)", CheckLevel.WARN,
-                           detail=f"不可用: {ifind_err}",
-                           remediation="检查 IFIND_TOKEN; 注意 iFinD 有日配额限制")
-
-            # C3.3 TDX 通达信
+            # C3.2 TDX 通达信
             tdx_ok = health.get("tdx", {}).get("ok", False)
             if tdx_ok:
                 self._pass("C3.3", "TDX 通达信 (P2.5)", CheckLevel.WARN,
@@ -444,7 +432,7 @@ class SystemChecker:
     def _check_datasource_research_mode(self) -> None:
         """Mac 研究模式专用: 仅检查 AKShare / yfinance / 本地缓存
 
-        跳过 Windows 专属数据源 (Wind MCP / iFinD MCP / TDX / QMT),
+        跳过 Windows 专属数据源 (Wind MCP / TDX / QMT),
         这些数据源由 Windows 云实盘服务器负责, Mac 仅做研究。
         """
         logger.info("  [研究模式] 仅检查跨平台免费数据源 (AKShare/yfinance)")
@@ -461,7 +449,7 @@ class SystemChecker:
 
         # C3.2 yfinance (港美股回测用)
         try:
-            import yfinance as yf
+            import yfinance as yf  # noqa: F401
             self._pass("C3.2", "yfinance (港美股)", CheckLevel.WARN,
                        detail="可导入")
         except ImportError:
@@ -469,16 +457,15 @@ class SystemChecker:
                        detail="未安装 (可选)",
                        remediation="pip install yfinance")
 
-        # C3.3-C3.5 跳过 Windows 专属数据源
+        # C3.3-C3.4 跳过 Windows 专属数据源
         for code, name in [("C3.3", "Wind MCP (跳过-研究模式)"),
-                           ("C3.4", "iFinD MCP (跳过-研究模式)"),
-                           ("C3.5", "TDX 通达信 (跳过-研究模式)")]:
+                           ("C3.4", "TDX 通达信 (跳过-研究模式)")]:
             self._skip(code, name, CheckLevel.INFO,
                        "Mac 研究模式不检查 Windows 专属数据源, 由云实盘服务器负责")
 
-        # C3.6 数据源冗余度 (研究模式放宽: AKShare 可用即视为通过)
-        self._pass("C3.6", "数据源冗余度 (研究模式)", CheckLevel.INFO,
-                   detail="研究模式仅需 AKShare 可用; Wind/iFinD 由 Windows 云服务器提供")
+        # C3.5 数据源冗余度 (研究模式放宽: AKShare 可用即视为通过)
+        self._pass("C3.5", "数据源冗余度 (研究模式)", CheckLevel.INFO,
+                   detail="研究模式仅需 AKShare 可用; Wind 由 Windows 云服务器提供")
 
     # --------------------------------------------------------------------
     # C4. 配置文件 Schema 检查

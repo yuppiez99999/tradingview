@@ -6,13 +6,10 @@ import pytest
 from utils.risk.gradual_rollout_orchestrator import (
     GradualRolloutOrchestrator,
     RolloutStage,
-    StageAdmissionCriteria,
     StageMetrics,
-    RolloutState,
     default_criteria,
 )
 from utils.risk.risk_audit_logger import RiskAuditLogger
-
 
 # ============================================================
 # 测试夹具

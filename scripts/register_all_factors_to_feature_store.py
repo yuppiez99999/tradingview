@@ -214,7 +214,7 @@ def batch_register(
 
         success = False
         last_reason = ""
-        for attempt in range(max_retries):
+        for _attempt in range(max_retries):
             ok, last_reason = registry.register(fm)
             if ok:
                 success = True
@@ -354,7 +354,7 @@ def main() -> int:
     print(f"[报告] {report_path}")
 
     if report.fail_details:
-        print(f"\n[失败明细] (前 10 条)")
+        print("\n[失败明细] (前 10 条)")
         for d in report.fail_details[:10]:
             print(f"  {d.factor_name}: {d.reason}")
 

@@ -1,26 +1,25 @@
 """Constants and utilities related to analysts configuration."""
 
-from quant_modules.ai_hedge_fund.agents import portfolio_manager
 from quant_modules.ai_hedge_fund.agents.aswath_damodaran import aswath_damodaran_agent
 from quant_modules.ai_hedge_fund.agents.ben_graham import ben_graham_agent
 from quant_modules.ai_hedge_fund.agents.bill_ackman import bill_ackman_agent
 from quant_modules.ai_hedge_fund.agents.cathie_wood import cathie_wood_agent
 from quant_modules.ai_hedge_fund.agents.charlie_munger import charlie_munger_agent
 from quant_modules.ai_hedge_fund.agents.fundamentals import fundamentals_analyst_agent
+from quant_modules.ai_hedge_fund.agents.growth_agent import growth_analyst_agent
+from quant_modules.ai_hedge_fund.agents.hedge_analyst import hedge_analyst_agent
 from quant_modules.ai_hedge_fund.agents.michael_burry import michael_burry_agent
-from quant_modules.ai_hedge_fund.agents.phil_fisher import phil_fisher_agent
+from quant_modules.ai_hedge_fund.agents.mohnish_pabrai import mohnish_pabrai_agent
+from quant_modules.ai_hedge_fund.agents.nassim_taleb import nassim_taleb_agent
+from quant_modules.ai_hedge_fund.agents.news_sentiment import news_sentiment_agent
 from quant_modules.ai_hedge_fund.agents.peter_lynch import peter_lynch_agent
+from quant_modules.ai_hedge_fund.agents.phil_fisher import phil_fisher_agent
+from quant_modules.ai_hedge_fund.agents.rakesh_jhunjhunwala import rakesh_jhunjhunwala_agent
 from quant_modules.ai_hedge_fund.agents.sentiment import sentiment_analyst_agent
 from quant_modules.ai_hedge_fund.agents.stanley_druckenmiller import stanley_druckenmiller_agent
 from quant_modules.ai_hedge_fund.agents.technicals import technical_analyst_agent
 from quant_modules.ai_hedge_fund.agents.valuation import valuation_analyst_agent
 from quant_modules.ai_hedge_fund.agents.warren_buffett import warren_buffett_agent
-from quant_modules.ai_hedge_fund.agents.rakesh_jhunjhunwala import rakesh_jhunjhunwala_agent
-from quant_modules.ai_hedge_fund.agents.mohnish_pabrai import mohnish_pabrai_agent
-from quant_modules.ai_hedge_fund.agents.nassim_taleb import nassim_taleb_agent
-from quant_modules.ai_hedge_fund.agents.news_sentiment import news_sentiment_agent
-from quant_modules.ai_hedge_fund.agents.growth_agent import growth_analyst_agent
-from quant_modules.ai_hedge_fund.agents.hedge_analyst import hedge_analyst_agent
 
 # Define analyst configuration - single source of truth
 ANALYST_CONFIG = {

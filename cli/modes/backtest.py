@@ -1,12 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 回测模式 — v5.10 P0-9 重构
 """
 
 import os
+
 from core.context import (
     BASE_DIR,
-    logger,
     ProgressIndicator,
     load_portfolio_config,
 )

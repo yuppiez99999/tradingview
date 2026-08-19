@@ -1,13 +1,11 @@
-# -*- coding: utf-8 -*-
 """backtest_integrity 单元测试 — 前视偏差/alpha 来源/综合校验全分支覆盖"""
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pandas as pd
-import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:

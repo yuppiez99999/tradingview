@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """llm_rate_limiter 直测 (复审 R11 · 2026-08-12)
 
 覆盖复审报告指出的"令牌桶数学/退避逻辑无专门直测"缺口:
@@ -18,11 +17,10 @@ from quant_modules.ai_hedge_fund.llm_rate_limiter import (
     CallStats,
     LLMCallTracker,
     RateLimitedLLMCaller,
-    TTLCache,
     TokenBucketRateLimiter,
+    TTLCache,
     get_global_llm_caller,
 )
-
 
 # ============================================================
 # 1. 令牌桶
@@ -203,6 +201,6 @@ def test_rate_limited_caller_rate_limit_timeout():
             agent_name="buffett", model_name="gpt-4o",
             timeout=0.1,
         )
-        assert False, "应抛 RuntimeError"
+        raise AssertionError("应抛 RuntimeError")
     except RuntimeError as exc:
         assert "速率限制超时" in str(exc)

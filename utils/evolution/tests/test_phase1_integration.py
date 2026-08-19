@@ -265,7 +265,7 @@ class TestScenario3StrategyEvaluation:
         }
 
         # 记录评估动作
-        pid = memory.record({
+        memory.record({
             "level": LEVEL_L2,
             "action_type": "evaluate",
             "trigger_reason": "EOD 评估周期触发",

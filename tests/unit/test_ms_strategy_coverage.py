@@ -23,49 +23,47 @@ if _MS_ROOT not in sys.path:
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import pytest  # noqa: E402
-
-from src.backtest.cost_model import CostConfig, CostModel, AlmgrenChrissCost  # noqa: E402
+import src.alpha.qlib_signal_adapter as qsa  # noqa: E402
+from src.alpha.signal_fusion import SignalFusion  # noqa: E402
+from src.alpha.signal_generator import SignalGenerator  # noqa: E402
+from src.backtest.combinatorial_purged_cv import CombinatorialPurgedCV  # noqa: E402
+from src.backtest.cost_aware_backtest import CostAwareBacktest  # noqa: E402
+from src.backtest.cost_model import AlmgrenChrissCost, CostModel  # noqa: E402
+from src.backtest.metrics import (  # noqa: E402
+    DeflatedSharpeRatio,
+    PerformanceMetrics,
+    compute_all_metrics,
+    compute_calmar,
+    compute_dsr,
+    compute_max_drawdown,
+    compute_sharpe,
+    compute_sortino,
+)
+from src.backtest.scenario_lib import (  # noqa: E402
+    STRESS_SCENARIOS,
+    ScenarioLibrary,
+    StressScenario,
+)
+from src.backtest.walk_forward import WalkForward  # noqa: E402
+from src.execution.algo_engine import AlgoEngine  # noqa: E402
+from src.execution.broker_api import BrokerAPI  # noqa: E402
+from src.execution.post_execution_review import ExecutionReviewer  # noqa: E402
+from src.hedging.correlation_hedger import CorrelationHedger  # noqa: E402
+from src.hedging.tail_risk_hedge import MarketRegime, TailRiskHedger  # noqa: E402
+from src.hedging.vol_hedger import VolHedger  # noqa: E402
+from src.ml.drift_detector import ModelDriftDetector  # noqa: E402
 from src.risk.circuit_breaker import (  # noqa: E402
     CircuitBreaker,
-    CircuitBreakerState,
     CircuitLevel,
     SlippageCircuitBreaker,
 )
-from src.hedging.vol_hedger import VolHedger  # noqa: E402
-from src.hedging.correlation_hedger import CorrelationHedger  # noqa: E402
-from src.hedging.tail_risk_hedge import TailRiskHedger, MarketRegime  # noqa: E402
-from src.backtest.metrics import (  # noqa: E402
-    PerformanceMetrics,
-    DeflatedSharpeRatio,
-    compute_sharpe,
-    compute_sortino,
-    compute_calmar,
-    compute_max_drawdown,
-    compute_dsr,
-    compute_all_metrics,
-)
-from src.backtest.scenario_lib import (  # noqa: E402
-    ScenarioLibrary,
-    StressScenario,
-    STRESS_SCENARIOS,
-)
-from src.alpha.signal_generator import SignalGenerator  # noqa: E402
-from src.alpha.signal_fusion import SignalFusion  # noqa: E402
-import src.alpha.qlib_signal_adapter as qsa  # noqa: E402
-from src.backtest.cost_aware_backtest import CostAwareBacktest  # noqa: E402
-from src.backtest.combinatorial_purged_cv import CombinatorialPurgedCV  # noqa: E402
-from src.backtest.walk_forward import WalkForward  # noqa: E402
 from src.risk.dynamic_risk_threshold import (  # noqa: E402
     DynamicRiskThreshold,
     MarketEnvironment,
     PortfolioState,
 )
-from src.risk.stress_tester import StressTester  # noqa: E402
 from src.risk.risk_budgeter import RiskBudgeter  # noqa: E402
-from src.execution.algo_engine import AlgoEngine  # noqa: E402
-from src.execution.broker_api import BrokerAPI  # noqa: E402
-from src.execution.post_execution_review import ExecutionReviewer  # noqa: E402
-from src.ml.drift_detector import ModelDriftDetector  # noqa: E402
+from src.risk.stress_tester import StressTester  # noqa: E402
 
 
 # ============================================================
@@ -865,6 +863,11 @@ class TestQlibSignalAdapter:
             qsa._add_technical_features(pd.DataFrame({"close": [1.0, 2.0, 3.0]}))
 
     def test_local_lightgbm_signal(self):
+        # 环境依赖: LightGBM 未安装时回退返回 None 信号, 跳过本测试
+        try:
+            import lightgbm  # noqa: F401
+        except ImportError:
+            pytest.skip("LightGBM 未安装, _local_lightgbm_signal 回退返回 None 信号")
         df = self._make_ohlcv(periods=200)
         res = qsa._local_lightgbm_signal(df, "TEST", save_model=False)
         assert res["signal"] is not None
@@ -873,6 +876,11 @@ class TestQlibSignalAdapter:
         assert "feature_cols" in res["metrics"]
 
     def test_generate_signal_fallback(self):
+        # 环境依赖: LightGBM 未安装时 generate_signal 回退返回 None, 跳过本测试
+        try:
+            import lightgbm  # noqa: F401
+        except ImportError:
+            pytest.skip("LightGBM 未安装, generate_signal 回退返回 None 信号")
         df = self._make_ohlcv(periods=200)
         sig = qsa.generate_signal(df, "TEST", use_cache=False, save_model=False)
         assert sig is not None
@@ -937,6 +945,11 @@ class TestQlibSignalAdapter:
         assert isinstance(sdf.index, pd.DatetimeIndex)
 
     def test_local_lightgbm_signal_dataframe_input(self):
+        # 环境依赖: LightGBM 未安装时回退返回 None 信号, 跳过本测试
+        try:
+            import lightgbm  # noqa: F401
+        except ImportError:
+            pytest.skip("LightGBM 未安装, _local_lightgbm_signal 回退返回 None 信号")
         # _local_lightgbm_signal 接受 DataFrame, 内部转 numpy
         df = self._make_ohlcv(periods=200)
         res = qsa._local_lightgbm_signal(df, "TEST", save_model=False)

@@ -13,7 +13,7 @@ AI 自动决策引擎 v5.8 — 量化交易系统 AI 决策模块 (多模型场�
 
 使用方式 (向后兼容):
     from utils.glm5_decision_engine import GLM5DecisionEngine
-    
+
     engine = GLM5DecisionEngine()
     # 盘中决策
     decisions = engine.make_decisions(market_data, portfolio_data, scene="intraday_decision")
@@ -83,14 +83,14 @@ class DecisionResult:
 class GLM5DecisionEngine:
     """
     AI 自动决策引擎 v5.8 — 多模型场景路由
-    
+
     功能:
     1. 自动分析市场数据（Wind MCP 动态指数、板块、资金流）
     2. 评估持仓风险（止损/止盈/仓位偏离）
     3. 生成交易信号（买卖建议）
     4. 风险预警（异常波动/极端行情）
     5. 组合再平衡建议 — 含 Wind MCP 基本面 RAG
-    
+
     v5.8 升级要点:
     - 场景路由代替固定模型优先级
     - Wind MCP 动态指数数据代替硬编码
@@ -109,7 +109,7 @@ class GLM5DecisionEngine:
     def __init__(self, config: Optional[Dict] = None, **kwargs):
         """
         初始化决策引擎
-        
+
         Args:
             config: 配置字典
             **kwargs: 可覆盖 scene/model 等参数
@@ -285,7 +285,7 @@ class GLM5DecisionEngine:
     ) -> DecisionResult:
         """
         生成综合交易决策 (v5.8 场景路由升级)
-        
+
         Args:
             market_data: 市场数据 (支持 Wind MCP 动态获取)
                 {
@@ -304,7 +304,7 @@ class GLM5DecisionEngine:
                 - "report_generation": 报告生成
                 - "light_analysis": 轻量分析
             include_fundamentals: 是否包含基本面 RAG (None 则根据场景自动决定)
-        
+
         Returns:
             DecisionResult 对象，包含所有交易信号和风险预警
         """
@@ -636,7 +636,7 @@ class GLM5DecisionEngine:
 
                             # 尝试按位置解析
                             if action_idx >= 0:
-                                for i, c in enumerate(cells):
+                                for _i, c in enumerate(cells):
                                     c_stripped = c.rstrip('%')
                                     try:
                                         val = float(c_stripped)
@@ -769,10 +769,10 @@ class GLM5DecisionEngine:
     def quick_check(self, portfolio_data: Dict) -> DecisionResult:
         """
         快速检查（简化版，仅检查持仓风险）
-        
+
         Args:
             portfolio_data: 持仓数据
-        
+
         Returns:
             DecisionResult
         """
@@ -797,11 +797,11 @@ class GLM5DecisionEngine:
     def export_decisions(self, decision: DecisionResult, output_dir: str = None) -> str:
         """
         导出决策结果为 Markdown 文件
-        
+
         Args:
             decision: 决策结果
             output_dir: 输出目录（默认: 每日报告归档/YYYY-MM-DD/）
-        
+
         Returns:
             输出文件路径
         """
@@ -868,12 +868,12 @@ def auto_trade_decision(
 ) -> DecisionResult:
     """
     一键生成交易决策
-    
+
     Args:
         market_data: 市场数据
         portfolio_data: 持仓数据
         **kwargs: 传递给 GLM5DecisionEngine 的参数
-    
+
     Returns:
         DecisionResult
     """

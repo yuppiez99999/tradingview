@@ -181,8 +181,8 @@ def _fetch_if_close_from_provider(futures_price: float, if_codes: List[str],
                 if ratio > 1.2 or ratio < 0.8:
                     continue
             return fc_price
-    except Exception as e:
-        print(f"获取IF期货价格失败: {e}")
+    except Exception:
+        pass
     return futures_price
 
 
@@ -355,13 +355,69 @@ def calculate_hedge_effectiveness(hedge_details: List, hedge_data: Dict) -> floa
     return round(effectiveness * 100, 2)
 
 
+def _exchange_from_code(code: str) -> str:
+    """从标的代码推断交易所"""
+    if not code:
+        return ""
+    if code.endswith(".SH") or code.endswith(".SS"):
+        return "上交所"
+    if code.endswith(".SZ"):
+        return "深交所"
+    if code.endswith(".CF"):
+        return "中金所"
+    return ""
+
+
+def _build_hedge_detail(
+    key: str,
+    instrument: str,
+    underlying_code: str,
+    direction: str,
+    contracts: int,
+    strike,
+    premium_budget: float,
+    premium_total: float,
+    beta_reduction: float,
+    underlying_price: float,
+    reason: str,
+) -> Dict[str, Any]:
+    """构造单个对冲头寸明细项 (统一字段契约)"""
+    is_option = "put" in instrument.lower() or "call" in instrument.lower()
+    multiplier = 10000 if is_option else 0
+    margin_rate = 0.0
+    abs_beta = abs(beta_reduction) if beta_reduction else 0.0
+    if is_option:
+        notional = contracts * multiplier * (underlying_price or 0)
+        cost = premium_total or premium_budget
+    else:
+        index_point = 4726.0 if instrument.upper().startswith("IF") else 7500.0
+        notional = contracts * multiplier * index_point
+        cost = notional * margin_rate
+    return {
+        "key": key,
+        "instrument": instrument,
+        "exchange": _exchange_from_code(underlying_code),
+        "direction": direction,
+        "target_contracts": contracts,
+        "multiplier": multiplier,
+        "margin_rate": margin_rate,
+        "target_beta_reduction": round(abs_beta, 4),
+        "strike": strike if strike else "",
+        "premium_budget": premium_budget or 0,
+        "estimated_notional": round(notional, 2),
+        "estimated_cost": round(cost, 2),
+        "is_option": is_option,
+        "reason": reason,
+    }
+
+
 def analyze_hedge_positions_plan(positions_data: Dict[str, Any]) -> Dict[str, Any]:
     """分析期货期权计划头寸 (来自 positions.json 的 hedge_positions)
 
-    覆盖三类对冲工具:
-      - IF 期货  (CFFEX, 沪深300股指期货, Beta加权)
-      - IM 期货  (CFFEX, 中证1000股指期货, 中小盘对冲)
-      - 510050 Put 期权 (SSE, 上证50ETF认沽, 尾部风险保护)
+    优先从 active_orders / actual_positions 提取已执行的真实头寸
+    (Covered Call 备兑开仓 + 买入 Put 保护), fallback 到配置层。
+    跳过 budget_summary (汇总) / vega_event_driven (enabled=false) /
+    bear_put_spread (enabled=false) 等非头寸项。
 
     Returns:
         {
@@ -376,56 +432,116 @@ def analyze_hedge_positions_plan(positions_data: Dict[str, Any]) -> Dict[str, An
     total_premium = 0.0
     total_beta_reduction = 0.0
 
-    for key, pos in hedge_positions.items():
-        if not isinstance(pos, dict):
-            continue
-        instrument = pos.get("instrument", key)
-        exchange = pos.get("exchange", "")
-        direction = pos.get("direction", "")
-        target_contracts = pos.get("target_contracts", 0)
-        multiplier = pos.get("multiplier", 0)
-        margin_rate = pos.get("margin_rate", 0.0)
-        beta_reduction = pos.get("target_beta_reduction", 0.0)
-        strike = pos.get("strike", "")
-        premium_budget = pos.get("premium_budget", 0)
-        reason = pos.get("reason", "")
+    active_orders = hedge_positions.get("active_orders", {})
+    actual_positions = hedge_positions.get("actual_positions", [])
 
-        # 估算名义价值
-        # 期货: 名义 = 手数 × 乘数 × 标的指数点位 (用 IF 4726 / IM 7500 估算)
-        # 期权: 名义 = 权利金预算 (实际是成本, 不是名义价值)
-        is_option = instrument.lower().endswith("put") or "put" in key.lower()
-        if is_option:
-            # 期权: 名义价值不适用, 用权利金预算作为成本
-            notional = 0
-            cost = premium_budget
-            total_premium += premium_budget
-        else:
-            # 期货: 用 IF=4726 / IM=7500 估算名义
-            index_point = 4726.0 if instrument.upper().startswith("IF") else 7500.0
-            notional = target_contracts * multiplier * index_point
-            cost = notional * margin_rate  # 保证金 = 名义 × 保证金率
-            total_notional += notional
+    if active_orders and isinstance(active_orders, dict):
+        for cc in active_orders.get("covered_call", []) or []:
+            if not isinstance(cc, dict):
+                continue
+            d = _build_hedge_detail(
+                key=cc.get("instrument", "covered_call"),
+                instrument=cc.get("instrument", ""),
+                underlying_code=cc.get("underlying_code", ""),
+                direction=cc.get("direction", "SELL_CALL_COVERED"),
+                contracts=cc.get("contracts", 0),
+                strike=cc.get("est_strike_price", ""),
+                premium_budget=cc.get("est_monthly_premium", 0),
+                premium_total=cc.get("premium_total", 0),
+                beta_reduction=cc.get("beta_reduction", 0),
+                underlying_price=cc.get("underlying_price", 0),
+                reason=f"备兑开仓 {cc.get('collateral', '')}",
+            )
+            details.append(d)
+            total_notional += d["estimated_notional"]
+            total_premium += d["premium_budget"]
+            total_beta_reduction += d["target_beta_reduction"]
 
-        total_beta_reduction += beta_reduction
+        for pp in active_orders.get("put_protection", []) or []:
+            if not isinstance(pp, dict):
+                continue
+            d = _build_hedge_detail(
+                key=pp.get("instrument", "put_protection"),
+                instrument=pp.get("instrument", ""),
+                underlying_code=pp.get("underlying_code", ""),
+                direction=pp.get("direction", "BUY_PUT"),
+                contracts=pp.get("contracts", 0),
+                strike=pp.get("est_strike_price", ""),
+                premium_budget=pp.get("premium_budget", 0),
+                premium_total=pp.get("premium_total", 0),
+                beta_reduction=pp.get("beta_reduction", 0),
+                underlying_price=pp.get("underlying_price", 0),
+                reason=f"尾部保护 {pp.get('strike_rule', '')}",
+            )
+            details.append(d)
+            total_notional += d["estimated_notional"]
+            total_premium += d["premium_budget"]
+            total_beta_reduction += d["target_beta_reduction"]
+    elif actual_positions and isinstance(actual_positions, list):
+        for ap in actual_positions:
+            if not isinstance(ap, dict):
+                continue
+            d = _build_hedge_detail(
+                key=ap.get("instrument", "actual"),
+                instrument=ap.get("instrument", ""),
+                underlying_code=ap.get("underlying", ""),
+                direction=ap.get("direction", ""),
+                contracts=ap.get("contracts", 0),
+                strike=ap.get("strike", ""),
+                premium_budget=ap.get("premium_total", 0),
+                premium_total=ap.get("premium_total", 0),
+                beta_reduction=ap.get("beta_reduction", 0),
+                underlying_price=0,
+                reason=ap.get("expiry", ""),
+            )
+            details.append(d)
+            total_notional += d["estimated_notional"]
+            total_premium += d["premium_budget"]
+            total_beta_reduction += d["target_beta_reduction"]
+    else:
+        cc_overlay = hedge_positions.get("covered_call_overlay", {})
+        if isinstance(cc_overlay, dict) and cc_overlay.get("enabled", False):
+            for u in cc_overlay.get("underlyings", []) or []:
+                if not isinstance(u, dict):
+                    continue
+                d = _build_hedge_detail(
+                    key=u.get("code", "covered_call"),
+                    instrument=f"{u.get('code', '')} Call",
+                    underlying_code=u.get("code", ""),
+                    direction="SELL_CALL_COVERED",
+                    contracts=0,
+                    strike=u.get("strike_rule", ""),
+                    premium_budget=u.get("estimated_monthly_premium", 0),
+                    premium_total=u.get("estimated_monthly_premium", 0),
+                    beta_reduction=0,
+                    underlying_price=0,
+                    reason=f"备兑担保 {u.get('note', '')}",
+                )
+                details.append(d)
+                total_premium += d["premium_budget"]
 
-        details.append(
-            {
-                "key": key,
-                "instrument": instrument,
-                "exchange": exchange,
-                "direction": direction,
-                "target_contracts": target_contracts,
-                "multiplier": multiplier,
-                "margin_rate": margin_rate,
-                "target_beta_reduction": beta_reduction,
-                "strike": strike,
-                "premium_budget": premium_budget,
-                "estimated_notional": round(notional, 2),
-                "estimated_cost": round(cost, 2),
-                "is_option": is_option,
-                "reason": reason,
-            }
-        )
+        rrc = hedge_positions.get("risk_reversal_collar", {})
+        if isinstance(rrc, dict):
+            put_prot = rrc.get("put_protection", {})
+            if isinstance(put_prot, dict):
+                for pk, pp in put_prot.items():
+                    if not isinstance(pp, dict):
+                        continue
+                    d = _build_hedge_detail(
+                        key=pk,
+                        instrument=pp.get("instrument", pk),
+                        underlying_code="",
+                        direction=pp.get("direction", "BUY_PUT"),
+                        contracts=pp.get("target_contracts", 0),
+                        strike=pp.get("strike", ""),
+                        premium_budget=pp.get("premium_budget", 0),
+                        premium_total=pp.get("premium_budget", 0),
+                        beta_reduction=0,
+                        underlying_price=0,
+                        reason=pp.get("purpose", ""),
+                    )
+                    details.append(d)
+                    total_premium += d["premium_budget"]
 
     return {
         "details": details,

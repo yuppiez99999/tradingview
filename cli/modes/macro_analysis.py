@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 宏观综合分析模式
 一键运行康波周期 + 十五五规划 + 社保基金ETF三大分析
@@ -6,21 +5,18 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from core.context import (
     BASE_DIR,
-    logger,
-    ProgressIndicator,
-    KONDRATIEV_AVAILABLE,
-    KondratievCycleAnalyzer,
     FIFTEEN_FIVE_AVAILABLE,
-    FifteenFivePlanAnalyzer,
+    KONDRATIEV_AVAILABLE,
     SOCIAL_SECURITY_ETF_AVAILABLE,
+    FifteenFivePlanAnalyzer,
+    KondratievCycleAnalyzer,
     SocialSecurityETFTracker,
-    connector_manager,
 )
-
 from utils.cli_helpers import archive_report, get_archive_dir
-from datetime import datetime
 
 
 def run_macro_analysis(args):
@@ -48,24 +44,24 @@ def run_macro_analysis(args):
 
             # 行业配置
             sectors = kondratiev.get_sector_allocation()
-            print(f"\n  📈 康波周期行业配置建议:")
+            print("\n  📈 康波周期行业配置建议:")
             for s in sectors:
                 print(f"    {s['sector']}: 综合得分={s['combined_score']} → {s['recommendation']}")
 
             # 大宗商品信号
             commodities = kondratiev.get_commodity_signals()
-            print(f"\n  🛢️ 大宗商品周期信号:")
+            print("\n  🛢️ 大宗商品周期信号:")
             for c in commodities:
                 print(f"    {c['name']}: 信号={c['current_signal']}, 康波建议={c.get('kondratiev_recommendation', 'N/A')}")
 
             # 十五五交叠
             overlay = kondratiev.get_fifteen_five_overlay()
-            print(f"\n  🔗 十五五与康波交叠结论:")
+            print("\n  🔗 十五五与康波交叠结论:")
             print(f"    {overlay.get('synergy_conclusion', 'N/A')[:100]}...")
 
             report = kondratiev.generate_report()
             archive_report(report, '康波周期分析')
-            print(f"\n  ✅ 康波周期报告已归档")
+            print("\n  ✅ 康波周期报告已归档")
             results['kondratiev'] = True
         except Exception as e:
             print(f"\n  ❌ 康波周期分析失败: {e}")
@@ -84,12 +80,12 @@ def run_macro_analysis(args):
             holdings = fifteen_five.analyze_holdings()
             adjustments = fifteen_five.get_weight_adjustments()
 
-            print(f"\n  📊 持仓十五五适配评级:")
+            print("\n  📊 持仓十五五适配评级:")
             for h in holdings:
                 flag = "🟢" if h['overall_score'] >= 85 else "🟡" if h['overall_score'] >= 70 else "🔴"
                 print(f"    {flag} {h['name']}: 评分={h['overall_score']}, 等级={h['grade']}")
 
-            print(f"\n  ⚖️ 十五五驱动的权重调整建议:")
+            print("\n  ⚖️ 十五五驱动的权重调整建议:")
             for adj in adjustments:
                 if adj['weight_adjust_pct'] != 0:
                     direction = "▲" if adj['weight_adjust_pct'] > 0 else "▼"
@@ -97,7 +93,7 @@ def run_macro_analysis(args):
 
             report = fifteen_five.generate_report()
             archive_report(report, '十五五规划适配')
-            print(f"\n  ✅ 十五五规划报告已归档")
+            print("\n  ✅ 十五五规划报告已归档")
             results['fifteen_five'] = True
         except Exception as e:
             print(f"\n  ❌ 十五五规划分析失败: {e}")
@@ -115,7 +111,7 @@ def run_macro_analysis(args):
             ss_tracker = SocialSecurityETFTracker()
             summary = ss_tracker.classifier.get_style_summary()
 
-            print(f"\n  📊 社保基金四大投资风格:")
+            print("\n  📊 社保基金四大投资风格:")
             for style, info in summary.items():
                 icon = "📈" if info['recommended_action'] == "超配" else "📊" if info['recommended_action'] == "标配" else "📉"
                 print(f"    {icon} {style} ({info['weight']:.0%}): {info['recommended_action']}")
@@ -126,7 +122,7 @@ def run_macro_analysis(args):
 
             report = ss_tracker.generate_report(flow_data=flow_data)
             archive_report(report, '社保基金ETF追踪')
-            print(f"\n  ✅ 社保基金ETF报告已归档")
+            print("\n  ✅ 社保基金ETF报告已归档")
             results['social_security'] = True
         except Exception as e:
             print(f"\n  ❌ 社保基金ETF追踪失败: {e}")

@@ -28,7 +28,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from utils.execution.daily_build_and_hedge import DailyBuildHedgeSystem
 
-
 # ============================================================
 # 测试数据
 # ============================================================
@@ -1116,15 +1115,15 @@ class TestFetchRealtimeQuotes:
 class TestRenderHeader:
     def test_dry_run(self, configured_system: DailyBuildHedgeSystem) -> None:
         lines = configured_system._render_header()
-        assert any("干跑模式" in l for l in lines)
-        assert any("2026-07-13" in l for l in lines)
+        assert any("干跑模式" in line for line in lines)
+        assert any("2026-07-13" in line for line in lines)
 
     def test_live_mode(self) -> None:
         system = _make_system(
             target_date=date(2026, 7, 13), dry_run=False, plan_data=SAMPLE_PLAN_DATA
         )
         lines = system._render_header()
-        assert any("实盘模式" in l for l in lines)
+        assert any("实盘模式" in line for line in lines)
 
 
 class TestRenderMarketStateSection:
@@ -1132,9 +1131,9 @@ class TestRenderMarketStateSection:
         self, configured_system: DailyBuildHedgeSystem
     ) -> None:
         lines = configured_system._render_market_state_section()
-        assert any("市场状态" in l for l in lines)
-        assert any("neutral" in l for l in lines)
-        assert any("20日收益率" in l for l in lines)
+        assert any("市场状态" in line for line in lines)
+        assert any("neutral" in line for line in lines)
+        assert any("20日收益率" in line for line in lines)
 
     def test_with_none_returns(self) -> None:
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
@@ -1145,9 +1144,9 @@ class TestRenderMarketStateSection:
             "macro_heat_score": 40,
         }
         lines = system._render_market_state_section()
-        assert any("cautious" in l for l in lines)
+        assert any("cautious" in line for line in lines)
         # index_return_20d=None 时, .get(key, "N/A") 返回 None (key 存在)
-        assert any("None" in l for l in lines)
+        assert any("None" in line for line in lines)
 
 
 class TestRenderBuildPlanSection:
@@ -1155,20 +1154,20 @@ class TestRenderBuildPlanSection:
         self, configured_system: DailyBuildHedgeSystem
     ) -> None:
         lines = configured_system._render_build_plan_section()
-        assert any("建仓计划" in l for l in lines)
-        assert any("底仓建立与收租期" in l for l in lines)
-        assert any("上午批次" in l for l in lines)
-        assert any("下午批次" in l for l in lines)
-        assert any("暂停执行标的" in l for l in lines)
-        assert any("紧急响应措施" in l for l in lines)
-        assert any("上午合计" in l for l in lines)
-        assert any("下午合计" in l for l in lines)
+        assert any("建仓计划" in line for line in lines)
+        assert any("底仓建立与收租期" in line for line in lines)
+        assert any("上午批次" in line for line in lines)
+        assert any("下午批次" in line for line in lines)
+        assert any("暂停执行标的" in line for line in lines)
+        assert any("紧急响应措施" in line for line in lines)
+        assert any("上午合计" in line for line in lines)
+        assert any("下午合计" in line for line in lines)
 
     def test_empty_plan(self) -> None:
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
         system.build_plan = {}
         lines = system._render_build_plan_section()
-        assert any("建仓计划" in l for l in lines)
+        assert any("建仓计划" in line for line in lines)
 
 
 class TestRenderHedgePlanSection:
@@ -1176,20 +1175,20 @@ class TestRenderHedgePlanSection:
         self, configured_system: DailyBuildHedgeSystem
     ) -> None:
         lines = configured_system._render_hedge_plan_section()
-        assert any("对冲计划" in l for l in lines)
-        assert any("期货对冲" in l for l in lines)
-        assert any("IF_futures" in l for l in lines)
-        assert any("期权对冲" in l for l in lines)
-        assert any("PUT_OPTION" in l for l in lines)
-        assert any("再平衡信号" in l for l in lines)
-        assert any("需要" in l for l in lines)
-        assert any("无需" in l for l in lines)
+        assert any("对冲计划" in line for line in lines)
+        assert any("期货对冲" in line for line in lines)
+        assert any("IF_futures" in line for line in lines)
+        assert any("期权对冲" in line for line in lines)
+        assert any("PUT_OPTION" in line for line in lines)
+        assert any("再平衡信号" in line for line in lines)
+        assert any("需要" in line for line in lines)
+        assert any("无需" in line for line in lines)
 
     def test_empty_hedge(self) -> None:
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
         system.hedge_plan = {}
         lines = system._render_hedge_plan_section()
-        assert any("对冲计划" in l for l in lines)
+        assert any("对冲计划" in line for line in lines)
 
 
 class TestRenderSummarySection:
@@ -1197,10 +1196,10 @@ class TestRenderSummarySection:
         self, configured_system: DailyBuildHedgeSystem
     ) -> None:
         lines = configured_system._render_summary_section()
-        assert any("执行摘要" in l for l in lines)
-        assert any("股票订单数" in l for l in lines)
-        assert any("期货对冲合约" in l for l in lines)
-        assert any("期权对冲项目" in l for l in lines)
+        assert any("执行摘要" in line for line in lines)
+        assert any("股票订单数" in line for line in lines)
+        assert any("期货对冲合约" in line for line in lines)
+        assert any("期权对冲项目" in line for line in lines)
 
 
 class TestRenderChecklistSection:
@@ -1208,9 +1207,9 @@ class TestRenderChecklistSection:
         self, configured_system: DailyBuildHedgeSystem
     ) -> None:
         lines = configured_system._render_checklist_section()
-        assert any("执行检查清单" in l for l in lines)
-        assert any("确认账户可用资金" in l for l in lines)
-        assert any("生成盘后报告" in l for l in lines)
+        assert any("执行检查清单" in line for line in lines)
+        assert any("确认账户可用资金" in line for line in lines)
+        assert any("生成盘后报告" in line for line in lines)
 
 
 class TestRenderFooter:
@@ -1219,7 +1218,7 @@ class TestRenderFooter:
     ) -> None:
         lines = configured_system._render_footer()
         assert lines[0] == "---"
-        assert any("报告生成" in l for l in lines)
+        assert any("报告生成" in line for line in lines)
 
 
 class TestRenderComplianceSection:
@@ -1257,10 +1256,10 @@ class TestRenderComplianceSection:
                 return_value=mock_compliance,
             ):
                 lines = configured_system._render_compliance_section()
-        assert any("合规校验" in l for l in lines)
-        assert any("8/10" in l for l in lines)
-        assert any("588080.SH" in l for l in lines)
-        assert any("需关注" in l for l in lines)
+        assert any("合规校验" in line for line in lines)
+        assert any("8/10" in line for line in lines)
+        assert any("588080.SH" in line for line in lines)
+        assert any("需关注" in line for line in lines)
 
     def test_exception(
         self, configured_system: DailyBuildHedgeSystem
@@ -1271,8 +1270,8 @@ class TestRenderComplianceSection:
             side_effect=RuntimeError("fail"),
         ):
             lines = configured_system._render_compliance_section()
-        assert any("合规校验" in l for l in lines)
-        assert any("暂不可用" in l for l in lines)
+        assert any("合规校验" in line for line in lines)
+        assert any("暂不可用" in line for line in lines)
 
 
 class TestRenderEtfFlowAdjustmentSection:
@@ -1305,9 +1304,9 @@ class TestRenderEtfFlowAdjustmentSection:
                         return_value={"signal": "加仓", "action": "增配", "factor": 0.1},
                     ):
                         lines = configured_system._render_etf_flow_adjustment_section()
-        assert any("宽基ETF" in l for l in lines)
-        assert any("510050.SH" in l for l in lines)
-        assert any("加仓" in l for l in lines)
+        assert any("宽基ETF" in line for line in lines)
+        assert any("510050.SH" in line for line in lines)
+        assert any("加仓" in line for line in lines)
 
     def test_no_flow(
         self, configured_system: DailyBuildHedgeSystem
@@ -1326,8 +1325,8 @@ class TestRenderEtfFlowAdjustmentSection:
                     return_value=[],
                 ):
                     lines = configured_system._render_etf_flow_adjustment_section()
-        assert any("宽基ETF" in l for l in lines)
-        assert any("暂不可用" in l for l in lines)
+        assert any("宽基ETF" in line for line in lines)
+        assert any("暂不可用" in line for line in lines)
 
     def test_exception(
         self, configured_system: DailyBuildHedgeSystem
@@ -1338,8 +1337,8 @@ class TestRenderEtfFlowAdjustmentSection:
             side_effect=RuntimeError("fail"),
         ):
             lines = configured_system._render_etf_flow_adjustment_section()
-        assert any("宽基ETF" in l for l in lines)
-        assert any("暂不可用" in l for l in lines)
+        assert any("宽基ETF" in line for line in lines)
+        assert any("暂不可用" in line for line in lines)
 
 
 class TestRenderRealtimeQuotesSection:
@@ -1361,9 +1360,9 @@ class TestRenderRealtimeQuotesSection:
             configured_system, "fetch_realtime_quotes", return_value=quotes
         ):
             lines = configured_system._render_realtime_quotes_section()
-        assert any("实时行情快照" in l for l in lines)
-        assert any("510050" in l for l in lines)
-        assert any("eastmoney" in l for l in lines)
+        assert any("实时行情快照" in line for line in lines)
+        assert any("510050" in line for line in lines)
+        assert any("eastmoney" in line for line in lines)
 
     def test_empty_quotes(
         self, configured_system: DailyBuildHedgeSystem
@@ -1372,8 +1371,8 @@ class TestRenderRealtimeQuotesSection:
             configured_system, "fetch_realtime_quotes", return_value={}
         ):
             lines = configured_system._render_realtime_quotes_section()
-        assert any("实时行情快照" in l for l in lines)
-        assert any("暂不可用" in l for l in lines)
+        assert any("实时行情快照" in line for line in lines)
+        assert any("暂不可用" in line for line in lines)
 
     def test_with_none_pe_pb(
         self, configured_system: DailyBuildHedgeSystem
@@ -1394,7 +1393,7 @@ class TestRenderRealtimeQuotesSection:
             configured_system, "fetch_realtime_quotes", return_value=quotes
         ):
             lines = configured_system._render_realtime_quotes_section()
-        assert any("-" in l for l in lines)
+        assert any("-" in line for line in lines)
 
 
 class TestRenderEtfFlowDecisionSection:
@@ -1446,14 +1445,14 @@ class TestRenderEtfFlowDecisionSection:
             ],
         }
         lines = configured_system._render_etf_flow_decision_section()
-        assert any("ETF资金流向" in l for l in lines)
-        assert any("盘中决策" in l for l in lines)
-        assert any("信号摘要" in l for l in lines)
-        assert any("突变信号" in l for l in lines)
-        assert any("突变信号详情" in l for l in lines)
-        assert any("交易建议" in l for l in lines)
-        assert any("LLM辅助分析" in l for l in lines)
-        assert any("信号融合" in l for l in lines)
+        assert any("ETF资金流向" in line for line in lines)
+        assert any("盘中决策" in line for line in lines)
+        assert any("信号摘要" in line for line in lines)
+        assert any("突变信号" in line for line in lines)
+        assert any("突变信号详情" in line for line in lines)
+        assert any("交易建议" in line for line in lines)
+        assert any("LLM辅助分析" in line for line in lines)
+        assert any("信号融合" in line for line in lines)
 
     def test_success_pre_market(self) -> None:
         """盘前决策 (无突变信号)."""
@@ -1477,8 +1476,8 @@ class TestRenderEtfFlowDecisionSection:
             }
         }
         lines = system._render_etf_flow_decision_section()
-        assert any("盘前决策" in l for l in lines)
-        assert any("信号摘要" in l for l in lines)
+        assert any("盘前决策" in line for line in lines)
+        assert any("信号摘要" in line for line in lines)
         # 无推荐 / 无融合 / 无LLM
         joined = "\n".join(lines)
         assert "交易建议" not in joined
@@ -1490,8 +1489,8 @@ class TestRenderEtfFlowDecisionSection:
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
         system.market_state = {"etf_flow_decision": None}
         lines = system._render_etf_flow_decision_section()
-        assert any("ETF资金流向" in l for l in lines)
-        assert any("暂不可用" in l for l in lines)
+        assert any("ETF资金流向" in line for line in lines)
+        assert any("暂不可用" in line for line in lines)
 
     def test_status_not_success(self) -> None:
         """status != success -> 显示不可用."""
@@ -1500,14 +1499,14 @@ class TestRenderEtfFlowDecisionSection:
             "etf_flow_decision": {"status": "error"}
         }
         lines = system._render_etf_flow_decision_section()
-        assert any("暂不可用" in l for l in lines)
+        assert any("暂不可用" in line for line in lines)
 
     def test_exception(self) -> None:
         """渲染过程异常 -> 显示不可用."""
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
         system.market_state = {"etf_flow_decision": "not_a_dict"}
         lines = system._render_etf_flow_decision_section()
-        assert any("ETF资金流向" in l for l in lines)
+        assert any("ETF资金流向" in line for line in lines)
 
 
 # ============================================================

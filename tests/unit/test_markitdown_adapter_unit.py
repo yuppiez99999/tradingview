@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import utils.markitdown_adapter as mod
-from utils.markitdown_adapter import MarkItDownAdapter, SUPPORTED_EXTENSIONS
+from utils.markitdown_adapter import SUPPORTED_EXTENSIONS, MarkItDownAdapter
 
 
 @pytest.fixture(autouse=True)

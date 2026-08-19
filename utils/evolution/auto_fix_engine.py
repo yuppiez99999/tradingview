@@ -405,7 +405,7 @@ def _fix_datasource_fallback(check: CheckResultLike, ctx: FixContext) -> FixResu
         action=ACTION_AUTO_FIXED,
         risk_level=RISK_L0,
         details=(
-            "数据源降级链已确认: Wind MCP → iFinD → TDX → AKShare → sina → 缓存 → 兜底价格. "
+            "数据源降级链已确认: Wind MCP → TDX → AKShare → sina → 缓存 → 兜底价格. "
             "检测失败的数据源将被自动跳过, 不影响生产."
         ),
         needs_recheck=False,  # 降级是运行时行为, 无需重检

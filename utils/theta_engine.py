@@ -126,7 +126,7 @@ class ThetaEngine:
                     if code in spots:
                         continue
                     prefix = "sh" if code.startswith("5") else "sz"
-                    url = f"http://hq.sinajs.cn/list={prefix}{code}"
+                    url = f"https://hq.sinajs.cn/list={prefix}{code}"
                     headers = {"Referer": "https://finance.sina.com.cn"}
                     r = requests.get(url, headers=headers, timeout=5)
                     if r.status_code == 200:

@@ -25,7 +25,8 @@
     # result = {"action": "BUY", "confidence": 0.7, "reasoning": "...", "source": "tradingagents"}
 
 启动微服务 (在 Python 3.10+ 环境中):
-    py -3.11 E:\\各种PY程序\\TradingAgents\\28_bridge.py --port 8490
+    py -3.11 ${TRADINGAGENTS_BRIDGE_PATH} --port 8490
+    (默认: <项目根>/../TradingAgents/28_bridge.py, 可通过 TRADINGAGENTS_BRIDGE_PATH 环境变量覆盖)
 
 作者: 28 系统 PM
 日期: 2026-08-01

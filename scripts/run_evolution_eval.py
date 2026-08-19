@@ -55,7 +55,7 @@ def _load_observation_days() -> int:
     try:
         import yaml
 
-        with open(_SHADOW_ADMISSION_YAML, "r", encoding="utf-8") as f:
+        with open(_SHADOW_ADMISSION_YAML, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
         settings = cfg.get("settings", {})
         return int(settings.get("observation_days", settings.get("min_observation_days", 14)))
@@ -516,6 +516,72 @@ def main() -> int:
             logger.info("决策日志: %s (累计 %d 条)", decisions_log, line_count)
         else:
             logger.warning("决策日志未生成: %s", decisions_log)
+
+        # ============================================================
+        # 理论度量 (§八.3 P0 改进 — 2026-08-19 集成)
+        # ============================================================
+        try:
+            from utils.alpha.theoretical_metrics import (
+                FeedbackPhaseAnalyzer,
+                LyapunovStabilityMeter,
+                VariationSelectionBalancer,
+            )
+
+            today_str = result.get("observation_day", "")
+            if not today_str:
+                from datetime import date as _date
+                today_str = _date.today().isoformat()
+
+            metrics_dir = _PROJECT_ROOT / "reports" / "evolution" / f"theoretical_metrics_{today_str}"
+            metrics_dir.mkdir(parents=True, exist_ok=True)
+
+            public_score = result.get("public_score", 0.0)
+            private_score = result.get("private_score", 0.0)
+            daily_return = 0.0
+            returns_path = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+            if returns_path.exists():
+                import json as _json
+                lines = returns_path.read_text(encoding="utf-8").strip().split("\n")
+                if lines:
+                    last = _json.loads(lines[-1])
+                    daily_return = last.get("daily_return", 0.0)
+
+            meter = LyapunovStabilityMeter()
+            meter.update(
+                timestamp=today_str,
+                ic=private_score,
+                daily_return=daily_return,
+                drift_score=abs(public_score - private_score),
+            )
+            lyap_summary = meter.assess_stability()
+            meter.save_report(metrics_dir / "lyapunov_report.json")
+            logger.info(
+                "[理论度量] Lyapunov: λ=%.4f, 稳定=%s",
+                lyap_summary.mean_exponent,
+                lyap_summary.is_system_stable,
+            )
+
+            analyzer = FeedbackPhaseAnalyzer()
+            analyzer.measure(timestamp=today_str)
+            phase_summary = analyzer.assess_phase()
+            analyzer.save_report(metrics_dir / "phase_analysis_report.json")
+            logger.info(
+                "[理论度量] 相位裕度: %.1f°, 安全=%s",
+                phase_summary.mean_phase_margin * 180 / 3.14159265,
+                phase_summary.is_oscillation_safe,
+            )
+
+            balancer = VariationSelectionBalancer()
+            balance_summary = balancer.assess_overall()
+            balancer.save_report(metrics_dir / "variation_selection_report.json")
+            logger.info(
+                "[理论度量] 变异选择平衡: B=%.4f, 平衡=%s",
+                balance_summary.mean_balance_index,
+                balance_summary.is_balanced,
+            )
+
+        except (ImportError, ValueError, TypeError, KeyError, OSError) as e:
+            logger.warning("[理论度量] 计算失败 (不阻塞主流程): %s", e)
 
         logger.info("=" * 60)
         logger.info("[OK] v84_EvolutionEval 完成")

@@ -20,7 +20,6 @@ from utils.alpha_factor.transformer_encoder import (
     factors_to_matrix,
 )
 
-
 # ============================================================
 # FactorEncodingResult
 # ============================================================
@@ -120,14 +119,23 @@ class TestBuildFactorEncoder:
 
     @pytest.mark.unit
     def test_auto_fallback_numpy(self):
-        """torch 不可用时自动降级 numpy"""
+        """torch 不可用时自动降级 numpy; torch 可用时返回 torch 后端"""
+        from utils.alpha_factor.transformer_encoder import _TORCH_AVAILABLE
         enc = build_factor_encoder(n_factors=10, d_model=8)
-        assert isinstance(enc, NumpyFactorEncoder)
+        if _TORCH_AVAILABLE:
+            assert getattr(enc, "backend", None) == "torch" or enc.__class__.__name__ == "_TorchFactorEncoder"
+        else:
+            assert isinstance(enc, NumpyFactorEncoder)
 
     @pytest.mark.unit
     def test_force_torch_raises(self):
-        with pytest.raises(RuntimeError, match="torch"):
-            build_factor_encoder(n_factors=10, force_backend="torch")
+        from utils.alpha_factor.transformer_encoder import _TORCH_AVAILABLE
+        if _TORCH_AVAILABLE:
+            enc = build_factor_encoder(n_factors=10, force_backend="torch")
+            assert enc.__class__.__name__ == "_TorchFactorEncoder"
+        else:
+            with pytest.raises(RuntimeError, match="torch"):
+                build_factor_encoder(n_factors=10, force_backend="torch")
 
 
 # ============================================================

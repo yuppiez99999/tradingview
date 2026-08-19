@@ -1,15 +1,13 @@
 """Utilities for working with Ollama models"""
 
+import os
 import platform
 import shutil
 import subprocess
-import requests
 import time
 from typing import List
-import questionary
-from colorama import Fore, Style
-import os
-from . import docker
+
+import requests
 
 # Constants
 DEFAULT_OLLAMA_SERVER_URL = "http://localhost:11434"
@@ -69,7 +67,6 @@ def get_locally_available_models() -> List[str]:
 def start_ollama_server() -> bool:
     """Start the Ollama server if it's not already running."""
     if is_ollama_server_running():
-        print(f"{Fore.GREEN}Ollama server is already running.{Style.RESET_ALL}")
         return True
 
     try:
@@ -78,14 +75,11 @@ def start_ollama_server() -> bool:
         # Wait for server to start
         for _ in range(10):  # Try for 10 seconds
             if is_ollama_server_running():
-                print(f"{Fore.GREEN}Ollama server started successfully.{Style.RESET_ALL}")
                 return True
             time.sleep(1)
 
-        print(f"{Fore.RED}Failed to start Ollama server. Timed out waiting for server to become available.{Style.RESET_ALL}")
         return False
-    except (OSError, TypeError, ValueError) as e:
-        print(f"{Fore.RED}Error starting Ollama server: {e}{Style.RESET_ALL}")
+    except (OSError, TypeError, ValueError):
         return False
 
 
@@ -93,6 +87,4 @@ def install_ollama() -> bool:
     """Install Ollama on the system."""
     system = platform.system().lower()
     if system not in OLLAMA_DOWNLOAD_URL:
-        print(f"{Fore.RED}Unsupported operating system for automatic installation: {system}{Style.RESET_ALL}")
-        print(f"Please visit https://ollama.com/download to install Ollama manually.")
         return False

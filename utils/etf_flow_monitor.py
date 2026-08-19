@@ -1,7 +1,7 @@
 """
 实时ETF资金流向监控模块
 
-数据源优先级: Wind MCP fund_data > iFinD MCP > 新浪财经 > 本地缓存
+数据源优先级: Wind MCP fund_data > 东财push2 > 新浪财经 > 本地缓存
 
 功能:
 - 获取ETF资金流向数据
@@ -75,9 +75,7 @@ class ETFRealTimeTracker:
 
     def __init__(self):
         self.wind_mcp_available = False
-        self.ifind_mcp_available = False
         self._wind_mcp_client = None
-        self._ifind_client = None
         self._init_data_sources()
 
     def _init_data_sources(self):
@@ -100,17 +98,6 @@ class ETFRealTimeTracker:
                 logger.info("Wind MCP 客户端已加载 (ETF资金流数据源 P0)")
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"Wind MCP 客户端加载失败: {e}")
-
-        try:
-            from utils.ifind_client import IFindClient
-
-            # 安全修复: IFindClient 构造函数从环境变量自动读取 Token
-            if os.environ.get("IFIND_TOKEN", ""):
-                self._ifind_client = IFindClient()
-                self.ifind_mcp_available = True
-                logger.info("iFinD MCP 客户端已加载 (ETF资金流数据源 P1)")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
-            logger.warning(f"iFinD MCP 客户端加载失败: {e}")
 
     def _to_wind_code(self, etf_code: str) -> str:
         """裸码 -> Wind 风格 ETF 代码 (510300 -> 510300.SH)。
@@ -155,40 +142,6 @@ class ETFRealTimeTracker:
             logger.error(f"Wind MCP 获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
-    def _fetch_ifind_fund_flow(self, etf_code: str) -> Optional[Dict]:
-        if not self._ifind_client or not self.ifind_mcp_available:
-            return None
-        try:
-            quotes = self._ifind_client.get_etf_quotes([etf_code])
-            if etf_code not in quotes:
-                return None
-
-            quote = quotes[etf_code]
-            quote.get("price", 0)
-            change_pct = quote.get("change_pct", 0)
-            volume = quote.get("volume", 0)
-
-            result = {
-                "code": etf_code,
-                "name": "",
-                "net_flow_yi": 0.0,
-                "change_pct": change_pct * 100 if change_pct else 0,
-                "volume": volume,
-                "amount_yi": 0.0,
-                "trend": "中性",
-                "source": "ifind_mcp",
-            }
-
-            for etf in NATIONAL_TEAM_ETFS:
-                if etf["code"] == etf_code:
-                    result["name"] = etf["name"]
-                    result["category"] = etf["category"]
-                    break
-
-            return result
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
-            logger.error(f"iFinD MCP 获取ETF资金流失败 ({etf_code}): {e}")
-            return None
 
     def _fetch_eastmoney_fund_flow(self, etf_code: str) -> Optional[Dict]:
         """东财 push2 真实主力净流入 (元 -> 亿), 零 key 不封 IP。
@@ -352,9 +305,6 @@ class ETFRealTimeTracker:
         if flow_data:
             return flow_data
 
-        flow_data = self._fetch_ifind_fund_flow(etf_code)
-        if flow_data:
-            return flow_data
 
         # 东财封禁状态追踪: 避免重复尝试导致90秒延迟
         global _eastmoney_blocked

@@ -12,15 +12,12 @@
 """
 from __future__ import annotations
 
-import math
-
 import pytest
 
 from utils.annual_return_forecast import (
-    DEFAULT_CC_YIELD,
     DEFAULT_CASH_INTEREST,
+    DEFAULT_CC_YIELD,
     DEFAULT_TARGET_STOCK_RATIO,
-    MAX_DRAWDOWN_LIMIT,
     RF_RATE,
     SCENARIO_DEFINITIONS,
     TARGET_ANNUAL_RETURN,
@@ -32,7 +29,6 @@ from utils.annual_return_forecast import (
     _safe_float,
     forecast_annual_return,
 )
-
 
 # ============================================================
 # _safe_float

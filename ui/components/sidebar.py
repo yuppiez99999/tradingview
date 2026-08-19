@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
 """公共侧边栏组件 — 参考 QuantMind 仪表盘信息密度优化"""
-import streamlit as st
 from datetime import datetime
+
+import streamlit as st
 
 
 def render_sidebar():

@@ -11,18 +11,15 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 
 import pytest
 
 from utils.logger import (
-    DEFAULT_LOG_DIR,
     Logger,
     RelativePathFormatter,
     _resolve_log_level,
     get_logger,
 )
-
 
 # ============================================================
 # RelativePathFormatter
@@ -135,7 +132,7 @@ class TestGetLogger:
     @pytest.mark.unit
     def test_creates_log_dir(self, tmp_path):
         log_dir = str(tmp_path / "sub" / "logs")
-        logger = get_logger("test_mkdir", log_dir=log_dir)
+        get_logger("test_mkdir", log_dir=log_dir)
         assert os.path.exists(log_dir)
 
 
@@ -205,7 +202,7 @@ class TestSetupLoggers:
     @pytest.mark.unit
     def test_returns_system_and_modules(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        from utils.logger import setup_loggers, DEFAULT_LOG_DIR
+        from utils.logger import setup_loggers
         result = setup_loggers()
         assert "system" in result
         assert "modules" in result
@@ -223,5 +220,5 @@ class TestLoggerMakedirs:
     def test_creates_nested_log_dir(self, tmp_path):
         """log_file 在不存在的嵌套目录中 → 自动创建"""
         log_file = str(tmp_path / "nested" / "deep" / "test.log")
-        logger = Logger("test_mkdir_nested", level="INFO", log_file=log_file, console_output=False)
+        Logger("test_mkdir_nested", level="INFO", log_file=log_file, console_output=False)
         assert os.path.exists(tmp_path / "nested" / "deep")

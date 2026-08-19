@@ -1,7 +1,10 @@
 """用 pytdx 补录 08-12~08-14 观察期日收益数据."""
 from __future__ import annotations
-import json, sys, logging
+
+import json
+import logging
 from pathlib import Path
+
 from pytdx.hq import TdxHq_API
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")

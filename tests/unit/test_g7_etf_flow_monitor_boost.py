@@ -31,7 +31,6 @@
 """
 from __future__ import annotations
 
-import io
 import json
 import os
 import sys
@@ -51,14 +50,13 @@ os.environ.pop("IFIND_TOKEN", None)
 
 from utils import etf_flow_monitor  # noqa: E402
 from utils.etf_flow_monitor import (  # noqa: E402
-    ETFRealTimeTracker,
     ETF_TO_STOCKS,
     NATIONAL_TEAM_ETFS,
     SIGNAL_THRESHOLDS,
+    ETFRealTimeTracker,
     get_etf_flow_summary,
     refresh_etf_flow_signals,
 )
-
 
 # ============================================================
 # 公共 fixture: 重置全局封禁状态, 避免测试间污染
@@ -261,8 +259,12 @@ class TestFetchWindFundFlow:
 # ============================================================
 
 
+@pytest.mark.skip(
+    reason="API 重构: utils/etf_flow_monitor.py 已移除 iFinD 数据源, "
+           "改为 Wind MCP / 东财 / 新浪 / 价格动量回退链, 该方法不再存在"
+)
 class TestFetchIFindFundFlow:
-    """iFinD MCP 资金流获取."""
+    """iFinD MCP 资金流获取 (已废弃: 源码重构移除 iFinD 数据源)."""
 
     def test_no_client_returns_none(self, tracker_no_sources):
         assert tracker_no_sources._fetch_ifind_fund_flow("510300") is None
@@ -659,15 +661,16 @@ class TestGetEtfFundFlow:
         tracker_no_sources._fetch_ifind_fund_flow.assert_not_called()
 
     def test_wind_none_ifind_used(self, tracker_no_sources):
+        # API 重构: iFinD 已移除, wind 失败后回退到东财 push2
         tracker_no_sources._fetch_wind_fund_flow = MagicMock(return_value=None)
-        tracker_no_sources._fetch_ifind_fund_flow = MagicMock(
-            return_value={"code": "510300", "source": "ifind_mcp"}
+        tracker_no_sources._fetch_eastmoney_fund_flow = MagicMock(
+            return_value={"code": "510300", "source": "eastmoney_push2"}
         )
-        tracker_no_sources._fetch_eastmoney_fund_flow = MagicMock(return_value=None)
+        tracker_no_sources._fetch_sina_fund_flow = MagicMock(return_value=None)
 
         result = tracker_no_sources.get_etf_fund_flow("510300")
-        assert result["source"] == "ifind_mcp"
-        tracker_no_sources._fetch_eastmoney_fund_flow.assert_not_called()
+        assert result["source"] == "eastmoney_push2"
+        tracker_no_sources._fetch_sina_fund_flow.assert_not_called()
 
     def test_eastmoney_used_when_first_two_none(self, tracker_no_sources):
         tracker_no_sources._fetch_wind_fund_flow = MagicMock(return_value=None)
@@ -1342,30 +1345,16 @@ class TestInitDataSources:
         assert t._wind_mcp_client is None
 
     def test_ifind_token_missing_silent(self):
-        # IFIND_TOKEN 未设置时, ifind_mcp_available 保持 False
-        with patch.dict(os.environ, {}, clear=True):
-            t = ETFRealTimeTracker()
-        assert t.ifind_mcp_available is False
-        assert t._ifind_client is None
+        # API 重构: iFinD 数据源已移除, 本测试跳过
+        pytest.skip("utils/etf_flow_monitor.py 已移除 iFinD 数据源, ifind_mcp_available 属性不再存在")
 
     def test_ifind_token_present_loads_client(self):
-        # IFIND_TOKEN 设置时, 尝试构造 IFindClient
-        with patch.dict(os.environ, {"IFIND_TOKEN": "fake_token"}):
-            # mock IFindClient 构造, 避免真实初始化
-            with patch("utils.ifind_client.IFindClient") as MockClient:
-                MockClient.return_value = MagicMock()
-                t = ETFRealTimeTracker()
-                assert t.ifind_mcp_available is True
-                assert t._ifind_client is not None
+        # API 重构: iFinD 数据源已移除, 本测试跳过
+        pytest.skip("utils/etf_flow_monitor.py 已移除 iFinD 数据源, ifind_mcp_available 属性不再存在")
 
     def test_ifind_token_present_but_constructor_raises(self):
-        # IFIND_TOKEN 设置但 IFindClient 构造抛错
-        with patch.dict(os.environ, {"IFIND_TOKEN": "fake_token"}):
-            with patch("utils.ifind_client.IFindClient") as MockClient:
-                MockClient.side_effect = OSError("init failed")
-                t = ETFRealTimeTracker()
-                assert t.ifind_mcp_available is False
-                assert t._ifind_client is None
+        # API 重构: iFinD 数据源已移除, 本测试跳过
+        pytest.skip("utils/etf_flow_monitor.py 已移除 iFinD 数据源, ifind_mcp_available 属性不再存在")
 
     def test_wind_mcp_file_present_but_spec_none_raises(self, tmp_path):
         # 风险路径: wind_mcp_fetcher.py 存在但 spec_from_file_location 返回 None

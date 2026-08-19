@@ -484,7 +484,7 @@ class TestScenario3AutoFix:
             detail = "config.yaml 缺失字段"
             remediation = "补全字段"
 
-        result = auto_fix_engine.try_fix(FakeCheck())
+        auto_fix_engine.try_fix(FakeCheck())
 
         records = memory.query(action_type="fix")
         assert len(records) >= 1

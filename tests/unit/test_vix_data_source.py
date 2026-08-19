@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 VixDataSource 单元测试
 =======================
@@ -23,7 +22,6 @@ from __future__ import annotations
 
 import json
 import sys
-import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch

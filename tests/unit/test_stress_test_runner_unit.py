@@ -18,7 +18,6 @@ import pytest
 
 from utils.stress_test_runner import STRESS_SCENARIOS, StressTestRunner
 
-
 # ============================================================
 # 常量
 # ============================================================
@@ -41,7 +40,7 @@ class TestConstants:
 
     @pytest.mark.unit
     def test_all_have_asset_impacts(self):
-        for sid, sdef in STRESS_SCENARIOS.items():
+        for _sid, sdef in STRESS_SCENARIOS.items():
             assert "asset_impacts" in sdef
             assert "stock" in sdef["asset_impacts"]
 

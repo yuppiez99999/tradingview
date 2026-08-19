@@ -246,7 +246,7 @@ def run_io_batch(
                 logger.warning(f"{tag} 第 {idx + 1}/{total} 项超时 (>{timeout}s), 使用降级值")
                 results[idx] = fallback
                 future.cancel()  # best-effort 取消
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, ConnectionError) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"{tag} 第 {idx + 1}/{total} 项失败: {e}", exc_info=False)
                 results[idx] = fallback

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """验证差异化阈值逻辑效果 - 使用模拟数据进行演示性测试"""
 
 from __future__ import annotations
@@ -184,7 +183,7 @@ def main() -> int:
     out_md = out_dir / "threshold_validation_report.md"
     out_md.write_text("\n".join(md), encoding="utf-8")
 
-    print(f"\n报告已生成:")
+    print("\n报告已生成:")
     print(f"  JSON: {out_json}")
     print(f"  MD:   {out_md}")
 

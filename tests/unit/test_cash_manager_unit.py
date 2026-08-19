@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """cash_manager 单元测试 — 现金管理器全覆盖.
 
 被测模块: utils/cash_manager.py
@@ -10,21 +9,15 @@ import sys
 from datetime import date
 from pathlib import Path
 
-import pytest
-
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.cash_manager import (  # noqa: E402
+    MIN_REPO_AMOUNT,
     CashAllocation,
     CashManager,
-    DEFAULT_ALLOCATION,
-    EMERGENCY_REPLENISH_DAYS,
-    HIGH_RATE_THRESHOLD,
-    MIN_REPO_AMOUNT,
 )
-
 
 # ============================================================
 # __init__

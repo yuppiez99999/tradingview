@@ -19,13 +19,10 @@ import pytest
 
 from utils.transaction_cost_model import (
     CostParameters,
-    IMPACT_COEFF_BY_TIER,
     MarketCapTier,
-    SLIPPAGE_BY_TIER,
     TransactionCostModel,
     classify_market_cap_tier,
 )
-
 
 # ============================================================
 # classify_market_cap_tier

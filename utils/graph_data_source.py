@@ -26,7 +26,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import requests
 
@@ -116,8 +116,8 @@ class GraphDataSource:
 
     def __init__(self, cache_ttl: int = 3600):
         self.cache_ttl = cache_ttl
-        self._cache: Dict[str, tuple[float, Any]] = {}
-        self.source_health: Dict[str, Dict[str, Any]] = {
+        self._cache: dict[str, tuple[float, Any]] = {}
+        self.source_health: dict[str, dict[str, Any]] = {
             "eastmoney_push2": {"ok": False, "last_error": None, "last_success": None},
             "ths_hot_reason": {"ok": False, "last_error": None, "last_success": None},
         }
@@ -127,7 +127,7 @@ class GraphDataSource:
     # ----------------------------------------------------------
     # 内部工具
     # ----------------------------------------------------------
-    def _get(self, url: str, params: Dict[str, Any], headers: Optional[Dict[str, Any]] = None,
+    def _get(self, url: str, params: dict[str, Any], headers: Optional[dict[str, Any]] = None,
              source: str = "eastmoney_push2", timeout: int = 10) -> Any:
         """GET 请求带限速 + 重试 + 健康记录.
 
@@ -186,7 +186,7 @@ class GraphDataSource:
     # ----------------------------------------------------------
     # 东财 push2 — 行业 / 概念 / 板块
     # ----------------------------------------------------------
-    def get_industry_relationship(self, code: str) -> Optional[Dict[str, Any]]:
+    def get_industry_relationship(self, code: str) -> Optional[dict[str, Any]]:
         """获取个股行业归属与概念板块.
 
         数据源: 东财 push2 slist/get spt=3 (实测稳定, 返回所属行业+概念+地域+指数全板块).
@@ -195,7 +195,7 @@ class GraphDataSource:
         Returns:
             {name, code, industry, industry_code, region, concepts(str)} 或 None
         """
-        def _fetch() -> Optional[Dict[str, Any]]:
+        def _fetch() -> Optional[dict[str, Any]]:
             boards = self.get_stock_boards(code)
             if not boards:
                 return None
@@ -226,7 +226,7 @@ class GraphDataSource:
 
         return self._cached(f"industry:{code}", _fetch)
 
-    def get_concept_blocks(self, code: str) -> List[str]:
+    def get_concept_blocks(self, code: str) -> list[str]:
         """获取个股概念板块标签列表（来自 slist/get spt=3 概念板块）."""
         info = self.get_industry_relationship(code)
         if not info:
@@ -236,7 +236,7 @@ class GraphDataSource:
             return []
         return [c.strip() for c in concepts_str.split(",") if c.strip()]
 
-    def get_stock_boards(self, code: str) -> List[Dict[str, str]]:
+    def get_stock_boards(self, code: str) -> list[dict[str, str]]:
         """获取个股所属全部板块（spt=3: 行业+概念+地域+指数，实测稳定）.
 
         Returns:
@@ -271,7 +271,7 @@ class GraphDataSource:
                 return "industry"
             return "index"
 
-        def _fetch() -> List[Dict[str, str]]:
+        def _fetch() -> list[dict[str, str]]:
             d = self._get(url, params)
             if not d:
                 return []
@@ -295,7 +295,7 @@ class GraphDataSource:
     # ----------------------------------------------------------
     # 同花顺 — 题材归因
     # ----------------------------------------------------------
-    def get_themes(self, date: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_themes(self, date: Optional[str] = None) -> list[dict[str, Any]]:
         """获取指定日期同花顺强势股题材归因.
 
         Returns:
@@ -304,12 +304,12 @@ class GraphDataSource:
         if date is None:
             date = datetime.now().strftime("%Y-%m-%d")
         url = (
-            f"http://zx.10jqka.com.cn/event/api/getharden/"
+            f"https://zx.10jqka.com.cn/event/api/getharden/"
             f"date/{date}/orderby/date/orderway/desc/charset/GBK/"
         )
         params = {}
 
-        def _fetch() -> List[Dict[str, Any]]:
+        def _fetch() -> list[dict[str, Any]]:
             d = self._get(url, params, headers=_THS_HEADERS, source="ths_hot_reason")
             if not d:
                 return []
@@ -324,7 +324,7 @@ class GraphDataSource:
     # 板块成分股 (扩大 universe 用)
     # ----------------------------------------------------------
     def fetch_board_stocks(self, board_code: str, limit: int = 100,
-                           cache_ttl: int = 86400) -> List[Dict[str, str]]:
+                           cache_ttl: int = 86400) -> list[dict[str, str]]:
         """东财拉取板块成分股 (BK 板块), 带行业标签, 本地文件缓存.
 
         东财 push2 实测间歇性 RemoteDisconnected, 故用本地缓存减少请求,
@@ -358,7 +358,7 @@ class GraphDataSource:
             return file_rows
 
         # 2) 内存缓存
-        def _fetch() -> List[Dict[str, str]]:
+        def _fetch() -> list[dict[str, str]]:
             d = self._get(url, params, source="eastmoney_push2")
             if not d:
                 return []
@@ -379,7 +379,7 @@ class GraphDataSource:
 
         return self._cached(f"board_stocks:{cache_key}", _fetch)
 
-    def _load_board_cache(self, key: str, ttl: int) -> List[Dict[str, str]]:
+    def _load_board_cache(self, key: str, ttl: int) -> list[dict[str, str]]:
         """读本地板块成分股缓存 (JSON)."""
         try:
             path = Path(_BOARD_CACHE_FILE)
@@ -394,7 +394,7 @@ class GraphDataSource:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             return []
 
-    def _save_board_cache(self, key: str, rows: List[Dict[str, str]]) -> None:
+    def _save_board_cache(self, key: str, rows: list[dict[str, str]]) -> None:
         """写本地板块成分股缓存 (JSON)."""
         try:
             import json as _json
@@ -414,7 +414,7 @@ class GraphDataSource:
     # ----------------------------------------------------------
     # 东财 F10 主营构成 (供应商-客户边增强: 分产品/分行业标签)
     # ----------------------------------------------------------
-    def fetch_main_business(self, code: str) -> Optional[Dict[str, Any]]:
+    def fetch_main_business(self, code: str) -> Optional[dict[str, Any]]:
         """东财 F10 主营构成 (zygcfx), 提取分产品/分行业标签.
 
         免费数据源无法直接获取「前五大客户/供应商名单」, 但主营构成
@@ -427,7 +427,6 @@ class GraphDataSource:
         """
         # 东财 secid: 沪 1.xxxxxx / 深 0.xxxxxx
         market = _market_of(code)
-        secid = f"{market}.{code}"
         # 转东财 F10 代码 (SZ/SH 前缀)
         f10_code = f"SZ{code}" if market == "0" else f"SH{code}"
         url = (
@@ -436,15 +435,15 @@ class GraphDataSource:
         )
         params = {}
 
-        def _fetch() -> Optional[Dict[str, Any]]:
+        def _fetch() -> Optional[dict[str, Any]]:
             d = self._get(url, params, source="eastmoney_push2", timeout=15)
             if not d:
                 return None
             # zygcfx 含多期 + 分产品/分行业, 需去重保留主要构成 (MBI_RATIO 排序)
             products = []
             industries = []
-            product_sets: Dict[str, float] = {}
-            industry_sets: Dict[str, float] = {}
+            product_sets: dict[str, float] = {}
+            industry_sets: dict[str, float] = {}
             for block in d.get("zygcfx") or []:
                 mtype = str(block.get("MAINOP_TYPE", ""))
                 item = str(block.get("ITEM_NAME", "") or "")
@@ -510,14 +509,14 @@ class GraphDataSource:
     # ----------------------------------------------------------
     # GNN 边构建 — 与 SupplyChainEdge 对齐
     # ----------------------------------------------------------
-    def build_concept_edges(self, symbols: List[str], min_concept_share: int = 1) -> List[Dict[str, Any]]:
+    def build_concept_edges(self, symbols: list[str], min_concept_share: int = 1) -> list[dict[str, Any]]:
         """基于概念板块共享构建 PARTNER 边（同概念两两连边）.
 
         Returns:
             [{source, target, relation_type, strength, source_info}]
             与 SupplyChainEdge(source/target/relation_type/strength/source_info) 对齐.
         """
-        symbol_concepts: Dict[str, set[str]] = {}
+        symbol_concepts: dict[str, set[str]] = {}
         for code in symbols:
             tags = self.get_concept_blocks(code)
             if tags:
@@ -540,13 +539,13 @@ class GraphDataSource:
                     })
         return edges
 
-    def build_industry_edges(self, symbols: List[str]) -> List[Dict[str, Any]]:
+    def build_industry_edges(self, symbols: list[str]) -> list[dict[str, Any]]:
         """基于同行业构建 COMPETITOR 边（同行业两两连边）.
 
         Returns:
             [{source, target, relation_type, strength, source_info}] 与 SupplyChainEdge 对齐.
         """
-        symbol_industry: Dict[str, str] = {}
+        symbol_industry: dict[str, str] = {}
         for code in symbols:
             info = self.get_industry_relationship(code)
             if info and info.get("industry"):
@@ -567,14 +566,14 @@ class GraphDataSource:
                     })
         return edges
 
-    def build_thematic_edges(self, date: Optional[str] = None, min_shared: int = 1) -> List[Dict[str, Any]]:
+    def build_thematic_edges(self, date: Optional[str] = None, min_shared: int = 1) -> list[dict[str, Any]]:
         """基于当日题材共享构建 PARTNER 边（同题材两两连边）.
 
         Returns:
             [{source, target, relation_type, strength, source_info}]
         """
         themes = self.get_themes(date)
-        theme_stocks: Dict[str, list[str]] = {}
+        theme_stocks: dict[str, list[str]] = {}
         for row in themes:
             reason = str(row.get("reason") or "").replace(" ", "+")
             code = str(row.get("code") or "")
@@ -603,7 +602,7 @@ class GraphDataSource:
                     })
         return edges
 
-    def build_main_business_edges(self, symbols: List[str], min_shared: int = 1) -> List[Dict[str, Any]]:
+    def build_main_business_edges(self, symbols: list[str], min_shared: int = 1) -> list[dict[str, Any]]:
         """基于主营构成 (东财 F10) 构建 PARTNER 边 — 供应商-客户边的最佳免费近似.
 
         免费数据源无法获取真实「前五大客户/供应商名单」, 但主营构成 (分产品/分行业
@@ -613,7 +612,7 @@ class GraphDataSource:
         Returns:
             [{source, target, relation_type, strength, source_info}]
         """
-        symbol_tags: Dict[str, Dict[str, str]] = {}  # code -> {tag: type(product/industry)}
+        symbol_tags: dict[str, dict[str, str]] = {}  # code -> {tag: type(product/industry)}
         for code in symbols:
             mb = self.fetch_main_business(code)
             if not mb:
@@ -652,9 +651,9 @@ class GraphDataSource:
                 })
         return edges
 
-    def build_graph_edges(self, symbols: List[str], include_themes: bool = True,
+    def build_graph_edges(self, symbols: list[str], include_themes: bool = True,
                           include_main_business: bool = True,
-                          date: Optional[str] = None) -> List[Dict[str, Any]]:
+                          date: Optional[str] = None) -> list[dict[str, Any]]:
         """一键构建 GNN 关系网全部边（行业 + 概念 + 题材 + 主营构成）.
 
         Args:

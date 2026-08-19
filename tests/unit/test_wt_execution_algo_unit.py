@@ -13,8 +13,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
-
 from utils.wt_execution_algo import (
     MinImpactExecutor,
     OrderExecutor,
@@ -25,7 +23,6 @@ from utils.wt_execution_algo import (
     execute_order_with_algorithm,
     split_order,
 )
-
 
 # ============================================================
 # _get_adaptive_execution_params

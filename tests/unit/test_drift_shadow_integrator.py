@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
@@ -32,13 +32,10 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from utils.alpha.drift_shadow_integrator import (  # noqa: E402
     DEFAULT_IC_DEGRADATION_THRESHOLD,
-    MIN_SAMPLES_FOR_ALERT,
     DriftShadowIntegrator,
-    DriftShadowIntegratorError,
     IntegrationResult,
     PSICalibrationResult,
 )
-
 
 # ============================================================
 # Mock 对象
@@ -319,7 +316,7 @@ class TestInit:
     def test_init_creates_reports_dir(self, mock_monitor, mock_tracker, tmp_path):
         """reports_dir 不存在时应自动创建."""
         reports_dir = tmp_path / "new_dir" / "subdir"
-        integrator = DriftShadowIntegrator(
+        DriftShadowIntegrator(
             drift_monitor=mock_monitor,
             label_tracker=mock_tracker,
             reports_dir=reports_dir,

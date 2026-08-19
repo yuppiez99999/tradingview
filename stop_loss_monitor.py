@@ -3,7 +3,7 @@
 
 盘中监控持仓价格, 当触及止损/止盈线时自动触发卖出:
 1. 加载波动率调整止损规则 (vol_adjusted 或 auto)
-2. 获取实时价格 (Wind MCP / iFinD / 缓存)
+2. 获取实时价格 (Wind MCP / 通达信 / AKShare / 缓存)
 3. 判断是否触发止损/止盈
 4. 通过 BrokerAdapter 执行卖出
 5. 移动止损 (trailing stop) 更新
@@ -25,7 +25,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
@@ -37,13 +37,14 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 # Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
 sys.path.insert(0, _BASE)  # bootstrap: 确保 utils 包可导入
 from utils.path_config import setup_sys_path  # noqa: E402
+
 setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 # P0-C1: 原子写 JSON (回退到非原子写以保证模块独立可用)
 try:
     from utils.concurrency import atomic_write_json as _atomic_write_json
 except ImportError:
-    def _atomic_write_json(path, data):
+    def _atomic_write_json(path: str, data: dict) -> None:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -79,7 +80,7 @@ class StopLossMonitor:
     监控持仓标的的实时价格, 触发止损/止盈/移动止损
     """
 
-    def __init__(self, rules_file: Optional[str] = None, positions_file: Optional[str] = None, broker=None):
+    def __init__(self, rules_file: Optional[str] = None, positions_file: Optional[str] = None, broker: Any = None):
         """
         Args:
             rules_file: 止损规则 YAML 文件路径
@@ -232,7 +233,7 @@ class StopLossMonitor:
             logger.warning(f"加载 risk.yaml default_stop_pct 失败, 使用默认 0.08: {e}")
             return 0.08
 
-    def _create_mock_broker(self):
+    def _create_mock_broker(self) -> Any:
         """创建 MockBroker"""
         try:
             from bridges.broker_adapter import BrokerFactory
@@ -562,7 +563,7 @@ class StopLossMonitor:
             logger.error(f"平仓异常: {code} - {e}")
             return False, str(e)
 
-    def _save_trigger_log(self, records: List[TriggerRecord]):
+    def _save_trigger_log(self, records: List[TriggerRecord]) -> None:
         """保存触发日志 (P0-C1: 原子写 + 异常隔离, 防止日志写坏影响主流程)"""
         log_dir = os.path.join(_BASE, "reports")
         os.makedirs(log_dir, exist_ok=True)
@@ -620,7 +621,7 @@ class StopLossMonitor:
         }
 
 
-def main():
+def main() -> None:
     """独立运行止损监控"""
     logger.info("=" * 60)
     logger.info("止损止盈自动触发引擎 v1.0")

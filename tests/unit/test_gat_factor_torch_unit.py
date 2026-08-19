@@ -17,7 +17,8 @@ pytestmark = pytest.mark.skipif(not _TORCH_OK, reason="torch 不可用 (DLL 加�
 
 if _TORCH_OK:
     import numpy as np
-    from utils.alpha_factor.gat_factor_torch import GATFactorTorch, GATLayer, build_adjacency
+
+    from utils.alpha_factor.gat_factor_torch import GATFactorTorch, GATLayer
 
 
 class TestGATLayer:

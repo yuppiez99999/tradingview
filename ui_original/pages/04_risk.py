@@ -16,8 +16,8 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 import streamlit as st  # type: ignore[import-not-found]
-# noqa: E402
 
+# noqa: E402
 from ui.auth import require_auth  # noqa: E402
 from ui.data_loader import load_risk_bus_events  # noqa: E402
 from ui.layout import (  # noqa: E402

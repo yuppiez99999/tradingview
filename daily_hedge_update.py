@@ -6,10 +6,13 @@ daily_hedge_update.py
 3. 生成对冲报告
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import os
 from datetime import datetime
+from typing import Any
 
 import pandas as pd
 
@@ -31,7 +34,7 @@ from wind_mcp_fetcher import wind_get_kline, wind_get_quote
 from utils.concurrency import run_io_batch
 
 
-def _to_wind_code(symbol: str):
+def _to_wind_code(symbol: str) -> tuple[str, bool]:
     s = str(symbol).strip()
     for prefix in ("sh", "sz", "bj", "SH", "SZ", "BJ"):
         if s.startswith(prefix):
@@ -54,7 +57,7 @@ def _to_wind_code(symbol: str):
     return f"{s}.SH", False
 
 
-def _get_historical_kline(symbol: str, days: int = 252):
+def _get_historical_kline(symbol: str, days: int = 252) -> pd.DataFrame | None:
     wind_code, is_fund = _to_wind_code(symbol)
     items = wind_get_kline(wind_code, days=days, is_fund=is_fund)
     if not items:
@@ -81,16 +84,13 @@ def _get_historical_kline(symbol: str, days: int = 252):
     return df
 
 
-def update_returns():
+def update_returns() -> tuple[pd.DataFrame | None, pd.Series | None]:
     """更新历史收益率数据 - Wind MCP 直连
 
     B2.4: 用 run_io_batch 并发拉取多 symbol 的 252 日 K 线 (替代串行 for 循环).
     Wind MCP 单次请求约 200-500ms, 串行 N 个标的需 N×500ms,
     并发 8 workers 后约 (N/8)×500ms.
     """
-    print("=" * 60)
-    print("1. 更新历史收益率数据")
-    print("=" * 60)
 
     positions_path = DATA_DIR / "positions.json"
     with open(positions_path, encoding="utf-8") as f:
@@ -102,7 +102,7 @@ def update_returns():
     fail_count = 0
 
     # B2.4: 并发拉取多 symbol K 线 (替代串行 for 循环)
-    def _fetch_kline(symbol):
+    def _fetch_kline(symbol: str) -> tuple[str, pd.Series | None]:
         """单 symbol 拉取 + 计算 returns; 失败返回 None。"""
         try:
             df = _get_historical_kline(symbol, days=252)
@@ -128,7 +128,6 @@ def update_returns():
         returns_data[symbol] = ret_series
         success_count += 1
 
-    print(f"更新完成: 成功 {success_count}, 失败 {fail_count}")
 
     if returns_data:
         returns_df = pd.DataFrame(returns_data)
@@ -148,17 +147,13 @@ def update_returns():
         return None, None
 
 
-def run_hedge_decision():
+def run_hedge_decision() -> dict[str, Any]:
     """运行对冲决策 - Wind MCP 直连
 
     B2.4: 用 run_io_batch 并发拉取多 position 的实时报价 (替代串行 for 循环).
     wind_get_quote 单次请求约 100-300ms, 串行 N 个标的需 N×300ms,
     并发 8 workers 后约 (N/8)×300ms.
     """
-    print()
-    print("=" * 60)
-    print("2. 运行对冲决策")
-    print("=" * 60)
 
     positions_path = DATA_DIR / "positions.json"
     with open(positions_path, encoding="utf-8") as f:
@@ -174,7 +169,7 @@ def run_hedge_decision():
         valid_items.append((code, float(qty), item))
 
     # B2.4: 并发拉取多 position 的实时报价
-    def _fetch_quote(item_tuple):
+    def _fetch_quote(item_tuple: tuple[str, float, dict[str, Any]]) -> tuple[str, float, float]:
         """单 position 拉取报价; 失败回退 est_price; 返回 (code, qty, price)。"""
         code, qty, item = item_tuple
         try:
@@ -239,21 +234,12 @@ def run_hedge_decision():
         bs_loss=0.0,
     )
 
-    print(f"动作: {plan.get('action')}")
-    print(f"组合Beta: {plan.get('portfolio_beta'):.4f}")
-    print(f"总对冲比例: {float(plan.get('total_hedge_pct', 0.0) or 0.0) * 100:.2f}%")
-    print(f"总成本比例: {float(plan.get('total_cost_pct', 0.0) or 0.0) * 100:.4f}%")
-    print(f"市场状态: {plan.get('regime')}")
 
     return plan
 
 
-def generate_report(plan):
+def generate_report(plan: dict[str, Any]) -> None:
     """生成对冲报告"""
-    print()
-    print("=" * 60)
-    print("3. 生成对冲报告")
-    print("=" * 60)
 
     report_dir = str(REPORT_DIR)
     os.makedirs(report_dir, exist_ok=True)
@@ -274,7 +260,6 @@ def generate_report(plan):
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
 
-    print(f"报告已保存: {report_path}")
 
     # 生成可读报告
     readme_path = os.path.join(report_dir, f"hedge_decision_{datetime.now().strftime('%Y%m%d')}.md")
@@ -300,14 +285,9 @@ def generate_report(plan):
             f.write("## 结论\n\n")
             f.write("当前无需开启额外对冲。\n")
 
-    print(f"可读报告: {readme_path}")
 
 
 if __name__ == "__main__":
-    print("每日对冲自动更新 - Wind MCP")
-    print("=" * 60)
-    print(f"运行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print()
 
     # 1. 更新收益率数据
     returns_df, market_returns = update_returns()
@@ -318,7 +298,3 @@ if __name__ == "__main__":
     # 3. 生成报告
     generate_report(plan)
 
-    print()
-    print("=" * 60)
-    print("更新完成")
-    print("=" * 60)

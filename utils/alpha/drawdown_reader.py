@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class DrawdownReader:
         # 处理浮点精度: 当前值略高于峰值时回撤为负, 取 0
         return abs(max(drawdown, 0.0))
 
-    def get_peak_and_current(self) -> Optional[Tuple[float, float]]:
+    def get_peak_and_current(self) -> Optional[tuple[float, float]]:
         """返回 (peak_nav, current_nav) 元组.
 
         Returns:

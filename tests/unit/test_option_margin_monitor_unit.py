@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """option_margin_monitor 单元测试 — 期权卖方保证金监控全分支覆盖
 
 被测模块: utils/option_margin_monitor.py

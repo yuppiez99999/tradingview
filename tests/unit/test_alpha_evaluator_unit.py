@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """alpha_evaluator 单元测试 — Alpha 因子验证闭环全分支覆盖"""
 from __future__ import annotations
 
@@ -6,7 +5,6 @@ import json
 import math
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest

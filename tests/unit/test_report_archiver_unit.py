@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """report_archiver 单元测试 — 报告归档全分支覆盖
 
 覆盖:
@@ -17,8 +16,6 @@ import sys
 from datetime import date
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:

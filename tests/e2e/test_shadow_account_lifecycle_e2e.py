@@ -27,7 +27,6 @@ import pytest
 from utils.alpha.shadow_account_adapter import (
     FailFastTriggeredError,
     InsufficientReturnsError,
-    RunShadowResult,
     ShadowAccountAdapter,
     ShadowMetrics,
 )

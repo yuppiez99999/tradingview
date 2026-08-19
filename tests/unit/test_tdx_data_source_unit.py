@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from utils.tdx_data_source import TDXDataSource, get_tdx_source, safe_float
 
 
@@ -99,7 +97,9 @@ class TestGetMarket:
 
 class TestInitConnection:
     def test_graceful_failure(self):
-        ds = TDXDataSource()
+        # 模拟连接失败, 验证 _init_connection 优雅降级 (环境可能真实连通, 故 mock _connect 抛异常)
+        with patch("utils.tdx_data_source.TDXDataSource._connect", side_effect=OSError("connection refused")):
+            ds = TDXDataSource()
         assert ds._connected is False
         assert ds.source_health["tdx"]["ok"] is False
 

@@ -20,7 +20,6 @@ import json
 import logging
 import os
 import sys
-from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -76,7 +75,7 @@ def mock_llm_factory():
     from quant_modules.ai_hedge_fund.debate_layer import DebateStance
 
     def _make(bull_conf: int = 78, bear_conf: int = 55,
-              bull_args: List[str] = None, bear_args: List[str] = None):
+              bull_args: list[str] = None, bear_args: list[str] = None):
         bull_args = bull_args or ["基本面强劲", "估值合理", "动量正向"]
         bear_args = bear_args or ["估值偏高", "技术面走弱"]
 
@@ -161,8 +160,8 @@ def _run_debate_with_llm(layer, tickers, signals, mock_llm_fn):
 
 def _override_record_dates(memory_file, date_str="2026-08-01"):
     """辅助: 重写决策记录的日期 (匹配 mock 价格数据)"""
-    with open(memory_file, "r", encoding="utf-8") as f:
-        records = [json.loads(l) for l in f if l.strip()]
+    with open(memory_file, encoding="utf-8") as f:
+        records = [json.loads(line) for line in f if line.strip()]
     for rec in records:
         rec["date"] = date_str
         rec["timestamp"] = f"{date_str}T10:00:00"
@@ -343,7 +342,7 @@ class TestE2ENormalPath:
 
         ctx = mem.get_reflection_context(days=30)
         assert ctx["overall_win_rate"] == 1.0
-        for ticker, stats in ctx["by_ticker"].items():
+        for _ticker, stats in ctx["by_ticker"].items():
             assert stats["win_rate"] == 1.0
             assert stats["correct_5d"] == stats["evaluated"]
 
@@ -437,7 +436,7 @@ class TestE2EBoundaryCases:
             lookback_days=30, eval_date="2026-08-11",
         )
 
-        with open(mem.memory_file, "r", encoding="utf-8") as f:
+        with open(mem.memory_file, encoding="utf-8") as f:
             rec = json.loads(f.read().strip())
         # 决策日价格有, 但 5d/10d 后价格缺失
         assert rec["forward_return_5d"] is None
@@ -463,8 +462,8 @@ class TestE2EBoundaryCases:
             mem.record_decisions(session)
 
         # 应累积 3 条记录
-        with open(mem.memory_file, "r", encoding="utf-8") as f:
-            records = [json.loads(l) for l in f if l.strip()]
+        with open(mem.memory_file, encoding="utf-8") as f:
+            records = [json.loads(line) for line in f if line.strip()]
         assert len(records) == 3
 
         # 评估后反思也应累积
@@ -629,8 +628,8 @@ class TestE2EDataConsistency:
             lookback_days=30, eval_date="2026-08-11",
         )
 
-        with open(mem.memory_file, "r", encoding="utf-8") as f:
-            records = {json.loads(l)["ticker"]: json.loads(l) for l in f if l.strip()}
+        with open(mem.memory_file, encoding="utf-8") as f:
+            records = {json.loads(line)["ticker"]: json.loads(line) for line in f if line.strip()}
 
         # AAPL: 100 → 105 (5d), 100 → 108 (10d)
         aapl = records["AAPL"]
@@ -663,8 +662,8 @@ class TestE2EDataConsistency:
             lookback_days=30, eval_date="2026-08-11",
         )
 
-        with open(mem.memory_file, "r", encoding="utf-8") as f:
-            records = {json.loads(l)["ticker"]: json.loads(l) for l in f if l.strip()}
+        with open(mem.memory_file, encoding="utf-8") as f:
+            records = {json.loads(line)["ticker"]: json.loads(line) for line in f if line.strip()}
 
         # AAPL: bullish + 5d 上涨 5% → 正确
         assert records["AAPL"]["correct_5d"] is True

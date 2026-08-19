@@ -30,7 +30,7 @@ import json
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = None
 try:
@@ -180,10 +180,10 @@ def generate_analysis(prompt: str, temperature: float = 0.3,
                 temperature=temperature, max_tokens=max_tokens)
 
 
-def test_connection() -> Dict[str, Any]:
+def test_connection() -> dict[str, Any]:
     """测试连接可用性, 返回各底层客户端状态。"""
     _ensure_clients()
-    result: Dict[str, Any] = {"glm5": False, "legacy": False}
+    result: dict[str, Any] = {"glm5": False, "legacy": False}
     if _glm5_client is not None:
         try:
             result["glm5"] = bool(_glm5_client.is_ready())

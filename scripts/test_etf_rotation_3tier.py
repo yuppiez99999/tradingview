@@ -67,20 +67,20 @@ def main() -> int:
         target_sharpe=1.0,
     )
 
-    print(f"\n[2] 三层验证配置:")
+    print("\n[2] 三层验证配置:")
     print(f"    WFO: lookback_grid={validator.lookback_grid}, "
           f"holdings_grid={validator.holdings_grid}")
     print(f"    train={validator.train_window}d, test={validator.test_window}d")
 
-    print(f"\n[3] 运行 WFO→VEC→BT...")
+    print("\n[3] 运行 WFO→VEC→BT...")
     report = validator.validate(closes)
 
     # 3. 输出结果
-    print(f"\n[4] 验证结果:")
+    print("\n[4] 验证结果:")
     print(f"  {report.summary()}")
 
     if report.wfo_results:
-        print(f"\n  WFO 各窗口详情:")
+        print("\n  WFO 各窗口详情:")
         print(f"  {'ID':>3} {'Train':>12} → {'Test':>12} "
               f"{'LB':>4} {'Hold':>5} {'TrnSR':>7} {'OosSR':>7} {'OosRet':>8}")
         for w in report.wfo_results:
@@ -106,11 +106,11 @@ def main() -> int:
     # 4. 验收
     print(f"\n[5] 验收 (BT Sharpe ≥{report.target_sharpe}):")
     if report.passed:
-        print(f"  ✅ PASS — 三层验证通过")
+        print("  ✅ PASS — 三层验证通过")
     else:
         print(f"  ⚠️ 未达 Sharpe≥{report.target_sharpe} (BT Sharpe="
               f"{report.bt_result.sharpe_ratio:.4f})")
-        print(f"  注意: 合成数据轮动信号有限; 实盘需真实 ETF 数据")
+        print("  注意: 合成数据轮动信号有限; 实盘需真实 ETF 数据")
 
     return 0  # 验证流程跑通即算成功
 

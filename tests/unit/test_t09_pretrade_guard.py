@@ -5,7 +5,6 @@ import pytest
 
 from utils.risk.pretrade_guard import (
     GuardOrderRequest,
-    GuardResult,
     PreTradeGuard,
 )
 

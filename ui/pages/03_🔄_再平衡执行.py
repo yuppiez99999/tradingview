@@ -1,19 +1,22 @@
-# -*- coding: utf-8 -*-
 """再平衡执行 v4.0 — AI双轨再平衡引擎 + 风险平价 + 豆包Seed盘中决策"""
-import sys, os, json
+import json
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
+from datetime import datetime
+
 import pandas as pd
 import plotly.graph_objects as go
-from datetime import datetime
+import streamlit as st
 
 st.set_page_config(page_title="再平衡执行", page_icon="🔄", layout="wide")
 
-from ui.components.module_loader import get_system_module
 from ui.components.common import inject_global_style
+from ui.components.module_loader import get_system_module
 from ui.components.system_status import render_alert_card, render_status_card
 
 inject_global_style()
@@ -22,9 +25,13 @@ mod = get_system_module()
 
 try:
     from quant_modules.ai_rebalancing_engine import (
-        AIQuantRebalancingEngine, RiskParityEngine,
-        GoldStopLossStrategy, ExecutionPlanner,
-        MonthlyKPITracker, SeedRebalancer, run_ai_rebalance
+        AIQuantRebalancingEngine,
+        ExecutionPlanner,
+        GoldStopLossStrategy,
+        MonthlyKPITracker,
+        RiskParityEngine,
+        SeedRebalancer,  # noqa: F401
+        run_ai_rebalance,  # noqa: F401
     )
     ENGINE_OK = True
 except ImportError as e:
@@ -40,7 +47,7 @@ POSITIONS_FILE = os.path.join(_BASE_DIR, 'config', 'positions.json')
 def load_positions():
     """加载持仓，自动解包嵌套positions键"""
     if os.path.exists(POSITIONS_FILE):
-        with open(POSITIONS_FILE, 'r', encoding='utf-8') as f:
+        with open(POSITIONS_FILE, encoding='utf-8') as f:
             data = json.load(f)
         if isinstance(data, dict) and 'positions' in data:
             return data['positions']
@@ -167,8 +174,10 @@ with tab1:
             })
 
         def color_action(val):
-            if val == "BUY": return 'background-color: #f6ffed; color: #52c41a'
-            if val == "SELL": return 'background-color: #fff2f0; color: #ff4d4f'
+            if val == "BUY":
+                return 'background-color: #f6ffed; color: #52c41a'
+            if val == "SELL":
+                return 'background-color: #fff2f0; color: #ff4d4f'
             return ''
 
         df = pd.DataFrame(signal_rows)
@@ -342,7 +351,7 @@ with tab5:
 
     history_file = os.path.join(_BASE_DIR, 'config', 'rebalance_history.json')
     if os.path.exists(history_file):
-        with open(history_file, 'r', encoding='utf-8') as f:
+        with open(history_file, encoding='utf-8') as f:
             history = json.load(f)
         if history:
             st.dataframe(
@@ -365,7 +374,7 @@ if 'rebalance_result' in st.session_state and st.button("💾 保存分析结果
 
     history = []
     if os.path.exists(history_file):
-        with open(history_file, 'r', encoding='utf-8') as f:
+        with open(history_file, encoding='utf-8') as f:
             history = json.load(f)
 
     history.insert(0, {

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """backtest_engine — 回测引擎 shim
 
 re-export utils/wt_backtest_engine.py 的 BacktestEngine,

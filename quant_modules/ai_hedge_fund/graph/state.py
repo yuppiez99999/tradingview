@@ -1,10 +1,9 @@
-from typing_extensions import Annotated, Sequence, TypedDict
-
-import operator
-from langchain_core.messages import BaseMessage
-
-
 import json
+import operator
+from typing import Sequence
+
+from langchain_core.messages import BaseMessage
+from typing_extensions import Annotated, TypedDict
 
 
 def merge_dicts(a: dict[str, any], b: dict[str, any]) -> dict[str, any]:
@@ -19,7 +18,6 @@ class AgentState(TypedDict):
 
 
 def show_agent_reasoning(output, agent_name):
-    print(f"\n{'=' * 10} {agent_name.center(28)} {'=' * 10}")
 
     def convert_to_serializable(obj):
         if hasattr(obj, "to_dict"):  # Handle Pandas Series/DataFrame
@@ -37,15 +35,12 @@ def show_agent_reasoning(output, agent_name):
 
     if isinstance(output, (dict, list)):
         # Convert the output to JSON-serializable format
-        serializable_output = convert_to_serializable(output)
-        print(json.dumps(serializable_output, indent=2))
+        convert_to_serializable(output)
     else:
         try:
             # Parse the string as JSON and pretty print it
-            parsed_output = json.loads(output)
-            print(json.dumps(parsed_output, indent=2))
+            json.loads(output)
         except json.JSONDecodeError:
             # Fallback to original string if not valid JSON
-            print(output)
+            pass
 
-    print("=" * 48)

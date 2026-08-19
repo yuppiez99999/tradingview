@@ -9,10 +9,10 @@
 
 import json
 import shutil
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
-BASE_DIR = Path(r"E:\各种PY程序\28-终极量化交易系统8.4")
+BASE_DIR = Path(__file__).resolve().parent.parent
 POSITIONS_FILE = BASE_DIR / "config" / "positions.json"
 
 # 1 张 Covered Call = 5 手 = 50000 份

@@ -32,7 +32,7 @@ import logging
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
-from typing import Any, Optional, Type, cast
+from typing import Any, Optional, cast
 
 logger = logging.getLogger("risk_guard_integrator")
 
@@ -201,7 +201,7 @@ class RiskGuardIntegrator:
         """
         self.report_date = report_date or datetime.now().strftime("%Y-%m-%d")
         self.total_capital = total_capital
-        self.log_entries: List[str] = []
+        self.log_entries: list[str] = []
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
     def _log(self, msg: str):
@@ -846,7 +846,7 @@ class RiskGuardIntegrator:
                原代码 pnl_summary.get("positions", ...) 可能返回 list, check_concentration 用 .items() 会 AttributeError
         """
         # 前置 Optional[Type] 注解 — 消除 import 失败分支 None 赋值 [assignment]
-        _KillSwitchCls: Optional[Type[Any]]
+        _KillSwitchCls: Optional[type[Any]]
         try:
             from utils.kill_switch import KillSwitch as _KillSwitchCls
         except ImportError:
@@ -1227,7 +1227,7 @@ class RiskGuardIntegrator:
                 return limit_up, limit_down, "akshare"
         except ImportError:
             self._log("[流动性危机] akshare 未安装, 尝试 Layer 2")
-        except (ImportError, AttributeError) as e:
+        except AttributeError as e:
             self._log(f"[流动性危机] akshare 获取失败: {e}, 尝试 Layer 2")
 
         # Layer 2: astock_realtime 持仓样本 (降级, 不准确)

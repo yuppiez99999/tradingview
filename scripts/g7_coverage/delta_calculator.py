@@ -10,17 +10,16 @@ import xml.etree.ElementTree as ET
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 import sys as _sys
+
 if str(PROJECT_ROOT) not in _sys.path:
     _sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.g7_coverage.coverage_inventory import (
     CHAIN_ORDER,
-    CoverageInventory,
-    ModuleCoverageRecord,
     P0_CHAIN_SPEC,
 )
 
@@ -30,9 +29,9 @@ class DeltaReport:
     overall_line_rate_before: float
     overall_line_rate_after: float
     overall_delta_pp: float
-    by_stage: Dict[str, Dict[str, float]] = field(default_factory=dict)
-    by_module: List[Dict[str, object]] = field(default_factory=list)
-    by_bucket: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    by_stage: dict[str, dict[str, float]] = field(default_factory=dict)
+    by_module: list[dict[str, object]] = field(default_factory=list)
+    by_bucket: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 def _root_line_rate(xml_path: Path) -> float:
@@ -60,7 +59,7 @@ class DeltaCalculator:
     def calculate(
         before_xml_path: Optional[str] = None,
         after_xml_path: Optional[str] = None,
-        p0_module_spec: Optional[Dict[str, List[str]]] = None,
+        p0_module_spec: Optional[dict[str, list[str]]] = None,
     ) -> DeltaReport:
         before = Path(before_xml_path) if before_xml_path else PROJECT_ROOT / "reports" / "coverage.xml"
         after = Path(after_xml_path) if after_xml_path else PROJECT_ROOT / "reports" / "coverage.xml"
@@ -68,7 +67,7 @@ class DeltaCalculator:
         lr_before = _root_line_rate(before)
         lr_after = _root_line_rate(after)
         delta_pp = (lr_after - lr_before) * 100.0
-        by_stage: Dict[str, Dict[str, float]] = {}
+        by_stage: dict[str, dict[str, float]] = {}
         for stage in CHAIN_ORDER:
             modules = spec.get(stage, [])
             stage_before = sum(_module_line_rate(before, m) for m in modules) / max(len(modules), 1)
@@ -78,7 +77,7 @@ class DeltaCalculator:
                 "after": round(stage_after, 4),
                 "delta_pp": round((stage_after - stage_before) * 100, 2),
             }
-        by_module: List[Dict[str, object]] = []
+        by_module: list[dict[str, object]] = []
         for stage, modules in spec.items():
             for mod in modules:
                 mb = _module_line_rate(before, mod)
@@ -93,7 +92,7 @@ class DeltaCalculator:
                     }
                 )
         buckets = {"P1_zero": (0.0, 0.0), "P2_low": (0.0, 0.0), "P3_mid": (0.0, 0.0), "P4_covered": (0.0, 0.0)}
-        bucket_counts: Dict[str, int] = {k: 0 for k in buckets}
+        bucket_counts: dict[str, int] = {k: 0 for k in buckets}
         for mod_entry in by_module:
             b = mod_entry["before"]
             if b == 0.0:
@@ -106,7 +105,7 @@ class DeltaCalculator:
                 bk = "P4_covered"
             buckets[bk] = (buckets[bk][0] + b, buckets[bk][1] + mod_entry["after"])
             bucket_counts[bk] += 1
-        by_bucket: Dict[str, Dict[str, float]] = {}
+        by_bucket: dict[str, dict[str, float]] = {}
         for bk, (sb, sa) in buckets.items():
             cnt = max(bucket_counts[bk], 1)
             by_bucket[bk] = {

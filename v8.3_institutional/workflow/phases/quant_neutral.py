@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Phase 4.7: 量化市场中性策略 (从 daily_workflow.py 拆出, 零行为变更)。
 
 原位置: daily_workflow.py L1238-L1444 (phase_quant_neutral + 5 个私有方法)
@@ -20,7 +19,7 @@ import json
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from workflow.context import WorkflowContext, get_dw_module
 
@@ -36,12 +35,12 @@ BASE_DIR: Path = getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent
 # ============================================================
 
 
-def _load_quant_neutral_holdings() -> List[Dict]:
+def _load_quant_neutral_holdings() -> list[dict]:
     """加载量化中性策略的当前多头持仓"""
     try:
         positions_path = BASE_DIR.parent / "config" / "quant_neutral_positions.json"
         if positions_path.exists():
-            with open(positions_path, "r", encoding="utf-8") as f:
+            with open(positions_path, encoding="utf-8") as f:
                 return json.load(f).get("long_positions", [])
     except Exception:
         pass
@@ -53,7 +52,7 @@ def _get_ic_price() -> float:
     try:
         positions_path = BASE_DIR.parent / "config" / "positions.json"
         if positions_path.exists():
-            with open(positions_path, "r", encoding="utf-8") as f:
+            with open(positions_path, encoding="utf-8") as f:
                 data = json.load(f)
             # 从 positions.json 中查找 IC 期货价格
             for pos in data.get("positions", []):
@@ -79,7 +78,7 @@ def _get_current_ic_contracts() -> int:
     try:
         positions_path = BASE_DIR.parent / "config" / "quant_neutral_positions.json"
         if positions_path.exists():
-            with open(positions_path, "r", encoding="utf-8") as f:
+            with open(positions_path, encoding="utf-8") as f:
                 data = json.load(f)
             return int(data.get("ic_short_contracts", 0))
     except Exception:
@@ -87,7 +86,7 @@ def _get_current_ic_contracts() -> int:
     return 0
 
 
-def _load_strategy_drawdown_state(strategy_name: str) -> Tuple[float, float, int]:
+def _load_strategy_drawdown_state(strategy_name: str) -> tuple[float, float, int]:
     """加载策略回撤状态
 
     Returns:
@@ -96,7 +95,7 @@ def _load_strategy_drawdown_state(strategy_name: str) -> Tuple[float, float, int
     try:
         state_path = BASE_DIR.parent / "config" / f"{strategy_name}_state.json"
         if state_path.exists():
-            with open(state_path, "r", encoding="utf-8") as f:
+            with open(state_path, encoding="utf-8") as f:
                 data = json.load(f)
             return (
                 float(data.get("current_drawdown_pct", 0.0)),
@@ -113,7 +112,7 @@ def _load_strategy_drawdown_state(strategy_name: str) -> Tuple[float, float, int
 # ============================================================
 
 
-def phase_quant_neutral(ctx: WorkflowContext) -> Dict[str, Any]:
+def phase_quant_neutral(ctx: WorkflowContext) -> dict[str, Any]:
     """量化市场中性策略 — 7 因子选股 + IC 期货对冲
 
     v10.0 投资计划 quant_neutral_account (70 万资金, 140 万名义敞口):
@@ -137,7 +136,7 @@ def phase_quant_neutral(ctx: WorkflowContext) -> Dict[str, Any]:
     logger.info("Phase 4.7: 量化市场中性策略 (月度调仓 + IC 对冲)")
     logger.info("=" * 60)
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "status": "PASS",
         "action": "skip",
         "reason": "",

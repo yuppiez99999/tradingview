@@ -1,21 +1,23 @@
-# -*- coding: utf-8 -*-
 """投研平台 — 参考 QuantMind Research Platform 设计"""
-import sys, os
+import os
+import sys
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-import streamlit as st
-import pandas as pd
-from datetime import datetime
 import random
+
+import pandas as pd
+import streamlit as st
 
 st.title("🔬 投研平台")
 st.caption("候选股票池 · 模型打分 · 多周期收益 · 量化筛选与决策辅助")
 
-from ui.components.names import STOCK_NAME_MAP, resolve_name, get_style as get_asset_style
-from ui.components.sidebar import render_sidebar
 from ui.components.common import inject_global_style
+from ui.components.names import STOCK_NAME_MAP
+from ui.components.names import get_style as get_asset_style
+from ui.components.sidebar import render_sidebar
 
 inject_global_style()
 render_sidebar()

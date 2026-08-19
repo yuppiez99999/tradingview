@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """G7 覆盖率冲刺 — utils/execution/automated_execution_system.py 补充测试.
 
 目标: 将 automated_execution_system.py 覆盖率从 ~62% 提升至 85%+ (1212行代码).
@@ -28,16 +27,14 @@ from __future__ import annotations
 import json
 import os
 import sys
-import threading
 import time
 import uuid
 from collections import deque
 from datetime import datetime, timedelta
 from datetime import time as datetime_time
 from pathlib import Path
-from types import ModuleType
-from typing import Any, Dict, List, Optional, Tuple
-from unittest.mock import MagicMock, Mock, PropertyMock, call, patch
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -61,14 +58,7 @@ from utils.execution.automated_execution_system import (  # noqa: E402
     OrderRouter,
     SpecialDayEntry,
     TradingCalendar,
-    _FILLS_STORE_AVAILABLE,
-    _GET_BROKER_AVAILABLE,
-    _HEDGE_AVAILABLE,
-    _PROJECT_ROOT as _SRC_PROJECT_ROOT,
-    _WIND_MCP_AVAILABLE,
-    _to_wind_code,
 )
-
 
 # ============================================================
 # Fixtures & Helpers
@@ -99,7 +89,7 @@ def _make_execution_plan(
     num_slices: int = 1,
     slice_size: float = 100.0,
     price: float = 100.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """构造 execution_plan 辅助函数."""
     slices = []
     for i in range(num_slices):
@@ -127,7 +117,7 @@ def _make_router_order(
     size: float = 100.0,
     price: float = 100.0,
     pool: str = "normal",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """构造活跃订单辅助函数."""
     return {
         "order_id": router._generate_order_id(),
@@ -967,7 +957,7 @@ class TestPositionSync:
         ):
             fresh_system._update_historical_returns()
         # 不应生成 returns_history.json
-        returns_path = Path(__file__).parent.parent.parent / "utils" / "execution" / "config" / "returns_history.json"
+        Path(__file__).parent.parent.parent / "utils" / "execution" / "config" / "returns_history.json"
         # 不检查真实文件是否存在 (其他测试用例可能创建), 只验证方法不崩溃
 
     def test_update_historical_returns_outer_exception_caught(self, fresh_system, monkeypatch):
@@ -1729,7 +1719,7 @@ class TestCalendarAndSystemLifecycle:
             datetime_time(10, 0): "morning_review",
             datetime_time(14, 0): "afternoon_adjustment",
         }
-        for t, expected in cases.items():
+        for t, _expected in cases.items():
             dt = datetime(2026, 8, 5, t.hour, t.minute)
             result = sys_aes._match_current_execution(dt)
             # 可能匹配到 expected (也可能由 is_within_execution_window 返回其他), 但不抛异常

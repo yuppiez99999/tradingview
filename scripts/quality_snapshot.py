@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """代码质量快照 - 每周看板数据生成器.
 
 配套文档: docs/CODE_REVIEW_PROCESS.md §7.1
@@ -234,7 +233,7 @@ def render(data: Dict) -> None:
     print("\n【工作区卫生】  <- 代码审查的前提")
     print("  已删除未提交: {:<6} 已修改未提交: {:<6} 未跟踪: {}".format(
         wt["deleted"], wt["modified"], wt["untracked"]))
-    print("  未提交变更合计: {}".format(dirty))
+    print(f"  未提交变更合计: {dirty}")
     if dirty > 100:
         print("  [!] 变更未进版本控制, PR 无法反映真实改动, 审查将失效")
 
@@ -275,7 +274,7 @@ def render(data: Dict) -> None:
         print("  [{}] {:<20} {:>7}  (目标 {} {})".format(
             "PASS" if ok else "FAIL", label, val,
             "<=" if op == "le" else ">=", target))
-    print("\n  达成 {}/{}".format(passed, len(GATES)))
+    print(f"\n  达成 {passed}/{len(GATES)}")
     print("\n依据: docs/CODE_REVIEW_STANDARD.md §5")
 
 

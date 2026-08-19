@@ -9,15 +9,13 @@
 
 from __future__ import annotations
 
-import json
-import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from utils.external_data_source import (
-    AlphaVantageApi,
     CACHE_TTL,
+    AlphaVantageApi,
     CoinGeckoApi,
     EcondbApi,
     ExternalDataManager,
@@ -27,7 +25,6 @@ from utils.external_data_source import (
     MacroIndicator,
     _parse_api_float,
 )
-
 
 # ============================================================
 # _parse_api_float
@@ -60,7 +57,6 @@ class TestParseApiFloat:
         assert _parse_api_float("") is None
 
     def test_nan(self):
-        import math
         result = _parse_api_float(float("nan"))
         assert result is None
 

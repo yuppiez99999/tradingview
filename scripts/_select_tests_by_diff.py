@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 _select_tests_by_diff.py — 基于 git diff 的 AST 智能选测 (真实实现)
 
@@ -28,18 +27,17 @@ from __future__ import annotations
 
 import argparse
 import ast
-import json
 import os
 import subprocess
 import sys
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def run_git(args: List[str]) -> str:
+def run_git(args: list[str]) -> str:
     env = dict(os.environ)
     env.setdefault("PYTHONUTF8", "1")
     proc = subprocess.run(
@@ -51,7 +49,7 @@ def run_git(args: List[str]) -> str:
     return proc.stdout
 
 
-def get_changed_files(base: str, head: str) -> List[str]:
+def get_changed_files(base: str, head: str) -> list[str]:
     # 优先 merge-base (准确反映 PR 增量)
     try:
         mb = run_git(["merge-base", base, head]).strip()
@@ -69,15 +67,15 @@ def module_name_of(py_path: Path) -> str:
     return ".".join(parts)
 
 
-def build_import_graph(py_files: List[Path]) -> Dict[str, Set[str]]:
+def build_import_graph(py_files: list[Path]) -> dict[str, set[str]]:
     """解析每个生产模块 import 的其它仓库内模块, 返回 模块->被依赖模块集合.
 
     同时返回 反向图 (被依赖 -> 依赖者), 用于反向 BFS。
     """
-    graph: Dict[str, Set[str]] = {}
+    graph: dict[str, set[str]] = {}
     for p in py_files:
         mod = module_name_of(p)
-        imports: Set[str] = set()
+        imports: set[str] = set()
         try:
             tree = ast.parse(p.read_text(encoding="utf-8", errors="replace"))
         except Exception:
@@ -94,16 +92,16 @@ def build_import_graph(py_files: List[Path]) -> Dict[str, Set[str]]:
     return graph
 
 
-def reverse_graph(graph: Dict[str, Set[str]]) -> Dict[str, Set[str]]:
-    rev: Dict[str, Set[str]] = defaultdict(set)
+def reverse_graph(graph: dict[str, set[str]]) -> dict[str, set[str]]:
+    rev: dict[str, set[str]] = defaultdict(set)
     for mod, deps in graph.items():
         for d in deps:
             rev[d].add(mod)
     return rev
 
 
-def collect_py_roots(roots: List[str]) -> List[Path]:
-    out: List[Path] = []
+def collect_py_roots(roots: list[str]) -> list[Path]:
+    out: list[Path] = []
     for r in roots:
         rp = ROOT / r
         if rp.is_file() and rp.suffix == ".py":
@@ -113,7 +111,7 @@ def collect_py_roots(roots: List[str]) -> List[Path]:
     return out
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="AST-based smart test selection")
     parser.add_argument("--base", default="origin/main")
     parser.add_argument("--head", default="HEAD")
@@ -169,7 +167,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # 3. 反向 BFS: 从变更的模块名找出所有 (间接) 依赖它的模块
     changed_mods = {module_name_of(ROOT / c) for c in changed_prod}
-    affected: Set[str] = set()
+    affected: set[str] = set()
     queue = deque(changed_mods)
     while queue:
         m = queue.popleft()
@@ -180,14 +178,14 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # 4. 映射到测试文件: 测试文件若 import 了 affected 模块, 则选中
     test_files = collect_py_roots([args.tests_root])
-    selected: List[str] = []
+    selected: list[str] = []
     for tf in test_files:
-        tmod = module_name_of(tf)
+        module_name_of(tf)
         try:
             tree = ast.parse(tf.read_text(encoding="utf-8", errors="replace"))
         except Exception:
             continue
-        tf_imports: Set[str] = set()
+        tf_imports: set[str] = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:

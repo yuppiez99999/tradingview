@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """risk_attribution 单元测试 — 风险归因面板全覆盖.
 
 被测模块: utils/risk_attribution.py
@@ -17,7 +16,6 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.risk_attribution import (  # noqa: E402
-    RiskAttribution,
     _aggregate,
     _calc_concentration,
     _calc_hedge_residual,
@@ -27,7 +25,6 @@ from utils.risk_attribution import (  # noqa: E402
     load_hedge_positions,
     load_positions,
 )
-
 
 # ============================================================
 # _calc_concentration

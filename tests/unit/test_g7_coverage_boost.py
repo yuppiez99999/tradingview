@@ -16,13 +16,10 @@
 """
 from __future__ import annotations
 
-import json
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from typing import Any
 
 import pytest
-
 
 # ============================================================
 # 1. risk_guard_integrator 测试
@@ -177,7 +174,7 @@ class TestParseKillSwitchLevel:
     """parse_kill_switch_level 函数测试."""
 
     def test_parse_normal(self) -> None:
-        from utils.risk_guard_integrator import parse_kill_switch_level, KillSwitchLevel
+        from utils.risk_guard_integrator import parse_kill_switch_level
         result = parse_kill_switch_level("L1")
         assert result is not None
 

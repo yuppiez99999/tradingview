@@ -28,7 +28,7 @@ Layer 1 用静态边权重 (strength) 聚合邻居信息, 跨窗稳定性不足�
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -64,7 +64,7 @@ class GATFactor:
 
         alpha_ij = softmax_j( leaky_relu( Σ_h a_h^T [W_h h_i ∥ W_h h_j] ) )
         """
-        n = features.shape[0]
+        features.shape[0]
         H = self.n_heads
         # 多头投影: proj[h] = features @ W[h]^T → [n, H, n_hidden]
         proj = np.stack([features @ self.W[h].T for h in range(H)], axis=1)  # [n, H, n_hidden]
@@ -115,7 +115,7 @@ class GATFactor:
         epochs: int = 200,
         lr: float = 0.05,
         verbose: bool = False,
-    ) -> List[float]:
+    ) -> list[float]:
         """监督训练注意力参数, 最大化因子与未来收益的排序相关.
 
         Args:
@@ -128,7 +128,7 @@ class GATFactor:
         Returns:
             [epochs] 每轮排序相关损失
         """
-        n = features.shape[0]
+        features.shape[0]
         if self.W is None:
             self._init_params(features.shape[1])
 
@@ -162,7 +162,7 @@ class GATFactor:
         return -float(corr)
 
     def _numeric_grad(self, features: np.ndarray, adj: np.ndarray,
-                      labels: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+                      labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """数值梯度 (有限差分) 用于注意力参数更新."""
         eps = 1e-4
         grad_a = np.zeros_like(self.a)
@@ -193,7 +193,7 @@ class GATFactor:
         return grad_a, grad_W
 
 
-def build_adjacency(graph, symbols: List[str], weight_key: str = "strength") -> Tuple[np.ndarray, List[str]]:
+def build_adjacency(graph, symbols: list[str], weight_key: str = "strength") -> tuple[np.ndarray, list[str]]:
     """从 SupplyChainGraph 构建邻接矩阵.
 
     Args:
@@ -221,13 +221,13 @@ def build_adjacency(graph, symbols: List[str], weight_key: str = "strength") -> 
 
 def gat_factor_values(
     graph,
-    symbols: List[str],
+    symbols: list[str],
     features: np.ndarray,
     labels: np.ndarray,
     n_hidden: int = 16,
     epochs: int = 150,
     lr: float = 0.05,
-) -> Tuple[np.ndarray, GATFactor, List[float]]:
+) -> tuple[np.ndarray, GATFactor, list[float]]:
     """端到端: 构建邻接矩阵 + 训练 GAT + 生成因子.
 
     Returns:

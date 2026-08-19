@@ -127,7 +127,7 @@ class StandardFactorEvaluator(FactorEvaluator):
             ic_mean = float(np.mean(ic_series))
             ic_std = float(np.std(ic_series, ddof=1)) if len(ic_series) > 1 else 0.0
             ic_ir = ic_mean / ic_std if ic_std > 1e-10 else 0.0
-            ic_win_rate = float(np.mean(np.array(ic_series) > 0))
+            float(np.mean(np.array(ic_series) > 0))
 
             # 2. 分层多空收益 + 夏普
             long_short_ret = self._compute_long_short_return(candidate, context)

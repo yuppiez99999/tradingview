@@ -23,7 +23,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 # 兼容直接运行时路径 (python utils/supply_chain_builder.py)
 _DIR = Path(__file__).resolve().parent
@@ -74,7 +74,7 @@ class SupplyChainBuilder:
 
     def __init__(
         self,
-        symbols: List[str],
+        symbols: list[str],
         include_default_chains: bool = True,
         include_themes: bool = True,
         max_hops: int = 2,
@@ -89,7 +89,7 @@ class SupplyChainBuilder:
     # ----------------------------------------------------------
     # 图构建
     # ----------------------------------------------------------
-    def build(self) -> Dict[str, Any]:
+    def build(self) -> dict[str, Any]:
         """构建关系图谱，返回图结构信息.
 
         Returns:
@@ -105,7 +105,7 @@ class SupplyChainBuilder:
         real_count = len(raw_edges)
 
         # 2) 转换为 SupplyChainEdge 并加入图
-        added = self.graph.add_edges(self._to_edges(raw_edges))
+        self.graph.add_edges(self._to_edges(raw_edges))
 
         # 3) 默认产业链兜底 (仅补真实边未覆盖的节点对, 融合)
         default_count = 0
@@ -131,7 +131,7 @@ class SupplyChainBuilder:
             "symbols": self.symbols,
         }
 
-    def _to_edges(self, raw_edges: List[Dict[str, Any]]) -> List[SupplyChainEdge]:
+    def _to_edges(self, raw_edges: list[dict[str, Any]]) -> list[SupplyChainEdge]:
         """将 graph_data_source 输出的字典转换为 SupplyChainEdge."""
         edges = []
         for e in raw_edges:
@@ -150,7 +150,7 @@ class SupplyChainBuilder:
     # ----------------------------------------------------------
     # 分析
     # ----------------------------------------------------------
-    def analyze(self) -> Dict[str, Any]:
+    def analyze(self) -> dict[str, Any]:
         """运行综合分析 (中心性/枢纽/瓶颈/风险传染).
 
         Returns:
@@ -200,13 +200,13 @@ class SupplyChainBuilder:
 
         return "\n".join(lines)
 
-    def propagate(self, source: str, impact: float = 1.0) -> List[Any]:
+    def propagate(self, source: str, impact: float = 1.0) -> list[Any]:
         """从指定节点传播影响 (验证 Lead-Lag 传导)."""
         self.build()
         return self.graph.propagate_impact(source, impact)
 
 
-def load_positions_symbols() -> List[str]:
+def load_positions_symbols() -> list[str]:
     """从 config/positions.json 或 portfolio.yaml 读取核心持仓代码."""
     config_dir = _DIR.parent / "config"
     # positions.json

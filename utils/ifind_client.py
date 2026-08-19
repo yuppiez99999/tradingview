@@ -20,6 +20,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
+try:
+    import certifi
+    _SSL_VERIFY = certifi.where()
+except ImportError:
+    _SSL_VERIFY = True
+
 logger = logging.getLogger("ifind_client")
 import urllib3  # noqa: E402
 
@@ -290,7 +296,7 @@ class IFindClient:
                 SERVERS[server_type],
                 json=payload,
                 headers=self._headers(),
-                verify=False,
+                verify=_SSL_VERIFY,
                 timeout=30,
             )
             resp.raise_for_status()
@@ -306,7 +312,7 @@ class IFindClient:
                 SERVERS[server_type],
                 json=notify,
                 headers=self._headers(server_type),
-                verify=False,
+                verify=_SSL_VERIFY,
                 timeout=10,
             )
 
@@ -341,7 +347,7 @@ class IFindClient:
                     SERVERS[server_type],
                     json=payload,
                     headers=self._headers(server_type),
-                    verify=False,
+                    verify=_SSL_VERIFY,
                     timeout=60,
                 )
                 self.call_count += 1

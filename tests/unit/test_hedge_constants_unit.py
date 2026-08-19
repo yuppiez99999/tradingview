@@ -31,5 +31,5 @@ class TestDefenseAssets:
 
     @pytest.mark.unit
     def test_all_amounts_positive(self):
-        for code, (_, amount) in DEFENSE_ASSETS.items():
+        for _code, (_, amount) in DEFENSE_ASSETS.items():
             assert amount > 0

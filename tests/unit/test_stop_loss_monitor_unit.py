@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """stop_loss_monitor 单元测试 — 多头/空头/flat/无规则 (S2 修复验证)
 
 覆盖:
@@ -10,7 +9,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 

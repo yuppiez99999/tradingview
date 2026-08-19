@@ -188,11 +188,6 @@ def main() -> int:
     # 去重
     files_to_scan = list(set(files_to_scan))
 
-    print("CI 前视偏差检测门禁")
-    print("=" * 60)
-    print(f"扫描文件数: {len(files_to_scan)}")
-    print(f"检测规则数: {len(RULES)}")
-    print("=" * 60)
 
     all_violations = []
     for filepath in sorted(files_to_scan):
@@ -202,25 +197,17 @@ def main() -> int:
         all_violations.extend(violations)
 
     # 按严重程度统计
-    critical = [v for v in all_violations if v["severity"] == "CRITICAL"]
-    high = [v for v in all_violations if v["severity"] == "HIGH"]
-    medium = [v for v in all_violations if v["severity"] == "MEDIUM"]
+    [v for v in all_violations if v["severity"] == "CRITICAL"]
+    [v for v in all_violations if v["severity"] == "HIGH"]
+    [v for v in all_violations if v["severity"] == "MEDIUM"]
 
     if not all_violations:
-        print("\n✅ 通过: 未发现前视偏差模式")
         return 0
 
     # 输出违规详情
-    print(f"\n❌ 失败: 发现 {len(all_violations)} 处前视偏差模式")
-    print(f"   CRITICAL: {len(critical)}  HIGH: {len(high)}  MEDIUM: {len(medium)}")
-    print()
 
-    for v in all_violations:
-        print(f"  [{v['severity']}] {v['rule']}")
-        print(f"    文件: {v['file']}:{v['line']}")
-        print(f"    代码: {v['code']}")
-        print(f"    说明: {v['description']}")
-        print()
+    for _v in all_violations:
+        pass
 
     return 1
 

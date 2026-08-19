@@ -13,7 +13,6 @@ import pytest
 
 from utils.cost_model import DEFAULT_COST_MODEL, CostAssumption, get_cost_model
 
-
 # ============================================================
 # CostAssumption 默认值
 # ============================================================

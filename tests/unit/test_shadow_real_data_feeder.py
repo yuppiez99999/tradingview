@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -50,7 +50,6 @@ from utils.alpha.shadow_real_data_feeder import (  # noqa: E402
     ValidationResult,
     WeightsLoadError,
 )
-
 
 # ============================================================
 # Mock 工具
@@ -277,7 +276,7 @@ class TestFeedSingleDate:
         jsonl_path = tmp_path / "daily_returns.jsonl"
         assert jsonl_path.exists()
         with open(jsonl_path, encoding="utf-8") as f:
-            lines = [json.loads(l) for l in f if l.strip()]
+            lines = [json.loads(line) for line in f if line.strip()]
         assert len(lines) == 1
         assert lines[0]["date"] == "2026-07-28"
         assert lines[0]["daily_return"] == pytest.approx(0.03, abs=1e-6)
@@ -412,7 +411,7 @@ class TestFeedSingleDate:
         assert result.written is True
         # 读取验证: 应仍是 2 条记录 (原有 07-26 和更新的 07-27), 没有重复
         with open(existing_jsonl, encoding="utf-8") as f:
-            lines = [json.loads(l) for l in f if l.strip()]
+            lines = [json.loads(line) for line in f if line.strip()]
         dates = [r["date"] for r in lines]
         assert dates.count("2026-07-27") == 1  # 没有重复
         assert "2026-07-26" in dates
@@ -427,7 +426,7 @@ class TestFeedSingleDate:
         # 2026-07-24 是周五
         feeder_with_mock.feed_single_date("2026-07-24", {"600276": 1.0})
         with open(existing_jsonl, encoding="utf-8") as f:
-            lines = [json.loads(l) for l in f if l.strip()]
+            lines = [json.loads(line) for line in f if line.strip()]
         dates = [r["date"] for r in lines]
         assert dates == sorted(dates)
         assert "2026-07-24" in dates
@@ -874,7 +873,7 @@ class TestJsonlWriting:
         jsonl_path = tmp_path / "daily_returns.jsonl"
         assert jsonl_path.exists()
         with open(jsonl_path, encoding="utf-8") as f:
-            lines = [json.loads(l) for l in f if l.strip()]
+            lines = [json.loads(line) for line in f if line.strip()]
         assert len(lines) == 1
         assert lines[0]["date"] == "2026-07-28"
         assert lines[0]["daily_return"] == 0.025
@@ -895,7 +894,7 @@ class TestJsonlWriting:
         )
         feeder_with_mock._update_jsonl(result)
         with open(existing_jsonl, encoding="utf-8") as f:
-            lines = [json.loads(l) for l in f if l.strip()]
+            lines = [json.loads(line) for line in f if line.strip()]
         # 仍应是 2 条 (原 07-26 + 更新的 07-27)
         assert len(lines) == 2
         record_0727 = next(r for r in lines if r["date"] == "2026-07-27")
@@ -915,7 +914,7 @@ class TestJsonlWriting:
         )
         feeder_with_mock._update_jsonl(result)
         with open(tmp_path / "daily_returns.jsonl", encoding="utf-8") as f:
-            lines = [json.loads(l) for l in f if l.strip()]
+            lines = [json.loads(line) for line in f if line.strip()]
         assert lines[0]["partial_coverage"] is True
 
     def test_warnings_written_to_jsonl(self, feeder_with_mock, tmp_path):
@@ -932,7 +931,7 @@ class TestJsonlWriting:
         )
         feeder_with_mock._update_jsonl(result)
         with open(tmp_path / "daily_returns.jsonl", encoding="utf-8") as f:
-            lines = [json.loads(l) for l in f if l.strip()]
+            lines = [json.loads(line) for line in f if line.strip()]
         assert "warnings" in lines[0]
         assert "abnormal_return" in lines[0]["warnings"][0]
 
@@ -1127,9 +1126,6 @@ class TestCrossValidate:
         primary_return 与 secondary_provider 重算结果接近 → high.
         """
         # 用相同数据的第二个 provider (结果应一致)
-        from utils.alpha.shadow_real_data_feeder import (
-            DEFAULT_HISTORICAL_PERIOD,
-        )
         secondary = MockMarketDataProvider(
             price_data={
                 "600276": _make_price_df(

@@ -6,7 +6,7 @@
 import time
 from datetime import datetime
 from functools import wraps
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from .logging_manager import get_logger
 
@@ -32,8 +32,13 @@ class EventTracker:
                    'timestamp': datetime.now().isoformat(), **(meta or {})})
         return session_id
 
-    def log_operation_start(self, operation: str, session_id: str = None,
-                            target: str = None, **extra):
+    def log_operation_start(
+        self,
+        operation: str,
+        session_id: Optional[str] = None,
+        target: Optional[str] = None,
+        **extra: Any,
+    ) -> float:
         """记录操作开始 — 借鉴 log_module_start"""
         start_time = time.time()
         event = {
@@ -61,10 +66,16 @@ class EventTracker:
                          extra=log_extra)
         return start_time
 
-    def log_operation_complete(self, operation: str, start_time: float = None,
-                               session_id: str = None, target: str = None,
-                               success: bool = True, result_summary: str = None,
-                               **extra):
+    def log_operation_complete(
+        self,
+        operation: str,
+        start_time: Optional[float] = None,
+        session_id: Optional[str] = None,
+        target: Optional[str] = None,
+        success: bool = True,
+        result_summary: Optional[str] = None,
+        **extra: Any,
+    ) -> float:
         """记录操作完成 — 借鉴 log_module_complete"""
         duration_ms = (time.time() - start_time) * 1000 if start_time else 0
         status = "✅" if success else "❌"
@@ -90,8 +101,15 @@ class EventTracker:
         self._logger.info(msg, extra=log_extra)
         return duration_ms
 
-    def log_operation_error(self, operation: str, error: str, start_time: float = None,
-                            session_id: str = None, target: str = None, **extra):
+    def log_operation_error(
+        self,
+        operation: str,
+        error: str,
+        start_time: Optional[float] = None,
+        session_id: Optional[str] = None,
+        target: Optional[str] = None,
+        **extra: Any,
+    ) -> None:
         """记录操作错误 — 借鉴 log_module_error"""
         duration_ms = (time.time() - start_time) * 1000 if start_time else 0
 
@@ -113,8 +131,15 @@ class EventTracker:
             f" | 耗时: {duration_ms:.0f}ms | 错误: {error}",
             extra=log_extra, exc_info=True)
 
-    def log_token_usage(self, provider: str, model: str, input_tokens: int,
-                        output_tokens: int, cost: float, session_id: str = None):
+    def log_token_usage(
+        self,
+        provider: str,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        cost: float,
+        session_id: Optional[str] = None,
+    ) -> None:
         """记录Token用量 — 借鉴 log_token_usage"""
         self._logger.info(
             f"📊 Token: {provider}/{model} | 输入={input_tokens} 输出={output_tokens} | 成本=¥{cost:.6f}",
@@ -125,8 +150,14 @@ class EventTracker:
                 'event_type': 'token_usage',
             })
 
-    def log_price_check(self, code: str, price: float, source: str,
-                        valid: bool, reason: str = None):
+    def log_price_check(
+        self,
+        code: str,
+        price: float,
+        source: str,
+        valid: bool,
+        reason: Optional[str] = None,
+    ) -> None:
         """记录价格校验"""
         level = 'info' if valid else 'warning'
         msg = f"{'✅' if valid else '⚠️'} [价格校验] {code}: ¥{price:.2f} (来源:{source})"
@@ -155,7 +186,7 @@ class EventTracker:
                    'duration_ms': total_ms, **summary})
         return summary
 
-    def track(self, event_name: str, data: Dict[str, Any] = None):
+    def track(self, event_name: str, data: Optional[Dict[str, Any]] = None) -> None:
         """通用事件追踪接口 — 兼容外部调用"""
         self._logger.info(
             f"📊 [追踪] {event_name}",
@@ -178,11 +209,11 @@ def get_event_tracker() -> EventTracker:
 # 装饰器 — 便捷使用
 # ============================================================
 
-def track_event(operation: str = None, target_param: str = None):
+def track_event(operation: Optional[str] = None, target_param: Optional[str] = None) -> Callable[..., Any]:
     """事件追踪装饰器 — 自动记录操作开始/完成/错误"""
-    def decorator(func):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             op_name = operation or func.__name__
             tracker = get_event_tracker()
             start = tracker.log_operation_start(op_name)
@@ -197,12 +228,12 @@ def track_event(operation: str = None, target_param: str = None):
     return decorator
 
 
-def track_operation(operation_name: str):
+def track_operation(operation_name: str) -> Any:
     """上下文管理器式事件追踪"""
     from contextlib import contextmanager
 
     @contextmanager
-    def _track():
+    def _track() -> Any:
         tracker = get_event_tracker()
         start = tracker.log_operation_start(operation_name)
         try:

@@ -46,7 +46,7 @@ except ImportError:
 
 import os  # noqa: E402
 
-from utils.tdam_client import TDAMClient, TDAMConfig, TDAMSearchResult
+from utils.tdam_client import TDAMClient, TDAMConfig
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("tdam_phase1p")

@@ -1,28 +1,28 @@
-# -*- coding: utf-8 -*-
 """
 数据适配器 — 桥接量化策略现有数据源到 AI Hedge Fund Agent 所需格式
 
 替代 ai-hedge-fund 的 src/tools/api.py（Financial Datasets API），
 使用本地 Wind/iFinD/AKShare/sina 数据源。
 
-数据源优先级: Wind > iFinD > AKShare > sina > 兜底默认值
+数据源优先级: Wind > AKShare > sina > 兜底默认值
 """
 
-import os
-import sys
-import logging
 import datetime
-from typing import Optional
+import logging
+from typing import Any, Optional
 
 import pandas as pd
-import numpy as np
 
 logger = logging.getLogger('ai_hedge_fund.data_adapter')
 
 # ── 尝试导入现有数据源模块 ──
 try:
     from quant_modules.ai_hedge_fund.data.models import (
-        Price, FinancialMetrics, LineItem, InsiderTrade, CompanyNews,
+        CompanyNews,
+        FinancialMetrics,
+        InsiderTrade,
+        LineItem,
+        Price,
     )
 except ImportError:
     # Fallback: 简易 dataclass 替代
@@ -126,7 +126,7 @@ except ImportError:
 _cache: dict = {}
 
 
-def _cache_key(*args) -> str:
+def _cache_key(*args: Any) -> str:
     return "|".join(str(a) for a in args)
 
 
@@ -280,7 +280,7 @@ def get_price_data(ticker: str, start_date: str, end_date: str, api_key: str = N
 # 财务指标数据获取
 # ═══════════════════════════════════════════════════════════════
 
-def _make_financial_metrics(ticker: str, report_period: str = "", **overrides) -> FinancialMetrics:
+def _make_financial_metrics(ticker: str, report_period: str = "", **overrides: Any) -> FinancialMetrics:
     """构造 FinancialMetrics，填充全部必填字段的默认值"""
     defaults = dict(
         ticker=ticker, report_period=report_period, period="ttm", currency="CNY",
@@ -316,7 +316,7 @@ def _fetch_akshare_financial_metrics(ticker: str, limit: int = 10) -> list[Finan
             return []
 
         metrics_list = []
-        for i, row in df.head(limit).iterrows():
+        for _i, row in df.head(limit).iterrows():
             try:
                 report_date = str(row.get('报告期', ''))[:10]
                 metrics_list.append(_make_financial_metrics(
@@ -453,13 +453,13 @@ def search_line_items(
                 working_capital = None
                 if current_assets is not None and current_liabilities is not None:
                     working_capital = current_assets - current_liabilities
-                
+
                 operating_income = _safe_float_val(row_profit, '营业利润')
                 depreciation = _safe_float_val(row_cf, '固定资产折旧')
                 ebitda = None
                 if operating_income is not None and depreciation is not None:
                     ebitda = operating_income + depreciation
-                
+
                 ocf = _safe_float_val(row_cf, '经营活动产生的现金流量净额')
                 capex = _infer_capex(row_cf) if row_cf is not None else None
                 free_cash_flow = None
@@ -598,7 +598,7 @@ def get_company_news(
 # 辅助函数
 # ═══════════════════════════════════════════════════════════════
 
-def _safe_float(val) -> Optional[float]:
+def _safe_float(val: Any) -> Optional[float]:
     """安全转换为 float，处理百分比和中文数字"""
     if val is None or pd.isna(val) if hasattr(val, '__iter__') else False:
         return None
@@ -610,7 +610,7 @@ def _safe_float(val) -> Optional[float]:
         return None
 
 
-def _safe_float_val(row, col_name) -> Optional[float]:
+def _safe_float_val(row: Any, col_name: str) -> Optional[float]:
     """从 DataFrame 行中安全获取值"""
     if row is None:
         return None
@@ -637,7 +637,7 @@ def _get_shares(ticker: str) -> int:
     return 1_000_000_000
 
 
-def _infer_capex(cf_row) -> Optional[float]:
+def _infer_capex(cf_row: Any) -> Optional[float]:
     """从现金流量表推断资本支出"""
     val = _safe_float_val(cf_row, '购建固定资产')
     if val is None:
@@ -663,18 +663,18 @@ def get_data_source_status() -> dict:
     except (OSError, TimeoutError, ImportError, ValueError, TypeError):# fail-safe: 数据源探测失败时状态保持 False, 不抛异常
         pass
     try:
-        import akshare
+        import akshare  # noqa: F401
         status['akshare'] = True
     except ImportError:
         pass
     try:
-        import baostock
+        import baostock  # noqa: F401
         status['baostock'] = True
     except ImportError:
         pass
     return status
 
 
-def clear_cache():
+def clear_cache() -> None:
     """清空内置缓存"""
     _cache.clear()

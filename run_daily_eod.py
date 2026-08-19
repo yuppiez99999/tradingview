@@ -293,6 +293,29 @@ def main():
     guard_report["guards"]["max_single_weight"] = run_max_single_weight_check(risk_cfg)
     guard_report["guards"]["rebalance"] = run_rebalance(risk_cfg)
 
+    # v8.6: 串联 RiskGuardIntegrator 8-Guard 链 (盈亏→风控→改写 trade_plan→对冲增减)
+    # 补齐 EOD 主流程缺失的关键闭环: 回撤分级减仓+对冲加码/负面新闻/对冲执行单生成
+    try:
+        from datetime import timedelta as _td
+
+        from utils.risk_guard_integrator import RiskGuardIntegrator
+        _today = datetime.strptime(report_date, "%Y-%m-%d")
+        _next = _today + _td(days=1)
+        while _next.weekday() >= 5:
+            _next += _td(days=1)
+        next_trade_date = _next.strftime("%Y-%m-%d")
+        logger.info(f"[RiskGuard] 串联 8-Guard 链: {report_date} → {next_trade_date}")
+        integrator = RiskGuardIntegrator(report_date=report_date)
+        rg_result = integrator.run_all_guards(next_trade_date=next_trade_date)
+        guard_report["guards"]["risk_guard_integrator"] = {
+            "success": True,
+            "next_trade_date": next_trade_date,
+            "plan_modified": bool(rg_result),
+        }
+    except Exception as e:
+        logger.warning(f"[RiskGuard] 8-Guard 链失败 (fail-open): {e}")
+        guard_report["guards"]["risk_guard_integrator"] = {"success": False, "error": str(e)}
+
     any_failed = any(not g.get("success", False) for g in guard_report["guards"].values())
     guard_report["overall_success"] = not any_failed
 

@@ -84,12 +84,6 @@ def archive(execute: bool = False, high_only: bool = False) -> None:
     if high_only:
         items = [i for i in items if i["confidence"] == "HIGH"]
 
-    print("=" * 70)
-    print(f"死代码归档 — {archive_date}")
-    print(f"模式: {'EXECUTE' if execute else 'DRY-RUN'} | 范围: {'HIGH only' if high_only else 'HIGH + MEDIUM'}")
-    print("=" * 70)
-    print(f"待归档文件数: {len(items)}")
-    print()
 
     if execute:
         archive_root.mkdir(parents=True, exist_ok=True)
@@ -106,7 +100,6 @@ def archive(execute: bool = False, high_only: bool = False) -> None:
     for item in items:
         src = ROOT / item["file"]
         if not src.exists():
-            print(f"  [SKIP] 不存在: {item['file']}")
             skipped += 1
             continue
 
@@ -116,9 +109,6 @@ def archive(execute: bool = False, high_only: bool = False) -> None:
         rel_norm = rel.replace("\\", "/")
         dst = archive_root / rel_norm
 
-        print(f"  [{'MOVE' if execute else 'DRY '}] {item['file']}")
-        print(f"       → {dst.relative_to(ROOT)}")
-        print(f"       原因: {item['reason']}")
 
         if execute:
             dst.parent.mkdir(parents=True, exist_ok=True)
@@ -138,39 +128,29 @@ def archive(execute: bool = False, high_only: bool = False) -> None:
         manifest_path = archive_root / "manifest.json"
         with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(manifest, f, ensure_ascii=False, indent=2)
-        print(f"\n归档清单: {manifest_path.relative_to(ROOT)}")
-        print(f"回滚命令: python archive_dead_code.py --rollback {manifest_path.relative_to(ROOT)}")
 
-    print(f"\n=== 汇总 ===")
-    print(f"归档: {moved} | 跳过: {skipped} | 模式: {'EXECUTE' if execute else 'DRY-RUN'}")
 
 
 def rollback(manifest_path: str) -> None:
     """从 manifest 恢复文件"""
     mf = ROOT / manifest_path
     if not mf.exists():
-        print(f"manifest 不存在: {manifest_path}")
         return
 
     with open(mf, encoding="utf-8") as f:
         manifest = json.load(f)
 
-    print(f"回滚 — {manifest['archive_date']} 归档的 {len(manifest['files'])} 个文件")
-    print()
 
     restored = 0
     for item in manifest["files"]:
         src = ROOT / item["dst"]
         dst = ROOT / item["src"]
         if not src.exists():
-            print(f"  [SKIP] 归档源不存在: {item['dst']}")
             continue
-        print(f"  [RESTORE] {item['dst']} → {item['src']}")
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(src), str(dst))
         restored += 1
 
-    print(f"\n回滚完成: {restored} 个文件已恢复")
 
 
 def main():

@@ -46,7 +46,7 @@ from datetime import datetime, timedelta
 from datetime import time as dt_time
 from typing import Any, Callable
 
-from utils.path_config import get_project_root, get_logs_dir, setup_sys_path
+from utils.path_config import get_logs_dir, get_project_root, setup_sys_path
 
 # ============================================================
 # 路径初始化 (v8.5+: 通过 path_config 统一管理)
@@ -236,7 +236,7 @@ def run_auto_rebalance(dry_run: bool = False) -> dict[str, Any]:
     return result
 
 
-def _calc_portfolio_value(positions) -> float:
+def _calc_portfolio_value(positions: dict) -> float:
     """计算组合市值 (优先用 amount, 其次用 total_shares * est_price 估算)
 
     v8.6.13 P0 FIX: 原代码用 pos.get("phase1_amount", 0) + ... 计算组合市值,
@@ -277,7 +277,7 @@ def _get_default_futures_config() -> dict:
 
 
 def _fetch_live_futures_prices() -> dict:
-    """从 hedge_engine_v59 多源聚合获取实时期货价格 (iFinD→Wind→AKShare→Sina→efinance)"""
+    """从 hedge_engine_v59 多源聚合获取实时期货价格 (Wind→AKShare→Sina→efinance)"""
     live_prices = {}
     try:
         from hedging.hedge_engine_v59 import get_live_futures_prices
@@ -641,7 +641,7 @@ def run_daily_report(dry_run: bool = False) -> dict[str, Any]:
     return result
 
 
-def _load_signal_trade_history():
+def _load_signal_trade_history() -> tuple:
     """加载信号历史和交易历史"""
     signal_history = []
     trade_history = []
@@ -664,10 +664,10 @@ def _load_signal_trade_history():
 
 
 def _record_ic_from_signal_history(
-    signal_history,
-    compute_ic_from_signals,
-    record_daily_ic,
-    record_ic_from_qlib_report,
+    signal_history: list,
+    compute_ic_from_signals: Callable,
+    record_daily_ic: Callable,
+    record_ic_from_qlib_report: Callable,
 ) -> None:
     """计算并记录当日 IC (N3)"""
     if not signal_history:
@@ -684,7 +684,7 @@ def _record_ic_from_signal_history(
             record_ic_from_qlib_report(str(latest_report))
 
 
-def _run_strategy_scoring():
+def _run_strategy_scoring() -> tuple | None:
     """运行策略多维评分 (N2), 返回 (eval_result, status) 或 None"""
     try:
         try:
@@ -727,7 +727,7 @@ def _run_strategy_scoring():
         return ("error", str(e))
 
 
-def _record_degradation_lesson(eval_result) -> None:
+def _record_degradation_lesson(eval_result: dict) -> None:
     """记录策略退化告警到 N5 SkillManager"""
     try:
         try:
@@ -767,7 +767,7 @@ def _build_drift_signal(ic_store: dict) -> dict:
     }
 
 
-def _run_adaptive_optimize(eval_result, ic_store: dict) -> str | None:
+def _run_adaptive_optimize(eval_result: dict, ic_store: dict) -> str | None:
     """N4: 漂移触发的超参自适应搜索, 返回配置文件路径或 None
 
     Feature Flag: USE_ADAPTIVE_OPTIMIZE (默认关闭)
@@ -975,7 +975,7 @@ class LiveScheduler:
         interval = module_def["interval_seconds"]
         task_func = globals()[module_def["task_func"]]
 
-        def run_and_reschedule():
+        def run_and_reschedule() -> None:
             if not RUNNING_EVENT.is_set():
                 return
 
@@ -1013,7 +1013,7 @@ class LiveScheduler:
                 logger.info(f"  [跳过] {module_name}: feature_flag {feature_flag}=False")
                 return
 
-        def check_and_run():
+        def check_and_run() -> None:
             if not RUNNING_EVENT.is_set():
                 return
 
@@ -1145,7 +1145,7 @@ def _is_running() -> bool:
 # ============================================================
 # 信号处理
 # ============================================================
-def signal_handler(signum, frame):
+def signal_handler(signum: int, frame: Any) -> None:
     """处理中断信号"""
     global RUNNING
     logger.info(f"收到信号 {signum}, 正在停止...")
@@ -1156,7 +1156,7 @@ def signal_handler(signum, frame):
 # ============================================================
 # CLI 入口
 # ============================================================
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="v7.5 实时监控并发调度器",
         formatter_class=argparse.RawDescriptionHelpFormatter,

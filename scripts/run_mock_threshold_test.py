@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Mock 数据集验证 - 构造 20cm 涨停 + 10cm 跌停等场景验证差异化阈值逻辑"""
 
 from __future__ import annotations
@@ -343,7 +342,7 @@ def main() -> int:
     out_md = out_dir / "mock_threshold_test_report.md"
     out_md.write_text("\n".join(md), encoding="utf-8")
 
-    print(f"\n报告已生成:")
+    print("\n报告已生成:")
     print(f"  JSON: {out_json}")
     print(f"  MD:   {out_md}")
 

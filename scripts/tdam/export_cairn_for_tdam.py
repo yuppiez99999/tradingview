@@ -39,10 +39,6 @@ CAIRN_DIR = PROJECT_ROOT / "cairn"
 OUTPUT_DEFAULT = PROJECT_ROOT / "reports" / "tdam_cache" / "cairn_export.json"
 
 
-def extract_title(content: str, fallback: str) -> str:
-    """从 Markdown 内容提取第一个 H1 标题, 无则用 fallback."""
-    match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
-
 
 def _add_frontmatter(title: str, content: str, source_stem: str = "") -> str:
     """为 wiki 文档添加 YAML frontmatter (TDAM skill 要求).
@@ -56,7 +52,7 @@ def _add_frontmatter(title: str, content: str, source_stem: str = "") -> str:
     """
     import re as _re
     title = title or "untitled"
-    safe_title = title.replace('"', '\\"')[:100]
+    title.replace('"', '\\"')[:100]
     # TDAM skill name 必须匹配 ^[a-z0-9][a-z0-9-]*$, 不能用中文
     # 优先用 source_stem (文件名), 因为文件名通常是英文 slug
     if source_stem:

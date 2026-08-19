@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """fills_pnl_bridge 单元测试 — 成交回报 PnL 桥接层全分支覆盖"""
 from __future__ import annotations
 

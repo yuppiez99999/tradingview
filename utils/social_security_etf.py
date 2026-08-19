@@ -254,7 +254,7 @@ class NationalTeamSignalDetector:
             style_flows[style]["etfs"].append(signal["name"])
 
         # 生成风格操作建议
-        for style, data in style_flows.items():
+        for _style, data in style_flows.items():
             if data["total_flow_yi"] >= 30:
                 data["action"] = "增持"
             elif data["total_flow_yi"] <= -30:

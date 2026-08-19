@@ -188,7 +188,7 @@ class BacktestGate:
         """Deflated Sharpe Ratio 检验"""
         logger.info("[回测网关] 执行 DSR 检验")
         try:
-            evaluator = self._StrategyEvaluator()
+            self._StrategyEvaluator()
             n_trials = max(len(signal.signals), 1)
             # DSR 计算
             sharpe = gate.sharpe if gate.sharpe > 0 else self._estimate_sharpe(signal)
@@ -241,7 +241,7 @@ class BacktestGate:
     # ============================================================
 
     def _get_data_provider(self):
-        """惰性获取多源数据提供器（Wind/iFinD/通达信/AKShare/新浪 五级降级）"""
+        """惰性获取多源数据提供器（Wind/通达信/AKShare/新浪 四级降级）"""
         if getattr(self, "_data_provider", None) is None:
             try:
                 from utils.data_provider import MarketDataProvider

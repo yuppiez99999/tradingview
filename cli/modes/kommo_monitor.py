@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 康波周期监控模式
 大宗商品全维度监控
@@ -8,14 +7,12 @@ from __future__ import annotations
 
 import os
 
+from engine.managers import KommoCommodityMonitor
+
 from core.context import (
-    BASE_DIR,
-    logger,
     ProgressIndicator,
 )
-
-from utils.cli_helpers import write_report_file, archive_report
-from engine.managers import KommoCommodityMonitor
+from utils.cli_helpers import archive_report, write_report_file
 
 
 def run_kommo_monitor(args):

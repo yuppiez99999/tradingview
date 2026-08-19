@@ -140,7 +140,6 @@ def log(msg: str, level: str = "INFO") -> None:
     """写日志到文件并打印"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{timestamp}] [{level}] {msg}"
-    print(line)
     try:
         # 日志文件按报告日期命名
         today = datetime.now().strftime("%Y-%m-%d")
@@ -387,8 +386,8 @@ def run_p0_system_check(args):
         assert_system_ready()  # 失败时 sys.exit(1)
     except SystemExit:
         raise
-    except Exception as e:
-        print(f"[P0 自检] 异常 (容错通过): {e}", file=sys.stderr)
+    except Exception:
+        pass
 
 
 def setup_eod_context(args):
@@ -636,7 +635,7 @@ def _check_daily_returns_has_date(report_date: str) -> bool:
         if not path.exists():
             return False
         target = report_date
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -668,7 +667,7 @@ def _alert_observation_missing(report_date, feeder_success, written, eod_summary
     log("  影响: Shadow 样本断档, 阻塞自我进化观察期决策 (目标 ≥20 条)", "WARN")
     log("  手动记录步骤:", "WARN")
     log("    1. 排查权重/数据源: 检查 config/positions.json 是否有效 + 行情源可用", "WARN")
-    log("    2. 重跑 feeder:  python -m utils.alpha.shadow_real_data_feeder --date %s" % report_date, "WARN")
+    log(f"    2. 重跑 feeder:  python -m utils.alpha.shadow_real_data_feeder --date {report_date}", "WARN")
     log("    3. 若仍失败, 手工补录 daily_returns.jsonl (需真实组合日收益)", "WARN")
     log("    4. 记录后检查: reports/shadow/daily_returns.jsonl 最后一行应含该日期", "WARN")
     log("=" * 70, "WARN")
@@ -696,7 +695,7 @@ def _alert_observation_missing(report_date, feeder_success, written, eod_summary
                 "action": "MANUAL_RECORD_REQUIRED",
                 "manual_steps": [
                     "check config/positions.json + data source",
-                    "rerun: python -m utils.alpha.shadow_real_data_feeder --date %s" % report_date,
+                    f"rerun: python -m utils.alpha.shadow_real_data_feeder --date {report_date}",
                     "manual append daily_returns.jsonl if still failing",
                 ],
                 "created": datetime.now().isoformat(),
@@ -774,7 +773,7 @@ def _load_positions_for_attribution() -> list[dict]:
     positions_path = PROJECT_ROOT / "config" / "positions.json"
     if not positions_path.exists():
         return []
-    with open(positions_path, "r", encoding="utf-8") as f:
+    with open(positions_path, encoding="utf-8") as f:
         data = json.load(f)
     raw = data.get("positions", {})
     if not raw:
@@ -815,7 +814,7 @@ def _load_daily_return_for_date(report_date: str) -> float | None:
     path = PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
     if not path.exists():
         return None
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -838,7 +837,7 @@ def _load_hedge_pnl_from_eod_report(report_date: str) -> float:
     for path in candidates:
         if path.exists():
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     data = json.load(f)
                 return float(data.get("net_performance", {}).get("hedge_pnl", 0.0))
             except (ValueError, TypeError, KeyError, OSError):

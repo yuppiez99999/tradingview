@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """CYQ 筹码分布因子验证脚本 (2026-08-12, 第 13 大类 Alpha 因子)
 
 目标:
@@ -13,11 +12,10 @@
 
 from __future__ import annotations
 
-import math
-import os
-import sys
-import random
 import logging
+import os
+import random
+import sys
 
 import numpy as np
 
@@ -30,11 +28,10 @@ if ROOT not in sys.path:
 
 from utils.alpha_factor.chip_distribution import (
     ChipDistributionEngine,
-    compute_chip_factors,
     ChipSnapshot,
+    compute_chip_factors,
 )
 from utils.alpha_factor.library import AlphaFactorLibrary
-
 
 # ============================================================
 # 数据构造
@@ -58,7 +55,7 @@ def make_trend_price_data(
     """
     if patterns is None:
         patterns = ["UP_SMALL", "UP_BIG", "DOWN_SMALL", "DOWN_BIG", "SIDEWAYS", "FLASH_CRASH"]
-    rng = random.Random(seed)
+    random.Random(seed)
     nr = np.random.default_rng(seed)
     price_data: dict[str, dict[str, list[float]]] = {}
     for i, pat in enumerate(patterns):
@@ -90,12 +87,12 @@ def make_trend_price_data(
                 volumes[t] *= 2.0
         # 插入 3 个「假一字板」验证 Dirac-δ 坍缩 (SIDEWAYS)
         highs, lows = [], []
-        for t, c in enumerate(closes):
+        for _t, c in enumerate(closes):
             amp = abs(nr.normal(0, 0.012))
             h = c * (1 + max(amp, 0.0005))
-            l = c * (1 - max(amp, 0.0005))
+            low = c * (1 - max(amp, 0.0005))
             highs.append(h)
-            lows.append(l)
+            lows.append(low)
         if pat == "SIDEWAYS":
             for t in [50, 100, 150]:
                 if t < n_days:
@@ -273,7 +270,7 @@ def main() -> int:
     res_off = lib_off.compute_all(pd_)
     cyq_off = [n for n in res_off.factors if n.startswith("CYQ_")]
     assert len(cyq_off) == 0, f"enable_chip=False 仍有 {len(cyq_off)} 筹码因子"
-    print(f"  enable_chip=False 无 CYQ 因子 ✓")
+    print("  enable_chip=False 无 CYQ 因子 ✓")
     print("  ✓ AlphaFactorLibrary 集成全部断言通过")
 
     # ---------- 7. 窗口不足 fail-open ----------
@@ -292,12 +289,12 @@ def main() -> int:
     print("\n" + "=" * 72)
     print("CYQ 筹码分布因子验证 · 全部断言通过 ✓")
     print("=" * 72)
-    print(f"  单标的滚动: 获利盘/成本偏离/峰位 方向正确 ✓")
+    print("  单标的滚动: 获利盘/成本偏离/峰位 方向正确 ✓")
     print(f"  换手衰减一致性: 高成交量熵 {ent_high:.2f} ≥ 低成交量熵 {ent_low:.2f} (×≥0.95) ✓")
-    print(f"  compute_chip_factors: 4 因子 6/6 覆盖 ✓")
-    print(f"  退化/流通股本路径: 两条路径都输出 ✓")
-    print(f"  library 集成: enable_chip=True/False 行为正确, debug_info 齐全 ✓")
-    print(f"  Fail-Open: 窗口不足 30<150 安全 ✓")
+    print("  compute_chip_factors: 4 因子 6/6 覆盖 ✓")
+    print("  退化/流通股本路径: 两条路径都输出 ✓")
+    print("  library 集成: enable_chip=True/False 行为正确, debug_info 齐全 ✓")
+    print("  Fail-Open: 窗口不足 30<150 安全 ✓")
     return 0
 
 

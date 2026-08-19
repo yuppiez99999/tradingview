@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """param_adjustment_governor 单元测试 — 参数调整治理器全覆盖.
 
 被测模块: utils/param_adjustment_governor.py
@@ -18,13 +17,10 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from utils.param_adjustment_governor import (  # noqa: E402
     AdjustmentReason,
-    AdjustmentRecord,
     AdjustmentRequest,
-    AdjustmentResult,
     ParameterAdjustmentGovernor,
     RejectionCode,
 )
-
 
 # ============================================================
 # AdjustmentRequest

@@ -1,7 +1,7 @@
 """
 期货数据统一接口
 
-优先 Wind MCP（实时行情 + 基础数据），其次 iFinD，不可用时回退 AKShare，最终回退到直接 HTTP。
+优先 Wind MCP（实时行情 + 基础数据），不可用时回退 AKShare，最终回退到直接 HTTP。
 """
 
 from __future__ import annotations
@@ -15,6 +15,12 @@ from urllib.parse import quote
 
 import requests
 
+try:
+    import certifi
+    _SSL_VERIFY = certifi.where()
+except ImportError:
+    _SSL_VERIFY = True
+
 logger = logging.getLogger(__name__)
 
 # 强制禁用代理，避免系统代理 127.0.0.1:7897 导致外网请求失败
@@ -24,62 +30,6 @@ os.environ["HTTP_PROXY"] = ""
 os.environ["HTTPS_PROXY"] = ""
 os.environ["http_proxy"] = ""
 os.environ["https_proxy"] = ""
-
-from ifind_futures_quotes import fetch_futures_base_info, fetch_futures_quotes
-
-_IFIND_QUOTE_INDICATORS = [
-    "tradeDate",
-    "tradeTime",
-    "ms",
-    "preClose",
-    "open",
-    "high",
-    "low",
-    "latest",
-    "latestVolume",
-    "avgPrice",
-    "volume",
-    "change",
-    "changeSettle",
-    "changeRatio",
-    "changeRatioSettle",
-    "increasePositionVol",
-    "preSettlement",
-    "sellVolume",
-    "buyVolume",
-    "dailyIncreasePosition",
-    "swing",
-    "latest_price",
-    "settlement",
-    "dealDirection",
-    "dealtype",
-    "openInterest",
-    "positionDiff",
-    "capitalFlow",
-    "capitalDeposition",
-    "amplitude",
-    "upperLimit",
-    "downLimit",
-    "dealtypecode",
-]
-
-_IFIND_BASE_INDICATORS = [
-    "ths_future_code_future",
-    "ths_future_short_name_future",
-    "ths_contract_multiplier",
-    "ths_td_unit_future",
-    "ths_td_variety_future",
-    "ths_variety_type_future",
-    "ths_exchange_short_name_future",
-    "ths_contract_listed_date_future",
-    "ths_start_trade_date_future",
-    "ths_last_td_date_future",
-    "ths_last_delivery_date_future",
-    "ths_open_time_day_future",
-    "ths_close_time_day_future",
-    "ths_open_time_night_future",
-    "ths_close_time_night_future",
-]
 
 
 def _to_float(v: Any) -> float | None:
@@ -172,7 +122,7 @@ def _try_http_futures_quotes(symbols: list[str]) -> dict[str, Any]:
     # 新浪期货
     try:
         url = f"https://hq.sinajs.cn/list={','.join(sina_codes)}"
-        resp = session.get(url, headers=headers, timeout=10, verify=False)
+        resp = session.get(url, headers=headers, timeout=10, verify=_SSL_VERIFY)
         text = resp.text
         logger.info(f"[DEBUG] 新浪HTTP状态: {resp.status_code}, 长度: {len(text)}")
         for line in text.splitlines():
@@ -207,7 +157,7 @@ def _try_http_futures_quotes(symbols: list[str]) -> dict[str, Any]:
     # 腾讯期货
     try:
         url = f"https://qt.gtimg.cn/q={','.join(tencent_codes)}"
-        resp = session.get(url, headers=headers, timeout=10, verify=False)
+        resp = session.get(url, headers=headers, timeout=10, verify=_SSL_VERIFY)
         text = resp.text
         logger.info(f"[DEBUG] 腾讯HTTP状态: {resp.status_code}, 长度: {len(text)}")
         for line in text.splitlines():
@@ -287,10 +237,7 @@ def get_futures_realtime(symbols: list[str]) -> dict[str, Any]:
     if quotes:
         return quotes
 
-    quotes = fetch_futures_quotes(symbols)
-    if quotes:
-        return quotes  # type: ignore
-    logger.info("[DEBUG] Wind MCP/iFinD 不可用，回退 AKShare 实时行情")
+    logger.info("[DEBUG] Wind MCP 不可用，回退 AKShare 实时行情")
     try:
         import akshare as ak
 
@@ -342,10 +289,7 @@ def get_futures_daily(symbol: str, market: str = "CF") -> dict[str, Any]:
 
 
 def get_futures_base_info(symbols: list[str]) -> dict[str, Any]:
-    info = fetch_futures_base_info(symbols)
-    if info:
-        return info  # type: ignore
-    logger.info("[DEBUG] iFinD 基础数据不可用，AKShare 无直接基础数据接口")
+    logger.info("[DEBUG] AKShare 无直接基础数据接口")
     return {}
 
 

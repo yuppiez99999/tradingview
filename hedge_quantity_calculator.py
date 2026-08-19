@@ -14,9 +14,9 @@
 """
 
 import json
+import logging
 import sys
 from pathlib import Path
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 # Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
 sys.path.insert(0, str(PROJECT_ROOT))  # bootstrap: 确保 utils 包可导入
 from utils.path_config import setup_sys_path  # noqa: E402
+
 setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
 # M15 修复: 删除未使用的 HedgeCoordinator/BetaHedger/VolHedger 导入
@@ -212,6 +213,7 @@ logger.info("  - 建议: 增加避险资产配置")
 
 # 当前避险资产 — Q-1 修复: 从 utils.hedge_constants 统一读取 (与 hedge_execution_orders.py 同源)
 from utils.hedge_constants import DEFENSE_ASSETS as defense_assets
+
 defense_total = sum(v for _, v in defense_assets.values())
 defense_pct = defense_total / day_capital * 100
 

@@ -7,18 +7,17 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Optional, Sequence
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-P0_CHAIN_SPEC: Dict[str, List[str]] = {
+P0_CHAIN_SPEC: dict[str, list[str]] = {
     "data_collection": [
         "ms_strategy/src/data/qmt_data_feed.py",
         "utils/data_provider.py",
@@ -109,8 +108,8 @@ class ModuleCoverageRecord:
             self.priority_bucket = "P4_covered"
 
 
-def _load_omit_patterns(coveragerc_path: Path) -> List[str]:
-    patterns: List[str] = []
+def _load_omit_patterns(coveragerc_path: Path) -> list[str]:
+    patterns: list[str] = []
     if not coveragerc_path.exists():
         return patterns
     in_omit = False
@@ -138,7 +137,7 @@ def _is_omitted(module_path: str, patterns: Sequence[str]) -> bool:
     return False
 
 
-def _parse_coverage_xml(xml_path: Path) -> Dict[str, Dict[str, object]]:
+def _parse_coverage_xml(xml_path: Path) -> dict[str, dict[str, object]]:
     if not xml_path.exists():
         raise CoverageReportMissingError(f"coverage.xml 不存在: {xml_path}")
     try:
@@ -146,7 +145,7 @@ def _parse_coverage_xml(xml_path: Path) -> Dict[str, Dict[str, object]]:
     except ET.ParseError as exc:
         raise CoverageReportParseError(f"coverage.xml 解析失败: {exc}") from exc
     root = tree.getroot()
-    file_map: Dict[str, Dict[str, object]] = {}
+    file_map: dict[str, dict[str, object]] = {}
     for cls in root.iter("class"):
         filename = cls.get("filename")
         if not filename:
@@ -166,7 +165,7 @@ def _parse_coverage_xml(xml_path: Path) -> Dict[str, Dict[str, object]]:
     return file_map
 
 
-def _match_module(module_path: str, file_map: Dict[str, Dict[str, object]]) -> Optional[Dict[str, object]]:
+def _match_module(module_path: str, file_map: dict[str, dict[str, object]]) -> Optional[dict[str, object]]:
     if module_path in file_map:
         return file_map[module_path]
     basename = os.path.basename(module_path)
@@ -181,14 +180,14 @@ class CoverageInventory:
     def scan(
         coverage_xml_path: Optional[str] = None,
         coveragerc_path: Optional[str] = None,
-        p0_module_spec: Optional[Dict[str, List[str]]] = None,
-    ) -> List[ModuleCoverageRecord]:
+        p0_module_spec: Optional[dict[str, list[str]]] = None,
+    ) -> list[ModuleCoverageRecord]:
         xml_path = Path(coverage_xml_path) if coverage_xml_path else PROJECT_ROOT / "reports" / "coverage.xml"
         rc_path = Path(coveragerc_path) if coveragerc_path else PROJECT_ROOT / ".coveragerc"
         spec = p0_module_spec or P0_CHAIN_SPEC
         omit_patterns = _load_omit_patterns(rc_path)
         file_map = _parse_coverage_xml(xml_path)
-        records: List[ModuleCoverageRecord] = []
+        records: list[ModuleCoverageRecord] = []
         for stage_idx, stage in enumerate(CHAIN_ORDER):
             modules = spec.get(stage, [])
             for mod in modules:
@@ -249,8 +248,8 @@ def _root_line_rate(coverage_xml_path: Optional[str]) -> Optional[float]:
     return float(root.get("line-rate", "0"))
 
 
-def _count_by_bucket(records: Sequence[ModuleCoverageRecord]) -> Dict[str, int]:
-    counts: Dict[str, int] = {}
+def _count_by_bucket(records: Sequence[ModuleCoverageRecord]) -> dict[str, int]:
+    counts: dict[str, int] = {}
     for r in records:
         counts[r.priority_bucket] = counts.get(r.priority_bucket, 0) + 1
     return counts

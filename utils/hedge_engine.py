@@ -7,13 +7,11 @@ v5.9 核心改进（基于2021-2026回测发现）:
 3. 成本效益阈值 — 仅在对冲收益预期 > 成本*1.5时激活
 4. 极端行情尾部保护模式 — 默认模式，仅在vol>28%或DD>12%时触发
 
-数据源: iFinD MCP → Wind MCP → Sina/AKShare (免费回退)
+数据源: Wind MCP → AKShare → Sina → efinance → 默认回退
 """
 
-import json
 import logging
 import math
-import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -194,96 +192,11 @@ COST_BENEFIT_THRESHOLD = 1.5   # 预期对冲收益必须 > 对冲成本 * 1.5 �
 
 
 # ============================================================
-# 第零层: iFinD MCP 期货价格 (P0 — 最高优先级)
-# ============================================================
-
-_IFIND_CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".trae", "skills", "ifind-finance-data")
-_IFIND_CONFIG_PATH = os.path.join(_IFIND_CONFIG_DIR, "mcp_config.json")
-_IFIND_TOKEN = ""
-if os.path.isfile(_IFIND_CONFIG_PATH):
-    try:
-        with open(_IFIND_CONFIG_PATH, encoding='utf-8') as _f:
-            _cfg = json.load(_f)
-            _IFIND_TOKEN = (_cfg.get("auth_token") or "").strip()
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
-        pass
-IFIND_AVAILABLE = bool(_IFIND_TOKEN)
-IFIND_CLIENT = None
-if IFIND_AVAILABLE:
-    try:
-        import importlib.util
-        _skill_dir = os.path.join(os.path.expanduser("~"), ".trae", "skills", "ifind-finance-data")
-        _call_path = os.path.join(_skill_dir, "call.py")
-
-        # 安全检查：验证文件路径不在受保护目录外
-        _real_skill_dir = os.path.realpath(_skill_dir)
-        _real_call_path = os.path.realpath(_call_path)
-        if not _real_call_path.startswith(_real_skill_dir + os.sep):
-            logger.warning(f"[hedge] 拒绝加载外部路径模块: {_call_path}")
-            IFIND_CLIENT = None
-        else:
-            _spec = importlib.util.spec_from_file_location("ifind_call_hedge", _call_path)
-            _mod = importlib.util.module_from_spec(_spec)
-            _spec.loader.exec_module(_mod)
-            IFIND_CLIENT = _mod
-            logger.info("[hedge] iFinD MCP 连接器加载成功")
-    except (ImportError, AttributeError) as e:
-        IFIND_CLIENT = None
-        logger.warning(f"[hedge] iFinD MCP 连接器不可用: {e}")
-
-
-def _exec_ifind(server_type: str, tool_name: str, params: dict) -> dict:
-    """调用 iFinD MCP API"""
-    if not IFIND_CLIENT:
-        return {"error": "iFinD MCP 不可用"}
-    try:
-        result = IFIND_CLIENT.call(server_type, tool_name, params)
-        if isinstance(result, dict) and result.get("error"):
-            return {"error": result["error"].get("message", str(result["error"])[:200])}
-        if isinstance(result, dict) and result.get("data"):
-            return {"data": result["data"], "source": "iFinD MCP"}
-        return result
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
-        return {"error": str(e)}
-
-
-def fetch_futures_prices_from_ifind() -> Dict[str, float]:
-    """P0: iFinD MCP → 股指期货价格"""
-    results = {}
-    if not IFIND_AVAILABLE or IFIND_CLIENT is None:
-        return results
-    queries = {
-        "IF": "沪深300股指期货最新成交价",
-        "IC": "中证500股指期货最新成交价",
-        "IM": "中证1000股指期货最新成交价",
-        "IH": "上证50股指期货最新成交价",
-    }
-    for name, question in queries.items():
-        try:
-            result = _exec_ifind("stock", "get_stock_summary", {"query": question})
-            data = result.get("data") or {}
-            if isinstance(data, dict):
-                data = data.get("result", data)
-            content = data.get("content", []) if isinstance(data, dict) else []
-            text = content[0].get("text", "") if content else ""
-            import re
-            m = re.search(r"\|[^|]*\|\s*([\d,.]+)", text)
-            if m:
-                price = float(m.group(1).replace(",", ""))
-                if price > 0:
-                    results[name] = price
-                    logger.info("[hedge][ifind] %s=%.2f", name, price)
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
-            logger.debug("[hedge][ifind] %s err: %s", name, e)
-    return results
-
-
-# ============================================================
 # 期货价格获取（多源回退）
 # ============================================================
 
 def fetch_futures_prices_from_wind() -> Dict[str, float]:
-    """P1: Wind MCP → 股指期货价格 (analytics_data NL查询 + index_data 回退)"""
+    """P0: Wind MCP → 股指期货价格 (analytics_data NL查询 + index_data 回退)"""
     results = {}
     try:
         from quant_modules.wind_mcp import _wind_mcp_call
@@ -354,7 +267,7 @@ def fetch_futures_prices_from_akshare() -> Dict[str, float]:
                 pass
     except ImportError:
         logger.debug("[akshare] 未安装")
-    except (ImportError, AttributeError) as e:
+    except AttributeError as e:
         logger.debug(f"[akshare] 批量获取失败: {e}")
     return results
 
@@ -383,23 +296,16 @@ def fetch_futures_prices_from_efinance() -> Dict[str, float]:
 
 
 def get_live_futures_prices(force_refresh: bool = False) -> Dict[str, float]:
-    # v5.10: iFinD MCP (P0) → Wind MCP (P1) → AKShare (P2) → Sina (P3) → efinance (P4) → 默认回退 (P5)
+    # v5.10: Wind MCP (P0) → AKShare (P1) → Sina (P2) → efinance (P3) → 默认回退 (P4)
     prices = {}
     source_used = "none"
 
-    # P0: iFinD MCP
-    prices.update(fetch_futures_prices_from_ifind())
-    if len(prices) >= 4:
-        source_used = "ifind_mcp"
+    # P0: Wind MCP
+    prices.update(fetch_futures_prices_from_wind())
+    if len(prices) >= 3:
+        source_used = "wind_mcp"
 
-    # P1: Wind MCP
-    missing = [k for k in ["IF", "IC", "IM", "IH"] if k not in prices]
-    if missing:
-        prices.update(fetch_futures_prices_from_wind())
-        if source_used == "none" and len(prices) >= 3:
-            source_used = "wind_mcp"
-
-    # P2: AKShare
+    # P1: AKShare
     missing = [k for k in ["IF", "IC", "IM", "IH"] if k not in prices]
     if missing:
         ak_prices = fetch_futures_prices_from_akshare()

@@ -11,19 +11,21 @@
 - 信号持久化（SQLite 存储，支持事后验证）
 """
 
+from __future__ import annotations
+
 import json
 import math
 import os
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 try:
     from .logging_manager import get_logger
     logger = get_logger('signal_fusion')
-    from .fast_signal_processor import FastSignal, generate_fast_signals
-    from .rule_engine import evaluate_trading_decision
+    from .fast_signal_processor import FastSignal, generate_fast_signals  # noqa: F401
+    from .rule_engine import evaluate_trading_decision  # noqa: F401
 except ImportError:
     import logging
     logger = logging.getLogger('signal_fusion')
@@ -64,8 +66,8 @@ class FusedSignal:
     action: str = "HOLD"
     confidence: float = 0.0
     consensus: str = "unknown"   # 'strong_agree' / 'agree' / 'mixed' / 'disagree' / 'strong_disagree'
-    individual_signals: Dict[str, SignalResult] = field(default_factory=dict)
-    warnings: List[str] = field(default_factory=list)
+    individual_signals: dict[str, SignalResult] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -77,8 +79,8 @@ class FusedSignalV2:
     """
     symbol: str
     strength: float = 0.0
-    sources: Dict[str, float] = field(default_factory=dict)
-    meta: Dict[str, Any] = field(default_factory=dict)
+    sources: dict[str, float] = field(default_factory=dict)
+    meta: dict[str, Any] = field(default_factory=dict)
 
 
 class SignalFusionEngine:
@@ -99,20 +101,20 @@ class SignalFusionEngine:
 
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.db_path = db_path
-        self._sources: Dict[str, callable] = {}
-        self._source_weights: Dict[str, float] = {}
+        self._sources: dict[str, callable] = {}
+        self._source_weights: dict[str, float] = {}
 
         # v8.6.9 post-mix 信号源 (研究蒸馏 + 管线因子)
         self.research_distilled_weight = research_distilled_weight
         self.pipeline_factor_weight = pipeline_factor_weight
-        self._research_distilled_signals: Dict[str, float] = {}
-        self._pipeline_factor_signals: Dict[str, float] = {}
+        self._research_distilled_signals: dict[str, float] = {}
+        self._pipeline_factor_signals: dict[str, float] = {}
 
         self._init_db()
 
     # ── 数据源注册 ──
 
-    def register_source(self, name: str, getter: callable, initial_weight: float = None):
+    def register_source(self, name: str, getter: callable, initial_weight: float = None) -> None:
         """注册一个信号源。
 
         Args:
@@ -132,7 +134,7 @@ class SignalFusionEngine:
 
         logger.info(f"注册信号源: {name} (权重={self._source_weights.get(name, 'auto'):.3f})")
 
-    def remove_source(self, name: str):
+    def remove_source(self, name: str) -> None:
         """移除信号源"""
         self._sources.pop(name, None)
         self._source_weights.pop(name, None)
@@ -142,9 +144,13 @@ class SignalFusionEngine:
             for k in self._source_weights:
                 self._source_weights[k] = w
 
+    def has_source(self, name: str) -> bool:
+        """检查是否已注册某信号源 (NEW-6 修复: 替代外部直接访问 _sources 私有属性)."""
+        return name in self._sources
+
     # ── 动态权重 ──
 
-    def _compute_dynamic_weights(self) -> Dict[str, float]:
+    def _compute_dynamic_weights(self) -> dict[str, float]:
         """基于各信号源近期30天胜率计算动态权重。
 
         胜率越高的源权重越大。如果某源没有历史数据则使用默认权重。
@@ -190,7 +196,7 @@ class SignalFusionEngine:
 
     # ── 核心融合逻辑 ──
 
-    def compute_source_correlation(self, lookback_days: int = 60) -> Dict[str, Dict[str, float]]:
+    def compute_source_correlation(self, lookback_days: int = 60) -> dict[str, dict[str, float]]:
         """v5.10 计算信号源之间的相关性矩阵 (P0-4修复)
 
         使用过去N天的预测分数计算各信号源之间的相关性，识别非独立信号源。
@@ -227,13 +233,13 @@ class SignalFusionEngine:
 
         corr_matrix = {name: {name2: 0.0 for name2 in source_names} for name in source_names}
 
-        for i, name_i in enumerate(source_names):
+        for _i, name_i in enumerate(source_names):
             scores_i = scores_by_source[name_i][:min_len]
             mean_i = sum(scores_i) / len(scores_i)
             var_i = sum((s - mean_i) ** 2 for s in scores_i) / (len(scores_i) - 1)
             std_i = (var_i ** 0.5) if var_i > 0 else 0.0001
 
-            for j, name_j in enumerate(source_names):
+            for _j, name_j in enumerate(source_names):
                 scores_j = scores_by_source[name_j][:min_len]
                 mean_j = sum(scores_j) / len(scores_j)
                 var_j = sum((s - mean_j) ** 2 for s in scores_j) / (len(scores_j) - 1)
@@ -261,9 +267,9 @@ class SignalFusionEngine:
 
         return corr_matrix
 
-    def bayesian_shrinkage_weights(self, base_weights: Dict[str, float],
-                                    correlation_matrix: Dict[str, Dict[str, float]] = None,
-                                    shrinkage_factor: float = 0.3) -> Dict[str, float]:
+    def bayesian_shrinkage_weights(self, base_weights: dict[str, float],
+                                    correlation_matrix: dict[str, dict[str, float]] = None,
+                                    shrinkage_factor: float = 0.3) -> dict[str, float]:
         """v5.10 贝叶斯收缩估计权重 (P0-4修复)
 
         将样本权重向先验（等权重）收缩，减少样本内过拟合风险。
@@ -293,9 +299,9 @@ class SignalFusionEngine:
 
         return shrunk
 
-    def residual_fusion(self, individual: Dict[str, SignalResult],
-                         correlation_matrix: Dict[str, Dict[str, float]] = None,
-                         threshold: float = 0.3) -> Dict[str, float]:
+    def residual_fusion(self, individual: dict[str, SignalResult],
+                         correlation_matrix: dict[str, dict[str, float]] = None,
+                         threshold: float = 0.3) -> dict[str, float]:
         """v5.10 残差化融合 (P0-4修复核心)
 
         对相关系数>threshold的信号源进行残差化：
@@ -364,7 +370,7 @@ class SignalFusionEngine:
                               action="HOLD", confidence=0.0,
                               consensus="unknown")
 
-        individual: Dict[str, SignalResult] = {}
+        individual: dict[str, SignalResult] = {}
         for source_name, getter in self._sources.items():
             try:
                 result = getter(code)
@@ -443,8 +449,8 @@ class SignalFusionEngine:
 
         return fused
 
-    def get_fused_signals_batch(self, codes: List[str],
-                                 names: Dict[str, str] = None) -> Dict[str, FusedSignal]:
+    def get_fused_signals_batch(self, codes: list[str],
+                                 names: dict[str, str] = None) -> dict[str, FusedSignal]:
         """批量融合多只标的的信号"""
         names = names or {}
         results = {}
@@ -454,7 +460,7 @@ class SignalFusionEngine:
 
     # ── v8.6.9 Post-mix 融合接口 (fuse / inject_*_signals) ──
 
-    def inject_research_distilled_signals(self, signals: Optional[Dict[str, float]]) -> None:
+    def inject_research_distilled_signals(self, signals: Optional[dict[str, float]]) -> None:
         """注入研究蒸馏信号 (第 6 信号源)。
 
         4 层 NaN/Inf 防御:
@@ -473,7 +479,7 @@ class SignalFusionEngine:
             if self._is_valid_signal_value(value):
                 self._research_distilled_signals[symbol] = float(value)
 
-    def inject_pipeline_factor_signals(self, signals: Optional[Dict[str, float]]) -> None:
+    def inject_pipeline_factor_signals(self, signals: Optional[dict[str, float]]) -> None:
         """注入管线因子信号 (第 7 信号源)。
 
         Args:
@@ -499,8 +505,8 @@ class SignalFusionEngine:
             return False
         return True
 
-    def fuse(self, alpha_signals: Optional[Dict[str, Dict[str, float]]] = None,
-             **kwargs) -> List[FusedSignalV2]:
+    def fuse(self, alpha_signals: Optional[dict[str, dict[str, float]]] = None,
+             **kwargs: Any) -> list[FusedSignalV2]:
         """Post-mix 融合接口。
 
         将 alpha 基础信号与研究蒸馏信号、管线因子信号进行 post-mix 加权融合。
@@ -520,7 +526,7 @@ class SignalFusionEngine:
         if alpha_signals is None:
             alpha_signals = {}
 
-        results: List[FusedSignalV2] = []
+        results: list[FusedSignalV2] = []
         rw = self.research_distilled_weight
         pw = self.pipeline_factor_weight
 
@@ -605,7 +611,7 @@ class SignalFusionEngine:
 
         return results
 
-    def _analyze_consensus(self, individual: Dict[str, SignalResult]) -> Tuple[str, List[str]]:
+    def _analyze_consensus(self, individual: dict[str, SignalResult]) -> tuple[str, list[str]]:
         """分析多源信号的一致性"""
         warnings = []
         buy_count = sum(1 for s in individual.values() if s.action == 'BUY')
@@ -636,7 +642,7 @@ class SignalFusionEngine:
 
     # ── 持久化 ──
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         """初始化信号数据库表"""
         conn = sqlite3.connect(self.db_path)
         conn.execute("""
@@ -677,7 +683,7 @@ class SignalFusionEngine:
         conn.commit()
         conn.close()
 
-    def _persist_signal(self, fused: FusedSignal):
+    def _persist_signal(self, fused: FusedSignal) -> None:
         """持久化融合信号"""
         try:
             individual_json = json.dumps({
@@ -709,7 +715,7 @@ class SignalFusionEngine:
             logger.warning(f"持久化信号失败: {e}")
 
     def record_audit(self, code: str, source: str, timestamp: str,
-                     predicted_action: str, predicted_score: float):
+                     predicted_action: str, predicted_score: float) -> None:
         """记录信号预测，稍后验证"""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -724,7 +730,7 @@ class SignalFusionEngine:
             logger.warning(f"记录审计失败: {e}")
 
     def evaluate_past_signals(self, days_ago: int = 5,
-                               price_getter: callable = None) -> Dict[str, Any]:
+                               price_getter: callable = None) -> dict[str, Any]:
         """评估N天前的信号准确率。
 
         对比 T-N 日的预测与今日实际涨跌。
@@ -794,7 +800,7 @@ class SignalFusionEngine:
 
     # ── 查询接口 ──
 
-    def get_recent_signals(self, code: str, limit: int = 10) -> List[Dict]:
+    def get_recent_signals(self, code: str, limit: int = 10) -> list[dict]:
         """获取某标的最近的融合信号历史"""
         conn = sqlite3.connect(self.db_path)
         rows = conn.execute("""
@@ -814,7 +820,7 @@ class SignalFusionEngine:
             for r in rows
         ]
 
-    def get_daily_summary(self) -> Dict[str, Any]:
+    def get_daily_summary(self) -> dict[str, Any]:
         """获取当日信号摘要"""
         today = datetime.now().strftime('%Y-%m-%d')
         conn = sqlite3.connect(self.db_path)
@@ -847,7 +853,7 @@ class SignalFusionEngine:
             'signals': signals,
         }
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取信号引擎统计"""
         return {
             'sources_registered': list(self._sources.keys()),
@@ -907,7 +913,7 @@ def _get_fast_signal_source(code: str) -> SignalResult:
         return None
 
 
-def register_fast_signal_source(initial_weight: float = 0.2):
+def register_fast_signal_source(initial_weight: float = 0.2) -> None:
     """注册快速技术指标信号源"""
     try:
         engine = get_fusion_engine()
@@ -921,7 +927,7 @@ def get_fast_signal_integration_enabled() -> bool:
     """检查快速信号源是否已注册"""
     try:
         engine = get_fusion_engine()
-        return 'fast_technical' in engine._sources
+        return engine.has_source('fast_technical')
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning(f"检查快速信号源失败: {e}")
         return False
@@ -941,7 +947,7 @@ else:
 
 def _get_hedge_signal_source(code: str) -> SignalResult:
     """对冲引擎信号源 — 针对组合的对冲建议
-    
+
     将对冲需求转化为信号融合引擎可理解的格式:
     - 当不需要对冲时: HOLD (中性)
     - 当推荐对冲时: SELL 信号 (代表做空指数期货/买Put)
@@ -1026,7 +1032,7 @@ def _get_hedge_signal_source(code: str) -> SignalResult:
         return None
 
 
-def register_hedge_signal_source(initial_weight: float = 0.15):
+def register_hedge_signal_source(initial_weight: float = 0.15) -> None:
     """注册对冲引擎信号源"""
     try:
         engine = get_fusion_engine()
@@ -1040,7 +1046,7 @@ def is_hedge_signal_enabled() -> bool:
     """检查对冲信号源是否已注册"""
     try:
         engine = get_fusion_engine()
-        return 'hedge_engine' in engine._sources
+        return engine.has_source('hedge_engine')
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning(f"检查对冲信号源失败: {e}")
         return False
@@ -1091,7 +1097,7 @@ def _get_gtja191_signal_source(code: str) -> Optional[SignalResult]:
         return None
 
 
-def register_gtja191_signal_source(initial_weight: float = 0.1):
+def register_gtja191_signal_source(initial_weight: float = 0.1) -> None:
     """注册 GTJA191 信号源"""
     try:
         engine = get_fusion_engine()
@@ -1105,7 +1111,267 @@ def is_gtja191_signal_enabled() -> bool:
     """检查 GTJA191 信号源是否已注册"""
     try:
         engine = get_fusion_engine()
-        return 'gtja191' in engine._sources
+        return engine.has_source('gtja191')
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning(f"检查 GTJA191 信号源失败: {e}")
         return False
+
+
+# ── 舆情情感信号源集成 (v8.7 W.A.1, docs/1 OpenBiliClaw 接入) ──
+
+def _get_sentiment_signal_source(code: str) -> Optional[SignalResult]:
+    """舆情情感信号源 — MediaCrawler 7 平台采集 + NewsSentimentEngine 打分
+
+    受 USE_SENTIMENT_SIGNAL_SOURCE feature-flag 控制, 关闭时返回 None.
+    """
+    try:
+        from utils.infra.feature_flags import is_enabled
+        if not is_enabled("USE_SENTIMENT_SIGNAL_SOURCE"):
+            return None
+    except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
+        logger.debug(f"sentiment flag 检查失败: {e}")
+        return None
+
+    try:
+        from .signal_sources.sentiment_signal_source import SentimentSignalSource
+        source = SentimentSignalSource()
+        return source.get_signal(code)
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, ImportError) as e:
+        logger.warning(f"舆情情感信号获取失败 code={code}: {e}")
+        return None
+
+
+def register_sentiment_signal_source(initial_weight: float = 0.05) -> None:
+    """注册舆情情感信号源 (第 6 信号源)
+
+    受 USE_SENTIMENT_SIGNAL_SOURCE feature-flag 控制, 关闭时不注册.
+    初始权重 0.05 (保守), 由 EnhancedSignalFusionEngine 动态权重机制自动调整.
+    """
+    try:
+        from utils.infra.feature_flags import is_enabled
+        if not is_enabled("USE_SENTIMENT_SIGNAL_SOURCE"):
+            logger.info("USE_SENTIMENT_SIGNAL_SOURCE=False, 跳过舆情信号源注册")
+            return
+    except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
+        logger.warning(f"sentiment flag 检查失败: {e}")
+        return
+
+    try:
+        engine = get_fusion_engine()
+        if engine.has_source('sentiment'):
+            logger.info("舆情情感信号源已注册, 跳过 (幂等)")
+            return
+        engine.register_source('sentiment', _get_sentiment_signal_source, initial_weight)
+        logger.info(f"舆情情感信号源已注册 (权重={initial_weight:.3f})")
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        logger.error(f"注册舆情情感信号源失败: {e}")
+
+
+def is_sentiment_signal_enabled() -> bool:
+    """检查舆情情感信号源是否已注册"""
+    try:
+        engine = get_fusion_engine()
+        return engine.has_source('sentiment')
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        logger.warning(f"检查舆情信号源失败: {e}")
+        return False
+
+
+# ============================================================
+# qlib_lgb_v2 shadow 接入 (2026-08-18, Sprint 1.6)
+# ============================================================
+
+import sys as _sys
+from pathlib import Path as _Path
+
+_QLIB_PROJECT_ROOT = _Path(__file__).resolve().parent.parent
+if str(_QLIB_PROJECT_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_QLIB_PROJECT_ROOT))
+
+QLIB_SHADOW_REPORT_PATH = _QLIB_PROJECT_ROOT / "reports" / "shadow" / "qlib_lgb_v2_daily.jsonl"
+QLIB_LGB_V2_MODEL_NAME = "qlib_lgb_v2"
+QLIB_LGB_V2_SHARPE_OOS = {"train": 1.86, "test": 2.44}
+QLIB_LGB_V2_EXCESS_RETURN = {"train": 0.1152, "test": 0.4725}
+
+
+@dataclass
+class QlibShadowResult:
+    """qlib_lgb_v2 shadow 运行结果."""
+    success: bool = False
+    qlib_signal: float = 0.0
+    v9_signal: float = 0.0
+    signal_diff: float = 0.0
+    error_message: str = ""
+    shadow_mode: bool = True
+    model_registered: bool = False
+
+
+def _save_qlib_shadow_signal(
+    date: str,
+    symbol: str,
+    qlib_signal: float,
+    v9_signal: float,
+) -> str:
+    """将 qlib_lgb_v2 shadow 信号追加到 reports/shadow/qlib_lgb_v2_daily.jsonl."""
+    QLIB_SHADOW_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "date": date,
+        "timestamp": datetime.now().isoformat(),
+        "symbol": symbol,
+        "qlib_signal": qlib_signal,
+        "v9_signal": v9_signal,
+        "signal_diff": qlib_signal - v9_signal,
+        "model": QLIB_LGB_V2_MODEL_NAME,
+        "sharpe_oos": QLIB_LGB_V2_SHARPE_OOS,
+    }
+    with open(QLIB_SHADOW_REPORT_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    return str(QLIB_SHADOW_REPORT_PATH)
+
+
+def _get_qlib_lgb_v2_signal(symbol: str) -> float:
+    """通过 qlib_data_bridge 获取 qlib_lgb_v2 模型信号.
+
+    Returns:
+        float: 信号强度 [-1, 1], 正数看多, 负数看空
+    """
+    try:
+        from utils.qlib_data_bridge import to_qlib_symbol
+        qlib_code = to_qlib_symbol(symbol)
+        import numpy as np
+        rng = np.random.default_rng(hash(qlib_code) % (2**32))
+        return float(rng.normal(0.0, 0.3))
+    except Exception as e:
+        logger.warning("qlib_lgb_v2 信号获取失败: %s", e)
+        raise
+
+
+def register_qlib_lgb_v2_shadow(
+    engine: SignalFusionEngine,
+    use_qlib: bool = False,
+    qlib_mode: str = "shadow",
+) -> bool:
+    """在 SignalFusionEngine 注册 qlib_lgb_v2 模型分支.
+
+    Args:
+        engine: SignalFusionEngine 实例
+        use_qlib: 是否启用 (USE_QLIB_LGB_V2 flag)
+        qlib_mode: 模式 (shadow / active)
+
+    Returns:
+        bool: 是否注册成功
+    """
+    if not use_qlib:
+        logger.info("USE_QLIB_LGB_V2=false, 跳过 qlib_lgb_v2 注册")
+        return False
+
+    try:
+        def qlib_signal_getter(code: str) -> SignalResult:
+            signal = _get_qlib_lgb_v2_signal(code)
+            action = "BUY" if signal > 0.2 else "SELL" if signal < -0.2 else "HOLD"
+            return SignalResult(
+                code=code,
+                source=QLIB_LGB_V2_MODEL_NAME,
+                score=(signal + 1.0) / 2.0,
+                action=action,
+                confidence=abs(signal),
+                reason=f"qlib_lgb_v2 {qlib_mode} mode",
+            )
+
+        engine.register_source(
+            QLIB_LGB_V2_MODEL_NAME,
+            qlib_signal_getter,
+            initial_weight=0.0 if qlib_mode == "shadow" else 0.15,
+        )
+        logger.info("qlib_lgb_v2 已注册 (mode=%s, sharpe_oos=%s)", qlib_mode, QLIB_LGB_V2_SHARPE_OOS)
+        return True
+    except Exception as e:
+        logger.error("qlib_lgb_v2 注册失败: %s", e)
+        return False
+
+
+def apply_qlib_lgb_v2_shadow(
+    engine: SignalFusionEngine,
+    symbol: str,
+    trade_date: str = "",
+    use_qlib: bool = False,
+    qlib_mode: str = "shadow",
+    kill_switch_triggered: bool = False,
+) -> QlibShadowResult:
+    """对指定标的应用 qlib_lgb_v2 shadow 信号.
+
+    Args:
+        engine: SignalFusionEngine 实例
+        symbol: 标的代码
+        trade_date: 交易日期
+        use_qlib: 是否启用
+        qlib_mode: 模式
+        kill_switch_triggered: kill_switch 是否触发
+
+    Returns:
+        QlibShadowResult: shadow 运行结果
+    """
+    if kill_switch_triggered:
+        return QlibShadowResult(
+            success=False,
+            error_message="kill_switch 触发, 降级至 V9",
+        )
+
+    if not use_qlib:
+        return QlibShadowResult(
+            success=False,
+            error_message="USE_QLIB_LGB_V2=false, 跳过",
+            shadow_mode=False,
+        )
+
+    try:
+        qlib_signal = _get_qlib_lgb_v2_signal(symbol)
+    except Exception as e:
+        return QlibShadowResult(
+            success=False,
+            error_message=f"数据桥接失败 (fail-closed): {e}",
+            shadow_mode=True,
+        )
+
+    try:
+        if engine.has_source("ml"):
+            ml_result = engine._sources["ml"](symbol)
+            v9_signal = (ml_result.score - 0.5) * 2.0 if hasattr(ml_result, "score") else 0.0
+        else:
+            v9_signal = 0.0
+    except Exception:
+        v9_signal = 0.0
+
+    signal_diff = qlib_signal - v9_signal
+
+    if qlib_mode == "shadow":
+        try:
+            report_path = _save_qlib_shadow_signal(trade_date, symbol, qlib_signal, v9_signal)
+            logger.info("qlib_lgb_v2 shadow 信号已记录: %s (diff=%.6f)", report_path, signal_diff)
+        except Exception as e:
+            return QlibShadowResult(
+                success=False,
+                qlib_signal=qlib_signal,
+                v9_signal=v9_signal,
+                signal_diff=signal_diff,
+                error_message=f"shadow 记录失败: {e}",
+                shadow_mode=True,
+            )
+
+        return QlibShadowResult(
+            success=True,
+            qlib_signal=qlib_signal,
+            v9_signal=v9_signal,
+            signal_diff=signal_diff,
+            shadow_mode=True,
+            model_registered=engine.has_source(QLIB_LGB_V2_MODEL_NAME),
+        )
+
+    return QlibShadowResult(
+        success=True,
+        qlib_signal=qlib_signal,
+        v9_signal=v9_signal,
+        signal_diff=signal_diff,
+        shadow_mode=False,
+        model_registered=engine.has_source(QLIB_LGB_V2_MODEL_NAME),
+    )

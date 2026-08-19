@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """console_encoding 单元测试 — UTF-8 控制台设置全分支覆盖
 
 覆盖:

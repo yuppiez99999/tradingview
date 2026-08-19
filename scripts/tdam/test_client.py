@@ -28,7 +28,7 @@ def main() -> int:
     client._flag_checked = True
     client._flag_enabled = True
 
-    print(f"\n[配置]")
+    print("\n[配置]")
     print(f"  base_url:    {config.base_url}")
     print(f"  user_key:    {config.user_key[:11]}****{config.user_key[-4:] if config.user_key else '(空)'}")
     print(f"  user_id:     {config.user_id}")
@@ -36,7 +36,7 @@ def main() -> int:
     print(f"  team_id:     {config.team_id}")
 
     # 2. 健康检查
-    print(f"\n[1] 健康检查 GET /health")
+    print("\n[1] 健康检查 GET /health")
     ok = client.health_check()
     print(f"  结果: {'通过' if ok else '失败'}")
     if not ok:
@@ -44,7 +44,7 @@ def main() -> int:
         return 1
 
     # 3. list_skills
-    print(f"\n[2] POST /v3/skill/list")
+    print("\n[2] POST /v3/skill/list")
     result = client.list_skills(limit=10)
     print(f"  success: {'error' not in result}")
     print(f"  total:   {result.get('total', 0)}")
@@ -53,7 +53,7 @@ def main() -> int:
         print(f"  error:   {result['error']}")
 
     # 4. list_knowledge
-    print(f"\n[3] POST /v3/knowledge/list")
+    print("\n[3] POST /v3/knowledge/list")
     result = client.list_knowledge(limit=10)
     print(f"  success: {'error' not in result}")
     print(f"  total:   {result.get('total', 0)}")
@@ -61,7 +61,7 @@ def main() -> int:
         print(f"  error:   {result['error']}")
 
     # 5. search_memory (skill)
-    print(f"\n[4] POST /v3/skill/search (query='气象因子')")
+    print("\n[4] POST /v3/skill/search (query='气象因子')")
     result = client.search_memory(query="气象因子", asset_type="skill", top_k=3)
     print(f"  success:    {result.success}")
     print(f"  degraded:   {result.degraded}")
@@ -71,7 +71,7 @@ def main() -> int:
         print(f"  error:      {result.error}")
 
     # 6. search_memory (conversation)
-    print(f"\n[5] POST /v3/conversation/search (query='GNN')")
+    print("\n[5] POST /v3/conversation/search (query='GNN')")
     result = client.search_memory(query="GNN", asset_type="conversation", top_k=3)
     print(f"  success:    {result.success}")
     print(f"  total:      {result.total}")
@@ -80,7 +80,7 @@ def main() -> int:
         print(f"  error:      {result.error}")
 
     # 7. 熔断器状态
-    print(f"\n[熔断器]")
+    print("\n[熔断器]")
     print(f"  state:          {client._circuit.state.value}")
     print(f"  failure_count:  {client._circuit.failure_count}")
 

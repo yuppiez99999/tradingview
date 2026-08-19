@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """R10 技术债逐处精确化工具 (AST 驱动).
 
 将 `except Exception` (配 # fail-safe / # noqa: BLE001) 按 try 块体上下文
@@ -15,15 +14,13 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from pathlib import Path
-
 from ast import (
-    AST,
     ExceptHandler,
     Try,
     parse,
     walk,
 )
+from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -121,7 +118,7 @@ def refine_file(path: Path, check: bool = False) -> list[str]:
         tail_clean = tail_clean.rstrip()
         if keep:
             # 保留宽捕获但登记豁免
-            new_tail = f"  # noqa: BLE001  # 顶层清理/日志, 必须吞掉所有异常"
+            new_tail = "  # noqa: BLE001  # 顶层清理/日志, 必须吞掉所有异常"
             new_line = f"{indent}except Exception{as_clause or ''}:{new_tail}"
         else:
             new_line = f"{indent}except {family}{as_clause or ''}:{('  ' + tail_clean) if tail_clean else ''}"

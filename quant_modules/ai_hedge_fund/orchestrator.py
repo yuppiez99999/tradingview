@@ -1,14 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 AI Hedge Fund 编排器 — LangGraph 工作流 + LangChain Agent 协作
 
 适配量化策略 v5.6 集成，使用本地数据源替代 Financial Datasets API
 """
 
-import os
-import sys
 import json
 import logging
+import os
+import sys
 from datetime import datetime
 from typing import Optional
 
@@ -31,16 +30,15 @@ except ImportError:
     logger.warning("安装: pip install langgraph langchain langchain-openai python-dotenv")
 
 # ── 导入 Agent 模块 ──
-from quant_modules.ai_hedge_fund.utils.analysts import (
-    ANALYST_CONFIG,
-    get_analyst_nodes,
-    get_agents_list,
-)
-from quant_modules.ai_hedge_fund.agents.risk_manager import risk_management_agent
 from quant_modules.ai_hedge_fund.agents.portfolio_manager import portfolio_management_agent
-from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
+from quant_modules.ai_hedge_fund.agents.risk_manager import risk_management_agent
 from quant_modules.ai_hedge_fund.data_adapter import clear_cache
 from quant_modules.ai_hedge_fund.debate_layer import debate_node  # Wave 6 W6.2.1 多空辩论层
+from quant_modules.ai_hedge_fund.graph.state import AgentState
+from quant_modules.ai_hedge_fund.utils.analysts import (
+    get_agents_list,
+    get_analyst_nodes,
+)
 
 
 def parse_hedge_fund_response(response) -> Optional[dict]:
@@ -101,7 +99,7 @@ def create_workflow(selected_analysts: list[str] = None):
     # 辩论层 → 风控 → 组合管理
     workflow.add_edge("debate_layer", "risk_management_agent")
     workflow.add_edge("risk_management_agent", "portfolio_manager")
-    
+
     if hedge_node_name:
         # 对冲分析师: 同时接收 分析师信号 + portfolio_manager 输出
         for analyst_key in selected_analysts:
@@ -114,10 +112,25 @@ def create_workflow(selected_analysts: list[str] = None):
         workflow.add_edge(hedge_node_name, END)
     else:
         workflow.add_edge("portfolio_manager", END)
-    
+
     workflow.set_entry_point("start_node")
 
     return workflow
+
+
+def _build_historical_lessons_block(tickers: list[str]) -> str:
+    """W.B.2 团队级共享记忆: 构建历史教训文本块 (feature-flag 控制)
+
+    在 run_ai_hedge_fund 构建 state 时调用, 注入 state["data"]["historical_lessons"].
+    flag 关闭或异常时返回空字符串 (零侵入).
+    """
+    try:
+        from utils.ai_memory.team_memory_hub import get_team_memory_hub
+        hub = get_team_memory_hub()
+        return hub.build_lessons_prompt_block(tickers)
+    except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
+        logger.debug("build_historical_lessons_block 失败: %s", e)
+        return ""
 
 
 def run_ai_hedge_fund(
@@ -202,6 +215,9 @@ def run_ai_hedge_fund(
         workflow = create_workflow(selected_analysts)
         agent = workflow.compile()
 
+        # W.B.2 团队级共享记忆: 注入历史教训到 state (feature-flag 控制)
+        historical_lessons = _build_historical_lessons_block(tickers)
+
         final_state = agent.invoke({
             "messages": [HumanMessage(content="Make trading decisions based on the provided data.")],
             "data": {
@@ -210,6 +226,7 @@ def run_ai_hedge_fund(
                 "start_date": start_date,
                 "end_date": end_date,
                 "analyst_signals": {},
+                "historical_lessons": historical_lessons,
             },
             "metadata": {
                 "show_reasoning": show_reasoning,
@@ -220,10 +237,10 @@ def run_ai_hedge_fund(
 
         decisions = parse_hedge_fund_response(final_state["messages"][-1].content)
         signals = final_state["data"]["analyst_signals"]
-        
+
         # 提取对冲分析师信号
         hedge_signal = signals.get("hedge_analyst_agent", {})
-        
+
         return {
             'success': True,
             'decisions': decisions or {},
@@ -251,54 +268,37 @@ def get_available_analysts() -> list[dict]:
 def print_trading_output(result: dict):
     """打印交易决策输出"""
     if not result.get('success'):
-        print(f"\n❌ 分析失败: {result.get('error', '未知错误')}")
         return
 
     decisions = result.get('decisions', {})
     signals = result.get('analyst_signals', {})
     hedge_signal = result.get('hedge_signal', {})
 
-    print("\n" + "=" * 60)
-    print("  🤖 AI Hedge Fund — 多分析师决策报告")
-    print("=" * 60)
-    print(f"  时间范围: {result.get('period', 'N/A')}")
-    print(f"  分析标的: {', '.join(result.get('tickers', []))}")
-    print("-" * 60)
 
     # 打印各分析师信号
-    print("\n📊 分析师信号汇总:")
     for agent_id, agent_signals in signals.items():
         if agent_id in ("risk_management_agent",):
             continue
-        display_name = agent_id.replace('_agent', '').replace('_', ' ').title()
-        print(f"\n  [{display_name}]")
-        for ticker, sig in agent_signals.items():
+        agent_id.replace('_agent', '').replace('_', ' ').title()
+        for _ticker, sig in agent_signals.items():
             signal = sig.get('signal', '?')
-            conf = sig.get('confidence', 0)
-            emoji = {'bullish': '🟢', 'bearish': '🔴', 'neutral': '🟡'}.get(signal, '⚪')
-            print(f"    {emoji} {ticker}: {signal.upper()} (信心: {conf}%)")
+            sig.get('confidence', 0)
+            {'bullish': '🟢', 'bearish': '🔴', 'neutral': '🟡'}.get(signal, '⚪')
 
     # 打印最终决策
-    print("\n🎯 最终交易决策:")
     if not decisions:
-        print("  无决策")
+        pass
     else:
-        for ticker, decision in decisions.items():
+        for _ticker, decision in decisions.items():
             if isinstance(decision, dict):
                 action = decision.get('action', 'hold')
-                qty = decision.get('quantity', 0)
-                conf = decision.get('confidence', 0)
-                reason = decision.get('reasoning', '')
-                emoji = {'buy': '📈', 'sell': '📉', 'short': '🔻', 'cover': '📤', 'hold': '⏸️'}.get(action, '❓')
-                print(f"  {emoji} {ticker}: {action.upper()} x{qty} (信心:{conf}%) — {reason[:80]}")
+                decision.get('quantity', 0)
+                decision.get('confidence', 0)
+                decision.get('reasoning', '')
+                {'buy': '📈', 'sell': '📉', 'short': '🔻', 'cover': '📤', 'hold': '⏸️'}.get(action, '❓')
 
     # 打印对冲建议
     if hedge_signal and hedge_signal.get("hedge_ratio", 0) > 0:
-        print("\n🛡️ 对冲策略建议 (Taleb+Burry+Druckenmiller):")
-        print("-" * 60)
-        print(f"  对冲决策: {hedge_signal.get('signal', 'neutral')}")
-        print(f"  对冲比率: {hedge_signal.get('hedge_ratio', 0)*100:.0f}%")
-        print(f"  紧急程度: {hedge_signal.get('urgency_score', 0)*100:.0f}%")
         reasoning = hedge_signal.get('reasoning', '')
         if reasoning:
             try:
@@ -306,21 +306,17 @@ def print_trading_output(result: dict):
                 r = json.loads(reasoning)
                 if 'hedge_recommendation' in r:
                     rec = r['hedge_recommendation']
-                    print(f"  推荐工具: {rec.get('preferred_instrument', 'N/A')}")
                     if rec.get('futures_contracts'):
-                        print(f"  期货合约: {rec['futures_contracts']}")
+                        pass
                     if rec.get('options_strategy') not in (None, 'NONE'):
-                        print(f"  期权策略: {rec.get('options_strategy', '')} x {rec.get('options_contracts', 0)}张")
-                    print(f"  执行时机: {rec.get('execution_timing', '')}")
+                        pass
                 if 'risk_warnings' in r:
-                    for w in r['risk_warnings']:
-                        print(f"  ⚠️ {w}")
+                    for _w in r['risk_warnings']:
+                        pass
             except (json.JSONDecodeError, KeyError):
                 if len(reasoning) > 120:
                     reasoning = reasoning[:120] + "..."
-                print(f"  详情: {reasoning}")
 
-    print("=" * 60)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -344,8 +340,8 @@ if __name__ == "__main__":
 
     if args.list_analysts:
         analysts = get_available_analysts()
-        for a in analysts:
-            print(f"  [{a['key']}] {a['display_name']} — {a['description']}")
+        for _a in analysts:
+            pass
         sys.exit(0)
 
     result = run_ai_hedge_fund(

@@ -1,10 +1,11 @@
+import json
+
 from langchain_core.messages import HumanMessage
+
+from quant_modules.ai_hedge_fund.data_adapter import get_financial_metrics
 from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
 from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
 from quant_modules.ai_hedge_fund.utils.progress import progress
-import json
-
-from quant_modules.ai_hedge_fund.data_adapter import get_financial_metrics
 
 
 ##### Fundamental Agent #####
@@ -156,7 +157,7 @@ def fundamentals_analyst_agent(state: AgentState, agent_id: str = "fundamentals_
     state["data"]["analyst_signals"][agent_id] = fundamental_analysis
 
     progress.update_status(agent_id, None, "Done")
-    
+
     return {
         "messages": [message],
         "data": data,

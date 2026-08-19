@@ -59,11 +59,10 @@ import json
 import logging
 import os
 import re
-
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from utils.path_config import setup_sys_path
 
@@ -160,16 +159,16 @@ class OptionsSimBroker:
     MOCK_SLIPPAGE = 0.0005  # 权利金滑点 ±0.05%
 
     def __init__(self) -> None:
-        self.filled_orders: List[Dict[str, Any]] = []
-        self._orders: Dict[str, Dict[str, Any]] = {}
+        self.filled_orders: list[dict[str, Any]] = []
+        self._orders: dict[str, dict[str, Any]] = {}
 
-    def place(self, order: Dict[str, Any]) -> str:
+    def place(self, order: dict[str, Any]) -> str:
         """登记订单, 返回 order_id."""
         oid = f"HEDGE-{order.get('order_id', uuid.uuid4().hex[:8])}"
         self._orders[oid] = dict(order)
         return oid
 
-    def wait_fill(self, oid: str) -> Optional[Dict[str, Any]]:
+    def wait_fill(self, oid: str) -> Optional[dict[str, Any]]:
         """撮合成交, 返回 fill."""
         order = self._orders.get(oid)
         if order is None:
@@ -253,7 +252,7 @@ def _resolve_date(trade_date: Optional[str]) -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
-def _collect_pending_orders(plan: dict) -> List[Dict[str, Any]]:
+def _collect_pending_orders(plan: dict) -> list[dict[str, Any]]:
     """从 trade_plan 提取所有 PENDING 状态的期权订单 (去重).
 
     来源 (按优先级):
@@ -263,9 +262,9 @@ def _collect_pending_orders(plan: dict) -> List[Dict[str, Any]]:
         4. plan["hedge_execution"]["active_orders"]          — positions.json 回流
     """
     seen_ids: set = set()
-    orders: List[Dict[str, Any]] = []
+    orders: list[dict[str, Any]] = []
 
-    def _add(order: Dict[str, Any]) -> None:
+    def _add(order: dict[str, Any]) -> None:
         if not isinstance(order, dict):
             return
         status = str(order.get("status", "PENDING")).upper()
@@ -316,7 +315,7 @@ def _collect_pending_orders(plan: dict) -> List[Dict[str, Any]]:
     return orders
 
 
-def _compute_option_delta(order: Dict[str, Any]) -> float:
+def _compute_option_delta(order: dict[str, Any]) -> float:
     """估算单张期权 Delta.
 
     BUY_PUT:        OTM 5% Put Delta ≈ -0.25 (负 Delta, 对冲组合多头)
@@ -331,7 +330,7 @@ def _compute_option_delta(order: Dict[str, Any]) -> float:
     return 0.0
 
 
-def _extract_underlying_code(order: Dict[str, Any]) -> str:
+def _extract_underlying_code(order: dict[str, Any]) -> str:
     """提取期权标的基础代码 (如 '510050 Put' → '510050', '510300.SH' → '510300').
 
     优先级:
@@ -351,7 +350,7 @@ def _extract_underlying_code(order: Dict[str, Any]) -> str:
     return ""
 
 
-def _load_underlying_price(positions_data: dict, order: Dict[str, Any]) -> float:
+def _load_underlying_price(positions_data: dict, order: dict[str, Any]) -> float:
     """从持仓中读取期权标的的当前价格."""
     base_code = _extract_underlying_code(order)
     if not base_code:
@@ -368,7 +367,7 @@ def execute_hedge_orders(
     trade_date: str,
     dry_run: bool = False,
     confirm_only: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """执行当日 PENDING 期权对冲订单.
 
     Args:
@@ -396,7 +395,7 @@ def execute_hedge_orders(
 
     # 读取持仓配置 (含 hedge_positions)
     positions_data = _load_json(POSITIONS_FILE)
-    hedge_positions = positions_data.get("hedge_positions", {}) or {}
+    positions_data.get("hedge_positions", {}) or {}
 
     # 2. 收集 PENDING 期权订单
     pending_orders = _collect_pending_orders(plan)
@@ -421,7 +420,7 @@ def execute_hedge_orders(
 
     # 4. 撮合执行
     broker = OptionsSimBroker()
-    fills: List[Dict[str, Any]] = []
+    fills: list[dict[str, Any]] = []
     beta_reduction_total = 0.0
     total_put_cost = 0.0
     total_call_income = 0.0
@@ -448,7 +447,7 @@ def execute_hedge_orders(
 
         # Delta 影响 (张数 × 单张Delta × 标的市值折算到组合Beta)
         delta_per_contract = _compute_option_delta(order)
-        order_delta = delta_per_contract * contracts
+        delta_per_contract * contracts
         # Beta 影响 ≈ (Delta 名义覆盖 / 组合市值) × 标的Beta(用1近似)
         order_notional = notional_per_contract * contracts if notional_per_contract > 0 else 0
         beta_impact = (order_notional / portfolio_value * 1.0 * abs(delta_per_contract)
@@ -497,7 +496,7 @@ def execute_hedge_orders(
     total_cost = total_put_cost - total_call_income
     hedge_enabled = len(fills) > 0
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "trade_date": trade_date,
         "generated_at": datetime.now().isoformat(),
         "portfolio_beta": round(portfolio_beta, 4),
@@ -554,7 +553,7 @@ def execute_hedge_orders(
     return result
 
 
-def _update_positions_state(positions_data: dict, fills: List[Dict[str, Any]], trade_date: str) -> None:
+def _update_positions_state(positions_data: dict, fills: list[dict[str, Any]], trade_date: str) -> None:
     """更新 positions.json hedge_positions:
       - active_orders 中已成交订单 status → FILLED
       - 记录 actual_positions (实际期权持仓)
@@ -630,30 +629,13 @@ def _update_positions_state(positions_data: dict, fills: List[Dict[str, Any]], t
                 len(fills), len(actual))
 
 
-def print_result(result: Dict[str, Any]) -> None:
+def print_result(result: dict[str, Any]) -> None:
     """打印执行结果."""
-    print("=" * 70)
-    print("期权对冲订单执行结果")
-    print("=" * 70)
-    print(f"日期: {result.get('trade_date', '')}")
-    print(f"状态: {result.get('status', '')}")
-    print(f"对冲前组合 Beta: {result.get('portfolio_beta', 0):.4f}")
-    print(f"对冲后组合 Beta: {result.get('beta_after_hedge', 0):.4f}")
-    print(f"Beta 降低: {result.get('beta_reduction', 0):.4f}")
-    print(f"Put 支出: RMB {result.get('put_cost', 0):,.2f}")
-    print(f"Call 收入: RMB {result.get('call_income', 0):,.2f}")
-    print(f"净成本: RMB {result.get('total_cost', 0):,.2f}")
-    print(f"成交笔数: {result.get('filled_count', 0)}")
 
     orders = result.get("orders", [])
     if orders:
-        print("-" * 70)
-        for o in orders:
-            print(f"  [{o.get('status','?')}] {o.get('direction','?'):<20} "
-                  f"{o.get('instrument','?'):<12} {o.get('contracts',0)}张 "
-                  f"权利金RMB{o.get('premium_total',0):,.0f} "
-                  f"strike={o.get('strike_rule', o.get('strike',''))}")
-    print("=" * 70)
+        for _o in orders:
+            pass
 
 
 def main() -> None:

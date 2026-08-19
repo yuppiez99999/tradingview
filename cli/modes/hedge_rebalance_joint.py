@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 """对冲+再平衡联动分析 — 五阶段联合决策引擎 v5.9"""
 import json
-import os
-from datetime import datetime
-from core.context import BASE_DIR, logger, ProgressIndicator, get_archive_dir
+
+from core.context import BASE_DIR, ProgressIndicator
 
 
 def run_hedge_rebalance_joint(args):
@@ -43,9 +41,7 @@ def run_hedge_rebalance_joint(args):
     print("=" * 70)
 
     try:
-        from utils.hedge_rebalance_integrator import (
-            HedgeRebalanceIntegrator, run_joint_analysis
-        )
+        from utils.hedge_rebalance_integrator import HedgeRebalanceIntegrator, run_joint_analysis  # noqa: F401
         _INTEGRATOR_OK = True
     except ImportError as e:
         print(f"\n  ❌ 联动引擎加载失败: {e}")
@@ -53,7 +49,7 @@ def run_hedge_rebalance_joint(args):
         return
 
     show_reasoning = getattr(args, 'show_reasoning', False)
-    auto_execute = getattr(args, 'auto_execute', False)
+    getattr(args, 'auto_execute', False)
     no_ai = getattr(args, 'no_ai', False)
 
     # 联合分析流程
@@ -62,34 +58,31 @@ def run_hedge_rebalance_joint(args):
     integrator = HedgeRebalanceIntegrator(base_dir=BASE_DIR, hedge_mode=hedge_mode)
 
     # v5.9: 计算组合自动决策和市场状态（从历史收益率计算）
-    import numpy as np
     portfolio_volatility = 0.18   # 默认 18% 年化波动率
     portfolio_drawdown_60d = 0.0  # 默认无显著回撤
     try:
         prices = integrator.load_prices()
         if prices:
-            returns_list = []
             for code in prices:
-                px = prices[code]
+                prices[code]
                 # 保留扩展点：后续可从历史数据计算真实波动率
                 pass
     except Exception:
         pass
 
     # 构建市场信号（用于外部输入，v5.9已尽量缩小为5%）
-    market_signals = {}
 
     # Phase 1: 风险评估
     progress.update(1, " 评估组合风险...")
     risk = integrator.assess_risk()
-    print(f"\n  📊 [Phase 1/5] 组合风险评估 (v5.9 多标的)")
+    print("\n  📊 [Phase 1/5] 组合风险评估 (v5.9 多标的)")
     print(f"  {'─' * 55}")
     print(f"  组合总资产:      ¥{risk.total_value:,.0f}")
-    print(f"  股票敞口:        ¥{risk.stock_exposure:,.0f} ({risk.stock_exposure/risk.total_value*100:.0f}%)" if risk.total_value > 0 else f"  股票敞口:        ¥0")
+    print(f"  股票敞口:        ¥{risk.stock_exposure:,.0f} ({risk.stock_exposure/risk.total_value*100:.0f}%)" if risk.total_value > 0 else "  股票敞口:        ¥0")
     print(f"  组合Beta:       CSI300={risk.beta_csi300:.2f} | CSI500={risk.beta_csi500:.2f} | CSI1000={risk.beta_csi1000:.2f}")
     print(f"  估算波动率:     {portfolio_volatility*100:.1f}% (年化)")
     print(f"  估算60日回撤:   {portfolio_drawdown_60d*100:.1f}%")
-    print(f"  日VaR(95%):     ¥{risk.var_95_daily:,.0f} ({risk.var_95_daily/risk.total_value*100:.2f}%)" if risk.total_value > 0 else f"  日VaR(95%):     ¥0")
+    print(f"  日VaR(95%):     ¥{risk.var_95_daily:,.0f} ({risk.var_95_daily/risk.total_value*100:.2f}%)" if risk.total_value > 0 else "  日VaR(95%):     ¥0")
     print(f"  集中度(HHI):    {risk.concentration_risk:.3f}")
 
     # Phase 2: 对冲策略 (v5.9: 组合自触发)
@@ -103,20 +96,20 @@ def run_hedge_rebalance_joint(args):
         "calm": "😊 平静市场", "mild": "😐 温和波动",
         "high": "😰 高波动", "tail": "🚨 尾部事件"
     }
-    print(f"\n  🛡️ [Phase 2/5] 对冲策略")
+    print("\n  🛡️ [Phase 2/5] 对冲策略")
     print(f"  {'─' * 55}")
     print(f"  市场状态?:       {regime_desc.get(hedge.regime.value, hedge.regime.value)}")
-    print(f"  对冲需求?:       {'需要' if hedge.needed else '无需'}")     
-    if hedge.needed:     
+    print(f"  对冲需求?:       {'需要' if hedge.needed else '无需'}")
+    if hedge.needed:
         print(f"  对冲比率:       {hedge.hedge_ratio*100:.0f}% (¥{risk.stock_exposure*hedge.hedge_ratio:,.0f})" if risk.stock_exposure > 0 else f"  对冲比率:       {hedge.hedge_ratio*100:.0f}%")
-        print(f"  推荐品种:       {', '.join(hedge.futures_instruments) if hedge.futures_instruments else '无可用品种'}")    
+        print(f"  推荐品种:       {', '.join(hedge.futures_instruments) if hedge.futures_instruments else '无可用品种'}")
         if hedge.futures_contracts:
             for code, n in hedge.futures_contracts.items():
                 notional = hedge.futures_notional.get(code, 0)
                 margin = hedge.futures_margin.get(code, 0)
-                print(f"    {code}: 做空 {n} 手| 名义¥{notional:,.0f} | 保证金¥{margin:,.0f}")  
+                print(f"    {code}: 做空 {n} 手| 名义¥{notional:,.0f} | 保证金¥{margin:,.0f}")
             print(f"  总保证金需求:        ¥{hedge.total_margin:,.0f} (占总资产{hedge.total_margin/risk.total_value*100:.1f}%)" if risk.total_value > 0 else f"  总保证金需求:        ¥{hedge.total_margin:,.0f}")
-        print(f"  期望对冲后Beta: {hedge.expected_beta_after:.2f}")      
+        print(f"  期望对冲后Beta: {hedge.expected_beta_after:.2f}")
         print(f"  价格数据来源:     {hedge.price_source}")
         if hedge.fallback_used:
             print(f"  ⚠️   回退数据源: {', '.join(hedge.fallback_used)}")
@@ -128,7 +121,7 @@ def run_hedge_rebalance_joint(args):
     # Phase 3: 再平衡检查 (v5.9: 自动阈值调整)
     progress.update(3, " 再平衡检查...")
     rebalance = integrator.check_rebalance(risk, portfolio_volatility=portfolio_volatility)
-    print(f"\n  🔄 [Phase 3/5] 再平衡检查")     
+    print("\n  🔄 [Phase 3/5] 再平衡检查")
     print(f"  {'─' * 55}")
     print(f"  再平衡类型:     {rebalance.rebalance_type}")
     print(f"  自动阈值?:       {rebalance.threshold*100:.0f}%")
@@ -137,14 +130,14 @@ def run_hedge_rebalance_joint(args):
         print(f"  总买入金额:  ¥{rebalance.total_buy_amount:,.0f} | 总卖出金额: ¥{rebalance.total_sell_amount:,.0f} | 净现金流: ¥{rebalance.net_cash_flow:,.0f}")
         print(f"\n  {'代码':<12s} {'名称':<10s} {'组':<8s} {'操作':<6s} {'目标权重':>8s} {'当前权重':>8s} {'偏差':>8s} {'调整额':>10s}")
         print(f"  {'─' * 80}")
-        for pw in rebalance.positions_to_adjust:    
+        for pw in rebalance.positions_to_adjust:
             op_icon = "🔴" if pw.action == "SELL" else ("🟢" if pw.action == "BUY" else "⚪")
             print(f"  {op_icon} {pw.code:<10s} {pw.name:<10s} {pw.category:<8s} {pw.action:<6s} "
                   f"{pw.target_weight*100:>7.1f}% {pw.current_weight*100:>7.1f}% "
-                  f"{pw.deviation_pct*100:>7.1f}% ¥{pw.adjustment:>10,.0f}")  
+                  f"{pw.deviation_pct*100:>7.1f}% ¥{pw.adjustment:>10,.0f}")
     else:
         print(f"  原因:           {rebalance.reasoning}")
-    if show_reasoning:   
+    if show_reasoning:
         print(f"  组合权重:       {integrator._get_sector_adjusted_weights()}")
 
     # Phase 4: 联合优化
@@ -156,48 +149,48 @@ def run_hedge_rebalance_joint(args):
         for w in warnings:
             print(f"  ⚠️  {w}")
     else:
-        print(f"\n  ✅ [Phase 4/5] 联合优化 — 通过 ✓")
+        print("\n  ✅ [Phase 4/5] 联合优化 — 通过 ✓")
         print(f"  {'─' * 55}")
-        print(f"  对冲后组合 vs 再平衡后分布一致，无需调整")  
+        print("  对冲后组合 vs 再平衡后分布一致，无需调整")
 
     # Phase 5: 生成执行计划
-    progress.update(5, " 生成执行计划...")       
+    progress.update(5, " 生成执行计划...")
     plan = integrator.generate_execution_plan(risk, adj_hedge, adj_rebalance, warnings)
 
-    print(f"\n  📋 [Phase 5/5] 执行计划")        
+    print("\n  📋 [Phase 5/5] 执行计划")
     print(f"  {'─' * 55}")
     print(f"  执行优先级:      {plan.execution_priority}")
     print(f"  计划窗口:        {plan.execution_window}")
-    print(f"  对冲后净敞口:    ¥{plan.after_hedge_exposure:,.0f}")      
+    print(f"  对冲后净敞口:    ¥{plan.after_hedge_exposure:,.0f}")
 
-    print(f"\n  📈 绩效预测 (vs 基准未配置)")
+    print("\n  📈 绩效预测 (vs 基准未配置)")
     print(f"  {'─' * 55}")
-    print(f"  预期年化收益提升:   {plan.estimated_annual_return*100:.1f}%") 
-    print(f"  预期最大回撤:       {plan.estimated_max_drawdown*100:.1f}%")     
+    print(f"  预期年化收益提升:   {plan.estimated_annual_return*100:.1f}%")
+    print(f"  预期最大回撤:       {plan.estimated_max_drawdown*100:.1f}%")
     print(f"  预期夏普比率:       {plan.estimated_sharpe:.2f}")
-    print(f"  预期年化波动率:     {plan.estimated_volatility*100:.1f}%")    
+    print(f"  预期年化波动率:     {plan.estimated_volatility*100:.1f}%")
 
     print(f"\n  {'=' * 55}")
     print(f"  📝 总结: {plan.summary}")
     print(f"  {'=' * 55}")
 
     if plan.warning_flags:
-        print(f"\n  ⚠️  注意事项:")        
+        print("\n  ⚠️  注意事项:")
         for w in plan.warning_flags:
             print(f"    - {w}")
 
-    # 保存报告       
-    report_path = integrator.save_report(plan)      
+    # 保存报告
+    report_path = integrator.save_report(plan)
     print(f"\n  📄 联动报告已保存: {report_path}")
 
     # AI 分析（可选）
-    if not no_ai:        
-        print(f"\n  🧠 AI 联动分析...")        
+    if not no_ai:
+        print("\n  🧠 AI 联动分析...")
         print(f"  {'─' * 55}")
         try:
             from quant_modules.ai_hedge_fund.agents.hedge_analyst import hedge_analyst_agent
 
-            positions_data = integrator.positions   
+            positions_data = integrator.positions
             analyst_state = {
                 "messages": [],
                 "data": {
@@ -208,7 +201,7 @@ def run_hedge_rebalance_joint(args):
                             code: {"long": p.get('shares', 0), "short": 0, "long_cost_basis": p.get('cost', 0)}
                             for code, p in positions_data.items()
                         },
-                    },   
+                    },
                     "market_data": {
                         "total_value": risk.total_value,
                         "beta_csi300": risk.beta_csi300,
@@ -225,17 +218,17 @@ def run_hedge_rebalance_joint(args):
                     "model_provider": getattr(args, 'provider', 'DeepSeek'),
                 },
             }
-            
+
             result = hedge_analyst_agent(analyst_state)
             hedge_signal = result["data"]["analyst_signals"].get("hedge_analyst_agent", {})
-            
+
             if hedge_signal:
                 signal_name = hedge_signal.get("signal", "neutral")
                 signal_emoji = {"bearish": "🔴", "neutral": "🟡", "bullish": "🟢"}.get(signal_name, "⚪")
                 print(f"    {signal_emoji} 对冲信号: {signal_name}")
                 print(f"    对冲比率: {hedge_signal.get('hedge_ratio', 0)*100:.0f}%")
                 print(f"    紧急程度: {hedge_signal.get('urgency_score', 0)*100:.0f}%")
-                
+
                 reasoning = hedge_signal.get('reasoning', '')
                 if reasoning:
                     try:
@@ -255,5 +248,5 @@ def run_hedge_rebalance_joint(args):
             print(f"    ⚠️ AI分析跳过: {e}")
 
     progress.complete("✅ 联动分析完成")
-    print(f"\n  ⚠️ 以上分析仅供参考，不构成投资建议。")
-    print(f"  期货/期权交易有杠杆风险，请谨慎执行。")
+    print("\n  ⚠️ 以上分析仅供参考，不构成投资建议。")
+    print("  期货/期权交易有杠杆风险，请谨慎执行。")

@@ -99,8 +99,7 @@ def main() -> int:
                 ):
                     sym = m.group(1)
                     ret_pct = float(m.group(2))
-                    # thr 字段是新逻辑才有的
-                    has_thr = m.group(3) is not None
+
                     thr_old = 0.20  # 旧逻辑统一 20%
                     thr_new = get_abnormal_threshold(sym)
                     abnormal_list.append(

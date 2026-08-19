@@ -97,7 +97,7 @@ try:
     stub_or = ats_mod.OrderRouter()
     stub_tc = ats_mod.TradingCalendar()
     assert callable(getattr(stub_tc, "get_next_execution_time", None))
-    print(f"  [OK] ATS 5 forward-classes + AutoTS inherits AES, stubs instantiable")
+    print("  [OK] ATS 5 forward-classes + AutoTS inherits AES, stubs instantiable")
     passed += 1
 except Exception as e:  # noqa: BLE001
     print(f"  [FAIL] ATS: {e}")

@@ -101,7 +101,6 @@ def log(msg: str, level: str = "INFO") -> None:
     """写日志到文件并打印"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{timestamp}] [{level}] {msg}"
-    print(line)
     try:
         log_file = get_log_file()
         with open(log_file, "a", encoding="utf-8") as f:

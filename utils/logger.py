@@ -15,7 +15,7 @@ import sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(pathname)s:%(lineno)d | %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -51,11 +51,16 @@ _LITELLM_LOGGERS = [
 class RelativePathFormatter(logging.Formatter):
     """将日志中的绝对路径转换为相对路径"""
 
-    def __init__(self, fmt=None, datefmt=None, relative_to=None):
+    def __init__(
+        self,
+        fmt: Optional[str] = None,
+        datefmt: Optional[str] = None,
+        relative_to: Optional[str | Path] = None,
+    ) -> None:
         super().__init__(fmt, datefmt)
         self.relative_to = Path(relative_to) if relative_to else Path.cwd()
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         try:
             record.pathname = str(Path(record.pathname).relative_to(self.relative_to))
         except ValueError:
@@ -89,7 +94,7 @@ class Logger:
         if not self.logger.handlers:
             self._setup_handlers()
 
-    def _setup_handlers(self):
+    def _setup_handlers(self) -> None:
         """兼容旧行为：控制台 + 单文件轮转"""
         formatter = RelativePathFormatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s", relative_to=Path.cwd()
@@ -116,19 +121,19 @@ class Logger:
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
-    def debug(self, message: str, *args, **kwargs):
+    def debug(self, message: str, *args: Any, **kwargs: Any) -> None:
         self.logger.debug(message, *args, **kwargs)
 
-    def info(self, message: str, *args, **kwargs):
+    def info(self, message: str, *args: Any, **kwargs: Any) -> None:
         self.logger.info(message, *args, **kwargs)
 
-    def warning(self, message: str, *args, **kwargs):
+    def warning(self, message: str, *args: Any, **kwargs: Any) -> None:
         self.logger.warning(message, *args, **kwargs)
 
-    def error(self, message: str, *args, **kwargs):
+    def error(self, message: str, *args: Any, **kwargs: Any) -> None:
         self.logger.error(message, *args, **kwargs)
 
-    def critical(self, message: str, *args, **kwargs):
+    def critical(self, message: str, *args: Any, **kwargs: Any) -> None:
         self.logger.critical(message, *args, **kwargs)
 
 

@@ -1,25 +1,25 @@
+import json
 import math
+from typing import Any
 
+import numpy as np
+import pandas as pd
 from langchain_core.messages import HumanMessage
 
+from quant_modules.ai_hedge_fund.data_adapter import get_prices, prices_to_df
 from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
 from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
-import json
-import pandas as pd
-import numpy as np
-
-from quant_modules.ai_hedge_fund.data_adapter import get_prices, prices_to_df
 from quant_modules.ai_hedge_fund.utils.progress import progress
 
 
-def safe_float(value, default=0.0):
+def safe_float(value: Any, default: float = 0.0) -> float:
     """
     Safely convert a value to float, handling NaN cases
-    
+
     Args:
         value: The value to convert (can be pandas scalar, numpy value, etc.)
         default: Default value to return if the input is NaN or invalid
-    
+
     Returns:
         float: The converted value or default if NaN/invalid
     """
@@ -32,7 +32,7 @@ def safe_float(value, default=0.0):
 
 
 ##### Technical Analyst #####
-def technical_analyst_agent(state: AgentState, agent_id: str = "technical_analyst_agent"):
+def technical_analyst_agent(state: AgentState, agent_id: str = "technical_analyst_agent") -> dict:
     """
     Sophisticated technical analysis system that combines multiple trading strategies for multiple tickers:
     1. Trend Following
@@ -157,7 +157,7 @@ def technical_analyst_agent(state: AgentState, agent_id: str = "technical_analys
     }
 
 
-def calculate_trend_signals(prices_df):
+def calculate_trend_signals(prices_df: pd.DataFrame) -> dict:
     """
     Advanced trend following strategy using multiple timeframes and indicators
     """
@@ -196,7 +196,7 @@ def calculate_trend_signals(prices_df):
     }
 
 
-def calculate_mean_reversion_signals(prices_df):
+def calculate_mean_reversion_signals(prices_df: pd.DataFrame) -> dict:
     """
     Mean reversion strategy using statistical measures and Bollinger Bands
     """
@@ -238,7 +238,7 @@ def calculate_mean_reversion_signals(prices_df):
     }
 
 
-def calculate_momentum_signals(prices_df):
+def calculate_momentum_signals(prices_df: pd.DataFrame) -> dict:
     """
     Multi-factor momentum strategy
     """
@@ -283,7 +283,7 @@ def calculate_momentum_signals(prices_df):
     }
 
 
-def calculate_volatility_signals(prices_df):
+def calculate_volatility_signals(prices_df: pd.DataFrame) -> dict:
     """
     Volatility-based trading strategy
     """
@@ -330,7 +330,7 @@ def calculate_volatility_signals(prices_df):
     }
 
 
-def calculate_stat_arb_signals(prices_df):
+def calculate_stat_arb_signals(prices_df: pd.DataFrame) -> dict:
     """
     Statistical arbitrage signals based on price action analysis
     """
@@ -369,7 +369,7 @@ def calculate_stat_arb_signals(prices_df):
     }
 
 
-def weighted_signal_combination(signals, weights):
+def weighted_signal_combination(signals: dict, weights: dict) -> dict:
     """
     Combines multiple trading signals using a weighted approach
     """
@@ -404,7 +404,7 @@ def weighted_signal_combination(signals, weights):
     return {"signal": signal, "confidence": abs(final_score)}
 
 
-def normalize_pandas(obj):
+def normalize_pandas(obj: Any) -> Any:
     """Convert pandas Series/DataFrames to primitive Python types"""
     if isinstance(obj, pd.Series):
         return obj.tolist()

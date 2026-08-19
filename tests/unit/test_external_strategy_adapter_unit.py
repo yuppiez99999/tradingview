@@ -1,9 +1,6 @@
-# -*- coding: utf-8 -*-
 """external_strategy_adapter 单元测试 — 外部策略适配器"""
-from unittest.mock import patch, MagicMock
 from pathlib import Path
-
-import pytest
+from unittest.mock import patch
 
 from utils.external_strategy_adapter import (
     ExternalStrategyAdapter,

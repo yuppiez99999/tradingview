@@ -1,13 +1,10 @@
-# -*- coding: utf-8 -*-
 """graph_data_source 单元测试 — GNN 图数据源边构建"""
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from utils.graph_data_source import (
     GraphDataSource,
-    _safe_float,
     _market_of,
+    _safe_float,
     get_graph_data_source,
 )
 

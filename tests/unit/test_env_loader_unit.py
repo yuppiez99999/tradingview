@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """env_loader 单元测试 — .env 文件加载全分支覆盖
 
 覆盖:
@@ -21,8 +20,6 @@ import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:

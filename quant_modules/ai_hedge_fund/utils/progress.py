@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
+from typing import Any, Callable, Optional
+
 from rich.console import Console
 from rich.live import Live
-from rich.table import Table
 from rich.style import Style
+from rich.table import Table
 from rich.text import Text
-from typing import Dict, Optional, Callable, List
 
 console = Console()
 
@@ -13,35 +16,35 @@ class AgentProgress:
     """Manages progress tracking for multiple agents."""
 
     def __init__(self):
-        self.agent_status: Dict[str, Dict[str, str]] = {}
+        self.agent_status: dict[str, dict[str, str]] = {}
         self.table = Table(show_header=False, box=None, padding=(0, 1))
         self.live = Live(self.table, console=console, refresh_per_second=4)
         self.started = False
-        self.update_handlers: List[Callable[[str, Optional[str], str], None]] = []
+        self.update_handlers: list[Callable[[str, Optional[str], str], None]] = []
 
-    def register_handler(self, handler: Callable[[str, Optional[str], str], None]):
+    def register_handler(self, handler: Callable[[str, Optional[str], str], None]) -> Callable[[str, Optional[str], str], None]:
         """Register a handler to be called when agent status updates."""
         self.update_handlers.append(handler)
         return handler  # Return handler to support use as decorator
 
-    def unregister_handler(self, handler: Callable[[str, Optional[str], str], None]):
+    def unregister_handler(self, handler: Callable[[str, Optional[str], str], None]) -> None:
         """Unregister a previously registered handler."""
         if handler in self.update_handlers:
             self.update_handlers.remove(handler)
 
-    def start(self):
+    def start(self) -> None:
         """Start the progress display."""
         if not self.started:
             self.live.start()
             self.started = True
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the progress display."""
         if self.started:
             self.live.stop()
             self.started = False
 
-    def update_status(self, agent_name: str, ticker: Optional[str] = None, status: str = "", analysis: Optional[str] = None):
+    def update_status(self, agent_name: str, ticker: Optional[str] = None, status: str = "", analysis: Optional[str] = None) -> None:
         """Update the status of an agent."""
         if agent_name not in self.agent_status:
             self.agent_status[agent_name] = {"status": "", "ticker": None}
@@ -52,7 +55,7 @@ class AgentProgress:
             self.agent_status[agent_name]["status"] = status
         if analysis:
             self.agent_status[agent_name]["analysis"] = analysis
-        
+
         # Set the timestamp as UTC datetime
         timestamp = datetime.now(timezone.utc).isoformat()
         self.agent_status[agent_name]["timestamp"] = timestamp
@@ -63,7 +66,7 @@ class AgentProgress:
 
         self._refresh_display()
 
-    def get_all_status(self):
+    def get_all_status(self) -> dict[str, dict[str, Any]]:
         """Get the current status of all agents as a dictionary."""
         return {agent_name: {"ticker": info["ticker"], "status": info["status"], "display_name": self._get_display_name(agent_name)} for agent_name, info in self.agent_status.items()}
 
@@ -71,13 +74,13 @@ class AgentProgress:
         """Convert agent_name to a display-friendly format."""
         return agent_name.replace("_agent", "").replace("_", " ").title()
 
-    def _refresh_display(self):
+    def _refresh_display(self) -> None:
         """Refresh the progress display."""
         self.table.columns.clear()
         self.table.add_column(width=100)
 
         # Sort agents with Risk Management and Portfolio Management at the bottom
-        def sort_key(item):
+        def sort_key(item: tuple[str, dict[str, str]]) -> tuple[int, str]:
             agent_name = item[0]
             if "risk_management" in agent_name:
                 return (2, agent_name)

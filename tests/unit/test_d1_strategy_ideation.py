@@ -8,13 +8,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from utils.llm_evolution.strategy_ideation import (
-    StrategyIdeationEngine,
-    MarketObservation,
     Hypothesis,
-    IdeationCycleResult,
-    SYSTEM_PROMPT,
+    MarketObservation,
+    StrategyIdeationEngine,
 )
-
 
 # ============================================================
 # 测试夹具

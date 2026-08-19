@@ -36,7 +36,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import yaml
 
@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 
 # 8 类风格大类 (与 configs/portfolio.yaml 的 style 字段对齐)
-STYLE_CATEGORIES: List[str] = [
+STYLE_CATEGORIES: list[str] = [
     "科技", "新能源", "医药", "金融",
     "宽基", "资源", "防御", "现金",
 ]
@@ -59,7 +59,7 @@ STYLE_CATEGORIES: List[str] = [
 #   - 资源类: 黄金属性偏防御, 铜矿偏进攻, 整体中性偏防御
 #   - 防御类 (防御/现金): 高波动加仓, 低波动减仓
 #   - 现金: 所有档位的最终吸收者, 调整后差额归现金
-DEFAULT_WEIGHT_MATRIX: Dict[str, Dict[str, float]] = {
+DEFAULT_WEIGHT_MATRIX: dict[str, dict[str, float]] = {
     "bull": {
         "科技": 1.20, "新能源": 1.15, "医药": 1.10, "金融": 1.05,
         "宽基": 1.05, "资源": 1.00, "防御": 0.90, "现金": 0.50,
@@ -79,11 +79,11 @@ DEFAULT_WEIGHT_MATRIX: Dict[str, Dict[str, float]] = {
 }
 
 # Regime 阈值 (VIX 优先, realized_vol 备选)
-VIX_THRESHOLDS: Dict[str, float] = {"bull": 20.0, "neutral": 30.0, "bear": 40.0}
-RV_THRESHOLDS: Dict[str, float] = {"bull": 0.15, "neutral": 0.25, "bear": 0.40}
+VIX_THRESHOLDS: dict[str, float] = {"bull": 20.0, "neutral": 30.0, "bear": 40.0}
+RV_THRESHOLDS: dict[str, float] = {"bull": 0.15, "neutral": 0.25, "bear": 0.40}
 
 # 对齐 portfolio.yaml dynamic_hedge_policy 的四档 hedge_ratio
-ALIGNED_HEDGE_RATIOS: Dict[str, float] = {
+ALIGNED_HEDGE_RATIOS: dict[str, float] = {
     "bull": 0.20,
     "neutral": 0.40,
     "bear": 0.75,
@@ -95,7 +95,7 @@ REGIME_BULL = "bull"
 REGIME_NEUTRAL = "neutral"
 REGIME_BEAR = "bear"
 REGIME_CRISIS = "crisis"
-REGIME_ORDER: List[str] = [REGIME_BULL, REGIME_NEUTRAL, REGIME_BEAR, REGIME_CRISIS]
+REGIME_ORDER: list[str] = [REGIME_BULL, REGIME_NEUTRAL, REGIME_BEAR, REGIME_CRISIS]
 
 # 默认约束 (对齐 configs/portfolio.yaml risk_parameters)
 DEFAULT_MAX_SINGLE_POSITION = 0.08
@@ -130,12 +130,12 @@ class VolRegime:
     label: str
     confidence: float
     source: str
-    indicators: Dict[str, float] = field(default_factory=dict)
+    indicators: dict[str, float] = field(default_factory=dict)
     aligned_hedge_ratio: float = 0.40
     hedge_policy_key: str = "neutral_market"
-    consistency_check: Dict[str, Any] = field(default_factory=dict)
+    consistency_check: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "label": self.label,
             "confidence": round(self.confidence, 4),
@@ -168,18 +168,18 @@ class WeightSuggestion:
     """
     timestamp: str
     regime: VolRegime
-    current_weights: Dict[str, float] = field(default_factory=dict)
-    suggested_weights: Dict[str, float] = field(default_factory=dict)
-    multipliers: Dict[str, float] = field(default_factory=dict)
-    deltas: Dict[str, float] = field(default_factory=dict)
-    constraints_applied: List[str] = field(default_factory=list)
+    current_weights: dict[str, float] = field(default_factory=dict)
+    suggested_weights: dict[str, float] = field(default_factory=dict)
+    multipliers: dict[str, float] = field(default_factory=dict)
+    deltas: dict[str, float] = field(default_factory=dict)
+    constraints_applied: list[str] = field(default_factory=list)
     confidence: float = 0.0
     trigger_reason: str = ""
     observation_phase: bool = True
     degraded: bool = False
     degraded_reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "report_version": "1.0",
             "generated_at": self.timestamp,
@@ -299,7 +299,7 @@ class VolRegimeWeighter:
             logger.warning("VolTargetController 初始化失败, 将降级: %s", e)
             return None
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """加载配置文件 (HC-5 4 级优先级, 这里简化为直接读取)."""
         try:
             if self.config_path.exists():
@@ -311,7 +311,7 @@ class VolRegimeWeighter:
             logger.warning("配置加载失败, 使用默认值: %s (%s)", self.config_path, e)
         return {}
 
-    def _merge_matrix(self) -> Dict[str, Dict[str, float]]:
+    def _merge_matrix(self) -> dict[str, dict[str, float]]:
         """合并默认矩阵与配置覆写."""
         merged = {regime: dict(styles) for regime, styles in DEFAULT_WEIGHT_MATRIX.items()}
         override = self._config.get("weight_matrix", {}) or {}
@@ -332,7 +332,7 @@ class VolRegimeWeighter:
     def sense_regime(
         self,
         vix_value: Optional[float] = None,
-        daily_returns: Optional[List[float]] = None,
+        daily_returns: Optional[list[float]] = None,
         psi_value: Optional[float] = None,
         current_drawdown: Optional[float] = None,
     ) -> VolRegime:
@@ -352,7 +352,7 @@ class VolRegimeWeighter:
         Returns:
             VolRegime 对象
         """
-        indicators: Dict[str, float] = {}
+        indicators: dict[str, float] = {}
         vix_classification: Optional[str] = None
         rv_classification: Optional[str] = None
         source = "fallback"
@@ -373,7 +373,7 @@ class VolRegimeWeighter:
                     rv_classification = self._classify_by_rv(realized_vol)
                     if source == "fallback":
                         source = "realized_vol"
-                except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+                except (ValueError, KeyError, AttributeError, OSError) as e:
                     logger.warning("calc_realized_vol 失败: %s", e)
 
         # 辅助指标
@@ -483,10 +483,10 @@ class VolRegimeWeighter:
 
     def compute_weights(
         self,
-        current_weights: Dict[str, float],
+        current_weights: dict[str, float],
         regime: Optional[VolRegime] = None,
         vix_value: Optional[float] = None,
-        daily_returns: Optional[List[float]] = None,
+        daily_returns: Optional[list[float]] = None,
         psi_value: Optional[float] = None,
         current_drawdown: Optional[float] = None,
     ) -> WeightSuggestion:
@@ -522,8 +522,8 @@ class VolRegimeWeighter:
 
         # 应用 4×8 矩阵
         multipliers = self.weight_matrix.get(regime.label, self.weight_matrix[REGIME_NEUTRAL])
-        raw_suggested: Dict[str, float] = {}
-        applied_multipliers: Dict[str, float] = {}
+        raw_suggested: dict[str, float] = {}
+        applied_multipliers: dict[str, float] = {}
 
         for style, current_w in current_weights.items():
             if style in multipliers:
@@ -567,7 +567,7 @@ class VolRegimeWeighter:
             observation_phase=True,
         )
 
-    def _build_trigger_reason(self, regime: VolRegime, multipliers: Dict[str, float]) -> str:
+    def _build_trigger_reason(self, regime: VolRegime, multipliers: dict[str, float]) -> str:
         """构建人类可读的触发理由."""
         ind = regime.indicators
         ind_str = ", ".join(f"{k}={v}" for k, v in ind.items()) if ind else "无指标"
@@ -586,11 +586,11 @@ class VolRegimeWeighter:
 
     def enforce_constraints(
         self,
-        suggested_weights: Dict[str, float],
+        suggested_weights: dict[str, float],
         max_single_position: float = DEFAULT_MAX_SINGLE_POSITION,
         max_sector_exposure: float = DEFAULT_MAX_SECTOR_EXPOSURE,
         cash_floor: float = DEFAULT_CASH_FLOOR,
-    ) -> Tuple[Dict[str, float], List[str]]:
+    ) -> tuple[dict[str, float], list[str]]:
         """强制约束: 单标的≤max_single, 单一风格≤max_sector, 现金≥cash_floor, 总和=1.0.
 
         Args:
@@ -602,7 +602,7 @@ class VolRegimeWeighter:
         Returns:
             (调整后权重, 调整说明列表)
         """
-        constraints_applied: List[str] = []
+        constraints_applied: list[str] = []
         weights = dict(suggested_weights)
 
         # 1. 单一风格上限 (max_sector_exposure)
@@ -700,14 +700,14 @@ class VolRegimeWeighter:
 
     def run_cycle(
         self,
-        portfolio_snapshot: Dict[str, Any],
+        portfolio_snapshot: dict[str, Any],
         vix_value: Optional[float] = None,
-        daily_returns: Optional[List[float]] = None,
+        daily_returns: Optional[list[float]] = None,
         psi_value: Optional[float] = None,
         current_drawdown: Optional[float] = None,
         orchestrator: Any = None,
         reports_dir: Optional[Path] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """端到端运行一次: sense → compute → enforce → emit → log.
 
         Args:
@@ -768,7 +768,7 @@ class VolRegimeWeighter:
                     reason=f"vol_regime_suggestion: regime={suggestion.regime.label}",
                     metrics=None,
                 )
-            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            except (ValueError, KeyError, AttributeError, OSError) as e:
                 logger.warning("log_decision 失败, 不阻塞: %s", e)
 
         return {
@@ -780,7 +780,7 @@ class VolRegimeWeighter:
             "suggested_weights": suggestion.suggested_weights,
         }
 
-    def _parse_portfolio_snapshot(self, snapshot: Dict[str, Any]) -> Dict[str, float]:
+    def _parse_portfolio_snapshot(self, snapshot: dict[str, Any]) -> dict[str, float]:
         """解析 portfolio 快照为 style → weight 字典.
 
         支持两种输入:
@@ -798,7 +798,7 @@ class VolRegimeWeighter:
             return {}
 
         # 按 style 聚合
-        style_weights: Dict[str, float] = {s: 0.0 for s in STYLE_CATEGORIES}
+        style_weights: dict[str, float] = {s: 0.0 for s in STYLE_CATEGORIES}
         for asset in assets:
             if not isinstance(asset, dict):
                 continue
@@ -820,7 +820,7 @@ class VolRegimeWeighter:
     def apply_to_portfolio(
         self,
         yaml_path: Path,
-        dual_signature: Tuple[str, str],
+        dual_signature: tuple[str, str],
     ) -> bool:
         """Phase 1: 双签后写入 portfolio.yaml (Phase 0 不实现).
 
@@ -841,9 +841,9 @@ class VolRegimeWeighter:
 
     def backtest(
         self,
-        historical_returns: List[float],
-        historical_vix: List[float],
-    ) -> Dict[str, Any]:
+        historical_returns: list[float],
+        historical_vix: list[float],
+    ) -> dict[str, Any]:
         """Phase 2: 接入 fast_backtest.py 做历史回测 (Phase 0 不实现).
 
         Args:

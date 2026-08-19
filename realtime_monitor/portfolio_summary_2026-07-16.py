@@ -284,10 +284,6 @@ def build_position_report():
 
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    print(f"report={md_path}")
-    print(f"json={out_path}")
-    print(f"total_pnl={total_pnl:.2f}")
-    print(f"total_return_pct={total_return_pct:.2f}%")
     return md_path
 
 

@@ -94,7 +94,7 @@ def _diff(values: List[float]) -> List[float]:
     return [values[i] - values[i - 1] for i in range(1, len(values))]
 
 
-def _where(condition, x, y):
+def _where(condition: List[bool], x: Any, y: Any) -> List[Any]:
     """条件选择器 (元素级)
 
     注: x/y 既支持标量也支持列表, 保持无类型注解以兼容现有调用模式
@@ -104,11 +104,11 @@ def _where(condition, x, y):
     return [x if c else y for c in condition]
 
 
-def _eye(size):
+def _eye(size: int) -> List[List[float]]:
     return [[1.0 if i == j else 0.0 for j in range(size)] for i in range(size)]
 
 
-def _zeros(size):
+def _zeros(size: int) -> List[float]:
     return [0.0] * size
 
 
@@ -155,7 +155,7 @@ class MarketDataProvider:
             return f"_{self._backtest_date}"
         return ""
 
-    def _init_wind_mcp(self):
+    def _init_wind_mcp(self) -> None:
         """初始化 Wind MCP 客户端
 
         路径搜索优先级 (修复 v8.6.11: 原仅查项目根目录, 漏掉 tools/ 子目录):
@@ -214,7 +214,7 @@ class MarketDataProvider:
             self.source_health["wind_mcp"]["last_error"] = str(e)
             logger.warning(f"Wind MCP 客户端加载失败 ({wind_path}): {e}")
 
-    def _init_tdx(self):
+    def _init_tdx(self) -> None:
         """初始化通达信数据源"""
         try:
             from utils.tdx_data_source import get_tdx_source
@@ -233,7 +233,7 @@ class MarketDataProvider:
             self.source_health["tdx"]["last_error"] = str(e)
             logger.warning(f"通达信数据源初始化失败: {e}")
 
-    def _init_akshare(self):
+    def _init_akshare(self) -> None:
         """初始化 AKShare 数据源"""
         try:
             from utils.akshare_data_source import get_akshare_source
@@ -606,7 +606,7 @@ class MarketDataProvider:
                 logger.warning("新浪实时行情字段不足: %s (got %d)", symbol, len(fields))
                 return None
 
-            def _safe_float(val, default=0.0):
+            def _safe_float(val: Any, default: float = 0.0) -> float:
                 try:
                     v = float(val or 0)
                     return v if v == v else default  # NaN check
@@ -675,7 +675,7 @@ class MarketDataProvider:
 
         except RuntimeError:
             raise
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (ValueError, KeyError, TypeError, AttributeError, OSError) as e:
             logger.error(f"获取市场数据失败: {e}")
             raise RuntimeError(f"获取市场数据失败 ({symbol}): {e}") from e
 
@@ -739,7 +739,7 @@ class MarketDataProvider:
 
         except RuntimeError:
             raise
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (ValueError, KeyError, TypeError, AttributeError, OSError) as e:
             logger.error(f"获取历史数据失败: {e}")
             raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
 
@@ -820,7 +820,7 @@ class MarketDataProvider:
             )
         except RuntimeError:
             raise
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (ValueError, KeyError, TypeError, AttributeError, OSError) as e:
             logger.error(f"获取实时数据失败: {e}")
             raise RuntimeError(f"获取实时数据失败 ({symbol}): {e}") from e
 
@@ -862,7 +862,7 @@ class MarketDataProvider:
             )
         except RuntimeError:
             raise
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (ValueError, KeyError, TypeError, AttributeError, OSError) as e:
             logger.error(f"获取历史数据失败: {e}")
             raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
 
@@ -1000,7 +1000,7 @@ class MarketDataProvider:
             logger.warning(f"价格预测失败 ({symbol}): {e}")
             return {}
 
-    def _get_recent_prices_for_prediction(self, symbol: str, days: int = 120):
+    def _get_recent_prices_for_prediction(self, symbol: str, days: int = 120) -> Optional[Any]:
         """获取近期收盘价序列 (供预测用)"""
         try:
             import numpy as np
@@ -1092,7 +1092,7 @@ class MarketDataProvider:
                 status[f"{module_name}_available"] = False
         return status
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         with self.cache_lock:
             self.data_cache.clear()
             logger.info("数据缓存已清除")

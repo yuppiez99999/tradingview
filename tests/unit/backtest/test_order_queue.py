@@ -23,7 +23,6 @@ import pytest
 from utils.backtest.order_queue import OrderQueue, OrderState
 from utils.wt_structs import OrderData
 
-
 # ============================================================
 # 用例 1: FIFO 入队/出队
 # ============================================================
@@ -32,18 +31,18 @@ def test_enqueue_and_pop_next_fifo(sample_buy_order: OrderData, sample_sell_orde
     """入队后 pop_next 按 FIFO 顺序返回。"""
     # Arrange
     queue = OrderQueue()
-    
+
     # Act
     queue.enqueue(sample_buy_order)
     queue.enqueue(sample_sell_order)
-    
+
     # Assert
     assert queue.active_count == 2
     assert queue.pending_count == 2
     first = queue.pop_next()
     second = queue.pop_next()
     third = queue.pop_next()
-    
+
     assert first is sample_buy_order
     assert second is sample_sell_order
     assert third is None
@@ -65,7 +64,7 @@ def test_enqueue_duplicate_raises(sample_buy_order: OrderData) -> None:
         exchange="SZSE",
         direction="SELL",
     )
-    
+
     # Act + Assert
     with pytest.raises(ValueError, match="重复 order_id"):
         queue.enqueue(duplicate)
@@ -82,10 +81,10 @@ def test_cancel_active_order_returns_true(sample_buy_order: OrderData) -> None:
     queue = OrderQueue()
     queue.enqueue(sample_buy_order)
     original_status = sample_buy_order.status
-    
+
     # Act
     result = queue.cancel(sample_buy_order.order_id)
-    
+
     # Assert
     assert result is True
     assert queue.active_count == 0
@@ -109,10 +108,10 @@ def test_cancel_already_filled_returns_false(sample_buy_order: OrderData) -> Non
     queue = OrderQueue()
     queue.enqueue(sample_buy_order)
     queue.mark_filled(sample_buy_order.order_id, fill_price=1800.0, fill_volume=100.0)
-    
+
     # Act
     result = queue.cancel(sample_buy_order.order_id)
-    
+
     # Assert
     assert result is False
     assert queue.cancelled_count == 0
@@ -128,10 +127,10 @@ def test_mark_filled_transitions_to_all_traded(sample_buy_order: OrderData) -> N
     # Arrange
     queue = OrderQueue()
     queue.enqueue(sample_buy_order)
-    
+
     # Act
     queue.mark_filled(sample_buy_order.order_id, fill_price=1800.0, fill_volume=100.0)
-    
+
     # Assert
     assert queue.active_count == 0
     assert queue.completed_count == 1
@@ -152,11 +151,11 @@ def test_mark_partial_accumulates_traded_volume(large_buy_order: OrderData) -> N
     # Arrange
     queue = OrderQueue()
     queue.enqueue(large_buy_order)  # volume=1000
-    
+
     # Act: 分两次部分成交,累计 300
     queue.mark_partial(large_buy_order.order_id, fill_price=4.0, fill_volume=200.0)
     queue.mark_partial(large_buy_order.order_id, fill_price=4.01, fill_volume=100.0)
-    
+
     # Assert
     assert queue.active_count == 1  # 仍活动
     partial = queue.get_order(large_buy_order.order_id)
@@ -176,11 +175,11 @@ def test_mark_partial_auto_transitions_to_all_traded(large_buy_order: OrderData)
     # Arrange
     queue = OrderQueue()
     queue.enqueue(large_buy_order)  # volume=1000
-    
+
     # Act: 分两次,第二次超过剩余量(700+400=1100>1000)
     queue.mark_partial(large_buy_order.order_id, fill_price=4.0, fill_volume=700.0)
     queue.mark_partial(large_buy_order.order_id, fill_price=4.01, fill_volume=400.0)
-    
+
     # Assert
     assert queue.active_count == 0  # 已转终态
     assert queue.completed_count == 1
@@ -202,23 +201,23 @@ def test_immutability_no_inplace_modification(sample_buy_order: OrderData) -> No
     # 记录原始字段值
     orig_status = sample_buy_order.status
     orig_traded = sample_buy_order.traded_volume
-    
+
     # Act: 执行所有状态变更操作(用拷贝避免污染)
     import dataclasses
-    order_copy = dataclasses.replace(sample_buy_order)
+    dataclasses.replace(sample_buy_order)
     queue.cancel(sample_buy_order.order_id)
-    
+
     # 再次入队一个新订单测试 mark_filled
     new_order = dataclasses.replace(sample_buy_order, order_id="test-immut-002")
     queue.enqueue(new_order)
     queue.mark_filled(new_order.order_id, fill_price=1800.0, fill_volume=100.0)
-    
+
     # Assert: 原对象字段未被修改
     assert sample_buy_order.status == orig_status
     assert sample_buy_order.traded_volume == orig_traded
     assert new_order.status == "NOT_REPORTED"  # 入队时未改
     assert new_order.traded_volume == 0.0  # mark_filled 未改入参
-    
+
     # 但队列内的对象状态正确
     filled = queue.get_order(new_order.order_id)
     assert filled is not None
@@ -236,10 +235,10 @@ def test_mark_rejected_transitions_to_rejected(sample_buy_order: OrderData) -> N
     # Arrange
     queue = OrderQueue()
     queue.enqueue(sample_buy_order)
-    
+
     # Act
     queue.mark_rejected(sample_buy_order.order_id, reason="PRICE_LIMIT")
-    
+
     # Assert
     assert queue.active_count == 0
     assert queue.completed_count == 1  # rejected 也算 completed
