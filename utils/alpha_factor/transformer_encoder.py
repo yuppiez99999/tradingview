@@ -36,7 +36,7 @@ try:  # pragma: no cover - 依赖环境差异
     torch = _torch_impl
     nn = _torch_nn_impl
     _TORCH_AVAILABLE = True
-except (ImportError, OSError):  # pragma: no cover - torch 不装或 DLL 加载失败也不影响主流程
+except (ImportError, OSError, AttributeError):  # pragma: no cover - torch 不装/DLL 加载失败/部分初始化也不影响主流程
     torch = None
     nn = None
 
@@ -249,8 +249,8 @@ def factors_to_matrix(
         if container is None:
             per_factor_syms[fname] = set()
             continue
-        if hasattr(container, "values") and isinstance(getattr(container, "values"), dict):
-            sym_map = getattr(container, "values")
+        if hasattr(container, "values") and isinstance(container.values, dict):
+            sym_map = container.values
         elif isinstance(container, dict):
             sym_map = container
         else:
@@ -276,8 +276,8 @@ def factors_to_matrix(
         container = factors.get(fname)
         if container is None:
             continue
-        if hasattr(container, "values") and isinstance(getattr(container, "values"), dict):
-            sym_map = getattr(container, "values")
+        if hasattr(container, "values") and isinstance(container.values, dict):
+            sym_map = container.values
         elif isinstance(container, dict):
             sym_map = container
         else:

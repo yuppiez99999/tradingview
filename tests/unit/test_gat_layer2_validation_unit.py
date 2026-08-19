@@ -8,15 +8,16 @@ from __future__ import annotations
 import pytest
 
 try:
-    import torch
+    import torch  # noqa: F401
     _TORCH_OK = True
-except (ImportError, OSError, ModuleNotFoundError):
+except (ImportError, OSError, ModuleNotFoundError, AttributeError):
     _TORCH_OK = False
 
 pytestmark = pytest.mark.skipif(not _TORCH_OK, reason="torch 不可用 (gat_factor_torch 依赖)")
 
 if _TORCH_OK:
     import numpy as np
+
     from utils.alpha_factor.gat_layer2_validation import (
         build_block_adjacency,
         calc_ic,

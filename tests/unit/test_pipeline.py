@@ -17,13 +17,17 @@
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
-
+from utils.pipeline.alpha_pipeline import AlphaPipeline
+from utils.pipeline.backtest_gate import BacktestGate
+from utils.pipeline.config import get_pipeline_config, load_pipeline_config
+from utils.pipeline.data_cleaning import DataCleaningPipeline
+from utils.pipeline.execution_pipeline import ExecutionPipeline
+from utils.pipeline.orchestrator import PipelineOrchestrator, np_mean
+from utils.pipeline.risk_monitor import RiskMonitor
 from utils.pipeline.types import (
     AlphaSignalResult,
     BacktestGateResult,
@@ -34,14 +38,6 @@ from utils.pipeline.types import (
     PipelineStage,
     RiskAlert,
 )
-from utils.pipeline.config import load_pipeline_config, get_pipeline_config
-from utils.pipeline.orchestrator import PipelineOrchestrator, np_mean
-from utils.pipeline.data_cleaning import DataCleaningPipeline
-from utils.pipeline.alpha_pipeline import AlphaPipeline
-from utils.pipeline.backtest_gate import BacktestGate
-from utils.pipeline.execution_pipeline import ExecutionPipeline
-from utils.pipeline.risk_monitor import RiskMonitor
-
 
 # ============================================================
 # 1. Types 测试
@@ -421,21 +417,21 @@ class TestPipelineImports:
 
     def test_all_exports_available(self):
         from utils.pipeline import (
-            PipelineOrchestrator,
-            PipelineStatus,
-            DataCleaningPipeline,
-            DataQualityReport,
             AlphaPipeline,
             AlphaSignalResult,
             BacktestGate,
             BacktestGateResult,
+            DataCleaningPipeline,
+            DataQualityReport,
             ExecutionPipeline,
             ExecutionResult,
-            RiskMonitor,
-            RiskAlert,
+            PipelineConfig,
+            PipelineOrchestrator,
             PipelineResult,
             PipelineStage,
-            PipelineConfig,
+            PipelineStatus,
+            RiskAlert,
+            RiskMonitor,
         )
         # 验证所有导出类可调用
         assert PipelineOrchestrator is not None
@@ -457,6 +453,7 @@ class TestPipelineImports:
     def test_module_import_works(self):
         """python -c "import utils.pipeline" 不报错"""
         import importlib
+
         import utils.pipeline
         importlib.reload(utils.pipeline)
         assert hasattr(utils.pipeline, "PipelineOrchestrator")
@@ -793,6 +790,7 @@ class TestExecutionPipeline:
     def test_run_with_signals_dry_run(self):
         """有信号时 dry_run 应生成订单"""
         pipeline = ExecutionPipeline()
+        pipeline.config.execution_max_order_value = 10_000_000  # 确保订单不被金额限制过滤
         signal = AlphaSignalResult(
             signals={"000001": 0.8, "000002": 0.5, "000003": 0.3},
             model_name="test",
@@ -821,6 +819,7 @@ class TestExecutionPipeline:
 
     def test_generate_orders_basic(self):
         pipeline = ExecutionPipeline()
+        pipeline.config.execution_max_order_value = 10_000_000  # 确保订单不被金额限制过滤
         target = {"A": 0.5, "B": 0.3}
         current = {"A": 0.2, "B": 0.1}
         orders = pipeline._generate_orders(target, current)
@@ -841,10 +840,9 @@ class TestExecutionPipeline:
         pipeline.config.execution_max_order_value = 1.0
         target = {"A": 0.5}
         current = {"A": 0.0}
-        # 假设总资产 100 万，diff 0.5 * 1M = 500K > 1
+        # 总资产 500 万 (positions.json meta.total_capital), diff 0.5 * 5M = 2.5M > 1
         orders = pipeline._generate_orders(target, current)
-        # 目前代码中 amount = abs(diff) * 1_000_000
-        # 500K > 1.0，所以被过滤
+        # 2.5M > 1.0，所以被过滤
         assert len(orders) == 0
 
     def test_execute_orders_empty(self):
