@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-20 · Phase B 可观测性 + CI 门禁 + 覆盖率确认
+
+- **3.3c bandit CI**: quality-gate.yml 添加 bandit 安全门禁步骤 (中危即 FAIL)
+- **3.3a/b 可观测性**: utils/observability/ 创建 — pydantic 事件 Schema (Order/Risk/Execution/Pipeline) + StructuredLogger JSON 输出
+- **3.1 覆盖率**: 基线 line_rate=0.6855 已超 Sprint 1 目标 0.55, 增量门禁防退化
+- **3.2 超大文件**:1**: risk_guard_integrator.py 1893 行已达标 (≤2000); institutional_pipeline_runner.py 2337 行待非交易时段拆分
+- **待安装**: structlog + pytest-benchmark (磁盘空间不足 0.01GB, 待清理后安装)
+- **commit**: `60f2fdb8`
+- **指针**: `.codeartsdoer/specs/code_quality_fix_20260819/tasks.md` §3
+
 ## 2026-08-19 · 代码质量修复 Wave 2: C901 豁免+P3 清理 (ruff 206→169, C901 70→37)
 
 - **2.1 C901 豁免**: 非核心模块 (alpha_factor/fineng/evolution/finance_agents/tests/tools 等) 批量豁免, C901 70→37 (<50 达标)
