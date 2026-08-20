@@ -5,6 +5,113 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html)。
 
+## [8.7] - 2026-08-20 ~ 12-31 (Sprint 1 冲刺中)
+
+### 新增 (Added) — ETF期权对冲再平衡子模型 Phase 1
+
+- **独立200万纯ETF子组合**（14 ETF/100%纯ETF）+ ETF期权对冲（4标的认沽保护）+ 自我再平衡（五阶段）
+- `config/etf_option_subportfolio.yaml` — 子组合配置（宽基60% + 行业25% + 防御15%）
+- `etf_option_hedge_rebalancer.py` — 编排器（复用6个现有模块）
+- `tests/unit/test_etf_option_hedge_rebalancer_unit.py` — 31/31 passed
+- **压力测试**：裸敞口6/6突破 → 对冲后3/6突破（2020疫情11.9% / 2022俄乌12.7% / 2024地产13.5% 已保护到15%以内）
+- 详见 `cairn/etf-option-hedge-model.md`
+
+### 新增 (Added) — v8.7 三门禁冲刺（D9/D10/D11）
+
+- **D9 覆盖率 Sprint4 0.80门禁**：`_check_d9_coverage_sprint4_target()` 注册到 engineering_debt_gate.py，当前 line_rate=0.833 ✅ 达标
+- **D10 超大文件拆分门禁**：`_check_d10_oversized_file_split()` 注册（≤2000行），institutional_pipeline_runner.py 2620行 + automated_execution_system.py 2691行待拆
+- **D11 Phase B shadow 7天稳定门禁**：`_check_d11_phase_b_shadow_stable()` 注册，PhaseBStatus扩展4字段 + DailyHealthVerdict + evaluate_daily_shadow_health
+- **V87GateSummary**：frozen dataclass + `check_v87_release_gate_summary()` 聚合判定，CI退出码2阻断合并
+- 检出器：`_detect_lookahead_tests.py`（前视偏差，检出90处）+ `_detect_mock_inflation.py` + `_detect_coverage_stagnation.py`
+
+### 新增 (Added) — 执行层自动闭环 + DeepSeek/GLM双模型自我判断
+
+- **断链修复**：hedging模块路径 + Put Spread action匹配 + strike各标的独立计算 + positions.json key格式转换
+- **方案A**：`run_daily_eod.py` 串联 RiskGuardIntegrator 8-Guard链 — 自动识别国债集中度52.7%>15%触发L3减仓7100股+再平衡19单
+- **方案B**：`execution_reviewer.py`（执行复盘）+ `dynamic_risk_adjuster.py`（动态风控调整）
+- **方案C**：`daily_workflow.py` phase_hedge后自动串联 RiskGuardIntegrator
+- **双模型自我判断**：`dual_model_judge.py` — DeepSeek + GLM-5.2 独立判断 → 交叉验证 → 共识决策，优雅降级（双失败→规则兜底）
+
+### 新增 (Added) — Phase B 可观测性闭环
+
+- **structlog接入**：`StructuredLogger` 升级为structlog JSON后端 + 标准logging回退 + bind()上下文绑定
+- **pydantic事件Schema**：`utils/observability/event_schema.py` — OrderEvent/RiskEvent/ExecutionEvent/PipelineEvent
+- **pytest-benchmark**：6个关键路径性能基准全通过（KillSwitch 2,327 Kops/s，Event Schema 268-308 Kops/s，TradingCalendar 174 Kops/s）
+
+### 新增 (Added) — Phase C 战略级
+
+- **OpenTelemetry分布式追踪**：`utils/observability/tracing.py` — trace_order/trace_risk/trace_pipeline span埋点（OTel 1.44.0）
+- **mypy strict推进**：observability全strict + risk启用disallow_any_generics
+
+### 新增 (Added) — 自我进化框架升级
+
+- **PSI阈值校准**（P0-1）：`drift_shadow_integrator.py:calibrate_psi_thresholds` 从骨架升级为真实校准逻辑
+- **Lyapunov稳定性**（P0-2a）：`LyapunovStabilityMeter` — V=w_ic×|IC-target|²+w_ret×|ret-target|²+w_drift×drift²
+- **反馈相位分析**（P0-2b）：`FeedbackPhaseAnalyzer` — 相位裕度=π-总延迟×角频率
+- **变异选择平衡**（P0-2c）：`VariationSelectionBalancer` — B=变异×通过率/(变异+选择)
+- **Triple-Barrier**：`utils/backtest/triple_barrier.py`（~380行），18/18测试全绿
+
+### 变更 (Changed) — MVSK高阶矩优化 P1-P4 生产就绪
+
+- **P1**：`risk_budget_optimizer.py` 扩展偏度/峰度目标，8/8+31/31测试passed
+- **P2**：BL后验μ + MVSK样本外夏普-0.923显著优于MV-1.272，BL与MVSK强互补
+- **P3**：378日训练窗口扫描发现临界点，**始终BL+MVSK(378)最优夏普+0.418**，无需regime切换
+- **P4**：995日跨周期回测，BL+MVSK(378) **4/4段跑赢BL+MV**（Δ夏普+0.22），γ_s=0.1泛化成功
+- **最终策略**：BL+MVSK(378, γ_s=0.1, γ_k=0.1)，P5生产接入排期09-05~11-12
+
+### 变更 (Changed) — 代码质量工业级修复（ruff 1139→169，85%降幅）
+
+- **Phase A1+A2**：torch collection修复 + 测试回归修复（13,959全收集）
+- **Phase A3**：35个核心模块类型注解批量补齐（ANN 908→397）
+- **Phase A4**：ruff风格清理3步走（628→434，<500达标）
+- **Wave 1**：安全+收敛+ANN（ruff 434→206，bandit清零）
+- **Wave 2**：C901豁免+P3清理（ruff 206→169，<300达标）
+- 详见 `cairn/code-quality-industrial-gap-20260819.md`
+
+### 变更 (Changed) — Phase B 观察期达标 + B1 自动启用
+
+- **观察期达标**：`daily_returns.jsonl` 21条（07-23~08-20），真实样本21/20 ✅，累计-0.5812%
+- **调度器自动推进**：`phase_b_progressive_enabler.py --check` 触发状态机推进 — stage: waiting_observation → **drift_monitor**
+- **修正后时间线**：08-20 B1启用 ✅ → 08-23 B2 → 08-26 B3 → 08-29 B4 → 09-01前完成Wave 2
+
+### 新增 (Added) — 经典理论覆盖度审计
+
+- **已覆盖30+经典理论**：BS/Monte Carlo/Greeks/GARCH/VaR/CVaR/EVT/MPT/BL/Kelly/Bayesian/Fama-French/Triple-Barrier/Purged K-Fold/DSR/VWAP/TWAP/Almgren-Chriss/控制论/反身性/反脆弱/康波/Lyapunov/变异选择
+- **P0推荐待实现5个**：Co-integration+Pairs Trading / Hurst Exponent / Information Theory Entropy / Directional Change
+- 详见 `cairn/classic-theory-coverage-20260819.md`
+
+---
+
+## [8.6.15] - 2026-08-05
+
+### 新增 (Added) — U1-U5 升级计划全部完成
+
+- **U1 时序IC/ICIR升级**：`utils/alpha_factor/base.py` 新增 `calc_ic_series_from_history` + `calc_ic_ir`（Spearman rank IC序列），`evaluate_factors` 支持双模式（时序优先 + 单点降级），`FactorValue` 新增 `ic_ir`/`ic_1d`/`ic_20d` 字段
+- **U2 涨跌停/停牌数据集成**：`utils/data_provider.py` 新增涨跌停价格 + 停牌状态字段，避免异常价格污染因子计算
+- **U3 复权因子支持**：`utils/adjust_factor_provider.py` 新增 `get_aligned_prev_close` + `align_prev_close_to_today`，`pnl_calculator.py` 支持 `align_hfq` 参数对齐前收盘价
+- **U5 GAP-2 E2E测试补齐**：`tests/e2e/test_full_pipeline_e2e.py`（8场景）+ `tests/e2e/test_shadow_account_lifecycle_e2e.py`（8场景 + 1 skip）
+- **U1衔接PipelineOrchestrator**：`library.py` 接入 `factor_history` 参数 + `portfolio_optimizer.py` Step 4.5 U1时序IC评估
+
+### 新增 (Added) — VolRegimeWeighter 波动率Regime权重建议器
+
+- `utils/alpha/vol_regime_weighter.py`：四档Regime（bull/neutral/bear/crisis）× 8资产权重矩阵
+- 双链路架构（盘中AutoTradingSystem每30s只读建议 + EOD EvolutionOrchestrator完整报告）
+- VixDataSource三级降级链（Wind→shadow_state→缓存），Phase 0观察期（08-20评估）
+
+### 新增 (Added) — 自我进化框架
+
+- `utils/alpha/evolution_orchestrator.py`：EvolutionOrchestrator观察期14天 + 最小评估样本20天
+- 决策日志和进度快照自动持久化至 `reports/evolution/`
+- v84_EvolutionEval 任务每天16:05自动运行
+
+### 变更 (Changed)
+
+- **EOD阶段4.5B Shadow状态同步**：`run_daily_eod_workflow.py` 新增 `run_phase4_5b_shadow_state_sync()`
+- **陈旧文档清理**：删除38个历史审计报告/修复计划/临时文件
+- **GitHub Issue #1**：Python 3.8 → 3.10+ 迁移计划（修复4个Dependabot漏洞）
+
+---
+
 ## [8.6.14] - 2026-08-02
 
 ### 新增 (Added) — 因子库对标国泰君安 GTJA191

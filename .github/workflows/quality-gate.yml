@@ -108,3 +108,20 @@ jobs:
             exit 1
           }
           Write-Output "[BANDIT-GATE] PASS - No medium+ severity issues"
+
+      - name: Engineering debt gate (D9+D10+D11 + v8.7 summary)
+        shell: pwsh
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          Write-Output "[DEBT-GATE] Running engineering_debt_gate.py (D9 coverage / D10 file split / D11 PhaseB stable + v8.7 summary)..."
+          python scripts/engineering_debt_gate.py
+          $code = $LASTEXITCODE
+          if ($code -eq 0) {
+            Write-Output "[DEBT-GATE] PASS - GREEN, all gates passed"
+          } elseif ($code -eq 1) {
+            Write-Output "[DEBT-GATE] WARN - YELLOW, proceed with caution"
+          } else {
+            Write-Output "[DEBT-GATE][FAIL] RED - blocking issues detected (exit code $code)"
+            exit 1
+          }

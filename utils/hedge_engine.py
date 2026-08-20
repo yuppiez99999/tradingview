@@ -238,7 +238,7 @@ def fetch_futures_prices_from_sina() -> Dict[str, float]:
         try:
             url = f"https://hq.sinajs.cn/list={code}"
             req = urllib.request.Request(url, headers={"Referer": "https://finance.sina.com.cn"})
-            with urllib.request.urlopen(req, timeout=8) as resp:
+            with urllib.request.urlopen(req, timeout=8) as resp:  # nosec B310  # 新浪行情 API 合法请求
                 text = resp.read().decode("gbk", errors="ignore")
             match = re.search(r'="([^"]+)"', text)
             if match:

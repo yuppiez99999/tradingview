@@ -46,8 +46,8 @@ def setup_utf8_console() -> None:
         try:
             import subprocess
             # chcp 65001 = UTF-8, 不检查返回值 (非 Windows 终端可能失败)
-            # nosec B602 — 命令为常量列表 ['chcp','65001'], 无用户输入, 无注入风险
-            subprocess.run(['chcp', '65001'], capture_output=True, shell=True, check=False)
+            # 命令为常量列表, 无用户输入, 无注入风险
+            subprocess.run(['chcp', '65001'], capture_output=True, shell=True, check=False)  # nosec B602
         except (OSError, subprocess.SubprocessError):
             pass
 

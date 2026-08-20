@@ -137,3 +137,21 @@ gray_release_stages:
     capital_amount: 5000000
     duration_days: 0
     description: "100% 全量上线"
+
+# ============================================================
+# v8.7 发布三门禁冲刺配置 (2026-08-20)
+# ============================================================
+# 门禁脚本: scripts/engineering_debt_gate.py (D9+D10+D11)
+# 配置源: 本文件 (Phase B 相关) + reports/ci/coverage_baseline.json (覆盖率相关)
+v87_gate_sprint:
+  # D11 Phase B shadow 稳定门禁
+  consecutive_stable_days_target: 7      # 连续稳定天数目标
+  min_shadow_samples: 20                 # 最小 shadow 样本数
+
+  # D10 超大文件拆分门禁
+  oversized_file_line_limit: 2000        # 单文件行数上限
+  split_window_start_hour: 15            # 非交易时段起始小时 (15:00 后)
+
+  # D9 覆盖率 Sprint4 门禁
+  coverage_sprint4_target: 0.80          # line_rate 目标
+  coverage_stagnation_threshold: 0.01    # 停滞检测阈值 (连续3次提升<此值告警)

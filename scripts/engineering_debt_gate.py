@@ -50,6 +50,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 # Windows GBK 控制台无法打印 \u2713 等 Unicode 字符, 强制 UTF-8 输出避免 UnicodeEncodeError 崩溃
@@ -902,6 +903,129 @@ def _check_d8_g7_coverage_sprint() -> tuple[bool, str]:
     return True, f"D8 G7 覆盖率冲刺 ✓ ({len(g7_tests)} 测试文件, 基线 {base_lr:.4f}, 排除模式正确)"
 
 
+def _check_d9_coverage_sprint4_target() -> tuple[bool, str]:
+    """D9: 覆盖率 Sprint4 0.80 达标门禁 (阻断 RED)."""
+    import json
+
+    coverage_baseline = _PROJECT_ROOT / "reports" / "ci" / "coverage_baseline.json"
+    if not coverage_baseline.exists():
+        return False, "D9 coverage_baseline.json 缺失 (需运行 pytest --cov 生成)"
+    try:
+        data = json.loads(coverage_baseline.read_text(encoding="utf-8", errors="replace"))
+        line_rate = float(data.get("line_rate", 0.0))
+        if line_rate >= 0.80:
+            return True, f"D9 覆盖率 Sprint4 达标 ✓ (line_rate={line_rate:.4f} ≥ 0.80)"
+        return False, f"D9 覆盖率未达标 (line_rate={line_rate:.4f} < 0.80)"
+    except (json.JSONDecodeError, ValueError, TypeError) as exc:
+        return False, f"D9 coverage_baseline.json 解析失败: {type(exc).__name__}: {exc}"
+
+
+def _check_d10_oversized_file_split() -> tuple[bool, str]:
+    """D10: 超大文件拆分门禁 (≤2000 行, 阻断 RED)."""
+    targets = [
+        _PROJECT_ROOT / "institutional_pipeline_runner.py",
+        _PROJECT_ROOT / "utils" / "execution" / "automated_execution_system.py",
+    ]
+    limit = 2000
+    for f in targets:
+        if not f.exists():
+            continue
+        try:
+            with f.open("r", encoding="utf-8", errors="replace") as fh:
+                line_count = sum(1 for _ in fh)
+            if line_count > limit:
+                return False, f"D10 {f.name} 行数 {line_count} > {limit} (需拆分)"
+        except OSError:
+            continue
+    return True, f"D10 超大文件拆分达标 ✓ (均 ≤{limit} 行)"
+
+
+def _check_d11_phase_b_shadow_stable() -> tuple[bool, str]:
+    """D11: Phase B shadow 连续 7 天稳定门禁 (阻断 RED)."""
+    import json
+
+    status_path = _PROJECT_ROOT / "reports" / "evolution" / "phase_b_status.json"
+    if not status_path.exists():
+        return False, "D11 phase_b_status.json 缺失 (需运行 phase_b_progressive_enabler.py)"
+    try:
+        data = json.loads(status_path.read_text(encoding="utf-8", errors="replace"))
+        stable_days = int(data.get("consecutive_stable_days", 0))
+        target = int(data.get("stable_days_target", 7))
+        min_samples = int(data.get("min_shadow_samples", 20))
+        total_samples = len(data.get("daily_health_log", []))
+        if stable_days >= target and total_samples >= min_samples:
+            return True, f"D11 Phase B shadow 稳定达标 ✓ ({stable_days}/{target} 天, {total_samples} 样本)"
+        return False, f"D11 Phase B shadow 未达标 ({stable_days}/{target} 天, {total_samples}/{min_samples} 样本)"
+    except (json.JSONDecodeError, ValueError, TypeError) as exc:
+        return False, f"D11 phase_b_status.json 解析失败: {type(exc).__name__}: {exc}"
+
+
+@dataclass(frozen=True)
+class V87GateSummary:
+    """v8.7 发布三门禁汇总结果 (frozen)."""
+    phase_b_stable_7d: bool
+    oversized_file_split: bool
+    coverage_sprint4_080: bool
+    all_passed: bool
+    blocking_reason: str
+    timestamp: str
+
+    def to_dict(self) -> dict:
+        return {
+            "phase_b_stable_7d": self.phase_b_stable_7d,
+            "oversized_file_split": self.oversized_file_split,
+            "coverage_sprint4_080": self.coverage_sprint4_080,
+            "all_passed": self.all_passed,
+            "blocking_reason": self.blocking_reason,
+            "timestamp": self.timestamp,
+        }
+
+
+def check_v87_release_gate_summary() -> V87GateSummary:
+    """聚合 D9 + D10 + D11 三门禁, 输出 v8.7 发布阻断/放行判定."""
+    from datetime import datetime
+
+    d9_ok, _ = _check_d9_coverage_sprint4_target()
+    d10_ok, _ = _check_d10_oversized_file_split()
+    d11_ok, _ = _check_d11_phase_b_shadow_stable()
+
+    all_passed = d9_ok and d10_ok and d11_ok
+    failed_gates: list[str] = []
+    if not d11_ok:
+        failed_gates.append("D11 PhaseB shadow 7天稳定")
+    if not d10_ok:
+        failed_gates.append("D10 超大文件拆分 ≤2000行")
+    if not d9_ok:
+        failed_gates.append("D9 覆盖率 Sprint4 ≥0.80")
+    blocking_reason = "" if all_passed else "; ".join(failed_gates)
+
+    return V87GateSummary(
+        phase_b_stable_7d=d11_ok,
+        oversized_file_split=d10_ok,
+        coverage_sprint4_080=d9_ok,
+        all_passed=all_passed,
+        blocking_reason=blocking_reason,
+        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+
+def _write_v87_gate_summary_json(summary: V87GateSummary) -> Path | None:
+    """覆盖写 reports/v87_release_gate_summary.json."""
+    import json
+
+    out_dir = _PROJECT_ROOT / "reports"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "v87_release_gate_summary.json"
+    try:
+        out_path.write_text(
+            json.dumps(summary.to_dict(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return out_path
+    except OSError:
+        return None
+
+
 def main() -> int:
     checks = [
         ("T1", "测试collection", _check_test_collection_errors()),
@@ -930,18 +1054,22 @@ def main() -> int:
         ("D6", "D6 LiteLLM Gateway", _check_d6_litellm_router()),
         ("D7", "D7 daily_workflow 拆分收尾", _check_d7_daily_workflow_split()),
         ("D8", "D8 G7 覆盖率冲刺", _check_d8_g7_coverage_sprint()),
+        ("D9", "D9 覆盖率Sprint4 0.80", _check_d9_coverage_sprint4_target()),
+        ("D10", "D10 超大文件拆分", _check_d10_oversized_file_split()),
+        ("D11", "D11 PhaseB shadow稳定", _check_d11_phase_b_shadow_stable()),
     ]
 
     sum(1 for _, _, (ok, _) in checks if not ok)
 
-    # 债务分级 (T02/T03 升级 2026-08-12, Wave4 Phase2/3 + G6 Phase D 扩展):
+    # 债务分级 (T02/T03 升级 2026-08-12, Wave4 Phase2/3 + G6 Phase D 扩展 + v8.7 Sprint):
     #   - T1–T5   阻断性 (测试/CI/告警/隔离/陈旧): 任何失败 → RED
     #   - T6–T8   告警性 (异常处理债 + 覆盖率退化): 仅 YELLOW
     #   - T9–T14  告警性 (不崩风控六件套 模块自检): 异常→YELLOW
     #   - T15–T18 告警性 (实盘验证四件套 模块自检): 异常→YELLOW
     #   - D1–D4   告警性 (LLM 智能进化 Phase D 模块自检): 异常→YELLOW
     #   - D5–D8   告警性 (AutoResearch/LiteLLM/workflow拆分/G7覆盖率): 异常→YELLOW
-    blocking_codes = {"T1", "T2", "T3", "T4", "T5"}
+    #   - D9–D11  阻断性 (v8.7 发布门禁: 覆盖率0.80/超大文件拆分/PhaseB稳定): 任何失败 → RED
+    blocking_codes = {"T1", "T2", "T3", "T4", "T5", "D9", "D10", "D11"}
     warn_codes = {"T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13", "T14",
                   "T15", "T16", "T17", "T18",
                   "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"}
@@ -972,6 +1100,34 @@ def main() -> int:
     else:
         print("  状态: 可推进功能升级")
     print("=" * 60)
+
+    # v8.7 发布三门禁汇总 (D9 + D10 + D11)
+    v87_summary = check_v87_release_gate_summary()
+    json_path = _write_v87_gate_summary_json(v87_summary)
+    print()
+    print("=" * 60)
+    print("v8.7 发布门禁汇总 (Release Gate Summary)")
+    print("=" * 60)
+    d9_icon = "[OK]" if v87_summary.coverage_sprint4_080 else "[XX]"
+    d10_icon = "[OK]" if v87_summary.oversized_file_split else "[XX]"
+    d11_icon = "[OK]" if v87_summary.phase_b_stable_7d else "[XX]"
+    print(f"  {d9_icon}  D9  覆盖率 Sprint4 ≥0.80")
+    print(f"  {d10_icon} D10  超大文件拆分 ≤2000行")
+    print(f"  {d11_icon} D11  PhaseB shadow 7天稳定")
+    print("-" * 60)
+    if v87_summary.all_passed:
+        print("  判定: [PASS] v8.7 发布放行")
+    else:
+        print("  判定: [BLOCK] v8.7 发布阻断")
+        print(f"  原因: {v87_summary.blocking_reason}")
+    if json_path:
+        print(f"  报告: {json_path.name}")
+    print(f"  时间: {v87_summary.timestamp}")
+    print("=" * 60)
+
+    # v8.7 三门禁阻断时强制 RED (退出码 2)
+    if not v87_summary.all_passed and level == "GREEN":
+        level = "RED"
 
     return {"GREEN": 0, "YELLOW": 1, "RED": 2}[level]
 

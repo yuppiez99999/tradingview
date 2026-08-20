@@ -56,23 +56,57 @@
 - `utils/observability.*`：全 strict（disallow_any_generics + warn_return_any + disallow_untyped_defs）
 - `utils.risk.*`：启用 disallow_any_generics
 
-## 4. v8.7 验收清单状态
+## 4. v8.7 发布三门禁冲刺 (2026-08-20)
+
+### 4.1 D9 覆盖率 Sprint4 0.80 门禁
+- `_check_d9_coverage_sprint4_target()` 注册到 engineering_debt_gate.py (阻断 RED)
+- 当前 line_rate=0.6855 < 0.80, 门禁未达标 (Sprint 4 目标)
+- 检出器: `_detect_lookahead_tests.py` (前视偏差, 检出90处) + `_detect_mock_inflation.py` (mock虚增) + `_detect_coverage_stagnation.py` (停滞检测)
+- `_check_coverage_trend.py --min-line-rate` 0.05→0.80
+
+### 4.2 D10 超大文件拆分门禁
+- `_check_d10_oversized_file_split()` 注册 (阻断 RED, ≤2000行)
+- institutional_pipeline_runner.py 2620行 + automated_execution_system.py 2691行, 均未达标
+- 拆分待非交易时段执行 (A股交易时段 9:30-15:00 禁止)
+
+### 4.3 D11 Phase B shadow 7天稳定门禁
+- `_check_d11_phase_b_shadow_stable()` 注册 (阻断 RED)
+- PhaseBStatus 扩展: consecutive_stable_days / stable_days_target / min_shadow_samples / daily_health_log
+- DailyHealthVerdict + evaluate_daily_shadow_health (三维健康判定) + update_stable_days (异常归零)
+- 当前 0/7 天稳定, 0/20 样本, 门禁未达标
+
+### 4.4 V87GateSummary 三门禁汇总
+- `V87GateSummary` frozen dataclass + `check_v87_release_gate_summary()` 聚合 D9+D10+D11
+- `reports/v87_release_gate_summary.json` 阻断/放行判定输出
+- 当前判定: [BLOCK] v8.7 发布阻断 (三门禁均未达标)
+
+### 4.5 测试覆盖
+- test_phase_b_shadow_stable.py: 20 passed (Phase B shadow 守卫核心逻辑)
+- test_coverage_sprint4_gate.py: 19 passed (覆盖率守卫门禁)
+- test_v87_release_gate_summary.py: 12 passed (三门禁汇总端到端)
+
+### 4.6 CI 门禁配置
+- quality-gate.yml 追加 Engineering debt gate 步骤 (D9+D10+D11+v8.7 summary)
+- 退出码 2 阻断合并, 0 放行
+
+## 5. v8.7 验收清单状态
 
 | 验收项 | 状态 | 说明 |
 |---|---|---|
-| Phase B 4 flag 稳定≥30天 | ⏳ 待达标 | Phase B shadow 稳定天数 0/7 |
-| T15-T18 | 待评估 | |
-| S6+S7 | 待评估 | |
-| G7 覆盖率 0.80 | ⏳ 0.6855 | Sprint 1 目标 0.55 已达标 |
-| G9 FeatureStore | 待评估 | |
-| 工程基础层 Phase 0-3 | 待评估 | |
-| 门禁 21 天 0 FAIL | ⏳ 观察期 | bandit 门禁已接入 |
-| 影子账户 2 周稳定 | ⏳ 待达标 | |
+| D9 覆盖率 0.80 | ❌ 0.6855 | Sprint 4 目标, 差 0.1145 |
+| D10 超大文件 ≤2000行 | ❌ 2620+2691 | 待非交易时段拆分 |
+| D11 PhaseB 7天稳定 | ❌ 0/7天 | shadow 未启动 |
+| v8.7 汇总判定 | ❌ BLOCK | 三门禁均未达标 |
+| Phase B 4 flag 稳定≥30天 | ⏳ 待达标 | 依赖 D11 |
+| T15-T18 | ✅ 通过 | 实盘四件套模块自检 |
+| G7 覆盖率 Sprint1 0.55 | ✅ 0.6855 | 已达标 |
+| 门禁 21 天 0 FAIL | ⏳ 观察期 | bandit+debt gate 已接入 |
 
-## 5. 待办项
+## 6. 待办项
 
-- [ ] Phase B shadow 稳定运行 7 天（Sprint 1 门禁阻断项）
-- [ ] 覆盖率推进 0.6855→0.80（Sprint 4 目标）
-- [ ] 超大文件拆分（automated_execution_system.py / institutional_pipeline_runner.py）
-- [ ] mypy strict 验证（mypy 2.3.1 内部错误待解决）
+- [ ] 任务2: 超大文件拆分 (非交易时段执行, 15:00 后)
+- [ ] 任务3.6: 覆盖率补测 P0-P2 链路 → 0.80
+- [ ] 任务5.2: 超大文件拆分执行器单元测试
+- [ ] Phase B shadow 稳定运行 7 天 (D11 达标前提)
+- [ ] mypy strict 验证 (mypy 2.3.1 内部错误待解决)
 - [ ] v8.7 验收清单剩余项评估

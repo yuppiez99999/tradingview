@@ -75,7 +75,8 @@ def parse_coverage_xml(path: Path) -> Optional[dict]:
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Coverage trend checker")
     parser.add_argument("--coverage-xml", default=str(ROOT / "reports" / "coverage.xml"))
-    parser.add_argument("--min-line-rate", type=float, default=0.05)
+    parser.add_argument("--min-line-rate", type=float, default=0.80,
+                        help="Sprint4 目标: line-rate ≥0.80 (v8.7 发布门禁 D9)")
     parser.add_argument("--baseline-json",
                         default=str(ROOT / "reports" / "ci" / "coverage_baseline.json"))
     parser.add_argument("--output", default=str(ROOT / "reports" / "ci" / "coverage_trend.json"))
@@ -141,10 +142,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         if not r.passed:
             print(f"  [FAIL] {r.cid}: {r.desc} -> {r.detail}")
     if n_fail == 0:
-        # 更新基线为当前值 (趋势上扬时固化)
+        # 更新基线为当前值 (趋势上扬时固化) + Sprint4 达标标记
         base_out = {
             "line_rate": line_rate,
             "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "sprint4_threshold_met": line_rate >= 0.80,
         }
         baseline_path.write_text(json.dumps(base_out, ensure_ascii=False, indent=2),
                                  encoding="utf-8")

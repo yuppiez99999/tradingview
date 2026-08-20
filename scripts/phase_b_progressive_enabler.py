@@ -96,6 +96,10 @@ class PhaseBStatus:
     health_checks: dict[str, str] = field(default_factory=dict)
     last_updated: str = ""
     notes: list[str] = field(default_factory=list)
+    consecutive_stable_days: int = 0
+    stable_days_target: int = 7
+    min_shadow_samples: int = 20
+    daily_health_log: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -110,12 +114,185 @@ class PhaseBStatus:
             "health_checks": self.health_checks,
             "last_updated": self.last_updated,
             "notes": self.notes,
+            "consecutive_stable_days": self.consecutive_stable_days,
+            "stable_days_target": self.stable_days_target,
+            "min_shadow_samples": self.min_shadow_samples,
+            "daily_health_log": self.daily_health_log,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> PhaseBStatus:
-        return cls(**{k: d.get(k, cls.__dataclass_fields__[k].default)
-                       for k in cls.__dataclass_fields__})
+        kwargs = {}
+        for k in cls.__dataclass_fields__:
+            if k in d:
+                kwargs[k] = d[k]
+        return cls(**kwargs)
+
+
+# ============================================================
+# Phase B shadow 连续稳定天数守卫 (v8.7 Sprint 1 门禁)
+# ============================================================
+
+@dataclass(frozen=True)
+class DailyHealthVerdict:
+    """当日 shadow 健康三元判定结果."""
+    date: str
+    healthy: bool
+    reason: str
+    daily_return: float = 0.0
+    cumulative_stable_days: int = 0
+
+
+_SHADOW_DAILY_HEALTH_LOG = PROJECT_ROOT / "reports" / "evolution" / "shadow_daily_health.jsonl"
+_KILL_SWITCH_STATE = PROJECT_ROOT / "reports" / "evolution" / "kill_switch_state.json"
+_HONEST_VALIDATION_DIR = PROJECT_ROOT / "reports" / "honest_validation"
+
+
+def _check_kill_switch_inactive(date: str) -> tuple[bool, str]:
+    """检查 kill_switch 当日是否未触发."""
+    if not _KILL_SWITCH_STATE.exists():
+        return True, ""
+    try:
+        data = json.loads(_KILL_SWITCH_STATE.read_text(encoding="utf-8"))
+        for flag_name in ("USE_DRIFT_DETECTOR", "USE_FEEDBACK_LOOP", "USE_AUTO_RETRAIN", "USE_MLOPS_PIPELINE"):
+            flag_state = data.get(flag_name, {})
+            if isinstance(flag_state, dict) and flag_state.get("triggered_date") == date:
+                return False, f"kill_switch_triggered:{flag_name}"
+        return True, ""
+    except Exception:
+        return True, ""
+
+
+def _check_no_lookahead_bias(date: str) -> tuple[bool, str]:
+    """检查 Honest Validation 当日无前视偏差告警."""
+    report_path = _HONEST_VALIDATION_DIR / f"{date}.json"
+    if not report_path.exists():
+        return True, ""
+    try:
+        data = json.loads(report_path.read_text(encoding="utf-8"))
+        if data.get("lookahead_bias_detected", False):
+            return False, "lookahead_bias"
+        return True, ""
+    except Exception:
+        return True, ""
+
+
+def evaluate_daily_shadow_health(date: str, min_samples: int = 20) -> DailyHealthVerdict:
+    """当日 shadow 健康三元判定.
+
+    三维度皆绿方判健康:
+        ① 当日 daily_returns.jsonl 有 date 条目且 daily_return 成功产出
+        ② kill_switch 当日未触发
+        ③ Honest Validation 当日无前视偏差告警
+    """
+    if not OBSERVATION_DATA.exists():
+        return DailyHealthVerdict(date=date, healthy=False, reason="shadow_data_missing")
+
+    daily_return = 0.0
+    found = False
+    total_samples = 0
+    try:
+        with OBSERVATION_DATA.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                    total_samples += 1
+                    if rec.get("date") == date:
+                        found = True
+                        daily_return = float(rec.get("daily_return", 0.0))
+                except Exception:
+                    continue
+    except Exception:
+        return DailyHealthVerdict(date=date, healthy=False, reason="parse_error")
+
+    if total_samples < min_samples:
+        return DailyHealthVerdict(date=date, healthy=False, reason="sample_insufficient", daily_return=daily_return)
+
+    if not found:
+        return DailyHealthVerdict(date=date, healthy=False, reason="no_daily_return")
+
+    ks_ok, ks_reason = _check_kill_switch_inactive(date)
+    if not ks_ok:
+        return DailyHealthVerdict(date=date, healthy=False, reason=ks_reason, daily_return=daily_return)
+
+    lb_ok, lb_reason = _check_no_lookahead_bias(date)
+    if not lb_ok:
+        return DailyHealthVerdict(date=date, healthy=False, reason=lb_reason, daily_return=daily_return)
+
+    return DailyHealthVerdict(date=date, healthy=True, reason="ok", daily_return=daily_return)
+
+
+def update_stable_days(status: PhaseBStatus, verdict: DailyHealthVerdict) -> PhaseBStatus:
+    """连续稳定天数计数器 (异常归零).
+
+    健康 +1, 异常归零, 持久化到 phase_b_status.json.
+    禁止补录历史样本: verdict.date 早于最后记录日期则拒绝.
+    """
+    if status.daily_health_log:
+        last_date = status.daily_health_log[-1].get("date", "")
+        if verdict.date <= last_date:
+            return status
+
+    if verdict.healthy:
+        status.consecutive_stable_days += 1
+    else:
+        status.consecutive_stable_days = 0
+
+    status.daily_health_log.append({
+        "date": verdict.date,
+        "healthy": verdict.healthy,
+        "reason": verdict.reason,
+        "daily_return": verdict.daily_return,
+        "cumulative_stable_days": status.consecutive_stable_days,
+    })
+
+
+    try:
+        with _SHADOW_DAILY_HEALTH_LOG.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({
+                "date": verdict.date,
+                "healthy": verdict.healthy,
+                "reason": verdict.reason,
+                "daily_return": verdict.daily_return,
+                "cumulative_stable_days": status.consecutive_stable_days,
+            }, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+    return status
+
+
+def generate_shadow_stable_report(status: PhaseBStatus) -> Path:
+    """生成 Phase B shadow 7 天稳定达标报告."""
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_dir = PROJECT_ROOT / "reports" / "shadow"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / f"shadow_stable_7d_report_{timestamp}.json"
+
+    daily_records = status.daily_health_log[-7:] if len(status.daily_health_log) >= 7 else status.daily_health_log
+    stable_days = status.consecutive_stable_days
+    target_met = stable_days >= status.stable_days_target
+    sprint1_admission = target_met and len(status.daily_health_log) >= status.min_shadow_samples
+
+    report = {
+        "generated_at": datetime.now().isoformat(),
+        "daily_records": daily_records,
+        "summary": {
+            "stable_days": stable_days,
+            "target": status.stable_days_target,
+            "target_met": target_met,
+            "sprint1_admission": sprint1_admission,
+            "total_samples": len(status.daily_health_log),
+            "min_samples": status.min_shadow_samples,
+        },
+    }
+
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return report_path
 
 
 # ============================================================

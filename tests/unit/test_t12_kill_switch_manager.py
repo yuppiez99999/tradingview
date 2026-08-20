@@ -18,7 +18,7 @@ class TestThresholdAndLevelClassification:
         assert ks.thresholds[KillLevel.LIQUIDATE] == 0.95
 
     def test_invalid_threshold_raises(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             KillSwitchManager(thresholds={
                 KillLevel.CAUTION: 0.80,    # CAUTION 比 REDUCTION 还高 → 违反约束
                 KillLevel.REDUCTION: 0.50,

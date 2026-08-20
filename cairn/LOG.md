@@ -2,6 +2,67 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-20 · ETF期权对冲子模型排期计划加入 ROADMAP
+
+- **排期**: Phase 1(已完成) → Phase 2(08-21~09-05回测验证) → Phase 3(09-06~10-05 shadow 30天) → Phase 4(10-06~11-05灰度5%→25%) → Phase 5(11-06~12-31全量+年度报告)
+- **依赖**: Phase 4 需 Wave 7 Sprint 3 实盘验证四件套; Phase 5 需 v8.7 发布
+- **风险缓解**: 期权流动性/IV飙升成本/极端场景突破15%(回撤熔断配合)/标的退市/与主组合相关性
+- **指针**: `cairn/ROADMAP.md` § ETF期权对冲再平衡子模型排期 · `cairn/etf-option-hedge-model.md` §十一
+
+## 2026-08-20 · ETF期权对冲再平衡子模型构建 ✅
+
+- **需求**: 以本系统构建A股ETF+期权对冲的自我再平衡模型，年化≥8%/回撤<15%
+- **现状评估**: 系统目标已对齐(`config/portfolio.yaml:4`)，V9实测年化19.62%/回撤9.95%已超目标，但当前组合偏个股+商品期货
+- **方案**: 新建独立200万纯ETF子组合(14 ETF/100%纯ETF) + ETF期权对冲(4标的认沽保护) + 自我再平衡(五阶段)
+- **交付**:
+  - `config/etf_option_subportfolio.yaml` — 子组合配置(宽基60%+行业25%+防御15%)
+  - `etf_option_hedge_rebalancer.py` — 编排器(复用protective_put_engine/broad_based_etf_policy/portfolio_optimizer/drawdown_breaker/kill_switch)
+  - `tests/unit/test_etf_option_hedge_rebalancer_unit.py` — 31/31 passed
+- **验证**: 回撤熔断L0-L4分级正确 | 期权对冲4张认沽订单年化成本4.4% | 压力测试裸敞口6/6突破→对冲后3/6突破(2020疫情11.9%/2022俄乌12.7%/2024地产13.5%已保护到15%以内) | HALT时再平衡正确跳过
+- **指针**: `cairn/etf-option-hedge-model.md` · `config/etf_option_subportfolio.yaml` · `etf_option_hedge_rebalancer.py`
+
+## 2026-08-20 · Phase B 观察期达标 + B1 自动启用 (Stage 1 drift_monitor) ✅
+
+- **触发**: 用户汇报口径为 08-22 满 21 天 / 08-25 启动 B2，与调度器实况偏差 2 天 → 校正决定先触发今日 EOD
+- **今日 EOD**: `run_daily_eod_workflow.py --date 2026-08-20` 12 阶段全成功 (EXIT_CODE=0), daily_return=-0.0196%, source=w13a_real_market_feed
+- **观察期达标**: `daily_returns.jsonl` 20→21 条 (07-23~08-20), 真实样本 21/20 ✅, 累计 -0.5812%
+- **调度器自动推进**: `phase_b_progressive_enabler.py --check` 触发状态机推进 — stage: waiting_observation → **drift_monitor**, flags_enabled: {USE_DRIFT_DETECTOR: True, USE_FEEDBACK_LOOP: False}
+- **进度刷新**: `observation_tracker.py` 重生成 `observation_progress.json` — days_completed=21/21, ready_for_phase_b=True, estimated_completion=2026-08-20
+- **状态文件**: `reports/evolution/phase_b_status.json` — current_stage_start=2026-08-20, current_stage_days=0/3, consecutive_stable_days=0, stable_days_target=7
+- **修正后时间线** (比用户原汇报提前 2 天):
+  - 08-20 今日: B1 启用 ✅ (drift_monitor 只读监控)
+  - 08-21/22/23 EOD 后: stable_days=1/2/3
+  - 08-23: B1 稳定 3 天达标 → `--advance` 推进 B2 (abtest shadow)
+  - 08-26: B2 稳定 3 天 → B3 (auto_retrain)
+  - 08-29: B3 稳定 3 天 → B4 (orchestrator)
+  - 09-01 前完成 Wave 2 (原排期 09-05)
+- **健康检查**: FAIL (符合预期, current_stage_days=0/3 不足) — 每日 EOD 后由 `update_stable_days()` 累积, 异常归零
+- **MVSK/qlib shadow**: 已提前开始每日累积 (原排期 P5-2 09-13~10-12), 正向偏差, 可吸收到 Sprint 2 决策材料
+- **指针**: `15_每日工作流/run_daily_eod_workflow.py` · `scripts/phase_b_progressive_enabler.py` · `reports/evolution/phase_b_status.json` · `reports/shadow/daily_returns.jsonl` · `cairn/eod-scheduled-task-fix-20260819.md`
+
+## 2026-08-20 · v8.7 三门禁冲刺: D9 覆盖率达标 0.833≥0.80 ✅
+
+- **D9 达标**: 全量 tests/unit 13399 passed, line_rate=0.833, branch_rate=0.7605 — reports/coverage.xml + coverage_baseline.json (sprint4_threshold_met=true)
+- **3.6 补测**: 第1轮 cvar(47)+risk_bus(21)+kill_switch_mgr(19)=87 passed; 第2轮 tail_risk_evt(10)+order_lifecycle(10)+option_exercise_risk(10)+risk_budget_engine(7)=37 passed
+- **bug 修复**: test_t12_kill_switch_manager.py 期望 AssertionError→ValueError (kill_switch_manager 显式 raise)
+- **三门禁状态**: D9 ✅ 0.833 / D10 ❌ 2620+2691行待拆 / D11 ❌ 0/7待积累 — check_v87_release_gate_summary() all_passed=false
+- **下一步**: 15:00 后执行任务2 超大文件拆分 (institutional_pipeline_runner.py + automated_execution_system.py)
+
+## 2026-08-20 · v8.7 三门禁冲刺: D9/D10/D11 注册 + V87GateSummary 汇总
+
+- **1.1-1.5 Phase B shadow 守卫**: PhaseBStatus 扩展 4 字段 + DailyHealthVerdict + evaluate_daily_shadow_health + update_stable_days (异常归零) — scripts/phase_b_progressive_enabler.py
+- **1.6 D11 门禁**: _check_d11_phase_b_shadow_stable() 注册到 engineering_debt_gate.py main() checks (阻断 RED)
+- **1.7 7天报告**: generate_shadow_stable_report() 输出 reports/shadow/shadow_stable_7d_report_*.json
+- **2.7 D10 门禁**: _check_d10_oversized_file_split() 注册 (institutional_pipeline_runner.py 2620行 + automated_execution_system.py 2691行, 目标 ≤2000)
+- **3.1 D9 门禁**: _check_d9_coverage_sprint4_target() 注册 (line_rate 0.6855 < 0.80, Sprint4 目标)
+- **3.2-3.5 检出器**: _find_uncovered_p02_branches.py + _detect_lookahead_tests.py (检出90处) + _detect_mock_inflation.py + _detect_coverage_stagnation.py
+- **3.7-3.9 配置升级**: _check_coverage_trend.py --min-line-rate 0.05→0.80 + sprint4_threshold_met 字段 + _generate_coverage_sprint4_report.py
+- **4.1-4.3 v8.7 汇总**: V87GateSummary frozen dataclass + check_v87_release_gate_summary() → reports/v87_release_gate_summary.json
+- **5.1/5.3/5.4 测试**: test_phase_b_shadow_stable.py (20 passed) + test_coverage_sprint4_gate.py (19 passed) + test_v87_release_gate_summary.py (12 passed)
+- **6.2 CI 配置**: quality-gate.yml 追加 Engineering debt gate 步骤 (D9+D10+D11+v8.7 summary, 退出码2阻断)
+- **门禁运行结果**: D9/D10/D11 均未达标 (符合预期), 判定 [BLOCK] v8.7 发布阻断, 退出码 2
+- **待办**: 任务2 超大文件拆分(非交易时段) / 任务3.6 覆盖率补测→0.80 / 任务5.2 拆分执行器测试
+
 ## 2026-08-20 · Phase C 战略级: OpenTelemetry + mypy strict + v8.7 Release Notes
 
 - **4.1b OpenTelemetry**: utils/observability/tracing.py — trace_order/trace_risk/trace_pipeline span 埋点 (OTel 1.44.0)

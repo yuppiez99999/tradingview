@@ -348,7 +348,7 @@ class TradingAgentsBridge:
         url = f"{self._base_url}{path}"
         req = Request(url, method="GET")
         try:
-            with urlopen(req, timeout=timeout or self.timeout) as resp:
+            with urlopen(req, timeout=timeout or self.timeout) as resp:  # nosec B310  # TradingAgents API 合法请求
                 body = resp.read().decode("utf-8")
                 return json.loads(body)
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:

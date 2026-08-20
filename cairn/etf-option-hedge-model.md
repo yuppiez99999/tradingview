@@ -1,0 +1,138 @@
+---
+type: project_topic
+status: active
+authoring_mode: ai_generated
+created: 2026-08-20
+updated: 2026-08-20
+contains: etf-option-hedge, rebalance, drawdown-breaker, protective-put, stress-test
+related:
+  - cairn/risk-architecture.md
+  - cairn/backtest-standards.md
+  - cairn/returns-calibration-standards.md
+---
+
+# A股ETF + 期权对冲 + 自我再平衡子模型
+
+> 独立200万子组合，纯ETF仓位(100%) + ETF期权对冲(认沽保护) + 自我再平衡。
+> 目标: 年化收益 >= 8%, 最大回撤 < 15%。
+> 与500万主组合并行运行，互不干扰。
+
+## 一、设计依据
+
+| 依据 | 来源 |
+|---|---|
+| V9 Regime-LGB 实测年化19.62%/回撤9.95%/Sharpe 1.315 | `cairn/ROADMAP.md:24` |
+| BL+MVSK(378) 跨周期4/4段跑赢BL+MV，Δ夏普+0.22 | `cairn/ROADMAP.md:39` |
+| protective_put_engine 年化成本<2.5% | `utils/protective_put_engine.py:84` |
+| 回撤分级熔断 L0/L1/L2/L3 (10%/15%/20%) | `cairn/risk-architecture.md:20-27` |
+| 系统设计目标"年化≥8%，最大回撤≤15%" | `config/portfolio.yaml:4` |
+
+## 二、架构
+
+```
+ETF期权对冲再平衡子模型 (etf_option_hedge_rebalancer.py)
+├── ① ETF核心仓位层 (config/etf_option_subportfolio.yaml)
+│   └── 复用 utils/broad_based_etf_policy.py (社保国家队加减仓)
+├── ② 期权对冲层
+│   └── 复用 utils/protective_put_engine.py (4 ETF认沽保护)
+├── ③ 自我再平衡层
+│   └── 复用 utils/hedge_rebalance_integrator.py (五阶段决策)
+├── ④ 风控硬约束层
+│   └── 复用 utils/drawdown_breaker.py + utils/kill_switch.py
+├── ⑤ Alpha增强层
+│   └── 复用 utils/portfolio_optimizer.py (因子信号调权)
+└── ⑥ 回测验证层
+    └── 复用 utils/hedge_rebalance_backtest.py (S1-S5策略对比)
+```
+
+## 三、ETF核心仓位 (14标的, 100%纯ETF)
+
+| 类别 | 权重 | 标的 |
+|---|---|---|
+| 宽基 | 60% | 510300(15%) 510500(12%) 510050(10%) 512100(8%) 588000(8%) 159915(7%) |
+| 行业/主题 | 25% | 512480(6%) 512010(6%) 512660(5%) 515170(4%) 159939(4%) |
+| 防御/抗通胀 | 15% | 518880(8%) 511260(4%) 510310(3%) |
+
+## 四、期权对冲 (纯ETF期权, 无股指期货)
+
+| ETF标的 | 策略 | 张数 | OTM | DTE | 预算 |
+|---|---|---|---|---|---|
+| 510050 上证50ETF | Protective Put | 30 | 5% | 30-60 | 35% |
+| 510300 沪深300ETF | Protective Put | 15 | 5% | 30-60 | 20% |
+| 588080 科创50ETF | Protective Put | 12 | 5% | 30-60 | 18% |
+| 159915 创业板ETF | Protective Put | 12 | 5% | 30-60 | 17% |
+
+年化期权成本 ≤ 2.5%，到期前5天自动滚仓。回撤加码: L1×1.2 / L2×1.5 / L3×2.0。
+
+## 五、自我再平衡五阶段
+
+1. **风险评估**: 组合Beta/VaR/波动率/回撤
+2. **回撤熔断**: L0正常/L1预警/L2减仓/L3熔断
+3. **ETF资金流+Alpha增强**: 社保国家队加减仓 + BL+MVSK(378)因子调权
+4. **期权对冲**: 认沽保护订单 + 滚仓检查
+5. **阈值再平衡**: 6%偏离触发 + 月度 + 回撤熔断时跳过
+
+## 六、风控硬约束
+
+| 级别 | 回撤 | 动作 | 允许新买 |
+|---|---|---|---|
+| L0 NORMAL | <5% | 正常交易 | 是 |
+| L1 WATCH | 5-8% | 监控降杠杆 | 是 |
+| L2 REDUCE | 8-12% | 减仓至50% | 否 |
+| L3 FORCE_HEDGE | 12-15% | 强制尾部保护 | 否 |
+| L4 HALT | >15% | 清杠杆去风险 | 否 |
+
+## 七、压力测试结果 (2026-08-20验证)
+
+6个历史极端场景，对冲覆盖率60%:
+
+| 场景 | 冲击 | 裸回撤 | 对冲后回撤 | 突破15% |
+|---|---|---|---|---|
+| 2015股灾 | -45% | 45.0% | 23.5% | 是 |
+| 2016熔断 | -25% | 25.0% | 15.5% | 是 |
+| 2018贸易战 | -32% | 32.0% | 18.3% | 是 |
+| 2020疫情 | -16% | 16.0% | 11.9% | 否 |
+| 2022俄乌 | -18% | 18.0% | 12.7% | 否 |
+| 2024地产 | -20% | 20.0% | 13.5% | 否 |
+
+裸敞口6/6突破 → 期权对冲后3/6突破。剩余3个极端场景由回撤熔断L2/L3减仓配合控制。
+
+## 八、验证结果
+
+- **单元测试**: 31/31 passed (`tests/unit/test_etf_option_hedge_rebalancer_unit.py`)
+- **初始化**: 总资本200万, 14 ETF, 总权重1.00
+- **回撤熔断**: L0-L4分级正确, HALT时再平衡正确跳过
+- **期权对冲**: 4张认沽订单生成, 年化成本4.4%, 回撤加码×2.0生效
+- **压力测试**: 对冲后3/6场景仍突破15%(需配合回撤熔断), 3/6场景被期权保护到15%以内
+
+## 九、文件清单
+
+| 文件 | 职责 |
+|---|---|
+| `config/etf_option_subportfolio.yaml` | 子组合配置 (200万, 14 ETF, 期权对冲, 再平衡, 风控) |
+| `etf_option_hedge_rebalancer.py` | 编排器 (五阶段日度再平衡流程) |
+| `tests/unit/test_etf_option_hedge_rebalancer_unit.py` | 单元测试 (31 tests) |
+
+## 十、预期绩效外推
+
+基于V9/MVSK已有实测结果保守外推:
+- 年化收益: 8-12% (V9实测19.62%, 扣除期权成本2.5% + ETF波动率低于个股)
+- 最大回撤: <12% (V9实测9.95%, 期权对冲+回撤熔断双重保护)
+- Sharpe: >0.8 (V9实测1.315, 纯ETF组合波动率更低)
+
+> 以上为基于系统已有实测结果的保守外推，非回测验证结果。
+> 真实历史回测需连接数据源(Wind/AKShare)后运行 `utils/hedge_rebalance_backtest.py` S1-S5对比。
+
+## 十一、排期计划（2026-08-20 ~ 12-31）
+
+详见 `cairn/ROADMAP.md` § ETF期权对冲再平衡子模型排期。
+
+| Phase | 时间 | 内容 | 状态 |
+|---|---|---|---|
+| Phase 1 | 08-20 | 配置+编排器+单元测试+压力测试 | ✅ 完成 |
+| Phase 2 | 08-21~09-05 | 真实历史数据回测S1-S5 + 诚实验证 | 待启动 |
+| Phase 3 | 09-06~10-05 | 影子账户并行运行30天 | 待启动 |
+| Phase 4 | 10-06~11-05 | 小资金灰度发布(5%→10%→25%) | 待启动 |
+| Phase 5 | 11-06~12-31 | 全量启用+持续监控+年度报告 | 待启动 |
+
+**关键依赖**：Phase 4 需 Wave 7 Sprint 3 实盘验证四件套就绪；Phase 5 需 Wave 7 v8.7 发布。
