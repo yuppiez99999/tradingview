@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-20 · Phase C 战略级: OpenTelemetry + mypy strict + v8.7 Release Notes
+
+- **4.1b OpenTelemetry**: utils/observability/tracing.py — trace_order/trace_risk/trace_pipeline span 埋点 (OTel 1.44.0)
+- **4.1a mypy strict**: mypy.ini — observability 全strict + risk 启用 disallow_any_generics (Phase C C2)
+- **4.3 v8.7 门禁**: Sprint 1 门禁 3/4 达标 (覆盖率0.6855✅/宽泛except清零✅/workflow行数✅), Phase B shadow 稳定天数 0/7 待达标
+- **4.3 Release Notes**: docs/v87_release_notes_20260820.md 发布验收清单草案
+- **commit**: `f266f11f`
+- **待办**: 覆盖率→0.80 / 超大文件拆分 / mypy strict验证 / Phase B shadow稳定运行
+
 ## 2026-08-20 · Phase B 可观测性闭环: structlog + pytest-benchmark
 
 - **structlog 接入**: StructuredLogger 升级为 structlog JSON 后端 + 标准logging回退 + bind() 上下文绑定
