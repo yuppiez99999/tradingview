@@ -539,6 +539,7 @@ def run_lgb_tscv_training(
     symbols: list[tuple] | None = None,
     force_retrain: bool = False,
     config: dict | None = None,
+    predictor: str = "lightgbm",
 ) -> dict[str, Any]:
     """执行 LightGBM + TSCV 训练
 
@@ -546,10 +547,30 @@ def run_lgb_tscv_training(
         symbols: 标的清单
         force_retrain: 强制重训
         config: 训练配置
+        predictor: 预测器 (lightgbm/timesfm/hybrid, S2 集成)
 
     Returns:
         训练结果汇总
     """
+    # S2: timesfm 预测器可用性检查 (向后兼容, 默认 lightgbm 不受影响)
+    timesfm_predictor = None
+    if predictor in ("timesfm", "hybrid"):
+        try:
+            from utils.timesfm_predictor import TimesFMPredictor
+
+            timesfm_predictor = TimesFMPredictor()
+            if not timesfm_predictor.available:
+                logger.warning(
+                    "predictor=%s 但 TimesFM 不可用 (未安装/预检失败), 降级到 lightgbm",
+                    predictor,
+                )
+                if predictor == "timesfm":
+                    predictor = "lightgbm"
+            else:
+                logger.info("TimesFM 预测器可用, predictor=%s", predictor)
+        except (ImportError, AttributeError, ModuleNotFoundError, OSError) as exc:
+            logger.warning("TimesFMPredictor 导入失败, 降级到 lightgbm: %s", exc)
+            predictor = "lightgbm"
     if config is None:
         config = LGB_TSCV_CONFIG
     if symbols is None:
@@ -932,6 +953,12 @@ def main() -> None:
     )
     parser.add_argument("--force-retrain", action="store_true", help="强制重训所有标的")
     parser.add_argument("--symbols", nargs="+", default=None, help="指定标的代码 (默认全部持仓)")
+    parser.add_argument(
+        "--predictor",
+        choices=["lightgbm", "timesfm", "hybrid"],
+        default="lightgbm",
+        help="预测器: lightgbm(默认) / timesfm(零样本) / hybrid(融合, S2 集成)",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -953,6 +980,7 @@ def main() -> None:
     result = run_lgb_tscv_training(
         symbols=symbols,
         force_retrain=args.force_retrain,
+        predictor=args.predictor,
     )
 
     if result["status"] == "OK":

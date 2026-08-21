@@ -274,6 +274,15 @@ class GLM5DecisionEngine:
 要求: 1) 专业客观 2) 数据支撑 3) 风险提示 4) 格式清晰。
 系统约束: 单标 ≤10%，板块 ≤25%，止损 -8%，止盈 +20%，现金 ≥5%。"""
 
+        # S3: 价值纪律层 (ai-berkshire 四大师对抗 + 去劣 + 镜子), 失败旁路
+        self._discipline_layer = None
+        try:
+            from utils.value_discipline_layer import ValueDisciplineLayer
+
+            self._discipline_layer = ValueDisciplineLayer()
+        except (ImportError, AttributeError, ModuleNotFoundError, OSError) as exc:
+            logger.warning("价值纪律层未启用: %s", exc)
+
     def make_decisions(
         self,
         market_data: Dict[str, Any],
@@ -436,6 +445,7 @@ class GLM5DecisionEngine:
                 market_data=market_data,
                 portfolio_data=portfolio_data,
                 risk_rules=risk_rules,
+                scene=scene,
             )
 
             # 补充路由元数据
@@ -565,6 +575,7 @@ class GLM5DecisionEngine:
         market_data: Dict,
         portfolio_data: Dict,
         risk_rules: Optional[Dict],
+        scene: str = "intraday_decision",
     ) -> DecisionResult:
         """解析 GLM-5 的输出结果"""
 
@@ -588,6 +599,26 @@ class GLM5DecisionEngine:
             avg_confidence = sum(s.confidence for s in trading_signals) / len(trading_signals)
         else:
             avg_confidence = 0.0
+
+        # S3: 价值纪律层叠加 (四大师对抗 + 去劣硬否决 + 镜子测试), 向后兼容可开关
+        discipline = getattr(self, "_discipline_layer", None)
+        if discipline and discipline.enabled and scene in discipline.config.get("scenes", []):
+            try:
+                fin_map = {getattr(s, "code", ""): {} for s in trading_signals}
+                meta_map = {getattr(s, "code", ""): {} for s in trading_signals}
+                disciplined = discipline.apply_batch(trading_signals, fin_map, meta_map)
+                trading_signals = [d.signal for d in disciplined]
+                for d in disciplined:
+                    risk_alerts.extend(d.extra_alerts)
+                if disciplined:
+                    factor = sum(
+                        d.consensus * (1.0 if d.mirror_pass else 0.0)
+                        for d in disciplined
+                    ) / len(disciplined)
+                    avg_confidence *= factor
+                raw_analysis += discipline.render_summary(disciplined)
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as exc:
+                logger.warning("价值纪律层叠加失败, 旁路: %s", exc)
 
         return DecisionResult(
             timestamp=datetime.now().isoformat(),
