@@ -7,7 +7,7 @@
 **实盘状态**：✅ 已部署（2026-07-28）
 **生产基线**：Python 3.14.4（junction `C:\QuantSys`），兼容 Python 3.9+
 **当前阶段**：v8.7 Sprint 1 冲刺中（3/4 门禁达标，目标 2026-12-31 发布）
-**最近更新**：2026-08-20 — ETF期权对冲子模型Phase 1完成 + Phase B观察期达标B1自动启用 + v8.7三门禁D9覆盖率0.833达标 + 代码质量工业级修复(ruff 1139→169) + 执行层自动闭环 + MVSK高阶矩优化生产就绪
+**最近更新**：2026-08-21 — 代码质量修复(F401×6/BLE001×5/T201×2/F841×1/F541×1 + 硬编码路径×2) ruff 223→211 + ETF期权对冲S2/S3集成(TimesFM预测器+价值纪律层) + 过期文件清理(20个) + Phase 1完成 + Phase B观察期达标B1自动启用 + v8.7三门禁D9覆盖率0.833达标 + 执行层自动闭环 + MVSK高阶矩优化生产就绪
 
 ---
 
@@ -36,7 +36,7 @@
 
 ---
 
-## v8.7 最新进展（2026-08-20）
+## v8.7 最新进展（2026-08-21）
 
 ### ETF期权对冲再平衡子模型 Phase 1 ✅
 独立200万纯ETF子组合（14 ETF/100%纯ETF）+ ETF期权对冲（4标的认沽保护）+ 自我再平衡（五阶段）。
@@ -65,12 +65,13 @@
 - **调度器自动推进**：`phase_b_progressive_enabler.py --check` 触发状态机推进 — stage: waiting_observation → **drift_monitor**
 - **修正后时间线**：08-20 B1启用 ✅ → 08-23 B2(abtest shadow) → 08-26 B3(auto_retrain) → 08-29 B4(orchestrator) → 09-01前完成Wave 2
 
-### 代码质量工业级修复（ruff 1139→169，85%降幅）
+### 代码质量工业级修复（ruff 1139→211，81%降幅）
 - **Phase A1+A2**：torch collection修复 + 测试回归修复（13,959全收集）
 - **Phase A3**：35个核心模块类型注解批量补齐（ANN 908→397）
 - **Phase A4**：ruff风格清理3步走（628→434，<500达标）
 - **Wave 1**：安全+收敛+ANN（ruff 434→206，bandit清零）
 - **Wave 2**：C901豁免+P3清理（ruff 206→169，<300达标）
+- **08-21修复**：F401×6 + F541×1 + F841×1 + BLE001×5 + T201×2 + 硬编码路径×2（ruff 223→211，commit c8bf9ca8）
 - **对标**：Two Sigma/Citadel工业级12维度，详见 `cairn/code-quality-industrial-gap-20260819.md`
 
 ### Phase B 可观测性闭环
@@ -541,7 +542,7 @@ quant-remote eod         # 触发盘后
 
 | 版本 | 日期 | 关键变更 |
 |------|------|----------|
-| **v8.7** | 2026-08-20 ~ 12-31 | ETF期权对冲子模型Phase1 + Phase B观察期达标B1启用 + 三门禁D9覆盖率0.833 + 代码质量ruff 1139→169 + 执行层自动闭环+双模型判断 + MVSK P1-P4生产就绪 + 可观测性structlog+pydantic+OTel + 经典理论覆盖度审计 |
+| **v8.7** | 2026-08-21 ~ 12-31 | ETF期权对冲子模型Phase1+S2/S3集成(TimesFM+价值纪律层) + Phase B观察期达标B1启用 + 三门禁D9覆盖率0.833 + 代码质量ruff 1139→211(08-21修复F401/BLE001/T201/硬编码路径) + 执行层自动闭环+双模型判断 + MVSK P1-P4生产就绪 + 可观测性structlog+pydantic+OTel + 经典理论覆盖度审计 + 过期文件清理(20个) |
 | v8.6.15 | 2026-08-05 | U1-U5升级（时序IC/ICIR + 涨跌停/停牌 + 复权因子 + E2E测试）+ VolRegimeWeighter + 自我进化框架 + EOD阶段4.5B Shadow状态同步 |
 | v8.6.14 | 2026-08-02 | 因子库对标GTJA191（11大类 + 共线修复12→0对）+ daily_trade_executor双Bug修复 + 安全合规加固 + 174处except:pass补降级注释 |
 | v8.6.13 | 2026-08-01 | 气象因子引擎（7因子体系 + apizero→Open-Meteo降级链 + WeatherAgent第6位专家）+ Scrapling反爬 + TradingAgents-CN桥接 |
